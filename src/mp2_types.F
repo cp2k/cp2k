@@ -221,7 +221,8 @@ MODULE mp2_types
       REAL(KIND=dp)                                      :: frac_aux_mos = 0.0_dp
       INTEGER                                            :: num_omega_points = 0
       INTEGER                                            :: bse_spin_config = 0, &
-                                                            bse_method = 0, &
+                                                            bse_diag_method = 0, &
+                                                            bse_approx = 0, &
                                                             num_exc_en = 0, &
                                                             num_print_exc = 0, &
                                                             num_add_start_z_space = 0, &

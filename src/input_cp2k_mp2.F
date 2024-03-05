@@ -25,8 +25,8 @@ MODULE input_cp2k_mp2
                                               silent_print_level
    USE cp_units,                        ONLY: cp_unit_to_cp2k
    USE input_constants,                 ONLY: &
-        bse_fulldiag_abba, bse_fulldiag_both, bse_fulldiag_tda, bse_iter_abba, bse_iter_both, &
-        bse_iter_both_cond, bse_iter_en_cond, bse_iter_res_cond, bse_iter_tda, bse_singlet, &
+        bse_fulldiag, bse_iterdiag, bse_tda, bse_abba, bse_both, &
+        bse_iter_both_cond, bse_iter_en_cond, bse_iter_res_cond, bse_singlet, &
         bse_triplet, do_eri_gpw, do_eri_mme, do_eri_os, do_potential_coulomb, do_potential_id, &
         do_potential_long, do_potential_mix_cl, do_potential_short, do_potential_truncated, &
         do_potential_tshpsc, eri_default, gaussian, gw_no_print_exx, gw_pade_approx, gw_print_exx, &
@@ -1221,9 +1221,14 @@ CONTAINS
 
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, __LOCATION__, name="BSE", &
-                          description="Parameters influencing the Bethe-Salpeter calculations on "// &
-                          "top of GW eigenvalues.", &
-                          n_keywords=7, n_subsections=2, repeats=.FALSE.)
+         description="Parameters for a calculation solving the Bethe-Salpeter equation "// &
+         " (BSE) for electronic excitations. The full BSE "// &
+         "$\begin{pmatrix}A &  B\\B &  A\end{pmatrix}\begin{pmatrix}X^{(n)}\\Y^{(n)}\end{pmatrix} ="// & 
+         "\Omega^{(n)}\begin{pmatrix}1 &  0\\0 &  -1\end{pmatrix}\begin{pmatrix}X^{(n)}\\Y^{(n)}\end{pmatrix}$ "// &
+         "enables of electronic excitation energies $\Omega^{(n)}$. The BSE can be solved by diagonalizing "// &
+         "the full ABBA-matrix or by setting B=0, i.e. within the Tamm-Dancoff approximation (TDA)."// &
+         "Preliminary reference: J. Chem. Phys. 152, 044105 (2020); https://doi.org/10.1063/1.5123290", &
+         n_keywords=8, n_subsections=2, repeats=.FALSE.)
 
       NULLIFY (keyword)
 
@@ -1235,56 +1240,70 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="SPIN_CONFIG", &
-                          description="Desired spin configuration of exciton", &
+                          description="Choose between calculation of singlet or triplet excitation (cf. given Reference above).", &
                           usage="SPIN_CONFIG TRIPLET", &
                           enum_c_vals=s2a("SINGLET", "TRIPLET"), &
                           enum_i_vals=(/bse_singlet, bse_triplet/), &
-                          enum_desc=s2a("Uses singlet configuration (including exchange interaction) for exciton.", &
-                                        "Uses triplet configuration (no exchange interaction) for exciton."), &
+                          enum_desc=s2a("Computes singlet excitations.", &
+                                        "Computes triplet excitations."), &
                           default_i_val=bse_singlet)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="BSE_METHOD", &
+      CALL keyword_create(keyword, __LOCATION__, name="BSE_DIAG_METHOD", &
                           description="Method for BSE calculations. "// &
-                          "Choose between TDA/ABBA and full/iterative diagonalization.", &
-                          usage="&BSE_METHOD FULLDIAG_TDA", &
-                          enum_c_vals=s2a("FULLDIAG_TDA", "FULLDIAG_ABBA", "FULLDIAG_BOTH", "ITER_TDA", "ITER_ABBA", "ITER_BOTH"), &
-                          enum_i_vals=(/bse_fulldiag_tda, bse_fulldiag_abba, bse_fulldiag_both, bse_iter_tda, bse_iter_abba, &
-                                        bse_iter_both/), &
-                          enum_desc=s2a("Fully diagonalizes the A matrix, i.e. within the Tamm-Dancoff approximation.", &
-                                        "Fully diagonalizes the A and the ABBA matrix.", &
-                                        "Fully diagonalizes the ABBA matrix.", &
-                                        "Iteratively diagonalizes the A matrix, i.e. within the Tamm-Dancoff approximation.", &
-                                        "Iteratively diagonalizes the ABBA matrix.", &
-                                        "Iteratively diagonalizes the A and the ABBA matrix."), &
-                          default_i_val=bse_fulldiag_tda)
+                          "Choose between full or iterative diagonalization.", &
+                          usage="&BSE_DIAG_METHOD FULLDIAG", &
+                          enum_c_vals=s2a("FULLDIAG", "ITERDIAG"), &
+                          enum_i_vals=(/bse_fulldiag, bse_iterdiag/), &
+                          enum_desc=s2a("Fully diagonalizes the BSE matrices within the chosen level of approximation.", &
+                                        "Iterative diagonalization has not been implemented yet."), &
+                          default_i_val=bse_fulldiag)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="BSE_CUTOFF_OCC", &
-                          description="Truncating occupied orbitals below given cutoff", &
-                          usage="BSE_CUTOFF_OCC 10.0", unit_str="eV", &
+      CALL keyword_create(keyword, __LOCATION__, name="BSE_APPROX", &
+                          description="Level of approximation applied to BSE calculations. "// &
+                          "Choose between Tamm Dancoff approximation (TDA) and diagonalization of the full ABBA-matrix.", &
+                          usage="&BSE_APPROX TDA", &
+                          enum_c_vals=s2a("TDA", "ABBA", "BOTH"), &
+                          enum_i_vals=(/bse_tda, bse_abba, bse_both/), &
+                          enum_desc=s2a("The TDA is applied, i.e. B=0.", &
+                                        "The ABBA-matrix is diagonalized, i.e. the TDA is not applied.", &
+                                        "The BSE is solved within the TDA (B=0) as well as for the full ABBA-matrix."), &
+                          default_i_val=bse_tda)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="ENERGY_CUTOFF_OCC", &
+                          description="Removing all orbitals with indices i,j from A_ia,jb and B_ia,jb with energy difference "// &
+                          "to HOMO level larger than the given energy cutoff, i.e. "// &
+                          "$\epsilon_{\mathrm{HOMO}}-\epsilon_a>\mathtt{ENERGY_CUTOFF_OCC}$"// & 
+                          "Can be used to accelerate runtime and reduce memory consumption.", &
+                          usage="ENERGY_CUTOFF_OCC 10.0", unit_str="eV", &
                           type_of_var=real_t, default_r_val=-1.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="BSE_CUTOFF_VIRT", &
-                          description="Truncating unoccupied orbitals above given cutoff", &
-                          usage="BSE_CUTOFF_VIRT 10.0", unit_str="eV", &
+      CALL keyword_create(keyword, __LOCATION__, name="ENERGY_CUTOFF_VIRT", &
+                          description="Removing all orbitals with indices a,b from A_ia,jb and B_ia,jb with energy difference "// &
+                          "to LUMO level larger than the given energy cutoff, i.e. "// &
+                          "$\epsilon_i-\epsilon_{\mathrm{LUMO}}>\mathtt{ENERGY_CUTOFF_VIRT}$"// & 
+                          "Can be used to accelerate runtime and reduce memory consumption.", &
+                          usage="ENERGY_CUTOFF_VIRT 10.0", unit_str="eV", &
                           type_of_var=real_t, default_r_val=-1.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="BSE_DEBUG_PRINT", &
-                          description="Activates debug prints in BSE calculations.", &
+                          description="Activates debug print statements in the BSE calculation.", &
                           usage="&BSE_DEBUG_PRINT .TRUE.", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="NUM_PRINT_EXC", &
-                          description="Number of printed excitation energies.", &
+                          description="Number of printed excitation energies. Does not affect computation time.", &
                           usage="NUM_PRINT_EXC 10", &
                           default_i_val=10)
       CALL section_add_keyword(section, keyword)

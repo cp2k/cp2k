@@ -43,7 +43,7 @@ MODULE bse_util
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'bse_util'
 
-   PUBLIC :: mult_B_with_W, redist_fm, truncate_fm, fm_write_thresh, print_BSE_start_flag, &
+   PUBLIC :: mult_B_with_W, fm_general_add_bse, truncate_fm, fm_write_thresh, print_BSE_start_flag, &
              deallocate_matrices_bse, comp_eigvec_coeff_BSE, sort_excitations, &
              estimate_BSE_resources, filter_eigvec_contrib, truncate_BSE_matrices
 
@@ -152,7 +152,7 @@ CONTAINS
 !> \param reordering ...
 !> \param mp2_env ...
 ! **************************************************************************************************
-   SUBROUTINE redist_fm(fm_out, fm_in, beta, nrow_secidx_in, ncol_secidx_in, &
+   SUBROUTINE fm_general_add_bse(fm_out, fm_in, beta, nrow_secidx_in, ncol_secidx_in, &
                         nrow_secidx_out, ncol_secidx_out, unit_nr, reordering, mp2_env)
 
       TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_out, fm_in
@@ -163,7 +163,7 @@ CONTAINS
       INTEGER, DIMENSION(4)                              :: reordering
       TYPE(mp2_type), INTENT(INOUT)                      :: mp2_env
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'redist_fm'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'fm_general_add_bse'
 
       INTEGER :: col_idx_loc, dummy, handle, handle2, i_entry_rec, idx_col_out, idx_row_out, ii, &
          iproc, jj, ncol_block_in, ncol_block_out, ncol_local_in, ncol_local_out, npcol, nprocs, &
@@ -405,7 +405,7 @@ CONTAINS
       CALL timestop(handle2)
       CALL timestop(handle)
 
-   END SUBROUTINE redist_fm
+   END SUBROUTINE fm_general_add_bse
 
 ! **************************************************************************************************
 !> \brief Logic: Matrices have some dimension dimen_RI x nrow_in*ncol_in  for the incoming (untruncated) matrix

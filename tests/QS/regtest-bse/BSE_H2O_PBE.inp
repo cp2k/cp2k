@@ -43,9 +43,10 @@
             CORR_MOS_VIRT 1000
             RI_SIGMA_X
             &BSE
-              BSE_CUTOFF_OCC 60.0
-              BSE_CUTOFF_VIRT 60.0
-              BSE_METHOD FULLDIAG_ABBA
+              ENERGY_CUTOFF_OCC 60.0
+              ENERGY_CUTOFF_VIRT 60.0
+              BSE_DIAG_METHOD FULLDIAG
+              BSE_APPROX ABBA
             &END BSE
           &END GW
         &END RI_RPA

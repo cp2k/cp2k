@@ -15,7 +15,7 @@ MODULE bse_full_diag
 
    USE bse_util,                        ONLY: comp_eigvec_coeff_BSE,&
                                               filter_eigvec_contrib,&
-                                              redist_fm
+                                              fm_general_add_bse
    USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
                                               cp_blacs_env_type
    USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add
@@ -157,7 +157,7 @@ CONTAINS
       ! W_ij,ab: nrow_secidx_in  = homo,    ncol_secidx_in  = virtual
       ! A_ia,jb: nrow_secidx_out = virtual, ncol_secidx_out = virtual
       reordering = (/1, 3, 2, 4/)
-      CALL redist_fm(fm_A, fm_W, -1.0_dp, homo, virtual, &
+      CALL fm_general_add_bse(fm_A, fm_W, -1.0_dp, homo, virtual, &
                      virtual, virtual, unit_nr, reordering, mp2_env)
       !full matrix W is not needed anymore, release it to save memory
       CALL cp_fm_struct_release(fm_struct_W)
@@ -257,7 +257,7 @@ CONTAINS
       ! W_ib,ja: nrow_secidx_in  = virtual,    ncol_secidx_in  = virtual
       ! A_ia,jb: nrow_secidx_out = virtual, ncol_secidx_out = virtual
       reordering = (/1, 4, 3, 2/)
-      CALL redist_fm(fm_B, fm_W, -1.0_dp, virtual, virtual, &
+      CALL fm_general_add_bse(fm_B, fm_W, -1.0_dp, virtual, virtual, &
                      virtual, virtual, unit_nr, reordering, mp2_env)
 
       CALL cp_fm_release(fm_W)

@@ -176,9 +176,9 @@ CONTAINS
       !                           l_val=mp2_env%ri_g0w0%do_bse)
       CALL section_vals_val_get(mp2_section, "RI_RPA%GW%BSE%SPIN_CONFIG", &
                                 i_val=mp2_env%ri_g0w0%bse_spin_config)
-      CALL section_vals_val_get(mp2_section, "RI_RPA%GW%BSE%BSE_CUTOFF_OCC", &
+      CALL section_vals_val_get(mp2_section, "RI_RPA%GW%BSE%ENERGY_CUTOFF_OCC", &
                                 r_val=mp2_env%ri_g0w0%bse_cutoff_occ)
-      CALL section_vals_val_get(mp2_section, "RI_RPA%GW%BSE%BSE_CUTOFF_VIRT", &
+      CALL section_vals_val_get(mp2_section, "RI_RPA%GW%BSE%ENERGY_CUTOFF_VIRT", &
                                 r_val=mp2_env%ri_g0w0%bse_cutoff_virt)
       CALL section_vals_val_get(mp2_section, "RI_RPA%GW%BSE%NUM_PRINT_EXC", &
                                 i_val=mp2_env%ri_g0w0%num_print_exc)
@@ -202,8 +202,10 @@ CONTAINS
                                 i_val=mp2_env%ri_g0w0%num_davidson_iter)
       CALL section_vals_val_get(mp2_section, "RI_RPA%GW%BSE%BSE_ITERAT%Z_SPACE_ENERGY_CUTOFF", &
                                 r_val=mp2_env%ri_g0w0%z_space_energy_cutoff)
-      CALL section_vals_val_get(mp2_section, "RI_RPA%GW%BSE%BSE_METHOD", &
-                                i_val=mp2_env%ri_g0w0%bse_method)
+      CALL section_vals_val_get(mp2_section, "RI_RPA%GW%BSE%BSE_DIAG_METHOD", &
+                                i_val=mp2_env%ri_g0w0%bse_diag_method)
+      CALL section_vals_val_get(mp2_section, "RI_RPA%GW%BSE%BSE_APPROX", &
+                                i_val=mp2_env%ri_g0w0%bse_approx)
       CALL section_vals_val_get(mp2_section, "RI_RPA%GW%BSE%BSE_DEBUG_PRINT", &
                                 l_val=mp2_env%ri_g0w0%bse_debug_print)
 

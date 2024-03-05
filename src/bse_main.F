@@ -28,12 +28,11 @@ MODULE bse_main
    USE cp_fm_types,                     ONLY: cp_fm_release,&
                                               cp_fm_type
    USE group_dist_types,                ONLY: group_dist_d1_type
-   USE input_constants,                 ONLY: bse_fulldiag_abba,&
-                                              bse_fulldiag_both,&
-                                              bse_fulldiag_tda,&
-                                              bse_iter_abba,&
-                                              bse_iter_both,&
-                                              bse_iter_tda
+   USE input_constants,                 ONLY: bse_fulldiag,&
+                                              bse_iterdiag, &
+                                              bse_tda,&
+                                              bse_abba,&
+                                              bse_both
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_para_env_type
    USE mp2_types,                       ONLY: mp2_type
@@ -89,8 +88,8 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'start_bse_calculation'
 
       INTEGER                                            :: handle, homo_red, virtual_red
-      LOGICAL                                            :: bse_abba, bse_full_diag, &
-                                                            bse_iterat_diag, bse_tda
+      LOGICAL                                            :: my_do_abba, my_do_fulldiag, &
+                                                            my_do_iterat_diag, my_do_tda
       REAL(KIND=dp)                                      :: diag_runtime_est
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: Eigenval_reduced
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: B_abQ_bse_local, B_bar_iaQ_bse_local, &
@@ -101,31 +100,31 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      bse_full_diag = .FALSE.
-      bse_iterat_diag = .FALSE.
-      bse_tda = .FALSE.
-      bse_abba = .FALSE.
+      my_do_fulldiag = .FALSE.
+      my_do_iterat_diag = .FALSE.
+      my_do_tda = .FALSE.
+      my_do_abba = .FALSE.
       !Method: Iterative or full diagonalization
-      SELECT CASE (mp2_env%ri_g0w0%bse_method)
-      CASE (bse_fulldiag_tda, bse_fulldiag_abba, bse_fulldiag_both)
-         bse_full_diag = .TRUE.
-      CASE (bse_iter_tda, bse_iter_abba, bse_iter_both)
-         bse_iterat_diag = .TRUE.
+      SELECT CASE (mp2_env%ri_g0w0%bse_diag_method)
+      CASE (bse_iterdiag)
+         my_do_iterat_diag = .TRUE.
          !MG: Basics of the Davidson solver are implemented, but not rigorously checked.
          CPABORT("Iterative BSE not yet implemented")
+      CASE (bse_fulldiag)
+         my_do_fulldiag = .TRUE.
       END SELECT
       !Approximation: TDA and/or full ABBA matrix
-      SELECT CASE (mp2_env%ri_g0w0%bse_method)
-      CASE (bse_fulldiag_tda, bse_iter_tda)
-         bse_tda = .TRUE.
-      CASE (bse_fulldiag_abba, bse_iter_abba)
-         bse_abba = .TRUE.
-      CASE (bse_iter_both, bse_fulldiag_both)
-         bse_tda = .TRUE.
-         bse_abba = .TRUE.
+      SELECT CASE (mp2_env%ri_g0w0%bse_approx)
+      CASE (bse_tda)
+         my_do_tda = .TRUE.
+      CASE (bse_abba)
+         my_do_abba = .TRUE.
+      CASE (bse_both)
+         my_do_tda = .TRUE.
+         my_do_abba = .TRUE.
       END SELECT
 
-      CALL print_BSE_start_flag(bse_tda, bse_abba, mp2_env, unit_nr)
+      CALL print_BSE_start_flag(my_do_tda, my_do_abba, mp2_env, unit_nr)
 
       CALL fm_mat_S(1)%matrix_struct%para_env%sync()
 
@@ -144,7 +143,7 @@ CONTAINS
                          fm_mat_Q_static_bse, fm_mat_Q_static_bse_gemm, &
                          dimen_RI_red, homo_red, virtual_red)
 
-      IF (bse_iterat_diag) THEN
+      IF (my_do_iterat_diag) THEN
          CALL fill_local_3c_arrays(fm_mat_S_ab_trunc, fm_mat_S_trunc, &
                                    fm_mat_S_bar_ia_bse, fm_mat_S_bar_ij_bse, &
                                    B_bar_ijQ_bse_local, B_abQ_bse_local, B_bar_iaQ_bse_local, &
@@ -152,9 +151,9 @@ CONTAINS
                                    gd_array, color_sub, para_env)
       END IF
 
-      IF (bse_full_diag) THEN
+      IF (my_do_fulldiag) THEN
          ! Quick estimate of memory consumption and runtime of diagonalizations
-         CALL estimate_BSE_resources(homo_red, virtual_red, unit_nr, bse_abba, &
+         CALL estimate_BSE_resources(homo_red, virtual_red, unit_nr, my_do_abba, &
                                      para_env, diag_runtime_est)
          ! Matrix A constructed from GW energies and 3c-B-matrices (cf. subroutine mult_B_with_W)
          ! A_ia,jb = (ε_a-ε_i) δ_ij δ_ab + α * v_ia,jb - W_ij,ab
@@ -166,7 +165,7 @@ CONTAINS
                        fm_A_BSE, Eigenval_reduced, unit_nr, &
                        homo_red, virtual_red, dimen_RI, mp2_env, &
                        para_env)
-         IF (bse_abba) THEN
+         IF (my_do_abba) THEN
             ! Matrix B constructed from 3c-B-matrices (cf. subroutine mult_B_with_W)
             ! B_ia,jb = α * v_ia,jb - W_ib,aj
             ! α is a spin-dependent factor
@@ -183,14 +182,14 @@ CONTAINS
                                                homo_red, virtual_red, unit_nr, mp2_env, diag_runtime_est)
          END IF
          CALL cp_fm_release(fm_B_BSE)
-         IF (bse_tda) THEN
+         IF (my_do_tda) THEN
             ! Solving the hermitian eigenvalue equation A X^n = Ω^n X^n
             CALL diagonalize_A(fm_A_BSE, homo_red, virtual_red, homo(1), virtual(1), &
                                unit_nr, diag_runtime_est, mp2_env)
          END IF
          ! Release to avoid faulty use of changed A matrix
          CALL cp_fm_release(fm_A_BSE)
-         IF (bse_abba) THEN
+         IF (my_do_abba) THEN
             ! Solving eigenvalue equation C Z^n = (Ω^n)^2 Z^n .
             ! Here, the eigenvectors Z^n relate to X^n via
             ! Eq. (A10) in F. Furche J. Chem. Phys., Vol. 114, No. 14, (2001).
@@ -205,7 +204,7 @@ CONTAINS
       CALL deallocate_matrices_bse(fm_mat_S_bar_ia_bse, fm_mat_S_bar_ij_bse, &
                                    fm_mat_S_trunc, fm_mat_S_ij_trunc, fm_mat_S_ab_trunc, &
                                    fm_mat_Q_static_bse, fm_mat_Q_static_bse_gemm)
-      IF (bse_iterat_diag) THEN
+      IF (my_do_iterat_diag) THEN
          CALL do_subspace_iterations(B_bar_ijQ_bse_local, B_abQ_bse_local, B_bar_iaQ_bse_local, &
                                      B_iaQ_bse_local, homo(1), virtual(1), mp2_env%ri_g0w0%bse_spin_config, unit_nr, &
                                      Eigenval(:, 1, 1), para_env, mp2_env)
