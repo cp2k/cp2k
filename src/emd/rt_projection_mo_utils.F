@@ -50,7 +50,6 @@ MODULE rt_projection_mo_utils
    USE qs_kind_types,                   ONLY: qs_kind_type
    USE qs_mo_io,                        ONLY: read_mos_restart_low
    USE qs_mo_types,                     ONLY: deallocate_mo_set,&
-                                              duplicate_mo_set,&
                                               mo_set_type
    USE rt_propagation_types,            ONLY: get_rtp,&
                                               rt_prop_type
@@ -104,6 +103,9 @@ CONTAINS
 
          CALL section_vals_val_get(proj_mo_section, "REF_MO_FILE_NAME", i_rep_section=i_rep, &
                                    c_val=proj_mo%ref_mo_file_name)
+
+         CALL section_vals_val_get(proj_mo_section, "REF_ADD_LUMO", i_rep_section=i_rep, &
+                                   i_val=proj_mo%ref_nlumo)
 
          ! Relevent only in EMD
          IF (.NOT. rtp_control%fixed_ions) &
@@ -165,20 +167,26 @@ CONTAINS
          CALL section_vals_val_get(proj_mo_section, "TD_MO_INDEX", i_rep_section=i_rep, &
                                    i_vals=tmp_ints)
 
-         ALLOCATE (proj_mo%td_mo_index, SOURCE=tmp_ints(:))
          nbr_mo_td_max = mos(proj_mo%td_mo_spin)%mo_coeff%matrix_struct%ncol_global
+
+         ALLOCATE (proj_mo%td_mo_index, SOURCE=tmp_ints(:))
          IF (proj_mo%td_mo_index(1) == -1) THEN
             DEALLOCATE (proj_mo%td_mo_index)
             ALLOCATE (proj_mo%td_mo_index(nbr_mo_td_max))
+            ALLOCATE (proj_mo%td_mo_occ(nbr_mo_td_max))
             DO j_td = 1, nbr_mo_td_max
                proj_mo%td_mo_index(j_td) = j_td
+               proj_mo%td_mo_occ(j_td) = mos(proj_mo%td_mo_spin)%occupation_numbers(proj_mo%td_mo_index(j_td))
             END DO
          ELSE
+            ALLOCATE (proj_mo%td_mo_occ(SIZE(proj_mo%td_mo_index)))
+            proj_mo%td_mo_occ(:) = 0.0_dp
             DO j_td = 1, SIZE(proj_mo%td_mo_index)
                IF (proj_mo%td_mo_index(j_td) > nbr_mo_td_max) &
                   CALL cp_abort(__LOCATION__, &
                                 "The MO number available in the Time Dependent run "// &
                                 "is smaller than the MO number you have required in TD_MO_INDEX.")
+               proj_mo%td_mo_occ(j_td) = mos(proj_mo%td_mo_spin)%occupation_numbers(proj_mo%td_mo_index(j_td))
             END DO
          END IF
 
@@ -210,11 +218,12 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_s
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mo_qs, mo_ref_temp
+      TYPE(mo_set_type), POINTER                         :: mo_set
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
 
-      NULLIFY (mo_qs, mo_ref_temp, qs_kind_set, particle_set, para_env, dft_control, &
+      NULLIFY (mo_qs, mo_ref_temp, mo_set, qs_kind_set, particle_set, para_env, dft_control, &
                mo_ref_fmstruct, matrix_s)
 
       my_xasref = .FALSE.
@@ -230,20 +239,44 @@ CONTAINS
 
       natom = SIZE(particle_set, 1)
 
+      nspins = SIZE(mo_qs)
       ! If the restart comes from DFT%XAS_TDP%PRINT%RESTART_WFN, then always 2 spins are saved
-      IF (my_xasref) THEN
+      IF (my_xasref .AND. nspins < 2) THEN
          nspins = 2
-         ALLOCATE (mo_ref_temp(nspins))
-         DO ispin = 1, nspins
-            CALL duplicate_mo_set(mo_ref_temp(ispin), mo_qs(1))
-         END DO
-      ELSE
-         nspins = SIZE(mo_qs)
-         ALLOCATE (mo_ref_temp(nspins))
-         DO ispin = 1, nspins
-            CALL duplicate_mo_set(mo_ref_temp(ispin), mo_qs(ispin))
-         END DO
       END IF
+      ALLOCATE (mo_ref_temp(nspins))
+
+      DO ispin = 1, nspins
+         IF (my_xasref) THEN
+            mo_set => mo_qs(1)
+         ELSE
+            mo_set => mo_qs(ispin)
+         END IF
+         mo_ref_temp(ispin)%nmo = mo_set%nmo + proj_mo%ref_nlumo
+         NULLIFY (mo_ref_fmstruct)
+         CALL cp_fm_struct_create(mo_ref_fmstruct, nrow_global=mo_set%nao, &
+                               ncol_global=mo_ref_temp(ispin)%nmo, para_env=para_env, context=mo_set%mo_coeff%matrix_struct%context)
+         NULLIFY (mo_ref_temp(ispin)%mo_coeff)
+         ALLOCATE (mo_ref_temp(ispin)%mo_coeff)
+         CALL cp_fm_create(mo_ref_temp(ispin)%mo_coeff, mo_ref_fmstruct)
+         CALL cp_fm_struct_release(mo_ref_fmstruct)
+
+         mo_ref_temp(ispin)%nao = mo_set%nao
+         mo_ref_temp(ispin)%homo = mo_set%homo
+         mo_ref_temp(ispin)%nelectron = mo_set%nelectron
+         ALLOCATE (mo_ref_temp(ispin)%eigenvalues(mo_ref_temp(ispin)%nmo))
+         ALLOCATE (mo_ref_temp(ispin)%occupation_numbers(mo_ref_temp(ispin)%nmo))
+         NULLIFY (mo_set)
+      END DO
+
+!         DO ispin = 1, nspins
+!            CALL duplicate_mo_set(mo_ref_temp(ispin), mo_qs(1))
+!         END DO
+!      ELSE
+!         DO ispin = 1, nspins
+!            CALL duplicate_mo_set(mo_ref_temp(ispin), mo_qs(ispin))
+!         END DO
+!      END IF
 
       IF (para_env%is_source()) THEN
          INQUIRE (FILE=TRIM(proj_mo%ref_mo_file_name), exist=is_file)
@@ -490,7 +523,6 @@ CONTAINS
                           ncol=1, &
                           source_start=proj_mo%td_mo_index(j_td), &
                           target_start=1)
-
          IF (is_emd) THEN
             ! The reference MO have to be propagated in the new basis, so the projection
             CALL cp_fm_trace(mo_coeff_temp, S_mo_ref, real_proj)
@@ -514,7 +546,7 @@ CONTAINS
 
          ! Store the result
          phase(j_td) = ATAN2(imag_proj, real_proj) ! in radians
-         popu(j_td) = real_proj**2 + imag_proj**2
+         popu(j_td) = proj_mo%td_mo_occ(j_td)*(real_proj**2 + imag_proj**2)
       END DO
 
       CALL cp_fm_struct_release(mo_ref_fmstruct)
@@ -572,9 +604,9 @@ CONTAINS
 
       IF (print_unit /= output_unit) THEN
          INQUIRE (UNIT=print_unit, NAME=filename)
-         WRITE (UNIT=output_unit, FMT="(/,T2,A,2(/,T3,A),/)") &
-            "PROJECTION MO", "The projection of the TD MOs is done in the file:", &
-            TRIM(filename)
+!         WRITE (UNIT=output_unit, FMT="(/,T2,A,2(/,T3,A),/)") &
+!            "PROJECTION MO", "The projection of the TD MOs is done in the file:", &
+!            TRIM(filename)
          WRITE (UNIT=print_unit, FMT="(/,(T2,A,T40,I6))") &
             "Real time propagation step:", qs_env%sim_step
       ELSE
