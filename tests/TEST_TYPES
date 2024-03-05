@@ -107,7 +107,7 @@ TDDFT+SOC !5
 G0W0 direct band gap !6
 SCF+SOC direct band gap !6
 G0W0+SOC direct band gap !6
-BSE|                1    Singlet State        -TDA- !6
+BSE|                1    Singlet State         -TDA- !6
 BSE|                1    Singlet State        -full- !6
 #
 # these are the tests the can be selected for regtesting.

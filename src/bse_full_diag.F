@@ -58,7 +58,7 @@ CONTAINS
 !> \param fm_mat_S ...
 !> \param fm_mat_S_bar_ij_bse ...
 !> \param fm_mat_S_ab_bse ...
-!> \param fm_mat_A ...
+!> \param fm_A ...
 !> \param Eigenval ...
 !> \param unit_nr ...
 !> \param homo ...
@@ -68,13 +68,13 @@ CONTAINS
 !> \param para_env ...
 ! **************************************************************************************************
    SUBROUTINE create_A(fm_mat_S, fm_mat_S_bar_ij_bse, fm_mat_S_ab_bse, &
-                       fm_mat_A, Eigenval, unit_nr, &
+                       fm_A, Eigenval, unit_nr, &
                        homo, virtual, dimen_RI, mp2_env, &
                        para_env)
 
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_S, fm_mat_S_bar_ij_bse, &
                                                             fm_mat_S_ab_bse
-      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_mat_A
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_A
       REAL(KIND=dp), DIMENSION(:)                        :: Eigenval
       INTEGER, INTENT(IN)                                :: unit_nr, homo, virtual, dimen_RI
       TYPE(mp2_type), INTENT(INOUT)                      :: mp2_env
@@ -90,7 +90,7 @@ CONTAINS
       REAL(KIND=dp)                                      :: alpha, eigen_diff
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_A, fm_struct_W
-      TYPE(cp_fm_type)                                   :: fm_mat_W
+      TYPE(cp_fm_type)                                   :: fm_W
 
       CALL timeset(routineN, handle)
 
@@ -117,19 +117,19 @@ CONTAINS
       ! We use the A matrix already from the start instead of v
       CALL cp_fm_struct_create(fm_struct_a, context=fm_mat_S%matrix_struct%context, nrow_global=homo*virtual, &
                                ncol_global=homo*virtual, para_env=fm_mat_S%matrix_struct%para_env)
-      CALL cp_fm_create(fm_mat_A, fm_struct_a, name="fm_A_iajb")
-      CALL cp_fm_set_all(fm_mat_A, 0.0_dp)
+      CALL cp_fm_create(fm_A, fm_struct_a, name="fm_A_iajb")
+      CALL cp_fm_set_all(fm_A, 0.0_dp)
 
       CALL cp_fm_struct_create(fm_struct_W, context=fm_mat_S_ab_bse%matrix_struct%context, nrow_global=homo**2, &
                                ncol_global=virtual**2, para_env=fm_mat_S_ab_bse%matrix_struct%para_env)
-      CALL cp_fm_create(fm_mat_W, fm_struct_W, name="fm_W_ijab")
-      CALL cp_fm_set_all(fm_mat_W, 0.0_dp)
+      CALL cp_fm_create(fm_W, fm_struct_W, name="fm_W_ijab")
+      CALL cp_fm_set_all(fm_W, 0.0_dp)
 
       !Create A matrix from GW Energies, v_iajb and W_ijab (different blacs_env!)
       !v_iajb, which is directly initialized in A (with a factor of alpha)
       CALL parallel_gemm(transa="T", transb="N", m=homo*virtual, n=homo*virtual, k=dimen_RI, alpha=alpha, &
                          matrix_a=fm_mat_S, matrix_b=fm_mat_S, beta=0.0_dp, &
-                         matrix_c=fm_mat_A)
+                         matrix_c=fm_A)
 
       IF (unit_nr > 0 .AND. mp2_env%ri_g0w0%bse_debug_print) THEN
          WRITE (unit_nr, '(T2,A10,T13,A16)') 'BSE|DEBUG|', 'Allocated A_iajb'
@@ -138,14 +138,14 @@ CONTAINS
       !W_ijab
       CALL parallel_gemm(transa="T", transb="N", m=homo**2, n=virtual**2, k=dimen_RI, alpha=1.0_dp, &
                          matrix_a=fm_mat_S_bar_ij_bse, matrix_b=fm_mat_S_ab_bse, beta=0.0_dp, &
-                         matrix_c=fm_mat_W)
+                         matrix_c=fm_W)
 
       IF (unit_nr > 0 .AND. mp2_env%ri_g0w0%bse_debug_print) THEN
          WRITE (unit_nr, '(T2,A10,T13,A16)') 'BSE|DEBUG|', 'Allocated W_ijab'
       END IF
 
       ! We start by moving data from local parts of W_ijab to the full matrix A_iajb using buffers
-      CALL cp_fm_get_info(matrix=fm_mat_A, &
+      CALL cp_fm_get_info(matrix=fm_A, &
                           nrow_local=nrow_local_A, &
                           ncol_local=ncol_local_A, &
                           row_indices=row_indices_A, &
@@ -154,11 +154,11 @@ CONTAINS
       ! W_ijab: nrow_secidx_in  = homo,    ncol_secidx_in  = virtual
       ! A_iajb: nrow_secidx_out = virtual, ncol_secidx_out = virtual
       reordering = (/1, 3, 2, 4/)
-      CALL redist_fm(fm_mat_A, fm_mat_W, -1.0_dp, homo, virtual, &
+      CALL redist_fm(fm_A, fm_W, -1.0_dp, homo, virtual, &
                      virtual, virtual, unit_nr, reordering, mp2_env)
       !full matrix W is not needed anymore, release it to save memory
       CALL cp_fm_struct_release(fm_struct_W)
-      CALL cp_fm_release(fm_mat_W)
+      CALL cp_fm_release(fm_W)
       CALL cp_fm_struct_release(fm_struct_A)
 
       !Now add the energy differences to A
@@ -174,7 +174,7 @@ CONTAINS
                i_occ_row = (i_row_global - 1)/virtual + 1
                a_virt_row = MOD(i_row_global - 1, virtual) + 1
                eigen_diff = Eigenval(a_virt_row + homo) - Eigenval(i_occ_row)
-               fm_mat_A%local_data(ii, jj) = fm_mat_A%local_data(ii, jj) + eigen_diff
+               fm_A%local_data(ii, jj) = fm_A%local_data(ii, jj) + eigen_diff
 
             END IF
          END DO
@@ -188,18 +188,18 @@ CONTAINS
 !> \brief Create B matrix for full BSE: B_iajb   =  alpha * v_iajb   -  W_ibaj
 !> \param fm_mat_S ...
 !> \param fm_mat_S_bar_ia_bse ...
-!> \param fm_mat_B ...
+!> \param fm_B ...
 !> \param homo ...
 !> \param virtual ...
 !> \param dimen_RI ...
 !> \param unit_nr ...
 !> \param mp2_env ...
 ! **************************************************************************************************
-   SUBROUTINE create_B(fm_mat_S, fm_mat_S_bar_ia_bse, fm_mat_B, &
+   SUBROUTINE create_B(fm_mat_S, fm_mat_S_bar_ia_bse, fm_B, &
                        homo, virtual, dimen_RI, unit_nr, mp2_env)
 
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_S, fm_mat_S_bar_ia_bse
-      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_mat_B
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_B
       INTEGER, INTENT(IN)                                :: homo, virtual, dimen_RI, unit_nr
       TYPE(mp2_type), INTENT(INOUT)                      :: mp2_env
 
@@ -209,7 +209,7 @@ CONTAINS
       INTEGER, DIMENSION(4)                              :: reordering
       REAL(KIND=dp)                                      :: alpha
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_v
-      TYPE(cp_fm_type)                                   :: fm_mat_W
+      TYPE(cp_fm_type)                                   :: fm_W
 
       CALL timeset(routineN, handle)
 
@@ -227,11 +227,11 @@ CONTAINS
 
       CALL cp_fm_struct_create(fm_struct_v, context=fm_mat_S%matrix_struct%context, nrow_global=homo*virtual, &
                                ncol_global=homo*virtual, para_env=fm_mat_S%matrix_struct%para_env)
-      CALL cp_fm_create(fm_mat_B, fm_struct_v, name="fm_B_iajb")
-      CALL cp_fm_set_all(fm_mat_B, 0.0_dp)
+      CALL cp_fm_create(fm_B, fm_struct_v, name="fm_B_iajb")
+      CALL cp_fm_set_all(fm_B, 0.0_dp)
 
-      CALL cp_fm_create(fm_mat_W, fm_struct_v, name="fm_W_ibaj")
-      CALL cp_fm_set_all(fm_mat_W, 0.0_dp)
+      CALL cp_fm_create(fm_W, fm_struct_v, name="fm_W_ibaj")
+      CALL cp_fm_set_all(fm_W, 0.0_dp)
 
       IF (unit_nr > 0 .AND. mp2_env%ri_g0w0%bse_debug_print) THEN
          WRITE (unit_nr, '(T2,A10,T13,A16)') 'BSE|DEBUG|', 'Allocated B_iajb'
@@ -239,42 +239,42 @@ CONTAINS
 
       CALL parallel_gemm(transa="T", transb="N", m=homo*virtual, n=homo*virtual, k=dimen_RI, alpha=alpha, &
                          matrix_a=fm_mat_S, matrix_b=fm_mat_S, beta=0.0_dp, &
-                         matrix_c=fm_mat_B)
+                         matrix_c=fm_B)
 
       !W_ibaj
       CALL parallel_gemm(transa="T", transb="N", m=homo*virtual, n=homo*virtual, k=dimen_RI, alpha=1.0_dp, &
                          matrix_a=fm_mat_S_bar_ia_bse, matrix_b=fm_mat_S, beta=0.0_dp, &
-                         matrix_c=fm_mat_W)
+                         matrix_c=fm_W)
       !from W_iajb to W_ibja(formally: W_ibaj, but our internal indexorder is different)
       reordering = (/1, 4, 3, 2/)
-      CALL redist_fm(fm_mat_B, fm_mat_W, -1.0_dp, virtual, virtual, &
+      CALL redist_fm(fm_B, fm_W, -1.0_dp, virtual, virtual, &
                      virtual, virtual, unit_nr, reordering, mp2_env)
 
-      CALL cp_fm_release(fm_mat_W)
+      CALL cp_fm_release(fm_W)
       CALL timestop(handle)
 
    END SUBROUTINE create_B
 
    ! **************************************************************************************************
 !> \brief Create the hermitian form of the ABBA matrix, i.e. C = (A-B)^-0.5 (A+B) (A-B)^-0.5
-!> \param fm_mat_A ...
-!> \param fm_mat_B ...
-!> \param fm_mat_C ...
-!> \param fm_mat_work_diff_raised_pos ...
-!> \param fm_mat_work_diff_raised_neg ...
+!> \param fm_A ...
+!> \param fm_B ...
+!> \param fm_C ...
+!> \param fm_sqrt_A_minus_B ...
+!> \param fm_inv_sqrt_A_minus_B ...
 !> \param homo ...
 !> \param virtual ...
 !> \param unit_nr ...
 !> \param mp2_env ...
 !> \param diag_est ...
 ! **************************************************************************************************
-   SUBROUTINE create_hermitian_form_of_ABBA(fm_mat_A, fm_mat_B, fm_mat_C, &
-                                            fm_mat_work_diff_raised_pos, fm_mat_work_diff_raised_neg, &
+   SUBROUTINE create_hermitian_form_of_ABBA(fm_A, fm_B, fm_C, &
+                                            fm_sqrt_A_minus_B, fm_inv_sqrt_A_minus_B, &
                                             homo, virtual, unit_nr, mp2_env, diag_est)
 
-      TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_A, fm_mat_B
-      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_mat_C, fm_mat_work_diff_raised_pos, &
-                                                            fm_mat_work_diff_raised_neg
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_A, fm_B
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_C, fm_sqrt_A_minus_B, &
+                                                            fm_inv_sqrt_A_minus_B
       INTEGER, INTENT(IN)                                :: homo, virtual, unit_nr
       TYPE(mp2_type), INTENT(INOUT)                      :: mp2_env
       REAL(KIND=dp), INTENT(IN)                          :: diag_est
@@ -283,9 +283,8 @@ CONTAINS
 
       INTEGER                                            :: dim_mat, handle, n_dependent
       REAL(KIND=dp), DIMENSION(2)                        :: eigvals_AB_diff
-      TYPE(cp_fm_type)                                   :: fm_mat_work_diff, &
-                                                            fm_mat_work_diff_eigvec, &
-                                                            fm_mat_work_product, fm_mat_work_sum
+      TYPE(cp_fm_type)                                   :: fm_A_minus_B, fm_A_minus_B_eigvec, &
+                                                            fm_A_plus_B, fm_work_product
 
       CALL timeset(routineN, handle)
 
@@ -296,36 +295,36 @@ CONTAINS
 
       ! Create work matrices, which will hold A+B and A-B and their powers
       ! C is created afterwards to save memory
-      CALL cp_fm_create(fm_mat_work_sum, fm_mat_A%matrix_struct)
-      CALL cp_fm_to_fm(fm_mat_A, fm_mat_work_sum)
-      CALL cp_fm_create(fm_mat_work_diff, fm_mat_A%matrix_struct)
-      CALL cp_fm_to_fm(fm_mat_A, fm_mat_work_diff)
-      CALL cp_fm_create(fm_mat_work_diff_raised_pos, fm_mat_A%matrix_struct)
-      CALL cp_fm_set_all(fm_mat_work_diff_raised_pos, 0.0_dp)
-      CALL cp_fm_create(fm_mat_work_diff_raised_neg, fm_mat_A%matrix_struct)
-      CALL cp_fm_set_all(fm_mat_work_diff_raised_neg, 0.0_dp)
+      CALL cp_fm_create(fm_A_plus_B, fm_A%matrix_struct)
+      CALL cp_fm_to_fm(fm_A, fm_A_plus_B)
+      CALL cp_fm_create(fm_A_minus_B, fm_A%matrix_struct)
+      CALL cp_fm_to_fm(fm_A, fm_A_minus_B)
+      CALL cp_fm_create(fm_sqrt_A_minus_B, fm_A%matrix_struct)
+      CALL cp_fm_set_all(fm_sqrt_A_minus_B, 0.0_dp)
+      CALL cp_fm_create(fm_inv_sqrt_A_minus_B, fm_A%matrix_struct)
+      CALL cp_fm_set_all(fm_inv_sqrt_A_minus_B, 0.0_dp)
 
-      CALL cp_fm_create(fm_mat_work_diff_eigvec, fm_mat_A%matrix_struct)
-      CALL cp_fm_create(fm_mat_work_product, fm_mat_A%matrix_struct)
+      CALL cp_fm_create(fm_A_minus_B_eigvec, fm_A%matrix_struct)
+      CALL cp_fm_create(fm_work_product, fm_A%matrix_struct)
 
       IF (unit_nr > 0 .AND. mp2_env%ri_g0w0%bse_debug_print) THEN
          WRITE (unit_nr, '(T2,A10,T13,A19)') 'BSE|DEBUG|', 'Created work arrays'
       END IF
 
       !Add/Substract B
-      CALL cp_fm_scale_and_add(1.0_dp, fm_mat_work_sum, 1.0_dp, fm_mat_B)
-      CALL cp_fm_scale_and_add(1.0_dp, fm_mat_work_diff, -1.0_dp, fm_mat_B)
+      CALL cp_fm_scale_and_add(1.0_dp, fm_A_plus_B, 1.0_dp, fm_B)
+      CALL cp_fm_scale_and_add(1.0_dp, fm_A_minus_B, -1.0_dp, fm_B)
 
       !cp_fm_power will overwrite matrix, therefore we copy it
-      CALL cp_fm_to_fm(fm_mat_work_diff, fm_mat_work_diff_raised_neg)
-      CALL cp_fm_to_fm(fm_mat_work_diff, fm_mat_work_diff_raised_pos)
+      CALL cp_fm_to_fm(fm_A_minus_B, fm_inv_sqrt_A_minus_B)
+      CALL cp_fm_to_fm(fm_A_minus_B, fm_sqrt_A_minus_B)
 
       ! In the output, we want to print singleparticle transitions of ABBA, where we need
       ! (A-B)**-0.5 as well as (A-B)**0.5. In order to avoid a second diagonalization (cp_fm_power),
       ! we create (A-B)**0.5 from (A-B)**-0.5 by multiplication with (A-B).
 
       !Raise A-B to 1/2, no quenching of eigenvectors, hence threshold=0.0_dp
-      CALL cp_fm_power(fm_mat_work_diff_raised_neg, fm_mat_work_diff_eigvec, -0.5_dp, 0.0_dp, n_dependent, eigvals=eigvals_AB_diff)
+      CALL cp_fm_power(fm_inv_sqrt_A_minus_B, fm_A_minus_B_eigvec, -0.5_dp, 0.0_dp, n_dependent, eigvals=eigvals_AB_diff)
       !Raise an error in case the the matrix A-B is not positive definite (i.e. negative eigenvalues)
       !In this case, the procedure for hermitian form of ABBA is not applicable
       IF (eigvals_AB_diff(1) < 0) THEN
@@ -334,28 +333,28 @@ CONTAINS
                        "Hermitian diagonalization of full BSE matrix is ill-defined.")
       END IF
       !(A-B)**-0.5 is written to the eigvec - work matrix
-      CALL cp_fm_release(fm_mat_work_diff_eigvec)
+      CALL cp_fm_release(fm_A_minus_B_eigvec)
 
       ! We keep diff_eigvec for print of singleparticle transitions of ABBA
       ! We further create (A-B)**0.5 for the singleparticle transitions of ABBA
       dim_mat = homo*virtual
-      CALL parallel_gemm("N", "N", dim_mat, dim_mat, dim_mat, 1.0_dp, fm_mat_work_diff_raised_neg, fm_mat_work_diff, 0.0_dp, &
-                         fm_mat_work_diff_raised_pos)
+      CALL parallel_gemm("N", "N", dim_mat, dim_mat, dim_mat, 1.0_dp, fm_inv_sqrt_A_minus_B, fm_A_minus_B, 0.0_dp, &
+                         fm_sqrt_A_minus_B)
 
-      CALL cp_fm_release(fm_mat_work_diff)
+      CALL cp_fm_release(fm_A_minus_B)
 
       !Create C = (A-B)^0.5 (A+B) (A-B)^0.5
-      CALL parallel_gemm("N", "N", dim_mat, dim_mat, dim_mat, 1.0_dp, fm_mat_work_diff_raised_pos, fm_mat_work_sum, 0.0_dp, &
-                         fm_mat_work_product)
-      CALL cp_fm_release(fm_mat_work_sum)
+      CALL parallel_gemm("N", "N", dim_mat, dim_mat, dim_mat, 1.0_dp, fm_sqrt_A_minus_B, fm_A_plus_B, 0.0_dp, &
+                         fm_work_product)
+      CALL cp_fm_release(fm_A_plus_B)
 
       !Now create C itself
-      CALL cp_fm_create(fm_mat_C, fm_mat_A%matrix_struct)
-      CALL cp_fm_set_all(fm_mat_C, 0.0_dp)
+      CALL cp_fm_create(fm_C, fm_A%matrix_struct)
+      CALL cp_fm_set_all(fm_C, 0.0_dp)
 
-      CALL parallel_gemm("N", "N", dim_mat, dim_mat, dim_mat, 1.0_dp, fm_mat_work_product, fm_mat_work_diff_raised_pos, 0.0_dp, &
-                         fm_mat_C)
-      CALL cp_fm_release(fm_mat_work_product)
+      CALL parallel_gemm("N", "N", dim_mat, dim_mat, dim_mat, 1.0_dp, fm_work_product, fm_sqrt_A_minus_B, 0.0_dp, &
+                         fm_C)
+      CALL cp_fm_release(fm_work_product)
 
       IF (unit_nr > 0 .AND. mp2_env%ri_g0w0%bse_debug_print) THEN
          WRITE (unit_nr, '(T2,A10,T13,A36)') 'BSE|DEBUG|', 'Filled C=(A-B)^-0.5 (A+B) (A-B)^-0.5'
@@ -366,25 +365,24 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Diagonalize the hermitian form of the ABBA matrix, i.e. C = (A-B)^-0.5 (A+B) (A-B)^-0.5
-!> \param fm_mat_C ...
+!> \param fm_C ...
 !> \param homo ...
 !> \param virtual ...
 !> \param homo_irred ...
 !> \param virtual_irred ...
-!> \param fm_mat_work_diff_raised_pos ...
-!> \param fm_mat_work_diff_raised_neg ...
+!> \param fm_sqrt_A_minus_B ...
+!> \param fm_inv_sqrt_A_minus_B ...
 !> \param unit_nr ...
 !> \param diag_est ...
 !> \param mp2_env ...
 ! **************************************************************************************************
-   SUBROUTINE diagonalize_C(fm_mat_C, homo, virtual, homo_irred, virtual_irred, &
-                            fm_mat_work_diff_raised_pos, fm_mat_work_diff_raised_neg, &
+   SUBROUTINE diagonalize_C(fm_C, homo, virtual, homo_irred, virtual_irred, &
+                            fm_sqrt_A_minus_B, fm_inv_sqrt_A_minus_B, &
                             unit_nr, diag_est, mp2_env)
 
-      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_mat_C
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_C
       INTEGER, INTENT(IN)                                :: homo, virtual, homo_irred, virtual_irred
-      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_mat_work_diff_raised_pos, &
-                                                            fm_mat_work_diff_raised_neg
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_sqrt_A_minus_B, fm_inv_sqrt_A_minus_B
       INTEGER, INTENT(IN)                                :: unit_nr
       REAL(KIND=dp), INTENT(IN)                          :: diag_est
       TYPE(mp2_type), INTENT(INOUT)                      :: mp2_env
@@ -393,7 +391,7 @@ CONTAINS
 
       INTEGER                                            :: diag_info, handle
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: Exc_ens
-      TYPE(cp_fm_type)                                   :: fm_mat_eigvec, fm_mat_eigvec_transform, &
+      TYPE(cp_fm_type)                                   :: fm_eigvec, fm_mat_eigvec_transform, &
                                                             fm_mat_eigvec_transform_neg
 
       CALL timeset(routineN, handle)
@@ -405,11 +403,11 @@ CONTAINS
 
       !We have now the full matrix C=(A-B)^-0.5 (A+B) (A-B)^-0.5
       !Now: Diagonalize it
-      CALL cp_fm_create(fm_mat_eigvec, fm_mat_C%matrix_struct)
+      CALL cp_fm_create(fm_eigvec, fm_C%matrix_struct)
 
       ALLOCATE (Exc_ens(homo*virtual))
 
-      CALL choose_eigv_solver(fm_mat_C, fm_mat_eigvec, Exc_ens, diag_info)
+      CALL choose_eigv_solver(fm_C, fm_eigvec, Exc_ens, diag_info)
       CPASSERT(diag_info == 0)
       Exc_ens = SQRT(Exc_ens)
 
@@ -422,22 +420,22 @@ CONTAINS
       ! One has to be careful about the index structure, since the eigenvector matrix is not symmetric anymore!
 
       ! First, Eq. I from (A10) from Furche: (X+Y)_n = (Ω_n)^0.5 (A-B)^-0.5 T_n
-      CALL cp_fm_create(fm_mat_eigvec_transform, fm_mat_C%matrix_struct)
+      CALL cp_fm_create(fm_mat_eigvec_transform, fm_C%matrix_struct)
       CALL cp_fm_set_all(fm_mat_eigvec_transform, 0.0_dp)
       CALL parallel_gemm(transa="N", transb="N", m=homo*virtual, n=homo*virtual, k=homo*virtual, alpha=1.0_dp, &
-                         matrix_a=fm_mat_work_diff_raised_pos, matrix_b=fm_mat_eigvec, beta=0.0_dp, &
+                         matrix_a=fm_sqrt_A_minus_B, matrix_b=fm_eigvec, beta=0.0_dp, &
                          matrix_c=fm_mat_eigvec_transform)
-      CALL cp_fm_release(fm_mat_work_diff_raised_pos)
+      CALL cp_fm_release(fm_sqrt_A_minus_B)
       CALL comp_eigvec_coeff_BSE(fm_mat_eigvec_transform, Exc_ens, -0.5_dp, gamma=2.0_dp, do_transpose=.TRUE.)
 
       ! Second, Eq. II from (A10) from Furche: (X-Y)_n = (Ω_n)^0.5 (A-B)^-0.5 T_n
-      CALL cp_fm_create(fm_mat_eigvec_transform_neg, fm_mat_C%matrix_struct)
+      CALL cp_fm_create(fm_mat_eigvec_transform_neg, fm_C%matrix_struct)
       CALL cp_fm_set_all(fm_mat_eigvec_transform_neg, 0.0_dp)
       CALL parallel_gemm(transa="N", transb="N", m=homo*virtual, n=homo*virtual, k=homo*virtual, alpha=1.0_dp, &
-                         matrix_a=fm_mat_work_diff_raised_neg, matrix_b=fm_mat_eigvec, beta=0.0_dp, &
+                         matrix_a=fm_inv_sqrt_A_minus_B, matrix_b=fm_eigvec, beta=0.0_dp, &
                          matrix_c=fm_mat_eigvec_transform_neg)
-      CALL cp_fm_release(fm_mat_work_diff_raised_neg)
-      CALL cp_fm_release(fm_mat_eigvec)
+      CALL cp_fm_release(fm_inv_sqrt_A_minus_B)
+      CALL cp_fm_release(fm_eigvec)
       CALL comp_eigvec_coeff_BSE(fm_mat_eigvec_transform_neg, Exc_ens, 0.5_dp, gamma=2.0_dp, do_transpose=.TRUE.)
 
       ! Now, we add the two equations to obtain X_n
@@ -458,7 +456,7 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Diagonalizes the A matrix, i.e. TDA of BSE
-!> \param fm_mat_A ...
+!> \param fm_A ...
 !> \param homo ...
 !> \param virtual ...
 !> \param homo_irred ...
@@ -467,10 +465,10 @@ CONTAINS
 !> \param diag_est ...
 !> \param mp2_env ...
 ! **************************************************************************************************
-   SUBROUTINE diagonalize_A(fm_mat_A, homo, virtual, homo_irred, virtual_irred, &
+   SUBROUTINE diagonalize_A(fm_A, homo, virtual, homo_irred, virtual_irred, &
                             unit_nr, diag_est, mp2_env)
 
-      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_mat_A
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_A
       INTEGER, INTENT(IN)                                :: homo, virtual, homo_irred, &
                                                             virtual_irred, unit_nr
       REAL(KIND=dp), INTENT(IN)                          :: diag_est
@@ -480,7 +478,7 @@ CONTAINS
 
       INTEGER                                            :: diag_info, handle
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: Exc_ens
-      TYPE(cp_fm_type)                                   :: fm_mat_eigvec
+      TYPE(cp_fm_type)                                   :: fm_eigvec
 
       CALL timeset(routineN, handle)
 
@@ -492,16 +490,16 @@ CONTAINS
 
       !We have now the full matrix A_iajb, distributed over all ranks
       !Now: Diagonalize it
-      CALL cp_fm_create(fm_mat_eigvec, fm_mat_A%matrix_struct)
+      CALL cp_fm_create(fm_eigvec, fm_A%matrix_struct)
 
       ALLOCATE (Exc_ens(homo*virtual))
 
-      CALL choose_eigv_solver(fm_mat_A, fm_mat_eigvec, Exc_ens, diag_info)
+      CALL choose_eigv_solver(fm_A, fm_eigvec, Exc_ens, diag_info)
       CPASSERT(diag_info == 0)
-      CALL success_message(Exc_ens, fm_mat_eigvec, mp2_env, &
+      CALL success_message(Exc_ens, fm_eigvec, mp2_env, &
                            homo, virtual, homo_irred, virtual_irred, unit_nr, .TRUE.)
 
-      CALL cp_fm_release(fm_mat_eigvec)
+      CALL cp_fm_release(fm_eigvec)
       DEALLOCATE (Exc_ens)
 
       CALL timestop(handle)
@@ -511,7 +509,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Prints the success message (incl. energies) for full diag of BSE (TDA/full ABBA via flag)
 !> \param Exc_ens ...
-!> \param fm_mat_eigvec ...
+!> \param fm_eigvec ...
 !> \param mp2_env ...
 !> \param homo ...
 !> \param virtual ...
@@ -520,11 +518,11 @@ CONTAINS
 !> \param unit_nr ...
 !> \param flag_TDA ...
 ! **************************************************************************************************
-   SUBROUTINE success_message(Exc_ens, fm_mat_eigvec, mp2_env, &
+   SUBROUTINE success_message(Exc_ens, fm_eigvec, mp2_env, &
                               homo, virtual, homo_irred, virtual_irred, unit_nr, flag_TDA)
 
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: Exc_ens
-      TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_eigvec
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_eigvec
       TYPE(mp2_type), INTENT(INOUT)                      :: mp2_env
       INTEGER                                            :: homo, virtual, homo_irred, &
                                                             virtual_irred, unit_nr
@@ -660,7 +658,7 @@ CONTAINS
       END IF
       DO i_exc = 1, MIN(homo*virtual, mp2_env%ri_g0w0%num_print_exc)
          !Iterate through eigenvector and print values above threshold
-         CALL filter_eigvec_contrib(fm_mat_eigvec, idx_homo, idx_virt, eigvec_entries, &
+         CALL filter_eigvec_contrib(fm_eigvec, idx_homo, idx_virt, eigvec_entries, &
                                     i_exc, homo, virtual, num_entries, mp2_env)
          IF (unit_nr > 0) THEN
             WRITE (unit_nr, '(T2,A4)') 'BSE|'
@@ -686,7 +684,7 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
-!> \param fm_mat_eigvec ...
+!> \param fm_eigvec ...
 !> \param idx_homo ...
 !> \param idx_virt ...
 !> \param eigvec_entries ...
@@ -696,10 +694,10 @@ CONTAINS
 !> \param num_entries ...
 !> \param mp2_env ...
 ! **************************************************************************************************
-   SUBROUTINE filter_eigvec_contrib(fm_mat_eigvec, idx_homo, idx_virt, eigvec_entries, &
+   SUBROUTINE filter_eigvec_contrib(fm_eigvec, idx_homo, idx_virt, eigvec_entries, &
                                     i_exc, homo, virtual, num_entries, mp2_env)
 
-      TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_eigvec
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_eigvec
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: idx_homo, idx_virt
       REAL(kind=dp), ALLOCATABLE, DIMENSION(:)           :: eigvec_entries
       INTEGER                                            :: i_exc, homo, virtual, num_entries
@@ -719,9 +717,9 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      para_env => fm_mat_eigvec%matrix_struct%para_env
+      para_env => fm_eigvec%matrix_struct%para_env
 
-      CALL cp_fm_get_info(matrix=fm_mat_eigvec, &
+      CALL cp_fm_get_info(matrix=fm_eigvec, &
                           nrow_local=nrow_local, &
                           ncol_local=ncol_local, &
                           row_indices=row_indices, &
@@ -737,7 +735,7 @@ CONTAINS
          END IF
          DO ii = 1, nrow_local
             eigvec_idx = row_indices(ii)
-            eigvec_entry = fm_mat_eigvec%local_data(ii, jj)/SQRT(2.0_dp)
+            eigvec_entry = fm_eigvec%local_data(ii, jj)/SQRT(2.0_dp)
             IF (ABS(eigvec_entry) > mp2_env%ri_g0w0%eps_x) THEN
                num_entries_to_comm(para_env%mepos) = num_entries_to_comm(para_env%mepos) + 1
             END IF
@@ -766,7 +764,7 @@ CONTAINS
          END IF
          DO ii = 1, nrow_local
             eigvec_idx = row_indices(ii)
-            eigvec_entry = fm_mat_eigvec%local_data(ii, jj)/SQRT(2.0_dp)
+            eigvec_entry = fm_eigvec%local_data(ii, jj)/SQRT(2.0_dp)
             IF (ABS(eigvec_entry) > mp2_env%ri_g0w0%eps_x) THEN
                buffer_entries(para_env%mepos)%indx(kk, 1) = (eigvec_idx - 1)/virtual + 1
                buffer_entries(para_env%mepos)%indx(kk, 2) = MOD(eigvec_idx - 1, virtual) + 1

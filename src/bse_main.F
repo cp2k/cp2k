@@ -95,9 +95,9 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: Eigenval_reduced
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: B_abQ_bse_local, B_bar_iaQ_bse_local, &
                                                             B_bar_ijQ_bse_local, B_iaQ_bse_local
-      TYPE(cp_fm_type) :: fm_mat_A_BSE, fm_mat_B_BSE, fm_mat_C_BSE, fm_mat_S_ab_trunc, &
+      TYPE(cp_fm_type) :: fm_A_BSE, fm_B_BSE, fm_C_BSE, fm_inv_sqrt_A_minus_B, fm_mat_S_ab_trunc, &
          fm_mat_S_bar_ia_bse, fm_mat_S_bar_ij_bse, fm_mat_S_ij_trunc, fm_mat_S_trunc, &
-         fm_mat_work_diff_raised_neg_BSE, fm_mat_work_diff_raised_pos_BSE
+         fm_sqrt_A_minus_B
 
       CALL timeset(routineN, handle)
 
@@ -155,30 +155,30 @@ CONTAINS
                                      para_env, diag_runtime_est)
 
          CALL create_A(fm_mat_S_trunc, fm_mat_S_bar_ij_bse, fm_mat_S_ab_trunc, &
-                       fm_mat_A_BSE, Eigenval_reduced, unit_nr, &
+                       fm_A_BSE, Eigenval_reduced, unit_nr, &
                        homo_red, virtual_red, dimen_RI, mp2_env, &
                        para_env)
          IF (bse_abba) THEN
-            CALL create_B(fm_mat_S_trunc, fm_mat_S_bar_ia_bse, fm_mat_B_BSE, &
+            CALL create_B(fm_mat_S_trunc, fm_mat_S_bar_ia_bse, fm_B_BSE, &
                           homo_red, virtual_red, dimen_RI, unit_nr, mp2_env)
-            CALL create_hermitian_form_of_ABBA(fm_mat_A_BSE, fm_mat_B_BSE, fm_mat_C_BSE, &
-                                               fm_mat_work_diff_raised_pos_BSE, fm_mat_work_diff_raised_neg_BSE, &
+            CALL create_hermitian_form_of_ABBA(fm_A_BSE, fm_B_BSE, fm_C_BSE, &
+                                               fm_sqrt_A_minus_B, fm_inv_sqrt_A_minus_B, &
                                                homo_red, virtual_red, unit_nr, mp2_env, diag_runtime_est)
          END IF
-         CALL cp_fm_release(fm_mat_B_BSE)
+         CALL cp_fm_release(fm_B_BSE)
          IF (bse_tda) THEN
-            CALL diagonalize_A(fm_mat_A_BSE, homo_red, virtual_red, homo(1), virtual(1), &
+            CALL diagonalize_A(fm_A_BSE, homo_red, virtual_red, homo(1), virtual(1), &
                                unit_nr, diag_runtime_est, mp2_env)
          END IF
          ! Release to avoid faulty use of changed A matrix
-         CALL cp_fm_release(fm_mat_A_BSE)
+         CALL cp_fm_release(fm_A_BSE)
          IF (bse_abba) THEN
-            CALL diagonalize_C(fm_mat_C_BSE, homo_red, virtual_red, homo(1), virtual(1), &
-                               fm_mat_work_diff_raised_pos_BSE, fm_mat_work_diff_raised_neg_BSE, &
+            CALL diagonalize_C(fm_C_BSE, homo_red, virtual_red, homo(1), virtual(1), &
+                               fm_sqrt_A_minus_B, fm_inv_sqrt_A_minus_B, &
                                unit_nr, diag_runtime_est, mp2_env)
          END IF
          ! Release to avoid faulty use of changed C matrix
-         CALL cp_fm_release(fm_mat_C_BSE)
+         CALL cp_fm_release(fm_C_BSE)
       END IF
 
       CALL deallocate_matrices_bse(fm_mat_S_bar_ia_bse, fm_mat_S_bar_ij_bse, &

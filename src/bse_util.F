@@ -73,7 +73,7 @@ CONTAINS
       INTEGER                                            :: handle, i_global, iiB, info_chol, &
                                                             j_global, jjB, ncol_local, nrow_local
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
-      TYPE(cp_fm_type)                                   :: fm_mat_work
+      TYPE(cp_fm_type)                                   :: fm_work
 
       CALL timeset(routineN, handle)
 
@@ -85,9 +85,9 @@ CONTAINS
       !CALL cp_fm_to_fm(fm_mat_S_ij_bse, fm_mat_S_bar_ij_bse)
       CALL cp_fm_set_all(fm_mat_S_bar_ij_bse, 0.0_dp)
 
-      CALL cp_fm_create(fm_mat_work, fm_mat_Q_static_bse_gemm%matrix_struct)
-      !CALL cp_fm_to_fm(fm_mat_Q_static_bse_gemm, fm_mat_work)
-      CALL cp_fm_set_all(fm_mat_work, 0.0_dp)
+      CALL cp_fm_create(fm_work, fm_mat_Q_static_bse_gemm%matrix_struct)
+      !CALL cp_fm_to_fm(fm_mat_Q_static_bse_gemm, fm_work)
+      CALL cp_fm_set_all(fm_work, 0.0_dp)
 
       ! get info of fm_mat_Q_static_bse and compute ((1+Q(0))^-1-1)
       CALL cp_fm_get_info(matrix=fm_mat_Q_static_bse_gemm, &
@@ -115,7 +115,7 @@ CONTAINS
       CALL cp_fm_cholesky_invert(fm_mat_Q_static_bse_gemm)
 
       ! symmetrize the result
-      CALL cp_fm_upper_to_full(fm_mat_Q_static_bse_gemm, fm_mat_work)
+      CALL cp_fm_upper_to_full(fm_mat_Q_static_bse_gemm, fm_work)
 
       CALL parallel_gemm(transa="N", transb="N", m=dimen_RI, n=homo**2, k=dimen_RI, alpha=1.0_dp, &
                          matrix_a=fm_mat_Q_static_bse_gemm, matrix_b=fm_mat_S_ij_bse, beta=0.0_dp, &
@@ -127,7 +127,7 @@ CONTAINS
                          matrix_a=fm_mat_Q_static_bse_gemm, matrix_b=fm_mat_S, beta=0.0_dp, &
                          matrix_c=fm_mat_S_bar_ia_bse)
 
-      CALL cp_fm_release(fm_mat_work)
+      CALL cp_fm_release(fm_work)
 
       CALL timestop(handle)
 
@@ -135,8 +135,8 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
-!> \param fm_mat_out ...
-!> \param fm_mat_in ...
+!> \param fm_out ...
+!> \param fm_in ...
 !> \param beta ...
 !> \param nrow_secidx_in ...
 !> \param ncol_secidx_in ...
@@ -146,10 +146,10 @@ CONTAINS
 !> \param reordering ...
 !> \param mp2_env ...
 ! **************************************************************************************************
-   SUBROUTINE redist_fm(fm_mat_out, fm_mat_in, beta, nrow_secidx_in, ncol_secidx_in, &
+   SUBROUTINE redist_fm(fm_out, fm_in, beta, nrow_secidx_in, ncol_secidx_in, &
                         nrow_secidx_out, ncol_secidx_out, unit_nr, reordering, mp2_env)
 
-      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_mat_out, fm_mat_in
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_out, fm_in
       REAL(kind=dp)                                      :: beta
       INTEGER, INTENT(IN)                                :: nrow_secidx_in, ncol_secidx_in, &
                                                             nrow_secidx_out, ncol_secidx_out
@@ -176,10 +176,10 @@ CONTAINS
       CALL timeset(routineN, handle)
       CALL timeset(routineN//"_1_setup", handle2)
 
-      para_env_out => fm_mat_out%matrix_struct%para_env
+      para_env_out => fm_out%matrix_struct%para_env
       ! A_iajb
       ! We start by moving data from local parts of W_ijab to the full matrix A_iajb using buffers
-      CALL cp_fm_get_info(matrix=fm_mat_out, &
+      CALL cp_fm_get_info(matrix=fm_out, &
                           nrow_local=nrow_local_out, &
                           ncol_local=ncol_local_out, &
                           row_indices=row_indices_out, &
@@ -187,8 +187,8 @@ CONTAINS
                           nrow_block=nrow_block_out, &
                           ncol_block=ncol_block_out)
 
-      nprow = fm_mat_out%matrix_struct%context%num_pe(1)
-      npcol = fm_mat_out%matrix_struct%context%num_pe(2)
+      nprow = fm_out%matrix_struct%context%num_pe(1)
+      npcol = fm_out%matrix_struct%context%num_pe(2)
 
       ALLOCATE (num_entries_rec(0:para_env_out%num_pe - 1))
       ALLOCATE (num_entries_send(0:para_env_out%num_pe - 1))
@@ -198,7 +198,7 @@ CONTAINS
 
       dummy = 0
 
-      CALL cp_fm_get_info(matrix=fm_mat_in, &
+      CALL cp_fm_get_info(matrix=fm_in, &
                           nrow_local=nrow_local_in, &
                           ncol_local=ncol_local_in, &
                           row_indices=row_indices_in, &
@@ -207,21 +207,21 @@ CONTAINS
                           ncol_block=ncol_block_in)
 
       IF (unit_nr > 0 .AND. mp2_env%ri_g0w0%bse_debug_print) THEN
-         WRITE (unit_nr, '(T2,A10,T13,A14,A10,T71,I10)') 'BSE|DEBUG|', 'Row number of ', fm_mat_out%name, &
-            fm_mat_out%matrix_struct%nrow_global
-         WRITE (unit_nr, '(T2,A10,T13,A17,A10,T71,I10)') 'BSE|DEBUG|', 'Column number of ', fm_mat_out%name, &
-            fm_mat_out%matrix_struct%ncol_global
+         WRITE (unit_nr, '(T2,A10,T13,A14,A10,T71,I10)') 'BSE|DEBUG|', 'Row number of ', fm_out%name, &
+            fm_out%matrix_struct%nrow_global
+         WRITE (unit_nr, '(T2,A10,T13,A17,A10,T71,I10)') 'BSE|DEBUG|', 'Column number of ', fm_out%name, &
+            fm_out%matrix_struct%ncol_global
 
-         WRITE (unit_nr, '(T2,A10,T13,A18,A10,T71,I10)') 'BSE|DEBUG|', 'Row block size of ', fm_mat_out%name, nrow_block_out
-         WRITE (unit_nr, '(T2,A10,T13,A21,A10,T71,I10)') 'BSE|DEBUG|', 'Column block size of ', fm_mat_out%name, ncol_block_out
+         WRITE (unit_nr, '(T2,A10,T13,A18,A10,T71,I10)') 'BSE|DEBUG|', 'Row block size of ', fm_out%name, nrow_block_out
+         WRITE (unit_nr, '(T2,A10,T13,A21,A10,T71,I10)') 'BSE|DEBUG|', 'Column block size of ', fm_out%name, ncol_block_out
 
-         WRITE (unit_nr, '(T2,A10,T13,A14,A10,T71,I10)') 'BSE|DEBUG|', 'Row number of ', fm_mat_in%name, &
-            fm_mat_in%matrix_struct%nrow_global
-         WRITE (unit_nr, '(T2,A10,T13,A17,A10,T71,I10)') 'BSE|DEBUG|', 'Column number of ', fm_mat_in%name, &
-            fm_mat_in%matrix_struct%ncol_global
+         WRITE (unit_nr, '(T2,A10,T13,A14,A10,T71,I10)') 'BSE|DEBUG|', 'Row number of ', fm_in%name, &
+            fm_in%matrix_struct%nrow_global
+         WRITE (unit_nr, '(T2,A10,T13,A17,A10,T71,I10)') 'BSE|DEBUG|', 'Column number of ', fm_in%name, &
+            fm_in%matrix_struct%ncol_global
 
-         WRITE (unit_nr, '(T2,A10,T13,A18,A10,T71,I10)') 'BSE|DEBUG|', 'Row block size of ', fm_mat_in%name, nrow_block_in
-         WRITE (unit_nr, '(T2,A10,T13,A21,A10,T71,I10)') 'BSE|DEBUG|', 'Column block size of ', fm_mat_in%name, ncol_block_in
+         WRITE (unit_nr, '(T2,A10,T13,A18,A10,T71,I10)') 'BSE|DEBUG|', 'Row block size of ', fm_in%name, nrow_block_in
+         WRITE (unit_nr, '(T2,A10,T13,A21,A10,T71,I10)') 'BSE|DEBUG|', 'Column block size of ', fm_in%name, ncol_block_in
       END IF
 
       ! Use scalapack wrapper to find process index in A, where ijab -> iajb is needed
@@ -238,12 +238,12 @@ CONTAINS
             idx_col_out = indices_in(reordering(4)) + (indices_in(reordering(3)) - 1)*ncol_secidx_out
 
             send_prow = cp_fm_indxg2p(idx_row_out, nrow_block_out, dummy, &
-                                      fm_mat_out%matrix_struct%first_p_pos(1), nprow)
+                                      fm_out%matrix_struct%first_p_pos(1), nprow)
 
             send_pcol = cp_fm_indxg2p(idx_col_out, ncol_block_out, dummy, &
-                                      fm_mat_out%matrix_struct%first_p_pos(2), npcol)
+                                      fm_out%matrix_struct%first_p_pos(2), npcol)
 
-            proc_send = fm_mat_out%matrix_struct%context%blacs2mpi(send_prow, send_pcol)
+            proc_send = fm_out%matrix_struct%context%blacs2mpi(send_prow, send_pcol)
 
             num_entries_send(proc_send) = num_entries_send(proc_send) + 1
 
@@ -301,9 +301,9 @@ CONTAINS
 
       CALL timestop(handle2)
 
-      CALL timeset(routineN//"_4_buf_from_fmin_"//fm_mat_out%name, handle2)
+      CALL timeset(routineN//"_4_buf_from_fmin_"//fm_out%name, handle2)
       IF (unit_nr > 0 .AND. mp2_env%ri_g0w0%bse_debug_print) THEN
-         WRITE (unit_nr, '(T2,A10,T13,A18,A10,A13)') 'BSE|DEBUG|', 'Writing data from ', fm_mat_in%name, ' into buffers'
+         WRITE (unit_nr, '(T2,A10,T13,A18,A10,A13)') 'BSE|DEBUG|', 'Writing data from ', fm_in%name, ' into buffers'
       END IF
 
       ALLOCATE (entry_counter(0:para_env_out%num_pe - 1))
@@ -321,16 +321,16 @@ CONTAINS
             idx_col_out = indices_in(reordering(4)) + (indices_in(reordering(3)) - 1)*ncol_secidx_out
 
             send_prow = cp_fm_indxg2p(idx_row_out, nrow_block_out, dummy, &
-                                      fm_mat_out%matrix_struct%first_p_pos(1), nprow)
+                                      fm_out%matrix_struct%first_p_pos(1), nprow)
 
             send_pcol = cp_fm_indxg2p(idx_col_out, ncol_block_out, dummy, &
-                                      fm_mat_out%matrix_struct%first_p_pos(2), npcol)
+                                      fm_out%matrix_struct%first_p_pos(2), npcol)
 
-            proc_send = fm_mat_out%matrix_struct%context%blacs2mpi(send_prow, send_pcol)
+            proc_send = fm_out%matrix_struct%context%blacs2mpi(send_prow, send_pcol)
             entry_counter(proc_send) = entry_counter(proc_send) + 1
 
             buffer_send(proc_send)%msg(entry_counter(proc_send)) = &
-               fm_mat_in%local_data(row_idx_loc, col_idx_loc)
+               fm_in%local_data(row_idx_loc, col_idx_loc)
 
             buffer_send(proc_send)%indx(entry_counter(proc_send), 1) = idx_row_out
             buffer_send(proc_send)%indx(entry_counter(proc_send), 2) = idx_col_out
@@ -353,16 +353,16 @@ CONTAINS
 
       CALL timestop(handle2)
 
-      CALL timeset(routineN//"_6_buffer_to_fmout"//fm_mat_out%name, handle2)
+      CALL timeset(routineN//"_6_buffer_to_fmout"//fm_out%name, handle2)
       IF (unit_nr > 0 .AND. mp2_env%ri_g0w0%bse_debug_print) THEN
-         WRITE (unit_nr, '(T2,A10,T13,A24,A10)') 'BSE|DEBUG|', 'Writing from buffers to ', fm_mat_out%name
+         WRITE (unit_nr, '(T2,A10,T13,A24,A10)') 'BSE|DEBUG|', 'Writing from buffers to ', fm_out%name
       END IF
 
-      ! fill fm_mat_out with the entries from buffer_rec, i.e. buffer_rec are parts of W_ijab
+      ! fill fm_out with the entries from buffer_rec, i.e. buffer_rec are parts of W_ijab
       nprocs = para_env_out%num_pe
 
 !$OMP PARALLEL DO DEFAULT(NONE) &
-!$OMP SHARED(fm_mat_out, nprocs, nrow_block_out, ncol_block_out, &
+!$OMP SHARED(fm_out, nprocs, nrow_block_out, ncol_block_out, &
 !$OMP          num_entries_rec, buffer_rec, beta, dummy, nprow, npcol) &
 !$OMP PRIVATE(iproc, i_entry_rec, ii, jj)
       DO iproc = 0, nprocs - 1
@@ -372,7 +372,7 @@ CONTAINS
             jj = cp_fm_indxg2l(buffer_rec(iproc)%indx(i_entry_rec, 2), ncol_block_out, &
                                dummy, dummy, npcol)
 
-            fm_mat_out%local_data(ii, jj) = fm_mat_out%local_data(ii, jj) + beta*buffer_rec(iproc)%msg(i_entry_rec)
+            fm_out%local_data(ii, jj) = fm_out%local_data(ii, jj) + beta*buffer_rec(iproc)%msg(i_entry_rec)
          END DO
       END DO
 !$OMP END PARALLEL DO
@@ -405,8 +405,8 @@ CONTAINS
 !> \brief Logic: Matrices have some dimension dimen_RI x nrow_in*ncol_in  for the incoming (untruncated) matrix
 !>  and dimen_RI x nrow_out*ncol_out for the truncated matrix. The truncation is done by resorting the indices
 !>  via parallel communication.
-!> \param fm_mat_out ...
-!> \param fm_mat_in ...
+!> \param fm_out ...
+!> \param fm_in ...
 !> \param nrow_in ...
 !> \param ncol_in ...
 !> \param nrow_out ...
@@ -416,12 +416,12 @@ CONTAINS
 !> \param nrow_offset ...
 !> \param ncol_offset ...
 ! **************************************************************************************************
-   SUBROUTINE truncate_fm(fm_mat_out, fm_mat_in, nrow_in, ncol_in, &
+   SUBROUTINE truncate_fm(fm_out, fm_in, nrow_in, ncol_in, &
                           nrow_out, ncol_out, unit_nr, mp2_env, &
                           nrow_offset, ncol_offset)
 
-      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_mat_out
-      TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_in
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_out
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_in
       INTEGER                                            :: nrow_in, ncol_in, nrow_out, ncol_out, &
                                                             unit_nr
       TYPE(mp2_type), INTENT(INOUT)                      :: mp2_env
@@ -458,10 +458,10 @@ CONTAINS
          correct_ncol = .TRUE.
       END IF
 
-      para_env_out => fm_mat_out%matrix_struct%para_env
+      para_env_out => fm_out%matrix_struct%para_env
       ! A_iajb
       ! We start by moving data from local parts of W_ijab to the full matrix A_iajb using buffers
-      CALL cp_fm_get_info(matrix=fm_mat_out, &
+      CALL cp_fm_get_info(matrix=fm_out, &
                           nrow_local=nrow_local_out, &
                           ncol_local=ncol_local_out, &
                           row_indices=row_indices_out, &
@@ -469,8 +469,8 @@ CONTAINS
                           nrow_block=nrow_block_out, &
                           ncol_block=ncol_block_out)
 
-      nprow = fm_mat_out%matrix_struct%context%num_pe(1)
-      npcol = fm_mat_out%matrix_struct%context%num_pe(2)
+      nprow = fm_out%matrix_struct%context%num_pe(1)
+      npcol = fm_out%matrix_struct%context%num_pe(2)
 
       ALLOCATE (num_entries_rec(0:para_env_out%num_pe - 1))
       ALLOCATE (num_entries_send(0:para_env_out%num_pe - 1))
@@ -480,7 +480,7 @@ CONTAINS
 
       dummy = 0
 
-      CALL cp_fm_get_info(matrix=fm_mat_in, &
+      CALL cp_fm_get_info(matrix=fm_in, &
                           nrow_local=nrow_local_in, &
                           ncol_local=ncol_local_in, &
                           row_indices=row_indices_in, &
@@ -489,21 +489,21 @@ CONTAINS
                           ncol_block=ncol_block_in)
 
       IF (unit_nr > 0 .AND. mp2_env%ri_g0w0%bse_debug_print) THEN
-         WRITE (unit_nr, '(T2,A10,T13,A14,A10,T71,I10)') 'BSE|DEBUG|', 'Row number of ', fm_mat_out%name, &
-            fm_mat_out%matrix_struct%nrow_global
-         WRITE (unit_nr, '(T2,A10,T13,A17,A10,T71,I10)') 'BSE|DEBUG|', 'Column number of ', fm_mat_out%name, &
-            fm_mat_out%matrix_struct%ncol_global
+         WRITE (unit_nr, '(T2,A10,T13,A14,A10,T71,I10)') 'BSE|DEBUG|', 'Row number of ', fm_out%name, &
+            fm_out%matrix_struct%nrow_global
+         WRITE (unit_nr, '(T2,A10,T13,A17,A10,T71,I10)') 'BSE|DEBUG|', 'Column number of ', fm_out%name, &
+            fm_out%matrix_struct%ncol_global
 
-         WRITE (unit_nr, '(T2,A10,T13,A18,A10,T71,I10)') 'BSE|DEBUG|', 'Row block size of ', fm_mat_out%name, nrow_block_out
-         WRITE (unit_nr, '(T2,A10,T13,A21,A10,T71,I10)') 'BSE|DEBUG|', 'Column block size of ', fm_mat_out%name, ncol_block_out
+         WRITE (unit_nr, '(T2,A10,T13,A18,A10,T71,I10)') 'BSE|DEBUG|', 'Row block size of ', fm_out%name, nrow_block_out
+         WRITE (unit_nr, '(T2,A10,T13,A21,A10,T71,I10)') 'BSE|DEBUG|', 'Column block size of ', fm_out%name, ncol_block_out
 
-         WRITE (unit_nr, '(T2,A10,T13,A14,A10,T71,I10)') 'BSE|DEBUG|', 'Row number of ', fm_mat_in%name, &
-            fm_mat_in%matrix_struct%nrow_global
-         WRITE (unit_nr, '(T2,A10,T13,A17,A10,T71,I10)') 'BSE|DEBUG|', 'Column number of ', fm_mat_in%name, &
-            fm_mat_in%matrix_struct%ncol_global
+         WRITE (unit_nr, '(T2,A10,T13,A14,A10,T71,I10)') 'BSE|DEBUG|', 'Row number of ', fm_in%name, &
+            fm_in%matrix_struct%nrow_global
+         WRITE (unit_nr, '(T2,A10,T13,A17,A10,T71,I10)') 'BSE|DEBUG|', 'Column number of ', fm_in%name, &
+            fm_in%matrix_struct%ncol_global
 
-         WRITE (unit_nr, '(T2,A10,T13,A18,A10,T71,I10)') 'BSE|DEBUG|', 'Row block size of ', fm_mat_in%name, nrow_block_in
-         WRITE (unit_nr, '(T2,A10,T13,A21,A10,T71,I10)') 'BSE|DEBUG|', 'Column block size of ', fm_mat_in%name, ncol_block_in
+         WRITE (unit_nr, '(T2,A10,T13,A18,A10,T71,I10)') 'BSE|DEBUG|', 'Row block size of ', fm_in%name, nrow_block_in
+         WRITE (unit_nr, '(T2,A10,T13,A21,A10,T71,I10)') 'BSE|DEBUG|', 'Column block size of ', fm_in%name, ncol_block_in
       END IF
 
       ! We find global indices in S with nrow_in and ncol_in for truncation
@@ -534,12 +534,12 @@ CONTAINS
             idx_row_in = row_indices_in(row_idx_loc)
 
             send_prow = cp_fm_indxg2p(idx_row_in, nrow_block_out, dummy, &
-                                      fm_mat_out%matrix_struct%first_p_pos(1), nprow)
+                                      fm_out%matrix_struct%first_p_pos(1), nprow)
 
             send_pcol = cp_fm_indxg2p(idx_col_out, ncol_block_out, dummy, &
-                                      fm_mat_out%matrix_struct%first_p_pos(2), npcol)
+                                      fm_out%matrix_struct%first_p_pos(2), npcol)
 
-            proc_send = fm_mat_out%matrix_struct%context%blacs2mpi(send_prow, send_pcol)
+            proc_send = fm_out%matrix_struct%context%blacs2mpi(send_prow, send_pcol)
 
             num_entries_send(proc_send) = num_entries_send(proc_send) + 1
 
@@ -597,9 +597,9 @@ CONTAINS
 
       CALL timestop(handle2)
 
-      CALL timeset(routineN//"_4_buf_from_fmin_"//fm_mat_out%name, handle2)
+      CALL timeset(routineN//"_4_buf_from_fmin_"//fm_out%name, handle2)
       IF (unit_nr > 0 .AND. mp2_env%ri_g0w0%bse_debug_print) THEN
-         WRITE (unit_nr, '(T2,A10,T13,A18,A10,A13)') 'BSE|DEBUG|', 'Writing data from ', fm_mat_in%name, ' into buffers'
+         WRITE (unit_nr, '(T2,A10,T13,A18,A10,A13)') 'BSE|DEBUG|', 'Writing data from ', fm_in%name, ' into buffers'
       END IF
 
       ALLOCATE (entry_counter(0:para_env_out%num_pe - 1))
@@ -633,16 +633,16 @@ CONTAINS
             idx_row_in = row_indices_in(row_idx_loc)
 
             send_prow = cp_fm_indxg2p(idx_row_in, nrow_block_out, dummy, &
-                                      fm_mat_out%matrix_struct%first_p_pos(1), nprow)
+                                      fm_out%matrix_struct%first_p_pos(1), nprow)
 
             send_pcol = cp_fm_indxg2p(idx_col_out, ncol_block_out, dummy, &
-                                      fm_mat_out%matrix_struct%first_p_pos(2), npcol)
+                                      fm_out%matrix_struct%first_p_pos(2), npcol)
 
-            proc_send = fm_mat_out%matrix_struct%context%blacs2mpi(send_prow, send_pcol)
+            proc_send = fm_out%matrix_struct%context%blacs2mpi(send_prow, send_pcol)
             entry_counter(proc_send) = entry_counter(proc_send) + 1
 
             buffer_send(proc_send)%msg(entry_counter(proc_send)) = &
-               fm_mat_in%local_data(row_idx_loc, col_idx_loc)
+               fm_in%local_data(row_idx_loc, col_idx_loc)
             !No need to create row_out, since it is identical to incoming
             !We dont change the RI index for any fm_mat_XX_BSE
             buffer_send(proc_send)%indx(entry_counter(proc_send), 1) = idx_row_in
@@ -666,16 +666,16 @@ CONTAINS
 
       CALL timestop(handle2)
 
-      CALL timeset(routineN//"_6_buffer_to_fmout"//fm_mat_out%name, handle2)
+      CALL timeset(routineN//"_6_buffer_to_fmout"//fm_out%name, handle2)
       IF (unit_nr > 0 .AND. mp2_env%ri_g0w0%bse_debug_print) THEN
-         WRITE (unit_nr, '(T2,A10,T13,A24,A10)') 'BSE|DEBUG|', 'Writing from buffers to ', fm_mat_out%name
+         WRITE (unit_nr, '(T2,A10,T13,A24,A10)') 'BSE|DEBUG|', 'Writing from buffers to ', fm_out%name
       END IF
 
-      ! fill fm_mat_out with the entries from buffer_rec, i.e. buffer_rec are parts of W_ijab
+      ! fill fm_out with the entries from buffer_rec, i.e. buffer_rec are parts of W_ijab
       nprocs = para_env_out%num_pe
 
 !$OMP PARALLEL DO DEFAULT(NONE) &
-!$OMP SHARED(fm_mat_out, nprocs, nrow_block_out, ncol_block_out, &
+!$OMP SHARED(fm_out, nprocs, nrow_block_out, ncol_block_out, &
 !$OMP          num_entries_rec, buffer_rec, nprow, npcol, dummy) &
 !$OMP PRIVATE(iproc, i_entry_rec, ii, jj)
       DO iproc = 0, nprocs - 1
@@ -685,7 +685,7 @@ CONTAINS
             jj = cp_fm_indxg2l(buffer_rec(iproc)%indx(i_entry_rec, 2), ncol_block_out, &
                                dummy, dummy, npcol)
 
-            fm_mat_out%local_data(ii, jj) = fm_mat_out%local_data(ii, jj) + buffer_rec(iproc)%msg(i_entry_rec)
+            fm_out%local_data(ii, jj) = fm_out%local_data(ii, jj) + buffer_rec(iproc)%msg(i_entry_rec)
          END DO
       END DO
 !$OMP END PARALLEL DO
@@ -716,15 +716,15 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Debug function to write elements of a full matrix to file, if they are larger than a given threshold
-!> \param fm_mat ...
+!> \param fm ...
 !> \param thresh ...
 !> \param header ...
 !> \param unit_nr ...
 !> \param abs_vals ...
 ! **************************************************************************************************
-   SUBROUTINE fm_write_thresh(fm_mat, thresh, header, unit_nr, abs_vals)
+   SUBROUTINE fm_write_thresh(fm, thresh, header, unit_nr, abs_vals)
 
-      TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm
       REAL(KIND=dp), INTENT(IN)                          :: thresh
       CHARACTER(LEN=*), INTENT(IN)                       :: header
       INTEGER, INTENT(IN)                                :: unit_nr
@@ -745,7 +745,7 @@ CONTAINS
          my_abs_vals = .FALSE.
       END IF
 
-      CALL cp_fm_get_info(matrix=fm_mat, &
+      CALL cp_fm_get_info(matrix=fm, &
                           nrow_local=nrow_local, &
                           ncol_local=ncol_local, &
                           row_indices=row_indices, &
@@ -757,23 +757,23 @@ CONTAINS
       IF (my_abs_vals) THEN
          DO i = 1, nrow_local
             DO j = 1, ncol_local
-               IF (ABS(fm_mat%local_data(i, j)) > thresh) THEN
+               IF (ABS(fm%local_data(i, j)) > thresh) THEN
                   WRITE (*, "(A7,T10,I5,T20,I5,T30,F13.5)") header, row_indices(i), col_indices(j), &
-                     ABS(fm_mat%local_data(i, j))
+                     ABS(fm%local_data(i, j))
                END IF
             END DO
          END DO
       ELSE
          DO i = 1, nrow_local
             DO j = 1, ncol_local
-               IF (ABS(fm_mat%local_data(i, j)) > thresh) THEN
+               IF (ABS(fm%local_data(i, j)) > thresh) THEN
                   WRITE (*, "(A7,T10,I5,T20,I5,T30,F13.5)") header, row_indices(i), col_indices(j), &
-                     fm_mat%local_data(i, j)
+                     fm%local_data(i, j)
                END IF
             END DO
          END DO
       END IF
-      CALL fm_mat%matrix_struct%para_env%sync()
+      CALL fm%matrix_struct%para_env%sync()
       IF (unit_nr > 0) THEN
          WRITE (unit_nr, *) my_footer
       END IF
@@ -860,15 +860,15 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
-!> \param fm_mat_work ...
+!> \param fm_work ...
 !> \param eig_vals ...
 !> \param beta ...
 !> \param gamma ...
 !> \param do_transpose ...
 ! **************************************************************************************************
-   SUBROUTINE comp_eigvec_coeff_BSE(fm_mat_work, eig_vals, beta, gamma, do_transpose)
+   SUBROUTINE comp_eigvec_coeff_BSE(fm_work, eig_vals, beta, gamma, do_transpose)
 
-      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_mat_work
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_work
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
          INTENT(IN)                                      :: eig_vals
       REAL(KIND=dp), INTENT(IN)                          :: beta
@@ -897,7 +897,7 @@ CONTAINS
          my_do_transpose = .FALSE.
       END IF
 
-      CALL cp_fm_get_info(matrix=fm_mat_work, &
+      CALL cp_fm_get_info(matrix=fm_work, &
                           nrow_local=nrow_local, &
                           ncol_local=ncol_local, &
                           row_indices=row_indices, &
@@ -908,7 +908,7 @@ CONTAINS
             j_col_global = col_indices(jj)
             DO ii = 1, nrow_local
                coeff = (eig_vals(j_col_global)**beta)/my_gamma
-               fm_mat_work%local_data(ii, jj) = fm_mat_work%local_data(ii, jj)*coeff
+               fm_work%local_data(ii, jj) = fm_work%local_data(ii, jj)*coeff
             END DO
          END DO
       ELSE
@@ -916,7 +916,7 @@ CONTAINS
             DO ii = 1, nrow_local
                i_row_global = row_indices(ii)
                coeff = (eig_vals(i_row_global)**beta)/my_gamma
-               fm_mat_work%local_data(ii, jj) = fm_mat_work%local_data(ii, jj)*coeff
+               fm_work%local_data(ii, jj) = fm_work%local_data(ii, jj)*coeff
             END DO
          END DO
       END IF
