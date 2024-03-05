@@ -11,15 +11,19 @@
 !>      11.2023 created [Maximilian Graml]
 ! **************************************************************************************************
 MODULE bse_util
+   USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_fm_basic_linalg,              ONLY: cp_fm_upper_to_full
    USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose,&
                                               cp_fm_cholesky_invert
+   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
+                                              cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_get_info,&
                                               cp_fm_indxg2l,&
                                               cp_fm_indxg2p,&
                                               cp_fm_release,&
                                               cp_fm_set_all,&
+                                              cp_fm_to_fm_submat_general,&
                                               cp_fm_type
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_para_env_type,&
@@ -27,6 +31,7 @@ MODULE bse_util
    USE mp2_types,                       ONLY: integ_mat_buffer_type,&
                                               mp2_type
    USE parallel_gemm_api,               ONLY: parallel_gemm
+   USE physcon,                         ONLY: evolt
    USE rpa_communication,               ONLY: communicate_buffer
    USE util,                            ONLY: sort,&
                                               sort_unique
@@ -39,7 +44,8 @@ MODULE bse_util
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'bse_util'
 
    PUBLIC :: mult_B_with_W, redist_fm, truncate_fm, fm_write_thresh, print_BSE_start_flag, &
-             deallocate_matrices_bse, comp_eigvec_coeff_BSE, sort_excitations, estimate_BSE_resources
+             deallocate_matrices_bse, comp_eigvec_coeff_BSE, sort_excitations, &
+             estimate_BSE_resources, filter_eigvec_contrib, truncate_BSE_matrices
 
 CONTAINS
 
@@ -1031,9 +1037,9 @@ CONTAINS
       ! Number of matrices with size of A in TDA is 2 (A itself and W_ijab)
       num_BSE_matrices = 2
       ! With the full diagonalization of ABBA, we need several auxiliary matrices in the process
-      ! The maximum number is 2 + 8 (additional B and C matrix as well as 6 matrices to create C)
+      ! The maximum number is 2 + 4 (additional B and C matrix as well as 4 matrices to create C)
       IF (bse_abba) THEN
-         num_BSE_matrices = 2 + 8
+         num_BSE_matrices = 2 + 4
       END IF
       mem_est = (8*homo_red**2*virtual_red**2/para_env%num_pe*num_BSE_matrices)/(1024**3)
       IF (unit_nr > 0) THEN
@@ -1048,5 +1054,294 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE estimate_BSE_resources
+
+! **************************************************************************************************
+!> \brief ...
+!> \param fm_eigvec ...
+!> \param idx_homo ...
+!> \param idx_virt ...
+!> \param eigvec_entries ...
+!> \param i_exc ...
+!> \param homo ...
+!> \param virtual ...
+!> \param num_entries ...
+!> \param mp2_env ...
+! **************************************************************************************************
+   SUBROUTINE filter_eigvec_contrib(fm_eigvec, idx_homo, idx_virt, eigvec_entries, &
+                                    i_exc, homo, virtual, num_entries, mp2_env)
+
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_eigvec
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: idx_homo, idx_virt
+      REAL(kind=dp), ALLOCATABLE, DIMENSION(:)           :: eigvec_entries
+      INTEGER                                            :: i_exc, homo, virtual, num_entries
+      TYPE(mp2_type), INTENT(INOUT)                      :: mp2_env
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'filter_eigvec_contrib'
+
+      INTEGER                                            :: eigvec_idx, handle, ii, iproc, jj, kk, &
+                                                            ncol_local, nrow_local, &
+                                                            num_entries_local
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: num_entries_to_comm
+      INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
+      REAL(KIND=dp)                                      :: eigvec_entry
+      TYPE(integ_mat_buffer_type), ALLOCATABLE, &
+         DIMENSION(:)                                    :: buffer_entries
+      TYPE(mp_para_env_type), POINTER                    :: para_env
+
+      CALL timeset(routineN, handle)
+
+      para_env => fm_eigvec%matrix_struct%para_env
+
+      CALL cp_fm_get_info(matrix=fm_eigvec, &
+                          nrow_local=nrow_local, &
+                          ncol_local=ncol_local, &
+                          row_indices=row_indices, &
+                          col_indices=col_indices)
+
+      ALLOCATE (num_entries_to_comm(0:para_env%num_pe - 1))
+      num_entries_to_comm(:) = 0
+
+      DO jj = 1, ncol_local
+         !First check if i is localized on this proc
+         IF (col_indices(jj) /= i_exc) THEN
+            CYCLE
+         END IF
+         DO ii = 1, nrow_local
+            eigvec_idx = row_indices(ii)
+            eigvec_entry = fm_eigvec%local_data(ii, jj)/SQRT(2.0_dp)
+            IF (ABS(eigvec_entry) > mp2_env%ri_g0w0%eps_x) THEN
+               num_entries_to_comm(para_env%mepos) = num_entries_to_comm(para_env%mepos) + 1
+            END IF
+         END DO
+      END DO
+
+      !Gather number of entries of other processes
+      CALL para_env%sum(num_entries_to_comm)
+
+      num_entries_local = num_entries_to_comm(para_env%mepos)
+
+      ALLOCATE (buffer_entries(0:para_env%num_pe - 1))
+
+      DO iproc = 0, para_env%num_pe - 1
+         ALLOCATE (buffer_entries(iproc)%msg(num_entries_to_comm(iproc)))
+         ALLOCATE (buffer_entries(iproc)%indx(num_entries_to_comm(iproc), 2))
+         buffer_entries(iproc)%msg = 0.0_dp
+         buffer_entries(iproc)%indx = 0
+      END DO
+
+      kk = 1
+      DO jj = 1, ncol_local
+         !First check if i is localized on this proc
+         IF (col_indices(jj) /= i_exc) THEN
+            CYCLE
+         END IF
+         DO ii = 1, nrow_local
+            eigvec_idx = row_indices(ii)
+            eigvec_entry = fm_eigvec%local_data(ii, jj)/SQRT(2.0_dp)
+            IF (ABS(eigvec_entry) > mp2_env%ri_g0w0%eps_x) THEN
+               buffer_entries(para_env%mepos)%indx(kk, 1) = (eigvec_idx - 1)/virtual + 1
+               buffer_entries(para_env%mepos)%indx(kk, 2) = MOD(eigvec_idx - 1, virtual) + 1
+               buffer_entries(para_env%mepos)%msg(kk) = eigvec_entry
+               kk = kk + 1
+            END IF
+         END DO
+      END DO
+
+      DO iproc = 0, para_env%num_pe - 1
+         CALL para_env%sum(buffer_entries(iproc)%msg)
+         CALL para_env%sum(buffer_entries(iproc)%indx)
+      END DO
+
+      !Now sum up gathered information
+      num_entries = SUM(num_entries_to_comm)
+      ALLOCATE (idx_homo(num_entries))
+      ALLOCATE (idx_virt(num_entries))
+      ALLOCATE (eigvec_entries(num_entries))
+
+      kk = 1
+      DO iproc = 0, para_env%num_pe - 1
+         IF (num_entries_to_comm(iproc) /= 0) THEN
+            DO ii = 1, num_entries_to_comm(iproc)
+               idx_homo(kk) = buffer_entries(iproc)%indx(ii, 1)
+               idx_virt(kk) = buffer_entries(iproc)%indx(ii, 2)
+               eigvec_entries(kk) = buffer_entries(iproc)%msg(ii)
+               kk = kk + 1
+            END DO
+         END IF
+      END DO
+
+      !Deallocate all the used arrays
+      DO iproc = 0, para_env%num_pe - 1
+         DEALLOCATE (buffer_entries(iproc)%msg)
+         DEALLOCATE (buffer_entries(iproc)%indx)
+      END DO
+      DEALLOCATE (buffer_entries)
+      DEALLOCATE (num_entries_to_comm)
+      NULLIFY (row_indices)
+      NULLIFY (col_indices)
+
+      !Now sort the results according to the involved singleparticle orbitals
+      ! (homo first, then virtual)
+      CALL sort_excitations(idx_homo, idx_virt, eigvec_entries)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE
+   
+! **************************************************************************************************
+!> \brief ...
+!> \param fm_mat_S ...
+!> \param fm_mat_S_ij_bse ...
+!> \param fm_mat_S_ab_bse ...
+!> \param fm_mat_S_trunc ...
+!> \param fm_mat_S_ij_trunc ...
+!> \param fm_mat_S_ab_trunc ...
+!> \param Eigenval ...
+!> \param Eigenval_reduced ...
+!> \param homo ...
+!> \param virtual ...
+!> \param dimen_RI ...
+!> \param unit_nr ...
+!> \param homo_red ...
+!> \param virt_red ...
+!> \param mp2_env ...
+! **************************************************************************************************
+   SUBROUTINE truncate_BSE_matrices(fm_mat_S, fm_mat_S_ij_bse, fm_mat_S_ab_bse, &
+                                    fm_mat_S_trunc, fm_mat_S_ij_trunc, fm_mat_S_ab_trunc, &
+                                    Eigenval, Eigenval_reduced, &
+                                    homo, virtual, dimen_RI, unit_nr, &
+                                    homo_red, virt_red, &
+                                    mp2_env)
+
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_S, fm_mat_S_ij_bse, &
+                                                            fm_mat_S_ab_bse
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_mat_S_trunc, fm_mat_S_ij_trunc, &
+                                                            fm_mat_S_ab_trunc
+      REAL(KIND=dp), DIMENSION(:)                        :: Eigenval
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: Eigenval_reduced
+      INTEGER, INTENT(IN)                                :: homo, virtual, dimen_RI, unit_nr
+      INTEGER, INTENT(OUT)                               :: homo_red, virt_red
+      TYPE(mp2_type), INTENT(INOUT)                      :: mp2_env
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'truncate_BSE_matrices'
+
+      INTEGER                                            :: handle, homo_incl, i_homo, j_virt, &
+                                                            virt_incl
+      TYPE(cp_blacs_env_type), POINTER                   :: context
+      TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_ab, fm_struct_ia, fm_struct_ij
+      TYPE(mp_para_env_type), POINTER                    :: para_env
+
+      CALL timeset(routineN, handle)
+
+      ! Determine index in homo and virtual for truncation
+      ! Uses indices of outermost orbitals within energy range (-mp2_env%ri_g0w0%bse_cutoff_occ,mp2_env%ri_g0w0%bse_cutoff_virt)
+      IF (mp2_env%ri_g0w0%bse_cutoff_occ > 0 .OR. mp2_env%ri_g0w0%bse_cutoff_virt > 0) THEN
+         IF (-mp2_env%ri_g0w0%bse_cutoff_occ .LT. Eigenval(1) .OR. mp2_env%ri_g0w0%bse_cutoff_occ < 0) THEN
+            homo_red = homo
+            homo_incl = 1
+         ELSE
+            homo_incl = 1
+            DO i_homo = 1, homo
+               IF (Eigenval(i_homo) .GT. -mp2_env%ri_g0w0%bse_cutoff_occ) THEN
+                  homo_incl = i_homo
+                  EXIT
+               END IF
+            END DO
+            homo_red = homo - homo_incl + 1
+         END IF
+
+         IF (mp2_env%ri_g0w0%bse_cutoff_virt .GT. Eigenval(homo + virtual) .OR. mp2_env%ri_g0w0%bse_cutoff_virt < 0) THEN
+            virt_red = virtual
+            virt_incl = virtual
+         ELSE
+            virt_incl = homo + 1
+            DO j_virt = 1, virtual
+               IF (Eigenval(homo + j_virt) .GT. mp2_env%ri_g0w0%bse_cutoff_virt) THEN
+                  virt_incl = j_virt - 1
+                  EXIT
+               END IF
+            END DO
+            virt_red = virt_incl
+         END IF
+      ELSE
+         homo_red = homo
+         virt_red = virtual
+         homo_incl = 1
+         virt_incl = virtual
+      END IF
+      IF (unit_nr > 0) THEN
+         IF (mp2_env%ri_g0w0%bse_cutoff_occ > 0) THEN
+            WRITE (unit_nr, '(T2,A4,T7,A29,T71,F10.3)') 'BSE|', 'Cutoff occupied orbitals [eV]', &
+               mp2_env%ri_g0w0%bse_cutoff_occ*evolt
+         ELSE
+            WRITE (unit_nr, '(T2,A4,T7,A37)') 'BSE|', 'No cutoff given for occupied orbitals'
+         END IF
+         IF (mp2_env%ri_g0w0%bse_cutoff_virt > 0) THEN
+            WRITE (unit_nr, '(T2,A4,T7,A28,T71,F10.3)') 'BSE|', 'Cutoff virtual orbitals [eV]', &
+               mp2_env%ri_g0w0%bse_cutoff_virt*evolt
+         ELSE
+            WRITE (unit_nr, '(T2,A4,T7,A36)') 'BSE|', 'No cutoff given for virtual orbitals'
+         END IF
+         WRITE (unit_nr, '(T2,A4,T7,A20,T71,I10)') 'BSE|', 'First occupied index', homo_incl
+         WRITE (unit_nr, '(T2,A4,T7,A18,T71,I10)') 'BSE|', 'Last virtual index', virt_incl
+         WRITE (unit_nr, '(T2,A4,T7,A26,T71,F10.3)') 'BSE|', 'First occupied energy [eV]', Eigenval(homo_incl)*evolt
+         WRITE (unit_nr, '(T2,A4,T7,A24,T71,F10.3)') 'BSE|', 'Last virtual energy [eV]', Eigenval(homo + virt_incl)*evolt
+         WRITE (unit_nr, '(T2,A4,T7,A35,T71,I10)') 'BSE|', 'Number of GW-corrected occupied MOs', mp2_env%ri_g0w0%corr_mos_occ
+         WRITE (unit_nr, '(T2,A4,T7,A34,T71,I10)') 'BSE|', 'Number of GW-corrected virtual MOs', mp2_env%ri_g0w0%corr_mos_virt
+         WRITE (unit_nr, '(T2,A4)') 'BSE|'
+      END IF
+      IF (unit_nr > 0) THEN
+         IF (homo - homo_incl + 1 > mp2_env%ri_g0w0%corr_mos_occ) THEN
+            CPABORT("Number of GW-corrected occupied MOs too small for chosen BSE cutoff")
+         END IF
+         IF (virt_incl > mp2_env%ri_g0w0%corr_mos_virt) THEN
+            CPABORT("Number of GW-corrected virtual MOs too small for chosen BSE cutoff")
+         END IF
+      END IF
+      !Truncate full fm_S matrices
+      !Allocate new truncated matrices of proper size
+      para_env => fm_mat_S%matrix_struct%para_env
+      context => fm_mat_S%matrix_struct%context
+
+      CALL cp_fm_struct_create(fm_struct_ia, para_env, context, dimen_RI, homo_red*virt_red)
+      CALL cp_fm_struct_create(fm_struct_ij, para_env, context, dimen_RI, homo_red*homo_red)
+      CALL cp_fm_struct_create(fm_struct_ab, para_env, context, dimen_RI, virt_red*virt_red)
+
+      CALL cp_fm_create(fm_mat_S_trunc, fm_struct_ia, "fm_S_trunc")
+      CALL cp_fm_create(fm_mat_S_ij_trunc, fm_struct_ij, "fm_S_ij_trunc")
+      CALL cp_fm_create(fm_mat_S_ab_trunc, fm_struct_ab, "fm_S_ab_trunc")
+
+      !Copy parts of original matrices to truncated ones
+      IF (mp2_env%ri_g0w0%bse_cutoff_occ > 0 .OR. mp2_env%ri_g0w0%bse_cutoff_virt > 0) THEN
+         !Truncate eigenvals
+         ALLOCATE (Eigenval_reduced(homo_red + virt_red))
+         Eigenval_reduced(:) = Eigenval(homo_incl:homo + virt_incl)
+
+         CALL truncate_fm(fm_mat_S_trunc, fm_mat_S, homo, virtual, &
+                          homo_red, virt_red, unit_nr, mp2_env, &
+                          nrow_offset=homo_incl)
+         CALL truncate_fm(fm_mat_S_ij_trunc, fm_mat_S_ij_bse, homo, homo, &
+                          homo_red, homo_red, unit_nr, mp2_env, &
+                          homo_incl, homo_incl)
+         CALL truncate_fm(fm_mat_S_ab_trunc, fm_mat_S_ab_bse, virtual, virtual, &
+                          virt_red, virt_red, unit_nr, mp2_env)
+
+      ELSE
+         IF (unit_nr > 0) THEN
+            WRITE (unit_nr, '(T2,A4,T7,A37)') 'BSE|', 'No truncation of BSE matrices applied'
+            WRITE (unit_nr, '(T2,A4)') 'BSE|'
+         END IF
+         Eigenval_reduced = Eigenval
+         CALL cp_fm_to_fm_submat_general(fm_mat_S, fm_mat_S_trunc, dimen_RI, homo_red*virt_red, &
+                                         1, 1, 1, 1, context)
+         CALL cp_fm_to_fm_submat_general(fm_mat_S_ij_bse, fm_mat_S_ij_trunc, dimen_RI, homo_red*homo_red, &
+                                         1, 1, 1, 1, context)
+         CALL cp_fm_to_fm_submat_general(fm_mat_S_ab_bse, fm_mat_S_ab_trunc, dimen_RI, virt_red*virt_red, &
+                                         1, 1, 1, 1, context)
+      END IF
+
+      CALL timestop(handle)
+
+   END SUBROUTINE truncate_BSE_matrices
 
 END MODULE

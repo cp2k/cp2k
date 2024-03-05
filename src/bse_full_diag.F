@@ -14,9 +14,8 @@
 MODULE bse_full_diag
 
    USE bse_util,                        ONLY: comp_eigvec_coeff_BSE,&
-                                              redist_fm,&
-                                              sort_excitations,&
-                                              truncate_fm
+                                              filter_eigvec_contrib,&
+                                              redist_fm
    USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
                                               cp_blacs_env_type
    USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add
@@ -30,14 +29,12 @@ MODULE bse_full_diag
                                               cp_fm_release,&
                                               cp_fm_set_all,&
                                               cp_fm_to_fm,&
-                                              cp_fm_to_fm_submat_general,&
                                               cp_fm_type
    USE input_constants,                 ONLY: bse_singlet,&
                                               bse_triplet
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_para_env_type
-   USE mp2_types,                       ONLY: integ_mat_buffer_type,&
-                                              mp2_type
+   USE mp2_types,                       ONLY: mp2_type
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE physcon,                         ONLY: evolt
 #include "./base/base_uses.f90"
@@ -49,12 +46,17 @@ MODULE bse_full_diag
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'bse_full_diag'
 
    PUBLIC :: create_A, diagonalize_A, create_B, create_hermitian_form_of_ABBA, &
-             diagonalize_C, truncate_BSE_matrices
+             diagonalize_C
 
 CONTAINS
 
 ! **************************************************************************************************
-!> \brief Create A Matrix: A_iajb = (E_a-E_i) delta_ij delta_ab + alpha * v_iajb - W_ijab
+!> \brief Matrix A constructed from GW energies and 3c-B-matrices (cf. subroutine mult_B_with_W)
+!> \brief  A_ia,jb = (ε_a-ε_i) δ_ij δ_ab + α * v_ia,jb - W_ij,ab
+!> \brief  ε_a, ε_i are GW singleparticle energies from Eigenval_reduced
+!> \brief  α is a spin-dependent factor
+!> \brief  v_ia,jb = \sum_P B^P_ia B^P_jb (unscreened Coulomb interaction)
+!> \brief  W_ij,ab = \sum_P \bar{B}^P_ij B^P_ab (screened Coulomb interaction)
 !> \param fm_mat_S ...
 !> \param fm_mat_S_bar_ij_bse ...
 !> \param fm_mat_S_ab_bse ...
@@ -110,10 +112,10 @@ CONTAINS
       NULLIFY (blacs_env)
       CALL cp_blacs_env_create(blacs_env=blacs_env, para_env=para_env)
 
-      !We have to use the same blacs_env for A as for the matrices fm_mat_S from RPA
-      !Logic: A_iajb = (eps_a-eps_i) delta_ij delta _ab + alpha * v_iajb - W_ijab
-      ! We create v_iajb and W_ijab, then we communicate entries from local W_ijab
-      ! to the full matrix v_iajb. By adding these and the energy diffenences: v_iajb -> A_iajb
+      ! We have to use the same blacs_env for A as for the matrices fm_mat_S from RPA
+      ! Logic: A_ia,jb = (ε_a-ε_i) δ_ij δ_ab + α * v_ia,jb - W_ij,ab
+      ! We create v_ia,jb and W_ij,ab, then we communicate entries from local W_ij,ab
+      ! to the full matrix v_ia,jb. By adding these and the energy diffenences: v_ia,jb -> A_ia,jb
       ! We use the A matrix already from the start instead of v
       CALL cp_fm_struct_create(fm_struct_a, context=fm_mat_S%matrix_struct%context, nrow_global=homo*virtual, &
                                ncol_global=homo*virtual, para_env=fm_mat_S%matrix_struct%para_env)
@@ -125,8 +127,9 @@ CONTAINS
       CALL cp_fm_create(fm_W, fm_struct_W, name="fm_W_ijab")
       CALL cp_fm_set_all(fm_W, 0.0_dp)
 
-      !Create A matrix from GW Energies, v_iajb and W_ijab (different blacs_env!)
-      !v_iajb, which is directly initialized in A (with a factor of alpha)
+      ! Create A matrix from GW Energies, v_ia,jb and W_ij,ab (different blacs_env!)
+      ! v_ia,jb, which is directly initialized in A (with a factor of alpha)
+      ! v_ia,jb = \sum_P B^P_ia B^P_jb
       CALL parallel_gemm(transa="T", transb="N", m=homo*virtual, n=homo*virtual, k=dimen_RI, alpha=alpha, &
                          matrix_a=fm_mat_S, matrix_b=fm_mat_S, beta=0.0_dp, &
                          matrix_c=fm_A)
@@ -135,7 +138,7 @@ CONTAINS
          WRITE (unit_nr, '(T2,A10,T13,A16)') 'BSE|DEBUG|', 'Allocated A_iajb'
       END IF
 
-      !W_ijab
+      !W_ij,ab = \sum_P \bar{B}^P_ij B^P_ab
       CALL parallel_gemm(transa="T", transb="N", m=homo**2, n=virtual**2, k=dimen_RI, alpha=1.0_dp, &
                          matrix_a=fm_mat_S_bar_ij_bse, matrix_b=fm_mat_S_ab_bse, beta=0.0_dp, &
                          matrix_c=fm_W)
@@ -144,15 +147,15 @@ CONTAINS
          WRITE (unit_nr, '(T2,A10,T13,A16)') 'BSE|DEBUG|', 'Allocated W_ijab'
       END IF
 
-      ! We start by moving data from local parts of W_ijab to the full matrix A_iajb using buffers
+      ! We start by moving data from local parts of W_ij,ab to the full matrix A_ia,jb using buffers
       CALL cp_fm_get_info(matrix=fm_A, &
                           nrow_local=nrow_local_A, &
                           ncol_local=ncol_local_A, &
                           row_indices=row_indices_A, &
                           col_indices=col_indices_A)
-      ! Writing -1.0_dp * W_ijab to A_iajb, i.e. beta = -1.0_dp,
-      ! W_ijab: nrow_secidx_in  = homo,    ncol_secidx_in  = virtual
-      ! A_iajb: nrow_secidx_out = virtual, ncol_secidx_out = virtual
+      ! Writing -1.0_dp * W_ij,ab to A_ia,jb, i.e. beta = -1.0_dp,
+      ! W_ij,ab: nrow_secidx_in  = homo,    ncol_secidx_in  = virtual
+      ! A_ia,jb: nrow_secidx_out = virtual, ncol_secidx_out = virtual
       reordering = (/1, 3, 2, 4/)
       CALL redist_fm(fm_A, fm_W, -1.0_dp, homo, virtual, &
                      virtual, virtual, unit_nr, reordering, mp2_env)
@@ -161,7 +164,7 @@ CONTAINS
       CALL cp_fm_release(fm_W)
       CALL cp_fm_struct_release(fm_struct_A)
 
-      !Now add the energy differences to A
+      !Now add the energy differences (ε_a-ε_i) on the diagonal (i.e. δ_ij δ_ab) of A_ia,jb
       DO ii = 1, nrow_local_A
 
          i_row_global = row_indices_A(ii)
@@ -185,7 +188,11 @@ CONTAINS
    END SUBROUTINE create_A
 
 ! **************************************************************************************************
-!> \brief Create B matrix for full BSE: B_iajb   =  alpha * v_iajb   -  W_ibaj
+!> \brief Matrix B constructed from 3c-B-matrices (cf. subroutine mult_B_with_W)
+!> \brief  B_ia,jb = α * v_ia,jb - W_ib,aj
+!> \brief  α is a spin-dependent factor
+!> \brief  v_ia,jb = \sum_P B^P_ia B^P_jb (unscreened Coulomb interaction)
+!> \brief  W_ib,aj = \sum_P \bar{B}^P_ib B^P_aj (screened Coulomb interaction)
 !> \param fm_mat_S ...
 !> \param fm_mat_S_bar_ia_bse ...
 !> \param fm_B ...
@@ -217,7 +224,7 @@ CONTAINS
          WRITE (unit_nr, '(T2,A10,T13,A10)') 'BSE|DEBUG|', 'Creating B'
       END IF
 
-      !Determines factor of exchange term, depending on requested spin configuration (cf. input_constants.F)
+      ! Determines factor of exchange term, depending on requested spin configuration (cf. input_constants.F)
       SELECT CASE (mp2_env%ri_g0w0%bse_spin_config)
       CASE (bse_singlet)
          alpha = 2.0_dp
@@ -236,16 +243,19 @@ CONTAINS
       IF (unit_nr > 0 .AND. mp2_env%ri_g0w0%bse_debug_print) THEN
          WRITE (unit_nr, '(T2,A10,T13,A16)') 'BSE|DEBUG|', 'Allocated B_iajb'
       END IF
-
+      ! v_ia,jb = \sum_P B^P_ia B^P_jb
       CALL parallel_gemm(transa="T", transb="N", m=homo*virtual, n=homo*virtual, k=dimen_RI, alpha=alpha, &
                          matrix_a=fm_mat_S, matrix_b=fm_mat_S, beta=0.0_dp, &
                          matrix_c=fm_B)
 
-      !W_ibaj
+      ! W_ib,aj = \sum_P \bar{B}^P_ib B^P_aj
       CALL parallel_gemm(transa="T", transb="N", m=homo*virtual, n=homo*virtual, k=dimen_RI, alpha=1.0_dp, &
                          matrix_a=fm_mat_S_bar_ia_bse, matrix_b=fm_mat_S, beta=0.0_dp, &
                          matrix_c=fm_W)
-      !from W_iajb to W_ibja(formally: W_ibaj, but our internal indexorder is different)
+      ! from W_ib,ja to A_ia,jb (formally: W_ib,aj, but our internal indexorder is different)
+      ! Writing -1.0_dp * W_ib,ja to A_ia,jb, i.e. beta = -1.0_dp,
+      ! W_ib,ja: nrow_secidx_in  = virtual,    ncol_secidx_in  = virtual
+      ! A_ia,jb: nrow_secidx_out = virtual, ncol_secidx_out = virtual
       reordering = (/1, 4, 3, 2/)
       CALL redist_fm(fm_B, fm_W, -1.0_dp, virtual, virtual, &
                      virtual, virtual, unit_nr, reordering, mp2_env)
@@ -256,7 +266,10 @@ CONTAINS
    END SUBROUTINE create_B
 
    ! **************************************************************************************************
-!> \brief Create the hermitian form of the ABBA matrix, i.e. C = (A-B)^-0.5 (A+B) (A-B)^-0.5
+!> \brief Construct Matrix C=(A-B)^0.5 (A+B) (A-B)^0.5 to solve full BSE matrix as a hermitian problem
+!> \brief  (cf. Eq. (A7) in F. Furche J. Chem. Phys., Vol. 114, No. 14, (2001)).
+!> \brief  We keep fm_sqrt_A_minus_B and fm_inv_sqrt_A_minus_B for print of singleparticle transitions
+!> \brief  of ABBA as described in Eq. (A10) in F. Furche J. Chem. Phys., Vol. 114, No. 14, (2001).
 !> \param fm_A ...
 !> \param fm_B ...
 !> \param fm_C ...
@@ -283,8 +296,8 @@ CONTAINS
 
       INTEGER                                            :: dim_mat, handle, n_dependent
       REAL(KIND=dp), DIMENSION(2)                        :: eigvals_AB_diff
-      TYPE(cp_fm_type)                                   :: fm_A_minus_B, fm_A_minus_B_eigvec, &
-                                                            fm_A_plus_B, fm_work_product
+      TYPE(cp_fm_type)                                   :: fm_A_minus_B, fm_A_plus_B, fm_dummy, &
+                                                            fm_work_product
 
       CALL timeset(routineN, handle)
 
@@ -295,6 +308,14 @@ CONTAINS
 
       ! Create work matrices, which will hold A+B and A-B and their powers
       ! C is created afterwards to save memory
+      ! Final result: C = (A-B)^0.5             (A+B)              (A-B)^0.5              EQ.I
+      !                   \_______/             \___/              \______/
+      !               fm_sqrt_A_minus_B      fm_A_plus_B     fm_sqrt_A_minus_B
+      !                    (EQ.Ia)             (EQ.Ib)              (EQ.Ia)
+      ! Intermediate work matrices:
+      ! fm_inv_sqrt_A_minus_B: (A-B)^-0.5                                                 EQ.II
+      ! fm_A_minus_B: (A-B)                                                               EQ.III
+      ! fm_work_product: (A-B)^0.5 (A+B) from (EQ.Ia) and (EQ.Ib)                         EQ.IV
       CALL cp_fm_create(fm_A_plus_B, fm_A%matrix_struct)
       CALL cp_fm_to_fm(fm_A, fm_A_plus_B)
       CALL cp_fm_create(fm_A_minus_B, fm_A%matrix_struct)
@@ -304,67 +325,69 @@ CONTAINS
       CALL cp_fm_create(fm_inv_sqrt_A_minus_B, fm_A%matrix_struct)
       CALL cp_fm_set_all(fm_inv_sqrt_A_minus_B, 0.0_dp)
 
-      CALL cp_fm_create(fm_A_minus_B_eigvec, fm_A%matrix_struct)
       CALL cp_fm_create(fm_work_product, fm_A%matrix_struct)
 
       IF (unit_nr > 0 .AND. mp2_env%ri_g0w0%bse_debug_print) THEN
          WRITE (unit_nr, '(T2,A10,T13,A19)') 'BSE|DEBUG|', 'Created work arrays'
       END IF
 
-      !Add/Substract B
+      ! Add/Substract B (cf. EQs. Ib and III)
       CALL cp_fm_scale_and_add(1.0_dp, fm_A_plus_B, 1.0_dp, fm_B)
       CALL cp_fm_scale_and_add(1.0_dp, fm_A_minus_B, -1.0_dp, fm_B)
 
-      !cp_fm_power will overwrite matrix, therefore we copy it
+      ! cp_fm_power will overwrite matrix, therefore we create copies
       CALL cp_fm_to_fm(fm_A_minus_B, fm_inv_sqrt_A_minus_B)
-      CALL cp_fm_to_fm(fm_A_minus_B, fm_sqrt_A_minus_B)
 
-      ! In the output, we want to print singleparticle transitions of ABBA, where we need
-      ! (A-B)**-0.5 as well as (A-B)**0.5. In order to avoid a second diagonalization (cp_fm_power),
-      ! we create (A-B)**0.5 from (A-B)**-0.5 by multiplication with (A-B).
+      ! In order to avoid a second diagonalization (cp_fm_power), we create (A-B)^0.5 (EQ.Ia)
+      ! from (A-B)^-0.5 (EQ.II) by multiplication with (A-B) (EQ.III) afterwards.
 
-      !Raise A-B to 1/2, no quenching of eigenvectors, hence threshold=0.0_dp
-      CALL cp_fm_power(fm_inv_sqrt_A_minus_B, fm_A_minus_B_eigvec, -0.5_dp, 0.0_dp, n_dependent, eigvals=eigvals_AB_diff)
-      !Raise an error in case the the matrix A-B is not positive definite (i.e. negative eigenvalues)
-      !In this case, the procedure for hermitian form of ABBA is not applicable
+      ! Raise A-B to -0.5_dp, no quenching of eigenvectors, hence threshold=0.0_dp
+      CALL cp_fm_create(fm_dummy, fm_A%matrix_struct)
+      ! Create (A-B)^-0.5 (cf. EQ.II)
+      CALL cp_fm_power(fm_inv_sqrt_A_minus_B, fm_dummy, -0.5_dp, 0.0_dp, n_dependent, eigvals=eigvals_AB_diff)
+      CALL cp_fm_release(fm_dummy)
+      ! Raise an error in case the the matrix A-B is not positive definite (i.e. negative eigenvalues)
+      ! In this case, the procedure for hermitian form of ABBA is not applicable
       IF (eigvals_AB_diff(1) < 0) THEN
          CALL cp_abort(__LOCATION__, &
                        "Matrix (A-B) is not positive definite. "// &
                        "Hermitian diagonalization of full BSE matrix is ill-defined.")
       END IF
-      !(A-B)**-0.5 is written to the eigvec - work matrix
-      CALL cp_fm_release(fm_A_minus_B_eigvec)
 
-      ! We keep diff_eigvec for print of singleparticle transitions of ABBA
-      ! We further create (A-B)**0.5 for the singleparticle transitions of ABBA
+      ! We keep fm_inv_sqrt_A_minus_B for print of singleparticle transitions of ABBA
+      ! We further create (A-B)^0.5 for the singleparticle transitions of ABBA
+      ! Create (A-B)^0.5= (A-B)^-0.5 * (A-B) (EQ.Ia)
       dim_mat = homo*virtual
       CALL parallel_gemm("N", "N", dim_mat, dim_mat, dim_mat, 1.0_dp, fm_inv_sqrt_A_minus_B, fm_A_minus_B, 0.0_dp, &
                          fm_sqrt_A_minus_B)
 
-      CALL cp_fm_release(fm_A_minus_B)
-
-      !Create C = (A-B)^0.5 (A+B) (A-B)^0.5
+      ! Compute and store LHS of C, i.e. (A-B)^0.5 (A+B) (EQ.IV)
       CALL parallel_gemm("N", "N", dim_mat, dim_mat, dim_mat, 1.0_dp, fm_sqrt_A_minus_B, fm_A_plus_B, 0.0_dp, &
                          fm_work_product)
-      CALL cp_fm_release(fm_A_plus_B)
 
-      !Now create C itself
+      ! Release to save memory
+      CALL cp_fm_release(fm_A_plus_B)
+      CALL cp_fm_release(fm_A_minus_B)
+
+      ! Now create full
       CALL cp_fm_create(fm_C, fm_A%matrix_struct)
       CALL cp_fm_set_all(fm_C, 0.0_dp)
-
+      ! Compute C=(A-B)^0.5 (A+B) (A-B)^0.5 (EQ.I)
       CALL parallel_gemm("N", "N", dim_mat, dim_mat, dim_mat, 1.0_dp, fm_work_product, fm_sqrt_A_minus_B, 0.0_dp, &
                          fm_C)
       CALL cp_fm_release(fm_work_product)
 
       IF (unit_nr > 0 .AND. mp2_env%ri_g0w0%bse_debug_print) THEN
-         WRITE (unit_nr, '(T2,A10,T13,A36)') 'BSE|DEBUG|', 'Filled C=(A-B)^-0.5 (A+B) (A-B)^-0.5'
+         WRITE (unit_nr, '(T2,A10,T13,A36)') 'BSE|DEBUG|', 'Filled C=(A-B)^0.5 (A+B) (A-B)^0.5'
       END IF
 
       CALL timestop(handle)
    END SUBROUTINE
 
 ! **************************************************************************************************
-!> \brief Diagonalize the hermitian form of the ABBA matrix, i.e. C = (A-B)^-0.5 (A+B) (A-B)^-0.5
+!> \brief Solving eigenvalue equation C Z^n = (Ω^n)^2 Z^n .
+!> \brief  Here, the eigenvectors Z^n relate to X^n via
+!> \brief  Eq. (A10) in F. Furche J. Chem. Phys., Vol. 114, No. 14, (2001).
 !> \param fm_C ...
 !> \param homo ...
 !> \param virtual ...
@@ -401,7 +424,7 @@ CONTAINS
             'This will take around ', diag_est, ' s.'
       END IF
 
-      !We have now the full matrix C=(A-B)^-0.5 (A+B) (A-B)^-0.5
+      !We have now the full matrix C=(A-B)^0.5 (A+B) (A-B)^0.5
       !Now: Diagonalize it
       CALL cp_fm_create(fm_eigvec, fm_C%matrix_struct)
 
@@ -419,7 +442,7 @@ CONTAINS
       ! the (A-B)^+-0.5 with eigenvectors and then the eigenvalues
       ! One has to be careful about the index structure, since the eigenvector matrix is not symmetric anymore!
 
-      ! First, Eq. I from (A10) from Furche: (X+Y)_n = (Ω_n)^0.5 (A-B)^-0.5 T_n
+      ! First, Eq. I from (A10) from Furche: (X+Y)_n = (Ω_n)^0.5 (A-B)^0.5 T_n
       CALL cp_fm_create(fm_mat_eigvec_transform, fm_C%matrix_struct)
       CALL cp_fm_set_all(fm_mat_eigvec_transform, 0.0_dp)
       CALL parallel_gemm(transa="N", transb="N", m=homo*virtual, n=homo*virtual, k=homo*virtual, alpha=1.0_dp, &
@@ -455,7 +478,7 @@ CONTAINS
    END SUBROUTINE diagonalize_C
 
 ! **************************************************************************************************
-!> \brief Diagonalizes the A matrix, i.e. TDA of BSE
+!> \brief Solving hermitian eigenvalue equation A X^n = Ω^n X^n
 !> \param fm_A ...
 !> \param homo ...
 !> \param virtual ...
@@ -609,7 +632,7 @@ CONTAINS
             WRITE (unit_nr, '(T2,A4)') 'BSE|'
             WRITE (unit_nr, '(T2,A4,T7,A60)') 'BSE|', 'The BSE is solved for Ω^n and X_ia^n as a hermitian problem,'
             WRITE (unit_nr, '(T2,A4,T7,A70)') 'BSE|', 'e.g., Eq. (A8) in F. Furche, J. Chem. Phys., Vol. 114, No. 14, (2001).'
-            ! WRITE (unit_nr, '(T2,A4,T7,A69)') 'BSE|', 'C_ia,jb = sum_kc,ld ((A-B)^-0.5)_ia,kc (A+B)_kc,ld ((A-B)^-0.5)_ld,jb'
+            ! WRITE (unit_nr, '(T2,A4,T7,A69)') 'BSE|', 'C_ia,jb = sum_kc,ld ((A-B)^0.5)_ia,kc (A+B)_kc,ld ((A-B)^0.5)_ld,jb'
             ! WRITE (unit_nr, '(T2,A4)') 'BSE|'
             ! WRITE (unit_nr, '(T2,A4,T7,A58)') 'BSE|', '(X+Y)_ia,n = sum_jb,m  ((A-B)^0.5)ia,jb Z_jb,m (Ω_m)^-0.5'
             ! WRITE (unit_nr, '(T2,A4,T7,A58)') 'BSE|', '(X-Y)_ia,n = sum_jb,m  ((A-B)^-0.5)ia,jb Z_jb,m (Ω_m)^0.5'
@@ -681,294 +704,5 @@ CONTAINS
 
       CALL timestop(handle)
    END SUBROUTINE success_message
-
-! **************************************************************************************************
-!> \brief ...
-!> \param fm_eigvec ...
-!> \param idx_homo ...
-!> \param idx_virt ...
-!> \param eigvec_entries ...
-!> \param i_exc ...
-!> \param homo ...
-!> \param virtual ...
-!> \param num_entries ...
-!> \param mp2_env ...
-! **************************************************************************************************
-   SUBROUTINE filter_eigvec_contrib(fm_eigvec, idx_homo, idx_virt, eigvec_entries, &
-                                    i_exc, homo, virtual, num_entries, mp2_env)
-
-      TYPE(cp_fm_type), INTENT(IN)                       :: fm_eigvec
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: idx_homo, idx_virt
-      REAL(kind=dp), ALLOCATABLE, DIMENSION(:)           :: eigvec_entries
-      INTEGER                                            :: i_exc, homo, virtual, num_entries
-      TYPE(mp2_type), INTENT(INOUT)                      :: mp2_env
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'filter_eigvec_contrib'
-
-      INTEGER                                            :: eigvec_idx, handle, ii, iproc, jj, kk, &
-                                                            ncol_local, nrow_local, &
-                                                            num_entries_local
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: num_entries_to_comm
-      INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
-      REAL(KIND=dp)                                      :: eigvec_entry
-      TYPE(integ_mat_buffer_type), ALLOCATABLE, &
-         DIMENSION(:)                                    :: buffer_entries
-      TYPE(mp_para_env_type), POINTER                    :: para_env
-
-      CALL timeset(routineN, handle)
-
-      para_env => fm_eigvec%matrix_struct%para_env
-
-      CALL cp_fm_get_info(matrix=fm_eigvec, &
-                          nrow_local=nrow_local, &
-                          ncol_local=ncol_local, &
-                          row_indices=row_indices, &
-                          col_indices=col_indices)
-
-      ALLOCATE (num_entries_to_comm(0:para_env%num_pe - 1))
-      num_entries_to_comm(:) = 0
-
-      DO jj = 1, ncol_local
-         !First check if i is localized on this proc
-         IF (col_indices(jj) /= i_exc) THEN
-            CYCLE
-         END IF
-         DO ii = 1, nrow_local
-            eigvec_idx = row_indices(ii)
-            eigvec_entry = fm_eigvec%local_data(ii, jj)/SQRT(2.0_dp)
-            IF (ABS(eigvec_entry) > mp2_env%ri_g0w0%eps_x) THEN
-               num_entries_to_comm(para_env%mepos) = num_entries_to_comm(para_env%mepos) + 1
-            END IF
-         END DO
-      END DO
-
-      !Gather number of entries of other processes
-      CALL para_env%sum(num_entries_to_comm)
-
-      num_entries_local = num_entries_to_comm(para_env%mepos)
-
-      ALLOCATE (buffer_entries(0:para_env%num_pe - 1))
-
-      DO iproc = 0, para_env%num_pe - 1
-         ALLOCATE (buffer_entries(iproc)%msg(num_entries_to_comm(iproc)))
-         ALLOCATE (buffer_entries(iproc)%indx(num_entries_to_comm(iproc), 2))
-         buffer_entries(iproc)%msg = 0.0_dp
-         buffer_entries(iproc)%indx = 0
-      END DO
-
-      kk = 1
-      DO jj = 1, ncol_local
-         !First check if i is localized on this proc
-         IF (col_indices(jj) /= i_exc) THEN
-            CYCLE
-         END IF
-         DO ii = 1, nrow_local
-            eigvec_idx = row_indices(ii)
-            eigvec_entry = fm_eigvec%local_data(ii, jj)/SQRT(2.0_dp)
-            IF (ABS(eigvec_entry) > mp2_env%ri_g0w0%eps_x) THEN
-               buffer_entries(para_env%mepos)%indx(kk, 1) = (eigvec_idx - 1)/virtual + 1
-               buffer_entries(para_env%mepos)%indx(kk, 2) = MOD(eigvec_idx - 1, virtual) + 1
-               buffer_entries(para_env%mepos)%msg(kk) = eigvec_entry
-               kk = kk + 1
-            END IF
-         END DO
-      END DO
-
-      DO iproc = 0, para_env%num_pe - 1
-         CALL para_env%sum(buffer_entries(iproc)%msg)
-         CALL para_env%sum(buffer_entries(iproc)%indx)
-      END DO
-
-      !Now sum up gathered information
-      num_entries = SUM(num_entries_to_comm)
-      ALLOCATE (idx_homo(num_entries))
-      ALLOCATE (idx_virt(num_entries))
-      ALLOCATE (eigvec_entries(num_entries))
-
-      kk = 1
-      DO iproc = 0, para_env%num_pe - 1
-         IF (num_entries_to_comm(iproc) /= 0) THEN
-            DO ii = 1, num_entries_to_comm(iproc)
-               idx_homo(kk) = buffer_entries(iproc)%indx(ii, 1)
-               idx_virt(kk) = buffer_entries(iproc)%indx(ii, 2)
-               eigvec_entries(kk) = buffer_entries(iproc)%msg(ii)
-               kk = kk + 1
-            END DO
-         END IF
-      END DO
-
-      !Deallocate all the used arrays
-      DO iproc = 0, para_env%num_pe - 1
-         DEALLOCATE (buffer_entries(iproc)%msg)
-         DEALLOCATE (buffer_entries(iproc)%indx)
-      END DO
-      DEALLOCATE (buffer_entries)
-      DEALLOCATE (num_entries_to_comm)
-      NULLIFY (row_indices)
-      NULLIFY (col_indices)
-
-      !Now sort the results according to the involved singleparticle orbitals
-      ! (homo first, then virtual)
-      CALL sort_excitations(idx_homo, idx_virt, eigvec_entries)
-
-      CALL timestop(handle)
-
-   END SUBROUTINE
-
-! **************************************************************************************************
-!> \brief ...
-!> \param fm_mat_S ...
-!> \param fm_mat_S_ij_bse ...
-!> \param fm_mat_S_ab_bse ...
-!> \param fm_mat_S_trunc ...
-!> \param fm_mat_S_ij_trunc ...
-!> \param fm_mat_S_ab_trunc ...
-!> \param Eigenval ...
-!> \param Eigenval_reduced ...
-!> \param homo ...
-!> \param virtual ...
-!> \param dimen_RI ...
-!> \param unit_nr ...
-!> \param homo_red ...
-!> \param virt_red ...
-!> \param mp2_env ...
-! **************************************************************************************************
-   SUBROUTINE truncate_BSE_matrices(fm_mat_S, fm_mat_S_ij_bse, fm_mat_S_ab_bse, &
-                                    fm_mat_S_trunc, fm_mat_S_ij_trunc, fm_mat_S_ab_trunc, &
-                                    Eigenval, Eigenval_reduced, &
-                                    homo, virtual, dimen_RI, unit_nr, &
-                                    homo_red, virt_red, &
-                                    mp2_env)
-
-      TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_S, fm_mat_S_ij_bse, &
-                                                            fm_mat_S_ab_bse
-      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_mat_S_trunc, fm_mat_S_ij_trunc, &
-                                                            fm_mat_S_ab_trunc
-      REAL(KIND=dp), DIMENSION(:)                        :: Eigenval
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: Eigenval_reduced
-      INTEGER, INTENT(IN)                                :: homo, virtual, dimen_RI, unit_nr
-      INTEGER, INTENT(OUT)                               :: homo_red, virt_red
-      TYPE(mp2_type), INTENT(INOUT)                      :: mp2_env
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'truncate_BSE_matrices'
-
-      INTEGER                                            :: handle, homo_incl, i_homo, j_virt, &
-                                                            virt_incl
-      TYPE(cp_blacs_env_type), POINTER                   :: context
-      TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_ab, fm_struct_ia, fm_struct_ij
-      TYPE(mp_para_env_type), POINTER                    :: para_env
-
-      CALL timeset(routineN, handle)
-
-      ! Determine index in homo and virtual for truncation
-      ! Uses indices of outermost orbitals within energy range (-mp2_env%ri_g0w0%bse_cutoff_occ,mp2_env%ri_g0w0%bse_cutoff_virt)
-      IF (mp2_env%ri_g0w0%bse_cutoff_occ > 0 .OR. mp2_env%ri_g0w0%bse_cutoff_virt > 0) THEN
-         IF (-mp2_env%ri_g0w0%bse_cutoff_occ .LT. Eigenval(1) .OR. mp2_env%ri_g0w0%bse_cutoff_occ < 0) THEN
-            homo_red = homo
-            homo_incl = 1
-         ELSE
-            homo_incl = 1
-            DO i_homo = 1, homo
-               IF (Eigenval(i_homo) .GT. -mp2_env%ri_g0w0%bse_cutoff_occ) THEN
-                  homo_incl = i_homo
-                  EXIT
-               END IF
-            END DO
-            homo_red = homo - homo_incl + 1
-         END IF
-
-         IF (mp2_env%ri_g0w0%bse_cutoff_virt .GT. Eigenval(homo + virtual) .OR. mp2_env%ri_g0w0%bse_cutoff_virt < 0) THEN
-            virt_red = virtual
-            virt_incl = virtual
-         ELSE
-            virt_incl = homo + 1
-            DO j_virt = 1, virtual
-               IF (Eigenval(homo + j_virt) .GT. mp2_env%ri_g0w0%bse_cutoff_virt) THEN
-                  virt_incl = j_virt - 1
-                  EXIT
-               END IF
-            END DO
-            virt_red = virt_incl
-         END IF
-      ELSE
-         homo_red = homo
-         virt_red = virtual
-         homo_incl = 1
-         virt_incl = virtual
-      END IF
-      IF (unit_nr > 0) THEN
-         IF (mp2_env%ri_g0w0%bse_cutoff_occ > 0) THEN
-            WRITE (unit_nr, '(T2,A4,T7,A29,T71,F10.3)') 'BSE|', 'Cutoff occupied orbitals [eV]', &
-               mp2_env%ri_g0w0%bse_cutoff_occ*evolt
-         ELSE
-            WRITE (unit_nr, '(T2,A4,T7,A37)') 'BSE|', 'No cutoff given for occupied orbitals'
-         END IF
-         IF (mp2_env%ri_g0w0%bse_cutoff_virt > 0) THEN
-            WRITE (unit_nr, '(T2,A4,T7,A28,T71,F10.3)') 'BSE|', 'Cutoff virtual orbitals [eV]', &
-               mp2_env%ri_g0w0%bse_cutoff_virt*evolt
-         ELSE
-            WRITE (unit_nr, '(T2,A4,T7,A36)') 'BSE|', 'No cutoff given for virtual orbitals'
-         END IF
-         WRITE (unit_nr, '(T2,A4,T7,A20,T71,I10)') 'BSE|', 'First occupied index', homo_incl
-         WRITE (unit_nr, '(T2,A4,T7,A18,T71,I10)') 'BSE|', 'Last virtual index', virt_incl
-         WRITE (unit_nr, '(T2,A4,T7,A26,T71,F10.3)') 'BSE|', 'First occupied energy [eV]', Eigenval(homo_incl)*evolt
-         WRITE (unit_nr, '(T2,A4,T7,A24,T71,F10.3)') 'BSE|', 'Last virtual energy [eV]', Eigenval(homo + virt_incl)*evolt
-         WRITE (unit_nr, '(T2,A4,T7,A35,T71,I10)') 'BSE|', 'Number of GW-corrected occupied MOs', mp2_env%ri_g0w0%corr_mos_occ
-         WRITE (unit_nr, '(T2,A4,T7,A34,T71,I10)') 'BSE|', 'Number of GW-corrected virtual MOs', mp2_env%ri_g0w0%corr_mos_virt
-         WRITE (unit_nr, '(T2,A4)') 'BSE|'
-      END IF
-      IF (unit_nr > 0) THEN
-         IF (homo - homo_incl + 1 > mp2_env%ri_g0w0%corr_mos_occ) THEN
-            CPABORT("Number of GW-corrected occupied MOs too small for chosen BSE cutoff")
-         END IF
-         IF (virt_incl > mp2_env%ri_g0w0%corr_mos_virt) THEN
-            CPABORT("Number of GW-corrected virtual MOs too small for chosen BSE cutoff")
-         END IF
-      END IF
-      !Truncate full fm_S matrices
-      !Allocate new truncated matrices of proper size
-      para_env => fm_mat_S%matrix_struct%para_env
-      context => fm_mat_S%matrix_struct%context
-
-      CALL cp_fm_struct_create(fm_struct_ia, para_env, context, dimen_RI, homo_red*virt_red)
-      CALL cp_fm_struct_create(fm_struct_ij, para_env, context, dimen_RI, homo_red*homo_red)
-      CALL cp_fm_struct_create(fm_struct_ab, para_env, context, dimen_RI, virt_red*virt_red)
-
-      CALL cp_fm_create(fm_mat_S_trunc, fm_struct_ia, "fm_S_trunc")
-      CALL cp_fm_create(fm_mat_S_ij_trunc, fm_struct_ij, "fm_S_ij_trunc")
-      CALL cp_fm_create(fm_mat_S_ab_trunc, fm_struct_ab, "fm_S_ab_trunc")
-
-      !Copy parts of original matrices to truncated ones
-      IF (mp2_env%ri_g0w0%bse_cutoff_occ > 0 .OR. mp2_env%ri_g0w0%bse_cutoff_virt > 0) THEN
-         !Truncate eigenvals
-         ALLOCATE (Eigenval_reduced(homo_red + virt_red))
-         Eigenval_reduced(:) = Eigenval(homo_incl:homo + virt_incl)
-
-         CALL truncate_fm(fm_mat_S_trunc, fm_mat_S, homo, virtual, &
-                          homo_red, virt_red, unit_nr, mp2_env, &
-                          nrow_offset=homo_incl)
-         CALL truncate_fm(fm_mat_S_ij_trunc, fm_mat_S_ij_bse, homo, homo, &
-                          homo_red, homo_red, unit_nr, mp2_env, &
-                          homo_incl, homo_incl)
-         CALL truncate_fm(fm_mat_S_ab_trunc, fm_mat_S_ab_bse, virtual, virtual, &
-                          virt_red, virt_red, unit_nr, mp2_env)
-
-      ELSE
-         IF (unit_nr > 0) THEN
-            WRITE (unit_nr, '(T2,A4,T7,A37)') 'BSE|', 'No truncation of BSE matrices applied'
-            WRITE (unit_nr, '(T2,A4)') 'BSE|'
-         END IF
-         Eigenval_reduced = Eigenval
-         CALL cp_fm_to_fm_submat_general(fm_mat_S, fm_mat_S_trunc, dimen_RI, homo_red*virt_red, &
-                                         1, 1, 1, 1, context)
-         CALL cp_fm_to_fm_submat_general(fm_mat_S_ij_bse, fm_mat_S_ij_trunc, dimen_RI, homo_red*homo_red, &
-                                         1, 1, 1, 1, context)
-         CALL cp_fm_to_fm_submat_general(fm_mat_S_ab_bse, fm_mat_S_ab_trunc, dimen_RI, virt_red*virt_red, &
-                                         1, 1, 1, 1, context)
-      END IF
-
-      CALL timestop(handle)
-
-   END SUBROUTINE truncate_BSE_matrices
 
 END MODULE bse_full_diag
