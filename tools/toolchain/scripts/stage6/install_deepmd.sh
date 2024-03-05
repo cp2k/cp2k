@@ -89,6 +89,7 @@ export CP_CFLAGS="\${CP_CFLAGS} ${DEEPMD_CFLAGS}"
 export CP_LDFLAGS="\${CP_LDFLAGS} ${DEEPMD_LDFLAGS}"
 export CP_LIBS="\${CP_LIBS} ${DEEPMD_LIBS}"
 EOF
+fi
 
 load "${BUILDDIR}/setup_deepmd"
 write_toolchain_env "${INSTALLDIR}"
