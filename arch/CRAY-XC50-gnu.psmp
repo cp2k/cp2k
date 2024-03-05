@@ -71,7 +71,7 @@
 DO_CHECKS      := no
 USE_ACC        := yes
 USE_COSMA      := 2.6.6
-#USE_DEEPMD     := 2.2.7
+#USE_DEEPMD     := 2.2.9
 USE_ELPA       := 2023.05.001
 USE_HDF5       := 1.14.2
 USE_LIBGRPP    := 20231215
