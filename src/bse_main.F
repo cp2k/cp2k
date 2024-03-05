@@ -20,9 +20,10 @@ MODULE bse_main
                                               diagonalize_C,&
                                               truncate_BSE_matrices
    USE bse_iterative,                   ONLY: do_subspace_iterations,&
-                                              fill_local_3c_arrays,&
-                                              mult_B_with_W
+                                              fill_local_3c_arrays
    USE bse_util,                        ONLY: deallocate_matrices_bse,&
+                                              estimate_BSE_resources,&
+                                              mult_B_with_W,&
                                               print_BSE_start_flag
    USE cp_fm_types,                     ONLY: cp_fm_release,&
                                               cp_fm_type
@@ -90,7 +91,7 @@ CONTAINS
       INTEGER                                            :: handle, homo_red, virtual_red
       LOGICAL                                            :: bse_abba, bse_full_diag, &
                                                             bse_iterat_diag, bse_tda
-      REAL(KIND=dp)                                      :: diag_est
+      REAL(KIND=dp)                                      :: diag_runtime_est
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: Eigenval_reduced
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: B_abQ_bse_local, B_bar_iaQ_bse_local, &
                                                             B_bar_ijQ_bse_local, B_iaQ_bse_local
@@ -124,10 +125,6 @@ CONTAINS
          bse_abba = .TRUE.
       END SELECT
 
-      ! Rough estimation of diagonalization runtimes. Baseline was a full BSE Naphthalene
-      ! run with 11000x11000 entries in A/B/C, which took 10s on 32 ranks
-      diag_est = (homo(1)*virtual(1)/11000)**3*10*32/para_env%num_pe
-
       CALL print_BSE_start_flag(bse_tda, bse_abba, mp2_env, unit_nr)
 
       CALL fm_mat_S(1)%matrix_struct%para_env%sync()
@@ -143,7 +140,7 @@ CONTAINS
       CALL mult_B_with_W(fm_mat_S_ij_trunc, fm_mat_S_ab_trunc, fm_mat_S_trunc, &
                          fm_mat_S_bar_ia_bse, fm_mat_S_bar_ij_bse, &
                          fm_mat_Q_static_bse, fm_mat_Q_static_bse_gemm, &
-                         dimen_RI_red, homo_red, virtual_red, homo_red*virtual_red)
+                         dimen_RI_red, homo_red, virtual_red)
 
       IF (bse_iterat_diag) THEN
          CALL fill_local_3c_arrays(fm_mat_S_ab_trunc, fm_mat_S_trunc, &
@@ -154,6 +151,9 @@ CONTAINS
       END IF
 
       IF (bse_full_diag) THEN
+         CALL estimate_BSE_resources(homo_red, virtual_red, unit_nr, bse_abba, &
+                                     para_env, diag_runtime_est)
+
          CALL create_A(fm_mat_S_trunc, fm_mat_S_bar_ij_bse, fm_mat_S_ab_trunc, &
                        fm_mat_A_BSE, Eigenval_reduced, unit_nr, &
                        homo_red, virtual_red, dimen_RI, mp2_env, &
@@ -163,19 +163,19 @@ CONTAINS
                           homo_red, virtual_red, dimen_RI, unit_nr, mp2_env)
             CALL create_hermitian_form_of_ABBA(fm_mat_A_BSE, fm_mat_B_BSE, fm_mat_C_BSE, &
                                                fm_mat_work_diff_raised_pos_BSE, fm_mat_work_diff_raised_neg_BSE, &
-                                               homo_red, virtual_red, unit_nr, mp2_env, diag_est)
+                                               homo_red, virtual_red, unit_nr, mp2_env, diag_runtime_est)
          END IF
          CALL cp_fm_release(fm_mat_B_BSE)
          IF (bse_tda) THEN
             CALL diagonalize_A(fm_mat_A_BSE, homo_red, virtual_red, homo(1), virtual(1), &
-                               unit_nr, diag_est, mp2_env)
+                               unit_nr, diag_runtime_est, mp2_env)
          END IF
          ! Release to avoid faulty use of changed A matrix
          CALL cp_fm_release(fm_mat_A_BSE)
          IF (bse_abba) THEN
             CALL diagonalize_C(fm_mat_C_BSE, homo_red, virtual_red, homo(1), virtual(1), &
                                fm_mat_work_diff_raised_pos_BSE, fm_mat_work_diff_raised_neg_BSE, &
-                               unit_nr, diag_est, mp2_env)
+                               unit_nr, diag_runtime_est, mp2_env)
          END IF
          ! Release to avoid faulty use of changed C matrix
          CALL cp_fm_release(fm_mat_C_BSE)

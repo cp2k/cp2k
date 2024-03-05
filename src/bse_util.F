@@ -11,17 +11,22 @@
 !>      11.2023 created [Maximilian Graml]
 ! **************************************************************************************************
 MODULE bse_util
-
-   USE cp_fm_types,                     ONLY: cp_fm_get_info,&
+   USE cp_fm_basic_linalg,              ONLY: cp_fm_upper_to_full
+   USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose,&
+                                              cp_fm_cholesky_invert
+   USE cp_fm_types,                     ONLY: cp_fm_create,&
+                                              cp_fm_get_info,&
                                               cp_fm_indxg2l,&
                                               cp_fm_indxg2p,&
                                               cp_fm_release,&
+                                              cp_fm_set_all,&
                                               cp_fm_type
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_para_env_type,&
                                               mp_request_type
    USE mp2_types,                       ONLY: integ_mat_buffer_type,&
                                               mp2_type
+   USE parallel_gemm_api,               ONLY: parallel_gemm
    USE rpa_communication,               ONLY: communicate_buffer
    USE util,                            ONLY: sort,&
                                               sort_unique
@@ -33,10 +38,100 @@ MODULE bse_util
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'bse_util'
 
-   PUBLIC :: redist_fm, truncate_fm, fm_write_thresh, print_BSE_start_flag, &
-             deallocate_matrices_bse, comp_eigvec_coeff_BSE, sort_excitations
+   PUBLIC :: mult_B_with_W, redist_fm, truncate_fm, fm_write_thresh, print_BSE_start_flag, &
+             deallocate_matrices_bse, comp_eigvec_coeff_BSE, sort_excitations, estimate_BSE_resources
 
 CONTAINS
+
+! **************************************************************************************************
+!> \brief ...
+!> \param fm_mat_S_ij_bse ...
+!> \param fm_mat_S_ab_bse ...
+!> \param fm_mat_S ...
+!> \param fm_mat_S_bar_ia_bse ...
+!> \param fm_mat_S_bar_ij_bse ...
+!> \param fm_mat_Q_static_bse ...
+!> \param fm_mat_Q_static_bse_gemm ...
+!> \param dimen_RI ...
+!> \param homo ...
+!> \param virtual ...
+! **************************************************************************************************
+   SUBROUTINE mult_B_with_W(fm_mat_S_ij_bse, fm_mat_S_ab_bse, fm_mat_S, &
+                            fm_mat_S_bar_ia_bse, fm_mat_S_bar_ij_bse, &
+                            fm_mat_Q_static_bse, fm_mat_Q_static_bse_gemm, &
+                            dimen_RI, homo, virtual)
+
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_S_ij_bse, fm_mat_S_ab_bse, &
+                                                            fm_mat_S
+      TYPE(cp_fm_type), INTENT(OUT)                      :: fm_mat_S_bar_ia_bse, fm_mat_S_bar_ij_bse
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_Q_static_bse, &
+                                                            fm_mat_Q_static_bse_gemm
+      INTEGER, INTENT(IN)                                :: dimen_RI, homo, virtual
+
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'mult_B_with_W'
+
+      INTEGER                                            :: handle, i_global, iiB, info_chol, &
+                                                            j_global, jjB, ncol_local, nrow_local
+      INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
+      TYPE(cp_fm_type)                                   :: fm_mat_work
+
+      CALL timeset(routineN, handle)
+
+      CALL cp_fm_create(fm_mat_S_bar_ia_bse, fm_mat_S%matrix_struct)
+      !CALL cp_fm_to_fm(fm_mat_S, fm_mat_S_bar_ia_bse)
+      CALL cp_fm_set_all(fm_mat_S_bar_ia_bse, 0.0_dp)
+
+      CALL cp_fm_create(fm_mat_S_bar_ij_bse, fm_mat_S_ij_bse%matrix_struct)
+      !CALL cp_fm_to_fm(fm_mat_S_ij_bse, fm_mat_S_bar_ij_bse)
+      CALL cp_fm_set_all(fm_mat_S_bar_ij_bse, 0.0_dp)
+
+      CALL cp_fm_create(fm_mat_work, fm_mat_Q_static_bse_gemm%matrix_struct)
+      !CALL cp_fm_to_fm(fm_mat_Q_static_bse_gemm, fm_mat_work)
+      CALL cp_fm_set_all(fm_mat_work, 0.0_dp)
+
+      ! get info of fm_mat_Q_static_bse and compute ((1+Q(0))^-1-1)
+      CALL cp_fm_get_info(matrix=fm_mat_Q_static_bse_gemm, &
+                          nrow_local=nrow_local, &
+                          ncol_local=ncol_local, &
+                          row_indices=row_indices, &
+                          col_indices=col_indices)
+
+      DO jjB = 1, ncol_local
+         j_global = col_indices(jjB)
+         DO iiB = 1, nrow_local
+            i_global = row_indices(iiB)
+            IF (j_global == i_global .AND. i_global <= dimen_RI) THEN
+               fm_mat_Q_static_bse_gemm%local_data(iiB, jjB) = fm_mat_Q_static_bse_gemm%local_data(iiB, jjB) + 1.0_dp
+            END IF
+         END DO
+      END DO
+
+      ! calculate Trace(Log(Matrix)) as Log(DET(Matrix)) via cholesky decomposition
+      CALL cp_fm_cholesky_decompose(matrix=fm_mat_Q_static_bse_gemm, n=dimen_RI, info_out=info_chol)
+
+      CPASSERT(info_chol == 0)
+
+      ! calculate [1+Q(i0)]^-1
+      CALL cp_fm_cholesky_invert(fm_mat_Q_static_bse_gemm)
+
+      ! symmetrize the result
+      CALL cp_fm_upper_to_full(fm_mat_Q_static_bse_gemm, fm_mat_work)
+
+      CALL parallel_gemm(transa="N", transb="N", m=dimen_RI, n=homo**2, k=dimen_RI, alpha=1.0_dp, &
+                         matrix_a=fm_mat_Q_static_bse_gemm, matrix_b=fm_mat_S_ij_bse, beta=0.0_dp, &
+                         matrix_c=fm_mat_S_bar_ij_bse)
+
+      ! fm_mat_S_bar_ia_bse has a different blacs_env as fm_mat_S_ij_bse since we take
+      ! fm_mat_S from RPA. Therefore, we also need a different fm_mat_Q_static_bse_gemm
+      CALL parallel_gemm(transa="N", transb="N", m=dimen_RI, n=homo*virtual, k=dimen_RI, alpha=1.0_dp, &
+                         matrix_a=fm_mat_Q_static_bse_gemm, matrix_b=fm_mat_S, beta=0.0_dp, &
+                         matrix_c=fm_mat_S_bar_ia_bse)
+
+      CALL cp_fm_release(fm_mat_work)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE
 
 ! **************************************************************************************************
 !> \brief ...
@@ -908,5 +1003,50 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE sort_excitations
+
+! **************************************************************************************************
+!> \brief ...
+!> \param homo_red ...
+!> \param virtual_red ...
+!> \param unit_nr ...
+!> \param bse_abba ...
+!> \param para_env ...
+!> \param diag_runtime_est ...
+! **************************************************************************************************
+   SUBROUTINE estimate_BSE_resources(homo_red, virtual_red, unit_nr, bse_abba, &
+                                     para_env, diag_runtime_est)
+
+      INTEGER                                            :: homo_red, virtual_red, unit_nr
+      LOGICAL                                            :: bse_abba
+      TYPE(mp_para_env_type), POINTER                    :: para_env
+      REAL(KIND=dp)                                      :: diag_runtime_est
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'estimate_BSE_resources'
+
+      INTEGER                                            :: handle, num_BSE_matrices
+      REAL(KIND=dp)                                      :: mem_est
+
+      CALL timeset(routineN, handle)
+
+      ! Number of matrices with size of A in TDA is 2 (A itself and W_ijab)
+      num_BSE_matrices = 2
+      ! With the full diagonalization of ABBA, we need several auxiliary matrices in the process
+      ! The maximum number is 2 + 8 (additional B and C matrix as well as 6 matrices to create C)
+      IF (bse_abba) THEN
+         num_BSE_matrices = 2 + 8
+      END IF
+      mem_est = (8*homo_red**2*virtual_red**2/para_env%num_pe*num_BSE_matrices)/(1024**3)
+      IF (unit_nr > 0) THEN
+         WRITE (unit_nr, '(T2,A4,T7,A47,T73,F8.3)') 'BSE|', 'Peak memory estimate per MPI rank from BSE [GB]', &
+            mem_est
+         WRITE (unit_nr, '(T2,A4)') 'BSE|'
+      END IF
+      ! Rough estimation of diagonalization runtimes. Baseline was a full BSE Naphthalene
+      ! run with 11000x11000 entries in A/B/C, which took 10s on 32 ranks
+      diag_runtime_est = (homo_red*virtual_red/11000)**3*10*32/para_env%num_pe
+
+      CALL timestop(handle)
+
+   END SUBROUTINE estimate_BSE_resources
 
 END MODULE

@@ -12,13 +12,7 @@
 !>      11.2023 Davidson solver implemented [Maximilian Graml]
 ! **************************************************************************************************
 MODULE bse_iterative
-   USE cp_fm_basic_linalg,              ONLY: cp_fm_upper_to_full
-   USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose,&
-                                              cp_fm_cholesky_invert
-   USE cp_fm_types,                     ONLY: cp_fm_create,&
-                                              cp_fm_get_info,&
-                                              cp_fm_release,&
-                                              cp_fm_set_all,&
+   USE cp_fm_types,                     ONLY: cp_fm_get_info,&
                                               cp_fm_type
    USE group_dist_types,                ONLY: get_group_dist,&
                                               group_dist_d1_type
@@ -29,7 +23,6 @@ MODULE bse_iterative
                                               mp_request_type
    USE mp2_types,                       ONLY: integ_mat_buffer_type,&
                                               mp2_type
-   USE parallel_gemm_api,               ONLY: parallel_gemm
    USE physcon,                         ONLY: evolt
    USE rpa_communication,               ONLY: communicate_buffer
 #include "./base/base_uses.f90"
@@ -40,7 +33,7 @@ MODULE bse_iterative
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'bse_iterative'
 
-   PUBLIC :: mult_B_with_W, fill_local_3c_arrays, do_subspace_iterations
+   PUBLIC :: fill_local_3c_arrays, do_subspace_iterations
 
 CONTAINS
 
@@ -1563,97 +1556,6 @@ CONTAINS
       END DO
 
       DEALLOCATE (eigen_diff_ia)
-
-      CALL timestop(handle)
-
-   END SUBROUTINE
-
-! **************************************************************************************************
-!> \brief ...
-!> \param fm_mat_S_ij_bse ...
-!> \param fm_mat_S_ab_bse ...
-!> \param fm_mat_S ...
-!> \param fm_mat_S_bar_ia_bse ...
-!> \param fm_mat_S_bar_ij_bse ...
-!> \param fm_mat_Q_static_bse ...
-!> \param fm_mat_Q_static_bse_gemm ...
-!> \param dimen_RI ...
-!> \param homo ...
-!> \param virtual ...
-!> \param dimen_ia ...
-! **************************************************************************************************
-   SUBROUTINE mult_B_with_W(fm_mat_S_ij_bse, fm_mat_S_ab_bse, fm_mat_S, &
-                            fm_mat_S_bar_ia_bse, fm_mat_S_bar_ij_bse, &
-                            fm_mat_Q_static_bse, fm_mat_Q_static_bse_gemm, &
-                            dimen_RI, homo, virtual, dimen_ia)
-
-      TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_S_ij_bse, fm_mat_S_ab_bse, &
-                                                            fm_mat_S
-      TYPE(cp_fm_type), INTENT(OUT)                      :: fm_mat_S_bar_ia_bse, fm_mat_S_bar_ij_bse
-      TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_Q_static_bse, &
-                                                            fm_mat_Q_static_bse_gemm
-      INTEGER, INTENT(IN)                                :: dimen_RI, homo, virtual, dimen_ia
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'mult_B_with_W'
-
-      INTEGER                                            :: handle, i_global, iiB, info_chol, &
-                                                            j_global, jjB, ncol_local, nrow_local
-      INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
-      TYPE(cp_fm_type)                                   :: fm_mat_work
-
-      CALL timeset(routineN, handle)
-
-      CALL cp_fm_create(fm_mat_S_bar_ia_bse, fm_mat_S%matrix_struct)
-      !CALL cp_fm_to_fm(fm_mat_S, fm_mat_S_bar_ia_bse)
-      CALL cp_fm_set_all(fm_mat_S_bar_ia_bse, 0.0_dp)
-
-      CALL cp_fm_create(fm_mat_S_bar_ij_bse, fm_mat_S_ij_bse%matrix_struct)
-      !CALL cp_fm_to_fm(fm_mat_S_ij_bse, fm_mat_S_bar_ij_bse)
-      CALL cp_fm_set_all(fm_mat_S_bar_ij_bse, 0.0_dp)
-
-      CALL cp_fm_create(fm_mat_work, fm_mat_Q_static_bse_gemm%matrix_struct)
-      !CALL cp_fm_to_fm(fm_mat_Q_static_bse_gemm, fm_mat_work)
-      CALL cp_fm_set_all(fm_mat_work, 0.0_dp)
-
-      ! get info of fm_mat_Q_static_bse and compute ((1+Q(0))^-1-1)
-      CALL cp_fm_get_info(matrix=fm_mat_Q_static_bse_gemm, &
-                          nrow_local=nrow_local, &
-                          ncol_local=ncol_local, &
-                          row_indices=row_indices, &
-                          col_indices=col_indices)
-
-      DO jjB = 1, ncol_local
-         j_global = col_indices(jjB)
-         DO iiB = 1, nrow_local
-            i_global = row_indices(iiB)
-            IF (j_global == i_global .AND. i_global <= dimen_RI) THEN
-               fm_mat_Q_static_bse_gemm%local_data(iiB, jjB) = fm_mat_Q_static_bse_gemm%local_data(iiB, jjB) + 1.0_dp
-            END IF
-         END DO
-      END DO
-
-      ! calculate Trace(Log(Matrix)) as Log(DET(Matrix)) via cholesky decomposition
-      CALL cp_fm_cholesky_decompose(matrix=fm_mat_Q_static_bse_gemm, n=dimen_RI, info_out=info_chol)
-
-      CPASSERT(info_chol == 0)
-
-      ! calculate [1+Q(i0)]^-1
-      CALL cp_fm_cholesky_invert(fm_mat_Q_static_bse_gemm)
-
-      ! symmetrize the result
-      CALL cp_fm_upper_to_full(fm_mat_Q_static_bse_gemm, fm_mat_work)
-
-      CALL parallel_gemm(transa="N", transb="N", m=dimen_RI, n=homo**2, k=dimen_RI, alpha=1.0_dp, &
-                         matrix_a=fm_mat_Q_static_bse_gemm, matrix_b=fm_mat_S_ij_bse, beta=0.0_dp, &
-                         matrix_c=fm_mat_S_bar_ij_bse)
-      ! MG: Remove dimen_ia and use homo*virtual?
-      ! fm_mat_S_bar_ia_bse has a different blacs_env as fm_mat_S_ij_bse since we take
-      ! fm_mat_S from RPA. Therefore, we also need a different fm_mat_Q_static_bse_gemm
-      CALL parallel_gemm(transa="N", transb="N", m=dimen_RI, n=dimen_ia, k=dimen_RI, alpha=1.0_dp, &
-                         matrix_a=fm_mat_Q_static_bse_gemm, matrix_b=fm_mat_S, beta=0.0_dp, &
-                         matrix_c=fm_mat_S_bar_ia_bse)
-
-      CALL cp_fm_release(fm_mat_work)
 
       CALL timestop(handle)
 

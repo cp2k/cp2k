@@ -231,6 +231,7 @@ MODULE mp2_types
                                                             davidson_abort_cond = 0
       REAL(KIND=dp)                                      :: eps_res = 0.0_dp, &
                                                             eps_exc_en = 0.0_dp, &
+                                                            eps_x = 0.0_dp, &
                                                             bse_cutoff_occ = 0.0_dp, &
                                                             bse_cutoff_virt = 0.0_dp, &
                                                             z_space_energy_cutoff = 0.0_dp

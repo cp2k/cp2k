@@ -1223,7 +1223,7 @@ CONTAINS
       CALL section_create(section, __LOCATION__, name="BSE", &
                           description="Parameters influencing the Bethe-Salpeter calculations on "// &
                           "top of GW eigenvalues.", &
-                          n_keywords=6, n_subsections=2, repeats=.FALSE.)
+                          n_keywords=7, n_subsections=2, repeats=.FALSE.)
 
       NULLIFY (keyword)
 
@@ -1285,8 +1285,16 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="NUM_PRINT_EXC", &
                           description="Number of printed excitation energies.", &
-                          usage="NUM_PRINT_EXC 15", &
-                          default_i_val=15)
+                          usage="NUM_PRINT_EXC 10", &
+                          default_i_val=10)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="EPS_X", &
+                          description="Threshold for printing contributions of singleparticle "// &
+                          "transitions, i.e. elements of the eigenvector $X_{ia}^n$.", &
+                          usage="EPS_X 0.1", &
+                          type_of_var=real_t, default_r_val=0.1_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

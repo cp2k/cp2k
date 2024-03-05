@@ -1709,17 +1709,15 @@ CONTAINS
       ! postprocessing after GW for Bethe-Salpeter
       IF (do_bse) THEN
 
-         IF (iter_sc_gw0 == 1) THEN
-            DO ispin = 1, nspins
+         DO ispin = 1, nspins
+            IF (iter_sc_gw0 == 1) THEN
                CALL remove_scaling_factor_rpa(fm_mat_S(ispin), virtual(ispin), &
                                               Eigenval_last(:, 1, ispin), homo(ispin), omega)
-            END DO
-         ELSE
-            DO ispin = 1, nspins
+            ELSE
                CALL remove_scaling_factor_rpa(fm_mat_S(ispin), virtual(ispin), &
                                               Eigenval_scf(:, 1, ispin), homo(ispin), omega)
-            END DO
-         END IF
+            END IF
+         END DO
          !MG: Remove para_env and construct from fm_mat_S(1)?
          CALL start_bse_calculation(fm_mat_S, fm_mat_S_ij_bse, fm_mat_S_ab_bse, &
                                     fm_mat_Q_static_bse, fm_mat_Q_static_bse_gemm, &
