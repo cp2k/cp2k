@@ -28,11 +28,11 @@ MODULE bse_main
    USE cp_fm_types,                     ONLY: cp_fm_release,&
                                               cp_fm_type
    USE group_dist_types,                ONLY: group_dist_d1_type
-   USE input_constants,                 ONLY: bse_fulldiag,&
-                                              bse_iterdiag, &
-                                              bse_tda,&
-                                              bse_abba,&
-                                              bse_both
+   USE input_constants,                 ONLY: bse_abba,&
+                                              bse_both,&
+                                              bse_fulldiag,&
+                                              bse_iterdiag,&
+                                              bse_tda
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_para_env_type
    USE mp2_types,                       ONLY: mp2_type
@@ -49,7 +49,7 @@ MODULE bse_main
 CONTAINS
 
 ! **************************************************************************************************
-!> \brief ...
+!> \brief Main subroutine managing BSE calculations
 !> \param fm_mat_S ...
 !> \param fm_mat_S_ij_bse ...
 !> \param fm_mat_S_ab_bse ...

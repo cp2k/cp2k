@@ -50,7 +50,7 @@ MODULE bse_util
 CONTAINS
 
 ! **************************************************************************************************
-!> \brief ...
+!> \brief Multiplies B-matrix (RI-3c-Integrals) with W (screening) to obtain \bar{B}
 !> \param fm_mat_S_ij_bse ...
 !> \param fm_mat_S_ab_bse ...
 !> \param fm_mat_S ...
@@ -140,7 +140,8 @@ CONTAINS
    END SUBROUTINE
 
 ! **************************************************************************************************
-!> \brief ...
+!> \brief Adds and reorders full matrices with a combined index structure, e.g. adding W_ij,ab
+!> to A_ia, which needs MPI communication.
 !> \param fm_out ...
 !> \param fm_in ...
 !> \param beta ...
@@ -153,7 +154,7 @@ CONTAINS
 !> \param mp2_env ...
 ! **************************************************************************************************
    SUBROUTINE fm_general_add_bse(fm_out, fm_in, beta, nrow_secidx_in, ncol_secidx_in, &
-                        nrow_secidx_out, ncol_secidx_out, unit_nr, reordering, mp2_env)
+                                 nrow_secidx_out, ncol_secidx_out, unit_nr, reordering, mp2_env)
 
       TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_out, fm_in
       REAL(kind=dp)                                      :: beta
@@ -163,7 +164,7 @@ CONTAINS
       INTEGER, DIMENSION(4)                              :: reordering
       TYPE(mp2_type), INTENT(INOUT)                      :: mp2_env
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'fm_general_add_bse'
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'fm_general_add_bse'
 
       INTEGER :: col_idx_loc, dummy, handle, handle2, i_entry_rec, idx_col_out, idx_row_out, ii, &
          iproc, jj, ncol_block_in, ncol_block_out, ncol_local_in, ncol_local_out, npcol, nprocs, &
@@ -230,8 +231,8 @@ CONTAINS
          WRITE (unit_nr, '(T2,A10,T13,A21,A10,T71,I10)') 'BSE|DEBUG|', 'Column block size of ', fm_in%name, ncol_block_in
       END IF
 
-      ! Use scalapack wrapper to find process index in A, where ijab -> iajb is needed
-      ! To that end, we obtain the global index in A from the level indices
+      ! Use scalapack wrapper to find process index in fm_out
+      ! To that end, we obtain the global index in fm_out from the level indices
       indices_in(:) = 0
       DO row_idx_loc = 1, nrow_local_in
          indices_in(1) = (row_indices_in(row_idx_loc) - 1)/nrow_secidx_in + 1
@@ -364,7 +365,7 @@ CONTAINS
          WRITE (unit_nr, '(T2,A10,T13,A24,A10)') 'BSE|DEBUG|', 'Writing from buffers to ', fm_out%name
       END IF
 
-      ! fill fm_out with the entries from buffer_rec, i.e. buffer_rec are parts of W_ijab
+      ! fill fm_out with the entries from buffer_rec, i.e. buffer_rec are parts of fm_in
       nprocs = para_env_out%num_pe
 
 !$OMP PARALLEL DO DEFAULT(NONE) &
@@ -408,7 +409,8 @@ CONTAINS
    END SUBROUTINE fm_general_add_bse
 
 ! **************************************************************************************************
-!> \brief Logic: Matrices have some dimension dimen_RI x nrow_in*ncol_in  for the incoming (untruncated) matrix
+!> \brief Routine for truncating a full matrix as given by the energy cutoffs in the input file.
+!>  Logic: Matrices have some dimension dimen_RI x nrow_in*ncol_in  for the incoming (untruncated) matrix
 !>  and dimen_RI x nrow_out*ncol_out for the truncated matrix. The truncation is done by resorting the indices
 !>  via parallel communication.
 !> \param fm_out ...
@@ -449,8 +451,6 @@ CONTAINS
       TYPE(mp_para_env_type), POINTER                    :: para_env_out
       TYPE(mp_request_type), DIMENSION(:, :), POINTER    :: req_array
 
-!MG
-
       CALL timeset(routineN, handle)
       CALL timeset(routineN//"_1_setup", handle2)
 
@@ -465,8 +465,7 @@ CONTAINS
       END IF
 
       para_env_out => fm_out%matrix_struct%para_env
-      ! A_iajb
-      ! We start by moving data from local parts of W_ijab to the full matrix A_iajb using buffers
+
       CALL cp_fm_get_info(matrix=fm_out, &
                           nrow_local=nrow_local_out, &
                           ncol_local=ncol_local_out, &
@@ -677,7 +676,7 @@ CONTAINS
          WRITE (unit_nr, '(T2,A10,T13,A24,A10)') 'BSE|DEBUG|', 'Writing from buffers to ', fm_out%name
       END IF
 
-      ! fill fm_out with the entries from buffer_rec, i.e. buffer_rec are parts of W_ijab
+      ! fill fm_out with the entries from buffer_rec, i.e. buffer_rec are parts of fm_in
       nprocs = para_env_out%num_pe
 
 !$OMP PARALLEL DO DEFAULT(NONE) &
@@ -865,7 +864,8 @@ CONTAINS
    END SUBROUTINE deallocate_matrices_bse
 
 ! **************************************************************************************************
-!> \brief ...
+!> \brief Routine for computing the coefficients of the eigenvectors of the BSE matrix from a
+!>  multiplication with the eigenvalues
 !> \param fm_work ...
 !> \param eig_vals ...
 !> \param beta ...
@@ -1011,7 +1011,7 @@ CONTAINS
    END SUBROUTINE sort_excitations
 
 ! **************************************************************************************************
-!> \brief ...
+!> \brief Roughly estimates the needed runtime and memory during the BSE run
 !> \param homo_red ...
 !> \param virtual_red ...
 !> \param unit_nr ...
@@ -1056,7 +1056,8 @@ CONTAINS
    END SUBROUTINE estimate_BSE_resources
 
 ! **************************************************************************************************
-!> \brief ...
+!> \brief Filters eigenvector entries above a given threshold to describe excitations in the
+!> singleparticle basis
 !> \param fm_eigvec ...
 !> \param idx_homo ...
 !> \param idx_virt ...
@@ -1187,9 +1188,9 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE
-   
+
 ! **************************************************************************************************
-!> \brief ...
+!> \brief Determines indices within the given energy cutoffs and truncates Eigenvalues and matrices
 !> \param fm_mat_S ...
 !> \param fm_mat_S_ij_bse ...
 !> \param fm_mat_S_ab_bse ...

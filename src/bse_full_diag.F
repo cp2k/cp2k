@@ -7,7 +7,7 @@
 
 ! **************************************************************************************************
 !> \brief Routines for the full diagonalization of GW + Bethe-Salpeter for computing
-!> \brief electronic excitations
+!> electronic excitations
 !> \par History
 !>      10.2023 created [Maximilian Graml]
 ! **************************************************************************************************
@@ -52,11 +52,11 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Matrix A constructed from GW energies and 3c-B-matrices (cf. subroutine mult_B_with_W)
-!> \brief  A_ia,jb = (ε_a-ε_i) δ_ij δ_ab + α * v_ia,jb - W_ij,ab
-!> \brief  ε_a, ε_i are GW singleparticle energies from Eigenval_reduced
-!> \brief  α is a spin-dependent factor
-!> \brief  v_ia,jb = \sum_P B^P_ia B^P_jb (unscreened Coulomb interaction)
-!> \brief  W_ij,ab = \sum_P \bar{B}^P_ij B^P_ab (screened Coulomb interaction)
+!>   A_ia,jb = (ε_a-ε_i) δ_ij δ_ab + α * v_ia,jb - W_ij,ab
+!>   ε_a, ε_i are GW singleparticle energies from Eigenval_reduced
+!>   α is a spin-dependent factor
+!>   v_ia,jb = \sum_P B^P_ia B^P_jb (unscreened Coulomb interaction)
+!>   W_ij,ab = \sum_P \bar{B}^P_ij B^P_ab (screened Coulomb interaction)
 !> \param fm_mat_S ...
 !> \param fm_mat_S_bar_ij_bse ...
 !> \param fm_mat_S_ab_bse ...
@@ -158,7 +158,7 @@ CONTAINS
       ! A_ia,jb: nrow_secidx_out = virtual, ncol_secidx_out = virtual
       reordering = (/1, 3, 2, 4/)
       CALL fm_general_add_bse(fm_A, fm_W, -1.0_dp, homo, virtual, &
-                     virtual, virtual, unit_nr, reordering, mp2_env)
+                              virtual, virtual, unit_nr, reordering, mp2_env)
       !full matrix W is not needed anymore, release it to save memory
       CALL cp_fm_struct_release(fm_struct_W)
       CALL cp_fm_release(fm_W)
@@ -189,10 +189,10 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Matrix B constructed from 3c-B-matrices (cf. subroutine mult_B_with_W)
-!> \brief  B_ia,jb = α * v_ia,jb - W_ib,aj
-!> \brief  α is a spin-dependent factor
-!> \brief  v_ia,jb = \sum_P B^P_ia B^P_jb (unscreened Coulomb interaction)
-!> \brief  W_ib,aj = \sum_P \bar{B}^P_ib B^P_aj (screened Coulomb interaction)
+!>   B_ia,jb = α * v_ia,jb - W_ib,aj
+!>   α is a spin-dependent factor
+!>   v_ia,jb = \sum_P B^P_ia B^P_jb (unscreened Coulomb interaction)
+!>   W_ib,aj = \sum_P \bar{B}^P_ib B^P_aj (screened Coulomb interaction)
 !> \param fm_mat_S ...
 !> \param fm_mat_S_bar_ia_bse ...
 !> \param fm_B ...
@@ -258,7 +258,7 @@ CONTAINS
       ! A_ia,jb: nrow_secidx_out = virtual, ncol_secidx_out = virtual
       reordering = (/1, 4, 3, 2/)
       CALL fm_general_add_bse(fm_B, fm_W, -1.0_dp, virtual, virtual, &
-                     virtual, virtual, unit_nr, reordering, mp2_env)
+                              virtual, virtual, unit_nr, reordering, mp2_env)
 
       CALL cp_fm_release(fm_W)
       CALL timestop(handle)
@@ -267,9 +267,9 @@ CONTAINS
 
    ! **************************************************************************************************
 !> \brief Construct Matrix C=(A-B)^0.5 (A+B) (A-B)^0.5 to solve full BSE matrix as a hermitian problem
-!> \brief  (cf. Eq. (A7) in F. Furche J. Chem. Phys., Vol. 114, No. 14, (2001)).
-!> \brief  We keep fm_sqrt_A_minus_B and fm_inv_sqrt_A_minus_B for print of singleparticle transitions
-!> \brief  of ABBA as described in Eq. (A10) in F. Furche J. Chem. Phys., Vol. 114, No. 14, (2001).
+!>   (cf. Eq. (A7) in F. Furche J. Chem. Phys., Vol. 114, No. 14, (2001)).
+!>   We keep fm_sqrt_A_minus_B and fm_inv_sqrt_A_minus_B for print of singleparticle transitions
+!>   of ABBA as described in Eq. (A10) in F. Furche J. Chem. Phys., Vol. 114, No. 14, (2001).
 !> \param fm_A ...
 !> \param fm_B ...
 !> \param fm_C ...
@@ -386,8 +386,8 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Solving eigenvalue equation C Z^n = (Ω^n)^2 Z^n .
-!> \brief  Here, the eigenvectors Z^n relate to X^n via
-!> \brief  Eq. (A10) in F. Furche J. Chem. Phys., Vol. 114, No. 14, (2001).
+!>   Here, the eigenvectors Z^n relate to X^n via
+!>   Eq. (A10) in F. Furche J. Chem. Phys., Vol. 114, No. 14, (2001).
 !> \param fm_C ...
 !> \param homo ...
 !> \param virtual ...

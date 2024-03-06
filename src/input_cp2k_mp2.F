@@ -12,47 +12,47 @@
 !> \author MDB
 ! **************************************************************************************************
 MODULE input_cp2k_mp2
-   USE bibliography,                    ONLY: &
-        Bates2013, DelBen2012, DelBen2013, DelBen2015, DelBen2015b, Rybkin2016, Wilhelm2016a, &
-        Wilhelm2016b, Wilhelm2017, Wilhelm2018
-   USE cp_eri_mme_interface,            ONLY: create_eri_mme_section
-   USE cp_output_handling,              ONLY: add_last_numeric,&
-                                              cp_print_key_section_create,&
-                                              debug_print_level,&
-                                              high_print_level,&
-                                              low_print_level,&
-                                              medium_print_level,&
-                                              silent_print_level
-   USE cp_units,                        ONLY: cp_unit_to_cp2k
-   USE input_constants,                 ONLY: &
-        bse_fulldiag, bse_iterdiag, bse_tda, bse_abba, bse_both, &
-        bse_iter_both_cond, bse_iter_en_cond, bse_iter_res_cond, bse_singlet, &
-        bse_triplet, do_eri_gpw, do_eri_mme, do_eri_os, do_potential_coulomb, do_potential_id, &
-        do_potential_long, do_potential_mix_cl, do_potential_short, do_potential_truncated, &
-        do_potential_tshpsc, eri_default, gaussian, gw_no_print_exx, gw_pade_approx, gw_print_exx, &
-        gw_read_exx, gw_skip_for_regtest, gw_two_pole_model, kp_weights_W_auto, &
-        kp_weights_W_tailored, kp_weights_W_uniform, mp2_method_direct, mp2_method_gpw, &
-        mp2_method_none, numerical, ot_precond_full_all, ot_precond_full_kinetic, &
-        ot_precond_full_single, ot_precond_full_single_inverse, ot_precond_none, &
-        ot_precond_s_inverse, ri_default, ri_rpa_g0w0_crossing_bisection, &
-        ri_rpa_g0w0_crossing_newton, ri_rpa_g0w0_crossing_z_shot, soc_lda, soc_none, soc_pbe, &
-        wfc_mm_style_gemm, wfc_mm_style_syrk, z_solver_cg, z_solver_pople, z_solver_richardson, &
-        z_solver_sd
-   USE input_cp2k_hfx,                  ONLY: create_hfx_section
-   USE input_cp2k_kpoints,              ONLY: create_kpoint_set_section
-   USE input_keyword_types,             ONLY: keyword_create,&
-                                              keyword_release,&
-                                              keyword_type
-   USE input_section_types,             ONLY: section_add_keyword,&
-                                              section_add_subsection,&
-                                              section_create,&
-                                              section_release,&
-                                              section_type
-   USE input_val_types,                 ONLY: integer_t,&
-                                              real_t
-   USE kinds,                           ONLY: dp
-   USE string_utilities,                ONLY: newline,&
-                                              s2a
+   USE bibliography, ONLY: &
+      Bates2013, DelBen2012, DelBen2013, DelBen2015, DelBen2015b, Rybkin2016, Wilhelm2016a, &
+      Wilhelm2016b, Wilhelm2017, Wilhelm2018
+   USE cp_eri_mme_interface, ONLY: create_eri_mme_section
+   USE cp_output_handling, ONLY: add_last_numeric, &
+                                 cp_print_key_section_create, &
+                                 debug_print_level, &
+                                 high_print_level, &
+                                 low_print_level, &
+                                 medium_print_level, &
+                                 silent_print_level
+   USE cp_units, ONLY: cp_unit_to_cp2k
+   USE input_constants, ONLY: &
+      bse_fulldiag, bse_iterdiag, bse_tda, bse_abba, bse_both, &
+      bse_iter_both_cond, bse_iter_en_cond, bse_iter_res_cond, bse_singlet, &
+      bse_triplet, do_eri_gpw, do_eri_mme, do_eri_os, do_potential_coulomb, do_potential_id, &
+      do_potential_long, do_potential_mix_cl, do_potential_short, do_potential_truncated, &
+      do_potential_tshpsc, eri_default, gaussian, gw_no_print_exx, gw_pade_approx, gw_print_exx, &
+      gw_read_exx, gw_skip_for_regtest, gw_two_pole_model, kp_weights_W_auto, &
+      kp_weights_W_tailored, kp_weights_W_uniform, mp2_method_direct, mp2_method_gpw, &
+      mp2_method_none, numerical, ot_precond_full_all, ot_precond_full_kinetic, &
+      ot_precond_full_single, ot_precond_full_single_inverse, ot_precond_none, &
+      ot_precond_s_inverse, ri_default, ri_rpa_g0w0_crossing_bisection, &
+      ri_rpa_g0w0_crossing_newton, ri_rpa_g0w0_crossing_z_shot, soc_lda, soc_none, soc_pbe, &
+      wfc_mm_style_gemm, wfc_mm_style_syrk, z_solver_cg, z_solver_pople, z_solver_richardson, &
+      z_solver_sd
+   USE input_cp2k_hfx, ONLY: create_hfx_section
+   USE input_cp2k_kpoints, ONLY: create_kpoint_set_section
+   USE input_keyword_types, ONLY: keyword_create, &
+                                  keyword_release, &
+                                  keyword_type
+   USE input_section_types, ONLY: section_add_keyword, &
+                                  section_add_subsection, &
+                                  section_create, &
+                                  section_release, &
+                                  section_type
+   USE input_val_types, ONLY: integer_t, &
+                              real_t
+   USE kinds, ONLY: dp
+   USE string_utilities, ONLY: newline, &
+                               s2a
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -1221,14 +1221,14 @@ CONTAINS
 
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, __LOCATION__, name="BSE", &
-         description="Parameters for a calculation solving the Bethe-Salpeter equation "// &
-         " (BSE) for electronic excitations. The full BSE "// &
-         "$\begin{pmatrix}A &  B\\B &  A\end{pmatrix}\begin{pmatrix}X^{(n)}\\Y^{(n)}\end{pmatrix} ="// & 
-         "\Omega^{(n)}\begin{pmatrix}1 &  0\\0 &  -1\end{pmatrix}\begin{pmatrix}X^{(n)}\\Y^{(n)}\end{pmatrix}$ "// &
-         "enables of electronic excitation energies $\Omega^{(n)}$. The BSE can be solved by diagonalizing "// &
-         "the full ABBA-matrix or by setting B=0, i.e. within the Tamm-Dancoff approximation (TDA)."// &
-         "Preliminary reference: J. Chem. Phys. 152, 044105 (2020); https://doi.org/10.1063/1.5123290", &
-         n_keywords=8, n_subsections=2, repeats=.FALSE.)
+      description="Parameters for a calculation solving the Bethe-Salpeter equation "// &
+      "(BSE) for electronic excitations. The full BSE "// &
+      "$\left( \begin{array}{cc}A &  B\\B &  A\end{array} \right)\left( \begin{array}{cc}X^{(n)}\\Y^{(n)}\end{array} \right) = "// &
+      "\Omega^{(n)}\left(\begin{array}{cc}1&0\\0&-1\end{array}\right)\left(\begin{array}{cc}X^{(n)}\\Y^{(n)}\end{array}\right)$ "//&
+      "enables of electronic excitation energies $\Omega^{(n)}$. The BSE can be solved by diagonalizing "// &
+      "the full ABBA-matrix or by setting B=0, i.e. within the Tamm-Dancoff approximation (TDA). "// &
+      "Preliminary reference: J. Chem. Phys. 152, 044105 (2020); https://doi.org/10.1063/1.5123290", &
+      n_keywords=8, n_subsections=2, repeats=.FALSE.)
 
       NULLIFY (keyword)
 
@@ -1278,7 +1278,7 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="ENERGY_CUTOFF_OCC", &
                           description="Removing all orbitals with indices i,j from A_ia,jb and B_ia,jb with energy difference "// &
                           "to HOMO level larger than the given energy cutoff, i.e. "// &
-                          "$\epsilon_{\mathrm{HOMO}}-\epsilon_a>\mathtt{ENERGY_CUTOFF_OCC}$"// & 
+                          "$\epsilon_{\mathrm{HOMO}}-\epsilon_a>\mathtt{ENERGY_CUTOFF_OCC}$. "// &
                           "Can be used to accelerate runtime and reduce memory consumption.", &
                           usage="ENERGY_CUTOFF_OCC 10.0", unit_str="eV", &
                           type_of_var=real_t, default_r_val=-1.0_dp)
@@ -1288,7 +1288,7 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="ENERGY_CUTOFF_VIRT", &
                           description="Removing all orbitals with indices a,b from A_ia,jb and B_ia,jb with energy difference "// &
                           "to LUMO level larger than the given energy cutoff, i.e. "// &
-                          "$\epsilon_i-\epsilon_{\mathrm{LUMO}}>\mathtt{ENERGY_CUTOFF_VIRT}$"// & 
+                          "$\epsilon_i-\epsilon_{\mathrm{LUMO}}>\mathtt{ENERGY_CUTOFF_VIRT}$. "// &
                           "Can be used to accelerate runtime and reduce memory consumption.", &
                           usage="ENERGY_CUTOFF_VIRT 10.0", unit_str="eV", &
                           type_of_var=real_t, default_r_val=-1.0_dp)
