@@ -242,10 +242,6 @@ CONTAINS
       NULLIFY (gs_mos)
 
       CALL tddfpt_init_mos(qs_env, gs_mos, log_unit)
-      CALL cp_print_key_finished_output(log_unit, &
-                                        logger, &
-                                        tddfpt_print_section, &
-                                        "PROGRAM_BANNER")
 
       ! obtain corrected KS-matrix
       CALL tddfpt_oecorr(qs_env, gs_mos, matrix_ks_oep)
@@ -490,6 +486,11 @@ CONTAINS
       ! clean up
       CALL cp_fm_release(evects)
       CALL cp_fm_release(S_evects)
+
+      CALL cp_print_key_finished_output(log_unit, &
+                                        logger, &
+                                        tddfpt_print_section, &
+                                        "PROGRAM_BANNER")
 
       DEALLOCATE (evals, ostrength)
 
