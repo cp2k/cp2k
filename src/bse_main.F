@@ -50,7 +50,7 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Main subroutine managing BSE calculations
-!> \param fm_mat_S ...
+!> \param fm_mat_S_ia_bse ...
 !> \param fm_mat_S_ij_bse ...
 !> \param fm_mat_S_ab_bse ...
 !> \param fm_mat_Q_static_bse ...
@@ -62,26 +62,24 @@ CONTAINS
 !> \param dimen_RI_red ...
 !> \param gd_array ...
 !> \param color_sub ...
-!> \param para_env ...
 !> \param mp2_env ...
 !> \param unit_nr ...
 ! **************************************************************************************************
-   SUBROUTINE start_bse_calculation(fm_mat_S, fm_mat_S_ij_bse, fm_mat_S_ab_bse, &
+   SUBROUTINE start_bse_calculation(fm_mat_S_ia_bse, fm_mat_S_ij_bse, fm_mat_S_ab_bse, &
                                     fm_mat_Q_static_bse, fm_mat_Q_static_bse_gemm, &
                                     Eigenval, homo, virtual, dimen_RI, dimen_RI_red, &
-                                    gd_array, color_sub, &
-                                    para_env, mp2_env, unit_nr)
-      TYPE(cp_fm_type), DIMENSION(:)                     :: fm_mat_S
-      TYPE(cp_fm_type)                                   :: fm_mat_S_ij_bse, fm_mat_S_ab_bse, &
-                                                            fm_mat_Q_static_bse, &
+                                    gd_array, color_sub, mp2_env, unit_nr)
+
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_S_ia_bse, fm_mat_S_ij_bse, &
+                                                            fm_mat_S_ab_bse
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_mat_Q_static_bse, &
                                                             fm_mat_Q_static_bse_gemm
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
-         INTENT(INOUT)                                   :: Eigenval
+         INTENT(IN)                                      :: Eigenval
       INTEGER, DIMENSION(:), INTENT(IN)                  :: homo, virtual
       INTEGER, INTENT(IN)                                :: dimen_RI, dimen_RI_red
       TYPE(group_dist_d1_type), INTENT(IN)               :: gd_array
       INTEGER, INTENT(IN)                                :: color_sub
-      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(mp2_type)                                     :: mp2_env
       INTEGER, INTENT(IN)                                :: unit_nr
 
@@ -95,10 +93,13 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: B_abQ_bse_local, B_bar_iaQ_bse_local, &
                                                             B_bar_ijQ_bse_local, B_iaQ_bse_local
       TYPE(cp_fm_type) :: fm_A_BSE, fm_B_BSE, fm_C_BSE, fm_inv_sqrt_A_minus_B, fm_mat_S_ab_trunc, &
-         fm_mat_S_bar_ia_bse, fm_mat_S_bar_ij_bse, fm_mat_S_ij_trunc, fm_mat_S_trunc, &
+         fm_mat_S_bar_ia_bse, fm_mat_S_bar_ij_bse, fm_mat_S_ia_trunc, fm_mat_S_ij_trunc, &
          fm_sqrt_A_minus_B
+      TYPE(mp_para_env_type), POINTER                    :: para_env
 
       CALL timeset(routineN, handle)
+
+      para_env => fm_mat_S_ia_bse%matrix_struct%para_env
 
       my_do_fulldiag = .FALSE.
       my_do_iterat_diag = .FALSE.
@@ -126,11 +127,11 @@ CONTAINS
 
       CALL print_BSE_start_flag(my_do_tda, my_do_abba, mp2_env, unit_nr)
 
-      CALL fm_mat_S(1)%matrix_struct%para_env%sync()
+      CALL fm_mat_S_ia_bse%matrix_struct%para_env%sync()
 
       ! Reduce matrices in case of energy cutoff for occupied and unoccupied in A/B-BSE-matrices
-      CALL truncate_BSE_matrices(fm_mat_S(1), fm_mat_S_ij_bse, fm_mat_S_ab_bse, &
-                                 fm_mat_S_trunc, fm_mat_S_ij_trunc, fm_mat_S_ab_trunc, &
+      CALL truncate_BSE_matrices(fm_mat_S_ia_bse, fm_mat_S_ij_bse, fm_mat_S_ab_bse, &
+                                 fm_mat_S_ia_trunc, fm_mat_S_ij_trunc, fm_mat_S_ab_trunc, &
                                  Eigenval(:, 1, 1), Eigenval_reduced, &
                                  homo(1), virtual(1), dimen_RI, unit_nr, &
                                  homo_red, virtual_red, &
@@ -138,13 +139,13 @@ CONTAINS
       ! \bar{B}^P_rs = \sum_R W_PR B^R_rs where B^R_rs = \sum_T [1/sqrt(v)]_RT (T|rs)
       ! r,s: MO-index, P,R,T: RI-index
       ! B: fm_mat_S_..., W: fm_mat_Q_...
-      CALL mult_B_with_W(fm_mat_S_ij_trunc, fm_mat_S_ab_trunc, fm_mat_S_trunc, &
+      CALL mult_B_with_W(fm_mat_S_ij_trunc, fm_mat_S_ab_trunc, fm_mat_S_ia_trunc, &
                          fm_mat_S_bar_ia_bse, fm_mat_S_bar_ij_bse, &
                          fm_mat_Q_static_bse, fm_mat_Q_static_bse_gemm, &
                          dimen_RI_red, homo_red, virtual_red)
 
       IF (my_do_iterat_diag) THEN
-         CALL fill_local_3c_arrays(fm_mat_S_ab_trunc, fm_mat_S_trunc, &
+         CALL fill_local_3c_arrays(fm_mat_S_ab_trunc, fm_mat_S_ia_trunc, &
                                    fm_mat_S_bar_ia_bse, fm_mat_S_bar_ij_bse, &
                                    B_bar_ijQ_bse_local, B_abQ_bse_local, B_bar_iaQ_bse_local, &
                                    B_iaQ_bse_local, dimen_RI_red, homo_red, virtual_red, &
@@ -161,7 +162,7 @@ CONTAINS
          ! α is a spin-dependent factor
          ! v_ia,jb = \sum_P B^P_ia B^P_jb (unscreened Coulomb interaction)
          ! W_ij,ab = \sum_P \bar{B}^P_ij B^P_ab (screened Coulomb interaction)
-         CALL create_A(fm_mat_S_trunc, fm_mat_S_bar_ij_bse, fm_mat_S_ab_trunc, &
+         CALL create_A(fm_mat_S_ia_trunc, fm_mat_S_bar_ij_bse, fm_mat_S_ab_trunc, &
                        fm_A_BSE, Eigenval_reduced, unit_nr, &
                        homo_red, virtual_red, dimen_RI, mp2_env, &
                        para_env)
@@ -171,7 +172,7 @@ CONTAINS
             ! α is a spin-dependent factor
             ! v_ia,jb = \sum_P B^P_ia B^P_jb (unscreened Coulomb interaction)
             ! W_ib,aj = \sum_P \bar{B}^P_ib B^P_aj (screened Coulomb interaction)
-            CALL create_B(fm_mat_S_trunc, fm_mat_S_bar_ia_bse, fm_B_BSE, &
+            CALL create_B(fm_mat_S_ia_trunc, fm_mat_S_bar_ia_bse, fm_B_BSE, &
                           homo_red, virtual_red, dimen_RI, unit_nr, mp2_env)
             ! Construct Matrix C=(A-B)^0.5 (A+B) (A-B)^0.5 to solve full BSE matrix as a hermitian problem
             ! (cf. Eq. (A7) in F. Furche J. Chem. Phys., Vol. 114, No. 14, (2001)).
@@ -202,13 +203,14 @@ CONTAINS
       END IF
 
       CALL deallocate_matrices_bse(fm_mat_S_bar_ia_bse, fm_mat_S_bar_ij_bse, &
-                                   fm_mat_S_trunc, fm_mat_S_ij_trunc, fm_mat_S_ab_trunc, &
+                                   fm_mat_S_ia_trunc, fm_mat_S_ij_trunc, fm_mat_S_ab_trunc, &
                                    fm_mat_Q_static_bse, fm_mat_Q_static_bse_gemm)
       IF (my_do_iterat_diag) THEN
+         ! Contains untested Block-Davidson algorithm
          CALL do_subspace_iterations(B_bar_ijQ_bse_local, B_abQ_bse_local, B_bar_iaQ_bse_local, &
                                      B_iaQ_bse_local, homo(1), virtual(1), mp2_env%ri_g0w0%bse_spin_config, unit_nr, &
                                      Eigenval(:, 1, 1), para_env, mp2_env)
-         !Deallocate local 3c-B-matrices
+         ! Deallocate local 3c-B-matrices
          DEALLOCATE (B_bar_ijQ_bse_local, B_abQ_bse_local, B_bar_iaQ_bse_local, B_iaQ_bse_local)
       END IF
 

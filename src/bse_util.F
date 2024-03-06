@@ -53,7 +53,7 @@ CONTAINS
 !> \brief Multiplies B-matrix (RI-3c-Integrals) with W (screening) to obtain \bar{B}
 !> \param fm_mat_S_ij_bse ...
 !> \param fm_mat_S_ab_bse ...
-!> \param fm_mat_S ...
+!> \param fm_mat_S_ia_bse ...
 !> \param fm_mat_S_bar_ia_bse ...
 !> \param fm_mat_S_bar_ij_bse ...
 !> \param fm_mat_Q_static_bse ...
@@ -62,13 +62,13 @@ CONTAINS
 !> \param homo ...
 !> \param virtual ...
 ! **************************************************************************************************
-   SUBROUTINE mult_B_with_W(fm_mat_S_ij_bse, fm_mat_S_ab_bse, fm_mat_S, &
+   SUBROUTINE mult_B_with_W(fm_mat_S_ij_bse, fm_mat_S_ab_bse, fm_mat_S_ia_bse, &
                             fm_mat_S_bar_ia_bse, fm_mat_S_bar_ij_bse, &
                             fm_mat_Q_static_bse, fm_mat_Q_static_bse_gemm, &
                             dimen_RI, homo, virtual)
 
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_S_ij_bse, fm_mat_S_ab_bse, &
-                                                            fm_mat_S
+                                                            fm_mat_S_ia_bse
       TYPE(cp_fm_type), INTENT(OUT)                      :: fm_mat_S_bar_ia_bse, fm_mat_S_bar_ij_bse
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_Q_static_bse, &
                                                             fm_mat_Q_static_bse_gemm
@@ -83,16 +83,13 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      CALL cp_fm_create(fm_mat_S_bar_ia_bse, fm_mat_S%matrix_struct)
-      !CALL cp_fm_to_fm(fm_mat_S, fm_mat_S_bar_ia_bse)
+      CALL cp_fm_create(fm_mat_S_bar_ia_bse, fm_mat_S_ia_bse%matrix_struct)
       CALL cp_fm_set_all(fm_mat_S_bar_ia_bse, 0.0_dp)
 
       CALL cp_fm_create(fm_mat_S_bar_ij_bse, fm_mat_S_ij_bse%matrix_struct)
-      !CALL cp_fm_to_fm(fm_mat_S_ij_bse, fm_mat_S_bar_ij_bse)
       CALL cp_fm_set_all(fm_mat_S_bar_ij_bse, 0.0_dp)
 
       CALL cp_fm_create(fm_work, fm_mat_Q_static_bse_gemm%matrix_struct)
-      !CALL cp_fm_to_fm(fm_mat_Q_static_bse_gemm, fm_work)
       CALL cp_fm_set_all(fm_work, 0.0_dp)
 
       ! get info of fm_mat_Q_static_bse and compute ((1+Q(0))^-1-1)
@@ -128,9 +125,9 @@ CONTAINS
                          matrix_c=fm_mat_S_bar_ij_bse)
 
       ! fm_mat_S_bar_ia_bse has a different blacs_env as fm_mat_S_ij_bse since we take
-      ! fm_mat_S from RPA. Therefore, we also need a different fm_mat_Q_static_bse_gemm
+      ! fm_mat_S_ia_bse from RPA. Therefore, we also need a different fm_mat_Q_static_bse_gemm
       CALL parallel_gemm(transa="N", transb="N", m=dimen_RI, n=homo*virtual, k=dimen_RI, alpha=1.0_dp, &
-                         matrix_a=fm_mat_Q_static_bse_gemm, matrix_b=fm_mat_S, beta=0.0_dp, &
+                         matrix_a=fm_mat_Q_static_bse_gemm, matrix_b=fm_mat_S_ia_bse, beta=0.0_dp, &
                          matrix_c=fm_mat_S_bar_ia_bse)
 
       CALL cp_fm_release(fm_work)
@@ -1191,7 +1188,7 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Determines indices within the given energy cutoffs and truncates Eigenvalues and matrices
-!> \param fm_mat_S ...
+!> \param fm_mat_S_ia_bse ...
 !> \param fm_mat_S_ij_bse ...
 !> \param fm_mat_S_ab_bse ...
 !> \param fm_mat_S_trunc ...
@@ -1207,14 +1204,14 @@ CONTAINS
 !> \param virt_red ...
 !> \param mp2_env ...
 ! **************************************************************************************************
-   SUBROUTINE truncate_BSE_matrices(fm_mat_S, fm_mat_S_ij_bse, fm_mat_S_ab_bse, &
+   SUBROUTINE truncate_BSE_matrices(fm_mat_S_ia_bse, fm_mat_S_ij_bse, fm_mat_S_ab_bse, &
                                     fm_mat_S_trunc, fm_mat_S_ij_trunc, fm_mat_S_ab_trunc, &
                                     Eigenval, Eigenval_reduced, &
                                     homo, virtual, dimen_RI, unit_nr, &
                                     homo_red, virt_red, &
                                     mp2_env)
 
-      TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_S, fm_mat_S_ij_bse, &
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_S_ia_bse, fm_mat_S_ij_bse, &
                                                             fm_mat_S_ab_bse
       TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_mat_S_trunc, fm_mat_S_ij_trunc, &
                                                             fm_mat_S_ab_trunc
@@ -1237,13 +1234,14 @@ CONTAINS
       ! Determine index in homo and virtual for truncation
       ! Uses indices of outermost orbitals within energy range (-mp2_env%ri_g0w0%bse_cutoff_occ,mp2_env%ri_g0w0%bse_cutoff_virt)
       IF (mp2_env%ri_g0w0%bse_cutoff_occ > 0 .OR. mp2_env%ri_g0w0%bse_cutoff_virt > 0) THEN
-         IF (-mp2_env%ri_g0w0%bse_cutoff_occ .LT. Eigenval(1) .OR. mp2_env%ri_g0w0%bse_cutoff_occ < 0) THEN
+         IF (-mp2_env%ri_g0w0%bse_cutoff_occ .LT. Eigenval(1) - Eigenval(homo) &
+             .OR. mp2_env%ri_g0w0%bse_cutoff_occ < 0) THEN
             homo_red = homo
             homo_incl = 1
          ELSE
             homo_incl = 1
             DO i_homo = 1, homo
-               IF (Eigenval(i_homo) .GT. -mp2_env%ri_g0w0%bse_cutoff_occ) THEN
+               IF (Eigenval(i_homo) - Eigenval(homo) .GT. -mp2_env%ri_g0w0%bse_cutoff_occ) THEN
                   homo_incl = i_homo
                   EXIT
                END IF
@@ -1251,13 +1249,14 @@ CONTAINS
             homo_red = homo - homo_incl + 1
          END IF
 
-         IF (mp2_env%ri_g0w0%bse_cutoff_virt .GT. Eigenval(homo + virtual) .OR. mp2_env%ri_g0w0%bse_cutoff_virt < 0) THEN
+         IF (mp2_env%ri_g0w0%bse_cutoff_virt .GT. Eigenval(homo + virtual) - Eigenval(homo + 1) &
+             .OR. mp2_env%ri_g0w0%bse_cutoff_virt < 0) THEN
             virt_red = virtual
             virt_incl = virtual
          ELSE
             virt_incl = homo + 1
             DO j_virt = 1, virtual
-               IF (Eigenval(homo + j_virt) .GT. mp2_env%ri_g0w0%bse_cutoff_virt) THEN
+               IF (Eigenval(homo + j_virt) - Eigenval(homo + 1) .GT. mp2_env%ri_g0w0%bse_cutoff_virt) THEN
                   virt_incl = j_virt - 1
                   EXIT
                END IF
@@ -1285,8 +1284,12 @@ CONTAINS
          END IF
          WRITE (unit_nr, '(T2,A4,T7,A20,T71,I10)') 'BSE|', 'First occupied index', homo_incl
          WRITE (unit_nr, '(T2,A4,T7,A18,T71,I10)') 'BSE|', 'Last virtual index', virt_incl
-         WRITE (unit_nr, '(T2,A4,T7,A26,T71,F10.3)') 'BSE|', 'First occupied energy [eV]', Eigenval(homo_incl)*evolt
-         WRITE (unit_nr, '(T2,A4,T7,A24,T71,F10.3)') 'BSE|', 'Last virtual energy [eV]', Eigenval(homo + virt_incl)*evolt
+         WRITE (unit_nr, '(T2,A4,T7,A35,T71,F10.3)') 'BSE|', 'Energy of first occupied index [eV]', Eigenval(homo_incl)*evolt
+         WRITE (unit_nr, '(T2,A4,T7,A33,T71,F10.3)') 'BSE|', 'Energy of last virtual index [eV]', Eigenval(homo + virt_incl)*evolt
+         WRITE (unit_nr, '(T2,A4,T7,A54,T71,F10.3)') 'BSE|', 'Energy difference of first occupied index to homo [eV]', &
+            -(Eigenval(homo_incl) - Eigenval(homo))*evolt
+         WRITE (unit_nr, '(T2,A4,T7,A52,T71,F10.3)') 'BSE|', 'Energy difference of last virtual index to LUMO [eV]', &
+            (Eigenval(homo + virt_incl) - Eigenval(homo + 1))*evolt
          WRITE (unit_nr, '(T2,A4,T7,A35,T71,I10)') 'BSE|', 'Number of GW-corrected occupied MOs', mp2_env%ri_g0w0%corr_mos_occ
          WRITE (unit_nr, '(T2,A4,T7,A34,T71,I10)') 'BSE|', 'Number of GW-corrected virtual MOs', mp2_env%ri_g0w0%corr_mos_virt
          WRITE (unit_nr, '(T2,A4)') 'BSE|'
@@ -1301,8 +1304,8 @@ CONTAINS
       END IF
       !Truncate full fm_S matrices
       !Allocate new truncated matrices of proper size
-      para_env => fm_mat_S%matrix_struct%para_env
-      context => fm_mat_S%matrix_struct%context
+      para_env => fm_mat_S_ia_bse%matrix_struct%para_env
+      context => fm_mat_S_ia_bse%matrix_struct%context
 
       CALL cp_fm_struct_create(fm_struct_ia, para_env, context, dimen_RI, homo_red*virt_red)
       CALL cp_fm_struct_create(fm_struct_ij, para_env, context, dimen_RI, homo_red*homo_red)
@@ -1318,7 +1321,7 @@ CONTAINS
          ALLOCATE (Eigenval_reduced(homo_red + virt_red))
          Eigenval_reduced(:) = Eigenval(homo_incl:homo + virt_incl)
 
-         CALL truncate_fm(fm_mat_S_trunc, fm_mat_S, homo, virtual, &
+         CALL truncate_fm(fm_mat_S_trunc, fm_mat_S_ia_bse, homo, virtual, &
                           homo_red, virt_red, unit_nr, mp2_env, &
                           nrow_offset=homo_incl)
          CALL truncate_fm(fm_mat_S_ij_trunc, fm_mat_S_ij_bse, homo, homo, &
@@ -1333,7 +1336,7 @@ CONTAINS
             WRITE (unit_nr, '(T2,A4)') 'BSE|'
          END IF
          Eigenval_reduced = Eigenval
-         CALL cp_fm_to_fm_submat_general(fm_mat_S, fm_mat_S_trunc, dimen_RI, homo_red*virt_red, &
+         CALL cp_fm_to_fm_submat_general(fm_mat_S_ia_bse, fm_mat_S_trunc, dimen_RI, homo_red*virt_red, &
                                          1, 1, 1, 1, context)
          CALL cp_fm_to_fm_submat_general(fm_mat_S_ij_bse, fm_mat_S_ij_trunc, dimen_RI, homo_red*homo_red, &
                                          1, 1, 1, 1, context)

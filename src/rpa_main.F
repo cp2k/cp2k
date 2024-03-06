@@ -1125,8 +1125,8 @@ CONTAINS
                                                             vec_Sigma_x_gw
       TYPE(cp_cfm_type)                                  :: cfm_mat_Q
       TYPE(cp_fm_type) :: fm_mat_Q_static_bse, fm_mat_Q_static_bse_gemm, fm_mat_RI_global_work, &
-         fm_mat_work, fm_mo_coeff_occ_scaled, fm_mo_coeff_virt_scaled, fm_scaled_dm_occ_tau, &
-         fm_scaled_dm_virt_tau
+         fm_mat_S_ia_bse, fm_mat_work, fm_mo_coeff_occ_scaled, fm_mo_coeff_virt_scaled, &
+         fm_scaled_dm_occ_tau, fm_scaled_dm_virt_tau
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: fm_mat_S_gw_work, fm_mat_W, &
                                                             fm_mo_coeff_occ, fm_mo_coeff_virt
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :)     :: fm_mat_L_kpoints, fm_mat_Minv_L_kpoints
@@ -1708,22 +1708,24 @@ CONTAINS
 
       ! postprocessing after GW for Bethe-Salpeter
       IF (do_bse) THEN
-
-         DO ispin = 1, nspins
-            IF (iter_sc_gw0 == 1) THEN
-               CALL remove_scaling_factor_rpa(fm_mat_S(ispin), virtual(ispin), &
-                                              Eigenval_last(:, 1, ispin), homo(ispin), omega)
-            ELSE
-               CALL remove_scaling_factor_rpa(fm_mat_S(ispin), virtual(ispin), &
-                                              Eigenval_scf(:, 1, ispin), homo(ispin), omega)
-            END IF
-         END DO
-         !MG: Remove para_env and construct from fm_mat_S(1)?
-         CALL start_bse_calculation(fm_mat_S, fm_mat_S_ij_bse, fm_mat_S_ab_bse, &
+         ! Create a copy of fm_mat_S for usage in BSE
+         CALL cp_fm_create(fm_mat_S_ia_bse, fm_mat_S(1)%matrix_struct)
+         CALL cp_fm_to_fm(fm_mat_S(1), fm_mat_S_ia_bse)
+         ! Remove energy/frequency factor from 3c-Integral for BSE
+         IF (iter_sc_gw0 == 1) THEN
+            CALL remove_scaling_factor_rpa(fm_mat_S_ia_bse, virtual(1), &
+                                           Eigenval_last(:, 1, 1), homo(1), omega)
+         ELSE
+            CALL remove_scaling_factor_rpa(fm_mat_S_ia_bse, virtual(1), &
+                                           Eigenval_scf(:, 1, 1), homo(1), omega)
+         END IF
+         ! Main routine for all BSE postprocessing
+         CALL start_bse_calculation(fm_mat_S_ia_bse, fm_mat_S_ij_bse, fm_mat_S_ab_bse, &
                                     fm_mat_Q_static_bse, fm_mat_Q_static_bse_gemm, &
                                     Eigenval, homo, virtual, dimen_RI, dimen_RI_red, &
-                                    gd_array, color_sub, &
-                                    para_env, mp2_env, unit_nr)
+                                    gd_array, color_sub, mp2_env, unit_nr)
+         ! Release BSE-copy of fm_mat_S
+         CALL cp_fm_release(fm_mat_S_ia_bse)
       END IF
 
       IF (my_do_gw) THEN

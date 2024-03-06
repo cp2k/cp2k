@@ -57,7 +57,7 @@ CONTAINS
 !>   α is a spin-dependent factor
 !>   v_ia,jb = \sum_P B^P_ia B^P_jb (unscreened Coulomb interaction)
 !>   W_ij,ab = \sum_P \bar{B}^P_ij B^P_ab (screened Coulomb interaction)
-!> \param fm_mat_S ...
+!> \param fm_mat_S_ia_bse ...
 !> \param fm_mat_S_bar_ij_bse ...
 !> \param fm_mat_S_ab_bse ...
 !> \param fm_A ...
@@ -69,12 +69,12 @@ CONTAINS
 !> \param mp2_env ...
 !> \param para_env ...
 ! **************************************************************************************************
-   SUBROUTINE create_A(fm_mat_S, fm_mat_S_bar_ij_bse, fm_mat_S_ab_bse, &
+   SUBROUTINE create_A(fm_mat_S_ia_bse, fm_mat_S_bar_ij_bse, fm_mat_S_ab_bse, &
                        fm_A, Eigenval, unit_nr, &
                        homo, virtual, dimen_RI, mp2_env, &
                        para_env)
 
-      TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_S, fm_mat_S_bar_ij_bse, &
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_S_ia_bse, fm_mat_S_bar_ij_bse, &
                                                             fm_mat_S_ab_bse
       TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_A
       REAL(KIND=dp), DIMENSION(:)                        :: Eigenval
@@ -108,17 +108,17 @@ CONTAINS
          alpha = 0.0_dp
       END SELECT
 
-      ! create the blacs env for ij matrices (NOT fm_mat_S%matrix_struct related parallel_gemms!)
+      ! create the blacs env for ij matrices (NOT fm_mat_S_ia_bse%matrix_struct related parallel_gemms!)
       NULLIFY (blacs_env)
       CALL cp_blacs_env_create(blacs_env=blacs_env, para_env=para_env)
 
-      ! We have to use the same blacs_env for A as for the matrices fm_mat_S from RPA
+      ! We have to use the same blacs_env for A as for the matrices fm_mat_S_ia_bse from RPA
       ! Logic: A_ia,jb = (ε_a-ε_i) δ_ij δ_ab + α * v_ia,jb - W_ij,ab
       ! We create v_ia,jb and W_ij,ab, then we communicate entries from local W_ij,ab
       ! to the full matrix v_ia,jb. By adding these and the energy diffenences: v_ia,jb -> A_ia,jb
       ! We use the A matrix already from the start instead of v
-      CALL cp_fm_struct_create(fm_struct_a, context=fm_mat_S%matrix_struct%context, nrow_global=homo*virtual, &
-                               ncol_global=homo*virtual, para_env=fm_mat_S%matrix_struct%para_env)
+      CALL cp_fm_struct_create(fm_struct_a, context=fm_mat_S_ia_bse%matrix_struct%context, nrow_global=homo*virtual, &
+                               ncol_global=homo*virtual, para_env=fm_mat_S_ia_bse%matrix_struct%para_env)
       CALL cp_fm_create(fm_A, fm_struct_a, name="fm_A_iajb")
       CALL cp_fm_set_all(fm_A, 0.0_dp)
 
@@ -131,7 +131,7 @@ CONTAINS
       ! v_ia,jb, which is directly initialized in A (with a factor of alpha)
       ! v_ia,jb = \sum_P B^P_ia B^P_jb
       CALL parallel_gemm(transa="T", transb="N", m=homo*virtual, n=homo*virtual, k=dimen_RI, alpha=alpha, &
-                         matrix_a=fm_mat_S, matrix_b=fm_mat_S, beta=0.0_dp, &
+                         matrix_a=fm_mat_S_ia_bse, matrix_b=fm_mat_S_ia_bse, beta=0.0_dp, &
                          matrix_c=fm_A)
 
       IF (unit_nr > 0 .AND. mp2_env%ri_g0w0%bse_debug_print) THEN
@@ -193,7 +193,7 @@ CONTAINS
 !>   α is a spin-dependent factor
 !>   v_ia,jb = \sum_P B^P_ia B^P_jb (unscreened Coulomb interaction)
 !>   W_ib,aj = \sum_P \bar{B}^P_ib B^P_aj (screened Coulomb interaction)
-!> \param fm_mat_S ...
+!> \param fm_mat_S_ia_bse ...
 !> \param fm_mat_S_bar_ia_bse ...
 !> \param fm_B ...
 !> \param homo ...
@@ -202,10 +202,10 @@ CONTAINS
 !> \param unit_nr ...
 !> \param mp2_env ...
 ! **************************************************************************************************
-   SUBROUTINE create_B(fm_mat_S, fm_mat_S_bar_ia_bse, fm_B, &
+   SUBROUTINE create_B(fm_mat_S_ia_bse, fm_mat_S_bar_ia_bse, fm_B, &
                        homo, virtual, dimen_RI, unit_nr, mp2_env)
 
-      TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_S, fm_mat_S_bar_ia_bse
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_S_ia_bse, fm_mat_S_bar_ia_bse
       TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_B
       INTEGER, INTENT(IN)                                :: homo, virtual, dimen_RI, unit_nr
       TYPE(mp2_type), INTENT(INOUT)                      :: mp2_env
@@ -232,8 +232,8 @@ CONTAINS
          alpha = 0.0_dp
       END SELECT
 
-      CALL cp_fm_struct_create(fm_struct_v, context=fm_mat_S%matrix_struct%context, nrow_global=homo*virtual, &
-                               ncol_global=homo*virtual, para_env=fm_mat_S%matrix_struct%para_env)
+      CALL cp_fm_struct_create(fm_struct_v, context=fm_mat_S_ia_bse%matrix_struct%context, nrow_global=homo*virtual, &
+                               ncol_global=homo*virtual, para_env=fm_mat_S_ia_bse%matrix_struct%para_env)
       CALL cp_fm_create(fm_B, fm_struct_v, name="fm_B_iajb")
       CALL cp_fm_set_all(fm_B, 0.0_dp)
 
@@ -245,12 +245,12 @@ CONTAINS
       END IF
       ! v_ia,jb = \sum_P B^P_ia B^P_jb
       CALL parallel_gemm(transa="T", transb="N", m=homo*virtual, n=homo*virtual, k=dimen_RI, alpha=alpha, &
-                         matrix_a=fm_mat_S, matrix_b=fm_mat_S, beta=0.0_dp, &
+                         matrix_a=fm_mat_S_ia_bse, matrix_b=fm_mat_S_ia_bse, beta=0.0_dp, &
                          matrix_c=fm_B)
 
       ! W_ib,aj = \sum_P \bar{B}^P_ib B^P_aj
       CALL parallel_gemm(transa="T", transb="N", m=homo*virtual, n=homo*virtual, k=dimen_RI, alpha=1.0_dp, &
-                         matrix_a=fm_mat_S_bar_ia_bse, matrix_b=fm_mat_S, beta=0.0_dp, &
+                         matrix_a=fm_mat_S_bar_ia_bse, matrix_b=fm_mat_S_ia_bse, beta=0.0_dp, &
                          matrix_c=fm_W)
       ! from W_ib,ja to A_ia,jb (formally: W_ib,aj, but our internal indexorder is different)
       ! Writing -1.0_dp * W_ib,ja to A_ia,jb, i.e. beta = -1.0_dp,
@@ -597,7 +597,8 @@ CONTAINS
             WRITE (unit_nr, '(T2,A4)') 'BSE|'
             WRITE (unit_nr, '(T2,A4,T7,A41)') 'BSE|', 'sum_jb ( A_ia,jb   X_jb^n ) = Ω^n X_ia^n'
             WRITE (unit_nr, '(T2,A4)') 'BSE|'
-            WRITE (unit_nr, '(T2,A4,T7,A65)') 'BSE|', 'prelim.: cf. Eq. (XX) in  Ref. XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX'
+            WRITE (unit_nr, '(T2,A4,T7,A30)') 'BSE|', 'prelim Ref.: Eq. (36) with B=0'
+            WRITE (unit_nr, '(T2,A4,T7,A71)') 'BSE|', 'in PRB 92,045209 (2015); http://dx.doi.org/10.1103/PhysRevB.92.045209 .'
          ELSE
             WRITE (unit_nr, '(T2,A4,T7,A74)') 'BSE|', '**************************************************************************'
             WRITE (unit_nr, '(T2,A4,T7,A74)') 'BSE|', '*          Full Bethe Salpeter equation (BSE) (i.e. without TDA)         *'
@@ -626,12 +627,13 @@ CONTAINS
          IF (.NOT. flag_TDA) THEN
             WRITE (unit_nr, '(T2,A4,T7,A32)') 'BSE|', 'B_ia,jb = α * v_ia,jb - W_ib,aj'
             WRITE (unit_nr, '(T2,A4)') 'BSE|'
-            WRITE (unit_nr, '(T2,A4,T7,A65)') 'BSE|', 'prelim.: cf. Eq. (XX) in  Ref. XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX'
+            WRITE (unit_nr, '(T2,A4,T7,A35)') 'BSE|', 'prelim Ref.: Eqs. (24-27),(30),(35)'
+            WRITE (unit_nr, '(T2,A4,T7,A71)') 'BSE|', 'in PRB 92,045209 (2015); http://dx.doi.org/10.1103/PhysRevB.92.045209 .'
          END IF
          IF (.NOT. flag_TDA) THEN
             WRITE (unit_nr, '(T2,A4)') 'BSE|'
-            WRITE (unit_nr, '(T2,A4,T7,A60)') 'BSE|', 'The BSE is solved for Ω^n and X_ia^n as a hermitian problem,'
-            WRITE (unit_nr, '(T2,A4,T7,A70)') 'BSE|', 'e.g., Eq. (A8) in F. Furche, J. Chem. Phys., Vol. 114, No. 14, (2001).'
+            WRITE (unit_nr, '(T2,A4,T7,A74)') 'BSE|', 'The BSE is solved for Ω^n and X_ia^n as a hermitian problem, e.g. Eq.(42)'
+            WRITE (unit_nr, '(T2,A4,T7,A71)') 'BSE|', 'in PRB 92,045209 (2015); http://dx.doi.org/10.1103/PhysRevB.92.045209 .'
             ! WRITE (unit_nr, '(T2,A4,T7,A69)') 'BSE|', 'C_ia,jb = sum_kc,ld ((A-B)^0.5)_ia,kc (A+B)_kc,ld ((A-B)^0.5)_ld,jb'
             ! WRITE (unit_nr, '(T2,A4)') 'BSE|'
             ! WRITE (unit_nr, '(T2,A4,T7,A58)') 'BSE|', '(X+Y)_ia,n = sum_jb,m  ((A-B)^0.5)ia,jb Z_jb,m (Ω_m)^-0.5'

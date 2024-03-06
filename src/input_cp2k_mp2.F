@@ -1221,14 +1221,14 @@ CONTAINS
 
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, __LOCATION__, name="BSE", &
-      description="Parameters for a calculation solving the Bethe-Salpeter equation "// &
-      "(BSE) for electronic excitations. The full BSE "// &
+                          description="Parameters for a calculation solving the Bethe-Salpeter equation "// &
+                          "(BSE) for electronic excitations. The full BSE "// &
       "$\left( \begin{array}{cc}A &  B\\B &  A\end{array} \right)\left( \begin{array}{cc}X^{(n)}\\Y^{(n)}\end{array} \right) = "// &
-      "\Omega^{(n)}\left(\begin{array}{cc}1&0\\0&-1\end{array}\right)\left(\begin{array}{cc}X^{(n)}\\Y^{(n)}\end{array}\right)$ "//&
-      "enables of electronic excitation energies $\Omega^{(n)}$. The BSE can be solved by diagonalizing "// &
-      "the full ABBA-matrix or by setting B=0, i.e. within the Tamm-Dancoff approximation (TDA). "// &
-      "Preliminary reference: J. Chem. Phys. 152, 044105 (2020); https://doi.org/10.1063/1.5123290", &
-      n_keywords=8, n_subsections=2, repeats=.FALSE.)
+     "\Omega^{(n)}\left(\begin{array}{cc}1&0\\0&-1\end{array}\right)\left(\begin{array}{cc}X^{(n)}\\Y^{(n)}\end{array}\right)$ "// &
+                          "enables of electronic excitation energies $\Omega^{(n)}$. The BSE can be solved by diagonalizing "// &
+                          "the full ABBA-matrix or by setting B=0, i.e. within the Tamm-Dancoff approximation (TDA). "// &
+                         "Preliminary reference: Eq. (35) in PRB 92, 045209 (2015); http://dx.doi.org/10.1103/PhysRevB.92.045209", &
+                          n_keywords=8, n_subsections=2, repeats=.FALSE.)
 
       NULLIFY (keyword)
 
@@ -1322,11 +1322,6 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
-      NULLIFY (subsection)
-      CALL create_bse_fulldiag_section(subsection)
-      CALL section_add_subsection(section, subsection)
-      CALL section_release(subsection)
-
    END SUBROUTINE
 
 ! **************************************************************************************************
@@ -1340,7 +1335,8 @@ CONTAINS
 
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, __LOCATION__, name="BSE_ITERAT", &
-                          description="Parameters influencing the iterative Bethe-Salpeter calculation.", &
+                          description="Parameters influencing the iterative Bethe-Salpeter calculation. "// &
+                          "The iterative solver has not been fully implemented yet.", &
                           n_keywords=9, n_subsections=0, repeats=.FALSE.)
 
       NULLIFY (keyword)
@@ -1420,20 +1416,6 @@ CONTAINS
                           type_of_var=real_t, default_r_val=-1.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
-   END SUBROUTINE
-
-! **************************************************************************************************
-!> \brief ...
-!> \param section ...
-! **************************************************************************************************
-   SUBROUTINE create_bse_fulldiag_section(section)
-      TYPE(section_type), POINTER                        :: section
-
-      CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, __LOCATION__, name="BSE_FULLDIAG", &
-                          description="Parameters influencing the full diagonalization of the BSE.", &
-                          n_keywords=1, n_subsections=0, repeats=.FALSE.)
-
    END SUBROUTINE
 
 ! **************************************************************************************************
