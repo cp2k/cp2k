@@ -108,6 +108,7 @@ CONTAINS
                CALL init_interaction_radii_orb_basis(refbasis, dft_control%qs_control%eps_pgf_orb)
                CALL add_basis_set_to_container(qs_kind%basis_sets, refbasis, btype)
             END IF
+            CALL get_qs_kind(qs_kind=qs_kind, basis_set=refbasis, basis_type=btype)
          END IF
          IF (unit_nr > 0) THEN
             CALL get_gto_basis_set(refbasis, name=bname, nsgf=nsgf)
