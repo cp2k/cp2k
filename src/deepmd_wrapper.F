@@ -150,8 +150,15 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE deepmd_model_release(model)
       TYPE(deepmd_model_type)                            :: model
+      INTERFACE
+         FUNCTION DP_DeleteDeepPot(dp) BIND(C, name="DP_DeleteDeepPot")
+            IMPORT :: C_PTR
+            IMPLICIT NONE
+            TYPE(C_PTR)  :: dp
+         END FUNCTION
+      END INTERFACE
 
-      model%c_ptr = C_NULL_PTR
+      CALL DP_DeleteDeepPot(model%c_ptr)
    END SUBROUTINE deepmd_model_release
 
 END MODULE deepmd_wrapper
