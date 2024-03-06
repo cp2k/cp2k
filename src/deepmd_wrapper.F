@@ -159,7 +159,10 @@ CONTAINS
          END SUBROUTINE
       END INTERFACE
 
+#if defined(__DEEPMD)
       CALL DeleteDeepPot(model%c_ptr)
+#endif
+      model%c_ptr = C_NULL_PTR
    END SUBROUTINE deepmd_model_release
 
 END MODULE deepmd_wrapper
