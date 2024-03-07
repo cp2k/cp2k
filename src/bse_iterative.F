@@ -118,7 +118,7 @@ CONTAINS
 
       !MG to del
       ! print *,"Inside bse_iterative.F, before starting iterations"
-      ! print *, "Printing B_bar_iaQ_bse_local of shape", SHAPE(B_bar_iaQ_bse_local)
+      PRINT *, "Printing B_bar_iaQ_bse_local of shape", SHAPE(B_bar_iaQ_bse_local)
       ! do i_print=1,SIZE(B_bar_iaQ_bse_local,3)
       !   print *, B_bar_iaQ_bse_local(:,:,i_print)
       ! end do
@@ -214,8 +214,7 @@ CONTAINS
          CALL create_bse_work_arrays(AZ, Z_vectors_reshaped, AZ_reshaped, BZ, M_ia_tmp, M_ji_tmp, &
                                      RI_vector, Subspace_new_eigenval, Subspace_full_eigenval, Subspace_new_eigenvec, &
                                      Subspace_residuals_reshaped, Subspace_ritzvec, Subspace_add_dir, W_vectors, &
-                                     homo, virtual, num_Z_vectors, local_RI_size, num_new_t, num_exc_en, &
-                                     para_env)
+                                     homo, virtual, num_Z_vectors, local_RI_size, num_new_t)
          IF (unit_nr > 0) THEN
             PRINT *, 'ProcNr', para_env%mepos, "Allocated Work arrays"
          END IF
@@ -241,7 +240,7 @@ CONTAINS
 
          !MG: functionality of BZ not checked (issue with fm_mat_Q_static_bse_gemm in rpa_util needs to be checked!)
          !CALL compute_BZ(BZ, Z_vectors, B_iaQ_bse_local, B_bar_iaQ_bse_local, &
-         !                M_ji_tmp, RI_vector, homo, virtual, num_Z_vectors, local_RI_size, &
+         !                M_ji_tmp, homo, virtual, num_Z_vectors, local_RI_size, &
          !                para_env)
 
          !WRITE (unit_nr, *) 'ProcNr',para_env%mepos,'finished AZ/BZ computation'!, AZ=',AZ
@@ -254,7 +253,7 @@ CONTAINS
          Z_vectors_reshaped = RESHAPE(Z_vectors, (/homo*virtual, num_Z_vectors/))
 
          ! Diagonalize M and extract smallest eigenvalues/corresponding eigenvector
-         CALL compute_diagonalize_ZAZ(AZ_reshaped, Z_vectors_reshaped, num_Z_vectors, homo, virtual, Subspace_new_eigenval, &
+         CALL compute_diagonalize_ZAZ(AZ_reshaped, Z_vectors_reshaped, num_Z_vectors, Subspace_new_eigenval, &
                                       Subspace_new_eigenvec, num_new_t, Subspace_full_eigenval, para_env, unit_nr)
          IF (unit_nr > 0) THEN
             PRINT *, "Eigenval (eV) in iter=", i_iter, " is:", Subspace_new_eigenval(:6)*evolt
@@ -304,14 +303,14 @@ CONTAINS
          END IF
 
          IF (davidson_converged == 1) THEN
-            CALL success_message(Subspace_full_eigenval, homo, virtual, num_new_t, eps_res, num_res_unconverged, &
-                                 bse_spin_config, unit_nr, num_exc_en, num_add_start_z_space, num_Z_vectors_init, &
-                                 fac_max_z_space, num_davidson_iter, i_iter, num_Z_vectors, num_max_z_space, max_res_norm, &
-                                 davidson_converged, max_en_diff, num_en_unconverged, bse_davidson_abort_cond_string, &
+            CALL success_message(Subspace_full_eigenval, num_new_t, eps_res, num_res_unconverged, &
+                                 bse_spin_config, unit_nr, num_exc_en, num_Z_vectors_init, &
+                                 num_davidson_iter, i_iter, num_Z_vectors, num_max_z_space, max_res_norm, &
+                                 max_en_diff, num_en_unconverged, bse_davidson_abort_cond_string, &
                                  eps_exc_en, success_abort_string, z_space_energy_cutoff)
 
             !Deallocate matrices, which are otherwise not cleared due to exiting the loop
-            DEALLOCATE (AZ, & !BZ,
+            DEALLOCATE (AZ, BZ, &
                         Z_vectors, M_ia_tmp, M_ji_tmp, RI_vector, Subspace_prev_eigenval, &
                         Subspace_new_eigenval, Subspace_new_eigenvec, Subspace_residuals_reshaped, &
                         Subspace_add_dir, AZ_reshaped, Z_vectors_reshaped, Subspace_ritzvec, Subspace_full_eigenval)
@@ -467,14 +466,14 @@ CONTAINS
          IF (unit_nr > 0) THEN
             WRITE (unit_nr, *) "MG: Resetting dimension in i_iter=", i_iter
          END IF
-         ! IF (unit_nr > 0) THEN
-         !    OPEN(10, file=res_filename, status="old", access="sequential", position="append")
-         !       WRITE(10,*) "Resetting", i_iter
-         !    CLOSE(10)
-         !    OPEN(10, file=en_filename, status="old", access="sequential", position="append")
-         !       WRITE(10,*) "Resetting", i_iter
-         !    CLOSE(10)
-         ! END IF
+         IF (unit_nr > 0) THEN
+            OPEN (10, file=res_filename, status="old", access="sequential", position="append")
+            WRITE (10, *) "Resetting", i_iter
+            CLOSE (10)
+            OPEN (10, file=en_filename, status="old", access="sequential", position="append")
+            WRITE (10, *) "Resetting", i_iter
+            CLOSE (10)
+         END IF
          DEALLOCATE (W_vectors)
          ALLOCATE (W_vectors(homo, virtual, 2*num_new_t))
          W_vectors(:, :, :num_new_t) = Subspace_ritzvec(:, :, :)
@@ -507,14 +506,11 @@ CONTAINS
 !> \param num_Z_vectors ...
 !> \param local_RI_size ...
 !> \param num_new_t ...
-!> \param num_exc_en ...
-!> \param para_env ...
 ! **************************************************************************************************
    SUBROUTINE create_bse_work_arrays(AZ, Z_vectors_reshaped, AZ_reshaped, BZ, M_ia_tmp, M_ji_tmp, &
                                      RI_vector, Subspace_new_eigenval, Subspace_full_eigenval, Subspace_new_eigenvec, &
                                      Subspace_residuals_reshaped, Subspace_ritzvec, Subspace_add_dir, W_vectors, &
-                                     homo, virtual, num_Z_vectors, local_RI_size, num_new_t, num_exc_en, &
-                                     para_env)
+                                     homo, virtual, num_Z_vectors, local_RI_size, num_new_t)
 
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: AZ
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: Z_vectors_reshaped, AZ_reshaped
@@ -527,8 +523,7 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: Subspace_ritzvec, Subspace_add_dir, &
                                                             W_vectors
       INTEGER                                            :: homo, virtual, num_Z_vectors, &
-                                                            local_RI_size, num_new_t, num_exc_en
-      TYPE(mp_para_env_type), INTENT(IN)                 :: para_env
+                                                            local_RI_size, num_new_t
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'create_bse_work_arrays'
 
@@ -547,8 +542,8 @@ CONTAINS
       ALLOCATE (AZ_reshaped(homo*virtual, num_Z_vectors))
       AZ_reshaped = 0.0_dp
 
-      !ALLOCATE (BZ(homo, virtual, num_Z_vectors))
-      !BZ = 0.0_dp
+      ALLOCATE (BZ(homo, virtual, num_Z_vectors))
+      BZ = 0.0_dp
 
       ALLOCATE (M_ia_tmp(homo, virtual))
       M_ia_tmp = 0.0_dp
@@ -587,23 +582,18 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief ...
 !> \param Subspace_full_eigenval ...
-!> \param homo ...
-!> \param virtual ...
 !> \param num_new_t ...
 !> \param eps_res ...
 !> \param num_res_unconverged ...
 !> \param bse_spin_config ...
 !> \param unit_nr ...
 !> \param num_exc_en ...
-!> \param num_add_start_z_space ...
 !> \param num_Z_vectors_init ...
-!> \param fac_max_z_space ...
 !> \param num_davidson_iter ...
 !> \param i_iter ...
 !> \param num_Z_vectors ...
 !> \param num_max_z_space ...
 !> \param max_res_norm ...
-!> \param davidson_converged ...
 !> \param max_en_diff ...
 !> \param num_en_unconverged ...
 !> \param bse_davidson_abort_cond_string ...
@@ -611,21 +601,18 @@ CONTAINS
 !> \param success_abort_string ...
 !> \param z_space_energy_cutoff ...
 ! **************************************************************************************************
-   SUBROUTINE success_message(Subspace_full_eigenval, homo, virtual, num_new_t, eps_res, num_res_unconverged, &
-                              bse_spin_config, unit_nr, num_exc_en, num_add_start_z_space, num_Z_vectors_init, &
-                              fac_max_z_space, num_davidson_iter, i_iter, num_Z_vectors, num_max_z_space, max_res_norm, &
-                              davidson_converged, max_en_diff, num_en_unconverged, bse_davidson_abort_cond_string, &
+   SUBROUTINE success_message(Subspace_full_eigenval, num_new_t, eps_res, num_res_unconverged, &
+                              bse_spin_config, unit_nr, num_exc_en, num_Z_vectors_init, &
+                              num_davidson_iter, i_iter, num_Z_vectors, num_max_z_space, max_res_norm, &
+                              max_en_diff, num_en_unconverged, bse_davidson_abort_cond_string, &
                               eps_exc_en, success_abort_string, z_space_energy_cutoff)
 
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: Subspace_full_eigenval
-      INTEGER                                            :: homo, virtual, num_new_t
+      INTEGER                                            :: num_new_t
       REAL(KIND=dp)                                      :: eps_res
-      INTEGER :: num_res_unconverged, bse_spin_config, unit_nr, num_exc_en, num_add_start_z_space, &
-         num_Z_vectors_init, fac_max_z_space, num_davidson_iter, i_iter, num_Z_vectors, &
-         num_max_z_space
-      REAL(KIND=dp)                                      :: max_res_norm
-      INTEGER                                            :: davidson_converged
-      REAL(KIND=dp)                                      :: max_en_diff
+      INTEGER :: num_res_unconverged, bse_spin_config, unit_nr, num_exc_en, num_Z_vectors_init, &
+         num_davidson_iter, i_iter, num_Z_vectors, num_max_z_space
+      REAL(KIND=dp)                                      :: max_res_norm, max_en_diff
       INTEGER                                            :: num_en_unconverged
       CHARACTER(LEN=10)                                  :: bse_davidson_abort_cond_string
       REAL(KIND=dp)                                      :: eps_exc_en
@@ -1060,8 +1047,6 @@ CONTAINS
 !> \param AZ_reshaped ...
 !> \param Z_vectors_reshaped ...
 !> \param num_Z_vectors ...
-!> \param homo ...
-!> \param virtual ...
 !> \param Subspace_new_eigenval ...
 !> \param Subspace_new_eigenvec ...
 !> \param num_new_t ...
@@ -1069,11 +1054,11 @@ CONTAINS
 !> \param para_env ...
 !> \param unit_nr ...
 ! **************************************************************************************************
-   SUBROUTINE compute_diagonalize_ZAZ(AZ_reshaped, Z_vectors_reshaped, num_Z_vectors, homo, virtual, Subspace_new_eigenval, &
+   SUBROUTINE compute_diagonalize_ZAZ(AZ_reshaped, Z_vectors_reshaped, num_Z_vectors, Subspace_new_eigenval, &
                                       Subspace_new_eigenvec, num_new_t, Subspace_full_eigenval, para_env, unit_nr)
 
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: AZ_reshaped, Z_vectors_reshaped
-      INTEGER, INTENT(in)                                :: num_Z_vectors, homo, virtual
+      INTEGER, INTENT(in)                                :: num_Z_vectors
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: Subspace_new_eigenval
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: Subspace_new_eigenvec
       INTEGER, INTENT(in)                                :: num_new_t
@@ -1153,7 +1138,6 @@ CONTAINS
 !> \param B_iaQ_bse_local ...
 !> \param B_bar_iaQ_bse_local ...
 !> \param M_ji_tmp ...
-!> \param RI_vector ...
 !> \param homo ...
 !> \param virtual ...
 !> \param num_Z_vectors ...
@@ -1161,11 +1145,11 @@ CONTAINS
 !> \param para_env ...
 ! **************************************************************************************************
    SUBROUTINE compute_BZ(BZ, Z_vectors, B_iaQ_bse_local, B_bar_iaQ_bse_local, &
-                         M_ji_tmp, RI_vector, homo, virtual, num_Z_vectors, local_RI_size, para_env)
+                         M_ji_tmp, homo, virtual, num_Z_vectors, local_RI_size, para_env)
 
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: BZ, Z_vectors, B_iaQ_bse_local, &
                                                             B_bar_iaQ_bse_local
-      REAL(KIND=dp), DIMENSION(:, :)                     :: M_ji_tmp, RI_vector
+      REAL(KIND=dp), DIMENSION(:, :)                     :: M_ji_tmp
       INTEGER                                            :: homo, virtual, num_Z_vectors, &
                                                             local_RI_size
       TYPE(mp_para_env_type), INTENT(IN)                 :: para_env
@@ -1273,7 +1257,7 @@ CONTAINS
 
       CALL compute_v_ia_jb_part(AZ, Z_vectors, B_iaQ_bse_local, RI_vector, local_RI_size, &
                                 num_Z_vectors, homo, virtual, bse_spin_config, v_iajb, bse_full_diag_debug, i_iter, &
-                                unit_nr, para_env)
+                                para_env)
 
       !print *, 'ProcNr',para_env%mepos,"Computed V"
       IF (unit_nr > 0 .AND. i_iter == 1) THEN
@@ -1426,12 +1410,11 @@ CONTAINS
 !> \param v_iajb ...
 !> \param bse_full_diag_debug ...
 !> \param i_iter ...
-!> \param unit_nr ...
 !> \param para_env ...
 ! **************************************************************************************************
    SUBROUTINE compute_v_ia_jb_part(AZ, Z_vectors, B_iaQ_bse_local, RI_vector, local_RI_size, &
                                    num_Z_vectors, homo, virtual, bse_spin_config, v_iajb, bse_full_diag_debug, i_iter, &
-                                   unit_nr, para_env)
+                                   para_env)
 
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: AZ, Z_vectors, B_iaQ_bse_local
       REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: RI_vector
@@ -1439,7 +1422,7 @@ CONTAINS
                                                             virtual, bse_spin_config
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :, :)  :: v_iajb
       LOGICAL                                            :: bse_full_diag_debug
-      INTEGER, INTENT(IN)                                :: i_iter, unit_nr
+      INTEGER, INTENT(IN)                                :: i_iter
       TYPE(mp_para_env_type), INTENT(IN)                 :: para_env
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_v_ia_jb_part'

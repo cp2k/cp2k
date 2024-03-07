@@ -69,7 +69,10 @@ list(
   basis_set_output.F
   beta_gamma_psi.F
   block_p_types.F
-  bse.F
+  bse_main.F
+  bse_full_diag.F
+  bse_iterative.F
+  bse_util.F
   bsse.F
   cell_methods.F
   colvar_methods.F

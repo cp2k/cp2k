@@ -125,7 +125,7 @@ CONTAINS
          my_do_abba = .TRUE.
       END SELECT
 
-      CALL print_BSE_start_flag(my_do_tda, my_do_abba, mp2_env, unit_nr)
+      CALL print_BSE_start_flag(my_do_tda, my_do_abba, unit_nr)
 
       CALL fm_mat_S_ia_bse%matrix_struct%para_env%sync()
 
@@ -139,9 +139,8 @@ CONTAINS
       ! \bar{B}^P_rs = \sum_R W_PR B^R_rs where B^R_rs = \sum_T [1/sqrt(v)]_RT (T|rs)
       ! r,s: MO-index, P,R,T: RI-index
       ! B: fm_mat_S_..., W: fm_mat_Q_...
-      CALL mult_B_with_W(fm_mat_S_ij_trunc, fm_mat_S_ab_trunc, fm_mat_S_ia_trunc, &
-                         fm_mat_S_bar_ia_bse, fm_mat_S_bar_ij_bse, &
-                         fm_mat_Q_static_bse, fm_mat_Q_static_bse_gemm, &
+      CALL mult_B_with_W(fm_mat_S_ij_trunc, fm_mat_S_ia_trunc, fm_mat_S_bar_ia_bse, &
+                         fm_mat_S_bar_ij_bse, fm_mat_Q_static_bse_gemm, &
                          dimen_RI_red, homo_red, virtual_red)
 
       IF (my_do_iterat_diag) THEN
@@ -185,7 +184,7 @@ CONTAINS
          CALL cp_fm_release(fm_B_BSE)
          IF (my_do_tda) THEN
             ! Solving the hermitian eigenvalue equation A X^n = Ω^n X^n
-            CALL diagonalize_A(fm_A_BSE, homo_red, virtual_red, homo(1), virtual(1), &
+            CALL diagonalize_A(fm_A_BSE, homo_red, virtual_red, homo(1), &
                                unit_nr, diag_runtime_est, mp2_env)
          END IF
          ! Release to avoid faulty use of changed A matrix
@@ -194,7 +193,7 @@ CONTAINS
             ! Solving eigenvalue equation C Z^n = (Ω^n)^2 Z^n .
             ! Here, the eigenvectors Z^n relate to X^n via
             ! Eq. (A10) in F. Furche J. Chem. Phys., Vol. 114, No. 14, (2001).
-            CALL diagonalize_C(fm_C_BSE, homo_red, virtual_red, homo(1), virtual(1), &
+            CALL diagonalize_C(fm_C_BSE, homo_red, virtual_red, homo(1), &
                                fm_sqrt_A_minus_B, fm_inv_sqrt_A_minus_B, &
                                unit_nr, diag_runtime_est, mp2_env)
          END IF

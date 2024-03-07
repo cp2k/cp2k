@@ -399,19 +399,18 @@ CONTAINS
 !> \param homo ...
 !> \param virtual ...
 !> \param homo_irred ...
-!> \param virtual_irred ...
 !> \param fm_sqrt_A_minus_B ...
 !> \param fm_inv_sqrt_A_minus_B ...
 !> \param unit_nr ...
 !> \param diag_est ...
 !> \param mp2_env ...
 ! **************************************************************************************************
-   SUBROUTINE diagonalize_C(fm_C, homo, virtual, homo_irred, virtual_irred, &
+   SUBROUTINE diagonalize_C(fm_C, homo, virtual, homo_irred, &
                             fm_sqrt_A_minus_B, fm_inv_sqrt_A_minus_B, &
                             unit_nr, diag_est, mp2_env)
 
       TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_C
-      INTEGER, INTENT(IN)                                :: homo, virtual, homo_irred, virtual_irred
+      INTEGER, INTENT(IN)                                :: homo, virtual, homo_irred
       TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_sqrt_A_minus_B, fm_inv_sqrt_A_minus_B
       INTEGER, INTENT(IN)                                :: unit_nr
       REAL(KIND=dp), INTENT(IN)                          :: diag_est
@@ -475,7 +474,7 @@ CONTAINS
       CALL cp_fm_release(fm_mat_eigvec_transform_neg)
 
       CALL success_message(Exc_ens, fm_mat_eigvec_transform, mp2_env, &
-                           homo, virtual, homo_irred, virtual_irred, unit_nr, .FALSE.)
+                           homo, virtual, homo_irred, unit_nr, .FALSE.)
 
       DEALLOCATE (Exc_ens)
       CALL cp_fm_release(fm_mat_eigvec_transform)
@@ -490,17 +489,15 @@ CONTAINS
 !> \param homo ...
 !> \param virtual ...
 !> \param homo_irred ...
-!> \param virtual_irred ...
 !> \param unit_nr ...
 !> \param diag_est ...
 !> \param mp2_env ...
 ! **************************************************************************************************
-   SUBROUTINE diagonalize_A(fm_A, homo, virtual, homo_irred, virtual_irred, &
+   SUBROUTINE diagonalize_A(fm_A, homo, virtual, homo_irred, &
                             unit_nr, diag_est, mp2_env)
 
       TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_A
-      INTEGER, INTENT(IN)                                :: homo, virtual, homo_irred, &
-                                                            virtual_irred, unit_nr
+      INTEGER, INTENT(IN)                                :: homo, virtual, homo_irred, unit_nr
       REAL(KIND=dp), INTENT(IN)                          :: diag_est
       TYPE(mp2_type), INTENT(INOUT)                      :: mp2_env
 
@@ -527,7 +524,7 @@ CONTAINS
       CALL choose_eigv_solver(fm_A, fm_eigvec, Exc_ens, diag_info)
       CPASSERT(diag_info == 0)
       CALL success_message(Exc_ens, fm_eigvec, mp2_env, &
-                           homo, virtual, homo_irred, virtual_irred, unit_nr, .TRUE.)
+                           homo, virtual, homo_irred, unit_nr, .TRUE.)
 
       CALL cp_fm_release(fm_eigvec)
       DEALLOCATE (Exc_ens)
@@ -544,18 +541,16 @@ CONTAINS
 !> \param homo ...
 !> \param virtual ...
 !> \param homo_irred ...
-!> \param virtual_irred ...
 !> \param unit_nr ...
 !> \param flag_TDA ...
 ! **************************************************************************************************
    SUBROUTINE success_message(Exc_ens, fm_eigvec, mp2_env, &
-                              homo, virtual, homo_irred, virtual_irred, unit_nr, flag_TDA)
+                              homo, virtual, homo_irred, unit_nr, flag_TDA)
 
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: Exc_ens
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_eigvec
       TYPE(mp2_type), INTENT(INOUT)                      :: mp2_env
-      INTEGER                                            :: homo, virtual, homo_irred, &
-                                                            virtual_irred, unit_nr
+      INTEGER                                            :: homo, virtual, homo_irred, unit_nr
       LOGICAL, OPTIONAL                                  :: flag_TDA
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'success_message'
@@ -691,7 +686,7 @@ CONTAINS
       DO i_exc = 1, MIN(homo*virtual, mp2_env%ri_g0w0%num_print_exc)
          !Iterate through eigenvector and print values above threshold
          CALL filter_eigvec_contrib(fm_eigvec, idx_homo, idx_virt, eigvec_entries, &
-                                    i_exc, homo, virtual, num_entries, mp2_env)
+                                    i_exc, virtual, num_entries, mp2_env)
          IF (unit_nr > 0) THEN
             WRITE (unit_nr, '(T2,A4)') 'BSE|'
             DO k = 1, num_entries

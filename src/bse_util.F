@@ -53,26 +53,21 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Multiplies B-matrix (RI-3c-Integrals) with W (screening) to obtain \bar{B}
 !> \param fm_mat_S_ij_bse ...
-!> \param fm_mat_S_ab_bse ...
 !> \param fm_mat_S_ia_bse ...
 !> \param fm_mat_S_bar_ia_bse ...
 !> \param fm_mat_S_bar_ij_bse ...
-!> \param fm_mat_Q_static_bse ...
 !> \param fm_mat_Q_static_bse_gemm ...
 !> \param dimen_RI ...
 !> \param homo ...
 !> \param virtual ...
 ! **************************************************************************************************
-   SUBROUTINE mult_B_with_W(fm_mat_S_ij_bse, fm_mat_S_ab_bse, fm_mat_S_ia_bse, &
-                            fm_mat_S_bar_ia_bse, fm_mat_S_bar_ij_bse, &
-                            fm_mat_Q_static_bse, fm_mat_Q_static_bse_gemm, &
+   SUBROUTINE mult_B_with_W(fm_mat_S_ij_bse, fm_mat_S_ia_bse, fm_mat_S_bar_ia_bse, &
+                            fm_mat_S_bar_ij_bse, fm_mat_Q_static_bse_gemm, &
                             dimen_RI, homo, virtual)
 
-      TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_S_ij_bse, fm_mat_S_ab_bse, &
-                                                            fm_mat_S_ia_bse
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_S_ij_bse, fm_mat_S_ia_bse
       TYPE(cp_fm_type), INTENT(OUT)                      :: fm_mat_S_bar_ia_bse, fm_mat_S_bar_ij_bse
-      TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_Q_static_bse, &
-                                                            fm_mat_Q_static_bse_gemm
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_Q_static_bse_gemm
       INTEGER, INTENT(IN)                                :: dimen_RI, homo, virtual
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'mult_B_with_W'
@@ -413,7 +408,6 @@ CONTAINS
 !>  via parallel communication.
 !> \param fm_out ...
 !> \param fm_in ...
-!> \param nrow_in ...
 !> \param ncol_in ...
 !> \param nrow_out ...
 !> \param ncol_out ...
@@ -422,14 +416,13 @@ CONTAINS
 !> \param nrow_offset ...
 !> \param ncol_offset ...
 ! **************************************************************************************************
-   SUBROUTINE truncate_fm(fm_out, fm_in, nrow_in, ncol_in, &
+   SUBROUTINE truncate_fm(fm_out, fm_in, ncol_in, &
                           nrow_out, ncol_out, unit_nr, mp2_env, &
                           nrow_offset, ncol_offset)
 
       TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_out
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_in
-      INTEGER                                            :: nrow_in, ncol_in, nrow_out, ncol_out, &
-                                                            unit_nr
+      INTEGER                                            :: ncol_in, nrow_out, ncol_out, unit_nr
       TYPE(mp2_type), INTENT(INOUT)                      :: mp2_env
       INTEGER, INTENT(IN), OPTIONAL                      :: nrow_offset, ncol_offset
 
@@ -789,13 +782,11 @@ CONTAINS
 !> \brief ...
 !> \param bse_tda ...
 !> \param bse_abba ...
-!> \param mp2_env ...
 !> \param unit_nr ...
 ! **************************************************************************************************
-   SUBROUTINE print_BSE_start_flag(bse_tda, bse_abba, mp2_env, unit_nr)
+   SUBROUTINE print_BSE_start_flag(bse_tda, bse_abba, unit_nr)
 
       LOGICAL, INTENT(IN)                                :: bse_tda, bse_abba
-      TYPE(mp2_type), INTENT(INOUT)                      :: mp2_env
       INTEGER, INTENT(IN)                                :: unit_nr
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'print_BSE_start_flag'
@@ -1061,18 +1052,17 @@ CONTAINS
 !> \param idx_virt ...
 !> \param eigvec_entries ...
 !> \param i_exc ...
-!> \param homo ...
 !> \param virtual ...
 !> \param num_entries ...
 !> \param mp2_env ...
 ! **************************************************************************************************
    SUBROUTINE filter_eigvec_contrib(fm_eigvec, idx_homo, idx_virt, eigvec_entries, &
-                                    i_exc, homo, virtual, num_entries, mp2_env)
+                                    i_exc, virtual, num_entries, mp2_env)
 
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_eigvec
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: idx_homo, idx_virt
       REAL(kind=dp), ALLOCATABLE, DIMENSION(:)           :: eigvec_entries
-      INTEGER                                            :: i_exc, homo, virtual, num_entries
+      INTEGER                                            :: i_exc, virtual, num_entries
       TYPE(mp2_type), INTENT(INOUT)                      :: mp2_env
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'filter_eigvec_contrib'
@@ -1322,13 +1312,13 @@ CONTAINS
          ALLOCATE (Eigenval_reduced(homo_red + virt_red))
          Eigenval_reduced(:) = Eigenval(homo_incl:homo + virt_incl)
 
-         CALL truncate_fm(fm_mat_S_trunc, fm_mat_S_ia_bse, homo, virtual, &
+         CALL truncate_fm(fm_mat_S_trunc, fm_mat_S_ia_bse, virtual, &
                           homo_red, virt_red, unit_nr, mp2_env, &
                           nrow_offset=homo_incl)
-         CALL truncate_fm(fm_mat_S_ij_trunc, fm_mat_S_ij_bse, homo, homo, &
+         CALL truncate_fm(fm_mat_S_ij_trunc, fm_mat_S_ij_bse, homo, &
                           homo_red, homo_red, unit_nr, mp2_env, &
                           homo_incl, homo_incl)
-         CALL truncate_fm(fm_mat_S_ab_trunc, fm_mat_S_ab_bse, virtual, virtual, &
+         CALL truncate_fm(fm_mat_S_ab_trunc, fm_mat_S_ab_bse, virtual, &
                           virt_red, virt_red, unit_nr, mp2_env)
 
       ELSE
