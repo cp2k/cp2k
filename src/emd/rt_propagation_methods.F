@@ -13,15 +13,7 @@ MODULE rt_propagation_methods
    USE bibliography,                    ONLY: Kolafa2004,&
                                               Kuhne2007,&
                                               cite_reference
-<<<<<<< HEAD
-<<<<<<< HEAD
    USE cell_types,                      ONLY: cell_type
-=======
-   USE cell_types,                      ONLY: cell_type 
->>>>>>> bb9b2d2670 ( stop if time dependent field in length gauge representation is requested together with active PBC)
-=======
-   USE cell_types,                      ONLY: cell_type
->>>>>>> 898a658ff6 ( RTP projection: Allow projection on reference empty states)
    USE cp_cfm_basic_linalg,             ONLY: cp_cfm_cholesky_decompose,&
                                               cp_cfm_triangular_multiply
    USE cp_cfm_types,                    ONLY: cp_cfm_create,&
