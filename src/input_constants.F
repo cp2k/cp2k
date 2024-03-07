@@ -1278,5 +1278,22 @@ MODULE input_constants
    INTEGER, PARAMETER, PUBLIC               :: e_dens_total_hard_approx = 1, &
                                                e_dens_total_density = 2, &
                                                e_dens_soft_density = 3
+   ! BSE spin configuration
+   INTEGER, PARAMETER, PUBLIC               :: bse_singlet = 0, &
+                                               bse_triplet = 1
+
+   ! BSE method of diagonalization (full diagonalization or iteratively)
+   INTEGER, PARAMETER, PUBLIC               :: bse_fulldiag = 0, &
+                                               bse_iterdiag = 1
+
+   ! BSE level of approximation to the ABBA matrix (i.e. with/without TDA)
+   INTEGER, PARAMETER, PUBLIC               :: bse_tda = 0, &
+                                               bse_abba = 1, &
+                                               bse_both = 2
+
+   ! BSE iterative abortion condition
+   INTEGER, PARAMETER, PUBLIC               :: bse_iter_en_cond = 0, &
+                                               bse_iter_res_cond = 1, &
+                                               bse_iter_both_cond = 2
 
 END MODULE input_constants

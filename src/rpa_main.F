@@ -18,8 +18,7 @@ MODULE rpa_main
    USE bibliography,                    ONLY: &
         Bates2013, DelBen2013, DelBen2015, Ren2011, Ren2013, Wilhelm2016a, Wilhelm2016b, &
         Wilhelm2017, Wilhelm2018, cite_reference
-   USE bse,                             ONLY: do_subspace_iterations,&
-                                              mult_B_with_W_and_fill_local_3c_arrays
+   USE bse_main,                        ONLY: start_bse_calculation
    USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
                                               cp_blacs_env_release,&
                                               cp_blacs_env_type
@@ -585,7 +584,6 @@ CONTAINS
 
       ! for Bethe-Salpeter, we need other matrix fm_mat_S
       IF (do_bse) THEN
-
          CALL create_integ_mat(BIb_C_2D_bse_ij, para_env, para_env_sub, color_sub, ngroup, integ_group_size, &
                                dimen_RI_red, [dimen_homo_square], color_rpa_group, &
                                mp2_env%block_size_row, mp2_env%block_size_col, unit_nr, &
@@ -860,7 +858,7 @@ CONTAINS
          ELSE
             grid_2D = 1
          END IF
-         CALL cp_blacs_env_create(blacs_env=blacs_env, para_env=para_env_RPA, grid_2d=grid_2d)
+         CALL cp_blacs_env_create(blacs_env=blacs_env, para_env=para_env_RPA, grid_2d=grid_2D)
 
          IF (unit_nr > 0 .AND. .NOT. my_do_im_time) THEN
             WRITE (UNIT=unit_nr, FMT="(T3,A,T75,i6)") &
@@ -1102,9 +1100,9 @@ CONTAINS
       COMPLEX(KIND=dp), ALLOCATABLE, &
          DIMENSION(:, :, :, :)                           :: vec_Sigma_c_gw
       INTEGER :: count_ev_sc_GW, cut_memory, group_size_P, gw_corr_lev_tot, handle, handle3, i, &
-         ikp_local, ispin, iter_evGW, iter_sc_GW0, j, jquad, max_iter_bse, min_bsize, mm_style, &
-         nkp, nkp_self_energy, nmo, nspins, num_3c_repl, num_cells_dm, num_fit_points, &
-         num_Z_vectors, Pspin, Qspin, size_P
+         ikp_local, ispin, iter_evGW, iter_sc_GW0, j, jquad, min_bsize, mm_style, nkp, &
+         nkp_self_energy, nmo, nspins, num_3c_repl, num_cells_dm, num_fit_points, Pspin, Qspin, &
+         size_P
       INTEGER(int_8)                                     :: dbcsr_nflop
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: index_to_cell_3c
       INTEGER, ALLOCATABLE, DIMENSION(:, :, :)           :: cell_to_index_3c
@@ -1115,20 +1113,20 @@ CONTAINS
          first_cycle_periodic_correction, my_open_shell, print_ic_values
       LOGICAL, ALLOCATABLE, DIMENSION(:, :, :, :, :)     :: has_mat_P_blocks
       REAL(KIND=dp) :: a_scaling, alpha, dbcsr_time, e_axk, e_axk_corr, eps_filter, &
-         eps_filter_im_time, eps_min_trans, ext_scaling, fermi_level_offset, &
-         fermi_level_offset_input, my_flop_rate, omega, omega_max_fit, omega_old, tau, tau_old
+         eps_filter_im_time, ext_scaling, fermi_level_offset, fermi_level_offset_input, &
+         my_flop_rate, omega, omega_max_fit, omega_old, tau, tau_old
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: delta_corr, e_fermi, tau_tj, tau_wj, tj, &
                                                             trace_Qomega, vec_omega_fit_gw, wj, &
                                                             wkp_W
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: vec_W_gw, weights_cos_tf_t_to_w, &
                                                             weights_cos_tf_w_to_t, &
                                                             weights_sin_tf_t_to_w
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :) :: B_abQ_bse_local, B_bar_iaQ_bse_local, &
-         B_bar_ijQ_bse_local, B_iaQ_bse_local, Eigenval_last, Eigenval_scf, vec_Sigma_x_gw
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: Eigenval_last, Eigenval_scf, &
+                                                            vec_Sigma_x_gw
       TYPE(cp_cfm_type)                                  :: cfm_mat_Q
       TYPE(cp_fm_type) :: fm_mat_Q_static_bse, fm_mat_Q_static_bse_gemm, fm_mat_RI_global_work, &
-         fm_mat_work, fm_mo_coeff_occ_scaled, fm_mo_coeff_virt_scaled, fm_scaled_dm_occ_tau, &
-         fm_scaled_dm_virt_tau
+         fm_mat_S_ia_bse, fm_mat_work, fm_mo_coeff_occ_scaled, fm_mo_coeff_virt_scaled, &
+         fm_scaled_dm_occ_tau, fm_scaled_dm_virt_tau
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: fm_mat_S_gw_work, fm_mat_W, &
                                                             fm_mo_coeff_occ, fm_mo_coeff_virt
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :)     :: fm_mat_L_kpoints, fm_mat_Minv_L_kpoints
@@ -1311,16 +1309,12 @@ CONTAINS
 
          IF (do_bse) THEN
 
-            num_Z_vectors = mp2_env%ri_g0w0%num_z_vectors
-            eps_min_trans = mp2_env%ri_g0w0%eps_min_trans
-            max_iter_bse = mp2_env%ri_g0w0%max_iter_bse
-
             CALL cp_fm_create(fm_mat_Q_static_bse_gemm, fm_mat_Q_gemm(1)%matrix_struct)
             CALL cp_fm_to_fm(fm_mat_Q_gemm(1), fm_mat_Q_static_bse_gemm)
             CALL cp_fm_set_all(fm_mat_Q_static_bse_gemm, 0.0_dp)
 
             CALL cp_fm_create(fm_mat_Q_static_bse, fm_mat_Q(1)%matrix_struct)
-            CALL cp_fm_to_fm(fm_mat_Q_gemm(1), fm_mat_Q_static_bse)
+            CALL cp_fm_to_fm(fm_mat_Q(1), fm_mat_Q_static_bse)
             CALL cp_fm_set_all(fm_mat_Q_static_bse, 0.0_dp)
 
          END IF
@@ -1475,14 +1469,16 @@ CONTAINS
                CALL calc_mat_Q(fm_mat_S(1), do_ri_sos_laplace_mp2, first_cycle, iter_sc_GW0, virtual(1), &
                                Eigenval(:, 1, 1), Eigenval_scf(:, 1, 1), &
                                homo(1), omega, omega_old, jquad, mm_style, dimen_RI_red, dimen_ia(1), alpha, fm_mat_Q(1), &
-                               fm_mat_Q_gemm(1), do_bse, fm_mat_Q_static_bse_gemm, dgemm_counter)
+                               fm_mat_Q_gemm(1), do_bse, fm_mat_Q_static_bse_gemm, dgemm_counter, &
+                               num_integ_points)
 
                IF (my_open_shell) THEN
                   CALL calc_mat_Q(fm_mat_S(2), do_ri_sos_laplace_mp2, first_cycle, iter_sc_GW0, virtual(2), &
                                   Eigenval(:, 1, 2), Eigenval_scf(:, 1, 2), &
                                   homo(2), omega, omega_old, jquad, mm_style, &
                                   dimen_RI_red, dimen_ia(2), alpha, fm_mat_Q(2), fm_mat_Q_gemm(2), do_bse, &
-                                  fm_mat_Q_static_bse_gemm, dgemm_counter)
+                                  fm_mat_Q_static_bse_gemm, dgemm_counter, &
+                                  num_integ_points)
 
                   ! For SOS-MP2 we need both matrices separately
                   IF (.NOT. do_ri_sos_laplace_mp2) THEN
@@ -1551,7 +1547,7 @@ CONTAINS
                   END IF
                ELSE
                   CALL compute_GW_self_energy(vec_Sigma_c_gw, dimen_nm_gw, dimen_RI_red, gw_corr_lev_occ, &
-                                              gw_corr_lev_virt, homo, jquad, nmo, num_fit_points, &
+                                              gw_corr_lev_virt, homo, jquad, nmo, num_fit_points, num_integ_points, &
                                               do_bse, do_im_time, do_periodic, first_cycle_periodic_correction, &
                                               fermi_level_offset, &
                                               omega, Eigenval(:, 1, :), delta_corr, vec_omega_fit_gw, vec_W_gw, wj, &
@@ -1712,16 +1708,24 @@ CONTAINS
 
       ! postprocessing after GW for Bethe-Salpeter
       IF (do_bse) THEN
-         CALL mult_B_with_W_and_fill_local_3c_arrays(fm_mat_S_ij_bse, fm_mat_S_ab_bse, fm_mat_S(1), fm_mat_Q_static_bse, &
-                                                     fm_mat_Q_static_bse_gemm, &
-                                                     B_bar_ijQ_bse_local, B_abQ_bse_local, B_bar_iaQ_bse_local, &
-                                                     B_iaQ_bse_local, dimen_RI_red, homo(1), virtual(1), dimen_ia(1), &
-                                                     gd_array, color_sub, para_env)
-
-         CALL do_subspace_iterations(B_bar_ijQ_bse_local, B_abQ_bse_local, B_bar_iaQ_bse_local, &
-                                     B_iaQ_bse_local, homo(1), virtual(1), num_Z_vectors, &
-                                     max_iter_bse, eps_min_trans, Eigenval(:, 1, 1), para_env)
-
+         ! Create a copy of fm_mat_S for usage in BSE
+         CALL cp_fm_create(fm_mat_S_ia_bse, fm_mat_S(1)%matrix_struct)
+         CALL cp_fm_to_fm(fm_mat_S(1), fm_mat_S_ia_bse)
+         ! Remove energy/frequency factor from 3c-Integral for BSE
+         IF (iter_sc_gw0 == 1) THEN
+            CALL remove_scaling_factor_rpa(fm_mat_S_ia_bse, virtual(1), &
+                                           Eigenval_last(:, 1, 1), homo(1), omega)
+         ELSE
+            CALL remove_scaling_factor_rpa(fm_mat_S_ia_bse, virtual(1), &
+                                           Eigenval_scf(:, 1, 1), homo(1), omega)
+         END IF
+         ! Main routine for all BSE postprocessing
+         CALL start_bse_calculation(fm_mat_S_ia_bse, fm_mat_S_ij_bse, fm_mat_S_ab_bse, &
+                                    fm_mat_Q_static_bse, fm_mat_Q_static_bse_gemm, &
+                                    Eigenval, homo, virtual, dimen_RI, dimen_RI_red, &
+                                    gd_array, color_sub, mp2_env, unit_nr)
+         ! Release BSE-copy of fm_mat_S
+         CALL cp_fm_release(fm_mat_S_ia_bse)
       END IF
 
       IF (my_do_gw) THEN
