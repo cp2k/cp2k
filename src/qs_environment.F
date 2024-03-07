@@ -20,8 +20,7 @@ MODULE qs_environment
    USE almo_scf_env_methods,            ONLY: almo_scf_env_create
    USE atom_kind_orbitals,              ONLY: calculate_atomic_relkin
    USE atomic_kind_types,               ONLY: atomic_kind_type
-   USE auto_basis,                      ONLY: create_aux_fit_basis_set,&
-                                              create_lri_aux_basis_set,&
+   USE auto_basis,                      ONLY: create_lri_aux_basis_set,&
                                               create_ri_aux_basis_set
    USE basis_set_container_types,       ONLY: add_basis_set_to_container
    USE basis_set_types,                 ONLY: basis_sort_zet,&
@@ -840,19 +839,15 @@ CONTAINS
       CALL get_qs_kind_set(qs_kind_set, dft_plus_u_atom_present=dft_control%dft_plus_u)
 
       IF (dft_control%do_admm) THEN
-         ! Check if ADMM basis is available, auto-generate if needed
+         ! Check if ADMM basis is available
          CALL get_qs_env(qs_env, nkind=nkind)
          DO ikind = 1, nkind
             NULLIFY (aux_fit_basis)
             qs_kind => qs_kind_set(ikind)
             CALL get_qs_kind(qs_kind, basis_set=aux_fit_basis, basis_type="AUX_FIT")
             IF (.NOT. (ASSOCIATED(aux_fit_basis))) THEN
-               ! AUX_FIT basis set is not yet loaded
-               CALL cp_warn(__LOCATION__, "Automatic Generation of AUX_FIT basis. "// &
-                            "This is experimental code.")
-               ! Generate a default basis
-               CALL create_aux_fit_basis_set(aux_fit_basis, qs_kind, dft_control%auto_basis_aux_fit)
-               CALL add_basis_set_to_container(qs_kind%basis_sets, aux_fit_basis, "AUX_FIT")
+               ! AUX_FIT basis set is not available
+               CPABORT("AUX_FIT basis set is not defined. ")
             END IF
          END DO
       END IF

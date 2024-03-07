@@ -140,7 +140,7 @@ CONTAINS
       CHARACTER(len=6)                                   :: str
       CHARACTER(len=6), DIMENSION(:), POINTER            :: sym
       CHARACTER(LEN=default_string_length)               :: bname
-      INTEGER                                            :: i, iss, l, n, nmao, nn, nss
+      INTEGER                                            :: i, iss, l, lm, n, nmao, nn, nss
       INTEGER, DIMENSION(0:3)                            :: nae, nco, npe
       INTEGER, DIMENSION(4, 7)                           :: ne
       INTEGER, DIMENSION(:), POINTER                     :: lq, nq
@@ -186,6 +186,7 @@ CONTAINS
          CASE (2)
             npe(0) = npe(0) + 2
          CASE (3)
+            npe(1) = npe(1) + 1
          CASE (4)
             npe(0) = npe(0) + 1
             npe(1) = npe(1) + 1
@@ -214,6 +215,15 @@ CONTAINS
          END SELECT
          CALL cp_warn(__LOCATION__, "Reference basis has been adjusted according to MAO value.")
       END IF
+
+      ! All shells should have at least 1 function
+      lm = 0
+      DO l = 0, 3
+         IF (npe(l) > 0) lm = l
+      END DO
+      DO l = 0, lm
+         IF (npe(l) == 0) npe(l) = 1
+      END DO
 
       nss = SUM(npe)
       ALLOCATE (sym(nss), lq(nss), nq(nss), zet(nss))
