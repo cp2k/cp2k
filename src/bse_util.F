@@ -1326,6 +1326,7 @@ CONTAINS
             WRITE (unit_nr, '(T2,A4,T7,A37)') 'BSE|', 'No truncation of BSE matrices applied'
             WRITE (unit_nr, '(T2,A4)') 'BSE|'
          END IF
+         ALLOCATE (Eigenval_reduced(homo_red + virt_red))
          Eigenval_reduced(:) = Eigenval(:)
          CALL cp_fm_to_fm_submat_general(fm_mat_S_ia_bse, fm_mat_S_trunc, dimen_RI, homo_red*virt_red, &
                                          1, 1, 1, 1, context)

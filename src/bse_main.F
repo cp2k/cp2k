@@ -204,6 +204,7 @@ CONTAINS
       CALL deallocate_matrices_bse(fm_mat_S_bar_ia_bse, fm_mat_S_bar_ij_bse, &
                                    fm_mat_S_ia_trunc, fm_mat_S_ij_trunc, fm_mat_S_ab_trunc, &
                                    fm_mat_Q_static_bse, fm_mat_Q_static_bse_gemm)
+      DEALLOCATE (Eigenval_reduced)
       IF (my_do_iterat_diag) THEN
          ! Contains untested Block-Davidson algorithm
          CALL do_subspace_iterations(B_bar_ijQ_bse_local, B_abQ_bse_local, B_bar_iaQ_bse_local, &
