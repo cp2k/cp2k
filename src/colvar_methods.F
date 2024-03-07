@@ -1410,7 +1410,7 @@ CONTAINS
       CALL section_vals_val_get(section, "OXYGENS", n_rep_val=n_var)
       ndim = 0
       DO k = 1, n_var
-         CALL section_vals_val_get(section, "OXYGENS", i_vals=iatms)
+         CALL section_vals_val_get(section, "OXYGENS", i_rep_val=k, i_vals=iatms)
          CALL reallocate(i_oxygens, 1, ndim + SIZE(iatms))
          i_oxygens(ndim + 1:ndim + SIZE(iatms)) = iatms
          ndim = ndim + SIZE(iatms)
@@ -1420,7 +1420,7 @@ CONTAINS
       CALL section_vals_val_get(section, "HYDROGENS", n_rep_val=n_var)
       ndim = 0
       DO k = 1, n_var
-         CALL section_vals_val_get(section, "HYDROGENS", i_vals=iatms)
+         CALL section_vals_val_get(section, "HYDROGENS", i_rep_val=k, i_vals=iatms)
          CALL reallocate(i_hydrogens, 1, ndim + SIZE(iatms))
          i_hydrogens(ndim + 1:ndim + SIZE(iatms)) = iatms
          ndim = ndim + SIZE(iatms)
@@ -1487,7 +1487,7 @@ CONTAINS
       CALL section_vals_val_get(section, "OXYGENS_WATER", n_rep_val=n_var)
       ndim = 0
       DO k = 1, n_var
-         CALL section_vals_val_get(section, "OXYGENS_WATER", i_vals=iatms)
+         CALL section_vals_val_get(section, "OXYGENS_WATER", i_rep_val=k, i_vals=iatms)
          CALL reallocate(i_oxygens_water, 1, ndim + SIZE(iatms))
          i_oxygens_water(ndim + 1:ndim + SIZE(iatms)) = iatms
          ndim = ndim + SIZE(iatms)
@@ -1497,7 +1497,7 @@ CONTAINS
       CALL section_vals_val_get(section, "OXYGENS_ACID", n_rep_val=n_var)
       ndim = 0
       DO k = 1, n_var
-         CALL section_vals_val_get(section, "OXYGENS_ACID", i_vals=iatms)
+         CALL section_vals_val_get(section, "OXYGENS_ACID", i_rep_val=k, i_vals=iatms)
          CALL reallocate(i_oxygens_acid, 1, ndim + SIZE(iatms))
          i_oxygens_acid(ndim + 1:ndim + SIZE(iatms)) = iatms
          ndim = ndim + SIZE(iatms)
@@ -1507,7 +1507,7 @@ CONTAINS
       CALL section_vals_val_get(section, "HYDROGENS", n_rep_val=n_var)
       ndim = 0
       DO k = 1, n_var
-         CALL section_vals_val_get(section, "HYDROGENS", i_vals=iatms)
+         CALL section_vals_val_get(section, "HYDROGENS", i_rep_val=k, i_vals=iatms)
          CALL reallocate(i_hydrogens, 1, ndim + SIZE(iatms))
          i_hydrogens(ndim + 1:ndim + SIZE(iatms)) = iatms
          ndim = ndim + SIZE(iatms)
