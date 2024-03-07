@@ -17,6 +17,7 @@ MODULE bse_full_diag
                                               filter_eigvec_contrib,&
                                               fm_general_add_bse
    USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
+                                              cp_blacs_env_release,&
                                               cp_blacs_env_type
    USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add
    USE cp_fm_diag,                      ONLY: choose_eigv_solver,&
@@ -117,9 +118,9 @@ CONTAINS
       ! We create v_ia,jb and W_ij,ab, then we communicate entries from local W_ij,ab
       ! to the full matrix v_ia,jb. By adding these and the energy diffenences: v_ia,jb -> A_ia,jb
       ! We use the A matrix already from the start instead of v
-      CALL cp_fm_struct_create(fm_struct_a, context=fm_mat_S_ia_bse%matrix_struct%context, nrow_global=homo*virtual, &
+      CALL cp_fm_struct_create(fm_struct_A, context=fm_mat_S_ia_bse%matrix_struct%context, nrow_global=homo*virtual, &
                                ncol_global=homo*virtual, para_env=fm_mat_S_ia_bse%matrix_struct%para_env)
-      CALL cp_fm_create(fm_A, fm_struct_a, name="fm_A_iajb")
+      CALL cp_fm_create(fm_A, fm_struct_A, name="fm_A_iajb")
       CALL cp_fm_set_all(fm_A, 0.0_dp)
 
       CALL cp_fm_struct_create(fm_struct_W, context=fm_mat_S_ab_bse%matrix_struct%context, nrow_global=homo**2, &
@@ -182,6 +183,11 @@ CONTAINS
             END IF
          END DO
       END DO
+
+      CALL cp_fm_struct_release(fm_struct_A)
+      CALL cp_fm_struct_release(fm_struct_W)
+
+      CALL cp_blacs_env_release(blacs_env)
 
       CALL timestop(handle)
 
@@ -261,6 +267,7 @@ CONTAINS
                               virtual, virtual, unit_nr, reordering, mp2_env)
 
       CALL cp_fm_release(fm_W)
+      CALL cp_fm_struct_release(fm_struct_v)
       CALL timestop(handle)
 
    END SUBROUTINE create_B

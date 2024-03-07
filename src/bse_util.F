@@ -16,6 +16,7 @@ MODULE bse_util
    USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose,&
                                               cp_fm_cholesky_invert
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
+                                              cp_fm_struct_release,&
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_get_info,&
@@ -1343,6 +1344,13 @@ CONTAINS
          CALL cp_fm_to_fm_submat_general(fm_mat_S_ab_bse, fm_mat_S_ab_trunc, dimen_RI, virt_red*virt_red, &
                                          1, 1, 1, 1, context)
       END IF
+
+      CALL cp_fm_struct_release(fm_struct_ia)
+      CALL cp_fm_struct_release(fm_struct_ij)
+      CALL cp_fm_struct_release(fm_struct_ab)
+
+      NULLIFY (para_env)
+      NULLIFY (context)
 
       CALL timestop(handle)
 
