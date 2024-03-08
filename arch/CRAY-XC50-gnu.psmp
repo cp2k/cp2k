@@ -79,7 +79,7 @@ USE_LIBXC      := 6.2.2
 USE_LIBXSMM    := 1.17
 USE_PLUMED     := 2.9.0
 #USE_QUIP       := 0.9.10
-#USE_DEEPMD     := 2.2.7
+#USE_DEEPMD     := 2.2.9
 #USE_SIRIUS     := 7.5.2
 USE_SPGLIB     := 1.16.2
 # Only needed for SIRIUS

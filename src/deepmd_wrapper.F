@@ -151,6 +151,17 @@ CONTAINS
    SUBROUTINE deepmd_model_release(model)
       TYPE(deepmd_model_type)                            :: model
 
+      INTERFACE
+         SUBROUTINE DeleteDeepPot(dp) BIND(C, name="DP_DeleteDeepPot")
+            IMPORT :: C_PTR
+            IMPLICIT NONE
+            TYPE(C_PTR)  :: dp
+         END SUBROUTINE
+      END INTERFACE
+
+#if defined(__DEEPMD)
+      CALL DeleteDeepPot(model%c_ptr)
+#endif
       model%c_ptr = C_NULL_PTR
    END SUBROUTINE deepmd_model_release
 
