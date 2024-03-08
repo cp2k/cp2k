@@ -90,7 +90,6 @@ Summary: Molecular simulations software - openmpi version
 BuildRequires:  openmpi-devel
 BuildRequires:  blacs-openmpi-devel
 BuildRequires:  dbcsr-openmpi-devel >= %{dbcsr_version}
-BuildRequires:  elpa-openmpi-devel >= 2018.05.001
 BuildRequires:  scalapack-openmpi-devel
 Requires: %{name}-common = %{version}-%{release}
 # Libint may have API breakage
@@ -117,7 +116,6 @@ Summary: Molecular simulations software - mpich version
 BuildRequires:  mpich-devel
 BuildRequires:  blacs-mpich-devel
 BuildRequires:  dbcsr-mpich-devel >= %{dbcsr_version}
-BuildRequires:  elpa-mpich-devel >= 2018.05.001
 BuildRequires:  scalapack-mpich-devel
 BuildRequires: make
 Requires: %{name}-common = %{version}-%{release}
