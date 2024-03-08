@@ -136,6 +136,7 @@ Requires: %{name}-mpich%{?_isa} = %{version}-%{release}
 The %{name}-devel package contains libraries and header files for
 developing applications that use %{name}.
 
+
 %prep
 %autosetup -p1
 rm tools/build_utils/fypp
@@ -145,53 +146,49 @@ rm -r exts/dbcsr
 
 # $MPI_SUFFIX will be evaluated in the loops below, set by mpi modules
 %global _vpath_builddir %{_vendor}-%{_target_os}-build${MPI_SUFFIX:-_serial}
+# We are running the module load/unload manually until there is a macro-like way to expand this
+. /etc/profile.d/modules.sh
+
 
 %build
-CMAKE_COMMON="-G Ninja -DCP2K_BLAS_VENDOR=FlexiBLAS %{?with_check:-DCP2K_ENABLE_REGTESTS=ON}"
-%cmake $CMAKE_COMMON \
-   -DCP2K_USE_MPI=OFF \
-   -DCMAKE_INSTALL_Fortran_MODULES:PATH=%{_fmoddir}/cp2k
-%cmake_build
+cmake_common_args=(
+  "-G Ninja"
+  "-DCP2K_BLAS_VENDOR:STRING=FlexiBLAS"
+  "-DCP2K_ENABLE_REGTESTS:BOOL=%{?with_check:ON}%{?without_check:OFF}"
+)
+for mpi in '' mpich %{?with_openmpi:openmpi}; do
+  if [ -n "$mpi" ]; then
+    module load mpi/${mpi}-%{_arch}
+    cmake_mpi_args=(
+      "-DCMAKE_INSTALL_PREFIX:PATH=${MPI_HOME}"
+      "-DCMAKE_INSTALL_Fortran_MODULES:PATH=${MPI_FORTRAN_MOD_DIR}/cp2k"
+      "-DCMAKE_INSTALL_LIBDIR:PATH=lib"
+      "-DCP2K_CMAKE_SUFFIX:STRING=${MPI_SUFFIX}"
+      "-DCP2K_DATA_DIR:PATH=%{_datadir}/cp2k/data"
+      "-DCP2K_USE_MPI_F08:BOOL=ON"
+    )
+  else
+    cmake_mpi_args=(
+      "-DCP2K_USE_MPI:BOOL=OFF"
+      "-DCMAKE_INSTALL_Fortran_MODULES:PATH=%{_fmoddir}/cp2k"
+    )
+  fi
 
+  %cmake \
+    ${cmake_common_args[@]} \
+    ${cmake_mpi_args[@]}
+  %cmake_build
 
-%if %{with openmpi}
-%{_openmpi_load}
-%cmake $CMAKE_COMMON \
-   -DCMAKE_PREFIX_PATH:PATH=$MPI_HOME \
-   -DCMAKE_INSTALL_PREFIX:PATH=$MPI_HOME \
-   -DCMAKE_INSTALL_Fortran_MODULES:PATH=${MPI_FORTRAN_MOD_DIR}/cp2k \
-   -DCMAKE_INSTALL_LIBDIR:PATH=lib \
-   -DCP2K_CMAKE_SUFFIX=$MPI_SUFFIX \
-   -DCP2K_DATA_DIR:PATH=%{_datadir}/cp2k/data \
-   -DCP2K_USE_MPI_F08:BOOL=ON
-%cmake_build
-%{_openmpi_unload}
-%endif
-
-%{_mpich_load}
-%cmake $CMAKE_COMMON \
-   -DCMAKE_PREFIX_PATH:PATH=$MPI_HOME \
-   -DCMAKE_INSTALL_PREFIX:PATH=$MPI_HOME \
-   -DCMAKE_INSTALL_Fortran_MODULES:PATH=${MPI_FORTRAN_MOD_DIR}/cp2k \
-   -DCMAKE_INSTALL_LIBDIR:PATH=lib \
-   -DCP2K_CMAKE_SUFFIX=$MPI_SUFFIX \
-   -DCP2K_DATA_DIR:PATH=%{_datadir}/cp2k/data \
-   -DCP2K_USE_MPI_F08:BOOL=ON
-%cmake_build
-%{_mpich_unload}
+  [ -n "$mpi" ] && module unload mpi/${mpi}-%{_arch}
+done
 
 %install
-%cmake_install
+for mpi in '' mpich %{?with_openmpi:openmpi}; do
+  [ -n "$mpi" ] && module load mpi/${mpi}-%{_arch}
+  %cmake_install
+  [ -n "$mpi" ] && module unload mpi/${mpi}-%{_arch}
+done
 
-%if %{with openmpi}
-%{_openmpi_load}
-%cmake_install
-%{_openmpi_unload}
-%endif
-
-%{_mpich_load}
-%cmake_install
-%{_mpich_unload}
 
 %check
 # Tests are done in the tmt envrionment
