@@ -12,6 +12,13 @@
 %bcond_without openmpi
 %endif
 
+%ifarch x86_64
+%bcond_without libxsmm
+%else
+# See https://bugzilla.redhat.com/show_bug.cgi?id=1515404
+%bcond_with libxsmm
+%endif
+
 # Disable LTO due to https://bugzilla.redhat.com/show_bug.cgi?id=2243158
 %global _lto_cflags %nil
 
@@ -39,8 +46,7 @@ BuildRequires: glibc-langpack-en
 BuildRequires: dbcsr-devel >= %{dbcsr_version}
 BuildRequires: libint2-devel
 BuildRequires: libxc-devel >= 5.1.0
-%ifarch x86_64
-# See https://bugzilla.redhat.com/show_bug.cgi?id=1515404
+%if %{with libxsmm}
 BuildRequires: libxsmm-devel >= 1.8.1-3
 %endif
 BuildRequires: python3-fypp
@@ -153,8 +159,29 @@ rm -r exts/dbcsr
 %build
 cmake_common_args=(
   "-G Ninja"
+  "-DCP2K_DEBUG_MODE:BOOL=OFF"
   "-DCP2K_BLAS_VENDOR:STRING=FlexiBLAS"
+  "-DCP2K_USE_STATIC_BLAS:BOOL=OFF"
   "-DCP2K_ENABLE_REGTESTS:BOOL=%{?with_check:ON}%{?without_check:OFF}"
+  # Dependencies already packaged
+  "-DCP2K_USE_SPGLIB:BOOL=ON"
+  "-DCP2K_USE_LIBXC:BOOL=ON"
+  "-DCP2K_USE_FFTW3:BOOL=ON"
+  "-DCP2K_USE_LIBINT2:BOOL=ON"
+  "-DCP2K_USE_LIBXSMM:BOOL=%{?with_libxsmm:ON}%{?without_libxsmm:OFF}"
+  # Missing dependencies
+  "-DCP2K_USE_ELPA:BOOL=OFF"
+  "-DCP2K_USE_PEXSI:BOOL=OFF"
+  "-DCP2K_USE_SUPERLU:BOOL=OFF"
+  "-DCP2K_USE_COSMA:BOOL=OFF"
+  "-DCP2K_USE_PLUMED:BOOL=OFF"
+  "-DCP2K_USE_VORI:BOOL=OFF"
+  "-DCP2K_USE_PEXSI:BOOL=OFF"
+  "-DCP2K_USE_QUIP:BOOL=OFF"
+  "-DCP2K_USE_LIBTORCH:BOOL=OFF"
+  "-DCP2K_USE_SPLA:BOOL=OFF"
+  "-DCP2K_USE_METIS:BOOL=OFF"
+  "-DCP2K_USE_DLAF:BOOL=OFF"
 )
 for mpi in '' mpich %{?with_openmpi:openmpi}; do
   if [ -n "$mpi" ]; then
