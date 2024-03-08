@@ -44,7 +44,6 @@ BuildRequires: gcc-gfortran
 BuildRequires: ninja-build
 BuildRequires: glibc-langpack-en
 BuildRequires: dbcsr-devel >= %{dbcsr_version}
-BuildRequires: libint2-devel
 BuildRequires: libxc-devel >= 5.1.0
 %if %{with libxsmm}
 BuildRequires: libxsmm-devel >= 1.8.1-3
@@ -53,9 +52,6 @@ BuildRequires: python3-fypp
 BuildRequires: spglib-devel
 BuildRequires: /usr/bin/hostname
 BuildRequires: python3-devel
-
-# Libint can break the API between releases
-Requires: libint2(api)%{?_isa}
 
 Requires: %{name}-common = %{version}-%{release}
 
@@ -167,7 +163,8 @@ cmake_common_args=(
   "-DCP2K_USE_SPGLIB:BOOL=ON"
   "-DCP2K_USE_LIBXC:BOOL=ON"
   "-DCP2K_USE_FFTW3:BOOL=ON"
-  "-DCP2K_USE_LIBINT2:BOOL=ON"
+  # TODO: Fix Libint2 detection
+  "-DCP2K_USE_LIBINT2:BOOL=OFF"
   "-DCP2K_USE_LIBXSMM:BOOL=%{?with_libxsmm:ON}%{?without_libxsmm:OFF}"
   # Missing dependencies
   "-DCP2K_USE_ELPA:BOOL=OFF"
