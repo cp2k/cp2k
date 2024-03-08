@@ -213,6 +213,13 @@ for mpi in '' mpich %{?with_openmpi:openmpi}; do
   [ -n "$mpi" ] && module unload mpi/${mpi}-%{_arch}
 done
 
+# TODO: Properly separate the installation of unit tests
+rm -f %{_buildrootdir}/**/%{_bindir}/*_unittest.*
+%if %{with openmpi}
+rm -f %{_buildrootdir}/**/%{_libdir}/openmpi/bin/*_unittest.*
+%endif
+rm -f %{_buildrootdir}/**/%{_libdir}/mpich/bin/*_unittest.*
+
 
 %check
 # Tests are done in the tmt envrionment
