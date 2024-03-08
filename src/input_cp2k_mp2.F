@@ -854,16 +854,6 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      ! CALL keyword_create(keyword, __LOCATION__, name="BSE", &
-      !                     description="If true, electronic excitation energies are computed from the "// &
-      !                     "Bethe-Salpeter equation on top of GW eigenvalues.  Parameter of BSE can be adjusted in "// &
-      !                     "the corresponding section.", &
-      !                     usage="BSE", &
-      !                     default_l_val=.FALSE., &
-      !                     lone_keyword_l_val=.TRUE.)
-      ! CALL section_add_keyword(section, keyword)
-      ! CALL keyword_release(keyword)
-
       CALL keyword_create(keyword, __LOCATION__, name="IMAGE_CHARGE_MODEL", &
                           variants=(/"IC"/), &
                           description="If true, an image charge model is applied to mimic the renormalization of "// &

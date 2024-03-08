@@ -172,8 +172,6 @@ CONTAINS
       bse_section => section_vals_get_subs_vals(mp2_section, "RI_RPA%GW%BSE")
       CALL section_vals_val_get(bse_section, "_SECTION_PARAMETERS_", &
                                 l_val=mp2_env%ri_g0w0%do_bse)
-      ! CALL section_vals_val_get(mp2_section, "RI_RPA%GW%BSE", &
-      !                           l_val=mp2_env%ri_g0w0%do_bse)
       CALL section_vals_val_get(mp2_section, "RI_RPA%GW%BSE%SPIN_CONFIG", &
                                 i_val=mp2_env%ri_g0w0%bse_spin_config)
       CALL section_vals_val_get(mp2_section, "RI_RPA%GW%BSE%ENERGY_CUTOFF_OCC", &

@@ -993,6 +993,7 @@ CONTAINS
             END IF
             idx_prim_work(ii) = idx_prim(ii)
          END DO
+         DEALLOCATE (idx_prim_work)
       END IF
 
       CALL timestop(handle)

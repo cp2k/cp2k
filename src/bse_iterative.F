@@ -66,8 +66,6 @@ CONTAINS
 
       CHARACTER(LEN=10)                                  :: bse_davidson_abort_cond_string, &
                                                             success_abort_string
-      CHARACTER(LEN=100)                                 :: char_a, en_exact_filename, en_filename, &
-                                                            res_filename
       INTEGER :: bse_davidson_abort_cond, davidson_converged, fac_max_z_space, handle, i_iter, &
          j_print, local_RI_size, num_add_start_z_space, num_davidson_iter, &
          num_en_unconverged = -1, num_exact_en_unconverged = -1, num_exc_en, num_max_z_space, &
@@ -81,8 +79,6 @@ CONTAINS
          Subspace_new_eigenvec, Subspace_residuals_reshaped, Z_vectors_reshaped
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: AZ, BZ, Subspace_add_dir, &
                                                             Subspace_ritzvec, W_vectors, Z_vectors
-
-!MG: debugging
 
       CALL timeset(routineN, handle)
 
@@ -114,36 +110,8 @@ CONTAINS
          WRITE (unit_nr, *) "eps_exc_en", eps_exc_en
          WRITE (unit_nr, *) "bse_davidson_abort_cond", bse_davidson_abort_cond
          WRITE (unit_nr, *) "z_space_energy_cutoff", z_space_energy_cutoff
+         WRITE (unit_nr, *) "Printing B_bar_iaQ_bse_local of shape", SHAPE(B_bar_iaQ_bse_local)
       END IF
-
-      !MG to del
-      ! print *,"Inside bse_iterative.F, before starting iterations"
-      PRINT *, "Printing B_bar_iaQ_bse_local of shape", SHAPE(B_bar_iaQ_bse_local)
-      ! do i_print=1,SIZE(B_bar_iaQ_bse_local,3)
-      !   print *, B_bar_iaQ_bse_local(:,:,i_print)
-      ! end do
-      ! print *, "Printing B_iaQ_bse_local of shape", SHAPE(B_iaQ_bse_local)
-      ! do i_print=1,SIZE(B_iaQ_bse_local,3)
-      !   print *, B_iaQ_bse_local(:,:,i_print)
-      ! end do
-      ! print *, "Printing B_abQ_bse_local of shape", SHAPE(B_abQ_bse_local)
-      ! do k_print=1,SIZE(B_abQ_bse_local,3)
-      !    do j_print=1,SIZE(B_abQ_bse_local,1)
-      !       do i_print=1,SIZE(B_abQ_bse_local,2)
-      !          print *,"(",i_print,j_print,k_print,")",B_abQ_bse_local(i_print,j_print,k_print)
-      !          print *,"(",j_print,i_print,k_print,")",B_abQ_bse_local(j_print,i_print,k_print)
-      !       end do
-      !    end do
-      ! end do
-      ! print *, "Printing B_bar_ijQ_bse_local of shape", SHAPE(B_bar_ijQ_bse_local)
-      ! do k_print=1,SIZE(B_bar_ijQ_bse_local,3)
-      !    do j_print=1,SIZE(B_bar_ijQ_bse_local,1)
-      !      do i_print=1,SIZE(B_bar_ijQ_bse_local,2)
-      !         print *,"(",i_print,j_print,k_print,")",B_bar_ijQ_bse_local(i_print,j_print,k_print)
-      !         print *,"(",j_print,i_print,k_print,")",B_bar_ijQ_bse_local(j_print,i_print,k_print)
-      !     end do
-      !   end do
-      ! end do
 
       local_RI_size = SIZE(B_iaQ_bse_local, 3)
 
@@ -167,11 +135,9 @@ CONTAINS
                        "Choose another num_exc_en and num_add_start_z_space or adapt your basis set.")
       END IF
       IF (num_max_z_space .GE. homo*virtual) THEN
-         !WRITE (unit_nr, *) "Incoming fac=",fac_max_z_space," and max=",num_max_z_space
-         !WRITE (unit_nr, *) "homo*virtual",homo*virtual," and init=",num_Z_vectors_init
          fac_max_z_space = homo*virtual/num_Z_vectors_init
          num_max_z_space = num_Z_vectors_init*fac_max_z_space
-         !WRITE (unit_nr, *) "Outgoing fac=",fac_max_z_space," and max=",num_max_z_space
+
          IF (fac_max_z_space == 0) THEN
             CALL cp_abort(__LOCATION__, "Maximal dimension was too large and could not be corrected. "// &
                           "Choose another fac_max_z_space and num_Z_vectors_init or adapt your basis set.")
@@ -190,9 +156,7 @@ CONTAINS
          END IF
          ALLOCATE (Z_vectors(homo, virtual, num_Z_vectors))
          Z_vectors = 0.0_dp
-         !IF (unit_nr > 0) THEN
-         !   print *, 'ProcNr',para_env%mepos,"Allocated Z_vec"
-         !END IF
+
          !Dellocation procedures are a bit intricate, W_/Z_vectors and eigenvalues are needed for the next iteration,
          !  therefore we have to deallocate them separately from the other quantities
          IF (i_iter == 1) THEN
@@ -204,35 +168,17 @@ CONTAINS
             DEALLOCATE (W_vectors)
          END IF
          IF (unit_nr > 0) THEN
-            PRINT *, 'ProcNr', para_env%mepos, "Allocated/rewritten Z arrays"
+            WRITE (unit_nr, *) 'ProcNr', para_env%mepos, "Allocated/rewritten Z arrays"
          END IF
-         !IF (unit_nr > 0) THEN
-         !   print *, 'ProcNr',para_env%mepos,"Allocated W_vectors"
-         !END IF
-         !WRITE (unit_nr, *) "Init - Checkpoint 1 for", i_iter
-         !CALL mp_sync(para_env%group)
+
          CALL create_bse_work_arrays(AZ, Z_vectors_reshaped, AZ_reshaped, BZ, M_ia_tmp, M_ji_tmp, &
                                      RI_vector, Subspace_new_eigenval, Subspace_full_eigenval, Subspace_new_eigenvec, &
                                      Subspace_residuals_reshaped, Subspace_ritzvec, Subspace_add_dir, W_vectors, &
                                      homo, virtual, num_Z_vectors, local_RI_size, num_new_t)
          IF (unit_nr > 0) THEN
-            PRINT *, 'ProcNr', para_env%mepos, "Allocated Work arrays"
+            WRITE (unit_nr, *) 'ProcNr', para_env%mepos, "Allocated Work arrays"
          END IF
-         !CALL mp_sync(para_env%group)
-         !Check allocation of matrices
-         ! if (.NOT. allocated(AZ)) print *, 'ProcNr',para_env%mepos,"Allocated AZ"
-         ! if (.NOT. allocated(Z_vectors)) print *, 'ProcNr',para_env%mepos,"Allocated Z_vectors"
-         ! if (.NOT. allocated(B_iaQ_bse_local)) print *, 'ProcNr',para_env%mepos,"Allocated B_iaQ_bse_local"
-         ! if (.NOT. allocated(B_bar_ijQ_bse_local)) print *, 'ProcNr',para_env%mepos,"Allocated B_bar_ijQ_bse_local"
-         ! if (.NOT. allocated(B_abQ_bse_local)) print *, 'ProcNr',para_env%mepos,"Allocated B_abQ_bse_local"
-         ! if (.NOT. allocated(M_ia_tmp)) print *, 'ProcNr',para_env%mepos,"Allocated M_ia_tmp"
-         ! if (.NOT. allocated(RI_vector)) print *, 'ProcNr',para_env%mepos,"Allocated RI_vector"
-         ! CALL mp_sync(para_env%group)
-         !print *, 'ProcNr',para_env%mepos,"compute AZ with",SHAPE(AZ), SHAPE(Z_vectors), SHAPE(B_iaQ_bse_local), &
-         !SHAPE(B_bar_ijQ_bse_local), SHAPE(B_abQ_bse_local), &
-         !SHAPE(M_ia_tmp), SHAPE(RI_vector), SHAPE(Eigenval), homo, virtual, num_Z_vectors, local_RI_size, bse_spin_config
-         !CALL mp_sync(para_env%group)
-         !print *, 'ProcNr',para_env%mepos,"Entering AZ"
+
          CALL compute_AZ(AZ, Z_vectors, B_iaQ_bse_local, B_bar_ijQ_bse_local, B_abQ_bse_local, &
                          M_ia_tmp, RI_vector, Eigenval, homo, virtual, num_Z_vectors, local_RI_size, &
                          para_env, bse_spin_config, z_space_energy_cutoff, i_iter, bse_full_diag_debug, &
@@ -243,9 +189,8 @@ CONTAINS
          !                M_ji_tmp, homo, virtual, num_Z_vectors, local_RI_size, &
          !                para_env)
 
-         !WRITE (unit_nr, *) 'ProcNr',para_env%mepos,'finished AZ/BZ computation'!, AZ=',AZ
          IF (unit_nr > 0) THEN
-            PRINT *, 'ProcNr', para_env%mepos, "Computed AZ"
+            WRITE (unit_nr, *) 'ProcNr', para_env%mepos, "Computed AZ"
          END IF
 
          !MG to check: Reshaping correct?
@@ -256,25 +201,18 @@ CONTAINS
          CALL compute_diagonalize_ZAZ(AZ_reshaped, Z_vectors_reshaped, num_Z_vectors, Subspace_new_eigenval, &
                                       Subspace_new_eigenvec, num_new_t, Subspace_full_eigenval, para_env, unit_nr)
          IF (unit_nr > 0) THEN
-            PRINT *, "Eigenval (eV) in iter=", i_iter, " is:", Subspace_new_eigenval(:6)*evolt
-            !print *,"Eigenvec",Subspace_new_eigenvec
+            WRITE (unit_nr, *) "Eigenval (eV) in iter=", i_iter, " is:", Subspace_new_eigenval(:6)*evolt
          END IF
 
          ! Threshold in energies
          CALL check_en_convergence(Subspace_full_eigenval, Subspace_prev_eigenval, eps_exc_en, num_en_unconverged, &
                                    num_exc_en, max_en_diff, En_diffs)
          IF (unit_nr > 0) THEN
-            WRITE (unit_nr, *) "MG: Largest change of desired exc ens =", max_en_diff
+            WRITE (unit_nr, *) "Largest change of desired exc ens =", max_en_diff
          END IF
          ! Compute residuals
          CALL compute_residuals(AZ_reshaped, Z_vectors_reshaped, Subspace_new_eigenval, Subspace_new_eigenvec, &
                                 Subspace_residuals_reshaped, homo, virtual, num_new_t, num_Z_vectors, Subspace_ritzvec)
-
-         ! print *,"Residuals are"
-         ! DO k_print=1,homo*virtual
-         !    print *,"k_print=",k_print
-         !    print *,Subspace_residuals_reshaped(k_print,:)
-         ! END DO
 
          !Abort, if residuals are small enough w.r.t threshold
          CALL check_res_convergence(Subspace_residuals_reshaped, num_new_t, eps_res, num_res_unconverged, &
@@ -330,14 +268,6 @@ CONTAINS
          CALL compute_new_directions(homo, virtual, Subspace_residuals_reshaped, Subspace_new_eigenval, Eigenval, &
                                      num_new_t, Subspace_add_dir)
 
-         ! print *,"Subspace_add_dir"
-         ! print *, Subspace_add_dir
-         ! print *,"Z_vectors"
-         ! DO k_print=1,num_Z_vectors
-         !    print *,k_print
-         !    print *,Z_vectors(:,:,k_print)
-         ! END DO
-
          !If exact-diag: compute difference to exact eigenvalues
          IF (bse_full_diag_debug) THEN
             ALLOCATE (En_diffs_exact(num_exc_en))
@@ -348,54 +278,9 @@ CONTAINS
             END DO
          END IF
 
-         ! res_filename = "residuals_init="//trim(char_a)//"_new="//trim(char_b)//"_max="//trim(char_c)//".dat"
-
-         !Declare formatters
-         WRITE (char_a, "(A9,I2,A6)") "(I5, I5, ", num_exc_en, "E11.4)"
-
-         WRITE (res_filename, '(A15, I4, A5, I4, A5, I4, A4)') &
-            "residuals_init=", num_Z_vectors_init, "_new=", num_new_t, "_max=", num_max_z_space, ".dat"
-         WRITE (en_filename, '(A12, I4, A5, I4, A5, I4, A4)') &
-            "energy_init=", num_Z_vectors_init, "_new=", num_new_t, "_max=", num_max_z_space, ".dat"
-         WRITE (en_exact_filename, '(A18, I4, A5, I4, A5, I4, A4)') &
-            "energy_exact_init=", num_Z_vectors_init, "_new=", num_new_t, "_max=", num_max_z_space, ".dat"
-
-         ! IF (unit_nr > 0) THEN
-         !    IF (i_iter == 1) THEN
-         !       OPEN(10, file=res_filename, status="new")
-         !       OPEN(11, file=en_filename, status="new")
-         !    ELSE
-         !       OPEN(10, file=res_filename, status="old", access="sequential", position="append")
-         !       OPEN(11, file=en_filename, status="old", access="sequential", position="append")
-         !    END IF
-
-         !    WRITE(10,'(I4, I3, E11.4)') i_iter, num_res_unconverged, max_res_norm
-         !    WRITE(11,char_a) i_iter, num_en_unconverged, En_diffs
-         !    CLOSE(10)
-         !    CLOSE(11)
-         ! END IF
-
-         ! IF (bse_full_diag_debug) THEN
-         !    IF (unit_nr > 0) THEN
-         !       IF (i_iter == 1) THEN
-         !          OPEN(10, file=en_exact_filename, status="new")
-         !       ELSE
-         !          OPEN(10, file=en_exact_filename, status="old", access="sequential", position="append")
-         !       END IF
-         !       WRITE(10,char_a) i_iter, num_exact_en_unconverged ,En_diffs_exact
-         !       CLOSE(10)
-         !    END IF
-         ! END IF
-
          !Check dimensions and orthonormalize vector system, depending on dimensionality
          CALL check_Z_space_dimension(W_vectors, Z_vectors, Subspace_add_dir, Subspace_ritzvec, &
-                               num_Z_vectors, num_new_t, num_max_z_space, homo, virtual, i_iter, unit_nr, res_filename, en_filename)
-
-         ! print *,"W_vectors"
-         ! DO k_print=1,num_Z_vectors
-         !    print *,k_print
-         !    print *,W_vectors(:,:,k_print)
-         ! END DO
+                                      num_Z_vectors, num_new_t, num_max_z_space, homo, virtual, i_iter, unit_nr)
 
          !Copy eigenvalues for threshold
          Subspace_prev_eigenval(:) = Subspace_full_eigenval(:num_exc_en)
@@ -412,12 +297,6 @@ CONTAINS
 
          !Orthonorm:
          CALL orthonormalize_W(W_vectors, num_Z_vectors, homo, virtual)
-
-         ! print *,"W_vectors"
-         ! DO k_print=1,num_Z_vectors
-         !    print *,k_print
-         !    print *,W_vectors(:,:,k_print)
-         ! END DO
 
       END DO
 
@@ -438,19 +317,15 @@ CONTAINS
 !> \param virtual ...
 !> \param i_iter ...
 !> \param unit_nr ...
-!> \param res_filename ...
-!> \param en_filename ...
 ! **************************************************************************************************
    SUBROUTINE check_Z_space_dimension(W_vectors, Z_vectors, Subspace_add_dir, Subspace_ritzvec, &
-                                      num_Z_vectors, num_new_t, num_max_z_space, homo, virtual, i_iter, unit_nr, &
-                                      res_filename, en_filename)
+                                      num_Z_vectors, num_new_t, num_max_z_space, homo, virtual, i_iter, unit_nr)
 
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: W_vectors, Z_vectors, Subspace_add_dir, &
                                                             Subspace_ritzvec
       INTEGER                                            :: num_Z_vectors, num_new_t, &
                                                             num_max_z_space, homo, virtual, &
                                                             i_iter, unit_nr
-      CHARACTER(LEN=100)                                 :: res_filename, en_filename
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'check_Z_space_dimension'
 
@@ -464,15 +339,7 @@ CONTAINS
          num_Z_vectors = num_Z_vectors + num_new_t
       ELSE
          IF (unit_nr > 0) THEN
-            WRITE (unit_nr, *) "MG: Resetting dimension in i_iter=", i_iter
-         END IF
-         IF (unit_nr > 0) THEN
-            OPEN (10, file=res_filename, status="old", access="sequential", position="append")
-            WRITE (10, *) "Resetting", i_iter
-            CLOSE (10)
-            OPEN (10, file=en_filename, status="old", access="sequential", position="append")
-            WRITE (10, *) "Resetting", i_iter
-            CLOSE (10)
+            WRITE (unit_nr, *) "Resetting dimension in i_iter=", i_iter
          END IF
          DEALLOCATE (W_vectors)
          ALLOCATE (W_vectors(homo, virtual, 2*num_new_t))
@@ -530,8 +397,6 @@ CONTAINS
       INTEGER                                            :: handle
 
       CALL timeset(routineN, handle)
-
-      !print *,"Procnr", para_env%mepos, "local_RI_size=",local_RI_size
 
       ALLOCATE (AZ(homo, virtual, num_Z_vectors))
       AZ = 0.0_dp
@@ -636,8 +501,7 @@ CONTAINS
          alpha = 0.0_dp
          multiplet = "Triplet"
       END SELECT
-      !Print statement
-      !print *,"unit_nr=",unit_nr
+
       IF (unit_nr > 0) THEN
          WRITE (unit_nr, *) ' '
          WRITE (unit_nr, '(T3,A)') '******************************************************************************'
@@ -671,7 +535,6 @@ CONTAINS
 
          !Insert warning if energies are not converged (could probably be the case if one uses residual threshold)
          IF (num_en_unconverged > 0) THEN
-            !CPABORT("UNCONVERED ENERGIES ARE PRINTED OUT - THRESHOLDS SHOULD BE CHOSEN MORE CAREFULLY!")
             WRITE (unit_nr, '(T3,A)') '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
             WRITE (unit_nr, '(T3,A2,T79,A2)') '!!', "!!"
             WRITE (unit_nr, '(T3,A2,T8,A65,T79,A2)') '!!', "THERE ARE UNCONVERGED ENERGIES PRINTED OUT, SOMETHING WENT WRONG!", "!!"
@@ -852,13 +715,13 @@ CONTAINS
          IF (Res_norms(mu_l) > eps_res) THEN
             num_res_unconverged = num_res_unconverged + 1
             IF (unit_nr > 0) THEN
-               WRITE (unit_nr, *) "MG: Unconverged res in i_iter=", i_iter, "is:", Res_norms(mu_l)
+               WRITE (unit_nr, *) "Unconverged res in i_iter=", i_iter, "is:", Res_norms(mu_l)
             END IF
          END IF
       END DO
       max_res_norm = MAXVAL(Res_norms)
       IF (unit_nr > 0) THEN
-         WRITE (unit_nr, *) "MG: Maximal unconverged res (of ", num_res_unconverged, &
+         WRITE (unit_nr, *) "Maximal unconverged res (of ", num_res_unconverged, &
             " unconverged res in this step) in i_iter=", i_iter, "is:", max_res_norm
       END IF
 
@@ -974,10 +837,6 @@ CONTAINS
             END DO
          END DO
       END DO
-      !if (prec_neg > 0) then
-      !   print *, "MG: Prec has ",prec_neg," negative entries of overall ",homo*virtual*num_new_t," entries"
-      !end if
-      !print *,Subspace_add_dir_reshaped
 
       Subspace_add_dir(:, :, :) = RESHAPE(Subspace_add_dir_reshaped, (/homo, virtual, num_new_t/))
 
@@ -1086,7 +945,7 @@ CONTAINS
          END DO
       END DO
       IF (unit_nr > 0) THEN
-         PRINT *, 'ProcNr', para_env%mepos, "Before Diag"
+         WRITE (unit_nr, *) 'ProcNr', para_env%mepos, "Before Diag"
       END IF
 
       !MG to do: Check for symmetry of ZAZ!
@@ -1102,28 +961,14 @@ CONTAINS
 
       IF (ZAZ_diag_info /= 0) THEN
          CPABORT("ZAZ could not be diagonalized successfully.")
-      ELSE
-         !print *,"Eigenvalues are", Subspace_full_eigenval
-         !print *,"Eigenvectors are", ZAZ
-         !print *,"WORK(1)=",WORK(1)
-         !print *,"ZAZ_diag_info",ZAZ_diag_info
       END IF
 
       IF (unit_nr > 0) THEN
-         PRINT *, 'ProcNr', para_env%mepos, "After Diag"
+         WRITE (unit_nr, *) 'ProcNr', para_env%mepos, "After Diag"
       END IF
 
-      !print *,"Shape of Subspace_new_eigenval",SHAPE(Subspace_new_eigenval)
-      !print *,"Shape of Subspace_full_eigenval",SHAPE(Subspace_full_eigenval)
-      !print *, "num_new_t",num_new_t
-      !print *, Subspace_full_eigenval(1:num_new_t)
-      !print *, Subspace_new_eigenval
-      !print *, Subspace_new_eigenval(:)
-      !print *, Subspace_new_eigenval(:num_new_t)
       Subspace_new_eigenval(1:num_new_t) = Subspace_full_eigenval(1:num_new_t)
-      !print *,"Between eigenvalues and eigenvectors"
       Subspace_new_eigenvec(:, 1:num_new_t) = ZAZ(:, 1:num_new_t)
-      !print *,"After eigenvalues and eigenvectors"
       DEALLOCATE (WORK)
       DEALLOCATE (ZAZ)
 
@@ -1231,18 +1076,8 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: A_full_reshaped
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :, :)  :: A_full, v_iajb, W_ijab
 
-!MG: i_iter only for Debugging
-!MG to del
-
       CALL timeset(routineN, handle)
-      !print *, 'ProcNr',para_env%mepos,"Entering AZ comp"
       AZ(:, :, :) = 0.0_dp
-      !print *, 'ProcNr',para_env%mepos,"Comuting V"
-      !MG to del
-      ! print *,"3center Coulomb - B_iaQ, LLL=",local_RI_size
-      ! do i=1,local_RI_size
-      !    print *,"B_iaQ in LLL=",i," is: ",B_iaQ_bse_local(:,:,i)
-      ! end do
 
       IF (i_iter == 1 .AND. bse_full_diag_debug) THEN
          ALLOCATE (W_ijab(homo, homo, virtual, virtual))
@@ -1258,12 +1093,6 @@ CONTAINS
       CALL compute_v_ia_jb_part(AZ, Z_vectors, B_iaQ_bse_local, RI_vector, local_RI_size, &
                                 num_Z_vectors, homo, virtual, bse_spin_config, v_iajb, bse_full_diag_debug, i_iter, &
                                 para_env)
-
-      !print *, 'ProcNr',para_env%mepos,"Computed V"
-      IF (unit_nr > 0 .AND. i_iter == 1) THEN
-         PRINT *, "MG: printing v_iajb"
-         PRINT *, v_iajb
-      END IF
 
       DO i_Z_vector = 1, num_Z_vectors
 
@@ -1281,10 +1110,9 @@ CONTAINS
          END DO
       END DO
 
-      !print *, 'ProcNr',para_env%mepos,"Computed W"
       IF (i_iter == 1 .AND. bse_full_diag_debug) THEN
          W_ijab = 0.0_dp
-         !MG to del: Print screened 4c integrals for debugging purposes
+         !Create screened 4c integrals for check
          DO LLL = 1, local_RI_size
             DO i = 1, homo
                DO j = 1, homo
@@ -1298,28 +1126,18 @@ CONTAINS
          END DO
          ! we make the mp_sum to sum over all RI basis functions
          CALL para_env%sum(W_ijab)
-         IF (unit_nr > 0) THEN
-            PRINT *, "MG: printing W_ijab"
-            PRINT *, W_ijab
-         END IF
       END IF
 
       ! we make the mp_sum to sum over all RI basis functions
       CALL para_env%sum(AZ)
 
-      !print *, 'ProcNr',para_env%mepos,"Summed over group"
-
-      !MG to del
-      !print *, "For comparison, first the array of eigenvalues:"
-      !print *, Eigenval
-      !print *, "Diagonal of A"
       ! add (e_a-e_i)*Z_ia
       DO i_occ = 1, homo
          DO a_virt = 1, virtual
 
             eigen_diff = Eigenval(a_virt + homo) - Eigenval(i_occ)
             IF (unit_nr > 0 .AND. i_iter == 1) THEN
-               PRINT *, "Ediff at (i_occ,a_virt)=", i_occ, a_virt, " is: ", eigen_diff
+               WRITE (unit_nr, *) "Ediff at (i_occ,a_virt)=", i_occ, a_virt, " is: ", eigen_diff
             END IF
 
             AZ(i_occ, a_virt, :) = AZ(i_occ, a_virt, :) + Z_vectors(i_occ, a_virt, :)*eigen_diff
@@ -1327,7 +1145,7 @@ CONTAINS
          END DO
       END DO
 
-      !MG to refine: cut off contributions, which are too high in the excitation spectrum
+      !cut off contributions, which are too high in the excitation spectrum
       IF (z_space_energy_cutoff > 0) THEN
          DO i_occ = 1, homo
             DO a_virt = 1, virtual
@@ -1357,20 +1175,10 @@ CONTAINS
                      END IF
                      A_full_reshaped(n, m) = eigen_diff + 2*v_iajb(i, a, j, b) - W_ijab(i, j, a, b)
                      A_full(i, a, j, b) = eigen_diff + 2*v_iajb(i, a, j, b) - W_ijab(i, j, a, b)
-                     IF (a == b .AND. i == j .AND. unit_nr > 0) THEN
-            PRINT *, "MG: i,a, A on diag, Ediff, v, W", i, a, A_full(i, a, j, b), eigen_diff, v_iajb(i, a, j, b), W_ijab(i, j, a, b)
-                     END IF
                   END DO
                END DO
             END DO
          END DO
-
-         IF (unit_nr > 0) THEN
-            PRINT *, "MG: Full A:"
-            PRINT *, A_full
-            PRINT *, "MG: Full A reshaped:"
-            PRINT *, A_full_reshaped
-         END IF
 
          !MG to do: Check for symmetry of ZAZ!
          ALLOCATE (WORK(1))
@@ -1385,10 +1193,6 @@ CONTAINS
 
          DEALLOCATE (WORK)
 
-         IF (unit_nr > 0) THEN
-            PRINT *, "MG: Full spectrum of A:"
-            PRINT *, Full_exc_spectrum*evolt
-         END IF
          DEALLOCATE (W_ijab, v_iajb, A_full, A_full_reshaped)
       END IF
 
@@ -1477,8 +1281,7 @@ CONTAINS
       IF (i_iter == 1 .AND. bse_full_diag_debug) THEN
          ALLOCATE (v_iajb(homo, virtual, homo, virtual))
          v_iajb = 0.0_dp
-         !MG to del: Print 4c integrals for debugging purposes
-         !print *,"MG: ProcNr and localRIsize",para_env%mepos,local_RI_size
+         !Create unscreened 4c integrals for check
          DO LLL = 1, local_RI_size
             DO i = 1, homo
                DO j = 1, homo
@@ -1753,10 +1556,6 @@ CONTAINS
                level_big_size = buffer_rec(imepos)%indx(i_entry, 3)
 
                matrix_el = buffer_rec(imepos)%msg(i_entry)
-               !MG to del
-               !print *,"level_small_size",level_small_size
-               !print *,"level_big_size",level_big_size
-               !print *,"RI_index",RI_index
 
                B_local(level_small_size, level_big_size, RI_index) = matrix_el
 
