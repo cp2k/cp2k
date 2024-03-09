@@ -54,7 +54,6 @@ eip_silicon.F: Found WRITE statement with hardcoded unit in "eip_lenosky_silicon
 eip_silicon.F: Found WRITE statement with hardcoded unit in "subfeniat_b" https://cp2k.org/conv#c012
 eip_silicon.F: Found WRITE statement with hardcoded unit in "subfeniat_l" https://cp2k.org/conv#c012
 ewald_environment_types.F: Found type ewald_environment_type without initializer https://cp2k.org/conv#c016
-ewald_pw_types.F: Found type ewald_pw_type without initializer https://cp2k.org/conv#c016
 exclusion_types.F: Found type exclusion_type without initializer https://cp2k.org/conv#c016
 exstates_types.F: Found type excited_energy_type without initializer https://cp2k.org/conv#c016
 exstates_types.F: Found type wfn_history_type without initializer https://cp2k.org/conv#c016
