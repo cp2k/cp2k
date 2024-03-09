@@ -649,7 +649,7 @@ CONTAINS
          WRITE (unit_nr, '(T2,A4,T7,A6,T18,A27)') 'BSE|', 'W_...:', 'Screened direct interaction'
          WRITE (unit_nr, '(T2,A4)') 'BSE|'
          WRITE (unit_nr, '(T2,A4)') 'BSE|'
-         WRITE (unit_nr, '(T2,A4,T7,A47,A7,A9,F3.1))') 'BSE|', &
+         WRITE (unit_nr, '(T2,A4,T7,A47,A7,A9,F3.1)') 'BSE|', &
             'The spin-dependent factor is for the requested ', multiplet, " is α = ", alpha
          WRITE (unit_nr, '(T2,A4)') 'BSE|'
          IF (flag_TDA) THEN

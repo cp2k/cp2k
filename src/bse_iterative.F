@@ -67,9 +67,9 @@ CONTAINS
       CHARACTER(LEN=10)                                  :: bse_davidson_abort_cond_string, &
                                                             success_abort_string
       INTEGER :: bse_davidson_abort_cond, davidson_converged, fac_max_z_space, handle, i_iter, &
-         j_print, local_RI_size, num_add_start_z_space, num_davidson_iter, &
-         num_en_unconverged = -1, num_exact_en_unconverged = -1, num_exc_en, num_max_z_space, &
-         num_new_t, num_res_unconverged = -1, num_Z_vectors, num_Z_vectors_init
+         j_print, local_RI_size, num_add_start_z_space, num_davidson_iter, num_en_unconverged, &
+         num_exact_en_unconverged, num_exc_en, num_max_z_space, num_new_t, num_res_unconverged, &
+         num_Z_vectors, num_Z_vectors_init
       LOGICAL                                            :: bse_full_diag_debug
       REAL(kind=dp)                                      :: eps_exc_en, eps_res, max_en_diff, &
                                                             max_res_norm, z_space_energy_cutoff
@@ -85,6 +85,9 @@ CONTAINS
       !MG to del
       !Debug flag for exact diagonalization (only using lapack!!!)
       bse_full_diag_debug = .TRUE.
+      num_en_unconverged = -1
+      num_res_unconverged = -1
+      num_exact_en_unconverged = -1
 
       bse_davidson_abort_cond = mp2_env%ri_g0w0%davidson_abort_cond
       num_exc_en = mp2_env%ri_g0w0%num_exc_en
