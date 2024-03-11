@@ -12,6 +12,9 @@ duration: 2h
   summary+: (openmpi)
   environment+:
     CP2K_VARIANT: openmpi
+    # prterun blocks running mpiexec as root. Set some environment variables to workaround it
+    OMPI_ALLOW_RUN_AS_ROOT: 1
+    OMPI_ALLOW_RUN_AS_ROOT_CONFIRM: 1
 /mpich:
   summary+: (mpich)
   environment+:
