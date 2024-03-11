@@ -15,7 +15,7 @@
 //#define DBM_LIBXSMM_PREFETCH LIBXSMM_GEMM_PREFETCH_AL2_AHEAD
 #define DBM_LIBXSMM_PREFETCH LIBXSMM_GEMM_PREFETCH_NONE
 #endif
-#if 2 > LIBXSMM_VERSION_MAJOR
+#if LIBXSMM_VERSION4(1, 17, 0, 3710) > LIBXSMM_VERSION_NUMBER
 #define libxsmm_dispatch_gemm libxsmm_dispatch_gemm_v2
 #endif
 #endif
@@ -81,7 +81,7 @@ void dbm_multiply_cpu_process_batch(const int ntasks, dbm_task_t batch[ntasks],
   // Sort tasks approximately by m,n,k via bucket sort.
   int buckets[BATCH_NUM_BUCKETS];
   memset(buckets, 0, BATCH_NUM_BUCKETS * sizeof(int));
-  for (int itask = 0; itask < ntasks; itask++) {
+  for (int itask = 0; itask < ntasks; ++itask) {
     const int i = hash(batch[itask]) % BATCH_NUM_BUCKETS;
     ++buckets[i];
   }
@@ -169,7 +169,7 @@ void dbm_multiply_cpu_process_batch(const int ntasks, dbm_task_t batch[ntasks],
   }
 #else
   // Fallback to BLAS when libxsmm is not available.
-  for (int itask = 0; itask < ntasks; itask++) {
+  for (int itask = 0; itask < ntasks; ++itask) {
     const dbm_task_t task = batch[itask];
     const double *data_a = &pack_a->data[task.offset_a];
     const double *data_b = &pack_b->data[task.offset_b];

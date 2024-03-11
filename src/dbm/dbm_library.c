@@ -82,12 +82,15 @@ void dbm_library_finalize(void) {
  * \author Ole Schuett
  ******************************************************************************/
 static int floorlog10(const int x) {
-  if (x >= 1000)
+  if (x >= 1000) {
     return 3;
-  if (x >= 100)
+  }
+  if (x >= 100) {
     return 2;
-  if (x >= 10)
+  }
+  if (x >= 10) {
     return 1;
+  }
   return 0;
 }
 
@@ -107,7 +110,7 @@ void dbm_library_counter_increment(const int m, const int n, const int k) {
  * \author Ole Schuett
  ******************************************************************************/
 static int compare_counters(const void *a, const void *b) {
-  return *(int64_t *)b - *(int64_t *)a;
+  return *(const int64_t *)b - *(const int64_t *)a;
 }
 
 /*******************************************************************************
@@ -164,8 +167,9 @@ void dbm_library_print_stats(const int fortran_comm,
 
   const char *labels[] = {"?", "??", "???", ">999"};
   for (int i = 0; i < DBM_NUM_COUNTERS; i++) {
-    if (counters[i][0] == 0)
+    if (counters[i][0] == 0) {
       continue; // skip empty counters
+    }
     const double percent = 100.0 * counters[i][0] / total;
     const int idx = counters[i][1];
     const int m = (idx % 64) / 16;
