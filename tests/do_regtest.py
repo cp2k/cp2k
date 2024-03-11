@@ -64,6 +64,8 @@ async def main() -> None:
     parser.add_argument("--restrictdir", action="append")
     parser.add_argument("--skipdir", action="append")
     parser.add_argument("--workbasedir", type=Path)
+    parser.add_argument("--skip_unittests", action="store_true")
+    parser.add_argument("--skip_regtests", action="store_true")
     parser.add_argument("arch")
     parser.add_argument("version")
     cfg = Config(parser.parse_args())
@@ -252,6 +254,8 @@ class Config:
         self.max_errors = args.maxerrors
         self.restrictdirs = args.restrictdir if args.restrictdir else [".*"]
         self.skipdirs = args.skipdir if args.skipdir else []
+        self.skip_unittests = args.skip_unittests
+        self.skip_regtests = args.skip_regtests
         datestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         leaf_dir = f"TEST-{args.arch}-{args.version}-{datestamp}"
         self.work_base_dir = (
@@ -496,7 +500,11 @@ async def wait_for_child_process(
 # ======================================================================================
 async def run_batch(batch: Batch, cfg: Config) -> BatchResult:
     async with cfg.workers:
-        results = (await run_unittests(batch, cfg)) + (await run_regtests(batch, cfg))
+        results = []
+        if not cfg.skip_unittests:
+            results += await run_unittests(batch, cfg)
+        if not cfg.skip_regtests:
+            results += await run_regtests(batch, cfg)
         return BatchResult(batch, results)
 
 
