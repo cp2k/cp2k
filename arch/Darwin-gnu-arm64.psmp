@@ -10,14 +10,15 @@
 #              SPGLIB 1.16.2, PLUMED 2.9.0,
 #              LIBVORI 220621, GSL 2.7.1,
 #              COSMA 2.6.6, SIRIUS 7.5.2,
-#              LIBGRPP 20231215
-# on an Apple M1 (macOS 14.2.1 Sonoma)
+#              LIBGRPP 20231215,
+#              SPFFT 1.0.6, SPLA 1.5.5
+# on an Apple M1 (macOS 14.4 Sonoma)
 #
 # Usage: Source this arch file and then run make as instructed.
 #        Ensure the links in /usr/local/bin to the lastest gcc version
 #        and "brew unlink openmpi" (or mpich) if installed.
 #
-# Last update: 15.01.2024
+# Last update: 12.03.2024
 #
 # \
    if [[ "${0}" == "${BASH_SOURCE}" ]]; then \
@@ -78,7 +79,11 @@ USE_LIBVORI    := 220621
 USE_PLUMED     := 2.9.0
 USE_SCALAPACK  := 2.2.1
 USE_SIRIUS     := 7.5.2
+USE_SPFFT      := 1.0.6
 USE_SPGLIB     := 1.16.2
+USE_SPLA       := 1.5.5
+# Only needed for SIRIUS
+LIBVDWXC_VER   := 0.4.0
 
 LMAX           := 5
 MAX_CONTR      := 4
@@ -176,33 +181,36 @@ ifneq ($(USE_SPGLIB),)
 endif
 
 ifneq ($(USE_SIRIUS),)
-   LIBVDWXC_VER   := 0.4.0
-   SPFFT_VER      := 1.0.6
-   SPLA_VER       := 1.5.5
    USE_SIRIUS     := $(strip $(USE_SIRIUS))
    LIBVDWXC_VER   := $(strip $(LIBVDWXC_VER))
    LIBVDWXC_INC   := $(INSTALL_PATH)/libvdwxc-$(LIBVDWXC_VER)/include
    LIBVDWXC_LIB   := $(INSTALL_PATH)/libvdwxc-$(LIBVDWXC_VER)/lib
-   SPFFT_VER      := $(strip $(SPFFT_VER))
-   SPFFT_INC      := $(INSTALL_PATH)/SpFFT-$(SPFFT_VER)/include
-   SPFFT_LIB      := $(INSTALL_PATH)/SpFFT-$(SPFFT_VER)/lib
-   SPLA_VER       := $(strip $(SPLA_VER))
-   SPLA_INC       := $(INSTALL_PATH)/SpLA-$(SPLA_VER)/include/spla
-   SPLA_LIB       := $(INSTALL_PATH)/SpLA-$(SPLA_VER)/lib
    SIRIUS_INC     := $(INSTALL_PATH)/sirius-$(USE_SIRIUS)/include
    SIRIUS_LIB     := $(INSTALL_PATH)/sirius-$(USE_SIRIUS)/lib
    CFLAGS         += -I$(LIBVDWXC_INC)
-   CFLAGS         += -I$(SPFFT_INC)
-   CFLAGS         += -I$(SPLA_INC)
    CFLAGS         += -I$(SIRIUS_INC)
    DFLAGS         += -D__LIBVDWXC
-   DFLAGS         += -D__SPFFT
-   DFLAGS         += -D__SPLA
    DFLAGS         += -D__SIRIUS
    LIBS           += $(SIRIUS_LIB)/libsirius.a
-   LIBS           += $(SPLA_LIB)/libspla.a
-   LIBS           += $(SPFFT_LIB)/libspfft.a
    LIBS           += $(LIBVDWXC_LIB)/libvdwxc.a
+endif
+
+ifneq ($(USE_SPFFT),)
+   USE_SPFFT      := $(strip $(USE_SPFFT))
+   SPFFT_INC      := $(INSTALL_PATH)/SpFFT-$(USE_SPFFT)/include
+   SPFFT_LIB      := $(INSTALL_PATH)/SpFFT-$(USE_SPFFT)/lib
+   CFLAGS         += -I$(SPFFT_INC)
+   DFLAGS         += -D__SPFFT
+   LIBS           += $(SPFFT_LIB)/libspfft.a
+endif
+
+ifneq ($(USE_SPLA),)
+   USE_SPLA       := $(strip $(USE_SPLA))
+   SPLA_INC       := $(INSTALL_PATH)/SpLA-$(USE_SPLA)/include/spla
+   SPLA_LIB       := $(INSTALL_PATH)/SpLA-$(USE_SPLA)/lib
+   CFLAGS         += -I$(SPLA_INC)
+   DFLAGS         += -D__SPLA
+   LIBS           += $(SPLA_LIB)/libspla.a
 endif
 
 HDF5_HOME      := $(shell brew --prefix hdf5)
