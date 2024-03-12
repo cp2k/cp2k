@@ -3,7 +3,7 @@
 # CP2K arch file for JURECA at FZ Juelich (2 AMD EPYC 7742 CPUs and 4 A100 GPUs per node)
 #
 # Tested with: GNU 11.3.0, ParaStationMPI, 
-#              ScaLAPACK 2.2.1, OpenBLAS 0.3.25,
+#              ScaLAPACK 2.2.1, OpenBLAS 0.3.26,
 #              FFTW 3.3.10, COSMA 2.6.6,
 #              ELPA 2023.05.001, HDF5 1.14.2,
 #              LIBINT 2.6.0, LIBPEXSI 1.2.0,
@@ -65,7 +65,7 @@ USE_LIBTORCH   := 1.12.1
 USE_LIBVORI    := 220621
 USE_LIBXC      := 6.2.2
 USE_LIBXSMM    := 1.17
-USE_OPENBLAS   := 0.3.25
+USE_OPENBLAS   := 0.3.26
 USE_PLUMED     := 2.9.0
 USE_QUIP       := 0.9.10
 USE_SCALAPACK  := 2.2.1
