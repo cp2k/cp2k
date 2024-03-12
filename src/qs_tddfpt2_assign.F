@@ -111,7 +111,7 @@ CONTAINS
                xsum = xsum + SUM(rdiag)
                DEALLOCATE (rdiag)
             END DO
-            dv(is) = ABS(xsum)
+            dv(is) = ABS(xsum)/SQRT(REAL(nspins, dp))
          END DO
          my_state = MAXVAL(MAXLOC(dv))
          wfn_history%xsval = dv(my_state)
