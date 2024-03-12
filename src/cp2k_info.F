@@ -230,6 +230,9 @@ CONTAINS
 #if defined(__OFFLOAD_HIP)
       flags = TRIM(flags)//" offload_hip"
 #endif
+#if defined(__OFFLOAD_OPENCL)
+      flags = TRIM(flags)//" offload_opencl"
+#endif
 #if defined(__NO_OFFLOAD_GRID)
       flags = TRIM(flags)//" no_offload_grid"
 #endif
