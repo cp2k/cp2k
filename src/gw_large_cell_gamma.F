@@ -57,6 +57,8 @@ MODULE gw_large_cell_gamma
    USE gw_utils,                        ONLY: analyt_conti_and_print,&
                                               de_init_bs_env,&
                                               time_to_freq
+   USE input_constants,                 ONLY: ri_rpa_g0w0_crossing_newton,&
+                                              rtp_method_gw
    USE input_section_types,             ONLY: section_vals_type
    USE kinds,                           ONLY: default_string_length,&
                                               dp,&
