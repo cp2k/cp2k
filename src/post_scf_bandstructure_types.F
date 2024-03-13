@@ -212,6 +212,8 @@ MODULE post_scf_bandstructure_types
                                                       atoms_j_t_group
       LOGICAL, DIMENSION(:, :), ALLOCATABLE        :: skip_Sigma_occ, &
                                                       skip_Sigma_vir
+      ! Marek : rtp_method
+      INTEGER                                      :: rtp_method
 
       ! check-arrays and names for restarting
       LOGICAL, DIMENSION(:), ALLOCATABLE           :: read_chi, &
@@ -367,6 +369,7 @@ CONTAINS
       CALL cp_fm_release(bs_env%fm_RI_RI)
       CALL cp_fm_release(bs_env%fm_chi_Gamma_freq)
       CALL cp_fm_release(bs_env%fm_W_MIC_freq)
+      ! TODO : Test whether IF (rtp_method == rtp_method_gw) is needed
       CALL cp_fm_release(bs_env%fm_W_MIC_freq_zero)
       CALL cp_fm_release(bs_env%fm_W_MIC_freq_1_extra)
       CALL cp_fm_release(bs_env%fm_W_MIC_freq_1_no_extra)

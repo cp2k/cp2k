@@ -67,7 +67,8 @@ MODULE gw_utils
                                               large_cell_Gamma,&
                                               ri_rpa_g0w0_crossing_newton,&
                                               small_cell_full_kp,&
-                                              xc_none
+                                              xc_none,&
+                                              rtp_method_gw
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type,&
                                               section_vals_val_get,&
@@ -248,9 +249,11 @@ CONTAINS
       ! 2. consume a lot of memory and should not be kept until the quantity is
       !    deallocated in bs_env_release
 
-      ! TODO : Only retain in case of rt_tdagw
-      ! IF (ASSOCIATED(bs_env%nl_3c%ij_list)) CALL neighbor_list_3c_destroy(bs_env%nl_3c)
-      IF (ASSOCIATED(bs_env%nl_3c%ij_list)) PRINT *, "Retaining nl_3c"
+      IF (ASSOCIATED(bs_env%nl_3c%ij_list) .AND. (bs_env%rtp_method == rtp_method_gw)) THEN
+         PRINT *, "Retaining nl_3c for TD-aGW"
+      ELSE
+         CALL neighbor_list_3c_destroy(bs_env%nl_3c)
+      END IF
 
       CALL cp_libint_static_cleanup()
 
