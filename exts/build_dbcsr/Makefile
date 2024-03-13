@@ -51,6 +51,7 @@ FYPPEXE      := $(TOOLSDIR)/build_utils/fypp/bin/fypp
 SRCDIR       := $(DBCSRHOME)/src
 TESTSDIR     := $(DBCSRHOME)/tests
 ARCHFILE     :=
+CXXSTD       := --std=c++14
 
 PYTHON       := /usr/bin/env python3
 
@@ -102,6 +103,9 @@ endif
 endif
 
 # Set ACCFLAGS ==============================================================
+
+# Adjust C++ standard level
+override ACCFLAGS := $(CXXSTD) $(filter-out --std=c++11,$(ACCFLAGS))
 
 # If compiling with nvcc
 ifeq (cuda,$(USE_ACCEL))
@@ -264,7 +268,19 @@ FYPPFLAGS ?= -n
 # Compile the CUDA/HIP files
 ifneq ($(ACC),)
 ifneq (opencl,$(USE_ACCEL))
+<<<<<<< HEAD
 %.o: %.cpp
+=======
+ifeq (cuda,$(USE_ACCEL))
+# consider omitting opt-level due to extreme compilation time even if opt-flag only targets the host compiler
+%.o: %.cpp parameters.h smm_acc_kernels.h
+	$(ACC) -c $(filter-out -O%,$(ACCFLAGS)) -I'$(SRCDIR)' -x cu $<
+else # HIP
+%.o: %.cpp parameters.h smm_acc_kernels.h
+	$(OFFLOAD_CC) -D__HIP -c $(OFFLOAD_FLAGS) -I'$(SRCDIR)' $<
+endif
+%.o: %.cu parameters.h smm_acc_kernels.h
+>>>>>>> 6842c52c48 (Adjusted C++ standard level (when relying on NVCC). Rely on OFFLOAD_CC and OFFLOAD_FLAGS for HIP/CC.)
 	$(ACC) -c $(ACCFLAGS) -I'$(SRCDIR)' $<
 libsmm_acc.o: libsmm_acc.cpp parameters.h smm_acc_kernels.h
 	$(ACC) -c $(ACCFLAGS) -DARCH_NUMBER=$(ARCH_NUMBER) $<
