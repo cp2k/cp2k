@@ -183,16 +183,23 @@ CONTAINS
       PRINT *, "Hartree initialised"
       ! ********************** EXTRACT PREVIOUS DATA **********************
 
-      ! Subtract the v_xc from COH part of the self-energy, as V_xc is also not updated during the timestepping
-      @:SPIN_DO(j, re, im, tdagw_env%n_spin)
-         CALL get_sigma(tdagw_env, qs_env, tdagw_env%sigma_COH(re), -0.5_dp, greens_dbcsr_opt=tdagw_env%S_inv)
-         ! TODO : Maybe enable printing underneath debug option?
-         ! PRINT *, "== Sigma COH =="
-         ! CALL cp_fm_write_formatted(sigma_COH, 6)
-         CALL cp_fm_scale_and_add(1.0_dp, tdagw_env%sigma_COH(re)%matrix, -1.0_dp, bs_env%fm_V_xc_Gamma(j))
-         ! PRINT *, "metric sigma_COH + Vxc, RE spin", j, cp_fm_norm(tdagw_env%sigma_COH(re)%matrix, "M")
-         ! PRINT *, "metric sigma_COH + Vxc, IM spin", j, cp_fm_norm(tdagw_env%sigma_COH(im)%matrix, "M")
-      END DO
+      IF (tdagw_env%ham_single_particle_type == rtp_tdagw_ham_g0w0) THEN
+         ! Subtract the v_xc from COH part of the self-energy, as V_xc is also not updated during the timestepping
+         @:SPIN_DO(j, re, im, tdagw_env%n_spin)
+            CALL get_sigma(tdagw_env, qs_env, tdagw_env%sigma_COH(re), -0.5_dp, greens_dbcsr_opt=tdagw_env%S_inv)
+            ! TODO : Maybe enable printing underneath debug option?
+            ! PRINT *, "== Sigma COH =="
+            ! CALL cp_fm_write_formatted(sigma_COH, 6)
+            CALL cp_fm_scale_and_add(1.0_dp, tdagw_env%sigma_COH(re)%matrix, -1.0_dp, bs_env%fm_V_xc_Gamma(j))
+            ! PRINT *, "metric sigma_COH + Vxc, RE spin", j, cp_fm_norm(tdagw_env%sigma_COH(re)%matrix, "M")
+            ! PRINT *, "metric sigma_COH + Vxc, IM spin", j, cp_fm_norm(tdagw_env%sigma_COH(im)%matrix, "M")
+         END DO
+      ELSE
+         ! KS Hamiltonian - use static xc only
+         @:SPIN_DO(j, re, im, tdagw_env%n_spin)
+            CALL cp_fm_scale_and_add(0.0_dp, tdagw_env%sigma_COH(re)%matrix, 1.0_dp, bs_env%fm_V_xc_Gamma(j))
+         END DO
+      END IF
 
       ! Calculate the initial Hartree interaction matrix
       ! TODO : k-points and the possible divergence
@@ -280,12 +287,12 @@ CONTAINS
                END DO
             END IF
          END DO
+         PRINT *, "Sim step : ", tdagw_env%sim_step, "Convergence : ", metric, "Threshold : ", tdagw_env%etrs_threshold
          CPASSERT(converged)
          @:SPIN_DO(j, re, im, tdagw_env%n_spin)
             CALL cp_fm_to_fm(tdagw_env%rho_new(re)%matrix, tdagw_env%rho(re)%matrix)
             CALL cp_fm_to_fm(tdagw_env%rho_new(im)%matrix, tdagw_env%rho(im)%matrix)
          END DO
-         ! TODO : Implement more relevant outputs
          ! TODO : k-points
          CALL output_mos_rho(tdagw_env, tdagw_env%rho, bs_env%fm_mo_coeff_Gamma, rtp_section)
          CALL output_moments(tdagw_env, tdagw_env%rho, bs_env%fm_mo_coeff_Gamma, rtp_section)
@@ -309,10 +316,6 @@ CONTAINS
       INTEGER                                            :: j, re, im
       COMPLEX(kind=dp)                                   :: scale_factor
       
-      ! TODO : find the max element of rho_new - rho_old
-      ! difference is easy, absolute value of complex matrix elements and searching for max less so?
-      ! ha, nevermind, cp_fm_norm should be pretty much exactly what is needed
-      ! TODO : use cp_fm_to_cfm + cp_cfm_norm to get the norm
       ! Complex matrix for each spin
       ALLOCATE(partial_metric(nspin))
       CALL cp_cfm_create(workspace(1), rho_new(1)%matrix%matrix_struct)
@@ -431,17 +434,20 @@ CONTAINS
          CALL cp_fm_scale_and_add(1.0_dp, tdagw_env%ham_effective(im)%matrix,&
                                   1.0_dp, tdagw_env%sigma_COH(im)%matrix)
          ! PRINT *, "HAM_EFF_UP COH Spin index : ", j, antiherm_metric(tdagw_env%ham_effective(re), tdagw_env%ham_effective(im))
-         ! Calculate the SEX part - based on provided rho, not on the 
+         ! Calculate the SEX part - based on provided rho, not on the
+         ! Only occurs for G0W0 Hamiltonian - otherwise, V_xc is stored in COH and Hartree is always present 
          ! TODO : Can get away with smaller number of matrices? - depends on memory consumption
          ! iGW = - rho W = - Re(rho) W - i Im(rho) W
-         CALL get_sigma(tdagw_env, qs_env, tdagw_env%sigma_SEX(re),&
-                        -1.0_dp, greens_fm_opt=rho(re))
-         CALL cp_fm_scale_and_add(1.0_dp, tdagw_env%ham_effective(re)%matrix,&
-                                  1.0_dp, tdagw_env%sigma_SEX(re)%matrix)
-         CALL get_sigma(tdagw_env, qs_env, tdagw_env%sigma_SEX(im), -1.0_dp,&
-                        greens_fm_opt=rho(im))
-         CALL cp_fm_scale_and_add(1.0_dp, tdagw_env%ham_effective(im)%matrix,&
-                                  1.0_dp, tdagw_env%sigma_SEX(im)%matrix)
+         IF ( tdagw_env%ham_single_particle_type == rtp_tdagw_ham_g0w0) THEN
+            CALL get_sigma(tdagw_env, qs_env, tdagw_env%sigma_SEX(re),&
+                           -1.0_dp, greens_fm_opt=rho(re))
+            CALL cp_fm_scale_and_add(1.0_dp, tdagw_env%ham_effective(re)%matrix,&
+                                     1.0_dp, tdagw_env%sigma_SEX(re)%matrix)
+            CALL get_sigma(tdagw_env, qs_env, tdagw_env%sigma_SEX(im), -1.0_dp,&
+                           greens_fm_opt=rho(im))
+            CALL cp_fm_scale_and_add(1.0_dp, tdagw_env%ham_effective(im)%matrix,&
+                                     1.0_dp, tdagw_env%sigma_SEX(im)%matrix)
+         END IF
          ! PRINT *, "HAM_EFF_UP SEX Spin index : ", j, antiherm_metric(tdagw_env%ham_effective(re), tdagw_env%ham_effective(im))
          ! Calculate update Hartree potential
          ! TODO : Spin (in)dependence check
@@ -955,7 +961,10 @@ CONTAINS
                                                             per_thread,&
                                                             per_this_thread,&
                                                             extra_threads,&
-                                                            thread_id
+                                                            thread_id,&
+                                                            handle
+
+      CALL timeset(routineN, handle)
       
       ! Desymmetrize the matrix
       IF (dbcsr_has_symmetry(matrix)) THEN
@@ -1043,6 +1052,9 @@ CONTAINS
          CALL dbcsr_release(matrix_desym)
          DEALLOCATE(matrix_desym)
       END IF
+
+      CALL timestop(handle)
+
    END SUBROUTINE
 ! **************************************************************************************************
 !> \brief Copies the data from a 3d tensor to a matrix, only taking into account fist slice
@@ -1062,8 +1074,11 @@ CONTAINS
       REAL(kind=dp), DIMENSION(:,:,:), ALLOCATABLE       :: block_tensor
       REAL(kind=dp), DIMENSION(:,:), ALLOCATABLE         :: block_matrix
       LOGICAL                                            :: found
-      INTEGER                                            :: backup
+      INTEGER                                            :: backup,&
+                                                            handle
       
+      CALL timeset(routineN, handle)
+
       ! Start the block iterator
       ! Has to be inside an omp block
       backup = omp_get_max_threads()
@@ -1093,6 +1108,8 @@ CONTAINS
       CALL dbt_iterator_stop(iterator_tensor)
       !$OMP END PARALLEL
       CALL omp_set_num_threads(backup)
+      
+      CALL timestop(handle)
    END SUBROUTINE
 ! **************************************************************************************************
 !> \brief Calculates the Hartree matrix in the atomic orbital basis, given a density matrix
@@ -1113,6 +1130,9 @@ CONTAINS
       TYPE(cp_fm_type), POINTER, INTENT(OUT)             :: V_ao
       CHARACTER(len=*), PARAMETER                        :: routineN = 'get_hartree'
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
+      INTEGER                                            :: handle
+
+      CALL timeset(routineN, handle)
 
       CALL get_qs_env(qs_env, bs_env=bs_env)
 
@@ -1164,6 +1184,8 @@ CONTAINS
       CALL dbt_clear(tdagw_env%t_3c_w)
       CALL dbt_clear(tdagw_env%t_3c_work_RI__AO_AO)
       CALL dbcsr_clear(tdagw_env%rho_dbcsr)
+
+      CALL timestop(handle)
    END SUBROUTINE
 ! **************************************************************************************************
 !> \brief Calculates the Hartree matrix in the atomic orbital basis, given a density matrix, using PW approach

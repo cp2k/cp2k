@@ -194,15 +194,22 @@ CONTAINS
       ! Allocate and determine the expansion orders, based on arguments used in TDDFT
       ! TODO : Last two arguments are indicating that we are using Taylor expansion and not doing ion motion
       ALLOCATE(tdagw_env%orders(2, tdagw_env%n_spin))
-      CALL get_nsquare_norder(2.0_dp*MAX(ABS(MAXVAL(bs_env%eigenval_G0W0)),&
-                              ABS(MINVAL(bs_env%eigenval_G0W0))),&
-                              tdagw_env%orders(1,1), tdagw_env%orders(2,1),&
-                              tdagw_env%dft_control%rtp_control%eps_exp,&
-                              1, .FALSE.)
-      IF (tdagw_env%n_spin > 1) THEN
-         DO i=2,tdagw_env%n_spin
-            tdagw_env%orders(1,i) = tdagw_env%orders(1,1)
-            tdagw_env%orders(2,i) = tdagw_env%orders(2,1)
+      IF (tdagw_env%ham_single_particle_type == rtp_tdagw_ham_g0w0) THEN
+         @:SPIN_DO(i, re, im, tdagw_env%n_spin)
+            CALL get_nsquare_norder(2.0_dp*MAX(ABS(MAXVAL(bs_env%eigenval_G0W0(:,bs_env%nkp_DOS,i))),&
+                                    ABS(MINVAL(bs_env%eigenval_G0W0(:,bs_env%nkp_DOS,i)))),&
+                                    tdagw_env%orders(1,i), tdagw_env%orders(2,i),&
+                                    tdagw_env%dft_control%rtp_control%eps_exp,&
+                                    1, .FALSE.)
+         END DO
+      ELSE
+         ! KS Ham
+         @:SPIN_DO(i,re,im,tdagw_env%n_spin)
+            CALL get_nsquare_norder(2.0_dp*MAX(ABS(MAXVAL(bs_env%eigenval_scf_Gamma(:,i))),&
+                                    ABS(MINVAL(bs_env%eigenval_scf_Gamma(:,i)))),&
+                                    tdagw_env%orders(1,i), tdagw_env%orders(2,i),&
+                                    tdagw_env%dft_control%rtp_control%eps_exp,&
+                                    1, .FALSE.)
          END DO
       END IF
       ! Sim start index and total number of steps as well
@@ -268,10 +275,17 @@ CONTAINS
       ALLOCATE(tdagw_env%ham_single_particle(tdagw_env%n_spin))
       @:SPIN_DO(i, re, im, tdagw_env%n_spin)
          ALLOCATE(tdagw_env%ham_single_particle(i)%matrix)
-         CALL cp_fm_create(tdagw_env%ham_single_particle(i)%matrix, bs_env%fm_h_G0W0_Gamma%matrix_struct)
-         ! TODO : So far no spin resolution in Hamiltonian of GW
-         CALL cp_fm_to_fm(bs_env%fm_h_G0W0_Gamma, tdagw_env%ham_single_particle(i)%matrix)
-         ! CALL cp_fm_to_fm(bs_env%fm_ks_Gamma(i), tdagw_env%ham_single_particle(i)%matrix)
+         IF ( tdagw_env%ham_single_particle_type == rtp_tdagw_ham_g0w0 ) THEN
+            ! G0W0 Hamiltonian
+            CALL cp_fm_create(tdagw_env%ham_single_particle(i)%matrix, bs_env%fm_h_G0W0_Gamma%matrix_struct)
+            ! TODO : So far no spin resolution in Hamiltonian of GW
+            CALL cp_fm_to_fm(bs_env%fm_h_G0W0_Gamma, tdagw_env%ham_single_particle(i)%matrix)
+            ! CALL cp_fm_to_fm(bs_env%fm_ks_Gamma(i), tdagw_env%ham_single_particle(i)%matrix)
+         ELSE
+            ! KS Hamiltonian
+            CALL cp_fm_create(tdagw_env%ham_single_particle(i)%matrix, bs_env%fm_ks_Gamma(i)%matrix_struct)
+            CALL cp_fm_to_fm(bs_env%fm_ks_Gamma(i), tdagw_env%ham_single_particle(i)%matrix)
+         END IF
       END DO
 
       ! Create the matrices and workspaces for effective Hamiltonian
