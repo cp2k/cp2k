@@ -27,6 +27,7 @@ MODULE rt_tdagw_types
                                               dbcsr_release,&
                                               dbcsr_print,&
                                               dbcsr_copy
+   USE parallel_gemm_api,               ONLY: parallel_gemm
    USE dbt_api,                         ONLY: dbt_type,&
                                               dbt_pgrid_type,&
                                               dbt_pgrid_create,&
@@ -134,6 +135,7 @@ MODULE rt_tdagw_types
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER                 :: sigma_SEX, sigma_COH
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER                 :: hartree_orig, hartree_curr
       INTEGER, DIMENSION(:,:), POINTER                          :: orders
+      INTEGER                                                   :: etrs_max_iter
       INTEGER                                                   :: hartree_method
       INTEGER                                                   :: ham_single_particle_type
 
@@ -150,6 +152,7 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER                 :: moments_dbcsr_p
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER                 :: matrix_s,&
                                                                    rho_dbcsr
+      TYPE(cp_fm_type)                                          :: matrix_s_fm
       TYPE(mo_set_type), DIMENSION(:), POINTER                  :: mos
       INTEGER                                                   :: i, re, im
       REAL(kind=dp), DIMENSION(:), POINTER                      :: custom_ref_point
@@ -186,6 +189,8 @@ CONTAINS
                                 i_val=tdagw_env%hartree_method)
       CALL section_vals_val_get(input, "DFT%REAL_TIME_PROPAGATION%TDAGW_HAMILTONIAN",&
                                 i_val=tdagw_env%ham_single_particle_type)
+      CALL section_vals_val_get(input, "DFT%REAL_TIME_PROPAGATION%MAX_ITER",&
+                                i_val=tdagw_env%etrs_max_iter)
       ! Allocate and determine the expansion orders, based on arguments used in TDDFT
       ! TODO : Last two arguments are indicating that we are using Taylor expansion and not doing ion motion
       ALLOCATE(tdagw_env%orders(2, tdagw_env%n_spin))
@@ -332,6 +337,16 @@ CONTAINS
       IF ( tdagw_env%hartree_method == rtp_tdagw_hartree_dbt ) THEN
          CALL create_hartree_dbt_workspace(tdagw_env, qs_env)
       END IF
+      ! TODO : Test whether this multiplication fixes some of the problems with propagation
+      CALL cp_fm_create(matrix_s_fm, tdagw_env%rho(1)%matrix%matrix_struct)
+      @:SPIN_DO(i, re, im, tdagw_env%n_spin)
+         CALL copy_dbcsr_to_fm(matrix_s(i)%matrix, matrix_s_fm)
+         CALL parallel_gemm("N", "N", tdagw_env%n_ao, tdagw_env%n_ao, tdagw_env%n_ao,&
+                            1.0_dp, matrix_s_fm, tdagw_env%rho(i)%matrix, 0.0_dp, tdagw_env%rho_workspace(1)%matrix)
+         CALL parallel_gemm("N", "N", tdagw_env%n_ao, tdagw_env%n_ao, tdagw_env%n_ao,&
+                            1.0_dp, tdagw_env%rho_workspace(1)%matrix, matrix_s_fm, 0.0_dp, tdagw_env%rho(i)%matrix)
+      END DO
+      CALL cp_fm_release(matrix_s_fm)
       
    END SUBROUTINE
 
