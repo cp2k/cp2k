@@ -27,8 +27,6 @@ MODULE qs_tddfpt2_assign
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
-   USE qs_mo_types,                     ONLY: get_mo_set,&
-                                              mo_set_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -50,15 +48,15 @@ CONTAINS
 !> \param qs_env ...
 !> \param matrix_s ...
 !> \param evects ...
-!> \param mos ...
+!> \param psi0 ...
 !> \param wfn_history ...
 !> \param my_state ...
 ! **************************************************************************************************
-   SUBROUTINE assign_state(qs_env, matrix_s, evects, mos, wfn_history, my_state)
+   SUBROUTINE assign_state(qs_env, matrix_s, evects, psi0, wfn_history, my_state)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
       TYPE(cp_fm_type), DIMENSION(:, :)                  :: evects
-      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
+      TYPE(cp_fm_type), DIMENSION(:)                     :: psi0
       TYPE(wfn_history_type)                             :: wfn_history
       INTEGER, INTENT(INOUT)                             :: my_state
 
@@ -68,23 +66,16 @@ CONTAINS
                                                             nstate
       REAL(KIND=dp)                                      :: xsum
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: dv, rdiag
-      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: psi0
-      TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(dbcsr_type), POINTER                          :: smat
       TYPE(mp_para_env_type), POINTER                    :: para_env
 
       CALL timeset(routineN, handle)
 
       CALL get_qs_env(qs_env, natom=natom, para_env=para_env)
-      nspins = SIZE(mos)
+      nspins = SIZE(psi0)
       nstate = SIZE(evects, 2)
       !
       smat => matrix_s(1)%matrix
-      ALLOCATE (psi0(nspins))
-      DO ispin = 1, nspins
-         CALL get_mo_set(mo_set=mos(ispin), mo_coeff=mo_coeff)
-         psi0(ispin) = mo_coeff
-      END DO
       !
       IF (ASSOCIATED(wfn_history%evect)) THEN
          ALLOCATE (dv(nstate))
@@ -147,8 +138,6 @@ CONTAINS
          wfn_history%gsval = 1.0_dp
          wfn_history%gsmin = 1.0_dp
       END IF
-      !
-      DEALLOCATE (psi0)
 
       CALL timestop(handle)
 
@@ -179,6 +168,7 @@ CONTAINS
 
       INTEGER                                            :: handle, n, ncol_global, ndep
       REAL(dp)                                           :: threshold, xsum
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: rdiag
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp
       TYPE(cp_fm_type)                                   :: csc, sc, work
 
@@ -216,8 +206,10 @@ CONTAINS
       ! normalisation
       CALL cp_dbcsr_sm_fm_multiply(matrix_s, xmatrix, sc, ncol)
       CALL parallel_gemm('T', 'N', ncol, ncol, n, rone, xmatrix, sc, rzero, csc)
-      xsum = SUM(csc%local_data)
-      CALL csc%matrix_struct%para_env%sum(xsum)
+      ALLOCATE (rdiag(ncol))
+      CALL cp_fm_get_diag(csc, rdiag)
+      xsum = SUM(rdiag)
+      DEALLOCATE (rdiag)
       xsum = 1._dp/SQRT(xsum)
       CALL cp_fm_scale(xsum, xmatrix)
 
