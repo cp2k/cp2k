@@ -109,23 +109,24 @@ override ACCFLAGS := $(CXXSTD) $(filter-out --std=c++11,$(ACCFLAGS))
 
 # If compiling with nvcc
 ifeq (cuda,$(USE_ACCEL))
-  override ACCFLAGS += -D__CUDA
-  FCFLAGS += -D__CUDA
-  CXXFLAGS += -D__CUDA
+  override ACCFLAGS := -D__CUDA -DARCH_NUMBER=$(ARCH_NUMBER) $(filter-out -D__CUDA,$(ACCFLAGS))
+  CXXFLAGS := -D__CUDA $(filter-out -D__CUDA,$(CXXFLAGS))
+  FCFLAGS := -D__CUDA $(filter-out -D__CUDA,$(FCFLAGS))
   #if "-arch" has not yet been set in ACCFLAGS
   ifeq (,$(findstring -arch,$(ACCFLAGS)))
-    override ACCFLAGS += -arch sm_$(ARCH_NUMBER)
+    override ACCFLAGS := -arch sm_$(ARCH_NUMBER) $(ACCFLAGS)
   endif
   ifeq (,$(findstring -Xcompiler,$(ACCFLAGS)))
-    override ACCFLAGS += -Xcompiler="$(CXXFLAGS)"
+    override ACCFLAGS := $(ACCFLAGS) -Xcompiler="$(CXXFLAGS)"
   endif
 # If compiling with hipcc
 else ifeq (hip,$(USE_ACCEL))
-  override ACCFLAGS += -D__HIP
-  FCFLAGS += -D__HIP
+  override ACCFLAGS := -D__HIP -DARCH_NUMBER=$(ARCH_NUMBER) $(filter-out -D__HIP,$(ACCFLAGS))
+  CXXFLAGS := -D__HIP $(filter-out -D__HIP,$(CXXFLAGS))
+  FCFLAGS := -D__HIP $(filter-out -D__HIP,$(FCFLAGS))
 # OpenCL backend
 else ifeq (opencl,$(USE_ACCEL))
-  CFLAGS := $(if $(ACCFLAGS),$(ACCFLAGS),$(CFLAGS)) -D__OPENCL
+  CFLAGS := -D__OPENCL $(filter-out -D__OPENCL,$(if $(ACCFLAGS),$(ACCFLAGS),$(CFLAGS))) 
 endif
 
 # Set the configuration =====================================================
@@ -265,12 +266,9 @@ FYPPFLAGS ?= -n
 %.o: %.c
 	$(CC) -c $(CFLAGS) $<
 
-# Compile the CUDA/HIP files
 ifneq ($(ACC),)
+# if compiling CUDA/HIP backend
 ifneq (opencl,$(USE_ACCEL))
-<<<<<<< HEAD
-%.o: %.cpp
-=======
 ifeq (cuda,$(USE_ACCEL))
 # consider omitting opt-level due to extreme compilation time even if opt-flag only targets the host compiler
 %.o: %.cpp parameters.h smm_acc_kernels.h
@@ -280,38 +278,10 @@ else # HIP
 	$(OFFLOAD_CC) -D__HIP -c $(OFFLOAD_FLAGS) -I'$(SRCDIR)' $<
 endif
 %.o: %.cu parameters.h smm_acc_kernels.h
->>>>>>> 6842c52c48 (Adjusted C++ standard level (when relying on NVCC). Rely on OFFLOAD_CC and OFFLOAD_FLAGS for HIP/CC.)
 	$(ACC) -c $(ACCFLAGS) -I'$(SRCDIR)' $<
-libsmm_acc.o: libsmm_acc.cpp parameters.h smm_acc_kernels.h
-	$(ACC) -c $(ACCFLAGS) -DARCH_NUMBER=$(ARCH_NUMBER) $<
-libsmm_acc_benchmark.o: libsmm_acc_benchmark.cpp parameters.h
-	$(ACC) -c $(ACCFLAGS) -I'$(SRCDIR)' $<
-libsmm_acc_init.o: libsmm_acc_init.cpp libsmm_acc_init.h parameters.h
-	$(ACC) -c $(ACCFLAGS) -I'$(SRCDIR)' $<
-endif
-endif
 
-# if compiling CUDA backend
-ifneq ($(ACC),)
-ifeq (cuda,$(USE_ACCEL))
-calculate_norms.o: calculate_norms.cpp
-	$(ACC) -x cu -c $(ACCFLAGS) -I'$(SRCDIR)' $<
-%.o: %.cpp
-	$(ACC) -c $(ACCFLAGS) -I'$(SRCDIR)' $<
-acc_cuda.o: acc_cuda.cpp acc_cuda.h
-	$(ACC) -c $(ACCFLAGS) -I'$(SRCDIR)' $<
-%.o: %.cu
-	$(ACC) -c $(ACCFLAGS) -I'$(SRCDIR)' $<
-# if compiling HIP backend
-else ifeq (hip,$(USE_ACCEL))
-calculate_norms.o: calculate_norms.cpp
-	$(OFFLOAD_CC) -D__HIP -c $(OFFLOAD_FLAGS) -I'$(SRCDIR)' $<
-%.o: %.cpp
-	$(ACC) -c $(ACCFLAGS) -I'$(SRCDIR)' $<
-acc_hip.o: acc_hip.cpp acc_hip.h
-	$(ACC) -c $(ACCFLAGS) -I'$(SRCDIR)' $<
 # if compiling OpenCL backend
-else ifeq (opencl,$(USE_ACCEL))
+else
 OPENCL_KRNLGEN := $(LIBSMM_ACC_ABS_DIR)/../opencl/acc_opencl.sh
 OPENCL_KERNELS := $(wildcard $(LIBSMM_ACC_ABS_DIR)/../opencl/smm/kernels/*.cl)
 OPENCL_DEFAULT := $(wildcard $(LIBSMM_ACC_ABS_DIR)/../opencl/smm/tune_multiply.csv)
