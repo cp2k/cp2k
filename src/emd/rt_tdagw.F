@@ -121,7 +121,9 @@ MODULE rt_tdagw
    USE input_constants,                 ONLY: rtp_tdagw_ham_ks,&
                                               rtp_tdagw_ham_g0w0,&
                                               rtp_tdagw_hartree_dbt,&
-                                              rtp_tdagw_hartree_pw
+                                              rtp_tdagw_hartree_pw,&
+                                              do_taylor,&
+                                              do_bch
    USE rt_tdagw_types,                  ONLY: tdagw_env_type,&
                                               create_tdagw_env,&
                                               release_tdagw_env
@@ -389,9 +391,17 @@ CONTAINS
          ! Real part of the exponent = - imag part of the matrix
          CALL cp_fm_scale(-tdagw_env%sim_dt/2, tdagw_env%rho_workspace(2)%matrix)
          ! TODO : Understand which input options set the orders
-         CALL taylor_full_complex([tdagw_env%ham_workspace(re)%matrix, tdagw_env%ham_workspace(im)%matrix],&
-                                  tdagw_env%rho_workspace(2)%matrix, tdagw_env%rho_workspace(1)%matrix,&
-                                  tdagw_env%orders(1,j), tdagw_env%orders(2,j))
+         IF (tdagw_env%mat_exp_method == do_taylor) THEN
+            CALL taylor_full_complex([tdagw_env%ham_workspace(re)%matrix, tdagw_env%ham_workspace(im)%matrix],&
+                                     tdagw_env%rho_workspace(2)%matrix, tdagw_env%rho_workspace(1)%matrix,&
+                                     tdagw_env%orders(1,j), tdagw_env%orders(2,j))
+         ELSE IF (tdagw_env%mat_exp_method == do_bch) THEN
+            ! In BCH, exponential is not calculated explicitly, but the propagation is solved in series
+            CALL cp_fm_to_fm(tdagw_env%rho_workspace(2)%matrix, tdagw_env%ham_workspace(re)%matrix)
+            CALL cp_fm_to_fm(tdagw_env%rho_workspace(1)%matrix, tdagw_env%ham_workspace(im)%matrix)
+         ELSE
+            CPABORT("Only BCH and Taylor matrix exponentiation implemented")
+         END IF
       END DO
    END SUBROUTINE
 ! **************************************************************************************************
@@ -482,7 +492,10 @@ CONTAINS
       TYPE(cp_fm_p_type), DIMENSION(:)                   :: exponential,&
                                                             rho_old,&
                                                             rho_new
-      INTEGER                                            :: j, re, im
+      INTEGER                                            :: j, re, im, k
+      REAL(kind=dp)                                      :: convergence,&
+                                                            prefactor
+      LOGICAL                                            :: converged
       ! TODO : Consult/think about using complex routines and types
       ! (ham_exp(re)^T - i * ham_exp(im)^T) * (rho_full(re) + i * rho_full(im)) * (ham_exp(re) + i * ham_exp(im)) = 
       ! + ham_exp(re)^T * (rho_full(re) * ham_exp(re) - rho_full(im) * ham_exp(im)) | Term 1
@@ -493,41 +506,113 @@ CONTAINS
       ! Real part
       ! TODO : Basis dimensions to tdagw_env
       ! Term 1 - right multiplication first
-      @:SPIN_DO(j, re, im, tdagw_env%n_spin)
-         CALL parallel_gemm("N","N", tdagw_env%n_ao, tdagw_env%n_ao, tdagw_env%n_ao,&
-                            1.0_dp, rho_old(re)%matrix, exponential(re)%matrix,&
-                            0.0_dp, tdagw_env%rho_workspace(1)%matrix)
-         CALL parallel_gemm("N","N", tdagw_env%n_ao, tdagw_env%n_ao, tdagw_env%n_ao,&
-                           -1.0_dp, rho_old(im)%matrix, exponential(im)%matrix,&
-                            1.0_dp, tdagw_env%rho_workspace(1)%matrix)
-         ! Now term 1 left multiplication real part
-         CALL parallel_gemm("T", "N", tdagw_env%n_ao, tdagw_env%n_ao, tdagw_env%n_ao,&
-                            1.0_dp, exponential(re)%matrix, tdagw_env%rho_workspace(1)%matrix,&
-                            0.0_dp, tdagw_env%rho_workspace(2)%matrix)
-         ! Now term 1 left multiplication imag part
-         CALL parallel_gemm("T", "N", tdagw_env%n_ao, tdagw_env%n_ao, tdagw_env%n_ao,&
-                           -1.0_dp, exponential(im)%matrix, tdagw_env%rho_workspace(1)%matrix,&
-                            0.0_dp, tdagw_env%rho_workspace(3)%matrix)
-         ! Repeat the same procedure for the second term
-         ! Term 2 - right multiplication first
-         CALL parallel_gemm("N","N", tdagw_env%n_ao, tdagw_env%n_ao, tdagw_env%n_ao,&
-                            1.0_dp, rho_old(re)%matrix, exponential(im)%matrix,&
-                            0.0_dp, tdagw_env%rho_workspace(1)%matrix)
-         CALL parallel_gemm("N","N",tdagw_env%n_ao, tdagw_env%n_ao, tdagw_env%n_ao,&
-                            1.0_dp, rho_old(im)%matrix, exponential(re)%matrix,&
-                            1.0_dp, tdagw_env%rho_workspace(1)%matrix)
-         ! Now term 2 left multiplication real part
-         CALL parallel_gemm("T", "N", tdagw_env%n_ao, tdagw_env%n_ao, tdagw_env%n_ao,&
-                            1.0_dp, exponential(im)%matrix, tdagw_env%rho_workspace(1)%matrix,&
-                            1.0_dp, tdagw_env%rho_workspace(2)%matrix)
-         ! Now term 2 left multiplication imag part
-         CALL parallel_gemm("T","N", tdagw_env%n_ao, tdagw_env%n_ao, tdagw_env%n_ao,&
-                            1.0_dp, exponential(re)%matrix, tdagw_env%rho_workspace(1)%matrix,&
-                            1.0_dp, tdagw_env%rho_workspace(3)%matrix)
-         ! Finally, copy the results to rho - not used anymore TODO : Unless there is spin coupling
-         CALL cp_fm_to_fm(tdagw_env%rho_workspace(2)%matrix, rho_new(re)%matrix)
-         CALL cp_fm_to_fm(tdagw_env%rho_workspace(3)%matrix, rho_new(im)%matrix)
-      END DO
+      IF (tdagw_env%mat_exp_method == do_taylor) THEN
+         @:SPIN_DO(j, re, im, tdagw_env%n_spin)
+            CALL parallel_gemm("N","N", tdagw_env%n_ao, tdagw_env%n_ao, tdagw_env%n_ao,&
+                               1.0_dp, rho_old(re)%matrix, exponential(re)%matrix,&
+                               0.0_dp, tdagw_env%rho_workspace(1)%matrix)
+            CALL parallel_gemm("N","N", tdagw_env%n_ao, tdagw_env%n_ao, tdagw_env%n_ao,&
+                              -1.0_dp, rho_old(im)%matrix, exponential(im)%matrix,&
+                               1.0_dp, tdagw_env%rho_workspace(1)%matrix)
+            ! Now term 1 left multiplication real part
+            CALL parallel_gemm("T", "N", tdagw_env%n_ao, tdagw_env%n_ao, tdagw_env%n_ao,&
+                               1.0_dp, exponential(re)%matrix, tdagw_env%rho_workspace(1)%matrix,&
+                               0.0_dp, tdagw_env%rho_workspace(2)%matrix)
+            ! Now term 1 left multiplication imag part
+            CALL parallel_gemm("T", "N", tdagw_env%n_ao, tdagw_env%n_ao, tdagw_env%n_ao,&
+                              -1.0_dp, exponential(im)%matrix, tdagw_env%rho_workspace(1)%matrix,&
+                               0.0_dp, tdagw_env%rho_workspace(3)%matrix)
+            ! Repeat the same procedure for the second term
+            ! Term 2 - right multiplication first
+            CALL parallel_gemm("N","N", tdagw_env%n_ao, tdagw_env%n_ao, tdagw_env%n_ao,&
+                               1.0_dp, rho_old(re)%matrix, exponential(im)%matrix,&
+                               0.0_dp, tdagw_env%rho_workspace(1)%matrix)
+            CALL parallel_gemm("N","N",tdagw_env%n_ao, tdagw_env%n_ao, tdagw_env%n_ao,&
+                               1.0_dp, rho_old(im)%matrix, exponential(re)%matrix,&
+                               1.0_dp, tdagw_env%rho_workspace(1)%matrix)
+            ! Now term 2 left multiplication real part
+            CALL parallel_gemm("T", "N", tdagw_env%n_ao, tdagw_env%n_ao, tdagw_env%n_ao,&
+                               1.0_dp, exponential(im)%matrix, tdagw_env%rho_workspace(1)%matrix,&
+                               1.0_dp, tdagw_env%rho_workspace(2)%matrix)
+            ! Now term 2 left multiplication imag part
+            CALL parallel_gemm("T","N", tdagw_env%n_ao, tdagw_env%n_ao, tdagw_env%n_ao,&
+                               1.0_dp, exponential(re)%matrix, tdagw_env%rho_workspace(1)%matrix,&
+                               1.0_dp, tdagw_env%rho_workspace(3)%matrix)
+            ! Finally, copy the results to rho - not used anymore TODO : Unless there is spin coupling
+            CALL cp_fm_to_fm(tdagw_env%rho_workspace(2)%matrix, rho_new(re)%matrix)
+            CALL cp_fm_to_fm(tdagw_env%rho_workspace(3)%matrix, rho_new(im)%matrix)
+         END DO
+      ELSE IF (tdagw_env%mat_exp_method == do_bch) THEN
+         ! TODO : Spin orbit?
+         @:SPIN_DO(j,re,im,tdagw_env%n_spin)
+            ! Set the first term of series to old rho
+            CALL cp_fm_to_fm(rho_old(re)%matrix, rho_new(re)%matrix)
+            CALL cp_fm_to_fm(rho_old(im)%matrix, rho_new(im)%matrix)
+            ! Set up the zeroth commutator - stored in rho-workspace
+            CALL cp_fm_to_fm(rho_old(re)%matrix, tdagw_env%rho_workspace(1)%matrix)
+            CALL cp_fm_to_fm(rho_old(im)%matrix, tdagw_env%rho_workspace(2)%matrix)
+            ! TODO : Configuration of bch_max_iter
+            converged = .FALSE.
+            DO k=1,20
+               prefactor = 1.0_dp/REAL(k, kind=dp)
+               ! Real part of the new commutator
+               ! exponential contains i * dt * S^-1 * H = H_S
+               ! Re (H_S)^T * Re(C_n-1)
+               CALL parallel_gemm("T", "N", tdagw_env%n_ao, tdagw_env%n_ao, tdagw_env%n_ao,&
+                                 prefactor, exponential(re)%matrix, tdagw_env%rho_workspace(1)%matrix,&
+                                 0.0_dp, tdagw_env%rho_workspace(3)%matrix)
+               ! Im (H_S)^T * Im(C_n-1)
+               CALL parallel_gemm("T", "N", tdagw_env%n_ao, tdagw_env%n_ao, tdagw_env%n_ao,&
+                                 prefactor, exponential(im)%matrix, tdagw_env%rho_workspace(2)%matrix,&
+                                 1.0_dp, tdagw_env%rho_workspace(3)%matrix)
+               ! Re (C_n-1) * Re(H_S)
+               CALL parallel_gemm("N", "N", tdagw_env%n_ao, tdagw_env%n_ao, tdagw_env%n_ao,&
+                                 prefactor, tdagw_env%rho_workspace(1)%matrix, exponential(re)%matrix,&
+                                 1.0_dp, tdagw_env%rho_workspace(3)%matrix)
+               ! - Im (C_n-1) * Im(H_S)
+               CALL parallel_gemm("N", "N", tdagw_env%n_ao, tdagw_env%n_ao, tdagw_env%n_ao,&
+                                -prefactor, tdagw_env%rho_workspace(2)%matrix, exponential(im)%matrix,&
+                                 1.0_dp, tdagw_env%rho_workspace(3)%matrix)
+               ! Real part finished, continue to construct the imaginary part
+               ! Re (H_S)^T * Im(C_n-1)
+               CALL parallel_gemm("T", "N", tdagw_env%n_ao, tdagw_env%n_ao, tdagw_env%n_ao,&
+                                 prefactor, exponential(re)%matrix, tdagw_env%rho_workspace(2)%matrix,&
+                                 0.0_dp, tdagw_env%rho_workspace(4)%matrix)
+               ! -Im (H_S)^T * Re(C_n-1)
+               CALL parallel_gemm("T", "N", tdagw_env%n_ao, tdagw_env%n_ao, tdagw_env%n_ao,&
+                                -prefactor, exponential(im)%matrix, tdagw_env%rho_workspace(1)%matrix,&
+                                 1.0_dp, tdagw_env%rho_workspace(4)%matrix)
+               ! Re (C_n-1) * Im(H_S)
+               CALL parallel_gemm("N", "N", tdagw_env%n_ao, tdagw_env%n_ao, tdagw_env%n_ao,&
+                                 prefactor, tdagw_env%rho_workspace(1)%matrix, exponential(im)%matrix,&
+                                 1.0_dp, tdagw_env%rho_workspace(4)%matrix)
+               ! Im (C_n-1) * Re(H_S)
+               CALL parallel_gemm("N", "N", tdagw_env%n_ao, tdagw_env%n_ao, tdagw_env%n_ao,&
+                                 prefactor, tdagw_env%rho_workspace(2)%matrix, exponential(re)%matrix,&
+                                 1.0_dp, tdagw_env%rho_workspace(4)%matrix)
+               ! Both parts ready, add to the new rho
+               CALL cp_fm_scale_and_add(1.0_dp, rho_new(re)%matrix, 1.0_dp, tdagw_env%rho_workspace(3)%matrix)
+               CALL cp_fm_scale_and_add(1.0_dp, rho_new(im)%matrix, 1.0_dp, tdagw_env%rho_workspace(4)%matrix)
+               ! Determine the metric and convergence threshold
+               ! TODO : Zero difference metric
+               CALL cp_fm_set_all(tdagw_env%rho_workspace(1)%matrix, 0.0_dp)
+               CALL cp_fm_set_all(tdagw_env%rho_workspace(2)%matrix, 0.0_dp)
+               convergence = rho_metric(tdagw_env%rho_workspace(3:4), tdagw_env%rho_workspace(1:2), tdagw_env%n_spin)
+               IF (convergence <= tdagw_env%exp_accuracy) THEN
+                  converged = .TRUE.
+                  PRINT *, "BCH Matrix propagation converged after ", k, "steps"
+                  EXIT
+               ELSE
+                  ! Ready for the next BCH term
+                  CALL cp_fm_to_fm(tdagw_env%rho_workspace(3)%matrix, tdagw_env%rho_workspace(1)%matrix)
+                  CALL cp_fm_to_fm(tdagw_env%rho_workspace(4)%matrix, tdagw_env%rho_workspace(2)%matrix)
+               END IF
+            END DO
+            CPASSERT(converged)
+         END DO
+      ELSE
+         CPABORT("Only BCH and Taylor matrix exponentiation implemented.")
+      END IF
    END SUBROUTINE
 
 ! **************************************************************************************************

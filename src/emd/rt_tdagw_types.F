@@ -58,7 +58,9 @@ MODULE rt_tdagw_types
                                               rtp_tdagw_ham_g0w0,&
                                               rtp_tdagw_ham_ks,&
                                               rtp_tdagw_hartree_dbt,&
-                                              rtp_tdagw_hartree_pw
+                                              rtp_tdagw_hartree_pw,&
+                                              do_taylor,&
+                                              do_bch
    USE input_section_types,             ONLY: section_vals_type,&
                                               section_vals_val_get
 
@@ -107,7 +109,8 @@ MODULE rt_tdagw_types
                                                                    sim_nsteps
       REAL(kind=dp)                                             :: sim_time,&
                                                                    sim_dt,&
-                                                                   etrs_threshold
+                                                                   etrs_threshold,&
+                                                                   exp_accuracy
       TYPE(dft_control_type), POINTER                           :: dft_control
 
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER                 :: ham_effective
@@ -138,6 +141,7 @@ MODULE rt_tdagw_types
       INTEGER                                                   :: etrs_max_iter
       INTEGER                                                   :: hartree_method
       INTEGER                                                   :: ham_single_particle_type
+      INTEGER                                                   :: mat_exp_method
 
    END TYPE tdagw_env_type
 
@@ -184,6 +188,8 @@ CONTAINS
       tdagw_env%sim_dt = rtp%dt
       ! Threshold for etrs is taken from the eps_energy from RT propagation
       tdagw_env%etrs_threshold = tdagw_env%dft_control%rtp_control%eps_ener
+      ! TODO : Check whether dft_control can be dropped from tdagw_env
+      tdagw_env%exp_accuracy = tdagw_env%dft_control%rtp_control%eps_exp
       ! Recover custom options
       CALL section_vals_val_get(input, "DFT%REAL_TIME_PROPAGATION%HARTREE_METHOD",&
                                 i_val=tdagw_env%hartree_method)
@@ -191,6 +197,8 @@ CONTAINS
                                 i_val=tdagw_env%ham_single_particle_type)
       CALL section_vals_val_get(input, "DFT%REAL_TIME_PROPAGATION%MAX_ITER",&
                                 i_val=tdagw_env%etrs_max_iter)
+      CALL section_vals_val_get(input, "DFT%REAL_TIME_PROPAGATION%MAT_EXP",&
+                                i_val=tdagw_env%mat_exp_method)
       ! Allocate and determine the expansion orders, based on arguments used in TDDFT
       ! TODO : Last two arguments are indicating that we are using Taylor expansion and not doing ion motion
       ALLOCATE(tdagw_env%orders(2, tdagw_env%n_spin))
@@ -313,8 +321,15 @@ CONTAINS
       END DO
 
       ! Allocate space for density propagation
-      ALLOCATE(tdagw_env%rho_workspace(3))
-      DO i=1,3
+      SELECT CASE (tdagw_env%mat_exp_method)
+         CASE (do_taylor)
+            ALLOCATE(tdagw_env%rho_workspace(3))
+         CASE (do_bch)
+            ALLOCATE(tdagw_env%rho_workspace(4))
+         CASE DEFAULT
+            CPABORT("Only Taylor and BCH matrix propagation implemented")
+      END SELECT
+      DO i=1,SIZE(tdagw_env%rho_workspace)
          ALLOCATE(tdagw_env%rho_workspace(i)%matrix)
          CALL cp_fm_create(tdagw_env%rho_workspace(i)%matrix, bs_env%fm_h_G0W0_Gamma%matrix_struct)
          CALL cp_fm_set_all(tdagw_env%rho_workspace(i)%matrix, 0.0_dp)
