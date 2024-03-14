@@ -430,8 +430,13 @@ CONTAINS
             my_state = ex_env%state
          ELSEIF (ex_env%state < 0) THEN
             ! state following
+            ALLOCATE (my_mos(nspins))
+            DO ispin = 1, nspins
+               my_mos(ispin) = gs_mos(ispin)%mos_occ
+            END DO
             my_state = ABS(ex_env%state)
-            CALL assign_state(qs_env, matrix_s, evects, mos, ex_env%wfn_history, my_state)
+            CALL assign_state(qs_env, matrix_s, evects, my_mos, ex_env%wfn_history, my_state)
+            DEALLOCATE (my_mos)
             IF (my_state /= ABS(ex_env%state)) THEN
                state_change = .TRUE.
                old_state = ABS(ex_env%state)
