@@ -51,7 +51,7 @@ FYPPEXE      := $(TOOLSDIR)/build_utils/fypp/bin/fypp
 SRCDIR       := $(DBCSRHOME)/src
 TESTSDIR     := $(DBCSRHOME)/tests
 ARCHFILE     :=
-CXXSTD       := --std=c++14
+CXXSTD       := -std=c++14
 
 PYTHON       := /usr/bin/env python3
 
@@ -105,7 +105,7 @@ endif
 # Set ACCFLAGS ==============================================================
 
 # Adjust C++ standard level
-override ACCFLAGS := $(CXXSTD) $(filter-out --std=c++11,$(ACCFLAGS))
+override ACCFLAGS := $(CXXSTD) $(filter-out -std=c++11,$(ACCFLAGS))
 
 # If compiling with nvcc
 ifeq (cuda,$(USE_ACCEL))
