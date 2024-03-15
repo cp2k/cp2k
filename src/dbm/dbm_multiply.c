@@ -19,14 +19,6 @@
 #include "dbm_multiply_gpu.h"
 #include "dbm_multiply_internal.h"
 
-#if defined(__LIBXSMM)
-#include <libxsmm.h>
-#endif
-
-#if !defined(DBM_MULTIPLY_VALIDATE) && 0
-#define DBM_MULTIPLY_VALIDATE
-#endif
-
 /*******************************************************************************
  * \brief Returns the larger of two given integer (missing from the C standard).
  * \author Ole Schuett
