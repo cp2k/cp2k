@@ -331,20 +331,20 @@ CONTAINS
          END DO
          DEALLOCATE (f_envs)
 
+         ! Finalize libraries (Offload)
          CALL dbm_library_finalize()
-
          CALL grid_library_finalize()
-
-         ! Finalize the DBCSR configuration
-         CALL dbcsr_finalize_lib()
          CALL pw_gpu_finalize()
+         ! Finalize the DBCSR library
+         CALL dbcsr_finalize_lib()
+
          CALL mp_para_env_release(default_para_env)
          ierr = 0
          CALL cp_rm_default_logger()
 
          CALL cp_dlaf_finalize()
 
-         !   *** deallocate the bibliography ***
+         ! Deallocate the bibliography
          CALL remove_all_references()
          CALL rm_timer_env()
          CALL rm_mp_perf_env()
