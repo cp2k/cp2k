@@ -431,8 +431,7 @@ serving DBM/DBT and other libraries depends on DBCSR's OpenCL backend.
 - Building CP2K with OpenCL-based DBM library
   - For manually writing an ARCH-file, add `-D__OFFLOAD_OPENCL` to `CFLAGS` in addition to following
     above instructions for "Building CP2K with OpenCL-based DBCSR". An additional Makefile rule can
-    be necessary to tranform OpenCL code into a ressource header file (provides a string literal
-    definition `OPENCL_DBM_SOURCE_MULTIPLY_OPENCL` denoting the kernel code).
+    be necessary to transform OpenCL code into a ressource header file.
 
 ### 2y. matrix-matrix multiplication offloading on GPU using SPLA
 
