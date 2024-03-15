@@ -4,16 +4,8 @@
 /*                                                                            */
 /*  SPDX-License-Identifier: BSD-3-Clause                                     */
 /*----------------------------------------------------------------------------*/
-#if !defined(LU) /* impacts opencl/common */
-#define LU 0
-#endif
-
 #include "../../exts/dbcsr/src/acc/opencl/common/opencl_atomics.h"
 #include "dbm_multiply_internal.h"
-
-#if !defined(BN)
-#define BN 4
-#endif
 
 #define IDX(I, J, K, M, N) ((I) * (N) + (J) + (K))
 #define IDT(I, J, K, M, N) IDX(J, I, K, N, M)
@@ -32,7 +24,7 @@
     }                                                                          \
   } while (0)
 
-#define DBM_MULTIPLY_ACCUMULATE(ALPHA, TASK, CV, C, M, N0)                     \
+#define DBM_MULTIPLY_ACCUMULATE(ALPHA, TASK, CV, C, M, BN, N0)                 \
   do { /* flush private accumulator to global memory using atomics */          \
     UNROLL_FORCE(BN)                                                           \
     for (int n = 0; n < (BN); ++n) {                                           \
@@ -61,12 +53,12 @@ kernel void dbm_multiply(double alpha, int itask, int ntasks,
           const int n1 = min(BN, task.n - n0);
           DBM_MULTIPLY_KERNEL(task, am, bm, cv, m, n0, n1, UNROLL_FORCE(BN),
                               UNROLL_AUTO);
-          DBM_MULTIPLY_ACCUMULATE(alpha, task, cv, cm, m, n0);
+          DBM_MULTIPLY_ACCUMULATE(alpha, task, cv, cm, m, BN, n0);
         }
       } else { /* small */
         DBM_MULTIPLY_KERNEL(task, am, bm, cv, m, 0, task.n, UNROLL_FORCE(BN),
                             UNROLL_FORCE(BN));
-        DBM_MULTIPLY_ACCUMULATE(alpha, task, cv, cm, m, 0);
+        DBM_MULTIPLY_ACCUMULATE(alpha, task, cv, cm, m, BN, 0);
       }
     }
   } else { /* full matrix multiplication */
@@ -78,7 +70,7 @@ kernel void dbm_multiply(double alpha, int itask, int ntasks,
         const int n1 = min(BN, task.n - n0);
         DBM_MULTIPLY_KERNEL(task, am, bm, cv, m, n0, n1, UNROLL_AUTO,
                             UNROLL_AUTO);
-        DBM_MULTIPLY_ACCUMULATE(alpha, task, cv, cm, m, n0);
+        DBM_MULTIPLY_ACCUMULATE(alpha, task, cv, cm, m, BN, n0);
       }
     }
   }

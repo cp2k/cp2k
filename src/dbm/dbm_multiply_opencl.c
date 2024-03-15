@@ -38,7 +38,7 @@ void dbm_multiply_gpu_launch_kernel(const offloadStream_t stream,
   ACC_OPENCL_ACQUIRE(c_dbcsr_acc_opencl_config.lock_main);
 #if defined(OPENCL_DBM_SOURCE_MULTIPLY_OPENCL)
   if (NULL == kernel) { /* first-time check if kernel is present */
-    char params[ACC_OPENCL_BUFFERSIZE] = "";
+    char params[ACC_OPENCL_BUFFERSIZE] = "-DLU=0 -DBN=4";
     const char *const flags = "-cl-fast-relaxed-math -cl-denorms-are-zero";
     const char *extensions[] = {NULL, NULL};
     const size_t nextensions = sizeof(extensions) / sizeof(*extensions);
