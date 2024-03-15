@@ -1372,7 +1372,8 @@ set(CP2K_GRID_SRCS_HIP
     grid/hip/grid_hip_context.cu)
 
 set(CP2K_DBM_SRCS_GPU dbm/dbm_multiply_gpu_kernel.cu)
-set(CP2K_DBM_SRCS_GPU_C dbm/dbm_multiply_gpu.c)
+set(CP2K_DBM_SRCS_GPU_C dbm/dbm_multiply_opencl.c dbm/dbm_multiply_gpu.c)
+set(CP2K_DBM_SRCS_OPENCL dbm/dbm_multiply_opencl.cl)
 
 set(CP2K_PW_SRCS_GPU pw/gpu/pw_gpu_kernels.cu)
 
