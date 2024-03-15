@@ -22,12 +22,10 @@ extern "C" {
  *        All arguments are assumed to be device pointers.
  * \author Ole Schuett
  ******************************************************************************/
-void dbm_multiply_gpu_launch_kernel(const offloadStream_t stream,
-                                    const double alpha, const int ntasks,
-                                    const dbm_task_t *batch,
-                                    const double *pack_a_data,
-                                    const double *pack_b_data,
-                                    double *shard_c_data);
+void dbm_multiply_gpu_launch_kernel(
+    const offloadStream_t stream, const int mnk_range[3][2], const double alpha,
+    const int ntasks, const dbm_task_t *batch, const double *pack_a_data,
+    const double *pack_b_data, double *shard_c_data);
 
 #ifdef __cplusplus
 }

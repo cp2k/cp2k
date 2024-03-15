@@ -6,7 +6,7 @@ The precommit system consists of the following tools that analyze and format the
 - [prettify](../prettify/) to format Fortran files.
 - [analyze_src](../conventions/analyze_src.py) to check copyright banners and a few other things.
 - [ast.parse](https://docs.python.org/3/library/ast.html) to check Python syntax.
-- [clang-format](https://clang.llvm.org/docs/ClangFormat.html) to format C and Cuda files.
+- [clang-format](https://clang.llvm.org/docs/ClangFormat.html) to format C, Cuda, and OpenCL files.
 - [black](https://github.com/psf/black) to format Python scripts.
 - [shfmt](https://github.com/mvdan/sh) to format Shell scripts.
 - [shellcheck](https://github.com/koalaman/shellcheck) to analyze Shell scripts.
