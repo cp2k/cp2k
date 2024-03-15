@@ -269,16 +269,23 @@ FYPPFLAGS ?= -n
 ifneq ($(ACC),)
 # if compiling CUDA/HIP backend
 ifneq (opencl,$(USE_ACCEL))
+%.o: %.cpp parameters.h smm_acc_kernels.h
+	$(ACC) -c $(ACCFLAGS) -I'$(SRCDIR)' $<
+# if compiling CUDA backend
 ifeq (cuda,$(USE_ACCEL))
-# consider omitting opt-level due to extreme compilation time even if opt-flag only targets the host compiler
-%.o: %.cpp parameters.h smm_acc_kernels.h
-	$(ACC) -c $(filter-out -O%,$(ACCFLAGS)) -I'$(SRCDIR)' -x cu $<
-else # HIP
-%.o: %.cpp parameters.h smm_acc_kernels.h
-	$(OFFLOAD_CC) -D__HIP -c $(OFFLOAD_FLAGS) -I'$(SRCDIR)' $<
-endif
 %.o: %.cu parameters.h smm_acc_kernels.h
 	$(ACC) -c $(ACCFLAGS) -I'$(SRCDIR)' $<
+calculate_norms.o: calculate_norms.cpp
+	$(ACC) -c $(ACCFLAGS) -I'$(SRCDIR)' -x cu $<
+acc_cuda.o: acc_cuda.cpp acc_cuda.h
+	$(ACC) -c $(ACCFLAGS) -I'$(SRCDIR)' $<
+# if compiling HIP backend
+else
+calculate_norms.o: calculate_norms.cpp
+	$(OFFLOAD_CC) -D__HIP -c $(OFFLOAD_FLAGS) -I'$(SRCDIR)' $<
+acc_hip.o: acc_hip.cpp acc_hip.h
+	$(ACC) -c $(ACCFLAGS) -I'$(SRCDIR)' $<
+endif
 
 # if compiling OpenCL backend
 else
