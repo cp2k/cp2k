@@ -1568,6 +1568,7 @@ target_link_libraries(
     $<$<BOOL:${CP2K_USE_TORCH}>:${TORCH_LIBRARIES}>
     $<$<BOOL:${CP2K_USE_COSMA}>:cosma::cosma_prefixed_pxgemm>
     $<$<BOOL:${CP2K_USE_COSMA}>:cosma::cosma>
+    $<$<BOOL:${CP2K_USE_DLAF}>:dlafort>
     $<$<BOOL:${CP2K_USE_DLAF}>:DLAF::DLAF>
     DBCSR::dbcsr
     $<$<BOOL:${CP2K_USE_MPI}>:cp2k::SCALAPACK::scalapack>
