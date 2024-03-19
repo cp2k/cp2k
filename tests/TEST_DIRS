@@ -4,6 +4,7 @@
 # in case a new directory is added just add it at the top of the list..
 # the order will be regularly checked and modified...
 QS/regtest-fftw-wisdom                                      fftw3
+QS/regtest-rpa-smearing                                     
 Fist/regtest-water
 QS/regtest-dft-vdw-corr-4                                   libdftd4
 QS/regtest-ecp                                              libgrpp
