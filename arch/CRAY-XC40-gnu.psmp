@@ -7,14 +7,14 @@
 #              COSMA 2.6.6, ELPA 2023.05.001, HDF5 1.14.2,
 #              LIBINT 2.6.0, LIBPEXSI 1.2.0, LIBXC 6.2.2,
 #              LIBVORI 220621, LIBXSMM 1.17, PLUMED 2.9.0,
-#              SIRIUS 7.5.2, SPGLIB 1.16.2, LIBGRPP 20231215,
+#              SIRIUS 7.5.2, SPGLIB 2.3.1, LIBGRPP 20231215,
 #              SPFFT 1.0.6, SPLA 1.5.5
 #
 # Usage: Source this arch file and then run make as instructed.
 #        A full toolchain installation is performed as default.
 #        Replace or adapt the "module add" commands below if needed.
 #
-# Last update: 12.03.2024
+# Last update: 19.03.2024
 #
 # \
    if [ "${0}" = "${BASH_SOURCE}" ]; then \
@@ -81,7 +81,7 @@ USE_SPFFT      := 1.0.6
 USE_SPLA       := 1.5.5
 #USE_QUIP       := 0.9.10
 USE_SIRIUS     := 7.5.2
-USE_SPGLIB     := 1.16.2
+USE_SPGLIB     := 2.3.1
 # Only needed for SIRIUS
 LIBVDWXC_VER   := 0.4.0
 # Only needed for LIBPEXSI
