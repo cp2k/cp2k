@@ -920,7 +920,9 @@ MODULE input_constants
    INTEGER, PARAMETER, PUBLIC               :: do_taylor = 1, &
                                                do_pade = 2, &
                                                do_arnoldi = 3, &
-                                               do_bch = 4
+                                               do_bch = 4,&
+   ! TODO : Marek - does this break TDDFT code?
+                                               do_exact = 5
 
    INTEGER, PARAMETER, PUBLIC               :: do_etrs = 1, &
                                                do_cn = 2, &

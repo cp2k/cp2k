@@ -20,6 +20,11 @@ MODULE rt_tdagw_types
                                               cp_fm_set_all,&
                                               cp_fm_write_formatted,&
                                               cp_fm_to_fm
+   USE cp_cfm_types,                    ONLY: cp_cfm_p_type,&
+                                              cp_cfm_set_all,&
+                                              cp_cfm_create,&
+                                              cp_fm_to_cfm,&
+                                              cp_cfm_release
    USE cp_fm_basic_linalg,              ONLY: cp_fm_invert
    USE dbcsr_api,                       ONLY: dbcsr_type,&
                                               dbcsr_p_type,&
@@ -60,7 +65,8 @@ MODULE rt_tdagw_types
                                               rtp_tdagw_hartree_dbt,&
                                               rtp_tdagw_hartree_pw,&
                                               do_taylor,&
-                                              do_bch
+                                              do_bch,&
+                                              do_exact
    USE input_section_types,             ONLY: section_vals_type,&
                                               section_vals_val_get
 
@@ -123,6 +129,12 @@ MODULE rt_tdagw_types
                                                                    rho_M
       ! TODO : Check how much is actually needed and whether it is not better to separate names
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER                 :: rho_workspace
+      ! Workspace required for exact matrix exponentiation
+      TYPE(cp_cfm_p_type), DIMENSION(:), POINTER                :: complex_workspace,&
+                                                                   complex_s
+      REAL(kind=dp), DIMENSION(:), POINTER                      :: real_eigvals
+      COMPLEX(kind=dp), DIMENSION(:), POINTER                   :: exp_eigvals
+      ! TODO : Spins, k-points
       TYPE(dbcsr_type), POINTER                                 :: S_inv,&
                                                                    rho_dbcsr
       TYPE(dbt_type), POINTER                                   :: hartree_dbt,&
@@ -199,6 +211,7 @@ CONTAINS
                                 i_val=tdagw_env%etrs_max_iter)
       CALL section_vals_val_get(input, "DFT%REAL_TIME_PROPAGATION%MAT_EXP",&
                                 i_val=tdagw_env%mat_exp_method)
+      PRINT *, "exp_method", tdagw_env%mat_exp_method
       ! Allocate and determine the expansion orders, based on arguments used in TDDFT
       ! TODO : Last two arguments are indicating that we are using Taylor expansion and not doing ion motion
       ALLOCATE(tdagw_env%orders(2, tdagw_env%n_spin))
@@ -324,16 +337,47 @@ CONTAINS
       SELECT CASE (tdagw_env%mat_exp_method)
          CASE (do_taylor)
             ALLOCATE(tdagw_env%rho_workspace(3))
+         CASE (do_exact)
+            ALLOCATE(tdagw_env%rho_workspace(3))
          CASE (do_bch)
             ALLOCATE(tdagw_env%rho_workspace(4))
          CASE DEFAULT
-            CPABORT("Only Taylor and BCH matrix propagation implemented")
+            CPABORT("Only Taylor, exact and BCH matrix propagation implemented")
       END SELECT
       DO i=1,SIZE(tdagw_env%rho_workspace)
          ALLOCATE(tdagw_env%rho_workspace(i)%matrix)
          CALL cp_fm_create(tdagw_env%rho_workspace(i)%matrix, bs_env%fm_h_G0W0_Gamma%matrix_struct)
          CALL cp_fm_set_all(tdagw_env%rho_workspace(i)%matrix, 0.0_dp)
       END DO
+
+      ! Exact diagonalisation requires complex workspaces
+      IF (tdagw_env%mat_exp_method == do_exact) THEN
+         NULLIFY(tdagw_env%complex_s)
+         ALLOCATE(tdagw_env%complex_s(tdagw_env%n_spin))
+         DO i=1,tdagw_env%n_spin
+            NULLIFY(tdagw_env%complex_s(i)%matrix)
+            ALLOCATE(tdagw_env%complex_s(i)%matrix)
+            ! TODO : True spin dependence - from qs_env or present somewhere in bs_env?
+            CALL cp_cfm_create(tdagw_env%complex_s(i)%matrix, bs_env%fm_s_Gamma%matrix_struct)
+            CALL cp_cfm_set_all(tdagw_env%complex_s(i)%matrix, (0.0_dp, 0.0_dp))
+            CALL cp_fm_to_cfm(msourcer=bs_env%fm_s_Gamma, mtarget=tdagw_env%complex_s(i)%matrix)
+         END DO
+         NULLIFY(tdagw_env%complex_workspace)
+         ALLOCATE(tdagw_env%complex_workspace(4))
+         DO i=1,SIZE(tdagw_env%complex_workspace)
+            NULLIFY(tdagw_env%complex_workspace(i)%matrix)
+            ALLOCATE(tdagw_env%complex_workspace(i)%matrix)
+            CALL cp_cfm_create(tdagw_env%complex_workspace(i)%matrix, bs_env%fm_h_G0W0_Gamma%matrix_struct)
+            CALL cp_cfm_set_all(tdagw_env%complex_workspace(i)%matrix, (0.0_dp, 0.0_dp))
+         END DO
+         NULLIFY(tdagw_env%real_eigvals)
+         ALLOCATE(tdagw_env%real_eigvals(tdagw_env%n_ao))
+         tdagw_env%real_eigvals(:) = 0.0_dp
+         NULLIFY(tdagw_env%exp_eigvals)
+         ALLOCATE(tdagw_env%exp_eigvals(tdagw_env%n_ao))
+         tdagw_env%exp_eigvals(:) = (0.0_dp, 0.0_dp)
+         PRINT *, "Complex storage initialised"
+      END IF
 
       ! Self-energy components
       ALLOCATE(tdagw_env%hartree_dbt)
@@ -388,7 +432,7 @@ CONTAINS
    SUBROUTINE release_tdagw_env(tdagw_env)
       TYPE(tdagw_env_type)                                      :: tdagw_env
       CHARACTER(len=*), PARAMETER                               :: routineN = "release_tdagw_env"
-      ! INTEGER                                                   :: i
+      INTEGER                                                   :: i
 
       CALL cp_fm_release(tdagw_env%rho)
       CALL cp_fm_release(tdagw_env%ham_effective)
@@ -413,6 +457,18 @@ CONTAINS
       ! Depending on methods, deallocate additional workspace
       IF ( tdagw_env%hartree_method == rtp_tdagw_hartree_dbt ) THEN
          CALL release_hartree_dbt_workspace(tdagw_env)
+      END IF
+      IF (tdagw_env%mat_exp_method == do_exact) THEN
+         DO i=1,SIZE(tdagw_env%complex_s)
+            CALL cp_cfm_release(tdagw_env%complex_s(i)%matrix)
+         END DO
+         DEALLOCATE(tdagw_env%complex_s)
+         DO i=1,SIZE(tdagw_env%complex_workspace)
+            CALL cp_cfm_release(tdagw_env%complex_workspace(i)%matrix)
+         END DO
+         DEALLOCATE(tdagw_env%complex_workspace)
+         DEALLOCATE(tdagw_env%real_eigvals)
+         DEALLOCATE(tdagw_env%exp_eigvals)
       END IF
       
    END SUBROUTINE

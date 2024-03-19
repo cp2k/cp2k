@@ -31,6 +31,8 @@ MODULE rt_tdagw
                                               cp_fm_write_formatted
    USE cp_cfm_types,                    ONLY: cp_cfm_type,&
                                               cp_fm_to_cfm,&
+                                              cp_cfm_to_cfm,&
+                                              cp_cfm_to_fm,&
                                               cp_cfm_create,&
                                               cp_cfm_release
    USE kinds,                           ONLY: dp
@@ -103,7 +105,9 @@ MODULE rt_tdagw
                                               cp_fm_scale_and_add
    USE cp_cfm_basic_linalg,             ONLY: cp_cfm_scale_and_add,&
                                               cp_cfm_transpose,&
-                                              cp_cfm_norm
+                                              cp_cfm_norm,&
+                                              cp_cfm_column_scale
+   USE cp_cfm_diag,                     ONLY: cp_cfm_geeig
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE qs_moments,                      ONLY: build_local_moment_matrix
    USE qs_ks_methods,                   ONLY: qs_ks_build_kohn_sham_matrix
@@ -123,7 +127,8 @@ MODULE rt_tdagw
                                               rtp_tdagw_hartree_dbt,&
                                               rtp_tdagw_hartree_pw,&
                                               do_taylor,&
-                                              do_bch
+                                              do_bch,&
+                                              do_exact
    USE rt_tdagw_types,                  ONLY: tdagw_env_type,&
                                               create_tdagw_env,&
                                               release_tdagw_env
@@ -176,6 +181,8 @@ CONTAINS
       LOGICAL                                            :: converged
       REAL(kind=dp)                                      :: metric
 
+      ! TODO : Print a nicer header
+      PRINT *, "=== Starting time-dependent adiabatic GW real time propagation ==="
       CALL get_qs_env(qs_env, bs_env=bs_env, input=input, rtp=rtp)
       ! ********************** ALLOCATIONS **********************
       CALL create_tdagw_env(tdagw_env, qs_env)
@@ -264,6 +271,7 @@ CONTAINS
          ! *********** Start the self-consistent loop ************************
          tdagw_env%sim_time = REAL(i+1, dp)*rtp%dt
          tdagw_env%sim_step = i+1
+         converged = .FALSE.
          DO k=1,tdagw_env%etrs_max_iter
             CALL update_effective_ham(tdagw_env, qs_env, tdagw_env%rho_new_last)
             ! @:SPIN_DO(j, re, im, tdagw_env%n_spin)
@@ -371,38 +379,89 @@ CONTAINS
       CALL cp_cfm_release(conjugate_fm)
    END FUNCTION
 
+! **************************************************************************************************
+!> \brief For Taylor and Exact exp_method, calculates the matrix exponential of the
+!>        effective Hamiltonian. For BCH, calculates just the effective Hamiltonian. For other methods,
+!>        aborts the execution, as they are not implemented yet.
+!> \param tdagw_env Entry point of the calculation. Uses rho_workspace for Taylor and BCH. For exact,
+!>                  uses complex_workspace, complex_ham, complex_s, real_eigvals and exp_eigvals.
+!>                  Results are stored in ham_workspace.
+! **************************************************************************************************
    SUBROUTINE ham_to_exp(tdagw_env)
       TYPE(tdagw_env_type)                               :: tdagw_env
       CHARACTER(len=*), PARAMETER                        :: routineN = "ham_to_exp"
-      INTEGER                                            :: j, re, im
+      INTEGER                                            :: j, re, im, handle
+      CALL timeset(routineN, handle)
       @:SPIN_DO(j, re, im, tdagw_env%n_spin)
+         IF (tdagw_env%mat_exp_method == do_taylor .OR. tdagw_env%mat_exp_method == do_bch) THEN
+            ! In Taylor and BCH, we first evaluate the entire exponent and then evaluate exponential in series
+            ! In order to produce correct result, need to remultiply by inverse overlap matrix
+            CALL cp_dbcsr_sm_fm_multiply(tdagw_env%S_inv, tdagw_env%ham_effective(re)%matrix,&
+                                         tdagw_env%rho_workspace(1)%matrix, tdagw_env%n_ao)
+            CALL cp_dbcsr_sm_fm_multiply(tdagw_env%S_inv, tdagw_env%ham_effective(im)%matrix,&
+                                         tdagw_env%rho_workspace(2)%matrix, tdagw_env%n_ao)
+            ! CALL cp_fm_to_fm(tdagw_env%rho_workspace(1)%matrix,tdagw_env%ham_effective(re)%matrix)
+            ! CALL cp_fm_to_fm(tdagw_env%rho_workspace(2)%matrix,tdagw_env%ham_effective(im)%matrix)
 
-         ! In order to produce correct result, need to remultiply by inverse overlap matrix
-         CALL cp_dbcsr_sm_fm_multiply(tdagw_env%S_inv, tdagw_env%ham_effective(re)%matrix,&
-                                      tdagw_env%rho_workspace(1)%matrix, tdagw_env%n_ao)
-         CALL cp_dbcsr_sm_fm_multiply(tdagw_env%S_inv, tdagw_env%ham_effective(im)%matrix,&
-                                      tdagw_env%rho_workspace(2)%matrix, tdagw_env%n_ao)
-         ! CALL cp_fm_to_fm(tdagw_env%rho_workspace(1)%matrix,tdagw_env%ham_effective(re)%matrix)
-         ! CALL cp_fm_to_fm(tdagw_env%rho_workspace(2)%matrix,tdagw_env%ham_effective(im)%matrix)
-
-         ! The evolution of density matrix is derived from the right multiplying term
-         ! Imaginary part of the exponent = real part of the matrix
-         CALL cp_fm_scale(tdagw_env%sim_dt/2, tdagw_env%rho_workspace(1)%matrix)
-         ! Real part of the exponent = - imag part of the matrix
-         CALL cp_fm_scale(-tdagw_env%sim_dt/2, tdagw_env%rho_workspace(2)%matrix)
-         ! TODO : Understand which input options set the orders
-         IF (tdagw_env%mat_exp_method == do_taylor) THEN
-            CALL taylor_full_complex([tdagw_env%ham_workspace(re)%matrix, tdagw_env%ham_workspace(im)%matrix],&
-                                     tdagw_env%rho_workspace(2)%matrix, tdagw_env%rho_workspace(1)%matrix,&
-                                     tdagw_env%orders(1,j), tdagw_env%orders(2,j))
-         ELSE IF (tdagw_env%mat_exp_method == do_bch) THEN
-            ! In BCH, exponential is not calculated explicitly, but the propagation is solved in series
-            CALL cp_fm_to_fm(tdagw_env%rho_workspace(2)%matrix, tdagw_env%ham_workspace(re)%matrix)
-            CALL cp_fm_to_fm(tdagw_env%rho_workspace(1)%matrix, tdagw_env%ham_workspace(im)%matrix)
+            ! The evolution of density matrix is derived from the right multiplying term
+            ! Imaginary part of the exponent = real part of the matrix
+            CALL cp_fm_scale(tdagw_env%sim_dt/2, tdagw_env%rho_workspace(1)%matrix)
+            ! Real part of the exponent = - imag part of the matrix
+            CALL cp_fm_scale(-tdagw_env%sim_dt/2, tdagw_env%rho_workspace(2)%matrix)
+            ! TODO : Understand which input options set the orders
+            IF (tdagw_env%mat_exp_method == do_taylor) THEN
+               CALL taylor_full_complex([tdagw_env%ham_workspace(re)%matrix, tdagw_env%ham_workspace(im)%matrix],&
+                                        tdagw_env%rho_workspace(2)%matrix, tdagw_env%rho_workspace(1)%matrix,&
+                                        tdagw_env%orders(1,j), tdagw_env%orders(2,j))
+            ELSE
+               ! In BCH, exponential is not calculated explicitly, but the propagation is solved in series
+               CALL cp_fm_to_fm(tdagw_env%rho_workspace(2)%matrix, tdagw_env%ham_workspace(re)%matrix)
+               CALL cp_fm_to_fm(tdagw_env%rho_workspace(1)%matrix, tdagw_env%ham_workspace(im)%matrix)
+            END IF
+         ELSE IF (tdagw_env%mat_exp_method == do_exact) THEN
+            ! In exact exponentiation, we solve the generalized eigenvalue problem by transforming to complex matrices
+            ! TODO : Move to workspace creation
+            CALL cp_fm_to_cfm(tdagw_env%ham_effective(re)%matrix,tdagw_env%ham_effective(im)%matrix,&
+                              tdagw_env%complex_workspace(3)%matrix)
+            ! Solve the generalized eigenvalue problem, with fm overlap (also complex)
+            ! Call the diagonalisation routine
+            ! TODO : Store values of time-dependent eigenvalues?
+            ! CALL cp_cfm_to_fm(tdagw_env%complex_s(j)%matrix, tdagw_env%rho_workspace(1)%matrix, tdagw_env%rho_workspace(2)%matrix)
+            ! CALL cp_fm_write_formatted(tdagw_env%rho_workspace(1)%matrix, 6)
+            ! CALL cp_fm_write_formatted(tdagw_env%rho_workspace(2)%matrix, 6)
+            ! TODO : Trying canonical orthogonalisation - Cholesky decomposition failed?
+            ! CALL cp_cfm_geeig_canon(tdagw_env%complex_workspace(3)%matrix, tdagw_env%complex_s(j)%matrix,&
+            !                   tdagw_env%complex_workspace(1)%matrix, tdagw_env%real_eigvals,&
+            !                   tdagw_env%complex_workspace(2)%matrix, 1.0E-100_dp)
+            ! cp_cfm_geeig is done in place - all matrices are overwritten
+            CALL cp_cfm_to_cfm(tdagw_env%complex_s(j)%matrix, tdagw_env%complex_workspace(4)%matrix)
+            CALL cp_cfm_geeig(tdagw_env%complex_workspace(3)%matrix, tdagw_env%complex_workspace(4)%matrix,&
+                              tdagw_env%complex_workspace(1)%matrix, tdagw_env%real_eigvals,&
+                              tdagw_env%complex_workspace(2)%matrix)
+            ! With these eigenvalues determined, construct the exponential
+            ! PRINT *, tdagw_env%real_eigvals
+            tdagw_env%exp_eigvals(:) = EXP(tdagw_env%real_eigvals(:) * CMPLX(0.0, tdagw_env%sim_dt/2, kind=dp))
+            ! PRINT *, tdagw_env%exp_eigvals
+            ! Now, get the exponential
+            CALL cp_cfm_to_cfm(tdagw_env%complex_workspace(1)%matrix, tdagw_env%complex_workspace(2)%matrix)
+            CALL cp_cfm_column_scale(tdagw_env%complex_workspace(2)%matrix, tdagw_env%exp_eigvals)
+            CALL parallel_gemm("N", "C", tdagw_env%n_ao, tdagw_env%n_ao, tdagw_env%n_ao,&
+                               CMPLX(1.0_dp, 0.0_dp, kind=dp), tdagw_env%complex_workspace(2)%matrix,&
+                               tdagw_env%complex_workspace(1)%matrix,&
+                               CMPLX(0.0_dp, 0.0_dp, kind=dp), tdagw_env%complex_workspace(3)%matrix)
+            CALL parallel_gemm("N", "N", tdagw_env%n_ao, tdagw_env%n_ao, tdagw_env%n_ao,&
+                               CMPLX(1.0_dp, 0.0_dp, kind=dp), tdagw_env%complex_workspace(3)%matrix,&
+                               tdagw_env%complex_s(j)%matrix,&
+                               CMPLX(0.0_dp, 0.0_dp, kind=dp), tdagw_env%complex_workspace(2)%matrix)
+            ! Copy to separated real and imaginary parts
+            CALL cp_cfm_to_fm(tdagw_env%complex_workspace(2)%matrix, tdagw_env%ham_workspace(re)%matrix,&
+                              tdagw_env%ham_workspace(im)%matrix)
          ELSE
             CPABORT("Only BCH and Taylor matrix exponentiation implemented")
          END IF
       END DO
+
+      CALL timestop(handle)
    END SUBROUTINE
 ! **************************************************************************************************
 !> \brief Updates the effective Hamiltonian, given a density matrix rho
@@ -434,6 +493,7 @@ CONTAINS
       END IF
       @:SPIN_DO(j, re, im, nspin)
          DO k=1,3
+            ! TODO : Sign of the field
             CALL cp_fm_scale_and_add(1.0_dp, tdagw_env%ham_effective(re)%matrix,&
                                      tdagw_env%field(k), tdagw_env%moments(k)%matrix)
          END DO
@@ -506,7 +566,7 @@ CONTAINS
       ! Real part
       ! TODO : Basis dimensions to tdagw_env
       ! Term 1 - right multiplication first
-      IF (tdagw_env%mat_exp_method == do_taylor) THEN
+      IF (tdagw_env%mat_exp_method == do_taylor .OR. tdagw_env%mat_exp_method == do_exact) THEN
          @:SPIN_DO(j, re, im, tdagw_env%n_spin)
             CALL parallel_gemm("N","N", tdagw_env%n_ao, tdagw_env%n_ao, tdagw_env%n_ao,&
                                1.0_dp, rho_old(re)%matrix, exponential(re)%matrix,&
@@ -611,7 +671,7 @@ CONTAINS
             CPASSERT(converged)
          END DO
       ELSE
-         CPABORT("Only BCH and Taylor matrix exponentiation implemented.")
+         CPABORT("Only BCH, exact and Taylor matrix exponentiation implemented.")
       END IF
    END SUBROUTINE
 
