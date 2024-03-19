@@ -185,7 +185,8 @@ CONTAINS
       LOGICAL                                            :: converged
       REAL(kind=dp)                                      :: metric, enum_re, enum_im
 
-      ! Get the logger unit number, only print if we are the source process
+      ! TODO : Print a nicer header
+      PRINT *, "=== Starting time-dependent adiabatic GW real time propagation ==="
       CALL get_qs_env(qs_env, bs_env=bs_env, input=input, rtp=rtp)
       ! ********************** ALLOCATIONS **********************
       CALL create_tdagw_env(tdagw_env, qs_env)
