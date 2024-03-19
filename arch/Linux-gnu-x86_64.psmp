@@ -6,7 +6,7 @@
 #              ScaLAPACK 2.2.1, OpenBLAS 0.3.26,
 #              FFTW 3.3.10, ELPA 2023.05.001, HDF5 1.14.2,
 #              LIBINT 2.6.0, LIBXC 6.2.2, PLUMED 2.9.0,
-#              SPGLIB 1.16.2, LIBVORI 220621, GSL 2.7,
+#              SPGLIB 2.3.1, LIBVORI 220621, GSL 2.7,
 #              COSMA 2.6.6, SIRIUS 7.5.2, LIBTORCH 1.12.1,
 #              LIBGRPP 20231215, SPFFT 1.0.6, SPLA 1.5.5
 # on the Merlin cluster (PSI)
@@ -82,7 +82,7 @@ USE_QUIP       := 0.9.10
 USE_SCALAPACK  := 2.2.1
 USE_SIRIUS     := 7.5.2
 USE_SPFFT      := 1.0.6
-USE_SPGLIB     := 1.16.2
+USE_SPGLIB     := 2.3.1
 USE_SPLA       := 1.5.5
 # Only needed for SIRIUS
 LIBVDWXC_VER   := 0.4.0

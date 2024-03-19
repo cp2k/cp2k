@@ -5,8 +5,8 @@
 
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")/.." && pwd -P)"
-spglib_ver="1.16.2"
-spglib_sha256="5723789bee7371ebba91d78c729d2a608f198fad5e1c95eebe18fda9f2914ec8"
+spglib_ver="2.3.1"
+spglib_sha256="c295dbea7d2fc9e50639aa14331fef277878c35f00ef0766e688bfbb7b17d44c"
 
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
@@ -43,13 +43,12 @@ case "$with_spglib" in
       cmake \
         -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}" \
         -DCMAKE_BUILD_TYPE=Release \
-        -DBUILD_SHARED_LIBS=NO \
         -DCMAKE_VERBOSE_MAKEFILE=ON \
+        -DSPGLIB_USE_OMP=ON \
+        -DSPGLIB_SHARED_LIBS=OFF \
         .. > configure.log 2>&1 || tail -n ${LOG_LINES} configure.log
-      make -j $(get_nprocs) symspg > make.log 2>&1 || tail -n ${LOG_LINES} make.log
+      make -j $(get_nprocs) > make.log 2>&1 || tail -n ${LOG_LINES} make.log
       make install >> install.log 2>&1 || tail -n ${LOG_LINES} install.log
-      # Despite -DBUILD_SHARED_LIBS=NO the shared library gets build and installed.
-      rm -f "${pkg_install_dir}"/lib*/*.so*
       write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage7/$(basename ${SCRIPT_NAME})"
     fi
 

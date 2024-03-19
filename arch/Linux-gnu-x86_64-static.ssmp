@@ -3,11 +3,11 @@
 # CP2K (GNU) arch file for a serial static x86_64 binary
 #
 # Tested with: GNU 13.1.0, FFTW 3.3.10, LIBINT 2.6.0, LIBVORI 220621,
-#              LIBXC 6.2.2, OpenBLAS 0.3.26, SPGLIB 1.16.2
+#              LIBXC 6.2.2, OpenBLAS 0.3.26, SPGLIB 2.3.1
 #
 # Usage: Source this arch file and then run make as instructed.
 #
-# Last update: 22.09.2023
+# Last update: 19.03.2024
 #
 # \
    if [[ "${0}" == "${BASH_SOURCE}" ]]; then \
@@ -38,7 +38,7 @@ USE_LIBINT     := 2.6.0
 USE_LIBVORI    := 220621
 USE_LIBXC      := 6.2.2
 USE_OPENBLAS   := 0.3.26
-USE_SPGLIB     := 1.16.2
+USE_SPGLIB     := 2.3.1
 
 LMAX           := 5
 MAX_CONTR      := 4

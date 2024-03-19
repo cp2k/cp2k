@@ -9,13 +9,13 @@
 #              LIBINT 2.6.0, LIBPEXSI 1.2.0,
 #              LIBXC 6.2.2, LIBVORI 220621,
 #              LIBXSMM 1.17, PLUMED 2.9.0,
-#              SIRIUS 7.5.2, SPGLIB 1.16.2
+#              SIRIUS 7.5.2, SPGLIB 2.3.1
 #
 # Usage: Source this arch file and then run make as instructed.
 #        A full toolchain installation is performed as default.
 #        Replace or adapt the "module add" commands below if needed.
 #
-# Last update: 15.01.2024
+# Last update: 19.03.2024
 #
 # \
    if [ "${0}" = "${BASH_SOURCE}" ]; then \
@@ -69,7 +69,7 @@ USE_PLUMED     := 2.9.0
 USE_QUIP       := 0.9.10
 USE_SCALAPACK  := 2.2.1
 USE_SIRIUS     := 7.5.2
-USE_SPGLIB     := 1.16.2
+USE_SPGLIB     := 2.3.1
 # Only needed for SIRIUS
 LIBVDWXC_VER   := 0.4.0
 SPFFT_VER      := 1.0.6
