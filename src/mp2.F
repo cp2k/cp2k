@@ -87,6 +87,7 @@ MODULE mp2
                                               get_mo_set,&
                                               init_mo_set,&
                                               mo_set_type
+USE qs_mo_occupation, ONLY: set_mo_occupation
    USE qs_scf_methods,                  ONLY: eigensolver,&
                                               eigensolver_symm
    USE qs_scf_types,                    ONLY: qs_scf_env_type
@@ -410,6 +411,9 @@ CPABORT("Smearing not available with GW calculations")
                                   jacobi_threshold=0.0_dp)
 
          END IF
+
+IF (scf_control%smear%do_smear) &
+CALL set_mo_occupation(mos_mp2, scf_control%smear)
 
       END DO
 
