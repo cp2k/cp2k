@@ -1191,7 +1191,7 @@ CONTAINS
                                                             fm_mat_S_ab_bse
       TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_mat_S_trunc, fm_mat_S_ij_trunc, &
                                                             fm_mat_S_ab_trunc
-      REAL(KIND=dp), DIMENSION(:)                        :: Eigenval
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: Eigenval
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: Eigenval_reduced
       INTEGER, INTENT(IN)                                :: homo, virtual, dimen_RI, unit_nr
       INTEGER, INTENT(OUT)                               :: homo_red, virt_red

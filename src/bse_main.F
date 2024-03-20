@@ -74,8 +74,7 @@ CONTAINS
                                                             fm_mat_S_ab_bse
       TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_mat_Q_static_bse, &
                                                             fm_mat_Q_static_bse_gemm
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
-         INTENT(IN)                                      :: Eigenval
+      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: Eigenval
       INTEGER, DIMENSION(:), INTENT(IN)                  :: homo, virtual
       INTEGER, INTENT(IN)                                :: dimen_RI, dimen_RI_red
       TYPE(group_dist_d1_type), INTENT(IN)               :: gd_array

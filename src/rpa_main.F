@@ -255,9 +255,6 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      MARK_USED(occupation_numbers)
-      WRITE (*, *) "Occupation numbers", occupation_numbers
-
       CALL cite_reference(DelBen2013)
       CALL cite_reference(DelBen2015)
 
@@ -624,7 +621,7 @@ CONTAINS
       ! fm_mo_coeff_occ, fm_mo_coeff_virt will be deallocated here
       CALL rpa_num_int(qs_env, Erpa, mp2_env, para_env, para_env_RPA, para_env_sub, unit_nr, &
                        homo, virtual, dimen_RI, dimen_RI_red, dimen_ia, dimen_nm_gw, &
-                       Eigenval_kp, num_integ_points, num_integ_group, color_rpa_group, &
+                       Eigenval_kp, occupation_numbers, num_integ_points, num_integ_group, color_rpa_group, &
                        fm_matrix_PQ, fm_mat_S, fm_mat_Q_gemm, fm_mat_Q, fm_mat_S_gw, fm_mat_R_gw(1), &
                        fm_mat_S_ij_bse(1), fm_mat_S_ab_bse(1), &
                        my_do_gw, do_bse, gw_corr_lev_occ, gw_corr_lev_virt, &
@@ -998,6 +995,7 @@ CONTAINS
 !> \param dimen_ia ...
 !> \param dimen_nm_gw ...
 !> \param Eigenval ...
+!> \param occupation_numbers ...
 !> \param num_integ_points ...
 !> \param num_integ_group ...
 !> \param color_rpa_group ...
@@ -1040,7 +1038,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE rpa_num_int(qs_env, Erpa, mp2_env, para_env, para_env_RPA, para_env_sub, unit_nr, &
                           homo, virtual, dimen_RI, dimen_RI_red, dimen_ia, dimen_nm_gw, &
-                          Eigenval, num_integ_points, num_integ_group, color_rpa_group, &
+                          Eigenval, occupation_numbers, num_integ_points, num_integ_group, color_rpa_group, &
                           fm_matrix_PQ, fm_mat_S, fm_mat_Q_gemm, fm_mat_Q, fm_mat_S_gw, fm_mat_R_gw, &
                           fm_mat_S_ij_bse, fm_mat_S_ab_bse, &
                           my_do_gw, do_bse, gw_corr_lev_occ, gw_corr_lev_virt, &
@@ -1062,8 +1060,8 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: dimen_RI, dimen_RI_red
       INTEGER, DIMENSION(:), INTENT(IN)                  :: dimen_ia
       INTEGER, INTENT(IN)                                :: dimen_nm_gw
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
-         INTENT(INOUT)                                   :: Eigenval
+      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: Eigenval
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: occupation_numbers
       INTEGER, INTENT(IN)                                :: num_integ_points, num_integ_group, &
                                                             color_rpa_group
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_matrix_PQ
@@ -1475,14 +1473,14 @@ CONTAINS
                END IF
 
                CALL calc_mat_Q(fm_mat_S(1), do_ri_sos_laplace_mp2, first_cycle, iter_sc_GW0, virtual(1), &
-                               Eigenval(:, 1, 1), Eigenval_scf(:, 1, 1), &
+                               Eigenval(:, 1, 1), Eigenval_scf(:, 1, 1), occupation_numbers(:, 1), &
                                homo(1), omega, omega_old, jquad, mm_style, dimen_RI_red, dimen_ia(1), alpha, fm_mat_Q(1), &
                                fm_mat_Q_gemm(1), do_bse, fm_mat_Q_static_bse_gemm, dgemm_counter, &
                                num_integ_points)
 
                IF (my_open_shell) THEN
                   CALL calc_mat_Q(fm_mat_S(2), do_ri_sos_laplace_mp2, first_cycle, iter_sc_GW0, virtual(2), &
-                                  Eigenval(:, 1, 2), Eigenval_scf(:, 1, 2), &
+                                  Eigenval(:, 1, 2), Eigenval_scf(:, 1, 2), occupation_numbers(:, 2), &
                                   homo(2), omega, omega_old, jquad, mm_style, &
                                   dimen_RI_red, dimen_ia(2), alpha, fm_mat_Q(2), fm_mat_Q_gemm(2), do_bse, &
                                   fm_mat_Q_static_bse_gemm, dgemm_counter, &

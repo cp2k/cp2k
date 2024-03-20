@@ -640,6 +640,7 @@ CONTAINS
 !> \param virtual ...
 !> \param Eigenval ...
 !> \param Eigenval_scf ...
+!> \param occupation_numbers ...
 !> \param homo ...
 !> \param omega ...
 !> \param omega_old ...
@@ -656,13 +657,14 @@ CONTAINS
 !> \param num_integ_points ...
 ! **************************************************************************************************
    SUBROUTINE calc_mat_Q(fm_mat_S, do_ri_sos_laplace_mp2, first_cycle, iter_sc_GW0, virtual, &
-                         Eigenval, Eigenval_scf, &
+                         Eigenval, Eigenval_scf, occupation_numbers, &
                          homo, omega, omega_old, jquad, mm_style, dimen_RI, dimen_ia, alpha, fm_mat_Q, fm_mat_Q_gemm, &
                          do_bse, fm_mat_Q_static_bse_gemm, dgemm_counter, num_integ_points)
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_S
       LOGICAL, INTENT(IN)                                :: do_ri_sos_laplace_mp2, first_cycle
       INTEGER, INTENT(IN)                                :: iter_sc_GW0, virtual
-      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: Eigenval, Eigenval_scf
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: Eigenval, Eigenval_scf, &
+                                                            occupation_numbers
       INTEGER, INTENT(IN)                                :: homo
       REAL(KIND=dp), INTENT(IN)                          :: omega, omega_old
       INTEGER, INTENT(IN)                                :: jquad, mm_style, dimen_RI, dimen_ia
@@ -685,7 +687,7 @@ CONTAINS
       ELSE
          IF (iter_sc_GW0 == 1) THEN
             CALL calc_fm_mat_S_rpa(fm_mat_S, first_cycle, virtual, Eigenval, &
-                                   omega, omega_old)
+                                   omega, omega_old, occupation_numbers)
          ELSE
             CALL calc_fm_mat_S_rpa(fm_mat_S, first_cycle, virtual, Eigenval_scf, &
                                    omega, omega_old)
@@ -759,21 +761,23 @@ CONTAINS
 !> \param Eigenval ...
 !> \param omega ...
 !> \param omega_old ...
+!> \param occupation_numbers ...
 ! **************************************************************************************************
    SUBROUTINE calc_fm_mat_S_rpa(fm_mat_S, first_cycle, virtual, Eigenval, &
-                                omega, omega_old)
+                                omega, omega_old, occupation_numbers)
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_S
       LOGICAL, INTENT(IN)                                :: first_cycle
       INTEGER, INTENT(IN)                                :: virtual
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: Eigenval
       REAL(KIND=dp), INTENT(IN)                          :: omega, omega_old
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN), OPTIONAL  :: occupation_numbers
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'calc_fm_mat_S_rpa'
 
       INTEGER                                            :: avirt, dimen, handle, i_global, iiB, &
                                                             iocc, ncol_local
       INTEGER, DIMENSION(:), POINTER                     :: col_indices
-      REAL(KIND=dp)                                      :: eigen_diff
+      REAL(KIND=dp)                                      :: eigen_diff, occ_diff
 
       CALL timeset(routineN, handle)
 
@@ -788,17 +792,26 @@ CONTAINS
       IF (first_cycle) THEN
          ! In this case just update the matrix (symmetric form) with
          ! SQRT((epsi_a-epsi_i)/((epsi_a-epsi_i)**2+omega**2))
-!$OMP PARALLEL DO DEFAULT(NONE) PRIVATE(iiB,iocc,avirt,eigen_diff,i_global) &
-!$OMP             SHARED(ncol_local,col_indices,Eigenval,fm_mat_S,virtual,dimen,omega)
+!$OMP PARALLEL DO DEFAULT(NONE) PRIVATE(iiB,iocc,avirt,eigen_diff,i_global,occ_diff) &
+!$OMP             SHARED(ncol_local,col_indices,Eigenval,fm_mat_S,virtual,dimen,omega,occupation_numbers)
          DO iiB = 1, ncol_local
             i_global = col_indices(iiB)
 
             iocc = MAX(1, i_global - 1)/virtual + 1
             avirt = i_global - (iocc - 1)*virtual
             eigen_diff = ABS(Eigenval(avirt + dimen - virtual) - Eigenval(iocc))
+            IF (PRESENT(occupation_numbers)) THEN
+               occ_diff = ABS(occupation_numbers(avirt + dimen - virtual) - occupation_numbers(iocc))
+            ELSE
+               occ_diff = 1.0_dp
+            END IF
 
-            fm_mat_S%local_data(:, iiB) = fm_mat_S%local_data(:, iiB)* &
-                                          SQRT(eigen_diff/(eigen_diff**2 + omega**2))
+            IF (avirt + dimen - virtual > iocc) THEN
+               fm_mat_S%local_data(:, iiB) = fm_mat_S%local_data(:, iiB)* &
+                                             SQRT(eigen_diff*occ_diff/(eigen_diff**2 + omega**2))
+            ELSE
+               fm_mat_S%local_data(:, iiB) = 0.0_dp
+            END IF
 
          END DO
       ELSE

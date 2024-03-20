@@ -359,8 +359,7 @@ CONTAINS
                                                             do_ri_Sigma_x, my_do_gw
       LOGICAL, INTENT(OUT) :: first_cycle_periodic_correction
       REAL(KIND=dp), INTENT(IN)                          :: a_scaling
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
-         INTENT(INOUT)                                   :: Eigenval
+      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: Eigenval
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
          INTENT(IN)                                      :: tj
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
