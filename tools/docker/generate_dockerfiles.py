@@ -59,6 +59,7 @@ def main() -> None:
                         base_image="ubuntu:20.04",
                         gcc_version=gcc_version,
                         libgrpp=False,
+                        spglib=False,
                     )
                 )
             # Skip some tests because of bug in LDA_C_PMGB06 functional in libxc <5.2.0.
@@ -399,6 +400,7 @@ def toolchain_ubuntu_nompi(
     gcc_version: int = 12,
     libgrpp: bool = True,
     libvori: bool = True,
+    spglib: bool = True,
 ) -> str:
     output = rf"""
 FROM {base_image}
@@ -441,6 +443,7 @@ RUN ln -sf /usr/bin/gcc-{gcc_version}      /usr/local/bin/gcc  && \
         with_libxc=("system" if gcc_version > 8 else "install"),
         with_libxsmm="install",
         with_libvori=("install" if libvori else "no"),
+        with_spglib=("install" if spglib else "no"),
     )
     return output
 
