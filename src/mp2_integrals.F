@@ -147,6 +147,7 @@ CONTAINS
 !> \param fm_matrix_Minv_Vtrunc_Minv ...
 !> \param nmo ...
 !> \param homo ...
+!> \param virtual ...
 !> \param mat_munu ...
 !> \param sab_orb_sub ...
 !> \param mo_coeff_o ...
@@ -185,7 +186,7 @@ CONTAINS
                                     cell, particle_set, atomic_kind_set, qs_kind_set, mo_coeff, &
                                     fm_matrix_PQ, fm_matrix_L_kpoints, fm_matrix_Minv_L_kpoints, &
                                     fm_matrix_Minv, fm_matrix_Minv_Vtrunc_Minv, &
-                                    nmo, homo, mat_munu, &
+                                    nmo, homo, virtual, mat_munu, &
                                     sab_orb_sub, mo_coeff_o, mo_coeff_v, mo_coeff_all, &
                                     mo_coeff_gw, eps_filter, unit_nr, &
                                     mp2_memory, calc_PQ_cond_num, calc_forces, blacs_env_sub, my_do_gw, do_bse, &
@@ -218,7 +219,7 @@ CONTAINS
                                                             fm_matrix_Minv, &
                                                             fm_matrix_Minv_Vtrunc_Minv
       INTEGER, INTENT(IN)                                :: nmo
-      INTEGER, DIMENSION(:), INTENT(IN)                  :: homo
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: homo, virtual
       TYPE(dbcsr_p_type), INTENT(INOUT)                  :: mat_munu
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          INTENT(IN), POINTER                             :: sab_orb_sub
@@ -259,7 +260,7 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:) :: dist_AO_1, dist_AO_2, dist_RI, &
          ends_array_mc_block_int, ends_array_mc_int, my_B_size, my_B_virtual_end, &
          my_B_virtual_start, sizes_AO, sizes_AO_split, sizes_RI, sizes_RI_split, &
-         starts_array_mc_block_int, starts_array_mc_int, virtual
+         starts_array_mc_block_int, starts_array_mc_int
       INTEGER, DIMENSION(2, 3)                           :: bounds
       INTEGER, DIMENSION(3)                              :: bounds_3c, pcoord, pdims, pdims_t3c, &
                                                             periodic
@@ -297,8 +298,6 @@ CONTAINS
 
       nspins = SIZE(homo)
 
-      ALLOCATE (virtual(nspins))
-      virtual(:) = nmo - homo(:)
       gw_corr_lev_total = gw_corr_lev_virt + gw_corr_lev_occ
 
       eri_method = qs_env%mp2_env%eri_method

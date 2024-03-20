@@ -819,7 +819,7 @@ CONTAINS
                                             fm_mat_Q_gemm(jspin)%matrix_struct%context)
          ELSE
             CALL calc_fm_mat_S_rpa(fm_mat_S(ispin), .TRUE., virtual(ispin), Eigenval(:, ispin), &
-                                   homo(ispin), omega, 0.0_dp)
+                                   omega, 0.0_dp)
          END IF
 
          CALL timeset(routineN//"_contr_S", handle2)

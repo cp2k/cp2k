@@ -1,3 +1,5 @@
 RPA_smearing_H2O.inp                                        11      1e-09            -17.145691221376179
 RPA_smearing_CH3.inp                                        11      7e-12             -7.415610629690420
+RPA_smearing_H2O_minimax.inp                                11      1e-09            -17.145691221376179
+RPA_smearing_CH3_minimax.inp                                11      7e-12             -7.415610629690420
 #EOF

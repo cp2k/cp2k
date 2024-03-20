@@ -82,12 +82,12 @@ MODULE mp2
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_kind_types,                   ONLY: qs_kind_type
+   USE qs_mo_occupation,                ONLY: set_mo_occupation
    USE qs_mo_types,                     ONLY: allocate_mo_set,&
                                               deallocate_mo_set,&
                                               get_mo_set,&
                                               init_mo_set,&
                                               mo_set_type
-USE qs_mo_occupation, ONLY: set_mo_occupation
    USE qs_scf_methods,                  ONLY: eigensolver,&
                                               eigensolver_symm
    USE qs_scf_types,                    ONLY: qs_scf_env_type
@@ -133,7 +133,7 @@ CONTAINS
          Emp2_S, Emp2_T, maxocc, mem_real, t1, t2, t3
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: Auto
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: C
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: mo_eigenvalues
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: mo_eigenvalues, mo_occupation_numbers
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
@@ -247,7 +247,8 @@ CONTAINS
          CALL cite_reference(Bussy2023)
          CALL cite_reference(Stein2024)
          !Gradients available for RI-MP2, and low-scaling Laplace MP2/RPA
-IF (.NOT. (mp2_env%method == ri_mp2_method_gpw .OR. mp2_env%method == ri_rpa_method_gpw .OR. mp2_env%method == ri_mp2_laplace)) THEN
+         IF (.NOT. (mp2_env%method == ri_mp2_method_gpw .OR. mp2_env%method == ri_rpa_method_gpw &
+                    .OR. mp2_env%method == ri_mp2_laplace)) THEN
             CPABORT("No forces/gradients for the selected method.")
          END IF
       END IF
@@ -260,9 +261,9 @@ IF (.NOT. (mp2_env%method == ri_mp2_method_gpw .OR. mp2_env%method == ri_rpa_met
 
       IF (scf_control%smear%do_smear) THEN
          IF (mp2_env%method .NE. ri_rpa_method_gpw) &
-CPABORT("Smearing only available with RPA calculations")
-IF (mp2_env%ri_rpa%do_ri_g0w0) &
-CPABORT("Smearing not available with GW calculations")
+            CPABORT("Smearing only available with RPA calculations")
+         IF (mp2_env%ri_rpa%do_ri_g0w0) &
+            CPABORT("Smearing not available with GW calculations")
       END IF
 
       IF (mp2_env%do_im_time .AND. mp2_env%eri_method .NE. do_eri_gpw) THEN
@@ -414,8 +415,15 @@ CPABORT("Smearing not available with GW calculations")
 
       END DO
 
-IF (scf_control%smear%do_smear) &
-CALL set_mo_occupation(mos_mp2, scf_control%smear)
+      IF (scf_control%smear%do_smear) THEN
+         CALL set_mo_occupation(mos_mp2, scf_control%smear)
+      END IF
+
+      ! Normalize occupation numbers to 1
+      IF (nspins == 1) THEN
+         CALL get_mo_set(mos_mp2(1), occupation_numbers=mo_occupation_numbers)
+         mo_occupation_numbers = mo_occupation_numbers/2.0_dp
+      END IF
 
       CALL cp_fm_release(fm_matrix_s)
       CALL cp_fm_release(fm_matrix_ks)

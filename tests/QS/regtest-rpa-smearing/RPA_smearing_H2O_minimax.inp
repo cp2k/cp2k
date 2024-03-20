@@ -1,6 +1,6 @@
 &GLOBAL
   PRINT_LEVEL MEDIUM
-  PROJECT RPA_smearing_H2O
+  PROJECT RPA_smearing_H2O_minimax
   RUN_TYPE ENERGY
   &TIMINGS
     THRESHOLD 0.01
@@ -51,7 +51,8 @@
           &END WFC_GPW
         &END INTEGRALS
         &RI_RPA
-          RPA_NUM_QUAD_POINTS 10
+          MINIMAX
+          RPA_NUM_QUAD_POINTS 4
           &HF
             FRACTION 1.0000000
             &SCREENING

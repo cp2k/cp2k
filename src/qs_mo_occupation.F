@@ -85,7 +85,6 @@ CONTAINS
       ALLOCATE (all_occ(all_nmo))
       ALLOCATE (all_index(all_nmo))
 
-WRITE(*,*) nmo_a, nmo_b, all_nmo
       all_eigval(1:nmo_a) = eigval_a(1:nmo_a)
       all_eigval(nmo_a + 1:all_nmo) = eigval_b(1:nmo_b)
 

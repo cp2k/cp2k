@@ -685,10 +685,10 @@ CONTAINS
       ELSE
          IF (iter_sc_GW0 == 1) THEN
             CALL calc_fm_mat_S_rpa(fm_mat_S, first_cycle, virtual, Eigenval, &
-                                   homo, omega, omega_old)
+                                   omega, omega_old)
          ELSE
             CALL calc_fm_mat_S_rpa(fm_mat_S, first_cycle, virtual, Eigenval_scf, &
-                                   homo, omega, omega_old)
+                                   omega, omega_old)
          END IF
       END IF
 
@@ -757,23 +757,21 @@ CONTAINS
 !> \param first_cycle ...
 !> \param virtual ...
 !> \param Eigenval ...
-!> \param homo ...
 !> \param omega ...
 !> \param omega_old ...
 ! **************************************************************************************************
-   SUBROUTINE calc_fm_mat_S_rpa(fm_mat_S, first_cycle, virtual, Eigenval, homo, &
+   SUBROUTINE calc_fm_mat_S_rpa(fm_mat_S, first_cycle, virtual, Eigenval, &
                                 omega, omega_old)
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_S
       LOGICAL, INTENT(IN)                                :: first_cycle
       INTEGER, INTENT(IN)                                :: virtual
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: Eigenval
-      INTEGER, INTENT(IN)                                :: homo
       REAL(KIND=dp), INTENT(IN)                          :: omega, omega_old
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'calc_fm_mat_S_rpa'
 
-      INTEGER                                            :: avirt, handle, i_global, iiB, iocc, &
-                                                            ncol_local
+      INTEGER                                            :: avirt, dimen, handle, i_global, iiB, &
+                                                            iocc, ncol_local
       INTEGER, DIMENSION(:), POINTER                     :: col_indices
       REAL(KIND=dp)                                      :: eigen_diff
 
@@ -784,18 +782,20 @@ CONTAINS
                           ncol_local=ncol_local, &
                           col_indices=col_indices)
 
+      dimen = SIZE(Eigenval)
+
       ! update G matrix with the new value of omega
       IF (first_cycle) THEN
          ! In this case just update the matrix (symmetric form) with
          ! SQRT((epsi_a-epsi_i)/((epsi_a-epsi_i)**2+omega**2))
 !$OMP PARALLEL DO DEFAULT(NONE) PRIVATE(iiB,iocc,avirt,eigen_diff,i_global) &
-!$OMP             SHARED(ncol_local,col_indices,Eigenval,fm_mat_S,virtual,homo,omega)
+!$OMP             SHARED(ncol_local,col_indices,Eigenval,fm_mat_S,virtual,dimen,omega)
          DO iiB = 1, ncol_local
             i_global = col_indices(iiB)
 
             iocc = MAX(1, i_global - 1)/virtual + 1
             avirt = i_global - (iocc - 1)*virtual
-            eigen_diff = Eigenval(avirt + homo) - Eigenval(iocc)
+            eigen_diff = ABS(Eigenval(avirt + dimen - virtual) - Eigenval(iocc))
 
             fm_mat_S%local_data(:, iiB) = fm_mat_S%local_data(:, iiB)* &
                                           SQRT(eigen_diff/(eigen_diff**2 + omega**2))
@@ -805,13 +805,13 @@ CONTAINS
          ! In this case the update has to remove the old omega component thus
          ! SQRT(((epsi_a-epsi_i)**2+omega_old**2)/((epsi_a-epsi_i)**2+omega**2))
 !$OMP PARALLEL DO DEFAULT(NONE) PRIVATE(iiB,iocc,avirt,eigen_diff,i_global) &
-!$OMP             SHARED(ncol_local,col_indices,Eigenval,fm_mat_S,virtual,homo,omega,omega_old)
+!$OMP             SHARED(ncol_local,col_indices,Eigenval,fm_mat_S,virtual,dimen,omega,omega_old)
          DO iiB = 1, ncol_local
             i_global = col_indices(iiB)
 
             iocc = MAX(1, i_global - 1)/virtual + 1
             avirt = i_global - (iocc - 1)*virtual
-            eigen_diff = Eigenval(avirt + homo) - Eigenval(iocc)
+            eigen_diff = Eigenval(avirt + dimen - virtual) - Eigenval(iocc)
 
             fm_mat_S%local_data(:, iiB) = fm_mat_S%local_data(:, iiB)* &
                                           SQRT((eigen_diff**2 + omega_old**2)/(eigen_diff**2 + omega**2))

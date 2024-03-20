@@ -143,16 +143,16 @@ CONTAINS
          ispin, local_unit_nr, my_group_L_end, my_group_L_size, my_group_L_start, nmo, nspins, &
          potential_type, ri_metric_type
       INTEGER, ALLOCATABLE, DIMENSION(:) :: ends_array_mc, ends_array_mc_block, gw_corr_lev_occ, &
-         gw_corr_lev_virt, homo, starts_array_mc, starts_array_mc_block
+         gw_corr_lev_virt, homo, starts_array_mc, starts_array_mc_block, virtual
       INTEGER, DIMENSION(3)                              :: periodic
       LOGICAL :: blacs_repeatable, do_bse, do_im_time, do_kpoints_cubic_RPA, my_do_gw, &
          my_do_ri_mp2, my_do_ri_rpa, my_do_ri_sos_laplace_mp2
       REAL(KIND=dp)                                      :: Emp2_AB, Emp2_BB, Emp2_Cou_BB, &
                                                             Emp2_EX_BB, eps_gvg_rspace_old, &
                                                             eps_pgf_orb_old, eps_rho_rspace_old
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: Eigenval
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: Eigenval, occupation_numbers
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: BIb_C_bse_ab, BIb_C_bse_ij
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: mo_eigenvalues
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: mo_eigenvalues, mo_occupation_numbers
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(block_ind_type), ALLOCATABLE, &
          DIMENSION(:, :, :)                              :: t_3c_O_ind
@@ -229,13 +229,19 @@ CONTAINS
          CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, mos=mos)
       END IF
       CALL get_mo_set(mo_set=mos_mp2(1), nao=dimen)
-      ALLOCATE (homo(nspins), Eigenval(dimen, nspins), mo_coeff(nspins))
+      ALLOCATE (homo(nspins), virtual(nspins), Eigenval(dimen, nspins), &
+                mo_coeff(nspins), occupation_numbers(dimen, nspins))
       DO ispin = 1, nspins
          CALL get_mo_set(mo_set=mos_mp2(ispin), &
-                         eigenvalues=mo_eigenvalues, nmo=nmo, homo=homo(ispin), &
-                         mo_coeff=mo_coeff_ptr)
+                         eigenvalues=mo_eigenvalues, nmo=nmo, &
+                         occupation_numbers=mo_occupation_numbers, mo_coeff=mo_coeff_ptr)
          mo_coeff(ispin) = mo_coeff_ptr
          Eigenval(:, ispin) = mo_eigenvalues(:)
+         IF (ANY(mo_occupation_numbers > 1.0_dp) .OR. ANY(mo_occupation_numbers < 0.0_dp)) &
+            CPABORT("Occupation numbers are expected to be in the interval [0,1]!")
+         occupation_numbers(:, ispin) = mo_occupation_numbers(:)
+         homo(ispin) = COUNT(mo_occupation_numbers > 0.0_dp)
+         virtual(ispin) = COUNT(mo_occupation_numbers < 1.0_dp)
       END DO
 
       ! a para_env
@@ -353,12 +359,13 @@ CONTAINS
       ! for imag. time, we do not need this
       IF (.NOT. do_im_time) THEN
 
-         ! new routine: replicate a full matrix from one para_env to a smaller one
+         ! replicate a full matrix from one para_env to a smaller one
          ! keeping the memory usage as small as possible in this case the
          ! output the two part of the C matrix (virtual, occupied)
          DO ispin = 1, nspins
 
-            CALL replicate_mat_to_subgroup(para_env, para_env_sub, mo_coeff(ispin), dimen, homo(ispin), mat_munu%matrix, &
+            CALL replicate_mat_to_subgroup(para_env, para_env_sub, mo_coeff(ispin), dimen, &
+                                           homo(ispin), virtual(ispin), mat_munu%matrix, &
                                            mo_coeff_o(ispin)%matrix, mo_coeff_v(ispin)%matrix, &
                                            mo_coeff_all(ispin)%matrix, mo_coeff_gw(ispin)%matrix, &
                                            my_do_gw, gw_corr_lev_occ(ispin), gw_corr_lev_virt(ispin), mp2_env%mp2_gpw%eps_filter)
@@ -377,7 +384,7 @@ CONTAINS
                BIb_C, BIb_C_gw, BIb_C_bse_ij, BIb_C_bse_ab, gd_array, gd_B_virtual, dimen_RI, dimen_RI_red, qs_env, &
                para_env, para_env_sub, color_sub, cell, particle_set, &
                atomic_kind_set, qs_kind_set, mo_coeff, fm_matrix_PQ, fm_matrix_L_kpoints, fm_matrix_Minv_L_kpoints, &
-               fm_matrix_Minv, fm_matrix_Minv_Vtrunc_Minv, nmo, homo, mat_munu, sab_orb_sub, &
+               fm_matrix_Minv, fm_matrix_Minv_Vtrunc_Minv, nmo, homo, virtual, mat_munu, sab_orb_sub, &
                mo_coeff_o, mo_coeff_v, mo_coeff_all, mo_coeff_gw, &
                mp2_env%mp2_gpw%eps_filter, unit_nr, &
                mp2_env%mp2_memory, mp2_env%calc_PQ_cond_num, calc_forces, blacs_env_sub, my_do_gw .AND. .NOT. do_im_time, &
@@ -394,7 +401,7 @@ CONTAINS
                                        color_sub, cell, particle_set, &
                                        atomic_kind_set, qs_kind_set, mo_coeff, fm_matrix_PQ, &
                                        fm_matrix_L_kpoints, fm_matrix_Minv_L_kpoints, &
-                                       fm_matrix_Minv, fm_matrix_Minv_Vtrunc_Minv, nmo, homo, &
+                                       fm_matrix_Minv, fm_matrix_Minv_Vtrunc_Minv, nmo, homo, virtual, &
                                        mat_munu, sab_orb_sub, &
                                        mo_coeff_o, mo_coeff_v, mo_coeff_all, mo_coeff_gw, &
                                        mp2_env%mp2_gpw%eps_filter, unit_nr, &
@@ -525,7 +532,8 @@ CONTAINS
                                 gd_array, gd_B_virtual, gd_B_all, gd_B_occ_bse, gd_B_virt_bse, &
                                 mo_coeff, fm_matrix_PQ, fm_matrix_L_kpoints, fm_matrix_Minv_L_kpoints, &
                                 fm_matrix_Minv, fm_matrix_Minv_Vtrunc_Minv, kpoints, &
-                                Eigenval, nmo, homo, dimen_RI, dimen_RI_red, gw_corr_lev_occ, gw_corr_lev_virt, &
+                                Eigenval, occupation_numbers, nmo, homo, virtual, dimen_RI, &
+                                dimen_RI_red, gw_corr_lev_occ, gw_corr_lev_virt, &
                                 unit_nr, my_do_ri_sos_laplace_mp2, my_do_gw, do_im_time, do_bse, matrix_s, &
                                 mat_munu, mat_P_global, t_3c_M, t_3c_O, t_3c_O_compressed, t_3c_O_ind, &
                                 starts_array_mc, ends_array_mc, &
@@ -639,6 +647,7 @@ CONTAINS
 !> \param mo_coeff ...
 !> \param dimen ...
 !> \param homo ...
+!> \param virtual ...
 !> \param mat_munu ...
 !> \param mo_coeff_o ...
 !> \param mo_coeff_v ...
@@ -649,12 +658,12 @@ CONTAINS
 !> \param gw_corr_lev_virt ...
 !> \param eps_filter ...
 ! **************************************************************************************************
-   SUBROUTINE replicate_mat_to_subgroup(para_env, para_env_sub, mo_coeff, dimen, homo, mat_munu, &
+   SUBROUTINE replicate_mat_to_subgroup(para_env, para_env_sub, mo_coeff, dimen, homo, virtual, mat_munu, &
                                         mo_coeff_o, mo_coeff_v, mo_coeff_all, mo_coeff_gw, my_do_gw, &
                                         gw_corr_lev_occ, gw_corr_lev_virt, eps_filter)
       TYPE(mp_para_env_type), INTENT(IN)                 :: para_env, para_env_sub
       TYPE(cp_fm_type), INTENT(IN)                       :: mo_coeff
-      INTEGER, INTENT(IN)                                :: dimen, homo
+      INTEGER, INTENT(IN)                                :: dimen, homo, virtual
       TYPE(dbcsr_type), INTENT(INOUT)                    :: mat_munu
       TYPE(dbcsr_type), POINTER                          :: mo_coeff_o, mo_coeff_v, mo_coeff_all, &
                                                             mo_coeff_gw
@@ -678,7 +687,7 @@ CONTAINS
                                  mat_munu, gd_array, eps_filter)
 
       ALLOCATE (mo_coeff_v)
-      CALL build_dbcsr_from_rows(para_env_sub, mo_coeff_v, C(:, homo + 1:dimen), &
+      CALL build_dbcsr_from_rows(para_env_sub, mo_coeff_v, C(:, dimen - virtual + 1:dimen), &
                                  mat_munu, gd_array, eps_filter)
 
       IF (my_do_gw) THEN

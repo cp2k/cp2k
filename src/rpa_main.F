@@ -146,8 +146,10 @@ CONTAINS
 !> \param fm_matrix_Minv_Vtrunc_Minv ...
 !> \param kpoints ...
 !> \param Eigenval ...
+!> \param occupation_numbers ...
 !> \param nmo ...
 !> \param homo ...
+!> \param virtual ...
 !> \param dimen_RI ...
 !> \param dimen_RI_red ...
 !> \param gw_corr_lev_occ ...
@@ -175,7 +177,8 @@ CONTAINS
                                 gd_array, gd_B_virtual, gd_B_all, gd_B_occ_bse, gd_B_virt_bse, &
                                 mo_coeff, fm_matrix_PQ, fm_matrix_L_kpoints, fm_matrix_Minv_L_kpoints, &
                                 fm_matrix_Minv, fm_matrix_Minv_Vtrunc_Minv, kpoints, &
-                                Eigenval, nmo, homo, dimen_RI, dimen_RI_red, gw_corr_lev_occ, gw_corr_lev_virt, &
+                                Eigenval, occupation_numbers, nmo, homo, virtual, dimen_RI, &
+                                dimen_RI_red, gw_corr_lev_occ, gw_corr_lev_virt, &
                                 unit_nr, do_ri_sos_laplace_mp2, my_do_gw, do_im_time, do_bse, matrix_s, &
                                 mat_munu, mat_P_global, t_3c_M, t_3c_O, t_3c_O_compressed, t_3c_O_ind, &
                                 starts_array_mc, ends_array_mc, &
@@ -202,9 +205,9 @@ CONTAINS
                                                             fm_matrix_Minv_Vtrunc_Minv
       TYPE(kpoint_type), POINTER                         :: kpoints
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
-         INTENT(INOUT)                                   :: Eigenval
+         INTENT(INOUT)                                   :: Eigenval, occupation_numbers
       INTEGER, INTENT(IN)                                :: nmo
-      INTEGER, DIMENSION(:), INTENT(IN)                  :: homo
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: homo, virtual
       INTEGER, INTENT(IN)                                :: dimen_RI, dimen_RI_red
       INTEGER, DIMENSION(:), INTENT(IN)                  :: gw_corr_lev_occ, gw_corr_lev_virt
       INTEGER, INTENT(IN)                                :: unit_nr
@@ -226,8 +229,8 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'rpa_ri_compute_en'
 
-      INTEGER :: best_integ_group_size, best_num_integ_point, color_rpa_group, dimen_homo_square, &
-         dimen_nm_gw, dimen_virt_square, handle, handle2, handle3, ierr, iiB, &
+      INTEGER :: best_integ_group_size, best_num_integ_point, color_rpa_group, dimen, &
+         dimen_homo_square, dimen_nm_gw, dimen_virt_square, handle, handle2, handle3, ierr, iiB, &
          input_num_integ_groups, integ_group_size, ispin, jjB, min_integ_group_size, &
          my_ab_comb_bse_end, my_ab_comb_bse_size, my_ab_comb_bse_start, my_group_L_end, &
          my_group_L_size, my_group_L_start, my_ij_comb_bse_end, my_ij_comb_bse_size, &
@@ -235,7 +238,7 @@ CONTAINS
          ngroup, nrow_block_mat, nspins, num_integ_group, num_integ_points, pos_integ_group
       INTEGER(KIND=int_8)                                :: mem
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: dimen_ia, my_ia_end, my_ia_size, &
-                                                            my_ia_start, virtual
+                                                            my_ia_start
       LOGICAL                                            :: do_kpoints_from_Gamma, do_minimax_quad, &
                                                             my_open_shell, skip_integ_group_opt
       REAL(KIND=dp) :: allowed_memory, avail_mem, E_Range, Emax, Emin, mem_for_iaK, mem_for_QK, &
@@ -251,6 +254,9 @@ CONTAINS
       TYPE(two_dim_real_array), DIMENSION(1)             :: BIb_C_2D_bse_ab, BIb_C_2D_bse_ij
 
       CALL timeset(routineN, handle)
+
+      MARK_USED(occupation_numbers)
+      WRITE (*, *) "Occupation numbers", occupation_numbers
 
       CALL cite_reference(DelBen2013)
       CALL cite_reference(DelBen2015)
@@ -277,9 +283,9 @@ CONTAINS
       END IF
 
       nspins = SIZE(homo)
+      dimen = SIZE(Eigenval, 1)
       my_open_shell = (nspins == 2)
-      ALLOCATE (virtual(nspins), dimen_ia(nspins), my_ia_end(nspins), my_ia_start(nspins), my_ia_size(nspins))
-      virtual(:) = nmo - homo(:)
+      ALLOCATE (dimen_ia(nspins), my_ia_end(nspins), my_ia_start(nspins), my_ia_size(nspins))
       dimen_ia(:) = virtual(:)*homo(:)
 
       ALLOCATE (Eigenval_kp(nmo, 1, nspins))
@@ -293,6 +299,7 @@ CONTAINS
          input_num_integ_groups = mp2_env%ri_laplace%num_integ_groups
 
          ! check the range for the minimax approximation
+         ! Assume all orbitals to be fully occupied or fully unoccupied (in contrast to RPA)
          E_Range = mp2_env%e_range
          IF (mp2_env%e_range <= 1.0_dp .OR. mp2_env%e_gap <= 0.0_dp) THEN
             Emin = HUGE(dp)
@@ -1150,7 +1157,7 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       nspins = SIZE(homo)
-      nmo = homo(1) + virtual(1)
+      nmo = SIZE(Eigenval, 1)
       my_open_shell = (nspins == 2)
 
       do_gw_im_time = my_do_gw .AND. do_im_time
@@ -1258,7 +1265,7 @@ CONTAINS
       ALLOCATE (e_fermi(nspins))
       IF (do_minimax_quad .OR. do_ri_sos_laplace_mp2) THEN
          do_print = .NOT. do_ic_model
-         CALL get_minimax_grid(para_env, unit_nr, homo, Eigenval, num_integ_points, do_im_time, &
+         CALL get_minimax_grid(para_env, unit_nr, homo, virtual, Eigenval, num_integ_points, do_im_time, &
                                do_ri_sos_laplace_mp2, do_print, &
                                tau_tj, tau_wj, qs_env, do_gw_im_time, &
                                do_kpoints_cubic_RPA, e_fermi(1), tj, wj, &
