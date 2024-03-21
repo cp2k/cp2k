@@ -788,7 +788,8 @@ ENV PATH="/opt/spack/bin:${{PATH}}"
 
 # Find all external packages and compilers.
 RUN spack compiler find
-RUN spack external find --all --not-buildable --exclude gcc
+RUN spack external find --all --not-buildable
+RUN cat ~/.spack/packages.yaml && sed -i 's/gcc/gcc-runtime/g' ~/.spack/packages.yaml
 
 # Install CP2K's dependencies via Spack.
 WORKDIR /
