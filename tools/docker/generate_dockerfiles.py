@@ -782,7 +782,7 @@ RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
 WORKDIR /opt/spack
 RUN git init --quiet && \
     git remote add origin https://github.com/spack/spack.git && \
-    git fetch --quiet --depth 1 origin 2721b4c10d27afde281ea0cdb0480a7343ce0863 && \
+    git fetch --quiet --depth 1 origin 384e1983041094c8487d394f59dfe8a6848d60f2 && \
     git checkout --quiet FETCH_HEAD
 ENV PATH="/opt/spack/bin:${{PATH}}"
 
