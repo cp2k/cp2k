@@ -1,6 +1,6 @@
 &GLOBAL
   PRINT_LEVEL MEDIUM
-  PROJECT RPA_CH3_minimax
+  PROJECT RPA_smearing_H2O_extrap3
   RUN_TYPE ENERGY
   &TIMINGS
     THRESHOLD 0.01
@@ -11,13 +11,9 @@
   METHOD Quickstep
   &DFT
     BASIS_SET_FILE_NAME HFX_BASIS
-    MULTIPLICITY 2
     POTENTIAL_FILE_NAME GTH_POTENTIALS
-    UKS
     &MGRID
-      ! CUTOFF  300
       CUTOFF 100
-      ! REL_CUTOFF  50
       REL_CUTOFF 20
     &END MGRID
     &POISSON
@@ -30,10 +26,14 @@
       METHOD GPW
     &END QS
     &SCF
-      ADDED_MOS 20 20
-      EPS_SCF 1.0E-5
+      ADDED_MOS 10 10
+      EPS_SCF 1.0E-7
       MAX_SCF 100
       SCF_GUESS ATOMIC
+      &PRINT
+        &RESTART OFF
+        &END RESTART
+      &END PRINT
       &SMEAR
         ELECTRONIC_TEMPERATURE 300.
         METHOD FERMI_DIRAC
@@ -41,7 +41,7 @@
     &END SCF
     &XC
       &WF_CORRELATION
-        MEMORY 500.0
+        MEMORY 200.
         NUMBER_PROC 1
         &INTEGRALS
           ERI_METHOD GPW
@@ -51,8 +51,8 @@
           &END WFC_GPW
         &END INTEGRALS
         &RI_RPA
-          MINIMAX
-          RPA_NUM_QUAD_POINTS 4
+          EXTRAPOLATION_ORDER 3
+          RPA_NUM_QUAD_POINTS 10
           &HF
             FRACTION 1.0000000
             &SCREENING
@@ -68,7 +68,6 @@
   &END DFT
   &SUBSYS
     &CELL
-      ! ABC [angstrom]  10.000   10.000   10.000
       ABC [angstrom] 6.000 6.000 6.000
       PERIODIC NONE
     &END CELL
@@ -77,14 +76,14 @@
       BASIS_SET RI_AUX RI_DZVP-GTH
       POTENTIAL GTH-PBE-q1
     &END KIND
-    &KIND C
+    &KIND O
       BASIS_SET DZVP-GTH
       BASIS_SET RI_AUX RI_DZVP-GTH
-      POTENTIAL GTH-PBE-q4
+      POTENTIAL GTH-PBE-q6
     &END KIND
     &TOPOLOGY
       COORD_FILE_FORMAT xyz
-      COORD_FILE_NAME CH3.xyz
+      COORD_FILE_NAME H2O_gas.xyz
       &CENTER_COORDINATES
       &END CENTER_COORDINATES
     &END TOPOLOGY

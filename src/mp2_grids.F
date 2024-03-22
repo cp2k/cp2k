@@ -1595,7 +1595,17 @@ CONTAINS
 
       ! We perform a simple extrapolation of the total energy contribution
       ! We hard-code the rules to reduce numerical noise occurring at low temperatures and large number of required grid points
-      IF (extrapolation_order >= 2) THEN
+      IF (extrapolation_order >= 3) THEN
+         IF (extrapolation_order > 3) THEN
+            CALL cp_warn(__LOCATION__, &
+                         "Unsupported extrapolation order. Extrapolation order was set to 3!")
+            extrapolation_order = 3
+         END IF
+         n_real = REAL(num_integ_points, dp)
+         tj(num_integ_points - 1) = tj(num_integ_points - 1)*(n_real**2 - 2.0_dp*(n_real - 1.0_dp)**2*(1.0_dp - 1.0_dp/n_real)**2) &
+                                    /(12.0_dp - 24.0_dp/n_real + 14.0_dp/n_real**2)
+         tj(num_integ_points) = tj(num_integ_points)*n_real**2/(12.0_dp - 24.0_dp/n_real + 14.0_dp/n_real**2)
+      ELSE IF (extrapolation_order == 2) THEN
          n_real = REAL(num_integ_points, dp)
          tj(num_integ_points) = tj(num_integ_points)*n_real/(3.0_dp - 3.0_dp/n_real + n_real**(-2))
       ELSE
@@ -1604,7 +1614,7 @@ CONTAINS
 
       IF (unit_nr > 0) THEN
          WRITE (UNIT=unit_nr, FMT="(T3,A,T75,i6)") &
-            "MATSUBARA_INFO| Extrapolation order:", num_integ_points
+            "MATSUBARA_INFO| Extrapolation order:", extrapolation_order
          CALL m_flush(unit_nr)
       END IF
 
