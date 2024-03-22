@@ -1027,19 +1027,21 @@ CONTAINS
       ! Number of matrices with size of A in TDA is 2 (A itself and W_ijab)
       num_BSE_matrices = 2
       ! With the full diagonalization of ABBA, we need several auxiliary matrices in the process
-      ! The maximum number is 2 + 4 (additional B and C matrix as well as 4 matrices to create C)
+      ! The maximum number is 2 + 2 + 6 (additional B and C matrix as well as 6 matrices to create C)
       IF (bse_abba) THEN
-         num_BSE_matrices = 2 + 4
+         num_BSE_matrices = 10
       END IF
-      mem_est = (8*homo_red**2*virtual_red**2/para_env%num_pe*num_BSE_matrices)/(1024**3)
+      mem_est = REAL(REAL(8*REAL(homo_red**2*virtual_red**2)*num_BSE_matrices)/(1024**3))
       IF (unit_nr > 0) THEN
-         WRITE (unit_nr, '(T2,A4,T7,A47,T73,F8.3)') 'BSE|', 'Peak memory estimate per MPI rank from BSE [GB]', &
+         WRITE (unit_nr, '(T2,A4,T7,A40,T68,F13.3)') 'BSE|', 'Total peak memory estimate from BSE [GB]', &
             mem_est
+         WRITE (unit_nr, '(T2,A4,T7,A47,T68,F13.3)') 'BSE|', 'Peak memory estimate per MPI rank from BSE [GB]', &
+            REAL(mem_est/para_env%num_pe)
          WRITE (unit_nr, '(T2,A4)') 'BSE|'
       END IF
       ! Rough estimation of diagonalization runtimes. Baseline was a full BSE Naphthalene
       ! run with 11000x11000 entries in A/B/C, which took 10s on 32 ranks
-      diag_runtime_est = (homo_red*virtual_red/11000)**3*10*32/para_env%num_pe
+      diag_runtime_est = REAL(REAL(homo_red*virtual_red/11000)**3*10*32/para_env%num_pe)
 
       CALL timestop(handle)
 
@@ -1275,10 +1277,10 @@ CONTAINS
             WRITE (unit_nr, '(T2,A4,T7,A36)') 'BSE|', 'No cutoff given for virtual orbitals'
          END IF
          WRITE (unit_nr, '(T2,A4,T7,A20,T71,I10)') 'BSE|', 'First occupied index', homo_incl
-         WRITE (unit_nr, '(T2,A4,T7,A18,T71,I10)') 'BSE|', 'Last virtual index', virt_incl
+         WRITE (unit_nr, '(T2,A4,T7,A34,T71,I10)') 'BSE|', 'Last virtual index (not MO index!)', virt_incl
          WRITE (unit_nr, '(T2,A4,T7,A35,T71,F10.3)') 'BSE|', 'Energy of first occupied index [eV]', Eigenval(homo_incl)*evolt
          WRITE (unit_nr, '(T2,A4,T7,A33,T71,F10.3)') 'BSE|', 'Energy of last virtual index [eV]', Eigenval(homo + virt_incl)*evolt
-         WRITE (unit_nr, '(T2,A4,T7,A54,T71,F10.3)') 'BSE|', 'Energy difference of first occupied index to homo [eV]', &
+         WRITE (unit_nr, '(T2,A4,T7,A54,T71,F10.3)') 'BSE|', 'Energy difference of first occupied index to HOMO [eV]', &
             -(Eigenval(homo_incl) - Eigenval(homo))*evolt
          WRITE (unit_nr, '(T2,A4,T7,A52,T71,F10.3)') 'BSE|', 'Energy difference of last virtual index to LUMO [eV]', &
             (Eigenval(homo + virt_incl) - Eigenval(homo + 1))*evolt

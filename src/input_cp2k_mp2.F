@@ -690,8 +690,8 @@ CONTAINS
                           "Counting beginning from HOMO, e.g. 3 corrected occ. MOs correspond "// &
                           "to correction of HOMO, HOMO-1 and HOMO-2. Numerical effort and "// &
                           "storage of RI-G0W0 increase linearly with this number. In case you "// &
-                          "want to correct all occ. MOs, insert a number larger than the number "// &
-                          "of occ. MOs.", &
+                          "want to correct all occ. MOs, insert either a negative number or "// &
+                          "a number larger than the number of occ. MOs.", &
                           usage="CORR_OCC 3", &
                           default_i_val=10)
       CALL section_add_keyword(section, keyword)
@@ -703,8 +703,8 @@ CONTAINS
                           "Counting beginning from LUMO, e.g. 3 corrected occ. MOs correspond "// &
                           "to correction of LUMO, LUMO+1 and LUMO+2. Numerical effort and "// &
                           "storage of RI-G0W0 increase linearly with this number. In case you "// &
-                          "want to correct all virt. MOs, insert a number larger than the number "// &
-                          "of virt. MOs.", &
+                          "want to correct all virt. MOs, insert either a negative number or "// &
+                          "a number larger than the number of virt. MOs.", &
                           usage="CORR_VIRT 3", &
                           default_i_val=10)
       CALL section_add_keyword(section, keyword)
@@ -1213,8 +1213,10 @@ CONTAINS
       CALL section_create(section, __LOCATION__, name="BSE", &
                           description="Parameters for a calculation solving the Bethe-Salpeter equation "// &
                           "(BSE) for electronic excitations. The full BSE "// &
-      "$\left( \begin{array}{cc}A &  B\\B &  A\end{array} \right)\left( \begin{array}{cc}X^{(n)}\\Y^{(n)}\end{array} \right) = "// &
-     "\Omega^{(n)}\left(\begin{array}{cc}1&0\\0&-1\end{array}\right)\left(\begin{array}{cc}X^{(n)}\\Y^{(n)}\end{array}\right)$ "// &
+                          "$\left( \begin{array}{cc}A &  B\\B &  A\end{array} \right)$ "// &
+                          "$\left( \begin{array}{cc}\mathbf{X}^{(n)}\\\mathbf{Y}^{(n)}\end{array} \right) = "// &
+                          "\Omega^{(n)}\left(\begin{array}{cc}1&0\\0&-1\end{array}\right)$ "// &
+                          "$\left(\begin{array}{cc}\mathbf{X}^{(n)}\\\mathbf{Y}^{(n)}\end{array}\right)$ "// &
                           "enables of electronic excitation energies $\Omega^{(n)}$. The BSE can be solved by diagonalizing "// &
                           "the full ABBA-matrix or by setting B=0, i.e. within the Tamm-Dancoff approximation (TDA). "// &
                          "Preliminary reference: Eq. (35) in PRB 92, 045209 (2015); http://dx.doi.org/10.1103/PhysRevB.92.045209", &
@@ -1268,7 +1270,7 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="ENERGY_CUTOFF_OCC", &
                           description="Removing all orbitals with indices i,j from A_ia,jb and B_ia,jb with energy difference "// &
                           "to HOMO level larger than the given energy cutoff, i.e. "// &
-                          "$\epsilon_{\mathrm{HOMO}}-\epsilon_a>\mathtt{ENERGY_CUTOFF_OCC}$. "// &
+                          "$\epsilon_{\mathrm{HOMO}}-\epsilon_a>\mathtt{ENERGY\_CUTOFF\_OCC}$. "// &
                           "Can be used to accelerate runtime and reduce memory consumption.", &
                           usage="ENERGY_CUTOFF_OCC 10.0", unit_str="eV", &
                           type_of_var=real_t, default_r_val=-1.0_dp)
@@ -1278,7 +1280,7 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="ENERGY_CUTOFF_VIRT", &
                           description="Removing all orbitals with indices a,b from A_ia,jb and B_ia,jb with energy difference "// &
                           "to LUMO level larger than the given energy cutoff, i.e. "// &
-                          "$\epsilon_i-\epsilon_{\mathrm{LUMO}}>\mathtt{ENERGY_CUTOFF_VIRT}$. "// &
+                          "$\epsilon_i-\epsilon_{\mathrm{LUMO}}>\mathtt{ENERGY\_CUTOFF\_VIRT}$. "// &
                           "Can be used to accelerate runtime and reduce memory consumption.", &
                           usage="ENERGY_CUTOFF_VIRT 10.0", unit_str="eV", &
                           type_of_var=real_t, default_r_val=-1.0_dp)
@@ -1301,7 +1303,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="EPS_X", &
                           description="Threshold for printing contributions of singleparticle "// &
-                          "transitions, i.e. elements of the eigenvector $X_{ia}^n$.", &
+                          "transitions, i.e. elements of the eigenvector $X_{ia}^{(n)}$.", &
                           usage="EPS_X 0.1", &
                           type_of_var=real_t, default_r_val=0.1_dp)
       CALL section_add_keyword(section, keyword)
