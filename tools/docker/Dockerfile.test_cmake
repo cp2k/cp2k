@@ -44,13 +44,16 @@ RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
 WORKDIR /opt/spack
 RUN git init --quiet && \
     git remote add origin https://github.com/spack/spack.git && \
-    git fetch --quiet --depth 1 origin 8bcb1f8766ffbf097ec685bdafad53bc8b6e9e30 && \
+    git fetch --quiet --depth 1 origin develop-2023-12-17 && \
     git checkout --quiet FETCH_HEAD
 ENV PATH="/opt/spack/bin:${PATH}"
 
 # Find all external packages and compilers.
-RUN spack external find --all --not-buildable 
 RUN spack compiler find
+RUN spack external find --all --not-buildable
+
+# Enable Spack build cache
+RUN spack mirror add develop-2023-12-17 https://binaries.spack.io/develop-2023-12-17 && spack buildcache keys --install --trust
 
 # Install CP2K's dependencies via Spack.
 WORKDIR /
