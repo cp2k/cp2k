@@ -507,7 +507,8 @@ CONTAINS
 
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, __LOCATION__, name="RI_RPA", &
-                          description="Parameters influencing RI-RPA and GW.", &
+                          description="Parameters influencing RI-RPA and GW. If T>0, CP2K automatically "// &
+                          "employs Matsubara summation. GW is not (yet) compatible with T>0.", &
                           n_keywords=8, n_subsections=4, repeats=.FALSE., &
                           citations=(/DelBen2013, DelBen2015/))
 
@@ -537,6 +538,15 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="EXTRAPOLATION_ORDER", &
+                          description="Due to their slow convergence, Matsubara sums require an extrapolation. "// &
+                          "This keyword sets the order of the extrapolation scheme. If a given order is not available "// &
+                          "or the order is negative, the highest possible order is employed instead.", &
+                          usage="EXTRAPOLATION_ORDER 2", &
+                          default_i_val=2)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       CALL keyword_create(keyword, __LOCATION__, &
                           name="MM_STYLE", &
                           description="Matrix multiplication style for the Q matrix.", &
@@ -554,7 +564,7 @@ CONTAINS
          name="MINIMAX_QUADRATURE", &
          variants=(/"MINIMAX"/), &
          description="Use the Minimax quadrature scheme for performing the numerical integration. "// &
-         "Maximum number of quadrature point limited to 20.", &
+         "Maximum number of quadrature point limited to 20. Ignored if T>0.", &
          usage="MINIMAX_QUADRATURE", &
          default_l_val=.FALSE., &
          lone_keyword_l_val=.TRUE.)

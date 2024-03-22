@@ -120,7 +120,8 @@ MODULE mp2_types
    TYPE ri_rpa_type
       INTEGER                                            :: rpa_num_quad_points = -1, &
                                                             rpa_num_integ_groups = -1, &
-                                                            mm_style = wfc_mm_style_gemm
+                                                            mm_style = wfc_mm_style_gemm, &
+                                                            extrapolation_order = -1
       TYPE(hfx_type), DIMENSION(:, :), POINTER           :: x_data => NULL()
       TYPE(section_vals_type), POINTER                   :: xc_section_primary => Null(), &
                                                             xc_section_aux => Null()

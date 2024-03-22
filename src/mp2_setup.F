@@ -106,6 +106,7 @@ CONTAINS
       END IF
       CALL section_vals_val_get(mp2_section, "RI_RPA%RPA_NUM_QUAD_POINTS", i_val=mp2_env%ri_rpa%rpa_num_quad_points)
       CALL section_vals_val_get(mp2_section, "RI_RPA%NUM_INTEG_GROUPS", i_val=mp2_env%ri_rpa%rpa_num_integ_groups)
+      CALL section_vals_val_get(mp2_section, "RI_RPA%EXTRAPOLATION_ORDER", i_val=mp2_env%ri_rpa%extrapolation_order)
       CALL section_vals_val_get(mp2_section, "RI_RPA%MM_STYLE", i_val=mp2_env%ri_rpa%mm_style)
       CALL section_vals_val_get(mp2_section, "RI_RPA%MINIMAX_QUADRATURE", l_val=mp2_env%ri_rpa%minimax_quad)
       CALL section_vals_val_get(mp2_section, "RI_RPA%ADMM", l_val=mp2_env%ri_rpa%do_admm)

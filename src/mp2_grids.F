@@ -1547,20 +1547,22 @@ CONTAINS
 !> \param unit_nr ...
 !> \param electronic_temperature ...
 !> \param num_integ_points ...
+!> \param extrapolation_order ...
 !> \param tj ...
 !> \param wj ...
 ! **************************************************************************************************
-   SUBROUTINE get_matsubara_grid(unit_nr, electronic_temperature, num_integ_points, tj, wj)
+   SUBROUTINE get_matsubara_grid(unit_nr, electronic_temperature, num_integ_points, extrapolation_order, tj, wj)
       INTEGER, INTENT(IN)                                :: unit_nr
       REAL(KIND=dp), INTENT(IN)                          :: electronic_temperature
       INTEGER, INTENT(IN)                                :: num_integ_points
+      INTEGER, INTENT(INOUT)                             :: extrapolation_order
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
          INTENT(OUT)                                     :: tj, wj
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'get_matsubara_grid'
 
       INTEGER                                            :: handle, j
-      REAL(KIND=dp)                                      :: w_0
+      REAL(KIND=dp)                                      :: n_real, w_0
 
       CALL timeset(routineN, handle)
 
@@ -1578,9 +1580,31 @@ CONTAINS
 
       IF (unit_nr > 0) THEN
          WRITE (UNIT=unit_nr, FMT="(T3,A,T75,i6)") &
-            "MINIMAX_INFO| Number of integration points:", num_integ_points
+            "MATSUBARA_INFO| Number of non-negative integration points:", num_integ_points
          WRITE (UNIT=unit_nr, FMT="(T3,A,T66,F15.4)") &
-            "MINIMAX_INFO| Size of frequency step:", w_0
+            "MATSUBARA_INFO| Size of frequency step:", w_0
+      END IF
+
+      IF (extrapolation_order <= 0) extrapolation_order = num_integ_points
+
+      IF (extrapolation_order > num_integ_points) THEN
+         CALL cp_warn(__LOCATION__, &
+                      "Not enough points for extrapolation. Set extrapolation order to the number of integration points!")
+         extrapolation_order = num_integ_points
+      END IF
+
+      ! We perform a simple extrapolation of the total energy contribution
+      ! We hard-code the rules to reduce numerical noise occurring at low temperatures and large number of required grid points
+      IF (extrapolation_order >= 2) THEN
+         n_real = REAL(num_integ_points, dp)
+         tj(num_integ_points) = tj(num_integ_points)*n_real/(3.0_dp - 3.0_dp/n_real + n_real**(-2))
+      ELSE
+! Nothing to do
+      END IF
+
+      IF (unit_nr > 0) THEN
+         WRITE (UNIT=unit_nr, FMT="(T3,A,T75,i6)") &
+            "MATSUBARA_INFO| Extrapolation order:", num_integ_points
          CALL m_flush(unit_nr)
       END IF
 

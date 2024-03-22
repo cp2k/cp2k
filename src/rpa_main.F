@@ -1102,10 +1102,10 @@ CONTAINS
 
       COMPLEX(KIND=dp), ALLOCATABLE, &
          DIMENSION(:, :, :, :)                           :: vec_Sigma_c_gw
-      INTEGER :: count_ev_sc_GW, cut_memory, group_size_P, gw_corr_lev_tot, handle, handle3, i, &
-         ikp_local, ispin, iter_evGW, iter_sc_GW0, j, jquad, min_bsize, mm_style, nkp, &
-         nkp_self_energy, nmo, nspins, num_3c_repl, num_cells_dm, num_fit_points, Pspin, Qspin, &
-         size_P
+      INTEGER :: count_ev_sc_GW, cut_memory, extrapolation_order, group_size_P, gw_corr_lev_tot, &
+         handle, handle3, i, ikp_local, ispin, iter_evGW, iter_sc_GW0, j, jquad, min_bsize, &
+         mm_style, nkp, nkp_self_energy, nmo, nspins, num_3c_repl, num_cells_dm, num_fit_points, &
+         Pspin, Qspin, size_P
       INTEGER(int_8)                                     :: dbcsr_nflop
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: index_to_cell_3c
       INTEGER, ALLOCATABLE, DIMENSION(:, :, :)           :: cell_to_index_3c
@@ -1167,6 +1167,7 @@ CONTAINS
       print_ic_values = mp2_env%ri_g0w0%print_ic_values
       do_periodic = mp2_env%ri_g0w0%do_periodic
       do_kpoints_cubic_RPA = mp2_env%ri_rpa_im_time%do_im_time_kpoints
+      extrapolation_order = mp2_env%ri_rpa%extrapolation_order
 
       ! For SOS-MP2 only gemm is implemented
       mm_style = wfc_mm_style_gemm
@@ -1267,7 +1268,7 @@ CONTAINS
 
       ALLOCATE (e_fermi(nspins))
       IF (scf_control%smear%electronic_temperature > 0.0_dp) THEN
-         CALL get_matsubara_grid(unit_nr, scf_control%smear%electronic_temperature, num_integ_points, tj, wj)
+         CALL get_matsubara_grid(unit_nr, scf_control%smear%electronic_temperature, num_integ_points, extrapolation_order, tj, wj)
       ELSE IF (do_minimax_quad .OR. do_ri_sos_laplace_mp2) THEN
          do_print = .NOT. do_ic_model
          CALL get_minimax_grid(para_env, unit_nr, homo, virtual, Eigenval, num_integ_points, do_im_time, &
