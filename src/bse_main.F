@@ -214,6 +214,10 @@ CONTAINS
          DEALLOCATE (B_bar_ijQ_bse_local, B_abQ_bse_local, B_bar_iaQ_bse_local, B_iaQ_bse_local)
       END IF
 
+      IF (unit_nr > 0) THEN
+         WRITE (unit_nr, '(T2,A4,T7,A53)') 'BSE|', 'The BSE was successfully calculated. Have a nice day!'
+      END IF
+
       CALL timestop(handle)
 
    END SUBROUTINE start_bse_calculation
