@@ -41,7 +41,7 @@ MODULE mp2_grids
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mp2_grids'
 
    PUBLIC :: get_minimax_grid, get_clenshaw_grid, test_least_square_ft, get_l_sq_wghts_cos_tf_t_to_w, &
-             get_l_sq_wghts_cos_tf_w_to_t, get_l_sq_wghts_sin_tf_t_to_w
+             get_l_sq_wghts_cos_tf_w_to_t, get_l_sq_wghts_sin_tf_t_to_w, get_matsubara_grid
 
 CONTAINS
 
@@ -129,8 +129,6 @@ CONTAINS
          ! Consider partially occupied orbitals
          IF (qs_env%mp2_env%E_range <= 1.0_dp .OR. qs_env%mp2_env%E_gap <= 0.0_dp) THEN
             dimen = SIZE(Eigenval, 1)
-            WRITE (*, *) "dimen", dimen, homo, virtual
-            WRITE (*, *) "Eigenval", Eigenval
             Emin = HUGE(dp)
             Emax = 0.0_dp
             DO ispin = 1, nspins
@@ -142,14 +140,12 @@ CONTAINS
                   ! Keep only unique pairs because of factors (f_i-f_j)*(e_i-e_j)
                   DO orb1 = dimen - virtual(ispin) + 1, homo(ispin)
                      DO orb2 = orb1 + 1, homo(ispin)
-                        WRITE (*, *) orb1, orb2, Eigenval(orb2, 1, ispin), Eigenval(orb1, 1, ispin)
                         Emin = MIN(Emin, Eigenval(orb2, 1, ispin) - Eigenval(orb1, 1, ispin))
                      END DO
                   END DO
                   Emax = MAX(Emax, MAXVAL(Eigenval(:, :, ispin)) - MINVAL(Eigenval(:, :, ispin)))
                END IF
             END DO
-            WRITE (*, *) Emin, Emax
             my_E_Range = Emax/Emin
             qs_env%mp2_env%e_range = my_e_range
             qs_env%mp2_env%e_gap = Emin
@@ -1545,5 +1541,51 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE
+
+! **************************************************************************************************
+!> \brief ...
+!> \param unit_nr ...
+!> \param electronic_temperature ...
+!> \param num_integ_points ...
+!> \param tj ...
+!> \param wj ...
+! **************************************************************************************************
+   SUBROUTINE get_matsubara_grid(unit_nr, electronic_temperature, num_integ_points, tj, wj)
+      INTEGER, INTENT(IN)                                :: unit_nr
+      REAL(KIND=dp), INTENT(IN)                          :: electronic_temperature
+      INTEGER, INTENT(IN)                                :: num_integ_points
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
+         INTENT(OUT)                                     :: tj, wj
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'get_matsubara_grid'
+
+      INTEGER                                            :: handle, j
+      REAL(KIND=dp)                                      :: w_0
+
+      CALL timeset(routineN, handle)
+
+      w_0 = 2.0_dp*pi*electronic_temperature
+
+      ALLOCATE (tj(num_integ_points), wj(num_integ_points))
+
+      ! Matrix Q is an even function, so the first summand (omega=0) occurs only once, the others twice (+omega and -omega)
+      wj(1) = 0.5_dp*electronic_temperature
+      wj(2:) = electronic_temperature
+
+      DO j = 1, num_integ_points
+         tj(j) = REAL(j - 1, KIND=dp)*w_0
+      END DO
+
+      IF (unit_nr > 0) THEN
+         WRITE (UNIT=unit_nr, FMT="(T3,A,T75,i6)") &
+            "MINIMAX_INFO| Number of integration points:", num_integ_points
+         WRITE (UNIT=unit_nr, FMT="(T3,A,T66,F15.4)") &
+            "MINIMAX_INFO| Size of frequency step:", w_0
+         CALL m_flush(unit_nr)
+      END IF
+
+      CALL timestop(handle)
+
+   END SUBROUTINE get_matsubara_grid
 
 END MODULE mp2_grids

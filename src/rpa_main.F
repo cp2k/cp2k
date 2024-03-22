@@ -64,6 +64,7 @@ MODULE rpa_main
                                               mp_para_env_type
    USE minimax_exp,                     ONLY: check_exp_minimax_range
    USE mp2_grids,                       ONLY: get_clenshaw_grid,&
+                                              get_matsubara_grid,&
                                               get_minimax_grid
    USE mp2_laplace,                     ONLY: SOS_MP2_postprocessing
    USE mp2_ri_grad_util,                ONLY: array2fm
@@ -108,6 +109,7 @@ MODULE rpa_main
                                               contract_P_omega_with_mat_L,&
                                               dealloc_im_time,&
                                               remove_scaling_factor_rpa
+   USE scf_control_types,               ONLY: scf_control_type
    USE util,                            ONLY: get_limit
 #include "./base/base_uses.f90"
 
@@ -1150,6 +1152,7 @@ CONTAINS
       TYPE(im_time_force_type)                           :: force_data
       TYPE(rpa_exchange_work_type)                       :: exchange_work
       TYPE(rpa_grad_type)                                :: rpa_grad
+      TYPE(scf_control_type), POINTER                    :: scf_control
       TYPE(two_dim_int_array), ALLOCATABLE, DIMENSION(:) :: t_3c_O_mo_ind
 
       CALL timeset(routineN, handle)
@@ -1168,6 +1171,8 @@ CONTAINS
       ! For SOS-MP2 only gemm is implemented
       mm_style = wfc_mm_style_gemm
       IF (.NOT. do_ri_sos_laplace_mp2) mm_style = mp2_env%ri_rpa%mm_style
+
+      CALL get_qs_env(qs_env, scf_control=scf_control)
 
       IF (my_do_gw) THEN
          ext_scaling = 0.2_dp
@@ -1261,7 +1266,9 @@ CONTAINS
       END IF
 
       ALLOCATE (e_fermi(nspins))
-      IF (do_minimax_quad .OR. do_ri_sos_laplace_mp2) THEN
+      IF (scf_control%smear%electronic_temperature > 0.0_dp) THEN
+         CALL get_matsubara_grid(unit_nr, scf_control%smear%electronic_temperature, num_integ_points, tj, wj)
+      ELSE IF (do_minimax_quad .OR. do_ri_sos_laplace_mp2) THEN
          do_print = .NOT. do_ic_model
          CALL get_minimax_grid(para_env, unit_nr, homo, virtual, Eigenval, num_integ_points, do_im_time, &
                                do_ri_sos_laplace_mp2, do_print, &
@@ -1270,7 +1277,7 @@ CONTAINS
                                weights_cos_tf_t_to_w, weights_cos_tf_w_to_t, weights_sin_tf_t_to_w, &
                                qs_env%mp2_env%ri_g0w0%regularization_minimax)
 
-         !For sos_laplace_mp2 and low-scaling RPA, potentially need to store/retrieve the initial weights
+         ! For sos_laplace_mp2 and low-scaling RPA, potentially need to store/retrieve the initial weights
          IF (qs_env%mp2_env%ri_rpa_im_time%keep_quad) THEN
             CALL keep_initial_quad(tj, wj, tau_tj, tau_wj, weights_cos_tf_t_to_w, &
                                    weights_cos_tf_w_to_t, do_ri_sos_laplace_mp2, do_im_time, &
@@ -1431,7 +1438,9 @@ CONTAINS
 
             CALL timeset(routineN//"_RPA_matrix_operations", handle3)
 
-            IF (do_ri_sos_laplace_mp2) THEN
+            IF (scf_control%smear%electronic_temperature > 0.0_dp) THEN
+               omega = tj(jquad)
+            ELSE IF (do_ri_sos_laplace_mp2) THEN
                omega = tau_tj(jquad)
             ELSE
                IF (do_minimax_quad) THEN
@@ -1525,7 +1534,7 @@ CONTAINS
                                                         fm_mat_W, fm_mat_RI_global_work, mat_MinvVMinv, &
                                                         fm_matrix_Minv, fm_matrix_Minv_Vtrunc_Minv)
                ELSE
-                  CALL compute_Erpa_by_freq_int(dimen_RI_red, trace_Qomega, fm_mat_Q(1), para_env_RPA, Erpa, wj(jquad))
+                  CALL compute_Erpa_by_freq_int(dimen_RI_red, trace_Qomega, fm_mat_Q(1), para_env_RPA, Erpa, wj(jquad), jquad)
                END IF
 
                IF (calc_forces .AND. .NOT. do_im_time) CALL rpa_grad_matrix_operations(mp2_env, rpa_grad, do_ri_sos_laplace_mp2, &
@@ -1570,10 +1579,12 @@ CONTAINS
 
          CALL para_env%sum(Erpa)
 
-         IF (.NOT. do_ri_sos_laplace_mp2) THEN
-            Erpa = Erpa/(pi*2.0_dp)
-            IF (do_minimax_quad) Erpa = Erpa/2.0_dp
-         END IF
+         IF (scf_control%smear%electronic_temperature <= 0.0_dp) THEN
+            IF (.NOT. do_ri_sos_laplace_mp2) THEN
+               Erpa = Erpa/(pi*2.0_dp)
+               IF (do_minimax_quad) Erpa = Erpa/2.0_dp
+            END IF
+END IF
 
          IF (mp2_env%ri_rpa%exchange_correction /= rpa_exchange_none) THEN
             CALL para_env%sum(E_exchange)
