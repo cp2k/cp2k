@@ -789,7 +789,6 @@ ENV PATH="/opt/spack/bin:${{PATH}}"
 # Find all external packages and compilers.
 RUN spack compiler find
 RUN spack external find --all --not-buildable
-RUN cat ~/.spack/packages.yaml && sed -i 's/gcc:/gcc-runtime:/g' ~/.spack/packages.yaml && cat ~/.spack/packages.yaml
 
 # Install CP2K's dependencies via Spack.
 WORKDIR /
@@ -797,6 +796,9 @@ COPY ./tools/spack/cp2k-dependencies.yaml .
 RUN spack env create myenv ./cp2k-dependencies.yaml
 RUN spack -e myenv concretize -f
 RUN spack -e myenv env depfile -o spack-makefile && make -j32 --file=spack-makefile SPACK_COLOR=never --output-sync=recurse
+
+# Ugly workaround for gcc-runtime
+RUN rm -f /opt/spack/var/spack/environments/myenv/.spack-env/view/lib/libgomp.so*
 """
 
 

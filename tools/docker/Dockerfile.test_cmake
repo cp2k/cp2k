@@ -59,6 +59,9 @@ RUN spack env create myenv ./cp2k-dependencies.yaml
 RUN spack -e myenv concretize -f
 RUN spack -e myenv env depfile -o spack-makefile && make -j32 --file=spack-makefile SPACK_COLOR=never --output-sync=recurse
 
+# Ugly workaround for gcc-runtime
+RUN rm -f /opt/spack/var/spack/environments/myenv/.spack-env/view/lib/libgomp.so*
+
 # Install CP2K sources.
 WORKDIR /opt/cp2k
 COPY ./src ./src
@@ -67,9 +70,6 @@ COPY ./tests ./tests
 COPY ./tools/build_utils ./tools/build_utils
 COPY ./cmake ./cmake
 COPY ./CMakeLists.txt .
-
-# Ugly workaround for gcc-runtime
-RUN rm -f /opt/spack/var/spack/environments/myenv/.spack-env/view/lib/libgomp.so*
 
 # Build CP2K with CMake and run regression tests.
 ARG TESTOPTS=""
