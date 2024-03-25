@@ -1020,7 +1020,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'estimate_BSE_resources'
 
       INTEGER                                            :: handle, num_BSE_matrices
-      REAL(KIND=dp)                                      :: mem_est
+      REAL(KIND=dp)                                      :: mem_est, mem_est_per_rank
 
       CALL timeset(routineN, handle)
 
@@ -1031,17 +1031,18 @@ CONTAINS
       IF (bse_abba) THEN
          num_BSE_matrices = 10
       END IF
-      mem_est = REAL(REAL(8*REAL(homo_red**2*virtual_red**2)*num_BSE_matrices)/(1024**3))
+      mem_est = REAL(8*(homo_red**2*virtual_red**2)*num_BSE_matrices, KIND=dp)/REAL(1024**3, KIND=dp)
+      mem_est_per_rank = REAL(mem_est/para_env%num_pe, KIND=dp)
       IF (unit_nr > 0) THEN
          WRITE (unit_nr, '(T2,A4,T7,A40,T68,F13.3)') 'BSE|', 'Total peak memory estimate from BSE [GB]', &
             mem_est
          WRITE (unit_nr, '(T2,A4,T7,A47,T68,F13.3)') 'BSE|', 'Peak memory estimate per MPI rank from BSE [GB]', &
-            REAL(mem_est/para_env%num_pe)
+            mem_est_per_rank
          WRITE (unit_nr, '(T2,A4)') 'BSE|'
       END IF
       ! Rough estimation of diagonalization runtimes. Baseline was a full BSE Naphthalene
       ! run with 11000x11000 entries in A/B/C, which took 10s on 32 ranks
-      diag_runtime_est = REAL(REAL(homo_red*virtual_red/11000)**3*10*32/para_env%num_pe)
+      diag_runtime_est = REAL(homo_red*virtual_red/11000, KIND=dp)**3*10*32/REAL(para_env%num_pe, KIND=dp)
 
       CALL timestop(handle)
 
