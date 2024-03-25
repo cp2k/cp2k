@@ -1582,12 +1582,10 @@ CONTAINS
          element_symbol_ref0 = particle_set(i)%atomic_kind%element_symbol
          element_kind_ref0 = particle_set(i)%atomic_kind%name
          CALL uppercase(element_symbol_ref0)
+         CALL uppercase(element_kind_ref0)
          IF (element_symbol /= element_symbol_ref0) THEN
 	    ! Make sure the kind also does not match a potential alias name
             IF (element_symbol /= element_kind_ref0) THEN
-               write(*,*) element_symbol
-               write(*,*) element_symbol_ref0
-               write(*,*) element_kind_ref0
                errmsg = "Atomic configuration from trajectory file does not match the reference configuration: Check atom "// &
                   TRIM(ADJUSTL(cp_to_string(i)))//" of step "//TRIM(ADJUSTL(cp_to_string(trj_itimes)))
                CPABORT(errmsg)
@@ -1606,12 +1604,10 @@ CONTAINS
          element_symbol_ref0 = particle_set(i)%atomic_kind%element_symbol
          element_kind_ref0 = particle_set(i)%atomic_kind%name
       CALL uppercase(element_symbol_ref0)
+      CALL uppercase(element_kind_ref0)
       IF (element_symbol /= element_symbol_ref0) THEN
 	 ! Make sure the kind also does not match a potential alias name
          IF (element_symbol /= element_kind_ref0) THEN
-            write(*,*) element_symbol
-            write(*,*) element_symbol_ref0
-            write(*,*) element_kind_ref0
             errmsg = "Atomic configuration from trajectory file does not match the reference configuration: Check atom "// &
                TRIM(ADJUSTL(cp_to_string(i)))//" of step "//TRIM(ADJUSTL(cp_to_string(trj_itimes)))
             CPABORT(errmsg)
