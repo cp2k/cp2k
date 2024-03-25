@@ -700,6 +700,11 @@ CONTAINS
       CALL sirius_get_energy(gs_handler, 'total', etotal)
       energy%etotal = etotal
 
+      ! extract entropy
+      etotal = 0.0_C_DOUBLE
+      CALL sirius_get_energy(gs_handler, 'demet', etotal)
+      energy%TS = etotal
+
       IF (calculate_forces) THEN
          CALL pwdft_env_get(pwdft_env=pwdft_env, forces=forces)
          n1 = SIZE(forces, 1)

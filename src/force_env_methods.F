@@ -203,8 +203,9 @@ CONTAINS
                                                             print_scine
       LOGICAL :: calculate_forces, calculate_stress_tensor, energy_consistency, eval_ef, &
          linres_run, my_skip, print_components
-      REAL(KIND=dp)                                      :: checksum, e_gap, e_pot, sum_energy, &
-                                                            sum_pv_virial, sum_stress_tensor
+      REAL(KIND=dp)                                      :: checksum, e_entropy, e_gap, e_pot, &
+                                                            sum_energy, sum_pv_virial, &
+                                                            sum_stress_tensor
       REAL(KIND=dp), DIMENSION(3)                        :: grand_total_force, total_force
       REAL(KIND=dp), DIMENSION(3, 3)                     :: atomic_stress_tensor, diff_stress_tensor
       TYPE(atprop_type), POINTER                         :: atprop_env
@@ -226,6 +227,7 @@ CONTAINS
       energy_consistency = .FALSE.
       linres_run = .FALSE.
       e_gap = -1.0_dp
+      e_entropy = -1.0_dp
 
       IF (PRESENT(eval_energy_forces)) eval_ef = eval_energy_forces
       IF (PRESENT(skip_external_control)) my_skip = skip_external_control
@@ -260,6 +262,7 @@ CONTAINS
                CALL pwdft_calc_energy_force(force_env%pwdft_env, calculate_forces, .FALSE.)
             END IF
             e_gap = force_env%pwdft_env%energy%band_gap
+            e_entropy = force_env%pwdft_env%energy%entropy
          CASE (use_eip_force)
             IF (force_env%eip_env%eip_model == use_lenosky_eip) THEN
                CALL eip_lenosky(force_env%eip_env)
@@ -336,6 +339,10 @@ CONTAINS
          IF (e_gap .GT. -.1_dp) THEN
             WRITE (output_unit, '(/,T2,"ENERGY| Total FORCE_EVAL ( ",A," ) gap [a.u.]: ",T55,F26.15)') &
                ADJUSTR(TRIM(use_prog_name(force_env%in_use))), e_gap
+         END IF
+         IF (e_entropy .GT. -0.1_dp) THEN
+            WRITE (output_unit, '(/,T2,"ENERGY| Total FORCE_EVAL ( ",A," ) free energy [a.u.]: ",T55,F26.15)') &
+               ADJUSTR(TRIM(use_prog_name(force_env%in_use))), e_pot - e_entropy
          END IF
       END IF
       CALL cp_print_key_finished_output(output_unit, logger, force_env%force_env_section, &
