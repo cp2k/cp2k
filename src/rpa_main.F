@@ -1268,7 +1268,8 @@ CONTAINS
 
       ALLOCATE (e_fermi(nspins))
       IF (scf_control%smear%electronic_temperature > 0.0_dp) THEN
-         CALL get_matsubara_grid(unit_nr, scf_control%smear%electronic_temperature, num_integ_points, extrapolation_order, tj, wj)
+         CALL get_matsubara_grid(unit_nr, scf_control%smear%electronic_temperature, Eigenval(:, 1, :), &
+                                 num_integ_points, extrapolation_order, tj, wj)
       ELSE IF (do_minimax_quad .OR. do_ri_sos_laplace_mp2) THEN
          do_print = .NOT. do_ic_model
          CALL get_minimax_grid(para_env, unit_nr, homo, virtual, Eigenval, num_integ_points, do_im_time, &

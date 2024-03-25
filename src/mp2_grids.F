@@ -1546,14 +1546,16 @@ CONTAINS
 !> \brief ...
 !> \param unit_nr ...
 !> \param electronic_temperature ...
+!> \param eigenvalues ...
 !> \param num_integ_points ...
 !> \param extrapolation_order ...
 !> \param tj ...
 !> \param wj ...
 ! **************************************************************************************************
-   SUBROUTINE get_matsubara_grid(unit_nr, electronic_temperature, num_integ_points, extrapolation_order, tj, wj)
+   SUBROUTINE get_matsubara_grid(unit_nr, electronic_temperature, eigenvalues, num_integ_points, extrapolation_order, tj, wj)
       INTEGER, INTENT(IN)                                :: unit_nr
       REAL(KIND=dp), INTENT(IN)                          :: electronic_temperature
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: eigenvalues
       INTEGER, INTENT(IN)                                :: num_integ_points
       INTEGER, INTENT(INOUT)                             :: extrapolation_order
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
@@ -1561,8 +1563,9 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'get_matsubara_grid'
 
-      INTEGER                                            :: handle, j
-      REAL(KIND=dp)                                      :: n_real, w_0
+      INTEGER                                            :: dimen, handle, j, &
+                                                            recommended_number_of_points
+      REAL(KIND=dp)                                      :: Emax, n_real, w_0
 
       CALL timeset(routineN, handle)
 
@@ -1571,8 +1574,8 @@ CONTAINS
       ALLOCATE (tj(num_integ_points), wj(num_integ_points))
 
       ! Matrix Q is an even function, so the first summand (omega=0) occurs only once, the others twice (+omega and -omega)
-      wj(1) = 0.5_dp*electronic_temperature
-      wj(2:) = electronic_temperature
+      wj(1) = electronic_temperature
+      wj(2:) = 2.0_dp*electronic_temperature
 
       DO j = 1, num_integ_points
          tj(j) = REAL(j - 1, KIND=dp)*w_0
@@ -1585,12 +1588,28 @@ CONTAINS
             "MATSUBARA_INFO| Size of frequency step:", w_0
       END IF
 
+      ! Give hint on extrapolation
+      dimen = SIZE(eigenvalues, 1)
+      Emax = MAXVAL(eigenvalues(dimen, :) - eigenvalues(1, :))
+      recommended_number_of_points = CEILING(Emax/w_0) + 1
+
+      IF (unit_nr > 0) THEN
+         WRITE (UNIT=unit_nr, FMT="(T3,A,T75,i6)") &
+            "MATSUBARA_INFO| Recommended number of points:", recommended_number_of_points
+      END IF
+      IF (recommended_number_of_points > num_integ_points) THEN
+         CALL cp_warn(__LOCATION__, &
+                      "The number of grid points is supposedly too low at the given "// &
+                      "temperature! Check the convergence of the total energy thoroughly.")
+      END IF
+
       IF (extrapolation_order <= 0) extrapolation_order = num_integ_points
 
-      IF (extrapolation_order > num_integ_points) THEN
+      IF (extrapolation_order >= num_integ_points) THEN
          CALL cp_warn(__LOCATION__, &
-                      "Not enough points for extrapolation. Set extrapolation order to the number of integration points!")
-         extrapolation_order = num_integ_points
+                      "Not enough points for extrapolation (Hint: the point at the origin is not considered here). "// &
+                      "CP2K is setting the extrapolation order to the number of integration points-1!")
+         extrapolation_order = num_integ_points - 1
       END IF
 
       ! We perform a simple extrapolation of the total energy contribution
@@ -1601,13 +1620,13 @@ CONTAINS
                          "Unsupported extrapolation order. Extrapolation order was set to 3!")
             extrapolation_order = 3
          END IF
-         n_real = REAL(num_integ_points, dp)
-         tj(num_integ_points - 1) = tj(num_integ_points - 1)*(n_real**2 - 2.0_dp*(n_real - 1.0_dp)**2*(1.0_dp - 1.0_dp/n_real)**2) &
-                                    /(12.0_dp - 24.0_dp/n_real + 14.0_dp/n_real**2)
-         tj(num_integ_points) = tj(num_integ_points)*n_real**2/(12.0_dp - 24.0_dp/n_real + 14.0_dp/n_real**2)
+         n_real = REAL(num_integ_points - 1, dp)
+         wj(num_integ_points - 1) = wj(num_integ_points - 1)*(n_real**2 - 2.0_dp*(n_real - 1.0_dp)**2 &
+                                                        *(1.0_dp - 1.0_dp/n_real)**2)/(12.0_dp - 24.0_dp/n_real + 14.0_dp/n_real**2)
+         wj(num_integ_points) = wj(num_integ_points)*n_real**2/(12.0_dp - 24.0_dp/n_real + 14.0_dp/n_real**2)
       ELSE IF (extrapolation_order == 2) THEN
-         n_real = REAL(num_integ_points, dp)
-         tj(num_integ_points) = tj(num_integ_points)*n_real/(3.0_dp - 3.0_dp/n_real + n_real**(-2))
+         n_real = REAL(num_integ_points - 1, dp)
+         wj(num_integ_points) = wj(num_integ_points)*(1.0_dp + n_real/(3.0_dp - 3.0_dp/n_real + n_real**(-2)))
       ELSE
 ! Nothing to do
       END IF
