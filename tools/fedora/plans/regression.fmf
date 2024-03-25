@@ -10,3 +10,11 @@ provision:
   hardware:
     cpu:
       processors: ">=4"
+
+/full:
+  summary+: (Full)
+
+/smoke:
+  summary+: (Smoke)
+  environment:
+    CP2K_SMOKE_ONLY: true

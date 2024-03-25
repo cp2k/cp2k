@@ -10,6 +10,7 @@ rlJournalStart
     rlRun "cd ../../../tests" 0 "cd to cp2k tests folder"
 
     rlRun "args=\"--maxtasks $(nproc) --ompthreads 2 --skip_unittests\"" 0 "Set base arguments"
+    [[ "${CP2K_SMOKE_ONLY,,}" == "true" ]] && rlRun "args=\"\$args --smoketest\"" 0 "Set smoketest flag"
 
     if [[ "${CP2K_VARIANT}" != "serial" ]]; then
       rlRun "module avail" 0 "Show available modules"

@@ -14,6 +14,10 @@ downstream_package_name: cp2k
 update_release: false
 upstream_tag_template: v{version}
 
+# Run only smoke tests by default
+test_command:
+  default_identifier: smoke
+
 jobs:
   - job: copr_build
     trigger: commit
@@ -30,6 +34,7 @@ jobs:
     targets:
       - fedora-development-x86_64
       - fedora-development-aarch64
+    tmt_plan: .*/smoke
   - job: copr_build
     trigger: release
     owner: lecris
@@ -48,11 +53,21 @@ jobs:
       - fedora-development-x86_64
       - fedora-development-aarch64
   - job: tests
+    identifier: smoke
     trigger: pull_request
     manual_trigger: true
     targets:
       - fedora-development-x86_64
       - fedora-development-aarch64
+    tmt_plan: .*/smoke
+  - job: tests
+    identifier: full
+    trigger: pull_request
+    manual_trigger: true
+    targets:
+      - fedora-development-x86_64
+      - fedora-development-aarch64
+    tmt_plan: .*/full
   - job: propose_downstream
     trigger: release
     dist_git_branches:
