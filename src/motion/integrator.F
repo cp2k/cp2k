@@ -1504,7 +1504,8 @@ CONTAINS
    SUBROUTINE reftraj(md_env)
       TYPE(md_environment_type), POINTER                 :: md_env
 
-      CHARACTER(LEN=2)                                   :: element_symbol, element_symbol_ref0, element_kind_ref0
+      CHARACTER(LEN=2)                                   :: element_kind_ref0, element_symbol, &
+                                                            element_symbol_ref0
       CHARACTER(LEN=max_line_length)                     :: errmsg
       INTEGER                                            :: cell_itimes, i, nparticle, Nread, &
                                                             trj_itimes
@@ -1584,10 +1585,10 @@ CONTAINS
          CALL uppercase(element_symbol_ref0)
          CALL uppercase(element_kind_ref0)
          IF (element_symbol /= element_symbol_ref0) THEN
-	    ! Make sure the kind also does not match a potential alias name
+            ! Make sure the kind also does not match a potential alias name
             IF (element_symbol /= element_kind_ref0) THEN
                errmsg = "Atomic configuration from trajectory file does not match the reference configuration: Check atom "// &
-                  TRIM(ADJUSTL(cp_to_string(i)))//" of step "//TRIM(ADJUSTL(cp_to_string(trj_itimes)))
+                        TRIM(ADJUSTL(cp_to_string(i)))//" of step "//TRIM(ADJUSTL(cp_to_string(trj_itimes)))
                CPABORT(errmsg)
             END IF
          END IF
@@ -1601,15 +1602,15 @@ CONTAINS
       CALL parser_read_line(reftraj_env%info%traj_parser, 1, at_end=my_end)
       READ (UNIT=reftraj_env%info%traj_parser%input_line, FMT=*) element_symbol, particle_set(i)%r
       CALL uppercase(element_symbol)
-         element_symbol_ref0 = particle_set(i)%atomic_kind%element_symbol
-         element_kind_ref0 = particle_set(i)%atomic_kind%name
+      element_symbol_ref0 = particle_set(i)%atomic_kind%element_symbol
+      element_kind_ref0 = particle_set(i)%atomic_kind%name
       CALL uppercase(element_symbol_ref0)
       CALL uppercase(element_kind_ref0)
       IF (element_symbol /= element_symbol_ref0) THEN
-	 ! Make sure the kind also does not match a potential alias name
+         ! Make sure the kind also does not match a potential alias name
          IF (element_symbol /= element_kind_ref0) THEN
             errmsg = "Atomic configuration from trajectory file does not match the reference configuration: Check atom "// &
-               TRIM(ADJUSTL(cp_to_string(i)))//" of step "//TRIM(ADJUSTL(cp_to_string(trj_itimes)))
+                     TRIM(ADJUSTL(cp_to_string(i)))//" of step "//TRIM(ADJUSTL(cp_to_string(trj_itimes)))
             CPABORT(errmsg)
          END IF
       END IF
