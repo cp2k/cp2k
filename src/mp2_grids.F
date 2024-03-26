@@ -412,8 +412,10 @@ CONTAINS
       INTEGER                                            :: handle, icycle, jquad, ncol_local, &
                                                             ncol_local_beta, nspins
       LOGICAL                                            :: my_open_shell
-      REAL(KIND=dp) :: a_high, a_low, a_scaling, conv_param, eps, first_deriv, left_term, &
-         right_term, right_term_ref, right_term_ref_beta, step
+      REAL(KIND=dp)                                      :: a_high, a_low, a_scaling, conv_param, &
+                                                            eps, left_term, right_term, &
+                                                            right_term_ref, right_term_ref_beta, &
+                                                            step
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: cottj, D_ia, D_ia_beta, iaia_RI, &
                                                             iaia_RI_beta, M_ia, M_ia_beta
       TYPE(mp_para_env_type), POINTER                    :: para_env_col, para_env_col_beta
@@ -461,7 +463,7 @@ CONTAINS
       DO icycle = 1, num_integ_points*2
          a_scaling = a_high
 
-         CALL calculate_objfunc(a_scaling, left_term, first_deriv, num_integ_points, my_open_shell, &
+         CALL calculate_objfunc(a_scaling, left_term, num_integ_points, my_open_shell, &
                                 M_ia, cottj, wj_ext, D_ia, D_ia_beta, M_ia_beta, &
                                 ncol_local, ncol_local_beta, num_integ_group, color_rpa_group, &
                                 para_env, para_env_col, para_env_col_beta)
@@ -481,7 +483,7 @@ CONTAINS
             DO icycle = 1, num_integ_points*2
                a_scaling = (a_low + a_high)/2.0_dp
 
-               CALL calculate_objfunc(a_scaling, left_term, first_deriv, num_integ_points, my_open_shell, &
+               CALL calculate_objfunc(a_scaling, left_term, num_integ_points, my_open_shell, &
                                       M_ia, cottj, wj_ext, D_ia, D_ia_beta, M_ia_beta, &
                                       ncol_local, ncol_local_beta, num_integ_group, color_rpa_group, &
                                       para_env, para_env_col, para_env_col_beta)
@@ -628,12 +630,12 @@ CONTAINS
       END DO
 
       DO iiB = 1, ncol_local
-         M_ia(iiB) = D_ia(iiB)*D_ia(iiB) + 2.0_dp*D_ia(iiB)*iaia_RI(iiB)
+         M_ia(iiB) = 2.0_dp*D_ia(iiB)*iaia_RI(iiB)
       END DO
 
       right_term_ref = 0.0_dp
       DO iiB = 1, ncol_local
-         right_term_ref = right_term_ref + (SQRT(M_ia(iiB)) - D_ia(iiB) - iaia_RI(iiB))
+         right_term_ref = right_term_ref + (SQRT(M_ia(iiB) + D_ia(iiB)**2) - D_ia(iiB) - iaia_RI(iiB))
       END DO
       right_term_ref = right_term_ref/2.0_dp
 
@@ -655,7 +657,6 @@ CONTAINS
 !> \brief ...
 !> \param a_scaling ...
 !> \param left_term ...
-!> \param first_deriv ...
 !> \param num_integ_points ...
 !> \param my_open_shell ...
 !> \param M_ia ...
@@ -672,12 +673,12 @@ CONTAINS
 !> \param para_env_col ...
 !> \param para_env_col_beta ...
 ! **************************************************************************************************
-   SUBROUTINE calculate_objfunc(a_scaling, left_term, first_deriv, num_integ_points, my_open_shell, &
+   SUBROUTINE calculate_objfunc(a_scaling, left_term, num_integ_points, my_open_shell, &
                                 M_ia, cottj, wj, D_ia, D_ia_beta, M_ia_beta, &
                                 ncol_local, ncol_local_beta, num_integ_group, color_rpa_group, &
                                 para_env, para_env_col, para_env_col_beta)
       REAL(KIND=dp), INTENT(IN)                          :: a_scaling
-      REAL(KIND=dp), INTENT(INOUT)                       :: left_term, first_deriv
+      REAL(KIND=dp), INTENT(INOUT)                       :: left_term
       INTEGER, INTENT(IN)                                :: num_integ_points
       LOGICAL, INTENT(IN)                                :: my_open_shell
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
@@ -689,12 +690,10 @@ CONTAINS
       TYPE(mp_para_env_type), POINTER                    :: para_env_col_beta
 
       INTEGER                                            :: iiB, jquad
-      REAL(KIND=dp)                                      :: first_deriv_beta, left_term_beta, omega
+      REAL(KIND=dp)                                      :: left_term_beta, omega
 
       left_term = 0.0_dp
-      first_deriv = 0.0_dp
       left_term_beta = 0.0_dp
-      first_deriv_beta = 0.0_dp
       DO jquad = 1, num_integ_points
          ! parallelize over integration points
          IF (MODULO(jquad, num_integ_group) /= color_rpa_group) CYCLE
@@ -705,10 +704,8 @@ CONTAINS
             IF (MODULO(iiB, para_env_col%num_pe) /= para_env_col%mepos) CYCLE
             ! calculate left_term
             left_term = left_term + wj(jquad)* &
-                        (LOG(1.0_dp + (M_ia(iiB) - D_ia(iiB)**2)/(omega**2 + D_ia(iiB)**2)) - &
-                         (M_ia(iiB) - D_ia(iiB)**2)/(omega**2 + D_ia(iiB)**2))
-            first_deriv = first_deriv + wj(jquad)*cottj(jquad)**2* &
-                          ((-M_ia(iiB) + D_ia(iiB)**2)**2/((omega**2 + D_ia(iiB)**2)**2*(omega**2 + M_ia(iiB))))
+                        (LOG(1.0_dp + M_ia(iiB)/(omega**2 + D_ia(iiB)**2)) - &
+                         M_ia(iiB)/(omega**2 + D_ia(iiB)**2))
          END DO
 
          IF (my_open_shell) THEN
@@ -716,12 +713,9 @@ CONTAINS
                ! parallelize over ia elements in the para_env_row group
                IF (MODULO(iiB, para_env_col_beta%num_pe) /= para_env_col_beta%mepos) CYCLE
                ! calculate left_term
-               left_term_beta = left_term_beta + wj(jquad)* &
-                                (LOG(1.0_dp + (M_ia_beta(iiB) - D_ia_beta(iiB)**2)/(omega**2 + D_ia_beta(iiB)**2)) - &
-                                 (M_ia_beta(iiB) - D_ia_beta(iiB)**2)/(omega**2 + D_ia_beta(iiB)**2))
-               first_deriv_beta = &
-                  first_deriv_beta + wj(jquad)*cottj(jquad)**2* &
-                  ((-M_ia_beta(iiB) + D_ia_beta(iiB)**2)**2/((omega**2 + D_ia_beta(iiB)**2)**2*(omega**2 + M_ia_beta(iiB))))
+               left_term = left_term + wj(jquad)* &
+                           (LOG(1.0_dp + M_ia_beta(iiB)/(omega**2 + D_ia_beta(iiB)**2)) - &
+                            M_ia_beta(iiB)/(omega**2 + D_ia_beta(iiB)**2))
             END DO
          END IF
 
@@ -729,15 +723,6 @@ CONTAINS
 
       ! sum the contribution from all proc, starting form the row group
       CALL para_env%sum(left_term)
-      CALL para_env%sum(first_deriv)
-
-      IF (my_open_shell) THEN
-         CALL para_env%sum(left_term_beta)
-         CALL para_env%sum(first_deriv_beta)
-
-         left_term = left_term + left_term_beta
-         first_deriv = first_deriv + first_deriv_beta
-      END IF
 
    END SUBROUTINE calculate_objfunc
 
