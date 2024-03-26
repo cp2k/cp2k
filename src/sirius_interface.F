@@ -703,7 +703,7 @@ CONTAINS
       ! extract entropy
       etotal = 0.0_C_DOUBLE
       CALL sirius_get_energy(gs_handler, 'demet', etotal)
-      energy%TS = etotal
+      energy%entropy = etotal
 
       IF (calculate_forces) THEN
          CALL pwdft_env_get(pwdft_env=pwdft_env, forces=forces)
