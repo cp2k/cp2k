@@ -60,7 +60,7 @@
           &END RI_METRIC
         &END RI
         &RI_RPA
-          MINIMAX
+          QUADRATURE_RULE MINIMAX
           RPA_NUM_QUAD_POINTS 6
           &HF
             FRACTION 1.0000000

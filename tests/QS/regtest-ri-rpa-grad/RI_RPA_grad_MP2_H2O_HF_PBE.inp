@@ -48,8 +48,8 @@
           &END WFC_GPW
         &END INTEGRALS
         &RI_RPA
-          MINIMAX
           QUADRATURE_POINTS 4
+          QUADRATURE_RULE MINIMAX
           &HF
             FRACTION 1.0000000
             &INTERACTION_POTENTIAL

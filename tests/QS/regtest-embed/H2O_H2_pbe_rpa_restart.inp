@@ -295,7 +295,7 @@
           &END WFC_GPW
         &END INTEGRALS
         &RI_RPA
-          MINIMAX
+          QUADRATURE_RULE MINIMAX
           RPA_NUM_QUAD_POINTS 8
           &HF
             FRACTION 1.0000000

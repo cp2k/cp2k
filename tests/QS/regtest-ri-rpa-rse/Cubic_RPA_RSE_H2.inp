@@ -51,7 +51,7 @@
           &END RI_METRIC
         &END RI
         &RI_RPA
-          MINIMAX
+          QUADRATURE_RULE MINIMAX
           RPA_NUM_QUAD_POINTS 6
           RSE .TRUE.
           &HF
