@@ -51,6 +51,9 @@ MODULE rpa_main
    USE input_constants,                 ONLY: rpa_exchange_axk,&
                                               rpa_exchange_none,&
                                               rpa_exchange_sosex,&
+                                              rpa_quadrature_cc,&
+                                              rpa_quadrature_matsubara,&
+                                              rpa_quadrature_minimax,&
                                               wfc_mm_style_gemm
    USE kinds,                           ONLY: dp,&
                                               int_8
@@ -237,12 +240,13 @@ CONTAINS
          my_ab_comb_bse_end, my_ab_comb_bse_size, my_ab_comb_bse_start, my_group_L_end, &
          my_group_L_size, my_group_L_start, my_ij_comb_bse_end, my_ij_comb_bse_size, &
          my_ij_comb_bse_start, my_nm_gw_end, my_nm_gw_size, my_nm_gw_start, ncol_block_mat, &
-         ngroup, nrow_block_mat, nspins, num_integ_group, num_integ_points, pos_integ_group
+         ngroup, nrow_block_mat, nspins, num_integ_group, num_integ_points, pos_integ_group, &
+         rpa_quadrature
       INTEGER(KIND=int_8)                                :: mem
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: dimen_ia, my_ia_end, my_ia_size, &
                                                             my_ia_start
-      LOGICAL                                            :: do_kpoints_from_Gamma, do_minimax_quad, &
-                                                            my_open_shell, skip_integ_group_opt
+      LOGICAL                                            :: do_kpoints_from_Gamma, my_open_shell, &
+                                                            skip_integ_group_opt
       REAL(KIND=dp) :: allowed_memory, avail_mem, E_Range, Emax, Emin, mem_for_iaK, mem_for_QK, &
          mem_min, mem_per_group, mem_per_rank, mem_per_repl, mem_real
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: Eigenval_kp
@@ -251,6 +255,7 @@ CONTAINS
       TYPE(cp_fm_type), DIMENSION(1)                     :: fm_mat_R_gw, fm_mat_S_ab_bse, &
                                                             fm_mat_S_ij_bse
       TYPE(mp_para_env_type), POINTER                    :: para_env_RPA
+      TYPE(scf_control_type), POINTER                    :: scf_control
       TYPE(two_dim_real_array), ALLOCATABLE, &
          DIMENSION(:)                                    :: BIb_C_2D, BIb_C_2D_gw
       TYPE(two_dim_real_array), DIMENSION(1)             :: BIb_C_2D_bse_ab, BIb_C_2D_bse_ij
@@ -290,8 +295,16 @@ CONTAINS
       ALLOCATE (Eigenval_kp(nmo, 1, nspins))
       Eigenval_kp(:, 1, :) = Eigenval(:, :)
 
-      IF (do_im_time) mp2_env%ri_rpa%minimax_quad = .TRUE.
-      do_minimax_quad = mp2_env%ri_rpa%minimax_quad
+      ! Enforce suitable choices for quadrature rules
+      CALL get_qs_env(qs_env, scf_control=scf_control)
+
+      IF (do_im_time .OR. do_ri_sos_laplace_mp2) mp2_env%ri_rpa%rpa_quadrature = rpa_quadrature_minimax
+      IF (scf_control%smear%electronic_temperature > 0.0_dp) THEN
+         mp2_env%ri_rpa%rpa_quadrature = rpa_quadrature_matsubara
+      ELSE IF (mp2_env%ri_rpa%rpa_quadrature == rpa_quadrature_matsubara) THEN
+         mp2_env%ri_rpa%rpa_quadrature = rpa_quadrature_cc
+      END IF
+      rpa_quadrature = mp2_env%ri_rpa%rpa_quadrature
 
       IF (do_ri_sos_laplace_mp2) THEN
          num_integ_points = mp2_env%ri_laplace%n_quadrature
@@ -328,7 +341,7 @@ CONTAINS
          num_integ_points = mp2_env%ri_rpa%rpa_num_quad_points
          input_num_integ_groups = mp2_env%ri_rpa%rpa_num_integ_groups
 
-         IF (my_do_gw .AND. do_minimax_quad) THEN
+         IF (my_do_gw .AND. rpa_quadrature == rpa_quadrature_minimax) THEN
             IF (num_integ_points > 34) THEN
                IF (unit_nr > 0) &
                   CALL cp_warn(__LOCATION__, &
@@ -337,7 +350,7 @@ CONTAINS
                num_integ_points = 30
             END IF
          ELSE
-            IF (do_minimax_quad .AND. num_integ_points > 20) THEN
+            IF (rpa_quadrature == rpa_quadrature_minimax .AND. num_integ_points > 20) THEN
                IF (unit_nr > 0) &
                   CALL cp_warn(__LOCATION__, &
                                "The required number of quadrature point exceeds the maximum possible in the "// &
@@ -457,12 +470,17 @@ CONTAINS
          ELSE
             WRITE (UNIT=unit_nr, FMT="(T3,A,T75,i6)") &
                "RI_INFO| Group size for frequency integration:", integ_group_size*para_env_sub%num_pe
-            IF (do_minimax_quad) THEN
+            IF (rpa_quadrature == rpa_quadrature_minimax) THEN
                WRITE (UNIT=unit_nr, FMT="(T3,A)") &
                   "INTEG_INFO| MINIMAX quadrature"
-            ELSE
+            ELSE IF (rpa_quadrature == rpa_quadrature_cc) THEN
                WRITE (UNIT=unit_nr, FMT="(T3,A)") &
                   "INTEG_INFO| Clenshaw-Curtius quadrature"
+            ELSE IF (rpa_quadrature == rpa_quadrature_matsubara) THEN
+               WRITE (UNIT=unit_nr, FMT="(T3,A)") &
+                  "INTEG_INFO| Matsubara summation"
+            ELSE
+               CPABORT("Unknown quadrature rule!")
             END IF
             WRITE (UNIT=unit_nr, FMT="(T3,A,T75,i6)") &
                "INTEG_INFO| Number of integration points:", num_integ_points
@@ -627,7 +645,7 @@ CONTAINS
                        fm_matrix_PQ, fm_mat_S, fm_mat_Q_gemm, fm_mat_Q, fm_mat_S_gw, fm_mat_R_gw(1), &
                        fm_mat_S_ij_bse(1), fm_mat_S_ab_bse(1), &
                        my_do_gw, do_bse, gw_corr_lev_occ, gw_corr_lev_virt, &
-                       do_minimax_quad, do_im_time, mo_coeff, &
+                       do_im_time, mo_coeff, &
                        fm_matrix_L_kpoints, fm_matrix_Minv_L_kpoints, &
                        fm_matrix_Minv, fm_matrix_Minv_Vtrunc_Minv, mat_munu, mat_P_global, &
                        t_3c_M, t_3c_O, t_3c_O_compressed, t_3c_O_ind, &
@@ -1013,7 +1031,6 @@ CONTAINS
 !> \param do_bse ...
 !> \param gw_corr_lev_occ ...
 !> \param gw_corr_lev_virt ...
-!> \param do_minimax_quad ...
 !> \param do_im_time ...
 !> \param mo_coeff ...
 !> \param fm_matrix_L_kpoints ...
@@ -1044,7 +1061,7 @@ CONTAINS
                           fm_matrix_PQ, fm_mat_S, fm_mat_Q_gemm, fm_mat_Q, fm_mat_S_gw, fm_mat_R_gw, &
                           fm_mat_S_ij_bse, fm_mat_S_ab_bse, &
                           my_do_gw, do_bse, gw_corr_lev_occ, gw_corr_lev_virt, &
-                          do_minimax_quad, do_im_time, mo_coeff, &
+                          do_im_time, mo_coeff, &
                           fm_matrix_L_kpoints, fm_matrix_Minv_L_kpoints, &
                           fm_matrix_Minv, fm_matrix_Minv_Vtrunc_Minv, mat_munu, mat_P_global, &
                           t_3c_M, t_3c_O, t_3c_O_compressed, t_3c_O_ind, &
@@ -1073,7 +1090,7 @@ CONTAINS
                                                             fm_mat_S_ab_bse
       LOGICAL, INTENT(IN)                                :: my_do_gw, do_bse
       INTEGER, DIMENSION(:), INTENT(IN)                  :: gw_corr_lev_occ, gw_corr_lev_virt
-      LOGICAL, INTENT(IN)                                :: do_minimax_quad, do_im_time
+      LOGICAL, INTENT(IN)                                :: do_im_time
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: mo_coeff
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :)     :: fm_matrix_L_kpoints, &
                                                             fm_matrix_Minv_L_kpoints, &
@@ -1105,7 +1122,7 @@ CONTAINS
       INTEGER :: count_ev_sc_GW, cut_memory, extrapolation_order, group_size_P, gw_corr_lev_tot, &
          handle, handle3, i, ikp_local, ispin, iter_evGW, iter_sc_GW0, j, jquad, min_bsize, &
          mm_style, nkp, nkp_self_energy, nmo, nspins, num_3c_repl, num_cells_dm, num_fit_points, &
-         Pspin, Qspin, size_P
+         Pspin, Qspin, quadrature_rule, size_P
       INTEGER(int_8)                                     :: dbcsr_nflop
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: index_to_cell_3c
       INTEGER, ALLOCATABLE, DIMENSION(:, :, :)           :: cell_to_index_3c
@@ -1168,6 +1185,8 @@ CONTAINS
       do_periodic = mp2_env%ri_g0w0%do_periodic
       do_kpoints_cubic_RPA = mp2_env%ri_rpa_im_time%do_im_time_kpoints
       extrapolation_order = mp2_env%ri_rpa%extrapolation_order
+      ! We enforce the correct quadrature rule in case of SOS-MP2
+      quadrature_rule = mp2_env%ri_rpa%rpa_quadrature
 
       ! For SOS-MP2 only gemm is implemented
       mm_style = wfc_mm_style_gemm
@@ -1200,7 +1219,7 @@ CONTAINS
       IF (mp2_env%ri_g0w0%ic_corr_list(1)%array(1) > 0.0_dp) do_apply_ic_corr_to_gw = .TRUE.
 
       IF (do_im_time) THEN
-         CPASSERT(do_minimax_quad .OR. do_ri_sos_laplace_mp2)
+         CPASSERT(quadrature_rule == rpa_quadrature_minimax)
 
          group_size_P = mp2_env%ri_rpa_im_time%group_size_P
          cut_memory = mp2_env%ri_rpa_im_time%cut_memory
@@ -1267,10 +1286,10 @@ CONTAINS
       END IF
 
       ALLOCATE (e_fermi(nspins))
-      IF (scf_control%smear%electronic_temperature > 0.0_dp) THEN
+      IF (quadrature_rule == rpa_quadrature_matsubara) THEN
          CALL get_matsubara_grid(unit_nr, scf_control%smear%electronic_temperature, Eigenval(:, 1, :), &
                                  num_integ_points, extrapolation_order, tj, wj)
-      ELSE IF (do_minimax_quad .OR. do_ri_sos_laplace_mp2) THEN
+      ELSE IF (quadrature_rule == rpa_quadrature_minimax) THEN
          do_print = .NOT. do_ic_model
          CALL get_minimax_grid(para_env, unit_nr, homo, virtual, Eigenval, num_integ_points, do_im_time, &
                                do_ri_sos_laplace_mp2, do_print, &
@@ -1285,11 +1304,13 @@ CONTAINS
                                    weights_cos_tf_w_to_t, do_ri_sos_laplace_mp2, do_im_time, &
                                    num_integ_points, unit_nr, qs_env)
          END IF
-      ELSE
+      ELSE IF (quadrature_rule == rpa_quadrature_cc) THEN
          IF (calc_forces) CPABORT("Forces with Clenshaw-Curtis grid not implemented.")
          CALL get_clenshaw_grid(para_env, para_env_RPA, unit_nr, homo, virtual, Eigenval, num_integ_points, &
                                 num_integ_group, color_rpa_group, fm_mat_S, my_do_gw, &
                                 ext_scaling, a_scaling, tj, wj)
+      ELSE
+         CPABORT("Unknown quadrature rule!")
       END IF
 
       ! This array is needed for RPA
@@ -1310,7 +1331,7 @@ CONTAINS
                                    gw_corr_lev_occ, gw_corr_lev_virt, homo, &
                                    nmo, num_integ_group, num_integ_points, unit_nr, &
                                    gw_corr_lev_tot, num_fit_points, omega_max_fit, &
-                                   do_minimax_quad, do_periodic, do_ri_Sigma_x,.NOT. do_im_time, &
+                                   quadrature_rule == rpa_quadrature_minimax, do_periodic, do_ri_Sigma_x,.NOT. do_im_time, &
                                    first_cycle_periodic_correction, &
                                    a_scaling, Eigenval, tj, vec_omega_fit_gw, vec_Sigma_x_gw, &
                                    delta_corr, Eigenval_last, Eigenval_scf, vec_W_gw, &
@@ -1445,7 +1466,7 @@ CONTAINS
             ELSE IF (do_ri_sos_laplace_mp2) THEN
                omega = tau_tj(jquad)
             ELSE
-               IF (do_minimax_quad) THEN
+               IF (quadrature_rule == rpa_quadrature_minimax) THEN
                   omega = tj(jquad)
                ELSE
                   omega = a_scaling/TAN(tj(jquad))
@@ -1584,14 +1605,14 @@ CONTAINS
          IF (scf_control%smear%electronic_temperature <= 0.0_dp) THEN
             IF (.NOT. do_ri_sos_laplace_mp2) THEN
                Erpa = Erpa/(pi*2.0_dp)
-               IF (do_minimax_quad) Erpa = Erpa/2.0_dp
+               IF (quadrature_rule == rpa_quadrature_minimax) Erpa = Erpa/2.0_dp
             END IF
-END IF
+         END IF
 
          IF (mp2_env%ri_rpa%exchange_correction /= rpa_exchange_none) THEN
             CALL para_env%sum(E_exchange)
             E_exchange = E_exchange/(pi*2.0_dp)
-            IF (do_minimax_quad) E_exchange = E_exchange/2.0_dp
+            IF (quadrature_rule == rpa_quadrature_minimax) E_exchange = E_exchange/2.0_dp
             mp2_env%ri_rpa%ener_exchange = E_exchange
          END IF
 

@@ -1065,6 +1065,11 @@ MODULE input_constants
                                                z_solver_richardson = 3, &
                                                z_solver_sd = 4
 
+   ! RPA quadrature rules
+   INTEGER, PARAMETER, PUBLIC               :: rpa_quadrature_cc = 2, &
+                                               rpa_quadrature_minimax = 3, &
+                                               rpa_quadrature_matsubara = 5
+
    ! GW parameter
    INTEGER, PARAMETER, PUBLIC               :: ri_rpa_g0w0_crossing_z_shot = 1, &
                                                ri_rpa_g0w0_crossing_newton = 2, &

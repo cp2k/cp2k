@@ -37,7 +37,8 @@ MODULE input_cp2k_mp2
       ot_precond_s_inverse, ri_default, ri_rpa_g0w0_crossing_bisection, &
       ri_rpa_g0w0_crossing_newton, ri_rpa_g0w0_crossing_z_shot, soc_lda, soc_none, soc_pbe, &
       wfc_mm_style_gemm, wfc_mm_style_syrk, z_solver_cg, z_solver_pople, z_solver_richardson, &
-      z_solver_sd, rpa_exchange_none, rpa_exchange_axk, rpa_exchange_sosex, G0W0, evGW0, evGW
+      z_solver_sd, rpa_exchange_none, rpa_exchange_axk, rpa_exchange_sosex, G0W0, evGW0, evGW, &
+      rpa_quadrature_cc, rpa_quadrature_minimax, rpa_quadrature_matsubara
    USE input_cp2k_hfx, ONLY: create_hfx_section
    USE input_cp2k_kpoints, ONLY: create_kpoint_set_section
    USE input_keyword_types, ONLY: keyword_create, &
@@ -561,13 +562,18 @@ CONTAINS
 
       CALL keyword_create( &
          keyword, __LOCATION__, &
-         name="MINIMAX_QUADRATURE", &
-         variants=(/"MINIMAX"/), &
-         description="Use the Minimax quadrature scheme for performing the numerical integration. "// &
-         "Maximum number of quadrature point limited to 20. Ignored if T>0.", &
-         usage="MINIMAX_QUADRATURE", &
-         default_l_val=.FALSE., &
-         lone_keyword_l_val=.TRUE.)
+         name="QUADRATURE_RULE", &
+         description="Quadrature rule for the numerical integration.", &
+         usage="QUADRATURE MINIMAX", &
+         enum_c_vals=s2a("CLENSHAW-CURTIS", "MINIMAX", "MATSUBARA"), &
+         enum_i_vals=(/rpa_quadrature_cc, rpa_quadrature_minimax, rpa_quadrature_matsubara/), &
+         enum_desc=s2a("Clenshaw-Curtis quadrature, simple in use. Requires 30-70 points.", &
+                       "Minimax quadrature, very accurate (6-8 points). Not all grid sizes are supported. "// &
+                       "Requires T=0, replaced by Matsubara summation if T>0.", &
+                       "Matsubara summation, requires a large number of quadrature points (several thousand). "// &
+                       "Results may be extrapolated (See EXTRAPOLATION_ORDER). Requires T>0, "// &
+                       "replaced by Clenshaw-Curtis at T=0."), &
+         default_i_val=rpa_quadrature_cc)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

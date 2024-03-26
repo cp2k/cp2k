@@ -108,7 +108,7 @@ CONTAINS
       CALL section_vals_val_get(mp2_section, "RI_RPA%NUM_INTEG_GROUPS", i_val=mp2_env%ri_rpa%rpa_num_integ_groups)
       CALL section_vals_val_get(mp2_section, "RI_RPA%EXTRAPOLATION_ORDER", i_val=mp2_env%ri_rpa%extrapolation_order)
       CALL section_vals_val_get(mp2_section, "RI_RPA%MM_STYLE", i_val=mp2_env%ri_rpa%mm_style)
-      CALL section_vals_val_get(mp2_section, "RI_RPA%MINIMAX_QUADRATURE", l_val=mp2_env%ri_rpa%minimax_quad)
+      CALL section_vals_val_get(mp2_section, "RI_RPA%QUADRATURE_RULE", i_val=mp2_env%ri_rpa%rpa_quadrature)
       CALL section_vals_val_get(mp2_section, "RI_RPA%ADMM", l_val=mp2_env%ri_rpa%do_admm)
       CALL section_vals_val_get(mp2_section, "RI_RPA%SCALE_RPA", r_val=mp2_env%ri_rpa%scale_rpa)
       mp2_env%ri_rpa%reuse_hfx = .FALSE.
