@@ -51,6 +51,7 @@
           &END WFC_GPW
         &END INTEGRALS
         &RI_RPA
+          QUADRATURE_RULE MATSUBARA
           RPA_NUM_QUAD_POINTS 10
           &HF
             FRACTION 1.0000000

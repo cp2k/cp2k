@@ -300,8 +300,10 @@ CONTAINS
 
       IF (do_im_time .OR. do_ri_sos_laplace_mp2) mp2_env%ri_rpa%rpa_quadrature = rpa_quadrature_minimax
       IF (scf_control%smear%electronic_temperature > 0.0_dp) THEN
-         mp2_env%ri_rpa%rpa_quadrature = rpa_quadrature_matsubara
+         IF (mp2_env%ri_rpa%rpa_quadrature /= rpa_quadrature_matsubara .AND. &
+             mp2_env%ri_rpa%rpa_quadrature /= rpa_quadrature_cc) mp2_env%ri_rpa%rpa_quadrature = rpa_quadrature_cc
       ELSE IF (mp2_env%ri_rpa%rpa_quadrature == rpa_quadrature_matsubara) THEN
+         ! Matsubara summation is not available at T=0 (divergencies)
          mp2_env%ri_rpa%rpa_quadrature = rpa_quadrature_cc
       END IF
       rpa_quadrature = mp2_env%ri_rpa%rpa_quadrature
@@ -1306,8 +1308,9 @@ CONTAINS
          END IF
       ELSE IF (quadrature_rule == rpa_quadrature_cc) THEN
          IF (calc_forces) CPABORT("Forces with Clenshaw-Curtis grid not implemented.")
-         CALL get_clenshaw_grid(para_env, para_env_RPA, unit_nr, homo, virtual, Eigenval, num_integ_points, &
-                                num_integ_group, color_rpa_group, fm_mat_S, my_do_gw, &
+         CALL get_clenshaw_grid(para_env, para_env_RPA, unit_nr, homo, virtual, Eigenval, occupation_numbers, &
+                                scf_control%smear%electronic_temperature, num_integ_points, &
+                                num_integ_group, mp2_env%ri_rpa%reference_grid_size, color_rpa_group, fm_mat_S, my_do_gw, &
                                 ext_scaling, a_scaling, tj, wj)
       ELSE
          CPABORT("Unknown quadrature rule!")

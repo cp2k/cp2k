@@ -569,11 +569,22 @@ CONTAINS
          enum_i_vals=(/rpa_quadrature_cc, rpa_quadrature_minimax, rpa_quadrature_matsubara/), &
          enum_desc=s2a("Clenshaw-Curtis quadrature, simple in use. Requires 30-70 points.", &
                        "Minimax quadrature, very accurate (6-8 points). Not all grid sizes are supported. "// &
+                       "If a grid size is not supported, the largest possible one will be employed. "// &
                        "Requires T=0, replaced by Matsubara summation if T>0.", &
                        "Matsubara summation, requires a large number of quadrature points (several thousand). "// &
                        "Results may be extrapolated (See EXTRAPOLATION_ORDER). Requires T>0, "// &
                        "replaced by Clenshaw-Curtis at T=0."), &
          default_i_val=rpa_quadrature_cc)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="REFERENCE_GRID_SIZE", &
+                          description="This keyword sets the number of quadrature points of the Matsubara summation "// &
+                          "in case a Clenshaw-Curtis quadrature is requested. Ignored if any other quadrature rule is "// &
+                          "employed. Ignored if T=0. Default (values smaller than 1) is chosen such that the maximum "// &
+                          "frequency corresponds to twice the maximumenergy difference.", &
+                          usage="REFERENCE_GRID_SIZE 1000", &
+                          default_i_val=-1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

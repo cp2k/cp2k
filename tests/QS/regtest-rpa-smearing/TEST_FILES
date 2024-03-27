@@ -1,4 +1,5 @@
 RPA_smearing_H2O.inp                                        11      1e-09            -16.861578428187997
+RPA_smearing_H2O_cc.inp                                     11      1e-09            -16.861578428187997
 RPA_smearing_CH3.inp                                        11      7e-12             -7.199535606307069
 RPA_smearing_H2O_extrap2.inp                                11      1e-09            -16.867724896661521
 RPA_smearing_H2O_extrap3.inp                                11      1e-09            -16.869623159703497
