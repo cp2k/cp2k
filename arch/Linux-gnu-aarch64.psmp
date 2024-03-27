@@ -4,7 +4,7 @@
 #
 # Tested with: GNU 12.3.0, MPICH 4.0.3, 
 #              ScaLAPACK 2.2.1, OpenBLAS 0.3.26,
-#              FFTW 3.3.10, HDF5 1.14.2,
+#              FFTW 3.3.10, HDF5 1.14.3,
 #              LIBINT 2.6.0, LIBXC 6.2.2,
 #              ELPA 2023.05.001, PLUMED 2.9.0,
 #              SPGLIB 2.3.1, LIBVORI 220621,
@@ -14,7 +14,7 @@
 # Usage: Source this arch file and then run make as instructed.
 #        A full toolchain installation is performed as default.
 #
-# Last update: 19.03.2024
+# Last update: 27.03.2024
 #
 # \
    if [[ "${0}" == "${BASH_SOURCE}" ]]; then \
@@ -24,6 +24,7 @@
    fi; \
    this_file=${BASH_SOURCE##*/}; \
    cd tools/toolchain; \
+   rm -rf build; \
    [[ -z "${mpi_implementation}" ]] && mpi_implementation="mpich"; \
    [[ -z "${target_cpu}" ]] && target_cpu="native"; \
    ./install_cp2k_toolchain.sh --install-all -j${maxtasks} --no-arch-files --target-cpu=${target_cpu} --with-gcc --with-${mpi_implementation} --with-libxsmm=no; \
@@ -54,7 +55,7 @@ TARGET_CPU     := native
 USE_COSMA      := 2.6.6
 USE_ELPA       := 2023.05.001
 USE_FFTW       := 3.3.10
-USE_HDF5       := 1.14.2
+USE_HDF5       := 1.14.3
 USE_LIBINT     := 2.6.0
 USE_LIBPEXSI   := 1.2.0
 USE_LIBVORI    := 220621
@@ -309,12 +310,13 @@ ifneq ($(USE_HDF5),)
    CFLAGS         += -I$(HDF5_INC)
    DFLAGS         += -D__HDF5
    ifeq ($(SHARED), yes)
-      LIBS           += -Wl,-rpath,$(HDF5_LIB) -L$(HDF5_LIB) -lhdf5_fortran -lhdf5_hl -lhdf5
+      LIBS           += -Wl,-rpath,$(HDF5_LIB) -L$(HDF5_LIB) -lhdf5_fortran -lhdf5
    else
       LIBS           += $(HDF5_LIB)/libhdf5_fortran.a
-      LIBS           += $(HDF5_LIB)/libhdf5_hl.a
+      LIBS           += $(HDF5_LIB)/libhdf5_f90cstub.a
       LIBS           += $(HDF5_LIB)/libhdf5.a
    endif
+   LIBS           += -lsz
 endif
 
 ifneq ($(USE_COSMA),)

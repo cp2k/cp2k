@@ -4,7 +4,7 @@
 #
 # Tested with: GNU 13.1.0, MPICH 4.0.3 and OpenMPI 4.1.5,
 #              ScaLAPACK 2.2.1, OpenBLAS 0.3.26,
-#              FFTW 3.3.10, ELPA 2023.05.001, HDF5 1.14.2,
+#              FFTW 3.3.10, ELPA 2023.05.001, HDF5 1.14.3,
 #              LIBINT 2.6.0, LIBXC 6.2.2, PLUMED 2.9.0,
 #              SPGLIB 2.3.1, LIBVORI 220621, GSL 2.7,
 #              COSMA 2.6.6, SIRIUS 7.5.2, LIBTORCH 1.12.1,
@@ -16,7 +16,7 @@
 #        Optionally, GNU compiler and MPI implementation can be specified as arguments.
 #        Replace or adapt the "module add" commands below if needed.
 #
-# Last update: 12.03.2024
+# Last update: 27.03.2024
 #
 # \
    if [[ "${0}" == "${BASH_SOURCE}" ]]; then \
@@ -26,6 +26,7 @@
    fi; \
    this_file=${BASH_SOURCE##*/}; \
    cd tools/toolchain; \
+   rm -rf build; \
    [[ -z "${mpi_implementation}" ]] && mpi_implementation="mpich"; \
    [[ -z "${target_cpu}" ]] && target_cpu="native"; \
    if [[ -n "${1}" ]]; then \
@@ -68,7 +69,7 @@ TARGET_CPU     := native
 USE_COSMA      := 2.6.6
 USE_ELPA       := 2023.05.001
 USE_FFTW       := 3.3.10
-USE_HDF5       := 1.14.2
+USE_HDF5       := 1.14.3
 USE_LIBGRPP    := 20231215
 USE_LIBINT     := 2.6.0
 USE_LIBPEXSI   := 1.2.0
@@ -333,12 +334,13 @@ ifneq ($(USE_HDF5),)
    CFLAGS         += -I$(HDF5_INC)
    DFLAGS         += -D__HDF5
    ifeq ($(SHARED), yes)
-      LIBS           += -Wl,-rpath,$(HDF5_LIB) -L$(HDF5_LIB) -lhdf5_fortran -lhdf5_hl -lhdf5
+      LIBS           += -Wl,-rpath,$(HDF5_LIB) -L$(HDF5_LIB) -lhdf5_fortran -lhdf5
    else
       LIBS           += $(HDF5_LIB)/libhdf5_fortran.a
-      LIBS           += $(HDF5_LIB)/libhdf5_hl.a
+      LIBS           += $(HDF5_LIB)/libhdf5_f90cstub.a
       LIBS           += $(HDF5_LIB)/libhdf5.a
    endif
+   LIBS           += -lsz
 endif
 
 ifneq ($(USE_COSMA),)
