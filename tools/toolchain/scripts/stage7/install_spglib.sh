@@ -42,14 +42,14 @@ case "$with_spglib" in
       cd build
       cmake \
         -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}" \
-        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_BUILD_TYPE="RelWithDebInfo" \
         -DCMAKE_VERBOSE_MAKEFILE=ON \
         -DSPGLIB_SHARED_LIBS=OFF \
         -DSPGLIB_USE_OMP=ON \
         -DSPGLIB_WITH_TESTS=OFF \
         .. > configure.log 2>&1 || tail -n ${LOG_LINES} configure.log
       make -j $(get_nprocs) > make.log 2>&1 || tail -n ${LOG_LINES} make.log
-      make install >> install.log 2>&1 || tail -n ${LOG_LINES} install.log
+      make install > install.log 2>&1 || tail -n ${LOG_LINES} install.log
       write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage7/$(basename ${SCRIPT_NAME})"
     fi
 
