@@ -321,14 +321,13 @@ CONTAINS
 !> \param fm_mat_S ...
 !> \param my_do_gw ...
 !> \param ext_scaling ...
-!> \param a_scaling ...
 !> \param tj ...
 !> \param wj ...
 ! **************************************************************************************************
    SUBROUTINE get_clenshaw_grid(para_env, para_env_RPA, unit_nr, homo, virtual, Eigenval, occupation_numbers, &
                                 electronic_temperature, num_integ_points, &
                                 num_integ_group, reference_grid_size, color_rpa_group, fm_mat_S, my_do_gw, &
-                                ext_scaling, a_scaling, tj, wj)
+                                ext_scaling, tj, wj)
 
       TYPE(mp_para_env_type), INTENT(IN)                 :: para_env, para_env_RPA
       INTEGER, INTENT(IN)                                :: unit_nr
@@ -341,7 +340,6 @@ CONTAINS
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: fm_mat_S
       LOGICAL, INTENT(IN)                                :: my_do_gw
       REAL(KIND=dp), INTENT(IN)                          :: ext_scaling
-      REAL(KIND=dp), INTENT(OUT)                         :: a_scaling
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
          INTENT(OUT)                                     :: tj, wj
 
@@ -349,6 +347,7 @@ CONTAINS
 
       INTEGER                                            :: handle, jquad, nspins
       LOGICAL                                            :: my_open_shell
+      REAL(KIND=dp)                                      :: a_scaling
 
       CALL timeset(routineN, handle)
 
@@ -380,6 +379,7 @@ CONTAINS
       IF (unit_nr > 0) WRITE (unit_nr, '(T3,A,T56,F25.5)') 'INTEG_INFO| Scaling parameter:', a_scaling
 
       wj(:) = wj(:)*a_scaling
+      tj(:) = a_scaling/TAN(tj)
 
       CALL timestop(handle)
 

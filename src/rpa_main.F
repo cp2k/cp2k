@@ -1134,7 +1134,7 @@ CONTAINS
          do_periodic, do_print, do_ri_Sigma_x, exit_ev_gw, first_cycle, &
          first_cycle_periodic_correction, my_open_shell, print_ic_values
       LOGICAL, ALLOCATABLE, DIMENSION(:, :, :, :, :)     :: has_mat_P_blocks
-      REAL(KIND=dp) :: a_scaling, alpha, dbcsr_time, e_exchange, e_exchange_corr, eps_filter, &
+      REAL(KIND=dp) :: alpha, dbcsr_time, e_exchange, e_exchange_corr, eps_filter, &
          eps_filter_im_time, ext_scaling, fermi_level_offset, fermi_level_offset_input, &
          my_flop_rate, omega, omega_max_fit, omega_old, tau, tau_old
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: delta_corr, e_fermi, tau_tj, tau_wj, tj, &
@@ -1311,7 +1311,7 @@ CONTAINS
          CALL get_clenshaw_grid(para_env, para_env_RPA, unit_nr, homo, virtual, Eigenval, occupation_numbers, &
                                 scf_control%smear%electronic_temperature, num_integ_points, &
                                 num_integ_group, mp2_env%ri_rpa%reference_grid_size, color_rpa_group, fm_mat_S, my_do_gw, &
-                                ext_scaling, a_scaling, tj, wj)
+                                ext_scaling, tj, wj)
       ELSE
          CPABORT("Unknown quadrature rule!")
       END IF
@@ -1336,7 +1336,7 @@ CONTAINS
                                    gw_corr_lev_tot, num_fit_points, omega_max_fit, &
                                    quadrature_rule == rpa_quadrature_minimax, do_periodic, do_ri_Sigma_x,.NOT. do_im_time, &
                                    first_cycle_periodic_correction, &
-                                   a_scaling, Eigenval, tj, vec_omega_fit_gw, vec_Sigma_x_gw, &
+                                   Eigenval, tj, vec_omega_fit_gw, vec_Sigma_x_gw, &
                                    delta_corr, Eigenval_last, Eigenval_scf, vec_W_gw, &
                                    fm_mat_S_gw, fm_mat_S_gw_work, &
                                    para_env, mp2_env, kpoints, nkp, nkp_self_energy, &
@@ -1469,11 +1469,7 @@ CONTAINS
             ELSE IF (do_ri_sos_laplace_mp2) THEN
                omega = tau_tj(jquad)
             ELSE
-               IF (quadrature_rule == rpa_quadrature_minimax) THEN
-                  omega = tj(jquad)
-               ELSE
-                  omega = a_scaling/TAN(tj(jquad))
-               END IF
+               omega = tj(jquad)
             END IF ! do_ri_sos_laplace_mp2
 
             IF (do_im_time) THEN

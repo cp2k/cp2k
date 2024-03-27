@@ -316,7 +316,6 @@ CONTAINS
 !> \param do_ri_Sigma_x ...
 !> \param my_do_gw ...
 !> \param first_cycle_periodic_correction ...
-!> \param a_scaling ...
 !> \param Eigenval ...
 !> \param tj ...
 !> \param vec_omega_fit_gw ...
@@ -341,7 +340,7 @@ CONTAINS
                                    gw_corr_lev_tot, num_fit_points, omega_max_fit, &
                                    do_minimax_quad, do_periodic, do_ri_Sigma_x, my_do_gw, &
                                    first_cycle_periodic_correction, &
-                                   a_scaling, Eigenval, tj, vec_omega_fit_gw, vec_Sigma_x_gw, &
+                                   Eigenval, tj, vec_omega_fit_gw, vec_Sigma_x_gw, &
                                    delta_corr, Eigenval_last, Eigenval_scf, vec_W_gw, &
                                    fm_mat_S_gw, fm_mat_S_gw_work, &
                                    para_env, mp2_env, kpoints, nkp, nkp_self_energy, &
@@ -358,7 +357,6 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: do_minimax_quad, do_periodic, &
                                                             do_ri_Sigma_x, my_do_gw
       LOGICAL, INTENT(OUT) :: first_cycle_periodic_correction
-      REAL(KIND=dp), INTENT(IN)                          :: a_scaling
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: Eigenval
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
          INTENT(IN)                                      :: tj
@@ -386,7 +384,6 @@ CONTAINS
 
       INTEGER                                            :: handle, iquad, ispin, jquad, nspins
       LOGICAL                                            :: my_open_shell
-      REAL(KIND=dp)                                      :: omega
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: vec_omega_gw
 
       CALL timeset(routineN, handle)
@@ -401,12 +398,7 @@ CONTAINS
       vec_omega_gw = 0.0_dp
 
       DO jquad = 1, num_integ_points
-         IF (do_minimax_quad) THEN
-            omega = tj(jquad)
-         ELSE
-            omega = a_scaling/TAN(tj(jquad))
-         END IF
-         vec_omega_gw(jquad) = omega
+         vec_omega_gw(jquad) = tj(jquad)
       END DO
 
       ! determine number of fit points in the interval [0,w_max] for virt, or [-w_max,0] for occ
