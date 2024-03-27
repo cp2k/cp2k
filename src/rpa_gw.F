@@ -4431,7 +4431,7 @@ CONTAINS
             vec_gw_dos(idos) = vec_gw_dos(idos) + &
                                (ABS(AIMAG(sigma_c_pade)) + dos_eta) &
                                /( &
-                               (omega_dos - Eigenval(n_level_gw_ref) - &
+                               (omega_dos - Eigenval_scf(n_level_gw_ref) - &
                                 (REAL(sigma_c_pade) + vec_Sigma_x_minus_vxc_gw(n_level_gw_ref)) &
                                 )**2 &
                                + (ABS(AIMAG(sigma_c_pade)) + dos_eta)**2 &
