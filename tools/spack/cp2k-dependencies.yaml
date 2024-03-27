@@ -32,7 +32,12 @@ spack:
    # libtorch-cxx11-abi-shared-with-deps-1.12.1+cpu.zip: OK
    # SpLA-1.5.5.tar.gz: OK
 
-  view: true
+  view:
+    default:
+      root: ./spack-env/view
+      exclude:
+        # Exclude gcc-runtime to avoid adding a copy of libgomp.so to the view
+        - gcc-runtime
   concretizer:
     unify: true
 

@@ -782,7 +782,7 @@ RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
 WORKDIR /opt/spack
 RUN git init --quiet && \
     git remote add origin https://github.com/spack/spack.git && \
-    git fetch --quiet --depth 1 origin 384e1983041094c8487d394f59dfe8a6848d60f2 && \
+    git fetch --quiet --depth 1 origin tag develop-2024-03-24 --no-tags && \
     git checkout --quiet FETCH_HEAD
 ENV PATH="/opt/spack/bin:${{PATH}}"
 
@@ -796,9 +796,6 @@ COPY ./tools/spack/cp2k-dependencies.yaml .
 RUN spack env create myenv ./cp2k-dependencies.yaml
 RUN spack -e myenv concretize -f
 RUN spack -e myenv env depfile -o spack-makefile && make -j32 --file=spack-makefile SPACK_COLOR=never --output-sync=recurse
-
-# Ugly workaround for gcc-runtime
-RUN rm -f /opt/spack/var/spack/environments/myenv/.spack-env/view/lib/libgomp.so*
 """
 
 
