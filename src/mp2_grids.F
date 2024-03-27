@@ -516,6 +516,7 @@ CONTAINS
       END IF
 
       a_scaling_ext = a_scaling
+      !IF (electronic_temperature > 0.0_dp) a_scaling_ext = a_scaling_ext*electronic_temperature
       CALL para_env%bcast(a_scaling_ext, 0)
 
       DEALLOCATE (cottj)
@@ -572,7 +573,6 @@ CONTAINS
                                                             ncol_local, nrow_local
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
       REAL(KIND=dp)                                      :: eigen_diff
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: iaia_RI_dp
       TYPE(mp_para_env_type), POINTER                    :: para_env_row
 
       CALL timeset(routineN, handle)
@@ -589,8 +589,8 @@ CONTAINS
                           col_indices=col_indices)
 
       ! allocate the local buffer of iaia_RI integrals (dp kind)
-      ALLOCATE (iaia_RI_dp(ncol_local))
-      iaia_RI_dp = 0.0_dp
+      ALLOCATE (iaia_RI(ncol_local))
+      iaia_RI = 0.0_dp
 
       ! 2) perform the local multiplication SUM_K (ia|K)*(ia|K)
       IF (electronic_temperature > 0.0_dp) THEN
@@ -601,15 +601,15 @@ CONTAINS
             avirt = i_global - (iocc - 1)*virtual
 
             IF (avirt + dimen - virtual > iocc) THEN
-               iaia_RI_dp(iiB) = iaia_RI_dp(iiB) + (occupation_numbers(avirt + dimen - virtual) - occupation_numbers(iocc))* &
-                                 DOT_PRODUCT(fm_mat_S%local_data(:, iiB), fm_mat_S%local_data(:, iiB))
+               iaia_RI(iiB) = iaia_RI(iiB) + (occupation_numbers(avirt + dimen - virtual) - occupation_numbers(iocc))* &
+                              DOT_PRODUCT(fm_mat_S%local_data(:, iiB), fm_mat_S%local_data(:, iiB))
             ELSE
-               iaia_RI_dp(iiB) = 0.0_dp
+               iaia_RI(iiB) = 0.0_dp
             END IF
          END DO
       ELSE
          DO iiB = 1, ncol_local
-            iaia_RI_dp(iiB) = iaia_RI_dp(iiB) + DOT_PRODUCT(fm_mat_S%local_data(:, iiB), fm_mat_S%local_data(:, iiB))
+            iaia_RI(iiB) = iaia_RI(iiB) + DOT_PRODUCT(fm_mat_S%local_data(:, iiB), fm_mat_S%local_data(:, iiB))
          END DO
       END IF
 
@@ -633,14 +633,7 @@ CONTAINS
       ALLOCATE (para_env_col)
       CALL para_env_col%from_split(para_env_RPA, color_col)
 
-      CALL para_env_col%sum(iaia_RI_dp)
-
-      ! convert the iaia_RI_dp into double-double precision
-      ALLOCATE (iaia_RI(ncol_local))
-      DO iiB = 1, ncol_local
-         iaia_RI(iiB) = iaia_RI_dp(iiB)
-      END DO
-      DEALLOCATE (iaia_RI_dp)
+      CALL para_env_col%sum(iaia_RI)
 
       ! 4) calculate the right hand term, D_ia is the matrix containing the
       ! orbital energy differences, M_ia is the diagonal of the full RPA 'excitation'
