@@ -1310,7 +1310,8 @@ CONTAINS
          IF (calc_forces) CPABORT("Forces with Clenshaw-Curtis grid not implemented.")
          CALL get_clenshaw_grid(para_env, para_env_RPA, unit_nr, homo, virtual, Eigenval, occupation_numbers, &
                                 scf_control%smear%electronic_temperature, num_integ_points, &
-                                num_integ_group, mp2_env%ri_rpa%reference_grid_size, color_rpa_group, fm_mat_S, my_do_gw, &
+                                num_integ_group, mp2_env%ri_rpa%reference_grid_size, extrapolation_order, &
+                                color_rpa_group, fm_mat_S, my_do_gw, &
                                 ext_scaling, tj, wj)
       ELSE
          CPABORT("Unknown quadrature rule!")
