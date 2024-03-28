@@ -21,4 +21,7 @@ fli_small1.inp                                        11    1.0E-14             
 fli_small2.inp                                        11    1.0E-14             -0.280532103030175
 fli_small3.inp                                        11    1.0E-14             -0.204261021617205
 KCl.inp                                               11    1.0E-14            -24.179348645557010
+# test printing of md trajectory with alias kind instead of element and read with reftraj
+H2O-dimer-dangchang-2.inp                              2    1.0E-14            -0.707149464407E-02
+H2O-dimer-ref.inp                                      0
 #EOF
