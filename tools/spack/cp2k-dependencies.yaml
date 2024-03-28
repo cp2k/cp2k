@@ -10,7 +10,7 @@ spack:
     - "fftw @3.3.10 +openmp"
     - "libxc @6.2.2"
     - "spglib @1.16.2"
-    - "dla-future@0.3.1 +scalapack"
+    - "dla-future@0.4.0 +scalapack"
    # Unfortunately, ScaLAPACK 2.2.1 has not yet been packaged by Spack.
    # https://github.com/Reference-ScaLAPACK/scalapack/tree/v2.2.1
    # which contains https://github.com/Reference-ScaLAPACK/scalapack/pull/26
@@ -32,7 +32,12 @@ spack:
    # libtorch-cxx11-abi-shared-with-deps-1.12.1+cpu.zip: OK
    # SpLA-1.5.5.tar.gz: OK
 
-  view: true
+  view:
+    default:
+      root: ./spack-env/view
+      exclude:
+        # Exclude gcc-runtime to avoid adding a copy of libgomp.so to the view
+        - gcc-runtime
   concretizer:
     unify: true
 
