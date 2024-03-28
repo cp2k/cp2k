@@ -13,7 +13,7 @@
 #        Optionally, the Intel compiler version can be specified as argument.
 #        Replace or adapt the "module add" commands below if needed.
 #
-# Last update: 19.03.2024
+# Last update: 28.03.2024
 #
 # \
    if [[ "${0}" == "${BASH_SOURCE}" ]]; then \
@@ -23,6 +23,7 @@
    fi; \
    this_file=${BASH_SOURCE##*/}; \
    cd tools/toolchain; \
+   rm -rf build; \
    [[ -z "${target_cpu}" ]] && target_cpu="native"; \
    if [[ -n "${1}" ]]; then \
       module add ${1}; \
@@ -289,12 +290,13 @@ ifneq ($(USE_HDF5),)
    CFLAGS         += -I$(HDF5_INC)
    DFLAGS         += -D__HDF5
    ifeq ($(SHARED), yes)
-      LIBS           += -Wl,-rpath,$(HDF5_LIB) -L$(HDF5_LIB) -lhdf5_fortran -lhdf5_hl -lhdf5
+      LIBS           += -Wl,-rpath,$(HDF5_LIB) -L$(HDF5_LIB) -lhdf5_fortran -lhdf5
    else
       LIBS           += $(HDF5_LIB)/libhdf5_fortran.a
-      LIBS           += $(HDF5_LIB)/libhdf5_hl.a
+      LIBS           += $(HDF5_LIB)/libhdf5_f90cstub.a
       LIBS           += $(HDF5_LIB)/libhdf5.a
    endif
+   LIBS           += -lsz
 endif
 
 ifneq ($(USE_COSMA),)
