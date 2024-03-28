@@ -75,9 +75,12 @@ esac
 if [ "${with_hdf5}" != "__DONTUSE__" ]; then
   # Prefer static libraries if available
   if [ -f "${pkg_install_dir}/lib/libhdf5.a" ]; then
-    HDF5_LIBS="-l:libhdf5_fortran.a -l:libhdf5_f90cstub.a -l:libhdf5.a -lsz -lz"
+    HDF5_LIBS="-l:libhdf5_fortran.a -l:libhdf5_f90cstub.a -l:libhdf5.a -lz"
   else
-    HDF5_LIBS="-lhdf5_fortran -lhdf5_f90cstub -lhdf5 -lsz -lz"
+    HDF5_LIBS="-lhdf5_fortran -lhdf5_f90cstub -lhdf5 -lz"
+  fi
+  if [ -n "$(grep libsz ${pkg_install_dir}/lib/pkgconfig/hdf5.pc)" ]; then
+    HDF5_LIBS="${HDF5_LIBS} -lsz"
   fi
   if [ "${with_hdf5}" != "__SYSTEM__" ]; then
     cat << EOF > "${BUILDDIR}/setup_hdf5"
