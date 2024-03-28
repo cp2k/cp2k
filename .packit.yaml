@@ -1,12 +1,22 @@
 specfile_path: tools/fedora/cp2k.spec
 files_to_sync:
-  - src: tools/fedora/cp2k.spec
-    dest: cp2k.spec
+  - src: tools/fedora/
+    dest: ./
+    filters:
+      - "- plans/main.fmf.dist-git"
+  - src: tools/fedora/plans/main.fmf.dist-git
+    dest: plans/main.fmf
+  - src: .fmf/
+    dest: .fmf/
   - .packit.yaml
 upstream_package_name: cp2k
 downstream_package_name: cp2k
 update_release: false
 upstream_tag_template: v{version}
+
+# Run only smoke tests by default
+test_command:
+  default_identifier: smoke
 
 jobs:
   - job: copr_build
@@ -17,15 +27,47 @@ jobs:
     additional_repos:
       - copr://@scikit-build/release
     targets:
-      - fedora-all-x86_64
-      - fedora-all-aarch64
+      - fedora-development-x86_64
+      - fedora-development-aarch64
+  - job: tests
+    trigger: commit
+    targets:
+      - fedora-development-x86_64
+      - fedora-development-aarch64
+    tmt_plan: .*/smoke
   - job: copr_build
     trigger: release
     owner: lecris
     project: release
     targets:
-      - fedora-all-x86_64
-      - fedora-all-aarch64
+      - fedora-development-x86_64
+      - fedora-development-aarch64
+  - job: copr_build
+    trigger: pull_request
+    manual_trigger: true
+    owner: lecris
+    project: cp2k
+    update_release: true
+    release_suffix: "{PACKIT_RPMSPEC_RELEASE}"
+    targets:
+      - fedora-development-x86_64
+      - fedora-development-aarch64
+  - job: tests
+    identifier: smoke
+    trigger: pull_request
+    manual_trigger: true
+    targets:
+      - fedora-development-x86_64
+      - fedora-development-aarch64
+    tmt_plan: .*/smoke
+  - job: tests
+    identifier: full
+    trigger: pull_request
+    manual_trigger: true
+    targets:
+      - fedora-development-x86_64
+      - fedora-development-aarch64
+    tmt_plan: .*/full
   - job: propose_downstream
     trigger: release
     dist_git_branches:
