@@ -15,7 +15,7 @@
 #        A full toolchain installation is performed as default.
 #        Replace or adapt the "module add" commands below if needed.
 #
-# Last update: 19.03.2024
+# Last update: 28.03.2024
 #
 # \
    if [ "${0}" = "${BASH_SOURCE}" ]; then \
@@ -33,6 +33,7 @@
    echo "To load the required modules in your batch job script, use:"; \
    echo "   module restore cp2k_jureca_gpu_psmp"; \
    cd tools/toolchain; \
+   rm -rf build; \
    ./install_cp2k_toolchain.sh --enable-cuda=yes --gpu-ver=A100 --install-all -j32 --no-arch-files --with-gcc=system --with-mpich=system; \
    cd ../..; \
    printf "Sourcing ${PWD}/tools/toolchain/install/setup ... "; \
@@ -329,10 +330,10 @@ ifneq ($(USE_HDF5),)
    CFLAGS         += -I$(HDF5_INC)
    DFLAGS         += -D__HDF5
    ifeq ($(SHARED), yes)
-      LIBS           += -Wl,-rpath,$(HDF5_LIB) -L$(HDF5_LIB) -lhdf5_fortran -lhdf5_hl -lhdf5
+      LIBS           += -Wl,-rpath,$(HDF5_LIB) -L$(HDF5_LIB) -lhdf5_fortran -lhdf5
    else
       LIBS           += $(HDF5_LIB)/libhdf5_fortran.a
-      LIBS           += $(HDF5_LIB)/libhdf5_hl.a
+      LIBS           += $(HDF5_LIB)/libhdf5_f90cstub.a
       LIBS           += $(HDF5_LIB)/libhdf5.a
    endif
 endif
