@@ -92,6 +92,8 @@ def main() -> None:
                 continue
             if root.startswith("./tools/minimax_tools/1_xData"):
                 continue
+            if root.startswith("./tools/fedora"):
+                continue
             if root.startswith("./data/DFTB/scc"):
                 continue
             if root.startswith("./arch"):
