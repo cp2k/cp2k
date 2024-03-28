@@ -12,6 +12,13 @@
 %bcond_without openmpi
 %endif
 
+%ifarch x86_64
+%bcond_without libxsmm
+%else
+# See https://bugzilla.redhat.com/show_bug.cgi?id=1515404
+%bcond_with libxsmm
+%endif
+
 # Disable LTO due to https://bugzilla.redhat.com/show_bug.cgi?id=2243158
 %global _lto_cflags %nil
 
@@ -34,21 +41,17 @@ BuildRequires: bc
 BuildRequires: fftw-devel
 BuildRequires: gcc-c++
 BuildRequires: gcc-gfortran
+BuildRequires: ninja-build
 BuildRequires: glibc-langpack-en
 BuildRequires: dbcsr-devel >= %{dbcsr_version}
-BuildRequires: libint2-devel
 BuildRequires: libxc-devel >= 5.1.0
-%ifarch x86_64
-# See https://bugzilla.redhat.com/show_bug.cgi?id=1515404
+%if %{with libxsmm}
 BuildRequires: libxsmm-devel >= 1.8.1-3
 %endif
 BuildRequires: python3-fypp
 BuildRequires: spglib-devel
 BuildRequires: /usr/bin/hostname
 BuildRequires: python3-devel
-
-# Libint can break the API between releases
-Requires: libint2(api)%{?_isa}
 
 Requires: %{name}-common = %{version}-%{release}
 
@@ -83,20 +86,12 @@ Requires: %{name}%{?_isa} = %{version}-%{release}
 The %{name}-devel package contains libraries and header files for
 developing applications that use %{name}.
 
-%package testing
-Summary: Tests for %{name}
-Requires: %{name}%{?_isa} = %{version}-%{release}
-
-%description testing
-The %{name}-testing package contains executables for testing %{name}.
-
 %if %{with openmpi}
 %package openmpi
 Summary: Molecular simulations software - openmpi version
 BuildRequires:  openmpi-devel
 BuildRequires:  blacs-openmpi-devel
 BuildRequires:  dbcsr-openmpi-devel >= %{dbcsr_version}
-BuildRequires:  elpa-openmpi-devel >= 2018.05.001
 BuildRequires:  scalapack-openmpi-devel
 Requires: %{name}-common = %{version}-%{release}
 # Libint may have API breakage
@@ -116,13 +111,6 @@ Requires: %{name}-openmpi%{?_isa} = %{version}-%{release}
 The %{name}-devel package contains libraries and header files for
 developing applications that use %{name}.
 
-%package openmpi-testing
-Summary: Tests for %{name}
-Requires: %{name}-openmpi%{?_isa} = %{version}-%{release}
-
-%description openmpi-testing
-The %{name}-openmpi-testing package contains executables for testing
-%{name} with OpenMPI.
 %endif
 
 %package mpich
@@ -130,7 +118,6 @@ Summary: Molecular simulations software - mpich version
 BuildRequires:  mpich-devel
 BuildRequires:  blacs-mpich-devel
 BuildRequires:  dbcsr-mpich-devel >= %{dbcsr_version}
-BuildRequires:  elpa-mpich-devel >= 2018.05.001
 BuildRequires:  scalapack-mpich-devel
 BuildRequires: make
 Requires: %{name}-common = %{version}-%{release}
@@ -151,13 +138,6 @@ Requires: %{name}-mpich%{?_isa} = %{version}-%{release}
 The %{name}-devel package contains libraries and header files for
 developing applications that use %{name}.
 
-%package mpich-testing
-Summary: Tests for %{name}
-Requires: %{name}-mpich%{?_isa} = %{version}-%{release}
-
-%description mpich-testing
-The %{name}-mpich-testing package contains executables for testing
-%{name} with mpich.
 
 %prep
 %autosetup -p1
@@ -168,91 +148,82 @@ rm -r exts/dbcsr
 
 # $MPI_SUFFIX will be evaluated in the loops below, set by mpi modules
 %global _vpath_builddir %{_vendor}-%{_target_os}-build${MPI_SUFFIX:-_serial}
+# We are running the module load/unload manually until there is a macro-like way to expand this
+. /etc/profile.d/modules.sh
+
 
 %build
-CMAKE_COMMON="-DCP2K_BLAS_VENDOR=FlexiBLAS %{?with_check:-DCP2K_ENABLE_REGTESTS=ON}"
-%cmake $CMAKE_COMMON \
-   -DCP2K_USE_MPI=OFF \
-   -DCMAKE_INSTALL_Fortran_MODULES:PATH=%{_fmoddir}/cp2k
-%cmake_build
-
-
-%if %{with openmpi}
-%{_openmpi_load}
-%cmake $CMAKE_COMMON \
-   -DCMAKE_PREFIX_PATH:PATH=$MPI_HOME \
-   -DCMAKE_INSTALL_PREFIX:PATH=$MPI_HOME \
-   -DCMAKE_INSTALL_Fortran_MODULES:PATH=${MPI_FORTRAN_MOD_DIR}/cp2k \
-   -DCMAKE_INSTALL_LIBDIR:PATH=lib \
-   -DCP2K_CMAKE_SUFFIX=$MPI_SUFFIX \
-   -DCP2K_DATA_DIR:PATH=%{_datadir}/cp2k/data \
-   -DCP2K_USE_MPI_F08:BOOL=ON
-%cmake_build
-%{_openmpi_unload}
-%endif
-
-%{_mpich_load}
-%cmake $CMAKE_COMMON \
-   -DCMAKE_PREFIX_PATH:PATH=$MPI_HOME \
-   -DCMAKE_INSTALL_PREFIX:PATH=$MPI_HOME \
-   -DCMAKE_INSTALL_Fortran_MODULES:PATH=${MPI_FORTRAN_MOD_DIR}/cp2k \
-   -DCMAKE_INSTALL_LIBDIR:PATH=lib \
-   -DCP2K_CMAKE_SUFFIX=$MPI_SUFFIX \
-   -DCP2K_DATA_DIR:PATH=%{_datadir}/cp2k/data \
-   -DCP2K_USE_MPI_F08:BOOL=ON
-%cmake_build
-%{_mpich_unload}
-
-%install
-%cmake_install
-
-%if %{with openmpi}
-%{_openmpi_load}
-%cmake_install
-%{_openmpi_unload}
-%endif
-
-%{_mpich_load}
-%cmake_install
-%{_mpich_unload}
-
-%if %{with check}
-# regtests take ~12 hours on aarch64 and ~48h on s390x
-%check
-. /etc/profile.d/modules.sh
-export CP2K_DATA_DIR=%{buildroot}%{_datadir}/cp2k/data
-status=0
-for mpi in '' mpich %{?with_openmpi:openmpi} ; do
-# A couple tests fail on ppc64le - https://github.com/cp2k/cp2k/issues/3077
-%ifarch ppc64le
-  fail=0
-%else
-  # Do not fail for now
-  fail=0
-%endif
-  # TODO - set maxtasks based on # cores?
+cmake_common_args=(
+  "-G Ninja"
+  "-DCP2K_DEBUG_MODE:BOOL=OFF"
+  "-DCP2K_BLAS_VENDOR:STRING=FlexiBLAS"
+  "-DCP2K_USE_STATIC_BLAS:BOOL=OFF"
+  "-DCP2K_ENABLE_REGTESTS:BOOL=%{?with_check:ON}%{?without_check:OFF}"
+  # Dependencies already packaged
+  "-DCP2K_USE_SPGLIB:BOOL=ON"
+  "-DCP2K_USE_LIBXC:BOOL=ON"
+  "-DCP2K_USE_FFTW3:BOOL=ON"
+  # TODO: Fix Libint2 detection
+  "-DCP2K_USE_LIBINT2:BOOL=OFF"
+  "-DCP2K_USE_LIBXSMM:BOOL=%{?with_libxsmm:ON}%{?without_libxsmm:OFF}"
+  # Missing dependencies
+  "-DCP2K_USE_ELPA:BOOL=OFF"
+  "-DCP2K_USE_PEXSI:BOOL=OFF"
+  "-DCP2K_USE_SUPERLU:BOOL=OFF"
+  "-DCP2K_USE_COSMA:BOOL=OFF"
+  "-DCP2K_USE_PLUMED:BOOL=OFF"
+  "-DCP2K_USE_VORI:BOOL=OFF"
+  "-DCP2K_USE_PEXSI:BOOL=OFF"
+  "-DCP2K_USE_QUIP:BOOL=OFF"
+  "-DCP2K_USE_LIBTORCH:BOOL=OFF"
+  "-DCP2K_USE_SPLA:BOOL=OFF"
+  "-DCP2K_USE_METIS:BOOL=OFF"
+  "-DCP2K_USE_DLAF:BOOL=OFF"
+)
+for mpi in '' mpich %{?with_openmpi:openmpi}; do
   if [ -n "$mpi" ]; then
     module load mpi/${mpi}-%{_arch}
-    libdir=${MPI_LIB}/cp2k
-    mpiopts="--maxtasks 4 --mpiranks 2 --ompthreads 2"
-    par=p
-    suf="-${mpi}"
+    cmake_mpi_args=(
+      "-DCMAKE_INSTALL_PREFIX:PATH=${MPI_HOME}"
+      "-DCMAKE_INSTALL_Fortran_MODULES:PATH=${MPI_FORTRAN_MOD_DIR}/cp2k"
+      "-DCMAKE_INSTALL_LIBDIR:PATH=lib"
+      "-DCP2K_CMAKE_SUFFIX:STRING=${MPI_SUFFIX}"
+      "-DCP2K_DATA_DIR:PATH=%{_datadir}/cp2k/data"
+      "-DCP2K_USE_MPI_F08:BOOL=ON"
+    )
   else
-    libdir=%{_libdir}/cp2k
-    mpiopts="--maxtasks 4 --ompthreads 2"
-    par=s
-    suf=""
+    cmake_mpi_args=(
+      "-DCP2K_USE_MPI:BOOL=OFF"
+      "-DCMAKE_INSTALL_Fortran_MODULES:PATH=%{_fmoddir}/cp2k"
+    )
   fi
-  export LD_LIBRARY_PATH=%{buildroot}${libdir}
-  tests/do_regtest.py %{!?with_check_full:--smoketest} --workbasedir %{_builddir} ${mpiopts} \
-    local${MPI_SUFFIX} ${par}smp || status=$(( $status + $fail ))
 
-  if [ -n "$mpi" ]; then
-    module unload mpi/${mpi}-%{_arch}
-  fi
+  %cmake \
+    ${cmake_common_args[@]} \
+    ${cmake_mpi_args[@]}
+  %cmake_build
+
+  [ -n "$mpi" ] && module unload mpi/${mpi}-%{_arch}
 done
-exit $status
+
+%install
+for mpi in '' mpich %{?with_openmpi:openmpi}; do
+  [ -n "$mpi" ] && module load mpi/${mpi}-%{_arch}
+  %cmake_install
+  [ -n "$mpi" ] && module unload mpi/${mpi}-%{_arch}
+done
+
+# TODO: Properly separate the installation of unit tests
+rm -f %{_buildrootdir}/**/%{_bindir}/*_unittest.*
+%if %{with openmpi}
+rm -f %{_buildrootdir}/**/%{_libdir}/openmpi/bin/*_unittest.*
 %endif
+rm -f %{_buildrootdir}/**/%{_libdir}/mpich/bin/*_unittest.*
+
+
+%check
+# Tests are done in the tmt envrionment
+
 
 %files common
 %license LICENSE
@@ -275,15 +246,6 @@ exit $status
 %{_libdir}/libcp2k.so
 %{_libdir}/pkgconfig/libcp2k.pc
 
-%files testing
-%{_bindir}/dbt_tas_unittest.ssmp
-%{_bindir}/dbt_unittest.ssmp
-%{_bindir}/grid_unittest.ssmp
-%{_bindir}/libcp2k_unittest.ssmp
-%{_bindir}/memory_utilities_unittest.ssmp
-%{_bindir}/nequip_unittest.ssmp
-%{_bindir}/parallel_rng_types_unittest.ssmp
-
 %if %{with openmpi}
 %files openmpi
 %{_libdir}/openmpi/bin/cp2k.psmp
@@ -300,15 +262,6 @@ exit $status
 %{_libdir}/openmpi/lib/cmake/cp2k/
 %{_libdir}/openmpi/lib/libcp2k.so
 %{_libdir}/openmpi/lib/pkgconfig/libcp2k.pc
-
-%files openmpi-testing
-%{_libdir}/openmpi/bin/dbt_tas_unittest.psmp
-%{_libdir}/openmpi/bin/dbt_unittest.psmp
-%{_libdir}/openmpi/bin/grid_unittest.psmp
-%{_libdir}/openmpi/bin/libcp2k_unittest.psmp
-%{_libdir}/openmpi/bin/memory_utilities_unittest.psmp
-%{_libdir}/openmpi/bin/nequip_unittest.psmp
-%{_libdir}/openmpi/bin/parallel_rng_types_unittest.psmp
 %endif
 
 %files mpich
@@ -326,15 +279,6 @@ exit $status
 %{_libdir}/mpich/lib/cmake/cp2k/
 %{_libdir}/mpich/lib/libcp2k.so
 %{_libdir}/mpich/lib/pkgconfig/libcp2k.pc
-
-%files mpich-testing
-%{_libdir}/mpich/bin/dbt_tas_unittest.psmp
-%{_libdir}/mpich/bin/dbt_unittest.psmp
-%{_libdir}/mpich/bin/grid_unittest.psmp
-%{_libdir}/mpich/bin/libcp2k_unittest.psmp
-%{_libdir}/mpich/bin/memory_utilities_unittest.psmp
-%{_libdir}/mpich/bin/nequip_unittest.psmp
-%{_libdir}/mpich/bin/parallel_rng_types_unittest.psmp
 
 %changelog
 %autochangelog

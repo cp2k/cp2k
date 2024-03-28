@@ -1,0 +1,20 @@
+summary:
+  Test the bundled tests
+discover+:
+  how: fmf
+execute:
+  how: tmt
+# Currently using testing-farm/artemis which allows setting hardware requirements
+# Virtual and other providers should be available at some point as well
+provision:
+  hardware:
+    cpu:
+      processors: ">=4"
+
+/full:
+  summary+: (Full)
+
+/smoke:
+  summary+: (Smoke)
+  environment:
+    CP2K_SMOKE_ONLY: true

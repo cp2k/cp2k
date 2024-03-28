@@ -42,6 +42,10 @@ KEEPALIVE_SKIP_DIRS = [
 ]
 
 
+def cp2k_stem() -> str:
+    return os.getenv("CP2K_STEM", "cp2k")
+
+
 # ======================================================================================
 async def main() -> None:
     parser = argparse.ArgumentParser(description="Runs CP2K regression test suite.")
@@ -64,6 +68,8 @@ async def main() -> None:
     parser.add_argument("--restrictdir", action="append")
     parser.add_argument("--skipdir", action="append")
     parser.add_argument("--workbasedir", type=Path)
+    parser.add_argument("--skip_unittests", action="store_true")
+    parser.add_argument("--skip_regtests", action="store_true")
     parser.add_argument("arch")
     parser.add_argument("version")
     cfg = Config(parser.parse_args())
@@ -72,7 +78,9 @@ async def main() -> None:
     start_time = time.perf_counter()
 
     # Query CP2K binary for feature flags.
-    version_bytes, _ = await (await cfg.launch_exe("cp2k", "--version")).communicate()
+    version_bytes, _ = await (
+        await cfg.launch_exe(cp2k_stem(), "--version")
+    ).communicate()
     version_output = version_bytes.decode("utf8", errors="replace")
     flags_line = re.search(r" cp2kflags:(.*)\n", version_output)
     if not flags_line:
@@ -252,6 +260,8 @@ class Config:
         self.max_errors = args.maxerrors
         self.restrictdirs = args.restrictdir if args.restrictdir else [".*"]
         self.skipdirs = args.skipdir if args.skipdir else []
+        self.skip_unittests = args.skip_unittests
+        self.skip_regtests = args.skip_regtests
         datestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         leaf_dir = f"TEST-{args.arch}-{args.version}-{datestamp}"
         self.work_base_dir = (
@@ -294,7 +304,13 @@ class Config:
             env["CUDA_VISIBLE_DEVICES"] = ",".join(visible_gpu_devices)
             env["HIP_VISIBLE_DEVICES"] = ",".join(visible_gpu_devices)
         env["OMP_NUM_THREADS"] = str(self.ompthreads)
-        cmd = [str(self.cp2k_root / "exe" / self.arch / f"{exe_stem}.{self.version}")]
+        exe_path = Path(f"{exe_stem}.{self.version}")
+        if exe_path.is_absolute():
+            cmd = [str(exe_path)]
+        else:
+            cmd = [
+                str(self.cp2k_root / "exe" / self.arch / f"{exe_stem}.{self.version}")
+            ]
         if self.valgrind:
             cmd = ["valgrind", "--error-exitcode=42", "--exit-on-first-error=yes"] + cmd
         if self.use_mpi:
@@ -430,7 +446,9 @@ class Cp2kShell:
 
     async def start(self) -> None:
         assert self._child is None
-        self._child = await self.cfg.launch_exe("cp2k", "--shell", cwd=self.workdir)
+        self._child = await self.cfg.launch_exe(
+            cp2k_stem(), "--shell", cwd=self.workdir
+        )
         await self.ready()
         await self.sendline("HARSH")  # With harsh mode any error leads to an abort.
         await self.ready()
@@ -496,7 +514,11 @@ async def wait_for_child_process(
 # ======================================================================================
 async def run_batch(batch: Batch, cfg: Config) -> BatchResult:
     async with cfg.workers:
-        results = (await run_unittests(batch, cfg)) + (await run_regtests(batch, cfg))
+        results = []
+        if not cfg.skip_unittests:
+            results += await run_unittests(batch, cfg)
+        if not cfg.skip_regtests:
+            results += await run_regtests(batch, cfg)
         return BatchResult(batch, results)
 
 
@@ -571,7 +593,7 @@ async def run_regtests_classic(batch: Batch, cfg: Config) -> List[TestResult]:
     for test in batch.regtests:
         start_time = time.perf_counter()
         start_dirsize = dirsize(batch.workdir)
-        child = await cfg.launch_exe("cp2k", test.inp_fn, cwd=batch.workdir)
+        child = await cfg.launch_exe(cp2k_stem(), test.inp_fn, cwd=batch.workdir)
         output, returncode, timed_out = await wait_for_child_process(child, cfg.timeout)
         test.out_path.write_bytes(output)
         duration = time.perf_counter() - start_time
