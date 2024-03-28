@@ -454,6 +454,12 @@ CONTAINS
          CALL auxbas_pw_pool%create_pw(wf_g)
       END IF
 
+      IF (dft_control%restricted) THEN
+         !For ROKS usefull only first term
+         nspins = 1
+      ELSE
+         nspins = dft_control%nspins
+      END IF
       !Some info about ROKS
       IF (dft_control%restricted .AND. (do_mo_cubes .OR. p_loc_homo)) THEN
          CALL cp_warn(__LOCATION__, "Unclear how we define MOs / localization in the restricted case ... "// &
@@ -470,14 +476,12 @@ CONTAINS
                          mos=mos, &
                          matrix_ks=ks_rmpv)
          IF ((do_mo_cubes .AND. nhomo /= 0) .OR. do_stm .OR. dft_control%do_tddfpt_calculation) THEN
-            IF (.NOT. dft_control%restricted) THEN
-               CALL get_qs_env(qs_env, mo_derivs=mo_derivs)
-               IF (dft_control%do_admm) THEN
-                  CALL get_qs_env(qs_env, admm_env=admm_env)
-                  CALL make_mo_eig(mos, dft_control%nspins, ks_rmpv, scf_control, mo_derivs, admm_env=admm_env)
-               ELSE
-                  CALL make_mo_eig(mos, dft_control%nspins, ks_rmpv, scf_control, mo_derivs)
-               END IF
+            CALL get_qs_env(qs_env, mo_derivs=mo_derivs)
+            IF (dft_control%do_admm) THEN
+               CALL get_qs_env(qs_env, admm_env=admm_env)
+               CALL make_mo_eig(mos, nspins, ks_rmpv, scf_control, mo_derivs, admm_env=admm_env)
+            ELSE
+               CALL make_mo_eig(mos, nspins, ks_rmpv, scf_control, mo_derivs)
             END IF
             DO ispin = 1, dft_control%nspins
                CALL get_mo_set(mo_set=mos(ispin), eigenvalues=mo_eigenvalues, homo=homo)
@@ -486,12 +490,6 @@ CONTAINS
             has_homo = .TRUE.
          END IF
          IF (do_mo_cubes .AND. nhomo /= 0) THEN
-            IF (dft_control%restricted) THEN
-               !For ROKS usefull only first term
-               nspins = 1
-            ELSE
-               nspins = dft_control%nspins
-            END IF
             DO ispin = 1, nspins
                ! Prints the cube files of OCCUPIED ORBITALS
                CALL get_mo_set(mo_set=mos(ispin), mo_coeff=mo_coeff, &
