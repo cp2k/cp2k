@@ -79,8 +79,10 @@ if [ "${with_hdf5}" != "__DONTUSE__" ]; then
   else
     HDF5_LIBS="-lhdf5_fortran -lhdf5_f90cstub -lhdf5 -lz"
   fi
-  if [ -n "$(grep libsz ${pkg_install_dir}/lib/pkgconfig/hdf5.pc)" ]; then
-    HDF5_LIBS="${HDF5_LIBS} -lsz"
+  if [ -f "${pkg_install_dir}/lib/pkgconfig/hdf5.pc" ]; then
+    if [ -n "$(grep libsz ${pkg_install_dir}/lib/pkgconfig/hdf5.pc)" ]; then
+      HDF5_LIBS="${HDF5_LIBS} -lsz"
+    fi
   fi
   if [ "${with_hdf5}" != "__SYSTEM__" ]; then
     cat << EOF > "${BUILDDIR}/setup_hdf5"
