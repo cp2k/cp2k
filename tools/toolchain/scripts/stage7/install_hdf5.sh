@@ -73,18 +73,18 @@ case "$with_hdf5" in
     ;;
 esac
 if [ "${with_hdf5}" != "__DONTUSE__" ]; then
-  # Prefer static libraries if available
-  if [ -f "${pkg_install_dir}/lib/libhdf5.a" ]; then
-    HDF5_LIBS="-l:libhdf5_fortran.a -l:libhdf5_f90cstub.a -l:libhdf5.a -lz"
-  else
-    HDF5_LIBS="-lhdf5_fortran -lhdf5_f90cstub -lhdf5 -lz"
-  fi
-  if [ -f "${pkg_install_dir}/lib/pkgconfig/hdf5.pc" ]; then
-    if [ -n "$(grep libsz ${pkg_install_dir}/lib/pkgconfig/hdf5.pc)" ]; then
-      HDF5_LIBS="${HDF5_LIBS} -lsz"
-    fi
-  fi
   if [ "${with_hdf5}" != "__SYSTEM__" ]; then
+    # Prefer static libraries if available
+    if [ -f "${pkg_install_dir}/lib/libhdf5.a" ]; then
+      HDF5_LIBS="-l:libhdf5_fortran.a -l:libhdf5_f90cstub.a -l:libhdf5.a -lz"
+    else
+      HDF5_LIBS="-lhdf5_fortran -lhdf5_f90cstub -lhdf5 -lz"
+    fi
+    if [ -f "${pkg_install_dir}/lib/pkgconfig/hdf5.pc" ]; then
+      if [ -n "$(grep libsz ${pkg_install_dir}/lib/pkgconfig/hdf5.pc)" ]; then
+        HDF5_LIBS="${HDF5_LIBS} -lsz"
+      fi
+    fi
     cat << EOF > "${BUILDDIR}/setup_hdf5"
 prepend_path LD_LIBRARY_PATH "${pkg_install_dir}/lib"
 prepend_path LD_RUN_PATH "${pkg_install_dir}/lib"
@@ -93,6 +93,12 @@ prepend_path CPATH "${pkg_install_dir}/include"
 prepend_path PKG_CONFIG_PATH "${pkg_install_dir}/lib/pkgconfig"
 prepend_path CMAKE_PREFIX_PATH "${pkg_install_dir}"
 EOF
+  else
+    if [ -f "${pkg_install_dir}/lib/libhdf5.a" ]; then
+      HDF5_LIBS="-l:libhdf5_fortran.a -l:libhdf5_hl.a -l:libhdf5.a -lz -lsz"
+    else
+      HDF5_LIBS="-lhdf5_fortran -lhdf5_hl -lhdf5 -lz -lsz"
+    fi
   fi
   cat << EOF >> "${BUILDDIR}/setup_hdf5"
 export HDF5_CFLAGS="${HDF5_CFLAGS}"
