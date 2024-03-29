@@ -462,8 +462,7 @@ CONTAINS
       END IF
       !Some info about ROKS
       IF (dft_control%restricted .AND. (do_mo_cubes .OR. p_loc_homo)) THEN
-         CALL cp_warn(__LOCATION__, "Unclear how we define MOs / localization in the restricted case ... "// &
-                      "Experimental feature. ")
+         CALL cp_abort(__LOCATION__, "Unclear how we define MOs / localization in the restricted case ... ")
          ! It is possible to obtain Wannier centers for ROKS without rotations for SINGLE OCCUPIED ORBITALS
       END IF
       ! Makes the MOs eigenstates, computes eigenvalues, write cubes
