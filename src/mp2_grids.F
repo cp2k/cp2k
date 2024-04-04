@@ -384,6 +384,12 @@ CONTAINS
 
       wj(:) = wj(:)*a_scaling
       tj(:) = tj*a_scaling
+      IF (electronic_temperature > 0.0_dp) THEN
+         wj(:) = wj/(2.0_dp*pi)
+      END IF
+
+      IF (unit_nr > 0) CALL m_flush(unit_nr)
+      CALL para_env%sync()
 
       CALL timestop(handle)
 
@@ -481,11 +487,7 @@ CONTAINS
                                 M_ia, tj_ext, wj_ext, D_ia, D_ia_beta, M_ia_beta, &
                                 num_integ_group, color_rpa_group, &
                                 para_env, para_env_col, para_env_col_beta)
-         IF (electronic_temperature > 0.0_dp) THEN
-            left_term = 2.0_dp*left_term*a_scaling
-         ELSE
-            left_term = left_term/4.0_dp/pi*a_scaling
-         END IF
+         left_term = left_term/4.0_dp/pi*a_scaling
 
          IF (ABS(left_term) > ABS(right_term) .OR. ABS(left_term + right_term) <= conv_param) EXIT
          a_low = a_high
@@ -505,11 +507,7 @@ CONTAINS
                                       M_ia, tj_ext, wj_ext, D_ia, D_ia_beta, M_ia_beta, &
                                       num_integ_group, color_rpa_group, &
                                       para_env, para_env_col, para_env_col_beta)
-               IF (electronic_temperature > 0.0_dp) THEN
-                  left_term = 2.0_dp*left_term*a_scaling
-               ELSE
-                  left_term = left_term/4.0_dp/pi*a_scaling
-               END IF
+               left_term = left_term/4.0_dp/pi*a_scaling
 
                IF (ABS(left_term) > ABS(right_term)) THEN
                   a_high = a_scaling
@@ -525,7 +523,6 @@ CONTAINS
       END IF
 
       a_scaling_ext = a_scaling
-      IF (electronic_temperature > 0.0_dp) a_scaling_ext = a_scaling_ext*electronic_temperature
       CALL para_env%bcast(a_scaling_ext, 0)
 
       DEALLOCATE (iaia_RI)
@@ -598,6 +595,8 @@ CONTAINS
                           row_indices=row_indices, &
                           col_indices=col_indices)
 
+      dimen = SIZE(Eigenval)
+
       ! allocate the local buffer of iaia_RI integrals (dp kind)
       ALLOCATE (iaia_RI(ncol_local))
       iaia_RI = 0.0_dp
@@ -611,7 +610,7 @@ CONTAINS
             avirt = i_global - (iocc - 1)*virtual
 
             IF (avirt + dimen - virtual > iocc) THEN
-               iaia_RI(iiB) = iaia_RI(iiB) + (occupation_numbers(avirt + dimen - virtual) - occupation_numbers(iocc))* &
+               iaia_RI(iiB) = ABS(occupation_numbers(avirt + dimen - virtual) - occupation_numbers(iocc))* &
                               DOT_PRODUCT(fm_mat_S%local_data(:, iiB), fm_mat_S%local_data(:, iiB))
             ELSE
                iaia_RI(iiB) = 0.0_dp
@@ -652,8 +651,6 @@ CONTAINS
 
       ALLOCATE (M_ia(ncol_local))
 
-      dimen = SIZE(Eigenval)
-
       DO iiB = 1, ncol_local
          i_global = col_indices(iiB)
 
@@ -672,22 +669,21 @@ CONTAINS
          M_ia(iiB) = 2.0_dp*D_ia(iiB)*iaia_RI(iiB)
       END DO
 
-      right_term_ref = 0.0_dp
       IF (electronic_temperature > 0.0_dp) THEN
          my_reference_grid_size = reference_grid_size
          IF (my_reference_grid_size < 1) THEN
             my_reference_grid_size = 2*CEILING(ABS(Eigenval(dimen) - Eigenval(1))/(2.0_dp*pi)) + 1
          END IF
-         CALL get_matsubara_grid(-1, 1.0_dp, RESHAPE(Eigenval, [dimen, 1]), my_reference_grid_size, extrapolation_order, &
+         CALL get_matsubara_grid(-1, electronic_temperature, RESHAPE(Eigenval, [dimen, 1]), &
+                                 my_reference_grid_size, extrapolation_order, &
                                  tj_matsubara, wj_matsubara)
-         right_term_ref = SUM(f_rpa(2.0_dp*iaia_RI/D_ia), MASK=(D_ia > 0.0_dp))
+         right_term_ref = wj_matsubara(1)*SUM(f_rpa(2.0_dp*iaia_RI/D_ia), MASK=(D_ia > 0.0_dp))
          DO point = 2, my_reference_grid_size
-            right_term_ref = right_term_ref + SUM(f_rpa(M_ia/(D_ia**2 + tj_matsubara(point)**2)))
+            right_term_ref = right_term_ref + wj_matsubara(point)*SUM(f_rpa(M_ia/(D_ia**2 + tj_matsubara(point)**2)))
          END DO
+         right_term_ref = right_term_ref/2.0_dp
       ELSE
-         DO iiB = 1, ncol_local
-            right_term_ref = right_term_ref + (SQRT(M_ia(iiB) + D_ia(iiB)**2) - D_ia(iiB) - iaia_RI(iiB))
-         END DO
+         right_term_ref = SUM(SQRT(M_ia + D_ia**2) - D_ia - iaia_RI)
          right_term_ref = right_term_ref/2.0_dp
       END IF
 
@@ -1681,7 +1677,7 @@ CONTAINS
          n_real = REAL(num_integ_points - 1, dp)
          wj(num_integ_points) = wj(num_integ_points)*(1.0_dp + n_real/(3.0_dp - 3.0_dp/n_real + n_real**(-2)))
       ELSE
-! Nothing to do
+         ! Nothing to do
       END IF
 
       IF (unit_nr > 0) THEN
