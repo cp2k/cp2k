@@ -14,7 +14,6 @@
 MODULE qs_density_mixing_types
    USE ao_util,                         ONLY: exp_radius
    USE input_constants,                 ONLY: broy_mix,&
-                                              broy_mix_new,&
                                               direct_p_mix,&
                                               gaussian,&
                                               kerker_mix,&
@@ -46,7 +45,6 @@ MODULE qs_density_mixing_types
    INTEGER, PARAMETER, PUBLIC :: no_mixing_nr = 0, direct_mixing_nr = 1, &
                                  gspace_mixing_nr = 2, pulay_mixing_nr = 3, &
                                  broyden_mixing_nr = 4, &
-                                 broyden_mixing_new_nr = 5, &
                                  multisecant_mixing_nr = 6
    PUBLIC :: cp_1d_z_p_type, mixing_storage_create, mixing_storage_type, mixing_storage_release, create_mixing_section
 
@@ -188,11 +186,6 @@ CONTAINS
       CASE (broyden_mixing_nr)
          CALL section_vals_val_get(mixing_section, "BROY_W0", r_val=mixing_store%broy_w0)
          mixing_store%bconst = 20.0_dp
-      CASE (broyden_mixing_new_nr)
-         CALL section_vals_val_get(mixing_section, "BROY_WREF", r_val=mixing_store%wc)
-         CALL section_vals_val_get(mixing_section, "BROY_WMAX", r_val=mixing_store%wmax)
-         mixing_store%bconst = 20.0_dp
-         mixing_store%p_metric_method = 1
       CASE (multisecant_mixing_nr)
          CALL section_vals_val_get(mixing_section, "REGULARIZATION", r_val=mixing_store%reg_par)
          CALL section_vals_val_get(mixing_section, "MAX_STEP", r_val=mixing_store%sigma_max)
@@ -507,14 +500,13 @@ CONTAINS
                                           "KERKER_MIXING", &
                                           "PULAY_MIXING", &
                                           "BROYDEN_MIXING", &
-                                          "BROYDEN_MIXING_NEW", &
                                           "MULTISECANT_MIXING"), &
                           enum_i_vals=(/no_mix, direct_p_mix, kerker_mix, pulay_mix, broy_mix, &
-                                        broy_mix_new, multisec_mix/), &
+                                        multisec_mix/), &
                           enum_desc=s2a("No mixing is applied", &
                                         "Direct mixing of new and old density matrices", &
                                         "Mixing of the potential in reciprocal space using the Kerker damping", &
-                                        "Pulay mixing", "Broyden mixing", "Broyden mixing second version", &
+                                        "Pulay mixing", "Broyden mixing", &
                                         "Multisecant scheme for mixing"))
 
       CALL section_add_keyword(section, keyword)

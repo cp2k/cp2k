@@ -21,8 +21,7 @@ MODULE qs_scf_loop_utils
    USE kpoint_types,                    ONLY: kpoint_type
    USE message_passing,                 ONLY: mp_para_env_type
    USE qs_density_matrices,             ONLY: calculate_density_matrix
-   USE qs_density_mixing_types,         ONLY: broyden_mixing_new_nr,&
-                                              broyden_mixing_nr,&
+   USE qs_density_mixing_types,         ONLY: broyden_mixing_nr,&
                                               direct_mixing_nr,&
                                               gspace_mixing_nr,&
                                               multisecant_mixing_nr,&
@@ -469,7 +468,7 @@ CONTAINS
                                      scf_env%mixing_store, rho_ao_kp, para_env, scf_env%iter_delta, scf_env%iter_count, &
                                      diis=diis_step)
       CASE (gspace_mixing_nr, pulay_mixing_nr, broyden_mixing_nr, &
-            broyden_mixing_new_nr, multisecant_mixing_nr)
+            multisecant_mixing_nr)
          ! Compute the difference p_out-p_in
          CALL self_consistency_check(rho_ao_kp, scf_env%p_delta, para_env, scf_env%p_mix_new, &
                                      delta=scf_env%iter_delta)
@@ -598,7 +597,7 @@ CONTAINS
                END DO
             END DO
          CASE (gspace_mixing_nr, pulay_mixing_nr, broyden_mixing_nr, &
-               broyden_mixing_new_nr, multisecant_mixing_nr)
+               multisecant_mixing_nr)
             DO ic = 1, nc
                DO ispin = 1, dft_control%nspins
                   CALL dbcsr_get_info(rho_ao_kp(ispin, ic)%matrix, name=name) ! keep the name

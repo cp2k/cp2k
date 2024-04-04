@@ -11,8 +11,7 @@ MODULE qs_charge_mixing
    USE kinds,                           ONLY: dp
    USE mathlib,                         ONLY: get_pseudo_inverse_svd
    USE message_passing,                 ONLY: mp_para_env_type
-   USE qs_density_mixing_types,         ONLY: broyden_mixing_new_nr,&
-                                              broyden_mixing_nr,&
+   USE qs_density_mixing_types,         ONLY: broyden_mixing_nr,&
                                               gspace_mixing_nr,&
                                               mixing_storage_type,&
                                               multisecant_mixing_nr,&
@@ -89,8 +88,6 @@ CONTAINS
          ELSEIF (mixing_method == broyden_mixing_nr) THEN
             CALL broyden_mixing(mixing_store, charges, imin, nvec, ns, para_env)
             mixing_store%iter_method = "Broy."
-         ELSEIF (mixing_method == broyden_mixing_new_nr) THEN
-            CPABORT("Broyden_mixing_new method not available for Charge Mixing")
          ELSEIF (mixing_method == multisecant_mixing_nr) THEN
             CPABORT("Multisecant_mixing method not available for Charge Mixing")
          END IF
