@@ -38,7 +38,6 @@ MODULE rpa_grad
                                               group_dist_proc,&
                                               maxsize,&
                                               release_group_dist
-   USE input_constants,                 ONLY: rpa_quadrature_minimax
    USE kahan_sum,                       ONLY: accurate_dot_product,&
                                               accurate_dot_product_2
    USE kinds,                           ONLY: dp,&
@@ -2063,7 +2062,6 @@ CONTAINS
          my_scale = mp2_env%scale_s
       ELSE
          my_scale = -mp2_env%ri_rpa%scale_rpa/(2.0_dp*pi)
-         IF (mp2_env%ri_rpa%rpa_quadrature == rpa_quadrature_minimax) my_scale = my_scale/2.0_dp
       END IF
 
       IF (do_ri_sos_laplace_mp2) THEN
@@ -2420,7 +2418,6 @@ CONTAINS
 
       nspins = SIZE(homo)
       my_scale = mp2_env%ri_rpa%scale_rpa/(2.0_dp*pi)
-      IF (mp2_env%ri_rpa%rpa_quadrature == rpa_quadrature_minimax) my_scale = my_scale/2.0_dp
 
       CALL cp_fm_release(rpa_work%fm_mat_Q_copy)
 

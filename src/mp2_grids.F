@@ -209,7 +209,7 @@ CONTAINS
 
          ! scale the minimax parameters
          tj(:) = tj(:)*Emin
-         wj(:) = wj(:)*Emin
+         wj(:) = wj(:)*Emin*0.5_dp
       ELSE
          ! When we perform SOS-MP2, we need an additional factor of 2 for the energies (compare with mp2_laplace.F)
          ! We do not need weights etc. for the cosine transform

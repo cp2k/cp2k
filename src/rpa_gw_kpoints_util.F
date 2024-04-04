@@ -618,7 +618,6 @@ CONTAINS
       FComega = 0.0_dp
       DO iiB = 1, dimen_RI
          IF (MODULO(iiB, para_env%num_pe) /= para_env%mepos) CYCLE
-         ! FComega=FComega+(LOG(Q_log(iiB))-trace_Qomega(iiB))/2.0_dp
          FComega = FComega + (Q_log(iiB) - trace_Qomega(iiB))/2.0_dp
       END DO
 

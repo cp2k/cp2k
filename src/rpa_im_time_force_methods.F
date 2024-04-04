@@ -1447,7 +1447,7 @@ CONTAINS
             END IF
 
             !convert B matrix to time
-            weight = weights_cos_tf_t_to_w(iquad, jquad)*COS(tau*omega)*wj(iquad)
+            weight = weights_cos_tf_t_to_w(iquad, jquad)*COS(tau*omega)*wj(iquad)*2.0_dp
             CALL dbt_copy_matrix_to_tensor(dbcsr_work_symm, t_2c_tmp)
             CALL dbt_scale(t_2c_tmp, weight)
             CALL dbt_copy(t_2c_tmp, t_B(jquad), summation=.TRUE., move_data=.TRUE.)

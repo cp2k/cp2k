@@ -1558,7 +1558,7 @@ CONTAINS
                                                         fm_mat_W, fm_mat_RI_global_work, mat_MinvVMinv, &
                                                         fm_matrix_Minv, fm_matrix_Minv_Vtrunc_Minv)
                ELSE
-                  CALL compute_Erpa_by_freq_int(dimen_RI_red, trace_Qomega, fm_mat_Q(1), para_env_RPA, Erpa, wj(jquad), jquad)
+                  CALL compute_Erpa_by_freq_int(dimen_RI_red, trace_Qomega, fm_mat_Q(1), para_env_RPA, Erpa, wj(jquad))
                END IF
 
                IF (calc_forces .AND. .NOT. do_im_time) CALL rpa_grad_matrix_operations(mp2_env, rpa_grad, do_ri_sos_laplace_mp2, &
@@ -1606,14 +1606,12 @@ CONTAINS
          IF (scf_control%smear%electronic_temperature <= 0.0_dp) THEN
             IF (.NOT. do_ri_sos_laplace_mp2) THEN
                Erpa = Erpa/(pi*2.0_dp)
-               IF (quadrature_rule == rpa_quadrature_minimax) Erpa = Erpa/2.0_dp
             END IF
          END IF
 
          IF (mp2_env%ri_rpa%exchange_correction /= rpa_exchange_none) THEN
             CALL para_env%sum(E_exchange)
             E_exchange = E_exchange/(pi*2.0_dp)
-            IF (quadrature_rule == rpa_quadrature_minimax) E_exchange = E_exchange/2.0_dp
             mp2_env%ri_rpa%ener_exchange = E_exchange
          END IF
 
