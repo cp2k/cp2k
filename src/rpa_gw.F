@@ -311,10 +311,9 @@ CONTAINS
 !> \param gw_corr_lev_tot ...
 !> \param num_fit_points ...
 !> \param omega_max_fit ...
-!> \param do_minimax_quad ...
 !> \param do_periodic ...
 !> \param do_ri_Sigma_x ...
-!> \param my_do_gw ...
+!> \param do_im_time ...
 !> \param first_cycle_periodic_correction ...
 !> \param Eigenval ...
 !> \param tj ...
@@ -338,7 +337,7 @@ CONTAINS
                                    gw_corr_lev_occ, gw_corr_lev_virt, homo, &
                                    nmo, num_integ_group, num_integ_points, unit_nr, &
                                    gw_corr_lev_tot, num_fit_points, omega_max_fit, &
-                                   do_minimax_quad, do_periodic, do_ri_Sigma_x, my_do_gw, &
+                                   do_periodic, do_ri_Sigma_x, do_im_time, &
                                    first_cycle_periodic_correction, &
                                    Eigenval, tj, vec_omega_fit_gw, vec_Sigma_x_gw, &
                                    delta_corr, Eigenval_last, Eigenval_scf, vec_W_gw, &
@@ -354,8 +353,7 @@ CONTAINS
                                                             unit_nr
       INTEGER, INTENT(INOUT)                             :: gw_corr_lev_tot, num_fit_points
       REAL(KIND=dp)                                      :: omega_max_fit
-      LOGICAL, INTENT(IN)                                :: do_minimax_quad, do_periodic, &
-                                                            do_ri_Sigma_x, my_do_gw
+      LOGICAL, INTENT(IN)                                :: do_periodic, do_ri_Sigma_x, do_im_time
       LOGICAL, INTENT(OUT) :: first_cycle_periodic_correction
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: Eigenval
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
@@ -473,10 +471,7 @@ CONTAINS
       ALLOCATE (vec_Sigma_x_gw(nmo, nkp_self_energy, nspins))
       vec_Sigma_x_gw = 0.0_dp
 
-      IF (my_do_gw) THEN
-
-         ! minimax grids not implemented for O(N^4) GW
-         CPASSERT(.NOT. do_minimax_quad)
+      IF (.NOT. do_im_time) THEN
 
          ! create temporary matrix to store B*([1+Q(iw')]^-1-1), has the same size as B
          ALLOCATE (fm_mat_S_gw_work(nspins))
@@ -596,12 +591,12 @@ CONTAINS
 !> \param matrix_berry_im_mo_mo ...
 !> \param kpoints ...
 !> \param vec_Sigma_x_gw ...
-!> \param my_do_gw ...
+!> \param do_im_time ...
 ! **************************************************************************************************
    SUBROUTINE deallocate_matrices_gw(fm_mat_S_gw_work, vec_W_gw, vec_Sigma_c_gw, vec_omega_fit_gw, &
                                      vec_Sigma_x_minus_vxc_gw, Eigenval_last, &
                                      Eigenval_scf, do_periodic, matrix_berry_re_mo_mo, matrix_berry_im_mo_mo, kpoints, &
-                                     vec_Sigma_x_gw, my_do_gw)
+                                     vec_Sigma_x_gw, do_im_time)
 
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:), &
          INTENT(INOUT)                                   :: fm_mat_S_gw_work
@@ -620,7 +615,7 @@ CONTAINS
       TYPE(kpoint_type), POINTER                         :: kpoints
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
          INTENT(INOUT)                                   :: vec_Sigma_x_gw
-      LOGICAL, INTENT(IN)                                :: my_do_gw
+      LOGICAL, INTENT(IN)                                :: do_im_time
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_matrices_gw'
 
@@ -632,7 +627,7 @@ CONTAINS
       nspins = SIZE(Eigenval_last, 3)
       my_open_shell = (nspins == 2)
 
-      IF (my_do_gw) THEN
+      IF (.NOT. do_im_time) THEN
          CALL cp_fm_release(fm_mat_S_gw_work)
          DEALLOCATE (vec_Sigma_x_minus_vxc_gw)
          DEALLOCATE (vec_W_gw)

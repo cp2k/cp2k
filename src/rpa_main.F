@@ -1331,11 +1331,12 @@ CONTAINS
       END IF
 
       IF (my_do_gw) THEN
+         CPASSERT(do_im_time .OR. quadrature_rule == rpa_quadrature_cc)
          CALL allocate_matrices_gw(vec_Sigma_c_gw, color_rpa_group, dimen_nm_gw, &
                                    gw_corr_lev_occ, gw_corr_lev_virt, homo, &
                                    nmo, num_integ_group, num_integ_points, unit_nr, &
                                    gw_corr_lev_tot, num_fit_points, omega_max_fit, &
-                                   quadrature_rule == rpa_quadrature_minimax, do_periodic, do_ri_Sigma_x,.NOT. do_im_time, &
+                                   do_periodic, do_ri_Sigma_x, do_im_time, &
                                    first_cycle_periodic_correction, &
                                    Eigenval, tj, vec_omega_fit_gw, vec_Sigma_x_gw, &
                                    delta_corr, Eigenval_last, Eigenval_scf, vec_W_gw, &
@@ -1771,7 +1772,7 @@ CONTAINS
          CALL deallocate_matrices_gw(fm_mat_S_gw_work, vec_W_gw, vec_Sigma_c_gw, vec_omega_fit_gw, &
                                      mp2_env%ri_g0w0%vec_Sigma_x_minus_vxc_gw, &
                                      Eigenval_last, Eigenval_scf, do_periodic, matrix_berry_re_mo_mo, matrix_berry_im_mo_mo, &
-                                     kpoints, vec_Sigma_x_gw,.NOT. do_im_time)
+                                     kpoints, vec_Sigma_x_gw, do_im_time)
       END IF
 
       IF (do_im_time) THEN
