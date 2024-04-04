@@ -31,7 +31,8 @@ MODULE rt_tdagw_types
                                               dbcsr_create,&
                                               dbcsr_release,&
                                               dbcsr_print,&
-                                              dbcsr_copy
+                                              dbcsr_copy,&
+                                              dbcsr_type_complex_8
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE dbt_api,                         ONLY: dbt_type,&
                                               dbt_pgrid_type,&
@@ -48,12 +49,21 @@ MODULE rt_tdagw_types
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               copy_fm_to_dbcsr
    USE qs_mo_types,                     ONLY: mo_set_type
+   USE pw_types,                        ONLY: COMPLEXDATA1D,&
+                                              COMPLEXDATA3D,&
+                                              REALDATA3D,&
+                                              REALSPACE,&
+                                              RECIPROCALSPACE,&
+                                              pw_type
    USE cp_control_types,                ONLY: dft_control_type
    USE qs_environment_types,            ONLY: qs_environment_type,&
                                               get_qs_env
    USE post_scf_bandstructure_types,    ONLY: post_scf_bandstructure_type
    USE rt_propagation_types,            ONLY: rt_prop_type,&
                                               get_rtp
+   USE pw_env_types,                    ONLY: pw_env_get,&
+                                              pw_env_type
+   USE pw_pool_types,                   ONLY: pw_pool_type
    USE rt_propagator_init,              ONLY: rt_initialize_rho_from_mos
    USE rt_propagation_methods,          ONLY: s_matrices_create
    USE qs_moments,                      ONLY: build_local_moment_matrix
@@ -127,13 +137,23 @@ MODULE rt_tdagw_types
                                                                    rho_new,&
                                                                    rho_new_last,&
                                                                    rho_M
+      TYPE(cp_fm_p_type)                                        :: S_inv_fm,&
+                                                                   S_fm
       ! TODO : Check how much is actually needed and whether it is not better to separate names
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER                 :: rho_workspace
       ! Workspace required for exact matrix exponentiation
+      ! Complex workspace also used for hartree_pw
       TYPE(cp_cfm_p_type), DIMENSION(:), POINTER                :: complex_workspace,&
                                                                    complex_s
       REAL(kind=dp), DIMENSION(:), POINTER                      :: real_eigvals
       COMPLEX(kind=dp), DIMENSION(:), POINTER                   :: exp_eigvals
+      ! Workspace required for hartree_pw
+      TYPE(dbcsr_p_type)                                        :: v_dbcsr
+      TYPE(pw_type), DIMENSION(:), POINTER                      :: rho_gspace,&
+                                                                   rho_gspace_tot,&
+                                                                   rho_rspace
+      TYPE(pw_type), POINTER                                    :: v_hartree_gspace,&
+                                                                   v_hartree_rspace
       ! TODO : Spins, k-points
       TYPE(dbcsr_type), POINTER                                 :: S_inv,&
                                                                    rho_dbcsr
@@ -287,7 +307,17 @@ CONTAINS
       CALL get_rtp(rtp, S_inv=tdagw_env%S_inv)
       ! TODO : Check that dbcsr overlap inverse coincides with fm overlap inverse
       ! CALL dbcsr_print(tdagw_env%S_inv)
-      ! CALL cp_fm_create(S_inv_fm, bs_env%fm_s_Gamma%matrix_struct)
+      NULLIFY(tdagw_env%S_inv_fm%matrix)
+      ALLOCATE(tdagw_env%S_inv_fm%matrix)
+      CALL cp_fm_create(tdagw_env%S_inv_fm%matrix, bs_env%fm_s_Gamma%matrix_struct)
+      CALL copy_dbcsr_to_fm(tdagw_env%S_inv, tdagw_env%S_inv_fm%matrix)
+      NULLIFY(tdagw_env%S_fm%matrix)
+      ALLOCATE(tdagw_env%S_fm%matrix)
+      CALL cp_fm_create(tdagw_env%S_fm%matrix, bs_env%fm_s_Gamma%matrix_struct)
+      ! TODO : Handle different spins
+      CALL copy_dbcsr_to_fm(matrix_s(1)%matrix, tdagw_env%S_fm%matrix)
+      PRINT *, "=== Overlap matrix"
+      CALL cp_fm_write_formatted(tdagw_env%S_fm%matrix, unit=6)
       ! CALL cp_fm_invert(bs_env%fm_s_Gamma, S_inv_fm)
       ! CALL cp_fm_write_formatted(S_inv_fm, unit=6)
       ! CALL cp_fm_release(S_inv_fm)
@@ -409,7 +439,13 @@ CONTAINS
       ! Depending on the chosen methods, allocate extra workspace
       IF ( tdagw_env%hartree_method == rtp_tdagw_hartree_dbt ) THEN
          CALL create_hartree_dbt_workspace(tdagw_env, qs_env)
+      ELSEIF ( tdagw_env%hartree_method == rtp_tdagw_hartree_pw) THEN
+         CALL create_hartree_pw_workspace(tdagw_env, qs_env)
       END IF
+      ! Rho-dbcsr is used by both Hartree methods
+      NULLIFY(tdagw_env%rho_dbcsr)
+      ALLOCATE(tdagw_env%rho_dbcsr)
+      CALL dbcsr_create(tdagw_env%rho_dbcsr, name="Sparse density", template=bs_env%mat_ao_ao%matrix)
       ! TODO : Test whether this multiplication fixes some of the problems with propagation
       CALL cp_fm_create(matrix_s_fm, tdagw_env%rho(1)%matrix%matrix_struct)
       @:SPIN_DO(i, re, im, tdagw_env%n_spin)
@@ -429,8 +465,9 @@ CONTAINS
 !> \author Stepan Marek
 !> \date 02.2024
 ! **************************************************************************************************
-   SUBROUTINE release_tdagw_env(tdagw_env)
+   SUBROUTINE release_tdagw_env(tdagw_env, qs_env)
       TYPE(tdagw_env_type)                                      :: tdagw_env
+      TYPE(qs_environment_type), POINTER                        :: qs_env
       CHARACTER(len=*), PARAMETER                               :: routineN = "release_tdagw_env"
       INTEGER                                                   :: i
 
@@ -446,8 +483,7 @@ CONTAINS
       CALL cp_fm_release(tdagw_env%rho_new)
       CALL cp_fm_release(tdagw_env%rho_new_last)
       CALL cp_fm_release(tdagw_env%rho_M)
-
-      CALL dbt_destroy(tdagw_env%hartree_dbt)
+      CALL cp_fm_release(tdagw_env%S_inv_fm%matrix)
 
       NULLIFY(tdagw_env%S_inv)
       DEALLOCATE(tdagw_env%orders)
@@ -457,6 +493,12 @@ CONTAINS
       ! Depending on methods, deallocate additional workspace
       IF ( tdagw_env%hartree_method == rtp_tdagw_hartree_dbt ) THEN
          CALL release_hartree_dbt_workspace(tdagw_env)
+      ELSEIF (tdagw_env%hartree_method == rtp_tdagw_hartree_pw) THEN
+         CALL release_hartree_pw_workspace(qs_env, tdagw_env)
+      END IF
+      IF (ASSOCIATED(tdagw_env%rho_dbcsr)) THEN
+         CALL dbcsr_release(tdagw_env%rho_dbcsr)
+         DEALLOCATE(tdagw_env%rho_dbcsr)
       END IF
       IF (tdagw_env%mat_exp_method == do_exact) THEN
          DO i=1,SIZE(tdagw_env%complex_s)
@@ -559,15 +601,13 @@ CONTAINS
       DEALLOCATE(pcoord)
       DEALLOCATE(pdims)
 
-      ! Rho_dbcsr workspace - a single rho_dbcsr matrix
-      NULLIFY(tdagw_env%rho_dbcsr)
-      ALLOCATE(tdagw_env%rho_dbcsr)
-      CALL dbcsr_create(tdagw_env%rho_dbcsr, name="Sparse density", template=bs_env%mat_ao_ao%matrix)
-
       ! 3c tensors - do not populate yet, just allocate distributions
       NULLIFY(tdagw_env%t_3c_work_RI__AO_AO)
       ALLOCATE(tdagw_env%t_3c_work_RI__AO_AO)
       CALL dbt_create(bs_env%t_RI__AO_AO, tdagw_env%t_3c_work_RI__AO_AO)
+
+      NULLIFY(tdagw_env%hartree_dbt)
+      ALLOCATE(tdagw_env%hartree_dbt)
    END SUBROUTINE
 ! **************************************************************************************************
 !> \brief Releases the workspaces for Hartree dbt method
@@ -586,14 +626,13 @@ CONTAINS
          CALL dbt_destroy(tdagw_env%t_one_plus_one)
          DEALLOCATE(tdagw_env%t_one_plus_one)
       END IF
-      IF (ASSOCIATED(tdagw_env%rho_dbcsr)) THEN
-         CALL dbcsr_release(tdagw_env%rho_dbcsr)
-         DEALLOCATE(tdagw_env%rho_dbcsr)
-      END IF
       IF (ASSOCIATED(tdagw_env%t_3c_work_RI__AO_AO)) THEN
          CALL dbt_destroy(tdagw_env%t_3c_work_RI__AO_AO)
          DEALLOCATE(tdagw_env%t_3c_work_RI__AO_AO)
       END IF
+
+      CALL dbt_destroy(tdagw_env%hartree_dbt)
+      DEALLOCATE(tdagw_env%hartree_dbt)
    END SUBROUTINE
 ! **************************************************************************************************
 !> \brief Allocates the workspaces for self-energy determination routine
@@ -675,5 +714,107 @@ CONTAINS
          CALL dbt_destroy(tdagw_env%greens_dbt)
          DEALLOCATE(tdagw_env%greens_dbt)
       END IF
+   END SUBROUTINE
+! **************************************************************************************************
+!> \brief Create the workspace for hartree_pw method
+!> \param tdagw_env 
+!> \param rho_dbcsr  
+!> \author Stepan Marek
+!> \date 03.2024
+!> \note Needs to be called after exp_method setup - otherwise could overwrite the pointer to
+!>       complex workspace and therefore lead to memory leaks
+! **************************************************************************************************
+   SUBROUTINE create_hartree_pw_workspace(tdagw_env, qs_env)
+      TYPE(tdagw_env_type)                               :: tdagw_env
+      TYPE(qs_environment_type)                          :: qs_env
+      CHARACTER(len=*), PARAMETER                        :: routineN = "create_hartree_pw_workspace"
+      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
+      TYPE(pw_env_type), POINTER                         :: pw_env
+      TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
+      INTEGER                                            :: i
+
+      CALL get_qs_env(qs_env, bs_env=bs_env, matrix_s=matrix_s, pw_env=pw_env)
+      CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
+
+      ! Allocate the complex dbcsr matrices
+      ! CALL dbcsr_create(tdagw_env%rho_dbcsr_complex%matrix, name="Complex sparse density",&
+      !                   template=bs_env%mat_ao_ao%matrix, data_type=dbcsr_type_complex_8)
+      NULLIFY(tdagw_env%v_dbcsr%matrix)
+      ALLOCATE(tdagw_env%v_dbcsr%matrix)
+      ! CALL dbcsr_create(tdagw_env%v_dbcsr_complex%matrix, name="Complex sparse hartree",&
+      !                   template=bs_env%mat_ao_ao%matrix, data_type=dbcsr_type_complex_8)
+      ! CALL dbcsr_create(tdagw_env%v_dbcsr%matrix, name="Real sparse hartree",&
+      !                   template=bs_env%mat_ao_ao%matrix)
+      CALL dbcsr_copy(tdagw_env%v_dbcsr%matrix, matrix_s(1)%matrix)
+      ! Allocate pw_grid objects
+      NULLIFY(tdagw_env%rho_gspace)
+      ALLOCATE(tdagw_env%rho_gspace(2))
+      NULLIFY(tdagw_env%rho_rspace)
+      ALLOCATE(tdagw_env%rho_rspace(2))
+      NULLIFY(tdagw_env%rho_gspace_tot)
+      ALLOCATE(tdagw_env%rho_gspace_tot(2))
+      DO i=1,2
+         CALL auxbas_pw_pool%create_pw(tdagw_env%rho_gspace(i), use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+         CALL auxbas_pw_pool%create_pw(tdagw_env%rho_gspace_tot(i), use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+         CALL auxbas_pw_pool%create_pw(tdagw_env%rho_rspace(i), use_data=REALDATA3D, in_space=REALSPACE)
+      END DO
+      NULLIFY(tdagw_env%v_hartree_gspace)
+      ALLOCATE(tdagw_env%v_hartree_gspace)
+      NULLIFY(tdagw_env%v_hartree_rspace)
+      ALLOCATE(tdagw_env%v_hartree_rspace)
+      CALL auxbas_pw_pool%create_pw(tdagw_env%v_hartree_gspace, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+      CALL auxbas_pw_pool%create_pw(tdagw_env%v_hartree_rspace, use_data=REALDATA3D, in_space=REALSPACE)
+      ! If the complex workspace is not allocated, allocate size 1
+      ! IF (.NOT. ASSOCIATED(tdagw_env%complex_workspace)) THEN
+      !    NULLIFY(tdagw_env%complex_workspace)
+      !    ALLOCATE(tdagw_env%complex_workspace(1))
+      !    NULLIFY(tdagw_env%complex_workspace(1)%matrix)
+      !    ALLOCATE(tdagw_env%complex_workspace(1)%matrix)
+      !    CALL cp_cfm_create(tdagw_env%complex_workspace(1)%matrix, bs_env%fm_h_G0W0_Gamma%matrix_struct)
+      !    CALL cp_cfm_set_all(tdagw_env%complex_workspace(1)%matrix, (0.0_dp, 0.0_dp))
+      ! END IF
+   END SUBROUTINE
+! **************************************************************************************************
+!> \brief Create the workspace for hartree_pw method
+!> \param tdagw_env 
+!> \author Stepan Marek
+!> \date 03.2024
+!> \note Needs to be called after exp_method setup - otherwise could overwrite the pointer to
+!>       complex workspace and therefore lead to memory leaks
+! **************************************************************************************************
+   SUBROUTINE release_hartree_pw_workspace(qs_env, tdagw_env)
+      TYPE(qs_environment_type)                          :: qs_env
+      TYPE(tdagw_env_type)                               :: tdagw_env
+      CHARACTER(len=*), PARAMETER                        :: routineN = "release_hartree_pw_workspace"
+      TYPE(pw_env_type), POINTER                         :: pw_env
+      TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
+      INTEGER                                            :: i
+
+      CALL get_qs_env(qs_env,&
+                      pw_env=pw_env)
+      CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
+      ! Deallocate the complex dbcsr matrices
+      CALL dbcsr_release(tdagw_env%v_dbcsr%matrix)
+      DEALLOCATE(tdagw_env%v_dbcsr%matrix)
+      ! Deallocate pw_grid objects
+      DO i=1,2
+         CALL auxbas_pw_pool%give_back_pw(tdagw_env%rho_gspace(i))
+         CALL auxbas_pw_pool%give_back_pw(tdagw_env%rho_rspace(i))
+         CALL auxbas_pw_pool%give_back_pw(tdagw_env%rho_gspace_tot(i))
+      END DO
+      CALL auxbas_pw_pool%give_back_pw(tdagw_env%v_hartree_rspace)
+      CALL auxbas_pw_pool%give_back_pw(tdagw_env%v_hartree_gspace)
+      DEALLOCATE(tdagw_env%rho_gspace)
+      DEALLOCATE(tdagw_env%rho_rspace)
+      DEALLOCATE(tdagw_env%rho_gspace_tot)
+      DEALLOCATE(tdagw_env%v_hartree_gspace)
+      DEALLOCATE(tdagw_env%v_hartree_rspace)
+      ! If the complex workspace is allocated, deallocate it
+      ! IF (ASSOCIATED(tdagw_env%complex_workspace)) THEN
+      !    CALL cp_cfm_release(tdagw_env%complex_workspace(1)%matrix)
+      !    DEALLOCATE(tdagw_env%complex_workspace(1)%matrix)
+      !    DEALLOCATE(tdagw_env%complex_workspace)
+      ! END IF
    END SUBROUTINE
 END MODULE

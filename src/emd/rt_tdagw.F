@@ -96,7 +96,9 @@ MODULE rt_tdagw
                                               copy_fm_to_dbcsr,&
                                               dbcsr_allocate_matrix_set,&
                                               dbcsr_deallocate_matrix_set,&
-                                              cp_dbcsr_sm_fm_multiply
+                                              cp_dbcsr_sm_fm_multiply,&
+                                              copy_cfm_to_dbcsr,&
+                                              copy_dbcsr_to_cfm
    USE cp_fm_basic_linalg,              ONLY: cp_fm_scale,&
                                               cp_fm_invert,&
                                               cp_fm_trace,&
@@ -133,6 +135,7 @@ MODULE rt_tdagw
                                               create_tdagw_env,&
                                               release_tdagw_env
    USE pw_types,                        ONLY: COMPLEXDATA1D,&
+                                              COMPLEXDATA3D,&
                                               REALDATA3D,&
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
@@ -179,7 +182,7 @@ CONTAINS
       ! TODO : Maybe complex?
       INTEGER                                            :: i,j,re,im, k
       LOGICAL                                            :: converged
-      REAL(kind=dp)                                      :: metric
+      REAL(kind=dp)                                      :: metric, enum_re, enum_im
 
       ! TODO : Print a nicer header
       PRINT *, "=== Starting time-dependent adiabatic GW real time propagation ==="
@@ -187,9 +190,6 @@ CONTAINS
       ! ********************** ALLOCATIONS **********************
       CALL create_tdagw_env(tdagw_env, qs_env)
 
-      ! Calculate Coulomb RI elements, necessary for Hartree calculation
-      CALL init_hartree(qs_env, tdagw_env%hartree_dbt)
-      PRINT *, "Hartree initialised"
       ! ********************** EXTRACT PREVIOUS DATA **********************
 
       IF (tdagw_env%ham_single_particle_type == rtp_tdagw_ham_g0w0) THEN
@@ -212,12 +212,20 @@ CONTAINS
 
       ! Calculate the initial Hartree interaction matrix
       ! TODO : k-points and the possible divergence
-      @:SPIN_DO(j, re, im, tdagw_env%n_spin)
-         CALL get_hartree(tdagw_env, qs_env, tdagw_env%hartree_dbt, tdagw_env%rho(re)%matrix, tdagw_env%hartree_orig(re)%matrix)
-         CALL get_hartree(tdagw_env, qs_env, tdagw_env%hartree_dbt, tdagw_env%rho(im)%matrix, tdagw_env%hartree_orig(im)%matrix)
-         ! PRINT *, "metric hartree_orig, RE spin", j, cp_fm_norm(tdagw_env%hartree_orig(re)%matrix, "M")
-         ! PRINT *, "metric hartree_orig, IM spin", j, cp_fm_norm(tdagw_env%hartree_orig(im)%matrix, "M")
-      END DO
+      IF ( tdagw_env%hartree_method == rtp_tdagw_hartree_dbt ) THEN
+         ! Calculate Coulomb RI elements, necessary for Hartree calculation
+         CALL init_hartree(qs_env, tdagw_env%hartree_dbt)
+         @:SPIN_DO(j, re, im, tdagw_env%n_spin)
+            CALL get_hartree(tdagw_env, qs_env, tdagw_env%hartree_dbt, tdagw_env%rho(re)%matrix, tdagw_env%hartree_orig(re)%matrix)
+            CALL get_hartree(tdagw_env, qs_env, tdagw_env%hartree_dbt, tdagw_env%rho(im)%matrix, tdagw_env%hartree_orig(im)%matrix)
+            ! PRINT *, "metric hartree_orig, RE spin", j, cp_fm_norm(tdagw_env%hartree_orig(re)%matrix, "M")
+            ! PRINT *, "metric hartree_orig, IM spin", j, cp_fm_norm(tdagw_env%hartree_orig(im)%matrix, "M")
+         END DO
+      ELSEIF ( tdagw_env%hartree_method == rtp_tdagw_hartree_pw ) THEN
+         CALL get_hartree_pw(qs_env, tdagw_env, tdagw_env%rho, tdagw_env%hartree_orig)
+      ELSE
+         CPABORT("Only DBT and PW methods for determination of Hartree term implemented.")
+      END IF
       ! TODO : Look at Hartree from qs_ks_env and compare these
       ! Print the RI-based Hartree matrix
       ! PRINT *, "=== RI Hartree matrix"
@@ -260,6 +268,8 @@ CONTAINS
          CALL ham_to_exp(tdagw_env)
          ! Propagate the density to mid-point
          CALL propagate_density(tdagw_env, tdagw_env%ham_workspace, tdagw_env%rho, tdagw_env%rho_M)
+         CALL get_electron_number(tdagw_env, tdagw_env%rho_M, enum_re, enum_im)
+         PRINT *, "Electron number RHO_M re : ", enum_re, "Electron number im : ", enum_im
          ! In initial iteration, copy rho_M to rho_new_last
          @:SPIN_DO(j,re,im, tdagw_env%n_spin)
             CALL cp_fm_to_fm(tdagw_env%rho_M(re)%matrix, tdagw_env%rho_new_last(re)%matrix)
@@ -282,6 +292,11 @@ CONTAINS
             CALL propagate_density(tdagw_env, tdagw_env%ham_workspace, tdagw_env%rho_M, tdagw_env%rho_new)
             ! *** Self-consistency check ***
             metric = rho_metric(tdagw_env%rho_new, tdagw_env%rho_new_last, tdagw_env%n_spin)
+            ! CALL get_electron_number(tdagw_env, tdagw_env%rho_new, enum_re, enum_im)
+            ! PRINT *, "Electron number re : ", enum_re, "Electron number im : ", enum_im
+            ! PRINT *, "Intermediate metric : ", metric
+            ! PRINT *, "=== Rho"
+            ! CALL cp_fm_write_formatted(tdagw_env%rho_new(1)%matrix, 6)
             ! @:SPIN_DO(j, re, im, tdagw_env%n_spin)
             !    PRINT *, "RHO_NEW : Time index : ", i, "Spin index : ", j, "Self-consistency index : ", k,&
             !             antiherm_metric(tdagw_env%rho_new(re), tdagw_env%rho_new(im))
@@ -294,10 +309,21 @@ CONTAINS
                @:SPIN_DO(j, re, im, tdagw_env%n_spin)
                   CALL cp_fm_to_fm(tdagw_env%rho_new(re)%matrix, tdagw_env%rho_new_last(re)%matrix)
                   CALL cp_fm_to_fm(tdagw_env%rho_new(im)%matrix, tdagw_env%rho_new_last(im)%matrix)
+                  ! CALL cp_fm_scale_and_add(1.0_dp-EXP(-6*metric), tdagw_env%rho_new_last(re)%matrix,&
+                  !                                 EXP(-6*metric), tdagw_env%rho_new(re)%matrix)
+                  ! CALL cp_fm_scale_and_add(1.0_dp-EXP(-6*metric), tdagw_env%rho_new_last(im)%matrix,&
+                  !                                 EXP(-6*metric), tdagw_env%rho_new(im)%matrix)
+                  ! PRINT *, "Mixing", 1.0_dp-EXP(-6 * metric), EXP(-6*metric)
+                  ! CALL cp_fm_scale_and_add(1.0_dp-0.5_dp, tdagw_env%rho_new_last(re)%matrix,&
+                  !                                 0.5_dp, tdagw_env%rho_new(re)%matrix)
+                  ! CALL cp_fm_scale_and_add(1.0_dp-0.5_dp, tdagw_env%rho_new_last(im)%matrix,&
+                  !                                 0.5_dp, tdagw_env%rho_new(im)%matrix)
                END DO
             END IF
          END DO
-         PRINT *, "Sim step : ", tdagw_env%sim_step, "Convergence : ", metric, "Threshold : ", tdagw_env%etrs_threshold
+         CALL get_electron_number(tdagw_env, tdagw_env%rho_new, enum_re, enum_im)
+         PRINT *, "Sim step : ", tdagw_env%sim_step, "Convergence : ", metric, "Threshold : ", tdagw_env%etrs_threshold,&
+                 "Electron number", enum_re, enum_im
          CPASSERT(converged)
          @:SPIN_DO(j, re, im, tdagw_env%n_spin)
             CALL cp_fm_to_fm(tdagw_env%rho_new(re)%matrix, tdagw_env%rho(re)%matrix)
@@ -310,7 +336,7 @@ CONTAINS
       ! ********************** End the time loop **********************
 
       ! ********************** DEALLOCATIONS **********************
-      CALL release_tdagw_env(tdagw_env)
+      CALL release_tdagw_env(tdagw_env, qs_env)
       ! Deallocate the neighbour list that is not deallocated in gw anymore
       IF (ASSOCIATED(bs_env%nl_3c%ij_list)) CALL neighbor_list_3c_destroy(bs_env%nl_3c)
    END SUBROUTINE run_propagation_gw
@@ -488,14 +514,15 @@ CONTAINS
       CALL make_field(tdagw_env%dft_control, tdagw_env%field, tdagw_env%sim_step, tdagw_env%sim_time)
       IF ( tdagw_env%hartree_method == rtp_tdagw_hartree_pw ) THEN
             ! Use the planewave implementation of Hartree
-            ! TODO : Real part, imag part etc.
-            CALL get_hartree_pw(qs_env, rho, tdagw_env%hartree_curr(1))
+            CALL get_hartree_pw(qs_env, tdagw_env, rho, tdagw_env%hartree_curr)
+            ! PRINT *, "=== Hartree again"
+            ! CALL cp_fm_write_formatted(tdagw_env%hartree_curr(1)%matrix, 6)
       END IF
       @:SPIN_DO(j, re, im, nspin)
          DO k=1,3
-            ! TODO : Sign of the field
+            ! TODO : Sign of the field - should be minus due to charge of electrons
             CALL cp_fm_scale_and_add(1.0_dp, tdagw_env%ham_effective(re)%matrix,&
-                                     tdagw_env%field(k), tdagw_env%moments(k)%matrix)
+                                    -tdagw_env%field(k), tdagw_env%moments(k)%matrix)
          END DO
          ! PRINT *, "HAM_EFF_UP Moments Spin index : ", j, antiherm_metric(tdagw_env%ham_effective(re), tdagw_env%ham_effective(im))
          ! Add the COH part
@@ -518,7 +545,6 @@ CONTAINS
             CALL cp_fm_scale_and_add(1.0_dp, tdagw_env%ham_effective(im)%matrix,&
                                      1.0_dp, tdagw_env%sigma_SEX(im)%matrix)
          END IF
-         ! PRINT *, "HAM_EFF_UP SEX Spin index : ", j, antiherm_metric(tdagw_env%ham_effective(re), tdagw_env%ham_effective(im))
          ! Calculate update Hartree potential
          ! TODO : Spin (in)dependence check
          IF ( tdagw_env%hartree_method == rtp_tdagw_hartree_dbt ) THEN
@@ -531,13 +557,19 @@ CONTAINS
                              tdagw_env%hartree_curr(im)%matrix)
             CALL cp_fm_scale_and_add(1.0_dp, tdagw_env%ham_effective(im)%matrix,&
                                      1.0_dp, tdagw_env%hartree_curr(im)%matrix)
+         ELSEIF (tdagw_env%hartree_method == rtp_tdagw_hartree_pw ) THEN
+            ! Current Hartree is calculated already before the spin loop
+            ! TODO : Redo PW Hartree to have the same interface as DBT Hartree - it should be possible
+            CALL cp_fm_scale_and_add(1.0_dp, tdagw_env%ham_effective(re)%matrix,&
+                                     1.0_dp, tdagw_env%hartree_curr(re)%matrix)
+            CALL cp_fm_scale_and_add(1.0_dp, tdagw_env%ham_effective(im)%matrix,&
+                                     1.0_dp, tdagw_env%hartree_curr(im)%matrix)
          END IF
          ! Subtract original Hartree, which is purely real
          CALL cp_fm_scale_and_add(1.0_dp, tdagw_env%ham_effective(re)%matrix,&
                                  -1.0_dp, tdagw_env%hartree_orig(re)%matrix)
          CALL cp_fm_scale_and_add(1.0_dp, tdagw_env%ham_effective(im)%matrix,&
                                  -1.0_dp, tdagw_env%hartree_orig(im)%matrix)
-         ! PRINT *, "HAM_EFF_UP HARTREE Spin index : ", j, antiherm_metric(tdagw_env%ham_effective(re), tdagw_env%ham_effective(im))
       END DO
    END SUBROUTINE
 
@@ -858,6 +890,23 @@ CONTAINS
          END IF
       END DO
    END SUBROUTINE
+   SUBROUTINE get_electron_number(tdagw_env, rho, electron_n_re, electron_n_im)
+      TYPE(tdagw_env_type)                               :: tdagw_env
+      TYPE(cp_fm_p_type), DIMENSION(:)                   :: rho
+      REAL(kind=dp), INTENT(OUT)                         :: electron_n_re, electron_n_im
+      CHARACTER(len=*), PARAMETER                        :: routineN="get_electron_number"
+      REAL(kind=dp)                                      :: electron_n_buffer
+      INTEGER                                            :: i, re, im
+
+      electron_n_re = 0.0_dp
+      electron_n_im = 0.0_dp
+      @:SPIN_DO(i, re, im, tdagw_env%n_spin)
+         CALL cp_fm_trace(tdagw_env%S_inv_fm%matrix, rho(re)%matrix, electron_n_buffer)
+         electron_n_re = electron_n_re + electron_n_buffer
+         CALL cp_fm_trace(tdagw_env%S_inv_fm%matrix, rho(im)%matrix, electron_n_buffer)
+         electron_n_im = electron_n_im + electron_n_buffer
+      END DO
+   END SUBROUTINE get_electron_number
 
 ! **************************************************************************************************
 !> \brief Calculates the self-energy by contraction of screened potential
@@ -1335,108 +1384,122 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Calculates the Hartree matrix in the atomic orbital basis, given a density matrix, using PW approach
 !> \param qs_env Entry point
-!> \param pw_env Planewave environment for FT calculations
+!> \param tdagw_env Entry point of TD-aGW - uses rho_dbcsr and some complex_workspace
 !> \param rho_ao Density matrix in ao basis
 !> \param v_ao Overwritten by the Hartree matrix in the atomic orbital basis
 !> \author Stepan Marek
 !> \date 02.2024
 ! **************************************************************************************************
-   SUBROUTINE get_hartree_pw(qs_env, rho_ao, v_ao)
+   SUBROUTINE get_hartree_pw(qs_env, tdagw_env, rho_ao, v_ao)
       TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(tdagw_env_type)                               :: tdagw_env
       TYPE(cp_fm_p_type), DIMENSION(:), INTENT(IN)       :: rho_ao
-      TYPE(cp_fm_p_type), INTENT(OUT)                    :: v_ao
+      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: v_ao
       CHARACTER(len=*), PARAMETER                        :: routineN = "get_hartree_pw"
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(qs_ks_env_type), POINTER                      :: qs_ks_env
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type)                                      :: rho_gspace_tot,&
-                                                            v_hartree_gspace,&
-                                                            v_hartree_rspace
-      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_gspace, rho_rspace
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_dbcsr
-      TYPE(dbcsr_p_type)                                 :: v_dbcsr
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
-      INTEGER                                            :: i, re, im, n_spin
+      INTEGER                                            :: i, re, im, n_spin, handle
+      REAL(kind=dp)                                      :: total_rho
       ! TODO : Imaginary contributions from Hartree? Are these physical?
 
+      CALL timeset(routineN, handle)
       ! Get environments and parameters from qs_env
       CALL get_qs_env(qs_env,&
                       dft_control=dft_control,&
                       pw_env=pw_env,&
-                      ks_env=qs_ks_env,&
-                      matrix_s=matrix_s)
-      n_spin = dft_control%nspins
-      ! Initialise rho_dbcsr
-      ALLOCATE(rho_dbcsr(n_spin))
-      @:SPIN_DO(i, re, im, n_spin)
-         NULLIFY(rho_dbcsr(re)%matrix)
-         ALLOCATE(rho_dbcsr(re)%matrix)
-         CALL dbcsr_create(rho_dbcsr(re)%matrix, name="Rho dbcsr", template=matrix_s(i)%matrix)
-         CALL copy_fm_to_dbcsr(rho_ao(re)%matrix, rho_dbcsr(re)%matrix)
-         NULLIFY(rho_dbcsr(re)%matrix)
-         ALLOCATE(rho_dbcsr(re)%matrix)
-         CALL dbcsr_create(rho_dbcsr(im)%matrix, name="Rho dbcsr", template=matrix_s(i)%matrix)
-         CALL copy_fm_to_dbcsr(rho_ao(im)%matrix, rho_dbcsr(im)%matrix)
-      END DO
-      ! Initialise v_dbcsr
-      ALLOCATE(v_dbcsr%matrix)
-      CALL dbcsr_create(v_dbcsr%matrix, template=matrix_s(1)%matrix)
-      ! TODO : Redo via block reservations?
-      ! TODO : Take into account symmetry present in integrate_v_rspace
-      CALL dbcsr_copy(v_dbcsr%matrix, rho_dbcsr(1)%matrix)
-      CALL dbcsr_scale(v_dbcsr%matrix, 0.0_dp)
+                      ks_env=qs_ks_env)
+      n_spin = tdagw_env%n_spin
       ! Get the task pool and poisson environment to create pw types
+      ! TODO : pw pools are recreated every iteration, which is the same approach as done in qs_ks_update
+      !        compare the memory and efficiency consequences here?
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, poisson_env=poisson_env)
-      ! Allocate the densities in g-space and r-space, for each spin
-      ALLOCATE(rho_gspace(n_spin))
-      ALLOCATE(rho_rspace(n_spin))
-      CALL auxbas_pw_pool%create_pw(rho_gspace_tot, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
-      CALL pw_zero(rho_gspace_tot)
+      ! Create density due to real and imaginary parts
+      DO i=1,2
+         CALL pw_zero(tdagw_env%rho_gspace_tot(i))
+      END DO
       @:SPIN_DO(i,re,im,n_spin)
+         ! Prepare the complex rho dbcsr
+         ! CALL cp_fm_to_cfm(rho_ao(re)%matrix, rho_ao(im)%matrix, tdagw_env%complex_workspace(1)%matrix)
+         ! CALL copy_cfm_to_dbcsr(tdagw_env%complex_workspace(1)%matrix, tdagw_env%rho_dbcsr_complex%matrix)
+         CALL parallel_gemm("N", "N", tdagw_env%n_ao, tdagw_env%n_ao, tdagw_env%n_ao,&
+                            1.0_dp, tdagw_env%S_inv_fm%matrix, rho_ao(re)%matrix,&
+                            0.0_dp, tdagw_env%rho_workspace(1)%matrix)
+         CALL parallel_gemm("N", "N", tdagw_env%n_ao, tdagw_env%n_ao, tdagw_env%n_ao,&
+                            1.0_dp, tdagw_env%rho_workspace(1)%matrix, tdagw_env%S_inv_fm%matrix,&
+                            0.0_dp, tdagw_env%rho_workspace(2)%matrix)
+         CALL copy_fm_to_dbcsr(tdagw_env%rho_workspace(2)%matrix, tdagw_env%rho_dbcsr)
+         ! CALL copy_fm_to_dbcsr(rho_ao(re)%matrix, tdagw_env%rho_dbcsr)
          ! Prepare the total density
-         CALL auxbas_pw_pool%create_pw(rho_gspace(i), use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
-         CALL pw_zero(rho_gspace(i))
-         CALL auxbas_pw_pool%create_pw(rho_rspace(i), use_data=REALDATA3D, in_space=REALSPACE)
-         CALL pw_zero(rho_rspace(i))
+         CALL pw_zero(tdagw_env%rho_gspace(1))
+         CALL pw_zero(tdagw_env%rho_rspace(1))
          ! get the density in rspace and gspace - rho_dbcsr has to be target
          ! CALL calculate_rho_elec(rho_dbcsr(i)%matrix, rho=rho_rspace(i), rho_gspace=rho_gspace(i),&
          !                         ks_env=qs_ks_env, total_rho=total_rho)
          ! PRINT *, "Total rho for spin type ", i, total_rho
-         CALL calculate_rho_elec(rho_dbcsr(i)%matrix, rho=rho_rspace(i), rho_gspace=rho_gspace(i),&
+         CALL calculate_rho_elec(tdagw_env%rho_dbcsr, rho=tdagw_env%rho_rspace(1),&
+                                 rho_gspace=tdagw_env%rho_gspace(1),&
+                                 ks_env=qs_ks_env, total_rho=total_rho)
+         ! PRINT *, "Total rho for spin type ", i, total_rho
+         CALL pw_axpy(tdagw_env%rho_gspace(1), tdagw_env%rho_gspace_tot(1))
+         ! Same, but for imag component
+         CALL pw_zero(tdagw_env%rho_gspace(2))
+         CALL pw_zero(tdagw_env%rho_rspace(2))
+         CALL parallel_gemm("N", "N", tdagw_env%n_ao, tdagw_env%n_ao, tdagw_env%n_ao,&
+                            1.0_dp, tdagw_env%S_inv_fm%matrix, rho_ao(im)%matrix,&
+                            0.0_dp, tdagw_env%rho_workspace(1)%matrix)
+         CALL parallel_gemm("N", "N", tdagw_env%n_ao, tdagw_env%n_ao, tdagw_env%n_ao,&
+                            1.0_dp, tdagw_env%rho_workspace(1)%matrix, tdagw_env%S_inv_fm%matrix,&
+                            0.0_dp, tdagw_env%rho_workspace(2)%matrix)
+         CALL copy_fm_to_dbcsr(tdagw_env%rho_workspace(2)%matrix, tdagw_env%rho_dbcsr)
+         ! CALL copy_fm_to_dbcsr(rho_ao(im)%matrix, tdagw_env%rho_dbcsr)
+         CALL calculate_rho_elec(tdagw_env%rho_dbcsr, rho=tdagw_env%rho_rspace(2),&
+                                 rho_gspace=tdagw_env%rho_gspace(2),&
                                  ks_env=qs_ks_env)
          ! Do not need rho rspace
-         CALL auxbas_pw_pool%give_back_pw(rho_rspace(i))
-         CALL pw_axpy(rho_gspace(i), rho_gspace_tot)
-         CALL auxbas_pw_pool%give_back_pw(rho_gspace(i))
+         CALL pw_axpy(tdagw_env%rho_gspace(2), tdagw_env%rho_gspace_tot(2))
       END DO
-      CALL auxbas_pw_pool%create_pw(v_hartree_gspace, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
-      CALL pw_zero(v_hartree_gspace)
-      ! Use the g-space density to determine the Hartree in g-space
-      CALL pw_poisson_solve(poisson_env, rho_gspace_tot, vhartree=v_hartree_gspace)
-      CALL auxbas_pw_pool%give_back_pw(rho_gspace_tot)
-      ! Transfer to real space
-      CALL auxbas_pw_pool%create_pw(v_hartree_rspace, use_data=REALDATA3D, in_space=REALSPACE)
-      CALL pw_zero(v_hartree_rspace)
-      CALL pw_transfer(v_hartree_gspace, v_hartree_rspace)
-      CALL auxbas_pw_pool%give_back_pw(v_hartree_gspace)
-      ! Scale by volume element
-      CALL pw_scale(v_hartree_rspace, v_hartree_rspace%pw_grid%dvol)
-      ! integrate in rspace
-      ! Copy high level in order to create relevant blocks (that is all blocks)
-      CALL integrate_v_rspace(v_rspace=v_hartree_rspace, hmat=v_dbcsr, pmat=rho_dbcsr(1), qs_env=qs_env, calculate_forces=.FALSE.)
-      CALL auxbas_pw_pool%give_back_pw(v_hartree_rspace)
-      DEALLOCATE(rho_gspace)
-      DEALLOCATE(rho_rspace)
-      CALL copy_dbcsr_to_fm(v_dbcsr%matrix, v_ao%matrix)
-      CALL dbcsr_release(v_dbcsr%matrix)
-      DEALLOCATE(v_dbcsr%matrix)
-      @:SPIN_DO(i, re, im, n_spin)
-         CALL dbcsr_release(rho_dbcsr(re)%matrix)
-         CALL dbcsr_release(rho_dbcsr(im)%matrix)
+      ! Now, evaluate real and imag part of Hartree
+      DO i=1,2
+         CALL pw_zero(tdagw_env%v_hartree_gspace)
+         ! Use the g-space density to determine the Hartree in g-space
+         CALL pw_poisson_solve(poisson_env, tdagw_env%rho_gspace_tot(i), vhartree=tdagw_env%v_hartree_gspace)
+         ! Transfer to real space
+         CALL pw_zero(tdagw_env%v_hartree_rspace)
+         CALL pw_transfer(tdagw_env%v_hartree_gspace, tdagw_env%v_hartree_rspace)
+         ! Scale by volume element
+         CALL pw_scale(tdagw_env%v_hartree_rspace, tdagw_env%v_hartree_rspace%pw_grid%dvol)
+         ! Clearing out the v_dbcsr matrix
+         CALL dbcsr_set(tdagw_env%v_dbcsr%matrix, 0.0_dp)
+         ! integrate in rspace
+         ! Copy high level in order to create relevant blocks (that is all blocks)
+         ! CALL integrate_v_rspace(v_rspace=tdagw_env%v_hartree_rspace, hmat=tdagw_env%v_dbcsr_complex,&
+         !                         pmat=tdagw_env%rho_dbcsr_complex(1), qs_env=qs_env, calculate_forces=.FALSE.)
+         CALL integrate_v_rspace(v_rspace=tdagw_env%v_hartree_rspace, hmat=tdagw_env%v_dbcsr,&
+                                 qs_env=qs_env, calculate_forces=.FALSE.)
+         CALL copy_dbcsr_to_fm(tdagw_env%v_dbcsr%matrix, v_ao(i)%matrix)
+         ! CALL cp_fm_set_all(tdagw_env%rho_workspace(1)%matrix, 0.0_dp)
+         ! CALL copy_dbcsr_to_fm(tdagw_env%v_dbcsr%matrix, tdagw_env%rho_workspace(1)%matrix)
+         ! Multiply on both sides by S to go back to our representation
+         ! CALL parallel_gemm("N", "N", tdagw_env%n_ao, tdagw_env%n_ao, tdagw_env%n_ao,&
+         !                    1.0_dp, tdagw_env%rho_workspace(1)%matrix, tdagw_env%S_fm%matrix,&
+         !                    0.0_dp, tdagw_env%rho_workspace(2)%matrix)
+         ! CALL parallel_gemm("N", "N", tdagw_env%n_ao, tdagw_env%n_ao, tdagw_env%n_ao,&
+         !                    1.0_dp, tdagw_env%S_fm%matrix, tdagw_env%rho_workspace(2)%matrix,&
+         !                    0.0_dp, v_ao(i)%matrix)
       END DO
-      !CALL dbcsr_release(rho_dbcsr)
-      DEALLOCATE(rho_dbcsr)
+      ! TODO : Hartree part is spin independent
+      IF (tdagw_env%n_spin > 1) THEN
+         DO i=2,tdagw_env%n_spin
+            re = 2*i-1
+            im = 2*i
+            CALL cp_fm_to_fm(v_ao(1)%matrix, v_ao(re)%matrix)
+            CALL cp_fm_to_fm(v_ao(2)%matrix, v_ao(im)%matrix)
+         END DO
+      END IF
+
+      CALL timestop(handle)
    END SUBROUTINE
 END MODULE rt_tdagw
