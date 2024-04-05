@@ -77,6 +77,7 @@ MODULE rt_tdagw_types
                                               do_taylor,&
                                               do_bch,&
                                               do_exact
+   USE physcon,                         ONLY: angstrom
    USE input_section_types,             ONLY: section_vals_type,&
                                               section_vals_val_get
 
@@ -232,6 +233,8 @@ CONTAINS
       CALL section_vals_val_get(input, "DFT%REAL_TIME_PROPAGATION%MAT_EXP",&
                                 i_val=tdagw_env%mat_exp_method)
       PRINT *, "exp_method", tdagw_env%mat_exp_method
+      ! Increase the ri_metric cutoff radius manually
+      bs_env%ri_metric%cutoff_radius = 6.0_dp/angstrom
       ! Allocate and determine the expansion orders, based on arguments used in TDDFT
       ! TODO : Last two arguments are indicating that we are using Taylor expansion and not doing ion motion
       ALLOCATE(tdagw_env%orders(2, tdagw_env%n_spin))
