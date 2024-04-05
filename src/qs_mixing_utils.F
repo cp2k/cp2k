@@ -20,8 +20,7 @@ MODULE qs_mixing_utils
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_para_env_type
    USE pw_types,                        ONLY: pw_c1d_gs_type
-   USE qs_density_mixing_types,         ONLY: broyden_mixing_new_nr,&
-                                              broyden_mixing_nr,&
+   USE qs_density_mixing_types,         ONLY: broyden_mixing_nr,&
                                               gspace_mixing_nr,&
                                               mixing_storage_type,&
                                               multisecant_mixing_nr,&
@@ -227,8 +226,6 @@ CONTAINS
             IF (ASSOCIATED(mixing_store%ubroy)) DEALLOCATE (mixing_store%ubroy)
             ALLOCATE (mixing_store%ubroy(na, max_shell, nbuffer))
             mixing_store%ubroy = 0.0_dp
-         ELSEIF (mixing_method == broyden_mixing_new_nr) THEN
-            CPABORT("broyden_mixing_new not available")
          ELSEIF (mixing_method == multisecant_mixing_nr) THEN
             CPABORT("multisecant_mixing not available")
          END IF
@@ -361,26 +358,6 @@ CONTAINS
             END IF
          END IF
 
-         !   *** allocate broyden buffer ***
-         IF (mixing_method == broyden_mixing_new_nr) THEN
-            IF (.NOT. ASSOCIATED(mixing_store%u_vec)) THEN
-               ALLOCATE (mixing_store%last_res(nspins))
-               ALLOCATE (mixing_store%delta_res(nbuffer - 1, nspins))
-               ALLOCATE (mixing_store%u_vec(nbuffer - 1, nspins))
-               ALLOCATE (mixing_store%z_vec(nbuffer - 1, nspins))
-               ALLOCATE (mixing_store%weight(nbuffer, nspins))
-               ALLOCATE (mixing_store%fmat(nbuffer - 1, nbuffer - 1, nspins))
-               DO ispin = 1, nspins
-                  DO i = 1, nbuffer - 1
-                     NULLIFY (mixing_store%delta_res(i, ispin)%cc)
-                     NULLIFY (mixing_store%u_vec(i, ispin)%cc)
-                     NULLIFY (mixing_store%z_vec(i, ispin)%cc)
-                  END DO
-                  NULLIFY (mixing_store%last_res(ispin)%cc)
-               END DO
-            END IF
-         END IF
-
          !   *** allocate multisecant buffer ***
          IF (mixing_method == multisecant_mixing_nr) THEN
             IF (.NOT. ASSOCIATED(mixing_store%norm_res_buffer)) THEN
@@ -388,7 +365,7 @@ CONTAINS
             END IF
          END IF
 
-         IF (mixing_method == broyden_mixing_new_nr .OR. mixing_method == multisecant_mixing_nr) THEN
+         IF (mixing_method == multisecant_mixing_nr) THEN
             IF (.NOT. ASSOCIATED(mixing_store%rhoin_buffer)) THEN
                ALLOCATE (mixing_store%rhoin_buffer(nbuffer, nspins))
                DO ispin = 1, nspins
@@ -629,32 +606,6 @@ CONTAINS
             ! i.e. p_metric varies between bconst and 1
             ! fdamp = (bconst-1.0_dp)*g2min
             fdamp = (bconst - 1.0_dp)*g2min*g2max/(g2max - g2min*bconst)
-            DO ig = 1, ng
-               mixing_store%p_metric(ig) = (g2(ig) + fdamp)/MAX(g2(ig), 1.E-10_dp)
-            END DO
-            IF (rho_g(1)%pw_grid%have_g0) mixing_store%p_metric(1) = bconst
-         END IF
-
-      ELSEIF (mixing_method == broyden_mixing_new_nr) THEN
-         DO ispin = 1, nspin
-            IF (.NOT. ASSOCIATED(mixing_store%u_vec(1, ispin)%cc)) THEN
-               DO ib = 1, nbuffer - 1
-                  ALLOCATE (mixing_store%delta_res(ib, ispin)%cc(ng))
-                  ALLOCATE (mixing_store%u_vec(ib, ispin)%cc(ng))
-                  ALLOCATE (mixing_store%z_vec(ib, ispin)%cc(ng))
-               END DO
-               ALLOCATE (mixing_store%last_res(ispin)%cc(ng))
-            END IF
-         END DO
-         IF (.NOT. ASSOCIATED(mixing_store%p_metric)) THEN
-            ALLOCATE (mixing_store%p_metric(ng))
-            bconst = mixing_store%bconst
-            g2min = 1.E30_dp
-            DO ig = 1, ng
-               IF (g2(ig) > 1.E-10_dp) g2min = MIN(g2min, g2(ig))
-            END DO
-            CALL para_env%min(g2min)
-            fdamp = (bconst - 1.0_dp)*g2min
             DO ig = 1, ng
                mixing_store%p_metric(ig) = (g2(ig) + fdamp)/MAX(g2(ig), 1.E-10_dp)
             END DO
