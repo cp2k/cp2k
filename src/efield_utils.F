@@ -229,15 +229,17 @@ CONTAINS
                   atom_a = list(iatom)
                   r(:) = pbc(particle_set(atom_a)%r(:), cell)
                   efield_ener = efield_ener - zeff*DOT_PRODUCT(r, field)
-               END IF
+!               END IF
                IF (my_force) THEN
                   CALL get_qs_env(qs_env=qs_env, force=force)
                   force(ikind)%efield(:, iatom) = force(ikind)%efield(:, iatom) - field*zeff
+               END IF
                END IF
             END DO
 
          END DO
          IF (dft_control%apply_efield_field) energy%efield_core = efield_ener
+!          energy%efield_core = efield_ener
       END IF
       CALL timestop(handle)
    END SUBROUTINE calculate_ecore_efield

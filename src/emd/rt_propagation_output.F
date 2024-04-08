@@ -859,16 +859,21 @@ CONTAINS
             WRITE (unit_nr, "(T3,A)") "Electric Field (LG) in atomic units:"
             CALL make_field(dft_control, field, qs_env%sim_step, qs_env%sim_time)
             to_write = field
+            WRITE (unit_nr, "(T5,3(A,A,E16.8,1X))") &
+                (TRIM(rlab(i)), "=", to_write(i), i=1, 3)
          ELSE IF (dft_control%apply_vector_potential) THEN
-            WRITE (unit_nr, "(T3,A)") "Vector potential (VG) in atomic units:"
-            to_write = dft_control%rtp_control%vec_pot
+            WRITE (unit_nr, "(T3,A)") "Electric Field and  Vector potential (VG) in atomic units:"
+            WRITE (unit_nr, "(T5,3(A,A,E16.8,1X))") &
+                (TRIM(rlab(i)), "=", dft_control%rtp_control%field(i), i=1, 3)
+            WRITE (unit_nr, "(T5,3(A,A,E16.8,1X))") &
+                (TRIM(rlab(i)), "=", dft_control%rtp_control%vec_pot(i), i=1, 3)
          ELSE
             WRITE (unit_nr, "(T3,A)") "No electric field applied"
             to_write = 0._dp
+            WRITE (unit_nr, "(T5,3(A,A,E16.8,1X))") &
+               (TRIM(rlab(i)), "=", to_write(i), i=1, 3)
          END IF
 
-         WRITE (unit_nr, "(T5,3(A,A,E16.8,1X))") &
-            (TRIM(rlab(i)), "=", to_write(i), i=1, 3)
       END IF
 
       CALL cp_print_key_finished_output(unit_nr, logger, dft_section, &
@@ -891,13 +896,17 @@ CONTAINS
       INTEGER                                            :: i_step, output_unit, unit_nr
       LOGICAL                                            :: new_file
       TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(rt_prop_type), POINTER                        :: rtp
+
+      NULLIFY (dft_control, energy, rtp)
+
 
       logger => cp_get_default_logger()
       output_unit = cp_logger_get_default_io_unit(logger)
 
-      CALL get_qs_env(qs_env, rtp=rtp, energy=energy)
+      CALL get_qs_env(qs_env, dft_control=dft_control, rtp=rtp, energy=energy)
       i_step = rtp%istep
 
       unit_nr = cp_print_key_unit_nr(logger, dft_section, &
@@ -917,11 +926,13 @@ CONTAINS
          IF (new_file) THEN
             ! NOTE that these are not all terms contributing to the total energy for RTP, only a selection of those
             ! most significant / impactful. Therefore the printed components likely will not add up to the total energy.
-            WRITE (UNIT=unit_nr, FMT='("#",5X,A,8X,A,6X,A,6X,A,6X,A,6X,A,6X,A)') "Step Nr.", "Time[fs]", &
-               "Total ener.[a.u.]", "core.[a.u.]", "core_self.[a.u.]", "hartree.[a.u.]", "exc.[a.u.]"
+            WRITE (UNIT=unit_nr, FMT='("#",5X,A,8X,A,10(6X,A))') "Step Nr.", "Time[fs]", &
+               "Total ener.[a.u.]", "core[a.u.]   " , " overlap [a.u.]", "hartree[a.u.]", " exc. [a.u.] ", " hartree 1c[a.u.]",  "exc 1c[a.u.] ", "exc admm[a.u.]", "exc 1c admm[a.u.]", "efield LG"
+
          END IF
-         WRITE (UNIT=unit_nr, FMT="(I10,F20.6,F20.9,F20.9,F20.9,F20.9,F20.9)") &
-            i_step, i_step*rtp%dt*femtoseconds, energy%total, energy%core, energy%core_self, energy%hartree, energy%exc
+         WRITE (UNIT=unit_nr, FMT="(I10,F20.6,10(F20.9))") &
+            i_step, i_step*rtp%dt*femtoseconds, energy%total, energy%core, energy%core_overlap, energy%hartree, energy%exc,&
+             energy%hartree_1c,  energy%exc1, energy%exc_aux_fit, energy%exc1_aux_fit, energy%efield_core
 
       END IF
 
