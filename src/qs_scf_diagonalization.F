@@ -117,6 +117,7 @@ MODULE qs_scf_diagonalization
    USE qs_scf_types,                    ONLY: qs_scf_env_type,&
                                               subspace_env_type
    USE scf_control_types,               ONLY: scf_control_type
+   USE cp_control_types,                ONLY: hair_probes_type !MARGHERITA   
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -317,7 +318,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE do_general_diag(scf_env, mos, matrix_ks, &
                               matrix_s, scf_control, scf_section, &
-                              diis_step)
+                              diis_step, probe) !MARGHERITA
 
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
       TYPE(mo_set_type), DIMENSION(:), INTENT(INOUT)     :: mos
@@ -328,6 +329,7 @@ CONTAINS
 
       INTEGER                                            :: ispin, nspin
       REAL(KIND=dp)                                      :: total_zeff_corr
+      TYPE(hair_probes_type), DIMENSION(:), OPTIONAL, POINTER  :: probe !MARGHERITA      
 
       nspin = SIZE(matrix_ks)
 
@@ -341,8 +343,17 @@ CONTAINS
          CALL set_mo_occupation(mo_array=mos, &
                                 smear=scf_control%smear, tot_zeff_corr=total_zeff_corr)
       ELSE
-         CALL set_mo_occupation(mo_array=mos, &
-                                smear=scf_control%smear)
+         !MARGHERITA###########################################################################
+         IF (PRESENT(probe) .eqv. .true.) THEN
+            scf_control%smear%do_smear = .false. !maybe not necessary
+            CALL set_mo_occupation(mo_array=mos, &
+                              smear=scf_control%smear, &
+                              probe=probe)
+         ELSE
+            CALL set_mo_occupation(mo_array=mos, &
+                           smear=scf_control%smear)
+         ENDIF
+         !#####################################################################################
       END IF
 
       DO ispin = 1, nspin
@@ -371,7 +382,7 @@ CONTAINS
 !>      08.2014 created [JGH]
 ! **************************************************************************************************
    SUBROUTINE do_general_diag_kp(matrix_ks, matrix_s, kpoints, scf_env, scf_control, update_p, &
-                                 diis_step, diis_error, qs_env)
+                                 diis_step, diis_error, qs_env, probe) !MARGHERITA
 
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_ks, matrix_s
       TYPE(kpoint_type), POINTER                         :: kpoints
@@ -410,6 +421,7 @@ CONTAINS
          POINTER                                         :: sab_nl
       TYPE(qs_matrix_pools_type), POINTER                :: mpools
       TYPE(section_vals_type), POINTER                   :: scf_section
+      TYPE(hair_probes_type), DIMENSION(:), OPTIONAL, POINTER  :: probe !MARGHERITA
 
       CALL timeset(routineN, handle)
 
@@ -679,7 +691,15 @@ CONTAINS
 
       IF (update_p) THEN
          ! MO occupations
-         CALL kpoint_set_mo_occupation(kpoints, scf_control%smear)
+         !MARGHERITA###########################################################################
+         IF (PRESENT(probe) .eqv. .true.) THEN
+            scf_control%smear%do_smear = .false. !maybe not necessary
+            CALL kpoint_set_mo_occupation(kpoints, scf_control%smear, &
+                              probe=probe)
+         ELSE
+            CALL kpoint_set_mo_occupation(kpoints, scf_control%smear)
+         ENDIF
+         !#####################################################################################
 
          ! density matrices
          CALL kpoint_density_matrices(kpoints)

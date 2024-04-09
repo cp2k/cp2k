@@ -517,7 +517,87 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
+!####################################################################################
+!MARGHERITA
+      CALL create_hair_probes_section(subsection)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+!####################################################################################      
+
    END SUBROUTINE create_dft_section
+
+!####################################################################################
+!MARGHERITA 
+! **************************************************************************************************
+!> \brief Hair Probe Model
+!> \param section ...
+!> \author 
+! **************************************************************************************************
+
+   SUBROUTINE create_hair_probes_section(section)
+      TYPE(section_type), POINTER                        :: section
+      TYPE(keyword_type), POINTER                        :: keyword
+      TYPE(section_type), POINTER                        :: print_key, subsection
+
+      NULLIFY (keyword, subsection, print_key)
+      CPASSERT(.NOT. ASSOCIATED(section))
+      CALL section_create(section, __LOCATION__, &
+                          name="HAIR_PROBES", &
+                          description="Sets up a Hairy Probe calculation. ", &                                      
+                          n_keywords=0, n_subsections=0, repeats=.TRUE.)
+
+      CALL keyword_create(keyword, __LOCATION__, &
+                          name="_SECTION_PARAMETERS_", &
+                          description="Controls the activation of hairy probe", &
+                          usage="&HAIR_PROBES ON", &
+                          default_l_val=.FALSE., &
+                          lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+
+      CALL keyword_create(keyword, __LOCATION__, name="ATOM_IDS", &
+                          description="Indexes of the atoms to which the probes are attached;"// &
+                                      "expects a list of integers. ", &
+                          usage="ATOM_IDS <INTEGER> .. <INTEGER>", &
+                          type_of_var=integer_t, n_var=-1)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="T", &
+                          description="Electronic temperature [K]", &
+                          usage="T <REAL>", &
+                          default_r_val=cp_unit_to_cp2k(value=300.0_dp, unit_str="K"), &
+                          unit_str="K")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="MU", &
+                          description="Chemical potential of the electrons in the probes [eV] ", &
+                          usage="MU <REAL>", &
+                          default_r_val=cp_unit_to_cp2k(value=0.0_dp, unit_str="eV"), &
+                          unit_str="eV")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      !****8th implementation 
+      CALL keyword_create(keyword, __LOCATION__, name="ALPHA", &
+                          description="Parameter for solution probes ", &
+                          usage="ALPHA <REAL>", &
+                          default_r_val=1.0_dp) 
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+     !****8th implementation 
+
+      CALL keyword_create(keyword, __LOCATION__, name="EPS_HP", &
+                          description=" Tolerance for accuracy checks on occupation numbers "// &
+                                      "calculated using hair-probes. ", &
+                          usage="EPS_HP <REAL>", &
+                          default_r_val=1.0E-5_dp )
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+   END SUBROUTINE create_hair_probes_section
+!####################################################################################   
 
 ! **************************************************************************************************
 !> \brief Implicit Solvation Model

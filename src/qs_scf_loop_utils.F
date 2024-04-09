@@ -64,6 +64,7 @@ MODULE qs_scf_loop_utils
                                               special_diag_method_nr
    USE scf_control_types,               ONLY: scf_control_type,&
                                               smear_type
+   USE cp_control_types,                ONLY: hair_probes_type    !MARGHERITA                                              
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -119,7 +120,7 @@ CONTAINS
 !> \param energy_only ...
 ! **************************************************************************************************
    SUBROUTINE qs_scf_new_mos(qs_env, scf_env, scf_control, scf_section, diis_step, &
-                             energy_only)
+                             energy_only, probe) !MARGHERITA
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
       TYPE(scf_control_type), POINTER                    :: scf_control
@@ -136,6 +137,7 @@ CONTAINS
       TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho
+      TYPE(hair_probes_type), DIMENSION(:), OPTIONAL, POINTER  :: probe !MARGHERITA
 
       CALL timeset(routineN, handle)
 
@@ -207,9 +209,18 @@ CONTAINS
                                 matrix_s, scf_control, scf_section, &
                                 diis_step)
             ELSE
-               CALL do_general_diag(scf_env, mos, matrix_ks, &
-                                    matrix_s, scf_control, scf_section, &
-                                    diis_step)
+            !MARGHERITA ###########################################################################
+               IF (dft_control%hair_probes .eqv. .true.) THEN
+                  CALL do_general_diag(scf_env, mos, matrix_ks, &
+                               matrix_s, scf_control, scf_section, &
+                               diis_step, &
+                               probe)  !MARGHERITA                           
+               ELSE 
+                  CALL do_general_diag(scf_env, mos, matrix_ks, &
+                               matrix_s, scf_control, scf_section, &
+                               diis_step)
+               END IF 
+            !######################################################################################            
             END IF
             IF (scf_control%do_diag_sub) THEN
                skip_diag_sub = (scf_env%subspace_env%eps_diag_sub > 0.0_dp) .AND. &
@@ -289,7 +300,8 @@ CONTAINS
 !> \param scf_control ...
 !> \param diis_step ...
 ! **************************************************************************************************
-   SUBROUTINE qs_scf_new_mos_kp(qs_env, scf_env, scf_control, diis_step)
+   SUBROUTINE qs_scf_new_mos_kp(qs_env, scf_env, scf_control, diis_step, &
+                              probe) !MARGHERITA
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
       TYPE(scf_control_type), POINTER                    :: scf_control
@@ -305,6 +317,7 @@ CONTAINS
       TYPE(kpoint_type), POINTER                         :: kpoints
       TYPE(mo_set_type), DIMENSION(:, :), POINTER        :: mos
       TYPE(qs_energy_type), POINTER                      :: energy
+      TYPE(hair_probes_type), DIMENSION(:), OPTIONAL, POINTER  :: probe !MARGHERITA
 
       CALL timeset(routineN, handle)
 
@@ -324,8 +337,18 @@ CONTAINS
       CASE (general_diag_method_nr)
          ! Diagonlization in non orthonormal case
          CALL get_qs_env(qs_env, matrix_ks_kp=matrix_ks, matrix_s_kp=matrix_s)
-         CALL do_general_diag_kp(matrix_ks, matrix_s, kpoints, scf_env, scf_control, .TRUE., &
-                                 diis_step, diis_error, qs_env)
+         !MARGHERITA ###########################################################################
+         IF (dft_control%hair_probes .eqv. .true.) THEN
+            scf_control%smear%do_smear = .false. 
+            CALL do_general_diag_kp(matrix_ks, matrix_s, kpoints, scf_env, scf_control, .TRUE., &
+                                    diis_step, diis_error, qs_env, probe) 
+         ELSE 
+            CALL do_general_diag_kp(matrix_ks, matrix_s, kpoints, scf_env, scf_control, .TRUE., &
+                                    diis_step, diis_error, qs_env)
+         END IF 
+         !######################################################################################
+         !CALL do_general_diag_kp(matrix_ks, matrix_s, kpoints, scf_env, scf_control, .TRUE., &
+         !                        diis_step, diis_error, qs_env)
          IF (diis_step) THEN
             scf_env%iter_param = diis_error
             scf_env%iter_method = "DIIS/Diag."
