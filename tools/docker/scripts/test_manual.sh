@@ -29,7 +29,12 @@ apt-get install -qq --no-install-recommends \
   python3-pip
 rm -rf /var/lib/apt/lists/*
 
-pip3 install --quiet sphinx myst-parser sphinx_rtd_theme lxml
+pip3 install --quiet \
+  sphinx \
+  myst-parser \
+  sphinx_rtd_theme \
+  sphinxcontrib-youtube \
+  lxml
 
 echo -e "\n========== Generating Manual =========="
 

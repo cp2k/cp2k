@@ -13,7 +13,13 @@ author = "CP2K Developers"
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
 
-extensions = ["myst_parser", "sphinx_rtd_theme", "sphinx.ext.mathjax"]
+extensions = [
+    "myst_parser",
+    "sphinx_rtd_theme",
+    "sphinx.ext.mathjax",
+    "sphinx.ext.intersphinx",
+    "sphinxcontrib.youtube",
+]
 
 myst_enable_extensions = [
     "attrs_inline",
