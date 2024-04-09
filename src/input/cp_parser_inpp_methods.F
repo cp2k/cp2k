@@ -480,10 +480,12 @@ CONTAINS
          END IF
 
       CASE ("@ENDIF")
-         WRITE (UNIT=message, FMT="(A,I0)") &
-            "Unmatched "//TRIM(mytag)//" directive found and ignored in file <"// &
-            TRIM(input_file_name)//">  Line: ", input_line_number
-         CPWARN(TRIM(message))
+         ! In normal mode, just skip line and continue
+         IF (debug_this_module .AND. output_unit > 0) THEN
+            WRITE (UNIT=message, FMT="(A,I0)") &
+               TRIM(mytag)//" directive found and ignored in file <"// &
+               TRIM(input_file_name)//">  Line: ", input_line_number
+         END IF
 
       CASE ("@PRINT")
          ! For debugging of variables etc.
