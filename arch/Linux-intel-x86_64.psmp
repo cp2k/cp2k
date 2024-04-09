@@ -13,7 +13,7 @@
 #        Optionally, the Intel compiler version can be specified as argument.
 #        Replace or adapt the "module add" commands below if needed.
 #
-# Last update: 28.03.2024
+# Last update: 09.04.2024
 #
 # \
    if [[ "${0}" == "${BASH_SOURCE}" ]]; then \
@@ -296,7 +296,6 @@ ifneq ($(USE_HDF5),)
       LIBS           += $(HDF5_LIB)/libhdf5_f90cstub.a
       LIBS           += $(HDF5_LIB)/libhdf5.a
    endif
-   LIBS           += -lsz
 endif
 
 ifneq ($(USE_COSMA),)
