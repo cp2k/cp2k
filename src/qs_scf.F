@@ -47,7 +47,7 @@
 MODULE qs_scf
    USE atomic_kind_types,               ONLY: atomic_kind_type
    USE cp_control_types,                ONLY: dft_control_type, &
-                                              hair_probes_type !MARGHERITA
+                                              hairy_probes_type 
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               dbcsr_deallocate_matrix_set
    USE cp_files,                        ONLY: close_file
@@ -492,18 +492,15 @@ CONTAINS
 
             IF (do_kpoints) THEN
                ! kpoints
-               !MARGHERITA################################################################################### 
-               IF (dft_control%hair_probes .eqv. .true.) THEN 
+               IF (dft_control%hairy_probes .eqv. .true.) THEN 
                   scf_control%smear%do_smear = .false. 
                   CALL qs_scf_new_mos_kp(qs_env, scf_env, scf_control, diis_step, dft_control%probe)
                ELSE 
                   CALL qs_scf_new_mos_kp(qs_env, scf_env, scf_control, diis_step)
                END IF 
-               !##############################################################################################               
             ELSE
                ! Gamma points only
-               !MARGHERITA################################################################################### 
-               IF (dft_control%hair_probes .eqv. .true.) THEN 
+               IF (dft_control%hairy_probes .eqv. .true.) THEN 
                   scf_control%smear%do_smear = .false. 
                   CALL qs_scf_new_mos(qs_env, scf_env, scf_control, scf_section, diis_step, energy_only, &
                               dft_control%probe)  
@@ -700,10 +697,10 @@ CONTAINS
       DO ispin = 1, dft_control%nspins
          ! do not reset mo_occupations if the maximum overlap method is in use
          IF (.NOT. scf_control%diagonalization%mom) THEN
-            !MARGHERITA: if the hair probes section is present, this sends hair_probes to set_mo_occupation subroutine 
+            !if the hairY probes section is present, this sends hairy_probes to set_mo_occupation subroutine 
             !and switches off the standard smearing
-            IF (dft_control%hair_probes .eqv. .true.) THEN !MARGHERITA 
-               scf_control%smear%do_smear = .false. !MARGHERITA 
+            IF (dft_control%hairy_probes .eqv. .true.) THEN  
+               scf_control%smear%do_smear = .false.  
                CALL set_mo_occupation(mo_set=mos(ispin), &
                                     smear=scf_control%smear, &
                                     probe=dft_control%probe) 

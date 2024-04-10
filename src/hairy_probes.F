@@ -1,22 +1,20 @@
-MODULE hair_probes
+MODULE hairy_probes
  
         USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                                    get_atomic_kind,&
                                                    get_atomic_kind_set
         USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                                    gto_basis_set_type
-        USE cp_control_types,                ONLY: hair_probes_type  
+        USE cp_control_types,                ONLY: hairy_probes_type  
         USE kinds,                           ONLY: dp
         USE orbital_pointers,                ONLY: indco,&
-                                                   nco,&  !Number of Cartesian orbitals for the 
-                                                          !angular momentum quantum number l
-                                                   nso    !Number of spherical orbitals for the 
-                                                          !angular momentum quantum number l
+                                                   nco,&                                                     
+                                                   nso                                                              
         USE particle_types,                  ONLY: particle_type
         USE qs_kind_types,                   ONLY: get_qs_kind,&
                                                    get_qs_kind_set,&
                                                    qs_kind_type
-        USE qs_environment_types,            ONLY: get_qs_env,& !??
+        USE qs_environment_types,            ONLY: get_qs_env,& 
                                                    qs_environment_type
  
         USE cp_log_handling,                 ONLY: cp_get_default_logger,&
@@ -26,13 +24,11 @@ MODULE hair_probes
         USE orbital_transformation_matrices, ONLY: orbtramat
         USE qs_mo_types,                     ONLY: mo_set_p_type,&
                                                    mo_set_type, &
-                                                   get_mo_set !14.06
+                                                   get_mo_set 
         USE cp_fm_types,                     ONLY: cp_fm_get_info,&
                                                    cp_fm_get_submatrix,&
                                                    cp_fm_type
-
-!        USE fermi_utils,                      ONLY: Fermi
-        USE cp_units,                         ONLY: cp_unit_from_cp2k
+        USE cp_units,                        ONLY: cp_unit_from_cp2k
         USE kahan_sum,                       ONLY: accurate_sum
 
 #include "./base/base_uses.f90"
@@ -40,7 +36,7 @@ MODULE hair_probes
         IMPLICIT NONE 
         PRIVATE
         
-        CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'hair_probes'
+        CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'hairy_probes'
 
         INTEGER, PARAMETER, PRIVATE          :: BISECT_MAX_ITER = 400
         PUBLIC :: probe_occupancy, probe_occupancy_kp, AO_boundaries
@@ -53,7 +49,7 @@ CONTAINS
 !> \param occ(:): occupation numbers
 !> \param kTS: entropic energy contribution 
 !> \param fermi: fermi level
-!> \param probe(np): hair probe 
+!> \param probe(np): hairy probe 
 !> \param atomic_kind_set(:) 
 !> \param particle_set(:)
 !> \param qs_kind_set(:)
@@ -75,24 +71,21 @@ CONTAINS
 !**************************************************************************************
 SUBROUTINE probe_occupancy ( occ, fermi, kTS, energies, coeff, maxocc, probe, N )
 
-        !Parameters 
-        !CHARACTER(len=*), PARAMETER :: routineN = 'probe_occupancy'!, & 
-                                       !routineP=moduleN//':'//routineN
-
         !i/o variables and arrays
-        REAL(KIND=dp), INTENT(out)                        :: occ(:), kTS, fermi
-        TYPE(hair_probes_type), INTENT(INOUT)             :: probe(:) 
-        TYPE(cp_fm_type), INTENT(IN), POINTER             :: coeff       !from get_mo_set  
-        REAL(KIND=dp), INTENT(IN)                         :: energies(:), maxocc, N !from get_mo_set  
-                                                             !nAO: number of atomic orbitals (# rows in mo_coeff)                                                             
+        REAL(KIND=dp), INTENT(out)                          :: occ(:), kTS, fermi
+        TYPE(hairy_probes_type), INTENT(INOUT)              :: probe(:) 
+        TYPE(cp_fm_type), INTENT(IN), POINTER               :: coeff         
+        REAL(KIND=dp), INTENT(IN)                           :: energies(:), maxocc, N  
+                                                                                                                          
         !subroutine variables and arrays 
-        REAL(KIND=dp), POINTER                            :: smatrix(:,:) !smatrix: Spherical MOs matrix 
-        REAL(KIND=dp), ALLOCATABLE                        :: smatrix_squared(:,:) !squared Spherical MOs matrix 
-        REAL(KIND=dp)                                     :: fermi_min, fermi_max, fermi_half, fermi_fit, &
-                                                            & N_fit, N_min, N_max, N_half, delta_fermi, &
-                                                            & h, y0, y1, y2, de, N_now
-        INTEGER                                           :: nrow_global, ncol_global, iter 
-        REAL(KIND=dp), PARAMETER                          :: epsocc = 1.0e-12_dp
+        REAL(KIND=dp), POINTER                              :: smatrix(:,:) !smatrix: Spherical MOs matrix 
+        REAL(KIND=dp), ALLOCATABLE                          :: smatrix_squared(:,:) !squared Spherical MOs matrix 
+        REAL(KIND=dp)                                       :: fermi_min, fermi_max, fermi_half, fermi_fit, &
+                                                               & N_fit, N_min, N_max, N_half, delta_fermi, &
+                                                               & h, y0, y1, y2, de, N_now
+        INTEGER                                             :: nrow_global, ncol_global, iter 
+
+        REAL(KIND=dp), PARAMETER                            :: epsocc = 1.0e-12_dp
 
         CALL cp_fm_get_info(coeff, &
                              nrow_global=nrow_global, &
@@ -104,7 +97,7 @@ SUBROUTINE probe_occupancy ( occ, fermi, kTS, energies, coeff, maxocc, probe, N 
         smatrix_squared(:,:) = smatrix(:,:)**2.0d0 
 
 !**************************************************************************************
-!1)calculate Fermi energy using the hair probe formula
+!1)calculate Fermi energy using the hairy probe formula
 !**************************************************************************************
          de = probe(1)%T *LOG((1.0_dp - epsocc)/epsocc) !FIX probe(1)%T
          de = MAX(de, 0.5_dp)
@@ -185,7 +178,7 @@ SUBROUTINE probe_occupancy ( occ, fermi, kTS, energies, coeff, maxocc, probe, N 
          ENDDO
 
 !**************************************************************************************
-!2)calculate occupation numbers according to hair probe formula 
+!2)calculate occupation numbers according to hairy probe formula 
 !**************************************************************************************         
          occ(:) = 0.0_dp
          N_now = 0.0_dp
@@ -205,7 +198,7 @@ END SUBROUTINE probe_occupancy
 !> \param occ(nMO,nkp): occupation numbers
 !> \param kTS: entropic energy contribution 
 !> \param fermi: fermi level
-!> \param probe(np): hair probe 
+!> \param probe(np): hairy probe 
 !> \param atomic_kind_set(:) 
 !> \param particle_set(:)
 !> \param qs_kind_set(:)
@@ -232,28 +225,27 @@ SUBROUTINE probe_occupancy_kp ( occ, fermi, kTS, energies, rcoeff, icoeff, maxoc
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'probe_occupancy_kp'
 
-      REAL(KIND=dp),INTENT(OUT)                         :: occ(:,:,:), fermi, kTS 
-      TYPE(hair_probes_type), INTENT(IN)                :: probe(:) 
-      REAL(KIND=dp), INTENT(IN)                         :: energies(:,:,:), wk(:)
-      REAL(KIND=dp), INTENT(IN)                         :: rcoeff(:,:,:,:), icoeff(:,:,:,:)
-      REAL(KIND=dp), INTENT(IN)                         :: maxocc, N
+      REAL(KIND=dp),INTENT(OUT)                          :: occ(:,:,:), fermi, kTS 
+      TYPE(hairy_probes_type), INTENT(IN)                :: probe(:) 
+      REAL(KIND=dp), INTENT(IN)                          :: energies(:,:,:), wk(:)
+      REAL(KIND=dp), INTENT(IN)                          :: rcoeff(:,:,:,:), icoeff(:,:,:,:)
+      REAL(KIND=dp), INTENT(IN)                          :: maxocc, N
 
-      REAL(KIND=dp)                                     :: kTS_kp, de, h, fermi_max, fermi_min, fermi_half, fermi_fit, &
-                                                           & N_max, N_min, N_half, N_fit, N_now, &
-                                                           & y0, y1, y2, delta_fermi
-      REAL(KIND=dp), ALLOCATABLE                        :: coeff_squared(:,:,:,:)
-      INTEGER                                           :: nMO, nAO, iter, ikp, nkp, ispin, nspin 
+      REAL(KIND=dp)                                      :: kTS_kp, de, h, fermi_max, fermi_min, fermi_half, fermi_fit, &
+                                                            & N_max, N_min, N_half, N_fit, N_now, &
+                                                            & y0, y1, y2, delta_fermi
+      REAL(KIND=dp), ALLOCATABLE                         :: coeff_squared(:,:,:,:)
+      INTEGER                                            :: nMO, nAO, iter, ikp, nkp, ispin, nspin 
 
-      REAL(KIND=dp), PARAMETER                          :: epsocc = 1.0e-12_dp
+      REAL(KIND=dp), PARAMETER                           :: epsocc = 1.0e-12_dp
 
       INTEGER :: handle 
 
       CALL timeset(routineN, handle)
 
 !**************************************************************************************
-!1)calculate Fermi energy using the hair probe formula
+!1)calculate Fermi energy using the hairy probe formula
 !**************************************************************************************
-!     rcoeff(nao, nmo, nkp, nspin), icoeff(nao, nmo, nkp, nspin))
       nAO=SIZE(rcoeff, 1)
       nMO=SIZE(rcoeff, 2)
       nkp=SIZE(rcoeff, 3)
@@ -384,7 +376,7 @@ SUBROUTINE probe_occupancy_kp ( occ, fermi, kTS, energies, rcoeff, icoeff, maxoc
       ENDDO
 
 !**************************************************************************************
-!3)calculate occupation numbers using the hair probe formula
+!3)calculate occupation numbers using the hairy probe formula
 !**************************************************************************************
       N_now = 0.0_dp
       kTS = 0.0_dp
@@ -415,7 +407,7 @@ SUBROUTINE HP_occupancy(probe, matrix, energies, maxocc, fermi, occupancy, kTS)
         IMPLICIT NONE 
 
         REAL(KIND=dp), INTENT(OUT)                 :: occupancy(:), kTS
-        TYPE(hair_probes_type), INTENT(IN)         :: probe(:)
+        TYPE(hairy_probes_type), INTENT(IN)         :: probe(:)
         REAL(KIND=dp), INTENT(IN)                  :: matrix(:,:) !squared coefficient matrix
         REAL(KIND=dp), INTENT(IN)                  :: energies(:), fermi, maxocc
 
@@ -423,16 +415,11 @@ SUBROUTINE HP_occupancy(probe, matrix, energies, maxocc, fermi, occupancy, kTS)
         REAL(KIND=dp) :: mu, fermi_fun, fermi_fun_sol, sum_fermi_fun, sum_coeff, &
                          & sum_fermi_fun_sol, sum_coeff_sol, C, s, f
 
-        !tmp 
-        !INTEGER, PARAMETER :: nout = 2222
-        !CHARACTER(len=20), PARAMETER :: debug = 'debug.dat'
-
-        !OPEN(unit=nout,action='write',file=debug,status='replace')
         nMO = SIZE(matrix, 2)
         np = SIZE(probe)
 
         kTS = 0.0_dp
-        ! kTS is the entropic contribution to the energy i.e. -TS
+        ! kTS is the entropic contribution to the electronic energy
 
         mos2: do iMO = 1, nMO
 
@@ -474,10 +461,8 @@ SUBROUTINE HP_occupancy(probe, matrix, energies, maxocc, fermi, occupancy, kTS)
               s = f * LOG(f) + (1.0d0-f) * LOG(1.0d0-f) 
            END IF 
            kTS = kTS + probe(np)%T*maxocc*s 
-           !write(nout,*) occupancy(iMO), f, s, kTS
         END DO MOs2
 
-        !CLOSE(nout)
 END SUBROUTINE HP_occupancy
 
 !**************************************************************************************
@@ -488,21 +473,21 @@ END SUBROUTINE HP_occupancy
 SUBROUTINE AO_boundaries (probe, atomic_kind_set, qs_kind_set, particle_set, nAO)
         IMPLICIT NONE 
         
-        TYPE(hair_probes_type), INTENT(INOUT)           :: probe
-        TYPE(atomic_kind_type), INTENT(IN), POINTER     :: atomic_kind_set(:) !from get_atomic_kind_set 
-        TYPE(particle_type), INTENT(IN), POINTER        :: particle_set(:)    !from get_atomic_kind
-        TYPE(qs_kind_type), INTENT(IN), POINTER         :: qs_kind_set(:)     !from get_qs_kind_set
+        TYPE(hairy_probes_type), INTENT(INOUT)           :: probe
+        TYPE(atomic_kind_type), INTENT(IN), POINTER      :: atomic_kind_set(:) !from get_atomic_kind_set 
+        TYPE(particle_type), INTENT(IN), POINTER         :: particle_set(:)    !from get_atomic_kind
+        TYPE(qs_kind_type), INTENT(IN), POINTER          :: qs_kind_set(:)     !from get_qs_kind_set
         INTEGER, INTENT(IN) :: nAO
  
         !subroutine variables and arrays 
-        TYPE(gto_basis_set_type), POINTER               :: orb_basis_set   !from get_qs_kind 
-        INTEGER, DIMENSION(:), POINTER                  :: nshell          !from get_gto_basis_set 
-        INTEGER, DIMENSION(:, :), POINTER               :: l               !from get_gto_basis_set 
-        INTEGER                                         :: nset            !from get_gto_basis_set 
+        TYPE(gto_basis_set_type), POINTER                :: orb_basis_set   !from get_qs_kind 
+        INTEGER, DIMENSION(:), POINTER                   :: nshell          !from get_gto_basis_set 
+        INTEGER, DIMENSION(:, :), POINTER                :: l               !from get_gto_basis_set 
+        INTEGER                                          :: nset            !from get_gto_basis_set 
                                                            !nset : Number of exponent sets
                                                            !nshell(l) : Number of shells for angular momentum quantum number l
-        INTEGER                                         :: lshell      
-        INTEGER                                         :: natom, nsgf
+        INTEGER                                          :: lshell      
+        INTEGER                                          :: natom, nsgf
 
         INTEGER :: p_atom, isgf, iatom, ii, ikind, iset, ishell 
 
@@ -566,8 +551,7 @@ SUBROUTINE fermi_distribution (E, pot, temp, f_p)
       REAL(kind=dp),INTENT(IN) :: E
       REAL(kind=dp),INTENT(IN) :: pot, temp
 
-      REAL(KIND=dp)            :: arg, exponential, exponential_plus_1, f, one_minus_f!, &
-                                 ! & s_term1, s_term2, logarithm
+      REAL(KIND=dp)            :: arg, exponential, exponential_plus_1, f, one_minus_f
 
       ! have the result of exp go to zero instead of overflowing  
       IF (E > pot) THEN                                           
@@ -578,12 +562,6 @@ SUBROUTINE fermi_distribution (E, pot, temp, f_p)
 
          one_minus_f = exponential/exponential_plus_1                                                      
          f = 1.0_dp/exponential_plus_1                                       
-
-         ! log(1+eps), might need to be written more accurately   
-         !logarithm = -LOG(exponential_plus_1)                                      
-         !s_term1 = one_minus_f*(arg + logarithm) ![1-f]*log[1-f] 
-         !s_term2 = f*logarithm !f*logf                                     
-
          f_p = one_minus_f
       ELSE                                                        
          arg = (E - pot)/temp                                     
@@ -593,15 +571,9 @@ SUBROUTINE fermi_distribution (E, pot, temp, f_p)
 
          f = 1.0_dp/exponential_plus_1                                                   
          one_minus_f = exponential/exponential_plus_1                                          
-
-         !logarithm = -LOG(exponential_plus_1)                                      
-         !s_term1 = f*logarithm                                         
-         !s_term2 = one_minus_f*(arg + logarithm)                              
-
          f_p = f 
       END IF                                                      
                                        
-      !s_p = s_term1 + s_term2        
 END SUBROUTINE fermi_distribution                                        
 
 !*******************************************************************************************************
@@ -641,4 +613,4 @@ SUBROUTINE three_point_zero(y0,y1,y2,h,delta)
 END SUBROUTINE three_point_zero
 
 
-END MODULE hair_probes 
+END MODULE hairy_probes 

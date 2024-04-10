@@ -517,24 +517,18 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
-!####################################################################################
-!MARGHERITA
-      CALL create_hair_probes_section(subsection)
+      CALL create_hairy_probes_section(subsection)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
-!####################################################################################      
 
    END SUBROUTINE create_dft_section
 
-!####################################################################################
-!MARGHERITA 
 ! **************************************************************************************************
-!> \brief Hair Probe Model
+!> \brief Hairy Probe Model
 !> \param section ...
 !> \author 
 ! **************************************************************************************************
-
-   SUBROUTINE create_hair_probes_section(section)
+   SUBROUTINE create_hairy_probes_section(section)
       TYPE(section_type), POINTER                        :: section
       TYPE(keyword_type), POINTER                        :: keyword
       TYPE(section_type), POINTER                        :: print_key, subsection
@@ -542,14 +536,14 @@ CONTAINS
       NULLIFY (keyword, subsection, print_key)
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, __LOCATION__, &
-                          name="HAIR_PROBES", &
+                          name="HAIRY_PROBES", &
                           description="Sets up a Hairy Probe calculation. ", &                                      
                           n_keywords=0, n_subsections=0, repeats=.TRUE.)
 
       CALL keyword_create(keyword, __LOCATION__, &
                           name="_SECTION_PARAMETERS_", &
                           description="Controls the activation of hairy probe", &
-                          usage="&HAIR_PROBES ON", &
+                          usage="&HAIRY_PROBES ON", &
                           default_l_val=.FALSE., &
                           lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
@@ -580,14 +574,12 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      !****8th implementation 
       CALL keyword_create(keyword, __LOCATION__, name="ALPHA", &
                           description="Parameter for solution probes ", &
                           usage="ALPHA <REAL>", &
                           default_r_val=1.0_dp) 
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
-     !****8th implementation 
 
       CALL keyword_create(keyword, __LOCATION__, name="EPS_HP", &
                           description=" Tolerance for accuracy checks on occupation numbers "// &
@@ -596,7 +588,7 @@ CONTAINS
                           default_r_val=1.0E-5_dp )
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
-   END SUBROUTINE create_hair_probes_section
+   END SUBROUTINE create_hairy_probes_section
 !####################################################################################   
 
 ! **************************************************************************************************

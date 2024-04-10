@@ -29,19 +29,18 @@ MODULE cp_control_types
 
    PRIVATE
 
-!MARGHERITA 
 !***************************************************************************************************
-!\Control parameters for Hair Probes 
+!\brief Control parameters for a Hairy Probes DFT calculation
 !***************************************************************************************************
-   TYPE hair_probes_type 
-      REAL(kind=dp)                        :: alpha          !8th implementation - parameter      
+   TYPE hairy_probes_type 
+      REAL(kind=dp)                        :: alpha          !parameter for solution probes
       REAL(kind=dp)                        :: mu             !chemical potenatial of electron in reservoir 
       REAL(kind=dp)                        :: T              !temperature of electrons in reservoir 
       REAL(kind=dp)                        :: eps_hp         !tolerance for accuracy checks on occupation numbers 
-                                                             !calculated with hair_probes
+                                                             !calculated with hairy_probes
       INTEGER                              :: natoms, last_ao, first_ao
       INTEGER,DIMENSION(:),POINTER         :: atom_ids      !atom ids to which the probes are attached
-   END TYPE hair_probes_type 
+   END TYPE hairy_probes_type 
 !***************************************************************************************************
 
 ! **************************************************************************************************
@@ -581,8 +580,8 @@ MODULE cp_control_types
       TYPE(xas_control_type), POINTER      :: xas_control => NULL()
       TYPE(expot_control_type), POINTER    :: expot_control => NULL()
       TYPE(maxwell_control_type), POINTER  :: maxwell_control => NULL()
-      TYPE(hair_probes_type), POINTER, &
-              DIMENSION(:)                 :: probe => NULL() !MARGHERITA      
+      TYPE(hairy_probes_type), POINTER, &
+              DIMENSION(:)                 :: probe => NULL()     
       TYPE(efield_p_type), POINTER, &
          DIMENSION(:)                      :: efield_fields => NULL()
       INTEGER                              :: nspins = 0, &
@@ -636,7 +635,7 @@ MODULE cp_control_types
                                               do_sccs = .FALSE., &
                                               apply_embed_pot = .FALSE., &
                                               apply_dmfet_pot = .FALSE., &
-                                              hair_probes = .FALSE. !MARGHERITA
+                                              hairy_probes = .FALSE. 
    END TYPE dft_control_type
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_control_types'
@@ -662,7 +661,7 @@ MODULE cp_control_types
              rtp_control_type, &
              sccs_control_type, &
              stda_control_type, &
-             hair_probes_type !MARGHERITA
+             hairy_probes_type 
 
    ! Public subroutines
 
@@ -795,11 +794,11 @@ CONTAINS
       NULLIFY (dft_control%maxwell_control)
       NULLIFY (dft_control%rtp_control)
       NULLIFY (dft_control%sccs_control)
-      NULLIFY (dft_control%probe) !MARGHERITA
+      NULLIFY (dft_control%probe) 
       dft_control%do_sccs = .FALSE.
       dft_control%apply_embed_pot = .FALSE.
       dft_control%apply_dmfet_pot = .FALSE.
-      dft_control%hair_probes = .FALSE. !MARGHERITA 
+      dft_control%hairy_probes = .FALSE. 
       CALL qs_control_create(dft_control%qs_control)
       CALL tddfpt2_control_create(dft_control%tddfpt2_control)
    END SUBROUTINE dft_control_create

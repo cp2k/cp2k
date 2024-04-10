@@ -29,7 +29,7 @@ MODULE kpoint_methods
    USE cp_fm_types,                     ONLY: &
         copy_info_type, cp_fm_cleanup_copy_general, cp_fm_create, cp_fm_finish_copy_general, &
         cp_fm_get_info, cp_fm_release, cp_fm_start_copy_general, cp_fm_to_fm, cp_fm_type, &
-        cp_fm_get_info, cp_fm_get_submatrix !MARGHERITA
+        cp_fm_get_info, cp_fm_get_submatrix 
    USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
    USE cryssym,                         ONLY: apply_rotation_coord,&
                                               crys_sym_gen,&
@@ -79,8 +79,8 @@ MODULE kpoint_methods
                                               neighbor_list_set_p_type
    USE scf_control_types,               ONLY: smear_type
    USE util,                            ONLY: get_limit
-   USE hair_probes,                     ONLY: probe_occupancy_kp !MARGHERITA 
-   USE cp_control_types,                ONLY: hair_probes_type   !MARGHERITA    
+   USE hairy_probes,                    ONLY: probe_occupancy_kp 
+   USE cp_control_types,                ONLY: hairy_probes_type    
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -878,8 +878,7 @@ CONTAINS
 !> \param kpoint  Kpoint environment
 !> \param smear   Smearing information
 ! **************************************************************************************************
-   SUBROUTINE kpoint_set_mo_occupation(kpoint, smear, &
-                                       probe ) !MARGHERITA
+   SUBROUTINE kpoint_set_mo_occupation(kpoint, smear, probe ) 
 
       TYPE(kpoint_type), POINTER                         :: kpoint
       TYPE(smear_type), POINTER                          :: smear
@@ -887,18 +886,19 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'kpoint_set_mo_occupation'
 
       INTEGER                                            :: handle, ik, ikpgr, ispin, kplocal, nb, &
-                                                            ne_a, ne_b, nelectron, nkp, nmo, nspin
+                                                            ne_a, ne_b, nelectron, nkp, nmo, nspin, &
+                                                            nao, nrow_global, ncol_global !hairy probes calculation
       INTEGER, DIMENSION(2)                              :: kp_range
       REAL(KIND=dp)                                      :: kTS, mu, mus(2), nel
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: weig, wocc
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:,:,:,:)     :: rcoeff, icoeff 
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:,:)         :: smatrix 
       REAL(KIND=dp), DIMENSION(:), POINTER               :: eigenvalues, occupation, wkp
       TYPE(kpoint_env_type), POINTER                     :: kp
       TYPE(mo_set_type), POINTER                         :: mo_set
-      INTEGER ::  nao, nrow_global, ncol_global  !MARGHERITA  
-      TYPE(cp_fm_type), POINTER             :: mo_coeff       !MARGHERITA  
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:,:,:,:)   :: rcoeff, icoeff       !MARGHERITA  
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:,:)   :: smatrix     !MARGHERITA  
-      TYPE(hair_probes_type), DIMENSION(:), OPTIONAL, POINTER  :: probe !MARGHERITA      
+      TYPE(cp_fm_type), POINTER                          :: mo_coeff         
+      TYPE(hairy_probes_type), DIMENSION(:), &
+            OPTIONAL, POINTER                            :: probe       
       TYPE(mp_para_env_type), POINTER                    :: para_env_inter_kp
 
       CALL timeset(routineN, handle)
@@ -908,8 +908,7 @@ CONTAINS
       kp => kpoint%kp_env(1)%kpoint_env
       nspin = SIZE(kp%mos, 2)
       mo_set => kp%mos(1, 1)
-      CALL get_mo_set(mo_set, nmo=nmo, nao=nao, nelectron=nelectron)  !MARGHERITA 
-      !CALL get_mo_set(mo_set, nmo=nmo, nelectron=nelectron)
+      CALL get_mo_set(mo_set, nmo=nmo, nao=nao, nelectron=nelectron)   
       ne_a = nelectron
       IF (nspin == 2) THEN
          CALL get_mo_set(kp%mos(1, 2), nmo=nb, nelectron=ne_b)
@@ -919,13 +918,11 @@ CONTAINS
       weig = 0.0_dp
       wocc = 0.0_dp
 
-      !MARGHERITA **********************************************************************************
       IF (PRESENT(probe)) THEN 
-         ALLOCATE (rcoeff(nao, nmo, nkp, nspin), icoeff(nao, nmo, nkp, nspin)) !MARGHERITA   
-         rcoeff = 0.0_dp !MARGHERITA; coeff, real part
-         icoeff = 0.0_dp !MARGHERITA; coeff, imaginary part
+         ALLOCATE (rcoeff(nao, nmo, nkp, nspin), icoeff(nao, nmo, nkp, nspin)) 
+         rcoeff = 0.0_dp !coeff, real part
+         icoeff = 0.0_dp !coeff, imaginary part
       END IF
-      !MARGHERITA **********************************************************************************      
 
       CALL get_kpoint_info(kpoint, kp_range=kp_range)
       kplocal = kp_range(2) - kp_range(1) + 1
@@ -936,7 +933,7 @@ CONTAINS
             mo_set => kp%mos(1, ispin)
             CALL get_mo_set(mo_set, eigenvalues=eigenvalues)
             weig(1:nmo, ik, ispin) = eigenvalues(1:nmo)
-            !MARGHERITA **********************************************************************************
+
             IF (PRESENT(probe)) THEN 
                CALL get_mo_set(mo_set, mo_coeff=mo_coeff)
                CALL cp_fm_get_info(mo_coeff, &
@@ -965,27 +962,18 @@ CONTAINS
                DEALLOCATE(smatrix)
 
             END IF 
-            !MARGHERITA **********************************************************************************
          END DO
       END DO
       CALL get_kpoint_info(kpoint, para_env_inter_kp=para_env_inter_kp)
       CALL para_env_inter_kp%sum(weig)
-      !CALL mp_sum(weig, para_env_inter_kp%group)
-      !MARGHERITA **********************************************************************************
       IF (PRESENT(probe)) THEN 
-         !CALL mp_sum(rcoeff, para_env_inter_kp%group) !MARGHERITA, NEW 03.07
-         !CALL mp_sum(icoeff, para_env_inter_kp%group) !MARGHERITA, NEW 03.07
-         CALL para_env_inter_kp%sum(rcoeff) !MARGHERITA, NEW 03.07
-         CALL para_env_inter_kp%sum(icoeff) !MARGHERITA, NEW 03.07
+         CALL para_env_inter_kp%sum(rcoeff) 
+         CALL para_env_inter_kp%sum(icoeff) 
       END IF 
-      !MARGHERITA **********************************************************************************   
 
       CALL get_kpoint_info(kpoint, wkp=wkp)
 
-!********************************************************************************************************
-!MARGHERITA 
-!********************************************************************************************************
-!calling of HP module HERE, before smear 
+      !calling of HP module HERE, before smear 
       IF (PRESENT(probe)) THEN             
          smear%do_smear = .false. !ensures smearing is switched off
  
@@ -1044,9 +1032,8 @@ CONTAINS
          DEALLOCATE (weig, wocc, rcoeff, icoeff)
  
       END IF
-!********************************************************************************************************
       
-      IF (PRESENT(probe) .eqv. .false. ) THEN !MARGHERITA
+      IF (PRESENT(probe) .eqv. .false. ) THEN !switches off regular smearing for HP calculation
          IF (smear%do_smear) THEN
             ! finite electronic temperature
             SELECT CASE (smear%method)
@@ -1100,7 +1087,7 @@ CONTAINS
 
          DEALLOCATE (weig, wocc)
 
-      END IF !MARGHERITA
+      END IF 
       CALL timestop(handle)
 
    END SUBROUTINE kpoint_set_mo_occupation

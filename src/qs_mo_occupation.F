@@ -30,11 +30,11 @@ MODULE qs_mo_occupation
    USE util,                            ONLY: sort
    USE xas_env_types,                   ONLY: get_xas_env,&
                                               xas_environment_type
-   USE hair_probes,                     ONLY: probe_occupancy              !MARGHERITA 
-   USE cp_control_types,                ONLY: hair_probes_type,&           !MARGHERITA
-                                              dft_control_type             !MARGHERITA
-   USE input_section_types,             ONLY: section_vals_get_subs_vals,& !MARGHERITA
-                                              section_vals_type            !MARGHERITA                                              
+   USE hairy_probes,                     ONLY: probe_occupancy           
+   USE cp_control_types,                ONLY: hairy_probes_type,&        
+                                              dft_control_type          
+   USE input_section_types,             ONLY: section_vals_get_subs_vals, &
+                                              section_vals_type                                                      
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -205,7 +205,8 @@ CONTAINS
       TYPE(smear_type), POINTER                          :: smear
       REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: eval_deriv
       REAL(KIND=dp), OPTIONAL                            :: tot_zeff_corr
-      TYPE(hair_probes_type), DIMENSION(:), OPTIONAL, POINTER  :: probe !MARGHERITA      
+      TYPE(hairy_probes_type), DIMENSION(:), &
+            OPTIONAL, POINTER                            :: probe       
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'set_mo_occupation_2'
 
@@ -219,10 +220,8 @@ CONTAINS
 
       ! Fall back for the case that we have only one MO set
       IF (SIZE(mo_array) == 1) THEN
-         !MARGHERITA********************************************************************************************
          IF (PRESENT(probe)) THEN                                                       
             CALL set_mo_occupation_1(mo_array(1), smear=smear, probe=probe )  
-         !*****************************************************************************************************
          ELSE IF (PRESENT(eval_deriv)) THEN
 ! Change of MO occupancy to account for CORE_CORRECTION is not yet implemented
             CALL set_mo_occupation_1(mo_array(1), smear=smear, eval_deriv=eval_deriv)
@@ -236,15 +235,11 @@ CONTAINS
          CALL timestop(handle)
          RETURN
       END IF
-
-!********************************************************************************************************
-!MARGHERITA 
-!********************************************************************************************************
+ 
       IF (PRESENT(probe)) THEN 
          CALL set_mo_occupation_1(mo_array(1), smear=smear, probe=probe ) 
          CALL set_mo_occupation_1(mo_array(2), smear=smear, probe=probe ) 
      END IF 
-!********************************************************************************************************      
 
       IF (smear%do_smear) THEN
          IF (smear%fixed_mag_mom < 0.0_dp) THEN
@@ -281,11 +276,9 @@ CONTAINS
 
       IF (.NOT. ((mo_array(1)%flexible_electron_count > 0.0_dp) .AND. &
                  (mo_array(2)%flexible_electron_count > 0.0_dp))) THEN
-         !MARGHERITA********************************************************************************************
          IF (PRESENT(probe)) THEN                                                            
             CALL set_mo_occupation_1(mo_array(1), smear=smear, probe=probe ) 
             CALL set_mo_occupation_1(mo_array(2), smear=smear, probe=probe ) 
-         !******************************************************************************************************         
          ELSE IF (PRESENT(eval_deriv)) THEN
             CALL set_mo_occupation_1(mo_array(1), smear=smear, eval_deriv=eval_deriv)
             CALL set_mo_occupation_1(mo_array(2), smear=smear, eval_deriv=eval_deriv)
@@ -375,11 +368,9 @@ CONTAINS
                       "Multiplicity changed from "// &
                       TRIM(ADJUSTL(cp_to_string(multiplicity_old)))//" to "// &
                       TRIM(ADJUSTL(cp_to_string(multiplicity_new))))
-      !MARGHERITA********************************************************************************************
       IF (PRESENT(probe)) THEN                                                            
          CALL set_mo_occupation_1(mo_array(1), smear=smear, probe=probe ) 
          CALL set_mo_occupation_1(mo_array(2), smear=smear, probe=probe ) 
-      !******************************************************************************************************
       ELSE IF (PRESENT(eval_deriv)) THEN
          CALL set_mo_occupation_1(mo_array(1), smear=smear, eval_deriv=eval_deriv)
          CALL set_mo_occupation_1(mo_array(2), smear=smear, eval_deriv=eval_deriv)
@@ -423,7 +414,8 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: eval_deriv
       TYPE(xas_environment_type), OPTIONAL, POINTER      :: xas_env
       REAL(KIND=dp), OPTIONAL                            :: tot_zeff_corr
-      TYPE(hair_probes_type), DIMENSION(:), OPTIONAL, POINTER  :: probe !MARGHERITA      
+      TYPE(hairy_probes_type), DIMENSION(:), &
+            OPTIONAL, POINTER                            :: probe      
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'set_mo_occupation_1'
 
@@ -543,9 +535,6 @@ CONTAINS
          CPASSERT(equal_size)
       END IF
       
-!********************************************************************************************************
-!MARGHERITA 
-!********************************************************************************************************
 !calling of HP module HERE, before smear 
       IF (PRESENT(probe)) THEN             
          i_first = 1
@@ -560,7 +549,7 @@ CONTAINS
          CALL probe_occupancy(mo_set%occupation_numbers, mo_set%mu, mo_set%kTS, &
                               mo_set%eigenvalues, mo_set%mo_coeff, mo_set%maxocc, &
                               probe, N=nelec)
-         !NB: mu and T are taken from the hair_probe type (defined in cp_control_types.F); these values are set in the input
+         !NB: mu and T are taken from the hairy_probe type (defined in cp_control_types.F); these values are set in the input
 
          ! Find the lowest fractional occupied MO (LFOMO)
          DO imo = i_first, nmo

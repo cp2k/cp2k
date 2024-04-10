@@ -19,7 +19,7 @@ MODULE cp_control_utils
         dft_control_create, dft_control_type, efield_type, expot_control_create, &
         maxwell_control_create, qs_control_type, tddfpt2_control_type, tddfpt_control_create, &
         tddfpt_control_type, xtb_control_type, &
-        hair_probes_type !MARGHERITA
+        hairy_probes_type 
    USE cp_files,                        ONLY: close_file,&
                                               open_file
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
@@ -116,7 +116,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: maxwell_section, sccs_section, &
                                                             scf_section, tmp_section, &
                                                             xc_fun_section, xc_section, &
-                                                            hair_probes_section !MARGHERITA
+                                                            hairy_probes_section 
 
       was_present = .FALSE.
 
@@ -382,19 +382,18 @@ CONTAINS
                           "unrestricted Kohn-Sham (UKS) calculations")
       END IF
 
-!MARGHERITA 
 !***************************************************************************************************
-!\Control parameters for Hair Probes 
+!\Control parameters for a Hairy Probes DFT calculation
 !***************************************************************************************************
-    ! Read the HAIR PROBES input section if present
-      hair_probes_section => section_vals_get_subs_vals(dft_section, "HAIR_PROBES")
-      CALL section_vals_get(hair_probes_section, n_repetition=nrep, explicit=is_present)
+    ! Read the HAIRY PROBES input section if present
+      hairy_probes_section => section_vals_get_subs_vals(dft_section, "HAIRY_PROBES")
+      CALL section_vals_get(hairy_probes_section, n_repetition=nrep, explicit=is_present)
       !> n_repetitions: number of repetitions of the section
   
       IF (is_present) THEN
-         dft_control%hair_probes = .true. 
+         dft_control%hairy_probes = .true. 
          ALLOCATE (dft_control%probe(nrep))
-         CALL read_hair_probes_sections(dft_control, hair_probes_section)
+         CALL read_hairy_probes_sections(dft_control, hairy_probes_section)
   
       END IF 
   
@@ -1595,7 +1594,8 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'write_dft_control'
 
       CHARACTER(LEN=20)                                  :: tmpStr
-      INTEGER                                            :: handle, output_unit
+      INTEGER                                            :: handle, output_unit, &
+                                                            i, n_rep, i_rep !parameters for hairy probes
       REAL(kind=dp)                                      :: density_cut, density_smooth_cut_range, &
                                                             gradient_cut, tau_cut
       TYPE(cp_logger_type), POINTER                      :: logger
@@ -1603,7 +1603,6 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
       TYPE(section_type), POINTER                        :: section
       TYPE(section_vals_type), POINTER                   :: xc_section
-      INTEGER :: i, n_rep, i_rep !MARGHERITA
 
       IF (dft_control%qs_control%semi_empirical) RETURN
       IF (dft_control%qs_control%dftb) RETURN
@@ -1814,10 +1813,8 @@ CONTAINS
 
       END IF
 
-!**************************************************************************************
-!MARGHERITA 
-!**************************************************************************************
-      IF (dft_control%hair_probes .eqv. .true.) THEN
+      !hairy probes DFT calculatio
+      IF (dft_control%hairy_probes .eqv. .true.) THEN
          n_rep = SIZE(dft_control%probe) 
          IF (output_unit > 0) THEN
                  DO i_rep = 1, n_rep 
@@ -1836,8 +1833,6 @@ CONTAINS
          END IF       
  END IF  
  
-!**************************************************************************************      
-
       CALL cp_print_key_finished_output(output_unit, logger, dft_section, &
                                         "PRINT%DFT_CONTROL_PARAMETERS")
 
@@ -2551,25 +2546,24 @@ CONTAINS
    END SUBROUTINE read_admm_block_list
 
 ! **************************************************************************************************
-!> \brief 
+!> \brief Reads the HAIRY PROBES section in the imput
 !> \param 
 !> \param 
 ! **************************************************************************************************
-!MARGHERITA 
-   SUBROUTINE read_hair_probes_sections(dft_control, hair_probes_section)
+   SUBROUTINE read_hairy_probes_sections(dft_control, hairy_probes_section)
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(section_vals_type), POINTER                   :: hair_probes_section
+      TYPE(section_vals_type), POINTER                   :: hairy_probes_section
    
       INTEGER                                           :: i, j, jj, kk, n_rep
-      INTEGER, DIMENSION(:), POINTER                     :: tmplist          !MARGHERITA 
+      INTEGER, DIMENSION(:), POINTER                     :: tmplist           
    
       DO i = 1, SIZE(dft_control%probe)
          NULLIFY (dft_control%probe(i)%atom_ids)
    
-         CALL section_vals_val_get(hair_probes_section,"ATOM_IDS", i_rep_section=i, n_rep_val=n_rep)
+         CALL section_vals_val_get(hairy_probes_section,"ATOM_IDS", i_rep_section=i, n_rep_val=n_rep)
          jj = 0 
          DO kk = 1, n_rep
-            CALL section_vals_val_get(hair_probes_section,"ATOM_IDS", i_rep_section=i, i_rep_val=kk, i_vals=tmplist)
+            CALL section_vals_val_get(hairy_probes_section,"ATOM_IDS", i_rep_section=i, i_rep_val=kk, i_vals=tmplist)
             jj = jj + SIZE(tmplist)
          END DO
    
@@ -2580,26 +2574,23 @@ CONTAINS
    
          jj = 0
          DO kk = 1, n_rep
-            CALL section_vals_val_get(hair_probes_section,"ATOM_IDS", i_rep_section=i, i_rep_val=kk, i_vals=tmplist)
+            CALL section_vals_val_get(hairy_probes_section,"ATOM_IDS", i_rep_section=i, i_rep_val=kk, i_vals=tmplist)
             DO j = 1, SIZE(tmplist)
                jj = jj + 1 
                dft_control%probe(i)%atom_ids(jj) = tmplist(j)
             END DO               
          END DO 
       
-         CALL section_vals_val_get(hair_probes_section,"MU", i_rep_section=i, r_val=dft_control%probe(i)%mu)
+         CALL section_vals_val_get(hairy_probes_section,"MU", i_rep_section=i, r_val=dft_control%probe(i)%mu)
      
-         CALL section_vals_val_get(hair_probes_section,"T", i_rep_section=i, r_val=dft_control%probe(i)%T) 
+         CALL section_vals_val_get(hairy_probes_section,"T", i_rep_section=i, r_val=dft_control%probe(i)%T) 
          
-         CALL section_vals_val_get(hair_probes_section,"ALPHA", i_rep_section=i, r_val=dft_control%probe(i)%alpha) !8th implementation
-   
-   !      CALL section_vals_val_get(hair_probes_section,"SOLUTION_PROBE", i_rep_section=i, &
-   !              l_val=dft_control%probe(i)%solution_probe) !8th implementation
-   
-         CALL section_vals_val_get(hair_probes_section,"eps_hp", i_rep_section=i, r_val=dft_control%probe(i)%eps_hp) 
+         CALL section_vals_val_get(hairy_probes_section,"ALPHA", i_rep_section=i, r_val=dft_control%probe(i)%alpha) !8th implementation
+
+         CALL section_vals_val_get(hairy_probes_section,"eps_hp", i_rep_section=i, r_val=dft_control%probe(i)%eps_hp) 
       END DO 
    
-   END SUBROUTINE read_hair_probes_sections
+   END SUBROUTINE read_hairy_probes_sections
 ! **************************************************************************************************
    
 END MODULE cp_control_utils
