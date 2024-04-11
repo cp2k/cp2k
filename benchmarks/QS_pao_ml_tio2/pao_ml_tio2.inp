@@ -100,8 +100,8 @@
           PRIOR MEAN
           TOLERANCE 1000.0
           &TRAINING_SET
-            ./test-1_0.pao
-            ./test2-1_0.pao
+            test-1_0.pao
+            test2-1_0.pao
           &END TRAINING_SET
         &END MACHINE_LEARNING
         &PRINT
