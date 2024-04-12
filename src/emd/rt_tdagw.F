@@ -520,7 +520,7 @@ CONTAINS
       END IF
       @:SPIN_DO(j, re, im, nspin)
          DO k=1,3
-            ! TODO : Sign of the field - should be minus due to charge of electrons
+            ! Minus sign due to charge of electrons
             CALL cp_fm_scale_and_add(1.0_dp, tdagw_env%ham_effective(re)%matrix,&
                                     -tdagw_env%field(k), tdagw_env%moments(k)%matrix)
          END DO
@@ -1099,7 +1099,7 @@ CONTAINS
       CALL cp_fm_invert(metric_fm, metric_inv_fm)
       CALL cp_fm_create(V_fm, bs_env%fm_RI_RI%matrix_struct)
       CALL cp_fm_set_all(V_fm, 0.0_dp)
-      ! Multiply by the inverse from each site (M^-1 is symmetric)
+      ! Multiply by the inverse from each side (M^-1 is symmetric)
       CALL cp_dbcsr_sm_fm_multiply(V_dbcsr(1), metric_inv_fm,&
                                    work_fm, bs_env%n_RI)
       CALL parallel_gemm("N", "N", bs_env%n_RI, bs_env%n_RI, bs_env%n_RI,&
@@ -1335,8 +1335,15 @@ CONTAINS
                          bs_env,&
                          tdagw_env%t_3c_w)
 
+      ! DEBUG : TODO Multiply rho on both sides by inverse overlap matrix
+      CALL parallel_gemm("N", "N", tdagw_env%n_ao, tdagw_env%n_ao, tdagw_env%n_ao,&
+                         1.0_dp, tdagw_env%S_inv_fm%matrix, rho,&
+                         0.0_dp, tdagw_env%rho_workspace(1)%matrix)
+      CALL parallel_gemm("N", "N", tdagw_env%n_ao, tdagw_env%n_ao, tdagw_env%n_ao,&
+                         1.0_dp, tdagw_env%rho_workspace(1)%matrix, tdagw_env%S_inv_fm%matrix,&
+                         0.0_dp, tdagw_env%rho_workspace(2)%matrix)
       ! Convert density to tensor
-      CALL copy_fm_to_dbcsr(rho, tdagw_env%rho_dbcsr)
+      CALL copy_fm_to_dbcsr(tdagw_env%rho_workspace(2)%matrix, tdagw_env%rho_dbcsr)
       ! Maybe doable via creation
       CALL copy_matrix_to_3d_tensor(tdagw_env%rho_dbcsr, tdagw_env%t_two_plus_one)
       ! Contract T _ (Q 1) = sum _ Q (Q|mu'nu') D _ (mu' nu' 1)
