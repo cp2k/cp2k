@@ -1220,7 +1220,8 @@ MODULE input_constants
                                                eri_operator_yukawa = 2, &
                                                eri_operator_erf = 3, &
                                                eri_operator_erfc = 4, &
-                                               eri_operator_gaussian = 5
+                                               eri_operator_gaussian = 5, &
+                                               eri_operator_trunc = 6
 
    INTEGER, PARAMETER, PUBLIC               :: do_eri_gpw = 0, &
                                                do_eri_mme = 1, &
