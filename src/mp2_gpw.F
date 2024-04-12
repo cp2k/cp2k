@@ -682,18 +682,21 @@ CONTAINS
       CALL grep_rows_in_subgroups(para_env, para_env_sub, mo_coeff, gd_array, C)
 
       ! create and fill mo_coeff_o, mo_coeff_v and mo_coeff_all
+      ALLOCATE (mo_coeff_o)
       CALL build_dbcsr_from_rows(para_env_sub, mo_coeff_o, C(:, 1:homo), &
                                  mat_munu, gd_array, eps_filter)
 
+      ALLOCATE (mo_coeff_v)
       CALL build_dbcsr_from_rows(para_env_sub, mo_coeff_v, C(:, homo + 1:dimen), &
                                  mat_munu, gd_array, eps_filter)
 
       IF (my_do_gw) THEN
-
+         ALLOCATE (mo_coeff_gw)
          CALL build_dbcsr_from_rows(para_env_sub, mo_coeff_gw, C(:, homo - gw_corr_lev_occ + 1:homo + gw_corr_lev_virt), &
                                     mat_munu, gd_array, eps_filter)
 
          ! all levels
+         ALLOCATE (mo_coeff_all)
          CALL build_dbcsr_from_rows(para_env_sub, mo_coeff_all, C, &
                                     mat_munu, gd_array, eps_filter)
 
@@ -844,7 +847,7 @@ CONTAINS
    SUBROUTINE build_dbcsr_from_rows(para_env_sub, mo_coeff_to_build, Cread, &
                                     mat_munu, gd_array, eps_filter)
       TYPE(mp_para_env_type), INTENT(IN)                 :: para_env_sub
-      TYPE(dbcsr_type), POINTER                          :: mo_coeff_to_build
+      TYPE(dbcsr_type)                                   :: mo_coeff_to_build
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: Cread
       TYPE(dbcsr_type), INTENT(INOUT)                    :: mat_munu
       TYPE(group_dist_d1_type), INTENT(IN)               :: gd_array
@@ -865,8 +868,6 @@ CONTAINS
 
       CALL get_group_dist(gd_array, para_env_sub%mepos, my_mu_start, my_mu_end)
 
-      NULLIFY (mo_coeff_to_build)
-      CALL dbcsr_init_p(mo_coeff_to_build)
       CALL cp_dbcsr_m_by_n_from_row_template(mo_coeff_to_build, template=mat_munu, n=ncol_global, &
                                              sym=dbcsr_type_no_symmetry, data_type=dbcsr_type_real_default)
       CALL dbcsr_reserve_all_blocks(mo_coeff_to_build)
