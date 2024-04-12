@@ -67,7 +67,7 @@ MODULE input_cp2k_dft
       do_se_lr_ewald_gks, do_se_lr_ewald_r3, do_se_lr_none, do_spin_density, do_taylor, &
       ehrenfest, embed_diff, embed_fa, embed_grid_angstrom, embed_grid_bohr, embed_level_shift, &
       embed_none, embed_quasi_newton, embed_resp, embed_steep_desc, eri_method_full_gpw, &
-      eri_method_gpw_ht, eri_operator_coulomb, eri_operator_erf, eri_operator_erfc, &
+      eri_method_gpw_ht, eri_operator_trunc, eri_operator_coulomb, eri_operator_erf, eri_operator_erfc, &
       eri_operator_gaussian, eri_operator_yukawa, gapw_1c_large, gapw_1c_medium, gapw_1c_orb, &
       gapw_1c_small, gapw_1c_very_large, gaussian, general_roks, gto_cartesian, gto_spherical, &
       hf_model, high_spin_roks, history_guess, jacobian_fd1, jacobian_fd1_backward, &
@@ -9412,14 +9412,15 @@ CONTAINS
                           description="Operator used in ERI calculation.", &
                           usage="OPERATOR <1/R>", &
                           enum_c_vals=s2a("<1/R>", "<EXP(-A*R)/R>", "<ERF(A*R)/R>", &
-                                          "<ERFC(A*R)/R>", "<EXP(-A*R2)/R>"), &
+                                          "<ERFC(A*R)/R>", "<EXP(-A*R2)/R>", "<H(A-R)/R>"), &
                           enum_i_vals=(/eri_operator_coulomb, eri_operator_yukawa, &
-                                        eri_operator_erf, eri_operator_erfc, eri_operator_gaussian/), &
+                                        eri_operator_erf, eri_operator_erfc, eri_operator_gaussian, eri_operator_trunc/), &
                           enum_desc=s2a("Coulomb operator", &
                                         "Yukawa potential operator", &
                                         "Error function potential operator", &
                                         "Complementary error function potential operator", &
-                                        "Gaussian potential operator"), &
+                                        "Gaussian potential operator", &
+                                        "Truncated Coulomb potential"), &
                           default_i_val=eri_operator_coulomb)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)

@@ -53,7 +53,7 @@ MODULE qs_active_space_methods
    USE group_dist_types, ONLY: get_group_dist, release_group_dist, group_dist_d1_type
    USE input_constants, ONLY: &
       casci_canonical, dmft_model, eri_method_full_gpw, eri_method_gpw_ht, eri_operator_coulomb, &
-      eri_operator_erf, eri_operator_erfc, eri_operator_gaussian, eri_operator_yukawa, hf_model, &
+      eri_operator_trunc, eri_operator_erf, eri_operator_erfc, eri_operator_gaussian, eri_operator_yukawa, hf_model, &
       manual_selection, mao_projection, no_solver, qiskit_solver, rsdft_model, wannier_projection
    USE input_section_types, ONLY: section_vals_get, &
                                   section_vals_get_subs_vals, &
@@ -862,6 +862,9 @@ CONTAINS
             WRITE (iw, '(T3,A,T66,F14.3)') "ERI operator parameter", eri_op_param
          CASE (eri_operator_gaussian)
             WRITE (iw, '(T3,A,T41,A)') "ERI operator", "Gaussian attenuated <EXP(-a*R^2)/R>"
+            WRITE (iw, '(T3,A,T66,F14.3)') "ERI operator parameter", eri_op_param
+         CASE (eri_operator_trunc)
+            WRITE (iw, '(T3,A,T53,A)') "ERI operator", "Truncated Coulomb <H(a-R)/R>"
             WRITE (iw, '(T3,A,T66,F14.3)') "ERI operator parameter", eri_op_param
          CASE DEFAULT
             CPABORT("Unknown ERI operator")
@@ -1749,6 +1752,18 @@ CONTAINS
                   gf%array(ig) = fourpi/g2*(1._dp - EXP(ga))
                END DO
                IF (grid%have_g0) gf%array(1) = 0.25_dp*fourpi/a
+            CASE (eri_operator_trunc)
+               a = eri_env%operator_parameter
+               DO ig = grid%first_gne0, grid%ngpts_cut_local
+                  g2 = grid%gsq(ig)
+                  ga = SQRT(g2)*a
+                  IF (ga >= 0.005_dp) THEN
+                     gf%array(ig) = fourpi/g2*(1.0_dp - COS(ga))
+                  ELSE
+                     gf%array(ig) = fourpi/g2*ga**2/2.0_dp*(1.0_dp - ga**2/12.0_dp)
+                  END IF
+               END DO
+               IF (grid%have_g0) gf%array(1) = 0.0_dp
             CASE (eri_operator_gaussian)
                CPABORT("")
             CASE DEFAULT
@@ -1799,6 +1814,18 @@ CONTAINS
                   gf%array(ig) = fourpi/g2*(1._dp - EXP(ga))*(1.0_dp - COS(rlength*gg))
                END DO
                IF (grid%have_g0) gf%array(1) = 0._dp
+            CASE (eri_operator_trunc)
+               a = eri_env%operator_parameter
+               DO ig = grid%first_gne0, grid%ngpts_cut_local
+                  g2 = grid%gsq(ig)
+                  ga = SQRT(g2)*a
+                  IF (ga >= 0.005_dp) THEN
+                     gf%array(ig) = fourpi/g2*(1.0_dp - COS(ga))
+                  ELSE
+                     gf%array(ig) = fourpi/g2*ga**2/2.0_dp*(1.0_dp - ga**2/12.0_dp)
+                  END IF
+               END DO
+               IF (grid%have_g0) gf%array(1) = 0.0_dp
             CASE (eri_operator_gaussian)
                CPABORT("")
             CASE DEFAULT
