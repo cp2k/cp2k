@@ -27,7 +27,7 @@ MODULE qs_active_space_methods
    USE cp_dbcsr_operations, ONLY: cp_dbcsr_plus_fm_fm_t, &
                                   cp_dbcsr_sm_fm_multiply, &
                                   dbcsr_allocate_matrix_set, &
-                                  cp_dbcsr_m_by_n_from_template
+                                  cp_dbcsr_m_by_n_from_template, copy_dbcsr_to_fm
    USE cp_files, ONLY: close_file, &
                        file_exists, &
                        open_file
@@ -49,7 +49,7 @@ MODULE qs_active_space_methods
       dbcsr_copy, dbcsr_csr_create, dbcsr_csr_type, dbcsr_p_type, dbcsr_type, dbcsr_release, &
       dbcsr_type_no_symmetry, dbcsr_create, dbcsr_set, dbcsr_multiply, dbcsr_iterator_next_block, &
       dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_blocks_left, &
-      dbcsr_iterator_type, dbcsr_type_symmetric, dbcsr_get_occupation
+      dbcsr_iterator_type, dbcsr_type_symmetric, dbcsr_get_occupation, dbcsr_get_info
    USE group_dist_types, ONLY: get_group_dist, release_group_dist, group_dist_d1_type
    USE input_constants, ONLY: &
       casci_canonical, dmft_model, eri_method_full_gpw, eri_method_gpw_ht, eri_operator_coulomb, &
@@ -1195,25 +1195,26 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'calculate_eri_gpw'
 
-      INTEGER :: blk, col, col_offset, col_size, color, handle, i1, i2, i3, i4, i_multigrid, &
-         icount2, intcount, irange(2), irange_sub(2), isp, isp1, isp2, ispin, iwa1, iwa12, iwa2, &
-         iwb1, iwb12, iwb2, iwbs, iwbt, iwfn, n_multigrid, nmm, nmo, nmo1, nmo2, nspins, &
-         number_of_subgroups, nx, r, row, row_offset, row_size, s, stored_integrals
+      INTEGER :: col_local, color, handle, i1, i2, i3, i4, i_multigrid, icount2, intcount, &
+         irange(2), irange_sub(2), isp, isp1, isp2, ispin, iwa1, iwa12, iwa2, iwb1, iwb12, iwb2, &
+         iwbs, iwbt, iwfn, n_multigrid, ncol_global, ncol_local, nmm, nmo, nmo1, nmo2, &
+         nrow_global, nrow_local, nspins, number_of_subgroups, nx, row_local, stored_integrals
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: eri_index
+      INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
       LOGICAL                                            :: print1, print2, &
                                                             skip_load_balance_distributed
       REAL(KIND=dp)                                      :: dvol, erint, pair_int, &
                                                             progression_factor, rc, rsize
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eri
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: data_block
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env, blacs_env_sub
+      TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: fm_matrix_pq_rnu, fm_matrix_pq_rs, &
+                                                            fm_mo_coeff_as
       TYPE(cp_fm_type), POINTER                          :: mo_coeff, mo_coeff1, mo_coeff2
-      TYPE(dbcsr_iterator_type)                          :: iter
       TYPE(dbcsr_p_type)                                 :: mat_munu
-      TYPE(dbcsr_p_type), ALLOCATABLE, DIMENSION(:)      :: mo_coeff_as
-      TYPE(dbcsr_type), ALLOCATABLE, DIMENSION(:)        :: matrix_pq_rnu, matrix_pq_rs
+      TYPE(dbcsr_type), ALLOCATABLE, DIMENSION(:)        :: matrix_pq_rnu, mo_coeff_as
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mp_comm_type)                                 :: mp_group
       TYPE(mp_para_env_type), POINTER                    :: para_env, para_env_sub
@@ -1376,7 +1377,8 @@ CONTAINS
          ! Create sparse matrices carrying the matrix products, Code borrowed from the MP2 GPW method
          ! Create equal distributions for them (no sparsity present)
          ! We use the routines from mp2 suggesting that one may replicate the grids later for better performance
-         ALLOCATE (mo_coeff_as(nspins), matrix_pq_rnu(nspins), matrix_pq_rs(nspins))
+         ALLOCATE (mo_coeff_as(nspins), matrix_pq_rnu(nspins), &
+                   fm_matrix_pq_rnu(nspins), fm_mo_coeff_as(nspins), fm_matrix_pq_rs(nspins))
          DO ispin = 1, nspins
             BLOCK
                REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE :: C
@@ -1385,20 +1387,32 @@ CONTAINS
                CALL get_mo_set(mos(ispin), mo_coeff=mo_coeff)
                CALL grep_rows_in_subgroups(para_env, para_env_sub, mo_coeff, gd_array, C)
 
-               CALL build_dbcsr_from_rows(para_env_sub, mo_coeff_as(ispin)%matrix, &
+               CALL build_dbcsr_from_rows(para_env_sub, mo_coeff_as(ispin), &
                                           C(:, MINVAL(orbitals(:, ispin)):MAXVAL(orbitals(:, ispin))), &
                                           mat_munu%matrix, gd_array, eri_env%eri_gpw%eps_filter)
                CALL release_group_dist(gd_array)
                DEALLOCATE (C)
             END BLOCK
 
-            CALL dbcsr_create(matrix_pq_rnu(ispin), template=mo_coeff_as(ispin)%matrix)
-            CALL cp_dbcsr_m_by_n_from_template(matrix_pq_rs(ispin), template=mo_coeff_as(ispin)%matrix, &
-                                               m=SIZE(orbitals, 1), n=SIZE(orbitals, 1), &
-                                               sym=dbcsr_type_no_symmetry)
-
+            CALL dbcsr_create(matrix_pq_rnu(ispin), template=mo_coeff_as(ispin))
             CALL dbcsr_set(matrix_pq_rnu(ispin), 0.0_dp)
-            CALL dbcsr_set(matrix_pq_rs(ispin), 0.0_dp)
+
+            CALL dbcsr_get_info(matrix_pq_rnu(ispin), nfullrows_total=nrow_global, nfullcols_total=ncol_global)
+
+            NULLIFY (fm_struct)
+            CALL cp_fm_struct_create(fm_struct, context=blacs_env, para_env=para_env_sub, &
+                                     nrow_global=nrow_global, ncol_global=ncol_global)
+            CALL cp_fm_create(fm_matrix_pq_rnu(ispin), fm_struct)
+            CALL cp_fm_create(fm_mo_coeff_as(ispin), fm_struct)
+            CALL cp_fm_struct_release(fm_struct)
+
+            CALL copy_dbcsr_to_fm(mo_coeff_as(ispin), fm_mo_coeff_as(ispin))
+
+            NULLIFY (fm_struct)
+            CALL cp_fm_struct_create(fm_struct, context=blacs_env, para_env=para_env_sub, &
+                                     nrow_global=ncol_global, ncol_global=ncol_global)
+            CALL cp_fm_create(fm_matrix_pq_rs(ispin), fm_struct)
+            CALL cp_fm_struct_release(fm_struct)
          END DO
 
          ! Copy the active space of the MOs into DBCSR matrices
@@ -1519,26 +1533,31 @@ CONTAINS
                                              calculate_forces=.FALSE., compute_tau=.FALSE., gapw=.FALSE., &
                                              pw_env_external=pw_env_sub, task_list_external=task_list_sub)
 
-                     CALL dbcsr_multiply("N", "N", 1.0_dp, mat_munu%matrix, mo_coeff_as(isp2)%matrix, &
+                     CALL dbcsr_multiply("N", "N", 1.0_dp, mat_munu%matrix, mo_coeff_as(isp2), &
                                          0.0_dp, matrix_pq_rnu(isp2), filter_eps=eri_env%eri_gpw%eps_filter)
-                     CALL dbcsr_multiply("T", "N", 0.5_dp, matrix_pq_rnu(isp2), mo_coeff_as(isp2)%matrix, &
-                                         0.0_dp, matrix_pq_rs(isp2), filter_eps=eri_env%eri_gpw%eps_filter)
-                     CALL dbcsr_multiply("T", "N", 0.5_dp, mo_coeff_as(isp2)%matrix, matrix_pq_rnu(isp2), &
-                                         1.0_dp, matrix_pq_rs(isp2), filter_eps=eri_env%eri_gpw%eps_filter)
+                     CALL copy_dbcsr_to_fm(matrix_pq_rnu(isp2), fm_matrix_pq_rnu(isp2))
+
+                     CALL cp_fm_get_info(fm_matrix_pq_rnu(isp2), ncol_global=ncol_global, nrow_global=nrow_global)
+
+                     CALL parallel_gemm("T", "N", ncol_global, ncol_global, nrow_global, 0.5_dp, &
+                                        fm_matrix_pq_rnu(isp2), fm_mo_coeff_as(isp2), &
+                                        0.0_dp, fm_matrix_pq_rs(isp2))
+                     CALL parallel_gemm("T", "N", ncol_global, ncol_global, nrow_global, 0.5_dp, &
+                                        fm_mo_coeff_as(isp2), fm_matrix_pq_rnu(isp2), &
+                                        1.0_dp, fm_matrix_pq_rs(isp2))
+
+                     CALL cp_fm_get_info(fm_matrix_pq_rs(isp2), ncol_local=ncol_local, nrow_local=nrow_local, &
+                                         col_indices=col_indices, row_indices=row_indices)
 
                      icount2 = 0
-                     CALL dbcsr_iterator_start(iter, matrix_pq_rs(isp2))
-                     DO WHILE (dbcsr_iterator_blocks_left(iter))
-                        CALL dbcsr_iterator_next_block(iter, row, col, data_block, blk, &
-                                                       row_size=row_size, col_size=col_size, &
-                                                       row_offset=row_offset, col_offset=col_offset)
-                        DO s = 1, col_size
-                        DO r = 1, row_size
-                           iwb1 = orbitals(row_offset - 1 + r, isp2)
-                           iwb2 = orbitals(col_offset - 1 + s, isp2)
+                     DO col_local = 1, ncol_local
+                        iwb2 = orbitals(col_indices(col_local), isp2)
+                        DO row_local = 1, nrow_local
+                           iwb1 = orbitals(row_indices(row_local), isp2)
+
                            IF (iwb1 <= iwb2) THEN
                               iwb12 = csr_idx_to_combined(iwb1, iwb2, nmo2)
-                              erint = data_block(r, s)
+                              erint = fm_matrix_pq_rs(isp2)%local_data(row_local, col_local)
                               IF (ABS(erint) > eri_env%eps_integral .AND. (iwa12 <= iwb12 .OR. isp1 /= isp2)) THEN
                                  icount2 = icount2 + 1
                                  eri(icount2) = erint
@@ -1546,9 +1565,7 @@ CONTAINS
                               END IF
                            END IF
                         END DO
-                        END DO
                      END DO
-                     CALL dbcsr_iterator_stop(iter)
                      stored_integrals = stored_integrals + icount2
                      !
                      isp = (isp1 - 1)*isp2 + (isp2 - isp1 + 1)
@@ -1658,12 +1675,14 @@ CONTAINS
 
       IF (eri_env%method == eri_method_gpw_ht) THEN
          DO ispin = 1, nspins
-            CALL dbcsr_release(mo_coeff_as(ispin)%matrix)
-            DEALLOCATE (mo_coeff_as(ispin)%matrix)
+            CALL dbcsr_release(mo_coeff_as(ispin))
             CALL dbcsr_release(matrix_pq_rnu(ispin))
-            CALL dbcsr_release(matrix_pq_rs(ispin))
+            CALL cp_fm_release(fm_mo_coeff_as(ispin))
+            CALL cp_fm_release(fm_matrix_pq_rnu(ispin))
+            CALL cp_fm_release(fm_matrix_pq_rs(ispin))
          END DO
-         DEALLOCATE (mo_coeff_as, matrix_pq_rnu, matrix_pq_rs)
+         DEALLOCATE (mo_coeff_as, matrix_pq_rnu, &
+                     fm_mo_coeff_as, fm_matrix_pq_rnu, fm_matrix_pq_rs)
          CALL deallocate_task_list(task_list_sub)
          CALL dbcsr_release(mat_munu%matrix)
          DEALLOCATE (mat_munu%matrix)
