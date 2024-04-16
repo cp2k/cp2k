@@ -3899,7 +3899,8 @@ CONTAINS
       fcut = num_cut*invden_cut
 
       !Final distance acid - hydronium
-      fbrace = rion_num/rion_den/2.0_dp
+!      fbrace = rion_num/rion_den/2.0_dp
+      fbrace = rion_num/rion_den/n_oxygens_acid
       rion = fcut*fbrace
       colvar%ss = rion
 
@@ -3922,14 +3923,18 @@ CONTAINS
       DO kk = 1, n_oxygens_acid
          DO ii = 1, n_oxygens_water
             colvar%dsdr(1:3, offsetO + kk) = colvar%dsdr(1:3, offsetO + kk) &
-                                             + fcut*ddist_rik(1:3, ii, kk)*expfac(ii)/rion_den/2.0_dp
+                                             + fcut*ddist_rik(1:3, ii, kk)*expfac(ii)/rion_den/n_oxygens_acid
+!                                             + fcut*ddist_rik(1:3, ii, kk)*expfac(ii)/rion_den/2.0_dp
             colvar%dsdr(1:3, ii) = colvar%dsdr(1:3, ii) &
-                                   - fcut*ddist_rik(1:3, ii, kk)*expfac(ii)/rion_den/2.0_dp
+                                   - fcut*ddist_rik(1:3, ii, kk)*expfac(ii)/rion_den/n_oxygens_acid
+!                                   - fcut*ddist_rik(1:3, ii, kk)*expfac(ii)/rion_den/2.0_dp
             DO jj = 1, n_hydrogens
                colvar%dsdr(1:3, ii) = colvar%dsdr(1:3, ii) &
-                                      + fcut*dexpfac_rik(ii, kk)*dnwoh(1:3, jj, ii)/rion_den/2.0_dp
+                                      + fcut*dexpfac_rik(ii, kk)*dnwoh(1:3, jj, ii)/rion_den/n_oxygens_acid
+!                                      + fcut*dexpfac_rik(ii, kk)*dnwoh(1:3, jj, ii)/rion_den/2.0_dp
                colvar%dsdr(1:3, offsetH + jj) = colvar%dsdr(1:3, offsetH + jj) &
-                                                - fcut*dexpfac_rik(ii, kk)*dnwoh(1:3, jj, ii)/rion_den/2.0_dp
+                                                - fcut*dexpfac_rik(ii, kk)*dnwoh(1:3, jj, ii)/rion_den/n_oxygens_acid
+!                                                - fcut*dexpfac_rik(ii, kk)*dnwoh(1:3, jj, ii)/rion_den/2.0_dp
             END DO
          END DO
       END DO

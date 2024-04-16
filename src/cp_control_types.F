@@ -87,6 +87,7 @@ MODULE cp_control_types
       INTEGER, DIMENSION(3)                :: delta_pulse_direction = 0
       REAL(KIND=dp)                        :: delta_pulse_scale = 0.0_dp
       LOGICAL                              :: velocity_gauge = .FALSE.
+      REAL(KIND=dp), DIMENSION(3)          :: field = 0.0_dp
       REAL(KIND=dp), DIMENSION(3)          :: vec_pot = 0.0_dp
       LOGICAL                              :: nl_gauge_transform = .FALSE.
       LOGICAL                              :: is_proj_mo = .FALSE.

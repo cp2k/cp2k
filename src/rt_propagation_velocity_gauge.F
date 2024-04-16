@@ -267,6 +267,7 @@ CONTAINS
       REAL(kind=dp)                                      :: field(3)
 
       CALL make_field(dft_control, field, qs_env%sim_step, qs_env%sim_time)
+      dft_control%rtp_control%field = field
       dft_control%rtp_control%vec_pot = dft_control%rtp_control%vec_pot - field*qs_env%rtp%dt
       ! Update the vec_pot_initial value for RTP restart:
       dft_control%efield_fields(1)%efield%vec_pot_initial = dft_control%rtp_control%vec_pot

@@ -89,19 +89,22 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: write_binary_restart_file
       LOGICAL, OPTIONAL                                  :: respa
 
-      INTEGER                                            :: i_subsys, iforce_eval, myid, nforce_eval
+      INTEGER                                            :: i, i_subsys, iforce_eval, myid, &
+                                                            nforce_eval
       INTEGER, DIMENSION(:), POINTER                     :: i_force_eval
-      LOGICAL                                            :: multiple_subsys, skip_vel_section
+      LOGICAL                                            :: is_present, multiple_subsys, &
+                                                            skip_vel_section
       REAL(KIND=dp), DIMENSION(:), POINTER               :: work
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_subsys_type), POINTER                      :: subsys
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(section_vals_type), POINTER                   :: cell_section, dft_section, &
                                                             force_env_sections, qmmm_section, &
-                                                            rng_section, subsys_section
+                                                            rng_section, subsys_section, &
+                                                            tmp_section
       TYPE(virial_type), POINTER                         :: virial
 
-      NULLIFY (rng_section, subsys_section, cell_section, virial, subsys, cell, dft_control, work)
+      NULLIFY (rng_section, subsys_section, cell_section, virial, subsys, cell, dft_control, work, tmp_section)
       ! If it's not a dynamical run don't update the velocity section
       CALL section_vals_val_get(root_section, "GLOBAL%RUN_TYPE", i_val=myid)
       skip_vel_section = ((myid /= mol_dyn_run) .AND. &
@@ -187,8 +190,26 @@ CONTAINS
          END IF
       END IF
 
-      IF (myid == ehrenfest) CALL section_vals_val_set(root_section, "FORCE_EVAL%DFT%REAL_TIME_PROPAGATION%INITIAL_WFN", &
-                                                       i_val=use_rt_restart)
+      IF (ASSOCIATED(force_env%qs_env)) THEN
+         CALL get_qs_env(force_env%qs_env, dft_control=dft_control)
+         dft_section => section_vals_get_subs_vals(force_env_sections, "DFT", &
+                                                   i_rep_section=i_force_eval(iforce_eval))
+         tmp_section => section_vals_get_subs_vals(dft_section, "REAL_TIME_PROPAGATION")
+         CALL section_vals_get(tmp_section, explicit=is_present)
+         IF (is_present) THEN
+            CALL section_vals_val_set(root_section, "FORCE_EVAL%DFT%REAL_TIME_PROPAGATION%INITIAL_WFN", &
+                                      i_val=use_rt_restart)
+            IF (ASSOCIATED(dft_control%efield_fields)) THEN
+               tmp_section => section_vals_get_subs_vals(dft_section, "EFIELD")
+               ALLOCATE (work(3))
+               DO i = 1, SIZE(dft_control%efield_fields)
+                  work = dft_control%efield_fields(1)%efield%vec_pot_initial
+                  CALL section_vals_val_set(tmp_section, "VEC_POT_INITIAL", i_rep_section=i, &
+                                            r_vals_ptr=work)
+               END DO
+            END IF
+         END IF
+      END IF
       DEALLOCATE (i_force_eval)
 
    END SUBROUTINE update_force_eval
