@@ -863,7 +863,7 @@ CONTAINS
                WRITE (UNIT=unit_nr, FMT='("#",5X,A,8X,A,3(6X,A))') "Step Nr.", "Time[fs]", " Field X", " Field Y", " Field Z"
             ELSE IF (dft_control%apply_vector_potential) THEN
                WRITE (UNIT=unit_nr, FMT='("#",5X,A,8X,A,6(6X,A))') "Step Nr.", "Time[fs]", " Field X", " Field Y", " Field Z", &
-                       "Vec. Pot. X", "Vec. Pot. Y","Vec. Pot. Z"
+                  "Vec. Pot. X", "Vec. Pot. Y", "Vec. Pot. Z"
             END IF
          END IF
 
@@ -928,8 +928,8 @@ CONTAINS
             ! NOTE that these are not all terms contributing to the total energy for RTP, only a selection of those
             ! most significant / impactful. Therefore the printed components likely will not add up to the total energy.
             WRITE (UNIT=unit_nr, FMT='("#",5X,A,8X,A,10(6X,A))') "Step Nr.", "Time[fs]", &
-               "Total ener.[a.u.]", "core[a.u.]   " , " overlap [a.u.]", "hartree[a.u.]", " exc. [a.u.] ", &
-               " hartree 1c[a.u.]",  "exc 1c[a.u.] ", "exc admm[a.u.]", "exc 1c admm[a.u.]", "efield LG"
+               "Total ener.[a.u.]", "core[a.u.]   ", " overlap [a.u.]", "hartree[a.u.]", " exc. [a.u.] ", &
+               " hartree 1c[a.u.]", "exc 1c[a.u.] ", "exc admm[a.u.]", "exc 1c admm[a.u.]", "efield LG"
 
          END IF
          WRITE (UNIT=unit_nr, FMT="(I10,F20.6,10(F20.9))") &
