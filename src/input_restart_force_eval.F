@@ -210,7 +210,7 @@ CONTAINS
             END IF
          END IF
       END IF
-     !!      DEALLOCATE (i_force_eval)
+      DEALLOCATE (i_force_eval)
 
    END SUBROUTINE update_force_eval
 
