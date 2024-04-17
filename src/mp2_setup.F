@@ -263,6 +263,10 @@ CONTAINS
                                 r_val=mp2_env%ri_g0w0%dos_upper)
       CALL section_vals_val_get(mp2_section, "RI_RPA%GW%PRINT%GW_DOS%STEP", &
                                 r_val=mp2_env%ri_g0w0%dos_prec)
+      CALL section_vals_val_get(mp2_section, "RI_RPA%GW%PRINT%GW_DOS%MIN_LEVEL_SPECTRAL", &
+                                i_val=mp2_env%ri_g0w0%dos_min)
+      CALL section_vals_val_get(mp2_section, "RI_RPA%GW%PRINT%GW_DOS%MAX_LEVEL_SPECTRAL", &
+                                i_val=mp2_env%ri_g0w0%dos_max)
       CALL section_vals_val_get(mp2_section, "RI_RPA%GW%PRINT%GW_DOS%MIN_LEVEL_SELF_ENERGY", &
                                 i_val=mp2_env%ri_g0w0%min_level_self_energy)
       CALL section_vals_val_get(mp2_section, "RI_RPA%GW%PRINT%GW_DOS%MAX_LEVEL_SELF_ENERGY", &
