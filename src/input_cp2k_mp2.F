@@ -1064,6 +1064,20 @@ CONTAINS
       CALL section_add_keyword(gw_dos_section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="MIN_LEVEL_SPECTRAL", &
+                          description="Lowest energy level to print the self energy to files.", &
+                          usage="MIN_LEVEL_SELF_ENERGY 3", &
+                          default_i_val=1)
+      CALL section_add_keyword(gw_dos_section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="MAX_LEVEL_SPECTRAL", &
+                          description="Highest energy level to print the self energy to files.", &
+                          usage="MAX_LEVEL_SELF_ENERGY 6", &
+                          default_i_val=0)
+      CALL section_add_keyword(gw_dos_section, keyword)
+      CALL keyword_release(keyword)
+
       CALL keyword_create(keyword, __LOCATION__, name="MIN_LEVEL_SELF_ENERGY", &
                           description="Lowest energy level to print the self energy to files.", &
                           usage="MIN_LEVEL_SELF_ENERGY 3", &

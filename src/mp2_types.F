@@ -270,7 +270,9 @@ MODULE mp2_types
                                                             dos_prec = 0.0_dp, &
                                                             dos_eta = 0.0_dp
       INTEGER                                            :: max_level_self_energy = 0, &
-                                                            min_level_self_energy = 0
+                                                            min_level_self_energy = 0, &
+                                                            dos_min = 0, &
+                                                            dos_max = 0
    END TYPE ri_g0w0_type
 
    TYPE ri_basis_opt

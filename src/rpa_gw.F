@@ -1434,7 +1434,8 @@ CONTAINS
                                          do_im_time, mp2_env%ri_g0w0%print_self_energy, count_ev_sc_GW, &
                                          vec_gw_dos, dos_lower_bound, dos_precision, ndos, &
                                          mp2_env%ri_g0w0%min_level_self_energy, &
-                                         mp2_env%ri_g0w0%max_level_self_energy, mp2_env%ri_g0w0%dos_eta)
+                                         mp2_env%ri_g0w0%max_level_self_energy, mp2_env%ri_g0w0%dos_eta, &
+                                         mp2_env%ri_g0w0%dos_min, mp2_env%ri_g0w0%dos_max)
 
                CASE DEFAULT
                   CPABORT("Only two-model and Pade approximation are implemented.")
@@ -1462,7 +1463,8 @@ CONTAINS
                                             mp2_env%ri_g0w0%print_self_energy, count_ev_sc_GW, &
                                             vec_gw_dos, dos_lower_bound, dos_precision, ndos, &
                                             mp2_env%ri_g0w0%min_level_self_energy, &
-                                            mp2_env%ri_g0w0%max_level_self_energy, mp2_env%ri_g0w0%dos_eta)
+                                            mp2_env%ri_g0w0%max_level_self_energy, mp2_env%ri_g0w0%dos_eta, &
+                                            mp2_env%ri_g0w0%dos_min, mp2_env%ri_g0w0%dos_max)
                   CASE DEFAULT
                      CPABORT("Only two-pole model and Pade approximation are implemented.")
                   END SELECT
@@ -4284,6 +4286,8 @@ CONTAINS
 !> \param min_level_self_energy ...
 !> \param max_level_self_energy ...
 !> \param dos_eta ...
+!> \param dos_min ...
+!> \param dos_max ...
 ! **************************************************************************************************
    SUBROUTINE continuation_pade(vec_gw_energ, vec_omega_fit_gw, &
                                 z_value, m_value, vec_Sigma_c_gw, vec_Sigma_x_minus_vxc_gw, &
@@ -4291,7 +4295,7 @@ CONTAINS
                                 num_fit_points, crossing_search, homo, &
                                 fermi_level_offset, do_gw_im_time, print_self_energy, count_ev_sc_GW, &
                                 vec_gw_dos, dos_lower_bound, dos_precision, ndos, &
-                                min_level_self_energy, max_level_self_energy, dos_eta)
+                                min_level_self_energy, max_level_self_energy, dos_eta, dos_min, dos_max)
 
       ! Optional arguments for spectral function
       REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: vec_gw_energ
@@ -4311,6 +4315,7 @@ CONTAINS
       INTEGER, INTENT(IN), OPTIONAL                      :: ndos, min_level_self_energy, &
                                                             max_level_self_energy
       REAL(KIND=dp), OPTIONAL                            :: dos_eta
+      INTEGER, INTENT(IN), OPTIONAL                      :: dos_min, dos_max
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'continuation_pade'
 
@@ -4428,14 +4433,17 @@ CONTAINS
 
             END IF
 
-            vec_gw_dos(idos) = vec_gw_dos(idos) + &
-                               (ABS(AIMAG(sigma_c_pade)) + dos_eta) &
-                               /( &
-                               (omega_dos - Eigenval_scf(n_level_gw_ref) - &
-                                (REAL(sigma_c_pade) + vec_Sigma_x_minus_vxc_gw(n_level_gw_ref)) &
-                                )**2 &
-                               + (ABS(AIMAG(sigma_c_pade)) + dos_eta)**2 &
-                               )
+            IF (n_level_gw_ref >= dos_min .AND. &
+                (n_level_gw_ref <= dos_max .OR. dos_max > 0)) THEN
+               vec_gw_dos(idos) = vec_gw_dos(idos) + &
+                                  (ABS(AIMAG(sigma_c_pade)) + dos_eta) &
+                                  /( &
+                                  (omega_dos - Eigenval_scf(n_level_gw_ref) - &
+                                   (REAL(sigma_c_pade) + vec_Sigma_x_minus_vxc_gw(n_level_gw_ref)) &
+                                   )**2 &
+                                  + (ABS(AIMAG(sigma_c_pade)) + dos_eta)**2 &
+                                  )
+            END IF
 
          END DO
       END IF
