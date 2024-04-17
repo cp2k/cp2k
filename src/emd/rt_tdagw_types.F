@@ -189,7 +189,6 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER                 :: moments_dbcsr_p
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER                 :: matrix_s,&
                                                                    rho_dbcsr
-      TYPE(cp_fm_type)                                          :: matrix_s_fm
       TYPE(mo_set_type), DIMENSION(:), POINTER                  :: mos
       INTEGER                                                   :: i, re, im
       REAL(kind=dp), DIMENSION(:), POINTER                      :: custom_ref_point
@@ -234,7 +233,7 @@ CONTAINS
                                 i_val=tdagw_env%mat_exp_method)
       PRINT *, "exp_method", tdagw_env%mat_exp_method
       ! Increase the ri_metric cutoff radius manually
-      bs_env%ri_metric%cutoff_radius = 6.0_dp/angstrom
+      ! bs_env%ri_metric%cutoff_radius = 6.0_dp/angstrom
       ! Allocate and determine the expansion orders, based on arguments used in TDDFT
       ! TODO : Last two arguments are indicating that we are using Taylor expansion and not doing ion motion
       ALLOCATE(tdagw_env%orders(2, tdagw_env%n_spin))
@@ -319,11 +318,8 @@ CONTAINS
       CALL cp_fm_create(tdagw_env%S_fm%matrix, bs_env%fm_s_Gamma%matrix_struct)
       ! TODO : Handle different spins
       CALL copy_dbcsr_to_fm(matrix_s(1)%matrix, tdagw_env%S_fm%matrix)
-      PRINT *, "=== Overlap matrix"
-      CALL cp_fm_write_formatted(tdagw_env%S_fm%matrix, unit=6)
-      ! CALL cp_fm_invert(bs_env%fm_s_Gamma, S_inv_fm)
-      ! CALL cp_fm_write_formatted(S_inv_fm, unit=6)
-      ! CALL cp_fm_release(S_inv_fm)
+      ! PRINT *, "=== Overlap matrix"
+      ! CALL cp_fm_write_formatted(tdagw_env%S_fm%matrix, unit=6)
 
       ! Copy the single particle hamiltonian
       ALLOCATE(tdagw_env%ham_single_particle(tdagw_env%n_spin))
@@ -449,16 +445,6 @@ CONTAINS
       NULLIFY(tdagw_env%rho_dbcsr)
       ALLOCATE(tdagw_env%rho_dbcsr)
       CALL dbcsr_create(tdagw_env%rho_dbcsr, name="Sparse density", template=bs_env%mat_ao_ao%matrix)
-      ! TODO : Test whether this multiplication fixes some of the problems with propagation
-      CALL cp_fm_create(matrix_s_fm, tdagw_env%rho(1)%matrix%matrix_struct)
-      @:SPIN_DO(i, re, im, tdagw_env%n_spin)
-         CALL copy_dbcsr_to_fm(matrix_s(i)%matrix, matrix_s_fm)
-         CALL parallel_gemm("N", "N", tdagw_env%n_ao, tdagw_env%n_ao, tdagw_env%n_ao,&
-                            1.0_dp, matrix_s_fm, tdagw_env%rho(i)%matrix, 0.0_dp, tdagw_env%rho_workspace(1)%matrix)
-         CALL parallel_gemm("N", "N", tdagw_env%n_ao, tdagw_env%n_ao, tdagw_env%n_ao,&
-                            1.0_dp, tdagw_env%rho_workspace(1)%matrix, matrix_s_fm, 0.0_dp, tdagw_env%rho(i)%matrix)
-      END DO
-      CALL cp_fm_release(matrix_s_fm)
       
    END SUBROUTINE
 
