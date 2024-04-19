@@ -1554,7 +1554,7 @@ CONTAINS
          END IF
          END IF
       END IF
-      block_size = best_block_size
+      block_size = MAX(1, best_block_size)
 
       IF (unit_nr > 0) THEN
          WRITE (UNIT=unit_nr, FMT="(T3,A,T75,i6)") &
