@@ -1,13 +1,6 @@
-%global dbcsr_version 2.6.0
-# TODO OpenCL support: -D__ACC -D__DBCSR_ACC -D__OPENCL
-
 # No openmpi on i668 with openmpi 5 in Fedora 40+
-%if 0%{?fedora} >= 40
 %ifarch %{ix86}
 %bcond_with openmpi
-%else
-%bcond_without openmpi
-%endif
 %else
 %bcond_without openmpi
 %endif
@@ -22,38 +15,49 @@
 # Disable LTO due to https://bugzilla.redhat.com/show_bug.cgi?id=2243158
 %global _lto_cflags %nil
 
-# Compile regtests and do a brief smoketest
-%bcond_without check
-# Run full regtest suite - takes a very long time
-%bcond_with check_full
-
 Name:          cp2k
 Version:       0.0.0
 Release:       %autorelease
 Summary:       Ab Initio Molecular Dynamics
-License:       GPLv2+
-URL:           httsp://www.cp2k.org/
+License:       GPL-2.0-or-later
+URL:           https://www.cp2k.org/
 Source0:       https://github.com/cp2k/cp2k/releases/download/v%{version}/cp2k-%{version}.tar.bz2
 
-BuildRequires: flexiblas-devel
-# for regtests
-BuildRequires: bc
-BuildRequires: fftw-devel
-BuildRequires: gcc-c++
+# Remove testing packages that were previously packaged
+# Can be removed at the end of F40
+# Provides should not be necessary but might as well be thorough
+Provides:      cp2k-testing = 2024.1-5
+Obsoletes:     cp2k-testing < 2024.1-5
+Provides:      cp2k-mpich-testing = 2024.1-5
+Obsoletes:     cp2k-mpich-testing < 2024.1-5
+Provides:      cp2k-openmpi-testing = 2024.1-5
+Obsoletes:     cp2k-openmpi-testing < 2024.1-5
+
+# Flaky MPI issues on s390x, and upstream do not officially support it yet
+# https://github.com/cp2k/cp2k/issues/3362
+ExcludeArch:   s390x
+
+# Build dependencies
+BuildRequires: cmake
 BuildRequires: gcc-gfortran
+BuildRequires: gcc-c++
 BuildRequires: ninja-build
-BuildRequires: glibc-langpack-en
-BuildRequires: dbcsr-devel >= %{dbcsr_version}
-BuildRequires: libxc-devel >= 5.1.0
+BuildRequires: python3-fypp
+# Project dependencies
+BuildRequires: flexiblas-devel
+BuildRequires: dbcsr-devel >= 2.6.0
+BuildRequires: fftw-devel
 %if %{with libxsmm}
 BuildRequires: libxsmm-devel >= 1.8.1-3
 %endif
-BuildRequires: python3-fypp
+BuildRequires: libxc-devel >= 5.1.0
 BuildRequires: spglib-devel
-BuildRequires: /usr/bin/hostname
+# Test dependencies
+BuildRequires: python3
+# For pathfix.py
 BuildRequires: python3-devel
 
-Requires: %{name}-common = %{version}-%{release}
+Requires:      %{name}-common = %{version}-%{release}
 
 %global _description %{expand:
 CP2K is a freely available (GPL) program, written in Fortran 95, to
@@ -71,7 +75,8 @@ CP2K does not implement Car-Parinello Molecular Dynamics (CPMD).}
 This package contains the non-MPI single process and multi-threaded versions.
 
 %package common
-Summary: Molecular simulations software - common files
+Summary:       Molecular simulations software - common files
+BuildArch:     noarch
 
 %description common
 %{_description}
@@ -79,8 +84,9 @@ Summary: Molecular simulations software - common files
 This package contains the documentation and the manual.
 
 %package devel
-Summary: Development files for %{name}
-Requires: %{name}%{?_isa} = %{version}-%{release}
+Summary:        Development files for %{name}
+
+Requires:       %{name}%{?_isa} = %{version}-%{release}
 
 %description devel
 The %{name}-devel package contains libraries and header files for
@@ -88,24 +94,24 @@ developing applications that use %{name}.
 
 %if %{with openmpi}
 %package openmpi
-Summary: Molecular simulations software - openmpi version
+Summary:        Molecular simulations software - openmpi version
 BuildRequires:  openmpi-devel
 BuildRequires:  blacs-openmpi-devel
-BuildRequires:  dbcsr-openmpi-devel >= %{dbcsr_version}
+BuildRequires:  dbcsr-openmpi-devel
 BuildRequires:  scalapack-openmpi-devel
-Requires: %{name}-common = %{version}-%{release}
-# Libint may have API breakage
-Requires: libint2(api)%{?_isa}
+
+Requires:       %{name}-common = %{version}-%{release}
 
 %description openmpi
-%{cp2k_desc_base}
+%{_description}
 
 This package contains the parallel single- and multi-threaded versions
 using OpenMPI.
 
 %package openmpi-devel
-Summary: Development files for %{name}
-Requires: %{name}-openmpi%{?_isa} = %{version}-%{release}
+Summary:        Development files for %{name}
+
+Requires:       %{name}-openmpi%{?_isa} = %{version}-%{release}
 
 %description openmpi-devel
 The %{name}-devel package contains libraries and header files for
@@ -114,25 +120,24 @@ developing applications that use %{name}.
 %endif
 
 %package mpich
-Summary: Molecular simulations software - mpich version
+Summary:        Molecular simulations software - mpich version
 BuildRequires:  mpich-devel
 BuildRequires:  blacs-mpich-devel
-BuildRequires:  dbcsr-mpich-devel >= %{dbcsr_version}
+BuildRequires:  dbcsr-mpich-devel
 BuildRequires:  scalapack-mpich-devel
-BuildRequires: make
-Requires: %{name}-common = %{version}-%{release}
-# Libint may have API breakage
-Requires: libint2(api)%{?_isa}
+
+Requires:       %{name}-common = %{version}-%{release}
 
 %description mpich
-%{cp2k_desc_base}
+%{_description}
 
 This package contains the parallel single- and multi-threaded versions
 using mpich.
 
 %package mpich-devel
-Summary: Development files for %{name}
-Requires: %{name}-mpich%{?_isa} = %{version}-%{release}
+Summary:        Development files for %{name}
+
+Requires:       %{name}-mpich%{?_isa} = %{version}-%{release}
 
 %description mpich-devel
 The %{name}-devel package contains libraries and header files for
@@ -144,6 +149,7 @@ developing applications that use %{name}.
 rm tools/build_utils/fypp
 rm -r exts/dbcsr
 
+# Fix test files
 %{__python3} %{_rpmconfigdir}/redhat/pathfix.py -i "%{__python3} -Es" -p $(find . -type f -name *.py)
 
 # $MPI_SUFFIX will be evaluated in the loops below, set by mpi modules
@@ -158,27 +164,16 @@ cmake_common_args=(
   "-DCP2K_DEBUG_MODE:BOOL=OFF"
   "-DCP2K_BLAS_VENDOR:STRING=FlexiBLAS"
   "-DCP2K_USE_STATIC_BLAS:BOOL=OFF"
-  "-DCP2K_ENABLE_REGTESTS:BOOL=%{?with_check:ON}%{?without_check:OFF}"
-  # Dependencies already packaged
-  "-DCP2K_USE_SPGLIB:BOOL=ON"
-  "-DCP2K_USE_LIBXC:BOOL=ON"
+  # Unit tests are included in REGTESTS
+  # Note: Enabling this will write build files in the source folder :/
+  "-DCP2K_ENABLE_REGTESTS:BOOL=ON"
+  # Dependencies equivalent with Default
   "-DCP2K_USE_FFTW3:BOOL=ON"
-  # TODO: Fix Libint2 detection
-  "-DCP2K_USE_LIBINT2:BOOL=OFF"
+  "-DCP2K_USE_COSMA:BOOL=OFF"  # Not packaged
   "-DCP2K_USE_LIBXSMM:BOOL=%{?with_libxsmm:ON}%{?without_libxsmm:OFF}"
-  # Missing dependencies
-  "-DCP2K_USE_ELPA:BOOL=OFF"
-  "-DCP2K_USE_PEXSI:BOOL=OFF"
-  "-DCP2K_USE_SUPERLU:BOOL=OFF"
-  "-DCP2K_USE_COSMA:BOOL=OFF"
-  "-DCP2K_USE_PLUMED:BOOL=OFF"
-  "-DCP2K_USE_VORI:BOOL=OFF"
-  "-DCP2K_USE_PEXSI:BOOL=OFF"
-  "-DCP2K_USE_QUIP:BOOL=OFF"
-  "-DCP2K_USE_LIBTORCH:BOOL=OFF"
-  "-DCP2K_USE_SPLA:BOOL=OFF"
-  "-DCP2K_USE_METIS:BOOL=OFF"
-  "-DCP2K_USE_DLAF:BOOL=OFF"
+  "-DCP2K_USE_LIBXC:BOOL=ON"
+  "-DCP2K_USE_LIBINT2:BOOL=OFF"  # Detection is broken
+  "-DCP2K_USE_SPGLIB:BOOL=ON"
 )
 for mpi in '' mpich %{?with_openmpi:openmpi}; do
   if [ -n "$mpi" ]; then
@@ -222,8 +217,42 @@ rm -f %{_buildrootdir}/**/%{_libdir}/mpich/bin/*_unittest.*
 
 
 %check
-# Tests are done in the tmt envrionment
-
+export CP2K_DATA_DIR=%{buildroot}%{_datadir}/cp2k/data
+# See %%_openmpi_load
+export PRTE_MCA_rmaps_default_mapping_policy=:oversubscribe
+test_common_args=(
+  "--skip_regtests"
+  "--maxtasks 4"  # Hard-coding maxtasks to avoid hanging. oversubscription should not matter
+  "--ompthreads 2"
+)
+for mpi in '' mpich %{?with_openmpi:openmpi} ; do
+  if [ -n "$mpi" ]; then
+    # Another module load is done inside the do_regtest.sh. will use that instead
+    module load mpi/${mpi}-%{_arch}
+    bindir=${MPI_BIN}
+    libdir=${MPI_LIB}
+    export CP2K_STEM=%{buildroot}${MPI_BIN}/cp2k
+    # Note, final position arguments are also here
+    test_mpi_args=(
+      "--mpiranks 2"
+      "local_${mpi}"
+      "psmp"
+    )
+  else
+    bindir=%{_bindir}
+    libdir=%{_libdir}
+    export CP2K_STEM=%{buildroot}/usr/bin/cp2k
+    test_mpi_args=(
+      "local"
+      "ssmp"
+    )
+  fi
+  # Run packaged do_regtest.sh with appropriate buildroot runpaths
+  env PATH=%{buildroot}${bindir}:${PATH} \
+    LD_LIBRARY_PATH=%{buildroot}${libdir} \
+    tests/do_regtest.py ${test_common_args[@]} ${test_mpi_args[@]}
+  [ -n "$mpi" ] && module unload mpi/${mpi}-%{_arch}
+done
 
 %files common
 %license LICENSE

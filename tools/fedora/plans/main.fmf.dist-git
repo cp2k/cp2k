@@ -1,4 +1,0 @@
-discover:
-  how: fmf
-  dist-git-source: true
-  dist-git-extract: cp2k-*/

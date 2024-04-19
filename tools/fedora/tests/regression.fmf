@@ -3,6 +3,9 @@ framework: beakerlib
 test: ./do_regtest.sh
 # TODO: Reduce the tests duration
 duration: 2h
+environment+:
+  # Cannot run unittest outside of the build environment
+  CP2K_SKIP_UNITTEST: true
 
 /serial:
   summary+: (serial)
