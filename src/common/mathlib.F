@@ -18,7 +18,7 @@ MODULE mathlib
                                               dp
    USE mathconstants,                   ONLY: euler,&
                                               fac,&
-                                              pi
+                                              oorootpi
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -172,7 +172,6 @@ CONTAINS
 !> \version 1.0
 ! **************************************************************************************************
    PURE FUNCTION angle(a, b) RESULT(angle_ab)
-
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: a, b
       REAL(KIND=dp)                                      :: angle_ab
 
@@ -203,7 +202,6 @@ CONTAINS
 !> \version 1.0
 ! **************************************************************************************************
    ELEMENTAL FUNCTION binomial(n, k) RESULT(n_over_k)
-
       INTEGER, INTENT(IN)                                :: n, k
       REAL(KIND=dp)                                      :: n_over_k
 
@@ -228,7 +226,6 @@ CONTAINS
 !> \version 1.0
 ! **************************************************************************************************
    ELEMENTAL FUNCTION binomial_gen(z, k) RESULT(z_over_k)
-
       REAL(KIND=dp), INTENT(IN)                          :: z
       INTEGER, INTENT(IN)                                :: k
       REAL(KIND=dp)                                      :: z_over_k
@@ -254,7 +251,6 @@ CONTAINS
 !> \author Ole Schuett
 ! **************************************************************************************************
    PURE FUNCTION multinomial(n, k) RESULT(res)
-
       INTEGER, INTENT(IN)                                :: n
       INTEGER, DIMENSION(:), INTENT(IN)                  :: k
       REAL(KIND=dp)                                      :: res
@@ -517,7 +513,6 @@ CONTAINS
 !> \version 1.0
 ! **************************************************************************************************
    PURE FUNCTION inv_3x3(a) RESULT(a_inv)
-
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(IN)         :: a
       REAL(KIND=dp), DIMENSION(3, 3)                     :: a_inv
 
@@ -951,7 +946,6 @@ CONTAINS
 !> \author Dorothea Golze [02.2015]
 ! **************************************************************************************************
    SUBROUTINE get_pseudo_inverse_svd(a, a_pinverse, rskip, determinant, sval)
-
       REAL(KIND=dp), DIMENSION(:, :)                     :: a, a_pinverse
       REAL(KIND=dp), INTENT(IN)                          :: rskip
       REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: determinant
@@ -1033,7 +1027,6 @@ CONTAINS
 !> \author Dorothea Golze [02.2015]
 ! **************************************************************************************************
    SUBROUTINE get_pseudo_inverse_diag(a, a_pinverse, rskip)
-
       REAL(KIND=dp), DIMENSION(:, :)                     :: a, a_pinverse
       REAL(KIND=dp), INTENT(IN)                          :: rskip
 
@@ -1101,7 +1094,6 @@ CONTAINS
 !> \version 1.0
 ! **************************************************************************************************
    PURE FUNCTION reflect_vector(a, b) RESULT(a_mirror)
-
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: a, b
       REAL(KIND=dp), DIMENSION(3)                        :: a_mirror
 
@@ -1469,7 +1461,7 @@ CONTAINS
          END DO
          CPABORT("series failed in expint")
       END IF
-      RETURN
+
    END FUNCTION expint
 
 ! **************************************************************************************************
@@ -1512,7 +1504,6 @@ CONTAINS
 !>         - Creation (20.11.98, Matthias Krack)
 ! **************************************************************************************************
    SUBROUTINE diag(n, a, d, v)
-
       INTEGER, INTENT(IN)                                :: n
       REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: a
       REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: d
@@ -1736,8 +1727,11 @@ CONTAINS
       REAL(dp), INTENT(in)                               :: r, eps, omega
       REAL(dp), INTENT(out)                              :: fn, df
 
-         fn = erfc(omega*r) - r*eps
-         df = -omega*2*EXP(-omega**2*r**2)/SQRT(pi) - eps
+      REAL(dp)                                           :: qr
+
+         qr = omega*r
+         fn = ERFC(qr) - r*eps
+         df = -2.0_dp*oorootpi*omega*EXP(qr**2) - eps
       END SUBROUTINE eval_transc_func
    END SUBROUTINE erfc_cutoff
 
@@ -1749,8 +1743,7 @@ CONTAINS
 !> \author A. Bussy
 ! **************************************************************************************************
    SUBROUTINE complex_diag(matrix, eigenvectors, eigenvalues)
-
-      COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(INOUT)    :: matrix, eigenvectors
+      COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(INOUT)   :: matrix, eigenvectors
       REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: eigenvalues
 
       COMPLEX(KIND=dp), DIMENSION(:), ALLOCATABLE        :: work
@@ -1775,20 +1768,14 @@ CONTAINS
       liwork = iwork(1)
 
       DEALLOCATE (iwork, rwork, work)
+      ALLOCATE (iwork(liwork), rwork(lrwork), work(lwork))
 
-      ALLOCATE (iwork(liwork))
-      iwork(:) = 0
-      ALLOCATE (rwork(lrwork))
-      rwork(:) = 0.0_dp
-      ALLOCATE (work(lwork))
-      work(:) = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
-
-      !diagonalization proper
+      ! diagonalization proper
       CALL ZHEEVD('V', 'U', n, eigenvectors, n, eigenvalues, work, lwork, rwork, lrwork, iwork, liwork, info)
 
+      DEALLOCATE (iwork, rwork, work)
       IF (info /= 0) &
          CPABORT("Diagonalisation of a complex matrix failed")
-      DEALLOCATE (iwork, rwork, work)
 
    END SUBROUTINE complex_diag
 

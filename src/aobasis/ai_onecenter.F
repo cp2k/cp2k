@@ -32,7 +32,8 @@ MODULE ai_onecenter
                                               fac,&
                                               gamma0,&
                                               gamma1,&
-                                              pi
+                                              pi,&
+                                              rootpi
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -74,7 +75,7 @@ CONTAINS
 
       CPASSERT(.NOT. (n > SIZE(smat, 1) .OR. m > SIZE(smat, 2)))
 
-      spi = SQRT(pi)/2.0_dp**(l + 2)*dfac(2*l + 1)
+      spi = rootpi/2.0_dp**(l + 2)*dfac(2*l + 1)
       el = REAL(l, dp) + 1.5_dp
 
       DO iq = 1, m
@@ -111,7 +112,7 @@ CONTAINS
 
       CPASSERT(.NOT. (n > SIZE(kmat, 1) .OR. m > SIZE(kmat, 2)))
 
-      spi = dfac(2*l + 3)*SQRT(pi)/2.0_dp**(l + 2)
+      spi = dfac(2*l + 3)*rootpi/2.0_dp**(l + 2)
       DO iq = 1, m
          DO ip = 1, n
             kmat(ip, iq) = spi*pa(ip)*pb(iq)/(pa(ip) + pb(iq))**(l + 2.5_dp)
