@@ -2879,7 +2879,7 @@ CONTAINS
             END IF
 
             sp = SHAPE(block_t)
-            sp = sp([2, 3, 1])
+            sp([2, 3, 1]) = sp ! sp = sp([2, 3, 1]) performs worse
 
             CALL dbt_put_block(t3c(jcell, kcell), blk_idx, sp, &
                                RESHAPE(block_t, SHAPE=sp, ORDER=[2, 3, 1]), summation=.TRUE.)
