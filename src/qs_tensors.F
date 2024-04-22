@@ -2806,8 +2806,8 @@ CONTAINS
                   rj = rij ! ri + rij
                   rk = rik ! ri + rik
 
-                  ALLOCATE (sijk(ncoj, ncok, ncoi))
                   IF (op_pos_prv == 1) THEN
+                     ALLOCATE (sijk(ncoj, ncok, ncoi))
                      sijk(:, :, :) = 0.0_dp
                      CALL eri_3center(sijk, &
                                       lmin_j(jset), lmax_j(jset), npgfj(jset), zetj(:, jset), rpgf_j(:, jset), rj, &
