@@ -2824,7 +2824,7 @@ CONTAINS
                                       dij, dik, djk, lib, potential_parameter, int_abc_ext=sijk_ext)
 
                      !TODO: revise/check for efficiency
-                     sijk = RESHAPE(tmp_ijk, [ncoj, ncok, ncoi], ORDER=[2, 3, 1])
+                     sijk(:, :, :) = RESHAPE(tmp_ijk, [ncoj, ncok, ncoi], ORDER=[2, 3, 1])
                      DEALLOCATE (tmp_ijk)
                   END IF
 
