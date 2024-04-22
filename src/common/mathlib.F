@@ -1731,7 +1731,7 @@ CONTAINS
 
          qr = omega*r
          fn = ERFC(qr) - r*eps
-         df = -2.0_dp*oorootpi*omega*EXP(qr**2) - eps
+         df = -2.0_dp*oorootpi*omega*EXP(-qr**2) - eps
       END SUBROUTINE eval_transc_func
    END SUBROUTINE erfc_cutoff
 
