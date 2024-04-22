@@ -29,7 +29,8 @@ MODULE qs_dispersion_nonloc
                                               xc_vdw_fun_nonloc
    USE kinds,                           ONLY: default_string_length,&
                                               dp
-   USE mathconstants,                   ONLY: pi
+   USE mathconstants,                   ONLY: pi,&
+                                              rootpi
    USE message_passing,                 ONLY: mp_para_env_type
    USE pw_grid_types,                   ONLY: HALFSPACE,&
                                               pw_grid_type
@@ -211,7 +212,7 @@ CONTAINS
       beta = 0.03125_dp*(3.0_dp/(b_value**2.0_dp))**0.75_dp
       nspin = SIZE(rho_r)
 
-      const = 1.0_dp/(3.0_dp*SQRT(pi)*b_value**1.5_dp)/(pi**0.75_dp)
+      const = 1.0_dp/(3.0_dp*rootpi*b_value**1.5_dp)/(pi**0.75_dp)
 
       ! temporary arrays for FFT
       CALL pw_pool%create_pw(tmp_g)

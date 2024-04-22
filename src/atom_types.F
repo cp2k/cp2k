@@ -2374,7 +2374,7 @@ CONTAINS
       ! Normalization
       DO j = 0, lmat
          expzet = 0.25_dp*REAL(2*j + 3, dp)
-         prefac = SQRT(SQRT(pi)/2._dp**(j + 2)*dfac(2*j + 1))
+         prefac = SQRT(rootpi/2._dp**(j + 2)*dfac(2*j + 1))
          DO ipgf = 1, basis%nprim(j)
             DO ii = 1, basis%nbas(j)
                gcca = basis%cm(ipgf, ii, j)

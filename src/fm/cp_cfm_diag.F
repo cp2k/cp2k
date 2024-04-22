@@ -102,13 +102,7 @@ CONTAINS
 #endif
 
       DEALLOCATE (iwork, rwork, work)
-
-      ALLOCATE (iwork(liwork))
-      iwork(:) = 0
-      ALLOCATE (rwork(lrwork))
-      rwork(:) = 0.0_dp
-      ALLOCATE (work(lwork))
-      work(:) = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
+      ALLOCATE (iwork(liwork), rwork(lrwork), work(lwork))
 
 #if defined(__SCALAPACK)
 ! Scalapack takes advantage of IEEE754 exceptions for speedup.
@@ -130,9 +124,9 @@ CONTAINS
       eigenvectors%local_data = matrix%local_data
 #endif
 
+      DEALLOCATE (iwork, rwork, work)
       IF (info /= 0) &
          CPABORT("Diagonalisation of a complex matrix failed")
-      DEALLOCATE (iwork, rwork, work)
 
       CALL timestop(handle)
 
