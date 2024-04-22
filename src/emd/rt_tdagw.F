@@ -84,7 +84,8 @@ MODULE rt_tdagw
                                               dbt_iterator_next_block,&
                                               dbt_put_block,&
                                               dbt_get_block,&
-                                              dbt_reserve_blocks
+                                              dbt_reserve_blocks,&
+                                              dbt_get_info
    USE libint_2c_3c,                    ONLY: libint_potential_type
    USE mp2_ri_2c,                       ONLY: RI_2c_integral_mat
    USE qs_tensors,                      ONLY: neighbor_list_3c_destroy,&
@@ -184,11 +185,12 @@ CONTAINS
       LOGICAL                                            :: converged
       REAL(kind=dp)                                      :: metric, enum_re, enum_im
 
-      ! TODO : Print a nicer header
-      PRINT *, "=== Starting time-dependent adiabatic GW real time propagation ==="
+      ! Get the logger unit number, only print if we are the source process
       CALL get_qs_env(qs_env, bs_env=bs_env, input=input, rtp=rtp)
       ! ********************** ALLOCATIONS **********************
       CALL create_tdagw_env(tdagw_env, qs_env)
+      ! TODO : Print a nicer header
+      IF (tdagw_env%unit_nr > 0) WRITE(tdagw_env%unit_nr, *) "=== Starting time-dependent adiabatic GW real time propagation ==="
 
       ! ********************** EXTRACT PREVIOUS DATA **********************
 
@@ -197,9 +199,7 @@ CONTAINS
          @:SPIN_DO(j, re, im, tdagw_env%n_spin)
             CALL get_sigma(tdagw_env, qs_env, tdagw_env%sigma_COH(re), -0.5_dp, greens_dbcsr_opt=tdagw_env%S_inv)
             ! TODO : Maybe enable printing underneath debug option?
-            ! PRINT *, "== Sigma COH =="
-            ! CALL cp_fm_write_formatted(sigma_COH, 6)
-            ! DEBUG : Trying subtracting COHSEX at time 0 - effectively no COH, as we are not updating W
+            ! TODO : Enable subtraction of 
             CALL get_sigma(tdagw_env, qs_env, tdagw_env%sigma_SEX(re), -1.0_dp, greens_fm_opt=tdagw_env%rho(re))
             CALL get_sigma(tdagw_env, qs_env, tdagw_env%sigma_SEX(im), -1.0_dp, greens_fm_opt=tdagw_env%rho(im))
             CALL cp_fm_scale_and_add(0.0_dp, tdagw_env%sigma_COH(re)%matrix, -1.0_dp, tdagw_env%sigma_SEX(re)%matrix)
@@ -226,12 +226,12 @@ CONTAINS
             ! PRINT *, "metric hartree_orig, RE spin", j, cp_fm_norm(tdagw_env%hartree_orig(re)%matrix, "M")
             ! PRINT *, "metric hartree_orig, IM spin", j, cp_fm_norm(tdagw_env%hartree_orig(im)%matrix, "M")
          END DO
-         PRINT *, "== Hartree Matrix DBT"
-         CALL cp_fm_write_formatted(tdagw_env%hartree_orig(1)%matrix, 6)
+         ! PRINT *, "== Hartree Matrix DBT"
+         ! CALL cp_fm_write_formatted(tdagw_env%hartree_orig(1)%matrix, 6)
       ELSEIF ( tdagw_env%hartree_method == rtp_tdagw_hartree_pw ) THEN
          CALL get_hartree_pw(qs_env, tdagw_env, tdagw_env%rho, tdagw_env%hartree_orig)
-         PRINT *, "== Hartree Matrix PW"
-         CALL cp_fm_write_formatted(tdagw_env%hartree_orig(1)%matrix, 6)
+         ! PRINT *, "== Hartree Matrix PW"
+         ! CALL cp_fm_write_formatted(tdagw_env%hartree_orig(1)%matrix, 6)
       ELSE
          CPABORT("Only DBT and PW methods for determination of Hartree term implemented.")
       END IF
@@ -278,7 +278,8 @@ CONTAINS
          ! Propagate the density to mid-point
          CALL propagate_density(tdagw_env, tdagw_env%ham_workspace, tdagw_env%rho, tdagw_env%rho_M)
          CALL get_electron_number(tdagw_env, tdagw_env%rho_M, enum_re, enum_im)
-         PRINT *, "Electron number RHO_M re : ", enum_re, "Electron number im : ", enum_im
+         IF (tdagw_env%unit_nr > 0) WRITE (tdagw_env%unit_nr, *) "Electron number RHO_M re : ", enum_re,&
+                                                                 "Electron number RHO_M im : ", enum_im
          ! In initial iteration, copy rho_M to rho_new_last
          @:SPIN_DO(j,re,im, tdagw_env%n_spin)
             CALL cp_fm_to_fm(tdagw_env%rho_M(re)%matrix, tdagw_env%rho_new_last(re)%matrix)
@@ -301,7 +302,8 @@ CONTAINS
             CALL propagate_density(tdagw_env, tdagw_env%ham_workspace, tdagw_env%rho_M, tdagw_env%rho_new)
             ! *** Self-consistency check ***
             metric = rho_metric(tdagw_env%rho_new, tdagw_env%rho_new_last, tdagw_env%n_spin)
-            PRINT *, "Self-consistent iteration : ", k, "convergence metric : ", metric
+            IF (tdagw_env%unit_nr > 0) WRITE(tdagw_env%unit_nr, *) "Self-consistent iteration : ", k,&
+                                                                   "convergence metric : ", metric
             ! CALL get_electron_number(tdagw_env, tdagw_env%rho_new, enum_re, enum_im)
             ! PRINT *, "Electron number re : ", enum_re, "Electron number im : ", enum_im
             ! PRINT *, "Intermediate metric : ", metric
@@ -332,8 +334,9 @@ CONTAINS
             END IF
          END DO
          CALL get_electron_number(tdagw_env, tdagw_env%rho_new, enum_re, enum_im)
-         PRINT *, "Sim step : ", tdagw_env%sim_step, "Convergence : ", metric, "Threshold : ", tdagw_env%etrs_threshold,&
-                 "Electron number", enum_re, enum_im, "Self-consistent iterations : ", k
+         IF (tdagw_env%unit_nr > 0) WRITE(tdagw_env%unit_nr, *) "Sim step : ", tdagw_env%sim_step, "Convergence : ", metric,&
+                                                                "Threshold : ", tdagw_env%etrs_threshold,&
+                                                                "Electron number", enum_re, enum_im, "SC iterations : ", k
          CPASSERT(converged)
          @:SPIN_DO(j, re, im, tdagw_env%n_spin)
             CALL cp_fm_to_fm(tdagw_env%rho_new(re)%matrix, tdagw_env%rho(re)%matrix)
@@ -647,9 +650,9 @@ CONTAINS
             ! Set up the zeroth commutator - stored in rho-workspace
             CALL cp_fm_to_fm(rho_old(re)%matrix, tdagw_env%rho_workspace(1)%matrix)
             CALL cp_fm_to_fm(rho_old(im)%matrix, tdagw_env%rho_workspace(2)%matrix)
-            ! TODO : Configuration of bch_max_iter
             converged = .FALSE.
-            DO k=1,20
+            ! TODO : Configuration of bch_max_iter
+            DO k=1,tdagw_env%etrs_max_iter
                prefactor = 1.0_dp/REAL(k, kind=dp)
                ! Real part of the new commutator
                ! exponential contains -i * dt * S^-1 * H = H_S
@@ -696,7 +699,7 @@ CONTAINS
                convergence = rho_metric(tdagw_env%rho_workspace(3:4), tdagw_env%rho_workspace(1:2), tdagw_env%n_spin)
                IF (convergence <= tdagw_env%exp_accuracy) THEN
                   converged = .TRUE.
-                  PRINT *, "BCH Matrix propagation converged after ", k, "steps"
+                  ! PRINT *, "BCH Matrix propagation converged after ", k, "steps"
                   EXIT
                ELSE
                   ! Ready for the next BCH term
@@ -973,7 +976,7 @@ CONTAINS
          CALL copy_fm_to_dbcsr(greens_fm_opt%matrix, greens_dbcsr)
       ELSE
          ! TODO : Warn and exit
-         PRINT *, "Either dbcsr or fm greens function has to be provided"
+         IF (tdagw_env%unit_nr > 0) WRITE(tdagw_env%unit_nr, *) "Either dbcsr or fm greens function has to be provided"
          CPASSERT(.FALSE.)
       END IF
 
@@ -997,7 +1000,9 @@ CONTAINS
                    filter_eps=bs_env%eps_filter)
       ! t_work1 now contains sum _ P (alpha beta | P) W _ (PQ) (iomega = 0)
       ! Next step is to convert the greens full matrix to dbcsr matrix 
+      IF (tdagw_env%unit_nr > 0) WRITE (tdagw_env%unit_nr, *) "Just before M to T"
       CALL dbt_copy_matrix_to_tensor(greens_dbcsr, tdagw_env%greens_dbt) 
+      IF (tdagw_env%unit_nr > 0) WRITE (tdagw_env%unit_nr, *) "Just after M to T"
       ! Then contract it
       ! no scaling applied - this has to be applied externally TODO : Is this a good approach?
       CALL dbt_contract(alpha=1.0_dp,&
@@ -1081,7 +1086,6 @@ CONTAINS
       CALL build_2c_integrals(V_dbcsr, bs_env%eps_filter, qs_env, nl_2c,&
                               bs_env%basis_set_RI, bs_env%basis_set_RI, coulomb_op,&
                               do_kpoints=.FALSE., regularization_RI=bs_env%regularization_RI)
-      PRINT *, "Hartree RI dbcsr"
       ! CALL dbcsr_print(V_dbcsr(1))
       ! Calculate the RI metric elements
       ! nl_2c is automatically rewritten (even reallocated) in this routine
@@ -1133,7 +1137,7 @@ CONTAINS
       CALL dbcsr_clear(V_dbcsr(1))
       CALL copy_fm_to_dbcsr(V_fm, V_dbcsr(1))
       ! Create and copy distinctly, so that unnecessary objects can be destroyed
-      CALL dbt_create(bs_env%t_W, V_dbt, name="Hartree_dbt")
+      CALL dbt_create(V_dbcsr(1), V_dbt, name="Hartree_dbt")
       CALL dbt_copy_matrix_to_tensor(V_dbcsr(1), V_dbt)
       ! Destroy all unnecessary matrices
       CALL dbcsr_release(V_dbcsr(1))
@@ -1171,7 +1175,8 @@ CONTAINS
       INTEGER                                            :: j,number_of_blocks,backup
       INTEGER, DIMENSION(:), ALLOCATABLE                 :: indices_block_matrix_1,&
                                                             indices_block_matrix_2,&
-                                                            indices_block_matrix_custom
+                                                            indices_block_matrix_custom,&
+                                                            my_ploc
       INTEGER                                            :: thread_lower,&
                                                             thread_upper,&
                                                             thread_number,&
@@ -1196,11 +1201,17 @@ CONTAINS
       ALLOCATE(indices_block_matrix_1(number_of_blocks))
       ALLOCATE(indices_block_matrix_2(number_of_blocks))
       ALLOCATE(indices_block_matrix_custom(number_of_blocks), source=1)
+      ALLOCATE(my_ploc(3), source=0)
       ! TODO : Think about parallelisation
+      ! TODO : This returns the same value for every process - wrong pgrid creation?
+      CALL dbt_get_info(tensor, my_ploc)
+      PRINT *, "Process", my_ploc
       CALL dbcsr_iterator_start(iterator_matrix, matrix_desym_p)
       DO j=1,number_of_blocks
          CALL dbcsr_iterator_next_block(iterator_matrix, indices_block_matrix_1(j), indices_block_matrix_2(j), block_matrix)
+         PRINT *, "Block", j, indices_block_matrix_1(j), indices_block_matrix_2(j), 1
       END DO
+      DEALLOCATE(my_ploc)
       CALL dbcsr_iterator_stop(iterator_matrix)
       ! Construct parallelisation bounds
       ! PRINT *, indices_block_matrix_1

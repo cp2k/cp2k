@@ -175,6 +175,7 @@ MODULE rt_tdagw_types
       INTEGER                                                   :: hartree_method
       INTEGER                                                   :: ham_single_particle_type
       INTEGER                                                   :: mat_exp_method
+      INTEGER                                                   :: unit_nr
 
    END TYPE tdagw_env_type
 
@@ -231,7 +232,9 @@ CONTAINS
                                 i_val=tdagw_env%etrs_max_iter)
       CALL section_vals_val_get(input, "DFT%REAL_TIME_PROPAGATION%MAT_EXP",&
                                 i_val=tdagw_env%mat_exp_method)
-      PRINT *, "exp_method", tdagw_env%mat_exp_method
+      ! Output unit number, recovered from the post_scf_bandstructure_type
+      tdagw_env%unit_nr = bs_env%unit_nr
+      IF (tdagw_env%unit_nr > 0) WRITE (tdagw_env%unit_nr, *) "exp_method", tdagw_env%mat_exp_method
       ! Increase the ri_metric cutoff radius manually
       ! bs_env%ri_metric%cutoff_radius = 6.0_dp/angstrom
       ! Allocate and determine the expansion orders, based on arguments used in TDDFT
@@ -405,7 +408,7 @@ CONTAINS
          NULLIFY(tdagw_env%exp_eigvals)
          ALLOCATE(tdagw_env%exp_eigvals(tdagw_env%n_ao))
          tdagw_env%exp_eigvals(:) = (0.0_dp, 0.0_dp)
-         PRINT *, "Complex storage initialised"
+         ! PRINT *, "Complex storage initialised"
       END IF
 
       ! Self-energy components
@@ -529,24 +532,24 @@ CONTAINS
 
       ! Create the 3-index tensor with one dimension of size 1 from tensor primitives
       ! Create 3-index process grid
-      ALLOCATE(pdims(3))
-      ALLOCATE(pcoord(3))
+      ALLOCATE(pdims(3), source=0)
+      ALLOCATE(pcoord(3), source=0)
       ! Set elements to zero - otherwise can get erronous behaviour
-      DO j=1,3
-         pdims(j) = 0
-         pcoord(j) = 0
-      END DO
+      ! DO j=1,3
+      !    pdims(j) = 0
+      !    pcoord(j) = 0
+      ! END DO
       ! Process grid creation
       CALL dbt_pgrid_create(bs_env%para_env_tensor, pdims, pgrid)
       ! Determine processes on the created grid
       CALL dbt_mp_environ_pgrid(pgrid, pdims, pcoord)
+      PRINT *, "=== Process grid", pdims, pcoord
       ! Prepare task distribution on the process grid for each dimension
       ALLOCATE(distvec(2, SIZE(bs_env%sizes_AO)))
       DO j=1,2
          CALL dbt_default_distvec(SIZE(bs_env%sizes_AO), pdims(j), bs_env%sizes_AO, distvec(j,:))
       END DO
       CALL dbt_default_distvec(1, pdims(3), [1], distvec_one)
-      ! TODO : Maybe just [1] instead of pdims(2)?
       ! Create the tensor distribution
       CALL dbt_distribution_new(dist, pgrid, distvec(1,:), distvec(2,:), distvec_one)
       ! Create the tensor aligned for the task distribution
@@ -654,10 +657,11 @@ CONTAINS
       ! t_W
       NULLIFY(tdagw_env%screened_dbt)
       ALLOCATE(tdagw_env%screened_dbt)
-      CALL dbt_create(bs_env%t_W, tdagw_env%screened_dbt)
-      ! Populate t_W from gw run
+      ! Populate screened_dbt from gw run
+      ! TODO : Avoid without G0W0 run?
       CALL dbcsr_create(w_dbcsr, name="W", template=bs_env%mat_RI_RI%matrix)
       CALL copy_fm_to_dbcsr(bs_env%fm_W_MIC_freq_zero, w_dbcsr)
+      CALL dbt_create(w_dbcsr, tdagw_env%screened_dbt)
       CALL dbt_copy_matrix_to_tensor(w_dbcsr, tdagw_env%screened_dbt)
       CALL dbcsr_release(w_dbcsr)
       ! sigma_dbt
