@@ -2806,8 +2806,8 @@ CONTAINS
                   rj = rij ! ri + rij
                   rk = rik ! ri + rik
 
+                  ALLOCATE (sijk(ncoj, ncok, ncoi))
                   IF (op_pos_prv == 1) THEN
-                     ALLOCATE (sijk(ncoj, ncok, ncoi))
                      sijk(:, :, :) = 0.0_dp
                      CALL eri_3center(sijk, &
                                       lmin_j(jset), lmax_j(jset), npgfj(jset), zetj(:, jset), rpgf_j(:, jset), rj, &
@@ -2823,8 +2823,10 @@ CONTAINS
                                       lmin_k(kset), lmax_k(kset), npgfk(kset), zetk(:, kset), rpgf_k(:, kset), rk, &
                                       dij, dik, djk, lib, potential_parameter, int_abc_ext=sijk_ext)
 
-                     !TODO: revise/check for efficiency
-                     sijk = RESHAPE(tmp_ijk, [ncoj, ncok, ncoi], ORDER=[2, 3, 1])
+                     !F08: sijk = RESHAPE(tmp_ijk, [ncoj, ncok, ncoi], ORDER=[2, 3, 1]) with sijk not allocated
+                     DO i = 1, ncoi !TODO: revise/check for efficiency
+                        sijk(:, :, i) = tmp_ijk(i, :, :)
+                     END DO
                      DEALLOCATE (tmp_ijk)
                   END IF
 
