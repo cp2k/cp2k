@@ -157,7 +157,7 @@ CONTAINS
          CALL parallel_gemm('T', 'N', nmo, nmo, nao, 1.0_dp, &
                             qs_env%et_coupling%et_mo_coeff(i), &
                             tmp2, 0.0_dp, rest_MO(2))
-
+! TODO: could fix cp_fm_invert/LU determinant pivoting instead of calling cp_fm_det to save a pdgetrf call
          CALL cp_fm_det(SMO, S_det(i))
          CALL cp_fm_invert(SMO, inverse_mat)
 
