@@ -359,14 +359,13 @@ CONTAINS
 !> \param n ...
 !> \param zin ...
 !> \param zout ...
-!> \param scale ...
 !> \param status ...
 !> \param debug ...
 !> \par History
 !>      none
 !> \author JGH
 ! **************************************************************************************************
-   SUBROUTINE fft3d_s(fsign, n, zin, zout, scale, status, debug)
+   SUBROUTINE fft3d_s(fsign, n, zin, zout, status, debug)
 
       INTEGER, INTENT(IN)                                :: fsign
       INTEGER, DIMENSION(:), INTENT(INOUT)               :: n
@@ -374,7 +373,6 @@ CONTAINS
          INTENT(INOUT)                                   :: zin
       COMPLEX(KIND=dp), CONTIGUOUS, DIMENSION(:, :, :), &
          INTENT(INOUT), OPTIONAL, TARGET                 :: zout
-      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: scale
       INTEGER, INTENT(OUT), OPTIONAL                     :: status
       LOGICAL, INTENT(IN), OPTIONAL                      :: debug
 
@@ -392,10 +390,12 @@ CONTAINS
       CALL timeset(routineN, handle)
       output_unit = cp_logger_get_default_io_unit()
 
-      IF (PRESENT(scale)) THEN
-         norm = scale
-      ELSE
+      IF (fsign == FWFFT) THEN
+         norm = 1.0_dp/REAL(PRODUCT(n), KIND=dp)
+      ELSE IF (fsign == BWFFT) THEN
          norm = 1.0_dp
+      ELSE
+         CPABORT("Unknown FFT direction!")
       END IF
 
       IF (PRESENT(debug)) THEN
@@ -488,12 +488,11 @@ CONTAINS
 !> \param yzp ...
 !> \param nyzray ...
 !> \param bo ...
-!> \param scale ...
 !> \param status ...
 !> \param debug ...
 ! **************************************************************************************************
    SUBROUTINE fft3d_ps(fsign, n, cin, gin, rs_group, yzp, nyzray, &
-                       bo, scale, status, debug)
+                       bo, status, debug)
 
       INTEGER, INTENT(IN)                                :: fsign
       INTEGER, DIMENSION(:), INTENT(IN)                  :: n
@@ -507,7 +506,6 @@ CONTAINS
       INTEGER, CONTIGUOUS, DIMENSION(0:), INTENT(IN)     :: nyzray
       INTEGER, CONTIGUOUS, DIMENSION(:, :, 0:, :), &
          INTENT(IN)                                      :: bo
-      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: scale
       INTEGER, INTENT(OUT), OPTIONAL                     :: status
       LOGICAL, INTENT(IN), OPTIONAL                      :: debug
 
@@ -539,10 +537,12 @@ CONTAINS
       r_dim = rs_group%num_pe_cart
       r_pos = rs_group%mepos_cart
 
-      IF (PRESENT(scale)) THEN
-         norm = scale
-      ELSE
+      IF (fsign == FWFFT) THEN
+         norm = 1.0_dp/REAL(PRODUCT(n), KIND=dp)
+      ELSE IF (fsign == BWFFT) THEN
          norm = 1.0_dp
+      ELSE
+         CPABORT("Unknown FFT direction!")
       END IF
 
       sign = fsign
@@ -933,11 +933,10 @@ CONTAINS
 !> \param gin ...
 !> \param group ...
 !> \param bo ...
-!> \param scale ...
 !> \param status ...
 !> \param debug ...
 ! **************************************************************************************************
-   SUBROUTINE fft3d_pb(fsign, n, zin, gin, group, bo, scale, status, debug)
+   SUBROUTINE fft3d_pb(fsign, n, zin, gin, group, bo, status, debug)
 
       INTEGER, INTENT(IN)                                :: fsign
       INTEGER, DIMENSION(3), INTENT(IN)                  :: n
@@ -948,7 +947,6 @@ CONTAINS
       TYPE(mp_cart_type), INTENT(IN)                     :: group
       INTEGER, CONTIGUOUS, DIMENSION(:, :, 0:, :), &
          INTENT(IN)                                      :: bo
-      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: scale
       INTEGER, INTENT(OUT), OPTIONAL                     :: status
       LOGICAL, INTENT(IN), OPTIONAL                      :: debug
 
@@ -998,10 +996,12 @@ CONTAINS
          test = .FALSE.
       END IF
 
-      IF (PRESENT(scale)) THEN
-         norm = scale
-      ELSE
+      IF (fsign == FWFFT) THEN
+         norm = 1.0_dp/REAL(PRODUCT(n), KIND=dp)
+      ELSE IF (fsign == BWFFT) THEN
          norm = 1.0_dp
+      ELSE
+         CPABORT("Unknown FFT direction!")
       END IF
 
       sign = fsign
