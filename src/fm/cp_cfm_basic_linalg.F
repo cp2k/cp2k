@@ -16,7 +16,11 @@
 MODULE cp_cfm_basic_linalg
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_cfm_types,                    ONLY: cp_cfm_get_info,&
-                                              cp_cfm_type
+                                              cp_cfm_type,&
+                                              cp_cfm_to_cfm,&
+                                              cp_cfm_create,&
+                                              cp_cfm_release
+   USE cp_log_handling,                 ONLY: cp_to_string
    USE cp_fm_struct,                    ONLY: cp_fm_struct_equivalent
    USE cp_fm_types,                     ONLY: cp_fm_type
    USE kahan_sum,                       ONLY: accurate_dot_product
@@ -49,7 +53,8 @@ MODULE cp_cfm_basic_linalg
              cp_cfm_triangular_multiply, &
              cp_cfm_rot_rows, &
              cp_cfm_rot_cols, &
-             cp_cfm_cholesky_invert
+             cp_cfm_cholesky_invert, &
+             cp_cfm_det ! determinant of a complex matrix with correct sign
 
    REAL(kind=dp), EXTERNAL :: zlange, pzlange
 
@@ -60,6 +65,85 @@ MODULE cp_cfm_basic_linalg
 ! **************************************************************************************************
 
 CONTAINS
+
+! **************************************************************************************************
+!> \brief Computes the determinant (with a correct sign even in parallel environment!) of a complex square matrix
+!> \author A. Sinyavskiy (andrey.sinyavskiy@chem.uzh.ch)
+! **************************************************************************************************
+   SUBROUTINE cp_cfm_det(matrix_a, det_a)
+
+      TYPE(cp_cfm_type), INTENT(IN)            :: matrix_a
+      COMPLEX(KIND=dp), INTENT(OUT)            :: det_a
+      COMPLEX(KIND=dp)                         :: determinant
+      TYPE(cp_cfm_type)                        :: matrix_lu
+      COMPLEX(KIND=dp), DIMENSION(:, :), POINTER  :: a
+      INTEGER                                  :: n, i, info, P
+      INTEGER, ALLOCATABLE, DIMENSION(:)       :: ipivot
+      COMPLEX(KIND=dp), DIMENSION(:), POINTER  :: diag
+
+#if defined(__SCALAPACK)
+      INTEGER, EXTERNAL                        :: indxl2g
+      INTEGER                                  :: myprow, nprow, npcol, nrow_local, nrow_block, irow_local, &
+                                                  mypcol, ncol_local, ncol_block, icol_local, j
+      INTEGER, DIMENSION(9)                    :: desca
+#endif
+
+      CALL cp_cfm_create(matrix=matrix_lu, &
+                        matrix_struct=matrix_a%matrix_struct, &
+                        name="A_lu"//TRIM(ADJUSTL(cp_to_string(1)))//"MATRIX")
+      CALL cp_cfm_to_cfm(matrix_a, matrix_lu)
+
+      a => matrix_lu%local_data
+      n = matrix_lu%matrix_struct%nrow_global
+      ALLOCATE (ipivot(n))
+      ipivot(:) = 0
+      P = 0
+      ALLOCATE (diag(n))
+      diag(:) = 0.0_dp
+#if defined(__SCALAPACK)
+      ! Use LU decomposition
+      desca(:) = matrix_lu%matrix_struct%descriptor(:)
+      CALL pzgetrf(n, n, a(1, 1), 1, 1, desca, ipivot, info)
+      myprow = matrix_lu%matrix_struct%context%mepos(1)
+      mypcol = matrix_lu%matrix_struct%context%mepos(2)
+      nprow = matrix_lu%matrix_struct%context%num_pe(1)
+      npcol = matrix_lu%matrix_struct%context%num_pe(2)
+      nrow_local = matrix_lu%matrix_struct%nrow_locals(myprow)
+      nrow_block = matrix_lu%matrix_struct%nrow_block
+      ncol_block = matrix_lu%matrix_struct%ncol_block
+      ncol_local = matrix_lu%matrix_struct%ncol_locals(mypcol)
+
+      DO irow_local = 1, nrow_local
+         i = indxl2g(irow_local, nrow_block, myprow, matrix_lu%matrix_struct%first_p_pos(1), nprow)
+         DO icol_local = 1, ncol_local
+            j = indxl2g(icol_local, ncol_block, mypcol, matrix_lu%matrix_struct%first_p_pos(2), npcol)
+            IF (i == j) diag(i) = matrix_lu%local_data(irow_local, icol_local)
+         END DO
+      END DO
+      CALL matrix_lu%matrix_struct%para_env%sum(diag)
+      determinant = PRODUCT(diag)
+      DO irow_local = 1, nrow_local
+         i = indxl2g(irow_local, nrow_block, myprow, matrix_lu%matrix_struct%first_p_pos(1), nprow)
+         IF (ipivot(irow_local) /= i) P = P + 1
+      END DO
+      CALL matrix_lu%matrix_struct%para_env%sum(P)
+      ! very important fix
+      P = P/npcol
+#else
+      CALL zgetrf(n, n, a(1, 1), n, ipivot, info)
+      DO i = 1, n
+         diag(i) = matrix_lu%local_data(i, i)
+      END DO
+      determinant = PRODUCT(diag)
+      DO i = 1, n
+         IF (ipivot(i) /= i) P = P + 1
+      END DO
+#endif
+      DEALLOCATE (ipivot)
+      DEALLOCATE (diag)
+      CALL cp_cfm_release(matrix_lu)
+      det_a = determinant*(-2*MOD(P, 2) + 1.0_dp)
+   END SUBROUTINE cp_cfm_det
 
 ! **************************************************************************************************
 !> \brief Computes the element-wise (Schur) product of two matrices: C = A \circ B .
