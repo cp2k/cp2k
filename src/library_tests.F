@@ -618,7 +618,7 @@ CONTAINS
                tstart = m_walltime()
                DO j = 1, ntim
                   CALL fft3d(FWFFT, n, ca)
-                  CALL fft3d(BWFFT, n, ca, SCALE=scale)
+                  CALL fft3d(BWFFT, n, ca)
                END DO
                tend = m_walltime()
                t = tend - tstart + threshold

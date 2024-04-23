@@ -96,13 +96,11 @@ CONTAINS
 !> \brief perform an fft followed by a gather on the gpu
 !> \param pw1 ...
 !> \param pw2 ...
-!> \param scale ...
 !> \author Benjamin G Levine
 ! **************************************************************************************************
-   SUBROUTINE pw_gpu_r3dc1d_3d(pw1, pw2, scale)
+   SUBROUTINE pw_gpu_r3dc1d_3d(pw1, pw2)
       TYPE(pw_r3d_rs_type), INTENT(IN)                   :: pw1
       TYPE(pw_c1d_gs_type), INTENT(INOUT)                :: pw2
-      REAL(KIND=dp), INTENT(IN)                          :: scale
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_gpu_r3dc1d_3d'
 
@@ -110,6 +108,7 @@ CONTAINS
       INTEGER                                            :: handle, l1, l2, l3, ngpts
       INTEGER, DIMENSION(:), POINTER                     :: npts
       INTEGER, POINTER                                   :: ptr_ghatmap
+      REAL(KIND=dp)                                      :: scale
       REAL(KIND=dp), POINTER                             :: ptr_pwin
       INTERFACE
          SUBROUTINE pw_gpu_cfffg_c(din, zout, ghatmap, npts, ngpts, scale) BIND(C, name="pw_gpu_cfffg")
@@ -125,6 +124,8 @@ CONTAINS
       END INTERFACE
 
       CALL timeset(routineN, handle)
+
+      scale = 1.0_dp/REAL(pw1%pw_grid%ngpts, KIND=dp)
 
       ngpts = SIZE(pw2%pw_grid%gsq)
       l1 = LBOUND(pw1%array, 1)
@@ -143,7 +144,6 @@ CONTAINS
 #if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_PW)
       CALL pw_gpu_cfffg_c(c_loc(ptr_pwin), c_loc(ptr_pwout), c_loc(ptr_ghatmap), npts, ngpts, scale)
 #else
-      MARK_USED(scale)
       CPABORT("Compiled without pw offloading.")
 #endif
 
@@ -154,13 +154,11 @@ CONTAINS
 !> \brief perform an scatter followed by a fft on the gpu
 !> \param pw1 ...
 !> \param pw2 ...
-!> \param scale ...
 !> \author Benjamin G Levine
 ! **************************************************************************************************
-   SUBROUTINE pw_gpu_c1dr3d_3d(pw1, pw2, scale)
+   SUBROUTINE pw_gpu_c1dr3d_3d(pw1, pw2)
       TYPE(pw_c1d_gs_type), INTENT(IN)                   :: pw1
       TYPE(pw_r3d_rs_type), INTENT(INOUT)                :: pw2
-      REAL(KIND=dp), INTENT(IN)                          :: scale
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_gpu_c1dr3d_3d'
 
@@ -168,6 +166,7 @@ CONTAINS
       INTEGER                                            :: handle, l1, l2, l3, ngpts, nmaps
       INTEGER, DIMENSION(:), POINTER                     :: npts
       INTEGER, POINTER                                   :: ptr_ghatmap
+      REAL(KIND=dp)                                      :: scale
       REAL(KIND=dp), POINTER                             :: ptr_pwout
       INTERFACE
          SUBROUTINE pw_gpu_sfffc_c(zin, dout, ghatmap, npts, ngpts, nmaps, scale) BIND(C, name="pw_gpu_sfffc")
@@ -182,6 +181,8 @@ CONTAINS
       END INTERFACE
 
       CALL timeset(routineN, handle)
+
+      scale = 1.0_dp
 
       ngpts = SIZE(pw1%pw_grid%gsq)
       l1 = LBOUND(pw2%array, 1)
@@ -201,7 +202,6 @@ CONTAINS
 #if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_PW)
       CALL pw_gpu_sfffc_c(c_loc(ptr_pwin), c_loc(ptr_pwout), c_loc(ptr_ghatmap), npts, ngpts, nmaps, scale)
 #else
-      MARK_USED(scale)
       CPABORT("Compiled without pw offloading")
 #endif
 
@@ -212,13 +212,11 @@ CONTAINS
 !> \brief perform an parallel fft followed by a gather on the gpu
 !> \param pw1 ...
 !> \param pw2 ...
-!> \param scale ...
 !> \author Andreas Gloess
 ! **************************************************************************************************
-   SUBROUTINE pw_gpu_r3dc1d_3d_ps(pw1, pw2, scale)
+   SUBROUTINE pw_gpu_r3dc1d_3d_ps(pw1, pw2)
       TYPE(pw_r3d_rs_type), INTENT(IN)                   :: pw1
       TYPE(pw_c1d_gs_type), INTENT(INOUT)                :: pw2
-      REAL(KIND=dp), INTENT(IN)                          :: scale
 
       CHARACTER(len=*), PARAMETER :: routineN = 'pw_gpu_r3dc1d_3d_ps'
 
@@ -230,11 +228,14 @@ CONTAINS
       INTEGER, DIMENSION(2)                              :: r_dim, r_pos
       INTEGER, DIMENSION(:), POINTER                     :: n, nloc, nyzray
       INTEGER, DIMENSION(:, :, :, :), POINTER            :: bo
+      REAL(KIND=dp)                                      :: scale
       TYPE(fft_scratch_sizes)                            :: fft_scratch_size
       TYPE(fft_scratch_type), POINTER                    :: fft_scratch
       TYPE(mp_cart_type)                                 :: rs_group
 
       CALL timeset(routineN, handle)
+
+      scale = 1.0_dp/REAL(pw1%pw_grid%ngpts, KIND=dp)
 
       ! dimensions
       n => pw1%pw_grid%npts
@@ -364,8 +365,6 @@ CONTAINS
 !--------------------------------------------------------------------------
       ELSE
          CPABORT("Not implemented (no ray_distr.) in: pw_gpu_r3dc1d_3d_ps.")
-         !CALL fft3d ( dir, n, pwin, grays, pw1%pw_grid%para%group, &
-         !     pw1%pw_grid%para%bo, scale = scale, debug=test )
       END IF
 
       CALL timestop(handle)
@@ -375,13 +374,11 @@ CONTAINS
 !> \brief perform an parallel scatter followed by a fft on the gpu
 !> \param pw1 ...
 !> \param pw2 ...
-!> \param scale ...
 !> \author Andreas Gloess
 ! **************************************************************************************************
-   SUBROUTINE pw_gpu_c1dr3d_3d_ps(pw1, pw2, scale)
+   SUBROUTINE pw_gpu_c1dr3d_3d_ps(pw1, pw2)
       TYPE(pw_c1d_gs_type), INTENT(IN)                   :: pw1
       TYPE(pw_r3d_rs_type), INTENT(INOUT)                :: pw2
-      REAL(KIND=dp), INTENT(IN)                          :: scale
 
       CHARACTER(len=*), PARAMETER :: routineN = 'pw_gpu_c1dr3d_3d_ps'
 
@@ -393,11 +390,14 @@ CONTAINS
       INTEGER, DIMENSION(2)                              :: r_dim, r_pos
       INTEGER, DIMENSION(:), POINTER                     :: n, nloc, nyzray
       INTEGER, DIMENSION(:, :, :, :), POINTER            :: bo
+      REAL(KIND=dp)                                      :: scale
       TYPE(fft_scratch_sizes)                            :: fft_scratch_size
       TYPE(fft_scratch_type), POINTER                    :: fft_scratch
       TYPE(mp_cart_type)                                 :: rs_group
 
       CALL timeset(routineN, handle)
+
+      scale = 1.0_dp
 
       ! dimensions
       n => pw1%pw_grid%npts
@@ -531,8 +531,6 @@ CONTAINS
 !--------------------------------------------------------------------------
       ELSE
          CPABORT("Not implemented (no ray_distr.) in: pw_gpu_c1dr3d_3d_ps.")
-         !CALL fft3d ( dir, n, pwin, grays, pw1%pw_grid%para%group, &
-         !     pw1%pw_grid%para%bo, scale = scale, debug=test )
       END IF
 
       CALL timestop(handle)
