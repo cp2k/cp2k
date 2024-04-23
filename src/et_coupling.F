@@ -15,7 +15,8 @@ MODULE et_coupling
    USE cp_dbcsr_operations,             ONLY: cp_dbcsr_sm_fm_multiply,&
                                               dbcsr_deallocate_matrix_set
    USE cp_fm_basic_linalg,              ONLY: cp_fm_invert,&
-                                              cp_fm_transpose
+                                              cp_fm_transpose,&
+                                              cp_fm_det
    USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
                                               fm_pool_get_el_struct
    USE cp_fm_struct,                    ONLY: cp_fm_struct_type
@@ -156,8 +157,9 @@ CONTAINS
          CALL parallel_gemm('T', 'N', nmo, nmo, nao, 1.0_dp, &
                             qs_env%et_coupling%et_mo_coeff(i), &
                             tmp2, 0.0_dp, rest_MO(2))
-
-         CALL cp_fm_invert(SMO, inverse_mat, S_det(i))
+         
+         CALL cp_fm_det(SMO, S_det(i))
+         CALL cp_fm_invert(SMO, inverse_mat)
 
          CALL cp_fm_get_info(inverse_mat, nrow_local=nrow_local, ncol_local=ncol_local, &
                              row_indices=row_indices, col_indices=col_indices)

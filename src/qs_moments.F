@@ -29,7 +29,7 @@ MODULE qs_moments
    USE cell_types,                      ONLY: cell_type,&
                                               pbc
    USE commutator_rpnl,                 ONLY: build_com_mom_nl
-   USE cp_cfm_basic_linalg,             ONLY: cp_cfm_lu_decompose
+   USE cp_cfm_basic_linalg,             ONLY: cp_cfm_det
    USE cp_cfm_types,                    ONLY: cp_cfm_create,&
                                               cp_cfm_get_info,&
                                               cp_cfm_release,&
@@ -1971,7 +1971,8 @@ CONTAINS
                         CMPLX(op_fm_set(1, ispin)%local_data(:, idim), &
                               -op_fm_set(2, ispin)%local_data(:, idim), dp)
                   END DO
-                  CALL cp_cfm_lu_decompose(eigrmat(ispin), zdeta)
+                  ! CALL cp_cfm_lu_decompose(eigrmat(ispin), zdeta)
+                  CALL cp_cfm_det(eigrmat(ispin), zdeta)
                   zdet = zdet*zdeta
                   IF (dft_control%nspins == 1) THEN
                      zdet = zdet*zdeta
@@ -2002,7 +2003,8 @@ CONTAINS
                            CMPLX(op_fm_set(1, ispin)%local_data(:, idim), &
                                  -op_fm_set(2, ispin)%local_data(:, idim), dp)
                      END DO
-                     CALL cp_cfm_lu_decompose(eigrmat(ispin), zdeta)
+                     ! CALL cp_cfm_lu_decompose(eigrmat(ispin), zdeta)
+                     CALL cp_cfm_det(eigrmat(ispin), zdeta)
                      zdet = zdet*zdeta
                      IF (dft_control%nspins == 1) THEN
                         zdet = zdet*zdeta

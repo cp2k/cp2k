@@ -65,7 +65,8 @@ MODULE cp_fm_basic_linalg
              cp_fm_rot_rows, & ! rotates two rows
              cp_fm_rot_cols, & ! rotates two columns
              cp_fm_cholesky_restore, & ! apply Cholesky decomposition
-             cp_fm_Gram_Schmidt_orthonorm ! Gram-Schmidt orthonormalization of columns of a full matrix
+             cp_fm_Gram_Schmidt_orthonorm, & ! Gram-Schmidt orthonormalization of columns of a full matrix, &
+             cp_fm_det ! determinant of a real matrix with correct sign
 
    REAL(KIND=dp), EXTERNAL :: dlange, pdlange, pdlatra
    REAL(KIND=sp), EXTERNAL :: slange, pslange, pslatra
@@ -87,6 +88,71 @@ MODULE cp_fm_basic_linalg
       MODULE PROCEDURE cp_fm_contracted_trace_a2b2t2_pp
    END INTERFACE cp_fm_contracted_trace
 CONTAINS
+
+! **************************************************************************************************
+!> \brief Computes the determinant (with a correct sign even in parallel environment!) of a real square matrix
+!> \author A. Sinyavskiy (andrey.sinyavskiy@chem.uzh.ch)
+! **************************************************************************************************
+   SUBROUTINE cp_fm_det(matrix_a, det_a)
+
+      TYPE(cp_fm_type), INTENT(IN)             :: matrix_a
+      REAL(KIND=dp), INTENT(OUT)               :: det_a
+      REAL(KIND=dp)                            :: determinant
+      TYPE(cp_fm_type)                         :: matrix_lu
+      REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a
+      INTEGER                                  :: n, i, info, P
+      INTEGER, ALLOCATABLE, DIMENSION(:)       :: ipivot
+      REAL(KIND=dp), DIMENSION(:), POINTER     :: diag
+
+#if defined(__SCALAPACK)
+      INTEGER, EXTERNAL                        :: indxl2g
+      INTEGER                                  :: myprow, nprow, npcol, nrow_local, nrow_block, irow_local
+      INTEGER, DIMENSION(9)                    :: desca
+#endif
+
+      CALL cp_fm_create(matrix=matrix_lu, &
+                        matrix_struct=matrix_a%matrix_struct, &
+                        name="A_lu"//TRIM(ADJUSTL(cp_to_string(1)))//"MATRIX")
+      CALL cp_fm_to_fm(matrix_a, matrix_lu)
+
+      a => matrix_lu%local_data
+      n = matrix_lu%matrix_struct%nrow_global
+      ALLOCATE (ipivot(n))
+      ipivot(:) = 0
+      P = 0
+      ALLOCATE (diag(n))
+      diag(:) = 0.0_dp
+#if defined(__SCALAPACK)
+      ! Use LU decomposition
+      desca(:) = matrix_lu%matrix_struct%descriptor(:)
+      CALL pdgetrf(n, n, a, 1, 1, desca, ipivot, info)
+      CALL cp_fm_get_diag(matrix_lu, diag)
+      determinant = PRODUCT(diag)
+      myprow = matrix_lu%matrix_struct%context%mepos(1)
+      nprow = matrix_lu%matrix_struct%context%num_pe(1)
+      npcol = matrix_lu%matrix_struct%context%num_pe(2)
+      nrow_local = matrix_lu%matrix_struct%nrow_locals(myprow)
+      nrow_block = matrix_lu%matrix_struct%nrow_block
+      DO irow_local = 1, nrow_local
+         i = indxl2g(irow_local, nrow_block, myprow, matrix_lu%matrix_struct%first_p_pos(1), nprow)
+         IF (ipivot(irow_local) /= i) P = P + 1
+      END DO
+      CALL matrix_lu%matrix_struct%para_env%sum(P)
+      ! very important fix
+      P = P/npcol
+#else
+      CALL dgetrf(n, n, a, n, ipivot, info)
+      CALL cp_fm_get_diag(matrix_lu, diag)
+      determinant = PRODUCT(diag)
+      DO i = 1, n
+         IF (ipivot(i) /= i) P = P + 1
+      END DO
+#endif
+      DEALLOCATE (ipivot)
+      DEALLOCATE (diag)
+      CALL cp_fm_release(matrix_lu)
+      det_a = determinant*(-2*MOD(P, 2) + 1.0_dp)
+   END SUBROUTINE cp_fm_det
 
 ! **************************************************************************************************
 !> \brief calc A <- alpha*A + beta*B
