@@ -48,7 +48,8 @@ MODULE environment
                                               low_print_level,&
                                               medium_print_level,&
                                               silent_print_level
-   USE fft_tools,                       ONLY: fft3d,&
+   USE fft_tools,                       ONLY: FWFFT,&
+                                              fft3d,&
                                               finalize_fft,&
                                               init_fft
    USE force_env_types,                 ONLY: multiple_fe_list
@@ -1022,7 +1023,7 @@ CONTAINS
                     plan_style=globenv%fftw_plan_type)
 
       ! Check for FFT library
-      CALL fft3d(1, n, zz, status=stat)
+      CALL fft3d(FWFFT, n, zz, status=stat)
       IF (stat /= 0) THEN
          IF (try_fftw) THEN
             message = "FFT library "//TRIM(globenv%default_fft_library)// &
@@ -1036,7 +1037,7 @@ CONTAINS
                           wisdom_file=globenv%fftw_wisdom_file_name, &
                           plan_style=globenv%fftw_plan_type)
 
-            CALL fft3d(1, n, zz, status=stat)
+            CALL fft3d(FWFFT, n, zz, status=stat)
          END IF
          IF (stat /= 0) THEN
             message = "FFT library "//TRIM(globenv%default_fft_library)// &
@@ -1050,7 +1051,7 @@ CONTAINS
                           wisdom_file=globenv%fftw_wisdom_file_name, &
                           plan_style=globenv%fftw_plan_type)
 
-            CALL fft3d(1, n, zz, status=stat)
+            CALL fft3d(FWFFT, n, zz, status=stat)
             IF (stat /= 0) THEN
                CPABORT("FFT library FFTSG does not work. No FFT library available.")
             END IF

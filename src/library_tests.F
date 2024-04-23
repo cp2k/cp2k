@@ -596,7 +596,7 @@ CONTAINS
          END SELECT
          n = 4
          zz = 0.0_dp
-         CALL fft3d(1, n, zz, status=stat)
+         CALL fft3d(FWFFT, n, zz, status=stat)
          IF (stat == 0) THEN
             DO it = 1, 3
                radix_in = ndate(it)
