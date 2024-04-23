@@ -15,14 +15,14 @@
 ! **************************************************************************************************
 MODULE cp_cfm_basic_linalg
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
-   USE cp_cfm_types,                    ONLY: cp_cfm_get_info,&
-                                              cp_cfm_type,&
+   USE cp_cfm_types,                    ONLY: cp_cfm_create,&
+                                              cp_cfm_get_info,&
+                                              cp_cfm_release,&
                                               cp_cfm_to_cfm,&
-                                              cp_cfm_create,&
-                                              cp_cfm_release
-   USE cp_log_handling,                 ONLY: cp_to_string
+                                              cp_cfm_type
    USE cp_fm_struct,                    ONLY: cp_fm_struct_equivalent
    USE cp_fm_types,                     ONLY: cp_fm_type
+   USE cp_log_handling,                 ONLY: cp_to_string
    USE kahan_sum,                       ONLY: accurate_dot_product
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: z_one,&
@@ -68,6 +68,8 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Computes the determinant (with a correct sign even in parallel environment!) of a complex square matrix
+!> \param matrix_a ...
+!> \param det_a ...
 !> \author A. Sinyavskiy (andrey.sinyavskiy@chem.uzh.ch)
 ! **************************************************************************************************
    SUBROUTINE cp_cfm_det(matrix_a, det_a)
@@ -89,8 +91,8 @@ CONTAINS
 #endif
 
       CALL cp_cfm_create(matrix=matrix_lu, &
-                        matrix_struct=matrix_a%matrix_struct, &
-                        name="A_lu"//TRIM(ADJUSTL(cp_to_string(1)))//"MATRIX")
+                         matrix_struct=matrix_a%matrix_struct, &
+                         name="A_lu"//TRIM(ADJUSTL(cp_to_string(1)))//"MATRIX")
       CALL cp_cfm_to_cfm(matrix_a, matrix_lu)
 
       a => matrix_lu%local_data
