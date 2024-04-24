@@ -195,6 +195,7 @@ void benchmark_multiply(const int M, const int N, const int K, const int m,
  * \author Ole Schuett
  ******************************************************************************/
 int main(int argc, char *argv[]) {
+  int result = EXIT_SUCCESS;
   dbm_mpi_init(&argc, &argv);
   dbm_library_init();
 
@@ -261,14 +262,8 @@ int main(int argc, char *argv[]) {
     while (i < argc &&
            (NULL == file || NULL != fgets(buffer, sizeof(buffer), file))) {
       const char *arg = strtok(NULL != file ? buffer : argv[i], delims);
-      for (; NULL != arg; arg = strtok(NULL, delims)) {
-        if (3 > j) {
-          mnk[j] = atoi(arg);
-          ++j;
-        } else { /* malformed */
-          mnk[0] = 0;
-          break;
-        }
+      for (; NULL != arg && j < 3; arg = strtok(NULL, delims), ++j) {
+        mnk[j] = atoi(arg);
       }
       if (NULL != file) {
         j = 0;
@@ -276,10 +271,20 @@ int main(int argc, char *argv[]) {
         continue;
       }
       if (0 < mnk[0]) { /* valid MxNxK? */
-        benchmark_multiply(128, 128, 128, mnk[0], 0 < mnk[1] ? mnk[1] : mnk[0],
+        const int extra = (NULL == arg ? 0 : atoi(arg));
+        int nm, nn, nk;
+        if (0 < extra) {
+          nn = nk = 1;
+          nm = extra;
+        } else { /* default */
+          nm = nn = nk = 128;
+        }
+        benchmark_multiply(nm, nn, nk, mnk[0], 0 < mnk[1] ? mnk[1] : mnk[0],
                            0 < mnk[2] ? mnk[2] : mnk[0], comm);
         mnk[0] = mnk[1] = mnk[2] = 0;
       } else {
+        fprintf(stderr, "ERROR: invalid argument(s)\n");
+        result = EXIT_FAILURE;
         i = argc;
       }
     }
@@ -288,11 +293,13 @@ int main(int argc, char *argv[]) {
     }
   }
 
-  dbm_library_print_stats(dbm_mpi_comm_c2f(comm), &print_func, my_rank);
+  if (EXIT_SUCCESS == result) {
+    dbm_library_print_stats(dbm_mpi_comm_c2f(comm), &print_func, my_rank);
+  }
   dbm_library_finalize();
   dbm_mpi_comm_free(&comm);
   dbm_mpi_finalize();
-  return 0;
+  return result;
 }
 
 // EOF
