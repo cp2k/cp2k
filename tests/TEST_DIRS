@@ -87,6 +87,7 @@ QS/regtest-stda-force-4                                     libint
 QS/regtest-tddfpt-force                                     libint
 QS/regtest-tddfpt-force-2                                   libint
 QS/regtest-tddfpt-force-3                                   libint
+QS/regtest-ed                                               libint
 QS/regtest-cdft-diag
 xTB/regtest-1
 xTB/regtest-2
@@ -303,7 +304,6 @@ Fist/regtest-excl-R
 Fist/regtest-14
 Fist/regtest-excl-G
 FE/regtest-1
-QS/regtest-ed                                               libint
 QS/regtest-hfx-2                                            libint
 QS/regtest-nmr-3
 QS/regtest-hybrid-1                                         libint

@@ -754,8 +754,7 @@ CONTAINS
       INTEGER                                            :: blk, handle, iatom, ispin, jatom, natom, &
                                                             nsgf, nspins
       INTEGER, DIMENSION(2)                              :: nactive
-      REAL(KIND=dp)                                      :: dr, eps_filter, fcut, gabr, r, rsmooth, &
-                                                            spinfac, xr
+      REAL(KIND=dp)                                      :: dr, eps_filter, fcut, gabr
       REAL(KIND=dp), DIMENSION(3)                        :: rij
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: pblock
       TYPE(cell_type), POINTER                           :: cell
@@ -772,12 +771,9 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       ! parameters
-      rsmooth = 1.0_dp
       eps_filter = 1.E-08_dp
 
       nspins = SIZE(X)
-      spinfac = 2.0_dp
-      IF (nspins == 2) spinfac = 1.0_dp
       DO ispin = 1, nspins
          CALL cp_fm_get_info(X(ispin), ncol_global=nactive(ispin))
       END DO
@@ -818,24 +814,22 @@ CONTAINS
             rij = particle_set(iatom)%r - particle_set(jatom)%r
             rij = pbc(rij, cell)
             dr = SQRT(SUM(rij(:)**2))
-            IF (dr < rcut - rsmooth) THEN
-               gabr = 0.0_dp
-            ELSE IF (dr > rcut + rsmooth) THEN
-               gabr = 1._dp/dr
+            gabr = 1._dp/rcut
+            IF (dr < 1.e-6) THEN
+               gabr = 2._dp*gabr/SQRT(3.1415926_dp)
             ELSE
-               r = dr - (rcut - rsmooth)
-               xr = 0.5_dp*r/rsmooth
-               fcut = 6._dp*xr**5 - 15._dp*xr**4 + 10._dp*xr**3
-               gabr = fcut/dr
+               gabr = ERF(gabr*dr)/dr
+               fcut = EXP(dr - 4._dp*rcut)
+               fcut = fcut/(fcut + 1._dp)
             END IF
-            pblock = gabr*pblock
+            pblock = hfx_scale*gabr*pblock
          END DO
          CALL dbcsr_iterator_stop(iter)
          ! CV(mu,i) = P(nu,mu)*CT(mu,i)
          CALL cp_dbcsr_sm_fm_multiply(pdens, ct, cvec, nactive(ispin), 1.0_dp, 0.0_dp)
          ! rho(nu,i) = rho(nu,i) + ShalfP(nu,mu)*CV(mu,i)
          CALL cp_dbcsr_sm_fm_multiply(work%shalf, cvec, res(ispin), nactive(ispin), &
-                                      -1.0_dp, hfx_scale)
+                                      -1.0_dp, 1.0_dp)
          !
          CALL dbcsr_release(pdens)
          !
