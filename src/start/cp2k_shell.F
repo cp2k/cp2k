@@ -124,6 +124,8 @@ CONTAINS
             CALL get_natom_command(shell, arg1)
          CASE ('SETPOS', 'SET_POS')
             CALL set_pos_command(shell, arg1)
+         CASE ('SETPOSFILE', 'SET_POS_FILE')
+            CALL set_pos_file_command(shell, arg1, arg2)
          CASE ('SETCELL', 'SET_CELL')
             CALL set_cell_command(shell, arg1)
          CASE ('GETCELL', 'GET_CELL')
@@ -318,6 +320,8 @@ CONTAINS
          WRITE (shell%iw, *) ' SET_POS [env_id]: sets the positions of the atoms, should be followed'
          WRITE (shell%iw, *) '   by natom*3 (on a line) and then all the positions. Returns the max'
          WRITE (shell%iw, *) '   change of the coordinates (useful to avoid extra calculations).'
+         WRITE (shell%iw, *) ' SET_POS_FILE <filename> [env_id]: sets the positions of the atoms from a file.'
+         WRITE (shell%iw, *) '   Returns the max change of the coordinates.'
          WRITE (shell%iw, *) ' SET_CELL [env_id]: sets the cell, should be followed by 9 numbers'
          WRITE (shell%iw, *) ' GET_CELL [env_id]: gets the cell vectors'
          WRITE (shell%iw, *) ' GET_STRESS [env_id]: gets the stress tensor of the last calculation on env_id'
@@ -585,36 +589,35 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Set the positions based on coordinates in a file
 !> \param shell ...
-!> \param arg1 ...
+!> \param arg1 Filename
+!> \param arg2 Environment ID
 ! **************************************************************************************************
-   SUBROUTINE set_pos_command(shell, arg1)
+   SUBROUTINE set_pos_file_command(shell, arg1, arg2)
       TYPE(cp2k_shell_type)                              :: shell
-      CHARACTER(LEN=*), INTENT(IN)                       :: arg1
+      CHARACTER(LEN=*), INTENT(IN)                       :: arg1, arg2
 
-      CHARACTER(LEN=default_path_length)                 :: line
-      INTEGER                                            :: ierr, iostat, n_atom
+      INTEGER                                            :: file_unit, ierr, iostat, n_atom
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: pos
 
-      IF (.NOT. parse_env_id(arg1, shell)) RETURN
+      IF (.NOT. parse_env_id(arg2, shell)) RETURN
       CALL get_natom(shell%env_id, n_atom, ierr)
       IF (.NOT. my_assert(ierr == 0, 'get_natom failed', shell)) RETURN
       ALLOCATE (pos(3*n_atom))
+
       IF (shell%iw > 0) THEN
-         READ (*, *, iostat=iostat) n_atom
+         CALL open_file(file_name=TRIM(arg1), unit_number=file_unit, &
+                        file_status="OLD", file_form="FORMATTED", file_action="READ")
+         READ (file_unit, *, iostat=iostat) n_atom
          IF (.NOT. my_assert(iostat == 0, 'setpos read n_atom failed', shell)) RETURN
          IF (.NOT. my_assert(n_atom == SIZE(pos), 'setpos invalid number of atoms', shell)) RETURN
-         READ (*, *, iostat=iostat) pos
+         READ (file_unit, *, iostat=iostat) pos
          IF (.NOT. my_assert(iostat == 0, 'setpos read coords failed', shell)) RETURN
          pos(:) = pos(:)/shell%pos_fact
-         READ (*, '(a)', iostat=iostat) line
-         IF (.NOT. my_assert(iostat == 0, 'setpos read END failed', shell)) RETURN
-         CALL uppercase(line)
-         IF (.NOT. my_assert(TRIM(line) == '*END', 'missing *END', shell)) RETURN
       END IF
 
       CALL send_pos_updates(shell, n_atom, pos)
       DEALLOCATE (pos)
-   END SUBROUTINE set_pos_command
+   END SUBROUTINE set_pos_file_command
 
 ! **************************************************************************************************
 !> \brief Update the positions for an environment
