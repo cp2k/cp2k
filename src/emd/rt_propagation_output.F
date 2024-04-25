@@ -860,18 +860,22 @@ CONTAINS
 
          IF (new_file) THEN
             IF (dft_control%apply_efield_field) THEN
-               WRITE (UNIT=unit_nr, FMT='("#",5X,A,8X,A,3(6X,A))') "Step Nr.", "Time[fs]", " Field X", " Field Y", " Field Z"
+               WRITE (UNIT=unit_nr, FMT='("#",5X,A,8X,A,3(6X,A))') "Step Nr.", "Time[fs]", " Field X", "   Field Y", "   Field Z"
             ELSE IF (dft_control%apply_vector_potential) THEN
-               WRITE (UNIT=unit_nr, FMT='("#",5X,A,8X,A,6(6X,A))') "Step Nr.", "Time[fs]", " Field X", " Field Y", " Field Z", &
-                  "Vec. Pot. X", "Vec. Pot. Y", "Vec. Pot. Z"
+               WRITE (UNIT=unit_nr, FMT='("#",5X,A,8X,A,6(6X,A))') "Step Nr.", "Time[fs]", " Field X", "   Field Y", "   Field Z", &
+                  "  Vec. Pot. X", "  Vec. Pot. Y", "    Vec. Pot. Z"
             END IF
          END IF
 
+         field = 0.0_dp
          IF (dft_control%apply_efield_field) THEN
             CALL make_field(dft_control, field, qs_env%sim_step, qs_env%sim_time)
-            WRITE (UNIT=unit_nr, FMT="(I10,F20.6,3(E16.8,1X))") i_step, i_step*rtp%dt*femtoseconds, field(1), field(2), field(3)
+            WRITE (UNIT=unit_nr, FMT="(I10,F16.6,3(F16.8,1X))") i_step, i_step*rtp%dt*femtoseconds, field(1), field(2), field(3)
+!            DO i=1,3
+!               IF (ABS(field(i))< 10E-10) field(i) = 0.0_dp
+!            END IF
          ELSE IF (dft_control%apply_vector_potential) THEN
-            WRITE (UNIT=unit_nr, FMT="(I10,F20.6,6(E16.8,1X))") i_step, i_step*rtp%dt*femtoseconds, &
+            WRITE (UNIT=unit_nr, FMT="(I10,F16.6,6(F16.8,1X))") i_step, i_step*rtp%dt*femtoseconds, &
                dft_control%rtp_control%field(1), dft_control%rtp_control%field(2), dft_control%rtp_control%field(3), &
                dft_control%rtp_control%vec_pot(1), dft_control%rtp_control%vec_pot(2), dft_control%rtp_control%vec_pot(3)
          END IF
