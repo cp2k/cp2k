@@ -66,8 +66,8 @@ MODULE environment
                                               cp2k_header
    USE input_constants,                 ONLY: &
         callgraph_all, callgraph_none, do_cosma, do_cp2k, do_dgemm_blas, do_dgemm_spla, do_eip, &
-        do_farming, do_fft_fftw3, do_fft_sg, do_fist, do_qs, do_scalapack, do_sirius, do_test, &
-        energy_run, mol_dyn_run, none_run
+        do_farming, do_fft_fftw3, do_fft_sg, do_fft_spfft, do_fist, do_qs, do_scalapack, &
+        do_sirius, do_test, energy_run, mol_dyn_run, none_run
    USE input_cp2k_global,               ONLY: create_global_section
    USE input_enumeration_types,         ONLY: enum_i2c,&
                                               enumeration_type
@@ -621,6 +621,8 @@ CONTAINS
       CASE (do_fft_fftw3)
          globenv%default_fft_library = "FFTW3"
          CALL cite_reference(Frigo2005)
+      CASE (do_fft_spfft)
+         globenv%default_fft_library = "SPFFT"
       CASE DEFAULT
          CPABORT("Unknown FFT library specified")
       END SELECT

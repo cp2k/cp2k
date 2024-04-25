@@ -45,6 +45,8 @@ MODULE fft_plan
 !   Plans for the remaining rows (when the number of threads does not divide the number of rows exactly)
       TYPE(C_PTR)                     :: fftw_plan_nx_r = C_NULL_PTR, fftw_plan_ny_r = C_NULL_PTR, fftw_plan_nz_r = C_NULL_PTR
 
+      TYPE(C_PTR) :: spfft_transform = C_NULL_PTR
+
    END TYPE fft_plan_type
 
 END MODULE fft_plan

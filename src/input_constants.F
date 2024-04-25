@@ -907,7 +907,8 @@ MODULE input_constants
    ! FFT library
    ! these might need sync with fft_lib.F
    INTEGER, PARAMETER, PUBLIC               :: do_fft_sg = 1, &
-                                               do_fft_fftw3 = 3
+                                               do_fft_fftw3 = 3, &
+                                               do_fft_spfft = 4
    INTEGER, PARAMETER, PUBLIC               :: fftw_plan_estimate = 1, &
                                                fftw_plan_measure = 2, &
                                                fftw_plan_patient = 3, &

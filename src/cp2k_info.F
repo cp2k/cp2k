@@ -212,6 +212,9 @@ CONTAINS
 #if defined(__SIRIUS)
       flags = TRIM(flags)//" sirius"
 #endif
+#if defined(__SPFFT)
+      flags = TRIM(flags)//" spfft"
+#endif
 #if defined(__CHECK_DIAG)
       flags = TRIM(flags)//" check_diag"
 #endif
