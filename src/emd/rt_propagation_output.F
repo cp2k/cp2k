@@ -870,7 +870,8 @@ CONTAINS
          field = 0.0_dp
          IF (dft_control%apply_efield_field) THEN
             CALL make_field(dft_control, field, qs_env%sim_step, qs_env%sim_time)
-            WRITE (UNIT=unit_nr, FMT="(I10,F16.6,3(F16.8,1X))") qs_env%sim_step, qs_env%sim_time*femtoseconds, field(1), field(2), field(3)
+            WRITE (UNIT=unit_nr, FMT="(I10,F16.6,3(F16.8,1X))") qs_env%sim_step, qs_env%sim_time*femtoseconds, &
+              field(1), field(2), field(3)
 !            DO i=1,3
 !               IF (ABS(field(i))< 10E-10) field(i) = 0.0_dp
 !            END IF
@@ -937,7 +938,8 @@ CONTAINS
 
          END IF
          WRITE (UNIT=unit_nr, FMT="(I10,F20.6,10(F20.9))") &
-            qs_env%sim_step, qs_env%sim_time*femtoseconds, energy%total, energy%core, energy%core_overlap, energy%hartree, energy%exc, &
+            qs_env%sim_step, qs_env%sim_time*femtoseconds, &
+            energy%total, energy%core, energy%core_overlap, energy%hartree, energy%exc, &
             energy%hartree_1c, energy%exc1, energy%exc_aux_fit, energy%exc1_aux_fit, energy%efield_core
 
       END IF
