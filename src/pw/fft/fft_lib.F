@@ -17,6 +17,7 @@ MODULE fft_lib
         fft_alloc => fftw_alloc, fft_dealloc => fftw_dealloc, fftw31dm, fftw33d, &
         fftw3_create_plan_1dm, fftw3_create_plan_3d, fftw3_destroy_plan, fftw3_do_cleanup, &
         fftw3_do_init, fftw3_get_lengths
+   USE spfft_lib,                       ONLY: spfft_create_plan_3d
 #include "../../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -50,6 +51,8 @@ CONTAINS
          flib = 1
       CASE ("FFTW3")
          flib = 3
+      CASE ("SPFFT")
+         flib = 4
       END SELECT
 
    END FUNCTION fft_library
@@ -68,7 +71,7 @@ CONTAINS
          CPABORT("fft_do_init")
       CASE (1)
          CALL fftsg_do_init()
-      CASE (3)
+      CASE (3, 4)
          CALL fftw3_do_init(wisdom_file)
       END SELECT
 
@@ -90,7 +93,7 @@ CONTAINS
          CPABORT("fft_do_cleanup")
       CASE (1)
          CALL fftsg_do_cleanup()
-      CASE (3)
+      CASE (3, 4)
          CALL fftw3_do_cleanup(wisdom_file, ionode)
       END SELECT
 
@@ -113,7 +116,7 @@ CONTAINS
          CPABORT("fft_get_lengths")
       CASE (1)
          CALL fftsg_get_lengths(DATA, max_length)
-      CASE (3)
+      CASE (3, 4)
          CALL fftw3_get_lengths(DATA, max_length)
       END SELECT
 
@@ -149,8 +152,11 @@ CONTAINS
 !$    plan%need_alt_plan = .FALSE.
 
       ! Planning only needed for FFTW3
-      IF (fft_type .EQ. 3) THEN
+      IF (fft_type == 3) THEN
          CALL fftw3_create_plan_3d(plan, zin, zout, plan_style)
+         plan%valid = .TRUE.
+      ELSE IF (fft_type == 4) THEN
+         CALL spfft_create_plan_3d(plan)
          plan%valid = .TRUE.
       END IF
 

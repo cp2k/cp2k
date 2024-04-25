@@ -45,11 +45,12 @@ MODULE input_cp2k_global
    USE input_constants,                 ONLY: &
         bsse_run, callgraph_all, callgraph_master, callgraph_none, cell_opt_run, debug_run, &
         do_atom, do_band, do_cosma, do_cp2k, do_dgemm_blas, do_dgemm_spla, do_farming, &
-        do_fft_fftw3, do_fft_sg, do_opt_basis, do_optimize_input, do_scalapack, do_swarm, do_tamc, &
-        do_test, do_tree_mc, do_tree_mc_ana, driver_run, ehrenfest, electronic_spectra_run, &
-        energy_force_run, energy_run, fftw_plan_estimate, fftw_plan_exhaustive, fftw_plan_measure, &
-        fftw_plan_patient, gaussian, geo_opt_run, linear_response_run, mol_dyn_run, mon_car_run, &
-        negf_run, none_run, pint_run, real_time_propagation, tree_mc_run, vib_anal
+        do_fft_fftw3, do_fft_sg, do_fft_spfft, do_opt_basis, do_optimize_input, do_scalapack, &
+        do_swarm, do_tamc, do_test, do_tree_mc, do_tree_mc_ana, driver_run, ehrenfest, &
+        electronic_spectra_run, energy_force_run, energy_run, fftw_plan_estimate, &
+        fftw_plan_exhaustive, fftw_plan_measure, fftw_plan_patient, gaussian, geo_opt_run, &
+        linear_response_run, mol_dyn_run, mon_car_run, negf_run, none_run, pint_run, &
+        real_time_propagation, tree_mc_run, vib_anal
    USE input_keyword_types,             ONLY: keyword_create,&
                                               keyword_release,&
                                               keyword_type
@@ -227,17 +228,18 @@ CONTAINS
          "i.e. the subset of grids which all FFT libraries can transform. "// &
          "See EXTENDED_FFT_LENGTHS if larger FFTs or grids that more precisely match a given cutoff are needed, "// &
          "or older results need to be reproduced. "// &
-         "FFTW3 is often (close to) optimal, and well tested with CP2K.", &
+         "FFTW3 is often (close to) optimal, and well tested with CP2K. SpFFT enables GPU accelarated FFTs.", &
          usage="PREFERRED_FFT_LIBRARY FFTW3", &
          citations=(/Frigo2005/), &
          default_i_val=do_fft_fftw3, &
-         enum_i_vals=(/do_fft_sg, do_fft_fftw3, do_fft_fftw3/), &
-         enum_c_vals=s2a("FFTSG", "FFTW3", "FFTW"), &
+         enum_i_vals=(/do_fft_sg, do_fft_fftw3, do_fft_fftw3, do_fft_spfft/), &
+         enum_c_vals=s2a("FFTSG", "FFTW3", "FFTW", "SPFFT"), &
          enum_desc=s2a("Stefan Goedecker's FFT (FFTSG), always available, "// &
                        "will be used in case a FFT library is specified and not available.", &
                        "a fast portable FFT library. Recommended. "// &
                        "See also the FFTW_PLAN_TYPE, and FFTW_WISDOM_FILE_NAME keywords.", &
-                       "Same as FFTW3 (for compatibility with CP2K 2.3)"))
+                       "Same as FFTW3 (for compatibility with CP2K 2.3)", &
+                       "a GPU-accelerated FFT library"))
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
