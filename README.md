@@ -79,7 +79,7 @@ Additional directories created during build process:
 [conda-link]: https://anaconda.org/conda-forge/cp2kcp2k
 [debian-badge]: https://img.shields.io/debian/v/cp2k
 [debian-link]: https://packages.debian.org/search?keywords=cp2k
-[docker-badge]: https://img.shields.io/docker/v/cp2k/cp2k
+[docker-badge]: https://img.shields.io/docker/v/cp2k/cp2k?label=docker
 [docker-link]: https://hub.docker.com/r/cp2k/cp2k
 [fedora-badge]: https://img.shields.io/fedora/v/cp2k
 [fedora-link]: https://src.fedoraproject.org/rpms/cp2k
