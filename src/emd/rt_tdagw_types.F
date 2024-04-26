@@ -447,6 +447,9 @@ CONTAINS
       NULLIFY(tdagw_env%rho_dbcsr)
       ALLOCATE(tdagw_env%rho_dbcsr)
       CALL dbcsr_create(tdagw_env%rho_dbcsr, name="Sparse density", template=bs_env%mat_ao_ao%matrix)
+
+      NULLIFY(tdagw_env%v_dbcsr%matrix)
+      ALLOCATE(tdagw_env%v_dbcsr%matrix)
       
    END SUBROUTINE
 
@@ -475,6 +478,10 @@ CONTAINS
       CALL cp_fm_release(tdagw_env%rho_new_last)
       CALL cp_fm_release(tdagw_env%rho_M)
       CALL cp_fm_release(tdagw_env%S_inv_fm%matrix)
+
+      ! TODO : Decide on where and when to releae this
+      CALL dbcsr_release(tdagw_env%v_dbcsr%matrix)
+      DEALLOCATE(tdagw_env%v_dbcsr%matrix)
 
       NULLIFY(tdagw_env%S_inv)
       DEALLOCATE(tdagw_env%orders)

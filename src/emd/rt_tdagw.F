@@ -56,7 +56,8 @@ MODULE rt_tdagw
                                               dbcsr_put_block,&
                                               dbcsr_reserve_blocks,&
                                               dbcsr_get_num_blocks,&
-                                              dbcsr_get_block_p
+                                              dbcsr_get_block_p,&
+                                              dbcsr_get_info
    USE OMP_LIB,                         ONLY: omp_get_thread_num,&
                                               omp_get_num_threads,&
                                               omp_set_num_threads,&
@@ -118,11 +119,13 @@ MODULE rt_tdagw
    USE rt_propagator_init,              ONLY: rt_initialize_rho_from_mos
    USE rt_propagation_methods,          ONLY: s_matrices_create
    USE gw_methods,                      ONLY: compute_3c_integrals
+   USE gw_integrals,                    ONLY: build_3c_integrals
    USE matrix_exp,                      ONLY: taylor_full_complex
    USE cp_log_handling,                 ONLY: cp_logger_type,&
                                               cp_get_default_logger,&
                                               cp_logger_get_unit_nr
    USE cp_output_handling,              ONLY: cp_print_key_unit_nr
+   USE message_passing,                 ONLY: mp_para_env_type
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type
    USE input_constants,                 ONLY: rtp_tdagw_ham_ks,&
@@ -231,10 +234,12 @@ CONTAINS
       ! TODO : k-points and the possible divergence
       IF ( tdagw_env%hartree_method == rtp_tdagw_hartree_dbt ) THEN
          ! Calculate Coulomb RI elements, necessary for Hartree calculation
-         CALL init_hartree(qs_env, tdagw_env%hartree_dbt)
+         CALL init_hartree(qs_env, tdagw_env%hartree_dbt, tdagw_env%v_dbcsr%matrix)
          @:SPIN_DO(j, re, im, tdagw_env%n_spin)
-            CALL get_hartree(tdagw_env, qs_env, tdagw_env%hartree_dbt, tdagw_env%rho(re)%matrix, tdagw_env%hartree_orig(re)%matrix)
-            CALL get_hartree(tdagw_env, qs_env, tdagw_env%hartree_dbt, tdagw_env%rho(im)%matrix, tdagw_env%hartree_orig(im)%matrix)
+            CALL get_hartree_local(qs_env, tdagw_env, tdagw_env%rho(re)%matrix, tdagw_env%hartree_orig(re)%matrix)
+            CALL get_hartree_local(qs_env, tdagw_env, tdagw_env%rho(im)%matrix, tdagw_env%hartree_orig(im)%matrix)
+            !CALL get_hartree(tdagw_env, qs_env, tdagw_env%hartree_dbt, tdagw_env%rho(re)%matrix, tdagw_env%hartree_orig(re)%matrix)
+            !CALL get_hartree(tdagw_env, qs_env, tdagw_env%hartree_dbt, tdagw_env%rho(im)%matrix, tdagw_env%hartree_orig(im)%matrix)
             ! PRINT *, "metric hartree_orig, RE spin", j, cp_fm_norm(tdagw_env%hartree_orig(re)%matrix, "M")
             ! PRINT *, "metric hartree_orig, IM spin", j, cp_fm_norm(tdagw_env%hartree_orig(im)%matrix, "M")
          END DO
@@ -570,13 +575,17 @@ CONTAINS
          ! Calculate update Hartree potential
          ! TODO : Spin (in)dependence check
          IF ( tdagw_env%hartree_method == rtp_tdagw_hartree_dbt ) THEN
-            CALL get_hartree(tdagw_env, qs_env, tdagw_env%hartree_dbt, rho(re)%matrix,&
+            CALL get_hartree_local(qs_env, tdagw_env, rho(re)%matrix,&
                              tdagw_env%hartree_curr(re)%matrix)
+            ! CALL get_hartree(tdagw_env, qs_env, tdagw_env%hartree_dbt, rho(re)%matrix,&
+            !                  tdagw_env%hartree_curr(re)%matrix)
             CALL cp_fm_scale_and_add(1.0_dp, tdagw_env%ham_effective(re)%matrix,&
                                      1.0_dp, tdagw_env%hartree_curr(re)%matrix)
             ! TODO : Check signs
-            CALL get_hartree(tdagw_env, qs_env, tdagw_env%hartree_dbt, rho(im)%matrix,&
+            CALL get_hartree_local(qs_env, tdagw_env, rho(im)%matrix,&
                              tdagw_env%hartree_curr(im)%matrix)
+            ! CALL get_hartree(tdagw_env, qs_env, tdagw_env%hartree_dbt, rho(im)%matrix,&
+            !                  tdagw_env%hartree_curr(im)%matrix)
             CALL cp_fm_scale_and_add(1.0_dp, tdagw_env%ham_effective(im)%matrix,&
                                      1.0_dp, tdagw_env%hartree_curr(im)%matrix)
          ELSEIF (tdagw_env%hartree_method == rtp_tdagw_hartree_pw ) THEN
@@ -844,6 +853,8 @@ CONTAINS
       file_labels(4) = "_SPIN_B_IM.dat"
       logger => cp_get_default_logger()
       @:SPIN_DO(j, re, im, tdagw_env%n_spin)
+         ! TODO : Distinguish between case when moments output is not required and when we are not outputting from
+         !        non-root MPI rank
          moments_unit_re = cp_print_key_unit_nr(logger, rtp_section, "PRINT%MOMENTS", extension=file_labels(re))
          moments_unit_im = cp_print_key_unit_nr(logger, rtp_section, "PRINT%MOMENTS", extension=file_labels(im))
          ! If, for any reason, the file unit is not provided, skip to next cycle immediately
@@ -851,83 +862,22 @@ CONTAINS
          ! TODO : Let user define the output units
          ! TODO : Handle case of complex molecular orbital matrix?
          ! TODO : Specify output units in config
-         IF (.NOT.(moments_unit_re == -1)) THEN
-            ! Need to transpose due to the definition of trace function
-            CALL cp_fm_transpose(rho(re)%matrix, tdagw_env%rho_workspace(1)%matrix)
-            DO i=1,3
-               ! ! S_inv * r
-               ! CALL cp_dbcsr_sm_fm_multiply(tdagw_env%S_inv, tdagw_env%moments(i)%matrix,&
-               !                              tdagw_env%rho_workspace(1)%matrix, tdagw_env%n_ao)
-               ! ! S_inv * rho
-               ! CALL cp_dbcsr_sm_fm_multiply(tdagw_env%S_inv, rho(re)%matrix,&
-               !                              tdagw_env%rho_workspace(2)%matrix, tdagw_env%n_ao)
-               ! Need to transpose due to the definition of trace function
-               ! CALL cp_fm_transpose(tdagw_env%rho_workspace(2)%matrix, tdagw_env%rho_workspace(3)%matrix)
-               ! Tr(S_inv * rho * S_inv * r)
-               ! CALL cp_fm_trace(tdagw_env%rho_workspace(3)%matrix, tdagw_env%rho_workspace(1)%matrix, moments(i))
-               CALL cp_fm_trace(tdagw_env%rho_workspace(1)%matrix, tdagw_env%moments(i)%matrix, moments(i))
-            !   ! r * C
-            !   CALL parallel_gemm("N","N",tdagw_env%n_ao,tdagw_env%n_ao,tdagw_env%n_ao,&
-            !                   1.0_dp,tdagw_env%moments(i)%matrix,mos(j),0.0_dp,&
-            !                   tdagw_env%rho_workspace(1)%matrix)
-            !   ! C^T * r * C
-            !   CALL parallel_gemm("T","N",tdagw_env%n_ao,tdagw_env%n_ao,tdagw_env%n_ao,&
-            !                   1.0_dp,mos(j),tdagw_env%rho_workspace(1)%matrix,0.0_dp,&
-            !                   tdagw_env%rho_workspace(2)%matrix)
-            !   ! C * C^T * r * C
-            !   CALL parallel_gemm("N","N",tdagw_env%n_ao,tdagw_env%n_ao,tdagw_env%n_ao,&
-            !                   1.0_dp,mos(j),tdagw_env%rho_workspace(2)%matrix,0.0_dp,&
-            !                   tdagw_env%rho_workspace(1)%matrix)
-            !   ! rho * C * C^T * r * C
-            !   CALL parallel_gemm("N","N",tdagw_env%n_ao,tdagw_env%n_ao,tdagw_env%n_ao,&
-            !                   1.0_dp,rho(re)%matrix,tdagw_env%rho_workspace(1)%matrix,0.0_dp,&
-            !                   tdagw_env%rho_workspace(2)%matrix)
-            !   ! Tr( C^T * rho * C * C^T * r * C)
-            !   CALL cp_fm_trace(mos(j), tdagw_env%rho_workspace(2)%matrix, moments(i))
-            !   PRINT *, "Cart index", i, "moment", moments(i)
-            END DO
-            ! Output to the file
-            WRITE(moments_unit_re, '(E16.8,E16.8,E16.8,E16.8)') tdagw_env%sim_time*femtoseconds, moments(1),&
-                moments(2), moments(3)
-         END IF
-         IF (.NOT.(moments_unit_im == -1)) THEN
-            ! Need to transpose due to the definition of trace function
-            CALL cp_fm_transpose(rho(im)%matrix, tdagw_env%rho_workspace(1)%matrix)
-            DO i=1,3
-               ! ! S_inv * r
-               ! CALL cp_dbcsr_sm_fm_multiply(tdagw_env%S_inv, tdagw_env%moments(i)%matrix,&
-               !                              tdagw_env%rho_workspace(1)%matrix, tdagw_env%n_ao)
-               ! ! S_inv * rho
-               ! CALL cp_dbcsr_sm_fm_multiply(tdagw_env%S_inv, rho(im)%matrix,&
-               !                              tdagw_env%rho_workspace(2)%matrix, tdagw_env%n_ao)
-               ! ! Need to transpose due to the definition of trace function
-               ! CALL cp_fm_transpose(tdagw_env%rho_workspace(2)%matrix, tdagw_env%rho_workspace(3)%matrix)
-               ! ! Tr(S_inv * rho * S_inv * r)
-               ! CALL cp_fm_trace(tdagw_env%rho_workspace(3)%matrix, tdagw_env%rho_workspace(1)%matrix, moments(i))
-               CALL cp_fm_trace(tdagw_env%rho_workspace(1)%matrix, tdagw_env%moments(i)%matrix, moments(i))
-            !   ! r * C
-            !   CALL parallel_gemm("N","N",tdagw_env%n_ao,tdagw_env%n_ao,tdagw_env%n_ao,&
-            !                   1.0_dp,tdagw_env%moments(i)%matrix,mos(j),0.0_dp,&
-            !                   tdagw_env%rho_workspace(1)%matrix)
-            !   ! C^T * r * C
-            !   CALL parallel_gemm("T","N",tdagw_env%n_ao,tdagw_env%n_ao,tdagw_env%n_ao,&
-            !                   1.0_dp,mos(j),tdagw_env%rho_workspace(1)%matrix,0.0_dp,&
-            !                   tdagw_env%rho_workspace(2)%matrix)
-            !   ! C * C^T * r * C
-            !   CALL parallel_gemm("N","N",tdagw_env%n_ao,tdagw_env%n_ao,tdagw_env%n_ao,&
-            !                   1.0_dp,mos(j),tdagw_env%rho_workspace(2)%matrix,0.0_dp,&
-            !                   tdagw_env%rho_workspace(1)%matrix)
-            !   ! rho * C * C^T * r * C
-            !   CALL parallel_gemm("N","N",tdagw_env%n_ao,tdagw_env%n_ao,tdagw_env%n_ao,&
-            !                   1.0_dp,rho(im)%matrix,tdagw_env%rho_workspace(1)%matrix,0.0_dp,&
-            !                   tdagw_env%rho_workspace(2)%matrix)
-            !   ! Tr( C^T * rho * C * C^T * r * C)
-            !   CALL cp_fm_trace(mos(j), tdagw_env%rho_workspace(2)%matrix, moments(i))
-            END DO
-            ! Output to the file
-            WRITE(moments_unit_im, '(E16.8,E16.8,E16.8,E16.8)') tdagw_env%sim_time*femtoseconds, moments(1),&
-                moments(2), moments(3)
-         END IF
+         ! Need to transpose due to the definition of trace function
+         CALL cp_fm_transpose(rho(re)%matrix, tdagw_env%rho_workspace(1)%matrix)
+         DO i=1,3
+            CALL cp_fm_trace(tdagw_env%rho_workspace(1)%matrix, tdagw_env%moments(i)%matrix, moments(i))
+         END DO
+         ! Output to the file
+         IF (moments_unit_re > 0) WRITE(moments_unit_re, '(E16.8,E16.8,E16.8,E16.8)') tdagw_env%sim_time*femtoseconds, moments(1),&
+             moments(2), moments(3)
+         ! Need to transpose due to the definition of trace function
+         CALL cp_fm_transpose(rho(im)%matrix, tdagw_env%rho_workspace(1)%matrix)
+         DO i=1,3
+            CALL cp_fm_trace(tdagw_env%rho_workspace(1)%matrix, tdagw_env%moments(i)%matrix, moments(i))
+         END DO
+         ! Output to the file
+         IF(moments_unit_im > 0) WRITE(moments_unit_im, '(E16.8,E16.8,E16.8,E16.8)') tdagw_env%sim_time*femtoseconds, moments(1),&
+             moments(2), moments(3)
       END DO
    END SUBROUTINE
    SUBROUTINE get_electron_number(tdagw_env, rho, electron_n_re, electron_n_im)
@@ -1172,9 +1122,10 @@ CONTAINS
 !> \author Stepan Marek
 !> \date 01.2024
 ! **************************************************************************************************
-   SUBROUTINE init_hartree(qs_env, V_dbt)
+   SUBROUTINE init_hartree(qs_env, V_dbt, v_dbcsr)
       TYPE(qs_environment_type), POINTER, INTENT(IN)     :: qs_env
       TYPE(dbt_type), POINTER, INTENT(OUT)               :: V_dbt
+      TYPE(dbcsr_type), POINTER                          :: v_dbcsr
       CHARACTER(len=*), PARAMETER                        :: routineN = "init_hartree"
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
       TYPE(libint_potential_type)                        :: coulomb_op
@@ -1183,7 +1134,7 @@ CONTAINS
       ! TYPE(cp_fm_type), DIMENSION(:,:), ALLOCATABLE      :: metric_fm
       TYPE(cp_fm_type)                                   :: metric_inv_fm,&
                                                             work_fm
-      TYPE(dbcsr_type), DIMENSION(:), ALLOCATABLE        :: V_dbcsr,&
+      TYPE(dbcsr_type), DIMENSION(:), ALLOCATABLE        :: V_dbcsr_a,&
                                                             metric_dbcsr
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: nl_2c
@@ -1196,9 +1147,9 @@ CONTAINS
 
       ! Allocate for bare Hartree term
       ! TODO : k-points
-      ALLOCATE(V_dbcsr(1))
+      ALLOCATE(V_dbcsr_a(1))
       ALLOCATE(metric_dbcsr(1))
-      CALL dbcsr_create(V_dbcsr(1), name="Hartree_dbcsr", template=bs_env%mat_RI_RI%matrix)
+      CALL dbcsr_create(V_dbcsr_a(1), name="Hartree_dbcsr", template=bs_env%mat_RI_RI%matrix)
       CALL dbcsr_create(metric_dbcsr(1), name="RI_metric_dbcsr", template=bs_env%mat_RI_RI%matrix)
 
       ! Calculate full coulomb RI basis elements - V _ (PQ) matrix
@@ -1206,10 +1157,10 @@ CONTAINS
       CALL build_2c_neighbor_lists(nl_2c, bs_env%basis_set_RI, bs_env%basis_set_RI,&
                                    coulomb_op, "Coulomb_neighbor_2c_list", qs_env,&
                                    sym_ij=.FALSE., molecular=.TRUE.)
-      CALL build_2c_integrals(V_dbcsr, bs_env%eps_filter, qs_env, nl_2c,&
+      CALL build_2c_integrals(V_dbcsr_a, bs_env%eps_filter, qs_env, nl_2c,&
                               bs_env%basis_set_RI, bs_env%basis_set_RI, coulomb_op,&
                               do_kpoints=.FALSE., regularization_RI=bs_env%regularization_RI)
-      ! CALL dbcsr_print(V_dbcsr(1))
+      ! CALL dbcsr_print(V_dbcsr_a(1))
       ! Calculate the RI metric elements
       ! nl_2c is automatically rewritten (even reallocated) in this routine
       CALL build_2c_neighbor_lists(nl_2c, bs_env%basis_set_RI, bs_env%basis_set_RI,&
@@ -1250,22 +1201,25 @@ CONTAINS
       CALL cp_fm_create(V_fm, bs_env%fm_RI_RI%matrix_struct)
       CALL cp_fm_set_all(V_fm, 0.0_dp)
       ! Multiply by the inverse from each side (M^-1 is symmetric)
-      CALL cp_dbcsr_sm_fm_multiply(V_dbcsr(1), metric_inv_fm,&
+      CALL cp_dbcsr_sm_fm_multiply(V_dbcsr_a(1), metric_inv_fm,&
                                    work_fm, bs_env%n_RI)
       CALL parallel_gemm("N", "N", bs_env%n_RI, bs_env%n_RI, bs_env%n_RI,&
                          1.0_dp, metric_inv_fm, work_fm, 0.0_dp, V_fm)
       ! Now, create the tensor from the matrix
       ! First, convert full matrix to dbcsr
       ! TODO : No k-points so far
-      CALL dbcsr_clear(V_dbcsr(1))
-      CALL copy_fm_to_dbcsr(V_fm, V_dbcsr(1))
+      ! TODO : Decide on how and when to copy to stored dbcsr
+      CALL dbcsr_clear(V_dbcsr_a(1))
+      CALL copy_fm_to_dbcsr(V_fm, V_dbcsr_a(1))
+      CALL dbcsr_create(v_dbcsr, "Hartree ri", V_dbcsr_a(1))
+      CALL dbcsr_copy(v_dbcsr, V_dbcsr_a(1))
       ! Create and copy distinctly, so that unnecessary objects can be destroyed
-      CALL dbt_create(V_dbcsr(1), V_dbt, name="Hartree_dbt")
-      CALL dbt_copy_matrix_to_tensor(V_dbcsr(1), V_dbt)
+      CALL dbt_create(V_dbcsr_a(1), V_dbt, name="Hartree_dbt")
+      CALL dbt_copy_matrix_to_tensor(V_dbcsr_a(1), V_dbt)
       ! Destroy all unnecessary matrices
-      CALL dbcsr_release(V_dbcsr(1))
+      CALL dbcsr_release(V_dbcsr_a(1))
       CALL dbcsr_release(metric_dbcsr(1))
-      DEALLOCATE(V_dbcsr)
+      DEALLOCATE(V_dbcsr_a)
       DEALLOCATE(metric_dbcsr)
       ! TODO : No k-points so far
       CALL cp_fm_release(V_fm)
@@ -1638,111 +1592,141 @@ CONTAINS
 
       CALL timestop(handle)
    END SUBROUTINE
-! **************************************************************************************************
-!> \brief Calculates the Hartree matrix in the atomic orbital basis, given a density matrix, using PW approach
-!> \param qs_env Entry point
-!> \param pw_env Planewave environment for FT calculations
-!> \param rho_ao Density matrix in ao basis
-!> \param v_ao Overwritten by the Hartree matrix in the atomic orbital basis
-!> \author Stepan Marek
-!> \date 02.2024
-! **************************************************************************************************
-   SUBROUTINE get_hartree_pw(qs_env, rho_ao, v_ao)
+   SUBROUTINE get_hartree_local(qs_env, tdagw_env, rho_ao, v_ao)
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(cp_fm_p_type), DIMENSION(:), INTENT(IN)       :: rho_ao
-      TYPE(cp_fm_p_type), INTENT(OUT)                    :: v_ao
-      CHARACTER(len=*), PARAMETER                        :: routineN = "get_hartree_pw"
-      TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(qs_ks_env_type), POINTER                      :: qs_ks_env
-      TYPE(pw_poisson_type), POINTER                     :: poisson_env
-      TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type)                                      :: rho_gspace_tot,&
-                                                            v_hartree_gspace,&
-                                                            v_hartree_rspace
-      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_gspace, rho_rspace
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_dbcsr
-      TYPE(dbcsr_p_type)                                 :: v_dbcsr
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
-      INTEGER                                            :: i, re, im, n_spin
-      ! TODO : Imaginary contributions from Hartree? Are these physical?
+      TYPE(tdagw_env_type)                               :: tdagw_env
+      TYPE(cp_fm_type), INTENT(IN), POINTER              :: rho_ao
+      TYPE(cp_fm_type), POINTER                          :: v_ao
+      CHARACTER(len=*), PARAMETER                        :: routineN="get_hartree_local"
+      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(dbcsr_iterator_type)                          :: iterator_matrix
+      INTEGER                                            :: my_prow, my_pcol, nblkrows_local, nblkcols_local,&
+                                                            i, j, k, n, nblocks, ind_1, ind_2, row_offset, col_offset,&
+                                                            row_size, col_size, j_n_AO, k_n_AO, i_n_RI, n_RI,&
+                                                            ri_offset, ind_i
+      REAL(kind=dp), DIMENSION(:), ALLOCATABLE           :: Pvector, Qvector
+      REAL(kind=dp), DIMENSION(:,:), POINTER             :: block_matrix
+      REAL(kind=dp), DIMENSION(:,:,:), ALLOCATABLE       :: int_3c
+      TYPE(dbcsr_type)                                   :: v_dbcsr_ao
 
-      ! Get environments and parameters from qs_env
-      CALL get_qs_env(qs_env,&
-                      dft_control=dft_control,&
-                      pw_env=pw_env,&
-                      ks_env=qs_ks_env,&
-                      matrix_s=matrix_s)
-      n_spin = dft_control%nspins
-      ! Initialise rho_dbcsr
-      ALLOCATE(rho_dbcsr(n_spin))
-      @:SPIN_DO(i, re, im, n_spin)
-         NULLIFY(rho_dbcsr(re)%matrix)
-         ALLOCATE(rho_dbcsr(re)%matrix)
-         CALL dbcsr_create(rho_dbcsr(re)%matrix, name="Rho dbcsr", template=matrix_s(i)%matrix)
-         CALL copy_fm_to_dbcsr(rho_ao(re)%matrix, rho_dbcsr(re)%matrix)
-         NULLIFY(rho_dbcsr(re)%matrix)
-         ALLOCATE(rho_dbcsr(re)%matrix)
-         CALL dbcsr_create(rho_dbcsr(im)%matrix, name="Rho dbcsr", template=matrix_s(i)%matrix)
-         CALL copy_fm_to_dbcsr(rho_ao(im)%matrix, rho_dbcsr(im)%matrix)
+      ! Very ineffective first implementation - calculate all 3cs an all ranks
+      ! Importantly - dbcsr blocks are ordered by atoms - i.e. ethene with 6 atoms will have 6x6 block structure
+      ! Number of basis states on each basis set is known is post_scf_bandstructure env
+      ! TODO : Only calculate integrals which are needed for a given rank, which are given by structure
+      !        of the density matrix
+
+      ! Get the relevant environments
+      CALL get_qs_env(qs_env, bs_env=bs_env, para_env=para_env)
+      n_RI = tdagw_env%n_RI
+
+      ! Allocate the Q and Pvector on each rank
+      ALLOCATE(Qvector(tdagw_env%n_RI), source=0.0_dp)
+      ALLOCATE(Pvector(tdagw_env%n_RI), source=0.0_dp)
+
+      ! First step - analyze the structure of copied dbcsr matrix on both ranks
+      CALL copy_fm_to_dbcsr(rho_ao, tdagw_env%rho_dbcsr)
+      CALL dbcsr_get_info(tdagw_env%rho_dbcsr, my_prow=my_prow, my_pcol=my_pcol, nblkrows_local=nblkrows_local,&
+                          nblkcols_local=nblkcols_local)
+      ! PRINT *, "DBCSR INFO : ", my_prow, my_pcol, nblkrows_local, nblkcols_local
+      nblocks = dbcsr_get_num_blocks(tdagw_env%rho_dbcsr)
+      CALL dbcsr_iterator_start(iterator_matrix, tdagw_env%rho_dbcsr)
+      DO n=1,nblocks
+         CALL dbcsr_iterator_next_block(iterator_matrix, ind_1, ind_2, block_matrix,&
+                 row_offset=row_offset, col_offset=col_offset, row_size=row_size, col_size=col_size)
+         ! PRINT *, "DBCSR Block", ind_1, ind_2, row_offset, col_offset, row_size, col_size
+         ! Now we have a block corresponding to a single atom pair
+         j_n_AO = bs_env%sizes_AO(ind_1)
+         k_n_AO = bs_env%sizes_AO(ind_2)
+         ! For each atom pair, we need to get contributions from all RI atoms
+         ! The allocations are as follows
+         ALLOCATE(int_3c(j_n_AO, k_n_AO, n_RI))
+         ! Now, get the relevant 3c integrals
+         ! TODO : Interface is slightly different - should do extra loop over the RI atoms
+         ri_offset = 0
+         DO ind_i=1,bs_env%n_atom
+            CALL build_3c_integrals(int_3c, qs_env, potential_parameter=bs_env%ri_metric,&
+                                    basis_j=bs_env%basis_set_AO, basis_k=bs_env%basis_set_AO, basis_i=bs_env%basis_set_RI,&
+                                    atom_j=ind_1, atom_k=ind_2, atom_i=ind_i)
+            i_n_RI = bs_env%sizes_RI(ind_i)
+            !$OMP PARALLEL DO DEFAULT(none) PRIVATE(i,j,k) SHARED(Qvector, int_3c, block_matrix,i_n_RI,j_n_AO,k_n_AO, ri_offset)
+            DO i=1,i_n_RI
+               DO j=1,j_n_AO
+                  DO k=1,k_n_AO
+                     ! Different OMP threads write to different places in memory - should be safe from data race
+                     Qvector(ri_offset + i) = Qvector(ri_offset + i) + int_3c(j,k,i) * block_matrix(j,k)
+                  END DO
+               END DO
+            END DO
+            !$OMP END PARALLEL DO
+            ri_offset = ri_offset + i_n_RI
+         END DO
+         DEALLOCATE(int_3c)
       END DO
-      ! Initialise v_dbcsr
-      ALLOCATE(v_dbcsr%matrix)
-      CALL dbcsr_create(v_dbcsr%matrix, template=matrix_s(1)%matrix)
-      ! TODO : Redo via block reservations?
-      ! TODO : Take into account symmetry present in integrate_v_rspace
-      CALL dbcsr_copy(v_dbcsr%matrix, rho_dbcsr(1)%matrix)
-      CALL dbcsr_scale(v_dbcsr%matrix, 0.0_dp)
-      ! Get the task pool and poisson environment to create pw types
-      CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, poisson_env=poisson_env)
-      ! Allocate the densities in g-space and r-space, for each spin
-      ALLOCATE(rho_gspace(n_spin))
-      ALLOCATE(rho_rspace(n_spin))
-      CALL auxbas_pw_pool%create_pw(rho_gspace_tot, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
-      CALL pw_zero(rho_gspace_tot)
-      @:SPIN_DO(i,re,im,n_spin)
-         ! Prepare the total density
-         CALL auxbas_pw_pool%create_pw(rho_gspace(i), use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
-         CALL pw_zero(rho_gspace(i))
-         CALL auxbas_pw_pool%create_pw(rho_rspace(i), use_data=REALDATA3D, in_space=REALSPACE)
-         CALL pw_zero(rho_rspace(i))
-         ! get the density in rspace and gspace - rho_dbcsr has to be target
-         ! CALL calculate_rho_elec(rho_dbcsr(i)%matrix, rho=rho_rspace(i), rho_gspace=rho_gspace(i),&
-         !                         ks_env=qs_ks_env, total_rho=total_rho)
-         ! PRINT *, "Total rho for spin type ", i, total_rho
-         CALL calculate_rho_elec(rho_dbcsr(i)%matrix, rho=rho_rspace(i), rho_gspace=rho_gspace(i),&
-                                 ks_env=qs_ks_env)
-         ! Do not need rho rspace
-         CALL auxbas_pw_pool%give_back_pw(rho_rspace(i))
-         CALL pw_axpy(rho_gspace(i), rho_gspace_tot)
-         CALL auxbas_pw_pool%give_back_pw(rho_gspace(i))
+      CALL dbcsr_iterator_stop(iterator_matrix)
+      ! Now, each rank has contributions from D_jk within its scope
+      ! Need to sum over different ranks to get the total vector on all ranks
+      CALL para_env%sum(Qvector)
+      ! TODO : Maybe search for matrix_vector multiply/trace scale for the V^PQ B_Q operation
+      ! Once this is done, Pvector is current on all ranks
+      ! Continue with V_PQ summation
+      nblocks = dbcsr_get_num_blocks(tdagw_env%v_dbcsr%matrix)
+      CALL dbcsr_iterator_start(iterator_matrix, tdagw_env%v_dbcsr%matrix)
+      DO n=1,nblocks
+         ! TODO : Try OMP parallelisation over different blocks - expect many more available speedup for large systems
+         CALL dbcsr_iterator_next_block(iterator_matrix, ind_1, ind_2, block_matrix, &
+                                        row_offset=row_offset, col_offset=col_offset)
+         ! TODO : Better names for RI
+         j_n_AO = bs_env%sizes_RI(ind_1)
+         k_n_AO = bs_env%sizes_RI(ind_2)
+         ! The allocations are as follows
+         !$OMP PARALLEL DO DEFAULT(none) SHARED(block_matrix, Pvector, Qvector,j_n_AO,k_n_AO,row_offset,col_offset) PRIVATE(j,k)
+         DO j=1,j_n_AO
+            DO k=1,k_n_AO
+               Pvector(j+row_offset) = Pvector(j+row_offset) + block_matrix(j,k) * Qvector(k+col_offset)
+            END DO
+         END DO
+         !$OMP END PARALLEL DO
       END DO
-      CALL auxbas_pw_pool%create_pw(v_hartree_gspace, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
-      CALL pw_zero(v_hartree_gspace)
-      ! Use the g-space density to determine the Hartree in g-space
-      CALL pw_poisson_solve(poisson_env, rho_gspace_tot, vhartree=v_hartree_gspace)
-      CALL auxbas_pw_pool%give_back_pw(rho_gspace_tot)
-      ! Transfer to real space
-      CALL auxbas_pw_pool%create_pw(v_hartree_rspace, use_data=REALDATA3D, in_space=REALSPACE)
-      CALL pw_zero(v_hartree_rspace)
-      CALL pw_transfer(v_hartree_gspace, v_hartree_rspace)
-      CALL auxbas_pw_pool%give_back_pw(v_hartree_gspace)
-      ! Scale by volume element
-      CALL pw_scale(v_hartree_rspace, v_hartree_rspace%pw_grid%dvol)
-      ! integrate in rspace
-      ! Copy high level in order to create relevant blocks (that is all blocks)
-      CALL integrate_v_rspace(v_rspace=v_hartree_rspace, hmat=v_dbcsr, pmat=rho_dbcsr(1), qs_env=qs_env, calculate_forces=.FALSE.)
-      CALL auxbas_pw_pool%give_back_pw(v_hartree_rspace)
-      DEALLOCATE(rho_gspace)
-      DEALLOCATE(rho_rspace)
-      CALL copy_dbcsr_to_fm(v_dbcsr%matrix, v_ao%matrix)
-      CALL dbcsr_release(v_dbcsr%matrix)
-      DEALLOCATE(v_dbcsr%matrix)
-      @:SPIN_DO(i, re, im, n_spin)
-         CALL dbcsr_release(rho_dbcsr(re)%matrix)
-         CALL dbcsr_release(rho_dbcsr(im)%matrix)
+      CALL dbcsr_iterator_stop(iterator_matrix)
+      ! Again, make sure that the P vector is present on all ranks
+      CALL para_env%sum(Pvector)
+      ! Now, for the final trick, iterate over local blocks of v_dbcsr_ao to get the Hartree as dbcsr, then convert to fm
+      CALL dbcsr_create(v_dbcsr_ao, "Hartree ao", tdagw_env%rho_dbcsr)
+      nblocks = dbcsr_get_num_blocks(v_dbcsr_ao)
+      CALL dbcsr_iterator_start(iterator_matrix, v_dbcsr_ao)
+      DO n=1,nblocks
+         CALL dbcsr_iterator_next_block(iterator_matrix, ind_1, ind_2, block_matrix,&
+                                        row_offset=row_offset, col_offset=col_offset)
+         j_n_AO = bs_env%sizes_AO(ind_1)
+         k_n_AO = bs_env%sizes_AO(ind_2)
+         ri_offset = 0
+         DO ind_i=1,bs_env%n_atom
+            i_n_RI = bs_env%sizes_RI(ind_i)
+            ALLOCATE(int_3c(bs_env%sizes_AO(ind_1), bs_env%sizes_AO(ind_2), bs_env%sizes_RI(ind_i)), source=0.0_dp)
+            CALL build_3c_integrals(int_3c, qs_env, potential_parameter=bs_env%ri_metric,&
+                                    basis_j=bs_env%basis_set_AO, basis_k=bs_env%basis_set_AO, basis_i=bs_env%basis_set_RI,&
+                                    atom_j=ind_1, atom_k=ind_2, atom_i=ind_i)
+            ! TODO : In principle, can parallelize over both directions here
+            !$OMP PARALLEL DO DEFAULT(none) SHARED(block_matrix, Pvector, int_3c, i_n_RI, j_n_AO, k_n_AO, ri_offset) PRIVATE(i,j,k)
+            DO j=1,j_n_AO
+               DO k=1,k_n_AO
+                  ! Add all the summed up values
+                  DO i=1,i_n_RI
+                     block_matrix(j, k) = block_matrix(j, k) + int_3c(j, k, i) * Pvector(i+ri_offset)
+                  END DO
+               END DO
+            END DO
+            !$OMP END PARALLEL DO
+            DEALLOCATE(int_3c)
+            ri_offset = ri_offset + i_n_RI
+         END DO
       END DO
-      !CALL dbcsr_release(rho_dbcsr)
-      DEALLOCATE(rho_dbcsr)
-   END SUBROUTINE
+      CALL dbcsr_iterator_stop(iterator_matrix)
+      ! Since P vector was present on all the ranks, v_dbcsr_ao has the complete Hartree result
+      CALL copy_dbcsr_to_fm(v_dbcsr_ao, v_ao)
+      CALL dbcsr_release(v_dbcsr_ao)
+      DEALLOCATE(Qvector)
+      DEALLOCATE(Pvector)
+   END SUBROUTINE get_hartree_local
 END MODULE rt_tdagw
