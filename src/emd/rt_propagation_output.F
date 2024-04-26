@@ -871,7 +871,7 @@ CONTAINS
          IF (dft_control%apply_efield_field) THEN
             CALL make_field(dft_control, field, qs_env%sim_step, qs_env%sim_time)
             WRITE (UNIT=unit_nr, FMT="(I10,F16.6,3(F16.8,1X))") qs_env%sim_step, qs_env%sim_time*femtoseconds, &
-              field(1), field(2), field(3)
+               field(1), field(2), field(3)
 !            DO i=1,3
 !               IF (ABS(field(i))< 10E-10) field(i) = 0.0_dp
 !            END IF
