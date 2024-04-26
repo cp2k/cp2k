@@ -68,7 +68,7 @@ MODULE cp2k_shell
    PRIVATE
 
    ! Queried by ASE. Increase version after bug-fixing or behavior changes.
-   CHARACTER(LEN=*), PARAMETER                           :: CP2K_SHELL_VERSION = "6.0"
+   CHARACTER(LEN=*), PARAMETER                           :: CP2K_SHELL_VERSION = "7.0"
 
    TYPE cp2k_shell_type
       REAL(dp)                                           :: pos_fact = 1.0_dp
@@ -613,6 +613,7 @@ CONTAINS
          READ (file_unit, *, iostat=iostat) pos
          IF (.NOT. my_assert(iostat == 0, 'setpos read coords failed', shell)) RETURN
          pos(:) = pos(:)/shell%pos_fact
+         CALL close_file(unit_number=file_unit)
       END IF
 
       CALL send_pos_updates(shell, n_atom, pos)
