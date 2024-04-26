@@ -234,7 +234,6 @@ CONTAINS
                   CALL get_qs_env(qs_env=qs_env, force=force)
                   force(ikind)%efield(:, iatom) = force(ikind)%efield(:, iatom) - field*zeff
                END IF
-!               END IF
             END DO
 
          END DO
