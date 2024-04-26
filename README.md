@@ -1,5 +1,11 @@
 # CP2K
 
+[![Release Status][release-badge]][release-link] [![Debian Status][debian-badge]][debian-link]
+[![Fedora Status][fedora-badge]][fedora-link] [![Ubuntu Status][ubuntu-badge]][ubuntu-link]
+[![Arch Status][arch-badge]][arch-link] [![Homebrew Status][homebrew-badge]][homebrew-link]
+[![Docker Status][docker-badge]][docker-link] [![Spack Status][spack-badge]][spack-link]
+[![Conda Status][conda-badge]][conda-link]
+
 CP2K is a quantum chemistry and solid state physics software package that can perform atomistic
 simulations of solid state, liquid, molecular, periodic, material, crystal, and biological systems.
 CP2K provides a general framework for different modeling methods such as DFT using the mixed
@@ -66,3 +72,22 @@ Additional directories created during build process:
 - `lib`: Libraries built during compilation
 - `obj`: Objects and other intermediate compilation-time files
 - `exe`: Where the executables will be located
+
+[arch-badge]: https://img.shields.io/aur/version/cp2k
+[arch-link]: https://aur.archlinux.org/packages/cp2k
+[conda-badge]: https://img.shields.io/conda/vn/conda-forge/cp2k
+[conda-link]: https://anaconda.org/conda-forge/cp2k
+[debian-badge]: https://img.shields.io/debian/v/cp2k
+[debian-link]: https://packages.debian.org/search?keywords=cp2k
+[docker-badge]: https://img.shields.io/docker/v/cp2k/cp2k?label=docker
+[docker-link]: https://hub.docker.com/r/cp2k/cp2k
+[fedora-badge]: https://img.shields.io/fedora/v/cp2k
+[fedora-link]: https://src.fedoraproject.org/rpms/cp2k
+[homebrew-badge]: https://img.shields.io/homebrew/v/cp2k
+[homebrew-link]: https://formulae.brew.sh/formula/cp2k
+[release-badge]: https://img.shields.io/github/v/release/cp2k/cp2k
+[release-link]: https://github.com/cp2k/cp2k/releases
+[spack-badge]: https://img.shields.io/spack/v/cp2k
+[spack-link]: https://packages.spack.io/package.html?name=cp2k
+[ubuntu-badge]: https://img.shields.io/ubuntu/v/cp2k
+[ubuntu-link]: https://packages.ubuntu.com/search?keywords=cp2k
