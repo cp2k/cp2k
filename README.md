@@ -76,7 +76,7 @@ Additional directories created during build process:
 [arch-badge]: https://img.shields.io/aur/version/cp2k
 [arch-link]: https://aur.archlinux.org/packages/cp2k
 [conda-badge]: https://img.shields.io/conda/vn/conda-forge/cp2k
-[conda-link]: https://anaconda.org/conda-forge/cp2kcp2k
+[conda-link]: https://anaconda.org/conda-forge/cp2k
 [debian-badge]: https://img.shields.io/debian/v/cp2k
 [debian-link]: https://packages.debian.org/search?keywords=cp2k
 [docker-badge]: https://img.shields.io/docker/v/cp2k/cp2k?label=docker
