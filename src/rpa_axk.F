@@ -71,7 +71,8 @@ MODULE rpa_axk
 
    TYPE rpa_axk_exchange_type
       TYPE(qs_environment_type), POINTER :: qs_env => NULL()
-      TYPE(dbcsr_p_type)                     :: mat_munu
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_work_ao => NULL()
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: mat_2d => NULL()
       TYPE(hfx_type), DIMENSION(:, :), POINTER           :: x_data => NULL()
       TYPE(mp_para_env_type), POINTER                    :: para_env_sub => NULL()
       TYPE(section_vals_type), POINTER                   :: hfx_sections => NULL()
@@ -330,45 +331,31 @@ CONTAINS
 
       INTEGER                                            :: aux, handle, irep, ns
       REAL(KIND=dp)                                      :: e_axk_P, ehfx
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_work_ao
-      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: mat_2d, rho_ao_2d
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rho_ao_2d
 
       CALL timeset(routineN, handle)
 
-      ! create a working rho environment
-      NULLIFY (rho_work_ao)
-      CALL dbcsr_allocate_matrix_set(rho_work_ao, 1)
-      ALLOCATE (rho_work_ao(1)%matrix)
-      CALL dbcsr_init_p(rho_work_ao(1)%matrix)
-      CALL dbcsr_create(rho_work_ao(1)%matrix, template=axk_exchange%mat_munu%matrix)
-
-      NULLIFY (mat_2d)
-      CALL dbcsr_allocate_matrix_set(mat_2d, 1, 1)
-      ALLOCATE (mat_2d(1, 1)%matrix)
-      CALL dbcsr_init_p(mat_2d(1, 1)%matrix)
-      CALL dbcsr_create(mat_2d(1, 1)%matrix, template=axk_exchange%mat_munu%matrix, &
-                        matrix_type=dbcsr_type_no_symmetry)
-      CALL dbcsr_copy(mat_2d(1, 1)%matrix, axk_exchange%mat_munu%matrix)
+      ns = SIZE(axk_exchange%rho_work_ao)
 
       ! The loop over auxiliary basis functions
       axk_corr = 0.0_dp
       DO aux = 1, axk_exchange%my_group_L_size
 
-         CALL dbcsr_copy(rho_work_ao(1)%matrix, dbcsr_Gamma_munu_P(aux)%matrix)
+         CALL dbcsr_copy(axk_exchange%rho_work_ao(1)%matrix, dbcsr_Gamma_munu_P(aux)%matrix)
 
          DO irep = 1, axk_exchange%n_rep_hf
-            ns = SIZE(rho_work_ao)
-            rho_ao_2d(1:ns, 1:1) => rho_work_ao(1:ns)
+            rho_ao_2d(1:ns, 1:1) => axk_exchange%rho_work_ao(1:ns)
 
-            CALL dbcsr_set(mat_2d(1, 1)%matrix, 0.0_dp)
+            CALL dbcsr_set(axk_exchange%mat_2d(1, 1)%matrix, 0.0_dp)
 
             IF (axk_exchange%x_data(irep, 1)%do_hfx_ri) THEN
-               CALL hfx_ri_update_ks(axk_exchange%qs_env, axk_exchange%x_data(irep, 1)%ri_data, mat_2d, ehfx, &
+               CALL hfx_ri_update_ks(axk_exchange%qs_env, axk_exchange%x_data(irep, 1)%ri_data, axk_exchange%mat_2d, ehfx, &
                                      rho_ao=rho_ao_2d, geometry_did_change=axk_exchange%my_recalc_hfx_integrals, &
                                      nspins=ns, hf_fraction=axk_exchange%x_data(irep, 1)%general_parameter%fraction)
 
             ELSE
-          CALL integrate_four_center(axk_exchange%qs_env, axk_exchange%x_data, mat_2d, ehfx, rho_ao_2d, axk_exchange%hfx_sections, &
+               CALL integrate_four_center(axk_exchange%qs_env, axk_exchange%x_data, axk_exchange%mat_2d, ehfx, &
+                                          rho_ao_2d, axk_exchange%hfx_sections, &
                                           axk_exchange%para_env_sub, axk_exchange%my_recalc_hfx_integrals, irep, .TRUE., &
                                           ispin=1)
             END IF
@@ -376,20 +363,11 @@ CONTAINS
 
          axk_exchange%my_recalc_hfx_integrals = .FALSE.
          ! One more dbcsr multiplication and trace
-         CALL dbcsr_multiply("T", "N", 1.0_dp, mat_2d(1, 1)%matrix, rho_work_ao(1)%matrix, &
+         CALL dbcsr_multiply("T", "N", 1.0_dp, axk_exchange%mat_2d(1, 1)%matrix, axk_exchange%rho_work_ao(1)%matrix, &
                              0.0_dp, dbcsr_Gamma_munu_P(aux)%matrix, filter_eps=axk_exchange%eps_filter)
          CALL dbcsr_trace(dbcsr_Gamma_munu_P(aux)%matrix, e_axk_p)
          axk_corr = axk_corr + e_axk_P
       END DO
-
-      CALL dbcsr_release(mat_2d(1, 1)%matrix)
-      ! release rho stuff
-      CALL dbcsr_release(mat_2d(1, 1)%matrix)
-      DEALLOCATE (mat_2d(1, 1)%matrix)
-      DEALLOCATE (mat_2d)
-      CALL dbcsr_release(rho_work_ao(1)%matrix)
-      DEALLOCATE (rho_work_ao(1)%matrix)
-      DEALLOCATE (rho_work_ao)
 
       CALL timestop(handle)
 
@@ -415,7 +393,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'hfx_create_subgroup'
 
-      INTEGER                                            :: handle, nelectron_total
+      INTEGER                                            :: handle, nelectron_total, ispin
       LOGICAL                                            :: do_hfx
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: my_cell
@@ -432,7 +410,6 @@ CONTAINS
       axk_exchange%para_env_sub => para_env_sub
       axk_exchange%eps_filter = eps_filter
       axk_exchange%my_group_L_size = my_group_L_size
-      axk_exchange%mat_munu%matrix => mat_munu%matrix
 
       NULLIFY (my_cell, atomic_kind_set, particle_set, dft_control, qs_kind_set, scf_control)
 
@@ -462,6 +439,23 @@ CONTAINS
 
       axk_exchange%my_recalc_hfx_integrals = .TRUE.
 
+      ! create a working rho environment
+      CALL dbcsr_allocate_matrix_set(axk_exchange%rho_work_ao, dft_control%nspins)
+      DO ispin = 1, dft_control%nspins
+         ALLOCATE (axk_exchange%rho_work_ao(ispin)%matrix)
+         CALL dbcsr_init_p(axk_exchange%rho_work_ao(ispin)%matrix)
+         CALL dbcsr_create(axk_exchange%rho_work_ao(ispin)%matrix, template=mat_munu%matrix)
+      END DO
+
+      CALL dbcsr_allocate_matrix_set(axk_exchange%mat_2d, dft_control%nspins, 1)
+      DO ispin = 1, dft_control%nspins
+         ALLOCATE (axk_exchange%mat_2d(ispin, 1)%matrix)
+         CALL dbcsr_init_p(axk_exchange%mat_2d(ispin, 1)%matrix)
+         CALL dbcsr_create(axk_exchange%mat_2d(ispin, 1)%matrix, template=mat_munu%matrix, &
+                           matrix_type=dbcsr_type_no_symmetry)
+         CALL dbcsr_copy(axk_exchange%mat_2d(ispin, 1)%matrix, mat_munu%matrix)
+      END DO
+
       CALL timestop(handle)
 
    END SUBROUTINE hfx_create_subgroup
@@ -473,7 +467,27 @@ CONTAINS
    SUBROUTINE hfx_release_subgroup(axk_exchange)
       CLASS(rpa_axk_exchange_type), INTENT(INOUT) :: axk_exchange
 
+      INTEGER :: ispin
+
+      NULLIFY (axk_exchange%qs_env, axk_exchange%para_env_sub, axk_exchange%hfx_sections)
+
       CALL hfx_release(axk_exchange%x_data)
+      NULLIFY (axk_exchange%x_data)
+
+      DO ispin = 1, SIZE(axk_exchange%mat_2d, 1)
+         CALL dbcsr_release(axk_exchange%mat_2d(ispin, 1)%matrix)
+         CALL dbcsr_release(axk_exchange%mat_2d(ispin, 1)%matrix)
+         DEALLOCATE (axk_exchange%mat_2d(ispin, 1)%matrix)
+      END DO
+      DEALLOCATE (axk_exchange%mat_2d)
+      NULLIFY (axk_exchange%mat_2d)
+
+      DO ispin = 1, SIZE(axk_exchange%rho_work_ao, 1)
+         CALL dbcsr_release(axk_exchange%rho_work_ao(ispin)%matrix)
+         DEALLOCATE (axk_exchange%rho_work_ao(ispin)%matrix)
+      END DO
+      DEALLOCATE (axk_exchange%rho_work_ao)
+      NULLIFY (axk_exchange%rho_work_ao)
    END SUBROUTINE hfx_release_subgroup
 
 END MODULE rpa_axk
