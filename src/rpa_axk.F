@@ -114,11 +114,12 @@ CONTAINS
                                mp2_env, mat_munu, unit_nr, e_axk_corr)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_Q, fm_mat_Q_gemm
-      INTEGER, INTENT(IN)                                :: dimen_RI, dimen_ia
+      INTEGER, INTENT(IN)                                :: dimen_RI
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: dimen_ia
       TYPE(mp_para_env_type), POINTER                    :: para_env_sub, para_env_RPA
-      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: Eig
-      TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_S
-      INTEGER, INTENT(IN)                                :: homo, virtual
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: eig
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: fm_mat_S
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: homo, virtual
       REAL(KIND=dp), INTENT(IN)                          :: omega
       TYPE(mp2_type)                                     :: mp2_env
       TYPE(dbcsr_p_type), INTENT(IN)                     :: mat_munu
@@ -128,22 +129,22 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'compute_axk_ener'
       REAL(KIND=dp), PARAMETER                           :: thresh = 0.0000001_dp
 
-      INTEGER                                            :: color_sub, handle, iib, iitmp(2), kkb, &
-                                                            L_counter, my_group_L_end, &
-                                                            my_group_L_size, my_group_L_start, &
-                                                            ngroup
+      INTEGER :: color_sub, handle, iib, iitmp(2), ispin, kkb, L_counter, my_group_L_end, &
+         my_group_L_size, my_group_L_start, ngroup, nspins
       REAL(KIND=dp)                                      :: eps_filter, trace_corr
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigenval
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
-      TYPE(cp_fm_type)                                   :: fm_mat_Gamma_3, fm_mat_Q_tmp, &
-                                                            fm_mat_R_half, fm_mat_R_half_gemm, &
-                                                            fm_mat_U
+      TYPE(cp_fm_type)                                   :: fm_mat_Q_tmp, fm_mat_R_half, &
+                                                            fm_mat_R_half_gemm, fm_mat_U
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: fm_mat_Gamma_3
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: dbcsr_Gamma_3, dbcsr_Gamma_munu_P
       TYPE(dbcsr_type)                                   :: dbcsr_Gamma_inu_P
       TYPE(dbcsr_type), POINTER                          :: mo_coeff_o, mo_coeff_v
       TYPE(rpa_axk_exchange_type)                        :: axk_exchange
 
       CALL timeset(routineN, handle)
+
+      nspins = SIZE(dimen_ia)
 
       ! Eigenvalues
       ALLOCATE (eigenval(dimen_RI))
@@ -195,20 +196,9 @@ CONTAINS
                          matrix_a=fm_mat_U, matrix_b=fm_mat_Q_tmp, beta=0.0_dp, &
                          matrix_c=fm_mat_R_half)
 
-      ! get info of fm_mat_S and initialize Gamma_3
-      NULLIFY (fm_struct)
-      CALL cp_fm_struct_create(fm_struct, template_fmstruct=fm_mat_S%matrix_struct, nrow_global=dimen_ia, ncol_global=dimen_RI)
-      CALL cp_fm_create(fm_mat_Gamma_3, fm_struct)
-      CALL cp_fm_struct_release(fm_struct)
-      CALL cp_fm_set_all(matrix=fm_mat_Gamma_3, alpha=0.0_dp)
-
-      ! Update G with a new value of Omega: in practice, it is G*S
-
-      ! Here eig are orbital energies, don't confuse with eigenval, which are eigenvalues of Q!
-
-      ! Scale fm_work_iaP
-      CALL calc_fm_mat_S_rpa(fm_mat_S, .TRUE., virtual, eig, &
-                             homo, omega, 0.0_dp)
+      ! Release full matrix stuff
+      CALL cp_fm_release(fm_mat_Q_tmp)
+      CALL cp_fm_release(fm_mat_U)
 
       ! Redistribute fm_mat_R_half for "rectangular" multiplication: ia*P P*P
       CALL cp_fm_create(fm_mat_R_half_gemm, fm_mat_Q_gemm%matrix_struct)
@@ -217,24 +207,35 @@ CONTAINS
       CALL cp_fm_to_fm_submat_general(fm_mat_R_half, fm_mat_R_half_gemm, dimen_RI, dimen_RI, 1, 1, 1, 1, &
                                       fm_mat_R_half%matrix_struct%context)
 
-      ! Calculate Gamma_3: Gamma_3 = G*S*R^(1/2) = G*S*R^(1/2) )
-      CALL parallel_gemm(transa="T", transb="N", m=dimen_ia, n=dimen_RI, k=dimen_RI, alpha=1.0_dp, &
-                         matrix_a=fm_mat_S, matrix_b=fm_mat_R_half_gemm, beta=0.0_dp, &
-                         matrix_c=fm_mat_Gamma_3)
+      CALL cp_fm_release(fm_mat_R_half)
 
-      ! Remove extra factor from S after the multiplication
-      CALL remove_scaling_factor_rpa(fm_mat_S, virtual, eig, homo, omega)
+      ALLOCATE (fm_mat_Gamma_3(nspins))
+      DO ispin = 1, nspins
+         ! get info of fm_mat_S and initialize Gamma_3
+         NULLIFY (fm_struct)
+         CALL cp_fm_struct_create(fm_struct, template_fmstruct=fm_mat_S(ispin)%matrix_struct, &
+                                  nrow_global=dimen_ia(ispin), ncol_global=dimen_RI)
+         CALL cp_fm_create(fm_mat_Gamma_3(ispin), fm_struct)
+         CALL cp_fm_struct_release(fm_struct)
+         CALL cp_fm_set_all(matrix=fm_mat_Gamma_3(ispin), alpha=0.0_dp)
+
+         ! Update G with a new value of Omega: in practice, it is G*S
+
+         ! Scale fm_work_iaP
+         CALL calc_fm_mat_S_rpa(fm_mat_S(ispin), .TRUE., virtual(ispin), eig(:, ispin), &
+                                homo(ispin), omega, 0.0_dp)
+
+         ! Calculate Gamma_3: Gamma_3 = G*S*R^(1/2) = G*S*R^(1/2) )
+         CALL parallel_gemm(transa="T", transb="N", m=dimen_ia(ispin), n=dimen_RI, k=dimen_RI, alpha=1.0_dp, &
+                            matrix_a=fm_mat_S(ispin), matrix_b=fm_mat_R_half_gemm, beta=0.0_dp, &
+                            matrix_c=fm_mat_Gamma_3(ispin))
+
+         ! Remove extra factor from S after the multiplication (to return to the original matrix)
+         CALL remove_scaling_factor_rpa(fm_mat_S(ispin), virtual(ispin), eig(:, ispin), homo(ispin), omega)
+      END DO
 
       ! Release full matrix stuff
-      CALL cp_fm_release(fm_mat_Q_tmp)
-      CALL cp_fm_release(fm_mat_U)
-      CALL cp_fm_release(fm_mat_R_half)
       CALL cp_fm_release(fm_mat_R_half_gemm)
-
-      ! Retrieve mo coefficients in dbcsr format
-      NULLIFY (mo_coeff_o, mo_coeff_v)
-      mo_coeff_o => mp2_env%ri_rpa%mo_coeff_o
-      mo_coeff_v => mp2_env%ri_rpa%mo_coeff_v
 
       ! Get aux sizes
       ngroup = para_env_RPA%num_pe/para_env_sub%num_pe
@@ -245,71 +246,78 @@ CONTAINS
       my_group_L_end = iitmp(2)
       my_group_L_size = iitmp(2) - iitmp(1) + 1
 
-      ! Copy Gamma_ia_P^3 to dbcsr matrix set
-      CALL gamma_fm_to_dbcsr(fm_mat_Gamma_3, dbcsr_Gamma_3, para_env_RPA, para_env_sub, &
-                             homo, virtual, mo_coeff_o, ngroup, my_group_L_start, &
-                             my_group_L_end, my_group_L_size)
+      DO ispin = 1, nspins
+         ! Retrieve mo coefficients in dbcsr format
+         NULLIFY (mo_coeff_o, mo_coeff_v)
+         mo_coeff_o => mp2_env%ri_rpa%mo_coeff_o
+         mo_coeff_v => mp2_env%ri_rpa%mo_coeff_v
 
-      ! Create more dbcsr matrices
+         ! Copy Gamma_ia_P^3 to dbcsr matrix set
+         CALL gamma_fm_to_dbcsr(fm_mat_Gamma_3(ispin), dbcsr_Gamma_3, para_env_RPA, para_env_sub, &
+                                homo(ispin), virtual(ispin), mo_coeff_o, ngroup, my_group_L_start, &
+                                my_group_L_end, my_group_L_size)
 
-      NULLIFY (dbcsr_Gamma_munu_P)
-      CALL dbcsr_allocate_matrix_set(dbcsr_Gamma_munu_P, my_group_L_size)
-      eps_filter = mp2_env%mp2_gpw%eps_filter
+         ! Create more dbcsr matrices
 
-      CALL dbcsr_create(dbcsr_Gamma_inu_P, template=mo_coeff_o)
-      CALL dbcsr_copy(dbcsr_Gamma_inu_P, mo_coeff_o)
-      CALL dbcsr_set(dbcsr_Gamma_inu_P, 0.0_dp)
+         NULLIFY (dbcsr_Gamma_munu_P)
+         CALL dbcsr_allocate_matrix_set(dbcsr_Gamma_munu_P, my_group_L_size)
+         eps_filter = mp2_env%mp2_gpw%eps_filter
 
-      L_counter = 0
-      DO kkb = my_group_L_start, my_group_L_end
-         L_counter = L_counter + 1
-         ! Init Gamma_3 in AO basis
-         ALLOCATE (dbcsr_Gamma_munu_P(L_counter)%matrix)
-         CALL dbcsr_init_p(dbcsr_Gamma_munu_P(L_counter)%matrix)
-         CALL dbcsr_create(dbcsr_Gamma_munu_P(L_counter)%matrix, template=mat_munu%matrix, &
-                           matrix_type=dbcsr_type_no_symmetry)
-         CALL dbcsr_copy(dbcsr_Gamma_munu_P(L_counter)%matrix, mat_munu%matrix)
-         CALL dbcsr_set(dbcsr_Gamma_munu_P(L_counter)%matrix, 0.0_dp)
-      END DO
+         CALL dbcsr_create(dbcsr_Gamma_inu_P, template=mo_coeff_o)
+         CALL dbcsr_copy(dbcsr_Gamma_inu_P, mo_coeff_o)
+         CALL dbcsr_set(dbcsr_Gamma_inu_P, 0.0_dp)
 
-      CALL axk_exchange%create(qs_env, mat_munu, para_env_sub, my_group_L_size, eps_filter)
+         L_counter = 0
+         DO kkb = my_group_L_start, my_group_L_end
+            L_counter = L_counter + 1
+            ! Init Gamma_3 in AO basis
+            ALLOCATE (dbcsr_Gamma_munu_P(L_counter)%matrix)
+            CALL dbcsr_init_p(dbcsr_Gamma_munu_P(L_counter)%matrix)
+            CALL dbcsr_create(dbcsr_Gamma_munu_P(L_counter)%matrix, template=mat_munu%matrix, &
+                              matrix_type=dbcsr_type_no_symmetry)
+            CALL dbcsr_copy(dbcsr_Gamma_munu_P(L_counter)%matrix, mat_munu%matrix)
+            CALL dbcsr_set(dbcsr_Gamma_munu_P(L_counter)%matrix, 0.0_dp)
+         END DO
+
+         CALL axk_exchange%create(qs_env, mat_munu, para_env_sub, my_group_L_size, eps_filter)
 
       !! Loup over auxiliary basis functions: multiplication
-      L_counter = 0
-      DO kkb = my_group_L_start, my_group_L_end
-         L_counter = L_counter + 1
-         ! Do dbcsr multiplication: transform the virtual index
-         CALL dbcsr_multiply("N", "T", 1.0_dp, mo_coeff_v, dbcsr_Gamma_3(L_counter)%matrix, &
-                             0.0_dp, dbcsr_Gamma_inu_P, filter_eps=eps_filter)
+         L_counter = 0
+         DO kkb = my_group_L_start, my_group_L_end
+            L_counter = L_counter + 1
+            ! Do dbcsr multiplication: transform the virtual index
+            CALL dbcsr_multiply("N", "T", 1.0_dp, mo_coeff_v, dbcsr_Gamma_3(L_counter)%matrix, &
+                                0.0_dp, dbcsr_Gamma_inu_P, filter_eps=eps_filter)
 
-         CALL dbcsr_release(dbcsr_Gamma_3(L_counter)%matrix)
-         DEALLOCATE (dbcsr_Gamma_3(L_counter)%matrix)
+            CALL dbcsr_release(dbcsr_Gamma_3(L_counter)%matrix)
+            DEALLOCATE (dbcsr_Gamma_3(L_counter)%matrix)
 
-         !Do dbcsr multiplication: transform the occupied index
-         CALL dbcsr_multiply("N", "T", 1.0_dp, dbcsr_Gamma_inu_P, mo_coeff_o, &
-                             0.0_dp, dbcsr_Gamma_munu_P(L_counter)%matrix, filter_eps=eps_filter)
-         !
-         CALL dbcsr_trace(dbcsr_Gamma_munu_P(L_counter)%matrix, trace_corr)
+            !Do dbcsr multiplication: transform the occupied index
+            CALL dbcsr_multiply("N", "T", 1.0_dp, dbcsr_Gamma_inu_P, mo_coeff_o, &
+                                0.0_dp, dbcsr_Gamma_munu_P(L_counter)%matrix, filter_eps=eps_filter)
+
+            CALL dbcsr_trace(dbcsr_Gamma_munu_P(L_counter)%matrix, trace_corr)
+         END DO
+         DEALLOCATE (dbcsr_Gamma_3)
+         CALL dbcsr_release(dbcsr_Gamma_inu_P)
+
+         ! Contract DM with exchange integrals
+         CALL axk_exchange%integrate(dbcsr_Gamma_munu_P, e_axk_corr)
+
+         L_counter = 0
+         DO kkb = my_group_L_start, my_group_L_end
+            L_counter = L_counter + 1
+            CALL dbcsr_release(dbcsr_Gamma_munu_P(L_counter)%matrix)
+            DEALLOCATE (dbcsr_Gamma_munu_P(L_counter)%matrix)
+         END DO
+         DEALLOCATE (dbcsr_Gamma_munu_P)
       END DO
-      DEALLOCATE (dbcsr_Gamma_3)
-      CALL dbcsr_release(dbcsr_Gamma_inu_P)
 
-      ! Contract DM with exchange integrals
-      CALL axk_exchange%integrate(dbcsr_Gamma_munu_P, e_axk_corr)
+      CALL axk_exchange%release()
 
       ! Print AXK correlation energy to the file
       IF (unit_nr > 0) WRITE (unit_nr, '(T3,A,T68,F25.14,A4)') 'AXK correlation energy for a quadrature point:', &
          e_axk_corr, ' a.u.'
-
-      L_counter = 0
-      DO kkb = my_group_L_start, my_group_L_end
-         L_counter = L_counter + 1
-         CALL dbcsr_release(dbcsr_Gamma_munu_P(L_counter)%matrix)
-         DEALLOCATE (dbcsr_Gamma_munu_P(L_counter)%matrix)
-      END DO
-      DEALLOCATE (dbcsr_Gamma_munu_P)
-
-      CALL axk_exchange%release()
 
       CALL timestop(handle)
 

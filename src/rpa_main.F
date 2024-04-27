@@ -1491,8 +1491,8 @@ CONTAINS
 
             ! Calculate AXK energy correction
             IF (mp2_env%ri_rpa%do_ri_axk) THEN
-               CALL compute_axk_ener(qs_env, fm_mat_Q(1), fm_mat_Q_gemm(1), dimen_RI_red, dimen_ia(1), para_env_sub, &
-                                     para_env_RPA, Eigenval(:, 1, 1), fm_mat_S(1), homo(1), virtual(1), omega, &
+               CALL compute_axk_ener(qs_env, fm_mat_Q(1), fm_mat_Q_gemm(1), dimen_RI_red, dimen_ia, para_env_sub, &
+                                     para_env_RPA, Eigenval(:, 1, :), fm_mat_S, homo, virtual, omega, &
                                      mp2_env, mat_munu, unit_nr, e_axk_corr)
 
                ! Evaluate the final AXK energy correction
