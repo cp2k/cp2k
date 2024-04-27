@@ -530,7 +530,7 @@ CONTAINS
          admm_kind_set(ikind)%natom = qs_kind_set(ikind)%natom
          admm_kind_set(ikind)%hard_radius = qs_kind_set(ikind)%hard_radius
          admm_kind_set(ikind)%max_rad_local = qs_kind_set(ikind)%max_rad_local
-         admm_kind_set(ikind)%gpw_r3d_rs_type_forced = qs_kind_set(ikind)%gpw_r3d_rs_type_forced
+         admm_kind_set(ikind)%gpw_type_forced = qs_kind_set(ikind)%gpw_type_forced
          admm_kind_set(ikind)%ngrid_rad = qs_kind_set(ikind)%ngrid_rad
          admm_kind_set(ikind)%ngrid_ang = qs_kind_set(ikind)%ngrid_ang
 
