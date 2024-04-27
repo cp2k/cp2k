@@ -70,6 +70,7 @@ MODULE rpa_axk
    PUBLIC :: compute_axk_ener
 
    TYPE rpa_axk_exchange_type
+      PRIVATE
       TYPE(qs_environment_type), POINTER :: qs_env => NULL()
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_work_ao => NULL()
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: mat_2d => NULL()
@@ -80,6 +81,7 @@ MODULE rpa_axk
       INTEGER :: my_group_L_size = 0
       LOGICAL :: my_recalc_hfx_integrals = .FALSE.
       REAL(KIND=dp) :: eps_filter = 0.0_dp
+      REAL(KIND=dp) :: e_axk = 0.0_dp
    CONTAINS
       PROCEDURE, PASS(axk_exchange), NON_OVERRIDABLE :: create => hfx_create_subgroup
       PROCEDURE, PASS(axk_exchange), NON_OVERRIDABLE :: integrate => integrate_exchange
@@ -302,7 +304,7 @@ CONTAINS
          CALL dbcsr_release(dbcsr_Gamma_inu_P)
 
          ! Contract DM with exchange integrals
-         CALL axk_exchange%integrate(dbcsr_Gamma_munu_P, e_axk_corr)
+         CALL axk_exchange%integrate(dbcsr_Gamma_munu_P)
 
          L_counter = 0
          DO kkb = my_group_L_start, my_group_L_end
@@ -313,7 +315,7 @@ CONTAINS
          DEALLOCATE (dbcsr_Gamma_munu_P)
       END DO
 
-      CALL axk_exchange%release()
+      CALL axk_exchange%release(e_axk_corr)
 
       ! Print AXK correlation energy to the file
       IF (unit_nr > 0) WRITE (unit_nr, '(T3,A,T68,F25.14,A4)') 'AXK correlation energy for a quadrature point:', &
@@ -327,13 +329,11 @@ CONTAINS
 !> \brief Contract RPA-AXK density matrix with HF exchange integrals and evaluate the correction
 !> \param axk_exchange ...
 !> \param dbcsr_Gamma_munu_P ...  AXK density matrix in AO basis to be contracted
-!> \param axk_corr ...  The AXK energy correction
 !> \author Vladimir Rybkin, 08/2016
 ! **************************************************************************************************
-   SUBROUTINE integrate_exchange(axk_exchange, dbcsr_Gamma_munu_P, axk_corr)
+   SUBROUTINE integrate_exchange(axk_exchange, dbcsr_Gamma_munu_P)
       CLASS(rpa_axk_exchange_type), INTENT(INOUT) :: axk_exchange
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: dbcsr_Gamma_munu_P
-      REAL(KIND=dp), INTENT(OUT)                         :: axk_corr
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'integrate_exchange'
 
@@ -346,7 +346,6 @@ CONTAINS
       ns = SIZE(axk_exchange%rho_work_ao)
 
       ! The loop over auxiliary basis functions
-      axk_corr = 0.0_dp
       DO aux = 1, axk_exchange%my_group_L_size
 
          CALL dbcsr_copy(axk_exchange%rho_work_ao(1)%matrix, dbcsr_Gamma_munu_P(aux)%matrix)
@@ -374,7 +373,7 @@ CONTAINS
          CALL dbcsr_multiply("T", "N", 1.0_dp, axk_exchange%mat_2d(1, 1)%matrix, axk_exchange%rho_work_ao(1)%matrix, &
                              0.0_dp, dbcsr_Gamma_munu_P(aux)%matrix, filter_eps=axk_exchange%eps_filter)
          CALL dbcsr_trace(dbcsr_Gamma_munu_P(aux)%matrix, e_axk_p)
-         axk_corr = axk_corr + e_axk_P
+         axk_exchange%e_axk = axk_exchange%e_axk + e_axk_P
       END DO
 
       CALL timestop(handle)
@@ -471,13 +470,18 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief ...
 !> \param axk_exchange ...
+!> \param e_axk ...
 ! **************************************************************************************************
-   SUBROUTINE hfx_release_subgroup(axk_exchange)
+   SUBROUTINE hfx_release_subgroup(axk_exchange, e_axk)
       CLASS(rpa_axk_exchange_type), INTENT(INOUT) :: axk_exchange
+      REAL(KIND=dp), INTENT(OUT) :: e_axk
 
       INTEGER :: ispin
 
       NULLIFY (axk_exchange%qs_env, axk_exchange%para_env_sub, axk_exchange%hfx_sections)
+
+      e_axk = axk_exchange%e_axk
+      axk_exchange%e_axk = 0.0_dp
 
       CALL hfx_release(axk_exchange%x_data)
       NULLIFY (axk_exchange%x_data)
