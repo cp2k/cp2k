@@ -139,9 +139,10 @@ CONTAINS
       TYPE(cp_fm_type)                                   :: fm_mat_Q_tmp, fm_mat_R_half, &
                                                             fm_mat_R_half_gemm, fm_mat_U
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: fm_mat_Gamma_3
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: dbcsr_Gamma_3, dbcsr_Gamma_munu_P
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: dbcsr_Gamma_3
       TYPE(dbcsr_type)                                   :: dbcsr_Gamma_inu_P
-      TYPE(dbcsr_type), POINTER                          :: mo_coeff_o, mo_coeff_v
+      TYPE(dbcsr_type), POINTER                          :: dbcsr_Gamma_munu_P, mo_coeff_o, &
+                                                            mo_coeff_v
       TYPE(rpa_axk_exchange_type)                        :: axk_exchange
 
       CALL timeset(routineN, handle)
@@ -248,6 +249,14 @@ CONTAINS
       my_group_L_end = iitmp(2)
       my_group_L_size = iitmp(2) - iitmp(1) + 1
 
+      eps_filter = mp2_env%mp2_gpw%eps_filter
+      CALL axk_exchange%create(qs_env, mat_munu, para_env_sub, my_group_L_size, eps_filter)
+
+      ALLOCATE (dbcsr_Gamma_munu_P)
+      CALL dbcsr_create(dbcsr_Gamma_munu_P, template=mat_munu%matrix, &
+                        matrix_type=dbcsr_type_no_symmetry)
+      CALL dbcsr_copy(dbcsr_Gamma_munu_P, mat_munu%matrix)
+
       DO ispin = 1, nspins
          ! Retrieve mo coefficients in dbcsr format
          NULLIFY (mo_coeff_o, mo_coeff_v)
@@ -259,31 +268,10 @@ CONTAINS
                                 homo(ispin), virtual(ispin), mo_coeff_o, ngroup, my_group_L_start, &
                                 my_group_L_end, my_group_L_size)
 
-         ! Create more dbcsr matrices
-
-         NULLIFY (dbcsr_Gamma_munu_P)
-         CALL dbcsr_allocate_matrix_set(dbcsr_Gamma_munu_P, my_group_L_size)
-         eps_filter = mp2_env%mp2_gpw%eps_filter
-
          CALL dbcsr_create(dbcsr_Gamma_inu_P, template=mo_coeff_o)
          CALL dbcsr_copy(dbcsr_Gamma_inu_P, mo_coeff_o)
          CALL dbcsr_set(dbcsr_Gamma_inu_P, 0.0_dp)
 
-         L_counter = 0
-         DO kkb = my_group_L_start, my_group_L_end
-            L_counter = L_counter + 1
-            ! Init Gamma_3 in AO basis
-            ALLOCATE (dbcsr_Gamma_munu_P(L_counter)%matrix)
-            CALL dbcsr_init_p(dbcsr_Gamma_munu_P(L_counter)%matrix)
-            CALL dbcsr_create(dbcsr_Gamma_munu_P(L_counter)%matrix, template=mat_munu%matrix, &
-                              matrix_type=dbcsr_type_no_symmetry)
-            CALL dbcsr_copy(dbcsr_Gamma_munu_P(L_counter)%matrix, mat_munu%matrix)
-            CALL dbcsr_set(dbcsr_Gamma_munu_P(L_counter)%matrix, 0.0_dp)
-         END DO
-
-         CALL axk_exchange%create(qs_env, mat_munu, para_env_sub, my_group_L_size, eps_filter)
-
-      !! Loup over auxiliary basis functions: multiplication
          L_counter = 0
          DO kkb = my_group_L_start, my_group_L_end
             L_counter = L_counter + 1
@@ -296,18 +284,17 @@ CONTAINS
 
             !Do dbcsr multiplication: transform the occupied index
             CALL dbcsr_multiply("N", "T", 1.0_dp, dbcsr_Gamma_inu_P, mo_coeff_o, &
-                                0.0_dp, dbcsr_Gamma_munu_P(L_counter)%matrix, filter_eps=eps_filter)
+                                0.0_dp, dbcsr_Gamma_munu_P, filter_eps=eps_filter)
 
             ! Contract DM with exchange integrals
-            CALL axk_exchange%integrate(dbcsr_Gamma_munu_P(L_counter)%matrix)
-
-            CALL dbcsr_release(dbcsr_Gamma_munu_P(L_counter)%matrix)
-            DEALLOCATE (dbcsr_Gamma_munu_P(L_counter)%matrix)
+            CALL axk_exchange%integrate(dbcsr_Gamma_munu_P)
          END DO
          DEALLOCATE (dbcsr_Gamma_3)
          CALL dbcsr_release(dbcsr_Gamma_inu_P)
-         DEALLOCATE (dbcsr_Gamma_munu_P)
       END DO
+
+      CALL dbcsr_release(dbcsr_Gamma_munu_P)
+      DEALLOCATE (dbcsr_Gamma_munu_P)
 
       CALL axk_exchange%release(e_axk_corr)
 
