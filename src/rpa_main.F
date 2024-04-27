@@ -647,10 +647,11 @@ CONTAINS
       END IF
 
       IF (mp2_env%ri_rpa%do_ri_axk) THEN
-         CALL dbcsr_release(mp2_env%ri_rpa%mo_coeff_o)
-         DEALLOCATE (mp2_env%ri_rpa%mo_coeff_o)
-         CALL dbcsr_release(mp2_env%ri_rpa%mo_coeff_v)
-         DEALLOCATE (mp2_env%ri_rpa%mo_coeff_v)
+      DO ispin = 1, nspins
+         CALL dbcsr_release(mp2_env%ri_rpa%mo_coeff_o(ispin))
+         CALL dbcsr_release(mp2_env%ri_rpa%mo_coeff_v(ispin))
+      END DO
+      DEALLOCATE (mp2_env%ri_rpa%mo_coeff_o, mp2_env%ri_rpa%mo_coeff_v)
       END IF
 
       CALL timestop(handle)

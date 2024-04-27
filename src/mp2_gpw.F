@@ -475,12 +475,11 @@ CONTAINS
       END IF
       ! Copy mo coeffs for RPA AXK
       IF (mp2_env%ri_rpa%do_ri_axk) THEN
-         NULLIFY (mp2_env%ri_rpa%mo_coeff_o)
-         CALL dbcsr_init_p(mp2_env%ri_rpa%mo_coeff_o)
-         CALL dbcsr_copy(mp2_env%ri_rpa%mo_coeff_o, mo_coeff_o(1)%matrix, name="mo_coeff_o")
-         NULLIFY (mp2_env%ri_rpa%mo_coeff_v)
-         CALL dbcsr_init_p(mp2_env%ri_rpa%mo_coeff_v)
-         CALL dbcsr_copy(mp2_env%ri_rpa%mo_coeff_v, mo_coeff_v(1)%matrix, name="mo_coeff_v")
+         ALLOCATE (mp2_env%ri_rpa%mo_coeff_o(nspins), mp2_env%ri_rpa%mo_coeff_v(nspins))
+         DO ispin = 1, nspins
+            CALL dbcsr_copy(mp2_env%ri_rpa%mo_coeff_o(ispin), mo_coeff_o(ispin)%matrix, name="mo_coeff_o")
+            CALL dbcsr_copy(mp2_env%ri_rpa%mo_coeff_v(ispin), mo_coeff_v(ispin)%matrix, name="mo_coeff_v")
+         END DO
       END IF
 
       IF (.NOT. do_im_time) THEN

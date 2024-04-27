@@ -260,8 +260,8 @@ CONTAINS
       DO ispin = 1, nspins
          ! Retrieve mo coefficients in dbcsr format
          NULLIFY (mo_coeff_o, mo_coeff_v)
-         mo_coeff_o => mp2_env%ri_rpa%mo_coeff_o
-         mo_coeff_v => mp2_env%ri_rpa%mo_coeff_v
+         mo_coeff_o => mp2_env%ri_rpa%mo_coeff_o(ispin)
+         mo_coeff_v => mp2_env%ri_rpa%mo_coeff_v(ispin)
 
          ! Copy Gamma_ia_P^3 to dbcsr matrix set
          CALL gamma_fm_to_dbcsr(fm_mat_Gamma_3(ispin), dbcsr_Gamma_3, para_env_RPA, para_env_sub, &
