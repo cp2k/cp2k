@@ -133,7 +133,7 @@ CONTAINS
 
       INTEGER :: color_sub, handle, iib, iitmp(2), ispin, kkb, L_counter, my_group_L_end, &
          my_group_L_size, my_group_L_start, ngroup, nspins
-      REAL(KIND=dp)                                      :: eps_filter, trace_corr
+      REAL(KIND=dp)                                      :: eps_filter
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigenval
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
       TYPE(cp_fm_type)                                   :: fm_mat_Q_tmp, fm_mat_R_half, &
@@ -298,20 +298,14 @@ CONTAINS
             CALL dbcsr_multiply("N", "T", 1.0_dp, dbcsr_Gamma_inu_P, mo_coeff_o, &
                                 0.0_dp, dbcsr_Gamma_munu_P(L_counter)%matrix, filter_eps=eps_filter)
 
-            CALL dbcsr_trace(dbcsr_Gamma_munu_P(L_counter)%matrix, trace_corr)
-         END DO
-         DEALLOCATE (dbcsr_Gamma_3)
-         CALL dbcsr_release(dbcsr_Gamma_inu_P)
+            ! Contract DM with exchange integrals
+            CALL axk_exchange%integrate(dbcsr_Gamma_munu_P(L_counter)%matrix)
 
-         ! Contract DM with exchange integrals
-         CALL axk_exchange%integrate(dbcsr_Gamma_munu_P)
-
-         L_counter = 0
-         DO kkb = my_group_L_start, my_group_L_end
-            L_counter = L_counter + 1
             CALL dbcsr_release(dbcsr_Gamma_munu_P(L_counter)%matrix)
             DEALLOCATE (dbcsr_Gamma_munu_P(L_counter)%matrix)
          END DO
+         DEALLOCATE (dbcsr_Gamma_3)
+         CALL dbcsr_release(dbcsr_Gamma_inu_P)
          DEALLOCATE (dbcsr_Gamma_munu_P)
       END DO
 
@@ -333,11 +327,11 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE integrate_exchange(axk_exchange, dbcsr_Gamma_munu_P)
       CLASS(rpa_axk_exchange_type), INTENT(INOUT) :: axk_exchange
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: dbcsr_Gamma_munu_P
+      TYPE(dbcsr_type), POINTER          :: dbcsr_Gamma_munu_P
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'integrate_exchange'
 
-      INTEGER                                            :: aux, handle, irep, ns
+      INTEGER                                            :: handle, irep, ns
       REAL(KIND=dp)                                      :: e_axk_P, ehfx
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rho_ao_2d
 
@@ -345,36 +339,32 @@ CONTAINS
 
       ns = SIZE(axk_exchange%rho_work_ao)
 
-      ! The loop over auxiliary basis functions
-      DO aux = 1, axk_exchange%my_group_L_size
+      CALL dbcsr_copy(axk_exchange%rho_work_ao(1)%matrix, dbcsr_Gamma_munu_P)
 
-         CALL dbcsr_copy(axk_exchange%rho_work_ao(1)%matrix, dbcsr_Gamma_munu_P(aux)%matrix)
+      DO irep = 1, axk_exchange%n_rep_hf
+         rho_ao_2d(1:ns, 1:1) => axk_exchange%rho_work_ao(1:ns)
 
-         DO irep = 1, axk_exchange%n_rep_hf
-            rho_ao_2d(1:ns, 1:1) => axk_exchange%rho_work_ao(1:ns)
+         CALL dbcsr_set(axk_exchange%mat_2d(1, 1)%matrix, 0.0_dp)
 
-            CALL dbcsr_set(axk_exchange%mat_2d(1, 1)%matrix, 0.0_dp)
+         IF (axk_exchange%x_data(irep, 1)%do_hfx_ri) THEN
+            CALL hfx_ri_update_ks(axk_exchange%qs_env, axk_exchange%x_data(irep, 1)%ri_data, axk_exchange%mat_2d, ehfx, &
+                                  rho_ao=rho_ao_2d, geometry_did_change=axk_exchange%my_recalc_hfx_integrals, &
+                                  nspins=ns, hf_fraction=axk_exchange%x_data(irep, 1)%general_parameter%fraction)
 
-            IF (axk_exchange%x_data(irep, 1)%do_hfx_ri) THEN
-               CALL hfx_ri_update_ks(axk_exchange%qs_env, axk_exchange%x_data(irep, 1)%ri_data, axk_exchange%mat_2d, ehfx, &
-                                     rho_ao=rho_ao_2d, geometry_did_change=axk_exchange%my_recalc_hfx_integrals, &
-                                     nspins=ns, hf_fraction=axk_exchange%x_data(irep, 1)%general_parameter%fraction)
-
-            ELSE
-               CALL integrate_four_center(axk_exchange%qs_env, axk_exchange%x_data, axk_exchange%mat_2d, ehfx, &
-                                          rho_ao_2d, axk_exchange%hfx_sections, &
-                                          axk_exchange%para_env_sub, axk_exchange%my_recalc_hfx_integrals, irep, .TRUE., &
-                                          ispin=1)
-            END IF
-         END DO
-
-         axk_exchange%my_recalc_hfx_integrals = .FALSE.
-         ! One more dbcsr multiplication and trace
-         CALL dbcsr_multiply("T", "N", 1.0_dp, axk_exchange%mat_2d(1, 1)%matrix, axk_exchange%rho_work_ao(1)%matrix, &
-                             0.0_dp, dbcsr_Gamma_munu_P(aux)%matrix, filter_eps=axk_exchange%eps_filter)
-         CALL dbcsr_trace(dbcsr_Gamma_munu_P(aux)%matrix, e_axk_p)
-         axk_exchange%e_axk = axk_exchange%e_axk + e_axk_P
+         ELSE
+            CALL integrate_four_center(axk_exchange%qs_env, axk_exchange%x_data, axk_exchange%mat_2d, ehfx, &
+                                       rho_ao_2d, axk_exchange%hfx_sections, &
+                                       axk_exchange%para_env_sub, axk_exchange%my_recalc_hfx_integrals, irep, .TRUE., &
+                                       ispin=1)
+         END IF
       END DO
+
+      axk_exchange%my_recalc_hfx_integrals = .FALSE.
+      ! One more dbcsr multiplication and trace
+      CALL dbcsr_multiply("T", "N", 1.0_dp, axk_exchange%mat_2d(1, 1)%matrix, axk_exchange%rho_work_ao(1)%matrix, &
+                          0.0_dp, dbcsr_Gamma_munu_P, filter_eps=axk_exchange%eps_filter)
+      CALL dbcsr_trace(dbcsr_Gamma_munu_P, e_axk_p)
+      axk_exchange%e_axk = axk_exchange%e_axk + e_axk_P
 
       CALL timestop(handle)
 
