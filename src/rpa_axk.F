@@ -44,6 +44,7 @@ MODULE rpa_axk
                                               section_vals_get_subs_vals,&
                                               section_vals_type
    USE kinds,                           ONLY: dp
+   USE mathconstants,                   ONLY: sqrthalf
    USE message_passing,                 ONLY: mp_para_env_type
    USE mp2_types,                       ONLY: mp2_type
    USE parallel_gemm_api,               ONLY: parallel_gemm
@@ -111,17 +112,18 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'compute_axk_ener'
       REAL(KIND=dp), PARAMETER                           :: thresh = 0.0000001_dp
 
-      INTEGER :: color_sub, handle, iib, iitmp(2), kkb, L_counter, my_group_L_end, &
-         my_group_L_size, my_group_L_start, ncol_local, ngroup
-      INTEGER, DIMENSION(:), POINTER                     :: col_indices
+      INTEGER                                            :: color_sub, handle, iib, iitmp(2), kkb, &
+                                                            L_counter, my_group_L_end, &
+                                                            my_group_L_size, my_group_L_start, &
+                                                            ngroup
       REAL(KIND=dp)                                      :: eps_filter, trace_corr
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigenval
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
       TYPE(cp_fm_type)                                   :: fm_mat_Gamma_3, fm_mat_Q_tmp, &
                                                             fm_mat_R_half, fm_mat_R_half_gemm, &
                                                             fm_mat_U
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: dbcsr_Gamma_3, dbcsr_Gamma_inu_P, &
-                                                            dbcsr_Gamma_munu_P
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: dbcsr_Gamma_3, dbcsr_Gamma_munu_P
+      TYPE(dbcsr_type)                                   :: dbcsr_Gamma_inu_P
       TYPE(dbcsr_type), POINTER                          :: mo_coeff_o, mo_coeff_v
 
       CALL timeset(routineN, handle)
@@ -163,7 +165,7 @@ CONTAINS
                SQRT((1.0_dp/(eigenval(iib)**2))*LOG(1.0_dp + eigenval(iib)) &
                     - 1.0_dp/(eigenval(iib)*(eigenval(iib) + 1.0_dp)))
          ELSE
-            eigenval(iib) = 0.707_dp
+            eigenval(iib) = sqrthalf
          END IF
       END DO
 
@@ -183,9 +185,6 @@ CONTAINS
       CALL cp_fm_create(fm_mat_Gamma_3, fm_struct)
       CALL cp_fm_struct_release(fm_struct)
       CALL cp_fm_set_all(matrix=fm_mat_Gamma_3, alpha=0.0_dp)
-      CALL cp_fm_get_info(matrix=fm_mat_S, &
-                          ncol_local=ncol_local, &
-                          col_indices=col_indices)
 
       ! Update G with a new value of Omega: in practice, it is G*S
 
@@ -238,23 +237,17 @@ CONTAINS
 
       ! Create more dbcsr matrices
 
-      NULLIFY (dbcsr_Gamma_inu_P)
-      !CALL dbcsr_allocate_matrix_set(dbcsr_Gamma_inu_P, ncol_local)
-      CALL dbcsr_allocate_matrix_set(dbcsr_Gamma_inu_P, my_group_L_size)
       NULLIFY (dbcsr_Gamma_munu_P)
-      !CALL dbcsr_allocate_matrix_set(dbcsr_Gamma_munu_P, ncol_local)
       CALL dbcsr_allocate_matrix_set(dbcsr_Gamma_munu_P, my_group_L_size)
       eps_filter = mp2_env%mp2_gpw%eps_filter
+
+      CALL dbcsr_create(dbcsr_Gamma_inu_P, template=mo_coeff_o)
+      CALL dbcsr_copy(dbcsr_Gamma_inu_P, mo_coeff_o)
+      CALL dbcsr_set(dbcsr_Gamma_inu_P, 0.0_dp)
 
       L_counter = 0
       DO kkb = my_group_L_start, my_group_L_end
          L_counter = L_counter + 1
-         ! One-index transformed Gamma_3
-         ALLOCATE (dbcsr_Gamma_inu_P(L_counter)%matrix)
-         CALL dbcsr_init_p(dbcsr_Gamma_inu_P(L_counter)%matrix)
-         CALL dbcsr_create(dbcsr_Gamma_inu_P(L_counter)%matrix, template=mo_coeff_o)
-         CALL dbcsr_copy(dbcsr_Gamma_inu_P(L_counter)%matrix, mo_coeff_o)
-         CALL dbcsr_set(dbcsr_Gamma_inu_P(L_counter)%matrix, 0.0_dp)
          ! Init Gamma_3 in AO basis
          ALLOCATE (dbcsr_Gamma_munu_P(L_counter)%matrix)
          CALL dbcsr_init_p(dbcsr_Gamma_munu_P(L_counter)%matrix)
@@ -270,10 +263,10 @@ CONTAINS
          L_counter = L_counter + 1
          ! Do dbcsr multiplication: transform the virtual index
          CALL dbcsr_multiply("N", "T", 1.0_dp, mo_coeff_v, dbcsr_Gamma_3(L_counter)%matrix, &
-                             0.0_dp, dbcsr_Gamma_inu_P(L_counter)%matrix, filter_eps=eps_filter)
+                             0.0_dp, dbcsr_Gamma_inu_P, filter_eps=eps_filter)
 
          !Do dbcsr multiplication: transform the occupied index
-         CALL dbcsr_multiply("N", "T", 1.0_dp, dbcsr_Gamma_inu_P(L_counter)%matrix, mo_coeff_o, &
+         CALL dbcsr_multiply("N", "T", 1.0_dp, dbcsr_Gamma_inu_P, mo_coeff_o, &
                              0.0_dp, dbcsr_Gamma_munu_P(L_counter)%matrix, filter_eps=eps_filter)
          !
          CALL dbcsr_trace(dbcsr_Gamma_munu_P(L_counter)%matrix, trace_corr)
@@ -287,13 +280,11 @@ CONTAINS
          DEALLOCATE (dbcsr_Gamma_3(L_counter)%matrix)
       END DO
       DEALLOCATE (dbcsr_Gamma_3)
+      CALL dbcsr_release(dbcsr_Gamma_inu_P)
 
       ! Contract DM with exchange integrals
       !CALL integrate_exchange(qs_env, dbcsr_Gamma_munu_P, mat_munu, para_env_sub, ncol_local, eps_filter, e_axk_corr)
-      CALL integrate_exchange(qs_env, dbcsr_Gamma_munu_P, mat_munu, para_env_sub, my_group_L_size, eps_filter, e_axk_corr, &
-                              my_group_L_start, my_group_L_end)
-
-      !CALL para_env_RPA%sum(e_axk_corr)
+      CALL integrate_exchange(qs_env, dbcsr_Gamma_munu_P, mat_munu, para_env_sub, my_group_L_size, eps_filter, e_axk_corr)
 
       ! Print AXK correlation energy to the file
       IF (unit_nr > 0) WRITE (unit_nr, '(T3,A,T68,F25.14,A4)') 'AXK correlation energy for a quadrature point:', &
@@ -302,12 +293,9 @@ CONTAINS
       L_counter = 0
       DO kkb = my_group_L_start, my_group_L_end
          L_counter = L_counter + 1
-         CALL dbcsr_release(dbcsr_Gamma_inu_P(L_counter)%matrix)
          CALL dbcsr_release(dbcsr_Gamma_munu_P(L_counter)%matrix)
-         DEALLOCATE (dbcsr_Gamma_inu_P(L_counter)%matrix)
          DEALLOCATE (dbcsr_Gamma_munu_P(L_counter)%matrix)
       END DO
-      DEALLOCATE (dbcsr_Gamma_inu_P)
       DEALLOCATE (dbcsr_Gamma_munu_P)
 
       CALL timestop(handle)
@@ -320,28 +308,24 @@ CONTAINS
 !> \param dbcsr_Gamma_munu_P ...  AXK density matrix in AO basis to be contracted
 !> \param mat_munu ...
 !> \param para_env_sub ...
-!> \param P_stack_size ...
+!> \param my_group_L_size ...
 !> \param eps_filter ...
 !> \param axk_corr ...  The AXK energy correction
-!> \param my_group_L_start ...
-!> \param my_group_L_end ...
 !> \author Vladimir Rybkin, 08/2016
 ! **************************************************************************************************
-   SUBROUTINE integrate_exchange(qs_env, dbcsr_Gamma_munu_P, mat_munu, para_env_sub, P_stack_size, &
-                                 eps_filter, axk_corr, &
-                                 my_group_L_start, my_group_L_end)
+   SUBROUTINE integrate_exchange(qs_env, dbcsr_Gamma_munu_P, mat_munu, para_env_sub, my_group_L_size, &
+                                 eps_filter, axk_corr)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: dbcsr_Gamma_munu_P
       TYPE(dbcsr_p_type), INTENT(IN)                     :: mat_munu
       TYPE(mp_para_env_type), POINTER                    :: para_env_sub
-      INTEGER, INTENT(INOUT)                             :: P_stack_size
+      INTEGER, INTENT(INOUT)                             :: my_group_L_size
       REAL(KIND=dp), INTENT(IN)                          :: eps_filter
       REAL(KIND=dp), INTENT(OUT)                         :: axk_corr
-      INTEGER, INTENT(IN)                                :: my_group_L_start, my_group_L_end
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'integrate_exchange'
 
-      INTEGER                                            :: aux, handle, irep, kkb, n_rep_hf, ns
+      INTEGER                                            :: aux, handle, irep, n_rep_hf, ns
       LOGICAL                                            :: my_recalc_hfx_integrals
       REAL(KIND=dp)                                      :: e_axk_P, ehfx
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_work_ao
@@ -380,11 +364,7 @@ CONTAINS
 
       ! The loop over auxiliary basis functions
       axk_corr = 0.0_dp
-      !DO aux = 1, P_stack_size
-      P_stack_size = P_stack_size
-      aux = 0
-      DO kkb = my_group_L_start, my_group_L_end
-         aux = aux + 1
+      DO aux = 1, my_group_L_size
 
          CALL dbcsr_copy(rho_work_ao(1)%matrix, dbcsr_Gamma_munu_P(aux)%matrix)
 
@@ -475,7 +455,6 @@ CONTAINS
 
       do_hfx = .TRUE.
       hfx_section => section_vals_get_subs_vals(input, "DFT%XC%WF_CORRELATION%RI_RPA%HF")
-      !hfx_section => section_vals_get_subs_vals(input, "DFT%XC%HF")
       CALL section_vals_get(hfx_section, explicit=do_hfx, n_repetition=n_rep_hf)
       CALL get_qs_env(qs_env, dft_control=dft_control)
 
