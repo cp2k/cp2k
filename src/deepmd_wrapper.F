@@ -152,10 +152,10 @@ CONTAINS
       TYPE(deepmd_model_type)                            :: model
 
       INTERFACE
-         SUBROUTINE DeleteDeepPot(dp) BIND(C, name="DP_DeleteDeepPot")
+         SUBROUTINE DeleteDeepPot(model) BIND(C, name="DP_DeleteDeepPot")
             IMPORT :: C_PTR
             IMPLICIT NONE
-            TYPE(C_PTR)  :: dp
+            TYPE(C_PTR)  :: model
          END SUBROUTINE
       END INTERFACE
 

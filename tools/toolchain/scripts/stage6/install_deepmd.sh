@@ -89,6 +89,10 @@ export CP_CFLAGS="\${CP_CFLAGS} ${DEEPMD_CFLAGS}"
 export CP_LDFLAGS="\${CP_LDFLAGS} ${DEEPMD_LDFLAGS}"
 export CP_LIBS="\${CP_LIBS} ${DEEPMD_LIBS}"
 EOF
+  cat << EOF >> "${INSTALLDIR}/lsan.supp"
+# leaks related to DeePMD-kit and TensorFlow
+leak:deepmd::AtomMap::AtomMap
+EOF
 fi
 
 load "${BUILDDIR}/setup_deepmd"
