@@ -150,7 +150,10 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE deepmd_model_release(model)
       TYPE(deepmd_model_type)                            :: model
+  
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'deepmd_model_release'
 
+      INTEGER                                            :: handle
       INTERFACE
          SUBROUTINE DeleteDeepPot(model) BIND(C, name="DP_DeleteDeepPot")
             IMPORT :: C_PTR
@@ -158,6 +161,8 @@ CONTAINS
             TYPE(C_PTR)  :: model
          END SUBROUTINE DeleteDeepPot
       END INTERFACE
+
+      CALL timeset(routineN, handle)
 
 #if defined(__DEEPMD)
       CALL DeleteDeepPot(model%c_ptr)
