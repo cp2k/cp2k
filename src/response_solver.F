@@ -932,6 +932,10 @@ CONTAINS
       ! check for virial
       use_virial = virial%pv_availability .AND. (.NOT. virial%pv_numer)
 
+      IF (use_virial .AND. do_ex) THEN
+         CALL cp_abort(__LOCATION__, "Stress Tensor not available for TDDFT calculations.")
+      END IF
+
       fconv = 1.0E-9_dp*pascal/cell%deth
       IF (debug_stress .AND. use_virial) THEN
          sttot = virial%pv_virial
