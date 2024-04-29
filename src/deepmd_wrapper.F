@@ -150,8 +150,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE deepmd_model_release(model)
       TYPE(deepmd_model_type)                            :: model
-  
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'deepmd_model_release'
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'deepmd_model_release'
 
       INTEGER                                            :: handle
       INTERFACE
