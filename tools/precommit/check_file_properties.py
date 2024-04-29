@@ -212,7 +212,8 @@ def check_file(path: pathlib.Path) -> List[str]:
             if line.split()[0] not in ("#if", "#ifdef", "#ifndef", "#elif"):
                 continue
 
-        line = line.split("//", 1)[0]
+        line = line.split("/*", 1)[0]  # C comment
+        line = line.split("//", 1)[0]  # C++ comment
         line_continuation = line.rstrip().endswith("\\")
         line = OP_RE.sub(" ", line)
         line = line.replace("defined", " ")
@@ -228,6 +229,8 @@ def check_file(path: pathlib.Path) -> List[str]:
     flags = {flag for flag in flags if not FLAG_EXCEPTIONS_RE.match(flag)}
 
     for flag in sorted(flags):
+        if fn_ext == ".cl":  # usually compiled at RT (no direct user-control)
+            continue
         if flag == "_OMP_H" and fn_ext == ".cu":
             continue
         if flag not in get_install_txt():
