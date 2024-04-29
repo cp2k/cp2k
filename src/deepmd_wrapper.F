@@ -156,7 +156,7 @@ CONTAINS
             IMPORT :: C_PTR
             IMPLICIT NONE
             TYPE(C_PTR)  :: model
-         END SUBROUTINE
+         END SUBROUTINE DeleteDeepPot
       END INTERFACE
 
 #if defined(__DEEPMD)
