@@ -37,7 +37,11 @@ case "$with_deepmd" in
       if [ -f ${deepmd_pkg} ]; then
         echo "${deepmd_pkg} is found"
       else
-        download_pkg_from_cp2k_org "${deepmd_sha256}" "${deepmd_pkg}"
+        # download_pkg_from_cp2k_org "${deepmd_sha256}" "${deepmd_pkg}"
+        # TODO: saved to cp2k.org
+        wget ${DOWNLOADER_FLAGS} --quiet \
+          https://github.com/deepmodeling/deepmd-kit/releases/download/v${deepmd_ver}/libdeepmd_c.tar.gz \
+          -O "${deepmd_pkg}"
       fi
       [ -d libdeepmd_c ] && rm -rf libdeepmd_c
       echo "Installing from scratch into ${pkg_install_dir}"
