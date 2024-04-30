@@ -284,7 +284,9 @@ CONTAINS
          CALL gamma_fm_to_dbcsr(fm_mat_Gamma_3(ispin), dbcsr_Gamma_3(ispin)%matrix_set, para_env_RPA, para_env_sub, &
                                 homo(ispin), virtual(ispin), mo_coeff_o, ngroup, my_group_L_start, &
                                 my_group_L_end, my_group_L_size)
+      END DO
 
+      DO ispin = 1, nspins
          L_counter = 0
          DO kkb = my_group_L_start, my_group_L_end
             L_counter = L_counter + 1
@@ -302,15 +304,14 @@ CONTAINS
             ! Contract DM with exchange integrals
             CALL axk_exchange%integrate(dbcsr_Gamma_munu_P(ispin))
          END DO
-         DEALLOCATE (dbcsr_Gamma_3(ispin)%matrix_set)
       END DO
-      DEALLOCATE (dbcsr_Gamma_3)
 
       DO ispin = 1, nspins
          CALL dbcsr_release(dbcsr_Gamma_inu_P(ispin))
          CALL dbcsr_release(dbcsr_Gamma_munu_P(ispin))
+         DEALLOCATE (dbcsr_Gamma_3(ispin)%matrix_set)
       END DO
-      DEALLOCATE (dbcsr_Gamma_inu_P, dbcsr_Gamma_munu_P)
+      DEALLOCATE (dbcsr_Gamma_inu_P, dbcsr_Gamma_munu_P, dbcsr_Gamma_3)
 
       CALL axk_exchange%release(e_axk_corr)
 
