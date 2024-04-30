@@ -286,10 +286,10 @@ CONTAINS
                                 my_group_L_end, my_group_L_size)
       END DO
 
-      DO ispin = 1, nspins
-         L_counter = 0
-         DO kkb = my_group_L_start, my_group_L_end
-            L_counter = L_counter + 1
+      L_counter = 0
+      DO kkb = my_group_L_start, my_group_L_end
+         L_counter = L_counter + 1
+         DO ispin = 1, nspins
             ! Do dbcsr multiplication: transform the virtual index
             CALL dbcsr_multiply("N", "T", 1.0_dp, mo_coeff_v, dbcsr_Gamma_3(ispin)%matrix_set(L_counter)%matrix, &
                                 0.0_dp, dbcsr_Gamma_inu_P(ispin), filter_eps=eps_filter)
@@ -344,11 +344,10 @@ CONTAINS
       ns = SIZE(axk_exchange%rho_work_ao)
 
       CALL dbcsr_copy(axk_exchange%rho_work_ao(1)%matrix, dbcsr_Gamma_munu_P)
+      rho_ao_2d(1:ns, 1:1) => axk_exchange%rho_work_ao(1:ns)
+      CALL dbcsr_set(axk_exchange%mat_2d(1, 1)%matrix, 0.0_dp)
 
       DO irep = 1, axk_exchange%n_rep_hf
-         rho_ao_2d(1:ns, 1:1) => axk_exchange%rho_work_ao(1:ns)
-
-         CALL dbcsr_set(axk_exchange%mat_2d(1, 1)%matrix, 0.0_dp)
 
          IF (axk_exchange%x_data(irep, 1)%do_hfx_ri) THEN
             CALL hfx_ri_update_ks(axk_exchange%qs_env, axk_exchange%x_data(irep, 1)%ri_data, axk_exchange%mat_2d, ehfx, &
