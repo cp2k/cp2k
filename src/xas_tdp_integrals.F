@@ -15,7 +15,7 @@ MODULE xas_tdp_integrals
                                               omp_get_num_threads,&
                                               omp_get_thread_num
    USE ai_contraction_sphi,             ONLY: ab_contract,&
-                                              libxsmm_abc_contract
+                                              abc_contract_xsmm
    USE atomic_kind_types,               ONLY: atomic_kind_type
    USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                               gto_basis_set_p_type,&
@@ -611,9 +611,9 @@ CONTAINS
 
                   ALLOCATE (work(nsgfa(iset), nsgfb(jset), nsgfc(kset)))
 
-                  CALL libxsmm_abc_contract(work, sabc, tspa(iset, ikind)%array, spb(jset, jkind)%array, &
-                                            spc(kset, kkind)%array, ncoa, ncob, ncoc, nsgfa(iset), &
-                                            nsgfb(jset), nsgfc(kset), cpp_buffer, ccp_buffer)
+                  CALL abc_contract_xsmm(work, sabc, tspa(iset, ikind)%array, spb(jset, jkind)%array, &
+                                         spc(kset, kkind)%array, ncoa, ncob, ncoc, nsgfa(iset), &
+                                         nsgfb(jset), nsgfc(kset), cpp_buffer, ccp_buffer)
 
                   iabc(sgfa:egfa, sgfb:egfb, sgfc:egfc) = work(:, :, :)
                   DEALLOCATE (sabc, work)
