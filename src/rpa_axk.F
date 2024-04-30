@@ -26,8 +26,8 @@ MODULE rpa_axk
                                               cp_fm_scale
    USE cp_fm_diag,                      ONLY: choose_eigv_solver
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
-                                              cp_fm_struct_release,&
-                                              cp_fm_struct_type
+                                              cp_fm_struct_p_type,&
+                                              cp_fm_struct_release
    USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_release,&
                                               cp_fm_set_all,&
@@ -98,7 +98,7 @@ MODULE rpa_axk
       INTEGER, DIMENSION(:), ALLOCATABLE :: homo, virtual, dimen_ia
       INTEGER :: dimen_RI = 0
       REAL(KIND=dp) :: eps_filter = 0.0_dp
-      TYPE(cp_fm_struct_type), POINTER :: struct_Gamma => NULL()
+      TYPE(cp_fm_struct_p_type), ALLOCATABLE, DIMENSION(:) :: struct_Gamma
       TYPE(cp_fm_type) :: fm_mat_Q_tmp = cp_fm_type()
       TYPE(cp_fm_type) :: fm_mat_R_half = cp_fm_type()
       TYPE(cp_fm_type) :: fm_mat_R_half_gemm = cp_fm_type()
@@ -106,7 +106,7 @@ MODULE rpa_axk
       TYPE(mp_para_env_type), POINTER                    :: para_env_RPA => NULL()
       TYPE(mp_para_env_type), POINTER                    :: para_env_sub => NULL()
       INTEGER :: unit_nr = -1
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: dbcsr_Gamma_munu_P
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: dbcsr_Gamma_munu_P => NULL()
       TYPE(dbcsr_type), ALLOCATABLE, DIMENSION(:)        :: dbcsr_Gamma_inu_P
    CONTAINS
       PROCEDURE, PASS(axk_work), NON_OVERRIDABLE :: create => rpa_axk_work_create
@@ -172,9 +172,9 @@ CONTAINS
       axk_work%my_group_L_end = iitmp(2)
       axk_work%my_group_L_size = iitmp(2) - iitmp(1) + 1
 
+      ALLOCATE (axk_work%struct_Gamma(nspins))
       DO ispin = 1, nspins
-         NULLIFY (axk_work%struct_Gamma)
-         CALL cp_fm_struct_create(axk_work%struct_Gamma, template_fmstruct=fm_mat_S(ispin)%matrix_struct, &
+         CALL cp_fm_struct_create(axk_work%struct_Gamma(ispin)%struct, template_fmstruct=fm_mat_S(ispin)%matrix_struct, &
                                   nrow_global=axk_work%dimen_ia(ispin), ncol_global=axk_work%dimen_RI)
       END DO
 
@@ -209,7 +209,12 @@ CONTAINS
       IF (ALLOCATED(axk_work%homo)) DEALLOCATE (axk_work%homo)
       IF (ALLOCATED(axk_work%virtual)) DEALLOCATE (axk_work%virtual)
       IF (ALLOCATED(axk_work%dimen_ia)) DEALLOCATE (axk_work%dimen_ia)
-      IF (ASSOCIATED(axk_work%struct_Gamma)) CALL cp_fm_struct_release(axk_work%struct_Gamma)
+      IF (ALLOCATED(axk_work%struct_Gamma)) THEN
+      DO ispin = 1, SIZE(axk_work%struct_Gamma)
+         CALL cp_fm_struct_release(axk_work%struct_Gamma(ispin)%struct)
+      END DO
+      DEALLOCATE (axk_work%struct_Gamma)
+      END IF
       CALL cp_fm_release(axk_work%fm_mat_Q_tmp)
       CALL cp_fm_release(axk_work%fm_mat_U)
       CALL cp_fm_release(axk_work%fm_mat_R_half)
@@ -223,11 +228,11 @@ CONTAINS
          DEALLOCATE (axk_work%dbcsr_Gamma_inu_P)
       END IF
       IF (ASSOCIATED(axk_work%dbcsr_Gamma_munu_P)) THEN
-      DO ispin = 1, SIZE(axk_work%dbcsr_Gamma_munu_P)
-         CALL dbcsr_release(axk_work%dbcsr_Gamma_munu_P(ispin)%matrix)
-         DEALLOCATE (axk_work%dbcsr_Gamma_munu_P(ispin)%matrix)
-      END DO
-      DEALLOCATE (axk_work%dbcsr_Gamma_munu_P)
+         DO ispin = 1, SIZE(axk_work%dbcsr_Gamma_munu_P)
+            CALL dbcsr_release(axk_work%dbcsr_Gamma_munu_P(ispin)%matrix)
+            DEALLOCATE (axk_work%dbcsr_Gamma_munu_P(ispin)%matrix)
+         END DO
+         DEALLOCATE (axk_work%dbcsr_Gamma_munu_P)
       END IF
    END SUBROUTINE
 
@@ -316,7 +321,7 @@ CONTAINS
 
       ALLOCATE (fm_mat_Gamma_3(nspins))
       DO ispin = 1, nspins
-         CALL cp_fm_create(fm_mat_Gamma_3(ispin), axk_work%struct_Gamma)
+         CALL cp_fm_create(fm_mat_Gamma_3(ispin), axk_work%struct_Gamma(ispin)%struct)
          CALL cp_fm_set_all(matrix=fm_mat_Gamma_3(ispin), alpha=0.0_dp)
 
          ! Update G with a new value of Omega: in practice, it is G*S
@@ -342,11 +347,13 @@ CONTAINS
       ALLOCATE (dbcsr_Gamma_3(nspins))
       DO ispin = 1, nspins
          ! Copy Gamma_ia_P^3 to dbcsr matrix set
-      CALL gamma_fm_to_dbcsr(fm_mat_Gamma_3(ispin), dbcsr_Gamma_3(ispin)%matrix_set, axk_work%para_env_RPA, axk_work%para_env_sub, &
+         CALL gamma_fm_to_dbcsr(fm_mat_Gamma_3(ispin), dbcsr_Gamma_3(ispin)%matrix_set, &
+                                axk_work%para_env_RPA, axk_work%para_env_sub, &
                                 axk_work%homo(ispin), axk_work%virtual(ispin), axk_work%mo_coeff_o(ispin), &
                                 axk_work%ngroup, axk_work%my_group_L_start, &
                                 axk_work%my_group_L_end, axk_work%my_group_L_size)
       END DO
+      DEALLOCATE (fm_mat_Gamma_3)
 
       DO L_counter = 1, axk_work%my_group_L_size
          DO ispin = 1, nspins
@@ -371,6 +378,8 @@ CONTAINS
       DEALLOCATE (dbcsr_Gamma_3)
 
       CALL axk_work%axk_exchange%release(e_axk_corr)
+
+      IF (nspins == 2) e_axk_corr = e_axk_corr/4.0_dp
 
       ! For printing, we need the energy per quadrature point/per integration group, but we obtain the energy per sub group
       e_axk_corr = e_axk_corr/REAL(axk_work%para_env_sub%num_pe, KIND=dp)
@@ -404,7 +413,9 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      CALL dbcsr_set(axk_exchange%mat_hfx(1)%matrix, 0.0_dp)
+      DO ispin = 1, SIZE(axk_exchange%mat_hfx)
+         CALL dbcsr_set(axk_exchange%mat_hfx(ispin)%matrix, 0.0_dp)
+      END DO
 
       CALL tddft_hfx_matrix(axk_exchange%mat_hfx, dbcsr_Gamma_munu_P, axk_exchange%qs_env, .FALSE., &
                             axk_exchange%my_recalc_hfx_integrals, &
