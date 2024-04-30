@@ -19,8 +19,7 @@ MODULE rpa_communication
                                               dbcsr_type,&
                                               dbcsr_type_no_symmetry
    USE cp_dbcsr_operations,             ONLY: copy_fm_to_dbcsr,&
-                                              cp_dbcsr_m_by_n_from_template,&
-                                              dbcsr_allocate_matrix_set
+                                              cp_dbcsr_m_by_n_from_template
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
@@ -78,7 +77,7 @@ CONTAINS
                                 homo, virtual, mo_coeff_o, ngroup, my_group_L_start, my_group_L_end, &
                                 my_group_L_size)
       TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_mat_Gamma_3
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: dbcsr_Gamma_3
+      TYPE(dbcsr_type), ALLOCATABLE, DIMENSION(:)        :: dbcsr_Gamma_3
       TYPE(mp_para_env_type), INTENT(IN)                 :: para_env_RPA
       TYPE(mp_para_env_type), INTENT(IN), POINTER        :: para_env_sub
       INTEGER, INTENT(IN)                                :: homo, virtual
@@ -298,9 +297,7 @@ CONTAINS
       END IF
 
       ! Allocate dbcsr_Gamma_3
-      NULLIFY (dbcsr_Gamma_3)
-
-      CALL dbcsr_allocate_matrix_set(dbcsr_Gamma_3, my_group_L_size)
+      ALLOCATE (dbcsr_Gamma_3(my_group_L_size))
 
       ! auxiliary vector of indices for the send buffer
       ALLOCATE (iii_vet(number_of_send))
@@ -385,11 +382,10 @@ CONTAINS
          CALL mp_waitall(req_send(:))
 
          ! now create the DBCSR matrix and copy fm_ia into it
-         ALLOCATE (dbcsr_Gamma_3(kkB)%matrix)
-         CALL cp_dbcsr_m_by_n_from_template(dbcsr_Gamma_3(kkB)%matrix, &
+         CALL cp_dbcsr_m_by_n_from_template(dbcsr_Gamma_3(kkB), &
                                             template=mo_coeff_o, &
                                             m=homo, n=virtual, sym=dbcsr_type_no_symmetry)
-         CALL copy_fm_to_dbcsr(fm_ia, dbcsr_Gamma_3(kkB)%matrix, keep_sparsity=.FALSE.)
+         CALL copy_fm_to_dbcsr(fm_ia, dbcsr_Gamma_3(kkB), keep_sparsity=.FALSE.)
 
       END DO
 

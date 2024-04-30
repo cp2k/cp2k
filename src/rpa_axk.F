@@ -88,7 +88,7 @@ MODULE rpa_axk
    END TYPE
 
    TYPE dbcsr_matrix_p_set
-      TYPE(dbcsr_p_type), POINTER, DIMENSION(:) :: matrix_set => NULL()
+      TYPE(dbcsr_type), ALLOCATABLE, DIMENSION(:) :: matrix_set
    END TYPE
 
 CONTAINS
@@ -294,11 +294,10 @@ CONTAINS
          L_counter = L_counter + 1
          DO ispin = 1, nspins
             ! Do dbcsr multiplication: transform the virtual index
-            CALL dbcsr_multiply("N", "T", 1.0_dp, mo_coeff_v, dbcsr_Gamma_3(ispin)%matrix_set(L_counter)%matrix, &
+            CALL dbcsr_multiply("N", "T", 1.0_dp, mo_coeff_v, dbcsr_Gamma_3(ispin)%matrix_set(L_counter), &
                                 0.0_dp, dbcsr_Gamma_inu_P(ispin), filter_eps=eps_filter)
 
-            CALL dbcsr_release(dbcsr_Gamma_3(ispin)%matrix_set(L_counter)%matrix)
-            DEALLOCATE (dbcsr_Gamma_3(ispin)%matrix_set(L_counter)%matrix)
+            CALL dbcsr_release(dbcsr_Gamma_3(ispin)%matrix_set(L_counter))
 
             !Do dbcsr multiplication: transform the occupied index
             CALL dbcsr_multiply("N", "T", 1.0_dp, dbcsr_Gamma_inu_P(ispin), mo_coeff_o, &
