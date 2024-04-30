@@ -9,9 +9,9 @@ FROM i386/debian:12
 RUN export DEBIAN_FRONTEND=noninteractive DEBCONF_NONINTERACTIVE_SEEN=true && \
     apt-get update -qq && apt-get install -qq --no-install-recommends \
     cmake \
-    gcc-12 \
-    g++-12 \
-    gfortran-12 \
+    gcc-13 \
+    g++-13 \
+    gfortran-13 \
     libfftw3-dev \
     libopenblas-dev \
     libgsl-dev \
@@ -21,9 +21,9 @@ RUN export DEBIAN_FRONTEND=noninteractive DEBCONF_NONINTERACTIVE_SEEN=true && \
    && rm -rf /var/lib/apt/lists/*
 
 # Create links in /usr/local/bin to overrule links in /usr/bin.
-RUN ln -sf /usr/bin/gcc-12      /usr/local/bin/gcc  && \
-    ln -sf /usr/bin/g++-12      /usr/local/bin/g++  && \
-    ln -sf /usr/bin/gfortran-12 /usr/local/bin/gfortran
+RUN ln -sf /usr/bin/gcc-13      /usr/local/bin/gcc  && \
+    ln -sf /usr/bin/g++-13      /usr/local/bin/g++  && \
+    ln -sf /usr/bin/gfortran-13 /usr/local/bin/gfortran
 
 # Install requirements for the toolchain.
 WORKDIR /opt/cp2k-toolchain

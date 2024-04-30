@@ -3,12 +3,13 @@
 # Usage: docker build -f ./Dockerfile.test_doxygen ../../
 #
 
-FROM ubuntu:22.04
+FROM ubuntu:24.04
 
 # Install dependencies.
 WORKDIR /opt/cp2k
 COPY ./tools/docker/scripts/install_doxygen.sh .
 RUN ./install_doxygen.sh
+ENV PATH="/opt/venv/bin:$PATH"
 
 # Install sources.
 ARG GIT_COMMIT_SHA

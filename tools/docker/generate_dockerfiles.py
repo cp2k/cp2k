@@ -49,7 +49,7 @@ def main() -> None:
         with OutputFile(f"Dockerfile.test_coverage-{version}", args.check) as f:
             f.write(toolchain_full() + coverage(version))
 
-    for gcc_version in 8, 9, 10, 11, 12:
+    for gcc_version in 8, 9, 10, 11, 12, 13:
         with OutputFile(f"Dockerfile.test_gcc{gcc_version}", args.check) as f:
             if gcc_version > 8:
                 f.write(toolchain_ubuntu_nompi(gcc_version=gcc_version))
@@ -72,7 +72,7 @@ def main() -> None:
     with OutputFile("Dockerfile.test_arm64-psmp", args.check) as f:
         f.write(
             toolchain_full(
-                base_image="arm64v8/ubuntu:22.04",
+                base_image="arm64v8/ubuntu:24.04",
                 with_libxsmm="no",
                 with_libtorch="no",
                 with_deepmd="no",
@@ -301,12 +301,13 @@ RUN ./test_{name}.sh 2>&1 | tee report.log
 def test_without_build(name: str) -> str:
     return (
         rf"""
-FROM ubuntu:22.04
+FROM ubuntu:24.04
 
 # Install dependencies.
 WORKDIR /opt/cp2k
 COPY ./tools/docker/scripts/install_{name}.sh .
 RUN ./install_{name}.sh
+ENV PATH="/opt/venv/bin:$PATH"
 
 # Install sources.
 ARG GIT_COMMIT_SHA
@@ -387,7 +388,7 @@ COPY ./tools/regtesting ./tools/regtesting
 
 # ======================================================================================
 def toolchain_full(
-    base_image: str = "ubuntu:22.04", with_gcc: str = "system", **kwargs: str
+    base_image: str = "ubuntu:24.04", with_gcc: str = "system", **kwargs: str
 ) -> str:
     return f"\nFROM {base_image}\n\n" + install_toolchain(
         base_image=base_image, install_all="", with_gcc=with_gcc, **kwargs
@@ -396,8 +397,8 @@ def toolchain_full(
 
 # ======================================================================================
 def toolchain_ubuntu_nompi(
-    base_image: str = "ubuntu:22.04",
-    gcc_version: int = 12,
+    base_image: str = "ubuntu:24.04",
+    gcc_version: int = 13,
     libgrpp: bool = True,
     libvori: bool = True,
     spglib: bool = True,
