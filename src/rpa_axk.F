@@ -19,8 +19,8 @@ MODULE rpa_axk
    USE cell_types,                      ONLY: cell_type
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_api,                    ONLY: &
-        dbcsr_copy, dbcsr_create, dbcsr_get_info, dbcsr_init_p, dbcsr_multiply, dbcsr_p_type, dbcsr_release, &
-        dbcsr_set, dbcsr_trace, dbcsr_type, dbcsr_type_no_symmetry
+        dbcsr_copy, dbcsr_create, dbcsr_dot, dbcsr_get_info, dbcsr_init_p, dbcsr_multiply, &
+        dbcsr_p_type, dbcsr_release, dbcsr_set, dbcsr_trace, dbcsr_type, dbcsr_type_no_symmetry
    USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set
    USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
                                               cp_fm_scale
@@ -380,11 +380,8 @@ CONTAINS
                             axk_exchange%hfx_sections, axk_exchange%x_data, axk_exchange%para_env)
 
       axk_exchange%my_recalc_hfx_integrals = .FALSE.
-      ! One more dbcsr multiplication and trace
       DO ispin = 1, SIZE(dbcsr_Gamma_munu_P)
-         CALL dbcsr_multiply("T", "N", 1.0_dp, axk_exchange%mat_hfx(ispin)%matrix, dbcsr_Gamma_munu_P(ispin)%matrix, &
-                             0.0_dp, axk_exchange%work_ao, filter_eps=axk_exchange%eps_filter)
-         CALL dbcsr_trace(axk_exchange%work_ao, e_axk_p)
+         CALL dbcsr_dot(axk_exchange%mat_hfx(ispin)%matrix, dbcsr_Gamma_munu_P(ispin)%matrix, e_axk_p)
          axk_exchange%e_axk = axk_exchange%e_axk + e_axk_P
       END DO
 
