@@ -96,6 +96,8 @@ MODULE rpa_axk
       INTEGER :: my_group_L_end = 0
       INTEGER :: my_group_L_size = 0
       INTEGER :: ngroup = 0
+      INTEGER, DIMENSION(:), ALLOCATABLE :: homo, virtual, dimen_ia
+      INTEGER :: dimen_RI = 0
    CONTAINS
       PROCEDURE, PASS(axk_work), NON_OVERRIDABLE :: create => rpa_axk_work_create
       PROCEDURE, PASS(axk_work), NON_OVERRIDABLE :: compute => rpa_axk_work_compute
@@ -122,10 +124,20 @@ CONTAINS
       TYPE(mp_para_env_type), INTENT(IN) :: para_env_RPA, para_env_sub
       INTEGER, INTENT(IN) :: dimen_RI
 
-      INTEGER :: color_sub, iitmp(2)
+      INTEGER :: color_sub, iitmp(2), ispin, nspins
 
       axk_work%mo_coeff_o => mp2_env%ri_rpa%mo_coeff_o
       axk_work%mo_coeff_v => mp2_env%ri_rpa%mo_coeff_v
+
+      nspins = SIZE(axk_work%mo_coeff_o)
+
+      ALLOCATE (axk_work%homo(nspins), axk_work%virtual(nspins), axk_work%dimen_ia(nspins))
+      DO ispin = 1, nspins
+         CALL dbcsr_get_info(axk_work%mo_coeff_o(ispin), nfullcols_total=axk_work%homo(ispin))
+         CALL dbcsr_get_info(axk_work%mo_coeff_v(ispin), nfullcols_total=axk_work%virtual(ispin))
+         axk_work%dimen_ia(ispin) = axk_work%homo(ispin)*axk_work%virtual(ispin)
+      END DO
+      axk_work%dimen_RI = dimen_RI
 
       ! Get aux sizes
       axk_work%ngroup = para_env_RPA%num_pe/para_env_sub%num_pe
@@ -144,7 +156,9 @@ CONTAINS
    SUBROUTINE rpa_axk_work_release(axk_work)
       CLASS(rpa_axk_work_type), INTENT(INOUT) :: axk_work
 
-      MARK_USED(axk_work)
+      IF (ALLOCATED(axk_work%homo)) DEALLOCATE (axk_work%homo)
+      IF (ALLOCATED(axk_work%virtual)) DEALLOCATE (axk_work%virtual)
+      IF (ALLOCATED(axk_work%dimen_ia)) DEALLOCATE (axk_work%dimen_ia)
    END SUBROUTINE
 
 ! **************************************************************************************************
@@ -182,7 +196,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'rpa_axk_work_compute'
       REAL(KIND=dp), PARAMETER                           :: thresh = 0.0000001_dp
 
-      INTEGER :: handle, iib, ispin, kkb, L_counter, nspins, homo, virtual, dimen_ia, dimen_RI
+      INTEGER :: handle, iib, ispin, L_counter, nspins
       REAL(KIND=dp)                                      :: eps_filter
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigenval
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
@@ -200,10 +214,8 @@ CONTAINS
 
       nspins = SIZE(fm_mat_S)
 
-      CALL cp_fm_get_info(fm_mat_Q, nrow_global=dimen_RI)
-
       ! Eigenvalues
-      ALLOCATE (eigenval(dimen_RI))
+      ALLOCATE (eigenval(axk_work%dimen_RI))
       eigenval = 0.0_dp
       ! create the R_half and U matrices with a different blacs env similar to Q
       ! and a tmp_Q needed for diagonalization
@@ -232,7 +244,7 @@ CONTAINS
       CALL cp_fm_to_fm(fm_mat_U, fm_mat_Q_tmp)
 
       ! Manipulate eigenvalues to get diagonal matrix
-      DO iib = 1, dimen_RI
+      DO iib = 1, axk_work%dimen_RI
          IF (ABS(eigenval(iib)) .GE. thresh) THEN
             eigenval(iib) = &
                SQRT((1.0_dp/(eigenval(iib)**2))*LOG(1.0_dp + eigenval(iib)) &
@@ -248,7 +260,7 @@ CONTAINS
       DEALLOCATE (eigenval)
 
       ! Get R_half by multiplication
-      CALL parallel_gemm(transa="N", transb="T", m=dimen_RI, n=dimen_RI, k=dimen_RI, alpha=1.0_dp, &
+      CALL parallel_gemm(transa="N", transb="T", m=axk_work%dimen_RI, n=axk_work%dimen_RI, k=axk_work%dimen_RI, alpha=1.0_dp, &
                          matrix_a=fm_mat_U, matrix_b=fm_mat_Q_tmp, beta=0.0_dp, &
                          matrix_c=fm_mat_R_half)
 
@@ -260,39 +272,34 @@ CONTAINS
       CALL cp_fm_create(fm_mat_R_half_gemm, fm_mat_Q_gemm%matrix_struct)
       CALL cp_fm_set_all(matrix=fm_mat_R_half_gemm, alpha=0.0_dp)
 
-      CALL cp_fm_to_fm_submat_general(fm_mat_R_half, fm_mat_R_half_gemm, dimen_RI, dimen_RI, 1, 1, 1, 1, &
+      CALL cp_fm_to_fm_submat_general(fm_mat_R_half, fm_mat_R_half_gemm, axk_work%dimen_RI, axk_work%dimen_RI, 1, 1, 1, 1, &
                                       fm_mat_R_half%matrix_struct%context)
 
       CALL cp_fm_release(fm_mat_R_half)
 
       ALLOCATE (fm_mat_Gamma_3(nspins))
       DO ispin = 1, nspins
-         ! get info of fm_mat_S and initialize Gamma_3
-         CALL cp_fm_get_info(fm_mat_S(ispin), ncol_global=dimen_ia)
-
          NULLIFY (fm_struct)
          CALL cp_fm_struct_create(fm_struct, template_fmstruct=fm_mat_S(ispin)%matrix_struct, &
-                                  nrow_global=dimen_ia, ncol_global=dimen_RI)
+                                  nrow_global=axk_work%dimen_ia(ispin), ncol_global=axk_work%dimen_RI)
          CALL cp_fm_create(fm_mat_Gamma_3(ispin), fm_struct)
          CALL cp_fm_struct_release(fm_struct)
          CALL cp_fm_set_all(matrix=fm_mat_Gamma_3(ispin), alpha=0.0_dp)
 
          ! Update G with a new value of Omega: in practice, it is G*S
 
-         CALL dbcsr_get_info(axk_work%mo_coeff_o(ispin), nfullcols_total=homo)
-         CALL dbcsr_get_info(axk_work%mo_coeff_v(ispin), nfullcols_total=virtual)
-
          ! Scale fm_work_iaP
-         CALL calc_fm_mat_S_rpa(fm_mat_S(ispin), .TRUE., virtual, eig(:, ispin), &
-                                homo, omega, 0.0_dp)
+         CALL calc_fm_mat_S_rpa(fm_mat_S(ispin), .TRUE., axk_work%virtual(ispin), eig(:, ispin), &
+                                axk_work%homo(ispin), omega, 0.0_dp)
 
          ! Calculate Gamma_3: Gamma_3 = G*S*R^(1/2) = G*S*R^(1/2) )
-         CALL parallel_gemm(transa="T", transb="N", m=dimen_ia, n=dimen_RI, k=dimen_RI, alpha=1.0_dp, &
+         CALL parallel_gemm(transa="T", transb="N", m=axk_work%dimen_ia(ispin), n=axk_work%dimen_RI, &
+                            k=axk_work%dimen_RI, alpha=1.0_dp, &
                             matrix_a=fm_mat_S(ispin), matrix_b=fm_mat_R_half_gemm, beta=0.0_dp, &
                             matrix_c=fm_mat_Gamma_3(ispin))
 
          ! Remove extra factor from S after the multiplication (to return to the original matrix)
-         CALL remove_scaling_factor_rpa(fm_mat_S(ispin), virtual, eig(:, ispin), homo, omega)
+         CALL remove_scaling_factor_rpa(fm_mat_S(ispin), axk_work%virtual(ispin), eig(:, ispin), axk_work%homo(ispin), omega)
       END DO
 
       ! Release full matrix stuff
@@ -318,16 +325,13 @@ CONTAINS
       ALLOCATE (dbcsr_Gamma_3(nspins))
       DO ispin = 1, nspins
          ! Copy Gamma_ia_P^3 to dbcsr matrix set
-         CALL dbcsr_get_info(axk_work%mo_coeff_o(ispin), nfullcols_total=homo)
-         CALL dbcsr_get_info(axk_work%mo_coeff_v(ispin), nfullcols_total=virtual)
          CALL gamma_fm_to_dbcsr(fm_mat_Gamma_3(ispin), dbcsr_Gamma_3(ispin)%matrix_set, para_env_RPA, para_env_sub, &
-                                homo, virtual, axk_work%mo_coeff_o(ispin), axk_work%ngroup, axk_work%my_group_L_start, &
+                                axk_work%homo(ispin), axk_work%virtual(ispin), axk_work%mo_coeff_o(ispin), &
+                                axk_work%ngroup, axk_work%my_group_L_start, &
                                 axk_work%my_group_L_end, axk_work%my_group_L_size)
       END DO
 
-      L_counter = 0
-      DO kkb = axk_work%my_group_L_start, axk_work%my_group_L_end
-         L_counter = L_counter + 1
+      DO L_counter = 1, axk_work%my_group_L_size
          DO ispin = 1, nspins
             ! Do dbcsr multiplication: transform the virtual index
             CALL dbcsr_multiply("N", "T", 1.0_dp, axk_work%mo_coeff_v(ispin), dbcsr_Gamma_3(ispin)%matrix_set(L_counter), &
