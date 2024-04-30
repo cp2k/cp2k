@@ -106,6 +106,8 @@ MODULE rpa_axk
       TYPE(mp_para_env_type), POINTER                    :: para_env_RPA => NULL()
       TYPE(mp_para_env_type), POINTER                    :: para_env_sub => NULL()
       INTEGER :: unit_nr = -1
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: dbcsr_Gamma_munu_P
+      TYPE(dbcsr_type), ALLOCATABLE, DIMENSION(:)        :: dbcsr_Gamma_inu_P
    CONTAINS
       PROCEDURE, PASS(axk_work), NON_OVERRIDABLE :: create => rpa_axk_work_create
       PROCEDURE, PASS(axk_work), NON_OVERRIDABLE :: compute => rpa_axk_work_compute
@@ -129,9 +131,10 @@ CONTAINS
 !> \param fm_mat_Q ...
 !> \param fm_mat_Q_gemm ...
 !> \param unit_nr ...
+!> \param mat_munu ...
 ! **************************************************************************************************
    SUBROUTINE rpa_axk_work_create(axk_work, mp2_env, para_env_RPA, para_env_sub, dimen_RI, &
-                                  fm_mat_S, fm_mat_Q, fm_mat_Q_gemm, unit_nr)
+                                  fm_mat_S, fm_mat_Q, fm_mat_Q_gemm, unit_nr, mat_munu)
       CLASS(rpa_axk_work_type), INTENT(INOUT) :: axk_work
       TYPE(mp2_type), INTENT(IN) :: mp2_env
       TYPE(mp_para_env_type), TARGET, INTENT(IN) :: para_env_RPA, para_env_sub
@@ -139,6 +142,7 @@ CONTAINS
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN) :: fm_mat_S
       TYPE(cp_fm_type), INTENT(IN) :: fm_mat_Q, fm_mat_Q_gemm
       INTEGER, INTENT(IN) :: unit_nr
+      TYPE(dbcsr_type), INTENT(IN)                     :: mat_munu
 
       INTEGER :: color_sub, iitmp(2), ispin, nspins
 
@@ -178,6 +182,19 @@ CONTAINS
       CALL cp_fm_create(axk_work%fm_mat_R_half, fm_mat_Q%matrix_struct, name="fm_mat_R_half")
       CALL cp_fm_create(axk_work%fm_mat_Q_tmp, fm_mat_Q%matrix_struct, name="fm_mat_Q_tmp")
       CALL cp_fm_create(axk_work%fm_mat_R_half_gemm, fm_mat_Q_gemm%matrix_struct)
+
+      ALLOCATE (axk_work%dbcsr_Gamma_inu_P(nspins))
+      CALL dbcsr_allocate_matrix_set(axk_work%dbcsr_Gamma_munu_P, nspins)
+      DO ispin = 1, nspins
+         ALLOCATE (axk_work%dbcsr_Gamma_munu_P(ispin)%matrix)
+         CALL dbcsr_create(axk_work%dbcsr_Gamma_munu_P(ispin)%matrix, template=mat_munu, &
+                           matrix_type=dbcsr_type_no_symmetry)
+         CALL dbcsr_copy(axk_work%dbcsr_Gamma_munu_P(ispin)%matrix, mat_munu)
+
+         CALL dbcsr_create(axk_work%dbcsr_Gamma_inu_P(ispin), template=axk_work%mo_coeff_o(ispin))
+         CALL dbcsr_copy(axk_work%dbcsr_Gamma_inu_P(ispin), axk_work%mo_coeff_o(ispin))
+         CALL dbcsr_set(axk_work%dbcsr_Gamma_inu_P(ispin), 0.0_dp)
+      END DO
    END SUBROUTINE
 
 ! **************************************************************************************************
@@ -186,6 +203,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE rpa_axk_work_release(axk_work)
       CLASS(rpa_axk_work_type), INTENT(INOUT) :: axk_work
+
+      INTEGER :: ispin
 
       IF (ALLOCATED(axk_work%homo)) DEALLOCATE (axk_work%homo)
       IF (ALLOCATED(axk_work%virtual)) DEALLOCATE (axk_work%virtual)
@@ -196,6 +215,20 @@ CONTAINS
       CALL cp_fm_release(axk_work%fm_mat_R_half)
       CALL cp_fm_release(axk_work%fm_mat_R_half_gemm)
       NULLIFY (axk_work%para_env_RPA, axk_work%para_env_sub)
+
+      IF (ALLOCATED(axk_work%dbcsr_Gamma_inu_P)) THEN
+         DO ispin = 1, SIZE(axk_work%dbcsr_Gamma_inu_P)
+            CALL dbcsr_release(axk_work%dbcsr_Gamma_inu_P(ispin))
+         END DO
+         DEALLOCATE (axk_work%dbcsr_Gamma_inu_P)
+      END IF
+      IF (ASSOCIATED(axk_work%dbcsr_Gamma_munu_P)) THEN
+      DO ispin = 1, SIZE(axk_work%dbcsr_Gamma_munu_P)
+         CALL dbcsr_release(axk_work%dbcsr_Gamma_munu_P(ispin)%matrix)
+         DEALLOCATE (axk_work%dbcsr_Gamma_munu_P(ispin)%matrix)
+      END DO
+      DEALLOCATE (axk_work%dbcsr_Gamma_munu_P)
+      END IF
    END SUBROUTINE
 
 ! **************************************************************************************************
@@ -206,20 +239,18 @@ CONTAINS
 !> \param eig ...
 !> \param fm_mat_S ...
 !> \param omega ...
-!> \param mat_munu ...
 !> \param e_axk_corr ...          AXK energy correctrion for a quadrature point
 !> \author Vladimir Rybkin, 07/2016
 ! **************************************************************************************************
    SUBROUTINE rpa_axk_work_compute(axk_work, qs_env, fm_mat_Q, &
                                    eig, fm_mat_S, omega, &
-                                   mat_munu, e_axk_corr)
+                                   e_axk_corr)
       CLASS(rpa_axk_work_type), INTENT(INOUT) :: axk_work
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_Q
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: eig
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: fm_mat_S
       REAL(KIND=dp), INTENT(IN)                          :: omega
-      TYPE(dbcsr_p_type), INTENT(IN)                     :: mat_munu
       REAL(KIND=dp), INTENT(INOUT)                       :: e_axk_corr
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'rpa_axk_work_compute'
@@ -230,12 +261,8 @@ CONTAINS
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: fm_mat_Gamma_3
       TYPE(dbcsr_matrix_p_set), ALLOCATABLE, &
          DIMENSION(:)                                    :: dbcsr_Gamma_3
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: dbcsr_Gamma_munu_P
-      TYPE(dbcsr_type), ALLOCATABLE, DIMENSION(:)        :: dbcsr_Gamma_inu_P
 
       CALL timeset(routineN, handle)
-
-      NULLIFY (dbcsr_Gamma_munu_P)
 
       nspins = SIZE(fm_mat_S)
 
@@ -308,21 +335,9 @@ CONTAINS
          CALL remove_scaling_factor_rpa(fm_mat_S(ispin), axk_work%virtual(ispin), eig(:, ispin), axk_work%homo(ispin), omega)
       END DO
 
-      CALL axk_work%axk_exchange%create(qs_env, mat_munu, axk_work%para_env_sub, axk_work%my_group_L_size, axk_work%eps_filter)
+      CALL axk_work%axk_exchange%create(qs_env, axk_work%dbcsr_gamma_munu_P(1)%matrix, axk_work%para_env_sub, &
+                                        axk_work%my_group_L_size, axk_work%eps_filter)
       axk_work%axk_exchange%e_axk = 0.0_dp
-
-      ALLOCATE (dbcsr_Gamma_inu_P(nspins))
-      CALL dbcsr_allocate_matrix_set(dbcsr_Gamma_munu_P, nspins)
-      DO ispin = 1, nspins
-         ALLOCATE (dbcsr_Gamma_munu_P(ispin)%matrix)
-         CALL dbcsr_create(dbcsr_Gamma_munu_P(ispin)%matrix, template=mat_munu%matrix, &
-                           matrix_type=dbcsr_type_no_symmetry)
-         CALL dbcsr_copy(dbcsr_Gamma_munu_P(ispin)%matrix, mat_munu%matrix)
-
-         CALL dbcsr_create(dbcsr_Gamma_inu_P(ispin), template=axk_work%mo_coeff_o(ispin))
-         CALL dbcsr_copy(dbcsr_Gamma_inu_P(ispin), axk_work%mo_coeff_o(ispin))
-         CALL dbcsr_set(dbcsr_Gamma_inu_P(ispin), 0.0_dp)
-      END DO
 
       ALLOCATE (dbcsr_Gamma_3(nspins))
       DO ispin = 1, nspins
@@ -337,31 +352,36 @@ CONTAINS
          DO ispin = 1, nspins
             ! Do dbcsr multiplication: transform the virtual index
             CALL dbcsr_multiply("N", "T", 1.0_dp, axk_work%mo_coeff_v(ispin), dbcsr_Gamma_3(ispin)%matrix_set(L_counter), &
-                                0.0_dp, dbcsr_Gamma_inu_P(ispin), filter_eps=axk_work%eps_filter)
+                                0.0_dp, axk_work%dbcsr_Gamma_inu_P(ispin), filter_eps=axk_work%eps_filter)
 
             CALL dbcsr_release(dbcsr_Gamma_3(ispin)%matrix_set(L_counter))
 
             !Do dbcsr multiplication: transform the occupied index
-            CALL dbcsr_multiply("N", "T", 1.0_dp, dbcsr_Gamma_inu_P(ispin), axk_work%mo_coeff_o(ispin), &
-                                0.0_dp, dbcsr_Gamma_munu_P(ispin)%matrix, filter_eps=axk_work%eps_filter)
+            CALL dbcsr_multiply("N", "T", 1.0_dp, axk_work%dbcsr_Gamma_inu_P(ispin), axk_work%mo_coeff_o(ispin), &
+                                0.0_dp, axk_work%dbcsr_Gamma_munu_P(ispin)%matrix, filter_eps=axk_work%eps_filter)
          END DO
 
          ! Contract DM with exchange integrals
-         CALL axk_work%axk_exchange%integrate(dbcsr_Gamma_munu_P)
+         CALL axk_work%axk_exchange%integrate(axk_work%dbcsr_Gamma_munu_P)
       END DO
 
       DO ispin = 1, nspins
-         CALL dbcsr_release(dbcsr_Gamma_inu_P(ispin))
-         CALL dbcsr_release(dbcsr_Gamma_munu_P(ispin)%matrix)
-         DEALLOCATE (dbcsr_Gamma_3(ispin)%matrix_set, dbcsr_Gamma_munu_P(ispin)%matrix)
+         DEALLOCATE (dbcsr_Gamma_3(ispin)%matrix_set)
       END DO
-      DEALLOCATE (dbcsr_Gamma_inu_P, dbcsr_Gamma_munu_P, dbcsr_Gamma_3)
+      DEALLOCATE (dbcsr_Gamma_3)
 
       CALL axk_work%axk_exchange%release(e_axk_corr)
+
+      ! For printing, we need the energy per quadrature point/per integration group, but we obtain the energy per sub group
+      e_axk_corr = e_axk_corr/REAL(axk_work%para_env_sub%num_pe, KIND=dp)
+      CALL axk_work%para_env_RPA%sum(e_axk_corr)
 
       ! Print AXK correlation energy to the file
       IF (axk_work%unit_nr > 0) WRITE (axk_work%unit_nr, '(T3,A,T68,F25.14,A4)') 'AXK correlation energy for a quadrature point:', &
          e_axk_corr, ' a.u.'
+
+      ! We return an energy per process as we will have to sum over all RPA integration groups anyways
+      e_axk_corr = e_axk_corr/REAL(axk_work%para_env_RPA%num_pe, KIND=dp)
 
       CALL timestop(handle)
 
@@ -412,7 +432,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE hfx_create_subgroup(axk_exchange, qs_env, mat_munu, para_env_sub, my_group_L_size, eps_filter)
       CLASS(rpa_axk_exchange_type), INTENT(INOUT) :: axk_exchange
-      TYPE(dbcsr_p_type), INTENT(IN) :: mat_munu
+      TYPE(dbcsr_type), INTENT(IN) :: mat_munu
       TYPE(qs_environment_type), POINTER, INTENT(IN)   :: qs_env
       TYPE(mp_para_env_type), POINTER, INTENT(IN)            :: para_env_sub
       INTEGER, INTENT(IN) :: my_group_L_size
@@ -468,16 +488,16 @@ CONTAINS
 
       ! create a working matrix
       DO ispin = 1, dft_control%nspins
-         CALL dbcsr_create(axk_exchange%work_ao, template=mat_munu%matrix)
+         CALL dbcsr_create(axk_exchange%work_ao, template=mat_munu)
       END DO
 
       CALL dbcsr_allocate_matrix_set(axk_exchange%mat_hfx, dft_control%nspins)
       DO ispin = 1, dft_control%nspins
          ALLOCATE (axk_exchange%mat_hfx(ispin)%matrix)
          CALL dbcsr_init_p(axk_exchange%mat_hfx(ispin)%matrix)
-         CALL dbcsr_create(axk_exchange%mat_hfx(ispin)%matrix, template=mat_munu%matrix, &
+         CALL dbcsr_create(axk_exchange%mat_hfx(ispin)%matrix, template=mat_munu, &
                            matrix_type=dbcsr_type_no_symmetry)
-         CALL dbcsr_copy(axk_exchange%mat_hfx(ispin)%matrix, mat_munu%matrix)
+         CALL dbcsr_copy(axk_exchange%mat_hfx(ispin)%matrix, mat_munu)
       END DO
 
       CALL timestop(handle)
