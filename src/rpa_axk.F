@@ -140,9 +140,9 @@ CONTAINS
                                                             fm_mat_R_half_gemm, fm_mat_U
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: fm_mat_Gamma_3
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: dbcsr_Gamma_3
-      TYPE(dbcsr_type)                                   :: dbcsr_Gamma_inu_P
-      TYPE(dbcsr_type), POINTER                          :: dbcsr_Gamma_munu_P, mo_coeff_o, &
-                                                            mo_coeff_v
+      TYPE(dbcsr_type), ALLOCATABLE, DIMENSION(:)        :: dbcsr_Gamma_inu_P
+      TYPE(dbcsr_type), DIMENSION(:), POINTER            :: dbcsr_Gamma_munu_P
+      TYPE(dbcsr_type), POINTER                          :: mo_coeff_o, mo_coeff_v
       TYPE(rpa_axk_exchange_type)                        :: axk_exchange
 
       CALL timeset(routineN, handle)
@@ -252,10 +252,21 @@ CONTAINS
       eps_filter = mp2_env%mp2_gpw%eps_filter
       CALL axk_exchange%create(qs_env, mat_munu, para_env_sub, my_group_L_size, eps_filter)
 
-      ALLOCATE (dbcsr_Gamma_munu_P)
-      CALL dbcsr_create(dbcsr_Gamma_munu_P, template=mat_munu%matrix, &
-                        matrix_type=dbcsr_type_no_symmetry)
-      CALL dbcsr_copy(dbcsr_Gamma_munu_P, mat_munu%matrix)
+      ALLOCATE (dbcsr_Gamma_munu_P(nspins), dbcsr_Gamma_inu_P(nspins))
+      DO ispin = 1, nspins
+         CALL dbcsr_create(dbcsr_Gamma_munu_P(ispin), template=mat_munu%matrix, &
+                           matrix_type=dbcsr_type_no_symmetry)
+         CALL dbcsr_copy(dbcsr_Gamma_munu_P(ispin), mat_munu%matrix)
+
+         ! Retrieve mo coefficients in dbcsr format
+         NULLIFY (mo_coeff_o, mo_coeff_v)
+         mo_coeff_o => mp2_env%ri_rpa%mo_coeff_o(ispin)
+         mo_coeff_v => mp2_env%ri_rpa%mo_coeff_v(ispin)
+
+         CALL dbcsr_create(dbcsr_Gamma_inu_P(ispin), template=mo_coeff_o)
+         CALL dbcsr_copy(dbcsr_Gamma_inu_P(ispin), mo_coeff_o)
+         CALL dbcsr_set(dbcsr_Gamma_inu_P(ispin), 0.0_dp)
+      END DO
 
       DO ispin = 1, nspins
          ! Retrieve mo coefficients in dbcsr format
@@ -268,33 +279,31 @@ CONTAINS
                                 homo(ispin), virtual(ispin), mo_coeff_o, ngroup, my_group_L_start, &
                                 my_group_L_end, my_group_L_size)
 
-         CALL dbcsr_create(dbcsr_Gamma_inu_P, template=mo_coeff_o)
-         CALL dbcsr_copy(dbcsr_Gamma_inu_P, mo_coeff_o)
-         CALL dbcsr_set(dbcsr_Gamma_inu_P, 0.0_dp)
-
          L_counter = 0
          DO kkb = my_group_L_start, my_group_L_end
             L_counter = L_counter + 1
             ! Do dbcsr multiplication: transform the virtual index
             CALL dbcsr_multiply("N", "T", 1.0_dp, mo_coeff_v, dbcsr_Gamma_3(L_counter)%matrix, &
-                                0.0_dp, dbcsr_Gamma_inu_P, filter_eps=eps_filter)
+                                0.0_dp, dbcsr_Gamma_inu_P(ispin), filter_eps=eps_filter)
 
             CALL dbcsr_release(dbcsr_Gamma_3(L_counter)%matrix)
             DEALLOCATE (dbcsr_Gamma_3(L_counter)%matrix)
 
             !Do dbcsr multiplication: transform the occupied index
-            CALL dbcsr_multiply("N", "T", 1.0_dp, dbcsr_Gamma_inu_P, mo_coeff_o, &
-                                0.0_dp, dbcsr_Gamma_munu_P, filter_eps=eps_filter)
+            CALL dbcsr_multiply("N", "T", 1.0_dp, dbcsr_Gamma_inu_P(ispin), mo_coeff_o, &
+                                0.0_dp, dbcsr_Gamma_munu_P(ispin), filter_eps=eps_filter)
 
             ! Contract DM with exchange integrals
-            CALL axk_exchange%integrate(dbcsr_Gamma_munu_P)
+            CALL axk_exchange%integrate(dbcsr_Gamma_munu_P(ispin))
          END DO
          DEALLOCATE (dbcsr_Gamma_3)
-         CALL dbcsr_release(dbcsr_Gamma_inu_P)
       END DO
 
-      CALL dbcsr_release(dbcsr_Gamma_munu_P)
-      DEALLOCATE (dbcsr_Gamma_munu_P)
+      DO ispin = 1, nspins
+         CALL dbcsr_release(dbcsr_Gamma_inu_P(ispin))
+         CALL dbcsr_release(dbcsr_Gamma_munu_P(ispin))
+      END DO
+      DEALLOCATE (dbcsr_Gamma_inu_P, dbcsr_Gamma_munu_P)
 
       CALL axk_exchange%release(e_axk_corr)
 
@@ -314,7 +323,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE integrate_exchange(axk_exchange, dbcsr_Gamma_munu_P)
       CLASS(rpa_axk_exchange_type), INTENT(INOUT) :: axk_exchange
-      TYPE(dbcsr_type), POINTER          :: dbcsr_Gamma_munu_P
+      TYPE(dbcsr_type)          :: dbcsr_Gamma_munu_P
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'integrate_exchange'
 
