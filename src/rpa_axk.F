@@ -103,6 +103,9 @@ MODULE rpa_axk
       TYPE(cp_fm_type) :: fm_mat_R_half = cp_fm_type()
       TYPE(cp_fm_type) :: fm_mat_R_half_gemm = cp_fm_type()
       TYPE(cp_fm_type) :: fm_mat_U = cp_fm_type()
+      TYPE(mp_para_env_type), POINTER                    :: para_env_RPA => NULL()
+      TYPE(mp_para_env_type), POINTER                    :: para_env_sub => NULL()
+      INTEGER :: unit_nr = -1
    CONTAINS
       PROCEDURE, PASS(axk_work), NON_OVERRIDABLE :: create => rpa_axk_work_create
       PROCEDURE, PASS(axk_work), NON_OVERRIDABLE :: compute => rpa_axk_work_compute
@@ -125,20 +128,26 @@ CONTAINS
 !> \param fm_mat_S ...
 !> \param fm_mat_Q ...
 !> \param fm_mat_Q_gemm ...
+!> \param unit_nr ...
 ! **************************************************************************************************
-   SUBROUTINE rpa_axk_work_create(axk_work, mp2_env, para_env_RPA, para_env_sub, dimen_RI, fm_mat_S, fm_mat_Q, fm_mat_Q_gemm)
+   SUBROUTINE rpa_axk_work_create(axk_work, mp2_env, para_env_RPA, para_env_sub, dimen_RI, &
+                                  fm_mat_S, fm_mat_Q, fm_mat_Q_gemm, unit_nr)
       CLASS(rpa_axk_work_type), INTENT(INOUT) :: axk_work
       TYPE(mp2_type), INTENT(IN) :: mp2_env
-      TYPE(mp_para_env_type), INTENT(IN) :: para_env_RPA, para_env_sub
+      TYPE(mp_para_env_type), TARGET, INTENT(IN) :: para_env_RPA, para_env_sub
       INTEGER, INTENT(IN) :: dimen_RI
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN) :: fm_mat_S
       TYPE(cp_fm_type), INTENT(IN) :: fm_mat_Q, fm_mat_Q_gemm
+      INTEGER, INTENT(IN) :: unit_nr
 
       INTEGER :: color_sub, iitmp(2), ispin, nspins
 
       axk_work%mo_coeff_o => mp2_env%ri_rpa%mo_coeff_o
       axk_work%mo_coeff_v => mp2_env%ri_rpa%mo_coeff_v
       axk_work%eps_filter = mp2_env%mp2_gpw%eps_filter
+      axk_work%para_env_RPA => para_env_RPA
+      axk_work%para_env_sub => para_env_sub
+      axk_work%unit_nr = unit_nr
 
       nspins = SIZE(axk_work%mo_coeff_o)
 
@@ -186,6 +195,7 @@ CONTAINS
       CALL cp_fm_release(axk_work%fm_mat_U)
       CALL cp_fm_release(axk_work%fm_mat_R_half)
       CALL cp_fm_release(axk_work%fm_mat_R_half_gemm)
+      NULLIFY (axk_work%para_env_RPA, axk_work%para_env_sub)
    END SUBROUTINE
 
 ! **************************************************************************************************
@@ -193,28 +203,23 @@ CONTAINS
 !> \param axk_work ...
 !> \param qs_env ...
 !> \param fm_mat_Q ...
-!> \param para_env_sub ...
-!> \param para_env_RPA ...
 !> \param eig ...
 !> \param fm_mat_S ...
 !> \param omega ...
 !> \param mat_munu ...
-!> \param unit_nr ...
 !> \param e_axk_corr ...          AXK energy correctrion for a quadrature point
 !> \author Vladimir Rybkin, 07/2016
 ! **************************************************************************************************
    SUBROUTINE rpa_axk_work_compute(axk_work, qs_env, fm_mat_Q, &
-                                   para_env_sub, para_env_RPA, eig, fm_mat_S, omega, &
-                                   mat_munu, unit_nr, e_axk_corr)
+                                   eig, fm_mat_S, omega, &
+                                   mat_munu, e_axk_corr)
       CLASS(rpa_axk_work_type), INTENT(INOUT) :: axk_work
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_Q
-      TYPE(mp_para_env_type), POINTER                    :: para_env_sub, para_env_RPA
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: eig
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: fm_mat_S
       REAL(KIND=dp), INTENT(IN)                          :: omega
       TYPE(dbcsr_p_type), INTENT(IN)                     :: mat_munu
-      INTEGER, INTENT(IN)                                :: unit_nr
       REAL(KIND=dp), INTENT(INOUT)                       :: e_axk_corr
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'rpa_axk_work_compute'
@@ -303,7 +308,7 @@ CONTAINS
          CALL remove_scaling_factor_rpa(fm_mat_S(ispin), axk_work%virtual(ispin), eig(:, ispin), axk_work%homo(ispin), omega)
       END DO
 
-      CALL axk_work%axk_exchange%create(qs_env, mat_munu, para_env_sub, axk_work%my_group_L_size, axk_work%eps_filter)
+      CALL axk_work%axk_exchange%create(qs_env, mat_munu, axk_work%para_env_sub, axk_work%my_group_L_size, axk_work%eps_filter)
       axk_work%axk_exchange%e_axk = 0.0_dp
 
       ALLOCATE (dbcsr_Gamma_inu_P(nspins))
@@ -322,7 +327,7 @@ CONTAINS
       ALLOCATE (dbcsr_Gamma_3(nspins))
       DO ispin = 1, nspins
          ! Copy Gamma_ia_P^3 to dbcsr matrix set
-         CALL gamma_fm_to_dbcsr(fm_mat_Gamma_3(ispin), dbcsr_Gamma_3(ispin)%matrix_set, para_env_RPA, para_env_sub, &
+      CALL gamma_fm_to_dbcsr(fm_mat_Gamma_3(ispin), dbcsr_Gamma_3(ispin)%matrix_set, axk_work%para_env_RPA, axk_work%para_env_sub, &
                                 axk_work%homo(ispin), axk_work%virtual(ispin), axk_work%mo_coeff_o(ispin), &
                                 axk_work%ngroup, axk_work%my_group_L_start, &
                                 axk_work%my_group_L_end, axk_work%my_group_L_size)
@@ -355,7 +360,7 @@ CONTAINS
       CALL axk_work%axk_exchange%release(e_axk_corr)
 
       ! Print AXK correlation energy to the file
-      IF (unit_nr > 0) WRITE (unit_nr, '(T3,A,T68,F25.14,A4)') 'AXK correlation energy for a quadrature point:', &
+      IF (axk_work%unit_nr > 0) WRITE (axk_work%unit_nr, '(T3,A,T68,F25.14,A4)') 'AXK correlation energy for a quadrature point:', &
          e_axk_corr, ' a.u.'
 
       CALL timestop(handle)
