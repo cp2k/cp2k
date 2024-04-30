@@ -382,8 +382,7 @@ CONTAINS
          CALL mp_waitall(req_send(:))
 
          ! now create the DBCSR matrix and copy fm_ia into it
-         CALL cp_dbcsr_m_by_n_from_template(dbcsr_Gamma_3(kkB), &
-                                            template=mo_coeff_o, &
+         CALL cp_dbcsr_m_by_n_from_template(dbcsr_Gamma_3(kkB), template=mo_coeff_o, &
                                             m=homo, n=virtual, sym=dbcsr_type_no_symmetry)
          CALL copy_fm_to_dbcsr(fm_ia, dbcsr_Gamma_3(kkB), keep_sparsity=.FALSE.)
 

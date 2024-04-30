@@ -19,7 +19,7 @@ MODULE rpa_axk
    USE cell_types,                      ONLY: cell_type
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_api,                    ONLY: &
-        dbcsr_copy, dbcsr_create, dbcsr_init_p, dbcsr_multiply, dbcsr_p_type, dbcsr_release, &
+        dbcsr_copy, dbcsr_create, dbcsr_get_info, dbcsr_init_p, dbcsr_multiply, dbcsr_p_type, dbcsr_release, &
         dbcsr_set, dbcsr_trace, dbcsr_type, dbcsr_type_no_symmetry
    USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set
    USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
@@ -128,14 +128,10 @@ CONTAINS
 !> \param qs_env ...
 !> \param fm_mat_Q ...
 !> \param fm_mat_Q_gemm ...
-!> \param dimen_RI ...
-!> \param dimen_ia ...
 !> \param para_env_sub ...
 !> \param para_env_RPA ...
 !> \param eig ...
 !> \param fm_mat_S ...
-!> \param homo ...
-!> \param virtual ...
 !> \param omega ...
 !> \param mp2_env ...
 !> \param mat_munu ...
@@ -143,19 +139,15 @@ CONTAINS
 !> \param e_axk_corr ...          AXK energy correctrion for a quadrature point
 !> \author Vladimir Rybkin, 07/2016
 ! **************************************************************************************************
-   SUBROUTINE rpa_axk_work_compute(axk_work, qs_env, fm_mat_Q, fm_mat_Q_gemm, dimen_RI, dimen_ia, &
-                                   para_env_sub, para_env_RPA, &
-                                   eig, fm_mat_S, homo, virtual, omega, &
+   SUBROUTINE rpa_axk_work_compute(axk_work, qs_env, fm_mat_Q, fm_mat_Q_gemm, &
+                                   para_env_sub, para_env_RPA, eig, fm_mat_S, omega, &
                                    mp2_env, mat_munu, unit_nr, e_axk_corr)
       CLASS(rpa_axk_work_type), INTENT(INOUT) :: axk_work
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_Q, fm_mat_Q_gemm
-      INTEGER, INTENT(IN)                                :: dimen_RI
-      INTEGER, DIMENSION(:), INTENT(IN)                  :: dimen_ia
       TYPE(mp_para_env_type), POINTER                    :: para_env_sub, para_env_RPA
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: eig
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: fm_mat_S
-      INTEGER, DIMENSION(:), INTENT(IN)                  :: homo, virtual
       REAL(KIND=dp), INTENT(IN)                          :: omega
       TYPE(mp2_type)                                     :: mp2_env
       TYPE(dbcsr_p_type), INTENT(IN)                     :: mat_munu
@@ -166,7 +158,7 @@ CONTAINS
       REAL(KIND=dp), PARAMETER                           :: thresh = 0.0000001_dp
 
       INTEGER :: color_sub, handle, iib, iitmp(2), ispin, kkb, L_counter, my_group_L_end, &
-                 my_group_L_size, my_group_L_start, ngroup, nspins
+                 my_group_L_size, my_group_L_start, ngroup, nspins, homo, virtual, dimen_ia, dimen_RI
       REAL(KIND=dp)                                      :: eps_filter
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigenval
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
@@ -181,11 +173,11 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      MARK_USED(axk_work)
-
       NULLIFY (dbcsr_Gamma_munu_P)
 
-      nspins = SIZE(dimen_ia)
+      nspins = SIZE(fm_mat_S)
+
+      CALL cp_fm_get_info(fm_mat_Q, nrow_global=dimen_RI)
 
       ! Eigenvalues
       ALLOCATE (eigenval(dimen_RI))
@@ -253,26 +245,31 @@ CONTAINS
       ALLOCATE (fm_mat_Gamma_3(nspins))
       DO ispin = 1, nspins
          ! get info of fm_mat_S and initialize Gamma_3
+         CALL cp_fm_get_info(fm_mat_S(ispin), ncol_global=dimen_ia)
+
          NULLIFY (fm_struct)
          CALL cp_fm_struct_create(fm_struct, template_fmstruct=fm_mat_S(ispin)%matrix_struct, &
-                                  nrow_global=dimen_ia(ispin), ncol_global=dimen_RI)
+                                  nrow_global=dimen_ia, ncol_global=dimen_RI)
          CALL cp_fm_create(fm_mat_Gamma_3(ispin), fm_struct)
          CALL cp_fm_struct_release(fm_struct)
          CALL cp_fm_set_all(matrix=fm_mat_Gamma_3(ispin), alpha=0.0_dp)
 
          ! Update G with a new value of Omega: in practice, it is G*S
 
+         CALL dbcsr_get_info(mp2_env%ri_rpa%mo_coeff_o(ispin), nfullcols_total=homo)
+         CALL dbcsr_get_info(mp2_env%ri_rpa%mo_coeff_v(ispin), nfullcols_total=virtual)
+
          ! Scale fm_work_iaP
-         CALL calc_fm_mat_S_rpa(fm_mat_S(ispin), .TRUE., virtual(ispin), eig(:, ispin), &
-                                homo(ispin), omega, 0.0_dp)
+         CALL calc_fm_mat_S_rpa(fm_mat_S(ispin), .TRUE., virtual, eig(:, ispin), &
+                                homo, omega, 0.0_dp)
 
          ! Calculate Gamma_3: Gamma_3 = G*S*R^(1/2) = G*S*R^(1/2) )
-         CALL parallel_gemm(transa="T", transb="N", m=dimen_ia(ispin), n=dimen_RI, k=dimen_RI, alpha=1.0_dp, &
+         CALL parallel_gemm(transa="T", transb="N", m=dimen_ia, n=dimen_RI, k=dimen_RI, alpha=1.0_dp, &
                             matrix_a=fm_mat_S(ispin), matrix_b=fm_mat_R_half_gemm, beta=0.0_dp, &
                             matrix_c=fm_mat_Gamma_3(ispin))
 
          ! Remove extra factor from S after the multiplication (to return to the original matrix)
-         CALL remove_scaling_factor_rpa(fm_mat_S(ispin), virtual(ispin), eig(:, ispin), homo(ispin), omega)
+         CALL remove_scaling_factor_rpa(fm_mat_S(ispin), virtual, eig(:, ispin), homo, omega)
       END DO
 
       ! Release full matrix stuff
@@ -316,8 +313,10 @@ CONTAINS
          mo_coeff_v => mp2_env%ri_rpa%mo_coeff_v(ispin)
 
          ! Copy Gamma_ia_P^3 to dbcsr matrix set
+         CALL dbcsr_get_info(mo_coeff_o, nfullcols_total=homo)
+         CALL dbcsr_get_info(mo_coeff_v, nfullcols_total=virtual)
          CALL gamma_fm_to_dbcsr(fm_mat_Gamma_3(ispin), dbcsr_Gamma_3(ispin)%matrix_set, para_env_RPA, para_env_sub, &
-                                homo(ispin), virtual(ispin), mo_coeff_o, ngroup, my_group_L_start, &
+                                homo, virtual, mo_coeff_o, ngroup, my_group_L_start, &
                                 my_group_L_end, my_group_L_size)
       END DO
 
