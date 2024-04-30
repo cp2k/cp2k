@@ -26,9 +26,15 @@ apt-get install -qq --no-install-recommends \
   default-jre-headless \
   libsaxonhe-java \
   python3 \
-  python3-pip
+  python3-pip \
+  python3-venv
 rm -rf /var/lib/apt/lists/*
 
+# Create and activate a virtual environment for Python packages.
+python3 -m venv /opt/venv
+export PATH="/opt/venv/bin:$PATH"
+
+# install python packages
 pip3 install --quiet \
   sphinx \
   myst-parser \

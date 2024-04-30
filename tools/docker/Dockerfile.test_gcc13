@@ -1,14 +1,34 @@
 #
 # This file was created by generate_dockerfiles.py.
-# Usage: docker build -f ./Dockerfile.test_ase ../../
+# Usage: docker build -f ./Dockerfile.test_gcc13 ../../
 #
 
 FROM ubuntu:24.04
 
+# Install Ubuntu packages.
+RUN export DEBIAN_FRONTEND=noninteractive DEBCONF_NONINTERACTIVE_SEEN=true && \
+    apt-get update -qq && apt-get install -qq --no-install-recommends \
+    cmake \
+    gcc-13 \
+    g++-13 \
+    gfortran-13 \
+    libfftw3-dev \
+    libopenblas-dev \
+    libgsl-dev \
+    libhdf5-dev \
+    libint2-dev \
+    libxc-dev \
+   && rm -rf /var/lib/apt/lists/*
+
+# Create links in /usr/local/bin to overrule links in /usr/bin.
+RUN ln -sf /usr/bin/gcc-13      /usr/local/bin/gcc  && \
+    ln -sf /usr/bin/g++-13      /usr/local/bin/g++  && \
+    ln -sf /usr/bin/gfortran-13 /usr/local/bin/gfortran
+
 # Install requirements for the toolchain.
 WORKDIR /opt/cp2k-toolchain
 COPY ./tools/toolchain/install_requirements*.sh ./
-RUN ./install_requirements.sh ubuntu:24.04
+RUN ./install_requirements.sh ubuntu
 
 # Install the toolchain.
 RUN mkdir scripts
@@ -21,8 +41,19 @@ COPY ./tools/toolchain/scripts/VERSION \
      ./scripts/
 COPY ./tools/toolchain/install_cp2k_toolchain.sh .
 RUN ./install_cp2k_toolchain.sh \
-    --install-all \
+    --mpi-mode=no \
     --with-gcc=system \
+    --with-cmake=system \
+    --with-fftw=system \
+    --with-openblas=system \
+    --with-gsl=system \
+    --with-hdf5=system \
+    --with-libgrpp=install \
+    --with-libint=system \
+    --with-libxc=system \
+    --with-libxsmm=install \
+    --with-libvori=install \
+    --with-spglib=install \
     --dry-run
 
 # Dry-run leaves behind config files for the followup install scripts.
@@ -59,7 +90,7 @@ COPY ./tools/toolchain/scripts/arch_base.tmpl \
      ./scripts/
 RUN ./scripts/generate_arch_files.sh && rm -rf ./build
 
-# Install CP2K using local.sdbg.
+# Install CP2K using local.ssmp.
 WORKDIR /opt/cp2k
 COPY ./Makefile .
 COPY ./src ./src
@@ -67,14 +98,18 @@ COPY ./exts ./exts
 COPY ./tools/build_utils ./tools/build_utils
 RUN /bin/bash -c " \
     mkdir -p arch && \
-    ln -vs /opt/cp2k-toolchain/install/arch/local.sdbg ./arch/"
+    ln -vs /opt/cp2k-toolchain/install/arch/local.ssmp ./arch/"
 COPY ./data ./data
 COPY ./tests ./tests
 COPY ./tools/regtesting ./tools/regtesting
 
-# Run test for ase.
-COPY ./tools/docker/scripts/test_ase.sh .
-RUN ./test_ase.sh 2>&1 | tee report.log
+# Run regression tests.
+ARG TESTOPTS="--skipdir=QS/regtest-rs-dhft"
+COPY ./tools/docker/scripts/test_regtest.sh ./
+RUN /bin/bash -o pipefail -c " \
+    TESTOPTS='${TESTOPTS}' \
+    ./test_regtest.sh 'local' 'ssmp' |& tee report.log && \
+    rm -rf regtesting"
 
 # Output the report if the image is old and was therefore pulled from the build cache.
 CMD cat $(find ./report.log -mmin +10) | sed '/^Summary:/ s/$/ (cached)/'
