@@ -66,7 +66,7 @@ MODULE rpa_axk
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'rpa_axk'
 
-   PUBLIC :: compute_axk_ener
+   PUBLIC :: rpa_axk_work_type
 
    TYPE rpa_axk_exchange_type
       PRIVATE
@@ -87,6 +87,15 @@ MODULE rpa_axk
       PROCEDURE, PASS(axk_exchange), NON_OVERRIDABLE :: release => hfx_release_subgroup
    END TYPE
 
+   TYPE rpa_axk_work_type
+      PRIVATE
+      TYPE(rpa_axk_exchange_type) :: axk_exchange
+   CONTAINS
+      PROCEDURE, PASS(axk_work), NON_OVERRIDABLE :: create => rpa_axk_work_create
+      PROCEDURE, PASS(axk_work), NON_OVERRIDABLE :: compute => rpa_axk_work_compute
+      PROCEDURE, PASS(axk_work), NON_OVERRIDABLE :: release => rpa_axk_work_release
+   END TYPE
+
    TYPE dbcsr_matrix_p_set
       TYPE(dbcsr_type), ALLOCATABLE, DIMENSION(:) :: matrix_set
    END TYPE
@@ -94,7 +103,28 @@ MODULE rpa_axk
 CONTAINS
 
 ! **************************************************************************************************
+!> \brief ...
+!> \param axk_work ...
+! **************************************************************************************************
+   SUBROUTINE rpa_axk_work_create(axk_work)
+      CLASS(rpa_axk_work_type), INTENT(INOUT) :: axk_work
+
+      MARK_USED(axk_work)
+   END SUBROUTINE
+
+! **************************************************************************************************
+!> \brief ...
+!> \param axk_work ...
+! **************************************************************************************************
+   SUBROUTINE rpa_axk_work_release(axk_work)
+      CLASS(rpa_axk_work_type), INTENT(INOUT) :: axk_work
+
+      MARK_USED(axk_work)
+   END SUBROUTINE
+
+! **************************************************************************************************
 !> \brief Main driver for RPA-AXK energies
+!> \param axk_work ...
 !> \param qs_env ...
 !> \param fm_mat_Q ...
 !> \param fm_mat_Q_gemm ...
@@ -113,10 +143,11 @@ CONTAINS
 !> \param e_axk_corr ...          AXK energy correctrion for a quadrature point
 !> \author Vladimir Rybkin, 07/2016
 ! **************************************************************************************************
-   SUBROUTINE compute_axk_ener(qs_env, fm_mat_Q, fm_mat_Q_gemm, dimen_RI, dimen_ia, &
-                               para_env_sub, para_env_RPA, &
-                               eig, fm_mat_S, homo, virtual, omega, &
-                               mp2_env, mat_munu, unit_nr, e_axk_corr)
+   SUBROUTINE rpa_axk_work_compute(axk_work, qs_env, fm_mat_Q, fm_mat_Q_gemm, dimen_RI, dimen_ia, &
+                                   para_env_sub, para_env_RPA, &
+                                   eig, fm_mat_S, homo, virtual, omega, &
+                                   mp2_env, mat_munu, unit_nr, e_axk_corr)
+      CLASS(rpa_axk_work_type), INTENT(INOUT) :: axk_work
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_Q, fm_mat_Q_gemm
       INTEGER, INTENT(IN)                                :: dimen_RI
@@ -131,11 +162,11 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: unit_nr
       REAL(KIND=dp), INTENT(INOUT)                       :: e_axk_corr
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'compute_axk_ener'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'rpa_axk_work_compute'
       REAL(KIND=dp), PARAMETER                           :: thresh = 0.0000001_dp
 
       INTEGER :: color_sub, handle, iib, iitmp(2), ispin, kkb, L_counter, my_group_L_end, &
-         my_group_L_size, my_group_L_start, ngroup, nspins
+                 my_group_L_size, my_group_L_start, ngroup, nspins
       REAL(KIND=dp)                                      :: eps_filter
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigenval
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
@@ -147,9 +178,10 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: dbcsr_Gamma_munu_P
       TYPE(dbcsr_type), ALLOCATABLE, DIMENSION(:)        :: dbcsr_Gamma_inu_P
       TYPE(dbcsr_type), POINTER                          :: mo_coeff_o, mo_coeff_v
-      TYPE(rpa_axk_exchange_type)                        :: axk_exchange
 
       CALL timeset(routineN, handle)
+
+      MARK_USED(axk_work)
 
       NULLIFY (dbcsr_Gamma_munu_P)
 
@@ -256,7 +288,7 @@ CONTAINS
       my_group_L_size = iitmp(2) - iitmp(1) + 1
 
       eps_filter = mp2_env%mp2_gpw%eps_filter
-      CALL axk_exchange%create(qs_env, mat_munu, para_env_sub, my_group_L_size, eps_filter)
+      CALL axk_work%axk_exchange%create(qs_env, mat_munu, para_env_sub, my_group_L_size, eps_filter)
 
       ALLOCATE (dbcsr_Gamma_inu_P(nspins))
       CALL dbcsr_allocate_matrix_set(dbcsr_Gamma_munu_P, nspins)
@@ -305,7 +337,7 @@ CONTAINS
          END DO
 
          ! Contract DM with exchange integrals
-         CALL axk_exchange%integrate(dbcsr_Gamma_munu_P)
+         CALL axk_work%axk_exchange%integrate(dbcsr_Gamma_munu_P)
       END DO
 
       DO ispin = 1, nspins
@@ -315,7 +347,7 @@ CONTAINS
       END DO
       DEALLOCATE (dbcsr_Gamma_inu_P, dbcsr_Gamma_munu_P, dbcsr_Gamma_3)
 
-      CALL axk_exchange%release(e_axk_corr)
+      CALL axk_work%axk_exchange%release(e_axk_corr)
 
       ! Print AXK correlation energy to the file
       IF (unit_nr > 0) WRITE (unit_nr, '(T3,A,T68,F25.14,A4)') 'AXK correlation energy for a quadrature point:', &
@@ -323,7 +355,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE compute_axk_ener
+   END SUBROUTINE rpa_axk_work_compute
 
 ! **************************************************************************************************
 !> \brief Contract RPA-AXK density matrix with HF exchange integrals and evaluate the correction

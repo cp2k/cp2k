@@ -71,7 +71,7 @@ MODULE rpa_main
                                               two_dim_real_array
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
-   USE rpa_axk,                         ONLY: compute_axk_ener
+   USE rpa_axk,                         ONLY: rpa_axk_work_type
    USE rpa_grad,                        ONLY: rpa_grad_copy_Q,&
                                               rpa_grad_create,&
                                               rpa_grad_finalize,&
@@ -1148,6 +1148,7 @@ CONTAINS
       TYPE(hfx_compression_type), ALLOCATABLE, &
          DIMENSION(:)                                    :: t_3c_O_mo_compressed
       TYPE(im_time_force_type)                           :: force_data
+      TYPE(rpa_axk_work_type)                            :: axk_work
       TYPE(rpa_grad_type)                                :: rpa_grad
       TYPE(two_dim_int_array), ALLOCATABLE, DIMENSION(:) :: t_3c_O_mo_ind
 
@@ -1326,6 +1327,8 @@ CONTAINS
                                                                    fm_mat_S, homo, virtual, mp2_env, Eigenval(:, 1, :), &
                                                                    unit_nr, do_ri_sos_laplace_mp2)
 
+      IF (mp2_env%ri_rpa%do_ri_axk) CALL axk_work%create()
+
       Erpa = 0.0_dp
       IF (mp2_env%ri_rpa%do_ri_axk) e_axk = 0.0_dp
       first_cycle = .TRUE.
@@ -1492,7 +1495,7 @@ CONTAINS
 
             ! Calculate AXK energy correction
             IF (mp2_env%ri_rpa%do_ri_axk) THEN
-               CALL compute_axk_ener(qs_env, fm_mat_Q(1), fm_mat_Q_gemm(1), dimen_RI_red, dimen_ia, para_env_sub, &
+               CALL axk_work%compute(qs_env, fm_mat_Q(1), fm_mat_Q_gemm(1), dimen_RI_red, dimen_ia, para_env_sub, &
                                      para_env_RPA, Eigenval(:, 1, :), fm_mat_S, homo, virtual, omega, &
                                      mp2_env, mat_munu, unit_nr, e_axk_corr)
 
@@ -1759,6 +1762,8 @@ CONTAINS
          END IF
 
       END IF
+
+      IF (mp2_env%ri_rpa%do_ri_axk) CALL axk_work%release()
 
       IF (.NOT. do_ri_sos_laplace_mp2) THEN
          DEALLOCATE (tj)
