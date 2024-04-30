@@ -88,6 +88,10 @@ MODULE rpa_axk
       PROCEDURE, PASS(axk_exchange), NON_OVERRIDABLE :: release => hfx_release_subgroup
    END TYPE
 
+   TYPE dbcsr_matrix_p_set
+      TYPE(dbcsr_p_type), POINTER, DIMENSION(:) :: matrix_set => NULL()
+   END TYPE
+
 CONTAINS
 
 ! **************************************************************************************************
@@ -139,7 +143,8 @@ CONTAINS
       TYPE(cp_fm_type)                                   :: fm_mat_Q_tmp, fm_mat_R_half, &
                                                             fm_mat_R_half_gemm, fm_mat_U
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: fm_mat_Gamma_3
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: dbcsr_Gamma_3
+      TYPE(dbcsr_matrix_p_set), ALLOCATABLE, &
+         DIMENSION(:)                                    :: dbcsr_Gamma_3
       TYPE(dbcsr_type), ALLOCATABLE, DIMENSION(:)        :: dbcsr_Gamma_inu_P
       TYPE(dbcsr_type), DIMENSION(:), POINTER            :: dbcsr_Gamma_munu_P
       TYPE(dbcsr_type), POINTER                          :: mo_coeff_o, mo_coeff_v
@@ -268,6 +273,7 @@ CONTAINS
          CALL dbcsr_set(dbcsr_Gamma_inu_P(ispin), 0.0_dp)
       END DO
 
+      ALLOCATE (dbcsr_Gamma_3(nspins))
       DO ispin = 1, nspins
          ! Retrieve mo coefficients in dbcsr format
          NULLIFY (mo_coeff_o, mo_coeff_v)
@@ -275,7 +281,7 @@ CONTAINS
          mo_coeff_v => mp2_env%ri_rpa%mo_coeff_v(ispin)
 
          ! Copy Gamma_ia_P^3 to dbcsr matrix set
-         CALL gamma_fm_to_dbcsr(fm_mat_Gamma_3(ispin), dbcsr_Gamma_3, para_env_RPA, para_env_sub, &
+         CALL gamma_fm_to_dbcsr(fm_mat_Gamma_3(ispin), dbcsr_Gamma_3(ispin)%matrix_set, para_env_RPA, para_env_sub, &
                                 homo(ispin), virtual(ispin), mo_coeff_o, ngroup, my_group_L_start, &
                                 my_group_L_end, my_group_L_size)
 
@@ -283,11 +289,11 @@ CONTAINS
          DO kkb = my_group_L_start, my_group_L_end
             L_counter = L_counter + 1
             ! Do dbcsr multiplication: transform the virtual index
-            CALL dbcsr_multiply("N", "T", 1.0_dp, mo_coeff_v, dbcsr_Gamma_3(L_counter)%matrix, &
+            CALL dbcsr_multiply("N", "T", 1.0_dp, mo_coeff_v, dbcsr_Gamma_3(ispin)%matrix_set(L_counter)%matrix, &
                                 0.0_dp, dbcsr_Gamma_inu_P(ispin), filter_eps=eps_filter)
 
-            CALL dbcsr_release(dbcsr_Gamma_3(L_counter)%matrix)
-            DEALLOCATE (dbcsr_Gamma_3(L_counter)%matrix)
+            CALL dbcsr_release(dbcsr_Gamma_3(ispin)%matrix_set(L_counter)%matrix)
+            DEALLOCATE (dbcsr_Gamma_3(ispin)%matrix_set(L_counter)%matrix)
 
             !Do dbcsr multiplication: transform the occupied index
             CALL dbcsr_multiply("N", "T", 1.0_dp, dbcsr_Gamma_inu_P(ispin), mo_coeff_o, &
@@ -296,8 +302,9 @@ CONTAINS
             ! Contract DM with exchange integrals
             CALL axk_exchange%integrate(dbcsr_Gamma_munu_P(ispin))
          END DO
-         DEALLOCATE (dbcsr_Gamma_3)
+         DEALLOCATE (dbcsr_Gamma_3(ispin)%matrix_set)
       END DO
+      DEALLOCATE (dbcsr_Gamma_3)
 
       DO ispin = 1, nspins
          CALL dbcsr_release(dbcsr_Gamma_inu_P(ispin))
