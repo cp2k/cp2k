@@ -41,7 +41,7 @@ MODULE mp2_grids
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mp2_grids'
 
    PUBLIC :: get_minimax_grid, get_clenshaw_grid, test_least_square_ft, get_l_sq_wghts_cos_tf_t_to_w, &
-             get_l_sq_wghts_cos_tf_w_to_t, get_l_sq_wghts_sin_tf_t_to_w
+             get_l_sq_wghts_cos_tf_w_to_t, get_l_sq_wghts_sin_tf_t_to_w, init_greenx_grids
 
 CONTAINS
 
@@ -219,7 +219,8 @@ CONTAINS
          scaling = 2.0_dp
          IF (do_ri_sos_laplace_mp2) scaling = 1.0_dp
 
-         ALLOCATE (tau_tj(0:num_integ_points))
+         !ALLOCATE (tau_tj(0:num_integ_points))
+         ALLOCATE (tau_tj(num_integ_points))
          tau_tj = 0.0_dp
 
          ALLOCATE (tau_wj(num_integ_points))
@@ -1521,6 +1522,81 @@ CONTAINS
 
       CALL timestop(handle)
 
+   END SUBROUTINE
+
+! **************************************************************************************************
+!> \brief returns minimal and maximal energy values for the E_range for the minimax grid selection
+!> \param qs_env ...
+!> \param para_env ...
+!> \param e_fermi ...
+! **************************************************************************************************
+   SUBROUTINE init_greenx_grids(qs_env, para_env, homo, Eigenval, do_ri_sos_laplace_mp2,&
+                                do_kpoints_cubic_RPA, Emin, Emax, e_fermi)
+
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(mp_para_env_type), INTENT(IN)                 :: para_env
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: homo
+      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: Eigenval
+      LOGICAL, INTENT(IN)                                :: do_ri_sos_laplace_mp2
+      LOGICAL, INTENT(IN)                                :: do_kpoints_cubic_RPA
+      REAL(KIND=dp), INTENT(OUT)                         :: Emin, Emax
+      REAL(KIND=dp), INTENT(OUT)                         :: e_fermi
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'init_greenx_grids'
+
+      INTEGER                                            :: handle
+      INTEGER                                            :: ispin, nspins
+      LOGICAL                                            :: my_do_kpoints,&
+                                                            my_open_shell
+      REAL(KIND=dp)                                      :: my_E_Range
+      TYPE(section_vals_type), POINTER                   :: input
+
+      CALL timeset(routineN, handle)
+      ! Test for spin unrestricted
+      nspins = SIZE(homo)
+      my_open_shell = (nspins == 2)
+
+      ! Test whether all necessary variables are available
+      my_do_kpoints = .FALSE.
+      IF (.NOT. do_ri_sos_laplace_mp2) THEN
+         my_do_kpoints = do_kpoints_cubic_RPA
+      END IF
+
+      IF (my_do_kpoints) THEN
+         CALL gap_and_max_eig_diff_kpoints(qs_env, para_env, Emin, Emax, e_fermi)
+         my_E_Range = Emax/Emin
+      ELSE
+         IF (qs_env%mp2_env%E_range <= 1.0_dp .OR. qs_env%mp2_env%E_gap <= 0.0_dp) THEN
+            Emin = HUGE(dp)
+            Emax = 0.0_dp
+            DO ispin = 1, nspins
+               IF (homo(ispin) > 0) THEN
+                  Emin = MIN(Emin, Eigenval(homo(ispin) + 1, 1, ispin) - Eigenval(homo(ispin), 1, ispin))
+                  Emax = MAX(Emax, MAXVAL(Eigenval(:, :, ispin)) - MINVAL(Eigenval(:, :, ispin)))
+               END IF
+            END DO
+            my_E_Range = Emax/Emin
+            qs_env%mp2_env%e_range = my_e_range
+            qs_env%mp2_env%e_gap = Emin
+
+            CALL get_qs_env(qs_env, input=input)
+            CALL section_vals_val_set(input, "DFT%XC%WF_CORRELATION%E_RANGE", r_val=my_e_range)
+            CALL section_vals_val_set(input, "DFT%XC%WF_CORRELATION%E_GAP", r_val=emin)
+         ELSE
+            my_E_range = qs_env%mp2_env%E_range
+            Emin = qs_env%mp2_env%E_gap
+            Emax = Emin*my_E_range
+         END IF
+      END IF
+
+      ! When we perform SOS-MP2, we need an additional factor of 2 for the energies (compare with mp2_laplace.F)
+      ! We do not need weights etc. for the cosine transform
+      ! We do not scale Emax because it is not needed for SOS-MP2
+      IF (do_ri_sos_laplace_mp2) THEN
+         Emin = Emin*2.0_dp
+      END IF
+
+      CALL timestop(handle)
    END SUBROUTINE
 
 END MODULE mp2_grids
