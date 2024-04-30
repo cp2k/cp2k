@@ -1327,7 +1327,7 @@ CONTAINS
                                                                    fm_mat_S, homo, virtual, mp2_env, Eigenval(:, 1, :), &
                                                                    unit_nr, do_ri_sos_laplace_mp2)
 
-      IF (mp2_env%ri_rpa%do_ri_axk) CALL axk_work%create()
+      IF (mp2_env%ri_rpa%do_ri_axk) CALL axk_work%create(mp2_env)
 
       Erpa = 0.0_dp
       IF (mp2_env%ri_rpa%do_ri_axk) e_axk = 0.0_dp

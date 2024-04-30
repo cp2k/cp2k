@@ -81,7 +81,7 @@ CONTAINS
       TYPE(mp_para_env_type), INTENT(IN)                 :: para_env_RPA
       TYPE(mp_para_env_type), INTENT(IN), POINTER        :: para_env_sub
       INTEGER, INTENT(IN)                                :: homo, virtual
-      TYPE(dbcsr_type), POINTER                          :: mo_coeff_o
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: mo_coeff_o
       INTEGER, INTENT(IN)                                :: ngroup, my_group_L_start, &
                                                             my_group_L_end, my_group_L_size
 
