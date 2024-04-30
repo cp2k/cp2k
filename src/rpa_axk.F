@@ -29,7 +29,6 @@ MODULE rpa_axk
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_create,&
-                                              cp_fm_get_info,&
                                               cp_fm_release,&
                                               cp_fm_set_all,&
                                               cp_fm_to_fm,&
@@ -98,6 +97,12 @@ MODULE rpa_axk
       INTEGER :: ngroup = 0
       INTEGER, DIMENSION(:), ALLOCATABLE :: homo, virtual, dimen_ia
       INTEGER :: dimen_RI = 0
+      REAL(KIND=dp) :: eps_filter = 0.0_dp
+      TYPE(cp_fm_struct_type), POINTER :: struct_Gamma => NULL()
+      TYPE(cp_fm_type) :: fm_mat_Q_tmp = cp_fm_type()
+      TYPE(cp_fm_type) :: fm_mat_R_half = cp_fm_type()
+      TYPE(cp_fm_type) :: fm_mat_R_half_gemm = cp_fm_type()
+      TYPE(cp_fm_type) :: fm_mat_U = cp_fm_type()
    CONTAINS
       PROCEDURE, PASS(axk_work), NON_OVERRIDABLE :: create => rpa_axk_work_create
       PROCEDURE, PASS(axk_work), NON_OVERRIDABLE :: compute => rpa_axk_work_compute
@@ -117,17 +122,23 @@ CONTAINS
 !> \param para_env_RPA ...
 !> \param para_env_sub ...
 !> \param dimen_RI ...
+!> \param fm_mat_S ...
+!> \param fm_mat_Q ...
+!> \param fm_mat_Q_gemm ...
 ! **************************************************************************************************
-   SUBROUTINE rpa_axk_work_create(axk_work, mp2_env, para_env_RPA, para_env_sub, dimen_RI)
+   SUBROUTINE rpa_axk_work_create(axk_work, mp2_env, para_env_RPA, para_env_sub, dimen_RI, fm_mat_S, fm_mat_Q, fm_mat_Q_gemm)
       CLASS(rpa_axk_work_type), INTENT(INOUT) :: axk_work
       TYPE(mp2_type), INTENT(IN) :: mp2_env
       TYPE(mp_para_env_type), INTENT(IN) :: para_env_RPA, para_env_sub
       INTEGER, INTENT(IN) :: dimen_RI
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN) :: fm_mat_S
+      TYPE(cp_fm_type), INTENT(IN) :: fm_mat_Q, fm_mat_Q_gemm
 
       INTEGER :: color_sub, iitmp(2), ispin, nspins
 
       axk_work%mo_coeff_o => mp2_env%ri_rpa%mo_coeff_o
       axk_work%mo_coeff_v => mp2_env%ri_rpa%mo_coeff_v
+      axk_work%eps_filter = mp2_env%mp2_gpw%eps_filter
 
       nspins = SIZE(axk_work%mo_coeff_o)
 
@@ -147,6 +158,17 @@ CONTAINS
       axk_work%my_group_L_start = iitmp(1)
       axk_work%my_group_L_end = iitmp(2)
       axk_work%my_group_L_size = iitmp(2) - iitmp(1) + 1
+
+      DO ispin = 1, nspins
+         NULLIFY (axk_work%struct_Gamma)
+         CALL cp_fm_struct_create(axk_work%struct_Gamma, template_fmstruct=fm_mat_S(ispin)%matrix_struct, &
+                                  nrow_global=axk_work%dimen_ia(ispin), ncol_global=axk_work%dimen_RI)
+      END DO
+
+      CALL cp_fm_create(axk_work%fm_mat_U, fm_mat_Q%matrix_struct, name="fm_mat_U")
+      CALL cp_fm_create(axk_work%fm_mat_R_half, fm_mat_Q%matrix_struct, name="fm_mat_R_half")
+      CALL cp_fm_create(axk_work%fm_mat_Q_tmp, fm_mat_Q%matrix_struct, name="fm_mat_Q_tmp")
+      CALL cp_fm_create(axk_work%fm_mat_R_half_gemm, fm_mat_Q_gemm%matrix_struct)
    END SUBROUTINE
 
 ! **************************************************************************************************
@@ -159,6 +181,11 @@ CONTAINS
       IF (ALLOCATED(axk_work%homo)) DEALLOCATE (axk_work%homo)
       IF (ALLOCATED(axk_work%virtual)) DEALLOCATE (axk_work%virtual)
       IF (ALLOCATED(axk_work%dimen_ia)) DEALLOCATE (axk_work%dimen_ia)
+      IF (ASSOCIATED(axk_work%struct_Gamma)) CALL cp_fm_struct_release(axk_work%struct_Gamma)
+      CALL cp_fm_release(axk_work%fm_mat_Q_tmp)
+      CALL cp_fm_release(axk_work%fm_mat_U)
+      CALL cp_fm_release(axk_work%fm_mat_R_half)
+      CALL cp_fm_release(axk_work%fm_mat_R_half_gemm)
    END SUBROUTINE
 
 ! **************************************************************************************************
@@ -166,29 +193,26 @@ CONTAINS
 !> \param axk_work ...
 !> \param qs_env ...
 !> \param fm_mat_Q ...
-!> \param fm_mat_Q_gemm ...
 !> \param para_env_sub ...
 !> \param para_env_RPA ...
 !> \param eig ...
 !> \param fm_mat_S ...
 !> \param omega ...
-!> \param mp2_env ...
 !> \param mat_munu ...
 !> \param unit_nr ...
 !> \param e_axk_corr ...          AXK energy correctrion for a quadrature point
 !> \author Vladimir Rybkin, 07/2016
 ! **************************************************************************************************
-   SUBROUTINE rpa_axk_work_compute(axk_work, qs_env, fm_mat_Q, fm_mat_Q_gemm, &
+   SUBROUTINE rpa_axk_work_compute(axk_work, qs_env, fm_mat_Q, &
                                    para_env_sub, para_env_RPA, eig, fm_mat_S, omega, &
-                                   mp2_env, mat_munu, unit_nr, e_axk_corr)
+                                   mat_munu, unit_nr, e_axk_corr)
       CLASS(rpa_axk_work_type), INTENT(INOUT) :: axk_work
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_Q, fm_mat_Q_gemm
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_Q
       TYPE(mp_para_env_type), POINTER                    :: para_env_sub, para_env_RPA
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: eig
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: fm_mat_S
       REAL(KIND=dp), INTENT(IN)                          :: omega
-      TYPE(mp2_type)                                     :: mp2_env
       TYPE(dbcsr_p_type), INTENT(IN)                     :: mat_munu
       INTEGER, INTENT(IN)                                :: unit_nr
       REAL(KIND=dp), INTENT(INOUT)                       :: e_axk_corr
@@ -197,11 +221,7 @@ CONTAINS
       REAL(KIND=dp), PARAMETER                           :: thresh = 0.0000001_dp
 
       INTEGER :: handle, iib, ispin, L_counter, nspins
-      REAL(KIND=dp)                                      :: eps_filter
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigenval
-      TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
-      TYPE(cp_fm_type)                                   :: fm_mat_Q_tmp, fm_mat_R_half, &
-                                                            fm_mat_R_half_gemm, fm_mat_U
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: fm_mat_Gamma_3
       TYPE(dbcsr_matrix_p_set), ALLOCATABLE, &
          DIMENSION(:)                                    :: dbcsr_Gamma_3
@@ -217,31 +237,22 @@ CONTAINS
       ! Eigenvalues
       ALLOCATE (eigenval(axk_work%dimen_RI))
       eigenval = 0.0_dp
-      ! create the R_half and U matrices with a different blacs env similar to Q
-      ! and a tmp_Q needed for diagonalization
 
-      NULLIFY (fm_struct)
-
-      CALL cp_fm_get_info(matrix=fm_mat_Q, &
-                          matrix_struct=fm_struct)
-      CALL cp_fm_create(fm_mat_U, fm_struct, name="fm_mat_U")
-      CALL cp_fm_create(fm_mat_R_half, fm_struct, name="fm_mat_R_half")
-      CALL cp_fm_create(fm_mat_Q_tmp, fm_struct, name="fm_mat_Q_tmp")
-      CALL cp_fm_set_all(matrix=fm_mat_Q_tmp, alpha=0.0_dp)
-      CALL cp_fm_set_all(matrix=fm_mat_U, alpha=0.0_dp)
-      CALL cp_fm_set_all(matrix=fm_mat_R_half, alpha=0.0_dp)
+      CALL cp_fm_set_all(matrix=axk_work%fm_mat_Q_tmp, alpha=0.0_dp)
+      CALL cp_fm_set_all(matrix=axk_work%fm_mat_U, alpha=0.0_dp)
+      CALL cp_fm_set_all(matrix=axk_work%fm_mat_R_half, alpha=0.0_dp)
 
       ! Copy Q to Q_tmp
-      CALL cp_fm_to_fm(fm_mat_Q, fm_mat_Q_tmp)
+      CALL cp_fm_to_fm(fm_mat_Q, axk_work%fm_mat_Q_tmp)
 
-      CALL cp_fm_scale(0.50_dp, fm_mat_Q_tmp)
+      CALL cp_fm_scale(0.50_dp, axk_work%fm_mat_Q_tmp)
       ! Diagonalize Q
-      CALL choose_eigv_solver(fm_mat_Q_tmp, fm_mat_U, eigenval)
+      CALL choose_eigv_solver(axk_work%fm_mat_Q_tmp, axk_work%fm_mat_U, eigenval)
 
-      !Calculate diagonal matrix for R_half
+      ! Calculate diagonal matrix for R_half
 
       ! U*diag stored in U, whereas eigenvectors are in fm_mat_Q_tmp
-      CALL cp_fm_to_fm(fm_mat_U, fm_mat_Q_tmp)
+      CALL cp_fm_to_fm(axk_work%fm_mat_U, axk_work%fm_mat_Q_tmp)
 
       ! Manipulate eigenvalues to get diagonal matrix
       DO iib = 1, axk_work%dimen_RI
@@ -254,36 +265,26 @@ CONTAINS
          END IF
       END DO
 
-      CALL cp_fm_column_scale(fm_mat_U, eigenval)
+      CALL cp_fm_column_scale(axk_work%fm_mat_U, eigenval)
 
       ! Release memory
       DEALLOCATE (eigenval)
 
       ! Get R_half by multiplication
       CALL parallel_gemm(transa="N", transb="T", m=axk_work%dimen_RI, n=axk_work%dimen_RI, k=axk_work%dimen_RI, alpha=1.0_dp, &
-                         matrix_a=fm_mat_U, matrix_b=fm_mat_Q_tmp, beta=0.0_dp, &
-                         matrix_c=fm_mat_R_half)
-
-      ! Release full matrix stuff
-      CALL cp_fm_release(fm_mat_Q_tmp)
-      CALL cp_fm_release(fm_mat_U)
+                         matrix_a=axk_work%fm_mat_U, matrix_b=axk_work%fm_mat_Q_tmp, beta=0.0_dp, &
+                         matrix_c=axk_work%fm_mat_R_half)
 
       ! Redistribute fm_mat_R_half for "rectangular" multiplication: ia*P P*P
-      CALL cp_fm_create(fm_mat_R_half_gemm, fm_mat_Q_gemm%matrix_struct)
-      CALL cp_fm_set_all(matrix=fm_mat_R_half_gemm, alpha=0.0_dp)
+      CALL cp_fm_set_all(matrix=axk_work%fm_mat_R_half_gemm, alpha=0.0_dp)
 
-      CALL cp_fm_to_fm_submat_general(fm_mat_R_half, fm_mat_R_half_gemm, axk_work%dimen_RI, axk_work%dimen_RI, 1, 1, 1, 1, &
-                                      fm_mat_R_half%matrix_struct%context)
-
-      CALL cp_fm_release(fm_mat_R_half)
+      CALL cp_fm_to_fm_submat_general(axk_work%fm_mat_R_half, axk_work%fm_mat_R_half_gemm, axk_work%dimen_RI, &
+                                      axk_work%dimen_RI, 1, 1, 1, 1, &
+                                      axk_work%fm_mat_R_half%matrix_struct%context)
 
       ALLOCATE (fm_mat_Gamma_3(nspins))
       DO ispin = 1, nspins
-         NULLIFY (fm_struct)
-         CALL cp_fm_struct_create(fm_struct, template_fmstruct=fm_mat_S(ispin)%matrix_struct, &
-                                  nrow_global=axk_work%dimen_ia(ispin), ncol_global=axk_work%dimen_RI)
-         CALL cp_fm_create(fm_mat_Gamma_3(ispin), fm_struct)
-         CALL cp_fm_struct_release(fm_struct)
+         CALL cp_fm_create(fm_mat_Gamma_3(ispin), axk_work%struct_Gamma)
          CALL cp_fm_set_all(matrix=fm_mat_Gamma_3(ispin), alpha=0.0_dp)
 
          ! Update G with a new value of Omega: in practice, it is G*S
@@ -295,18 +296,14 @@ CONTAINS
          ! Calculate Gamma_3: Gamma_3 = G*S*R^(1/2) = G*S*R^(1/2) )
          CALL parallel_gemm(transa="T", transb="N", m=axk_work%dimen_ia(ispin), n=axk_work%dimen_RI, &
                             k=axk_work%dimen_RI, alpha=1.0_dp, &
-                            matrix_a=fm_mat_S(ispin), matrix_b=fm_mat_R_half_gemm, beta=0.0_dp, &
+                            matrix_a=fm_mat_S(ispin), matrix_b=axk_work%fm_mat_R_half_gemm, beta=0.0_dp, &
                             matrix_c=fm_mat_Gamma_3(ispin))
 
          ! Remove extra factor from S after the multiplication (to return to the original matrix)
          CALL remove_scaling_factor_rpa(fm_mat_S(ispin), axk_work%virtual(ispin), eig(:, ispin), axk_work%homo(ispin), omega)
       END DO
 
-      ! Release full matrix stuff
-      CALL cp_fm_release(fm_mat_R_half_gemm)
-
-      eps_filter = mp2_env%mp2_gpw%eps_filter
-      CALL axk_work%axk_exchange%create(qs_env, mat_munu, para_env_sub, axk_work%my_group_L_size, eps_filter)
+      CALL axk_work%axk_exchange%create(qs_env, mat_munu, para_env_sub, axk_work%my_group_L_size, axk_work%eps_filter)
       axk_work%axk_exchange%e_axk = 0.0_dp
 
       ALLOCATE (dbcsr_Gamma_inu_P(nspins))
@@ -335,13 +332,13 @@ CONTAINS
          DO ispin = 1, nspins
             ! Do dbcsr multiplication: transform the virtual index
             CALL dbcsr_multiply("N", "T", 1.0_dp, axk_work%mo_coeff_v(ispin), dbcsr_Gamma_3(ispin)%matrix_set(L_counter), &
-                                0.0_dp, dbcsr_Gamma_inu_P(ispin), filter_eps=eps_filter)
+                                0.0_dp, dbcsr_Gamma_inu_P(ispin), filter_eps=axk_work%eps_filter)
 
             CALL dbcsr_release(dbcsr_Gamma_3(ispin)%matrix_set(L_counter))
 
             !Do dbcsr multiplication: transform the occupied index
             CALL dbcsr_multiply("N", "T", 1.0_dp, dbcsr_Gamma_inu_P(ispin), axk_work%mo_coeff_o(ispin), &
-                                0.0_dp, dbcsr_Gamma_munu_P(ispin)%matrix, filter_eps=eps_filter)
+                                0.0_dp, dbcsr_Gamma_munu_P(ispin)%matrix, filter_eps=axk_work%eps_filter)
          END DO
 
          ! Contract DM with exchange integrals

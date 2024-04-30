@@ -1327,7 +1327,8 @@ CONTAINS
                                                                    fm_mat_S, homo, virtual, mp2_env, Eigenval(:, 1, :), &
                                                                    unit_nr, do_ri_sos_laplace_mp2)
 
-      IF (mp2_env%ri_rpa%do_ri_axk) CALL axk_work%create(mp2_env, para_env_RPA, para_env_sub, dimen_RI_red)
+      IF (mp2_env%ri_rpa%do_ri_axk) CALL axk_work%create(mp2_env, para_env_RPA, para_env_sub, dimen_RI_red, &
+                                                         fm_mat_S, fm_mat_Q(1), fm_mat_Q_gemm(1))
 
       Erpa = 0.0_dp
       IF (mp2_env%ri_rpa%do_ri_axk) e_axk = 0.0_dp
@@ -1495,9 +1496,9 @@ CONTAINS
 
             ! Calculate AXK energy correction
             IF (mp2_env%ri_rpa%do_ri_axk) THEN
-               CALL axk_work%compute(qs_env, fm_mat_Q(1), fm_mat_Q_gemm(1), para_env_sub, &
+               CALL axk_work%compute(qs_env, fm_mat_Q(1), para_env_sub, &
                                      para_env_RPA, Eigenval(:, 1, :), fm_mat_S, omega, &
-                                     mp2_env, mat_munu, unit_nr, e_axk_corr)
+                                     mat_munu, unit_nr, e_axk_corr)
 
                ! Evaluate the final AXK energy correction
                e_axk = e_axk + e_axk_corr*wj(jquad)
