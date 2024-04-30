@@ -92,6 +92,10 @@ MODULE rpa_axk
       TYPE(rpa_axk_exchange_type) :: axk_exchange
       TYPE(dbcsr_type), DIMENSION(:), POINTER :: mo_coeff_o => NULL()
       TYPE(dbcsr_type), DIMENSION(:), POINTER :: mo_coeff_v => NULL()
+      INTEGER :: my_group_L_start = 0
+      INTEGER :: my_group_L_end = 0
+      INTEGER :: my_group_L_size = 0
+      INTEGER :: ngroup = 0
    CONTAINS
       PROCEDURE, PASS(axk_work), NON_OVERRIDABLE :: create => rpa_axk_work_create
       PROCEDURE, PASS(axk_work), NON_OVERRIDABLE :: compute => rpa_axk_work_compute
@@ -108,13 +112,29 @@ CONTAINS
 !> \brief ...
 !> \param axk_work ...
 !> \param mp2_env ...
+!> \param para_env_RPA ...
+!> \param para_env_sub ...
+!> \param dimen_RI ...
 ! **************************************************************************************************
-   SUBROUTINE rpa_axk_work_create(axk_work, mp2_env)
+   SUBROUTINE rpa_axk_work_create(axk_work, mp2_env, para_env_RPA, para_env_sub, dimen_RI)
       CLASS(rpa_axk_work_type), INTENT(INOUT) :: axk_work
       TYPE(mp2_type), INTENT(IN) :: mp2_env
+      TYPE(mp_para_env_type), INTENT(IN) :: para_env_RPA, para_env_sub
+      INTEGER, INTENT(IN) :: dimen_RI
+
+      INTEGER :: color_sub, iitmp(2)
 
       axk_work%mo_coeff_o => mp2_env%ri_rpa%mo_coeff_o
       axk_work%mo_coeff_v => mp2_env%ri_rpa%mo_coeff_v
+
+      ! Get aux sizes
+      axk_work%ngroup = para_env_RPA%num_pe/para_env_sub%num_pe
+      color_sub = para_env_RPA%mepos/para_env_sub%num_pe
+
+      iitmp = get_limit(dimen_RI, axk_work%ngroup, color_sub)
+      axk_work%my_group_L_start = iitmp(1)
+      axk_work%my_group_L_end = iitmp(2)
+      axk_work%my_group_L_size = iitmp(2) - iitmp(1) + 1
    END SUBROUTINE
 
 ! **************************************************************************************************
@@ -162,8 +182,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'rpa_axk_work_compute'
       REAL(KIND=dp), PARAMETER                           :: thresh = 0.0000001_dp
 
-      INTEGER :: color_sub, handle, iib, iitmp(2), ispin, kkb, L_counter, my_group_L_end, &
-                 my_group_L_size, my_group_L_start, ngroup, nspins, homo, virtual, dimen_ia, dimen_RI
+      INTEGER :: handle, iib, ispin, kkb, L_counter, nspins, homo, virtual, dimen_ia, dimen_RI
       REAL(KIND=dp)                                      :: eps_filter
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigenval
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
@@ -279,17 +298,9 @@ CONTAINS
       ! Release full matrix stuff
       CALL cp_fm_release(fm_mat_R_half_gemm)
 
-      ! Get aux sizes
-      ngroup = para_env_RPA%num_pe/para_env_sub%num_pe
-      color_sub = para_env_RPA%mepos/para_env_sub%num_pe
-
-      iitmp = get_limit(dimen_RI, ngroup, color_sub)
-      my_group_L_start = iitmp(1)
-      my_group_L_end = iitmp(2)
-      my_group_L_size = iitmp(2) - iitmp(1) + 1
-
       eps_filter = mp2_env%mp2_gpw%eps_filter
-      CALL axk_work%axk_exchange%create(qs_env, mat_munu, para_env_sub, my_group_L_size, eps_filter)
+      CALL axk_work%axk_exchange%create(qs_env, mat_munu, para_env_sub, axk_work%my_group_L_size, eps_filter)
+      axk_work%axk_exchange%e_axk = 0.0_dp
 
       ALLOCATE (dbcsr_Gamma_inu_P(nspins))
       CALL dbcsr_allocate_matrix_set(dbcsr_Gamma_munu_P, nspins)
@@ -310,12 +321,12 @@ CONTAINS
          CALL dbcsr_get_info(axk_work%mo_coeff_o(ispin), nfullcols_total=homo)
          CALL dbcsr_get_info(axk_work%mo_coeff_v(ispin), nfullcols_total=virtual)
          CALL gamma_fm_to_dbcsr(fm_mat_Gamma_3(ispin), dbcsr_Gamma_3(ispin)%matrix_set, para_env_RPA, para_env_sub, &
-                                homo, virtual, axk_work%mo_coeff_o(ispin), ngroup, my_group_L_start, &
-                                my_group_L_end, my_group_L_size)
+                                homo, virtual, axk_work%mo_coeff_o(ispin), axk_work%ngroup, axk_work%my_group_L_start, &
+                                axk_work%my_group_L_end, axk_work%my_group_L_size)
       END DO
 
       L_counter = 0
-      DO kkb = my_group_L_start, my_group_L_end
+      DO kkb = axk_work%my_group_L_start, axk_work%my_group_L_end
          L_counter = L_counter + 1
          DO ispin = 1, nspins
             ! Do dbcsr multiplication: transform the virtual index
