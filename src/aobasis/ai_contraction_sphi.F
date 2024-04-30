@@ -259,17 +259,17 @@ CONTAINS
 
       REAL(KIND=dp)                                           :: prefac, pstfac
       INTEGER                                                 :: handle, i
-      LOGICAL                                                 :: uv
+      LOGICAL                                                 :: ab
 #if defined(__LIBXSMM)
       TYPE(libxsmm_dmmfunction)                               :: xmm1, xmm2
 #endif
 
-      ! M*N*K FLOPS can be used to decide if contracting (UV)W vs U(VW)
-      ! uv = (nsgfa*ncob*(ncoa + nsgfb)) <= (ncoa*nsgfb*(ncob + nsgfa))
+      ! M*N*K FLOPS can be used to decide if contracting (AB)C vs A(BC)
+      ! ab = (nsgfa*ncob*(ncoa + nsgfb)) <= (ncoa*nsgfb*(ncob + nsgfa))
       ! however, current interface dictates size of cpp_buffer
-      uv = (nsgfa*ncob) < (ncoa*nsgfb) .OR. (ncoa + nsgfb) <= (ncob + nsgfa)
+      ab = (nsgfa*ncob) < (ncoa*nsgfb) .OR. (ncoa + nsgfb) <= (ncob + nsgfa)
 
-      CALL timeset(routineN//MERGE("_uv", "_vw", uv), handle)
+      CALL timeset(routineN//MERGE("_ab", "_bc", ab), handle)
 
       prefac = 1.0_dp
       IF (PRESENT(alpha)) prefac = alpha
@@ -279,23 +279,23 @@ CONTAINS
 
       ! loop over the last index of the matrix and call LIBXSMM/BLAS to contract over a and b
 #if defined(__LIBXSMM)
-      IF (uv) THEN ! (UV)W: dispatch kernels
+      IF (ab) THEN ! (AB)C: dispatch kernels
          CALL libxsmm_dispatch(xmm1, nsgfa, ncob, ncoa, beta=0.0_dp, prefetch=LIBXSMM_PREFETCH_NONE)
          CALL libxsmm_dispatch(xmm2, nsgfa, nsgfb, ncob, beta=0.0_dp, prefetch=LIBXSMM_PREFETCH_NONE)
-      ELSE ! U(VW): dispatch kernels
+      ELSE ! A(BC): dispatch kernels
          CALL libxsmm_dispatch(xmm1, ncoa, nsgfb, ncob, beta=0.0_dp, prefetch=LIBXSMM_PREFETCH_NONE)
          CALL libxsmm_dispatch(xmm2, nsgfa, nsgfb, ncoa, beta=0.0_dp, prefetch=LIBXSMM_PREFETCH_NONE)
       END IF
 
       IF (libxsmm_available(xmm1) .AND. libxsmm_available(xmm2)) THEN
-         IF (uv) THEN ! (UV)W
+         IF (ab) THEN ! (AB)C
             DO i = 1, ncoc ! contractions over a and b
                ! [nsgfa,ncoa] x [ncoa,ncob] -> [nsgfa,ncob]
                CALL libxsmm_dmmcall(xmm1, sphi_a, sabc((i - 1)*ncoa*ncob + 1), cpp_buffer)
                ! [nsgfa,ncob] x [ncob,nsgfb] -> [nsgfa,nsgfb]
                CALL libxsmm_dmmcall(xmm2, cpp_buffer, sphi_b, ccp_buffer((i - 1)*nsgfa*nsgfb + 1))
             END DO
-         ELSE ! U(VW)
+         ELSE ! A(BC)
             DO i = 1, ncoc ! contractions over a and b
                ! [ncoa,ncob] x [ncob,nsgfb] -> [ncoa,nsgfb]
                CALL libxsmm_dmmcall(xmm1, sabc((i - 1)*ncoa*ncob + 1), sphi_b, cpp_buffer)
@@ -305,14 +305,14 @@ CONTAINS
          END IF
       ELSE
 #endif
-         IF (uv) THEN ! (UV)W
+         IF (ab) THEN ! (AB)C
             DO i = 1, ncoc ! contractions over a and b
                CALL dgemm("N", "N", nsgfa, ncob, ncoa, 1.0_dp, sphi_a, nsgfa, sabc((i - 1)*ncoa*ncob + 1), &
                           ncoa, 0.0_dp, cpp_buffer, nsgfa)
                CALL dgemm("N", "N", nsgfa, nsgfb, ncob, 1.0_dp, cpp_buffer, nsgfa, sphi_b, ncob, 0.0_dp, &
                           ccp_buffer((i - 1)*nsgfa*nsgfb + 1), nsgfa)
             END DO
-         ELSE ! U(VW)
+         ELSE ! A(BC)
             DO i = 1, ncoc ! contractions over a and b
                CALL dgemm("N", "N", ncoa, nsgfb, ncob, 1.0_dp, sabc((i - 1)*ncoa*ncob + 1), nsgfa, sphi_b, &
                           ncoa, 0.0_dp, cpp_buffer, nsgfa)
