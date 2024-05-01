@@ -623,33 +623,49 @@ def eval_regtest(
     output = output_bytes.decode("utf8", errors="replace")
     output_tail = "\n".join(output.split("\n")[-100:])
     error = "x" * 100 + f"\n{test.out_path}\n"
+
+    # check for timeout
     if timed_out:
         error += f"{output_tail}\n\nTimed out after {duration} seconds."
         return TestResult(batch, test, duration, "TIMED OUT", error=error)
-    elif returncode != 0:
+
+    # check for crash
+    if returncode != 0:
         error += f"{output_tail}\n\nRuntime failure with code {returncode}."
         return TestResult(batch, test, duration, "RUNTIME FAIL", error=error)
-    elif output_size > 2 * 1024 * 1024 and not is_huge_suppressed:  # 2MiB limit
+
+    # check for huge output
+    if output_size > 2 * 1024 * 1024 and not is_huge_suppressed:  # 2MiB limit
         error += f"Test produced {output_size/1024/1024:.2f} MiB of output."
         return TestResult(batch, test, duration, "HUGE OUTPUT", error=error)
-    elif not test.test_type:
-        return TestResult(batch, test, duration, "OK")  # test type zero
-    else:
-        value_txt = test.test_type.grep(output)
-        if not value_txt:
-            error += f"{output_tail}\n\nResult not found: '{test.test_type.pattern}'."
-            return TestResult(batch, test, duration, "WRONG RESULT", error=error)
-        else:
-            # compare result to reference
-            value = float(value_txt)
-            diff = value - test.ref_value
-            rel_error = abs(diff / test.ref_value if test.ref_value != 0.0 else diff)
-            if rel_error <= test.tolerance:
-                return TestResult(batch, test, duration, "OK", value)
-            else:
-                error += f"Difference too large: {rel_error:.2e} > {test.tolerance}, "
-                error += f"ref_value: {test.ref_value_txt}, value: {value_txt}."
-                return TestResult(batch, test, duration, "WRONG RESULT", value, error)
+
+    # happy end for test type zero
+    if not test.test_type:
+        return TestResult(batch, test, duration, "OK")
+
+    # grep result
+    value_txt = test.test_type.grep(output)
+    if not value_txt:
+        error += f"{output_tail}\n\nResult not found: '{test.test_type.pattern}'."
+        return TestResult(batch, test, duration, "WRONG RESULT", error=error)
+
+    # parse result
+    try:
+        value = float(value_txt)
+    except:
+        error += f"Could not parse result as float: '{value_txt}'."
+        return TestResult(batch, test, duration, "WRONG RESULT", error=error)
+
+    # compare result to reference
+    diff = value - test.ref_value
+    rel_error = abs(diff / test.ref_value if test.ref_value != 0.0 else diff)
+    if rel_error > test.tolerance:
+        error += f"Difference too large: {rel_error:.2e} > {test.tolerance}, "
+        error += f"ref_value: {test.ref_value_txt}, value: {value_txt}."
+        return TestResult(batch, test, duration, "WRONG RESULT", value, error)
+
+    # happy end
+    return TestResult(batch, test, duration, "OK", value)
 
 
 # ======================================================================================
