@@ -249,15 +249,13 @@ ortho_cxy_to_cx(const int lp, const int j1, const int j2, const int cmax,
  * \brief Loop body of ortho_cxy_to_grid to be inlined for low values of lp.
  * \author Ole Schuett
  ******************************************************************************/
-static inline void __attribute__((always_inline))
-ortho_cxy_to_grid_low(const int lp, const int j1, const int j2, const int kg1,
-                      const int kg2, const int jg1, const int jg2,
-                      const int cmax, const double pol[3][lp + 1][2 * cmax + 1],
-                      const int map[3][2 * cmax + 1],
-                      const int sections[3][2 * cmax + 1],
-                      const int npts_local[3], int **sphere_bounds_iter,
-                      double *cx, GRID_CONST_WHEN_COLLOCATE double *cxy,
-                      GRID_CONST_WHEN_INTEGRATE double *grid) {
+static inline void __attribute__((always_inline)) ortho_cxy_to_grid_low(
+    const int lp, const int j1, const int j2, const int kg1, const int kg2,
+    const int jg1, const int jg2, const int cmax,
+    const double pol[3][lp + 1][2 * cmax + 1], const int map[3][2 * cmax + 1],
+    const int sections[3][2 * cmax + 1], const int npts_local[3],
+    int **sphere_bounds_iter, double *cx, GRID_CONST_WHEN_COLLOCATE double *cxy,
+    GRID_CONST_WHEN_INTEGRATE double *grid) {
 
 #if (GRID_DO_COLLOCATE)
   // collocate
@@ -499,15 +497,13 @@ ortho_cxyz_to_grid(const int lp, const double zetp, const double dh[3][3],
  * \brief Collocates coefficients C_i onto the grid for general case.
  * \author Ole Schuett
  ******************************************************************************/
-static inline void __attribute__((always_inline))
-general_ci_to_grid(const int lp, const int jg, const int kg, const int ismin,
-                   const int ismax, const int npts_local[3],
-                   const int index_min[3], const int index_max[3],
-                   const int map_i[], const int sections_i[],
-                   const double gp[3], const int k, const int j,
-                   const double exp_ij[], const double exp_jk[],
-                   const double exp_ki[], GRID_CONST_WHEN_COLLOCATE double *ci,
-                   GRID_CONST_WHEN_INTEGRATE double *grid) {
+static inline void __attribute__((always_inline)) general_ci_to_grid(
+    const int lp, const int jg, const int kg, const int ismin, const int ismax,
+    const int npts_local[3], const int index_min[3], const int index_max[3],
+    const int map_i[], const int sections_i[], const double gp[3], const int k,
+    const int j, const double exp_ij[], const double exp_jk[],
+    const double exp_ki[], GRID_CONST_WHEN_COLLOCATE double *ci,
+    GRID_CONST_WHEN_INTEGRATE double *grid) {
 
   const int base = kg * npts_local[1] * npts_local[0] + jg * npts_local[0];
 
