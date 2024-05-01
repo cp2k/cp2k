@@ -265,7 +265,7 @@ RUN ./test_manual.sh "${{ADD_EDIT_LINKS}}" 2>&1 | tee report.log
 def precommit() -> str:
     return (
         rf"""
-FROM ubuntu:22.04
+FROM ubuntu:24.04
 
 # Install dependencies.
 WORKDIR /opt/cp2k-precommit

@@ -750,5 +750,5 @@ void context_info::compute_hab_coefficients() {
            this->main_stream>>>(params);
   }
 }
-};     // namespace rocm_backend
+}; // namespace rocm_backend
 #endif // defined(__OFFLOAD_HIP) && !defined(__NO_OFFLOAD_GRID)

@@ -21,7 +21,7 @@
 
 #define SINT short
 
-#define DIVUP(A, B) (((A) + (B)-1) / (B))
+#define DIVUP(A, B) (((A) + (B) - 1) / (B))
 #define NUP(N, UP) (DIVUP(N, UP) * (UP))
 #define BLR(N, BN) (NUP(N, BN) - (N))
 
@@ -68,7 +68,7 @@
           const SINT m = m0 + x, n = n0 + y;                                   \
           if (m < XM(TASK) && n < XN(TASK)) {                                  \
             const int idx = IDT(m, n, XM(TASK), XN(TASK));                     \
-            ACCUMULATE((CMAT) + XC(TASK) + idx, (ALPHA)*r);                    \
+            ACCUMULATE((CMAT) + XC(TASK) + idx, (ALPHA) * r);                  \
           }                                                                    \
         }                                                                      \
       }                                                                        \
@@ -186,7 +186,7 @@ dbm_multiply(double alpha, int itask, int ntasks, int size,
     const int max_m = size / ntasks, tid = i / max_m;
     const SINT m = i - tid * max_m;
     global const dbm_task_t *const task = &tasks[itask + tid];
-    if (m < XM(task)) {           /* valid task */
+    if (m < XM(task)) { /* valid task */
 #if defined(BCST_WG)
       if (XM(task) <= XN(task)) { /* BCST_WG to broadcast B-values */
         DBM_MULTIPLY(alpha, task, amat, bmat, cmat, m, BN, BCST_WG);

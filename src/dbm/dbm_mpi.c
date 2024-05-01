@@ -210,7 +210,7 @@ void dbm_mpi_comm_free(dbm_mpi_comm_t *comm) {
 #if defined(__parallel)
   CHECK(MPI_Comm_free(comm));
 #else
-  (void)comm;  // mark used
+  (void)comm; // mark used
 #endif
 }
 

@@ -113,7 +113,7 @@ static void backend_upload_packs(const dbm_pack_t *pack_a,
 #if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_DBM)
   dbm_multiply_gpu_upload_packs(pack_a, pack_b, &ctx->gpu);
 #else
-  (void)pack_a;   // mark as used
+  (void)pack_a; // mark as used
   (void)pack_b;
   (void)ctx;
 #endif
