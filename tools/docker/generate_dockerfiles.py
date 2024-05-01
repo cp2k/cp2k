@@ -55,7 +55,7 @@ def main() -> None:
                 f.write(toolchain_ubuntu_nompi(gcc_version=gcc_version))
                 f.write(regtest_cmake("ubuntu", "ssmp"))
             else:
-                f.write(toolchain_ubuntu2040_nompi(gcc_version=gcc_version))
+                f.write(toolchain_ubuntu2004_nompi(gcc_version=gcc_version))
                 # Skip some tests due to bug in LDA_C_PMGB06 functional in libxc <5.2.0.
                 f.write(regtest("ssmp", testopts="--skipdir=QS/regtest-rs-dhft"))
 
@@ -428,7 +428,7 @@ RUN  ./install_dbcsr.sh
 
 
 # ======================================================================================
-def toolchain_ubuntu2040_nompi(gcc_version: int = 8) -> str:
+def toolchain_ubuntu2004_nompi(gcc_version: int = 8) -> str:
     output = rf"""
 FROM ubuntu:20.04
 
@@ -763,7 +763,7 @@ RUN ./scripts/generate_arch_files.sh && rm -rf ./build
 # ======================================================================================
 def spack_env_toolchain() -> str:
     return rf"""
-FROM ubuntu:22.04
+FROM ubuntu:24.04
 
 # Install common dependencies as pre-built Ubuntu packages.
 RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
@@ -804,7 +804,7 @@ RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
 WORKDIR /opt/spack
 RUN git init --quiet && \
     git remote add origin https://github.com/spack/spack.git && \
-    git fetch --quiet --depth 1 origin tag develop-2024-03-24 --no-tags && \
+    git fetch --quiet --depth 1 origin tag develop-2024-05-05 --no-tags && \
     git checkout --quiet FETCH_HEAD
 ENV PATH="/opt/spack/bin:${{PATH}}"
 

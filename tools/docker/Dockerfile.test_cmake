@@ -3,7 +3,7 @@
 # Usage: docker build -f ./Dockerfile.test_cmake ../../
 #
 
-FROM ubuntu:22.04
+FROM ubuntu:24.04
 
 # Install common dependencies as pre-built Ubuntu packages.
 RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
@@ -44,7 +44,7 @@ RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
 WORKDIR /opt/spack
 RUN git init --quiet && \
     git remote add origin https://github.com/spack/spack.git && \
-    git fetch --quiet --depth 1 origin tag develop-2024-03-24 --no-tags && \
+    git fetch --quiet --depth 1 origin tag develop-2024-05-05 --no-tags && \
     git checkout --quiet FETCH_HEAD
 ENV PATH="/opt/spack/bin:${PATH}"
 
