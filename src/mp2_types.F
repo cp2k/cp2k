@@ -135,8 +135,8 @@ MODULE mp2_types
                                                             do_ri_axk = .FALSE., &
                                                             do_rse = .FALSE., &
                                                             print_dgemm_info = .FALSE.
-      TYPE(dbcsr_type), DIMENSION(:), POINTER            :: mo_coeff_o => NULL(), &
-                                                            mo_coeff_v => NULL()
+      TYPE(dbcsr_type), DIMENSION(:), ALLOCATABLE            :: mo_coeff_o, & ! For AXK
+                                                                mo_coeff_v
       REAL(KIND=dp)                                      :: ener_axk = 0.0_dp, &
                                                             rse_corr_diag = 0.0_dp, &
                                                             rse_corr = 0.0_dp, &

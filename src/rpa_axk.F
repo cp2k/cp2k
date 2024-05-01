@@ -43,7 +43,8 @@ MODULE rpa_axk
                                               section_vals_type
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: sqrthalf
-   USE message_passing,                 ONLY: mp_para_env_type
+   USE message_passing,                 ONLY: mp_para_env_release,&
+                                              mp_para_env_type
    USE mp2_types,                       ONLY: mp2_type
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE particle_types,                  ONLY: particle_type
@@ -89,8 +90,8 @@ MODULE rpa_axk
    TYPE rpa_axk_work_type
       PRIVATE
       TYPE(rpa_axk_exchange_type) :: axk_exchange
-      TYPE(dbcsr_type), DIMENSION(:), POINTER :: mo_coeff_o => NULL()
-      TYPE(dbcsr_type), DIMENSION(:), POINTER :: mo_coeff_v => NULL()
+      TYPE(dbcsr_type), DIMENSION(:), ALLOCATABLE :: mo_coeff_o
+      TYPE(dbcsr_type), DIMENSION(:), ALLOCATABLE :: mo_coeff_v
       INTEGER :: my_group_L_start = 0
       INTEGER :: my_group_L_end = 0
       INTEGER :: my_group_L_size = 0
@@ -136,8 +137,8 @@ CONTAINS
    SUBROUTINE rpa_axk_work_create(axk_work, mp2_env, para_env_RPA, para_env_sub, dimen_RI, &
                                   fm_mat_S, fm_mat_Q, fm_mat_Q_gemm, unit_nr, mat_munu)
       CLASS(rpa_axk_work_type), INTENT(INOUT) :: axk_work
-      TYPE(mp2_type), INTENT(IN) :: mp2_env
-      TYPE(mp_para_env_type), TARGET, INTENT(IN) :: para_env_RPA, para_env_sub
+      TYPE(mp2_type), INTENT(INOUT) :: mp2_env
+      TYPE(mp_para_env_type), TARGET, INTENT(INOUT) :: para_env_RPA, para_env_sub
       INTEGER, INTENT(IN) :: dimen_RI
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN) :: fm_mat_S
       TYPE(cp_fm_type), INTENT(IN) :: fm_mat_Q, fm_mat_Q_gemm
@@ -146,11 +147,13 @@ CONTAINS
 
       INTEGER :: color_sub, iitmp(2), ispin, nspins
 
-      axk_work%mo_coeff_o => mp2_env%ri_rpa%mo_coeff_o
-      axk_work%mo_coeff_v => mp2_env%ri_rpa%mo_coeff_v
+      CALL MOVE_ALLOC(mp2_env%ri_rpa%mo_coeff_o, axk_work%mo_coeff_o)
+      CALL MOVE_ALLOC(mp2_env%ri_rpa%mo_coeff_v, axk_work%mo_coeff_v)
       axk_work%eps_filter = mp2_env%mp2_gpw%eps_filter
       axk_work%para_env_RPA => para_env_RPA
+      CALL para_env_RPA%retain()
       axk_work%para_env_sub => para_env_sub
+      CALL para_env_sub%retain()
       axk_work%unit_nr = unit_nr
 
       nspins = SIZE(axk_work%mo_coeff_o)
@@ -219,7 +222,21 @@ CONTAINS
       CALL cp_fm_release(axk_work%fm_mat_U)
       CALL cp_fm_release(axk_work%fm_mat_R_half)
       CALL cp_fm_release(axk_work%fm_mat_R_half_gemm)
-      NULLIFY (axk_work%para_env_RPA, axk_work%para_env_sub)
+      CALL mp_para_env_release(axk_work%para_env_RPA)
+      CALL mp_para_env_release(axk_work%para_env_sub)
+
+      IF (ALLOCATED(axk_work%mo_coeff_o)) THEN
+         DO ispin = 1, SIZE(axk_work%mo_coeff_o)
+            CALL dbcsr_release(axk_work%mo_coeff_o(ispin))
+         END DO
+         DEALLOCATE (axk_work%mo_coeff_o)
+      END IF
+      IF (ALLOCATED(axk_work%mo_coeff_v)) THEN
+         DO ispin = 1, SIZE(axk_work%mo_coeff_v)
+            CALL dbcsr_release(axk_work%mo_coeff_v(ispin))
+         END DO
+         DEALLOCATE (axk_work%mo_coeff_v)
+      END IF
 
       IF (ALLOCATED(axk_work%dbcsr_Gamma_inu_P)) THEN
          DO ispin = 1, SIZE(axk_work%dbcsr_Gamma_inu_P)
