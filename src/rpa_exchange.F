@@ -32,7 +32,7 @@ MODULE rpa_exchange
                                               cp_fm_to_fm_submat_general,&
                                               cp_fm_type
    USE cp_dbcsr_api,                       ONLY: &
-        dbcsr_copy, dbcsr_create, dbcsr_frobenius_norm, dbcsr_get_info, dbcsr_init_p, &
+        dbcsr_copy, dbcsr_create, dbcsr_dot, dbcsr_frobenius_norm, dbcsr_get_info, dbcsr_init_p, &
         dbcsr_multiply, dbcsr_p_type, dbcsr_release, dbcsr_set, dbcsr_trace, dbcsr_type, &
         dbcsr_type_no_symmetry
    USE hfx_admm_utils,                  ONLY: tddft_hfx_matrix
@@ -75,7 +75,6 @@ MODULE rpa_exchange
    TYPE rpa_exchange_env_type
       PRIVATE
       TYPE(qs_environment_type), POINTER :: qs_env => NULL()
-      TYPE(dbcsr_type)          :: work_ao
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER       :: mat_hfx => NULL()
       TYPE(hfx_type), DIMENSION(:, :), POINTER           :: x_data => NULL()
       TYPE(mp_para_env_type), POINTER                    :: para_env => NULL()
@@ -106,7 +105,6 @@ MODULE rpa_exchange
       REAL(KIND=dp) :: eps_filter = 0.0_dp
       TYPE(cp_fm_struct_p_type), ALLOCATABLE, DIMENSION(:) :: struct_Gamma
       TYPE(cp_fm_type) :: fm_mat_Q_tmp = cp_fm_type()
-      TYPE(cp_fm_type) :: fm_mat_R_half = cp_fm_type()
       TYPE(cp_fm_type) :: fm_mat_R_half_gemm = cp_fm_type()
       TYPE(cp_fm_type) :: fm_mat_U = cp_fm_type()
       TYPE(mp_para_env_type), POINTER                    :: para_env_RPA => NULL()
@@ -191,7 +189,6 @@ CONTAINS
       END DO
 
       CALL cp_fm_create(exchange_work%fm_mat_U, fm_mat_Q%matrix_struct, name="fm_mat_U")
-      CALL cp_fm_create(exchange_work%fm_mat_R_half, fm_mat_Q%matrix_struct, name="fm_mat_R_half")
       CALL cp_fm_create(exchange_work%fm_mat_Q_tmp, fm_mat_Q%matrix_struct, name="fm_mat_Q_tmp")
       CALL cp_fm_create(exchange_work%fm_mat_R_half_gemm, fm_mat_Q_gemm%matrix_struct)
 
@@ -229,7 +226,6 @@ CONTAINS
       END IF
       CALL cp_fm_release(exchange_work%fm_mat_Q_tmp)
       CALL cp_fm_release(exchange_work%fm_mat_U)
-      CALL cp_fm_release(exchange_work%fm_mat_R_half)
       CALL cp_fm_release(exchange_work%fm_mat_R_half_gemm)
       CALL mp_para_env_release(exchange_work%para_env_RPA)
       CALL mp_para_env_release(exchange_work%para_env_sub)
@@ -305,7 +301,6 @@ CONTAINS
 
       CALL cp_fm_set_all(matrix=exchange_work%fm_mat_Q_tmp, alpha=0.0_dp)
       CALL cp_fm_set_all(matrix=exchange_work%fm_mat_U, alpha=0.0_dp)
-      CALL cp_fm_set_all(matrix=exchange_work%fm_mat_R_half, alpha=0.0_dp)
 
       ! Copy Q to Q_tmp
       CALL cp_fm_to_fm(fm_mat_Q, exchange_work%fm_mat_Q_tmp)
@@ -316,9 +311,6 @@ CONTAINS
          "DEBUG RPA energy (AXK)", 0.5_dp*SUM(LOG(1.0_dp + eigenval) - eigenval)
 
       ! Calculate diagonal matrix for R_half
-
-      ! U*diag stored in U, whereas eigenvectors are in fm_mat_Q_tmp
-      CALL cp_fm_to_fm(exchange_work%fm_mat_U, exchange_work%fm_mat_Q_tmp)
 
       ! Manipulate eigenvalues to get diagonal matrix
       IF (exchange_work%exchange_correction == rpa_exchange_axk) THEN
@@ -345,23 +337,18 @@ CONTAINS
          CPABORT("Unknown RPA exchange correction")
       END IF
 
+      ! fm_mat_U now contains some sqrt of the required matrix-valued function
       CALL cp_fm_column_scale(exchange_work%fm_mat_U, eigenval)
 
       ! Release memory
       DEALLOCATE (eigenval)
 
-      ! Get R_half by multiplication
-      CALL parallel_gemm(transa="N", transb="T", m=exchange_work%dimen_RI, &
-                         n=exchange_work%dimen_RI, k=exchange_work%dimen_RI, alpha=1.0_dp, &
-                         matrix_a=exchange_work%fm_mat_U, matrix_b=exchange_work%fm_mat_Q_tmp, beta=0.0_dp, &
-                         matrix_c=exchange_work%fm_mat_R_half)
-
-      ! Redistribute fm_mat_R_half for "rectangular" multiplication: ia*P P*P
+      ! Redistribute fm_mat_U for "rectangular" multiplication: ia*P P*P
       CALL cp_fm_set_all(matrix=exchange_work%fm_mat_R_half_gemm, alpha=0.0_dp)
 
-      CALL cp_fm_to_fm_submat_general(exchange_work%fm_mat_R_half, exchange_work%fm_mat_R_half_gemm, exchange_work%dimen_RI, &
+      CALL cp_fm_to_fm_submat_general(exchange_work%fm_mat_U, exchange_work%fm_mat_R_half_gemm, exchange_work%dimen_RI, &
                                       exchange_work%dimen_RI, 1, 1, 1, 1, &
-                                      exchange_work%fm_mat_R_half%matrix_struct%context)
+                                      exchange_work%fm_mat_U%matrix_struct%context)
 
       ALLOCATE (fm_mat_Gamma_3(nspins))
       DO ispin = 1, nspins
@@ -472,9 +459,7 @@ CONTAINS
 
       exchange_env%my_recalc_hfx_integrals = .FALSE.
       DO ispin = 1, SIZE(dbcsr_Gamma_munu_P)
-         CALL dbcsr_multiply("N", "T", 1.0_dp, exchange_env%mat_hfx(ispin)%matrix, dbcsr_Gamma_munu_P(ispin)%matrix, &
-                             0.0_dp, exchange_env%work_ao, filter_eps=exchange_env%eps_filter)
-         CALL dbcsr_trace(exchange_env%work_ao, e_exchange_p)
+         CALL dbcsr_dot(exchange_env%mat_hfx(ispin)%matrix, dbcsr_Gamma_munu_P(ispin)%matrix, e_exchange_p)
          exchange_env%e_exchange = exchange_env%e_exchange - e_exchange_P
       END DO
 
@@ -548,11 +533,6 @@ CONTAINS
 
       exchange_env%my_recalc_hfx_integrals = .TRUE.
 
-      ! create a working matrix
-      DO ispin = 1, dft_control%nspins
-         CALL dbcsr_create(exchange_env%work_ao, template=mat_munu)
-      END DO
-
       CALL dbcsr_allocate_matrix_set(exchange_env%mat_hfx, dft_control%nspins)
       DO ispin = 1, dft_control%nspins
          ALLOCATE (exchange_env%mat_hfx(ispin)%matrix)
@@ -592,8 +572,6 @@ CONTAINS
       END DO
       DEALLOCATE (exchange_env%mat_hfx)
       NULLIFY (exchange_env%mat_hfx)
-
-      CALL dbcsr_release(exchange_env%work_ao)
    END SUBROUTINE hfx_release_subgroup
 
 END MODULE rpa_exchange
