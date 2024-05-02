@@ -54,7 +54,7 @@ MODULE mp2_gpw
                                               hfx_compression_type
    USE input_constants,                 ONLY: &
         do_eri_gpw, do_eri_os, do_potential_coulomb, do_potential_id, do_potential_truncated, &
-        eri_default, mp2_method_gpw, ri_default, ri_mp2_method_gpw
+        eri_default, mp2_method_gpw, ri_default, ri_mp2_method_gpw, rpa_exchange_none
    USE input_section_types,             ONLY: section_vals_val_get
    USE kinds,                           ONLY: dp
    USE kpoint_types,                    ONLY: kpoint_type
@@ -473,8 +473,8 @@ CONTAINS
          END DO
          CALL get_group_dist(gd_array, color_sub, my_group_L_start, my_group_L_end, my_group_L_size)
       END IF
-      ! Copy mo coeffs for RPA AXK
-      IF (mp2_env%ri_rpa%do_ri_axk) THEN
+      ! Copy mo coeffs for RPA exchange correction
+      IF (mp2_env%ri_rpa%exchange_correction /= rpa_exchange_none) THEN
          ALLOCATE (mp2_env%ri_rpa%mo_coeff_o(nspins), mp2_env%ri_rpa%mo_coeff_v(nspins))
          DO ispin = 1, nspins
             CALL dbcsr_copy(mp2_env%ri_rpa%mo_coeff_o(ispin), mo_coeff_o(ispin)%matrix, name="mo_coeff_o")
@@ -500,7 +500,7 @@ CONTAINS
       END IF
 
       IF (.NOT. calc_forces) THEN
-         IF (.NOT. mp2_env%ri_rpa%do_ri_axk) THEN
+         IF (mp2_env%ri_rpa%exchange_correction == rpa_exchange_none) THEN
 
             CALL dbcsr_release(mat_munu%matrix)
             DEALLOCATE (mat_munu%matrix)
@@ -552,8 +552,8 @@ CONTAINS
             IF (calc_forces) CALL cp_fm_release(fm_matrix_PQ)
          END IF
 
-         ! Release some memory for AXK
-         IF (mp2_env%ri_rpa%do_ri_axk .OR. (calc_forces .AND. do_im_time)) THEN
+         ! Release some memory for RPA exchange correction
+         IF (mp2_env%ri_rpa%exchange_correction /= rpa_exchange_none .OR. (calc_forces .AND. do_im_time)) THEN
 
             CALL dbcsr_release(mat_munu%matrix)
             DEALLOCATE (mat_munu%matrix)

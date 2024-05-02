@@ -16,8 +16,8 @@
 ! **************************************************************************************************
 MODULE rpa_main
    USE bibliography,                    ONLY: &
-        Bates2013, DelBen2013, DelBen2015, Ren2011, Ren2013, Wilhelm2016a, Wilhelm2016b, &
-        Wilhelm2017, Wilhelm2018, cite_reference
+        Bates2013, DelBen2013, DelBen2015, Freeman1977, Gruneis2009, Ren2011, Ren2013, &
+        Wilhelm2016a, Wilhelm2016b, Wilhelm2017, Wilhelm2018, cite_reference
    USE bse_main,                        ONLY: start_bse_calculation
    USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
                                               cp_blacs_env_release,&
@@ -49,7 +49,10 @@ MODULE rpa_main
                                               release_group_dist
    USE hfx_types,                       ONLY: block_ind_type,&
                                               hfx_compression_type
-   USE input_constants,                 ONLY: wfc_mm_style_gemm
+   USE input_constants,                 ONLY: rpa_exchange_axk,&
+                                              rpa_exchange_none,&
+                                              rpa_exchange_sosex,&
+                                              wfc_mm_style_gemm
    USE kinds,                           ONLY: dp,&
                                               int_8
    USE kpoint_types,                    ONLY: kpoint_type
@@ -71,7 +74,7 @@ MODULE rpa_main
                                               two_dim_real_array
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
-   USE rpa_axk,                         ONLY: rpa_axk_work_type
+   USE rpa_exchange,                    ONLY: rpa_exchange_work_type
    USE rpa_grad,                        ONLY: rpa_grad_copy_Q,&
                                               rpa_grad_create,&
                                               rpa_grad_finalize,&
@@ -253,8 +256,11 @@ CONTAINS
       CALL cite_reference(DelBen2013)
       CALL cite_reference(DelBen2015)
 
-      IF (mp2_env%ri_rpa%do_ri_axk) THEN
+      IF (mp2_env%ri_rpa%exchange_correction == rpa_exchange_axk) THEN
          CALL cite_reference(Bates2013)
+      ELSE IF (mp2_env%ri_rpa%exchange_correction == rpa_exchange_sosex) THEN
+         CALL cite_reference(Freeman1977)
+         CALL cite_reference(Gruneis2009)
       END IF
       IF (mp2_env%ri_rpa%do_rse) THEN
          CALL cite_reference(Ren2011)
@@ -1105,7 +1111,7 @@ CONTAINS
          do_periodic, do_print, do_ri_Sigma_x, exit_ev_gw, first_cycle, &
          first_cycle_periodic_correction, my_open_shell, print_ic_values
       LOGICAL, ALLOCATABLE, DIMENSION(:, :, :, :, :)     :: has_mat_P_blocks
-      REAL(KIND=dp) :: a_scaling, alpha, dbcsr_time, e_axk, e_axk_corr, eps_filter, &
+      REAL(KIND=dp) :: a_scaling, alpha, dbcsr_time, e_exchange, e_exchange_corr, eps_filter, &
          eps_filter_im_time, ext_scaling, fermi_level_offset, fermi_level_offset_input, &
          my_flop_rate, omega, omega_max_fit, omega_old, tau, tau_old
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: delta_corr, e_fermi, tau_tj, tau_wj, tj, &
@@ -1140,7 +1146,7 @@ CONTAINS
       TYPE(hfx_compression_type), ALLOCATABLE, &
          DIMENSION(:)                                    :: t_3c_O_mo_compressed
       TYPE(im_time_force_type)                           :: force_data
-      TYPE(rpa_axk_work_type)                            :: axk_work
+      TYPE(rpa_exchange_work_type)                       :: exchange_work
       TYPE(rpa_grad_type)                                :: rpa_grad
       TYPE(two_dim_int_array), ALLOCATABLE, DIMENSION(:) :: t_3c_O_mo_ind
 
@@ -1319,11 +1325,12 @@ CONTAINS
                                                                    fm_mat_S, homo, virtual, mp2_env, Eigenval(:, 1, :), &
                                                                    unit_nr, do_ri_sos_laplace_mp2)
 
-      IF (mp2_env%ri_rpa%do_ri_axk) CALL axk_work%create(mp2_env, para_env_RPA, para_env_sub, dimen_RI_red, &
-                                                         fm_mat_S, fm_mat_Q(1), fm_mat_Q_gemm(1), unit_nr, mat_munu%matrix)
+      IF (.NOT. do_im_time .AND. .NOT. do_ri_sos_laplace_mp2) &
+         CALL exchange_work%create(mp2_env, para_env_RPA, para_env_sub, dimen_RI_red, &
+                                   fm_mat_S, fm_mat_Q(1), fm_mat_Q_gemm(1), unit_nr, mat_munu%matrix)
 
       Erpa = 0.0_dp
-      IF (mp2_env%ri_rpa%do_ri_axk) e_axk = 0.0_dp
+      IF (mp2_env%ri_rpa%exchange_correction /= rpa_exchange_none) e_exchange = 0.0_dp
       first_cycle = .TRUE.
       omega_old = 0.0_dp
       CALL dgemm_counter_init(dgemm_counter, unit_nr, mp2_env%ri_rpa%print_dgemm_info)
@@ -1486,14 +1493,14 @@ CONTAINS
 
             END IF ! im time
 
-            ! Calculate AXK energy correction
-            IF (mp2_env%ri_rpa%do_ri_axk) THEN
-               CALL axk_work%compute(qs_env, fm_mat_Q(1), Eigenval(:, 1, :), fm_mat_S, omega, &
-                                     e_axk_corr)
+            ! Calculate RPA exchange energy correction
+            IF (.NOT. do_im_time .AND. .NOT. do_ri_sos_laplace_mp2) THEN
+               CALL exchange_work%compute(qs_env, fm_mat_Q(1), Eigenval(:, 1, :), fm_mat_S, omega, &
+                                          e_exchange_corr)
 
-               ! Evaluate the final AXK energy correction
-               e_axk = e_axk + e_axk_corr*wj(jquad)
-            END IF ! do_ri_axk
+               ! Evaluate the final exchange energy correction
+               e_exchange = e_exchange + e_exchange_corr*wj(jquad)
+            END IF
 
             IF (do_ri_sos_laplace_mp2) THEN
                CALL SOS_MP2_postprocessing(fm_mat_Q, Erpa, tau_wj(jquad))
@@ -1504,7 +1511,7 @@ CONTAINS
             ELSE
                IF (calc_forces .AND. .NOT. do_im_time) CALL rpa_grad_copy_Q(fm_mat_Q(1), rpa_grad)
 
-               CALL Q_trace_and_add_unit_matrix(dimen_RI_red, trace_Qomega, fm_mat_Q(1), para_env_RPA)
+               CALL Q_trace_and_add_unit_matrix(dimen_RI_red, trace_Qomega, fm_mat_Q(1))
 
                IF (do_kpoints_cubic_RPA .OR. do_kpoints_from_Gamma) THEN
                   CALL invert_eps_compute_W_and_Erpa_kp(dimen_RI, num_integ_points, jquad, nkp, count_ev_sc_GW, para_env, &
@@ -1566,11 +1573,11 @@ CONTAINS
             IF (do_minimax_quad) Erpa = Erpa/2.0_dp
          END IF
 
-         IF (mp2_env%ri_rpa%do_ri_axk) THEN
-            CALL para_env%sum(E_axk)
-            E_axk = E_axk/(pi*2.0_dp)
-            IF (do_minimax_quad) E_axk = E_axk/2.0_dp
-            mp2_env%ri_rpa%ener_axk = E_axk
+         IF (mp2_env%ri_rpa%exchange_correction /= rpa_exchange_none) THEN
+            CALL para_env%sum(E_exchange)
+            E_exchange = E_exchange/(pi*2.0_dp)
+            IF (do_minimax_quad) E_exchange = E_exchange/2.0_dp
+            mp2_env%ri_rpa%ener_exchange = E_exchange
          END IF
 
          IF (calc_forces .AND. do_ri_sos_laplace_mp2 .AND. do_im_time) THEN
@@ -1755,7 +1762,7 @@ CONTAINS
 
       END IF
 
-      IF (mp2_env%ri_rpa%do_ri_axk) CALL axk_work%release()
+      IF (.NOT. do_im_time .AND. .NOT. do_ri_sos_laplace_mp2) CALL exchange_work%release()
 
       IF (.NOT. do_ri_sos_laplace_mp2) THEN
          DEALLOCATE (tj)

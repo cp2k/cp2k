@@ -110,7 +110,7 @@ CONTAINS
       CALL section_vals_val_get(mp2_section, "RI_RPA%SCALE_RPA", r_val=mp2_env%ri_rpa%scale_rpa)
       mp2_env%ri_rpa%reuse_hfx = .FALSE.
 
-      CALL section_vals_val_get(mp2_section, "RI_RPA%AXK", l_val=mp2_env%ri_rpa%do_ri_axk)
+      CALL section_vals_val_get(mp2_section, "RI_RPA%EXCHANGE_CORRECTION", i_val=mp2_env%ri_rpa%exchange_correction)
 
       CALL section_vals_val_get(mp2_section, "RI_RPA%RSE", l_val=mp2_env%ri_rpa%do_rse)
       CALL section_vals_val_get(mp2_section, "RI_RPA%PRINT_DGEMM_INFO", l_val=mp2_env%ri_rpa%print_dgemm_info)

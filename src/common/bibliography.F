@@ -91,7 +91,7 @@ MODULE bibliography
                             Rycroft2009, Thomas2015, Brehm2018, Brehm2020, Shigeta2001, Heinecke2016, &
                             Brehm2021, Bussy2021a, Bussy2021b, Ditler2021, Ditler2022, Mattiat2019, &
                             Mattiat2022, Belleflamme2023, Knizia2013, Musaelian2023, Eriksen2020, &
-                            Bussy2023, Wang2018, Zeng2023, Graml2024, Solca2024
+                            Bussy2023, Wang2018, Zeng2023, Graml2024, Solca2024, Freeman1977, Gruneis2009
 
 CONTAINS
 
@@ -5009,6 +5009,46 @@ CONTAINS
                          "DI 10.1007/978-3-031-61763-8_13", &
                          "ER"), &
                          DOI="10.1007/978-3-031-61763-8_13")
+
+      CALL add_reference(key=Freeman1977, ISI_record=s2a( &
+                         "TY JOUR", &
+                         "PB American Physical Society", &
+                         "ID 10.1103/PhysRevB.15.5512", &
+                         "DO 10.1103/PhysRevB.15.5512", &
+                         "TI Coupled-cluster expansion applied to the electron gas: Inclusion of ring and exchange effects", &
+                         "PY 1977", &
+                         "UR https://link.aps.org/doi/10.1103/PhysRevB.15.5512", &
+                         "JF Physical Review B", &
+                         "JA Phys. Rev. B", &
+                         "J1 PRB", &
+                         "VL 15", &
+                         "IS 12", &
+                         "SP 5512", &
+                         "EP 5521", &
+                         "AU Freeman, David L.", &
+                         "ER"), &
+                         DOI="10.1103/PhysRevB.15.5512")
+
+      CALL add_reference(key=Gruneis2009, ISI_record=s2a( &
+                         "TY JOUR", &
+                         "AU Grüneis, Andreas", &
+                         "   Marsman, Martijn", &
+                         "   Harl, Judith", &
+                         "   Schimka, Laurids", &
+                         "   Kresse, Georg", &
+                         "TI Making the random phase approximation to electronic correlation accurate", &
+                         "PY 2009", &
+                         "Y1 2009/10/21", &
+                         "JO The Journal of Chemical Physics", &
+                         "JA J. Chem. Phys.", &
+                         "VL 131", &
+                         "IS 15", &
+                         "SP 154115", &
+                         "SN 0021-9606", &
+                         "Y2 5/1/2024", &
+                         "UR https://doi.org/10.1063/1.3250347", &
+                         "ER"), &
+                         DOI="10.1063/1.3250347")
 
    END SUBROUTINE add_all_references
 

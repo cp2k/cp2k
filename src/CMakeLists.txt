@@ -710,7 +710,7 @@ list(
   restraint.F
   ri_environment_methods.F
   rmsd.F
-  rpa_axk.F
+  rpa_exchange.F
   rpa_communication.F
   rpa_grad.F
   rpa_gw.F

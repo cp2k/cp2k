@@ -23,7 +23,8 @@ MODULE mp2_types
    USE input_constants,                 ONLY: &
         do_eri_mme, eri_default, gw_pade_approx, kp_weights_W_auto, mp2_method_direct, &
         mp2_method_gpw, mp2_method_none, mp2_ri_optimize_basis, ri_mp2_laplace, ri_mp2_method_gpw, &
-        ri_rpa_g0w0_crossing_z_shot, ri_rpa_method_gpw, soc_none, wfc_mm_style_gemm
+        ri_rpa_g0w0_crossing_z_shot, ri_rpa_method_gpw, rpa_exchange_none, soc_none, &
+        wfc_mm_style_gemm
    USE input_section_types,             ONLY: section_vals_release,&
                                               section_vals_type
    USE iso_c_binding,                   ONLY: c_null_ptr,&
@@ -132,12 +133,12 @@ MODULE mp2_types
                                                             minimax_quad = .FALSE., &
                                                             do_ri_g0w0 = .FALSE., &
                                                             do_admm = .FALSE., &
-                                                            do_ri_axk = .FALSE., &
                                                             do_rse = .FALSE., &
                                                             print_dgemm_info = .FALSE.
-      TYPE(dbcsr_type), DIMENSION(:), ALLOCATABLE            :: mo_coeff_o, & ! For AXK
+      INTEGER :: exchange_correction = rpa_exchange_none
+      TYPE(dbcsr_type), DIMENSION(:), ALLOCATABLE            :: mo_coeff_o, & ! For exchange correction
                                                                 mo_coeff_v
-      REAL(KIND=dp)                                      :: ener_axk = 0.0_dp, &
+      REAL(KIND=dp)                                      :: ener_exchange = 0.0_dp, &
                                                             rse_corr_diag = 0.0_dp, &
                                                             rse_corr = 0.0_dp, &
                                                             scale_rpa = 0.0_dp

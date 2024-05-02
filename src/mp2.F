@@ -49,7 +49,10 @@ MODULE mp2
    USE input_constants,                 ONLY: cholesky_inverse,&
                                               cholesky_off,&
                                               do_eri_gpw,&
-                                              do_eri_mme
+                                              do_eri_mme,&
+                                              rpa_exchange_axk,&
+                                              rpa_exchange_none,&
+                                              rpa_exchange_sosex
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type
@@ -599,7 +602,7 @@ IF (.NOT. (mp2_env%method == ri_mp2_method_gpw .OR. mp2_env%method == ri_rpa_met
 
          ! Scale energy contributions
          Emp2 = Emp2*mp2_env%ri_rpa%scale_rpa
-         mp2_env%ri_rpa%ener_axk = mp2_env%ri_rpa%ener_axk*mp2_env%ri_rpa%scale_rpa
+         mp2_env%ri_rpa%ener_exchange = mp2_env%ri_rpa%ener_exchange*mp2_env%ri_rpa%scale_rpa
 
       CASE (ri_mp2_laplace)
          ! perform RI-SOS-Laplace-MP2 energy calculation, most part of the code in common
@@ -655,8 +658,10 @@ IF (.NOT. (mp2_env%method == ri_mp2_method_gpw .OR. mp2_env%method == ri_rpa_met
          IF (.NOT. update_xc_energy) Emp2 = 0.0_dp
 
          IF (unit_nr > 0 .AND. update_xc_energy) WRITE (unit_nr, '(T3,A,T56,F25.14)') 'RI-RPA energy  =   ', Emp2
-         IF (mp2_env%ri_rpa%do_ri_axk) THEN
-            IF (unit_nr > 0) WRITE (unit_nr, '(T3,A,T56,F25.14)') 'RI-RPA-AXK energy=', mp2_env%ri_rpa%ener_axk
+         IF (mp2_env%ri_rpa%exchange_correction == rpa_exchange_axk) THEN
+            IF (unit_nr > 0) WRITE (unit_nr, '(T3,A,T56,F25.14)') 'RI-RPA-AXK energy=', mp2_env%ri_rpa%ener_exchange
+         ELSE IF (mp2_env%ri_rpa%exchange_correction == rpa_exchange_sosex) THEN
+            IF (unit_nr > 0) WRITE (unit_nr, '(T3,A,T56,F25.14)') 'RI-RPA-SOSEX energy=', mp2_env%ri_rpa%ener_exchange
          END IF
          IF (mp2_env%ri_rpa%do_rse) THEN
             IF (unit_nr > 0) WRITE (unit_nr, '(T3,A,T56,F25.14)') 'Diagonal singles correction (dRSE) = ', &
@@ -669,8 +674,8 @@ IF (.NOT. (mp2_env%method == ri_mp2_method_gpw .OR. mp2_env%method == ri_rpa_met
       IF (unit_nr > 0) WRITE (unit_nr, *)
 
       ! we have it !!!!
-      IF (mp2_env%ri_rpa%do_ri_axk) THEN
-         Emp2 = Emp2 + mp2_env%ri_rpa%ener_axk
+      IF (mp2_env%ri_rpa%exchange_correction /= rpa_exchange_none) THEN
+         Emp2 = Emp2 + mp2_env%ri_rpa%ener_exchange
       END IF
       IF (mp2_env%ri_rpa%do_rse) THEN
          Emp2 = Emp2 + mp2_env%ri_rpa%rse_corr

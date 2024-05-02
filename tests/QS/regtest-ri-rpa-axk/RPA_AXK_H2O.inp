@@ -47,7 +47,7 @@
           &END WFC_GPW
         &END INTEGRALS
         &RI_RPA
-          RI_AXK .TRUE.
+          EXCHANGE_CORRECTION AXK
           RPA_NUM_QUAD_POINTS 1
           &HF
             FRACTION 1.0000000
