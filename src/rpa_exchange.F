@@ -290,8 +290,8 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'rpa_exchange_work_compute'
       REAL(KIND=dp), PARAMETER                           :: thresh = 0.0000001_dp
 
-      INTEGER :: handle, iib, ispin, L_counter, nspins, P, Q, L_size_B, L_size_Gamma, hom, virt, i, j, a, b
-      REAL(KIND=dp) :: e_rpa, sum_a, sum_b, sum_ia, sum_jb
+      INTEGER :: handle, iib, ispin, L_counter, nspins, P, Q, L_size_B, L_size_Gamma, hom, virt, i, j, a
+      REAL(KIND=dp) :: e_rpa, sum_a, sum_ia
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigenval
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :) :: product_matrix_small
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :) :: mat_Gamma_3, mat_B_iaP
@@ -465,23 +465,8 @@ CONTAINS
             L_size_B = SIZE(mat_B_iaP, 3)
 
             WRITE (*, *) "sizes", L_size_B, L_size_Gamma, hom, virt
-            DO P = 1, L_size_Gamma
-            DO Q = 1, L_size_B
-               sum_ia = 0.0_dp
-               DO i = 1, hom
-               DO a = 1, virt
-                  sum_ia = sum_ia + mat_Gamma_3(a, i, P)*mat_B_iaP(a, i, Q)
-               END DO
-               END DO
-               sum_jb = 0.0_dp
-               DO j = 1, hom
-               DO b = 1, virt
-                  sum_jb = sum_jb + mat_B_iaP(b, j, Q)*mat_Gamma_3(b, j, P)
-               END DO
-               END DO
-               e_rpa = e_rpa + sum_ia*sum_jb
-            END DO
-            END DO
+            ALLOCATE (product_matrix(hom, L_size_Gamma, hom, L_size_B))
+            product_matrix = 0.0_dp
             DO P = 1, L_size_Gamma
             DO Q = 1, L_size_B
             DO i = 1, hom
@@ -490,17 +475,31 @@ CONTAINS
                DO a = 1, virt
                   sum_a = sum_a + mat_Gamma_3(a, i, P)*mat_B_iaP(a, j, Q)
                END DO
-               sum_b = 0.0_dp
-               DO b = 1, virt
-                  sum_b = sum_b + mat_B_iaP(b, i, Q)*mat_Gamma_3(b, j, P)
+               product_matrix(i, P, j, Q) = sum_a
+            END DO
+            END DO
+            END DO
+            END DO
+            DO P = 1, L_size_Gamma
+            DO Q = 1, L_size_B
+            DO i = 1, hom
+            DO j = 1, hom
+               e_exchange_corr = e_exchange_corr + product_matrix(i, P, j, Q)*product_matrix(j, P, i, Q)
+            END DO
+            END DO
+            END DO
+            END DO
+            DO P = 1, L_size_Gamma
+            DO Q = 1, L_size_B
+               sum_ia = 0.0_dp
+               DO i = 1, hom
+                  sum_ia = sum_ia + product_matrix(i, P, i, Q)
                END DO
-               e_exchange_corr = e_exchange_corr + sum_a*sum_b
-            END DO
-            END DO
+               e_rpa = e_rpa + sum_ia*sum_ia
             END DO
             END DO
 
-            DEALLOCATE (mat_B_iaP, mat_Gamma_3)
+            DEALLOCATE (mat_B_iaP, mat_Gamma_3, product_matrix)
             WRITE (*, *) ispin, e_rpa, e_exchange_corr
          END DO
          IF (exchange_work%unit_nr > 0) WRITE (exchange_work%unit_nr, *) "E_rpa/E_ex", e_rpa, e_exchange_corr
