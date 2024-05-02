@@ -26,6 +26,7 @@ MODULE rpa_exchange
                                               cp_fm_struct_p_type,&
                                               cp_fm_struct_release
    USE cp_fm_types,                     ONLY: cp_fm_create,&
+                                              cp_fm_get_info,&
                                               cp_fm_release,&
                                               cp_fm_set_all,&
                                               cp_fm_to_fm,&
@@ -46,8 +47,10 @@ MODULE rpa_exchange
                                               section_vals_get_subs_vals,&
                                               section_vals_type
    USE kinds,                           ONLY: dp
-   USE mathconstants,                   ONLY: sqrthalf
-   USE message_passing,                 ONLY: mp_para_env_release,&
+   USE mathconstants,                   ONLY: sqrt2,&
+                                              sqrthalf
+   USE message_passing,                 ONLY: mp_comm_type,&
+                                              mp_para_env_release,&
                                               mp_para_env_type
    USE mp2_types,                       ONLY: mp2_type
    USE parallel_gemm_api,               ONLY: parallel_gemm
@@ -100,6 +103,7 @@ MODULE rpa_exchange
       INTEGER :: my_group_L_end = 0
       INTEGER :: my_group_L_size = 0
       INTEGER :: ngroup = 0
+      INTEGER :: color_sub = 0
       INTEGER, DIMENSION(:), ALLOCATABLE :: homo, virtual, dimen_ia
       INTEGER :: dimen_RI = 0
       REAL(KIND=dp) :: eps_filter = 0.0_dp
@@ -150,7 +154,7 @@ CONTAINS
       INTEGER, INTENT(IN) :: unit_nr
       TYPE(dbcsr_type), INTENT(IN)                     :: mat_munu
 
-      INTEGER :: color_sub, iitmp(2), ispin, nspins
+      INTEGER :: iitmp(2), ispin, nspins
 
       exchange_work%exchange_correction = mp2_env%ri_rpa%exchange_correction
 
@@ -173,13 +177,14 @@ CONTAINS
          CALL dbcsr_get_info(exchange_work%mo_coeff_v(ispin), nfullcols_total=exchange_work%virtual(ispin))
          exchange_work%dimen_ia(ispin) = exchange_work%homo(ispin)*exchange_work%virtual(ispin)
       END DO
+      IF (unit_nr > 0) WRITE (unit_nr, *) "dimen_ia", exchange_work%dimen_ia
       exchange_work%dimen_RI = dimen_RI
 
       ! Get aux sizes
       exchange_work%ngroup = para_env_RPA%num_pe/para_env_sub%num_pe
-      color_sub = para_env_RPA%mepos/para_env_sub%num_pe
+      exchange_work%color_sub = para_env_RPA%mepos/para_env_sub%num_pe
 
-      iitmp = get_limit(dimen_RI, exchange_work%ngroup, color_sub)
+      iitmp = get_limit(dimen_RI, exchange_work%ngroup, exchange_work%color_sub)
       exchange_work%my_group_L_start = iitmp(1)
       exchange_work%my_group_L_end = iitmp(2)
       exchange_work%my_group_L_size = iitmp(2) - iitmp(1) + 1
@@ -285,13 +290,21 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'rpa_exchange_work_compute'
       REAL(KIND=dp), PARAMETER                           :: thresh = 0.0000001_dp
 
-      INTEGER :: handle, iib, ispin, L_counter, nspins
+      INTEGER :: handle, iib, ispin, L_counter, nspins, P, Q, L_size_B, L_size_Gamma, hom, virt, i, j, a, b
+      REAL(KIND=dp) :: e_rpa
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigenval
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :) :: product_matrix_small
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :) :: mat_Gamma_3, mat_B_iaP
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :, :) :: product_matrix
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: fm_mat_Gamma_3
       TYPE(dbcsr_matrix_p_set), ALLOCATABLE, &
          DIMENSION(:)                                    :: dbcsr_Gamma_3
+      TYPE(mp_comm_type) :: comm_exchange
 
       CALL timeset(routineN, handle)
+
+      MARK_USED(product_matrix)
+      MARK_USED(product_matrix_small)
 
       IF (exchange_work%exchange_correction == rpa_exchange_none) RETURN
 
@@ -316,23 +329,25 @@ CONTAINS
 
       ! Manipulate eigenvalues to get diagonal matrix
       IF (exchange_work%exchange_correction == rpa_exchange_axk) THEN
+         IF (exchange_work%unit_nr > 0) WRITE (exchange_work%unit_nr, *) "Do AXK"
          DO iib = 1, exchange_work%dimen_RI
             IF (ABS(eigenval(iib)) .GE. thresh) THEN
                eigenval(iib) = &
-                  sqrthalf*SQRT((1.0_dp/(eigenval(iib)**2))*LOG(1.0_dp + eigenval(iib)) &
-                                - 1.0_dp/(eigenval(iib)*(eigenval(iib) + 1.0_dp)))
+                  sqrt2*SQRT((1.0_dp/(eigenval(iib)**2))*LOG(1.0_dp + eigenval(iib)) &
+                             - 1.0_dp/(eigenval(iib)*(eigenval(iib) + 1.0_dp)))
             ELSE
-               eigenval(iib) = 0.5_dp
+               eigenval(iib) = 1.0_dp
             END IF
          END DO
       ELSE IF (exchange_work%exchange_correction == rpa_exchange_sosex) THEN
+         IF (exchange_work%unit_nr > 0) WRITE (exchange_work%unit_nr, *) "Do SOSEX"
          DO iib = 1, exchange_work%dimen_RI
             IF (ABS(eigenval(iib)) .GE. thresh) THEN
                eigenval(iib) = &
-                  sqrthalf*SQRT(-(1.0_dp/(eigenval(iib)**2))*LOG(1.0_dp + eigenval(iib)) &
-                                + 1.0_dp/eigenval(iib))
+                  sqrt2*SQRT(-(1.0_dp/(eigenval(iib)**2))*LOG(1.0_dp + eigenval(iib)) &
+                             + 1.0_dp/eigenval(iib))
             ELSE
-               eigenval(iib) = 0.5_dp
+               eigenval(iib) = 1.0_dp
             END IF
          END DO
       ELSE
@@ -363,7 +378,7 @@ CONTAINS
          CALL calc_fm_mat_S_rpa(fm_mat_S(ispin), .TRUE., exchange_work%virtual(ispin), eig(:, ispin), &
                                 exchange_work%homo(ispin), omega, 0.0_dp)
 
-         ! Calculate Gamma_3: Gamma_3 = G*S*R^(1/2) = G*S*R^(1/2) )
+         ! Calculate Gamma_3: Gamma_3 = G*S*R^(1/2) = G*S*R^(1/2)
          CALL parallel_gemm(transa="T", transb="N", m=exchange_work%dimen_ia(ispin), n=exchange_work%dimen_RI, &
                             k=exchange_work%dimen_RI, alpha=1.0_dp, &
                             matrix_a=fm_mat_S(ispin), matrix_b=exchange_work%fm_mat_R_half_gemm, beta=0.0_dp, &
@@ -401,8 +416,6 @@ CONTAINS
                ! Do dbcsr multiplication: transform the occupied index
                CALL dbcsr_multiply("N", "T", 1.0_dp, exchange_work%dbcsr_Gamma_inu_P(ispin), exchange_work%mo_coeff_o(ispin), &
                                    0.0_dp, exchange_work%dbcsr_Gamma_munu_P(ispin)%matrix, filter_eps=exchange_work%eps_filter)
-
-               WRITE (*, *) L_counter, ispin, dbcsr_frobenius_norm(exchange_work%dbcsr_Gamma_munu_P(ispin)%matrix)
             END DO
 
             ! Contract DM with exchange integrals
@@ -423,11 +436,55 @@ CONTAINS
          e_exchange_corr = e_exchange_corr/REAL(exchange_work%para_env_sub%num_pe, KIND=dp)
          CALL exchange_work%para_env_RPA%sum(e_exchange_corr)
       ELSE
-         DO ispin = 1, nspins
-            CALL cp_fm_release(fm_mat_Gamma_3(ispin))
-         END DO
-         DEALLOCATE (fm_mat_Gamma_3)
+         ! Reorder matrix from (P, i*a) -> (a, i, P) with P being distributed within integration group
+         CALL comm_exchange%from_split(exchange_work%para_env_RPA, exchange_work%color_sub)
          e_exchange_corr = 0.0_dp
+         e_rpa = 0.0_dp
+
+         DO ispin = 1, nspins
+            hom = exchange_work%homo(ispin)
+            virt = exchange_work%virtual(ispin)
+
+            CALL redistribute_Gamma_in_subgroups(fm_mat_Gamma_3(ispin), mat_Gamma_3, comm_exchange, &
+                                                 hom, virt)
+            CALL cp_fm_release(fm_mat_Gamma_3(ispin))
+
+            ! We need only the pure matrix
+            CALL remove_scaling_factor_rpa(fm_mat_S(ispin), virt, &
+                                           eig(:, ispin), hom, omega)
+
+            ! Reorder matrix from (P, i*a) -> (a, i, P) with P being distributed within subgroups
+            CALL redistribute_B_in_subgroups(fm_mat_S(ispin), mat_B_iaP, exchange_work%para_env_sub, &
+                                             hom, virt)
+
+            ! Return to the original tensor
+            CALL calc_fm_mat_S_rpa(fm_mat_S(ispin), .TRUE., virt, eig(:, ispin), hom, omega, 0.0_dp)
+
+            L_size_Gamma = SIZE(mat_Gamma_3, 3)
+            L_size_B = SIZE(mat_B_iaP, 3)
+
+            WRITE (*, *) "sizes", L_size_B, L_size_Gamma, hom, virt
+            DO P = 1, L_size_Gamma
+            DO Q = 1, L_size_B
+            DO i = 1, hom
+            DO j = 1, hom
+            DO a = 1, virt
+            DO b = 1, virt
+               e_rpa = e_rpa + mat_Gamma_3(a, i, P)*mat_B_iaP(a, i, Q)*mat_B_iaP(b, j, Q)*mat_Gamma_3(b, j, P)
+               e_exchange_corr = e_exchange_corr + mat_Gamma_3(a, i, P)*mat_B_iaP(b, i, Q)*mat_B_iaP(a, j, Q)*mat_Gamma_3(b, j, P)
+            END DO
+            END DO
+            END DO
+            END DO
+            END DO
+            END DO
+
+            DEALLOCATE (mat_B_iaP, mat_Gamma_3)
+            WRITE (*, *) ispin, e_rpa, e_exchange_corr
+         END DO
+         IF (exchange_work%unit_nr > 0) WRITE (exchange_work%unit_nr, *) "E_rpa/E_ex", e_rpa, e_exchange_corr
+         CALL comm_exchange%free()
+         DEALLOCATE (fm_mat_Gamma_3)
       END IF
 
       ! Print exchange correlation energy to the file
@@ -583,5 +640,75 @@ CONTAINS
       DEALLOCATE (exchange_env%mat_hfx)
       NULLIFY (exchange_env%mat_hfx)
    END SUBROUTINE hfx_release_subgroup
+
+! **************************************************************************************************
+!> \brief ...
+!> \param fm_mat ...
+!> \param mat ...
+!> \param comm ...
+!> \param ncols ...
+!> \param nrows ...
+! **************************************************************************************************
+   SUBROUTINE redistribute_Gamma_in_subgroups(fm_mat, mat, comm, ncols, nrows)
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
+         INTENT(OUT)                                     :: mat
+
+      CLASS(mp_comm_type), INTENT(IN) :: comm
+      INTEGER, INTENT(IN) :: ncols, nrows
+
+      INTEGER :: iocc, avirt, ncol_global
+
+      MARK_USED(comm)
+
+      CALL cp_fm_get_info(matrix=fm_mat, &
+                          ncol_global=ncol_global)
+
+      ALLOCATE (mat(nrows, ncols, ncol_global))
+
+      DO iocc = 1, ncols
+      DO avirt = 1, nrows
+         mat(avirt, iocc, :) = fm_mat%local_data((iocc - 1)*nrows + avirt, :)
+      END DO
+      END DO
+
+      WRITE (*, *) "DEBUG redist", NORM2(mat) - NORM2(fm_mat%local_data)
+
+   END SUBROUTINE redistribute_Gamma_in_subgroups
+
+! **************************************************************************************************
+!> \brief ...
+!> \param fm_mat ...
+!> \param mat ...
+!> \param comm ...
+!> \param ncols ...
+!> \param nrows ...
+! **************************************************************************************************
+   SUBROUTINE redistribute_B_in_subgroups(fm_mat, mat, comm, ncols, nrows)
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
+         INTENT(OUT)                                     :: mat
+
+      CLASS(mp_comm_type), INTENT(IN) :: comm
+      INTEGER, INTENT(IN) :: ncols, nrows
+
+      INTEGER :: iocc, avirt, nrow_global
+
+      MARK_USED(comm)
+
+      CALL cp_fm_get_info(matrix=fm_mat, &
+                          nrow_global=nrow_global)
+
+      ALLOCATE (mat(nrows, ncols, nrow_global))
+
+      DO iocc = 1, ncols
+      DO avirt = 1, nrows
+         mat(avirt, iocc, :) = fm_mat%local_data(:, (iocc - 1)*nrows + avirt)
+      END DO
+      END DO
+
+      WRITE (*, *) "DEBUG redist", NORM2(mat) - NORM2(fm_mat%local_data)
+
+   END SUBROUTINE redistribute_B_in_subgroups
 
 END MODULE rpa_exchange
