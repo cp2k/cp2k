@@ -45,6 +45,7 @@ MODULE rt_tdagw
                                               dbcsr_release,&
                                               dbcsr_copy,&
                                               dbcsr_scale,&
+                                              dbcsr_add,&
                                               dbcsr_set,&
                                               dbcsr_clear,&
                                               dbcsr_setname,&
@@ -209,12 +210,42 @@ CONTAINS
 
       ! ********************** EXTRACT PREVIOUS DATA **********************
 
+      ! Calculate the initial Hartree interaction matrix
+      ! TODO : k-points and the possible divergence
+      IF ( tdagw_env%hartree_method == rtp_tdagw_hartree_dbt ) THEN
+         ! Calculate Coulomb RI elements, necessary for Hartree calculation
+         CALL init_hartree(qs_env, tdagw_env%hartree_dbt, tdagw_env%v_dbcsr%matrix)
+         ! Add the Hartree to the screened_dbt tensor - now W = V + W^c
+         CALL dbcsr_add(tdagw_env%w_dbcsr%matrix, tdagw_env%v_dbcsr%matrix, 1.0_dp, 1.0_dp)
+         CALL dbt_copy_matrix_to_tensor(tdagw_env%w_dbcsr%matrix, tdagw_env%screened_dbt)
+         @:SPIN_DO(j, re, im, tdagw_env%n_spin)
+            CALL get_hartree_local(qs_env, tdagw_env, tdagw_env%rho(re)%matrix, tdagw_env%hartree_orig(re)%matrix)
+            CALL get_hartree_local(qs_env, tdagw_env, tdagw_env%rho(im)%matrix, tdagw_env%hartree_orig(im)%matrix)
+            ! CALL get_hartree(tdagw_env, qs_env, tdagw_env%hartree_dbt, tdagw_env%rho(re)%matrix, tdagw_env%hartree_orig(re)%matrix)
+            ! CALL get_hartree(tdagw_env, qs_env, tdagw_env%hartree_dbt, tdagw_env%rho(im)%matrix, tdagw_env%hartree_orig(im)%matrix)
+            ! PRINT *, "metric hartree_orig, RE spin", j, cp_fm_norm(tdagw_env%hartree_orig(re)%matrix, "M")
+            ! PRINT *, "metric hartree_orig, IM spin", j, cp_fm_norm(tdagw_env%hartree_orig(im)%matrix, "M")
+         END DO
+      ELSEIF ( tdagw_env%hartree_method == rtp_tdagw_hartree_pw ) THEN
+         CPABORT("TDAGW Hartree PW no longer supported.")
+         ! CALL get_hartree_pw(qs_env, tdagw_env, tdagw_env%rho, tdagw_env%hartree_orig)
+         ! PRINT *, "== Hartree Matrix PW"
+         ! CALL cp_fm_write_formatted(tdagw_env%hartree_orig(1)%matrix, 6)
+      ELSE
+         CPABORT("Only DBT and PW methods for determination of Hartree term implemented.")
+      END IF
+      ! TODO : Look at Hartree from qs_ks_env and compare these
+      ! Print the RI-based Hartree matrix
+      ! PRINT *, "=== RI Hartree matrix"
+      ! CALL cp_fm_write_formatted(tdagw_env%hartree_orig(1)%matrix, 6)
+
+      ! Calculate the COHSEX starting energies
       IF (tdagw_env%ham_single_particle_type == rtp_tdagw_ham_g0w0) THEN
          ! Subtract the v_xc from COH part of the self-energy, as V_xc is also not updated during the timestepping
          @:SPIN_DO(j, re, im, tdagw_env%n_spin)
             CALL get_sigma(tdagw_env, qs_env, tdagw_env%sigma_COH(re), -0.5_dp, greens_dbcsr_opt=tdagw_env%S_inv)
             ! TODO : Maybe enable printing underneath debug option?
-            ! TODO : Enable subtraction of 
+            ! TODO : Enable subtraction of COH? So far, COH does not enter, as per the reference paper
             CALL get_sigma(tdagw_env, qs_env, tdagw_env%sigma_SEX(re), -1.0_dp, greens_fm_opt=tdagw_env%rho(re))
             CALL get_sigma(tdagw_env, qs_env, tdagw_env%sigma_SEX(im), -1.0_dp, greens_fm_opt=tdagw_env%rho(im))
             CALL cp_fm_scale_and_add(0.0_dp, tdagw_env%sigma_COH(re)%matrix, -1.0_dp, tdagw_env%sigma_SEX(re)%matrix)
@@ -1039,6 +1070,7 @@ CONTAINS
       IF (PRESENT(greens_dbcsr_opt)) THEN
          greens_dbcsr => greens_dbcsr_opt
       ELSE IF (PRESENT(greens_fm_opt)) THEN
+         NULLIFY(greens_dbcsr)
          ALLOCATE(greens_dbcsr)
          CALL dbcsr_create(greens_dbcsr, name="greens", template=bs_env%mat_ao_ao%matrix)
          CALL copy_fm_to_dbcsr(greens_fm_opt%matrix, greens_dbcsr)

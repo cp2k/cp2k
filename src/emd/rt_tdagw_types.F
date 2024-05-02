@@ -656,7 +656,6 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       CHARACTER(len=*), PARAMETER                        :: routineN = "create_sigma_workspace"
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
-      TYPE(dbcsr_type)                                   :: w_dbcsr
 
       CALL get_qs_env(qs_env, bs_env=bs_env)
 
@@ -677,19 +676,20 @@ CONTAINS
       ALLOCATE(tdagw_env%screened_dbt)
       ! Populate screened_dbt from gw run
       ! TODO : Avoid without G0W0 run?
-      CALL dbcsr_create(w_dbcsr, name="W", template=bs_env%mat_RI_RI%matrix)
-      CALL copy_fm_to_dbcsr(bs_env%fm_W_MIC_freq_zero, w_dbcsr)
-      CALL dbt_create(w_dbcsr, tdagw_env%screened_dbt)
-      CALL dbt_copy_matrix_to_tensor(w_dbcsr, tdagw_env%screened_dbt)
-      CALL dbcsr_release(w_dbcsr)
+      NULLIFY(tdagw_env%w_dbcsr%matrix)
+      ALLOCATE(tdagw_env%w_dbcsr%matrix)
+      CALL dbcsr_create(tdagw_env%w_dbcsr%matrix, name="W", template=bs_env%mat_RI_RI%matrix)
+      CALL copy_fm_to_dbcsr(bs_env%fm_W_MIC_freq_zero, tdagw_env%w_dbcsr%matrix)
+      CALL dbt_create(tdagw_env%w_dbcsr%matrix, tdagw_env%screened_dbt)
+      CALL dbt_copy_matrix_to_tensor(tdagw_env%w_dbcsr%matrix, tdagw_env%screened_dbt)
       ! sigma_dbt
       NULLIFY(tdagw_env%sigma_dbt)
       ALLOCATE(tdagw_env%sigma_dbt)
-      CALL dbt_create(bs_env%t_G, tdagw_env%sigma_dbt)
+      CALL dbt_create(bs_env%mat_ao_ao%matrix, tdagw_env%sigma_dbt)
       ! greens_dbt
       NULLIFY(tdagw_env%greens_dbt)
       ALLOCATE(tdagw_env%greens_dbt)
-      CALL dbt_create(bs_env%t_G, tdagw_env%greens_dbt)
+      CALL dbt_create(bs_env%mat_ao_ao%matrix, tdagw_env%greens_dbt)
    END SUBROUTINE
 ! **************************************************************************************************
 !> \brief Releases the workspaces for self-energy determination
@@ -724,6 +724,10 @@ CONTAINS
       IF (ASSOCIATED(tdagw_env%greens_dbt)) THEN
          CALL dbt_destroy(tdagw_env%greens_dbt)
          DEALLOCATE(tdagw_env%greens_dbt)
+      END IF
+      IF (ASSOCIATED(tdagw_env%w_dbcsr%matrix)) THEN
+         CALL dbcsr_release(tdagw_env%w_dbcsr%matrix)
+         DEALLOCATE(tdagw_env%w_dbcsr%matrix)
       END IF
    END SUBROUTINE
 ! **************************************************************************************************
