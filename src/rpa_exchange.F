@@ -305,6 +305,7 @@ CONTAINS
 
       MARK_USED(product_matrix)
       MARK_USED(product_matrix_small)
+      MARK_USED(sqrt2)
 
       IF (exchange_work%exchange_correction == rpa_exchange_none) RETURN
 
@@ -333,10 +334,10 @@ CONTAINS
          DO iib = 1, exchange_work%dimen_RI
             IF (ABS(eigenval(iib)) .GE. thresh) THEN
                eigenval(iib) = &
-                  sqrt2*SQRT((1.0_dp/(eigenval(iib)**2))*LOG(1.0_dp + eigenval(iib)) &
-                             - 1.0_dp/(eigenval(iib)*(eigenval(iib) + 1.0_dp)))
+                  SQRT((1.0_dp/(eigenval(iib)**2))*LOG(1.0_dp + eigenval(iib)) &
+                       - 1.0_dp/(eigenval(iib)*(eigenval(iib) + 1.0_dp)))
             ELSE
-               eigenval(iib) = 1.0_dp
+               eigenval(iib) = sqrthalf
             END IF
          END DO
       ELSE IF (exchange_work%exchange_correction == rpa_exchange_sosex) THEN
@@ -344,10 +345,10 @@ CONTAINS
          DO iib = 1, exchange_work%dimen_RI
             IF (ABS(eigenval(iib)) .GE. thresh) THEN
                eigenval(iib) = &
-                  sqrt2*SQRT(-(1.0_dp/(eigenval(iib)**2))*LOG(1.0_dp + eigenval(iib)) &
-                             + 1.0_dp/eigenval(iib))
+                  SQRT(-(1.0_dp/(eigenval(iib)**2))*LOG(1.0_dp + eigenval(iib)) &
+                       + 1.0_dp/eigenval(iib))
             ELSE
-               eigenval(iib) = 1.0_dp
+               eigenval(iib) = sqrthalf
             END IF
          END DO
       ELSE
@@ -485,6 +486,8 @@ CONTAINS
          IF (exchange_work%unit_nr > 0) WRITE (exchange_work%unit_nr, *) "E_rpa/E_ex", e_rpa, e_exchange_corr
          CALL comm_exchange%free()
          DEALLOCATE (fm_mat_Gamma_3)
+
+         e_exchange_corr = e_exchange_corr*2.0_dp
       END IF
 
       ! Print exchange correlation energy to the file
