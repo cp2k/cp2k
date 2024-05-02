@@ -238,13 +238,11 @@ CONTAINS
          @:SPIN_DO(j, re, im, tdagw_env%n_spin)
             CALL get_hartree_local(qs_env, tdagw_env, tdagw_env%rho(re)%matrix, tdagw_env%hartree_orig(re)%matrix)
             CALL get_hartree_local(qs_env, tdagw_env, tdagw_env%rho(im)%matrix, tdagw_env%hartree_orig(im)%matrix)
-            !CALL get_hartree(tdagw_env, qs_env, tdagw_env%hartree_dbt, tdagw_env%rho(re)%matrix, tdagw_env%hartree_orig(re)%matrix)
-            !CALL get_hartree(tdagw_env, qs_env, tdagw_env%hartree_dbt, tdagw_env%rho(im)%matrix, tdagw_env%hartree_orig(im)%matrix)
+            ! CALL get_hartree(tdagw_env, qs_env, tdagw_env%hartree_dbt, tdagw_env%rho(re)%matrix, tdagw_env%hartree_orig(re)%matrix)
+            ! CALL get_hartree(tdagw_env, qs_env, tdagw_env%hartree_dbt, tdagw_env%rho(im)%matrix, tdagw_env%hartree_orig(im)%matrix)
             ! PRINT *, "metric hartree_orig, RE spin", j, cp_fm_norm(tdagw_env%hartree_orig(re)%matrix, "M")
             ! PRINT *, "metric hartree_orig, IM spin", j, cp_fm_norm(tdagw_env%hartree_orig(im)%matrix, "M")
          END DO
-         ! PRINT *, "== Hartree Matrix DBT"
-         ! CALL cp_fm_write_formatted(tdagw_env%hartree_orig(1)%matrix, 6)
       ELSEIF ( tdagw_env%hartree_method == rtp_tdagw_hartree_pw ) THEN
          CALL get_hartree_pw(qs_env, tdagw_env, tdagw_env%rho, tdagw_env%hartree_orig)
          ! PRINT *, "== Hartree Matrix PW"
@@ -761,45 +759,42 @@ CONTAINS
       file_labels(4) = "_SPIN_B_IM.dat"
       logger => cp_get_default_logger()
       ! Start by multiplying the current density by MOS
-      ! If the print key is not present, do not print
-      rho_unit_re = cp_print_key_unit_nr(logger, rtp_section, "PRINT%DENSITY_MATRIX", extension=file_labels(1))
-      IF (rho_unit_re /= -1) THEN
-         @:SPIN_DO(j,re, im, tdagw_env%n_spin)
-            rho_unit_re = cp_print_key_unit_nr(logger, rtp_section, "PRINT%DENSITY_MATRIX", extension=file_labels(re))
-            rho_unit_im = cp_print_key_unit_nr(logger, rtp_section, "PRINT%DENSITY_MATRIX", extension=file_labels(im))
-            ! Transform the density matrix into molecular orbitals basis and print it out
-            ! TODO : Number of molecular orbitals and atomic orbitals might not be the same
-            ! TODO : Spins in S_fm
-            ! Real part
-            ! S * rho
-            CALL parallel_gemm("N", "N", tdagw_env%n_ao, tdagw_env%n_ao, tdagw_env%n_ao,&
-                               1.0_dp, tdagw_env%S_fm%matrix, rho(re)%matrix, 0.0_dp, tdagw_env%rho_workspace(1)%matrix)
-            ! C^T * S * rho
-            CALL parallel_gemm("T", "N", tdagw_env%n_ao, tdagw_env%n_ao, tdagw_env%n_ao,&
-                               1.0_dp, mos(j), tdagw_env%rho_workspace(1)%matrix, 0.0_dp, tdagw_env%rho_workspace(2)%matrix)
-            ! C^T * S * rho * S
-            CALL parallel_gemm("N", "N", tdagw_env%n_ao, tdagw_env%n_ao, tdagw_env%n_ao,&
-                               1.0_dp, tdagw_env%rho_workspace(2)%matrix, tdagw_env%S_fm%matrix, 0.0_dp, tdagw_env%rho_workspace(1)%matrix)
-            ! C^T * S * rho * S * C
-            CALL parallel_gemm("N", "N", tdagw_env%n_ao, tdagw_env%n_ao, tdagw_env%n_ao,&
-                               1.0_dp, tdagw_env%rho_workspace(1)%matrix, mos(j), 0.0_dp, tdagw_env%rho_workspace(2)%matrix)
-            CALL cp_fm_write_formatted(tdagw_env%rho_workspace(2)%matrix, rho_unit_re)
-            ! Imag part
-            ! S * rho
-            CALL parallel_gemm("N", "N", tdagw_env%n_ao, tdagw_env%n_ao, tdagw_env%n_ao,&
-                               1.0_dp, tdagw_env%S_fm%matrix, rho(im)%matrix, 0.0_dp, tdagw_env%rho_workspace(1)%matrix)
-            ! C^T * S * rho
-            CALL parallel_gemm("T", "N", tdagw_env%n_ao, tdagw_env%n_ao, tdagw_env%n_ao,&
-                               1.0_dp, mos(j), tdagw_env%rho_workspace(1)%matrix, 0.0_dp, tdagw_env%rho_workspace(2)%matrix)
-            ! C^T * rho * S
-            CALL parallel_gemm("N", "N", tdagw_env%n_ao, tdagw_env%n_ao, tdagw_env%n_ao,&
-                               1.0_dp, tdagw_env%rho_workspace(2)%matrix, tdagw_env%S_fm%matrix, 0.0_dp, tdagw_env%rho_workspace(1)%matrix)
-            ! C^T * rho * S * C
-            CALL parallel_gemm("N", "N", tdagw_env%n_ao, tdagw_env%n_ao, tdagw_env%n_ao,&
-                               1.0_dp, tdagw_env%rho_workspace(1)%matrix, mos(j), 0.0_dp, tdagw_env%rho_workspace(2)%matrix)
-            CALL cp_fm_write_formatted(tdagw_env%rho_workspace(2)%matrix, rho_unit_im)
-         END DO
-      END IF
+      ! TODO : Avoid multiplications if not required
+      @:SPIN_DO(j,re, im, tdagw_env%n_spin)
+         rho_unit_re = cp_print_key_unit_nr(logger, rtp_section, "PRINT%DENSITY_MATRIX", extension=file_labels(re))
+         rho_unit_im = cp_print_key_unit_nr(logger, rtp_section, "PRINT%DENSITY_MATRIX", extension=file_labels(im))
+         ! Transform the density matrix into molecular orbitals basis and print it out
+         ! TODO : Number of molecular orbitals and atomic orbitals might not be the same
+         ! TODO : Spins in S_fm
+         ! Real part
+         ! S * rho
+         CALL parallel_gemm("N", "N", tdagw_env%n_ao, tdagw_env%n_ao, tdagw_env%n_ao,&
+                            1.0_dp, tdagw_env%S_fm%matrix, rho(re)%matrix, 0.0_dp, tdagw_env%rho_workspace(1)%matrix)
+         ! C^T * S * rho
+         CALL parallel_gemm("T", "N", tdagw_env%n_ao, tdagw_env%n_ao, tdagw_env%n_ao,&
+                            1.0_dp, mos(j), tdagw_env%rho_workspace(1)%matrix, 0.0_dp, tdagw_env%rho_workspace(2)%matrix)
+         ! C^T * S * rho * S
+         CALL parallel_gemm("N", "N", tdagw_env%n_ao, tdagw_env%n_ao, tdagw_env%n_ao,&
+                            1.0_dp, tdagw_env%rho_workspace(2)%matrix, tdagw_env%S_fm%matrix, 0.0_dp, tdagw_env%rho_workspace(1)%matrix)
+         ! C^T * S * rho * S * C
+         CALL parallel_gemm("N", "N", tdagw_env%n_ao, tdagw_env%n_ao, tdagw_env%n_ao,&
+                            1.0_dp, tdagw_env%rho_workspace(1)%matrix, mos(j), 0.0_dp, tdagw_env%rho_workspace(2)%matrix)
+         CALL cp_fm_write_formatted(tdagw_env%rho_workspace(2)%matrix, rho_unit_re)
+         ! Imag part
+         ! S * rho
+         CALL parallel_gemm("N", "N", tdagw_env%n_ao, tdagw_env%n_ao, tdagw_env%n_ao,&
+                            1.0_dp, tdagw_env%S_fm%matrix, rho(im)%matrix, 0.0_dp, tdagw_env%rho_workspace(1)%matrix)
+         ! C^T * S * rho
+         CALL parallel_gemm("T", "N", tdagw_env%n_ao, tdagw_env%n_ao, tdagw_env%n_ao,&
+                            1.0_dp, mos(j), tdagw_env%rho_workspace(1)%matrix, 0.0_dp, tdagw_env%rho_workspace(2)%matrix)
+         ! C^T * rho * S
+         CALL parallel_gemm("N", "N", tdagw_env%n_ao, tdagw_env%n_ao, tdagw_env%n_ao,&
+                            1.0_dp, tdagw_env%rho_workspace(2)%matrix, tdagw_env%S_fm%matrix, 0.0_dp, tdagw_env%rho_workspace(1)%matrix)
+         ! C^T * rho * S * C
+         CALL parallel_gemm("N", "N", tdagw_env%n_ao, tdagw_env%n_ao, tdagw_env%n_ao,&
+                            1.0_dp, tdagw_env%rho_workspace(1)%matrix, mos(j), 0.0_dp, tdagw_env%rho_workspace(2)%matrix)
+         CALL cp_fm_write_formatted(tdagw_env%rho_workspace(2)%matrix, rho_unit_im)
+      END DO
    END SUBROUTINE
 ! **************************************************************************************************
 !> \brief Prints the current field components into a file provided by input
@@ -1073,9 +1068,7 @@ CONTAINS
                    filter_eps=bs_env%eps_filter)
       ! t_work1 now contains sum _ P (alpha beta | P) W _ (PQ) (iomega = 0)
       ! Next step is to convert the greens full matrix to dbcsr matrix 
-      IF (tdagw_env%unit_nr > 0) WRITE (tdagw_env%unit_nr, *) "Just before M to T"
       CALL dbt_copy_matrix_to_tensor(greens_dbcsr, tdagw_env%greens_dbt) 
-      IF (tdagw_env%unit_nr > 0) WRITE (tdagw_env%unit_nr, *) "Just after M to T"
       ! Then contract it
       ! no scaling applied - this has to be applied externally TODO : Is this a good approach?
       CALL dbt_contract(alpha=1.0_dp,&
@@ -1282,11 +1275,9 @@ CONTAINS
       ! TODO : Think about parallelisation
       ! TODO : This returns the same value for every process - wrong pgrid creation?
       CALL dbt_get_info(tensor, my_ploc)
-      PRINT *, "Process", my_ploc
       CALL dbcsr_iterator_start(iterator_matrix, matrix_desym_p)
       DO j=1,number_of_blocks
          CALL dbcsr_iterator_next_block(iterator_matrix, indices_block_matrix_1(j), indices_block_matrix_2(j), block_matrix)
-         PRINT *, "Block", j, indices_block_matrix_1(j), indices_block_matrix_2(j), 1
       END DO
       DEALLOCATE(my_ploc)
       CALL dbcsr_iterator_stop(iterator_matrix)
@@ -1461,6 +1452,17 @@ CONTAINS
                    contract_1=[2,3],notcontract_1=[1],map_1=[1],&
                    contract_2=[1,2],notcontract_2=[3],map_2=[2],&
                    filter_eps=bs_env%eps_filter)
+      ! TODO : Alternative - a Pvector approach for debugging
+      ! CALL dbt_create(tdagw_env%t_one_plus_one, extra_vector, name="Pvector")
+      ! CALL dbt_contract(alpha=1.0_dp,&
+      !              tensor_1=V_dbt,&
+      !              tensor_2=tdagw_env%t_one_plus_one,&
+      !              beta=0.0_dp,&
+      !              tensor_3=extra_vector,&
+      !              contract_1=[2],notcontract_1=[1],map_1=[1],&
+      !              contract_2=[1],notcontract_2=[2],map_2=[2],&
+      !              filter_eps=bs_env%eps_filter)
+      ! TODO : Get the dbt block and check results
       ! Contract Q _ (mu nu Q) = sum _ P (mu nu | P) V _ (PQ)
       CALL dbt_contract(alpha=1.0_dp,&
                    tensor_1=tdagw_env%t_3c_w,&
@@ -1484,6 +1486,15 @@ CONTAINS
       CALL dbcsr_clear(tdagw_env%rho_dbcsr)
       CALL copy_3d_tensor_to_matrix(tdagw_env%t_two_plus_one, tdagw_env%rho_dbcsr)
       CALL copy_dbcsr_to_fm(tdagw_env%rho_dbcsr, V_ao)
+      ! TODO : Alternative multiplication
+      ! CALL dbt_contract(alpha=1.0_dp,&
+      !              tensor_1=tdagw_env%t_3c_w,&
+      !              tensor_2=extra_vector,&
+      !              beta=0.0_dp,&
+      !              tensor_3=tdagw_env%t_two_plus_one,&
+      !              contract_1=[1], notcontract_1=[2,3], map_1=[1,2],&
+      !              contract_2=[1], notcontract_2=[2], map_2=[3],&
+      !              filter_eps=bs_env%eps_filter)
       ! Free memory by clearing the tensors
       CALL dbt_clear(tdagw_env%t_two_plus_one)
       CALL dbt_clear(tdagw_env%t_one_plus_one)
@@ -1596,7 +1607,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(tdagw_env_type)                               :: tdagw_env
       TYPE(cp_fm_type), INTENT(IN), POINTER              :: rho_ao
-      TYPE(cp_fm_type), POINTER                          :: v_ao
+      TYPE(cp_fm_type), INTENT(OUT), POINTER             :: v_ao
       CHARACTER(len=*), PARAMETER                        :: routineN="get_hartree_local"
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
       TYPE(mp_para_env_type), POINTER                    :: para_env
@@ -1609,6 +1620,7 @@ CONTAINS
       REAL(kind=dp), DIMENSION(:,:), POINTER             :: block_matrix
       REAL(kind=dp), DIMENSION(:,:,:), ALLOCATABLE       :: int_3c
       TYPE(dbcsr_type)                                   :: v_dbcsr_ao
+      LOGICAL                                            :: found
 
       ! Very ineffective first implementation - calculate all 3cs an all ranks
       ! Importantly - dbcsr blocks are ordered by atoms - i.e. ethene with 6 atoms will have 6x6 block structure
@@ -1625,43 +1637,54 @@ CONTAINS
       ALLOCATE(Pvector(tdagw_env%n_RI), source=0.0_dp)
 
       ! First step - analyze the structure of copied dbcsr matrix on both ranks
+      CALL dbcsr_clear(tdagw_env%rho_dbcsr)
       CALL copy_fm_to_dbcsr(rho_ao, tdagw_env%rho_dbcsr)
-      CALL dbcsr_get_info(tdagw_env%rho_dbcsr, my_prow=my_prow, my_pcol=my_pcol, nblkrows_local=nblkrows_local,&
-                          nblkcols_local=nblkcols_local)
-      ! PRINT *, "DBCSR INFO : ", my_prow, my_pcol, nblkrows_local, nblkcols_local
       nblocks = dbcsr_get_num_blocks(tdagw_env%rho_dbcsr)
       CALL dbcsr_iterator_start(iterator_matrix, tdagw_env%rho_dbcsr)
+      ! TODO : Test whether these 3c integrals do not give different results
+      !         - very similar values observed
+      ! CALL compute_3c_integrals(qs_env,&
+      !                    bs_env,&
+      !                    tdagw_env%t_3c_w)
       DO n=1,nblocks
          CALL dbcsr_iterator_next_block(iterator_matrix, ind_1, ind_2, block_matrix,&
                  row_offset=row_offset, col_offset=col_offset, row_size=row_size, col_size=col_size)
-         ! PRINT *, "DBCSR Block", ind_1, ind_2, row_offset, col_offset, row_size, col_size
          ! Now we have a block corresponding to a single atom pair
          j_n_AO = bs_env%sizes_AO(ind_1)
          k_n_AO = bs_env%sizes_AO(ind_2)
          ! For each atom pair, we need to get contributions from all RI atoms
          ! The allocations are as follows
-         ALLOCATE(int_3c(j_n_AO, k_n_AO, n_RI))
          ! Now, get the relevant 3c integrals
          ! TODO : Interface is slightly different - should do extra loop over the RI atoms
          ri_offset = 0
          DO ind_i=1,bs_env%n_atom
+            i_n_RI = bs_env%sizes_RI(ind_i)
+            ALLOCATE(int_3c(j_n_AO, k_n_AO, i_n_RI))
             CALL build_3c_integrals(int_3c, qs_env, potential_parameter=bs_env%ri_metric,&
                                     basis_j=bs_env%basis_set_AO, basis_k=bs_env%basis_set_AO, basis_i=bs_env%basis_set_RI,&
                                     atom_j=ind_1, atom_k=ind_2, atom_i=ind_i)
-            i_n_RI = bs_env%sizes_RI(ind_i)
+            ! ALLOCATE(int_3c(i_n_RI, j_n_AO, k_n_AO))
+            ! dbt_index(1) = ind_i
+            ! dbt_index(2) = ind_1
+            ! dbt_index(3) = ind_2
+            ! dbt_sizes(1) = i_n_RI
+            ! dbt_sizes(2) = j_n_AO
+            ! dbt_sizes(3) = k_n_AO
+            ! CALL dbt_get_block(tdagw_env%t_3c_w, dbt_index, dbt_sizes, int_3c, found)
             !$OMP PARALLEL DO DEFAULT(none) PRIVATE(i,j,k) SHARED(Qvector, int_3c, block_matrix,i_n_RI,j_n_AO,k_n_AO, ri_offset)
             DO i=1,i_n_RI
                DO j=1,j_n_AO
                   DO k=1,k_n_AO
                      ! Different OMP threads write to different places in memory - should be safe from data race
                      Qvector(ri_offset + i) = Qvector(ri_offset + i) + int_3c(j,k,i) * block_matrix(j,k)
+                     ! Qvector(ri_offset + i) = Qvector(ri_offset + i) + int_3c(i,j,k) * block_matrix(j,k)
                   END DO
                END DO
             END DO
             !$OMP END PARALLEL DO
             ri_offset = ri_offset + i_n_RI
+            DEALLOCATE(int_3c)
          END DO
-         DEALLOCATE(int_3c)
       END DO
       CALL dbcsr_iterator_stop(iterator_matrix)
       ! Now, each rank has contributions from D_jk within its scope
@@ -1675,7 +1698,7 @@ CONTAINS
       DO n=1,nblocks
          ! TODO : Try OMP parallelisation over different blocks - expect many more available speedup for large systems
          CALL dbcsr_iterator_next_block(iterator_matrix, ind_1, ind_2, block_matrix, &
-                                        row_offset=row_offset, col_offset=col_offset)
+                                        row_offset=row_offset, col_offset=col_offset, row_size=row_size, col_size=col_size)
          ! TODO : Better names for RI
          j_n_AO = bs_env%sizes_RI(ind_1)
          k_n_AO = bs_env%sizes_RI(ind_2)
@@ -1683,7 +1706,7 @@ CONTAINS
          !$OMP PARALLEL DO DEFAULT(none) SHARED(block_matrix, Pvector, Qvector,j_n_AO,k_n_AO,row_offset,col_offset) PRIVATE(j,k)
          DO j=1,j_n_AO
             DO k=1,k_n_AO
-               Pvector(j+row_offset) = Pvector(j+row_offset) + block_matrix(j,k) * Qvector(k+col_offset)
+               Pvector(j+row_offset-1) = Pvector(j+row_offset-1) + block_matrix(j,k) * Qvector(k+col_offset-1)
             END DO
          END DO
          !$OMP END PARALLEL DO
@@ -1693,6 +1716,7 @@ CONTAINS
       CALL para_env%sum(Pvector)
       ! Now, for the final trick, iterate over local blocks of v_dbcsr_ao to get the Hartree as dbcsr, then convert to fm
       CALL dbcsr_create(v_dbcsr_ao, "Hartree ao", tdagw_env%rho_dbcsr)
+      CALL copy_fm_to_dbcsr(v_ao, v_dbcsr_ao)
       nblocks = dbcsr_get_num_blocks(v_dbcsr_ao)
       CALL dbcsr_iterator_start(iterator_matrix, v_dbcsr_ao)
       DO n=1,nblocks
@@ -1701,12 +1725,21 @@ CONTAINS
          j_n_AO = bs_env%sizes_AO(ind_1)
          k_n_AO = bs_env%sizes_AO(ind_2)
          ri_offset = 0
+         block_matrix(:,:) = 0.0_dp
          DO ind_i=1,bs_env%n_atom
             i_n_RI = bs_env%sizes_RI(ind_i)
             ALLOCATE(int_3c(bs_env%sizes_AO(ind_1), bs_env%sizes_AO(ind_2), bs_env%sizes_RI(ind_i)), source=0.0_dp)
             CALL build_3c_integrals(int_3c, qs_env, potential_parameter=bs_env%ri_metric,&
                                     basis_j=bs_env%basis_set_AO, basis_k=bs_env%basis_set_AO, basis_i=bs_env%basis_set_RI,&
                                     atom_j=ind_1, atom_k=ind_2, atom_i=ind_i)
+            ! ALLOCATE(int_3c(i_n_RI, j_n_AO, k_n_AO))
+            ! dbt_index(1) = ind_i
+            ! dbt_index(2) = ind_1
+            ! dbt_index(3) = ind_2
+            ! dbt_sizes(1) = i_n_RI
+            ! dbt_sizes(2) = j_n_AO
+            ! dbt_sizes(3) = k_n_AO
+            ! CALL dbt_get_block(tdagw_env%t_3c_w, dbt_index, dbt_sizes, int_3c, found)
             ! TODO : In principle, can parallelize over both directions here
             !$OMP PARALLEL DO DEFAULT(none) SHARED(block_matrix, Pvector, int_3c, i_n_RI, j_n_AO, k_n_AO, ri_offset) PRIVATE(i,j,k)
             DO j=1,j_n_AO
@@ -1714,6 +1747,7 @@ CONTAINS
                   ! Add all the summed up values
                   DO i=1,i_n_RI
                      block_matrix(j, k) = block_matrix(j, k) + int_3c(j, k, i) * Pvector(i+ri_offset)
+                     ! block_matrix(j, k) = block_matrix(j,k) + int_3c(i, j, k) * Pvector(i+ri_offset)
                   END DO
                END DO
             END DO
