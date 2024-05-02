@@ -122,6 +122,8 @@ MODULE rpa_exchange
       TYPE(dbcsr_type), ALLOCATABLE, DIMENSION(:) :: matrix_set
    END TYPE
 
+   LOGICAL, PARAMETER :: use_hfx_implementation = .FALSE.
+
 CONTAINS
 
 ! **************************************************************************************************
@@ -372,53 +374,61 @@ CONTAINS
                                         eig(:, ispin), exchange_work%homo(ispin), omega)
       END DO
 
-      CALL exchange_work%exchange_env%create(qs_env, exchange_work%dbcsr_gamma_munu_P(1)%matrix, exchange_work%para_env_sub, &
-                                             exchange_work%my_group_L_size, exchange_work%eps_filter)
-      exchange_work%exchange_env%e_exchange = 0.0_dp
+      IF (use_hfx_implementation) THEN
+         CALL exchange_work%exchange_env%create(qs_env, exchange_work%dbcsr_gamma_munu_P(1)%matrix, exchange_work%para_env_sub, &
+                                                exchange_work%my_group_L_size, exchange_work%eps_filter)
+         exchange_work%exchange_env%e_exchange = 0.0_dp
 
-      ALLOCATE (dbcsr_Gamma_3(nspins))
-      DO ispin = 1, nspins
-         ! Copy Gamma_ia_P^3 to dbcsr matrix set
-         CALL gamma_fm_to_dbcsr(fm_mat_Gamma_3(ispin), dbcsr_Gamma_3(ispin)%matrix_set, &
-                                exchange_work%para_env_RPA, exchange_work%para_env_sub, &
-                                exchange_work%homo(ispin), exchange_work%virtual(ispin), exchange_work%mo_coeff_o(ispin), &
-                                exchange_work%ngroup, exchange_work%my_group_L_start, &
-                                exchange_work%my_group_L_end, exchange_work%my_group_L_size)
-      END DO
-      DEALLOCATE (fm_mat_Gamma_3)
-
-      DO L_counter = 1, exchange_work%my_group_L_size
+         ALLOCATE (dbcsr_Gamma_3(nspins))
          DO ispin = 1, nspins
-            ! Do dbcsr multiplication: transform the virtual index
-            CALL dbcsr_multiply("N", "T", 1.0_dp, exchange_work%mo_coeff_v(ispin), dbcsr_Gamma_3(ispin)%matrix_set(L_counter), &
-                                0.0_dp, exchange_work%dbcsr_Gamma_inu_P(ispin), filter_eps=exchange_work%eps_filter)
+            ! Copy Gamma_ia_P^3 to dbcsr matrix set
+            CALL gamma_fm_to_dbcsr(fm_mat_Gamma_3(ispin), dbcsr_Gamma_3(ispin)%matrix_set, &
+                                   exchange_work%para_env_RPA, exchange_work%para_env_sub, &
+                                   exchange_work%homo(ispin), exchange_work%virtual(ispin), exchange_work%mo_coeff_o(ispin), &
+                                   exchange_work%ngroup, exchange_work%my_group_L_start, &
+                                   exchange_work%my_group_L_end, exchange_work%my_group_L_size)
+         END DO
+         DEALLOCATE (fm_mat_Gamma_3)
 
-            CALL dbcsr_release(dbcsr_Gamma_3(ispin)%matrix_set(L_counter))
+         DO L_counter = 1, exchange_work%my_group_L_size
+            DO ispin = 1, nspins
+               ! Do dbcsr multiplication: transform the virtual index
+               CALL dbcsr_multiply("N", "T", 1.0_dp, exchange_work%mo_coeff_v(ispin), dbcsr_Gamma_3(ispin)%matrix_set(L_counter), &
+                                   0.0_dp, exchange_work%dbcsr_Gamma_inu_P(ispin), filter_eps=exchange_work%eps_filter)
 
-            ! Do dbcsr multiplication: transform the occupied index
-            CALL dbcsr_multiply("N", "T", 1.0_dp, exchange_work%dbcsr_Gamma_inu_P(ispin), exchange_work%mo_coeff_o(ispin), &
-                                0.0_dp, exchange_work%dbcsr_Gamma_munu_P(ispin)%matrix, filter_eps=exchange_work%eps_filter)
+               CALL dbcsr_release(dbcsr_Gamma_3(ispin)%matrix_set(L_counter))
 
-            WRITE (*, *) L_counter, ispin, dbcsr_frobenius_norm(exchange_work%dbcsr_Gamma_munu_P(ispin)%matrix)
+               ! Do dbcsr multiplication: transform the occupied index
+               CALL dbcsr_multiply("N", "T", 1.0_dp, exchange_work%dbcsr_Gamma_inu_P(ispin), exchange_work%mo_coeff_o(ispin), &
+                                   0.0_dp, exchange_work%dbcsr_Gamma_munu_P(ispin)%matrix, filter_eps=exchange_work%eps_filter)
+
+               WRITE (*, *) L_counter, ispin, dbcsr_frobenius_norm(exchange_work%dbcsr_Gamma_munu_P(ispin)%matrix)
+            END DO
+
+            ! Contract DM with exchange integrals
+            CALL exchange_work%exchange_env%integrate(exchange_work%dbcsr_Gamma_munu_P)
          END DO
 
-         ! Contract DM with exchange integrals
-         CALL exchange_work%exchange_env%integrate(exchange_work%dbcsr_Gamma_munu_P)
-      END DO
+         DO ispin = 1, nspins
+            DEALLOCATE (dbcsr_Gamma_3(ispin)%matrix_set)
+         END DO
+         DEALLOCATE (dbcsr_Gamma_3)
 
-      DO ispin = 1, nspins
-         DEALLOCATE (dbcsr_Gamma_3(ispin)%matrix_set)
-      END DO
-      DEALLOCATE (dbcsr_Gamma_3)
+         CALL exchange_work%exchange_env%release(e_exchange_corr)
 
-      CALL exchange_work%exchange_env%release(e_exchange_corr)
+         IF (nspins == 1) e_exchange_corr = e_exchange_corr
+         IF (nspins == 2) e_exchange_corr = e_exchange_corr/sqrthalf
 
-      IF (nspins == 1) e_exchange_corr = e_exchange_corr
-      IF (nspins == 2) e_exchange_corr = e_exchange_corr/sqrthalf
-
-      ! For printing, we need the energy per quadrature point/per integration group, but we obtain the energy per sub group
-      e_exchange_corr = e_exchange_corr/REAL(exchange_work%para_env_sub%num_pe, KIND=dp)
-      CALL exchange_work%para_env_RPA%sum(e_exchange_corr)
+         ! For printing, we need the energy per quadrature point/per integration group, but we obtain the energy per sub group
+         e_exchange_corr = e_exchange_corr/REAL(exchange_work%para_env_sub%num_pe, KIND=dp)
+         CALL exchange_work%para_env_RPA%sum(e_exchange_corr)
+      ELSE
+         DO ispin = 1, nspins
+            CALL cp_fm_release(fm_mat_Gamma_3(ispin))
+         END DO
+         DEALLOCATE (fm_mat_Gamma_3)
+         e_exchange_corr = 0.0_dp
+      END IF
 
       ! Print exchange correlation energy to the file
       IF (exchange_work%unit_nr > 0) WRITE (exchange_work%unit_nr, '(T3,A,T68,F25.14,A4)') &
