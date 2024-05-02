@@ -66,7 +66,11 @@ def main() -> None:
             f.write(regtest("ssmp", testopts="--skipdir=QS/regtest-rs-dhft"))
 
     with OutputFile("Dockerfile.test_i386", args.check) as f:
-        f.write(toolchain_ubuntu_nompi(base_image="i386/debian:12", libvori=False))
+        f.write(
+            toolchain_ubuntu_nompi(
+                base_image="i386/debian:12.5", gcc_version=12, libvori=False
+            )
+        )
         f.write(regtest("ssmp"))
 
     with OutputFile("Dockerfile.test_arm64-psmp", args.check) as f:
