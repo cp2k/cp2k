@@ -56,24 +56,28 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'ab_contract'
 
-      INTEGER                                            :: handle, m1, m2, msphia, msphib, nn
+      INTEGER                                            :: handle
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: cpp
 
       CALL timeset(routineN, handle)
 
-      msphia = SIZE(sphi_a, 1)
-      msphib = SIZE(sphi_b, 1)
+      CPASSERT(ncob <= SIZE(sab, 2))
 
-      m1 = SIZE(sab, 1)
-      m2 = SIZE(sab, 2)
-
-      nn = SIZE(abint, 1)
-
-      ALLOCATE (cpp(nsgfa, m2))
-
-      CALL dgemm("T", "N", nsgfa, m2, ncoa, 1._dp, sphi_a, msphia, sab, m1, 0.0_dp, cpp, nsgfa)
-      CALL dgemm("N", "N", nsgfa, nsgfb, ncob, 1._dp, cpp, nsgfa, sphi_b, msphib, 0.0_dp, &
-                 abint, nn)
+      IF ((nsgfa*ncob*(ncoa + nsgfb)) <= (nsgfb*ncoa*(ncob + nsgfa))) THEN ! (sphi_a x sab) x sphi_b
+         ALLOCATE (cpp(nsgfa, ncob))
+         ! [nsgfa,ncoa] x [ncoa,ncob] -> [nsgfa,ncob]
+         CALL dgemm("T", "N", nsgfa, ncob, ncoa, 1._dp, sphi_a, SIZE(sphi_a, 1), sab, SIZE(sab, 1), 0.0_dp, cpp, nsgfa)
+         ! [nsgfa,ncob] x [ncob,nsgfb] -> [nsgfa,nsgfb]
+         CALL dgemm("N", "N", nsgfa, nsgfb, ncob, 1._dp, cpp, nsgfa, sphi_b, SIZE(sphi_b, 1), 0.0_dp, &
+                    abint, SIZE(abint, 1))
+      ELSE ! sphi_a x (sab x sphi_b)
+         ALLOCATE (cpp(ncoa, nsgfb))
+         ! [ncoa,ncob] x [ncob,nsgfb] -> [ncoa,nsgfb]
+         CALL dgemm("N", "N", ncoa, nsgfb, ncob, 1._dp, sab, SIZE(sab, 1), sphi_b, SIZE(sphi_b, 1), 0.0_dp, cpp, ncoa)
+         ! [nsgfa,ncoa] x [ncoa,nsgfb] -> [nsgfa,nsgfb]
+         CALL dgemm("T", "N", nsgfa, nsgfb, ncoa, 1._dp, sphi_a, SIZE(sphi_a, 1), cpp, ncoa, 0.0_dp, &
+                    abint, SIZE(abint, 1))
+      END IF
 
       DEALLOCATE (cpp)
 
