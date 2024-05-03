@@ -4434,7 +4434,7 @@ CONTAINS
             END IF
 
             IF (n_level_gw_ref >= dos_min .AND. &
-                (n_level_gw_ref <= dos_max .OR. dos_max > 0)) THEN
+                (n_level_gw_ref <= dos_max .OR. dos_max == 0)) THEN
                vec_gw_dos(idos) = vec_gw_dos(idos) + &
                                   (ABS(AIMAG(sigma_c_pade)) + dos_eta) &
                                   /( &
