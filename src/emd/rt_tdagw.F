@@ -367,17 +367,17 @@ CONTAINS
             ELSE
                ! Copy rho_new to rho_new_last
                @:SPIN_DO(j, re, im, tdagw_env%n_spin)
-                  CALL cp_fm_to_fm(tdagw_env%rho_new(re)%matrix, tdagw_env%rho_new_last(re)%matrix)
-                  CALL cp_fm_to_fm(tdagw_env%rho_new(im)%matrix, tdagw_env%rho_new_last(im)%matrix)
-                  ! CALL cp_fm_scale_and_add(1.0_dp-1.0_dp/(1.0_dp + metric/1.0e-7), tdagw_env%rho_new_last(re)%matrix,&
-                  !                                 1.0_dp/(1.0_dp + metric/1.0e-7), tdagw_env%rho_new(re)%matrix)
-                  ! CALL cp_fm_scale_and_add(1.0_dp-1.0_dp/(1.0_dp + metric/1.0e-7), tdagw_env%rho_new_last(im)%matrix,&
-                  !                                 1.0_dp/(1.0_dp + metric/1.0e-7), tdagw_env%rho_new(im)%matrix)
-                  ! PRINT *, "Mixing", 1.0_dp-1.0_dp/(1.0_dp + metric/1.0e-7),1.0_dp/(1.0_dp + metric/1.0e-7)
-                  ! CALL cp_fm_scale_and_add(1.0_dp-0.2_dp, tdagw_env%rho_new_last(re)%matrix,&
-                  !                                 0.2_dp, tdagw_env%rho_new(re)%matrix)
-                  ! CALL cp_fm_scale_and_add(1.0_dp-0.2_dp, tdagw_env%rho_new_last(im)%matrix,&
-                  !                                 0.2_dp, tdagw_env%rho_new(im)%matrix)
+                  IF (k < 10) THEN
+                     ! Leaving for free convergence
+                     CALL cp_fm_to_fm(tdagw_env%rho_new(re)%matrix, tdagw_env%rho_new_last(re)%matrix)
+                     CALL cp_fm_to_fm(tdagw_env%rho_new(im)%matrix, tdagw_env%rho_new_last(im)%matrix)
+                  ELSE
+                     ! Start mixing
+                     CALL cp_fm_scale_and_add(1.0_dp-0.2_dp, tdagw_env%rho_new_last(re)%matrix,&
+                                                     0.2_dp, tdagw_env%rho_new(re)%matrix)
+                     CALL cp_fm_scale_and_add(1.0_dp-0.2_dp, tdagw_env%rho_new_last(im)%matrix,&
+                                                     0.2_dp, tdagw_env%rho_new(im)%matrix)
+                  END IF
                END DO
             END IF
          END DO
