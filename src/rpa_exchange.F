@@ -18,13 +18,18 @@
 MODULE rpa_exchange
    USE atomic_kind_types,               ONLY: atomic_kind_type
    USE cell_types,                      ONLY: cell_type
+   USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
+                                              cp_blacs_env_release,&
+                                              cp_blacs_env_type
    USE cp_control_types,                ONLY: dft_control_type
-   USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set
+   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
+                                              dbcsr_allocate_matrix_set
    USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale
    USE cp_fm_diag,                      ONLY: choose_eigv_solver
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_p_type,&
-                                              cp_fm_struct_release
+                                              cp_fm_struct_release,&
+                                              cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_get_info,&
                                               cp_fm_release,&
@@ -46,6 +51,7 @@ MODULE rpa_exchange
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type
+   USE kahan_sum,                       ONLY: accurate_dot_product
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: sqrt2,&
                                               sqrthalf
@@ -77,11 +83,13 @@ MODULE rpa_exchange
 
    TYPE rpa_exchange_env_type
       PRIVATE
-      TYPE(qs_environment_type), POINTER :: qs_env => NULL()
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER       :: mat_hfx => NULL()
-      TYPE(hfx_type), DIMENSION(:, :), POINTER           :: x_data => NULL()
-      TYPE(mp_para_env_type), POINTER                    :: para_env => NULL()
-      TYPE(section_vals_type), POINTER                   :: hfx_sections => NULL()
+      TYPE(qs_environment_type), POINTER             :: qs_env => NULL()
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER      :: mat_hfx => NULL()
+      TYPE(hfx_type), DIMENSION(:, :), POINTER       :: x_data => NULL()
+      TYPE(mp_para_env_type), POINTER                :: para_env => NULL()
+      TYPE(section_vals_type), POINTER               :: hfx_sections => NULL()
+      TYPE(cp_fm_type)                               :: work_ao_1 = cp_fm_type()
+      TYPE(cp_fm_type)                               :: work_ao_2 = cp_fm_type()
       INTEGER :: n_rep_hf = 0
       INTEGER :: my_group_L_size = 0
       LOGICAL :: my_recalc_hfx_integrals = .FALSE.
@@ -290,8 +298,8 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'rpa_exchange_work_compute'
       REAL(KIND=dp), PARAMETER                           :: thresh = 0.0000001_dp
 
-      INTEGER :: handle, iib, ispin, L_counter, nspins, P, Q, L_size_B, L_size_Gamma, hom, virt, i, j, a
-      REAL(KIND=dp) :: e_rpa, sum_a, sum_ia
+      INTEGER :: handle, iib, ispin, L_counter, nspins, P, Q, L_size_B, L_size_Gamma, hom, virt, i
+      REAL(KIND=dp) :: e_rpa
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigenval
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :) :: product_matrix_small
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :) :: mat_Gamma_3, mat_B_iaP
@@ -330,7 +338,7 @@ CONTAINS
 
       ! Manipulate eigenvalues to get diagonal matrix
       IF (exchange_work%exchange_correction == rpa_exchange_axk) THEN
-         IF (exchange_work%unit_nr > 0) WRITE (exchange_work%unit_nr, *) "Do AXK"
+         !IF (exchange_work%unit_nr > 0) WRITE (exchange_work%unit_nr, *) "Do AXK"
          DO iib = 1, exchange_work%dimen_RI
             IF (ABS(eigenval(iib)) .GE. thresh) THEN
                eigenval(iib) = &
@@ -341,7 +349,7 @@ CONTAINS
             END IF
          END DO
       ELSE IF (exchange_work%exchange_correction == rpa_exchange_sosex) THEN
-         IF (exchange_work%unit_nr > 0) WRITE (exchange_work%unit_nr, *) "Do SOSEX"
+         !IF (exchange_work%unit_nr > 0) WRITE (exchange_work%unit_nr, *) "Do SOSEX"
          DO iib = 1, exchange_work%dimen_RI
             IF (ABS(eigenval(iib)) .GE. thresh) THEN
                eigenval(iib) = &
@@ -415,8 +423,10 @@ CONTAINS
                CALL dbcsr_release(dbcsr_Gamma_3(ispin)%matrix_set(L_counter))
 
                ! Do dbcsr multiplication: transform the occupied index
-               CALL dbcsr_multiply("N", "T", 1.0_dp, exchange_work%dbcsr_Gamma_inu_P(ispin), exchange_work%mo_coeff_o(ispin), &
+               CALL dbcsr_multiply("N", "T", 0.5_dp, exchange_work%dbcsr_Gamma_inu_P(ispin), exchange_work%mo_coeff_o(ispin), &
                                    0.0_dp, exchange_work%dbcsr_Gamma_munu_P(ispin)%matrix, filter_eps=exchange_work%eps_filter)
+               CALL dbcsr_multiply("N", "T", 0.5_dp, exchange_work%mo_coeff_o(ispin), exchange_work%dbcsr_Gamma_inu_P(ispin), &
+                                   1.0_dp, exchange_work%dbcsr_Gamma_munu_P(ispin)%matrix, filter_eps=exchange_work%eps_filter)
             END DO
 
             ! Contract DM with exchange integrals
@@ -431,7 +441,7 @@ CONTAINS
          CALL exchange_work%exchange_env%release(e_exchange_corr)
 
          IF (nspins == 1) e_exchange_corr = e_exchange_corr
-         IF (nspins == 2) e_exchange_corr = e_exchange_corr/sqrthalf
+         IF (nspins == 2) e_exchange_corr = e_exchange_corr*sqrthalf
 
          ! For printing, we need the energy per quadrature point/per integration group, but we obtain the energy per sub group
          e_exchange_corr = e_exchange_corr/REAL(exchange_work%para_env_sub%num_pe, KIND=dp)
@@ -464,31 +474,19 @@ CONTAINS
             L_size_Gamma = SIZE(mat_Gamma_3, 3)
             L_size_B = SIZE(mat_B_iaP, 3)
 
-            WRITE (*, *) "sizes", L_size_B, L_size_Gamma, hom, virt
+            !WRITE (*, *) "sizes", L_size_B, L_size_Gamma, hom, virt
             ALLOCATE (product_matrix(hom, L_size_Gamma, hom, L_size_B))
-            product_matrix = 0.0_dp
+            CALL dgemm("T", "N", hom*L_size_Gamma, hom*L_size_B, virt, 1.0_dp, mat_Gamma_3, virt, mat_B_iaP, virt, &
+                       0.0_dp, product_matrix, hom*L_size_Gamma)
             DO P = 1, L_size_Gamma
             DO Q = 1, L_size_B
             DO i = 1, hom
-            DO j = 1, hom
-               sum_a = 0.0_dp
-               DO a = 1, virt
-                  sum_a = sum_a + mat_Gamma_3(a, i, P)*mat_B_iaP(a, j, Q)
-               END DO
-               product_matrix(i, P, j, Q) = sum_a
+               e_exchange_corr = e_exchange_corr + DOT_PRODUCT(product_matrix(i, P, :, Q), product_matrix(:, P, i, Q))
             END DO
             END DO
             END DO
-            END DO
-            DO P = 1, L_size_Gamma
-            DO Q = 1, L_size_B
-            DO i = 1, hom
-            DO j = 1, hom
-               e_exchange_corr = e_exchange_corr + product_matrix(i, P, j, Q)*product_matrix(j, P, i, Q)
-            END DO
-            END DO
-            END DO
-            END DO
+            IF (.FALSE.) e_exchange_corr = accurate_dot_product(product_matrix(:, 1, 1, 1), product_matrix(:, 1, 1, 1))
+#if 0
             DO P = 1, L_size_Gamma
             DO Q = 1, L_size_B
                sum_ia = 0.0_dp
@@ -498,15 +496,16 @@ CONTAINS
                e_rpa = e_rpa + sum_ia*sum_ia
             END DO
             END DO
+#endif
 
             DEALLOCATE (mat_B_iaP, mat_Gamma_3, product_matrix)
-            WRITE (*, *) ispin, e_rpa, e_exchange_corr
+            !WRITE (*, *) ispin, e_rpa, e_exchange_corr
          END DO
+         IF (nspins == 2) e_exchange_corr = e_exchange_corr*2.0_dp
          IF (exchange_work%unit_nr > 0) WRITE (exchange_work%unit_nr, *) "E_rpa/E_ex", e_rpa, e_exchange_corr
          CALL comm_exchange%free()
          DEALLOCATE (fm_mat_Gamma_3)
 
-         e_exchange_corr = e_exchange_corr*2.0_dp
       END IF
 
       ! Print exchange correlation energy to the file
@@ -546,10 +545,29 @@ CONTAINS
                             exchange_env%my_recalc_hfx_integrals, &
                             exchange_env%hfx_sections, exchange_env%x_data, exchange_env%para_env)
 
+      IF (.FALSE.) CALL copy_dbcsr_to_fm(exchange_env%mat_hfx(1)%matrix, exchange_env%work_ao_1)
+      IF (.FALSE.) CALL dbcsr_dot(exchange_env%mat_hfx(ispin)%matrix, dbcsr_Gamma_munu_P(ispin)%matrix, e_exchange_p)
+
       exchange_env%my_recalc_hfx_integrals = .FALSE.
       DO ispin = 1, SIZE(dbcsr_Gamma_munu_P)
+      IF (.FALSE.) THEN
+         CALL copy_dbcsr_to_fm(exchange_env%mat_hfx(ispin)%matrix, exchange_env%work_ao_1)
+         CALL copy_dbcsr_to_fm(dbcsr_Gamma_munu_P(ispin)%matrix, exchange_env%work_ao_2)
+         e_exchange_P = accurate_dot_product(exchange_env%work_ao_1%local_data, exchange_env%work_ao_2%local_data)
+         exchange_env%e_exchange = exchange_env%e_exchange - e_exchange_P
+      END IF
+
+      IF (.FALSE.) THEN
+         CALL dbcsr_dot(exchange_env%mat_hfx(ispin)%matrix, dbcsr_Gamma_munu_P(ispin)%matrix, e_exchange_p)
+         exchange_env%e_exchange = exchange_env%e_exchange - 0.5_dp*e_exchange_P
+         CALL dbcsr_dot(dbcsr_Gamma_munu_P(ispin)%matrix, exchange_env%mat_hfx(ispin)%matrix, e_exchange_p)
+         exchange_env%e_exchange = exchange_env%e_exchange - 0.5_dp*e_exchange_P
+      END IF
+
+      IF (.TRUE.) THEN
          CALL dbcsr_dot(exchange_env%mat_hfx(ispin)%matrix, dbcsr_Gamma_munu_P(ispin)%matrix, e_exchange_p)
          exchange_env%e_exchange = exchange_env%e_exchange - e_exchange_P
+      END IF
       END DO
 
       CALL timestop(handle)
@@ -576,7 +594,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'hfx_create_subgroup'
 
-      INTEGER                                            :: handle, nelectron_total, ispin
+      INTEGER                                            :: handle, nelectron_total, ispin, number_of_aos
       LOGICAL                                            :: do_hfx
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: my_cell
@@ -586,6 +604,8 @@ CONTAINS
       TYPE(qs_subsys_type), POINTER                      :: subsys
       TYPE(scf_control_type), POINTER                    :: scf_control
       TYPE(section_vals_type), POINTER                   :: input
+      TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
+      TYPE(cp_fm_struct_type), POINTER :: fm_struct
 
       CALL timeset(routineN, handle)
 
@@ -631,6 +651,17 @@ CONTAINS
          CALL dbcsr_copy(exchange_env%mat_hfx(ispin)%matrix, mat_munu)
       END DO
 
+      CALL dbcsr_get_info(mat_munu, nfullcols_total=number_of_aos)
+
+      NULLIFY (blacs_env)
+      CALL cp_blacs_env_create(blacs_env, exchange_env%para_env)
+      NULLIFY (fm_struct)
+      CALL cp_fm_struct_create(fm_struct, context=blacs_env, nrow_global=number_of_aos, ncol_global=number_of_aos)
+      CALL cp_blacs_env_release(blacs_env)
+      CALL cp_fm_create(exchange_env%work_ao_1, fm_struct)
+      CALL cp_fm_create(exchange_env%work_ao_2, fm_struct)
+      CALL cp_fm_struct_release(fm_struct)
+
       CALL timestop(handle)
 
    END SUBROUTINE hfx_create_subgroup
@@ -647,6 +678,9 @@ CONTAINS
       INTEGER :: ispin
 
       NULLIFY (exchange_env%qs_env, exchange_env%para_env, exchange_env%hfx_sections)
+
+      CALL cp_fm_release(exchange_env%work_ao_1)
+      CALL cp_fm_release(exchange_env%work_ao_2)
 
       e_exchange = exchange_env%e_exchange
       exchange_env%e_exchange = 0.0_dp
@@ -729,7 +763,7 @@ CONTAINS
       END DO
       END DO
 
-      WRITE (*, *) "DEBUG redist", NORM2(mat) - NORM2(fm_mat%local_data)
+      !WRITE (*, *) "DEBUG redist", NORM2(mat) - NORM2(fm_mat%local_data)
 
    END SUBROUTINE redistribute_B_in_subgroups
 
