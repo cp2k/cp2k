@@ -1083,7 +1083,7 @@ CONTAINS
                      ak%array(1) = katom
                   END IF
 
-                  IF (ALLOCATED(tmp)) DEALLOCATE (tmp)
+                  DEALLOCATE (tmp)
                END ASSOCIATE
             END ASSOCIATE
          END ASSOCIATE
@@ -1365,8 +1365,8 @@ CONTAINS
       END DO
       m_max = maxli + maxlj + maxlk + 1
 
-      !To minimize expensive memory opsand generally optimize contraction, pre-allocate
-      !contiguous sphi arrays (and transposed in the cas of sphi_i)
+      !To minimize expensive memory ops and generally optimize contraction, pre-allocate
+      !contiguous sphi arrays (and transposed in the case of sphi_i)
 
       NULLIFY (tspj, spi, spk)
       ALLOCATE (spi(max_nset, nbasis), tspj(max_nset, nbasis), spk(max_nset, nbasis))
@@ -1375,7 +1375,6 @@ CONTAINS
          DO iset = 1, max_nset
             NULLIFY (spi(iset, ibasis)%array)
             NULLIFY (tspj(iset, ibasis)%array)
-
             NULLIFY (spk(iset, ibasis)%array)
          END DO
       END DO
@@ -1833,10 +1832,10 @@ CONTAINS
 
       DO iset = 1, max_nset
          DO ibasis = 1, nbasis
-            IF (ASSOCIATED(spi(iset, ibasis)%array)) DEALLOCATE (spi(iset, ibasis)%array)
-            IF (ASSOCIATED(tspj(iset, ibasis)%array)) DEALLOCATE (tspj(iset, ibasis)%array)
-
-            IF (ASSOCIATED(spk(iset, ibasis)%array)) DEALLOCATE (spk(iset, ibasis)%array)
+            ! deallocating nullified pointer is valid
+            DEALLOCATE (spi(iset, ibasis)%array)
+            DEALLOCATE (tspj(iset, ibasis)%array)
+            DEALLOCATE (spk(iset, ibasis)%array)
          END DO
       END DO
 
@@ -2329,10 +2328,10 @@ CONTAINS
 
       DO iset = 1, max_nset
          DO ibasis = 1, nbasis
-            IF (ASSOCIATED(spi(iset, ibasis)%array)) DEALLOCATE (spi(iset, ibasis)%array)
-            IF (ASSOCIATED(tspj(iset, ibasis)%array)) DEALLOCATE (tspj(iset, ibasis)%array)
-
-            IF (ASSOCIATED(spk(iset, ibasis)%array)) DEALLOCATE (spk(iset, ibasis)%array)
+            ! deallocating nullified pointer is valid
+            DEALLOCATE (spi(iset, ibasis)%array)
+            DEALLOCATE (tspj(iset, ibasis)%array)
+            DEALLOCATE (spk(iset, ibasis)%array)
          END DO
       END DO
 
@@ -2954,10 +2953,10 @@ CONTAINS
 
       DO iset = 1, max_nset
          DO ibasis = 1, nbasis
-            IF (ASSOCIATED(spi(iset, ibasis)%array)) DEALLOCATE (spi(iset, ibasis)%array)
-            IF (ASSOCIATED(tspj(iset, ibasis)%array)) DEALLOCATE (tspj(iset, ibasis)%array)
-
-            IF (ASSOCIATED(spk(iset, ibasis)%array)) DEALLOCATE (spk(iset, ibasis)%array)
+            ! deallocating nullified pointer is valid
+            DEALLOCATE (spi(iset, ibasis)%array)
+            DEALLOCATE (tspj(iset, ibasis)%array)
+            DEALLOCATE (spk(iset, ibasis)%array)
          END DO
       END DO
       DEALLOCATE (spi, tspj, spk)
