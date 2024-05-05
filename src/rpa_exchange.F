@@ -41,6 +41,10 @@ MODULE rpa_exchange
         dbcsr_copy, dbcsr_create, dbcsr_dot, dbcsr_frobenius_norm, dbcsr_get_info, dbcsr_init_p, &
         dbcsr_multiply, dbcsr_p_type, dbcsr_release, dbcsr_set, dbcsr_trace, dbcsr_type, &
         dbcsr_type_no_symmetry
+   USE group_dist_types,                ONLY: create_group_dist,&
+                                              get_group_dist,&
+                                              group_dist_d1_type,&
+                                              group_dist_proc
    USE hfx_admm_utils,                  ONLY: tddft_hfx_matrix
    USE hfx_types,                       ONLY: hfx_create,&
                                               hfx_release,&
@@ -55,8 +59,7 @@ MODULE rpa_exchange
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: sqrt2,&
                                               sqrthalf
-   USE message_passing,                 ONLY: mp_comm_type,&
-                                              mp_para_env_release,&
+   USE message_passing,                 ONLY: mp_para_env_release,&
                                               mp_para_env_type
    USE mp2_types,                       ONLY: mp2_type
    USE parallel_gemm_api,               ONLY: parallel_gemm
@@ -307,7 +310,6 @@ CONTAINS
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: fm_mat_Gamma_3
       TYPE(dbcsr_matrix_p_set), ALLOCATABLE, &
          DIMENSION(:)                                    :: dbcsr_Gamma_3
-      TYPE(mp_comm_type) :: comm_exchange
 
       CALL timeset(routineN, handle)
 
@@ -448,7 +450,6 @@ CONTAINS
          CALL exchange_work%para_env_RPA%sum(e_exchange_corr)
       ELSE
          ! Reorder matrix from (P, i*a) -> (a, i, P) with P being distributed within integration group
-         CALL comm_exchange%from_split(exchange_work%para_env_RPA, exchange_work%color_sub)
          e_exchange_corr = 0.0_dp
          e_rpa = 0.0_dp
 
@@ -456,8 +457,7 @@ CONTAINS
             hom = exchange_work%homo(ispin)
             virt = exchange_work%virtual(ispin)
 
-            CALL redistribute_Gamma_in_subgroups(fm_mat_Gamma_3(ispin), mat_Gamma_3, comm_exchange, &
-                                                 hom, virt)
+            CALL redistribute_Gamma_in_subgroups(fm_mat_Gamma_3(ispin), mat_Gamma_3, hom, virt)
             CALL cp_fm_release(fm_mat_Gamma_3(ispin))
 
             ! We need only the pure matrix
@@ -465,8 +465,7 @@ CONTAINS
                                            eig(:, ispin), hom, omega)
 
             ! Reorder matrix from (P, i*a) -> (a, i, P) with P being distributed within subgroups
-            CALL redistribute_B_in_subgroups(fm_mat_S(ispin), mat_B_iaP, exchange_work%para_env_sub, &
-                                             hom, virt)
+            CALL redistribute_B_in_subgroups(fm_mat_S(ispin), mat_B_iaP, hom, virt)
 
             ! Return to the original tensor
             CALL calc_fm_mat_S_rpa(fm_mat_S(ispin), .TRUE., virt, eig(:, ispin), hom, omega, 0.0_dp)
@@ -503,7 +502,6 @@ CONTAINS
          END DO
          IF (nspins == 2) e_exchange_corr = e_exchange_corr*2.0_dp
          IF (exchange_work%unit_nr > 0) WRITE (exchange_work%unit_nr, *) "E_rpa/E_ex", e_rpa, e_exchange_corr
-         CALL comm_exchange%free()
          DEALLOCATE (fm_mat_Gamma_3)
 
       END IF
@@ -701,34 +699,135 @@ CONTAINS
 !> \brief ...
 !> \param fm_mat ...
 !> \param mat ...
-!> \param comm ...
 !> \param ncols ...
 !> \param nrows ...
 ! **************************************************************************************************
-   SUBROUTINE redistribute_Gamma_in_subgroups(fm_mat, mat, comm, ncols, nrows)
+   SUBROUTINE redistribute_Gamma_in_subgroups(fm_mat, mat, ncols, nrows)
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
          INTENT(OUT)                                     :: mat
+      INTEGER, INTENT(IN)                                :: ncols, nrows
 
-      CLASS(mp_comm_type), INTENT(IN) :: comm
-      INTEGER, INTENT(IN) :: ncols, nrows
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'redistribute_Gamma_in_subgroups'
 
-      INTEGER :: iocc, avirt, ncol_global
+      INTEGER :: aux_block_size_fm, aux_global, aux_local, avirt, dimen_RI, handle, &
+         ia_block_size_fm, ia_global, ia_local, iocc, max_number_recv, max_number_send, &
+         my_aux_end, my_aux_size, my_aux_start, my_process_column, my_process_row, &
+         number_of_process_columns, number_of_process_rows, proc, proc_shift, recv_cols, &
+         recv_counter, recv_proc, recv_proc_col, recv_proc_row, recv_rows, send_counter, send_proc
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: data2recv, data2send
+      INTEGER, DIMENSION(:), POINTER                     :: aux_distribution_fm, col_indices, &
+                                                            ia_distribution_fm
+      INTEGER, DIMENSION(:, :), POINTER                  :: mpi2blacs
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), TARGET   :: recv_buffer
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: send_buffer
+      REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :), &
+         POINTER                                         :: recv_ptr
+      TYPE(cp_blacs_env_type), POINTER                   :: context
+      TYPE(group_dist_d1_type)                           :: aux_func_dist
+      TYPE(mp_para_env_type), POINTER                    :: para_env
 
-      MARK_USED(comm)
+      CALL timeset(routineN, handle)
 
       CALL cp_fm_get_info(matrix=fm_mat, &
-                          ncol_global=ncol_global)
+                          ncol_locals=aux_distribution_fm, &
+                          col_indices=col_indices, &
+                          nrow_locals=ia_distribution_fm, &
+                          context=context, &
+                          ncol_block=aux_block_size_fm, &
+                          nrow_block=ia_block_size_fm, &
+                          ncol_global=dimen_RI, &
+                          para_env=para_env)
 
-      ALLOCATE (mat(nrows, ncols, ncol_global))
+      IF (ncols <= 0 .OR. nrows <= 0) THEN
+         ALLOCATE (mat(ncols, nrows, dimen_RI))
+         RETURN
+      END IF
 
-      DO iocc = 1, ncols
-      DO avirt = 1, nrows
-         mat(avirt, iocc, :) = fm_mat%local_data((iocc - 1)*nrows + avirt, :)
+      CALL create_group_dist(aux_func_dist, para_env%num_pe, dimen_RI)
+      CALL get_group_dist(aux_func_dist, para_env%mepos, my_aux_start, my_aux_end, my_aux_size)
+
+      CALL context%get(my_process_column=my_process_column, my_process_row=my_process_row, &
+                       number_of_process_columns=number_of_process_columns, number_of_process_rows=number_of_process_rows, &
+                       mpi2blacs=mpi2blacs)
+
+      ! Determine the number of columns to send
+      ALLOCATE (data2send(0:para_env%num_pe - 1))
+      data2send = 0
+      DO aux_local = 1, aux_distribution_fm(my_process_column)
+         aux_global = col_indices(aux_local)
+         proc = group_dist_proc(aux_func_dist, aux_global)
+         data2send(proc) = data2send(proc) + 1
       END DO
+      max_number_send = MAXVAL(data2send)
+      WRITE (*, *) "max_number_send", max_number_send
+
+      ! Determine the number of Auxiliary functions and occ/virt pairs to recv
+      ALLOCATE (data2recv(0:para_env%num_pe - 1))
+      data2recv = 0
+      DO aux_global = my_aux_start, my_aux_end
+         proc = fm_mat%matrix_struct%g2p_col(aux_global)
+         data2recv(proc) = data2recv(proc) + 1
+      END DO
+      max_number_recv = MAXVAL(data2recv*ia_distribution_fm(mpi2blacs(1, :)))
+      WRITE (*, *) "max_number_recv", max_number_recv
+
+      ALLOCATE (send_buffer(ia_distribution_fm(my_process_row), max_number_send))
+      ALLOCATE (recv_buffer(max_number_recv))
+
+      ALLOCATE (mat(nrows, ncols, my_aux_size))
+      DO proc_shift = 0, para_env%num_pe - 1
+         send_proc = MODULO(para_env%mepos + proc_shift, para_env%num_pe)
+         recv_proc = MODULO(para_env%mepos - proc_shift, para_env%num_pe)
+
+! Pack send buffer
+         send_counter = 0
+         DO aux_local = 1, aux_distribution_fm(my_process_column)
+            aux_global = col_indices(aux_local)
+            proc = group_dist_proc(aux_func_dist, aux_global)
+            send_counter = send_counter + 1
+            send_buffer(:, send_counter) = fm_mat%local_data(:, aux_local)
+         END DO
+         CPASSERT(send_counter == data2send(send_proc))
+
+         ! Prepare pointer to recv buffer
+         recv_proc_row = mpi2blacs(1, recv_proc)
+         recv_proc_col = mpi2blacs(2, recv_proc)
+         recv_rows = ia_distribution_fm(mpi2blacs(1, recv_proc))
+         recv_cols = data2recv(recv_proc)
+         recv_ptr(1:recv_rows, 1:recv_cols) => recv_buffer(1:recv_rows*recv_cols)
+
+! Perform communication
+         CALL para_env%sendrecv(send_buffer(:, 1:data2send(send_proc)), send_proc, &
+                                recv_ptr, recv_proc)
+
+! Unpack receive buffer
+         recv_counter = 0
+         DO aux_global = my_aux_start, my_aux_end
+            proc = fm_mat%matrix_struct%g2p_col(aux_global)
+            IF (proc /= recv_proc) CYCLE
+
+            recv_counter = recv_counter + 1
+
+            aux_local = fm_mat%matrix_struct%g2l_row(aux_global)
+
+            DO ia_local = 1, recv_rows
+               ia_global = fm_mat%matrix_struct%l2g_row(ia_local, recv_proc_row)
+
+               iocc = (ia_global - 1)/ncols + 1
+               avirt = MOD(ia_global - 1, ncols) + 1
+
+               WRITE (*, *) SHAPE(mat), avirt, iocc, ia_local, ia_global, aux_global, my_aux_start, aux_local
+               mat(avirt, iocc, aux_global - my_aux_start + 1) = recv_ptr(ia_local, aux_local)
+            END DO
+
+         END DO
+         CPASSERT(recv_counter == data2recv(recv_proc))
       END DO
 
       WRITE (*, *) "DEBUG redist", NORM2(mat) - NORM2(fm_mat%local_data)
+
+      CALL timestop(handle)
 
    END SUBROUTINE redistribute_Gamma_in_subgroups
 
@@ -736,21 +835,20 @@ CONTAINS
 !> \brief ...
 !> \param fm_mat ...
 !> \param mat ...
-!> \param comm ...
 !> \param ncols ...
 !> \param nrows ...
 ! **************************************************************************************************
-   SUBROUTINE redistribute_B_in_subgroups(fm_mat, mat, comm, ncols, nrows)
+   SUBROUTINE redistribute_B_in_subgroups(fm_mat, mat, ncols, nrows)
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
          INTENT(OUT)                                     :: mat
+      INTEGER, INTENT(IN)                                :: ncols, nrows
 
-      CLASS(mp_comm_type), INTENT(IN) :: comm
-      INTEGER, INTENT(IN) :: ncols, nrows
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'redistribute_B_in_subgroups'
 
-      INTEGER :: iocc, avirt, nrow_global
+      INTEGER                                            :: avirt, handle, iocc, nrow_global
 
-      MARK_USED(comm)
+      CALL timeset(routineN, handle)
 
       CALL cp_fm_get_info(matrix=fm_mat, &
                           nrow_global=nrow_global)
@@ -764,6 +862,8 @@ CONTAINS
       END DO
 
       !WRITE (*, *) "DEBUG redist", NORM2(mat) - NORM2(fm_mat%local_data)
+
+      CALL timestop(handle)
 
    END SUBROUTINE redistribute_B_in_subgroups
 
