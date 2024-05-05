@@ -36,7 +36,7 @@ def main() -> None:
         f.write(toolchain_nvhpc())
 
     with OutputFile(f"Dockerfile.test_minimal", args.check) as f:
-        f.write(toolchain_full() + regtest("sdbg", "minimal"))
+        f.write(toolchain_ubuntu_nompi() + regtest_cmake("minimal", "ssmp"))
 
     with OutputFile(f"Dockerfile.test_cmake", args.check) as f:
         f.write(spack_env_toolchain() + regtest_cmake("spack", "psmp"))
