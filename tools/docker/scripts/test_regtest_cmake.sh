@@ -2,6 +2,14 @@
 
 # author: Ole Schuett
 
+if (($# != 2)); then
+  echo "Usage: test_regtest_cmake.sh <PROFILE> <VERSION>"
+  exit 1
+fi
+
+PROFILE=$1
+VERSION=$2
+
 ulimit -c 0 # Disable core dumps as they can take a very long time to write.
 
 # Check available shared memory - needed for MPI inter-process communication.
@@ -11,32 +19,63 @@ if ((SHM_AVAIL < 1024)); then
   exit 1
 fi
 
-# Activate Spack environment.
-eval "$(spack env activate myenv --sh)"
-
 # Using Ninja because of https://gitlab.kitware.com/cmake/cmake/issues/18188
 
 # Run CMake.
 mkdir build
 cd build || exit 1
-if ! cmake \
-  -GNinja \
-  -DCMAKE_C_FLAGS="-fno-lto" \
-  -DCMAKE_Fortran_FLAGS="-fno-lto" \
-  -DCMAKE_INSTALL_PREFIX=/opt/cp2k \
-  -Werror=dev \
-  -DCP2K_USE_VORI=OFF \
-  -DCP2K_USE_COSMA=OFF \
-  -DCP2K_USE_DLAF=ON \
-  -DCP2K_BLAS_VENDOR=OpenBLAS \
-  -DCP2K_USE_SPGLIB=ON \
-  -DCP2K_USE_LIBINT2=OFF \
-  -DCP2K_USE_LIBXC=ON \
-  -DCP2K_USE_LIBTORCH=OFF \
-  -DCP2K_USE_MPI=ON \
-  -DCP2K_USE_MPI_F08=ON \
-  -DCP2K_ENABLE_REGTESTS=ON \
-  .. |& tee ./cmake.log; then
+
+# TODO: Reconcile PROFILE with CP2K_BUILD_OPTIONS in CMakeLists.txt.
+case ${PROFILE} in
+  spack)
+    eval "$(spack env activate myenv --sh)"
+    cmake \
+      -GNinja \
+      -DCMAKE_C_FLAGS="-fno-lto" \
+      -DCMAKE_Fortran_FLAGS="-fno-lto" \
+      -DCMAKE_INSTALL_PREFIX=/opt/cp2k \
+      -Werror=dev \
+      -DCP2K_USE_VORI=OFF \
+      -DCP2K_USE_COSMA=OFF \
+      -DCP2K_USE_DLAF=ON \
+      -DCP2K_BLAS_VENDOR=OpenBLAS \
+      -DCP2K_USE_SPGLIB=ON \
+      -DCP2K_USE_LIBINT2=OFF \
+      -DCP2K_USE_LIBXC=ON \
+      -DCP2K_USE_LIBTORCH=OFF \
+      -DCP2K_USE_MPI=ON \
+      -DCP2K_USE_MPI_F08=ON \
+      -DCP2K_ENABLE_REGTESTS=ON \
+      .. |& tee ./cmake.log
+    CMAKE_EXIT_CODE=$?
+    ;;
+  ubuntu)
+    cmake \
+      -GNinja \
+      -DCMAKE_INSTALL_PREFIX=/opt/cp2k \
+      -Werror=dev \
+      -DCP2K_ENABLE_REGTESTS=ON \
+      -DCP2K_BLAS_VENDOR=OpenBLAS \
+      -DCP2K_USE_LIBINT2=ON \
+      -DCP2K_USE_LIBXC=ON \
+      -DCP2K_USE_FFTW3=ON \
+      -DCP2K_USE_MPI=OFF \
+      -DCP2K_USE_MPI_F08=OFF \
+      -DCP2K_USE_VORI=OFF \
+      -DCP2K_USE_COSMA=OFF \
+      -DCP2K_USE_DLAF=OFF \
+      -DCP2K_USE_SPGLIB=OFF \
+      -DCP2K_USE_LIBTORCH=OFF \
+      .. |& tee ./cmake.log
+    CMAKE_EXIT_CODE=$?
+    ;;
+  *)
+    echo "Unknown profile ${PROFILE}."
+    exit 1
+    ;;
+esac
+
+if [ $CMAKE_EXIT_CODE -ne 0 ]; then
   echo -e "\nSummary: CMake failed."
   echo -e "Status: FAILED\n"
   exit 0
@@ -82,7 +121,7 @@ export PIKA_PROCESS_MASK="0x3"
 echo -e "\n========== Running Regtests =========="
 set -x
 # shellcheck disable=SC2086
-./tests/do_regtest.py local psmp ${TESTOPTS}
+./tests/do_regtest.py local ${VERSION} ${TESTOPTS}
 
 exit 0 # Prevent CI from overwriting do_regtest's summary message.
 
