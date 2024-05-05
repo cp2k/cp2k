@@ -1514,8 +1514,7 @@ set_target_properties(
   PROPERTIES IMPORTED_LINK_INTERFACE_LANGUAGES "CXX"
              Fortran_MODULE_DIRECTORY mod_files
              POSITION_INDEPENDENT_CODE ON
-             VERSION ${cp2k_VERSION}
-             SOVERSION ${cp2k_APIVERSION})
+             VERSION ${cp2k_VERSION})
 
 if(CP2K_USE_ACCEL MATCHES "CUDA")
   set_property(TARGET cp2k PROPERTY CUDA_ARCHITECTURES
