@@ -69,6 +69,26 @@ case ${PROFILE} in
       .. |& tee ./cmake.log
     CMAKE_EXIT_CODE=$?
     ;;
+  minimal)
+    cmake \
+      -GNinja \
+      -DCMAKE_INSTALL_PREFIX=/opt/cp2k \
+      -Werror=dev \
+      -DCP2K_ENABLE_REGTESTS=ON \
+      -DCP2K_BLAS_VENDOR=OpenBLAS \
+      -DCP2K_USE_LIBINT2=OFF \
+      -DCP2K_USE_LIBXC=OFF \
+      -DCP2K_USE_FFTW3=OFF \
+      -DCP2K_USE_MPI=OFF \
+      -DCP2K_USE_MPI_F08=OFF \
+      -DCP2K_USE_VORI=OFF \
+      -DCP2K_USE_COSMA=OFF \
+      -DCP2K_USE_DLAF=OFF \
+      -DCP2K_USE_SPGLIB=OFF \
+      -DCP2K_USE_LIBTORCH=OFF \
+      .. |& tee ./cmake.log
+    CMAKE_EXIT_CODE=$?
+    ;;
   *)
     echo "Unknown profile ${PROFILE}."
     exit 1
