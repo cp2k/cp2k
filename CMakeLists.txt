@@ -32,20 +32,13 @@ if(POLICY CMP0144)
   cmake_policy(SET CMP0144 NEW)
 endif()
 
-set(VERSION_MAJOR 23)
-# anything above 12 is to indicate that it is devel-branch. The git hash commit
-# is the only important information to give. It is retrieved few lines below.
-set(VERSION_MINOR 1)
-set(VERSION_PATCH 00)
-
+# !!! Keep version in sync with cp2k_info.F !!!
 project(
   cp2k
   DESCRIPTION "CP2K"
   HOMEPAGE_URL "https://www.cp2k.org"
-  VERSION ${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}
+  VERSION "2024.1"
   LANGUAGES Fortran C CXX)
-
-set(cp2k_APIVERSION ${cp2k_VERSION_MAJOR}.${cp2k_VERSION_MINOR})
 
 list(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake/modules")
 
