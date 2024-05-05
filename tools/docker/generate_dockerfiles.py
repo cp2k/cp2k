@@ -39,7 +39,7 @@ def main() -> None:
         f.write(toolchain_full() + regtest("sdbg", "minimal"))
 
     with OutputFile(f"Dockerfile.test_cmake", args.check) as f:
-        f.write(spack_env_toolchain() + regtest_cmake())
+        f.write(spack_env_toolchain() + regtest_cmake("spack", "psmp"))
 
     for version in "ssmp", "psmp":
         with OutputFile(f"Dockerfile.test_asan-{version}", args.check) as f:
@@ -53,25 +53,15 @@ def main() -> None:
         with OutputFile(f"Dockerfile.test_gcc{gcc_version}", args.check) as f:
             if gcc_version > 8:
                 f.write(toolchain_ubuntu_nompi(gcc_version=gcc_version))
+                f.write(regtest_cmake("ubuntu", "ssmp"))
             else:
-                f.write(
-                    toolchain_ubuntu_nompi(
-                        base_image="ubuntu:20.04",
-                        gcc_version=gcc_version,
-                        libgrpp=False,
-                        spglib=False,
-                    )
-                )
-            # Skip some tests because of bug in LDA_C_PMGB06 functional in libxc <5.2.0.
-            f.write(regtest("ssmp", testopts="--skipdir=QS/regtest-rs-dhft"))
+                f.write(toolchain_ubuntu2040_nompi(gcc_version=gcc_version))
+                # Skip some tests due to bug in LDA_C_PMGB06 functional in libxc <5.2.0.
+                f.write(regtest("ssmp", testopts="--skipdir=QS/regtest-rs-dhft"))
 
     with OutputFile("Dockerfile.test_i386", args.check) as f:
-        f.write(
-            toolchain_ubuntu_nompi(
-                base_image="i386/debian:12.5", gcc_version=12, libvori=False
-            )
-        )
-        f.write(regtest("ssmp"))
+        f.write(toolchain_ubuntu_nompi(base_image="i386/debian:12.5", gcc_version=12))
+        f.write(regtest_cmake("ubuntu", "ssmp"))
 
     with OutputFile("Dockerfile.test_arm64-psmp", args.check) as f:
         f.write(
@@ -145,7 +135,7 @@ RUN /bin/bash -o pipefail -c " \
 
 
 # ======================================================================================
-def regtest_cmake(testopts: str = "") -> str:
+def regtest_cmake(arch: str, version: str, testopts: str = "") -> str:
     return (
         rf"""
 # Install CP2K sources.
@@ -162,7 +152,7 @@ ARG TESTOPTS="{testopts}"
 COPY ./tools/docker/scripts/test_regtest_cmake.sh ./
 RUN /bin/bash -o pipefail -c " \
     TESTOPTS='${{TESTOPTS}}' \
-    ./test_regtest_cmake.sh |& tee report.log && \
+    ./test_regtest_cmake.sh {arch} {version} |& tee report.log && \
     rm -rf regtesting"
 """
         + print_cached_report()
@@ -401,14 +391,46 @@ def toolchain_full(
 
 # ======================================================================================
 def toolchain_ubuntu_nompi(
-    base_image: str = "ubuntu:24.04",
-    gcc_version: int = 13,
-    libgrpp: bool = True,
-    libvori: bool = True,
-    spglib: bool = True,
+    base_image: str = "ubuntu:24.04", gcc_version: int = 13
 ) -> str:
+    assert gcc_version > 8
     output = rf"""
 FROM {base_image}
+
+# Install Ubuntu packages.
+RUN export DEBIAN_FRONTEND=noninteractive DEBCONF_NONINTERACTIVE_SEEN=true && \
+    apt-get update -qq && apt-get install -qq --no-install-recommends \
+    cmake \
+    make \
+    ninja-build \
+    wget \
+    python3 \
+    ca-certificates \
+    gcc-{gcc_version} \
+    g++-{gcc_version} \
+    gfortran-{gcc_version} \
+    libfftw3-dev \
+    libopenblas-dev \
+    libint2-dev \
+    libxc-dev \
+   && rm -rf /var/lib/apt/lists/*
+
+# Create links in /usr/local/bin to overrule links in /usr/bin.
+RUN ln -sf /usr/bin/gcc-{gcc_version}      /usr/local/bin/gcc  && \
+    ln -sf /usr/bin/g++-{gcc_version}      /usr/local/bin/g++  && \
+    ln -sf /usr/bin/gfortran-{gcc_version} /usr/local/bin/gfortran
+
+# Install DBCSR
+COPY ./tools/docker/scripts/install_dbcsr.sh ./
+RUN  ./install_dbcsr.sh
+"""
+    return output
+
+
+# ======================================================================================
+def toolchain_ubuntu2040_nompi(gcc_version: int = 8) -> str:
+    output = rf"""
+FROM ubuntu:20.04
 
 # Install Ubuntu packages.
 RUN export DEBIAN_FRONTEND=noninteractive DEBCONF_NONINTERACTIVE_SEEN=true && \
@@ -421,12 +443,7 @@ RUN export DEBIAN_FRONTEND=noninteractive DEBCONF_NONINTERACTIVE_SEEN=true && \
     libopenblas-dev \
     libgsl-dev \
     libhdf5-dev \
-"""
-    if gcc_version > 8:
-        output += "    libint2-dev \\\n"
-        output += "    libxc-dev \\\n"
-
-    output += rf"""   && rm -rf /var/lib/apt/lists/*
+   && rm -rf /var/lib/apt/lists/*
 
 # Create links in /usr/local/bin to overrule links in /usr/bin.
 RUN ln -sf /usr/bin/gcc-{gcc_version}      /usr/local/bin/gcc  && \
@@ -443,12 +460,12 @@ RUN ln -sf /usr/bin/gcc-{gcc_version}      /usr/local/bin/gcc  && \
         with_openblas="system",
         with_gsl="system",
         with_hdf5="system",
-        with_libgrpp=("install" if libgrpp else "no"),
-        with_libint=("system" if gcc_version > 8 else "install"),
-        with_libxc=("system" if gcc_version > 8 else "install"),
+        with_libgrpp="no",
+        with_libint="install",
+        with_libxc="install",
         with_libxsmm="install",
-        with_libvori=("install" if libvori else "no"),
-        with_spglib=("install" if spglib else "no"),
+        with_libvori="install",
+        with_spglib="no",
     )
     return output
 
