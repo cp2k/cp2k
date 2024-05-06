@@ -1162,10 +1162,10 @@ CONTAINS
 
       INTEGER :: block_end_i, block_end_j, block_end_k, block_start_i, block_start_j, &
          block_start_k, egfi, handle, handle2, i, i_img, i_xyz, iatom, ibasis, ikind, ilist, imax, &
-         iset, j_img, jatom, jcell, jkind, jset, katom, kcell, kkind, kset, m_max, max_ncoi, &
-         max_ncoj, max_ncok, max_nset, max_nsgfi, max_nsgfj, max_nsgfk, maxli, maxlj, maxlk, &
-         mepos, natom, nbasis, ncell_RI, ncoi, ncoj, ncok, nimg, nseti, nsetj, nsetk, nthread, &
-         op_ij, op_jk, op_pos_prv, sgfi, sgfj, sgfk, unit_id
+         iset, j_img, jatom, jcell, jkind, jset, katom, kcell, kkind, kset, m_max, max_ncoj, &
+         max_nset, max_nsgfi, maxli, maxlj, maxlk, mepos, natom, nbasis, ncell_RI, ncoi, ncoj, &
+         ncok, nimg, nseti, nsetj, nsetk, nthread, op_ij, op_jk, op_pos_prv, sgfi, sgfj, sgfk, &
+         unit_id
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: img_to_RI_cell_prv
       INTEGER, DIMENSION(2)                              :: bo
       INTEGER, DIMENSION(3)                              :: blk_idx, blk_size, cell_j, cell_k, &
@@ -1330,7 +1330,6 @@ CONTAINS
       !Need the max l for each basis for libint and max nset, nco and nsgf for LIBXSMM contraction
       nbasis = SIZE(basis_i)
       max_nsgfi = 0
-      max_ncoi = 0
       max_nset = 0
       maxli = 0
       DO ibasis = 1, nbasis
@@ -1339,9 +1338,7 @@ CONTAINS
          maxli = MAX(maxli, imax)
          max_nset = MAX(max_nset, iset)
          max_nsgfi = MAX(max_nsgfi, MAXVAL(nsgfi))
-         max_ncoi = MAX(max_ncoi, MAXVAL(npgfi)*ncoset(maxli))
       END DO
-      max_nsgfj = 0
       max_ncoj = 0
       maxlj = 0
       DO ibasis = 1, nbasis
@@ -1349,19 +1346,14 @@ CONTAINS
                                 nset=jset, nsgf_set=nsgfj, npgf=npgfj)
          maxlj = MAX(maxlj, imax)
          max_nset = MAX(max_nset, jset)
-         max_nsgfj = MAX(max_nsgfj, MAXVAL(nsgfj))
          max_ncoj = MAX(max_ncoj, MAXVAL(npgfj)*ncoset(maxlj))
       END DO
-      max_nsgfk = 0
-      max_ncok = 0
       maxlk = 0
       DO ibasis = 1, nbasis
          CALL get_gto_basis_set(gto_basis_set=basis_k(ibasis)%gto_basis_set, maxl=imax, &
                                 nset=kset, nsgf_set=nsgfk, npgf=npgfk)
          maxlk = MAX(maxlk, imax)
          max_nset = MAX(max_nset, kset)
-         max_nsgfk = MAX(max_nsgfk, MAXVAL(nsgfk))
-         max_ncok = MAX(max_ncok, MAXVAL(npgfk)*ncoset(maxlk))
       END DO
       m_max = maxli + maxlj + maxlk + 1
 
@@ -1435,9 +1427,8 @@ CONTAINS
 !$OMP PARALLEL DEFAULT(NONE) &
 !$OMP SHARED (nthread,do_kpoints_prv,kp_index_lbounds,kp_index_ubounds,maxli,maxlk,maxlj,bounds_i,&
 !$OMP         bounds_j,bounds_k,nimg,basis_i,basis_j,basis_k,dr_ij,dr_jk,dr_ik,ncoset,op_pos_prv,&
-!$OMP         potential_parameter,der_eps,tspj,spi,spk,cell_to_index,max_ncoi,max_nsgfk,RI_range,&
-!$OMP         max_nsgfj,max_ncok,natom,nl_3c,t3c_der_i,t3c_der_k,t3c_der_j,ncell_RI,&
-!$OMP         img_to_RI_cell_prv,do_hfx_kpoints_prv) &
+!$OMP         potential_parameter,der_eps,tspj,spi,spk,cell_to_index,RI_range,natom,nl_3c,&
+!$OMP         t3c_der_i,t3c_der_k,t3c_der_j,ncell_RI,img_to_RI_cell_prv,do_hfx_kpoints_prv) &
 !$OMP PRIVATE (lib,nl_3c_iter,ikind,jkind,kkind,iatom,jatom,katom,rij,rjk,rik,cell_j,cell_k,&
 !$OMP          prefac,jcell,kcell,first_sgf_i,lmax_i,lmin_i,npgfi,nseti,nsgfi,rpgf_i,set_radius_i,&
 !$OMP          sphi_i,zeti,kind_radius_i,first_sgf_j,lmax_j,lmin_j,npgfj,nsetj,nsgfj,rpgf_j,&
@@ -1454,10 +1445,6 @@ CONTAINS
 
       CALL cp_libint_init_3eri1(lib, MAX(maxli, maxlj, maxlk))
       CALL cp_libint_set_contrdepth(lib, 1)
-
-      !pre-allocate contraction buffers
-      ALLOCATE (cpp_buffer(max_nsgfj*max_ncok), ccp_buffer(max_nsgfj*max_nsgfk*max_ncoi))
-
       CALL neighbor_list_3c_iterator_create(nl_3c_iter, nl_3c)
 
       !We split the provided bounds among the threads such that each threads works on a different set of atoms
@@ -1875,9 +1862,9 @@ CONTAINS
 
       INTEGER :: block_end_i, block_end_j, block_end_k, block_start_i, block_start_j, &
          block_start_k, egfi, handle, i, i_xyz, iatom, ibasis, ikind, ilist, imax, iset, j_xyz, &
-         jatom, jkind, jset, katom, kkind, kset, m_max, max_ncoi, max_ncoj, max_ncok, max_nset, &
-         max_nsgfi, max_nsgfj, max_nsgfk, maxli, maxlj, maxlk, mepos, natom, nbasis, ncoi, ncoj, &
-         ncok, nseti, nsetj, nsetk, nthread, op_ij, op_jk, op_pos_prv, sgfi, sgfj, sgfk, unit_id
+         jatom, jkind, jset, katom, kkind, kset, m_max, max_ncoj, max_nset, max_nsgfi, maxli, &
+         maxlj, maxlk, mepos, natom, nbasis, ncoi, ncoj, ncok, nseti, nsetj, nsetk, nthread, &
+         op_ij, op_jk, op_pos_prv, sgfi, sgfj, sgfk, unit_id
       INTEGER, DIMENSION(2)                              :: bo
       INTEGER, DIMENSION(3)                              :: blk_size, sp
       INTEGER, DIMENSION(:), POINTER                     :: lmax_i, lmax_j, lmax_k, lmin_i, lmin_j, &
@@ -1960,7 +1947,6 @@ CONTAINS
       !Need the max l for each basis for libint and max nset, nco and nsgf for LIBXSMM contraction
       nbasis = SIZE(basis_i)
       max_nsgfi = 0
-      max_ncoi = 0
       max_nset = 0
       maxli = 0
       DO ibasis = 1, nbasis
@@ -1969,9 +1955,7 @@ CONTAINS
          maxli = MAX(maxli, imax)
          max_nset = MAX(max_nset, iset)
          max_nsgfi = MAX(max_nsgfi, MAXVAL(nsgfi))
-         max_ncoi = MAX(max_ncoi, MAXVAL(npgfi)*ncoset(maxli))
       END DO
-      max_nsgfj = 0
       max_ncoj = 0
       maxlj = 0
       DO ibasis = 1, nbasis
@@ -1979,19 +1963,14 @@ CONTAINS
                                 nset=jset, nsgf_set=nsgfj, npgf=npgfj)
          maxlj = MAX(maxlj, imax)
          max_nset = MAX(max_nset, jset)
-         max_nsgfj = MAX(max_nsgfj, MAXVAL(nsgfj))
          max_ncoj = MAX(max_ncoj, MAXVAL(npgfj)*ncoset(maxlj))
       END DO
-      max_nsgfk = 0
-      max_ncok = 0
       maxlk = 0
       DO ibasis = 1, nbasis
          CALL get_gto_basis_set(gto_basis_set=basis_k(ibasis)%gto_basis_set, maxl=imax, &
                                 nset=kset, nsgf_set=nsgfk, npgf=npgfk)
          maxlk = MAX(maxlk, imax)
          max_nset = MAX(max_nset, kset)
-         max_nsgfk = MAX(max_nsgfk, MAXVAL(nsgfk))
-         max_ncok = MAX(max_ncok, MAXVAL(npgfk)*ncoset(maxlk))
       END DO
       m_max = maxli + maxlj + maxlk + 1
 
@@ -2059,30 +2038,23 @@ CONTAINS
 !$    nthread = omp_get_max_threads()
 
 !$OMP PARALLEL DEFAULT(NONE) &
-!$OMP SHARED (nthread,maxli,maxlk,maxlj,i,work_virial,pref,&
-!$OMP         basis_i,basis_j,basis_k,dr_ij,dr_jk,dr_ik,ncoset,&
-!$OMP         potential_parameter,der_eps,tspj,spi,spk,max_ncoi,max_nsgfk,&
-!$OMP         max_nsgfj,max_ncok,natom,nl_3c,t3c_trace,cell,particle_set) &
-!$OMP PRIVATE (lib,nl_3c_iter,ikind,jkind,kkind,iatom,jatom,katom,rij,rjk,rik,i_xyz,j_xyz,&
-!$OMP          first_sgf_i,lmax_i,lmin_i,npgfi,nseti,nsgfi,rpgf_i,set_radius_i,&
-!$OMP          sphi_i,zeti,kind_radius_i,first_sgf_j,lmax_j,lmin_j,npgfj,nsetj,nsgfj,rpgf_j,&
-!$OMP          set_radius_j,sphi_j,zetj,kind_radius_j,first_sgf_k,lmax_k,lmin_k,npgfk,nsetk,nsgfk,&
-!$OMP          rpgf_k,set_radius_k,sphi_k,zetk,kind_radius_k,djk,dij,dik,ncoi,ncoj,ncok,sgfi,sgfj,&
-!$OMP          sgfk,dijk_j,dijk_k,ri,rj,rk,max_contraction_i,max_contraction_j,tmp_block,&
-!$OMP          max_contraction_k,iset,jset,kset,block_t_i,blk_size,dijk_contr,cpp_buffer,ccp_buffer,&
-!$OMP          block_start_j,block_end_j,block_start_k,block_end_k,block_start_i,block_end_i,found,&
-!$OMP          sp,mepos,bo,block_t_k,der_ext_i,der_ext_j,der_ext_k,ablock,force,scoord,&
-!$OMP          block_k_not_zero,der_k_zero,skip,der_j_zero,block_t_j,block_j_not_zero)
+!$OMP SHARED (nthread,maxli,maxlk,maxlj,i,work_virial,pref,basis_i,basis_j,basis_k,dr_ij,dr_jk,dr_ik,&
+!$OMP         ncoset,potential_parameter,der_eps,tspj,spi,spk,natom,nl_3c,t3c_trace,cell,particle_set) &
+!$OMP PRIVATE (lib,nl_3c_iter,ikind,jkind,kkind,iatom,jatom,katom,rij,rjk,rik,i_xyz,j_xyz,first_sgf_i,&
+!$OMP          lmax_i,lmin_i,npgfi,nseti,nsgfi,rpgf_i,set_radius_i,sphi_i,zeti,kind_radius_i,first_sgf_j,&
+!$OMP          lmax_j,lmin_j,npgfj,nsetj,nsgfj,rpgf_j,set_radius_j,sphi_j,zetj,kind_radius_j,first_sgf_k,&
+!$OMP          lmax_k,lmin_k,npgfk,nsetk,nsgfk,rpgf_k,set_radius_k,sphi_k,zetk,kind_radius_k,djk,dij,dik,&
+!$OMP          ncoi,ncoj,ncok,sgfi,sgfj,sgfk,dijk_j,dijk_k,ri,rj,rk,max_contraction_i,max_contraction_j,&
+!$OMP          tmp_block,max_contraction_k,iset,jset,kset,block_t_i,blk_size,dijk_contr,found,sp,mepos,&
+!$OMP          block_start_j,block_end_j,block_start_k,block_end_k,block_start_i,block_end_i,block_t_k,&
+!$OMP          bo,der_ext_i,der_ext_j,der_ext_k,ablock,force,scoord,skip,cpp_buffer,ccp_buffer,&
+!$OMP          block_k_not_zero,der_k_zero,der_j_zero,block_t_j,block_j_not_zero)
 
       mepos = 0
 !$    mepos = omp_get_thread_num()
 
       CALL cp_libint_init_3eri1(lib, MAX(maxli, maxlj, maxlk))
       CALL cp_libint_set_contrdepth(lib, 1)
-
-      !pre-allocate contraction buffers
-      ALLOCATE (cpp_buffer(max_nsgfj*max_ncok), ccp_buffer(max_nsgfj*max_nsgfk*max_ncoi))
-
       CALL neighbor_list_3c_iterator_create(nl_3c_iter, nl_3c)
 
       !We split the provided bounds among the threads such that each threads works on a different set of atoms
@@ -2385,10 +2357,9 @@ CONTAINS
 
       INTEGER :: block_end_i, block_end_j, block_end_k, block_start_i, block_start_j, &
          block_start_k, egfi, handle, handle2, i, iatom, ibasis, ikind, ilist, imax, iset, jatom, &
-         jcell, jkind, jset, katom, kcell, kkind, kset, m_max, max_ncoi, max_ncoj, max_ncok, &
-         max_nset, max_nsgfi, max_nsgfj, max_nsgfk, maxli, maxlj, maxlk, mepos, natom, nbasis, &
-         ncell_RI, ncoi, ncoj, ncok, nimg, nseti, nsetj, nsetk, nthread, op_ij, op_jk, op_pos_prv, &
-         sgfi, sgfj, sgfk, unit_id
+         jcell, jkind, jset, katom, kcell, kkind, kset, m_max, max_ncoj, max_nset, max_nsgfi, &
+         maxli, maxlj, maxlk, mepos, natom, nbasis, ncell_RI, ncoi, ncoj, ncok, nimg, nseti, &
+         nsetj, nsetk, nthread, op_ij, op_jk, op_pos_prv, sgfi, sgfj, sgfk, unit_id
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: img_to_RI_cell_prv
       INTEGER, DIMENSION(2)                              :: bo
       INTEGER, DIMENSION(3)                              :: blk_idx, blk_size, cell_j, cell_k, &
@@ -2525,7 +2496,6 @@ CONTAINS
       !Need the max l for each basis for libint and max nset, nco and nsgf for LIBXSMM contraction
       nbasis = SIZE(basis_i)
       max_nsgfi = 0
-      max_ncoi = 0
       max_nset = 0
       maxli = 0
       DO ibasis = 1, nbasis
@@ -2534,9 +2504,7 @@ CONTAINS
          maxli = MAX(maxli, imax)
          max_nset = MAX(max_nset, iset)
          max_nsgfi = MAX(max_nsgfi, MAXVAL(nsgfi))
-         max_ncoi = MAX(max_ncoi, MAXVAL(npgfi)*ncoset(maxli))
       END DO
-      max_nsgfj = 0
       max_ncoj = 0
       maxlj = 0
       DO ibasis = 1, nbasis
@@ -2544,19 +2512,14 @@ CONTAINS
                                 nset=jset, nsgf_set=nsgfj, npgf=npgfj)
          maxlj = MAX(maxlj, imax)
          max_nset = MAX(max_nset, jset)
-         max_nsgfj = MAX(max_nsgfj, MAXVAL(nsgfj))
          max_ncoj = MAX(max_ncoj, MAXVAL(npgfj)*ncoset(maxlj))
       END DO
-      max_nsgfk = 0
-      max_ncok = 0
       maxlk = 0
       DO ibasis = 1, nbasis
          CALL get_gto_basis_set(gto_basis_set=basis_k(ibasis)%gto_basis_set, maxl=imax, &
                                 nset=kset, nsgf_set=nsgfk, npgf=npgfk)
          maxlk = MAX(maxlk, imax)
          max_nset = MAX(max_nset, kset)
-         max_nsgfk = MAX(max_nsgfk, MAXVAL(nsgfk))
-         max_ncok = MAX(max_ncok, MAXVAL(npgfk)*ncoset(maxlk))
       END DO
       m_max = maxli + maxlj + maxlk
 
@@ -2632,10 +2595,9 @@ CONTAINS
 
 !$OMP PARALLEL DEFAULT(NONE) &
 !$OMP SHARED (nthread,do_kpoints_prv,kp_index_lbounds,kp_index_ubounds,maxli,maxlk,maxlj,bounds_i,&
-!$OMP         bounds_j,bounds_k,nimg,basis_i,basis_j,basis_k,dr_ij,dr_jk,dr_ik,ncoset,&
-!$OMP         potential_parameter,int_eps,t3c,tspj,spi,spk,debug,cell_to_index,max_ncoi,max_nsgfk,&
-!$OMP         max_nsgfj,max_ncok,natom,nl_3c,cell,op_pos_prv,do_hfx_kpoints_prv,RI_range,ncell_RI, &
-!$OMP         img_to_RI_cell_prv) &
+!$OMP         bounds_j,bounds_k,nimg,basis_i,basis_j,basis_k,dr_ij,dr_jk,dr_ik,ncoset,int_eps,t3c,&
+!$OMP         tspj,spi,spk,debug,cell_to_index,natom,nl_3c,cell,op_pos_prv,do_hfx_kpoints_prv,&
+!$OMP         RI_range,ncell_RI,img_to_RI_cell_prv,potential_parameter) &
 !$OMP PRIVATE (lib,nl_3c_iter,ikind,jkind,kkind,iatom,jatom,katom,rij,rjk,rik,cell_j,cell_k,&
 !$OMP          prefac,jcell,kcell,first_sgf_i,lmax_i,lmin_i,npgfi,nseti,nsgfi,rpgf_i,set_radius_i,&
 !$OMP          sphi_i,zeti,kind_radius_i,first_sgf_j,lmax_j,lmin_j,npgfj,nsetj,nsgfj,rpgf_j,&
@@ -2651,10 +2613,6 @@ CONTAINS
 
       CALL cp_libint_init_3eri(lib, MAX(maxli, maxlj, maxlk))
       CALL cp_libint_set_contrdepth(lib, 1)
-
-      !pre-allocate contraction buffers
-      ALLOCATE (cpp_buffer(max_nsgfj*max_ncok), ccp_buffer(max_nsgfj*max_nsgfk*max_ncoi))
-
       CALL neighbor_list_3c_iterator_create(nl_3c_iter, nl_3c)
 
       !We split the provided bounds among the threads such that each threads works on a different set of atoms
