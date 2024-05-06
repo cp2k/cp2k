@@ -630,6 +630,9 @@ CONTAINS
          DEALLOCATE (iabc)
       END DO !o3c_iterator
 
+      IF (ALLOCATED(ccp_buffer)) DEALLOCATE (ccp_buffer)
+      IF (ALLOCATED(cpp_buffer)) DEALLOCATE (cpp_buffer)
+
       CALL cp_libint_cleanup_3eri(lib)
 
 !$OMP END PARALLEL
