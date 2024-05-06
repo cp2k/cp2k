@@ -108,7 +108,7 @@ def main() -> None:
 
     for name in "aiida", "ase", "gromacs", "i-pi":
         with OutputFile(f"Dockerfile.test_{name}", args.check) as f:
-            f.write(toolchain_full() + test_3rd_party(name))
+            f.write(toolchain_ubuntu_nompi() + test_3rd_party(name))
 
     for name in "misc", "doxygen":
         with OutputFile(f"Dockerfile.test_{name}", args.check) as f:
@@ -149,7 +149,7 @@ COPY ./CMakeLists.txt .
 
 # Build CP2K with CMake and run regression tests.
 ARG TESTOPTS="{testopts}"
-COPY ./tools/docker/scripts/test_regtest_cmake.sh ./
+COPY ./tools/docker/scripts/build_cp2k_cmake.sh ./tools/docker/scripts/test_regtest_cmake.sh ./
 RUN /bin/bash -o pipefail -c " \
     TESTOPTS='${{TESTOPTS}}' \
     ./test_regtest_cmake.sh {arch} {version} |& tee report.log && \
@@ -281,10 +281,18 @@ RUN ./tools/docker/scripts/test_precommit.sh 2>&1 | tee report.log
 # ======================================================================================
 def test_3rd_party(name: str) -> str:
     return (
-        install_cp2k(version="sdbg", arch="local")
-        + rf"""
+        rf"""
+# Install CP2K sources.
+WORKDIR /opt/cp2k
+COPY ./src ./src
+COPY ./data ./data
+COPY ./tests ./tests
+COPY ./tools/build_utils ./tools/build_utils
+COPY ./cmake ./cmake
+COPY ./CMakeLists.txt .
+
 # Run test for {name}.
-COPY ./tools/docker/scripts/test_{name}.sh .
+COPY ./tools/docker/scripts/build_cp2k_cmake.sh ./tools/docker/scripts/test_{name}.sh ./
 RUN ./test_{name}.sh 2>&1 | tee report.log
 """
         + print_cached_report()
@@ -401,6 +409,8 @@ FROM {base_image}
 RUN export DEBIAN_FRONTEND=noninteractive DEBCONF_NONINTERACTIVE_SEEN=true && \
     apt-get update -qq && apt-get install -qq --no-install-recommends \
     cmake \
+    less \
+    nano \
     make \
     ninja-build \
     wget \

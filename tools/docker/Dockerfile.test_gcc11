@@ -9,6 +9,8 @@ FROM ubuntu:24.04
 RUN export DEBIAN_FRONTEND=noninteractive DEBCONF_NONINTERACTIVE_SEEN=true && \
     apt-get update -qq && apt-get install -qq --no-install-recommends \
     cmake \
+    less \
+    nano \
     make \
     ninja-build \
     wget \
@@ -43,7 +45,7 @@ COPY ./CMakeLists.txt .
 
 # Build CP2K with CMake and run regression tests.
 ARG TESTOPTS=""
-COPY ./tools/docker/scripts/test_regtest_cmake.sh ./
+COPY ./tools/docker/scripts/build_cp2k_cmake.sh ./tools/docker/scripts/test_regtest_cmake.sh ./
 RUN /bin/bash -o pipefail -c " \
     TESTOPTS='${TESTOPTS}' \
     ./test_regtest_cmake.sh ubuntu ssmp |& tee report.log && \
