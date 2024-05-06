@@ -27,7 +27,6 @@ MODULE mp2_ri_grad_util
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_get_info,&
-                                              cp_fm_indxl2g,&
                                               cp_fm_release,&
                                               cp_fm_set_all,&
                                               cp_fm_to_fm,&
@@ -513,12 +512,11 @@ CONTAINS
 
       INTEGER :: dummy_proc, end_col_block, end_row_block, handle, handle2, i_global, i_local, &
          i_sub, iiB, iii, itmp(2), j_global, j_local, j_sub, jjB, my_num_col_blocks, &
-         my_num_row_blocks, mypcol, myprow, ncol_block, ncol_local, npcol, nprow, nrow_block, &
-         nrow_local, num_cols, num_rec_cols, num_rows, number_of_rec, number_of_send, &
-         proc_receive, proc_send, proc_shift, rec_col_end, rec_col_size, rec_col_start, &
-         rec_counter, rec_pcol, rec_prow, rec_row_end, rec_row_size, rec_row_start, ref_send_pcol, &
-         ref_send_prow, send_counter, send_pcol, send_prow, size_rec_buffer, size_send_buffer
-      INTEGER :: start_col_block, start_row_block
+         my_num_row_blocks, mypcol, myprow, ncol_local, npcol, nprow, nrow_local, num_cols, &
+         num_rec_cols, num_rows, number_of_rec, number_of_send, proc_receive, proc_send, &
+         proc_shift, rec_col_end, rec_col_size, rec_col_start, rec_counter, rec_pcol, rec_prow, &
+         rec_row_end, rec_row_size, rec_row_start, ref_send_pcol, ref_send_prow, send_counter, &
+         send_pcol, send_prow, size_rec_buffer, size_send_buffer, start_col_block, start_row_block
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: iii_vet, index_col_rec, map_rec_size, &
                                                             map_send_size
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: blocks_ranges_col, blocks_ranges_row, &
@@ -549,9 +547,7 @@ CONTAINS
                           nrow_local=nrow_local, &
                           ncol_local=ncol_local, &
                           row_indices=row_indices, &
-                          col_indices=col_indices, &
-                          nrow_block=nrow_block, &
-                          ncol_block=ncol_block)
+                          col_indices=col_indices)
       myprow = fm_mat%matrix_struct%context%mepos(1)
       mypcol = fm_mat%matrix_struct%context%mepos(2)
       nprow = fm_mat%matrix_struct%context%num_pe(1)
@@ -909,10 +905,10 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'fm2array'
 
       INTEGER :: dummy_proc, handle, handle2, i_global, iiB, iii, itmp(2), j_global, jjB, mypcol, &
-         myprow, ncol_block, ncol_local, npcol, nprow, nrow_block, nrow_local, num_cols, &
-         num_rec_rows, num_rows, number_of_rec, number_of_send, proc_receive, proc_send, &
-         proc_shift, rec_col_size, rec_counter, rec_pcol, rec_prow, rec_row_size, ref_send_pcol, &
-         ref_send_prow, send_counter, send_pcol, send_prow, size_rec_buffer, size_send_buffer
+         myprow, ncol_local, npcol, nprow, nrow_local, num_cols, num_rec_rows, num_rows, &
+         number_of_rec, number_of_send, proc_receive, proc_send, proc_shift, rec_col_size, &
+         rec_counter, rec_pcol, rec_prow, rec_row_size, ref_send_pcol, ref_send_prow, &
+         send_counter, send_pcol, send_prow, size_rec_buffer, size_send_buffer
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: iii_vet, index_row_rec, map_rec_size, &
                                                             map_send_size
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: grid_2_mepos, grid_ref_2_send_pos, &
@@ -937,8 +933,6 @@ CONTAINS
                           ncol_local=ncol_local, &
                           row_indices=row_indices, &
                           col_indices=col_indices, &
-                          nrow_block=nrow_block, &
-                          ncol_block=ncol_block, &
                           nrow_global=num_rows, &
                           ncol_global=num_cols, &
                           para_env=para_env)
@@ -1186,8 +1180,7 @@ CONTAINS
             ! precompute the indeces of the rows
             num_rec_rows = 0
             DO iiB = 1, rec_row_size
-               i_global = cp_fm_indxl2g(iiB, nrow_block, mepos_2_grid(1, proc_receive), &
-                                        fm_mat%matrix_struct%first_p_pos(1), nprow)
+               i_global = fm_mat%matrix_struct%l2g_row(iiB, mepos_2_grid(1, proc_receive))
                IF (i_global >= my_start_row .AND. i_global <= my_end_row) THEN
                   num_rec_rows = num_rec_rows + 1
                   index_row_rec(num_rec_rows) = i_global
@@ -1198,8 +1191,7 @@ CONTAINS
 
             iii = 0
             DO jjB = 1, rec_col_size
-               j_global = cp_fm_indxl2g(jjB, ncol_block, mepos_2_grid(2, proc_receive), &
-                                        fm_mat%matrix_struct%first_p_pos(2), npcol)
+               j_global = fm_mat%matrix_struct%l2g_col(jjB, mepos_2_grid(2, proc_receive))
                IF (j_global >= my_start_col .AND. j_global <= my_end_col) THEN
                   DO iiB = 1, num_rec_rows
                      i_global = index_row_rec(iiB)
@@ -1258,11 +1250,10 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'create_dbcsr_gamma'
 
       INTEGER :: dummy_proc, handle, i_global, i_local, iaia, iiB, iii, itmp(2), j_global, &
-         j_local, jjB, jjj, kkB, mypcol, myprow, ncol_block, ncol_local, npcol, nprow, nrow_block, &
-         nrow_local, number_of_rec, number_of_send, proc_receive, proc_send, proc_shift, &
-         rec_counter, rec_iaia_end, rec_iaia_size, rec_iaia_start, rec_pcol, rec_prow, &
-         ref_send_pcol, ref_send_prow, send_counter, send_pcol, send_prow, size_rec_buffer, &
-         size_send_buffer
+         j_local, jjB, jjj, kkB, mypcol, myprow, ncol_local, npcol, nprow, nrow_local, &
+         number_of_rec, number_of_send, proc_receive, proc_send, proc_shift, rec_counter, &
+         rec_iaia_end, rec_iaia_size, rec_iaia_start, rec_pcol, rec_prow, ref_send_pcol, &
+         ref_send_prow, send_counter, send_pcol, send_prow, size_rec_buffer, size_send_buffer
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: iii_vet, map_rec_size, map_send_size
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: grid_2_mepos, grid_ref_2_send_pos, &
                                                             indeces_map_my, mepos_2_grid
@@ -1297,9 +1288,7 @@ CONTAINS
                           nrow_local=nrow_local, &
                           ncol_local=ncol_local, &
                           row_indices=row_indices, &
-                          col_indices=col_indices, &
-                          nrow_block=nrow_block, &
-                          ncol_block=ncol_block)
+                          col_indices=col_indices)
       myprow = fm_ia%matrix_struct%context%mepos(1)
       mypcol = fm_ia%matrix_struct%context%mepos(2)
       nprow = fm_ia%matrix_struct%context%num_pe(1)

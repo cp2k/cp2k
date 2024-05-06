@@ -77,8 +77,7 @@ MODULE cp_fm_types
              cp_fm_write_info, &
              cp_fm_to_fm_submat_general ! copy matrix across different contexts
 
-   PUBLIC :: cp_fm_indxl2g, &
-             cp_fm_pilaenv
+   PUBLIC :: cp_fm_pilaenv
 
    INTERFACE cp_fm_to_fm
       MODULE PROCEDURE cp_fm_to_fm_matrix, & ! a full matrix
@@ -2424,65 +2423,6 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE cp_fm_read_unformatted
-
-! **************************************************************************************************
-!> \brief wrapper to scalapack function INDXL2G that computes the global index
-!>         of a distributed matrix entry pointed to by the local index INDXLOC
-!>         of the process indicated by IPROC.
-!>
-!>  Arguments
-!>  =========
-!>
-!>  INDXLOC   (global input) INTEGER
-!>            The local index of the distributed matrix entry.
-!>
-!>  NB        (global input) INTEGER
-!>            Block size, size of the blocks the distributed matrix is
-!>            split into.
-!>
-!>  IPROC     (local input) INTEGER
-!>            The coordinate of the process whose local array row or
-!>            column is to be determined.
-!>
-!>  ISRCPROC  (global input) INTEGER
-!>            The coordinate of the process that possesses the first
-!>            row/column of the distributed matrix.
-!>
-!>  NPROCS    (global input) INTEGER
-!>            The total number processes over which the distributed
-!>            matrix is distributed.
-!>
-!> \param INDXLOC ...
-!> \param NB ...
-!> \param IPROC ...
-!> \param ISRCPROC ...
-!> \param NPROCS ...
-!> \return ...
-!> \author Mauro Del Ben [MDB] - 12.2012
-! **************************************************************************************************
-   FUNCTION cp_fm_indxl2g(INDXLOC, NB, IPROC, ISRCPROC, NPROCS) RESULT(L2G)
-      INTEGER, INTENT(IN)                      :: INDXLOC, NB, IPROC, ISRCPROC, NPROCS
-      INTEGER                                  :: L2G
-
-#if defined(__SCALAPACK)
-      INTEGER, EXTERNAL :: indxl2g
-#endif
-
-#if defined(__SCALAPACK)
-
-      L2G = indxl2g(INDXLOC, NB, IPROC, ISRCPROC, NPROCS)
-
-#else
-      MARK_USED(iproc)
-      MARK_USED(isrcproc)
-      MARK_USED(nb)
-      MARK_USED(nprocs)
-
-      L2G = INDXLOC
-
-#endif
-
-   END FUNCTION cp_fm_indxl2g
 
 ! **************************************************************************************************
 !> \brief ...

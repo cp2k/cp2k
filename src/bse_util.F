@@ -158,9 +158,9 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'fm_general_add_bse'
 
       INTEGER :: col_idx_loc, dummy, handle, handle2, i_entry_rec, idx_col_out, idx_row_out, ii, &
-         iproc, jj, ncol_block_in, ncol_block_out, ncol_local_in, ncol_local_out, npcol, nprocs, &
-         nprow, nrow_block_in, nrow_block_out, nrow_local_in, nrow_local_out, proc_send, &
-         row_idx_loc, send_pcol, send_prow
+         iproc, jj, ncol_block_in, ncol_block_out, ncol_local_in, ncol_local_out, nprocs, &
+         nrow_block_in, nrow_block_out, nrow_local_in, nrow_local_out, proc_send, row_idx_loc, &
+         send_pcol, send_prow
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: entry_counter, num_entries_rec, &
                                                             num_entries_send
       INTEGER, DIMENSION(4)                              :: indices_in
@@ -184,9 +184,6 @@ CONTAINS
                           col_indices=col_indices_out, &
                           nrow_block=nrow_block_out, &
                           ncol_block=ncol_block_out)
-
-      nprow = fm_out%matrix_struct%context%num_pe(1)
-      npcol = fm_out%matrix_struct%context%num_pe(2)
 
       ALLOCATE (num_entries_rec(0:para_env_out%num_pe - 1))
       ALLOCATE (num_entries_send(0:para_env_out%num_pe - 1))
@@ -354,8 +351,7 @@ CONTAINS
       nprocs = para_env_out%num_pe
 
 !$OMP PARALLEL DO DEFAULT(NONE) &
-!$OMP SHARED(fm_out, nprocs, nrow_block_out, ncol_block_out, &
-!$OMP          num_entries_rec, buffer_rec, beta, dummy, nprow, npcol) &
+!$OMP SHARED(fm_out, nprocs, num_entries_rec, buffer_rec, beta) &
 !$OMP PRIVATE(iproc, i_entry_rec, ii, jj)
       DO iproc = 0, nprocs - 1
          DO i_entry_rec = 1, num_entries_rec(iproc)
@@ -420,8 +416,8 @@ CONTAINS
 
       INTEGER :: col_idx_loc, dummy, handle, handle2, i_entry_rec, idx_col_first, idx_col_in, &
          idx_col_out, idx_col_sec, idx_row_in, ii, iproc, jj, ncol_block_in, ncol_block_out, &
-         ncol_local_in, ncol_local_out, npcol, nprocs, nprow, nrow_block_in, nrow_block_out, &
-         nrow_local_in, nrow_local_out, proc_send, row_idx_loc, send_pcol, send_prow
+         ncol_local_in, ncol_local_out, nprocs, nrow_block_in, nrow_block_out, nrow_local_in, &
+         nrow_local_out, proc_send, row_idx_loc, send_pcol, send_prow
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: entry_counter, num_entries_rec, &
                                                             num_entries_send
       INTEGER, DIMENSION(:), POINTER                     :: col_indices_in, col_indices_out, &
@@ -454,9 +450,6 @@ CONTAINS
                           col_indices=col_indices_out, &
                           nrow_block=nrow_block_out, &
                           ncol_block=ncol_block_out)
-
-      nprow = fm_out%matrix_struct%context%num_pe(1)
-      npcol = fm_out%matrix_struct%context%num_pe(2)
 
       ALLOCATE (num_entries_rec(0:para_env_out%num_pe - 1))
       ALLOCATE (num_entries_send(0:para_env_out%num_pe - 1))

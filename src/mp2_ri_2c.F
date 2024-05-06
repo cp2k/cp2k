@@ -1218,8 +1218,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'fill_fm_L_from_L_loc_non_blocking'
 
       INTEGER :: dummy_proc, handle, handle2, i_entry_rec, i_row, i_row_global, iproc, j_col, &
-         j_col_global, LLL, MMM, ncol_block, ncol_local, npcol, nprow, nrow_block, nrow_local, &
-         proc_send, send_pcol, send_prow
+         j_col_global, LLL, MMM, ncol_local, nrow_local, proc_send, send_pcol, send_prow
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: entry_counter, num_entries_rec, &
                                                             num_entries_send
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
@@ -1236,12 +1235,7 @@ CONTAINS
                           nrow_local=nrow_local, &
                           ncol_local=ncol_local, &
                           row_indices=row_indices, &
-                          col_indices=col_indices, &
-                          nrow_block=nrow_block, &
-                          ncol_block=ncol_block)
-
-      nprow = fm_matrix_L%matrix_struct%context%num_pe(1)
-      npcol = fm_matrix_L%matrix_struct%context%num_pe(2)
+                          col_indices=col_indices)
 
       ALLOCATE (num_entries_rec(0:para_env%num_pe - 1))
       ALLOCATE (num_entries_send(0:para_env%num_pe - 1))

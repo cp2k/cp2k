@@ -41,9 +41,14 @@ MODULE qs_linres_op
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: &
-        cp_fm_create, cp_fm_get_info, cp_fm_get_submatrix, cp_fm_indxl2g, cp_fm_release, &
-        cp_fm_set_all, cp_fm_set_submatrix, cp_fm_to_fm, cp_fm_type
+   USE cp_fm_types,                     ONLY: cp_fm_create,&
+                                              cp_fm_get_info,&
+                                              cp_fm_get_submatrix,&
+                                              cp_fm_release,&
+                                              cp_fm_set_all,&
+                                              cp_fm_set_submatrix,&
+                                              cp_fm_to_fm,&
+                                              cp_fm_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type,&
                                               cp_to_string
@@ -1232,13 +1237,11 @@ CONTAINS
 
       a => matrix%local_data
       DO icol_local = 1, ncol_local
-         icol_global = cp_fm_indxl2g(icol_local, ncol_block, mypcol, &
-                                     matrix%matrix_struct%first_p_pos(2), npcol)
+         icol_global = matrix%matrix_struct%l2g_col(icol_local, mypcol)
          IF (icol_global .GT. n) CYCLE
          rrc = rc(:, icol_global)
          DO irow_local = 1, nrow_local
-            irow_global = cp_fm_indxl2g(irow_local, nrow_block, myprow, &
-                                        matrix%matrix_struct%first_p_pos(1), nprow)
+            irow_global = matrix%matrix_struct%l2g_row(irow_local, myprow)
             IF (irow_global .GT. m) CYCLE
             rra = ra(:, irow_global)
             dist = pbc(rrc, rra, cell)

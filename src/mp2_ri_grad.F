@@ -27,7 +27,6 @@ MODULE mp2_ri_grad
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_get_info,&
-                                              cp_fm_indxl2g,&
                                               cp_fm_release,&
                                               cp_fm_set_all,&
                                               cp_fm_to_fm_submat,&
@@ -656,14 +655,12 @@ CONTAINS
 
       INTEGER :: color_exchange, dummy_proc, handle, handle2, handle3, i_global, i_local, iiB, &
          iii, iproc, itmp(2), j_global, j_local, jjB, max_col_size, max_row_size, &
-         my_B_virtual_end, my_B_virtual_start, mypcol, myprow, ncol_block, ncol_block_1i, &
-         ncol_block_2a, ncol_local, ncol_local_1i, ncol_local_2a, npcol, npcol_1i, npcol_2a, &
-         nprow, nprow_1i, nprow_2a, nrow_block, nrow_block_1i, nrow_block_2a, nrow_local, &
-         nrow_local_1i, nrow_local_2a, number_of_rec, number_of_send, proc_receive, &
-         proc_receive_static, proc_send, proc_send_ex, proc_send_static, proc_send_sub, &
-         proc_shift, rec_col_size
-      INTEGER :: rec_counter, rec_row_size, send_col_size, send_counter, send_pcol, send_prow, &
-         send_row_size, size_rec_buffer, size_send_buffer
+         my_B_virtual_end, my_B_virtual_start, mypcol, myprow, ncol_local, ncol_local_1i, &
+         ncol_local_2a, npcol, nprow, nrow_local, nrow_local_1i, nrow_local_2a, number_of_rec, &
+         number_of_send, proc_receive, proc_receive_static, proc_send, proc_send_ex, &
+         proc_send_static, proc_send_sub, proc_shift, rec_col_size, rec_counter, rec_row_size, &
+         send_col_size, send_counter, send_pcol, send_prow, send_row_size, size_rec_buffer, &
+         size_send_buffer
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: iii_vet, map_rec_size, map_send_size, &
                                                             pos_info, pos_info_ex, proc_2_send_pos
       INTEGER, ALLOCATABLE, DIMENSION(:, :) :: grid_2_mepos, mepos_2_grid, my_col_indeces_info_1i, &
@@ -709,9 +706,7 @@ CONTAINS
                           nrow_local=nrow_local, &
                           ncol_local=ncol_local, &
                           row_indices=row_indices, &
-                          col_indices=col_indices, &
-                          nrow_block=nrow_block, &
-                          ncol_block=ncol_block)
+                          col_indices=col_indices)
       myprow = L_mu_q%matrix_struct%context%mepos(1)
       mypcol = L_mu_q%matrix_struct%context%mepos(2)
       nprow = L_mu_q%matrix_struct%context%num_pe(1)
@@ -727,11 +722,7 @@ CONTAINS
                           nrow_local=nrow_local_1i, &
                           ncol_local=ncol_local_1i, &
                           row_indices=row_indices_1i, &
-                          col_indices=col_indices_1i, &
-                          nrow_block=nrow_block_1i, &
-                          ncol_block=ncol_block_1i)
-      nprow_1i = L1_mu_i%matrix_struct%context%num_pe(1)
-      npcol_1i = L1_mu_i%matrix_struct%context%num_pe(2)
+                          col_indices=col_indices_1i)
 
       ALLOCATE (sizes_1i(2, 0:para_env_sub%num_pe - 1))
       CALL para_env_sub%allgather([nrow_local_1i, ncol_local_1i], sizes_1i)
@@ -741,11 +732,7 @@ CONTAINS
                           nrow_local=nrow_local_2a, &
                           ncol_local=ncol_local_2a, &
                           row_indices=row_indices_2a, &
-                          col_indices=col_indices_2a, &
-                          nrow_block=nrow_block_2a, &
-                          ncol_block=ncol_block_2a)
-      nprow_2a = L2_nu_a%matrix_struct%context%num_pe(1)
-      npcol_2a = L2_nu_a%matrix_struct%context%num_pe(2)
+                          col_indices=col_indices_2a)
 
       ALLOCATE (sizes_2a(2, 0:para_env_sub%num_pe - 1))
       CALL para_env_sub%allgather([nrow_local_2a, ncol_local_2a], sizes_2a)
@@ -1185,13 +1172,7 @@ CONTAINS
                           nrow_local=nrow_local, &
                           ncol_local=ncol_local, &
                           row_indices=row_indices, &
-                          col_indices=col_indices, &
-                          nrow_block=nrow_block, &
-                          ncol_block=ncol_block)
-      myprow = mp2_env%ri_grad%P_mo(kspin)%matrix_struct%context%mepos(1)
-      mypcol = mp2_env%ri_grad%P_mo(kspin)%matrix_struct%context%mepos(2)
-      nprow = mp2_env%ri_grad%P_mo(kspin)%matrix_struct%context%num_pe(1)
-      npcol = mp2_env%ri_grad%P_mo(kspin)%matrix_struct%context%num_pe(2)
+                          col_indices=col_indices)
 
       IF (mp2_env%method == ri_mp2_laplace) THEN
          CALL parallel_gemm('T', 'N', virtual, virtual, dimen, 1.0_dp, &
@@ -1274,14 +1255,12 @@ CONTAINS
 
          ! first loop over row since in this way we can cycle
          DO iiB = 1, send_row_size
-            i_global = cp_fm_indxl2g(iiB, nrow_block, send_prow, &
-                                     mp2_env%ri_grad%P_mo(kspin)%matrix_struct%first_p_pos(1), nprow)
+            i_global = mp2_env%ri_grad%P_mo(kspin)%matrix_struct%l2g_row(iiB, send_prow)
             IF (i_global <= homo) CYCLE
             i_global = i_global - homo
             IF (.NOT. (my_B_virtual_start <= i_global .AND. i_global <= my_B_virtual_end)) CYCLE
             DO jjB = 1, send_col_size
-               j_global = cp_fm_indxl2g(jjB, ncol_block, send_pcol, &
-                                        mp2_env%ri_grad%P_mo(kspin)%matrix_struct%first_p_pos(2), npcol)
+               j_global = mp2_env%ri_grad%P_mo(kspin)%matrix_struct%l2g_col(jjB, send_pcol)
                IF (j_global <= homo) CYCLE
                j_global = j_global - homo
                ab_send(iiB, jjB) = mp2_env%ri_grad%P_ab(kspin)%array(i_global - my_B_virtual_start + 1, j_global)

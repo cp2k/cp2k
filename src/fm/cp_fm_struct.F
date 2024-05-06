@@ -93,6 +93,8 @@ MODULE cp_fm_struct
       PROCEDURE, PASS(struct), NON_OVERRIDABLE :: g2p_col => cp_fm_indxg2p_col
       PROCEDURE, PASS(struct), NON_OVERRIDABLE :: g2l_row => cp_fm_indxg2l_row
       PROCEDURE, PASS(struct), NON_OVERRIDABLE :: g2l_col => cp_fm_indxg2l_col
+      PROCEDURE, PASS(struct), NON_OVERRIDABLE :: l2g_row => cp_fm_indxl2g_row
+      PROCEDURE, PASS(struct), NON_OVERRIDABLE :: l2g_col => cp_fm_indxl2g_col
    END TYPE cp_fm_struct_type
 ! **************************************************************************************************
    TYPE cp_fm_struct_p_type
@@ -844,5 +846,119 @@ CONTAINS
 #endif
 
    END FUNCTION cp_fm_indxg2l_col
+
+! **************************************************************************************************
+!> \brief wrapper to scalapack function INDXL2G that computes the global index
+!>         of a distributed matrix entry pointed to by the local index INDXLOC
+!>         of the process indicated by IPROC.
+!>
+!>  Arguments
+!>  =========
+!>
+!>  INDXLOC   (global input) INTEGER
+!>            The local index of the distributed matrix entry.
+!>
+!>  NB        (global input) INTEGER
+!>            Block size, size of the blocks the distributed matrix is
+!>            split into.
+!>
+!>  IPROC     (local input) INTEGER
+!>            The coordinate of the process whose local array row or
+!>            column is to be determined.
+!>
+!>  ISRCPROC  (global input) INTEGER
+!>            The coordinate of the process that possesses the first
+!>            row/column of the distributed matrix.
+!>
+!>  NPROCS    (global input) INTEGER
+!>            The total number processes over which the distributed
+!>            matrix is distributed.
+!>
+!> \param struct ...
+!> \param INDXLOC ...
+!> \param IPROC ...
+!> \return ...
+!> \author Mauro Del Ben [MDB] - 12.2012
+! **************************************************************************************************
+   FUNCTION cp_fm_indxl2g_row(struct, INDXLOC, IPROC) RESULT(L2G)
+      CLASS(cp_fm_struct_type), INTENT(IN) :: struct
+      INTEGER, INTENT(IN)                      :: INDXLOC, IPROC
+      INTEGER                                  :: L2G
+
+#if defined(__SCALAPACK)
+      INTEGER :: number_of_process_rows
+      INTEGER, EXTERNAL :: indxl2g
+
+      CALL struct%context%get(number_of_process_rows=number_of_process_rows)
+
+      L2G = indxl2g(INDXLOC, struct%nrow_block, IPROC, struct%first_p_pos(1), number_of_process_rows)
+
+#else
+      MARK_USED(struct)
+      MARK_USED(indxloc)
+      MARK_USED(iproc)
+
+      L2G = INDXLOC
+
+#endif
+
+   END FUNCTION cp_fm_indxl2g_row
+
+! **************************************************************************************************
+!> \brief wrapper to scalapack function INDXL2G that computes the global index
+!>         of a distributed matrix entry pointed to by the local index INDXLOC
+!>         of the process indicated by IPROC.
+!>
+!>  Arguments
+!>  =========
+!>
+!>  INDXLOC   (global input) INTEGER
+!>            The local index of the distributed matrix entry.
+!>
+!>  NB        (global input) INTEGER
+!>            Block size, size of the blocks the distributed matrix is
+!>            split into.
+!>
+!>  IPROC     (local input) INTEGER
+!>            The coordinate of the process whose local array row or
+!>            column is to be determined.
+!>
+!>  ISRCPROC  (global input) INTEGER
+!>            The coordinate of the process that possesses the first
+!>            row/column of the distributed matrix.
+!>
+!>  NPROCS    (global input) INTEGER
+!>            The total number processes over which the distributed
+!>            matrix is distributed.
+!>
+!> \param struct ...
+!> \param INDXLOC ...
+!> \param IPROC ...
+!> \return ...
+!> \author Mauro Del Ben [MDB] - 12.2012
+! **************************************************************************************************
+   FUNCTION cp_fm_indxl2g_col(struct, INDXLOC, IPROC) RESULT(L2G)
+      CLASS(cp_fm_struct_type), INTENT(IN) :: struct
+      INTEGER, INTENT(IN)                      :: INDXLOC, IPROC
+      INTEGER                                  :: L2G
+
+#if defined(__SCALAPACK)
+      INTEGER :: number_of_process_columns
+      INTEGER, EXTERNAL :: indxl2g
+
+      CALL struct%context%get(number_of_process_columns=number_of_process_columns)
+
+      L2G = indxl2g(INDXLOC, struct%ncol_block, IPROC, struct%first_p_pos(2), number_of_process_columns)
+
+#else
+      MARK_USED(struct)
+      MARK_USED(indxloc)
+      MARK_USED(iproc)
+
+      L2G = INDXLOC
+
+#endif
+
+   END FUNCTION cp_fm_indxl2g_col
 
 END MODULE cp_fm_struct
