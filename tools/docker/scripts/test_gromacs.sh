@@ -2,22 +2,15 @@
 
 # author: Ole Schuett
 
-# shellcheck disable=SC1091
-source /opt/cp2k-toolchain/install/setup
+# Compile and install CP2K.
+./build_cp2k_cmake.sh "ubuntu" || exit 0
+cd build
+ninja install
 
-cd /opt/cp2k
-echo -n "Compiling libcp2k... "
-if make -j VERSION=sdbg libcp2k &> cp2k_make.out; then
-  echo "done."
-else
-  echo -e "failed.\n\n"
-  tail -n 100 cp2k_make.out
-  mkdir -p /workspace/artifacts/
-  cp cp2k_make.out /workspace/artifacts/
-  echo -e "\nSummary: Compiling libcp2k failed."
-  echo -e "Status: FAILED\n"
-  exit 0
-fi
+echo -e "\n========== Installing Dependencies =========="
+apt-get update -qq
+apt-get install -qq --no-install-recommends git
+rm -rf /var/lib/apt/lists/*
 
 echo -e "\n========== Building Gromacs =========="
 echo -n "Cloning Gromacs repository... "
@@ -35,7 +28,7 @@ if cmake .. \
   -DGMX_INSTALL_NBLIB_API=OFF \
   -DGMXAPI=OFF \
   -DGMX_CP2K=ON \
-  -DCP2K_DIR="/opt/cp2k/lib/local/sdbg/" \
+  -DCP2K_DIR="/opt/cp2k/lib/" \
   &> gromacs_cmake.out; then
   echo "done."
 else

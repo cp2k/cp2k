@@ -2,27 +2,13 @@
 
 # author: Ole Schuett
 
-# shellcheck disable=SC1091
-source /opt/cp2k-toolchain/install/setup
-
-echo -e "\n========== Compiling CP2K =========="
-cd /opt/cp2k
-echo -n "Compiling cp2k... "
-if make -j VERSION=sdbg &> make.out; then
-  echo "done."
-else
-  echo -e "failed.\n\n"
-  tail -n 100 make.out
-  mkdir -p /workspace/artifacts/
-  cp make.out /workspace/artifacts/
-  echo -e "\nSummary: Compilation failed."
-  echo -e "Status: FAILED\n"
-  exit 0
-fi
+# Compile CP2K.
+./build_cp2k_cmake.sh "ubuntu" || exit 0
 
 echo -e "\n========== Installing Dependencies =========="
 apt-get update -qq
 apt-get install -qq --no-install-recommends \
+  git \
   python3 \
   python3-venv \
   python3-pip \
@@ -54,7 +40,7 @@ ulimit -t ${TIMEOUT_SEC} # Limit cpu time.
   echo 42 > cp2k_exit_code
   sleep 10 # give i-pi some time to startup
   export OMP_NUM_THREADS=2
-  /opt/cp2k/exe/local/cp2k.sdbg ../in.cp2k
+  /opt/cp2k/exe/local/cp2k.ssmp ../in.cp2k
   echo $? > cp2k_exit_code
 ) &
 

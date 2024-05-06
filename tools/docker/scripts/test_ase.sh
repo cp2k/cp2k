@@ -2,28 +2,17 @@
 
 # author: Ole Schuett
 
-# shellcheck disable=SC1091
-source /opt/cp2k-toolchain/install/setup
+# Compile CP2K.
+./build_cp2k_cmake.sh "ubuntu" || exit 0
 
-cd /opt/cp2k
-echo -n "Compiling cp2k... "
-if make -j VERSION=sdbg &> make.out; then
-  echo "done."
-else
-  echo -e "failed.\n\n"
-  tail -n 100 make.out
-  mkdir -p /workspace/artifacts/
-  cp make.out /workspace/artifacts/
-  echo -e "\nSummary: Compilation failed."
-  echo -e "Status: FAILED\n"
-  exit 0
-fi
+# Fake installation of data files.
+mkdir -p ./share/cp2k
+ln -s ../../data ./share/cp2k/data
 
 cat > /usr/bin/cp2k_shell << EndOfMessage
 #!/bin/bash -e
-source /opt/cp2k-toolchain/install/setup
 export OMP_NUM_THREADS=1
-/opt/cp2k/exe/local/cp2k_shell.sdbg "\$@"
+/opt/cp2k/exe/local/cp2k.ssmp --shell "\$@"
 EndOfMessage
 chmod +x /usr/bin/cp2k_shell
 
@@ -31,9 +20,8 @@ chmod +x /usr/bin/cp2k_shell
 # https://gitlab.com/ase/ase/merge_requests/1109
 cat > /usr/bin/cp2k << EndOfMessage
 #!/bin/bash -e
-source /opt/cp2k-toolchain/install/setup
 export OMP_NUM_THREADS=1
-/opt/cp2k/exe/local/cp2k.sdbg "\$@"
+/opt/cp2k/exe/local/cp2k.ssmp "\$@"
 EndOfMessage
 chmod +x /usr/bin/cp2k
 
@@ -47,6 +35,7 @@ EndOfMessage
 echo -e "\n========== Installing Dependencies =========="
 apt-get update -qq
 apt-get install -qq --no-install-recommends \
+  git \
   python3 \
   python3-dev \
   python3-venv \
