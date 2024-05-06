@@ -2253,8 +2253,7 @@ CONTAINS
 
       CHARACTER(LEN=21)                        :: my_value_format
       INTEGER                                  :: handle, i, j, max_block, &
-                                                  ncol_global, nrow_global, &
-                                                  nrow_block
+                                                  ncol_global, nrow_global
       TYPE(mp_para_env_type), POINTER          :: para_env
 #if defined(__SCALAPACK)
       INTEGER                                  :: i_block, icol_local, &
@@ -2271,7 +2270,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
       CALL cp_fm_get_info(fm, nrow_global=nrow_global, ncol_global=ncol_global, ncol_block=max_block, &
-                          nrow_block=nrow_block, para_env=para_env)
+                          para_env=para_env)
 
       IF (PRESENT(value_format)) THEN
          CPASSERT(LEN_TRIM(ADJUSTL(value_format)) < 11)

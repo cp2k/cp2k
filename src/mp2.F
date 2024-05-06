@@ -33,7 +33,6 @@ MODULE mp2
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_create,&
-                                              cp_fm_get_info,&
                                               cp_fm_get_submatrix,&
                                               cp_fm_release,&
                                               cp_fm_set_all,&
@@ -116,8 +115,8 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'mp2_main'
 
       INTEGER :: bin, cholesky_method, dimen, handle, handle2, i, i_thread, iatom, ikind, irep, &
-         ispin, max_nset, my_bin_size, n_rep_hf, n_threads, nao, natom, ncol_block, ndep, &
-         nfullcols_total, nfullrows_total, nkind, nrow_block, nspins, unit_nr
+         ispin, max_nset, my_bin_size, n_rep_hf, n_threads, nao, natom, ndep, nfullcols_total, &
+         nfullrows_total, nkind, nspins, unit_nr
       INTEGER(KIND=int_8)                                :: mem
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: kind_of, nelec
       LOGICAL :: calc_ex, do_admm, do_admm_rpa_exx, do_dynamic_load_balancing, do_exx, do_gw, &
@@ -325,8 +324,6 @@ IF (.NOT. (mp2_env%method == ri_mp2_method_gpw .OR. mp2_env%method == ri_rpa_met
       CALL cp_fm_set_all(matrix=fm_matrix_work, alpha=0.0_dp)
 
       CALL cp_fm_struct_release(fm_struct)
-
-      CALL cp_fm_get_info(matrix=fm_matrix_ks, nrow_block=nrow_block, ncol_block=ncol_block)
 
       IF (scf_env%cholesky_method == cholesky_off) THEN
          CALL cp_fm_power(fm_matrix_s, fm_matrix_work, -0.5_dp, scf_control%eps_eigval, ndep)

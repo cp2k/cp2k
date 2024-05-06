@@ -922,8 +922,7 @@ CONTAINS
 
 #if defined(__SCALAPACK)
       INTEGER           :: icol_local, ipcol, iprow, irow_global, &
-                           irow_local, ncol_block, nrow_block
-      INTEGER, EXTERNAL :: indxg2l, indxg2p
+                           irow_local
 #endif
 
       CALL timeset(routineN, handle)
@@ -956,9 +955,6 @@ CONTAINS
       END IF
 
 #if defined(__SCALAPACK)
-      nrow_block = work%matrix_struct%nrow_block
-      ncol_block = work%matrix_struct%ncol_block
-
       eigenvectors => work%local_data
 
       ! Build matrix**exponent with eigenvector quenching
@@ -969,18 +965,14 @@ CONTAINS
 
             n_dependent = n_dependent + 1
 
-            ipcol = indxg2p(icol_global, ncol_block, mypcol, &
-                            work%matrix_struct%first_p_pos(2), npcol)
+            ipcol = work%matrix_struct%g2p_col(icol_global)
 
             IF (mypcol == ipcol) THEN
-               icol_local = indxg2l(icol_global, ncol_block, mypcol, &
-                                    work%matrix_struct%first_p_pos(2), npcol)
+               icol_local = work%matrix_struct%g2l_col(icol_global)
                DO irow_global = 1, nrow_global
-                  iprow = indxg2p(irow_global, nrow_block, myprow, &
-                                  work%matrix_struct%first_p_pos(1), nprow)
+                  iprow = work%matrix_struct%g2p_row(irow_global)
                   IF (myprow == iprow) THEN
-                     irow_local = indxg2l(irow_global, nrow_block, myprow, &
-                                          work%matrix_struct%first_p_pos(1), nprow)
+                     irow_local = work%matrix_struct%g2l_row(irow_global)
                      eigenvectors(irow_local, icol_local) = 0.0_dp
                   END IF
                END DO
@@ -990,18 +982,14 @@ CONTAINS
 
             f = eigenvalues(icol_global)**p
 
-            ipcol = indxg2p(icol_global, ncol_block, mypcol, &
-                            work%matrix_struct%first_p_pos(2), npcol)
+            ipcol = work%matrix_struct%g2p_col(icol_global)
 
             IF (mypcol == ipcol) THEN
-               icol_local = indxg2l(icol_global, ncol_block, mypcol, &
-                                    work%matrix_struct%first_p_pos(2), npcol)
+               icol_local = work%matrix_struct%g2l_col(icol_global)
                DO irow_global = 1, nrow_global
-                  iprow = indxg2p(irow_global, nrow_block, myprow, &
-                                  work%matrix_struct%first_p_pos(1), nprow)
+                  iprow = work%matrix_struct%g2p_row(irow_global)
                   IF (myprow == iprow) THEN
-                     irow_local = indxg2l(irow_global, nrow_block, myprow, &
-                                          work%matrix_struct%first_p_pos(1), nprow)
+                     irow_local = work%matrix_struct%g2l_row(irow_global)
                      eigenvectors(irow_local, icol_local) = &
                         f*eigenvectors(irow_local, icol_local)
                   END IF
@@ -1107,7 +1095,7 @@ CONTAINS
                                                       desc_ev_loc
       TYPE(mp_comm_type):: allgrp
       TYPE(cp_blacs_type) :: ictxt_loc
-      INTEGER, EXTERNAL :: numroc, indxl2g, indxg2l
+      INTEGER, EXTERNAL :: numroc
 #endif
 
       ! -------------------------------------------------------------------------

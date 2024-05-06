@@ -3042,9 +3042,8 @@ CONTAINS
       nrowT = vectors%matrix_struct%ncol_global
       ncolT = vectors%matrix_struct%nrow_global
 
-      CALL cp_fm_struct_create(cstruct, vectors%matrix_struct%para_env, &
-                               vectors%matrix_struct%context, nrowT, ncolT, vectors%matrix_struct%ncol_block, &
-                               vectors%matrix_struct%nrow_block, first_p_pos=vectors%matrix_struct%first_p_pos)
+      CALL cp_fm_struct_create(cstruct, template_fmstruct=vectors%matrix_struct, &
+                               nrow_global=nrowT, ncol_global=ncolT)
       CALL cp_fm_create(CTp, cstruct)
       CALL cp_fm_struct_release(cstruct)
 

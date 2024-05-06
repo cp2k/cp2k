@@ -84,9 +84,8 @@ CONTAINS
       COMPLEX(KIND=dp), DIMENSION(:), POINTER  :: diag
 
 #if defined(__SCALAPACK)
-      INTEGER, EXTERNAL                        :: indxl2g
-      INTEGER                                  :: myprow, nprow, npcol, nrow_local, nrow_block, irow_local, &
-                                                  mypcol, ncol_local, ncol_block, icol_local, j
+      INTEGER                                  :: myprow, nprow, npcol, nrow_local, irow_local, &
+                                                  mypcol, ncol_local, icol_local, j
       INTEGER, DIMENSION(9)                    :: desca
 #endif
 
@@ -111,21 +110,19 @@ CONTAINS
       nprow = matrix_lu%matrix_struct%context%num_pe(1)
       npcol = matrix_lu%matrix_struct%context%num_pe(2)
       nrow_local = matrix_lu%matrix_struct%nrow_locals(myprow)
-      nrow_block = matrix_lu%matrix_struct%nrow_block
-      ncol_block = matrix_lu%matrix_struct%ncol_block
       ncol_local = matrix_lu%matrix_struct%ncol_locals(mypcol)
 
       DO irow_local = 1, nrow_local
-         i = indxl2g(irow_local, nrow_block, myprow, matrix_lu%matrix_struct%first_p_pos(1), nprow)
+         i = matrix_lu%matrix_struct%row_indices(irow_local)
          DO icol_local = 1, ncol_local
-            j = indxl2g(icol_local, ncol_block, mypcol, matrix_lu%matrix_struct%first_p_pos(2), npcol)
+            j = matrix_lu%matrix_struct%col_indices(icol_local)
             IF (i == j) diag(i) = matrix_lu%local_data(irow_local, icol_local)
          END DO
       END DO
       CALL matrix_lu%matrix_struct%para_env%sum(diag)
       determinant = PRODUCT(diag)
       DO irow_local = 1, nrow_local
-         i = indxl2g(irow_local, nrow_block, myprow, matrix_lu%matrix_struct%first_p_pos(1), nprow)
+         i = matrix_lu%matrix_struct%row_indices(irow_local)
          IF (ipivot(irow_local) /= i) P = P + 1
       END DO
       CALL matrix_lu%matrix_struct%para_env%sum(P)
