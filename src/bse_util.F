@@ -20,7 +20,6 @@ MODULE bse_util
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_get_info,&
-                                              cp_fm_indxg2l,&
                                               cp_fm_release,&
                                               cp_fm_set_all,&
                                               cp_fm_to_fm_submat_general,&
@@ -360,10 +359,8 @@ CONTAINS
 !$OMP PRIVATE(iproc, i_entry_rec, ii, jj)
       DO iproc = 0, nprocs - 1
          DO i_entry_rec = 1, num_entries_rec(iproc)
-            ii = cp_fm_indxg2l(buffer_rec(iproc)%indx(i_entry_rec, 1), nrow_block_out, &
-                               dummy, dummy, nprow)
-            jj = cp_fm_indxg2l(buffer_rec(iproc)%indx(i_entry_rec, 2), ncol_block_out, &
-                               dummy, dummy, npcol)
+            ii = fm_out%matrix_struct%g2l_row(buffer_rec(iproc)%indx(i_entry_rec, 1))
+            jj = fm_out%matrix_struct%g2l_col(buffer_rec(iproc)%indx(i_entry_rec, 2))
 
             fm_out%local_data(ii, jj) = fm_out%local_data(ii, jj) + beta*buffer_rec(iproc)%msg(i_entry_rec)
          END DO
@@ -659,15 +656,12 @@ CONTAINS
       nprocs = para_env_out%num_pe
 
 !$OMP PARALLEL DO DEFAULT(NONE) &
-!$OMP SHARED(fm_out, nprocs, nrow_block_out, ncol_block_out, &
-!$OMP          num_entries_rec, buffer_rec, nprow, npcol, dummy) &
+!$OMP SHARED(fm_out, nprocs, num_entries_rec, buffer_rec) &
 !$OMP PRIVATE(iproc, i_entry_rec, ii, jj)
       DO iproc = 0, nprocs - 1
          DO i_entry_rec = 1, num_entries_rec(iproc)
-            ii = cp_fm_indxg2l(buffer_rec(iproc)%indx(i_entry_rec, 1), nrow_block_out, &
-                               dummy, dummy, nprow)
-            jj = cp_fm_indxg2l(buffer_rec(iproc)%indx(i_entry_rec, 2), ncol_block_out, &
-                               dummy, dummy, npcol)
+            ii = fm_out%matrix_struct%g2l_row(buffer_rec(iproc)%indx(i_entry_rec, 1))
+            jj = fm_out%matrix_struct%g2l_col(buffer_rec(iproc)%indx(i_entry_rec, 2))
 
             fm_out%local_data(ii, jj) = fm_out%local_data(ii, jj) + buffer_rec(iproc)%msg(i_entry_rec)
          END DO

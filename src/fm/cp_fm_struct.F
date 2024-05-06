@@ -91,6 +91,8 @@ MODULE cp_fm_struct
    CONTAINS
       PROCEDURE, PASS(struct), NON_OVERRIDABLE :: g2p_row => cp_fm_indxg2p_row
       PROCEDURE, PASS(struct), NON_OVERRIDABLE :: g2p_col => cp_fm_indxg2p_col
+      PROCEDURE, PASS(struct), NON_OVERRIDABLE :: g2l_row => cp_fm_indxg2l_row
+      PROCEDURE, PASS(struct), NON_OVERRIDABLE :: g2l_col => cp_fm_indxg2l_col
    END TYPE cp_fm_struct_type
 ! **************************************************************************************************
    TYPE cp_fm_struct_p_type
@@ -730,5 +732,117 @@ CONTAINS
 #endif
 
    END FUNCTION cp_fm_indxg2p_col
+
+! **************************************************************************************************
+!> \brief wrapper to scalapack function INDXG2L that computes the local index
+!>         of a distributed matrix entry pointed to by the global index INDXGLOB.
+!>
+!>  Arguments
+!>  =========
+!>
+!>  INDXGLOB  (global input) INTEGER
+!>            The global index of the distributed matrix entry.
+!>
+!>  NB        (global input) INTEGER
+!>            Block size, size of the blocks the distributed matrix is
+!>            split into.
+!>
+!>  IPROC     (local dummy) INTEGER
+!>            Dummy argument in this case in order to unify the calling
+!>            sequence of the tool-routines.
+!>
+!>  ISRCPROC  (local dummy) INTEGER
+!>            Dummy argument in this case in order to unify the calling
+!>            sequence of the tool-routines.
+!>
+!>  NPROCS    (global input) INTEGER
+!>            The total number processes over which the distributed
+!>            matrix is distributed.
+!>
+!> \param struct ...
+!> \param INDXGLOB ...
+!> \return ...
+!> \author Mauro Del Ben [MDB] - 12.2012
+! **************************************************************************************************
+   FUNCTION cp_fm_indxg2l_row(struct, INDXGLOB) RESULT(G2L)
+      CLASS(cp_fm_struct_type), INTENT(IN) :: struct
+      INTEGER, INTENT(IN)                      :: INDXGLOB
+      INTEGER                                  :: G2L
+
+#if defined(__SCALAPACK)
+      INTEGER :: number_of_process_rows
+      INTEGER, EXTERNAL :: indxg2l
+#endif
+
+#if defined(__SCALAPACK)
+
+      CALL struct%context%get(number_of_process_rows=number_of_process_rows)
+
+      G2L = indxg2l(INDXGLOB, struct%nrow_block, 0, struct%first_p_pos(1), number_of_process_rows)
+
+#else
+      MARK_USED(struct)
+
+      G2L = INDXGLOB
+
+#endif
+
+   END FUNCTION cp_fm_indxg2l_row
+
+! **************************************************************************************************
+!> \brief wrapper to scalapack function INDXG2L that computes the local index
+!>         of a distributed matrix entry pointed to by the global index INDXGLOB.
+!>
+!>  Arguments
+!>  =========
+!>
+!>  INDXGLOB  (global input) INTEGER
+!>            The global index of the distributed matrix entry.
+!>
+!>  NB        (global input) INTEGER
+!>            Block size, size of the blocks the distributed matrix is
+!>            split into.
+!>
+!>  IPROC     (local dummy) INTEGER
+!>            Dummy argument in this case in order to unify the calling
+!>            sequence of the tool-routines.
+!>
+!>  ISRCPROC  (local dummy) INTEGER
+!>            Dummy argument in this case in order to unify the calling
+!>            sequence of the tool-routines.
+!>
+!>  NPROCS    (global input) INTEGER
+!>            The total number processes over which the distributed
+!>            matrix is distributed.
+!>
+!> \param struct ...
+!> \param INDXGLOB ...
+!> \return ...
+!> \author Mauro Del Ben [MDB] - 12.2012
+! **************************************************************************************************
+   FUNCTION cp_fm_indxg2l_col(struct, INDXGLOB) RESULT(G2L)
+      CLASS(cp_fm_struct_type), INTENT(IN) :: struct
+      INTEGER, INTENT(IN)                      :: INDXGLOB
+      INTEGER                                  :: G2L
+
+#if defined(__SCALAPACK)
+      INTEGER :: number_of_process_columns
+      INTEGER, EXTERNAL :: indxg2l
+#endif
+
+#if defined(__SCALAPACK)
+
+      CALL struct%context%get(number_of_process_columns=number_of_process_columns)
+
+      G2L = indxg2l(INDXGLOB, struct%ncol_block, 0, struct%first_p_pos(2), number_of_process_columns)
+
+#else
+      MARK_USED(struct)
+
+      G2L = INDXGLOB
+
+#endif
+
+   END FUNCTION cp_fm_indxg2l_col
 
 END MODULE cp_fm_struct

@@ -25,9 +25,13 @@ MODULE mp2_ri_grad_util
                                               cp_fm_struct_get,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: &
-        cp_fm_create, cp_fm_get_info, cp_fm_indxg2l, cp_fm_indxl2g, cp_fm_release, &
-        cp_fm_set_all, cp_fm_to_fm, cp_fm_type
+   USE cp_fm_types,                     ONLY: cp_fm_create,&
+                                              cp_fm_get_info,&
+                                              cp_fm_indxl2g,&
+                                              cp_fm_release,&
+                                              cp_fm_set_all,&
+                                              cp_fm_to_fm,&
+                                              cp_fm_type
    USE group_dist_types,                ONLY: create_group_dist,&
                                               get_group_dist,&
                                               group_dist_d1_type,&
@@ -819,8 +823,7 @@ CONTAINS
                end_col_block = MIN(blocks_ranges_col(2, jjB), rec_col_end)
                DO j_sub = start_col_block, end_col_block
                   iii = iii + 1
-                  j_local = cp_fm_indxg2l(j_sub, ncol_block, dummy_proc, &
-                                          fm_mat%matrix_struct%first_p_pos(2), npcol)
+                  j_local = fm_mat%matrix_struct%g2l_col(j_sub)
                   index_col_rec(iii) = j_local
                END DO
             END DO
@@ -836,8 +839,7 @@ CONTAINS
                start_row_block = MAX(blocks_ranges_row(1, iiB), rec_row_start)
                end_row_block = MIN(blocks_ranges_row(2, iiB), rec_row_end)
                DO i_sub = start_row_block, end_row_block
-                  i_local = cp_fm_indxg2l(i_sub, nrow_block, dummy_proc, &
-                                          fm_mat%matrix_struct%first_p_pos(1), nprow)
+                  i_local = fm_mat%matrix_struct%g2l_row(i_sub)
                   DO jjB = 1, num_rec_cols
                      iii = iii + 1
                      j_local = index_col_rec(jjB)
@@ -1415,10 +1417,8 @@ CONTAINS
                rec_pcol = fm_ia%matrix_struct%g2p_col(j_global)
                IF (grid_2_mepos(rec_prow, rec_pcol) /= para_env_sub%mepos) CYCLE
                iii = iii + 1
-               i_local = cp_fm_indxg2l(i_global, nrow_block, dummy_proc, &
-                                       fm_ia%matrix_struct%first_p_pos(1), nprow)
-               j_local = cp_fm_indxg2l(j_global, ncol_block, dummy_proc, &
-                                       fm_ia%matrix_struct%first_p_pos(2), npcol)
+               i_local = fm_ia%matrix_struct%g2l_row(i_global)
+               j_local = fm_ia%matrix_struct%g2l_col(j_global)
                indeces_rec(rec_counter)%map(1, iii) = i_local
                indeces_rec(rec_counter)%map(2, iii) = j_local
             END DO
@@ -1437,10 +1437,8 @@ CONTAINS
             rec_pcol = fm_ia%matrix_struct%g2p_col(j_global)
             IF (grid_2_mepos(rec_prow, rec_pcol) /= para_env_sub%mepos) CYCLE
             iii = iii + 1
-            i_local = cp_fm_indxg2l(i_global, nrow_block, dummy_proc, &
-                                    fm_ia%matrix_struct%first_p_pos(1), nprow)
-            j_local = cp_fm_indxg2l(j_global, ncol_block, dummy_proc, &
-                                    fm_ia%matrix_struct%first_p_pos(2), npcol)
+            i_local = fm_ia%matrix_struct%g2l_row(i_global)
+            j_local = fm_ia%matrix_struct%g2l_col(j_global)
             indeces_map_my(1, iii) = i_local
             indeces_map_my(2, iii) = j_local
          END DO

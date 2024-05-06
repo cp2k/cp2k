@@ -26,7 +26,6 @@ MODULE rpa_communication
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_get_info,&
-                                              cp_fm_indxg2l,&
                                               cp_fm_release,&
                                               cp_fm_set_all,&
                                               cp_fm_type
@@ -91,10 +90,10 @@ CONTAINS
 
       INTEGER :: dimen_ia, dummy_proc, handle, i_global, i_local, iaia, iib, iii, itmp(2), &
          j_global, j_local, jjb, jjj, kkb, my_ia_end, my_ia_size, my_ia_start, mypcol, myprow, &
-         ncol_block, ncol_local, npcol, nprow, nrow_block, nrow_local, number_of_rec, &
-         number_of_send, proc_receive, proc_send, proc_shift, rec_counter, rec_iaia_end, &
-         rec_iaia_size, rec_iaia_start, rec_pcol, rec_prow, ref_send_pcol, ref_send_prow, &
-         send_counter, send_pcol, send_prow, size_rec_buffer, size_send_buffer
+         ncol_local, npcol, nprow, nrow_local, number_of_rec, number_of_send, proc_receive, &
+         proc_send, proc_shift, rec_counter, rec_iaia_end, rec_iaia_size, rec_iaia_start, &
+         rec_pcol, rec_prow, ref_send_pcol, ref_send_prow, send_counter, send_pcol, send_prow, &
+         size_rec_buffer, size_send_buffer
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: iii_vet, map_rec_size, map_send_size
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: grid_2_mepos, grid_ref_2_send_pos, &
                                                             group_grid_2_mepos, indices_map_my, &
@@ -151,9 +150,7 @@ CONTAINS
                           nrow_local=nrow_local, &
                           ncol_local=ncol_local, &
                           row_indices=row_indices, &
-                          col_indices=col_indices, &
-                          nrow_block=nrow_block, &
-                          ncol_block=ncol_block)
+                          col_indices=col_indices)
       myprow = fm_ia%matrix_struct%context%mepos(1)
       mypcol = fm_ia%matrix_struct%context%mepos(2)
       nprow = fm_ia%matrix_struct%context%num_pe(1)
@@ -272,10 +269,8 @@ CONTAINS
                rec_pcol = fm_ia%matrix_struct%g2p_col(j_global)
                IF (grid_2_mepos(rec_prow, rec_pcol) /= para_env_sub%mepos) CYCLE
                iii = iii + 1
-               i_local = cp_fm_indxg2l(i_global, nrow_block, dummy_proc, &
-                                       fm_ia%matrix_struct%first_p_pos(1), nprow)
-               j_local = cp_fm_indxg2l(j_global, ncol_block, dummy_proc, &
-                                       fm_ia%matrix_struct%first_p_pos(2), npcol)
+               i_local = fm_ia%matrix_struct%g2l_row(i_global)
+               j_local = fm_ia%matrix_struct%g2l_col(j_global)
                indices_rec(rec_counter)%map(1, iii) = i_local
                indices_rec(rec_counter)%map(2, iii) = j_local
             END DO
@@ -295,10 +290,8 @@ CONTAINS
             rec_pcol = fm_ia%matrix_struct%g2p_col(j_global)
             IF (grid_2_mepos(rec_prow, rec_pcol) /= para_env_sub%mepos) CYCLE
             iii = iii + 1
-            i_local = cp_fm_indxg2l(i_global, nrow_block, dummy_proc, &
-                                    fm_ia%matrix_struct%first_p_pos(1), nprow)
-            j_local = cp_fm_indxg2l(j_global, ncol_block, dummy_proc, &
-                                    fm_ia%matrix_struct%first_p_pos(2), npcol)
+            i_local = fm_ia%matrix_struct%g2l_row(i_global)
+            j_local = fm_ia%matrix_struct%g2l_col(j_global)
             indices_map_my(1, iii) = i_local
             indices_map_my(2, iii) = j_local
          END DO
@@ -307,7 +300,6 @@ CONTAINS
       ! Allocate dbcsr_Gamma_3
       NULLIFY (dbcsr_Gamma_3)
 
-      !CALL dbcsr_allocate_matrix_set(dbcsr_Gamma_3, ncol_local)
       CALL dbcsr_allocate_matrix_set(dbcsr_Gamma_3, my_group_L_size)
 
       ! auxiliary vector of indices for the send buffer

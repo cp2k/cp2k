@@ -25,9 +25,13 @@ MODULE mp2_ri_grad
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: &
-        cp_fm_create, cp_fm_get_info, cp_fm_indxg2l, cp_fm_indxl2g, cp_fm_release, &
-        cp_fm_set_all, cp_fm_to_fm_submat, cp_fm_type
+   USE cp_fm_types,                     ONLY: cp_fm_create,&
+                                              cp_fm_get_info,&
+                                              cp_fm_indxl2g,&
+                                              cp_fm_release,&
+                                              cp_fm_set_all,&
+                                              cp_fm_to_fm_submat,&
+                                              cp_fm_type
    USE input_constants,                 ONLY: do_eri_gpw,&
                                               do_eri_mme,&
                                               ri_mp2_laplace,&
@@ -779,8 +783,7 @@ CONTAINS
       DO iiB = 1, nrow_local_1i
          i_global = row_indices_1i(iiB)
          send_prow = L_mu_q%matrix_struct%g2p_row(i_global)
-         i_local = cp_fm_indxg2l(i_global, nrow_block, dummy_proc, &
-                                 L_mu_q%matrix_struct%first_p_pos(1), nprow)
+         i_local = L_mu_q%matrix_struct%g2l_row(i_global)
          my_row_indeces_info_1i(1, iiB) = send_prow
          my_row_indeces_info_1i(2, iiB) = i_local
       END DO
@@ -788,8 +791,7 @@ CONTAINS
       DO jjB = 1, ncol_local_1i
          j_global = col_indices_1i(jjB)
          send_pcol = L_mu_q%matrix_struct%g2p_col(j_global)
-         j_local = cp_fm_indxg2l(j_global, ncol_block, dummy_proc, &
-                                 L_mu_q%matrix_struct%first_p_pos(2), npcol)
+         j_local = L_mu_q%matrix_struct%g2l_col(j_global)
          my_col_indeces_info_1i(1, jjB) = send_pcol
          my_col_indeces_info_1i(2, jjB) = j_local
       END DO
@@ -810,8 +812,7 @@ CONTAINS
       DO iiB = 1, nrow_local_2a
          i_global = row_indices_2a(iiB)
          send_prow = L_mu_q%matrix_struct%g2p_row(i_global)
-         i_local = cp_fm_indxg2l(i_global, nrow_block, dummy_proc, &
-                                 L_mu_q%matrix_struct%first_p_pos(1), nprow)
+         i_local = L_mu_q%matrix_struct%g2l_row(i_global)
          my_row_indeces_info_2a(1, iiB) = send_prow
          my_row_indeces_info_2a(2, iiB) = i_local
       END DO
@@ -819,8 +820,7 @@ CONTAINS
       DO jjB = 1, ncol_local_2a
          j_global = col_indices_2a(jjB) + homo
          send_pcol = L_mu_q%matrix_struct%g2p_col(j_global)
-         j_local = cp_fm_indxg2l(j_global, ncol_block, dummy_proc, &
-                                 L_mu_q%matrix_struct%first_p_pos(2), npcol)
+         j_local = L_mu_q%matrix_struct%g2l_col(j_global)
          my_col_indeces_info_2a(1, jjB) = send_pcol
          my_col_indeces_info_2a(2, jjB) = j_local
       END DO
