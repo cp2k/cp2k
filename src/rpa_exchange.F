@@ -311,13 +311,13 @@ CONTAINS
       TYPE(dbcsr_matrix_p_set), ALLOCATABLE, &
          DIMENSION(:)                                    :: dbcsr_Gamma_3
 
+      IF (exchange_work%exchange_correction == rpa_exchange_none) RETURN
+
       CALL timeset(routineN, handle)
 
       MARK_USED(product_matrix)
       MARK_USED(product_matrix_small)
       MARK_USED(sqrt2)
-
-      IF (exchange_work%exchange_correction == rpa_exchange_none) RETURN
 
       nspins = SIZE(fm_mat_S)
 
@@ -741,6 +741,7 @@ CONTAINS
 
       IF (ncols <= 0 .OR. nrows <= 0) THEN
          ALLOCATE (mat(ncols, nrows, dimen_RI))
+         CALL timestop(handle)
          RETURN
       END IF
 
@@ -760,7 +761,7 @@ CONTAINS
          data2send(proc) = data2send(proc) + 1
       END DO
       max_number_send = MAXVAL(data2send)
-      WRITE (*, *) "max_number_send", max_number_send
+      WRITE (*, *) "data2send", data2send
 
       ! Determine the number of Auxiliary functions and occ/virt pairs to recv
       ALLOCATE (data2recv(0:para_env%num_pe - 1))
@@ -770,7 +771,7 @@ CONTAINS
          data2recv(proc) = data2recv(proc) + 1
       END DO
       max_number_recv = MAXVAL(data2recv*ia_distribution_fm(mpi2blacs(1, :)))
-      WRITE (*, *) "max_number_recv", max_number_recv
+      WRITE (*, *) "data2recv", data2recv
 
       ALLOCATE (send_buffer(ia_distribution_fm(my_process_row), max_number_send))
       ALLOCATE (recv_buffer(max_number_recv))
@@ -779,6 +780,8 @@ CONTAINS
       DO proc_shift = 0, para_env%num_pe - 1
          send_proc = MODULO(para_env%mepos + proc_shift, para_env%num_pe)
          recv_proc = MODULO(para_env%mepos - proc_shift, para_env%num_pe)
+
+         WRITE (*, *) proc_shift, send_proc, recv_proc
 
 ! Pack send buffer
          send_counter = 0
@@ -804,21 +807,19 @@ CONTAINS
 ! Unpack receive buffer
          recv_counter = 0
          DO aux_global = my_aux_start, my_aux_end
-            proc = fm_mat%matrix_struct%g2p_col(aux_global)
+            proc = fm_mat%matrix_struct%g2p_row(aux_global)
             IF (proc /= recv_proc) CYCLE
 
             recv_counter = recv_counter + 1
 
-            aux_local = fm_mat%matrix_struct%g2l_row(aux_global)
-
             DO ia_local = 1, recv_rows
                ia_global = fm_mat%matrix_struct%l2g_row(ia_local, recv_proc_row)
 
-               iocc = (ia_global - 1)/ncols + 1
-               avirt = MOD(ia_global - 1, ncols) + 1
+               iocc = (ia_global - 1)/nrows + 1
+               avirt = MOD(ia_global - 1, nrows) + 1
 
-               WRITE (*, *) SHAPE(mat), avirt, iocc, ia_local, ia_global, aux_global, my_aux_start, aux_local
-               mat(avirt, iocc, aux_global - my_aux_start + 1) = recv_ptr(ia_local, aux_local)
+               WRITE (*, *) SHAPE(mat), avirt, iocc, ia_local, ia_global, aux_global, my_aux_start, recv_counter
+               mat(avirt, iocc, aux_global - my_aux_start + 1) = recv_ptr(ia_local, recv_counter)
             END DO
 
          END DO
