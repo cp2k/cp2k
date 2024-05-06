@@ -21,7 +21,6 @@ MODULE bse_util
    USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_get_info,&
                                               cp_fm_indxg2l,&
-                                              cp_fm_indxg2p,&
                                               cp_fm_release,&
                                               cp_fm_set_all,&
                                               cp_fm_to_fm_submat_general,&
@@ -237,11 +236,8 @@ CONTAINS
             idx_row_out = indices_in(reordering(2)) + (indices_in(reordering(1)) - 1)*nrow_secidx_out
             idx_col_out = indices_in(reordering(4)) + (indices_in(reordering(3)) - 1)*ncol_secidx_out
 
-            send_prow = cp_fm_indxg2p(idx_row_out, nrow_block_out, dummy, &
-                                      fm_out%matrix_struct%first_p_pos(1), nprow)
-
-            send_pcol = cp_fm_indxg2p(idx_col_out, ncol_block_out, dummy, &
-                                      fm_out%matrix_struct%first_p_pos(2), npcol)
+            send_prow = fm_out%matrix_struct%g2p_row(idx_row_out)
+            send_pcol = fm_out%matrix_struct%g2p_col(idx_col_out)
 
             proc_send = fm_out%matrix_struct%context%blacs2mpi(send_prow, send_pcol)
 
@@ -320,11 +316,8 @@ CONTAINS
             idx_row_out = indices_in(reordering(2)) + (indices_in(reordering(1)) - 1)*nrow_secidx_out
             idx_col_out = indices_in(reordering(4)) + (indices_in(reordering(3)) - 1)*ncol_secidx_out
 
-            send_prow = cp_fm_indxg2p(idx_row_out, nrow_block_out, dummy, &
-                                      fm_out%matrix_struct%first_p_pos(1), nprow)
-
-            send_pcol = cp_fm_indxg2p(idx_col_out, ncol_block_out, dummy, &
-                                      fm_out%matrix_struct%first_p_pos(2), npcol)
+            send_prow = fm_out%matrix_struct%g2p_row(idx_row_out)
+            send_pcol = fm_out%matrix_struct%g2p_col(idx_col_out)
 
             proc_send = fm_out%matrix_struct%context%blacs2mpi(send_prow, send_pcol)
             entry_counter(proc_send) = entry_counter(proc_send) + 1
@@ -529,11 +522,8 @@ CONTAINS
          DO row_idx_loc = 1, nrow_local_in
             idx_row_in = row_indices_in(row_idx_loc)
 
-            send_prow = cp_fm_indxg2p(idx_row_in, nrow_block_out, dummy, &
-                                      fm_out%matrix_struct%first_p_pos(1), nprow)
-
-            send_pcol = cp_fm_indxg2p(idx_col_out, ncol_block_out, dummy, &
-                                      fm_out%matrix_struct%first_p_pos(2), npcol)
+            send_prow = fm_out%matrix_struct%g2p_row(idx_row_in)
+            send_pcol = fm_out%matrix_struct%g2p_col(idx_col_out)
 
             proc_send = fm_out%matrix_struct%context%blacs2mpi(send_prow, send_pcol)
 
@@ -628,11 +618,9 @@ CONTAINS
          DO row_idx_loc = 1, nrow_local_in
             idx_row_in = row_indices_in(row_idx_loc)
 
-            send_prow = cp_fm_indxg2p(idx_row_in, nrow_block_out, dummy, &
-                                      fm_out%matrix_struct%first_p_pos(1), nprow)
+            send_prow = fm_out%matrix_struct%g2p_row(idx_row_in)
 
-            send_pcol = cp_fm_indxg2p(idx_col_out, ncol_block_out, dummy, &
-                                      fm_out%matrix_struct%first_p_pos(2), npcol)
+            send_pcol = fm_out%matrix_struct%g2p_col(idx_col_out)
 
             proc_send = fm_out%matrix_struct%context%blacs2mpi(send_prow, send_pcol)
             entry_counter(proc_send) = entry_counter(proc_send) + 1

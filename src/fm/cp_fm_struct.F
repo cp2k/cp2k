@@ -88,6 +88,9 @@ MODULE cp_fm_struct
       INTEGER, DIMENSION(:), POINTER :: row_indices => NULL(), col_indices => NULL(), &
                                         nrow_locals => NULL(), ncol_locals => NULL()
       INTEGER :: ref_count = -1, local_leading_dimension = -1
+   CONTAINS
+      PROCEDURE, PASS(struct), NON_OVERRIDABLE :: g2p_row => cp_fm_indxg2p_row
+      PROCEDURE, PASS(struct), NON_OVERRIDABLE :: g2p_col => cp_fm_indxg2p_col
    END TYPE cp_fm_struct_type
 ! **************************************************************************************************
    TYPE cp_fm_struct_p_type
@@ -657,5 +660,75 @@ CONTAINS
 
       res = optimal_blacs_col_block_size
    END FUNCTION cp_fm_struct_get_ncol_block
+
+! **************************************************************************************************
+!> \brief wrapper to scalapack function INDXG2P that computes the row process
+!>         coordinate which possesses the entry of a distributed matrix specified
+!>         by a global index INDXGLOB.
+!> \param struct ...
+!> \param INDXGLOB ...
+!> \return ...
+!> \author Mauro Del Ben [MDB] - 12.2012, modified by F. Stein
+! **************************************************************************************************
+   FUNCTION cp_fm_indxg2p_row(struct, INDXGLOB) RESULT(G2P)
+      CLASS(cp_fm_struct_type), INTENT(IN) :: struct
+      INTEGER, INTENT(IN) :: INDXGLOB
+      INTEGER                                  :: G2P
+
+#if defined(__SCALAPACK)
+      INTEGER :: number_of_process_rows
+      INTEGER, EXTERNAL :: indxg2p
+#endif
+
+#if defined(__SCALAPACK)
+
+      CALL struct%context%get(number_of_process_rows=number_of_process_rows)
+
+      G2P = indxg2p(INDXGLOB, struct%nrow_block, 0, struct%first_p_pos(1), number_of_process_rows)
+
+#else
+      MARK_USED(struct)
+      MARK_USED(indxglob)
+
+      G2P = 0
+
+#endif
+
+   END FUNCTION cp_fm_indxg2p_row
+
+! **************************************************************************************************
+!> \brief wrapper to scalapack function INDXG2P that computes the col process
+!>         coordinate which possesses the entry of a distributed matrix specified
+!>         by a global index INDXGLOB.
+!> \param struct ...
+!> \param INDXGLOB ...
+!> \return ...
+!> \author Mauro Del Ben [MDB] - 12.2012, modified by F. Stein
+! **************************************************************************************************
+   FUNCTION cp_fm_indxg2p_col(struct, INDXGLOB) RESULT(G2P)
+      CLASS(cp_fm_struct_type), INTENT(IN) :: struct
+      INTEGER, INTENT(IN) :: INDXGLOB
+      INTEGER                                  :: G2P
+
+#if defined(__SCALAPACK)
+      INTEGER :: number_of_process_columns
+      INTEGER, EXTERNAL :: indxg2p
+#endif
+
+#if defined(__SCALAPACK)
+
+      CALL struct%context%get(number_of_process_columns=number_of_process_columns)
+
+      G2P = indxg2p(INDXGLOB, struct%ncol_block, 0, struct%first_p_pos(2), number_of_process_columns)
+
+#else
+      MARK_USED(struct)
+      MARK_USED(indxglob)
+
+      G2P = 0
+
+#endif
+
+   END FUNCTION cp_fm_indxg2p_col
 
 END MODULE cp_fm_struct

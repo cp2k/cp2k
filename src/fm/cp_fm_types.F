@@ -77,8 +77,7 @@ MODULE cp_fm_types
              cp_fm_write_info, &
              cp_fm_to_fm_submat_general ! copy matrix across different contexts
 
-   PUBLIC :: cp_fm_indxg2p, &
-             cp_fm_indxg2l, &
+   PUBLIC :: cp_fm_indxg2l, &
              cp_fm_indxl2g, &
              cp_fm_pilaenv
 
@@ -2426,66 +2425,6 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE cp_fm_read_unformatted
-
-! **************************************************************************************************
-!> \brief wrapper to scalapack function INDXG2P that computes the process
-!>         coordinate which possesses the entry of a distributed matrix specified
-!>         by a global index INDXGLOB.
-!>
-!>  Arguments
-!>  =========
-!>
-!>  INDXGLOB  (global input) INTEGER
-!>            The global index of the element.
-!>
-!>  NB        (global input) INTEGER
-!>            Block size, size of the blocks the distributed matrix is
-!>            split into.
-!>
-!>  IPROC     (local dummy) INTEGER
-!>            Dummy argument in this case in order to unify the calling
-!>            sequence of the tool-routines.
-!>
-!>  ISRCPROC  (global input) INTEGER
-!>            The coordinate of the process that possesses the first
-!>            row/column of the distributed matrix.
-!>
-!>  NPROCS    (global input) INTEGER
-!>            The total number processes over which the matrix is
-!>            distributed.
-!>
-!> \param INDXGLOB ...
-!> \param NB ...
-!> \param IPROC ...
-!> \param ISRCPROC ...
-!> \param NPROCS ...
-!> \return ...
-!> \author Mauro Del Ben [MDB] - 12.2012
-! **************************************************************************************************
-   FUNCTION cp_fm_indxg2p(INDXGLOB, NB, IPROC, ISRCPROC, NPROCS) RESULT(G2P)
-      INTEGER, INTENT(IN)                      :: INDXGLOB, NB, IPROC, ISRCPROC, NPROCS
-      INTEGER                                  :: G2P
-
-#if defined(__SCALAPACK)
-      INTEGER, EXTERNAL :: indxg2p
-#endif
-
-#if defined(__SCALAPACK)
-
-      G2P = indxg2p(INDXGLOB, NB, IPROC, ISRCPROC, NPROCS)
-
-#else
-      MARK_USED(indxglob)
-      MARK_USED(iproc)
-      MARK_USED(isrcproc)
-      MARK_USED(nb)
-      MARK_USED(nprocs)
-
-      G2P = 0
-
-#endif
-
-   END FUNCTION cp_fm_indxg2p
 
 ! **************************************************************************************************
 !> \brief wrapper to scalapack function INDXG2L that computes the local index

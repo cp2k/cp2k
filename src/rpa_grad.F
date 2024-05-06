@@ -25,9 +25,14 @@ MODULE rpa_grad
                                               cp_fm_struct_get,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: &
-        cp_fm_create, cp_fm_get_info, cp_fm_indxg2l, cp_fm_indxg2p, cp_fm_release, cp_fm_set_all, &
-        cp_fm_to_fm, cp_fm_to_fm_submat_general, cp_fm_type
+   USE cp_fm_types,                     ONLY: cp_fm_create,&
+                                              cp_fm_get_info,&
+                                              cp_fm_indxg2l,&
+                                              cp_fm_release,&
+                                              cp_fm_set_all,&
+                                              cp_fm_to_fm,&
+                                              cp_fm_to_fm_submat_general,&
+                                              cp_fm_type
    USE dgemm_counter_types,             ONLY: dgemm_counter_start,&
                                               dgemm_counter_stop,&
                                               dgemm_counter_type
@@ -370,7 +375,7 @@ CONTAINS
          data2recv = 0
          DO my_i = my_i_start, my_i_end
          DO my_a = my_a_start, my_a_end
-            proc_recv = cp_fm_indxg2p((my_i - 1)*virtual(ispin) + my_a, ncol_block, 0, first_p_pos_col, num_pe_col)
+            proc_recv = fm_mat_S(ispin)%matrix_struct%g2p_col((my_i - 1)*virtual(ispin) + my_a)
             data2recv(proc_recv) = data2recv(proc_recv) + 1
          END DO
          END DO
@@ -382,7 +387,7 @@ CONTAINS
          data2recv = 0
          DO my_i = my_i_start, my_i_end
          DO my_a = my_a_start, my_a_end
-            proc_recv = cp_fm_indxg2p((my_i - 1)*virtual(ispin) + my_a, ncol_block, 0, first_p_pos_col, num_pe_col)
+            proc_recv = fm_mat_S(ispin)%matrix_struct%g2p_col((my_i - 1)*virtual(ispin) + my_a)
             data2recv(proc_recv) = data2recv(proc_recv) + 1
 
             rpa_work%index2recv(proc_recv, ispin)%array(2, data2recv(proc_recv)) = my_i - my_i_start + 1
@@ -511,7 +516,7 @@ CONTAINS
                   my_j = sos_mp2_work%pair_list(2, ij_counter)
 
                   IF (iocc /= my_j) CYCLE
-                  pcol = cp_fm_indxg2p((my_i - 1)*virtual + avirt, ncol_block, 0, first_p_pos_col, num_pe_col)
+                  pcol = fm_mat_S%matrix_struct%g2p_col((my_i - 1)*virtual + avirt)
                   IF (pcol /= pcol_send) CYCLE
 
                   counter = counter + 1
@@ -545,7 +550,7 @@ CONTAINS
                   my_j = sos_mp2_work%pair_list(2, ij_counter)
 
                   IF (iocc /= my_j) CYCLE
-                  pcol = cp_fm_indxg2p((my_i - 1)*virtual + avirt, ncol_block, 0, first_p_pos_col, num_pe_col)
+                  pcol = fm_mat_S%matrix_struct%g2p_col((my_i - 1)*virtual + avirt)
                   IF (pcol /= pcol_send) CYCLE
 
                   counter = counter + 1
@@ -644,7 +649,7 @@ CONTAINS
                   my_b = sos_mp2_work%pair_list(2, ab_counter)
 
                   IF (avirt /= my_b) CYCLE
-                  pcol = cp_fm_indxg2p((iocc - 1)*virtual + my_a, ncol_block, 0, first_p_pos_col, num_pe_col)
+                  pcol = fm_mat_S%matrix_struct%g2p_col((iocc - 1)*virtual + my_a)
                   IF (pcol /= pcol_send) CYCLE
 
                   counter = counter + 1
@@ -678,7 +683,7 @@ CONTAINS
                   my_b = sos_mp2_work%pair_list(2, ab_counter)
 
                   IF (avirt /= my_b) CYCLE
-                  pcol = cp_fm_indxg2p((iocc - 1)*virtual + my_a, ncol_block, 0, first_p_pos_col, num_pe_col)
+                  pcol = fm_mat_S%matrix_struct%g2p_col((iocc - 1)*virtual + my_a)
                   IF (pcol /= pcol_send) CYCLE
 
                   counter = counter + 1
@@ -1663,7 +1668,7 @@ CONTAINS
             avirt = col_global - (iocc - 1)*virtual
 
             IF (iocc /= my_j) CYCLE
-            pcol = cp_fm_indxg2p((my_i - 1)*virtual + avirt, ncol_block, 0, first_p_pos_col, num_pe_col)
+            pcol = fm_work_iaP%matrix_struct%g2p_col((my_i - 1)*virtual + avirt)
             IF (pcol /= my_pcol) CYCLE
 
             my_col_local = cp_fm_indxg2l((my_i - 1)*virtual + avirt, ncol_block, 0, first_p_pos_col, num_pe_col)
@@ -1730,7 +1735,7 @@ CONTAINS
                      iocc = MAX(1, col_global - 1)/virtual + 1
                      IF (iocc /= my_j) CYCLE
                      avirt = col_global - (iocc - 1)*virtual
-                     pcol = cp_fm_indxg2p((my_i - 1)*virtual + avirt, ncol_block, 0, first_p_pos_col, num_pe_col)
+                     pcol = fm_work_iaP%matrix_struct%g2p_col((my_i - 1)*virtual + avirt)
                      IF (pcol /= my_pcol) CYCLE
 
                      my_col_local = cp_fm_indxg2l((my_i - 1)*virtual + avirt, ncol_block, 0, first_p_pos_col, num_pe_col)
@@ -1821,7 +1826,7 @@ CONTAINS
             avirt = col_global - (iocc - 1)*virtual
 
             IF (avirt /= my_b) CYCLE
-            pcol = cp_fm_indxg2p((iocc - 1)*virtual + my_a, ncol_block, 0, first_p_pos_col, num_pe_col)
+            pcol = fm_work_iaP%matrix_struct%g2p_col((iocc - 1)*virtual + my_a)
             IF (pcol /= my_pcol) CYCLE
             my_col_local = cp_fm_indxg2l((iocc - 1)*virtual + my_a, ncol_block, 0, first_p_pos_col, num_pe_col)
 
@@ -1889,7 +1894,7 @@ CONTAINS
                      iocc = MAX(1, col_global - 1)/virtual + 1
                      avirt = col_global - (iocc - 1)*virtual
                      IF (avirt /= my_b) CYCLE
-                     pcol = cp_fm_indxg2p((iocc - 1)*virtual + my_a, ncol_block, 0, first_p_pos_col, num_pe_col)
+                     pcol = fm_work_iaP%matrix_struct%g2p_col((iocc - 1)*virtual + my_a)
                      IF (pcol /= my_pcol) CYCLE
 
                      my_col_local = cp_fm_indxg2l((iocc - 1)*virtual + my_a, ncol_block, 0, first_p_pos_col, num_pe_col)
@@ -2666,13 +2671,13 @@ CONTAINS
 
       CALL timeset(routineN//"_data2", handle2)
       ! Create a map how much data has to be sent to what process coordinate, interchange rows and columns to transpose the matrices
-      CALL get_elements2send(data2send_col, npcol_global, row_indices_sub, ncol_block_global, first_p_pos_global(2), index2send_col)
-      CALL get_elements2send(data2send_row, nprow_global, col_indices_sub, nrow_block_global, first_p_pos_global(1), index2send_row)
+      CALL get_elements2send_col(data2send_col, fm_global%matrix_struct, row_indices_sub, index2send_col)
+      CALL get_elements2send_row(data2send_row, fm_global%matrix_struct, col_indices_sub, index2send_row)
 
       ! Create a map how much data has to be sent to what process coordinate, interchange rows and columns to transpose the matrices
       ! Do the reverse for the recieve processes
-      CALL get_elements2send(data2recv_col, npcol_sub, row_indices_global, ncol_block_sub, first_p_pos_sub(2), index2recv_col)
-      CALL get_elements2send(data2recv_row, nprow_sub, col_indices_global, nrow_block_sub, first_p_pos_sub(1), index2recv_row)
+      CALL get_elements2send_col(data2recv_col, fm_sub%matrix_struct, row_indices_global, index2recv_col)
+      CALL get_elements2send_row(data2recv_row, fm_sub%matrix_struct, col_indices_global, index2recv_row)
       CALL timestop(handle2)
 
       CALL timeset(routineN//"_local", handle2)
@@ -2809,27 +2814,26 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief ...
 !> \param data2send ...
-!> \param np_global ...
+!> \param struct_global ...
 !> \param indices_sub ...
-!> \param n_block_global ...
-!> \param first_p_pos_global ...
 !> \param index2send ...
 ! **************************************************************************************************
-   SUBROUTINE get_elements2send(data2send, np_global, indices_sub, n_block_global, first_p_pos_global, index2send)
+   SUBROUTINE get_elements2send_col(data2send, struct_global, indices_sub, index2send)
       INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(OUT)    :: data2send
-      INTEGER, INTENT(IN)                                :: np_global
+      TYPE(cp_fm_struct_type), INTENT(INOUT)             :: struct_global
       INTEGER, DIMENSION(:), INTENT(IN)                  :: indices_sub
-      INTEGER, INTENT(IN)                                :: n_block_global, first_p_pos_global
       TYPE(one_dim_int_array), ALLOCATABLE, &
          DIMENSION(:), INTENT(OUT)                       :: index2send
 
-      INTEGER                                            :: i_global, i_local, proc
+      INTEGER                                            :: i_global, i_local, np_global, proc
+
+      CALL struct_global%context%get(number_of_process_rows=np_global)
 
       ALLOCATE (data2send(0:np_global - 1))
       data2send = 0
       DO i_local = 1, SIZE(indices_sub)
          i_global = indices_sub(i_local)
-         proc = cp_fm_indxg2p(i_global, n_block_global, 0, first_p_pos_global, np_global)
+         proc = struct_global%g2p_col(i_global)
          data2send(proc) = data2send(proc) + 1
       END DO
 
@@ -2843,7 +2847,50 @@ CONTAINS
       data2send = 0
       DO i_local = 1, SIZE(indices_sub)
          i_global = indices_sub(i_local)
-         proc = cp_fm_indxg2p(i_global, n_block_global, 0, first_p_pos_global, np_global)
+         proc = struct_global%g2p_col(i_global)
+         data2send(proc) = data2send(proc) + 1
+         index2send(proc)%array(data2send(proc)) = i_local
+      END DO
+
+   END SUBROUTINE
+
+! **************************************************************************************************
+!> \brief ...
+!> \param data2send ...
+!> \param struct_global ...
+!> \param indices_sub ...
+!> \param index2send ...
+! **************************************************************************************************
+   SUBROUTINE get_elements2send_row(data2send, struct_global, indices_sub, index2send)
+      INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(OUT)    :: data2send
+      TYPE(cp_fm_struct_type), INTENT(INOUT)             :: struct_global
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: indices_sub
+      TYPE(one_dim_int_array), ALLOCATABLE, &
+         DIMENSION(:), INTENT(OUT)                       :: index2send
+
+      INTEGER                                            :: i_global, i_local, np_global, proc
+
+      CALL struct_global%context%get(number_of_process_rows=np_global)
+
+      ALLOCATE (data2send(0:np_global - 1))
+      data2send = 0
+      DO i_local = 1, SIZE(indices_sub)
+         i_global = indices_sub(i_local)
+         proc = struct_global%g2p_row(i_global)
+         data2send(proc) = data2send(proc) + 1
+      END DO
+
+      ALLOCATE (index2send(0:np_global - 1))
+      DO proc = 0, np_global - 1
+         ALLOCATE (index2send(proc)%array(data2send(proc)))
+         ! We want to crash if there is an error
+         index2send(proc)%array = -1
+      END DO
+
+      data2send = 0
+      DO i_local = 1, SIZE(indices_sub)
+         i_global = indices_sub(i_local)
+         proc = struct_global%g2p_row(i_global)
          data2send(proc) = data2send(proc) + 1
          index2send(proc)%array(data2send(proc)) = i_local
       END DO

@@ -26,7 +26,7 @@ MODULE mp2_ri_grad
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: &
-        cp_fm_create, cp_fm_get_info, cp_fm_indxg2l, cp_fm_indxg2p, cp_fm_indxl2g, cp_fm_release, &
+        cp_fm_create, cp_fm_get_info, cp_fm_indxg2l, cp_fm_indxl2g, cp_fm_release, &
         cp_fm_set_all, cp_fm_to_fm_submat, cp_fm_type
    USE input_constants,                 ONLY: do_eri_gpw,&
                                               do_eri_mme,&
@@ -778,8 +778,7 @@ CONTAINS
       ! row
       DO iiB = 1, nrow_local_1i
          i_global = row_indices_1i(iiB)
-         send_prow = cp_fm_indxg2p(i_global, nrow_block, dummy_proc, &
-                                   L_mu_q%matrix_struct%first_p_pos(1), nprow)
+         send_prow = L_mu_q%matrix_struct%g2p_row(i_global)
          i_local = cp_fm_indxg2l(i_global, nrow_block, dummy_proc, &
                                  L_mu_q%matrix_struct%first_p_pos(1), nprow)
          my_row_indeces_info_1i(1, iiB) = send_prow
@@ -788,8 +787,7 @@ CONTAINS
       ! col
       DO jjB = 1, ncol_local_1i
          j_global = col_indices_1i(jjB)
-         send_pcol = cp_fm_indxg2p(j_global, ncol_block, dummy_proc, &
-                                   L_mu_q%matrix_struct%first_p_pos(2), npcol)
+         send_pcol = L_mu_q%matrix_struct%g2p_col(j_global)
          j_local = cp_fm_indxg2l(j_global, ncol_block, dummy_proc, &
                                  L_mu_q%matrix_struct%first_p_pos(2), npcol)
          my_col_indeces_info_1i(1, jjB) = send_pcol
@@ -811,8 +809,7 @@ CONTAINS
       ! row
       DO iiB = 1, nrow_local_2a
          i_global = row_indices_2a(iiB)
-         send_prow = cp_fm_indxg2p(i_global, nrow_block, dummy_proc, &
-                                   L_mu_q%matrix_struct%first_p_pos(1), nprow)
+         send_prow = L_mu_q%matrix_struct%g2p_row(i_global)
          i_local = cp_fm_indxg2l(i_global, nrow_block, dummy_proc, &
                                  L_mu_q%matrix_struct%first_p_pos(1), nprow)
          my_row_indeces_info_2a(1, iiB) = send_prow
@@ -821,8 +818,7 @@ CONTAINS
       ! col
       DO jjB = 1, ncol_local_2a
          j_global = col_indices_2a(jjB) + homo
-         send_pcol = cp_fm_indxg2p(j_global, ncol_block, dummy_proc, &
-                                   L_mu_q%matrix_struct%first_p_pos(2), npcol)
+         send_pcol = L_mu_q%matrix_struct%g2p_col(j_global)
          j_local = cp_fm_indxg2l(j_global, ncol_block, dummy_proc, &
                                  L_mu_q%matrix_struct%first_p_pos(2), npcol)
          my_col_indeces_info_2a(1, jjB) = send_pcol

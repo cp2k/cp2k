@@ -52,7 +52,6 @@ MODULE mp2_ri_2c
    USE cp_fm_types,                     ONLY: cp_fm_copy_general,&
                                               cp_fm_create,&
                                               cp_fm_get_info,&
-                                              cp_fm_indxg2p,&
                                               cp_fm_release,&
                                               cp_fm_set_all,&
                                               cp_fm_to_fm,&
@@ -1255,13 +1254,11 @@ CONTAINS
       ! get the process, where the elements from L_local_col have to be sent
       DO LLL = 1, dimen_RI
 
-         send_prow = cp_fm_indxg2p(LLL, nrow_block, dummy_proc, &
-                                   fm_matrix_L%matrix_struct%first_p_pos(1), nprow)
+         send_prow = fm_matrix_L%matrix_struct%g2p_row(LLL)
 
          DO MMM = my_group_L_start, my_group_L_end
 
-            send_pcol = cp_fm_indxg2p(MMM, ncol_block, dummy_proc, &
-                                      fm_matrix_L%matrix_struct%first_p_pos(2), npcol)
+            send_pcol = fm_matrix_L%matrix_struct%g2p_col(MMM)
 
             proc_send = fm_matrix_L%matrix_struct%context%blacs2mpi(send_prow, send_pcol)
 
@@ -1337,13 +1334,11 @@ CONTAINS
       ! write the data and the info to buffer_send
       DO LLL = 1, dimen_RI
 
-         send_prow = cp_fm_indxg2p(LLL, nrow_block, dummy_proc, &
-                                   fm_matrix_L%matrix_struct%first_p_pos(1), nprow)
+         send_prow = fm_matrix_L%matrix_struct%g2p_row(LLL)
 
          DO MMM = my_group_L_start, my_group_L_end
 
-            send_pcol = cp_fm_indxg2p(MMM, ncol_block, dummy_proc, &
-                                      fm_matrix_L%matrix_struct%first_p_pos(2), npcol)
+            send_pcol = fm_matrix_L%matrix_struct%g2p_col(MMM)
 
             proc_send = fm_matrix_L%matrix_struct%context%blacs2mpi(send_prow, send_pcol)
 

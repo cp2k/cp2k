@@ -26,7 +26,7 @@ MODULE mp2_ri_grad_util
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: &
-        cp_fm_create, cp_fm_get_info, cp_fm_indxg2l, cp_fm_indxg2p, cp_fm_indxl2g, cp_fm_release, &
+        cp_fm_create, cp_fm_get_info, cp_fm_indxg2l, cp_fm_indxl2g, cp_fm_release, &
         cp_fm_set_all, cp_fm_to_fm, cp_fm_type
    USE group_dist_types,                ONLY: create_group_dist,&
                                               get_group_dist,&
@@ -570,11 +570,9 @@ CONTAINS
       map_send_size = 0
       dummy_proc = 0
       DO jjB = my_start_col, my_end_col
-         send_pcol = cp_fm_indxg2p(jjB, ncol_block, dummy_proc, &
-                                   fm_mat%matrix_struct%first_p_pos(2), npcol)
+         send_pcol = fm_mat%matrix_struct%g2p_col(jjB)
          DO iiB = my_start_row, my_end_row
-            send_prow = cp_fm_indxg2p(iiB, nrow_block, dummy_proc, &
-                                      fm_mat%matrix_struct%first_p_pos(1), nprow)
+            send_prow = fm_mat%matrix_struct%g2p_row(iiB)
             proc_send = grid_2_mepos(send_prow, send_pcol)
             map_send_size(proc_send) = map_send_size(proc_send) + 1
          END DO
@@ -691,11 +689,9 @@ CONTAINS
       ALLOCATE (iii_vet(number_of_send))
       iii_vet = 0
       DO iiB = my_start_row, my_end_row
-         send_prow = cp_fm_indxg2p(iiB, nrow_block, dummy_proc, &
-                                   fm_mat%matrix_struct%first_p_pos(1), nprow)
+         send_prow = fm_mat%matrix_struct%g2p_row(iiB)
          DO jjB = my_start_col, my_end_col
-            send_pcol = cp_fm_indxg2p(jjB, ncol_block, dummy_proc, &
-                                      fm_mat%matrix_struct%first_p_pos(2), npcol)
+            send_pcol = fm_mat%matrix_struct%g2p_col(jjB)
             ! we don't need to send to ourselves
             IF (grid_2_mepos(send_prow, send_pcol) == para_env%mepos) CYCLE
 
@@ -1009,11 +1005,9 @@ CONTAINS
       map_rec_size = 0
       dummy_proc = 0
       DO jjB = my_start_col, my_end_col
-         rec_pcol = cp_fm_indxg2p(jjB, ncol_block, dummy_proc, &
-                                  fm_mat%matrix_struct%first_p_pos(2), npcol)
+         rec_pcol = fm_mat%matrix_struct%g2p_col(jjB)
          DO iiB = my_start_row, my_end_row
-            rec_prow = cp_fm_indxg2p(iiB, nrow_block, dummy_proc, &
-                                     fm_mat%matrix_struct%first_p_pos(1), nprow)
+            rec_prow = fm_mat%matrix_struct%g2p_row(iiB)
             proc_receive = grid_2_mepos(rec_prow, rec_pcol)
             map_rec_size(proc_receive) = map_rec_size(proc_receive) + 1
          END DO
@@ -1326,10 +1320,8 @@ CONTAINS
       DO iaia = my_ia_start, my_ia_end
          i_global = (iaia - 1)/virtual + 1
          j_global = MOD(iaia - 1, virtual) + 1
-         send_prow = cp_fm_indxg2p(i_global, nrow_block, dummy_proc, &
-                                   fm_ia%matrix_struct%first_p_pos(1), nprow)
-         send_pcol = cp_fm_indxg2p(j_global, ncol_block, dummy_proc, &
-                                   fm_ia%matrix_struct%first_p_pos(2), npcol)
+         send_prow = fm_ia%matrix_struct%g2p_row(i_global)
+         send_pcol = fm_ia%matrix_struct%g2p_col(j_global)
          proc_send = grid_2_mepos(send_prow, send_pcol)
          map_send_size(proc_send) = map_send_size(proc_send) + 1
       END DO
@@ -1419,10 +1411,8 @@ CONTAINS
             DO iaia = rec_iaia_start, rec_iaia_end
                i_global = (iaia - 1)/virtual + 1
                j_global = MOD(iaia - 1, virtual) + 1
-               rec_prow = cp_fm_indxg2p(i_global, nrow_block, dummy_proc, &
-                                        fm_ia%matrix_struct%first_p_pos(1), nprow)
-               rec_pcol = cp_fm_indxg2p(j_global, ncol_block, dummy_proc, &
-                                        fm_ia%matrix_struct%first_p_pos(2), npcol)
+               rec_prow = fm_ia%matrix_struct%g2p_row(i_global)
+               rec_pcol = fm_ia%matrix_struct%g2p_col(j_global)
                IF (grid_2_mepos(rec_prow, rec_pcol) /= para_env_sub%mepos) CYCLE
                iii = iii + 1
                i_local = cp_fm_indxg2l(i_global, nrow_block, dummy_proc, &
@@ -1443,10 +1433,8 @@ CONTAINS
          DO iaia = my_ia_start, my_ia_end
             i_global = (iaia - 1)/virtual + 1
             j_global = MOD(iaia - 1, virtual) + 1
-            rec_prow = cp_fm_indxg2p(i_global, nrow_block, dummy_proc, &
-                                     fm_ia%matrix_struct%first_p_pos(1), nprow)
-            rec_pcol = cp_fm_indxg2p(j_global, ncol_block, dummy_proc, &
-                                     fm_ia%matrix_struct%first_p_pos(2), npcol)
+            rec_prow = fm_ia%matrix_struct%g2p_row(i_global)
+            rec_pcol = fm_ia%matrix_struct%g2p_col(j_global)
             IF (grid_2_mepos(rec_prow, rec_pcol) /= para_env_sub%mepos) CYCLE
             iii = iii + 1
             i_local = cp_fm_indxg2l(i_global, nrow_block, dummy_proc, &
@@ -1486,10 +1474,8 @@ CONTAINS
          DO iaia = my_ia_start, my_ia_end
             i_global = (iaia - 1)/virtual + 1
             j_global = MOD(iaia - 1, virtual) + 1
-            send_prow = cp_fm_indxg2p(i_global, nrow_block, dummy_proc, &
-                                      fm_ia%matrix_struct%first_p_pos(1), nprow)
-            send_pcol = cp_fm_indxg2p(j_global, ncol_block, dummy_proc, &
-                                      fm_ia%matrix_struct%first_p_pos(2), npcol)
+            send_prow = fm_ia%matrix_struct%g2p_row(i_global)
+            send_pcol = fm_ia%matrix_struct%g2p_col(j_global)
             proc_send = grid_2_mepos(send_prow, send_pcol)
             ! we don't need to send to ourselves
             IF (grid_2_mepos(send_prow, send_pcol) == para_env_sub%mepos) THEN
