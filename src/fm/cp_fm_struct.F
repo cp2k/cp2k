@@ -142,7 +142,7 @@ CONTAINS
       LOGICAL, OPTIONAL, INTENT(in)                :: square_blocks
       LOGICAL, OPTIONAL, INTENT(in)                :: force_block
 
-      INTEGER                                      :: dumblock
+      INTEGER                                      :: dumblock, i
 #if defined(__SCALAPACK)
       INTEGER                                      :: iunit, stat
       INTEGER, EXTERNAL                            :: numroc
@@ -284,6 +284,25 @@ CONTAINS
       END IF
 
       NULLIFY (fmstruct%row_indices, fmstruct%col_indices)
+
+      ! the max should go away
+      ALLOCATE (fmstruct%row_indices(MAX(fmstruct%nrow_locals(fmstruct%context%mepos(1)), 1)))
+      DO i = 1, SIZE(fmstruct%row_indices)
+#ifdef __SCALAPACK
+         fmstruct%row_indices(i) = fmstruct%l2g_row(i, fmstruct%context%mepos(1))
+#else
+         fmstruct%row_indices(i) = i
+#endif
+      END DO
+      ALLOCATE (fmstruct%col_indices(MAX(fmstruct%ncol_locals(fmstruct%context%mepos(2)), 1)))
+      DO i = 1, SIZE(fmstruct%col_indices)
+#ifdef __SCALAPACK
+         fmstruct%col_indices(i) = fmstruct%l2g_col(i, fmstruct%context%mepos(2))
+#else
+         fmstruct%col_indices(i) = i
+#endif
+      END DO
+
       fmstruct%ref_count = 1
 
       IF (PRESENT(descriptor)) THEN
@@ -413,21 +432,17 @@ CONTAINS
                                ncol_global, first_p_pos, row_indices, &
                                col_indices, nrow_local, ncol_local, nrow_locals, ncol_locals, &
                                local_leading_dimension)
-      TYPE(cp_fm_struct_type), INTENT(INOUT) :: fmstruct
-      TYPE(mp_para_env_type), POINTER, OPTIONAL :: para_env
-      TYPE(cp_blacs_env_type), POINTER, OPTIONAL :: context
-      INTEGER, DIMENSION(9), INTENT(OUT), OPTIONAL :: descriptor
-      INTEGER, INTENT(out), OPTIONAL :: ncol_block, nrow_block, nrow_global, &
-                                        ncol_global, nrow_local, ncol_local, &
-                                        local_leading_dimension
-      INTEGER, DIMENSION(2), INTENT(out), OPTIONAL :: first_p_pos
-      INTEGER, DIMENSION(:), POINTER, OPTIONAL :: row_indices, col_indices, &
-                                                  nrow_locals, ncol_locals
-
-      INTEGER i, nprow, npcol, myprow, mypcol
-#if defined(__SCALAPACK)
-      INTEGER, EXTERNAL :: indxl2g
-#endif
+      TYPE(cp_fm_struct_type), INTENT(IN)                :: fmstruct
+      TYPE(mp_para_env_type), OPTIONAL, POINTER          :: para_env
+      TYPE(cp_blacs_env_type), OPTIONAL, POINTER         :: context
+      INTEGER, DIMENSION(9), INTENT(OUT), OPTIONAL       :: descriptor
+      INTEGER, INTENT(out), OPTIONAL                     :: ncol_block, nrow_block, nrow_global, &
+                                                            ncol_global
+      INTEGER, DIMENSION(2), INTENT(out), OPTIONAL       :: first_p_pos
+      INTEGER, DIMENSION(:), OPTIONAL, POINTER           :: row_indices, col_indices
+      INTEGER, INTENT(out), OPTIONAL                     :: nrow_local, ncol_local
+      INTEGER, DIMENSION(:), OPTIONAL, POINTER           :: nrow_locals, ncol_locals
+      INTEGER, INTENT(out), OPTIONAL                     :: local_leading_dimension
 
       IF (PRESENT(para_env)) para_env => fmstruct%para_env
       IF (PRESENT(context)) context => fmstruct%context
@@ -442,51 +457,11 @@ CONTAINS
       IF (PRESENT(local_leading_dimension)) local_leading_dimension = &
          fmstruct%local_leading_dimension
 
-      myprow = fmstruct%context%mepos(1)
-      mypcol = fmstruct%context%mepos(2)
-      nprow = fmstruct%context%num_pe(1)
-      npcol = fmstruct%context%num_pe(2)
+      IF (PRESENT(nrow_local)) nrow_local = fmstruct%nrow_locals(fmstruct%context%mepos(1))
+      IF (PRESENT(ncol_local)) ncol_local = fmstruct%ncol_locals(fmstruct%context%mepos(2))
 
-      IF (PRESENT(nrow_local)) nrow_local = fmstruct%nrow_locals(myprow)
-      IF (PRESENT(ncol_local)) ncol_local = fmstruct%ncol_locals(mypcol)
-
-      IF (PRESENT(row_indices)) THEN
-         row_indices => fmstruct%row_indices
-         IF (.NOT. ASSOCIATED(row_indices)) THEN
-            ! the max should go away
-            ALLOCATE (fmstruct%row_indices(MAX(fmstruct%nrow_locals(myprow), 1)))
-            row_indices => fmstruct%row_indices
-#ifdef __SCALAPACK
-            DO i = 1, SIZE(row_indices)
-               row_indices(i) = &
-                  indxl2g(i, fmstruct%nrow_block, myprow, fmstruct%first_p_pos(1), nprow)
-            END DO
-#else
-            DO i = 1, SIZE(row_indices)
-               row_indices(i) = i
-            END DO
-#endif
-         END IF
-      END IF
-
-      IF (PRESENT(col_indices)) THEN
-         col_indices => fmstruct%col_indices
-         IF (.NOT. ASSOCIATED(col_indices)) THEN
-            ALLOCATE (fmstruct%col_indices(MAX(fmstruct%ncol_locals(mypcol), 1)))
-            col_indices => fmstruct%col_indices
-#ifdef __SCALAPACK
-            DO i = 1, SIZE(col_indices)
-               col_indices(i) = &
-                  indxl2g(i, fmstruct%ncol_block, mypcol, fmstruct%first_p_pos(2), npcol)
-            END DO
-#else
-            DO i = 1, SIZE(col_indices)
-               col_indices(i) = i
-            END DO
-#endif
-         END IF
-
-      END IF
+      IF (PRESENT(row_indices)) row_indices => fmstruct%row_indices
+      IF (PRESENT(col_indices)) col_indices => fmstruct%col_indices
    END SUBROUTINE cp_fm_struct_get
 
 ! **************************************************************************************************

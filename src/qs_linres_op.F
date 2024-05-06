@@ -1213,8 +1213,9 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'fm_scale_by_pbc_AC'
 
-      INTEGER :: handle, icol_global, icol_local, irow_global, irow_local, m, mypcol, myprow, n, &
-         ncol_block, ncol_global, ncol_local, npcol, nprow, nrow_block, nrow_global, nrow_local
+      INTEGER                                            :: handle, icol_global, icol_local, &
+                                                            irow_global, irow_local, m, mypcol, &
+                                                            myprow, n, ncol_local, nrow_local
       REAL(KIND=dp)                                      :: dist(3), rra(3), rrc(3)
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: a
 
@@ -1222,13 +1223,7 @@ CONTAINS
 
       myprow = matrix%matrix_struct%context%mepos(1)
       mypcol = matrix%matrix_struct%context%mepos(2)
-      nprow = matrix%matrix_struct%context%num_pe(1)
-      npcol = matrix%matrix_struct%context%num_pe(2)
 
-      nrow_block = matrix%matrix_struct%nrow_block
-      ncol_block = matrix%matrix_struct%ncol_block
-      nrow_global = matrix%matrix_struct%nrow_global
-      ncol_global = matrix%matrix_struct%ncol_global
       nrow_local = matrix%matrix_struct%nrow_locals(myprow)
       ncol_local = matrix%matrix_struct%ncol_locals(mypcol)
 
@@ -1237,11 +1232,11 @@ CONTAINS
 
       a => matrix%local_data
       DO icol_local = 1, ncol_local
-         icol_global = matrix%matrix_struct%l2g_col(icol_local, mypcol)
+         icol_global = matrix%matrix_struct%col_indices(icol_local)
          IF (icol_global .GT. n) CYCLE
          rrc = rc(:, icol_global)
          DO irow_local = 1, nrow_local
-            irow_global = matrix%matrix_struct%l2g_row(irow_local, myprow)
+            irow_global = matrix%matrix_struct%row_indices(irow_local)
             IF (irow_global .GT. m) CYCLE
             rra = ra(:, irow_global)
             dist = pbc(rrc, rra, cell)
