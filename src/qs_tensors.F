@@ -1365,8 +1365,8 @@ CONTAINS
       END DO
       m_max = maxli + maxlj + maxlk + 1
 
-      !To minimize expensive memory opsand generally optimize contraction, pre-allocate
-      !contiguous sphi arrays (and transposed in the cas of sphi_i)
+      !To minimize expensive memory ops and generally optimize contraction, pre-allocate
+      !contiguous sphi arrays (and transposed in the case of sphi_i)
 
       NULLIFY (tspj, spi, spk)
       ALLOCATE (spi(max_nset, nbasis), tspj(max_nset, nbasis), spk(max_nset, nbasis))
@@ -1375,7 +1375,6 @@ CONTAINS
          DO iset = 1, max_nset
             NULLIFY (spi(iset, ibasis)%array)
             NULLIFY (tspj(iset, ibasis)%array)
-
             NULLIFY (spk(iset, ibasis)%array)
          END DO
       END DO
@@ -1737,22 +1736,7 @@ CONTAINS
                                RESHAPE(block_t_i(:, :, :, i_xyz), SHAPE=sp, ORDER=[2, 3, 1]), &
                                summation=.TRUE.)
          END DO
-!$OMP END CRITICAL
-!$OMP CRITICAL
-         IF (nl_3c%sym == symmetric_jk) THEN
 
-            sp = SHAPE(block_t_j(:, :, :, 1))
-            sp([2, 3, 1]) = sp
-
-            DO i_xyz = 1, 3
-               IF (.NOT. block_j_not_zero(i_xyz)) CYCLE
-               CALL dbt_put_block(t3c_der_j(jcell, kcell, i_xyz), blk_idx, sp, &
-                                  RESHAPE(block_t_j(:, :, :, i_xyz), SHAPE=sp, ORDER=[2, 3, 1]), &
-                                  summation=.TRUE.)
-            END DO
-         END IF
-!$OMP END CRITICAL
-!$OMP CRITICAL
          sp = SHAPE(block_t_k(:, :, :, 1))
          sp([2, 3, 1]) = sp
 
@@ -1764,17 +1748,29 @@ CONTAINS
          END DO
 !$OMP END CRITICAL
 
+         IF (nl_3c%sym == symmetric_jk) THEN
+            sp = SHAPE(block_t_j(:, :, :, 1))
+            sp([2, 3, 1]) = sp
+!$OMP CRITICAL
+            DO i_xyz = 1, 3
+               IF (.NOT. block_j_not_zero(i_xyz)) CYCLE
+               CALL dbt_put_block(t3c_der_j(jcell, kcell, i_xyz), blk_idx, sp, &
+                                  RESHAPE(block_t_j(:, :, :, i_xyz), SHAPE=sp, ORDER=[2, 3, 1]), &
+                                  summation=.TRUE.)
+            END DO
+!$OMP END CRITICAL
+         END IF
+
          CALL timestop(handle2)
 
-         DEALLOCATE (block_t_i)
-         DEALLOCATE (block_t_j)
-         DEALLOCATE (block_t_k)
-
+         DEALLOCATE (block_t_i, block_t_j, block_t_k)
          DEALLOCATE (max_contraction_i, max_contraction_j, max_contraction_k)
       END DO
 
-      CALL cp_libint_cleanup_3eri1(lib)
+      IF (ALLOCATED(ccp_buffer)) DEALLOCATE (ccp_buffer)
+      IF (ALLOCATED(cpp_buffer)) DEALLOCATE (cpp_buffer)
 
+      CALL cp_libint_cleanup_3eri1(lib)
       CALL neighbor_list_3c_iterator_destroy(nl_3c_iter)
 !$OMP END PARALLEL
 
@@ -1835,7 +1831,6 @@ CONTAINS
          DO ibasis = 1, nbasis
             IF (ASSOCIATED(spi(iset, ibasis)%array)) DEALLOCATE (spi(iset, ibasis)%array)
             IF (ASSOCIATED(tspj(iset, ibasis)%array)) DEALLOCATE (tspj(iset, ibasis)%array)
-
             IF (ASSOCIATED(spk(iset, ibasis)%array)) DEALLOCATE (spk(iset, ibasis)%array)
          END DO
       END DO
@@ -2316,12 +2311,12 @@ CONTAINS
             END DO
          END DO
 
-         DEALLOCATE (block_t_i)
-         DEALLOCATE (block_t_j)
-         DEALLOCATE (block_t_k)
-
+         DEALLOCATE (block_t_i, block_t_j, block_t_k)
          DEALLOCATE (max_contraction_i, max_contraction_j, max_contraction_k, ablock)
       END DO
+
+      IF (ALLOCATED(ccp_buffer)) DEALLOCATE (ccp_buffer)
+      IF (ALLOCATED(cpp_buffer)) DEALLOCATE (cpp_buffer)
 
       CALL cp_libint_cleanup_3eri1(lib)
       CALL neighbor_list_3c_iterator_destroy(nl_3c_iter)
@@ -2331,7 +2326,6 @@ CONTAINS
          DO ibasis = 1, nbasis
             IF (ASSOCIATED(spi(iset, ibasis)%array)) DEALLOCATE (spi(iset, ibasis)%array)
             IF (ASSOCIATED(tspj(iset, ibasis)%array)) DEALLOCATE (tspj(iset, ibasis)%array)
-
             IF (ASSOCIATED(spk(iset, ibasis)%array)) DEALLOCATE (spk(iset, ibasis)%array)
          END DO
       END DO
@@ -2894,8 +2888,10 @@ CONTAINS
          DEALLOCATE (max_contraction_j, max_contraction_k)
       END DO
 
-      CALL cp_libint_cleanup_3eri(lib)
+      IF (ALLOCATED(ccp_buffer)) DEALLOCATE (ccp_buffer)
+      IF (ALLOCATED(cpp_buffer)) DEALLOCATE (cpp_buffer)
 
+      CALL cp_libint_cleanup_3eri(lib)
       CALL neighbor_list_3c_iterator_destroy(nl_3c_iter)
 !$OMP END PARALLEL
 
@@ -2956,7 +2952,6 @@ CONTAINS
          DO ibasis = 1, nbasis
             IF (ASSOCIATED(spi(iset, ibasis)%array)) DEALLOCATE (spi(iset, ibasis)%array)
             IF (ASSOCIATED(tspj(iset, ibasis)%array)) DEALLOCATE (tspj(iset, ibasis)%array)
-
             IF (ASSOCIATED(spk(iset, ibasis)%array)) DEALLOCATE (spk(iset, ibasis)%array)
          END DO
       END DO
@@ -3197,8 +3192,8 @@ CONTAINS
       END DO
 
       CALL cp_libint_cleanup_2eri1(lib)
-
       CALL neighbor_list_iterator_release(nl_iterator)
+
       DO img = 1, nimg
          DO i_xyz = 1, 3
             CALL dbcsr_finalize(t2c_der(img, i_xyz))
@@ -3376,8 +3371,8 @@ CONTAINS
             END DO
          END DO
       END DO
-      CALL neighbor_list_iterator_release(nl_iterator)
 
+      CALL neighbor_list_iterator_release(nl_iterator)
       CALL cp_libint_cleanup_2eri1(lib)
 
       CALL timestop(handle)
