@@ -137,7 +137,7 @@ MODULE rpa_exchange
       TYPE(dbcsr_type), ALLOCATABLE, DIMENSION(:) :: matrix_set
    END TYPE
 
-   LOGICAL, PARAMETER :: use_hfx_implementation = .TRUE.
+   LOGICAL, PARAMETER :: use_hfx_implementation = .FALSE.
 
 CONTAINS
 
@@ -713,11 +713,11 @@ CONTAINS
       INTEGER :: aux_block_size_fm, aux_global, aux_local, avirt, dimen_RI, handle, &
          ia_block_size_fm, ia_global, ia_local, iocc, max_number_recv, max_number_send, &
          my_aux_end, my_aux_size, my_aux_start, my_process_column, my_process_row, proc, &
-         proc_shift, recv_cols, recv_counter, recv_proc, recv_proc_col, recv_proc_row, recv_rows, &
-         send_counter, send_proc
+         proc_shift, recv_cols, recv_counter, recv_proc, recv_proc_row, recv_rows, send_counter, &
+         send_proc
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: data2recv, data2send
       INTEGER, DIMENSION(:), POINTER                     :: aux_distribution_fm, col_indices, &
-                                                            ia_distribution_fm
+                                                            ia_distribution_fm, row_indices
       INTEGER, DIMENSION(:, :), POINTER                  :: mpi2blacs
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), TARGET   :: recv_buffer
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: send_buffer
@@ -732,6 +732,7 @@ CONTAINS
       CALL cp_fm_get_info(matrix=fm_mat, &
                           ncol_locals=aux_distribution_fm, &
                           col_indices=col_indices, &
+                          row_indices=row_indices, &
                           nrow_locals=ia_distribution_fm, &
                           context=context, &
                           ncol_block=aux_block_size_fm, &
@@ -776,6 +777,24 @@ CONTAINS
       ALLOCATE (recv_buffer(max_number_recv))
 
       ALLOCATE (mat(nrows, ncols, my_aux_size))
+
+      ! Start with own data
+      recv_counter = 0
+      DO aux_local = 1, my_aux_size
+         aux_global = col_indices(aux_local)
+         IF (aux_global < my_aux_start .OR. aux_global > my_aux_end) CYCLE
+         DO ia_local = 1, ia_distribution_fm(my_process_row)
+            ia_global = fm_mat%matrix_struct%row_indices(ia_local)
+
+            iocc = (ia_global - 1)/nrows + 1
+            avirt = MOD(ia_global - 1, nrows) + 1
+
+            WRITE (*, *) SHAPE(mat), avirt, iocc, ia_local, ia_global, aux_global, my_aux_start, recv_counter
+            mat(avirt, iocc, aux_global - my_aux_start + 1) = fm_mat%local_data(ia_local, aux_local)
+         END DO
+
+      END DO
+
       DO proc_shift = 0, para_env%num_pe - 1
          send_proc = MODULO(para_env%mepos + proc_shift, para_env%num_pe)
          recv_proc = MODULO(para_env%mepos - proc_shift, para_env%num_pe)
@@ -794,7 +813,6 @@ CONTAINS
 
          ! Prepare pointer to recv buffer
          recv_proc_row = mpi2blacs(1, recv_proc)
-         recv_proc_col = mpi2blacs(2, recv_proc)
          recv_rows = ia_distribution_fm(mpi2blacs(1, recv_proc))
          recv_cols = data2recv(recv_proc)
          recv_ptr(1:recv_rows, 1:recv_cols) => recv_buffer(1:recv_rows*recv_cols)
