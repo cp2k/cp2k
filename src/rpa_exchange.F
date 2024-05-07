@@ -710,11 +710,10 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'redistribute_Gamma_in_subgroups'
 
-      INTEGER :: aux_block_size_fm, aux_global, aux_local, avirt, dimen_RI, handle, &
-         ia_block_size_fm, ia_global, ia_local, iocc, max_number_recv, max_number_send, &
-         my_aux_end, my_aux_size, my_aux_start, my_process_column, my_process_row, proc, &
-         proc_shift, recv_cols, recv_counter, recv_proc, recv_proc_row, recv_rows, send_counter, &
-         send_proc
+      INTEGER :: aux_global, aux_local, avirt, dimen_RI, handle, ia_global, ia_local, iocc, &
+         max_number_recv, max_number_send, my_aux_end, my_aux_size, my_aux_start, &
+         my_process_column, my_process_row, proc, proc_shift, recv_cols, recv_counter, recv_proc, &
+         recv_proc_row, recv_rows, send_counter, send_proc
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: data2recv, data2send
       INTEGER, DIMENSION(:), POINTER                     :: aux_distribution_fm, col_indices, &
                                                             ia_distribution_fm, row_indices
@@ -735,8 +734,6 @@ CONTAINS
                           row_indices=row_indices, &
                           nrow_locals=ia_distribution_fm, &
                           context=context, &
-                          ncol_block=aux_block_size_fm, &
-                          nrow_block=ia_block_size_fm, &
                           ncol_global=dimen_RI, &
                           para_env=para_env)
 
@@ -813,7 +810,7 @@ CONTAINS
 
          ! Prepare pointer to recv buffer
          recv_proc_row = mpi2blacs(1, recv_proc)
-         recv_rows = ia_distribution_fm(mpi2blacs(1, recv_proc))
+         recv_rows = ia_distribution_fm(recv_proc_row)
          recv_cols = data2recv(recv_proc)
          recv_ptr(1:recv_rows, 1:recv_cols) => recv_buffer(1:recv_rows*recv_cols)
 
@@ -865,22 +862,138 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'redistribute_B_in_subgroups'
 
-      INTEGER                                            :: avirt, handle, iocc, nrow_global
+      INTEGER :: aux_global, aux_local, avirt, dimen_RI, handle, ia_global, ia_local, iocc, &
+         max_number_recv, max_number_send, my_aux_end, my_aux_size, my_aux_start, &
+         my_process_column, my_process_row, proc, proc_shift, recv_cols, recv_counter, recv_proc, &
+         recv_proc_col, recv_proc_row, recv_rows, send_counter, send_proc
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: data2recv, data2send
+      INTEGER, DIMENSION(:), POINTER                     :: aux_distribution_fm, col_indices, &
+                                                            ia_distribution_fm, row_indices
+      INTEGER, DIMENSION(:, :), POINTER                  :: mpi2blacs
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), TARGET   :: recv_buffer
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: send_buffer
+      REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :), &
+         POINTER                                         :: recv_ptr
+      TYPE(cp_blacs_env_type), POINTER                   :: context
+      TYPE(group_dist_d1_type)                           :: aux_func_dist
+      TYPE(mp_para_env_type), POINTER                    :: para_env
 
       CALL timeset(routineN, handle)
 
       CALL cp_fm_get_info(matrix=fm_mat, &
-                          nrow_global=nrow_global)
+                          nrow_locals=aux_distribution_fm, &
+                          col_indices=col_indices, &
+                          row_indices=row_indices, &
+                          ncol_locals=ia_distribution_fm, &
+                          context=context, &
+                          nrow_global=dimen_RI, &
+                          para_env=para_env)
 
-      ALLOCATE (mat(nrows, ncols, nrow_global))
+      IF (ncols <= 0 .OR. nrows <= 0) THEN
+         ALLOCATE (mat(ncols, nrows, dimen_RI))
+         CALL timestop(handle)
+         RETURN
+      END IF
 
-      DO iocc = 1, ncols
-      DO avirt = 1, nrows
-         mat(avirt, iocc, :) = fm_mat%local_data(:, (iocc - 1)*nrows + avirt)
+      CALL create_group_dist(aux_func_dist, para_env%num_pe, dimen_RI)
+      CALL get_group_dist(aux_func_dist, para_env%mepos, my_aux_start, my_aux_end, my_aux_size)
+
+      CALL context%get(my_process_column=my_process_column, my_process_row=my_process_row, &
+                       mpi2blacs=mpi2blacs)
+
+      ! Determine the number of columns to send
+      ALLOCATE (data2send(0:para_env%num_pe - 1))
+      data2send = 0
+      DO aux_local = 1, aux_distribution_fm(my_process_row)
+         aux_global = row_indices(aux_local)
+         proc = group_dist_proc(aux_func_dist, aux_global)
+         data2send(proc) = data2send(proc) + 1
       END DO
+      max_number_send = MAXVAL(data2send)
+      WRITE (*, *) "data2send", data2send
+
+      ! Determine the number of Auxiliary functions and occ/virt pairs to recv
+      ALLOCATE (data2recv(0:para_env%num_pe - 1))
+      data2recv = 0
+      DO aux_global = my_aux_start, my_aux_end
+         proc = fm_mat%matrix_struct%g2p_row(aux_global)
+         data2recv(proc) = data2recv(proc) + 1
+      END DO
+      max_number_recv = MAXVAL(data2recv*ia_distribution_fm(mpi2blacs(1, :)))
+      WRITE (*, *) "data2recv", data2recv
+
+      ALLOCATE (send_buffer(ia_distribution_fm(my_process_column), max_number_send))
+      ALLOCATE (recv_buffer(max_number_recv))
+
+      ALLOCATE (mat(nrows, ncols, my_aux_size))
+
+      ! Start with own data
+      recv_counter = 0
+      DO aux_local = 1, my_aux_size
+         aux_global = row_indices(aux_local)
+         IF (aux_global < my_aux_start .OR. aux_global > my_aux_end) CYCLE
+         DO ia_local = 1, ia_distribution_fm(my_process_column)
+            ia_global = fm_mat%matrix_struct%col_indices(ia_local)
+
+            iocc = (ia_global - 1)/nrows + 1
+            avirt = MOD(ia_global - 1, nrows) + 1
+
+            WRITE (*, *) SHAPE(mat), avirt, iocc, ia_local, ia_global, aux_global, my_aux_start, recv_counter
+            mat(avirt, iocc, aux_global - my_aux_start + 1) = fm_mat%local_data(aux_local, ia_local)
+         END DO
+
       END DO
 
-      !WRITE (*, *) "DEBUG redist", NORM2(mat) - NORM2(fm_mat%local_data)
+      DO proc_shift = 0, para_env%num_pe - 1
+         send_proc = MODULO(para_env%mepos + proc_shift, para_env%num_pe)
+         recv_proc = MODULO(para_env%mepos - proc_shift, para_env%num_pe)
+
+         WRITE (*, *) proc_shift, send_proc, recv_proc
+
+! Pack send buffer
+         send_counter = 0
+         DO aux_local = 1, aux_distribution_fm(my_process_row)
+            aux_global = row_indices(aux_local)
+            proc = group_dist_proc(aux_func_dist, aux_global)
+            send_counter = send_counter + 1
+            send_buffer(:, send_counter) = fm_mat%local_data(aux_local, :)
+         END DO
+         CPASSERT(send_counter == data2send(send_proc))
+
+         ! Prepare pointer to recv buffer
+         recv_proc_col = mpi2blacs(2, recv_proc)
+         recv_rows = ia_distribution_fm(recv_proc_col)
+         recv_cols = data2recv(recv_proc)
+         recv_ptr(1:recv_rows, 1:recv_cols) => recv_buffer(1:recv_rows*recv_cols)
+
+! Perform communication
+         CALL para_env%sendrecv(send_buffer(:, 1:data2send(send_proc)), send_proc, &
+                                recv_ptr, recv_proc)
+
+! Unpack receive buffer
+         recv_counter = 0
+         DO aux_global = my_aux_start, my_aux_end
+            proc = fm_mat%matrix_struct%g2p_row(aux_global)
+            WRITE (*, *) aux_global, recv_counter, proc
+            IF (proc /= recv_proc) CYCLE
+
+            recv_counter = recv_counter + 1
+
+            DO ia_local = 1, recv_rows
+               ia_global = fm_mat%matrix_struct%l2g_col(ia_local, recv_proc_row)
+
+               iocc = (ia_global - 1)/nrows + 1
+               avirt = MOD(ia_global - 1, nrows) + 1
+
+               WRITE (*, *) SHAPE(mat), avirt, iocc, ia_local, ia_global, aux_global, my_aux_start, recv_counter
+               mat(avirt, iocc, aux_global - my_aux_start + 1) = recv_ptr(ia_local, recv_counter)
+            END DO
+
+         END DO
+         CPASSERT(recv_counter == data2recv(recv_proc))
+      END DO
+
+      WRITE (*, *) "DEBUG redist", NORM2(mat) - NORM2(fm_mat%local_data)
 
       CALL timestop(handle)
 
