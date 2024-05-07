@@ -301,11 +301,12 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'rpa_exchange_work_compute'
       REAL(KIND=dp), PARAMETER                           :: thresh = 0.0000001_dp
 
-      INTEGER :: handle, iib, ispin, L_counter, nspins, P, Q, L_size_B, L_size_Gamma, hom, virt, i
+      INTEGER :: handle, iib, ispin, L_counter, nspins, P, Q, L_size_Gamma, hom, virt, i, &
+                 send_proc, recv_proc, recv_size, max_aux_size, proc_shift
       REAL(KIND=dp) :: e_rpa
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigenval
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :) :: product_matrix_small
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :) :: mat_Gamma_3, mat_B_iaP
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :) :: mat_Gamma_3, mat_B_iaP, recv_buffer
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :, :) :: product_matrix
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: fm_mat_Gamma_3
       TYPE(dbcsr_matrix_p_set), ALLOCATABLE, &
@@ -456,6 +457,10 @@ CONTAINS
          DO ispin = 1, nspins
             hom = exchange_work%homo(ispin)
             virt = exchange_work%virtual(ispin)
+            IF (hom < 1 .OR. virt < 1) THEN
+               CALL cp_fm_release(fm_mat_Gamma_3(ispin))
+               CYCLE
+            END IF
 
             CALL redistribute_Gamma_in_subgroups(fm_mat_Gamma_3(ispin), mat_Gamma_3, hom, virt)
             CALL cp_fm_release(fm_mat_Gamma_3(ispin))
@@ -470,34 +475,48 @@ CONTAINS
             ! Return to the original tensor
             CALL calc_fm_mat_S_rpa(fm_mat_S(ispin), .TRUE., virt, eig(:, ispin), hom, omega, 0.0_dp)
 
-            L_size_Gamma = SIZE(mat_Gamma_3, 3)
-            L_size_B = SIZE(mat_B_iaP, 3)
+            max_aux_size = (exchange_work%dimen_RI + exchange_work%para_env_RPA%num_pe - 1)/exchange_work%para_env_RPA%num_pe
 
-            !WRITE (*, *) "sizes", L_size_B, L_size_Gamma, hom, virt
-            ALLOCATE (product_matrix(hom, L_size_Gamma, hom, L_size_B))
-            CALL dgemm("T", "N", hom*L_size_Gamma, hom*L_size_B, virt, 1.0_dp, mat_Gamma_3, virt, mat_B_iaP, virt, &
-                       0.0_dp, product_matrix, hom*L_size_Gamma)
-            DO P = 1, L_size_Gamma
-            DO Q = 1, L_size_B
-            DO i = 1, hom
-               e_exchange_corr = e_exchange_corr + DOT_PRODUCT(product_matrix(i, P, :, Q), product_matrix(:, P, i, Q))
-            END DO
-            END DO
-            END DO
-            IF (.FALSE.) e_exchange_corr = accurate_dot_product(product_matrix(:, 1, 1, 1), product_matrix(:, 1, 1, 1))
-#if 0
-            DO P = 1, L_size_Gamma
-            DO Q = 1, L_size_B
-               sum_ia = 0.0_dp
+            ALLOCATE (product_matrix(hom, SIZE(mat_Gamma_3, 3), hom, max_aux_size))
+            ALLOCATE (recv_buffer(virt, hom, max_aux_size))
+            DO proc_shift = 0, exchange_work%para_env_RPA%num_pe - 1
+               send_proc = MODULO(exchange_work%para_env_RPA%mepos + proc_shift, exchange_work%para_env_RPA%num_pe)
+               recv_proc = MODULO(exchange_work%para_env_RPA%mepos - proc_shift, exchange_work%para_env_RPA%num_pe)
+
+               IF (recv_proc < MOD(exchange_work%dimen_RI, exchange_work%para_env_RPA%num_pe)) THEN
+                  recv_size = (exchange_work%dimen_RI + exchange_work%para_env_RPA%num_pe - 1)/exchange_work%para_env_RPA%num_pe
+               ELSE
+                  recv_size = exchange_work%dimen_RI/exchange_work%para_env_RPA%num_pe
+               END IF
+
+               CALL exchange_work%para_env_RPA%sendrecv(mat_B_iaP, send_proc, recv_buffer(:, :, 1:recv_size), recv_proc)
+
+               L_size_Gamma = SIZE(mat_Gamma_3, 3)
+
+               CALL dgemm("T", "N", hom*L_size_Gamma, hom*recv_size, virt, 1.0_dp, mat_Gamma_3, virt, mat_B_iaP, virt, &
+                          0.0_dp, product_matrix, hom*L_size_Gamma)
+               DO P = 1, L_size_Gamma
+               DO Q = 1, recv_size
                DO i = 1, hom
-                  sum_ia = sum_ia + product_matrix(i, P, i, Q)
+                  e_exchange_corr = e_exchange_corr + DOT_PRODUCT(product_matrix(i, P, :, Q), product_matrix(:, P, i, Q))
                END DO
-               e_rpa = e_rpa + sum_ia*sum_ia
-            END DO
-            END DO
+               END DO
+               END DO
+               IF (.FALSE.) e_exchange_corr = accurate_dot_product(product_matrix(:, 1, 1, 1), product_matrix(:, 1, 1, 1))
+#if 0
+               DO P = 1, L_size_Gamma
+               DO Q = 1, recv_size
+                  sum_ia = 0.0_dp
+                  DO i = 1, hom
+                     sum_ia = sum_ia + product_matrix(i, P, i, Q)
+                  END DO
+                  e_rpa = e_rpa + sum_ia*sum_ia
+               END DO
+               END DO
 #endif
+            END DO
 
-            DEALLOCATE (mat_B_iaP, mat_Gamma_3, product_matrix)
+            DEALLOCATE (mat_B_iaP, mat_Gamma_3, product_matrix, recv_buffer)
             !WRITE (*, *) ispin, e_rpa, e_exchange_corr
          END DO
          IF (nspins == 2) e_exchange_corr = e_exchange_corr*2.0_dp
