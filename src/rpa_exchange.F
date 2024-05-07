@@ -137,7 +137,7 @@ MODULE rpa_exchange
       TYPE(dbcsr_type), ALLOCATABLE, DIMENSION(:) :: matrix_set
    END TYPE
 
-   LOGICAL, PARAMETER :: use_hfx_implementation = .FALSE.
+   LOGICAL, PARAMETER :: use_hfx_implementation = .TRUE.
 
 CONTAINS
 
@@ -712,9 +712,9 @@ CONTAINS
 
       INTEGER :: aux_block_size_fm, aux_global, aux_local, avirt, dimen_RI, handle, &
          ia_block_size_fm, ia_global, ia_local, iocc, max_number_recv, max_number_send, &
-         my_aux_end, my_aux_size, my_aux_start, my_process_column, my_process_row, &
-         number_of_process_columns, number_of_process_rows, proc, proc_shift, recv_cols, &
-         recv_counter, recv_proc, recv_proc_col, recv_proc_row, recv_rows, send_counter, send_proc
+         my_aux_end, my_aux_size, my_aux_start, my_process_column, my_process_row, proc, &
+         proc_shift, recv_cols, recv_counter, recv_proc, recv_proc_col, recv_proc_row, recv_rows, &
+         send_counter, send_proc
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: data2recv, data2send
       INTEGER, DIMENSION(:), POINTER                     :: aux_distribution_fm, col_indices, &
                                                             ia_distribution_fm
@@ -749,7 +749,6 @@ CONTAINS
       CALL get_group_dist(aux_func_dist, para_env%mepos, my_aux_start, my_aux_end, my_aux_size)
 
       CALL context%get(my_process_column=my_process_column, my_process_row=my_process_row, &
-                       number_of_process_columns=number_of_process_columns, number_of_process_rows=number_of_process_rows, &
                        mpi2blacs=mpi2blacs)
 
       ! Determine the number of columns to send
@@ -807,7 +806,8 @@ CONTAINS
 ! Unpack receive buffer
          recv_counter = 0
          DO aux_global = my_aux_start, my_aux_end
-            proc = fm_mat%matrix_struct%g2p_row(aux_global)
+            proc = fm_mat%matrix_struct%g2p_col(aux_global)
+            WRITE (*, *) aux_global, recv_counter, proc
             IF (proc /= recv_proc) CYCLE
 
             recv_counter = recv_counter + 1
