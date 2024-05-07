@@ -194,6 +194,7 @@ MODULE qs_scf_post_gpw
    USE scf_control_types,               ONLY: scf_control_type
    USE stm_images,                      ONLY: th_stm_image
    USE transport,                       ONLY: qs_scf_post_transport
+   USE trexio_utils,                    ONLY: write_trexio
    USE virial_types,                    ONLY: virial_type
    USE voronoi_interface,               ONLY: entry_voronoi_or_bqb
    USE xray_diffraction,                ONLY: calculate_rhotot_elec_gspace,&
@@ -1685,7 +1686,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'write_mo_dependent_results'
 
       INTEGER                                            :: handle, homo, ispin, nmo, output_unit
-      LOGICAL                                            :: all_equal, do_kpoints
+      LOGICAL                                            :: all_equal, do_kpoints, explicit
       REAL(KIND=dp)                                      :: maxocc, s_square, s_square_ideal, &
                                                             total_abs_spin_dens
       REAL(KIND=dp), DIMENSION(:), POINTER               :: mo_eigenvalues, occupation_numbers
@@ -1712,7 +1713,7 @@ CONTAINS
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(qs_subsys_type), POINTER                      :: subsys
       TYPE(scf_control_type), POINTER                    :: scf_control
-      TYPE(section_vals_type), POINTER                   :: dft_section, input, sprint_section
+      TYPE(section_vals_type), POINTER                   :: dft_section, input, sprint_section, trexio_section
 
       CALL timeset(routineN, handle)
 
@@ -1747,6 +1748,11 @@ CONTAINS
       dft_section => section_vals_get_subs_vals(input, "DFT")
       IF (.NOT. qs_env%run_rtp) THEN
          CALL qs_scf_write_mos(qs_env, scf_env, final_mos=.TRUE.)
+         trexio_section => section_vals_get_subs_vals(dft_section, "PRINT%TREXIO")
+         CALL section_vals_get(trexio_section, explicit=explicit)
+         IF (explicit) THEN
+            CALL write_trexio(qs_env, trexio_section)
+         END IF
          IF (.NOT. do_kpoints) THEN
             CALL get_qs_env(qs_env, mos=mos, matrix_ks=ks_rmpv)
             CALL write_dm_binary_restart(mos, dft_section, ks_rmpv)
