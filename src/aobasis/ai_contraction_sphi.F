@@ -247,22 +247,24 @@ CONTAINS
 !> \param nsgfc ...
 !> \param cpp_buffer Buffer used for intermediate results (automatically allocated).
 !> \param ccp_buffer Buffer used for intermediate results (automatically allocated).
-!> \param prefac Prefactor which is finally multiplied into abcint.
-!> \note tested from version 1.9.0 of libxsmm
+!> \param prefac Prefactor which is finally multiplied into abcint (default: 1.0).
+!> \param pstfac Factor used to consider initial abcint (default: 0.0).
+!> \param dsti Initial index to write abcint.
 ! **************************************************************************************************
    SUBROUTINE abc_contract_xsmm(abcint, sabc, sphi_a, sphi_b, sphi_c, ncoa, ncob, ncoc, &
-                                nsgfa, nsgfb, nsgfc, cpp_buffer, ccp_buffer, prefac)
+                                nsgfa, nsgfb, nsgfc, cpp_buffer, ccp_buffer, prefac, pstfac, dsti)
 
-      REAL(KIND=dp), DIMENSION(*)                 :: abcint
+      REAL(KIND=dp), DIMENSION(:, :, :)           :: abcint
       REAL(KIND=dp), DIMENSION(*), INTENT(IN)     :: sabc
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)  :: sphi_a, sphi_b, sphi_c
       INTEGER, INTENT(IN)                         :: ncoa, ncob, ncoc, nsgfa, nsgfb, nsgfc
       REAL(KIND=dp), DIMENSION(:), ALLOCATABLE    :: cpp_buffer, ccp_buffer
-      REAL(KIND=dp), INTENT(IN), OPTIONAL         :: prefac
+      REAL(KIND=dp), INTENT(IN), OPTIONAL         :: prefac, pstfac
+      INTEGER, DIMENSION(3), INTENT(IN), OPTIONAL :: dsti
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'abc_contract_xsmm'
 
-      REAL(KIND=dp)                                           :: alpha
+      REAL(KIND=dp)                                           :: alpha, beta
       INTEGER(KIND=int_8)                                     :: cpp_size, ccp_size
       INTEGER                                                 :: handle, i
       LOGICAL                                                 :: ab_first
@@ -275,6 +277,9 @@ CONTAINS
       alpha = 1.0_dp
       IF (PRESENT(prefac)) alpha = prefac
 
+      beta = 0.0_dp
+      IF (PRESENT(pstfac)) beta = pstfac
+
       ! M*N*K FLOPS are used to decide if contracting (AB)C vs A(BC)
       IF ((nsgfa*ncob*(ncoa + nsgfb)) <= (ncoa*nsgfb*(ncob + nsgfa))) THEN
          cpp_size = nsgfa*ncob
@@ -283,8 +288,8 @@ CONTAINS
          cpp_size = ncoa*nsgfb
          ab_first = .FALSE.
       END IF
-      ccp_size = nsgfa*nsgfb*ncoc
 
+      ccp_size = nsgfa*nsgfb*ncoc
       IF (.NOT. ALLOCATED(ccp_buffer)) THEN
          ALLOCATE (ccp_buffer(ccp_size))
       ELSE IF (SIZE(ccp_buffer) < ccp_size) THEN
@@ -311,43 +316,45 @@ CONTAINS
 
       IF (libxsmm_available(xmm1) .AND. libxsmm_available(xmm2)) THEN
          IF (ab_first) THEN ! (AB)C
-            DO i = 1, ncoc ! contractions over a and b
+            DO i = 0, ncoc - 1 ! contractions over a and b
                ! [nsgfa,ncoa] x [ncoa,ncob] -> [nsgfa,ncob]
-               CALL libxsmm_dmmcall(xmm1, sphi_a, sabc((i - 1)*ncoa*ncob + 1), cpp_buffer)
+               CALL libxsmm_dmmcall(xmm1, sphi_a, sabc(i*ncoa*ncob + 1), cpp_buffer)
                ! [nsgfa,ncob] x [ncob,nsgfb] -> [nsgfa,nsgfb]
-               CALL libxsmm_dmmcall(xmm2, cpp_buffer, sphi_b, ccp_buffer((i - 1)*nsgfa*nsgfb + 1))
+               CALL libxsmm_dmmcall(xmm2, cpp_buffer, sphi_b, ccp_buffer(i*nsgfa*nsgfb + 1))
             END DO
          ELSE ! A(BC)
-            DO i = 1, ncoc ! contractions over a and b
+            DO i = 0, ncoc - 1 ! contractions over a and b
                ! [ncoa,ncob] x [ncob,nsgfb] -> [ncoa,nsgfb]
-               CALL libxsmm_dmmcall(xmm1, sabc((i - 1)*ncoa*ncob + 1), sphi_b, cpp_buffer)
+               CALL libxsmm_dmmcall(xmm1, sabc(i*ncoa*ncob + 1), sphi_b, cpp_buffer)
                ! [nsgfa,ncoa] x [ncoa,nsgfb] -> [nsgfa,nsgfb]
-               CALL libxsmm_dmmcall(xmm2, sphi_a, cpp_buffer, ccp_buffer((i - 1)*nsgfa*nsgfb + 1))
+               CALL libxsmm_dmmcall(xmm2, sphi_a, cpp_buffer, ccp_buffer(i*nsgfa*nsgfb + 1))
             END DO
          END IF
       ELSE
 #endif
          IF (ab_first) THEN ! (AB)C
-            DO i = 1, ncoc ! contractions over a and b
-               CALL dgemm("N", "N", nsgfa, ncob, ncoa, 1.0_dp, sphi_a, nsgfa, sabc((i - 1)*ncoa*ncob + 1), &
-                          ncoa, 0.0_dp, cpp_buffer, nsgfa)
+            DO i = 0, ncoc - 1 ! contractions over a and b
+               CALL dgemm("N", "N", nsgfa, ncob, ncoa, 1.0_dp, sphi_a, nsgfa, sabc(i*ncoa*ncob + 1), &
+                          ncoa, 0.0_dp, cpp_buffer, nsgfa) ! [nsgfa,ncoa] x [ncoa,ncob] -> [nsgfa,ncob]
                CALL dgemm("N", "N", nsgfa, nsgfb, ncob, 1.0_dp, cpp_buffer, nsgfa, sphi_b, ncob, 0.0_dp, &
-                          ccp_buffer((i - 1)*nsgfa*nsgfb + 1), nsgfa)
+                          ccp_buffer(i*nsgfa*nsgfb + 1), nsgfa) ! [nsgfa,ncob] x [ncob,nsgfb] -> [nsgfa,nsgfb]
             END DO
          ELSE ! A(BC)
-            DO i = 1, ncoc ! contractions over a and b
-               CALL dgemm("N", "N", ncoa, nsgfb, ncob, 1.0_dp, sabc((i - 1)*ncoa*ncob + 1), ncoa, sphi_b, &
-                          ncob, 0.0_dp, cpp_buffer, ncoa)
+            DO i = 0, ncoc - 1 ! contractions over a and b
+               CALL dgemm("N", "N", ncoa, nsgfb, ncob, 1.0_dp, sabc(i*ncoa*ncob + 1), ncoa, sphi_b, &
+                          ncob, 0.0_dp, cpp_buffer, ncoa) ! [ncoa,ncob] x [ncob,nsgfb] -> [ncoa,nsgfb]
                CALL dgemm("N", "N", nsgfa, nsgfb, ncoa, 1.0_dp, sphi_a, nsgfa, cpp_buffer, ncoa, 0.0_dp, &
-                          ccp_buffer((i - 1)*nsgfa*nsgfb + 1), nsgfa)
+                          ccp_buffer(i*nsgfa*nsgfb + 1), nsgfa) ! [nsgfa,ncoa] x [ncoa,nsgfb] -> [nsgfa,nsgfb]
             END DO
          END IF
 #if defined(__LIBXSMM)
       END IF
 #endif
-      ! last contraction, over c (larger MM using BLAS)
-      CALL dgemm("N", "N", nsgfa*nsgfb, nsgfc, ncoc, alpha, ccp_buffer, nsgfa*nsgfb, sphi_c, ncoc, &
-                 0.0_dp, abcint, nsgfa*nsgfb)
+      MARK_USED(dsti)
+      DO i = 1, nsgfc ! contractions over c (gemm is not beneficial due to strided destination)
+         CALL dgemv("N", nsgfa*nsgfb, ncoc, alpha, ccp_buffer, nsgfa*nsgfb, sphi_c(:, i), 1, &
+                    beta, abcint(:, :, i), 1) ! [nsgfa*nsgfb,ncoc] x [ncoc,1] -> [nsgfa*nsgfb,1]
+      END DO
 
       CALL timestop(handle)
 
