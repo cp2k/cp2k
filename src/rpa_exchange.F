@@ -16,20 +16,9 @@
 !> \author Vladimir Rybkin
 ! **************************************************************************************************
 MODULE rpa_exchange
-   USE atomic_kind_types,               ONLY: atomic_kind_type
-   USE cell_types,                      ONLY: cell_type
-   USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
-                                              cp_blacs_env_release,&
-                                              cp_blacs_env_type
-   USE cp_control_types,                ONLY: dft_control_type
-   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
-                                              dbcsr_allocate_matrix_set
+   USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale
    USE cp_fm_diag,                      ONLY: choose_eigv_solver
-   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
-                                              cp_fm_struct_p_type,&
-                                              cp_fm_struct_release,&
-                                              cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_get_info,&
                                               cp_fm_release,&
@@ -45,33 +34,17 @@ MODULE rpa_exchange
                                               get_group_dist,&
                                               group_dist_d1_type,&
                                               group_dist_proc
-   USE hfx_admm_utils,                  ONLY: tddft_hfx_matrix
-   USE hfx_types,                       ONLY: hfx_create,&
-                                              hfx_release,&
-                                              hfx_type
    USE input_constants,                 ONLY: rpa_exchange_axk,&
                                               rpa_exchange_none,&
                                               rpa_exchange_sosex
-   USE input_section_types,             ONLY: section_vals_get,&
-                                              section_vals_get_subs_vals,&
-                                              section_vals_type
-   USE kahan_sum,                       ONLY: accurate_dot_product
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: sqrthalf
    USE message_passing,                 ONLY: mp_para_env_release,&
                                               mp_para_env_type
    USE mp2_types,                       ONLY: mp2_type
    USE parallel_gemm_api,               ONLY: parallel_gemm
-   USE particle_types,                  ONLY: particle_type
-   USE qs_environment_types,            ONLY: get_qs_env,&
-                                              qs_environment_type
-   USE qs_kind_types,                   ONLY: qs_kind_type
-   USE qs_subsys_types,                 ONLY: qs_subsys_get,&
-                                              qs_subsys_type
    USE rpa_util,                        ONLY: calc_fm_mat_S_rpa,&
                                               remove_scaling_factor_rpa
-   USE scf_control_types,               ONLY: scf_control_type
-   USE util,                            ONLY: get_limit
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -82,61 +55,22 @@ MODULE rpa_exchange
 
    PUBLIC :: rpa_exchange_work_type
 
-   TYPE rpa_exchange_env_type
-      PRIVATE
-      TYPE(qs_environment_type), POINTER             :: qs_env => NULL()
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER      :: mat_hfx => NULL()
-      TYPE(dbcsr_type)      :: work_ao
-      TYPE(hfx_type), DIMENSION(:, :), POINTER       :: x_data => NULL()
-      TYPE(mp_para_env_type), POINTER                :: para_env => NULL()
-      TYPE(section_vals_type), POINTER               :: hfx_sections => NULL()
-      TYPE(cp_fm_type)                               :: work_ao_1 = cp_fm_type()
-      TYPE(cp_fm_type)                               :: work_ao_2 = cp_fm_type()
-      INTEGER :: n_rep_hf = 0
-      INTEGER :: my_group_L_size = 0
-      LOGICAL :: my_recalc_hfx_integrals = .FALSE.
-      REAL(KIND=dp) :: eps_filter = 0.0_dp
-      REAL(KIND=dp) :: e_exchange = 0.0_dp
-   CONTAINS
-      PROCEDURE, PASS(exchange_env), NON_OVERRIDABLE :: create => hfx_create_subgroup
-      PROCEDURE, PASS(exchange_env), NON_OVERRIDABLE :: integrate => integrate_exchange
-      PROCEDURE, PASS(exchange_env), NON_OVERRIDABLE :: release => hfx_release_subgroup
-   END TYPE
-
    TYPE rpa_exchange_work_type
       PRIVATE
       INTEGER :: exchange_correction = rpa_exchange_none
-      TYPE(rpa_exchange_env_type) :: exchange_env
-      TYPE(dbcsr_type), DIMENSION(:), ALLOCATABLE :: mo_coeff_o
-      TYPE(dbcsr_type), DIMENSION(:), ALLOCATABLE :: mo_coeff_v
-      INTEGER :: my_group_L_start = 0
-      INTEGER :: my_group_L_end = 0
-      INTEGER :: my_group_L_size = 0
-      INTEGER :: ngroup = 0
-      INTEGER :: color_sub = 0
       INTEGER, DIMENSION(:), ALLOCATABLE :: homo, virtual, dimen_ia
       INTEGER :: dimen_RI = 0
       REAL(KIND=dp) :: eps_filter = 0.0_dp
-      TYPE(cp_fm_struct_p_type), ALLOCATABLE, DIMENSION(:) :: struct_Gamma
       TYPE(cp_fm_type) :: fm_mat_Q_tmp = cp_fm_type()
       TYPE(cp_fm_type) :: fm_mat_R_half_gemm = cp_fm_type()
       TYPE(cp_fm_type) :: fm_mat_U = cp_fm_type()
       TYPE(mp_para_env_type), POINTER                    :: para_env_RPA => NULL()
-      TYPE(mp_para_env_type), POINTER                    :: para_env_sub => NULL()
       INTEGER :: unit_nr = -1
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: dbcsr_Gamma_munu_P => NULL()
-      TYPE(dbcsr_type), ALLOCATABLE, DIMENSION(:)        :: dbcsr_Gamma_inu_P
    CONTAINS
       PROCEDURE, PASS(exchange_work), NON_OVERRIDABLE :: create => rpa_exchange_work_create
       PROCEDURE, PASS(exchange_work), NON_OVERRIDABLE :: compute => rpa_exchange_work_compute
       PROCEDURE, PASS(exchange_work), NON_OVERRIDABLE :: release => rpa_exchange_work_release
    END TYPE
-
-   TYPE dbcsr_matrix_p_set
-      TYPE(dbcsr_type), ALLOCATABLE, DIMENSION(:) :: matrix_set
-   END TYPE
-
-   LOGICAL, PARAMETER :: use_hfx_implementation = .FALSE.
 
 CONTAINS
 
@@ -145,84 +79,47 @@ CONTAINS
 !> \param exchange_work ...
 !> \param mp2_env ...
 !> \param para_env_RPA ...
-!> \param para_env_sub ...
 !> \param dimen_RI ...
 !> \param fm_mat_S ...
 !> \param fm_mat_Q ...
 !> \param fm_mat_Q_gemm ...
 !> \param unit_nr ...
-!> \param mat_munu ...
+!> \param homo ...
+!> \param virtual ...
 ! **************************************************************************************************
-   SUBROUTINE rpa_exchange_work_create(exchange_work, mp2_env, para_env_RPA, para_env_sub, dimen_RI, &
-                                       fm_mat_S, fm_mat_Q, fm_mat_Q_gemm, unit_nr, mat_munu)
+   SUBROUTINE rpa_exchange_work_create(exchange_work, mp2_env, para_env_RPA, dimen_RI, &
+                                       fm_mat_S, fm_mat_Q, fm_mat_Q_gemm, unit_nr, homo, virtual)
       CLASS(rpa_exchange_work_type), INTENT(INOUT) :: exchange_work
       TYPE(mp2_type), INTENT(INOUT) :: mp2_env
-      TYPE(mp_para_env_type), TARGET, INTENT(INOUT) :: para_env_RPA, para_env_sub
+      TYPE(mp_para_env_type), TARGET, INTENT(INOUT) :: para_env_RPA
       INTEGER, INTENT(IN) :: dimen_RI
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN) :: fm_mat_S
       TYPE(cp_fm_type), INTENT(IN) :: fm_mat_Q, fm_mat_Q_gemm
       INTEGER, INTENT(IN) :: unit_nr
-      TYPE(dbcsr_type), INTENT(IN)                     :: mat_munu
+      INTEGER, DIMENSION(SIZE(fm_mat_S)), INTENT(IN) :: homo, virtual
 
-      INTEGER :: iitmp(2), ispin, nspins
+      INTEGER :: nspins
 
       exchange_work%exchange_correction = mp2_env%ri_rpa%exchange_correction
 
       IF (exchange_work%exchange_correction == rpa_exchange_none) RETURN
 
-      CALL MOVE_ALLOC(mp2_env%ri_rpa%mo_coeff_o, exchange_work%mo_coeff_o)
-      CALL MOVE_ALLOC(mp2_env%ri_rpa%mo_coeff_v, exchange_work%mo_coeff_v)
       exchange_work%eps_filter = mp2_env%mp2_gpw%eps_filter
       exchange_work%para_env_RPA => para_env_RPA
       CALL para_env_RPA%retain()
-      exchange_work%para_env_sub => para_env_sub
-      CALL para_env_sub%retain()
       exchange_work%unit_nr = unit_nr
 
-      nspins = SIZE(exchange_work%mo_coeff_o)
+      nspins = SIZE(fm_mat_S)
 
       ALLOCATE (exchange_work%homo(nspins), exchange_work%virtual(nspins), exchange_work%dimen_ia(nspins))
-      DO ispin = 1, nspins
-         CALL dbcsr_get_info(exchange_work%mo_coeff_o(ispin), nfullcols_total=exchange_work%homo(ispin))
-         CALL dbcsr_get_info(exchange_work%mo_coeff_v(ispin), nfullcols_total=exchange_work%virtual(ispin))
-         exchange_work%dimen_ia(ispin) = exchange_work%homo(ispin)*exchange_work%virtual(ispin)
-      END DO
-      IF (unit_nr > 0) WRITE (unit_nr, *) "dimen_ia", exchange_work%dimen_ia
-      IF (unit_nr > 0) WRITE (unit_nr, *) "homo", exchange_work%homo
-      IF (unit_nr > 0) WRITE (unit_nr, *) "virtual", exchange_work%virtual
+      exchange_work%homo(:) = homo
+      exchange_work%virtual(:) = virtual
+      exchange_work%dimen_ia(:) = homo*virtual
       exchange_work%dimen_RI = dimen_RI
-
-      ! Get aux sizes
-      exchange_work%ngroup = para_env_RPA%num_pe/para_env_sub%num_pe
-      exchange_work%color_sub = para_env_RPA%mepos/para_env_sub%num_pe
-
-      iitmp = get_limit(dimen_RI, exchange_work%ngroup, exchange_work%color_sub)
-      exchange_work%my_group_L_start = iitmp(1)
-      exchange_work%my_group_L_end = iitmp(2)
-      exchange_work%my_group_L_size = iitmp(2) - iitmp(1) + 1
-
-      ALLOCATE (exchange_work%struct_Gamma(nspins))
-      DO ispin = 1, nspins
-         CALL cp_fm_struct_create(exchange_work%struct_Gamma(ispin)%struct, template_fmstruct=fm_mat_S(ispin)%matrix_struct, &
-                                  nrow_global=exchange_work%dimen_ia(ispin), ncol_global=exchange_work%dimen_RI)
-      END DO
 
       CALL cp_fm_create(exchange_work%fm_mat_U, fm_mat_Q%matrix_struct, name="fm_mat_U")
       CALL cp_fm_create(exchange_work%fm_mat_Q_tmp, fm_mat_Q%matrix_struct, name="fm_mat_Q_tmp")
       CALL cp_fm_create(exchange_work%fm_mat_R_half_gemm, fm_mat_Q_gemm%matrix_struct)
-
-      ALLOCATE (exchange_work%dbcsr_Gamma_inu_P(nspins))
-      CALL dbcsr_allocate_matrix_set(exchange_work%dbcsr_Gamma_munu_P, nspins)
-      DO ispin = 1, nspins
-         ALLOCATE (exchange_work%dbcsr_Gamma_munu_P(ispin)%matrix)
-         CALL dbcsr_create(exchange_work%dbcsr_Gamma_munu_P(ispin)%matrix, template=mat_munu, &
-                           matrix_type=dbcsr_type_no_symmetry)
-         CALL dbcsr_copy(exchange_work%dbcsr_Gamma_munu_P(ispin)%matrix, mat_munu)
-
-         CALL dbcsr_create(exchange_work%dbcsr_Gamma_inu_P(ispin), template=exchange_work%mo_coeff_o(ispin))
-         CALL dbcsr_copy(exchange_work%dbcsr_Gamma_inu_P(ispin), exchange_work%mo_coeff_o(ispin))
-         CALL dbcsr_set(exchange_work%dbcsr_Gamma_inu_P(ispin), 0.0_dp)
-      END DO
    END SUBROUTINE
 
 ! **************************************************************************************************
@@ -232,55 +129,18 @@ CONTAINS
    SUBROUTINE rpa_exchange_work_release(exchange_work)
       CLASS(rpa_exchange_work_type), INTENT(INOUT) :: exchange_work
 
-      INTEGER :: ispin
-
       IF (ALLOCATED(exchange_work%homo)) DEALLOCATE (exchange_work%homo)
       IF (ALLOCATED(exchange_work%virtual)) DEALLOCATE (exchange_work%virtual)
       IF (ALLOCATED(exchange_work%dimen_ia)) DEALLOCATE (exchange_work%dimen_ia)
-      IF (ALLOCATED(exchange_work%struct_Gamma)) THEN
-      DO ispin = 1, SIZE(exchange_work%struct_Gamma)
-         CALL cp_fm_struct_release(exchange_work%struct_Gamma(ispin)%struct)
-      END DO
-      DEALLOCATE (exchange_work%struct_Gamma)
-      END IF
       CALL cp_fm_release(exchange_work%fm_mat_Q_tmp)
       CALL cp_fm_release(exchange_work%fm_mat_U)
       CALL cp_fm_release(exchange_work%fm_mat_R_half_gemm)
       CALL mp_para_env_release(exchange_work%para_env_RPA)
-      CALL mp_para_env_release(exchange_work%para_env_sub)
-
-      IF (ALLOCATED(exchange_work%mo_coeff_o)) THEN
-         DO ispin = 1, SIZE(exchange_work%mo_coeff_o)
-            CALL dbcsr_release(exchange_work%mo_coeff_o(ispin))
-         END DO
-         DEALLOCATE (exchange_work%mo_coeff_o)
-      END IF
-      IF (ALLOCATED(exchange_work%mo_coeff_v)) THEN
-         DO ispin = 1, SIZE(exchange_work%mo_coeff_v)
-            CALL dbcsr_release(exchange_work%mo_coeff_v(ispin))
-         END DO
-         DEALLOCATE (exchange_work%mo_coeff_v)
-      END IF
-
-      IF (ALLOCATED(exchange_work%dbcsr_Gamma_inu_P)) THEN
-         DO ispin = 1, SIZE(exchange_work%dbcsr_Gamma_inu_P)
-            CALL dbcsr_release(exchange_work%dbcsr_Gamma_inu_P(ispin))
-         END DO
-         DEALLOCATE (exchange_work%dbcsr_Gamma_inu_P)
-      END IF
-      IF (ASSOCIATED(exchange_work%dbcsr_Gamma_munu_P)) THEN
-         DO ispin = 1, SIZE(exchange_work%dbcsr_Gamma_munu_P)
-            CALL dbcsr_release(exchange_work%dbcsr_Gamma_munu_P(ispin)%matrix)
-            DEALLOCATE (exchange_work%dbcsr_Gamma_munu_P(ispin)%matrix)
-         END DO
-         DEALLOCATE (exchange_work%dbcsr_Gamma_munu_P)
-      END IF
    END SUBROUTINE
 
 ! **************************************************************************************************
 !> \brief Main driver for RPA-exchange energies
 !> \param exchange_work ...
-!> \param qs_env ...
 !> \param fm_mat_Q ...
 !> \param eig ...
 !> \param fm_mat_S ...
@@ -288,11 +148,9 @@ CONTAINS
 !> \param e_exchange_corr ...          exchange energy correctrion for a quadrature point
 !> \author Vladimir Rybkin, 07/2016
 ! **************************************************************************************************
-   SUBROUTINE rpa_exchange_work_compute(exchange_work, qs_env, fm_mat_Q, &
-                                        eig, fm_mat_S, omega, &
+   SUBROUTINE rpa_exchange_work_compute(exchange_work, fm_mat_Q, eig, fm_mat_S, omega, &
                                         e_exchange_corr)
       CLASS(rpa_exchange_work_type), INTENT(INOUT) :: exchange_work
-      TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_Q
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: eig
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: fm_mat_S
@@ -303,17 +161,15 @@ CONTAINS
       REAL(KIND=dp), PARAMETER                           :: thresh = 0.0000001_dp
 
       INTEGER :: handle, iib, ispin, nspins, P, Q, L_size_Gamma, hom, virt, i, &
-                 send_proc, recv_proc, recv_size, max_aux_size, proc_shift
+                 send_proc, recv_proc, recv_size, max_aux_size, proc_shift, dimen_ia
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigenval
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :) :: mat_Gamma_3, mat_B_iaP, recv_buffer
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :, :) :: product_matrix
-      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: fm_mat_Gamma_3
+      TYPE(cp_fm_type)        :: fm_mat_Gamma_3
 
       IF (exchange_work%exchange_correction == rpa_exchange_none) RETURN
 
       CALL timeset(routineN, handle)
-
-      MARK_USED(qs_env)
 
       nspins = SIZE(fm_mat_S)
 
@@ -374,53 +230,44 @@ CONTAINS
                                       exchange_work%dimen_RI, 1, 1, 1, 1, &
                                       exchange_work%fm_mat_U%matrix_struct%context)
 
-      ALLOCATE (fm_mat_Gamma_3(nspins))
-      DO ispin = 1, nspins
-         CALL cp_fm_create(fm_mat_Gamma_3(ispin), exchange_work%struct_Gamma(ispin)%struct)
-         CALL cp_fm_set_all(matrix=fm_mat_Gamma_3(ispin), alpha=0.0_dp)
-
-         ! Update G with a new value of Omega: in practice, it is G*S
-
-         ! Scale fm_work_iaP
-         CALL calc_fm_mat_S_rpa(fm_mat_S(ispin), .TRUE., exchange_work%virtual(ispin), eig(:, ispin), &
-                                exchange_work%homo(ispin), omega, 0.0_dp)
-
-         ! Calculate Gamma_3: Gamma_3 = G*S*R^(1/2) = G*S*R^(1/2)
-         CALL parallel_gemm(transa="T", transb="N", m=exchange_work%dimen_ia(ispin), n=exchange_work%dimen_RI, &
-                            k=exchange_work%dimen_RI, alpha=1.0_dp, &
-                            matrix_a=fm_mat_S(ispin), matrix_b=exchange_work%fm_mat_R_half_gemm, beta=0.0_dp, &
-                            matrix_c=fm_mat_Gamma_3(ispin))
-
-         ! Remove extra factor from S after the multiplication (to return to the original matrix)
-         CALL remove_scaling_factor_rpa(fm_mat_S(ispin), exchange_work%virtual(ispin), &
-                                        eig(:, ispin), exchange_work%homo(ispin), omega)
-      END DO
-
-      ! Reorder matrix from (P, i*a) -> (a, i, P) with P being distributed within integration group
       e_exchange_corr = 0.0_dp
+      max_aux_size = (exchange_work%dimen_RI + exchange_work%para_env_RPA%num_pe - 1)/exchange_work%para_env_RPA%num_pe
 
       DO ispin = 1, nspins
          hom = exchange_work%homo(ispin)
          virt = exchange_work%virtual(ispin)
-         IF (hom < 1 .OR. virt < 1) THEN
-            CALL cp_fm_release(fm_mat_Gamma_3(ispin))
-            CYCLE
-         END IF
+         dimen_ia = hom*virt
+         IF (hom < 1 .OR. virt < 1) CYCLE
 
-         CALL redistribute_Gamma_in_subgroups(fm_mat_Gamma_3(ispin), mat_Gamma_3, hom, virt)
-         CALL cp_fm_release(fm_mat_Gamma_3(ispin))
+         CALL cp_fm_create(fm_mat_Gamma_3, fm_mat_S(ispin)%matrix_struct)
+         CALL cp_fm_set_all(matrix=fm_mat_Gamma_3, alpha=0.0_dp)
+
+         ! Update G with a new value of Omega: in practice, it is G*S
+
+         ! Scale fm_work_iaP
+         CALL calc_fm_mat_S_rpa(fm_mat_S(ispin), .TRUE., virt, eig(:, ispin), &
+                                hom, omega, 0.0_dp)
+
+         ! Calculate Gamma_3: Gamma_3 = G*S*R^(1/2) = G*S*R^(1/2)
+         CALL parallel_gemm(transa="T", transb="N", m=exchange_work%dimen_RI, n=dimen_ia, &
+                            k=exchange_work%dimen_RI, alpha=1.0_dp, &
+                            matrix_a=exchange_work%fm_mat_R_half_gemm, matrix_b=fm_mat_S(ispin), beta=0.0_dp, &
+                            matrix_c=fm_mat_Gamma_3)
+
+         ! Remove extra factor from S after the multiplication (to return to the original matrix)
+         CALL remove_scaling_factor_rpa(fm_mat_S(ispin), virt, eig(:, ispin), hom, omega)
+
+         CALL redistribute_into_subgroups(fm_mat_Gamma_3, mat_Gamma_3, hom, virt)
+         CALL cp_fm_release(fm_mat_Gamma_3)
 
          ! We need only the pure matrix
-         CALL remove_scaling_factor_rpa(fm_mat_S(ispin), virt, &
-                                        eig(:, ispin), hom, omega)
+         CALL remove_scaling_factor_rpa(fm_mat_S(ispin), virt, eig(:, ispin), hom, omega)
 
          ! Reorder matrix from (P, i*a) -> (a, i, P) with P being distributed within subgroups
-         CALL redistribute_B_in_subgroups(fm_mat_S(ispin), mat_B_iaP, hom, virt)
+         CALL redistribute_into_subgroups(fm_mat_S(ispin), mat_B_iaP, hom, virt)
 
          ! Return to the original tensor
          CALL calc_fm_mat_S_rpa(fm_mat_S(ispin), .TRUE., virt, eig(:, ispin), hom, omega, 0.0_dp)
-
-         max_aux_size = (exchange_work%dimen_RI + exchange_work%para_env_RPA%num_pe - 1)/exchange_work%para_env_RPA%num_pe
 
          L_size_Gamma = SIZE(mat_Gamma_3, 3)
 
@@ -453,7 +300,7 @@ CONTAINS
          DEALLOCATE (mat_B_iaP, mat_Gamma_3, product_matrix, recv_buffer)
       END DO
       IF (nspins == 2) e_exchange_corr = e_exchange_corr*2.0_dp
-      DEALLOCATE (fm_mat_Gamma_3)
+      IF (nspins == 1) e_exchange_corr = e_exchange_corr*4.0_dp
 
       ! Print exchange correlation energy to the file
       IF (exchange_work%unit_nr > 0) WRITE (exchange_work%unit_nr, '(T3,A,T68,F25.14,A4)') &
@@ -468,360 +315,19 @@ CONTAINS
    END SUBROUTINE rpa_exchange_work_compute
 
 ! **************************************************************************************************
-!> \brief Contract RPA-exchange density matrix with HF exchange integrals and evaluate the correction
-!> \param exchange_env ...
-!> \param dbcsr_Gamma_munu_P ...  exchange density matrix in AO basis to be contracted
-!> \author Vladimir Rybkin, 08/2016
-! **************************************************************************************************
-   SUBROUTINE integrate_exchange(exchange_env, dbcsr_Gamma_munu_P)
-      CLASS(rpa_exchange_env_type), INTENT(INOUT) :: exchange_env
-      TYPE(dbcsr_p_type), DIMENSION(:), TARGET          :: dbcsr_Gamma_munu_P
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'integrate_exchange'
-
-      INTEGER                                            :: handle, ispin
-      REAL(KIND=dp)                                      :: e_exchange_P
-
-      CALL timeset(routineN, handle)
-
-      DO ispin = 1, SIZE(exchange_env%mat_hfx)
-         CALL dbcsr_set(exchange_env%mat_hfx(ispin)%matrix, 0.0_dp)
-      END DO
-
-      CALL tddft_hfx_matrix(exchange_env%mat_hfx, dbcsr_Gamma_munu_P, exchange_env%qs_env, .FALSE., &
-                            exchange_env%my_recalc_hfx_integrals, &
-                            exchange_env%hfx_sections, exchange_env%x_data, exchange_env%para_env)
-
-      IF (.FALSE.) CALL copy_dbcsr_to_fm(exchange_env%mat_hfx(1)%matrix, exchange_env%work_ao_1)
-      IF (.FALSE.) CALL dbcsr_dot(exchange_env%mat_hfx(ispin)%matrix, dbcsr_Gamma_munu_P(ispin)%matrix, e_exchange_p)
-
-      exchange_env%my_recalc_hfx_integrals = .FALSE.
-      DO ispin = 1, SIZE(dbcsr_Gamma_munu_P)
-      IF (.FALSE.) THEN
-         CALL copy_dbcsr_to_fm(exchange_env%mat_hfx(ispin)%matrix, exchange_env%work_ao_1)
-         CALL copy_dbcsr_to_fm(dbcsr_Gamma_munu_P(ispin)%matrix, exchange_env%work_ao_2)
-         e_exchange_P = accurate_dot_product(exchange_env%work_ao_1%local_data, exchange_env%work_ao_2%local_data)
-         exchange_env%e_exchange = exchange_env%e_exchange - e_exchange_P
-      END IF
-
-      IF (.FALSE.) THEN
-         CALL dbcsr_dot(exchange_env%mat_hfx(ispin)%matrix, dbcsr_Gamma_munu_P(ispin)%matrix, e_exchange_p)
-         exchange_env%e_exchange = exchange_env%e_exchange - 0.5_dp*e_exchange_P
-         CALL dbcsr_dot(dbcsr_Gamma_munu_P(ispin)%matrix, exchange_env%mat_hfx(ispin)%matrix, e_exchange_p)
-         exchange_env%e_exchange = exchange_env%e_exchange - 0.5_dp*e_exchange_P
-      END IF
-
-      IF (.FALSE.) THEN
-         CALL dbcsr_dot(exchange_env%mat_hfx(ispin)%matrix, dbcsr_Gamma_munu_P(ispin)%matrix, e_exchange_p)
-         exchange_env%e_exchange = exchange_env%e_exchange - e_exchange_P
-      END IF
-
-      IF (.TRUE.) THEN
-         CALL dbcsr_multiply("N", "T", 1.0_dp, exchange_env%mat_hfx(ispin)%matrix, dbcsr_Gamma_munu_P(ispin)%matrix, &
-                             0.0_dp, exchange_env%work_ao, filter_eps=0.0_dp) ! exchange_work%eps_filter)
-         CALL dbcsr_trace(exchange_env%work_ao, e_exchange_P)
-         exchange_env%e_exchange = exchange_env%e_exchange - e_exchange_P
-      END IF
-      END DO
-
-      CALL timestop(handle)
-
-   END SUBROUTINE integrate_exchange
-
-! **************************************************************************************************
-!> \brief ... Initializes x_data on a subgroup
-!> \param exchange_env ...
-!> \param qs_env ...
-!> \param mat_munu ...
-!> \param para_env_sub ...
-!> \param my_group_L_size ...
-!> \param eps_filter ...
-!> \author Vladimir Rybkin
-! **************************************************************************************************
-   SUBROUTINE hfx_create_subgroup(exchange_env, qs_env, mat_munu, para_env_sub, my_group_L_size, eps_filter)
-      CLASS(rpa_exchange_env_type), INTENT(INOUT) :: exchange_env
-      TYPE(dbcsr_type), INTENT(IN) :: mat_munu
-      TYPE(qs_environment_type), POINTER, INTENT(IN)   :: qs_env
-      TYPE(mp_para_env_type), POINTER, INTENT(IN)            :: para_env_sub
-      INTEGER, INTENT(IN) :: my_group_L_size
-      REAL(KIND=dp), INTENT(IN) :: eps_filter
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'hfx_create_subgroup'
-
-      INTEGER                                            :: handle, nelectron_total, ispin, number_of_aos
-      LOGICAL                                            :: do_hfx
-      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
-      TYPE(cell_type), POINTER                           :: my_cell
-      TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
-      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
-      TYPE(qs_subsys_type), POINTER                      :: subsys
-      TYPE(scf_control_type), POINTER                    :: scf_control
-      TYPE(section_vals_type), POINTER                   :: input
-      TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
-      TYPE(cp_fm_struct_type), POINTER :: fm_struct
-
-      CALL timeset(routineN, handle)
-
-      exchange_env%qs_env => qs_env
-      exchange_env%para_env => para_env_sub
-      exchange_env%eps_filter = eps_filter
-      exchange_env%my_group_L_size = my_group_L_size
-
-      NULLIFY (my_cell, atomic_kind_set, particle_set, dft_control, qs_kind_set, scf_control)
-
-      CALL get_qs_env(qs_env, &
-                      subsys=subsys, &
-                      input=input, &
-                      scf_control=scf_control, &
-                      nelectron_total=nelectron_total)
-
-      CALL qs_subsys_get(subsys, &
-                         cell=my_cell, &
-                         atomic_kind_set=atomic_kind_set, &
-                         qs_kind_set=qs_kind_set, &
-                         particle_set=particle_set)
-
-      do_hfx = .TRUE.
-      exchange_env%hfx_sections => section_vals_get_subs_vals(input, "DFT%XC%WF_CORRELATION%RI_RPA%HF")
-      CALL section_vals_get(exchange_env%hfx_sections, explicit=do_hfx, n_repetition=exchange_env%n_rep_hf)
-      CALL get_qs_env(qs_env, dft_control=dft_control)
-
-      IF (do_hfx) THEN
-         ! Retrieve particle_set and atomic_kind_set
-         CALL hfx_create(exchange_env%x_data, para_env_sub, exchange_env%hfx_sections, atomic_kind_set, &
-                         qs_kind_set, particle_set, dft_control, my_cell, orb_basis='ORB', &
-                         nelectron_total=nelectron_total)
-      END IF
-
-      exchange_env%my_recalc_hfx_integrals = .TRUE.
-
-      CALL dbcsr_allocate_matrix_set(exchange_env%mat_hfx, dft_control%nspins)
-      DO ispin = 1, dft_control%nspins
-         ALLOCATE (exchange_env%mat_hfx(ispin)%matrix)
-         CALL dbcsr_init_p(exchange_env%mat_hfx(ispin)%matrix)
-         CALL dbcsr_create(exchange_env%mat_hfx(ispin)%matrix, template=mat_munu, &
-                           matrix_type=dbcsr_type_no_symmetry)
-         CALL dbcsr_copy(exchange_env%mat_hfx(ispin)%matrix, mat_munu)
-      END DO
-
-      CALL dbcsr_get_info(mat_munu, nfullcols_total=number_of_aos)
-
-      NULLIFY (blacs_env)
-      CALL cp_blacs_env_create(blacs_env, exchange_env%para_env)
-      NULLIFY (fm_struct)
-      CALL cp_fm_struct_create(fm_struct, context=blacs_env, nrow_global=number_of_aos, ncol_global=number_of_aos)
-      CALL cp_blacs_env_release(blacs_env)
-      CALL cp_fm_create(exchange_env%work_ao_1, fm_struct)
-      CALL cp_fm_create(exchange_env%work_ao_2, fm_struct)
-      CALL cp_fm_struct_release(fm_struct)
-
-      CALL dbcsr_create(exchange_env%work_ao, template=mat_munu, &
-                        matrix_type=dbcsr_type_no_symmetry)
-
-      CALL timestop(handle)
-
-   END SUBROUTINE hfx_create_subgroup
-
-! **************************************************************************************************
-!> \brief ...
-!> \param exchange_env ...
-!> \param e_exchange ...
-! **************************************************************************************************
-   SUBROUTINE hfx_release_subgroup(exchange_env, e_exchange)
-      CLASS(rpa_exchange_env_type), INTENT(INOUT) :: exchange_env
-      REAL(KIND=dp), INTENT(OUT) :: e_exchange
-
-      INTEGER :: ispin
-
-      NULLIFY (exchange_env%qs_env, exchange_env%para_env, exchange_env%hfx_sections)
-
-      CALL cp_fm_release(exchange_env%work_ao_1)
-      CALL cp_fm_release(exchange_env%work_ao_2)
-
-      e_exchange = exchange_env%e_exchange
-      exchange_env%e_exchange = 0.0_dp
-
-      CALL hfx_release(exchange_env%x_data)
-      NULLIFY (exchange_env%x_data)
-
-      CALL dbcsr_release(exchange_env%work_ao)
-
-      DO ispin = 1, SIZE(exchange_env%mat_hfx, 1)
-         CALL dbcsr_release(exchange_env%mat_hfx(ispin)%matrix)
-         CALL dbcsr_release(exchange_env%mat_hfx(ispin)%matrix)
-         DEALLOCATE (exchange_env%mat_hfx(ispin)%matrix)
-      END DO
-      DEALLOCATE (exchange_env%mat_hfx)
-      NULLIFY (exchange_env%mat_hfx)
-   END SUBROUTINE hfx_release_subgroup
-
-! **************************************************************************************************
 !> \brief ...
 !> \param fm_mat ...
 !> \param mat ...
 !> \param ncols ...
 !> \param nrows ...
 ! **************************************************************************************************
-   SUBROUTINE redistribute_Gamma_in_subgroups(fm_mat, mat, ncols, nrows)
+   SUBROUTINE redistribute_into_subgroups(fm_mat, mat, ncols, nrows)
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
          INTENT(OUT)                                     :: mat
       INTEGER, INTENT(IN)                                :: ncols, nrows
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'redistribute_Gamma_in_subgroups'
-
-      INTEGER :: aux_global, aux_local, avirt, dimen_RI, handle, ia_global, ia_local, iocc, &
-         max_number_recv, max_number_send, my_aux_end, my_aux_size, my_aux_start, &
-         my_process_column, my_process_row, proc, proc_shift, recv_cols, recv_counter, recv_proc, &
-         recv_proc_row, recv_rows, send_counter, send_proc
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: data2recv, data2send
-      INTEGER, DIMENSION(:), POINTER                     :: aux_distribution_fm, col_indices, &
-                                                            ia_distribution_fm, row_indices
-      INTEGER, DIMENSION(:, :), POINTER                  :: mpi2blacs
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), TARGET   :: recv_buffer
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: send_buffer
-      REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :), &
-         POINTER                                         :: recv_ptr
-      TYPE(cp_blacs_env_type), POINTER                   :: context
-      TYPE(group_dist_d1_type)                           :: aux_func_dist
-      TYPE(mp_para_env_type), POINTER                    :: para_env
-
-      CALL timeset(routineN, handle)
-
-      CALL cp_fm_get_info(matrix=fm_mat, &
-                          ncol_locals=aux_distribution_fm, &
-                          col_indices=col_indices, &
-                          row_indices=row_indices, &
-                          nrow_locals=ia_distribution_fm, &
-                          context=context, &
-                          ncol_global=dimen_RI, &
-                          para_env=para_env)
-
-      IF (ncols <= 0 .OR. nrows <= 0) THEN
-         ALLOCATE (mat(ncols, nrows, dimen_RI))
-         CALL timestop(handle)
-         RETURN
-      END IF
-
-      CALL create_group_dist(aux_func_dist, para_env%num_pe, dimen_RI)
-      CALL get_group_dist(aux_func_dist, para_env%mepos, my_aux_start, my_aux_end, my_aux_size)
-
-      CALL context%get(my_process_column=my_process_column, my_process_row=my_process_row, &
-                       mpi2blacs=mpi2blacs)
-
-      ! Determine the number of columns to send
-      ALLOCATE (data2send(0:para_env%num_pe - 1))
-      data2send = 0
-      DO aux_local = 1, aux_distribution_fm(my_process_column)
-         aux_global = col_indices(aux_local)
-         proc = group_dist_proc(aux_func_dist, aux_global)
-         data2send(proc) = data2send(proc) + 1
-      END DO
-      max_number_send = MAXVAL(data2send)
-      WRITE (*, *) "data2send", data2send
-
-      ! Determine the number of Auxiliary functions and occ/virt pairs to recv
-      ALLOCATE (data2recv(0:para_env%num_pe - 1))
-      data2recv = 0
-      DO aux_global = my_aux_start, my_aux_end
-         proc = fm_mat%matrix_struct%g2p_col(aux_global)
-         data2recv(proc) = data2recv(proc) + 1
-      END DO
-      max_number_recv = MAXVAL(data2recv*ia_distribution_fm(mpi2blacs(1, :)))
-      WRITE (*, *) "data2recv", data2recv
-
-      ALLOCATE (send_buffer(ia_distribution_fm(my_process_row), max_number_send))
-      ALLOCATE (recv_buffer(max_number_recv))
-
-      ALLOCATE (mat(nrows, ncols, my_aux_size))
-
-      ! Start with own data
-      recv_counter = 0
-      DO aux_local = 1, my_aux_size
-         aux_global = col_indices(aux_local)
-         IF (aux_global < my_aux_start .OR. aux_global > my_aux_end) CYCLE
-         DO ia_local = 1, ia_distribution_fm(my_process_row)
-            ia_global = fm_mat%matrix_struct%row_indices(ia_local)
-
-            iocc = (ia_global - 1)/nrows + 1
-            avirt = MOD(ia_global - 1, nrows) + 1
-
-            WRITE (*, *) SHAPE(mat), avirt, iocc, ia_local, ia_global, aux_global, my_aux_start, recv_counter
-            mat(avirt, iocc, aux_global - my_aux_start + 1) = fm_mat%local_data(ia_local, aux_local)
-         END DO
-
-      END DO
-
-      DO proc_shift = 0, para_env%num_pe - 1
-         send_proc = MODULO(para_env%mepos + proc_shift, para_env%num_pe)
-         recv_proc = MODULO(para_env%mepos - proc_shift, para_env%num_pe)
-
-         WRITE (*, *) proc_shift, send_proc, recv_proc
-
-! Pack send buffer
-         send_counter = 0
-         DO aux_local = 1, aux_distribution_fm(my_process_column)
-            aux_global = col_indices(aux_local)
-            proc = group_dist_proc(aux_func_dist, aux_global)
-            send_counter = send_counter + 1
-            send_buffer(:, send_counter) = fm_mat%local_data(:, aux_local)
-         END DO
-         CPASSERT(send_counter == data2send(send_proc))
-
-         ! Prepare pointer to recv buffer
-         recv_proc_row = mpi2blacs(1, recv_proc)
-         recv_rows = ia_distribution_fm(recv_proc_row)
-         recv_cols = data2recv(recv_proc)
-         recv_ptr(1:recv_rows, 1:recv_cols) => recv_buffer(1:recv_rows*recv_cols)
-
-! Perform communication
-         CALL para_env%sendrecv(send_buffer(:, 1:data2send(send_proc)), send_proc, &
-                                recv_ptr, recv_proc)
-
-! Unpack receive buffer
-         recv_counter = 0
-         DO aux_global = my_aux_start, my_aux_end
-            proc = fm_mat%matrix_struct%g2p_col(aux_global)
-            WRITE (*, *) aux_global, recv_counter, proc
-            IF (proc /= recv_proc) CYCLE
-
-            recv_counter = recv_counter + 1
-
-            DO ia_local = 1, recv_rows
-               ia_global = fm_mat%matrix_struct%l2g_row(ia_local, recv_proc_row)
-
-               iocc = (ia_global - 1)/nrows + 1
-               avirt = MOD(ia_global - 1, nrows) + 1
-
-               WRITE (*, *) SHAPE(mat), avirt, iocc, ia_local, ia_global, aux_global, my_aux_start, recv_counter
-               mat(avirt, iocc, aux_global - my_aux_start + 1) = recv_ptr(ia_local, recv_counter)
-            END DO
-
-         END DO
-         CPASSERT(recv_counter == data2recv(recv_proc))
-      END DO
-
-      WRITE (*, *) "DEBUG redist", NORM2(mat) - NORM2(fm_mat%local_data)
-
-      CALL timestop(handle)
-
-   END SUBROUTINE redistribute_Gamma_in_subgroups
-
-! **************************************************************************************************
-!> \brief ...
-!> \param fm_mat ...
-!> \param mat ...
-!> \param ncols ...
-!> \param nrows ...
-! **************************************************************************************************
-   SUBROUTINE redistribute_B_in_subgroups(fm_mat, mat, ncols, nrows)
-      TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
-         INTENT(OUT)                                     :: mat
-      INTEGER, INTENT(IN)                                :: ncols, nrows
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'redistribute_B_in_subgroups'
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'redistribute_into_subgroups'
 
       INTEGER :: aux_global, aux_local, avirt, dimen_RI, handle, ia_global, ia_local, iocc, &
          max_number_recv, max_number_send, my_aux_end, my_aux_size, my_aux_start, &
@@ -958,6 +464,6 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE redistribute_B_in_subgroups
+   END SUBROUTINE redistribute_into_subgroups
 
 END MODULE rpa_exchange
