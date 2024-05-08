@@ -88,6 +88,7 @@ MODULE rpa_exchange
       PRIVATE
       TYPE(qs_environment_type), POINTER             :: qs_env => NULL()
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER      :: mat_hfx => NULL()
+      TYPE(dbcsr_type)      :: work_ao
       TYPE(hfx_type), DIMENSION(:, :), POINTER       :: x_data => NULL()
       TYPE(mp_para_env_type), POINTER                :: para_env => NULL()
       TYPE(section_vals_type), POINTER               :: hfx_sections => NULL()
@@ -189,6 +190,8 @@ CONTAINS
          exchange_work%dimen_ia(ispin) = exchange_work%homo(ispin)*exchange_work%virtual(ispin)
       END DO
       IF (unit_nr > 0) WRITE (unit_nr, *) "dimen_ia", exchange_work%dimen_ia
+      IF (unit_nr > 0) WRITE (unit_nr, *) "homo", exchange_work%homo
+      IF (unit_nr > 0) WRITE (unit_nr, *) "virtual", exchange_work%virtual
       exchange_work%dimen_RI = dimen_RI
 
       ! Get aux sizes
@@ -302,11 +305,11 @@ CONTAINS
       REAL(KIND=dp), PARAMETER                           :: thresh = 0.0000001_dp
 
       INTEGER :: handle, iib, ispin, L_counter, nspins, P, Q, L_size_Gamma, hom, virt, i, &
-                 send_proc, recv_proc, recv_size, max_aux_size, proc_shift
+                 send_proc, recv_proc, recv_size, max_aux_size, proc_shift, a, j
       REAL(KIND=dp) :: e_rpa
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigenval
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :) :: product_matrix_small
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :) :: mat_Gamma_3, mat_B_iaP, recv_buffer
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :) :: mat_Gamma_3, mat_B_iaP, recv_buffer, product_matrix_2
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :, :) :: product_matrix
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: fm_mat_Gamma_3
       TYPE(dbcsr_matrix_p_set), ALLOCATABLE, &
@@ -423,7 +426,7 @@ CONTAINS
                CALL dbcsr_multiply("N", "T", 1.0_dp, exchange_work%mo_coeff_v(ispin), dbcsr_Gamma_3(ispin)%matrix_set(L_counter), &
                                    0.0_dp, exchange_work%dbcsr_Gamma_inu_P(ispin), filter_eps=exchange_work%eps_filter)
 
-               CALL dbcsr_release(dbcsr_Gamma_3(ispin)%matrix_set(L_counter))
+               !CALL dbcsr_release(dbcsr_Gamma_3(ispin)%matrix_set(L_counter))
 
                ! Do dbcsr multiplication: transform the occupied index
                CALL dbcsr_multiply("N", "T", 0.5_dp, exchange_work%dbcsr_Gamma_inu_P(ispin), exchange_work%mo_coeff_o(ispin), &
@@ -434,6 +437,34 @@ CONTAINS
 
             ! Contract DM with exchange integrals
             CALL exchange_work%exchange_env%integrate(exchange_work%dbcsr_Gamma_munu_P)
+
+            BLOCK
+               TYPE(cp_fm_struct_type), POINTER :: fm_struct
+               TYPE(cp_fm_type) :: fm_ia
+               DO ispin = 1, nspins
+                  NULLIFY (fm_struct)
+                  CALL cp_fm_struct_create(fm_struct, template_fmstruct=exchange_work%struct_Gamma(ispin)%struct, &
+                                           nrow_global=exchange_work%homo(ispin), ncol_global=exchange_work%virtual(ispin))
+                  CALL cp_fm_create(fm_ia, fm_struct)
+                  CALL cp_fm_struct_release(fm_struct)
+
+                  ! Do dbcsr multiplication: transform the virtual index
+                  CALL dbcsr_multiply("T", "N", 1.0_dp, exchange_work%exchange_env%mat_hfx(ispin)%matrix, &
+                                      exchange_work%mo_coeff_o(ispin), &
+                                      0.0_dp, exchange_work%dbcsr_Gamma_inu_P(ispin), filter_eps=exchange_work%eps_filter)
+
+                  ! Do dbcsr multiplication: transform the occupied index
+                  CALL dbcsr_multiply("T", "N", 1.0_dp, exchange_work%dbcsr_Gamma_inu_P(ispin), exchange_work%mo_coeff_v(ispin), &
+                                      0.0_dp, dbcsr_Gamma_3(ispin)%matrix_set(L_counter), filter_eps=exchange_work%eps_filter)
+
+                  CALL copy_dbcsr_to_fm(dbcsr_Gamma_3(ispin)%matrix_set(L_counter), fm_ia)
+
+                  WRITE (*, *) "fm_ia", L_counter, ispin, fm_ia%local_data
+
+                  CALL cp_fm_release(fm_ia)
+                  CALL dbcsr_release(dbcsr_Gamma_3(ispin)%matrix_set(L_counter))
+               END DO
+            END BLOCK
          END DO
 
          DO ispin = 1, nspins
@@ -477,7 +508,11 @@ CONTAINS
 
             max_aux_size = (exchange_work%dimen_RI + exchange_work%para_env_RPA%num_pe - 1)/exchange_work%para_env_RPA%num_pe
 
-            ALLOCATE (product_matrix(hom, SIZE(mat_Gamma_3, 3), hom, max_aux_size))
+               L_size_Gamma = SIZE(mat_Gamma_3, 3)
+
+            ALLOCATE (product_matrix(hom, L_size_Gamma, hom, max_aux_size))
+            ALLOCATE (product_matrix_2(virt, hom, L_size_Gamma))
+            product_matrix_2 = 0.0_dp
             ALLOCATE (recv_buffer(virt, hom, max_aux_size))
             DO proc_shift = 0, exchange_work%para_env_RPA%num_pe - 1
                send_proc = MODULO(exchange_work%para_env_RPA%mepos + proc_shift, exchange_work%para_env_RPA%num_pe)
@@ -491,9 +526,8 @@ CONTAINS
 
                CALL exchange_work%para_env_RPA%sendrecv(mat_B_iaP, send_proc, recv_buffer(:, :, 1:recv_size), recv_proc)
 
-               L_size_Gamma = SIZE(mat_Gamma_3, 3)
-
-               CALL dgemm("T", "N", hom*L_size_Gamma, hom*recv_size, virt, 1.0_dp, mat_Gamma_3, virt, mat_B_iaP, virt, &
+               CALL dgemm("T", "N", hom*L_size_Gamma, hom*recv_size, virt, 1.0_dp, &
+                          mat_Gamma_3, virt, recv_buffer(:, :, 1:recv_size), virt, &
                           0.0_dp, product_matrix, hom*L_size_Gamma)
                DO P = 1, L_size_Gamma
                DO Q = 1, recv_size
@@ -502,6 +536,20 @@ CONTAINS
                END DO
                END DO
                END DO
+               DO P = 1, L_size_Gamma
+               DO i = 1, hom
+                  DO a = 1, virt
+                     e_rpa = 0.0_dp
+                     DO Q = 1, recv_size
+                     DO j = 1, hom
+                        e_rpa = e_rpa + product_matrix(j, P, i, Q)*recv_buffer(a, j, Q)
+                     END DO
+                     END DO
+                     product_matrix_2(a, i, P) = e_rpa
+                  END DO
+               END DO
+               END DO
+               e_rpa = e_exchange_corr
                IF (.FALSE.) e_exchange_corr = accurate_dot_product(product_matrix(:, 1, 1, 1), product_matrix(:, 1, 1, 1))
 #if 0
                DO P = 1, L_size_Gamma
@@ -514,6 +562,11 @@ CONTAINS
                END DO
                END DO
 #endif
+            END DO
+
+            DO L_counter = 1, exchange_work%my_group_L_size
+               WRITE (*, *) "product_matrix_2", L_counter, product_matrix_2(:, :, L_counter)
+               WRITE (*, *) "DEBUG SOSEX2", ispin, SUM(product_matrix_2*mat_Gamma_3)
             END DO
 
             DEALLOCATE (mat_B_iaP, mat_Gamma_3, product_matrix, recv_buffer)
@@ -581,8 +634,15 @@ CONTAINS
          exchange_env%e_exchange = exchange_env%e_exchange - 0.5_dp*e_exchange_P
       END IF
 
-      IF (.TRUE.) THEN
+      IF (.FALSE.) THEN
          CALL dbcsr_dot(exchange_env%mat_hfx(ispin)%matrix, dbcsr_Gamma_munu_P(ispin)%matrix, e_exchange_p)
+         exchange_env%e_exchange = exchange_env%e_exchange - e_exchange_P
+      END IF
+
+      IF (.TRUE.) THEN
+         CALL dbcsr_multiply("N", "T", 1.0_dp, exchange_env%mat_hfx(ispin)%matrix, dbcsr_Gamma_munu_P(ispin)%matrix, &
+                             0.0_dp, exchange_env%work_ao, filter_eps=0.0_dp) ! exchange_work%eps_filter)
+         CALL dbcsr_trace(exchange_env%work_ao, e_exchange_P)
          exchange_env%e_exchange = exchange_env%e_exchange - e_exchange_P
       END IF
       END DO
@@ -679,6 +739,9 @@ CONTAINS
       CALL cp_fm_create(exchange_env%work_ao_2, fm_struct)
       CALL cp_fm_struct_release(fm_struct)
 
+      CALL dbcsr_create(exchange_env%work_ao, template=mat_munu, &
+                        matrix_type=dbcsr_type_no_symmetry)
+
       CALL timestop(handle)
 
    END SUBROUTINE hfx_create_subgroup
@@ -704,6 +767,8 @@ CONTAINS
 
       CALL hfx_release(exchange_env%x_data)
       NULLIFY (exchange_env%x_data)
+
+      CALL dbcsr_release(exchange_env%work_ao)
 
       DO ispin = 1, SIZE(exchange_env%mat_hfx, 1)
          CALL dbcsr_release(exchange_env%mat_hfx(ispin)%matrix)
