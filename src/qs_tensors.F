@@ -1160,12 +1160,10 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'build_3c_derivatives'
 
-      INTEGER :: block_end_i, block_end_j, block_end_k, block_start_i, block_start_j, &
-         block_start_k, egfi, handle, handle2, i, i_img, i_xyz, iatom, ibasis, ikind, ilist, imax, &
-         iset, j_img, jatom, jcell, jkind, jset, katom, kcell, kkind, kset, m_max, max_ncoj, &
-         max_nset, max_nsgfi, maxli, maxlj, maxlk, mepos, natom, nbasis, ncell_RI, ncoi, ncoj, &
-         ncok, nimg, nseti, nsetj, nsetk, nthread, op_ij, op_jk, op_pos_prv, sgfi, sgfj, sgfk, &
-         unit_id
+      INTEGER :: egfi, handle, handle2, i, i_img, i_xyz, iatom, ibasis, ikind, ilist, imax, iset, &
+         j_img, jatom, jcell, jkind, jset, katom, kcell, kkind, kset, m_max, max_ncoj, max_nset, &
+         max_nsgfi, maxli, maxlj, maxlk, mepos, natom, nbasis, ncell_RI, ncoi, ncoj, ncok, nimg, &
+         nseti, nsetj, nsetk, nthread, op_ij, op_jk, op_pos_prv, sgfi, sgfj, sgfk, unit_id
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: img_to_RI_cell_prv
       INTEGER, DIMENSION(2)                              :: bo
       INTEGER, DIMENSION(3)                              :: blk_idx, blk_size, cell_j, cell_k, &
@@ -1186,7 +1184,7 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: ccp_buffer, cpp_buffer, &
                                                             max_contraction_i, max_contraction_j, &
                                                             max_contraction_k
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: dijk_contr, dummy_block_t
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: dummy_block_t
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :, :)  :: block_t_i, block_t_j, block_t_k, dijk_j, &
                                                             dijk_k, tmp_ijk_i, tmp_ijk_j
       REAL(KIND=dp), DIMENSION(3)                        :: ri, rij, rik, rj, rjk, rk
@@ -1434,9 +1432,8 @@ CONTAINS
 !$OMP          sphi_i,zeti,kind_radius_i,first_sgf_j,lmax_j,lmin_j,npgfj,nsetj,nsgfj,rpgf_j,&
 !$OMP          set_radius_j,sphi_j,zetj,kind_radius_j,first_sgf_k,lmax_k,lmin_k,npgfk,nsetk,nsgfk,&
 !$OMP          rpgf_k,set_radius_k,sphi_k,zetk,kind_radius_k,djk,dij,dik,ncoi,ncoj,ncok,sgfi,sgfj,&
-!$OMP          sgfk,dijk_j,dijk_k,ri,rj,rk,max_contraction_i,max_contraction_j,blk_idx,&
-!$OMP          max_contraction_k,iset,jset,kset,block_t_i,blk_size,dijk_contr,cpp_buffer,ccp_buffer,&
-!$OMP          block_start_j,block_end_j,block_start_k,block_end_k,block_start_i,block_end_i,found,&
+!$OMP          sgfk,dijk_j,dijk_k,ri,rj,rk,max_contraction_i,max_contraction_j,blk_idx,found,&
+!$OMP          max_contraction_k,iset,jset,kset,block_t_i,blk_size,cpp_buffer,ccp_buffer,&
 !$OMP          dummy_block_t,sp,handle2,mepos,bo,block_t_k,der_ext_i,der_ext_j,der_ext_k,tmp_ijk_i,&
 !$OMP          block_k_not_zero,der_k_zero,skip,der_j_zero,block_t_j,block_j_not_zero,tmp_ijk_j,i)
 
@@ -1656,54 +1653,29 @@ CONTAINS
                         END IF
                      END IF
 
-                     ALLOCATE (dijk_contr(nsgfj(jset), nsgfk(kset), nsgfi(iset)))
-
-                     block_start_j = sgfj
-                     block_end_j = sgfj + nsgfj(jset) - 1
-                     block_start_k = sgfk
-                     block_end_k = sgfk + nsgfk(kset) - 1
-                     block_start_i = sgfi
-                     block_end_i = sgfi + nsgfi(iset) - 1
-
                      DO i_xyz = 1, 3
                         IF (der_j_zero(i_xyz)) CYCLE
 
                         block_j_not_zero(i_xyz) = .TRUE.
-                        CALL abc_contract_xsmm(dijk_contr, dijk_j(:, :, :, i_xyz), tspj(jset, jkind)%array, &
+                        CALL abc_contract_xsmm(block_t_j(:, :, :, i_xyz), dijk_j(:, :, :, i_xyz), tspj(jset, jkind)%array, &
                                                spk(kset, kkind)%array, spi(iset, ikind)%array, &
                                                ncoj, ncok, ncoi, nsgfj(jset), nsgfk(kset), &
-                                               nsgfi(iset), cpp_buffer, ccp_buffer, prefac)
-
-                        block_t_j(block_start_j:block_end_j, &
-                                  block_start_k:block_end_k, &
-                                  block_start_i:block_end_i, i_xyz) = &
-                           block_t_j(block_start_j:block_end_j, &
-                                     block_start_k:block_end_k, &
-                                     block_start_i:block_end_i, i_xyz) + &
-                           dijk_contr(:, :, :)
-
+                                               nsgfi(iset), cpp_buffer, ccp_buffer, prefac, 1.0_dp, &
+                                               [sgfj, sgfk, sgfi])
                      END DO
 
                      DO i_xyz = 1, 3
                         IF (der_k_zero(i_xyz)) CYCLE
 
                         block_k_not_zero(i_xyz) = .TRUE.
-                        CALL abc_contract_xsmm(dijk_contr, dijk_k(:, :, :, i_xyz), tspj(jset, jkind)%array, &
+                        CALL abc_contract_xsmm(block_t_k(:, :, :, i_xyz), dijk_k(:, :, :, i_xyz), tspj(jset, jkind)%array, &
                                                spk(kset, kkind)%array, spi(iset, ikind)%array, &
                                                ncoj, ncok, ncoi, nsgfj(jset), nsgfk(kset), &
-                                               nsgfi(iset), cpp_buffer, ccp_buffer, prefac)
-
-                        block_t_k(block_start_j:block_end_j, &
-                                  block_start_k:block_end_k, &
-                                  block_start_i:block_end_i, i_xyz) = &
-                           block_t_k(block_start_j:block_end_j, &
-                                     block_start_k:block_end_k, &
-                                     block_start_i:block_end_i, i_xyz) + &
-                           dijk_contr(:, :, :)
-
+                                               nsgfi(iset), cpp_buffer, ccp_buffer, prefac, 1.0_dp, &
+                                               [sgfj, sgfk, sgfi])
                      END DO
 
-                     DEALLOCATE (dijk_j, dijk_k, dijk_contr)
+                     DEALLOCATE (dijk_j, dijk_k)
                   END IF ! number of triples > 0
                END DO
             END DO
@@ -1860,11 +1832,10 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'calc_3c_virial'
 
-      INTEGER :: block_end_i, block_end_j, block_end_k, block_start_i, block_start_j, &
-         block_start_k, egfi, handle, i, i_xyz, iatom, ibasis, ikind, ilist, imax, iset, j_xyz, &
-         jatom, jkind, jset, katom, kkind, kset, m_max, max_ncoj, max_nset, max_nsgfi, maxli, &
-         maxlj, maxlk, mepos, natom, nbasis, ncoi, ncoj, ncok, nseti, nsetj, nsetk, nthread, &
-         op_ij, op_jk, op_pos_prv, sgfi, sgfj, sgfk, unit_id
+      INTEGER :: egfi, handle, i, i_xyz, iatom, ibasis, ikind, ilist, imax, iset, j_xyz, jatom, &
+         jkind, jset, katom, kkind, kset, m_max, max_ncoj, max_nset, max_nsgfi, maxli, maxlj, &
+         maxlk, mepos, natom, nbasis, ncoi, ncoj, ncok, nseti, nsetj, nsetk, nthread, op_ij, &
+         op_jk, op_pos_prv, sgfi, sgfj, sgfk, unit_id
       INTEGER, DIMENSION(2)                              :: bo
       INTEGER, DIMENSION(3)                              :: blk_size, sp
       INTEGER, DIMENSION(:), POINTER                     :: lmax_i, lmax_j, lmax_k, lmin_i, lmin_j, &
@@ -1882,7 +1853,7 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: ccp_buffer, cpp_buffer, &
                                                             max_contraction_i, max_contraction_j, &
                                                             max_contraction_k
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: ablock, dijk_contr, tmp_block
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: ablock, tmp_block
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :, :)  :: block_t_i, block_t_j, block_t_k, dijk_j, &
                                                             dijk_k
       REAL(KIND=dp), DIMENSION(3)                        :: ri, rij, rik, rj, rjk, rk, scoord
@@ -2045,8 +2016,7 @@ CONTAINS
 !$OMP          lmax_j,lmin_j,npgfj,nsetj,nsgfj,rpgf_j,set_radius_j,sphi_j,zetj,kind_radius_j,first_sgf_k,&
 !$OMP          lmax_k,lmin_k,npgfk,nsetk,nsgfk,rpgf_k,set_radius_k,sphi_k,zetk,kind_radius_k,djk,dij,dik,&
 !$OMP          ncoi,ncoj,ncok,sgfi,sgfj,sgfk,dijk_j,dijk_k,ri,rj,rk,max_contraction_i,max_contraction_j,&
-!$OMP          tmp_block,max_contraction_k,iset,jset,kset,block_t_i,blk_size,dijk_contr,found,sp,mepos,&
-!$OMP          block_start_j,block_end_j,block_start_k,block_end_k,block_start_i,block_end_i,block_t_k,&
+!$OMP          tmp_block,max_contraction_k,iset,jset,kset,block_t_i,blk_size,found,sp,mepos,block_t_k,&
 !$OMP          bo,der_ext_i,der_ext_j,der_ext_k,ablock,force,scoord,skip,cpp_buffer,ccp_buffer,&
 !$OMP          block_k_not_zero,der_k_zero,der_j_zero,block_t_j,block_j_not_zero)
 
@@ -2195,54 +2165,27 @@ CONTAINS
                         END IF
                      END IF
 
-                     ALLOCATE (dijk_contr(nsgfj(jset), nsgfk(kset), nsgfi(iset)))
-
-                     block_start_j = sgfj
-                     block_end_j = sgfj + nsgfj(jset) - 1
-                     block_start_k = sgfk
-                     block_end_k = sgfk + nsgfk(kset) - 1
-                     block_start_i = sgfi
-                     block_end_i = sgfi + nsgfi(iset) - 1
-
                      DO i_xyz = 1, 3
                         IF (der_j_zero(i_xyz)) CYCLE
 
                         block_j_not_zero(i_xyz) = .TRUE.
-                        CALL abc_contract_xsmm(dijk_contr, dijk_j(:, :, :, i_xyz), tspj(jset, jkind)%array, &
+                        CALL abc_contract_xsmm(block_t_j(:, :, :, i_xyz), dijk_j(:, :, :, i_xyz), tspj(jset, jkind)%array, &
                                                spk(kset, kkind)%array, spi(iset, ikind)%array, &
-                                               ncoj, ncok, ncoi, nsgfj(jset), nsgfk(kset), &
-                                               nsgfi(iset), cpp_buffer, ccp_buffer)
-
-                        block_t_j(block_start_j:block_end_j, &
-                                  block_start_k:block_end_k, &
-                                  block_start_i:block_end_i, i_xyz) = &
-                           block_t_j(block_start_j:block_end_j, &
-                                     block_start_k:block_end_k, &
-                                     block_start_i:block_end_i, i_xyz) + &
-                           dijk_contr(:, :, :)
-
+                                               ncoj, ncok, ncoi, nsgfj(jset), nsgfk(kset), nsgfi(iset), &
+                                               cpp_buffer, ccp_buffer, 1.0_dp, 1.0_dp, [sgfj, sgfk, sgfi])
                      END DO
 
                      DO i_xyz = 1, 3
                         IF (der_k_zero(i_xyz)) CYCLE
 
                         block_k_not_zero(i_xyz) = .TRUE.
-                        CALL abc_contract_xsmm(dijk_contr, dijk_k(:, :, :, i_xyz), tspj(jset, jkind)%array, &
+                        CALL abc_contract_xsmm(block_t_k(:, :, :, i_xyz), dijk_k(:, :, :, i_xyz), tspj(jset, jkind)%array, &
                                                spk(kset, kkind)%array, spi(iset, ikind)%array, &
-                                               ncoj, ncok, ncoi, nsgfj(jset), nsgfk(kset), &
-                                               nsgfi(iset), cpp_buffer, ccp_buffer)
-
-                        block_t_k(block_start_j:block_end_j, &
-                                  block_start_k:block_end_k, &
-                                  block_start_i:block_end_i, i_xyz) = &
-                           block_t_k(block_start_j:block_end_j, &
-                                     block_start_k:block_end_k, &
-                                     block_start_i:block_end_i, i_xyz) + &
-                           dijk_contr(:, :, :)
-
+                                               ncoj, ncok, ncoi, nsgfj(jset), nsgfk(kset), nsgfi(iset), &
+                                               cpp_buffer, ccp_buffer, 1.0_dp, 1.0_dp, [sgfj, sgfk, sgfi])
                      END DO
 
-                     DEALLOCATE (dijk_j, dijk_k, dijk_contr)
+                     DEALLOCATE (dijk_j, dijk_k)
                   END IF ! number of triples > 0
                END DO
             END DO
@@ -2355,11 +2298,10 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'build_3c_integrals'
 
-      INTEGER :: block_end_i, block_end_j, block_end_k, block_start_i, block_start_j, &
-         block_start_k, egfi, handle, handle2, i, iatom, ibasis, ikind, ilist, imax, iset, jatom, &
-         jcell, jkind, jset, katom, kcell, kkind, kset, m_max, max_ncoj, max_nset, max_nsgfi, &
-         maxli, maxlj, maxlk, mepos, natom, nbasis, ncell_RI, ncoi, ncoj, ncok, nimg, nseti, &
-         nsetj, nsetk, nthread, op_ij, op_jk, op_pos_prv, sgfi, sgfj, sgfk, unit_id
+      INTEGER :: egfi, handle, handle2, i, iatom, ibasis, ikind, ilist, imax, iset, jatom, jcell, &
+         jkind, jset, katom, kcell, kkind, kset, m_max, max_ncoj, max_nset, max_nsgfi, maxli, &
+         maxlj, maxlk, mepos, natom, nbasis, ncell_RI, ncoi, ncoj, ncok, nimg, nseti, nsetj, &
+         nsetk, nthread, op_ij, op_jk, op_pos_prv, sgfi, sgfj, sgfk, unit_id
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: img_to_RI_cell_prv
       INTEGER, DIMENSION(2)                              :: bo
       INTEGER, DIMENSION(3)                              :: blk_idx, blk_size, cell_j, cell_k, &
@@ -2378,8 +2320,7 @@ CONTAINS
                                                             prefac, sijk_ext
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: ccp_buffer, cpp_buffer, &
                                                             max_contraction_j, max_contraction_k
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: block_t, dummy_block_t, sijk, &
-                                                            sijk_contr, tmp_ijk
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: block_t, dummy_block_t, sijk, tmp_ijk
       REAL(KIND=dp), DIMENSION(1, 1, 1)                  :: counter
       REAL(KIND=dp), DIMENSION(3)                        :: ri, rij, rik, rj, rjk, rk
       REAL(KIND=dp), DIMENSION(:), POINTER               :: set_radius_i, set_radius_j, set_radius_k
@@ -2604,8 +2545,7 @@ CONTAINS
 !$OMP          set_radius_j,sphi_j,zetj,kind_radius_j,first_sgf_k,lmax_k,lmin_k,npgfk,nsetk,nsgfk,&
 !$OMP          rpgf_k,set_radius_k,sphi_k,zetk,kind_radius_k,djk,dij,dik,ncoi,ncoj,ncok,sgfi,sgfj,&
 !$OMP          sgfk,sijk,ri,rj,rk,sijk_ext,block_not_zero,max_contraction_i,max_contraction_j,&
-!$OMP          max_contraction_k,iset,jset,kset,block_t,blk_size,sijk_contr,cpp_buffer,ccp_buffer,&
-!$OMP          block_start_j,block_end_j,block_start_k,block_end_k,block_start_i,block_end_i,found,&
+!$OMP          max_contraction_k,iset,jset,kset,block_t,blk_size,cpp_buffer,ccp_buffer,found,&
 !$OMP          dummy_block_t,sp,handle2,mepos,bo,skip,tmp_ijk,i,blk_idx)
 
       mepos = 0
@@ -2792,32 +2732,15 @@ CONTAINS
                   END IF
 
                   block_not_zero = .TRUE.
-                  ALLOCATE (sijk_contr(nsgfj(jset), nsgfk(kset), nsgfi(iset)))
-                  CALL abc_contract_xsmm(sijk_contr, sijk, tspj(jset, jkind)%array, &
-                                         spk(kset, kkind)%array, spi(iset, ikind)%array, &
-                                         ncoj, ncok, ncoi, nsgfj(jset), nsgfk(kset), &
-                                         nsgfi(iset), cpp_buffer, ccp_buffer, prefac)
-                  DEALLOCATE (sijk)
-
                   sgfj = first_sgf_j(1, jset)
                   sgfk = first_sgf_k(1, kset)
 
-                  block_start_j = sgfj
-                  block_end_j = sgfj + nsgfj(jset) - 1
-                  block_start_k = sgfk
-                  block_end_k = sgfk + nsgfk(kset) - 1
-                  block_start_i = sgfi
-                  block_end_i = sgfi + nsgfi(iset) - 1
-
-                  block_t(block_start_j:block_end_j, &
-                          block_start_k:block_end_k, &
-                          block_start_i:block_end_i) = &
-                     block_t(block_start_j:block_end_j, &
-                             block_start_k:block_end_k, &
-                             block_start_i:block_end_i) + &
-                     sijk_contr(:, :, :)
-                  DEALLOCATE (sijk_contr)
-
+                  CALL abc_contract_xsmm(block_t, sijk, tspj(jset, jkind)%array, &
+                                         spk(kset, kkind)%array, spi(iset, ikind)%array, &
+                                         ncoj, ncok, ncoi, nsgfj(jset), nsgfk(kset), &
+                                         nsgfi(iset), cpp_buffer, ccp_buffer, &
+                                         prefac, 1.0_dp, [sgfj, sgfk, sgfi])
+                  DEALLOCATE (sijk)
                END DO
 
             END DO
