@@ -42,11 +42,10 @@ MODULE trexio_utils
                             qs_kind_type
    USE qs_ks_types, ONLY: qs_ks_env_type
    USE qs_scf_types, ONLY: qs_scf_env_type
-   USE trexio
-   ! USE trexio, ONLY: trexio_open, trexio_close, &
-   !                   TREXIO_HDF5, TREXIO_SUCCESS, &
-   !                   trexio_string_of_error, trexio_t, trexio_exit_code, &
-   !                   trexio_write_metadata_code_num
+   USE trexio, ONLY: trexio_open, trexio_close, &
+                     TREXIO_HDF5, TREXIO_SUCCESS, &
+                     trexio_string_of_error, trexio_t, trexio_exit_code, &
+                     trexio_write_metadata_code_num
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -113,8 +112,10 @@ MODULE trexio_utils
       WRITE (output_unit, '(T3,A)') TRIM(filename)
 
       ! open trexio file
-      f = trexio_open_c('h2o-TREXIO.h5', 'w', TREXIO_HDF5, rc)
+      f = trexio_open('h2o-TREXIO.h5', 'w', TREXIO_HDF5, rc)
       CALL trexio_error(rc)
+
+
 
       !========================================================================================!
       ! Metadata
