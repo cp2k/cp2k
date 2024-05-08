@@ -57,8 +57,7 @@ MODULE rpa_exchange
                                               section_vals_type
    USE kahan_sum,                       ONLY: accurate_dot_product
    USE kinds,                           ONLY: dp
-   USE mathconstants,                   ONLY: sqrt2,&
-                                              sqrthalf
+   USE mathconstants,                   ONLY: sqrthalf
    USE message_passing,                 ONLY: mp_para_env_release,&
                                               mp_para_env_type
    USE mp2_types,                       ONLY: mp2_type
@@ -69,7 +68,6 @@ MODULE rpa_exchange
    USE qs_kind_types,                   ONLY: qs_kind_type
    USE qs_subsys_types,                 ONLY: qs_subsys_get,&
                                               qs_subsys_type
-   USE rpa_communication,               ONLY: gamma_fm_to_dbcsr
    USE rpa_util,                        ONLY: calc_fm_mat_S_rpa,&
                                               remove_scaling_factor_rpa
    USE scf_control_types,               ONLY: scf_control_type
@@ -304,24 +302,18 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'rpa_exchange_work_compute'
       REAL(KIND=dp), PARAMETER                           :: thresh = 0.0000001_dp
 
-      INTEGER :: handle, iib, ispin, L_counter, nspins, P, Q, L_size_Gamma, hom, virt, i, &
-                 send_proc, recv_proc, recv_size, max_aux_size, proc_shift, a, j
-      REAL(KIND=dp) :: e_rpa
+      INTEGER :: handle, iib, ispin, nspins, P, Q, L_size_Gamma, hom, virt, i, &
+                 send_proc, recv_proc, recv_size, max_aux_size, proc_shift
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigenval
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :) :: product_matrix_small
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :) :: mat_Gamma_3, mat_B_iaP, recv_buffer, product_matrix_2
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :) :: mat_Gamma_3, mat_B_iaP, recv_buffer
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :, :) :: product_matrix
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: fm_mat_Gamma_3
-      TYPE(dbcsr_matrix_p_set), ALLOCATABLE, &
-         DIMENSION(:)                                    :: dbcsr_Gamma_3
 
       IF (exchange_work%exchange_correction == rpa_exchange_none) RETURN
 
       CALL timeset(routineN, handle)
 
-      MARK_USED(product_matrix)
-      MARK_USED(product_matrix_small)
-      MARK_USED(sqrt2)
+      MARK_USED(qs_env)
 
       nspins = SIZE(fm_mat_S)
 
@@ -404,179 +396,64 @@ CONTAINS
                                         eig(:, ispin), exchange_work%homo(ispin), omega)
       END DO
 
-      IF (use_hfx_implementation) THEN
-         CALL exchange_work%exchange_env%create(qs_env, exchange_work%dbcsr_gamma_munu_P(1)%matrix, exchange_work%para_env_sub, &
-                                                exchange_work%my_group_L_size, exchange_work%eps_filter)
-         exchange_work%exchange_env%e_exchange = 0.0_dp
+      ! Reorder matrix from (P, i*a) -> (a, i, P) with P being distributed within integration group
+      e_exchange_corr = 0.0_dp
 
-         ALLOCATE (dbcsr_Gamma_3(nspins))
-         DO ispin = 1, nspins
-            ! Copy Gamma_ia_P^3 to dbcsr matrix set
-            CALL gamma_fm_to_dbcsr(fm_mat_Gamma_3(ispin), dbcsr_Gamma_3(ispin)%matrix_set, &
-                                   exchange_work%para_env_RPA, exchange_work%para_env_sub, &
-                                   exchange_work%homo(ispin), exchange_work%virtual(ispin), exchange_work%mo_coeff_o(ispin), &
-                                   exchange_work%ngroup, exchange_work%my_group_L_start, &
-                                   exchange_work%my_group_L_end, exchange_work%my_group_L_size)
-         END DO
-         DEALLOCATE (fm_mat_Gamma_3)
+      DO ispin = 1, nspins
+         hom = exchange_work%homo(ispin)
+         virt = exchange_work%virtual(ispin)
+         IF (hom < 1 .OR. virt < 1) THEN
+            CALL cp_fm_release(fm_mat_Gamma_3(ispin))
+            CYCLE
+         END IF
 
-         DO L_counter = 1, exchange_work%my_group_L_size
-            DO ispin = 1, nspins
-               ! Do dbcsr multiplication: transform the virtual index
-               CALL dbcsr_multiply("N", "T", 1.0_dp, exchange_work%mo_coeff_v(ispin), dbcsr_Gamma_3(ispin)%matrix_set(L_counter), &
-                                   0.0_dp, exchange_work%dbcsr_Gamma_inu_P(ispin), filter_eps=exchange_work%eps_filter)
+         CALL redistribute_Gamma_in_subgroups(fm_mat_Gamma_3(ispin), mat_Gamma_3, hom, virt)
+         CALL cp_fm_release(fm_mat_Gamma_3(ispin))
 
-               !CALL dbcsr_release(dbcsr_Gamma_3(ispin)%matrix_set(L_counter))
+         ! We need only the pure matrix
+         CALL remove_scaling_factor_rpa(fm_mat_S(ispin), virt, &
+                                        eig(:, ispin), hom, omega)
 
-               ! Do dbcsr multiplication: transform the occupied index
-               CALL dbcsr_multiply("N", "T", 0.5_dp, exchange_work%dbcsr_Gamma_inu_P(ispin), exchange_work%mo_coeff_o(ispin), &
-                                   0.0_dp, exchange_work%dbcsr_Gamma_munu_P(ispin)%matrix, filter_eps=exchange_work%eps_filter)
-               CALL dbcsr_multiply("N", "T", 0.5_dp, exchange_work%mo_coeff_o(ispin), exchange_work%dbcsr_Gamma_inu_P(ispin), &
-                                   1.0_dp, exchange_work%dbcsr_Gamma_munu_P(ispin)%matrix, filter_eps=exchange_work%eps_filter)
-            END DO
+         ! Reorder matrix from (P, i*a) -> (a, i, P) with P being distributed within subgroups
+         CALL redistribute_B_in_subgroups(fm_mat_S(ispin), mat_B_iaP, hom, virt)
 
-            ! Contract DM with exchange integrals
-            CALL exchange_work%exchange_env%integrate(exchange_work%dbcsr_Gamma_munu_P)
+         ! Return to the original tensor
+         CALL calc_fm_mat_S_rpa(fm_mat_S(ispin), .TRUE., virt, eig(:, ispin), hom, omega, 0.0_dp)
 
-            BLOCK
-               TYPE(cp_fm_struct_type), POINTER :: fm_struct
-               TYPE(cp_fm_type) :: fm_ia
-               DO ispin = 1, nspins
-                  NULLIFY (fm_struct)
-                  CALL cp_fm_struct_create(fm_struct, template_fmstruct=exchange_work%struct_Gamma(ispin)%struct, &
-                                           nrow_global=exchange_work%homo(ispin), ncol_global=exchange_work%virtual(ispin))
-                  CALL cp_fm_create(fm_ia, fm_struct)
-                  CALL cp_fm_struct_release(fm_struct)
+         max_aux_size = (exchange_work%dimen_RI + exchange_work%para_env_RPA%num_pe - 1)/exchange_work%para_env_RPA%num_pe
 
-                  ! Do dbcsr multiplication: transform the virtual index
-                  CALL dbcsr_multiply("T", "N", 1.0_dp, exchange_work%exchange_env%mat_hfx(ispin)%matrix, &
-                                      exchange_work%mo_coeff_o(ispin), &
-                                      0.0_dp, exchange_work%dbcsr_Gamma_inu_P(ispin), filter_eps=exchange_work%eps_filter)
+         L_size_Gamma = SIZE(mat_Gamma_3, 3)
 
-                  ! Do dbcsr multiplication: transform the occupied index
-                  CALL dbcsr_multiply("T", "N", 1.0_dp, exchange_work%dbcsr_Gamma_inu_P(ispin), exchange_work%mo_coeff_v(ispin), &
-                                      0.0_dp, dbcsr_Gamma_3(ispin)%matrix_set(L_counter), filter_eps=exchange_work%eps_filter)
+         ALLOCATE (product_matrix(hom, L_size_Gamma, hom, max_aux_size))
+         ALLOCATE (recv_buffer(virt, hom, max_aux_size))
+         DO proc_shift = 0, exchange_work%para_env_RPA%num_pe - 1
+            send_proc = MODULO(exchange_work%para_env_RPA%mepos + proc_shift, exchange_work%para_env_RPA%num_pe)
+            recv_proc = MODULO(exchange_work%para_env_RPA%mepos - proc_shift, exchange_work%para_env_RPA%num_pe)
 
-                  CALL copy_dbcsr_to_fm(dbcsr_Gamma_3(ispin)%matrix_set(L_counter), fm_ia)
-
-                  WRITE (*, *) "fm_ia", L_counter, ispin, fm_ia%local_data
-
-                  CALL cp_fm_release(fm_ia)
-                  CALL dbcsr_release(dbcsr_Gamma_3(ispin)%matrix_set(L_counter))
-               END DO
-            END BLOCK
-         END DO
-
-         DO ispin = 1, nspins
-            DEALLOCATE (dbcsr_Gamma_3(ispin)%matrix_set)
-         END DO
-         DEALLOCATE (dbcsr_Gamma_3)
-
-         CALL exchange_work%exchange_env%release(e_exchange_corr)
-
-         IF (nspins == 1) e_exchange_corr = e_exchange_corr
-         IF (nspins == 2) e_exchange_corr = e_exchange_corr*sqrthalf
-
-         ! For printing, we need the energy per quadrature point/per integration group, but we obtain the energy per sub group
-         e_exchange_corr = e_exchange_corr/REAL(exchange_work%para_env_sub%num_pe, KIND=dp)
-         CALL exchange_work%para_env_RPA%sum(e_exchange_corr)
-      ELSE
-         ! Reorder matrix from (P, i*a) -> (a, i, P) with P being distributed within integration group
-         e_exchange_corr = 0.0_dp
-         e_rpa = 0.0_dp
-
-         DO ispin = 1, nspins
-            hom = exchange_work%homo(ispin)
-            virt = exchange_work%virtual(ispin)
-            IF (hom < 1 .OR. virt < 1) THEN
-               CALL cp_fm_release(fm_mat_Gamma_3(ispin))
-               CYCLE
+            IF (recv_proc < MOD(exchange_work%dimen_RI, exchange_work%para_env_RPA%num_pe)) THEN
+               recv_size = (exchange_work%dimen_RI + exchange_work%para_env_RPA%num_pe - 1)/exchange_work%para_env_RPA%num_pe
+            ELSE
+               recv_size = exchange_work%dimen_RI/exchange_work%para_env_RPA%num_pe
             END IF
 
-            CALL redistribute_Gamma_in_subgroups(fm_mat_Gamma_3(ispin), mat_Gamma_3, hom, virt)
-            CALL cp_fm_release(fm_mat_Gamma_3(ispin))
+            CALL exchange_work%para_env_RPA%sendrecv(mat_B_iaP, send_proc, recv_buffer(:, :, 1:recv_size), recv_proc)
 
-            ! We need only the pure matrix
-            CALL remove_scaling_factor_rpa(fm_mat_S(ispin), virt, &
-                                           eig(:, ispin), hom, omega)
-
-            ! Reorder matrix from (P, i*a) -> (a, i, P) with P being distributed within subgroups
-            CALL redistribute_B_in_subgroups(fm_mat_S(ispin), mat_B_iaP, hom, virt)
-
-            ! Return to the original tensor
-            CALL calc_fm_mat_S_rpa(fm_mat_S(ispin), .TRUE., virt, eig(:, ispin), hom, omega, 0.0_dp)
-
-            max_aux_size = (exchange_work%dimen_RI + exchange_work%para_env_RPA%num_pe - 1)/exchange_work%para_env_RPA%num_pe
-
-               L_size_Gamma = SIZE(mat_Gamma_3, 3)
-
-            ALLOCATE (product_matrix(hom, L_size_Gamma, hom, max_aux_size))
-            ALLOCATE (product_matrix_2(virt, hom, L_size_Gamma))
-            product_matrix_2 = 0.0_dp
-            ALLOCATE (recv_buffer(virt, hom, max_aux_size))
-            DO proc_shift = 0, exchange_work%para_env_RPA%num_pe - 1
-               send_proc = MODULO(exchange_work%para_env_RPA%mepos + proc_shift, exchange_work%para_env_RPA%num_pe)
-               recv_proc = MODULO(exchange_work%para_env_RPA%mepos - proc_shift, exchange_work%para_env_RPA%num_pe)
-
-               IF (recv_proc < MOD(exchange_work%dimen_RI, exchange_work%para_env_RPA%num_pe)) THEN
-                  recv_size = (exchange_work%dimen_RI + exchange_work%para_env_RPA%num_pe - 1)/exchange_work%para_env_RPA%num_pe
-               ELSE
-                  recv_size = exchange_work%dimen_RI/exchange_work%para_env_RPA%num_pe
-               END IF
-
-               CALL exchange_work%para_env_RPA%sendrecv(mat_B_iaP, send_proc, recv_buffer(:, :, 1:recv_size), recv_proc)
-
-               CALL dgemm("T", "N", hom*L_size_Gamma, hom*recv_size, virt, 1.0_dp, &
-                          mat_Gamma_3, virt, recv_buffer(:, :, 1:recv_size), virt, &
-                          0.0_dp, product_matrix, hom*L_size_Gamma)
-               DO P = 1, L_size_Gamma
-               DO Q = 1, recv_size
-               DO i = 1, hom
-                  e_exchange_corr = e_exchange_corr + DOT_PRODUCT(product_matrix(i, P, :, Q), product_matrix(:, P, i, Q))
-               END DO
-               END DO
-               END DO
-               DO P = 1, L_size_Gamma
-               DO i = 1, hom
-                  DO a = 1, virt
-                     e_rpa = 0.0_dp
-                     DO Q = 1, recv_size
-                     DO j = 1, hom
-                        e_rpa = e_rpa + product_matrix(j, P, i, Q)*recv_buffer(a, j, Q)
-                     END DO
-                     END DO
-                     product_matrix_2(a, i, P) = e_rpa
-                  END DO
-               END DO
-               END DO
-               e_rpa = e_exchange_corr
-               IF (.FALSE.) e_exchange_corr = accurate_dot_product(product_matrix(:, 1, 1, 1), product_matrix(:, 1, 1, 1))
-#if 0
-               DO P = 1, L_size_Gamma
-               DO Q = 1, recv_size
-                  sum_ia = 0.0_dp
-                  DO i = 1, hom
-                     sum_ia = sum_ia + product_matrix(i, P, i, Q)
-                  END DO
-                  e_rpa = e_rpa + sum_ia*sum_ia
-               END DO
-               END DO
-#endif
+            CALL dgemm("T", "N", hom*L_size_Gamma, hom*recv_size, virt, 1.0_dp, &
+                       mat_Gamma_3, virt, recv_buffer(:, :, 1:recv_size), virt, &
+                       0.0_dp, product_matrix, hom*L_size_Gamma)
+            DO P = 1, L_size_Gamma
+            DO Q = 1, recv_size
+            DO i = 1, hom
+               e_exchange_corr = e_exchange_corr + DOT_PRODUCT(product_matrix(i, P, :, Q), product_matrix(:, P, i, Q))
             END DO
-
-            DO L_counter = 1, exchange_work%my_group_L_size
-               WRITE (*, *) "product_matrix_2", L_counter, product_matrix_2(:, :, L_counter)
-               WRITE (*, *) "DEBUG SOSEX2", ispin, SUM(product_matrix_2*mat_Gamma_3)
             END DO
-
-            DEALLOCATE (mat_B_iaP, mat_Gamma_3, product_matrix, recv_buffer)
-            !WRITE (*, *) ispin, e_rpa, e_exchange_corr
+            END DO
          END DO
-         IF (nspins == 2) e_exchange_corr = e_exchange_corr*2.0_dp
-         IF (exchange_work%unit_nr > 0) WRITE (exchange_work%unit_nr, *) "E_rpa/E_ex", e_rpa, e_exchange_corr
-         DEALLOCATE (fm_mat_Gamma_3)
 
-      END IF
+         DEALLOCATE (mat_B_iaP, mat_Gamma_3, product_matrix, recv_buffer)
+      END DO
+      IF (nspins == 2) e_exchange_corr = e_exchange_corr*2.0_dp
+      DEALLOCATE (fm_mat_Gamma_3)
 
       ! Print exchange correlation energy to the file
       IF (exchange_work%unit_nr > 0) WRITE (exchange_work%unit_nr, '(T3,A,T68,F25.14,A4)') &
