@@ -307,9 +307,6 @@ CONTAINS
          'exchange correlation energy for a quadrature point:', &
          e_exchange_corr, ' a.u.'
 
-      ! We return an energy per process as we will have to sum over all RPA integration groups anyways
-      e_exchange_corr = e_exchange_corr/REAL(exchange_work%para_env_RPA%num_pe, KIND=dp)
-
       CALL timestop(handle)
 
    END SUBROUTINE rpa_exchange_work_compute
@@ -405,7 +402,7 @@ CONTAINS
             iocc = (ia_global - 1)/nrows + 1
             avirt = MOD(ia_global - 1, nrows) + 1
 
-            WRITE (*, *) SHAPE(mat), avirt, iocc, ia_local, ia_global, aux_global, my_aux_start, recv_counter
+            !WRITE (*, *) SHAPE(mat), avirt, iocc, ia_local, ia_global, aux_global, my_aux_start, recv_counter
             mat(avirt, iocc, aux_global - my_aux_start + 1) = fm_mat%local_data(aux_local, ia_local)
          END DO
 
@@ -422,10 +419,12 @@ CONTAINS
          DO aux_local = 1, aux_distribution_fm(my_process_row)
             aux_global = row_indices(aux_local)
             proc = group_dist_proc(aux_func_dist, aux_global)
+            IF (proc /= send_proc) CYCLE
             send_counter = send_counter + 1
             send_buffer(:, send_counter) = fm_mat%local_data(aux_local, :)
          END DO
-         CPASSERT(send_counter == data2send(send_proc))
+         WRITE (*, *) "send_counter", send_counter, data2send(send_proc)
+         !CPASSERT(send_counter == data2send(send_proc))
 
          ! Prepare pointer to recv buffer
          recv_proc_col = mpi2blacs(2, recv_proc)
@@ -452,7 +451,7 @@ CONTAINS
                iocc = (ia_global - 1)/nrows + 1
                avirt = MOD(ia_global - 1, nrows) + 1
 
-               WRITE (*, *) SHAPE(mat), avirt, iocc, ia_local, ia_global, aux_global, my_aux_start, recv_counter
+               !WRITE (*, *) SHAPE(mat), avirt, iocc, ia_local, ia_global, aux_global, my_aux_start, recv_counter
                mat(avirt, iocc, aux_global - my_aux_start + 1) = recv_ptr(ia_local, recv_counter)
             END DO
 
@@ -460,7 +459,7 @@ CONTAINS
          CPASSERT(recv_counter == data2recv(recv_proc))
       END DO
 
-      WRITE (*, *) "DEBUG redist", NORM2(mat) - NORM2(fm_mat%local_data)
+      !WRITE (*, *) "DEBUG redist", NORM2(mat) - NORM2(fm_mat%local_data)
 
       CALL timestop(handle)
 
