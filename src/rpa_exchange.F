@@ -39,8 +39,7 @@ MODULE rpa_exchange
                                               rpa_exchange_sosex
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: sqrthalf
-   USE message_passing,                 ONLY: mp_para_env_release,&
-                                              mp_para_env_type
+   USE message_passing,                 ONLY: mp_para_env_type
    USE mp2_types,                       ONLY: mp2_type
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE rpa_util,                        ONLY: calc_fm_mat_S_rpa,&
@@ -64,8 +63,6 @@ MODULE rpa_exchange
       TYPE(cp_fm_type) :: fm_mat_Q_tmp = cp_fm_type()
       TYPE(cp_fm_type) :: fm_mat_R_half_gemm = cp_fm_type()
       TYPE(cp_fm_type) :: fm_mat_U = cp_fm_type()
-      TYPE(mp_para_env_type), POINTER                    :: para_env_RPA => NULL()
-      INTEGER :: unit_nr = -1
    CONTAINS
       PROCEDURE, PASS(exchange_work), NON_OVERRIDABLE :: create => rpa_exchange_work_create
       PROCEDURE, PASS(exchange_work), NON_OVERRIDABLE :: compute => rpa_exchange_work_compute
@@ -78,24 +75,20 @@ CONTAINS
 !> \brief ...
 !> \param exchange_work ...
 !> \param mp2_env ...
-!> \param para_env_RPA ...
 !> \param dimen_RI ...
 !> \param fm_mat_S ...
 !> \param fm_mat_Q ...
 !> \param fm_mat_Q_gemm ...
-!> \param unit_nr ...
 !> \param homo ...
 !> \param virtual ...
 ! **************************************************************************************************
-   SUBROUTINE rpa_exchange_work_create(exchange_work, mp2_env, para_env_RPA, dimen_RI, &
-                                       fm_mat_S, fm_mat_Q, fm_mat_Q_gemm, unit_nr, homo, virtual)
+   SUBROUTINE rpa_exchange_work_create(exchange_work, mp2_env, dimen_RI, &
+                                       fm_mat_S, fm_mat_Q, fm_mat_Q_gemm, homo, virtual)
       CLASS(rpa_exchange_work_type), INTENT(INOUT) :: exchange_work
       TYPE(mp2_type), INTENT(INOUT) :: mp2_env
-      TYPE(mp_para_env_type), TARGET, INTENT(INOUT) :: para_env_RPA
       INTEGER, INTENT(IN) :: dimen_RI
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN) :: fm_mat_S
       TYPE(cp_fm_type), INTENT(IN) :: fm_mat_Q, fm_mat_Q_gemm
-      INTEGER, INTENT(IN) :: unit_nr
       INTEGER, DIMENSION(SIZE(fm_mat_S)), INTENT(IN) :: homo, virtual
 
       INTEGER :: nspins
@@ -105,9 +98,6 @@ CONTAINS
       IF (exchange_work%exchange_correction == rpa_exchange_none) RETURN
 
       exchange_work%eps_filter = mp2_env%mp2_gpw%eps_filter
-      exchange_work%para_env_RPA => para_env_RPA
-      CALL para_env_RPA%retain()
-      exchange_work%unit_nr = unit_nr
 
       nspins = SIZE(fm_mat_S)
 
@@ -135,7 +125,6 @@ CONTAINS
       CALL cp_fm_release(exchange_work%fm_mat_Q_tmp)
       CALL cp_fm_release(exchange_work%fm_mat_U)
       CALL cp_fm_release(exchange_work%fm_mat_R_half_gemm)
-      CALL mp_para_env_release(exchange_work%para_env_RPA)
    END SUBROUTINE
 
 ! **************************************************************************************************
@@ -161,20 +150,23 @@ CONTAINS
       REAL(KIND=dp), PARAMETER                           :: thresh = 0.0000001_dp
 
       INTEGER :: handle, iib, ispin, nspins, P, Q, L_size_Gamma, hom, virt, i, &
-                 send_proc, recv_proc, recv_size, max_aux_size, proc_shift, dimen_ia
+                 send_proc, recv_proc, recv_size, max_aux_size, proc_shift, dimen_ia, dimen_RI
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigenval
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :) :: mat_Gamma_3, mat_B_iaP, recv_buffer
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :, :) :: product_matrix
       TYPE(cp_fm_type)        :: fm_mat_Gamma_3
+      TYPE(mp_para_env_type), POINTER :: para_env
 
       IF (exchange_work%exchange_correction == rpa_exchange_none) RETURN
 
       CALL timeset(routineN, handle)
 
+      CALL cp_fm_get_info(fm_mat_Q, para_env=para_env, ncol_global=dimen_RI)
+
       nspins = SIZE(fm_mat_S)
 
       ! Eigenvalues
-      ALLOCATE (eigenval(exchange_work%dimen_RI))
+      ALLOCATE (eigenval(dimen_RI))
       eigenval = 0.0_dp
 
       CALL cp_fm_set_all(matrix=exchange_work%fm_mat_Q_tmp, alpha=0.0_dp)
@@ -185,15 +177,11 @@ CONTAINS
       ! Diagonalize Q
       CALL choose_eigv_solver(exchange_work%fm_mat_Q_tmp, exchange_work%fm_mat_U, eigenval)
 
-      IF (exchange_work%unit_nr > 0) WRITE (exchange_work%unit_nr, *) &
-         "DEBUG RPA energy (AXK)", 0.5_dp*SUM(LOG(1.0_dp + eigenval) - eigenval)
-
       ! Calculate diagonal matrix for R_half
 
       ! Manipulate eigenvalues to get diagonal matrix
       IF (exchange_work%exchange_correction == rpa_exchange_axk) THEN
-         !IF (exchange_work%unit_nr > 0) WRITE (exchange_work%unit_nr, *) "Do AXK"
-         DO iib = 1, exchange_work%dimen_RI
+         DO iib = 1, dimen_RI
             IF (ABS(eigenval(iib)) .GE. thresh) THEN
                eigenval(iib) = &
                   SQRT((1.0_dp/(eigenval(iib)**2))*LOG(1.0_dp + eigenval(iib)) &
@@ -203,8 +191,7 @@ CONTAINS
             END IF
          END DO
       ELSE IF (exchange_work%exchange_correction == rpa_exchange_sosex) THEN
-         !IF (exchange_work%unit_nr > 0) WRITE (exchange_work%unit_nr, *) "Do SOSEX"
-         DO iib = 1, exchange_work%dimen_RI
+         DO iib = 1, dimen_RI
             IF (ABS(eigenval(iib)) .GE. thresh) THEN
                eigenval(iib) = &
                   SQRT(-(1.0_dp/(eigenval(iib)**2))*LOG(1.0_dp + eigenval(iib)) &
@@ -226,12 +213,11 @@ CONTAINS
       ! Redistribute fm_mat_U for "rectangular" multiplication: ia*P P*P
       CALL cp_fm_set_all(matrix=exchange_work%fm_mat_R_half_gemm, alpha=0.0_dp)
 
-      CALL cp_fm_to_fm_submat_general(exchange_work%fm_mat_U, exchange_work%fm_mat_R_half_gemm, exchange_work%dimen_RI, &
-                                      exchange_work%dimen_RI, 1, 1, 1, 1, &
-                                      exchange_work%fm_mat_U%matrix_struct%context)
+      CALL cp_fm_to_fm_submat_general(exchange_work%fm_mat_U, exchange_work%fm_mat_R_half_gemm, dimen_RI, &
+                                      dimen_RI, 1, 1, 1, 1, exchange_work%fm_mat_U%matrix_struct%context)
 
       e_exchange_corr = 0.0_dp
-      max_aux_size = (exchange_work%dimen_RI + exchange_work%para_env_RPA%num_pe - 1)/exchange_work%para_env_RPA%num_pe
+      max_aux_size = (dimen_RI + para_env%num_pe - 1)/para_env%num_pe
 
       DO ispin = 1, nspins
          hom = exchange_work%homo(ispin)
@@ -249,8 +235,7 @@ CONTAINS
                                 hom, omega, 0.0_dp)
 
          ! Calculate Gamma_3: Gamma_3 = G*S*R^(1/2) = G*S*R^(1/2)
-         CALL parallel_gemm(transa="T", transb="N", m=exchange_work%dimen_RI, n=dimen_ia, &
-                            k=exchange_work%dimen_RI, alpha=1.0_dp, &
+         CALL parallel_gemm(transa="T", transb="N", m=dimen_RI, n=dimen_ia, k=dimen_RI, alpha=1.0_dp, &
                             matrix_a=exchange_work%fm_mat_R_half_gemm, matrix_b=fm_mat_S(ispin), beta=0.0_dp, &
                             matrix_c=fm_mat_Gamma_3)
 
@@ -273,17 +258,17 @@ CONTAINS
 
          ALLOCATE (product_matrix(hom, L_size_Gamma, hom, max_aux_size))
          ALLOCATE (recv_buffer(virt, hom, max_aux_size))
-         DO proc_shift = 0, exchange_work%para_env_RPA%num_pe - 1
-            send_proc = MODULO(exchange_work%para_env_RPA%mepos + proc_shift, exchange_work%para_env_RPA%num_pe)
-            recv_proc = MODULO(exchange_work%para_env_RPA%mepos - proc_shift, exchange_work%para_env_RPA%num_pe)
+         DO proc_shift = 0, para_env%num_pe - 1
+            send_proc = MODULO(para_env%mepos + proc_shift, para_env%num_pe)
+            recv_proc = MODULO(para_env%mepos - proc_shift, para_env%num_pe)
 
-            IF (recv_proc < MOD(exchange_work%dimen_RI, exchange_work%para_env_RPA%num_pe)) THEN
-               recv_size = (exchange_work%dimen_RI + exchange_work%para_env_RPA%num_pe - 1)/exchange_work%para_env_RPA%num_pe
+            IF (recv_proc < MOD(dimen_RI, para_env%num_pe)) THEN
+               recv_size = (dimen_RI + para_env%num_pe - 1)/para_env%num_pe
             ELSE
-               recv_size = exchange_work%dimen_RI/exchange_work%para_env_RPA%num_pe
+               recv_size = dimen_RI/para_env%num_pe
             END IF
 
-            CALL exchange_work%para_env_RPA%sendrecv(mat_B_iaP, send_proc, recv_buffer(:, :, 1:recv_size), recv_proc)
+            CALL para_env%sendrecv(mat_B_iaP, send_proc, recv_buffer(:, :, 1:recv_size), recv_proc)
 
             CALL dgemm("T", "N", hom*L_size_Gamma, hom*recv_size, virt, 1.0_dp, &
                        mat_Gamma_3, virt, recv_buffer(:, :, 1:recv_size), virt, &
@@ -301,11 +286,6 @@ CONTAINS
       END DO
       IF (nspins == 2) e_exchange_corr = e_exchange_corr*2.0_dp
       IF (nspins == 1) e_exchange_corr = e_exchange_corr*4.0_dp
-
-      ! Print exchange correlation energy to the file
-      IF (exchange_work%unit_nr > 0) WRITE (exchange_work%unit_nr, '(T3,A,T68,F25.14,A4)') &
-         'exchange correlation energy for a quadrature point:', &
-         e_exchange_corr, ' a.u.'
 
       CALL timestop(handle)
 
@@ -374,7 +354,6 @@ CONTAINS
          data2send(proc) = data2send(proc) + 1
       END DO
       max_number_send = MAXVAL(data2send)
-      WRITE (*, *) "data2send", data2send
 
       ! Determine the number of Auxiliary functions and occ/virt pairs to recv
       ALLOCATE (data2recv(0:para_env%num_pe - 1))
@@ -384,7 +363,6 @@ CONTAINS
          data2recv(proc) = data2recv(proc) + 1
       END DO
       max_number_recv = MAXVAL(data2recv*ia_distribution_fm(mpi2blacs(1, :)))
-      WRITE (*, *) "data2recv", data2recv
 
       ALLOCATE (send_buffer(ia_distribution_fm(my_process_column), max_number_send))
       ALLOCATE (recv_buffer(max_number_recv))
@@ -402,7 +380,6 @@ CONTAINS
             iocc = (ia_global - 1)/nrows + 1
             avirt = MOD(ia_global - 1, nrows) + 1
 
-            !WRITE (*, *) SHAPE(mat), avirt, iocc, ia_local, ia_global, aux_global, my_aux_start, recv_counter
             mat(avirt, iocc, aux_global - my_aux_start + 1) = fm_mat%local_data(aux_local, ia_local)
          END DO
 
@@ -411,8 +388,6 @@ CONTAINS
       DO proc_shift = 0, para_env%num_pe - 1
          send_proc = MODULO(para_env%mepos + proc_shift, para_env%num_pe)
          recv_proc = MODULO(para_env%mepos - proc_shift, para_env%num_pe)
-
-         WRITE (*, *) proc_shift, send_proc, recv_proc
 
 ! Pack send buffer
          send_counter = 0
@@ -423,8 +398,6 @@ CONTAINS
             send_counter = send_counter + 1
             send_buffer(:, send_counter) = fm_mat%local_data(aux_local, :)
          END DO
-         WRITE (*, *) "send_counter", send_counter, data2send(send_proc)
-         !CPASSERT(send_counter == data2send(send_proc))
 
          ! Prepare pointer to recv buffer
          recv_proc_col = mpi2blacs(2, recv_proc)
@@ -440,7 +413,6 @@ CONTAINS
          recv_counter = 0
          DO aux_global = my_aux_start, my_aux_end
             proc = fm_mat%matrix_struct%g2p_row(aux_global)
-            WRITE (*, *) aux_global, recv_counter, proc
             IF (proc /= recv_proc) CYCLE
 
             recv_counter = recv_counter + 1
@@ -451,15 +423,11 @@ CONTAINS
                iocc = (ia_global - 1)/nrows + 1
                avirt = MOD(ia_global - 1, nrows) + 1
 
-               !WRITE (*, *) SHAPE(mat), avirt, iocc, ia_local, ia_global, aux_global, my_aux_start, recv_counter
                mat(avirt, iocc, aux_global - my_aux_start + 1) = recv_ptr(ia_local, recv_counter)
             END DO
 
          END DO
-         CPASSERT(recv_counter == data2recv(recv_proc))
       END DO
-
-      !WRITE (*, *) "DEBUG redist", NORM2(mat) - NORM2(fm_mat%local_data)
 
       CALL timestop(handle)
 
