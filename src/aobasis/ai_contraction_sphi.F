@@ -266,7 +266,7 @@ CONTAINS
 
       REAL(KIND=dp)                                           :: alpha, beta
       INTEGER(KIND=int_8)                                     :: cpp_size, ccp_size
-      INTEGER                                                 :: handle, idx(3), i
+      INTEGER                                                 :: handle, idx(3), i, j
       LOGICAL                                                 :: ab_first
 #if defined(__LIBXSMM)
       TYPE(libxsmm_dmmfunction)                               :: xmm1, xmm2
@@ -353,9 +353,17 @@ CONTAINS
 #if defined(__LIBXSMM)
       END IF
 #endif
-      ! contractions over c: [nsgfa*nsgfb,ncoc] x [ncoc,nsgfc] -> [sgfa*nsgfb,nsgfc]
-      CALL dgemm("N", "N", nsgfa*nsgfb, nsgfc, ncoc, alpha, ccp_buffer, nsgfa*nsgfb, &
-                 sphi_c, ncoc, beta, abcint(idx(1):, idx(2):, idx(3):), nsgfa*nsgfb)
+      ! DGEMM("N", "N", nsgfa*nsgfb, nsgfc, ncoc, alpha, ccp_buffer,
+      !       nsgfa*nsgfb, sphi_c, ncoc, beta, abcint, nsgfa*nsgfb)
+      ! not beneficial due to strided final destination
+      DO j = 0, nsgfc - 1 ! contractions over c
+         ! DGEMV("N", nsgfa*nsgfb, ncoc, alpha, ccp_buffer, nsgfa*nsgfb,
+         !       sphi_c(:, j), 1, beta, abcint(:, :, j), 1)
+         DO i = 0, nsgfb - 1 ! [nsgfa,ncoc] x [ncoc,1] -> [nsgfa,1]
+            CALL dgemv("N", nsgfa, ncoc, alpha, ccp_buffer(i*nsgfa + 1), nsgfa, sphi_c(:, j+1), 1, &
+                       beta, abcint(idx(1), idx(2) + i, idx(3) + j), 1)
+         END DO
+      END DO
 
       CALL timestop(handle)
 
