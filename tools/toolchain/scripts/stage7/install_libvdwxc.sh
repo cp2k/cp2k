@@ -46,6 +46,10 @@ case "$with_libvdwxc" in
       tar -xzf libvdwxc-${libvdwxc_ver}.tar.gz
       cd libvdwxc-${libvdwxc_ver}
 
+      if [ "${OPENBLAS_ARCH}" = "arm64" ]; then
+        LDFLAGS="${LDFLAGS} -ld_classic"
+      fi
+
       if [ "${MPI_MODE}" = "no" ]; then
         # compile libvdwxc without mpi support since fftw (or mkl) do not have mpi support activated
         ./configure \

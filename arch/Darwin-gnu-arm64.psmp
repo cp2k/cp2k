@@ -262,7 +262,7 @@ FCFLAGS        += -ffree-line-length-none
 FCFLAGS        += -fno-omit-frame-pointer
 FCFLAGS        += -std=f2008
 
-LDFLAGS        += $(FCFLAGS)
+LDFLAGS        += $(FCFLAGS) -ld_classic
 
 LIBS           += -lz -ldl -lstdc++
 
