@@ -3,9 +3,9 @@
 # author: Ole Schuett
 
 # Compile and install CP2K.
-./build_cp2k_cmake.sh "ubuntu" || exit 0
+./build_cp2k_cmake.sh "ubuntu" "ssmp" || exit 0
 cd build
-ninja install
+ninja install &> install.log
 
 echo -e "\n========== Installing Dependencies =========="
 apt-get update -qq

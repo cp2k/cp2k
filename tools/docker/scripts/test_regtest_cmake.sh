@@ -20,7 +20,7 @@ if ((SHM_AVAIL < 1024)); then
 fi
 
 # Compile CP2K.
-./build_cp2k_cmake.sh "${PROFILE}" || exit 0
+./build_cp2k_cmake.sh "${PROFILE}" "${VERSION}" || exit 0
 
 # Fake installation of data files.
 mkdir -p ./share/cp2k
@@ -36,8 +36,13 @@ export COSMA_DIM_THRESHOLD=0
 # Bind pika threads to first two cores. This is a hack. Do not use for production!
 export PIKA_PROCESS_MASK="0x3"
 
-# Load Spack environment.
-eval "$(spack env activate myenv --sh)"
+# Load Spack or Toolchain environment.
+if [[ "${PROFILE}" == "spack" ]]; then
+  eval "$(spack env activate myenv --sh)"
+elif [[ "${PROFILE}" == "toolchain" ]]; then
+  # shellcheck disable=SC1091
+  source /opt/cp2k-toolchain/install/setup
+fi
 
 # Run regtests.
 echo -e "\n========== Running Regtests =========="
