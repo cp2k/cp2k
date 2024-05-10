@@ -15,10 +15,10 @@
 # on an Apple M1 (macOS 14.4.1 Sonoma)
 #
 # Usage: Source this arch file and then run make as instructed.
-#        Ensure the links in /usr/local/bin to the lastest gcc version
+#        Ensure the links in /opt/homebrew/bin to the gcc version
 #        and "brew unlink openmpi" (or mpich) if installed.
 #
-# Last update: 09.05.2024
+# Last update: 10.05.2024
 #
 # \
    if [[ "${0}" == "${BASH_SOURCE}" ]]; then \
