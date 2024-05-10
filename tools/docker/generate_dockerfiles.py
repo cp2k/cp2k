@@ -16,7 +16,12 @@ def main() -> None:
 
     for version in "sdbg", "ssmp", "pdbg", "psmp":
         with OutputFile(f"Dockerfile.test_{version}", args.check) as f:
-            f.write(toolchain_full() + regtest(version))
+            if version == "ssmp":
+                # Use ssmp as guinea pig
+                f.write(toolchain_full(with_dbcsr=True))
+                f.write(regtest_cmake("toolchain", version))
+            else:
+                f.write(toolchain_full() + regtest(version))
 
         with OutputFile(f"Dockerfile.test_generic_{version}", args.check) as f:
             f.write(toolchain_full(target_cpu="generic") + regtest(version))
@@ -135,7 +140,7 @@ RUN /bin/bash -o pipefail -c " \
 
 
 # ======================================================================================
-def regtest_cmake(arch: str, version: str, testopts: str = "") -> str:
+def regtest_cmake(profile: str, version: str, testopts: str = "") -> str:
     return (
         rf"""
 # Install CP2K sources.
@@ -152,7 +157,7 @@ ARG TESTOPTS="{testopts}"
 COPY ./tools/docker/scripts/build_cp2k_cmake.sh ./tools/docker/scripts/test_regtest_cmake.sh ./
 RUN /bin/bash -o pipefail -c " \
     TESTOPTS='${{TESTOPTS}}' \
-    ./test_regtest_cmake.sh {arch} {version} |& tee report.log && \
+    ./test_regtest_cmake.sh {profile} {version} |& tee report.log && \
     rm -rf regtesting"
 """
         + print_cached_report()
@@ -390,11 +395,22 @@ COPY ./tools/regtesting ./tools/regtesting
 
 # ======================================================================================
 def toolchain_full(
-    base_image: str = "ubuntu:24.04", with_gcc: str = "system", **kwargs: str
+    base_image: str = "ubuntu:24.04",
+    with_gcc: str = "system",
+    with_dbcsr: bool = False,
+    **kwargs: str,
 ) -> str:
-    return f"\nFROM {base_image}\n\n" + install_toolchain(
+    output = f"\nFROM {base_image}\n\n"
+    output += install_toolchain(
         base_image=base_image, install_all="", with_gcc=with_gcc, **kwargs
     )
+    if with_dbcsr:
+        output += r"""
+# Install DBCSR
+COPY ./tools/docker/scripts/install_dbcsr.sh ./
+RUN /bin/bash -o pipefail -c "source /opt/cp2k-toolchain/install/setup; ./install_dbcsr.sh"
+"""
+    return output
 
 
 # ======================================================================================
