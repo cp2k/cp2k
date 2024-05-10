@@ -46,7 +46,7 @@ case "$with_libvdwxc" in
       tar -xzf libvdwxc-${libvdwxc_ver}.tar.gz
       cd libvdwxc-${libvdwxc_ver}
 
-      if [ "${OPENBLAS_ARCH}" = "arm64" ]; then
+      if [ "$(uname -s)" = "Darwin" ]; then
         LDFLAGS="${LDFLAGS} -ld_classic"
       fi
 

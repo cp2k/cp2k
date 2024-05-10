@@ -4,14 +4,14 @@
 # (https://www.cp2k.org/howto:compile_on_macos)
 #
 # Tested with: GNU 13.2.0, FFTW 3.3.10, LIBINT 2.6.0, LIBVORI 220621,
-#              LIBXC 6.2.2, OpenBLAS 0.3.26, SPGLIB 2.3.1,
+#              LIBXC 6.2.2, OpenBLAS 0.3.27, SPGLIB 2.3.1,
 #              LIBGRPP 20231215
-# on an Apple M1 (macOS 14.2.1 Sonoma)
+# on an Apple M1 (macOS 14.4.1 Sonoma)
 #
 # Usage: Source this arch file and then run make as instructed.
-#        Ensure the links in /usr/local/bin to the lastest gcc version.
+#        Ensure the links in /opt/homebrew/bin to the gcc version.
 #
-# Last update: 19.03.2024
+# Last update: 10.05.2024
 #
 # \
    if [[ "${0}" == "${BASH_SOURCE}" ]]; then \
@@ -26,7 +26,7 @@
       brew install cmake; \
       brew install coreutils; \
       brew install fftw; \
-      brew install gcc; \
+      brew install gcc@13; \
       brew install libxc; \
       brew install openblas; \
       brew install pkg-config; \
@@ -170,7 +170,7 @@ FCFLAGS        += -ffree-line-length-none
 FCFLAGS        += -fno-omit-frame-pointer
 FCFLAGS        += -std=f2008
 
-LDFLAGS        += $(FCFLAGS)
+LDFLAGS        += $(FCFLAGS) -ld_classic
 
 LIBS           += -ldl -lstdc++
 
