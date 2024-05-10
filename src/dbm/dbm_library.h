@@ -22,6 +22,18 @@ void dbm_library_init(void);
 void dbm_library_finalize(void);
 
 /*******************************************************************************
+ * \brief Wrapper around malloc.
+ * \author Hans Pabst
+ ******************************************************************************/
+void *dbm_malloc(size_t size);
+
+/*******************************************************************************
+ * \brief Wrapper around free.
+ * \author Hans Pabst
+ ******************************************************************************/
+void dbm_free(void *ptr);
+
+/*******************************************************************************
  * \brief Add given block multiplication to stats. This routine is thread-safe.
  * \author Ole Schuett
  ******************************************************************************/

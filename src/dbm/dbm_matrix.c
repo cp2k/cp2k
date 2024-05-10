@@ -14,6 +14,7 @@
 #include <string.h>
 
 #include "dbm_hyperparams.h"
+#include "dbm_library.h"
 #include "dbm_matrix.h"
 #include "dbm_mpi.h"
 
@@ -34,21 +35,21 @@ void dbm_create(dbm_matrix_t **matrix_out, dbm_distribution_t *dist,
   matrix->dist = dist;
 
   size_t size = (strlen(name) + 1) * sizeof(char);
-  matrix->name = malloc(size);
+  matrix->name = dbm_malloc(size);
   memcpy(matrix->name, name, size);
 
   matrix->nrows = nrows;
   matrix->ncols = ncols;
 
   size = nrows * sizeof(int);
-  matrix->row_sizes = malloc(size);
+  matrix->row_sizes = dbm_malloc(size);
   memcpy(matrix->row_sizes, row_sizes, size);
 
   size = ncols * sizeof(int);
-  matrix->col_sizes = malloc(size);
+  matrix->col_sizes = dbm_malloc(size);
   memcpy(matrix->col_sizes, col_sizes, size);
 
-  matrix->shards = malloc(dbm_get_num_shards(matrix) * sizeof(dbm_shard_t));
+  matrix->shards = dbm_malloc(dbm_get_num_shards(matrix) * sizeof(dbm_shard_t));
 #pragma omp parallel for
   for (int ishard = 0; ishard < dbm_get_num_shards(matrix); ishard++) {
     dbm_shard_init(&matrix->shards[ishard]);
@@ -68,11 +69,11 @@ void dbm_release(dbm_matrix_t *matrix) {
     dbm_shard_release(&matrix->shards[ishard]);
   }
   dbm_distribution_release(matrix->dist);
-  free(matrix->row_sizes);
-  free(matrix->col_sizes);
-  free(matrix->shards);
-  free(matrix->name);
-  free(matrix);
+  dbm_free(matrix->row_sizes);
+  dbm_free(matrix->col_sizes);
+  dbm_free(matrix->shards);
+  dbm_free(matrix->name);
+  dbm_free(matrix);
 }
 
 /*******************************************************************************
@@ -143,14 +144,14 @@ void dbm_redistribute(const dbm_matrix_t *matrix, dbm_matrix_t *redist) {
   // Compute displacements and allocate data buffers.
   int send_displ[nranks + 1], recv_displ[nranks + 1];
   send_displ[0] = recv_displ[0] = 0;
-  for (int irank = 1; irank < nranks + 1; irank++) {
+  for (int irank = 1; irank <= nranks; irank++) {
     send_displ[irank] = send_displ[irank - 1] + send_count[irank - 1];
     recv_displ[irank] = recv_displ[irank - 1] + recv_count[irank - 1];
   }
   const int total_send_count = send_displ[nranks];
   const int total_recv_count = recv_displ[nranks];
-  double *data_send = malloc(total_send_count * sizeof(double));
-  double *data_recv = malloc(total_recv_count * sizeof(double));
+  double *data_send = dbm_malloc(total_send_count * sizeof(double));
+  double *data_recv = dbm_malloc(total_recv_count * sizeof(double));
 
   // 2nd pass: Fill send_data.
   int send_data_positions[nranks];
@@ -178,7 +179,7 @@ void dbm_redistribute(const dbm_matrix_t *matrix, dbm_matrix_t *redist) {
   // 2nd communication: Exchange data.
   dbm_mpi_alltoallv_double(data_send, send_count, send_displ, data_recv,
                            recv_count, recv_displ, comm);
-  free(data_send);
+  dbm_free(data_send);
 
   // 3rd pass: Unpack data.
   dbm_clear(redist);
@@ -195,7 +196,7 @@ void dbm_redistribute(const dbm_matrix_t *matrix, dbm_matrix_t *redist) {
     recv_data_pos += 2 + block_size;
   }
   assert(recv_data_pos == total_recv_count);
-  free(data_recv);
+  dbm_free(data_recv);
 }
 
 /*******************************************************************************
@@ -426,7 +427,7 @@ void dbm_add(dbm_matrix_t *matrix_a, const dbm_matrix_t *matrix_b) {
 void dbm_iterator_start(dbm_iterator_t **iter_out, const dbm_matrix_t *matrix) {
   assert(omp_get_num_threads() == omp_get_max_threads() &&
          "Please call dbm_iterator_start within an OpenMP parallel region.");
-  dbm_iterator_t *iter = malloc(sizeof(dbm_iterator_t));
+  dbm_iterator_t *iter = dbm_malloc(sizeof(dbm_iterator_t));
   iter->matrix = matrix;
   iter->next_block = 0;
   iter->next_shard = omp_get_thread_num();
@@ -494,7 +495,7 @@ void dbm_iterator_next_block(dbm_iterator_t *iter, int *row, int *col,
  * \brief Releases the given iterator.
  * \author Ole Schuett
  ******************************************************************************/
-void dbm_iterator_stop(dbm_iterator_t *iter) { free(iter); }
+void dbm_iterator_stop(dbm_iterator_t *iter) { dbm_free(iter); }
 
 /*******************************************************************************
  * \brief Computes a checksum of the given matrix.

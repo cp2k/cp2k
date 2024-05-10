@@ -12,6 +12,7 @@
 #include <string.h>
 
 #include "dbm_hyperparams.h"
+#include "dbm_library.h"
 #include "dbm_mempool.h"
 
 /*******************************************************************************
@@ -112,7 +113,8 @@ static void create_pack_plans(const bool trans_matrix, const bool trans_dist,
 #pragma omp barrier
 #pragma omp for
     for (int ipack = 0; ipack < npacks; ipack++) {
-      plans_per_pack[ipack] = malloc(nblks_per_pack[ipack] * sizeof(plan_t));
+      plans_per_pack[ipack] =
+          dbm_malloc(nblks_per_pack[ipack] * sizeof(plan_t));
     }
 
     // 2nd pass: Plan where to send each block.
@@ -270,7 +272,7 @@ static void postprocess_received_blocks(
   int nblocks_per_shard[nshards], shard_start[nshards];
   memset(nblocks_per_shard, 0, nshards * sizeof(int));
   dbm_pack_block_t *blocks_tmp =
-      malloc(nblocks_recv * sizeof(dbm_pack_block_t));
+      dbm_malloc(nblocks_recv * sizeof(dbm_pack_block_t));
 
 #pragma omp parallel
   {
@@ -317,7 +319,7 @@ static void postprocess_received_blocks(
     }
   } // end of omp parallel region
 
-  free(blocks_tmp);
+  dbm_free(blocks_tmp);
 }
 
 /*******************************************************************************
@@ -344,7 +346,7 @@ static dbm_packed_matrix_t pack_matrix(const bool trans_matrix,
   packed.dist_indices = dist_indices;
   packed.dist_ticks = dist_ticks;
   packed.nsend_packs = nsend_packs;
-  packed.send_packs = malloc(nsend_packs * sizeof(dbm_pack_t));
+  packed.send_packs = dbm_malloc(nsend_packs * sizeof(dbm_pack_t));
 
   // Plan all packs.
   plan_t *plans_per_pack[nsend_packs];
@@ -357,7 +359,7 @@ static dbm_packed_matrix_t pack_matrix(const bool trans_matrix,
   for (int ipack = 0; ipack < nsend_packs; ipack++) {
     // Allocate send buffers.
     dbm_pack_block_t *blks_send =
-        malloc(nblks_send_per_pack[ipack] * sizeof(dbm_pack_block_t));
+        dbm_malloc(nblks_send_per_pack[ipack] * sizeof(dbm_pack_block_t));
     double *data_send =
         dbm_mempool_host_malloc(ndata_send_per_pack[ipack] * sizeof(double));
 
@@ -369,7 +371,7 @@ static dbm_packed_matrix_t pack_matrix(const bool trans_matrix,
                       ndata_send_per_pack[ipack], plans_per_pack[ipack], nranks,
                       blks_send_count, data_send_count, blks_send_displ,
                       data_send_displ, blks_send, data_send);
-    free(plans_per_pack[ipack]);
+    dbm_free(plans_per_pack[ipack]);
 
     // 1st communication: Exchange block counts.
     int blks_recv_count[nranks], blks_recv_displ[nranks];
@@ -379,7 +381,7 @@ static dbm_packed_matrix_t pack_matrix(const bool trans_matrix,
 
     // 2nd communication: Exchange blocks.
     dbm_pack_block_t *blks_recv =
-        malloc(nblocks_recv * sizeof(dbm_pack_block_t));
+        dbm_malloc(nblocks_recv * sizeof(dbm_pack_block_t));
     int blks_send_count_byte[nranks], blks_send_displ_byte[nranks];
     int blks_recv_count_byte[nranks], blks_recv_displ_byte[nranks];
     for (int i = 0; i < nranks; i++) { // TODO: this is ugly!
@@ -391,7 +393,7 @@ static dbm_packed_matrix_t pack_matrix(const bool trans_matrix,
     dbm_mpi_alltoallv_byte(
         blks_send, blks_send_count_byte, blks_send_displ_byte, blks_recv,
         blks_recv_count_byte, blks_recv_displ_byte, dist->comm);
-    free(blks_send);
+    dbm_free(blks_send);
 
     // 3rd communication: Exchange data counts.
     // TODO: could be computed from blks_recv.
@@ -428,7 +430,7 @@ static dbm_packed_matrix_t pack_matrix(const bool trans_matrix,
   packed.max_nblocks = max_nblocks;
   packed.max_data_size = max_data_size;
   packed.recv_pack.blocks =
-      malloc(packed.max_nblocks * sizeof(dbm_pack_block_t));
+      dbm_malloc(packed.max_nblocks * sizeof(dbm_pack_block_t));
   packed.recv_pack.data =
       dbm_mempool_host_malloc(packed.max_data_size * sizeof(double));
 
@@ -497,13 +499,13 @@ static dbm_pack_t *sendrecv_pack(const int itick, const int nticks,
  * \author Ole Schuett
  ******************************************************************************/
 static void free_packed_matrix(dbm_packed_matrix_t *packed) {
-  free(packed->recv_pack.blocks);
+  dbm_free(packed->recv_pack.blocks);
   dbm_mempool_free(packed->recv_pack.data);
   for (int ipack = 0; ipack < packed->nsend_packs; ipack++) {
-    free(packed->send_packs[ipack].blocks);
+    dbm_free(packed->send_packs[ipack].blocks);
     dbm_mempool_free(packed->send_packs[ipack].data);
   }
-  free(packed->send_packs);
+  dbm_free(packed->send_packs);
 }
 
 /*******************************************************************************
@@ -516,7 +518,7 @@ dbm_comm_iterator_t *dbm_comm_iterator_start(const bool transa,
                                              const dbm_matrix_t *matrix_b,
                                              const dbm_matrix_t *matrix_c) {
 
-  dbm_comm_iterator_t *iter = malloc(sizeof(dbm_comm_iterator_t));
+  dbm_comm_iterator_t *iter = dbm_malloc(sizeof(dbm_comm_iterator_t));
   iter->dist = matrix_c->dist;
 
   // During each communication tick we'll fetch a pack_a and pack_b.
@@ -561,7 +563,7 @@ bool dbm_comm_iterator_next(dbm_comm_iterator_t *iter, dbm_pack_t **pack_a,
 void dbm_comm_iterator_stop(dbm_comm_iterator_t *iter) {
   free_packed_matrix(&iter->packed_a);
   free_packed_matrix(&iter->packed_b);
-  free(iter);
+  dbm_free(iter);
 }
 
 // EOF

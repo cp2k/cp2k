@@ -40,7 +40,7 @@ void dbm_library_init(void) {
   }
 
   max_threads = omp_get_max_threads();
-  per_thread_counters = malloc(max_threads * sizeof(int64_t *));
+  per_thread_counters = dbm_malloc(max_threads * sizeof(int64_t *));
 
   // Using parallel regions to ensure memory is allocated near a thread's core.
 #pragma omp parallel default(none) shared(per_thread_counters)                 \
@@ -48,7 +48,7 @@ void dbm_library_init(void) {
   {
     const int ithread = omp_get_thread_num();
     const size_t counters_size = DBM_NUM_COUNTERS * sizeof(int64_t);
-    per_thread_counters[ithread] = malloc(counters_size);
+    per_thread_counters[ithread] = dbm_malloc(counters_size);
     memset(per_thread_counters[ithread], 0, counters_size);
   }
 
@@ -68,14 +68,26 @@ void dbm_library_finalize(void) {
   }
 
   for (int i = 0; i < max_threads; i++) {
-    free(per_thread_counters[i]);
+    dbm_free(per_thread_counters[i]);
   }
-  free(per_thread_counters);
+  dbm_free(per_thread_counters);
   per_thread_counters = NULL;
 
   dbm_mempool_clear();
   library_initialized = false;
 }
+
+/*******************************************************************************
+ * \brief Wrapper around malloc.
+ * \author Hans Pabst
+ ******************************************************************************/
+void *dbm_malloc(size_t size) { return dbm_mpi_alloc_mem(size); }
+
+/*******************************************************************************
+ * \brief Wrapper around free.
+ * \author Hans Pabst
+ ******************************************************************************/
+void dbm_free(void *mem) { dbm_mpi_free_mem(mem); }
 
 /*******************************************************************************
  * \brief Computes min(3, floor(log10(x))).

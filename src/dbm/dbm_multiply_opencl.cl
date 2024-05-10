@@ -21,12 +21,6 @@
 
 #define SINT short
 
-#define DIVUP(A, B) (((A) + (B) - 1) / (B))
-#define NUP(N, UP) (DIVUP(N, UP) * (UP))
-#define BLR(N, BN) (NUP(N, BN) - (N))
-
-#define IDX(I, J, M, N) ((int)(I) * (N) + (J))
-#define IDT(I, J, M, N) IDX(J, I, N, M)
 #define X(T, I) (T)->I /* task can be taken by value or by pointer */
 #define XA(T) X(T, offset_a)
 #define XB(T) X(T, offset_b)
