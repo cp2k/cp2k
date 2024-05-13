@@ -237,10 +237,10 @@ bool dbm_mpi_comms_are_similar(const dbm_mpi_comm_t comm1,
  ******************************************************************************/
 void dbm_mpi_max_int(int *values, const int count, const dbm_mpi_comm_t comm) {
 #if defined(__parallel)
-  int *recvbuf = malloc(count * sizeof(int));
+  void *recvbuf = dbm_mpi_alloc_mem(count * sizeof(int));
   CHECK(MPI_Allreduce(values, recvbuf, count, MPI_INT, MPI_MAX, comm));
   memcpy(values, recvbuf, count * sizeof(int));
-  free(recvbuf);
+  dbm_mpi_free_mem(recvbuf);
 #else
   (void)comm; // mark used
   (void)values;
@@ -255,10 +255,10 @@ void dbm_mpi_max_int(int *values, const int count, const dbm_mpi_comm_t comm) {
 void dbm_mpi_max_double(double *values, const int count,
                         const dbm_mpi_comm_t comm) {
 #if defined(__parallel)
-  double *recvbuf = malloc(count * sizeof(double));
+  void *recvbuf = dbm_mpi_alloc_mem(count * sizeof(double));
   CHECK(MPI_Allreduce(values, recvbuf, count, MPI_DOUBLE, MPI_MAX, comm));
   memcpy(values, recvbuf, count * sizeof(double));
-  free(recvbuf);
+  dbm_mpi_free_mem(recvbuf);
 #else
   (void)comm; // mark used
   (void)values;
@@ -272,10 +272,10 @@ void dbm_mpi_max_double(double *values, const int count,
  ******************************************************************************/
 void dbm_mpi_sum_int(int *values, const int count, const dbm_mpi_comm_t comm) {
 #if defined(__parallel)
-  int *recvbuf = malloc(count * sizeof(int));
+  void *recvbuf = dbm_mpi_alloc_mem(count * sizeof(int));
   CHECK(MPI_Allreduce(values, recvbuf, count, MPI_INT, MPI_SUM, comm));
   memcpy(values, recvbuf, count * sizeof(int));
-  free(recvbuf);
+  dbm_mpi_free_mem(recvbuf);
 #else
   (void)comm; // mark used
   (void)values;
@@ -290,10 +290,10 @@ void dbm_mpi_sum_int(int *values, const int count, const dbm_mpi_comm_t comm) {
 void dbm_mpi_sum_int64(int64_t *values, const int count,
                        const dbm_mpi_comm_t comm) {
 #if defined(__parallel)
-  int64_t *recvbuf = malloc(count * sizeof(int64_t));
+  void *recvbuf = dbm_mpi_alloc_mem(count * sizeof(int64_t));
   CHECK(MPI_Allreduce(values, recvbuf, count, MPI_INT64_T, MPI_SUM, comm));
   memcpy(values, recvbuf, count * sizeof(int64_t));
-  free(recvbuf);
+  dbm_mpi_free_mem(recvbuf);
 #else
   (void)comm; // mark used
   (void)values;
@@ -308,10 +308,10 @@ void dbm_mpi_sum_int64(int64_t *values, const int count,
 void dbm_mpi_sum_double(double *values, const int count,
                         const dbm_mpi_comm_t comm) {
 #if defined(__parallel)
-  double *recvbuf = malloc(count * sizeof(double));
+  void *recvbuf = dbm_mpi_alloc_mem(count * sizeof(double));
   CHECK(MPI_Allreduce(values, recvbuf, count, MPI_DOUBLE, MPI_SUM, comm));
   memcpy(values, recvbuf, count * sizeof(double));
-  free(recvbuf);
+  dbm_mpi_free_mem(recvbuf);
 #else
   (void)comm; // mark used
   (void)values;
@@ -430,6 +430,32 @@ void dbm_mpi_alltoallv_double(const double *sendbuf, const int *sendcounts,
   assert(sendcounts[0] == recvcounts[0]);
   assert(sdispls[0] == 0 && rdispls[0] == 0);
   memcpy(recvbuf, sendbuf, sendcounts[0] * sizeof(double));
+#endif
+}
+
+/*******************************************************************************
+ * \brief Wrapper around MPI_Alloc_mem.
+ * \author Hans Pabst
+ ******************************************************************************/
+void *dbm_mpi_alloc_mem(size_t size) {
+  void *result = NULL;
+#if defined(__parallel)
+  CHECK(MPI_Alloc_mem((MPI_Aint)size, MPI_INFO_NULL, &result));
+#else
+  result = malloc(size);
+#endif
+  return result;
+}
+
+/*******************************************************************************
+ * \brief Wrapper around MPI_Free_mem.
+ * \author Hans Pabst
+ ******************************************************************************/
+void dbm_mpi_free_mem(void *mem) {
+#if defined(__parallel)
+  CHECK(MPI_Free_mem(mem));
+#else
+  free(mem);
 #endif
 }
 
