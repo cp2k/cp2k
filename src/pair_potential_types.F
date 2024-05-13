@@ -193,6 +193,7 @@ MODULE pair_potential_types
       CHARACTER(LEN=default_path_length)     :: nequip_file_name = 'NULL', nequip_version = 'NULL', &
                                                 unit_coords = 'NULL', unit_forces = 'NULL', &
                                                 unit_energy = 'NULL', unit_cell = 'NULL'
+      CHARACTER(LEN=100), DIMENSION(:), ALLOCATABLE      :: type_names_torch
       REAL(KIND=dp)                          :: rcutsq = 0.0_dp, unit_coords_val = 1.0_dp, &
                                                 unit_forces_val = 1.0_dp, unit_energy_val = 1.0_dp, &
                                                 unit_cell_val = 1.0_dp
@@ -204,6 +205,9 @@ MODULE pair_potential_types
       CHARACTER(LEN=default_path_length)     :: allegro_file_name = 'NULL', unit_cell = 'NULL', &
                                                 nequip_version = 'NULL', unit_coords = 'NULL', &
                                                 unit_forces = 'NULL', unit_energy = 'NULL'
+
+      CHARACTER(LEN=100), DIMENSION(:), ALLOCATABLE      :: type_names_torch
+
       REAL(KIND=dp)                          :: rcutsq = 0.0_dp, unit_coords_val = 1.0_dp, &
                                                 unit_forces_val = 1.0_dp, unit_cell_val = 1.0_dp, &
                                                 unit_energy_val = 1.0_dp

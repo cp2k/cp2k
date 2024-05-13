@@ -1,5 +1,5 @@
 &GLOBAL
-  PROJECT Si
+  PROJECT water
   RUN_TYPE MD
 &END GLOBAL
 
@@ -7,38 +7,29 @@
   &MD
     ENSEMBLE NVT
     STEPS 0
-    TEMPERATURE 300.0
-    TIMESTEP 1
+    TEMPERATURE 300
+    TIMESTEP 0.5
     &THERMOSTAT
-      REGION GLOBAL
-      TYPE CSVR
       &CSVR
-        TIMECON 100.
+        TIMECON 10
       &END CSVR
     &END THERMOSTAT
   &END MD
-  &PRINT
-    &FORCES
-      UNIT eV*angstrom^-1
-      &EACH
-        MD 1
-      &END EACH
-    &END FORCES
-  &END PRINT
 &END MOTION
 
 &FORCE_EVAL
   METHOD FIST
+  STRESS_TENSOR ANALYTICAL
   &MM
     &FORCEFIELD
       &NONBONDED
-        &ALLEGRO
-          ATOMS Si
-          PARM_FILE_NAME Allegro/si-deployed.pth
+        &NEQUIP
+          ATOMS H O
+          PARM_FILE_NAME NequIP/water-deployed-neq060dp.pth
           UNIT_COORDS angstrom
           UNIT_ENERGY eV
           UNIT_FORCES eV*angstrom^-1
-        &END ALLEGRO
+        &END NEQUIP
       &END NONBONDED
     &END FORCEFIELD
     &POISSON
@@ -50,17 +41,20 @@
   &PRINT
     &FORCES
     &END FORCES
+    &STRESS_TENSOR
+      &EACH
+        MD 1
+      &END EACH
+    &END STRESS_TENSOR
   &END PRINT
   &SUBSYS
     &CELL
-      ABC 10.861999859992501 10.861999859992501 10.861999859992501
-      #      MULTIPLE_UNIT_CELL 4 4 4
+      ABC 9.8528 9.8528 9.8528
     &END CELL
     &TOPOLOGY
       COORD_FILE_FORMAT XYZ
-      #   coordinates must be ordered by atomic number
-      COORD_FILE_NAME si_input.xyz
-      #   MULTIPLE_UNIT_CELL 4 4 4
+      #     coordinates must be ordered by atomic number
+      COORD_FILE_NAME ./water-bulk.xyz
     &END TOPOLOGY
   &END SUBSYS
 &END FORCE_EVAL

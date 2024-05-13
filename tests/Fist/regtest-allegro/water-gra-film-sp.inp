@@ -1,0 +1,52 @@
+&GLOBAL
+  PRINT_LEVEL LOW
+  PROJECT water_gra
+  RUN_TYPE MD
+&END GLOBAL
+
+&MOTION
+  &MD
+    ENSEMBLE NVT
+    STEPS 0
+    TEMPERATURE 300
+    TIMESTEP 0.5
+    &THERMOSTAT
+      &CSVR
+        TIMECON 10
+      &END CSVR
+    &END THERMOSTAT
+  &END MD
+&END MOTION
+
+&FORCE_EVAL
+  METHOD FIST
+  &MM
+    &FORCEFIELD
+      &NONBONDED
+        &ALLEGRO
+          ATOMS H C O
+          PARM_FILE_NAME Allegro/gra-water-deployed-neq060sp.pth
+          UNIT_COORDS angstrom
+          UNIT_ENERGY Hartree
+          UNIT_FORCES eV*angstrom^-1
+        &END ALLEGRO
+      &END NONBONDED
+    &END FORCEFIELD
+    &POISSON
+      &EWALD
+        EWALD_TYPE none
+      &END EWALD
+    &END POISSON
+  &END MM
+  &SUBSYS
+    &CELL
+      A 12.8160 0.0 0.0
+      B 0.0 12.3322 0.0
+      C 0.0 0.0 55.0
+    &END CELL
+    &TOPOLOGY
+      COORD_FILE_FORMAT XYZ
+      COORD_FILE_NAME ./water-gra-film.xyz
+    &END TOPOLOGY
+  &END SUBSYS
+&END FORCE_EVAL

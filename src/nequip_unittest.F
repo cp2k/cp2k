@@ -153,7 +153,7 @@ PROGRAM nequip_unittest
 
    WRITE (*, *) "CUDA is available: ", torch_cuda_is_available()
 
-   filename = discover_file('NequIP/water.pth')
+   filename = discover_file('NequIP/water-deployed-neq060sp.pth')
    WRITE (*, *) "Loading NequIP model from: "//TRIM(filename)
    CALL torch_model_load(model, filename)
    cutoff_str = torch_model_read_metadata(filename, "r_max")
@@ -186,7 +186,8 @@ PROGRAM nequip_unittest
    DO iatom = 1, natoms
       WRITE (*, *) forces(:, iatom)*angstrom/evolt
    END DO
-   CPASSERT(ABS(-14985.615_dp - REAL(total_energy(1, 1), kind=dp)) < 2e-3_dp)
+
+   CPASSERT(ABS(-14985.6299_dp - REAL(total_energy(1, 1), kind=dp)) < 2e-3_dp)
 
    CALL torch_dict_release(inputs)
    CALL torch_dict_release(outputs)

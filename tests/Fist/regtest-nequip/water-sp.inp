@@ -12,7 +12,7 @@
       &NONBONDED
         &NEQUIP
           ATOMS H O
-          PARM_FILE_NAME NequIP/water.pth
+          PARM_FILE_NAME NequIP/water-deployed-neq060sp.pth
           UNIT_COORDS angstrom
           UNIT_ENERGY eV
           UNIT_FORCES eV*angstrom^-1
