@@ -35,19 +35,18 @@ void dbm_multiply_gpu_start(const int max_batch_size, const int nshards,
 
   // Allocate device storage for batches.
   const size_t size = nshards * max_batch_size * sizeof(dbm_task_t);
-  ctx->batches_dev = (dbm_task_t *)dbm_mempool_device_malloc(size);
+  ctx->batches_dev = dbm_mempool_device_malloc(size);
 
   // Allocate and upload shards of result matrix C.
-  ctx->shards_c_dev =
-      (dbm_shard_gpu_t *)dbm_malloc(nshards * sizeof(dbm_shard_gpu_t));
+  ctx->shards_c_dev = malloc(nshards * sizeof(dbm_shard_gpu_t));
   for (int i = 0; i < nshards; i++) {
     const dbm_shard_t *shard_c_host = &ctx->shards_c_host[i];
     dbm_shard_gpu_t *shard_c_dev = &ctx->shards_c_dev[i];
     offloadStreamCreate(&shard_c_dev->stream);
     shard_c_dev->data_size = shard_c_host->data_size;
     shard_c_dev->data_allocated = shard_c_host->data_allocated;
-    shard_c_dev->data = (double *)dbm_mempool_device_malloc(
-        shard_c_dev->data_allocated * sizeof(double));
+    shard_c_dev->data =
+        dbm_mempool_device_malloc(shard_c_dev->data_allocated * sizeof(double));
     offloadMemcpyAsyncHtoD(shard_c_dev->data, shard_c_host->data,
                            shard_c_dev->data_size * sizeof(double),
                            shard_c_dev->stream);
@@ -64,7 +63,7 @@ static void upload_pack(const dbm_pack_t *pack_host, dbm_pack_t *pack_dev,
   const size_t size = pack_host->data_size * sizeof(double);
   if (pack_dev->data_size < pack_host->data_size) {
     dbm_mempool_free(pack_dev->data);
-    pack_dev->data = (double *)dbm_mempool_device_malloc(size);
+    pack_dev->data = dbm_mempool_device_malloc(size);
   }
   offloadMemcpyAsyncHtoD(pack_dev->data, pack_host->data, size, stream);
 }
@@ -130,8 +129,8 @@ void dbm_multiply_gpu_process_batch(const int ntasks, const dbm_task_t *batch,
     double *old_data_dev = shard_c_dev->data;
     shard_c_dev->data_allocated =
         ALLOCATION_FACTOR * shard_c_host->data_promised;
-    shard_c_dev->data = (double *)dbm_mempool_device_malloc(
-        shard_c_dev->data_allocated * sizeof(double));
+    shard_c_dev->data =
+        dbm_mempool_device_malloc(shard_c_dev->data_allocated * sizeof(double));
     offloadMemcpyAsyncDtoD(shard_c_dev->data, old_data_dev,
                            shard_c_dev->data_size * sizeof(double),
                            shard_c_dev->stream);
@@ -198,7 +197,7 @@ void dbm_multiply_gpu_stop(dbm_multiply_gpu_context_t *ctx) {
     offloadStreamDestroy(shard_c_dev->stream);
     dbm_mempool_free(shard_c_dev->data);
   }
-  dbm_free(ctx->shards_c_dev);
+  free(ctx->shards_c_dev);
 
   dbm_mempool_free(ctx->pack_a_dev.data);
   dbm_mempool_free(ctx->pack_b_dev.data);

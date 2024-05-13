@@ -35,7 +35,7 @@ static void *actual_malloc(const size_t size, const bool on_device) {
   (void)on_device; // mark used
 #endif
 
-  void *memory = dbm_malloc(size);
+  void *memory = dbm_mpi_alloc_mem(size);
   assert(memory != NULL);
   return memory;
 }
@@ -59,7 +59,7 @@ static void actual_free(void *memory, const bool on_device) {
   (void)on_device; // mark used
 #endif
 
-  dbm_free(memory);
+  dbm_mpi_free_mem(memory);
 }
 
 /*******************************************************************************
@@ -114,7 +114,7 @@ static void *internal_mempool_malloc(const size_t size, const bool on_device) {
 
     // If no chunk was found, allocate a new one.
     if (chunk == NULL) {
-      chunk = dbm_malloc(sizeof(dbm_memchunk_t));
+      chunk = malloc(sizeof(dbm_memchunk_t));
       chunk->on_device = on_device;
       chunk->size = 0;
       chunk->mem = NULL;
@@ -192,7 +192,7 @@ void dbm_mempool_clear(void) {
   //  mempool_allocated_head = chunk->next;
   //  printf("Found alloacted memory chunk of size: %lu\n", chunk->size);
   //  actual_free(chunk->mem, chunk->on_device);
-  //  dbm_free(chunk);
+  //  free(chunk);
   //}
 
   // Free chunks in mempool_avavailable.
@@ -200,7 +200,7 @@ void dbm_mempool_clear(void) {
     dbm_memchunk_t *chunk = mempool_available_head;
     mempool_available_head = chunk->next;
     actual_free(chunk->mem, chunk->on_device);
-    dbm_free(chunk);
+    free(chunk);
   }
 }
 
