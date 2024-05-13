@@ -15,7 +15,6 @@
 
 #include "dbm_distribution.h"
 #include "dbm_hyperparams.h"
-#include "dbm_library.h"
 
 /*******************************************************************************
  * \brief Private routine for creating a new one dimensional distribution.

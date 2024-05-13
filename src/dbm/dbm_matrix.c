@@ -14,9 +14,7 @@
 #include <string.h>
 
 #include "dbm_hyperparams.h"
-#include "dbm_library.h"
 #include "dbm_matrix.h"
-#include "dbm_mpi.h"
 
 /*******************************************************************************
  * \brief Creates a new matrix.

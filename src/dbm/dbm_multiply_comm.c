@@ -12,8 +12,8 @@
 #include <string.h>
 
 #include "dbm_hyperparams.h"
-#include "dbm_library.h"
 #include "dbm_mempool.h"
+#include "dbm_mpi.h"
 
 /*******************************************************************************
  * \brief Returns the larger of two given integer (missing from the C standard)
