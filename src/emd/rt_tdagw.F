@@ -187,7 +187,10 @@ CONTAINS
       ! TODO : Maybe complex?
       INTEGER                                            :: i,j,re,im, k
       LOGICAL                                            :: converged
-      REAL(kind=dp)                                      :: metric, enum_re, enum_im
+      REAL(kind=dp)                                      :: metric, enum_re, enum_im,&
+                                                            idempotence_dev
+      ! TODO : Debug - printing of COHSEX
+      INTEGER, DIMENSION(2)                              :: custom_unit
 
       ! TODO : Print a nicer header
       PRINT *, "=== Starting time-dependent adiabatic GW real time propagation ==="
@@ -197,16 +200,6 @@ CONTAINS
       ! TODO : Print a nicer header
       IF (tdagw_env%unit_nr > 0) WRITE(tdagw_env%unit_nr, *) "=== Starting time-dependent adiabatic GW real time propagation ==="
 
-      ! Allocate sigma matrices
-      ! TODO : Spin dependence
-      CALL cp_fm_create(sigma_COH, bs_env%fm_h_G0W0_Gamma%matrix_struct)
-      CALL cp_fm_create(sigma_SEX, bs_env%fm_h_G0W0_Gamma%matrix_struct)
-      CALL cp_fm_set_all(sigma_COH, 0.0_dp)
-      CALL cp_fm_set_all(sigma_SEX, 0.0_dp)
-
-      ! Allocate inverse full matrix
-      CALL cp_fm_create(S_inv_fm, bs_env%fm_h_G0W0_Gamma%matrix_struct)
-      CALL cp_fm_set_all(S_inv_fm, 0.0_dp)
 
       ! ********************** EXTRACT PREVIOUS DATA **********************
 
@@ -244,12 +237,19 @@ CONTAINS
          ! Subtract the v_xc from COH part of the self-energy, as V_xc is also not updated during the timestepping
          @:SPIN_DO(j, re, im, tdagw_env%n_spin)
             CALL get_sigma(tdagw_env, qs_env, tdagw_env%sigma_COH(re), -0.5_dp, greens_dbcsr_opt=tdagw_env%S_inv)
+            ! TODO : Debug - printing out the COHSEX self-energy
+            CALL cp_fm_to_fm(tdagw_env%sigma_COH(re)%matrix, tdagw_env%ham_effective(re)%matrix)
+            CALL cp_fm_set_all(tdagw_env%ham_effective(im)%matrix, 0.0_dp)
             ! TODO : Maybe enable printing underneath debug option?
             ! TODO : Enable subtraction of COH? So far, COH does not enter, as per the reference paper
             CALL get_sigma(tdagw_env, qs_env, tdagw_env%sigma_SEX(re), -1.0_dp, greens_fm_opt=tdagw_env%rho(re))
             CALL get_sigma(tdagw_env, qs_env, tdagw_env%sigma_SEX(im), -1.0_dp, greens_fm_opt=tdagw_env%rho(im))
             CALL cp_fm_scale_and_add(0.0_dp, tdagw_env%sigma_COH(re)%matrix, -1.0_dp, tdagw_env%sigma_SEX(re)%matrix)
             CALL cp_fm_scale_and_add(0.0_dp, tdagw_env%sigma_COH(im)%matrix, -1.0_dp, tdagw_env%sigma_SEX(im)%matrix)
+            ! TODO : Debug - printing out the COHSEX self-energy
+            CALL cp_fm_scale_and_add(1.0_dp, tdagw_env%ham_effective(re)%matrix, 1.0_dp, tdagw_env%sigma_SEX(re)%matrix)
+            CALL cp_fm_to_fm(tdagw_env%sigma_COH(im)%matrix, tdagw_env%ham_effective(im)%matrix)
+            CALL cp_fm_scale_and_add(1.0_dp, tdagw_env%ham_effective(im)%matrix, 1.0_dp, tdagw_env%sigma_SEX(im)%matrix)
             ! CALL cp_fm_scale_and_add(1.0_dp, tdagw_env%sigma_COH(re)%matrix, -1.0_dp, bs_env%fm_V_xc_Gamma(j))
             ! PRINT *, "metric sigma_COH + Vxc, RE spin", j, cp_fm_norm(tdagw_env%sigma_COH(re)%matrix, "M")
             ! PRINT *, "metric sigma_COH + Vxc, IM spin", j, cp_fm_norm(tdagw_env%sigma_COH(im)%matrix, "M")
@@ -288,6 +288,13 @@ CONTAINS
 
       ! Setup the files
       rtp_section => section_vals_get_subs_vals(input, "DFT%REAL_TIME_PROPAGATION")
+      ! TODO : Debug - printing out the COHSEX self-energy
+      IF (tdagw_env%unit_nr > 0) WRITE(tdagw_env%unit_nr, *) "=== COHSEX self-energy in MOS"
+      CALL output_mos_cohsex(tdagw_env, tdagw_env%ham_effective, bs_env%fm_mo_coeff_Gamma, rtp_section,&
+                             custom_unit=custom_unit)
+      IF (tdagw_env%unit_nr > 0) WRITE(tdagw_env%unit_nr, *) "=== SEX self-energy in MOS"
+      CALL output_mos_cohsex(tdagw_env, tdagw_env%sigma_SEX, bs_env%fm_mo_coeff_Gamma, rtp_section,&
+                             custom_unit=custom_unit)
       ! ********************** Start the time loop **********************
       DO i = tdagw_env%sim_start, tdagw_env%sim_nsteps
 
@@ -367,24 +374,26 @@ CONTAINS
             ELSE
                ! Copy rho_new to rho_new_last
                @:SPIN_DO(j, re, im, tdagw_env%n_spin)
-                  IF (k < 10) THEN
+                  ! IF (k < 10) THEN
                      ! Leaving for free convergence
                      CALL cp_fm_to_fm(tdagw_env%rho_new(re)%matrix, tdagw_env%rho_new_last(re)%matrix)
                      CALL cp_fm_to_fm(tdagw_env%rho_new(im)%matrix, tdagw_env%rho_new_last(im)%matrix)
-                  ELSE
-                     ! Start mixing
-                     CALL cp_fm_scale_and_add(1.0_dp-0.2_dp, tdagw_env%rho_new_last(re)%matrix,&
-                                                     0.2_dp, tdagw_env%rho_new(re)%matrix)
-                     CALL cp_fm_scale_and_add(1.0_dp-0.2_dp, tdagw_env%rho_new_last(im)%matrix,&
-                                                     0.2_dp, tdagw_env%rho_new(im)%matrix)
-                  END IF
+                  ! ELSE
+                  !    ! Start mixing
+                  !    CALL cp_fm_scale_and_add(1.0_dp-0.2_dp, tdagw_env%rho_new_last(re)%matrix,&
+                  !                                    0.2_dp, tdagw_env%rho_new(re)%matrix)
+                  !    CALL cp_fm_scale_and_add(1.0_dp-0.2_dp, tdagw_env%rho_new_last(im)%matrix,&
+                  !                                    0.2_dp, tdagw_env%rho_new(im)%matrix)
+                  ! END IF
                END DO
             END IF
          END DO
          CALL get_electron_number(tdagw_env, tdagw_env%rho_new, enum_re, enum_im)
+         CALL get_idempotence_deviation(tdagw_env, tdagw_env%rho_new(1), idempotence_dev)
          IF (tdagw_env%unit_nr > 0) WRITE(tdagw_env%unit_nr, *) "Sim step : ", tdagw_env%sim_step, "Convergence : ", metric,&
                                                                 "Threshold : ", tdagw_env%etrs_threshold,&
-                                                                "Electron number", enum_re, enum_im, "SC iterations : ", k
+                                                                "Electron number", enum_re, enum_im, "SC iterations : ", k,&
+                                                                "Idempotence deviation : ", idempotence_dev
          CPASSERT(converged)
          @:SPIN_DO(j, re, im, tdagw_env%n_spin)
             CALL cp_fm_to_fm(tdagw_env%rho_new(re)%matrix, tdagw_env%rho(re)%matrix)
@@ -392,6 +401,7 @@ CONTAINS
          END DO
          ! TODO : k-points
          CALL output_mos_rho(tdagw_env, tdagw_env%rho, bs_env%fm_mo_coeff_Gamma, rtp_section)
+         CALL output_mos_cohsex(tdagw_env, tdagw_env%sigma_SEX, bs_env%fm_mo_coeff_Gamma, rtp_section)
          CALL output_moments(tdagw_env, tdagw_env%rho, bs_env%fm_mo_coeff_Gamma, rtp_section)
       END DO
       ! ********************** End the time loop **********************
@@ -925,6 +935,83 @@ CONTAINS
          electron_n_im = electron_n_im + electron_n_buffer
       END DO
    END SUBROUTINE get_electron_number
+   ! TODO : Debug, checking idempotency during propagation - in general, should also do complex, but imaginary parts are typically
+   ! small
+   SUBROUTINE get_idempotence_deviation(tdagw_env, rho, deviation_metric)
+      TYPE(tdagw_env_type)                              :: tdagw_env
+      TYPE(cp_fm_p_type)                                :: rho
+      REAL(kind=dp), INTENT(OUT)                        :: deviation_metric
+      CHARACTER(len=*), PARAMETER                       :: routineN="get_idempotence_deviation"
+      REAL(kind=dp)                                     :: buffer, spins_per_orb
+
+      deviation_metric = 0.0_dp
+      spins_per_orb = 2.0_dp / tdagw_env%n_spin
+      CALL parallel_gemm("N", "N", tdagw_env%n_ao, tdagw_env%n_ao, tdagw_env%n_ao,&
+                         1.0_dp, tdagw_env%S_fm%matrix, rho%matrix,&
+                         0.0_dp, tdagw_env%rho_workspace(1)%matrix)
+      CALL parallel_gemm("N", "N", tdagw_env%n_ao, tdagw_env%n_ao, tdagw_env%n_ao,&
+                         1.0_dp, rho%matrix, tdagw_env%rho_workspace(1)%matrix,&
+                         0.0_dp, tdagw_env%rho_workspace(2)%matrix)
+      CALL cp_fm_trace(tdagw_env%S_fm%matrix, tdagw_env%rho_workspace(2)%matrix, deviation_metric)
+      CALL cp_fm_trace(tdagw_env%S_fm%matrix, rho%matrix, buffer)
+      deviation_metric = (deviation_metric / (spins_per_orb * spins_per_orb)) - (buffer / spins_per_orb)
+   END SUBROUTINE get_idempotence_deviation
+! **************************************************************************************************
+!> \brief Outputs COHSEX energy in basis of MOs to a file
+!> \param tdagw_env Entry point - tdagw environment
+!> \param cohsex cohsex matrix in AO basis, covariant representation
+!> \param mos Spin dependent molecular orbitals
+!> \param rtp_section RTP input section
+! **************************************************************************************************
+   SUBROUTINE output_mos_cohsex(tdagw_env, cohsex, mos, rtp_section, custom_unit)
+      TYPE(tdagw_env_type)                               :: tdagw_env
+      TYPE(cp_fm_p_type), DIMENSION(:)                   :: cohsex
+      TYPE(cp_fm_type), DIMENSION(2)                     :: mos
+      TYPE(section_vals_type), POINTER                   :: rtp_section
+      INTEGER, DIMENSION(2), OPTIONAL                    :: custom_unit
+      CHARACTER(len=*), PARAMETER                        :: routineN = "output_mos_cohsex"
+      TYPE(cp_logger_type), POINTER                      :: logger
+      INTEGER                                            :: j, re, im,&
+                                                            rho_unit_re, rho_unit_im
+      CHARACTER(len=21), DIMENSION(4)                    :: file_labels
+      
+      file_labels(1) = "_COHSEX_SPIN_A_RE.dat"
+      file_labels(2) = "_COHSEX_SPIN_A_IM.dat"
+      file_labels(3) = "_COHSEX_SPIN_B_RE.dat"
+      file_labels(4) = "_COHSEX_SPIN_B_IM.dat"
+      logger => cp_get_default_logger()
+      ! Start by multiplying the current density by MOS
+      ! TODO : Avoid multiplications if not required
+      @:SPIN_DO(j,re, im, tdagw_env%n_spin)
+         IF(.NOT. PRESENT(custom_unit)) THEN
+            rho_unit_re = cp_print_key_unit_nr(logger, rtp_section, "PRINT%DENSITY_MATRIX", extension=file_labels(re))
+            rho_unit_im = cp_print_key_unit_nr(logger, rtp_section, "PRINT%DENSITY_MATRIX", extension=file_labels(im))
+         ELSE
+            rho_unit_re = custom_unit(1)
+            rho_unit_im = custom_unit(2)
+         END IF
+         ! Transform the density matrix into molecular orbitals basis and print it out
+         ! TODO : Number of molecular orbitals and atomic orbitals might not be the same
+         ! TODO : Spins in S_fm
+         ! Real part
+         ! C^T * cohsex
+         CALL parallel_gemm("T", "N", tdagw_env%n_ao, tdagw_env%n_ao, tdagw_env%n_ao,&
+                            1.0_dp, mos(j), cohsex(re)%matrix, 0.0_dp, tdagw_env%rho_workspace(1)%matrix)
+         ! C^T * cohsex * C
+         CALL parallel_gemm("N", "N", tdagw_env%n_ao, tdagw_env%n_ao, tdagw_env%n_ao,&
+                            1.0_dp, tdagw_env%rho_workspace(1)%matrix, mos(j),&
+                            0.0_dp, tdagw_env%rho_workspace(2)%matrix)
+         CALL cp_fm_write_formatted(tdagw_env%rho_workspace(2)%matrix, rho_unit_re)
+         ! Imag part
+         ! C^T * cohsex
+         CALL parallel_gemm("T", "N", tdagw_env%n_ao, tdagw_env%n_ao, tdagw_env%n_ao,&
+                            1.0_dp, mos(j), cohsex(im)%matrix, 0.0_dp, tdagw_env%rho_workspace(1)%matrix)
+         ! C^T * cohsex * C
+         CALL parallel_gemm("N", "N", tdagw_env%n_ao, tdagw_env%n_ao, tdagw_env%n_ao,&
+                            1.0_dp, tdagw_env%rho_workspace(1)%matrix, mos(j), 0.0_dp, tdagw_env%rho_workspace(2)%matrix)
+         CALL cp_fm_write_formatted(tdagw_env%rho_workspace(2)%matrix, rho_unit_im)
+      END DO
+   END SUBROUTINE
 
 ! **************************************************************************************************
 !> \brief Outputs the expectation value of moments from a given density matrix
@@ -1198,22 +1285,6 @@ CONTAINS
                               do_kpoints=.FALSE., regularization_RI=bs_env%regularization_RI)
       ! nl_2c no longer needed
       CALL release_neighbor_list_sets(nl_2c)
-      ! CALL RI_2c_integral_mat(qs_env, metric_fm, bs_env%fm_RI_RI, &
-      !                         bs_env%n_RI, bs_env%trunc_coulomb, do_kpoints=.FALSE., &
-      !                         regularization_RI=bs_env%regularization_RI)
-      ! Actual data are in the metric_fm matrix
-      ! ! TODO : Spin and k-points
-      ! CALL cp_fm_to_fm(metric_fm(1,1), V_fm)
-      ! ! Since the routine RI_2c_integral_mat allocates the matrices, they have to be freed again
-      ! CALL cp_fm_release(metric_fm(1,1))
-      ! DEALLOCATE(metric_fm)
-      ! ! Now, calculate the matrices in the standard RI metric
-      ! CALL RI_2c_integral_mat(qs_env, metric_fm, bs_env%fm_RI_RI,&
-      !                         bs_env%n_RI, bs_env%ri_metric, do_kpoints=.FALSE.,&
-      !                         regularization_RI=bs_env%regularization_RI)
-      ! ! These matrices have yet to be inverted
-      ! CALL cp_fm_create(metric_inv_fm, bs_env%fm_RI_RI%matrix_struct)
-      ! CALL cp_fm_create(work_fm, bs_env%fm_RI_RI%matrix_struct)
       ! TODO : Spins and k-points
       ! TODO : Better inverse without conversion?
       CALL cp_fm_create(metric_fm, bs_env%fm_RI_RI%matrix_struct)
@@ -1766,14 +1837,6 @@ CONTAINS
             CALL build_3c_integrals(int_3c, qs_env, potential_parameter=bs_env%ri_metric,&
                                     basis_j=bs_env%basis_set_AO, basis_k=bs_env%basis_set_AO, basis_i=bs_env%basis_set_RI,&
                                     atom_j=ind_1, atom_k=ind_2, atom_i=ind_i)
-            ! ALLOCATE(int_3c(i_n_RI, j_n_AO, k_n_AO))
-            ! dbt_index(1) = ind_i
-            ! dbt_index(2) = ind_1
-            ! dbt_index(3) = ind_2
-            ! dbt_sizes(1) = i_n_RI
-            ! dbt_sizes(2) = j_n_AO
-            ! dbt_sizes(3) = k_n_AO
-            ! CALL dbt_get_block(tdagw_env%t_3c_w, dbt_index, dbt_sizes, int_3c, found)
             ! TODO : In principle, can parallelize over both directions here
             !$OMP PARALLEL DO DEFAULT(none) SHARED(block_matrix, Pvector, int_3c, i_n_RI, j_n_AO, k_n_AO, ri_offset) PRIVATE(i,j,k)
             DO j=1,j_n_AO
