@@ -88,6 +88,8 @@ else ifeq ($(GPUVER),V100)
   ARCH_NUMBER = 70
 else ifeq ($(GPUVER),A100)
   ARCH_NUMBER = 80
+else ifeq ($(GPUVER),A40)
+  ARCH_NUMBER = 86
 else ifeq ($(GPUVER),H100)
   ARCH_NUMBER = 90
   # TODO: update for H100 tuned parameters
