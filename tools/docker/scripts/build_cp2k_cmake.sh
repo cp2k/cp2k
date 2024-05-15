@@ -42,6 +42,7 @@ case ${PROFILE} in
     CMAKE_EXIT_CODE=$?
     ;;
   ubuntu)
+    # TODO fix spglib https://github.com/cp2k/cp2k/issues/3414
     cmake \
       -GNinja \
       -DCMAKE_INSTALL_PREFIX=/opt/cp2k \
@@ -51,12 +52,13 @@ case ${PROFILE} in
       -DCP2K_USE_LIBINT2=ON \
       -DCP2K_USE_LIBXC=ON \
       -DCP2K_USE_FFTW3=ON \
+      -DCP2K_USE_LIBXSMM=ON \
+      -DCP2K_USE_SPGLIB=OFF \
       -DCP2K_USE_MPI=OFF \
       -DCP2K_USE_MPI_F08=OFF \
       -DCP2K_USE_VORI=OFF \
       -DCP2K_USE_COSMA=OFF \
       -DCP2K_USE_DLAF=OFF \
-      -DCP2K_USE_SPGLIB=OFF \
       -DCP2K_USE_LIBTORCH=OFF \
       .. |& tee ./cmake.log
     CMAKE_EXIT_CODE=$?
