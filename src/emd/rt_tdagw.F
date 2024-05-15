@@ -188,7 +188,7 @@ CONTAINS
       INTEGER                                            :: i,j,re,im, k
       LOGICAL                                            :: converged
       REAL(kind=dp)                                      :: metric, enum_re, enum_im,&
-                                                            idempotence_dev
+                                                            idempotence_dev, a_metric_1, a_metric_2
       ! TODO : Debug - printing of COHSEX
       INTEGER, DIMENSION(2)                              :: custom_unit
 
@@ -289,12 +289,12 @@ CONTAINS
       ! Setup the files
       rtp_section => section_vals_get_subs_vals(input, "DFT%REAL_TIME_PROPAGATION")
       ! TODO : Debug - printing out the COHSEX self-energy
-      IF (tdagw_env%unit_nr > 0) WRITE(tdagw_env%unit_nr, *) "=== COHSEX self-energy in MOS"
-      CALL output_mos_cohsex(tdagw_env, tdagw_env%ham_effective, bs_env%fm_mo_coeff_Gamma, rtp_section,&
-                             custom_unit=custom_unit)
-      IF (tdagw_env%unit_nr > 0) WRITE(tdagw_env%unit_nr, *) "=== SEX self-energy in MOS"
-      CALL output_mos_cohsex(tdagw_env, tdagw_env%sigma_SEX, bs_env%fm_mo_coeff_Gamma, rtp_section,&
-                             custom_unit=custom_unit)
+      ! IF (tdagw_env%unit_nr > 0) WRITE(tdagw_env%unit_nr, *) "=== COHSEX self-energy in MOS"
+      ! CALL output_mos_cohsex(tdagw_env, tdagw_env%ham_effective, bs_env%fm_mo_coeff_Gamma, rtp_section,&
+      !                        custom_unit=custom_unit)
+      ! IF (tdagw_env%unit_nr > 0) WRITE(tdagw_env%unit_nr, *) "=== SEX self-energy in MOS"
+      ! CALL output_mos_cohsex(tdagw_env, tdagw_env%sigma_SEX, bs_env%fm_mo_coeff_Gamma, rtp_section,&
+      !                        custom_unit=custom_unit)
       ! ********************** Start the time loop **********************
       DO i = tdagw_env%sim_start, tdagw_env%sim_nsteps
 
@@ -389,11 +389,15 @@ CONTAINS
             END IF
          END DO
          CALL get_electron_number(tdagw_env, tdagw_env%rho_new, enum_re, enum_im)
-         CALL get_idempotence_deviation(tdagw_env, tdagw_env%rho_new(1), idempotence_dev)
+         CALL get_idempotence_deviation(tdagw_env, tdagw_env%rho_new, idempotence_dev)
+         a_metric_1 = antiherm_metric(tdagw_env%sigma_SEX(re),tdagw_env%sigma_SEX(im))
+         a_metric_2 = antiherm_metric(tdagw_env%hartree_curr(re),tdagw_env%hartree_curr(im))
          IF (tdagw_env%unit_nr > 0) WRITE(tdagw_env%unit_nr, *) "Sim step : ", tdagw_env%sim_step, "Convergence : ", metric,&
                                                                 "Threshold : ", tdagw_env%etrs_threshold,&
                                                                 "Electron number", enum_re, enum_im, "SC iterations : ", k,&
-                                                                "Idempotence deviation : ", idempotence_dev
+                                                                "Idempotence deviation : ", idempotence_dev,&
+                                                                "Antiherm. metric Sigma : ", a_metric_1,& 
+                                                                "Antiherm. metric Hartree : ", a_metric_2
          CPASSERT(converged)
          @:SPIN_DO(j, re, im, tdagw_env%n_spin)
             CALL cp_fm_to_fm(tdagw_env%rho_new(re)%matrix, tdagw_env%rho(re)%matrix)
@@ -565,6 +569,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
       TYPE(cp_fm_p_type), DIMENSION(:)                   :: rho
+      REAL(kind=dp)                                      :: a_metric
       INTEGER                                            :: k, j, re, im, nspin
       ! Shorthand
       nspin = tdagw_env%n_spin
@@ -939,22 +944,49 @@ CONTAINS
    ! small
    SUBROUTINE get_idempotence_deviation(tdagw_env, rho, deviation_metric)
       TYPE(tdagw_env_type)                              :: tdagw_env
-      TYPE(cp_fm_p_type)                                :: rho
+      TYPE(cp_fm_p_type),DIMENSION(*)                   :: rho
       REAL(kind=dp), INTENT(OUT)                        :: deviation_metric
       CHARACTER(len=*), PARAMETER                       :: routineN="get_idempotence_deviation"
-      REAL(kind=dp)                                     :: buffer, spins_per_orb
+      REAL(kind=dp)                                     :: buffer_1, buffer_2, buffer_3, buffer_dev,&
+                                                           spins_per_orb
+      INTEGER                                           :: re,im,i
 
       deviation_metric = 0.0_dp
+      buffer_dev = 0.0_dp
       spins_per_orb = 2.0_dp / tdagw_env%n_spin
-      CALL parallel_gemm("N", "N", tdagw_env%n_ao, tdagw_env%n_ao, tdagw_env%n_ao,&
-                         1.0_dp, tdagw_env%S_fm%matrix, rho%matrix,&
-                         0.0_dp, tdagw_env%rho_workspace(1)%matrix)
-      CALL parallel_gemm("N", "N", tdagw_env%n_ao, tdagw_env%n_ao, tdagw_env%n_ao,&
-                         1.0_dp, rho%matrix, tdagw_env%rho_workspace(1)%matrix,&
-                         0.0_dp, tdagw_env%rho_workspace(2)%matrix)
-      CALL cp_fm_trace(tdagw_env%S_fm%matrix, tdagw_env%rho_workspace(2)%matrix, deviation_metric)
-      CALL cp_fm_trace(tdagw_env%S_fm%matrix, rho%matrix, buffer)
-      deviation_metric = (deviation_metric / (spins_per_orb * spins_per_orb)) - (buffer / spins_per_orb)
+      ! First, determine Tr(S * rho_re) + i Tr (S * rho_im)
+      @:SPIN_DO(i, re, im, tdagw_env%n_spin)
+         CALL cp_fm_trace(tdagw_env%S_fm%matrix, rho(re)%matrix, buffer_1)
+         CALL cp_fm_trace(tdagw_env%S_fm%matrix, rho(im)%matrix, buffer_2)
+         buffer_dev = buffer_dev + buffer_1 * buffer_1 + buffer_2 * buffer_2
+      END DO
+      ! Now, determine Tr(S * rho_re * S * rho_re) - Tr(S * rho_im * S * rho_im) + 2i Tr(S * rho_re * S * rho_im)
+      @:SPIN_DO(i, re, im, tdagw_env%n_spin)
+         CALL parallel_gemm("N", "N", tdagw_env%n_ao, tdagw_env%n_ao, tdagw_env%n_ao,&
+                            1.0_dp, tdagw_env%S_fm%matrix, rho(re)%matrix,&
+                            0.0_dp, tdagw_env%rho_workspace(1)%matrix)
+         CALL parallel_gemm("N", "N", tdagw_env%n_ao, tdagw_env%n_ao, tdagw_env%n_ao,&
+                            1.0_dp, tdagw_env%S_fm%matrix, rho(im)%matrix,&
+                            0.0_dp, tdagw_env%rho_workspace(2)%matrix)
+         ! rho_re * S * rho_re
+         CALL parallel_gemm("N", "N", tdagw_env%n_ao, tdagw_env%n_ao, tdagw_env%n_ao,&
+                            1.0_dp, rho(re)%matrix, tdagw_env%rho_workspace(1)%matrix,&
+                            0.0_dp, tdagw_env%rho_workspace(3)%matrix)
+         CALL cp_fm_trace(tdagw_env%S_fm%matrix, tdagw_env%rho_workspace(3)%matrix, buffer_1)
+         ! rho_im * S * rho_im
+         CALL parallel_gemm("N", "N", tdagw_env%n_ao, tdagw_env%n_ao, tdagw_env%n_ao,&
+                            1.0_dp, rho(im)%matrix, tdagw_env%rho_workspace(2)%matrix,&
+                            0.0_dp, tdagw_env%rho_workspace(3)%matrix)
+         CALL cp_fm_trace(tdagw_env%S_fm%matrix, tdagw_env%rho_workspace(3)%matrix, buffer_2)
+         buffer_3 = buffer_1 - buffer_2
+         ! rho_im * S * rho_re
+         CALL parallel_gemm("N", "N", tdagw_env%n_ao, tdagw_env%n_ao, tdagw_env%n_ao,&
+                            1.0_dp, rho(im)%matrix, tdagw_env%rho_workspace(1)%matrix,&
+                            0.0_dp, tdagw_env%rho_workspace(3)%matrix)
+         CALL cp_fm_trace(tdagw_env%S_fm%matrix, tdagw_env%rho_workspace(3)%matrix, buffer_1)
+         deviation_metric = deviation_metric + buffer_3 * buffer_3 + 4 * buffer_1 * buffer_1
+      END DO
+      deviation_metric = (SQRT(deviation_metric) / (spins_per_orb * spins_per_orb)) - (SQRT(buffer_dev) / spins_per_orb)
    END SUBROUTINE get_idempotence_deviation
 ! **************************************************************************************************
 !> \brief Outputs COHSEX energy in basis of MOs to a file
