@@ -423,6 +423,8 @@ RUN export DEBIAN_FRONTEND=noninteractive DEBCONF_NONINTERACTIVE_SEEN=true && \
     libopenblas-dev \
     libint2-dev \
     libxc-dev \
+    libxsmm-dev \
+    libspglib-f08-dev \
    && rm -rf /var/lib/apt/lists/*
 
 # Create links in /usr/local/bin to overrule links in /usr/bin.
