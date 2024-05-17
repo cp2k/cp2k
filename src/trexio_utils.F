@@ -17,6 +17,7 @@ MODULE trexio_utils
    USE basis_set_types, ONLY: gto_basis_set_type
    USE cp2k_info, ONLY: cp2k_version
    USE cp_control_types, ONLY: dft_control_type
+   USE cp_files, ONLY: close_file, file_exists, open_file
    USE cp_log_handling, ONLY: cp_get_default_logger, &
                               cp_logger_get_default_io_unit, &
                               cp_logger_type
@@ -45,7 +46,9 @@ MODULE trexio_utils
    USE trexio, ONLY: trexio_open, trexio_close, &
                      TREXIO_HDF5, TREXIO_SUCCESS, &
                      trexio_string_of_error, trexio_t, trexio_exit_code, &
-                     trexio_write_metadata_code_num
+                     trexio_write_metadata_code, trexio_write_metadata_code_num, &
+                     trexio_write_nucleus_coord, trexio_write_nucleus_num, &
+                     trexio_write_nucleus_charge, trexio_write_nucleus_label
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -69,7 +72,7 @@ MODULE trexio_utils
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'write_trexio'
 
-      INTEGER                                            :: handle, output_unit
+      INTEGER                                            :: handle, output_unit, unit_trexio
       ! CHARACTER(LEN=2)                                   :: atomic_symbol
       CHARACTER(len=default_path_length)                 :: filename
       ! CHARACTER(LEN=default_string_length)               :: basis_set_name, method
@@ -78,7 +81,7 @@ MODULE trexio_utils
                                                             ! nel, nmo, nspins, output_unit
       INTEGER(trexio_t)                                  :: f        ! The TREXIO file handle
       INTEGER(trexio_exit_code)                          :: rc       ! TREXIO return code
-      ! LOGICAL                                            :: do_hfx
+      LOGICAL                                            :: explicit
       ! REAL(KIND=dp)                                      :: dispersion, mass, one_el_en, two_el_en
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -91,6 +94,12 @@ MODULE trexio_utils
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
       TYPE(section_vals_type), POINTER                   :: input
+
+      INTEGER                                            :: iatom, natoms, z
+      REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE         :: coord  ! row major, in bohr
+      REAL(KIND=dp), DIMENSION(:), ALLOCATABLE           :: charge ! of the atoms
+      CHARACTER(LEN=2), DIMENSION(:), ALLOCATABLE        :: label  ! of the elements
+      CHARACTER(LEN=2)                                   :: atomic_symbol
 
       CALL timeset(routineN, handle)
 
@@ -106,16 +115,23 @@ MODULE trexio_utils
                       scf_env=scf_env, mp2_env=mp2_env, &
                       input=input, qs_kind_set=kind_set)
 
-
       ! get filename
-      CALL section_vals_val_get(trexio_section, "FILENAME", c_val=filename)
-      WRITE (output_unit, '(T3,A)') TRIM(filename)
+      CALL section_vals_val_get(trexio_section, "FILENAME", c_val=filename, explicit=explicit)
+      IF (.NOT. explicit) THEN
+         filename = TRIM(logger%iter_info%project_name)//'-TREXIO.h5'
+      ELSE
+         filename = TRIM(filename)//'.h5'
+      END IF
+
+      ! inquire whether a file with the same name already exists, if yes, delete it
+      IF (file_exists(filename)) THEN
+         CALL open_file(filename, unit_number=unit_trexio)
+         CALL close_file(unit_number=unit_trexio, file_status="DELETE")
+      END IF
 
       ! open trexio file
-      f = trexio_open('h2o-TREXIO.h5', 'w', TREXIO_HDF5, rc)
+      f = trexio_open(filename, 'w', TREXIO_HDF5, rc)
       CALL trexio_error(rc)
-
-
 
       !========================================================================================!
       ! Metadata
@@ -124,35 +140,41 @@ MODULE trexio_utils
       rc = trexio_write_metadata_code_num(f, 1)
       CALL trexio_error(rc)
 
+      rc = trexio_write_metadata_code(f, cp2k_version, LEN_TRIM(cp2k_version)+1)
+      CALL trexio_error(rc)
 
+      !========================================================================================!
+      ! System
+      !========================================================================================!
 
+      natoms = SIZE(particle_set)
+      rc = trexio_write_nucleus_num(f, natoms)
+      CALL trexio_error(rc)
 
+      ALLOCATE (coord(3,natoms))
+      ALLOCATE (label(natoms))
+      ALLOCATE (charge(natoms))
+      DO iatom = 1, natoms
+         coord(iatom,:) = particle_set(iatom)%r(1:3)
 
+         CALL get_atomic_kind(particle_set(iatom)%atomic_kind, element_symbol=atomic_symbol, z=z)
+         label(iatom) = atomic_symbol
+         charge(iatom) = REAL(z, kind=dp)
+      END DO
 
+      rc = trexio_write_nucleus_coord(f, coord)
+      CALL trexio_error(rc)
+      DEALLOCATE (coord)
 
-      ! natoms = SIZE(particle_set)
+      rc = trexio_write_nucleus_charge(f, charge)
+      CALL trexio_error(rc)
+      DEALLOCATE (charge)
 
-      ! ALLOCATE (qcschema_env%topology%geometry(3*natoms))
-      ! ALLOCATE (qcschema_env%topology%symbols(natoms))
-      ! ALLOCATE (qcschema_env%topology%atomic_numbers(natoms))
-      ! ALLOCATE (qcschema_env%topology%masses(natoms))
+      rc = trexio_write_nucleus_label(f, label, 3)
+      CALL trexio_error(rc)
+      DEALLOCATE (label)
 
-      ! DO iatom = 1, natoms
-      !    ! set the geometry as a flat array
-      !    qcschema_env%topology%geometry((iatom - 1)*3 + 1:(iatom)*3) = particle_set(iatom)%r(1:3)
-
-      !    ! set the atomic symbols
-      !    CALL get_atomic_kind(particle_set(iatom)%atomic_kind, element_symbol=atomic_symbol)
-      !    qcschema_env%topology%symbols(iatom) = atomic_symbol
-
-      !    ! set the atomic numbers and masses
-      !    CALL get_ptable_info(atomic_symbol, number=atomic_number, amass=mass)
-      !    qcschema_env%topology%atomic_numbers(iatom) = atomic_number
-      !    qcschema_env%topology%masses(iatom) = mass
-      ! END DO
-
-      ! qcschema_env%topology%molecular_charge = dft_control%charge
-      ! qcschema_env%topology%molecular_multiplicity = dft_control%multiplicity
+      !TODO: nuclear repulsion energy
 
       ! !========================================================================================!
       ! ! *** QCSchema properties ***
