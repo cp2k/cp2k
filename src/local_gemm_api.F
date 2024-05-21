@@ -36,10 +36,7 @@ MODULE local_gemm_api
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'local_gemm_api'
 
-   PUBLIC :: local_gemm, &
-             local_gemm_create, &
-             local_gemm_destroy, &
-             local_gemm_set_op_threshold_gpu, &
+   PUBLIC :: local_gemm_ctxt_type, &
              local_gemm_set_library
 
    INTEGER, PARAMETER, PUBLIC :: &
@@ -47,6 +44,15 @@ MODULE local_gemm_api
       LOCAL_GEMM_PU_GPU = 1
 
    INTEGER, PRIVATE :: do_dgemm = 1
+
+   TYPE local_gemm_ctxt_type
+      TYPE(C_PTR) :: spla_context = C_NULL_PTR
+   CONTAINS
+      PROCEDURE, PASS(ctx), NON_OVERRIDABLE :: create => local_gemm_create
+      PROCEDURE, PASS(ctx), NON_OVERRIDABLE :: destroy => local_gemm_destroy
+      PROCEDURE, PASS(ctx), NON_OVERRIDABLE :: set_op_threshold_gpu => local_gemm_set_op_threshold_gpu
+      PROCEDURE, PASS(ctx), NON_OVERRIDABLE :: gemm => local_gemm
+   END TYPE
 
 CONTAINS
 
@@ -96,7 +102,7 @@ CONTAINS
       REAL(8), DIMENSION(:, :), INTENT(inout), TARGET :: C
 #endif
       INTEGER, INTENT(in) :: ldc
-      TYPE(C_ptr), OPTIONAL, INTENT(inout) :: ctx
+      CLASS(local_gemm_ctxt_type), INTENT(inout) :: ctx
 
       INTEGER                                            :: handle
 !     no point of using SPLA offloading on CPU ONLY nodes
@@ -108,7 +114,7 @@ CONTAINS
 
 !     no point of using SPLA offloading on CPU ONLY nodes
 #if defined(__SPLA) && defined(__OFFLOAD_GEMM)
-      IF (PRESENT(ctx) .AND. do_dgemm == do_dgemm_spla) THEN
+      IF (do_dgemm == do_dgemm_spla) THEN
 
          IF (opA == 'N') spla_op_A = SPLA_OP_NONE
          IF (opA == 'T') spla_op_A = SPLA_OP_TRANSPOSE
@@ -127,7 +133,7 @@ CONTAINS
                                  m, n, k, alpha, &
                                  c_loc(A), lda, &
                                  c_loc(B), ldb, &
-                                 beta, c_loc(C), ldc, ctx)
+                                 beta, c_loc(C), ldc, ctx%spla_context)
          CPASSERT(spla_error == SPLA_SUCCESS)
       ELSE
 #endif
@@ -149,24 +155,25 @@ CONTAINS
 !> \param pu processing unit to run the (s,d,c,z}dgemm
 ! **************************************************************************************************
    SUBROUTINE local_gemm_create(ctx, pu)
-      TYPE(c_ptr), INTENT(out) :: ctx
+      CLASS(local_gemm_ctxt_type), INTENT(out) :: ctx
       INTEGER, INTENT(in) :: pu
 
 #if defined(__SPLA) && defined(__OFFLOAD_GEMM)
       INTEGER :: error_
 
-      IF (do_dgemm == do_dgemm_spla) THEN
-         CALL offload_activate_chosen_device()
+      IF (.NOT. IS_C_ASSOCIATED(ctx%spla_context)) THEN
+         IF (do_dgemm == do_dgemm_spla) THEN
+            CALL offload_activate_chosen_device()
 
-         error_ = spla_ctx_create(ctx, pu)
-         CPASSERT(error_ == SPLA_SUCCESS)
-      ELSE
-         ctx = C_NULL_PTR
+            error_ = spla_ctx_create(ctx%spla_context, pu)
+            CPASSERT(error_ == SPLA_SUCCESS)
+         ELSE
+            ctx%spla_context = C_NULL_PTR
+         END IF
       END IF
 #else
       MARK_USED(pu)
-      MARK_USED(ctx)
-      ctx = C_NULL_PTR
+      ctx%spla_context = C_NULL_PTR
 #endif
    END SUBROUTINE local_gemm_create
 
@@ -175,7 +182,7 @@ CONTAINS
 !> \param ctx handle
 ! **************************************************************************************************
    SUBROUTINE local_gemm_destroy(ctx)
-      TYPE(c_ptr), INTENT(inout) :: ctx
+      CLASS(local_gemm_ctxt_type), INTENT(inout) :: ctx
 
 #if defined(__SPLA) && defined(__OFFLOAD_GEMM)
       INTEGER :: error_
@@ -183,13 +190,11 @@ CONTAINS
       IF (do_dgemm == do_dgemm_spla) THEN
          CALL offload_activate_chosen_device()
 
-         error_ = spla_ctx_destroy(ctx)
+         error_ = spla_ctx_destroy(ctx%spla_context)
          CPASSERT(error_ == SPLA_SUCCESS)
       END IF
-#else
-      MARK_USED(ctx)
 #endif
-      ctx = C_NULL_PTR
+      ctx%spla_context = C_NULL_PTR
    END SUBROUTINE local_gemm_destroy
 
 ! **************************************************************************************************
@@ -198,14 +203,14 @@ CONTAINS
 !> \param opThresholdGPU ...
 ! **************************************************************************************************
    SUBROUTINE local_gemm_set_op_threshold_gpu(ctx, opThresholdGPU)
-      TYPE(c_ptr)                                        :: ctx
+      CLASS(local_gemm_ctxt_type), INTENT(INOUT)                                        :: ctx
       INTEGER, INTENT(in)                                :: opThresholdGPU
 
 #if defined(__SPLA) && defined(__OFFLOAD_GEMM)
       INTEGER                                            :: error__
 
       CALL offload_activate_chosen_device()
-      error__ = spla_ctx_set_op_threshold_gpu(ctx, opThresholdGPU)
+      error__ = spla_ctx_set_op_threshold_gpu(ctx%spla_context, opThresholdGPU)
 #else
       MARK_USED(ctx)
       MARK_USED(opThresholdGPU)

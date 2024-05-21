@@ -27,15 +27,10 @@ MODULE mp2_types
         wfc_mm_style_gemm
    USE input_section_types,             ONLY: section_vals_release,&
                                               section_vals_type
-   USE iso_c_binding,                   ONLY: c_null_ptr,&
-                                              c_ptr
    USE kinds,                           ONLY: dp
    USE kpoint_types,                    ONLY: kpoint_type
    USE libint_2c_3c,                    ONLY: libint_potential_type
-   USE local_gemm_api,                  ONLY: LOCAL_GEMM_PU_GPU,&
-                                              local_gemm_create,&
-                                              local_gemm_destroy,&
-                                              local_gemm_set_op_threshold_gpu
+   USE local_gemm_api,                  ONLY: local_gemm_ctxt_type
    USE message_passing,                 ONLY: mp_request_type
    USE qs_force_types,                  ONLY: qs_force_type
    USE qs_p_env_types,                  ONLY: qs_p_env_type
@@ -367,7 +362,7 @@ MODULE mp2_types
       LOGICAL                                            :: do_svd = .FALSE.
       REAL(KIND=dp)                                      :: eps_range = 0.0_dp
       TYPE(libint_potential_type)                        :: ri_metric = libint_potential_type()
-      TYPE(C_ptr)                                        :: local_gemm_ctx = C_NULL_PTR
+      TYPE(local_gemm_ctxt_type)                         :: local_gemm_ctx = local_gemm_ctxt_type()
       REAL(dp)                                           :: e_gap = 0.0_dp, &
                                                             e_range = 0.0_dp
    END TYPE mp2_type
@@ -423,7 +418,7 @@ CONTAINS
       IF (ASSOCIATED(mp2_env%ri_rpa_im_time%weights_cos_tf_t_to_w)) DEALLOCATE (mp2_env%ri_rpa_im_time%weights_cos_tf_t_to_w)
       IF (ASSOCIATED(mp2_env%ri_rpa_im_time%weights_cos_tf_w_to_t)) DEALLOCATE (mp2_env%ri_rpa_im_time%weights_cos_tf_w_to_t)
 
-      CALL local_gemm_destroy(mp2_env%local_gemm_ctx)
+      CALL mp2_env%local_gemm_ctx%destroy()
 
       CALL timestop(handle)
 
@@ -445,12 +440,6 @@ CONTAINS
       CPASSERT(.NOT. ASSOCIATED(mp2_env))
 
       ALLOCATE (mp2_env)
-
-      ! these two functions are empty if spla is build without gpu support and
-      ! OFFLOAD_GEMM is not given at compilation time
-
-      CALL local_gemm_create(mp2_env%local_gemm_ctx, LOCAL_GEMM_PU_GPU)
-      CALL local_gemm_set_op_threshold_gpu(mp2_env%local_gemm_ctx, 128*128*128*2)
 
       NULLIFY (mp2_env%ri_rpa%x_data)
 

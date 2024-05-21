@@ -1487,7 +1487,7 @@ CONTAINS
             ! Calculate RPA exchange energy correction
             IF (mp2_env%ri_rpa%exchange_correction /= rpa_exchange_none) THEN
                e_exchange_corr = 0.0_dp
-               CALL exchange_work%compute(fm_mat_Q(1), Eigenval(:, 1, :), fm_mat_S, omega, e_exchange_corr)
+               CALL exchange_work%compute(fm_mat_Q(1), Eigenval(:, 1, :), fm_mat_S, omega, e_exchange_corr, mp2_env)
 
                ! Evaluate the final exchange energy correction
                e_exchange = e_exchange + e_exchange_corr*wj(jquad)

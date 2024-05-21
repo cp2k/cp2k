@@ -11,9 +11,6 @@
 !>      10.2021 created [Frederick Stein]
 ! **************************************************************************************************
 MODULE rpa_grad
-   USE ISO_C_BINDING,                   ONLY: C_NULL_PTR,&
-                                              C_PTR,&
-                                              c_associated
    USE cp_array_utils,                  ONLY: cp_1d_r_cp_type,&
                                               cp_3d_r_cp_type
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
@@ -47,10 +44,7 @@ MODULE rpa_grad
                                               int_8
    USE libint_2c_3c,                    ONLY: compare_potential_types
    USE local_gemm_api,                  ONLY: LOCAL_GEMM_PU_GPU,&
-                                              local_gemm,&
-                                              local_gemm_create,&
-                                              local_gemm_destroy,&
-                                              local_gemm_set_op_threshold_gpu
+                                              local_gemm_ctxt_type
    USE machine,                         ONLY: m_flush,&
                                               m_memory
    USE mathconstants,                   ONLY: pi
@@ -1032,10 +1026,8 @@ CONTAINS
 
       ! We allocate it at every step to reduce potential memory conflicts with COSMA
       IF (mp2_env%ri_grad%dot_blksize >= blksize_threshold) THEN
-         IF (.NOT. c_associated(mp2_env%local_gemm_ctx)) THEN
-            CALL local_gemm_create(mp2_env%local_gemm_ctx, LOCAL_GEMM_PU_GPU)
-            CALL local_gemm_set_op_threshold_gpu(mp2_env%local_gemm_ctx, spla_threshold)
-         END IF
+         CALL mp2_env%local_gemm_ctx%create(LOCAL_GEMM_PU_GPU)
+         CALL mp2_env%local_gemm_ctx%set_op_threshold_gpu(spla_threshold)
       END IF
 
       tag = 47
@@ -1267,8 +1259,7 @@ CONTAINS
 
       IF (mp2_env%ri_grad%dot_blksize >= blksize_threshold) THEN
          ! release memory allocated by local_gemm when run on GPU. local_gemm_ctx is null on cpu only runs
-         CALL local_gemm_destroy(mp2_env%local_gemm_ctx)
-         mp2_env%local_gemm_ctx = C_NULL_PTR
+         CALL mp2_env%local_gemm_ctx%destroy()
          DEALLOCATE (buffer_compens_1D)
       END IF
 
@@ -1303,7 +1294,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: dot_blksize
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
          INTENT(INOUT), TARGET                           :: buffer_1D
-      TYPE(C_PTR), INTENT(INOUT)                         :: local_gemm_ctx
+      TYPE(local_gemm_ctxt_type), INTENT(INOUT)          :: local_gemm_ctx
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: my_eval_virt, my_eval_occ, recv_eval_virt
       REAL(KIND=dp), INTENT(IN)                          :: omega, weight
 
@@ -1332,10 +1323,10 @@ CONTAINS
                stripesize = MIN(dot_blksize, my_P_size - P_start + 1)
                P_end = P_start + stripesize - 1
 
-               CALL local_gemm("T", "N", my_a_size, recv_a_size, stripesize, &
-                               -weight, mat_S(P_start:P_end, :, my_i), stripesize, &
-                               mat_work(P_start:P_end, :, my_i), stripesize, &
-                               0.0_dp, buffer_unscaled, my_a_size, local_gemm_ctx)
+               CALL local_gemm_ctx%gemm("T", "N", my_a_size, recv_a_size, stripesize, &
+                                        -weight, mat_S(P_start:P_end, :, my_i), stripesize, &
+                                        mat_work(P_start:P_end, :, my_i), stripesize, &
+                                        0.0_dp, buffer_unscaled, my_a_size)
 
                CALL scale_buffer_and_add_compens_virt(buffer_unscaled, buffer_compens, omega, &
                                                       my_eval_virt, recv_eval_virt, my_eval_occ(my_i))
@@ -1397,7 +1388,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: dot_blksize
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
          INTENT(INOUT), TARGET                           :: buffer_1D
-      TYPE(C_PTR), INTENT(INOUT)                         :: local_gemm_ctx
+      TYPE(local_gemm_ctxt_type), INTENT(INOUT)          :: local_gemm_ctx
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: my_eval_virt, my_eval_occ, recv_eval_occ
       REAL(KIND=dp), INTENT(IN)                          :: omega, weight
 
@@ -1426,10 +1417,10 @@ CONTAINS
                stripesize = MIN(dot_blksize, my_P_size - P_start + 1)
                P_end = P_start + stripesize - 1
 
-               CALL local_gemm("T", "N", my_i_size, recv_i_size, stripesize, &
-                               weight, mat_S(P_start:P_end, my_a, :), stripesize, &
-                               mat_work(P_start:P_end, my_a, :), stripesize, &
-                               0.0_dp, buffer_unscaled, my_i_size, local_gemm_ctx)
+               CALL local_gemm_ctx%gemm("T", "N", my_i_size, recv_i_size, stripesize, &
+                                        weight, mat_S(P_start:P_end, my_a, :), stripesize, &
+                                        mat_work(P_start:P_end, my_a, :), stripesize, &
+                                        0.0_dp, buffer_unscaled, my_i_size)
 
                CALL scale_buffer_and_add_compens_occ(buffer_unscaled, buffer_compens, omega, &
                                                      my_eval_occ, recv_eval_occ, my_eval_virt(my_a))
