@@ -74,7 +74,8 @@ MODULE rpa_main
                                               two_dim_real_array
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
-   USE rpa_exchange,                    ONLY: rpa_exchange_work_type
+   USE rpa_exchange,                    ONLY: rpa_exchange_needed_mem,&
+                                              rpa_exchange_work_type
    USE rpa_grad,                        ONLY: rpa_grad_copy_Q,&
                                               rpa_grad_create,&
                                               rpa_grad_finalize,&
@@ -369,6 +370,7 @@ CONTAINS
          mem_per_repl = mem_per_repl + 2.0_dp*mem_for_QK
 
          IF (calc_forces) CALL rpa_grad_needed_mem(homo, virtual, dimen_RI_red, mem_per_rank, mem_per_repl, do_ri_sos_laplace_mp2)
+         CALL rpa_exchange_needed_mem(mp2_env, homo, virtual, dimen_RI_red, para_env, mem_per_rank, mem_per_repl)
 
          mem_min = mem_per_repl/para_env%num_pe + mem_per_rank
 

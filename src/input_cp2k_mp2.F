@@ -561,20 +561,6 @@ CONTAINS
 
       CALL keyword_create( &
          keyword, __LOCATION__, &
-         name="EXCHANGE_CORRECTION", &
-         description="Decide whether to perform an RPA-exchange correction.", &
-         usage="EXCHANGE_CORRECTION AXK", &
-         enum_c_vals=s2a("NONE", "AXK", "SOSEX"), &
-         enum_i_vals=(/rpa_exchange_none, rpa_exchange_axk, rpa_exchange_sosex/), &
-         enum_desc=s2a("Apply no exchange correction.", &
-                       "Apply Approximate eXchange Kernel (AXK) correction.", &
-                       "Apply Second Order Screened eXchange (SOSEX) correction."), &
-         default_i_val=rpa_exchange_none)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create( &
-         keyword, __LOCATION__, &
          name="RSE", &
          variants=(/"SE"/), &
          description="Decide whether to add singles correction.", &
@@ -626,7 +612,52 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
+      ! here we the RPA exchange section
+      CALL create_rpa_exchange(subsection)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+
    END SUBROUTINE create_ri_rpa
+
+! **************************************************************************************************
+!> \brief ...
+!> \param section ...
+! **************************************************************************************************
+   SUBROUTINE create_rpa_exchange(section)
+      TYPE(section_type), POINTER                        :: section
+
+      TYPE(keyword_type), POINTER                        :: keyword
+
+      CPASSERT(.NOT. ASSOCIATED(section))
+      CALL section_create(section, __LOCATION__, name="EXCHANGE_CORRECTION", &
+                          description="Parameters influencing exchange corrections to RPA. No gradients available.", &
+                          n_keywords=3, n_subsections=1, repeats=.FALSE.)
+
+      NULLIFY (keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="_SECTION_PARAMETERS_", &
+                          description="Choose the kind of exchange correction.", &
+                          usage="&EXCHANGE_CORRECTION AXK", &
+                          enum_c_vals=s2a("NONE", "AXK", "SOSEX"), &
+                          enum_i_vals=(/rpa_exchange_none, rpa_exchange_axk, rpa_exchange_sosex/), &
+                          enum_desc=s2a("Apply no exchange correction.", &
+                                        "Apply Approximate eXchange Kernel (AXK) correction.", &
+                                        "Apply Second Order Screened eXchange (SOSEX) correction."), &
+                          default_i_val=rpa_exchange_none)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create( &
+         keyword, __LOCATION__, &
+         name="BLOCK_SIZE", &
+         description="Choose the block size of the contraction step. Larger block sizes improve performance but "// &
+         "require more memory (quadratically!, number of stored elements: $o^2\cdot N_B^2$). "// &
+         "Nonpositive numbers turn off blocking.", &
+         usage="BLOCK_SIZE 1", &
+         default_i_val=1)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+   END SUBROUTINE create_rpa_exchange
 
 ! **************************************************************************************************
 !> \brief ...

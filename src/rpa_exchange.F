@@ -54,13 +54,14 @@ MODULE rpa_exchange
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'rpa_exchange'
 
-   PUBLIC :: rpa_exchange_work_type
+   PUBLIC :: rpa_exchange_work_type, rpa_exchange_needed_mem
 
    TYPE rpa_exchange_work_type
       PRIVATE
       INTEGER :: exchange_correction = rpa_exchange_none
       INTEGER, DIMENSION(:), ALLOCATABLE :: homo, virtual, dimen_ia
       INTEGER :: dimen_RI = 0
+      INTEGER :: block_size = 0
       REAL(KIND=dp) :: eps_filter = 0.0_dp
       TYPE(cp_fm_type) :: fm_mat_Q_tmp = cp_fm_type()
       TYPE(cp_fm_type) :: fm_mat_R_half_gemm = cp_fm_type()
@@ -72,6 +73,37 @@ MODULE rpa_exchange
    END TYPE
 
 CONTAINS
+
+! **************************************************************************************************
+!> \brief ...
+!> \param mp2_env ...
+!> \param homo ...
+!> \param virtual ...
+!> \param dimen_RI ...
+!> \param global_comm ...
+!> \param mem_per_rank ...
+!> \param mem_per_repl ...
+! **************************************************************************************************
+   SUBROUTINE rpa_exchange_needed_mem(mp2_env, homo, virtual, dimen_RI, global_comm, mem_per_rank, mem_per_repl)
+      TYPE(mp2_type), INTENT(IN)                         :: mp2_env
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: homo, virtual
+      INTEGER, INTENT(IN)                                :: dimen_RI
+      TYPE(mp_para_env_type), INTENT(IN)                 :: global_comm
+      REAL(KIND=dp), INTENT(INOUT)                       :: mem_per_rank, mem_per_repl
+
+      INTEGER                                            :: block_size
+
+      ! We need the block size and if it is unknown, an upper bound
+      block_size = mp2_env%ri_rpa%exchange_block_size
+      IF (block_size <= 0) block_size = MAX(1, dimen_RI/global_comm%num_pe*mp2_env%ri_rpa%rpa_num_quad_points)
+
+      ! storage of product matrix (upper bound only as it depends on the square of the potential still unknown block size)
+      mem_per_rank = mem_per_rank + REAL(MAXVAL(homo), KIND=dp)**2*block_size**2
+
+      ! work arrays R (2x) and U, copies of Gamma (2x), communication buffer (as expensive as Gamma)
+      mem_per_repl = mem_per_repl + 3.0_dp*dimen_RI*dimen_RI*8.0_dp/(1024_dp**2) &
+                     + 3.0_dp*MAXVAL(homo*virtual)*dimen_RI*8.0_dp/(1024_dp**2)
+   END SUBROUTINE rpa_exchange_needed_mem
 
 ! **************************************************************************************************
 !> \brief ...
@@ -108,6 +140,9 @@ CONTAINS
       exchange_work%virtual(:) = virtual
       exchange_work%dimen_ia(:) = homo*virtual
       exchange_work%dimen_RI = dimen_RI
+
+      exchange_work%block_size = mp2_env%ri_rpa%exchange_block_size
+      IF (exchange_work%block_size <= 0) exchange_work%block_size = dimen_RI
 
       CALL cp_fm_create(exchange_work%fm_mat_U, fm_mat_Q%matrix_struct, name="fm_mat_U")
       CALL cp_fm_create(exchange_work%fm_mat_Q_tmp, fm_mat_Q%matrix_struct, name="fm_mat_Q_tmp")
@@ -276,13 +311,9 @@ CONTAINS
          CALL calc_fm_mat_S_rpa(fm_mat_S(ispin), .TRUE., virt, eig(:, ispin), hom, omega, 0.0_dp)
 
          L_size_Gamma = SIZE(mat_Gamma_3_3D, 3)
-         block_size = 1
+         block_size = exchange_work%block_size
 
          ALLOCATE (product_matrix_1D(INT(hom*block_size, KIND=int_8)*INT(hom*block_size, KIND=int_8)))
-         product_matrix_2D(1:hom*block_size, 1:hom*block_size) => &
-            product_matrix_1D(1:INT(hom*block_size, KIND=int_8)*INT(hom*block_size, KIND=int_8))
-         product_matrix_4D(1:hom, 1:block_size, 1:hom, 1:block_size) => &
-            product_matrix_1D(1:INT(hom*block_size, KIND=int_8)*INT(hom*block_size, KIND=int_8))
          ALLOCATE (recv_buffer_1D(INT(virt, KIND=int_8)*hom*max_aux_size))
          recv_buffer_2D(1:virt, 1:hom*max_aux_size) => recv_buffer_1D(1:INT(virt, KIND=int_8)*hom*max_aux_size)
          recv_buffer_3D(1:virt, 1:hom, 1:max_aux_size) => recv_buffer_1D(1:INT(virt, KIND=int_8)*hom*max_aux_size)
@@ -304,10 +335,17 @@ CONTAINS
                DO Q_start = 1, recv_size, block_size
                   Q_end = MIN(recv_size, Q_start + block_size - 1)
                   Q_size = Q_end - Q_start + 1
+
+                  ! Reassign product_matrix pointers to enforce contiguity of target array
+                  product_matrix_2D(1:hom*P_size, 1:hom*Q_size) => &
+                     product_matrix_1D(1:INT(hom*P_size, KIND=int_8)*INT(hom*Q_size, KIND=int_8))
+                  product_matrix_4D(1:hom, 1:P_size, 1:hom, 1:Q_size) => &
+                     product_matrix_1D(1:INT(hom*P_size, KIND=int_8)*INT(hom*Q_size, KIND=int_8))
+
                   CALL mp2_env%local_gemm_ctx%gemm("T", "N", hom*P_size, hom*Q_size, virt, 1.0_dp, &
                                                    mat_Gamma_3_2D(:, hom*(P_start - 1) + 1:hom*P_end), virt, &
                                                    recv_buffer_2D(:, hom*(Q_start - 1) + 1:hom*Q_end), virt, &
-                                                   0.0_dp, product_matrix_2D, hom*block_size)
+                                                   0.0_dp, product_matrix_2D, hom*P_size)
                   DO P = 1, P_size
                   DO Q = 1, Q_size
                   DO i = 1, hom
