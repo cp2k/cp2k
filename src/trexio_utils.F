@@ -48,7 +48,8 @@ MODULE trexio_utils
                      trexio_string_of_error, trexio_t, trexio_exit_code, &
                      trexio_write_metadata_code, trexio_write_metadata_code_num, &
                      trexio_write_nucleus_coord, trexio_write_nucleus_num, &
-                     trexio_write_nucleus_charge, trexio_write_nucleus_label
+                     trexio_write_nucleus_charge, trexio_write_nucleus_label, &
+                     trexio_write_nucleus_repulsion
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -174,7 +175,10 @@ MODULE trexio_utils
       CALL trexio_error(rc)
       DEALLOCATE (label)
 
-      !TODO: nuclear repulsion energy
+      !TODO: double check with Juerg
+      rc = trexio_write_nucleus_repulsion(f, energy%core + energy%core_overlap + energy%core_self)
+      CALL trexio_error(rc)
+
 
       ! !========================================================================================!
       ! ! *** QCSchema properties ***
