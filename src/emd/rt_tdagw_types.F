@@ -25,7 +25,9 @@ MODULE rt_tdagw_types
                                               cp_cfm_create,&
                                               cp_fm_to_cfm,&
                                               cp_cfm_release
-   USE cp_fm_basic_linalg,              ONLY: cp_fm_invert
+   USE cp_fm_basic_linalg,              ONLY: cp_fm_invert,&
+                                              cp_fm_transpose,&
+                                              cp_fm_scale_and_add
    USE dbcsr_api,                       ONLY: dbcsr_type,&
                                               dbcsr_p_type,&
                                               dbcsr_create,&
@@ -656,6 +658,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       CHARACTER(len=*), PARAMETER                        :: routineN = "create_sigma_workspace"
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
+      TYPE(cp_fm_type)                                   :: W_fm
 
       CALL get_qs_env(qs_env, bs_env=bs_env)
 
@@ -678,10 +681,17 @@ CONTAINS
       ! TODO : Avoid without G0W0 run?
       NULLIFY(tdagw_env%w_dbcsr%matrix)
       ALLOCATE(tdagw_env%w_dbcsr%matrix)
+      ! ! TODO : Debug - subtract the antihermitian part, create by numerical inacuraccy of FFT
+      ! CALL cp_fm_create(W_fm, matrix_struct=bs_env%fm_W_MIC_freq_zero%matrix_struct)
+      ! CALL cp_fm_transpose(bs_env%fm_W_MIC_freq_zero, W_fm)
+      ! CALL cp_fm_scale_and_add(0.5_dp, W_fm, 0.5_dp, bs_env%fm_W_MIC_freq_zero)
       CALL dbcsr_create(tdagw_env%w_dbcsr%matrix, name="W", template=bs_env%mat_RI_RI%matrix)
+      ! CALL copy_fm_to_dbcsr(W_fm, tdagw_env%w_dbcsr%matrix)
       CALL copy_fm_to_dbcsr(bs_env%fm_W_MIC_freq_zero, tdagw_env%w_dbcsr%matrix)
       CALL dbt_create(tdagw_env%w_dbcsr%matrix, tdagw_env%screened_dbt)
       CALL dbt_copy_matrix_to_tensor(tdagw_env%w_dbcsr%matrix, tdagw_env%screened_dbt)
+      ! PRINT *, "W_PQ matrix from BS_ENV"
+      ! CALL cp_fm_write_formatted(bs_env%fm_W_MIC_freq_zero, 6)
       ! sigma_dbt
       NULLIFY(tdagw_env%sigma_dbt)
       ALLOCATE(tdagw_env%sigma_dbt)

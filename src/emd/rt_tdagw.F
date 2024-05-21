@@ -28,6 +28,7 @@ MODULE rt_tdagw
                                               cp_fm_set_all,&
                                               cp_fm_release,&
                                               cp_fm_get_element,&
+                                              cp_fm_set_element,&
                                               cp_fm_write_formatted
    USE cp_cfm_types,                    ONLY: cp_cfm_type,&
                                               cp_fm_to_cfm,&
@@ -237,6 +238,7 @@ CONTAINS
          ! Subtract the v_xc from COH part of the self-energy, as V_xc is also not updated during the timestepping
          @:SPIN_DO(j, re, im, tdagw_env%n_spin)
             CALL get_sigma(tdagw_env, qs_env, tdagw_env%sigma_COH(re), -0.5_dp, greens_dbcsr_opt=tdagw_env%S_inv)
+            ! CALL get_sigma_local(tdagw_env, qs_env, tdagw_env%sigma_COH(re), -0.5_dp, greens_dbcsr_opt=tdagw_env%S_inv)
             ! TODO : Debug - printing out the COHSEX self-energy
             CALL cp_fm_to_fm(tdagw_env%sigma_COH(re)%matrix, tdagw_env%ham_effective(re)%matrix)
             CALL cp_fm_set_all(tdagw_env%ham_effective(im)%matrix, 0.0_dp)
@@ -244,12 +246,19 @@ CONTAINS
             ! TODO : Enable subtraction of COH? So far, COH does not enter, as per the reference paper
             CALL get_sigma(tdagw_env, qs_env, tdagw_env%sigma_SEX(re), -1.0_dp, greens_fm_opt=tdagw_env%rho(re))
             CALL get_sigma(tdagw_env, qs_env, tdagw_env%sigma_SEX(im), -1.0_dp, greens_fm_opt=tdagw_env%rho(im))
+            ! ! TODO : Debug - subtract the antihermitian part of SEX
+            ! CALL cp_fm_transpose(tdagw_env%sigma_SEX(re)%matrix, tdagw_env%rho_workspace(1)%matrix)
+            ! CALL cp_fm_scale_and_add(0.5_dp, tdagw_env%sigma_SEX(re)%matrix, 0.5_dp, tdagw_env%rho_workspace(1)%matrix)
+            ! CALL cp_fm_transpose(tdagw_env%sigma_SEX(im)%matrix, tdagw_env%rho_workspace(1)%matrix)
+            ! CALL cp_fm_scale_and_add(0.5_dp, tdagw_env%sigma_SEX(im)%matrix, -0.5_dp, tdagw_env%rho_workspace(1)%matrix)
+            ! CALL get_sigma_local(tdagw_env, qs_env, tdagw_env%sigma_SEX(re), -1.0_dp, greens_fm_opt=tdagw_env%rho(re))
+            ! CALL get_sigma_local(tdagw_env, qs_env, tdagw_env%sigma_SEX(im), -1.0_dp, greens_fm_opt=tdagw_env%rho(im))
             CALL cp_fm_scale_and_add(0.0_dp, tdagw_env%sigma_COH(re)%matrix, -1.0_dp, tdagw_env%sigma_SEX(re)%matrix)
             CALL cp_fm_scale_and_add(0.0_dp, tdagw_env%sigma_COH(im)%matrix, -1.0_dp, tdagw_env%sigma_SEX(im)%matrix)
             ! TODO : Debug - printing out the COHSEX self-energy
-            CALL cp_fm_scale_and_add(1.0_dp, tdagw_env%ham_effective(re)%matrix, 1.0_dp, tdagw_env%sigma_SEX(re)%matrix)
-            CALL cp_fm_to_fm(tdagw_env%sigma_COH(im)%matrix, tdagw_env%ham_effective(im)%matrix)
-            CALL cp_fm_scale_and_add(1.0_dp, tdagw_env%ham_effective(im)%matrix, 1.0_dp, tdagw_env%sigma_SEX(im)%matrix)
+            ! CALL cp_fm_scale_and_add(1.0_dp, tdagw_env%ham_effective(re)%matrix, 1.0_dp, tdagw_env%sigma_SEX(re)%matrix)
+            ! CALL cp_fm_to_fm(tdagw_env%sigma_COH(im)%matrix, tdagw_env%ham_effective(im)%matrix)
+            ! CALL cp_fm_scale_and_add(1.0_dp, tdagw_env%ham_effective(im)%matrix, 1.0_dp, tdagw_env%sigma_SEX(im)%matrix)
             ! CALL cp_fm_scale_and_add(1.0_dp, tdagw_env%sigma_COH(re)%matrix, -1.0_dp, bs_env%fm_V_xc_Gamma(j))
             ! PRINT *, "metric sigma_COH + Vxc, RE spin", j, cp_fm_norm(tdagw_env%sigma_COH(re)%matrix, "M")
             ! PRINT *, "metric sigma_COH + Vxc, IM spin", j, cp_fm_norm(tdagw_env%sigma_COH(im)%matrix, "M")
@@ -571,6 +580,7 @@ CONTAINS
       TYPE(cp_fm_p_type), DIMENSION(:)                   :: rho
       REAL(kind=dp)                                      :: a_metric
       INTEGER                                            :: k, j, re, im, nspin
+      ! TYPE(cp_fm_p_type)                                 :: field_test, zeromat
       ! Shorthand
       nspin = tdagw_env%n_spin
       CALL get_qs_env(qs_env, bs_env=bs_env)
@@ -589,6 +599,27 @@ CONTAINS
             ! PRINT *, "=== Hartree again"
             ! CALL cp_fm_write_formatted(tdagw_env%hartree_curr(1)%matrix, 6)
       END IF
+      ! TODO: DEBUG - testing field hermiticity - PASSED
+      ! NULLIFY(field_test%matrix)
+      ! NULLIFY(zeromat%matrix)
+      ! ALLOCATE(field_test%matrix)
+      ! ALLOCATE(zeromat%matrix)
+      ! CALL cp_fm_create(field_test%matrix, matrix_struct=tdagw_env%ham_effective(re)%matrix%matrix_struct)
+      ! CALL cp_fm_create(zeromat%matrix, matrix_struct=field_test%matrix%matrix_struct)
+      ! CALL cp_fm_to_fm(tdagw_env%moments(1)%matrix, field_test%matrix)
+      ! CALL cp_fm_set_all(zeromat%matrix, 0.0_dp)
+      ! CALL cp_fm_scale(-tdagw_env%field(1), field_test%matrix)
+      ! IF (tdagw_env%unit_nr > 0) WRITE(tdagw_env%unit_nr, *) "AHFieldX : ", antiherm_metric(field_test, zeromat)
+      ! CALL cp_fm_to_fm(tdagw_env%moments(2)%matrix, field_test%matrix)
+      ! CALL cp_fm_scale(-tdagw_env%field(2), field_test%matrix)
+      ! IF (tdagw_env%unit_nr > 0) WRITE(tdagw_env%unit_nr, *) "AHFieldY : ", antiherm_metric(field_test, zeromat)
+      ! CALL cp_fm_to_fm(tdagw_env%moments(3)%matrix, field_test%matrix)
+      ! CALL cp_fm_scale(-tdagw_env%field(3), field_test%matrix)
+      ! IF (tdagw_env%unit_nr > 0) WRITE(tdagw_env%unit_nr, *) "AHFieldZ : ", antiherm_metric(field_test, zeromat)
+      ! CALL cp_fm_release(field_test%matrix)
+      ! CALL cp_fm_release(zeromat%matrix)
+      ! DEALLOCATE(field_test%matrix)
+      ! DEALLOCATE(zeromat%matrix)
       @:SPIN_DO(j, re, im, nspin)
          DO k=1,3
             ! Minus sign due to charge of electrons
@@ -609,10 +640,22 @@ CONTAINS
          IF ( tdagw_env%ham_single_particle_type == rtp_tdagw_ham_g0w0) THEN
             CALL get_sigma(tdagw_env, qs_env, tdagw_env%sigma_SEX(re),&
                            -1.0_dp, greens_fm_opt=rho(re))
+            ! ! TODO : Debug - getting the hermitian part only
+            ! CALL cp_fm_transpose(tdagw_env%sigma_SEX(re)%matrix, tdagw_env%rho_workspace(1)%matrix)
+            ! CALL cp_fm_scale_and_add(0.5_dp, tdagw_env%sigma_SEX(re)%matrix,&
+            !                          0.5_dp, tdagw_env%rho_workspace(1)%matrix)
+            ! CALL get_sigma_local(tdagw_env, qs_env, tdagw_env%sigma_SEX(re),&
+            !                  -1.0_dp, greens_fm_opt=rho(re))
             CALL cp_fm_scale_and_add(1.0_dp, tdagw_env%ham_effective(re)%matrix,&
                                      1.0_dp, tdagw_env%sigma_SEX(re)%matrix)
             CALL get_sigma(tdagw_env, qs_env, tdagw_env%sigma_SEX(im), -1.0_dp,&
                            greens_fm_opt=rho(im))
+            ! ! TODO : Debug - getting the hermitian part only
+            ! CALL cp_fm_transpose(tdagw_env%sigma_SEX(im)%matrix, tdagw_env%rho_workspace(1)%matrix)
+            ! CALL cp_fm_scale_and_add(0.5_dp, tdagw_env%sigma_SEX(im)%matrix,&
+            !                         -0.5_dp, tdagw_env%rho_workspace(1)%matrix)
+            ! CALL get_sigma_local(tdagw_env, qs_env, tdagw_env%sigma_SEX(im),&
+            !                  -1.0_dp, greens_fm_opt=rho(im))
             CALL cp_fm_scale_and_add(1.0_dp, tdagw_env%ham_effective(im)%matrix,&
                                      1.0_dp, tdagw_env%sigma_SEX(im)%matrix)
          END IF
@@ -645,6 +688,13 @@ CONTAINS
                                  -1.0_dp, tdagw_env%hartree_orig(re)%matrix)
          CALL cp_fm_scale_and_add(1.0_dp, tdagw_env%ham_effective(im)%matrix,&
                                  -1.0_dp, tdagw_env%hartree_orig(im)%matrix)
+         ! TODO - debug - enforce hermiticity of the effective Hamiltonian
+         CALL cp_fm_transpose(tdagw_env%ham_effective(re)%matrix, tdagw_env%rho_workspace(1)%matrix)
+         CALL cp_fm_scale_and_add(0.5_dp, tdagw_env%ham_effective(re)%matrix,&
+                                  0.5_dp, tdagw_env%rho_workspace(1)%matrix)
+         CALL cp_fm_transpose(tdagw_env%ham_effective(im)%matrix, tdagw_env%rho_workspace(1)%matrix)
+         CALL cp_fm_scale_and_add(0.5_dp, tdagw_env%ham_effective(im)%matrix,&
+                                 -0.5_dp, tdagw_env%rho_workspace(1)%matrix)
       END DO
    END SUBROUTINE
 
@@ -1217,30 +1267,48 @@ CONTAINS
                    beta=0.0_dp,&
                    tensor_3=tdagw_env%t_3c_work_RI_AO__AO,&
                    contract_1=[2],notcontract_1=[1], map_1=[1],&
-                   contract_2=[1],notcontract_2=[2,3], map_2=[2,3],&
-                   filter_eps=bs_env%eps_filter)
-      ! t_work1 now contains sum _ P (alpha beta | P) W _ (PQ) (iomega = 0)
+                   contract_2=[1],notcontract_2=[2,3], map_2=[2,3])!,&
+                   !filter_eps=bs_env%eps_filter)
+      ! t_work1 now contains B^P_(nu beta) = sum _ Q W _ (PQ) (iomega = 0) (Q| nu beta)
       ! Next step is to convert the greens full matrix to dbcsr matrix 
       CALL dbt_copy_matrix_to_tensor(greens_dbcsr, tdagw_env%greens_dbt) 
       ! Then contract it
       ! no scaling applied - this has to be applied externally TODO : Is this a good approach?
+      ! CALL dbt_contract(alpha=1.0_dp,&
+      !              tensor_1=tdagw_env%greens_dbt,&
+      !              tensor_2=tdagw_env%t_3c_w,&
+      !              beta=0.0_dp,&
+      !              tensor_3=tdagw_env%t_3c_work2_RI_AO__AO,&
+      !              contract_1=[1], notcontract_1=[2], map_1=[2],&
+      !              contract_2=[3], notcontract_2=[1,2], map_2=[1,3],&
+      !              filter_eps=bs_env%eps_filter)
+      ! ! Final contraction, which introduces the given prefactor
+      ! CALL dbt_contract(alpha=prefactor,&
+      !              tensor_1=tdagw_env%t_3c_work_RI_AO__AO,&
+      !              tensor_2=tdagw_env%t_3c_work2_RI_AO__AO,&
+      !              beta=0.0_dp,&
+      !              tensor_3=tdagw_env%sigma_dbt,&
+      !              contract_1=[1,2], notcontract_1=[3], map_1=[2],&
+      !              contract_2=[1,2], notcontract_2=[3], map_2=[1],&
+      !              filter_eps=bs_env%eps_filter)
+      ! TODO : Trying new contraction scheme
       CALL dbt_contract(alpha=1.0_dp,&
-                   tensor_1=tdagw_env%greens_dbt,&
-                   tensor_2=tdagw_env%t_3c_w,&
-                   beta=0.0_dp,&
-                   tensor_3=tdagw_env%t_3c_work2_RI_AO__AO,&
-                   contract_1=[1], notcontract_1=[2], map_1=[2],&
-                   contract_2=[3], notcontract_2=[1,2], map_2=[1,3],&
-                   filter_eps=bs_env%eps_filter)
-      ! Final contraction, which introduces the given prefactor
+              tensor_1=tdagw_env%t_3c_work_RI_AO__AO,&
+              tensor_2=tdagw_env%greens_dbt,&
+              beta=0.0_dp,&
+              tensor_3=tdagw_env%t_3c_work2_RI_AO__AO,&
+              contract_1=[2],notcontract_1=[1,3],map_1=[1,3],&
+              contract_2=[2],notcontract_2=[1],map_2=[2])!,&
+              !filter_eps=bs_env%eps_filter)
+      ! workspace 2 now contains C ^ P _ (mu beta) sum _ nu B ^ P _ (nu beta) g _ (mu nu)
       CALL dbt_contract(alpha=prefactor,&
-                   tensor_1=tdagw_env%t_3c_work_RI_AO__AO,&
-                   tensor_2=tdagw_env%t_3c_work2_RI_AO__AO,&
-                   beta=0.0_dp,&
-                   tensor_3=tdagw_env%sigma_dbt,&
-                   contract_1=[1,2], notcontract_1=[3], map_1=[2],&
-                   contract_2=[1,2], notcontract_2=[3], map_2=[1],&
-                   filter_eps=bs_env%eps_filter)
+              tensor_1=tdagw_env%t_3c_w,&
+              tensor_2=tdagw_env%t_3c_work2_RI_AO__AO,&
+              beta=0.0_dp,&
+              tensor_3=tdagw_env%sigma_dbt,&
+              contract_1=[1,3],notcontract_1=[2],map_1=[1],&
+              contract_2=[1,2],notcontract_2=[3],map_2=[2])!,&
+              !filter_eps=bs_env%eps_filter)
       ! Finally, convert the COH tensor to matrix and then to fm matrix
       CALL dbcsr_create(sigma_dbcsr, name="sigma", template=bs_env%mat_ao_ao%matrix)
       CALL dbt_copy_tensor_to_matrix(tdagw_env%sigma_dbt, sigma_dbcsr)
@@ -1259,6 +1327,266 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE
+! **************************************************************************************************
+!> \brief Calculates the self-energy by contraction of screened potential
+!> \note Can be used for both the Coulomb hole part and screened exchange part 
+!> \note Instead of the DBT contractions, calculates the tensors by libxsmm proxy
+!> \param qs_env Quickstep environment data, entry point of the calculation
+!> \param greens_fm Pointer to the Green's function matrix, which is used as input data
+!> \param sigma_fm Pointer to the self-energy full matrix, which is overwritten by this routine
+!> \author Stepan Marek
+!> \date 05.2024
+! **************************************************************************************************
+   SUBROUTINE get_sigma_local(tdagw_env, qs_env, sigma_fm, prefactor_opt, greens_dbcsr_opt, greens_fm_opt)
+      TYPE(tdagw_env_type)                               :: tdagw_env
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(cp_fm_p_type)                                 :: sigma_fm ! resulting self energy
+      REAL(kind=dp), INTENT(IN), OPTIONAL                :: prefactor_opt
+      TYPE(cp_fm_p_type), INTENT(IN), OPTIONAL           :: greens_fm_opt ! matrix to contract with RI_W
+      TYPE(dbcsr_type), POINTER, INTENT(IN), OPTIONAL    :: greens_dbcsr_opt ! matrix, but already in dbcsr form
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'get_sigma_local'
+      TYPE(cp_fm_p_type)                                 :: greens_ptr,W_fm,zeromat
+      REAL(kind=dp)                                      :: prefactor, element, second_element, third_element
+      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
+      REAL(kind=dp), DIMENSION(:,:,:), POINTER           :: int_3c, Btensor, Ctensor
+      INTEGER                                            :: P, Q, sigma_col, sigma_row, rho_col, rho_row, n_ao, n_RI
+      REAL(kind=dp), DIMENSION(:,:), POINTER             :: rho_test, sigma_test, W_test
+
+      CALL get_qs_env(qs_env, bs_env=bs_env)
+
+      IF (PRESENT(greens_dbcsr_opt)) THEN
+         NULLIFY(greens_ptr%matrix)
+         ALLOCATE(greens_ptr%matrix)
+         CALL cp_fm_create(greens_ptr%matrix, matrix_struct=tdagw_env%rho(1)%matrix%matrix_struct)
+         CALL copy_dbcsr_to_fm(greens_dbcsr_opt, greens_ptr%matrix)
+      ELSEIF (PRESENT(greens_fm_opt)) THEN
+         greens_ptr%matrix => greens_fm_opt%matrix
+      ELSE
+         CPABORT("Neither fm nor dbcsr matrix provided to get_sigma_local")
+      END IF
+
+      IF (PRESENT(prefactor_opt)) THEN
+         prefactor = prefactor_opt
+      ELSE
+         prefactor = 1.0_dp
+      END IF
+
+      ! TODO : Debug - testing calculation
+      ! ! === Start test
+      ! NULLIFY(W_test)
+      ! ALLOCATE(W_test(3,3))
+      ! NULLIFY(rho_test)
+      ! ALLOCATE(rho_test(2,2))
+      ! NULLIFY(sigma_test)
+      ! ALLOCATE(sigma_test(2,2), source=0.0_dp)
+      ! 
+      ! element = 0.0_dp
+      ! n_RI = 3
+      ! n_ao = 2
+
+      ! ! Get all the 3c integrals - DEBUG setting
+      ! NULLIFY(int_3c)
+      ! ALLOCATE(int_3c(n_ao,n_ao,n_RI))
+      ! int_3c(1,1,1) = 0.9
+      ! int_3c(2,1,1) = 0.1
+      ! int_3c(1,2,1) = 0.1
+      ! int_3c(2,2,1) = 0.01
+      ! int_3c(1,1,2) = 0.01
+      ! int_3c(1,2,2) = 0.1
+      ! int_3c(2,1,2) = 0.1
+      ! int_3c(2,2,2) = 0.9
+      ! int_3c(1,1,3) = 0.1
+      ! int_3c(1,2,3) = 0.5
+      ! int_3c(2,1,3) = 0.5
+      ! int_3c(2,2,3) = 0.1
+
+      ! W_test(1,1) = 3.0
+      ! W_test(1,2) = 0.1
+      ! W_test(1,3) = 0.3
+      ! W_test(2,1) = 0.1
+      ! W_test(2,2) = 3.0
+      ! W_test(2,3) = 0.3
+      ! W_test(3,1) = 0.3
+      ! W_test(3,2) = 0.3
+      ! W_test(3,3) = 0.7
+
+      ! rho_test(1,1) = 1.9
+      ! rho_test(1,2) = 0.5
+      ! rho_test(2,1) = 0.5
+      ! rho_test(2,2) = 0.1
+
+      ! !$OMP PARALLEL DO DEFAULT(none) SHARED(int_3c, rho_test, sigma_test, W_test, n_RI,n_ao) PRIVATE(P,Q,sigma_row,sigma_col,rho_row,rho_col)
+      ! DO sigma_row=1,n_ao
+      !    DO sigma_col=1,n_ao
+      !       DO P=1,n_RI
+      !          DO Q=1,n_RI
+      !             DO rho_row=1,n_ao
+      !                DO rho_col=1,n_ao
+      !                   sigma_test(sigma_row, sigma_col) = sigma_test(sigma_row, sigma_col) +&
+      !                           int_3c(sigma_row, rho_row, P) * W_test(P,Q) *&
+      !                           int_3c(sigma_col, rho_col, Q) * rho_test(rho_row,rho_col)
+      !                END DO
+      !             END DO
+      !          END DO
+      !       END DO
+      !    END DO
+      ! END DO
+      ! !$OMP END PARALLEL DO
+      ! PRINT *, "First sigma", sigma_test
+      ! sigma_test(:,:) = 0.0_dp
+
+      ! NULLIFY(Btensor)
+      ! ALLOCATE(Btensor(n_ao,n_ao,n_RI), source=0.0_dp)
+      ! NULLIFY(Ctensor)
+      ! ALLOCATE(Ctensor(n_ao,n_ao,n_RI), source=0.0_dp)
+      ! ! Cycle over full dimensions of sigma - many operations - can parallelize over rows/cols
+      ! !$OMP PARALLEL DO DEFAULT(none) SHARED(Btensor, rho_test, int_3c,n_RI,n_ao) PRIVATE(Q,sigma_col,rho_row,rho_col,element)
+      ! DO Q=1,n_RI
+      !    DO sigma_col=1,n_ao
+      !       DO rho_row=1,n_ao
+      !          DO rho_col=1,n_ao
+      !             element = rho_test(rho_row, rho_col)
+      !             Btensor(rho_row,sigma_col,Q) = Btensor(rho_row,sigma_col,Q) + int_3c(sigma_col, rho_col, Q) * element
+      !          END DO
+      !       END DO
+      !    END DO
+      ! END DO
+      ! !$OMP END PARALLEL DO
+      ! ! Btensor constructed - contract it with W_PQ
+      ! !$OMP PARALLEL DO DEFAULT(none) SHARED(n_RI,n_ao,Btensor,Ctensor,W_test) PRIVATE(P,Q,element,rho_row,sigma_col)
+      ! DO P=1,n_RI
+      !    DO rho_row=1,n_ao
+      !       DO sigma_col=1,n_ao
+      !          DO Q=1,n_RI
+      !             element = W_test(P,Q)
+      !             Ctensor(rho_row,sigma_col,P) = Ctensor(rho_row,sigma_col,P) + element * Btensor(rho_row, sigma_col, Q)
+      !          END DO
+      !       END DO
+      !    END DO
+      ! END DO
+      ! !$OMP END PARALLEL DO
+      ! ! Ctensor constructed
+      ! ! Do the final contraction
+      ! !$OMP PARALLEL DO DEFAULT(none) SHARED(sigma_test,n_RI,n_ao,Ctensor,int_3c) PRIVATE(P,sigma_row,sigma_col,rho_row, element)
+      ! DO sigma_row=1,n_ao
+      !    DO sigma_col=1,n_ao
+      !       element = 0.0_dp
+      !       DO rho_row=1,n_ao
+      !          DO P=1,n_RI
+      !             element = element + int_3c(sigma_row, rho_row, P) * Ctensor(rho_row, sigma_col, P)
+      !          END DO
+      !       END DO
+      !       sigma_test(sigma_row, sigma_col) = element
+      !    END DO
+      ! END DO
+      ! !$OMP END PARALLEL DO
+      ! DEALLOCATE(Ctensor)
+      ! DEALLOCATE(Btensor)
+      ! DEALLOCATE(int_3c)
+      ! PRINT *, "second sigma", sigma_test
+      ! DEALLOCATE(sigma_test)
+      ! DEALLOCATE(rho_test)
+      ! DEALLOCATE(W_test)
+
+      ! ! === END TEST
+      element = 0.0_dp
+      n_RI = tdagw_env%n_RI
+      n_ao = tdagw_env%n_ao
+
+      NULLIFY(W_fm%matrix)
+      ALLOCATE(W_fm%matrix)
+      CALL cp_fm_create(W_fm%matrix, bs_env%fm_W_MIC_freq_zero%matrix_struct)
+      CALL cp_fm_set_all(W_fm%matrix, 0.0_dp)
+      CALL copy_dbcsr_to_fm(tdagw_env%w_dbcsr%matrix, W_fm%matrix)
+
+      NULLIFY(zeromat%matrix)
+      ALLOCATE(zeromat%matrix)
+      CALL cp_fm_create(zeromat%matrix, bs_env%fm_W_MIC_freq_zero%matrix_struct)
+      CALL cp_fm_set_all(zeromat%matrix, 0.0_dp)
+      
+      PRINT *, "W aherm", antiherm_metric(W_fm, zeromat)
+
+      ! Get all the 3c integrals - DEBUG setting
+      NULLIFY(int_3c)
+      ALLOCATE(int_3c(n_ao,n_ao,n_RI))
+      CALL build_3c_integrals(int_3c, qs_env, potential_parameter=bs_env%ri_metric,&
+                              basis_j=bs_env%basis_set_AO, basis_k=bs_env%basis_set_AO, basis_i=bs_env%basis_set_RI,&
+                              j_bf_start_from_atom=bs_env%i_ao_start_from_atom,&
+                              k_bf_start_from_atom=bs_env%i_ao_start_from_atom,&
+                              i_bf_start_from_atom=bs_env%i_RI_start_from_atom)
+
+      !$OMP PARALLEL DO DEFAULT(none) SHARED(prefactor,n_ao,n_RI,int_3c,sigma_fm,greens_ptr,W_fm) PRIVATE(P,Q,sigma_row,sigma_col,rho_row,rho_col,element, second_element,third_element)
+      DO sigma_row=1,n_ao
+         DO sigma_col=1,n_ao
+            element = 0.0_dp
+            DO P=1,n_RI
+               DO Q=1,n_RI
+                  CALL cp_fm_get_element(W_fm%matrix, P, Q, second_element)
+                  DO rho_row=1,n_ao
+                     DO rho_col=1,n_ao
+                        CALL cp_fm_get_element(greens_ptr%matrix, rho_row, rho_col, third_element)
+                        element = element + prefactor * int_3c(sigma_row, rho_row, P) * second_element *&
+                                int_3c(sigma_col,rho_col,Q) * third_element
+                     END DO
+                  END DO
+               END DO
+            END DO
+            CALL cp_fm_set_element(sigma_fm%matrix, sigma_row, sigma_col, element)
+         END DO
+      END DO
+      !$OMP END PARALLEL DO
+      DEALLOCATE(int_3c)
+      CALL cp_fm_release(W_fm%matrix)
+      CALL cp_fm_release(zeromat%matrix)
+      ! NULLIFY(Btensor)
+      ! ALLOCATE(Btensor(n_ao,n_ao,n_RI), source=0.0_dp)
+      ! NULLIFY(Ctensor)
+      ! ALLOCATE(Ctensor(n_ao,n_ao,n_RI), source=0.0_dp)
+      ! ! Cycle over full dimensions of sigma - many operations - can parallelize over rows/cols
+      ! !$OMP PARALLEL DO DEFAULT(none) SHARED(Btensor, greens_ptr, int_3c,n_RI,n_ao) PRIVATE(Q,sigma_col,rho_row,rho_col,element)
+      ! DO Q=1,n_RI
+      !    DO sigma_col=1,n_ao
+      !       DO rho_row=1,n_ao
+      !          DO rho_col=1,n_ao
+      !             CALL cp_fm_get_element(greens_ptr%matrix, rho_row, rho_col, element)
+      !             Btensor(rho_row,sigma_col,Q) = Btensor(rho_row,sigma_col,Q) + int_3c(sigma_col, rho_col, Q) * element
+      !          END DO
+      !       END DO
+      !    END DO
+      ! END DO
+      ! !$OMP END PARALLEL DO
+      ! ! Btensor constructed - contract it with W_PQ
+      ! !$OMP PARALLEL DO DEFAULT(none) SHARED(n_RI,n_ao,Btensor,Ctensor,bs_env) PRIVATE(P,Q,element,rho_row,sigma_col)
+      ! DO P=1,n_RI
+      !    DO rho_row=1,n_ao
+      !       DO sigma_col=1,n_ao
+      !          DO Q=1,n_RI
+      !             CALL cp_fm_get_element(bs_env%fm_W_MIC_freq_zero, P, Q, element)
+      !             Ctensor(rho_row,sigma_col,P) = Ctensor(rho_row,sigma_col,P) + element * Btensor(rho_row, sigma_col, Q)
+      !          END DO
+      !       END DO
+      !    END DO
+      ! END DO
+      ! !$OMP END PARALLEL DO
+      ! ! Ctensor constructed
+      ! ! Do the final contraction
+      ! !$OMP PARALLEL DO DEFAULT(none) SHARED(sigma_fm,n_RI,n_ao,Ctensor,int_3c) PRIVATE(P,sigma_row,sigma_col,rho_row, element)
+      ! DO sigma_row=1,n_ao
+      !    DO sigma_col=1,n_ao
+      !       element = 0.0_dp
+      !       DO rho_row=1,n_ao
+      !          DO P=1,n_RI
+      !             element = element + int_3c(sigma_row, rho_row, P) * Ctensor(rho_row, sigma_col, P)
+      !          END DO
+      !       END DO
+      !       CALL cp_fm_set_element(sigma_fm%matrix, sigma_row, sigma_col, element)
+      !    END DO
+      ! END DO
+      ! !$OMP END PARALLEL DO
+      ! DEALLOCATE(Ctensor)
+      ! DEALLOCATE(Btensor)
+      ! DEALLOCATE(int_3c)
+   END SUBROUTINE get_sigma_local
 ! TODO : Maybe combine with get_sigma? - this will be updated at every step and requires rebuilding of 3c?
 ! **************************************************************************************************
 !> \brief Creates the V_dbt tensor and populates it with correct values
