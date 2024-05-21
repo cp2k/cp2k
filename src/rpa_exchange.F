@@ -154,7 +154,8 @@ CONTAINS
       REAL(KIND=dp), PARAMETER                           :: thresh = 0.0000001_dp
 
       INTEGER :: handle, iib, ispin, nspins, P, Q, L_size_Gamma, hom, virt, i, &
-                 send_proc, recv_proc, recv_size, max_aux_size, proc_shift, dimen_ia, dimen_RI
+                 send_proc, recv_proc, recv_size, max_aux_size, proc_shift, dimen_ia, dimen_RI, &
+                 block_size, P_start, P_end, P_size, Q_start, Q_size, Q_end
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigenval
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), TARGET :: mat_Gamma_3_3D
       REAL(KIND=dp), POINTER, DIMENSION(:), CONTIGUOUS :: mat_Gamma_3_1D
@@ -275,12 +276,13 @@ CONTAINS
          CALL calc_fm_mat_S_rpa(fm_mat_S(ispin), .TRUE., virt, eig(:, ispin), hom, omega, 0.0_dp)
 
          L_size_Gamma = SIZE(mat_Gamma_3_3D, 3)
+         block_size = 1
 
-         ALLOCATE (product_matrix_1D(INT(hom*L_size_Gamma, KIND=int_8)*INT(hom*max_aux_size, KIND=int_8)))
-         product_matrix_2D(1:hom*L_size_Gamma, 1:hom*max_aux_size) => &
-            product_matrix_1D(1:INT(hom*L_size_Gamma, KIND=int_8)*INT(hom*max_aux_size, KIND=int_8))
-         product_matrix_4D(1:hom, 1:L_size_Gamma, 1:hom, 1:max_aux_size) => &
-            product_matrix_1D(1:INT(hom*L_size_Gamma, KIND=int_8)*INT(hom*max_aux_size, KIND=int_8))
+         ALLOCATE (product_matrix_1D(INT(hom*block_size, KIND=int_8)*INT(hom*block_size, KIND=int_8)))
+         product_matrix_2D(1:hom*block_size, 1:hom*block_size) => &
+            product_matrix_1D(1:INT(hom*block_size, KIND=int_8)*INT(hom*block_size, KIND=int_8))
+         product_matrix_4D(1:hom, 1:block_size, 1:hom, 1:block_size) => &
+            product_matrix_1D(1:INT(hom*block_size, KIND=int_8)*INT(hom*block_size, KIND=int_8))
          ALLOCATE (recv_buffer_1D(INT(virt, KIND=int_8)*hom*max_aux_size))
          recv_buffer_2D(1:virt, 1:hom*max_aux_size) => recv_buffer_1D(1:INT(virt, KIND=int_8)*hom*max_aux_size)
          recv_buffer_3D(1:virt, 1:hom, 1:max_aux_size) => recv_buffer_1D(1:INT(virt, KIND=int_8)*hom*max_aux_size)
@@ -296,16 +298,24 @@ CONTAINS
 
             CALL para_env%sendrecv(mat_B_iaP, send_proc, recv_buffer_3D(:, :, 1:recv_size), recv_proc)
 
-            CALL mp2_env%local_gemm_ctx%gemm("T", "N", hom*L_size_Gamma, hom*recv_size, virt, 1.0_dp, &
-                                             mat_Gamma_3_2D, virt, &
-                                             recv_buffer_2D(:, 1:hom*recv_size), virt, &
-                                             0.0_dp, product_matrix_2D, hom*L_size_Gamma)
-            DO P = 1, L_size_Gamma
-            DO Q = 1, recv_size
-            DO i = 1, hom
-               e_exchange_corr = e_exchange_corr + DOT_PRODUCT(product_matrix_4D(i, P, :, Q), product_matrix_4D(:, P, i, Q))
-            END DO
-            END DO
+            DO P_start = 1, L_size_Gamma, block_size
+               P_end = MIN(L_size_Gamma, P_start + block_size - 1)
+               P_size = P_end - P_start + 1
+               DO Q_start = 1, recv_size, block_size
+                  Q_end = MIN(recv_size, Q_start + block_size - 1)
+                  Q_size = Q_end - Q_start + 1
+                  CALL mp2_env%local_gemm_ctx%gemm("T", "N", hom*P_size, hom*Q_size, virt, 1.0_dp, &
+                                                   mat_Gamma_3_2D(:, hom*(P_start - 1) + 1:hom*P_end), virt, &
+                                                   recv_buffer_2D(:, hom*(Q_start - 1) + 1:hom*Q_end), virt, &
+                                                   0.0_dp, product_matrix_2D, hom*block_size)
+                  DO P = 1, P_size
+                  DO Q = 1, Q_size
+                  DO i = 1, hom
+                     e_exchange_corr = e_exchange_corr + DOT_PRODUCT(product_matrix_4D(i, P, :, Q), product_matrix_4D(:, P, i, Q))
+                  END DO
+                  END DO
+                  END DO
+               END DO
             END DO
          END DO
 
