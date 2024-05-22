@@ -6,4 +6,5 @@
 ./scripts/stage8/install_spfft.sh
 ./scripts/stage8/install_spla.sh
 ./scripts/stage8/install_sirius.sh
+./scripts/stage8/install_dftd4.sh
 #EOF

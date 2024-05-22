@@ -266,7 +266,7 @@ mpi_list="mpich openmpi intelmpi"
 math_list="mkl acml openblas"
 lib_list="fftw libint libxc libgrpp libxsmm cosma scalapack elpa cusolvermp plumed \
           spfft spla ptscotch superlu pexsi quip gsl spglib hdf5 libvdwxc sirius
-          libvori libtorch deepmd"
+          libvori libtorch deepmd dftd4"
 package_list="${tool_list} ${mpi_list} ${math_list} ${lib_list}"
 # ------------------------------------------------------------------------
 
@@ -315,6 +315,8 @@ with_spla="__DONTUSE__"
 with_cosma="__INSTALL__"
 with_libvori="__INSTALL__"
 with_libtorch="__DONTUSE__"
+with_dftd4="__INSTALL__"
+
 # for MPI, we try to detect system MPI variant
 if (command -v mpiexec > /dev/null 2>&1); then
   # check if we are dealing with openmpi, mpich or intelmpi
@@ -650,6 +652,9 @@ while [ $# -ge 1 ]; do
     --with-spla*)
       with_spla=$(read_with "${1}")
       ;;
+    --with-dftd4*)
+      with_dftd4=$(read_with "${1}")
+      ;;
     --help*)
       show_help
       exit 0
@@ -794,7 +799,8 @@ if [ "${with_spglib}" = "__INSTALL__" ] ||
   [ "${with_sirius}" = "__INSTALL__" ] ||
   [ "${with_cosma}" = "__INSTALL__" ] ||
   [ "${with_spfft}" = "__INSTALL__" ] ||
-  [ "${with_spla}" = "__INSTALL__" ]; then
+  [ "${with_spla}" = "__INSTALL__" ]  ||
+  [ "${with_dftd4}" = "__INSTALL__" ]; then
   [ "${with_cmake}" = "__DONTUSE__" ] && with_cmake="__INSTALL__"
 fi
 
