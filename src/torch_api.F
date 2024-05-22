@@ -366,7 +366,7 @@ CONTAINS
       res = torch_c_cuda_is_available()
 #else
       CPABORT("CP2K was compiled without Torch library.")
-      MARK_USED(res)
+      res = .FALSE.
 #endif
    END FUNCTION torch_cuda_is_available
 
