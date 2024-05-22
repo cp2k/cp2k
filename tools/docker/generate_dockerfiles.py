@@ -65,8 +65,12 @@ def main() -> None:
                 f.write(regtest("ssmp", testopts="--skipdir=QS/regtest-rs-dhft"))
 
     with OutputFile("Dockerfile.test_i386", args.check) as f:
-        f.write(toolchain_ubuntu_nompi(base_image="i386/debian:12.5", gcc_version=12))
-        f.write(regtest_cmake("ubuntu", "ssmp"))
+        f.write(
+            toolchain_ubuntu_nompi(
+                base_image="i386/debian:12.5", gcc_version=12, with_libxsmm=False
+            )
+        )
+        f.write(regtest_cmake("ubuntu_i386", "ssmp"))
 
     with OutputFile("Dockerfile.test_arm64-psmp", args.check) as f:
         f.write(
@@ -415,7 +419,7 @@ RUN /bin/bash -o pipefail -c "source /opt/cp2k-toolchain/install/setup; ./instal
 
 # ======================================================================================
 def toolchain_ubuntu_nompi(
-    base_image: str = "ubuntu:24.04", gcc_version: int = 13
+    base_image: str = "ubuntu:24.04", gcc_version: int = 13, with_libxsmm: bool = True
 ) -> str:
     assert gcc_version > 8
     output = rf"""
@@ -439,7 +443,7 @@ RUN export DEBIAN_FRONTEND=noninteractive DEBCONF_NONINTERACTIVE_SEEN=true && \
     libopenblas-dev \
     libint2-dev \
     libxc-dev \
-    libxsmm-dev \
+    {"libxsmm-dev" if with_libxsmm else ""} \
     libspglib-f08-dev \
    && rm -rf /var/lib/apt/lists/*
 

@@ -23,7 +23,7 @@ RUN export DEBIAN_FRONTEND=noninteractive DEBCONF_NONINTERACTIVE_SEEN=true && \
     libopenblas-dev \
     libint2-dev \
     libxc-dev \
-    libxsmm-dev \
+     \
     libspglib-f08-dev \
    && rm -rf /var/lib/apt/lists/*
 
@@ -50,7 +50,7 @@ ARG TESTOPTS=""
 COPY ./tools/docker/scripts/build_cp2k_cmake.sh ./tools/docker/scripts/test_regtest_cmake.sh ./
 RUN /bin/bash -o pipefail -c " \
     TESTOPTS='${TESTOPTS}' \
-    ./test_regtest_cmake.sh ubuntu ssmp |& tee report.log && \
+    ./test_regtest_cmake.sh ubuntu_i386 ssmp |& tee report.log && \
     rm -rf regtesting"
 
 # Output the report if the image is old and was therefore pulled from the build cache.

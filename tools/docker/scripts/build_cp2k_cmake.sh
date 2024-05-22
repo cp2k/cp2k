@@ -163,6 +163,28 @@ elif [[ "${PROFILE}" == "ubuntu" ]] && [[ "${VERSION}" == "ssmp" ]]; then
     .. |& tee ./cmake.log
   CMAKE_EXIT_CODE=$?
 
+elif [[ "${PROFILE}" == "ubuntu_i386" ]] && [[ "${VERSION}" == "ssmp" ]]; then
+  # TODO fix spglib https://github.com/cp2k/cp2k/issues/3414
+  cmake \
+    -GNinja \
+    -DCMAKE_INSTALL_PREFIX=/opt/cp2k \
+    -Werror=dev \
+    -DCP2K_ENABLE_REGTESTS=ON \
+    -DCP2K_BLAS_VENDOR=OpenBLAS \
+    -DCP2K_USE_LIBINT2=ON \
+    -DCP2K_USE_LIBXC=ON \
+    -DCP2K_USE_FFTW3=ON \
+    -DCP2K_USE_LIBXSMM=OFF \
+    -DCP2K_USE_SPGLIB=OFF \
+    -DCP2K_USE_MPI=OFF \
+    -DCP2K_USE_MPI_F08=OFF \
+    -DCP2K_USE_VORI=OFF \
+    -DCP2K_USE_COSMA=OFF \
+    -DCP2K_USE_DLAF=OFF \
+    -DCP2K_USE_LIBTORCH=OFF \
+    .. |& tee ./cmake.log
+  CMAKE_EXIT_CODE=$?
+
 elif [[ "${PROFILE}" == "minimal" ]] && [[ "${VERSION}" == "ssmp" ]]; then
   cmake \
     -GNinja \
