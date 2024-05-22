@@ -40,7 +40,7 @@ MODULE gw_large_cell_gamma
    USE cp_fm_diag,                      ONLY: cp_fm_power
    USE cp_fm_types,                     ONLY: &
         cp_fm_create, cp_fm_get_diag, cp_fm_get_info, cp_fm_read_unformatted, cp_fm_release, &
-        cp_fm_set_all, cp_fm_to_fm, cp_fm_type, cp_fm_write_unformatted
+        cp_fm_set_all, cp_fm_to_fm, cp_fm_type, cp_fm_write_unformatted, cp_fm_write_formatted
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_p_file,&
@@ -986,6 +986,8 @@ CONTAINS
       REAL(KIND=dp)                                      :: t1
       TYPE(cp_cfm_type)                                  :: cfm_M_inv_V_sqrt_ikp, cfm_V_sqrt_ikp
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :)     :: fm_V_kp
+      ! ! DEBUG : Printing W for all frequencies
+      ! TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: dummy_array
 
       CALL timeset(routineN, handle)
 
@@ -1021,6 +1023,14 @@ CONTAINS
 
                ! Fourier trafo from W_PQ^MIC(iω_j) to W_PQ^MIC(iτ)
                CALL Fourier_transform_w_to_t(bs_env, fm_W_MIC_time, bs_env%fm_W_MIC_freq, j_w)
+
+               ! ! DEBUG : print the W_MIC matrices for all frequencies
+               ! PRINT *, "Frequency index", j_w, "Frequency", bs_env%imag_freq_points(j_w) 
+               ! ALLOCATE(dummy_array(1))
+               ! dummy_array(1) = bs_env%fm_W_MIC_freq
+               ! CALL multiply_fm_W_MIC_time_with_Minv_Gamma(bs_env, qs_env, dummy_array)
+               ! CALL cp_fm_write_formatted(dummy_array(1), 6)
+               ! DEALLOCATE(dummy_array)
 
             END DO ! ω_j
 
@@ -1060,6 +1070,9 @@ CONTAINS
       ! TODO : Add activation dependent on the rt_propagation
       ! Create the matrix TODO: Add release statement in some well understood place - at destruction of bs_env?
       IF (bs_env%rtp_method == rtp_method_gw) THEN
+         ! ! DEBUG : Print weights for smallest frequency point and for zero frequency
+         ! PRINT *, "Weights smallest", bs_env%weights_cos_t_to_w(1,:)
+         ! PRINT *, "Weights zero", bs_env%imag_time_weights_freq_zero(:)
          CALL cp_fm_create(bs_env%fm_W_MIC_freq_zero, bs_env%fm_W_MIC_freq%matrix_struct)
          ! Set to zero
          CALL cp_fm_set_all(bs_env%fm_W_MIC_freq_zero, 0.0_dp)

@@ -1806,7 +1806,7 @@ CONTAINS
       END IF
 
       bs_env%imag_time_points(:) = points_and_weights(1:num_time_freq_points)/(2.0_dp*E_min)
-      bs_env%imag_time_weights_freq_zero(:) = points_and_weights(num_time_freq_points+1:)/(2.0_dp*E_min)
+      bs_env%imag_time_weights_freq_zero(:) = points_and_weights(num_time_freq_points+1:)/(E_min)
 
       DEALLOCATE (points_and_weights)
 
