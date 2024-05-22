@@ -1515,7 +1515,8 @@ CONTAINS
                               k_bf_start_from_atom=bs_env%i_ao_start_from_atom,&
                               i_bf_start_from_atom=bs_env%i_RI_start_from_atom)
 
-      !$OMP PARALLEL DO DEFAULT(none) SHARED(prefactor,n_ao,n_RI,int_3c,sigma_fm,greens_ptr,W_fm) PRIVATE(P,Q,sigma_row,sigma_col,rho_row,rho_col,element, second_element,third_element)
+      !$OMP PARALLEL DO DEFAULT(none) SHARED(prefactor,n_ao,n_RI,int_3c,sigma_fm,greens_ptr,W_fm)
+      !$OMP& PRIVATE(P,Q,sigma_row,sigma_col,rho_row,rho_col,element, second_element,third_element)
       DO sigma_row=1,n_ao
          DO sigma_col=1,n_ao
             element = 0.0_dp
