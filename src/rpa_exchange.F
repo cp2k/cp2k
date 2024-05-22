@@ -33,7 +33,8 @@ MODULE rpa_exchange
    USE group_dist_types,                ONLY: create_group_dist,&
                                               get_group_dist,&
                                               group_dist_d1_type,&
-                                              group_dist_proc
+                                              group_dist_proc,&
+                                              release_group_dist
    USE input_constants,                 ONLY: rpa_exchange_axk,&
                                               rpa_exchange_none,&
                                               rpa_exchange_sosex
@@ -41,7 +42,8 @@ MODULE rpa_exchange
                                               int_8
    USE local_gemm_api,                  ONLY: LOCAL_GEMM_PU_GPU
    USE mathconstants,                   ONLY: sqrthalf
-   USE message_passing,                 ONLY: mp_para_env_type
+   USE message_passing,                 ONLY: mp_para_env_type,&
+                                              mp_proc_null
    USE mp2_types,                       ONLY: mp2_type
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE rpa_util,                        ONLY: calc_fm_mat_S_rpa,&
@@ -190,7 +192,7 @@ CONTAINS
 
       INTEGER :: handle, iib, ispin, nspins, P, Q, L_size_Gamma, hom, virt, i, &
                  send_proc, recv_proc, recv_size, max_aux_size, proc_shift, dimen_ia, dimen_RI, &
-                 block_size, P_start, P_end, P_size, Q_start, Q_size, Q_end
+                 block_size, P_start, P_end, P_size, Q_start, Q_size, Q_end, handle2, my_aux_size
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigenval
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), TARGET :: mat_Gamma_3_3D
       REAL(KIND=dp), POINTER, DIMENSION(:), CONTIGUOUS :: mat_Gamma_3_1D
@@ -204,6 +206,7 @@ CONTAINS
       REAL(KIND=dp), POINTER, DIMENSION(:, :, :, :), CONTIGUOUS :: product_matrix_4D
       TYPE(cp_fm_type)        :: fm_mat_Gamma_3
       TYPE(mp_para_env_type), POINTER :: para_env
+      TYPE(group_dist_d1_type)                           :: aux_func_dist
 
       IF (exchange_work%exchange_correction == rpa_exchange_none) RETURN
 
@@ -264,6 +267,9 @@ CONTAINS
       CALL cp_fm_to_fm_submat_general(exchange_work%fm_mat_U, exchange_work%fm_mat_R_half_gemm, dimen_RI, &
                                       dimen_RI, 1, 1, 1, 1, exchange_work%fm_mat_U%matrix_struct%context)
 
+      CALL create_group_dist(aux_func_dist, para_env%num_pe, dimen_RI)
+      CALL get_group_dist(aux_func_dist, para_env%mepos, sizes=my_aux_size)
+
       e_exchange_corr = 0.0_dp
       max_aux_size = (dimen_RI + para_env%num_pe - 1)/para_env%num_pe
 
@@ -295,17 +301,17 @@ CONTAINS
          ! Remove extra factor from S after the multiplication (to return to the original matrix)
          CALL remove_scaling_factor_rpa(fm_mat_S(ispin), virt, eig(:, ispin), hom, omega)
 
-         CALL redistribute_into_subgroups(fm_mat_Gamma_3, mat_Gamma_3_3D, hom, virt)
+         CALL redistribute_into_subgroups(fm_mat_Gamma_3, mat_Gamma_3_3D, hom, virt, aux_func_dist)
          CALL cp_fm_release(fm_mat_Gamma_3)
 
-         mat_Gamma_3_1D(1:INT(virt, KIND=int_8)*hom*max_aux_size) => mat_Gamma_3_3D(:, :, 1:max_aux_size)
-         mat_Gamma_3_2D(1:virt, 1:hom*max_aux_size) => mat_Gamma_3_1D(1:INT(virt, KIND=int_8)*hom*max_aux_size)
+         mat_Gamma_3_1D(1:INT(virt, KIND=int_8)*hom*my_aux_size) => mat_Gamma_3_3D(:, :, 1:my_aux_size)
+         mat_Gamma_3_2D(1:virt, 1:hom*my_aux_size) => mat_Gamma_3_1D(1:INT(virt, KIND=int_8)*hom*my_aux_size)
 
          ! We need only the pure matrix
          CALL remove_scaling_factor_rpa(fm_mat_S(ispin), virt, eig(:, ispin), hom, omega)
 
          ! Reorder matrix from (P, i*a) -> (a, i, P) with P being distributed within subgroups
-         CALL redistribute_into_subgroups(fm_mat_S(ispin), mat_B_iaP, hom, virt)
+         CALL redistribute_into_subgroups(fm_mat_S(ispin), mat_B_iaP, hom, virt, aux_func_dist)
 
          ! Return to the original tensor
          CALL calc_fm_mat_S_rpa(fm_mat_S(ispin), .TRUE., virt, eig(:, ispin), hom, omega, 0.0_dp)
@@ -321,13 +327,13 @@ CONTAINS
             send_proc = MODULO(para_env%mepos + proc_shift, para_env%num_pe)
             recv_proc = MODULO(para_env%mepos - proc_shift, para_env%num_pe)
 
-            IF (recv_proc < MOD(dimen_RI, para_env%num_pe)) THEN
-               recv_size = (dimen_RI + para_env%num_pe - 1)/para_env%num_pe
-            ELSE
-               recv_size = dimen_RI/para_env%num_pe
-            END IF
+            CALL get_group_dist(aux_func_dist, recv_proc, sizes=recv_size)
+
+            IF (recv_size == 0) recv_proc = mp_proc_null
 
             CALL para_env%sendrecv(mat_B_iaP, send_proc, recv_buffer_3D(:, :, 1:recv_size), recv_proc)
+
+            IF (recv_size == 0) CYCLE
 
             DO P_start = 1, L_size_Gamma, block_size
                P_end = MIN(L_size_Gamma, P_start + block_size - 1)
@@ -342,10 +348,14 @@ CONTAINS
                   product_matrix_4D(1:hom, 1:P_size, 1:hom, 1:Q_size) => &
                      product_matrix_1D(1:INT(hom*P_size, KIND=int_8)*INT(hom*Q_size, KIND=int_8))
 
+                  CALL timeset(routineN//"_gemm", handle2)
                   CALL mp2_env%local_gemm_ctx%gemm("T", "N", hom*P_size, hom*Q_size, virt, 1.0_dp, &
                                                    mat_Gamma_3_2D(:, hom*(P_start - 1) + 1:hom*P_end), virt, &
                                                    recv_buffer_2D(:, hom*(Q_start - 1) + 1:hom*Q_end), virt, &
                                                    0.0_dp, product_matrix_2D, hom*P_size)
+                  CALL timestop(handle2)
+
+                  CALL timeset(routineN//"_energy", handle2)
                   DO P = 1, P_size
                   DO Q = 1, Q_size
                   DO i = 1, hom
@@ -353,6 +363,7 @@ CONTAINS
                   END DO
                   END DO
                   END DO
+                  CALL timestop(handle2)
                END DO
             END DO
          END DO
@@ -361,6 +372,8 @@ CONTAINS
       END DO
       IF (nspins == 2) e_exchange_corr = e_exchange_corr*2.0_dp
       IF (nspins == 1) e_exchange_corr = e_exchange_corr*4.0_dp
+
+      CALL release_group_dist(aux_func_dist)
 
       CALL mp2_env%local_gemm_ctx%destroy()
 
@@ -374,20 +387,24 @@ CONTAINS
 !> \param mat ...
 !> \param ncols ...
 !> \param nrows ...
+!> \param aux_func_dist ...
 ! **************************************************************************************************
-   SUBROUTINE redistribute_into_subgroups(fm_mat, mat, ncols, nrows)
+   SUBROUTINE redistribute_into_subgroups(fm_mat, mat, ncols, nrows, aux_func_dist)
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
          INTENT(OUT)                                     :: mat
       INTEGER, INTENT(IN)                                :: ncols, nrows
+      TYPE(group_dist_d1_type), INTENT(IN)               :: aux_func_dist
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'redistribute_into_subgroups'
 
-      INTEGER :: aux_global, aux_local, avirt, dimen_RI, handle, ia_global, ia_local, iocc, &
-         max_number_recv, max_number_send, my_aux_end, my_aux_size, my_aux_start, &
-         my_process_column, my_process_row, proc, proc_shift, recv_cols, recv_counter, recv_proc, &
-         recv_proc_col, recv_proc_row, recv_rows, send_counter, send_proc
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: data2recv, data2send
+      INTEGER :: amount_of_recv_data, amount_of_sent_data, aux_global, aux_local, avirt, dimen_RI, &
+         handle, handle2, ia_global, ia_local, iocc, max_number_send, my_aux_end, my_aux_size, &
+         my_aux_start, my_process_column, my_process_row, proc, proc_shift, recv_counter, &
+         recv_proc, send_counter, send_proc
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: data2recv, data2send, recv_col_indices, &
+                                                            recv_row_indices, send_indices
+      INTEGER, DIMENSION(2)                              :: recv_shape
       INTEGER, DIMENSION(:), POINTER                     :: aux_distribution_fm, col_indices, &
                                                             ia_distribution_fm, row_indices
       INTEGER, DIMENSION(:, :), POINTER                  :: mpi2blacs
@@ -396,7 +413,6 @@ CONTAINS
       REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :), &
          POINTER                                         :: recv_ptr
       TYPE(cp_blacs_env_type), POINTER                   :: context
-      TYPE(group_dist_d1_type)                           :: aux_func_dist
       TYPE(mp_para_env_type), POINTER                    :: para_env
 
       CALL timeset(routineN, handle)
@@ -416,7 +432,7 @@ CONTAINS
          RETURN
       END IF
 
-      CALL create_group_dist(aux_func_dist, para_env%num_pe, dimen_RI)
+      CALL timeset(routineN//"_prep", handle2)
       CALL get_group_dist(aux_func_dist, para_env%mepos, my_aux_start, my_aux_end, my_aux_size)
 
       CALL context%get(my_process_column=my_process_column, my_process_row=my_process_row, &
@@ -432,25 +448,29 @@ CONTAINS
       END DO
       max_number_send = MAXVAL(data2send)
 
-      ! Determine the number of Auxiliary functions and occ/virt pairs to recv
-      ALLOCATE (data2recv(0:para_env%num_pe - 1))
-      data2recv = 0
-      DO aux_global = my_aux_start, my_aux_end
-         proc = fm_mat%matrix_struct%g2p_row(aux_global)
-         data2recv(proc) = data2recv(proc) + 1
-      END DO
-      max_number_recv = MAXVAL(data2recv*ia_distribution_fm(mpi2blacs(1, :)))
+      ALLOCATE (send_buffer(SIZE(col_indices), max_number_send))
 
-      ALLOCATE (send_buffer(ia_distribution_fm(my_process_column), max_number_send))
-      ALLOCATE (recv_buffer(max_number_recv))
+      ALLOCATE (data2recv(0:para_env%num_pe - 1))
+      CALL para_env%alltoall(data2send, data2recv, 1)
+      ALLOCATE (recv_buffer(MAXVAL(ia_distribution_fm)*MAXVAL(data2recv)))
+      DEALLOCATE (data2recv)
 
       ALLOCATE (mat(nrows, ncols, my_aux_size))
 
+      CALL timestop(handle2)
+
+      amount_of_sent_data = SIZE(fm_mat%local_data)
+      amount_of_recv_data = SIZE(mat)
+
+      CALL timeset(routineN//"_own", handle2)
       ! Start with own data
       recv_counter = 0
-      DO aux_local = 1, my_aux_size
+      DO aux_local = 1, aux_distribution_fm(my_process_row)
          aux_global = row_indices(aux_local)
          IF (aux_global < my_aux_start .OR. aux_global > my_aux_end) CYCLE
+         ! To be removed
+         amount_of_sent_data = amount_of_sent_data - SIZE(fm_mat%local_data(aux_local, :))
+         amount_of_recv_data = amount_of_recv_data - SIZE(fm_mat%local_data(aux_local, :))
          DO ia_local = 1, ia_distribution_fm(my_process_column)
             ia_global = fm_mat%matrix_struct%col_indices(ia_local)
 
@@ -459,13 +479,16 @@ CONTAINS
 
             mat(avirt, iocc, aux_global - my_aux_start + 1) = fm_mat%local_data(aux_local, ia_local)
          END DO
-
       END DO
+      CALL timestop(handle2)
 
-      DO proc_shift = 0, para_env%num_pe - 1
+      ALLOCATE (send_indices(max_number_send))
+
+      DO proc_shift = 1, para_env%num_pe - 1
          send_proc = MODULO(para_env%mepos + proc_shift, para_env%num_pe)
          recv_proc = MODULO(para_env%mepos - proc_shift, para_env%num_pe)
 
+         CALL timeset(routineN//"_pack_buffer", handle2)
 ! Pack send buffer
          send_counter = 0
          DO aux_local = 1, aux_distribution_fm(my_process_row)
@@ -474,37 +497,72 @@ CONTAINS
             IF (proc /= send_proc) CYCLE
             send_counter = send_counter + 1
             send_buffer(:, send_counter) = fm_mat%local_data(aux_local, :)
+            send_indices(send_counter) = aux_global
+            amount_of_sent_data = amount_of_sent_data - SIZE(fm_mat%local_data(aux_local, :))
          END DO
+         CALL timestop(handle2)
 
-         ! Prepare pointer to recv buffer
-         recv_proc_col = mpi2blacs(2, recv_proc)
-         recv_rows = ia_distribution_fm(recv_proc_col)
-         recv_cols = data2recv(recv_proc)
-         recv_ptr(1:recv_rows, 1:recv_cols) => recv_buffer(1:recv_rows*recv_cols)
+         CALL timeset(routineN//"_ex_size", handle2)
+         recv_shape = [1, 1]
+         CALL para_env%sendrecv(SHAPE(send_buffer(:, 1:send_counter)), send_proc, recv_shape, recv_proc)
+         CALL timestop(handle2)
 
+         IF (send_counter == 0) send_proc = mp_proc_null
+         IF (PRODUCT(recv_shape) == 0) recv_proc = mp_proc_null
+
+         WRITE (*, *) "recv_shape", SHAPE(send_buffer(:, 1:send_counter)), recv_shape
+
+         CALL timeset(routineN//"_ex_idx", handle2)
+         ALLOCATE (recv_row_indices(recv_shape(1)), recv_col_indices(recv_shape(2)))
+         CALL para_env%sendrecv(col_indices, send_proc, recv_row_indices, recv_proc)
+         CALL para_env%sendrecv(send_indices(1:send_counter), send_proc, recv_col_indices, recv_proc)
+         CALL timestop(handle2)
+
+         CALL para_env%sync()
+
+         ! Prepare pointer to recv buffer (consider transposition while packing the send buffer)
+         recv_ptr(1:recv_shape(1), 1:MAX(1, recv_shape(2))) => recv_buffer(1:recv_shape(1)*MAX(1, recv_shape(2)))
+
+         CALL timeset(routineN//"_sendrecv", handle2)
 ! Perform communication
-         CALL para_env%sendrecv(send_buffer(:, 1:data2send(send_proc)), send_proc, &
+         CALL para_env%sendrecv(send_buffer(:, 1:MAX(1, send_counter)), send_proc, &
                                 recv_ptr, recv_proc)
+         CALL timestop(handle2)
 
+         IF (recv_proc == mp_proc_null) THEN
+            DEALLOCATE (recv_row_indices, recv_col_indices)
+            CYCLE
+         END IF
+
+         CALL timeset(routineN//"_unpack", handle2)
 ! Unpack receive buffer
-         recv_counter = 0
-         DO aux_global = my_aux_start, my_aux_end
-            proc = fm_mat%matrix_struct%g2p_row(aux_global)
-            IF (proc /= recv_proc) CYCLE
+         DO aux_local = 1, SIZE(recv_col_indices)
+            aux_global = recv_col_indices(aux_local)
 
-            recv_counter = recv_counter + 1
-
-            DO ia_local = 1, recv_rows
-               ia_global = fm_mat%matrix_struct%l2g_col(ia_local, recv_proc_row)
+            DO ia_local = 1, SIZE(recv_row_indices)
+               ia_global = recv_row_indices(ia_local)
 
                iocc = (ia_global - 1)/nrows + 1
                avirt = MOD(ia_global - 1, nrows) + 1
 
-               mat(avirt, iocc, aux_global - my_aux_start + 1) = recv_ptr(ia_local, recv_counter)
+               mat(avirt, iocc, aux_global - my_aux_start + 1) = recv_ptr(ia_local, aux_local)
             END DO
+            amount_of_recv_data = amount_of_recv_data - SIZE(recv_ptr(:, aux_local))
 
          END DO
+         CALL timestop(handle2)
+
+         IF (ALLOCATED(recv_row_indices)) DEALLOCATE (recv_row_indices)
+         IF (ALLOCATED(recv_col_indices)) DEALLOCATE (recv_col_indices)
       END DO
+
+      BLOCK
+         REAL(KIND=dp) :: debug
+         debug = SUM(fm_mat%local_data**2) - SUM(mat**2)
+         CALL para_env%sum(debug)
+         WRITE (*, *) "Checksum communication", debug, amount_of_sent_data, amount_of_recv_data
+         CPASSERT(debug < 1.0E-09_dp)
+      END BLOCK
 
       CALL timestop(handle)
 

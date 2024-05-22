@@ -50,8 +50,9 @@
           DO_SVD
         &END RI
         &RI_RPA
-          EXCHANGE_CORRECTION AXK
           RPA_NUM_QUAD_POINTS 1
+          &EXCHANGE_CORRECTION AXK
+          &END EXCHANGE_CORRECTION
           &HF
             FRACTION 1.0000000
             &SCREENING
