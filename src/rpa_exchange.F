@@ -97,7 +97,7 @@ CONTAINS
 
       ! We need the block size and if it is unknown, an upper bound
       block_size = mp2_env%ri_rpa%exchange_block_size
-      IF (block_size <= 0) block_size = MAX(1, dimen_RI/global_comm%num_pe*mp2_env%ri_rpa%rpa_num_quad_points)
+      IF (block_size <= 0) block_size = MAX(1, (dimen_RI+global_comm%num_pe-1)/global_comm%num_pe)
 
       ! storage of product matrix (upper bound only as it depends on the square of the potential still unknown block size)
       mem_per_rank = mem_per_rank + REAL(MAXVAL(homo), KIND=dp)**2*block_size**2*8.0_dp/(1024_dp**2)
@@ -319,7 +319,7 @@ CONTAINS
          L_size_Gamma = SIZE(mat_Gamma_3_3D, 3)
          block_size = exchange_work%block_size
 
-         ALLOCATE (product_matrix_1D(INT(hom*block_size, KIND=int_8)*INT(hom*block_size, KIND=int_8)))
+         ALLOCATE (product_matrix_1D(INT(hom*MIN(block_size, L_size_gamma), KIND=int_8)*INT(hom*MIN(block_size, max_aux_size), KIND=int_8)))
          ALLOCATE (recv_buffer_1D(INT(virt, KIND=int_8)*hom*max_aux_size))
          recv_buffer_2D(1:virt, 1:hom*max_aux_size) => recv_buffer_1D(1:INT(virt, KIND=int_8)*hom*max_aux_size)
          recv_buffer_3D(1:virt, 1:hom, 1:max_aux_size) => recv_buffer_1D(1:INT(virt, KIND=int_8)*hom*max_aux_size)
