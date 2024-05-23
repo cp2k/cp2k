@@ -71,6 +71,7 @@ MODULE rt_tdagw_types
    USE qs_moments,                      ONLY: build_local_moment_matrix
    USE moments_utils,                   ONLY: get_reference_point
    USE matrix_exp,                      ONLY: get_nsquare_norder
+   USE gw_integrals,                    ONLY: build_3c_integrals
    USE input_constants,                 ONLY: use_mom_ref_coac,&
                                               rtp_tdagw_ham_g0w0,&
                                               rtp_tdagw_ham_ks,&
@@ -178,6 +179,7 @@ MODULE rt_tdagw_types
       INTEGER                                                   :: ham_single_particle_type
       INTEGER                                                   :: mat_exp_method
       INTEGER                                                   :: unit_nr
+      REAL(kind=dp), DIMENSION(:,:,:), POINTER                  :: int_3c_array
 
    END TYPE tdagw_env_type
 
@@ -442,6 +444,7 @@ CONTAINS
       ! Depending on the chosen methods, allocate extra workspace
       IF ( tdagw_env%hartree_method == rtp_tdagw_hartree_dbt ) THEN
          CALL create_hartree_dbt_workspace(tdagw_env, qs_env)
+         CALL create_hartree_ri_workspace(tdagw_env, qs_env)
       ELSEIF ( tdagw_env%hartree_method == rtp_tdagw_hartree_pw) THEN
          CALL create_hartree_pw_workspace(tdagw_env, qs_env)
       END IF
@@ -526,6 +529,35 @@ CONTAINS
       END IF
       
    END SUBROUTINE
+! **************************************************************************************************
+!> \brief Allocates the workspaces for Hartree RI method
+!> \note RI method calculates the Hartree contraction without the use of DBT, as it cannot emulate vectors
+!> \param tdagw_env 
+!> \param qs_env Quickstep environment - entry point of calculation
+!> \author Stepan Marek
+!> \date 05.2024
+! **************************************************************************************************
+   SUBROUTINE create_hartree_ri_workspace(tdagw_env, qs_env)
+      TYPE(tdagw_env_type)                              :: tdagw_env
+      TYPE(qs_environment_type), POINTER                :: qs_env
+      CHARACTER(len=*), PARAMETER                       :: routineN = "create_hartree_ri_workspace"
+      TYPE(post_scf_bandstructure_type), POINTER        :: bs_env
+      REAL(kind=dp)                                     :: size_mb
+
+      ! TODO : Implement option/decision to not precompute all the 3c integrals
+      size_mb = REAL(tdagw_env%n_ao * tdagw_env%n_ao * tdagw_env%n_RI * STORAGE_SIZE(size_mb)) / (1024_dp * 1024_dp)
+      IF (tdagw_env%unit_nr > 0) WRITE(tdagw_env%unit_nr, *) "Approximate size of int_3c in MB", size_mb
+
+      CALL get_qs_env(qs_env, bs_env=bs_env)
+
+      ALLOCATE(tdagw_env%int_3c_array(tdagw_env%n_ao, tdagw_env%n_ao, tdagw_env%n_RI))
+      CALL build_3c_integrals(tdagw_env%int_3c_array, qs_env, potential_parameter=bs_env%ri_metric,&
+                              basis_j=bs_env%basis_set_AO, basis_k=bs_env%basis_set_AO,&
+                              basis_i=bs_env%basis_set_RI,&
+                              j_bf_start_from_atom=bs_env%i_ao_start_from_atom,&
+                              k_bf_start_from_atom=bs_env%i_ao_start_from_atom,&
+                              i_bf_start_from_atom=bs_env%i_RI_start_from_atom)
+   END SUBROUTINE create_hartree_ri_workspace
 ! **************************************************************************************************
 !> \brief Allocates the workspaces for Hartree dbt method, mainly the density tensors
 !> \note DBT method uses 2D and 3D tensors, where one dimension has size 1, in order to emulate vectors

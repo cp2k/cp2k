@@ -1515,8 +1515,8 @@ CONTAINS
                               k_bf_start_from_atom=bs_env%i_ao_start_from_atom,&
                               i_bf_start_from_atom=bs_env%i_RI_start_from_atom)
 
-      !$OMP PARALLEL DO DEFAULT(none) SHARED(prefactor,n_ao,n_RI,int_3c,sigma_fm,greens_ptr,W_fm)
-      !$OMP& PRIVATE(P,Q,sigma_row,sigma_col,rho_row,rho_col,element, second_element,third_element)
+      !$OMP PARALLEL DO DEFAULT(none) SHARED(prefactor,n_ao,n_RI,int_3c,sigma_fm,greens_ptr,W_fm) &
+      !$OMP PRIVATE(P,Q,sigma_row,sigma_col,rho_row,rho_col,element, second_element,third_element)
       DO sigma_row=1,n_ao
          DO sigma_col=1,n_ao
             element = 0.0_dp
@@ -2084,7 +2084,8 @@ CONTAINS
                                                             ri_offset, ind_i
       REAL(kind=dp), DIMENSION(:), ALLOCATABLE           :: Pvector, Qvector
       REAL(kind=dp), DIMENSION(:,:), POINTER             :: block_matrix
-      REAL(kind=dp), DIMENSION(:,:,:), ALLOCATABLE       :: int_3c
+      ! REAL(kind=dp), DIMENSION(:,:,:), ALLOCATABLE       :: int_3c
+      REAL(kind=dp), DIMENSION(:,:,:), POINTER           :: int_3c
       TYPE(dbcsr_type)                                   :: v_dbcsr_ao
       LOGICAL                                            :: found
 
@@ -2097,6 +2098,7 @@ CONTAINS
       ! Get the relevant environments
       CALL get_qs_env(qs_env, bs_env=bs_env, para_env=para_env)
       n_RI = tdagw_env%n_RI
+      int_3c => tdagw_env%int_3c_array
 
       ! Allocate the Q and Pvector on each rank
       ALLOCATE(Qvector(tdagw_env%n_RI), source=0.0_dp)
@@ -2125,10 +2127,10 @@ CONTAINS
          ri_offset = 0
          DO ind_i=1,bs_env%n_atom
             i_n_RI = bs_env%sizes_RI(ind_i)
-            ALLOCATE(int_3c(j_n_AO, k_n_AO, i_n_RI))
-            CALL build_3c_integrals(int_3c, qs_env, potential_parameter=bs_env%ri_metric,&
-                                    basis_j=bs_env%basis_set_AO, basis_k=bs_env%basis_set_AO, basis_i=bs_env%basis_set_RI,&
-                                    atom_j=ind_1, atom_k=ind_2, atom_i=ind_i)
+            ! ALLOCATE(int_3c(j_n_AO, k_n_AO, i_n_RI))
+            ! CALL build_3c_integrals(int_3c, qs_env, potential_parameter=bs_env%ri_metric,&
+            !                         basis_j=bs_env%basis_set_AO, basis_k=bs_env%basis_set_AO, basis_i=bs_env%basis_set_RI,&
+            !                         atom_j=ind_1, atom_k=ind_2, atom_i=ind_i)
             ! ALLOCATE(int_3c(i_n_RI, j_n_AO, k_n_AO))
             ! dbt_index(1) = ind_i
             ! dbt_index(2) = ind_1
@@ -2137,19 +2139,22 @@ CONTAINS
             ! dbt_sizes(2) = j_n_AO
             ! dbt_sizes(3) = k_n_AO
             ! CALL dbt_get_block(tdagw_env%t_3c_w, dbt_index, dbt_sizes, int_3c, found)
-            !$OMP PARALLEL DO DEFAULT(none) PRIVATE(i,j,k) SHARED(Qvector, int_3c, block_matrix,i_n_RI,j_n_AO,k_n_AO, ri_offset)
+            !$OMP PARALLEL DO DEFAULT(none) PRIVATE(i,j,k) &
+            !$OMP SHARED(Qvector, int_3c, block_matrix,i_n_RI,j_n_AO,k_n_AO, ri_offset, ind_1, ind_2, ind_i, bs_env)
             DO i=1,i_n_RI
                DO j=1,j_n_AO
                   DO k=1,k_n_AO
                      ! Different OMP threads write to different places in memory - should be safe from data race
-                     Qvector(ri_offset + i) = Qvector(ri_offset + i) + int_3c(j,k,i) * block_matrix(j,k)
+                     Qvector(ri_offset + i) = Qvector(ri_offset + i) + int_3c(j+bs_env%i_ao_start_from_atom(ind_1)-1,&
+                                                                              k+bs_env%i_ao_start_from_atom(ind_2)-1,&
+                                                                              i+bs_env%i_RI_start_from_atom(ind_i)-1) * block_matrix(j,k)
                      ! Qvector(ri_offset + i) = Qvector(ri_offset + i) + int_3c(i,j,k) * block_matrix(j,k)
                   END DO
                END DO
             END DO
             !$OMP END PARALLEL DO
             ri_offset = ri_offset + i_n_RI
-            DEALLOCATE(int_3c)
+            ! DEALLOCATE(int_3c)
          END DO
       END DO
       CALL dbcsr_iterator_stop(iterator_matrix)
@@ -2169,7 +2174,8 @@ CONTAINS
          j_n_AO = bs_env%sizes_RI(ind_1)
          k_n_AO = bs_env%sizes_RI(ind_2)
          ! The allocations are as follows
-         !$OMP PARALLEL DO DEFAULT(none) SHARED(block_matrix, Pvector, Qvector,j_n_AO,k_n_AO,row_offset,col_offset) PRIVATE(j,k)
+         !$OMP PARALLEL DO DEFAULT(none) PRIVATE(j,k) &
+         !$OMP SHARED(block_matrix, Pvector, Qvector,j_n_AO,k_n_AO,row_offset,col_offset)
          DO j=1,j_n_AO
             DO k=1,k_n_AO
                Pvector(j+row_offset-1) = Pvector(j+row_offset-1) + block_matrix(j,k) * Qvector(k+col_offset-1)
@@ -2194,23 +2200,26 @@ CONTAINS
          block_matrix(:,:) = 0.0_dp
          DO ind_i=1,bs_env%n_atom
             i_n_RI = bs_env%sizes_RI(ind_i)
-            ALLOCATE(int_3c(bs_env%sizes_AO(ind_1), bs_env%sizes_AO(ind_2), bs_env%sizes_RI(ind_i)), source=0.0_dp)
-            CALL build_3c_integrals(int_3c, qs_env, potential_parameter=bs_env%ri_metric,&
-                                    basis_j=bs_env%basis_set_AO, basis_k=bs_env%basis_set_AO, basis_i=bs_env%basis_set_RI,&
-                                    atom_j=ind_1, atom_k=ind_2, atom_i=ind_i)
+            ! ALLOCATE(int_3c(bs_env%sizes_AO(ind_1), bs_env%sizes_AO(ind_2), bs_env%sizes_RI(ind_i)), source=0.0_dp)
+            ! CALL build_3c_integrals(int_3c, qs_env, potential_parameter=bs_env%ri_metric,&
+            !                         basis_j=bs_env%basis_set_AO, basis_k=bs_env%basis_set_AO, basis_i=bs_env%basis_set_RI,&
+            !                         atom_j=ind_1, atom_k=ind_2, atom_i=ind_i)
             ! TODO : In principle, can parallelize over both directions here
-            !$OMP PARALLEL DO DEFAULT(none) SHARED(block_matrix, Pvector, int_3c, i_n_RI, j_n_AO, k_n_AO, ri_offset) PRIVATE(i,j,k)
+            !$OMP PARALLEL DO DEFAULT(none) PRIVATE(i,j,k) &
+            !$OMP SHARED(block_matrix, Pvector, int_3c, i_n_RI, j_n_AO, k_n_AO, ri_offset, ind_1, ind_2, ind_i, bs_env)
             DO j=1,j_n_AO
                DO k=1,k_n_AO
                   ! Add all the summed up values
                   DO i=1,i_n_RI
-                     block_matrix(j, k) = block_matrix(j, k) + int_3c(j, k, i) * Pvector(i+ri_offset)
+                     block_matrix(j, k) = block_matrix(j, k) + int_3c(j+bs_env%i_ao_start_from_atom(ind_1)-1,&
+                                                                      k+bs_env%i_ao_start_from_atom(ind_2)-1,&
+                                                                      i+bs_env%i_RI_start_from_atom(ind_i)-1) * Pvector(i+ri_offset)
                      ! block_matrix(j, k) = block_matrix(j,k) + int_3c(i, j, k) * Pvector(i+ri_offset)
                   END DO
                END DO
             END DO
             !$OMP END PARALLEL DO
-            DEALLOCATE(int_3c)
+            ! DEALLOCATE(int_3c)
             ri_offset = ri_offset + i_n_RI
          END DO
       END DO
