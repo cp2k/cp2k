@@ -45,23 +45,14 @@ case "$with_trexio" in
         echo "Currently trexio is not available from cp2k.org"
         echo "You can clone the repo and build it yourself:"
         echo "git clone https://github.com/TREX-CoE/trexio.git trexio-${trexio_ver}"
-        echo "enter the folder and compile it according to the instructions"
+        echo "and compile it according to the instructions av ailable on github"
         exit 1
       fi
 
       tar -xzf trexio-${trexio_ver}.tar.gz
       cd trexio-${trexio_ver}
-      rm -Rf build
-      mkdir build
-      cd build
 
-      if [ -n "${HDF5_LIBS}" ]; then
-        CMAKE_PREFIX_PATH="${HDF5_ROOT} ${CMAKE_PREFIX_PATH}"
-      fi
-
-      CMAKE_PREFIX_PATH="${CMAKE_PREFIX_PATH}" cmake .. \
-        -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}" \
-        > cmake.log 2>&1 || tail -n ${LOG_LINES} cmake.log
+      ./configure prefix="${pkg_install_dir}" > configure.log 2>&1 || tail -n ${LOG_LINES} configure.log
 
       make -j $(get_nprocs) >> make.log 2>&1 || tail -n ${LOG_LINES} make.log
       make install > install.log 2>&1 || tail -n ${LOG_LINES} install.log
