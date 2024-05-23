@@ -993,8 +993,6 @@ CONTAINS
       END DO
       Erpa = Erpa + FComega*wjquad
 
-      WRITE (*, *) "DEBUG RPA energy (RPA)", FComega
-
       DEALLOCATE (Q_log)
 
       CALL timestop(handle)

@@ -100,7 +100,7 @@ CONTAINS
       IF (block_size <= 0) block_size = MAX(1, dimen_RI/global_comm%num_pe*mp2_env%ri_rpa%rpa_num_quad_points)
 
       ! storage of product matrix (upper bound only as it depends on the square of the potential still unknown block size)
-      mem_per_rank = mem_per_rank + REAL(MAXVAL(homo), KIND=dp)**2*block_size**2
+      mem_per_rank = mem_per_rank + REAL(MAXVAL(homo), KIND=dp)**2*block_size**2*8.0_dp/(1024_dp**2)
 
       ! work arrays R (2x) and U, copies of Gamma (2x), communication buffer (as expensive as Gamma)
       mem_per_repl = mem_per_repl + 3.0_dp*dimen_RI*dimen_RI*8.0_dp/(1024_dp**2) &
@@ -356,6 +356,8 @@ CONTAINS
                   CALL timestop(handle2)
 
                   CALL timeset(routineN//"_energy", handle2)
+!$OMP PARALLEL DO DEFAULT(NONE) SHARED(P_size, Q_size, hom, product_matrix_4D) &
+!$OMP             COLLAPSE(3) REDUCTION(+: e_exchange_corr) PRIVATE(P, Q, i)
                   DO P = 1, P_size
                   DO Q = 1, Q_size
                   DO i = 1, hom
@@ -510,8 +512,6 @@ CONTAINS
          IF (send_counter == 0) send_proc = mp_proc_null
          IF (PRODUCT(recv_shape) == 0) recv_proc = mp_proc_null
 
-         WRITE (*, *) "recv_shape", SHAPE(send_buffer(:, 1:send_counter)), recv_shape
-
          CALL timeset(routineN//"_ex_idx", handle2)
          ALLOCATE (recv_row_indices(recv_shape(1)), recv_col_indices(recv_shape(2)))
          CALL para_env%sendrecv(col_indices, send_proc, recv_row_indices, recv_proc)
@@ -555,14 +555,6 @@ CONTAINS
          IF (ALLOCATED(recv_row_indices)) DEALLOCATE (recv_row_indices)
          IF (ALLOCATED(recv_col_indices)) DEALLOCATE (recv_col_indices)
       END DO
-
-      BLOCK
-         REAL(KIND=dp) :: debug
-         debug = SUM(fm_mat%local_data**2) - SUM(mat**2)
-         CALL para_env%sum(debug)
-         WRITE (*, *) "Checksum communication", debug, amount_of_sent_data, amount_of_recv_data
-         CPASSERT(debug < 1.0E-09_dp)
-      END BLOCK
 
       CALL timestop(handle)
 
