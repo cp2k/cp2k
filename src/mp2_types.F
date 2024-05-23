@@ -309,7 +309,6 @@ MODULE mp2_types
       REAL(KIND=dp), DIMENSION(3, 3)                     :: mp2_virial = 0.0_dp
       REAL(dp)                                           :: eps_canonical = 0.0_dp
       LOGICAL                                            :: free_hfx_buffer = .FALSE.
-      LOGICAL                                            :: use_old_grad = .FALSE.
       INTEGER                                            :: dot_blksize = 0
       INTEGER                                            :: max_parallel_comm = 0
    END TYPE grad_util
