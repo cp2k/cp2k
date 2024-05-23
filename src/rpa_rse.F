@@ -215,8 +215,7 @@ CONTAINS
       CALL exchange_contribution(qs_env, para_env, dimen, mo_coeff, &
                                  hfx_sections, n_rep_hf, &
                                  rho, mat_mu_nu, fm_P_mu_nu, &
-                                 fm_ao, fm_X_mo, fm_ao_mo, &
-                                 mp2_env%ri_grad%free_hfx_buffer)
+                                 fm_ao, fm_X_mo, fm_ao_mo)
 
       ! Calculate DFT exchange-correlation contribution
       CALL xc_contribution(qs_env, fm_ao, fm_ao_mo, fm_XC_mo, mo_coeff, dimen)
@@ -301,13 +300,11 @@ CONTAINS
 !> \param fm_X_ao ...
 !> \param fm_X_mo ...
 !> \param fm_X_ao_mo ...
-!> \param recalc_hfx_integrals ...
 ! **************************************************************************************************
    SUBROUTINE exchange_contribution(qs_env, para_env, dimen, mo_coeff, &
                                     hfx_sections, n_rep_hf, &
                                     rho_work, mat_mu_nu, fm_P_mu_nu, &
-                                    fm_X_ao, fm_X_mo, fm_X_ao_mo, &
-                                    recalc_hfx_integrals)
+                                    fm_X_ao, fm_X_mo, fm_X_ao_mo)
       TYPE(qs_environment_type), INTENT(IN), POINTER     :: qs_env
       TYPE(mp_para_env_type), INTENT(IN), POINTER        :: para_env
       INTEGER, INTENT(IN)                                :: dimen
@@ -321,7 +318,6 @@ CONTAINS
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_X_ao
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: fm_X_mo
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_X_ao_mo
-      LOGICAL, INTENT(IN)                                :: recalc_hfx_integrals
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'exchange_contribution'
 
@@ -333,8 +329,6 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      my_recalc_hfx_integrals = recalc_hfx_integrals
-
       CALL qs_rho_get(rho_work, rho_ao=rho_work_ao)
       ns = SIZE(rho_work_ao)
       NULLIFY (P_mu_nu)
@@ -345,6 +339,8 @@ CONTAINS
          CALL dbcsr_copy(P_mu_nu(is)%matrix, rho_work_ao(1)%matrix)
          CALL dbcsr_set(P_mu_nu(is)%matrix, 0.0_dp)
       END DO
+
+      my_recalc_hfx_integrals = .TRUE.
 
       CALL exx_pre_hfx(hfx_sections, qs_env%mp2_env%ri_rpa%x_data, qs_env%mp2_env%ri_rpa%reuse_hfx)
       DO is = 1, ns
