@@ -66,7 +66,8 @@ MODULE qs_tddfpt2_methods
    USE qs_kernel_types,                 ONLY: full_kernel_env_type,&
                                               kernel_env_type,&
                                               release_kernel_env
-   USE qs_kind_types,                   ONLY: qs_kind_type
+   USE qs_kind_types,                   ONLY: get_qs_kind_set,&
+                                              qs_kind_type
    USE qs_mo_types,                     ONLY: mo_set_type
    USE qs_scf_methods,                  ONLY: eigensolver
    USE qs_scf_types,                    ONLY: qs_scf_env_type
@@ -121,7 +122,7 @@ MODULE qs_tddfpt2_methods
    INTEGER, PARAMETER, PRIVATE          :: nderivs = 3
    INTEGER, PARAMETER, PRIVATE          :: maxspins = 2
 
-   PUBLIC :: tddfpt, tddfpt_energies, tddfpt_input, kernel_info
+   PUBLIC :: tddfpt, tddfpt_energies, tddfpt_input
 
 ! **************************************************************************************************
 
@@ -237,7 +238,7 @@ CONTAINS
       END IF
 
       CALL tddfpt_header(log_unit)
-      CALL kernel_info(log_unit, dft_control, tddfpt_control, xc_section)
+      CALL kernel_info(qs_env, log_unit, dft_control, tddfpt_control, xc_section)
       ! obtain occupied and virtual (unoccupied) ground-state Kohn-Sham orbitals
       NULLIFY (gs_mos)
 
@@ -742,20 +743,25 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
+!> \param qs_env ...
 !> \param log_unit ...
 !> \param dft_control ...
 !> \param tddfpt_control ...
 !> \param xc_section ...
 ! **************************************************************************************************
-   SUBROUTINE kernel_info(log_unit, dft_control, tddfpt_control, xc_section)
+   SUBROUTINE kernel_info(qs_env, log_unit, dft_control, tddfpt_control, xc_section)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
       INTEGER, INTENT(IN)                                :: log_unit
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(tddfpt2_control_type), POINTER                :: tddfpt_control
       TYPE(section_vals_type), POINTER                   :: xc_section
 
       CHARACTER(LEN=4)                                   :: ktype
+      INTEGER                                            :: nbas_admm, nbas_hfxsr, nbas_lri
       LOGICAL                                            :: lsd
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
 
+      CALL get_qs_env(qs_env, qs_kind_set=qs_kind_set)
       lsd = (dft_control%nspins > 1)
       IF (tddfpt_control%kernel == tddfpt_kernel_full) THEN
          ktype = "FULL"
@@ -764,7 +770,10 @@ CONTAINS
             CALL xc_write(log_unit, xc_section, lsd)
             IF (tddfpt_control%do_hfx) THEN
                IF (tddfpt_control%do_admm) THEN
+                  CALL get_qs_kind_set(qs_kind_set, nsgf=nbas_admm, basis_type="AUX_FIT")
                   WRITE (log_unit, "(T2,A,T62,A19)") "KERNEL|", "ADMM Exact Exchange"
+                  WRITE (log_unit, "(T2,A,T41,A,T72,I9)") &
+                     "KERNEL|", "Number of ADMM basis functions", nbas_admm
                   IF (tddfpt_control%admm_xc_correction) THEN
                      WRITE (log_unit, "(T2,A,T60,A21)") "KERNEL|", "Apply ADMM Kernel XC Correction"
                   END IF
@@ -776,13 +785,19 @@ CONTAINS
                END IF
             END IF
             IF (tddfpt_control%do_hfxsr) THEN
+               CALL get_qs_kind_set(qs_kind_set, nsgf=nbas_hfxsr, basis_type="TDA_HFX")
                WRITE (log_unit, "(T2,A,T43,A38)") "KERNEL|", "Short range HFX approximation"
+               WRITE (log_unit, "(T2,A,T38,A,T72,I9)") &
+                  "KERNEL|", "Number of TDA-X SR basis functions", nbas_hfxsr
             END IF
             IF (tddfpt_control%do_hfxlr) THEN
                WRITE (log_unit, "(T2,A,T43,A38)") "KERNEL|", "Long range HFX approximation"
             END IF
             IF (tddfpt_control%do_lrigpw) THEN
+               CALL get_qs_kind_set(qs_kind_set, nsgf=nbas_lri, basis_type="P_LRI_AUX")
                WRITE (log_unit, "(T2,A,T42,A39)") "KERNEL|", "LRI approximation of transition density"
+               WRITE (log_unit, "(T2,A,T39,A,T72,I9)") &
+                  "KERNEL|", "Number of TDA-LRI basis functions", nbas_hfxsr
             END IF
          END IF
       ELSE IF (tddfpt_control%kernel == tddfpt_kernel_stda) THEN
