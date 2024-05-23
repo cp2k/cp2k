@@ -13,8 +13,10 @@
 ! **************************************************************************************************
 MODULE trexio_utils
 
+#ifdef __TREXIO
    USE atomic_kind_types, ONLY: get_atomic_kind
    USE basis_set_types, ONLY: gto_basis_set_type
+   USE cell_types, ONLY: cell_type
    USE cp2k_info, ONLY: cp2k_version
    USE cp_control_types, ONLY: dft_control_type
    USE cp_files, ONLY: close_file, file_exists, open_file
@@ -49,7 +51,11 @@ MODULE trexio_utils
                      trexio_write_metadata_code, trexio_write_metadata_code_num, &
                      trexio_write_nucleus_coord, trexio_write_nucleus_num, &
                      trexio_write_nucleus_charge, trexio_write_nucleus_label, &
-                     trexio_write_nucleus_repulsion
+                     trexio_write_nucleus_repulsion, trexio_write_cell_a, &
+                     trexio_write_cell_b, trexio_write_cell_c, &
+                     trexio_write_cell_g_a, trexio_write_cell_g_b, &
+                     trexio_write_cell_g_c, trexio_write_cell_two_pi
+#endif
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -62,6 +68,7 @@ MODULE trexio_utils
 
    CONTAINS
 
+#ifdef __TREXIO
 ! **************************************************************************************************
 !> \brief Write a trexio file
 !> \param qs_env the qs environment with all the info of the computation
@@ -83,7 +90,8 @@ MODULE trexio_utils
       INTEGER(trexio_t)                                  :: f        ! The TREXIO file handle
       INTEGER(trexio_exit_code)                          :: rc       ! TREXIO return code
       LOGICAL                                            :: explicit
-      ! REAL(KIND=dp)                                      :: dispersion, mass, one_el_en, two_el_en
+      REAL(KIND=dp)                                      :: e_nn
+      TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dft_control_type), POINTER                    :: dft_control
       ! TYPE(gto_basis_set_type), POINTER                  :: basis_set
@@ -112,7 +120,7 @@ MODULE trexio_utils
       ! collect environment info
       CALL get_qs_env(qs_env, ks_env=ks_env, energy=energy, &
                       dft_control=dft_control, force=force, &
-                      particle_set=particle_set, &
+                      particle_set=particle_set, cell=cell, &
                       scf_env=scf_env, mp2_env=mp2_env, &
                       input=input, qs_kind_set=kind_set)
 
@@ -135,7 +143,7 @@ MODULE trexio_utils
       CALL trexio_error(rc)
 
       !========================================================================================!
-      ! Metadata
+      ! Metadata group
       !========================================================================================!
 
       rc = trexio_write_metadata_code_num(f, 1)
@@ -145,7 +153,7 @@ MODULE trexio_utils
       CALL trexio_error(rc)
 
       !========================================================================================!
-      ! System
+      ! Nucleus group
       !========================================================================================!
 
       natoms = SIZE(particle_set)
@@ -175,14 +183,41 @@ MODULE trexio_utils
       CALL trexio_error(rc)
       DEALLOCATE (label)
 
-      !TODO: double check with Juerg
-      rc = trexio_write_nucleus_repulsion(f, energy%core + energy%core_overlap + energy%core_self)
+      ! nuclear repulsion energy well-defined for molecules only
+      IF (SUM(cell%perd) == 0) THEN
+         CALL nuclear_repulsion_energy(particle_set, e_nn)
+         rc = trexio_write_nucleus_repulsion(f, e_nn)
+         CALL trexio_error(rc)
+      END IF
+
+      !========================================================================================!
+      ! Cell group
+      !========================================================================================!
+
+      rc = trexio_write_cell_a(f, cell%hmat(:,1))
       CALL trexio_error(rc)
 
+      rc = trexio_write_cell_b(f, cell%hmat(:,2))
+      CALL trexio_error(rc)
 
-      ! !========================================================================================!
-      ! ! *** QCSchema properties ***
-      ! !========================================================================================!
+      rc = trexio_write_cell_c(f, cell%hmat(:,3))
+      CALL trexio_error(rc)
+
+      rc = trexio_write_cell_g_a(f, cell%h_inv(:,1))
+      CALL trexio_error(rc)
+
+      rc = trexio_write_cell_g_b(f, cell%h_inv(:,2))
+      CALL trexio_error(rc)
+
+      rc = trexio_write_cell_g_c(f, cell%h_inv(:,3))
+      CALL trexio_error(rc)
+
+      rc = trexio_write_cell_two_pi(f, 0)
+      CALL trexio_error(rc)
+
+      !========================================================================================!
+      ! PBC group
+      !========================================================================================!
 
       ! nspins = active_space_env%nspins
 
@@ -399,6 +434,10 @@ MODULE trexio_utils
    END SUBROUTINE write_trexio
 
 
+! **************************************************************************************************
+!> \brief Handles TREXIO errors
+!> \param rc the TREXIO return code
+! **************************************************************************************************
    SUBROUTINE trexio_error(rc)
       INTEGER(trexio_exit_code), INTENT(IN) :: rc
       CHARACTER(LEN=128) :: err_msg
@@ -409,5 +448,32 @@ MODULE trexio_utils
       END IF
 
    END SUBROUTINE trexio_error
+
+
+! **************************************************************************************************
+!> \brief Computes the nuclear repulsion energy of a molecular system
+!> \param particle_set the set of particles in the system
+!> \param e_nn the nuclear repulsion energy
+! **************************************************************************************************
+   SUBROUTINE nuclear_repulsion_energy(particle_set, e_nn)
+      TYPE(particle_type), DIMENSION(:), POINTER, INTENT(IN) :: particle_set
+      REAL(KIND=dp), INTENT(OUT) :: e_nn
+
+      INTEGER :: i, j, z_i, z_j
+      REAL(KIND=dp) :: r_ij
+
+      e_nn = 0.0_dp
+      DO i = 1, SIZE(particle_set)
+         DO j = i+1, SIZE(particle_set)
+            r_ij = NORM2(particle_set(i)%r - particle_set(j)%r)
+            CALL get_atomic_kind(particle_set(i)%atomic_kind, z=z_i)
+            CALL get_atomic_kind(particle_set(j)%atomic_kind, z=z_j)
+            e_nn = e_nn + REAL(z_i, KIND=dp)*REAL(z_j, KIND=dp)/r_ij
+         END DO
+      END DO
+
+   END SUBROUTINE nuclear_repulsion_energy
+
+#endif
 
 END MODULE trexio_utils
