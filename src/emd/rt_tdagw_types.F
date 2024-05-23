@@ -72,6 +72,7 @@ MODULE rt_tdagw_types
    USE moments_utils,                   ONLY: get_reference_point
    USE matrix_exp,                      ONLY: get_nsquare_norder
    USE gw_integrals,                    ONLY: build_3c_integrals
+   USE gw_methods,                      ONLY: compute_3c_integrals
    USE input_constants,                 ONLY: use_mom_ref_coac,&
                                               rtp_tdagw_ham_g0w0,&
                                               rtp_tdagw_ham_ks,&
@@ -698,6 +699,8 @@ CONTAINS
       NULLIFY(tdagw_env%t_3c_w)
       ALLOCATE(tdagw_env%t_3c_w)
       CALL dbt_create(bs_env%t_RI__AO_AO, tdagw_env%t_3c_w)
+      ! TODO : Provide option/decision whether to store the 3c integrals precomputed
+      CALL compute_3c_integrals(qs_env, bs_env, tdagw_env%t_3c_w)
       ! t_3c_work_RI_AO__AO
       NULLIFY(tdagw_env%t_3c_work_RI_AO__AO)
       ALLOCATE(tdagw_env%t_3c_work_RI_AO__AO)

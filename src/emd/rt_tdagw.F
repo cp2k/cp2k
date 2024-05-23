@@ -1258,9 +1258,9 @@ CONTAINS
       ! Probably just use the tensors already present in bs_env? They seem to be mostly work tensors
       ! TODO : Starting with unbounded integrals, then probably need to reduce to a subset
       ! Create by template
-      CALL compute_3c_integrals(qs_env,&
-                         bs_env,&
-                         tdagw_env%t_3c_w)
+      ! CALL compute_3c_integrals(qs_env,&
+      !                    bs_env,&
+      !                    tdagw_env%t_3c_w)
       CALL dbt_contract(alpha=1.0_dp,&
                    tensor_1=tdagw_env%screened_dbt,&
                    tensor_2=tdagw_env%t_3c_w,&
@@ -1319,7 +1319,7 @@ CONTAINS
          DEALLOCATE(greens_dbcsr)
       END IF
       ! Clear workspaces - saves memory?
-      CALL dbt_clear(tdagw_env%t_3c_w)
+      ! CALL dbt_clear(tdagw_env%t_3c_w)
       CALL dbt_clear(tdagw_env%t_3c_work_RI_AO__AO)
       CALL dbt_clear(tdagw_env%t_3c_work2_RI_AO__AO)
       CALL dbt_clear(tdagw_env%sigma_dbt)
