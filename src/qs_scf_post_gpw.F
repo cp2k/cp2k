@@ -1686,7 +1686,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'write_mo_dependent_results'
 
       INTEGER                                            :: handle, homo, ispin, nmo, output_unit
-      LOGICAL                                            :: all_equal, do_kpoints, explicit
+      LOGICAL                                            :: all_equal, do_kpoints, explicit, ionode
       REAL(KIND=dp)                                      :: maxocc, s_square, s_square_ideal, &
                                                             total_abs_spin_dens
       REAL(KIND=dp), DIMENSION(:), POINTER               :: mo_eigenvalues, occupation_numbers
@@ -1701,6 +1701,7 @@ CONTAINS
       TYPE(kpoint_type), POINTER                         :: kpoints
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(molecule_type), POINTER                       :: molecule_set(:)
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(particle_list_type), POINTER                  :: particles
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(pw_env_type), POINTER                         :: pw_env
@@ -1742,7 +1743,8 @@ CONTAINS
       CALL qs_rho_get(rho, rho_r=rho_r)
 
       ! k points
-      CALL get_qs_env(qs_env, do_kpoints=do_kpoints)
+      CALL get_qs_env(qs_env, do_kpoints=do_kpoints, para_env=para_env)
+      ionode = para_env%is_source()
 
       ! Write last MO information to output file if requested
       dft_section => section_vals_get_subs_vals(input, "DFT")
@@ -1751,7 +1753,7 @@ CONTAINS
          trexio_section => section_vals_get_subs_vals(dft_section, "PRINT%TREXIO")
          CALL section_vals_get(trexio_section, explicit=explicit)
          IF (explicit) THEN
-            CALL write_trexio(qs_env, trexio_section)
+            IF (ionode) CALL write_trexio(qs_env, trexio_section)
          END IF
          IF (.NOT. do_kpoints) THEN
             CALL get_qs_env(qs_env, mos=mos, matrix_ks=ks_rmpv)
