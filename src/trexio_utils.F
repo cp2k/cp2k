@@ -15,7 +15,7 @@ MODULE trexio_utils
 
 #ifdef __TREXIO
    USE atomic_kind_types, ONLY: get_atomic_kind
-   ! USE basis_set_types, ONLY: gto_basis_set_type
+   USE basis_set_types, ONLY: gto_basis_set_type
    USE cell_types, ONLY: cell_type
    USE cp2k_info, ONLY: cp2k_version
    USE cp_control_types, ONLY: dft_control_type
@@ -91,7 +91,7 @@ MODULE trexio_utils
       TYPE(cp_logger_type), POINTER                      :: logger => Null()
       TYPE(dft_control_type), POINTER                    :: dft_control => Null()
       TYPE(kpoint_type), POINTER                         :: kpoints => Null()
-      ! TYPE(gto_basis_set_type), POINTER                  :: basis_set
+      TYPE(gto_basis_set_type), POINTER                  :: basis_set
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set => Null()
       TYPE(qs_energy_type), POINTER                      :: energy => Null()
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: kind_set => Null()
@@ -277,23 +277,41 @@ MODULE trexio_utils
       rc = trexio_write_state_energy(f, energy%total)
       CALL trexio_error(rc)
 
-
       !========================================================================================!
-      ! *** QCSchema model ***
+      ! Basis group
       !========================================================================================!
 
-      ! DO iatom = 1, natoms
-      !    CALL get_atomic_kind(particle_set(iatom)%atomic_kind, kind_number=ikind)
-      !    CALL get_qs_kind(kind_set(ikind), basis_set=basis_set)
+      CALL get_qs_kind_set(qs_kind_set, &
+                           maxlgto=maxlgto, &
+                           ncgf=ncgf, &
+                           npgf=npgf, &
+                           nset=nset, &
+                           nsgf=nsgf, &
+                           nshell=nshell, &
+                           maxlppl=maxlppl, &
+                           maxlppnl=maxlppnl)
 
-      !    basis_set_name = basis_set%name
+      rc = trexio_write_basis_type(f, 'Gaussian')
+      CALL trexio_error(rc)
 
-      !    ! make sure that we do not run a mixed basis set
-      !    IF (iatom > 1) THEN
-      !       CPASSERT(basis_set_name == basis_set%name)
-      !    END IF
-      ! END DO
-      ! qcschema_env%wavefunction%basis_set%name = basis_set_name
+      rc = trexio_write_basis_prim_num(f, ncgf)
+      CALL trexio_error(rc)
+
+      rc = trexio_write_basis_shell_num(f, nshell)
+      CALL trexio_error(rc)
+
+
+      DO iatom = 1, natoms
+         CALL get_atomic_kind(particle_set(iatom)%atomic_kind, kind_number=ikind)
+         CALL get_qs_kind(kind_set(ikind), basis_set=basis_set)
+
+         basis_set_name = basis_set%name
+
+         ! make sure that we do not run a mixed basis set
+         IF (iatom > 1) THEN
+            CPASSERT(basis_set_name == basis_set%name)
+         END IF
+      END DO
 
       ! ! figure out which method was used for the calculation
       ! IF (dft_control%uks) THEN
