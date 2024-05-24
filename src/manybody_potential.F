@@ -86,12 +86,13 @@ CONTAINS
 !> \param pot_manybody ...
 !> \param para_env ...
 !> \param mm_section ...
+!> \param use_virial ...
 !> \par History
 !>      tlaino [2007] - New algorithm for tersoff potential
 !> \author CJM, I-Feng W. Kuo, Teodoro Laino
 ! **************************************************************************************************
    SUBROUTINE energy_manybody(fist_nonbond_env, atomic_kind_set, local_particles, &
-                              particle_set, cell, pot_manybody, para_env, mm_section)
+                              particle_set, cell, pot_manybody, para_env, mm_section, use_virial)
 
       TYPE(fist_nonbond_env_type), POINTER               :: fist_nonbond_env
       TYPE(atomic_kind_type), POINTER                    :: atomic_kind_set(:)
@@ -101,6 +102,7 @@ CONTAINS
       REAL(dp), INTENT(INOUT)                            :: pot_manybody
       TYPE(mp_para_env_type), OPTIONAL, POINTER          :: para_env
       TYPE(section_vals_type), POINTER                   :: mm_section
+      LOGICAL, INTENT(IN)                                :: use_virial
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'energy_manybody'
 
@@ -205,7 +207,7 @@ CONTAINS
          CALL setup_nequip_arrays(nonbonded, potparm, glob_loc_list, glob_cell_v, glob_loc_list_a, cell)
          CALL nequip_energy_store_force_virial(nonbonded, particle_set, cell, atomic_kind_set, potparm, &
                                                nequip, glob_loc_list_a, r_last_update_pbc, pot_nequip, &
-                                               fist_nonbond_env, para_env)
+                                               fist_nonbond_env, para_env, use_virial)
          pot_manybody = pot_manybody + pot_nequip
          CALL destroy_nequip_arrays(glob_loc_list, glob_cell_v, glob_loc_list_a)
       END IF
@@ -216,7 +218,7 @@ CONTAINS
                                    unique_list_a, cell)
          CALL allegro_energy_store_force_virial(nonbonded, particle_set, cell, atomic_kind_set, potparm, &
                                                 allegro, glob_loc_list_a, r_last_update_pbc, pot_allegro, &
-                                                fist_nonbond_env, unique_list_a)
+                                                fist_nonbond_env, unique_list_a, use_virial)
          pot_manybody = pot_manybody + pot_allegro
          CALL destroy_allegro_arrays(glob_loc_list, glob_cell_v, glob_loc_list_a, unique_list_a)
       END IF

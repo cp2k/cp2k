@@ -1,6 +1,6 @@
 &GLOBAL
   PRINT_LEVEL LOW
-  PROJECT water_gra
+  PROJECT water
   RUN_TYPE MD
 &END GLOBAL
 
@@ -24,8 +24,8 @@
     &FORCEFIELD
       &NONBONDED
         &ALLEGRO
-          ATOMS H C O
-          PARM_FILE_NAME Allegro/water-gra-film-double.pth
+          ATOMS H O
+          PARM_FILE_NAME Allegro/gra-water-deployed-neq060sp.pth
           UNIT_COORDS angstrom
           UNIT_ENERGY Hartree
           UNIT_FORCES eV*angstrom^-1
@@ -40,14 +40,14 @@
   &END MM
   &SUBSYS
     &CELL
-      A 12.8160 0.0 0.0
-      B 0.0 12.3322 0.0
-      C 0.0 0.0 55.0
+      A 9.8528 0.0 0.0
+      B 0.0 9.8528 0.0
+      C 0.0 0.0 9.8528
     &END CELL
     &TOPOLOGY
       COORD_FILE_FORMAT XYZ
       #     coordinates must be ordered by atomic number
-      COORD_FILE_NAME ./wat_gra_film.xyz
+      COORD_FILE_NAME ../regtest-nequip/water-bulk.xyz
     &END TOPOLOGY
   &END SUBSYS
 &END FORCE_EVAL

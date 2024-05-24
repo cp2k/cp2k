@@ -182,7 +182,6 @@ CONTAINS
       END IF
 
    END SUBROUTINE destroy_nequip_arrays
-
 ! **************************************************************************************************
 !> \brief ...
 !> \param nonbonded ...
@@ -196,13 +195,15 @@ CONTAINS
 !> \param pot_nequip ...
 !> \param fist_nonbond_env ...
 !> \param para_env ...
+!> \param use_virial ...
 !> \par History
 !>      Implementation of the nequip potential - [gtocci] 2022
+!>      Index mapping of atoms from .xyz to Allegro config.yaml file - [mbilichenko] 2024
 !> \author Gabriele Tocci - University of Zurich
 ! **************************************************************************************************
    SUBROUTINE nequip_energy_store_force_virial(nonbonded, particle_set, cell, atomic_kind_set, &
                                                potparm, nequip, glob_loc_list_a, r_last_update_pbc, &
-                                               pot_nequip, fist_nonbond_env, para_env)
+                                               pot_nequip, fist_nonbond_env, para_env, use_virial)
 
       TYPE(fist_neighbor_type), POINTER                  :: nonbonded
       TYPE(particle_type), POINTER                       :: particle_set(:)
@@ -215,12 +216,13 @@ CONTAINS
       REAL(kind=dp)                                      :: pot_nequip
       TYPE(fist_nonbond_env_type), POINTER               :: fist_nonbond_env
       TYPE(mp_para_env_type), OPTIONAL, POINTER          :: para_env
+      LOGICAL, INTENT(IN)                                :: use_virial
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'nequip_energy_store_force_virial'
 
-      INTEGER :: atom_a, atom_b, handle, i, iat, iat_use, iend, ifirst, igrp, ikind, ilast, ilist, &
-         ipair, istart, iunique, jkind, junique, mpair, n_atoms, n_atoms_use, nedges, nedges_tot, &
-         nloc_size, npairs, nunique
+      INTEGER :: atom_a, atom_b, atom_idx, handle, i, iat, iat_use, iend, ifirst, igrp, ikind, &
+         ilast, ilist, ipair, istart, iunique, jkind, junique, mpair, n_atoms, n_atoms_use, &
+         nedges, nedges_tot, nloc_size, npairs, nunique
       INTEGER(kind=int_8), ALLOCATABLE                   :: atom_types(:)
       INTEGER(kind=int_8), ALLOCATABLE, DIMENSION(:, :)  :: edge_index, t_edge_index, temp_edge_index
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: displ, displ_cell, edge_count, &
@@ -231,7 +233,9 @@ CONTAINS
       REAL(kind=dp), ALLOCATABLE, DIMENSION(:, :)        :: edge_cell_shifts, pos, &
                                                             temp_edge_cell_shifts
       REAL(kind=dp), DIMENSION(3)                        :: cell_v, cvi
-      REAL(kind=dp), DIMENSION(:, :), POINTER            :: atomic_energy, forces, total_energy
+      REAL(kind=dp), DIMENSION(:, :), POINTER            :: atomic_energy, forces, total_energy, &
+                                                            virial
+      REAL(kind=dp), DIMENSION(:, :, :), POINTER         :: virial3d
       REAL(kind=sp)                                      :: lattice_sp(3, 3)
       REAL(kind=sp), ALLOCATABLE, DIMENSION(:, :)        :: edge_cell_shifts_sp, pos_sp
       REAL(kind=sp), DIMENSION(:, :), POINTER            :: atomic_energy_sp, forces_sp, &
@@ -243,22 +247,22 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (total_energy, atomic_energy, forces, total_energy_sp, atomic_energy_sp, forces_sp)
+      NULLIFY (total_energy, atomic_energy, forces, total_energy_sp, atomic_energy_sp, forces_sp, virial3d, virial)
       n_atoms = SIZE(particle_set)
       ALLOCATE (use_atom(n_atoms))
       use_atom = .FALSE.
 
       DO ikind = 1, SIZE(atomic_kind_set)
-      DO jkind = 1, SIZE(atomic_kind_set)
-         pot => potparm%pot(ikind, jkind)%pot
-         DO i = 1, SIZE(pot%type)
-            IF (pot%type(i) /= nequip_type) CYCLE
-            DO iat = 1, n_atoms
-               IF (particle_set(iat)%atomic_kind%kind_number == ikind .OR. &
-                   particle_set(iat)%atomic_kind%kind_number == jkind) use_atom(iat) = .TRUE.
-            END DO ! iat
-         END DO ! i
-      END DO ! jkind
+         DO jkind = 1, SIZE(atomic_kind_set)
+            pot => potparm%pot(ikind, jkind)%pot
+            DO i = 1, SIZE(pot%type)
+               IF (pot%type(i) /= nequip_type) CYCLE
+               DO iat = 1, n_atoms
+                  IF (particle_set(iat)%atomic_kind%kind_number == ikind .OR. &
+                      particle_set(iat)%atomic_kind%kind_number == jkind) use_atom(iat) = .TRUE.
+               END DO ! iat
+            END DO ! i
+         END DO ! jkind
       END DO ! ikind
       n_atoms_use = COUNT(use_atom)
 
@@ -408,7 +412,13 @@ CONTAINS
       DO iat = 1, n_atoms_use
          IF (.NOT. use_atom(iat)) CYCLE
          iat_use = iat_use + 1
-         atom_types(iat_use) = particle_set(iat)%atomic_kind%kind_number - 1
+         ! Find index of the element based on its position in config.yaml file to have correct mapping
+         DO i = 1, SIZE(nequip%type_names_torch)
+            IF (particle_set(iat)%atomic_kind%element_symbol == nequip%type_names_torch(i)) THEN
+               atom_idx = i - 1
+            END IF
+         END DO
+         atom_types(iat_use) = atom_idx
          pos(:, iat) = r_last_update_pbc(iat)%r(:)/nequip%unit_coords_val
       END DO
 
@@ -437,6 +447,13 @@ CONTAINS
          CALL torch_dict_get(outputs, "total_energy", total_energy_sp)
          CALL torch_dict_get(outputs, "atomic_energy", atomic_energy_sp)
          CALL torch_dict_get(outputs, "forces", forces_sp)
+         IF (use_virial) THEN
+            ALLOCATE (virial(3, 3))
+            CALL torch_dict_get(outputs, "virial", virial3d)
+            virial = RESHAPE(virial3d, (/3, 3/))
+            nequip_data%virial(:, :) = virial(:, :)*nequip%unit_energy_val
+            DEALLOCATE (virial, virial3d)
+         END IF
          pot_nequip = REAL(total_energy_sp(1, 1), kind=dp)*nequip%unit_energy_val
          nequip_data%force(:, :) = REAL(forces_sp(:, :), kind=dp)*nequip%unit_forces_val
          DEALLOCATE (pos_sp, edge_cell_shifts_sp, total_energy_sp, atomic_energy_sp, forces_sp)
@@ -444,6 +461,13 @@ CONTAINS
          CALL torch_dict_get(outputs, "total_energy", total_energy)
          CALL torch_dict_get(outputs, "atomic_energy", atomic_energy)
          CALL torch_dict_get(outputs, "forces", forces)
+         IF (use_virial) THEN
+            ALLOCATE (virial(3, 3))
+            CALL torch_dict_get(outputs, "virial", virial3d)
+            virial = RESHAPE(virial3d, (/3, 3/))
+            nequip_data%virial(:, :) = virial(:, :)*nequip%unit_energy_val
+            DEALLOCATE (virial, virial3d)
+         END IF
          pot_nequip = total_energy(1, 1)*nequip%unit_energy_val
          nequip_data%force(:, :) = forces(:, :)*nequip%unit_forces_val
          DEALLOCATE (pos, edge_cell_shifts, total_energy, atomic_energy, forces)
@@ -477,15 +501,12 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: use_virial
 
       INTEGER                                            :: iat, iat_use
-      REAL(KIND=dp), DIMENSION(3, 3)                     :: virial
       TYPE(nequip_data_type), POINTER                    :: nequip_data
 
       CALL fist_nonbond_env_get(fist_nonbond_env, nequip_data=nequip_data)
 
       IF (use_virial) THEN
-         virial = 0.0_dp
-         pv_nonbond = pv_nonbond + virial
-         CPABORT("Stress tensor for NequIP not yet implemented")
+         pv_nonbond = pv_nonbond + nequip_data%virial
       END IF
 
       DO iat_use = 1, SIZE(nequip_data%use_indices)

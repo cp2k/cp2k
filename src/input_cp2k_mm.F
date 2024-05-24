@@ -1485,7 +1485,9 @@ CONTAINS
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, __LOCATION__, name="NEQUIP", &
                           description="This section specifies the input parameters for NEQUIP potential type "// &
-                          "based on equivariant neural networks with message passing. "// &
+                          "based on equivariant neural networks with message passing. Starting from the NequIP 0.6.0, "// &
+                          "one can predict stress if the config.yaml file has the StressForceOutput keyword, "// &
+                          "regardless of whether the model has been trained on the stress. "// &
                           "Requires linking with libtorch library from <https://pytorch.org/cppdocs/installing.html>.", &
                           citations=(/Batzner2022/), n_keywords=1, n_subsections=0, repeats=.FALSE.)
 
@@ -1509,25 +1511,33 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="UNIT_COORDS", &
-                          description="Units of coordinates in the NEQUIP model.pth file.", &
+                          description="Units of coordinates in the NEQUIP model.pth file. "// &
+                          "The units of positions, energies and forces must be self-consistent: "// &
+                          "e.g. coordinates in Angstrom, energies in eV, forces in eV/Angstrom. ", &
                           usage="UNIT angstrom", default_c_val="angstrom")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="UNIT_ENERGY", &
-                          description="Units of energy in the NEQUIP model.pth file.", &
-                          usage="UNIT hartree", default_c_val="hartree")
+                          description="Units of energy in the NEQUIP model.pth file. "// &
+                          "The units of positions, energies and forces must be self-consistent: "// &
+                          "e.g. coordinates in Angstrom, energies in eV, forces in eV/Angstrom. ", &
+                          usage="UNIT hartree", default_c_val="eV")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="UNIT_FORCES", &
-                          description="Units of the forces in the NEQUIP model.pth file.", &
-                          usage="UNIT hartree/bohr", default_c_val="hartree/bohr")
+                          description="Units of the forces in the NEQUIP model.pth file. "// &
+                          "The units of positions, energies and forces must be self-consistent: "// &
+                          "e.g. coordinates in Angstrom, energies in eV, forces in eV/Angstrom. ", &
+                          usage="UNIT hartree/bohr", default_c_val="eV/Angstrom")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="UNIT_CELL", &
-                          description="Units of the cell vectors in the NEQUIP model.pth file.", &
+                          description="Units of the cell vectors in the NEQUIP model.pth file. "// &
+                          "The units of positions, energies and forces must be self-consistent: "// &
+                          "e.g. coordinates in Angstrom, energies in eV, forces in eV/Angstrom. ", &
                           usage="UNIT angstrom", default_c_val="angstrom")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -1547,7 +1557,9 @@ CONTAINS
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, __LOCATION__, name="ALLEGRO", &
                           description="This section specifies the input parameters for ALLEGRO potential type "// &
-                          "based on equivariant neural network potentials. "// &
+                          "based on equivariant neural network potentials. Starting from the NequIP 0.6.0, "// &
+                          "one can predict stress if the config.yaml file has the StressForceOutput keyword, "// &
+                          "regardless of whether the model has been trained on the stress. "// &
                           "Requires linking with libtorch library from <https://pytorch.org/cppdocs/installing.html>.", &
                           citations=(/Musaelian2023/), n_keywords=1, n_subsections=0, repeats=.FALSE.)
 
@@ -1571,25 +1583,33 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="UNIT_COORDS", &
-                          description="Units of coordinates in the ALLEGRO model.pth file.", &
+                          description="Units of coordinates in the ALLEGRO model.pth file. "// &
+                          "The units of positions, energies and forces must be self-consistent: "// &
+                          "e.g. coordinates in Angstrom, energies in eV, forces in eV/Angstrom. ", &
                           usage="UNIT angstrom", default_c_val="angstrom")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="UNIT_ENERGY", &
-                          description="Units of energy in the ALLEGRO model.pth file.", &
-                          usage="UNIT hartree", default_c_val="hartree")
+                          description="Units of energy in the ALLEGRO model.pth file. "// &
+                          "The units of positions, energies and forces must be self-consistent: "// &
+                          "e.g. coordinates in Angstrom, energies in eV, forces in eV/Angstrom. ", &
+                          usage="UNIT hartree", default_c_val="eV")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="UNIT_FORCES", &
-                          description="Units of the forces in the ALLEGRO model.pth file.", &
-                          usage="UNIT hartree/bohr", default_c_val="hartree/bohr")
+                          description="Units of the forces in the ALLEGRO model.pth file. "// &
+                          "The units of positions, energies and forces must be self-consistent: "// &
+                          "e.g. coordinates in Angstrom, energies in eV, forces in eV/Angstrom. ", &
+                          usage="UNIT hartree/bohr", default_c_val="eV/Angstrom")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="UNIT_CELL", &
-                          description="Units of the cell vectors in the ALLEGRO model.pth file.", &
+                          description="Units of the cell vectors in the ALLEGRO model.pth file. "// &
+                          "The units of positions, energies and forces must be self-consistent: "// &
+                          "e.g. coordinates in Angstrom, energies in eV, forces in eV/Angstrom. ", &
                           usage="UNIT angstrom", default_c_val="angstrom")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)

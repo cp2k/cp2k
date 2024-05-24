@@ -1,5 +1,5 @@
 &GLOBAL
-  PROJECT water
+  PROJECT Si
   RUN_TYPE MD
 &END GLOBAL
 
@@ -7,14 +7,24 @@
   &MD
     ENSEMBLE NVT
     STEPS 0
-    TEMPERATURE 300
-    TIMESTEP 0.5
+    TEMPERATURE 300.0
+    TIMESTEP 1
     &THERMOSTAT
+      REGION GLOBAL
+      TYPE CSVR
       &CSVR
-        TIMECON 10
+        TIMECON 100.
       &END CSVR
     &END THERMOSTAT
   &END MD
+  &PRINT
+    &FORCES
+      UNIT eV*angstrom^-1
+      &EACH
+        MD 1
+      &END EACH
+    &END FORCES
+  &END PRINT
 &END MOTION
 
 &FORCE_EVAL
@@ -22,13 +32,13 @@
   &MM
     &FORCEFIELD
       &NONBONDED
-        &NEQUIP
-          ATOMS H O
-          PARM_FILE_NAME NequIP/water-double.pth
+        &ALLEGRO
+          ATOMS Si
+          PARM_FILE_NAME Allegro/si-deployed-neq060dp.pth
           UNIT_COORDS angstrom
           UNIT_ENERGY eV
           UNIT_FORCES eV*angstrom^-1
-        &END NEQUIP
+        &END ALLEGRO
       &END NONBONDED
     &END FORCEFIELD
     &POISSON
@@ -43,14 +53,14 @@
   &END PRINT
   &SUBSYS
     &CELL
-      ABC 9.8528 9.8528 9.8528
+      ABC 10.861999859992501 10.861999859992501 10.861999859992501
       #      MULTIPLE_UNIT_CELL 4 4 4
     &END CELL
     &TOPOLOGY
       COORD_FILE_FORMAT XYZ
+      #   coordinates must be ordered by atomic number
+      COORD_FILE_NAME Si.xyz
       #   MULTIPLE_UNIT_CELL 4 4 4
-      #     coordinates must be ordered by atomic number
-      COORD_FILE_NAME ./H2O-32.xyz
     &END TOPOLOGY
   &END SUBSYS
 &END FORCE_EVAL

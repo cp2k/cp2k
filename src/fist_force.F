@@ -290,7 +290,7 @@ CONTAINS
 
          ! Compute embedding function and manybody energy
          CALL energy_manybody(fist_nonbond_env, atomic_kind_set, local_particles, particle_set, &
-                              cell, pot_manybody, para_env, mm_section)
+                              cell, pot_manybody, para_env, mm_section, use_virial)
 
          ! Nonbond contribution + Manybody Forces
          IF (shell_present) THEN
