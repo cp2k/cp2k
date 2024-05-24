@@ -12,6 +12,7 @@
 !>      none
 ! **************************************************************************************************
 MODULE gopt_f_methods
+
    USE atomic_kind_list_types, ONLY: atomic_kind_list_type
    USE atomic_kind_types, ONLY: atomic_kind_type, &
                                 get_atomic_kind_set
@@ -191,26 +192,37 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: its
       REAL(KIND=dp)                                      :: used_time
 
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       REAL(KIND=dp)                                      :: pres_int
+      INTEGER(KIND=int_8)                                :: max_memory
+      LOGICAL                                            :: print_memory
+
+      NULLIFY (para_env)
+      CALL section_vals_val_get(gopt_env%motion_section, "PRINT%MEMORY_INFO", l_val=print_memory)
+      max_memory = 0
+      IF (print_memory) THEN
+         CALL force_env_get(gopt_env%force_env, para_env=para_env)
+         max_memory = sample_memory(para_env)
+      END IF
 
       SELECT CASE (gopt_env%type_id)
       CASE (default_ts_method_id, default_minimization_method_id)
          ! Geometry Optimization (Minimization and Transition State Search)
          IF (.NOT. gopt_env%dimer_rotation) THEN
             CALL write_cycle_infos(output_unit, it=its, etot=opt_energy, wildcard=wildcard, &
-                                   used_time=used_time)
+                                   used_time=used_time, max_memory=max_memory)
          ELSE
             CALL write_rot_cycle_infos(output_unit, it=its, etot=opt_energy, dimer_env=gopt_env%dimer_env, &
-                                       wildcard=wildcard, used_time=used_time)
+                                       wildcard=wildcard, used_time=used_time, max_memory=max_memory)
          END IF
       CASE (default_cell_method_id)
          ! Cell Optimization
          pres_int = gopt_env%cell_env%pres_int
-         CALL write_cycle_infos(output_unit, it=its, etot=opt_energy, pres_int=pres_int, wildcard=wildcard, &
-                                used_time=used_time)
+         CALL write_cycle_infos(output_unit, it=its, etot=opt_energy, pres_int=pres_int, &
+                                wildcard=wildcard, used_time=used_time, max_memory=max_memory)
       CASE (default_shellcore_method_id)
          CALL write_cycle_infos(output_unit, it=its, etot=opt_energy, wildcard=wildcard, &
-                                used_time=used_time)
+                                used_time=used_time, max_memory=max_memory)
       END SELECT
 
    END SUBROUTINE gopt_f_io_init
@@ -278,7 +290,8 @@ CONTAINS
             CALL geo_opt_io(force_env=force_env, root_section=root_section, &
                             motion_section=gopt_env%motion_section, its=its, opt_energy=opt_energy)
             CALL write_cycle_infos(output_unit, its, etot=opt_energy, ediff=opt_energy - eold, &
-                                   pred=pred, rat=rat, step=step, rad=rad, emin=emin, wildcard=wildcard, used_time=used_time)
+                                   pred=pred, rat=rat, step=step, rad=rad, emin=emin, &
+                                   wildcard=wildcard, used_time=used_time, max_memory=max_memory)
             ! Possibly check convergence
             IF (PRESENT(conv)) THEN
                CPASSERT(PRESENT(ndf))
@@ -290,7 +303,7 @@ CONTAINS
             CALL update_dimer_vec(gopt_env%dimer_env, gopt_env%motion_section)
             CALL write_restart(force_env=force_env, root_section=root_section)
             CALL write_rot_cycle_infos(output_unit, its, opt_energy, opt_energy - eold, emin, gopt_env%dimer_env, &
-                                       used_time=used_time, wildcard=wildcard)
+                                       wildcard=wildcard, used_time=used_time, max_memory=max_memory)
             ! Possibly check convergence
             IF (PRESENT(conv)) THEN
                CPASSERT(ASSOCIATED(gopt_env%dimer_env))
@@ -305,8 +318,8 @@ CONTAINS
          CALL geo_opt_io(force_env=force_env, root_section=root_section, &
                          motion_section=gopt_env%motion_section, its=its, opt_energy=opt_energy)
          CALL write_cycle_infos(output_unit, its, etot=opt_energy, ediff=opt_energy - eold, &
-                                pred=pred, rat=rat, step=step, rad=rad, emin=emin, pres_int=pres_int, wildcard=wildcard, &
-                                used_time=used_time)
+                                pred=pred, rat=rat, step=step, rad=rad, emin=emin, pres_int=pres_int, &
+                                wildcard=wildcard, used_time=used_time, max_memory=max_memory)
          ! Possibly check convergence
          IF (PRESENT(conv)) THEN
             CPASSERT(PRESENT(ndf))
@@ -322,7 +335,8 @@ CONTAINS
          END IF
       CASE (default_shellcore_method_id)
          CALL write_cycle_infos(output_unit, its, etot=opt_energy, ediff=opt_energy - eold, &
-                                pred=pred, rat=rat, step=step, rad=rad, emin=emin, wildcard=wildcard, used_time=used_time)
+                                pred=pred, rat=rat, step=step, rad=rad, emin=emin, wildcard=wildcard, &
+                                used_time=used_time, max_memory=max_memory)
          ! Possibly check convergence
          IF (PRESENT(conv)) THEN
             CPASSERT(PRESENT(ndf))
@@ -386,64 +400,74 @@ CONTAINS
 !> \param used_time ...
 ! **************************************************************************************************
    SUBROUTINE write_cycle_infos(output_unit, it, etot, ediff, pred, rat, step, rad, emin, &
-                                pres_int, wildcard, used_time)
+                                pres_int, wildcard, used_time, max_memory)
 
       INTEGER, INTENT(IN)                                :: output_unit, it
       REAL(KIND=dp), INTENT(IN)                          :: etot
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: ediff, pred, rat, step, rad, emin, &
                                                             pres_int
-      CHARACTER(LEN=5), OPTIONAL                         :: wildcard
+      CHARACTER(LEN=5), INTENT(IN)                       :: wildcard
       REAL(KIND=dp), INTENT(IN)                          :: used_time
+      INTEGER(KIND=int_8), INTENT(IN)                    :: max_memory
 
+      CHARACTER(LEN=5)                                   :: tag
       REAL(KIND=dp)                                      :: tmp_r1
 
       IF (output_unit > 0) THEN
-         WRITE (UNIT=output_unit, FMT="(/,T2,8('-'),A,I5,1X,12('-'))") &
-            "  Informations at step = ", it
-         WRITE (UNIT=output_unit, FMT="(T2,A,T47,A)") &
-            " Optimization Method        = ", wildcard
-         WRITE (UNIT=output_unit, FMT="(T2,A,F20.10)") &
-            " Total Energy               = ", etot
+         tag = "OPT| "
+         WRITE (UNIT=output_unit, FMT="(/,T2,A)") tag//REPEAT("*", 74)
+         WRITE (UNIT=output_unit, FMT="(T2,A,T55,1X,I25)") &
+            tag//"Step number", it
+         WRITE (UNIT=output_unit, FMT="(T2,A,T55,1X,A25)") &
+            tag//"Optimization method", wildcard
+         WRITE (UNIT=output_unit, FMT="(T2,A,T55,1X,F25.10)") &
+            tag//"Total energy [hartree]", etot
          IF (PRESENT(pres_int)) THEN
             tmp_r1 = cp_unit_from_cp2k(pres_int, "bar")
-            WRITE (UNIT=output_unit, FMT="(T2,A,F20.10)") &
-               " Internal Pressure [bar]    = ", tmp_r1
+            WRITE (UNIT=output_unit, FMT="(T2,A,T55,1X,F25.10)") &
+               tag//"Internal pressure [bar]", tmp_r1
          END IF
          IF (PRESENT(ediff)) THEN
-            WRITE (UNIT=output_unit, FMT="(T2,A,F20.10)") &
-               " Real energy change         = ", ediff
+            WRITE (UNIT=output_unit, FMT="(T2,A,T55,1X,F25.10)") &
+               tag//"Effective energy change [hartree]", ediff
          END IF
          IF (PRESENT(pred)) THEN
-            WRITE (UNIT=output_unit, FMT="(T2,A,F20.10)") &
-               " Predicted change in energy = ", pred
+            WRITE (UNIT=output_unit, FMT="(T2,A,T55,1X,F25.10)") &
+               tag//"Predicted energy change [hartree]", pred
          END IF
          IF (PRESENT(rat)) THEN
-            WRITE (UNIT=output_unit, FMT="(T2,A,F20.10)") &
-               " Scaling factor             = ", rat
+            WRITE (UNIT=output_unit, FMT="(T2,A,T55,1X,F25.10)") &
+               tag//"Scaling factor", rat
          END IF
          IF (PRESENT(step)) THEN
-            WRITE (UNIT=output_unit, FMT="(T2,A,F20.10)") &
-               " Step size                  = ", step
+            WRITE (UNIT=output_unit, FMT="(T2,A,T55,1X,F25.10)") &
+               tag//"Step size", step
          END IF
          IF (PRESENT(rad)) THEN
-            WRITE (UNIT=output_unit, FMT="(T2,A,F20.10)") &
-               " Trust radius               = ", rad
+            WRITE (UNIT=output_unit, FMT="(T2,A,T55,1X,F25.10)") &
+               tag//"Trust radius", rad
          END IF
          IF (PRESENT(emin)) THEN
             IF (etot < emin) THEN
-               WRITE (UNIT=output_unit, FMT="(T2,2A)") &
-                  " Decrease in energy         =     ", &
-                  "             YES"
+               WRITE (UNIT=output_unit, FMT="(T2,A,T77,A4)") &
+                  tag//"Decrease in energy", " YES"
             ELSE
-               WRITE (UNIT=output_unit, FMT="(T2,2A)") &
-                  " Decrease in energy         =     ", &
-                  "              NO"
+               WRITE (UNIT=output_unit, FMT="(T2,A,T77,A4)") &
+                  tag//"Decrease in energy", "  NO"
             END IF
          END IF
-         WRITE (UNIT=output_unit, FMT="(T2,A,F20.3)") &
-            " Used time                  = ", used_time
-         IF (it == 0) WRITE (UNIT=output_unit, FMT="(T2,51('-'))")
+         WRITE (UNIT=output_unit, FMT="(T2,A,T55,1X,F25.3)") &
+            tag//"Used time [s]", used_time
+         IF (it == 0) THEN
+            WRITE (UNIT=output_unit, FMT="(T2,A)") tag//REPEAT("*", 74)
+            IF (max_memory /= 0) THEN
+               WRITE (UNIT=output_unit, FMT="(T2,A,T60,1X,I20)") &
+                  tag//"Estimated peak process memory [MiB]", &
+                  (max_memory + (1024*1024) - 1)/(1024*1024)
+            END IF
+         END IF
       END IF
+
    END SUBROUTINE write_cycle_infos
 
 ! **************************************************************************************************
@@ -459,43 +483,54 @@ CONTAINS
 !> \date  01.2008
 !> \author Luca Bellucci and Teodoro Laino - created [tlaino]
 ! **************************************************************************************************
-   SUBROUTINE write_rot_cycle_infos(output_unit, it, etot, ediff, emin, dimer_env, used_time, wildcard)
+   SUBROUTINE write_rot_cycle_infos(output_unit, it, etot, ediff, emin, dimer_env, used_time, &
+                                    wildcard, max_memory)
 
       INTEGER, INTENT(IN)                                :: output_unit, it
       REAL(KIND=dp), INTENT(IN)                          :: etot
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: ediff, emin
       TYPE(dimer_env_type), POINTER                      :: dimer_env
-      REAL(KIND=dp)                                      :: used_time
-      CHARACTER(LEN=5), OPTIONAL                         :: wildcard
+      REAL(KIND=dp), INTENT(IN)                          :: used_time
+      CHARACTER(LEN=5), INTENT(IN)                       :: wildcard
+      INTEGER(KIND=int_8), INTENT(IN)                    :: max_memory
+
+      CHARACTER(LEN=5)                                   :: tag
 
       IF (output_unit > 0) THEN
-         WRITE (UNIT=output_unit, FMT="(/,T2,4('-'),A,I5,1X,5('-'))") &
-            "  Informations at rotational step = ", it
-         WRITE (UNIT=output_unit, FMT="(T2,A,T47,A)") &
-            " Optimization Method        = ", wildcard
-         WRITE (UNIT=output_unit, FMT="(T2,A,F20.10)") &
-            " Local Curvature            = ", dimer_env%rot%curvature
-         WRITE (UNIT=output_unit, FMT="(T2,A,F20.10)") &
-            " Total Rotational Force     = ", etot
+         tag = "OPT| "
+         WRITE (UNIT=output_unit, FMT="(/,T2,A)") tag//REPEAT("*", 74)
+         WRITE (UNIT=output_unit, FMT="(T2,A,T55,1X,I25)") &
+            tag//"Rotational step number", it
+         WRITE (UNIT=output_unit, FMT="(T2,A,T55,1X,A25)") &
+            tag//"Optimization method", wildcard
+         WRITE (UNIT=output_unit, FMT="(T2,A,T55,1X,F25.10)") &
+            tag//"Local curvature", dimer_env%rot%curvature, &
+            tag//"Total rotational force", etot
          IF (PRESENT(ediff)) THEN
-            WRITE (UNIT=output_unit, FMT="(T2,A,F20.10)") &
-               " Real Force change          = ", ediff
+            WRITE (UNIT=output_unit, FMT="(T2,A,T55,1X,F25.10)") &
+               tag//"Rotational force change", ediff
          END IF
          IF (PRESENT(emin)) THEN
             IF (etot < emin) THEN
-               WRITE (UNIT=output_unit, FMT="(T2,2A)") &
-                  " Decrease in rotational force =   ", &
-                  "             YES"
+               WRITE (UNIT=output_unit, FMT="(T2,A,T77,A4)") &
+                  tag//"Decrease in rotational force", " YES"
             ELSE
-               WRITE (UNIT=output_unit, FMT="(T2,2A)") &
-                  " Decrease in rotational force =   ", &
-                  "              NO"
+               WRITE (UNIT=output_unit, FMT="(T2,A,T77,A4)") &
+                  tag//"Decrease in rotational force", "  NO"
             END IF
          END IF
-         WRITE (UNIT=output_unit, FMT="(T2,A,F20.3)") &
-            " Used time                  = ", used_time
-         IF (it == 0) WRITE (UNIT=output_unit, FMT="(T2,51('-'))")
+         WRITE (UNIT=output_unit, FMT="(T2,A,T55,1X,F25.3)") &
+            tag//"Used time [s]", used_time
+         IF (it == 0) THEN
+            WRITE (UNIT=output_unit, FMT="(T2,A)") tag//REPEAT("*", 74)
+            IF (max_memory /= 0) THEN
+               WRITE (UNIT=output_unit, FMT="(T2,A,T60,1X,I20)") &
+                  tag//"Estimated peak process memory [MiB]", &
+                  (max_memory + (1024*1024) - 1)/(1024*1024)
+            END IF
+         END IF
       END IF
+
    END SUBROUTINE write_rot_cycle_infos
 
 ! **************************************************************************************************
@@ -522,6 +557,7 @@ CONTAINS
       INTEGER(KIND=int_8), INTENT(IN)                    :: max_memory
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: pres_diff, pres_tol, pres_diff_constr
 
+      CHARACTER(LEN=5)                                   :: tag
       INTEGER                                            :: indf
       LOGICAL                                            :: conv_dx, conv_g, conv_p, conv_rdx, &
                                                             conv_rg
@@ -569,94 +605,90 @@ CONTAINS
       END IF
 
       IF (output_unit > 0) THEN
-         WRITE (UNIT=output_unit, FMT="(/,T2,A)") &
-            " Convergence check :"
-         WRITE (UNIT=output_unit, FMT="(T2,A,F20.10)") &
-            " Max. step size             = ", maxdum(1)
-         WRITE (UNIT=output_unit, FMT="(T2,A,F20.10)") &
-            " Conv. limit for step size  = ", dxcon
-         IF (conv_dx) THEN
-            WRITE (UNIT=output_unit, FMT="(T2,2A)") &
-               " Convergence in step size   =     ", &
-               "             YES"
-         ELSE
-            WRITE (UNIT=output_unit, FMT="(T2,2A)") &
-               " Convergence in step size   =     ", &
-               "              NO"
-         END IF
-         WRITE (UNIT=output_unit, FMT="(T2,A,F20.10)") &
-            " RMS step size              = ", maxdum(2)
-         WRITE (UNIT=output_unit, FMT="(T2,A,F20.10)") &
-            " Conv. limit for RMS step   = ", rmsxcon
-         IF (conv_rdx) THEN
-            WRITE (UNIT=output_unit, FMT="(T2,2A)") &
-               " Convergence in RMS step    =     ", &
-               "             YES"
-         ELSE
-            WRITE (UNIT=output_unit, FMT="(T2,2A)") &
-               " Convergence in RMS step    =     ", &
-               "              NO"
-         END IF
-         WRITE (UNIT=output_unit, FMT="(T2,A,F20.10)") &
-            " Max. gradient              = ", maxdum(3)
-         WRITE (UNIT=output_unit, FMT="(T2,A,F20.10)") &
-            " Conv. limit for gradients  = ", gcon
-         IF (conv_g) THEN
-            WRITE (UNIT=output_unit, FMT="(T2,2A)") &
-               " Conv. in gradients         =     ", &
-               "             YES"
-         ELSE
-            WRITE (UNIT=output_unit, FMT="(T2,2A)") &
-               " Conv. for gradients        =     ", &
-               "              NO"
-         END IF
-         WRITE (UNIT=output_unit, FMT="(T2,A,F20.10)") &
-            " RMS gradient               = ", maxdum(4)
-         WRITE (UNIT=output_unit, FMT="(T2,A,F20.10)") &
-            " Conv. limit for RMS grad.  = ", rmsgcon
-         IF (conv_rg) THEN
-            WRITE (UNIT=output_unit, FMT="(T2,2A)") &
-               " Conv. in RMS gradients     =     ", &
-               "             YES"
 
+         tag = "OPT| "
+
+         WRITE (UNIT=output_unit, FMT="(T2,A)") TRIM(tag)
+         WRITE (UNIT=output_unit, FMT="(T2,A,T55,1X,F25.10)") &
+            tag//"Maximum step size", maxdum(1), &
+            tag//"Convergence limit for maximum step size", dxcon
+         IF (conv_dx) THEN
+            WRITE (UNIT=output_unit, FMT="(T2,A,T77,A4)") &
+               tag//"Maximum step size is converged", " YES"
          ELSE
-            WRITE (UNIT=output_unit, FMT="(T2,2A)") &
-               " Conv. for RMS gradients        =     ", &
-               "              NO"
+            WRITE (UNIT=output_unit, FMT="(T2,A,T77,A4)") &
+               tag//"Maximum step size is converged", "  NO"
          END IF
+
+         WRITE (UNIT=output_unit, FMT="(T2,A)") TRIM(tag)
+         WRITE (UNIT=output_unit, FMT="(T2,A,T55,1X,F25.10)") &
+            tag//"RMS step size", maxdum(2), &
+            tag//"Convergence limit for RMS step size", rmsxcon
+         IF (conv_rdx) THEN
+            WRITE (UNIT=output_unit, FMT="(T2,A,T77,A4)") &
+               tag//"RMS step size is converged", " YES"
+         ELSE
+            WRITE (UNIT=output_unit, FMT="(T2,A,T77,A4)") &
+               tag//"RMS step size is converged", "  NO"
+         END IF
+
+         WRITE (UNIT=output_unit, FMT="(T2,A)") TRIM(tag)
+         WRITE (UNIT=output_unit, FMT="(T2,A,T55,1X,F25.10)") &
+            tag//"Maximum gradient", maxdum(3), &
+            tag//"Convergence limit for maximum gradient", gcon
+         IF (conv_g) THEN
+            WRITE (UNIT=output_unit, FMT="(T2,A,T77,A4)") &
+               tag//"Maximum gradient is converged", " YES"
+         ELSE
+            WRITE (UNIT=output_unit, FMT="(T2,A,T77,A4)") &
+               tag//"Maximum gradient is converged", "  NO"
+         END IF
+
+         WRITE (UNIT=output_unit, FMT="(T2,A)") TRIM(tag)
+         WRITE (UNIT=output_unit, FMT="(T2,A,T55,1X,F25.10)") &
+            tag//"RMS gradient", maxdum(4), &
+            tag//"Convergence limit for RMS gradient", rmsgcon
+         IF (conv_rg) THEN
+            WRITE (UNIT=output_unit, FMT="(T2,A,T77,A4)") &
+               tag//"RMS gradient is converged", " YES"
+         ELSE
+            WRITE (UNIT=output_unit, FMT="(T2,A,T77,A4)") &
+               tag//"RMS gradient is converged", "  NO"
+         END IF
+
          IF (PRESENT(pres_diff) .AND. PRESENT(pres_tol)) THEN
             tmp_r1 = cp_unit_from_cp2k(pres_diff, "bar")
+            WRITE (UNIT=output_unit, FMT="(T2,A)") TRIM(tag)
             IF (PRESENT(pres_diff_constr)) THEN
-               WRITE (UNIT=output_unit, FMT="(T2,A,F20.10)") &
-                  " Pressure Deviation [bar]   = ", tmp_r1, &
-                  " (without constraint)"
+               WRITE (UNIT=output_unit, FMT="(T2,A,T55,1X,F25.10)") &
+                  tag//"Pressure deviation without constraint [bar]", tmp_r1
                tmp_r1 = cp_unit_from_cp2k(pres_diff_constr, "bar")
-               WRITE (UNIT=output_unit, FMT="(T2,A,F20.10)") &
-                  " Pressure Deviation [bar]   = ", tmp_r1, &
-                  " (with constraint)"
+               WRITE (UNIT=output_unit, FMT="(T2,A,T55,1X,F25.10)") &
+                  tag//"Pressure deviation with constraint [bar]", tmp_r1
             ELSE
-               WRITE (UNIT=output_unit, FMT="(T2,A,F20.10)") &
-                  " Pressure Deviation [bar]   = ", tmp_r1
+               WRITE (UNIT=output_unit, FMT="(T2,A,T55,1X,F25.10)") &
+                  tag//"Pressure deviation [bar]", tmp_r1
             END IF
             tmp_r1 = cp_unit_from_cp2k(pres_tol, "bar")
-            WRITE (UNIT=output_unit, FMT="(T2,A,F20.10)") &
-               " Pressure Tolerance [bar]   = ", tmp_r1
+            WRITE (UNIT=output_unit, FMT="(T2,A,T55,1X,F25.10)") &
+               tag//"Pressure tolerance [bar]", tmp_r1
             IF (conv_p) THEN
-               WRITE (UNIT=output_unit, FMT="(T2,2A)") &
-                  " Conv. for  PRESSURE        =     ", &
-                  "             YES"
+               WRITE (UNIT=output_unit, FMT="(T2,A,T77,A4)") &
+                  tag//"Pressure is converged", " YES"
             ELSE
-               WRITE (UNIT=output_unit, FMT="(T2,2A)") &
-                  " Conv. for  PRESSURE        =     ", &
-                  "              NO"
+               WRITE (UNIT=output_unit, FMT="(T2,A,T77,A4)") &
+                  tag//"Pressure is converged", "  NO"
             END IF
          END IF
-         WRITE (UNIT=output_unit, FMT="(T2,51('-'))")
-         IF (max_memory .NE. 0) THEN
-            WRITE (output_unit, '(T2,A,T73,I8)') &
-               'Estimated peak process memory after this step [MiB]', &
+
+         WRITE (UNIT=output_unit, FMT="(T2,A)") tag//REPEAT("*", 74)
+
+         IF (max_memory /= 0) THEN
+            WRITE (UNIT=output_unit, FMT="(T2,A,T60,1X,I20)") &
+               tag//"Estimated peak process memory after this step [MiB]", &
                (max_memory + (1024*1024) - 1)/(1024*1024)
          END IF
+
       END IF
 
       IF (conv_dx .AND. conv_rdx .AND. conv_g .AND. conv_rg .AND. conv_p) conv = .TRUE.
@@ -684,27 +716,27 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: output_unit
       LOGICAL, INTENT(OUT)                               :: conv
 
+      CHARACTER(LEN=5)                                   :: tag
+
       conv = (ABS(dimer_env%rot%angle2) < dimer_env%rot%angle_tol)
+
       IF (output_unit > 0) THEN
-         WRITE (UNIT=output_unit, FMT="(/,T2,A)") &
-            " Convergence check :"
-         WRITE (UNIT=output_unit, FMT="(T2,A,F16.10)") &
-            " Predicted angle step size  =     ", dimer_env%rot%angle1
-         WRITE (UNIT=output_unit, FMT="(T2,A,F16.10)") &
-            " Effective angle step size  =     ", dimer_env%rot%angle2
-         WRITE (UNIT=output_unit, FMT="(T2,A,F16.10)") &
-            " Conv. limit for angle step size =", dimer_env%rot%angle_tol
+         tag = "OPT| "
+         WRITE (UNIT=output_unit, FMT="(T2,A)") TRIM(tag)
+         WRITE (UNIT=output_unit, FMT="(T2,A,T55,1X,F25.10)") &
+            tag//"Predicted angle step size", dimer_env%rot%angle1, &
+            tag//"Effective angle step size", dimer_env%rot%angle2, &
+            tag//"Convergence limit for angle step size", dimer_env%rot%angle_tol
          IF (conv) THEN
-            WRITE (UNIT=output_unit, FMT="(T2,2A)") &
-               " Convergence in angle step size   =", &
-               "            YES"
+            WRITE (UNIT=output_unit, FMT="(T2,A,T77,A4)") &
+               tag//"Angle step size is converged", " YES"
          ELSE
-            WRITE (UNIT=output_unit, FMT="(T2,2A)") &
-               " Convergence in angle step size   =", &
-               "             NO"
+            WRITE (UNIT=output_unit, FMT="(T2,A,T77,A4)") &
+               tag//"Angle step size is converged", "  NO"
          END IF
-         WRITE (UNIT=output_unit, FMT="(T2,51('-'))")
+         WRITE (UNIT=output_unit, FMT="(T2,A)") tag//REPEAT("*", 74)
       END IF
+
       IF ((conv) .AND. (output_unit > 0)) THEN
          WRITE (UNIT=output_unit, FMT="(/,T2,A)") REPEAT("*", 79)
          WRITE (UNIT=output_unit, FMT="(T2,A,T25,A,T78,A)") &
