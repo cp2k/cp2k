@@ -76,6 +76,9 @@ CONTAINS
          nprim = -1
       END IF
 
+      IF (unit_nr > 0) THEN
+         WRITE (unit_nr, '(T2,A,T60,A21)') "Generate MINBAS set", ADJUSTR(TRIM(btype))
+      END IF
       ! check for or generate reference basis
       CALL get_qs_env(qs_env=qs_env, qs_kind_set=qs_kind_set)
       CALL get_qs_env(qs_env, dft_control=dft_control)
