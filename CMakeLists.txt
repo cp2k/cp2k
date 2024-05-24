@@ -102,6 +102,7 @@ option(CP2K_ENABLE_CONSISTENCY_CHECKS
        OFF)
 option(CP2K_DEBUG_MODE "Enable several additional options for debugging cp2k."
        OFF)
+option(CP2K_USE_DFTD4 "Enable dispersion coorections DFTD4" OFF)
 option(CP2K_USE_SIRIUS "Enable plane wave dft calculations with sirius" OFF)
 option(CP2K_USE_FFTW3 "Use fftw3 for the calculating fast fourier transforms"
        ON)
@@ -192,6 +193,7 @@ endif()
 if(${cp2k_build_options_up} STREQUAL "FULL")
   set(CP2K_USE_FFTW3 ON)
   set(CP2K_USE_MPI ON)
+  set(CP2K_USE_DFTD4 ON)
   set(CP2K_USE_SIRIUS ON)
   set(CP2K_USE_LIBXSMM ON)
   set(CP2K_USE_VORI ON)
@@ -213,6 +215,7 @@ if(${cp2k_build_options_up} STREQUAL "SERIAL")
   set(CP2K_USE_FFTW3 ON)
   set(CP2K_USE_MPI OFF)
   set(CP2K_USE_SIRIUS ON)
+  set(CP2K_USE_SIRIUS ON)
   set(CP2K_USE_LIBXSMM ON)
   set(CP2K_USE_VORI ON)
   set(CP2K_USE_COSMA ON)
@@ -231,6 +234,7 @@ endif()
 if(${cp2k_build_options_up} STREQUAL "DEFAULT")
   set(CP2K_USE_FFTW3 ON)
   set(CP2K_USE_MPI ON)
+  set(CP2K_USE_SIRIUS ON)
   set(CP2K_USE_COSMA ON)
   set(CP2K_USE_LIBXSMM ON)
   set(CP2K_USE_LIBXC ON)
@@ -714,8 +718,12 @@ if(CP2K_USE_SPLA)
     )
   endif()
 endif()
-# SIRIUS
 
+if(CP2K_USE_DFTD4)
+  find_package(dftd4 REQUIRED)
+endif()
+
+# SIRIUS
 if(CP2K_USE_SIRIUS)
   find_package(sirius REQUIRED)
 endif()
@@ -873,6 +881,14 @@ if(CP2K_USE_SPLA)
           "   - lbraries : ${SPLA_LIBRARIES}\n\n")
 endif()
 
+if(CP2K_USE_DFTD4)
+  message(
+    " - DFTD4 :\n"
+    "   - include modules     :  ${DFTD4_MOD}\n"
+    "   - include directories :  ${DFTD4_INCLUDE_DIR}\n"
+    "   - libraries           :  ${DFTD4_LIBRARIES}\n\n")
+endif()
+
 if(CP2K_USE_SIRIUS)
   message(
     " - SIRIUS :\n"
@@ -940,6 +956,11 @@ message(
 if(NOT CP2K_USE_MPI)
   message("   - MPI")
 endif()
+
+if(NOT CP2K_USE_DFTD4)
+	message("   - DFTD4")
+endif()
+
 
 if(NOT CP2K_USE_SIRIUS)
   message("   - SIRIUS")
