@@ -131,7 +131,9 @@ MODULE mp2_types
                                                             do_rse = .FALSE., &
                                                             print_dgemm_info = .FALSE.
       INTEGER                                            :: exchange_correction = rpa_exchange_none, &
-                                                            exchange_block_size = -1
+                                                            exchange_block_size = -1, &
+                                                            exchange_group_size = -1
+      LOGICAL :: use_hfx_implementation = .FALSE.
       REAL(KIND=dp)                                      :: ener_exchange = 0.0_dp, &
                                                             rse_corr_diag = 0.0_dp, &
                                                             rse_corr = 0.0_dp, &

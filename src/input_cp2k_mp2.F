@@ -657,6 +657,29 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create( &
+         keyword, __LOCATION__, &
+         name="GROUP_SIZE", &
+         description="Choose the group size of the subgroups. "// &
+         "If USE_HFX_IMPLEMENTATION T, the subgroups are used for the HF calculations. "// &
+         "Thus, larger subgroups increase the available memory improving the performance. "// &
+         "If USE_HFX_IMPLEMENTATION F, the subgroups are used to distribute the virtual orbital index to improve the "// &
+         "scalability in case of large processor counts. Thus, the group size should be as small as possible. Default "// &
+         "(nonpositive value) is to use all (with HF) or the lowest possible amount of (without HF) processes.", &
+         usage="GROUP_SIZE 1", &
+         default_i_val=-1)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create( &
+         keyword, __LOCATION__, &
+         name="USE_HFX_IMPLEMENTATION", &
+         description="Use a HF-based implementation with RI_RPA%HF section. Recommended for large systems.", &
+         usage="USE_HFX_IMPLEMENTATION T", &
+         default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
    END SUBROUTINE create_rpa_exchange
 
 ! **************************************************************************************************

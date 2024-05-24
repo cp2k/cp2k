@@ -42,7 +42,8 @@ MODULE rpa_exchange
                                               int_8
    USE local_gemm_api,                  ONLY: LOCAL_GEMM_PU_GPU
    USE mathconstants,                   ONLY: sqrthalf
-   USE message_passing,                 ONLY: mp_para_env_type,&
+   USE message_passing,                 ONLY: mp_para_env_release,&
+                                              mp_para_env_type,&
                                               mp_proc_null
    USE mp2_types,                       ONLY: mp2_type
    USE parallel_gemm_api,               ONLY: parallel_gemm
@@ -64,10 +65,13 @@ MODULE rpa_exchange
       INTEGER, DIMENSION(:), ALLOCATABLE :: homo, virtual, dimen_ia
       INTEGER :: dimen_RI = 0
       INTEGER :: block_size = 0
+      INTEGER :: group_size = 0
+      INTEGER :: color_sub = 0
       REAL(KIND=dp) :: eps_filter = 0.0_dp
       TYPE(cp_fm_type) :: fm_mat_Q_tmp = cp_fm_type()
       TYPE(cp_fm_type) :: fm_mat_R_half_gemm = cp_fm_type()
       TYPE(cp_fm_type) :: fm_mat_U = cp_fm_type()
+      TYPE(mp_para_env_type), POINTER :: para_env_sub => NULL()
    CONTAINS
       PROCEDURE, PASS(exchange_work), NON_OVERRIDABLE :: create => rpa_exchange_work_create
       PROCEDURE, PASS(exchange_work), NON_OVERRIDABLE :: compute => rpa_exchange_work_compute
@@ -82,22 +86,22 @@ CONTAINS
 !> \param homo ...
 !> \param virtual ...
 !> \param dimen_RI ...
-!> \param global_comm ...
+!> \param para_env ...
 !> \param mem_per_rank ...
 !> \param mem_per_repl ...
 ! **************************************************************************************************
-   SUBROUTINE rpa_exchange_needed_mem(mp2_env, homo, virtual, dimen_RI, global_comm, mem_per_rank, mem_per_repl)
+   SUBROUTINE rpa_exchange_needed_mem(mp2_env, homo, virtual, dimen_RI, para_env, mem_per_rank, mem_per_repl)
       TYPE(mp2_type), INTENT(IN)                         :: mp2_env
       INTEGER, DIMENSION(:), INTENT(IN)                  :: homo, virtual
       INTEGER, INTENT(IN)                                :: dimen_RI
-      TYPE(mp_para_env_type), INTENT(IN)                 :: global_comm
+      TYPE(mp_para_env_type), INTENT(IN)                 :: para_env
       REAL(KIND=dp), INTENT(INOUT)                       :: mem_per_rank, mem_per_repl
 
       INTEGER                                            :: block_size
 
       ! We need the block size and if it is unknown, an upper bound
       block_size = mp2_env%ri_rpa%exchange_block_size
-      IF (block_size <= 0) block_size = MAX(1, (dimen_RI+global_comm%num_pe-1)/global_comm%num_pe)
+      IF (block_size <= 0) block_size = MAX(1, (dimen_RI + para_env%num_pe - 1)/para_env%num_pe)
 
       ! storage of product matrix (upper bound only as it depends on the square of the potential still unknown block size)
       mem_per_rank = mem_per_rank + REAL(MAXVAL(homo), KIND=dp)**2*block_size**2*8.0_dp/(1024_dp**2)
@@ -127,11 +131,31 @@ CONTAINS
       TYPE(cp_fm_type), INTENT(IN) :: fm_mat_Q, fm_mat_Q_gemm
       INTEGER, DIMENSION(SIZE(fm_mat_S)), INTENT(IN) :: homo, virtual
 
-      INTEGER :: nspins
+      INTEGER :: nspins, group_size
 
       exchange_work%exchange_correction = mp2_env%ri_rpa%exchange_correction
 
       IF (exchange_work%exchange_correction == rpa_exchange_none) RETURN
+
+      ASSOCIATE (para_env => fm_mat_S(1)%matrix_struct%para_env)
+         exchange_work%group_size = mp2_env%ri_rpa%exchange_group_size
+! If automatic choice is requested, choose a suitable group size
+         IF (mp2_env%ri_rpa%use_hfx_implementation) THEN
+            IF (group_size <= 0) group_size = para_env%num_pe
+         ELSE
+            IF (group_size <= 0 .OR. dimen_RI*group_size < para_env%num_pe) &
+               group_size = (para_env%num_pe - 1)/dimen_RI + 1
+         END IF
+         exchange_work%color_sub = para_env%mepos/group_size
+         ALLOCATE (exchange_work%para_env_sub)
+         IF (group_size < para_env%num_pe) THEN
+            CALL exchange_work%para_env_sub%from_split(para_env, exchange_work%color_sub)
+         ELSE
+            ! We use all processes of the subgroup, so let us just duplicate the communicator to save ressources
+            ! Pointer assignment is disliked by the compiler
+            CALL exchange_work%para_env_sub%from_dup(para_env)
+         END IF
+      END ASSOCIATE
 
       exchange_work%eps_filter = mp2_env%mp2_gpw%eps_filter
 
@@ -161,6 +185,9 @@ CONTAINS
       IF (ALLOCATED(exchange_work%homo)) DEALLOCATE (exchange_work%homo)
       IF (ALLOCATED(exchange_work%virtual)) DEALLOCATE (exchange_work%virtual)
       IF (ALLOCATED(exchange_work%dimen_ia)) DEALLOCATE (exchange_work%dimen_ia)
+      IF (ASSOCIATED(exchange_work%para_env_sub)) THEN
+         CALL mp_para_env_release(exchange_work%para_env_sub)
+      END IF
       CALL cp_fm_release(exchange_work%fm_mat_Q_tmp)
       CALL cp_fm_release(exchange_work%fm_mat_U)
       CALL cp_fm_release(exchange_work%fm_mat_R_half_gemm)
@@ -192,7 +219,7 @@ CONTAINS
 
       INTEGER :: handle, iib, ispin, nspins, P, Q, L_size_Gamma, hom, virt, i, &
                  send_proc, recv_proc, recv_size, max_aux_size, proc_shift, dimen_ia, dimen_RI, &
-                 block_size, P_start, P_end, P_size, Q_start, Q_size, Q_end, handle2, my_aux_size
+                 block_size, P_start, P_end, P_size, Q_start, Q_size, Q_end, handle2, my_aux_size, my_virt
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigenval
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), TARGET :: mat_Gamma_3_3D
       REAL(KIND=dp), POINTER, DIMENSION(:), CONTIGUOUS :: mat_Gamma_3_1D
@@ -206,7 +233,7 @@ CONTAINS
       REAL(KIND=dp), POINTER, DIMENSION(:, :, :, :), CONTIGUOUS :: product_matrix_4D
       TYPE(cp_fm_type)        :: fm_mat_Gamma_3
       TYPE(mp_para_env_type), POINTER :: para_env
-      TYPE(group_dist_d1_type)                           :: aux_func_dist
+      TYPE(group_dist_d1_type)                           :: aux_func_dist, virt_dist
 
       IF (exchange_work%exchange_correction == rpa_exchange_none) RETURN
 
@@ -273,10 +300,12 @@ CONTAINS
       e_exchange_corr = 0.0_dp
       max_aux_size = (dimen_RI + para_env%num_pe - 1)/para_env%num_pe
 
-      ! local_gemm_ctx has a very footprint the first time this routine is
-      ! called.
-      CALL mp2_env%local_gemm_ctx%create(LOCAL_GEMM_PU_GPU)
-      CALL mp2_env%local_gemm_ctx%set_op_threshold_gpu(128*128*128*2)
+      IF (.NOT. mp2_env%ri_rpa%use_hfx_implementation) THEN
+         ! local_gemm_ctx has a very footprint the first time this routine is
+         ! called.
+         CALL mp2_env%local_gemm_ctx%create(LOCAL_GEMM_PU_GPU)
+         CALL mp2_env%local_gemm_ctx%set_op_threshold_gpu(128*128*128*2)
+      END IF
 
       DO ispin = 1, nspins
          hom = exchange_work%homo(ispin)
@@ -298,86 +327,102 @@ CONTAINS
                             matrix_a=exchange_work%fm_mat_R_half_gemm, matrix_b=fm_mat_S(ispin), beta=0.0_dp, &
                             matrix_c=fm_mat_Gamma_3)
 
-         ! Remove extra factor from S after the multiplication (to return to the original matrix)
-         CALL remove_scaling_factor_rpa(fm_mat_S(ispin), virt, eig(:, ispin), hom, omega)
+         IF (mp2_env%ri_rpa%use_hfx_implementation) THEN
+! Redistribute fm_mat_Gamma_3
 
-         CALL redistribute_into_subgroups(fm_mat_Gamma_3, mat_Gamma_3_3D, hom, virt, aux_func_dist)
-         CALL cp_fm_release(fm_mat_Gamma_3)
+! Transform to AO basis
 
-         mat_Gamma_3_1D(1:INT(virt, KIND=int_8)*hom*my_aux_size) => mat_Gamma_3_3D(:, :, 1:my_aux_size)
-         mat_Gamma_3_2D(1:virt, 1:hom*my_aux_size) => mat_Gamma_3_1D(1:INT(virt, KIND=int_8)*hom*my_aux_size)
+! Contract with exchange kernel
+         ELSE
+            CALL create_group_dist(virt_dist, exchange_work%para_env_sub%num_pe, virt)
 
-         ! We need only the pure matrix
-         CALL remove_scaling_factor_rpa(fm_mat_S(ispin), virt, eig(:, ispin), hom, omega)
+            ! Remove extra factor from S after the multiplication (to return to the original matrix)
+            CALL remove_scaling_factor_rpa(fm_mat_S(ispin), virt, eig(:, ispin), hom, omega)
 
-         ! Reorder matrix from (P, i*a) -> (a, i, P) with P being distributed within subgroups
-         CALL redistribute_into_subgroups(fm_mat_S(ispin), mat_B_iaP, hom, virt, aux_func_dist)
+            CALL redistribute_into_subgroups(fm_mat_Gamma_3, mat_Gamma_3_3D, hom, virt, aux_func_dist, &
+                                             virt_dist, exchange_work%para_env_sub)
+            CALL cp_fm_release(fm_mat_Gamma_3)
 
-         ! Return to the original tensor
-         CALL calc_fm_mat_S_rpa(fm_mat_S(ispin), .TRUE., virt, eig(:, ispin), hom, omega, 0.0_dp)
+            mat_Gamma_3_1D(1:INT(virt, KIND=int_8)*hom*my_aux_size) => mat_Gamma_3_3D(:, :, 1:my_aux_size)
+            mat_Gamma_3_2D(1:virt, 1:hom*my_aux_size) => mat_Gamma_3_1D(1:INT(virt, KIND=int_8)*hom*my_aux_size)
 
-         L_size_Gamma = SIZE(mat_Gamma_3_3D, 3)
-         block_size = exchange_work%block_size
+            ! We need only the pure matrix
+            CALL remove_scaling_factor_rpa(fm_mat_S(ispin), virt, eig(:, ispin), hom, omega)
 
-         ALLOCATE (product_matrix_1D(INT(hom*MIN(block_size, L_size_gamma), KIND=int_8)*INT(hom*MIN(block_size, max_aux_size), KIND=int_8)))
-         ALLOCATE (recv_buffer_1D(INT(virt, KIND=int_8)*hom*max_aux_size))
-         recv_buffer_2D(1:virt, 1:hom*max_aux_size) => recv_buffer_1D(1:INT(virt, KIND=int_8)*hom*max_aux_size)
-         recv_buffer_3D(1:virt, 1:hom, 1:max_aux_size) => recv_buffer_1D(1:INT(virt, KIND=int_8)*hom*max_aux_size)
-         DO proc_shift = 0, para_env%num_pe - 1
-            send_proc = MODULO(para_env%mepos + proc_shift, para_env%num_pe)
-            recv_proc = MODULO(para_env%mepos - proc_shift, para_env%num_pe)
+            ! Reorder matrix from (P, i*a) -> (a, i, P) with P being distributed within subgroups
+            CALL redistribute_into_subgroups(fm_mat_S(ispin), mat_B_iaP, hom, virt, aux_func_dist, &
+                                             virt_dist, exchange_work%para_env_sub)
 
-            CALL get_group_dist(aux_func_dist, recv_proc, sizes=recv_size)
+            ! Return to the original tensor
+            CALL calc_fm_mat_S_rpa(fm_mat_S(ispin), .TRUE., virt, eig(:, ispin), hom, omega, 0.0_dp)
 
-            IF (recv_size == 0) recv_proc = mp_proc_null
+            L_size_Gamma = SIZE(mat_Gamma_3_3D, 3)
+            my_virt = SIZE(mat_Gamma_3_3D, 1)
+            block_size = exchange_work%block_size
 
-            CALL para_env%sendrecv(mat_B_iaP, send_proc, recv_buffer_3D(:, :, 1:recv_size), recv_proc)
+            ALLOCATE (product_matrix_1D(INT(hom*MIN(block_size, L_size_gamma), KIND=int_8)* &
+                                        INT(hom*MIN(block_size, max_aux_size), KIND=int_8)))
+            ALLOCATE (recv_buffer_1D(INT(virt, KIND=int_8)*hom*max_aux_size))
+            recv_buffer_2D(1:my_virt, 1:hom*max_aux_size) => recv_buffer_1D(1:INT(virt, KIND=int_8)*hom*max_aux_size)
+            recv_buffer_3D(1:my_virt, 1:hom, 1:max_aux_size) => recv_buffer_1D(1:INT(virt, KIND=int_8)*hom*max_aux_size)
+            DO proc_shift = 0, para_env%num_pe - 1, exchange_work%para_env_sub%num_pe
+               send_proc = MODULO(para_env%mepos + proc_shift, para_env%num_pe)
+               recv_proc = MODULO(para_env%mepos - proc_shift, para_env%num_pe)
 
-            IF (recv_size == 0) CYCLE
+               CALL get_group_dist(aux_func_dist, recv_proc, sizes=recv_size)
 
-            DO P_start = 1, L_size_Gamma, block_size
-               P_end = MIN(L_size_Gamma, P_start + block_size - 1)
-               P_size = P_end - P_start + 1
-               DO Q_start = 1, recv_size, block_size
-                  Q_end = MIN(recv_size, Q_start + block_size - 1)
-                  Q_size = Q_end - Q_start + 1
+               IF (recv_size == 0) recv_proc = mp_proc_null
 
-                  ! Reassign product_matrix pointers to enforce contiguity of target array
-                  product_matrix_2D(1:hom*P_size, 1:hom*Q_size) => &
-                     product_matrix_1D(1:INT(hom*P_size, KIND=int_8)*INT(hom*Q_size, KIND=int_8))
-                  product_matrix_4D(1:hom, 1:P_size, 1:hom, 1:Q_size) => &
-                     product_matrix_1D(1:INT(hom*P_size, KIND=int_8)*INT(hom*Q_size, KIND=int_8))
+               CALL para_env%sendrecv(mat_B_iaP, send_proc, recv_buffer_3D(:, :, 1:recv_size), recv_proc)
 
-                  CALL timeset(routineN//"_gemm", handle2)
-                  CALL mp2_env%local_gemm_ctx%gemm("T", "N", hom*P_size, hom*Q_size, virt, 1.0_dp, &
-                                                   mat_Gamma_3_2D(:, hom*(P_start - 1) + 1:hom*P_end), virt, &
-                                                   recv_buffer_2D(:, hom*(Q_start - 1) + 1:hom*Q_end), virt, &
-                                                   0.0_dp, product_matrix_2D, hom*P_size)
-                  CALL timestop(handle2)
+               IF (recv_size == 0) CYCLE
 
-                  CALL timeset(routineN//"_energy", handle2)
+               DO P_start = 1, L_size_Gamma, block_size
+                  P_end = MIN(L_size_Gamma, P_start + block_size - 1)
+                  P_size = P_end - P_start + 1
+                  DO Q_start = 1, recv_size, block_size
+                     Q_end = MIN(recv_size, Q_start + block_size - 1)
+                     Q_size = Q_end - Q_start + 1
+
+                     ! Reassign product_matrix pointers to enforce contiguity of target array
+                     product_matrix_2D(1:hom*P_size, 1:hom*Q_size) => &
+                        product_matrix_1D(1:INT(hom*P_size, KIND=int_8)*INT(hom*Q_size, KIND=int_8))
+                     product_matrix_4D(1:hom, 1:P_size, 1:hom, 1:Q_size) => &
+                        product_matrix_1D(1:INT(hom*P_size, KIND=int_8)*INT(hom*Q_size, KIND=int_8))
+
+                     CALL timeset(routineN//"_gemm", handle2)
+                     CALL mp2_env%local_gemm_ctx%gemm("T", "N", hom*P_size, hom*Q_size, my_virt, 1.0_dp, &
+                                                      mat_Gamma_3_2D(:, hom*(P_start - 1) + 1:hom*P_end), my_virt, &
+                                                      recv_buffer_2D(:, hom*(Q_start - 1) + 1:hom*Q_end), my_virt, &
+                                                      0.0_dp, product_matrix_2D, hom*P_size)
+                     CALL timestop(handle2)
+
+                     CALL timeset(routineN//"_energy", handle2)
 !$OMP PARALLEL DO DEFAULT(NONE) SHARED(P_size, Q_size, hom, product_matrix_4D) &
 !$OMP             COLLAPSE(3) REDUCTION(+: e_exchange_corr) PRIVATE(P, Q, i)
-                  DO P = 1, P_size
-                  DO Q = 1, Q_size
-                  DO i = 1, hom
-                     e_exchange_corr = e_exchange_corr + DOT_PRODUCT(product_matrix_4D(i, P, :, Q), product_matrix_4D(:, P, i, Q))
+                     DO P = 1, P_size
+                     DO Q = 1, Q_size
+                     DO i = 1, hom
+                       e_exchange_corr = e_exchange_corr + DOT_PRODUCT(product_matrix_4D(i, P, :, Q), product_matrix_4D(:, P, i, Q))
+                     END DO
+                     END DO
+                     END DO
+                     CALL timestop(handle2)
                   END DO
-                  END DO
-                  END DO
-                  CALL timestop(handle2)
                END DO
             END DO
-         END DO
 
-         DEALLOCATE (mat_B_iaP, mat_Gamma_3_3D, product_matrix_1D, recv_buffer_1D)
+            CALL release_group_dist(virt_dist)
+            DEALLOCATE (mat_B_iaP, mat_Gamma_3_3D, product_matrix_1D, recv_buffer_1D)
+         END IF
       END DO
+
+      IF (.NOT. mp2_env%ri_rpa%use_hfx_implementation) THEN
+         CALL release_group_dist(aux_func_dist)
+         CALL mp2_env%local_gemm_ctx%destroy()
+      END IF
       IF (nspins == 2) e_exchange_corr = e_exchange_corr*2.0_dp
       IF (nspins == 1) e_exchange_corr = e_exchange_corr*4.0_dp
-
-      CALL release_group_dist(aux_func_dist)
-
-      CALL mp2_env%local_gemm_ctx%destroy()
 
       CALL timestop(handle)
 
@@ -390,30 +435,32 @@ CONTAINS
 !> \param ncols ...
 !> \param nrows ...
 !> \param aux_func_dist ...
+!> \param virt_dist ...
+!> \param para_env_sub ...
 ! **************************************************************************************************
-   SUBROUTINE redistribute_into_subgroups(fm_mat, mat, ncols, nrows, aux_func_dist)
+   SUBROUTINE redistribute_into_subgroups(fm_mat, mat, ncols, nrows, aux_func_dist, virt_dist, para_env_sub)
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
          INTENT(OUT)                                     :: mat
       INTEGER, INTENT(IN)                                :: ncols, nrows
-      TYPE(group_dist_d1_type), INTENT(IN)               :: aux_func_dist
+      TYPE(group_dist_d1_type), INTENT(IN)               :: aux_func_dist, virt_dist
+      TYPE(mp_para_env_type), INTENT(IN)                 :: para_env_sub
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'redistribute_into_subgroups'
 
-      INTEGER :: amount_of_recv_data, amount_of_sent_data, aux_global, aux_local, avirt, dimen_RI, &
-         handle, handle2, ia_global, ia_local, iocc, max_number_send, my_aux_end, my_aux_size, &
-         my_aux_start, my_process_column, my_process_row, proc, proc_shift, recv_counter, &
-         recv_proc, send_counter, send_proc
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: data2recv, data2send, recv_col_indices, &
-                                                            recv_row_indices, send_indices
+      INTEGER :: aux_counter, aux_global, aux_local, aux_proc, avirt, dimen_RI, handle, handle2, &
+         ia_global, ia_local, iocc, max_number_recv, max_number_send, my_aux_end, my_aux_size, &
+         my_aux_start, my_process_column, my_process_row, my_virt_end, my_virt_size, &
+         my_virt_start, proc, proc_shift, recv_proc, send_proc, virt_counter, virt_proc
+      INTEGER, ALLOCATABLE, DIMENSION(:) :: aux2send, data2send, recv_col_indices, &
+         recv_row_indices, send_aux_indices, send_indices, send_virt_indices, virt2send
       INTEGER, DIMENSION(2)                              :: recv_shape
       INTEGER, DIMENSION(:), POINTER                     :: aux_distribution_fm, col_indices, &
                                                             ia_distribution_fm, row_indices
       INTEGER, DIMENSION(:, :), POINTER                  :: mpi2blacs
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), TARGET   :: recv_buffer
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: send_buffer
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), TARGET   :: recv_buffer, send_buffer
       REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :), &
-         POINTER                                         :: recv_ptr
+         POINTER                                         :: recv_ptr, send_ptr
       TYPE(cp_blacs_env_type), POINTER                   :: context
       TYPE(mp_para_env_type), POINTER                    :: para_env
 
@@ -435,98 +482,117 @@ CONTAINS
       END IF
 
       CALL timeset(routineN//"_prep", handle2)
-      CALL get_group_dist(aux_func_dist, para_env%mepos, my_aux_start, my_aux_end, my_aux_size)
+      CALL get_group_dist(aux_func_dist, para_env%mepos/para_env_sub%num_pe, my_aux_start, my_aux_end, my_aux_size)
+
+      CALL get_group_dist(virt_dist, para_env_sub%mepos, my_virt_start, my_virt_end, my_virt_size)
 
       CALL context%get(my_process_column=my_process_column, my_process_row=my_process_row, &
                        mpi2blacs=mpi2blacs)
 
       ! Determine the number of columns to send
-      ALLOCATE (data2send(0:para_env%num_pe - 1))
-      data2send = 0
+      ALLOCATE (aux2send(0:para_env%num_pe/para_env_sub%num_pe - 1))
+      aux2send = 0
       DO aux_local = 1, aux_distribution_fm(my_process_row)
          aux_global = row_indices(aux_local)
          proc = group_dist_proc(aux_func_dist, aux_global)
-         data2send(proc) = data2send(proc) + 1
+         aux2send(proc) = aux2send(proc) + 1
       END DO
-      max_number_send = MAXVAL(data2send)
+      ALLOCATE (send_aux_indices(MAXVAL(aux2send)))
+      ALLOCATE (virt2send(0:para_env_sub%num_pe - 1))
+      virt2send = 0
+      DO ia_local = 1, ia_distribution_fm(my_process_column)
+         ia_global = col_indices(ia_local)
+         avirt = MOD(ia_global - 1, nrows) + 1
+         proc = group_dist_proc(virt_dist, avirt)
+         virt2send(proc) = virt2send(proc) + 1
+      END DO
+      ALLOCATE (send_virt_indices(MAXVAL(virt2send)))
+      max_number_send = MAXVAL(aux2send)*MAXVAL(virt2send)
 
-      ALLOCATE (send_buffer(SIZE(col_indices), max_number_send))
+      ALLOCATE (send_buffer(INT(max_number_send, KIND=int_8)*ncols), send_indices(max_number_send))
 
-      ALLOCATE (data2recv(0:para_env%num_pe - 1))
-      CALL para_env%alltoall(data2send, data2recv, 1)
-      ALLOCATE (recv_buffer(MAXVAL(ia_distribution_fm)*MAXVAL(data2recv)))
-      DEALLOCATE (data2recv)
+      ALLOCATE (data2send(0:para_env%num_pe - 1))
+      DO aux_proc = 0, para_env%num_pe/para_env_sub%num_pe - 1
+      DO virt_proc = 0, para_env_sub%num_pe - 1
+         data2send(aux_proc*para_env_sub%num_pe + virt_proc) = aux2send(aux_proc)*virt2send(virt_proc)
+      END DO
+      END DO
 
-      ALLOCATE (mat(nrows, ncols, my_aux_size))
+      max_number_recv = ncols*MAXVAL(data2send)
+      CALL para_env%max(max_number_recv)
+      ALLOCATE (recv_buffer(max_number_recv))
+
+      ALLOCATE (mat(my_virt_size, ncols, my_aux_size))
 
       CALL timestop(handle2)
 
-      amount_of_sent_data = SIZE(fm_mat%local_data)
-      amount_of_recv_data = SIZE(mat)
-
       CALL timeset(routineN//"_own", handle2)
       ! Start with own data
-      recv_counter = 0
       DO aux_local = 1, aux_distribution_fm(my_process_row)
          aux_global = row_indices(aux_local)
          IF (aux_global < my_aux_start .OR. aux_global > my_aux_end) CYCLE
-         ! To be removed
-         amount_of_sent_data = amount_of_sent_data - SIZE(fm_mat%local_data(aux_local, :))
-         amount_of_recv_data = amount_of_recv_data - SIZE(fm_mat%local_data(aux_local, :))
          DO ia_local = 1, ia_distribution_fm(my_process_column)
             ia_global = fm_mat%matrix_struct%col_indices(ia_local)
 
             iocc = (ia_global - 1)/nrows + 1
             avirt = MOD(ia_global - 1, nrows) + 1
 
-            mat(avirt, iocc, aux_global - my_aux_start + 1) = fm_mat%local_data(aux_local, ia_local)
+            IF (my_virt_start > avirt .OR. my_virt_end < avirt) CYCLE
+
+            mat(avirt - my_virt_start + 1, iocc, aux_global - my_aux_start + 1) = fm_mat%local_data(aux_local, ia_local)
          END DO
       END DO
       CALL timestop(handle2)
-
-      ALLOCATE (send_indices(max_number_send))
 
       DO proc_shift = 1, para_env%num_pe - 1
          send_proc = MODULO(para_env%mepos + proc_shift, para_env%num_pe)
          recv_proc = MODULO(para_env%mepos - proc_shift, para_env%num_pe)
 
          CALL timeset(routineN//"_pack_buffer", handle2)
+         send_ptr(1:virt2send(MOD(send_proc, para_env_sub%num_pe)), 1:aux2send(send_proc/para_env_sub%num_pe)) => &
+            send_buffer(1:INT(virt2send(MOD(send_proc, para_env_sub%num_pe)), KIND=int_8)*aux2send(send_proc/para_env_sub%num_pe))
 ! Pack send buffer
-         send_counter = 0
+         aux_counter = 0
          DO aux_local = 1, aux_distribution_fm(my_process_row)
             aux_global = row_indices(aux_local)
             proc = group_dist_proc(aux_func_dist, aux_global)
-            IF (proc /= send_proc) CYCLE
-            send_counter = send_counter + 1
-            send_buffer(:, send_counter) = fm_mat%local_data(aux_local, :)
-            send_indices(send_counter) = aux_global
-            amount_of_sent_data = amount_of_sent_data - SIZE(fm_mat%local_data(aux_local, :))
+            IF (proc /= send_proc/para_env_sub%num_pe) CYCLE
+            aux_counter = aux_counter + 1
+            virt_counter = 0
+            DO ia_local = 1, ia_distribution_fm(my_process_column)
+               ia_global = col_indices(ia_local)
+               avirt = MOD(ia_global - 1, nrows) + 1
+
+               proc = group_dist_proc(virt_dist, avirt)
+               IF (proc /= MOD(send_proc, para_env_sub%num_pe)) CYCLE
+               virt_counter = virt_counter + 1
+               send_ptr(virt_counter, aux_counter) = fm_mat%local_data(aux_local, ia_local)
+               send_virt_indices(virt_counter) = ia_global
+            END DO
+            send_aux_indices(aux_counter) = aux_global
          END DO
          CALL timestop(handle2)
 
          CALL timeset(routineN//"_ex_size", handle2)
          recv_shape = [1, 1]
-         CALL para_env%sendrecv(SHAPE(send_buffer(:, 1:send_counter)), send_proc, recv_shape, recv_proc)
+         CALL para_env%sendrecv(SHAPE(send_ptr), send_proc, recv_shape, recv_proc)
          CALL timestop(handle2)
 
-         IF (send_counter == 0) send_proc = mp_proc_null
+         IF (SIZE(send_ptr) == 0) send_proc = mp_proc_null
          IF (PRODUCT(recv_shape) == 0) recv_proc = mp_proc_null
 
          CALL timeset(routineN//"_ex_idx", handle2)
          ALLOCATE (recv_row_indices(recv_shape(1)), recv_col_indices(recv_shape(2)))
-         CALL para_env%sendrecv(col_indices, send_proc, recv_row_indices, recv_proc)
-         CALL para_env%sendrecv(send_indices(1:send_counter), send_proc, recv_col_indices, recv_proc)
+         CALL para_env%sendrecv(send_virt_indices(1:virt_counter), send_proc, recv_row_indices, recv_proc)
+         CALL para_env%sendrecv(send_aux_indices(1:aux_counter), send_proc, recv_col_indices, recv_proc)
          CALL timestop(handle2)
-
-         CALL para_env%sync()
 
          ! Prepare pointer to recv buffer (consider transposition while packing the send buffer)
          recv_ptr(1:recv_shape(1), 1:MAX(1, recv_shape(2))) => recv_buffer(1:recv_shape(1)*MAX(1, recv_shape(2)))
 
          CALL timeset(routineN//"_sendrecv", handle2)
 ! Perform communication
-         CALL para_env%sendrecv(send_buffer(:, 1:MAX(1, send_counter)), send_proc, &
-                                recv_ptr, recv_proc)
+         CALL para_env%sendrecv(send_ptr, send_proc, recv_ptr, recv_proc)
          CALL timestop(handle2)
 
          IF (recv_proc == mp_proc_null) THEN
@@ -547,8 +613,6 @@ CONTAINS
 
                mat(avirt, iocc, aux_global - my_aux_start + 1) = recv_ptr(ia_local, aux_local)
             END DO
-            amount_of_recv_data = amount_of_recv_data - SIZE(recv_ptr(:, aux_local))
-
          END DO
          CALL timestop(handle2)
 
@@ -556,8 +620,36 @@ CONTAINS
          IF (ALLOCATED(recv_col_indices)) DEALLOCATE (recv_col_indices)
       END DO
 
+      DEALLOCATE (send_aux_indices, send_virt_indices)
+
       CALL timestop(handle)
 
    END SUBROUTINE redistribute_into_subgroups
+
+! **************************************************************************************************
+!> \brief ...
+!> \param fm_mat_Gamma_3 ...
+!> \param mat_Gamma_3 ...
+!> \param para_env_sub ...
+!> \param template_dbcsr ...
+! **************************************************************************************************
+   SUBROUTINE redistribute_Gamma(fm_mat_Gamma_3, mat_Gamma_3, para_env_sub, template_dbcsr)
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_Gamma_3
+      TYPE(dbcsr_type), ALLOCATABLE, DIMENSION(:), &
+         INTENT(OUT)                                     :: mat_Gamma_3
+      TYPE(mp_para_env_type), INTENT(IN), POINTER        :: para_env_sub
+      TYPE(dbcsr_type), INTENT(IN)                       :: template_dbcsr
+
+      MARK_USED(fm_mat_Gamma_3)
+      MARK_USED(mat_Gamma_3)
+      MARK_USED(para_env_sub)
+      MARK_USED(template_dbcsr)
+
+      ! Redistribute fm_mat_Gamma_3 into subgroups (P, ia) -> (a, i, P) (both fm)
+      ! Assign P to different subgroups
+      ! Distribute a, i within subgroups according to block-cyclic layout
+
+      ! Copy fm to dbcsr
+   END SUBROUTINE redistribute_Gamma
 
 END MODULE rpa_exchange
