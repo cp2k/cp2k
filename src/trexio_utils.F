@@ -31,6 +31,7 @@ MODULE trexio_utils
                     default_string_length, &
                     dp, &
                     int_8
+   USE kpoint_types, ONLY: kpoint_type, get_kpoint_info
    USE mp2_types, ONLY: mp2_type
    USE particle_types, ONLY: particle_type
    USE periodic_table, ONLY: get_ptable_info
@@ -54,7 +55,9 @@ MODULE trexio_utils
                      trexio_write_nucleus_repulsion, trexio_write_cell_a, &
                      trexio_write_cell_b, trexio_write_cell_c, &
                      trexio_write_cell_g_a, trexio_write_cell_g_b, &
-                     trexio_write_cell_g_c, trexio_write_cell_two_pi
+                     trexio_write_cell_g_c, trexio_write_cell_two_pi, &
+                     trexio_write_pbc_periodic, trexio_write_pbc_k_point_num, &
+                     trexio_write_pbc_k_point, trexio_write_pbc_k_point_weight
 #endif
 #include "./base/base_uses.f90"
 
@@ -89,11 +92,12 @@ MODULE trexio_utils
                                                             ! nel, nmo, nspins, output_unit
       INTEGER(trexio_t)                                  :: f        ! The TREXIO file handle
       INTEGER(trexio_exit_code)                          :: rc       ! TREXIO return code
-      LOGICAL                                            :: explicit
+      LOGICAL                                            :: explicit, do_kpoints
       REAL(KIND=dp)                                      :: e_nn
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(kpoint_type), POINTER                         :: kpoints
       ! TYPE(gto_basis_set_type), POINTER                  :: basis_set
       TYPE(mp2_type), POINTER                            :: mp2_env
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
@@ -104,7 +108,9 @@ MODULE trexio_utils
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
       TYPE(section_vals_type), POINTER                   :: input
 
-      INTEGER                                            :: iatom, natoms, z
+      INTEGER                                            :: iatom, natoms, z, periodic, nkp
+      INTEGER, DIMENSION(3)                              :: nkp_grid
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: wkp
       REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE         :: coord  ! row major, in bohr
       REAL(KIND=dp), DIMENSION(:), ALLOCATABLE           :: charge ! of the atoms
       CHARACTER(LEN=2), DIMENSION(:), ALLOCATABLE        :: label  ! of the elements
@@ -122,6 +128,7 @@ MODULE trexio_utils
                       dft_control=dft_control, force=force, &
                       particle_set=particle_set, cell=cell, &
                       scf_env=scf_env, mp2_env=mp2_env, &
+                      do_kpoints=do_kpoints, kpoints=kpoints, &
                       input=input, qs_kind_set=kind_set)
 
       ! get filename
@@ -218,6 +225,26 @@ MODULE trexio_utils
       !========================================================================================!
       ! PBC group
       !========================================================================================!
+
+      periodic = 0
+      IF (SUM(cell%perd) /= 0) periodic = 1
+      rc = trexio_write_pbc_periodic(f, periodic)
+      CALL trexio_error(rc)
+
+      IF (do_kpoints) THEN
+         CALL get_kpoint_info(kpoints, nkp=nkp, nkp_grid=nkp_grid, wkp=wkp)
+
+         rc = trexio_write_pbc_k_point_num(f, nkp)
+         CALL trexio_error(rc)
+
+         rc = trexio_write_pbc_k_point(f, REAL(nkp_grid, KIND=dp))
+         CALL trexio_error(rc)
+
+         rc = trexio_write_pbc_k_point_weight(f, wkp)
+         CALL trexio_error(rc)
+      END IF
+
+
 
       ! nspins = active_space_env%nspins
 
