@@ -3626,4 +3626,81 @@ CONTAINS
 
    END SUBROUTINE exclude_d3_kind_pair
 
+   ! **************************************************************************************************
+!> \brief ...
+!> \param qs_env ...
+!> \param vdw_section ...
+!> \param energy ...
+!> \param calculate_forces ...
+! **************************************************************************************************
+   SUBROUTINE calculate_dispersion_d4_pairpot(qs_env, vdw_section, energy, calculate_forces)
+
+      use dftd4, only : structure_type, new, d4_model, new_d4_model, &
+                        damping_param, get_rational_damping,         &
+                        realspace_cutoff, get_dispersion
+
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(section_vals_type), POINTER                   :: vdw_section
+      REAL(KIND=dp), INTENT(OUT)                         :: energy
+      LOGICAL, INTENT(IN)                                :: calculate_forces
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_dispersion_d4_pairpot'
+
+      TYPE(structure_type)                        :: mol
+      INTEGER                                     :: natom, iatom
+      INTEGER, ALLOCATABLE, DIMENSION(:)          :: el_num
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:,:)  :: xyz
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:,:)  :: gradient
+      REAL(KIND=dp), DIMENSION(3,3)               :: sigma
+      TYPE(d4_model)                              :: disp
+      class(damping_param), allocatable           :: param
+      TYPE(realspace_cutoff)                      :: cutoff 
+
+      TYPE(particle_type), DIMENSION(:), POINTER  :: particle_set
+      TYPE(qs_force_type), DIMENSION(:), POINTER  :: force
+      INTEGER                                     :: handle, ikind
+      CHARACTER(LEN=default_string_length)        :: functional
+
+      CALL timeset(routineN, handle)
+
+      !get information about particles
+      NULLIFY (particle_set)
+      CALL get_qs_env(qs_env=qs_env, particle_set=particle_set)
+      natom = SIZE(particle_set)
+      ALLOCATE (xyz(3, natom))
+      ALLOCATE (el_num(natom))
+      DO iatom = 1, natom
+         xyz(:, iatom) = particle_set(iatom)%r(:)
+         CALL get_atomic_kind(particle_set(iatom)%atomic_kind, kind_number=ikind)
+         el_num(iatom) = ikind
+      END DO
+      !get the functional
+      CALL section_vals_val_get(vdw_section, "PAIR_POTENTIAL%REFERENCE_FUNCTIONAL", c_val=functional)
+      !prepare for the gradient
+      IF (calculate_forces) THEN
+         NULLIFY (force)
+         CALL get_qs_env(qs_env=qs_env, force=force)
+      END IF
+
+
+      !prepare for the call to the dispersion function
+      CALL new(mol, el_num, xyz)
+      CALL new_d4_model(disp, mol)
+      CALL get_rational_damping(functional, param)
+
+      !> Wrapper to handle the evaluation of dispersion energy and derivatives
+      IF (calculate_forces) then
+        ALLOCATE(gradient(3, mol%nat))
+        CALL get_dispersion(mol, disp, param, cutoff, energy, gradient, sigma)
+        !sigma needed for viral terms
+        CPABORT("To do: write gradient to force")
+        DEALLOCATE(gradient)
+      ELSE
+        CALL get_dispersion(mol, disp, param, cutoff, energy)
+      ENDIF
+      
+      DEALLOCATE (el_num, xyz)
+
+   END SUBROUTINE calculate_dispersion_d4_pairpot
+
 END MODULE qs_dispersion_pairpot
