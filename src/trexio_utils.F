@@ -31,7 +31,6 @@ MODULE trexio_utils
                     default_string_length, &
                     dp
    USE kpoint_types, ONLY: kpoint_type, get_kpoint_info
-   USE mp2_types, ONLY: mp2_type
    USE particle_types, ONLY: particle_type
    USE qs_energy_types, ONLY: qs_energy_type
    USE qs_environment_types, ONLY: get_qs_env, &
@@ -39,22 +38,24 @@ MODULE trexio_utils
    ! USE qs_force_types, ONLY: qs_force_type
    USE qs_kind_types, ONLY: get_qs_kind, &
                             qs_kind_type
-   USE qs_ks_types, ONLY: qs_ks_env_type
-   USE qs_scf_types, ONLY: qs_scf_env_type
+   ! USE qs_ks_types, ONLY: qs_ks_env_type
+   ! USE qs_scf_types, ONLY: qs_scf_env_type
    USE trexio, ONLY: trexio_open, trexio_close, &
                      TREXIO_HDF5, TREXIO_SUCCESS, &
                      trexio_string_of_error, trexio_t, trexio_exit_code, &
                      trexio_write_metadata_code, trexio_write_metadata_code_num, &
                      trexio_write_nucleus_coord, trexio_write_nucleus_num, &
                      trexio_write_nucleus_charge, trexio_write_nucleus_label, &
-                     trexio_write_nucleus_repulsion, trexio_write_cell_a, &
-                     trexio_write_cell_b, trexio_write_cell_c, &
+                     trexio_write_nucleus_repulsion, &
+                     trexio_write_cell_a, trexio_write_cell_b, trexio_write_cell_c, &
                      trexio_write_cell_g_a, trexio_write_cell_g_b, &
                      trexio_write_cell_g_c, trexio_write_cell_two_pi, &
                      trexio_write_pbc_periodic, trexio_write_pbc_k_point_num, &
                      trexio_write_pbc_k_point, trexio_write_pbc_k_point_weight, &
                      trexio_write_electron_num, trexio_write_electron_up_num, &
-                     trexio_write_electron_dn_num
+                     trexio_write_electron_dn_num, &
+                     trexio_write_state_num, &
+                     trexio_write_state_id, trexio_write_state_energy
 #endif
 #include "./base/base_uses.f90"
 
@@ -91,12 +92,11 @@ MODULE trexio_utils
       TYPE(dft_control_type), POINTER                    :: dft_control => Null()
       TYPE(kpoint_type), POINTER                         :: kpoints => Null()
       ! TYPE(gto_basis_set_type), POINTER                  :: basis_set
-      TYPE(mp2_type), POINTER                            :: mp2_env => Null()
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set => Null()
       TYPE(qs_energy_type), POINTER                      :: energy => Null()
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: kind_set => Null()
-      TYPE(qs_ks_env_type), POINTER                      :: ks_env => Null()
-      TYPE(qs_scf_env_type), POINTER                     :: scf_env => Null()
+      ! TYPE(qs_ks_env_type), POINTER                      :: ks_env => Null()
+      ! TYPE(qs_scf_env_type), POINTER                     :: scf_env => Null()
 
       INTEGER                                            :: iatom, natoms, periodic, nkp, nel_tot, nspins, ikind
       INTEGER, DIMENSION(2)                              :: nel_spin
@@ -115,10 +115,7 @@ MODULE trexio_utils
       CPASSERT(ASSOCIATED(qs_env))
 
       ! collect environment info
-      CALL get_qs_env(qs_env, ks_env=ks_env, energy=energy, &
-                      dft_control=dft_control, cell=cell, &
-                      scf_env=scf_env, mp2_env=mp2_env, &
-                      do_kpoints=do_kpoints, kpoints=kpoints)
+      ! CALL get_qs_env(qs_env, energy=energy, dft_control=dft_control)
 
       ! get filename
       CALL section_vals_val_get(trexio_section, "FILENAME", c_val=filename, explicit=explicit)
@@ -152,7 +149,7 @@ MODULE trexio_utils
       ! Nucleus group
       !========================================================================================!
 
-      CALL get_qs_env(qs_env, particle_set=particle_set, qs_kind_set=kind_set, natom=natoms)
+      CALL get_qs_env(qs_env, cell=cell, particle_set=particle_set, qs_kind_set=kind_set, natom=natoms)
 
       rc = trexio_write_nucleus_num(f, natoms)
       CALL trexio_error(rc)
@@ -220,6 +217,8 @@ MODULE trexio_utils
       ! PBC group
       !========================================================================================!
 
+      CALL get_qs_env(qs_env, do_kpoints=do_kpoints, kpoints=kpoints)
+
       periodic = 0
       IF (SUM(cell%perd) /= 0) periodic = 1
       rc = trexio_write_pbc_periodic(f, periodic)
@@ -242,7 +241,7 @@ MODULE trexio_utils
       ! Electron group
       !========================================================================================!
 
-      CALL get_qs_env(qs_env, nelectron_total=nel_tot)
+      CALL get_qs_env(qs_env, dft_control=dft_control, nelectron_total=nel_tot)
 
       rc = trexio_write_electron_num(f, nel_tot)
       CALL trexio_error(rc)
@@ -263,20 +262,20 @@ MODULE trexio_utils
       rc = trexio_write_electron_dn_num(f, nel_spin(2))
       CALL trexio_error(rc)
 
+      !========================================================================================!
+      ! State group
+      !========================================================================================!
 
-      ! ! MP2 info
-      ! IF (ASSOCIATED(qs_env%mp2_env)) THEN
-      !    qcschema_env%properties%mp2 = .TRUE.
-      !    ! this info is computed on the fly, but not stored!
-      !    ! qcschema_env%properties%mp2_same_spin_correlation_energy
-      !    ! qcschema_env%properties%mp2_opposite_spin_correlation_energy
+      CALL get_qs_env(qs_env, energy=energy)
 
-      !    qcschema_env%properties%mp2_correlation_energy = energy%mp2
-      !    qcschema_env%properties%mp2_total_energy = energy%total
+      rc = trexio_write_state_num(f, 1)
+      CALL trexio_error(rc)
 
-      !    ! update the scf energy
-      !    qcschema_env%properties%scf_total_energy = energy%total - energy%mp2
-      ! END IF
+      rc = trexio_write_state_id(f, 0)
+      CALL trexio_error(rc)
+
+      rc = trexio_write_state_energy(f, energy%total)
+      CALL trexio_error(rc)
 
 
       !========================================================================================!
