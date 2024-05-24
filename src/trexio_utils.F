@@ -57,7 +57,9 @@ MODULE trexio_utils
                      trexio_write_cell_g_a, trexio_write_cell_g_b, &
                      trexio_write_cell_g_c, trexio_write_cell_two_pi, &
                      trexio_write_pbc_periodic, trexio_write_pbc_k_point_num, &
-                     trexio_write_pbc_k_point, trexio_write_pbc_k_point_weight
+                     trexio_write_pbc_k_point, trexio_write_pbc_k_point_weight, &
+                     trexio_write_electron_num, trexio_write_electron_up_num, &
+                     trexio_write_electron_dn_num
 #endif
 #include "./base/base_uses.f90"
 
@@ -108,7 +110,8 @@ MODULE trexio_utils
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
       TYPE(section_vals_type), POINTER                   :: input
 
-      INTEGER                                            :: iatom, natoms, z, periodic, nkp
+      INTEGER                                            :: iatom, natoms, z, periodic, nkp, nel_tot, nspins
+      INTEGER, DIMENSION(2)                              :: nel_spin
       INTEGER, DIMENSION(3)                              :: nkp_grid
       REAL(KIND=dp), DIMENSION(:), POINTER               :: wkp
       REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE         :: coord  ! row major, in bohr
@@ -129,7 +132,8 @@ MODULE trexio_utils
                       particle_set=particle_set, cell=cell, &
                       scf_env=scf_env, mp2_env=mp2_env, &
                       do_kpoints=do_kpoints, kpoints=kpoints, &
-                      input=input, qs_kind_set=kind_set)
+                      input=input, qs_kind_set=kind_set, &
+                      nelectron_total=nel_tot, nelectron_spin=nel_spin)
 
       ! get filename
       CALL section_vals_val_get(trexio_section, "FILENAME", c_val=filename, explicit=explicit)
@@ -244,59 +248,31 @@ MODULE trexio_utils
          CALL trexio_error(rc)
       END IF
 
+      !========================================================================================!
+      ! Electron group
+      !========================================================================================!
 
+      CALL get_qs_env(qs_env, nelectron_total=nel_tot)
 
-      ! nspins = active_space_env%nspins
+      rc = trexio_write_electron_num(f, nel_tot)
+      CALL trexio_error(rc)
 
-      ! nao = active_space_env%mos_active(1)%nao
-      ! nmo = active_space_env%nmo_active
-      ! nel = active_space_env%nelec_active
+      nspins = dft_control%nspins
+      IF (nspins == 1) THEN
+         ! it is a spin-restricted calculation and we need to split the electrons manually,
+         ! because in CP2K they are all otherwise weirdly stored in nelectron_spin(1)
+         nel_spin(1) = nel_tot/2
+         nel_spin(2) = nel_tot/2
+      ELSE
+         ! for UKS/ROKS, the two spin channels are populated correctly and according to
+         ! the multiplicity
+         CALL get_qs_env(qs_env, nelectron_spin=nel_spin)
+      END IF
+      rc = trexio_write_electron_up_num(f, nel_spin(1))
+      CALL trexio_error(rc)
+      rc = trexio_write_electron_dn_num(f, nel_spin(2))
+      CALL trexio_error(rc)
 
-      ! IF (nspins == 1) THEN
-      !    nalpha = active_space_env%nelec_active/2
-      !    nbeta = nalpha
-      ! ELSE
-      !    nalpha = (active_space_env%nelec_active + active_space_env%multiplicity - 1)/2
-      !    nbeta = (active_space_env%nelec_active - active_space_env%multiplicity + 1)/2
-      ! END IF
-
-      ! qcschema_env%properties%calcinfo_natom = natoms
-      ! qcschema_env%properties%calcinfo_nbasis = nao
-      ! qcschema_env%properties%calcinfo_nmo = nmo
-      ! qcschema_env%properties%calcinfo_nalpha = nalpha
-      ! qcschema_env%properties%calcinfo_nbeta = nbeta
-
-      ! ! energy results
-      ! qcschema_env%properties%return_energy = energy%total
-      ! qcschema_env%properties%scf_total_energy = energy%total
-      ! ! here we abuse the nuclear repulsion energy to store the inactive energy
-      ! qcschema_env%properties%nuclear_repulsion_energy = active_space_env%energy_inactive
-      ! ! SCF info
-      ! qcschema_env%properties%scf_iterations = scf_env%iter_count
-      ! ! one-electron energy is the sum of all core terms
-      ! one_el_en = energy%core_overlap + energy%core_self + energy%core
-      ! qcschema_env%properties%scf_two_electron_energy = one_el_en
-      ! ! two-electron energy is the sum of hartree and exact exchange (if there)
-      ! two_el_en = energy%hartree + energy%ex + energy%hartree_1c
-      ! qcschema_env%properties%scf_one_electron_energy = two_el_en
-      ! ! xc energy
-      ! qcschema_env%properties%scf_xc_energy = &
-      !    energy%exc + energy%exc_aux_fit + energy%exc1 + energy%exc1_aux_fit
-      ! ! dispersion energy
-      ! dispersion = energy%dispersion + energy%gcp
-      ! qcschema_env%properties%scf_dispersion_correction_energy = dispersion
-
-      ! ! Some methods of CP2K are not supported by QCSchema, let's warn the user
-      ! IF (dft_control%smear) CPABORT('WARNING: smearing not supported in QCSchema')
-      ! IF (dft_control%dft_plus_u) CPABORT('WARNING: DFT+U not supported in QCSchema')
-      ! IF (dft_control%do_sccs) CPABORT('WARNING: SCCS not supported in QCSchema')
-      ! IF (qs_env%qmmm) CPABORT('WARNING: QM/MM not supported in QCSchema')
-      ! IF (dft_control%qs_control%mulliken_restraint) &
-      !    CPABORT('WARNING: Mulliken restrains not supported in QCSchema')
-      ! IF (dft_control%qs_control%semi_empirical) &
-      !    CPABORT('WARNING: semi_empirical methods not supported in QCSchema')
-      ! IF (dft_control%qs_control%dftb) CPABORT('WARNING: DFTB not supported in QCSchema')
-      ! IF (dft_control%qs_control%xtb) CPABORT('WARNING: xTB not supported in QCSchema')
 
       ! ! MP2 info
       ! IF (ASSOCIATED(qs_env%mp2_env)) THEN
@@ -312,110 +288,10 @@ MODULE trexio_utils
       !    qcschema_env%properties%scf_total_energy = energy%total - energy%mp2
       ! END IF
 
-      ! !========================================================================================!
-      ! ! *** QCSchema wavefunction ***
-      ! !========================================================================================!
 
-      ! IF (nspins == 1) THEN
-      !    qcschema_env%wavefunction%restricted = .TRUE.
-      ! ELSE
-      !    qcschema_env%wavefunction%restricted = .FALSE.
-      ! END IF
-
-      ! ! alpha MO energies
-      ! ALLOCATE (qcschema_env%wavefunction%scf_eigenvalues_a(nmo))
-      ! DO i = 1, nmo
-      !    i_glb = active_space_env%active_orbitals(i, 1)
-      !    qcschema_env%wavefunction%scf_eigenvalues_a(i) = &
-      !       active_space_env%mos_active(1)%eigenvalues(i_glb)
-      ! END DO
-
-      ! ! alpha MO occupations
-      ! ALLOCATE (qcschema_env%wavefunction%scf_occupations_a(nmo))
-      ! DO i = 1, nmo
-      !    i_glb = active_space_env%active_orbitals(i, 1)
-      !    qcschema_env%wavefunction%scf_occupations_a(i) = &
-      !       active_space_env%mos_active(1)%occupation_numbers(i_glb)
-      ! END DO
-
-      ! ! alpha Fock matrix
-      ! ALLOCATE (qcschema_env%wavefunction%scf_fock_mo_a(nmo*nmo))
-      ! CALL subspace_matrix_to_array(active_space_env%fock_sub(1), &
-      !                               qcschema_env%wavefunction%scf_fock_mo_a, &
-      !                               active_space_env%active_orbitals(:, 1), &
-      !                               active_space_env%active_orbitals(:, 1))
-
-      ! ! alpha density matrix
-      ! ALLOCATE (qcschema_env%wavefunction%scf_density_mo_a(nmo*nmo))
-      ! CALL subspace_matrix_to_array(active_space_env%p_active(1), &
-      !                               qcschema_env%wavefunction%scf_density_mo_a, &
-      !                               active_space_env%active_orbitals(:, 1), &
-      !                               active_space_env%active_orbitals(:, 1))
-
-      ! ! alpha MOs coefficients
-      ! ALLOCATE (qcschema_env%wavefunction%scf_orbitals_a(nao*nmo))
-      ! CALL subspace_matrix_to_array(active_space_env%mos_active(1)%mo_coeff, &
-      !                               qcschema_env%wavefunction%scf_orbitals_a, &
-      !                               (/(i, i=1, nao)/), active_space_env%active_orbitals(:, 1))
-
-      ! IF (nspins == 2) THEN
-      !    ! beta MO energies
-      !    ALLOCATE (qcschema_env%wavefunction%scf_eigenvalues_b(nmo))
-      !    DO i = 1, nmo
-      !       i_glb = active_space_env%active_orbitals(i, 2)
-      !       qcschema_env%wavefunction%scf_eigenvalues_b(i) = &
-      !          active_space_env%mos_active(2)%eigenvalues(i_glb)
-      !    END DO
-
-      !    ! beta MO occupations
-      !    ALLOCATE (qcschema_env%wavefunction%scf_occupations_b(nmo))
-      !    DO i = 1, nmo
-      !       i_glb = active_space_env%active_orbitals(i, 2)
-      !       qcschema_env%wavefunction%scf_occupations_b(i) = &
-      !          active_space_env%mos_active(2)%occupation_numbers(i_glb)
-      !    END DO
-
-      !    ! beta Fock matrix
-      !    ALLOCATE (qcschema_env%wavefunction%scf_fock_mo_b(nmo*nmo))
-      !    CALL subspace_matrix_to_array(active_space_env%fock_sub(2), &
-      !                                  qcschema_env%wavefunction%scf_fock_mo_b, &
-      !                                  active_space_env%active_orbitals(:, 2), &
-      !                                  active_space_env%active_orbitals(:, 2))
-
-      !    ! beta density matrix
-      !    ALLOCATE (qcschema_env%wavefunction%scf_density_mo_b(nmo*nmo))
-      !    CALL subspace_matrix_to_array(active_space_env%p_active(2), &
-      !                                  qcschema_env%wavefunction%scf_density_mo_b, &
-      !                                  active_space_env%active_orbitals(:, 2), &
-      !                                  active_space_env%active_orbitals(:, 2))
-
-      !    ! beta MOs coefficients
-      !    ALLOCATE (qcschema_env%wavefunction%scf_orbitals_b(nao*nmo))
-      !    CALL subspace_matrix_to_array(active_space_env%mos_active(2)%mo_coeff, &
-      !                                  qcschema_env%wavefunction%scf_orbitals_b, &
-      !                                  (/(i, i=1, nao)/), active_space_env%active_orbitals(:, 2))
-      ! END IF
-
-      ! ! get the alpha-alpha eri
-      ! ALLOCATE (qcschema_env%wavefunction%scf_eri_mo_aa(nmo**4))
-      ! CALL eri_to_array(active_space_env%eri, qcschema_env%wavefunction%scf_eri_mo_aa, &
-      !                   active_space_env%active_orbitals, 1, 1)
-
-      ! IF (nspins == 2) THEN
-      !    ! get the alpha-beta eri
-      !    ALLOCATE (qcschema_env%wavefunction%scf_eri_mo_ab(nmo**4))
-      !    CALL eri_to_array(active_space_env%eri, qcschema_env%wavefunction%scf_eri_mo_ab, &
-      !                      active_space_env%active_orbitals, 1, 2)
-
-      !    ! get the beta-beta eri
-      !    ALLOCATE (qcschema_env%wavefunction%scf_eri_mo_bb(nmo**4))
-      !    CALL eri_to_array(active_space_env%eri, qcschema_env%wavefunction%scf_eri_mo_bb, &
-      !                      active_space_env%active_orbitals, 2, 2)
-      ! END IF
-
-      ! !========================================================================================!
-      ! ! *** QCSchema model ***
-      ! !========================================================================================!
+      !========================================================================================!
+      ! *** QCSchema model ***
+      !========================================================================================!
 
       ! DO iatom = 1, natoms
       !    CALL get_atomic_kind(particle_set(iatom)%atomic_kind, kind_number=ikind)
