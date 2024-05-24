@@ -15,7 +15,7 @@ MODULE trexio_utils
 
 #ifdef __TREXIO
    USE atomic_kind_types, ONLY: get_atomic_kind
-   USE basis_set_types, ONLY: gto_basis_set_type
+   ! USE basis_set_types, ONLY: gto_basis_set_type
    USE cell_types, ONLY: cell_type
    USE cp2k_info, ONLY: cp2k_version
    USE cp_control_types, ONLY: dft_control_type
@@ -23,25 +23,20 @@ MODULE trexio_utils
    USE cp_log_handling, ONLY: cp_get_default_logger, &
                               cp_logger_get_default_io_unit, &
                               cp_logger_type
-   USE input_section_types, ONLY: section_vals_get, &
-                                  section_vals_val_get, &
-                                  section_vals_get_subs_vals, &
-                                  section_vals_type
+   USE input_section_types, ONLY: section_vals_type, &
+                                  section_vals_val_get
+   !                                section_vals_get_subs_vals, &
+   !                                section_vals_get
    USE kinds, ONLY: default_path_length, &
                     default_string_length, &
-                    dp, &
-                    int_8
+                    dp
    USE kpoint_types, ONLY: kpoint_type, get_kpoint_info
    USE mp2_types, ONLY: mp2_type
    USE particle_types, ONLY: particle_type
-   USE periodic_table, ONLY: get_ptable_info
-   USE qs_active_space_types, ONLY: active_space_type
-   USE qs_active_space_utils, ONLY: eri_to_array, &
-                                    subspace_matrix_to_array
    USE qs_energy_types, ONLY: qs_energy_type
    USE qs_environment_types, ONLY: get_qs_env, &
                                    qs_environment_type
-   USE qs_force_types, ONLY: qs_force_type
+   ! USE qs_force_types, ONLY: qs_force_type
    USE qs_kind_types, ONLY: get_qs_kind, &
                             qs_kind_type
    USE qs_ks_types, ONLY: qs_ks_env_type
@@ -86,38 +81,31 @@ MODULE trexio_utils
       CHARACTER(LEN=*), PARAMETER :: routineN = 'write_trexio'
 
       INTEGER                                            :: handle, output_unit, unit_trexio
-      ! CHARACTER(LEN=2)                                   :: atomic_symbol
       CHARACTER(len=default_path_length)                 :: filename
-      ! CHARACTER(LEN=default_string_length)               :: basis_set_name, method
-                                                            ! atomic_number, handle, i, i_glb, iatom, &
-                                                            ! ikind, nalpha, nao, natoms, nbeta, &
-                                                            ! nel, nmo, nspins, output_unit
       INTEGER(trexio_t)                                  :: f        ! The TREXIO file handle
       INTEGER(trexio_exit_code)                          :: rc       ! TREXIO return code
       LOGICAL                                            :: explicit, do_kpoints
-      REAL(KIND=dp)                                      :: e_nn
-      TYPE(cell_type), POINTER                           :: cell
-      TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(kpoint_type), POINTER                         :: kpoints
+      REAL(KIND=dp)                                      :: e_nn, zeff
+      TYPE(cell_type), POINTER                           :: cell => Null()
+      TYPE(cp_logger_type), POINTER                      :: logger => Null()
+      TYPE(dft_control_type), POINTER                    :: dft_control => Null()
+      TYPE(kpoint_type), POINTER                         :: kpoints => Null()
       ! TYPE(gto_basis_set_type), POINTER                  :: basis_set
-      TYPE(mp2_type), POINTER                            :: mp2_env
-      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
-      TYPE(qs_energy_type), POINTER                      :: energy
-      TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
-      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: kind_set
-      TYPE(qs_ks_env_type), POINTER                      :: ks_env
-      TYPE(qs_scf_env_type), POINTER                     :: scf_env
-      TYPE(section_vals_type), POINTER                   :: input
+      TYPE(mp2_type), POINTER                            :: mp2_env => Null()
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set => Null()
+      TYPE(qs_energy_type), POINTER                      :: energy => Null()
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: kind_set => Null()
+      TYPE(qs_ks_env_type), POINTER                      :: ks_env => Null()
+      TYPE(qs_scf_env_type), POINTER                     :: scf_env => Null()
 
-      INTEGER                                            :: iatom, natoms, z, periodic, nkp, nel_tot, nspins
+      INTEGER                                            :: iatom, natoms, periodic, nkp, nel_tot, nspins, ikind
       INTEGER, DIMENSION(2)                              :: nel_spin
       INTEGER, DIMENSION(3)                              :: nkp_grid
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: wkp
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: wkp => Null()
       REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE         :: coord  ! row major, in bohr
       REAL(KIND=dp), DIMENSION(:), ALLOCATABLE           :: charge ! of the atoms
       CHARACTER(LEN=2), DIMENSION(:), ALLOCATABLE        :: label  ! of the elements
-      CHARACTER(LEN=2)                                   :: atomic_symbol
+      CHARACTER(LEN=2)                                   :: element_symbol
 
       CALL timeset(routineN, handle)
 
@@ -128,12 +116,9 @@ MODULE trexio_utils
 
       ! collect environment info
       CALL get_qs_env(qs_env, ks_env=ks_env, energy=energy, &
-                      dft_control=dft_control, force=force, &
-                      particle_set=particle_set, cell=cell, &
+                      dft_control=dft_control, cell=cell, &
                       scf_env=scf_env, mp2_env=mp2_env, &
-                      do_kpoints=do_kpoints, kpoints=kpoints, &
-                      input=input, qs_kind_set=kind_set, &
-                      nelectron_total=nel_tot, nelectron_spin=nel_spin)
+                      do_kpoints=do_kpoints, kpoints=kpoints)
 
       ! get filename
       CALL section_vals_val_get(trexio_section, "FILENAME", c_val=filename, explicit=explicit)
@@ -167,7 +152,8 @@ MODULE trexio_utils
       ! Nucleus group
       !========================================================================================!
 
-      natoms = SIZE(particle_set)
+      CALL get_qs_env(qs_env, particle_set=particle_set, qs_kind_set=kind_set, natom=natoms)
+
       rc = trexio_write_nucleus_num(f, natoms)
       CALL trexio_error(rc)
 
@@ -175,11 +161,15 @@ MODULE trexio_utils
       ALLOCATE (label(natoms))
       ALLOCATE (charge(natoms))
       DO iatom = 1, natoms
+         ! store the coordinates
          coord(iatom,:) = particle_set(iatom)%r(1:3)
-
-         CALL get_atomic_kind(particle_set(iatom)%atomic_kind, element_symbol=atomic_symbol, z=z)
-         label(iatom) = atomic_symbol
-         charge(iatom) = REAL(z, kind=dp)
+         ! figure out the element symbol and to which kind_set entry this atomic_kind corresponds to
+         CALL get_atomic_kind(particle_set(iatom)%atomic_kind, element_symbol=element_symbol, kind_number=ikind)
+         ! store the element symbol
+         label(iatom) = element_symbol
+         ! get and store the effective nuclear charge of this kind_type (ikind)
+         CALL get_qs_kind(kind_set(ikind), zeff=zeff)
+         charge(iatom) = zeff
       END DO
 
       rc = trexio_write_nucleus_coord(f, coord)
@@ -196,7 +186,7 @@ MODULE trexio_utils
 
       ! nuclear repulsion energy well-defined for molecules only
       IF (SUM(cell%perd) == 0) THEN
-         CALL nuclear_repulsion_energy(particle_set, e_nn)
+         CALL nuclear_repulsion_energy(particle_set, kind_set, e_nn)
          rc = trexio_write_nucleus_repulsion(f, e_nn)
          CALL trexio_error(rc)
       END IF
@@ -358,20 +348,26 @@ MODULE trexio_utils
 !> \param particle_set the set of particles in the system
 !> \param e_nn the nuclear repulsion energy
 ! **************************************************************************************************
-   SUBROUTINE nuclear_repulsion_energy(particle_set, e_nn)
+   SUBROUTINE nuclear_repulsion_energy(particle_set, kind_set, e_nn)
       TYPE(particle_type), DIMENSION(:), POINTER, INTENT(IN) :: particle_set
+      TYPE(qs_kind_type), DIMENSION(:), POINTER, INTENT(IN) :: kind_set
       REAL(KIND=dp), INTENT(OUT) :: e_nn
 
-      INTEGER :: i, j, z_i, z_j
-      REAL(KIND=dp) :: r_ij
+      INTEGER :: i, j, ikind, jkind, natoms
+      REAL(KIND=dp) :: r_ij, zeff_i, zeff_j
 
+      natoms = SIZE(particle_set)
       e_nn = 0.0_dp
-      DO i = 1, SIZE(particle_set)
-         DO j = i+1, SIZE(particle_set)
+      DO i = 1, natoms
+         CALL get_atomic_kind(particle_set(i)%atomic_kind, kind_number=ikind)
+         CALL get_qs_kind(kind_set(ikind), zeff=zeff_i)
+         DO j = i+1, natoms
             r_ij = NORM2(particle_set(i)%r - particle_set(j)%r)
-            CALL get_atomic_kind(particle_set(i)%atomic_kind, z=z_i)
-            CALL get_atomic_kind(particle_set(j)%atomic_kind, z=z_j)
-            e_nn = e_nn + REAL(z_i, KIND=dp)*REAL(z_j, KIND=dp)/r_ij
+
+            CALL get_atomic_kind(particle_set(j)%atomic_kind, kind_number=jkind)
+            CALL get_qs_kind(kind_set(jkind), zeff=zeff_j)
+
+            e_nn = e_nn + zeff_i*zeff_j/r_ij
          END DO
       END DO
 
