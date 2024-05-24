@@ -55,7 +55,7 @@ case "$with_dftd4" in
       if [ -n "${MKL_LIBS}" ]; then
         EXTRA_CMAKE_FLAGS=" -DMKLROOT=${MKLROOT} "
       fi
-
+      
       CMAKE_PREFIX_PATH="${CMAKE_PREFIX_PATH}:${OPENBLAS_ROOT}" cmake \
         -B . -G Ninja \
         -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}" \
@@ -83,10 +83,11 @@ case "$with_dftd4" in
   esac
 
 if [ "$with_dftd4" != "__DONTUSE__" ]; then
-
+  DFTD4_LOC=$(find ${pkg_install_dir}/include -name "dftd4.mod")
+  DFTD4_MOD=${DFTD4_LOC%/*}
   DFTD4_LIBS="-ldftd4"
   DFTD4_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath,'${pkg_install_dir}/lib'"
-  DFTD4_CFLAGS="-I'${pkg_install_dir}/include'"
+  DFTD4_CFLAGS="-I'${pkg_install_dir}/include' -I'${DFTD4_MOD}'"
 
   if [ "$with_dftd4" != "__SYSTEM__" ]; then
     cat << EOF > "${BUILDDIR}/setup_dftd4"
@@ -103,13 +104,14 @@ EOF
 export DFTD4_LIBS="${DFTD4_LIBS}"
 export DFTD4_LDFLAGS="${DFTD4_LDFLAGS}"
 export DFTD4_CFLAGS="${DFTD4_CFLAGS}"
+export DFTD4_MOD="${DFTD4_MOD}"
 export DFTD4_LIBRARIES="${pkg_install_dir}/lib"
 export DFTD4_INCLUDE_DIR="$pkg_install_dir/include"
 export DFTD4_ROOT="${pkg_install_dir}" 
-export CP_DFLAGS="\${CP_DFLAGS} -D__DFTD4|"
-export CP_CFLAGS="\${CP_CFLAGS} \${DFTD4_CFLAGS}|"
-export CP_LDFLAGS="\${CP_LDFLAGS} \${DFTD4_LDFLAGS}|"
-export CP_LIBS="\${DFTD4_LIBS}| \${CP_LIBS}"
+export CP_DFLAGS="\${CP_DFLAGS} -D__DFTD4"
+export CP_CFLAGS="\${CP_CFLAGS} \${DFTD4_CFLAGS}"
+export CP_LDFLAGS="\${CP_LDFLAGS} \${DFTD4_LDFLAGS}"
+export CP_LIBS="\${DFTD4_LIBS} \${CP_LIBS}"
 EOF
   cat "${BUILDDIR}/setup_dftd4" >> $SETUPFILE
 fi
