@@ -621,7 +621,7 @@ CONTAINS
 
          ELSE
             WRITE (UNIT=output_unit, FMT="(T2,2A)") &
-               " Conv. for gradients        =     ", &
+               " Conv. for RMS gradients        =     ", &
                "              NO"
          END IF
          IF (PRESENT(pres_diff) .AND. PRESENT(pres_tol)) THEN
