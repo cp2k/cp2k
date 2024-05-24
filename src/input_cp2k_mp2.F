@@ -462,21 +462,10 @@ CONTAINS
          keyword, __LOCATION__, &
          name="FREE_HFX_BUFFER", &
          description="Free the buffer containing the 4 center integrals used in the Hartree-Fock exchange calculation. "// &
-         "This will be effective only for gradients calculations, since for the energy only "// &
-         "case, the buffers are released by default. (Right now debugging only).", &
+         "Ignored for energy-only calculations. May fail.", &
          usage="FREE_HFX_BUFFER", &
-         default_l_val=.TRUE., &
+         default_l_val=.FALSE., &
          lone_keyword_l_val=.TRUE.)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create( &
-         keyword, __LOCATION__, &
-         name="USE_OLD_GRADIENT_CODE", &
-         description="Use the original RI-MP2 gradient code.", &
-         usage="USE_OLD_GRADIENT_CODE  T", &
-         lone_keyword_l_val=.TRUE., &
-         default_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
