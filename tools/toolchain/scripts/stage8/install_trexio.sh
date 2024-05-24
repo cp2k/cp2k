@@ -73,7 +73,7 @@ case "$with_trexio" in
     ;;
   *)
     echo "==================== Linking TREXIO to user paths ===================="
-    pkg_install_dir="$with_sirius"
+    pkg_install_dir="$with_trexio"
     check_dir "${pkg_install_dir}/lib"
     check_dir "${pkg_install_dir}/include"
     TREXIO_CFLAGS="-I'${pkg_install_dir}/include'"
