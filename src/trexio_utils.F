@@ -15,7 +15,7 @@ MODULE trexio_utils
 
 #ifdef __TREXIO
    USE atomic_kind_types, ONLY: get_atomic_kind
-   USE basis_set_types, ONLY: gto_basis_set_type
+   USE basis_set_types, ONLY: gto_basis_set_type, get_gto_basis_set
    USE cell_types, ONLY: cell_type
    USE cp2k_info, ONLY: cp2k_version
    USE cp_control_types, ONLY: dft_control_type
@@ -36,7 +36,7 @@ MODULE trexio_utils
    USE qs_environment_types, ONLY: get_qs_env, &
                                    qs_environment_type
    ! USE qs_force_types, ONLY: qs_force_type
-   USE qs_kind_types, ONLY: get_qs_kind, &
+   USE qs_kind_types, ONLY: get_qs_kind, get_qs_kind_set, &
                             qs_kind_type
    ! USE qs_ks_types, ONLY: qs_ks_env_type
    ! USE qs_scf_types, ONLY: qs_scf_env_type
@@ -54,8 +54,12 @@ MODULE trexio_utils
                      trexio_write_pbc_k_point, trexio_write_pbc_k_point_weight, &
                      trexio_write_electron_num, trexio_write_electron_up_num, &
                      trexio_write_electron_dn_num, &
-                     trexio_write_state_num, &
-                     trexio_write_state_id, trexio_write_state_energy
+                     trexio_write_state_num, trexio_write_state_id, &
+                     trexio_write_state_energy, &
+                     trexio_write_basis_type, trexio_write_basis_prim_num, &
+                     trexio_write_basis_shell_num, trexio_write_basis_nucleus_index, &
+                     trexio_write_basis_shell_ang_mom, trexio_write_basis_shell_factor, &
+                     trexio_write_basis_r_power, trexio_write_basis_shell_index
 #endif
 #include "./base/base_uses.f90"
 
@@ -90,22 +94,28 @@ MODULE trexio_utils
       TYPE(cell_type), POINTER                           :: cell => Null()
       TYPE(cp_logger_type), POINTER                      :: logger => Null()
       TYPE(dft_control_type), POINTER                    :: dft_control => Null()
-      TYPE(kpoint_type), POINTER                         :: kpoints => Null()
       TYPE(gto_basis_set_type), POINTER                  :: basis_set
+      TYPE(kpoint_type), POINTER                         :: kpoints => Null()
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set => Null()
       TYPE(qs_energy_type), POINTER                      :: energy => Null()
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: kind_set => Null()
       ! TYPE(qs_ks_env_type), POINTER                      :: ks_env => Null()
       ! TYPE(qs_scf_env_type), POINTER                     :: scf_env => Null()
 
-      INTEGER                                            :: iatom, natoms, periodic, nkp, nel_tot, nspins, ikind
+      INTEGER                                            :: iatom, natoms, periodic, nkp, nel_tot, &
+                                                            nspins, ikind, shell_num, nshell, &
+                                                            nshell_acc, prim_num, ncgf, ncgf_acc, nset, iset
       INTEGER, DIMENSION(2)                              :: nel_spin
       INTEGER, DIMENSION(3)                              :: nkp_grid
       REAL(KIND=dp), DIMENSION(:), POINTER               :: wkp => Null()
-      REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE         :: coord  ! row major, in bohr
-      REAL(KIND=dp), DIMENSION(:), ALLOCATABLE           :: charge ! of the atoms
-      CHARACTER(LEN=2), DIMENSION(:), ALLOCATABLE        :: label  ! of the elements
+      REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE         :: coord
+      REAL(KIND=dp), DIMENSION(:), ALLOCATABLE           :: charge, shell_factor
+      INTEGER, DIMENSION(:), ALLOCATABLE                 :: nucleus_index, shell_ang_mom, r_power, shell_index
+      ! INTEGER, DIMENSION(:), POINTER                     :: nshells => Null()
+      CHARACTER(LEN=2), DIMENSION(:), ALLOCATABLE        :: label
       CHARACTER(LEN=2)                                   :: element_symbol
+      ! INTEGER, DIMENSION(:), POINTER                     :: nshell_ => Null()
+      INTEGER, DIMENSION(:, :), POINTER                  :: l => Null(), first_cgf, last_cgf
 
       CALL timeset(routineN, handle)
 
@@ -281,59 +291,85 @@ MODULE trexio_utils
       ! Basis group
       !========================================================================================!
 
-      CALL get_qs_kind_set(qs_kind_set, &
-                           maxlgto=maxlgto, &
-                           ncgf=ncgf, &
-                           npgf=npgf, &
-                           nset=nset, &
-                           nsgf=nsgf, &
-                           nshell=nshell, &
-                           maxlppl=maxlppl, &
-                           maxlppnl=maxlppnl)
+      CALL get_qs_kind_set(kind_set, ncgf=prim_num, nshell=shell_num)
+                           ! nsgf=nsgf, &
+                           ! npgf=npgf, &
+                           ! nset=nset, &
+                           ! maxlppl=maxlppl, &
+                           ! maxlppnl=maxlppnl)
 
-      rc = trexio_write_basis_type(f, 'Gaussian')
+      rc = trexio_write_basis_type(f, 'Gaussian', LEN_TRIM('Gaussian')+1)
       CALL trexio_error(rc)
 
-      rc = trexio_write_basis_prim_num(f, ncgf)
+      rc = trexio_write_basis_prim_num(f, prim_num)
       CALL trexio_error(rc)
 
-      rc = trexio_write_basis_shell_num(f, nshell)
+      rc = trexio_write_basis_shell_num(f, shell_num)
       CALL trexio_error(rc)
 
+      ! one-to-one mapping between shells and atomic indices
+      ! one-to-one mapping between shells and angular momenta
+      ALLOCATE (nucleus_index(shell_num))
+      ALLOCATE (shell_ang_mom(shell_num))
+      ALLOCATE (shell_factor(shell_num))
+      ALLOCATE (r_power(shell_num))
+      ALLOCATE (shell_index(prim_num))
 
+      nshell_acc = 0
+      ncgf_acc = 0
       DO iatom = 1, natoms
+         print*, 'iatom', iatom
+
          CALL get_atomic_kind(particle_set(iatom)%atomic_kind, kind_number=ikind)
-         CALL get_qs_kind(kind_set(ikind), basis_set=basis_set)
+         CALL get_qs_kind(kind_set(ikind), basis_set=basis_set, basis_type="ORB")
+         CALL get_gto_basis_set(basis_set, nset=nset, nshell_sum=nshell, l=l, ncgf=ncgf, &
+                                first_cgf=first_cgf, last_cgf=last_cgf)
 
-         basis_set_name = basis_set%name
+         ! nucleus_index array
+         nucleus_index(nshell_acc+1:nshell_acc+nshell) = iatom
 
-         ! make sure that we do not run a mixed basis set
-         IF (iatom > 1) THEN
-            CPASSERT(basis_set_name == basis_set%name)
-         END IF
+         ! shell_ang_mom array
+         ! TODO: figure out what are the sets and why is always 1 for primary basis sets
+         iset = 1
+         shell_ang_mom(nshell_acc+1:nshell_acc+nshell) = l(:,iset)
+
+         ! shell_factor array
+         shell_factor(nshell_acc+1:nshell_acc+nshell) = 1.0_dp
+
+         ! r_power array
+         r_power(nshell_acc+1:nshell_acc+nshell) = 0
+
+         ! shell_index array
+         print*, 'ncgf', ncgf
+         ! first and last cgf are arrays of length nshell
+         ! their difference gives the number of cgfs for each shell
+         ! which depends on the angular momentum (s->1, p->3, d->6, ...)
+         ! I need to know the number of primitives making up each cgf
+         print*, 'first_cgf', first_cgf
+         print*, 'last_cgf', last_cgf
+         ! shell_index(ncgf_acc+1:ncgf_acc+ncgf) =
+
+
+         nshell_acc = nshell_acc + nshell
       END DO
 
-      ! ! figure out which method was used for the calculation
-      ! IF (dft_control%uks) THEN
-      !    method = 'U'
-      ! ELSE IF (dft_control%roks) THEN
-      !    method = 'RO'
-      ! ELSE
-      !    method = 'R'
-      ! END IF
+      rc = trexio_write_basis_nucleus_index(f, nucleus_index)
+      CALL trexio_error(rc)
+      DEALLOCATE (nucleus_index)
 
-      ! hfx_sections => section_vals_get_subs_vals(input, "DFT%XC%HF")
-      ! CALL section_vals_get(hfx_sections, explicit=do_hfx)
+      rc = trexio_write_basis_shell_ang_mom(f, shell_ang_mom)
+      CALL trexio_error(rc)
+      DEALLOCATE (shell_ang_mom)
 
-      ! IF (do_hfx) THEN
-      !    method = TRIM(method)//'HF'
-      ! ELSE IF (qcschema_env%properties%mp2) THEN
-      !    method = TRIM(method)//'MP2'
-      ! ELSE
-      !    method = TRIM(method)//'KS'
-      ! END IF
+      rc = trexio_write_basis_shell_factor(f, shell_factor)
+      CALL trexio_error(rc)
+      DEALLOCATE (shell_factor)
 
-      ! qcschema_env%wavefunction%method = TRIM(method)
+      rc = trexio_write_basis_r_power(f, r_power)
+      CALL trexio_error(rc)
+      DEALLOCATE (r_power)
+
+      DEALLOCATE (shell_index)
 
       ! Close the TREXIO file
       rc = trexio_close(f)
