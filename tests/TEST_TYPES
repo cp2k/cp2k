@@ -5,7 +5,7 @@ Total energy \[eV\]:!4
 Ideal and single determinant!8
 BSSE-free interaction energy:!5
 Average Energy !4
-Total Energy               =!4
+OPT| Total energy \[hartree\]!5
 VIB|Frequency !3
 PINT| Total energy = !5
 BAND TOTAL ENERGY \[au\] !6
@@ -23,7 +23,7 @@ VIB| !3
 PW exchange energy!5
 Total Spread!5
 DFT+U energy:!3
-Local Curvature            =!4
+OPT| Local curvature!4
 Total electronic charge (G-space):!6
 Total electronic charge (R-space):!5
 Total spin density (R-space)           :!6
