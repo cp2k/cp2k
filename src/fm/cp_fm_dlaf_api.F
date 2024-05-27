@@ -7,13 +7,16 @@
 
 MODULE cp_fm_dlaf_api
 
-   USE cp_fm_basic_linalg,              ONLY: cp_fm_upper_to_full
-   USE cp_fm_types,                     ONLY: cp_fm_type
-   USE dlaf_fortran,                    ONLY: dlaf_pdpotrf,&
-                                              dlaf_pdsyevd,&
-                                              dlaf_pspotrf
-   USE kinds,                           ONLY: dp
+   USE cp_fm_basic_linalg, ONLY: cp_fm_upper_to_full
+   USE cp_fm_types, ONLY: cp_fm_type
+   USE kinds, ONLY: dp
 #include "../base/base_uses.f90"
+
+#if defined(__DLAF)
+   USE dlaf_fortran, ONLY: dlaf_pdpotrf, &
+                           dlaf_pdsyevd, &
+                           dlaf_pspotrf
+#endif
 
    IMPLICIT NONE
 

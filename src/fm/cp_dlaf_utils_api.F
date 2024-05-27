@@ -6,11 +6,15 @@
 !--------------------------------------------------------------------------------------------------!
 
 MODULE cp_dlaf_utils_api
-   USE dlaf_fortran,                    ONLY: dlaf_create_grid_from_blacs,&
-                                              dlaf_finalize,&
-                                              dlaf_free_grid,&
-                                              dlaf_initialize
+
 #include "../base/base_uses.f90"
+
+#if defined(__DLAF)
+   USE dlaf_fortran, ONLY: dlaf_create_grid_from_blacs, &
+                           dlaf_finalize, &
+                           dlaf_free_grid, &
+                           dlaf_initialize
+#endif
 
    IMPLICIT NONE
 
