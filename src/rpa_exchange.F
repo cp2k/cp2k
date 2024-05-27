@@ -64,6 +64,7 @@ MODULE rpa_exchange
       INTEGER :: exchange_correction = rpa_exchange_none
       INTEGER, DIMENSION(:), ALLOCATABLE :: homo, virtual, dimen_ia
       TYPE(group_dist_d1_type) :: aux_func_dist = group_dist_d1_type()
+      INTEGER, DIMENSION(:), ALLOCATABLE :: aux2send
       INTEGER :: dimen_RI = 0
       INTEGER :: block_size = 0
       INTEGER :: group_size = 0
@@ -135,7 +136,9 @@ CONTAINS
       TYPE(cp_fm_type), INTENT(IN) :: fm_mat_Q, fm_mat_Q_gemm
       INTEGER, DIMENSION(SIZE(fm_mat_S)), INTENT(IN) :: homo, virtual
 
-      INTEGER :: nspins, group_size
+      INTEGER :: nspins, group_size, aux_global, aux_local, my_process_row, proc
+      INTEGER, DIMENSION(:), POINTER :: row_indices, aux_distribution_fm
+      TYPE(cp_blacs_env_type), POINTER :: context
 
       exchange_work%exchange_correction = mp2_env%ri_rpa%exchange_correction
 
@@ -162,7 +165,17 @@ CONTAINS
          END IF
       END ASSOCIATE
 
+      CALL cp_fm_get_info(fm_mat_S(1), row_indices=row_indices, nrow_locals=aux_distribution_fm, context=context)
+      CALL context%get(my_process_row=my_process_row)
+
       CALL create_group_dist(exchange_work%aux_func_dist, exchange_work%ngroup, dimen_RI)
+      ALLOCATE (exchange_work%aux2send(0:exchange_work%ngroup - 1))
+      exchange_work%aux2send = 0
+      DO aux_local = 1, aux_distribution_fm(my_process_row)
+         aux_global = row_indices(aux_local)
+         proc = group_dist_proc(exchange_work%aux_func_dist, aux_global)
+         exchange_work%aux2send(proc) = exchange_work%aux2send(proc) + 1
+      END DO
 
       exchange_work%eps_filter = mp2_env%mp2_gpw%eps_filter
 
@@ -196,6 +209,7 @@ CONTAINS
          CALL mp_para_env_release(exchange_work%para_env_sub)
       END IF
       CALL release_group_dist(exchange_work%aux_func_dist)
+      IF (ALLOCATED(exchange_work%aux2send)) DEALLOCATE(exchange_work%aux2send)
       CALL cp_fm_release(exchange_work%fm_mat_Q_tmp)
       CALL cp_fm_release(exchange_work%fm_mat_U)
       CALL cp_fm_release(exchange_work%fm_mat_R_half_gemm)
@@ -456,7 +470,7 @@ CONTAINS
          ia_global, ia_local, iocc, max_number_recv, max_number_send, my_aux_end, my_aux_size, &
          my_aux_start, my_process_column, my_process_row, my_virt_end, my_virt_size, &
          my_virt_start, proc, proc_shift, recv_proc, send_proc, virt_counter, virt_proc, group_size
-      INTEGER, ALLOCATABLE, DIMENSION(:) :: aux2send, data2send, recv_col_indices, &
+      INTEGER, ALLOCATABLE, DIMENSION(:) :: data2send, recv_col_indices, &
          recv_row_indices, send_aux_indices, send_indices, send_virt_indices, virt2send
       INTEGER, DIMENSION(2)                              :: recv_shape
       INTEGER, DIMENSION(:), POINTER                     :: aux_distribution_fm, col_indices, &
@@ -489,21 +503,11 @@ CONTAINS
 
       CALL timeset(routineN//"_prep", handle2)
       CALL get_group_dist(exchange_work%aux_func_dist, exchange_work%color_sub, my_aux_start, my_aux_end, my_aux_size)
-
       CALL get_group_dist(virt_dist, exchange_work%para_env_sub%mepos, my_virt_start, my_virt_end, my_virt_size)
-
-      CALL context%get(my_process_column=my_process_column, my_process_row=my_process_row, &
-                       mpi2blacs=mpi2blacs)
+      CALL context%get(my_process_column=my_process_column, my_process_row=my_process_row, mpi2blacs=mpi2blacs)
 
       ! Determine the number of columns to send
-      ALLOCATE (aux2send(0:exchange_work%ngroup - 1))
-      aux2send = 0
-      DO aux_local = 1, aux_distribution_fm(my_process_row)
-         aux_global = row_indices(aux_local)
-         proc = group_dist_proc(exchange_work%aux_func_dist, aux_global)
-         aux2send(proc) = aux2send(proc) + 1
-      END DO
-      ALLOCATE (send_aux_indices(MAXVAL(aux2send)))
+      ALLOCATE (send_aux_indices(MAXVAL(exchange_work%aux2send)))
       ALLOCATE (virt2send(0:group_size - 1))
       virt2send = 0
       DO ia_local = 1, ia_distribution_fm(my_process_column)
@@ -513,14 +517,14 @@ CONTAINS
          virt2send(proc) = virt2send(proc) + 1
       END DO
       ALLOCATE (send_virt_indices(MAXVAL(virt2send)))
-      max_number_send = MAXVAL(aux2send)*MAXVAL(virt2send)
+      max_number_send = MAXVAL(exchange_work%aux2send)*MAXVAL(virt2send)
 
       ALLOCATE (send_buffer(INT(max_number_send, KIND=int_8)*exchange_work%homo(ispin)), send_indices(max_number_send))
 
       ALLOCATE (data2send(0:para_env%num_pe - 1))
-      DO aux_proc = 0, exchange_work%group_size - 1
+      DO aux_proc = 0, exchange_work%ngroup - 1
       DO virt_proc = 0, group_size - 1
-         data2send(aux_proc*group_size + virt_proc) = aux2send(aux_proc)*virt2send(virt_proc)
+         data2send(aux_proc*group_size + virt_proc) = exchange_work%aux2send(aux_proc)*virt2send(virt_proc)
       END DO
       END DO
 
@@ -556,9 +560,9 @@ CONTAINS
 
          CALL timeset(routineN//"_pack_buffer", handle2)
          send_ptr(1:virt2send(MOD(send_proc, group_size)), &
-         1:aux2send(send_proc/group_size)) => &
+         1:exchange_work%aux2send(send_proc/group_size)) => &
             send_buffer(1:INT(virt2send(MOD(send_proc, group_size)), KIND=int_8)*&
-            aux2send(send_proc/group_size))
+            exchange_work%aux2send(send_proc/group_size))
 ! Pack send buffer
          aux_counter = 0
          DO aux_local = 1, aux_distribution_fm(my_process_row)
