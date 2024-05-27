@@ -632,7 +632,7 @@ if(CP2K_USE_VORI)
 endif()
 
 if(CP2K_USE_DLAF)
-  find_package(DLAF REQUIRED)
+  find_package(DLAFFortran REQUIRED)
 endif()
 
 # FFTW3
@@ -910,15 +910,6 @@ endif()
 if(CP2K_USE_ELPA)
   message(" - ELPA\n" "   - include directories : ${CP2K_ELPA_INCLUDE_DIRS}\n"
           "   - libraries           :  ${CP2K_ELPA_LINK_LIBRARIES}\n\n")
-endif()
-
-if(CP2K_USE_DLAF)
-  get_target_property(CP2K_DLAF_INCLUDE_DIRS DLAF::DLAF
-                      INTERFACE_INCLUDE_DIRECTORIES)
-  get_target_property(CP2K_DLAF_LINK_LIBRARIES DLAF::DLAF
-                      INTERFACE_LINK_LIBRARIES)
-  message(" - DLAF\n" "   - include directories : ${CP2K_DLAF_INCLUDE_DIRS}\n"
-          "   - libraries           :  ${CP2K_DLAF_LINK_LIBRARIES}\n\n")
 endif()
 
 if(CP2K_USE_SUPERLU)
