@@ -63,10 +63,12 @@ MODULE rpa_exchange
       PRIVATE
       INTEGER :: exchange_correction = rpa_exchange_none
       INTEGER, DIMENSION(:), ALLOCATABLE :: homo, virtual, dimen_ia
+      TYPE(group_dist_d1_type) :: aux_func_dist = group_dist_d1_type()
       INTEGER :: dimen_RI = 0
       INTEGER :: block_size = 0
       INTEGER :: group_size = 0
       INTEGER :: color_sub = 0
+      INTEGER :: ngroup = 0
       REAL(KIND=dp) :: eps_filter = 0.0_dp
       TYPE(cp_fm_type) :: fm_mat_Q_tmp = cp_fm_type()
       TYPE(cp_fm_type) :: fm_mat_R_half_gemm = cp_fm_type()
@@ -140,7 +142,7 @@ CONTAINS
       IF (exchange_work%exchange_correction == rpa_exchange_none) RETURN
 
       ASSOCIATE (para_env => fm_mat_S(1)%matrix_struct%para_env)
-         exchange_work%group_size = mp2_env%ri_rpa%exchange_group_size
+         group_size = mp2_env%ri_rpa%exchange_group_size
 ! If automatic choice is requested, choose a suitable group size
          IF (mp2_env%ri_rpa%use_hfx_implementation) THEN
             IF (group_size <= 0) group_size = para_env%num_pe
@@ -148,6 +150,7 @@ CONTAINS
             IF (group_size <= 0 .OR. dimen_RI*group_size < para_env%num_pe) &
                group_size = (para_env%num_pe - 1)/dimen_RI + 1
          END IF
+         exchange_work%ngroup = para_env%num_pe/group_size
          exchange_work%color_sub = para_env%mepos/group_size
          ALLOCATE (exchange_work%para_env_sub)
          IF (group_size < para_env%num_pe) THEN
@@ -158,6 +161,8 @@ CONTAINS
             CALL exchange_work%para_env_sub%from_dup(para_env)
          END IF
       END ASSOCIATE
+
+      CALL create_group_dist(exchange_work%aux_func_dist, exchange_work%ngroup, dimen_RI)
 
       exchange_work%eps_filter = mp2_env%mp2_gpw%eps_filter
 
@@ -190,6 +195,7 @@ CONTAINS
       IF (ASSOCIATED(exchange_work%para_env_sub)) THEN
          CALL mp_para_env_release(exchange_work%para_env_sub)
       END IF
+      CALL release_group_dist(exchange_work%aux_func_dist)
       CALL cp_fm_release(exchange_work%fm_mat_Q_tmp)
       CALL cp_fm_release(exchange_work%fm_mat_U)
       CALL cp_fm_release(exchange_work%fm_mat_R_half_gemm)
@@ -235,7 +241,7 @@ CONTAINS
       REAL(KIND=dp), POINTER, DIMENSION(:, :, :, :), CONTIGUOUS :: product_matrix_4D
       TYPE(cp_fm_type)        :: fm_mat_Gamma_3
       TYPE(mp_para_env_type), POINTER :: para_env
-      TYPE(group_dist_d1_type)                           :: aux_func_dist, virt_dist
+      TYPE(group_dist_d1_type)                           :: virt_dist
 
       IF (exchange_work%exchange_correction == rpa_exchange_none) RETURN
 
@@ -296,8 +302,7 @@ CONTAINS
       CALL cp_fm_to_fm_submat_general(exchange_work%fm_mat_U, exchange_work%fm_mat_R_half_gemm, dimen_RI, &
                                       dimen_RI, 1, 1, 1, 1, exchange_work%fm_mat_U%matrix_struct%context)
 
-      CALL create_group_dist(aux_func_dist, para_env%num_pe, dimen_RI)
-      CALL get_group_dist(aux_func_dist, para_env%mepos, sizes=my_aux_size)
+      CALL get_group_dist(exchange_work%aux_func_dist, exchange_work%color_sub, sizes=my_aux_size)
 
       e_exchange_corr = 0.0_dp
       max_aux_size = (dimen_RI + para_env%num_pe - 1)/para_env%num_pe
@@ -341,8 +346,7 @@ CONTAINS
             ! Remove extra factor from S after the multiplication (to return to the original matrix)
             CALL remove_scaling_factor_rpa(fm_mat_S(ispin), virt, eig(:, ispin), hom, omega)
 
-            CALL exchange_work%redistribute_into_subgroups(fm_mat_Gamma_3, mat_Gamma_3_3D, ispin, aux_func_dist, &
-                                             virt_dist)
+            CALL exchange_work%redistribute_into_subgroups(fm_mat_Gamma_3, mat_Gamma_3_3D, ispin, virt_dist)
             CALL cp_fm_release(fm_mat_Gamma_3)
 
             mat_Gamma_3_1D(1:INT(virt, KIND=int_8)*hom*my_aux_size) => mat_Gamma_3_3D(:, :, 1:my_aux_size)
@@ -352,8 +356,7 @@ CONTAINS
             CALL remove_scaling_factor_rpa(fm_mat_S(ispin), virt, eig(:, ispin), hom, omega)
 
             ! Reorder matrix from (P, i*a) -> (a, i, P) with P being distributed within subgroups
-            CALL exchange_work%redistribute_into_subgroups(fm_mat_S(ispin), mat_B_iaP, ispin, aux_func_dist, &
-                                             virt_dist)
+            CALL exchange_work%redistribute_into_subgroups(fm_mat_S(ispin), mat_B_iaP, ispin, virt_dist)
 
             ! Return to the original tensor
             CALL calc_fm_mat_S_rpa(fm_mat_S(ispin), .TRUE., virt, eig(:, ispin), hom, omega, 0.0_dp)
@@ -371,7 +374,7 @@ CONTAINS
                send_proc = MODULO(para_env%mepos + proc_shift, para_env%num_pe)
                recv_proc = MODULO(para_env%mepos - proc_shift, para_env%num_pe)
 
-               CALL get_group_dist(aux_func_dist, recv_proc, sizes=recv_size)
+               CALL get_group_dist(exchange_work%aux_func_dist, recv_proc, sizes=recv_size)
 
                IF (recv_size == 0) recv_proc = mp_proc_null
 
@@ -420,7 +423,6 @@ CONTAINS
       END DO
 
       IF (.NOT. mp2_env%ri_rpa%use_hfx_implementation) THEN
-         CALL release_group_dist(aux_func_dist)
          CALL mp2_env%local_gemm_ctx%destroy()
       END IF
       IF (nspins == 2) e_exchange_corr = e_exchange_corr*2.0_dp
@@ -440,20 +442,20 @@ CONTAINS
 !> \param virt_dist ...
 !> \param para_env_sub ...
 ! **************************************************************************************************
-   SUBROUTINE redistribute_into_subgroups(exchange_work, fm_mat, mat, ispin, aux_func_dist, virt_dist)
+   SUBROUTINE redistribute_into_subgroups(exchange_work, fm_mat, mat, ispin, virt_dist)
    CLASS(rpa_exchange_work_type), INTENT(IN) :: exchange_work
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
          INTENT(OUT)                                     :: mat
       INTEGER, INTENT(IN)                                :: ispin
-      TYPE(group_dist_d1_type), INTENT(IN)               :: aux_func_dist, virt_dist
+      TYPE(group_dist_d1_type), INTENT(IN)               :: virt_dist
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'redistribute_into_subgroups'
 
       INTEGER :: aux_counter, aux_global, aux_local, aux_proc, avirt, dimen_RI, handle, handle2, &
          ia_global, ia_local, iocc, max_number_recv, max_number_send, my_aux_end, my_aux_size, &
          my_aux_start, my_process_column, my_process_row, my_virt_end, my_virt_size, &
-         my_virt_start, proc, proc_shift, recv_proc, send_proc, virt_counter, virt_proc
+         my_virt_start, proc, proc_shift, recv_proc, send_proc, virt_counter, virt_proc, group_size
       INTEGER, ALLOCATABLE, DIMENSION(:) :: aux2send, data2send, recv_col_indices, &
          recv_row_indices, send_aux_indices, send_indices, send_virt_indices, virt2send
       INTEGER, DIMENSION(2)                              :: recv_shape
@@ -483,8 +485,10 @@ CONTAINS
          RETURN
       END IF
 
+      group_size = exchange_work%para_env_sub%num_pe
+
       CALL timeset(routineN//"_prep", handle2)
-      CALL get_group_dist(aux_func_dist, para_env%mepos/exchange_work%para_env_sub%num_pe, my_aux_start, my_aux_end, my_aux_size)
+      CALL get_group_dist(exchange_work%aux_func_dist, exchange_work%color_sub, my_aux_start, my_aux_end, my_aux_size)
 
       CALL get_group_dist(virt_dist, exchange_work%para_env_sub%mepos, my_virt_start, my_virt_end, my_virt_size)
 
@@ -492,15 +496,15 @@ CONTAINS
                        mpi2blacs=mpi2blacs)
 
       ! Determine the number of columns to send
-      ALLOCATE (aux2send(0:para_env%num_pe/exchange_work%para_env_sub%num_pe - 1))
+      ALLOCATE (aux2send(0:exchange_work%ngroup - 1))
       aux2send = 0
       DO aux_local = 1, aux_distribution_fm(my_process_row)
          aux_global = row_indices(aux_local)
-         proc = group_dist_proc(aux_func_dist, aux_global)
+         proc = group_dist_proc(exchange_work%aux_func_dist, aux_global)
          aux2send(proc) = aux2send(proc) + 1
       END DO
       ALLOCATE (send_aux_indices(MAXVAL(aux2send)))
-      ALLOCATE (virt2send(0:exchange_work%para_env_sub%num_pe - 1))
+      ALLOCATE (virt2send(0:group_size - 1))
       virt2send = 0
       DO ia_local = 1, ia_distribution_fm(my_process_column)
          ia_global = col_indices(ia_local)
@@ -514,9 +518,9 @@ CONTAINS
       ALLOCATE (send_buffer(INT(max_number_send, KIND=int_8)*exchange_work%homo(ispin)), send_indices(max_number_send))
 
       ALLOCATE (data2send(0:para_env%num_pe - 1))
-      DO aux_proc = 0, para_env%num_pe/exchange_work%para_env_sub%num_pe - 1
-      DO virt_proc = 0, exchange_work%para_env_sub%num_pe - 1
-         data2send(aux_proc*exchange_work%para_env_sub%num_pe + virt_proc) = aux2send(aux_proc)*virt2send(virt_proc)
+      DO aux_proc = 0, exchange_work%group_size - 1
+      DO virt_proc = 0, group_size - 1
+         data2send(aux_proc*group_size + virt_proc) = aux2send(aux_proc)*virt2send(virt_proc)
       END DO
       END DO
 
@@ -551,16 +555,16 @@ CONTAINS
          recv_proc = MODULO(para_env%mepos - proc_shift, para_env%num_pe)
 
          CALL timeset(routineN//"_pack_buffer", handle2)
-         send_ptr(1:virt2send(MOD(send_proc, exchange_work%para_env_sub%num_pe)), &
-         1:aux2send(send_proc/exchange_work%para_env_sub%num_pe)) => &
-            send_buffer(1:INT(virt2send(MOD(send_proc, exchange_work%para_env_sub%num_pe)), KIND=int_8)*&
-            aux2send(send_proc/exchange_work%para_env_sub%num_pe))
+         send_ptr(1:virt2send(MOD(send_proc, group_size)), &
+         1:aux2send(send_proc/group_size)) => &
+            send_buffer(1:INT(virt2send(MOD(send_proc, group_size)), KIND=int_8)*&
+            aux2send(send_proc/group_size))
 ! Pack send buffer
          aux_counter = 0
          DO aux_local = 1, aux_distribution_fm(my_process_row)
             aux_global = row_indices(aux_local)
-            proc = group_dist_proc(aux_func_dist, aux_global)
-            IF (proc /= send_proc/exchange_work%para_env_sub%num_pe) CYCLE
+            proc = group_dist_proc(exchange_work%aux_func_dist, aux_global)
+            IF (proc /= send_proc/group_size) CYCLE
             aux_counter = aux_counter + 1
             virt_counter = 0
             DO ia_local = 1, ia_distribution_fm(my_process_column)
@@ -568,7 +572,7 @@ CONTAINS
                avirt = MOD(ia_global - 1, exchange_work%virtual(ispin)) + 1
 
                proc = group_dist_proc(virt_dist, avirt)
-               IF (proc /= MOD(send_proc, exchange_work%para_env_sub%num_pe)) CYCLE
+               IF (proc /= MOD(send_proc, group_size)) CYCLE
                virt_counter = virt_counter + 1
                send_ptr(virt_counter, aux_counter) = fm_mat%local_data(aux_local, ia_local)
                send_virt_indices(virt_counter) = ia_global
