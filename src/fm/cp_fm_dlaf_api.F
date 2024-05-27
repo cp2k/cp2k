@@ -16,7 +16,7 @@ MODULE cp_fm_dlaf_api
    USE cp_fm_basic_linalg,              ONLY: cp_fm_upper_to_full
    USE cp_fm_types,                     ONLY: cp_fm_type
    USE kinds,                           ONLY: dp
-   USE dlafort,                        ONLY: dlaf_pdpotrf,&
+   USE dlaf_fortran,                    ONLY: dlaf_pdpotrf,&
                                               dlaf_pspotrf, &
                                               dlaf_pdsyevd
 #include "../base/base_uses.f90"

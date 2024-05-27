@@ -12,7 +12,7 @@ MODULE cp_dlaf_utils_api
                                               C_NULL_CHAR,&
                                               C_PTR
                                        
-   USE dlafort,                        ONLY: dlaf_create_grid,&
+   USE dlaf_fortran,                    ONLY: dlaf_create_grid_from_blacs,&
                                               dlaf_finalize,&
                                               dlaf_free_grid,&
                                               dlaf_initialize
@@ -78,7 +78,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 #if defined(__DLAF)
-      CALL dlaf_create_grid(blacs_context)
+      CALL dlaf_create_grid_from_blacs(blacs_context)
 #else
       MARK_USED(blacs_context)
       CPABORT("CP2K compiled without the DLA-Future library.")
