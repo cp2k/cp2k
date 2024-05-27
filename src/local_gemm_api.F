@@ -6,11 +6,11 @@
 !--------------------------------------------------------------------------------------------------!
 
 MODULE local_gemm_api
-   USE ISO_C_BINDING, ONLY: C_LOC, &
-                            C_NULL_PTR, &
+   USE ISO_C_BINDING, ONLY: C_NULL_PTR, &
                             C_PTR
 #if defined(__SPLA) && defined(__OFFLOAD_GEMM)
    USE input_constants, ONLY: do_dgemm_spla
+   USE ISO_C_BINDING, ONLY: IS_C_ASSOCIATED
    USE spla, ONLY: SPLA_PU_HOST, &
                    SPLA_PU_GPU, &
                    SPLA_OP_NONE, &
