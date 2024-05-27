@@ -10,7 +10,7 @@ spack:
     - "fftw @3.3.10 +openmp"
     - "libxc @6.2.2"
     - "spglib @2.3.0"
-    - "dla-future@0.4.0 +scalapack"
+    - "dla-future-fortran@0.1.0"
    # Unfortunately, ScaLAPACK 2.2.1 has not yet been packaged by Spack.
    # https://github.com/Reference-ScaLAPACK/scalapack/tree/v2.2.1
    # which contains https://github.com/Reference-ScaLAPACK/scalapack/pull/26
