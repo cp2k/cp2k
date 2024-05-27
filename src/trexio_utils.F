@@ -59,7 +59,9 @@ MODULE trexio_utils
                      trexio_write_basis_type, trexio_write_basis_prim_num, &
                      trexio_write_basis_shell_num, trexio_write_basis_nucleus_index, &
                      trexio_write_basis_shell_ang_mom, trexio_write_basis_shell_factor, &
-                     trexio_write_basis_r_power, trexio_write_basis_shell_index
+                     trexio_write_basis_r_power, trexio_write_basis_shell_index, &
+                     trexio_write_basis_exponent, trexio_write_basis_coefficient, &
+                     trexio_write_basis_prim_factor
 #endif
 #include "./base/base_uses.f90"
 
@@ -102,20 +104,21 @@ MODULE trexio_utils
       ! TYPE(qs_ks_env_type), POINTER                      :: ks_env => Null()
       ! TYPE(qs_scf_env_type), POINTER                     :: scf_env => Null()
 
+      CHARACTER(LEN=2)                                   :: element_symbol
+      CHARACTER(LEN=2), DIMENSION(:), ALLOCATABLE        :: label
       INTEGER                                            :: iatom, natoms, periodic, nkp, nel_tot, &
-                                                            nspins, ikind, shell_num, nshell, &
-                                                            nshell_acc, prim_num, ncgf, ncgf_acc, nset, iset
+                                                            nspins, ikind, ishell_loc, ishell, &
+                                                            shell_num, prim_num, nset, iset, ipgf
       INTEGER, DIMENSION(2)                              :: nel_spin
       INTEGER, DIMENSION(3)                              :: nkp_grid
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: wkp => Null()
+      INTEGER, DIMENSION(:),    ALLOCATABLE              :: nucleus_index, shell_ang_mom, r_power, shell_index
+      INTEGER, DIMENSION(:),    POINTER                  :: nshell => Null(), npgf => Null()
+      INTEGER, DIMENSION(:, :), POINTER                  :: l => Null()
+      REAL(KIND=dp), DIMENSION(:),   ALLOCATABLE         :: charge, shell_factor, exponents, coefficients, prim_factor
+      REAL(KIND=dp), DIMENSION(:),   POINTER             :: wkp => Null()
       REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE         :: coord
-      REAL(KIND=dp), DIMENSION(:), ALLOCATABLE           :: charge, shell_factor
-      INTEGER, DIMENSION(:), ALLOCATABLE                 :: nucleus_index, shell_ang_mom, r_power, shell_index
-      ! INTEGER, DIMENSION(:), POINTER                     :: nshells => Null()
-      CHARACTER(LEN=2), DIMENSION(:), ALLOCATABLE        :: label
-      CHARACTER(LEN=2)                                   :: element_symbol
-      ! INTEGER, DIMENSION(:), POINTER                     :: nshell_ => Null()
-      INTEGER, DIMENSION(:, :), POINTER                  :: l => Null(), first_cgf, last_cgf
+      REAL(KIND=dp), DIMENSION(:,:), POINTER             :: zetas => Null()
+      REAL(KIND=dp), DIMENSION(:,:,:), POINTER           :: gcc => Null()
 
       CALL timeset(routineN, handle)
 
@@ -281,7 +284,7 @@ MODULE trexio_utils
       rc = trexio_write_state_num(f, 1)
       CALL trexio_error(rc)
 
-      rc = trexio_write_state_id(f, 0)
+      rc = trexio_write_state_id(f, 1)
       CALL trexio_error(rc)
 
       rc = trexio_write_state_energy(f, energy%total)
@@ -291,67 +294,66 @@ MODULE trexio_utils
       ! Basis group
       !========================================================================================!
 
-      CALL get_qs_kind_set(kind_set, ncgf=prim_num, nshell=shell_num)
-                           ! nsgf=nsgf, &
-                           ! npgf=npgf, &
-                           ! nset=nset, &
-                           ! maxlppl=maxlppl, &
-                           ! maxlppnl=maxlppnl)
+      CALL get_qs_kind_set(kind_set, nshell=shell_num, npgf_seg=prim_num)
 
       rc = trexio_write_basis_type(f, 'Gaussian', LEN_TRIM('Gaussian')+1)
-      CALL trexio_error(rc)
-
-      rc = trexio_write_basis_prim_num(f, prim_num)
       CALL trexio_error(rc)
 
       rc = trexio_write_basis_shell_num(f, shell_num)
       CALL trexio_error(rc)
 
-      ! one-to-one mapping between shells and atomic indices
-      ! one-to-one mapping between shells and angular momenta
-      ALLOCATE (nucleus_index(shell_num))
-      ALLOCATE (shell_ang_mom(shell_num))
-      ALLOCATE (shell_factor(shell_num))
-      ALLOCATE (r_power(shell_num))
-      ALLOCATE (shell_index(prim_num))
+      rc = trexio_write_basis_prim_num(f, prim_num)
+      CALL trexio_error(rc)
 
-      nshell_acc = 0
-      ncgf_acc = 0
+      ! one-to-one mapping between shells and ...
+      ALLOCATE (nucleus_index(shell_num)) ! ...atomic indices
+      ALLOCATE (shell_ang_mom(shell_num)) ! ...angular momenta
+      ALLOCATE (shell_index(prim_num))    ! ...indices of primitive functions
+      ALLOCATE (exponents(prim_num))      ! ...primitive exponents
+      ALLOCATE (coefficients(prim_num))   ! ...contraction coefficients
+
+      ishell = 0
+      ipgf = 0
       DO iatom = 1, natoms
-         print*, 'iatom', iatom
-
+         ! get the qs_kind (index position in kind_set) for this atom (atomic_kind)
          CALL get_atomic_kind(particle_set(iatom)%atomic_kind, kind_number=ikind)
+         ! get the primary (orbital) basis set associated to this qs_kind
          CALL get_qs_kind(kind_set(ikind), basis_set=basis_set, basis_type="ORB")
-         CALL get_gto_basis_set(basis_set, nset=nset, nshell_sum=nshell, l=l, ncgf=ncgf, &
-                                first_cgf=first_cgf, last_cgf=last_cgf)
+         ! get the info from the basis set
+         CALL get_gto_basis_set(basis_set, &
+                                nset=nset, &
+                                nshell=nshell, &
+                                npgf=npgf, &
+                                zet=zetas, &
+                                gcc=gcc, &
+                                l=l)
 
-         ! nucleus_index array
-         nucleus_index(nshell_acc+1:nshell_acc+nshell) = iatom
+         DO iset = 1, nset
+            DO ishell_loc = 1, nshell(iset)
+               ishell = ishell + 1
 
-         ! shell_ang_mom array
-         ! TODO: figure out what are the sets and why is always 1 for primary basis sets
-         iset = 1
-         shell_ang_mom(nshell_acc+1:nshell_acc+nshell) = l(:,iset)
+               ! nucleus_index array
+               nucleus_index(ishell) = iatom
 
-         ! shell_factor array
-         shell_factor(nshell_acc+1:nshell_acc+nshell) = 1.0_dp
+               ! shell_ang_mom array
+               shell_ang_mom(ishell) = l(ishell_loc,iset)
 
-         ! r_power array
-         r_power(nshell_acc+1:nshell_acc+nshell) = 0
+               ! shell_index array
+               shell_index(ipgf+1:ipgf+npgf(iset)) = ishell
 
-         ! shell_index array
-         print*, 'ncgf', ncgf
-         ! first and last cgf are arrays of length nshell
-         ! their difference gives the number of cgfs for each shell
-         ! which depends on the angular momentum (s->1, p->3, d->6, ...)
-         ! I need to know the number of primitives making up each cgf
-         print*, 'first_cgf', first_cgf
-         print*, 'last_cgf', last_cgf
-         ! shell_index(ncgf_acc+1:ncgf_acc+ncgf) =
+               ! exponents array
+               exponents(ipgf+1:ipgf+npgf(iset)) = zetas(1:npgf(iset), iset)
 
+               ! coefficients array
+               coefficients(ipgf+1:ipgf+npgf(iset)) = gcc(1:npgf(iset), ishell_loc, iset)
 
-         nshell_acc = nshell_acc + nshell
+               ipgf = ipgf + npgf(iset)
+            END DO
+         END DO
       END DO
+      ! just a failsafe check
+      CPASSERT(ishell == shell_num)
+      CPASSERT(ipgf == prim_num)
 
       rc = trexio_write_basis_nucleus_index(f, nucleus_index)
       CALL trexio_error(rc)
@@ -361,15 +363,39 @@ MODULE trexio_utils
       CALL trexio_error(rc)
       DEALLOCATE (shell_ang_mom)
 
+      ! Cartesian Gaussians are normalized to 1 in CP2K
+      ALLOCATE (shell_factor(shell_num))  ! 1-to-1 map bw shells and normalization factors
+      shell_factor(:) = 1.0_dp
       rc = trexio_write_basis_shell_factor(f, shell_factor)
       CALL trexio_error(rc)
       DEALLOCATE (shell_factor)
 
+      ! This is always 0 for Gaussian basis sets
+      ALLOCATE (r_power(shell_num))       ! 1-to-1 map bw shells radial function powers
+      r_power(:) = 0
       rc = trexio_write_basis_r_power(f, r_power)
       CALL trexio_error(rc)
       DEALLOCATE (r_power)
 
+      rc = trexio_write_basis_shell_index(f, shell_index)
+      CALL trexio_error(rc)
       DEALLOCATE (shell_index)
+
+      rc = trexio_write_basis_exponent(f, exponents)
+      CALL trexio_error(rc)
+      DEALLOCATE (exponents)
+
+      rc = trexio_write_basis_coefficient(f, coefficients)
+      CALL trexio_error(rc)
+      DEALLOCATE (coefficients)
+
+      ! Primitives are not normalized in CP2K
+      ALLOCATE (prim_factor(prim_num))
+      prim_factor(:) = 1.0_dp
+      rc = trexio_write_basis_prim_factor(f, prim_factor)
+      CALL trexio_error(rc)
+      DEALLOCATE (prim_factor)
+
 
       ! Close the TREXIO file
       rc = trexio_close(f)

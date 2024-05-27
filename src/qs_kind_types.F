@@ -875,14 +875,14 @@ CONTAINS
                               ncgf, npgf, nset, nsgf, nshell, maxpol, maxlppl, maxlppnl, maxppnl, &
                               nelectron, maxder, max_ngrid_rad, max_sph_harm, maxg_iso_not0, lmax_rho0, &
                               basis_rcut, &
-                              basis_type, total_zeff_corr)
+                              basis_type, total_zeff_corr, npgf_seg)
 
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       LOGICAL, INTENT(OUT), OPTIONAL :: all_potential_present, tnadd_potential_present, &
          gth_potential_present, sgp_potential_present, paw_atom_present, dft_plus_u_atom_present
       INTEGER, INTENT(OUT), OPTIONAL :: maxcgf, maxsgf, maxco, maxco_proj, maxgtops, maxlgto, &
          maxlprj, maxnset, maxsgf_set, ncgf, npgf, nset, nsgf, nshell, maxpol, maxlppl, maxlppnl, &
-         maxppnl, nelectron
+         maxppnl, nelectron, npgf_seg
       INTEGER, INTENT(IN), OPTIONAL                      :: maxder
       INTEGER, INTENT(OUT), OPTIONAL                     :: max_ngrid_rad, max_sph_harm, &
                                                             maxg_iso_not0, lmax_rho0
@@ -944,6 +944,7 @@ CONTAINS
          IF (PRESENT(lmax_rho0)) lmax_rho0 = 0
          IF (PRESENT(basis_rcut)) basis_rcut = 0.0_dp
          IF (PRESENT(total_zeff_corr)) total_zeff_corr = 0.0_dp
+         IF (PRESENT(npgf_seg)) npgf_seg = 0
 
          nkind = SIZE(qs_kind_set)
          DO ikind = 1, nkind
@@ -1221,6 +1222,13 @@ CONTAINS
 
             IF (PRESENT(lmax_rho0)) THEN
                lmax_rho0 = MAX(lmax_rho0, lmax_rho0_kind)
+            END IF
+
+            IF (PRESENT(npgf_seg)) THEN
+               IF (ASSOCIATED(tmp_basis_set)) THEN
+                  CALL get_gto_basis_set(gto_basis_set=tmp_basis_set, npgf_seg_sum=n)
+                  npgf_seg = npgf_seg + n*qs_kind_set(ikind)%natom
+               END IF
             END IF
 
          END DO
