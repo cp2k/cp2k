@@ -912,7 +912,6 @@ if(CP2K_USE_ELPA)
           "   - libraries           :  ${CP2K_ELPA_LINK_LIBRARIES}\n\n")
 endif()
 
-
 if(CP2K_USE_SUPERLU)
   message(" - superlu\n"
           "   - include directories : ${CP2K_SUPERLU_INCLUDE_DIRS}\n"

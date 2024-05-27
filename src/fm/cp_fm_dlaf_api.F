@@ -7,18 +7,12 @@
 
 MODULE cp_fm_dlaf_api
 
-   USE ISO_C_BINDING,                   ONLY: C_CHAR,&
-                                              C_DOUBLE,&
-                                              C_INT,&
-                                              C_LOC,&
-                                              C_PTR,&
-                                              C_SIGNED_CHAR
    USE cp_fm_basic_linalg,              ONLY: cp_fm_upper_to_full
    USE cp_fm_types,                     ONLY: cp_fm_type
-   USE kinds,                           ONLY: dp
    USE dlaf_fortran,                    ONLY: dlaf_pdpotrf,&
-                                              dlaf_pspotrf, &
-                                              dlaf_pdsyevd
+                                              dlaf_pdsyevd,&
+                                              dlaf_pspotrf
+   USE kinds,                           ONLY: dp
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -54,6 +48,7 @@ CONTAINS
       INTEGER, TARGET                                    :: info
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'cp_pdpotrf_dlaf'
+
       INTEGER                                            :: handle
 
       CALL timeset(routineN, handle)
@@ -94,6 +89,7 @@ CONTAINS
       INTEGER, TARGET                                    :: info
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'cp_pspotrf_dlaf'
+
       INTEGER                                            :: handle
 
       CALL timeset(routineN, handle)
@@ -160,26 +156,21 @@ CONTAINS
       TYPE(cp_fm_type), INTENT(IN)                       :: matrix, eigenvectors
       REAL(kind=dp), DIMENSION(:), INTENT(OUT), TARGET   :: eigenvalues
 
+      CHARACTER(len=*), PARAMETER :: dlaf_name = 'pdsyevd_dlaf', routineN = 'cp_fm_diag_dlaf_base'
       CHARACTER, PARAMETER                               :: uplo = 'L'
-      INTEGER                                            :: n
+
+      CHARACTER(LEN=100)                                 :: message
+      INTEGER                                            :: dlaf_handle, handle, n
       INTEGER, DIMENSION(9)                              :: desca, descz
       INTEGER, TARGET                                    :: info
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: a, z
-      
-      CHARACTER(LEN=100)                                 :: message
-      
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'cp_fm_diag_dlaf_base'
-      INTEGER                                            :: handle
-      INTEGER                                            :: dlaf_handle
-      CHARACTER(len=*), PARAMETER                        :: dlaf_name = 'pdsyevd_dlaf'
-      
+
       CALL timeset(routineN, handle)
 
 #if defined(__DLAF)
       ! DLAF needs the lower triangular part
       ! Use eigenvectors matrix as workspace
       CALL cp_fm_upper_to_full(matrix, eigenvectors)
-
 
       n = matrix%matrix_struct%nrow_global
 
