@@ -215,7 +215,7 @@ CONTAINS
       TYPE(pos_type), DIMENSION(:), POINTER              :: r_last_update_pbc
       REAL(kind=dp)                                      :: pot_nequip
       TYPE(fist_nonbond_env_type), POINTER               :: fist_nonbond_env
-      TYPE(mp_para_env_type), OPTIONAL, POINTER          :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       LOGICAL, INTENT(IN)                                :: use_virial
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'nequip_energy_store_force_virial'
@@ -479,10 +479,9 @@ CONTAINS
       DEALLOCATE (t_edge_index, atom_types)
 
       ! account for double counting from multiple MPI processes
-      IF (PRESENT(para_env)) THEN
-         pot_nequip = pot_nequip/REAL(para_env%num_pe, dp)
-         nequip_data%force = nequip_data%force/REAL(para_env%num_pe, dp)
-      END IF
+      pot_nequip = pot_nequip/REAL(para_env%num_pe, dp)
+      nequip_data%force = nequip_data%force/REAL(para_env%num_pe, dp)
+      IF (use_virial) nequip_data%virial(:, :) = nequip_data%virial/REAL(para_env%num_pe, dp)
 
       CALL timestop(handle)
    END SUBROUTINE nequip_energy_store_force_virial
