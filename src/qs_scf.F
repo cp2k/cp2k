@@ -183,7 +183,7 @@ MODULE qs_scf
    LOGICAL, PRIVATE                     :: reuse_precond = .FALSE.
    LOGICAL, PRIVATE                     :: used_history = .FALSE.
 
-   PUBLIC :: scf, scf_env_cleanup, scf_env_do_scf, cdft_scf
+   PUBLIC :: scf, scf_env_cleanup, scf_env_do_scf, cdft_scf, init_scf_loop
 
 CONTAINS
 

@@ -1082,6 +1082,11 @@ CONTAINS
       END IF
       CALL set_qs_env(qs_env, has_unit_metric=has_unit_metric)
 
+      ! check for (non)-self consistency
+      IF (dft_control%qs_control%dftb) THEN
+         scf_control%non_selfconsistent = .NOT. dft_control%qs_control%dftb_control%self_consistent
+      END IF
+
       !   *** Activate the interpolation ***
       CALL wfi_create(wf_history, &
                       interpolation_method_nr= &
