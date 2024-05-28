@@ -141,11 +141,7 @@ CONTAINS
       ! loop over all atom pairs (sab_xtbe)
       kg = xtb_control%kg
       NULLIFY (n_list)
-      IF (xtb_control%old_coulomb_damping) THEN
-         CALL get_qs_env(qs_env=qs_env, sab_orb=n_list)
-      ELSE
-         CALL get_qs_env(qs_env=qs_env, sab_xtbe=n_list)
-      END IF
+      CALL get_qs_env(qs_env=qs_env, sab_xtbe=n_list)
       CALL neighbor_list_iterator_create(nl_iterator, n_list)
       DO WHILE (neighbor_list_iterate(nl_iterator) == 0)
          CALL get_iterator_info(nl_iterator, ikind=ikind, jkind=jkind, &

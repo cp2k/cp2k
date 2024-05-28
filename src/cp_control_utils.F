@@ -1259,8 +1259,6 @@ CONTAINS
             END IF
          END IF !nonbonded
          ! SR Coulomb
-         CALL section_vals_val_get(xtb_section, "OLD_COULOMB_DAMPING", &
-                                   l_val=qs_control%xtb_control%old_coulomb_damping)
          CALL section_vals_val_get(xtb_parameter, "COULOMB_SR_CUT", r_vals=scal)
          qs_control%xtb_control%coulomb_sr_cut = scal(1)
          CALL section_vals_val_get(xtb_parameter, "COULOMB_SR_EPS", r_vals=scal)
