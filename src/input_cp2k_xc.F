@@ -22,11 +22,11 @@ MODULE input_cp2k_xc
    USE input_constants,                 ONLY: &
         do_adiabatic_hybrid_mcy3, do_adiabatic_model_pade, fxc_funct_gga, fxc_funct_lda, &
         fxc_funct_pade, fxc_none, gaussian, slater, vdw_nl_drsll, vdw_nl_lmkll, vdw_nl_rvv10, &
-        vdw_pairpot_dftd2, vdw_pairpot_dftd3, vdw_pairpot_dftd3bj, xc_funct_b3lyp, &
-        xc_funct_beefvdw, xc_funct_blyp, xc_funct_bp, xc_funct_hcth120, xc_funct_no_shortcut, &
-        xc_funct_olyp, xc_funct_pade, xc_funct_pbe, xc_funct_pbe0, xc_funct_tpss, xc_none, &
-        xc_pot_energy_none, xc_pot_energy_sum_eigenvalues, xc_pot_energy_xc_functional, &
-        xc_vdw_fun_none, xc_vdw_fun_nonloc, xc_vdw_fun_pairpot
+        vdw_pairpot_dftd2, vdw_pairpot_dftd3, vdw_pairpot_dftd3bj, vdw_pairpot_dftd4, &
+        xc_funct_b3lyp, xc_funct_beefvdw, xc_funct_blyp, xc_funct_bp, xc_funct_hcth120, &
+        xc_funct_no_shortcut, xc_funct_olyp, xc_funct_pade, xc_funct_pbe, xc_funct_pbe0, &
+        xc_funct_tpss, xc_none,xc_pot_energy_none, xc_pot_energy_sum_eigenvalues,  &
+       xc_pot_energy_xc_functional, xc_vdw_fun_none, xc_vdw_fun_nonloc, xc_vdw_fun_pairpot
    USE input_cp2k_hfx,                  ONLY: create_hfx_section
    USE input_cp2k_mp2,                  ONLY: create_mp2_section
    USE input_keyword_types,             ONLY: keyword_create,&
@@ -952,12 +952,14 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="TYPE", &
                           description="Type of potential", &
                           citations=(/grimme2006, grimme2010, grimme2011/), &
-                          usage="TYPE (DFTD2|DFTD3|DFTD3(BJ))", &
-                          enum_c_vals=s2a("DFTD2", "DFTD3", "DFTD3(BJ)"), &
-                          enum_i_vals=(/vdw_pairpot_dftd2, vdw_pairpot_dftd3, vdw_pairpot_dftd3bj/), &
+                          usage="TYPE (DFTD2|DFTD3|DFTD3(BJ)|DFTD4)", &
+                          enum_c_vals=s2a("DFTD2", "DFTD3", "DFTD3(BJ)", "DFTD4"), &
+                          enum_i_vals=(/vdw_pairpot_dftd2, vdw_pairpot_dftd3, &
+                                        vdw_pairpot_dftd3bj, vdw_pairpot_dftd4/), &
                           enum_desc=s2a("Grimme D2 method", &
                                         "Grimme D3 method (zero damping)", &
-                                        "Grimme D3 method (Becke-Johnson damping)"), &
+                                        "Grimme D3 method (Becke-Johnson damping)", &
+                                        "Grimme D4 method"), &
                           default_i_val=vdw_pairpot_dftd3)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)

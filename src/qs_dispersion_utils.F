@@ -23,6 +23,7 @@ MODULE qs_dispersion_utils
                                               vdw_pairpot_dftd2,&
                                               vdw_pairpot_dftd3,&
                                               vdw_pairpot_dftd3bj,&
+                                              vdw_pairpot_dftd4,&
                                               xc_vdw_fun_nonloc,&
                                               xc_vdw_fun_pairpot
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
@@ -160,6 +161,12 @@ CONTAINS
             dispersion_env%a2 = 0._dp
             dispersion_env%eps_cn = 0._dp
          END IF
+         IF (dispersion_env%pp_type == vdw_pairpot_dftd4) THEN
+            CALL section_vals_val_get(pp_section, "REFERENCE_FUNCTIONAL", explicit=exfun)
+            CPASSERT(exfun)
+            CALL section_vals_val_get(vdw_section, "PAIR_POTENTIAL%REFERENCE_FUNCTIONAL", & 
+               c_val=dispersion_env%ref_functional)
+         END IF
          CALL section_vals_val_get(pp_section, "R_CUTOFF", r_val=dispersion_env%rc_disp)
          CALL section_vals_val_get(pp_section, "PARAMETER_FILE_NAME", &
                                    c_val=dispersion_env%parameter_file_name)
@@ -267,6 +274,12 @@ CONTAINS
                         dispersion_env%d3_exclude_pair(i, :)
                   END DO
                END IF
+            ELSE IF (dispersion_env%pp_type == vdw_pairpot_dftd4) THEN
+               WRITE (output_unit, fmt="(' vdW POTENTIAL| ',T26,'DFT-D4(Version 3.6.0)')")
+               WRITE (output_unit, fmt="(' vdW POTENTIAL| ',T26,'see https://github.com/dftd4/dftd4')")
+               WRITE (output_unit, fmt="(' vdW POTENTIAL| ',T26,'E. Caldeweyher et al, PCCP 22: 8499 (2020)')")
+               WRITE (output_unit, fmt="(' vdW POTENTIAL| ',T26,'E. Caldeweyher et al, JCP 150: 154122 (2019)')")
+               WRITE (output_unit, fmt="(' vdW POTENTIAL| ',T26,'E. Caldeweyher et al, JCP 147: 034112 (2017)')")
             END IF
          ELSE IF (dispersion_env%type == xc_vdw_fun_nonloc) THEN
             WRITE (output_unit, fmt="(' vdW POTENTIAL| ',T61,'Non-local Functional')")

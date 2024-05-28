@@ -1561,7 +1561,8 @@ endif()
 
 add_library(cp2k_link_libs INTERFACE)
 
-include_directories(${DFTD4_MOD})
+include_directories(${DFTD4_DFTD4})
+include_directories(${DFTD4_MCTC})
 
 # the order is important so keep it that way
 target_link_libraries(
@@ -1588,8 +1589,6 @@ target_link_libraries(
     $<$<BOOL:${CP2K_USE_MPI}>:cp2k::SCALAPACK::scalapack>
     cp2k_linalg_libs
     $<$<AND:$<CONFIG:COVERAGE>,$<Fortran_COMPILER_ID:GNU>>:gcov>)
-
-#target_include_directories(cp2k_link_libs PUBLIC $<BUILD_INTERFACE:${DFTD4_MOD}>)
 
 string(TIMESTAMP CP2K_TIMESTAMP "%Y-%m-%d %H:%M:%S")
 

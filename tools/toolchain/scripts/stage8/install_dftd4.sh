@@ -83,11 +83,17 @@ case "$with_dftd4" in
   esac
 
 if [ "$with_dftd4" != "__DONTUSE__" ]; then
+  DFTD4_LOC=$(find ${pkg_install_dir}/include -name "multicharge.mod")
+  DFTD4_MCHARGE=${DFTD4_LOC%/*}
+  DFTD4_LOC=$(find ${pkg_install_dir}/include -name "mstore.mod")
+  DFTD4_STORE=${DFTD4_LOC%/*}
+  DFTD4_LOC=$(find ${pkg_install_dir}/include -name "mctc_io.mod")
+  DFTD4_MCTC=${DFTD4_LOC%/*}
   DFTD4_LOC=$(find ${pkg_install_dir}/include -name "dftd4.mod")
-  DFTD4_MOD=${DFTD4_LOC%/*}
-  DFTD4_LIBS="-ldftd4"
+  DFTD4_DFTD4=${DFTD4_LOC%/*}
+  DFTD4_LIBS="-ldftd4 -lmstore  -lmulticharge -lmctc-lib"
   DFTD4_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath,'${pkg_install_dir}/lib'"
-  DFTD4_CFLAGS="-I'${pkg_install_dir}/include' -I'${DFTD4_MOD}'"
+  DFTD4_CFLAGS="-I'${pkg_install_dir}/include' -I'${DFTD4_DFTD4}' -I'${DFTD4_MCTC}'"
 
   if [ "$with_dftd4" != "__SYSTEM__" ]; then
     cat << EOF > "${BUILDDIR}/setup_dftd4"
@@ -104,7 +110,8 @@ EOF
 export DFTD4_LIBS="${DFTD4_LIBS}"
 export DFTD4_LDFLAGS="${DFTD4_LDFLAGS}"
 export DFTD4_CFLAGS="${DFTD4_CFLAGS}"
-export DFTD4_MOD="${DFTD4_MOD}"
+export DFTD4_DFTD4="${DFTD4_DFTD4}"
+export DFTD4_MCTC="${DFTD4_MCTC}"
 export DFTD4_LIBRARIES="${pkg_install_dir}/lib"
 export DFTD4_INCLUDE_DIR="$pkg_install_dir/include"
 export DFTD4_ROOT="${pkg_install_dir}" 
