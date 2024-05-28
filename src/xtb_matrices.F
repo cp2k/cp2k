@@ -197,8 +197,6 @@ CONTAINS
       TYPE(xtb_atom_type), POINTER                       :: xtb_atom_a, xtb_atom_b
       TYPE(xtb_control_type), POINTER                    :: xtb_control
 
-!, na1
-
       CALL timeset(routineN, handle)
 
       NULLIFY (logger, virial, atprop)

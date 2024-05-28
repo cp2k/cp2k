@@ -33,7 +33,9 @@ MODULE qs_energy
                                               qs_environment_type
    USE qs_ks_methods,                   ONLY: qs_ks_update_qs_env
    USE qs_matrix_w,                     ONLY: qs_energies_compute_matrix_w
+   USE qs_nonscf,                       ONLY: nonscf
    USE qs_scf,                          ONLY: scf
+   USE scf_control_types,               ONLY: scf_control_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -73,6 +75,7 @@ CONTAINS
                                                             my_calc_forces, run_rtp
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(qs_energy_type), POINTER                      :: energy
+      TYPE(scf_control_type), POINTER                    :: scf_control
       TYPE(section_vals_type), POINTER                   :: excited_state_section
 
       CALL timeset(routineN, handle)
@@ -90,7 +93,7 @@ CONTAINS
 
          NULLIFY (dft_control, energy)
          CALL qs_energies_init(qs_env, my_calc_forces)
-         CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, energy=energy)
+         CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, scf_control=scf_control, energy=energy)
 
          ! *** check if only overlap matrix is needed for couplings
          loverlap_deltat = .FALSE.
@@ -104,12 +107,14 @@ CONTAINS
 
          ! *** Perform a SCF run ***
          IF (.NOT. loverlap_deltat) THEN
-            IF (dft_control%qs_control%do_ls_scf) THEN
-               CALL ls_scf(qs_env=qs_env)
+            IF (scf_control%non_selfconsistent) THEN
+               CALL nonscf(qs_env)
+            ELSE IF (dft_control%qs_control%do_ls_scf) THEN
+               CALL ls_scf(qs_env)
             ELSE IF (dft_control%qs_control%do_almo_scf) THEN
-               CALL almo_entry_scf(qs_env=qs_env, calc_forces=my_calc_forces)
+               CALL almo_entry_scf(qs_env, calc_forces=my_calc_forces)
             ELSE
-               CALL scf(qs_env=qs_env)
+               CALL scf(qs_env)
             END IF
          END IF
 

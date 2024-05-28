@@ -133,6 +133,7 @@ MODULE scf_control_types
       LOGICAL                               :: do_diag_sub, &
                                                use_cholesky, use_ot, use_diag, do_outer_scf_reortho, &
                                                ignore_convergence_failure
+      LOGICAL                               :: non_selfconsistent
       INTEGER, DIMENSION(2)                 :: added_mos
       INTEGER                               :: roks_scheme
       REAL(KIND=dp)                         :: roks_f
@@ -177,6 +178,7 @@ CONTAINS
       scf_control%do_diag_sub = .FALSE.
       scf_control%use_ot = .FALSE.
       scf_control%ignore_convergence_failure = .FALSE.
+      scf_control%non_selfconsistent = .FALSE.
       scf_control%do_outer_scf_reortho = .TRUE.
       scf_control%max_diis = 4
       scf_control%eps_diis = 0.1_dp
@@ -553,20 +555,23 @@ CONTAINS
             keyword => section_get_keyword(section, "SCF_GUESS")
             CALL keyword_get(keyword, enum=enum)
 
-            WRITE (UNIT=output_unit, &
-                   FMT="(/,/,T2,A,T25,A,T51,A30,/,T25,56('-'),3(/,T25,A,T76,I5),/, "// &
-                   "T25,56('-'),4(/,T25,A,T72,ES9.2),/,T25,56('-'), "// &
-                   "1(/,T25,A,T71,F10.6))") &
-               "SCF PARAMETERS", &
-               "Density guess:     ", ADJUSTR(TRIM(enum_i2c(enum, scf_control%density_guess))), &
-               "max_scf:           ", scf_control%max_scf, &
-               "max_scf_history:   ", scf_control%max_scf_hist, &
-               "max_diis:          ", scf_control%max_diis, &
-               "eps_scf:           ", scf_control%eps_scf, &
-               "eps_scf_history:   ", scf_control%eps_scf_hist, &
-               "eps_diis:          ", scf_control%eps_diis, &
-               "eps_eigval:        ", scf_control%eps_eigval, &
-               "level_shift [a.u.]:", scf_control%level_shift
+            IF (.NOT. scf_control%non_selfconsistent) THEN
+               WRITE (UNIT=output_unit, &
+                      FMT="(/,/,T2,A,T25,A,T51,A30,/,T25,56('-'),3(/,T25,A,T76,I5),/, "// &
+                      "T25,56('-'),4(/,T25,A,T72,ES9.2),/,T25,56('-'), "// &
+                      "1(/,T25,A,T71,F10.6))") &
+                  "SCF PARAMETERS", &
+                  "Density guess:     ", ADJUSTR(TRIM(enum_i2c(enum, scf_control%density_guess))), &
+                  "max_scf:           ", scf_control%max_scf, &
+                  "max_scf_history:   ", scf_control%max_scf_hist, &
+                  "max_diis:          ", scf_control%max_diis, &
+                  "eps_scf:           ", scf_control%eps_scf, &
+                  "eps_scf_history:   ", scf_control%eps_scf_hist, &
+                  "eps_diis:          ", scf_control%eps_diis, &
+                  "eps_eigval:        ", scf_control%eps_eigval, &
+                  "level_shift [a.u.]:", scf_control%level_shift
+            END IF
+
             IF (SUM(ABS(scf_control%added_mos)) > 0) THEN
                WRITE (UNIT=output_unit, FMT="(T25,A,T71,2I5)") &
                   "added MOs          ", scf_control%added_mos
@@ -577,7 +582,8 @@ CONTAINS
                WRITE (UNIT=output_unit, FMT="(T25,A)") "MOM enabled"
             END IF
 
-            IF (scf_control%mixing_method > 0 .AND. .NOT. scf_control%use_ot) THEN
+            IF (scf_control%mixing_method > 0 .AND. .NOT. scf_control%use_ot .AND. &
+                .NOT. scf_control%non_selfconsistent) THEN
                keyword => section_get_keyword(section, "MIXING%METHOD")
                CALL keyword_get(keyword, enum=enum)
                WRITE (UNIT=output_unit, FMT="(T25,A,/,T25,A,T51,A30)") &
