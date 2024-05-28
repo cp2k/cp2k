@@ -243,7 +243,14 @@ endif()
 # ##############################################################################
 
 set(CP2K_SUPPORTED_ACCELERATION_TARGETS CUDA HIP NONE)
-set(CP2K_SUPPORTED_CUDA_ARCHITECTURES K20X K40 K80 P100 V100 A100 A40)
+set(CP2K_SUPPORTED_CUDA_ARCHITECTURES
+    K20X
+    K40
+    K80
+    P100
+    V100
+    A100
+    A40)
 set(CP2K_SUPPORTED_HIP_ARCHITECTURES
     Mi50
     Mi100
