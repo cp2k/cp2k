@@ -23,6 +23,7 @@ MODULE trexio_utils
    USE cp_log_handling, ONLY: cp_get_default_logger, &
                               cp_logger_get_default_io_unit, &
                               cp_logger_type
+   USE external_potential_types, ONLY: sgp_potential_type, get_potential
    USE input_section_types, ONLY: section_vals_type, &
                                   section_vals_val_get
    !                                section_vals_get_subs_vals, &
@@ -61,7 +62,8 @@ MODULE trexio_utils
                      trexio_write_basis_shell_ang_mom, trexio_write_basis_shell_factor, &
                      trexio_write_basis_r_power, trexio_write_basis_shell_index, &
                      trexio_write_basis_exponent, trexio_write_basis_coefficient, &
-                     trexio_write_basis_prim_factor
+                     trexio_write_basis_prim_factor, &
+                     trexio_write_ecp_z_core
 #endif
 #include "./base/base_uses.f90"
 
@@ -91,7 +93,7 @@ MODULE trexio_utils
       CHARACTER(len=default_path_length)                 :: filename
       INTEGER(trexio_t)                                  :: f        ! The TREXIO file handle
       INTEGER(trexio_exit_code)                          :: rc       ! TREXIO return code
-      LOGICAL                                            :: explicit, do_kpoints
+      LOGICAL                                            :: explicit, do_kpoints, ecp_semi_local
       REAL(KIND=dp)                                      :: e_nn, zeff
       TYPE(cell_type), POINTER                           :: cell => Null()
       TYPE(cp_logger_type), POINTER                      :: logger => Null()
@@ -101,6 +103,7 @@ MODULE trexio_utils
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set => Null()
       TYPE(qs_energy_type), POINTER                      :: energy => Null()
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: kind_set => Null()
+      TYPE(sgp_potential_type), POINTER                  :: sgp_potential => Null()
       ! TYPE(qs_ks_env_type), POINTER                      :: ks_env => Null()
       ! TYPE(qs_scf_env_type), POINTER                     :: scf_env => Null()
 
@@ -108,13 +111,15 @@ MODULE trexio_utils
       CHARACTER(LEN=2), DIMENSION(:), ALLOCATABLE        :: label
       INTEGER                                            :: iatom, natoms, periodic, nkp, nel_tot, &
                                                             nspins, ikind, ishell_loc, ishell, &
-                                                            shell_num, prim_num, nset, iset, ipgf
+                                                            shell_num, prim_num, nset, iset, ipgf, z
       INTEGER, DIMENSION(2)                              :: nel_spin
       INTEGER, DIMENSION(3)                              :: nkp_grid
-      INTEGER, DIMENSION(:),    ALLOCATABLE              :: nucleus_index, shell_ang_mom, r_power, shell_index
+      INTEGER, DIMENSION(:),    ALLOCATABLE              :: nucleus_index, shell_ang_mom, r_power, &
+                                                            shell_index, z_core
       INTEGER, DIMENSION(:),    POINTER                  :: nshell => Null(), npgf => Null()
       INTEGER, DIMENSION(:, :), POINTER                  :: l => Null()
-      REAL(KIND=dp), DIMENSION(:),   ALLOCATABLE         :: charge, shell_factor, exponents, coefficients, prim_factor
+      REAL(KIND=dp), DIMENSION(:),   ALLOCATABLE         :: charge, shell_factor, exponents, coefficients, &
+                                                            prim_factor
       REAL(KIND=dp), DIMENSION(:),   POINTER             :: wkp => Null()
       REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE         :: coord
       REAL(KIND=dp), DIMENSION(:,:), POINTER             :: zetas => Null()
@@ -363,7 +368,7 @@ MODULE trexio_utils
       CALL trexio_error(rc)
       DEALLOCATE (shell_ang_mom)
 
-      ! Cartesian Gaussians are normalized to 1 in CP2K
+      ! Cartesian Gaussians are not normalized in CP2K
       ALLOCATE (shell_factor(shell_num))  ! 1-to-1 map bw shells and normalization factors
       shell_factor(:) = 1.0_dp
       rc = trexio_write_basis_shell_factor(f, shell_factor)
@@ -389,13 +394,46 @@ MODULE trexio_utils
       CALL trexio_error(rc)
       DEALLOCATE (coefficients)
 
-      ! Primitives are not normalized in CP2K
+      ! Primitive functions are not normalized in CP2K
       ALLOCATE (prim_factor(prim_num))
       prim_factor(:) = 1.0_dp
       rc = trexio_write_basis_prim_factor(f, prim_factor)
       CALL trexio_error(rc)
       DEALLOCATE (prim_factor)
 
+      !========================================================================================!
+      ! ECP group
+      !========================================================================================!
+
+      ! CALL get_qs_kind_set(kind_set, sgp_potential_present=sgp_potential_present)
+
+      ! IF (sgp_potential_present) THEN
+
+      ALLOCATE (z_core(natoms))
+
+      ! figure out which type of potential we are using
+      DO iatom = 1, natoms
+         ! get the qs_kind (index position in kind_set) for this atom (atomic_kind)
+         CALL get_atomic_kind(particle_set(iatom)%atomic_kind, kind_number=ikind, z=z)
+         ! get the the sgp_potential associated to this qs_kind
+         CALL get_qs_kind(kind_set(ikind), sgp_potential=sgp_potential, zeff=zeff)
+
+         z_core(iatom) = z - INT(zeff)
+
+
+         ! get the info on the potential
+         IF (ASSOCIATED(sgp_potential)) THEN
+            CALL get_potential(potential=sgp_potential, ecp_semi_local=ecp_semi_local)
+         END IF
+
+      END DO
+
+
+      rc = trexio_write_ecp_z_core(f, z_core)
+      CALL trexio_error(rc)
+      DEALLOCATE (z_core)
+
+      ! END IF
 
       ! Close the TREXIO file
       rc = trexio_close(f)
