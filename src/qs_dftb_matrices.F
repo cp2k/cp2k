@@ -608,29 +608,31 @@ CONTAINS
       energy%total = energy%core + energy%hartree + energy%qmmm_el + energy%efield + &
                      energy%repulsive + energy%dispersion + energy%dftb3
 
-      output_unit = cp_print_key_unit_nr(logger, scf_section, "PRINT%DETAILED_ENERGY", &
+      IF (dft_control%qs_control%dftb_control%self_consistent) THEN
+         output_unit = cp_print_key_unit_nr(logger, scf_section, "PRINT%DETAILED_ENERGY", &
                                          extension=".scfLog")
-      IF (output_unit > 0) THEN
-         WRITE (UNIT=output_unit, FMT="(/,(T9,A,T60,F20.10))") &
-            "Repulsive pair potential energy:               ", energy%repulsive, &
-            "Zeroth order Hamiltonian energy:               ", energy%core, &
-            "Charge fluctuation energy:                     ", energy%hartree, &
-            "London dispersion energy:                      ", energy%dispersion
-         IF (ABS(energy%efield) > 1.e-12_dp) THEN
-            WRITE (UNIT=output_unit, FMT="(T9,A,T60,F20.10)") &
-               "Electric field interaction energy:             ", energy%efield
+         IF (output_unit > 0) THEN
+            WRITE (UNIT=output_unit, FMT="(/,(T9,A,T60,F20.10))") &
+               "Repulsive pair potential energy:               ", energy%repulsive, &
+               "Zeroth order Hamiltonian energy:               ", energy%core, &
+               "Charge fluctuation energy:                     ", energy%hartree, &
+               "London dispersion energy:                      ", energy%dispersion
+            IF (ABS(energy%efield) > 1.e-12_dp) THEN
+               WRITE (UNIT=output_unit, FMT="(T9,A,T60,F20.10)") &
+                  "Electric field interaction energy:             ", energy%efield
+            END IF
+            IF (dft_control%qs_control%dftb_control%dftb3_diagonal) THEN
+               WRITE (UNIT=output_unit, FMT="(T9,A,T60,F20.10)") &
+                  "DFTB3 3rd Order Energy Correction              ", energy%dftb3
+            END IF
+            IF (qs_env%qmmm) THEN
+               WRITE (UNIT=output_unit, FMT="(T9,A,T60,F20.10)") &
+                  "QM/MM Electrostatic energy:                    ", energy%qmmm_el
+            END IF
          END IF
-         IF (dft_control%qs_control%dftb_control%dftb3_diagonal) THEN
-            WRITE (UNIT=output_unit, FMT="(T9,A,T60,F20.10)") &
-               "DFTB3 3rd Order Energy Correction              ", energy%dftb3
-         END IF
-         IF (qs_env%qmmm) THEN
-            WRITE (UNIT=output_unit, FMT="(T9,A,T60,F20.10)") &
-               "QM/MM Electrostatic energy:                    ", energy%qmmm_el
-         END IF
+         CALL cp_print_key_finished_output(output_unit, logger, scf_section, &
+                                           "PRINT%DETAILED_ENERGY")
       END IF
-      CALL cp_print_key_finished_output(output_unit, logger, scf_section, &
-                                        "PRINT%DETAILED_ENERGY")
       ! here we compute dE/dC if needed. Assumes dE/dC is H_{ks}C (plus occupation numbers)
       IF (qs_env%requires_mo_derivs .AND. .NOT. just_energy) THEN
          CPASSERT(SIZE(ks_matrix, 2) == 1)
