@@ -610,7 +610,7 @@ CONTAINS
 
       IF (dft_control%qs_control%dftb_control%self_consistent) THEN
          output_unit = cp_print_key_unit_nr(logger, scf_section, "PRINT%DETAILED_ENERGY", &
-                                         extension=".scfLog")
+                                            extension=".scfLog")
          IF (output_unit > 0) THEN
             WRITE (UNIT=output_unit, FMT="(/,(T9,A,T60,F20.10))") &
                "Repulsive pair potential energy:               ", energy%repulsive, &
