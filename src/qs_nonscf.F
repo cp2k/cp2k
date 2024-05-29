@@ -54,8 +54,6 @@ MODULE qs_nonscf
    PRIVATE
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_nonscf'
-   LOGICAL, PRIVATE                     :: reuse_precond = .FALSE.
-   LOGICAL, PRIVATE                     :: used_history = .FALSE.
 
    PUBLIC :: nonscf
 
