@@ -24,7 +24,7 @@ MODULE qs_ot_types
                                               dbcsr_deallocate_matrix_set
    USE cp_fm_struct,                    ONLY: cp_fm_struct_get,&
                                               cp_fm_struct_type
-   USE dbcsr_api,                       ONLY: dbcsr_init_p,&
+   USE cp_dbcsr_api,                    ONLY: dbcsr_init_p,&
                                               dbcsr_p_type,&
                                               dbcsr_release_p,&
                                               dbcsr_set,&

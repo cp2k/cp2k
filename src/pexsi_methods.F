@@ -27,7 +27,7 @@ MODULE pexsi_methods
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_unit_nr,&
                                               cp_logger_type
-   USE dbcsr_api,                       ONLY: &
+   USE cp_dbcsr_api,                    ONLY: &
         dbcsr_convert_csr_to_dbcsr, dbcsr_convert_dbcsr_to_csr, dbcsr_copy, &
         dbcsr_copy_into_existing, dbcsr_create, dbcsr_csr_create, dbcsr_csr_create_from_dbcsr, &
         dbcsr_csr_destroy, dbcsr_csr_eqrow_floor_dist, dbcsr_csr_print_sparsity, &

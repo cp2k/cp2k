@@ -47,7 +47,7 @@ MODULE qs_wf_history_methods
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                               cp_print_key_unit_nr,&
                                               low_print_level
-   USE dbcsr_api,                       ONLY: dbcsr_add,&
+   USE cp_dbcsr_api,                    ONLY: dbcsr_add,&
                                               dbcsr_copy,&
                                               dbcsr_deallocate_matrix,&
                                               dbcsr_p_type

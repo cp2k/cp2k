@@ -34,7 +34,7 @@ MODULE molecular_states
                                               cp_print_key_should_output,&
                                               cp_print_key_unit_nr
    USE cp_realspace_grid_cube,          ONLY: cp_pw_to_cube
-   USE dbcsr_api,                       ONLY: dbcsr_type
+   USE cp_dbcsr_api,                    ONLY: dbcsr_type
    USE input_section_types,             ONLY: section_get_ivals,&
                                               section_vals_type,&
                                               section_vals_val_get

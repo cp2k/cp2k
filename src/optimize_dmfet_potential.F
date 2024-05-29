@@ -20,7 +20,7 @@ MODULE optimize_dmfet_potential
                                               cp_fm_release,&
                                               cp_fm_set_all,&
                                               cp_fm_type
-   USE dbcsr_api,                       ONLY: dbcsr_create,&
+   USE cp_dbcsr_api,                    ONLY: dbcsr_create,&
                                               dbcsr_init_p,&
                                               dbcsr_multiply,&
                                               dbcsr_p_type,&

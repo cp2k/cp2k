@@ -13,7 +13,7 @@
 ! **************************************************************************************************
 MODULE qs_gamma2kp
    USE cp_subsys_types,                 ONLY: cp_subsys_type
-   USE dbcsr_api,                       ONLY: dbcsr_add,&
+   USE cp_dbcsr_api,                    ONLY: dbcsr_add,&
                                               dbcsr_p_type
    USE input_constants,                 ONLY: atomic_guess,&
                                               xc_none

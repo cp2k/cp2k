@@ -23,7 +23,7 @@ MODULE optbas_opt_utils
                                               cp_fm_get_info,&
                                               cp_fm_release,&
                                               cp_fm_type
-   USE dbcsr_api,                       ONLY: dbcsr_create,&
+   USE cp_dbcsr_api,                    ONLY: dbcsr_create,&
                                               dbcsr_distribution_type,&
                                               dbcsr_get_info,&
                                               dbcsr_p_type,&

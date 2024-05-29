@@ -19,7 +19,7 @@ MODULE kg_tnadd_mat
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
    USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set,&
                                               dbcsr_deallocate_matrix_set
-   USE dbcsr_api,                       ONLY: dbcsr_add,&
+   USE cp_dbcsr_api,                    ONLY: dbcsr_add,&
                                               dbcsr_create,&
                                               dbcsr_distribution_type,&
                                               dbcsr_finalize,&

@@ -25,7 +25,7 @@ MODULE xc_pot_saop
                                               cp_fm_set_all,&
                                               cp_fm_set_submatrix,&
                                               cp_fm_type
-   USE dbcsr_api,                       ONLY: dbcsr_copy,&
+   USE cp_dbcsr_api,                    ONLY: dbcsr_copy,&
                                               dbcsr_deallocate_matrix,&
                                               dbcsr_p_type,&
                                               dbcsr_set

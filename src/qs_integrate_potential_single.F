@@ -38,7 +38,7 @@ MODULE qs_integrate_potential_single
    USE cell_types,                      ONLY: cell_type,&
                                               pbc
    USE cp_control_types,                ONLY: dft_control_type
-   USE dbcsr_api,                       ONLY: dbcsr_get_block_p,&
+   USE cp_dbcsr_api,                    ONLY: dbcsr_get_block_p,&
                                               dbcsr_type
    USE external_potential_types,        ONLY: get_potential,&
                                               gth_potential_type

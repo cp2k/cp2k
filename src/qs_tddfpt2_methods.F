@@ -34,7 +34,7 @@ MODULE qs_tddfpt2_methods
                                               cp_print_key_finished_output,&
                                               cp_print_key_unit_nr,&
                                               cp_rm_iter_level
-   USE dbcsr_api,                       ONLY: dbcsr_p_type
+   USE cp_dbcsr_api,                    ONLY: dbcsr_p_type
    USE exstates_types,                  ONLY: excited_energy_type
    USE header,                          ONLY: tddfpt_header,&
                                               tddfpt_soc_header

@@ -9,7 +9,7 @@ MODULE qs_fb_filter_matrix_methods
 
    USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                               get_atomic_kind
-   USE dbcsr_api,                       ONLY: dbcsr_create,&
+   USE cp_dbcsr_api,                    ONLY: dbcsr_create,&
                                               dbcsr_distribution_type,&
                                               dbcsr_finalize,&
                                               dbcsr_get_info,&

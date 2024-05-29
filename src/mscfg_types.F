@@ -12,7 +12,7 @@
 !> \author Rustam Z Khaliullin
 ! **************************************************************************************************
 MODULE mscfg_types
-   USE dbcsr_api,                       ONLY: &
+   USE cp_dbcsr_api,                    ONLY: &
         dbcsr_add, dbcsr_complete_redistribute, dbcsr_create, dbcsr_distribution_get, &
         dbcsr_distribution_new, dbcsr_distribution_release, dbcsr_distribution_type, &
         dbcsr_finalize, dbcsr_get_info, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &

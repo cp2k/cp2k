@@ -15,7 +15,7 @@ MODULE optimize_basis
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_unit_nr,&
                                               cp_logger_type
-   USE dbcsr_api,                       ONLY: dbcsr_p_type
+   USE cp_dbcsr_api,                    ONLY: dbcsr_p_type
    USE f77_interface,                   ONLY: create_force_env,&
                                               destroy_force_env,&
                                               f_env_add_defaults,&

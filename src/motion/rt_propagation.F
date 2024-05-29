@@ -26,7 +26,7 @@ MODULE rt_propagation
                                               cp_iterate,&
                                               cp_print_key_unit_nr,&
                                               cp_rm_iter_level
-   USE dbcsr_api,                       ONLY: dbcsr_copy,&
+   USE cp_dbcsr_api,                    ONLY: dbcsr_copy,&
                                               dbcsr_p_type
    USE efield_utils,                    ONLY: calculate_ecore_efield
    USE force_env_methods,               ONLY: force_env_calc_energy_force

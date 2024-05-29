@@ -25,7 +25,7 @@ MODULE qs_scf_output
                                               cp_print_key_should_output,&
                                               cp_print_key_unit_nr
    USE cp_units,                        ONLY: cp_unit_from_cp2k
-   USE dbcsr_api,                       ONLY: dbcsr_p_type,&
+   USE cp_dbcsr_api,                    ONLY: dbcsr_p_type,&
                                               dbcsr_type
    USE input_constants,                 ONLY: &
         becke_cutoff_element, becke_cutoff_global, cdft_alpha_constraint, cdft_beta_constraint, &

@@ -25,7 +25,7 @@ MODULE qs_tddfpt2_types
    USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_release,&
                                               cp_fm_type
-   USE dbcsr_api,                       ONLY: &
+   USE cp_dbcsr_api,                    ONLY: &
         dbcsr_complete_redistribute, dbcsr_create, dbcsr_deallocate_matrix, &
         dbcsr_distribution_type, dbcsr_get_info, dbcsr_init_p, dbcsr_p_type, dbcsr_release_p, &
         dbcsr_type, dbcsr_type_antisymmetric

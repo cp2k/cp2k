@@ -48,7 +48,7 @@ MODULE post_scf_bandstructure_utils
                                               cp_fm_type
    USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
    USE cp_parser_methods,               ONLY: read_float_object
-   USE dbcsr_api,                       ONLY: dbcsr_create,&
+   USE cp_dbcsr_api,                    ONLY: dbcsr_create,&
                                               dbcsr_p_type,&
                                               dbcsr_type_no_symmetry,&
                                               dbcsr_type_symmetric

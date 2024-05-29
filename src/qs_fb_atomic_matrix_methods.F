@@ -7,7 +7,7 @@
 
 MODULE qs_fb_atomic_matrix_methods
 
-   USE dbcsr_api,                       ONLY: dbcsr_get_block_p,&
+   USE cp_dbcsr_api,                    ONLY: dbcsr_get_block_p,&
                                               dbcsr_get_info,&
                                               dbcsr_get_stored_coordinates,&
                                               dbcsr_type

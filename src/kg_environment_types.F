@@ -14,7 +14,7 @@
 ! **************************************************************************************************
 MODULE kg_environment_types
    USE cp_dbcsr_operations,             ONLY: dbcsr_deallocate_matrix_set
-   USE dbcsr_api,                       ONLY: dbcsr_p_type
+   USE cp_dbcsr_api,                    ONLY: dbcsr_p_type
    USE input_section_types,             ONLY: section_vals_type
    USE integration_grid_types,          ONLY: deallocate_intgrid,&
                                               integration_grid_type

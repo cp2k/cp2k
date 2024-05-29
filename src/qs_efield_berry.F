@@ -42,7 +42,7 @@ MODULE qs_efield_berry
                                               cp_fm_release,&
                                               cp_fm_set_all,&
                                               cp_fm_type
-   USE dbcsr_api,                       ONLY: dbcsr_copy,&
+   USE cp_dbcsr_api,                    ONLY: dbcsr_copy,&
                                               dbcsr_get_block_p,&
                                               dbcsr_p_type,&
                                               dbcsr_set,&

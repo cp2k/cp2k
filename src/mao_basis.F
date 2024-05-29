@@ -19,7 +19,7 @@ MODULE mao_basis
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set,&
                                               dbcsr_deallocate_matrix_set
-   USE dbcsr_api,                       ONLY: dbcsr_create,&
+   USE cp_dbcsr_api,                    ONLY: dbcsr_create,&
                                               dbcsr_distribution_type,&
                                               dbcsr_p_type,&
                                               dbcsr_reserve_diag_blocks,&

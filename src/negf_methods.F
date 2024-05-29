@@ -46,7 +46,7 @@ MODULE negf_methods
                                               debug_print_level,&
                                               high_print_level
    USE cp_subsys_types,                 ONLY: cp_subsys_type
-   USE dbcsr_api,                       ONLY: dbcsr_copy,&
+   USE cp_dbcsr_api,                    ONLY: dbcsr_copy,&
                                               dbcsr_deallocate_matrix,&
                                               dbcsr_dot,&
                                               dbcsr_init_p,&

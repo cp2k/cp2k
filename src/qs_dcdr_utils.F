@@ -42,7 +42,7 @@ MODULE qs_dcdr_utils
                                               cp_print_key_unit_nr
    USE cp_result_methods,               ONLY: get_results
    USE cp_result_types,                 ONLY: cp_result_type
-   USE dbcsr_api,                       ONLY: dbcsr_copy,&
+   USE cp_dbcsr_api,                    ONLY: dbcsr_copy,&
                                               dbcsr_create,&
                                               dbcsr_init_p,&
                                               dbcsr_p_type,&

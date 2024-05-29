@@ -27,7 +27,7 @@ MODULE lri_environment_methods
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                               cp_print_key_unit_nr
-   USE dbcsr_api,                       ONLY: dbcsr_create,&
+   USE cp_dbcsr_api,                    ONLY: dbcsr_create,&
                                               dbcsr_dot,&
                                               dbcsr_get_block_diag,&
                                               dbcsr_get_block_p,&

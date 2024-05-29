@@ -19,7 +19,7 @@ MODULE mixed_cdft_types
                                               cp_fm_type
    USE cp_log_handling,                 ONLY: cp_logger_p_type,&
                                               cp_logger_release
-   USE dbcsr_api,                       ONLY: dbcsr_p_type,&
+   USE cp_dbcsr_api,                    ONLY: dbcsr_p_type,&
                                               dbcsr_release_p,&
                                               dbcsr_type
    USE kinds,                           ONLY: dp

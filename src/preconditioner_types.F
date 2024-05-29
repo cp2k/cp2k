@@ -16,7 +16,7 @@ MODULE preconditioner_types
                                               cp_blacs_env_type
    USE cp_fm_types,                     ONLY: cp_fm_release,&
                                               cp_fm_type
-   USE dbcsr_api,                       ONLY: dbcsr_deallocate_matrix,&
+   USE cp_dbcsr_api,                    ONLY: dbcsr_deallocate_matrix,&
                                               dbcsr_p_type,&
                                               dbcsr_release_p,&
                                               dbcsr_type

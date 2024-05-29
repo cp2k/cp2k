@@ -69,7 +69,7 @@ MODULE qs_scf
    USE cp_result_methods,               ONLY: get_results,&
                                               test_for_result
    USE cp_result_types,                 ONLY: cp_result_type
-   USE dbcsr_api,                       ONLY: dbcsr_copy,&
+   USE cp_dbcsr_api,                    ONLY: dbcsr_copy,&
                                               dbcsr_deallocate_matrix,&
                                               dbcsr_get_info,&
                                               dbcsr_init_p,&

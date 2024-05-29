@@ -36,7 +36,7 @@ MODULE mp2_integrals
                                               cp_fm_type
    USE cp_log_handling,                 ONLY: cp_to_string
    USE cp_units,                        ONLY: cp_unit_from_cp2k
-   USE dbcsr_api,                       ONLY: &
+   USE cp_dbcsr_api,                    ONLY: &
         dbcsr_copy, dbcsr_create, dbcsr_get_info, dbcsr_multiply, dbcsr_p_type, dbcsr_release, &
         dbcsr_release_p, dbcsr_set, dbcsr_type, dbcsr_type_no_symmetry
    USE dbt_api,                         ONLY: &

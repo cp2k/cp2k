@@ -23,7 +23,7 @@ MODULE cp_dbcsr_cp2k_link
                                               cite_reference
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_operations,             ONLY: max_elements_per_block
-   USE dbcsr_api,                       ONLY: &
+   USE cp_dbcsr_api,                    ONLY: &
         dbcsr_finalize, dbcsr_get_block_p, dbcsr_get_default_config, dbcsr_get_matrix_type, &
         dbcsr_has_symmetry, dbcsr_reserve_blocks, dbcsr_set, dbcsr_set_config, dbcsr_type, &
         dbcsr_type_no_symmetry

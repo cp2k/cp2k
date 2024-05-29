@@ -40,7 +40,7 @@ MODULE cp2k_runs
                                               cp_unit_set_release,&
                                               cp_unit_set_type,&
                                               print_all_units
-   USE dbcsr_api,                       ONLY: dbcsr_finalize_lib,&
+   USE cp_dbcsr_api,                    ONLY: dbcsr_finalize_lib,&
                                               dbcsr_init_lib,&
                                               dbcsr_print_config,&
                                               dbcsr_print_statistics

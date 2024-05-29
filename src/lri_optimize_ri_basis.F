@@ -27,7 +27,7 @@ MODULE lri_optimize_ri_basis
                                               cp_print_key_generate_filename,&
                                               cp_print_key_should_output,&
                                               cp_print_key_unit_nr
-   USE dbcsr_api,                       ONLY: dbcsr_get_block_p,&
+   USE cp_dbcsr_api,                    ONLY: dbcsr_get_block_p,&
                                               dbcsr_p_type,&
                                               dbcsr_type
    USE generic_os_integrals,            ONLY: int_overlap_aabb_os

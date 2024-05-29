@@ -23,7 +23,7 @@ MODULE qs_tddfpt2_fprint
                                               cp_print_key_finished_output,&
                                               cp_print_key_should_output,&
                                               cp_print_key_unit_nr
-   USE dbcsr_api,                       ONLY: dbcsr_p_type
+   USE cp_dbcsr_api,                    ONLY: dbcsr_p_type
    USE efield_utils,                    ONLY: calculate_ecore_efield
    USE exstates_types,                  ONLY: excited_energy_type
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&

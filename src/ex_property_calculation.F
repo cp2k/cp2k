@@ -29,7 +29,7 @@ MODULE ex_property_calculation
    USE cp_result_methods,               ONLY: cp_results_erase,&
                                               put_results
    USE cp_result_types,                 ONLY: cp_result_type
-   USE dbcsr_api,                       ONLY: dbcsr_add,&
+   USE cp_dbcsr_api,                    ONLY: dbcsr_add,&
                                               dbcsr_copy,&
                                               dbcsr_create,&
                                               dbcsr_dot,&

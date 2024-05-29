@@ -32,7 +32,7 @@ MODULE qs_energy_window
                                               cp_print_key_finished_output,&
                                               cp_print_key_unit_nr
    USE cp_realspace_grid_cube,          ONLY: cp_pw_to_cube
-   USE dbcsr_api,                       ONLY: &
+   USE cp_dbcsr_api,                    ONLY: &
         dbcsr_add, dbcsr_copy, dbcsr_copy_into_existing, dbcsr_create, dbcsr_desymmetrize, &
         dbcsr_frobenius_norm, dbcsr_get_info, dbcsr_multiply, dbcsr_p_type, dbcsr_release, &
         dbcsr_type

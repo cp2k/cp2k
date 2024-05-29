@@ -25,7 +25,7 @@ MODULE qs_linres_module
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                               cp_print_key_unit_nr
-   USE dbcsr_api,                       ONLY: dbcsr_p_type
+   USE cp_dbcsr_api,                    ONLY: dbcsr_p_type
    USE force_env_types,                 ONLY: force_env_get,&
                                               force_env_type,&
                                               use_qmmm,&

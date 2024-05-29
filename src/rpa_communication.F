@@ -28,7 +28,7 @@ MODULE rpa_communication
                                               cp_fm_release,&
                                               cp_fm_set_all,&
                                               cp_fm_type
-   USE dbcsr_api,                       ONLY: dbcsr_p_type,&
+   USE cp_dbcsr_api,                    ONLY: dbcsr_p_type,&
                                               dbcsr_type,&
                                               dbcsr_type_no_symmetry
    USE group_dist_types,                ONLY: create_group_dist,&

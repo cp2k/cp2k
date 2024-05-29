@@ -15,7 +15,7 @@
 MODULE admm_utils
    USE admm_types,                      ONLY: admm_type
    USE cp_dbcsr_operations,             ONLY: copy_fm_to_dbcsr
-   USE dbcsr_api,                       ONLY: dbcsr_add,&
+   USE cp_dbcsr_api,                    ONLY: dbcsr_add,&
                                               dbcsr_copy,&
                                               dbcsr_create,&
                                               dbcsr_deallocate_matrix,&

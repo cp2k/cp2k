@@ -21,7 +21,7 @@ MODULE qs_linres_types
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_release,&
                                               cp_fm_type
-   USE dbcsr_api,                       ONLY: dbcsr_p_type
+   USE cp_dbcsr_api,                    ONLY: dbcsr_p_type
    USE kinds,                           ONLY: dp
    USE qs_grid_atom,                    ONLY: grid_atom_type
    USE qs_harmonics_atom,               ONLY: harmonics_atom_type

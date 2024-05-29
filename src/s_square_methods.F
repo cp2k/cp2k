@@ -24,7 +24,7 @@ MODULE s_square_methods
                                               cp_fm_get_info,&
                                               cp_fm_release,&
                                               cp_fm_type
-   USE dbcsr_api,                       ONLY: dbcsr_p_type
+   USE cp_dbcsr_api,                    ONLY: dbcsr_p_type
    USE input_constants,                 ONLY: do_s2_constraint,&
                                               do_s2_restraint
    USE kinds,                           ONLY: dp

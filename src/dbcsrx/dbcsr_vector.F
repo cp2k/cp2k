@@ -13,7 +13,7 @@
 ! **************************************************************************************************
 
 MODULE dbcsr_vector
-   USE dbcsr_api, ONLY: dbcsr_copy, &
+   USE cp_dbcsr_api, ONLY: dbcsr_copy, &
                         dbcsr_create, &
                         dbcsr_distribution_get, &
                         dbcsr_distribution_new, &

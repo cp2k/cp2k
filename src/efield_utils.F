@@ -18,7 +18,7 @@ MODULE efield_utils
                                               efield_type
    USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set,&
                                               dbcsr_deallocate_matrix_set
-   USE dbcsr_api,                       ONLY: dbcsr_add,&
+   USE cp_dbcsr_api,                    ONLY: dbcsr_add,&
                                               dbcsr_copy,&
                                               dbcsr_p_type,&
                                               dbcsr_set

@@ -26,7 +26,7 @@ MODULE qs_dcdr_ao
                                               cp_fm_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type
-   USE dbcsr_api,                       ONLY: dbcsr_copy,&
+   USE cp_dbcsr_api,                    ONLY: dbcsr_copy,&
                                               dbcsr_get_block_p,&
                                               dbcsr_p_type,&
                                               dbcsr_set,&

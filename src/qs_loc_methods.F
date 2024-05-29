@@ -53,7 +53,7 @@ MODULE qs_loc_methods
                                               cp_print_key_unit_nr
    USE cp_realspace_grid_cube,          ONLY: cp_pw_to_cube
    USE cp_units,                        ONLY: cp_unit_from_cp2k
-   USE dbcsr_api,                       ONLY: dbcsr_copy,&
+   USE cp_dbcsr_api,                    ONLY: dbcsr_copy,&
                                               dbcsr_deallocate_matrix,&
                                               dbcsr_p_type,&
                                               dbcsr_set

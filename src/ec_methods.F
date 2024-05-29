@@ -22,7 +22,7 @@ MODULE ec_methods
    USE cp_fm_types,                     ONLY: cp_fm_get_info,&
                                               cp_fm_type
    USE cp_log_handling,                 ONLY: cp_to_string
-   USE dbcsr_api,                       ONLY: dbcsr_init_p,&
+   USE cp_dbcsr_api,                    ONLY: dbcsr_init_p,&
                                               dbcsr_type,&
                                               dbcsr_type_no_symmetry
    USE input_section_types,             ONLY: section_vals_type

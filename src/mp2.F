@@ -40,7 +40,7 @@ MODULE mp2
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                               cp_print_key_unit_nr
-   USE dbcsr_api,                       ONLY: dbcsr_get_info,&
+   USE cp_dbcsr_api,                    ONLY: dbcsr_get_info,&
                                               dbcsr_p_type
    USE hfx_exx,                         ONLY: calculate_exx
    USE hfx_types,                       ONLY: &

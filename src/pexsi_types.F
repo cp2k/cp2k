@@ -23,7 +23,7 @@ MODULE pexsi_types
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_unit_nr,&
                                               cp_logger_type
-   USE dbcsr_api,                       ONLY: dbcsr_csr_type,&
+   USE cp_dbcsr_api,                    ONLY: dbcsr_csr_type,&
                                               dbcsr_p_type,&
                                               dbcsr_scale,&
                                               dbcsr_type

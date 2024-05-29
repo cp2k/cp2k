@@ -52,7 +52,7 @@ MODULE qs_localization_methods
         cp_fm_to_fm, cp_fm_to_fm_submat, cp_fm_type
    USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit,&
                                               cp_logger_get_default_unit_nr
-   USE dbcsr_api,                       ONLY: dbcsr_p_type
+   USE cp_dbcsr_api,                    ONLY: dbcsr_p_type
    USE kahan_sum,                       ONLY: accurate_sum
    USE kinds,                           ONLY: dp
    USE machine,                         ONLY: m_flush,&

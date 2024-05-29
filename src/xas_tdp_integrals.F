@@ -30,7 +30,7 @@ MODULE xas_tdp_integrals
                                               cp_eri_mme_set_params
    USE cp_files,                        ONLY: close_file,&
                                               open_file
-   USE dbcsr_api,                       ONLY: dbcsr_distribution_get,&
+   USE cp_dbcsr_api,                    ONLY: dbcsr_distribution_get,&
                                               dbcsr_distribution_release,&
                                               dbcsr_distribution_type
    USE dbt_api,                         ONLY: &

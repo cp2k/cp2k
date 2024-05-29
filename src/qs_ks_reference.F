@@ -16,7 +16,7 @@ MODULE qs_ks_reference
                                               get_admm_env
    USE atomic_kind_types,               ONLY: atomic_kind_type
    USE cp_control_types,                ONLY: dft_control_type
-   USE dbcsr_api,                       ONLY: dbcsr_p_type
+   USE cp_dbcsr_api,                    ONLY: dbcsr_p_type
    USE hartree_local_methods,           ONLY: Vh_1c_gg_integrals,&
                                               init_coulomb_local
    USE hartree_local_types,             ONLY: hartree_local_create,&

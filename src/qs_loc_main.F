@@ -33,7 +33,7 @@ MODULE qs_loc_main
    USE cp_fm_types,                     ONLY: &
         cp_fm_create, cp_fm_get_info, cp_fm_get_submatrix, cp_fm_init_random, cp_fm_release, &
         cp_fm_set_all, cp_fm_set_submatrix, cp_fm_to_fm, cp_fm_type
-   USE dbcsr_api,                       ONLY: dbcsr_create,&
+   USE cp_dbcsr_api,                    ONLY: dbcsr_create,&
                                               dbcsr_p_type,&
                                               dbcsr_set,&
                                               dbcsr_type,&

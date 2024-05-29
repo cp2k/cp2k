@@ -10,7 +10,7 @@
 !> \author Ole Schuett
 ! **************************************************************************************************
 MODULE pao_types
-   USE dbcsr_api,                       ONLY: dbcsr_distribution_release,&
+   USE cp_dbcsr_api,                    ONLY: dbcsr_distribution_release,&
                                               dbcsr_distribution_type,&
                                               dbcsr_release,&
                                               dbcsr_type

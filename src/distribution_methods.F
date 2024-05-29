@@ -38,7 +38,7 @@ MODULE distribution_methods
                                               cp_print_key_finished_output,&
                                               cp_print_key_should_output,&
                                               cp_print_key_unit_nr
-   USE dbcsr_api,                       ONLY: dbcsr_distribution_get_num_images
+   USE cp_dbcsr_api,                    ONLY: dbcsr_distribution_get_num_images
    USE distribution_1d_types,           ONLY: distribution_1d_create,&
                                               distribution_1d_type
    USE distribution_2d_types,           ONLY: distribution_2d_create,&

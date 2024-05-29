@@ -41,7 +41,7 @@ MODULE preconditioner_makes
                                               cp_fm_release,&
                                               cp_fm_to_fm,&
                                               cp_fm_type
-   USE dbcsr_api,                       ONLY: &
+   USE cp_dbcsr_api,                    ONLY: &
         dbcsr_add, dbcsr_add_on_diag, dbcsr_copy, dbcsr_create, dbcsr_get_info, dbcsr_multiply, &
         dbcsr_p_type, dbcsr_release, dbcsr_type, dbcsr_type_symmetric
    USE input_constants,                 ONLY: &

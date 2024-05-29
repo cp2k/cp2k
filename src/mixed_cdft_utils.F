@@ -45,7 +45,7 @@ MODULE mixed_cdft_utils
    USE cube_utils,                      ONLY: init_cube_info,&
                                               return_cube_max_iradius
    USE d3_poly,                         ONLY: init_d3_poly_module
-   USE dbcsr_api,                       ONLY: dbcsr_desymmetrize,&
+   USE cp_dbcsr_api,                    ONLY: dbcsr_desymmetrize,&
                                               dbcsr_get_info,&
                                               dbcsr_init_p,&
                                               dbcsr_p_type,&

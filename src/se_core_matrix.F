@@ -23,7 +23,7 @@ MODULE se_core_matrix
                                               cp_print_key_finished_output,&
                                               cp_print_key_should_output,&
                                               cp_print_key_unit_nr
-   USE dbcsr_api,                       ONLY: &
+   USE cp_dbcsr_api,                    ONLY: &
         dbcsr_add, dbcsr_copy, dbcsr_deallocate_matrix, dbcsr_distribute, dbcsr_get_block_diag, &
         dbcsr_get_block_p, dbcsr_p_type, dbcsr_replicate_all, dbcsr_set, dbcsr_sum_replicated, &
         dbcsr_type

@@ -21,7 +21,7 @@ MODULE rt_make_propagators
                                               cp_fm_release,&
                                               cp_fm_to_fm,&
                                               cp_fm_type
-   USE dbcsr_api,                       ONLY: dbcsr_copy,&
+   USE cp_dbcsr_api,                    ONLY: dbcsr_copy,&
                                               dbcsr_create,&
                                               dbcsr_deallocate_matrix,&
                                               dbcsr_p_type,&

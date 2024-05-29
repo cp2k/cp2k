@@ -20,7 +20,7 @@ MODULE dm_ls_chebyshev
                                               cp_print_key_finished_output,&
                                               cp_print_key_should_output,&
                                               cp_print_key_unit_nr
-   USE dbcsr_api,                       ONLY: &
+   USE cp_dbcsr_api,                    ONLY: &
         dbcsr_add, dbcsr_add_on_diag, dbcsr_copy, dbcsr_create, dbcsr_frobenius_norm, &
         dbcsr_get_info, dbcsr_get_occupation, dbcsr_multiply, dbcsr_release, dbcsr_scale, &
         dbcsr_set, dbcsr_trace, dbcsr_type, dbcsr_type_no_symmetry

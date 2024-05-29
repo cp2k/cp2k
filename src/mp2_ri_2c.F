@@ -52,7 +52,7 @@ MODULE mp2_ri_2c
                                               cp_fm_set_all,&
                                               cp_fm_to_fm,&
                                               cp_fm_type
-   USE dbcsr_api,                       ONLY: &
+   USE cp_dbcsr_api,                    ONLY: &
         dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, dbcsr_desymmetrize, &
         dbcsr_distribution_release, dbcsr_distribution_type, dbcsr_p_type, dbcsr_release, &
         dbcsr_reserve_all_blocks, dbcsr_set, dbcsr_type, dbcsr_type_antisymmetric, &

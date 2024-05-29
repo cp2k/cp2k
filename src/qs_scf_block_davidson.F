@@ -43,7 +43,7 @@ MODULE qs_scf_block_davidson
                                               cp_fm_to_fm_submat,&
                                               cp_fm_type,&
                                               cp_fm_vectorsnorm
-   USE dbcsr_api,                       ONLY: &
+   USE cp_dbcsr_api,                    ONLY: &
         dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_get_diag, dbcsr_get_info, dbcsr_init_p, &
         dbcsr_multiply, dbcsr_norm, dbcsr_norm_column, dbcsr_release_p, dbcsr_scale_by_vector, &
         dbcsr_type, dbcsr_type_no_symmetry, dbcsr_type_real_default, dbcsr_type_symmetric

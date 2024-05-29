@@ -39,7 +39,7 @@ MODULE xas_restart
                                               cp_print_key_generate_filename,&
                                               cp_print_key_should_output,&
                                               cp_print_key_unit_nr
-   USE dbcsr_api,                       ONLY: dbcsr_p_type
+   USE cp_dbcsr_api,                    ONLY: dbcsr_p_type
    USE input_section_types,             ONLY: section_vals_type
    USE kinds,                           ONLY: default_path_length,&
                                               default_string_length,&

@@ -23,7 +23,7 @@ MODULE qs_scf_wfn_mix
                                               cp_fm_release,&
                                               cp_fm_to_fm,&
                                               cp_fm_type
-   USE dbcsr_api,                       ONLY: dbcsr_p_type
+   USE cp_dbcsr_api,                    ONLY: dbcsr_p_type
    USE input_constants,                 ONLY: wfn_mix_orig_external,&
                                               wfn_mix_orig_occ,&
                                               wfn_mix_orig_virtual

@@ -27,7 +27,7 @@ MODULE qs_dftb_matrices
                                               cp_print_key_finished_output,&
                                               cp_print_key_should_output,&
                                               cp_print_key_unit_nr
-   USE dbcsr_api,                       ONLY: &
+   USE cp_dbcsr_api,                    ONLY: &
         dbcsr_add, dbcsr_convert_offsets_to_sizes, dbcsr_copy, dbcsr_create, &
         dbcsr_distribution_type, dbcsr_dot, dbcsr_finalize, dbcsr_get_block_p, dbcsr_multiply, &
         dbcsr_p_type, dbcsr_type, dbcsr_type_antisymmetric, dbcsr_type_symmetric

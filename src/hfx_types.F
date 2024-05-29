@@ -37,7 +37,7 @@ MODULE hfx_types
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                               cp_print_key_unit_nr
    USE cp_units,                        ONLY: cp_unit_from_cp2k
-   USE dbcsr_api,                       ONLY: dbcsr_release,&
+   USE cp_dbcsr_api,                    ONLY: dbcsr_release,&
                                               dbcsr_type
    USE dbt_api,                         ONLY: &
         dbt_create, dbt_default_distvec, dbt_destroy, dbt_distribution_destroy, &

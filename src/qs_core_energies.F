@@ -19,7 +19,7 @@ MODULE qs_core_energies
                                               atprop_type
    USE cell_types,                      ONLY: cell_type,&
                                               pbc
-   USE dbcsr_api,                       ONLY: dbcsr_dot,&
+   USE cp_dbcsr_api,                    ONLY: dbcsr_dot,&
                                               dbcsr_p_type,&
                                               dbcsr_type
    USE distribution_1d_types,           ONLY: distribution_1d_type

@@ -16,7 +16,7 @@ MODULE qs_nonscf
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_io_unit,&
                                               cp_logger_type
-   USE dbcsr_api,                       ONLY: dbcsr_copy,&
+   USE cp_dbcsr_api,                    ONLY: dbcsr_copy,&
                                               dbcsr_dot,&
                                               dbcsr_p_type
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&

@@ -46,7 +46,7 @@ MODULE qs_diis
                                               cp_to_string
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                               cp_print_key_unit_nr
-   USE dbcsr_api,                       ONLY: &
+   USE cp_dbcsr_api,                    ONLY: &
         dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_dot, dbcsr_maxabs, dbcsr_multiply, &
         dbcsr_p_type, dbcsr_release, dbcsr_set, dbcsr_transposed, dbcsr_type
    USE dm_ls_scf_types,                 ONLY: ls_scf_env_type

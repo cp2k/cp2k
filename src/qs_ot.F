@@ -19,7 +19,7 @@ MODULE qs_ot
                                               cp_dbcsr_cholesky_restore
    USE cp_dbcsr_diag,                   ONLY: cp_dbcsr_heevd,&
                                               cp_dbcsr_syevd
-   USE dbcsr_api,                       ONLY: &
+   USE cp_dbcsr_api,                    ONLY: &
         dbcsr_add, dbcsr_add_on_diag, dbcsr_copy, dbcsr_distribution_type, dbcsr_filter, &
         dbcsr_frobenius_norm, dbcsr_gershgorin_norm, dbcsr_get_block_p, dbcsr_get_info, &
         dbcsr_get_occupation, dbcsr_hadamard_product, dbcsr_init_p, dbcsr_iterator_blocks_left, &

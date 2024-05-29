@@ -14,7 +14,7 @@
 MODULE qs_cdft_types
    USE cp_array_utils,                  ONLY: cp_1d_r_p_type
    USE cp_fm_types,                     ONLY: cp_fm_type
-   USE dbcsr_api,                       ONLY: dbcsr_p_type
+   USE cp_dbcsr_api,                    ONLY: dbcsr_p_type
    USE hirshfeld_types,                 ONLY: hirshfeld_type,&
                                               release_hirshfeld_type
    USE input_constants,                 ONLY: becke_cutoff_global,&

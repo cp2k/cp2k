@@ -15,7 +15,7 @@ MODULE efield_tb_methods
    USE cell_types,                      ONLY: cell_type,&
                                               pbc
    USE cp_control_types,                ONLY: dft_control_type
-   USE dbcsr_api,                       ONLY: dbcsr_get_block_p,&
+   USE cp_dbcsr_api,                    ONLY: dbcsr_get_block_p,&
                                               dbcsr_iterator_blocks_left,&
                                               dbcsr_iterator_next_block,&
                                               dbcsr_iterator_start,&

@@ -37,7 +37,7 @@ MODULE kpoint_methods
                                               print_crys_symmetry,&
                                               print_kp_symmetry,&
                                               release_csym_type
-   USE dbcsr_api,                       ONLY: &
+   USE cp_dbcsr_api,                    ONLY: &
         dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, dbcsr_distribution_get, &
         dbcsr_distribution_type, dbcsr_get_block_p, dbcsr_get_info, dbcsr_iterator_blocks_left, &
         dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, &

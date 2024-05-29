@@ -32,7 +32,7 @@ MODULE qs_tddfpt_eigensolver
                                               cp_fm_type
    USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit,&
                                               cp_to_string
-   USE dbcsr_api,                       ONLY: dbcsr_p_type,&
+   USE cp_dbcsr_api,                    ONLY: dbcsr_p_type,&
                                               dbcsr_set
    USE input_constants,                 ONLY: tddfpt_davidson,&
                                               tddfpt_lanczos

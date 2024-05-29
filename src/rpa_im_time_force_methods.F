@@ -45,7 +45,7 @@ MODULE rpa_im_time_force_methods
                                               cp_fm_set_all,&
                                               cp_fm_to_fm,&
                                               cp_fm_type
-   USE dbcsr_api,                       ONLY: &
+   USE cp_dbcsr_api,                    ONLY: &
         dbcsr_add, dbcsr_add_on_diag, dbcsr_clear, dbcsr_complete_redistribute, dbcsr_copy, &
         dbcsr_create, dbcsr_distribution_new, dbcsr_distribution_release, dbcsr_distribution_type, &
         dbcsr_frobenius_norm, dbcsr_get_block_p, dbcsr_iterator_blocks_left, &

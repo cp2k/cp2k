@@ -34,7 +34,7 @@ MODULE rt_projection_mo_utils
                                               cp_print_key_generate_filename,&
                                               cp_print_key_should_output,&
                                               cp_print_key_unit_nr
-   USE dbcsr_api,                       ONLY: dbcsr_p_type
+   USE cp_dbcsr_api,                    ONLY: dbcsr_p_type
    USE input_constants,                 ONLY: proj_mo_ref_scf,&
                                               proj_mo_ref_xas_tdp
    USE input_section_types,             ONLY: section_vals_get,&

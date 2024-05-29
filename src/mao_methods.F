@@ -32,7 +32,7 @@ MODULE mao_methods
    USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_release,&
                                               cp_fm_type
-   USE dbcsr_api,                       ONLY: &
+   USE cp_dbcsr_api,                    ONLY: &
         dbcsr_create, dbcsr_desymmetrize, dbcsr_distribution_type, dbcsr_dot, dbcsr_get_block_p, &
         dbcsr_get_info, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
         dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, &

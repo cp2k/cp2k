@@ -14,7 +14,7 @@ MODULE qs_ks_apply_restraints
                                               copy_fm_to_dbcsr
    USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_type
-   USE dbcsr_api,                       ONLY: dbcsr_p_type
+   USE cp_dbcsr_api,                    ONLY: dbcsr_p_type
    USE input_constants,                 ONLY: cdft_charge_constraint,&
                                               outer_scf_becke_constraint,&
                                               outer_scf_hirshfeld_constraint

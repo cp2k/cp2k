@@ -6,7 +6,7 @@
 !--------------------------------------------------------------------------------------------------!
 
 MODULE se_fock_matrix_dbg
-   USE dbcsr_api,                       ONLY: dbcsr_dot,&
+   USE cp_dbcsr_api,                    ONLY: dbcsr_dot,&
                                               dbcsr_p_type,&
                                               dbcsr_set
    USE kinds,                           ONLY: dp

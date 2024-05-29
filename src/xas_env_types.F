@@ -22,7 +22,7 @@ MODULE xas_env_types
                                               fm_pools_give_back_fm_vect
    USE cp_fm_types,                     ONLY: cp_fm_release,&
                                               cp_fm_type
-   USE dbcsr_api,                       ONLY: dbcsr_p_type
+   USE cp_dbcsr_api,                    ONLY: dbcsr_p_type
    USE kinds,                           ONLY: dp
    USE qs_loc_types,                    ONLY: qs_loc_env_release,&
                                               qs_loc_env_type

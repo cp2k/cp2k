@@ -45,7 +45,7 @@ MODULE xas_tdp_utils
                                               cp_fm_to_fm_submat,&
                                               cp_fm_type
    USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
-   USE dbcsr_api,                       ONLY: &
+   USE cp_dbcsr_api,                    ONLY: &
         dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_distribution_get, dbcsr_distribution_new, &
         dbcsr_distribution_release, dbcsr_distribution_type, dbcsr_finalize, dbcsr_get_block_p, &
         dbcsr_get_info, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &

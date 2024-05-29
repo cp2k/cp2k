@@ -48,7 +48,7 @@ MODULE qs_ks_utils
                                               cp_print_key_finished_output,&
                                               cp_print_key_should_output,&
                                               cp_print_key_unit_nr
-   USE dbcsr_api,                       ONLY: &
+   USE cp_dbcsr_api,                    ONLY: &
         dbcsr_add, dbcsr_copy, dbcsr_deallocate_matrix, dbcsr_dot, dbcsr_get_info, dbcsr_init_p, &
         dbcsr_multiply, dbcsr_p_type, dbcsr_release_p, dbcsr_scale, dbcsr_scale_by_vector, &
         dbcsr_set, dbcsr_type

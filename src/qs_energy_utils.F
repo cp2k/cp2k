@@ -18,7 +18,7 @@ MODULE qs_energy_utils
                                               atprop_type
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_control_utils,                ONLY: read_ddapc_section
-   USE dbcsr_api,                       ONLY: dbcsr_copy,&
+   USE cp_dbcsr_api,                    ONLY: dbcsr_copy,&
                                               dbcsr_create,&
                                               dbcsr_p_type,&
                                               dbcsr_release,&

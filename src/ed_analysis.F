@@ -30,7 +30,7 @@ MODULE ed_analysis
         cp_fm_create, cp_fm_get_diag, cp_fm_get_element, cp_fm_get_info, cp_fm_get_submatrix, &
         cp_fm_release, cp_fm_set_all, cp_fm_set_element, cp_fm_set_submatrix, cp_fm_to_fm, &
         cp_fm_type
-   USE dbcsr_api,                       ONLY: &
+   USE cp_dbcsr_api,                    ONLY: &
         dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_distribution_type, dbcsr_dot, dbcsr_get_info, &
         dbcsr_p_type, dbcsr_release, dbcsr_reserve_diag_blocks, dbcsr_scale, dbcsr_set, &
         dbcsr_type, dbcsr_type_symmetric

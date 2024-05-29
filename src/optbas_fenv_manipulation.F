@@ -25,7 +25,7 @@ MODULE optbas_fenv_manipulation
                                               cp_fm_type
    USE cp_log_handling,                 ONLY: cp_to_string
    USE cp_output_handling,              ONLY: debug_print_level
-   USE dbcsr_api,                       ONLY: dbcsr_get_info,&
+   USE cp_dbcsr_api,                    ONLY: dbcsr_get_info,&
                                               dbcsr_p_type,&
                                               dbcsr_type
    USE input_section_types,             ONLY: section_vals_get,&

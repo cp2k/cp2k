@@ -13,7 +13,7 @@
 !> \author Joost VandeVondele
 ! **************************************************************************************************
 MODULE dm_ls_scf_types
-   USE dbcsr_api,                       ONLY: dbcsr_release,&
+   USE cp_dbcsr_api,                    ONLY: dbcsr_release,&
                                               dbcsr_type
    USE input_constants,                 ONLY: ls_cluster_atomic,&
                                               ls_cluster_molecular

@@ -45,7 +45,7 @@ MODULE dft_plus_u
                                               cp_print_key_should_output,&
                                               cp_print_key_unit_nr,&
                                               low_print_level
-   USE dbcsr_api,                       ONLY: &
+   USE cp_dbcsr_api,                    ONLY: &
         dbcsr_deallocate_matrix, dbcsr_get_block_diag, dbcsr_get_block_p, &
         dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_start, &
         dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_p_type, dbcsr_set, dbcsr_type

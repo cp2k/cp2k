@@ -44,7 +44,7 @@ MODULE qs_linres_issc_utils
                                               cp_print_key_finished_output,&
                                               cp_print_key_should_output,&
                                               cp_print_key_unit_nr
-   USE dbcsr_api,                       ONLY: dbcsr_convert_offsets_to_sizes,&
+   USE cp_dbcsr_api,                    ONLY: dbcsr_convert_offsets_to_sizes,&
                                               dbcsr_copy,&
                                               dbcsr_create,&
                                               dbcsr_distribution_type,&

@@ -26,7 +26,7 @@ MODULE qs_tensors
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
    USE cp_files,                        ONLY: close_file,&
                                               open_file
-   USE dbcsr_api,                       ONLY: dbcsr_filter,&
+   USE cp_dbcsr_api,                    ONLY: dbcsr_filter,&
                                               dbcsr_finalize,&
                                               dbcsr_get_block_p,&
                                               dbcsr_get_matrix_type,&
