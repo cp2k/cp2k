@@ -18,6 +18,12 @@ MODULE qs_tddfpt2_subgroups
    USE cp_control_types,                ONLY: dft_control_type,&
                                               qs_control_type,&
                                               tddfpt2_control_type
+   USE cp_dbcsr_api,                    ONLY: dbcsr_create,&
+                                              dbcsr_distribution_release,&
+                                              dbcsr_distribution_type,&
+                                              dbcsr_get_info,&
+                                              dbcsr_release,&
+                                              dbcsr_type
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
    USE cp_dbcsr_operations,             ONLY: cp_dbcsr_dist2d_to_dist
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
@@ -28,12 +34,6 @@ MODULE qs_tddfpt2_subgroups
                                               cp_fm_get_info,&
                                               cp_fm_release,&
                                               cp_fm_type
-   USE cp_dbcsr_api,                    ONLY: dbcsr_create,&
-                                              dbcsr_distribution_release,&
-                                              dbcsr_distribution_type,&
-                                              dbcsr_get_info,&
-                                              dbcsr_release,&
-                                              dbcsr_type
    USE distribution_1d_types,           ONLY: distribution_1d_type
    USE distribution_2d_types,           ONLY: distribution_2d_release,&
                                               distribution_2d_type

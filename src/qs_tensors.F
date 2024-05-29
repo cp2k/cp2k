@@ -23,9 +23,6 @@ MODULE qs_tensors
                                               real_to_scaled
    USE cp_array_utils,                  ONLY: cp_2d_r_p_type
    USE cp_control_types,                ONLY: dft_control_type
-   USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
-   USE cp_files,                        ONLY: close_file,&
-                                              open_file
    USE cp_dbcsr_api,                    ONLY: dbcsr_filter,&
                                               dbcsr_finalize,&
                                               dbcsr_get_block_p,&
@@ -34,6 +31,9 @@ MODULE qs_tensors
                                               dbcsr_type,&
                                               dbcsr_type_antisymmetric,&
                                               dbcsr_type_no_symmetry
+   USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
+   USE cp_files,                        ONLY: close_file,&
+                                              open_file
    USE dbt_api,                         ONLY: &
         dbt_blk_sizes, dbt_clear, dbt_copy, dbt_create, dbt_destroy, dbt_filter, dbt_get_block, &
         dbt_get_info, dbt_get_num_blocks, dbt_get_nze_total, dbt_get_stored_coordinates, &

@@ -16,15 +16,15 @@ MODULE xas_tdp_types
                                               cp_2d_i_p_type,&
                                               cp_2d_r_p_type,&
                                               cp_3d_r_p_type
-   USE cp_files,                        ONLY: file_exists
-   USE cp_fm_types,                     ONLY: cp_fm_release,&
-                                              cp_fm_type
    USE cp_dbcsr_api,                    ONLY: dbcsr_distribution_release,&
                                               dbcsr_distribution_type,&
                                               dbcsr_p_type,&
                                               dbcsr_release,&
                                               dbcsr_release_p,&
                                               dbcsr_type
+   USE cp_files,                        ONLY: file_exists
+   USE cp_fm_types,                     ONLY: cp_fm_release,&
+                                              cp_fm_type
    USE dbt_api,                         ONLY: dbt_destroy,&
                                               dbt_type
    USE distribution_2d_types,           ONLY: distribution_2d_release,&

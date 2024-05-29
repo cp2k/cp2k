@@ -12,8 +12,6 @@
 
 MODULE xas_tdp_kernel
    USE basis_set_types,                 ONLY: gto_basis_set_p_type
-   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_dist2d_to_dist,&
-                                              dbcsr_deallocate_matrix_set
    USE cp_dbcsr_api,                    ONLY: &
         dbcsr_add, dbcsr_complete_redistribute, dbcsr_copy, dbcsr_create, dbcsr_desymmetrize, &
         dbcsr_distribution_get, dbcsr_distribution_new, dbcsr_distribution_release, &
@@ -22,6 +20,8 @@ MODULE xas_tdp_kernel
         dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, &
         dbcsr_p_type, dbcsr_put_block, dbcsr_release, dbcsr_reserve_block2d, dbcsr_set, &
         dbcsr_transposed, dbcsr_type, dbcsr_type_no_symmetry, dbcsr_type_symmetric
+   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_dist2d_to_dist,&
+                                              dbcsr_deallocate_matrix_set
    USE dbt_api,                         ONLY: dbt_get_block,&
                                               dbt_iterator_blocks_left,&
                                               dbt_iterator_next_block,&

@@ -21,11 +21,11 @@ MODULE qs_linres_module
                                               Weber2009,&
                                               cite_reference
    USE cp_control_types,                ONLY: dft_control_type
+   USE cp_dbcsr_api,                    ONLY: dbcsr_p_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                               cp_print_key_unit_nr
-   USE cp_dbcsr_api,                    ONLY: dbcsr_p_type
    USE force_env_types,                 ONLY: force_env_get,&
                                               force_env_type,&
                                               use_qmmm,&

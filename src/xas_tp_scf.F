@@ -20,6 +20,8 @@ MODULE xas_tp_scf
    USE cp_array_utils,                  ONLY: cp_2d_r_p_type
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_control_types,                ONLY: dft_control_type
+   USE cp_dbcsr_api,                    ONLY: dbcsr_copy,&
+                                              dbcsr_p_type
    USE cp_external_control,             ONLY: external_control
    USE cp_fm_types,                     ONLY: cp_fm_get_submatrix,&
                                               cp_fm_init_random,&
@@ -37,8 +39,6 @@ MODULE xas_tp_scf
                                               cp_print_key_should_output,&
                                               cp_print_key_unit_nr,&
                                               cp_rm_iter_level
-   USE cp_dbcsr_api,                    ONLY: dbcsr_copy,&
-                                              dbcsr_p_type
    USE input_constants,                 ONLY: ot_precond_full_kinetic,&
                                               ot_precond_solver_default,&
                                               xas_dscf

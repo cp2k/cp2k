@@ -9,12 +9,12 @@ MODULE qs_tddfpt2_densities
    USE admm_types,                      ONLY: admm_type,&
                                               get_admm_env
    USE cp_control_types,                ONLY: dft_control_type
+   USE cp_dbcsr_api,                    ONLY: dbcsr_p_type,&
+                                              dbcsr_scale
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               copy_fm_to_dbcsr
    USE cp_fm_types,                     ONLY: cp_fm_get_info,&
                                               cp_fm_type
-   USE cp_dbcsr_api,                    ONLY: dbcsr_p_type,&
-                                              dbcsr_scale
    USE kinds,                           ONLY: default_string_length,&
                                               dp
    USE parallel_gemm_api,               ONLY: parallel_gemm

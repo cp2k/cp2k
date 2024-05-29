@@ -29,7 +29,7 @@ MODULE mp2_eri
                                    cp_eri_mme_set_params
    USE message_passing, ONLY: mp_para_env_type
    USE cp_dbcsr_api, ONLY: dbcsr_get_block_p, &
-                        dbcsr_p_type
+                           dbcsr_p_type
    USE eri_mme_integrate, ONLY: eri_mme_2c_integrate, &
                                 eri_mme_3c_integrate
    USE eri_mme_test, ONLY: eri_mme_2c_perf_acc_test, &

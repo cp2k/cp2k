@@ -20,6 +20,9 @@ MODULE lri_optimize_ri_basis
                                               gto_basis_set_type,&
                                               init_orb_basis_set
    USE cell_types,                      ONLY: cell_type
+   USE cp_dbcsr_api,                    ONLY: dbcsr_get_block_p,&
+                                              dbcsr_p_type,&
+                                              dbcsr_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_p_file,&
@@ -27,9 +30,6 @@ MODULE lri_optimize_ri_basis
                                               cp_print_key_generate_filename,&
                                               cp_print_key_should_output,&
                                               cp_print_key_unit_nr
-   USE cp_dbcsr_api,                    ONLY: dbcsr_get_block_p,&
-                                              dbcsr_p_type,&
-                                              dbcsr_type
    USE generic_os_integrals,            ONLY: int_overlap_aabb_os
    USE input_constants,                 ONLY: do_lri_opt_all,&
                                               do_lri_opt_coeff,&

@@ -18,6 +18,11 @@ MODULE qs_tddfpt2_soc
    USE cp_control_types,                ONLY: dft_control_type,&
                                               qs_control_type,&
                                               tddfpt2_control_type
+   USE cp_dbcsr_api,                    ONLY: &
+        dbcsr_copy, dbcsr_create, dbcsr_distribution_get, dbcsr_distribution_new, &
+        dbcsr_distribution_release, dbcsr_distribution_type, dbcsr_get_info, dbcsr_multiply, &
+        dbcsr_p_type, dbcsr_print, dbcsr_release, dbcsr_reserve_all_blocks, dbcsr_scale, &
+        dbcsr_type, dbcsr_type_no_symmetry
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               copy_fm_to_dbcsr,&
                                               cp_dbcsr_sm_fm_multiply
@@ -34,11 +39,6 @@ MODULE qs_tddfpt2_soc
                                               cp_logger_get_default_unit_nr,&
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_print_key_unit_nr
-   USE cp_dbcsr_api,                    ONLY: &
-        dbcsr_copy, dbcsr_create, dbcsr_distribution_get, dbcsr_distribution_new, &
-        dbcsr_distribution_release, dbcsr_distribution_type, dbcsr_get_info, dbcsr_multiply, &
-        dbcsr_p_type, dbcsr_print, dbcsr_release, dbcsr_reserve_all_blocks, dbcsr_scale, &
-        dbcsr_type, dbcsr_type_no_symmetry
    USE input_constants,                 ONLY: tddfpt_dipole_length
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type,&

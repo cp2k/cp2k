@@ -17,6 +17,7 @@ MODULE soc_pseudopotential_utils
                                               cp_cfm_to_fm,&
                                               cp_cfm_type,&
                                               cp_fm_to_cfm
+   USE cp_dbcsr_api,                    ONLY: dbcsr_type
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
@@ -27,7 +28,6 @@ MODULE soc_pseudopotential_utils
                                               cp_fm_set_all,&
                                               cp_fm_to_fm_submat,&
                                               cp_fm_type
-   USE cp_dbcsr_api,                    ONLY: dbcsr_type
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: gaussi,&
                                               z_one,&

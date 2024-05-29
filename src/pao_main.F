@@ -12,7 +12,6 @@
 MODULE pao_main
    USE bibliography,                    ONLY: Schuett2018,&
                                               cite_reference
-   USE cp_external_control,             ONLY: external_control
    USE cp_dbcsr_api,                    ONLY: dbcsr_add,&
                                               dbcsr_copy,&
                                               dbcsr_create,&
@@ -21,6 +20,7 @@ MODULE pao_main
                                               dbcsr_reserve_diag_blocks,&
                                               dbcsr_set,&
                                               dbcsr_type
+   USE cp_external_control,             ONLY: external_control
    USE dm_ls_scf_types,                 ONLY: ls_mstruct_type,&
                                               ls_scf_env_type
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&

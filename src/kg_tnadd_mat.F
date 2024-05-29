@@ -16,9 +16,6 @@ MODULE kg_tnadd_mat
                                               get_atomic_kind_set
    USE basis_set_types,                 ONLY: gto_basis_set_p_type,&
                                               gto_basis_set_type
-   USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
-   USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set,&
-                                              dbcsr_deallocate_matrix_set
    USE cp_dbcsr_api,                    ONLY: dbcsr_add,&
                                               dbcsr_create,&
                                               dbcsr_distribution_type,&
@@ -27,6 +24,9 @@ MODULE kg_tnadd_mat
                                               dbcsr_p_type,&
                                               dbcsr_set,&
                                               dbcsr_type_symmetric
+   USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
+   USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set,&
+                                              dbcsr_deallocate_matrix_set
    USE external_potential_types,        ONLY: get_potential,&
                                               local_potential_type
    USE kg_environment_types,            ONLY: kg_environment_type

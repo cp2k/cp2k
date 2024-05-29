@@ -15,13 +15,13 @@
 MODULE dm_ls_scf_curvy
    USE bibliography,                    ONLY: Shao2003,&
                                               cite_reference
-   USE cp_log_handling,                 ONLY: cp_get_default_logger,&
-                                              cp_logger_get_default_unit_nr,&
-                                              cp_logger_type
    USE cp_dbcsr_api,                    ONLY: &
         dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_dot, dbcsr_filter, dbcsr_frobenius_norm, &
         dbcsr_multiply, dbcsr_norm, dbcsr_release, dbcsr_scale, dbcsr_set, dbcsr_transposed, &
         dbcsr_type, dbcsr_type_no_symmetry
+   USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                              cp_logger_get_default_unit_nr,&
+                                              cp_logger_type
    USE dm_ls_scf_types,                 ONLY: ls_scf_curvy_type,&
                                               ls_scf_env_type
    USE input_constants,                 ONLY: ls_scf_line_search_3point,&

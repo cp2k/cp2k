@@ -25,14 +25,14 @@ MODULE xas_tdp_integrals
    USE cp_array_utils,                  ONLY: cp_1d_i_p_type,&
                                               cp_2d_r_p_type
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
+   USE cp_dbcsr_api,                    ONLY: dbcsr_distribution_get,&
+                                              dbcsr_distribution_release,&
+                                              dbcsr_distribution_type
    USE cp_dbcsr_operations,             ONLY: cp_dbcsr_dist2d_to_dist
    USE cp_eri_mme_interface,            ONLY: cp_eri_mme_param,&
                                               cp_eri_mme_set_params
    USE cp_files,                        ONLY: close_file,&
                                               open_file
-   USE cp_dbcsr_api,                    ONLY: dbcsr_distribution_get,&
-                                              dbcsr_distribution_release,&
-                                              dbcsr_distribution_type
    USE dbt_api,                         ONLY: &
         dbt_create, dbt_distribution_destroy, dbt_distribution_new, dbt_distribution_type, &
         dbt_finalize, dbt_pgrid_create, dbt_pgrid_destroy, dbt_pgrid_type, dbt_put_block, &

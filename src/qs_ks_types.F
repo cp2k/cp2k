@@ -20,12 +20,12 @@ MODULE qs_ks_types
                                               cp_blacs_env_type
    USE cp_control_types,                ONLY: dft_control_release,&
                                               dft_control_type
-   USE cp_dbcsr_operations,             ONLY: dbcsr_deallocate_matrix_set
-   USE cp_result_types,                 ONLY: cp_result_type
-   USE cp_subsys_types,                 ONLY: cp_subsys_type
    USE cp_dbcsr_api,                    ONLY: dbcsr_distribution_release,&
                                               dbcsr_distribution_type,&
                                               dbcsr_p_type
+   USE cp_dbcsr_operations,             ONLY: dbcsr_deallocate_matrix_set
+   USE cp_result_types,                 ONLY: cp_result_type
+   USE cp_subsys_types,                 ONLY: cp_subsys_type
    USE distribution_1d_types,           ONLY: distribution_1d_type
    USE distribution_2d_types,           ONLY: distribution_2d_release,&
                                               distribution_2d_retain,&

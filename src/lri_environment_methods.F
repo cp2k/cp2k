@@ -23,10 +23,6 @@ MODULE lri_environment_methods
    USE cell_types,                      ONLY: cell_type
    USE core_ppl,                        ONLY: build_core_ppl_ri
    USE cp_control_types,                ONLY: dft_control_type
-   USE cp_log_handling,                 ONLY: cp_get_default_logger,&
-                                              cp_logger_type
-   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
-                                              cp_print_key_unit_nr
    USE cp_dbcsr_api,                    ONLY: dbcsr_create,&
                                               dbcsr_dot,&
                                               dbcsr_get_block_diag,&
@@ -35,6 +31,10 @@ MODULE lri_environment_methods
                                               dbcsr_release,&
                                               dbcsr_replicate_all,&
                                               dbcsr_type
+   USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                              cp_logger_type
+   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
+                                              cp_print_key_unit_nr
    USE generic_os_integrals,            ONLY: int_overlap_aabb_os
    USE input_constants,                 ONLY: do_lri_inv,&
                                               do_lri_inv_auto,&

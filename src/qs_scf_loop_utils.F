@@ -9,12 +9,12 @@
 ! **************************************************************************************************
 MODULE qs_scf_loop_utils
    USE cp_control_types,                ONLY: dft_control_type
-   USE cp_external_control,             ONLY: external_control
-   USE cp_log_handling,                 ONLY: cp_to_string
    USE cp_dbcsr_api,                    ONLY: dbcsr_copy,&
                                               dbcsr_get_info,&
                                               dbcsr_p_type,&
                                               dbcsr_type
+   USE cp_external_control,             ONLY: external_control
+   USE cp_log_handling,                 ONLY: cp_to_string
    USE input_section_types,             ONLY: section_vals_type
    USE kinds,                           ONLY: default_string_length,&
                                               dp

@@ -17,9 +17,9 @@ MODULE mp2_eri_gpw
    USE cell_types,                      ONLY: cell_type,&
                                               pbc
    USE cp_control_types,                ONLY: dft_control_type
-   USE cp_fm_types,                     ONLY: cp_fm_type
    USE cp_dbcsr_api,                    ONLY: dbcsr_p_type,&
                                               dbcsr_set
+   USE cp_fm_types,                     ONLY: cp_fm_type
    USE gaussian_gridlevels,             ONLY: gaussian_gridlevel
    USE input_constants,                 ONLY: do_potential_coulomb,&
                                               do_potential_id,&

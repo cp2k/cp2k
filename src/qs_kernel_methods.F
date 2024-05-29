@@ -7,10 +7,10 @@
 
 MODULE qs_kernel_methods
    USE cp_control_types,                ONLY: dft_control_type
-   USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set
    USE cp_dbcsr_api,                    ONLY: dbcsr_distribution_type,&
                                               dbcsr_init_p,&
                                               dbcsr_p_type
+   USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set
    USE input_section_types,             ONLY: section_get_ival,&
                                               section_get_lval,&
                                               section_get_rval,&

@@ -14,11 +14,11 @@ MODULE post_scf_bandstructure_types
    USE basis_set_types,                 ONLY: gto_basis_set_p_type
    USE cp_cfm_types,                    ONLY: cp_cfm_release,&
                                               cp_cfm_type
+   USE cp_dbcsr_api,                    ONLY: dbcsr_p_type,&
+                                              dbcsr_release
    USE cp_dbcsr_operations,             ONLY: dbcsr_deallocate_matrix_set
    USE cp_fm_types,                     ONLY: cp_fm_release,&
                                               cp_fm_type
-   USE cp_dbcsr_api,                    ONLY: dbcsr_p_type,&
-                                              dbcsr_release
    USE dbt_api,                         ONLY: dbt_destroy,&
                                               dbt_type
    USE kinds,                           ONLY: default_string_length,&

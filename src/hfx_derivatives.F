@@ -28,8 +28,8 @@ MODULE hfx_derivatives
                                  cp_print_key_unit_nr
    USE message_passing, ONLY: mp_para_env_type
    USE cp_dbcsr_api, ONLY: dbcsr_get_matrix_type, &
-                        dbcsr_p_type, &
-                        dbcsr_type_antisymmetric
+                           dbcsr_p_type, &
+                           dbcsr_type_antisymmetric
    USE gamma, ONLY: init_md_ftable
    USE hfx_communication, ONLY: get_full_density
    USE hfx_compression_methods, ONLY: hfx_add_mult_cache_elements, &

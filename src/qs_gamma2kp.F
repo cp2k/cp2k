@@ -12,9 +12,9 @@
 !> \author JGH
 ! **************************************************************************************************
 MODULE qs_gamma2kp
-   USE cp_subsys_types,                 ONLY: cp_subsys_type
    USE cp_dbcsr_api,                    ONLY: dbcsr_add,&
                                               dbcsr_p_type
+   USE cp_subsys_types,                 ONLY: cp_subsys_type
    USE input_constants,                 ONLY: atomic_guess,&
                                               xc_none
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&

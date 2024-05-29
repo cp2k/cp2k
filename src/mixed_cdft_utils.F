@@ -20,6 +20,13 @@ MODULE mixed_cdft_utils
    USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
                                               cp_blacs_env_type
    USE cp_control_types,                ONLY: dft_control_type
+   USE cp_dbcsr_api,                    ONLY: dbcsr_desymmetrize,&
+                                              dbcsr_get_info,&
+                                              dbcsr_init_p,&
+                                              dbcsr_p_type,&
+                                              dbcsr_release,&
+                                              dbcsr_release_p,&
+                                              dbcsr_type
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               copy_fm_to_dbcsr_bc
    USE cp_files,                        ONLY: open_file
@@ -45,13 +52,6 @@ MODULE mixed_cdft_utils
    USE cube_utils,                      ONLY: init_cube_info,&
                                               return_cube_max_iradius
    USE d3_poly,                         ONLY: init_d3_poly_module
-   USE cp_dbcsr_api,                    ONLY: dbcsr_desymmetrize,&
-                                              dbcsr_get_info,&
-                                              dbcsr_init_p,&
-                                              dbcsr_p_type,&
-                                              dbcsr_release,&
-                                              dbcsr_release_p,&
-                                              dbcsr_type
    USE force_env_types,                 ONLY: force_env_get,&
                                               force_env_type,&
                                               multiple_fe_list

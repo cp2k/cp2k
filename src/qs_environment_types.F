@@ -23,6 +23,9 @@ MODULE qs_environment_types
                                               cell_type
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_control_types,                ONLY: dft_control_type
+   USE cp_dbcsr_api,                    ONLY: dbcsr_distribution_type,&
+                                              dbcsr_p_type,&
+                                              dbcsr_release_p
    USE cp_ddapc_types,                  ONLY: cp_ddapc_ewald_release,&
                                               cp_ddapc_ewald_type,&
                                               cp_ddapc_release,&
@@ -31,9 +34,6 @@ MODULE qs_environment_types
                                               cp_fm_type
    USE cp_result_types,                 ONLY: cp_result_type
    USE cp_subsys_types,                 ONLY: cp_subsys_type
-   USE cp_dbcsr_api,                    ONLY: dbcsr_distribution_type,&
-                                              dbcsr_p_type,&
-                                              dbcsr_release_p
    USE distribution_1d_types,           ONLY: distribution_1d_type
    USE distribution_2d_types,           ONLY: distribution_2d_type
    USE dm_ls_scf_types,                 ONLY: ls_scf_env_type,&

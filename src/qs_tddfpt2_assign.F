@@ -6,6 +6,8 @@
 !--------------------------------------------------------------------------------------------------!
 
 MODULE qs_tddfpt2_assign
+   USE cp_dbcsr_api,                    ONLY: dbcsr_p_type,&
+                                              dbcsr_type
    USE cp_dbcsr_operations,             ONLY: cp_dbcsr_sm_fm_multiply
    USE cp_fm_basic_linalg,              ONLY: cp_fm_geadd,&
                                               cp_fm_scale
@@ -19,8 +21,6 @@ MODULE qs_tddfpt2_assign
                                               cp_fm_release,&
                                               cp_fm_to_fm,&
                                               cp_fm_type
-   USE cp_dbcsr_api,                    ONLY: dbcsr_p_type,&
-                                              dbcsr_type
    USE exstates_types,                  ONLY: wfn_history_type
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_para_env_type
