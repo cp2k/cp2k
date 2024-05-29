@@ -109,7 +109,7 @@ CONTAINS
 
          ! *** Perform a SCF run ***
          IF (.NOT. loverlap_deltat) THEN
-            IF (scf_control%non_selfconsistent) THEN
+            IF (scf_control%non_selfconsistent .AND. .NOT. scf_control%force_scf_calculation) THEN
                CALL nonscf(qs_env)
             ELSE IF (dft_control%qs_control%do_ls_scf) THEN
                CALL ls_scf(qs_env)
