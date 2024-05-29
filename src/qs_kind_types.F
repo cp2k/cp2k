@@ -867,6 +867,7 @@ CONTAINS
 !> \param basis_rcut ...
 !> \param basis_type ...
 !> \param total_zeff_corr ... [SGh]
+!> \param npgf_seg total number of primitive GTOs in "segmented contraction format"
 ! **************************************************************************************************
    SUBROUTINE get_qs_kind_set(qs_kind_set, &
                               all_potential_present, tnadd_potential_present, gth_potential_present, &

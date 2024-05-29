@@ -63,7 +63,10 @@ MODULE trexio_utils
                      trexio_write_basis_r_power, trexio_write_basis_shell_index, &
                      trexio_write_basis_exponent, trexio_write_basis_coefficient, &
                      trexio_write_basis_prim_factor, &
-                     trexio_write_ecp_z_core
+                     trexio_write_ecp_z_core, trexio_write_ecp_max_ang_mom_plus_1, &
+                     trexio_write_ecp_num, trexio_write_ecp_ang_mom, &
+                     trexio_write_ecp_nucleus_index, trexio_write_ecp_exponent, &
+                     trexio_write_ecp_coefficient, trexio_write_ecp_power
 #endif
 #include "./base/base_uses.f90"
 
@@ -93,7 +96,8 @@ MODULE trexio_utils
       CHARACTER(len=default_path_length)                 :: filename
       INTEGER(trexio_t)                                  :: f        ! The TREXIO file handle
       INTEGER(trexio_exit_code)                          :: rc       ! TREXIO return code
-      LOGICAL                                            :: explicit, do_kpoints, ecp_semi_local
+      LOGICAL                                            :: explicit, do_kpoints, ecp_semi_local, &
+                                                            ecp_local, sgp_potential_present
       REAL(KIND=dp)                                      :: e_nn, zeff
       TYPE(cell_type), POINTER                           :: cell => Null()
       TYPE(cp_logger_type), POINTER                      :: logger => Null()
@@ -111,11 +115,14 @@ MODULE trexio_utils
       CHARACTER(LEN=2), DIMENSION(:), ALLOCATABLE        :: label
       INTEGER                                            :: iatom, natoms, periodic, nkp, nel_tot, &
                                                             nspins, ikind, ishell_loc, ishell, &
-                                                            shell_num, prim_num, nset, iset, ipgf, z
+                                                            shell_num, prim_num, nset, iset, ipgf, z, &
+                                                            sl_lmax, ecp_num, nloc, nsemiloc, sl_l, iecp
       INTEGER, DIMENSION(2)                              :: nel_spin
       INTEGER, DIMENSION(3)                              :: nkp_grid
+      INTEGER, DIMENSION(0:10)                           :: npot
       INTEGER, DIMENSION(:),    ALLOCATABLE              :: nucleus_index, shell_ang_mom, r_power, &
-                                                            shell_index, z_core
+                                                            shell_index, z_core, max_ang_mom_plus_1, &
+                                                            ang_mom, powers
       INTEGER, DIMENSION(:),    POINTER                  :: nshell => Null(), npgf => Null()
       INTEGER, DIMENSION(:, :), POINTER                  :: l => Null()
       REAL(KIND=dp), DIMENSION(:),   ALLOCATABLE         :: charge, shell_factor, exponents, coefficients, &
@@ -132,9 +139,6 @@ MODULE trexio_utils
 
       CPASSERT(ASSOCIATED(qs_env))
 
-      ! collect environment info
-      ! CALL get_qs_env(qs_env, energy=energy, dft_control=dft_control)
-
       ! get filename
       CALL section_vals_val_get(trexio_section, "FILENAME", c_val=filename, explicit=explicit)
       IF (.NOT. explicit) THEN
@@ -149,14 +153,15 @@ MODULE trexio_utils
          CALL close_file(unit_number=unit_trexio, file_status="DELETE")
       END IF
 
-      ! open trexio file
+      !========================================================================================!
+      ! Open the TREXIO file
+      !========================================================================================!
       f = trexio_open(filename, 'w', TREXIO_HDF5, rc)
       CALL trexio_error(rc)
 
       !========================================================================================!
       ! Metadata group
       !========================================================================================!
-
       rc = trexio_write_metadata_code_num(f, 1)
       CALL trexio_error(rc)
 
@@ -166,7 +171,6 @@ MODULE trexio_utils
       !========================================================================================!
       ! Nucleus group
       !========================================================================================!
-
       CALL get_qs_env(qs_env, cell=cell, particle_set=particle_set, qs_kind_set=kind_set, natom=natoms)
 
       rc = trexio_write_nucleus_num(f, natoms)
@@ -209,7 +213,6 @@ MODULE trexio_utils
       !========================================================================================!
       ! Cell group
       !========================================================================================!
-
       rc = trexio_write_cell_a(f, cell%hmat(:,1))
       CALL trexio_error(rc)
 
@@ -234,7 +237,6 @@ MODULE trexio_utils
       !========================================================================================!
       ! PBC group
       !========================================================================================!
-
       CALL get_qs_env(qs_env, do_kpoints=do_kpoints, kpoints=kpoints)
 
       periodic = 0
@@ -258,7 +260,6 @@ MODULE trexio_utils
       !========================================================================================!
       ! Electron group
       !========================================================================================!
-
       CALL get_qs_env(qs_env, dft_control=dft_control, nelectron_total=nel_tot)
 
       rc = trexio_write_electron_num(f, nel_tot)
@@ -283,7 +284,6 @@ MODULE trexio_utils
       !========================================================================================!
       ! State group
       !========================================================================================!
-
       CALL get_qs_env(qs_env, energy=energy)
 
       rc = trexio_write_state_num(f, 1)
@@ -298,7 +298,6 @@ MODULE trexio_utils
       !========================================================================================!
       ! Basis group
       !========================================================================================!
-
       CALL get_qs_kind_set(kind_set, nshell=shell_num, npgf_seg=prim_num)
 
       rc = trexio_write_basis_type(f, 'Gaussian', LEN_TRIM('Gaussian')+1)
@@ -404,38 +403,143 @@ MODULE trexio_utils
       !========================================================================================!
       ! ECP group
       !========================================================================================!
+      CALL get_qs_kind_set(kind_set, sgp_potential_present=sgp_potential_present)
 
-      ! CALL get_qs_kind_set(kind_set, sgp_potential_present=sgp_potential_present)
+      ! figure out whether we actually have ECP potentials
+      IF (sgp_potential_present) THEN
+         ecp_num = 0
+         DO iatom = 1, natoms
+            ! get the qs_kind (index position in kind_set) for this atom (atomic_kind)
+            CALL get_atomic_kind(particle_set(iatom)%atomic_kind, kind_number=ikind)
+            ! get the the sgp_potential associated to this qs_kind
+            CALL get_qs_kind(kind_set(ikind), sgp_potential=sgp_potential)
 
-      ! IF (sgp_potential_present) THEN
+            ! get the info on the potential
+            IF (ASSOCIATED(sgp_potential)) THEN
+               CALL get_potential(potential=sgp_potential, ecp_local=ecp_local, ecp_semi_local=ecp_semi_local)
+               IF (ecp_local) THEN
+                  ! get number of local terms
+                  CALL get_potential(potential=sgp_potential, nloc=nloc)
+                  ecp_num = ecp_num + nloc
+               END IF
+               IF (ecp_semi_local) THEN
+                  ! get number of semilocal terms
+                  CALL get_potential(potential=sgp_potential, npot=npot)
+                  ecp_num = ecp_num + SUM(npot)
+               END IF
+            END IF
+         END DO
+      END IF
 
-      ALLOCATE (z_core(natoms))
+      ! if we have ECP potentials, populate the ECP group
+      IF (ecp_num > 0) THEN
+         ALLOCATE (z_core(natoms))
+         ALLOCATE (max_ang_mom_plus_1(natoms))
+         max_ang_mom_plus_1(:) = 0
 
-      ! figure out which type of potential we are using
-      DO iatom = 1, natoms
-         ! get the qs_kind (index position in kind_set) for this atom (atomic_kind)
-         CALL get_atomic_kind(particle_set(iatom)%atomic_kind, kind_number=ikind, z=z)
-         ! get the the sgp_potential associated to this qs_kind
-         CALL get_qs_kind(kind_set(ikind), sgp_potential=sgp_potential, zeff=zeff)
+         ALLOCATE (ang_mom(ecp_num))
+         ALLOCATE (nucleus_index(ecp_num))
+         ALLOCATE (exponents(ecp_num))
+         ALLOCATE (coefficients(ecp_num))
+         ALLOCATE (powers(ecp_num))
 
-         z_core(iatom) = z - INT(zeff)
+         iecp = 0
+         DO iatom = 1, natoms
+            ! get the qs_kind (index position in kind_set) for this atom (atomic_kind)
+            CALL get_atomic_kind(particle_set(iatom)%atomic_kind, kind_number=ikind, z=z)
+            ! get the the sgp_potential associated to this qs_kind
+            CALL get_qs_kind(kind_set(ikind), sgp_potential=sgp_potential, zeff=zeff)
+
+            ! number of core electrons removed by the ECP
+            z_core(iatom) = z - INT(zeff)
+
+            ! get the info on the potential
+            IF (ASSOCIATED(sgp_potential)) THEN
+               CALL get_potential(potential=sgp_potential, ecp_local=ecp_local, ecp_semi_local=ecp_semi_local)
+
+               ! deal with the local part
+               IF (ecp_local) THEN
+                  CALL get_potential(potential=sgp_potential, nloc=nloc, sl_lmax=sl_lmax)
+                  ang_mom(iecp+1:iecp+nloc) = sl_lmax+1
+                  nucleus_index(iecp+1:iecp+nloc) = iatom
+                  exponents(iecp+1:iecp+nloc) = sgp_potential%bloc(1:nloc)
+                  coefficients(iecp+1:iecp+nloc) = sgp_potential%aloc(1:nloc)
+                  powers(iecp+1:iecp+nloc) = sgp_potential%nrloc(1:nloc) - 2
+                  iecp = iecp + nloc
+               END IF
+
+               ! deal with the semilocal part
+               IF (ecp_semi_local) THEN
+                  CALL get_potential(potential=sgp_potential, npot=npot, sl_lmax=sl_lmax)
+                  max_ang_mom_plus_1(iatom) = sl_lmax + 1
+
+                  DO sl_l = 0, sl_lmax
+                     nsemiloc = npot(sl_l)
+                     ang_mom(iecp+1:iecp+nsemiloc) = sl_l
+                     nucleus_index(iecp+1:iecp+nsemiloc) = iatom
+                     exponents(iecp+1:iecp+nsemiloc) = sgp_potential%bpot(1:nsemiloc, sl_l)
+                     coefficients(iecp+1:iecp+nsemiloc) = sgp_potential%apot(1:nsemiloc, sl_l)
+                     powers(iecp+1:iecp+nsemiloc) = sgp_potential%nrpot(1:nsemiloc, sl_l) - 2
+                     iecp = iecp + nsemiloc
+                  END DO
+               END IF
+            END IF
+         END DO
+
+         ! fail-safe check
+         CPASSERT(iecp == ecp_num)
+
+         rc = trexio_write_ecp_num(f, ecp_num)
+         CALL trexio_error(rc)
+
+         rc = trexio_write_ecp_z_core(f, z_core)
+         CALL trexio_error(rc)
+         DEALLOCATE (z_core)
+
+         rc = trexio_write_ecp_max_ang_mom_plus_1(f, max_ang_mom_plus_1)
+         CALL trexio_error(rc)
+         DEALLOCATE (max_ang_mom_plus_1)
+
+         rc = trexio_write_ecp_ang_mom(f, ang_mom)
+         CALL trexio_error(rc)
+         DEALLOCATE (ang_mom)
+
+         rc = trexio_write_ecp_nucleus_index(f, nucleus_index)
+         CALL trexio_error(rc)
+         DEALLOCATE (nucleus_index)
+
+         rc = trexio_write_ecp_exponent(f, exponents)
+         CALL trexio_error(rc)
+         DEALLOCATE (exponents)
+
+         rc = trexio_write_ecp_coefficient(f, coefficients)
+         CALL trexio_error(rc)
+         DEALLOCATE (coefficients)
+
+         rc = trexio_write_ecp_power(f, powers)
+         CALL trexio_error(rc)
+         DEALLOCATE (powers)
+      END IF
+
+      !========================================================================================!
+      ! Grid group
+      !========================================================================================!
+      ! TODO
 
 
-         ! get the info on the potential
-         IF (ASSOCIATED(sgp_potential)) THEN
-            CALL get_potential(potential=sgp_potential, ecp_semi_local=ecp_semi_local)
-         END IF
-
-      END DO
+      !========================================================================================!
+      ! AO group
+      !========================================================================================!
 
 
-      rc = trexio_write_ecp_z_core(f, z_core)
-      CALL trexio_error(rc)
-      DEALLOCATE (z_core)
+      !========================================================================================!
+      ! MO group
+      !========================================================================================!
 
-      ! END IF
 
+      !========================================================================================!
       ! Close the TREXIO file
+      !========================================================================================!
       rc = trexio_close(f)
       CALL trexio_error(rc)
 
