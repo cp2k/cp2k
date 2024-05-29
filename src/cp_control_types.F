@@ -133,6 +133,8 @@ MODULE cp_control_types
 ! **************************************************************************************************
    TYPE xtb_control_type
       !
+      INTEGER                              :: gfn_type = 1
+      !
       LOGICAL                              :: do_ewald = .FALSE.
       !
       INTEGER                              :: sto_ng = 0

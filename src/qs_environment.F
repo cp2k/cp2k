@@ -595,9 +595,9 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'qs_init_subsys'
 
       CHARACTER(len=2)                                   :: element_symbol
-      INTEGER :: handle, ikind, ispin, iw, lmax_sphere, maxl, maxlgto, maxlgto_lri, maxlppl, &
-         maxlppnl, method_id, multiplicity, my_ival, n_ao, n_mo_add, natom, nelectron, ngauss, &
-         nkind, output_unit, sort_basis, tnadd_method
+      INTEGER :: gfn_type, handle, ikind, ispin, iw, lmax_sphere, maxl, maxlgto, maxlgto_lri, &
+         maxlppl, maxlppnl, method_id, multiplicity, my_ival, n_ao, n_mo_add, natom, nelectron, &
+         ngauss, nkind, output_unit, sort_basis, tnadd_method
       INTEGER, DIMENSION(2)                              :: n_mo, nelectron_spin
       LOGICAL :: all_potential_present, be_silent, do_kpoints, do_ri_hfx, do_ri_mp2, do_ri_rpa, &
          do_ri_sos_mp2, do_rpa_ri_exx, do_wfc_im_time, e1terms, has_unit_metric, lribas, &
@@ -691,6 +691,11 @@ CONTAINS
       IF (dft_control%do_tddfpt_calculation) THEN
          CALL read_tddfpt_control(dft_control%tddfpt_control, dft_section)
       END IF
+      ! set periodicity flag
+      dft_control%qs_control%periodicity = SUM(cell%perd)
+
+      !  Read the input section with the Quickstep control parameters
+      CALL read_qs_section(dft_control%qs_control, qs_section)
 
       !   *** Print the Quickstep program banner (copyright and version number) ***
       IF (.NOT. be_silent) THEN
@@ -705,17 +710,15 @@ CONTAINS
          CASE (do_method_dftb)
             CALL dftb_header(iw)
          CASE (do_method_xtb)
-            CALL xtb_header(iw)
+            gfn_type = dft_control%qs_control%xtb_control%gfn_type
+            CALL xtb_header(iw, gfn_type)
          END SELECT
          CALL cp_print_key_finished_output(iw, logger, dft_section, &
                                            "PRINT%PROGRAM_BANNER")
       END IF
 
-      ! set periodicity flag
-      dft_control%qs_control%periodicity = SUM(cell%perd)
-
-      !  Read the input section with the Quickstep control parameters
-      CALL read_qs_section(dft_control%qs_control, qs_section)
+!deb  !  Read the input section with the Quickstep control parameters
+!deb  CALL read_qs_section(dft_control%qs_control, qs_section)
       IF (dft_control%do_sccs .AND. dft_control%qs_control%gapw) THEN
          CPABORT("SCCS is not yet implemented with GAPW")
       END IF

@@ -1197,6 +1197,7 @@ CONTAINS
 
       ! xTB code
       IF (qs_control%xtb) THEN
+         CALL section_vals_val_get(xtb_section, "GFN_TYPE", i_val=qs_control%xtb_control%gfn_type)
          CALL section_vals_val_get(xtb_section, "DO_EWALD", explicit=explicit)
          IF (explicit) THEN
             CALL section_vals_val_get(xtb_section, "DO_EWALD", &
