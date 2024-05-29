@@ -33,7 +33,7 @@ MODULE qs_scf_post_se
    USE cp_result_methods,               ONLY: cp_results_erase,&
                                               put_results
    USE cp_result_types,                 ONLY: cp_result_type
-   USE dbcsr_api,                       ONLY: dbcsr_get_block_p,&
+   USE cp_dbcsr_api,                    ONLY: dbcsr_get_block_p,&
                                               dbcsr_p_type
    USE input_section_types,             ONLY: section_get_ival,&
                                               section_vals_get,&

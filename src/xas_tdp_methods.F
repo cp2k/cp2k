@@ -52,7 +52,7 @@ MODULE xas_tdp_methods
                                               cp_print_key_should_output,&
                                               cp_print_key_unit_nr,&
                                               debug_print_level
-   USE dbcsr_api,                       ONLY: &
+   USE cp_dbcsr_api,                    ONLY: &
         dbcsr_add_on_diag, dbcsr_complete_redistribute, dbcsr_copy, dbcsr_create, dbcsr_filter, &
         dbcsr_finalize, dbcsr_get_info, dbcsr_get_occupation, dbcsr_multiply, dbcsr_p_type, &
         dbcsr_release, dbcsr_set, dbcsr_type, dbcsr_type_antisymmetric, dbcsr_type_no_symmetry, &

@@ -22,7 +22,7 @@ MODULE qs_operators_ao
                                               pbc
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type
-   USE dbcsr_api,                       ONLY: dbcsr_get_block_p,&
+   USE cp_dbcsr_api,                    ONLY: dbcsr_get_block_p,&
                                               dbcsr_get_matrix_type,&
                                               dbcsr_has_symmetry,&
                                               dbcsr_p_type,&

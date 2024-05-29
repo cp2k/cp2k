@@ -31,7 +31,7 @@ MODULE rpa_rse
                                               cp_fm_set_all,&
                                               cp_fm_to_fm_submat,&
                                               cp_fm_type
-   USE dbcsr_api,                       ONLY: dbcsr_copy,&
+   USE cp_dbcsr_api,                    ONLY: dbcsr_copy,&
                                               dbcsr_create,&
                                               dbcsr_init_p,&
                                               dbcsr_p_type,&

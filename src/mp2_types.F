@@ -15,7 +15,7 @@ MODULE mp2_types
    USE cp_eri_mme_interface,            ONLY: cp_eri_mme_finalize,&
                                               cp_eri_mme_param
    USE cp_fm_types,                     ONLY: cp_fm_type
-   USE dbcsr_api,                       ONLY: dbcsr_p_type,&
+   USE cp_dbcsr_api,                    ONLY: dbcsr_p_type,&
                                               dbcsr_type
    USE hfx_types,                       ONLY: hfx_release,&
                                               hfx_type,&

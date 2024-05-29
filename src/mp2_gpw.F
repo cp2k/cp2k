@@ -33,7 +33,7 @@ MODULE mp2_gpw
         cp_add_default_logger, cp_get_default_logger, cp_logger_create, &
         cp_logger_get_default_unit_nr, cp_logger_release, cp_logger_set, cp_logger_type, &
         cp_rm_default_logger, cp_to_string
-   USE dbcsr_api,                       ONLY: &
+   USE cp_dbcsr_api,                    ONLY: &
         dbcsr_clear_mempools, dbcsr_copy, dbcsr_create, dbcsr_distribution_release, &
         dbcsr_distribution_type, dbcsr_filter, dbcsr_init_p, dbcsr_iterator_blocks_left, &
         dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, &

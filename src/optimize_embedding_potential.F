@@ -39,7 +39,7 @@ MODULE optimize_embedding_potential
    USE cp_realspace_grid_cube,          ONLY: cp_cube_to_pw,&
                                               cp_pw_to_cube,&
                                               cp_pw_to_simple_volumetric
-   USE dbcsr_api,                       ONLY: dbcsr_p_type
+   USE cp_dbcsr_api,                    ONLY: dbcsr_p_type
    USE embed_types,                     ONLY: opt_embed_pot_type
    USE force_env_types,                 ONLY: force_env_type
    USE input_constants,                 ONLY: &

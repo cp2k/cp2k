@@ -23,7 +23,7 @@ MODULE qs_ks_types
    USE cp_dbcsr_operations,             ONLY: dbcsr_deallocate_matrix_set
    USE cp_result_types,                 ONLY: cp_result_type
    USE cp_subsys_types,                 ONLY: cp_subsys_type
-   USE dbcsr_api,                       ONLY: dbcsr_distribution_release,&
+   USE cp_dbcsr_api,                    ONLY: dbcsr_distribution_release,&
                                               dbcsr_distribution_type,&
                                               dbcsr_p_type
    USE distribution_1d_types,           ONLY: distribution_1d_type

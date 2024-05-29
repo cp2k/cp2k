@@ -29,7 +29,7 @@ MODULE se_fock_matrix_coulomb
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                               cp_print_key_unit_nr
-   USE dbcsr_api,                       ONLY: dbcsr_add,&
+   USE cp_dbcsr_api,                    ONLY: dbcsr_add,&
                                               dbcsr_distribute,&
                                               dbcsr_get_block_diag,&
                                               dbcsr_get_block_p,&

@@ -18,7 +18,7 @@ MODULE dbt_methods
    #:set maxdim = maxrank
    #:set ndims = range(2,maxdim+1)
 
-   USE dbcsr_api, ONLY: &
+   USE cp_dbcsr_api, ONLY: &
       dbcsr_type, dbcsr_release, &
       dbcsr_iterator_type, dbcsr_iterator_start, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
       dbcsr_has_symmetry, dbcsr_desymmetrize, dbcsr_put_block, dbcsr_clear, dbcsr_iterator_stop

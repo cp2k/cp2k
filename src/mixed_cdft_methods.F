@@ -45,7 +45,7 @@ MODULE mixed_cdft_methods
    USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                               cp_subsys_type
    USE cp_units,                        ONLY: cp_unit_from_cp2k
-   USE dbcsr_api,                       ONLY: &
+   USE cp_dbcsr_api,                    ONLY: &
         dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_init_p, dbcsr_p_type, dbcsr_release, &
         dbcsr_release_p, dbcsr_scale, dbcsr_type
    USE force_env_types,                 ONLY: force_env_get,&

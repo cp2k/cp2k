@@ -32,7 +32,7 @@ MODULE qs_wannier90
                                               cp_fm_type
    USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit,&
                                               cp_logger_type
-   USE dbcsr_api,                       ONLY: dbcsr_create,&
+   USE cp_dbcsr_api,                    ONLY: dbcsr_create,&
                                               dbcsr_deallocate_matrix,&
                                               dbcsr_p_type,&
                                               dbcsr_set,&

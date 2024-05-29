@@ -21,7 +21,7 @@ MODULE arnoldi_methods
       arnoldi_control_type, arnoldi_data_c_type, arnoldi_data_d_type, arnoldi_data_s_type, &
       arnoldi_data_type, arnoldi_data_z_type, get_control, get_data_c, get_data_d, get_data_s, &
       get_data_z, has_d_cmplx, has_d_real, m_x_v_vectors_type
-   USE dbcsr_api, ONLY: &
+   USE cp_dbcsr_api, ONLY: &
       dbcsr_add, dbcsr_copy, dbcsr_get_data_p, dbcsr_get_info, dbcsr_iterator_blocks_left, &
       dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, &
       dbcsr_p_type, dbcsr_scale, dbcsr_type

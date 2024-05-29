@@ -12,7 +12,7 @@
 !> \author JGH
 ! **************************************************************************************************
 MODULE qs_elf_methods
-   USE dbcsr_api,                       ONLY: dbcsr_p_type
+   USE cp_dbcsr_api,                    ONLY: dbcsr_p_type
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: pi
    USE pw_env_types,                    ONLY: pw_env_get,&

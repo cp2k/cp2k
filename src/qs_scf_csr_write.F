@@ -22,7 +22,7 @@ MODULE qs_scf_csr_write
                                               cp_print_key_finished_output,&
                                               cp_print_key_should_output,&
                                               cp_print_key_unit_nr
-   USE dbcsr_api,                       ONLY: &
+   USE cp_dbcsr_api,                    ONLY: &
         dbcsr_add, dbcsr_convert_dbcsr_to_csr, dbcsr_copy, dbcsr_create, &
         dbcsr_csr_create_from_dbcsr, dbcsr_csr_dbcsr_blkrow_dist, dbcsr_csr_destroy, &
         dbcsr_csr_type, dbcsr_csr_write, dbcsr_desymmetrize, dbcsr_finalize, dbcsr_get_block_p, &

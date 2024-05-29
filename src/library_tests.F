@@ -48,7 +48,7 @@ MODULE library_tests
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                               cp_print_key_unit_nr
    USE cp_realspace_grid_init,          ONLY: init_input_type
-   USE dbcsr_api,                       ONLY: dbcsr_reset_randmat_seed,&
+   USE cp_dbcsr_api,                    ONLY: dbcsr_reset_randmat_seed,&
                                               dbcsr_run_tests
    USE dbm_tests,                       ONLY: dbm_run_tests
    USE fft_tools,                       ONLY: BWFFT,&

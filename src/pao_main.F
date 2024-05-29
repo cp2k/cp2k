@@ -13,7 +13,7 @@ MODULE pao_main
    USE bibliography,                    ONLY: Schuett2018,&
                                               cite_reference
    USE cp_external_control,             ONLY: external_control
-   USE dbcsr_api,                       ONLY: dbcsr_add,&
+   USE cp_dbcsr_api,                    ONLY: dbcsr_add,&
                                               dbcsr_copy,&
                                               dbcsr_create,&
                                               dbcsr_p_type,&

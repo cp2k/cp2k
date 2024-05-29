@@ -31,7 +31,7 @@ MODULE qs_environment_types
                                               cp_fm_type
    USE cp_result_types,                 ONLY: cp_result_type
    USE cp_subsys_types,                 ONLY: cp_subsys_type
-   USE dbcsr_api,                       ONLY: dbcsr_distribution_type,&
+   USE cp_dbcsr_api,                    ONLY: dbcsr_distribution_type,&
                                               dbcsr_p_type,&
                                               dbcsr_release_p
    USE distribution_1d_types,           ONLY: distribution_1d_type

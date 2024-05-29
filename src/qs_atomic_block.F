@@ -15,7 +15,7 @@ MODULE qs_atomic_block
    USE atom_kind_orbitals,              ONLY: calculate_atomic_orbitals
    USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                               get_atomic_kind_set
-   USE dbcsr_api,                       ONLY: &
+   USE cp_dbcsr_api,                    ONLY: &
         dbcsr_add_on_diag, dbcsr_dot, dbcsr_get_info, dbcsr_iterator_blocks_left, &
         dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, &
         dbcsr_p_type, dbcsr_scale, dbcsr_set, dbcsr_type

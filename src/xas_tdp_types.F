@@ -19,7 +19,7 @@ MODULE xas_tdp_types
    USE cp_files,                        ONLY: file_exists
    USE cp_fm_types,                     ONLY: cp_fm_release,&
                                               cp_fm_type
-   USE dbcsr_api,                       ONLY: dbcsr_distribution_release,&
+   USE cp_dbcsr_api,                    ONLY: dbcsr_distribution_release,&
                                               dbcsr_distribution_type,&
                                               dbcsr_p_type,&
                                               dbcsr_release,&

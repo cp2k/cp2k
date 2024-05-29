@@ -37,7 +37,7 @@ MODULE xas_tp_scf
                                               cp_print_key_should_output,&
                                               cp_print_key_unit_nr,&
                                               cp_rm_iter_level
-   USE dbcsr_api,                       ONLY: dbcsr_copy,&
+   USE cp_dbcsr_api,                    ONLY: dbcsr_copy,&
                                               dbcsr_p_type
    USE input_constants,                 ONLY: ot_precond_full_kinetic,&
                                               ot_precond_solver_default,&

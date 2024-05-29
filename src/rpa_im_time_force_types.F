@@ -11,7 +11,7 @@
 ! **************************************************************************************************
 MODULE rpa_im_time_force_types
    USE cp_dbcsr_operations,             ONLY: dbcsr_deallocate_matrix_set
-   USE dbcsr_api,                       ONLY: dbcsr_p_type,&
+   USE cp_dbcsr_api,                    ONLY: dbcsr_p_type,&
                                               dbcsr_release,&
                                               dbcsr_type
    USE dbt_api,                         ONLY: dbt_destroy,&

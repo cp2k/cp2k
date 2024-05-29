@@ -32,7 +32,7 @@ MODULE rpa_main
                                               cp_fm_set_all,&
                                               cp_fm_to_fm,&
                                               cp_fm_type
-   USE dbcsr_api,                       ONLY: dbcsr_add,&
+   USE cp_dbcsr_api,                    ONLY: dbcsr_add,&
                                               dbcsr_clear,&
                                               dbcsr_get_info,&
                                               dbcsr_p_type,&

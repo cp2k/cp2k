@@ -2,6 +2,7 @@
     "description": "Tall-And-Skinny matrices",
     "requires": [
         "../../dbm",
+        "../../dbx",
         "../../base",
         "../../common",
         "../../mpiwrap",

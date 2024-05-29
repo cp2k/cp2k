@@ -19,7 +19,7 @@ MODULE qs_tddfpt2_lri_utils
    USE cp_control_types,                ONLY: dft_control_type,&
                                               tddfpt2_control_type
    USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set
-   USE dbcsr_api,                       ONLY: dbcsr_copy,&
+   USE cp_dbcsr_api,                    ONLY: dbcsr_copy,&
                                               dbcsr_deallocate_matrix,&
                                               dbcsr_p_type
    USE distribution_1d_types,           ONLY: distribution_1d_type

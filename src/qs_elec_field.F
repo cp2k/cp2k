@@ -25,7 +25,7 @@ MODULE qs_elec_field
                                               cp_print_key_finished_output,&
                                               cp_print_key_should_output,&
                                               cp_print_key_unit_nr
-   USE dbcsr_api,                       ONLY: dbcsr_get_block_p,&
+   USE cp_dbcsr_api,                    ONLY: dbcsr_get_block_p,&
                                               dbcsr_p_type
    USE input_section_types,             ONLY: section_vals_val_get
    USE kinds,                           ONLY: dp

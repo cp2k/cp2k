@@ -36,7 +36,7 @@ MODULE qs_initial_guess
                                               cp_to_string
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                               cp_print_key_unit_nr
-   USE dbcsr_api,                       ONLY: &
+   USE cp_dbcsr_api,                    ONLY: &
         dbcsr_checksum, dbcsr_copy, dbcsr_dot, dbcsr_filter, dbcsr_get_diag, dbcsr_get_num_blocks, &
         dbcsr_get_occupation, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
         dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, &

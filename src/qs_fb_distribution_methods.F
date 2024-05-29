@@ -12,7 +12,7 @@ MODULE qs_fb_distribution_methods
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                               cp_print_key_unit_nr
-   USE dbcsr_api,                       ONLY: dbcsr_distribution_get,&
+   USE cp_dbcsr_api,                    ONLY: dbcsr_distribution_get,&
                                               dbcsr_distribution_type,&
                                               dbcsr_get_info,&
                                               dbcsr_nblkcols_total,&

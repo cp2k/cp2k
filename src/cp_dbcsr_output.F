@@ -24,7 +24,7 @@ MODULE cp_dbcsr_output
                                               cp_fm_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type
-   USE dbcsr_api,                       ONLY: &
+   USE cp_dbcsr_api,                    ONLY: &
         dbcsr_get_data_size, dbcsr_get_info, dbcsr_get_matrix_type, dbcsr_get_num_blocks, &
         dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_start, &
         dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_type, dbcsr_type_antisymmetric, &

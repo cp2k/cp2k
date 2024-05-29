@@ -10,7 +10,7 @@
 !> \author Ole Schuett
 ! **************************************************************************************************
 MODULE pao_param
-   USE dbcsr_api,                       ONLY: dbcsr_copy,&
+   USE cp_dbcsr_api,                    ONLY: dbcsr_copy,&
                                               dbcsr_frobenius_norm,&
                                               dbcsr_multiply,&
                                               dbcsr_release,&

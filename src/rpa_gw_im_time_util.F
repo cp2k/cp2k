@@ -23,7 +23,7 @@ MODULE rpa_gw_im_time_util
                                               cp_fm_set_element,&
                                               cp_fm_to_fm,&
                                               cp_fm_type
-   USE dbcsr_api,                       ONLY: &
+   USE cp_dbcsr_api,                    ONLY: &
         dbcsr_add_on_diag, dbcsr_create, dbcsr_distribution_get, dbcsr_distribution_new, &
         dbcsr_distribution_release, dbcsr_distribution_type, dbcsr_filter, dbcsr_get_diag, &
         dbcsr_get_info, dbcsr_get_stored_coordinates, dbcsr_init_p, dbcsr_iterator_blocks_left, &

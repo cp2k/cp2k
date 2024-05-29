@@ -1,5 +1,13 @@
 {
     "description": "Distributed Block-sparse Tensors",
-    "requires": ["./tas", "../dbm", "../base", "../common", "../mpiwrap", "../offload"],
+    "requires": [
+        "./tas",
+        "../dbm",
+        "../dbx",
+        "../base",
+        "../common",
+        "../mpiwrap",
+        "../offload",
+    ],
     "public": ["dbt_api.F"],
 }

@@ -20,7 +20,7 @@ MODULE qs_rho_methods
    USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set,&
                                               dbcsr_deallocate_matrix_set
    USE cp_log_handling,                 ONLY: cp_to_string
-   USE dbcsr_api,                       ONLY: &
+   USE cp_dbcsr_api,                    ONLY: &
         dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_p_type, dbcsr_scale, dbcsr_set, dbcsr_type, &
         dbcsr_type_antisymmetric, dbcsr_type_symmetric
    USE kinds,                           ONLY: default_string_length,&

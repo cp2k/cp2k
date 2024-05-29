@@ -27,7 +27,7 @@ MODULE mscfg_methods
    USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                               cp_subsys_release,&
                                               cp_subsys_type
-   USE dbcsr_api,                       ONLY: dbcsr_copy,&
+   USE cp_dbcsr_api,                    ONLY: dbcsr_copy,&
                                               dbcsr_create,&
                                               dbcsr_type_no_symmetry
    USE force_env_types,                 ONLY: force_env_get,&

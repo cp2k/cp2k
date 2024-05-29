@@ -21,7 +21,7 @@ MODULE dm_ls_scf_qs
                                               cp_logger_get_default_unit_nr,&
                                               cp_logger_type
    USE cp_realspace_grid_cube,          ONLY: cp_pw_to_cube
-   USE dbcsr_api,                       ONLY: &
+   USE cp_dbcsr_api,                    ONLY: &
         dbcsr_complete_redistribute, dbcsr_copy, dbcsr_copy_into_existing, dbcsr_create, &
         dbcsr_desymmetrize, dbcsr_distribution_get, dbcsr_distribution_hold, &
         dbcsr_distribution_new, dbcsr_distribution_release, dbcsr_distribution_type, &

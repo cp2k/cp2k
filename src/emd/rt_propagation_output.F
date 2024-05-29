@@ -36,7 +36,7 @@ MODULE rt_propagation_output
                                               cp_print_key_should_output,&
                                               cp_print_key_unit_nr
    USE cp_realspace_grid_cube,          ONLY: cp_pw_to_cube
-   USE dbcsr_api,                       ONLY: &
+   USE cp_dbcsr_api,                    ONLY: &
         dbcsr_add, dbcsr_binary_write, dbcsr_checksum, dbcsr_copy, dbcsr_create, &
         dbcsr_deallocate_matrix, dbcsr_desymmetrize, dbcsr_filter, dbcsr_get_info, &
         dbcsr_get_occupation, dbcsr_init_p, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &

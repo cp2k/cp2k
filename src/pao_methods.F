@@ -21,7 +21,7 @@ MODULE pao_methods
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type,&
                                               cp_to_string
-   USE dbcsr_api,                       ONLY: &
+   USE cp_dbcsr_api,                    ONLY: &
         dbcsr_add, dbcsr_binary_read, dbcsr_checksum, dbcsr_complete_redistribute, &
         dbcsr_copy_into_existing, dbcsr_create, dbcsr_desymmetrize, dbcsr_distribution_get, &
         dbcsr_distribution_new, dbcsr_distribution_type, dbcsr_dot, dbcsr_filter, &

@@ -23,7 +23,7 @@ MODULE qs_force
                                               cp_print_key_finished_output,&
                                               cp_print_key_should_output,&
                                               cp_print_key_unit_nr
-   USE dbcsr_api,                       ONLY: dbcsr_copy,&
+   USE cp_dbcsr_api,                    ONLY: dbcsr_copy,&
                                               dbcsr_p_type,&
                                               dbcsr_set
    USE dft_plus_u,                      ONLY: plus_u

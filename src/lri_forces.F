@@ -19,7 +19,7 @@ MODULE lri_forces
                                               get_atomic_kind,&
                                               get_atomic_kind_set
    USE basis_set_types,                 ONLY: gto_basis_set_type
-   USE dbcsr_api,                       ONLY: dbcsr_get_block_p,&
+   USE cp_dbcsr_api,                    ONLY: dbcsr_get_block_p,&
                                               dbcsr_p_type,&
                                               dbcsr_type
    USE kinds,                           ONLY: dp

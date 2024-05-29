@@ -39,7 +39,7 @@ MODULE xtb_matrices
                                               cp_print_key_finished_output,&
                                               cp_print_key_should_output,&
                                               cp_print_key_unit_nr
-   USE dbcsr_api,                       ONLY: &
+   USE cp_dbcsr_api,                    ONLY: &
         dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_dot, dbcsr_finalize, dbcsr_get_block_p, &
         dbcsr_multiply, dbcsr_p_type, dbcsr_type
    USE efield_tb_methods,               ONLY: efield_tb_matrix

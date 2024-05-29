@@ -28,7 +28,7 @@ MODULE qs_tddfpt2_subgroups
                                               cp_fm_get_info,&
                                               cp_fm_release,&
                                               cp_fm_type
-   USE dbcsr_api,                       ONLY: dbcsr_create,&
+   USE cp_dbcsr_api,                    ONLY: dbcsr_create,&
                                               dbcsr_distribution_release,&
                                               dbcsr_distribution_type,&
                                               dbcsr_get_info,&

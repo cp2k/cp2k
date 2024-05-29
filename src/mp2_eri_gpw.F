@@ -18,7 +18,7 @@ MODULE mp2_eri_gpw
                                               pbc
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_fm_types,                     ONLY: cp_fm_type
-   USE dbcsr_api,                       ONLY: dbcsr_p_type,&
+   USE cp_dbcsr_api,                    ONLY: dbcsr_p_type,&
                                               dbcsr_set
    USE gaussian_gridlevels,             ONLY: gaussian_gridlevel
    USE input_constants,                 ONLY: do_potential_coulomb,&

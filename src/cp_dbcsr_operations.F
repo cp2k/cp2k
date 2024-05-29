@@ -19,7 +19,7 @@ MODULE cp_dbcsr_operations
    USE mathlib, ONLY: lcm, gcd
    USE cp_blacs_env, ONLY: cp_blacs_env_type
    USE cp_cfm_types, ONLY: cp_cfm_type
-   USE dbcsr_api, ONLY: dbcsr_distribution_get, &
+   USE cp_dbcsr_api, ONLY: dbcsr_distribution_get, &
                         dbcsr_convert_sizes_to_offsets, dbcsr_add, &
                         dbcsr_complete_redistribute, dbcsr_copy, dbcsr_create, &
                         dbcsr_deallocate_matrix, &

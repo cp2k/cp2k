@@ -13,7 +13,7 @@ MODULE qs_tddfpt2_densities
                                               copy_fm_to_dbcsr
    USE cp_fm_types,                     ONLY: cp_fm_get_info,&
                                               cp_fm_type
-   USE dbcsr_api,                       ONLY: dbcsr_p_type,&
+   USE cp_dbcsr_api,                    ONLY: dbcsr_p_type,&
                                               dbcsr_scale
    USE kinds,                           ONLY: default_string_length,&
                                               dp

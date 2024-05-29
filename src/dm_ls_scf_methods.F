@@ -16,7 +16,7 @@ MODULE dm_ls_scf_methods
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_unit_nr,&
                                               cp_logger_type
-   USE dbcsr_api,                       ONLY: &
+   USE cp_dbcsr_api,                    ONLY: &
         dbcsr_add, dbcsr_add_on_diag, dbcsr_copy, dbcsr_create, dbcsr_desymmetrize, dbcsr_dot, &
         dbcsr_filter, dbcsr_finalize, dbcsr_frobenius_norm, dbcsr_get_data_type, &
         dbcsr_get_occupation, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &

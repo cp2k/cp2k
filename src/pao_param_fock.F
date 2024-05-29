@@ -10,7 +10,7 @@
 !> \author Ole Schuett
 ! **************************************************************************************************
 MODULE pao_param_fock
-   USE dbcsr_api,                       ONLY: dbcsr_get_block_p,&
+   USE cp_dbcsr_api,                    ONLY: dbcsr_get_block_p,&
                                               dbcsr_get_info
    USE kinds,                           ONLY: dp
    USE mathlib,                         ONLY: diamat_all

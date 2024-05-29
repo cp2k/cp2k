@@ -40,7 +40,7 @@ MODULE rt_propagation_methods
                                               cp_logger_get_default_unit_nr,&
                                               cp_logger_type,&
                                               cp_to_string
-   USE dbcsr_api,                       ONLY: &
+   USE cp_dbcsr_api,                    ONLY: &
         dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, dbcsr_desymmetrize, &
         dbcsr_filter, dbcsr_frobenius_norm, dbcsr_get_block_p, dbcsr_init_p, &
         dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_start, &

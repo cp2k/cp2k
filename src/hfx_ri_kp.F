@@ -32,7 +32,7 @@ MODULE hfx_ri_kp
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
    USE cp_dbcsr_diag,                   ONLY: cp_dbcsr_power
    USE cp_dbcsr_operations,             ONLY: cp_dbcsr_dist2d_to_dist
-   USE dbcsr_api,                       ONLY: &
+   USE cp_dbcsr_api,                    ONLY: &
         dbcsr_add, dbcsr_clear, dbcsr_copy, dbcsr_create, dbcsr_distribution_get, &
         dbcsr_distribution_new, dbcsr_distribution_release, dbcsr_distribution_type, dbcsr_dot, &
         dbcsr_filter, dbcsr_finalize, dbcsr_get_block_p, dbcsr_get_info, &

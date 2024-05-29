@@ -36,7 +36,7 @@ MODULE rt_propagation_types
                                               cp_fm_release,&
                                               cp_fm_type
    USE cp_log_handling,                 ONLY: cp_to_string
-   USE dbcsr_api,                       ONLY: dbcsr_create,&
+   USE cp_dbcsr_api,                    ONLY: dbcsr_create,&
                                               dbcsr_deallocate_matrix,&
                                               dbcsr_init_p,&
                                               dbcsr_p_type,&

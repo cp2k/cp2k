@@ -26,7 +26,7 @@ MODULE hfx_pw_methods
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                               cp_print_key_unit_nr
-   USE dbcsr_api,                       ONLY: dbcsr_type
+   USE cp_dbcsr_api,                    ONLY: dbcsr_type
    USE input_constants,                 ONLY: do_potential_coulomb,&
                                               do_potential_short,&
                                               do_potential_truncated

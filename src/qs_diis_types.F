@@ -16,7 +16,7 @@ MODULE qs_diis_types
                                               cp_cfm_type
    USE cp_fm_types,                     ONLY: cp_fm_release,&
                                               cp_fm_type
-   USE dbcsr_api,                       ONLY: dbcsr_p_type,&
+   USE cp_dbcsr_api,                    ONLY: dbcsr_p_type,&
                                               dbcsr_release
    USE kinds,                           ONLY: dp
 #include "./base/base_uses.f90"

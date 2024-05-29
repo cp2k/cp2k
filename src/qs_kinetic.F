@@ -25,7 +25,7 @@ MODULE qs_kinetic
    USE block_p_types,                   ONLY: block_p_type
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set
-   USE dbcsr_api,                       ONLY: dbcsr_filter,&
+   USE cp_dbcsr_api,                    ONLY: dbcsr_filter,&
                                               dbcsr_finalize,&
                                               dbcsr_get_block_p,&
                                               dbcsr_p_type,&

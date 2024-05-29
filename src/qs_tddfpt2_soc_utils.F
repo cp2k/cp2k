@@ -32,7 +32,7 @@ MODULE qs_tddfpt2_soc_utils
                                               cp_fm_to_fm,&
                                               cp_fm_to_fm_submat,&
                                               cp_fm_type
-   USE dbcsr_api,                       ONLY: dbcsr_copy,&
+   USE cp_dbcsr_api,                    ONLY: dbcsr_copy,&
                                               dbcsr_create,&
                                               dbcsr_desymmetrize,&
                                               dbcsr_get_info,&

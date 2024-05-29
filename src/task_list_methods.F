@@ -25,7 +25,7 @@ MODULE task_list_methods
                          cube_info_type, &
                          return_cube, &
                          return_cube_nonortho
-   USE dbcsr_api, ONLY: dbcsr_convert_sizes_to_offsets, &
+   USE cp_dbcsr_api, ONLY: dbcsr_convert_sizes_to_offsets, &
                         dbcsr_finalize, &
                         dbcsr_get_block_p, &
                         dbcsr_get_info, &

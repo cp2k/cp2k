@@ -19,7 +19,7 @@ MODULE qs_band_structure
                                               open_file
    USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
    USE cp_parser_methods,               ONLY: read_float_object
-   USE dbcsr_api,                       ONLY: dbcsr_p_type
+   USE cp_dbcsr_api,                    ONLY: dbcsr_p_type
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&

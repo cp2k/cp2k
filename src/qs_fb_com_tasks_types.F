@@ -7,7 +7,7 @@
 
 MODULE qs_fb_com_tasks_types
 
-   USE dbcsr_api,                       ONLY: dbcsr_get_block_p,&
+   USE cp_dbcsr_api,                    ONLY: dbcsr_get_block_p,&
                                               dbcsr_get_info,&
                                               dbcsr_put_block,&
                                               dbcsr_type

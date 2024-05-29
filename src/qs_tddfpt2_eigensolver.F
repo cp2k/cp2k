@@ -24,7 +24,7 @@ MODULE qs_tddfpt2_eigensolver
         cp_fm_release, cp_fm_set_all, cp_fm_set_submatrix, cp_fm_to_fm, cp_fm_type
    USE cp_log_handling,                 ONLY: cp_logger_type
    USE cp_output_handling,              ONLY: cp_iterate
-   USE dbcsr_api,                       ONLY: dbcsr_get_info,&
+   USE cp_dbcsr_api,                    ONLY: dbcsr_get_info,&
                                               dbcsr_p_type,&
                                               dbcsr_type
    USE input_constants,                 ONLY: tddfpt_kernel_full,&

@@ -47,7 +47,7 @@ MODULE hfx_admm_utils
                                               cp_logger_get_default_io_unit,&
                                               cp_logger_type,&
                                               cp_to_string
-   USE dbcsr_api,                       ONLY: dbcsr_add,&
+   USE cp_dbcsr_api,                    ONLY: dbcsr_add,&
                                               dbcsr_copy,&
                                               dbcsr_create,&
                                               dbcsr_init_p,&

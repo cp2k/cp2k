@@ -37,7 +37,7 @@ MODULE qs_scf_initialization
                                               cp_print_key_finished_output,&
                                               cp_print_key_should_output,&
                                               cp_print_key_unit_nr
-   USE dbcsr_api,                       ONLY: dbcsr_create,&
+   USE cp_dbcsr_api,                    ONLY: dbcsr_create,&
                                               dbcsr_init_p,&
                                               dbcsr_p_type,&
                                               dbcsr_type,&

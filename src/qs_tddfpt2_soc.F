@@ -34,7 +34,7 @@ MODULE qs_tddfpt2_soc
                                               cp_logger_get_default_unit_nr,&
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_print_key_unit_nr
-   USE dbcsr_api,                       ONLY: &
+   USE cp_dbcsr_api,                    ONLY: &
         dbcsr_copy, dbcsr_create, dbcsr_distribution_get, dbcsr_distribution_new, &
         dbcsr_distribution_release, dbcsr_distribution_type, dbcsr_get_info, dbcsr_multiply, &
         dbcsr_p_type, dbcsr_print, dbcsr_release, dbcsr_reserve_all_blocks, dbcsr_scale, &

@@ -45,7 +45,7 @@ MODULE qs_mo_io
                                               cp_print_key_generate_filename,&
                                               cp_print_key_should_output,&
                                               cp_print_key_unit_nr
-   USE dbcsr_api,                       ONLY: dbcsr_binary_write,&
+   USE cp_dbcsr_api,                    ONLY: dbcsr_binary_write,&
                                               dbcsr_checksum,&
                                               dbcsr_create,&
                                               dbcsr_p_type,&

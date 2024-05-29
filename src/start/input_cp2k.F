@@ -18,7 +18,7 @@ MODULE input_cp2k
                                               low_print_level,&
                                               medium_print_level,&
                                               silent_print_level
-   USE dbcsr_api,                       ONLY: dbcsr_test_binary_io,&
+   USE cp_dbcsr_api,                    ONLY: dbcsr_test_binary_io,&
                                               dbcsr_test_mm,&
                                               dbcsr_type_complex_8,&
                                               dbcsr_type_real_8

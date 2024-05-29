@@ -49,7 +49,7 @@ MODULE qs_scf_post_gpw
                                               cp_print_key_should_output,&
                                               cp_print_key_unit_nr
    USE cp_realspace_grid_cube,          ONLY: cp_pw_to_cube
-   USE dbcsr_api,                       ONLY: dbcsr_add,&
+   USE cp_dbcsr_api,                    ONLY: dbcsr_add,&
                                               dbcsr_p_type,&
                                               dbcsr_type
    USE dct,                             ONLY: pw_shrink

@@ -16,7 +16,7 @@
 MODULE xc_adiabatic_utils
 
    USE cp_control_types,                ONLY: dft_control_type
-   USE dbcsr_api,                       ONLY: dbcsr_p_type
+   USE cp_dbcsr_api,                    ONLY: dbcsr_p_type
    USE hfx_communication,               ONLY: scale_and_add_fock_to_ks_matrix
    USE hfx_derivatives,                 ONLY: derivatives_four_center
    USE hfx_types,                       ONLY: hfx_type

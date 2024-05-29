@@ -15,7 +15,7 @@ MODULE negf_matrix_utils
                                               cp_fm_get_submatrix,&
                                               cp_fm_set_submatrix,&
                                               cp_fm_type
-   USE dbcsr_api,                       ONLY: &
+   USE cp_dbcsr_api,                    ONLY: &
         dbcsr_add, dbcsr_copy, dbcsr_deallocate_matrix, dbcsr_get_block_p, dbcsr_get_info, &
         dbcsr_init_p, dbcsr_p_type, dbcsr_set, dbcsr_type
    USE kinds,                           ONLY: dp

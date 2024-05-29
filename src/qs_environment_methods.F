@@ -18,7 +18,7 @@ MODULE qs_environment_methods
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_operations,             ONLY: cp_dbcsr_dist2d_to_dist
-   USE dbcsr_api,                       ONLY: dbcsr_distribution_type
+   USE cp_dbcsr_api,                    ONLY: dbcsr_distribution_type
    USE distribution_2d_types,           ONLY: distribution_2d_release,&
                                               distribution_2d_type
    USE distribution_methods,            ONLY: distribute_molecules_2d

@@ -19,7 +19,7 @@ MODULE ec_orth_solver
    USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set,&
                                               dbcsr_deallocate_matrix_set
    USE cp_external_control,             ONLY: external_control
-   USE dbcsr_api,                       ONLY: &
+   USE cp_dbcsr_api,                    ONLY: &
         dbcsr_add, dbcsr_add_on_diag, dbcsr_checksum, dbcsr_copy, dbcsr_create, &
         dbcsr_desymmetrize, dbcsr_dot, dbcsr_filter, dbcsr_finalize, dbcsr_get_info, &
         dbcsr_multiply, dbcsr_p_type, dbcsr_release, dbcsr_scale, dbcsr_set, dbcsr_transposed, &

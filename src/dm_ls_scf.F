@@ -22,7 +22,7 @@ MODULE dm_ls_scf
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_unit_nr,&
                                               cp_logger_type
-   USE dbcsr_api,                       ONLY: &
+   USE cp_dbcsr_api,                    ONLY: &
         dbcsr_add, dbcsr_binary_read, dbcsr_binary_write, dbcsr_checksum, dbcsr_copy, &
         dbcsr_create, dbcsr_distribution_type, dbcsr_filter, dbcsr_get_info, dbcsr_get_occupation, &
         dbcsr_multiply, dbcsr_p_type, dbcsr_release, dbcsr_scale, dbcsr_set, dbcsr_type, &

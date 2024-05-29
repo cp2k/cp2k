@@ -26,7 +26,7 @@ MODULE admm_types
    USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_release,&
                                               cp_fm_type
-   USE dbcsr_api,                       ONLY: dbcsr_p_type
+   USE cp_dbcsr_api,                    ONLY: dbcsr_p_type
    USE input_constants,                 ONLY: do_admm_aux_exch_func_none,&
                                               do_admm_blocked_projection,&
                                               do_admm_blocking_purify_full,&

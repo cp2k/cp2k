@@ -33,7 +33,7 @@ MODULE qs_density_matrices
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_unit_nr,&
                                               cp_logger_type
-   USE dbcsr_api,                       ONLY: dbcsr_copy,&
+   USE cp_dbcsr_api,                    ONLY: dbcsr_copy,&
                                               dbcsr_multiply,&
                                               dbcsr_release,&
                                               dbcsr_scale_by_vector,&

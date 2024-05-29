@@ -24,7 +24,7 @@ MODULE preconditioner
                                               cp_fm_release,&
                                               cp_fm_to_fm,&
                                               cp_fm_type
-   USE dbcsr_api,                       ONLY: dbcsr_p_type,&
+   USE cp_dbcsr_api,                    ONLY: dbcsr_p_type,&
                                               dbcsr_type
    USE input_constants,                 ONLY: cholesky_reduce,&
                                               ot_precond_full_all,&

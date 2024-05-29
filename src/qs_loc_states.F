@@ -17,7 +17,7 @@ MODULE qs_loc_states
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_p_file,&
                                               cp_print_key_should_output
-   USE dbcsr_api,                       ONLY: dbcsr_p_type
+   USE cp_dbcsr_api,                    ONLY: dbcsr_p_type
    USE input_section_types,             ONLY: section_get_lval,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type

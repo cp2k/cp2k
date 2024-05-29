@@ -13,7 +13,7 @@
 ! **************************************************************************************************
 MODULE admm_dm_types
    USE cp_control_types,                ONLY: admm_control_type
-   USE dbcsr_api,                       ONLY: dbcsr_release,&
+   USE cp_dbcsr_api,                    ONLY: dbcsr_release,&
                                               dbcsr_type
    USE input_constants,                 ONLY: do_admm_basis_projection,&
                                               do_admm_purify_mcweeny

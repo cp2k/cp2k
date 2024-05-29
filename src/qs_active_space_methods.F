@@ -45,7 +45,7 @@ MODULE qs_active_space_methods
       debug_print_level, high_print_level, low_print_level, medium_print_level, &
       silent_print_level
    USE cp_realspace_grid_cube, ONLY: cp_pw_to_cube
-   USE dbcsr_api, ONLY: &
+   USE cp_dbcsr_api, ONLY: &
       dbcsr_copy, dbcsr_csr_create, dbcsr_csr_type, dbcsr_p_type, dbcsr_type, dbcsr_release, &
       dbcsr_type_no_symmetry, dbcsr_create, dbcsr_set, dbcsr_multiply, dbcsr_iterator_next_block, &
       dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_blocks_left, &

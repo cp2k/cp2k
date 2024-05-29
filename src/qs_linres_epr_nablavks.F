@@ -23,7 +23,7 @@ MODULE qs_linres_epr_nablavks
                                               cp_print_key_should_output,&
                                               cp_print_key_unit_nr
    USE cp_realspace_grid_cube,          ONLY: cp_pw_to_cube
-   USE dbcsr_api,                       ONLY: dbcsr_p_type
+   USE cp_dbcsr_api,                    ONLY: dbcsr_p_type
    USE external_potential_types,        ONLY: all_potential_type,&
                                               get_potential,&
                                               gth_potential_type,&

@@ -18,7 +18,7 @@ MODULE core_ae
                                               get_atomic_kind_set
    USE basis_set_types,                 ONLY: gto_basis_set_p_type,&
                                               gto_basis_set_type
-   USE dbcsr_api,                       ONLY: dbcsr_add,&
+   USE cp_dbcsr_api,                    ONLY: dbcsr_add,&
                                               dbcsr_get_block_p,&
                                               dbcsr_p_type
    USE external_potential_types,        ONLY: all_potential_type,&

@@ -38,7 +38,7 @@ MODULE qs_linres_methods
                                               cp_print_key_generate_filename,&
                                               cp_print_key_should_output,&
                                               cp_print_key_unit_nr
-   USE dbcsr_api,                       ONLY: dbcsr_checksum,&
+   USE cp_dbcsr_api,                    ONLY: dbcsr_checksum,&
                                               dbcsr_copy,&
                                               dbcsr_p_type,&
                                               dbcsr_set,&

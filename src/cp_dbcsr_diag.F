@@ -34,7 +34,7 @@ MODULE cp_dbcsr_diag
    USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_release,&
                                               cp_fm_type
-   USE dbcsr_api,                       ONLY: dbcsr_get_info,&
+   USE cp_dbcsr_api,                    ONLY: dbcsr_get_info,&
                                               dbcsr_type
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_para_env_type

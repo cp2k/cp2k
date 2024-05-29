@@ -22,7 +22,7 @@ MODULE lri_environment_types
                                               gto_basis_set_p_type,&
                                               gto_basis_set_type
    USE cp_dbcsr_operations,             ONLY: dbcsr_deallocate_matrix_set
-   USE dbcsr_api,                       ONLY: dbcsr_p_type
+   USE cp_dbcsr_api,                    ONLY: dbcsr_p_type
    USE kinds,                           ONLY: INT_8,&
                                               dp,&
                                               sp

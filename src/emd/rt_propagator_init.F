@@ -30,7 +30,7 @@ MODULE rt_propagator_init
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_unit_nr,&
                                               cp_logger_type
-   USE dbcsr_api,                       ONLY: &
+   USE cp_dbcsr_api,                    ONLY: &
         dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, dbcsr_filter, dbcsr_multiply, &
         dbcsr_p_type, dbcsr_scale, dbcsr_set, dbcsr_type
    USE input_constants,                 ONLY: do_arnoldi,&

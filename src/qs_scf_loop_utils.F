@@ -11,7 +11,7 @@ MODULE qs_scf_loop_utils
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_external_control,             ONLY: external_control
    USE cp_log_handling,                 ONLY: cp_to_string
-   USE dbcsr_api,                       ONLY: dbcsr_copy,&
+   USE cp_dbcsr_api,                    ONLY: dbcsr_copy,&
                                               dbcsr_get_info,&
                                               dbcsr_p_type,&
                                               dbcsr_type

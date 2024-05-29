@@ -41,7 +41,7 @@ MODULE hfx_ri
                                               cp_print_key_finished_output,&
                                               cp_print_key_should_output,&
                                               cp_print_key_unit_nr
-   USE dbcsr_api,                       ONLY: &
+   USE cp_dbcsr_api,                    ONLY: &
         dbcsr_add, dbcsr_add_on_diag, dbcsr_complete_redistribute, dbcsr_copy, dbcsr_create, &
         dbcsr_desymmetrize, dbcsr_distribution_get, dbcsr_distribution_release, &
         dbcsr_distribution_type, dbcsr_dot, dbcsr_filter, dbcsr_frobenius_norm, dbcsr_get_info, &

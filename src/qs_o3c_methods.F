@@ -15,7 +15,7 @@ MODULE qs_o3c_methods
    USE ai_overlap3,                     ONLY: overlap3
    USE basis_set_types,                 ONLY: gto_basis_set_p_type,&
                                               gto_basis_set_type
-   USE dbcsr_api,                       ONLY: dbcsr_get_block_p,&
+   USE cp_dbcsr_api,                    ONLY: dbcsr_get_block_p,&
                                               dbcsr_p_type,&
                                               dbcsr_type
    USE kinds,                           ONLY: dp

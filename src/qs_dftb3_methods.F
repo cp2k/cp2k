@@ -14,7 +14,7 @@ MODULE qs_dftb3_methods
                                               get_atomic_kind_set
    USE atprop_types,                    ONLY: atprop_type
    USE cell_types,                      ONLY: cell_type
-   USE dbcsr_api,                       ONLY: dbcsr_add,&
+   USE cp_dbcsr_api,                    ONLY: dbcsr_add,&
                                               dbcsr_get_block_p,&
                                               dbcsr_iterator_blocks_left,&
                                               dbcsr_iterator_next_block,&

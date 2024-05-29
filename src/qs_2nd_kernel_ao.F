@@ -21,7 +21,7 @@ MODULE qs_2nd_kernel_ao
                                               dbcsr_deallocate_matrix_set
    USE cp_fm_types,                     ONLY: cp_fm_get_info,&
                                               cp_fm_type
-   USE dbcsr_api,                       ONLY: dbcsr_add,&
+   USE cp_dbcsr_api,                    ONLY: dbcsr_add,&
                                               dbcsr_copy,&
                                               dbcsr_create,&
                                               dbcsr_p_type,&

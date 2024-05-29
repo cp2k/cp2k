@@ -37,7 +37,7 @@ MODULE qs_mo_methods
                                               cp_fm_to_fm,&
                                               cp_fm_type
    USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
-   USE dbcsr_api,                       ONLY: dbcsr_copy,&
+   USE cp_dbcsr_api,                    ONLY: dbcsr_copy,&
                                               dbcsr_get_info,&
                                               dbcsr_init_p,&
                                               dbcsr_multiply,&

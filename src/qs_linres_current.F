@@ -51,7 +51,7 @@ MODULE qs_linres_current
    USE cube_utils,                      ONLY: compute_cube_center,&
                                               cube_info_type,&
                                               return_cube
-   USE dbcsr_api,                       ONLY: &
+   USE cp_dbcsr_api,                    ONLY: &
         dbcsr_add_block_node, dbcsr_convert_offsets_to_sizes, dbcsr_copy, dbcsr_create, &
         dbcsr_deallocate_matrix, dbcsr_distribution_type, dbcsr_finalize, dbcsr_get_block_p, &
         dbcsr_p_type, dbcsr_set, dbcsr_type, dbcsr_type_antisymmetric, dbcsr_type_no_symmetry

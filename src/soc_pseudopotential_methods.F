@@ -24,7 +24,7 @@ MODULE soc_pseudopotential_methods
                                               cp_fm_get_info,&
                                               cp_fm_release,&
                                               cp_fm_type
-   USE dbcsr_api,                       ONLY: dbcsr_add,&
+   USE cp_dbcsr_api,                    ONLY: dbcsr_add,&
                                               dbcsr_create,&
                                               dbcsr_desymmetrize,&
                                               dbcsr_p_type,&
