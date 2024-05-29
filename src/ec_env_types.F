@@ -12,8 +12,8 @@
 !> \author JGH
 ! **************************************************************************************************
 MODULE ec_env_types
-   USE cp_dbcsr_operations,             ONLY: dbcsr_deallocate_matrix_set
    USE cp_dbcsr_api,                    ONLY: dbcsr_p_type
+   USE cp_dbcsr_operations,             ONLY: dbcsr_deallocate_matrix_set
    USE dm_ls_scf_types,                 ONLY: ls_scf_env_type,&
                                               ls_scf_release
    USE hfx_types,                       ONLY: hfx_release,&

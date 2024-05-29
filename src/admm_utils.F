@@ -14,7 +14,6 @@
 ! **************************************************************************************************
 MODULE admm_utils
    USE admm_types,                      ONLY: admm_type
-   USE cp_dbcsr_operations,             ONLY: copy_fm_to_dbcsr
    USE cp_dbcsr_api,                    ONLY: dbcsr_add,&
                                               dbcsr_copy,&
                                               dbcsr_create,&
@@ -22,6 +21,7 @@ MODULE admm_utils
                                               dbcsr_set,&
                                               dbcsr_type,&
                                               dbcsr_type_symmetric
+   USE cp_dbcsr_operations,             ONLY: copy_fm_to_dbcsr
    USE input_constants,                 ONLY: do_admm_purify_cauchy,&
                                               do_admm_purify_cauchy_subspace,&
                                               do_admm_purify_mo_diag,&

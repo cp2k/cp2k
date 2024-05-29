@@ -16,6 +16,8 @@
 ! **************************************************************************************************
 MODULE cp_dbcsr_cholesky
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
+   USE cp_dbcsr_api,                    ONLY: dbcsr_get_info,&
+                                              dbcsr_type
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               copy_fm_to_dbcsr
    USE cp_fm_basic_linalg,              ONLY: cp_fm_cholesky_restore,&
@@ -28,8 +30,6 @@ MODULE cp_dbcsr_cholesky
    USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_release,&
                                               cp_fm_type
-   USE cp_dbcsr_api,                    ONLY: dbcsr_get_info,&
-                                              dbcsr_type
    USE message_passing,                 ONLY: mp_para_env_type
 #include "base/base_uses.f90"
 

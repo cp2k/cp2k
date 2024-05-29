@@ -29,6 +29,10 @@ MODULE post_scf_bandstructure_utils
                                               cp_cfm_to_fm,&
                                               cp_cfm_type
    USE cp_control_types,                ONLY: dft_control_type
+   USE cp_dbcsr_api,                    ONLY: dbcsr_create,&
+                                              dbcsr_p_type,&
+                                              dbcsr_type_no_symmetry,&
+                                              dbcsr_type_symmetric
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               copy_fm_to_dbcsr,&
                                               dbcsr_allocate_matrix_set,&
@@ -48,10 +52,6 @@ MODULE post_scf_bandstructure_utils
                                               cp_fm_type
    USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
    USE cp_parser_methods,               ONLY: read_float_object
-   USE cp_dbcsr_api,                    ONLY: dbcsr_create,&
-                                              dbcsr_p_type,&
-                                              dbcsr_type_no_symmetry,&
-                                              dbcsr_type_symmetric
    USE gw_utils,                        ONLY: compute_xkp,&
                                               kpoint_init_cell_index_simple
    USE input_constants,                 ONLY: int_ldos_z

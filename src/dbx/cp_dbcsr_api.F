@@ -6,72 +6,40 @@
 !--------------------------------------------------------------------------------------------------!
 
 MODULE cp_dbcsr_api
-USE dbcsr_api, ONLY: &
-    dbcsr_type_no_symmetry,    dbcsr_type_symmetric, &
-    dbcsr_type_antisymmetric,    dbcsr_transpose, &
-    dbcsr_no_transpose,    dbcsr_type_complex_8, &
-    dbcsr_type_real_4,    dbcsr_type_real_8, &
-    dbcsr_type_complex_4,    dbcsr_type_complex_default, &
-    dbcsr_type_real_default,    dbcsr_type, &
-    dbcsr_p_type,    dbcsr_distribution_type, &
-    dbcsr_iterator_type,    dbcsr_scalar_type, &
-    dbcsr_clear_mempools,    dbcsr_init_lib, &
-    dbcsr_finalize_lib,    dbcsr_set_config, &
-    dbcsr_get_default_config,    dbcsr_print_config, &
-    dbcsr_reset_randmat_seed,    dbcsr_mp_grid_setup, &
-    dbcsr_print_statistics,    dbcsr_distribution_hold, &
-    dbcsr_distribution_release,    dbcsr_distribution_new, &
-    dbcsr_create,    dbcsr_init_p, &
-    dbcsr_release,    dbcsr_release_p, &
-    dbcsr_deallocate_matrix,    dbcsr_set, &
-    dbcsr_add,    dbcsr_scale, &
-    dbcsr_scale_by_vector,    dbcsr_transposed, &
-    dbcsr_multiply,    dbcsr_copy, &
-    dbcsr_copy_into_existing,    dbcsr_desymmetrize, &
-    dbcsr_add_on_diag,    dbcsr_get_block_diag, &
-    dbcsr_set_diag,    dbcsr_get_diag, &
-    dbcsr_filter,    dbcsr_trace, &
-    dbcsr_dot,    dbcsr_complete_redistribute, &
-    dbcsr_get_block_p,    dbcsr_clear, &
-    dbcsr_reserve_diag_blocks,    dbcsr_reserve_block2d, &
-    dbcsr_reserve_blocks,    dbcsr_reserve_all_blocks, &
-    dbcsr_iterator_start,    dbcsr_iterator_stop, &
-    dbcsr_iterator_blocks_left,    dbcsr_iterator_next_block, &
-    dbcsr_get_info,    dbcsr_distribution_get, &
-    dbcsr_setname,    dbcsr_get_matrix_type, &
-    dbcsr_get_occupation,    dbcsr_nblkrows_total, &
-    dbcsr_nblkcols_total,    dbcsr_nblkrows_local, &
-    dbcsr_nblkcols_local,    dbcsr_get_num_blocks, &
-    dbcsr_get_data_size,    dbcsr_has_symmetry, &
-    dbcsr_nfullrows_total,    dbcsr_nfullcols_total, &
-    dbcsr_get_stored_coordinates,    dbcsr_valid_index, &
-    dbcsr_get_data_type,    dbcsr_add_block_node, &
-    dbcsr_put_block,    dbcsr_work_create, &
-    dbcsr_verify_matrix,    dbcsr_add_work_coordinate, &
-    dbcsr_get_wms_data_p,    dbcsr_get_data_p, &
-    dbcsr_set_work_size,    dbcsr_finalize, &
-    dbcsr_replicate_all,    dbcsr_sum_replicated, &
-    dbcsr_distribute,    dbcsr_distribution_get_num_images, &
-    dbcsr_convert_offsets_to_sizes,    dbcsr_convert_sizes_to_offsets, &
-    dbcsr_run_tests,    dbcsr_test_mm, &
-    dbcsr_scalar,    dbcsr_norm_frobenius, &
-    dbcsr_norm_maxabsnorm,    dbcsr_norm_column, &
-    dbcsr_hadamard_product,    dbcsr_func_artanh, &
-    dbcsr_func_dtanh,    dbcsr_func_inverse, &
-    dbcsr_func_tanh,    dbcsr_print, &
-    dbcsr_print_block_sum,    dbcsr_checksum, &
-    dbcsr_maxabs,    dbcsr_norm, &
-    dbcsr_gershgorin_norm,    dbcsr_frobenius_norm, &
-    dbcsr_init_random,    dbcsr_function_of_elements, &
-    dbcsr_triu,    dbcsr_csr_type, &
-    dbcsr_csr_p_type,    dbcsr_convert_csr_to_dbcsr, &
-    dbcsr_convert_dbcsr_to_csr,    dbcsr_csr_create_from_dbcsr, &
-    dbcsr_csr_destroy,    dbcsr_csr_create, &
-    dbcsr_csr_eqrow_floor_dist,    dbcsr_csr_eqrow_ceil_dist, &
-    dbcsr_csr_dbcsr_blkrow_dist,    dbcsr_csr_print_sparsity, &
-    dbcsr_to_csr_filter,    dbcsr_csr_write, &
-    dbcsr_binary_write,    dbcsr_binary_read, &
-    dbcsr_test_binary_io
+   USE dbcsr_api,                       ONLY: &
+        dbcsr_add, dbcsr_add_block_node, dbcsr_add_on_diag, dbcsr_add_work_coordinate, &
+        dbcsr_binary_read, dbcsr_binary_write, dbcsr_checksum, dbcsr_clear, dbcsr_clear_mempools, &
+        dbcsr_complete_redistribute, dbcsr_convert_csr_to_dbcsr, dbcsr_convert_dbcsr_to_csr, &
+        dbcsr_convert_offsets_to_sizes, dbcsr_convert_sizes_to_offsets, dbcsr_copy, &
+        dbcsr_copy_into_existing, dbcsr_create, dbcsr_csr_create, dbcsr_csr_create_from_dbcsr, &
+        dbcsr_csr_dbcsr_blkrow_dist, dbcsr_csr_destroy, dbcsr_csr_eqrow_ceil_dist, &
+        dbcsr_csr_eqrow_floor_dist, dbcsr_csr_p_type, dbcsr_csr_print_sparsity, dbcsr_csr_type, &
+        dbcsr_csr_write, dbcsr_deallocate_matrix, dbcsr_desymmetrize, dbcsr_distribute, &
+        dbcsr_distribution_get, dbcsr_distribution_get_num_images, dbcsr_distribution_hold, &
+        dbcsr_distribution_new, dbcsr_distribution_release, dbcsr_distribution_type, dbcsr_dot, &
+        dbcsr_filter, dbcsr_finalize, dbcsr_finalize_lib, dbcsr_frobenius_norm, dbcsr_func_artanh, &
+        dbcsr_func_dtanh, dbcsr_func_inverse, dbcsr_func_tanh, dbcsr_function_of_elements, &
+        dbcsr_gershgorin_norm, dbcsr_get_block_diag, dbcsr_get_block_p, dbcsr_get_data_p, &
+        dbcsr_get_data_size, dbcsr_get_data_type, dbcsr_get_default_config, dbcsr_get_diag, &
+        dbcsr_get_info, dbcsr_get_matrix_type, dbcsr_get_num_blocks, dbcsr_get_occupation, &
+        dbcsr_get_stored_coordinates, dbcsr_get_wms_data_p, dbcsr_hadamard_product, &
+        dbcsr_has_symmetry, dbcsr_init_lib, dbcsr_init_p, dbcsr_init_random, &
+        dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_start, &
+        dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_maxabs, dbcsr_mp_grid_setup, &
+        dbcsr_multiply, dbcsr_nblkcols_local, dbcsr_nblkcols_total, dbcsr_nblkrows_local, &
+        dbcsr_nblkrows_total, dbcsr_nfullcols_total, dbcsr_nfullrows_total, dbcsr_no_transpose, &
+        dbcsr_norm, dbcsr_norm_column, dbcsr_norm_frobenius, dbcsr_norm_maxabsnorm, dbcsr_p_type, &
+        dbcsr_print, dbcsr_print_block_sum, dbcsr_print_config, dbcsr_print_statistics, &
+        dbcsr_put_block, dbcsr_release, dbcsr_release_p, dbcsr_replicate_all, &
+        dbcsr_reserve_all_blocks, dbcsr_reserve_block2d, dbcsr_reserve_blocks, &
+        dbcsr_reserve_diag_blocks, dbcsr_reset_randmat_seed, dbcsr_run_tests, dbcsr_scalar, &
+        dbcsr_scalar_type, dbcsr_scale, dbcsr_scale_by_vector, dbcsr_set, dbcsr_set_config, &
+        dbcsr_set_diag, dbcsr_set_work_size, dbcsr_setname, dbcsr_sum_replicated, &
+        dbcsr_test_binary_io, dbcsr_test_mm, dbcsr_to_csr_filter, dbcsr_trace, dbcsr_transpose, &
+        dbcsr_transposed, dbcsr_triu, dbcsr_type, dbcsr_type_antisymmetric, dbcsr_type_complex_4, &
+        dbcsr_type_complex_8, dbcsr_type_complex_default, dbcsr_type_no_symmetry, &
+        dbcsr_type_real_4, dbcsr_type_real_8, dbcsr_type_real_default, dbcsr_type_symmetric, &
+        dbcsr_valid_index, dbcsr_verify_matrix, dbcsr_work_create
 
    IMPLICIT NONE
 

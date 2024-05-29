@@ -14,6 +14,11 @@
 MODULE minbas_methods
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_control_types,                ONLY: dft_control_type
+   USE cp_dbcsr_api,                    ONLY: &
+        dbcsr_create, dbcsr_distribution_type, dbcsr_filter, dbcsr_iterator_blocks_left, &
+        dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, &
+        dbcsr_multiply, dbcsr_p_type, dbcsr_release, dbcsr_reserve_diag_blocks, dbcsr_type, &
+        dbcsr_type_no_symmetry
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               copy_fm_to_dbcsr,&
                                               dbcsr_allocate_matrix_set,&
@@ -29,11 +34,6 @@ MODULE minbas_methods
                                               cp_fm_release,&
                                               cp_fm_to_fm_submat,&
                                               cp_fm_type
-   USE cp_dbcsr_api,                    ONLY: &
-        dbcsr_create, dbcsr_distribution_type, dbcsr_filter, dbcsr_iterator_blocks_left, &
-        dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, &
-        dbcsr_multiply, dbcsr_p_type, dbcsr_release, dbcsr_reserve_diag_blocks, dbcsr_type, &
-        dbcsr_type_no_symmetry
    USE kinds,                           ONLY: dp
    USE lapack,                          ONLY: lapack_ssyev
    USE mao_basis,                       ONLY: mao_generate_basis

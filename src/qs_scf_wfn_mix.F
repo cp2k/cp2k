@@ -12,6 +12,7 @@
 !> \author Joost VandeVondele (10.2003)
 ! **************************************************************************************************
 MODULE qs_scf_wfn_mix
+   USE cp_dbcsr_api,                    ONLY: dbcsr_p_type
    USE cp_dbcsr_operations,             ONLY: copy_fm_to_dbcsr
    USE cp_files,                        ONLY: close_file,&
                                               open_file
@@ -23,7 +24,6 @@ MODULE qs_scf_wfn_mix
                                               cp_fm_release,&
                                               cp_fm_to_fm,&
                                               cp_fm_type
-   USE cp_dbcsr_api,                    ONLY: dbcsr_p_type
    USE input_constants,                 ONLY: wfn_mix_orig_external,&
                                               wfn_mix_orig_occ,&
                                               wfn_mix_orig_virtual

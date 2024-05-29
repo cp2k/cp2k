@@ -20,20 +20,20 @@ MODULE cp_dbcsr_operations
    USE cp_blacs_env, ONLY: cp_blacs_env_type
    USE cp_cfm_types, ONLY: cp_cfm_type
    USE cp_dbcsr_api, ONLY: dbcsr_distribution_get, &
-                        dbcsr_convert_sizes_to_offsets, dbcsr_add, &
-                        dbcsr_complete_redistribute, dbcsr_copy, dbcsr_create, &
-                        dbcsr_deallocate_matrix, &
-                        dbcsr_desymmetrize, dbcsr_distribution_new, &
-                        dbcsr_get_data_type, dbcsr_get_info, dbcsr_get_matrix_type, &
-                        dbcsr_iterator_type, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
-                        dbcsr_iterator_start, dbcsr_iterator_stop, &
-                        dbcsr_multiply, dbcsr_norm, dbcsr_p_type, dbcsr_release, &
-                        dbcsr_reserve_all_blocks, dbcsr_scale, dbcsr_type, &
-                        dbcsr_valid_index, dbcsr_verify_matrix, &
-                        dbcsr_distribution_type, dbcsr_distribution_release, &
-                        dbcsr_norm_frobenius, &
-                        dbcsr_type_antisymmetric, dbcsr_type_complex_8, dbcsr_type_no_symmetry, dbcsr_type_real_8, &
-                        dbcsr_type_symmetric
+                           dbcsr_convert_sizes_to_offsets, dbcsr_add, &
+                           dbcsr_complete_redistribute, dbcsr_copy, dbcsr_create, &
+                           dbcsr_deallocate_matrix, &
+                           dbcsr_desymmetrize, dbcsr_distribution_new, &
+                           dbcsr_get_data_type, dbcsr_get_info, dbcsr_get_matrix_type, &
+                           dbcsr_iterator_type, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
+                           dbcsr_iterator_start, dbcsr_iterator_stop, &
+                           dbcsr_multiply, dbcsr_norm, dbcsr_p_type, dbcsr_release, &
+                           dbcsr_reserve_all_blocks, dbcsr_scale, dbcsr_type, &
+                           dbcsr_valid_index, dbcsr_verify_matrix, &
+                           dbcsr_distribution_type, dbcsr_distribution_release, &
+                           dbcsr_norm_frobenius, &
+                           dbcsr_type_antisymmetric, dbcsr_type_complex_8, dbcsr_type_no_symmetry, dbcsr_type_real_8, &
+                           dbcsr_type_symmetric
    USE cp_fm_basic_linalg, ONLY: cp_fm_gemm
    USE cp_fm_struct, ONLY: cp_fm_struct_create, &
                            cp_fm_struct_release, &

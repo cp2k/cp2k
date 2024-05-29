@@ -13,12 +13,12 @@
 MODULE qs_tddfpt_module
    USE bibliography,                    ONLY: Iannuzzi2005,&
                                               cite_reference
+   USE cp_dbcsr_api,                    ONLY: dbcsr_p_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_io_unit,&
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                               cp_print_key_unit_nr
-   USE cp_dbcsr_api,                    ONLY: dbcsr_p_type
    USE header,                          ONLY: tddfpt_header
    USE input_constants,                 ONLY: oe_gllb,&
                                               oe_lb,&

@@ -10,10 +10,10 @@
 !> \author Augustin Bussy
 ! **************************************************************************************************
 MODULE rpa_im_time_force_types
-   USE cp_dbcsr_operations,             ONLY: dbcsr_deallocate_matrix_set
    USE cp_dbcsr_api,                    ONLY: dbcsr_p_type,&
                                               dbcsr_release,&
                                               dbcsr_type
+   USE cp_dbcsr_operations,             ONLY: dbcsr_deallocate_matrix_set
    USE dbt_api,                         ONLY: dbt_destroy,&
                                               dbt_type
    USE hfx_types,                       ONLY: block_ind_type,&

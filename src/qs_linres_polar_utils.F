@@ -19,6 +19,7 @@ MODULE qs_linres_polar_utils
                                               cite_reference
    USE cell_types,                      ONLY: cell_type
    USE cp_control_types,                ONLY: dft_control_type
+   USE cp_dbcsr_api,                    ONLY: dbcsr_p_type
    USE cp_fm_basic_linalg,              ONLY: cp_fm_trace
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
@@ -39,7 +40,6 @@ MODULE qs_linres_polar_utils
    USE cp_result_methods,               ONLY: cp_results_erase,&
                                               put_results
    USE cp_result_types,                 ONLY: cp_result_type
-   USE cp_dbcsr_api,                    ONLY: dbcsr_p_type
    USE force_env_types,                 ONLY: force_env_get,&
                                               force_env_type
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&

@@ -28,10 +28,10 @@ MODULE qs_loc_types
                                               cell_retain,&
                                               cell_type
    USE cp_array_utils,                  ONLY: cp_2d_r_p_type
-   USE cp_fm_types,                     ONLY: cp_fm_release,&
-                                              cp_fm_type
    USE cp_dbcsr_api,                    ONLY: dbcsr_deallocate_matrix,&
                                               dbcsr_p_type
+   USE cp_fm_types,                     ONLY: cp_fm_release,&
+                                              cp_fm_type
    USE distribution_1d_types,           ONLY: distribution_1d_release,&
                                               distribution_1d_retain,&
                                               distribution_1d_type

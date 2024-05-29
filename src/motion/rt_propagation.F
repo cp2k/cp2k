@@ -15,6 +15,8 @@ MODULE rt_propagation
                                               cite_reference
    USE cp_control_types,                ONLY: dft_control_type,&
                                               rtp_control_type
+   USE cp_dbcsr_api,                    ONLY: dbcsr_copy,&
+                                              dbcsr_p_type
    USE cp_external_control,             ONLY: external_control
    USE cp_fm_types,                     ONLY: cp_fm_set_all,&
                                               cp_fm_to_fm,&
@@ -26,8 +28,6 @@ MODULE rt_propagation
                                               cp_iterate,&
                                               cp_print_key_unit_nr,&
                                               cp_rm_iter_level
-   USE cp_dbcsr_api,                    ONLY: dbcsr_copy,&
-                                              dbcsr_p_type
    USE efield_utils,                    ONLY: calculate_ecore_efield
    USE force_env_methods,               ONLY: force_env_calc_energy_force
    USE force_env_types,                 ONLY: force_env_get,&

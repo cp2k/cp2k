@@ -12,10 +12,10 @@
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
 MODULE qs_p_env_types
+   USE cp_dbcsr_api,                    ONLY: dbcsr_p_type
    USE cp_dbcsr_operations,             ONLY: dbcsr_deallocate_matrix_set
    USE cp_fm_types,                     ONLY: cp_fm_release,&
                                               cp_fm_type
-   USE cp_dbcsr_api,                    ONLY: dbcsr_p_type
    USE hartree_local_types,             ONLY: hartree_local_release,&
                                               hartree_local_type
    USE preconditioner_types,            ONLY: destroy_preconditioner,&

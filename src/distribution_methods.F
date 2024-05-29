@@ -24,6 +24,7 @@ MODULE distribution_methods
                                               scaled_to_real
    USE cp_array_utils,                  ONLY: cp_1d_i_p_type
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
+   USE cp_dbcsr_api,                    ONLY: dbcsr_distribution_get_num_images
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_io_unit,&
                                               cp_logger_get_default_unit_nr,&
@@ -38,7 +39,6 @@ MODULE distribution_methods
                                               cp_print_key_finished_output,&
                                               cp_print_key_should_output,&
                                               cp_print_key_unit_nr
-   USE cp_dbcsr_api,                    ONLY: dbcsr_distribution_get_num_images
    USE distribution_1d_types,           ONLY: distribution_1d_create,&
                                               distribution_1d_type
    USE distribution_2d_types,           ONLY: distribution_2d_create,&

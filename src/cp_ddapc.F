@@ -18,6 +18,9 @@ MODULE cp_ddapc
    USE cell_types,                      ONLY: cell_type
    USE cp_control_types,                ONLY: ddapc_restraint_type,&
                                               dft_control_type
+   USE cp_dbcsr_api,                    ONLY: dbcsr_copy,&
+                                              dbcsr_p_type,&
+                                              dbcsr_set
    USE cp_ddapc_forces,                 ONLY: ewald_ddapc_force,&
                                               reset_ch_pulay,&
                                               restraint_functional_force,&
@@ -29,9 +32,6 @@ MODULE cp_ddapc
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                               cp_print_key_unit_nr
-   USE cp_dbcsr_api,                    ONLY: dbcsr_copy,&
-                                              dbcsr_p_type,&
-                                              dbcsr_set
    USE input_constants,                 ONLY: do_spin_density
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type

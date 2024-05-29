@@ -26,6 +26,10 @@ MODULE dft_plus_u
                                               cite_reference
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_control_types,                ONLY: dft_control_type
+   USE cp_dbcsr_api,                    ONLY: &
+        dbcsr_deallocate_matrix, dbcsr_get_block_diag, dbcsr_get_block_p, &
+        dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_start, &
+        dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_p_type, dbcsr_set, dbcsr_type
    USE cp_dbcsr_operations,             ONLY: copy_fm_to_dbcsr,&
                                               cp_dbcsr_plus_fm_fm_t,&
                                               cp_dbcsr_sm_fm_multiply
@@ -45,10 +49,6 @@ MODULE dft_plus_u
                                               cp_print_key_should_output,&
                                               cp_print_key_unit_nr,&
                                               low_print_level
-   USE cp_dbcsr_api,                    ONLY: &
-        dbcsr_deallocate_matrix, dbcsr_get_block_diag, dbcsr_get_block_p, &
-        dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_start, &
-        dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_p_type, dbcsr_set, dbcsr_type
    USE input_constants,                 ONLY: plus_u_lowdin,&
                                               plus_u_mulliken,&
                                               plus_u_mulliken_charges

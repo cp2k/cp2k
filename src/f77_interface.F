@@ -26,6 +26,8 @@ MODULE f77_interface
    USE cell_methods,                    ONLY: init_cell
    USE cell_types,                      ONLY: cell_type
    USE cp2k_info,                       ONLY: get_runtime_info
+   USE cp_dbcsr_api,                    ONLY: dbcsr_finalize_lib,&
+                                              dbcsr_init_lib
    USE cp_dlaf_utils_api,               ONLY: cp_dlaf_finalize,&
                                               cp_dlaf_initialize
    USE cp_error_handling,               ONLY: cp_error_handling_setup
@@ -43,8 +45,6 @@ MODULE f77_interface
                                               cp_subsys_set,&
                                               cp_subsys_type,&
                                               unpack_subsys_particles
-   USE cp_dbcsr_api,                    ONLY: dbcsr_finalize_lib,&
-                                              dbcsr_init_lib
    USE dbm_api,                         ONLY: dbm_library_finalize,&
                                               dbm_library_init
    USE eip_environment,                 ONLY: eip_init

@@ -38,12 +38,12 @@ MODULE qs_integrate_potential_product
    USE cell_types,                      ONLY: cell_type,&
                                               pbc
    USE cp_control_types,                ONLY: dft_control_type
-   USE cp_dbcsr_operations,             ONLY: dbcsr_deallocate_matrix_set
    USE cp_dbcsr_api,                    ONLY: dbcsr_copy,&
                                               dbcsr_finalize,&
                                               dbcsr_get_block_p,&
                                               dbcsr_p_type,&
                                               dbcsr_type
+   USE cp_dbcsr_operations,             ONLY: dbcsr_deallocate_matrix_set
    USE gaussian_gridlevels,             ONLY: gridlevel_info_type
    USE grid_api,                        ONLY: grid_integrate_task_list,&
                                               integrate_pgf_product

@@ -13,12 +13,12 @@
 ! **************************************************************************************************
 MODULE qs_active_space_types
 
-   USE cp_dbcsr_operations,             ONLY: dbcsr_deallocate_matrix_set
-   USE cp_fm_types,                     ONLY: cp_fm_release,&
-                                              cp_fm_type
    USE cp_dbcsr_api,                    ONLY: dbcsr_csr_destroy,&
                                               dbcsr_csr_p_type,&
                                               dbcsr_p_type
+   USE cp_dbcsr_operations,             ONLY: dbcsr_deallocate_matrix_set
+   USE cp_fm_types,                     ONLY: cp_fm_release,&
+                                              cp_fm_type
    USE input_constants,                 ONLY: eri_method_gpw_ht
    USE kinds,                           ONLY: default_path_length,&
                                               dp

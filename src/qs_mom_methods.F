@@ -13,6 +13,7 @@ MODULE qs_mom_methods
                                               Gilbert2008,&
                                               cite_reference
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
+   USE cp_dbcsr_api,                    ONLY: dbcsr_p_type
    USE cp_dbcsr_operations,             ONLY: cp_dbcsr_sm_fm_multiply
    USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
@@ -25,7 +26,6 @@ MODULE qs_mom_methods
                                               cp_fm_type,&
                                               cp_fm_vectorsnorm,&
                                               cp_fm_vectorssum
-   USE cp_dbcsr_api,                    ONLY: dbcsr_p_type
    USE input_constants,                 ONLY: momproj_norm,&
                                               momproj_sum,&
                                               momtype_imom,&

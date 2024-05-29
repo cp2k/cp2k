@@ -11,9 +11,9 @@
 ! **************************************************************************************************
 MODULE et_coupling_types
 
+   USE cp_dbcsr_api,                    ONLY: dbcsr_p_type
    USE cp_fm_types,                     ONLY: cp_fm_release,&
                                               cp_fm_type
-   USE cp_dbcsr_api,                    ONLY: dbcsr_p_type
    USE kinds,                           ONLY: dp
 #include "./base/base_uses.f90"
 
