@@ -1120,7 +1120,7 @@ CONTAINS
       CALL section_release(subsection)
 
       CALL cp_print_key_section_create(print_key, __LOCATION__, "OVERLAP_CONDITION", &
-                                       description="Controls the the checking and printing of and estimate "// &
+                                       description="Controls the checking and printing of an estimate "// &
                                        "of the overlap matrix condition number", &
                                        print_level=debug_print_level, filename="__STD_OUT__")
       CALL keyword_create(keyword, __LOCATION__, name="1-NORM", &
