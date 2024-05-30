@@ -32,6 +32,7 @@ MODULE trexio_utils
                     default_string_length, &
                     dp
    USE kpoint_types, ONLY: kpoint_type, get_kpoint_info
+   USE orbital_pointers, ONLY: nco
    USE particle_types, ONLY: particle_type
    USE qs_energy_types, ONLY: qs_energy_type
    USE qs_environment_types, ONLY: get_qs_env, &
@@ -66,7 +67,9 @@ MODULE trexio_utils
                      trexio_write_ecp_z_core, trexio_write_ecp_max_ang_mom_plus_1, &
                      trexio_write_ecp_num, trexio_write_ecp_ang_mom, &
                      trexio_write_ecp_nucleus_index, trexio_write_ecp_exponent, &
-                     trexio_write_ecp_coefficient, trexio_write_ecp_power
+                     trexio_write_ecp_coefficient, trexio_write_ecp_power, &
+                     trexio_write_ao_cartesian, trexio_write_ao_num, &
+                     trexio_write_ao_shell, trexio_write_ao_normalization
 #endif
 #include "./base/base_uses.f90"
 
@@ -116,18 +119,19 @@ MODULE trexio_utils
       INTEGER                                            :: iatom, natoms, periodic, nkp, nel_tot, &
                                                             nspins, ikind, ishell_loc, ishell, &
                                                             shell_num, prim_num, nset, iset, ipgf, z, &
-                                                            sl_lmax, ecp_num, nloc, nsemiloc, sl_l, iecp
+                                                            sl_lmax, ecp_num, nloc, nsemiloc, sl_l, iecp, &
+                                                            icgf, icgf_loc, ncgf, ncgf_shell, ao_num
       INTEGER, DIMENSION(2)                              :: nel_spin
       INTEGER, DIMENSION(3)                              :: nkp_grid
       INTEGER, DIMENSION(0:10)                           :: npot
       INTEGER, DIMENSION(:),    ALLOCATABLE              :: nucleus_index, shell_ang_mom, r_power, &
                                                             shell_index, z_core, max_ang_mom_plus_1, &
-                                                            ang_mom, powers
+                                                            ang_mom, powers, ao_shell
       INTEGER, DIMENSION(:),    POINTER                  :: nshell => Null(), npgf => Null()
       INTEGER, DIMENSION(:, :), POINTER                  :: l => Null()
       REAL(KIND=dp), DIMENSION(:),   ALLOCATABLE         :: charge, shell_factor, exponents, coefficients, &
-                                                            prim_factor
-      REAL(KIND=dp), DIMENSION(:),   POINTER             :: wkp => Null()
+                                                            prim_factor, ao_normalization
+      REAL(KIND=dp), DIMENSION(:),   POINTER             :: wkp => Null(), norm_cgf => Null()
       REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE         :: coord
       REAL(KIND=dp), DIMENSION(:,:), POINTER             :: zetas => Null()
       REAL(KIND=dp), DIMENSION(:,:,:), POINTER           :: gcc => Null()
@@ -530,6 +534,72 @@ MODULE trexio_utils
       !========================================================================================!
       ! AO group
       !========================================================================================!
+      CALL get_qs_kind_set(kind_set, nshell=shell_num, ncgf=ao_num)
+
+      rc = trexio_write_ao_cartesian(f, 1)
+      CALL trexio_error(rc)
+
+      rc = trexio_write_ao_num(f, ao_num)
+      CALL trexio_error(rc)
+
+      ! one-to-one mapping between AOs and ...
+      ALLOCATE (ao_shell(ao_num))         ! ..shells
+      ALLOCATE (ao_normalization(ao_num)) ! ..normalization factors
+
+      ! we need to be consistent with the basis group on the shell indices
+      ishell = 0
+      icgf = 0
+      DO iatom = 1, natoms
+         ! get the qs_kind (index position in kind_set) for this atom (atomic_kind)
+         CALL get_atomic_kind(particle_set(iatom)%atomic_kind, kind_number=ikind)
+         ! get the primary (orbital) basis set associated to this qs_kind
+         CALL get_qs_kind(kind_set(ikind), basis_set=basis_set, basis_type="ORB")
+         ! get the info from the basis set
+         CALL get_gto_basis_set(basis_set, &
+                                nset=nset, &
+                                nshell=nshell, &
+                                norm_cgf=norm_cgf, &
+                                ncgf=ncgf, &
+                                l=l)
+
+         icgf_loc = 0
+         DO iset = 1, nset
+            DO ishell_loc = 1, nshell(iset)
+               ishell = ishell + 1
+
+               ! number of AOs in this shell
+               ncgf_shell = nco(l(ishell_loc, iset))
+
+               ! one-to-one mapping between AOs and shells
+               ao_shell(icgf+1:icgf+ncgf_shell) = ishell
+
+               ! one-to-one mapping between AOs and normalization factors
+               ao_normalization(icgf+1:icgf+ncgf_shell) = norm_cgf(icgf_loc+1:icgf_loc+ncgf_shell)
+
+               icgf = icgf + ncgf_shell
+               icgf_loc = icgf_loc + ncgf_shell
+
+               ! DO ico = 1, nco(l(ishell_loc, iset))
+               !    icgf = icgf + 1
+
+               !    ao_shell(icgf) = ishell
+
+               !    ao_normalization(icgf) = norm_cgf(icgf)
+
+               ! END DO
+            END DO
+         END DO
+         ! just a failsafe check
+         CPASSERT(icgf_loc == ncgf)
+      END DO
+
+      rc = trexio_write_ao_shell(f, ao_shell)
+      CALL trexio_error(rc)
+      DEALLOCATE (ao_shell)
+
+      rc = trexio_write_ao_normalization(f, ao_normalization)
+      CALL trexio_error(rc)
+      DEALLOCATE (ao_normalization)
 
 
       !========================================================================================!
