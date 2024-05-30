@@ -17,6 +17,7 @@
 MODULE environment
    USE bibliography,                    ONLY: Frigo2005,&
                                               Marek2014,&
+                                              Solca2024,&
                                               cite_reference
    USE cp2k_info,                       ONLY: &
         compile_arch, compile_date, compile_host, compile_revision, cp2k_flags, cp2k_home, &
@@ -610,7 +611,7 @@ CONTAINS
          globenv%diag_library = "cuSOLVER"
       CASE (FM_DIAG_TYPE_DLAF)
          globenv%diag_library = "DLAF"
-         ! TODO: Add citation when available
+         CALL cite_reference(Solca2024)
       CASE DEFAULT
          CPABORT("Unknown diagonalization library specified")
       END SELECT

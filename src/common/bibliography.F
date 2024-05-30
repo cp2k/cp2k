@@ -91,7 +91,7 @@ MODULE bibliography
                             Rycroft2009, Thomas2015, Brehm2018, Brehm2020, Shigeta2001, Heinecke2016, &
                             Brehm2021, Bussy2021a, Bussy2021b, Ditler2021, Ditler2022, Mattiat2019, &
                             Mattiat2022, Belleflamme2023, Knizia2013, Musaelian2023, Eriksen2020, &
-                            Bussy2023, Wang2018, Zeng2023, Graml2024
+                            Bussy2023, Wang2018, Zeng2023, Graml2024, Solca2024
 
 CONTAINS
 
@@ -4983,6 +4983,29 @@ CONTAINS
                          "DI 10.1063/5.0155600", &
                          "ER"), &
                          DOI="10.1063/5.0155600")
+
+      CALL add_reference(key=Solca2024, ISI_record=s2a( &
+                         "TY CONF", &
+                         "AU Solcà, Raffaele", &
+                         "   Simberg, Mikael", &
+                         "   Meli, Rocco", &
+                         "   Invernizzi, Alberto", &
+                         "   Reverdell, Auriane", &
+                         "   Biddiscombe, John", &
+                         "PY 2024", &
+                         "TI DLA-Future: A Task-Based Linear Algebra Library", &
+                         "   Which Provides a GPU-Enabled Distributed Eigensolver", &
+                         "SO Asynchronous Many-Task Systems and Applications (WAMTA2024)", &
+                         "JF Asynchronous Many-Task Systems and Applications (WAMTA2024)", &
+                         "JO Asynchronous Many-Task Systems and Applications (WAMTA2024)", &
+                         "SP 135", &
+                         "EP 141", &
+                         "PB Springer Nature Switzerland", &
+                         "CY Cham", &
+                         "SN 978-3-031-61763-8", &
+                         "DI 10.1007/978-3-031-61763-8_13", &
+                         "ER"), &
+                         DOI="10.1007/978-3-031-61763-8_13")
 
    END SUBROUTINE add_all_references
 
