@@ -28,7 +28,7 @@ if [ "${with_intel}" != "__DONTUSE__" ]; then
   elif [ "${TARGET_CPU}" = "generic" ]; then
     CFLAGS="${CFLAGS} -mtune=${TARGET_CPU}"
   else
-    CFLAGS="${CFLAGS} -march=${TARGET_CPU} -mtune=${TARGET_CPU}"
+    CFLAGS="${CFLAGS} -mtune=${TARGET_CPU}"
   fi
   FFLAGS="${CFLAGS}"
 else
@@ -36,7 +36,7 @@ else
   if [ "${TARGET_CPU}" = "generic" ]; then
     CFLAGS="${CFLAGS} -mtune=generic ${TSANFLAGS}"
   else
-    CFLAGS="${CFLAGS} -march=${TARGET_CPU} -mtune=${TARGET_CPU} ${TSANFLAGS}"
+    CFLAGS="${CFLAGS} -mtune=${TARGET_CPU} ${TSANFLAGS}"
   fi
   FFLAGS="${CFLAGS} -fbacktrace"
 fi
