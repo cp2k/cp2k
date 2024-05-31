@@ -26,21 +26,19 @@ MODULE trexio_utils
    USE external_potential_types, ONLY: sgp_potential_type, get_potential
    USE input_section_types, ONLY: section_vals_type, &
                                   section_vals_val_get
-   !                                section_vals_get_subs_vals, &
-   !                                section_vals_get
    USE kinds, ONLY: default_path_length, &
                     default_string_length, &
                     dp
-   USE kpoint_types, ONLY: kpoint_type, get_kpoint_info
+   USE kpoint_types, ONLY: kpoint_type, kpoint_env_type, kpoint_env_p_type, &
+                           get_kpoint_info, get_kpoint_env
    USE orbital_pointers, ONLY: nco
    USE particle_types, ONLY: particle_type
    USE qs_energy_types, ONLY: qs_energy_type
    USE qs_environment_types, ONLY: get_qs_env, &
                                    qs_environment_type
-   ! USE qs_force_types, ONLY: qs_force_type
    USE qs_kind_types, ONLY: get_qs_kind, get_qs_kind_set, &
                             qs_kind_type
-   ! USE qs_ks_types, ONLY: qs_ks_env_type
+   USE qs_mo_types, ONLY: mo_set_type, get_mo_set
    ! USE qs_scf_types, ONLY: qs_scf_env_type
    USE trexio, ONLY: trexio_open, trexio_close, &
                      TREXIO_HDF5, TREXIO_SUCCESS, &
@@ -69,7 +67,11 @@ MODULE trexio_utils
                      trexio_write_ecp_nucleus_index, trexio_write_ecp_exponent, &
                      trexio_write_ecp_coefficient, trexio_write_ecp_power, &
                      trexio_write_ao_cartesian, trexio_write_ao_num, &
-                     trexio_write_ao_shell, trexio_write_ao_normalization
+                     trexio_write_ao_shell, trexio_write_ao_normalization, &
+                     trexio_write_mo_num, trexio_write_mo_energy, &
+                     trexio_write_mo_occupation, trexio_write_mo_spin, &
+                     trexio_write_mo_class, trexio_write_mo_coefficient, &
+                     trexio_write_mo_coefficient_im, trexio_write_mo_k_point
 #endif
 #include "./base/base_uses.f90"
 
@@ -111,28 +113,35 @@ MODULE trexio_utils
       TYPE(qs_energy_type), POINTER                      :: energy => Null()
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: kind_set => Null()
       TYPE(sgp_potential_type), POINTER                  :: sgp_potential => Null()
+      TYPE(mo_set_type), POINTER                         :: mo_set => Null()
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos => Null()
+      TYPE(mo_set_type), DIMENSION(:,:), POINTER         :: mos_kp => Null()
+      TYPE(kpoint_env_p_type), DIMENSION(:), POINTER     :: kp_env => Null()
       ! TYPE(qs_ks_env_type), POINTER                      :: ks_env => Null()
       ! TYPE(qs_scf_env_type), POINTER                     :: scf_env => Null()
 
       CHARACTER(LEN=2)                                   :: element_symbol
       CHARACTER(LEN=2), DIMENSION(:), ALLOCATABLE        :: label
+      CHARACTER(LEN=20), DIMENSION(:), ALLOCATABLE       :: mo_class
       INTEGER                                            :: iatom, natoms, periodic, nkp, nel_tot, &
                                                             nspins, ikind, ishell_loc, ishell, &
                                                             shell_num, prim_num, nset, iset, ipgf, z, &
                                                             sl_lmax, ecp_num, nloc, nsemiloc, sl_l, iecp, &
-                                                            icgf, icgf_loc, ncgf, ncgf_shell, ao_num
+                                                            icgf, icgf_loc, ncgf, ncgf_shell, ao_num, nmo, &
+                                                            mo_num, ispin
       INTEGER, DIMENSION(2)                              :: nel_spin
       INTEGER, DIMENSION(3)                              :: nkp_grid
       INTEGER, DIMENSION(0:10)                           :: npot
       INTEGER, DIMENSION(:),    ALLOCATABLE              :: nucleus_index, shell_ang_mom, r_power, &
                                                             shell_index, z_core, max_ang_mom_plus_1, &
-                                                            ang_mom, powers, ao_shell
+                                                            ang_mom, powers, ao_shell, mo_spin, mo_kpoint
       INTEGER, DIMENSION(:),    POINTER                  :: nshell => Null(), npgf => Null()
       INTEGER, DIMENSION(:, :), POINTER                  :: l => Null()
       REAL(KIND=dp), DIMENSION(:),   ALLOCATABLE         :: charge, shell_factor, exponents, coefficients, &
-                                                            prim_factor, ao_normalization
+                                                            prim_factor, ao_normalization, mo_energy, &
+                                                            mo_occupation
       REAL(KIND=dp), DIMENSION(:),   POINTER             :: wkp => Null(), norm_cgf => Null()
-      REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE         :: coord
+      REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE         :: coord, mo_coefficient, mo_coefficient_im
       REAL(KIND=dp), DIMENSION(:,:), POINTER             :: zetas => Null()
       REAL(KIND=dp), DIMENSION(:,:,:), POINTER           :: gcc => Null()
 
@@ -185,7 +194,7 @@ MODULE trexio_utils
       ALLOCATE (charge(natoms))
       DO iatom = 1, natoms
          ! store the coordinates
-         coord(iatom,:) = particle_set(iatom)%r(1:3)
+         coord(:,iatom) = particle_set(iatom)%r(1:3)
          ! figure out the element symbol and to which kind_set entry this atomic_kind corresponds to
          CALL get_atomic_kind(particle_set(iatom)%atomic_kind, element_symbol=element_symbol, kind_number=ikind)
          ! store the element symbol
@@ -371,7 +380,7 @@ MODULE trexio_utils
       CALL trexio_error(rc)
       DEALLOCATE (shell_ang_mom)
 
-      ! Cartesian Gaussians are not normalized in CP2K
+      ! Normalization factors are shoved in the AO group
       ALLOCATE (shell_factor(shell_num))  ! 1-to-1 map bw shells and normalization factors
       shell_factor(:) = 1.0_dp
       rc = trexio_write_basis_shell_factor(f, shell_factor)
@@ -397,7 +406,7 @@ MODULE trexio_utils
       CALL trexio_error(rc)
       DEALLOCATE (coefficients)
 
-      ! Primitive functions are not normalized in CP2K
+      ! Normalization factors are shoved in the AO group
       ALLOCATE (prim_factor(prim_num))
       prim_factor(:) = 1.0_dp
       rc = trexio_write_basis_prim_factor(f, prim_factor)
@@ -605,6 +614,51 @@ MODULE trexio_utils
       !========================================================================================!
       ! MO group
       !========================================================================================!
+      ! even for kpoints this is defined, but I don't know what's inside:
+      ! the gamma point?
+      CALL get_qs_env(qs_env, mos=mos)
+      print *, 'len(mos) = ', SIZE(mos)
+
+      ! figure out that total number of MOs
+      CALL get_mo_set(mos(1), nmo=nmo)
+      mo_num = nmo * nspins * nkp
+      print *, 'nmo = ', nmo
+      print *, 'nspins = ', nspins
+      print *, 'nkp = ', nkp
+
+      rc = trexio_write_mo_num(f, mo_num)
+      CALL trexio_error(rc)
+
+      ! allocate all the arrays
+      ALLOCATE (mo_coefficient(ao_num, mo_num))
+      ALLOCATE (mo_energy(mo_num))
+      ALLOCATE (mo_occupation(mo_num))
+      ALLOCATE (mo_spin(mo_num))
+      ALLOCATE (mo_class(mo_num))
+      ! extra arrays for kpoints
+      IF (do_kpoints) THEN
+         ALLOCATE (mo_coefficient_im(ao_num, mo_num))
+         ALLOCATE (mo_kpoint(mo_num))
+      END IF
+
+      DO ispin = 1, nspins
+         IF (do_kpoints) THEN
+            CALL get_kpoint_info(kpoints, kp_env=kp_env)
+            CALL get_kpoint_env(kp_env(1)%kpoint_env, mos=mos_kp)
+            mo_set => mos_kp(1,ispin)
+         ELSE
+         END IF
+      END DO
+
+      DEALLOCATE (mo_coefficient)
+      DEALLOCATE (mo_energy)
+      DEALLOCATE (mo_occupation)
+      DEALLOCATE (mo_spin)
+      DEALLOCATE (mo_class)
+      IF (do_kpoints) THEN
+         DEALLOCATE (mo_coefficient_im)
+         DEALLOCATE (mo_kpoint)
+      END IF
 
 
       !========================================================================================!
