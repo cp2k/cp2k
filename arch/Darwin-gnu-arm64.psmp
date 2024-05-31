@@ -3,7 +3,7 @@
 # CP2K Darwin arch file for a parallel arm64 binary
 # (https://www.cp2k.org/howto:compile_on_macos)
 #
-# Tested with: GNU 13.2.0, OpenMPI 4.1.5,,
+# Tested with: GNU 14.1.0, OpenMPI 4.1.6,,
 #              ScaLAPACK 2.2.1, OpenBLAS 0.3.27,
 #              FFTW 3.3.10, HDF5 1.14.3,
 #              LIBINT 2.6.0, LIBXC 6.2.2,
@@ -12,13 +12,13 @@
 #              COSMA 2.6.6, SIRIUS 7.5.2,
 #              LIBGRPP 20231215,
 #              SPFFT 1.0.6, SPLA 1.5.5
-# on an Apple M1 (macOS 14.4.1 Sonoma)
+# on an Apple M1 (macOS 14.5.0 Sonoma)
 #
 # Usage: Source this arch file and then run make as instructed.
 #        Ensure the links in /opt/homebrew/bin to the gcc version
 #        and "brew unlink openmpi" (or mpich) if installed.
 #
-# Last update: 10.05.2024
+# Last update: 31.05.2024
 #
 # \
    if [[ "${0}" == "${BASH_SOURCE}" ]]; then \
@@ -35,7 +35,7 @@
       brew install cmake; \
       brew install coreutils; \
       brew install fftw; \
-      brew install gcc@13; \
+      brew install gcc; \
       brew install gsed; \
       brew install gsl; \
       brew install hdf5; \
