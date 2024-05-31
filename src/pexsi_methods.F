@@ -201,7 +201,7 @@ CONTAINS
 
       CALL cp_dbcsr_to_csr_screening(ks_env, pexsi_env%csr_sparsity)
 
-      IF (.NOT. pexsi_env%csr_screening) CALL dbcsr_set(pexsi_env%csr_sparsity, 1.0)
+      IF (.NOT. pexsi_env%csr_screening) CALL dbcsr_set(pexsi_env%csr_sparsity, 1.0_dp)
       CALL dbcsr_csr_create_from_dbcsr(pexsi_env%dbcsr_template_matrix_nonsym, &
                                        pexsi_env%csr_mat_s, &
                                        dbcsr_csr_eqrow_floor_dist, &
