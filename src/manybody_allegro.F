@@ -15,28 +15,29 @@ MODULE manybody_allegro
    USE atomic_kind_types,               ONLY: atomic_kind_type
    USE cell_types,                      ONLY: cell_type
    USE fist_neighbor_list_types,        ONLY: fist_neighbor_type,&
-                                              neighbor_kind_pairs_type
+      neighbor_kind_pairs_type
    USE fist_nonbond_env_types,          ONLY: allegro_data_type,&
-                                              fist_nonbond_env_get,&
-                                              fist_nonbond_env_set,&
-                                              fist_nonbond_env_type,&
-                                              pos_type
+      fist_nonbond_env_get,&
+      fist_nonbond_env_set,&
+      fist_nonbond_env_type,&
+      pos_type
    USE kinds,                           ONLY: dp,&
-                                              int_8,&
-                                              sp
+      int_8,&
+      sp
+   USE message_passing,                 ONLY: mp_para_env_type
    USE pair_potential_types,            ONLY: allegro_pot_type,&
-                                              allegro_type,&
-                                              pair_potential_pp_type,&
-                                              pair_potential_single_type
+      allegro_type,&
+      pair_potential_pp_type,&
+      pair_potential_single_type
    USE particle_types,                  ONLY: particle_type
    USE torch_api,                       ONLY: torch_dict_create,&
-                                              torch_dict_get,&
-                                              torch_dict_insert,&
-                                              torch_dict_release,&
-                                              torch_dict_type,&
-                                              torch_model_eval,&
-                                              torch_model_freeze,&
-                                              torch_model_load
+      torch_dict_get,&
+      torch_dict_insert,&
+      torch_dict_release,&
+      torch_dict_type,&
+      torch_model_eval,&
+      torch_model_freeze,&
+      torch_model_load
    USE util,                            ONLY: sort
 #include "./base/base_uses.f90"
 
@@ -44,7 +45,7 @@ MODULE manybody_allegro
 
    PRIVATE
    PUBLIC :: setup_allegro_arrays, destroy_allegro_arrays, &
-             allegro_energy_store_force_virial, allegro_add_force_virial
+      allegro_energy_store_force_virial, allegro_add_force_virial
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'manybody_allegro'
 
 CONTAINS
@@ -63,7 +64,7 @@ CONTAINS
 !> \author Gabriele Tocci - University of Zurich
 ! **************************************************************************************************
    SUBROUTINE setup_allegro_arrays(nonbonded, potparm, glob_loc_list, glob_cell_v, glob_loc_list_a, &
-                                   unique_list_a, cell)
+      unique_list_a, cell)
       TYPE(fist_neighbor_type), POINTER                  :: nonbonded
       TYPE(pair_potential_pp_type), POINTER              :: potparm
       INTEGER, DIMENSION(:, :), POINTER                  :: glob_loc_list
@@ -74,8 +75,8 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'setup_allegro_arrays'
 
       INTEGER                                            :: handle, i, iend, igrp, ikind, ilist, &
-                                                            ipair, istart, jkind, nkinds, nlocal, &
-                                                            npairs, npairs_tot
+         ipair, istart, jkind, nkinds, nlocal, &
+         npairs, npairs_tot
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: temp_unique_list_a, work_list, work_list2
       INTEGER, DIMENSION(:, :), POINTER                  :: list
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: rwork_list
@@ -214,6 +215,7 @@ CONTAINS
 !> \param pot_allegro ...
 !> \param fist_nonbond_env ...
 !> \param unique_list_a ...
+!> \param para_env ...
 !> \param use_virial ...
 !> \par History
 !>      Implementation of the allegro potential - [gtocci] 2023
@@ -221,8 +223,8 @@ CONTAINS
 !> \author Gabriele Tocci - University of Zurich
 ! **************************************************************************************************
    SUBROUTINE allegro_energy_store_force_virial(nonbonded, particle_set, cell, atomic_kind_set, &
-                                                potparm, allegro, glob_loc_list_a, r_last_update_pbc, &
-                                                pot_allegro, fist_nonbond_env, unique_list_a, use_virial)
+      potparm, allegro, glob_loc_list_a, r_last_update_pbc, &
+      pot_allegro, fist_nonbond_env, unique_list_a, para_env, use_virial)
 
       TYPE(fist_neighbor_type), POINTER                  :: nonbonded
       TYPE(particle_type), POINTER                       :: particle_set(:)
@@ -236,6 +238,7 @@ CONTAINS
       TYPE(fist_nonbond_env_type), POINTER               :: fist_nonbond_env
       INTEGER, DIMENSION(:), POINTER                     :: unique_list_a
       LOGICAL, INTENT(IN)                                :: use_virial
+      TYPE(mp_para_env_type), POINTER                    :: para_env
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'allegro_energy_store_force_virial'
 
@@ -249,7 +252,7 @@ CONTAINS
       LOGICAL, ALLOCATABLE                               :: use_atom(:)
       REAL(kind=dp)                                      :: drij, lattice(3, 3), rab2_max, rij(3)
       REAL(kind=dp), ALLOCATABLE, DIMENSION(:, :)        :: edge_cell_shifts, new_edge_cell_shifts, &
-                                                            pos
+         pos
       REAL(kind=dp), DIMENSION(3)                        :: cell_v, cvi
       REAL(kind=dp), DIMENSION(:, :), POINTER            :: atomic_energy, forces, virial
       REAL(kind=dp), DIMENSION(:, :, :), POINTER         :: virial3d
@@ -275,7 +278,7 @@ CONTAINS
                IF (pot%type(i) /= allegro_type) CYCLE
                DO iat = 1, n_atoms
                   IF (particle_set(iat)%atomic_kind%kind_number == ikind .OR. &
-                      particle_set(iat)%atomic_kind%kind_number == jkind) use_atom(iat) = .TRUE.
+                     particle_set(iat)%atomic_kind%kind_number == jkind) use_atom(iat) = .TRUE.
                END DO ! iat
             END DO ! i
          END DO ! jkind
@@ -475,6 +478,7 @@ CONTAINS
 
       DEALLOCATE (t_edge_index, atom_types)
 
+      IF (use_virial) allegro_data%virial(:, :) = allegro_data%virial/REAL(para_env%num_pe, dp)
       CALL timestop(handle)
    END SUBROUTINE allegro_energy_store_force_virial
 

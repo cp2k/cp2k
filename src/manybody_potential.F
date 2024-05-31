@@ -19,50 +19,50 @@ MODULE manybody_potential
    USE cell_types,                      ONLY: cell_type
    USE distribution_1d_types,           ONLY: distribution_1d_type
    USE fist_neighbor_list_types,        ONLY: fist_neighbor_type,&
-                                              neighbor_kind_pairs_type
+      neighbor_kind_pairs_type
    USE fist_nonbond_env_types,          ONLY: eam_type,&
-                                              fist_nonbond_env_get,&
-                                              fist_nonbond_env_type,&
-                                              pos_type
+      fist_nonbond_env_get,&
+      fist_nonbond_env_type,&
+      pos_type
    USE input_section_types,             ONLY: section_vals_type
    USE kinds,                           ONLY: dp
    USE manybody_allegro,                ONLY: allegro_add_force_virial,&
-                                              allegro_energy_store_force_virial,&
-                                              destroy_allegro_arrays,&
-                                              setup_allegro_arrays
+      allegro_energy_store_force_virial,&
+      destroy_allegro_arrays,&
+      setup_allegro_arrays
    USE manybody_deepmd,                 ONLY: deepmd_add_force_virial,&
-                                              deepmd_energy_store_force_virial
+      deepmd_energy_store_force_virial
    USE manybody_eam,                    ONLY: get_force_eam
    USE manybody_gal,                    ONLY: destroy_gal_arrays,&
-                                              gal_energy,&
-                                              gal_forces,&
-                                              setup_gal_arrays
+      gal_energy,&
+      gal_forces,&
+      setup_gal_arrays
    USE manybody_gal21,                  ONLY: destroy_gal21_arrays,&
-                                              gal21_energy,&
-                                              gal21_forces,&
-                                              setup_gal21_arrays
+      gal21_energy,&
+      gal21_forces,&
+      setup_gal21_arrays
    USE manybody_nequip,                 ONLY: destroy_nequip_arrays,&
-                                              nequip_add_force_virial,&
-                                              nequip_energy_store_force_virial,&
-                                              setup_nequip_arrays
+      nequip_add_force_virial,&
+      nequip_energy_store_force_virial,&
+      setup_nequip_arrays
    USE manybody_quip,                   ONLY: quip_add_force_virial,&
-                                              quip_energy_store_force_virial
+      quip_energy_store_force_virial
    USE manybody_siepmann,               ONLY: destroy_siepmann_arrays,&
-                                              print_nr_ions_siepmann,&
-                                              setup_siepmann_arrays,&
-                                              siepmann_energy,&
-                                              siepmann_forces_v2,&
-                                              siepmann_forces_v3
+      print_nr_ions_siepmann,&
+      setup_siepmann_arrays,&
+      siepmann_energy,&
+      siepmann_forces_v2,&
+      siepmann_forces_v3
    USE manybody_tersoff,                ONLY: destroy_tersoff_arrays,&
-                                              setup_tersoff_arrays,&
-                                              tersoff_energy,&
-                                              tersoff_forces
+      setup_tersoff_arrays,&
+      tersoff_energy,&
+      tersoff_forces
    USE message_passing,                 ONLY: mp_para_env_type
    USE pair_potential_types,            ONLY: &
-        allegro_pot_type, allegro_type, deepmd_type, ea_type, eam_pot_type, gal21_pot_type, &
-        gal21_type, gal_pot_type, gal_type, nequip_pot_type, nequip_type, pair_potential_pp_type, &
-        pair_potential_single_type, quip_type, siepmann_pot_type, siepmann_type, tersoff_pot_type, &
-        tersoff_type
+      allegro_pot_type, allegro_type, deepmd_type, ea_type, eam_pot_type, gal21_pot_type, &
+      gal21_type, gal_pot_type, gal_type, nequip_pot_type, nequip_type, pair_potential_pp_type, &
+      pair_potential_single_type, quip_type, siepmann_pot_type, siepmann_type, tersoff_pot_type, &
+      tersoff_type
    USE particle_types,                  ONLY: particle_type
    USE util,                            ONLY: sort
 #include "./base/base_uses.f90"
@@ -92,7 +92,7 @@ CONTAINS
 !> \author CJM, I-Feng W. Kuo, Teodoro Laino
 ! **************************************************************************************************
    SUBROUTINE energy_manybody(fist_nonbond_env, atomic_kind_set, local_particles, &
-                              particle_set, cell, pot_manybody, para_env, mm_section, use_virial)
+      particle_set, cell, pot_manybody, para_env, mm_section, use_virial)
 
       TYPE(fist_nonbond_env_type), POINTER               :: fist_nonbond_env
       TYPE(atomic_kind_type), POINTER                    :: atomic_kind_set(:)
@@ -112,11 +112,11 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: glob_loc_list_a, unique_list_a, work_list
       INTEGER, DIMENSION(:, :), POINTER                  :: glob_loc_list, list, sort_list
       LOGICAL                                            :: any_allegro, any_deepmd, any_gal, &
-                                                            any_gal21, any_nequip, any_quip, &
-                                                            any_siepmann, any_tersoff
+         any_gal21, any_nequip, any_quip, &
+         any_siepmann, any_tersoff
       REAL(KIND=dp)                                      :: drij, embed, pot_allegro, pot_deepmd, &
-                                                            pot_loc, pot_nequip, pot_quip, qr, &
-                                                            rab2_max, rij(3)
+         pot_loc, pot_nequip, pot_quip, qr, &
+         rab2_max, rij(3)
       REAL(KIND=dp), DIMENSION(3)                        :: cell_v, cvi
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: glob_cell_v
       REAL(KIND=dp), POINTER                             :: fembed(:)
@@ -145,7 +145,7 @@ CONTAINS
       any_deepmd = .FALSE.
       CALL timeset(routineN, handle)
       CALL fist_nonbond_env_get(fist_nonbond_env, r_last_update_pbc=r_last_update_pbc, &
-                                potparm=potparm, eam_data=eam_data)
+         potparm=potparm, eam_data=eam_data)
       ! EAM requires a single loop
       DO ikind = 1, SIZE(atomic_kind_set)
          pot => potparm%pot(ikind, ikind)%pot
@@ -198,7 +198,7 @@ CONTAINS
       ! QUIP
       IF (any_quip) THEN
          CALL quip_energy_store_force_virial(particle_set, cell, atomic_kind_set, potparm, &
-                                             fist_nonbond_env, pot_quip, para_env)
+            fist_nonbond_env, pot_quip, para_env)
          pot_manybody = pot_manybody + pot_quip
       END IF
       ! NEQUIP
@@ -206,8 +206,8 @@ CONTAINS
          NULLIFY (glob_loc_list, glob_cell_v, glob_loc_list_a)
          CALL setup_nequip_arrays(nonbonded, potparm, glob_loc_list, glob_cell_v, glob_loc_list_a, cell)
          CALL nequip_energy_store_force_virial(nonbonded, particle_set, cell, atomic_kind_set, potparm, &
-                                               nequip, glob_loc_list_a, r_last_update_pbc, pot_nequip, &
-                                               fist_nonbond_env, para_env, use_virial)
+            nequip, glob_loc_list_a, r_last_update_pbc, pot_nequip, &
+            fist_nonbond_env, para_env, use_virial)
          pot_manybody = pot_manybody + pot_nequip
          CALL destroy_nequip_arrays(glob_loc_list, glob_cell_v, glob_loc_list_a)
       END IF
@@ -215,17 +215,17 @@ CONTAINS
       IF (any_allegro) THEN
          NULLIFY (glob_loc_list, glob_cell_v, glob_loc_list_a, unique_list_a)
          CALL setup_allegro_arrays(nonbonded, potparm, glob_loc_list, glob_cell_v, glob_loc_list_a, &
-                                   unique_list_a, cell)
+            unique_list_a, cell)
          CALL allegro_energy_store_force_virial(nonbonded, particle_set, cell, atomic_kind_set, potparm, &
-                                                allegro, glob_loc_list_a, r_last_update_pbc, pot_allegro, &
-                                                fist_nonbond_env, unique_list_a, use_virial)
+            allegro, glob_loc_list_a, r_last_update_pbc, pot_allegro, &
+            fist_nonbond_env, unique_list_a, para_env, use_virial)
          pot_manybody = pot_manybody + pot_allegro
          CALL destroy_allegro_arrays(glob_loc_list, glob_cell_v, glob_loc_list_a, unique_list_a)
       END IF
       ! DEEPMD
       IF (any_deepmd) THEN
          CALL deepmd_energy_store_force_virial(particle_set, cell, atomic_kind_set, potparm, &
-                                               fist_nonbond_env, pot_deepmd, para_env)
+            fist_nonbond_env, pot_deepmd, para_env)
          pot_manybody = pot_manybody + pot_deepmd
       END IF
 
@@ -294,7 +294,7 @@ CONTAINS
                            IF (drij > rab2_max) CYCLE
                            drij = SQRT(drij)
                            CALL tersoff_energy(pot_loc, tersoff, r_last_update_pbc, atom_a, atom_b, nloc_size, &
-                                               glob_loc_list(:, ifirst:ilast), glob_cell_v(:, ifirst:ilast), cell_v, drij)
+                              glob_loc_list(:, ifirst:ilast), glob_cell_v(:, ifirst:ilast), cell_v, drij)
                            pot_manybody = pot_manybody + 0.5_dp*pot_loc
                         END DO
                         ifirst = ilast + 1
@@ -376,8 +376,8 @@ CONTAINS
                            IF (drij > rab2_max) CYCLE
                            drij = SQRT(drij)
                            CALL siepmann_energy(pot_loc, siepmann, r_last_update_pbc, atom_a, atom_b, nloc_size, &
-                                                glob_loc_list(:, ifirst:ilast), cell_v, cell, drij, &
-                                                particle_set, nr_oh, nr_h3O, nr_o)
+                              glob_loc_list(:, ifirst:ilast), cell_v, cell, drij, &
+                              particle_set, nr_oh, nr_h3O, nr_o)
                            pot_manybody = pot_manybody + pot_loc
                         END DO
                         ifirst = ilast + 1
@@ -390,11 +390,11 @@ CONTAINS
          END DO
          CALL destroy_siepmann_arrays(glob_loc_list, glob_cell_v, glob_loc_list_a)
          CALL print_nr_ions_siepmann(nr_oh, mm_section, para_env, print_oh=.TRUE., &
-                                     print_h3o=.FALSE., print_o=.FALSE.)
+            print_h3o=.FALSE., print_o=.FALSE.)
          CALL print_nr_ions_siepmann(nr_h3o, mm_section, para_env, print_oh=.FALSE., &
-                                     print_h3o=.TRUE., print_o=.FALSE.)
+            print_h3o=.TRUE., print_o=.FALSE.)
          CALL print_nr_ions_siepmann(nr_o, mm_section, para_env, print_oh=.FALSE., &
-                                     print_h3o=.FALSE., print_o=.TRUE.)
+            print_h3o=.FALSE., print_o=.TRUE.)
       END IF
 
       !GAL19 POTENTIAL
@@ -462,7 +462,7 @@ CONTAINS
                            IF (drij > rab2_max) CYCLE
                            drij = SQRT(drij)
                            CALL gal_energy(pot_loc, gal, r_last_update_pbc, atom_a, atom_b, &
-                                           cell, particle_set, mm_section)
+                              cell, particle_set, mm_section)
 
                            pot_manybody = pot_manybody + pot_loc
                         END DO
@@ -542,7 +542,7 @@ CONTAINS
                            IF (drij > rab2_max) CYCLE
                            drij = SQRT(drij)
                            CALL gal21_energy(pot_loc, gal21, r_last_update_pbc, atom_a, atom_b, &
-                                             cell, particle_set, mm_section)
+                              cell, particle_set, mm_section)
 
                            pot_manybody = pot_manybody + pot_loc
                         END DO
@@ -573,7 +573,7 @@ CONTAINS
 !> \author I-Feng W. Kuo, Teodoro Laino
 ! **************************************************************************************************
    SUBROUTINE force_nonbond_manybody(fist_nonbond_env, particle_set, cell, &
-                                     f_nonbond, pv_nonbond, use_virial)
+      f_nonbond, pv_nonbond, use_virial)
 
       TYPE(fist_nonbond_env_type), POINTER               :: fist_nonbond_env
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
@@ -590,8 +590,8 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: glob_loc_list_a, work_list
       INTEGER, DIMENSION(:, :), POINTER                  :: glob_loc_list, list, sort_list
       LOGICAL                                            :: any_allegro, any_deepmd, any_gal, &
-                                                            any_gal21, any_nequip, any_quip, &
-                                                            any_siepmann, any_tersoff
+         any_gal21, any_nequip, any_quip, &
+         any_siepmann, any_tersoff
       REAL(KIND=dp) :: f_eam, fac, fr(3), ptens11, ptens12, ptens13, ptens21, ptens22, ptens23, &
          ptens31, ptens32, ptens33, rab(3), rab2, rab2_max, rtmp(3)
       REAL(KIND=dp), DIMENSION(3)                        :: cell_v, cvi
@@ -620,7 +620,7 @@ CONTAINS
       NULLIFY (eam_a, eam_b, tersoff, siepmann, gal, gal21)
 
       CALL fist_nonbond_env_get(fist_nonbond_env, nonbonded=nonbonded, potparm=potparm, &
-                                natom_types=nkinds, eam_data=eam_data, r_last_update_pbc=r_last_update_pbc)
+         natom_types=nkinds, eam_data=eam_data, r_last_update_pbc=r_last_update_pbc)
 
       ! Initializing the potential energy, pressure tensor and force
       IF (use_virial) THEN
@@ -796,8 +796,8 @@ CONTAINS
                            ipair = ipair + 1
                            IF (DOT_PRODUCT(rtmp, rtmp) <= tersoff%rcutsq) THEN
                               CALL tersoff_forces(tersoff, r_last_update_pbc, cell_v, &
-                                                  nloc_size, glob_loc_list(:, ifirst:ilast), glob_cell_v(:, ifirst:ilast), &
-                                                  atom_a, atom_b, f_nonbond, pv_nonbond, use_virial, tersoff%rcutsq)
+                                 nloc_size, glob_loc_list(:, ifirst:ilast), glob_cell_v(:, ifirst:ilast), &
+                                 atom_a, atom_b, f_nonbond, pv_nonbond, use_virial, tersoff%rcutsq)
                            END IF
                         END DO
                         ifirst = ilast + 1
@@ -873,12 +873,12 @@ CONTAINS
                            ipair = ipair + 1
                            IF (DOT_PRODUCT(rtmp, rtmp) <= siepmann%rcutsq) THEN
                               CALL siepmann_forces_v2(siepmann, r_last_update_pbc, cell_v, cell, &
-                                                      atom_a, atom_b, f_nonbond, use_virial, siepmann%rcutsq, &
-                                                      particle_set)
+                                 atom_a, atom_b, f_nonbond, use_virial, siepmann%rcutsq, &
+                                 particle_set)
                               CALL siepmann_forces_v3(siepmann, r_last_update_pbc, cell_v, &
-                                                      nloc_size, glob_loc_list(:, ifirst:ilast), &
-                                                      atom_a, atom_b, f_nonbond, use_virial, siepmann%rcutsq, &
-                                                      cell, particle_set)
+                                 nloc_size, glob_loc_list(:, ifirst:ilast), &
+                                 atom_a, atom_b, f_nonbond, use_virial, siepmann%rcutsq, &
+                                 cell, particle_set)
                            END IF
                         END DO
                         ifirst = ilast + 1
@@ -955,8 +955,8 @@ CONTAINS
                            ipair = ipair + 1
                            IF (DOT_PRODUCT(rtmp, rtmp) <= gal%rcutsq) THEN
                               CALL gal_forces(gal, r_last_update_pbc, &
-                                              atom_a, atom_b, f_nonbond, use_virial, &
-                                              cell, particle_set)
+                                 atom_a, atom_b, f_nonbond, use_virial, &
+                                 cell, particle_set)
                            END IF
                         END DO
                         ifirst = ilast + 1
@@ -1033,8 +1033,8 @@ CONTAINS
                            ipair = ipair + 1
                            IF (DOT_PRODUCT(rtmp, rtmp) <= gal21%rcutsq) THEN
                               CALL gal21_forces(gal21, r_last_update_pbc, &
-                                                atom_a, atom_b, f_nonbond, pv_nonbond, use_virial, &
-                                                cell, particle_set)
+                                 atom_a, atom_b, f_nonbond, pv_nonbond, use_virial, &
+                                 cell, particle_set)
                            END IF
                         END DO
                         ifirst = ilast + 1
