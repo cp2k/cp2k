@@ -609,7 +609,7 @@ CONTAINS
       CALL basis_set_list_setup(basis_set_list_b, "ORB", qs_kind_set)
 
       ! csr_sparsity can obtain values 0 (if zero element) or 1 (if non-zero element)
-      CALL dbcsr_set(csr_sparsity, 0.0)
+      CALL dbcsr_set(csr_sparsity, 0.0_dp)
 
       CALL neighbor_list_iterator_create(nl_iterator, neighbour_list)
 

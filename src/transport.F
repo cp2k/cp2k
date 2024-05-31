@@ -329,7 +329,7 @@ CONTAINS
 
       CALL cp_dbcsr_to_csr_screening(ks_env, transport_env%csr_sparsity)
 
-      IF (.NOT. transport_env%csr_screening) CALL dbcsr_set(transport_env%csr_sparsity, 1.0)
+      IF (.NOT. transport_env%csr_screening) CALL dbcsr_set(transport_env%csr_sparsity, 1.0_dp)
       CALL dbcsr_csr_create_from_dbcsr(transport_env%template_matrix_nosym, &
                                        transport_env%s_matrix, &
                                        dbcsr_csr_dbcsr_blkrow_dist, &

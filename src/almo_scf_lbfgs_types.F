@@ -317,7 +317,7 @@ CONTAINS
          END DO ! iterm, forst loop from recent to oldest
 
          !RZK-warning: unclear whether q should be multiplied by minus one
-         CALL dbcsr_scale(q, -1.0)
+         CALL dbcsr_scale(q, -1.0_dp)
          CALL dbcsr_copy(direction(ispin), q)
 
          CALL dbcsr_release(q)

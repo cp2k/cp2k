@@ -333,7 +333,6 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)    :: block_arr
       REAL(KIND=dp), DIMENSION(:, :), POINTER        :: block
       TYPE(dbcsr_iterator_type)                          :: iter
-      LOGICAL                                            :: tr
 
       INTEGER                                            :: handle
       CHARACTER(LEN=*), PARAMETER :: routineN = 'dbt_copy_matrix_to_tensor'
@@ -359,10 +358,10 @@ CONTAINS
       CALL dbt_reserve_blocks(matrix_in_desym, tensor_out)
 
 !$OMP PARALLEL DEFAULT(NONE) SHARED(matrix_in_desym,tensor_out,summation) &
-!$OMP PRIVATE(iter,ind_2d,block,tr,block_arr)
+!$OMP PRIVATE(iter,ind_2d,block,block_arr)
       CALL dbcsr_iterator_start(iter, matrix_in_desym)
       DO WHILE (dbcsr_iterator_blocks_left(iter))
-         CALL dbcsr_iterator_next_block(iter, ind_2d(1), ind_2d(2), block, tr)
+         CALL dbcsr_iterator_next_block(iter, ind_2d(1), ind_2d(2), block)
          CALL allocate_any(block_arr, source=block)
          CALL dbt_put_block(tensor_out, ind_2d, SHAPE(block_arr), block_arr, summation=summation)
          DEALLOCATE (block_arr)
