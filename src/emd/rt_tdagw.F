@@ -2161,7 +2161,8 @@ CONTAINS
                      ! Different OMP threads write to different places in memory - should be safe from data race
                      Qvector(ri_offset + i) = Qvector(ri_offset + i) + int_3c(j+bs_env%i_ao_start_from_atom(ind_1)-1,&
                                                                               k+bs_env%i_ao_start_from_atom(ind_2)-1,&
-                                                                              i+bs_env%i_RI_start_from_atom(ind_i)-1) * block_matrix(j,k)
+                                                                              i+bs_env%i_RI_start_from_atom(ind_i)-1)&
+                                                                              * block_matrix(j,k)
                      ! Qvector(ri_offset + i) = Qvector(ri_offset + i) + int_3c(i,j,k) * block_matrix(j,k)
                   END DO
                END DO
