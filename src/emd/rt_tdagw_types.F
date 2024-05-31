@@ -27,6 +27,7 @@ MODULE rt_tdagw_types
                                               cp_cfm_release
    USE cp_fm_basic_linalg,              ONLY: cp_fm_invert,&
                                               cp_fm_transpose,&
+                                              cp_fm_column_scale,&
                                               cp_fm_scale_and_add
    USE dbcsr_api,                       ONLY: dbcsr_type,&
                                               dbcsr_p_type,&
@@ -34,6 +35,7 @@ MODULE rt_tdagw_types
                                               dbcsr_release,&
                                               dbcsr_print,&
                                               dbcsr_copy,&
+                                              dbcsr_set,&
                                               dbcsr_type_complex_8
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE dbt_api,                         ONLY: dbt_type,&
@@ -47,6 +49,7 @@ MODULE rt_tdagw_types
                                               dbt_distribution_destroy,&
                                               dbt_create,&
                                               dbt_copy_matrix_to_tensor,&
+                                              dbt_get_num_blocks,&
                                               dbt_destroy
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               copy_fm_to_dbcsr
@@ -61,6 +64,7 @@ MODULE rt_tdagw_types
    USE qs_environment_types,            ONLY: qs_environment_type,&
                                               get_qs_env
    USE post_scf_bandstructure_types,    ONLY: post_scf_bandstructure_type
+   USE post_scf_bandstructure_utils,    ONLY: create_and_init_bs_env
    USE rt_propagation_types,            ONLY: rt_prop_type,&
                                               get_rtp
    USE pw_env_types,                    ONLY: pw_env_get,&
@@ -73,6 +77,14 @@ MODULE rt_tdagw_types
    USE matrix_exp,                      ONLY: get_nsquare_norder
    USE gw_integrals,                    ONLY: build_3c_integrals
    USE gw_methods,                      ONLY: compute_3c_integrals
+   USE gw_utils,                        ONLY: create_and_init_bs_env_for_gw,&
+                                              setup_AO_and_RI_basis_set,&
+                                              get_RI_basis_and_basis_function_indices,&
+                                              set_heuristic_parameters,&
+                                              set_parallelization_parameters,&
+                                              allocate_and_fill_matrices_and_arrays,&
+                                              create_tensors
+   USE libint_wrapper,                  ONLY: cp_libint_static_init
    USE input_constants,                 ONLY: use_mom_ref_coac,&
                                               rtp_tdagw_ham_g0w0,&
                                               rtp_tdagw_ham_ks,&
@@ -83,7 +95,8 @@ MODULE rt_tdagw_types
                                               do_exact
    USE physcon,                         ONLY: angstrom
    USE input_section_types,             ONLY: section_vals_type,&
-                                              section_vals_val_get
+                                              section_vals_val_get,&
+                                              section_vals_get_subs_vals
 
 #include "../base/base_uses.f90"
 
@@ -123,8 +136,11 @@ MODULE rt_tdagw_types
       INTEGER                                                   :: n_spin,&
                                                                    n_ao,&
                                                                    n_RI
+      INTEGER, DIMENSION(2)                                     :: n_occ
+      REAL(kind=dp)                                             :: spin_degeneracy
       REAL(kind=dp), DIMENSION(3)                               :: field
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER                 :: moments
+      TYPE(cp_fm_p_type), DIMENSION(:), POINTER                 :: moments,&
+                                                                   moments_field
       INTEGER                                                   :: sim_step,&
                                                                    sim_start,&
                                                                    sim_nsteps
@@ -197,10 +213,11 @@ CONTAINS
                                                                    rho_dbcsr
       TYPE(mo_set_type), DIMENSION(:), POINTER                  :: mos
       INTEGER                                                   :: i, re, im
-      REAL(kind=dp), DIMENSION(:), POINTER                      :: custom_ref_point
+      REAL(kind=dp), DIMENSION(:), POINTER                      :: custom_ref_point,&
+                                                                   occupations
       REAL(kind=dp), DIMENSION(3)                               :: rpoint
       ! TYPE(cp_fm_type)                                          :: S_inv_fm
-      TYPE(section_vals_type), POINTER                          :: input
+      TYPE(section_vals_type), POINTER                          :: input, bs_sec
       ! Extract the other types first
 
       CALL get_qs_env(qs_env,&
@@ -210,13 +227,30 @@ CONTAINS
                       mos=mos,&
                       dft_control=tdagw_env%dft_control,&
                       input=input)
-
+      bs_sec => section_vals_get_subs_vals(input, "PROPERTIES%BANDSTRUCTURE")
+      IF (.NOT. ASSOCIATED(bs_env)) THEN
+         NULLIFY(qs_env%bs_env)
+         ! Run the initialisations routines
+         CALL create_and_init_bs_env(qs_env, qs_env%bs_env, bs_sec)
+         bs_env => qs_env%bs_env
+         CALL setup_AO_and_RI_basis_set(qs_env, bs_env)
+         CALL get_RI_basis_and_basis_function_indices(qs_env, bs_env)
+         CALL set_heuristic_parameters(bs_env, qs_env)
+         CALL set_parallelization_parameters(qs_env, bs_env)
+         CALL allocate_and_fill_matrices_and_arrays(qs_env, bs_env)
+         CALL cp_libint_static_init()
+         CALL create_tensors(qs_env, bs_env)
+      END IF
       ! Number of spins
       tdagw_env%n_spin = bs_env%n_spin
       ! Number of atomic orbitals
       tdagw_env%n_ao = bs_env%n_ao
       ! Number of auxiliary basis orbitals
       tdagw_env%n_RI = bs_env%n_RI
+      ! Number of occupied orbitals - for closed shell equals to half the number of electrons
+      tdagw_env%n_occ(:) = bs_env%n_occ(:)
+      ! Spin degeneracy - number of spins per orbital
+      tdagw_env%spin_degeneracy = bs_env%spin_degeneracy
       ! Default field is zero
       tdagw_env%field(:) = 0.0_dp
       ! Default time is zero
@@ -294,6 +328,16 @@ CONTAINS
          CALL cp_fm_create(tdagw_env%moments(i)%matrix, bs_env%fm_s_Gamma%matrix_struct)
          CALL copy_dbcsr_to_fm(moments_dbcsr_p(i)%matrix, tdagw_env%moments(i)%matrix)
       END DO
+      ! Now, repeat without reference point to get the moments for field
+      CALL build_local_moment_matrix(qs_env, moments_dbcsr_p, 1)
+      NULLIFY(tdagw_env%moments_field)
+      ALLOCATE(tdagw_env%moments_field(3))
+      DO i=1,3
+         NULLIFY(tdagw_env%moments_field(i)%matrix)
+         ALLOCATE(tdagw_env%moments_field(i)%matrix)
+         CALL cp_fm_create(tdagw_env%moments_field(i)%matrix, bs_env%fm_s_Gamma%matrix_struct)
+         CALL copy_dbcsr_to_fm(moments_dbcsr_p(i)%matrix, tdagw_env%moments_field(i)%matrix)
+      END DO
 
       ! Now can deallocate dbcsr matrices
       DO i=1,3
@@ -303,15 +347,36 @@ CONTAINS
 
       ! Initiate density through results of DFT
       ! TODO : Handle cases, when initial method uses density only? Do such cases exist?
-      CALL rt_initialize_rho_from_mos(rtp, mos)
-      CALL get_rtp(rtp, rho_new=rho_dbcsr)
+      ! DEBUG : change to initialisation directly from mo_coeffs
+      ! CALL rt_initialize_rho_from_mos(rtp, mos)
+      ! CALL get_rtp(rtp, rho_new=rho_dbcsr)
       ! Copy the density
       ALLOCATE(tdagw_env%rho(2*tdagw_env%n_spin))
-      DO i=1,2*tdagw_env%n_spin
-         ALLOCATE(tdagw_env%rho(i)%matrix)
-         CALL cp_fm_create(tdagw_env%rho(i)%matrix, bs_env%fm_h_G0W0_Gamma%matrix_struct)
-         CALL copy_dbcsr_to_fm(rho_dbcsr(i)%matrix, tdagw_env%rho(i)%matrix)
+      ALLOCATE(occupations(tdagw_env%n_ao))
+      ! Iterate over both spins
+      @:SPIN_DO(i, re, im, tdagw_env%n_spin)
+         occupations(:) = 0.0_dp
+         occupations(1:tdagw_env%n_occ(i)) = 1.0_dp
+         ! TODO : Handle complex orbitals - then we have non-trivial imaginary part
+         ! Create real part
+         NULLIFY(tdagw_env%rho(re)%matrix)
+         ALLOCATE(tdagw_env%rho(re)%matrix)
+         CALL cp_fm_create(tdagw_env%rho(re)%matrix, matrix_struct=bs_env%fm_s_Gamma%matrix_struct)
+         ! Create imaginary part
+         NULLIFY(tdagw_env%rho(im)%matrix)
+         ALLOCATE(tdagw_env%rho(im)%matrix)
+         CALL cp_fm_create(tdagw_env%rho(im)%matrix, matrix_struct=bs_env%fm_s_Gamma%matrix_struct)
+         ! Populate real part
+         CALL cp_fm_to_fm(bs_env%fm_mo_coeff_Gamma(i), tdagw_env%rho(im)%matrix)
+         CALL cp_fm_column_scale(tdagw_env%rho(im)%matrix, occupations)
+         CALL parallel_gemm("N", "T", tdagw_env%n_ao, tdagw_env%n_ao, tdagw_env%n_ao,&
+                            1.0_dp, bs_env%fm_mo_coeff_Gamma(i),&
+                            tdagw_env%rho(im)%matrix,&
+                            0.0_dp, tdagw_env%rho(re)%matrix)
+         ! Populate imaginary part
+         CALL cp_fm_set_all(tdagw_env%rho(im)%matrix, 0.0_dp)
       END DO
+      DEALLOCATE(occupations)
       ! Create the inverse overlap matrix, for use in density propagation 
       CALL s_matrices_create(matrix_s, rtp)
       CALL get_rtp(rtp, S_inv=tdagw_env%S_inv)
@@ -354,19 +419,19 @@ CONTAINS
       ALLOCATE(tdagw_env%rho_M(2*tdagw_env%n_spin))
       DO i=1,2*tdagw_env%n_spin
          ALLOCATE(tdagw_env%ham_effective(i)%matrix)
-         CALL cp_fm_create(tdagw_env%ham_effective(i)%matrix, bs_env%fm_h_G0W0_Gamma%matrix_struct)
+         CALL cp_fm_create(tdagw_env%ham_effective(i)%matrix, bs_env%fm_ks_Gamma(1)%matrix_struct)
          CALL cp_fm_set_all(tdagw_env%ham_effective(i)%matrix, 0.0_dp)
          ALLOCATE(tdagw_env%ham_workspace(i)%matrix)
-         CALL cp_fm_create(tdagw_env%ham_workspace(i)%matrix, bs_env%fm_h_G0W0_Gamma%matrix_struct)
+         CALL cp_fm_create(tdagw_env%ham_workspace(i)%matrix, bs_env%fm_ks_Gamma(1)%matrix_struct)
          CALL cp_fm_set_all(tdagw_env%ham_workspace(i)%matrix, 0.0_dp)
          ALLOCATE(tdagw_env%rho_new(i)%matrix)
-         CALL cp_fm_create(tdagw_env%rho_new(i)%matrix, bs_env%fm_h_G0W0_Gamma%matrix_struct)
+         CALL cp_fm_create(tdagw_env%rho_new(i)%matrix, bs_env%fm_ks_Gamma(1)%matrix_struct)
          CALL cp_fm_set_all(tdagw_env%rho_new(i)%matrix, 0.0_dp)
          ALLOCATE(tdagw_env%rho_new_last(i)%matrix)
-         CALL cp_fm_create(tdagw_env%rho_new_last(i)%matrix, bs_env%fm_h_G0W0_Gamma%matrix_struct)
+         CALL cp_fm_create(tdagw_env%rho_new_last(i)%matrix, bs_env%fm_ks_Gamma(1)%matrix_struct)
          CALL cp_fm_set_all(tdagw_env%rho_new_last(i)%matrix, 0.0_dp)
          ALLOCATE(tdagw_env%rho_M(i)%matrix)
-         CALL cp_fm_create(tdagw_env%rho_M(i)%matrix, bs_env%fm_h_G0W0_Gamma%matrix_struct)
+         CALL cp_fm_create(tdagw_env%rho_M(i)%matrix, bs_env%fm_ks_Gamma(1)%matrix_struct)
          CALL cp_fm_set_all(tdagw_env%rho_M(i)%matrix, 0.0_dp)
       END DO
 
@@ -383,7 +448,7 @@ CONTAINS
       END SELECT
       DO i=1,SIZE(tdagw_env%rho_workspace)
          ALLOCATE(tdagw_env%rho_workspace(i)%matrix)
-         CALL cp_fm_create(tdagw_env%rho_workspace(i)%matrix, bs_env%fm_h_G0W0_Gamma%matrix_struct)
+         CALL cp_fm_create(tdagw_env%rho_workspace(i)%matrix, bs_env%fm_ks_Gamma(1)%matrix_struct)
          CALL cp_fm_set_all(tdagw_env%rho_workspace(i)%matrix, 0.0_dp)
       END DO
 
@@ -404,7 +469,7 @@ CONTAINS
          DO i=1,SIZE(tdagw_env%complex_workspace)
             NULLIFY(tdagw_env%complex_workspace(i)%matrix)
             ALLOCATE(tdagw_env%complex_workspace(i)%matrix)
-            CALL cp_cfm_create(tdagw_env%complex_workspace(i)%matrix, bs_env%fm_h_G0W0_Gamma%matrix_struct)
+            CALL cp_cfm_create(tdagw_env%complex_workspace(i)%matrix, bs_env%fm_ks_Gamma(1)%matrix_struct)
             CALL cp_cfm_set_all(tdagw_env%complex_workspace(i)%matrix, (0.0_dp, 0.0_dp))
          END DO
          NULLIFY(tdagw_env%real_eigvals)
@@ -429,10 +494,10 @@ CONTAINS
          ALLOCATE(tdagw_env%hartree_curr(i)%matrix)
          ALLOCATE(tdagw_env%sigma_SEX(i)%matrix)
          ALLOCATE(tdagw_env%sigma_COH(i)%matrix)
-         CALL cp_fm_create(tdagw_env%sigma_COH(i)%matrix, bs_env%fm_h_G0W0_Gamma%matrix_struct)
-         CALL cp_fm_create(tdagw_env%sigma_SEX(i)%matrix, bs_env%fm_h_G0W0_Gamma%matrix_struct)
-         CALL cp_fm_create(tdagw_env%hartree_orig(i)%matrix, bs_env%fm_h_G0W0_Gamma%matrix_struct)
-         CALL cp_fm_create(tdagw_env%hartree_curr(i)%matrix, bs_env%fm_h_G0W0_Gamma%matrix_struct)
+         CALL cp_fm_create(tdagw_env%sigma_COH(i)%matrix, bs_env%fm_ks_Gamma(1)%matrix_struct)
+         CALL cp_fm_create(tdagw_env%sigma_SEX(i)%matrix, bs_env%fm_ks_Gamma(1)%matrix_struct)
+         CALL cp_fm_create(tdagw_env%hartree_orig(i)%matrix, bs_env%fm_ks_Gamma(1)%matrix_struct)
+         CALL cp_fm_create(tdagw_env%hartree_curr(i)%matrix, bs_env%fm_ks_Gamma(1)%matrix_struct)
          CALL cp_fm_set_all(tdagw_env%sigma_COH(i)%matrix, 0.0_dp)
          CALL cp_fm_set_all(tdagw_env%sigma_SEX(i)%matrix, 0.0_dp)
          CALL cp_fm_set_all(tdagw_env%hartree_orig(i)%matrix, 0.0_dp)
@@ -484,6 +549,9 @@ CONTAINS
       CALL cp_fm_release(tdagw_env%rho_new_last)
       CALL cp_fm_release(tdagw_env%rho_M)
       CALL cp_fm_release(tdagw_env%S_inv_fm%matrix)
+
+      CALL cp_fm_release(tdagw_env%moments)
+      CALL cp_fm_release(tdagw_env%moments_field)
 
       ! TODO : Decide on where and when to releae this
       CALL dbcsr_release(tdagw_env%v_dbcsr%matrix)
@@ -596,7 +664,6 @@ CONTAINS
       CALL dbt_pgrid_create(bs_env%para_env_tensor, pdims, pgrid)
       ! Determine processes on the created grid
       CALL dbt_mp_environ_pgrid(pgrid, pdims, pcoord)
-      PRINT *, "=== Process grid", pdims, pcoord
       ! Prepare task distribution on the process grid for each dimension
       ALLOCATE(distvec(2, SIZE(bs_env%sizes_AO)))
       DO j=1,2
@@ -722,7 +789,12 @@ CONTAINS
       ! CALL cp_fm_scale_and_add(0.5_dp, W_fm, 0.5_dp, bs_env%fm_W_MIC_freq_zero)
       CALL dbcsr_create(tdagw_env%w_dbcsr%matrix, name="W", template=bs_env%mat_RI_RI%matrix)
       ! CALL copy_fm_to_dbcsr(W_fm, tdagw_env%w_dbcsr%matrix)
-      CALL copy_fm_to_dbcsr(bs_env%fm_W_MIC_freq_zero, tdagw_env%w_dbcsr%matrix)
+      IF (tdagw_env%ham_single_particle_type == rtp_tdagw_ham_g0w0) THEN
+         CALL copy_fm_to_dbcsr(bs_env%fm_W_MIC_freq_zero, tdagw_env%w_dbcsr%matrix)
+      ELSE
+         ! Assume only Hartree available - this is added latero
+         CALL dbcsr_set(tdagw_env%w_dbcsr%matrix, 0.0_dp)
+      END IF
       CALL dbt_create(tdagw_env%w_dbcsr%matrix, tdagw_env%screened_dbt)
       CALL dbt_copy_matrix_to_tensor(tdagw_env%w_dbcsr%matrix, tdagw_env%screened_dbt)
       ! PRINT *, "W_PQ matrix from BS_ENV"

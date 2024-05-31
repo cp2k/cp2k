@@ -88,6 +88,7 @@ MODULE rt_tdagw
                                               dbt_put_block,&
                                               dbt_get_block,&
                                               dbt_reserve_blocks,&
+                                              dbt_get_num_blocks,&
                                               dbt_get_info
    USE libint_2c_3c,                    ONLY: libint_potential_type
    USE mp2_ri_2c,                       ONLY: RI_2c_integral_mat
@@ -193,11 +194,10 @@ CONTAINS
       ! TODO : Debug - printing of COHSEX
       INTEGER, DIMENSION(2)                              :: custom_unit
 
-      ! TODO : Print a nicer header
-      PRINT *, "=== Starting time-dependent adiabatic GW real time propagation ==="
-      CALL get_qs_env(qs_env, bs_env=bs_env, input=input, rtp=rtp)
       ! ********************** ALLOCATIONS **********************
       CALL create_tdagw_env(tdagw_env, qs_env)
+      ! Get the logger unit number, only print if we are the source process
+      CALL get_qs_env(qs_env, bs_env=bs_env, input=input, rtp=rtp)
       ! TODO : Print a nicer header
       IF (tdagw_env%unit_nr > 0) WRITE(tdagw_env%unit_nr, *) "=== Starting time-dependent adiabatic GW real time propagation ==="
 
@@ -210,15 +210,16 @@ CONTAINS
          ! Calculate Coulomb RI elements, necessary for Hartree calculation
          CALL init_hartree(qs_env, tdagw_env%hartree_dbt, tdagw_env%v_dbcsr%matrix)
          ! Add the Hartree to the screened_dbt tensor - now W = V + W^c
-         CALL dbcsr_add(tdagw_env%w_dbcsr%matrix, tdagw_env%v_dbcsr%matrix, 1.0_dp, 1.0_dp)
+         CALL dbcsr_add(tdagw_env%w_dbcsr%matrix, tdagw_env%v_dbcsr%matrix, 0.0_dp, 1.0_dp)
          CALL dbt_copy_matrix_to_tensor(tdagw_env%w_dbcsr%matrix, tdagw_env%screened_dbt)
          @:SPIN_DO(j, re, im, tdagw_env%n_spin)
             CALL get_hartree_local(qs_env, tdagw_env, tdagw_env%rho(re)%matrix, tdagw_env%hartree_orig(re)%matrix)
             CALL get_hartree_local(qs_env, tdagw_env, tdagw_env%rho(im)%matrix, tdagw_env%hartree_orig(im)%matrix)
+            ! Scaling by spin degeneracy
+            CALL cp_fm_scale(tdagw_env%spin_degeneracy, tdagw_env%hartree_orig(re)%matrix)
+            CALL cp_fm_scale(tdagw_env%spin_degeneracy, tdagw_env%hartree_orig(im)%matrix)
             ! CALL get_hartree(tdagw_env, qs_env, tdagw_env%hartree_dbt, tdagw_env%rho(re)%matrix, tdagw_env%hartree_orig(re)%matrix)
             ! CALL get_hartree(tdagw_env, qs_env, tdagw_env%hartree_dbt, tdagw_env%rho(im)%matrix, tdagw_env%hartree_orig(im)%matrix)
-            ! PRINT *, "metric hartree_orig, RE spin", j, cp_fm_norm(tdagw_env%hartree_orig(re)%matrix, "M")
-            ! PRINT *, "metric hartree_orig, IM spin", j, cp_fm_norm(tdagw_env%hartree_orig(im)%matrix, "M")
          END DO
       ELSEIF ( tdagw_env%hartree_method == rtp_tdagw_hartree_pw ) THEN
          CPABORT("TDAGW Hartree PW no longer supported.")
@@ -240,8 +241,8 @@ CONTAINS
             CALL get_sigma(tdagw_env, qs_env, tdagw_env%sigma_COH(re), -0.5_dp, greens_dbcsr_opt=tdagw_env%S_inv)
             ! CALL get_sigma_local(tdagw_env, qs_env, tdagw_env%sigma_COH(re), -0.5_dp, greens_dbcsr_opt=tdagw_env%S_inv)
             ! TODO : Debug - printing out the COHSEX self-energy
-            CALL cp_fm_to_fm(tdagw_env%sigma_COH(re)%matrix, tdagw_env%ham_effective(re)%matrix)
-            CALL cp_fm_set_all(tdagw_env%ham_effective(im)%matrix, 0.0_dp)
+            ! CALL cp_fm_to_fm(tdagw_env%sigma_COH(re)%matrix, tdagw_env%ham_effective(re)%matrix)
+            ! CALL cp_fm_set_all(tdagw_env%ham_effective(im)%matrix, 0.0_dp)
             ! TODO : Maybe enable printing underneath debug option?
             ! TODO : Enable subtraction of COH? So far, COH does not enter, as per the reference paper
             CALL get_sigma(tdagw_env, qs_env, tdagw_env%sigma_SEX(re), -1.0_dp, greens_fm_opt=tdagw_env%rho(re))
@@ -266,7 +267,14 @@ CONTAINS
       ELSE
          ! KS Hamiltonian - use static xc only
          @:SPIN_DO(j, re, im, tdagw_env%n_spin)
-            CALL cp_fm_scale_and_add(0.0_dp, tdagw_env%sigma_COH(re)%matrix, 1.0_dp, bs_env%fm_V_xc_Gamma(j))
+            ! CALL cp_fm_scale_and_add(0.0_dp, tdagw_env%sigma_COH(re)%matrix, 1.0_dp, bs_env%fm_V_xc_Gamma(j))
+            ! Instead, use time-dependent Fock exchange
+            CALL get_sigma(tdagw_env, qs_env, tdagw_env%sigma_SEX(re), -1.0_dp, greens_fm_opt=tdagw_env%rho(re))
+            CALL get_sigma(tdagw_env, qs_env, tdagw_env%sigma_SEX(im), -1.0_dp, greens_fm_opt=tdagw_env%rho(im))
+            ! CALL get_sigma_local(tdagw_env, qs_env, tdagw_env%sigma_SEX(re), -1.0_dp, greens_fm_opt=tdagw_env%rho(re))
+            ! CALL get_sigma_local(tdagw_env, qs_env, tdagw_env%sigma_SEX(im), -1.0_dp, greens_fm_opt=tdagw_env%rho(im))
+            CALL cp_fm_scale_and_add(0.0_dp, tdagw_env%sigma_COH(re)%matrix, -1.0_dp, tdagw_env%sigma_SEX(re)%matrix)
+            CALL cp_fm_scale_and_add(0.0_dp, tdagw_env%sigma_COH(im)%matrix, -1.0_dp, tdagw_env%sigma_SEX(im)%matrix)
          END DO
       END IF
 
@@ -624,7 +632,7 @@ CONTAINS
          DO k=1,3
             ! Minus sign due to charge of electrons
             CALL cp_fm_scale_and_add(1.0_dp, tdagw_env%ham_effective(re)%matrix,&
-                                    -tdagw_env%field(k), tdagw_env%moments(k)%matrix)
+                                    tdagw_env%field(k), tdagw_env%moments_field(k)%matrix)
          END DO
          ! PRINT *, "HAM_EFF_UP Moments Spin index : ", j, antiherm_metric(tdagw_env%ham_effective(re), tdagw_env%ham_effective(im))
          ! Add the COH part
@@ -637,7 +645,7 @@ CONTAINS
          ! Only occurs for G0W0 Hamiltonian - otherwise, V_xc is stored in COH and Hartree is always present 
          ! TODO : Can get away with smaller number of matrices? - depends on memory consumption
          ! iGW = - rho W = - Re(rho) W - i Im(rho) W
-         IF ( tdagw_env%ham_single_particle_type == rtp_tdagw_ham_g0w0) THEN
+         ! IF ( tdagw_env%ham_single_particle_type == rtp_tdagw_ham_g0w0) THEN
             CALL get_sigma(tdagw_env, qs_env, tdagw_env%sigma_SEX(re),&
                            -1.0_dp, greens_fm_opt=rho(re))
             ! ! TODO : Debug - getting the hermitian part only
@@ -655,11 +663,12 @@ CONTAINS
             ! CALL cp_fm_scale_and_add(0.5_dp, tdagw_env%sigma_SEX(im)%matrix,&
             !                         -0.5_dp, tdagw_env%rho_workspace(1)%matrix)
             ! CALL get_sigma_local(tdagw_env, qs_env, tdagw_env%sigma_SEX(im),&
-            !                  -1.0_dp, greens_fm_opt=rho(im))
+            !                 -1.0_dp, greens_fm_opt=rho(im))
             CALL cp_fm_scale_and_add(1.0_dp, tdagw_env%ham_effective(im)%matrix,&
                                      1.0_dp, tdagw_env%sigma_SEX(im)%matrix)
-         END IF
+         ! END IF
          ! Calculate update Hartree potential
+         ! Hartree potential is scaled by number of electrons in each MO - spin degeneracy
          ! TODO : Spin (in)dependence check
          IF ( tdagw_env%hartree_method == rtp_tdagw_hartree_dbt ) THEN
             CALL get_hartree_local(qs_env, tdagw_env, rho(re)%matrix,&
@@ -667,14 +676,13 @@ CONTAINS
             ! CALL get_hartree(tdagw_env, qs_env, tdagw_env%hartree_dbt, rho(re)%matrix,&
             !                  tdagw_env%hartree_curr(re)%matrix)
             CALL cp_fm_scale_and_add(1.0_dp, tdagw_env%ham_effective(re)%matrix,&
-                                     1.0_dp, tdagw_env%hartree_curr(re)%matrix)
-            ! TODO : Check signs
+                                     tdagw_env%spin_degeneracy, tdagw_env%hartree_curr(re)%matrix)
             CALL get_hartree_local(qs_env, tdagw_env, rho(im)%matrix,&
                              tdagw_env%hartree_curr(im)%matrix)
             ! CALL get_hartree(tdagw_env, qs_env, tdagw_env%hartree_dbt, rho(im)%matrix,&
             !                  tdagw_env%hartree_curr(im)%matrix)
             CALL cp_fm_scale_and_add(1.0_dp, tdagw_env%ham_effective(im)%matrix,&
-                                     1.0_dp, tdagw_env%hartree_curr(im)%matrix)
+                                     tdagw_env%spin_degeneracy, tdagw_env%hartree_curr(im)%matrix)
          ELSEIF (tdagw_env%hartree_method == rtp_tdagw_hartree_pw ) THEN
             ! Current Hartree is calculated already before the spin loop
             ! TODO : Redo PW Hartree to have the same interface as DBT Hartree - it should be possible
@@ -863,9 +871,10 @@ CONTAINS
          ! TODO : Number of molecular orbitals and atomic orbitals might not be the same
          ! TODO : Spins in S_fm
          ! Real part
+         ! Scale by spin degeneracy
          ! S * rho
          CALL parallel_gemm("N", "N", tdagw_env%n_ao, tdagw_env%n_ao, tdagw_env%n_ao,&
-                            1.0_dp, tdagw_env%S_fm%matrix, rho(re)%matrix, 0.0_dp, tdagw_env%rho_workspace(1)%matrix)
+                            tdagw_env%spin_degeneracy, tdagw_env%S_fm%matrix, rho(re)%matrix, 0.0_dp, tdagw_env%rho_workspace(1)%matrix)
          ! C^T * S * rho
          CALL parallel_gemm("T", "N", tdagw_env%n_ao, tdagw_env%n_ao, tdagw_env%n_ao,&
                             1.0_dp, mos(j), tdagw_env%rho_workspace(1)%matrix, 0.0_dp, tdagw_env%rho_workspace(2)%matrix)
@@ -878,9 +887,10 @@ CONTAINS
                             1.0_dp, tdagw_env%rho_workspace(1)%matrix, mos(j), 0.0_dp, tdagw_env%rho_workspace(2)%matrix)
          CALL cp_fm_write_formatted(tdagw_env%rho_workspace(2)%matrix, rho_unit_re)
          ! Imag part
+         ! Scale by spin degeneracy
          ! S * rho
          CALL parallel_gemm("N", "N", tdagw_env%n_ao, tdagw_env%n_ao, tdagw_env%n_ao,&
-                            1.0_dp, tdagw_env%S_fm%matrix, rho(im)%matrix, 0.0_dp, tdagw_env%rho_workspace(1)%matrix)
+                            tdagw_env%spin_degeneracy, tdagw_env%S_fm%matrix, rho(im)%matrix, 0.0_dp, tdagw_env%rho_workspace(1)%matrix)
          ! C^T * S * rho
          CALL parallel_gemm("T", "N", tdagw_env%n_ao, tdagw_env%n_ao, tdagw_env%n_ao,&
                             1.0_dp, mos(j), tdagw_env%rho_workspace(1)%matrix, 0.0_dp, tdagw_env%rho_workspace(2)%matrix)
@@ -959,6 +969,8 @@ CONTAINS
          CALL cp_fm_transpose(rho(re)%matrix, tdagw_env%rho_workspace(1)%matrix)
          DO i=1,3
             CALL cp_fm_trace(tdagw_env%rho_workspace(1)%matrix, tdagw_env%moments(i)%matrix, moments(i))
+            ! Scale by spin degeneracy and electron charge
+            moments(i) = - moments(i) * tdagw_env%spin_degeneracy
          END DO
          ! Output to the file
          IF (moments_unit_re > 0) WRITE(moments_unit_re, '(E16.8,E16.8,E16.8,E16.8)') tdagw_env%sim_time*femtoseconds, moments(1),&
@@ -989,6 +1001,9 @@ CONTAINS
          CALL cp_fm_trace(tdagw_env%S_fm%matrix, rho(im)%matrix, electron_n_buffer)
          electron_n_im = electron_n_im + electron_n_buffer
       END DO
+      ! Scale by spin degeneracy
+      electron_n_re = electron_n_re * tdagw_env%spin_degeneracy
+      electron_n_im = electron_n_im * tdagw_env%spin_degeneracy
    END SUBROUTINE get_electron_number
    ! TODO : Debug, checking idempotency during propagation - in general, should also do complex, but imaginary parts are typically
    ! small
@@ -997,13 +1012,11 @@ CONTAINS
       TYPE(cp_fm_p_type),DIMENSION(*)                   :: rho
       REAL(kind=dp), INTENT(OUT)                        :: deviation_metric
       CHARACTER(len=*), PARAMETER                       :: routineN="get_idempotence_deviation"
-      REAL(kind=dp)                                     :: buffer_1, buffer_2, buffer_3, buffer_dev,&
-                                                           spins_per_orb
+      REAL(kind=dp)                                     :: buffer_1, buffer_2, buffer_3, buffer_dev
       INTEGER                                           :: re,im,i
 
       deviation_metric = 0.0_dp
       buffer_dev = 0.0_dp
-      spins_per_orb = 2.0_dp / tdagw_env%n_spin
       ! First, determine Tr(S * rho_re) + i Tr (S * rho_im)
       @:SPIN_DO(i, re, im, tdagw_env%n_spin)
          CALL cp_fm_trace(tdagw_env%S_fm%matrix, rho(re)%matrix, buffer_1)
@@ -1036,7 +1049,7 @@ CONTAINS
          CALL cp_fm_trace(tdagw_env%S_fm%matrix, tdagw_env%rho_workspace(3)%matrix, buffer_1)
          deviation_metric = deviation_metric + buffer_3 * buffer_3 + 4 * buffer_1 * buffer_1
       END DO
-      deviation_metric = (SQRT(deviation_metric) / (spins_per_orb * spins_per_orb)) - (SQRT(buffer_dev) / spins_per_orb)
+      deviation_metric = SQRT(deviation_metric) - SQRT(buffer_dev)
    END SUBROUTINE get_idempotence_deviation
 ! **************************************************************************************************
 !> \brief Outputs COHSEX energy in basis of MOs to a file
@@ -1495,25 +1508,26 @@ CONTAINS
 
       NULLIFY(W_fm%matrix)
       ALLOCATE(W_fm%matrix)
-      CALL cp_fm_create(W_fm%matrix, bs_env%fm_W_MIC_freq_zero%matrix_struct)
+      CALL cp_fm_create(W_fm%matrix, bs_env%fm_RI_RI%matrix_struct)
       CALL cp_fm_set_all(W_fm%matrix, 0.0_dp)
       CALL copy_dbcsr_to_fm(tdagw_env%w_dbcsr%matrix, W_fm%matrix)
 
       NULLIFY(zeromat%matrix)
       ALLOCATE(zeromat%matrix)
-      CALL cp_fm_create(zeromat%matrix, bs_env%fm_W_MIC_freq_zero%matrix_struct)
+      CALL cp_fm_create(zeromat%matrix, bs_env%fm_RI_RI%matrix_struct)
       CALL cp_fm_set_all(zeromat%matrix, 0.0_dp)
       
       PRINT *, "W aherm", antiherm_metric(W_fm, zeromat)
 
       ! Get all the 3c integrals - DEBUG setting
-      NULLIFY(int_3c)
-      ALLOCATE(int_3c(n_ao,n_ao,n_RI))
-      CALL build_3c_integrals(int_3c, qs_env, potential_parameter=bs_env%ri_metric,&
-                              basis_j=bs_env%basis_set_AO, basis_k=bs_env%basis_set_AO, basis_i=bs_env%basis_set_RI,&
-                              j_bf_start_from_atom=bs_env%i_ao_start_from_atom,&
-                              k_bf_start_from_atom=bs_env%i_ao_start_from_atom,&
-                              i_bf_start_from_atom=bs_env%i_RI_start_from_atom)
+      ! NULLIFY(int_3c)
+      ! ALLOCATE(int_3c(n_ao,n_ao,n_RI))
+      ! CALL build_3c_integrals(int_3c, qs_env, potential_parameter=bs_env%ri_metric,&
+      !                         basis_j=bs_env%basis_set_AO, basis_k=bs_env%basis_set_AO, basis_i=bs_env%basis_set_RI,&
+      !                         j_bf_start_from_atom=bs_env%i_ao_start_from_atom,&
+      !                         k_bf_start_from_atom=bs_env%i_ao_start_from_atom,&
+      !                         i_bf_start_from_atom=bs_env%i_RI_start_from_atom)
+      int_3c => tdagw_env%int_3c_array
 
       !$OMP PARALLEL DO DEFAULT(none) SHARED(prefactor,n_ao,n_RI,int_3c,sigma_fm,greens_ptr,W_fm) &
       !$OMP PRIVATE(P,Q,sigma_row,sigma_col,rho_row,rho_col,element, second_element,third_element)
@@ -1536,7 +1550,7 @@ CONTAINS
          END DO
       END DO
       !$OMP END PARALLEL DO
-      DEALLOCATE(int_3c)
+      ! DEALLOCATE(int_3c)
       CALL cp_fm_release(W_fm%matrix)
       CALL cp_fm_release(zeromat%matrix)
       ! NULLIFY(Btensor)
