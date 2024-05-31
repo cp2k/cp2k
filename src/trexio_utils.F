@@ -122,13 +122,12 @@ MODULE trexio_utils
 
       CHARACTER(LEN=2)                                   :: element_symbol
       CHARACTER(LEN=2), DIMENSION(:), ALLOCATABLE        :: label
-      CHARACTER(LEN=20), DIMENSION(:), ALLOCATABLE       :: mo_class
       INTEGER                                            :: iatom, natoms, periodic, nkp, nel_tot, &
                                                             nspins, ikind, ishell_loc, ishell, &
                                                             shell_num, prim_num, nset, iset, ipgf, z, &
                                                             sl_lmax, ecp_num, nloc, nsemiloc, sl_l, iecp, &
                                                             icgf, icgf_loc, ncgf, ncgf_shell, ao_num, nmo, &
-                                                            mo_num, ispin
+                                                            mo_num, ispin, ikp, imo
       INTEGER, DIMENSION(2)                              :: nel_spin
       INTEGER, DIMENSION(3)                              :: nkp_grid
       INTEGER, DIMENSION(0:10)                           :: npot
@@ -587,15 +586,6 @@ MODULE trexio_utils
 
                icgf = icgf + ncgf_shell
                icgf_loc = icgf_loc + ncgf_shell
-
-               ! DO ico = 1, nco(l(ishell_loc, iset))
-               !    icgf = icgf + 1
-
-               !    ao_shell(icgf) = ishell
-
-               !    ao_normalization(icgf) = norm_cgf(icgf)
-
-               ! END DO
             END DO
          END DO
          ! just a failsafe check
@@ -614,17 +604,27 @@ MODULE trexio_utils
       !========================================================================================!
       ! MO group
       !========================================================================================!
-      ! even for kpoints this is defined, but I don't know what's inside:
-      ! the gamma point?
-      CALL get_qs_env(qs_env, mos=mos)
-      print *, 'len(mos) = ', SIZE(mos)
-
       ! figure out that total number of MOs
-      CALL get_mo_set(mos(1), nmo=nmo)
-      mo_num = nmo * nspins * nkp
-      print *, 'nmo = ', nmo
-      print *, 'nspins = ', nspins
-      print *, 'nkp = ', nkp
+      mo_num = 0
+      IF (do_kpoints) THEN
+         CALL get_kpoint_info(kpoints, kp_env=kp_env)
+         DO ikp = 1, nkp
+            CALL get_kpoint_env(kp_env(ikp)%kpoint_env, mos=mos_kp)
+            DO ispin = 1, nspins
+               ! first argument of mos_kp is a 2x2 array
+               ! 1st dim is real and imaginary part
+               ! 2nd dim is spin
+               CALL get_mo_set(mos_kp(1,ispin), nmo=nmo)
+               mo_num = mo_num + nmo
+            END DO
+         END DO
+      ELSE
+         CALL get_qs_env(qs_env, mos=mos)
+         DO ispin = 1, nspins
+            CALL get_mo_set(mos(ispin), nmo=nmo)
+            mo_num = mo_num + nmo
+         END DO
+      END IF
 
       rc = trexio_write_mo_num(f, mo_num)
       CALL trexio_error(rc)
@@ -634,27 +634,49 @@ MODULE trexio_utils
       ALLOCATE (mo_energy(mo_num))
       ALLOCATE (mo_occupation(mo_num))
       ALLOCATE (mo_spin(mo_num))
-      ALLOCATE (mo_class(mo_num))
       ! extra arrays for kpoints
       IF (do_kpoints) THEN
          ALLOCATE (mo_coefficient_im(ao_num, mo_num))
          ALLOCATE (mo_kpoint(mo_num))
       END IF
 
+      imo = 0
       DO ispin = 1, nspins
          IF (do_kpoints) THEN
             CALL get_kpoint_info(kpoints, kp_env=kp_env)
             CALL get_kpoint_env(kp_env(1)%kpoint_env, mos=mos_kp)
             mo_set => mos_kp(1,ispin)
          ELSE
+            CALL get_mo_set(mos(ispin), nmo=nmo)
+
+            ! store the MO energies
+            mo_energy(imo+1:imo+nmo) = mos(ispin)%eigenvalues
+            ! store the MO occupations
+            mo_occupation(imo+1:imo+nmo) = mos(ispin)%occupation_numbers
+            ! store the MO spins
+            mo_spin(imo+1:imo+nmo) = ispin
+            ! store the MO coefficients
+            ! TODO: from fm type to fortran array
+            ! mo_coefficient(:,imo+1:imo+nmo) = mos(ispin)%mo_coeff%
+
+            imo = imo + nmo
          END IF
       END DO
 
       DEALLOCATE (mo_coefficient)
+
+      rc = trexio_write_mo_energy(f, mo_energy)
+      CALL trexio_error(rc)
       DEALLOCATE (mo_energy)
+
+      rc = trexio_write_mo_occupation(f, mo_occupation)
+      CALL trexio_error(rc)
       DEALLOCATE (mo_occupation)
+
+      rc = trexio_write_mo_spin(f, mo_spin)
+      CALL trexio_error(rc)
       DEALLOCATE (mo_spin)
-      DEALLOCATE (mo_class)
+
       IF (do_kpoints) THEN
          DEALLOCATE (mo_coefficient_im)
          DEALLOCATE (mo_kpoint)
