@@ -53,7 +53,7 @@ case "$with_libvdwxc" in
       if [ "${MPI_MODE}" = "no" ]; then
         # compile libvdwxc without mpi support since fftw (or mkl) do not have mpi support activated
         ./configure \
-          CC="${CC}" \
+          CC="${CC}" CFLAGS="${CFLAGS} -fpermissive" \
           FC="${FC}" \
           FFTW3_INCLUDES="${FFTW3_INCLUDES}" \
           FFTW3_LIBS="$(resolve_string "${FFTW3_LIBS}" "MPI")" \
@@ -63,7 +63,7 @@ case "$with_libvdwxc" in
           > configure.log 2>&1 || tail -n ${LOG_LINES} configure.log
       else
         ./configure \
-          CC="${MPICC}" \
+          CC="${MPICC}" CFLAGS="${CFLAGS} -fpermissive" \
           FC="${MPIFC}" \
           FFTW3_INCLUDES="${FFTW3_INCLUDES}" \
           FFTW3_LIBS="$(resolve_string "${FFTW3_LIBS}" "MPI")" \
