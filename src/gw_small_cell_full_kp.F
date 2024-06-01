@@ -1001,7 +1001,7 @@ CONTAINS
       CALL ZHEEVD('V', 'U', n, A(1, 1), n, eigenvalues(1), &
                   work(1), lwork, rwork(1), lrwork, iwork(1), liwork, info)
 
-      eigenvectors = A
+      eigenvectors(:, :) = A(:, :)
 
       IF (info /= 0) CPABORT("diagonalization failed")
 
