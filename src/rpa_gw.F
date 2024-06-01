@@ -4288,6 +4288,7 @@ CONTAINS
 !> \param dos_eta ...
 !> \param dos_min ...
 !> \param dos_max ...
+!> \param e_fermi_ext ...
 ! **************************************************************************************************
    SUBROUTINE continuation_pade(vec_gw_energ, vec_omega_fit_gw, &
                                 z_value, m_value, vec_Sigma_c_gw, vec_Sigma_x_minus_vxc_gw, &
@@ -4295,7 +4296,8 @@ CONTAINS
                                 num_fit_points, crossing_search, homo, &
                                 fermi_level_offset, do_gw_im_time, print_self_energy, count_ev_sc_GW, &
                                 vec_gw_dos, dos_lower_bound, dos_precision, ndos, &
-                                min_level_self_energy, max_level_self_energy, dos_eta, dos_min, dos_max)
+                                min_level_self_energy, max_level_self_energy, &
+                                dos_eta, dos_min, dos_max, e_fermi_ext)
 
       ! Optional arguments for spectral function
       REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: vec_gw_energ
@@ -4316,6 +4318,7 @@ CONTAINS
                                                             max_level_self_energy
       REAL(KIND=dp), OPTIONAL                            :: dos_eta
       INTEGER, INTENT(IN), OPTIONAL                      :: dos_min, dos_max
+      REAL(KIND=dp), OPTIONAL                            :: e_fermi_ext
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'continuation_pade'
 
@@ -4348,8 +4351,8 @@ CONTAINS
       END DO
 
       IF (do_gw_im_time) THEN
-         ! for cubic-scaling GW, we have one Green's function for occ and virt states with the Fermi level
-         ! in the middle of homo and lumo
+         ! for cubic-scaling GW, we have one Green's function for occ and virt states
+         ! with the Fermi level in the middle of homo and lumo
          e_fermi = 0.5_dp*(Eigenval(homo) + Eigenval(homo + 1))
       ELSE
          ! in case of O(N^4) GW, we have the Fermi level differently for occ and virt states, see
@@ -4360,6 +4363,8 @@ CONTAINS
             e_fermi = Eigenval(homo + 1) - fermi_level_offset
          END IF
       END IF
+
+      IF (PRESENT(e_fermi_ext)) e_fermi = e_fermi_ext
 
       n_level_gw_ref = n_level_gw + homo - gw_corr_lev_occ
 
@@ -4491,7 +4496,7 @@ CONTAINS
          CALL get_sigma_c_bisection_pade(vec_gw_energ(n_level_gw), Eigenval_scf(n_level_gw_ref), &
                                          vec_Sigma_x_minus_vxc_gw(n_level_gw_ref), e_fermi, &
                                          nparam_pade, omega_points_pade, coeff_pade, &
-                                         n_level_gw_ref, start_val=level_energ_GW)
+                                         start_val=level_energ_GW)
          z_value(n_level_gw) = 1.0_dp
          m_value(n_level_gw) = 0.0_dp
 
@@ -4499,7 +4504,7 @@ CONTAINS
          CALL get_sigma_c_newton_pade(vec_gw_energ(n_level_gw), Eigenval_scf(n_level_gw_ref), &
                                       vec_Sigma_x_minus_vxc_gw(n_level_gw_ref), e_fermi, &
                                       nparam_pade, omega_points_pade, coeff_pade, &
-                                      n_level_gw_ref, start_val=level_energ_GW)
+                                      start_val=level_energ_GW)
          z_value(n_level_gw) = 1.0_dp
          m_value(n_level_gw) = 0.0_dp
 
@@ -4730,24 +4735,20 @@ CONTAINS
 !> \param nparam_pade number of pade parameters
 !> \param omega_points_pade selection of frequency points of Sigma_c(iomega)
 !> \param coeff_pade pade coefficients
-!> \param n_level_gw_ref ...
 !> \param start_val start value for the quasiparticle iteration
 ! **************************************************************************************************
    SUBROUTINE get_sigma_c_bisection_pade(gw_energ, Eigenval_scf, Sigma_x_minus_vxc_gw, e_fermi, &
-                                         nparam_pade, omega_points_pade, coeff_pade, n_level_gw_ref, start_val)
+                                         nparam_pade, omega_points_pade, coeff_pade, start_val)
 
       REAL(KIND=dp), INTENT(OUT)                         :: gw_energ
       REAL(KIND=dp), INTENT(IN)                          :: Eigenval_scf, Sigma_x_minus_vxc_gw, &
                                                             e_fermi
       INTEGER, INTENT(IN)                                :: nparam_pade
       COMPLEX(KIND=dp), DIMENSION(:), INTENT(IN)         :: omega_points_pade, coeff_pade
-      INTEGER, INTENT(IN)                                :: n_level_gw_ref
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: start_val
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'get_sigma_c_bisection_pade'
 
-      CHARACTER(LEN=512)                                 :: error_msg
-      CHARACTER(LEN=64)                                  :: n_level_gw_ref_char
       COMPLEX(KIND=dp)                                   :: sigma_c
       INTEGER                                            :: handle, icount
       REAL(KIND=dp)                                      :: delta, energy_val, my_start_val, &
@@ -4777,13 +4778,14 @@ CONTAINS
                                      coeff_pade, sigma_c)
          qp_energy = Eigenval_scf + REAL(sigma_c) + Sigma_x_minus_vxc_gw
          delta = qp_energy - qp_energy_old
-         IF (icount > 500) THEN
-            WRITE (n_level_gw_ref_char, '(I10)') n_level_gw_ref
-            WRITE (error_msg, '(A,A,A)') " Self-consistent quasi-particle solution of "// &
-               "MO ", TRIM(n_level_gw_ref_char), " has not been found."
-            CPWARN(error_msg)
-            EXIT
-         END IF
+!         IF (icount > 500) THEN
+!            WRITE (n_level_gw_ref_char, '(I10)') n_level_gw_ref
+!            WRITE (error_msg, '(A,A,A)') " Self-consistent quasi-particle solution of "// &
+!               "MO ", TRIM(n_level_gw_ref_char), " has not been found."
+!            CPWARN(error_msg)
+!            EXIT
+!         END IF
+         IF (icount > 500) EXIT
       END DO
 
       gw_energ = REAL(sigma_c)
@@ -4801,24 +4803,20 @@ CONTAINS
 !> \param nparam_pade number of pade parameters
 !> \param omega_points_pade selection of frequency points of Sigma_c(iomega)
 !> \param coeff_pade pade coefficients
-!> \param n_level_gw_ref ...
 !> \param start_val start value for the quasiparticle iteration
 ! **************************************************************************************************
    SUBROUTINE get_sigma_c_newton_pade(gw_energ, Eigenval_scf, Sigma_x_minus_vxc_gw, e_fermi, &
-                                      nparam_pade, omega_points_pade, coeff_pade, n_level_gw_ref, start_val)
+                                      nparam_pade, omega_points_pade, coeff_pade, start_val)
 
       REAL(KIND=dp), INTENT(OUT)                         :: gw_energ
       REAL(KIND=dp), INTENT(IN)                          :: Eigenval_scf, Sigma_x_minus_vxc_gw, &
                                                             e_fermi
       INTEGER, INTENT(IN)                                :: nparam_pade
       COMPLEX(KIND=dp), DIMENSION(:), INTENT(IN)         :: omega_points_pade, coeff_pade
-      INTEGER, INTENT(IN)                                :: n_level_gw_ref
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: start_val
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'get_sigma_c_newton_pade'
 
-      CHARACTER(LEN=512)                                 :: error_msg
-      CHARACTER(LEN=64)                                  :: n_level_gw_ref_char
       COMPLEX(KIND=dp)                                   :: sigma_c
       INTEGER                                            :: handle, icount
       REAL(KIND=dp)                                      :: delta, energy_val, m_value, &
@@ -4852,13 +4850,14 @@ CONTAINS
          qp_energy = qp_energy - (Eigenval_scf + Sigma_x_minus_vxc_gw + REAL(sigma_c) - qp_energy)/ &
                      (m_value - 1.0_dp)
          delta = qp_energy - qp_energy_old
-         IF (icount > 500) THEN
-            WRITE (n_level_gw_ref_char, '(I10)') n_level_gw_ref
-            WRITE (error_msg, '(A,A,A)') " Self-consistent quasi-particle solution of "// &
-               "MO ", TRIM(n_level_gw_ref_char), " has not been found."
-            CPWARN(error_msg)
-            EXIT
-         END IF
+!         IF (icount > 500) THEN
+!            WRITE (n_level_gw_ref_char, '(I10)') n_level_gw_ref
+!            WRITE (error_msg, '(A,A,A)') " Self-consistent quasi-particle solution of "// &
+!               "MO ", TRIM(n_level_gw_ref_char), " has not been found."
+!            CPWARN(error_msg)
+!            EXIT
+!         END IF
+         IF (icount > 500) EXIT
       END DO
 
       gw_energ = REAL(sigma_c)

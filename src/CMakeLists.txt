@@ -209,7 +209,9 @@ list(
   grrm_utils.F
   gapw_1c_basis_set.F
   gw_communication.F
-  gw_methods.F
+  gw_main.F
+  gw_large_cell_gamma.F
+  gw_small_cell_full_kp.F
   post_scf_bandstructure_types.F
   post_scf_bandstructure_utils.F
   gw_utils.F

@@ -63,7 +63,7 @@ MODULE rpa_gw_sigma_x
                                               z_zero
    USE message_passing,                 ONLY: mp_para_env_type
    USE mp2_integrals,                   ONLY: compute_kpoints
-   USE mp2_ri_2c,                       ONLY: setup_trunc_coulomb_pot_for_exchange_self_energy
+   USE mp2_ri_2c,                       ONLY: trunc_coulomb_for_exchange
    USE mp2_types,                       ONLY: mp2_type
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE physcon,                         ONLY: evolt
@@ -616,7 +616,7 @@ CONTAINS
             CALL get_qs_env(qs_env=qs_env, &
                             kpoints=kpoints)
 
-            CALL setup_trunc_coulomb_pot_for_exchange_self_energy(qs_env)
+            CALL trunc_coulomb_for_exchange(qs_env)
 
             CALL compute_kpoints(qs_env, kpoints, unit_nr)
 

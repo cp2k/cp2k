@@ -32,6 +32,8 @@ MODULE soc_pseudopotential_methods
                                               cp_fm_release,&
                                               cp_fm_type
    USE kinds,                           ONLY: dp
+   USE kpoint_types,                    ONLY: get_kpoint_info,&
+                                              kpoint_type
    USE mathconstants,                   ONLY: gaussi,&
                                               z_one,&
                                               z_zero
@@ -41,7 +43,8 @@ MODULE soc_pseudopotential_methods
                                               qs_environment_type
    USE qs_force_types,                  ONLY: qs_force_type
    USE qs_kind_types,                   ONLY: qs_kind_type
-   USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
+   USE qs_neighbor_list_types,          ONLY: get_neighbor_list_set_p,&
+                                              neighbor_list_set_p_type
    USE soc_pseudopotential_utils,       ONLY: add_dbcsr_submat,&
                                               add_fm_submat,&
                                               create_cfm_double
@@ -76,14 +79,16 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'V_SOC_xyz_from_pseudopotential'
 
-      INTEGER                                            :: handle, nder, xyz
-      LOGICAL                                            :: calculate_forces, use_virial
+      INTEGER                                            :: handle, img, nder, nimages, xyz
+      INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
+      LOGICAL                                            :: calculate_forces, do_symmetric, &
+                                                            use_virial
       REAL(KIND=dp)                                      :: eps_ppnl
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: mat_l, mat_l_nosym, mat_pot_dummy, &
-                                                            matrix_dummy
+                                                            matrix_dummy, matrix_s
       TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(kpoint_type), POINTER                         :: kpoints
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_orb, sap_ppnl
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
@@ -93,60 +98,76 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (qs_kind_set, dft_control, sab_orb, sap_ppnl, particle_set, atomic_kind_set)
+      NULLIFY (qs_kind_set, dft_control, sab_orb, sap_ppnl, particle_set, atomic_kind_set, &
+               cell_to_index)
       CALL get_qs_env(qs_env=qs_env, qs_kind_set=qs_kind_set, dft_control=dft_control, &
-                      matrix_s=matrix_s, atomic_kind_set=atomic_kind_set, &
+                      matrix_s_kp=matrix_s, kpoints=kpoints, atomic_kind_set=atomic_kind_set, &
                       particle_set=particle_set, sab_orb=sab_orb, sap_ppnl=sap_ppnl)
 
       eps_ppnl = dft_control%qs_control%eps_ppnl
+      nimages = dft_control%nimages
+      CALL get_neighbor_list_set_p(neighbor_list_sets=sab_orb, symmetric=do_symmetric)
+      CALL get_kpoint_info(kpoint=kpoints, cell_to_index=cell_to_index)
 
-      NULLIFY (mat_l)
-      CALL dbcsr_allocate_matrix_set(mat_l, 3, 1)
+      NULLIFY (mat_l, mat_pot_dummy)
+      CALL dbcsr_allocate_matrix_set(mat_l, 3, nimages)
       DO xyz = 1, 3
-         ALLOCATE (mat_l(xyz, 1)%matrix)
-         CALL dbcsr_create(mat_l(xyz, 1)%matrix, template=matrix_s(1)%matrix, &
-                           matrix_type=dbcsr_type_antisymmetric)
-         CALL cp_dbcsr_alloc_block_from_nbl(mat_l(xyz, 1)%matrix, sab_orb)
-         CALL dbcsr_set(mat_l(xyz, 1)%matrix, 0.0_dp)
+         DO img = 1, nimages
+            ALLOCATE (mat_l(xyz, img)%matrix)
+            CALL dbcsr_create(mat_l(xyz, img)%matrix, template=matrix_s(1, 1)%matrix, &
+                              matrix_type=dbcsr_type_antisymmetric)
+            CALL cp_dbcsr_alloc_block_from_nbl(mat_l(xyz, img)%matrix, sab_orb)
+            CALL dbcsr_set(mat_l(xyz, img)%matrix, 0.0_dp)
+         END DO
       END DO
 
-      ! get mat_l
+      ! get mat_l; the next CPASSERT fails if the atoms do not have any SOC parameters, i.e.
+      ! SOC is zero and one should not activate the SOC section
       CPASSERT(ASSOCIATED(sap_ppnl))
       nder = 0
       use_virial = .FALSE.
       calculate_forces = .FALSE.
 
       NULLIFY (mat_pot_dummy)
-      CALL dbcsr_allocate_matrix_set(mat_pot_dummy, 1, 1)
-      ALLOCATE (mat_pot_dummy(1, 1)%matrix)
-      CALL dbcsr_create(mat_pot_dummy(1, 1)%matrix, template=matrix_s(1)%matrix)
-      CALL cp_dbcsr_alloc_block_from_nbl(mat_pot_dummy(1, 1)%matrix, sab_orb)
-      CALL dbcsr_set(mat_pot_dummy(1, 1)%matrix, 0.0_dp)
+      CALL dbcsr_allocate_matrix_set(mat_pot_dummy, 1, nimages)
+      DO img = 1, nimages
+         ALLOCATE (mat_pot_dummy(1, img)%matrix)
+         CALL dbcsr_create(mat_pot_dummy(1, img)%matrix, template=matrix_s(1, 1)%matrix)
+         CALL cp_dbcsr_alloc_block_from_nbl(mat_pot_dummy(1, img)%matrix, sab_orb)
+         CALL dbcsr_set(mat_pot_dummy(1, img)%matrix, 0.0_dp)
+      END DO
 
       CALL build_core_ppnl(mat_pot_dummy, matrix_dummy, force, virial, &
                            calculate_forces, use_virial, nder, &
                            qs_kind_set, atomic_kind_set, particle_set, sab_orb, sap_ppnl, &
-                           eps_ppnl, nimages=1, basis_type="ORB", matrix_l=mat_l)
+                           eps_ppnl, nimages=nimages, cell_to_index=cell_to_index, &
+                           basis_type="ORB", matrix_l=mat_l)
+
+! JW TODO: 1 -> nimages and TEST THIS!!!
 
       NULLIFY (mat_l_nosym)
-      CALL dbcsr_allocate_matrix_set(mat_l_nosym, 3, 1)
+      CALL dbcsr_allocate_matrix_set(mat_l_nosym, 3, nimages)
       DO xyz = 1, 3
-         ALLOCATE (mat_l_nosym(xyz, 1)%matrix)
-         CALL dbcsr_create(mat_l_nosym(xyz, 1)%matrix, template=matrix_s(1)%matrix, &
-                           matrix_type=dbcsr_type_no_symmetry)
-         CALL dbcsr_desymmetrize(mat_l(xyz, 1)%matrix, mat_l_nosym(xyz, 1)%matrix)
-
+         DO img = 1, nimages
+            ALLOCATE (mat_l_nosym(xyz, img)%matrix)
+            CALL dbcsr_create(mat_l_nosym(xyz, img)%matrix, template=matrix_s(1, 1)%matrix, &
+                              matrix_type=dbcsr_type_no_symmetry)
+            CALL dbcsr_desymmetrize(mat_l(xyz, img)%matrix, mat_l_nosym(xyz, img)%matrix)
+         END DO
       END DO
 
       NULLIFY (mat_V_SOC_xyz)
-      CALL dbcsr_allocate_matrix_set(mat_V_SOC_xyz, 3, 1)
+      CALL dbcsr_allocate_matrix_set(mat_V_SOC_xyz, 3, nimages)
       DO xyz = 1, 3
-         ALLOCATE (mat_V_SOC_xyz(xyz, 1)%matrix)
-         CALL dbcsr_create(mat_V_SOC_xyz(xyz, 1)%matrix, template=matrix_s(1)%matrix, &
-                           matrix_type=dbcsr_type_no_symmetry)
-         CALL cp_dbcsr_alloc_block_from_nbl(mat_V_SOC_xyz(xyz, 1)%matrix, sab_orb)
-         ! factor 0.5 from ħ/2 prefactor
-         CALL dbcsr_add(mat_V_SOC_xyz(xyz, 1)%matrix, mat_l_nosym(xyz, 1)%matrix, 0.0_dp, 0.5_dp)
+         DO img = 1, nimages
+            ALLOCATE (mat_V_SOC_xyz(xyz, img)%matrix)
+            CALL dbcsr_create(mat_V_SOC_xyz(xyz, img)%matrix, template=matrix_s(1, 1)%matrix, &
+                              matrix_type=dbcsr_type_no_symmetry)
+            CALL cp_dbcsr_alloc_block_from_nbl(mat_V_SOC_xyz(xyz, img)%matrix, sab_orb)
+            ! factor 0.5 from ħ/2 prefactor
+            CALL dbcsr_add(mat_V_SOC_xyz(xyz, img)%matrix, mat_l_nosym(xyz, img)%matrix, &
+                           0.0_dp, 0.5_dp)
+         END DO
       END DO
 
       CALL dbcsr_deallocate_matrix_set(mat_pot_dummy)

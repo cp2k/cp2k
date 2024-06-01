@@ -4901,6 +4901,9 @@ CONTAINS
                          "   dichalcogenide heterobilayers", &
                          "SO Journal of Chemical Theory and Computation", &
                          "PY 2024", &
+                         "VL 20", &
+                         "BP 2202", &
+                         "EP 2208", &
                          "ER"), &
                          DOI="10.1021/acs.jctc.3c01230")
 

@@ -6,12 +6,10 @@
 !--------------------------------------------------------------------------------------------------!
 
 MODULE post_scf_bandstructure_methods
-   USE gw_methods,                      ONLY: gw
+   USE gw_main,                         ONLY: gw
    USE input_section_types,             ONLY: section_vals_type
    USE post_scf_bandstructure_types,    ONLY: post_scf_bandstructure_type
-   USE post_scf_bandstructure_utils,    ONLY: bandstructure_primitive_cell,&
-                                              bandstructure_primitive_cell_spinor,&
-                                              create_and_init_bs_env,&
+   USE post_scf_bandstructure_utils,    ONLY: create_and_init_bs_env,&
                                               dos_pdos_ldos
    USE qs_environment_types,            ONLY: qs_environment_type
    USE qs_scf,                          ONLY: scf
@@ -54,20 +52,13 @@ CONTAINS
          CALL soc(qs_env, qs_env%bs_env)
       END IF
 
-      ! GW calculation for eigenvalues/bandstructure
+      ! GW calculation for eigenvalues/bandstructure for molecules and periodic systems
       IF (qs_env%bs_env%do_gw) THEN
          CALL gw(qs_env, qs_env%bs_env, post_scf_bandstructure_section)
       END IF
 
-      ! density of states (DOS) and projected DOS for DFT, DFT+SOC, G0W0, G0W0+SOC, also
-      ! quantities from local DOS (LDOS) as local valence band maximum (VBM), local conduction
-      ! band minimum (CBM), and local gap are calculated (local: as function of space r)
+      ! density of states (DOS), projected DOS, local DOS for DFT, DFT+SOC, G0W0, G0W0+SOC
       CALL dos_pdos_ldos(qs_env, qs_env%bs_env)
-
-      ! band structure of primitive unit cell for DFT, DFT+SOC, G0W0, G0W0+SOC
-      IF (qs_env%bs_env%do_bs_primitive_cell) THEN
-         CALL bandstructure_primitive_cell_all_methods(qs_env, qs_env%bs_env)
-      END IF
 
       CALL timestop(handle)
 
@@ -101,43 +92,5 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE soc
-
-! **************************************************************************************************
-!> \brief ...
-!> \param qs_env ...
-!> \param bs_env ...
-! **************************************************************************************************
-   SUBROUTINE bandstructure_primitive_cell_all_methods(qs_env, bs_env)
-
-      TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'bandstructure_primitive_cell_all_methods'
-
-      INTEGER                                            :: handle
-
-      CALL timeset(routineN, handle)
-
-      CALL bandstructure_primitive_cell(qs_env, bs_env, &
-                                        bs_env%eigenval_prim_cell_scf, &
-                                        "bandstructure_SCF.bs", &
-                                        bs_env%fm_ks_Gamma(1))
-      IF (bs_env%do_gw) THEN
-         CALL bandstructure_primitive_cell(qs_env, bs_env, &
-                                           bs_env%eigenval_prim_cell_G0W0, &
-                                           "bandstructure_G0W0.bs", &
-                                           bs_env%fm_h_G0W0_Gamma)
-      END IF
-
-      IF (bs_env%do_soc) THEN
-         CALL bandstructure_primitive_cell_spinor(qs_env, bs_env, &
-                                                  bs_env%eigenval_prim_cell_scf_soc, &
-                                                  "bandstructure_SCF_SOC.bs", &
-                                                  bs_env%cfm_ks_spinor_ao_Gamma)
-      END IF
-
-      CALL timestop(handle)
-
-   END SUBROUTINE bandstructure_primitive_cell_all_methods
 
 END MODULE post_scf_bandstructure_methods

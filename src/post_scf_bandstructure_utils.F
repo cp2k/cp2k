@@ -27,7 +27,8 @@ MODULE post_scf_bandstructure_utils
                                               cp_cfm_set_all,&
                                               cp_cfm_to_cfm,&
                                               cp_cfm_to_fm,&
-                                              cp_cfm_type
+                                              cp_cfm_type,&
+                                              cp_fm_to_cfm
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_api,                    ONLY: dbcsr_create,&
                                               dbcsr_p_type,&
@@ -52,9 +53,9 @@ MODULE post_scf_bandstructure_utils
                                               cp_fm_type
    USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
    USE cp_parser_methods,               ONLY: read_float_object
-   USE gw_utils,                        ONLY: compute_xkp,&
-                                              kpoint_init_cell_index_simple
-   USE input_constants,                 ONLY: int_ldos_z
+   USE input_constants,                 ONLY: int_ldos_z,&
+                                              large_cell_Gamma,&
+                                              small_cell_full_kp
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&
@@ -62,6 +63,7 @@ MODULE post_scf_bandstructure_utils
    USE kinds,                           ONLY: default_string_length,&
                                               dp,&
                                               max_line_length
+   USE kpoint_methods,                  ONLY: kpoint_init_cell_index
    USE kpoint_types,                    ONLY: get_kpoint_info,&
                                               kpoint_create,&
                                               kpoint_type
@@ -70,8 +72,6 @@ MODULE post_scf_bandstructure_utils
                                               twopi,&
                                               z_one,&
                                               z_zero
-   USE mathlib,                         ONLY: complex_diag,&
-                                              inv_3x3
    USE message_passing,                 ONLY: mp_para_env_type
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE particle_types,                  ONLY: particle_type
@@ -90,6 +90,7 @@ MODULE post_scf_bandstructure_utils
    USE qs_ks_types,                     ONLY: qs_ks_env_type
    USE qs_mo_types,                     ONLY: get_mo_set,&
                                               mo_set_type
+   USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
    USE rpa_gw_im_time_util,             ONLY: compute_weight_re_im,&
                                               get_atom_index_from_basis_function_index
    USE scf_control_types,               ONLY: scf_control_type
@@ -104,8 +105,8 @@ MODULE post_scf_bandstructure_utils
    PRIVATE
 
    PUBLIC :: create_and_init_bs_env, &
-             bandstructure_primitive_cell, bandstructure_primitive_cell_spinor, &
-             dos_pdos_ldos, cfm_ikp_from_fm_Gamma, get_fname, MIC_contribution_from_ikp
+             dos_pdos_ldos, cfm_ikp_from_fm_Gamma, get_fname, MIC_contribution_from_ikp, &
+             compute_xkp, kpoint_init_cell_index_simple
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'post_scf_bandstructure_utils'
 
@@ -138,18 +139,25 @@ CONTAINS
 
       CALL set_heuristic_parameters(bs_env)
 
-      CALL setup_kpoints_DOS(qs_env, bs_env, bs_env%kpoints_DOS)
+      SELECT CASE (bs_env%small_cell_full_kp_or_large_cell_Gamma)
+      CASE (large_cell_Gamma)
+
+         CALL setup_kpoints_DOS_large_cell_Gamma(qs_env, bs_env, bs_env%kpoints_DOS)
+
+      CASE (small_cell_full_kp)
+
+         CALL setup_kpoints_scf_desymm(qs_env, bs_env, bs_env%kpoints_scf_desymm, .TRUE.)
+         CALL setup_kpoints_scf_desymm(qs_env, bs_env, bs_env%kpoints_scf_desymm_2, .FALSE.)
+
+         CALL setup_kpoints_DOS_small_cell_full_kp(bs_env, bs_env%kpoints_DOS)
+
+      END SELECT
 
       CALL allocate_and_fill_fm_ks_fm_s(qs_env, bs_env)
 
       CALL diagonalize_ks_matrix(bs_env)
 
       CALL check_positive_definite_overlap_mat(bs_env, qs_env)
-
-      IF (bs_env%do_bs) THEN
-         CALL setup_kpoints_bandstructure(bs_env, bs_env%kpoints_bandstructure)
-         CALL setup_primitive_cell_for_bandstructure(qs_env, bs_env)
-      END IF
 
       CALL timestop(handle)
 
@@ -198,17 +206,14 @@ CONTAINS
 
       NULLIFY (kp_bs_sec)
       kp_bs_sec => section_vals_get_subs_vals(bs_sec, "BANDSTRUCTURE_PATH")
-      CALL section_vals_get(kp_bs_sec, explicit=bs_env%do_bs)
       CALL section_vals_val_get(kp_bs_sec, "NPOINTS", i_val=bs_env%input_kp_bs_npoints)
       CALL section_vals_val_get(kp_bs_sec, "SPECIAL_POINT", n_rep_val=bs_env%input_kp_bs_n_sp_pts)
 
       ! read special points for band structure
       ALLOCATE (bs_env%xkp_special(3, bs_env%input_kp_bs_n_sp_pts))
-      ALLOCATE (bs_env%kp_special_name(bs_env%input_kp_bs_n_sp_pts))
       DO ikp = 1, bs_env%input_kp_bs_n_sp_pts
          CALL section_vals_val_get(kp_bs_sec, "SPECIAL_POINT", i_rep_val=ikp, c_vals=string_ptr)
          CPASSERT(SIZE(string_ptr(:), 1) == 4)
-         bs_env%kp_special_name(ikp) = string_ptr(1)
          DO i = 1, 3
             CALL read_float_object(string_ptr(i + 1), bs_env%xkp_special(i, ikp), error_msg)
             IF (LEN_TRIM(error_msg) > 0) CPABORT(TRIM(error_msg))
@@ -262,15 +267,18 @@ CONTAINS
 !> \param bs_env ...
 !> \param kpoints ...
 ! **************************************************************************************************
-   SUBROUTINE setup_kpoints_DOS(qs_env, bs_env, kpoints)
+   SUBROUTINE setup_kpoints_DOS_large_cell_Gamma(qs_env, bs_env, kpoints)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
       TYPE(kpoint_type), POINTER                         :: kpoints
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'setup_kpoints_DOS'
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'setup_kpoints_DOS_large_cell_Gamma'
 
-      INTEGER                                            :: handle, i_dim, nkp, u
+      INTEGER                                            :: handle, i_dim, i_kp_in_line, &
+                                                            i_special_kp, ikk, n_kp_in_line, &
+                                                            n_special_kp, nkp, nkp_only_bs, &
+                                                            nkp_only_DOS, u
       INTEGER, DIMENSION(3)                              :: nkp_grid, periodic
 
       CALL timeset(routineN, handle)
@@ -280,6 +288,9 @@ CONTAINS
       CALL kpoint_create(kpoints)
 
       kpoints%kp_scheme = "GENERAL"
+
+      n_special_kp = bs_env%input_kp_bs_n_sp_pts
+      n_kp_in_line = bs_env%input_kp_bs_npoints
 
       periodic(1:3) = bs_env%periodic(1:3)
 
@@ -298,52 +309,172 @@ CONTAINS
 
       ! use the k <-> -k symmetry to reduce the number of kpoints
       IF (nkp_grid(1) > 1) THEN
-         nkp = (nkp_grid(1) + 1)/2*nkp_grid(2)*nkp_grid(3)
+         nkp_only_DOS = (nkp_grid(1) + 1)/2*nkp_grid(2)*nkp_grid(3)
       ELSE IF (nkp_grid(2) > 1) THEN
-         nkp = nkp_grid(1)*(nkp_grid(2) + 1)/2*nkp_grid(3)
+         nkp_only_DOS = nkp_grid(1)*(nkp_grid(2) + 1)/2*nkp_grid(3)
       ELSE IF (nkp_grid(3) > 1) THEN
-         nkp = nkp_grid(1)*nkp_grid(2)*(nkp_grid(3) + 1)/2
+         nkp_only_DOS = nkp_grid(1)*nkp_grid(2)*(nkp_grid(3) + 1)/2
       ELSE
-         nkp = 1
+         nkp_only_DOS = 1
       END IF
+
+      ! we will compute the GW QP levels for all k's in the bandstructure path but also
+      ! for all k-points from the SCF (e.g. for DOS or for self-consistent GW)
+      IF (n_special_kp > 0) THEN
+         nkp_only_bs = n_kp_in_line*(n_special_kp - 1) + 1
+      ELSE
+         nkp_only_bs = 0
+      END IF
+
+      nkp = nkp_only_DOS + nkp_only_bs
 
       kpoints%nkp_grid(1:3) = nkp_grid(1:3)
       kpoints%nkp = nkp
 
-      bs_env%nkp_DOS = nkp
+      bs_env%nkp_bs_and_DOS = nkp
+      bs_env%nkp_only_bs = nkp_only_bs
+      bs_env%nkp_only_DOS = nkp_only_DOS
 
       ALLOCATE (kpoints%xkp(3, nkp), kpoints%wkp(nkp))
-      kpoints%wkp(1:nkp) = 1.0_dp/REAL(nkp, KIND=dp)
+      kpoints%wkp(1:nkp_only_DOS) = 1.0_dp/REAL(nkp_only_DOS, KIND=dp)
 
-      CALL compute_xkp(kpoints%xkp, 1, nkp, nkp_grid)
+      CALL compute_xkp(kpoints%xkp, 1, nkp_only_DOS, nkp_grid)
+
+      IF (n_special_kp > 0) THEN
+         kpoints%xkp(1:3, nkp_only_DOS + 1) = bs_env%xkp_special(1:3, 1)
+         ikk = nkp_only_DOS + 1
+         DO i_special_kp = 2, n_special_kp
+            DO i_kp_in_line = 1, n_kp_in_line
+               ikk = ikk + 1
+               kpoints%xkp(1:3, ikk) = bs_env%xkp_special(1:3, i_special_kp - 1) + &
+                                       REAL(i_kp_in_line, KIND=dp)/REAL(n_kp_in_line, KIND=dp)* &
+                                       (bs_env%xkp_special(1:3, i_special_kp) - &
+                                        bs_env%xkp_special(1:3, i_special_kp - 1))
+               kpoints%wkp(ikk) = 0.0_dp
+            END DO
+         END DO
+      END IF
 
       CALL kpoint_init_cell_index_simple(kpoints, qs_env)
 
       u = bs_env%unit_nr
 
       IF (u > 0) THEN
-         WRITE (UNIT=u, FMT="(T2,1A,T69,3I4)") "K-point mesh for the density of states (DOS)", &
-            nkp_grid(1:3)
+         IF (nkp_only_bs > 0) THEN
+            WRITE (u, FMT="(T2,1A,T77,I4)") &
+               "Number of special k-points for the bandstructure", n_special_kp
+            WRITE (u, FMT="(T2,1A,T77,I4)") "Number of k-points for the bandstructure", nkp
+            WRITE (u, FMT="(T2,1A,T69,3I4)") &
+               "K-point mesh for the density of states (DOS)", nkp_grid(1:3)
+         ELSE
+            WRITE (u, FMT="(T2,1A,T69,3I4)") &
+               "K-point mesh for the density of states (DOS) and the self-energy", nkp_grid(1:3)
+         END IF
       END IF
 
       CALL timestop(handle)
 
-   END SUBROUTINE setup_kpoints_DOS
+   END SUBROUTINE setup_kpoints_DOS_large_cell_Gamma
+
+! **************************************************************************************************
+!> \brief ...
+!> \param qs_env ...
+!> \param bs_env ...
+!> \param kpoints ...
+!> \param do_print ...
+! **************************************************************************************************
+   SUBROUTINE setup_kpoints_scf_desymm(qs_env, bs_env, kpoints, do_print)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
+      TYPE(kpoint_type), POINTER                         :: kpoints
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'setup_kpoints_scf_desymm'
+
+      INTEGER                                            :: handle, i_cell_x, i_dim, img, j_cell_y, &
+                                                            k_cell_z, nimages, nkp, u
+      INTEGER, DIMENSION(3)                              :: cell_grid, cixd, nkp_grid
+      TYPE(kpoint_type), POINTER                         :: kpoints_scf
+
+      LOGICAL:: do_print
+
+      CALL timeset(routineN, handle)
+
+      NULLIFY (kpoints)
+      CALL kpoint_create(kpoints)
+
+      CALL get_qs_env(qs_env=qs_env, kpoints=kpoints_scf)
+
+      nkp_grid(1:3) = kpoints_scf%nkp_grid(1:3)
+      nkp = nkp_grid(1)*nkp_grid(2)*nkp_grid(3)
+
+      ! we need in periodic directions at least 4 k-points in the SCF
+      DO i_dim = 1, 3
+         IF (bs_env%periodic(i_dim) == 1) THEN
+            CPASSERT(nkp_grid(i_dim) .GE. 4)
+         END IF
+      END DO
+
+      kpoints%kp_scheme = "GENERAL"
+      kpoints%nkp_grid(1:3) = nkp_grid(1:3)
+      kpoints%nkp = nkp
+      bs_env%nkp_scf_desymm = nkp
+
+      ALLOCATE (kpoints%xkp(1:3, nkp))
+      CALL compute_xkp(kpoints%xkp, 1, nkp, nkp_grid)
+
+      ALLOCATE (kpoints%wkp(nkp))
+      kpoints%wkp(:) = 1.0_dp/REAL(nkp, KIND=dp)
+
+      ! for example 4x3x6 kpoint grid -> 3x3x5 cell grid because we need the same number of
+      ! neighbor cells on both sides of the unit cell
+      cell_grid(1:3) = nkp_grid(1:3) - MODULO(nkp_grid(1:3) + 1, 2)
+
+      ! cell index: for example for x: from -n_x/2 to +n_x/2, n_x: number of cells in x direction
+      cixd(1:3) = cell_grid(1:3)/2
+
+      nimages = cell_grid(1)*cell_grid(2)*cell_grid(3)
+
+      bs_env%nimages_scf_desymm = nimages
+      bs_env%cell_grid_scf_desymm(1:3) = cell_grid(1:3)
+
+      ALLOCATE (kpoints%cell_to_index(-cixd(1):cixd(1), -cixd(2):cixd(2), -cixd(3):cixd(3)))
+      ALLOCATE (kpoints%index_to_cell(nimages, 3))
+
+      img = 0
+      DO i_cell_x = -cixd(1), cixd(1)
+         DO j_cell_y = -cixd(2), cixd(2)
+            DO k_cell_z = -cixd(3), cixd(3)
+               img = img + 1
+               kpoints%cell_to_index(i_cell_x, j_cell_y, k_cell_z) = img
+               kpoints%index_to_cell(img, 1:3) = (/i_cell_x, j_cell_y, k_cell_z/)
+            END DO
+         END DO
+      END DO
+
+      u = bs_env%unit_nr
+      IF (u > 0 .AND. do_print) THEN
+         WRITE (u, FMT="(T2,A,I49)") "Number of cells for G, χ, W, Σ", nimages
+      END IF
+
+      CALL timestop(handle)
+
+   END SUBROUTINE setup_kpoints_scf_desymm
 
 ! **************************************************************************************************
 !> \brief ...
 !> \param bs_env ...
 !> \param kpoints ...
 ! **************************************************************************************************
-   SUBROUTINE setup_kpoints_bandstructure(bs_env, kpoints)
+   SUBROUTINE setup_kpoints_DOS_small_cell_full_kp(bs_env, kpoints)
 
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
       TYPE(kpoint_type), POINTER                         :: kpoints
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'setup_kpoints_bandstructure'
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'setup_kpoints_DOS_small_cell_full_kp'
 
       INTEGER                                            :: handle, i_kp_in_line, i_special_kp, ikk, &
-                                                            n_kp_in_line, n_special_kp, nkp, u
+                                                            n_kp_in_line, n_special_kp, nkp, &
+                                                            nkp_only_bs, nkp_scf_desymm, u
 
       CALL timeset(routineN, handle)
 
@@ -353,44 +484,58 @@ CONTAINS
 
       n_special_kp = bs_env%input_kp_bs_n_sp_pts
       n_kp_in_line = bs_env%input_kp_bs_npoints
+      nkp_scf_desymm = bs_env%nkp_scf_desymm
 
-      nkp = n_kp_in_line*(n_special_kp - 1) + 1
-
-      IF (n_special_kp < 1) &
-         CPABORT("Please specify special k-points in the Brillouin zone via SPECIAL_POINT.")
-      IF (n_kp_in_line < 1) &
-         CPABORT("Please specify the number of k-points between special k-points.")
+      ! we will compute the GW QP levels for all k's in the bandstructure path but also
+      ! for all k-points from the SCF (e.g. for DOS or for self-consistent GW)
+      IF (n_special_kp > 0) THEN
+         nkp_only_bs = n_kp_in_line*(n_special_kp - 1) + 1
+      ELSE
+         nkp_only_bs = 0
+      END IF
+      nkp = nkp_only_bs + nkp_scf_desymm
 
       ALLOCATE (kpoints%xkp(3, nkp))
+      ALLOCATE (kpoints%wkp(nkp))
 
       kpoints%nkp = nkp
-      kpoints%xkp(1:3, 1) = bs_env%xkp_special(1:3, 1)
 
-      bs_env%nkp_bs = nkp
+      bs_env%nkp_bs_and_DOS = nkp
+      bs_env%nkp_only_bs = nkp_only_bs
+      bs_env%nkp_only_DOS = nkp_scf_desymm
 
-      ikk = 1
+      kpoints%xkp(1:3, 1:nkp_scf_desymm) = bs_env%kpoints_scf_desymm%xkp(1:3, 1:nkp_scf_desymm)
+      kpoints%wkp(1:nkp_scf_desymm) = 1.0_dp/REAL(nkp_scf_desymm, KIND=dp)
 
-      DO i_special_kp = 2, n_special_kp
-         DO i_kp_in_line = 1, n_kp_in_line
-            ikk = ikk + 1
-            kpoints%xkp(1:3, ikk) = bs_env%xkp_special(1:3, i_special_kp - 1) + &
-                                    REAL(i_kp_in_line, KIND=dp)/REAL(n_kp_in_line, KIND=dp)* &
-                                    (bs_env%xkp_special(1:3, i_special_kp) - &
-                                     bs_env%xkp_special(1:3, i_special_kp - 1))
+      IF (n_special_kp > 0) THEN
+         kpoints%xkp(1:3, nkp_scf_desymm + 1) = bs_env%xkp_special(1:3, 1)
+         ikk = nkp_scf_desymm + 1
+         DO i_special_kp = 2, n_special_kp
+            DO i_kp_in_line = 1, n_kp_in_line
+               ikk = ikk + 1
+               kpoints%xkp(1:3, ikk) = bs_env%xkp_special(1:3, i_special_kp - 1) + &
+                                       REAL(i_kp_in_line, KIND=dp)/REAL(n_kp_in_line, KIND=dp)* &
+                                       (bs_env%xkp_special(1:3, i_special_kp) - &
+                                        bs_env%xkp_special(1:3, i_special_kp - 1))
+               kpoints%wkp(ikk) = 0.0_dp
+            END DO
          END DO
-      END DO
+      END IF
+
+      ALLOCATE (kpoints%index_to_cell(bs_env%nimages_scf_desymm, 3))
+      kpoints%index_to_cell(:, :) = bs_env%kpoints_scf_desymm%index_to_cell(:, :)
 
       u = bs_env%unit_nr
 
       IF (u > 0) THEN
-         WRITE (UNIT=u, FMT="(T2,1A,T77,I4)") "Number of special k-points for the bandstructure", &
+         WRITE (u, FMT="(T2,1A,T77,I4)") "Number of special k-points for the bandstructure", &
             n_special_kp
-         WRITE (UNIT=u, FMT="(T2,1A,T77,I4)") "Number of k-points for the bandstructure", nkp
+         WRITE (u, FMT="(T2,1A,T77,I4)") "Number of k-points for the bandstructure", nkp
       END IF
 
       CALL timestop(handle)
 
-   END SUBROUTINE setup_kpoints_bandstructure
+   END SUBROUTINE setup_kpoints_DOS_small_cell_full_kp
 
 ! **************************************************************************************************
 !> \brief ...
@@ -467,14 +612,14 @@ CONTAINS
             u = bs_env%unit_nr
 
             IF (u > 0) THEN
-               WRITE (UNIT=u, FMT="(T2,A)") ""
-               WRITE (UNIT=u, FMT="(T2,A)") "ERROR: The Cholesky decomposition "// &
+               WRITE (u, FMT="(T2,A)") ""
+               WRITE (u, FMT="(T2,A)") "ERROR: The Cholesky decomposition "// &
                   "of the k-point overlap matrix failed. This is"
-               WRITE (UNIT=u, FMT="(T2,A)") "because the algorithm is "// &
+               WRITE (u, FMT="(T2,A)") "because the algorithm is "// &
                   "only correct in the limit of large cells. The cell of "
-               WRITE (UNIT=u, FMT="(T2,A)") "the calculation is too small. "// &
+               WRITE (u, FMT="(T2,A)") "the calculation is too small. "// &
                   "Use MULTIPLE_UNIT_CELL to create a larger cell "
-               WRITE (UNIT=u, FMT="(T2,A)") "and to prevent this error."
+               WRITE (u, FMT="(T2,A)") "and to prevent this error."
             END IF
 
             CALL bs_env%para_env%sync()
@@ -550,15 +695,27 @@ CONTAINS
       CALL get_cell(cell=cell, periodic=periodic, h=hmat)
       bs_env%periodic(1:3) = periodic(1:3)
       bs_env%hmat(1:3, 1:3) = hmat
+      bs_env%nimages_scf = dft_control%nimages
+      IF (dft_control%nimages == 1) THEN
+         bs_env%small_cell_full_kp_or_large_cell_Gamma = large_cell_Gamma
+      ELSE IF (dft_control%nimages > 1) THEN
+         bs_env%small_cell_full_kp_or_large_cell_Gamma = small_cell_full_kp
+      ELSE
+         CPABORT("Wrong number of cells from DFT calculation.")
+      END IF
 
       u = bs_env%unit_nr
 
       IF (u > 0) THEN
-         WRITE (UNIT=u, FMT="(T2,2A,T73,I8)") "Number of occupied molecular orbitals (MOs) ", &
+         WRITE (u, FMT="(T2,2A,T73,I8)") "Number of occupied molecular orbitals (MOs) ", &
             "= Number of occupied bands", homo
-         WRITE (UNIT=u, FMT="(T2,2A,T73,I8)") "Number of unoccupied (= virtual) MOs ", &
+         WRITE (u, FMT="(T2,2A,T73,I8)") "Number of unoccupied (= virtual) MOs ", &
             "= Number of unoccupied bands", n_ao - homo
-         WRITE (UNIT=u, FMT="(T2,A,T73,I8)") "Number of Gaussian basis functions for MOs", n_ao
+         WRITE (u, FMT="(T2,A,T73,I8)") "Number of Gaussian basis functions for MOs", n_ao
+         IF (bs_env%small_cell_full_kp_or_large_cell_Gamma == small_cell_full_kp) THEN
+            WRITE (u, FMT="(T2,2A,T73,I8)") "Number of cells considered in the DFT ", &
+               "calculation", bs_env%nimages_scf
+         END IF
       END IF
 
       CALL timestop(handle)
@@ -598,7 +755,7 @@ CONTAINS
       INTEGER                                            :: handle, i_work, ispin
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_s
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_ks, matrix_s
       TYPE(mp_para_env_type), POINTER                    :: para_env
 
       CALL timeset(routineN, handle)
@@ -606,8 +763,8 @@ CONTAINS
       CALL get_qs_env(qs_env, &
                       para_env=para_env, &
                       blacs_env=blacs_env, &
-                      matrix_ks=matrix_ks, &
-                      matrix_s=matrix_s)
+                      matrix_ks_kp=matrix_ks, &
+                      matrix_s_kp=matrix_s)
 
       NULLIFY (fm_struct)
       CALL cp_fm_struct_create(fm_struct, context=blacs_env, nrow_global=bs_env%n_ao, &
@@ -617,12 +774,15 @@ CONTAINS
          CALL cp_fm_create(bs_env%fm_work_mo(i_work), fm_struct)
       END DO
 
+      CALL cp_cfm_create(bs_env%cfm_work_mo, fm_struct)
+      CALL cp_cfm_create(bs_env%cfm_work_mo_2, fm_struct)
+
       CALL cp_fm_create(bs_env%fm_s_Gamma, fm_struct)
-      CALL copy_dbcsr_to_fm(matrix_s(1)%matrix, bs_env%fm_s_Gamma)
+      CALL copy_dbcsr_to_fm(matrix_s(1, 1)%matrix, bs_env%fm_s_Gamma)
 
       DO ispin = 1, bs_env%n_spin
          CALL cp_fm_create(bs_env%fm_ks_Gamma(ispin), fm_struct)
-         CALL copy_dbcsr_to_fm(matrix_ks(ispin)%matrix, bs_env%fm_ks_Gamma(ispin))
+         CALL copy_dbcsr_to_fm(matrix_ks(ispin, 1)%matrix, bs_env%fm_ks_Gamma(ispin))
          CALL cp_fm_create(bs_env%fm_mo_coeff_Gamma(ispin), fm_struct)
       END DO
 
@@ -630,705 +790,14 @@ CONTAINS
 
       NULLIFY (bs_env%mat_ao_ao%matrix)
       ALLOCATE (bs_env%mat_ao_ao%matrix)
-      CALL dbcsr_create(bs_env%mat_ao_ao%matrix, template=matrix_s(1)%matrix, &
+      CALL dbcsr_create(bs_env%mat_ao_ao%matrix, template=matrix_s(1, 1)%matrix, &
                         matrix_type=dbcsr_type_no_symmetry)
 
-      ALLOCATE (bs_env%eigenval_scf(bs_env%n_ao, bs_env%nkp_DOS, bs_env%n_spin))
+      ALLOCATE (bs_env%eigenval_scf(bs_env%n_ao, bs_env%nkp_bs_and_DOS, bs_env%n_spin))
 
       CALL timestop(handle)
 
    END SUBROUTINE allocate_and_fill_fm_ks_fm_s
-
-! **************************************************************************************************
-!> \brief ...
-!> \param qs_env ...
-!> \param bs_env ...
-! **************************************************************************************************
-   SUBROUTINE setup_primitive_cell_for_bandstructure(qs_env, bs_env)
-      TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'setup_primitive_cell_for_bandstructure'
-
-      INTEGER :: handle, i_atom, i_x_cell, index_j, j_atom, j_atom_prim_cell, j_y_cell, k_z_cell, &
-         n_atom, n_atom_in_primitive_cell, n_max_check, n_max_x, n_max_y, n_max_z, &
-         n_mult_unit_cell_x, n_mult_unit_cell_y, n_mult_unit_cell_z, n_primitive_cells, n_x, n_y, &
-         n_z
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: kind_of
-      LOGICAL :: i_atom_has_image_in_every_subcell, i_atom_has_image_in_subcell_ijk
-      LOGICAL, ALLOCATABLE, DIMENSION(:, :, :)           :: valid_multiple_unit_cell
-      REAL(dp), DIMENSION(3) :: center_primitive_cell, coord_ijk, coord_sub_cell_ijk, &
-         index_atom_i, index_ijk, index_sub_cell_ijk, offset, ra, ra_ijk, rab, rb
-      REAL(KIND=dp)                                      :: dab
-      REAL(KIND=dp), DIMENSION(3, 3)                     :: hmat
-      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
-      TYPE(cell_type), POINTER                           :: cell
-      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
-
-      CALL timeset(routineN, handle)
-
-      CALL get_qs_env(qs_env, atomic_kind_set=atomic_kind_set, particle_set=particle_set, cell=cell)
-      CALL get_atomic_kind_set(atomic_kind_set, kind_of=kind_of)
-      CALL get_cell(cell=cell, h=hmat)
-
-      ! automatically check structure for smallest possible unit cell
-      n_max_check = 20
-      n_max_x = n_max_check*bs_env%periodic(1) + 1
-      n_max_y = n_max_check*bs_env%periodic(2) + 1
-      n_max_z = n_max_check*bs_env%periodic(3) + 1
-
-      ALLOCATE (valid_multiple_unit_cell(n_max_x, n_max_y, n_max_z))
-      valid_multiple_unit_cell(:, :, :) = .TRUE.
-
-      n_atom = bs_env%n_atom
-
-      DO i_atom = 1, n_atom
-
-         IF (.NOT. MODULO(i_atom, bs_env%para_env%num_pe) == bs_env%para_env%mepos) CYCLE
-
-         ra(1:3) = particle_set(i_atom)%r(1:3)
-
-         DO n_x = 1, n_max_x
-            DO n_y = 1, n_max_y
-               DO n_z = 1, n_max_z
-
-                  i_atom_has_image_in_every_subcell = .TRUE.
-
-                  DO i_x_cell = 0, n_x - 1
-                     DO j_y_cell = 0, n_y - 1
-                        DO k_z_cell = 0, n_z - 1
-
-                           i_atom_has_image_in_subcell_ijk = .FALSE.
-
-                           DO j_atom = 1, n_atom
-
-                              IF (kind_of(i_atom) .NE. kind_of(j_atom)) CYCLE
-
-                              IF (i_atom_has_image_in_subcell_ijk) CYCLE
-
-                              IF (.NOT. i_atom_has_image_in_every_subcell) CYCLE
-
-                              index_sub_cell_ijk(1:3) = (/REAL(i_x_cell, dp)/REAL(n_x, dp), &
-                                                          REAL(j_y_cell, dp)/REAL(n_y, dp), &
-                                                          REAL(k_z_cell, dp)/REAL(n_z, dp)/)
-
-                              coord_sub_cell_ijk(1:3) = MATMUL(hmat, index_sub_cell_ijk)
-
-                              ra_ijk(1:3) = ra(1:3) + coord_sub_cell_ijk(1:3)
-
-                              rb(1:3) = pbc(particle_set(j_atom)%r(1:3), cell)
-
-                              rab(1:3) = rb(1:3) - pbc(ra_ijk(1:3), cell)
-
-                              dab = SQRT((rab(1))**2 + (rab(2))**2 + (rab(3))**2)
-
-                              IF (dab < 1.0E-5) i_atom_has_image_in_subcell_ijk = .TRUE.
-
-                           END DO
-
-                           IF (.NOT. i_atom_has_image_in_subcell_ijk) THEN
-                              i_atom_has_image_in_every_subcell = .FALSE.
-                           END IF
-
-                        END DO
-                     END DO
-                  END DO
-
-                  ! a valid multiple unit cell must be valid for all atoms
-                  valid_multiple_unit_cell(n_x, n_y, n_z) = i_atom_has_image_in_every_subcell .AND. &
-                                                            valid_multiple_unit_cell(n_x, n_y, n_z)
-
-               END DO
-            END DO
-         END DO
-
-      END DO
-
-      CALL mpi_AND(valid_multiple_unit_cell, bs_env%para_env)
-
-      n_mult_unit_cell_x = 1
-      n_mult_unit_cell_y = 1
-      n_mult_unit_cell_z = 1
-
-      DO n_x = 1, n_max_x
-         DO n_y = 1, n_max_y
-            DO n_z = 1, n_max_z
-               IF (valid_multiple_unit_cell(n_x, n_y, n_z)) THEN
-                  n_mult_unit_cell_x = MAX(n_mult_unit_cell_x, n_x)
-                  n_mult_unit_cell_y = MAX(n_mult_unit_cell_y, n_y)
-                  n_mult_unit_cell_z = MAX(n_mult_unit_cell_z, n_z)
-               END IF
-            END DO
-         END DO
-      END DO
-
-      bs_env%multiple_unit_cell(1) = n_mult_unit_cell_x
-      bs_env%multiple_unit_cell(2) = n_mult_unit_cell_y
-      bs_env%multiple_unit_cell(3) = n_mult_unit_cell_z
-
-      IF (n_mult_unit_cell_x .NE. 1 .OR. &
-          n_mult_unit_cell_y .NE. 1 .OR. &
-          n_mult_unit_cell_z .NE. 1) THEN
-         bs_env%calculate_bandstructure_of_primitive_cell = .TRUE.
-      ELSE
-         bs_env%calculate_bandstructure_of_primitive_cell = .FALSE.
-      END IF
-
-      n_atom_in_primitive_cell = n_atom/n_mult_unit_cell_x/n_mult_unit_cell_y/n_mult_unit_cell_z
-      bs_env%n_atom_in_primitive_cell = n_atom_in_primitive_cell
-
-      n_primitive_cells = n_atom/n_atom_in_primitive_cell
-      bs_env%n_primitive_cells = n_primitive_cells
-
-      bs_env%hmat_primitive_cell(1, 1:3) = hmat(1, 1:3)/REAL(n_mult_unit_cell_x)
-      bs_env%hmat_primitive_cell(2, 1:3) = hmat(2, 1:3)/REAL(n_mult_unit_cell_y)
-      bs_env%hmat_primitive_cell(3, 1:3) = hmat(3, 1:3)/REAL(n_mult_unit_cell_z)
-
-      bs_env%hinv_primitive_cell = inv_3x3(bs_env%hmat_primitive_cell)
-
-      bs_env%do_bs_primitive_cell = bs_env%do_bs .AND. n_atom_in_primitive_cell < 20 &
-                                    .AND. n_primitive_cells > 1
-
-      ALLOCATE (bs_env%atoms_i_primitive_cell(n_atom_in_primitive_cell))
-      bs_env%atoms_i_primitive_cell(:) = 0
-
-      ! just a small offset to avoid that atoms are precisely on egdes or faces
-      offset(1:3) = MATMUL(bs_env%hmat_primitive_cell, (/0.001_dp, 0.001_dp, 0.001_dp/))
-      center_primitive_cell(1:3) = pbc(particle_set(1)%r(1:3), cell) - offset(1:3)
-
-      index_j = 0
-      DO i_atom = 1, n_atom
-
-         rb(1:3) = pbc(particle_set(i_atom)%r(1:3), cell) - center_primitive_cell(1:3)
-
-         index_atom_i(1:3) = MATMUL(bs_env%hinv_primitive_cell, rb)
-
-         IF (index_atom_i(1) > -0.5_dp .AND. index_atom_i(1) < 0.5_dp .AND. &
-             index_atom_i(2) > -0.5_dp .AND. index_atom_i(2) < 0.5_dp .AND. &
-             index_atom_i(3) > -0.5_dp .AND. index_atom_i(3) < 0.5_dp) THEN
-
-            index_j = index_j + 1
-            CPASSERT(index_j .LE. n_atom_in_primitive_cell)
-            bs_env%atoms_i_primitive_cell(index_j) = i_atom
-
-         END IF
-
-      END DO
-
-      ALLOCATE (bs_env%ref_atom_primitive_cell(n_atom))
-      ALLOCATE (bs_env%cell_of_i_atom(n_atom, 3))
-
-      DO i_atom = 1, n_atom
-
-         ra(1:3) = pbc(particle_set(i_atom)%r(1:3), cell)
-
-         DO j_atom_prim_cell = 1, n_atom_in_primitive_cell
-
-            j_atom = bs_env%atoms_i_primitive_cell(j_atom_prim_cell)
-
-            rb(1:3) = pbc(particle_set(j_atom)%r(1:3), cell)
-
-            DO i_x_cell = -n_mult_unit_cell_x/2, n_mult_unit_cell_x/2
-               DO j_y_cell = -n_mult_unit_cell_y/2, n_mult_unit_cell_y/2
-                  DO k_z_cell = -n_mult_unit_cell_z/2, n_mult_unit_cell_z/2
-
-                     index_ijk(1:3) = (/REAL(i_x_cell, dp), REAL(j_y_cell, dp), REAL(k_z_cell, dp)/)
-                     coord_ijk(1:3) = MATMUL(bs_env%hmat_primitive_cell, index_ijk)
-
-                     ra_ijk(1:3) = ra(1:3) + coord_ijk(1:3)
-
-                     rab(1:3) = rb(1:3) - pbc(ra_ijk(1:3), cell)
-
-                     dab = SQRT((rab(1))**2 + (rab(2))**2 + (rab(3))**2)
-
-                     IF (dab < 1.0E-5) THEN
-                        bs_env%ref_atom_primitive_cell(i_atom) = j_atom
-                        bs_env%cell_of_i_atom(i_atom, 1) = i_x_cell
-                        bs_env%cell_of_i_atom(i_atom, 2) = j_y_cell
-                        bs_env%cell_of_i_atom(i_atom, 3) = k_z_cell
-                     END IF
-
-                  END DO
-               END DO
-            END DO
-         END DO
-      END DO
-      IF (bs_env%unit_nr > 0 .AND. bs_env%calculate_bandstructure_of_primitive_cell) THEN
-         WRITE (bs_env%unit_nr, '(T2,A,3I4)') &
-            'Detected a multiple unit cell (will be used for band structure)    ', &
-            bs_env%multiple_unit_cell
-         WRITE (bs_env%unit_nr, '(T2,A,I28)') &
-            'Number of occupied bands in the primitive unit cell', &
-            bs_env%n_occ(1)/bs_env%n_primitive_cells
-         WRITE (bs_env%unit_nr, '(T2,A,I26)') &
-            'Number of unoccupied bands in the primitive unit cell', &
-            bs_env%n_vir(1)/bs_env%n_primitive_cells
-      END IF
-
-      CALL timestop(handle)
-
-   END SUBROUTINE setup_primitive_cell_for_bandstructure
-
-! **************************************************************************************************
-!> \brief ...
-!> \param logical_array_3d ...
-!> \param para_env ...
-! **************************************************************************************************
-   SUBROUTINE mpi_AND(logical_array_3d, para_env)
-      LOGICAL, ALLOCATABLE, DIMENSION(:, :, :)           :: logical_array_3d
-      TYPE(mp_para_env_type), POINTER                    :: para_env
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'mpi_AND'
-
-      INTEGER                                            :: handle, i, j, k, n_1, n_2, n_3
-      INTEGER, ALLOCATABLE, DIMENSION(:, :, :)           :: integer_array_3d
-
-      CALL timeset(routineN, handle)
-
-      n_1 = SIZE(logical_array_3d, 1)
-      n_2 = SIZE(logical_array_3d, 2)
-      n_3 = SIZE(logical_array_3d, 3)
-
-      ALLOCATE (integer_array_3d(n_1, n_2, n_3))
-      integer_array_3d(:, :, :) = 0
-
-      DO i = 1, n_1
-         DO j = 1, n_2
-            DO k = 1, n_3
-               IF (logical_array_3d(i, j, k)) integer_array_3d(i, j, k) = 1
-            END DO
-         END DO
-      END DO
-
-      CALL para_env%sync()
-      CALL para_env%sum(integer_array_3d)
-      CALL para_env%sync()
-
-      logical_array_3d(:, :, :) = .FALSE.
-
-      DO i = 1, n_1
-         DO j = 1, n_2
-            DO k = 1, n_3
-               IF (integer_array_3d(i, j, k) == para_env%num_pe) logical_array_3d(i, j, k) = .TRUE.
-            END DO
-         END DO
-      END DO
-
-      CALL timestop(handle)
-
-   END SUBROUTINE mpi_AND
-
-! **************************************************************************************************
-!> \brief ...
-!> \param qs_env ...
-!> \param bs_env ...
-!> \param eigenvalues ...
-!> \param filename ...
-!> \param fm_h_Gamma ...
-! **************************************************************************************************
-   SUBROUTINE bandstructure_primitive_cell(qs_env, bs_env, eigenvalues, filename, fm_h_Gamma)
-      TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: eigenvalues
-      CHARACTER(LEN=*)                                   :: filename
-      TYPE(cp_fm_type)                                   :: fm_h_Gamma
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'bandstructure_primitive_cell'
-
-      COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :)     :: h_munu_k, mo_coeff_k, s_munu_k
-      INTEGER :: col_global, handle, i, i_atom, i_dim, i_row, ikp, imo, ip, iunit, j, j_atom, &
-         j_col, n_ao, n_ao_primitive_cell, n_atom, ncol_local, nrow_local, ref_atom_j, row_global
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_from_bf, first_bf_from_atom, &
-                                                            first_bf_of_primit_atom
-      INTEGER, DIMENSION(3)                              :: cell_atom_i, cell_atom_j, min_max_cell
-      INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
-      REAL(KIND=dp)                                      :: arg
-
-      CALL timeset(routineN, handle)
-
-      n_ao = bs_env%n_ao
-      n_ao_primitive_cell = n_ao/bs_env%n_primitive_cells
-      n_atom = bs_env%n_atom
-
-      ALLOCATE (h_munu_k(n_ao_primitive_cell, n_ao_primitive_cell))
-      ALLOCATE (s_munu_k(n_ao_primitive_cell, n_ao_primitive_cell))
-      ALLOCATE (mo_coeff_k(n_ao_primitive_cell, n_ao_primitive_cell))
-      ALLOCATE (eigenvalues(n_ao_primitive_cell, bs_env%nkp_bs))
-
-      ALLOCATE (atom_from_bf(n_ao))
-      ALLOCATE (first_bf_from_atom(n_atom))
-      CALL get_atom_index_from_basis_function_index(qs_env, atom_from_bf, n_ao, "ORB", &
-                                                    first_bf_from_atom)
-
-      ALLOCATE (first_bf_of_primit_atom(n_atom))
-      CALL get_basis_function_index_of_primitive_atoms(bs_env, first_bf_of_primit_atom, &
-                                                       first_bf_from_atom)
-
-      IF (bs_env%para_env%is_source()) THEN
-         CALL open_file(filename, unit_number=iunit, file_status="REPLACE", &
-                        file_action="WRITE", file_position="APPEND")
-      ELSE
-         iunit = -1
-      END IF
-
-      IF (iunit > 0) THEN
-
-         WRITE (UNIT=iunit, FMT="(2(A,I0),A)") "# ", &
-            bs_env%input_kp_bs_n_sp_pts, " special points, ", bs_env%nkp_bs, " k-points"
-         DO ip = 1, bs_env%input_kp_bs_n_sp_pts
-            WRITE (UNIT=iunit, FMT="(A,I0,T20,T24,3(1X,F14.8),2X,A)") &
-               "#  Special point ", ip, bs_env%xkp_special(1:3, ip), &
-               ADJUSTL(TRIM(bs_env%kp_special_name(ip)))
-         END DO
-
-      END IF
-
-      CALL cp_fm_get_info(matrix=fm_h_Gamma, &
-                          nrow_local=nrow_local, &
-                          ncol_local=ncol_local, &
-                          row_indices=row_indices, &
-                          col_indices=col_indices)
-
-      DO i_dim = 1, 3
-         min_max_cell(i_dim) = MIN(MAXVAL(bs_env%cell_of_i_atom(:, i_dim)), &
-                                   MAXVAL(-bs_env%cell_of_i_atom(:, i_dim)))
-      END DO
-
-      DO ikp = 1, bs_env%nkp_bs
-
-         h_munu_k = z_zero
-         s_munu_k = z_zero
-
-         DO i_row = 1, nrow_local
-            DO j_col = 1, ncol_local
-
-               row_global = row_indices(i_row)
-               col_global = col_indices(j_col)
-
-               i_atom = atom_from_bf(row_global)
-               j_atom = atom_from_bf(col_global)
-
-               cell_atom_i = bs_env%cell_of_i_atom(i_atom, 1:3)
-
-               ! atom_i must be in the primitive cell (0,0,0)
-               ! (because we calculate h_mu,nu(k) = \sum_R <mu,cell o|h|nu,cell R>
-               IF (ANY(cell_atom_i(1:3) .NE. 0)) CYCLE
-
-               cell_atom_j = bs_env%cell_of_i_atom(j_atom, 1:3)
-
-               ! only consider symmetric cell summation, i.e. cell (4,-2,0) needs to have
-               ! counterpart (-4,2,0). In case we have 7x7 cell, (-4,2,0) will be absent
-               IF (ANY(ABS(cell_atom_j(1:3)) > min_max_cell(1:3))) CYCLE
-
-               arg = (REAL(cell_atom_j(1), dp)*bs_env%kpoints_bandstructure%xkp(1, ikp) + &
-                      REAL(cell_atom_j(2), dp)*bs_env%kpoints_bandstructure%xkp(2, ikp) + &
-                      REAL(cell_atom_j(3), dp)*bs_env%kpoints_bandstructure%xkp(3, ikp))*twopi
-
-               ref_atom_j = bs_env%ref_atom_primitive_cell(j_atom)
-
-               i = row_global - first_bf_from_atom(i_atom) + first_bf_of_primit_atom(i_atom)
-               j = col_global - first_bf_from_atom(j_atom) + first_bf_of_primit_atom(ref_atom_j)
-
-               h_munu_k(i, j) = h_munu_k(i, j) + &
-                                COS(arg)*fm_h_Gamma%local_data(i_row, j_col)*z_one + &
-                                SIN(arg)*fm_h_Gamma%local_data(i_row, j_col)*gaussi
-
-               s_munu_k(i, j) = s_munu_k(i, j) + &
-                                COS(arg)*bs_env%fm_s_Gamma%local_data(i_row, j_col)*z_one + &
-                                SIN(arg)*bs_env%fm_s_Gamma%local_data(i_row, j_col)*gaussi
-            END DO ! j_col
-         END DO ! i_row
-
-         CALL bs_env%para_env%sync()
-         CALL bs_env%para_env%sum(h_munu_k)
-         CALL bs_env%para_env%sum(s_munu_k)
-         CALL bs_env%para_env%sync()
-
-         CALL complex_geeig(h_munu_k, s_munu_k, mo_coeff_k, eigenvalues(:, ikp))
-
-         IF (iunit > 0) THEN
-
-            WRITE (UNIT=iunit, FMT="(A,I0,T15,A,T24,3(1X,F14.8))") &
-               "#  Point ", ikp, ":", bs_env%kpoints_bandstructure%xkp(1:3, ikp)
-            WRITE (UNIT=iunit, FMT="(A)") "#   Band    Energy [eV]"
-            DO imo = 1, n_ao_primitive_cell
-               WRITE (UNIT=iunit, FMT="(T2,I7,1X,F14.8)") imo, eigenvalues(imo, ikp)*evolt
-            END DO
-
-         END IF
-
-      END DO ! ikp
-
-      IF (bs_env%para_env%is_source()) CALL close_file(unit_number=iunit)
-
-      CALL timestop(handle)
-
-   END SUBROUTINE bandstructure_primitive_cell
-
-! **************************************************************************************************
-!> \brief ...
-!> \param qs_env ...
-!> \param bs_env ...
-!> \param eigenvalues ...
-!> \param filename ...
-!> \param cfm_h_Gamma_spinor ...
-! **************************************************************************************************
-   SUBROUTINE bandstructure_primitive_cell_spinor(qs_env, bs_env, eigenvalues, filename, &
-                                                  cfm_h_Gamma_spinor)
-      TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: eigenvalues
-      CHARACTER(LEN=*)                                   :: filename
-      TYPE(cp_cfm_type)                                  :: cfm_h_Gamma_spinor
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'bandstructure_primitive_cell_spinor'
-
-      COMPLEX(KIND=dp)                                   :: arg, s_z
-      COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:)        :: s_dot_mo_coeff_down, s_dot_mo_coeff_up
-      COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :)     :: h_munu_k, mo_coeff_k, s_munu_k, &
-                                                            s_munu_k_single
-      INTEGER :: col_global, handle, i, i_atom, i_atom_non_spinor, i_dim, i_row, ikp, imo, ip, &
-         iunit, j, j_atom, j_atom_non_spinor, j_col, n_ao, n_ao_primitive_cell, n_atom, &
-         n_atom_primitive_cell, ncol_local, nrow_local, ref_atom_j, row_global
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_from_bf, first_bf_from_atom, &
-                                                            first_bf_of_primit_atom
-      INTEGER, DIMENSION(3)                              :: cell_atom_i, cell_atom_j, min_max_cell
-      INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
-
-      CALL timeset(routineN, handle)
-
-      n_ao = bs_env%n_ao
-      n_ao_primitive_cell = n_ao/bs_env%n_primitive_cells
-      n_atom = bs_env%n_atom
-      n_atom_primitive_cell = n_atom/bs_env%n_primitive_cells
-
-      ALLOCATE (h_munu_k(2*n_ao_primitive_cell, 2*n_ao_primitive_cell))
-      ALLOCATE (s_munu_k(2*n_ao_primitive_cell, 2*n_ao_primitive_cell))
-      ALLOCATE (s_munu_k_single(n_ao_primitive_cell, n_ao_primitive_cell))
-      ALLOCATE (mo_coeff_k(2*n_ao_primitive_cell, 2*n_ao_primitive_cell))
-      ALLOCATE (eigenvalues(2*n_ao_primitive_cell, bs_env%nkp_bs))
-      ALLOCATE (s_dot_mo_coeff_up(n_ao_primitive_cell))
-      ALLOCATE (s_dot_mo_coeff_down(n_ao_primitive_cell))
-
-      ALLOCATE (atom_from_bf(2*n_ao))
-      ALLOCATE (first_bf_from_atom(2*n_atom))
-      CALL get_atom_index_from_basis_function_index(qs_env, atom_from_bf, n_ao, "ORB", &
-                                                    first_bf_from_atom)
-      atom_from_bf(n_ao + 1:2*n_ao) = atom_from_bf(1:n_ao) + n_atom
-      first_bf_from_atom(n_atom + 1:2*n_atom) = first_bf_from_atom(1:n_atom) + n_ao
-
-      ALLOCATE (first_bf_of_primit_atom(2*n_atom))
-      CALL get_basis_function_index_of_primitive_atoms(bs_env, first_bf_of_primit_atom, &
-                                                       first_bf_from_atom)
-      first_bf_of_primit_atom(n_atom + 1:2*n_atom) = first_bf_of_primit_atom(1:n_atom) &
-                                                     + n_ao_primitive_cell
-
-      IF (bs_env%para_env%is_source()) THEN
-         CALL open_file(filename, unit_number=iunit, file_status="REPLACE", &
-                        file_action="WRITE", file_position="APPEND")
-      ELSE
-         iunit = -1
-      END IF
-
-      IF (iunit > 0) THEN
-
-         WRITE (UNIT=iunit, FMT="(2(A,I0),A)") "# ", &
-            bs_env%input_kp_bs_n_sp_pts, " special points, ", bs_env%nkp_bs, " k-points"
-         DO ip = 1, bs_env%input_kp_bs_n_sp_pts
-            WRITE (UNIT=iunit, FMT="(A,I0,T20,T24,3(1X,F14.8),2X,A)") &
-               "#  Special point ", ip, bs_env%xkp_special(1:3, ip), &
-               ADJUSTL(TRIM(bs_env%kp_special_name(ip)))
-         END DO
-
-      END IF
-
-      CALL cp_cfm_get_info(matrix=cfm_h_Gamma_spinor, &
-                           nrow_local=nrow_local, &
-                           ncol_local=ncol_local, &
-                           row_indices=row_indices, &
-                           col_indices=col_indices)
-
-      DO i_dim = 1, 3
-         min_max_cell(i_dim) = MIN(MAXVAL(bs_env%cell_of_i_atom(:, i_dim)), &
-                                   MAXVAL(-bs_env%cell_of_i_atom(:, i_dim)))
-      END DO
-
-      DO ikp = 1, bs_env%nkp_bs
-
-         h_munu_k = z_zero
-         s_munu_k = z_zero
-
-         DO i_row = 1, nrow_local
-            DO j_col = 1, ncol_local
-
-               row_global = row_indices(i_row)
-               col_global = col_indices(j_col)
-
-               i_atom = atom_from_bf(row_global)
-               j_atom = atom_from_bf(col_global)
-
-               IF (i_atom > n_atom) THEN
-                  i_atom_non_spinor = i_atom - n_atom
-               ELSE
-                  i_atom_non_spinor = i_atom
-               END IF
-
-               IF (j_atom > n_atom) THEN
-                  j_atom_non_spinor = j_atom - n_atom
-               ELSE
-                  j_atom_non_spinor = j_atom
-               END IF
-
-               cell_atom_i = bs_env%cell_of_i_atom(i_atom_non_spinor, 1:3)
-
-               ! atom_i must be in the primitive cell (0,0,0)
-               ! (because we calculate h_mu,nu(k) = \sum_R <mu,cell o|h|nu,cell R>
-               IF (ANY(cell_atom_i(1:3) .NE. 0)) CYCLE
-
-               cell_atom_j = bs_env%cell_of_i_atom(j_atom_non_spinor, 1:3)
-
-               ! only consider symmetric cell summation, i.e. cell (4,-2,0) needs to have
-               ! counterpart (-4,2,0). In case we have 7x7 cell, (-4,2,0) will be absent
-               IF (ANY(ABS(cell_atom_j(1:3)) > min_max_cell(1:3))) CYCLE
-
-               arg = (REAL(cell_atom_j(1), dp)*bs_env%kpoints_bandstructure%xkp(1, ikp) + &
-                      REAL(cell_atom_j(2), dp)*bs_env%kpoints_bandstructure%xkp(2, ikp) + &
-                      REAL(cell_atom_j(3), dp)*bs_env%kpoints_bandstructure%xkp(3, ikp))*twopi
-
-               IF (j_atom > n_atom) THEN
-                  ref_atom_j = bs_env%ref_atom_primitive_cell(j_atom_non_spinor) + n_atom
-               ELSE
-                  ref_atom_j = bs_env%ref_atom_primitive_cell(j_atom)
-               END IF
-
-               i = row_global - first_bf_from_atom(i_atom) + first_bf_of_primit_atom(i_atom)
-               j = col_global - first_bf_from_atom(j_atom) + first_bf_of_primit_atom(ref_atom_j)
-
-               h_munu_k(i, j) = h_munu_k(i, j) + &
-                                COS(arg)*cfm_h_Gamma_spinor%local_data(i_row, j_col) + &
-                                SIN(arg)*cfm_h_Gamma_spinor%local_data(i_row, j_col)*gaussi
-
-               s_munu_k(i, j) = s_munu_k(i, j) + &
-                                COS(arg)*bs_env%cfm_s_spinor_Gamma%local_data(i_row, j_col) + &
-                                SIN(arg)*bs_env%cfm_s_spinor_Gamma%local_data(i_row, j_col)*gaussi
-
-            END DO ! j_col
-         END DO ! i_row
-
-         CALL bs_env%para_env%sync()
-         CALL bs_env%para_env%sum(h_munu_k)
-         CALL bs_env%para_env%sum(s_munu_k)
-         CALL bs_env%para_env%sync()
-
-         CALL complex_geeig(h_munu_k, s_munu_k, mo_coeff_k, eigenvalues(:, ikp))
-
-         IF (iunit > 0) THEN
-
-            s_munu_k_single(:, :) = s_munu_k(1:n_ao_primitive_cell, 1:n_ao_primitive_cell)
-
-            WRITE (UNIT=iunit, FMT="(A,I0,T15,A,T24,3(1X,F14.8))") &
-               "#  Point ", ikp, ":", bs_env%kpoints_bandstructure%xkp(1:3, ikp)
-            WRITE (UNIT=iunit, FMT="(A)") "#   Band    Energy [eV]     <S_z> / (ħ/2) "
-            DO imo = 1, 2*n_ao_primitive_cell
-               s_dot_mo_coeff_up(:) = MATMUL(s_munu_k_single, &
-                                             mo_coeff_k(1:n_ao_primitive_cell, imo))
-               s_dot_mo_coeff_down(:) = MATMUL(s_munu_k_single, &
-                                               mo_coeff_k(n_ao_primitive_cell + 1:, imo))
-               s_z = SUM(CONJG(mo_coeff_k(1:n_ao_primitive_cell, imo))*s_dot_mo_coeff_up) - &
-                     SUM(CONJG(mo_coeff_k(n_ao_primitive_cell + 1:, imo))*s_dot_mo_coeff_down)
-               WRITE (UNIT=iunit, FMT="(T2,I7,1X,2F14.8)") imo, eigenvalues(imo, ikp)*evolt, &
-                  REAL(s_z, KIND=dp)
-            END DO
-
-         END IF
-
-      END DO ! ikp
-
-      IF (bs_env%para_env%is_source()) CALL close_file(unit_number=iunit)
-
-      CALL timestop(handle)
-
-   END SUBROUTINE bandstructure_primitive_cell_spinor
-
-! **************************************************************************************************
-!> \brief Solves generalized, complex eigenvalue problem, HC = SCε by diagonalizing S^-0.5*H*S^-0.5
-!> \param matrix ...
-!> \param overlap ...
-!> \param eigenvectors ...
-!> \param eigenvalues ...
-! **************************************************************************************************
-   SUBROUTINE complex_geeig(matrix, overlap, eigenvectors, eigenvalues)
-
-      COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(INOUT)   :: matrix, overlap, eigenvectors
-      REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: eigenvalues
-
-      COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :)     :: overlap_sqrt_inv, work_1, work_2
-      INTEGER                                            :: i, n
-      LOGICAL                                            :: check_size
-
-      n = SIZE(matrix, 1)
-
-      check_size = SIZE(matrix, 2) == n .AND. SIZE(overlap, 1) == n .AND. &
-                   SIZE(eigenvalues) == n .AND. &
-                   SIZE(eigenvectors, 1) == n .AND. SIZE(eigenvectors, 2) == n
-      CPASSERT(check_size)
-
-      ALLOCATE (work_1(n, n), work_2(n, n), overlap_sqrt_inv(n, n))
-
-      CALL complex_diag(overlap, eigenvectors, eigenvalues)
-
-      work_1(:, :) = z_zero
-      DO i = 1, n
-         IF (eigenvalues(i) > 1.0E-5_dp) THEN
-            work_1(i, i) = eigenvalues(i)**(-0.5_dp)
-         END IF
-      END DO
-      work_2(:, :) = MATMUL(work_1, TRANSPOSE(CONJG(eigenvectors)))
-      overlap_sqrt_inv(:, :) = MATMUL(eigenvectors, work_2)
-
-      work_1(:, :) = MATMUL(matrix, overlap_sqrt_inv)
-      work_2(:, :) = MATMUL(overlap_sqrt_inv, work_1)
-
-      CALL complex_diag(work_2, eigenvectors, eigenvalues)
-
-      work_2(:, :) = MATMUL(overlap_sqrt_inv, eigenvectors)
-      eigenvectors(:, :) = work_2(:, :)
-
-   END SUBROUTINE complex_geeig
-
-! **************************************************************************************************
-!> \brief ...
-!> \param bs_env ...
-!> \param first_bf_of_primit_atom ...
-!> \param first_bf_from_atom ...
-! **************************************************************************************************
-   SUBROUTINE get_basis_function_index_of_primitive_atoms(bs_env, first_bf_of_primit_atom, &
-                                                          first_bf_from_atom)
-      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: first_bf_of_primit_atom, &
-                                                            first_bf_from_atom
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'get_basis_function_index_of_primitive_atoms'
-
-      INTEGER                                            :: handle, i_atom, n_atom, n_bf_of_atom_i
-
-      CALL timeset(routineN, handle)
-
-      first_bf_of_primit_atom(:) = 1
-
-      n_atom = bs_env%n_atom
-
-      DO i_atom = 2, n_atom
-         IF (ANY(bs_env%atoms_i_primitive_cell(:) == i_atom)) THEN
-            n_bf_of_atom_i = first_bf_from_atom(i_atom) - first_bf_from_atom(i_atom - 1)
-            first_bf_of_primit_atom(i_atom:n_atom) = first_bf_of_primit_atom(i_atom:n_atom) &
-                                                     + n_bf_of_atom_i
-         END IF
-      END DO
-
-      CALL timestop(handle)
-
-   END SUBROUTINE get_basis_function_index_of_primitive_atoms
 
 ! **************************************************************************************************
 !> \brief ...
@@ -1342,11 +811,13 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'dos_pdos_ldos'
 
       INTEGER                                            :: handle, homo, homo_1, homo_2, &
-                                                            homo_spinor, ikp, ispin, n_ao, n_E, &
-                                                            nkind
+                                                            homo_spinor, ikp, ikp_for_filename, &
+                                                            ispin, n_ao, n_E, nkind, nkp
+      LOGICAL                                            :: is_bandstruc_kpoint, print_DOS_kpoints, &
+                                                            print_ikp
       REAL(KIND=dp)                                      :: broadening, E_max, E_max_G0W0, E_min, &
                                                             E_min_G0W0, E_total_window, &
-                                                            energy_step_DOS, energy_window_DOS
+                                                            energy_step_DOS, energy_window_DOS, t1
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: DOS_G0W0, DOS_G0W0_SOC, DOS_scf, DOS_scf_SOC, &
          eigenval, eigenval_spinor, eigenval_spinor_G0W0, eigenval_spinor_no_SOC
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: PDOS_G0W0, PDOS_G0W0_SOC, PDOS_scf, &
@@ -1480,24 +951,47 @@ CONTAINS
          WRITE (bs_env%unit_nr, '(A)') ''
       END IF
 
-      DO ikp = 1, bs_env%kpoints_DOS%nkp
+      IF (bs_env%small_cell_full_kp_or_large_cell_Gamma == small_cell_full_kp) THEN
+         CALL cp_cfm_create(cfm_ks_ikp, bs_env%fm_ks_kp(1, 1, 1)%matrix_struct)
+         CALL cp_cfm_create(cfm_s_ikp, bs_env%fm_ks_kp(1, 1, 1)%matrix_struct)
+      END IF
 
-         bs_env%t1 = m_walltime()
+      DO ikp = 1, bs_env%nkp_bs_and_DOS
+
+         t1 = m_walltime()
 
          DO ispin = 1, bs_env%n_spin
 
-            ! 1. get H^KS_µν(k_i) from H^KS_µν(k=0)
-            CALL cfm_ikp_from_fm_Gamma(cfm_ks_ikp, bs_env%fm_ks_Gamma(ispin), &
-                                       ikp, qs_env, bs_env%kpoints_DOS, "ORB")
+            SELECT CASE (bs_env%small_cell_full_kp_or_large_cell_Gamma)
+            CASE (large_cell_Gamma)
 
-            ! 2. get S_µν(k_i) from S_µν(k=0)
-            CALL cfm_ikp_from_fm_Gamma(cfm_s_ikp, bs_env%fm_s_Gamma, &
-                                       ikp, qs_env, bs_env%kpoints_DOS, "ORB")
-            CALL cp_cfm_to_cfm(cfm_s_ikp, cfm_s_ikp_copy)
+               ! 1. get H^KS_µν(k_i) from H^KS_µν(k=0)
+               CALL cfm_ikp_from_fm_Gamma(cfm_ks_ikp, bs_env%fm_ks_Gamma(ispin), &
+                                          ikp, qs_env, bs_env%kpoints_DOS, "ORB")
 
-            ! 3. Diagonalize (Roothaan-Hall): H_KS(k_i)*C(k_i) = S(k_i)*C(k_i)*ϵ(k_i)
-            CALL cp_cfm_geeig(cfm_ks_ikp, cfm_s_ikp_copy, cfm_mos_ikp(ispin), &
-                              eigenval, cfm_work_ikp)
+               ! 2. get S_µν(k_i) from S_µν(k=0)
+               CALL cfm_ikp_from_fm_Gamma(cfm_s_ikp, bs_env%fm_s_Gamma, &
+                                          ikp, qs_env, bs_env%kpoints_DOS, "ORB")
+               CALL cp_cfm_to_cfm(cfm_s_ikp, cfm_s_ikp_copy)
+
+               ! 3. Diagonalize (Roothaan-Hall): H_KS(k_i)*C(k_i) = S(k_i)*C(k_i)*ϵ(k_i)
+               CALL cp_cfm_geeig(cfm_ks_ikp, cfm_s_ikp_copy, cfm_mos_ikp(ispin), &
+                                 eigenval, cfm_work_ikp)
+
+            CASE (small_cell_full_kp)
+
+               ! 1. get H^KS_µν(k_i)
+               CALL cp_fm_to_cfm(bs_env%fm_ks_kp(ikp, ispin, 1), &
+                                 bs_env%fm_ks_kp(ikp, ispin, 2), cfm_ks_ikp)
+               ! 2. get S_µν(k_i)
+               CALL cp_fm_to_cfm(bs_env%fm_s_kp(ikp, ispin, 1), &
+                                 bs_env%fm_s_kp(ikp, ispin, 2), cfm_s_ikp)
+               ! 3. get C_µn(k_i) and ϵ_n(k_i)
+               CALL cp_fm_to_cfm(bs_env%fm_mo_coeff_kp(ikp, ispin, 1), &
+                                 bs_env%fm_mo_coeff_kp(ikp, ispin, 2), cfm_mos_ikp(ispin))
+               eigenval(:) = bs_env%eigenval_scf(:, ikp, ispin)
+
+            END SELECT
 
             ! 4. Projection p_nk^A of MO ψ_nk(r) on atom type A (inspired by Mulliken charge)
             !    p_nk^A = sum_µ^A,ν C*_µ^A,n(k) S_µ^A,ν(k) C_ν,n(k)
@@ -1533,12 +1027,28 @@ CONTAINS
          ! now the same with spin-orbit coupling
          IF (bs_env%do_soc) THEN
 
+            ! only print eigenvalues of DOS k-points in case no bandstructure path has been given
+            print_DOS_kpoints = (bs_env%nkp_only_bs .LE. 0)
+            ! in kpoints_DOS, the last nkp_only_bs are bandstructure k-points
+            is_bandstruc_kpoint = (ikp > bs_env%nkp_only_DOS)
+            print_ikp = print_DOS_kpoints .OR. is_bandstruc_kpoint
+
+            IF (print_DOS_kpoints) THEN
+               nkp = bs_env%nkp_only_DOS
+               ikp_for_filename = ikp
+            ELSE
+               nkp = bs_env%nkp_only_bs
+               ikp_for_filename = ikp - bs_env%nkp_only_DOS
+            END IF
+
             ! compute DFT+SOC eigenvalues; based on these, compute band edges, DOS and LDOS
             CALL SOC(bs_env, qs_env, ikp, bs_env%eigenval_scf, band_edges_scf, E_min, cfm_mos_ikp, &
                      DOS_scf_SOC, PDOS_scf_SOC, band_edges_scf_SOC, eigenval_spinor, &
                      cfm_spinor_wf_ikp)
 
-            IF (.NOT. bs_env%do_gw) CALL write_SOC_eigenvalues(eigenval_spinor, "SCF", ikp, bs_env)
+            IF (.NOT. bs_env%do_gw .AND. print_ikp) THEN
+               CALL write_SOC_eigenvalues(eigenval_spinor, "SCF", ikp_for_filename, nkp, bs_env)
+            END IF
 
             IF (bs_env%do_ldos) THEN
                CALL add_to_LDOS_2d(LDOS_scf_2d_SOC, qs_env, ikp, bs_env, cfm_spinor_wf_ikp, &
@@ -1552,19 +1062,21 @@ CONTAINS
                         E_min, cfm_mos_ikp, DOS_G0W0_SOC, PDOS_G0W0_SOC, &
                         band_edges_G0W0_SOC, eigenval_spinor_G0W0, cfm_spinor_wf_ikp)
 
-               ! write SCF+SOC and G0W0+SOC eigenvalues to file
-               ! SCF_and_G0W0_band_structure_for_kpoint_<ikp>_+_SOC
-               CALL write_SOC_eigenvalues(eigenval_spinor, "SCF_and_G0W0", ikp, bs_env, &
-                                          eigenval_spinor_G0W0)
+               IF (print_ikp) THEN
+                  ! write SCF+SOC and G0W0+SOC eigenvalues to file
+                  ! SCF_and_G0W0_band_structure_for_kpoint_<ikp>_+_SOC
+                  CALL write_SOC_eigenvalues(eigenval_spinor, "SCF_and_G0W0", ikp_for_filename, &
+                                             nkp, bs_env, eigenval_spinor_G0W0)
+               END IF
 
             END IF ! do_gw
 
          END IF ! do_soc
 
-         IF (bs_env%unit_nr > 0) THEN
+         IF (bs_env%unit_nr > 0 .AND. m_walltime() - t1 > 20.0_dp) THEN
             WRITE (bs_env%unit_nr, '(T2,A,T43,I5,A,I3,A,F7.1,A)') &
-               'Compute DOS, LDOS for k-point ', ikp, ' /', bs_env%kpoints_DOS%nkp, &
-               ',    Execution time', m_walltime() - bs_env%t1, ' s'
+               'Compute DOS, LDOS for k-point ', ikp, ' /', bs_env%nkp_bs_and_DOS, &
+               ',    Execution time', m_walltime() - t1, ' s'
          END IF
 
       END DO ! ikp_DOS
@@ -1597,6 +1109,7 @@ CONTAINS
 
       IF (bs_env%do_gw) THEN
          CALL write_band_edges(band_edges_G0W0, "G0W0", bs_env)
+         CALL write_band_edges(bs_env%band_edges_HF, "Hartree-Fock with SCF orbitals", bs_env)
          CALL write_dos_pdos(DOS_G0W0, PDOS_G0W0, bs_env, qs_env, "G0W0", E_min, &
                              band_edges_G0W0%VBM)
          IF (bs_env%do_ldos) THEN
@@ -2005,8 +1518,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'add_to_DOS_PDOS'
 
-      INTEGER                                            :: handle, i_E, i_kind, i_mo, n_mo, &
-                                                            n_primitive_cells, nkind
+      INTEGER                                            :: handle, i_E, i_kind, i_mo, n_mo, nkind
       REAL(KIND=dp)                                      :: broadening, energy, energy_step_DOS, wkp
 
       CALL timeset(routineN, handle)
@@ -2014,14 +1526,11 @@ CONTAINS
       energy_step_DOS = bs_env%energy_step_DOS
       broadening = bs_env%broadening_DOS
 
-      n_primitive_cells = 1
-      IF (bs_env%do_bs) n_primitive_cells = bs_env%n_primitive_cells
-
       n_mo = SIZE(eigenval)
       nkind = SIZE(proj_mo_on_kind, 2)
 
-      ! normalize to the primitive cell and to closed-shell / open-shell
-      wkp = bs_env%kpoints_DOS%wkp(ikp)/n_primitive_cells*bs_env%spin_degeneracy
+      ! normalize to closed-shell / open-shell
+      wkp = bs_env%kpoints_DOS%wkp(ikp)*bs_env%spin_degeneracy
       DO i_E = 1, n_E
          energy = E_min + i_E*energy_step_DOS
          DO i_mo = 1, n_mo
@@ -2095,7 +1604,7 @@ CONTAINS
 
       ! previously, dft_control%nimages set to # neighbor cells, revert for Γ-only KS matrix
       nimages = dft_control%nimages
-      dft_control%nimages = 1
+      dft_control%nimages = bs_env%nimages_scf
 
       energy_window = bs_env%energy_window_DOS
       energy_step = bs_env%energy_step_DOS
@@ -2254,14 +1763,15 @@ CONTAINS
 !> \param eigenval_spinor ...
 !> \param scf_gw ...
 !> \param ikp ...
+!> \param nkp ...
 !> \param bs_env ...
 !> \param eigenval_spinor_G0W0 ...
 ! **************************************************************************************************
-   SUBROUTINE write_SOC_eigenvalues(eigenval_spinor, scf_gw, ikp, bs_env, eigenval_spinor_G0W0)
+   SUBROUTINE write_SOC_eigenvalues(eigenval_spinor, scf_gw, ikp, nkp, bs_env, eigenval_spinor_G0W0)
 
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigenval_spinor
       CHARACTER(LEN=*)                                   :: scf_gw
-      INTEGER                                            :: ikp
+      INTEGER                                            :: ikp, nkp
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), OPTIONAL :: eigenval_spinor_G0W0
 
@@ -2273,7 +1783,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      CALL get_fname(fname, bs_env, ikp, scf_gw, SOC=.TRUE.)
+      CALL get_fname(fname, bs_env, ikp, nkp, scf_gw, SOC=.TRUE.)
 
       IF (bs_env%para_env%is_source()) THEN
 
@@ -2312,14 +1822,15 @@ CONTAINS
 !> \param fname ...
 !> \param bs_env ...
 !> \param ikp ...
+!> \param nkp ...
 !> \param scf_gw ...
 !> \param ispin ...
 !> \param SOC ...
 ! **************************************************************************************************
-   SUBROUTINE get_fname(fname, bs_env, ikp, scf_gw, ispin, SOC)
+   SUBROUTINE get_fname(fname, bs_env, ikp, nkp, scf_gw, ispin, SOC)
       CHARACTER(len=default_string_length)               :: fname
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
-      INTEGER                                            :: ikp
+      INTEGER                                            :: ikp, nkp
       CHARACTER(len=*)                                   :: scf_gw
       INTEGER, OPTIONAL                                  :: ispin
       LOGICAL, OPTIONAL                                  :: SOC
@@ -2336,7 +1847,7 @@ CONTAINS
       my_SOC = .FALSE.
       IF (PRESENT(SOC)) my_SOC = SOC
 
-      n_zeros = count_digits(bs_env%kpoints_DOS%nkp) - count_digits(ikp)
+      n_zeros = count_digits(nkp) - count_digits(ikp)
 
       WRITE (digits_ikp, '(I1)') count_digits(ikp)
 
@@ -2934,5 +2445,76 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE MIC_contribution_from_ikp
+
+! **************************************************************************************************
+!> \brief ...
+!> \param xkp ...
+!> \param ikp_start ...
+!> \param ikp_end ...
+!> \param grid ...
+! **************************************************************************************************
+   SUBROUTINE compute_xkp(xkp, ikp_start, ikp_end, grid)
+
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: xkp
+      INTEGER                                            :: ikp_start, ikp_end
+      INTEGER, DIMENSION(3)                              :: grid
+
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'compute_xkp'
+
+      INTEGER                                            :: handle, i, ix, iy, iz
+
+      CALL timeset(routineN, handle)
+
+      i = ikp_start
+      DO ix = 1, grid(1)
+         DO iy = 1, grid(2)
+            DO iz = 1, grid(3)
+
+               IF (i > ikp_end) CYCLE
+
+               xkp(1, i) = REAL(2*ix - grid(1) - 1, KIND=dp)/(2._dp*REAL(grid(1), KIND=dp))
+               xkp(2, i) = REAL(2*iy - grid(2) - 1, KIND=dp)/(2._dp*REAL(grid(2), KIND=dp))
+               xkp(3, i) = REAL(2*iz - grid(3) - 1, KIND=dp)/(2._dp*REAL(grid(3), KIND=dp))
+               i = i + 1
+
+            END DO
+         END DO
+      END DO
+
+      CALL timestop(handle)
+
+   END SUBROUTINE compute_xkp
+
+! **************************************************************************************************
+!> \brief ...
+!> \param kpoints ...
+!> \param qs_env ...
+! **************************************************************************************************
+   SUBROUTINE kpoint_init_cell_index_simple(kpoints, qs_env)
+
+      TYPE(kpoint_type), POINTER                         :: kpoints
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'kpoint_init_cell_index_simple'
+
+      INTEGER                                            :: handle, nimages
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
+         POINTER                                         :: sab_orb
+
+      CALL timeset(routineN, handle)
+
+      NULLIFY (dft_control, para_env, sab_orb)
+      CALL get_qs_env(qs_env=qs_env, para_env=para_env, dft_control=dft_control, sab_orb=sab_orb)
+      nimages = dft_control%nimages
+      CALL kpoint_init_cell_index(kpoints, sab_orb, para_env, dft_control)
+
+      ! set back dft_control%nimages
+      dft_control%nimages = nimages
+
+      CALL timestop(handle)
+
+   END SUBROUTINE kpoint_init_cell_index_simple
 
 END MODULE post_scf_bandstructure_utils
