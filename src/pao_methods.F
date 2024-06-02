@@ -19,12 +19,12 @@ MODULE pao_methods
                                               cite_reference
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_api,                    ONLY: &
-        dbcsr_add, dbcsr_binary_read, dbcsr_checksum, dbcsr_complete_redistribute, &
-        dbcsr_copy_into_existing, dbcsr_create, dbcsr_desymmetrize, dbcsr_distribution_get, &
-        dbcsr_distribution_new, dbcsr_distribution_type, dbcsr_dot, dbcsr_filter, &
-        dbcsr_get_block_p, dbcsr_get_info, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
-        dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_p_type, &
-        dbcsr_release, dbcsr_reserve_diag_blocks, dbcsr_scale, dbcsr_set, dbcsr_type
+        dbcsr_add, dbcsr_binary_read, dbcsr_checksum, dbcsr_complete_redistribute, dbcsr_copy, &
+        dbcsr_create, dbcsr_desymmetrize, dbcsr_distribution_get, dbcsr_distribution_new, &
+        dbcsr_distribution_type, dbcsr_dot, dbcsr_filter, dbcsr_get_block_p, dbcsr_get_info, &
+        dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_start, &
+        dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_p_type, dbcsr_release, &
+        dbcsr_reserve_diag_blocks, dbcsr_scale, dbcsr_set, dbcsr_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type,&
                                               cp_to_string
@@ -584,7 +584,7 @@ CONTAINS
          cs_pos = dbcsr_checksum(matrix_tmp, pos=.TRUE.)
          IF (pao%iw > 0) WRITE (pao%iw, *) "PAO| Read restart DM "// &
             TRIM(pao%preopt_dm_file)//" with checksum: ", cs_pos
-         CALL dbcsr_copy_into_existing(rho_ao(ispin)%matrix, matrix_tmp)
+         CALL dbcsr_copy(rho_ao(ispin)%matrix, matrix_tmp, keep_sparsity=.TRUE.)
          CALL dbcsr_release(matrix_tmp)
       END DO
 

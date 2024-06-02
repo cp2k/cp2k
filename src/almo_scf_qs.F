@@ -23,12 +23,12 @@ MODULE almo_scf_qs
                                               pbc
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_api,                    ONLY: &
-        dbcsr_complete_redistribute, dbcsr_copy, dbcsr_copy_into_existing, dbcsr_create, &
-        dbcsr_desymmetrize, dbcsr_distribution_get, dbcsr_distribution_new, &
-        dbcsr_distribution_release, dbcsr_distribution_type, dbcsr_filter, dbcsr_finalize, &
-        dbcsr_get_block_p, dbcsr_get_info, dbcsr_get_num_blocks, dbcsr_get_stored_coordinates, &
-        dbcsr_multiply, dbcsr_nblkcols_total, dbcsr_nblkrows_total, dbcsr_p_type, dbcsr_release, &
-        dbcsr_reserve_block2d, dbcsr_set, dbcsr_type, dbcsr_type_no_symmetry, dbcsr_work_create
+        dbcsr_complete_redistribute, dbcsr_copy, dbcsr_create, dbcsr_desymmetrize, &
+        dbcsr_distribution_get, dbcsr_distribution_new, dbcsr_distribution_release, &
+        dbcsr_distribution_type, dbcsr_filter, dbcsr_finalize, dbcsr_get_block_p, dbcsr_get_info, &
+        dbcsr_get_num_blocks, dbcsr_get_stored_coordinates, dbcsr_multiply, dbcsr_nblkcols_total, &
+        dbcsr_nblkrows_total, dbcsr_p_type, dbcsr_release, dbcsr_reserve_block2d, dbcsr_set, &
+        dbcsr_type, dbcsr_type_no_symmetry, dbcsr_work_create
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
    USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
@@ -486,7 +486,7 @@ CONTAINS
 
       SELECT CASE (mat_distr_aos)
       CASE (almo_mat_distr_atomic)
-         CALL dbcsr_copy_into_existing(matrix_qs, matrix_almo)
+         CALL dbcsr_copy(matrix_qs, matrix_almo, keep_sparsity=.TRUE.)
       CASE (almo_mat_distr_molecular)
          CALL dbcsr_set(matrix_qs, 0.0_dp)
          CALL dbcsr_complete_redistribute(matrix_almo, matrix_qs, keep_sparsity=.TRUE.)

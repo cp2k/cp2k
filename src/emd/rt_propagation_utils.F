@@ -17,9 +17,9 @@ MODULE rt_propagation_utils
    USE cp_control_types,                ONLY: dft_control_type,&
                                               rtp_control_type
    USE cp_dbcsr_api,                    ONLY: &
-        dbcsr_add, dbcsr_binary_read, dbcsr_checksum, dbcsr_copy, dbcsr_copy_into_existing, &
-        dbcsr_create, dbcsr_deallocate_matrix, dbcsr_desymmetrize, dbcsr_distribution_type, &
-        dbcsr_filter, dbcsr_get_info, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
+        dbcsr_add, dbcsr_binary_read, dbcsr_checksum, dbcsr_copy, dbcsr_create, &
+        dbcsr_deallocate_matrix, dbcsr_desymmetrize, dbcsr_distribution_type, dbcsr_filter, &
+        dbcsr_get_info, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
         dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_p_type, dbcsr_scale, &
         dbcsr_set, dbcsr_type
    USE cp_dbcsr_operations,             ONLY: cp_dbcsr_plus_fm_fm_t,&
@@ -547,9 +547,9 @@ CONTAINS
       IF (rtp%track_imag_density) CALL qs_rho_get(rho_struct=rho, rho_ao_im=rho_ao_im)
       DO ispin = 1, SIZE(rho_ao)
          CALL dbcsr_set(rho_ao(ispin)%matrix, zero)
-         CALL dbcsr_copy_into_existing(rho_ao(ispin)%matrix, rho_new(ispin*2 - 1)%matrix)
+         CALL dbcsr_copy(rho_ao(ispin)%matrix, rho_new(ispin*2 - 1)%matrix, keep_sparsity=.TRUE.)
          IF (rtp%track_imag_density) THEN
-            CALL dbcsr_copy_into_existing(rho_ao_im(ispin)%matrix, rho_new(ispin*2)%matrix)
+            CALL dbcsr_copy(rho_ao_im(ispin)%matrix, rho_new(ispin*2)%matrix, keep_sparsity=.TRUE.)
          END IF
       END DO
 
