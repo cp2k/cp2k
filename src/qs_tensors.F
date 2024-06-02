@@ -3370,7 +3370,7 @@ CONTAINS
                         min_zet = MINVAL(zeti(:, iset))
                         CPASSERT(min_zet > 1.0E-10_dp)
                         sij_rs(i_diag, i_diag) = sij_rs(i_diag, i_diag) + &
-                                                 regularization_RI*MAX(1.0_dp, min_zet)
+                                                 regularization_RI*MAX(1.0_dp, 1.0_dp/min_zet)
                      END DO
                   END IF
 
