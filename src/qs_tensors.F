@@ -3178,7 +3178,7 @@ CONTAINS
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
       LOGICAL                                            :: do_hfx_kpoints_prv, do_kpoints_prv, &
                                                             do_symmetric, found, trans
-      REAL(KIND=dp)                                      :: dab, my_regularization_RI
+      REAL(KIND=dp)                                      :: dab, min_zet
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: sij, sij_contr, sij_rs
       REAL(KIND=dp), DIMENSION(3)                        :: ri, rij, rj
       REAL(KIND=dp), DIMENSION(:), POINTER               :: set_radius_i, set_radius_j
@@ -3211,9 +3211,6 @@ CONTAINS
       IF (do_hfx_kpoints_prv) THEN
          CPASSERT(do_kpoints_prv)
       END IF
-
-      my_regularization_RI = 0.0_dp
-      IF (PRESENT(regularization_RI)) my_regularization_RI = regularization_RI
 
       op_prv = potential_parameter%potential_type
 
@@ -3366,12 +3363,14 @@ CONTAINS
                   DEALLOCATE (sij_contr)
 
                   ! RI regularization
-                  IF (.NOT. do_hfx_kpoints_prv .AND. iatom == jatom .AND. iset == jset .AND. &
+                  IF (.NOT. do_hfx_kpoints_prv .AND. PRESENT(regularization_RI) .AND. &
+                      iatom == jatom .AND. iset == jset .AND. &
                       cell_j(1) == 0 .AND. cell_j(2) == 0 .AND. cell_j(3) == 0) THEN
                      DO i_diag = 1, nsgfi(iset)
+                        min_zet = MINVAL(zeti(:, iset))
+                        CPASSERT(min_zet > 1.0E-10_dp)
                         sij_rs(i_diag, i_diag) = sij_rs(i_diag, i_diag) + &
-                                                 my_regularization_RI* &
-                                                 MAX(1.0_dp, 1.0_dp/MINVAL(zeti(:, iset)))
+                                                 regularization_RI*MAX(1.0_dp, min_zet)
                      END DO
                   END IF
 
