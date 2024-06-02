@@ -22,7 +22,6 @@ MODULE cp_dbcsr_api
       dbcsr_convert_offsets_to_sizes, &
       dbcsr_convert_sizes_to_offsets, &
       dbcsr_copy_prv => dbcsr_copy, &
-      dbcsr_copy_into_existing_prv => dbcsr_copy_into_existing, &
       dbcsr_create_prv => dbcsr_create, &
       dbcsr_csr_create, &
       dbcsr_csr_create_from_dbcsr_prv => dbcsr_csr_create_from_dbcsr, &
@@ -157,7 +156,6 @@ MODULE cp_dbcsr_api
    PUBLIC :: dbcsr_transposed
    PUBLIC :: dbcsr_multiply
    PUBLIC :: dbcsr_copy
-   PUBLIC :: dbcsr_copy_into_existing
    PUBLIC :: dbcsr_desymmetrize
    PUBLIC :: dbcsr_add_on_diag
    PUBLIC :: dbcsr_get_block_diag
@@ -505,16 +503,6 @@ CONTAINS
       CALL dbcsr_copy_prv(matrix_b%prv, matrix_a%prv, name=name, keep_sparsity=keep_sparsity, &
                           keep_imaginary=keep_imaginary)
    END SUBROUTINE dbcsr_copy
-
-! **************************************************************************************************
-!> \brief ...
-! **************************************************************************************************
-   SUBROUTINE dbcsr_copy_into_existing(matrix_b, matrix_a)
-      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix_b
-      TYPE(dbcsr_type), INTENT(IN)                       :: matrix_a
-
-      CALL dbcsr_copy_into_existing_prv(matrix_b%prv, matrix_a%prv)
-   END SUBROUTINE dbcsr_copy_into_existing
 
 ! **************************************************************************************************
 !> \brief ...

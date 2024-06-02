@@ -15,9 +15,8 @@
 MODULE qs_energy_window
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_dbcsr_api,                    ONLY: &
-        dbcsr_add, dbcsr_copy, dbcsr_copy_into_existing, dbcsr_create, dbcsr_desymmetrize, &
-        dbcsr_frobenius_norm, dbcsr_get_info, dbcsr_multiply, dbcsr_p_type, dbcsr_release, &
-        dbcsr_type
+        dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_desymmetrize, dbcsr_frobenius_norm, &
+        dbcsr_get_info, dbcsr_multiply, dbcsr_p_type, dbcsr_release, dbcsr_type
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               copy_fm_to_dbcsr
    USE cp_fm_basic_linalg,              ONLY: cp_fm_trace
@@ -203,7 +202,7 @@ CONTAINS
          !ensure the correct sparsity
          CALL copy_fm_to_dbcsr(P_window_fm, tmp)
          CALL dbcsr_copy(window, matrix_ks(1)%matrix)
-         CALL dbcsr_copy_into_existing(window, tmp)
+         CALL dbcsr_copy(window, tmp, keep_sparsity=.TRUE.)
          CALL calculate_rho_elec(matrix_p=window, &
                                  rho=rho_r, &
                                  rho_gspace=rho_g, &
@@ -270,7 +269,7 @@ CONTAINS
             CALL copy_fm_to_dbcsr(P_window_fm, tmp)
             !ensure the correct sparsity
             CALL dbcsr_copy(window, matrix_ks(1)%matrix)
-            CALL dbcsr_copy_into_existing(window, tmp)
+            CALL dbcsr_copy(window, tmp, keep_sparsity=.TRUE.)
             CALL calculate_rho_elec(matrix_p=window, &
                                     rho=rho_r, &
                                     rho_gspace=rho_g, &

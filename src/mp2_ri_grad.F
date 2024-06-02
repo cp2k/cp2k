@@ -17,9 +17,8 @@ MODULE mp2_ri_grad
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_api,                    ONLY: &
-        dbcsr_add, dbcsr_copy, dbcsr_copy_into_existing, dbcsr_create, dbcsr_multiply, &
-        dbcsr_p_type, dbcsr_release, dbcsr_set, dbcsr_transposed, dbcsr_type, &
-        dbcsr_type_no_symmetry, dbcsr_type_symmetric
+        dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_multiply, dbcsr_p_type, dbcsr_release, &
+        dbcsr_set, dbcsr_transposed, dbcsr_type, dbcsr_type_no_symmetry, dbcsr_type_symmetric
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               dbcsr_deallocate_matrix_set
    USE cp_eri_mme_interface,            ONLY: cp_eri_mme_param
@@ -521,7 +520,7 @@ CONTAINS
       CALL dbcsr_add(G_P_munu, G_P_munu_nosym, &
                      alpha_scalar=2.0_dp, beta_scalar=2.0_dp)
       ! this is a trick to avoid that integrate_v_rspace starts to cry
-      CALL dbcsr_copy_into_existing(mat_munu, G_P_munu)
+      CALL dbcsr_copy(mat_munu, G_P_munu, keep_sparsity=.TRUE.)
       CALL dbcsr_copy(G_P_munu, mat_munu)
 
       CALL timestop(handle)

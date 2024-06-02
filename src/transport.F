@@ -31,11 +31,10 @@ MODULE transport
                                               cite_reference
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_api,                    ONLY: &
-        dbcsr_convert_csr_to_dbcsr, dbcsr_convert_dbcsr_to_csr, dbcsr_copy, &
-        dbcsr_copy_into_existing, dbcsr_create, dbcsr_csr_create, dbcsr_csr_create_from_dbcsr, &
-        dbcsr_csr_dbcsr_blkrow_dist, dbcsr_csr_print_sparsity, dbcsr_csr_type, &
-        dbcsr_deallocate_matrix, dbcsr_desymmetrize, dbcsr_has_symmetry, dbcsr_set, dbcsr_type, &
-        dbcsr_type_no_symmetry, dbcsr_type_real_8
+        dbcsr_convert_csr_to_dbcsr, dbcsr_convert_dbcsr_to_csr, dbcsr_copy, dbcsr_create, &
+        dbcsr_csr_create, dbcsr_csr_create_from_dbcsr, dbcsr_csr_dbcsr_blkrow_dist, &
+        dbcsr_csr_print_sparsity, dbcsr_csr_type, dbcsr_deallocate_matrix, dbcsr_desymmetrize, &
+        dbcsr_has_symmetry, dbcsr_set, dbcsr_type, dbcsr_type_no_symmetry, dbcsr_type_real_8
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_to_csr_screening
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_unit_nr,&
@@ -405,16 +404,16 @@ CONTAINS
       CALL csr_interop_nullify(p_mat)
       CALL csr_interop_nullify(imagp_mat)
 
-      CALL dbcsr_copy_into_existing(transport_env%template_matrix_sym, matrix_s)
+      CALL dbcsr_copy(transport_env%template_matrix_sym, matrix_s, keep_sparsity=.TRUE.)
       CALL convert_dbcsr_to_csr_interop(transport_env%template_matrix_sym, transport_env%s_matrix, s_mat)
 
-      CALL dbcsr_copy_into_existing(transport_env%template_matrix_sym, matrix_ks)
+      CALL dbcsr_copy(transport_env%template_matrix_sym, matrix_ks, keep_sparsity=.TRUE.)
       CALL convert_dbcsr_to_csr_interop(transport_env%template_matrix_sym, transport_env%ks_matrix, ks_mat)
 
-      CALL dbcsr_copy_into_existing(transport_env%template_matrix_sym, matrix_p)
+      CALL dbcsr_copy(transport_env%template_matrix_sym, matrix_p, keep_sparsity=.TRUE.)
       CALL convert_dbcsr_to_csr_interop(transport_env%template_matrix_sym, transport_env%p_matrix, p_mat)
 
-      CALL dbcsr_copy_into_existing(transport_env%template_matrix_sym, matrix_s)
+      CALL dbcsr_copy(transport_env%template_matrix_sym, matrix_s, keep_sparsity=.TRUE.)
       CALL convert_dbcsr_to_csr_interop(transport_env%template_matrix_sym, transport_env%imagp_matrix, imagp_mat)
 
       CALL c_method(transport_env%params, s_mat, ks_mat, p_mat, imagp_mat)
