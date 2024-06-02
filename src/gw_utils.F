@@ -1454,6 +1454,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'set_heuristic_parameters'
 
       INTEGER                                            :: handle, u
+      LOGICAL                                            :: do_BvK_cell
 
       CALL timeset(routineN, handle)
 
@@ -1502,9 +1503,11 @@ CONTAINS
 
       ! truncated Coulomb operator for exchange self-energy
       ! (see details in Guidon, VandeVondele, Hutter, JCTC 5, 3010 (2009) and references therein)
+      do_BvK_cell = bs_env%small_cell_full_kp_or_large_cell_Gamma == small_cell_full_kp
       CALL trunc_coulomb_for_exchange(qs_env, bs_env%trunc_coulomb, &
                                       rel_cutoff_trunc_coulomb_ri_x=0.499_dp, &
-                                      cell_grid=bs_env%cell_grid_scf_desymm)
+                                      cell_grid=bs_env%cell_grid_scf_desymm, &
+                                      do_BvK_cell=do_BvK_cell)
 
       ! for small-cell GW, we need more cells than normally used by the filter bs_env%eps_filter
       ! (in particular for computing the self-energy because of higher number of cells needed)

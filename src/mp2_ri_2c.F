@@ -1614,19 +1614,21 @@ CONTAINS
 !> \param trunc_coulomb ...
 !> \param rel_cutoff_trunc_coulomb_ri_x ...
 !> \param cell_grid ...
+!> \param do_BvK_cell ...
 ! **************************************************************************************************
    SUBROUTINE trunc_coulomb_for_exchange(qs_env, trunc_coulomb, rel_cutoff_trunc_coulomb_ri_x, &
-                                         cell_grid)
+                                         cell_grid, do_BvK_cell)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(libint_potential_type), OPTIONAL              :: trunc_coulomb
       REAL(KIND=dp), OPTIONAL                            :: rel_cutoff_trunc_coulomb_ri_x
       INTEGER, DIMENSION(3), OPTIONAL                    :: cell_grid
+      LOGICAL, OPTIONAL                                  :: do_BvK_cell
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'trunc_coulomb_for_exchange'
 
       INTEGER                                            :: handle, i_dim
       INTEGER, DIMENSION(3)                              :: periodic
-      LOGICAL                                            :: do_kpoints_scf
+      LOGICAL                                            :: my_do_BvK_cell
       REAL(KIND=dp) :: kp_fac, kp_fac_idim, my_rel_cutoff_trunc_coulomb_ri_x, &
          shortest_dist_cell_planes
       TYPE(cell_type), POINTER                           :: cell
@@ -1638,8 +1640,9 @@ CONTAINS
       CALL get_qs_env(qs_env, cell=cell, kpoints=kpoints_scf)
       CALL get_cell(cell=cell, periodic=periodic)
 
-      do_kpoints_scf = kpoints_scf%nkp > 0
-      IF (do_kpoints_scf) THEN
+      my_do_BvK_cell = .FALSE.
+      IF (PRESENT(do_BvK_cell)) my_do_BvK_cell = do_BvK_cell
+      IF (my_do_BvK_cell) THEN
          kp_fac = 1.0E10_dp
          DO i_dim = 1, 3
             ! look for smallest k-point mesh in periodic direction
