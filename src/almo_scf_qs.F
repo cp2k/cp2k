@@ -414,16 +414,14 @@ CONTAINS
 !> \param matrix_qs ...
 !> \param matrix_almo ...
 !> \param mat_distr_aos ...
-!> \param keep_sparsity ...
 !> \par History
 !>       2011.06 created [Rustam Z Khaliullin]
 !> \author Rustam Z Khaliullin
 ! **************************************************************************************************
-   SUBROUTINE matrix_qs_to_almo(matrix_qs, matrix_almo, mat_distr_aos, keep_sparsity)
+   SUBROUTINE matrix_qs_to_almo(matrix_qs, matrix_almo, mat_distr_aos)
 
       TYPE(dbcsr_type)                                   :: matrix_qs, matrix_almo
       INTEGER                                            :: mat_distr_aos
-      LOGICAL, INTENT(IN)                                :: keep_sparsity
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'matrix_qs_to_almo'
 
@@ -436,12 +434,10 @@ CONTAINS
       SELECT CASE (mat_distr_aos)
       CASE (almo_mat_distr_atomic)
          ! automatic data_type conversion
-         CALL dbcsr_copy(matrix_almo, matrix_qs, &
-                         keep_sparsity=keep_sparsity)
+         CALL dbcsr_copy(matrix_almo, matrix_qs)
       CASE (almo_mat_distr_molecular)
          ! desymmetrize the qs matrix
-         CALL dbcsr_create(matrix_qs_nosym, template=matrix_qs, &
-                           matrix_type=dbcsr_type_no_symmetry)
+         CALL dbcsr_create(matrix_qs_nosym, template=matrix_qs, matrix_type=dbcsr_type_no_symmetry)
          CALL dbcsr_desymmetrize(matrix_qs, matrix_qs_nosym)
 
          ! perform the magic complete_redistribute
@@ -452,8 +448,7 @@ CONTAINS
          ! complete_redistribute. RZK-warning it should be later corrected by calling
          ! dbcsr_set to 0.0 from within complete_redistribute
          CALL dbcsr_set(matrix_almo, 0.0_dp)
-         CALL dbcsr_complete_redistribute(matrix_qs_nosym, matrix_almo, &
-                                          keep_sparsity=keep_sparsity); 
+         CALL dbcsr_complete_redistribute(matrix_qs_nosym, matrix_almo)
          CALL dbcsr_release(matrix_qs_nosym)
 
       CASE DEFAULT
@@ -480,6 +475,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'matrix_almo_to_qs'
 
       INTEGER                                            :: handle
+      TYPE(dbcsr_type)                                   :: matrix_almo_redist
 
       CALL timeset(routineN, handle)
       ! RZK-warning if it's not a N(AO)xN(AO) matrix then stop
@@ -488,8 +484,11 @@ CONTAINS
       CASE (almo_mat_distr_atomic)
          CALL dbcsr_copy(matrix_qs, matrix_almo, keep_sparsity=.TRUE.)
       CASE (almo_mat_distr_molecular)
+         CALL dbcsr_create(matrix_almo_redist, template=matrix_qs)
+         CALL dbcsr_complete_redistribute(matrix_almo, matrix_almo_redist)
          CALL dbcsr_set(matrix_qs, 0.0_dp)
-         CALL dbcsr_complete_redistribute(matrix_almo, matrix_qs, keep_sparsity=.TRUE.)
+         CALL dbcsr_copy(matrix_qs, matrix_almo_redist, keep_sparsity=.TRUE.)
+         CALL dbcsr_release(matrix_almo_redist)
       CASE DEFAULT
          CPABORT("")
       END SELECT
@@ -553,8 +552,7 @@ CONTAINS
 
       ! copy to ALMO
       DO ispin = 1, nspin
-         CALL matrix_qs_to_almo(matrix_qs_ks(ispin)%matrix, &
-                                matrix_ks(ispin), mat_distr_aos, .FALSE.)
+         CALL matrix_qs_to_almo(matrix_qs_ks(ispin)%matrix, matrix_ks(ispin), mat_distr_aos)
          CALL dbcsr_filter(matrix_ks(ispin), eps_filter)
       END DO
 
@@ -788,9 +786,7 @@ CONTAINS
       ! get KS matrix from the QS env and convert to the ALMO format
       CALL get_qs_env(qs_env, matrix_ks=matrix_qs_ks)
       DO ispin = 1, nspins
-         CALL matrix_qs_to_almo(matrix_qs_ks(ispin)%matrix, &
-                                matrix_ks(ispin), &
-                                mat_distr_aos, .FALSE.)
+         CALL matrix_qs_to_almo(matrix_qs_ks(ispin)%matrix, matrix_ks(ispin), mat_distr_aos)
          CALL dbcsr_filter(matrix_ks(ispin), eps_filter)
       END DO
 

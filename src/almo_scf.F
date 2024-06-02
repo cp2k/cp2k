@@ -614,8 +614,7 @@ CONTAINS
             DO ispin = 1, nspins
                ! copy the atomic-block dm into matrix_p_blk
                CALL matrix_qs_to_almo(rho_ao(ispin)%matrix, &
-                                      almo_scf_env%matrix_p_blk(ispin), almo_scf_env%mat_distr_aos, &
-                                      .FALSE.)
+                                      almo_scf_env%matrix_p_blk(ispin), almo_scf_env%mat_distr_aos)
                CALL dbcsr_filter(almo_scf_env%matrix_p_blk(ispin), &
                                  almo_scf_env%eps_filter)
             END DO ! ispin
@@ -1228,8 +1227,7 @@ CONTAINS
          CALL dbcsr_set(almo_scf_env%matrix_s_blk(1), 0.0_dp)
          CALL dbcsr_add_on_diag(almo_scf_env%matrix_s_blk(1), 1.0_dp)
       ELSE
-         CALL matrix_qs_to_almo(matrix_s, almo_scf_env%matrix_s(1), &
-                                almo_scf_env%mat_distr_aos, .FALSE.)
+         CALL matrix_qs_to_almo(matrix_s, almo_scf_env%matrix_s(1), almo_scf_env%mat_distr_aos)
          CALL dbcsr_copy(almo_scf_env%matrix_s_blk(1), &
                          almo_scf_env%matrix_s(1), keep_sparsity=.TRUE.)
       END IF

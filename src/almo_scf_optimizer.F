@@ -1043,8 +1043,7 @@ CONTAINS
 
          CALL compute_berry_operator(qs_env, cell, op_sm_set_qs, dim_op)
 
-         !CALL matrix_qs_to_almo(op_sm_set_qs, op_sm_set_almo, &
-         !                       almo_scf_env%mat_distr_aos, .FALSE.)
+         !CALL matrix_qs_to_almo(op_sm_set_qs, op_sm_set_almo, almo_scf_env%mat_distr_aos)
 
       END IF
 
@@ -1208,8 +1207,8 @@ CONTAINS
             DO idim0 = 1, SIZE(op_sm_set_qs, 2) ! this loop is over miller ind
                DO reim = 1, SIZE(op_sm_set_qs, 1) ! this loop is over Re/Im
 
-                  CALL matrix_qs_to_almo(op_sm_set_qs(reim, idim0)%matrix, op_sm_set_almo(reim, idim0)%matrix, &
-                                         almo_scf_env%mat_distr_aos, .FALSE.)
+                  CALL matrix_qs_to_almo(op_sm_set_qs(reim, idim0)%matrix, &
+                                         op_sm_set_almo(reim, idim0)%matrix, almo_scf_env%mat_distr_aos)
 
                   CALL dbcsr_multiply("N", "N", 1.0_dp, &
                                       op_sm_set_almo(reim, idim0)%matrix, &
@@ -1325,8 +1324,9 @@ CONTAINS
 
                      DO reim = 1, SIZE(op_sm_set_qs, 1) ! this loop is over Re/Im
 
-                        !CALL matrix_qs_to_almo(op_sm_set_qs(reim, idim0)%matrix, op_sm_set_almo(reim, idim0)%matrix, &
-                        !                       almo_scf_env%mat_distr_aos, .FALSE.)
+                        !CALL matrix_qs_to_almo(op_sm_set_qs(reim, idim0)%matrix,
+                        !                       op_sm_set_almo(reim, idim0)%matrix, &
+                        !                       almo_scf_env%mat_distr_aos)
                         CALL dbcsr_multiply("N", "N", 1.0_dp, &
                                             op_sm_set_almo(reim, idim0)%matrix, &
                                             matrix_t_out(ispin), &
@@ -2310,8 +2310,8 @@ CONTAINS
 
                DO reim = 1, SIZE(op_sm_set_qs, 1) ! this loop is over Re/Im
 
-                  CALL matrix_qs_to_almo(op_sm_set_qs(reim, idim0)%matrix, op_sm_set_almo(reim, idim0)%matrix, &
-                                         mat_distr_aos, .FALSE.)
+                  CALL matrix_qs_to_almo(op_sm_set_qs(reim, idim0)%matrix, &
+                                         op_sm_set_almo(reim, idim0)%matrix, mat_distr_aos)
 
                   CALL dbcsr_multiply("N", "N", 1.0_dp, &
                                       op_sm_set_almo(reim, idim0)%matrix, &

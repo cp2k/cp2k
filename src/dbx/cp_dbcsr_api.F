@@ -463,12 +463,11 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief ...
 ! **************************************************************************************************
-   SUBROUTINE dbcsr_complete_redistribute(matrix, redist, keep_sparsity)
+   SUBROUTINE dbcsr_complete_redistribute(matrix, redist)
       TYPE(dbcsr_type), INTENT(IN)                       :: matrix
       TYPE(dbcsr_type), INTENT(INOUT)                    :: redist
-      LOGICAL, INTENT(IN), OPTIONAL                      :: keep_sparsity
 
-      CALL dbcsr_complete_redistribute_prv(matrix%prv, redist%prv, keep_sparsity)
+      CALL dbcsr_complete_redistribute_prv(matrix%prv, redist%prv)
    END SUBROUTINE dbcsr_complete_redistribute
 
 ! **************************************************************************************************

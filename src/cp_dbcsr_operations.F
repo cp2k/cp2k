@@ -112,19 +112,32 @@ CONTAINS
 !> \version 2.0
 ! **************************************************************************************************
       SUBROUTINE copy_${fm}$_to_dbcsr(fm, matrix, keep_sparsity)
-         TYPE(cp_${fm}$_type), INTENT(IN)                      :: fm
-         TYPE(dbcsr_type), INTENT(INOUT)                 :: matrix
+         TYPE(cp_${fm}$_type), INTENT(IN)                   :: fm
+         TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix
          LOGICAL, INTENT(IN), OPTIONAL                      :: keep_sparsity
 
          CHARACTER(LEN=*), PARAMETER :: routineN = 'copy_${fm}$_to_dbcsr'
 
-         TYPE(dbcsr_type)                                :: bc_mat
+         TYPE(dbcsr_type)                                   :: bc_mat, redist_mat
          INTEGER                                            :: handle
+         LOGICAL                                            :: my_keep_sparsity
 
          CALL timeset(routineN, handle)
 
+         my_keep_sparsity = .FALSE.
+         IF (PRESENT(keep_sparsity)) my_keep_sparsity = keep_sparsity
+
          CALL copy_${fm}$_to_dbcsr_bc(fm, bc_mat)
-         CALL dbcsr_complete_redistribute(bc_mat, matrix, keep_sparsity=keep_sparsity)
+
+         IF (my_keep_sparsity) THEN
+            CALL dbcsr_create(redist_mat, template=matrix)
+            CALL dbcsr_complete_redistribute(bc_mat, redist_mat)
+            CALL dbcsr_copy(matrix, redist_mat, keep_sparsity=.TRUE.)
+            CALL dbcsr_release(redist_mat)
+         ELSE
+            CALL dbcsr_complete_redistribute(bc_mat, matrix)
+         END IF
+
          CALL dbcsr_release(bc_mat)
 
          CALL timestop(handle)
