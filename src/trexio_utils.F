@@ -19,7 +19,10 @@ MODULE trexio_utils
    USE cell_types, ONLY: cell_type
    USE cp2k_info, ONLY: cp2k_version
    USE cp_control_types, ONLY: dft_control_type
+   USE cp_dbcsr_operations, ONLY: copy_dbcsr_to_fm
    USE cp_files, ONLY: close_file, file_exists, open_file
+   USE cp_fm_types, ONLY: cp_fm_get_info,&
+                          cp_fm_get_submatrix
    USE cp_log_handling, ONLY: cp_get_default_logger, &
                               cp_logger_get_default_io_unit, &
                               cp_logger_type
@@ -31,7 +34,8 @@ MODULE trexio_utils
                     dp
    USE kpoint_types, ONLY: kpoint_type, kpoint_env_type, kpoint_env_p_type, &
                            get_kpoint_info, get_kpoint_env
-   USE orbital_pointers, ONLY: nco
+   USE orbital_pointers, ONLY: nco, nso
+   USE orbital_transformation_matrices, ONLY: orbtramat
    USE particle_types, ONLY: particle_type
    USE qs_energy_types, ONLY: qs_energy_type
    USE qs_environment_types, ONLY: get_qs_env, &
@@ -655,14 +659,15 @@ MODULE trexio_utils
             mo_occupation(imo+1:imo+nmo) = mos(ispin)%occupation_numbers
             ! store the MO spins
             mo_spin(imo+1:imo+nmo) = ispin
-            ! store the MO coefficients
-            ! TODO: from fm type to fortran array
-            ! mo_coefficient(:,imo+1:imo+nmo) = mos(ispin)%mo_coeff%
+            ! transform and store the MO coefficients
+            CALL spherical_to_cartesian_mo(mos(ispin), particle_set, kind_set, mo_coefficient(:,imo+1:imo+nmo))
 
             imo = imo + nmo
          END IF
       END DO
 
+      rc = trexio_write_mo_coefficient(f, mo_coefficient)
+      CALL trexio_error(rc)
       DEALLOCATE (mo_coefficient)
 
       rc = trexio_write_mo_energy(f, mo_energy)
@@ -739,6 +744,76 @@ MODULE trexio_utils
       END DO
 
    END SUBROUTINE nuclear_repulsion_energy
+
+
+! **************************************************************************************************
+!> \brief Computes a spherical to cartesian MO transformation
+!> \param mos the MO set to transform
+!> \param particle_set the set of particles in the system
+!> \param qs_kind_set the set of qs_kinds in the system
+!> \param cmatrix the cartesian MO coefficients
+! **************************************************************************************************
+   SUBROUTINE spherical_to_cartesian_mo(mos, particle_set, qs_kind_set, cmatrix)
+      TYPE(mo_set_type), POINTER, INTENT(IN) :: mos
+      REAL(KIND=dp), DIMENSION(:,:), INTENT(OUT) :: cmatrix
+      TYPE(particle_type), DIMENSION(:), POINTER, INTENT(IN) :: particle_set
+      TYPE(qs_kind_type), DIMENSION(:), POINTER, INTENT(IN) :: qs_kind_set
+
+      REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE :: smatrix
+      TYPE(gto_basis_set_type), POINTER :: orb_basis_set
+      INTEGER :: icgf, isgf, iatom, ikind, iset, ishell, lshell, nset, ncgf, nsgf, &
+                 nrow_global, ncol_global
+      INTEGER, DIMENSION(:), POINTER :: nshell
+      INTEGER, DIMENSION(:,:), POINTER :: l
+
+      ! check if we are using the dbcsr mo_coeff and copy them to fm if needed
+      IF (mos%use_mo_coeff_b) THEN
+         CALL copy_dbcsr_to_fm(mos%mo_coeff_b, mos%mo_coeff)
+      END IF
+
+      CALL cp_fm_get_info(mos%mo_coeff, &
+                          nrow_global=nrow_global, &
+                          ncol_global=ncol_global)
+
+      ! allocate a normal fortran array to store the spherical MO coefficients
+      ALLOCATE (smatrix(nrow_global, ncol_global))
+      CALL cp_fm_get_submatrix(mos%mo_coeff, smatrix)
+
+      CALL get_qs_kind_set(qs_kind_set, ncgf=ncgf, nsgf=nsgf)
+
+      cmatrix = 0.0_dp
+
+      ! Transform spherical MOs to Cartesian MOs
+      icgf = 1
+      isgf = 1
+      DO iatom = 1, SIZE(particle_set)
+         NULLIFY (orb_basis_set)
+         CALL get_atomic_kind(particle_set(iatom)%atomic_kind, kind_number=ikind)
+         CALL get_qs_kind(qs_kind_set(ikind), basis_set=orb_basis_set)
+
+         IF (ASSOCIATED(orb_basis_set)) THEN
+            CALL get_gto_basis_set(gto_basis_set=orb_basis_set, &
+                                   nset=nset, &
+                                   nshell=nshell, &
+                                   l=l)
+            DO iset = 1, nset
+               DO ishell = 1, nshell(iset)
+                  lshell = l(ishell, iset)
+                  CALL dgemm("T", "N", nco(lshell), mos%nmo, nso(lshell), 1.0_dp, &
+                             orbtramat(lshell)%c2s, nso(lshell), &
+                             smatrix(isgf, 1), nsgf, 0.0_dp, &
+                             cmatrix(icgf, 1), ncgf)
+                  icgf = icgf + nco(lshell)
+                  isgf = isgf + nso(lshell)
+               END DO
+            END DO
+         ELSE
+            ! assume atom without basis set
+            CPABORT("Unknown basis set type")
+         END IF
+      END DO ! iatom
+
+   END SUBROUTINE spherical_to_cartesian_mo
 
 #endif
 
