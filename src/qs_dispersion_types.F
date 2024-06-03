@@ -35,6 +35,8 @@ MODULE qs_dispersion_types
       CHARACTER(LEN=default_string_length)  :: ref_functional = ""
       REAL(KIND=dp)                          :: scaling = -1.0_dp
       REAL(KIND=dp)                          :: rc_disp = -1.0_dp
+      REAL(KIND=dp)                          :: rc_d4 = -1.0_dp
+      REAL(KIND=dp)                          :: rc_cn = -1.0_dp
       REAL(KIND=dp)                          :: exp_pre = -1.0_dp
       TYPE(section_vals_type), POINTER       :: dftd_section => NULL()
       LOGICAL                                :: verbose = .FALSE. !extended output

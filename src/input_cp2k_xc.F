@@ -15,7 +15,8 @@ MODULE input_cp2k_xc
    USE bibliography,                    ONLY: &
         Becke1988, Becke1997, BeckeRoussel1989, Goedecker1996, Grimme2006, Grimme2010, Grimme2011, &
         Heyd2004, Kruse2012, Lee1988, Ortiz1994, Perdew1981, Perdew1996, Perdew2008, Proynov2007, &
-        Tao2003, Tran2013, Vosko1980, Wellendorff2012, Zhang1998
+        Tao2003, Tran2013, Vosko1980, Wellendorff2012, Zhang1998, Caldeweyher2017, &
+        Caldeweyher2019, Caldeweyher2020
    USE cp_output_handling,              ONLY: add_last_numeric,&
                                               cp_print_key_section_create,&
                                               high_print_level
@@ -944,14 +945,28 @@ CONTAINS
                           description="Information on the pair potential to calculate dispersion", &
                           n_keywords=5, n_subsections=0, repeats=.TRUE.)
       CALL keyword_create(keyword, __LOCATION__, name="R_CUTOFF", &
-                          description="Range of potential. The cutoff will be 2 times this value", &
-                          usage="R_CUTOFF 24.0", default_r_val=20.0_dp, &
+                          description="Range of potential. The cutoff will be 2 times this value"// &
+                                      "In the case of D4 it will be used for the 3-body term", &
+                          usage="R_CUTOFF 20.0", default_r_val=20.0_dp, &
+                          unit_str="angstrom")
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="D4_CUTOFF", &
+                          description="Range of potential. The cutoff will be 2 times this value"// &
+                                      "Only used for the 2-body term of D4", &
+                          usage="D4_CUTOFF 30.0", default_r_val=30.0_dp, &
+                          unit_str="angstrom")
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="D4_CN_CUTOFF", &
+                          description="Coordination number cutoff for D4", &
+                          usage="D4_CN_CUTOFF 30.0", default_r_val=30.0_dp, &
                           unit_str="angstrom")
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="TYPE", &
                           description="Type of potential", &
-                          citations=(/grimme2006, grimme2010, grimme2011/), &
+                          citations=(/grimme2006, grimme2010, grimme2011, Caldeweyher2020/), &
                           usage="TYPE (DFTD2|DFTD3|DFTD3(BJ)|DFTD4)", &
                           enum_c_vals=s2a("DFTD2", "DFTD3", "DFTD3(BJ)", "DFTD4"), &
                           enum_i_vals=(/vdw_pairpot_dftd2, vdw_pairpot_dftd3, &
@@ -964,7 +979,7 @@ CONTAINS
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="PARAMETER_FILE_NAME", &
-                          description="Name of the parameter file, may include a path", &
+                          description="Name of the parameter file, may include a path (not used for D4)", &
                           usage="PARAMETER_FILE_NAME <FILENAME>", &
                           default_lc_val="DISPERSION_PARAMETERS")
       CALL section_add_keyword(subsection, keyword)
@@ -972,7 +987,9 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="REFERENCE_FUNCTIONAL", &
                           description="Use parameters for this specific density functional. "// &
                           "For available D3 and D3(BJ) parameters see: "// &
-                          "<https://www.chemie.uni-bonn.de/grimme/de/software/dft-d3>.", &
+                          "<https://www.chemie.uni-bonn.de/grimme/de/software/dft-d3>."// &
+                          "For the defintion of D4 parameters see: "// &
+                          "<https://github.com/dftd4/dftd4>.", &
                           usage="REFERENCE_FUNCTIONAL <functional>", &
                           type_of_var=char_t)
       CALL section_add_keyword(subsection, keyword)

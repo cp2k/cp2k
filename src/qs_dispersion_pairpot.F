@@ -20,7 +20,10 @@ MODULE qs_dispersion_pairpot
                                               cite_reference,&
                                               grimme2006,&
                                               grimme2010,&
-                                              grimme2011
+                                              grimme2011,&
+                                              Caldeweyher2017,&
+                                              Caldeweyher2019,&
+                                              Caldeweyher2020
    USE cell_types,                      ONLY: cell_type,&
                                               get_cell,&
                                               pbc,&
@@ -343,6 +346,9 @@ CONTAINS
             END IF
          CASE (vdw_pairpot_dftd4)
            !most checks are done by the library
+           CALL cite_reference(Caldeweyher2017)
+           CALL cite_reference(Caldeweyher2019)
+           CALL cite_reference(Caldeweyher2020)
          END SELECT
       END SELECT
 
@@ -3688,6 +3694,13 @@ CONTAINS
       CALL new(mol, el_num, xyz)
       CALL new_d4_model(disp, mol)
       CALL get_rational_damping(dispersion_env%ref_functional, param)
+
+      ! Coordination number cutoff
+      cutoff%cn=dispersion_env%rc_cn
+      ! Two-body interaction cutoff
+      cutoff%disp2=dispersion_env%rc_d4*2._dp
+      ! Three-body interaction cutoff
+      cutoff%disp3=dispersion_env%rc_disp*2._dp
 
       !> Wrapper to handle the evaluation of dispersion energy and derivatives
       IF (calculate_forces) then

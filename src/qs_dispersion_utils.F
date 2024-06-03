@@ -166,6 +166,8 @@ CONTAINS
             CPASSERT(exfun)
             CALL section_vals_val_get(vdw_section, "PAIR_POTENTIAL%REFERENCE_FUNCTIONAL", & 
                c_val=dispersion_env%ref_functional)
+            CALL section_vals_val_get(pp_section, "D4_CUTOFF", r_val=dispersion_env%rc_d4)
+            CALL section_vals_val_get(pp_section, "D4_CN_CUTOFF", r_val=dispersion_env%rc_cn)
          END IF
          CALL section_vals_val_get(pp_section, "R_CUTOFF", r_val=dispersion_env%rc_disp)
          CALL section_vals_val_get(pp_section, "PARAMETER_FILE_NAME", &
