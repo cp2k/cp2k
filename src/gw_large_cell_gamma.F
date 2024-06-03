@@ -1546,10 +1546,9 @@ CONTAINS
 
       CALL cp_fm_create(fm_work, fm_W_MIC_time(1)%matrix_struct)
 
-      ! compute Gamma-only RI-metric matrix M(k=0)
+      ! compute Gamma-only RI-metric matrix M(k=0); no regularization
       CALL RI_2c_integral_mat(qs_env, fm_Minv_Gamma, fm_W_MIC_time(1), n_RI, &
-                              bs_env%ri_metric, do_kpoints=.FALSE., &
-                              regularization_RI=bs_env%regularization_RI)
+                              bs_env%ri_metric, do_kpoints=.FALSE.)
 
       CALL cp_fm_power(fm_Minv_Gamma(1, 1), fm_work, -1.0_dp, 0.0_dp, ndep)
 
@@ -1637,8 +1636,7 @@ CONTAINS
 
       ! 1. Compute truncated Coulomb operator matrix V^tr(k=0) (cutoff rad: cellsize/2)
       CALL RI_2c_integral_mat(qs_env, fm_Vtr_Gamma, bs_env%fm_RI_RI, bs_env%n_RI, &
-                              bs_env%trunc_coulomb, do_kpoints=.FALSE., &
-                              regularization_RI=bs_env%regularization_RI)
+                              bs_env%trunc_coulomb, do_kpoints=.FALSE.)
 
       ! 2. Compute M^-1(k=0) and get M^-1(k=0)*V^tr(k=0)*M^-1(k=0)
       CALL multiply_fm_W_MIC_time_with_Minv_Gamma(bs_env, qs_env, fm_Vtr_Gamma(:, 1))

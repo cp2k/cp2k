@@ -1505,7 +1505,7 @@ CONTAINS
       ! (see details in Guidon, VandeVondele, Hutter, JCTC 5, 3010 (2009) and references therein)
       do_BvK_cell = bs_env%small_cell_full_kp_or_large_cell_Gamma == small_cell_full_kp
       CALL trunc_coulomb_for_exchange(qs_env, bs_env%trunc_coulomb, &
-                                      rel_cutoff_trunc_coulomb_ri_x=0.499_dp, &
+                                      rel_cutoff_trunc_coulomb_ri_x=0.5_dp, &
                                       cell_grid=bs_env%cell_grid_scf_desymm, &
                                       do_BvK_cell=do_BvK_cell)
 

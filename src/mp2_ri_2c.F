@@ -643,8 +643,17 @@ CONTAINS
       col_bsize(:) = sizes_RI
 
       IF (do_kpoints) THEN
+         CPASSERT(PRESENT(kpoints))
+         IF (my_do_build_cell_index) THEN
+            CALL kpoint_init_cell_index(kpoints, sab_RI, para_env, dft_control)
+         END IF
+         CALL get_kpoint_info(kpoints, nkp=nkp, xkp=xkp, &
+                              cell_to_index=cell_to_index)
+         n_real_imag = 2
          nimg = dft_control%nimages
       ELSE
+         nkp = 1
+         n_real_imag = 1
          nimg = 1
       END IF
 
@@ -677,19 +686,6 @@ CONTAINS
 
       IF (my_put_mat_KS_env) THEN
          CALL set_ks_env(qs_env%ks_env, matrix_s_RI_aux_kp=matrix_s_RI_aux_transl)
-      END IF
-
-      IF (do_kpoints) THEN
-         CPASSERT(PRESENT(kpoints))
-         IF (my_do_build_cell_index) THEN
-            CALL kpoint_init_cell_index(kpoints, sab_RI, para_env, dft_control)
-         END IF
-         CALL get_kpoint_info(kpoints, nkp=nkp, xkp=xkp, &
-                              cell_to_index=cell_to_index)
-         n_real_imag = 2
-      ELSE
-         nkp = 1
-         n_real_imag = 1
       END IF
 
       IF (PRESENT(ikp_ext)) nkp = 1
@@ -1687,6 +1683,13 @@ CONTAINS
          trunc_coulomb%cutoff_radius = shortest_dist_cell_planes* &
                                        my_rel_cutoff_trunc_coulomb_ri_x* &
                                        kp_fac
+
+         PRINT *, 'shortest_dist_cell_planes =', shortest_dist_cell_planes
+         PRINT *, 'kp_fac =', kp_fac
+         PRINT *, 'trunc_coulomb%cutoff_radius =', trunc_coulomb%cutoff_radius
+         PRINT *, 'my_rel_cutoff_trunc_coulomb_ri_x =', my_rel_cutoff_trunc_coulomb_ri_x
+         PRINT *, 'PRESENT(rel_cutoff_trunc_coulomb_ri_x) =', PRESENT(rel_cutoff_trunc_coulomb_ri_x)
+
          trunc_coulomb%filename = "t_c_g.dat"
          ! dummy
          trunc_coulomb%omega = 0.0_dp
