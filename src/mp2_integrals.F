@@ -804,7 +804,9 @@ CONTAINS
                   CALL dbt_clear(t_3c_overl_int(i, j))
                   CALL dbt_filter(t_3c_O(i, j), qs_env%mp2_env%ri_rpa_im_time%eps_filter/2)
                   ! rescaling, probably because of neighbor list
-                  IF (do_kpoints_cubic_RPA) CALL dbt_scale(t_3c_O(i, j), 0.5_dp)
+                  IF (do_kpoints_cubic_RPA .AND. cm == cut_memory_int) THEN
+                     CALL dbt_scale(t_3c_O(i, j), 0.5_dp)
+                  END IF
                END DO
             END DO
             CALL timestop(handle4)

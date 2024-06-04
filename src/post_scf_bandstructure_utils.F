@@ -437,6 +437,9 @@ CONTAINS
       bs_env%nimages_scf_desymm = nimages
       bs_env%cell_grid_scf_desymm(1:3) = cell_grid(1:3)
 
+      IF (ASSOCIATED(kpoints%index_to_cell)) DEALLOCATE (kpoints%index_to_cell)
+      IF (ASSOCIATED(kpoints%cell_to_index)) DEALLOCATE (kpoints%cell_to_index)
+
       ALLOCATE (kpoints%cell_to_index(-cixd(1):cixd(1), -cixd(2):cixd(2), -cixd(3):cixd(3)))
       ALLOCATE (kpoints%index_to_cell(nimages, 3))
 
@@ -521,6 +524,8 @@ CONTAINS
             END DO
          END DO
       END IF
+
+      IF (ASSOCIATED(kpoints%index_to_cell)) DEALLOCATE (kpoints%index_to_cell)
 
       ALLOCATE (kpoints%index_to_cell(bs_env%nimages_scf_desymm, 3))
       kpoints%index_to_cell(:, :) = bs_env%kpoints_scf_desymm%index_to_cell(:, :)
