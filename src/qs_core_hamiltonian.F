@@ -140,7 +140,7 @@ MODULE qs_core_hamiltonian
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_core_hamiltonian'
 
-   PUBLIC :: build_core_hamiltonian_matrix
+   PUBLIC :: build_core_hamiltonian_matrix, core_matrices
    PUBLIC :: dump_info_core_hamiltonian, qs_matrix_h_allocate_imag_from_real
 
 CONTAINS
@@ -412,15 +412,17 @@ CONTAINS
 !> \param matrix_p ...
 !> \param calculate_forces ...
 !> \param nder ...
+!> \param atcore ...
 ! **************************************************************************************************
-   SUBROUTINE core_matrices(qs_env, matrix_h, matrix_p, calculate_forces, nder)
+   SUBROUTINE core_matrices(qs_env, matrix_h, matrix_p, calculate_forces, nder, atcore)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_h, matrix_p
       LOGICAL, INTENT(IN)                                :: calculate_forces
       INTEGER, INTENT(IN)                                :: nder
+      REAL(KIND=dp), DIMENSION(:), OPTIONAL              :: atcore
 
-      INTEGER                                            :: nimages
+      INTEGER                                            :: natom, nimages
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
       LOGICAL                                            :: all_present, my_gt_nl, ppl_present, &
                                                             ppnl_present, use_virial
@@ -438,8 +440,11 @@ CONTAINS
       TYPE(virial_type), POINTER                         :: virial
 
       NULLIFY (dft_control)
-      CALL get_qs_env(qs_env=qs_env, ks_env=ks_env, dft_control=dft_control)
+      CALL get_qs_env(qs_env=qs_env, ks_env=ks_env, dft_control=dft_control, natom=natom)
       nimages = dft_control%nimages
+      IF (PRESENT(atcore)) THEN
+         CPASSERT(SIZE(atcore) >= natom)
+      END IF
 
       ! check whether a gauge transformed version of the non-local potential part has to be used
       my_gt_nl = .FALSE.
@@ -484,7 +489,8 @@ CONTAINS
       all_present = ASSOCIATED(sac_ae)
       IF (all_present) THEN
          CALL build_core_ae(matrix_h, matrix_p, force, virial, calculate_forces, use_virial, nder, &
-                            qs_kind_set, atomic_kind_set, particle_set, sab_orb, sac_ae, nimages, cell_to_index)
+                            qs_kind_set, atomic_kind_set, particle_set, sab_orb, sac_ae, &
+                            nimages, cell_to_index, atcore=atcore)
       END IF
 
       ! *** compute the ppl contribution to the core hamiltonian ***
@@ -500,12 +506,12 @@ CONTAINS
                ELSE
                   CALL build_core_ppl(matrix_h, matrix_p, force, virial, calculate_forces, use_virial, nder, &
                                       qs_kind_set, atomic_kind_set, particle_set, sab_orb, sac_ppl, &
-                                      nimages, cell_to_index, "ORB")
+                                      nimages, cell_to_index, "ORB", atcore=atcore)
                END IF
             ELSE
                CALL build_core_ppl(matrix_h, matrix_p, force, virial, calculate_forces, use_virial, nder, &
                                    qs_kind_set, atomic_kind_set, particle_set, sab_orb, sac_ppl, &
-                                   nimages, cell_to_index, "ORB")
+                                   nimages, cell_to_index, "ORB", atcore=atcore)
             END IF
          END IF
       END IF
@@ -517,7 +523,7 @@ CONTAINS
          IF (.NOT. my_gt_nl) THEN
             CALL build_core_ppnl(matrix_h, matrix_p, force, virial, calculate_forces, use_virial, nder, &
                                  qs_kind_set, atomic_kind_set, particle_set, sab_orb, sap_ppnl, eps_ppnl, &
-                                 nimages, cell_to_index, "ORB")
+                                 nimages, cell_to_index, "ORB", atcore=atcore)
          END IF
       END IF
 

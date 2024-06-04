@@ -82,10 +82,11 @@ CONTAINS
 !> \param basis_type ...
 !> \param deltaR Weighting factors of the derivatives wrt. nuclear positions
 !> \param matrix_l ...
+!> \param atcore ...
 ! **************************************************************************************************
    SUBROUTINE build_core_ppnl(matrix_h, matrix_p, force, virial, calculate_forces, use_virial, nder, &
                               qs_kind_set, atomic_kind_set, particle_set, sab_orb, sap_ppnl, eps_ppnl, &
-                              nimages, cell_to_index, basis_type, deltaR, matrix_l)
+                              nimages, cell_to_index, basis_type, deltaR, matrix_l, atcore)
 
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_h, matrix_p
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
@@ -106,6 +107,8 @@ CONTAINS
          OPTIONAL                                        :: deltaR
       TYPE(dbcsr_p_type), DIMENSION(:, :), OPTIONAL, &
          POINTER                                         :: matrix_l
+      REAL(KIND=dp), DIMENSION(:), INTENT(INOUT), &
+         OPTIONAL                                        :: atcore
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'build_core_ppnl'
 
@@ -119,9 +122,9 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, npgfa, nprj_ppnl, &
                                                             nsgf_seta
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa
-      LOGICAL                                            :: do_dR, do_gth, do_kp, do_soc, found, &
-                                                            ppnl_present
-      REAL(KIND=dp)                                      :: dac, f0, ppnl_radius
+      LOGICAL                                            :: do_dR, do_gth, do_kp, do_soc, doat, &
+                                                            found, ppnl_present
+      REAL(KIND=dp)                                      :: atk, dac, f0, ppnl_radius
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: radp
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: sab, work
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: ai_work, lab, work_l
@@ -134,6 +137,7 @@ CONTAINS
       TYPE(gth_potential_p_type), DIMENSION(:), POINTER  :: gpotential
       TYPE(clist_type), POINTER                          :: clist
       TYPE(alist_type), POINTER                          :: alist_ac, alist_bc
+      REAL(KIND=dp), DIMENSION(SIZE(particle_set))       :: at_thread
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: achint, acint, alkint, bchint, bcint, &
                                                             blkint
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: cprj, h_block, l_block_x, l_block_y, &
@@ -156,6 +160,8 @@ CONTAINS
 
       do_dR = .FALSE.
       IF (PRESENT(deltaR)) do_dR = .TRUE.
+      doat = .FALSE.
+      IF (PRESENT(atcore)) doat = .TRUE.
 
       IF (calculate_forces) THEN
          CALL timeset(routineN//"_forces", handle)
@@ -178,7 +184,7 @@ CONTAINS
             CPASSERT(PRESENT(cell_to_index) .AND. ASSOCIATED(cell_to_index))
          END IF
 
-         IF (calculate_forces) THEN
+         IF (calculate_forces .OR. doat) THEN
             IF (SIZE(matrix_p, 1) == 2) THEN
                DO img = 1, nimages
                   CALL dbcsr_add(matrix_p(1, img)%matrix, matrix_p(2, img)%matrix, &
@@ -478,23 +484,24 @@ CONTAINS
          ! We now calculate the Hamiltonian matrix elements
 
          force_thread = 0.0_dp
+         at_thread = 0.0_dp
          pv_thread = 0.0_dp
 
 !$OMP PARALLEL &
 !$OMP DEFAULT (NONE) &
 !$OMP SHARED  (do_kp, basis_set, matrix_h, matrix_l, cell_to_index,&
 !$OMP          sab_orb, matrix_p, sap_int, nkind, eps_ppnl, force, &
-!$OMP          do_dR, deltaR, maxder, nder, &
+!$OMP          doat, do_dR, deltaR, maxder, nder, &
 !$OMP          locks, virial, use_virial, calculate_forces, do_soc, natom) &
 !$OMP PRIVATE (ikind, jkind, iatom, jatom, cell_b, rab, &
 !$OMP          slot, iab, atom_a, f0, irow, icol, h_block, &
 !$OMP          l_block_x, l_block_y, l_block_z, &
-!$OMP          r_2block, r_3block, &
+!$OMP          r_2block, r_3block, atk, &
 !$OMP          found,p_block, iac, ibc, alist_ac, alist_bc, acint, bcint, &
 !$OMP          achint, bchint, alkint, blkint, &
 !$OMP          na, np, nb, katom, j, fa, fb, rbc, rac, &
 !$OMP          kkind, kac, kbc, i, img, hash, iatom8) &
-!$OMP REDUCTION (+ : pv_thread, force_thread )
+!$OMP REDUCTION (+ : at_thread, pv_thread, force_thread )
 
 !$OMP SINGLE
 !$       ALLOCATE (locks(nlock))
@@ -557,7 +564,7 @@ CONTAINS
                CALL dbcsr_get_block_p(matrix_h(3, img)%matrix, irow, icol, r_3block, found)
             END IF
 
-            IF (calculate_forces) THEN
+            IF (calculate_forces .OR. doat) THEN
                NULLIFY (p_block)
                CALL dbcsr_get_block_p(matrix_p(1, img)%matrix, irow, icol, p_block, found)
             END IF
@@ -711,6 +718,19 @@ CONTAINS
                               END IF
 
                            END IF
+                           IF (doat) THEN
+                              IF (ASSOCIATED(p_block)) THEN
+                                 katom = alist_ac%clist(kac)%catom
+                                 IF (iatom <= jatom) THEN
+                                    atk = SUM(p_block(1:na, 1:nb)* &
+                                              MATMUL(achint(1:na, 1:np, 1), TRANSPOSE(bcint(1:nb, 1:np, 1))))
+                                 ELSE
+                                    atk = SUM(p_block(1:nb, 1:na)* &
+                                              MATMUL(bchint(1:nb, 1:np, 1), TRANSPOSE(acint(1:na, 1:np, 1))))
+                                 END IF
+                                 at_thread(katom) = at_thread(katom) + f0*atk
+                              END IF
+                           END IF
                            EXIT ! We have found a match and there can be only one single match
                         END IF
                      END DO
@@ -751,7 +771,11 @@ CONTAINS
             virial%pv_virial = virial%pv_virial + pv_thread
          END IF
 
-         IF (calculate_forces) THEN
+         IF (doat) THEN
+            atcore(1:natom) = atcore(1:natom) + at_thread
+         END IF
+
+         IF (calculate_forces .OR. doat) THEN
             ! If LSD, then recover alpha density and beta density
             ! from the total density (1) and the spin density (2)
             IF (SIZE(matrix_p, 1) == 2) THEN
