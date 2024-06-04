@@ -38,6 +38,10 @@
       &END EWALD
     &END POISSON
   &END MM
+  &PRINT
+    &FORCES
+    &END FORCES
+  &END PRINT
   &SUBSYS
     &CELL
       A 9.8528 0.0 0.0
@@ -50,8 +54,4 @@
       COORD_FILE_NAME ../regtest-nequip/water-bulk.xyz
     &END TOPOLOGY
   &END SUBSYS
-    &PRINT
-    &FORCES
-    &END FORCES
-  &END PRINT
 &END FORCE_EVAL
