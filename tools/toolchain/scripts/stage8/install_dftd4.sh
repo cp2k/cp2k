@@ -55,7 +55,7 @@ case "$with_dftd4" in
       if [ -n "${MKL_LIBS}" ]; then
         EXTRA_CMAKE_FLAGS=" -DMKLROOT=${MKLROOT} "
       fi
-      
+
       CMAKE_PREFIX_PATH="${CMAKE_PREFIX_PATH}:${OPENBLAS_ROOT}" cmake \
         -B . -G Ninja \
         -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}" \
@@ -68,7 +68,7 @@ case "$with_dftd4" in
 
       cmake --build . >> build.log 2>&1 || tail -n ${LOG_LINES} build.log
 
-      cmake --install .  >> install.log 2>&1
+      cmake --install . >> install.log 2>&1
 
       cd ..
       echo "==================== Linking Grimme_D4 to user paths ===================="
@@ -78,9 +78,9 @@ case "$with_dftd4" in
 
   *)
     echo "__INVALID__"
-    ;; 
+    ;;
 
-  esac
+esac
 
 if [ "$with_dftd4" != "__DONTUSE__" ]; then
   DFTD4_LOC=$(find ${pkg_install_dir}/include -name "multicharge.mod")

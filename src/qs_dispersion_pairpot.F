@@ -16,14 +16,14 @@ MODULE qs_dispersion_pairpot
                                               get_atomic_kind_set
    USE atprop_types,                    ONLY: atprop_array_init,&
                                               atprop_type
-   USE bibliography,                    ONLY: Goerigk2017,&
+   USE bibliography,                    ONLY: Caldeweyher2017,&
+                                              Caldeweyher2019,&
+                                              Caldeweyher2020,&
+                                              Goerigk2017,&
                                               cite_reference,&
                                               grimme2006,&
                                               grimme2010,&
-                                              grimme2011,&
-                                              Caldeweyher2017,&
-                                              Caldeweyher2019,&
-                                              Caldeweyher2020
+                                              grimme2011
    USE cell_types,                      ONLY: cell_type,&
                                               get_cell,&
                                               pbc,&
@@ -345,10 +345,10 @@ CONTAINS
                END IF
             END IF
          CASE (vdw_pairpot_dftd4)
-           !most checks are done by the library
-           CALL cite_reference(Caldeweyher2017)
-           CALL cite_reference(Caldeweyher2019)
-           CALL cite_reference(Caldeweyher2020)
+            !most checks are done by the library
+            CALL cite_reference(Caldeweyher2017)
+            CALL cite_reference(Caldeweyher2019)
+            CALL cite_reference(Caldeweyher2020)
          END SELECT
       END SELECT
 
@@ -1380,11 +1380,11 @@ CONTAINS
       END IF
 
       IF (dispersion_env%pp_type == vdw_pairpot_dftd4) THEN
-        CALL calculate_dispersion_d4_pairpot(dispersion_env, particle_set, force, energy, calculate_forces)
-        !To Do: process forces
-        
-        CALL timestop(handle)
-        RETURN
+         CALL calculate_dispersion_d4_pairpot(dispersion_env, particle_set, force, energy, calculate_forces)
+         !To Do: process forces
+
+         CALL timestop(handle)
+         RETURN
       END IF
 
       ALLOCATE (dodisp(nkind), ghost(nkind), floating(nkind), atomnumber(nkind), c6d2(nkind), radd2(nkind))
@@ -3647,7 +3647,7 @@ CONTAINS
 
    ! **************************************************************************************************
 !> \brief ...
-!> \dispersion_env ...
+!> \param dispersion_env ...
 !> \param particle_set ...
 !> \param force ...
 !> \param energy ...
@@ -3655,10 +3655,9 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE calculate_dispersion_d4_pairpot(dispersion_env, particle_set, force, energy, calculate_forces)
 
-      use dftd4, only : structure_type, new, d4_model, new_d4_model, &
-                        damping_param, get_rational_damping,         &
-                        realspace_cutoff, get_dispersion
-
+      USE dftd4, ONLY: structure_type, new, d4_model, new_d4_model, &
+                       damping_param, get_rational_damping, &
+                       realspace_cutoff, get_dispersion
       TYPE(qs_dispersion_type), POINTER                  :: dispersion_env
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
@@ -3667,17 +3666,17 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_dispersion_d4_pairpot'
 
-      TYPE(structure_type)                        :: mol
-      INTEGER                                     :: natom, iatom
-      INTEGER, ALLOCATABLE, DIMENSION(:)          :: el_num
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:,:)  :: xyz
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:,:)  :: gradient
-      REAL(KIND=dp), DIMENSION(3,3)               :: sigma
-      TYPE(d4_model)                              :: disp
-      class(damping_param), allocatable           :: param
-      TYPE(realspace_cutoff)                      :: cutoff 
+      INTEGER                                            :: iatom, natom
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: el_num
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: gradient, xyz
+      REAL(KIND=dp), DIMENSION(3, 3)                     :: sigma
+      TYPE(d4_model)                                     :: disp
+      TYPE(structure_type)                               :: mol
+
+      class(damping_param), ALLOCATABLE           :: param
+      TYPE(realspace_cutoff)                      :: cutoff
       INTEGER                                     :: handle, ikind
-      
+
       CALL timeset(routineN, handle)
 
       !get information about particles
@@ -3696,24 +3695,24 @@ CONTAINS
       CALL get_rational_damping(dispersion_env%ref_functional, param)
 
       ! Coordination number cutoff
-      cutoff%cn=dispersion_env%rc_cn
+      cutoff%cn = dispersion_env%rc_cn
       ! Two-body interaction cutoff
-      cutoff%disp2=dispersion_env%rc_d4*2._dp
+      cutoff%disp2 = dispersion_env%rc_d4*2._dp
       ! Three-body interaction cutoff
-      cutoff%disp3=dispersion_env%rc_disp*2._dp
+      cutoff%disp3 = dispersion_env%rc_disp*2._dp
 
       !> Wrapper to handle the evaluation of dispersion energy and derivatives
-      IF (calculate_forces) then
-        ALLOCATE(gradient(3, mol%nat))
-        CALL get_dispersion(mol, disp, param, cutoff, energy, gradient, sigma)
-        !sigma needed for viral terms
-        CPABORT("To do: write gradient to force")
-        force(ikind)%dispersion(:,:) = force(ikind)%dispersion(:,:) + gradient(:,:)
-        DEALLOCATE(gradient)
+      IF (calculate_forces) THEN
+         ALLOCATE (gradient(3, mol%nat))
+         CALL get_dispersion(mol, disp, param, cutoff, energy, gradient, sigma)
+         !sigma needed for viral terms
+         CPABORT("To do: write gradient to force")
+         force(ikind)%dispersion(:, :) = force(ikind)%dispersion(:, :) + gradient(:, :)
+         DEALLOCATE (gradient)
       ELSE
-        CALL get_dispersion(mol, disp, param, cutoff, energy)
-      ENDIF
-      
+         CALL get_dispersion(mol, disp, param, cutoff, energy)
+      END IF
+
       DEALLOCATE (el_num, xyz)
 
       CALL timestop(handle)

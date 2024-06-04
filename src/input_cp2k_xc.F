@@ -13,10 +13,9 @@
 ! **************************************************************************************************
 MODULE input_cp2k_xc
    USE bibliography,                    ONLY: &
-        Becke1988, Becke1997, BeckeRoussel1989, Goedecker1996, Grimme2006, Grimme2010, Grimme2011, &
-        Heyd2004, Kruse2012, Lee1988, Ortiz1994, Perdew1981, Perdew1996, Perdew2008, Proynov2007, &
-        Tao2003, Tran2013, Vosko1980, Wellendorff2012, Zhang1998, Caldeweyher2017, &
-        Caldeweyher2019, Caldeweyher2020
+        Becke1988, Becke1997, BeckeRoussel1989, Caldeweyher2020, Goedecker1996, Grimme2006, &
+        Grimme2010, Grimme2011, Heyd2004, Kruse2012, Lee1988, Ortiz1994, Perdew1981, Perdew1996, &
+        Perdew2008, Proynov2007, Tao2003, Tran2013, Vosko1980, Wellendorff2012, Zhang1998
    USE cp_output_handling,              ONLY: add_last_numeric,&
                                               cp_print_key_section_create,&
                                               high_print_level
@@ -26,8 +25,8 @@ MODULE input_cp2k_xc
         vdw_pairpot_dftd2, vdw_pairpot_dftd3, vdw_pairpot_dftd3bj, vdw_pairpot_dftd4, &
         xc_funct_b3lyp, xc_funct_beefvdw, xc_funct_blyp, xc_funct_bp, xc_funct_hcth120, &
         xc_funct_no_shortcut, xc_funct_olyp, xc_funct_pade, xc_funct_pbe, xc_funct_pbe0, &
-        xc_funct_tpss, xc_none,xc_pot_energy_none, xc_pot_energy_sum_eigenvalues,  &
-       xc_pot_energy_xc_functional, xc_vdw_fun_none, xc_vdw_fun_nonloc, xc_vdw_fun_pairpot
+        xc_funct_tpss, xc_none, xc_pot_energy_none, xc_pot_energy_sum_eigenvalues, &
+        xc_pot_energy_xc_functional, xc_vdw_fun_none, xc_vdw_fun_nonloc, xc_vdw_fun_pairpot
    USE input_cp2k_hfx,                  ONLY: create_hfx_section
    USE input_cp2k_mp2,                  ONLY: create_mp2_section
    USE input_keyword_types,             ONLY: keyword_create,&
@@ -945,15 +944,15 @@ CONTAINS
                           description="Information on the pair potential to calculate dispersion", &
                           n_keywords=5, n_subsections=0, repeats=.TRUE.)
       CALL keyword_create(keyword, __LOCATION__, name="R_CUTOFF", &
-                          description="Range of potential. The cutoff will be 2 times this value"// &
-                                      "In the case of D4 it will be used for the 3-body term", &
+                          description="Range of potential. The cutoff will be 2 times this value. "// &
+                          "In the case of D4 it will be used for the 3-body term", &
                           usage="R_CUTOFF 20.0", default_r_val=20.0_dp, &
                           unit_str="angstrom")
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="D4_CUTOFF", &
-                          description="Range of potential. The cutoff will be 2 times this value"// &
-                                      "Only used for the 2-body term of D4", &
+                          description="Range of potential. The cutoff will be 2 times this value. "// &
+                          "Only used for the 2-body term of D4", &
                           usage="D4_CUTOFF 30.0", default_r_val=30.0_dp, &
                           unit_str="angstrom")
       CALL section_add_keyword(subsection, keyword)
@@ -987,7 +986,7 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="REFERENCE_FUNCTIONAL", &
                           description="Use parameters for this specific density functional. "// &
                           "For available D3 and D3(BJ) parameters see: "// &
-                          "<https://www.chemie.uni-bonn.de/grimme/de/software/dft-d3>."// &
+                          "<https://www.chemie.uni-bonn.de/grimme/de/software/dft-d3>. "// &
                           "For the defintion of D4 parameters see: "// &
                           "<https://github.com/dftd4/dftd4>.", &
                           usage="REFERENCE_FUNCTIONAL <functional>", &

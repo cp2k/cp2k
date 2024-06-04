@@ -5013,47 +5013,46 @@ CONTAINS
                          DOI="10.1007/978-3-031-61763-8_13")
       
       CALL add_reference(key=Caldeweyher2017, ISI_record=s2a( &
-                         "PT J",&
-                         "AU Caldeweyher, E",&
-                         "   Bannwarth, C",&
-                         "   Grimme, S",&
-                         "AF Caldeweyher, Eike",&
-                         "   Bannwarth, Christoph",&
-                         "   Grimme, Stefan",&
-                         "TI Extension of the D3 dispersion coefficient model",&
-                         "SO JOURNAL OF CHEMICAL PHYSICS",&
-                         "PD JUL 21",&
-                         "PY 2017",&
-                         "VL 147",&
-                         "AR 034112",&
-                         "DI 10.1063/1.4993215",&
+                         "PT J", &
+                         "AU Caldeweyher, E", &
+                         "   Bannwarth, C", &
+                         "   Grimme, S", &
+                         "AF Caldeweyher, Eike", &
+                         "   Bannwarth, Christoph", &
+                         "   Grimme, Stefan", &
+                         "TI Extension of the D3 dispersion coefficient model", &
+                         "SO JOURNAL OF CHEMICAL PHYSICS", &
+                         "PD JUL 21", &
+                         "PY 2017", &
+                         "VL 147", &
+                         "AR 034112", &
+                         "DI 10.1063/1.4993215", &
                          "ER"), &
                          DOI="10.1063/1.4993215")
 
-
       CALL add_reference(key=Caldeweyher2019, ISI_record=s2a( &
                          "PT J", &
-                         "AU Caldeweyher, E",&
-                         "   Ehlert, S",&
-                         "   Hansen, A",&
-                         "   Neugebauer, H",&
-                         "   Spicher, S",&
-                         "   Bannwarth, C",&
-                         "   Grimme, S",&
-                         "AF Caldeweyher, Eike",&
-                         "   Ehlert, Sebastian",&
-                         "   Hansen, Andreas",&
-                         "   Neugebauer, Hagen",&
-                         "   Spicher, Sebastian",&
-                         "   Bannwarth, Christoph",&
-                         "   Grimme, Stefan",&
-                         "TI A generally applicable atomic-charge dependent London dispersion",&
-                         "   correction",&
-                         "SO JOURNAL OF CHEMICAL PHYSICS",&
-                         "PY 2019",&
-                         "VL 150",&
-                         "AR 154122",&
-                         "DI 10.1063/1.5090222",&
+                         "AU Caldeweyher, E", &
+                         "   Ehlert, S", &
+                         "   Hansen, A", &
+                         "   Neugebauer, H", &
+                         "   Spicher, S", &
+                         "   Bannwarth, C", &
+                         "   Grimme, S", &
+                         "AF Caldeweyher, Eike", &
+                         "   Ehlert, Sebastian", &
+                         "   Hansen, Andreas", &
+                         "   Neugebauer, Hagen", &
+                         "   Spicher, Sebastian", &
+                         "   Bannwarth, Christoph", &
+                         "   Grimme, Stefan", &
+                         "TI A generally applicable atomic-charge dependent London dispersion", &
+                         "   correction", &
+                         "SO JOURNAL OF CHEMICAL PHYSICS", &
+                         "PY 2019", &
+                         "VL 150", &
+                         "AR 154122", &
+                         "DI 10.1063/1.5090222", &
                          "ER"), &
                          DOI="10.1063/1.5090222")
 
@@ -5072,12 +5071,11 @@ CONTAINS
                          "SO PHYSICAL CHEMISTRY CHEMICAL PHYSICS", &
                          "PY 2020", &
                          "VL 22", &
-                         "BP 8499",&
-                         "EP 8512",&
+                         "BP 8499", &
+                         "EP 8512", &
                          "DI 10.1039/d0cp00502a", &
                          "ER"), &
                          DOI="10.1039/d0cp00502a")
-
 
       CALL add_reference(key=Freeman1977, ISI_record=s2a( &
                          "TY JOUR", &

@@ -17,15 +17,9 @@ MODULE qs_dispersion_utils
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                               cp_print_key_unit_nr
-   USE input_constants,                 ONLY: vdw_nl_DRSLL,&
-                                              vdw_nl_LMKLL,&
-                                              vdw_nl_RVV10,&
-                                              vdw_pairpot_dftd2,&
-                                              vdw_pairpot_dftd3,&
-                                              vdw_pairpot_dftd3bj,&
-                                              vdw_pairpot_dftd4,&
-                                              xc_vdw_fun_nonloc,&
-                                              xc_vdw_fun_pairpot
+   USE input_constants,                 ONLY: &
+        vdw_nl_DRSLL, vdw_nl_LMKLL, vdw_nl_RVV10, vdw_pairpot_dftd2, vdw_pairpot_dftd3, &
+        vdw_pairpot_dftd3bj, vdw_pairpot_dftd4, xc_vdw_fun_nonloc, xc_vdw_fun_pairpot
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type,&
                                               section_vals_val_get
@@ -164,8 +158,8 @@ CONTAINS
          IF (dispersion_env%pp_type == vdw_pairpot_dftd4) THEN
             CALL section_vals_val_get(pp_section, "REFERENCE_FUNCTIONAL", explicit=exfun)
             CPASSERT(exfun)
-            CALL section_vals_val_get(vdw_section, "PAIR_POTENTIAL%REFERENCE_FUNCTIONAL", & 
-               c_val=dispersion_env%ref_functional)
+            CALL section_vals_val_get(vdw_section, "PAIR_POTENTIAL%REFERENCE_FUNCTIONAL", &
+                                      c_val=dispersion_env%ref_functional)
             CALL section_vals_val_get(pp_section, "D4_CUTOFF", r_val=dispersion_env%rc_d4)
             CALL section_vals_val_get(pp_section, "D4_CN_CUTOFF", r_val=dispersion_env%rc_cn)
          END IF

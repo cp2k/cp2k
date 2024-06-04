@@ -883,8 +883,7 @@ endif()
 
 if(CP2K_USE_DFTD4)
   message(
-    " - DFTD4 :\n"
-    "   - include modules     :  ${DFTD4_DFTD4};${DFTD4_MCTC}\n"
+    " - DFTD4 :\n" "   - include modules     :  ${DFTD4_DFTD4};${DFTD4_MCTC}\n"
     "   - include directories :  ${DFTD4_INCLUDE_DIR}\n"
     "   - libraries           :  ${DFTD4_LIBRARIES}\n\n")
 endif()
@@ -958,9 +957,8 @@ if(NOT CP2K_USE_MPI)
 endif()
 
 if(NOT CP2K_USE_DFTD4)
-	message("   - DFTD4")
+  message("   - DFTD4")
 endif()
-
 
 if(NOT CP2K_USE_SIRIUS)
   message("   - SIRIUS")
