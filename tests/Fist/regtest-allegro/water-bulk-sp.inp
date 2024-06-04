@@ -27,7 +27,7 @@
           ATOMS H O
           PARM_FILE_NAME Allegro/gra-water-deployed-neq060sp.pth
           UNIT_COORDS angstrom
-          UNIT_ENERGY Hartree
+          UNIT_ENERGY eV
           UNIT_FORCES eV*angstrom^-1
         &END ALLEGRO
       &END NONBONDED
@@ -50,4 +50,8 @@
       COORD_FILE_NAME ../regtest-nequip/water-bulk.xyz
     &END TOPOLOGY
   &END SUBSYS
+    &PRINT
+    &FORCES
+    &END FORCES
+  &END PRINT
 &END FORCE_EVAL

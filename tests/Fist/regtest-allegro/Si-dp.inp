@@ -47,10 +47,6 @@
       &END EWALD
     &END POISSON
   &END MM
-  &PRINT
-    &FORCES
-    &END FORCES
-  &END PRINT
   &SUBSYS
     &CELL
       ABC 10.861999859992501 10.861999859992501 10.861999859992501
@@ -58,7 +54,6 @@
     &END CELL
     &TOPOLOGY
       COORD_FILE_FORMAT XYZ
-      #   coordinates must be ordered by atomic number
       COORD_FILE_NAME Si.xyz
       #   MULTIPLE_UNIT_CELL 4 4 4
     &END TOPOLOGY
