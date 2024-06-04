@@ -29,9 +29,7 @@ MODULE trexio_utils
    USE external_potential_types, ONLY: sgp_potential_type, get_potential
    USE input_section_types, ONLY: section_vals_type, &
                                   section_vals_val_get
-   USE kinds, ONLY: default_path_length, &
-                    default_string_length, &
-                    dp
+   USE kinds, ONLY: default_path_length, dp
    USE kpoint_types, ONLY: kpoint_type, kpoint_env_type, kpoint_env_p_type, &
                            get_kpoint_info, get_kpoint_env
    USE orbital_pointers, ONLY: nco, nso
@@ -43,7 +41,6 @@ MODULE trexio_utils
    USE qs_kind_types, ONLY: get_qs_kind, get_qs_kind_set, &
                             qs_kind_type
    USE qs_mo_types, ONLY: mo_set_type, get_mo_set
-   ! USE qs_scf_types, ONLY: qs_scf_env_type
    USE trexio, ONLY: trexio_open, trexio_close, &
                      TREXIO_HDF5, TREXIO_SUCCESS, &
                      trexio_string_of_error, trexio_t, trexio_exit_code, &
@@ -117,12 +114,9 @@ MODULE trexio_utils
       TYPE(qs_energy_type), POINTER                      :: energy => Null()
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: kind_set => Null()
       TYPE(sgp_potential_type), POINTER                  :: sgp_potential => Null()
-      TYPE(mo_set_type), POINTER                         :: mo_set => Null()
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos => Null()
       TYPE(mo_set_type), DIMENSION(:,:), POINTER         :: mos_kp => Null()
       TYPE(kpoint_env_p_type), DIMENSION(:), POINTER     :: kp_env => Null()
-      ! TYPE(qs_ks_env_type), POINTER                      :: ks_env => Null()
-      ! TYPE(qs_scf_env_type), POINTER                     :: scf_env => Null()
 
       CHARACTER(LEN=2)                                   :: element_symbol
       CHARACTER(LEN=2), DIMENSION(:), ALLOCATABLE        :: label
@@ -615,9 +609,7 @@ MODULE trexio_utils
          DO ikp = 1, nkp
             CALL get_kpoint_env(kp_env(ikp)%kpoint_env, mos=mos_kp)
             DO ispin = 1, nspins
-               ! first argument of mos_kp is a 2x2 array
-               ! 1st dim is real and imaginary part
-               ! 2nd dim is spin
+               ! mos_kp is a 2x2 array: 1st dim is real and imaginary parts, 2nd dim is spin
                CALL get_mo_set(mos_kp(1,ispin), nmo=nmo)
                mo_num = mo_num + nmo
             END DO
@@ -647,9 +639,23 @@ MODULE trexio_utils
       imo = 0
       DO ispin = 1, nspins
          IF (do_kpoints) THEN
-            CALL get_kpoint_info(kpoints, kp_env=kp_env)
-            CALL get_kpoint_env(kp_env(1)%kpoint_env, mos=mos_kp)
-            mo_set => mos_kp(1,ispin)
+            DO ikp = 1, nkp
+               CALL get_kpoint_env(kp_env(ikp)%kpoint_env, mos=mos_kp)
+               CALL get_mo_set(mos_kp(1,ispin), nmo=nmo)
+               ! store kpoint index
+               mo_kpoint(imo+1:imo+nmo) = ikp
+               ! store the MO energies
+               mo_energy(imo+1:imo+nmo) = mos_kp(1,ispin)%eigenvalues
+               ! store the MO occupations
+               mo_occupation(imo+1:imo+nmo) = mos_kp(1,ispin)%occupation_numbers
+               ! store the MO spins
+               mo_spin(imo+1:imo+nmo) = ispin
+               ! transform and store the MO coefficients
+               CALL spherical_to_cartesian_mo(mos_kp(1,ispin), particle_set, kind_set, mo_coefficient(:,imo+1:imo+nmo))
+               CALL spherical_to_cartesian_mo(mos_kp(2,ispin), particle_set, kind_set, mo_coefficient_im(:,imo+1:imo+nmo))
+
+               imo = imo + nmo
+            END DO
          ELSE
             CALL get_mo_set(mos(ispin), nmo=nmo)
 
@@ -683,7 +689,12 @@ MODULE trexio_utils
       DEALLOCATE (mo_spin)
 
       IF (do_kpoints) THEN
+         rc = trexio_write_mo_coefficient_im(f, mo_coefficient_im)
+         CALL trexio_error(rc)
          DEALLOCATE (mo_coefficient_im)
+
+         rc = trexio_write_mo_k_point(f, mo_kpoint)
+         CALL trexio_error(rc)
          DEALLOCATE (mo_kpoint)
       END IF
 
