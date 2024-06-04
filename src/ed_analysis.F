@@ -592,6 +592,7 @@ CONTAINS
          CALL deallocate_mo_set(mos_loc(ispin))
       END DO
       CALL dbcsr_release(core_mat(1)%matrix)
+      DEALLOCATE (core_mat(1)%matrix)
       CALL dbcsr_release(exc_mat(1)%matrix)
       DEALLOCATE (exc_mat(1)%matrix)
       DEALLOCATE (ks_mat, core_mat, vhxc_mat, exc_mat)
