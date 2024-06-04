@@ -1683,13 +1683,6 @@ CONTAINS
          trunc_coulomb%cutoff_radius = shortest_dist_cell_planes* &
                                        my_rel_cutoff_trunc_coulomb_ri_x* &
                                        kp_fac
-
-         PRINT *, 'shortest_dist_cell_planes =', shortest_dist_cell_planes
-         PRINT *, 'kp_fac =', kp_fac
-         PRINT *, 'trunc_coulomb%cutoff_radius =', trunc_coulomb%cutoff_radius
-         PRINT *, 'my_rel_cutoff_trunc_coulomb_ri_x =', my_rel_cutoff_trunc_coulomb_ri_x
-         PRINT *, 'PRESENT(rel_cutoff_trunc_coulomb_ri_x) =', PRESENT(rel_cutoff_trunc_coulomb_ri_x)
-
          trunc_coulomb%filename = "t_c_g.dat"
          ! dummy
          trunc_coulomb%omega = 0.0_dp
