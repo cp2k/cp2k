@@ -78,9 +78,11 @@ CONTAINS
 !> \param sac_ae ...
 !> \param nimages ...
 !> \param cell_to_index ...
+!> \param atcore ...
 ! **************************************************************************************************
    SUBROUTINE build_core_ae(matrix_h, matrix_p, force, virial, calculate_forces, use_virial, nder, &
-                            qs_kind_set, atomic_kind_set, particle_set, sab_orb, sac_ae, nimages, cell_to_index)
+                            qs_kind_set, atomic_kind_set, particle_set, sab_orb, sac_ae, &
+                            nimages, cell_to_index, atcore)
 
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_h, matrix_p
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
@@ -95,6 +97,8 @@ CONTAINS
          POINTER                                         :: sab_orb, sac_ae
       INTEGER, INTENT(IN)                                :: nimages
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
+      REAL(KIND=dp), DIMENSION(:), INTENT(INOUT), &
+         OPTIONAL                                        :: atcore
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'build_core_ae'
 
@@ -106,9 +110,10 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, lb_max, lb_min, npgfa, &
                                                             npgfb, nsgfa, nsgfb
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa, first_sgfb
-      LOGICAL                                            :: dokp, found
-      REAL(KIND=dp)                                      :: alpha_c, core_charge, core_radius, dab, &
-                                                            dac, dbc, f0, rab2, rac2, rbc2, zeta_c
+      LOGICAL                                            :: doat, dokp, found
+      REAL(KIND=dp)                                      :: alpha_c, atk0, atk1, core_charge, &
+                                                            core_radius, dab, dac, dbc, f0, rab2, &
+                                                            rac2, rbc2, zeta_c
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: ff
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: habd, work
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: hab, pab, verf, vnuc
@@ -119,6 +124,7 @@ CONTAINS
       TYPE(gto_basis_set_type), POINTER                  :: basis_set_a, basis_set_b
       TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: basis_set_list
       TYPE(all_potential_type), POINTER                  :: all_potential
+      REAL(KIND=dp), DIMENSION(SIZE(particle_set))       :: at_thread
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: h_block, p_block, rpgfa, rpgfb, sphi_a, &
                                                             sphi_b, zeta, zetb
       REAL(KIND=dp), DIMENSION(:), POINTER               :: set_radius_a, set_radius_b
@@ -142,9 +148,10 @@ CONTAINS
       nkind = SIZE(atomic_kind_set)
       natom = SIZE(particle_set)
 
+      doat = PRESENT(atcore)
       dokp = (nimages > 1)
 
-      IF (calculate_forces) THEN
+      IF (calculate_forces .OR. doat) THEN
          IF (SIZE(matrix_p, 1) == 2) THEN
             DO img = 1, nimages
                CALL dbcsr_add(matrix_p(1, img)%matrix, matrix_p(2, img)%matrix, &
@@ -156,6 +163,7 @@ CONTAINS
       END IF
 
       force_thread = 0.0_dp
+      at_thread = 0.0_dp
       pv_thread = 0.0_dp
 
       ALLOCATE (basis_set_list(nkind))
@@ -185,7 +193,7 @@ CONTAINS
 !$OMP SHARED  (ap_iterator, basis_set_list, calculate_forces, use_virial, &
 !$OMP          matrix_h, matrix_p, atomic_kind_set, qs_kind_set, particle_set, &
 !$OMP          sab_orb, sac_ae, nthread, ncoset, nkind, cell_to_index, &
-!$OMP          slot, ldsab,  maxnset, ldai, nder, maxl, maxco, dokp, locks, natom) &
+!$OMP          slot, ldsab,  maxnset, ldai, nder, maxl, maxco, dokp, doat, locks, natom) &
 !$OMP PRIVATE (ikind, jkind, iatom, jatom, rab, basis_set_a, basis_set_b, &
 !$OMP          first_sgfa, la_max, la_min, npgfa, nsgfa, sphi_a, &
 !$OMP          zeta, first_sgfb, lb_max, lb_min, npgfb, nsetb, rpgfb, set_radius_b, sphi_b, &
@@ -193,9 +201,9 @@ CONTAINS
 !$OMP          sgfa, jset, ncob, sgfb, nsgfb, p_block, work, pab, hab, kkind, nseta, &
 !$OMP          rac, dac, rbc, rab2, rac2, rbc2, dbc, na_plus, nb_plus, verf, vnuc, &
 !$OMP          set_radius_a,  core_radius, rpgfa, force_a, force_b, mepos, &
-!$OMP          habd, f0, katom, cellind, img, nij, ff, &
+!$OMP          atk0, atk1, habd, f0, katom, cellind, img, nij, ff, &
 !$OMP          sgp_potential, all_potential, hash, hash1, hash2, iatom8) &
-!$OMP REDUCTION (+ : pv_thread, force_thread )
+!$OMP REDUCTION (+ : pv_thread, force_thread, at_thread )
 
 !$OMP SINGLE
 !$    ALLOCATE (locks(nlock))
@@ -212,7 +220,7 @@ CONTAINS
 
       ALLOCATE (hab(ldsab, ldsab, maxnset*maxnset), work(ldsab, ldsab))
       ALLOCATE (verf(ldai, ldai, 2*maxl + nder + 1), vnuc(ldai, ldai, 2*maxl + nder + 1), ff(0:2*maxl + nder))
-      IF (calculate_forces) THEN
+      IF (calculate_forces .OR. doat) THEN
          ALLOCATE (pab(maxco, maxco, maxnset*maxnset))
       END IF
 
@@ -281,7 +289,7 @@ CONTAINS
          NULLIFY (h_block)
          CALL dbcsr_get_block_p(matrix=matrix_h(1, img)%matrix, &
                                 row=irow, col=icol, BLOCK=h_block, found=found)
-         IF (calculate_forces) THEN
+         IF (calculate_forces .OR. doat) THEN
             NULLIFY (p_block)
             CALL dbcsr_get_block_p(matrix=matrix_p(1, img)%matrix, &
                                    row=irow, col=icol, BLOCK=p_block, found=found)
@@ -352,6 +360,9 @@ CONTAINS
                      rbc2 = dbc*dbc
                      nij = jset + (iset - 1)*maxnset
                      ! *** Calculate the GTH pseudo potential forces ***
+                     IF (doat) THEN
+                        atk0 = f0*SUM(hab(1:ncoa, 1:ncob, nij)*pab(1:ncoa, 1:ncob, nij))
+                     END IF
                      IF (calculate_forces) THEN
                         na_plus = npgfa(iset)*ncoset(la_max(iset) + nder)
                         nb_plus = npgfb(jset)*ncoset(lb_max(jset))
@@ -395,6 +406,11 @@ CONTAINS
                            lb_max(jset), npgfb(jset), zetb(:, jset), rpgfb(:, jset), lb_min(jset), &
                            alpha_c, core_radius, zeta_c, core_charge, &
                            rab, rab2, rac, rac2, rbc2, hab(:, :, nij), verf, vnuc, ff(0:))
+                     END IF
+                     ! calculate atomic contributions
+                     IF (doat) THEN
+                        atk1 = f0*SUM(hab(1:ncoa, 1:ncob, nij)*pab(1:ncoa, 1:ncob, nij))
+                        at_thread(katom) = at_thread(katom) + (atk1 - atk0)
                      END IF
                   END DO
                END DO
@@ -471,6 +487,9 @@ CONTAINS
             force(ikind)%all_potential(:, atom_a) = force(ikind)%all_potential(:, atom_a) + force_thread(:, iatom)
          END DO
 !$OMP END DO
+      END IF
+      IF (doat) THEN
+         atcore(1:natom) = atcore(1:natom) + at_thread(1:natom)
       END IF
 
       IF (calculate_forces .AND. use_virial) THEN
