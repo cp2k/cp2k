@@ -16,10 +16,20 @@ MODULE gw_communication
         dbcsr_get_stored_coordinates, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
         dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_release, &
         dbcsr_reserve_all_blocks, dbcsr_reserve_blocks, dbcsr_set, dbcsr_type
+   USE cp_dbcsr_operations,             ONLY: copy_fm_to_dbcsr
+   USE cp_fm_types,                     ONLY: cp_fm_type
+   USE dbt_api,                         ONLY: dbt_clear,&
+                                              dbt_copy,&
+                                              dbt_copy_matrix_to_tensor,&
+                                              dbt_copy_tensor_to_matrix,&
+                                              dbt_create,&
+                                              dbt_destroy,&
+                                              dbt_type
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_para_env_type,&
                                               mp_request_type,&
                                               mp_waitall
+   USE post_scf_bandstructure_types,    ONLY: post_scf_bandstructure_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -28,7 +38,7 @@ MODULE gw_communication
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'gw_communication'
 
-   PUBLIC :: global_matrix_to_local_matrix, local_matrix_to_global_matrix
+   PUBLIC :: local_dbt_to_global_mat, fm_to_local_tensor
 
    TYPE buffer_type
       REAL(KIND=dp), DIMENSION(:), POINTER  :: msg => NULL()
@@ -39,6 +49,81 @@ MODULE gw_communication
    END TYPE
 
 CONTAINS
+
+! **************************************************************************************************
+!> \brief ...
+!> \param fm_global ...
+!> \param mat_global ...
+!> \param mat_local ...
+!> \param tensor ...
+!> \param bs_env ...
+!> \param atom_ranges ...
+! **************************************************************************************************
+   SUBROUTINE fm_to_local_tensor(fm_global, mat_global, mat_local, tensor, bs_env, atom_ranges)
+
+      TYPE(cp_fm_type)                                   :: fm_global
+      TYPE(dbcsr_type)                                   :: mat_global, mat_local
+      TYPE(dbt_type)                                     :: tensor
+      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
+      INTEGER, DIMENSION(:, :), OPTIONAL                 :: atom_ranges
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'fm_to_local_tensor'
+
+      INTEGER                                            :: handle
+      TYPE(dbt_type)                                     :: tensor_tmp
+
+      CALL timeset(routineN, handle)
+
+      CALL dbt_clear(tensor)
+      CALL copy_fm_to_dbcsr(fm_global, mat_global, keep_sparsity=.FALSE.)
+      CALL dbcsr_filter(mat_global, bs_env%eps_filter)
+      IF (PRESENT(atom_ranges)) THEN
+         CALL global_matrix_to_local_matrix(mat_global, mat_local, bs_env%para_env, &
+                                            bs_env%para_env_tensor%num_pe, atom_ranges)
+      ELSE
+         CALL global_matrix_to_local_matrix(mat_global, mat_local, bs_env%para_env, &
+                                            bs_env%para_env_tensor%num_pe)
+      END IF
+      CALL dbt_create(mat_local, tensor_tmp)
+      CALL dbt_copy_matrix_to_tensor(mat_local, tensor_tmp)
+      CALL dbt_copy(tensor_tmp, tensor, move_data=.TRUE.)
+      CALL dbt_destroy(tensor_tmp)
+      CALL dbcsr_set(mat_local, 0.0_dp)
+      CALL dbcsr_filter(mat_local, 1.0_dp)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE fm_to_local_tensor
+
+! **************************************************************************************************
+!> \brief ...
+!> \param tensor ...
+!> \param mat_tensor ...
+!> \param mat_global ...
+!> \param para_env ...
+! **************************************************************************************************
+   SUBROUTINE local_dbt_to_global_mat(tensor, mat_tensor, mat_global, para_env)
+
+      TYPE(dbt_type)                                     :: tensor
+      TYPE(dbcsr_type)                                   :: mat_tensor, mat_global
+      TYPE(mp_para_env_type), POINTER                    :: para_env
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'local_dbt_to_global_mat'
+
+      INTEGER                                            :: handle
+
+      CALL timeset(routineN, handle)
+
+      CALL dbt_copy_tensor_to_matrix(tensor, mat_tensor)
+      CALL dbt_clear(tensor)
+      ! the next para_env%sync is not mandatory, but it makes the timing output
+      ! of local_matrix_to_global_matrix correct
+      CALL para_env%sync()
+      CALL local_matrix_to_global_matrix(mat_tensor, mat_global, para_env)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE local_dbt_to_global_mat
 
 ! **************************************************************************************************
 !> \brief ...

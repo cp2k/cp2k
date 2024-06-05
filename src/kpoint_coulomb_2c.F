@@ -19,6 +19,7 @@ MODULE kpoint_coulomb_2c
    USE cell_types,                      ONLY: cell_type,&
                                               get_cell,&
                                               pbc
+   USE constants_operator,              ONLY: operator_coulomb
    USE cp_dbcsr_api,                    ONLY: &
         dbcsr_create, dbcsr_init_p, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
         dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_p_type, &
@@ -28,8 +29,13 @@ MODULE kpoint_coulomb_2c
    USE kinds,                           ONLY: dp
    USE kpoint_types,                    ONLY: get_kpoint_info,&
                                               kpoint_type
-   USE mathconstants,                   ONLY: twopi
+   USE mathconstants,                   ONLY: gaussi,&
+                                              twopi,&
+                                              z_one
+   USE message_passing,                 ONLY: mp_para_env_type
    USE particle_types,                  ONLY: particle_type
+   USE qs_environment_types,            ONLY: get_qs_env,&
+                                              qs_environment_type
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               qs_kind_type
 #include "./base/base_uses.f90"
@@ -40,7 +46,7 @@ MODULE kpoint_coulomb_2c
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'kpoint_coulomb_2c'
 
-   PUBLIC :: build_2c_coulomb_matrix_kp
+   PUBLIC :: build_2c_coulomb_matrix_kp, build_2c_coulomb_matrix_kp_small_cell
 
 ! **************************************************************************************************
 
@@ -79,12 +85,10 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'build_2c_coulomb_matrix_kp'
 
-      INTEGER                                            :: handle, total_periodicity
+      INTEGER                                            :: handle
       TYPE(dbcsr_type), POINTER                          :: matrix_v_L_tmp
 
       CALL timeset(routineN, handle)
-
-      CALL check_periodicity(cell, kpoints, total_periodicity)
 
       CALL allocate_tmp(matrix_v_L_tmp, matrix_v_kp, ikp_start)
 
@@ -130,9 +134,9 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'lattice_sum'
 
-      INTEGER :: factor, handle, i_block, i_x, i_x_inner, i_x_outer, ik, j_y, j_y_inner, &
-         j_y_outer, k_z, k_z_inner, k_z_outer, nkp, x_max, x_min, y_max, y_min, z_max, z_min
-      INTEGER, DIMENSION(3)                              :: nkp_grid, periodic
+      INTEGER :: factor, handle, handle2, i_block, i_x, i_x_inner, i_x_outer, ik, j_y, j_y_inner, &
+         j_y_outer, k_z, k_z_inner, k_z_outer, x_max, x_min, y_max, y_min, z_max, z_min
+      INTEGER, DIMENSION(3)                              :: nkp_grid
       REAL(KIND=dp)                                      :: coskl, sinkl
       REAL(KIND=dp), DIMENSION(3)                        :: vec_L, vec_s
       REAL(KIND=dp), DIMENSION(3, 3)                     :: hmat
@@ -142,50 +146,8 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      CALL get_kpoint_info(kpoints, nkp_grid=nkp_grid, nkp=nkp)
-      CALL get_cell(cell=cell, h=hmat, periodic=periodic)
-
-      IF (MODULO(nkp_grid(1), 2) == 1) THEN
-         factor = 3**(size_lattice_sum - 1)
-      ELSE IF (MODULO(nkp_grid(1), 2) == 0) THEN
-         factor = 2**(size_lattice_sum - 1)
-      END IF
-
-      IF (MODULO(nkp_grid(1), 2) == 1) THEN
-         x_min = -(factor*nkp_grid(1) - 1)/2
-         x_max = (factor*nkp_grid(1) - 1)/2
-      ELSE IF (MODULO(nkp_grid(1), 2) == 0) THEN
-         x_min = -factor*nkp_grid(1)/2
-         x_max = factor*nkp_grid(1)/2 - 1
-      END IF
-      IF (periodic(1) == 0) THEN
-         x_min = 0
-         x_max = 0
-      END IF
-
-      IF (MODULO(nkp_grid(2), 2) == 1) THEN
-         y_min = -(factor*nkp_grid(2) - 1)/2
-         y_max = (factor*nkp_grid(2) - 1)/2
-      ELSE IF (MODULO(nkp_grid(2), 2) == 0) THEN
-         y_min = -factor*nkp_grid(2)/2
-         y_max = factor*nkp_grid(2)/2 - 1
-      END IF
-      IF (periodic(2) == 0) THEN
-         y_min = 0
-         y_max = 0
-      END IF
-
-      IF (MODULO(nkp_grid(3), 2) == 1) THEN
-         z_min = -(factor*nkp_grid(3) - 1)/2
-         z_max = (factor*nkp_grid(3) - 1)/2
-      ELSE IF (MODULO(nkp_grid(3), 2) == 0) THEN
-         z_min = -factor*nkp_grid(3)/2
-         z_max = factor*nkp_grid(3)/2 - 1
-      END IF
-      IF (periodic(3) == 0) THEN
-         z_min = 0
-         z_max = 0
-      END IF
+      CALL get_factor_and_xyz_min_max(cell, kpoints, size_lattice_sum, factor, hmat, &
+                                      x_min, x_max, y_min, y_max, z_min, z_max, nkp_grid)
 
       CALL allocate_blocks_v_kp(blocks_v_kp, matrix_v_kp, ikp_start, ikp_end)
       CALL allocate_blocks_v_L(blocks_v_L, matrix_v_L_tmp)
@@ -225,6 +187,8 @@ CONTAINS
                   END DO
                END DO
 
+               CALL timeset(routineN//"_R_to_k", handle2)
+
                ! add exp(iq*vec_L) * (P 0 | Q vec_L) to V_PQ(q)
                DO ik = ikp_start, ikp_end
 
@@ -249,6 +213,8 @@ CONTAINS
 
                END DO
 
+               CALL timestop(handle2)
+
             END DO
          END DO
       END DO
@@ -261,7 +227,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE lattice_sum
 
 ! **************************************************************************************************
 !> \brief ...
@@ -311,7 +277,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE set_blocks_to_matrix_v_kp
 
 ! **************************************************************************************************
 !> \brief ...
@@ -396,7 +362,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE compute_v_transl
 
 ! **************************************************************************************************
 !> \brief ...
@@ -575,22 +541,36 @@ CONTAINS
 !> \brief ...
 !> \param cell ...
 !> \param kpoints ...
-!> \param total_periodicity ...
+!> \param size_lattice_sum ...
+!> \param factor ...
+!> \param hmat ...
+!> \param x_min ...
+!> \param x_max ...
+!> \param y_min ...
+!> \param y_max ...
+!> \param z_min ...
+!> \param z_max ...
+!> \param nkp_grid ...
 ! **************************************************************************************************
-   SUBROUTINE check_periodicity(cell, kpoints, total_periodicity)
+   SUBROUTINE get_factor_and_xyz_min_max(cell, kpoints, size_lattice_sum, factor, hmat, &
+                                         x_min, x_max, y_min, y_max, z_min, z_max, nkp_grid)
+
       TYPE(cell_type), POINTER                           :: cell
       TYPE(kpoint_type), POINTER                         :: kpoints
-      INTEGER                                            :: total_periodicity
+      INTEGER                                            :: size_lattice_sum, factor
+      REAL(KIND=dp), DIMENSION(3, 3)                     :: hmat
+      INTEGER                                            :: x_min, x_max, y_min, y_max, z_min, z_max
+      INTEGER, DIMENSION(3)                              :: nkp_grid
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'check_periodicity'
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'get_factor_and_xyz_min_max'
 
-      INTEGER                                            :: handle
-      INTEGER, DIMENSION(3)                              :: nkp_grid, periodic
+      INTEGER                                            :: handle, nkp
+      INTEGER, DIMENSION(3)                              :: periodic
 
       CALL timeset(routineN, handle)
 
-      CALL get_cell(cell=cell, periodic=periodic)
-      CALL get_kpoint_info(kpoints, nkp_grid=nkp_grid)
+      CALL get_kpoint_info(kpoints, nkp_grid=nkp_grid, nkp=nkp)
+      CALL get_cell(cell=cell, h=hmat, periodic=periodic)
 
       IF (periodic(1) == 0) THEN
          CPASSERT(nkp_grid(1) == 1)
@@ -602,7 +582,47 @@ CONTAINS
          CPASSERT(nkp_grid(3) == 1)
       END IF
 
-      total_periodicity = SUM(periodic)
+      IF (MODULO(nkp_grid(1), 2) == 1) THEN
+         factor = 3**(size_lattice_sum - 1)
+      ELSE IF (MODULO(nkp_grid(1), 2) == 0) THEN
+         factor = 2**(size_lattice_sum - 1)
+      END IF
+
+      IF (MODULO(nkp_grid(1), 2) == 1) THEN
+         x_min = -(factor*nkp_grid(1) - 1)/2
+         x_max = (factor*nkp_grid(1) - 1)/2
+      ELSE IF (MODULO(nkp_grid(1), 2) == 0) THEN
+         x_min = -factor*nkp_grid(1)/2
+         x_max = factor*nkp_grid(1)/2 - 1
+      END IF
+      IF (periodic(1) == 0) THEN
+         x_min = 0
+         x_max = 0
+      END IF
+
+      IF (MODULO(nkp_grid(2), 2) == 1) THEN
+         y_min = -(factor*nkp_grid(2) - 1)/2
+         y_max = (factor*nkp_grid(2) - 1)/2
+      ELSE IF (MODULO(nkp_grid(2), 2) == 0) THEN
+         y_min = -factor*nkp_grid(2)/2
+         y_max = factor*nkp_grid(2)/2 - 1
+      END IF
+      IF (periodic(2) == 0) THEN
+         y_min = 0
+         y_max = 0
+      END IF
+
+      IF (MODULO(nkp_grid(3), 2) == 1) THEN
+         z_min = -(factor*nkp_grid(3) - 1)/2
+         z_max = (factor*nkp_grid(3) - 1)/2
+      ELSE IF (MODULO(nkp_grid(3), 2) == 0) THEN
+         z_min = -factor*nkp_grid(3)/2
+         z_max = factor*nkp_grid(3)/2 - 1
+      END IF
+      IF (periodic(3) == 0) THEN
+         z_min = 0
+         z_max = 0
+      END IF
 
       CALL timestop(handle)
 
@@ -657,5 +677,271 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE
+
+! **************************************************************************************************
+!> \brief ...
+!> \param V_k ...
+!> \param qs_env ...
+!> \param kpoints ...
+!> \param size_lattice_sum ...
+!> \param basis_type ...
+!> \param ikp_start ...
+!> \param ikp_end ...
+! **************************************************************************************************
+   SUBROUTINE build_2c_coulomb_matrix_kp_small_cell(V_k, qs_env, kpoints, size_lattice_sum, &
+                                                    basis_type, ikp_start, ikp_end)
+      COMPLEX(KIND=dp), DIMENSION(:, :, :)               :: V_k
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(kpoint_type), POINTER                         :: kpoints
+      INTEGER                                            :: size_lattice_sum
+      CHARACTER(LEN=*), INTENT(IN)                       :: basis_type
+      INTEGER                                            :: ikp_start, ikp_end
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'build_2c_coulomb_matrix_kp_small_cell'
+
+      INTEGER :: factor, handle, handle2, i_cell, i_x, i_x_inner, i_x_outer, ik, ikp_local, j_y, &
+         j_y_inner, j_y_outer, k_z, k_z_inner, k_z_outer, n_atom, n_bf, x_max, x_min, y_max, &
+         y_min, z_max, z_min
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: bf_end_from_atom, bf_start_from_atom
+      INTEGER, DIMENSION(3)                              :: nkp_grid
+      REAL(KIND=dp)                                      :: coskl, sinkl
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: V_L
+      REAL(KIND=dp), DIMENSION(3)                        :: vec_L, vec_s
+      REAL(KIND=dp), DIMENSION(3, 3)                     :: hmat
+      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      TYPE(cell_type), POINTER                           :: cell
+      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+
+      CALL timeset(routineN, handle)
+
+      CALL get_qs_env(qs_env=qs_env, &
+                      para_env=para_env, &
+                      particle_set=particle_set, &
+                      cell=cell, &
+                      qs_kind_set=qs_kind_set, &
+                      atomic_kind_set=atomic_kind_set)
+
+      CALL get_factor_and_xyz_min_max(cell, kpoints, size_lattice_sum, factor, hmat, &
+                                      x_min, x_max, y_min, y_max, z_min, z_max, nkp_grid)
+
+      CALL get_basis_sizes(qs_env, n_atom, basis_type, bf_start_from_atom, bf_end_from_atom, n_bf)
+
+      ALLOCATE (V_L(n_bf, n_bf))
+
+      DO i_x_inner = 0, 2*nkp_grid(1) - 1
+         DO j_y_inner = 0, 2*nkp_grid(2) - 1
+            DO k_z_inner = 0, 2*nkp_grid(3) - 1
+
+               V_L(:, :) = 0.0_dp
+               i_cell = 0
+
+               DO i_x_outer = x_min, x_max + nkp_grid(1), 2*nkp_grid(1)
+                  DO j_y_outer = y_min, y_max + nkp_grid(2), 2*nkp_grid(2)
+                     DO k_z_outer = z_min, z_max + nkp_grid(3), 2*nkp_grid(3)
+
+                        i_x = i_x_inner + i_x_outer
+                        j_y = j_y_inner + j_y_outer
+                        k_z = k_z_inner + k_z_outer
+
+                        IF (i_x > x_max .OR. i_x < x_min .OR. &
+                            j_y > y_max .OR. j_y < y_min .OR. &
+                            k_z > z_max .OR. k_z < z_min) CYCLE
+
+                        i_cell = i_cell + 1
+
+                        vec_s = [REAL(i_x, dp), REAL(j_y, dp), REAL(k_z, dp)]
+
+                        IF (MODULO(i_cell, para_env%num_pe) .NE. para_env%mepos) CYCLE
+
+                        vec_L = MATMUL(hmat, vec_s)
+
+                        ! Compute (P 0 | Q vec_L) and add it to V_R
+                        CALL add_V_L(V_L, vec_L, n_atom, bf_start_from_atom, bf_end_from_atom, &
+                                     particle_set, qs_kind_set, atomic_kind_set, basis_type, cell)
+
+                     END DO
+                  END DO
+               END DO
+
+               CALL para_env%sync()
+               CALL para_env%sum(V_L)
+
+               CALL timeset(routineN//"_R_to_k", handle2)
+
+               ikp_local = 0
+
+               ! add exp(iq*vec_L) * (P 0 | Q vec_L) to V_PQ(q)
+               DO ik = 1, ikp_end
+
+                  IF (MODULO(ik, para_env%num_pe) .NE. para_env%mepos) CYCLE
+
+                  ikp_local = ikp_local + 1
+
+                  IF (ik < ikp_start) CYCLE
+
+                  ! coskl and sinkl are identical for all i_x_outer, j_y_outer, k_z_outer
+                  coskl = COS(twopi*DOT_PRODUCT(vec_s(1:3), kpoints%xkp(1:3, ik)))
+                  sinkl = SIN(twopi*DOT_PRODUCT(vec_s(1:3), kpoints%xkp(1:3, ik)))
+
+                  V_k(:, :, ikp_local) = V_k(:, :, ikp_local) + z_one*coskl*V_L(:, :) + &
+                                         gaussi*sinkl*V_L(:, :)
+
+               END DO
+
+               CALL timestop(handle2)
+
+            END DO
+         END DO
+      END DO
+
+      CALL timestop(handle)
+
+   END SUBROUTINE build_2c_coulomb_matrix_kp_small_cell
+
+! **************************************************************************************************
+!> \brief ...
+!> \param qs_env ...
+!> \param n_atom ...
+!> \param basis_type ...
+!> \param bf_start_from_atom ...
+!> \param bf_end_from_atom ...
+!> \param n_bf ...
+! **************************************************************************************************
+   SUBROUTINE get_basis_sizes(qs_env, n_atom, basis_type, bf_start_from_atom, bf_end_from_atom, n_bf)
+
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      INTEGER                                            :: n_atom
+      CHARACTER(LEN=*), INTENT(IN)                       :: basis_type
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: bf_start_from_atom, bf_end_from_atom
+      INTEGER                                            :: n_bf
+
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'get_basis_sizes'
+
+      INTEGER                                            :: handle, iatom, ikind, n_kind, nsgf
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: kind_of
+      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      TYPE(gto_basis_set_type), POINTER                  :: basis_set_a
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+
+      CALL timeset(routineN, handle)
+
+      CALL get_qs_env(qs_env=qs_env, particle_set=particle_set, &
+                      qs_kind_set=qs_kind_set, atomic_kind_set=atomic_kind_set)
+      CALL get_atomic_kind_set(atomic_kind_set, kind_of=kind_of)
+
+      n_atom = SIZE(particle_set)
+      n_kind = SIZE(qs_kind_set)
+
+      DO ikind = 1, n_kind
+         CALL get_qs_kind(qs_kind=qs_kind_set(ikind), basis_set=basis_set_a, &
+                          basis_type=basis_type)
+         CPASSERT(ASSOCIATED(basis_set_a))
+      END DO
+
+      ALLOCATE (bf_start_from_atom(n_atom), bf_end_from_atom(n_atom))
+
+      n_bf = 0
+      DO iatom = 1, n_atom
+         bf_start_from_atom(iatom) = n_bf + 1
+         ikind = kind_of(iatom)
+         CALL get_qs_kind(qs_kind=qs_kind_set(ikind), nsgf=nsgf, basis_type=basis_type)
+         n_bf = n_bf + nsgf
+         bf_end_from_atom(iatom) = n_bf
+      END DO
+
+      CALL timestop(handle)
+
+   END SUBROUTINE get_basis_sizes
+
+! **************************************************************************************************
+!> \brief ...
+!> \param V_L ...
+!> \param vec_L ...
+!> \param n_atom ...
+!> \param bf_start_from_atom ...
+!> \param bf_end_from_atom ...
+!> \param particle_set ...
+!> \param qs_kind_set ...
+!> \param atomic_kind_set ...
+!> \param basis_type ...
+!> \param cell ...
+! **************************************************************************************************
+   SUBROUTINE add_V_L(V_L, vec_L, n_atom, bf_start_from_atom, bf_end_from_atom, &
+                      particle_set, qs_kind_set, atomic_kind_set, basis_type, cell)
+
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: V_L
+      REAL(KIND=dp), DIMENSION(3)                        :: vec_L
+      INTEGER                                            :: n_atom
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: bf_start_from_atom, bf_end_from_atom
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      CHARACTER(LEN=*), INTENT(IN)                       :: basis_type
+      TYPE(cell_type), POINTER                           :: cell
+
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'add_V_L'
+
+      INTEGER                                            :: a_1, a_2, atom_a, atom_b, b_1, b_2, &
+                                                            handle, kind_a, kind_b
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: kind_of
+      REAL(dp), DIMENSION(3)                             :: ra, rab_L, rb
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: V_L_ab
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: contr_a, contr_b
+      TYPE(gto_basis_set_type), POINTER                  :: basis_set_a, basis_set_b
+
+      CALL timeset(routineN, handle)
+
+      NULLIFY (basis_set_a, basis_set_b)
+
+      CALL get_atomic_kind_set(atomic_kind_set, kind_of=kind_of)
+
+      DO atom_a = 1, n_atom
+
+         DO atom_b = 1, n_atom
+
+            kind_a = kind_of(atom_a)
+            kind_b = kind_of(atom_b)
+
+            CALL get_qs_kind(qs_kind=qs_kind_set(kind_a), basis_set=basis_set_a, &
+                             basis_type=basis_type)
+            CALL get_qs_kind(qs_kind=qs_kind_set(kind_b), basis_set=basis_set_b, &
+                             basis_type=basis_type)
+
+            ra(1:3) = pbc(particle_set(atom_a)%r(1:3), cell)
+            rb(1:3) = pbc(particle_set(atom_b)%r(1:3), cell)
+
+            rab_L(1:3) = rb(1:3) - ra(1:3) + vec_L(1:3)
+
+            CALL contraction_matrix_shg(basis_set_a, contr_a)
+            CALL contraction_matrix_shg(basis_set_b, contr_b)
+
+            a_1 = bf_start_from_atom(atom_a)
+            a_2 = bf_end_from_atom(atom_a)
+            b_1 = bf_start_from_atom(atom_b)
+            b_2 = bf_end_from_atom(atom_b)
+
+            ALLOCATE (V_L_ab(a_2 - a_1 + 1, b_2 - b_1 + 1))
+
+            CALL int_operators_r12_ab_shg(operator_coulomb, V_L_ab, rab=rab_L, &
+                                          fba=basis_set_a, fbb=basis_set_b, &
+                                          scona_shg=contr_a, sconb_shg=contr_b, &
+                                          calculate_forces=.FALSE.)
+
+            V_L(a_1:a_2, b_1:b_2) = V_L(a_1:a_2, b_1:b_2) + V_L_ab(:, :)
+
+            DEALLOCATE (contr_a, contr_b, V_L_ab)
+
+         END DO
+
+      END DO
+
+      DEALLOCATE (kind_of)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE add_V_L
 
 END MODULE kpoint_coulomb_2c

@@ -43,7 +43,7 @@ MODULE mp2_integrals
         dbt_clear, dbt_contract, dbt_copy, dbt_create, dbt_destroy, dbt_distribution_destroy, &
         dbt_distribution_new, dbt_distribution_type, dbt_filter, dbt_get_block, dbt_get_info, &
         dbt_get_stored_coordinates, dbt_mp_environ_pgrid, dbt_pgrid_create, dbt_pgrid_destroy, &
-        dbt_pgrid_type, dbt_put_block, dbt_reserve_blocks, dbt_split_blocks, dbt_type
+        dbt_pgrid_type, dbt_put_block, dbt_reserve_blocks, dbt_scale, dbt_split_blocks, dbt_type
    USE group_dist_types,                ONLY: create_group_dist,&
                                               get_group_dist,&
                                               group_dist_d1_type
@@ -803,6 +803,10 @@ CONTAINS
                                 summation=.TRUE., move_data=.TRUE.)
                   CALL dbt_clear(t_3c_overl_int(i, j))
                   CALL dbt_filter(t_3c_O(i, j), qs_env%mp2_env%ri_rpa_im_time%eps_filter/2)
+                  ! rescaling, probably because of neighbor list
+                  IF (do_kpoints_cubic_RPA .AND. cm == cut_memory_int) THEN
+                     CALL dbt_scale(t_3c_O(i, j), 0.5_dp)
+                  END IF
                END DO
             END DO
             CALL timestop(handle4)

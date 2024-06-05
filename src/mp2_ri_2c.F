@@ -71,7 +71,8 @@ MODULE mp2_ri_2c
                                               do_potential_truncated
    USE kinds,                           ONLY: dp
    USE kpoint_coulomb_2c,               ONLY: build_2c_coulomb_matrix_kp
-   USE kpoint_methods,                  ONLY: rskp_transform
+   USE kpoint_methods,                  ONLY: kpoint_init_cell_index,&
+                                              rskp_transform
    USE kpoint_types,                    ONLY: get_kpoint_info,&
                                               kpoint_type
    USE libint_2c_3c,                    ONLY: compare_potential_types,&
@@ -111,7 +112,7 @@ MODULE mp2_ri_2c
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mp2_ri_2c'
 
-   PUBLIC :: get_2c_integrals, setup_trunc_coulomb_pot_for_exchange_self_energy, RI_2c_integral_mat, &
+   PUBLIC :: get_2c_integrals, trunc_coulomb_for_exchange, RI_2c_integral_mat, &
              inversion_of_M_and_mult_with_chol_dec_of_V
 
 CONTAINS
@@ -263,7 +264,7 @@ CONTAINS
             CALL inversion_of_M_and_mult_with_chol_dec_of_V(fm_matrix_Minv_L_kpoints, fm_matrix_L_kpoints, dimen_RI, &
                                                             kpoints, qs_env%mp2_env%ri_rpa_im_time%eps_eigval_S)
 
-            CALL setup_trunc_coulomb_pot_for_exchange_self_energy(qs_env, trunc_coulomb)
+            CALL trunc_coulomb_for_exchange(qs_env, trunc_coulomb)
 
             ! Gamma-only truncated Coulomb matrix V^tr with cutoff radius = half the unit cell size; for exchange self-energy
             CALL RI_2c_integral_mat(qs_env, fm_matrix_Minv_Vtrunc_Minv, fm_matrix_L_work, dimen_RI, trunc_coulomb, &
@@ -548,9 +549,11 @@ CONTAINS
 !> \param put_mat_KS_env ...
 !> \param regularization_RI ...
 !> \param ikp_ext ...
+!> \param do_build_cell_index ...
 ! **************************************************************************************************
    SUBROUTINE RI_2c_integral_mat(qs_env, fm_matrix_Minv_L_kpoints, fm_matrix_L, dimen_RI, ri_metric, &
-                                 do_kpoints, kpoints, put_mat_KS_env, regularization_RI, ikp_ext)
+                                 do_kpoints, kpoints, put_mat_KS_env, regularization_RI, ikp_ext, &
+                                 do_build_cell_index)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :)     :: fm_matrix_Minv_L_kpoints
@@ -562,6 +565,7 @@ CONTAINS
       LOGICAL, OPTIONAL                                  :: put_mat_KS_env
       REAL(KIND=dp), OPTIONAL                            :: regularization_RI
       INTEGER, OPTIONAL                                  :: ikp_ext
+      LOGICAL, OPTIONAL                                  :: do_build_cell_index
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'RI_2c_integral_mat'
 
@@ -571,7 +575,7 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: sizes_RI
       INTEGER, DIMENSION(:), POINTER                     :: col_bsize, row_bsize
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
-      LOGICAL                                            :: my_put_mat_KS_env
+      LOGICAL                                            :: my_do_build_cell_index, my_put_mat_KS_env
       REAL(KIND=dp)                                      :: my_regularization_RI
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: xkp
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
@@ -607,6 +611,12 @@ CONTAINS
          my_put_mat_KS_env = .FALSE.
       END IF
 
+      IF (PRESENT(do_build_cell_index)) THEN
+         my_do_build_cell_index = do_build_cell_index
+      ELSE
+         my_do_build_cell_index = .FALSE.
+      END IF
+
       CALL get_qs_env(qs_env=qs_env, &
                       para_env=para_env, &
                       blacs_env=blacs_env, &
@@ -633,8 +643,17 @@ CONTAINS
       col_bsize(:) = sizes_RI
 
       IF (do_kpoints) THEN
+         CPASSERT(PRESENT(kpoints))
+         IF (my_do_build_cell_index) THEN
+            CALL kpoint_init_cell_index(kpoints, sab_RI, para_env, dft_control)
+         END IF
+         CALL get_kpoint_info(kpoints, nkp=nkp, xkp=xkp, &
+                              cell_to_index=cell_to_index)
+         n_real_imag = 2
          nimg = dft_control%nimages
       ELSE
+         nkp = 1
+         n_real_imag = 1
          nimg = 1
       END IF
 
@@ -667,16 +686,6 @@ CONTAINS
 
       IF (my_put_mat_KS_env) THEN
          CALL set_ks_env(qs_env%ks_env, matrix_s_RI_aux_kp=matrix_s_RI_aux_transl)
-      END IF
-
-      IF (do_kpoints) THEN
-         CPASSERT(PRESENT(kpoints))
-         CALL get_kpoint_info(kpoints, nkp=nkp, xkp=xkp, &
-                              cell_to_index=cell_to_index)
-         n_real_imag = 2
-      ELSE
-         nkp = 1
-         n_real_imag = 1
       END IF
 
       IF (PRESENT(ikp_ext)) nkp = 1
@@ -1600,26 +1609,51 @@ CONTAINS
 !> \param qs_env ...
 !> \param trunc_coulomb ...
 !> \param rel_cutoff_trunc_coulomb_ri_x ...
+!> \param cell_grid ...
+!> \param do_BvK_cell ...
 ! **************************************************************************************************
-   SUBROUTINE setup_trunc_coulomb_pot_for_exchange_self_energy(qs_env, trunc_coulomb, &
-                                                               rel_cutoff_trunc_coulomb_ri_x)
+   SUBROUTINE trunc_coulomb_for_exchange(qs_env, trunc_coulomb, rel_cutoff_trunc_coulomb_ri_x, &
+                                         cell_grid, do_BvK_cell)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(libint_potential_type), OPTIONAL              :: trunc_coulomb
       REAL(KIND=dp), OPTIONAL                            :: rel_cutoff_trunc_coulomb_ri_x
+      INTEGER, DIMENSION(3), OPTIONAL                    :: cell_grid
+      LOGICAL, OPTIONAL                                  :: do_BvK_cell
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'setup_trunc_coulomb_pot_for_exchange_self_energy'
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'trunc_coulomb_for_exchange'
 
-      INTEGER                                            :: handle
+      INTEGER                                            :: handle, i_dim
       INTEGER, DIMENSION(3)                              :: periodic
-      REAL(KIND=dp) :: my_rel_cutoff_trunc_coulomb_ri_x, shortest_dist_cell_planes
+      LOGICAL                                            :: my_do_BvK_cell
+      REAL(KIND=dp) :: kp_fac, kp_fac_idim, my_rel_cutoff_trunc_coulomb_ri_x, &
+         shortest_dist_cell_planes
       TYPE(cell_type), POINTER                           :: cell
+      TYPE(kpoint_type), POINTER                         :: kpoints_scf
 
       CALL timeset(routineN, handle)
 
       NULLIFY (cell)
-      CALL get_qs_env(qs_env, cell=cell)
-
+      CALL get_qs_env(qs_env, cell=cell, kpoints=kpoints_scf)
       CALL get_cell(cell=cell, periodic=periodic)
+
+      my_do_BvK_cell = .FALSE.
+      IF (PRESENT(do_BvK_cell)) my_do_BvK_cell = do_BvK_cell
+      IF (my_do_BvK_cell) THEN
+         kp_fac = 1.0E10_dp
+         DO i_dim = 1, 3
+            ! look for smallest k-point mesh in periodic direction
+            IF (periodic(i_dim) == 1) THEN
+               IF (PRESENT(cell_grid)) THEN
+                  kp_fac_idim = REAL(cell_grid(i_dim), KIND=dp)
+               ELSE
+                  kp_fac_idim = REAL(kpoints_scf%nkp_grid(i_dim), KIND=dp)
+               END IF
+               IF (kp_fac > kp_fac_idim) kp_fac = kp_fac_idim
+            END IF
+         END DO
+      ELSE
+         kp_fac = 1.0_dp
+      END IF
 
       shortest_dist_cell_planes = 1.0E4_dp
       IF (periodic(1) == 1) THEN
@@ -1646,7 +1680,9 @@ CONTAINS
 
       IF (PRESENT(trunc_coulomb)) THEN
          trunc_coulomb%potential_type = do_potential_truncated
-         trunc_coulomb%cutoff_radius = shortest_dist_cell_planes*my_rel_cutoff_trunc_coulomb_ri_x
+         trunc_coulomb%cutoff_radius = shortest_dist_cell_planes* &
+                                       my_rel_cutoff_trunc_coulomb_ri_x* &
+                                       kp_fac
          trunc_coulomb%filename = "t_c_g.dat"
          ! dummy
          trunc_coulomb%omega = 0.0_dp
@@ -1654,7 +1690,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE setup_trunc_coulomb_pot_for_exchange_self_energy
+   END SUBROUTINE trunc_coulomb_for_exchange
 
 ! **************************************************************************************************
 !> \brief ...

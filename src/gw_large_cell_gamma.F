@@ -6,11 +6,11 @@
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
-!> \brief
+!> \brief Routines from paper [Graml2024]
 !> \author Jan Wilhelm
 !> \date 07.2023
 ! **************************************************************************************************
-MODULE gw_methods
+MODULE gw_large_cell_gamma
    USE atomic_kind_types,               ONLY: atomic_kind_type
    USE cell_types,                      ONLY: cell_type,&
                                               get_cell,&
@@ -27,10 +27,10 @@ MODULE gw_methods
                                               cp_cfm_type,&
                                               cp_fm_to_cfm
    USE cp_dbcsr_api,                    ONLY: &
-        dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, dbcsr_filter, &
-        dbcsr_get_block_p, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
-        dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_p_type, &
-        dbcsr_release, dbcsr_reserve_all_blocks, dbcsr_set, dbcsr_type
+        dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, dbcsr_get_block_p, &
+        dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_start, &
+        dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_p_type, dbcsr_release, &
+        dbcsr_reserve_all_blocks, dbcsr_set, dbcsr_type
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               copy_fm_to_dbcsr,&
                                               dbcsr_deallocate_matrix_set
@@ -49,16 +49,15 @@ MODULE gw_methods
    USE dbt_api,                         ONLY: dbt_clear,&
                                               dbt_contract,&
                                               dbt_copy,&
-                                              dbt_copy_matrix_to_tensor,&
-                                              dbt_copy_tensor_to_matrix,&
                                               dbt_create,&
                                               dbt_destroy,&
                                               dbt_type
-   USE gw_communication,                ONLY: global_matrix_to_local_matrix,&
-                                              local_matrix_to_global_matrix
-   USE gw_utils,                        ONLY: create_and_init_bs_env_for_gw,&
-                                              de_init_bs_env
-   USE input_constants,                 ONLY: ri_rpa_g0w0_crossing_newton
+   USE gw_communication,                ONLY: fm_to_local_tensor,&
+                                              local_dbt_to_global_mat
+   USE gw_utils,                        ONLY: analyt_conti_and_print,&
+                                              de_init_bs_env,&
+                                              get_VBM_CBM_bandgaps,&
+                                              time_to_freq
    USE input_section_types,             ONLY: section_vals_type
    USE kinds,                           ONLY: default_string_length,&
                                               dp,&
@@ -66,25 +65,20 @@ MODULE gw_methods
    USE kpoint_coulomb_2c,               ONLY: build_2c_coulomb_matrix_kp
    USE kpoint_types,                    ONLY: kpoint_type
    USE machine,                         ONLY: m_walltime
-   USE mathconstants,                   ONLY: gaussi,&
-                                              twopi,&
+   USE mathconstants,                   ONLY: twopi,&
                                               z_one,&
                                               z_zero
-   USE message_passing,                 ONLY: mp_file_delete,&
-                                              mp_para_env_type
+   USE message_passing,                 ONLY: mp_file_delete
    USE mp2_ri_2c,                       ONLY: RI_2c_integral_mat
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE particle_types,                  ONLY: particle_type
-   USE physcon,                         ONLY: evolt
    USE post_scf_bandstructure_types,    ONLY: post_scf_bandstructure_type
    USE post_scf_bandstructure_utils,    ONLY: MIC_contribution_from_ikp,&
-                                              cfm_ikp_from_fm_Gamma,&
-                                              get_fname
+                                              cfm_ikp_from_fm_Gamma
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_kind_types,                   ONLY: qs_kind_type
    USE qs_tensors,                      ONLY: build_3c_integrals
-   USE rpa_gw,                          ONLY: continuation_pade
    USE rpa_gw_kpoints_util,             ONLY: cp_cfm_power,&
                                               cp_cfm_upper_to_full
 #include "./base/base_uses.f90"
@@ -93,9 +87,9 @@ MODULE gw_methods
 
    PRIVATE
 
-   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'gw_methods'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'gw_large_cell_gamma'
 
-   PUBLIC :: gw
+   PUBLIC :: gw_calc_large_cell_Gamma
 
 CONTAINS
 
@@ -103,27 +97,20 @@ CONTAINS
 !> \brief Perform GW band structure calculation
 !> \param qs_env ...
 !> \param bs_env ...
-!> \param post_scf_bandstructure_section ...
 !> \par History
 !>    * 07.2023 created [Jan Wilhelm]
 ! **************************************************************************************************
-   SUBROUTINE gw(qs_env, bs_env, post_scf_bandstructure_section)
+   SUBROUTINE gw_calc_large_cell_Gamma(qs_env, bs_env)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
-      TYPE(section_vals_type), POINTER                   :: post_scf_bandstructure_section
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'gw'
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'gw_calc_large_cell_Gamma'
 
       INTEGER                                            :: handle
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: fm_Sigma_x_Gamma, fm_W_MIC_time
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :, :)  :: fm_Sigma_c_Gamma_time
-      TYPE(mp_para_env_type), POINTER                    :: para_env
 
       CALL timeset(routineN, handle)
-
-      CALL get_qs_env(qs_env, para_env=para_env)
-
-      CALL create_and_init_bs_env_for_gw(qs_env, bs_env, post_scf_bandstructure_section)
 
       ! G^occ_µλ(i|τ|,k=0) = sum_n^occ C_µn(k=0) e^(-|(ϵ_nk=0-ϵ_F)τ|) C_λn(k=0)
       ! G^vir_µλ(i|τ|,k=0) = sum_n^vir C_µn(k=0) e^(-|(ϵ_nk=0-ϵ_F)τ|) C_λn(k=0)
@@ -148,7 +135,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE gw
+   END SUBROUTINE gw_calc_large_cell_Gamma
 
 ! **************************************************************************************************
 !> \brief ...
@@ -166,7 +153,7 @@ CONTAINS
       INTEGER :: handle, i_intval_idx, i_t, inner_loop_atoms_interval_index, ispin, j_intval_idx
       INTEGER, DIMENSION(2)                              :: i_atoms, IL_atoms, j_atoms
       LOGICAL                                            :: dist_too_long_i, dist_too_long_j
-      REAL(KIND=dp)                                      :: tau
+      REAL(KIND=dp)                                      :: t1, tau
       TYPE(dbt_type)                                     :: t_2c_Gocc, t_2c_Gvir, t_3c_for_Gocc, &
                                                             t_3c_for_Gvir, t_3c_x_Gocc, &
                                                             t_3c_x_Gocc_2, t_3c_x_Gvir, &
@@ -176,11 +163,12 @@ CONTAINS
 
       DO i_t = 1, bs_env%num_time_freq_points
 
-         bs_env%t1 = m_walltime()
+         t1 = m_walltime()
 
          IF (bs_env%read_chi(i_t)) THEN
 
             CALL fm_read(bs_env%fm_RI_RI, bs_env, bs_env%chi_name, i_t)
+
             CALL copy_fm_to_dbcsr(bs_env%fm_RI_RI, mat_chi_Gamma_tau(i_t)%matrix, &
                                   keep_sparsity=.FALSE.)
 
@@ -188,7 +176,7 @@ CONTAINS
                WRITE (bs_env%unit_nr, '(T2,A,I5,A,I3,A,F7.1,A)') &
                   'Read χ(iτ,k=0) from file for time point  ', i_t, ' /', &
                   bs_env%num_time_freq_points, &
-                  ',    Execution time', m_walltime() - bs_env%t1, ' s'
+                  ',    Execution time', m_walltime() - t1, ' s'
             END IF
 
             CYCLE
@@ -209,6 +197,7 @@ CONTAINS
          DO ispin = 1, bs_env%n_spin
             CALL G_occ_vir(bs_env, tau, bs_env%fm_Gocc, ispin, occ=.TRUE., vir=.FALSE.)
             CALL G_occ_vir(bs_env, tau, bs_env%fm_Gvir, ispin, occ=.FALSE., vir=.TRUE.)
+
             CALL fm_to_local_tensor(bs_env%fm_Gocc, bs_env%mat_ao_ao%matrix, &
                                     bs_env%mat_ao_ao_tensor%matrix, t_2c_Gocc, bs_env, &
                                     bs_env%atoms_j_t_group)
@@ -278,7 +267,7 @@ CONTAINS
          IF (bs_env%unit_nr > 0) THEN
             WRITE (bs_env%unit_nr, '(T2,A,I13,A,I3,A,F7.1,A)') &
                'Computed χ(iτ,k=0) for time point', i_t, ' /', bs_env%num_time_freq_points, &
-               ',    Execution time', m_walltime() - bs_env%t1, ' s'
+               ',    Execution time', m_walltime() - t1, ' s'
          END IF
 
       END DO ! i_t
@@ -412,148 +401,6 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
-!> \param bs_env ...
-!> \param tau ...
-!> \param fm_GGamma ...
-!> \param ispin ...
-!> \param occ ...
-!> \param vir ...
-! **************************************************************************************************
-   SUBROUTINE G_occ_vir(bs_env, tau, fm_GGamma, ispin, occ, vir)
-      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
-      REAL(KIND=dp)                                      :: tau
-      TYPE(cp_fm_type)                                   :: fm_GGamma
-      INTEGER                                            :: ispin
-      LOGICAL                                            :: occ, vir
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'G_occ_vir'
-
-      INTEGER                                            :: handle, homo, i_row_local, j_col, &
-                                                            j_col_local, n_mo, ncol_local, &
-                                                            nrow_local
-      INTEGER, DIMENSION(:), POINTER                     :: col_indices
-      REAL(KIND=dp)                                      :: tau_E
-
-      CALL timeset(routineN, handle)
-
-      CPASSERT(occ .NEQV. vir)
-
-      CALL cp_fm_get_info(matrix=bs_env%fm_work_mo(1), &
-                          nrow_local=nrow_local, &
-                          ncol_local=ncol_local, &
-                          col_indices=col_indices)
-
-      n_mo = bs_env%n_ao
-      homo = bs_env%n_occ(ispin)
-
-      CALL cp_fm_to_fm(bs_env%fm_mo_coeff_Gamma(ispin), bs_env%fm_work_mo(1))
-
-      DO i_row_local = 1, nrow_local
-         DO j_col_local = 1, ncol_local
-
-            j_col = col_indices(j_col_local)
-
-            tau_E = ABS(tau*0.5_dp*(bs_env%eigenval_scf_Gamma(j_col, ispin) - bs_env%e_fermi(ispin)))
-
-            IF (tau_E < bs_env%stabilize_exp) THEN
-               bs_env%fm_work_mo(1)%local_data(i_row_local, j_col_local) = &
-                  bs_env%fm_work_mo(1)%local_data(i_row_local, j_col_local)*EXP(-tau_E)
-            ELSE
-               bs_env%fm_work_mo(1)%local_data(i_row_local, j_col_local) = 0.0_dp
-            END IF
-
-            IF ((occ .AND. j_col > homo) .OR. (vir .AND. j_col <= homo)) THEN
-               bs_env%fm_work_mo(1)%local_data(i_row_local, j_col_local) = 0.0_dp
-            END IF
-
-         END DO
-      END DO
-
-      CALL parallel_gemm(transa="N", transb="T", m=n_mo, n=n_mo, k=n_mo, alpha=1.0_dp, &
-                         matrix_a=bs_env%fm_work_mo(1), matrix_b=bs_env%fm_work_mo(1), &
-                         beta=0.0_dp, matrix_c=fm_GGamma)
-
-      CALL timestop(handle)
-
-   END SUBROUTINE G_occ_vir
-
-! **************************************************************************************************
-!> \brief ...
-!> \param fm_global ...
-!> \param mat_global ...
-!> \param mat_local ...
-!> \param tensor ...
-!> \param bs_env ...
-!> \param atom_ranges ...
-! **************************************************************************************************
-   SUBROUTINE fm_to_local_tensor(fm_global, mat_global, mat_local, tensor, bs_env, atom_ranges)
-
-      TYPE(cp_fm_type)                                   :: fm_global
-      TYPE(dbcsr_type)                                   :: mat_global, mat_local
-      TYPE(dbt_type)                                     :: tensor
-      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
-      INTEGER, DIMENSION(:, :), OPTIONAL                 :: atom_ranges
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'fm_to_local_tensor'
-
-      INTEGER                                            :: handle
-      TYPE(dbt_type)                                     :: tensor_tmp
-
-      CALL timeset(routineN, handle)
-
-      CALL dbt_clear(tensor)
-      CALL copy_fm_to_dbcsr(fm_global, mat_global, keep_sparsity=.FALSE.)
-      CALL dbcsr_filter(mat_global, bs_env%eps_filter)
-      IF (PRESENT(atom_ranges)) THEN
-         CALL global_matrix_to_local_matrix(mat_global, mat_local, bs_env%para_env, &
-                                            bs_env%para_env_tensor%num_pe, atom_ranges)
-      ELSE
-         CALL global_matrix_to_local_matrix(mat_global, mat_local, bs_env%para_env, &
-                                            bs_env%para_env_tensor%num_pe)
-      END IF
-      CALL dbt_create(mat_local, tensor_tmp)
-      CALL dbt_copy_matrix_to_tensor(mat_local, tensor_tmp)
-      CALL dbt_copy(tensor_tmp, tensor, move_data=.TRUE.)
-      CALL dbt_destroy(tensor_tmp)
-      CALL dbcsr_set(mat_local, 0.0_dp)
-      CALL dbcsr_filter(mat_local, 1.0_dp)
-
-      CALL timestop(handle)
-
-   END SUBROUTINE fm_to_local_tensor
-
-! **************************************************************************************************
-!> \brief ...
-!> \param tensor ...
-!> \param mat_tensor ...
-!> \param mat_global ...
-!> \param para_env ...
-! **************************************************************************************************
-   SUBROUTINE local_dbt_to_global_mat(tensor, mat_tensor, mat_global, para_env)
-
-      TYPE(dbt_type)                                     :: tensor
-      TYPE(dbcsr_type)                                   :: mat_tensor, mat_global
-      TYPE(mp_para_env_type), POINTER                    :: para_env
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'local_dbt_to_global_mat'
-
-      INTEGER                                            :: handle
-
-      CALL timeset(routineN, handle)
-
-      CALL dbt_copy_tensor_to_matrix(tensor, mat_tensor)
-      CALL dbt_clear(tensor)
-      ! the next para_env%sync is not mandatory, but it makes the timing output
-      ! of local_matrix_to_global_matrix correct
-      CALL para_env%sync()
-      CALL local_matrix_to_global_matrix(mat_tensor, mat_global, para_env)
-
-      CALL timestop(handle)
-
-   END SUBROUTINE local_dbt_to_global_mat
-
-! **************************************************************************************************
-!> \brief ...
 !> \param matrix ...
 !> \param matrix_index ...
 !> \param matrix_name ...
@@ -636,6 +483,73 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
+!> \param bs_env ...
+!> \param tau ...
+!> \param fm_G_Gamma ...
+!> \param ispin ...
+!> \param occ ...
+!> \param vir ...
+! **************************************************************************************************
+   SUBROUTINE G_occ_vir(bs_env, tau, fm_G_Gamma, ispin, occ, vir)
+      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
+      REAL(KIND=dp)                                      :: tau
+      TYPE(cp_fm_type)                                   :: fm_G_Gamma
+      INTEGER                                            :: ispin
+      LOGICAL                                            :: occ, vir
+
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'G_occ_vir'
+
+      INTEGER                                            :: handle, homo, i_row_local, j_col, &
+                                                            j_col_local, n_mo, ncol_local, &
+                                                            nrow_local
+      INTEGER, DIMENSION(:), POINTER                     :: col_indices
+      REAL(KIND=dp)                                      :: tau_E
+
+      CALL timeset(routineN, handle)
+
+      CPASSERT(occ .NEQV. vir)
+
+      CALL cp_fm_get_info(matrix=bs_env%fm_work_mo(1), &
+                          nrow_local=nrow_local, &
+                          ncol_local=ncol_local, &
+                          col_indices=col_indices)
+
+      n_mo = bs_env%n_ao
+      homo = bs_env%n_occ(ispin)
+
+      CALL cp_fm_to_fm(bs_env%fm_mo_coeff_Gamma(ispin), bs_env%fm_work_mo(1))
+
+      DO i_row_local = 1, nrow_local
+         DO j_col_local = 1, ncol_local
+
+            j_col = col_indices(j_col_local)
+
+            tau_E = ABS(tau*0.5_dp*(bs_env%eigenval_scf_Gamma(j_col, ispin) - bs_env%e_fermi(ispin)))
+
+            IF (tau_E < bs_env%stabilize_exp) THEN
+               bs_env%fm_work_mo(1)%local_data(i_row_local, j_col_local) = &
+                  bs_env%fm_work_mo(1)%local_data(i_row_local, j_col_local)*EXP(-tau_E)
+            ELSE
+               bs_env%fm_work_mo(1)%local_data(i_row_local, j_col_local) = 0.0_dp
+            END IF
+
+            IF ((occ .AND. j_col > homo) .OR. (vir .AND. j_col <= homo)) THEN
+               bs_env%fm_work_mo(1)%local_data(i_row_local, j_col_local) = 0.0_dp
+            END IF
+
+         END DO
+      END DO
+
+      CALL parallel_gemm(transa="N", transb="T", m=n_mo, n=n_mo, k=n_mo, alpha=1.0_dp, &
+                         matrix_a=bs_env%fm_work_mo(1), matrix_b=bs_env%fm_work_mo(1), &
+                         beta=0.0_dp, matrix_c=fm_G_Gamma)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE G_occ_vir
+
+! **************************************************************************************************
+!> \brief ...
 !> \param qs_env ...
 !> \param bs_env ...
 !> \param t_3c ...
@@ -683,7 +597,7 @@ CONTAINS
                               bs_env%eps_filter, &
                               qs_env, &
                               bs_env%nl_3c, &
-                              int_eps=bs_env%eps_3c_int, &
+                              int_eps=bs_env%eps_filter, &
                               basis_i=bs_env%basis_set_RI, &
                               basis_j=bs_env%basis_set_AO, &
                               basis_k=bs_env%basis_set_AO, &
@@ -951,11 +865,12 @@ CONTAINS
 
       n_RI = bs_env%n_RI
 
-      ! get here M(k) and write it to fm_M
+      ! get here M(k) and write it to fm_M_ikp
       CALL RI_2c_integral_mat(qs_env, fm_M_ikp, fm_V_kp(ikp, 1), &
-                              bs_env%n_RI, bs_env%ri_metric, do_kpoints=.TRUE., &
+                              n_RI, bs_env%ri_metric, do_kpoints=.TRUE., &
                               kpoints=bs_env%kpoints_chi_eps_W, &
-                              regularization_RI=bs_env%regularization_RI, ikp_ext=ikp)
+                              regularization_RI=bs_env%regularization_RI, ikp_ext=ikp, &
+                              do_build_cell_index=(ikp == 1))
 
       IF (ikp == 1) THEN
          CALL cp_cfm_create(cfm_V_sqrt_ikp, fm_V_kp(ikp, 1)%matrix_struct)
@@ -1021,6 +936,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'read_W_MIC_time'
 
       INTEGER                                            :: handle, i_t
+      REAL(KIND=dp)                                      :: t1
 
       CALL timeset(routineN, handle)
 
@@ -1029,14 +945,14 @@ CONTAINS
 
       DO i_t = 1, bs_env%num_time_freq_points
 
-         bs_env%t1 = m_walltime()
+         t1 = m_walltime()
 
          CALL fm_read(fm_W_MIC_time(i_t), bs_env, bs_env%W_time_name, i_t)
 
          IF (bs_env%unit_nr > 0) THEN
             WRITE (bs_env%unit_nr, '(T2,A,I5,A,I3,A,F7.1,A)') &
                'Read W^MIC(iτ) from file for time point  ', i_t, ' /', bs_env%num_time_freq_points, &
-               ',    Execution time', m_walltime() - bs_env%t1, ' s'
+               ',    Execution time', m_walltime() - t1, ' s'
          END IF
 
       END DO
@@ -1064,6 +980,7 @@ CONTAINS
 
       INTEGER                                            :: handle, i_t, ikp, ikp_batch, &
                                                             ikp_in_batch, j_w
+      REAL(KIND=dp)                                      :: t1
       TYPE(cp_cfm_type)                                  :: cfm_M_inv_V_sqrt_ikp, cfm_V_sqrt_ikp
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :)     :: fm_V_kp
 
@@ -1073,7 +990,7 @@ CONTAINS
 
       DO ikp_batch = 1, bs_env%num_chi_eps_W_batches
 
-         bs_env%t1 = m_walltime()
+         t1 = m_walltime()
 
          ! Compute V_PQ(k) = sum_R e^(ikR) <phi_P, cell 0 | 1/r | phi_Q, cell R>
          CALL compute_V_k_by_lattice_sum(bs_env, qs_env, fm_V_kp, ikp_batch)
@@ -1115,7 +1032,7 @@ CONTAINS
             WRITE (bs_env%unit_nr, '(T2,A,I12,A,I3,A,F7.1,A)') &
                'Computed W(iτ,k) for k-point batch', &
                ikp_batch, ' /', bs_env%num_chi_eps_W_batches, &
-               ',    Execution time', m_walltime() - bs_env%t1, ' s'
+               ',    Execution time', m_walltime() - t1, ' s'
          END IF
 
       END DO ! ikp_batch
@@ -1629,10 +1546,9 @@ CONTAINS
 
       CALL cp_fm_create(fm_work, fm_W_MIC_time(1)%matrix_struct)
 
-      ! compute Gamma-only RI-metric matrix M(k=0)
+      ! compute Gamma-only RI-metric matrix M(k=0); no regularization
       CALL RI_2c_integral_mat(qs_env, fm_Minv_Gamma, fm_W_MIC_time(1), n_RI, &
-                              bs_env%ri_metric, do_kpoints=.FALSE., &
-                              regularization_RI=bs_env%regularization_RI)
+                              bs_env%ri_metric, do_kpoints=.FALSE.)
 
       CALL cp_fm_power(fm_Minv_Gamma(1, 1), fm_work, -1.0_dp, 0.0_dp, ndep)
 
@@ -1703,13 +1619,14 @@ CONTAINS
 
       INTEGER                                            :: handle, i_intval_idx, ispin, j_intval_idx
       INTEGER, DIMENSION(2)                              :: i_atoms, j_atoms
+      REAL(KIND=dp)                                      :: t1
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :)     :: fm_Vtr_Gamma
       TYPE(dbcsr_type)                                   :: mat_Sigma_x_Gamma
       TYPE(dbt_type)                                     :: t_2c_D, t_2c_Sigma_x, t_2c_V, t_3c_x_V
 
       CALL timeset(routineN, handle)
 
-      bs_env%t1 = m_walltime()
+      t1 = m_walltime()
 
       CALL dbt_create(bs_env%t_G, t_2c_D)
       CALL dbt_create(bs_env%t_W, t_2c_V)
@@ -1719,8 +1636,7 @@ CONTAINS
 
       ! 1. Compute truncated Coulomb operator matrix V^tr(k=0) (cutoff rad: cellsize/2)
       CALL RI_2c_integral_mat(qs_env, fm_Vtr_Gamma, bs_env%fm_RI_RI, bs_env%n_RI, &
-                              bs_env%trunc_coulomb, do_kpoints=.FALSE., &
-                              regularization_RI=bs_env%regularization_RI)
+                              bs_env%trunc_coulomb, do_kpoints=.FALSE.)
 
       ! 2. Compute M^-1(k=0) and get M^-1(k=0)*V^tr(k=0)*M^-1(k=0)
       CALL multiply_fm_W_MIC_time_with_Minv_Gamma(bs_env, qs_env, fm_Vtr_Gamma(:, 1))
@@ -1729,6 +1645,7 @@ CONTAINS
 
          ! 3. Compute density matrix D_µν
          CALL G_occ_vir(bs_env, 0.0_dp, bs_env%fm_work_mo(2), ispin, occ=.TRUE., vir=.FALSE.)
+
          CALL fm_to_local_tensor(bs_env%fm_work_mo(2), bs_env%mat_ao_ao%matrix, &
                                  bs_env%mat_ao_ao_tensor%matrix, t_2c_D, bs_env, &
                                  bs_env%atoms_i_t_group)
@@ -1764,11 +1681,11 @@ CONTAINS
 
          CALL copy_dbcsr_to_fm(mat_Sigma_x_Gamma, fm_Sigma_x_Gamma(ispin))
 
-      END DO
+      END DO ! ispin
 
       IF (bs_env%unit_nr > 0) THEN
          WRITE (bs_env%unit_nr, '(T2,A,T58,A,F7.1,A)') &
-            'Computed Σ^x(k=0),', ' Execution time', m_walltime() - bs_env%t1, ' s'
+            'Computed Σ^x(k=0),', ' Execution time', m_walltime() - t1, ' s'
          WRITE (bs_env%unit_nr, '(A)') ' '
       END IF
 
@@ -1801,7 +1718,7 @@ CONTAINS
       INTEGER                                            :: handle, i_intval_idx, i_t, ispin, &
                                                             j_intval_idx, read_write_index
       INTEGER, DIMENSION(2)                              :: i_atoms, j_atoms
-      REAL(KIND=dp)                                      :: tau
+      REAL(KIND=dp)                                      :: t1, tau
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: mat_Sigma_neg_tau, mat_Sigma_pos_tau
       TYPE(dbt_type)                                     :: t_2c_Gocc, t_2c_Gvir, &
                                                             t_2c_Sigma_neg_tau, &
@@ -1817,7 +1734,7 @@ CONTAINS
 
          DO ispin = 1, bs_env%n_spin
 
-            bs_env%t1 = m_walltime()
+            t1 = m_walltime()
 
             read_write_index = i_t + (ispin - 1)*bs_env%num_time_freq_points
 
@@ -1832,7 +1749,7 @@ CONTAINS
                IF (bs_env%unit_nr > 0) THEN
                   WRITE (bs_env%unit_nr, '(T2,2A,I3,A,I3,A,F7.1,A)') 'Read Σ^c(iτ,k=0) ', &
                      'from file for time point  ', i_t, ' /', bs_env%num_time_freq_points, &
-                     ',    Execution time', m_walltime() - bs_env%t1, ' s'
+                     ',    Execution time', m_walltime() - t1, ' s'
                END IF
 
                CYCLE
@@ -1898,7 +1815,7 @@ CONTAINS
             IF (bs_env%unit_nr > 0) THEN
                WRITE (bs_env%unit_nr, '(T2,A,I10,A,I3,A,F7.1,A)') &
                   'Computed Σ^c(iτ,k=0) for time point ', i_t, ' /', bs_env%num_time_freq_points, &
-                  ',    Execution time', m_walltime() - bs_env%t1, ' s'
+                  ',    Execution time', m_walltime() - t1, ' s'
             END IF
 
          END DO ! ispin
@@ -2302,66 +2219,6 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief ...
 !> \param bs_env ...
-!> \param Sigma_c_n_time ...
-!> \param Sigma_c_n_freq ...
-!> \param ispin ...
-! **************************************************************************************************
-   SUBROUTINE time_to_freq(bs_env, Sigma_c_n_time, Sigma_c_n_freq, ispin)
-      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: Sigma_c_n_time, Sigma_c_n_freq
-      INTEGER                                            :: ispin
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'time_to_freq'
-
-      INTEGER                                            :: handle, i_t, j_w, n_occ
-      REAL(KIND=dp)                                      :: freq_j, time_i, w_cos_ij, w_sin_ij
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: Sigma_c_n_cos_time, Sigma_c_n_sin_time
-
-      CALL timeset(routineN, handle)
-
-      ALLOCATE (Sigma_c_n_cos_time(bs_env%n_ao, bs_env%num_time_freq_points))
-      ALLOCATE (Sigma_c_n_sin_time(bs_env%n_ao, bs_env%num_time_freq_points))
-
-      Sigma_c_n_cos_time(:, :) = 0.5_dp*(Sigma_c_n_time(:, :, 1) + Sigma_c_n_time(:, :, 2))
-      Sigma_c_n_sin_time(:, :) = 0.5_dp*(Sigma_c_n_time(:, :, 1) - Sigma_c_n_time(:, :, 2))
-
-      Sigma_c_n_freq(:, :, :) = 0.0_dp
-
-      DO i_t = 1, bs_env%num_time_freq_points
-
-         DO j_w = 1, bs_env%num_time_freq_points
-
-            freq_j = bs_env%imag_freq_points(j_w)
-            time_i = bs_env%imag_time_points(i_t)
-            ! integration weights for cosine and sine transform
-            w_cos_ij = bs_env%weights_cos_t_to_w(j_w, i_t)*COS(freq_j*time_i)
-            w_sin_ij = bs_env%weights_sin_t_to_w(j_w, i_t)*SIN(freq_j*time_i)
-
-            ! 1. Re(Σ^c_nn(k_i,iω)) from cosine transform
-            Sigma_c_n_freq(:, j_w, 1) = Sigma_c_n_freq(:, j_w, 1) + &
-                                        w_cos_ij*Sigma_c_n_cos_time(:, i_t)
-
-            ! 2. Im(Σ^c_nn(k_i,iω)) from sine transform
-            Sigma_c_n_freq(:, j_w, 2) = Sigma_c_n_freq(:, j_w, 2) + &
-                                        w_sin_ij*Sigma_c_n_sin_time(:, i_t)
-
-         END DO
-
-      END DO
-
-      ! for occupied levels, we need the correlation self-energy for negative omega.
-      ! Therefore, weight_sin should be computed with -omega, which results in an
-      ! additional minus for the imaginary part:
-      n_occ = bs_env%n_occ(ispin)
-      Sigma_c_n_freq(1:n_occ, :, 2) = -Sigma_c_n_freq(1:n_occ, :, 2)
-
-      CALL timestop(handle)
-
-   END SUBROUTINE time_to_freq
-
-! **************************************************************************************************
-!> \brief ...
-!> \param bs_env ...
 !> \param qs_env ...
 !> \param fm_Sigma_x_Gamma ...
 !> \param fm_Sigma_c_Gamma_time ...
@@ -2392,7 +2249,7 @@ CONTAINS
 
       DO ispin = 1, bs_env%n_spin
 
-         DO ikp = 1, bs_env%kpoints_DOS%nkp
+         DO ikp = 1, bs_env%nkp_bs_and_DOS
 
             ! 1. get H^KS_µν(k_i) from H^KS_µν(k=0)
             CALL cfm_ikp_from_fm_Gamma(cfm_ks_ikp, bs_env%fm_ks_Gamma(ispin), &
@@ -2430,16 +2287,13 @@ CONTAINS
             ! 8. Analytic continuation Σ^c_nn(k_i,iω) -> Σ^c_nn(k_i,ϵ) and
             !    ϵ_nk_i^GW = ϵ_nk_i^DFT + Σ^c_nn(k_i,ϵ) + Σ^x_nn(k_i) - v^xc_nn(k_i)
             CALL analyt_conti_and_print(bs_env, Sigma_c_ikp_n_freq, Sigma_x_ikp_n, V_xc_ikp_n, &
-                                        ikp, ispin)
+                                        bs_env%eigenval_scf(:, ikp, ispin), ikp, ispin)
 
          END DO ! ikp_DOS
 
       END DO ! ispin
 
       CALL get_VBM_CBM_bandgaps(bs_env)
-
-      ! compute H^G0W0(k=0) = S(k=0)*C(k=0)ϵ^G0W0(k=0)*C(k=0)*S(k=0)
-      CALL G0W0_hamiltonian(bs_env)
 
       CALL cp_fm_release(fm_Sigma_x_Gamma)
       CALL cp_fm_release(fm_Sigma_c_Gamma_time)
@@ -2534,225 +2388,4 @@ CONTAINS
 
    END SUBROUTINE fm_Gamma_ao_to_cfm_ikp_mo
 
-! **************************************************************************************************
-!> \brief ...
-!> \param bs_env ...
-!> \param Sigma_c_ikp_n_freq ...
-!> \param Sigma_x_ikp_n ...
-!> \param V_xc_ikp_n ...
-!> \param ikp ...
-!> \param ispin ...
-! **************************************************************************************************
-   SUBROUTINE analyt_conti_and_print(bs_env, Sigma_c_ikp_n_freq, Sigma_x_ikp_n, V_xc_ikp_n, ikp, ispin)
-
-      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: Sigma_c_ikp_n_freq
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: Sigma_x_ikp_n, V_xc_ikp_n
-      INTEGER                                            :: ikp, ispin
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'analyt_conti_and_print'
-
-      CHARACTER(len=3)                                   :: occ_vir
-      CHARACTER(len=default_string_length)               :: fname
-      INTEGER                                            :: handle, i_mo, iunit, n_mo
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: dummy, Sigma_c_ikp_n_qp
-
-      CALL timeset(routineN, handle)
-
-      n_mo = bs_env%n_ao
-      ALLOCATE (dummy(n_mo), Sigma_c_ikp_n_qp(n_mo))
-      Sigma_c_ikp_n_qp(:) = 0.0_dp
-
-      DO i_mo = 1, n_mo
-
-         IF (MODULO(i_mo, bs_env%para_env%num_pe) /= bs_env%para_env%mepos) CYCLE
-
-         CALL continuation_pade(Sigma_c_ikp_n_qp, &
-                                bs_env%imag_freq_points_fit, dummy, dummy, &
-                                Sigma_c_ikp_n_freq(:, 1:bs_env%num_freq_points_fit, 1)*z_one + &
-                                Sigma_c_ikp_n_freq(:, 1:bs_env%num_freq_points_fit, 2)*gaussi, &
-                                Sigma_x_ikp_n(:) - V_xc_ikp_n(:), &
-                                bs_env%eigenval_scf(:, ikp, ispin), &
-                                bs_env%eigenval_scf(:, ikp, ispin), &
-                                i_mo, bs_env%n_occ(ispin), bs_env%nparam_pade, &
-                                bs_env%num_freq_points_fit, &
-                                ri_rpa_g0w0_crossing_newton, bs_env%n_occ(ispin), &
-                                0.0_dp, .TRUE., .FALSE., 1)
-
-      END DO
-
-      CALL bs_env%para_env%sum(Sigma_c_ikp_n_qp)
-
-      bs_env%eigenval_G0W0(:, ikp, ispin) = bs_env%eigenval_scf(:, ikp, ispin) + &
-                                            Sigma_c_ikp_n_qp(:) + &
-                                            Sigma_x_ikp_n(:) - &
-                                            V_xc_ikp_n(:)
-
-      CALL get_fname(fname, bs_env, ikp, "SCF_and_G0W0", ispin=ispin)
-
-      IF (bs_env%para_env%is_source()) THEN
-
-         CALL open_file(TRIM(fname), unit_number=iunit, file_status="REPLACE", file_action="WRITE")
-
-         WRITE (iunit, "(A)") " "
-         WRITE (iunit, "(A10,3F10.4)") "kpoint: ", bs_env%kpoints_DOS%xkp(:, ikp)
-         WRITE (iunit, "(A)") " "
-         WRITE (iunit, "(A5,A24,2A17,A16,A18)") "n", "ϵ_nk^DFT (eV)", "Σ^c_nk (eV)", &
-            "Σ^x_nk (eV)", "v_n^xc (eV)", "ϵ_nk^G0W0 (eV)"
-         WRITE (iunit, "(A)") " "
-
-         DO i_mo = 1, n_mo
-            IF (i_mo .LE. bs_env%n_occ(ispin)) occ_vir = 'occ'
-            IF (i_mo > bs_env%n_occ(ispin)) occ_vir = 'vir'
-            WRITE (iunit, "(I5,3A,4F16.3,F17.3)") i_mo, ' (', occ_vir, ') ', &
-               bs_env%eigenval_scf(i_mo, ikp, ispin)*evolt, &
-               Sigma_c_ikp_n_qp(i_mo)*evolt, &
-               Sigma_x_ikp_n(i_mo)*evolt, &
-               V_xc_ikp_n(i_mo)*evolt, &
-               bs_env%eigenval_G0W0(i_mo, ikp, ispin)*evolt
-         END DO
-
-         CALL close_file(iunit)
-
-      END IF
-
-      CALL timestop(handle)
-
-   END SUBROUTINE analyt_conti_and_print
-
-! **************************************************************************************************
-!> \brief ...
-!> \param bs_env ...
-! **************************************************************************************************
-   SUBROUTINE get_VBM_CBM_bandgaps(bs_env)
-
-      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'get_VBM_CBM_bandgaps'
-
-      INTEGER                                            :: handle, homo, homo_1, homo_2, ikp, &
-                                                            ispin, lumo, lumo_1, lumo_2, n_mo
-      REAL(KIND=dp)                                      :: E_DBG_G0W0_at_ikp, E_DBG_scf_at_ikp
-
-      CALL timeset(routineN, handle)
-
-      n_mo = bs_env%n_ao
-
-      bs_env%band_edges_scf%DBG = 1000.0_dp
-      bs_env%band_edges_G0W0%DBG = 1000.0_dp
-
-      SELECT CASE (bs_env%n_spin)
-      CASE (1)
-         homo = bs_env%n_occ(1)
-         lumo = homo + 1
-         bs_env%band_edges_scf%VBM = MAXVAL(bs_env%eigenval_scf(1:homo, :, 1))
-         bs_env%band_edges_scf%CBM = MINVAL(bs_env%eigenval_scf(homo + 1:n_mo, :, 1))
-         bs_env%band_edges_G0W0%VBM = MAXVAL(bs_env%eigenval_G0W0(1:homo, :, 1))
-         bs_env%band_edges_G0W0%CBM = MINVAL(bs_env%eigenval_G0W0(homo + 1:n_mo, :, 1))
-      CASE (2)
-         homo_1 = bs_env%n_occ(1)
-         lumo_1 = homo_1 + 1
-         homo_2 = bs_env%n_occ(2)
-         lumo_2 = homo_2 + 1
-         bs_env%band_edges_scf%VBM = MAX(MAXVAL(bs_env%eigenval_scf(1:homo_1, :, 1)), &
-                                         MAXVAL(bs_env%eigenval_scf(1:homo_2, :, 2)))
-         bs_env%band_edges_scf%CBM = MIN(MINVAL(bs_env%eigenval_scf(homo_1 + 1:n_mo, :, 1)), &
-                                         MINVAL(bs_env%eigenval_scf(homo_2 + 1:n_mo, :, 2)))
-         bs_env%band_edges_G0W0%VBM = MAX(MAXVAL(bs_env%eigenval_G0W0(1:homo_1, :, 1)), &
-                                          MAXVAL(bs_env%eigenval_G0W0(1:homo_2, :, 2)))
-         bs_env%band_edges_G0W0%CBM = MIN(MINVAL(bs_env%eigenval_G0W0(homo_1 + 1:n_mo, :, 1)), &
-                                          MINVAL(bs_env%eigenval_G0W0(homo_2 + 1:n_mo, :, 2)))
-      CASE DEFAULT
-         CPABORT("Error with number of spins.")
-      END SELECT
-
-      bs_env%band_edges_scf%IDBG = bs_env%band_edges_scf%CBM - bs_env%band_edges_scf%VBM
-      bs_env%band_edges_G0W0%IDBG = bs_env%band_edges_G0W0%CBM - bs_env%band_edges_G0W0%VBM
-
-      DO ispin = 1, bs_env%n_spin
-
-         homo = bs_env%n_occ(ispin)
-
-         DO ikp = 1, bs_env%kpoints_DOS%nkp
-            E_DBG_scf_at_ikp = -MAXVAL(bs_env%eigenval_scf(1:homo, ikp, ispin)) + &
-                               MINVAL(bs_env%eigenval_scf(homo + 1:n_mo, ikp, ispin))
-            IF (E_DBG_scf_at_ikp < bs_env%band_edges_scf%DBG) THEN
-               bs_env%band_edges_scf%DBG = E_DBG_scf_at_ikp
-            END IF
-
-            E_DBG_G0W0_at_ikp = -MAXVAL(bs_env%eigenval_G0W0(1:homo, ikp, ispin)) + &
-                                MINVAL(bs_env%eigenval_G0W0(homo + 1:n_mo, ikp, ispin))
-            IF (E_DBG_G0W0_at_ikp < bs_env%band_edges_G0W0%DBG) THEN
-               bs_env%band_edges_G0W0%DBG = E_DBG_G0W0_at_ikp
-            END IF
-         END DO
-      END DO
-
-      CALL timestop(handle)
-
-   END SUBROUTINE get_VBM_CBM_bandgaps
-
-! **************************************************************************************************
-!> \brief compute H^G0W0(k=0) = S(k=0)*C(k=0)ϵ^G0W0(k=0)*C(k=0)*S(k=0)
-!> \param bs_env ...
-! **************************************************************************************************
-   SUBROUTINE G0W0_hamiltonian(bs_env)
-      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'G0W0_hamiltonian'
-
-      INTEGER                                            :: handle, i_row_local, j_col, j_col_local, &
-                                                            n_mo, ncol_local, nrow_local
-      INTEGER, DIMENSION(:), POINTER                     :: col_indices
-      REAL(KIND=dp)                                      :: E_j
-
-      CALL timeset(routineN, handle)
-
-      ! JW TODO in whole routine: open-shell
-
-      CALL cp_fm_get_info(matrix=bs_env%fm_work_mo(1), &
-                          nrow_local=nrow_local, &
-                          ncol_local=ncol_local, &
-                          col_indices=col_indices)
-
-      CALL cp_fm_to_fm(bs_env%fm_mo_coeff_Gamma(1), bs_env%fm_work_mo(1))
-
-      ! compute ϵ_n(k=0)^G0W0 C_νn(k=0)
-      DO i_row_local = 1, nrow_local
-         DO j_col_local = 1, ncol_local
-
-            j_col = col_indices(j_col_local)
-
-            ! the last k-point of eigenvalues_G0W0 is the Γ-point
-            E_j = bs_env%eigenval_G0W0(j_col, bs_env%nkp_DOS, 1)
-
-            bs_env%fm_work_mo(1)%local_data(i_row_local, j_col_local) = &
-               bs_env%fm_work_mo(1)%local_data(i_row_local, j_col_local)*E_j
-
-         END DO
-      END DO
-
-      n_mo = bs_env%n_ao
-
-      ! compute H^G0W0(k=0) = S(k=0)*C(k=0)ϵ^G0W0(k=0)*C^T(k=0)*S(k=0)
-
-      ! 1. C(k=0)*ϵ^G0W0(k=0)*C^T(k=0)
-      CALL parallel_gemm(transa="N", transb="T", m=n_mo, n=n_mo, k=n_mo, alpha=1.0_dp, &
-                         matrix_a=bs_env%fm_mo_coeff_Gamma(1), matrix_b=bs_env%fm_work_mo(1), &
-                         beta=0.0_dp, matrix_c=bs_env%fm_work_mo(2))
-
-      ! 2. S(k=0)*C(k=0)*ϵ^G0W0(k=0)*C^T(k=0)
-      CALL parallel_gemm(transa="N", transb="N", m=n_mo, n=n_mo, k=n_mo, alpha=1.0_dp, &
-                         matrix_a=bs_env%fm_s_Gamma, matrix_b=bs_env%fm_work_mo(2), &
-                         beta=0.0_dp, matrix_c=bs_env%fm_work_mo(1))
-
-      ! 3. S(k=0)*C(k=0)*ϵ^G0W0(k=0)*C^T(k=0)*S(k=0)
-      CALL parallel_gemm(transa="N", transb="N", m=n_mo, n=n_mo, k=n_mo, alpha=1.0_dp, &
-                         matrix_a=bs_env%fm_work_mo(1), matrix_b=bs_env%fm_s_Gamma, &
-                         beta=0.0_dp, matrix_c=bs_env%fm_h_G0W0_Gamma)
-
-      CALL timestop(handle)
-
-   END SUBROUTINE G0W0_hamiltonian
-
-END MODULE gw_methods
+END MODULE gw_large_cell_gamma

@@ -179,7 +179,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_ks_build_kohn_sham_matrix'
 
       CHARACTER(len=default_string_length)               :: name
-      INTEGER                                            :: handle, iatom, img, ispin, nimages, ns, &
+      INTEGER                                            :: handle, iatom, img, ispin, nimages, &
                                                             nspins
       LOGICAL :: do_adiabatic_rescaling, do_ddapc, do_hfx, do_ppl, dokp, gapw, gapw_xc, &
          hfx_treat_lsd_in_core, just_energy_xc, lrigpw, my_print, rigpw, use_virial
@@ -258,12 +258,11 @@ CONTAINS
 
       CALL qs_rho_get(rho, rho_r=rho_r, rho_ao_kp=rho_ao)
 
-      IF (PRESENT(ext_ks_matrix)) THEN
-         ! remap pointer to allow for non-kpoint external ks matrix
-         ! ext_ks_matrix is used in linear response code
-         ns = SIZE(ext_ks_matrix)
-         ks_matrix(1:ns, 1:1) => ext_ks_matrix(1:ns)
-      END IF
+      nimages = dft_control%nimages
+      nspins = dft_control%nspins
+
+      ! remap pointer to allow for non-kpoint external ks matrix
+      IF (PRESENT(ext_ks_matrix)) ks_matrix(1:nspins, 1:1) => ext_ks_matrix(1:nspins)
 
       use_virial = virial%pv_availability .AND. (.NOT. virial%pv_numer)
 
@@ -282,8 +281,6 @@ CONTAINS
          just_energy_xc = .TRUE.
       END IF
 
-      nimages = dft_control%nimages
-      nspins = dft_control%nspins
       CPASSERT(ASSOCIATED(matrix_h))
       CPASSERT(ASSOCIATED(matrix_s))
       CPASSERT(ASSOCIATED(rho))
