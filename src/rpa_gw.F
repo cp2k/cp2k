@@ -4778,13 +4778,13 @@ CONTAINS
                                      coeff_pade, sigma_c)
          qp_energy = Eigenval_scf + REAL(sigma_c) + Sigma_x_minus_vxc_gw
          delta = qp_energy - qp_energy_old
-!         IF (icount > 500) THEN
-!            WRITE (n_level_gw_ref_char, '(I10)') n_level_gw_ref
-!            WRITE (error_msg, '(A,A,A)') " Self-consistent quasi-particle solution of "// &
-!               "MO ", TRIM(n_level_gw_ref_char), " has not been found."
-!            CPWARN(error_msg)
-!            EXIT
-!         END IF
+         IF (icount > 500 .AND. .FALSE.) THEN
+            WRITE (n_level_gw_ref_char, '(I10)') n_level_gw_ref
+            WRITE (error_msg, '(A,A,A)') " Self-consistent quasi-particle solution of "// &
+               "MO ", TRIM(n_level_gw_ref_char), " has not been found."
+            CPWARN(error_msg)
+            EXIT
+         END IF
          IF (icount > 500) EXIT
       END DO
 
@@ -4850,13 +4850,13 @@ CONTAINS
          qp_energy = qp_energy - (Eigenval_scf + Sigma_x_minus_vxc_gw + REAL(sigma_c) - qp_energy)/ &
                      (m_value - 1.0_dp)
          delta = qp_energy - qp_energy_old
-!         IF (icount > 500) THEN
-!            WRITE (n_level_gw_ref_char, '(I10)') n_level_gw_ref
-!            WRITE (error_msg, '(A,A,A)') " Self-consistent quasi-particle solution of "// &
-!               "MO ", TRIM(n_level_gw_ref_char), " has not been found."
-!            CPWARN(error_msg)
-!            EXIT
-!         END IF
+         IF (icount > 500 .AND. .FALSE.) THEN
+            WRITE (n_level_gw_ref_char, '(I10)') n_level_gw_ref
+            WRITE (error_msg, '(A,A,A)') " Self-consistent quasi-particle solution of "// &
+               "MO ", TRIM(n_level_gw_ref_char), " has not been found."
+            CPWARN(error_msg)
+            EXIT
+         END IF
          IF (icount > 500) EXIT
       END DO
 
