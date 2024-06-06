@@ -260,8 +260,8 @@ MODULE post_scf_bandstructure_types
       INTEGER, DIMENSION(3)                        :: cell_grid_scf_desymm = -1
       INTEGER, DIMENSION(:, :), ALLOCATABLE        :: index_to_cell_3c, &
                                                       index_to_cell_Delta_R
-      INTEGER, DIMENSION(:, :, :), POINTER         :: cell_to_index_3c, &
-                                                      cell_to_index_Delta_R
+      INTEGER, DIMENSION(:, :, :), POINTER         :: cell_to_index_3c => NULL(), &
+                                                      cell_to_index_Delta_R => NULL()
       REAL(KIND=dp)                                :: heuristic_filter_factor = -1.0_dp
 
       ! small_cell_full_kp parallelization
