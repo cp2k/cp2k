@@ -1009,7 +1009,7 @@ CONTAINS
          IF (eigenvalues(i) > eps) THEN
             pos_eval = (eigenvalues(i))**(0.5_dp*exponent)
          ELSE
-            pos_eval = z_zero
+            pos_eval = 0.0_dp
          END IF
          eigenvectors(:, i) = eigenvectors(:, i)*pos_eval
       END DO
