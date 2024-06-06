@@ -173,6 +173,11 @@ MODULE cp_control_types
       REAL, DIMENSION(:), POINTER          :: kab_vals => NULL()
       !
       TYPE(pair_potential_p_type), POINTER :: nonbonded => NULL()
+      !
+      ! SRB terms
+      REAL(KIND=dp)                        :: ksrb = 0.0_dp, esrb = 0.0_dp, gscal = 0.0_dp
+      REAL(KIND=dp)                        :: c1srb = 0.0_dp, c2srb = 0.0_dp
+      !
    END TYPE xtb_control_type
 
 ! **************************************************************************************************

@@ -204,7 +204,6 @@ MODULE qs_environment
    USE transport,                       ONLY: transport_env_create
    USE xtb_parameters,                  ONLY: init_xtb_basis,&
                                               xtb_parameters_init,&
-                                              xtb_parameters_read,&
                                               xtb_parameters_set
    USE xtb_types,                       ONLY: allocate_xtb_atom_param
 #include "./base/base_uses.f90"
@@ -717,8 +716,6 @@ CONTAINS
                                            "PRINT%PROGRAM_BANNER")
       END IF
 
-!deb  !  Read the input section with the Quickstep control parameters
-!deb  CALL read_qs_section(dft_control%qs_control, qs_section)
       IF (dft_control%do_sccs .AND. dft_control%qs_control%gapw) THEN
          CPABORT("SCCS is not yet implemented with GAPW")
       END IF
@@ -787,13 +784,11 @@ CONTAINS
             CPASSERT(.NOT. ASSOCIATED(qs_kind%xtb_parameter))
             CALL allocate_xtb_atom_param(qs_kind%xtb_parameter)
             ! Set default parameters
+            gfn_type = dft_control%qs_control%xtb_control%gfn_type
             CALL get_qs_kind(qs_kind, element_symbol=element_symbol)
-            CALL xtb_parameters_init(qs_kind%xtb_parameter, element_symbol, &
+            CALL xtb_parameters_init(qs_kind%xtb_parameter, gfn_type, element_symbol, &
                                      xtb_control%parameter_file_path, xtb_control%parameter_file_name, &
                                      para_env)
-            ! Read specific parameters from input
-            xtb_section => section_vals_get_subs_vals(qs_section, "xTB")
-            CALL xtb_parameters_read(qs_kind%xtb_parameter, element_symbol, xtb_section)
             ! set dependent parameters
             CALL xtb_parameters_set(qs_kind%xtb_parameter)
             ! Generate basis set
@@ -1118,6 +1113,9 @@ CONTAINS
       ! set (non)-self consistency
       IF (dft_control%qs_control%dftb) THEN
          scf_control%non_selfconsistent = .NOT. dft_control%qs_control%dftb_control%self_consistent
+      END IF
+      IF (dft_control%qs_control%xtb) THEN
+         scf_control%non_selfconsistent = (dft_control%qs_control%xtb_control%gfn_type == 0)
       END IF
       IF (qs_env%harris_method) THEN
          scf_control%non_selfconsistent = .TRUE.

@@ -11,9 +11,10 @@
 MODULE cp_control_utils
    USE bibliography,                    ONLY: &
         Andreussi2012, Dewar1977, Dewar1985, Elstner1998, Fattebert2002, Grimme2017, Hu2007, &
-        Krack2000, Lippert1997, Lippert1999, Porezag1995, Repasky2002, Rocha2006, Schenter2008, &
-        Seifert1996, Souza2002, Stengel2009, Stewart1989, Stewart2007, Thiel1992, Umari2002, &
-        VanVoorhis2015, VandeVondele2005a, VandeVondele2005b, Yin2017, Zhechkov2005, cite_reference
+        Krack2000, Lippert1997, Lippert1999, Porezag1995, Pracht2019, Repasky2002, Rocha2006, &
+        Schenter2008, Seifert1996, Souza2002, Stengel2009, Stewart1989, Stewart2007, Thiel1992, &
+        Umari2002, VanVoorhis2015, VandeVondele2005a, VandeVondele2005b, Yin2017, Zhechkov2005, &
+        cite_reference
    USE cp_control_types,                ONLY: &
         admm_control_create, admm_control_type, ddapc_control_create, ddapc_restraint_type, &
         dft_control_create, dft_control_type, efield_type, expot_control_create, &
@@ -922,6 +923,7 @@ CONTAINS
       CASE (do_method_xtb)
          qs_control%xtb = .TRUE.
          CALL cite_reference(Grimme2017)
+         CALL cite_reference(Pracht2019)
       CASE (do_method_mndo)
          CALL cite_reference(Dewar1977)
          qs_control%semi_empirical = .TRUE.
@@ -1211,28 +1213,100 @@ CONTAINS
          qs_control%xtb_control%h_sto_ng = ngauss
          CALL section_vals_val_get(xtb_parameter, "PARAM_FILE_PATH", &
                                    c_val=qs_control%xtb_control%parameter_file_path)
-         CALL section_vals_val_get(xtb_parameter, "PARAM_FILE_NAME", &
-                                   c_val=qs_control%xtb_control%parameter_file_name)
+         CALL section_vals_val_get(xtb_parameter, "PARAM_FILE_NAME", explicit=explicit)
+         IF (explicit) THEN
+            CALL section_vals_val_get(xtb_parameter, "PARAM_FILE_NAME", &
+                                      c_val=qs_control%xtb_control%parameter_file_name)
+         ELSE
+            SELECT CASE (qs_control%xtb_control%gfn_type)
+            CASE (0)
+               qs_control%xtb_control%parameter_file_name = "xTB0_parameters"
+            CASE (1)
+               qs_control%xtb_control%parameter_file_name = "xTB1_parameters"
+            CASE (2)
+               CPABORT("gfn2-xtb tbd")
+            CASE DEFAULT
+               CPABORT("GFN type")
+            END SELECT
+         END IF
          ! D3 Dispersion
          CALL section_vals_val_get(xtb_parameter, "DISPERSION_RADIUS", &
                                    r_val=qs_control%xtb_control%rcdisp)
          CALL section_vals_val_get(xtb_parameter, "COORDINATION_CUTOFF", &
                                    r_val=qs_control%xtb_control%epscn)
-         CALL section_vals_val_get(xtb_parameter, "D3BJ_SCALING", r_vals=scal)
-         qs_control%xtb_control%s6 = scal(1)
-         qs_control%xtb_control%s8 = scal(2)
-         CALL section_vals_val_get(xtb_parameter, "D3BJ_PARAM", r_vals=scal)
-         qs_control%xtb_control%a1 = scal(1)
-         qs_control%xtb_control%a2 = scal(2)
+         CALL section_vals_val_get(xtb_parameter, "D3BJ_SCALING", explicit=explicit)
+         IF (explicit) THEN
+            CALL section_vals_val_get(xtb_parameter, "D3BJ_SCALING", r_vals=scal)
+            qs_control%xtb_control%s6 = scal(1)
+            qs_control%xtb_control%s8 = scal(2)
+         ELSE
+            SELECT CASE (qs_control%xtb_control%gfn_type)
+            CASE (0)
+               qs_control%xtb_control%s6 = 1.00_dp
+               qs_control%xtb_control%s8 = 2.85_dp
+            CASE (1)
+               qs_control%xtb_control%s6 = 1.00_dp
+               qs_control%xtb_control%s8 = 2.40_dp
+            CASE (2)
+               CPABORT("gfn2-xtb tbd")
+            CASE DEFAULT
+               CPABORT("GFN type")
+            END SELECT
+         END IF
+         CALL section_vals_val_get(xtb_parameter, "D3BJ_PARAM", explicit=explicit)
+         IF (explicit) THEN
+            CALL section_vals_val_get(xtb_parameter, "D3BJ_PARAM", r_vals=scal)
+            qs_control%xtb_control%a1 = scal(1)
+            qs_control%xtb_control%a2 = scal(2)
+         ELSE
+            SELECT CASE (qs_control%xtb_control%gfn_type)
+            CASE (0)
+               qs_control%xtb_control%a1 = 0.80_dp
+               qs_control%xtb_control%a2 = 4.60_dp
+            CASE (1)
+               qs_control%xtb_control%a1 = 0.63_dp
+               qs_control%xtb_control%a2 = 5.00_dp
+            CASE (2)
+               CPABORT("gfn2-xtb tbd")
+            CASE DEFAULT
+               CPABORT("GFN type")
+            END SELECT
+         END IF
          CALL section_vals_val_get(xtb_parameter, "DISPERSION_PARAMETER_FILE", &
                                    c_val=qs_control%xtb_control%dispersion_parameter_file)
          ! global parameters
-         CALL section_vals_val_get(xtb_parameter, "HUCKEL_CONSTANTS", r_vals=scal)
-         qs_control%xtb_control%ks = scal(1)
-         qs_control%xtb_control%kp = scal(2)
-         qs_control%xtb_control%kd = scal(3)
-         qs_control%xtb_control%ksp = scal(4)
-         qs_control%xtb_control%k2sh = scal(5)
+         CALL section_vals_val_get(xtb_parameter, "HUCKEL_CONSTANTS", explicit=explicit)
+         IF (explicit) THEN
+            CALL section_vals_val_get(xtb_parameter, "HUCKEL_CONSTANTS", r_vals=scal)
+            qs_control%xtb_control%ks = scal(1)
+            qs_control%xtb_control%kp = scal(2)
+            qs_control%xtb_control%kd = scal(3)
+            qs_control%xtb_control%ksp = scal(4)
+            qs_control%xtb_control%k2sh = scal(5)
+            IF (qs_control%xtb_control%gfn_type == 0) THEN
+               ! enforce ksp for gfn0
+               qs_control%xtb_control%ksp = 0.5_dp*(scal(1) + scal(2))
+            END IF
+         ELSE
+            SELECT CASE (qs_control%xtb_control%gfn_type)
+            CASE (0)
+               qs_control%xtb_control%ks = 2.00_dp
+               qs_control%xtb_control%kp = 2.4868_dp
+               qs_control%xtb_control%kd = 2.27_dp
+               qs_control%xtb_control%ksp = 2.2434_dp
+               qs_control%xtb_control%k2sh = 1.1241_dp
+            CASE (1)
+               qs_control%xtb_control%ks = 1.85_dp
+               qs_control%xtb_control%kp = 2.25_dp
+               qs_control%xtb_control%kd = 2.00_dp
+               qs_control%xtb_control%ksp = 2.08_dp
+               qs_control%xtb_control%k2sh = 2.85_dp
+            CASE (2)
+               CPABORT("gfn2-xtb tbd")
+            CASE DEFAULT
+               CPABORT("GFN type")
+            END SELECT
+         END IF
          CALL section_vals_val_get(xtb_parameter, "COULOMB_CONSTANTS", r_vals=scal)
          qs_control%xtb_control%kg = scal(1)
          qs_control%xtb_control%kf = scal(2)
@@ -1296,6 +1370,16 @@ CONTAINS
                READ (clist(3), '(F10.0)') qs_control%xtb_control%kab_vals(j)
             END DO
          END IF
+
+         IF (qs_control%xtb_control%gfn_type == 0) THEN
+            CALL section_vals_val_get(xtb_parameter, "SRB_PARAMETER", r_vals=scal)
+            qs_control%xtb_control%ksrb = scal(1)
+            qs_control%xtb_control%esrb = scal(2)
+            qs_control%xtb_control%gscal = scal(3)
+            qs_control%xtb_control%c1srb = scal(4)
+            qs_control%xtb_control%c2srb = scal(5)
+         END IF
+
       END IF
 
       ! Optimize LRI basis set
