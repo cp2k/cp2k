@@ -350,33 +350,45 @@ CONTAINS
       ! DEBUG : change to initialisation directly from mo_coeffs
       ! CALL rt_initialize_rho_from_mos(rtp, mos)
       ! CALL get_rtp(rtp, rho_new=rho_dbcsr)
+      ! IF (.NOT. tdagw_env%dft_control%rtp_control%apply_delta_pulse ) THEN
+      !    CALL rt_initialize_rho_from_mos(rtp, mos)
+      ! ELSE
+      !    CALL rt_initialize_rho_from_mos(rtp, mos, rtp%mos%old)
+      ! END IF
+      CALL get_rtp(rtp, rho_new=rho_dbcsr)
       ! Copy the density
       ALLOCATE(tdagw_env%rho(2*tdagw_env%n_spin))
-      ALLOCATE(occupations(tdagw_env%n_ao))
-      ! Iterate over both spins
-      @:SPIN_DO(i, re, im, tdagw_env%n_spin)
-         occupations(:) = 0.0_dp
-         occupations(1:tdagw_env%n_occ(i)) = 1.0_dp
-         ! TODO : Handle complex orbitals - then we have non-trivial imaginary part
-         ! Create real part
-         NULLIFY(tdagw_env%rho(re)%matrix)
-         ALLOCATE(tdagw_env%rho(re)%matrix)
-         CALL cp_fm_create(tdagw_env%rho(re)%matrix, matrix_struct=bs_env%fm_s_Gamma%matrix_struct)
-         ! Create imaginary part
-         NULLIFY(tdagw_env%rho(im)%matrix)
-         ALLOCATE(tdagw_env%rho(im)%matrix)
-         CALL cp_fm_create(tdagw_env%rho(im)%matrix, matrix_struct=bs_env%fm_s_Gamma%matrix_struct)
-         ! Populate real part
-         CALL cp_fm_to_fm(bs_env%fm_mo_coeff_Gamma(i), tdagw_env%rho(im)%matrix)
-         CALL cp_fm_column_scale(tdagw_env%rho(im)%matrix, occupations)
-         CALL parallel_gemm("N", "T", tdagw_env%n_ao, tdagw_env%n_ao, tdagw_env%n_ao,&
-                            1.0_dp, bs_env%fm_mo_coeff_Gamma(i),&
-                            tdagw_env%rho(im)%matrix,&
-                            0.0_dp, tdagw_env%rho(re)%matrix)
-         ! Populate imaginary part
-         CALL cp_fm_set_all(tdagw_env%rho(im)%matrix, 0.0_dp)
+      ! ALLOCATE(occupations(tdagw_env%n_ao))
+      ! ! Iterate over both spins
+      ! @:SPIN_DO(i, re, im, tdagw_env%n_spin)
+      !    occupations(:) = 0.0_dp
+      !    occupations(1:tdagw_env%n_occ(i)) = 1.0_dp
+      !    ! TODO : Handle complex orbitals - then we have non-trivial imaginary part
+      !    ! Create real part
+      !    NULLIFY(tdagw_env%rho(re)%matrix)
+      !    ALLOCATE(tdagw_env%rho(re)%matrix)
+      !    CALL cp_fm_create(tdagw_env%rho(re)%matrix, matrix_struct=bs_env%fm_s_Gamma%matrix_struct)
+      !    ! Create imaginary part
+      !    NULLIFY(tdagw_env%rho(im)%matrix)
+      !    ALLOCATE(tdagw_env%rho(im)%matrix)
+      !    CALL cp_fm_create(tdagw_env%rho(im)%matrix, matrix_struct=bs_env%fm_s_Gamma%matrix_struct)
+      !    ! Populate real part
+      !    CALL cp_fm_to_fm(bs_env%fm_mo_coeff_Gamma(i), tdagw_env%rho(im)%matrix)
+      !    CALL cp_fm_column_scale(tdagw_env%rho(im)%matrix, occupations)
+      !    CALL parallel_gemm("N", "T", tdagw_env%n_ao, tdagw_env%n_ao, tdagw_env%n_ao,&
+      !                       1.0_dp, bs_env%fm_mo_coeff_Gamma(i),&
+      !                       tdagw_env%rho(im)%matrix,&
+      !                       0.0_dp, tdagw_env%rho(re)%matrix)
+      !    ! Populate imaginary part
+      !    CALL cp_fm_set_all(tdagw_env%rho(im)%matrix, 0.0_dp)
+      ! END DO
+      ! DEALLOCATE(occupations)
+      DO i=1,2*tdagw_env%n_spin
+         NULLIFY(tdagw_env%rho(i)%matrix)
+         ALLOCATE(tdagw_env%rho(i)%matrix)
+         CALL cp_fm_create(tdagw_env%rho(i)%matrix, matrix_struct=bs_env%fm_s_Gamma%matrix_struct)
+         CALL copy_dbcsr_to_fm(rho_dbcsr(i)%matrix, tdagw_env%rho(i)%matrix)
       END DO
-      DEALLOCATE(occupations)
       ! Create the inverse overlap matrix, for use in density propagation 
       CALL s_matrices_create(matrix_s, rtp)
       CALL get_rtp(rtp, S_inv=tdagw_env%S_inv)

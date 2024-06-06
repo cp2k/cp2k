@@ -711,11 +711,11 @@ CONTAINS
    SUBROUTINE bch_propagate(propagator_matrix, target_matrix, result_matrix, workspace, threshold_opt, max_iter_opt)
       ! Array of real and imaginary parts of the propagator matrix X, such that
       ! the propagated matrix will follow Y' = e^X Y e^(-X), for each spin
-      TYPE(cp_fm_p_type), DIMENSION(:), INTENT(IN)      :: propagator_matrix
+      TYPE(cp_fm_p_type), DIMENSION(:), POINTER         :: propagator_matrix
       ! Matrix Y to be propagated into matrix Y'
-      TYPE(cp_fm_p_type), DIMENSION(:), INTENT(IN)      :: target_matrix
+      TYPE(cp_fm_p_type), DIMENSION(:), POINTER         :: target_matrix
       ! Matrix Y' is stored here on exit
-      TYPE(cp_fm_p_type), DIMENSION(:), INTENT(OUT)     :: result_matrix, workspace
+      TYPE(cp_fm_p_type), DIMENSION(:), POINTER         :: result_matrix, workspace
       ! Threshold for the metric which decides when to truncate the BCH expansion 
       REAL(kind=dp), OPTIONAL                           :: threshold_opt
       INTEGER, OPTIONAL                                 :: max_iter_opt
@@ -744,6 +744,7 @@ CONTAINS
 
       ! Initiate
       @:SPIN_DO(i, re, im, n_spin)
+         PRINT *, "i, re, im, n_spin", i, re, im, n_spin, "target_size", SIZE(target_matrix), "result_size", SIZE(result_matrix)
          CALL cp_fm_to_fm(target_matrix(re)%matrix, result_matrix(re)%matrix)
          CALL cp_fm_to_fm(target_matrix(im)%matrix, result_matrix(im)%matrix)
          CALL cp_fm_to_fm(target_matrix(re)%matrix, workspace(re)%matrix)
