@@ -664,7 +664,8 @@ CONTAINS
          "If USE_HFX_IMPLEMENTATION T, the subgroups are used for the HF calculations. "// &
          "Thus, larger subgroups increase the available memory improving the performance. "// &
          "If USE_HFX_IMPLEMENTATION F, the subgroups are used to distribute the virtual orbital index to improve the "// &
-         "scalability in case of large processor counts. Thus, the group size should be as small as possible. Default "// &
+         "scalability in case of large processor counts but decrease the numerical stability. Thus, the group size should "// &
+         "be as small as possible. Default "// &
          "(nonpositive value) is to use all (with HF) or the lowest possible amount of (without HF) processes.", &
          usage="GROUP_SIZE 1", &
          default_i_val=-1)

@@ -34,6 +34,7 @@ MODULE rpa_exchange
                                               get_group_dist,&
                                               group_dist_d1_type,&
                                               group_dist_proc,&
+                                              maxsize,&
                                               release_group_dist
    USE input_constants,                 ONLY: rpa_exchange_axk,&
                                               rpa_exchange_none,&
@@ -80,7 +81,6 @@ MODULE rpa_exchange
       PROCEDURE, PASS(exchange_work), NON_OVERRIDABLE :: compute => rpa_exchange_work_compute
       PROCEDURE, PASS(exchange_work), NON_OVERRIDABLE :: release => rpa_exchange_work_release
       PROCEDURE, PASS(exchange_work), NON_OVERRIDABLE :: redistribute_into_subgroups
-      PROCEDURE, PASS(exchange_work), NON_OVERRIDABLE :: redistribute_Gamma
    END TYPE
 
 CONTAINS
@@ -146,6 +146,7 @@ CONTAINS
 
       ASSOCIATE (para_env => fm_mat_S(1)%matrix_struct%para_env)
          group_size = mp2_env%ri_rpa%exchange_group_size
+         IF (group_size > para_env%num_pe) group_size = para_env%num_pe
 ! If automatic choice is requested, choose a suitable group size
          IF (mp2_env%ri_rpa%use_hfx_implementation) THEN
             IF (group_size <= 0) group_size = para_env%num_pe
@@ -209,7 +210,7 @@ CONTAINS
          CALL mp_para_env_release(exchange_work%para_env_sub)
       END IF
       CALL release_group_dist(exchange_work%aux_func_dist)
-      IF (ALLOCATED(exchange_work%aux2send)) DEALLOCATE(exchange_work%aux2send)
+      IF (ALLOCATED(exchange_work%aux2send)) DEALLOCATE (exchange_work%aux2send)
       CALL cp_fm_release(exchange_work%fm_mat_Q_tmp)
       CALL cp_fm_release(exchange_work%fm_mat_U)
       CALL cp_fm_release(exchange_work%fm_mat_R_half_gemm)
@@ -222,7 +223,7 @@ CONTAINS
 !> \param eig ...
 !> \param fm_mat_S ...
 !> \param omega ...
-!> \param e_exchange_corr ...          exchange energy correctrion for a quadrature point
+!> \param e_exchange_corr exchange energy correction for a quadrature point
 !> \param mp2_env ...
 !> \author Vladimir Rybkin, 07/2016
 ! **************************************************************************************************
@@ -319,42 +320,36 @@ CONTAINS
       CALL get_group_dist(exchange_work%aux_func_dist, exchange_work%color_sub, sizes=my_aux_size)
 
       e_exchange_corr = 0.0_dp
-      max_aux_size = (dimen_RI + para_env%num_pe - 1)/para_env%num_pe
+      max_aux_size = maxsize(exchange_work%aux_func_dist)
 
-      IF (.NOT. mp2_env%ri_rpa%use_hfx_implementation) THEN
-         ! local_gemm_ctx has a very footprint the first time this routine is
+      IF (mp2_env%ri_rpa%use_hfx_implementation) THEN
+         !
+      ELSE
+         ! local_gemm_ctx has a very large footprint the first time this routine is
          ! called.
          CALL mp2_env%local_gemm_ctx%create(LOCAL_GEMM_PU_GPU)
          CALL mp2_env%local_gemm_ctx%set_op_threshold_gpu(128*128*128*2)
-      END IF
 
-      DO ispin = 1, nspins
-         hom = exchange_work%homo(ispin)
-         virt = exchange_work%virtual(ispin)
-         dimen_ia = hom*virt
-         IF (hom < 1 .OR. virt < 1) CYCLE
+         DO ispin = 1, nspins
+            hom = exchange_work%homo(ispin)
+            virt = exchange_work%virtual(ispin)
+            dimen_ia = hom*virt
+            IF (hom < 1 .OR. virt < 1) CYCLE
 
-         CALL cp_fm_create(fm_mat_Gamma_3, fm_mat_S(ispin)%matrix_struct)
-         CALL cp_fm_set_all(matrix=fm_mat_Gamma_3, alpha=0.0_dp)
+            CALL cp_fm_create(fm_mat_Gamma_3, fm_mat_S(ispin)%matrix_struct)
+            CALL cp_fm_set_all(matrix=fm_mat_Gamma_3, alpha=0.0_dp)
 
-         ! Update G with a new value of Omega: in practice, it is G*S
+            ! Update G with a new value of Omega: in practice, it is G*S
 
-         ! Scale fm_work_iaP
-         CALL calc_fm_mat_S_rpa(fm_mat_S(ispin), .TRUE., virt, eig(:, ispin), &
-                                hom, omega, 0.0_dp)
+            ! Scale fm_work_iaP
+            CALL calc_fm_mat_S_rpa(fm_mat_S(ispin), .TRUE., virt, eig(:, ispin), &
+                                   hom, omega, 0.0_dp)
 
-         ! Calculate Gamma_3: Gamma_3 = G*S*R^(1/2) = G*S*R^(1/2)
-         CALL parallel_gemm(transa="T", transb="N", m=dimen_RI, n=dimen_ia, k=dimen_RI, alpha=1.0_dp, &
-                            matrix_a=exchange_work%fm_mat_R_half_gemm, matrix_b=fm_mat_S(ispin), beta=0.0_dp, &
-                            matrix_c=fm_mat_Gamma_3)
+            ! Calculate Gamma_3: Gamma_3 = G*S*R^(1/2) = G*S*R^(1/2)
+            CALL parallel_gemm(transa="T", transb="N", m=dimen_RI, n=dimen_ia, k=dimen_RI, alpha=1.0_dp, &
+                               matrix_a=exchange_work%fm_mat_R_half_gemm, matrix_b=fm_mat_S(ispin), beta=0.0_dp, &
+                               matrix_c=fm_mat_Gamma_3)
 
-         IF (mp2_env%ri_rpa%use_hfx_implementation) THEN
-! Redistribute fm_mat_Gamma_3
-
-! Transform to AO basis
-
-! Contract with exchange kernel
-         ELSE
             CALL create_group_dist(virt_dist, exchange_work%para_env_sub%num_pe, virt)
 
             ! Remove extra factor from S after the multiplication (to return to the original matrix)
@@ -362,9 +357,6 @@ CONTAINS
 
             CALL exchange_work%redistribute_into_subgroups(fm_mat_Gamma_3, mat_Gamma_3_3D, ispin, virt_dist)
             CALL cp_fm_release(fm_mat_Gamma_3)
-
-            mat_Gamma_3_1D(1:INT(virt, KIND=int_8)*hom*my_aux_size) => mat_Gamma_3_3D(:, :, 1:my_aux_size)
-            mat_Gamma_3_2D(1:virt, 1:hom*my_aux_size) => mat_Gamma_3_1D(1:INT(virt, KIND=int_8)*hom*my_aux_size)
 
             ! We need only the pure matrix
             CALL remove_scaling_factor_rpa(fm_mat_S(ispin), virt, eig(:, ispin), hom, omega)
@@ -379,6 +371,9 @@ CONTAINS
             my_virt = SIZE(mat_Gamma_3_3D, 1)
             block_size = exchange_work%block_size
 
+            mat_Gamma_3_1D(1:INT(my_virt, KIND=int_8)*hom*my_aux_size) => mat_Gamma_3_3D(:, :, 1:my_aux_size)
+            mat_Gamma_3_2D(1:my_virt, 1:hom*my_aux_size) => mat_Gamma_3_1D(1:INT(my_virt, KIND=int_8)*hom*my_aux_size)
+
             ALLOCATE (product_matrix_1D(INT(hom*MIN(block_size, L_size_gamma), KIND=int_8)* &
                                         INT(hom*MIN(block_size, max_aux_size), KIND=int_8)))
             ALLOCATE (recv_buffer_1D(INT(virt, KIND=int_8)*hom*max_aux_size))
@@ -388,7 +383,7 @@ CONTAINS
                send_proc = MODULO(para_env%mepos + proc_shift, para_env%num_pe)
                recv_proc = MODULO(para_env%mepos - proc_shift, para_env%num_pe)
 
-               CALL get_group_dist(exchange_work%aux_func_dist, recv_proc, sizes=recv_size)
+               CALL get_group_dist(exchange_work%aux_func_dist, recv_proc/exchange_work%para_env_sub%num_pe, sizes=recv_size)
 
                IF (recv_size == 0) recv_proc = mp_proc_null
 
@@ -432,11 +427,12 @@ CONTAINS
             END DO
 
             CALL release_group_dist(virt_dist)
-            DEALLOCATE (mat_B_iaP, mat_Gamma_3_3D, product_matrix_1D, recv_buffer_1D)
-         END IF
-      END DO
+            IF (ALLOCATED(mat_B_iaP)) DEALLOCATE (mat_B_iaP)
+            IF (ALLOCATED(mat_Gamma_3_3D)) DEALLOCATE (mat_Gamma_3_3D)
+            IF (ALLOCATED(product_matrix_1D)) DEALLOCATE (product_matrix_1D)
+            IF (ALLOCATED(recv_buffer_1D)) DEALLOCATE (recv_buffer_1D)
+         END DO
 
-      IF (.NOT. mp2_env%ri_rpa%use_hfx_implementation) THEN
          CALL mp2_env%local_gemm_ctx%destroy()
       END IF
       IF (nspins == 2) e_exchange_corr = e_exchange_corr*2.0_dp
@@ -448,16 +444,14 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
+!> \param exchange_work ...
 !> \param fm_mat ...
 !> \param mat ...
-!> \param ncols ...
-!> \param nrows ...
-!> \param aux_func_dist ...
+!> \param ispin ...
 !> \param virt_dist ...
-!> \param para_env_sub ...
 ! **************************************************************************************************
    SUBROUTINE redistribute_into_subgroups(exchange_work, fm_mat, mat, ispin, virt_dist)
-   CLASS(rpa_exchange_work_type), INTENT(IN) :: exchange_work
+      CLASS(rpa_exchange_work_type), INTENT(IN) :: exchange_work
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
          INTENT(OUT)                                     :: mat
@@ -467,11 +461,11 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'redistribute_into_subgroups'
 
       INTEGER :: aux_counter, aux_global, aux_local, aux_proc, avirt, dimen_RI, handle, handle2, &
-         ia_global, ia_local, iocc, max_number_recv, max_number_send, my_aux_end, my_aux_size, &
-         my_aux_start, my_process_column, my_process_row, my_virt_end, my_virt_size, &
-         my_virt_start, proc, proc_shift, recv_proc, send_proc, virt_counter, virt_proc, group_size
+                 ia_global, ia_local, iocc, max_number_recv, max_number_send, my_aux_end, my_aux_size, &
+                 my_aux_start, my_process_column, my_process_row, my_virt_end, my_virt_size, &
+my_virt_start, proc, proc_shift, recv_proc, send_proc, virt_counter, virt_proc, group_size, debug_sent_elements, debug_recv_elements
       INTEGER, ALLOCATABLE, DIMENSION(:) :: data2send, recv_col_indices, &
-         recv_row_indices, send_aux_indices, send_indices, send_virt_indices, virt2send
+                                            recv_row_indices, send_aux_indices, send_virt_indices, virt2send
       INTEGER, DIMENSION(2)                              :: recv_shape
       INTEGER, DIMENSION(:), POINTER                     :: aux_distribution_fm, col_indices, &
                                                             ia_distribution_fm, row_indices
@@ -481,6 +475,7 @@ CONTAINS
          POINTER                                         :: recv_ptr, send_ptr
       TYPE(cp_blacs_env_type), POINTER                   :: context
       TYPE(mp_para_env_type), POINTER                    :: para_env
+      REAL(KIND=dp) :: debug_send_sum, debug_recv_sum, debug_send_abs, debug_recv_abs
 
       CALL timeset(routineN, handle)
 
@@ -494,7 +489,8 @@ CONTAINS
                           para_env=para_env)
 
       IF (exchange_work%homo(ispin) <= 0 .OR. exchange_work%virtual(ispin) <= 0) THEN
-         ALLOCATE (mat(exchange_work%homo(ispin), exchange_work%virtual(ispin), dimen_RI))
+         CALL get_group_dist(virt_dist, exchange_work%para_env_sub%mepos, my_virt_start, my_virt_end, my_virt_size)
+         ALLOCATE (mat(exchange_work%homo(ispin), my_virt_size, dimen_RI))
          CALL timestop(handle)
          RETURN
       END IF
@@ -516,10 +512,6 @@ CONTAINS
          proc = group_dist_proc(virt_dist, avirt)
          virt2send(proc) = virt2send(proc) + 1
       END DO
-      ALLOCATE (send_virt_indices(MAXVAL(virt2send)))
-      max_number_send = MAXVAL(exchange_work%aux2send)*MAXVAL(virt2send)
-
-      ALLOCATE (send_buffer(INT(max_number_send, KIND=int_8)*exchange_work%homo(ispin)), send_indices(max_number_send))
 
       ALLOCATE (data2send(0:para_env%num_pe - 1))
       DO aux_proc = 0, exchange_work%ngroup - 1
@@ -528,13 +520,24 @@ CONTAINS
       END DO
       END DO
 
-      max_number_recv = exchange_work%homo(ispin)*MAXVAL(data2send)
+      ALLOCATE (send_virt_indices(MAXVAL(virt2send)))
+      max_number_send = MAXVAL(data2send)
+
+      ALLOCATE (send_buffer(INT(max_number_send, KIND=int_8)*exchange_work%homo(ispin)))
+      max_number_recv = max_number_send
       CALL para_env%max(max_number_recv)
       ALLOCATE (recv_buffer(max_number_recv))
 
       ALLOCATE (mat(my_virt_size, exchange_work%homo(ispin), my_aux_size))
 
       CALL timestop(handle2)
+
+      debug_sent_elements = SIZE(fm_mat%local_data)
+      debug_recv_elements = SIZE(mat)
+      debug_send_sum = SUM(fm_mat%local_data**2)
+      debug_send_abs = SUM(ABS(fm_mat%local_data))
+      debug_recv_sum = 0.0_dp
+      debug_recv_abs = 0.0_dp
 
       CALL timeset(routineN//"_own", handle2)
       ! Start with own data
@@ -550,6 +553,12 @@ CONTAINS
             IF (my_virt_start > avirt .OR. my_virt_end < avirt) CYCLE
 
             mat(avirt - my_virt_start + 1, iocc, aux_global - my_aux_start + 1) = fm_mat%local_data(aux_local, ia_local)
+            debug_recv_elements = debug_recv_elements - 1
+            debug_sent_elements = debug_sent_elements - 1
+            debug_send_sum = debug_send_sum - fm_mat%local_data(aux_local, ia_local)**2
+            debug_recv_sum = debug_recv_sum + fm_mat%local_data(aux_local, ia_local)**2
+            debug_send_abs = debug_send_abs - ABS(fm_mat%local_data(aux_local, ia_local))
+            debug_recv_abs = debug_recv_abs + ABS(fm_mat%local_data(aux_local, ia_local))
          END DO
       END DO
       CALL timestop(handle2)
@@ -560,9 +569,9 @@ CONTAINS
 
          CALL timeset(routineN//"_pack_buffer", handle2)
          send_ptr(1:virt2send(MOD(send_proc, group_size)), &
-         1:exchange_work%aux2send(send_proc/group_size)) => &
-            send_buffer(1:INT(virt2send(MOD(send_proc, group_size)), KIND=int_8)*&
-            exchange_work%aux2send(send_proc/group_size))
+                  1:exchange_work%aux2send(send_proc/group_size)) => &
+            send_buffer(1:INT(virt2send(MOD(send_proc, group_size)), KIND=int_8)* &
+                        exchange_work%aux2send(send_proc/group_size))
 ! Pack send buffer
          aux_counter = 0
          DO aux_local = 1, aux_distribution_fm(my_process_row)
@@ -580,6 +589,9 @@ CONTAINS
                virt_counter = virt_counter + 1
                send_ptr(virt_counter, aux_counter) = fm_mat%local_data(aux_local, ia_local)
                send_virt_indices(virt_counter) = ia_global
+               debug_sent_elements = debug_sent_elements - 1
+               debug_send_sum = debug_send_sum - fm_mat%local_data(aux_local, ia_local)**2
+               debug_send_abs = debug_send_abs - ABS(fm_mat%local_data(aux_local, ia_local))
             END DO
             send_aux_indices(aux_counter) = aux_global
          END DO
@@ -623,7 +635,10 @@ CONTAINS
                iocc = (ia_global - 1)/exchange_work%virtual(ispin) + 1
                avirt = MOD(ia_global - 1, exchange_work%virtual(ispin)) + 1
 
-               mat(avirt, iocc, aux_global - my_aux_start + 1) = recv_ptr(ia_local, aux_local)
+               mat(avirt - my_virt_start + 1, iocc, aux_global - my_aux_start + 1) = recv_ptr(ia_local, aux_local)
+               debug_recv_elements = debug_recv_elements - 1
+               debug_recv_sum = debug_recv_sum + recv_ptr(ia_local, aux_local)**2
+               debug_recv_abs = debug_recv_abs + ABS(recv_ptr(ia_local, aux_local))
             END DO
          END DO
          CALL timestop(handle2)
@@ -632,40 +647,17 @@ CONTAINS
          IF (ALLOCATED(recv_col_indices)) DEALLOCATE (recv_col_indices)
       END DO
 
+      debug_recv_sum = debug_recv_sum - SUM(mat**2)
+      debug_recv_abs = debug_recv_abs - SUM(ABS(mat))
+
+      WRITE (*, *) debug_recv_elements, debug_sent_elements, debug_recv_abs, debug_send_abs
+      CPASSERT(debug_recv_elements == 0)
+      CPASSERT(debug_sent_elements == 0)
+
       DEALLOCATE (send_aux_indices, send_virt_indices)
 
       CALL timestop(handle)
 
    END SUBROUTINE redistribute_into_subgroups
-
-! **************************************************************************************************
-!> \brief ...
-!> \param fm_mat_Gamma_3 ...
-!> \param mat_Gamma_3 ...
-!> \param para_env_sub ...
-!> \param template_dbcsr ...
-! **************************************************************************************************
-   SUBROUTINE redistribute_Gamma(exchange_work, fm_mat_Gamma_3, mat_Gamma_3, template_dbcsr)
-   CLASS(rpa_exchange_work_type), INTENT(IN) :: exchange_work
-      TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_Gamma_3
-      TYPE(dbcsr_type), ALLOCATABLE, DIMENSION(:), &
-         INTENT(OUT)                                     :: mat_Gamma_3
-      TYPE(dbcsr_type), INTENT(IN)                       :: template_dbcsr
-
-      !TYPE(cp_blacs_env), POINTER :: blacs_env_sub
-
-MARK_USED(exchange_work)
-      MARK_USED(fm_mat_Gamma_3)
-      MARK_USED(mat_Gamma_3)
-      MARK_USED(template_dbcsr)
-
-      !CALL cp_blacs_env_create(blacs_env_sub, para_env_sub)
-
-      ! Redistribute fm_mat_Gamma_3 into subgroups (P, ia) -> (a, i, P) (both fm)
-      ! Assign P to different subgroups
-      ! Distribute a, i within subgroups according to block-cyclic layout
-
-      ! Copy fm to dbcsr
-   END SUBROUTINE redistribute_Gamma
 
 END MODULE rpa_exchange
