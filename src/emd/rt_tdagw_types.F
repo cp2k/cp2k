@@ -36,6 +36,7 @@ MODULE rt_tdagw_types
                                               dbcsr_print,&
                                               dbcsr_copy,&
                                               dbcsr_set,&
+                                              dbcsr_scale,&
                                               dbcsr_type_complex_8
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE dbt_api,                         ONLY: dbt_type,&
@@ -356,6 +357,10 @@ CONTAINS
       !    CALL rt_initialize_rho_from_mos(rtp, mos, rtp%mos%old)
       ! END IF
       CALL get_rtp(rtp, rho_new=rho_dbcsr)
+      ! Redo the scaling to 1
+      DO i=1,SIZE(rho_dbcsr)
+         CALL dbcsr_scale(rho_dbcsr(i)%matrix, 0.5_dp)
+      END DO
       ! Copy the density
       ALLOCATE(tdagw_env%rho(2*tdagw_env%n_spin))
       ! ALLOCATE(occupations(tdagw_env%n_ao))
