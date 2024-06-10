@@ -162,6 +162,7 @@ CONTAINS
                                       c_val=dispersion_env%ref_functional)
             CALL section_vals_val_get(pp_section, "D4_CUTOFF", r_val=dispersion_env%rc_d4)
             CALL section_vals_val_get(pp_section, "D4_CN_CUTOFF", r_val=dispersion_env%rc_cn)
+            CALL section_vals_val_get(pp_section, "FACTOR_S9_TERM", r_val=dispersion_env%s9)
          END IF
          CALL section_vals_val_get(pp_section, "R_CUTOFF", r_val=dispersion_env%rc_disp)
          CALL section_vals_val_get(pp_section, "PARAMETER_FILE_NAME", &

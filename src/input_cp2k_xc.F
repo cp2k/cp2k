@@ -1037,6 +1037,11 @@ CONTAINS
                           lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="FACTOR_S9_TERM", &
+                          description="S9 prefactor of the many-body term in the DFT-D4 method.", &
+                          usage="FACTOR_S9_TERM 1.e-0_dp", default_r_val=1.e-0_dp)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="LONG_RANGE_CORRECTION", &
                           description="Calculate a long range correction to the DFT-D3 model."// &
                           " WARNING: Use with care! Only for isotropic dense systems.", &

@@ -59,6 +59,7 @@ MODULE qs_dispersion_pairpot
                                               kjmol
    USE qs_dispersion_types,             ONLY: dftd2_pp,&
                                               dftd3_pp,&
+                                              dftd4_pp,&
                                               qs_atom_dispersion_type,&
                                               qs_dispersion_type
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -345,6 +346,7 @@ CONTAINS
                END IF
             END IF
          CASE (vdw_pairpot_dftd4)
+            disp%type = dftd4_pp
             !most checks are done by the library
             CALL cite_reference(Caldeweyher2017)
             CALL cite_reference(Caldeweyher2019)

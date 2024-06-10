@@ -229,6 +229,10 @@ The --with-PKG options follow the rules:
                           Default = install
   --with-libtorch         Enable libtorch the machine learning framework needed for NequIP and Allegro
                           Default = no
+  --with-dftd4            Enable the DFTD4 package by Grimme
+                          Default = install
+
+
 
 FURTHER INSTRUCTIONS
 

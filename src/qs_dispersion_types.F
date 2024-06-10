@@ -27,6 +27,7 @@ MODULE qs_dispersion_types
 ! **************************************************************************************************
    INTEGER, PARAMETER                       :: dftd2_pp = 1
    INTEGER, PARAMETER                       :: dftd3_pp = 2
+   INTEGER, PARAMETER                       :: dftd4_pp = 3
 
    TYPE qs_dispersion_type
       INTEGER                                :: TYPE = -1
@@ -55,6 +56,7 @@ MODULE qs_dispersion_types
       LOGICAL                                :: lrc = .FALSE. !calculate a long range correction
       LOGICAL                                :: srb = .FALSE. !calculate a short range bond correction
       REAL(KIND=dp), DIMENSION(4)            :: srb_params = -1.0_dp ! parameters for SRB (s,g,t1,t2)
+      REAL(KIND=dp)                          :: s9 = -1.0_dp !scale the many-body dispersion energy (default=1.0), dftd4
       TYPE(neighbor_list_set_p_type), &
          DIMENSION(:), POINTER                :: sab_vdw => NULL(), sab_cn => NULL() ! neighborlists for pair interactions
       REAL(KIND=dp), DIMENSION(:, :, :, :, :), POINTER &
@@ -118,7 +120,7 @@ MODULE qs_dispersion_types
 ! **************************************************************************************************
 
    PUBLIC :: qs_atom_dispersion_type, qs_dispersion_type
-   PUBLIC :: dftd2_pp, dftd3_pp
+   PUBLIC :: dftd2_pp, dftd3_pp, dftd4_pp
    PUBLIC :: qs_dispersion_release
 
 ! **************************************************************************************************

@@ -5011,7 +5011,7 @@ CONTAINS
                          "DI 10.1007/978-3-031-61763-8_13", &
                          "ER"), &
                          DOI="10.1007/978-3-031-61763-8_13")
-      
+
       CALL add_reference(key=Caldeweyher2017, ISI_record=s2a( &
                          "PT J", &
                          "AU Caldeweyher, E", &
