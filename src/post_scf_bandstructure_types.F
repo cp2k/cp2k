@@ -111,7 +111,7 @@ MODULE post_scf_bandstructure_types
                                                       input_kp_bs_n_sp_pts = -1, &
                                                       nkp_bs_and_DOS = -1, &
                                                       nkp_only_bs = -1, &
-                                                      nkp_only_DOS
+                                                      nkp_only_DOS = -1
       REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE  :: xkp_special
 
       ! parameters for GW band structure calculation of small unit cell (with multiple unit cell)
