@@ -77,10 +77,11 @@ MODULE rpa_exchange
       TYPE(cp_fm_type) :: fm_mat_U = cp_fm_type()
       TYPE(mp_para_env_type), POINTER :: para_env_sub => NULL()
    CONTAINS
-      PROCEDURE, PASS(exchange_work), NON_OVERRIDABLE :: create => rpa_exchange_work_create
-      PROCEDURE, PASS(exchange_work), NON_OVERRIDABLE :: compute => rpa_exchange_work_compute
-      PROCEDURE, PASS(exchange_work), NON_OVERRIDABLE :: release => rpa_exchange_work_release
-      PROCEDURE, PASS(exchange_work), NON_OVERRIDABLE :: redistribute_into_subgroups
+      PROCEDURE, PUBLIC, PASS(exchange_work), NON_OVERRIDABLE :: create => rpa_exchange_work_create
+      PROCEDURE, PUBLIC, PASS(exchange_work), NON_OVERRIDABLE :: compute => rpa_exchange_work_compute
+      PROCEDURE, PUBLIC, PASS(exchange_work), NON_OVERRIDABLE :: release => rpa_exchange_work_release
+      PROCEDURE, PRIVATE, PASS(exchange_work), NON_OVERRIDABLE :: redistribute_into_subgroups
+      PROCEDURE, PRIVATE, PASS(exchange_work), NON_OVERRIDABLE :: compute_fm => rpa_exchange_work_compute_fm
    END TYPE
 
 CONTAINS
@@ -240,29 +241,14 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'rpa_exchange_work_compute'
       REAL(KIND=dp), PARAMETER                           :: thresh = 0.0000001_dp
 
-      INTEGER :: handle, iib, ispin, nspins, P, Q, L_size_Gamma, hom, virt, i, &
-                 send_proc, recv_proc, recv_size, max_aux_size, proc_shift, dimen_ia, dimen_RI, &
-                 block_size, P_start, P_end, P_size, Q_start, Q_size, Q_end, handle2, my_aux_size, my_virt
+      INTEGER :: handle, nspins, dimen_RI, iiB
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigenval
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), TARGET :: mat_Gamma_3_3D
-      REAL(KIND=dp), POINTER, DIMENSION(:), CONTIGUOUS :: mat_Gamma_3_1D
-      REAL(KIND=dp), POINTER, DIMENSION(:, :), CONTIGUOUS :: mat_Gamma_3_2D
-      REAL(KIND=dp), ALLOCATABLE, TARGET, DIMENSION(:) :: recv_buffer_1D
-      REAL(KIND=dp), POINTER, DIMENSION(:, :), CONTIGUOUS :: recv_buffer_2D
-      REAL(KIND=dp), POINTER, DIMENSION(:, :, :), CONTIGUOUS :: recv_buffer_3D
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :) :: mat_B_iaP
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), TARGET :: product_matrix_1D
-      REAL(KIND=dp), POINTER, DIMENSION(:, :), CONTIGUOUS :: product_matrix_2D
-      REAL(KIND=dp), POINTER, DIMENSION(:, :, :, :), CONTIGUOUS :: product_matrix_4D
-      TYPE(cp_fm_type)        :: fm_mat_Gamma_3
-      TYPE(mp_para_env_type), POINTER :: para_env
-      TYPE(group_dist_d1_type)                           :: virt_dist
 
       IF (exchange_work%exchange_correction == rpa_exchange_none) RETURN
 
       CALL timeset(routineN, handle)
 
-      CALL cp_fm_get_info(fm_mat_Q, para_env=para_env, ncol_global=dimen_RI)
+      CALL cp_fm_get_info(fm_mat_Q, ncol_global=dimen_RI)
 
       nspins = SIZE(fm_mat_S)
 
@@ -317,130 +303,181 @@ CONTAINS
       CALL cp_fm_to_fm_submat_general(exchange_work%fm_mat_U, exchange_work%fm_mat_R_half_gemm, dimen_RI, &
                                       dimen_RI, 1, 1, 1, 1, exchange_work%fm_mat_U%matrix_struct%context)
 
+      IF (mp2_env%ri_rpa%use_hfx_implementation) THEN
+         !
+      ELSE
+         CALL exchange_work%compute_fm(fm_mat_S, eig, omega, e_exchange_corr, mp2_env)
+      END IF
+
+      CALL timestop(handle)
+
+   END SUBROUTINE rpa_exchange_work_compute
+
+! **************************************************************************************************
+!> \brief Main driver for RPA-exchange energies
+!> \param exchange_work ...
+!> \param fm_mat_S ...
+!> \param eig ...
+!> \param omega ...
+!> \param e_exchange_corr exchange energy correction for a quadrature point
+!> \param mp2_env ...
+!> \author Frederick Stein, May-June 2024
+! **************************************************************************************************
+   SUBROUTINE rpa_exchange_work_compute_fm(exchange_work, fm_mat_S, eig, omega, &
+                                           e_exchange_corr, mp2_env)
+      CLASS(rpa_exchange_work_type), INTENT(INOUT) :: exchange_work
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: fm_mat_S
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: eig
+      REAL(KIND=dp), INTENT(IN)                          :: omega
+      REAL(KIND=dp), INTENT(INOUT)                       :: e_exchange_corr
+      TYPE(mp2_type), INTENT(INOUT) :: mp2_env
+
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'rpa_exchange_work_compute_fm'
+
+      INTEGER :: handle, ispin, nspins, P, Q, L_size_Gamma, hom, virt, i, &
+                 send_proc, recv_proc, recv_size, max_aux_size, proc_shift, dimen_ia, &
+                 block_size, P_start, P_end, P_size, Q_start, Q_size, Q_end, handle2, my_aux_size, my_virt
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), TARGET :: mat_Gamma_3_3D
+      REAL(KIND=dp), POINTER, DIMENSION(:), CONTIGUOUS :: mat_Gamma_3_1D
+      REAL(KIND=dp), POINTER, DIMENSION(:, :), CONTIGUOUS :: mat_Gamma_3_2D
+      REAL(KIND=dp), ALLOCATABLE, TARGET, DIMENSION(:) :: recv_buffer_1D
+      REAL(KIND=dp), POINTER, DIMENSION(:, :), CONTIGUOUS :: recv_buffer_2D
+      REAL(KIND=dp), POINTER, DIMENSION(:, :, :), CONTIGUOUS :: recv_buffer_3D
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :) :: mat_B_iaP
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), TARGET :: product_matrix_1D
+      REAL(KIND=dp), POINTER, DIMENSION(:, :), CONTIGUOUS :: product_matrix_2D
+      REAL(KIND=dp), POINTER, DIMENSION(:, :, :, :), CONTIGUOUS :: product_matrix_4D
+      TYPE(cp_fm_type)        :: fm_mat_Gamma_3
+      TYPE(mp_para_env_type), POINTER :: para_env
+      TYPE(group_dist_d1_type)                           :: virt_dist
+
+      CALL timeset(routineN, handle)
+
+      nspins = SIZE(fm_mat_S)
+
       CALL get_group_dist(exchange_work%aux_func_dist, exchange_work%color_sub, sizes=my_aux_size)
 
       e_exchange_corr = 0.0_dp
       max_aux_size = maxsize(exchange_work%aux_func_dist)
 
-      IF (mp2_env%ri_rpa%use_hfx_implementation) THEN
-         !
-      ELSE
-         ! local_gemm_ctx has a very large footprint the first time this routine is
-         ! called.
-         CALL mp2_env%local_gemm_ctx%create(LOCAL_GEMM_PU_GPU)
-         CALL mp2_env%local_gemm_ctx%set_op_threshold_gpu(128*128*128*2)
+      ! local_gemm_ctx has a very large footprint the first time this routine is
+      ! called.
+      CALL mp2_env%local_gemm_ctx%create(LOCAL_GEMM_PU_GPU)
+      CALL mp2_env%local_gemm_ctx%set_op_threshold_gpu(128*128*128*2)
 
-         DO ispin = 1, nspins
-            hom = exchange_work%homo(ispin)
-            virt = exchange_work%virtual(ispin)
-            dimen_ia = hom*virt
-            IF (hom < 1 .OR. virt < 1) CYCLE
+      DO ispin = 1, nspins
+         hom = exchange_work%homo(ispin)
+         virt = exchange_work%virtual(ispin)
+         dimen_ia = hom*virt
+         IF (hom < 1 .OR. virt < 1) CYCLE
 
-            CALL cp_fm_create(fm_mat_Gamma_3, fm_mat_S(ispin)%matrix_struct)
-            CALL cp_fm_set_all(matrix=fm_mat_Gamma_3, alpha=0.0_dp)
+         CALL cp_fm_get_info(fm_mat_S(ispin), para_env=para_env)
 
-            ! Update G with a new value of Omega: in practice, it is G*S
+         CALL cp_fm_create(fm_mat_Gamma_3, fm_mat_S(ispin)%matrix_struct)
+         CALL cp_fm_set_all(matrix=fm_mat_Gamma_3, alpha=0.0_dp)
 
-            ! Scale fm_work_iaP
-            CALL calc_fm_mat_S_rpa(fm_mat_S(ispin), .TRUE., virt, eig(:, ispin), &
-                                   hom, omega, 0.0_dp)
+         ! Update G with a new value of Omega: in practice, it is G*S
 
-            ! Calculate Gamma_3: Gamma_3 = G*S*R^(1/2) = G*S*R^(1/2)
-            CALL parallel_gemm(transa="T", transb="N", m=dimen_RI, n=dimen_ia, k=dimen_RI, alpha=1.0_dp, &
-                               matrix_a=exchange_work%fm_mat_R_half_gemm, matrix_b=fm_mat_S(ispin), beta=0.0_dp, &
-                               matrix_c=fm_mat_Gamma_3)
+         ! Scale fm_work_iaP
+         CALL calc_fm_mat_S_rpa(fm_mat_S(ispin), .TRUE., virt, eig(:, ispin), &
+                                hom, omega, 0.0_dp)
 
-            CALL create_group_dist(virt_dist, exchange_work%para_env_sub%num_pe, virt)
+         ! Calculate Gamma_3: Gamma_3 = G*S*R^(1/2) = G*S*R^(1/2)
+         CALL parallel_gemm(transa="T", transb="N", m=exchange_work%dimen_RI, n=dimen_ia, k=exchange_work%dimen_RI, alpha=1.0_dp, &
+                            matrix_a=exchange_work%fm_mat_R_half_gemm, matrix_b=fm_mat_S(ispin), beta=0.0_dp, &
+                            matrix_c=fm_mat_Gamma_3)
 
-            ! Remove extra factor from S after the multiplication (to return to the original matrix)
-            CALL remove_scaling_factor_rpa(fm_mat_S(ispin), virt, eig(:, ispin), hom, omega)
+         CALL create_group_dist(virt_dist, exchange_work%para_env_sub%num_pe, virt)
 
-            CALL exchange_work%redistribute_into_subgroups(fm_mat_Gamma_3, mat_Gamma_3_3D, ispin, virt_dist)
-            CALL cp_fm_release(fm_mat_Gamma_3)
+         ! Remove extra factor from S after the multiplication (to return to the original matrix)
+         CALL remove_scaling_factor_rpa(fm_mat_S(ispin), virt, eig(:, ispin), hom, omega)
 
-            ! We need only the pure matrix
-            CALL remove_scaling_factor_rpa(fm_mat_S(ispin), virt, eig(:, ispin), hom, omega)
+         CALL exchange_work%redistribute_into_subgroups(fm_mat_Gamma_3, mat_Gamma_3_3D, ispin, virt_dist)
+         CALL cp_fm_release(fm_mat_Gamma_3)
 
-            ! Reorder matrix from (P, i*a) -> (a, i, P) with P being distributed within subgroups
-            CALL exchange_work%redistribute_into_subgroups(fm_mat_S(ispin), mat_B_iaP, ispin, virt_dist)
+         ! We need only the pure matrix
+         CALL remove_scaling_factor_rpa(fm_mat_S(ispin), virt, eig(:, ispin), hom, omega)
 
-            ! Return to the original tensor
-            CALL calc_fm_mat_S_rpa(fm_mat_S(ispin), .TRUE., virt, eig(:, ispin), hom, omega, 0.0_dp)
+         ! Reorder matrix from (P, i*a) -> (a, i, P) with P being distributed within subgroups
+         CALL exchange_work%redistribute_into_subgroups(fm_mat_S(ispin), mat_B_iaP, ispin, virt_dist)
 
-            L_size_Gamma = SIZE(mat_Gamma_3_3D, 3)
-            my_virt = SIZE(mat_Gamma_3_3D, 1)
-            block_size = exchange_work%block_size
+         ! Return to the original tensor
+         CALL calc_fm_mat_S_rpa(fm_mat_S(ispin), .TRUE., virt, eig(:, ispin), hom, omega, 0.0_dp)
 
-            mat_Gamma_3_1D(1:INT(my_virt, KIND=int_8)*hom*my_aux_size) => mat_Gamma_3_3D(:, :, 1:my_aux_size)
-            mat_Gamma_3_2D(1:my_virt, 1:hom*my_aux_size) => mat_Gamma_3_1D(1:INT(my_virt, KIND=int_8)*hom*my_aux_size)
+         L_size_Gamma = SIZE(mat_Gamma_3_3D, 3)
+         my_virt = SIZE(mat_Gamma_3_3D, 1)
+         block_size = exchange_work%block_size
 
-            ALLOCATE (product_matrix_1D(INT(hom*MIN(block_size, L_size_gamma), KIND=int_8)* &
-                                        INT(hom*MIN(block_size, max_aux_size), KIND=int_8)))
-            ALLOCATE (recv_buffer_1D(INT(virt, KIND=int_8)*hom*max_aux_size))
-            recv_buffer_2D(1:my_virt, 1:hom*max_aux_size) => recv_buffer_1D(1:INT(virt, KIND=int_8)*hom*max_aux_size)
-            recv_buffer_3D(1:my_virt, 1:hom, 1:max_aux_size) => recv_buffer_1D(1:INT(virt, KIND=int_8)*hom*max_aux_size)
-            DO proc_shift = 0, para_env%num_pe - 1, exchange_work%para_env_sub%num_pe
-               send_proc = MODULO(para_env%mepos + proc_shift, para_env%num_pe)
-               recv_proc = MODULO(para_env%mepos - proc_shift, para_env%num_pe)
+         mat_Gamma_3_1D(1:INT(my_virt, KIND=int_8)*hom*my_aux_size) => mat_Gamma_3_3D(:, :, 1:my_aux_size)
+         mat_Gamma_3_2D(1:my_virt, 1:hom*my_aux_size) => mat_Gamma_3_1D(1:INT(my_virt, KIND=int_8)*hom*my_aux_size)
 
-               CALL get_group_dist(exchange_work%aux_func_dist, recv_proc/exchange_work%para_env_sub%num_pe, sizes=recv_size)
+         ALLOCATE (product_matrix_1D(INT(hom*MIN(block_size, L_size_gamma), KIND=int_8)* &
+                                     INT(hom*MIN(block_size, max_aux_size), KIND=int_8)))
+         ALLOCATE (recv_buffer_1D(INT(virt, KIND=int_8)*hom*max_aux_size))
+         recv_buffer_2D(1:my_virt, 1:hom*max_aux_size) => recv_buffer_1D(1:INT(virt, KIND=int_8)*hom*max_aux_size)
+         recv_buffer_3D(1:my_virt, 1:hom, 1:max_aux_size) => recv_buffer_1D(1:INT(virt, KIND=int_8)*hom*max_aux_size)
+         DO proc_shift = 0, para_env%num_pe - 1, exchange_work%para_env_sub%num_pe
+            send_proc = MODULO(para_env%mepos + proc_shift, para_env%num_pe)
+            recv_proc = MODULO(para_env%mepos - proc_shift, para_env%num_pe)
 
-               IF (recv_size == 0) recv_proc = mp_proc_null
+            CALL get_group_dist(exchange_work%aux_func_dist, recv_proc/exchange_work%para_env_sub%num_pe, sizes=recv_size)
 
-               CALL para_env%sendrecv(mat_B_iaP, send_proc, recv_buffer_3D(:, :, 1:recv_size), recv_proc)
+            IF (recv_size == 0) recv_proc = mp_proc_null
 
-               IF (recv_size == 0) CYCLE
+            CALL para_env%sendrecv(mat_B_iaP, send_proc, recv_buffer_3D(:, :, 1:recv_size), recv_proc)
 
-               DO P_start = 1, L_size_Gamma, block_size
-                  P_end = MIN(L_size_Gamma, P_start + block_size - 1)
-                  P_size = P_end - P_start + 1
-                  DO Q_start = 1, recv_size, block_size
-                     Q_end = MIN(recv_size, Q_start + block_size - 1)
-                     Q_size = Q_end - Q_start + 1
+            IF (recv_size == 0) CYCLE
 
-                     ! Reassign product_matrix pointers to enforce contiguity of target array
-                     product_matrix_2D(1:hom*P_size, 1:hom*Q_size) => &
-                        product_matrix_1D(1:INT(hom*P_size, KIND=int_8)*INT(hom*Q_size, KIND=int_8))
-                     product_matrix_4D(1:hom, 1:P_size, 1:hom, 1:Q_size) => &
-                        product_matrix_1D(1:INT(hom*P_size, KIND=int_8)*INT(hom*Q_size, KIND=int_8))
+            DO P_start = 1, L_size_Gamma, block_size
+               P_end = MIN(L_size_Gamma, P_start + block_size - 1)
+               P_size = P_end - P_start + 1
+               DO Q_start = 1, recv_size, block_size
+                  Q_end = MIN(recv_size, Q_start + block_size - 1)
+                  Q_size = Q_end - Q_start + 1
 
-                     CALL timeset(routineN//"_gemm", handle2)
-                     CALL mp2_env%local_gemm_ctx%gemm("T", "N", hom*P_size, hom*Q_size, my_virt, 1.0_dp, &
-                                                      mat_Gamma_3_2D(:, hom*(P_start - 1) + 1:hom*P_end), my_virt, &
-                                                      recv_buffer_2D(:, hom*(Q_start - 1) + 1:hom*Q_end), my_virt, &
-                                                      0.0_dp, product_matrix_2D, hom*P_size)
-                     CALL timestop(handle2)
+                  ! Reassign product_matrix pointers to enforce contiguity of target array
+                  product_matrix_2D(1:hom*P_size, 1:hom*Q_size) => &
+                     product_matrix_1D(1:INT(hom*P_size, KIND=int_8)*INT(hom*Q_size, KIND=int_8))
+                  product_matrix_4D(1:hom, 1:P_size, 1:hom, 1:Q_size) => &
+                     product_matrix_1D(1:INT(hom*P_size, KIND=int_8)*INT(hom*Q_size, KIND=int_8))
 
-                     CALL timeset(routineN//"_energy", handle2)
+                  CALL timeset(routineN//"_gemm", handle2)
+                  CALL mp2_env%local_gemm_ctx%gemm("T", "N", hom*P_size, hom*Q_size, my_virt, 1.0_dp, &
+                                                   mat_Gamma_3_2D(:, hom*(P_start - 1) + 1:hom*P_end), my_virt, &
+                                                   recv_buffer_2D(:, hom*(Q_start - 1) + 1:hom*Q_end), my_virt, &
+                                                   0.0_dp, product_matrix_2D, hom*P_size)
+                  CALL timestop(handle2)
+
+                  CALL timeset(routineN//"_energy", handle2)
 !$OMP PARALLEL DO DEFAULT(NONE) SHARED(P_size, Q_size, hom, product_matrix_4D) &
 !$OMP             COLLAPSE(3) REDUCTION(+: e_exchange_corr) PRIVATE(P, Q, i)
-                     DO P = 1, P_size
-                     DO Q = 1, Q_size
-                     DO i = 1, hom
-                       e_exchange_corr = e_exchange_corr + DOT_PRODUCT(product_matrix_4D(i, P, :, Q), product_matrix_4D(:, P, i, Q))
-                     END DO
-                     END DO
-                     END DO
-                     CALL timestop(handle2)
+                  DO P = 1, P_size
+                  DO Q = 1, Q_size
+                  DO i = 1, hom
+                     e_exchange_corr = e_exchange_corr + DOT_PRODUCT(product_matrix_4D(i, P, :, Q), product_matrix_4D(:, P, i, Q))
                   END DO
+                  END DO
+                  END DO
+                  CALL timestop(handle2)
                END DO
             END DO
-
-            CALL release_group_dist(virt_dist)
-            IF (ALLOCATED(mat_B_iaP)) DEALLOCATE (mat_B_iaP)
-            IF (ALLOCATED(mat_Gamma_3_3D)) DEALLOCATE (mat_Gamma_3_3D)
-            IF (ALLOCATED(product_matrix_1D)) DEALLOCATE (product_matrix_1D)
-            IF (ALLOCATED(recv_buffer_1D)) DEALLOCATE (recv_buffer_1D)
          END DO
 
-         CALL mp2_env%local_gemm_ctx%destroy()
-      END IF
+         CALL release_group_dist(virt_dist)
+         IF (ALLOCATED(mat_B_iaP)) DEALLOCATE (mat_B_iaP)
+         IF (ALLOCATED(mat_Gamma_3_3D)) DEALLOCATE (mat_Gamma_3_3D)
+         IF (ALLOCATED(product_matrix_1D)) DEALLOCATE (product_matrix_1D)
+         IF (ALLOCATED(recv_buffer_1D)) DEALLOCATE (recv_buffer_1D)
+      END DO
+
+      CALL mp2_env%local_gemm_ctx%destroy()
+
       IF (nspins == 2) e_exchange_corr = e_exchange_corr*2.0_dp
       IF (nspins == 1) e_exchange_corr = e_exchange_corr*4.0_dp
 
       CALL timestop(handle)
 
-   END SUBROUTINE rpa_exchange_work_compute
+   END SUBROUTINE rpa_exchange_work_compute_fm
 
 ! **************************************************************************************************
 !> \brief ...
