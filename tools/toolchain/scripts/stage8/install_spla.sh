@@ -6,8 +6,8 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")/.." && pwd -P)"
 
-spla_ver="1.5.5"
-spla_sha256="bc0c366e228344b1b2df55b9ce750d73c1165380e512da5a04d471db126d66ce"
+spla_ver="1.6.0"
+spla_sha256="917c24e2a768499967eba47b2cc2475df9fabee327b7821d24970b6a08055c09"
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
 source "${SCRIPT_DIR}"/signal_trap.sh
@@ -39,27 +39,15 @@ case "${with_spla}" in
       cd spla-${spla_ver}
       mkdir -p build-cpu
       cd build-cpu
-      case "${MATH_MODE}" in
-        cray)
-          EXTRA_CMAKE_FLAGS="-DSPLA_HOST_BLAS=CRAY_LIBSCI"
-          ;;
-        mkl)
-          EXTRA_CMAKE_FLAGS="-DSPLA_HOST_BLAS=MKL"
-          ;;
-        *)
-          EXTRA_CMAKE_FLAGS="-DSPLA_HOST_BLAS=AUTO"
-          ;;
-      esac
       cmake \
         -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}" \
         -DCMAKE_INSTALL_LIBDIR=lib \
         -DCMAKE_VERBOSE_MAKEFILE=ON \
         -DCMAKE_BUILD_TYPE="RelWithDebInfo" \
-        -DSPLA_OMP=OFF \
         -DSPLA_FORTRAN=ON \
         -DSPLA_INSTALL=ON \
         -DSPLA_STATIC=ON \
-        ${EXTRA_CMAKE_FLAGS} .. \
+        .. \
         > cmake.log 2>&1 || tail -n ${LOG_LINES} cmake.log
       make -j $(get_nprocs) > make.log 2>&1 || tail -n ${LOG_LINES} make.log
       make -j $(get_nprocs) install > install.log 2>&1 || tail -n ${LOG_LINES} install.log
@@ -74,12 +62,11 @@ case "${with_spla}" in
           -DCMAKE_INSTALL_LIBDIR=lib \
           -DCMAKE_VERBOSE_MAKEFILE=ON \
           -DCMAKE_BUILD_TYPE="RelWithDebInfo" \
-          -DSPLA_OMP=OFF \
           -DSPLA_FORTRAN=ON \
           -DSPLA_INSTALL=ON \
           -DSPLA_STATIC=ON \
           -DSPLA_GPU_BACKEND=CUDA \
-          ${EXTRA_CMAKE_FLAGS} .. \
+          .. \
           > cmake.log 2>&1 || tail -n ${LOG_LINES} cmake.log
         make -j $(get_nprocs) > make.log 2>&1 || tail -n ${LOG_LINES} make.log
         install -d ${pkg_install_dir}/lib/cuda
@@ -99,12 +86,11 @@ case "${with_spla}" in
               -DCMAKE_INSTALL_LIBDIR=lib \
               -DCMAKE_VERBOSE_MAKEFILE=ON \
               -DCMAKE_BUILD_TYPE="RelWithDebInfo" \
-              -DSPLA_OMP=OFF \
               -DSPLA_FORTRAN=ON \
               -DSPLA_INSTALL=ON \
               -DSPLA_STATIC=ON \
               -DSPLA_GPU_BACKEND=CUDA \
-              ${EXTRA_CMAKE_FLAGS} .. \
+              .. \
               > cmake.log 2>&1 || tail -n ${LOG_LINES} cmake.log
             make -j $(get_nprocs) > make.log 2>&1 || tail -n ${LOG_LINES} make.log
             install -d ${pkg_install_dir}/lib/hip
@@ -120,12 +106,11 @@ case "${with_spla}" in
               -DCMAKE_INSTALL_LIBDIR=lib \
               -DCMAKE_VERBOSE_MAKEFILE=ON \
               -DCMAKE_BUILD_TYPE="RelWithDebInfo" \
-              -DSPLA_OMP=OFF \
               -DSPLA_FORTRAN=ON \
               -DSPLA_INSTALL=ON \
               -DSPLA_STATIC=ON \
               -DSPLA_GPU_BACKEND=ROCM \
-              ${EXTRA_CMAKE_FLAGS} .. \
+              .. \
               > cmake.log 2>&1 || tail -n ${LOG_LINES} cmake.log
             make -j $(get_nprocs) > make.log 2>&1 || tail -n ${LOG_LINES} make.log
             install -d ${pkg_install_dir}/lib/hip
