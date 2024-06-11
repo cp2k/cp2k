@@ -231,11 +231,11 @@ CONTAINS
       INTEGER                                            :: ispin, natom, nspin
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: atcore
       TYPE(atprop_type), POINTER                         :: atprop
-      TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(dbcsr_p_type), ALLOCATABLE, DIMENSION(:), &
          TARGET                                          :: core_mat
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_h, matrix_ks, rho_ao
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: math, matp
+      TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(qs_rho_type), POINTER                         :: rho
 
       CALL get_qs_env(qs_env=qs_env, atprop=atprop)
