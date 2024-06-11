@@ -231,18 +231,17 @@ CONTAINS
       INTEGER                                            :: ispin, natom, nspin
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: atcore
       TYPE(atprop_type), POINTER                         :: atprop
+      TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(dbcsr_p_type), ALLOCATABLE, DIMENSION(:), &
          TARGET                                          :: core_mat
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_h, matrix_ks, rho_ao
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: math, matp
       TYPE(qs_rho_type), POINTER                         :: rho
 
-      NULLIFY (atprop, matrix_h, matrix_ks, rho, rho_ao)
-      CALL get_qs_env(qs_env=qs_env, matrix_ks=matrix_ks, matrix_h=matrix_h, &
-                      rho=rho, atprop=atprop)
-      CALL qs_rho_get(rho, rho_ao=rho_ao)
-
+      CALL get_qs_env(qs_env=qs_env, atprop=atprop)
       IF (atprop%energy) THEN
+         CALL get_qs_env(qs_env=qs_env, matrix_ks=matrix_ks, matrix_h=matrix_h, rho=rho)
+         CALL qs_rho_get(rho, rho_ao=rho_ao)
          ! E = 0.5*Tr(H*P+F*P)
          atprop%atener = 0._dp
          nspin = SIZE(rho_ao)
@@ -253,25 +252,30 @@ CONTAINS
                             0.5_dp, atprop%atener)
          END DO
          !
-         CALL get_qs_env(qs_env=qs_env, natom=natom)
-         ALLOCATE (atcore(natom))
-         ALLOCATE (core_mat(1))
-         ALLOCATE (core_mat(1)%matrix)
-         CALL dbcsr_create(core_mat(1)%matrix, template=matrix_h(1)%matrix)
-         CALL dbcsr_copy(core_mat(1)%matrix, matrix_h(1)%matrix)
-         CALL dbcsr_set(core_mat(1)%matrix, 0.0_dp)
-         math(1:1, 1:1) => core_mat(1:1)
-         matp(1:nspin, 1:1) => rho_ao(1:nspin)
-         CALL core_matrices(qs_env, math, matp, .FALSE., 0, atcore=atcore)
-         atprop%atener = atprop%atener + 0.5_dp*atcore
-         DO ispin = 1, nspin
-            CALL atom_trace(core_mat(1)%matrix, rho_ao(ispin)%matrix, &
-                            -0.5_dp, atprop%atener)
-         END DO
-         DEALLOCATE (atcore)
-         CALL dbcsr_release(core_mat(1)%matrix)
-         DEALLOCATE (core_mat(1)%matrix)
-         DEALLOCATE (core_mat)
+         CALL get_qs_env(qs_env=qs_env, dft_control=dft_control)
+         IF (.NOT. dft_control%qs_control%semi_empirical .AND. &
+             .NOT. dft_control%qs_control%xtb .AND. &
+             .NOT. dft_control%qs_control%dftb) THEN
+            CALL get_qs_env(qs_env=qs_env, natom=natom)
+            ALLOCATE (atcore(natom))
+            ALLOCATE (core_mat(1))
+            ALLOCATE (core_mat(1)%matrix)
+            CALL dbcsr_create(core_mat(1)%matrix, template=matrix_h(1)%matrix)
+            CALL dbcsr_copy(core_mat(1)%matrix, matrix_h(1)%matrix)
+            CALL dbcsr_set(core_mat(1)%matrix, 0.0_dp)
+            math(1:1, 1:1) => core_mat(1:1)
+            matp(1:nspin, 1:1) => rho_ao(1:nspin)
+            CALL core_matrices(qs_env, math, matp, .FALSE., 0, atcore=atcore)
+            atprop%atener = atprop%atener + 0.5_dp*atcore
+            DO ispin = 1, nspin
+               CALL atom_trace(core_mat(1)%matrix, rho_ao(ispin)%matrix, &
+                               -0.5_dp, atprop%atener)
+            END DO
+            DEALLOCATE (atcore)
+            CALL dbcsr_release(core_mat(1)%matrix)
+            DEALLOCATE (core_mat(1)%matrix)
+            DEALLOCATE (core_mat)
+         END IF
       END IF
 
    END SUBROUTINE qs_energies_mulliken
