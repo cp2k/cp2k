@@ -582,6 +582,8 @@ CONTAINS
             atmul(1:natom, 3) = atmul(1:natom, 3) - amval(1:natom)
          END DO
          atmul(1:natom, 2) = atmul(1:natom, 2) - atmul(1:natom, 1)
+         atmul(1:natom, 3) = atmul(1:natom, 3) + 0.5_dp*atmul(1:natom, 2)
+         atmul(1:natom, 2) = 0.5_dp*atmul(1:natom, 2) + 0.5_dp*atcore(1:natom)
       END IF
       !
       CALL dbcsr_release(dkmat)
@@ -623,7 +625,7 @@ CONTAINS
       ! KS energy
       atener(1:natom) = ateks(1:natom)
       ! 1/2 of VPP contribution Tr[VPP(K)*P]
-      CALL group%sum(atcore)  ! maybe not needed
+      CALL group%sum(atcore)
       atener(1:natom) = atener(1:natom) + 0.5_dp*atcore(1:natom)
       ! core energy corrections
       CALL group%sum(atecc)
@@ -673,7 +675,10 @@ CONTAINS
       ekts = energy%kts/REAL(natom, KIND=dp)
       atener(1:natom) = atener(1:natom) + ekts
       ! 0.5 Vpp(at)*D + 0.5 * Vpp*D(at)
-      IF (detailed_ener) atdet(1:natom, 2) = 0.5_dp*atdet(1:natom, 2) + 0.5_dp*atcore(1:natom)
+      IF (detailed_ener) THEN
+         atdet(1:natom, 3) = atdet(1:natom, 3) + 0.5_dp*atdet(1:natom, 2)
+         atdet(1:natom, 2) = 0.5_dp*atdet(1:natom, 2) + 0.5_dp*atcore(1:natom)
+      END IF
       !
       IF (detailed_ener) THEN
          IF (unit_nr > 0) THEN
