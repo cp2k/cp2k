@@ -43,8 +43,7 @@ MODULE rpa_exchange
                                               int_8
    USE local_gemm_api,                  ONLY: LOCAL_GEMM_PU_GPU
    USE mathconstants,                   ONLY: sqrthalf
-   USE message_passing,                 ONLY: mp_para_env_release,&
-                                              mp_para_env_type,&
+   USE message_passing,                 ONLY: mp_para_env_type,&
                                               mp_proc_null
    USE mp2_types,                       ONLY: mp2_type
    USE parallel_gemm_api,               ONLY: parallel_gemm
@@ -68,10 +67,8 @@ MODULE rpa_exchange
       INTEGER, DIMENSION(:), ALLOCATABLE :: aux2send
       INTEGER :: dimen_RI = 0
       INTEGER :: block_size = 0
-      INTEGER :: group_size = 0
       INTEGER :: color_sub = 0
       INTEGER :: ngroup = 0
-      REAL(KIND=dp) :: eps_filter = 0.0_dp
       TYPE(cp_fm_type) :: fm_mat_Q_tmp = cp_fm_type()
       TYPE(cp_fm_type) :: fm_mat_R_half_gemm = cp_fm_type()
       TYPE(cp_fm_type) :: fm_mat_U = cp_fm_type()
@@ -121,6 +118,7 @@ CONTAINS
 !> \brief ...
 !> \param exchange_work ...
 !> \param mp2_env ...
+!> \param para_env_sub ...
 !> \param dimen_RI ...
 !> \param fm_mat_S ...
 !> \param fm_mat_Q ...
@@ -128,16 +126,17 @@ CONTAINS
 !> \param homo ...
 !> \param virtual ...
 ! **************************************************************************************************
-   SUBROUTINE rpa_exchange_work_create(exchange_work, mp2_env, dimen_RI, &
+   SUBROUTINE rpa_exchange_work_create(exchange_work, mp2_env, para_env_sub, dimen_RI, &
                                        fm_mat_S, fm_mat_Q, fm_mat_Q_gemm, homo, virtual)
       CLASS(rpa_exchange_work_type), INTENT(INOUT) :: exchange_work
       TYPE(mp2_type), INTENT(INOUT) :: mp2_env
+      TYPE(mp_para_env_type), POINTER, INTENT(IN) :: para_env_sub
       INTEGER, INTENT(IN) :: dimen_RI
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN) :: fm_mat_S
       TYPE(cp_fm_type), INTENT(IN) :: fm_mat_Q, fm_mat_Q_gemm
       INTEGER, DIMENSION(SIZE(fm_mat_S)), INTENT(IN) :: homo, virtual
 
-      INTEGER :: nspins, group_size, aux_global, aux_local, my_process_row, proc
+      INTEGER :: nspins, aux_global, aux_local, my_process_row, proc
       INTEGER, DIMENSION(:), POINTER :: row_indices, aux_distribution_fm
       TYPE(cp_blacs_env_type), POINTER :: context
 
@@ -146,25 +145,9 @@ CONTAINS
       IF (exchange_work%exchange_correction == rpa_exchange_none) RETURN
 
       ASSOCIATE (para_env => fm_mat_S(1)%matrix_struct%para_env)
-         group_size = mp2_env%ri_rpa%exchange_group_size
-         IF (group_size > para_env%num_pe) group_size = para_env%num_pe
-! If automatic choice is requested, choose a suitable group size
-         IF (mp2_env%ri_rpa%use_hfx_implementation) THEN
-            IF (group_size <= 0) group_size = para_env%num_pe
-         ELSE
-            IF (group_size <= 0 .OR. dimen_RI*group_size < para_env%num_pe) &
-               group_size = (para_env%num_pe - 1)/dimen_RI + 1
-         END IF
-         exchange_work%ngroup = para_env%num_pe/group_size
-         exchange_work%color_sub = para_env%mepos/group_size
-         ALLOCATE (exchange_work%para_env_sub)
-         IF (group_size < para_env%num_pe) THEN
-            CALL exchange_work%para_env_sub%from_split(para_env, exchange_work%color_sub)
-         ELSE
-            ! We use all processes of the subgroup, so let us just duplicate the communicator to save ressources
-            ! Pointer assignment is disliked by the compiler
-            CALL exchange_work%para_env_sub%from_dup(para_env)
-         END IF
+         exchange_work%para_env_sub => para_env_sub
+         exchange_work%ngroup = para_env%num_pe/para_env_sub%num_pe
+         exchange_work%color_sub = para_env%mepos/para_env_sub%num_pe
       END ASSOCIATE
 
       CALL cp_fm_get_info(fm_mat_S(1), row_indices=row_indices, nrow_locals=aux_distribution_fm, context=context)
@@ -178,8 +161,6 @@ CONTAINS
          proc = group_dist_proc(exchange_work%aux_func_dist, aux_global)
          exchange_work%aux2send(proc) = exchange_work%aux2send(proc) + 1
       END DO
-
-      exchange_work%eps_filter = mp2_env%mp2_gpw%eps_filter
 
       nspins = SIZE(fm_mat_S)
 
@@ -207,9 +188,7 @@ CONTAINS
       IF (ALLOCATED(exchange_work%homo)) DEALLOCATE (exchange_work%homo)
       IF (ALLOCATED(exchange_work%virtual)) DEALLOCATE (exchange_work%virtual)
       IF (ALLOCATED(exchange_work%dimen_ia)) DEALLOCATE (exchange_work%dimen_ia)
-      IF (ASSOCIATED(exchange_work%para_env_sub)) THEN
-         CALL mp_para_env_release(exchange_work%para_env_sub)
-      END IF
+      NULLIFY (exchange_work%para_env_sub)
       CALL release_group_dist(exchange_work%aux_func_dist)
       IF (ALLOCATED(exchange_work%aux2send)) DEALLOCATE (exchange_work%aux2send)
       CALL cp_fm_release(exchange_work%fm_mat_Q_tmp)

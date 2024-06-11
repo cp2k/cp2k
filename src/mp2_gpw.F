@@ -519,9 +519,6 @@ CONTAINS
          IF (do_im_time) THEN
 
             CALL create_matrix_P(mat_P_global, qs_env, mp2_env, para_env)
-
-            ! To be removed later
-            ALLOCATE (BIb_C(nspins))
          END IF
 
          IF (.NOT. ALLOCATED(BIb_C)) ALLOCATE (BIb_C(nspins))

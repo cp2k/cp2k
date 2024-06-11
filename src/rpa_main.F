@@ -1320,7 +1320,7 @@ CONTAINS
                                                                    unit_nr, do_ri_sos_laplace_mp2)
 
       IF (.NOT. do_im_time .AND. .NOT. do_ri_sos_laplace_mp2) &
-         CALL exchange_work%create(mp2_env, dimen_RI_red, fm_mat_S, fm_mat_Q(1), fm_mat_Q_gemm(1), homo, virtual)
+         CALL exchange_work%create(mp2_env, para_env_sub, dimen_RI_red, fm_mat_S, fm_mat_Q(1), fm_mat_Q_gemm(1), homo, virtual)
 
       Erpa = 0.0_dp
       IF (mp2_env%ri_rpa%exchange_correction /= rpa_exchange_none) e_exchange = 0.0_dp

@@ -114,8 +114,6 @@ CONTAINS
                                 i_val=mp2_env%ri_rpa%exchange_correction)
       CALL section_vals_val_get(mp2_section, "RI_RPA%EXCHANGE_CORRECTION%BLOCK_SIZE", &
                                 i_val=mp2_env%ri_rpa%exchange_block_size)
-      CALL section_vals_val_get(mp2_section, "RI_RPA%EXCHANGE_CORRECTION%GROUP_SIZE", &
-                                i_val=mp2_env%ri_rpa%exchange_group_size)
       CALL section_vals_val_get(mp2_section, "RI_RPA%EXCHANGE_CORRECTION%USE_HFX_IMPLEMENTATION", &
                                 l_val=mp2_env%ri_rpa%use_hfx_implementation)
 
