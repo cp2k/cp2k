@@ -8,7 +8,7 @@
 #              LIBINT 2.6.0, LIBXC 6.2.2, PLUMED 2.9.0,
 #              SPGLIB 2.3.1, LIBVORI 220621, GSL 2.7,
 #              COSMA 2.6.6, SIRIUS 7.5.2, LIBTORCH 1.12.1,
-#              LIBGRPP 20231215, SPFFT 1.0.6, SPLA 1.5.5
+#              LIBGRPP 20231215, SPFFT 1.0.6, SPLA 1.6.0
 # on the Merlin cluster (PSI)
 #
 # Usage: Source this arch file and then run make as instructed.
@@ -16,7 +16,7 @@
 #        Optionally, GNU compiler and MPI implementation can be specified as arguments.
 #        Replace or adapt the "module add" commands below if needed.
 #
-# Last update: 06.06.2024
+# Last update: 11.06.2024
 #
 # \
    if [[ "${0}" == "${BASH_SOURCE}" ]]; then \
@@ -84,7 +84,7 @@ USE_SCALAPACK  := 2.2.1
 USE_SIRIUS     := 7.5.2
 USE_SPFFT      := 1.0.6
 USE_SPGLIB     := 2.3.1
-USE_SPLA       := 1.5.5
+USE_SPLA       := 1.6.0
 # Only needed for SIRIUS
 LIBVDWXC_VER   := 0.4.0
 # Only needed for LIBPEXSI
