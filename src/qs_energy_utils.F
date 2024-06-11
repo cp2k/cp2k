@@ -258,6 +258,7 @@ CONTAINS
              .NOT. dft_control%qs_control%dftb) THEN
             CALL get_qs_env(qs_env=qs_env, natom=natom)
             ALLOCATE (atcore(natom))
+            atcore = 0.0_dp
             ALLOCATE (core_mat(1))
             ALLOCATE (core_mat(1)%matrix)
             CALL dbcsr_create(core_mat(1)%matrix, template=matrix_h(1)%matrix)
