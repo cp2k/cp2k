@@ -106,7 +106,7 @@ def main() -> None:
     with OutputFile(f"Dockerfile.test_precommit", args.check) as f:
         f.write(precommit())
 
-    for name in "aiida", "ase", "gromacs", "i-pi":
+    for name in "aiida", "ase", "gromacs", "i-pi", "i-pi_server":
         with OutputFile(f"Dockerfile.test_{name}", args.check) as f:
             f.write(toolchain_ubuntu_nompi() + test_3rd_party(name))
 

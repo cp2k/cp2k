@@ -1,0 +1,41 @@
+&GLOBAL
+  PRINT_LEVEL LOW
+  RUN_TYPE GEO_OPT
+  SEED 1
+&END GLOBAL
+
+&MOTION
+  &DRIVER
+    HOST "/tmp/qiskit_myHost"
+    PORT 8421
+    SLEEP_TIME 0.1
+    UNIX
+  &END DRIVER
+  &GEO_OPT
+    MAX_ITER 10
+    OPTIMIZER BFGS
+    TYPE MINIMIZATION
+  &END GEO_OPT
+  &PRINT
+    &FORCES
+      &EACH
+        GEO_OPT 1
+      &END EACH
+    &END FORCES
+  &END PRINT
+&END MOTION
+
+&FORCE_EVAL
+  METHOD IPI
+  &SUBSYS
+    &CELL
+      ABC 5.0 5.0 5.0
+      PERIODIC NONE
+    &END CELL
+    &COORD
+      O  0.00  0.00  0.00
+      H  0.00 -0.75  0.50
+      H  0.00  0.75  0.50
+    &END COORD
+  &END SUBSYS
+&END FORCE_EVAL
