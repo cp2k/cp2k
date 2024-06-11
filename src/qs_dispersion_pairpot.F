@@ -346,7 +346,6 @@ CONTAINS
                END IF
             END IF
          CASE (vdw_pairpot_dftd4)
-            disp%type = dftd4_pp
             !most checks are done by the library
             CALL cite_reference(Caldeweyher2017)
             CALL cite_reference(Caldeweyher2019)
@@ -3708,7 +3707,6 @@ CONTAINS
          ALLOCATE (gradient(3, mol%nat))
          CALL get_dispersion(mol, disp, param, cutoff, energy, gradient, sigma)
          !sigma needed for viral terms
-         CPABORT("To do: write gradient to force")
          force(ikind)%dispersion(:, :) = force(ikind)%dispersion(:, :) + gradient(:, :)
          DEALLOCATE (gradient)
       ELSE
