@@ -20,8 +20,6 @@ MODULE bse_util
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_get_info,&
-                                              cp_fm_indxg2l,&
-                                              cp_fm_indxg2p,&
                                               cp_fm_release,&
                                               cp_fm_set_all,&
                                               cp_fm_to_fm_submat_general,&
@@ -160,9 +158,9 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'fm_general_add_bse'
 
       INTEGER :: col_idx_loc, dummy, handle, handle2, i_entry_rec, idx_col_out, idx_row_out, ii, &
-         iproc, jj, ncol_block_in, ncol_block_out, ncol_local_in, ncol_local_out, npcol, nprocs, &
-         nprow, nrow_block_in, nrow_block_out, nrow_local_in, nrow_local_out, proc_send, &
-         row_idx_loc, send_pcol, send_prow
+         iproc, jj, ncol_block_in, ncol_block_out, ncol_local_in, ncol_local_out, nprocs, &
+         nrow_block_in, nrow_block_out, nrow_local_in, nrow_local_out, proc_send, row_idx_loc, &
+         send_pcol, send_prow
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: entry_counter, num_entries_rec, &
                                                             num_entries_send
       INTEGER, DIMENSION(4)                              :: indices_in
@@ -186,9 +184,6 @@ CONTAINS
                           col_indices=col_indices_out, &
                           nrow_block=nrow_block_out, &
                           ncol_block=ncol_block_out)
-
-      nprow = fm_out%matrix_struct%context%num_pe(1)
-      npcol = fm_out%matrix_struct%context%num_pe(2)
 
       ALLOCATE (num_entries_rec(0:para_env_out%num_pe - 1))
       ALLOCATE (num_entries_send(0:para_env_out%num_pe - 1))
@@ -237,11 +232,8 @@ CONTAINS
             idx_row_out = indices_in(reordering(2)) + (indices_in(reordering(1)) - 1)*nrow_secidx_out
             idx_col_out = indices_in(reordering(4)) + (indices_in(reordering(3)) - 1)*ncol_secidx_out
 
-            send_prow = cp_fm_indxg2p(idx_row_out, nrow_block_out, dummy, &
-                                      fm_out%matrix_struct%first_p_pos(1), nprow)
-
-            send_pcol = cp_fm_indxg2p(idx_col_out, ncol_block_out, dummy, &
-                                      fm_out%matrix_struct%first_p_pos(2), npcol)
+            send_prow = fm_out%matrix_struct%g2p_row(idx_row_out)
+            send_pcol = fm_out%matrix_struct%g2p_col(idx_col_out)
 
             proc_send = fm_out%matrix_struct%context%blacs2mpi(send_prow, send_pcol)
 
@@ -320,11 +312,8 @@ CONTAINS
             idx_row_out = indices_in(reordering(2)) + (indices_in(reordering(1)) - 1)*nrow_secidx_out
             idx_col_out = indices_in(reordering(4)) + (indices_in(reordering(3)) - 1)*ncol_secidx_out
 
-            send_prow = cp_fm_indxg2p(idx_row_out, nrow_block_out, dummy, &
-                                      fm_out%matrix_struct%first_p_pos(1), nprow)
-
-            send_pcol = cp_fm_indxg2p(idx_col_out, ncol_block_out, dummy, &
-                                      fm_out%matrix_struct%first_p_pos(2), npcol)
+            send_prow = fm_out%matrix_struct%g2p_row(idx_row_out)
+            send_pcol = fm_out%matrix_struct%g2p_col(idx_col_out)
 
             proc_send = fm_out%matrix_struct%context%blacs2mpi(send_prow, send_pcol)
             entry_counter(proc_send) = entry_counter(proc_send) + 1
@@ -362,15 +351,12 @@ CONTAINS
       nprocs = para_env_out%num_pe
 
 !$OMP PARALLEL DO DEFAULT(NONE) &
-!$OMP SHARED(fm_out, nprocs, nrow_block_out, ncol_block_out, &
-!$OMP          num_entries_rec, buffer_rec, beta, dummy, nprow, npcol) &
+!$OMP SHARED(fm_out, nprocs, num_entries_rec, buffer_rec, beta) &
 !$OMP PRIVATE(iproc, i_entry_rec, ii, jj)
       DO iproc = 0, nprocs - 1
          DO i_entry_rec = 1, num_entries_rec(iproc)
-            ii = cp_fm_indxg2l(buffer_rec(iproc)%indx(i_entry_rec, 1), nrow_block_out, &
-                               dummy, dummy, nprow)
-            jj = cp_fm_indxg2l(buffer_rec(iproc)%indx(i_entry_rec, 2), ncol_block_out, &
-                               dummy, dummy, npcol)
+            ii = fm_out%matrix_struct%g2l_row(buffer_rec(iproc)%indx(i_entry_rec, 1))
+            jj = fm_out%matrix_struct%g2l_col(buffer_rec(iproc)%indx(i_entry_rec, 2))
 
             fm_out%local_data(ii, jj) = fm_out%local_data(ii, jj) + beta*buffer_rec(iproc)%msg(i_entry_rec)
          END DO
@@ -430,8 +416,8 @@ CONTAINS
 
       INTEGER :: col_idx_loc, dummy, handle, handle2, i_entry_rec, idx_col_first, idx_col_in, &
          idx_col_out, idx_col_sec, idx_row_in, ii, iproc, jj, ncol_block_in, ncol_block_out, &
-         ncol_local_in, ncol_local_out, npcol, nprocs, nprow, nrow_block_in, nrow_block_out, &
-         nrow_local_in, nrow_local_out, proc_send, row_idx_loc, send_pcol, send_prow
+         ncol_local_in, ncol_local_out, nprocs, nrow_block_in, nrow_block_out, nrow_local_in, &
+         nrow_local_out, proc_send, row_idx_loc, send_pcol, send_prow
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: entry_counter, num_entries_rec, &
                                                             num_entries_send
       INTEGER, DIMENSION(:), POINTER                     :: col_indices_in, col_indices_out, &
@@ -464,9 +450,6 @@ CONTAINS
                           col_indices=col_indices_out, &
                           nrow_block=nrow_block_out, &
                           ncol_block=ncol_block_out)
-
-      nprow = fm_out%matrix_struct%context%num_pe(1)
-      npcol = fm_out%matrix_struct%context%num_pe(2)
 
       ALLOCATE (num_entries_rec(0:para_env_out%num_pe - 1))
       ALLOCATE (num_entries_send(0:para_env_out%num_pe - 1))
@@ -529,11 +512,8 @@ CONTAINS
          DO row_idx_loc = 1, nrow_local_in
             idx_row_in = row_indices_in(row_idx_loc)
 
-            send_prow = cp_fm_indxg2p(idx_row_in, nrow_block_out, dummy, &
-                                      fm_out%matrix_struct%first_p_pos(1), nprow)
-
-            send_pcol = cp_fm_indxg2p(idx_col_out, ncol_block_out, dummy, &
-                                      fm_out%matrix_struct%first_p_pos(2), npcol)
+            send_prow = fm_out%matrix_struct%g2p_row(idx_row_in)
+            send_pcol = fm_out%matrix_struct%g2p_col(idx_col_out)
 
             proc_send = fm_out%matrix_struct%context%blacs2mpi(send_prow, send_pcol)
 
@@ -628,11 +608,9 @@ CONTAINS
          DO row_idx_loc = 1, nrow_local_in
             idx_row_in = row_indices_in(row_idx_loc)
 
-            send_prow = cp_fm_indxg2p(idx_row_in, nrow_block_out, dummy, &
-                                      fm_out%matrix_struct%first_p_pos(1), nprow)
+            send_prow = fm_out%matrix_struct%g2p_row(idx_row_in)
 
-            send_pcol = cp_fm_indxg2p(idx_col_out, ncol_block_out, dummy, &
-                                      fm_out%matrix_struct%first_p_pos(2), npcol)
+            send_pcol = fm_out%matrix_struct%g2p_col(idx_col_out)
 
             proc_send = fm_out%matrix_struct%context%blacs2mpi(send_prow, send_pcol)
             entry_counter(proc_send) = entry_counter(proc_send) + 1
@@ -671,15 +649,12 @@ CONTAINS
       nprocs = para_env_out%num_pe
 
 !$OMP PARALLEL DO DEFAULT(NONE) &
-!$OMP SHARED(fm_out, nprocs, nrow_block_out, ncol_block_out, &
-!$OMP          num_entries_rec, buffer_rec, nprow, npcol, dummy) &
+!$OMP SHARED(fm_out, nprocs, num_entries_rec, buffer_rec) &
 !$OMP PRIVATE(iproc, i_entry_rec, ii, jj)
       DO iproc = 0, nprocs - 1
          DO i_entry_rec = 1, num_entries_rec(iproc)
-            ii = cp_fm_indxg2l(buffer_rec(iproc)%indx(i_entry_rec, 1), nrow_block_out, &
-                               dummy, dummy, nprow)
-            jj = cp_fm_indxg2l(buffer_rec(iproc)%indx(i_entry_rec, 2), ncol_block_out, &
-                               dummy, dummy, npcol)
+            ii = fm_out%matrix_struct%g2l_row(buffer_rec(iproc)%indx(i_entry_rec, 1))
+            jj = fm_out%matrix_struct%g2l_col(buffer_rec(iproc)%indx(i_entry_rec, 2))
 
             fm_out%local_data(ii, jj) = fm_out%local_data(ii, jj) + buffer_rec(iproc)%msg(i_entry_rec)
          END DO

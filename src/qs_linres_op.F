@@ -41,9 +41,14 @@ MODULE qs_linres_op
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: &
-        cp_fm_create, cp_fm_get_info, cp_fm_get_submatrix, cp_fm_indxl2g, cp_fm_release, &
-        cp_fm_set_all, cp_fm_set_submatrix, cp_fm_to_fm, cp_fm_type
+   USE cp_fm_types,                     ONLY: cp_fm_create,&
+                                              cp_fm_get_info,&
+                                              cp_fm_get_submatrix,&
+                                              cp_fm_release,&
+                                              cp_fm_set_all,&
+                                              cp_fm_set_submatrix,&
+                                              cp_fm_to_fm,&
+                                              cp_fm_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type,&
                                               cp_to_string
@@ -1208,8 +1213,9 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'fm_scale_by_pbc_AC'
 
-      INTEGER :: handle, icol_global, icol_local, irow_global, irow_local, m, mypcol, myprow, n, &
-         ncol_block, ncol_global, ncol_local, npcol, nprow, nrow_block, nrow_global, nrow_local
+      INTEGER                                            :: handle, icol_global, icol_local, &
+                                                            irow_global, irow_local, m, mypcol, &
+                                                            myprow, n, ncol_local, nrow_local
       REAL(KIND=dp)                                      :: dist(3), rra(3), rrc(3)
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: a
 
@@ -1217,13 +1223,7 @@ CONTAINS
 
       myprow = matrix%matrix_struct%context%mepos(1)
       mypcol = matrix%matrix_struct%context%mepos(2)
-      nprow = matrix%matrix_struct%context%num_pe(1)
-      npcol = matrix%matrix_struct%context%num_pe(2)
 
-      nrow_block = matrix%matrix_struct%nrow_block
-      ncol_block = matrix%matrix_struct%ncol_block
-      nrow_global = matrix%matrix_struct%nrow_global
-      ncol_global = matrix%matrix_struct%ncol_global
       nrow_local = matrix%matrix_struct%nrow_locals(myprow)
       ncol_local = matrix%matrix_struct%ncol_locals(mypcol)
 
@@ -1232,13 +1232,11 @@ CONTAINS
 
       a => matrix%local_data
       DO icol_local = 1, ncol_local
-         icol_global = cp_fm_indxl2g(icol_local, ncol_block, mypcol, &
-                                     matrix%matrix_struct%first_p_pos(2), npcol)
+         icol_global = matrix%matrix_struct%col_indices(icol_local)
          IF (icol_global .GT. n) CYCLE
          rrc = rc(:, icol_global)
          DO irow_local = 1, nrow_local
-            irow_global = cp_fm_indxl2g(irow_local, nrow_block, myprow, &
-                                        matrix%matrix_struct%first_p_pos(1), nprow)
+            irow_global = matrix%matrix_struct%row_indices(irow_local)
             IF (irow_global .GT. m) CYCLE
             rra = ra(:, irow_global)
             dist = pbc(rrc, rra, cell)

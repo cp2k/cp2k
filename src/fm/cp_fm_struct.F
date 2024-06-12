@@ -88,6 +88,13 @@ MODULE cp_fm_struct
       INTEGER, DIMENSION(:), POINTER :: row_indices => NULL(), col_indices => NULL(), &
                                         nrow_locals => NULL(), ncol_locals => NULL()
       INTEGER :: ref_count = -1, local_leading_dimension = -1
+   CONTAINS
+      PROCEDURE, PASS(struct), NON_OVERRIDABLE :: g2p_row => cp_fm_indxg2p_row
+      PROCEDURE, PASS(struct), NON_OVERRIDABLE :: g2p_col => cp_fm_indxg2p_col
+      PROCEDURE, PASS(struct), NON_OVERRIDABLE :: g2l_row => cp_fm_indxg2l_row
+      PROCEDURE, PASS(struct), NON_OVERRIDABLE :: g2l_col => cp_fm_indxg2l_col
+      PROCEDURE, PASS(struct), NON_OVERRIDABLE :: l2g_row => cp_fm_indxl2g_row
+      PROCEDURE, PASS(struct), NON_OVERRIDABLE :: l2g_col => cp_fm_indxl2g_col
    END TYPE cp_fm_struct_type
 ! **************************************************************************************************
    TYPE cp_fm_struct_p_type
@@ -135,7 +142,7 @@ CONTAINS
       LOGICAL, OPTIONAL, INTENT(in)                :: square_blocks
       LOGICAL, OPTIONAL, INTENT(in)                :: force_block
 
-      INTEGER                                      :: dumblock
+      INTEGER                                      :: dumblock, i
 #if defined(__SCALAPACK)
       INTEGER                                      :: iunit, stat
       INTEGER, EXTERNAL                            :: numroc
@@ -277,6 +284,25 @@ CONTAINS
       END IF
 
       NULLIFY (fmstruct%row_indices, fmstruct%col_indices)
+
+      ! the max should go away
+      ALLOCATE (fmstruct%row_indices(MAX(fmstruct%nrow_locals(fmstruct%context%mepos(1)), 1)))
+      DO i = 1, SIZE(fmstruct%row_indices)
+#ifdef __SCALAPACK
+         fmstruct%row_indices(i) = fmstruct%l2g_row(i, fmstruct%context%mepos(1))
+#else
+         fmstruct%row_indices(i) = i
+#endif
+      END DO
+      ALLOCATE (fmstruct%col_indices(MAX(fmstruct%ncol_locals(fmstruct%context%mepos(2)), 1)))
+      DO i = 1, SIZE(fmstruct%col_indices)
+#ifdef __SCALAPACK
+         fmstruct%col_indices(i) = fmstruct%l2g_col(i, fmstruct%context%mepos(2))
+#else
+         fmstruct%col_indices(i) = i
+#endif
+      END DO
+
       fmstruct%ref_count = 1
 
       IF (PRESENT(descriptor)) THEN
@@ -406,21 +432,17 @@ CONTAINS
                                ncol_global, first_p_pos, row_indices, &
                                col_indices, nrow_local, ncol_local, nrow_locals, ncol_locals, &
                                local_leading_dimension)
-      TYPE(cp_fm_struct_type), INTENT(INOUT) :: fmstruct
-      TYPE(mp_para_env_type), POINTER, OPTIONAL :: para_env
-      TYPE(cp_blacs_env_type), POINTER, OPTIONAL :: context
-      INTEGER, DIMENSION(9), INTENT(OUT), OPTIONAL :: descriptor
-      INTEGER, INTENT(out), OPTIONAL :: ncol_block, nrow_block, nrow_global, &
-                                        ncol_global, nrow_local, ncol_local, &
-                                        local_leading_dimension
-      INTEGER, DIMENSION(2), INTENT(out), OPTIONAL :: first_p_pos
-      INTEGER, DIMENSION(:), POINTER, OPTIONAL :: row_indices, col_indices, &
-                                                  nrow_locals, ncol_locals
-
-      INTEGER i, nprow, npcol, myprow, mypcol
-#if defined(__SCALAPACK)
-      INTEGER, EXTERNAL :: indxl2g
-#endif
+      TYPE(cp_fm_struct_type), INTENT(IN)                :: fmstruct
+      TYPE(mp_para_env_type), OPTIONAL, POINTER          :: para_env
+      TYPE(cp_blacs_env_type), OPTIONAL, POINTER         :: context
+      INTEGER, DIMENSION(9), INTENT(OUT), OPTIONAL       :: descriptor
+      INTEGER, INTENT(out), OPTIONAL                     :: ncol_block, nrow_block, nrow_global, &
+                                                            ncol_global
+      INTEGER, DIMENSION(2), INTENT(out), OPTIONAL       :: first_p_pos
+      INTEGER, DIMENSION(:), OPTIONAL, POINTER           :: row_indices, col_indices
+      INTEGER, INTENT(out), OPTIONAL                     :: nrow_local, ncol_local
+      INTEGER, DIMENSION(:), OPTIONAL, POINTER           :: nrow_locals, ncol_locals
+      INTEGER, INTENT(out), OPTIONAL                     :: local_leading_dimension
 
       IF (PRESENT(para_env)) para_env => fmstruct%para_env
       IF (PRESENT(context)) context => fmstruct%context
@@ -435,51 +457,11 @@ CONTAINS
       IF (PRESENT(local_leading_dimension)) local_leading_dimension = &
          fmstruct%local_leading_dimension
 
-      myprow = fmstruct%context%mepos(1)
-      mypcol = fmstruct%context%mepos(2)
-      nprow = fmstruct%context%num_pe(1)
-      npcol = fmstruct%context%num_pe(2)
+      IF (PRESENT(nrow_local)) nrow_local = fmstruct%nrow_locals(fmstruct%context%mepos(1))
+      IF (PRESENT(ncol_local)) ncol_local = fmstruct%ncol_locals(fmstruct%context%mepos(2))
 
-      IF (PRESENT(nrow_local)) nrow_local = fmstruct%nrow_locals(myprow)
-      IF (PRESENT(ncol_local)) ncol_local = fmstruct%ncol_locals(mypcol)
-
-      IF (PRESENT(row_indices)) THEN
-         row_indices => fmstruct%row_indices
-         IF (.NOT. ASSOCIATED(row_indices)) THEN
-            ! the max should go away
-            ALLOCATE (fmstruct%row_indices(MAX(fmstruct%nrow_locals(myprow), 1)))
-            row_indices => fmstruct%row_indices
-#ifdef __SCALAPACK
-            DO i = 1, SIZE(row_indices)
-               row_indices(i) = &
-                  indxl2g(i, fmstruct%nrow_block, myprow, fmstruct%first_p_pos(1), nprow)
-            END DO
-#else
-            DO i = 1, SIZE(row_indices)
-               row_indices(i) = i
-            END DO
-#endif
-         END IF
-      END IF
-
-      IF (PRESENT(col_indices)) THEN
-         col_indices => fmstruct%col_indices
-         IF (.NOT. ASSOCIATED(col_indices)) THEN
-            ALLOCATE (fmstruct%col_indices(MAX(fmstruct%ncol_locals(mypcol), 1)))
-            col_indices => fmstruct%col_indices
-#ifdef __SCALAPACK
-            DO i = 1, SIZE(col_indices)
-               col_indices(i) = &
-                  indxl2g(i, fmstruct%ncol_block, mypcol, fmstruct%first_p_pos(2), npcol)
-            END DO
-#else
-            DO i = 1, SIZE(col_indices)
-               col_indices(i) = i
-            END DO
-#endif
-         END IF
-
-      END IF
+      IF (PRESENT(row_indices)) row_indices => fmstruct%row_indices
+      IF (PRESENT(col_indices)) col_indices => fmstruct%col_indices
    END SUBROUTINE cp_fm_struct_get
 
 ! **************************************************************************************************
@@ -657,5 +639,301 @@ CONTAINS
 
       res = optimal_blacs_col_block_size
    END FUNCTION cp_fm_struct_get_ncol_block
+
+! **************************************************************************************************
+!> \brief wrapper to scalapack function INDXG2P that computes the row process
+!>         coordinate which possesses the entry of a distributed matrix specified
+!>         by a global index INDXGLOB.
+!> \param struct ...
+!> \param INDXGLOB ...
+!> \return ...
+!> \author Mauro Del Ben [MDB] - 12.2012, modified by F. Stein
+! **************************************************************************************************
+   FUNCTION cp_fm_indxg2p_row(struct, INDXGLOB) RESULT(G2P)
+      CLASS(cp_fm_struct_type), INTENT(IN) :: struct
+      INTEGER, INTENT(IN) :: INDXGLOB
+      INTEGER                                  :: G2P
+
+#if defined(__SCALAPACK)
+      INTEGER :: number_of_process_rows
+      INTEGER, EXTERNAL :: indxg2p
+#endif
+
+#if defined(__SCALAPACK)
+
+      CALL struct%context%get(number_of_process_rows=number_of_process_rows)
+
+      G2P = indxg2p(INDXGLOB, struct%nrow_block, 0, struct%first_p_pos(1), number_of_process_rows)
+
+#else
+      MARK_USED(struct)
+      MARK_USED(indxglob)
+
+      G2P = 0
+
+#endif
+
+   END FUNCTION cp_fm_indxg2p_row
+
+! **************************************************************************************************
+!> \brief wrapper to scalapack function INDXG2P that computes the col process
+!>         coordinate which possesses the entry of a distributed matrix specified
+!>         by a global index INDXGLOB.
+!> \param struct ...
+!> \param INDXGLOB ...
+!> \return ...
+!> \author Mauro Del Ben [MDB] - 12.2012, modified by F. Stein
+! **************************************************************************************************
+   FUNCTION cp_fm_indxg2p_col(struct, INDXGLOB) RESULT(G2P)
+      CLASS(cp_fm_struct_type), INTENT(IN) :: struct
+      INTEGER, INTENT(IN) :: INDXGLOB
+      INTEGER                                  :: G2P
+
+#if defined(__SCALAPACK)
+      INTEGER :: number_of_process_columns
+      INTEGER, EXTERNAL :: indxg2p
+#endif
+
+#if defined(__SCALAPACK)
+
+      CALL struct%context%get(number_of_process_columns=number_of_process_columns)
+
+      G2P = indxg2p(INDXGLOB, struct%ncol_block, 0, struct%first_p_pos(2), number_of_process_columns)
+
+#else
+      MARK_USED(struct)
+      MARK_USED(indxglob)
+
+      G2P = 0
+
+#endif
+
+   END FUNCTION cp_fm_indxg2p_col
+
+! **************************************************************************************************
+!> \brief wrapper to scalapack function INDXG2L that computes the local index
+!>         of a distributed matrix entry pointed to by the global index INDXGLOB.
+!>
+!>  Arguments
+!>  =========
+!>
+!>  INDXGLOB  (global input) INTEGER
+!>            The global index of the distributed matrix entry.
+!>
+!>  NB        (global input) INTEGER
+!>            Block size, size of the blocks the distributed matrix is
+!>            split into.
+!>
+!>  IPROC     (local dummy) INTEGER
+!>            Dummy argument in this case in order to unify the calling
+!>            sequence of the tool-routines.
+!>
+!>  ISRCPROC  (local dummy) INTEGER
+!>            Dummy argument in this case in order to unify the calling
+!>            sequence of the tool-routines.
+!>
+!>  NPROCS    (global input) INTEGER
+!>            The total number processes over which the distributed
+!>            matrix is distributed.
+!>
+!> \param struct ...
+!> \param INDXGLOB ...
+!> \return ...
+!> \author Mauro Del Ben [MDB] - 12.2012
+! **************************************************************************************************
+   FUNCTION cp_fm_indxg2l_row(struct, INDXGLOB) RESULT(G2L)
+      CLASS(cp_fm_struct_type), INTENT(IN) :: struct
+      INTEGER, INTENT(IN)                      :: INDXGLOB
+      INTEGER                                  :: G2L
+
+#if defined(__SCALAPACK)
+      INTEGER :: number_of_process_rows
+      INTEGER, EXTERNAL :: indxg2l
+#endif
+
+#if defined(__SCALAPACK)
+
+      CALL struct%context%get(number_of_process_rows=number_of_process_rows)
+
+      G2L = indxg2l(INDXGLOB, struct%nrow_block, 0, struct%first_p_pos(1), number_of_process_rows)
+
+#else
+      MARK_USED(struct)
+
+      G2L = INDXGLOB
+
+#endif
+
+   END FUNCTION cp_fm_indxg2l_row
+
+! **************************************************************************************************
+!> \brief wrapper to scalapack function INDXG2L that computes the local index
+!>         of a distributed matrix entry pointed to by the global index INDXGLOB.
+!>
+!>  Arguments
+!>  =========
+!>
+!>  INDXGLOB  (global input) INTEGER
+!>            The global index of the distributed matrix entry.
+!>
+!>  NB        (global input) INTEGER
+!>            Block size, size of the blocks the distributed matrix is
+!>            split into.
+!>
+!>  IPROC     (local dummy) INTEGER
+!>            Dummy argument in this case in order to unify the calling
+!>            sequence of the tool-routines.
+!>
+!>  ISRCPROC  (local dummy) INTEGER
+!>            Dummy argument in this case in order to unify the calling
+!>            sequence of the tool-routines.
+!>
+!>  NPROCS    (global input) INTEGER
+!>            The total number processes over which the distributed
+!>            matrix is distributed.
+!>
+!> \param struct ...
+!> \param INDXGLOB ...
+!> \return ...
+!> \author Mauro Del Ben [MDB] - 12.2012
+! **************************************************************************************************
+   FUNCTION cp_fm_indxg2l_col(struct, INDXGLOB) RESULT(G2L)
+      CLASS(cp_fm_struct_type), INTENT(IN) :: struct
+      INTEGER, INTENT(IN)                      :: INDXGLOB
+      INTEGER                                  :: G2L
+
+#if defined(__SCALAPACK)
+      INTEGER :: number_of_process_columns
+      INTEGER, EXTERNAL :: indxg2l
+#endif
+
+#if defined(__SCALAPACK)
+
+      CALL struct%context%get(number_of_process_columns=number_of_process_columns)
+
+      G2L = indxg2l(INDXGLOB, struct%ncol_block, 0, struct%first_p_pos(2), number_of_process_columns)
+
+#else
+      MARK_USED(struct)
+
+      G2L = INDXGLOB
+
+#endif
+
+   END FUNCTION cp_fm_indxg2l_col
+
+! **************************************************************************************************
+!> \brief wrapper to scalapack function INDXL2G that computes the global index
+!>         of a distributed matrix entry pointed to by the local index INDXLOC
+!>         of the process indicated by IPROC.
+!>
+!>  Arguments
+!>  =========
+!>
+!>  INDXLOC   (global input) INTEGER
+!>            The local index of the distributed matrix entry.
+!>
+!>  NB        (global input) INTEGER
+!>            Block size, size of the blocks the distributed matrix is
+!>            split into.
+!>
+!>  IPROC     (local input) INTEGER
+!>            The coordinate of the process whose local array row or
+!>            column is to be determined.
+!>
+!>  ISRCPROC  (global input) INTEGER
+!>            The coordinate of the process that possesses the first
+!>            row/column of the distributed matrix.
+!>
+!>  NPROCS    (global input) INTEGER
+!>            The total number processes over which the distributed
+!>            matrix is distributed.
+!>
+!> \param struct ...
+!> \param INDXLOC ...
+!> \param IPROC ...
+!> \return ...
+!> \author Mauro Del Ben [MDB] - 12.2012
+! **************************************************************************************************
+   FUNCTION cp_fm_indxl2g_row(struct, INDXLOC, IPROC) RESULT(L2G)
+      CLASS(cp_fm_struct_type), INTENT(IN) :: struct
+      INTEGER, INTENT(IN)                      :: INDXLOC, IPROC
+      INTEGER                                  :: L2G
+
+#if defined(__SCALAPACK)
+      INTEGER :: number_of_process_rows
+      INTEGER, EXTERNAL :: indxl2g
+
+      CALL struct%context%get(number_of_process_rows=number_of_process_rows)
+
+      L2G = indxl2g(INDXLOC, struct%nrow_block, IPROC, struct%first_p_pos(1), number_of_process_rows)
+
+#else
+      MARK_USED(struct)
+      MARK_USED(indxloc)
+      MARK_USED(iproc)
+
+      L2G = INDXLOC
+
+#endif
+
+   END FUNCTION cp_fm_indxl2g_row
+
+! **************************************************************************************************
+!> \brief wrapper to scalapack function INDXL2G that computes the global index
+!>         of a distributed matrix entry pointed to by the local index INDXLOC
+!>         of the process indicated by IPROC.
+!>
+!>  Arguments
+!>  =========
+!>
+!>  INDXLOC   (global input) INTEGER
+!>            The local index of the distributed matrix entry.
+!>
+!>  NB        (global input) INTEGER
+!>            Block size, size of the blocks the distributed matrix is
+!>            split into.
+!>
+!>  IPROC     (local input) INTEGER
+!>            The coordinate of the process whose local array row or
+!>            column is to be determined.
+!>
+!>  ISRCPROC  (global input) INTEGER
+!>            The coordinate of the process that possesses the first
+!>            row/column of the distributed matrix.
+!>
+!>  NPROCS    (global input) INTEGER
+!>            The total number processes over which the distributed
+!>            matrix is distributed.
+!>
+!> \param struct ...
+!> \param INDXLOC ...
+!> \param IPROC ...
+!> \return ...
+!> \author Mauro Del Ben [MDB] - 12.2012
+! **************************************************************************************************
+   FUNCTION cp_fm_indxl2g_col(struct, INDXLOC, IPROC) RESULT(L2G)
+      CLASS(cp_fm_struct_type), INTENT(IN) :: struct
+      INTEGER, INTENT(IN)                      :: INDXLOC, IPROC
+      INTEGER                                  :: L2G
+
+#if defined(__SCALAPACK)
+      INTEGER :: number_of_process_columns
+      INTEGER, EXTERNAL :: indxl2g
+
+      CALL struct%context%get(number_of_process_columns=number_of_process_columns)
+
+      L2G = indxl2g(INDXLOC, struct%ncol_block, IPROC, struct%first_p_pos(2), number_of_process_columns)
+
+#else
+      MARK_USED(struct)
+      MARK_USED(indxloc)
+      MARK_USED(iproc)
+
+      L2G = INDXLOC
+
+#endif
+
+   END FUNCTION cp_fm_indxl2g_col
 
 END MODULE cp_fm_struct

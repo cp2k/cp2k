@@ -54,7 +54,7 @@ MODULE mp2_gpw
                                               hfx_compression_type
    USE input_constants,                 ONLY: &
         do_eri_gpw, do_eri_os, do_potential_coulomb, do_potential_id, do_potential_truncated, &
-        eri_default, mp2_method_gpw, ri_default, ri_mp2_method_gpw
+        eri_default, mp2_method_gpw, ri_default, ri_mp2_method_gpw, rpa_exchange_none
    USE input_section_types,             ONLY: section_vals_val_get
    USE kinds,                           ONLY: dp
    USE kpoint_types,                    ONLY: kpoint_type
@@ -473,14 +473,13 @@ CONTAINS
          END DO
          CALL get_group_dist(gd_array, color_sub, my_group_L_start, my_group_L_end, my_group_L_size)
       END IF
-      ! Copy mo coeffs for RPA AXK
-      IF (mp2_env%ri_rpa%do_ri_axk) THEN
-         NULLIFY (mp2_env%ri_rpa%mo_coeff_o)
-         CALL dbcsr_init_p(mp2_env%ri_rpa%mo_coeff_o)
-         CALL dbcsr_copy(mp2_env%ri_rpa%mo_coeff_o, mo_coeff_o(1)%matrix, name="mo_coeff_o")
-         NULLIFY (mp2_env%ri_rpa%mo_coeff_v)
-         CALL dbcsr_init_p(mp2_env%ri_rpa%mo_coeff_v)
-         CALL dbcsr_copy(mp2_env%ri_rpa%mo_coeff_v, mo_coeff_v(1)%matrix, name="mo_coeff_v")
+      ! Copy mo coeffs for RPA exchange correction
+      IF (mp2_env%ri_rpa%exchange_correction /= rpa_exchange_none) THEN
+         ALLOCATE (mp2_env%ri_rpa%mo_coeff_o(nspins), mp2_env%ri_rpa%mo_coeff_v(nspins))
+         DO ispin = 1, nspins
+            CALL dbcsr_copy(mp2_env%ri_rpa%mo_coeff_o(ispin), mo_coeff_o(ispin)%matrix, name="mo_coeff_o")
+            CALL dbcsr_copy(mp2_env%ri_rpa%mo_coeff_v(ispin), mo_coeff_v(ispin)%matrix, name="mo_coeff_v")
+         END DO
       END IF
 
       IF (.NOT. do_im_time) THEN
@@ -500,28 +499,21 @@ CONTAINS
 
       END IF
 
-      IF (.NOT. calc_forces) THEN
-         IF (.NOT. mp2_env%ri_rpa%do_ri_axk) THEN
+      ! Release some memory for RPA exchange correction
+      IF (calc_forces .AND. do_im_time .OR. &
+          (.NOT. calc_forces .AND. mp2_env%ri_rpa%exchange_correction == rpa_exchange_none)) THEN
 
-            CALL dbcsr_release(mat_munu%matrix)
-            DEALLOCATE (mat_munu%matrix)
+         CALL dbcsr_release(mat_munu%matrix)
+         DEALLOCATE (mat_munu%matrix)
 
-            CALL release_neighbor_list_sets(sab_orb_sub)
-
-         END IF
+         CALL release_neighbor_list_sets(sab_orb_sub)
 
       END IF
 
       ! decide if to do RI-RPA or RI-MP2
       IF (my_do_ri_rpa .OR. my_do_ri_sos_laplace_mp2) THEN
 
-         IF (do_im_time) THEN
-
-            CALL create_matrix_P(mat_P_global, qs_env, mp2_env, para_env)
-
-            ! To be removed later
-            ALLOCATE (BIb_C(nspins))
-         END IF
+         IF (do_im_time) CALL create_matrix_P(mat_P_global, qs_env, mp2_env, para_env)
 
          IF (.NOT. ALLOCATED(BIb_C)) ALLOCATE (BIb_C(nspins))
          IF (.NOT. ALLOCATED(BIb_C_gw)) ALLOCATE (BIb_C_gw(nspins))
@@ -535,8 +527,7 @@ CONTAINS
                                 fm_matrix_Minv, fm_matrix_Minv_Vtrunc_Minv, kpoints, &
                                 Eigenval, nmo, homo, dimen_RI, dimen_RI_red, gw_corr_lev_occ, gw_corr_lev_virt, &
                                 unit_nr, my_do_ri_sos_laplace_mp2, my_do_gw, do_im_time, do_bse, matrix_s, &
-                                mat_munu, mat_P_global, &
-                                t_3c_M, t_3c_O, t_3c_O_compressed, t_3c_O_ind, &
+                                mat_munu, mat_P_global, t_3c_M, t_3c_O, t_3c_O_compressed, t_3c_O_ind, &
                                 starts_array_mc, ends_array_mc, &
                                 starts_array_mc_block, ends_array_mc_block, calc_forces)
 
@@ -553,8 +544,8 @@ CONTAINS
             IF (calc_forces) CALL cp_fm_release(fm_matrix_PQ)
          END IF
 
-         ! Release some memory for AXK
-         IF (mp2_env%ri_rpa%do_ri_axk .OR. (calc_forces .AND. do_im_time)) THEN
+         ! Release some memory for RPA exchange correction
+         IF (mp2_env%ri_rpa%exchange_correction /= rpa_exchange_none) THEN
 
             CALL dbcsr_release(mat_munu%matrix)
             DEALLOCATE (mat_munu%matrix)

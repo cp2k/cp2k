@@ -1,6 +1,6 @@
 &GLOBAL
   PRINT_LEVEL MEDIUM
-  PROJECT RPA_AXK_H2O_svd
+  PROJECT RPA_AXK_H2O
   RUN_TYPE ENERGY
   &TIMINGS
     THRESHOLD 0.01
@@ -46,12 +46,11 @@
             REL_CUTOFF 20
           &END WFC_GPW
         &END INTEGRALS
-        &RI
-          DO_SVD
-        &END RI
         &RI_RPA
-          RI_AXK .TRUE.
           RPA_NUM_QUAD_POINTS 1
+          &EXCHANGE_CORRECTION AXK
+            USE_HFX_IMPLEMENTATION F
+          &END EXCHANGE_CORRECTION
           &HF
             FRACTION 1.0000000
             &SCREENING

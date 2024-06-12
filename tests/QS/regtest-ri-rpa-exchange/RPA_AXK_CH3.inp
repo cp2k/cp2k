@@ -1,6 +1,6 @@
 &GLOBAL
   PRINT_LEVEL MEDIUM
-  PROJECT H2O-rpa-axk-lr
+  PROJECT RPA_AXK_H2O
   RUN_TYPE ENERGY
   &TIMINGS
     THRESHOLD 0.01
@@ -11,22 +11,23 @@
   METHOD Quickstep
   &DFT
     BASIS_SET_FILE_NAME HFX_BASIS
+    MULTIPLICITY 2
     POTENTIAL_FILE_NAME GTH_POTENTIALS
+    UKS
     &MGRID
       CUTOFF 100
-      REL_CUTOFF 20
+      REL_CUTOFF 50
     &END MGRID
     &POISSON
-      PERIODIC NONE
+      PERIODIC XYZ
       POISSON_SOLVER WAVELET
     &END POISSON
     &QS
-      EPS_DEFAULT 1.0E-15
-      EPS_PGF_ORB 1.0E-30
+      EPS_DEFAULT 1.0E-10
       METHOD GPW
     &END QS
     &SCF
-      EPS_SCF 1.0E-7
+      EPS_SCF 1.0E-8
       MAX_SCF 100
       SCF_GUESS ATOMIC
       &PRINT
@@ -40,26 +41,29 @@
         NUMBER_PROC 1
         &INTEGRALS
           ERI_METHOD GPW
-          &INTERACTION_POTENTIAL
-            OMEGA 0.5
-            POTENTIAL_TYPE LONGRANGE
-          &END INTERACTION_POTENTIAL
           &WFC_GPW
             CUTOFF 100
-            REL_CUTOFF 20
+            EPS_FILTER 1.0E-6
+            EPS_GRID 1.0E-6
+            REL_CUTOFF 25
           &END WFC_GPW
         &END INTEGRALS
-        &RI
-          DO_SVD
-        &END RI
         &RI_RPA
+          MINIMAX
+          # 6-8 are sufficient
           RPA_NUM_QUAD_POINTS 1
           &EXCHANGE_CORRECTION AXK
+            USE_HFX_IMPLEMENTATION F
           &END EXCHANGE_CORRECTION
           &HF
             FRACTION 1.0000000
+            &INTERACTION_POTENTIAL
+              # Use half the system size
+              CUTOFF_RADIUS 1.99
+              POTENTIAL_TYPE TRUNCATED
+            &END INTERACTION_POTENTIAL
             &SCREENING
-              EPS_SCHWARZ 1.0E-6
+              EPS_SCHWARZ 1.0E-2
               SCREEN_ON_INITIAL_P FALSE
             &END SCREENING
           &END HF
@@ -71,22 +75,24 @@
   &END DFT
   &SUBSYS
     &CELL
-      ABC [angstrom] 5.000 5.000 5.000
-      PERIODIC NONE
+      ABC [angstrom] 4.000 4.000 4.000
+      MULTIPLE_UNIT_CELL 1 1 1
+      PERIODIC XYZ
     &END CELL
     &KIND H
       BASIS_SET DZVP-GTH
       BASIS_SET RI_AUX RI_DZVP-GTH
       POTENTIAL GTH-PBE-q1
     &END KIND
-    &KIND O
+    &KIND C
       BASIS_SET DZVP-GTH
       BASIS_SET RI_AUX RI_DZVP-GTH
-      POTENTIAL GTH-PBE-q6
+      POTENTIAL GTH-PBE-q4
     &END KIND
     &TOPOLOGY
       COORD_FILE_FORMAT xyz
-      COORD_FILE_NAME H2O_gas.xyz
+      COORD_FILE_NAME CH3.xyz
+      MULTIPLE_UNIT_CELL 1 1 1
       &CENTER_COORDINATES
       &END CENTER_COORDINATES
     &END TOPOLOGY

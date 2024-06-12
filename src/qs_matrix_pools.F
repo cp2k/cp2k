@@ -22,8 +22,6 @@ MODULE qs_matrix_pools
                                               fm_pools_dealloc
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_get,&
-                                              cp_fm_struct_get_ncol_block,&
-                                              cp_fm_struct_get_nrow_block,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
    USE message_passing,                 ONLY: mp_para_env_type
@@ -217,16 +215,12 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'mpools_rebuild_fm_pools'
 
       INTEGER                                            :: handle, ispin, max_nmo, min_nmo, nao, &
-                                                            ncg, ncol_block, nmo, nrg, nrow_block, &
-                                                            nspins
+                                                            ncg, nmo, nrg, nspins
       LOGICAL                                            :: prepare_subset, should_rebuild
       TYPE(cp_fm_pool_type), POINTER                     :: p_att
       TYPE(cp_fm_struct_type), POINTER                   :: fmstruct
 
       CALL timeset(routineN, handle)
-
-      nrow_block = cp_fm_struct_get_nrow_block()
-      ncol_block = cp_fm_struct_get_ncol_block()
 
       NULLIFY (fmstruct, p_att)
       prepare_subset = .FALSE.
@@ -320,8 +314,7 @@ CONTAINS
          should_rebuild = (should_rebuild .OR. (.NOT. ASSOCIATED(p_att)))
          IF (.NOT. should_rebuild) THEN
             fmstruct => fm_pool_get_el_struct(mpools%ao_ao_fm_pools(ispin)%pool)
-            CALL cp_fm_struct_get(fmstruct, nrow_global=nrg, &
-                                  ncol_global=ncg)
+            CALL cp_fm_struct_get(fmstruct, nrow_global=nrg, ncol_global=ncg)
             CALL get_mo_set(mos(1), nao=nao, nmo=nmo)
             should_rebuild = nao /= nrg .OR. nao /= ncg
          END IF
@@ -333,9 +326,7 @@ CONTAINS
 
          CALL cp_fm_struct_create(fmstruct, nrow_global=nao, &
                                   ncol_global=nao, para_env=para_env, &
-                                  context=blacs_env, &
-                                  nrow_block=nrow_block, &
-                                  ncol_block=ncol_block)
+                                  context=blacs_env)
          CALL fm_pool_create(mpools%ao_ao_fm_pools(1)%pool, fmstruct)
          CALL cp_fm_struct_release(fmstruct)
          DO ispin = 2, SIZE(mos)
@@ -352,8 +343,7 @@ CONTAINS
          IF (.NOT. should_rebuild) THEN
             fmstruct => fm_pool_get_el_struct(mpools%ao_mo_fm_pools(ispin) &
                                               %pool)
-            CALL cp_fm_struct_get(fmstruct, nrow_global=nrg, &
-                                  ncol_global=ncg)
+            CALL cp_fm_struct_get(fmstruct, nrow_global=nrg, ncol_global=ncg)
             CALL get_mo_set(mos(1), nao=nao, nmo=nmo)
             should_rebuild = nao /= nrg .OR. nmo /= ncg
          END IF
@@ -366,9 +356,7 @@ CONTAINS
          IF (max_nmo == min_nmo) THEN
             CALL cp_fm_struct_create(fmstruct, nrow_global=nao, &
                                      ncol_global=max_nmo, para_env=para_env, &
-                                     context=blacs_env, &
-                                     nrow_block=nrow_block, &
-                                     ncol_block=ncol_block)
+                                     context=blacs_env)
             CALL fm_pool_create(mpools%ao_mo_fm_pools(1)%pool, fmstruct)
             CALL cp_fm_struct_release(fmstruct)
             DO ispin = 2, SIZE(mos)
@@ -380,9 +368,7 @@ CONTAINS
                CALL get_mo_set(mos(ispin), nmo=nmo, nao=nao)
                CALL cp_fm_struct_create(fmstruct, nrow_global=nao, &
                                         ncol_global=nmo, para_env=para_env, &
-                                        context=blacs_env, &
-                                        nrow_block=nrow_block, &
-                                        ncol_block=ncol_block)
+                                        context=blacs_env)
                CALL fm_pool_create(mpools%ao_mo_fm_pools(ispin)%pool, &
                                    fmstruct)
                CALL cp_fm_struct_release(fmstruct)
@@ -411,9 +397,7 @@ CONTAINS
          IF (max_nmo == min_nmo) THEN
             CALL cp_fm_struct_create(fmstruct, nrow_global=max_nmo, &
                                      ncol_global=max_nmo, para_env=para_env, &
-                                     context=blacs_env, &
-                                     nrow_block=nrow_block, &
-                                     ncol_block=ncol_block)
+                                     context=blacs_env)
             CALL fm_pool_create(mpools%mo_mo_fm_pools(1)%pool, &
                                 fmstruct)
             CALL cp_fm_struct_release(fmstruct)
@@ -427,9 +411,7 @@ CONTAINS
                CALL get_mo_set(mos(ispin), nmo=nmo, nao=nao)
                CALL cp_fm_struct_create(fmstruct, nrow_global=nmo, &
                                         ncol_global=nmo, para_env=para_env, &
-                                        context=blacs_env, &
-                                        nrow_block=nrow_block, &
-                                        ncol_block=ncol_block)
+                                        context=blacs_env)
                CALL fm_pool_create(mpools%mo_mo_fm_pools(ispin)%pool, &
                                    fmstruct)
                CALL cp_fm_struct_release(fmstruct)
@@ -460,9 +442,7 @@ CONTAINS
             IF (nspins == 1 .OR. nmosub(1) == nmosub(2)) THEN
                CALL cp_fm_struct_create(fmstruct, nrow_global=nao, &
                                         ncol_global=nmosub(1), para_env=para_env, &
-                                        context=blacs_env, &
-                                        nrow_block=nrow_block, &
-                                        ncol_block=ncol_block)
+                                        context=blacs_env)
                CALL fm_pool_create(mpools%ao_mosub_fm_pools(1)%pool, fmstruct)
                CALL cp_fm_struct_release(fmstruct)
                DO ispin = 2, SIZE(mos)
@@ -474,9 +454,7 @@ CONTAINS
                   CALL get_mo_set(mos(ispin), nao=nao)
                   CALL cp_fm_struct_create(fmstruct, nrow_global=nao, &
                                            ncol_global=nmosub(1), para_env=para_env, &
-                                           context=blacs_env, &
-                                           nrow_block=nrow_block, &
-                                           ncol_block=ncol_block)
+                                           context=blacs_env)
                   CALL fm_pool_create(mpools%ao_mosub_fm_pools(ispin)%pool, &
                                       fmstruct)
                   CALL cp_fm_struct_release(fmstruct)
@@ -504,9 +482,7 @@ CONTAINS
             IF (nspins == 1 .OR. nmosub(1) == nmosub(2)) THEN
                CALL cp_fm_struct_create(fmstruct, nrow_global=nmosub(1), &
                                         ncol_global=nmosub(1), para_env=para_env, &
-                                        context=blacs_env, &
-                                        nrow_block=nrow_block, &
-                                        ncol_block=ncol_block)
+                                        context=blacs_env)
                CALL fm_pool_create(mpools%mosub_mosub_fm_pools(1)%pool, &
                                    fmstruct)
                CALL cp_fm_struct_release(fmstruct)
@@ -519,9 +495,7 @@ CONTAINS
                   NULLIFY (mpools%mosub_mosub_fm_pools(ispin)%pool)
                   CALL cp_fm_struct_create(fmstruct, nrow_global=nmosub(ispin), &
                                            ncol_global=nmosub(ispin), para_env=para_env, &
-                                           context=blacs_env, &
-                                           nrow_block=nrow_block, &
-                                           ncol_block=ncol_block)
+                                           context=blacs_env)
                   CALL fm_pool_create(mpools%mosub_mosub_fm_pools(ispin)%pool, &
                                       fmstruct)
                   CALL cp_fm_struct_release(fmstruct)

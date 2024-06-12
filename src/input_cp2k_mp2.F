@@ -37,7 +37,7 @@ MODULE input_cp2k_mp2
       ot_precond_s_inverse, ri_default, ri_rpa_g0w0_crossing_bisection, &
       ri_rpa_g0w0_crossing_newton, ri_rpa_g0w0_crossing_z_shot, soc_lda, soc_none, soc_pbe, &
       wfc_mm_style_gemm, wfc_mm_style_syrk, z_solver_cg, z_solver_pople, z_solver_richardson, &
-      z_solver_sd
+      z_solver_sd, rpa_exchange_none, rpa_exchange_axk, rpa_exchange_sosex
    USE input_cp2k_hfx, ONLY: create_hfx_section
    USE input_cp2k_kpoints, ONLY: create_kpoint_set_section
    USE input_keyword_types, ONLY: keyword_create, &
@@ -561,21 +561,10 @@ CONTAINS
 
       CALL keyword_create( &
          keyword, __LOCATION__, &
-         name="RI_AXK", &
-         variants=(/"AXK"/), &
-         description="Decide whether to perform an RPA-AXK calculation.", &
-         usage="RI_AXK", &
-         default_l_val=.FALSE., &
-         lone_keyword_l_val=.TRUE.)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create( &
-         keyword, __LOCATION__, &
          name="RSE", &
          variants=(/"SE"/), &
          description="Decide whether to add singles correction.", &
-         usage="RI_AXK", &
+         usage="RSE", &
          default_l_val=.FALSE., &
          lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
@@ -598,7 +587,7 @@ CONTAINS
       CALL keyword_create( &
          keyword, __LOCATION__, &
          name="SCALE_RPA", &
-         description="Scales RPA energy contributions (RPA, AXK).", &
+         description="Scales RPA energy contributions (RPA, exchange correction).", &
          usage="SCALE_RPA 1.0", &
          default_r_val=1.0_dp)
       CALL section_add_keyword(section, keyword)
@@ -623,8 +612,8 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
-      ! here we generate a RI_AXK subsection
-      CALL create_ri_axk(subsection)
+      ! here we the RPA exchange section
+      CALL create_rpa_exchange(subsection)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
@@ -634,20 +623,50 @@ CONTAINS
 !> \brief ...
 !> \param section ...
 ! **************************************************************************************************
-   SUBROUTINE create_ri_axk(section)
+   SUBROUTINE create_rpa_exchange(section)
       TYPE(section_type), POINTER                        :: section
 
-      !TYPE(section_type), POINTER                        :: subsection
+      TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, __LOCATION__, name="RI_AXK", &
-                          description="Parameters influencing the RI-RPA-AXK method", &
-                          n_keywords=0, n_subsections=0, repeats=.FALSE., &
-                          citations=(/Bates2013/))
+      CALL section_create(section, __LOCATION__, name="EXCHANGE_CORRECTION", &
+                          description="Parameters influencing exchange corrections to RPA. No gradients available.", &
+                          n_keywords=3, n_subsections=1, repeats=.FALSE.)
 
-      !NULLIFY (keyword, subsection)
+      NULLIFY (keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="_SECTION_PARAMETERS_", &
+                          description="Choose the kind of exchange correction.", &
+                          usage="&EXCHANGE_CORRECTION AXK", &
+                          enum_c_vals=s2a("NONE", "AXK", "SOSEX"), &
+                          enum_i_vals=(/rpa_exchange_none, rpa_exchange_axk, rpa_exchange_sosex/), &
+                          enum_desc=s2a("Apply no exchange correction.", &
+                                        "Apply Approximate eXchange Kernel (AXK) correction.", &
+                                        "Apply Second Order Screened eXchange (SOSEX) correction."), &
+                          default_i_val=rpa_exchange_none)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
 
-   END SUBROUTINE create_ri_axk
+      CALL keyword_create( &
+         keyword, __LOCATION__, &
+         name="BLOCK_SIZE", &
+         description="Choose the block size of the contraction step. Larger block sizes improve performance but "// &
+         "require more memory (quadratically!, number of stored elements: $o^2\cdot N_B^2$). "// &
+         "Nonpositive numbers turn off blocking.", &
+         usage="BLOCK_SIZE 1", &
+         default_i_val=1)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create( &
+         keyword, __LOCATION__, &
+         name="USE_HFX_IMPLEMENTATION", &
+         description="Use a HF-based implementation with RI_RPA%HF section. Recommended for large systems.", &
+         usage="USE_HFX_IMPLEMENTATION T", &
+         default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+   END SUBROUTINE create_rpa_exchange
 
 ! **************************************************************************************************
 !> \brief ...

@@ -215,8 +215,7 @@ CONTAINS
       LOGICAL, PARAMETER                                 :: check_gradient = .FALSE., &
                                                             do_symm = .FALSE.
 
-      INTEGER                                            :: handle, iounit, ncol_block, ncol_global, &
-                                                            nrow_block, nrow_global
+      INTEGER                                            :: handle, iounit, ncol_global, nrow_global
       REAL(KIND=dp), DIMENSION(:), POINTER               :: occupation_numbers, scaling_factor
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp
       TYPE(cp_fm_type)                                   :: gradient, h_block, h_block_t, &
@@ -228,9 +227,7 @@ CONTAINS
 
       CALL cp_fm_get_info(matrix=mo_set%mo_coeff, &
                           ncol_global=ncol_global, &
-                          nrow_global=nrow_global, &
-                          nrow_block=nrow_block, &
-                          ncol_block=ncol_block)
+                          nrow_global=nrow_global)
 
       CALL cp_fm_create(weighted_vectors, mo_set%mo_coeff%matrix_struct, "weighted_vectors")
       CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=ncol_global, ncol_global=ncol_global, &

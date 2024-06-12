@@ -77,10 +77,7 @@ MODULE cp_fm_types
              cp_fm_write_info, &
              cp_fm_to_fm_submat_general ! copy matrix across different contexts
 
-   PUBLIC :: cp_fm_indxg2p, &
-             cp_fm_indxg2l, &
-             cp_fm_indxl2g, &
-             cp_fm_pilaenv
+   PUBLIC :: cp_fm_pilaenv
 
    INTERFACE cp_fm_to_fm
       MODULE PROCEDURE cp_fm_to_fm_matrix, & ! a full matrix
@@ -2256,8 +2253,7 @@ CONTAINS
 
       CHARACTER(LEN=21)                        :: my_value_format
       INTEGER                                  :: handle, i, j, max_block, &
-                                                  ncol_global, nrow_global, &
-                                                  nrow_block
+                                                  ncol_global, nrow_global
       TYPE(mp_para_env_type), POINTER          :: para_env
 #if defined(__SCALAPACK)
       INTEGER                                  :: i_block, icol_local, &
@@ -2274,7 +2270,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
       CALL cp_fm_get_info(fm, nrow_global=nrow_global, ncol_global=ncol_global, ncol_block=max_block, &
-                          nrow_block=nrow_block, para_env=para_env)
+                          para_env=para_env)
 
       IF (PRESENT(value_format)) THEN
          CPASSERT(LEN_TRIM(ADJUSTL(value_format)) < 11)
@@ -2426,184 +2422,6 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE cp_fm_read_unformatted
-
-! **************************************************************************************************
-!> \brief wrapper to scalapack function INDXG2P that computes the process
-!>         coordinate which possesses the entry of a distributed matrix specified
-!>         by a global index INDXGLOB.
-!>
-!>  Arguments
-!>  =========
-!>
-!>  INDXGLOB  (global input) INTEGER
-!>            The global index of the element.
-!>
-!>  NB        (global input) INTEGER
-!>            Block size, size of the blocks the distributed matrix is
-!>            split into.
-!>
-!>  IPROC     (local dummy) INTEGER
-!>            Dummy argument in this case in order to unify the calling
-!>            sequence of the tool-routines.
-!>
-!>  ISRCPROC  (global input) INTEGER
-!>            The coordinate of the process that possesses the first
-!>            row/column of the distributed matrix.
-!>
-!>  NPROCS    (global input) INTEGER
-!>            The total number processes over which the matrix is
-!>            distributed.
-!>
-!> \param INDXGLOB ...
-!> \param NB ...
-!> \param IPROC ...
-!> \param ISRCPROC ...
-!> \param NPROCS ...
-!> \return ...
-!> \author Mauro Del Ben [MDB] - 12.2012
-! **************************************************************************************************
-   FUNCTION cp_fm_indxg2p(INDXGLOB, NB, IPROC, ISRCPROC, NPROCS) RESULT(G2P)
-      INTEGER, INTENT(IN)                      :: INDXGLOB, NB, IPROC, ISRCPROC, NPROCS
-      INTEGER                                  :: G2P
-
-#if defined(__SCALAPACK)
-      INTEGER, EXTERNAL :: indxg2p
-#endif
-
-#if defined(__SCALAPACK)
-
-      G2P = indxg2p(INDXGLOB, NB, IPROC, ISRCPROC, NPROCS)
-
-#else
-      MARK_USED(indxglob)
-      MARK_USED(iproc)
-      MARK_USED(isrcproc)
-      MARK_USED(nb)
-      MARK_USED(nprocs)
-
-      G2P = 0
-
-#endif
-
-   END FUNCTION cp_fm_indxg2p
-
-! **************************************************************************************************
-!> \brief wrapper to scalapack function INDXG2L that computes the local index
-!>         of a distributed matrix entry pointed to by the global index INDXGLOB.
-!>
-!>  Arguments
-!>  =========
-!>
-!>  INDXGLOB  (global input) INTEGER
-!>            The global index of the distributed matrix entry.
-!>
-!>  NB        (global input) INTEGER
-!>            Block size, size of the blocks the distributed matrix is
-!>            split into.
-!>
-!>  IPROC     (local dummy) INTEGER
-!>            Dummy argument in this case in order to unify the calling
-!>            sequence of the tool-routines.
-!>
-!>  ISRCPROC  (local dummy) INTEGER
-!>            Dummy argument in this case in order to unify the calling
-!>            sequence of the tool-routines.
-!>
-!>  NPROCS    (global input) INTEGER
-!>            The total number processes over which the distributed
-!>            matrix is distributed.
-!>
-!> \param INDXGLOB ...
-!> \param NB ...
-!> \param IPROC ...
-!> \param ISRCPROC ...
-!> \param NPROCS ...
-!> \return ...
-!> \author Mauro Del Ben [MDB] - 12.2012
-! **************************************************************************************************
-   FUNCTION cp_fm_indxg2l(INDXGLOB, NB, IPROC, ISRCPROC, NPROCS) RESULT(G2L)
-      INTEGER, INTENT(IN)                      :: INDXGLOB, NB, IPROC, ISRCPROC, NPROCS
-      INTEGER                                  :: G2L
-
-#if defined(__SCALAPACK)
-      INTEGER, EXTERNAL :: indxg2l
-#endif
-
-#if defined(__SCALAPACK)
-
-      G2L = indxg2l(INDXGLOB, NB, IPROC, ISRCPROC, NPROCS)
-
-#else
-      MARK_USED(iproc)
-      MARK_USED(isrcproc)
-      MARK_USED(nb)
-      MARK_USED(nprocs)
-      MARK_USED(indxglob)
-
-      G2L = INDXGLOB
-
-#endif
-
-   END FUNCTION cp_fm_indxg2l
-
-! **************************************************************************************************
-!> \brief wrapper to scalapack function INDXL2G that computes the global index
-!>         of a distributed matrix entry pointed to by the local index INDXLOC
-!>         of the process indicated by IPROC.
-!>
-!>  Arguments
-!>  =========
-!>
-!>  INDXLOC   (global input) INTEGER
-!>            The local index of the distributed matrix entry.
-!>
-!>  NB        (global input) INTEGER
-!>            Block size, size of the blocks the distributed matrix is
-!>            split into.
-!>
-!>  IPROC     (local input) INTEGER
-!>            The coordinate of the process whose local array row or
-!>            column is to be determined.
-!>
-!>  ISRCPROC  (global input) INTEGER
-!>            The coordinate of the process that possesses the first
-!>            row/column of the distributed matrix.
-!>
-!>  NPROCS    (global input) INTEGER
-!>            The total number processes over which the distributed
-!>            matrix is distributed.
-!>
-!> \param INDXLOC ...
-!> \param NB ...
-!> \param IPROC ...
-!> \param ISRCPROC ...
-!> \param NPROCS ...
-!> \return ...
-!> \author Mauro Del Ben [MDB] - 12.2012
-! **************************************************************************************************
-   FUNCTION cp_fm_indxl2g(INDXLOC, NB, IPROC, ISRCPROC, NPROCS) RESULT(L2G)
-      INTEGER, INTENT(IN)                      :: INDXLOC, NB, IPROC, ISRCPROC, NPROCS
-      INTEGER                                  :: L2G
-
-#if defined(__SCALAPACK)
-      INTEGER, EXTERNAL :: indxl2g
-#endif
-
-#if defined(__SCALAPACK)
-
-      L2G = indxl2g(INDXLOC, NB, IPROC, ISRCPROC, NPROCS)
-
-#else
-      MARK_USED(iproc)
-      MARK_USED(isrcproc)
-      MARK_USED(nb)
-      MARK_USED(nprocs)
-
-      L2G = INDXLOC
-
-#endif
-
-   END FUNCTION cp_fm_indxl2g
 
 ! **************************************************************************************************
 !> \brief ...

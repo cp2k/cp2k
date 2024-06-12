@@ -105,7 +105,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), POINTER     :: diag
 
 #if defined(__SCALAPACK)
-      INTEGER, EXTERNAL                        :: indxl2g
       INTEGER                                  :: myprow, nprow, npcol, nrow_local, nrow_block, irow_local
       INTEGER, DIMENSION(9)                    :: desca
 #endif
@@ -134,7 +133,7 @@ CONTAINS
       nrow_local = matrix_lu%matrix_struct%nrow_locals(myprow)
       nrow_block = matrix_lu%matrix_struct%nrow_block
       DO irow_local = 1, nrow_local
-         i = indxl2g(irow_local, nrow_block, myprow, matrix_lu%matrix_struct%first_p_pos(1), nprow)
+         i = matrix_lu%matrix_struct%row_indices(irow_local)
          IF (ipivot(irow_local) /= i) P = P + 1
       END DO
       CALL matrix_lu%matrix_struct%para_env%sum(P)
@@ -1305,7 +1304,6 @@ CONTAINS
                                                   ncol_block, ncol_local, &
                                                   nrow_block, nrow_local
       INTEGER, DIMENSION(9)                    :: desca, descc
-      INTEGER, EXTERNAL                        :: indxl2g
       REAL(KIND=dp), DIMENSION(:, :), POINTER   :: c
       REAL(KIND=sp), DIMENSION(:, :), POINTER   :: c_sp
 #endif
@@ -1342,11 +1340,9 @@ CONTAINS
       descc(:) = matrix%matrix_struct%descriptor(:)
 
       DO icol_local = 1, ncol_local
-         icol_global = indxl2g(icol_local, ncol_block, mypcol, &
-                               matrix%matrix_struct%first_p_pos(2), npcol)
+         icol_global = matrix%matrix_struct%col_indices(icol_local)
          DO irow_local = 1, nrow_local
-            irow_global = indxl2g(irow_local, nrow_block, myprow, &
-                                  matrix%matrix_struct%first_p_pos(1), nprow)
+            irow_global = matrix%matrix_struct%row_indices(irow_local)
             IF (irow_global > icol_global) THEN
                IF (matrix%use_sp) THEN
                   c_sp(irow_local, icol_local) = 0.0_sp

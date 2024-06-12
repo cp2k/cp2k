@@ -23,18 +23,14 @@ MODULE mp2_types
    USE input_constants,                 ONLY: &
         do_eri_mme, eri_default, gw_pade_approx, kp_weights_W_auto, mp2_method_direct, &
         mp2_method_gpw, mp2_method_none, mp2_ri_optimize_basis, ri_mp2_laplace, ri_mp2_method_gpw, &
-        ri_rpa_g0w0_crossing_z_shot, ri_rpa_method_gpw, soc_none, wfc_mm_style_gemm
+        ri_rpa_g0w0_crossing_z_shot, ri_rpa_method_gpw, rpa_exchange_none, soc_none, &
+        wfc_mm_style_gemm
    USE input_section_types,             ONLY: section_vals_release,&
                                               section_vals_type
-   USE iso_c_binding,                   ONLY: c_null_ptr,&
-                                              c_ptr
    USE kinds,                           ONLY: dp
    USE kpoint_types,                    ONLY: kpoint_type
    USE libint_2c_3c,                    ONLY: libint_potential_type
-   USE local_gemm_api,                  ONLY: LOCAL_GEMM_PU_GPU,&
-                                              local_gemm_create,&
-                                              local_gemm_destroy,&
-                                              local_gemm_set_op_threshold_gpu
+   USE local_gemm_api,                  ONLY: local_gemm_ctxt_type
    USE message_passing,                 ONLY: mp_request_type
    USE qs_force_types,                  ONLY: qs_force_type
    USE qs_p_env_types,                  ONLY: qs_p_env_type
@@ -105,7 +101,7 @@ MODULE mp2_types
       LOGICAL                                            :: big_send = .FALSE.
    END TYPE
 
-   TYPE mp2_gpw_r3d_rs_type
+   TYPE mp2_gpw_type
       REAL(KIND=dp)                                      :: eps_grid = 0.0_dp, &
                                                             eps_filter = 0.0_dp, &
                                                             eps_pgf_orb_S = 0.0_dp
@@ -113,7 +109,7 @@ MODULE mp2_types
       REAL(KIND=dp)                                      :: cutoff = 0.0_dp, &
                                                             relative_cutoff = 0.0_dp
       INTEGER                                            :: size_lattice_sum = 0
-   END TYPE mp2_gpw_r3d_rs_type
+   END TYPE
 
    TYPE ri_mp2_type
       INTEGER                                            :: block_size = 0, &
@@ -132,12 +128,14 @@ MODULE mp2_types
                                                             minimax_quad = .FALSE., &
                                                             do_ri_g0w0 = .FALSE., &
                                                             do_admm = .FALSE., &
-                                                            do_ri_axk = .FALSE., &
                                                             do_rse = .FALSE., &
                                                             print_dgemm_info = .FALSE.
-      TYPE(dbcsr_type), POINTER                          :: mo_coeff_o => NULL(), &
-                                                            mo_coeff_v => NULL()
-      REAL(KIND=dp)                                      :: ener_axk = 0.0_dp, &
+      TYPE(dbcsr_type), DIMENSION(:), ALLOCATABLE        :: mo_coeff_o, &
+                                                            mo_coeff_v
+      INTEGER                                            :: exchange_correction = rpa_exchange_none, &
+                                                            exchange_block_size = -1
+      LOGICAL                                            :: use_hfx_implementation = .FALSE.
+      REAL(KIND=dp)                                      :: ener_exchange = 0.0_dp, &
                                                             rse_corr_diag = 0.0_dp, &
                                                             rse_corr = 0.0_dp, &
                                                             scale_rpa = 0.0_dp
@@ -318,7 +316,7 @@ MODULE mp2_types
       TYPE(mp2_laplace_type)                             :: ri_laplace = mp2_laplace_type()
       TYPE(mp2_direct_type)                              :: direct_canonical = mp2_direct_type()
       TYPE(libint_potential_type)                        :: potential_parameter = libint_potential_type()
-      TYPE(mp2_gpw_r3d_rs_type)                                 :: mp2_gpw = mp2_gpw_r3d_rs_type()
+      TYPE(mp2_gpw_type)                                 :: mp2_gpw = mp2_gpw_type()
       TYPE(ri_mp2_type)                                  :: ri_mp2 = ri_mp2_type()
       TYPE(ri_rpa_type)                                  :: ri_rpa = ri_rpa_type()
       ! There is a bug with some older compilers preventing requiring an explicit initialization of allocatable components
@@ -368,7 +366,7 @@ MODULE mp2_types
       LOGICAL                                            :: do_svd = .FALSE.
       REAL(KIND=dp)                                      :: eps_range = 0.0_dp
       TYPE(libint_potential_type)                        :: ri_metric = libint_potential_type()
-      TYPE(C_ptr)                                        :: local_gemm_ctx = C_NULL_PTR
+      TYPE(local_gemm_ctxt_type)                         :: local_gemm_ctx = local_gemm_ctxt_type()
       REAL(dp)                                           :: e_gap = 0.0_dp, &
                                                             e_range = 0.0_dp
    END TYPE mp2_type
@@ -424,7 +422,7 @@ CONTAINS
       IF (ASSOCIATED(mp2_env%ri_rpa_im_time%weights_cos_tf_t_to_w)) DEALLOCATE (mp2_env%ri_rpa_im_time%weights_cos_tf_t_to_w)
       IF (ASSOCIATED(mp2_env%ri_rpa_im_time%weights_cos_tf_w_to_t)) DEALLOCATE (mp2_env%ri_rpa_im_time%weights_cos_tf_w_to_t)
 
-      CALL local_gemm_destroy(mp2_env%local_gemm_ctx)
+      CALL mp2_env%local_gemm_ctx%destroy()
 
       CALL timestop(handle)
 
@@ -446,12 +444,6 @@ CONTAINS
       CPASSERT(.NOT. ASSOCIATED(mp2_env))
 
       ALLOCATE (mp2_env)
-
-      ! these two functions are empty if spla is build without gpu support and
-      ! OFFLOAD_GEMM is not given at compilation time
-
-      CALL local_gemm_create(mp2_env%local_gemm_ctx, LOCAL_GEMM_PU_GPU)
-      CALL local_gemm_set_op_threshold_gpu(mp2_env%local_gemm_ctx, 128*128*128*2)
 
       NULLIFY (mp2_env%ri_rpa%x_data)
 

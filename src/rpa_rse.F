@@ -531,6 +531,7 @@ CONTAINS
       rse_corr = 0.0_dp
 
       DO ispin = 1, nspins
+         IF (homo(ispin) <= 0 .OR. homo(ispin) >= dimen) CYCLE
          ! Create the occupied-occupied and virtual-virtual blocks, eigenvectors
          NULLIFY (fm_struct_tmp)
          CALL cp_fm_struct_create(fm_struct_tmp, para_env=para_env, context=blacs_env, &

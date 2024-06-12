@@ -45,7 +45,8 @@ MODULE basis_set_types
                                               nsoset
    USE orbital_symbols,                 ONLY: cgf_symbol,&
                                               sgf_symbol
-   USE orbital_transformation_matrices, ONLY: orbtramat
+   USE orbital_transformation_matrices, ONLY: init_spherical_harmonics,&
+                                              orbtramat
    USE sto_ng,                          ONLY: get_sto_ng
    USE string_utilities,                ONLY: integer_to_string,&
                                               remove_word,&
@@ -822,6 +823,15 @@ CONTAINS
 
       gto_basis_set%sphi = 0.0_dp
       IF (n .GT. 0) THEN
+         lmax = -1
+         ! Ensure proper setup of orbtramat
+         DO iset = 1, gto_basis_set%nset
+            DO ishell = 1, gto_basis_set%nshell(iset)
+               lmax = MAX(lmax, gto_basis_set%l(ishell, iset))
+            END DO
+         END DO
+         CALL init_spherical_harmonics(lmax, -1)
+
          DO iset = 1, gto_basis_set%nset
             DO ishell = 1, gto_basis_set%nshell(iset)
                l = gto_basis_set%l(ishell, iset)

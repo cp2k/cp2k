@@ -15,19 +15,15 @@ MODULE rpa_communication
    USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
                                               cp_blacs_env_release,&
                                               cp_blacs_env_type
-   USE cp_dbcsr_api,                    ONLY: dbcsr_p_type,&
-                                              dbcsr_type,&
+   USE cp_dbcsr_api,                    ONLY: dbcsr_type,&
                                               dbcsr_type_no_symmetry
    USE cp_dbcsr_operations,             ONLY: copy_fm_to_dbcsr,&
-                                              cp_dbcsr_m_by_n_from_template,&
-                                              dbcsr_allocate_matrix_set
+                                              cp_dbcsr_m_by_n_from_template
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_get_info,&
-                                              cp_fm_indxg2l,&
-                                              cp_fm_indxg2p,&
                                               cp_fm_release,&
                                               cp_fm_set_all,&
                                               cp_fm_type
@@ -80,11 +76,11 @@ CONTAINS
                                 homo, virtual, mo_coeff_o, ngroup, my_group_L_start, my_group_L_end, &
                                 my_group_L_size)
       TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_mat_Gamma_3
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: dbcsr_Gamma_3
+      TYPE(dbcsr_type), ALLOCATABLE, DIMENSION(:)        :: dbcsr_Gamma_3
       TYPE(mp_para_env_type), INTENT(IN)                 :: para_env_RPA
       TYPE(mp_para_env_type), INTENT(IN), POINTER        :: para_env_sub
       INTEGER, INTENT(IN)                                :: homo, virtual
-      TYPE(dbcsr_type), POINTER                          :: mo_coeff_o
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: mo_coeff_o
       INTEGER, INTENT(IN)                                :: ngroup, my_group_L_start, &
                                                             my_group_L_end, my_group_L_size
 
@@ -92,10 +88,10 @@ CONTAINS
 
       INTEGER :: dimen_ia, dummy_proc, handle, i_global, i_local, iaia, iib, iii, itmp(2), &
          j_global, j_local, jjb, jjj, kkb, my_ia_end, my_ia_size, my_ia_start, mypcol, myprow, &
-         ncol_block, ncol_local, npcol, nprow, nrow_block, nrow_local, number_of_rec, &
-         number_of_send, proc_receive, proc_send, proc_shift, rec_counter, rec_iaia_end, &
-         rec_iaia_size, rec_iaia_start, rec_pcol, rec_prow, ref_send_pcol, ref_send_prow, &
-         send_counter, send_pcol, send_prow, size_rec_buffer, size_send_buffer
+         ncol_local, npcol, nprow, nrow_local, number_of_rec, number_of_send, proc_receive, &
+         proc_send, proc_shift, rec_counter, rec_iaia_end, rec_iaia_size, rec_iaia_start, &
+         rec_pcol, rec_prow, ref_send_pcol, ref_send_prow, send_counter, send_pcol, send_prow, &
+         size_rec_buffer, size_send_buffer
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: iii_vet, map_rec_size, map_send_size
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: grid_2_mepos, grid_ref_2_send_pos, &
                                                             group_grid_2_mepos, indices_map_my, &
@@ -152,9 +148,7 @@ CONTAINS
                           nrow_local=nrow_local, &
                           ncol_local=ncol_local, &
                           row_indices=row_indices, &
-                          col_indices=col_indices, &
-                          nrow_block=nrow_block, &
-                          ncol_block=ncol_block)
+                          col_indices=col_indices)
       myprow = fm_ia%matrix_struct%context%mepos(1)
       mypcol = fm_ia%matrix_struct%context%mepos(2)
       nprow = fm_ia%matrix_struct%context%num_pe(1)
@@ -177,10 +171,8 @@ CONTAINS
       DO iaia = my_ia_start, my_ia_end
          i_global = (iaia - 1)/virtual + 1
          j_global = MOD(iaia - 1, virtual) + 1
-         send_prow = cp_fm_indxg2p(i_global, nrow_block, dummy_proc, &
-                                   fm_ia%matrix_struct%first_p_pos(1), nprow)
-         send_pcol = cp_fm_indxg2p(j_global, ncol_block, dummy_proc, &
-                                   fm_ia%matrix_struct%first_p_pos(2), npcol)
+         send_prow = fm_ia%matrix_struct%g2p_row(i_global)
+         send_pcol = fm_ia%matrix_struct%g2p_col(j_global)
          proc_send = grid_2_mepos(send_prow, send_pcol)
          map_send_size(proc_send) = map_send_size(proc_send) + 1
       END DO
@@ -271,16 +263,12 @@ CONTAINS
             DO iaia = rec_iaia_start, rec_iaia_end
                i_global = (iaia - 1)/virtual + 1
                j_global = MOD(iaia - 1, virtual) + 1
-               rec_prow = cp_fm_indxg2p(i_global, nrow_block, dummy_proc, &
-                                        fm_ia%matrix_struct%first_p_pos(1), nprow)
-               rec_pcol = cp_fm_indxg2p(j_global, ncol_block, dummy_proc, &
-                                        fm_ia%matrix_struct%first_p_pos(2), npcol)
+               rec_prow = fm_ia%matrix_struct%g2p_row(i_global)
+               rec_pcol = fm_ia%matrix_struct%g2p_col(j_global)
                IF (grid_2_mepos(rec_prow, rec_pcol) /= para_env_sub%mepos) CYCLE
                iii = iii + 1
-               i_local = cp_fm_indxg2l(i_global, nrow_block, dummy_proc, &
-                                       fm_ia%matrix_struct%first_p_pos(1), nprow)
-               j_local = cp_fm_indxg2l(j_global, ncol_block, dummy_proc, &
-                                       fm_ia%matrix_struct%first_p_pos(2), npcol)
+               i_local = fm_ia%matrix_struct%g2l_row(i_global)
+               j_local = fm_ia%matrix_struct%g2l_col(j_global)
                indices_rec(rec_counter)%map(1, iii) = i_local
                indices_rec(rec_counter)%map(2, iii) = j_local
             END DO
@@ -296,26 +284,19 @@ CONTAINS
          DO iaia = my_ia_start, my_ia_end
             i_global = (iaia - 1)/virtual + 1
             j_global = MOD(iaia - 1, virtual) + 1
-            rec_prow = cp_fm_indxg2p(i_global, nrow_block, dummy_proc, &
-                                     fm_ia%matrix_struct%first_p_pos(1), nprow)
-            rec_pcol = cp_fm_indxg2p(j_global, ncol_block, dummy_proc, &
-                                     fm_ia%matrix_struct%first_p_pos(2), npcol)
+            rec_prow = fm_ia%matrix_struct%g2p_row(i_global)
+            rec_pcol = fm_ia%matrix_struct%g2p_col(j_global)
             IF (grid_2_mepos(rec_prow, rec_pcol) /= para_env_sub%mepos) CYCLE
             iii = iii + 1
-            i_local = cp_fm_indxg2l(i_global, nrow_block, dummy_proc, &
-                                    fm_ia%matrix_struct%first_p_pos(1), nprow)
-            j_local = cp_fm_indxg2l(j_global, ncol_block, dummy_proc, &
-                                    fm_ia%matrix_struct%first_p_pos(2), npcol)
+            i_local = fm_ia%matrix_struct%g2l_row(i_global)
+            j_local = fm_ia%matrix_struct%g2l_col(j_global)
             indices_map_my(1, iii) = i_local
             indices_map_my(2, iii) = j_local
          END DO
       END IF
 
       ! Allocate dbcsr_Gamma_3
-      NULLIFY (dbcsr_Gamma_3)
-
-      !CALL dbcsr_allocate_matrix_set(dbcsr_Gamma_3, ncol_local)
-      CALL dbcsr_allocate_matrix_set(dbcsr_Gamma_3, my_group_L_size)
+      ALLOCATE (dbcsr_Gamma_3(my_group_L_size))
 
       ! auxiliary vector of indices for the send buffer
       ALLOCATE (iii_vet(number_of_send))
@@ -347,10 +328,8 @@ CONTAINS
          DO iaia = my_ia_start, my_ia_end
             i_global = (iaia - 1)/virtual + 1
             j_global = MOD(iaia - 1, virtual) + 1
-            send_prow = cp_fm_indxg2p(i_global, nrow_block, dummy_proc, &
-                                      fm_ia%matrix_struct%first_p_pos(1), nprow)
-            send_pcol = cp_fm_indxg2p(j_global, ncol_block, dummy_proc, &
-                                      fm_ia%matrix_struct%first_p_pos(2), npcol)
+            send_prow = fm_ia%matrix_struct%g2p_row(i_global)
+            send_pcol = fm_ia%matrix_struct%g2p_col(j_global)
             proc_send = grid_2_mepos(send_prow, send_pcol)
             ! we don't need to send to ourselves
             IF (grid_2_mepos(send_prow, send_pcol) == para_env_sub%mepos) THEN
@@ -402,11 +381,9 @@ CONTAINS
          CALL mp_waitall(req_send(:))
 
          ! now create the DBCSR matrix and copy fm_ia into it
-         ALLOCATE (dbcsr_Gamma_3(kkB)%matrix)
-         CALL cp_dbcsr_m_by_n_from_template(dbcsr_Gamma_3(kkB)%matrix, &
-                                            template=mo_coeff_o, &
+         CALL cp_dbcsr_m_by_n_from_template(dbcsr_Gamma_3(kkB), template=mo_coeff_o, &
                                             m=homo, n=virtual, sym=dbcsr_type_no_symmetry)
-         CALL copy_fm_to_dbcsr(fm_ia, dbcsr_Gamma_3(kkB)%matrix, keep_sparsity=.FALSE.)
+         CALL copy_fm_to_dbcsr(fm_ia, dbcsr_Gamma_3(kkB), keep_sparsity=.FALSE.)
 
       END DO
 

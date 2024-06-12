@@ -1,6 +1,6 @@
 &GLOBAL
   PRINT_LEVEL MEDIUM
-  PROJECT H2O-rpa-axk-lr
+  PROJECT RPA_AXK_H2O
   RUN_TYPE ENERGY
   &TIMINGS
     THRESHOLD 0.01
@@ -17,16 +17,15 @@
       REL_CUTOFF 20
     &END MGRID
     &POISSON
-      PERIODIC NONE
+      PERIODIC XYZ
       POISSON_SOLVER WAVELET
     &END POISSON
     &QS
-      EPS_DEFAULT 1.0E-15
-      EPS_PGF_ORB 1.0E-30
+      EPS_DEFAULT 1.0E-11
       METHOD GPW
     &END QS
     &SCF
-      EPS_SCF 1.0E-7
+      EPS_SCF 1.0E-6
       MAX_SCF 100
       SCF_GUESS ATOMIC
       &PRINT
@@ -40,21 +39,17 @@
         NUMBER_PROC 1
         &INTEGRALS
           ERI_METHOD GPW
-          &INTERACTION_POTENTIAL
-            OMEGA 0.5
-            POTENTIAL_TYPE LONGRANGE
-          &END INTERACTION_POTENTIAL
           &WFC_GPW
-            CUTOFF 100
+            CUTOFF 50
+            EPS_FILTER 1.0E-6
+            EPS_GRID 1.0E-6
             REL_CUTOFF 20
           &END WFC_GPW
         &END INTEGRALS
-        &RI
-          DO_SVD
-        &END RI
         &RI_RPA
           RPA_NUM_QUAD_POINTS 1
-          &EXCHANGE_CORRECTION AXK
+          &EXCHANGE_CORRECTION SOSEX
+            USE_HFX_IMPLEMENTATION F
           &END EXCHANGE_CORRECTION
           &HF
             FRACTION 1.0000000
@@ -71,8 +66,8 @@
   &END DFT
   &SUBSYS
     &CELL
-      ABC [angstrom] 5.000 5.000 5.000
-      PERIODIC NONE
+      ABC [angstrom] 4.000 4.000 4.000
+      PERIODIC XYZ
     &END CELL
     &KIND H
       BASIS_SET DZVP-GTH
