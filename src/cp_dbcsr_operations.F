@@ -327,9 +327,9 @@ CONTAINS
    SUBROUTINE calculate_fm_block_ranges(bc_mat, first_row, last_row, first_col, last_col)
       TYPE(dbcsr_type), INTENT(IN)                    :: bc_mat
       INTEGER :: col, nblkcols_local, nblkcols_total, nblkrows_local, nblkrows_total, row
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: first_col, first_row, last_col, &
-                                                            last_row, local_col_sizes, &
-                                                            local_row_sizes
+      INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(OUT)    :: first_col, first_row, last_col, &
+                                                            last_row
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: local_col_sizes, local_row_sizes
       INTEGER, DIMENSION(:), POINTER                     :: col_blk_size, local_cols, local_rows, &
                                                             row_blk_size
 
@@ -353,6 +353,7 @@ CONTAINS
       END IF
       ALLOCATE (first_row(nblkrows_total), last_row(nblkrows_total))
       CALL dbcsr_convert_sizes_to_offsets(local_row_sizes, first_row, last_row)
+      DEALLOCATE (local_row_sizes)
 
       ! calculate first_col and last_col
       ALLOCATE (local_col_sizes(nblkcols_total))
@@ -364,6 +365,7 @@ CONTAINS
       END IF
       ALLOCATE (first_col(nblkcols_total), last_col(nblkcols_total))
       CALL dbcsr_convert_sizes_to_offsets(local_col_sizes, first_col, last_col)
+      DEALLOCATE (local_col_sizes)
 
    END SUBROUTINE calculate_fm_block_ranges
 
