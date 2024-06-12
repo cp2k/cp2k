@@ -15,8 +15,7 @@ MODULE rpa_communication
    USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
                                               cp_blacs_env_release,&
                                               cp_blacs_env_type
-   USE cp_dbcsr_api,                    ONLY: dbcsr_p_type,&
-                                              dbcsr_type,&
+   USE cp_dbcsr_api,                    ONLY: dbcsr_type,&
                                               dbcsr_type_no_symmetry
    USE cp_dbcsr_operations,             ONLY: copy_fm_to_dbcsr,&
                                               cp_dbcsr_m_by_n_from_template

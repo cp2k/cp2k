@@ -20,6 +20,9 @@ MODULE rpa_exchange
    USE cell_types,                      ONLY: cell_type
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_control_types,                ONLY: dft_control_type
+   USE cp_dbcsr_api,                    ONLY: &
+        dbcsr_copy, dbcsr_create, dbcsr_get_info, dbcsr_init_p, dbcsr_multiply, dbcsr_p_type, &
+        dbcsr_release, dbcsr_set, dbcsr_trace, dbcsr_type, dbcsr_type_no_symmetry
    USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set
    USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale
    USE cp_fm_diag,                      ONLY: choose_eigv_solver
@@ -33,10 +36,6 @@ MODULE rpa_exchange
                                               cp_fm_to_fm,&
                                               cp_fm_to_fm_submat_general,&
                                               cp_fm_type
-   USE cp_dbcsr_api,                       ONLY: &
-        dbcsr_copy, dbcsr_create, dbcsr_dot, dbcsr_frobenius_norm, dbcsr_get_info, dbcsr_init_p, &
-        dbcsr_multiply, dbcsr_p_type, dbcsr_release, dbcsr_set, dbcsr_trace, dbcsr_type, &
-        dbcsr_type_no_symmetry
    USE group_dist_types,                ONLY: create_group_dist,&
                                               get_group_dist,&
                                               group_dist_d1_type,&
@@ -233,16 +232,16 @@ CONTAINS
 
       IF (ALLOCATED(qs_env%mp2_env%ri_rpa%mo_coeff_o)) THEN
          DO ispin = 1, SIZE(qs_env%mp2_env%ri_rpa%mo_coeff_o)
-         CALL dbcsr_release(qs_env%mp2_env%ri_rpa%mo_coeff_o(ispin))
+            CALL dbcsr_release(qs_env%mp2_env%ri_rpa%mo_coeff_o(ispin))
          END DO
-         DEALLOCATE(qs_env%mp2_env%ri_rpa%mo_coeff_o)
+         DEALLOCATE (qs_env%mp2_env%ri_rpa%mo_coeff_o)
       END IF
 
       IF (ALLOCATED(qs_env%mp2_env%ri_rpa%mo_coeff_v)) THEN
          DO ispin = 1, SIZE(qs_env%mp2_env%ri_rpa%mo_coeff_v)
-         CALL dbcsr_release(qs_env%mp2_env%ri_rpa%mo_coeff_v(ispin))
+            CALL dbcsr_release(qs_env%mp2_env%ri_rpa%mo_coeff_v(ispin))
          END DO
-         DEALLOCATE(qs_env%mp2_env%ri_rpa%mo_coeff_v)
+         DEALLOCATE (qs_env%mp2_env%ri_rpa%mo_coeff_v)
       END IF
    END SUBROUTINE
 
