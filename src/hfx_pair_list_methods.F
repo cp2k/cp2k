@@ -466,18 +466,21 @@ CONTAINS
       TYPE(pair_list_type), INTENT(OUT)                  :: list
       TYPE(pair_set_list_type), DIMENSION(:), &
          INTENT(OUT)                                     :: set_list
-      INTEGER, INTENT(IN)                                :: i_start, i_end, j_start, j_end
-      INTEGER                                            :: kind_of(*)
-      TYPE(hfx_basis_type), DIMENSION(:), POINTER        :: basis_parameter
-      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      INTEGER, INTENT(IN)                                :: i_start, i_end, j_start, j_end, &
+                                                            kind_of(*)
+      TYPE(hfx_basis_type), DIMENSION(:), INTENT(IN), &
+         POINTER                                         :: basis_parameter
+      TYPE(particle_type), DIMENSION(:), INTENT(IN), &
+         POINTER                                         :: particle_set
       LOGICAL, INTENT(IN)                                :: do_periodic
       TYPE(hfx_screen_coeff_type), &
-         DIMENSION(:, :, :, :), POINTER                  :: coeffs_set
-      TYPE(hfx_screen_coeff_type), DIMENSION(:, :)       :: coeffs_kind
+         DIMENSION(:, :, :, :), INTENT(IN), POINTER      :: coeffs_set
+      TYPE(hfx_screen_coeff_type), DIMENSION(:, :), &
+         INTENT(IN)                                      :: coeffs_kind
       REAL(KIND=dp), INTENT(IN)                          :: coeffs_kind_max0, log10_eps_schwarz
       TYPE(cell_type), POINTER                           :: cell
-      REAL(dp)                                           :: pmax_blocks
-      LOGICAL, DIMENSION(natom, natom)                   :: atomic_pair_list
+      REAL(dp), INTENT(IN)                               :: pmax_blocks
+      LOGICAL, DIMENSION(natom, natom), INTENT(IN)       :: atomic_pair_list
 
       INTEGER                                            :: iatom, ikind, iset, jatom, jkind, jset, &
                                                             n_element, nset_ij, nseta, nsetb
@@ -513,10 +516,8 @@ CONTAINS
                  coeffs_kind(jkind, ikind)%x(2)) + coeffs_kind_max0 + pmax_blocks < log10_eps_schwarz) CYCLE
 
             n_element = n_element + 1
-            list%elements(n_element)%pair(1) = iatom
-            list%elements(n_element)%pair(2) = jatom
-            list%elements(n_element)%kind_pair(1) = ikind
-            list%elements(n_element)%kind_pair(2) = jkind
+            list%elements(n_element)%pair = (/iatom, jatom/)
+            list%elements(n_element)%kind_pair = (/ikind, jkind/)
             list%elements(n_element)%r1 = ra
             list%elements(n_element)%r2 = B11
             list%elements(n_element)%dist2 = rab2
@@ -527,8 +528,7 @@ CONTAINS
                   IF (coeffs_set(jset, iset, jkind, ikind)%x(1)*rab2 + coeffs_set(jset, iset, jkind, ikind)%x(2) + &
                       coeffs_kind_max0 + pmax_blocks < log10_eps_schwarz) CYCLE
                   nset_ij = nset_ij + 1
-                  set_list(nset_ij)%pair(1) = iset
-                  set_list(nset_ij)%pair(2) = jset
+                  set_list(nset_ij)%pair = (/iset, jset/)
                END DO
             END DO
             list%elements(n_element)%set_bounds(2) = nset_ij
@@ -558,14 +558,18 @@ CONTAINS
                                      blocks)
       INTEGER, INTENT(IN)                                :: natom
       LOGICAL, DIMENSION(natom, natom)                   :: atomic_pair_list
-      INTEGER                                            :: kind_of(*)
-      TYPE(hfx_basis_type), DIMENSION(:), POINTER        :: basis_parameter
-      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      INTEGER, INTENT(IN)                                :: kind_of(*)
+      TYPE(hfx_basis_type), DIMENSION(:), INTENT(IN), &
+         POINTER                                         :: basis_parameter
+      TYPE(particle_type), DIMENSION(:), INTENT(IN), &
+         POINTER                                         :: particle_set
       LOGICAL, INTENT(IN)                                :: do_periodic
-      TYPE(hfx_screen_coeff_type), DIMENSION(:, :)       :: coeffs_kind
+      TYPE(hfx_screen_coeff_type), DIMENSION(:, :), &
+         INTENT(IN)                                      :: coeffs_kind
       REAL(KIND=dp), INTENT(IN)                          :: coeffs_kind_max0, log10_eps_schwarz
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(hfx_block_range_type), DIMENSION(:), POINTER  :: blocks
+      TYPE(hfx_block_range_type), DIMENSION(:), &
+         INTENT(IN), POINTER                             :: blocks
 
       INTEGER                                            :: iatom, iatom_end, iatom_start, iblock, &
                                                             ikind, jatom, jatom_end, jatom_start, &
@@ -643,19 +647,22 @@ CONTAINS
       TYPE(pair_list_type_mp2)                           :: list
       TYPE(pair_set_list_type), DIMENSION(:), &
          INTENT(OUT)                                     :: set_list
-      INTEGER, INTENT(IN)                                :: i_start, i_end, j_start, j_end
-      INTEGER                                            :: kind_of(*)
-      TYPE(hfx_basis_type), DIMENSION(:), POINTER        :: basis_parameter
-      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      INTEGER, INTENT(IN)                                :: i_start, i_end, j_start, j_end, &
+                                                            kind_of(*)
+      TYPE(hfx_basis_type), DIMENSION(:), INTENT(IN), &
+         POINTER                                         :: basis_parameter
+      TYPE(particle_type), DIMENSION(:), INTENT(IN), &
+         POINTER                                         :: particle_set
       LOGICAL, INTENT(IN)                                :: do_periodic
       TYPE(hfx_screen_coeff_type), &
-         DIMENSION(:, :, :, :), POINTER                  :: coeffs_set
-      TYPE(hfx_screen_coeff_type), DIMENSION(:, :)       :: coeffs_kind
+         DIMENSION(:, :, :, :), INTENT(IN), POINTER      :: coeffs_set
+      TYPE(hfx_screen_coeff_type), DIMENSION(:, :), &
+         INTENT(IN)                                      :: coeffs_kind
       REAL(KIND=dp), INTENT(IN)                          :: coeffs_kind_max0, log10_eps_schwarz
       TYPE(cell_type), POINTER                           :: cell
-      REAL(dp)                                           :: pmax_blocks
-      LOGICAL, DIMENSION(natom, natom)                   :: atomic_pair_list
-      LOGICAL, OPTIONAL                                  :: skip_atom_symmetry
+      REAL(dp), INTENT(IN)                               :: pmax_blocks
+      LOGICAL, DIMENSION(natom, natom), INTENT(IN)       :: atomic_pair_list
+      LOGICAL, INTENT(IN), OPTIONAL                      :: skip_atom_symmetry
 
       INTEGER                                            :: iatom, ikind, iset, jatom, jkind, jset, &
                                                             n_element, nset_ij, nseta, nsetb
@@ -695,10 +702,8 @@ CONTAINS
                  coeffs_kind(jkind, ikind)%x(2)) + coeffs_kind_max0 + pmax_blocks < log10_eps_schwarz) CYCLE
 
             n_element = n_element + 1
-            list%elements(n_element)%pair(1) = iatom
-            list%elements(n_element)%pair(2) = jatom
-            list%elements(n_element)%kind_pair(1) = ikind
-            list%elements(n_element)%kind_pair(2) = jkind
+            list%elements(n_element)%pair = (/iatom, jatom/)
+            list%elements(n_element)%kind_pair = (/ikind, jkind/)
             list%elements(n_element)%r1 = ra
             list%elements(n_element)%r2 = B11
             list%elements(n_element)%dist2 = rab2
@@ -709,8 +714,7 @@ CONTAINS
                   IF (coeffs_set(jset, iset, jkind, ikind)%x(1)*rab2 + coeffs_set(jset, iset, jkind, ikind)%x(2) + &
                       coeffs_kind_max0 + pmax_blocks < log10_eps_schwarz) CYCLE
                   nset_ij = nset_ij + 1
-                  set_list(nset_ij)%pair(1) = iset
-                  set_list(nset_ij)%pair(2) = jset
+                  set_list(nset_ij)%pair = (/iset, jset/)
                END DO
             END DO
             list%elements(n_element)%set_bounds(2) = nset_ij
