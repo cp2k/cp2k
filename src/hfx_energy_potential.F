@@ -2466,13 +2466,14 @@ CONTAINS
       REAL(dp), DIMENSION(*), INTENT(INOUT)              :: pbd, pbc, pad, pac, kbd, kbc, kad, kac
       INTEGER, INTENT(IN)                                :: iatom, jatom, katom, latom, iset, jset, &
                                                             kset, lset
-      INTEGER, DIMENSION(:, :), POINTER                  :: offset_bd_set, offset_bc_set, &
+      INTEGER, DIMENSION(:, :), POINTER, INTENT(IN)      :: offset_bd_set, offset_bc_set, &
                                                             offset_ad_set, offset_ac_set
       INTEGER, INTENT(IN)                                :: atomic_offset_bd, atomic_offset_bc, &
                                                             atomic_offset_ad, atomic_offset_ac
 
       INTEGER                                            :: i, j, ma, mb, mc, md, offset_ac, &
                                                             offset_ad, offset_bc, offset_bd
+      REAL(dp)                                           :: ki
 
       IF (jatom >= latom) THEN
          i = 1
@@ -2573,8 +2574,9 @@ CONTAINS
          j = offset_bd
          DO md = 1, md_max
             DO mb = 1, mb_max
+               ki = kbd(i)
 !$OMP           ATOMIC
-               ks(j) = ks(j) + kbd(i)
+               ks(j) = ks(j) + ki
                i = i + 1
                j = j + 1
             END DO
@@ -2584,8 +2586,9 @@ CONTAINS
          DO md = 1, md_max
             j = offset_bd + md - 1
             DO mb = 1, mb_max
+               ki = kbd(i)
 !$OMP           ATOMIC
-               ks(j) = ks(j) + kbd(i)
+               ks(j) = ks(j) + ki
                i = i + 1
                j = j + md_max
             END DO
@@ -2596,8 +2599,9 @@ CONTAINS
          j = offset_bc
          DO mc = 1, mc_max
             DO mb = 1, mb_max
+               ki = kbc(i)
 !$OMP           ATOMIC
-               ks(j) = ks(j) + kbc(i)
+               ks(j) = ks(j) + ki
                i = i + 1
                j = j + 1
             END DO
@@ -2607,8 +2611,9 @@ CONTAINS
          DO mc = 1, mc_max
             j = offset_bc + mc - 1
             DO mb = 1, mb_max
+               ki = kbc(i)
 !$OMP           ATOMIC
-               ks(j) = ks(j) + kbc(i)
+               ks(j) = ks(j) + ki
                i = i + 1
                j = j + mc_max
             END DO
@@ -2619,8 +2624,9 @@ CONTAINS
          j = offset_ad
          DO md = 1, md_max
             DO ma = 1, ma_max
+               ki = kad(i)
 !$OMP           ATOMIC
-               ks(j) = ks(j) + kad(i)
+               ks(j) = ks(j) + ki
                i = i + 1
                j = j + 1
             END DO
@@ -2630,8 +2636,9 @@ CONTAINS
          DO md = 1, md_max
             j = offset_ad + md - 1
             DO ma = 1, ma_max
+               ki = kad(i)
 !$OMP           ATOMIC
-               ks(j) = ks(j) + kad(i)
+               ks(j) = ks(j) + ki
                i = i + 1
                j = j + md_max
             END DO
@@ -2642,8 +2649,9 @@ CONTAINS
          j = offset_ac
          DO mc = 1, mc_max
             DO ma = 1, ma_max
+               ki = kac(i)
 !$OMP           ATOMIC
-               ks(j) = ks(j) + kac(i)
+               ks(j) = ks(j) + ki
                i = i + 1
                j = j + 1
             END DO
@@ -2653,8 +2661,9 @@ CONTAINS
          DO mc = 1, mc_max
             j = offset_ac + mc - 1
             DO ma = 1, ma_max
+               ki = kac(i)
 !$OMP           ATOMIC
-               ks(j) = ks(j) + kac(i)
+               ks(j) = ks(j) + ki
                i = i + 1
                j = j + mc_max
             END DO
