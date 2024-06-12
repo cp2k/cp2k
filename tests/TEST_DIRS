@@ -61,7 +61,7 @@ QS/regtest-xastdp                                           libint libxc
 QS/regtest-gw2x                                             libint libxc
 QS/regtest-negf
 QS/regtest-negf-fft                                         fftw3
-QS/regtest-ri-rpa-axk                                       libint
+QS/regtest-ri-rpa-exchange                                  libint
 QS/regtest-ri-rpa-rse                                       libint
 QS/regtest-cdft-hirshfeld-3
 QS/regtest-cdft-hirshfeld-2                                 parallel mpiranks>1

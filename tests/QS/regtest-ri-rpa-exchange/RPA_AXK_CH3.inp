@@ -53,6 +53,7 @@
           # 6-8 are sufficient
           RPA_NUM_QUAD_POINTS 1
           &EXCHANGE_CORRECTION AXK
+            USE_HFX_IMPLEMENTATION F
           &END EXCHANGE_CORRECTION
           &HF
             FRACTION 1.0000000

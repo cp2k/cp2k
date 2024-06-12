@@ -1,6 +1,6 @@
 &GLOBAL
   PRINT_LEVEL MEDIUM
-  PROJECT RPA_AXK_H2
+  PROJECT RPA_AXK_H2O
   RUN_TYPE ENERGY
   &TIMINGS
     THRESHOLD 0.01
@@ -21,7 +21,7 @@
       POISSON_SOLVER WAVELET
     &END POISSON
     &QS
-      EPS_DEFAULT 1.0E-10
+      EPS_DEFAULT 1.0E-11
       METHOD GPW
     &END QS
     &SCF
@@ -40,16 +40,16 @@
         &INTEGRALS
           ERI_METHOD GPW
           &WFC_GPW
-            CUTOFF 150
-            #            EPS_FILTER 1.0E-6
-            #            EPS_GRID 1.0E-6
-            REL_CUTOFF 50
+            CUTOFF 50
+            EPS_FILTER 1.0E-6
+            EPS_GRID 1.0E-6
+            REL_CUTOFF 20
           &END WFC_GPW
         &END INTEGRALS
         &RI_RPA
           RPA_NUM_QUAD_POINTS 1
-          &EXCHANGE_CORRECTION SOSEX
-            USE_HFX_IMPLEMENTATION T
+          &EXCHANGE_CORRECTION AXK
+            USE_HFX_IMPLEMENTATION F
           &END EXCHANGE_CORRECTION
           &HF
             FRACTION 1.0000000
@@ -69,16 +69,19 @@
       ABC [angstrom] 4.000 4.000 4.000
       PERIODIC XYZ
     &END CELL
-    &COORD
-      H 0.0 0.0 0.0
-      H 0.7 0.0 0.0
-    &END COORD
     &KIND H
       BASIS_SET DZVP-GTH
       BASIS_SET RI_AUX RI_DZVP-GTH
       POTENTIAL GTH-PBE-q1
     &END KIND
+    &KIND O
+      BASIS_SET DZVP-GTH
+      BASIS_SET RI_AUX RI_DZVP-GTH
+      POTENTIAL GTH-PBE-q6
+    &END KIND
     &TOPOLOGY
+      COORD_FILE_FORMAT xyz
+      COORD_FILE_NAME H2O_gas.xyz
       &CENTER_COORDINATES
       &END CENTER_COORDINATES
     &END TOPOLOGY
