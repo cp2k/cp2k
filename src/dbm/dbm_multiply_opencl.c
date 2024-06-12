@@ -70,9 +70,6 @@ void dbm_multiply_gpu_launch_kernel(const offloadStream_t stream,
       offset +=
           (size_t)LIBXSMM_SNPRINTF(params + offset, sizeof(params) - offset,
                                    " -DDBM_MULTIPLY_OPENCL_GEN");
-      if (0 != c_dbcsr_acc_opencl_config.device.intel && 0 != xf) {
-        flags = "-cl-intel-256-GRF-per-thread";
-      }
       wgsize[1] = wgsize[2] = 1;
       wgsize[0] = 16;
       ndims = 3;
@@ -106,9 +103,9 @@ void dbm_multiply_gpu_launch_kernel(const offloadStream_t stream,
           params + offset, sizeof(params) - offset,
           " %s -DSPLIT=%i -DBN=%i -DWG=%i -DSG=%i -DLU=%i",
           0 != gpu ? "-DGPU" : "", split, bn, (int)wgsize[0], (int)wgsize2, lu);
-      if (0 != c_dbcsr_acc_opencl_config.device.intel && 0 < xf) {
-        flags = "-cl-intel-256-GRF-per-thread";
-      }
+    }
+    if (0 != c_dbcsr_acc_opencl_config.device.intel && 0 < xf) {
+      flags = "-cl-intel-256-GRF-per-thread";
     }
     result |= (sizeof(params) > offset ? EXIT_SUCCESS : EXIT_FAILURE);
     result |= c_dbcsr_acc_opencl_kernel(
