@@ -804,7 +804,7 @@ CONTAINS
       INTEGER :: aux_counter, aux_global, aux_local, aux_proc, avirt, dimen_RI, handle, handle2, &
                  ia_global, ia_local, iocc, max_number_recv, max_number_send, my_aux_end, my_aux_size, &
                  my_aux_start, my_process_column, my_process_row, my_virt_end, my_virt_size, &
-my_virt_start, proc, proc_shift, recv_proc, send_proc, virt_counter, virt_proc, group_size, debug_sent_elements, debug_recv_elements
+                 my_virt_start, proc, proc_shift, recv_proc, send_proc, virt_counter, virt_proc, group_size
       INTEGER, ALLOCATABLE, DIMENSION(:) :: data2send, recv_col_indices, &
                                             recv_row_indices, send_aux_indices, send_virt_indices, virt2send
       INTEGER, DIMENSION(2)                              :: recv_shape
@@ -816,7 +816,6 @@ my_virt_start, proc, proc_shift, recv_proc, send_proc, virt_counter, virt_proc, 
          POINTER                                         :: recv_ptr, send_ptr
       TYPE(cp_blacs_env_type), POINTER                   :: context
       TYPE(mp_para_env_type), POINTER                    :: para_env
-      REAL(KIND=dp) :: debug_send_sum, debug_recv_sum, debug_send_abs, debug_recv_abs
 
       CALL timeset(routineN, handle)
 
@@ -873,13 +872,6 @@ my_virt_start, proc, proc_shift, recv_proc, send_proc, virt_counter, virt_proc, 
 
       CALL timestop(handle2)
 
-      debug_sent_elements = SIZE(fm_mat%local_data)
-      debug_recv_elements = SIZE(mat)
-      debug_send_sum = SUM(fm_mat%local_data**2)
-      debug_send_abs = SUM(ABS(fm_mat%local_data))
-      debug_recv_sum = 0.0_dp
-      debug_recv_abs = 0.0_dp
-
       CALL timeset(routineN//"_own", handle2)
       ! Start with own data
       DO aux_local = 1, aux_distribution_fm(my_process_row)
@@ -894,12 +886,6 @@ my_virt_start, proc, proc_shift, recv_proc, send_proc, virt_counter, virt_proc, 
             IF (my_virt_start > avirt .OR. my_virt_end < avirt) CYCLE
 
             mat(avirt - my_virt_start + 1, iocc, aux_global - my_aux_start + 1) = fm_mat%local_data(aux_local, ia_local)
-            debug_recv_elements = debug_recv_elements - 1
-            debug_sent_elements = debug_sent_elements - 1
-            debug_send_sum = debug_send_sum - fm_mat%local_data(aux_local, ia_local)**2
-            debug_recv_sum = debug_recv_sum + fm_mat%local_data(aux_local, ia_local)**2
-            debug_send_abs = debug_send_abs - ABS(fm_mat%local_data(aux_local, ia_local))
-            debug_recv_abs = debug_recv_abs + ABS(fm_mat%local_data(aux_local, ia_local))
          END DO
       END DO
       CALL timestop(handle2)
@@ -930,9 +916,6 @@ my_virt_start, proc, proc_shift, recv_proc, send_proc, virt_counter, virt_proc, 
                virt_counter = virt_counter + 1
                send_ptr(virt_counter, aux_counter) = fm_mat%local_data(aux_local, ia_local)
                send_virt_indices(virt_counter) = ia_global
-               debug_sent_elements = debug_sent_elements - 1
-               debug_send_sum = debug_send_sum - fm_mat%local_data(aux_local, ia_local)**2
-               debug_send_abs = debug_send_abs - ABS(fm_mat%local_data(aux_local, ia_local))
             END DO
             send_aux_indices(aux_counter) = aux_global
          END DO
@@ -977,9 +960,6 @@ my_virt_start, proc, proc_shift, recv_proc, send_proc, virt_counter, virt_proc, 
                avirt = MOD(ia_global - 1, exchange_work%virtual(ispin)) + 1
 
                mat(avirt - my_virt_start + 1, iocc, aux_global - my_aux_start + 1) = recv_ptr(ia_local, aux_local)
-               debug_recv_elements = debug_recv_elements - 1
-               debug_recv_sum = debug_recv_sum + recv_ptr(ia_local, aux_local)**2
-               debug_recv_abs = debug_recv_abs + ABS(recv_ptr(ia_local, aux_local))
             END DO
          END DO
          CALL timestop(handle2)
@@ -987,13 +967,6 @@ my_virt_start, proc, proc_shift, recv_proc, send_proc, virt_counter, virt_proc, 
          IF (ALLOCATED(recv_row_indices)) DEALLOCATE (recv_row_indices)
          IF (ALLOCATED(recv_col_indices)) DEALLOCATE (recv_col_indices)
       END DO
-
-      debug_recv_sum = debug_recv_sum - SUM(mat**2)
-      debug_recv_abs = debug_recv_abs - SUM(ABS(mat))
-
-      WRITE (*, *) debug_recv_elements, debug_sent_elements, debug_recv_abs, debug_send_abs
-      CPASSERT(debug_recv_elements == 0)
-      CPASSERT(debug_sent_elements == 0)
 
       DEALLOCATE (send_aux_indices, send_virt_indices)
 
