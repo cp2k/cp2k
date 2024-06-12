@@ -6,7 +6,7 @@
 #              ScaLAPACK 2.2.1, OpenBLAS 0.3.27,
 #              FFTW 3.3.10, HDF5 1.14.2,
 #              LIBINT 2.6.0, LIBXC 6.2.2,
-#              ELPA 2023.05.001, PLUMED 2.9.0,
+#              ELPA 2024.03.001, PLUMED 2.9.0,
 #              SPGLIB 2.3.1, LIBVORI 220621,
 #              GSL 2.7, COSMA 2.6.6, SIRIUS 7.5.2,
 #              LIBGRPP 20231215, SPFFT 1.0.6, SPLA 1.6.0
@@ -14,7 +14,7 @@
 # Usage: Source this arch file and then run make as instructed.
 #        A full toolchain installation is performed as default.
 #
-# Last update: 11.06.2024
+# Last update: 12.06.2024
 #
 # \
    if [[ "${0}" == "${BASH_SOURCE}" ]]; then \
@@ -53,7 +53,7 @@ DO_CHECKS      := no
 SHARED         := no
 TARGET_CPU     := native
 USE_COSMA      := 2.6.6
-USE_ELPA       := 2023.05.001
+USE_ELPA       := 2024.03.001
 USE_FFTW       := 3.3.10
 USE_HDF5       := 1.14.2
 USE_LIBINT     := 2.6.0
