@@ -473,6 +473,14 @@ CONTAINS
          END DO
          CALL get_group_dist(gd_array, color_sub, my_group_L_start, my_group_L_end, my_group_L_size)
       END IF
+      ! Copy mo coeffs for RPA exchange correction
+      IF (mp2_env%ri_rpa%exchange_correction /= rpa_exchange_none) THEN
+         ALLOCATE (mp2_env%ri_rpa%mo_coeff_o(nspins), mp2_env%ri_rpa%mo_coeff_v(nspins))
+         DO ispin = 1, nspins
+            CALL dbcsr_copy(mp2_env%ri_rpa%mo_coeff_o(ispin), mo_coeff_o(ispin)%matrix, name="mo_coeff_o")
+            CALL dbcsr_copy(mp2_env%ri_rpa%mo_coeff_v(ispin), mo_coeff_v(ispin)%matrix, name="mo_coeff_v")
+         END DO
+      END IF
 
       IF (.NOT. do_im_time) THEN
 
@@ -491,20 +499,9 @@ CONTAINS
 
       END IF
 
-      IF (.NOT. calc_forces) THEN
-         IF (mp2_env%ri_rpa%exchange_correction == rpa_exchange_none) THEN
-
-            CALL dbcsr_release(mat_munu%matrix)
-            DEALLOCATE (mat_munu%matrix)
-
-            CALL release_neighbor_list_sets(sab_orb_sub)
-
-         END IF
-
-      END IF
-
       ! Release some memory for RPA exchange correction
-      IF (mp2_env%ri_rpa%exchange_correction /= rpa_exchange_none .OR. (calc_forces .AND. do_im_time)) THEN
+      IF (calc_forces .AND. do_im_time .OR. &
+          (.NOT. calc_forces .AND. mp2_env%ri_rpa%exchange_correction == rpa_exchange_none)) THEN
 
          CALL dbcsr_release(mat_munu%matrix)
          DEALLOCATE (mat_munu%matrix)
@@ -516,10 +513,7 @@ CONTAINS
       ! decide if to do RI-RPA or RI-MP2
       IF (my_do_ri_rpa .OR. my_do_ri_sos_laplace_mp2) THEN
 
-         IF (do_im_time) THEN
-
-            CALL create_matrix_P(mat_P_global, qs_env, mp2_env, para_env)
-         END IF
+         IF (do_im_time) CALL create_matrix_P(mat_P_global, qs_env, mp2_env, para_env)
 
          IF (.NOT. ALLOCATED(BIb_C)) ALLOCATE (BIb_C(nspins))
          IF (.NOT. ALLOCATED(BIb_C_gw)) ALLOCATE (BIb_C_gw(nspins))
@@ -533,7 +527,7 @@ CONTAINS
                                 fm_matrix_Minv, fm_matrix_Minv_Vtrunc_Minv, kpoints, &
                                 Eigenval, nmo, homo, dimen_RI, dimen_RI_red, gw_corr_lev_occ, gw_corr_lev_virt, &
                                 unit_nr, my_do_ri_sos_laplace_mp2, my_do_gw, do_im_time, do_bse, matrix_s, &
-                                mat_P_global, t_3c_M, t_3c_O, t_3c_O_compressed, t_3c_O_ind, &
+                                mat_munu%matrix, mat_P_global, t_3c_M, t_3c_O, t_3c_O_compressed, t_3c_O_ind, &
                                 starts_array_mc, ends_array_mc, &
                                 starts_array_mc_block, ends_array_mc_block, calc_forces)
 
@@ -548,6 +542,16 @@ CONTAINS
 
             CALL cp_libint_static_cleanup()
             IF (calc_forces) CALL cp_fm_release(fm_matrix_PQ)
+         END IF
+
+         ! Release some memory for RPA exchange correction
+         IF (mp2_env%ri_rpa%exchange_correction /= rpa_exchange_none) THEN
+
+            CALL dbcsr_release(mat_munu%matrix)
+            DEALLOCATE (mat_munu%matrix)
+
+            CALL release_neighbor_list_sets(sab_orb_sub)
+
          END IF
 
       ELSE

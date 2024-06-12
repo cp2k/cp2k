@@ -159,6 +159,7 @@ CONTAINS
 !> \param do_im_time ...
 !> \param do_bse ...
 !> \param matrix_s ...
+!> \param mat_munu ...
 !> \param mat_P_global ...
 !> \param t_3c_M ...
 !> \param t_3c_O ...
@@ -177,7 +178,7 @@ CONTAINS
                                 fm_matrix_Minv, fm_matrix_Minv_Vtrunc_Minv, kpoints, &
                                 Eigenval, nmo, homo, dimen_RI, dimen_RI_red, gw_corr_lev_occ, gw_corr_lev_virt, &
                                 unit_nr, do_ri_sos_laplace_mp2, my_do_gw, do_im_time, do_bse, matrix_s, &
-                                mat_P_global, t_3c_M, t_3c_O, t_3c_O_compressed, t_3c_O_ind, &
+                                mat_munu, mat_P_global, t_3c_M, t_3c_O, t_3c_O_compressed, t_3c_O_ind, &
                                 starts_array_mc, ends_array_mc, &
                                 starts_array_mc_block, ends_array_mc_block, calc_forces)
 
@@ -211,6 +212,7 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: do_ri_sos_laplace_mp2, my_do_gw, &
                                                             do_im_time, do_bse
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
+      TYPE(dbcsr_type), INTENT(IN)                       :: mat_munu
       TYPE(dbcsr_p_type), INTENT(INOUT)                  :: mat_P_global
       TYPE(dbt_type)                                     :: t_3c_M
       TYPE(dbt_type), ALLOCATABLE, DIMENSION(:, :)       :: t_3c_O
@@ -622,7 +624,7 @@ CONTAINS
                        my_do_gw, do_bse, gw_corr_lev_occ, gw_corr_lev_virt, &
                        do_minimax_quad, do_im_time, mo_coeff, &
                        fm_matrix_L_kpoints, fm_matrix_Minv_L_kpoints, &
-                       fm_matrix_Minv, fm_matrix_Minv_Vtrunc_Minv, mat_P_global, &
+                       fm_matrix_Minv, fm_matrix_Minv_Vtrunc_Minv, mat_munu, mat_P_global, &
                        t_3c_M, t_3c_O, t_3c_O_compressed, t_3c_O_ind, &
                        starts_array_mc, ends_array_mc, &
                        starts_array_mc_block, ends_array_mc_block, &
@@ -1012,6 +1014,7 @@ CONTAINS
 !> \param fm_matrix_Minv_L_kpoints ...
 !> \param fm_matrix_Minv ...
 !> \param fm_matrix_Minv_Vtrunc_Minv ...
+!> \param mat_munu ...
 !> \param mat_P_global ...
 !> \param t_3c_M ...
 !> \param t_3c_O ...
@@ -1037,7 +1040,7 @@ CONTAINS
                           my_do_gw, do_bse, gw_corr_lev_occ, gw_corr_lev_virt, &
                           do_minimax_quad, do_im_time, mo_coeff, &
                           fm_matrix_L_kpoints, fm_matrix_Minv_L_kpoints, &
-                          fm_matrix_Minv, fm_matrix_Minv_Vtrunc_Minv, mat_P_global, &
+                          fm_matrix_Minv, fm_matrix_Minv_Vtrunc_Minv, mat_munu, mat_P_global, &
                           t_3c_M, t_3c_O, t_3c_O_compressed, t_3c_O_ind, &
                           starts_array_mc, ends_array_mc, &
                           starts_array_mc_block, ends_array_mc_block, &
@@ -1058,8 +1061,8 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: num_integ_points, num_integ_group, &
                                                             color_rpa_group
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_matrix_PQ
-      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: fm_mat_S, fm_mat_Q_gemm, fm_mat_Q, &
-                                                            fm_mat_S_gw
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(INOUT)      :: fm_mat_S
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: fm_mat_Q_gemm, fm_mat_Q, fm_mat_S_gw
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_R_gw, fm_mat_S_ij_bse, &
                                                             fm_mat_S_ab_bse
       LOGICAL, INTENT(IN)                                :: my_do_gw, do_bse
@@ -1070,6 +1073,7 @@ CONTAINS
                                                             fm_matrix_Minv_L_kpoints, &
                                                             fm_matrix_Minv, &
                                                             fm_matrix_Minv_Vtrunc_Minv
+      TYPE(dbcsr_type), INTENT(IN)                       :: mat_munu
       TYPE(dbcsr_p_type), INTENT(INOUT)                  :: mat_P_global
       TYPE(dbt_type), INTENT(INOUT)                      :: t_3c_M
       TYPE(dbt_type), ALLOCATABLE, DIMENSION(:, :), &
@@ -1320,7 +1324,8 @@ CONTAINS
                                                                    unit_nr, do_ri_sos_laplace_mp2)
 
       IF (.NOT. do_im_time .AND. .NOT. do_ri_sos_laplace_mp2) &
-         CALL exchange_work%create(mp2_env, para_env_sub, dimen_RI_red, fm_mat_S, fm_mat_Q(1), fm_mat_Q_gemm(1), homo, virtual)
+         CALL exchange_work%create(qs_env, para_env_sub, mat_munu, dimen_RI_red, &
+                                   fm_mat_S, fm_mat_Q(1), fm_mat_Q_gemm(1), homo, virtual)
 
       Erpa = 0.0_dp
       IF (mp2_env%ri_rpa%exchange_correction /= rpa_exchange_none) e_exchange = 0.0_dp
