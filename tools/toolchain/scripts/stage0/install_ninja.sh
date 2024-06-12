@@ -32,7 +32,7 @@ case "${with_ninja}" in
       echo "Installing from scratch into ${pkg_install_dir}"
       mkdir -p ${pkg_install_dir}
 
-      wget "https://github.com/ninja-build/ninja/archive/refs/tags/v${ninja_ver}.tar.gz" -O "ninja-v${ninja_ver}.tar.gz"
+      wget --quiet "https://github.com/ninja-build/ninja/archive/refs/tags/v${ninja_ver}.tar.gz" -O "ninja-v${ninja_ver}.tar.gz"
       tar -xzf ninja-v${ninja_ver}.tar.gz
       cd ninja-${ninja_ver}
       cmake -DCMAKE_INSTALL_PREFIX=${pkg_install_dir} \

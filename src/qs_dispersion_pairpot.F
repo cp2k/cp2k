@@ -59,7 +59,6 @@ MODULE qs_dispersion_pairpot
                                               kjmol
    USE qs_dispersion_types,             ONLY: dftd2_pp,&
                                               dftd3_pp,&
-                                              dftd4_pp,&
                                               qs_atom_dispersion_type,&
                                               qs_dispersion_type
    USE qs_environment_types,            ONLY: get_qs_env,&

@@ -17,6 +17,7 @@ source "${INSTALLDIR}"/toolchain.env
 
 [ -f "${BUILDDIR}/setup_dftd4" ] && rm "${BUILDDIR}/setup_dftd4"
 
+DFTD4_DFLAGS=''
 DFTD4_CFLAGS=''
 DFTD4_LDFLAGS=''
 DFTD4_LIBS=''
@@ -40,7 +41,7 @@ case "$with_dftd4" in
       if [ -f dftd4-${dftd4_ver}.tar.gz ]; then
         echo " dftd4-${dftd4_ver}.tar.gz is found"
       else
-        wget "https://github.com/dftd4/dftd4/archive/refs/tags/v${dftd4_ver}.tar.gz" -O "dftd4-${dftd4_ver}.tar.gz"
+        wget --quiet "https://github.com/dftd4/dftd4/archive/refs/tags/v${dftd4_ver}.tar.gz" -O "dftd4-${dftd4_ver}.tar.gz"
       fi
 
       echo "Installing from scratch into ${pkg_install_dir}"
@@ -76,46 +77,65 @@ case "$with_dftd4" in
     write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage8/$(basename ${SCRIPT_NAME})"
     ;;
 
+  __SYSTEM__)
+    echo "==================== Finding dftd4 from system paths ===================="
+    check_command pkg-config --modversion dftd4
+    add_include_from_paths DFTD4_CFLAGS "dftd4.h" $INCLUDE_PATHS
+    add_include_from_paths DFTD4_CFLAGS "dftd4.mod" $INCLUDE_PATHS
+    add_include_from_paths DFTD4_CFLAGS "mctc_io.mod" $INCLUDE_PATHS
+    add_lib_from_paths DFTD4_LDFLAGS "libdftd4.*" $LIB_PATHS
+    ;;
+
   *)
-    echo "__INVALID__"
+    echo "==================== Linking dftd4 to user paths ===================="
+    pkg_install_dir="$with_dftd4"
+    check_dir "${pkg_install_dir}/include"
     ;;
 
 esac
 
 if [ "$with_dftd4" != "__DONTUSE__" ]; then
-  DFTD4_LOC=$(find ${pkg_install_dir}/include -name "multicharge.mod")
-  DFTD4_MCHARGE=${DFTD4_LOC%/*}
-  DFTD4_LOC=$(find ${pkg_install_dir}/include -name "mstore.mod")
-  DFTD4_STORE=${DFTD4_LOC%/*}
-  DFTD4_LOC=$(find ${pkg_install_dir}/include -name "mctc_io.mod")
-  DFTD4_MCTC=${DFTD4_LOC%/*}
-  DFTD4_LOC=$(find ${pkg_install_dir}/include -name "dftd4.mod")
-  DFTD4_DFTD4=${DFTD4_LOC%/*}
-  DFTD4_LIBS="-ldftd4 -lmstore  -lmulticharge -lmctc-lib"
-  DFTD4_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath,'${pkg_install_dir}/lib'"
-  DFTD4_CFLAGS="-I'${pkg_install_dir}/include' -I'${DFTD4_DFTD4}' -I'${DFTD4_MCTC}'"
+
+  DFTD4_DFLAGS="-D__DFTD4"
+  DFTD4_LIBS="-ldftd4 -lmstore -lmulticharge -lmctc-lib"
 
   if [ "$with_dftd4" != "__SYSTEM__" ]; then
+    DFTD4_LOC=$(find ${pkg_install_dir}/include -name "multicharge.mod")
+    DFTD4_MCHARGE=${DFTD4_LOC%/*}
+    DFTD4_LOC=$(find ${pkg_install_dir}/include -name "mstore.mod")
+    DFTD4_STORE=${DFTD4_LOC%/*}
+    DFTD4_LOC=$(find ${pkg_install_dir}/include -name "mctc_io.mod")
+    DFTD4_MCTC=${DFTD4_LOC%/*}
+    DFTD4_LOC=$(find ${pkg_install_dir}/include -name "dftd4.mod")
+    DFTD4_DFTD4=${DFTD4_LOC%/*}
+    # use the lib64 directory if present
+    DFTD4_LIBDIR="${pkg_install_dir}/lib"
+    [ -d "${pkg_install_dir}/lib64" ] && DFTD4_LIBDIR="${pkg_install_dir}/lib64"
+
+    DFTD4_CFLAGS="-I'${pkg_install_dir}/include' -I'${DFTD4_DFTD4}' -I'${DFTD4_MCTC}'"
+    DFTD4_LDFLAGS="-L'${DFTD4_LIBDIR}' -Wl,-rpath,'${DFTD4_LIBDIR}'"
+
     cat << EOF > "${BUILDDIR}/setup_dftd4"
-prepend_path LD_LIBRARY_PATH "$pkg_install_dir/lib"
-prepend_path LD_RUN_PATH "$pkg_install_dir/lib"
-prepend_path LIBRARY_PATH "$pkg_install_dir/lib"
+prepend_path LD_LIBRARY_PATH "${DFTD4_LIBDIR}"
+prepend_path LD_RUN_PATH "${DFTD4_LIBDIR}"
+prepend_path LIBRARY_PATH "${DFTD4_LIBDIR}"
 prepend_path CPATH "$pkg_install_dir/include"
-prepend_path PKG_CONFIG_PATH "$pkg_install_dir/lib/pkgconfig"
+prepend_path PKG_CONFIG_PATH "${DFTD4_LIBDIR}/pkgconfig"
 prepend_path CMAKE_PREFIX_PATH "$pkg_install_dir"
 EOF
   fi
 
   cat << EOF >> "${BUILDDIR}/setup_dftd4"
-export DFTD4_LIBS="${DFTD4_LIBS}"
-export DFTD4_LDFLAGS="${DFTD4_LDFLAGS}"
-export DFTD4_CFLAGS="${DFTD4_CFLAGS}"
 export DFTD4_DFTD4="${DFTD4_DFTD4}"
 export DFTD4_MCTC="${DFTD4_MCTC}"
-export DFTD4_LIBRARIES="${pkg_install_dir}/lib"
+export DFTD4_LIBDIR="${DFTD4_LIBDIR}"
 export DFTD4_INCLUDE_DIR="$pkg_install_dir/include"
-export DFTD4_ROOT="${pkg_install_dir}" 
-export CP_DFLAGS="\${CP_DFLAGS} -D__DFTD4"
+export DFTD4_ROOT="${pkg_install_dir}"
+export DFTD4_DFLAGS="${DFTD4_DFLAGS}" 
+export DFTD4_CFLAGS="${DFTD4_CFLAGS}"
+export DFTD4_LDFLAGS="${DFTD4_LDFLAGS}"
+export DFTD4_LIBS="${DFTD4_LIBS}"
+export CP_DFLAGS="\${CP_DFLAGS} \${DFTD4_DFLAGS}"
 export CP_CFLAGS="\${CP_CFLAGS} \${DFTD4_CFLAGS}"
 export CP_LDFLAGS="\${CP_LDFLAGS} \${DFTD4_LDFLAGS}"
 export CP_LIBS="\${DFTD4_LIBS} \${CP_LIBS}"
