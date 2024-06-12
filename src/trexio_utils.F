@@ -13,25 +13,30 @@
 ! **************************************************************************************************
 MODULE trexio_utils
 
-#ifdef __TREXIO
    USE atomic_kind_types, ONLY: get_atomic_kind
    USE basis_set_types, ONLY: gto_basis_set_type, get_gto_basis_set
    USE cell_types, ONLY: cell_type
    USE cp2k_info, ONLY: cp2k_version
+   USE cp_blacs_env, ONLY: cp_blacs_env_type
    USE cp_control_types, ONLY: dft_control_type
    USE cp_dbcsr_operations, ONLY: copy_dbcsr_to_fm
    USE cp_files, ONLY: close_file, file_exists, open_file
-   USE cp_fm_types, ONLY: cp_fm_get_info,&
-                          cp_fm_get_submatrix
+   USE cp_fm_types, ONLY: cp_fm_get_info, cp_fm_type, cp_fm_create, cp_fm_set_all, &
+                          cp_fm_get_submatrix, cp_fm_write_formatted, cp_fm_set_submatrix, &
+                          cp_fm_to_fm_submat_general, cp_fm_set_element, cp_fm_release
+   USE cp_fm_struct, ONLY: cp_fm_struct_create, &
+                           cp_fm_struct_release, &
+                           cp_fm_struct_type
    USE cp_log_handling, ONLY: cp_get_default_logger, &
                               cp_logger_get_default_io_unit, &
                               cp_logger_type
    USE external_potential_types, ONLY: sgp_potential_type, get_potential
-   USE input_section_types, ONLY: section_vals_type, &
+   USE input_section_types, ONLY: section_vals_type, section_vals_get, &
                                   section_vals_val_get
    USE kinds, ONLY: default_path_length, dp
    USE kpoint_types, ONLY: kpoint_type, kpoint_env_type, kpoint_env_p_type, &
                            get_kpoint_info, get_kpoint_env
+   USE message_passing, ONLY: mp_para_env_type
    USE orbital_pointers, ONLY: nco, nso
    USE orbital_transformation_matrices, ONLY: orbtramat
    USE particle_types, ONLY: particle_type
@@ -41,6 +46,7 @@ MODULE trexio_utils
    USE qs_kind_types, ONLY: get_qs_kind, get_qs_kind_set, &
                             qs_kind_type
    USE qs_mo_types, ONLY: mo_set_type, get_mo_set
+#ifdef __TREXIO
    USE trexio, ONLY: trexio_open, trexio_close, &
                      TREXIO_HDF5, TREXIO_SUCCESS, &
                      trexio_string_of_error, trexio_t, trexio_exit_code, &
@@ -86,7 +92,6 @@ MODULE trexio_utils
 
    CONTAINS
 
-#ifdef __TREXIO
 ! **************************************************************************************************
 !> \brief Write a trexio file
 !> \param qs_env the qs environment with all the info of the computation
@@ -98,12 +103,16 @@ MODULE trexio_utils
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'write_trexio'
 
-      INTEGER                                            :: handle, output_unit, unit_trexio
+      INTEGER                                            :: handle
+
+#ifdef __TREXIO
+      INTEGER                                            :: output_unit, unit_trexio
       CHARACTER(len=default_path_length)                 :: filename
       INTEGER(trexio_t)                                  :: f        ! The TREXIO file handle
       INTEGER(trexio_exit_code)                          :: rc       ! TREXIO return code
       LOGICAL                                            :: explicit, do_kpoints, ecp_semi_local, &
-                                                            ecp_local, sgp_potential_present
+                                                            ecp_local, sgp_potential_present, ionode, &
+                                                            use_real_wfn
       REAL(KIND=dp)                                      :: e_nn, zeff
       TYPE(cell_type), POINTER                           :: cell => Null()
       TYPE(cp_logger_type), POINTER                      :: logger => Null()
@@ -117,6 +126,11 @@ MODULE trexio_utils
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos => Null()
       TYPE(mo_set_type), DIMENSION(:,:), POINTER         :: mos_kp => Null()
       TYPE(kpoint_env_p_type), DIMENSION(:), POINTER     :: kp_env => Null()
+      TYPE(mp_para_env_type), POINTER                    :: para_env => Null()
+      TYPE(cp_blacs_env_type), POINTER                   :: blacs_env => Null()
+      TYPE(cp_fm_struct_type), POINTER                   :: fm_struct => Null()
+      TYPE(cp_fm_type)                                   :: fm_mo_coeff, fm_dummy, fm_mo_coeff_im, &
+                                                            fm_mo_energy, fm_mo_occupation
 
       CHARACTER(LEN=2)                                   :: element_symbol
       CHARACTER(LEN=2), DIMENSION(:), ALLOCATABLE        :: label
@@ -125,8 +139,10 @@ MODULE trexio_utils
                                                             shell_num, prim_num, nset, iset, ipgf, z, &
                                                             sl_lmax, ecp_num, nloc, nsemiloc, sl_l, iecp, &
                                                             icgf, icgf_loc, ncgf, ncgf_shell, ao_num, nmo, &
-                                                            mo_num, ispin, ikp, imo
-      INTEGER, DIMENSION(2)                              :: nel_spin
+                                                            mo_num, ispin, ikp, imo, rank, ikp_loc, nsgf, &
+                                                            i, j
+                                                            ! nkp_loc, i, j, nrow_local, ncol_local
+      INTEGER, DIMENSION(2)                              :: nel_spin, kp_range, nmo_spin
       INTEGER, DIMENSION(3)                              :: nkp_grid
       INTEGER, DIMENSION(0:10)                           :: npot
       INTEGER, DIMENSION(:),    ALLOCATABLE              :: nucleus_index, shell_ang_mom, r_power, &
@@ -138,12 +154,15 @@ MODULE trexio_utils
                                                             prim_factor, ao_normalization, mo_energy, &
                                                             mo_occupation
       REAL(KIND=dp), DIMENSION(:),   POINTER             :: wkp => Null(), norm_cgf => Null()
-      REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE         :: coord, mo_coefficient, mo_coefficient_im
+      REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE         :: coord, mo_coefficient, mo_coefficient_im, &
+                                                            mos_sgf
       REAL(KIND=dp), DIMENSION(:,:), POINTER             :: zetas => Null()
       REAL(KIND=dp), DIMENSION(:,:,:), POINTER           :: gcc => Null()
+#endif
 
       CALL timeset(routineN, handle)
 
+#ifdef __TREXIO
       logger => cp_get_default_logger()
       output_unit = cp_logger_get_default_io_unit(logger)
 
@@ -157,11 +176,16 @@ MODULE trexio_utils
          filename = TRIM(filename)//'.h5'
       END IF
 
+      CALL get_qs_env(qs_env, para_env=para_env)
+      ionode = para_env%is_source()
+      CALL para_env%get_rank(rank)
+
       ! inquire whether a file with the same name already exists, if yes, delete it
-      IF (file_exists(filename)) THEN
-         CALL open_file(filename, unit_number=unit_trexio)
-         CALL close_file(unit_number=unit_trexio, file_status="DELETE")
-      END IF
+      IF (ionode) THEN
+         IF (file_exists(filename)) THEN
+            CALL open_file(filename, unit_number=unit_trexio)
+            CALL close_file(unit_number=unit_trexio, file_status="DELETE")
+         END IF
 
       !========================================================================================!
       ! Open the TREXIO file
@@ -416,8 +440,8 @@ MODULE trexio_utils
       CALL get_qs_kind_set(kind_set, sgp_potential_present=sgp_potential_present)
 
       ! figure out whether we actually have ECP potentials
+      ecp_num = 0
       IF (sgp_potential_present) THEN
-         ecp_num = 0
          DO iatom = 1, natoms
             ! get the qs_kind (index position in kind_set) for this atom (atomic_kind)
             CALL get_atomic_kind(particle_set(iatom)%atomic_kind, kind_number=ikind)
@@ -598,67 +622,169 @@ MODULE trexio_utils
       CALL trexio_error(rc)
       DEALLOCATE (ao_normalization)
 
+      END IF ! ionode
+
 
       !========================================================================================!
       ! MO group
       !========================================================================================!
+      CALL get_qs_env(qs_env, do_kpoints=do_kpoints, kpoints=kpoints, dft_control=dft_control, &
+                      particle_set=particle_set, qs_kind_set=kind_set, blacs_env=blacs_env)
+      nspins = dft_control%nspins
+      CALL get_qs_kind_set(kind_set, ncgf=ao_num, nsgf=nsgf)
+      nmo_spin = 0
+
       ! figure out that total number of MOs
       mo_num = 0
       IF (do_kpoints) THEN
-         CALL get_kpoint_info(kpoints, kp_env=kp_env)
-         DO ikp = 1, nkp
-            CALL get_kpoint_env(kp_env(ikp)%kpoint_env, mos=mos_kp)
-            DO ispin = 1, nspins
-               ! mos_kp is a 2x2 array: 1st dim is real and imaginary parts, 2nd dim is spin
-               CALL get_mo_set(mos_kp(1,ispin), nmo=nmo)
-               mo_num = mo_num + nmo
-            END DO
+         CALL get_kpoint_info(kpoints, kp_env=kp_env, nkp=nkp, use_real_wfn=use_real_wfn)
+         CALL get_kpoint_env(kp_env(1)%kpoint_env, mos=mos_kp)
+         DO ispin = 1, nspins
+            CALL get_mo_set(mos_kp(1,ispin), nmo=nmo)
+            nmo_spin(ispin) = nmo
          END DO
+         mo_num = nkp * SUM(nmo_spin)
+
+         ! we create a distributed fm matrix to gather the MOs from everywhere (in sph basis)
+         CALL cp_fm_struct_create(fm_struct, para_env=para_env, context=blacs_env, &
+                                  nrow_global=nsgf, ncol_global=mo_num)
+         CALL cp_fm_create(fm_mo_coeff, fm_struct)
+         CALL cp_fm_set_all(fm_mo_coeff, 0.0_dp)
+         IF (.NOT. use_real_wfn) THEN
+            CALL cp_fm_create(fm_mo_coeff_im, fm_struct)
+            CALL cp_fm_set_all(fm_mo_coeff_im, 0.0_dp)
+         END IF
+         CALL cp_fm_struct_release(fm_struct)
+
+         ! we create a distributed fm vector to gather MO energies and occupations
+         CALL cp_fm_struct_create(fm_struct, para_env=para_env, context=blacs_env, &
+                                  nrow_global=mo_num, ncol_global=1)
+         CALL cp_fm_create(fm_mo_energy, fm_struct)
+         CALL cp_fm_create(fm_mo_occupation, fm_struct)
+         CALL cp_fm_set_all(fm_mo_energy, 0.0_dp)
+         CALL cp_fm_set_all(fm_mo_occupation, 0.0_dp)
+         CALL cp_fm_struct_release(fm_struct)
       ELSE
          CALL get_qs_env(qs_env, mos=mos)
          DO ispin = 1, nspins
             CALL get_mo_set(mos(ispin), nmo=nmo)
-            mo_num = mo_num + nmo
+            nmo_spin(ispin) = nmo
          END DO
+         mo_num = SUM(nmo_spin)
       END IF
-
-      rc = trexio_write_mo_num(f, mo_num)
-      CALL trexio_error(rc)
 
       ! allocate all the arrays
       ALLOCATE (mo_coefficient(ao_num, mo_num))
+      mo_coefficient(:,:) = 0.0_dp
       ALLOCATE (mo_energy(mo_num))
+      mo_energy(:) = 0.0_dp
       ALLOCATE (mo_occupation(mo_num))
+      mo_occupation(:) = 0.0_dp
       ALLOCATE (mo_spin(mo_num))
+      mo_spin(:) = 0
       ! extra arrays for kpoints
       IF (do_kpoints) THEN
          ALLOCATE (mo_coefficient_im(ao_num, mo_num))
+         mo_coefficient_im(:,:) = 0.0_dp
          ALLOCATE (mo_kpoint(mo_num))
+         mo_kpoint(:) = 0
       END IF
 
-      imo = 0
+      ! in case of kpoints, we do this in 2 steps:
+      ! 1. we gather the MOs of each kpt and pipe them into a single large distributed fm matrix;
+      ! 2. we transform the MOs of each kpt to Cartesian AOs and write them in the single large local array;
+      IF (do_kpoints) THEN
+         CALL get_kpoint_info(kpoints, kp_env=kp_env, nkp=nkp, kp_range=kp_range)
+
+         DO ispin = 1, nspins
+            DO ikp = 1, nkp
+               ! global index to store the MOs
+               imo = (ikp-1)*nmo + (ispin-1)*nmo_spin(1)*nkp
+
+               ! do I have this kpoint on this rank?
+               IF (ikp >= kp_range(1) .AND. ikp <= kp_range(2)) THEN
+                  ikp_loc = ikp - kp_range(1) + 1
+                  ! get the mo set for this kpoint
+                  CALL get_kpoint_env(kp_env(ikp_loc)%kpoint_env, mos=mos_kp)
+
+                  ! if MOs are stored with dbcsr, copy them to fm
+                  IF (mos_kp(1,ispin)%use_mo_coeff_b) THEN
+                     CALL copy_dbcsr_to_fm(mos_kp(1,ispin)%mo_coeff_b, mos_kp(1,ispin)%mo_coeff)
+                  END IF
+                  ! copy real part of MO coefficients to large distributed fm matrix
+                  CALL cp_fm_to_fm_submat_general(mos_kp(1, ispin)%mo_coeff, fm_mo_coeff, &
+                                                  nsgf, nmo_spin(ispin), 1, 1, 1, imo+1, blacs_env)
+
+                  ! copy MO energies to large distributed fm vector
+                  ! CALL cp_fm_set_submatrix(fm_mo_energy, mos_kp(1, ispin)%eigenvalues, 1, nmo_spin(ispin), 1, 1)
+
+                  ! same for the imaginary part of MO coefficients
+                  IF (.NOT. use_real_wfn) THEN
+                     IF (mos_kp(2,ispin)%use_mo_coeff_b) THEN
+                        CALL copy_dbcsr_to_fm(mos_kp(2,ispin)%mo_coeff_b, mos_kp(2,ispin)%mo_coeff)
+                     END IF
+                     CALL cp_fm_to_fm_submat_general(mos_kp(2, ispin)%mo_coeff, fm_mo_coeff_im, &
+                                                     nsgf, nmo_spin(ispin), 1, 1, 1, imo+1, blacs_env)
+                  END IF
+               ELSE
+                  ! call with a dummy fm for receiving the data
+                  CALL cp_fm_to_fm_submat_general(fm_dummy, fm_mo_coeff, &
+                                                  nsgf, nmo_spin(ispin), 1, 1, 1, imo+1, blacs_env)
+                  IF (.NOT. use_real_wfn) THEN
+                     CALL cp_fm_to_fm_submat_general(fm_dummy, fm_mo_coeff_im, &
+                                                     nsgf, nmo_spin(ispin), 1, 1, 1, imo+1, blacs_env)
+                  END IF
+               END IF
+            END DO
+         END DO
+      END IF
+
+      ! second step: here we actually put everything in the local arrays for writing to trexio
       DO ispin = 1, nspins
+         ! get number of MOs for this spin
+         nmo = nmo_spin(ispin)
+         ! allocate local temp array to transform the MOs of each kpoint
+         ALLOCATE (mos_sgf(nsgf, nmo))
+
          IF (do_kpoints) THEN
             DO ikp = 1, nkp
-               CALL get_kpoint_env(kp_env(ikp)%kpoint_env, mos=mos_kp)
-               CALL get_mo_set(mos_kp(1,ispin), nmo=nmo)
+               ! IF (ikp >= kp_range(1) .AND. ikp <= kp_range(2)) THEN
+               !    ikp_loc = ikp - kp_range(1) + 1
+               !    ! get the mo set for this kpoint
+               !    CALL get_kpoint_env(kp_env(ikp_loc)%kpoint_env, mos=mos_kp)
+               ! END IF
+
+               ! global index to store the MOs
+               imo = (ikp-1)*nmo + (ispin-1)*nmo_spin(1)*nkp
+
                ! store kpoint index
                mo_kpoint(imo+1:imo+nmo) = ikp
                ! store the MO energies
-               mo_energy(imo+1:imo+nmo) = mos_kp(1,ispin)%eigenvalues
+               ! mo_energy(imo+1:imo+nmo) = mos_kp(1,ispin)%eigenvalues
                ! store the MO occupations
-               mo_occupation(imo+1:imo+nmo) = mos_kp(1,ispin)%occupation_numbers
+               ! mo_occupation(imo+1:imo+nmo) = mos_kp(1,ispin)%occupation_numbers
                ! store the MO spins
                mo_spin(imo+1:imo+nmo) = ispin
+
                ! transform and store the MO coefficients
-               CALL spherical_to_cartesian_mo(mos_kp(1,ispin), particle_set, kind_set, mo_coefficient(:,imo+1:imo+nmo))
-               CALL spherical_to_cartesian_mo(mos_kp(2,ispin), particle_set, kind_set, mo_coefficient_im(:,imo+1:imo+nmo))
+               CALL cp_fm_get_submatrix(fm_mo_coeff, mos_sgf, 1, imo+1, nsgf, nmo)
+               CALL spherical_to_cartesian_mo(mos_sgf, particle_set, kind_set, mo_coefficient(:,imo+1:imo+nmo))
 
-               imo = imo + nmo
+               IF (.NOT. use_real_wfn) THEN
+                  CALL cp_fm_get_submatrix(fm_mo_coeff_im, mos_sgf, 1, imo+1, nsgf, nmo)
+                  CALL spherical_to_cartesian_mo(mos_sgf, particle_set, kind_set, mo_coefficient_im(:,imo+1:imo+nmo))
+               END IF
             END DO
-         ELSE
-            CALL get_mo_set(mos(ispin), nmo=nmo)
 
+            IF (ionode) THEN
+               DO i = 1, ao_num
+                  WRITE(*,'(*(F12.8))') (mo_coefficient(i,j), j=1,mo_num)
+               END DO
+            END IF
+
+         ELSE
+            ! global index to store the MOs
+            imo = (ispin-1)*nmo_spin(1)
             ! store the MO energies
             mo_energy(imo+1:imo+nmo) = mos(ispin)%eigenvalues
             ! store the MO occupations
@@ -666,50 +792,73 @@ MODULE trexio_utils
             ! store the MO spins
             mo_spin(imo+1:imo+nmo) = ispin
             ! transform and store the MO coefficients
-            CALL spherical_to_cartesian_mo(mos(ispin), particle_set, kind_set, mo_coefficient(:,imo+1:imo+nmo))
 
-            imo = imo + nmo
+            ! check if we are using the dbcsr mo_coeff and copy them to fm if needed
+            IF (mos(ispin)%use_mo_coeff_b) CALL copy_dbcsr_to_fm(mos(ispin)%mo_coeff_b, mos(ispin)%mo_coeff)
+
+            ! allocate a normal fortran array to store the spherical MO coefficients
+            CALL cp_fm_get_submatrix(mos(ispin)%mo_coeff, mos_sgf)
+            CALL spherical_to_cartesian_mo(mos_sgf, particle_set, kind_set, mo_coefficient(:,imo+1:imo+nmo))
          END IF
+
+         DEALLOCATE (mos_sgf)
       END DO
 
-      rc = trexio_write_mo_coefficient(f, mo_coefficient)
-      CALL trexio_error(rc)
+
+      IF (ionode) THEN
+         rc = trexio_write_mo_num(f, mo_num)
+         CALL trexio_error(rc)
+
+         rc = trexio_write_mo_coefficient(f, mo_coefficient)
+         CALL trexio_error(rc)
+
+         rc = trexio_write_mo_energy(f, mo_energy)
+         CALL trexio_error(rc)
+
+         rc = trexio_write_mo_occupation(f, mo_occupation)
+         CALL trexio_error(rc)
+
+         rc = trexio_write_mo_spin(f, mo_spin)
+         CALL trexio_error(rc)
+
+         IF (do_kpoints) THEN
+            rc = trexio_write_mo_coefficient_im(f, mo_coefficient_im)
+            CALL trexio_error(rc)
+
+            rc = trexio_write_mo_k_point(f, mo_kpoint)
+            CALL trexio_error(rc)
+         END IF
+      END IF
+
       DEALLOCATE (mo_coefficient)
-
-      rc = trexio_write_mo_energy(f, mo_energy)
-      CALL trexio_error(rc)
       DEALLOCATE (mo_energy)
-
-      rc = trexio_write_mo_occupation(f, mo_occupation)
-      CALL trexio_error(rc)
       DEALLOCATE (mo_occupation)
-
-      rc = trexio_write_mo_spin(f, mo_spin)
-      CALL trexio_error(rc)
       DEALLOCATE (mo_spin)
-
       IF (do_kpoints) THEN
-         rc = trexio_write_mo_coefficient_im(f, mo_coefficient_im)
-         CALL trexio_error(rc)
          DEALLOCATE (mo_coefficient_im)
-
-         rc = trexio_write_mo_k_point(f, mo_kpoint)
-         CALL trexio_error(rc)
          DEALLOCATE (mo_kpoint)
+         CALL cp_fm_release(fm_mo_coeff)
+         CALL cp_fm_release(fm_mo_coeff_im)
+         CALL cp_fm_release(fm_mo_energy)
+         CALL cp_fm_release(fm_mo_occupation)
       END IF
 
 
       !========================================================================================!
       ! Close the TREXIO file
       !========================================================================================!
-      rc = trexio_close(f)
-      CALL trexio_error(rc)
+      IF (ionode) THEN
+         rc = trexio_close(f)
+         CALL trexio_error(rc)
+      END IF
+#endif
 
+      CALL para_env%sync()
       CALL timestop(handle)
 
    END SUBROUTINE write_trexio
 
-
+#ifdef __TREXIO
 ! **************************************************************************************************
 !> \brief Handles TREXIO errors
 !> \param rc the TREXIO return code
@@ -759,40 +908,36 @@ MODULE trexio_utils
 
 ! **************************************************************************************************
 !> \brief Computes a spherical to cartesian MO transformation
-!> \param mos the MO set to transform
+!> \param mo_coeff the MO coefficients to transform
 !> \param particle_set the set of particles in the system
 !> \param qs_kind_set the set of qs_kinds in the system
 !> \param cmatrix the cartesian MO coefficients
 ! **************************************************************************************************
-   SUBROUTINE spherical_to_cartesian_mo(mos, particle_set, qs_kind_set, cmatrix)
-      TYPE(mo_set_type), POINTER, INTENT(IN) :: mos
-      REAL(KIND=dp), DIMENSION(:,:), INTENT(OUT) :: cmatrix
+   SUBROUTINE spherical_to_cartesian_mo(mos_sgf, particle_set, qs_kind_set, mos_cgf)
+      ! TYPE(cp_fm_type), POINTER, INTENT(IN) :: mo_coeff
+      REAL(KIND=dp), DIMENSION(:,:), INTENT(IN) :: mos_sgf
+      REAL(KIND=dp), DIMENSION(:,:), INTENT(OUT) :: mos_cgf
       TYPE(particle_type), DIMENSION(:), POINTER, INTENT(IN) :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER, INTENT(IN) :: qs_kind_set
 
-      REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE :: smatrix
+      ! REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE :: smatrix
       TYPE(gto_basis_set_type), POINTER :: orb_basis_set
-      INTEGER :: icgf, isgf, iatom, ikind, iset, ishell, lshell, nset, ncgf, nsgf, &
-                 nrow_global, ncol_global
+      INTEGER :: icgf, isgf, iatom, ikind, iset, ishell, lshell, nset, ncgf, nsgf, nmo
       INTEGER, DIMENSION(:), POINTER :: nshell
       INTEGER, DIMENSION(:,:), POINTER :: l
 
-      ! check if we are using the dbcsr mo_coeff and copy them to fm if needed
-      IF (mos%use_mo_coeff_b) THEN
-         CALL copy_dbcsr_to_fm(mos%mo_coeff_b, mos%mo_coeff)
-      END IF
-
-      CALL cp_fm_get_info(mos%mo_coeff, &
-                          nrow_global=nrow_global, &
-                          ncol_global=ncol_global)
+      ! CALL cp_fm_get_info(mo_coeff, &
+      !                     nrow_global=nrow_global, &
+                        !   ncol_global=ncol_global)
 
       ! allocate a normal fortran array to store the spherical MO coefficients
-      ALLOCATE (smatrix(nrow_global, ncol_global))
-      CALL cp_fm_get_submatrix(mos%mo_coeff, smatrix)
+      ! ALLOCATE (smatrix(nrow_global, ncol_global))
+      ! CALL cp_fm_get_submatrix(mo_coeff, smatrix)
 
       CALL get_qs_kind_set(qs_kind_set, ncgf=ncgf, nsgf=nsgf)
 
-      cmatrix = 0.0_dp
+      mos_cgf = 0.0_dp
+      nmo = SIZE(mos_sgf, 2)
 
       ! Transform spherical MOs to Cartesian MOs
       icgf = 1
@@ -810,10 +955,11 @@ MODULE trexio_utils
             DO iset = 1, nset
                DO ishell = 1, nshell(iset)
                   lshell = l(ishell, iset)
-                  CALL dgemm("T", "N", nco(lshell), mos%nmo, nso(lshell), 1.0_dp, &
+                  ! ncol_global should be the same as mos(ispin)%nmo
+                  CALL dgemm("T", "N", nco(lshell), nmo, nso(lshell), 1.0_dp, &
                              orbtramat(lshell)%c2s, nso(lshell), &
-                             smatrix(isgf, 1), nsgf, 0.0_dp, &
-                             cmatrix(icgf, 1), ncgf)
+                             mos_sgf(isgf, 1), nsgf, 0.0_dp, &
+                             mos_cgf(icgf, 1), ncgf)
                   icgf = icgf + nco(lshell)
                   isgf = isgf + nso(lshell)
                END DO
@@ -825,7 +971,6 @@ MODULE trexio_utils
       END DO ! iatom
 
    END SUBROUTINE spherical_to_cartesian_mo
-
 #endif
 
 END MODULE trexio_utils
