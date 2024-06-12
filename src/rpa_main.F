@@ -212,7 +212,7 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: do_ri_sos_laplace_mp2, my_do_gw, &
                                                             do_im_time, do_bse
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
-      TYPE(dbcsr_type), INTENT(IN)                       :: mat_munu
+      TYPE(dbcsr_p_type), INTENT(IN)                       :: mat_munu
       TYPE(dbcsr_p_type), INTENT(INOUT)                  :: mat_P_global
       TYPE(dbt_type)                                     :: t_3c_M
       TYPE(dbt_type), ALLOCATABLE, DIMENSION(:, :)       :: t_3c_O
@@ -1073,7 +1073,7 @@ CONTAINS
                                                             fm_matrix_Minv_L_kpoints, &
                                                             fm_matrix_Minv, &
                                                             fm_matrix_Minv_Vtrunc_Minv
-      TYPE(dbcsr_type), INTENT(IN)                       :: mat_munu
+      TYPE(dbcsr_p_type), INTENT(IN)                       :: mat_munu
       TYPE(dbcsr_p_type), INTENT(INOUT)                  :: mat_P_global
       TYPE(dbt_type), INTENT(INOUT)                      :: t_3c_M
       TYPE(dbt_type), ALLOCATABLE, DIMENSION(:, :), &

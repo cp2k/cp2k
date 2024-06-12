@@ -180,13 +180,13 @@ CONTAINS
       CLASS(rpa_exchange_work_type), INTENT(INOUT) :: exchange_work
       TYPE(qs_environment_type), POINTER :: qs_env
       TYPE(mp_para_env_type), POINTER, INTENT(IN) :: para_env_sub
-      TYPE(dbcsr_type), INTENT(IN) :: mat_munu
+      TYPE(dbcsr_p_type), INTENT(IN) :: mat_munu
       INTEGER, INTENT(IN) :: dimen_RI
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN) :: fm_mat_S
       TYPE(cp_fm_type), INTENT(IN) :: fm_mat_Q, fm_mat_Q_gemm
       INTEGER, DIMENSION(SIZE(fm_mat_S)), INTENT(IN) :: homo, virtual
 
-      INTEGER :: nspins, aux_global, aux_local, my_process_row, proc
+      INTEGER :: nspins, aux_global, aux_local, my_process_row, proc, ispin
       INTEGER, DIMENSION(:), POINTER :: row_indices, aux_distribution_fm
       TYPE(cp_blacs_env_type), POINTER :: context
 
@@ -228,7 +228,21 @@ CONTAINS
       CALL cp_fm_create(exchange_work%fm_mat_R_half_gemm, fm_mat_Q_gemm%matrix_struct)
 
       IF (qs_env%mp2_env%ri_rpa%use_hfx_implementation) THEN
-         CALL exchange_work%exchange_env%create(qs_env, mat_munu, para_env_sub, fm_mat_S)
+         CALL exchange_work%exchange_env%create(qs_env, mat_munu%matrix, para_env_sub, fm_mat_S)
+      END IF
+
+      IF (ALLOCATED(qs_env%mp2_env%ri_rpa%mo_coeff_o)) THEN
+         DO ispin = 1, SIZE(qs_env%mp2_env%ri_rpa%mo_coeff_o)
+         CALL dbcsr_release(qs_env%mp2_env%ri_rpa%mo_coeff_o(ispin))
+         END DO
+         DEALLOCATE(qs_env%mp2_env%ri_rpa%mo_coeff_o)
+      END IF
+
+      IF (ALLOCATED(qs_env%mp2_env%ri_rpa%mo_coeff_v)) THEN
+         DO ispin = 1, SIZE(qs_env%mp2_env%ri_rpa%mo_coeff_v)
+         CALL dbcsr_release(qs_env%mp2_env%ri_rpa%mo_coeff_v(ispin))
+         END DO
+         DEALLOCATE(qs_env%mp2_env%ri_rpa%mo_coeff_v)
       END IF
    END SUBROUTINE
 
