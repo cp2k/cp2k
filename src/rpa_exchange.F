@@ -257,7 +257,7 @@ CONTAINS
    SUBROUTINE hfx_create_subgroup(exchange_env, qs_env, mat_munu, para_env_sub, fm_mat_S)
       CLASS(rpa_exchange_env_type), INTENT(INOUT) :: exchange_env
       TYPE(dbcsr_type), INTENT(IN) :: mat_munu
-      TYPE(qs_environment_type), POINTER, INTENT(IN)   :: qs_env
+      TYPE(qs_environment_type), POINTER   :: qs_env
       TYPE(mp_para_env_type), POINTER, INTENT(IN)            :: para_env_sub
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN) :: fm_mat_S
 
