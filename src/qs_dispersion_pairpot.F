@@ -3655,9 +3655,17 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE calculate_dispersion_d4_pairpot(dispersion_env, particle_set, force, energy, calculate_forces)
 
-      USE dftd4, ONLY: structure_type, new, d4_model, new_d4_model, &
-                       damping_param, get_rational_damping, &
-                       realspace_cutoff, get_dispersion
+#if defined(__DFTD4)
+      USE dftd4, ONLY: structure_type, d4_model, damping_param, &
+                       realspace_cutoff, new, new_d4_model, &
+                       get_rational_damping, get_dispersion
+
+      TYPE(structure_type)                               :: mol
+      TYPE(d4_model)                                     :: disp
+      class(damping_param), ALLOCATABLE                  :: param
+      TYPE(realspace_cutoff)                             :: cutoff
+#endif
+
       TYPE(qs_dispersion_type), POINTER                  :: dispersion_env
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
@@ -3670,15 +3678,11 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: el_num
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: gradient, xyz
       REAL(KIND=dp), DIMENSION(3, 3)                     :: sigma
-      TYPE(d4_model)                                     :: disp
-      TYPE(structure_type)                               :: mol
-
-      class(damping_param), ALLOCATABLE           :: param
-      TYPE(realspace_cutoff)                      :: cutoff
-      INTEGER                                     :: handle, ikind
+      INTEGER                                            :: handle, ikind
 
       CALL timeset(routineN, handle)
 
+#if defined(__DFTD4)
       !get information about particles
       natom = SIZE(particle_set)
       ALLOCATE (xyz(3, natom))
@@ -3713,6 +3717,9 @@ CONTAINS
       END IF
 
       DEALLOCATE (el_num, xyz)
+#else
+      CPABORT("Build without DFTD4")
+#endif
 
       CALL timestop(handle)
 
