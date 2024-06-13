@@ -14,10 +14,16 @@ MODULE cryssym
    USE bibliography,                    ONLY: Togo2018,&
                                               cite_reference
    USE kinds,                           ONLY: dp
-   USE spglib_f08,                      ONLY: &
-        spg_get_international, spg_get_ir_reciprocal_mesh, spg_get_major_version, &
-        spg_get_micro_version, spg_get_minor_version, spg_get_multiplicity, spg_get_pointgroup, &
-        spg_get_schoenflies, spg_get_symmetry
+   USE kpsym,                           ONLY: group1s,&
+                                              k290s
+   USE spglib_f08,                      ONLY: spg_get_international,&
+                                              spg_get_major_version,&
+                                              spg_get_micro_version,&
+                                              spg_get_minor_version,&
+                                              spg_get_multiplicity,&
+                                              spg_get_pointgroup,&
+                                              spg_get_schoenflies,&
+                                              spg_get_symmetry
    USE string_utilities,                ONLY: strip_control_codes
 #include "./base/base_uses.f90"
 
@@ -60,6 +66,9 @@ MODULE cryssym
       INTEGER                                     :: n_operations = 0
       INTEGER, DIMENSION(:, :, :), ALLOCATABLE    :: rotations
       REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE :: translations
+      !K290
+      REAL(KIND=dp), DIMENSION(3, 3, 48)          :: rt
+      REAL(KIND=dp), DIMENSION(3, 48)             :: vt
    END TYPE csym_type
 
 CONTAINS
@@ -214,14 +223,11 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'kpoint_gen'
 
-      INTEGER                                            :: handle, i, ik, is_shift(3), &
-                                                            is_time_reversal, j, nkp, nkpts
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: iwkp, xptr
-      INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: ixkp
+      INTEGER                                            :: handle, i, ik, j, nkp, nkpts
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: kpop, xptr
       LOGICAL                                            :: fullmesh
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: wkp
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: xkp
-      REAL(KIND=dp), DIMENSION(3)                        :: rxkp
 
       CALL timeset(routineN, handle)
 
@@ -247,7 +253,7 @@ CONTAINS
       csym%mesh(1:3) = nk(1:3)
 
       nkpts = nk(1)*nk(2)*nk(3)
-      ALLOCATE (xkp(3, nkpts), wkp(nkpts))
+      ALLOCATE (xkp(3, nkpts), wkp(nkpts), kpop(nkpts))
       ! kp: link
       ALLOCATE (csym%kplink(2, nkpts))
       csym%kplink = 0
@@ -274,20 +280,10 @@ CONTAINS
                CALL cp_abort(__LOCATION__, "MacDonald shifted k-point meshes are only "// &
                              "possible without symmetrization.")
             END IF
-            ALLOCATE (ixkp(3, nkpts), iwkp(nkpts))
-            is_shift(1:3) = MOD(nk(1:3) + 1, 2)
-            is_time_reversal = 1
-            nkp = spg_get_ir_reciprocal_mesh(ixkp, iwkp, nk, is_shift, is_time_reversal, &
-                                             TRANSPOSE(csym%hmat), csym%scoord, csym%atype, &
-                                             csym%nat, csym%delta)
-            wkp = 0.0_dp
-            DO i = 1, nkpts
-               xkp(:, i) = REAL(is_shift + 2*ixkp(:, i), KIND=dp)/REAL(2*nk(:), KIND=dp)
-               j = iwkp(i) + 1
-               wkp(j) = wkp(j) + 1.0_dp
-            END DO
-            csym%kplink(1, 1:nkpts) = iwkp(1:nkpts) + 1
-            DEALLOCATE (ixkp, iwkp)
+
+            CALL full_grid_gen(nk, xkp, wkp, shift)
+            CALL kp_symmetry(csym, xkp, wkp, kpop)
+
          END IF
       ELSE
          ! no symmetry library is available
@@ -343,24 +339,9 @@ CONTAINS
       ALLOCATE (csym%kpop(nkpts))
       IF (csym%symlib .AND. csym%istriz == 1 .AND. .NOT. fullmesh) THEN
          ! atomic symmetry operations possible
+         csym%kpop(1:nkpts) = kpop(1:nkpts)
          DO ik = 1, nkpts
-            IF (wkp(ik) > 0.0_dp) THEN
-               csym%kpop(ik) = 1
-            ELSE
-               csym%kpop(ik) = 0
-               j = csym%kplink(2, ik)
-               DO i = 1, csym%n_operations
-                  IF (SUM(ABS(csym%translations(:, i))) > 1.e-10_dp) CYCLE
-                  rxkp(1:3) = kp_apply_operation(csym%xkpoint(1:3, j), csym%rotations(:, :, i))
-                  rxkp(1:3) = ABS(xkp(1:3, ik) - rxkp(1:3))
-                  rxkp(1:3) = rxkp(1:3) - REAL(NINT(rxkp(1:3)), KIND=dp)
-                  IF (ALL((rxkp(1:3)) < 1.e-12_dp)) THEN
-                     csym%kpop(ik) = i
-                     EXIT
-                  END IF
-               END DO
-               CPASSERT(csym%kpop(ik) /= 0)
-            END IF
+            CPASSERT(csym%kpop(ik) /= 0)
          END DO
       ELSE
          ! only time reversal symmetry
@@ -373,12 +354,127 @@ CONTAINS
          END DO
       END IF
 
-      DEALLOCATE (xkp, wkp)
+      DEALLOCATE (xkp, wkp, kpop)
 
       CALL timestop(handle)
 
    END SUBROUTINE kpoint_gen
 
+! **************************************************************************************************
+!> \brief ...
+!> \param csym ...
+!> \param xkp ...
+!> \param wkp ...
+!> \param kpop ...
+! **************************************************************************************************
+   SUBROUTINE kp_symmetry(csym, xkp, wkp, kpop)
+      TYPE(csym_type)                                    :: csym
+      REAL(KIND=dp), DIMENSION(:, :)                     :: xkp
+      REAL(KIND=dp), DIMENSION(:)                        :: wkp
+      INTEGER, DIMENSION(:)                              :: kpop
+
+      INTEGER                                            :: i, ihc, ihg, ik, indpg, iou, iq1, iq2, &
+                                                            iq3, istriz, isy, itoj, j, kr, li, lr, &
+                                                            nat, nc, nhash, nkm, nkp, nkpoint, &
+                                                            nsp, ntvec
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: includ, isc, list, lwght, ty
+      INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: f0, lrot
+      INTEGER, DIMENSION(48)                             :: ib
+      REAL(KIND=dp)                                      :: alat
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: rlist, rx, tvec, wvkl, xkapa
+      REAL(KIND=dp), DIMENSION(3)                        :: a1, a2, a3, b1, b2, b3, origin, rr, wvk0
+      REAL(KIND=dp), DIMENSION(3, 3)                     :: hmat, strain
+      REAL(KIND=dp), DIMENSION(3, 3, 48)                 :: r
+      REAL(KIND=dp), DIMENSION(3, 48)                    :: vt
+
+      iou = csym%punit
+      hmat = csym%hmat
+      nat = csym%nat
+      iq1 = csym%mesh(1)
+      iq2 = csym%mesh(2)
+      iq3 = csym%mesh(3)
+      nkpoint = 10*iq1*iq2*iq3
+      nkpoint = 2*MAX(iq1, iq2, iq3)**3
+      wvk0 = csym%wvk0
+      istriz = csym%istriz
+      a1(1:3) = hmat(1:3, 1)
+      a2(1:3) = hmat(1:3, 2)
+      a3(1:3) = hmat(1:3, 3)
+      alat = hmat(1, 1)
+      strain = 0.0_dp
+      ALLOCATE (xkapa(3, nat), rx(3, nat), tvec(3, 200), ty(nat), isc(nat), f0(49, nat))
+      ty(1:nat) = csym%atype(1:nat)
+      nsp = MAXVAL(ty)
+      DO i = 1, nat
+         xkapa(1:3, i) = MATMUL(hmat, csym%scoord(1:3, i))
+      END DO
+      nhash = 1000
+      ALLOCATE (wvkl(3, nkpoint), rlist(3, nkpoint), includ(nkpoint), list(nhash + nkpoint))
+      ALLOCATE (lrot(48, nkpoint), lwght(nkpoint))
+
+      IF (iou > 0) THEN
+         WRITE (iou, '(/,(T2,A79))') &
+            "*******************************************************************************", &
+            "**                      Special K-Point Generation by K290                   **", &
+            "*******************************************************************************"
+      END IF
+
+      CALL K290s(iou, nat, nkpoint, nsp, iq1, iq2, iq3, istriz, &
+                 a1, a2, a3, alat, strain, xkapa, rx, tvec, &
+                 ty, isc, f0, ntvec, wvk0, wvkl, lwght, lrot, &
+                 nhash, includ, list, rlist, csym%delta)
+
+      CALL GROUP1s(0, a1, a2, a3, nat, ty, xkapa, b1, b2, b3, &
+                   ihg, ihc, isy, li, nc, indpg, ib, ntvec, &
+                   vt, f0, r, tvec, origin, rx, isc, csym%delta)
+
+      IF (iou > 0) THEN
+         WRITE (iou, '((T2,A79))') &
+            "*******************************************************************************", &
+            "**                              Finished K290                                **", &
+            "*******************************************************************************"
+      END IF
+
+      csym%rt = r
+      csym%vt = vt
+
+      kpop = 0
+      nkm = iq1*iq2*iq3
+      nkp = 0
+      DO i = 1, nkm
+         IF (lwght(i) == 0) EXIT
+         nkp = nkp + 1
+      END DO
+      wkp = 0
+      ik = 0
+      DO i = 1, nkp
+         DO j = 1, nkm
+            wvk0(1:3) = xkp(1:3, j) - wvkl(1:3, i)
+            IF (ALL(ABS(wvk0(1:3)) < 1.e-12_dp)) THEN
+               wkp(j) = lwght(i)
+               itoj = j
+               EXIT
+            END IF
+         END DO
+         DO lr = 1, lwght(i)
+            kr = lrot(lr, i)
+            rr(1:3) = kp_apply_operation(wvkl(1:3, i), r(1:3, 1:3, ABS(kr)))
+            IF (kr < 0) rr(1:3) = -rr(1:3)
+            DO j = 1, nkm
+               wvk0(1:3) = xkp(1:3, j) - rr(1:3)
+               IF (ALL(ABS(wvk0(1:3)) < 1.e-12_dp)) THEN
+                  csym%kplink(1, j) = itoj
+                  kpop(j) = kr
+                  EXIT
+               END IF
+            END DO
+         END DO
+      END DO
+      DEALLOCATE (xkapa, rx, tvec, ty, isc, f0)
+      DEALLOCATE (wvkl, rlist, includ, list)
+      DEALLOCATE (lrot, lwght)
+
+   END SUBROUTINE kp_symmetry
 ! **************************************************************************************************
 !> \brief ...
 !> \param nk ...
@@ -453,13 +549,12 @@ CONTAINS
 !> \return ...
 ! **************************************************************************************************
    FUNCTION kp_apply_operation(x, r) RESULT(y)
-      REAL(KIND=dp), INTENT(IN)                          :: x(3)
-      INTEGER, INTENT(IN)                                :: r(3, 3)
+      REAL(KIND=dp), INTENT(IN)                          :: x(3), r(3, 3)
       REAL(KIND=dp)                                      :: y(3)
 
-      y(1) = REAL(r(1, 1), dp)*x(1) + REAL(r(1, 2), dp)*x(2) + REAL(r(1, 3), dp)*x(3)
-      y(2) = REAL(r(2, 1), dp)*x(1) + REAL(r(2, 2), dp)*x(2) + REAL(r(2, 3), dp)*x(3)
-      y(3) = REAL(r(3, 1), dp)*x(1) + REAL(r(3, 2), dp)*x(2) + REAL(r(3, 3), dp)*x(3)
+      y(1) = r(1, 1)*x(1) + r(1, 2)*x(2) + r(1, 3)*x(3)
+      y(2) = r(2, 1)*x(1) + r(2, 2)*x(2) + r(2, 3)*x(3)
+      y(3) = r(3, 1)*x(1) + r(3, 2)*x(2) + r(3, 3)*x(3)
 
    END FUNCTION kp_apply_operation
 

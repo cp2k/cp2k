@@ -1363,7 +1363,7 @@ CONTAINS
          !We have a FT from KP to real-space: S(R) = sum_k S(k)*exp(-i*k*R), with S(k) a complex number
          !Therefore, we have: S(R) = sum_k Re(S(k))*cos(k*R) -i^2*Im(S(k))*sin(k*R)
          !                         = sum_k Re(S(k))*cos(k*R) + Im(S(k))*sin(k*R)
-         !fc = +- 1 is due to the usual non-symmetric real-sapce matrices stored as symmetric ones
+         !fc = +- 1 is due to the usual non-symmetric real-space matrices stored as symmetric ones
 
          irow = iatom
          icol = jatom
