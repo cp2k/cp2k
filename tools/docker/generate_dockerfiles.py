@@ -505,10 +505,7 @@ RUN ln -sf /usr/bin/gcc-{gcc_version}      /usr/local/bin/gcc  && \
 # ======================================================================================
 def toolchain_intel() -> str:
     return rf"""
-FROM intel/oneapi-hpckit:2024.0.1-devel-ubuntu22.04
-
-# Workaround expired key.
-RUN curl -sS https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB | gpg --dearmor > /usr/share/keyrings/intel-oneapi-archive-keyring.gpg
+FROM intel/hpckit:2024.1.1-devel-ubuntu22.04
 
 """ + install_toolchain(
         base_image="ubuntu",

@@ -3,10 +3,7 @@
 # Usage: docker build -f ./Dockerfile.test_intel-psmp ../../
 #
 
-FROM intel/oneapi-hpckit:2024.0.1-devel-ubuntu22.04
-
-# Workaround expired key.
-RUN curl -sS https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB | gpg --dearmor > /usr/share/keyrings/intel-oneapi-archive-keyring.gpg
+FROM intel/hpckit:2024.1.1-devel-ubuntu22.04
 
 # Install requirements for the toolchain.
 WORKDIR /opt/cp2k-toolchain
