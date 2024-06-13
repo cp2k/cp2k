@@ -91,7 +91,8 @@ MODULE bibliography
                             Rycroft2009, Thomas2015, Brehm2018, Brehm2020, Shigeta2001, Heinecke2016, &
                             Brehm2021, Bussy2021a, Bussy2021b, Ditler2021, Ditler2022, Mattiat2019, &
                             Mattiat2022, Belleflamme2023, Knizia2013, Musaelian2023, Eriksen2020, &
-                            Bussy2023, Wang2018, Zeng2023, Graml2024, Solca2024, Freeman1977, Gruneis2009
+                            Bussy2023, Wang2018, Zeng2023, Graml2024, Solca2024, Freeman1977, Gruneis2009, &
+                            Stein2022, Stein2024
 
 CONTAINS
 
@@ -5031,7 +5032,7 @@ CONTAINS
 
       CALL add_reference(key=Gruneis2009, ISI_record=s2a( &
                          "TY JOUR", &
-                         "AU Grüneis, Andreas", &
+                         "AU Grueneis, Andreas", &
                          "   Marsman, Martijn", &
                          "   Harl, Judith", &
                          "   Schimka, Laurids", &
@@ -5049,6 +5050,44 @@ CONTAINS
                          "UR https://doi.org/10.1063/1.3250347", &
                          "ER"), &
                          DOI="10.1063/1.3250347")
+
+      CALL add_reference(key=Stein2022, ISI_record=s2a( &
+                         "TY JOUR", &
+                         "AU Stein, Frederick", &
+                         "AU Hutter, Juerg", &
+                         "TI Double-hybrid density functionals for the condensed phase: ", &
+                         "   Gradients, stress tensor, and auxiliary-density matrix method acceleration", &
+                         "PY 2022", &
+                         "Y1 2022/02/17", &
+                         "JO The Journal of Chemical Physics", &
+                         "JA J. Chem. Phys.", &
+                         "VL 156", &
+                         "IS 7", &
+                         "SP 074107", &
+                         "SN 0021-9606", &
+                         "Y2 6/13/2024", &
+                         "UR https://doi.org/10.1063/5.0082327", &
+                         "ER"), &
+                         DOI="10.1063/5.0082327")
+
+      CALL add_reference(key=Stein2024, ISI_record=s2a( &
+                         "TY JOUR", &
+                         "AU Stein, Frederick", &
+                         "AU Hutter, Juerg", &
+                         "TI Massively parallel implementation of gradients within the random ", &
+                         "   phase approximation: Application to the polymorphs of benzene", &
+                         "PY 2024", &
+                         "Y1 2024/01/12", &
+                         "JO The Journal of Chemical Physics", &
+                         "JA J. Chem. Phys.", &
+                         "VL 160", &
+                         "IS 2", &
+                         "SP 024120", &
+                         "SN 0021-9606", &
+                         "Y2 6/13/2024", &
+                         "UR https://doi.org/10.1063/5.0180704", &
+                         "ER"), &
+                         DOI="10.1063/5.0180704")
 
    END SUBROUTINE add_all_references
 
