@@ -45,7 +45,7 @@ case "${with_ninja}" in
     fi
     ;;
   __SYSTEM__)
-    echo "==================== Finding CMake from system paths ===================="
+    echo "==================== Finding Ninja from system paths ===================="
     check_command ninja "ninja"
     ;;
   __DONTUSE__)

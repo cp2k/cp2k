@@ -1380,9 +1380,11 @@ CONTAINS
       END IF
 
       IF (dispersion_env%pp_type == vdw_pairpot_dftd4) THEN
+#if defined(__DFTD4)
          CALL calculate_dispersion_d4_pairpot(dispersion_env, particle_set, force, energy, calculate_forces)
-         !To Do: process forces
-
+#else
+         CPABORT("Build without DFTD4")
+#endif
          CALL timestop(handle)
          RETURN
       END IF
@@ -3645,6 +3647,8 @@ CONTAINS
 
    END SUBROUTINE exclude_d3_kind_pair
 
+
+#if defined(__DFTD4)
    ! **************************************************************************************************
 !> \brief ...
 !> \param dispersion_env ...
@@ -3655,7 +3659,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE calculate_dispersion_d4_pairpot(dispersion_env, particle_set, force, energy, calculate_forces)
 
-#if defined(__DFTD4)
       USE dftd4, ONLY: structure_type, d4_model, damping_param, &
                        realspace_cutoff, new, new_d4_model, &
                        get_rational_damping, get_dispersion
@@ -3664,7 +3667,6 @@ CONTAINS
       TYPE(d4_model)                                     :: disp
       class(damping_param), ALLOCATABLE                  :: param
       TYPE(realspace_cutoff)                             :: cutoff
-#endif
 
       TYPE(qs_dispersion_type), POINTER                  :: dispersion_env
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
@@ -3682,7 +3684,6 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-#if defined(__DFTD4)
       !get information about particles
       natom = SIZE(particle_set)
       ALLOCATE (xyz(3, natom))
@@ -3717,12 +3718,12 @@ CONTAINS
       END IF
 
       DEALLOCATE (el_num, xyz)
-#else
-      CPABORT("Build without DFTD4")
-#endif
 
       CALL timestop(handle)
 
    END SUBROUTINE calculate_dispersion_d4_pairpot
+
+#endif
+
 
 END MODULE qs_dispersion_pairpot
