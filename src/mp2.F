@@ -17,9 +17,12 @@ MODULE mp2
                                               admm_uncorrect_for_eigenvalues
    USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                               get_atomic_kind_set
-   USE bibliography,                    ONLY: DelBen2012,&
+   USE bibliography,                    ONLY: Bussy2023,&
+                                              DelBen2012,&
                                               DelBen2015b,&
                                               Rybkin2016,&
+                                              Stein2022,&
+                                              Stein2024,&
                                               cite_reference
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_control_types,                ONLY: dft_control_type
@@ -239,6 +242,9 @@ CONTAINS
       IF (calc_forces) THEN
          CALL cite_reference(DelBen2015b)
          CALL cite_reference(Rybkin2016)
+         CALL cite_reference(Stein2022)
+         CALL cite_reference(Bussy2023)
+         CALL cite_reference(Stein2024)
          !Gradients available for RI-MP2, and low-scaling Laplace MP2/RPA
 IF (.NOT. (mp2_env%method == ri_mp2_method_gpw .OR. mp2_env%method == ri_rpa_method_gpw .OR. mp2_env%method == ri_mp2_laplace)) THEN
             CPABORT("No forces/gradients for the selected method.")

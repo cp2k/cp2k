@@ -14,7 +14,7 @@
 MODULE input_cp2k_mp2
    USE bibliography, ONLY: &
       Bates2013, DelBen2012, DelBen2013, DelBen2015, DelBen2015b, Rybkin2016, Wilhelm2016a, &
-      Wilhelm2016b, Wilhelm2017, Wilhelm2018
+      Wilhelm2016b, Wilhelm2017, Wilhelm2018, Stein2022, Stein2024, Bussy2023
    USE cp_eri_mme_interface, ONLY: create_eri_mme_section
    USE cp_output_handling, ONLY: add_last_numeric, &
                                  cp_print_key_section_create, &
@@ -81,7 +81,8 @@ CONTAINS
                           "RI-MP2, RI-SOS-MP2, RI-RPA and GW (inside RI-RPA). ", &
                           n_keywords=4, n_subsections=7, repeats=.TRUE., &
                           citations=(/DelBen2012, DelBen2013, DelBen2015, DelBen2015b, Rybkin2016, &
-                                      Wilhelm2016a, Wilhelm2016b, Wilhelm2017, Wilhelm2018/))
+                                      Wilhelm2016a, Wilhelm2016b, Wilhelm2017, Wilhelm2018, Stein2022, &
+                                      Stein2024, Bussy2023/))
 
       NULLIFY (keyword, subsection)
 
@@ -442,7 +443,8 @@ CONTAINS
       CALL section_create(section, __LOCATION__, name="CANONICAL_GRADIENTS", &
                           description="Parameters influencing gradient calculations of canonical RI methods. "// &
                           "Ignored if the IM_TIME section is set.", &
-                          n_keywords=3, n_subsections=1, repeats=.FALSE.)
+                          n_keywords=3, n_subsections=1, repeats=.FALSE., &
+                          citations=(/DelBen2015b, Rybkin2016, Stein2022, Stein2024/))
 
       NULLIFY (subsection, keyword)
       CALL create_cphf(subsection)
@@ -1484,7 +1486,8 @@ CONTAINS
          description="Cubic scaling RI-RPA, GW and Laplace-SOS-MP2 method using the imaginary time formalism. "// &
          "EPS_GRID in WFC_GPW section controls accuracy / req. memory for 3-center integrals. "// &
          "SORT_BASIS EXP should be specified in DFT section.", &
-         n_keywords=12, n_subsections=2, repeats=.FALSE.)
+         n_keywords=12, n_subsections=2, repeats=.FALSE., &
+         citations=(/Wilhelm2016b, Wilhelm2018, Bussy2023/))
 
       NULLIFY (keyword)
       CALL keyword_create(keyword, __LOCATION__, name="_SECTION_PARAMETERS_", &
