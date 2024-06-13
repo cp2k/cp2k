@@ -246,6 +246,9 @@ docs/_build/
 docs/CP2K_INPUT/
 docs/CP2K_INPUT.md
 docs/bibliography.md
+docs/cp2k_input.xml
+docs/references.html
+docs/units.html
 
 # PyBuilder
 .pybuilder/
