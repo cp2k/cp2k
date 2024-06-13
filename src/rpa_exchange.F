@@ -85,8 +85,9 @@ MODULE rpa_exchange
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER      :: mat_hfx => NULL()
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER      :: dbcsr_Gamma_munu_P => NULL()
       TYPE(dbcsr_type), ALLOCATABLE, DIMENSION(:)    :: dbcsr_Gamma_inu_P
-      TYPE(dbcsr_type), DIMENSION(:), ALLOCATABLE :: mo_coeff_o
-      TYPE(dbcsr_type), DIMENSION(:), ALLOCATABLE :: mo_coeff_v
+      ! Workaround GCC 8
+      TYPE(dbcsr_type), DIMENSION(:), POINTER :: mo_coeff_o => NULL()
+      TYPE(dbcsr_type), DIMENSION(:), POINTER :: mo_coeff_v => NULL()
       TYPE(dbcsr_type)                               :: work_ao
       TYPE(hfx_type), DIMENSION(:, :), POINTER       :: x_data => NULL()
       TYPE(mp_para_env_type), POINTER                :: para_env => NULL()
@@ -230,14 +231,14 @@ CONTAINS
          CALL exchange_work%exchange_env%create(qs_env, mat_munu%matrix, para_env_sub, fm_mat_S)
       END IF
 
-      IF (ALLOCATED(qs_env%mp2_env%ri_rpa%mo_coeff_o)) THEN
+      IF (ASSOCIATED(qs_env%mp2_env%ri_rpa%mo_coeff_o)) THEN
          DO ispin = 1, SIZE(qs_env%mp2_env%ri_rpa%mo_coeff_o)
             CALL dbcsr_release(qs_env%mp2_env%ri_rpa%mo_coeff_o(ispin))
          END DO
          DEALLOCATE (qs_env%mp2_env%ri_rpa%mo_coeff_o)
       END IF
 
-      IF (ALLOCATED(qs_env%mp2_env%ri_rpa%mo_coeff_v)) THEN
+      IF (ASSOCIATED(qs_env%mp2_env%ri_rpa%mo_coeff_v)) THEN
          DO ispin = 1, SIZE(qs_env%mp2_env%ri_rpa%mo_coeff_v)
             CALL dbcsr_release(qs_env%mp2_env%ri_rpa%mo_coeff_v(ispin))
          END DO
@@ -257,7 +258,7 @@ CONTAINS
    SUBROUTINE hfx_create_subgroup(exchange_env, qs_env, mat_munu, para_env_sub, fm_mat_S)
       CLASS(rpa_exchange_env_type), INTENT(INOUT) :: exchange_env
       TYPE(dbcsr_type), INTENT(IN) :: mat_munu
-      TYPE(qs_environment_type), POINTER, INTENT(IN)   :: qs_env
+      TYPE(qs_environment_type), POINTER   :: qs_env
       TYPE(mp_para_env_type), POINTER, INTENT(IN)            :: para_env_sub
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN) :: fm_mat_S
 
@@ -276,8 +277,9 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      CALL MOVE_ALLOC(qs_env%mp2_env%ri_rpa%mo_coeff_o, exchange_env%mo_coeff_o)
-      CALL MOVE_ALLOC(qs_env%mp2_env%ri_rpa%mo_coeff_v, exchange_env%mo_coeff_v)
+      exchange_env%mo_coeff_o => qs_env%mp2_env%ri_rpa%mo_coeff_o
+      exchange_env%mo_coeff_v => qs_env%mp2_env%ri_rpa%mo_coeff_v
+      NULLIFY (qs_env%mp2_env%ri_rpa%mo_coeff_o, qs_env%mp2_env%ri_rpa%mo_coeff_v)
 
       nspins = SIZE(exchange_env%mo_coeff_o)
 

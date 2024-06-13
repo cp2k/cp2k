@@ -130,8 +130,9 @@ MODULE mp2_types
                                                             do_admm = .FALSE., &
                                                             do_rse = .FALSE., &
                                                             print_dgemm_info = .FALSE.
-      TYPE(dbcsr_type), DIMENSION(:), ALLOCATABLE        :: mo_coeff_o, &
-                                                            mo_coeff_v
+      ! GCC 8 has an issue with this being an ALLOCATABLE
+      TYPE(dbcsr_type), DIMENSION(:), POINTER            :: mo_coeff_o => NULL(), &
+                                                            mo_coeff_v => NULL()
       INTEGER                                            :: exchange_correction = rpa_exchange_none, &
                                                             exchange_block_size = -1
       LOGICAL                                            :: use_hfx_implementation = .FALSE.
