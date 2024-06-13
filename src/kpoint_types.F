@@ -97,6 +97,7 @@ MODULE kpoint_types
    TYPE kpoint_sym_type
       LOGICAL                                           :: apply_symmetry = .FALSE.
       INTEGER                                           :: nwght = -1
+      INTEGER                                           :: nwred = -1
       REAL(KIND=dp), DIMENSION(:, :), POINTER           :: xkp => NULL()
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER        :: rot => NULL()
       INTEGER, DIMENSION(:, :), POINTER                 :: f0 => NULL()

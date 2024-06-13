@@ -30,7 +30,7 @@ MODULE cryssym
    IMPLICIT NONE
    PRIVATE
    PUBLIC :: csym_type, release_csym_type, print_crys_symmetry, print_kp_symmetry
-   PUBLIC :: crys_sym_gen, kpoint_gen, apply_rotation_coord
+   PUBLIC :: crys_sym_gen, kpoint_gen
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cryssym'
 
@@ -69,6 +69,9 @@ MODULE cryssym
       !K290
       REAL(KIND=dp), DIMENSION(3, 3, 48)          :: rt
       REAL(KIND=dp), DIMENSION(3, 48)             :: vt
+      INTEGER, ALLOCATABLE, DIMENSION(:, :)       :: f0
+      INTEGER                                     :: nrtot
+      INTEGER, DIMENSION(48)                      :: ibrot
    END TYPE csym_type
 
 CONTAINS
@@ -106,6 +109,9 @@ CONTAINS
       END IF
       IF (ALLOCATED(csym%kpop)) THEN
          DEALLOCATE (csym%kpop)
+      END IF
+      IF (ALLOCATED(csym%f0)) THEN
+         DEALLOCATE (csym%f0)
       END IF
 
    END SUBROUTINE release_csym_type
@@ -437,6 +443,11 @@ CONTAINS
 
       csym%rt = r
       csym%vt = vt
+      csym%nrtot = nc
+      ALLOCATE (csym%f0(nat, nc))
+      csym%f0(1:nat, 1:nc) = f0(1:nat, 1:nc)
+      csym%ibrot = 0
+      csym%ibrot(1:nc) = ib(1:nc)
 
       kpop = 0
       nkm = iq1*iq2*iq3
@@ -557,45 +568,6 @@ CONTAINS
       y(3) = r(3, 1)*x(1) + r(3, 2)*x(2) + r(3, 3)*x(3)
 
    END FUNCTION kp_apply_operation
-
-! **************************************************************************************************
-!> \brief ...
-!> \param f0 ...
-!> \param csym ...
-!> \param ir ...
-! **************************************************************************************************
-   SUBROUTINE apply_rotation_coord(f0, csym, ir)
-      INTEGER, DIMENSION(:), INTENT(INOUT)               :: f0
-      TYPE(csym_type)                                    :: csym
-      INTEGER, INTENT(IN)                                :: ir
-
-      INTEGER                                            :: ia, ib, natom
-      REAL(KIND=dp)                                      :: diff
-      REAL(KIND=dp), DIMENSION(3)                        :: rb, ri, ro, tr
-      REAL(KIND=dp), DIMENSION(3, 3)                     :: rot
-
-      natom = csym%nat
-      rot(1:3, 1:3) = csym%rotations(1:3, 1:3, ir)
-      tr(1:3) = csym%translations(1:3, ir)
-
-      f0 = 0
-      DO ia = 1, natom
-         ri(1:3) = csym%scoord(1:3, ia)
-         ro(1) = REAL(rot(1, 1), dp)*ri(1) + REAL(rot(2, 1), dp)*ri(2) + REAL(rot(3, 1), dp)*ri(3) + tr(1)
-         ro(2) = REAL(rot(1, 2), dp)*ri(1) + REAL(rot(2, 2), dp)*ri(2) + REAL(rot(3, 2), dp)*ri(3) + tr(2)
-         ro(3) = REAL(rot(1, 3), dp)*ri(1) + REAL(rot(2, 3), dp)*ri(2) + REAL(rot(3, 3), dp)*ri(3) + tr(3)
-         DO ib = 1, natom
-            rb(1:3) = csym%scoord(1:3, ib)
-            diff = SQRT(SUM((ri(:) - rb(:))**2))
-            IF (diff < csym%delta) THEN
-               f0(ia) = ib
-               EXIT
-            END IF
-         END DO
-         CPASSERT(f0(ia) /= 0)
-      END DO
-
-   END SUBROUTINE apply_rotation_coord
 
 ! **************************************************************************************************
 !> \brief ...

@@ -36,8 +36,7 @@ MODULE kpoint_methods
         copy_info_type, cp_fm_cleanup_copy_general, cp_fm_create, cp_fm_finish_copy_general, &
         cp_fm_get_info, cp_fm_release, cp_fm_start_copy_general, cp_fm_to_fm, cp_fm_type
    USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
-   USE cryssym,                         ONLY: apply_rotation_coord,&
-                                              crys_sym_gen,&
+   USE cryssym,                         ONLY: crys_sym_gen,&
                                               csym_type,&
                                               kpoint_gen,&
                                               print_crys_symmetry,&
@@ -109,8 +108,8 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'kpoint_initialize'
 
-      INTEGER                                            :: handle, i, ik, iounit, ir, is, natom, &
-                                                            nr, ns
+      INTEGER                                            :: handle, i, ic, ik, iounit, ir, is, &
+                                                            natom, nr, ns
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atype
       LOGICAL                                            :: spez
       REAL(KIND=dp)                                      :: wsum
@@ -195,13 +194,21 @@ CONTAINS
                   nr = 0
                   DO is = 1, SIZE(crys_sym%kplink, 2)
                      IF (crys_sym%kplink(2, is) == ik) THEN
-                        nr = nr + 1
                         ir = crys_sym%kpop(is)
-                        kpsym%rot(1:3, 1:3, nr) = crys_sym%rotations(1:3, 1:3, ir)
-                        kpsym%xkp(1:3, nr) = crys_sym%kpmesh(1:3, is)
-                        CALL apply_rotation_coord(kpsym%f0(1:natom, nr), crys_sym, ir)
+                        IF (ir > 0) THEN
+                           nr = nr + 1
+                           kpsym%rot(1:3, 1:3, nr) = crys_sym%rotations(1:3, 1:3, ir)
+                           kpsym%xkp(1:3, nr) = crys_sym%kpmesh(1:3, is)
+                           DO ic = 1, crys_sym%nrtot
+                              IF (crys_sym%ibrot(ic) == ir) THEN
+                                 kpsym%f0(1:natom, nr) = crys_sym%f0(1:natom, ic)
+                                 EXIT
+                              END IF
+                           END DO
+                        END IF
                      END IF
                   END DO
+                  kpsym%nwred = nr
                END IF
             END IF
          END DO
