@@ -3647,7 +3647,6 @@ CONTAINS
 
    END SUBROUTINE exclude_d3_kind_pair
 
-
 #if defined(__DFTD4)
    ! **************************************************************************************************
 !> \brief ...
@@ -3662,9 +3661,9 @@ CONTAINS
       USE dftd4, ONLY: structure_type, d4_model, damping_param, &
                        realspace_cutoff, new, new_d4_model, &
                        get_rational_damping, get_dispersion
-
-      TYPE(structure_type)                               :: mol
       TYPE(d4_model)                                     :: disp
+      TYPE(structure_type)                               :: mol
+
       class(damping_param), ALLOCATABLE                  :: param
       TYPE(realspace_cutoff)                             :: cutoff
 
@@ -3724,6 +3723,5 @@ CONTAINS
    END SUBROUTINE calculate_dispersion_d4_pairpot
 
 #endif
-
 
 END MODULE qs_dispersion_pairpot
