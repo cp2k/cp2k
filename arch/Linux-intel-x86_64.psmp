@@ -68,7 +68,7 @@ USE_PLUMED     := 2.9.0
 USE_SIRIUS     := 7.5.2
 USE_SPFFT      := 1.0.6
 USE_SPGLIB     := 2.3.1
-USE_SPLA       := 1.5.5
+USE_SPLA       := 1.6.0
 # Only needed for SIRIUS
 LIBVDWXC_VER   := 0.4.0
 # Only needed for LIBPEXSI
@@ -88,6 +88,7 @@ ifeq ($(strip $(TARGET_CPU)), native)
 else
    CFLAGS         := -O2 -fPIC -fp-model precise -funroll-loops -g -mtune=$(TARGET_CPU) -qopenmp -qopenmp-simd -traceback
 endif
+CFLAGS         += -I/opt/intel/oneapi/compiler/latest/opt/compiler/include/intel64 -diag-disable=10448
 
 DFLAGS         := -D__parallel
 DFLAGS         += -D__SCALAPACK
@@ -107,7 +108,8 @@ ifeq ($(SHARED), yes)
    LDFLAGS        += -Wl,-rpath=$(CP2K_LIB)
    LDFLAGS        += -Wl,-rpath=$(CP2K_LIB)/exts/dbcsr
 else
-   LDFLAGS        := -static-intel -static_mpi
+#  LDFLAGS        := -static-intel -static_mpi
+   LDFLAGS        := -static-intel
 endif
 
 # Settings for regression testing
@@ -129,14 +131,14 @@ endif
 
 ifneq ($(USE_ELPA),)
    USE_ELPA       := $(strip $(USE_ELPA))
-   ELPA_INC       := $(INSTALL_PATH)/elpa-$(USE_ELPA)/cpu/include/elpa_openmp-$(USE_ELPA)
+   ELPA_INC       := $(INSTALL_PATH)/elpa-$(USE_ELPA)/cpu/include/elpa-$(USE_ELPA)
    ELPA_LIB       := $(INSTALL_PATH)/elpa-$(USE_ELPA)/cpu/lib
    CFLAGS         += -I$(ELPA_INC)/elpa -I$(ELPA_INC)/modules
    DFLAGS         += -D__ELPA
    ifeq ($(SHARED), yes)
-      LIBS           += -Wl,-rpath=$(ELPA_LIB) -L$(ELPA_LIB) -lelpa_openmp
+      LIBS           += -Wl,-rpath=$(ELPA_LIB) -L$(ELPA_LIB) -lelpa
    else
-      LIBS           += $(ELPA_LIB)/libelpa_openmp.a
+      LIBS           += $(ELPA_LIB)/libelpa.a
    endif
 endif
 
@@ -367,7 +369,7 @@ FCFLAGS        += -diag-disable=8293
 FCFLAGS        += -fpp
 FCFLAGS        += -fpscomp logicals
 FCFLAGS        += -free
-FCFLAGS        += -std08
+#FCFLAGS        += -std08
 
 LDFLAGS        += $(FCFLAGS)
 LDFLAGS_C      := -nofor-main
