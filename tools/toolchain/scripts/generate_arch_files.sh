@@ -134,6 +134,9 @@ else
   CFLAGS="${G_CFLAGS} -std=c11 -Wall \$(DFLAGS)"
   CXXFLAGS="${G_CFLAGS} -std=c++14 -Wall \$(DFLAGS)"
   FCFLAGS="${FCFLAGS} -diag-disable=8291 -diag-disable=8293 -fpp -fpscomp logicals -free"
+  # Suppress warnings and add include path to omp_lib.mod explicitly.
+  # No clue why the Intel oneAPI setup script does not include that path (bug?)
+  FCFLAGS="${FCFLAGS} -diag-disable=10448 -I/opt/intel/oneapi/2024.1/opt/compiler/include/intel64"
 fi
 
 # Linker flags
