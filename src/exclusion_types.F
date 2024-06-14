@@ -19,9 +19,9 @@ MODULE exclusion_types
 !>      12.2010 created [Joost VandeVondele]
 ! **************************************************************************************************
    TYPE exclusion_type
-      INTEGER, POINTER, DIMENSION(:)        :: list_exclude_vdw
-      INTEGER, POINTER, DIMENSION(:)        :: list_exclude_ei
-      INTEGER, POINTER, DIMENSION(:)        :: list_onfo
+      INTEGER, POINTER, DIMENSION(:)        :: list_exclude_vdw => NULL()
+      INTEGER, POINTER, DIMENSION(:)        :: list_exclude_ei => NULL()
+      INTEGER, POINTER, DIMENSION(:)        :: list_onfo => NULL()
    END TYPE
 
    PUBLIC :: exclusion_type, &

@@ -53,10 +53,6 @@ eip_silicon.F: Found WRITE statement with hardcoded unit in "eip_bazant_silicon"
 eip_silicon.F: Found WRITE statement with hardcoded unit in "eip_lenosky_silicon" https://cp2k.org/conv#c012
 eip_silicon.F: Found WRITE statement with hardcoded unit in "subfeniat_b" https://cp2k.org/conv#c012
 eip_silicon.F: Found WRITE statement with hardcoded unit in "subfeniat_l" https://cp2k.org/conv#c012
-ewald_environment_types.F: Found type ewald_environment_type without initializer https://cp2k.org/conv#c016
-exclusion_types.F: Found type exclusion_type without initializer https://cp2k.org/conv#c016
-exstates_types.F: Found type excited_energy_type without initializer https://cp2k.org/conv#c016
-exstates_types.F: Found type wfn_history_type without initializer https://cp2k.org/conv#c016
 extended_system_init.F: Found WRITE statement with hardcoded unit in "init_barostat_variables" https://cp2k.org/conv#c012
 extended_system_types.F: Found type lnhc_parameters_type without initializer https://cp2k.org/conv#c016
 extended_system_types.F: Found type map_info_type without initializer https://cp2k.org/conv#c016
@@ -402,10 +398,6 @@ qs_tddfpt2_types.F: Found type tddfpt_work_matrices without initializer https://
 qs_tddfpt_types.F: Found type tddfpt_env_type without initializer https://cp2k.org/conv#c016
 qs_tddfpt_utils.F: Found type simple_solution_sorter without initializer https://cp2k.org/conv#c016
 qs_wannier90.F: Found type berry_matrix_type without initializer https://cp2k.org/conv#c016
-qs_wf_history_types.F: Found type qs_wf_history_p_type without initializer https://cp2k.org/conv#c016
-qs_wf_history_types.F: Found type qs_wf_history_type without initializer https://cp2k.org/conv#c016
-qs_wf_history_types.F: Found type qs_wf_snapshot_p_type without initializer https://cp2k.org/conv#c016
-qs_wf_history_types.F: Found type qs_wf_snapshot_type without initializer https://cp2k.org/conv#c016
 rel_control_types.F: Found type rel_control_type without initializer https://cp2k.org/conv#c016
 replica_types.F: Found type replica_env_p_type without initializer https://cp2k.org/conv#c016
 replica_types.F: Found type replica_env_type without initializer https://cp2k.org/conv#c016
