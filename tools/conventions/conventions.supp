@@ -87,26 +87,6 @@ library_tests.F: Found CALL RANDOM_NUMBER in procedure "copy_test" https://cp2k.
 library_tests.F: Found CALL RANDOM_NUMBER in procedure "cp_fm_gemm_test" https://cp2k.org/conv#c104
 library_tests.F: Found CALL RANDOM_NUMBER in procedure "fft_test" https://cp2k.org/conv#c104
 library_tests.F: Found CALL RANDOM_NUMBER in procedure "rs_pw_transfer_test" https://cp2k.org/conv#c104
-lri_environment_types.F: Found type carray without initializer https://cp2k.org/conv#c016
-lri_environment_types.F: Found type int_container without initializer https://cp2k.org/conv#c016
-lri_environment_types.F: Found type lri_bas_type without initializer https://cp2k.org/conv#c016
-lri_environment_types.F: Found type lri_clebsch_gordon_type without initializer https://cp2k.org/conv#c016
-lri_environment_types.F: Found type lri_environment_type without initializer https://cp2k.org/conv#c016
-lri_environment_types.F: Found type lri_force_type without initializer https://cp2k.org/conv#c016
-lri_environment_types.F: Found type lri_int_rho_type without initializer https://cp2k.org/conv#c016
-lri_environment_types.F: Found type lri_int_type without initializer https://cp2k.org/conv#c016
-lri_environment_types.F: Found type lri_kind_type without initializer https://cp2k.org/conv#c016
-lri_environment_types.F: Found type lri_ppl_int_type without initializer https://cp2k.org/conv#c016
-lri_environment_types.F: Found type lri_ppl_type without initializer https://cp2k.org/conv#c016
-lri_environment_types.F: Found type lri_rhoab_type without initializer https://cp2k.org/conv#c016
-lri_environment_types.F: Found type lri_spin_type without initializer https://cp2k.org/conv#c016
-lri_environment_types.F: Found type ri_fit_type without initializer https://cp2k.org/conv#c016
-lri_environment_types.F: Found type stat_type without initializer https://cp2k.org/conv#c016
-lri_environment_types.F: Found type wbas_type without initializer https://cp2k.org/conv#c016
-lri_environment_types.F: Found type wmat_type without initializer https://cp2k.org/conv#c016
-lri_optimize_ri_basis_types.F: Found type lri_gcc_p_type without initializer https://cp2k.org/conv#c016
-lri_optimize_ri_basis_types.F: Found type lri_opt_type without initializer https://cp2k.org/conv#c016
-lri_optimize_ri_basis_types.F: Found type lri_subset_type without initializer https://cp2k.org/conv#c016
 machine.F: Found CALL m_abort in procedure "m_getcwd" https://cp2k.org/conv#c102
 machine.F: Found CALL m_abort in procedure "m_hostnm" https://cp2k.org/conv#c102
 machine.F: Found CALL m_abort in procedure "m_mov" https://cp2k.org/conv#c102
@@ -117,12 +97,9 @@ machine.F: Found OPEN statement in procedure "m_memory" https://cp2k.org/conv#c2
 machine.F: Found WRITE statement with hardcoded unit in "m_getcwd" https://cp2k.org/conv#c012
 machine.F: Found WRITE statement with hardcoded unit in "m_hostnm" https://cp2k.org/conv#c012
 machine.F: Found WRITE statement with hardcoded unit in "m_mov" https://cp2k.org/conv#c012
-mao_methods.F: Found type mblocks without initializer https://cp2k.org/conv#c016
-mao_types.F: Found type mao_type without initializer https://cp2k.org/conv#c016
 mathlib.F: Found WRITE statement with hardcoded unit in "diag" https://cp2k.org/conv#c012
 mc_coordinates.F: Found WRITE statement with hardcoded unit in "generate_cbmc_swap_config" https://cp2k.org/conv#c012
 mc_move_control.F: Found WRITE statement with hardcoded unit in "mc_move_update" https://cp2k.org/conv#c012
-mdctrl_types.F: Found type glbopt_mdctrl_data_type without initializer https://cp2k.org/conv#c016
 memory_utilities_unittest.F: Found WRITE statement with hardcoded unit in "check_real_rank1_allocated" https://cp2k.org/conv#c012
 memory_utilities_unittest.F: Found WRITE statement with hardcoded unit in "check_real_rank1_unallocated" https://cp2k.org/conv#c012
 memory_utilities_unittest.F: Found WRITE statement with hardcoded unit in "check_real_rank2_allocated" https://cp2k.org/conv#c012
@@ -141,26 +118,8 @@ message_passing.fypp: Rank mismatch between actual argument at (1) and actual ar
 message_passing.fypp: Rank mismatch between actual argument at (1) and actual argument at (2) (scalar and rank-3)
 message_passing.fypp: Rank mismatch between actual argument at (1) and actual argument at (2) (scalar and rank-4)
 message_passing.fypp: Type mismatch between actual argument at (1) and actual argument at (2) (COMPLEX(8)/COMPLEX(4)).
-metadynamics_types.F: Found type hills_env_type without initializer https://cp2k.org/conv#c016
-metadynamics_types.F: Found type meta_env_type without initializer https://cp2k.org/conv#c016
-metadynamics_types.F: Found type metavar_type without initializer https://cp2k.org/conv#c016
-metadynamics_types.F: Found type multiple_walkers_type without initializer https://cp2k.org/conv#c016
-metadynamics_types.F: Found type wall_type without initializer https://cp2k.org/conv#c016
-mixed_cdft_types.F: Found type buffers without initializer https://cp2k.org/conv#c016
-mixed_cdft_types.F: Found type mixed_cdft_dlb_type without initializer https://cp2k.org/conv#c016
-mixed_cdft_types.F: Found type mixed_cdft_settings_type without initializer https://cp2k.org/conv#c016
-mixed_cdft_types.F: Found type mixed_cdft_type without initializer https://cp2k.org/conv#c016
-mixed_cdft_types.F: Found type mixed_cdft_work_type without initializer https://cp2k.org/conv#c016
-mixed_cdft_types.F: Found type p_buffers without initializer https://cp2k.org/conv#c016
-mixed_cdft_types.F: Found type repl_info without initializer https://cp2k.org/conv#c016
-mixed_energy_types.F: Found type mixed_energy_type without initializer https://cp2k.org/conv#c016
-mixed_energy_types.F: Found type mixed_force_type without initializer https://cp2k.org/conv#c016
 mltfftsg_tools.F: Found WRITE statement with hardcoded unit in "ctrig" https://cp2k.org/conv#c012
-mm_mapping_library.F: Found type ff_map_type without initializer https://cp2k.org/conv#c016
 mode_selective.F: Found READ with unchecked STAT in "bfgs_guess" https://cp2k.org/conv#c001
-mode_selective.F: Found type ms_vib_type without initializer https://cp2k.org/conv#c016
-molsym.F: Found type molsym_type without initializer https://cp2k.org/conv#c016
-mscfg_types.F: Found type molecular_scf_guess_env_type without initializer https://cp2k.org/conv#c016
 negf_atom_map.F: Found type negf_atom_map_type without initializer https://cp2k.org/conv#c016
 negf_control_types.F: Found type negf_control_contact_type without initializer https://cp2k.org/conv#c016
 negf_control_types.F: Found type negf_control_type without initializer https://cp2k.org/conv#c016

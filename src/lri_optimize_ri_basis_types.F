@@ -34,35 +34,35 @@ MODULE lri_optimize_ri_basis_types
 
    TYPE lri_gcc_p_type
       ! gcc without normalization factor
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER                :: gcc_orig
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER                :: gcc_orig => NULL()
    END TYPE lri_gcc_p_type
 
    TYPE lri_subset_type
       ! amount of l quantum numbers per set
-      INTEGER                                            :: nl
+      INTEGER                                            :: nl = -1
       ! number of contraction per l quantum number for a given set
-      INTEGER, DIMENSION(:), POINTER                     :: ncont_l
+      INTEGER, DIMENSION(:), POINTER                     :: ncont_l => NULL()
    END TYPE lri_subset_type
 
    TYPE lri_opt_type
-      LOGICAL                                            :: opt_exps
-      LOGICAL                                            :: opt_coeffs
-      LOGICAL                                            :: use_condition_number
-      LOGICAL                                            :: use_geometric_seq
-      LOGICAL                                            :: use_constraints
-      INTEGER                                            :: nexp
-      INTEGER                                            :: ncoeff
-      REAL(KIND=dp)                                      :: cond_weight
-      REAL(KIND=dp)                                      :: scale_exp
-      REAL(KIND=dp)                                      :: fermi_exp
-      REAL(KIND=dp)                                      :: rho_diff
+      LOGICAL                                            :: opt_exps = .FALSE.
+      LOGICAL                                            :: opt_coeffs = .FALSE.
+      LOGICAL                                            :: use_condition_number = .FALSE.
+      LOGICAL                                            :: use_geometric_seq = .FALSE.
+      LOGICAL                                            :: use_constraints = .FALSE.
+      INTEGER                                            :: nexp = -1
+      INTEGER                                            :: ncoeff = -1
+      REAL(KIND=dp)                                      :: cond_weight = 0.0_dp
+      REAL(KIND=dp)                                      :: scale_exp = 0.0_dp
+      REAL(KIND=dp)                                      :: fermi_exp = 0.0_dp
+      REAL(KIND=dp)                                      :: rho_diff = 0.0_dp
       ! array holding the variables that are optimized
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: x
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: x => NULL()
       ! initial exponents
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: zet_init
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: zet_init => NULL()
       ! holds the original contraction coeff of the lri basis
-      TYPE(lri_gcc_p_type), DIMENSION(:), POINTER        :: ri_gcc_orig
-      TYPE(lri_subset_type), DIMENSION(:), POINTER      :: subset
+      TYPE(lri_gcc_p_type), DIMENSION(:), POINTER        :: ri_gcc_orig => NULL()
+      TYPE(lri_subset_type), DIMENSION(:), POINTER      :: subset => NULL()
    END TYPE lri_opt_type
 
 ! **************************************************************************************************

@@ -38,87 +38,88 @@ MODULE metadynamics_types
 !> \brief defines types for HILLS
 ! **************************************************************************************************
    TYPE hills_env_type
-      LOGICAL                                   :: restart, slow_growth, wtcontrol
+      LOGICAL                                   :: restart = .FALSE., slow_growth = .FALSE., wtcontrol = .FALSE.
       !RG Adaptive hills
-      REAL(KIND=dp)                             :: ww, min_disp, energy
-      INTEGER                                   :: n_hills, nt_hills, min_nt_hills
-      INTEGER                                   :: old_hill_number, old_hill_step
+      REAL(KIND=dp)                             :: ww = 0.0_dp, min_disp = 0.0_dp, energy = 0.0_dp
+      INTEGER                                   :: n_hills = -1, nt_hills = -1, min_nt_hills = -1
+      INTEGER                                   :: old_hill_number = -1, old_hill_step = -1
       !RG Adaptive hills
-      REAL(KIND=dp), DIMENSION(:, :), POINTER    :: ss_history
-      REAL(KIND=dp), DIMENSION(:, :), POINTER    :: delta_s_history
-      REAL(KIND=dp), DIMENSION(:), POINTER    :: ww_history
-      REAL(KIND=dp), DIMENSION(:), POINTER    :: invdt_history
+      REAL(KIND=dp), DIMENSION(:, :), POINTER    :: ss_history => NULL()
+      REAL(KIND=dp), DIMENSION(:, :), POINTER    :: delta_s_history => NULL()
+      REAL(KIND=dp), DIMENSION(:), POINTER    :: ww_history => NULL()
+      REAL(KIND=dp), DIMENSION(:), POINTER    :: invdt_history => NULL()
       !Hills tail damping
-      REAL(KIND=dp)                             :: tail_cutoff
-      INTEGER                                   :: p_exp, q_exp
+      REAL(KIND=dp)                             :: tail_cutoff = 0.0_dp
+      INTEGER                                   :: p_exp = -1, q_exp = -1
    END TYPE hills_env_type
 
 ! **************************************************************************************************
 !> \brief defines types for WALLS
 ! **************************************************************************************************
    TYPE wall_type
-      INTEGER                                   :: id_type, id_direction
-      REAL(KIND=dp)                             :: pos, pos0
-      REAL(KIND=dp)                             :: k_quadratic, k_quartic, ww_gauss, sigma_gauss
+      INTEGER                                   :: id_type = -1, id_direction = -1
+      REAL(KIND=dp)                             :: pos = 0.0_dp, pos0 = 0.0_dp
+      REAL(KIND=dp)                             :: k_quadratic = 0.0_dp, k_quartic = 0.0_dp, &
+                                                   ww_gauss = 0.0_dp, sigma_gauss = 0.0_dp
    END TYPE wall_type
 
 ! **************************************************************************************************
 !> \brief defines types for COLVAR used in the metadynamics
 ! **************************************************************************************************
    TYPE metavar_type
-      INTEGER                                   :: icolvar
-      LOGICAL                                   :: do_wall, periodic
-      REAL(KIND=dp)                             :: mass, lambda, vvp
-      REAL(KIND=dp)                             :: gamma
-      REAL(KIND=dp)                             :: epot_s, delta_s, epot_walls
-      REAL(KIND=dp)                             :: ss, ss0, ff_s, ff_hills, ff_walls
-      TYPE(wall_type), DIMENSION(:), POINTER    :: walls
+      INTEGER                                   :: icolvar = -1
+      LOGICAL                                   :: do_wall = .FALSE., periodic = .FALSE.
+      REAL(KIND=dp)                             :: mass = 0.0_dp, lambda = 0.0_dp, vvp = 0.0_dp
+      REAL(KIND=dp)                             :: gamma = 0.0_dp
+      REAL(KIND=dp)                             :: epot_s = 0.0_dp, delta_s = 0.0_dp, epot_walls = 0.0_dp
+      REAL(KIND=dp)                             :: ss = 0.0_dp, ss0 = 0.0_dp, ff_s = 0.0_dp, ff_hills = 0.0_dp, ff_walls = 0.0_dp
+      TYPE(wall_type), DIMENSION(:), POINTER    :: walls => NULL()
    END TYPE metavar_type
 
 ! **************************************************************************************************
 !> \brief defines types for multiple walkers run
 ! **************************************************************************************************
    TYPE multiple_walkers_type
-      INTEGER                                   :: n_hills_local
-      INTEGER                                   :: walker_id
-      INTEGER                                   :: walkers_tot_nr
-      INTEGER                                   :: walkers_freq_comm
-      INTEGER, DIMENSION(:), POINTER            :: walkers_status
+      INTEGER                                   :: n_hills_local = -1
+      INTEGER                                   :: walker_id = -1
+      INTEGER                                   :: walkers_tot_nr = -1
+      INTEGER                                   :: walkers_freq_comm = -1
+      INTEGER, DIMENSION(:), POINTER            :: walkers_status => NULL()
       CHARACTER(LEN=default_path_length), &
-         DIMENSION(:), POINTER                :: walkers_file_name
+         DIMENSION(:), POINTER                :: walkers_file_name => NULL()
    END TYPE multiple_walkers_type
 
 ! **************************************************************************************************
 !> \brief defines meta_env type
 ! **************************************************************************************************
    TYPE meta_env_type
-      LOGICAL                                   :: do_hills, do_multiple_walkers
-      LOGICAL                                   :: extended_lagrange
-      LOGICAL                                   :: well_tempered
-      LOGICAL                                   :: langevin
-      LOGICAL                                   :: use_plumed
-      CHARACTER(LEN=default_path_length)        :: plumed_input_file
-      INTEGER                                   :: n_colvar
-      REAL(KIND=dp)                             :: ekin_s, epot_s, dt, &
-                                                   avg_temp, epot_walls
-      LOGICAL                                   :: tempcontrol, restart
-      REAL(KIND=dp)                             :: temp_wanted, toll_temp
-      REAL(KIND=dp)                             :: delta_t, invdt, &
-                                                   wtgamma, wttemperature
-      INTEGER                                   :: n_steps
+      LOGICAL                                   :: do_hills = .FALSE., do_multiple_walkers = .FALSE.
+      LOGICAL                                   :: extended_lagrange = .FALSE.
+      LOGICAL                                   :: well_tempered = .FALSE.
+      LOGICAL                                   :: langevin = .FALSE.
+      LOGICAL                                   :: use_plumed = .FALSE.
+      CHARACTER(LEN=default_path_length)        :: plumed_input_file = ""
+      INTEGER                                   :: n_colvar = -1
+      REAL(KIND=dp)                             :: ekin_s = 0.0_dp, epot_s = 0.0_dp, dt = 0.0_dp, &
+                                                   avg_temp = 0.0_dp, epot_walls = 0.0_dp
+      LOGICAL                                   :: tempcontrol = .FALSE., restart = .FALSE.
+      REAL(KIND=dp)                             :: temp_wanted = 0.0_dp, toll_temp = 0.0_dp
+      REAL(KIND=dp)                             :: delta_t = 0.0_dp, invdt = 0.0_dp, &
+                                                   wtgamma = 0.0_dp, wttemperature = 0.0_dp
+      INTEGER                                   :: n_steps = -1
       ! time pointer should never be allocated itself.. that's a quite bad
       ! choice derived from the md_env.. So whenever the meta_env type is
       ! used the pointer time should be pointer to the high level time counter
-      REAL(KIND=dp), POINTER                    :: time
-      TYPE(hills_env_type), POINTER             :: hills_env
-      TYPE(metavar_type), POINTER, DIMENSION(:) :: metavar
-      TYPE(multiple_walkers_type), POINTER      :: multiple_walkers
-      TYPE(mp_para_env_type), POINTER           :: para_env
-      TYPE(section_vals_type), POINTER          :: metadyn_section
+      REAL(KIND=dp), POINTER                    :: time => NULL()
+      TYPE(hills_env_type), POINTER             :: hills_env => NULL()
+      TYPE(metavar_type), POINTER, DIMENSION(:) :: metavar => NULL()
+      TYPE(multiple_walkers_type), POINTER      :: multiple_walkers => NULL()
+      TYPE(mp_para_env_type), POINTER           :: para_env => NULL()
+      TYPE(section_vals_type), POINTER          :: metadyn_section => NULL()
       TYPE(rng_stream_type), DIMENSION(:), &
          ALLOCATABLE :: rng
-      INTEGER                                   :: TAMCSteps
-      REAL(kind=dp)                             :: zdt
+      INTEGER                                   :: TAMCSteps = -1
+      REAL(kind=dp)                             :: zdt = 0.0_dp
    END TYPE meta_env_type
 
 CONTAINS

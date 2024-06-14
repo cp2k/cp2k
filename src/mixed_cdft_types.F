@@ -64,13 +64,13 @@ MODULE mixed_cdft_types
 ! **************************************************************************************************
    TYPE mixed_cdft_work_type
       ! Matrix representations of the CDFT weight functions
-      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: w_matrix
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: w_matrix => NULL()
       ! AO overlap matrix
-      TYPE(dbcsr_type), POINTER                          :: mixed_matrix_s
+      TYPE(dbcsr_type), POINTER                          :: mixed_matrix_s => NULL()
       ! MO coefficients of each CDFT state
-      TYPE(cp_fm_type), DIMENSION(:, :), POINTER         :: mixed_mo_coeff
+      TYPE(cp_fm_type), DIMENSION(:, :), POINTER         :: mixed_mo_coeff => NULL()
       ! Density matrices of the CDFT states
-      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: density_matrix
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: density_matrix => NULL()
    END TYPE mixed_cdft_work_type
 
 ! **************************************************************************************************
@@ -82,18 +82,18 @@ MODULE mixed_cdft_types
 !> \param gradients the gradients to send
 ! **************************************************************************************************
    TYPE buffers
-      INTEGER                                          :: rank(2), tag(2)
+      INTEGER                                          :: rank(2) = -1, tag(2) = -1
       REAL(KIND=dp), POINTER, &
-         DIMENSION(:, :, :)                            :: cavity, weight
+         DIMENSION(:, :, :)                            :: cavity => NULL(), weight => NULL()
       REAL(KIND=dp), POINTER, &
-         DIMENSION(:, :, :, :)                         :: gradients
+         DIMENSION(:, :, :, :)                         :: gradients => NULL()
    END TYPE buffers
 ! **************************************************************************************************
 !> \brief To build array of buffers
 !> \param buffs the pointer to the buffers type
 ! **************************************************************************************************
    TYPE p_buffers
-      TYPE(buffers), DIMENSION(:), POINTER             :: buffs
+      TYPE(buffers), DIMENSION(:), POINTER             :: buffs => NULL()
    END TYPE p_buffers
 ! **************************************************************************************************
 !> \brief Information about load balancing
@@ -101,8 +101,8 @@ MODULE mixed_cdft_types
 !> \param target_list the target_list array of the processor that sends me data
 ! **************************************************************************************************
    TYPE repl_info
-      INTEGER, DIMENSION(:), POINTER                   :: matrix_info
-      INTEGER, DIMENSION(:, :), POINTER                :: target_list
+      INTEGER, DIMENSION(:), POINTER                   :: matrix_info => NULL()
+      INTEGER, DIMENSION(:, :), POINTER                :: target_list => NULL()
    END TYPE repl_info
 ! **************************************************************************************************
 !> \brief Load balancing control for mixed CDFT calculation
@@ -134,23 +134,23 @@ MODULE mixed_cdft_types
 !> \param recv_info additional information on the data this processor will receive
 ! **************************************************************************************************
    TYPE mixed_cdft_dlb_type
-      INTEGER                                          :: my_source, distributed(2), &
-                                                          my_dest_repl(2), dest_tags_repl(2), &
-                                                          more_work
-      INTEGER, DIMENSION(:), POINTER                   :: bo, expected_work, &
-                                                          prediction_error
-      INTEGER, DIMENSION(:, :), POINTER                :: target_list
-      LOGICAL                                          :: recv_work, send_work
-      LOGICAL, DIMENSION(:), POINTER                   :: recv_work_repl
-      REAL(KIND=dp)                                    :: load_scale, very_overloaded
+      INTEGER                                          :: my_source = -1, distributed(2) = -1, &
+                                                          my_dest_repl(2) = -1, dest_tags_repl(2) = -1, &
+                                                          more_work = -1
+      INTEGER, DIMENSION(:), POINTER                   :: bo => NULL(), expected_work => NULL(), &
+                                                          prediction_error => NULL()
+      INTEGER, DIMENSION(:, :), POINTER                :: target_list => NULL()
+      LOGICAL                                          :: recv_work = .FALSE., send_work = .FALSE.
+      LOGICAL, DIMENSION(:), POINTER                   :: recv_work_repl => NULL()
+      REAL(KIND=dp)                                    :: load_scale = 0.0_dp, very_overloaded = 0.0_dp
       REAL(KIND=dp), POINTER, &
-         DIMENSION(:, :, :)                            :: cavity, weight
+         DIMENSION(:, :, :)                            :: cavity => NULL(), weight => NULL()
       REAL(KIND=dp), POINTER, &
-         DIMENSION(:, :, :, :)                         :: gradients
+         DIMENSION(:, :, :, :)                         :: gradients => NULL()
       ! Should convert to TYPE(p_buffers), POINTER
-      TYPE(buffers), DIMENSION(:), POINTER             :: sendbuff
-      TYPE(p_buffers), DIMENSION(:), POINTER           :: recvbuff
-      TYPE(repl_info), DIMENSION(:), POINTER           :: recv_info
+      TYPE(buffers), DIMENSION(:), POINTER             :: sendbuff => NULL()
+      TYPE(p_buffers), DIMENSION(:), POINTER           :: recvbuff => NULL()
+      TYPE(repl_info), DIMENSION(:), POINTER           :: recv_info => NULL()
    END TYPE mixed_cdft_dlb_type
 ! **************************************************************************************************
 !> \brief Main mixed CDFT control type
@@ -202,65 +202,65 @@ MODULE mixed_cdft_types
 !> \param occupations           occupation numbers in case non-uniform occupation
 ! **************************************************************************************************
    TYPE mixed_cdft_type
-      INTEGER                                          :: sim_step, multiplicity, &
-                                                          nconstraint, &
-                                                          run_type
+      INTEGER                                          :: sim_step = -1, multiplicity = -1, &
+                                                          nconstraint = -1, &
+                                                          run_type = -1
       INTEGER, DIMENSION(:, :), ALLOCATABLE            :: constraint_type
-      INTEGER, POINTER, DIMENSION(:)                   :: source_list, dest_list, &
-                                                          recv_bo, source_list_save, &
-                                                          dest_list_save
-      INTEGER, POINTER, DIMENSION(:, :)                :: source_list_bo, dest_list_bo, &
-                                                          source_bo_save, dest_bo_save
-      LOGICAL                                          :: is_pencil, dlb, &
-                                                          is_special, first_iteration, &
-                                                          calculate_metric, &
-                                                          wfn_overlap_method, &
-                                                          has_unit_metric, &
-                                                          use_lowdin, &
-                                                          do_ci, nonortho_coupling, &
-                                                          identical_constraints, &
-                                                          block_diagonalize
-      REAL(KIND=dp)                                    :: eps_rho_rspace, sim_dt, &
-                                                          eps_svd
-      REAL(KIND=dp), POINTER, DIMENSION(:, :, :)       :: weight, cavity
-      TYPE(cdft_control_type), POINTER                 :: cdft_control
-      TYPE(buffers), DIMENSION(:), POINTER             :: sendbuff
+      INTEGER, POINTER, DIMENSION(:)                   :: source_list => NULL(), dest_list => NULL(), &
+                                                          recv_bo => NULL(), source_list_save => NULL(), &
+                                                          dest_list_save => NULL()
+      INTEGER, POINTER, DIMENSION(:, :)                :: source_list_bo => NULL(), dest_list_bo => NULL(), &
+                                                          source_bo_save => NULL(), dest_bo_save => NULL()
+      LOGICAL                                          :: is_pencil = .FALSE., dlb = .FALSE., &
+                                                          is_special = .FALSE., first_iteration = .FALSE., &
+                                                          calculate_metric = .FALSE., &
+                                                          wfn_overlap_method = .FALSE., &
+                                                          has_unit_metric = .FALSE., &
+                                                          use_lowdin = .FALSE., &
+                                                          do_ci = .FALSE., nonortho_coupling = .FALSE., &
+                                                          identical_constraints = .FALSE., &
+                                                          block_diagonalize = .FALSE.
+      REAL(KIND=dp)                                    :: eps_rho_rspace = 0.0_dp, sim_dt = 0.0_dp, &
+                                                          eps_svd = 0.0_dp
+      REAL(KIND=dp), POINTER, DIMENSION(:, :, :)       :: weight => NULL(), cavity => NULL()
+      TYPE(cdft_control_type), POINTER                 :: cdft_control => NULL()
+      TYPE(buffers), DIMENSION(:), POINTER             :: sendbuff => NULL()
       TYPE(cp_1d_r_p_type), ALLOCATABLE, &
          DIMENSION(:, :)                               :: occupations
-      TYPE(cp_blacs_env_type), POINTER                 :: blacs_env
-      TYPE(cp_logger_p_type), DIMENSION(:), POINTER    :: sub_logger
-      TYPE(mixed_cdft_result_type)                     :: results
-      TYPE(mixed_cdft_work_type)                       :: matrix
-      TYPE(mixed_cdft_dlb_type), POINTER               :: dlb_control
-      TYPE(pw_env_type), POINTER                       :: pw_env
+      TYPE(cp_blacs_env_type), POINTER                 :: blacs_env => NULL()
+      TYPE(cp_logger_p_type), DIMENSION(:), POINTER    :: sub_logger => NULL()
+      TYPE(mixed_cdft_result_type)                     :: results = mixed_cdft_result_type()
+      TYPE(mixed_cdft_work_type)                       :: matrix = mixed_cdft_work_type()
+      TYPE(mixed_cdft_dlb_type), POINTER               :: dlb_control => NULL()
+      TYPE(pw_env_type), POINTER                       :: pw_env => NULL()
       TYPE(qs_kind_type), DIMENSION(:), &
-         POINTER                                       :: qs_kind_set
+         POINTER                                       :: qs_kind_set => NULL()
    END TYPE mixed_cdft_type
 
 ! **************************************************************************************************
 !> \brief Container for constraint settings to check consistency of force_evals
 ! **************************************************************************************************
    TYPE mixed_cdft_settings_type
-      LOGICAL                                            :: is_spherical, &
-                                                            is_odd
-      LOGICAL, DIMENSION(:, :), POINTER                  :: sb
-      INTEGER                                            :: ncdft, &
-                                                            max_nkinds
-      INTEGER, DIMENSION(2, 3)                           :: bo
-      INTEGER, DIMENSION(:), POINTER                     :: grid_span, &
-                                                            spherical, &
-                                                            odd
-      INTEGER, DIMENSION(:, :), POINTER                  :: si, &
-                                                            rs_dims, &
-                                                            atoms, &
-                                                            npts
-      REAL(KIND=dp)                                      :: radius
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: cutoff, &
-                                                            rel_cutoff
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: sr, &
-                                                            coeffs, &
-                                                            cutoffs, &
-                                                            radii
+      LOGICAL                                            :: is_spherical = .FALSE., &
+                                                            is_odd = .FALSE.
+      LOGICAL, DIMENSION(:, :), POINTER                  :: sb => NULL()
+      INTEGER                                            :: ncdft = -1, &
+                                                            max_nkinds = -1
+      INTEGER, DIMENSION(2, 3)                           :: bo = -1
+      INTEGER, DIMENSION(:), POINTER                     :: grid_span => NULL(), &
+                                                            spherical => NULL(), &
+                                                            odd => NULL()
+      INTEGER, DIMENSION(:, :), POINTER                  :: si => NULL(), &
+                                                            rs_dims => NULL(), &
+                                                            atoms => NULL(), &
+                                                            npts => NULL()
+      REAL(KIND=dp)                                      :: radius = 0.0_dp
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: cutoff => NULL(), &
+                                                            rel_cutoff => NULL()
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: sr => NULL(), &
+                                                            coeffs => NULL(), &
+                                                            cutoffs => NULL(), &
+                                                            radii => NULL()
    END TYPE mixed_cdft_settings_type
 
 ! *** Public data types ***
