@@ -54,13 +54,14 @@ MODULE negf_integr_simpson
 ! **************************************************************************************************
    TYPE simpsonrule_subinterval_type
       !> unscaled lower and upper boundaries within the interval [-1 .. 1]
-      REAL(kind=dp)                                      :: lb, ub
+      REAL(kind=dp)                                      :: lb = -1.0_dp, ub = -1.0_dp
       !> target accuracy for this sub-interval
-      REAL(kind=dp)                                      :: conv
+      REAL(kind=dp)                                      :: conv = -1.0_dp
       !> estimated error value on this sub-interval
-      REAL(kind=dp)                                      :: error
+      REAL(kind=dp)                                      :: error = -1.0_dp
       !> integrand values at equally spaced points [a, b, c, d, e] located on the curve shape([lb .. ub])
-      TYPE(cp_cfm_type)                        :: fa, fb, fc, fd, fe
+      TYPE(cp_cfm_type)                        :: fa = cp_cfm_type(), fb = cp_cfm_type(), fc = cp_cfm_type(), &
+                                                  fd = cp_cfm_type(), fe = cp_cfm_type()
    END TYPE simpsonrule_subinterval_type
 
 ! **************************************************************************************************
@@ -68,24 +69,24 @@ MODULE negf_integr_simpson
 ! **************************************************************************************************
    TYPE simpsonrule_type
       !> lower and upper boundaries of the curve on the complex plane
-      COMPLEX(kind=dp)                                   :: a, b
+      COMPLEX(kind=dp)                                   :: a = z_zero, b = z_zero
       !> ID number which determines the shape of a curve along which the integral will be evaluated
-      INTEGER                                            :: shape_id
+      INTEGER                                            :: shape_id = -1
       !> target accuracy
-      REAL(kind=dp)                                      :: conv
+      REAL(kind=dp)                                      :: conv = -1.0_dp
       !> estimated error value on the entire integration interval,
       !> as well as on converged sub-intervals only
-      REAL(kind=dp)                                      :: error, error_conv
+      REAL(kind=dp)                                      :: error = -1.0_dp, error_conv = -1.0_dp
       !> the estimated value of the integral on the entire interval
-      TYPE(cp_cfm_type), POINTER                         :: integral
+      TYPE(cp_cfm_type), POINTER                         :: integral => NULL()
       !> work matrix to store the contribution to the integral on converged sub-intervals
-      TYPE(cp_cfm_type), POINTER                         :: integral_conv
+      TYPE(cp_cfm_type), POINTER                         :: integral_conv => NULL()
       !> work matrices which stores approximated integral computed by using a/b/c, c/d/e, and a/c/e points respectively
-      TYPE(cp_cfm_type), POINTER                         :: integral_abc, integral_cde, integral_ace
+      TYPE(cp_cfm_type), POINTER                         :: integral_abc => NULL(), integral_cde => NULL(), integral_ace => NULL()
       !> work matrix to temporarily store error estimate of the integral on a sub-interval for every matrix element
-      TYPE(cp_fm_type), POINTER                          :: error_fm
+      TYPE(cp_fm_type), POINTER                          :: error_fm => NULL()
       !> weights associated with matrix elements; the final error is computed as Trace(error_fm * weights)
-      TYPE(cp_fm_type), POINTER                          :: weights
+      TYPE(cp_fm_type), POINTER                          :: weights => NULL()
       ! non-converged sub-intervals
       TYPE(simpsonrule_subinterval_type), ALLOCATABLE, &
          DIMENSION(:)                                    :: subintervals
