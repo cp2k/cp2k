@@ -50,6 +50,15 @@ case "$with_elpa" in
       fi
       enable_openmp="no"
     fi
+    if [ "${with_intel}" != "__DONTUSE__" ]; then
+      enable_openmp="no"
+      echo "OpenMP disabled for ELPA using the Intel compiler"
+      cflags="$(echo ${CFLAGS} | sed -e 's/[-a-z]*openmp[-a-z]*//g') -I/opt/intel/oneapi/compiler/latest/opt/compiler/include/intel64"
+      fcflags="$(echo ${FCFLAGS} | sed -e 's/[-a-z]*openmp[-a-z]*//g') -I/opt/intel/oneapi/compiler/latest/opt/compiler/include/intel64"
+    else
+      cflags=${CFLAGS}
+      fcflags=${FCFLAGS}
+    fi
 
     if verify_checksums "${install_lock_file}"; then
       echo "elpa-${elpa_ver} is already installed, skipping it."
@@ -113,9 +122,9 @@ case "$with_elpa" in
           CC=${MPICC} \
           CXX=${MPICXX} \
           CPP="cpp -E" \
-          FCFLAGS="${FCFLAGS} ${MATH_CFLAGS} ${SCALAPACK_CFLAGS} -ffree-line-length-none ${AVX_flag} ${FMA_flag} ${SSE4_flag} ${AVX512_flags} -fno-lto" \
-          CFLAGS="${CFLAGS} ${MATH_CFLAGS} ${SCALAPACK_CFLAGS} ${AVX_flag} ${FMA_flag} ${SSE4_flag} ${AVX512_flags} -fno-lto" \
-          CXXFLAGS="${CXXFLAGS} ${MATH_CFLAGS} ${SCALAPACK_CFLAGS} ${AVX_flag} ${FMA_flag} ${SSE4_flag} ${AVX512_flags} -fno-lto" \
+          FCFLAGS="${fcflags} ${MATH_CFLAGS} ${SCALAPACK_CFLAGS} ${AVX_flag} ${FMA_flag} ${SSE4_flag} ${AVX512_flags}" \
+          CFLAGS="${cflags} ${MATH_CFLAGS} ${SCALAPACK_CFLAGS} ${AVX_flag} ${FMA_flag} ${SSE4_flag} ${AVX512_flags}" \
+          CXXFLAGS="${CXXFLAGS} ${MATH_CFLAGS} ${SCALAPACK_CFLAGS} ${AVX_flag} ${FMA_flag} ${SSE4_flag} ${AVX512_flags}" \
           LDFLAGS="-Wl,--allow-multiple-definition -Wl,--enable-new-dtags ${MATH_LDFLAGS} ${SCALAPACK_LDFLAGS} ${cray_ldflags}" \
           LIBS="${SCALAPACK_LIBS} $(resolve_string "${MATH_LIBS}" "MPI")" \
           > configure.log 2>&1 || tail -n ${LOG_LINES} configure.log
