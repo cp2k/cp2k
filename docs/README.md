@@ -7,7 +7,7 @@ To build a local version of the manual perform the following steps:
 
 1. Install the required Python packaged:
 
-   `pip3 install sphinx myst-parser sphinx_rtd_theme lxml`
+   `pip3 install sphinx myst-parser sphinx_rtd_theme sphinxcontrib-youtube lxml`
 
 1. Build a CP2K binary and use it to generate the `cp2k_input.xml` and `references.html` files:
 
