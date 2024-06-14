@@ -191,7 +191,7 @@ required.
   multiplications.
 - Add `-lstdc++ -lcudart -lnvrtc -lcuda -lcublas` to LIBS.
 - Specify the GPU type (e.g., `GPUVER = P100`), possible values are K20X, K40, K80, P100, V100,
-  A100, A40.
+  A100, H100, A40.
 - Specify the C++ compiler (e.g., `CXX = g++`) and the CXXFLAGS to support the C++11 standard.
 - CUFFT 7.0 has a known bug and is therefore disabled by default. NVIDIA's webpage list a patch (an
   upgraded version cufft i.e. >= 7.0.35) - use this together with `-D__HAS_PATCHED_CUFFT_70`.

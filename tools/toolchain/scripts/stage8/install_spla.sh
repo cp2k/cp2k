@@ -77,7 +77,7 @@ case "${with_spla}" in
       if [ "$ENABLE_HIP" = "__TRUE__" ]; then
 
         case "${GPUVER}" in
-          K20X | K40 | K80 | P100 | V100 | A100 | A40)
+          K20X | K40 | K80 | P100 | V100 | A100 | A40 | H100)
             [ -d build-cuda ] && rm -rf "build-cuda"
             mkdir build-cuda
             cd build-cuda
