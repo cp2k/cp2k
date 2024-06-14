@@ -70,19 +70,19 @@ MODULE fist_environment_types
 ! **************************************************************************************************
    TYPE fist_environment_type
       PRIVATE
-      LOGICAL                                      :: qmmm
-      LOGICAL                                      :: shell_model, shell_model_ad
-      TYPE(qmmm_env_mm_type), POINTER              :: qmmm_env
-      TYPE(cell_type), POINTER                     :: cell_ref
-      TYPE(ewald_environment_type), POINTER        :: ewald_env
-      TYPE(ewald_pw_type), POINTER                 :: ewald_pw
-      TYPE(fist_energy_type), POINTER              :: thermo
-      TYPE(mp_para_env_type), POINTER              :: para_env
-      TYPE(cp_subsys_type), POINTER                :: subsys
-      TYPE(fist_nonbond_env_type), POINTER         :: fist_nonbond_env
-      TYPE(section_vals_type), POINTER             :: input
-      TYPE(exclusion_type), DIMENSION(:), POINTER  :: exclusions
-      TYPE(fist_efield_type), POINTER              :: efield
+      LOGICAL                                      :: qmmm = .FALSE.
+      LOGICAL                                      :: shell_model = .FALSE., shell_model_ad = .FALSE.
+      TYPE(qmmm_env_mm_type), POINTER              :: qmmm_env => NULL()
+      TYPE(cell_type), POINTER                     :: cell_ref => NULL()
+      TYPE(ewald_environment_type), POINTER        :: ewald_env => NULL()
+      TYPE(ewald_pw_type), POINTER                 :: ewald_pw => NULL()
+      TYPE(fist_energy_type), POINTER              :: thermo => NULL()
+      TYPE(mp_para_env_type), POINTER              :: para_env => NULL()
+      TYPE(cp_subsys_type), POINTER                :: subsys => NULL()
+      TYPE(fist_nonbond_env_type), POINTER         :: fist_nonbond_env => NULL()
+      TYPE(section_vals_type), POINTER             :: input => NULL()
+      TYPE(exclusion_type), DIMENSION(:), POINTER  :: exclusions => NULL()
+      TYPE(fist_efield_type), POINTER              :: efield => NULL()
    END TYPE fist_environment_type
 
 ! *** Public data types ***

@@ -61,30 +61,11 @@ extended_system_types.F: Found type npt_info_type without initializer https://cp
 extended_system_types.F: Found type point_info_type without initializer https://cp2k.org/conv#c016
 farming_methods.F: Found CLOSE statement in procedure "farming_parse_input" https://cp2k.org/conv#c204
 farming_methods.F: Found OPEN statement in procedure "farming_parse_input" https://cp2k.org/conv#c203
-farming_types.F: Found type farming_env_type without initializer https://cp2k.org/conv#c016
-farming_types.F: Found type job_type without initializer https://cp2k.org/conv#c016
 fftw3_lib.F: Same actual argument associated with INTENT(OUT) argument 'in' and INTENT(OUT) argument 'out' at (1)
-fist_efield_types.F: Found type fist_efield_type without initializer https://cp2k.org/conv#c016
-fist_energy_types.F: Found type fist_energy_type without initializer https://cp2k.org/conv#c016
-fist_environment_types.F: Found type fist_environment_type without initializer https://cp2k.org/conv#c016
-fist_force.F: Found type debug_variables_type without initializer https://cp2k.org/conv#c016
-fist_neighbor_lists.F: Found type local_atoms_type without initializer https://cp2k.org/conv#c016
-fist_neighbor_list_types.F: Found type fist_neighbor_type without initializer https://cp2k.org/conv#c016
-fist_neighbor_list_types.F: Found type neighbor_kind_pairs_type without initializer https://cp2k.org/conv#c016
-force_field_types.F: Found type amber_info_type without initializer https://cp2k.org/conv#c016
-force_field_types.F: Found type charmm_info_type without initializer https://cp2k.org/conv#c016
-force_field_types.F: Found type force_field_type without initializer https://cp2k.org/conv#c016
-force_field_types.F: Found type gromos_info_type without initializer https://cp2k.org/conv#c016
-force_field_types.F: Found type input_info_type without initializer https://cp2k.org/conv#c016
 fparser.F: Found WRITE statement with hardcoded unit in "parseerrmsg" https://cp2k.org/conv#c012
-fp_types.F: Found type fp_type without initializer https://cp2k.org/conv#c016
 free_energy_methods.F: Found WRITE statement with hardcoded unit in "ui_check_norm_sc" https://cp2k.org/conv#c012
 free_energy_methods.F: Found WRITE statement with hardcoded unit in "ui_check_norm_sc_low" https://cp2k.org/conv#c012
 free_energy_methods.F: Found WRITE statement with hardcoded unit in "ui_check_trend" https://cp2k.org/conv#c012
-free_energy_types.F: Found type free_energy_type without initializer https://cp2k.org/conv#c016
-free_energy_types.F: Found type statistical_type without initializer https://cp2k.org/conv#c016
-free_energy_types.F: Found type ui_conv_type without initializer https://cp2k.org/conv#c016
-free_energy_types.F: Found type ui_var_type without initializer https://cp2k.org/conv#c016
 glbopt_history.F: Found WRITE statement with hardcoded unit in "verify_history_lookup" https://cp2k.org/conv#c012
 glbopt_mincrawl.F: Found WRITE statement with hardcoded unit in "print_tempdist" https://cp2k.org/conv#c012
 gle_system_types.F: Found type gle_thermo_type without initializer https://cp2k.org/conv#c016

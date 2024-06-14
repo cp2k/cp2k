@@ -22,8 +22,9 @@ MODULE fist_energy_types
 
 ! **************************************************************************************************
    TYPE fist_energy_type
-      REAL(kind=dp) :: kin, pot, e_gspace, e_self, e_neut, e_bonded, e_induction
-      REAL(kind=dp) :: kin_shell, harm_shell
+      REAL(kind=dp) :: kin = 0.0_dp, pot = 0.0_dp, e_gspace = 0.0_dp, e_self = 0.0_dp, &
+                       e_neut = 0.0_dp, e_bonded = 0.0_dp, e_induction = 0.0_dp
+      REAL(kind=dp) :: kin_shell = 0.0_dp, harm_shell = 0.0_dp
    END TYPE fist_energy_type
 
 ! *** Public data types ***

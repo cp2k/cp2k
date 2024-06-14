@@ -99,7 +99,7 @@ MODULE qs_wf_history_types
       INTEGER :: ref_count = -1, memory_depth = -1, last_state_index = -1, &
                  interpolation_method_nr = -1, snapshot_count = -1
       LOGICAL :: store_wf = .FALSE., store_rho_r = .FALSE., store_rho_g = .FALSE., &
-      store_rho_ao = .FALSE., store_rho_ao_kp = .FALSE., &
+                 store_rho_ao = .FALSE., store_rho_ao_kp = .FALSE., &
                  store_overlap = .FALSE., store_frozen_density = .FALSE.
       TYPE(qs_wf_snapshot_p_type), DIMENSION(:), POINTER :: past_states => NULL()
    END TYPE qs_wf_history_type

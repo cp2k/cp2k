@@ -79,16 +79,16 @@ MODULE fist_force
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'fist_force'
 
    TYPE debug_variables_type
-      REAL(KIND=dp)                           :: pot_manybody, pot_bend, pot_torsion
-      REAL(KIND=dp)                           :: pot_nonbond, pot_g, pot_bond
-      REAL(KIND=dp)                           :: pot_imptors, pot_urey_bradley
-      REAL(KIND=dp)                           :: pot_opbend
-      REAL(KIND=dp), DIMENSION(:, :), POINTER :: f_nonbond, f_g, f_bond, f_bend, &
-                                                 f_torsion, f_imptors, f_ub, &
-                                                 f_opbend
-      REAL(KIND=dp), DIMENSION(3, 3)          :: pv_nonbond, pv_g, pv_bond, pv_ub, &
-                                                 pv_bend, pv_torsion, pv_imptors, &
-                                                 pv_opbend
+      REAL(KIND=dp)                           :: pot_manybody = 0.0_dp, pot_bend = 0.0_dp, pot_torsion = 0.0_dp
+      REAL(KIND=dp)                           :: pot_nonbond = 0.0_dp, pot_g = 0.0_dp, pot_bond = 0.0_dp
+      REAL(KIND=dp)                           :: pot_imptors = 0.0_dp, pot_urey_bradley = 0.0_dp
+      REAL(KIND=dp)                           :: pot_opbend = 0.0_dp
+      REAL(KIND=dp), DIMENSION(:, :), POINTER :: f_nonbond => NULL(), f_g => NULL(), f_bond => NULL(), f_bend => NULL(), &
+                                                 f_torsion => NULL(), f_imptors => NULL(), f_ub => NULL(), &
+                                                 f_opbend => NULL()
+      REAL(KIND=dp), DIMENSION(3, 3)          :: pv_nonbond = 0.0_dp, pv_g = 0.0_dp, pv_bond = 0.0_dp, pv_ub = 0.0_dp, &
+                                                 pv_bend = 0.0_dp, pv_torsion = 0.0_dp, pv_imptors = 0.0_dp, &
+                                                 pv_opbend = 0.0_dp
    END TYPE debug_variables_type
 
 CONTAINS
