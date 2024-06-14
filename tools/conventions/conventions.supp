@@ -54,10 +54,6 @@ eip_silicon.F: Found WRITE statement with hardcoded unit in "eip_lenosky_silicon
 eip_silicon.F: Found WRITE statement with hardcoded unit in "subfeniat_b" https://cp2k.org/conv#c012
 eip_silicon.F: Found WRITE statement with hardcoded unit in "subfeniat_l" https://cp2k.org/conv#c012
 ewald_environment_types.F: Found type ewald_environment_type without initializer https://cp2k.org/conv#c016
-ewalds_multipole.F: 'tij_a[0]' is used uninitialized [-Wuninitialized]
-ewalds_multipole.F: 'tij_a[1]' is used uninitialized [-Wuninitialized]
-ewalds_multipole.F: 'tij_ab[2]' is used uninitialized [-Wuninitialized]
-ewalds_multipole.F: 'tij_ab[5]' is used uninitialized [-Wuninitialized]
 exclusion_types.F: Found type exclusion_type without initializer https://cp2k.org/conv#c016
 exstates_types.F: Found type excited_energy_type without initializer https://cp2k.org/conv#c016
 exstates_types.F: Found type wfn_history_type without initializer https://cp2k.org/conv#c016
@@ -71,9 +67,6 @@ farming_methods.F: Found CLOSE statement in procedure "farming_parse_input" http
 farming_methods.F: Found OPEN statement in procedure "farming_parse_input" https://cp2k.org/conv#c203
 farming_types.F: Found type farming_env_type without initializer https://cp2k.org/conv#c016
 farming_types.F: Found type job_type without initializer https://cp2k.org/conv#c016
-fftw3_lib.F: 'dim_istride' is used uninitialized [-Wuninitialized]
-fftw3_lib.F: 'dim_n' is used uninitialized [-Wuninitialized]
-fftw3_lib.F: 'dim_ostride' is used uninitialized [-Wuninitialized]
 fftw3_lib.F: Same actual argument associated with INTENT(OUT) argument 'in' and INTENT(OUT) argument 'out' at (1)
 fist_efield_types.F: Found type fist_efield_type without initializer https://cp2k.org/conv#c016
 fist_energy_types.F: Found type fist_energy_type without initializer https://cp2k.org/conv#c016

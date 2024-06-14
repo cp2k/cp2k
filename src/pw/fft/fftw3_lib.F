@@ -564,7 +564,9 @@ CONTAINS
       ! FFTW3 threaded 3D transform instead of the hand-optimised version
       dim_n(1) = 1
       dim_istride(1) = 1
+      dim_istride(2) = 1
       dim_ostride(1) = 1
+      dim_ostride(2) = 1
       howmany_n(1) = 1
       howmany_n(2) = 1
       howmany_istride(1) = 1
