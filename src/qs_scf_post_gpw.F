@@ -1713,7 +1713,8 @@ CONTAINS
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(qs_subsys_type), POINTER                      :: subsys
       TYPE(scf_control_type), POINTER                    :: scf_control
-      TYPE(section_vals_type), POINTER                   :: dft_section, input, sprint_section, trexio_section
+      TYPE(section_vals_type), POINTER                   :: dft_section, input, sprint_section, &
+                                                            trexio_section
 
       CALL timeset(routineN, handle)
 

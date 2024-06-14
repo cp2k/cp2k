@@ -613,8 +613,8 @@ CONTAINS
 !> \param npgf_sum ...
 !> \param nshell_sum ...
 !> \param maxder ...
-!> \param npgf_seg_sum number of primitives in "segmented contraction format"
 !> \param short_kind_radius ...
+!> \param npgf_seg_sum number of primitives in "segmented contraction format"
 ! **************************************************************************************************
    SUBROUTINE get_gto_basis_set(gto_basis_set, name, aliases, norm_type, kind_radius, ncgf, &
                                 nset, nsgf, cgf_symbol, sgf_symbol, norm_cgf, set_radius, lmax, lmin, lx, ly, lz, &
@@ -644,9 +644,10 @@ CONTAINS
          POINTER                                         :: gcc
       INTEGER, INTENT(OUT), OPTIONAL                     :: maxco, maxl, maxpgf, maxsgf_set, &
                                                             maxshell, maxso, nco_sum, npgf_sum, &
-                                                            nshell_sum, npgf_seg_sum
+                                                            nshell_sum
       INTEGER, INTENT(IN), OPTIONAL                      :: maxder
       REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: short_kind_radius
+      INTEGER, INTENT(OUT), OPTIONAL                     :: npgf_seg_sum
 
       INTEGER                                            :: iset, nder
 

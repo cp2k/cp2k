@@ -41,7 +41,7 @@ case "$with_trexio" in
         echo "trexio_${trexio_ver}.tar.gz is found"
       else
         #download_pkg_from_cp2k_org "${trexio_sha256}" "trexio-${trexio_ver}.tar.gz"
-        
+
         echo "Currently trexio is not available from cp2k.org"
         echo "You can clone the repo and build it yourself:"
         echo "git clone https://github.com/TREX-CoE/trexio.git trexio-${trexio_ver}"

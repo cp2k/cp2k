@@ -883,13 +883,14 @@ CONTAINS
          gth_potential_present, sgp_potential_present, paw_atom_present, dft_plus_u_atom_present
       INTEGER, INTENT(OUT), OPTIONAL :: maxcgf, maxsgf, maxco, maxco_proj, maxgtops, maxlgto, &
          maxlprj, maxnset, maxsgf_set, ncgf, npgf, nset, nsgf, nshell, maxpol, maxlppl, maxlppnl, &
-         maxppnl, nelectron, npgf_seg
+         maxppnl, nelectron
       INTEGER, INTENT(IN), OPTIONAL                      :: maxder
       INTEGER, INTENT(OUT), OPTIONAL                     :: max_ngrid_rad, max_sph_harm, &
                                                             maxg_iso_not0, lmax_rho0
       REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: basis_rcut
       CHARACTER(len=*), OPTIONAL                         :: basis_type
       REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: total_zeff_corr
+      INTEGER, INTENT(OUT), OPTIONAL                     :: npgf_seg
 
       CHARACTER(len=default_string_length)               :: my_basis_type
       INTEGER                                            :: ikind, imax, lmax_rho0_kind, &
