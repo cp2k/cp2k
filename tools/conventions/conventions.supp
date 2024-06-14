@@ -68,13 +68,7 @@ free_energy_methods.F: Found WRITE statement with hardcoded unit in "ui_check_no
 free_energy_methods.F: Found WRITE statement with hardcoded unit in "ui_check_trend" https://cp2k.org/conv#c012
 glbopt_history.F: Found WRITE statement with hardcoded unit in "verify_history_lookup" https://cp2k.org/conv#c012
 glbopt_mincrawl.F: Found WRITE statement with hardcoded unit in "print_tempdist" https://cp2k.org/conv#c012
-gle_system_types.F: Found type gle_thermo_type without initializer https://cp2k.org/conv#c016
-gle_system_types.F: Found type gle_type without initializer https://cp2k.org/conv#c016
 graphcon.F: Found GOTO statement in procedure "all_permutations" https://cp2k.org/conv#c201
-graphcon.F: Found type class without initializer https://cp2k.org/conv#c016
-graphcon.F: Found type graph_type without initializer https://cp2k.org/conv#c016
-graphcon.F: Found type superclass without initializer https://cp2k.org/conv#c016
-graphcon.F: Found type vertex without initializer https://cp2k.org/conv#c016
 graphcon.F: Found WRITE statement with hardcoded unit in "reorder_graph" https://cp2k.org/conv#c012
 graph.F: Found CALL RANDOM_SEED in procedure "graph" https://cp2k.org/conv#c105
 graph.F: Found WRITE statement with hardcoded unit in "graph" https://cp2k.org/conv#c012
@@ -83,32 +77,11 @@ graph_methods.F: Found WRITE statement with hardcoded unit in "fes_cube_write" h
 graph_methods.F: Found WRITE statement with hardcoded unit in "fes_min" https://cp2k.org/conv#c012
 graph_methods.F: Found WRITE statement with hardcoded unit in "fes_path" https://cp2k.org/conv#c012
 graph_utils.F: Found WRITE statement with hardcoded unit in "get_val_res" https://cp2k.org/conv#c012
-hartree_local_types.F: Found type ecoul_1center_type without initializer https://cp2k.org/conv#c016
-hartree_local_types.F: Found type hartree_local_type without initializer https://cp2k.org/conv#c016
 hfx_compression_methods.F: Found READ with unchecked STAT in "hfx_decompress_cache" https://cp2k.org/conv#c001
 hfx_energy_potential.F: Found WRITE statement with hardcoded unit in "print_integrals" https://cp2k.org/conv#c012
-hirshfeld_types.F: Found type hirshfeld_type without initializer https://cp2k.org/conv#c016
-hirshfeld_types.F: Found type shape_fn without initializer https://cp2k.org/conv#c016
 input_enumeration_types.F: Found WRITE statement with hardcoded unit in "enum_i2c" https://cp2k.org/conv#c012
 input_keyword_types.F: Found type keyword_type without initializer https://cp2k.org/conv#c016
 input_parsing.F: Found WRITE statement with hardcoded unit in "section_vals_parse" https://cp2k.org/conv#c012
-integration_grid_types.F: Found type grid_batch_info_type without initializer https://cp2k.org/conv#c016
-integration_grid_types.F: Found type grid_batch_val_1d_type without initializer https://cp2k.org/conv#c016
-integration_grid_types.F: Found type grid_batch_val_2d_type without initializer https://cp2k.org/conv#c016
-integration_grid_types.F: Found type integration_grid_type without initializer https://cp2k.org/conv#c016
-integration_grid_types.F: Found type integration_grid_value_type without initializer https://cp2k.org/conv#c016
-integrator_utils.F: Found type old_variables_type without initializer https://cp2k.org/conv#c016
-integrator_utils.F: Found type tmp_variables_type without initializer https://cp2k.org/conv#c016
-kg_environment_types.F: Found type energy_correction_type without initializer https://cp2k.org/conv#c016
-kg_environment_types.F: Found type kg_environment_type without initializer https://cp2k.org/conv#c016
-kg_environment_types.F: Found type subset_type without initializer https://cp2k.org/conv#c016
-kg_vertex_coloring_methods.F: Found type vertex_p_type without initializer https://cp2k.org/conv#c016
-kg_vertex_coloring_methods.F: Found type vertex without initializer https://cp2k.org/conv#c016
-kpoint_types.F: Found type kpoint_env_p_type without initializer https://cp2k.org/conv#c016
-kpoint_types.F: Found type kpoint_env_type without initializer https://cp2k.org/conv#c016
-kpoint_types.F: Found type kpoint_sym_p_type without initializer https://cp2k.org/conv#c016
-kpoint_types.F: Found type kpoint_sym_type without initializer https://cp2k.org/conv#c016
-kpoint_types.F: Found type kpoint_type without initializer https://cp2k.org/conv#c016
 libcp2k.F: Found type eri2array without initializer https://cp2k.org/conv#c016
 library_tests.F: Found CALL RANDOM_NUMBER in procedure "copy_test" https://cp2k.org/conv#c104
 library_tests.F: Found CALL RANDOM_NUMBER in procedure "cp_fm_gemm_test" https://cp2k.org/conv#c104

@@ -35,30 +35,30 @@ MODULE graphcon
    ! (the number is the index of the other vertex in the array that builds the molecule)
 ! **************************************************************************************************
    TYPE graph_type
-      TYPE(vertex), POINTER, DIMENSION(:) :: graph
+      TYPE(vertex), POINTER, DIMENSION(:) :: graph => NULL()
    END TYPE graph_type
 
 ! **************************************************************************************************
    TYPE vertex
-      INTEGER :: kind
-      INTEGER, POINTER, DIMENSION(:) :: bonds
+      INTEGER :: kind = -1
+      INTEGER, POINTER, DIMENSION(:) :: bonds => NULL()
    END TYPE vertex
 
 ! **************************************************************************************************
    TYPE class
-      INTEGER, DIMENSION(:), POINTER :: reference
-      INTEGER, DIMENSION(:), POINTER :: unordered
-      INTEGER :: kind
-      INTEGER :: Nele
-      LOGICAL :: first
-      INTEGER, DIMENSION(:), POINTER :: order
-      INTEGER, DIMENSION(:), POINTER :: q
+      INTEGER, DIMENSION(:), POINTER :: reference => NULL()
+      INTEGER, DIMENSION(:), POINTER :: unordered => NULL()
+      INTEGER :: kind = -1
+      INTEGER :: Nele = -1
+      LOGICAL :: first = .FALSE.
+      INTEGER, DIMENSION(:), POINTER :: order => NULL()
+      INTEGER, DIMENSION(:), POINTER :: q => NULL()
    END TYPE class
 
 ! **************************************************************************************************
    TYPE superclass
-      INTEGER :: Nele
-      INTEGER, DIMENSION(:), POINTER :: classes
+      INTEGER :: Nele = -1
+      INTEGER, DIMENSION(:), POINTER :: classes => NULL()
    END TYPE
 
 CONTAINS

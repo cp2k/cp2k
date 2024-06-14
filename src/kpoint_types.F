@@ -70,19 +70,19 @@ MODULE kpoint_types
 !> \author JGH
 ! **************************************************************************************************
    TYPE kpoint_env_type
-      INTEGER                                           :: nkpoint
-      REAL(KIND=dp)                                     :: wkp
-      REAL(KIND=dp), DIMENSION(3)                       :: xkp
-      LOGICAL                                           :: is_local
-      TYPE(mo_set_type), DIMENSION(:, :), POINTER     :: mos
-      TYPE(cp_fm_type), DIMENSION(:, :), POINTER      :: pmat
-      TYPE(cp_fm_type), DIMENSION(:, :), POINTER      :: wmat
-      TYPE(cp_fm_type), DIMENSION(:, :), POINTER      :: smat
-      TYPE(cp_fm_type), DIMENSION(:, :), POINTER      :: amat
+      INTEGER                                           :: nkpoint = -1
+      REAL(KIND=dp)                                     :: wkp = 0.0_dp
+      REAL(KIND=dp), DIMENSION(3)                       :: xkp = 0.0_dp
+      LOGICAL                                           :: is_local = .FALSE.
+      TYPE(mo_set_type), DIMENSION(:, :), POINTER     :: mos => NULL()
+      TYPE(cp_fm_type), DIMENSION(:, :), POINTER      :: pmat => NULL()
+      TYPE(cp_fm_type), DIMENSION(:, :), POINTER      :: wmat => NULL()
+      TYPE(cp_fm_type), DIMENSION(:, :), POINTER      :: smat => NULL()
+      TYPE(cp_fm_type), DIMENSION(:, :), POINTER      :: amat => NULL()
    END TYPE kpoint_env_type
 
    TYPE kpoint_env_p_type
-      TYPE(kpoint_env_type), POINTER                    :: kpoint_env
+      TYPE(kpoint_env_type), POINTER                    :: kpoint_env => NULL()
    END TYPE kpoint_env_p_type
 
 ! **************************************************************************************************
@@ -95,15 +95,15 @@ MODULE kpoint_types
 !> \author JGH
 ! **************************************************************************************************
    TYPE kpoint_sym_type
-      LOGICAL                                           :: apply_symmetry
-      INTEGER                                           :: nwght
-      REAL(KIND=dp), DIMENSION(:, :), POINTER           :: xkp
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER        :: rot
-      INTEGER, DIMENSION(:, :), POINTER                 :: f0
+      LOGICAL                                           :: apply_symmetry = .FALSE.
+      INTEGER                                           :: nwght = -1
+      REAL(KIND=dp), DIMENSION(:, :), POINTER           :: xkp => NULL()
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER        :: rot => NULL()
+      INTEGER, DIMENSION(:, :), POINTER                 :: f0 => NULL()
    END TYPE kpoint_sym_type
 
    TYPE kpoint_sym_p_type
-      TYPE(kpoint_sym_type), POINTER                    :: kpoint_sym
+      TYPE(kpoint_sym_type), POINTER                    :: kpoint_sym => NULL()
    END TYPE kpoint_sym_p_type
 
 ! **************************************************************************************************
@@ -136,16 +136,16 @@ MODULE kpoint_types
 !> \author JGH
 ! **************************************************************************************************
    TYPE kpoint_type
-      CHARACTER(LEN=default_string_length)    :: kp_scheme
-      INTEGER, DIMENSION(3)                   :: nkp_grid
-      REAL(KIND=dp), DIMENSION(3)             :: kp_shift
-      LOGICAL                                 :: use_real_wfn
-      LOGICAL                                 :: symmetry
-      LOGICAL                                 :: full_grid
-      LOGICAL                                 :: verbose
-      REAL(KIND=dp)                           :: eps_geo
-      INTEGER                                 :: parallel_group_size
-      INTEGER                                 :: nkp
+      CHARACTER(LEN=default_string_length)    :: kp_scheme = ""
+      INTEGER, DIMENSION(3)                   :: nkp_grid = -1
+      REAL(KIND=dp), DIMENSION(3)             :: kp_shift = 0.0_dp
+      LOGICAL                                 :: use_real_wfn = .FALSE.
+      LOGICAL                                 :: symmetry = .FALSE.
+      LOGICAL                                 :: full_grid = .FALSE.
+      LOGICAL                                 :: verbose = .FALSE.
+      REAL(KIND=dp)                           :: eps_geo = 0.0_dp
+      INTEGER                                 :: parallel_group_size = -1
+      INTEGER                                 :: nkp = -1
       REAL(KIND=dp), DIMENSION(:, :), POINTER :: xkp => Null()
       REAL(KIND=dp), DIMENSION(:), POINTER    :: wkp => Null()
       ! parallel environment
@@ -153,10 +153,10 @@ MODULE kpoint_types
       TYPE(cp_blacs_env_type), POINTER        :: blacs_env_all => Null()
       TYPE(mp_para_env_type), POINTER         :: para_env_kp => Null(), &
                                                  para_env_inter_kp => Null()
-      LOGICAL                                 :: iogrp
-      INTEGER                                 :: nkp_groups
+      LOGICAL                                 :: iogrp = .FALSE.
+      INTEGER                                 :: nkp_groups = -1
       INTEGER, DIMENSION(:, :), POINTER       :: kp_dist => Null()
-      INTEGER, DIMENSION(2)                   :: kp_range
+      INTEGER, DIMENSION(2)                   :: kp_range = -1
       TYPE(cp_blacs_env_type), POINTER        :: blacs_env => Null()
       INTEGER, DIMENSION(:, :, :), POINTER    :: cell_to_index => Null()
       INTEGER, DIMENSION(:, :), POINTER       :: index_to_cell => Null()

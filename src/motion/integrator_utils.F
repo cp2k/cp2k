@@ -60,28 +60,28 @@ MODULE integrator_utils
 
 ! **************************************************************************************************
    TYPE old_variables_type
-      REAL(KIND=dp), POINTER, DIMENSION(:, :) :: v
-      REAL(KIND=dp), POINTER, DIMENSION(:, :) :: r
-      REAL(KIND=dp), POINTER, DIMENSION(:, :) :: eps
-      REAL(KIND=dp), POINTER, DIMENSION(:, :) :: veps
-      REAL(KIND=dp), POINTER, DIMENSION(:, :) :: h
+      REAL(KIND=dp), POINTER, DIMENSION(:, :) :: v => NULL()
+      REAL(KIND=dp), POINTER, DIMENSION(:, :) :: r => NULL()
+      REAL(KIND=dp), POINTER, DIMENSION(:, :) :: eps => NULL()
+      REAL(KIND=dp), POINTER, DIMENSION(:, :) :: veps => NULL()
+      REAL(KIND=dp), POINTER, DIMENSION(:, :) :: h => NULL()
    END TYPE old_variables_type
 
 ! **************************************************************************************************
    TYPE tmp_variables_type
-      INTEGER, POINTER :: itimes
-      REAL(KIND=dp), POINTER, DIMENSION(:, :) :: pos
-      REAL(KIND=dp), POINTER, DIMENSION(:, :) :: vel
-      REAL(KIND=dp), POINTER, DIMENSION(:, :) :: shell_pos
-      REAL(KIND=dp), POINTER, DIMENSION(:, :) :: shell_vel
-      REAL(KIND=dp), POINTER, DIMENSION(:, :) :: core_pos
-      REAL(KIND=dp), POINTER, DIMENSION(:, :) :: core_vel
-      REAL(KIND=dp) :: max_vel, max_vel_sc
-      REAL(KIND=dp) :: max_dvel, max_dvel_sc
-      REAL(KIND=dp) :: max_dr, max_dsc
-      REAL(KIND=dp) :: arg_r(3), arg_v(3), u(3, 3), e_val(3), s, ds
-      REAL(KIND=dp), DIMENSION(3) :: poly_r, &
-                                     poly_v, scale_r, scale_v
+      INTEGER, POINTER :: itimes => NULL()
+      REAL(KIND=dp), POINTER, DIMENSION(:, :) :: pos => NULL()
+      REAL(KIND=dp), POINTER, DIMENSION(:, :) :: vel => NULL()
+      REAL(KIND=dp), POINTER, DIMENSION(:, :) :: shell_pos => NULL()
+      REAL(KIND=dp), POINTER, DIMENSION(:, :) :: shell_vel => NULL()
+      REAL(KIND=dp), POINTER, DIMENSION(:, :) :: core_pos => NULL()
+      REAL(KIND=dp), POINTER, DIMENSION(:, :) :: core_vel => NULL()
+      REAL(KIND=dp) :: max_vel = 0.0_dp, max_vel_sc = 0.0_dp
+      REAL(KIND=dp) :: max_dvel = 0.0_dp, max_dvel_sc = 0.0_dp
+      REAL(KIND=dp) :: max_dr = 0.0_dp, max_dsc = 0.0_dp
+      REAL(KIND=dp) :: arg_r(3) = 0.0_dp, arg_v(3) = 0.0_dp, u(3, 3) = 0.0_dp, e_val(3) = 0.0_dp, s = 0.0_dp, ds = 0.0_dp
+      REAL(KIND=dp), DIMENSION(3) :: poly_r = 0.0_dp, &
+                                     poly_v = 0.0_dp, scale_r = 0.0_dp, scale_v = 0.0_dp
    END TYPE tmp_variables_type
 
    INTERFACE set
