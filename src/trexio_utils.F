@@ -22,8 +22,7 @@ MODULE trexio_utils
    USE cp_dbcsr_operations, ONLY: copy_dbcsr_to_fm
    USE cp_files, ONLY: close_file, file_exists, open_file
    USE cp_fm_types, ONLY: cp_fm_get_info, cp_fm_type, cp_fm_create, cp_fm_set_all, &
-                          cp_fm_get_submatrix, cp_fm_write_formatted, cp_fm_set_submatrix, &
-                          cp_fm_to_fm_submat_general, cp_fm_set_element, cp_fm_release
+                          cp_fm_get_submatrix, cp_fm_to_fm_submat_general, cp_fm_release
    USE cp_fm_struct, ONLY: cp_fm_struct_create, &
                            cp_fm_struct_release, &
                            cp_fm_struct_type
@@ -34,7 +33,7 @@ MODULE trexio_utils
    USE input_section_types, ONLY: section_vals_type, section_vals_get, &
                                   section_vals_val_get
    USE kinds, ONLY: default_path_length, dp
-   USE kpoint_types, ONLY: kpoint_type, kpoint_env_type, kpoint_env_p_type, &
+   USE kpoint_types, ONLY: kpoint_type, kpoint_env_p_type, &
                            get_kpoint_info, get_kpoint_env
    USE message_passing, ONLY: mp_para_env_type
    USE orbital_pointers, ONLY: nco, nso
@@ -126,11 +125,10 @@ MODULE trexio_utils
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos => Null()
       TYPE(mo_set_type), DIMENSION(:,:), POINTER         :: mos_kp => Null()
       TYPE(kpoint_env_p_type), DIMENSION(:), POINTER     :: kp_env => Null()
-      TYPE(mp_para_env_type), POINTER                    :: para_env => Null()
+      TYPE(mp_para_env_type), POINTER                    :: para_env => Null(), para_env_inter_kp => Null()
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env => Null()
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct => Null()
-      TYPE(cp_fm_type)                                   :: fm_mo_coeff, fm_dummy, fm_mo_coeff_im, &
-                                                            fm_mo_energy, fm_mo_occupation
+      TYPE(cp_fm_type)                                   :: fm_mo_coeff, fm_dummy, fm_mo_coeff_im
 
       CHARACTER(LEN=2)                                   :: element_symbol
       CHARACTER(LEN=2), DIMENSION(:), ALLOCATABLE        :: label
@@ -139,9 +137,7 @@ MODULE trexio_utils
                                                             shell_num, prim_num, nset, iset, ipgf, z, &
                                                             sl_lmax, ecp_num, nloc, nsemiloc, sl_l, iecp, &
                                                             icgf, icgf_loc, ncgf, ncgf_shell, ao_num, nmo, &
-                                                            mo_num, ispin, ikp, imo, rank, ikp_loc, nsgf, &
-                                                            i, j
-                                                            ! nkp_loc, i, j, nrow_local, ncol_local
+                                                            mo_num, ispin, ikp, imo, rank, ikp_loc, nsgf
       INTEGER, DIMENSION(2)                              :: nel_spin, kp_range, nmo_spin
       INTEGER, DIMENSION(3)                              :: nkp_grid
       INTEGER, DIMENSION(0:10)                           :: npot
@@ -655,15 +651,6 @@ MODULE trexio_utils
             CALL cp_fm_set_all(fm_mo_coeff_im, 0.0_dp)
          END IF
          CALL cp_fm_struct_release(fm_struct)
-
-         ! we create a distributed fm vector to gather MO energies and occupations
-         CALL cp_fm_struct_create(fm_struct, para_env=para_env, context=blacs_env, &
-                                  nrow_global=mo_num, ncol_global=1)
-         CALL cp_fm_create(fm_mo_energy, fm_struct)
-         CALL cp_fm_create(fm_mo_occupation, fm_struct)
-         CALL cp_fm_set_all(fm_mo_energy, 0.0_dp)
-         CALL cp_fm_set_all(fm_mo_occupation, 0.0_dp)
-         CALL cp_fm_struct_release(fm_struct)
       ELSE
          CALL get_qs_env(qs_env, mos=mos)
          DO ispin = 1, nspins
@@ -675,7 +662,7 @@ MODULE trexio_utils
 
       ! allocate all the arrays
       ALLOCATE (mo_coefficient(ao_num, mo_num))
-      mo_coefficient(:,:) = 0.0_dp
+      mo_coefficient(:,:) = 1.0_dp
       ALLOCATE (mo_energy(mo_num))
       mo_energy(:) = 0.0_dp
       ALLOCATE (mo_occupation(mo_num))
@@ -698,6 +685,7 @@ MODULE trexio_utils
 
          DO ispin = 1, nspins
             DO ikp = 1, nkp
+               nmo = nmo_spin(ispin)
                ! global index to store the MOs
                imo = (ikp-1)*nmo + (ispin-1)*nmo_spin(1)*nkp
 
@@ -713,10 +701,13 @@ MODULE trexio_utils
                   END IF
                   ! copy real part of MO coefficients to large distributed fm matrix
                   CALL cp_fm_to_fm_submat_general(mos_kp(1, ispin)%mo_coeff, fm_mo_coeff, &
-                                                  nsgf, nmo_spin(ispin), 1, 1, 1, imo+1, blacs_env)
+                                                  nsgf, nmo, 1, 1, 1, imo+1, blacs_env)
 
-                  ! copy MO energies to large distributed fm vector
-                  ! CALL cp_fm_set_submatrix(fm_mo_energy, mos_kp(1, ispin)%eigenvalues, 1, nmo_spin(ispin), 1, 1)
+                  ! copy MO energies to local arrays
+                  mo_energy(imo+1:imo+nmo) = mos_kp(1, ispin)%eigenvalues(1:nmo)
+
+                  ! copy MO occupations to local arrays
+                  mo_occupation(imo+1:imo+nmo) = mos_kp(1, ispin)%occupation_numbers(1:nmo)
 
                   ! same for the imaginary part of MO coefficients
                   IF (.NOT. use_real_wfn) THEN
@@ -724,19 +715,26 @@ MODULE trexio_utils
                         CALL copy_dbcsr_to_fm(mos_kp(2,ispin)%mo_coeff_b, mos_kp(2,ispin)%mo_coeff)
                      END IF
                      CALL cp_fm_to_fm_submat_general(mos_kp(2, ispin)%mo_coeff, fm_mo_coeff_im, &
-                                                     nsgf, nmo_spin(ispin), 1, 1, 1, imo+1, blacs_env)
+                                                     nsgf, nmo, 1, 1, 1, imo+1, blacs_env)
                   END IF
                ELSE
                   ! call with a dummy fm for receiving the data
                   CALL cp_fm_to_fm_submat_general(fm_dummy, fm_mo_coeff, &
-                                                  nsgf, nmo_spin(ispin), 1, 1, 1, imo+1, blacs_env)
+                                                  nsgf, nmo, 1, 1, 1, imo+1, blacs_env)
                   IF (.NOT. use_real_wfn) THEN
                      CALL cp_fm_to_fm_submat_general(fm_dummy, fm_mo_coeff_im, &
-                                                     nsgf, nmo_spin(ispin), 1, 1, 1, imo+1, blacs_env)
+                                                     nsgf, nmo, 1, 1, 1, imo+1, blacs_env)
                   END IF
                END IF
             END DO
          END DO
+      END IF
+
+      ! reduce MO energies and occupations to the master node
+      IF (do_kpoints) THEN
+         CALL get_kpoint_info(kpoints, para_env_inter_kp=para_env_inter_kp)
+         CALL para_env_inter_kp%sum(mo_energy)
+         CALL para_env_inter_kp%sum(mo_occupation)
       END IF
 
       ! second step: here we actually put everything in the local arrays for writing to trexio
@@ -748,21 +746,11 @@ MODULE trexio_utils
 
          IF (do_kpoints) THEN
             DO ikp = 1, nkp
-               ! IF (ikp >= kp_range(1) .AND. ikp <= kp_range(2)) THEN
-               !    ikp_loc = ikp - kp_range(1) + 1
-               !    ! get the mo set for this kpoint
-               !    CALL get_kpoint_env(kp_env(ikp_loc)%kpoint_env, mos=mos_kp)
-               ! END IF
-
                ! global index to store the MOs
                imo = (ikp-1)*nmo + (ispin-1)*nmo_spin(1)*nkp
 
                ! store kpoint index
                mo_kpoint(imo+1:imo+nmo) = ikp
-               ! store the MO energies
-               ! mo_energy(imo+1:imo+nmo) = mos_kp(1,ispin)%eigenvalues
-               ! store the MO occupations
-               ! mo_occupation(imo+1:imo+nmo) = mos_kp(1,ispin)%occupation_numbers
                ! store the MO spins
                mo_spin(imo+1:imo+nmo) = ispin
 
@@ -775,13 +763,6 @@ MODULE trexio_utils
                   CALL spherical_to_cartesian_mo(mos_sgf, particle_set, kind_set, mo_coefficient_im(:,imo+1:imo+nmo))
                END IF
             END DO
-
-            IF (ionode) THEN
-               DO i = 1, ao_num
-                  WRITE(*,'(*(F12.8))') (mo_coefficient(i,j), j=1,mo_num)
-               END DO
-            END IF
-
          ELSE
             ! global index to store the MOs
             imo = (ispin-1)*nmo_spin(1)
@@ -791,7 +772,6 @@ MODULE trexio_utils
             mo_occupation(imo+1:imo+nmo) = mos(ispin)%occupation_numbers
             ! store the MO spins
             mo_spin(imo+1:imo+nmo) = ispin
-            ! transform and store the MO coefficients
 
             ! check if we are using the dbcsr mo_coeff and copy them to fm if needed
             IF (mos(ispin)%use_mo_coeff_b) CALL copy_dbcsr_to_fm(mos(ispin)%mo_coeff_b, mos(ispin)%mo_coeff)
@@ -839,8 +819,6 @@ MODULE trexio_utils
          DEALLOCATE (mo_kpoint)
          CALL cp_fm_release(fm_mo_coeff)
          CALL cp_fm_release(fm_mo_coeff_im)
-         CALL cp_fm_release(fm_mo_energy)
-         CALL cp_fm_release(fm_mo_occupation)
       END IF
 
 
