@@ -51,8 +51,8 @@ MODULE qs_fb_distribution_methods
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! **************************************************************************************************
    TYPE fb_distribution_element
-      INTEGER :: id
-      REAL(KIND=dp) :: cost
+      INTEGER :: id = -1
+      REAL(KIND=dp) :: cost = -1.0_dp
    END TYPE fb_distribution_element
 
 ! **************************************************************************************************
@@ -64,8 +64,8 @@ MODULE qs_fb_distribution_methods
 ! **************************************************************************************************
    TYPE fb_distribution_list
       TYPE(fb_distribution_element), DIMENSION(:), POINTER :: list => NULL()
-      INTEGER :: nelements
-      REAL(KIND=dp) :: cost
+      INTEGER :: nelements = -1
+      REAL(KIND=dp) :: cost = -1.0_dp
    END TYPE fb_distribution_list
 
 ! **************************************************************************************************
@@ -86,7 +86,7 @@ MODULE qs_fb_distribution_methods
 ! **************************************************************************************************
    TYPE fb_preferred_procs_list
       INTEGER, DIMENSION(:), POINTER :: list => NULL()
-      INTEGER :: nprocs
+      INTEGER :: nprocs = -1
    END TYPE fb_preferred_procs_list
 
 ! Parameters related to automatic resizing of the hash_table:

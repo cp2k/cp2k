@@ -40,9 +40,9 @@ MODULE qs_fb_trial_fns_types
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! **************************************************************************************************
    TYPE fb_trial_fns_data
-      INTEGER :: ref_count
-      INTEGER, DIMENSION(:), POINTER :: nfunctions
-      INTEGER, DIMENSION(:, :), POINTER :: functions
+      INTEGER :: ref_count = -1
+      INTEGER, DIMENSION(:), POINTER :: nfunctions => NULL()
+      INTEGER, DIMENSION(:, :), POINTER :: functions => NULL()
    END TYPE fb_trial_fns_data
 
 ! **************************************************************************************************
@@ -52,7 +52,7 @@ MODULE qs_fb_trial_fns_types
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! **************************************************************************************************
    TYPE fb_trial_fns_obj
-      TYPE(fb_trial_fns_data), POINTER, PRIVATE :: obj
+      TYPE(fb_trial_fns_data), POINTER, PRIVATE :: obj => NULL()
    END TYPE fb_trial_fns_obj
 
 CONTAINS
