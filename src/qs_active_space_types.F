@@ -71,6 +71,7 @@ MODULE qs_active_space_types
 !> \brief Abstract function object for the `eri_type_eri_foreach` method
 ! **************************************************************************************************
    TYPE, ABSTRACT :: eri_type_eri_element_func
+      PRIVATE
    CONTAINS
       PROCEDURE(eri_type_eri_element_func_interface), DEFERRED :: func
    END TYPE eri_type_eri_element_func

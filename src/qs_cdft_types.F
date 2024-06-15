@@ -62,7 +62,7 @@ MODULE qs_cdft_types
 ! **************************************************************************************************
    ! Utility vector container for building becke constraint
    TYPE becke_vector_buffer
-      LOGICAL                              :: store_vectors
+      LOGICAL                              :: store_vectors = .FALSE.
       REAL(kind=dp), ALLOCATABLE, &
          DIMENSION(:)                      :: distances
       REAL(kind=dp), ALLOCATABLE, &
@@ -74,23 +74,23 @@ MODULE qs_cdft_types
    END TYPE becke_vector_buffer
 
    TYPE becke_constraint_type
-      INTEGER                              :: cavity_shape, cutoff_type, &
-                                              confine_bounds(2)
-      LOGICAL                              :: in_memory, &
-                                              adjust, cavity_confine, &
-                                              should_skip, print_cavity, &
-                                              use_bohr
-      REAL(KIND=dp)                        :: rglobal, &
-                                              rcavity, eps_cavity
-      REAL(KIND=dp), DIMENSION(:), POINTER :: cutoffs, cutoffs_tmp, &
-                                              radii_tmp, radii
+      INTEGER                              :: cavity_shape = -1, cutoff_type = -1, &
+                                              confine_bounds(2) = -1
+      LOGICAL                              :: in_memory = .FALSE., &
+                                              adjust = .FALSE., cavity_confine = .FALSE., &
+                                              should_skip = .FALSE., print_cavity = .FALSE., &
+                                              use_bohr = .FALSE.
+      REAL(KIND=dp)                        :: rglobal = -1.0_dp, &
+                                              rcavity = -1.0_dp, eps_cavity = -1.0_dp
+      REAL(KIND=dp), DIMENSION(:), POINTER :: cutoffs => NULL(), cutoffs_tmp => NULL(), &
+                                              radii_tmp => NULL(), radii => NULL()
       REAL(KIND=dp), POINTER, &
-         DIMENSION(:, :)                   :: aij
+         DIMENSION(:, :)                   :: aij => NULL()
       REAL(KIND=dp), POINTER, &
-         DIMENSION(:, :, :)                :: cavity_mat
-      TYPE(becke_vector_buffer)            :: vector_buffer
-      TYPE(hirshfeld_type), POINTER        :: cavity_env
-      TYPE(pw_r3d_rs_type)                      :: cavity
+         DIMENSION(:, :, :)                :: cavity_mat => NULL()
+      TYPE(becke_vector_buffer)            :: vector_buffer = becke_vector_buffer()
+      TYPE(hirshfeld_type), POINTER        :: cavity_env => NULL()
+      TYPE(pw_r3d_rs_type)                      :: cavity = pw_r3d_rs_type()
    END TYPE becke_constraint_type
 
 ! **************************************************************************************************
@@ -108,11 +108,11 @@ MODULE qs_cdft_types
 !> \param hirshfeld_env   auxiliary type storing information about the Gaussians
 ! **************************************************************************************************
    TYPE hirshfeld_constraint_type
-      INTEGER                              :: gaussian_shape, shape_function, atoms_memory
-      LOGICAL                              :: use_bohr, print_density, use_atomic_cutoff
-      REAL(KIND=dp)                        :: radius, eps_cutoff, atomic_cutoff
-      REAL(KIND=dp), DIMENSION(:), POINTER :: radii
-      TYPE(hirshfeld_type), POINTER        :: hirshfeld_env
+      INTEGER                              :: gaussian_shape = -1, shape_function = -1, atoms_memory = -1
+      LOGICAL                              :: use_bohr = .FALSE., print_density = .FALSE., use_atomic_cutoff = .FALSE.
+      REAL(KIND=dp)                        :: radius = -1.0_dp, eps_cutoff = -1.0_dp, atomic_cutoff = -1.0_dp
+      REAL(KIND=dp), DIMENSION(:), POINTER :: radii => NULL()
+      TYPE(hirshfeld_type), POINTER        :: hirshfeld_env => NULL()
    END TYPE hirshfeld_constraint_type
 
 ! **************************************************************************************************
@@ -185,77 +185,77 @@ MODULE qs_cdft_types
    ! To build multiple constraints
    TYPE cdft_group_type
       ! Atoms of this constraint group
-      INTEGER, POINTER, DIMENSION(:)       :: atoms
+      INTEGER, POINTER, DIMENSION(:)       :: atoms => NULL()
       ! Constraint type: charge constraint, magnetization density constraint, or spin channel specific constraint
-      INTEGER                              :: constraint_type
+      INTEGER                              :: constraint_type = -1
       ! Is the constraint fragment based
-      LOGICAL                              :: is_fragment_constraint
+      LOGICAL                              :: is_fragment_constraint = .FALSE.
       ! Temporary array holding a component of the weight function gradient that only includes
       ! terms defined on constraint atoms
       REAL(kind=dp), ALLOCATABLE, &
          DIMENSION(:, :)                   :: d_sum_const_dR
       ! Coefficients that determine how to sum up the atoms to form the constraint
-      REAL(KIND=dp), POINTER, DIMENSION(:) :: coeff
+      REAL(KIND=dp), POINTER, DIMENSION(:) :: coeff => NULL()
       ! Result of integration dw/dR * rho_r dr where dw/dR is the weight function gradient
       REAL(KIND=dp), POINTER, &
-         DIMENSION(:, :)                   :: integrated
+         DIMENSION(:, :)                   :: integrated => NULL()
       ! Atomic gradients of the weight function at every grid point
       REAL(KIND=dp), POINTER, &
-         DIMENSION(:, :, :, :)             :: gradients
+         DIMENSION(:, :, :, :)             :: gradients => NULL()
       REAL(KIND=dp), POINTER, &
-         DIMENSION(:, :, :, :)             :: gradients_x
+         DIMENSION(:, :, :, :)             :: gradients_x => NULL()
       REAL(KIND=dp), POINTER, &
-         DIMENSION(:, :, :, :)             :: gradients_y
+         DIMENSION(:, :, :, :)             :: gradients_y => NULL()
       REAL(KIND=dp), POINTER, &
-         DIMENSION(:, :, :, :)             :: gradients_z
+         DIMENSION(:, :, :, :)             :: gradients_z => NULL()
       ! The weight function of this constraint group
-      TYPE(pw_r3d_rs_type), POINTER                      :: weight
-      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER             :: hw_rho_atomic
-      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER             :: hw_rho_atomic_dr
-      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER             :: hw_rho_atomic_charge
-      TYPE(pw_r3d_rs_type)             :: hw_rho_total_constraint
-      TYPE(pw_r3d_rs_type)          :: hw_rho_total
+      TYPE(pw_r3d_rs_type), POINTER                      :: weight => NULL()
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER             :: hw_rho_atomic => NULL()
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER             :: hw_rho_atomic_dr => NULL()
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER             :: hw_rho_atomic_charge => NULL()
+      TYPE(pw_r3d_rs_type)             :: hw_rho_total_constraint = pw_r3d_rs_type()
+      TYPE(pw_r3d_rs_type)          :: hw_rho_total = pw_r3d_rs_type()
    END TYPE cdft_group_type
 
    TYPE cdft_control_type
-      CHARACTER(LEN=default_path_length)   :: fragment_a_fname, &
-                                              fragment_b_fname, &
-                                              fragment_a_spin_fname, &
-                                              fragment_b_spin_fname
-      INTEGER                              :: ref_count, total_steps, TYPE, &
-                                              precond_freq, nreused, max_reuse, &
-                                              purge_freq, nbad_conv, purge_offset, &
-                                              istep, ienergy, natoms
-      INTEGER, POINTER, DIMENSION(:)       :: atoms
-      LOGICAL                              :: need_pot, save_pot, do_et, &
-                                              reuse_precond, purge_history, &
-                                              should_purge, calculate_metric, &
-                                              atomic_charges, fragment_density, &
-                                              fragments_integrated, flip_fragment(2), &
-                                              transfer_pot, external_control, &
-                                              first_iteration, print_weight, in_memory
-      LOGICAL, POINTER, DIMENSION(:)       :: is_constraint
-      REAL(KIND=dp), DIMENSION(:), POINTER :: strength, TARGET, value
+      CHARACTER(LEN=default_path_length)   :: fragment_a_fname = "", &
+                                              fragment_b_fname = "", &
+                                              fragment_a_spin_fname = "", &
+                                              fragment_b_spin_fname = ""
+      INTEGER                              :: ref_count = -1, total_steps = -1, TYPE = -1, &
+                                              precond_freq = -1, nreused = -1, max_reuse = -1, &
+                                              purge_freq = -1, nbad_conv = -1, purge_offset = -1, &
+                                              istep = -1, ienergy = -1, natoms = -1
+      INTEGER, POINTER, DIMENSION(:)       :: atoms => NULL()
+      LOGICAL                              :: need_pot = .FALSE., save_pot = .FALSE., do_et = .FALSE., &
+                                              reuse_precond = .FALSE., purge_history = .FALSE., &
+                                              should_purge = .FALSE., calculate_metric = .FALSE., &
+                                              atomic_charges = .FALSE., fragment_density = .FALSE., &
+                                              fragments_integrated = .FALSE., flip_fragment(2) = .FALSE., &
+                                              transfer_pot = .FALSE., external_control = .FALSE., &
+                                              first_iteration = .FALSE., print_weight = .FALSE., in_memory = .FALSE.
+      LOGICAL, POINTER, DIMENSION(:)       :: is_constraint => NULL()
+      REAL(KIND=dp), DIMENSION(:), POINTER :: strength => NULL(), TARGET => NULL(), value => NULL()
       REAL(KIND=dp), POINTER, &
-         DIMENSION(:, :)                   :: charges_fragment
-      TYPE(becke_constraint_type), POINTER :: becke_control
+         DIMENSION(:, :)                   :: charges_fragment => NULL()
+      TYPE(becke_constraint_type), POINTER :: becke_control => NULL()
       TYPE(cdft_group_type), POINTER, &
-         DIMENSION(:)                      :: group
+         DIMENSION(:)                      :: group => NULL()
       TYPE(cp_1d_r_p_type), ALLOCATABLE, &
          DIMENSION(:)                      :: occupations
       TYPE(cp_fm_type), DIMENSION(:), &
-         POINTER                           :: mo_coeff
+         POINTER                           :: mo_coeff => NULL()
       TYPE(dbcsr_p_type)                   :: matrix_s
       TYPE(dbcsr_p_type), DIMENSION(:), &
-         POINTER                           :: wmat, matrix_p
+         POINTER                           :: wmat => NULL(), matrix_p => NULL()
       TYPE(hirshfeld_constraint_type), &
-         POINTER                           :: hirshfeld_control
-      TYPE(outer_scf_control_type)         :: constraint_control, ot_control
+         POINTER                           :: hirshfeld_control => NULL()
+      TYPE(outer_scf_control_type)         :: constraint_control = outer_scf_control_type(), ot_control = outer_scf_control_type()
       TYPE(pw_r3d_rs_type), POINTER, &
-         DIMENSION(:)                      :: charge
+         DIMENSION(:)                      :: charge => NULL()
       TYPE(pw_r3d_rs_type), POINTER, &
-         DIMENSION(:, :)                   :: fragments
-      TYPE(qs_outer_scf_type)              :: constraint
+         DIMENSION(:, :)                   :: fragments => NULL()
+      TYPE(qs_outer_scf_type)              :: constraint = qs_outer_scf_type()
    END TYPE cdft_control_type
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_cdft_types'

@@ -75,7 +75,7 @@ MODULE qs_energy_types
                        embed_corr = 0.0_dp, & ! correction for embedding potential
                        xtb_xb_inter = 0.0_dp, & ! correction for halogen bonding within GFN1-xTB
                        xtb_nonbonded ! correction for nonbonded interactions within GFN1-xTB
-      REAL(KIND=dp), DIMENSION(:), POINTER :: ddapc_restraint
+      REAL(KIND=dp), DIMENSION(:), POINTER :: ddapc_restraint => NULL()
    END TYPE qs_energy_type
 
    ! Public data types
