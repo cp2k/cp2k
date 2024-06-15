@@ -145,82 +145,10 @@ ps_wavelet_scaling_function.F: Found WRITE statement with hardcoded unit in "wav
 ps_wavelet_util.F: Found WRITE statement with hardcoded unit in "p_fft_dimensions" https://cp2k.org/conv#c012
 ps_wavelet_util.F: Found WRITE statement with hardcoded unit in "s_fft_dimensions" https://cp2k.org/conv#c012
 pw_grids.F: Found WRITE statement with hardcoded unit in "pw_grid_sort" https://cp2k.org/conv#c012
-qmmm_gaussian_types.F: Found type qmmm_gaussian_p_type without initializer https://cp2k.org/conv#c016
-qmmm_gaussian_types.F: Found type qmmm_gaussian_type without initializer https://cp2k.org/conv#c016
-qmmm_types_low.F: Found type add_env_type without initializer https://cp2k.org/conv#c016
-qmmm_types_low.F: Found type add_set_type without initializer https://cp2k.org/conv#c016
-qmmm_types_low.F: Found type add_shell_type without initializer https://cp2k.org/conv#c016
-qmmm_types_low.F: Found type gridlevel_info_type without initializer https://cp2k.org/conv#c016
-qmmm_types_low.F: Found type image_charge_type without initializer https://cp2k.org/conv#c016
-qmmm_types_low.F: Found type qmmm_env_mm_type without initializer https://cp2k.org/conv#c016
-qmmm_types_low.F: Found type qmmm_env_qm_type without initializer https://cp2k.org/conv#c016
-qmmm_types_low.F: Found type qmmm_imomm_link_p_type without initializer https://cp2k.org/conv#c016
-qmmm_types_low.F: Found type qmmm_imomm_link_type without initializer https://cp2k.org/conv#c016
-qmmm_types_low.F: Found type qmmm_links_type without initializer https://cp2k.org/conv#c016
-qmmm_types_low.F: Found type qmmm_per_pot_p_type without initializer https://cp2k.org/conv#c016
-qmmm_types_low.F: Found type qmmm_per_pot_type without initializer https://cp2k.org/conv#c016
-qmmm_types_low.F: Found type qmmm_pot_p_type without initializer https://cp2k.org/conv#c016
-qmmm_types_low.F: Found type qmmm_pot_type without initializer https://cp2k.org/conv#c016
-qmmm_types_low.F: Found type qmmm_pseudo_link_p_type without initializer https://cp2k.org/conv#c016
-qmmm_types_low.F: Found type qmmm_pseudo_link_type without initializer https://cp2k.org/conv#c016
-qs_active_space_methods.F: Found type eri_fcidump_checksum without initializer https://cp2k.org/conv#c016
-qs_active_space_methods.F: Found type eri_fcidump_print without initializer https://cp2k.org/conv#c016
-qs_atomic_block.F: Found type atom_matrix_type without initializer https://cp2k.org/conv#c016
-qs_block_davidson_types.F: Found type davidson_type without initializer https://cp2k.org/conv#c016
-qs_cdft_opt_types.F: Found type cdft_opt_type without initializer https://cp2k.org/conv#c016
-qs_cdft_types.F: Found type becke_constraint_type without initializer https://cp2k.org/conv#c016
-qs_cdft_types.F: Found type becke_vector_buffer without initializer https://cp2k.org/conv#c016
-qs_cdft_types.F: Found type cdft_control_type without initializer https://cp2k.org/conv#c016
-qs_cdft_types.F: Found type cdft_group_type without initializer https://cp2k.org/conv#c016
-qs_cdft_types.F: Found type hirshfeld_constraint_type without initializer https://cp2k.org/conv#c016
-qs_charges_types.F: Found type qs_charges_type without initializer https://cp2k.org/conv#c016
-qs_density_mixing_types.F: Found type cp_1d_z_p_type without initializer https://cp2k.org/conv#c016
-qs_density_mixing_types.F: Found type mixing_storage_type without initializer https://cp2k.org/conv#c016
-qs_dftb_types.F: Found type qs_dftb_atom_type without initializer https://cp2k.org/conv#c016
-qs_dftb_types.F: Found type qs_dftb_pairpot_type without initializer https://cp2k.org/conv#c016
-qs_dispersion_pairpot.F: Found type dcnum_type without initializer https://cp2k.org/conv#c016
-qs_dispersion_types.F: Found type cn_atom_list without initializer https://cp2k.org/conv#c016
-qs_dispersion_types.F: Found type cn_kind_list without initializer https://cp2k.org/conv#c016
-qs_dispersion_types.F: Found type qs_atom_dispersion_type without initializer https://cp2k.org/conv#c016
-qs_dispersion_types.F: Found type qs_dispersion_type without initializer https://cp2k.org/conv#c016
-qs_energy_types.F: Found type qs_energy_type without initializer https://cp2k.org/conv#c016
-qs_environment_types.F: Found type qs_environment_type without initializer https://cp2k.org/conv#c016
 qs_external_density.F: Found WRITE statement with hardcoded unit in "external_read_density" https://cp2k.org/conv#c012
-qs_fb_atomic_halo_types.F: Found type fb_atomic_halo_data without initializer https://cp2k.org/conv#c016
-qs_fb_atomic_halo_types.F: Found type fb_atomic_halo_list_data without initializer https://cp2k.org/conv#c016
-qs_fb_atomic_halo_types.F: Found type fb_atomic_halo_list_obj without initializer https://cp2k.org/conv#c016
-qs_fb_atomic_halo_types.F: Found type fb_atomic_halo_obj without initializer https://cp2k.org/conv#c016
-qs_fb_buffer_types.F: Found type fb_buffer_d_data without initializer https://cp2k.org/conv#c016
-qs_fb_buffer_types.F: Found type fb_buffer_i_data without initializer https://cp2k.org/conv#c016
-qs_fb_com_tasks_types.F: Found type fb_com_atom_pairs_data without initializer https://cp2k.org/conv#c016
-qs_fb_com_tasks_types.F: Found type fb_com_atom_pairs_obj without initializer https://cp2k.org/conv#c016
-qs_fb_com_tasks_types.F: Found type fb_com_tasks_data without initializer https://cp2k.org/conv#c016
-qs_fb_com_tasks_types.F: Found type fb_com_tasks_obj without initializer https://cp2k.org/conv#c016
-qs_fb_distribution_methods.F: Found type fb_distribution_element without initializer https://cp2k.org/conv#c016
-qs_fb_distribution_methods.F: Found type fb_distribution_list without initializer https://cp2k.org/conv#c016
-qs_fb_distribution_methods.F: Found type fb_preferred_procs_list without initializer https://cp2k.org/conv#c016
 qs_fb_env_methods.F: Found CALL cp_fm_gemm in procedure "fb_env_do_diag" https://cp2k.org/conv#c101
-qs_fb_env_types.F: Found type fb_env_data without initializer https://cp2k.org/conv#c016
-qs_fb_env_types.F: Found type fb_env_obj without initializer https://cp2k.org/conv#c016
 qs_fb_filter_matrix_methods.F: Found WRITE statement with hardcoded unit in "fb_fltrmat_build_atomic_fltrmat" https://cp2k.org/conv#c012
-qs_fb_hash_table_types.F: Found type fb_hash_table_data without initializer https://cp2k.org/conv#c016
-qs_fb_hash_table_types.F: Found type fb_hash_table_element without initializer https://cp2k.org/conv#c016
-qs_fb_matrix_data_types.F: Found type fb_matrix_data_data without initializer https://cp2k.org/conv#c016
-qs_fb_trial_fns_types.F: Found type fb_trial_fns_data without initializer https://cp2k.org/conv#c016
-qs_fb_trial_fns_types.F: Found type fb_trial_fns_obj without initializer https://cp2k.org/conv#c016
-qs_force_types.F: Found type qs_force_type without initializer https://cp2k.org/conv#c016
-qs_gcp_types.F: Found type qs_gcp_kind_type without initializer https://cp2k.org/conv#c016
-qs_gcp_types.F: Found type qs_gcp_type without initializer https://cp2k.org/conv#c016
-qs_grid_atom.F: Found type atom_integration_grid_type without initializer https://cp2k.org/conv#c016
-qs_grid_atom.F: Found type grid_atom_type without initializer https://cp2k.org/conv#c016
-qs_grid_atom.F: Found type grid_batch_type without initializer https://cp2k.org/conv#c016
-qs_harmonics_atom.F: Found type harmonics_atom_type without initializer https://cp2k.org/conv#c016
-qs_initial_guess.F: Found type atom_matrix_type without initializer https://cp2k.org/conv#c016
 qs_initial_guess.F: Found WRITE statement with hardcoded unit in "calculate_first_density_matrix" https://cp2k.org/conv#c012
-qs_kernel_types.F: Found type full_kernel_env_type without initializer https://cp2k.org/conv#c016
-qs_kind_types.F: Found type dft_plus_u_type without initializer https://cp2k.org/conv#c016
-qs_kind_types.F: Found type qs_kind_p_type without initializer https://cp2k.org/conv#c016
-qs_ks_qmmm_types.F: Found type qs_ks_qmmm_env_type without initializer https://cp2k.org/conv#c016
 qs_linres_atom_current.F: Found WRITE statement with hardcoded unit in "calculate_jrho_atom_rad" https://cp2k.org/conv#c012
 qs_linres_current.F: Found type box_type without initializer https://cp2k.org/conv#c016
 qs_linres_current.F: Found WRITE statement with hardcoded unit in "box_atoms" https://cp2k.org/conv#c012
@@ -228,24 +156,6 @@ qs_linres_current.F: Found WRITE statement with hardcoded unit in "box_atoms_new
 qs_linres_current.F: Found WRITE statement with hardcoded unit in "calculate_jrho_resp" https://cp2k.org/conv#c012
 qs_linres_current.F: Found WRITE statement with hardcoded unit in "collocate_gauge_new" https://cp2k.org/conv#c012
 qs_linres_issc_utils.F: Found WRITE statement with hardcoded unit in "issc_issc" https://cp2k.org/conv#c012
-qs_localization_methods.F: Found type set_c_1d_type without initializer https://cp2k.org/conv#c016
-qs_localization_methods.F: Found type set_c_2d_type without initializer https://cp2k.org/conv#c016
-qs_local_rho_types.F: Found type local_rho_type without initializer https://cp2k.org/conv#c016
-qs_local_rho_types.F: Found type rhoz_type without initializer https://cp2k.org/conv#c016
-qs_loc_types.F: Found type localized_wfn_control_type without initializer https://cp2k.org/conv#c016
-qs_loc_types.F: Found type qs_loc_env_type without initializer https://cp2k.org/conv#c016
-qs_matrix_pools.F: Found type qs_matrix_pools_type without initializer https://cp2k.org/conv#c016
-qs_mo_types.F: Found type mo_set_p_type without initializer https://cp2k.org/conv#c016
-qs_neighbor_lists.F: Found type local_atoms_type without initializer https://cp2k.org/conv#c016
-qs_neighbor_list_types.F: Found type list_search_type without initializer https://cp2k.org/conv#c016
-qs_neighbor_list_types.F: Found type neighbor_list_iterator_p_type without initializer https://cp2k.org/conv#c016
-qs_neighbor_list_types.F: Found type neighbor_list_iterator_type without initializer https://cp2k.org/conv#c016
-qs_neighbor_list_types.F: Found type neighbor_list_p_type without initializer https://cp2k.org/conv#c016
-qs_neighbor_list_types.F: Found type neighbor_list_set_p_type without initializer https://cp2k.org/conv#c016
-qs_neighbor_list_types.F: Found type neighbor_list_set_type without initializer https://cp2k.org/conv#c016
-qs_neighbor_list_types.F: Found type neighbor_list_task_type without initializer https://cp2k.org/conv#c016
-qs_neighbor_list_types.F: Found type neighbor_list_type without initializer https://cp2k.org/conv#c016
-qs_neighbor_list_types.F: Found type neighbor_node_type without initializer https://cp2k.org/conv#c016
 qs_nl_hash_table_types.F: Found type nl_hash_table_data without initializer https://cp2k.org/conv#c016
 qs_nl_hash_table_types.F: Found type nl_hash_table_element without initializer https://cp2k.org/conv#c016
 qs_o3c_types.F: Found type o3c_container_type without initializer https://cp2k.org/conv#c016

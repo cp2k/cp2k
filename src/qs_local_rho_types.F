@@ -33,19 +33,19 @@ MODULE qs_local_rho_types
 
 ! **************************************************************************************************
    TYPE rhoz_type
-      REAL(dp)                             ::  one_atom
-      REAL(dp), DIMENSION(:), POINTER      ::  r_coef
-      REAL(dp), DIMENSION(:), POINTER      ::  dr_coef
-      REAL(dp), DIMENSION(:), POINTER      ::  vr_coef
+      REAL(dp)                             ::  one_atom = -1.0_dp
+      REAL(dp), DIMENSION(:), POINTER      ::  r_coef => NULL()
+      REAL(dp), DIMENSION(:), POINTER      ::  dr_coef => NULL()
+      REAL(dp), DIMENSION(:), POINTER      ::  vr_coef => NULL()
    END TYPE rhoz_type
 
 ! **************************************************************************************************
    TYPE local_rho_type
-      TYPE(rho_atom_type), DIMENSION(:), POINTER            :: rho_atom_set
-      TYPE(rho0_mpole_type), POINTER                        :: rho0_mpole
-      TYPE(rho0_atom_type), DIMENSION(:), POINTER           :: rho0_atom_set
-      TYPE(rhoz_type), DIMENSION(:), POINTER                :: rhoz_set
-      REAL(dp)                                              :: rhoz_tot
+      TYPE(rho_atom_type), DIMENSION(:), POINTER            :: rho_atom_set => NULL()
+      TYPE(rho0_mpole_type), POINTER                        :: rho0_mpole => NULL()
+      TYPE(rho0_atom_type), DIMENSION(:), POINTER           :: rho0_atom_set => NULL()
+      TYPE(rhoz_type), DIMENSION(:), POINTER                :: rhoz_set => NULL()
+      REAL(dp)                                              :: rhoz_tot = -1.0_dp
    END TYPE local_rho_type
 
 ! Public Types

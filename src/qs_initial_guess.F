@@ -111,7 +111,7 @@ MODULE qs_initial_guess
    PUBLIC ::  calculate_atomic_fock_matrix
 
    TYPE atom_matrix_type
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER   :: mat
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER   :: mat => NULL()
    END TYPE atom_matrix_type
 
 CONTAINS

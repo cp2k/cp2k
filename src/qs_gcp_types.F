@@ -25,26 +25,26 @@ MODULE qs_gcp_types
 
 ! **************************************************************************************************
    TYPE qs_gcp_kind_type
-      INTEGER                                :: za
-      REAL(KIND=dp)                          :: asto
-      REAL(KIND=dp)                          :: rcsto
-      INTEGER                                :: nq
-      REAL(KIND=dp)                          :: nbvirt
-      REAL(KIND=dp)                          :: eamiss
-      REAL(KIND=dp), DIMENSION(6)            :: al
-      REAL(KIND=dp), DIMENSION(6)            :: cl
+      INTEGER                                :: za = -1
+      REAL(KIND=dp)                          :: asto = -1.0_dp
+      REAL(KIND=dp)                          :: rcsto = -1.0_dp
+      INTEGER                                :: nq = -1
+      REAL(KIND=dp)                          :: nbvirt = -1.0_dp
+      REAL(KIND=dp)                          :: eamiss = -1.0_dp
+      REAL(KIND=dp), DIMENSION(6)            :: al = -1.0_dp
+      REAL(KIND=dp), DIMENSION(6)            :: cl = -1.0_dp
    END TYPE qs_gcp_kind_type
 ! **************************************************************************************************
    TYPE qs_gcp_type
       LOGICAL                                :: do_gcp = .FALSE.
-      LOGICAL                                :: verbose !extended output
-      CHARACTER(LEN=default_string_length)   :: parameter_file_name
+      LOGICAL                                :: verbose = .FALSE. !extended output
+      CHARACTER(LEN=default_string_length)   :: parameter_file_name = ""
       ! parameter input
       CHARACTER(LEN=default_string_length), &
          DIMENSION(:), POINTER               :: kind_type => NULL()
       REAL(KIND=dp), DIMENSION(:), POINTER   :: ea => NULL()
       !global parameters
-      REAL(KIND=dp)                          :: alpha, beta, sigma, eta
+      REAL(KIND=dp)                          :: alpha = -1.0_dp, beta = -1.0_dp, sigma = -1.0_dp, eta = -1.0_dp
       !neighborlist
       TYPE(neighbor_list_set_p_type), &
          DIMENSION(:), POINTER               :: sab_gcp => Null() ! neighborlists for pair interactions

@@ -79,7 +79,7 @@ MODULE qs_mo_types
    END TYPE mo_set_type
 
    TYPE mo_set_p_type
-      TYPE(mo_set_type), POINTER :: mo_set
+      TYPE(mo_set_type), POINTER :: mo_set => NULL()
    END TYPE mo_set_p_type
 
    PUBLIC :: mo_set_p_type, &
