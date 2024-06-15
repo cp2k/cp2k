@@ -120,37 +120,10 @@ message_passing.fypp: Rank mismatch between actual argument at (1) and actual ar
 message_passing.fypp: Type mismatch between actual argument at (1) and actual argument at (2) (COMPLEX(8)/COMPLEX(4)).
 mltfftsg_tools.F: Found WRITE statement with hardcoded unit in "ctrig" https://cp2k.org/conv#c012
 mode_selective.F: Found READ with unchecked STAT in "bfgs_guess" https://cp2k.org/conv#c001
-negf_atom_map.F: Found type negf_atom_map_type without initializer https://cp2k.org/conv#c016
-negf_control_types.F: Found type negf_control_contact_type without initializer https://cp2k.org/conv#c016
-negf_control_types.F: Found type negf_control_type without initializer https://cp2k.org/conv#c016
-negf_env_types.F: Found type negf_env_contact_type without initializer https://cp2k.org/conv#c016
-negf_env_types.F: Found type negf_env_type without initializer https://cp2k.org/conv#c016
-negf_green_methods.F: Found type sancho_work_matrices_type without initializer https://cp2k.org/conv#c016
-negf_integr_cc.F: Found type ccquad_type without initializer https://cp2k.org/conv#c016
-negf_integr_simpson.F: Found type simpsonrule_subinterval_type without initializer https://cp2k.org/conv#c016
-negf_integr_simpson.F: Found type simpsonrule_type without initializer https://cp2k.org/conv#c016
 negf_methods.F: Found CALL with NULL() as argument in procedure "converge_density" https://cp2k.org/conv#c007
 negf_methods.F: Found CALL with NULL() as argument in procedure "guess_fermi_level" https://cp2k.org/conv#c007
 negf_methods.F: Found CALL with NULL() as argument in procedure "shift_potential" https://cp2k.org/conv#c007
-negf_methods.F: Found type integration_status_type without initializer https://cp2k.org/conv#c016
 nequip_unittest.F: Found WRITE statement with hardcoded unit in "nequip_unittest" https://cp2k.org/conv#c012
-nnp_environment_types.F: Found type nnp_acsf_ang_type without initializer https://cp2k.org/conv#c016
-nnp_environment_types.F: Found type nnp_acsf_rad_type without initializer https://cp2k.org/conv#c016
-nnp_environment_types.F: Found type nnp_arc_type without initializer https://cp2k.org/conv#c016
-nnp_environment_types.F: Found type nnp_neighbor_type without initializer https://cp2k.org/conv#c016
-nnp_environment_types.F: Found type nnp_symfgrp_type without initializer https://cp2k.org/conv#c016
-nnp_environment_types.F: Found type nnp_type without initializer https://cp2k.org/conv#c016
-optimize_basis_types.F: Found type basis_optimization_type without initializer https://cp2k.org/conv#c016
-optimize_basis_types.F: Found type derived_basis_info without initializer https://cp2k.org/conv#c016
-optimize_basis_types.F: Found type exp_constraint_type without initializer https://cp2k.org/conv#c016
-optimize_basis_types.F: Found type flex_basis_type without initializer https://cp2k.org/conv#c016
-optimize_basis_types.F: Found type kind_basis_type without initializer https://cp2k.org/conv#c016
-optimize_basis_types.F: Found type subset_type without initializer https://cp2k.org/conv#c016
-optimize_input.F: Found type fm_env_type without initializer https://cp2k.org/conv#c016
-optimize_input.F: Found type oi_env_type without initializer https://cp2k.org/conv#c016
-optimize_input.F: Found type variable_type without initializer https://cp2k.org/conv#c016
-outer_scf_control_types.F: Found type outer_scf_control_type without initializer https://cp2k.org/conv#c016
-outer_scf_control_types.F: Found type qs_outer_scf_type without initializer https://cp2k.org/conv#c016
 parallel_gemm_api.F: Found CALL cp_fm_gemm in procedure "parallel_gemm_fm" https://cp2k.org/conv#c101
 parallel_rng_types_unittest.F: Found WRITE statement with hardcoded unit in "dump_reload_check" https://cp2k.org/conv#c012
 parallel_rng_types_unittest.F: Found WRITE statement with hardcoded unit in "parallel_rng_types_test" https://cp2k.org/conv#c012
@@ -159,8 +132,6 @@ pexsi_types.F: Found type lib_pexsi_env without initializer https://cp2k.org/con
 powell.F: Found GOTO statement in procedure "newuob" https://cp2k.org/conv#c201
 preconditioner_makes.F: Found WRITE statement with hardcoded unit in "make_full_all" https://cp2k.org/conv#c012
 preconditioner_makes.F: Found WRITE statement with hardcoded unit in "make_full_all_ortho" https://cp2k.org/conv#c012
-preconditioner_types.F: Found type preconditioner_p_type without initializer https://cp2k.org/conv#c016
-preconditioner_types.F: Found type preconditioner_type without initializer https://cp2k.org/conv#c016
 ps_implicit_methods.F: OMP PARALLEL without DEFAULT(NONE) found in "ps_implicit_prepare_blocks" https://cp2k.org/conv#c006
 ps_wavelet_base.F: Found WRITE statement with hardcoded unit in "f_poissonsolver" https://cp2k.org/conv#c012
 ps_wavelet_base.F: Found WRITE statement with hardcoded unit in "p_poissonsolver" https://cp2k.org/conv#c012
@@ -395,8 +366,6 @@ xc.F: Found OPEN statement in procedure "xc_vxc_pw_create_debug" https://cp2k.or
 xc.F: Found OPEN statement in procedure "xc_vxc_pw_create_test_lsd" https://cp2k.org/conv#c203
 xc.F: Found WRITE statement with hardcoded unit in "xc_vxc_pw_create_debug" https://cp2k.org/conv#c012
 xc.F: Found WRITE statement with hardcoded unit in "xc_vxc_pw_create_test_lsd" https://cp2k.org/conv#c012
-xtb_matrices.F: Found type neighbor_atoms_type without initializer https://cp2k.org/conv#c016
-xtb_types.F: Found type xtb_atom_type without initializer https://cp2k.org/conv#c016
 xyz2dcd.F: Found CLOSE statement in procedure "xyz2dcd" https://cp2k.org/conv#c204
 xyz2dcd.F: Found OPEN statement in procedure "xyz2dcd" https://cp2k.org/conv#c203
 xyz2dcd.F: Found STOP statement in procedure "abort_program" https://cp2k.org/conv#c205
