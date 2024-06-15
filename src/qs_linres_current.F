@@ -141,8 +141,8 @@ MODULE qs_linres_current
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_linres_current'
 
    TYPE box_type
-      INTEGER :: n
-      REAL(dp), POINTER, DIMENSION(:, :) :: r
+      INTEGER :: n = -1
+      REAL(dp), POINTER, DIMENSION(:, :) :: r => NULL()
    END TYPE box_type
    REAL(dp), DIMENSION(3, 3, 3), PARAMETER  :: Levi_Civita = RESHAPE((/ &
                                                           0.0_dp, 0.0_dp, 0.0_dp, 0.0_dp, 0.0_dp, -1.0_dp, 0.0_dp, 1.0_dp, 0.0_dp, &

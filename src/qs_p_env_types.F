@@ -56,7 +56,7 @@ MODULE qs_p_env_types
 !>      for the moment no smearing of the orbitals.
 ! **************************************************************************************************
    TYPE qs_p_env_type
-      LOGICAL                                                      :: orthogonal_orbitals
+      LOGICAL                                                      :: orthogonal_orbitals = .FALSE.
       TYPE(qs_kpp1_env_type), POINTER                              :: kpp1_env => NULL()
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER                    :: kpp1 => NULL()
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER                    :: kpp1_admm => NULL()
@@ -70,8 +70,8 @@ MODULE qs_p_env_types
       TYPE(qs_rho_type), POINTER :: rho1 => NULL()
       TYPE(qs_rho_type), POINTER :: rho1_xc => NULL()
       TYPE(qs_rho_type), POINTER :: rho1_admm => NULL()
-      INTEGER, DIMENSION(2)                                        :: n_mo, & ! no of molecular orbitals
-                                                                      n_ao ! no of basis functions
+      INTEGER, DIMENSION(2)                                        :: n_mo = -1, & ! no of molecular orbitals
+                                                                      n_ao = -1 ! no of basis functions
       ! GAPW stuff
       TYPE(hartree_local_type), POINTER                            :: hartree_local => NULL()
       TYPE(local_rho_type), POINTER                                :: local_rho_set => NULL()
@@ -81,7 +81,7 @@ MODULE qs_p_env_types
       TYPE(cp_fm_type), DIMENSION(:), POINTER                    :: PS_psi0 => NULL()
 
       ! preconditioner matrix should be symmetric and positive definite
-      LOGICAL                                                      :: new_preconditioner
+      LOGICAL                                                      :: new_preconditioner = .FALSE.
       TYPE(preconditioner_type), DIMENSION(:), POINTER             :: preconditioner => NULL()
 
    END TYPE qs_p_env_type

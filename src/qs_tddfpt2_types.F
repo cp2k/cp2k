@@ -85,13 +85,13 @@ MODULE qs_tddfpt2_types
 ! **************************************************************************************************
    TYPE tddfpt_ground_state_mos
       !> occupied MOs stored in a matrix form [nao x nmo_occ]
-      TYPE(cp_fm_type), POINTER                          :: mos_occ
+      TYPE(cp_fm_type), POINTER                          :: mos_occ => NULL()
       !> virtual MOs stored in a matrix form [nao x nmo_virt]
-      TYPE(cp_fm_type), POINTER                          :: mos_virt
+      TYPE(cp_fm_type), POINTER                          :: mos_virt => NULL()
       !> negated occupied orbital energy matrix [nmo_occ x nmo_occ]: - mos_occ^T * KS * mos_occ .
       !> Allocated when orbital energy correction is in use, otherwise it is just a diagonal
       !> matrix with 'evals_occ' on its diagonal
-      TYPE(cp_fm_type), POINTER                          :: evals_occ_matrix
+      TYPE(cp_fm_type), POINTER                          :: evals_occ_matrix => NULL()
       !> (non-corrected) occupied orbital energies
       REAL(kind=dp), ALLOCATABLE, DIMENSION(:)           :: evals_occ
       !> (non-corrected) virtual orbital energies
@@ -130,76 +130,76 @@ MODULE qs_tddfpt2_types
       !> action of TDDFPT operator on trial vectors distributed across parallel (sub)groups
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :)     :: Aop_evects_sub
       !> electron density expressed in terms of atomic orbitals using primary basis set
-      TYPE(cp_fm_type), POINTER                          :: rho_ao_orb_fm_sub
+      TYPE(cp_fm_type), POINTER                          :: rho_ao_orb_fm_sub => NULL()
       !
       ! NOTE: we do not need the next 2 matrices in case of a sparse matrix 'tddfpt_subgroup_env_type%admm_A'
       !
       !> electron density expressed in terms of atomic orbitals using auxiliary basis set;
       !> can be seen as a group-specific version of the matrix 'admm_type%work_aux_aux'
-      TYPE(cp_fm_type), POINTER                          :: rho_ao_aux_fit_fm_sub
+      TYPE(cp_fm_type), POINTER                          :: rho_ao_aux_fit_fm_sub => NULL()
       !> group-specific version of the matrix 'admm_type%work_aux_orb' with shape [nao_aux x nao]
-      TYPE(cp_fm_type), POINTER                          :: wfm_aux_orb_sub
+      TYPE(cp_fm_type), POINTER                          :: wfm_aux_orb_sub => NULL()
       !
       ! *** sparse matrices distributed across parallel (sub)groups ***
       !
       !> sparse matrix with shape [nao x nao] distributed across subgroups;
       !> Aop_evects_sub(spin,:) = A_ia_munu_sub(spin) * mos_occ(spin)
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: A_ia_munu_sub
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: A_ia_munu_sub => NULL()
       !
       ! *** structures to store electron densities distributed across parallel (sub)groups ***
       !
       !> electron density in terms of primary basis set
-      TYPE(qs_rho_type), POINTER                         :: rho_orb_struct_sub
+      TYPE(qs_rho_type), POINTER                         :: rho_orb_struct_sub => NULL()
       !> electron density for XC in GAPW_XC
-      TYPE(qs_rho_type), POINTER                         :: rho_xc_struct_sub
+      TYPE(qs_rho_type), POINTER                         :: rho_xc_struct_sub => NULL()
       !> electron density in terms of auxiliary basis set
-      TYPE(qs_rho_type), POINTER                         :: rho_aux_fit_struct_sub
+      TYPE(qs_rho_type), POINTER                         :: rho_aux_fit_struct_sub => NULL()
       !> group-specific copy of a Coulomb/xc-potential on a real-space grid
-      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER             :: A_ia_rspace_sub
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER             :: A_ia_rspace_sub => NULL()
       !> group-specific copy of a reciprocal-space grid
-      TYPE(pw_c1d_gs_type), DIMENSION(:), POINTER             :: wpw_gspace_sub
+      TYPE(pw_c1d_gs_type), DIMENSION(:), POINTER             :: wpw_gspace_sub => NULL()
       !> group-specific copy of a real-space grid
-      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER             :: wpw_rspace_sub
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER             :: wpw_rspace_sub => NULL()
       !> group-specific copy of a real-space grid for the kinetic energy density
-      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER             :: wpw_tau_rspace_sub
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER             :: wpw_tau_rspace_sub => NULL()
       !
       ! *** real space pw grid to hold fxc kernel <> A_ia_rspace_sub ***
       !
-      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER             :: fxc_rspace_sub
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER             :: fxc_rspace_sub => NULL()
       !
       ! *** globally distributed matrices required to compute exact exchange terms ***
       !
       !> globally distributed version of the matrix 'rho_ao_orb_fm_sub' to store the electron density
-      TYPE(cp_fm_type), POINTER                          :: hfx_fm_ao_ao
+      TYPE(cp_fm_type), POINTER                          :: hfx_fm_ao_ao => NULL()
       !> sparse matrix to store the electron density in terms of auxiliary (ADMM calculation)
       !> or primary (regular calculation) basis set
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: hfx_rho_ao_symm, hfx_rho_ao_asymm
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: hfx_rho_ao_symm => NULL(), hfx_rho_ao_asymm => NULL()
       !> exact exchange expressed in terms of auxiliary or primary basis set
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: hfx_hmat_symm, hfx_hmat_asymm
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: hfx_hmat_symm => NULL(), hfx_hmat_asymm => NULL()
       !> SR exact exchage matrices
-      TYPE(cp_fm_type), POINTER                          :: hfxsr_fm_ao_ao
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: hfxsr_rho_ao_symm, hfxsr_rho_ao_asymm
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: hfxsr_hmat_symm, hfxsr_hmat_asymm
+      TYPE(cp_fm_type), POINTER                          :: hfxsr_fm_ao_ao => NULL()
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: hfxsr_rho_ao_symm => NULL(), hfxsr_rho_ao_asymm => NULL()
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: hfxsr_hmat_symm => NULL(), hfxsr_hmat_asymm => NULL()
       !
       ! *** matrices required for sTDA kernel, all matrices are within subgroups
       !
       ! Short-range gamma exchange matrix
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: gamma_exchange
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: gamma_exchange => NULL()
       !Lowdin MO coefficients: NAO*NOCC
-      TYPE(cp_fm_type), DIMENSION(:), POINTER            :: ctransformed
+      TYPE(cp_fm_type), DIMENSION(:), POINTER            :: ctransformed => NULL()
       !S^1/2
-      TYPE(dbcsr_type), POINTER                          :: shalf
+      TYPE(dbcsr_type), POINTER                          :: shalf => NULL()
       !Eigenvalues/eigenvectors of the overlap matrix, used in sTDA forces (Lowdin derivatives)
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: S_eigenvalues
-      TYPE(cp_fm_type), POINTER                          :: S_eigenvectors
-      TYPE(cp_fm_type), POINTER                          :: slambda
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: S_eigenvalues => NULL()
+      TYPE(cp_fm_type), POINTER                          :: S_eigenvectors => NULL()
+      TYPE(cp_fm_type), POINTER                          :: slambda => NULL()
       !Ewald environments
-      TYPE(ewald_environment_type), POINTER              :: ewald_env
-      TYPE(ewald_pw_type), POINTER                       :: ewald_pw
+      TYPE(ewald_environment_type), POINTER              :: ewald_env => NULL()
+      TYPE(ewald_pw_type), POINTER                       :: ewald_pw => NULL()
       !> GAPW local atomic grids
-      TYPE(hartree_local_type), POINTER                  :: hartree_local
-      TYPE(local_rho_type), POINTER                      :: local_rho_set
-      TYPE(local_rho_type), POINTER                      :: local_rho_set_admm
+      TYPE(hartree_local_type), POINTER                  :: hartree_local => NULL()
+      TYPE(local_rho_type), POINTER                      :: local_rho_set => NULL()
+      TYPE(local_rho_type), POINTER                      :: local_rho_set_admm => NULL()
    END TYPE tddfpt_work_matrices
 
 CONTAINS

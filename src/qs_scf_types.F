@@ -68,55 +68,57 @@ MODULE qs_scf_types
 !> \author fawzi
 ! **************************************************************************************************
    TYPE krylov_space_type
-      INTEGER :: nkrylov, nblock, nmo_conv, nmo_nc, max_iter
-      LOGICAL :: always_check_conv
-      REAL(dp) :: eps_std_diag, eps_conv, eps_adapt, max_res_norm, min_res_norm
-      REAL(dp), DIMENSION(:), POINTER :: c_eval, t_eval
-      TYPE(cp_fm_type), DIMENSION(:), POINTER :: v_mat, mo_conv, mo_refine
-      TYPE(cp_fm_type), POINTER ::  tmp_mat
+      INTEGER :: nkrylov = -1, nblock = -1, nmo_conv = -1, nmo_nc = -1, max_iter = -1
+      LOGICAL :: always_check_conv = .FALSE.
+      REAL(dp) :: eps_std_diag = -1.0_dp, eps_conv = -1.0_dp, eps_adapt = -1.0_dp, max_res_norm = -1.0_dp, min_res_norm = -1.0_dp
+      REAL(dp), DIMENSION(:), POINTER :: c_eval => NULL(), t_eval => NULL()
+      TYPE(cp_fm_type), DIMENSION(:), POINTER :: v_mat => NULL(), mo_conv => NULL(), mo_refine => NULL()
+      TYPE(cp_fm_type), POINTER ::  tmp_mat => NULL()
       !NOTE: the following matrices are small and could be used as standard array rather than distributed fm
-      TYPE(cp_fm_type), POINTER :: block1_mat, block2_mat, block3_mat, block4_mat, block5_mat
-      TYPE(cp_fm_type), DIMENSION(:), POINTER ::  c_vec, chc_mat
+      TYPE(cp_fm_type), POINTER :: block1_mat => NULL(), block2_mat => NULL(), block3_mat => NULL(), &
+                                   block4_mat => NULL(), block5_mat => NULL()
+      TYPE(cp_fm_type), DIMENSION(:), POINTER ::  c_vec => NULL(), chc_mat => NULL()
    END TYPE krylov_space_type
 
    TYPE subspace_env_type
-      INTEGER :: max_iter, mixing_method
-      REAL(dp) :: eps_diag_sub, eps_ene, eps_adapt
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER :: p_matrix_store
-      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER :: p_matrix_mix
-      TYPE(cp_fm_type), DIMENSION(:), POINTER :: chc_mat, c_vec, c0
-      TYPE(mixing_storage_type), POINTER :: mixing_store
+      INTEGER :: max_iter = -1, mixing_method = -1
+      REAL(dp) :: eps_diag_sub = -1.0_dp, eps_ene = -1.0_dp, eps_adapt = -1.0_dp
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER :: p_matrix_store => NULL()
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER :: p_matrix_mix => NULL()
+      TYPE(cp_fm_type), DIMENSION(:), POINTER :: chc_mat => NULL(), c_vec => NULL(), c0 => NULL()
+      TYPE(mixing_storage_type), POINTER :: mixing_store => NULL()
    END TYPE subspace_env_type
 
    TYPE floating_basis_type
-      REAL(KIND=dp), DIMENSION(:, :), POINTER :: gradient
+      REAL(KIND=dp), DIMENSION(:, :), POINTER :: gradient => NULL()
    END TYPE floating_basis_type
 ! **************************************************************************************************
    TYPE qs_scf_env_type
-      TYPE(qs_outer_scf_type) :: outer_scf
-      INTEGER :: iter_count
-      INTEGER :: cholesky_method, nelectron, method, mixing_method, nskip_mixing
-      REAL(KIND=dp) :: iter_param, iter_delta, p_mix_alpha, sum_zeff_corr
-      CHARACTER(len=15) :: iter_method
-      COMPLEX(KIND=dp), DIMENSION(:, :, :), POINTER :: cc_buffer
-      LOGICAL :: print_iter_line, skip_mixing, skip_diis, needs_ortho
-      TYPE(mixing_storage_type), POINTER :: mixing_store
-      TYPE(cp_fm_type), DIMENSION(:), POINTER :: scf_work1
-      TYPE(cp_fm_type), POINTER  :: scf_work2, ortho, ortho_m1, s_half, s_minus_one
-      TYPE(krylov_space_type), POINTER :: krylov_space
-      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER :: p_delta, p_mix_new
-      TYPE(dbcsr_type), POINTER :: ortho_dbcsr, buf1_dbcsr, buf2_dbcsr
-      TYPE(preconditioner_p_type), DIMENSION(:), POINTER :: ot_preconditioner
-      TYPE(qs_ot_type), POINTER, DIMENSION(:)  :: qs_ot_env
-      TYPE(qs_diis_buffer_type), POINTER :: scf_diis_buffer
-      TYPE(subspace_env_type), POINTER :: subspace_env
-      TYPE(davidson_type), POINTER, DIMENSION(:) :: block_davidson_env
-      TYPE(fb_env_obj) :: filter_matrix_env
-      TYPE(floating_basis_type) :: floating_basis
+      TYPE(qs_outer_scf_type) :: outer_scf = qs_outer_scf_type()
+      INTEGER :: iter_count = -1
+      INTEGER :: cholesky_method = -1, nelectron = -1, method = -1, mixing_method = -1, nskip_mixing = -1
+      REAL(KIND=dp) :: iter_param = -1.0_dp, iter_delta = -1.0_dp, p_mix_alpha = -1.0_dp, sum_zeff_corr = -1.0_dp
+      CHARACTER(len=15) :: iter_method = ""
+      COMPLEX(KIND=dp), DIMENSION(:, :, :), POINTER :: cc_buffer => NULL()
+      LOGICAL :: print_iter_line = .FALSE., skip_mixing = .FALSE., skip_diis = .FALSE., needs_ortho = .FALSE.
+      TYPE(mixing_storage_type), POINTER :: mixing_store => NULL()
+      TYPE(cp_fm_type), DIMENSION(:), POINTER :: scf_work1 => NULL()
+      TYPE(cp_fm_type), POINTER  :: scf_work2 => NULL(), ortho => NULL(), ortho_m1 => NULL(), &
+                                    s_half => NULL(), s_minus_one => NULL()
+      TYPE(krylov_space_type), POINTER :: krylov_space => NULL()
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER :: p_delta => NULL(), p_mix_new => NULL()
+      TYPE(dbcsr_type), POINTER :: ortho_dbcsr => NULL(), buf1_dbcsr => NULL(), buf2_dbcsr => NULL()
+      TYPE(preconditioner_p_type), DIMENSION(:), POINTER :: ot_preconditioner => NULL()
+      TYPE(qs_ot_type), POINTER, DIMENSION(:)  :: qs_ot_env => NULL()
+      TYPE(qs_diis_buffer_type), POINTER :: scf_diis_buffer => NULL()
+      TYPE(subspace_env_type), POINTER :: subspace_env => NULL()
+      TYPE(davidson_type), POINTER, DIMENSION(:) :: block_davidson_env => NULL()
+      TYPE(fb_env_obj) :: filter_matrix_env = fb_env_obj()
+      TYPE(floating_basis_type) :: floating_basis = floating_basis_type()
       !> reference molecular orbitals for the maximum overlap method
-      TYPE(cp_fm_type), DIMENSION(:), POINTER          :: mom_ref_mo_coeff
+      TYPE(cp_fm_type), DIMENSION(:), POINTER          :: mom_ref_mo_coeff => NULL()
       !> MOM-related work matrices
-      TYPE(cp_fm_type), DIMENSION(:), POINTER          :: mom_overlap, mom_s_mo_coeff
+      TYPE(cp_fm_type), DIMENSION(:), POINTER          :: mom_overlap => NULL(), mom_s_mo_coeff => NULL()
    END TYPE qs_scf_env_type
 
 CONTAINS
