@@ -157,19 +157,11 @@ qs_linres_current.F: Found WRITE statement with hardcoded unit in "collocate_gau
 qs_linres_issc_utils.F: Found WRITE statement with hardcoded unit in "issc_issc" https://cp2k.org/conv#c012
 qs_ot.F: Found WRITE statement with hardcoded unit in "qs_ot_generate_rotation" https://cp2k.org/conv#c012
 qs_rho_atom_methods.F: Found WRITE statement with hardcoded unit in "init_rho_atom" https://cp2k.org/conv#c012
-rel_control_types.F: Found type rel_control_type without initializer https://cp2k.org/conv#c016
-replica_types.F: Found type replica_env_p_type without initializer https://cp2k.org/conv#c016
-replica_types.F: Found type replica_env_type without initializer https://cp2k.org/conv#c016
-scf_control_types.F: Found type diagonalization_type without initializer https://cp2k.org/conv#c016
-scf_control_types.F: Found type scf_control_type without initializer https://cp2k.org/conv#c016
-scf_control_types.F: Found type smear_type without initializer https://cp2k.org/conv#c016
 se_core_matrix.F: Found WRITE statement with hardcoded unit in "aa" https://cp2k.org/conv#c012
 se_core_matrix.F: Found WRITE statement with hardcoded unit in "makeds" https://cp2k.org/conv#c012
 se_core_matrix.F: Found WRITE statement with hardcoded unit in "makes" https://cp2k.org/conv#c012
 se_fock_matrix_coulomb.F: Found WRITE statement with hardcoded unit in "build_fock_matrix_coulomb_lr" https://cp2k.org/conv#c012
 se_fock_matrix_dbg.F: Found WRITE statement with hardcoded unit in "dbg_energy_coulomb_lr" https://cp2k.org/conv#c012
-semi_empirical_expns3_types.F: Found type semi_empirical_expns3_p_type without initializer https://cp2k.org/conv#c016
-semi_empirical_expns3_types.F: Found type semi_empirical_expns3_type without initializer https://cp2k.org/conv#c016
 semi_empirical_int_debug.F: Found WRITE statement with hardcoded unit in "check_dcorecore_ana" https://cp2k.org/conv#c012
 semi_empirical_int_debug.F: Found WRITE statement with hardcoded unit in "check_dcore_nucint_ana" https://cp2k.org/conv#c012
 semi_empirical_int_debug.F: Found WRITE statement with hardcoded unit in "check_drotnuc_ana" https://cp2k.org/conv#c012
@@ -181,30 +173,10 @@ semi_empirical_int_debug.F: Found WRITE statement with hardcoded unit in "check_
 semi_empirical_int_debug.F: Found WRITE statement with hardcoded unit in "rot_2el_2c_first_debug" https://cp2k.org/conv#c012
 semi_empirical_int_debug.F: Procedure 'check_value' called with an implicit interface at (1) [-Wimplicit-interface]
 semi_empirical_mpole_methods.F: Found WRITE statement with hardcoded unit in "semi_empirical_mpole_p_setup" https://cp2k.org/conv#c012
-semi_empirical_mpole_types.F: Found type nddo_mpole_type without initializer https://cp2k.org/conv#c016
-semi_empirical_mpole_types.F: Found type semi_empirical_mpole_p_type without initializer https://cp2k.org/conv#c016
-semi_empirical_mpole_types.F: Found type semi_empirical_mpole_type without initializer https://cp2k.org/conv#c016
-semi_empirical_store_int_types.F: Found type semi_empirical_si_type without initializer https://cp2k.org/conv#c016
-semi_empirical_types.F: Found type ewald_gks_type without initializer https://cp2k.org/conv#c016
-semi_empirical_types.F: Found type rotmat_type without initializer https://cp2k.org/conv#c016
-semi_empirical_types.F: Found type se_int_control_type without initializer https://cp2k.org/conv#c016
-semi_empirical_types.F: Found type se_int_screen_type without initializer https://cp2k.org/conv#c016
-semi_empirical_types.F: Found type semi_empirical_p_type without initializer https://cp2k.org/conv#c016
-semi_empirical_types.F: Found type semi_empirical_type without initializer https://cp2k.org/conv#c016
-semi_empirical_types.F: Found type se_taper_type without initializer https://cp2k.org/conv#c016
-simpar_types.F: Found type simpar_type without initializer https://cp2k.org/conv#c016
 spherical_harmonics.F: Found WRITE statement with hardcoded unit in "cgc" https://cp2k.org/conv#c012
 spherical_harmonics.F: Found WRITE statement with hardcoded unit in "get_factor" https://cp2k.org/conv#c012
-splines_types.F: Found type spline_data_pp_type without initializer https://cp2k.org/conv#c016
-splines_types.F: Found type spline_data_p_type without initializer https://cp2k.org/conv#c016
-splines_types.F: Found type spline_data_type without initializer https://cp2k.org/conv#c016
-splines_types.F: Found type spline_environment_type without initializer https://cp2k.org/conv#c016
-splines_types.F: Found type spline_factor_type without initializer https://cp2k.org/conv#c016
 statistical_methods.F: Found WRITE statement with hardcoded unit in "tests" https://cp2k.org/conv#c012
-subcell_types.F: Found type subcell_type without initializer https://cp2k.org/conv#c016
 submatrix_dissection.F: Found type submatrix_dissection_type without initializer https://cp2k.org/conv#c016
-submatrix_types.F: Found type buffer_type without initializer https://cp2k.org/conv#c016
-submatrix_types.F: Found type intbuffer_type without initializer https://cp2k.org/conv#c016
 swarm_mpi.F: Found CLOSE statement in procedure "logger_init_master" https://cp2k.org/conv#c204
 swarm_mpi.F: Found OPEN statement in procedure "logger_finalize" https://cp2k.org/conv#c203
 taper_types.F: Found type taper_type without initializer https://cp2k.org/conv#c016

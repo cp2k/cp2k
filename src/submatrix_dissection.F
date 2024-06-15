@@ -67,10 +67,11 @@ MODULE submatrix_dissection
       TYPE(dbcsr_type)                                :: dbcsr_mat
       TYPE(dbcsr_distribution_type)                   :: dist
       LOGICAL                                         :: initialized = .FALSE.
-      TYPE(mp_comm_type)                              :: group
-      INTEGER                                         :: numnodes, myrank, nblkcols, nblkrows, nblks, local_blocks, &
-                                                         cols_per_sm, number_of_submatrices
-      INTEGER, DIMENSION(:), POINTER                  :: row_blk_size, col_blk_size
+      TYPE(mp_comm_type)                              :: group = mp_comm_type()
+      INTEGER                                         :: numnodes = -1, myrank = -1, nblkcols = -1, &
+                                                         nblkrows = -1, nblks = -1, local_blocks = -1, &
+                                                         cols_per_sm = -1, number_of_submatrices = -1
+      INTEGER, DIMENSION(:), POINTER                  :: row_blk_size => NULL(), col_blk_size => NULL()
       INTEGER, DIMENSION(:), ALLOCATABLE              :: coo_cols, coo_rows, coo_col_offsets, coo_cols_local, coo_rows_local, &
                                                          coo_col_offsets_local, submatrix_owners, submatrix_sizes
       TYPE(buffer_type), DIMENSION(:), ALLOCATABLE    :: recvbufs, result_sendbufs ! Indexing starts with 0 to match rank ids!

@@ -28,67 +28,67 @@ MODULE simpar_types
 !>         reorganization of the original routines/modules
 ! **************************************************************************************************
    TYPE simpar_type
-      INTEGER       :: nsteps
-      INTEGER       :: max_steps
-      REAL(KIND=dp) :: dt
-      REAL(KIND=dp) :: dt_fact
-      REAL(KIND=dp) :: dr_tol
-      REAL(KIND=dp) :: dsc_tol
-      REAL(KIND=dp) :: temp_ext
-      REAL(KIND=dp) :: temp_baro_ext
-      REAL(KIND=dp) :: temp_baro
-      REAL(KIND=dp) :: temp_tol
-      REAL(KIND=dp) :: temp_baro_tol
-      REAL(KIND=dp) :: p_ext
-      REAL(KIND=dp) :: cmass
-      REAL(KIND=dp) :: cmass_nph
-      REAL(KIND=dp) :: v0
-      REAL(KIND=dp) :: e0
-      REAL(KIND=dp) :: v_shock
-      REAL(KIND=dp) :: p0
-      REAL(KIND=dp) :: f_annealing
-      REAL(KIND=dp) :: f_annealing_cell
-      REAL(KIND=dp) :: f_temperature_annealing
-      REAL(KIND=dp) :: gamma_nph
-      INTEGER        :: ensemble
-      LOGICAL        :: constraint
-      LOGICAL        :: annealing
-      LOGICAL        :: annealing_cell
-      LOGICAL        :: temperature_annealing
-      LOGICAL        :: dump_lm
-      LOGICAL        :: angvel_zero
-      LOGICAL        :: variable_dt
-      INTEGER        :: nfree, nfree_rot_transl
-      INTEGER        :: info_constraint
-      INTEGER        :: lagrange_multipliers
-      REAL(KIND=dp) :: tau_cell
+      INTEGER       :: nsteps = -1
+      INTEGER       :: max_steps = -1
+      REAL(KIND=dp) :: dt = -1.0_dp
+      REAL(KIND=dp) :: dt_fact = -1.0_dp
+      REAL(KIND=dp) :: dr_tol = -1.0_dp
+      REAL(KIND=dp) :: dsc_tol = -1.0_dp
+      REAL(KIND=dp) :: temp_ext = -1.0_dp
+      REAL(KIND=dp) :: temp_baro_ext = -1.0_dp
+      REAL(KIND=dp) :: temp_baro = -1.0_dp
+      REAL(KIND=dp) :: temp_tol = -1.0_dp
+      REAL(KIND=dp) :: temp_baro_tol = -1.0_dp
+      REAL(KIND=dp) :: p_ext = -1.0_dp
+      REAL(KIND=dp) :: cmass = -1.0_dp
+      REAL(KIND=dp) :: cmass_nph = -1.0_dp
+      REAL(KIND=dp) :: v0 = -1.0_dp
+      REAL(KIND=dp) :: e0 = -1.0_dp
+      REAL(KIND=dp) :: v_shock = -1.0_dp
+      REAL(KIND=dp) :: p0 = -1.0_dp
+      REAL(KIND=dp) :: f_annealing = -1.0_dp
+      REAL(KIND=dp) :: f_annealing_cell = -1.0_dp
+      REAL(KIND=dp) :: f_temperature_annealing = -1.0_dp
+      REAL(KIND=dp) :: gamma_nph = -1.0_dp
+      INTEGER        :: ensemble = -1
+      LOGICAL        :: constraint = .FALSE.
+      LOGICAL        :: annealing = .FALSE.
+      LOGICAL        :: annealing_cell = .FALSE.
+      LOGICAL        :: temperature_annealing = .FALSE.
+      LOGICAL        :: dump_lm = .FALSE.
+      LOGICAL        :: angvel_zero = .FALSE.
+      LOGICAL        :: variable_dt = .FALSE.
+      INTEGER        :: nfree = -1, nfree_rot_transl = -1
+      INTEGER        :: info_constraint = -1
+      INTEGER        :: lagrange_multipliers = -1
+      REAL(KIND=dp) :: tau_cell = -1.0_dp
       ! Constraints Parameters
-      REAL(KIND=dp) :: shake_tol, roll_tol
+      REAL(KIND=dp) :: shake_tol = -1.0_dp, roll_tol = -1.0_dp
       ! Langevin Parameters
-      REAL(KIND=dp) :: gamma
-      REAL(KIND=dp) :: noisy_gamma
-      REAL(KIND=dp) :: shadow_gamma
-      REAL(KIND=dp) :: var_w
+      REAL(KIND=dp) :: gamma = -1.0_dp
+      REAL(KIND=dp) :: noisy_gamma = -1.0_dp
+      REAL(KIND=dp) :: shadow_gamma = -1.0_dp
+      REAL(KIND=dp) :: var_w = -1.0_dp
       ! RESPA Parameters
-      LOGICAL        :: multi_time_switch, do_respa
-      INTEGER        :: n_time_steps
+      LOGICAL        :: multi_time_switch = .FALSE., do_respa = .FALSE.
+      INTEGER        :: n_time_steps = -1
       ! SHELL parameters
-      REAL(KIND=dp) :: temp_sh_ext
-      REAL(KIND=dp) :: temp_sh_tol
-      LOGICAL        :: temperature_per_kind
-      LOGICAL        :: scale_temperature_per_kind
-      LOGICAL        :: do_thermal_region
+      REAL(KIND=dp) :: temp_sh_ext = -1.0_dp
+      REAL(KIND=dp) :: temp_sh_tol = -1.0_dp
+      LOGICAL        :: temperature_per_kind = .FALSE.
+      LOGICAL        :: scale_temperature_per_kind = .FALSE.
+      LOGICAL        :: do_thermal_region = .FALSE.
       ! ADIABATIC parameters
-      REAL(KIND=dp) :: temp_slow
-      REAL(KIND=dp) :: temp_fast
-      REAL(KIND=dp) :: temp_tol_fast, temp_tol_slow
-      INTEGER :: n_resp_fast
+      REAL(KIND=dp) :: temp_slow = -1.0_dp
+      REAL(KIND=dp) :: temp_fast = -1.0_dp
+      REAL(KIND=dp) :: temp_tol_fast = -1.0_dp, temp_tol_slow = -1.0_dp
+      INTEGER :: n_resp_fast = -1
       ! Velocity softening Parameters
-      INTEGER        :: soften_nsteps
-      REAL(KIND=dp) :: soften_alpha
-      REAL(KIND=dp) :: soften_delta
+      INTEGER        :: soften_nsteps = -1
+      REAL(KIND=dp) :: soften_alpha = -1.0_dp
+      REAL(KIND=dp) :: soften_delta = -1.0_dp
       ! MD initialisation method
-      INTEGER       :: initialization_method
+      INTEGER       :: initialization_method = -1
    END TYPE simpar_type
 
    PUBLIC :: simpar_type, &
