@@ -68,8 +68,8 @@ MODULE topology_types
       REAL(KIND=dp)                                 :: hbonds_k0 = -1.0_dp ! Restraints control
       ! Fixed Atoms
       INTEGER                                       :: nfixed_atoms = -1
-      INTEGER, POINTER                              :: fixed_atoms(:), fixed_type(:), fixed_mol_type(:)
-      LOGICAL, POINTER                              :: fixed_restraint(:) ! Restraints control
+     INTEGER, POINTER                              :: fixed_atoms(:) => NULL(), fixed_type(:) => NULL(), fixed_mol_type(:) => NULL()
+      LOGICAL, POINTER                              :: fixed_restraint(:) => NULL() ! Restraints control
       REAL(KIND=dp), POINTER                        :: fixed_k0(:) => NULL() ! Restraints control
       ! Freeze QM or MM
       INTEGER                                       :: freeze_qm = -1, freeze_mm = -1, freeze_qm_type = -1, freeze_mm_type = -1

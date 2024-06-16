@@ -81,7 +81,7 @@ MODULE qmmm_types_low
    END TYPE qmmm_pot_type
 
    TYPE qmmm_pot_p_type
-      TYPE(qmmm_pot_type), POINTER :: pot
+      TYPE(qmmm_pot_type), POINTER :: pot => NULL()
    END TYPE qmmm_pot_p_type
 
 ! **************************************************************************************************

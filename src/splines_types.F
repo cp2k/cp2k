@@ -69,7 +69,7 @@ MODULE splines_types
 
 ! **************************************************************************************************
    TYPE spline_factor_type
-      REAL(KIND=dp) :: rcutsq_f, cutoff
+      REAL(KIND=dp) :: rcutsq_f = -1.0_dp, cutoff = -1.0_dp
       REAL(KIND=dp), DIMENSION(:), POINTER :: rscale => NULL()
       REAL(KIND=dp), DIMENSION(:), POINTER :: fscale => NULL()
       REAL(KIND=dp), DIMENSION(:), POINTER :: dscale => NULL()

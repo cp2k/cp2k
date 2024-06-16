@@ -42,7 +42,7 @@ MODULE free_energy_types
 ! **************************************************************************************************
    TYPE ui_conv_type
       ! Specifying convergence parameters
-      INTEGER                                        :: cg_width, max_cg_width
+      INTEGER                                        :: cg_width = -1, max_cg_width = -1
       INTEGER                                        :: cg_points = -1
       REAL(KIND=dp)                                  :: eps_conv = 0.0_dp
       REAL(KIND=dp)                                  :: k_conf_lm = 0.0_dp

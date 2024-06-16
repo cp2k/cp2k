@@ -103,21 +103,21 @@ MODULE qs_neighbor_list_types
 ! **************************************************************************************************
    TYPE neighbor_list_iterator_type
       PRIVATE
-      INTEGER                               :: ikind, jkind, ilist, inode
-      INTEGER                               :: nkind, nlist, nnode
-      INTEGER                               :: iatom, jatom
+      INTEGER                               :: ikind = -1, jkind = -1, ilist = -1, inode = -1
+      INTEGER                               :: nkind = -1, nlist = -1, nnode = -1
+      INTEGER                               :: iatom = -1, jatom = -1
       TYPE(neighbor_list_set_p_type), &
-         DIMENSION(:), POINTER               :: nl
-      TYPE(neighbor_list_type), POINTER     :: neighbor_list
-      TYPE(neighbor_node_type), POINTER     :: neighbor_node
+         DIMENSION(:), POINTER               :: nl => NULL()
+      TYPE(neighbor_list_type), POINTER     :: neighbor_list => NULL()
+      TYPE(neighbor_node_type), POINTER     :: neighbor_node => NULL()
       TYPE(list_search_type), &
-         DIMENSION(:), POINTER               :: list_search
+         DIMENSION(:), POINTER               :: list_search => NULL()
    END TYPE neighbor_list_iterator_type
 
    TYPE neighbor_list_iterator_p_type
       PRIVATE
-      TYPE(neighbor_list_iterator_type), POINTER :: neighbor_list_iterator
-      INTEGER                                    :: last
+      TYPE(neighbor_list_iterator_type), POINTER :: neighbor_list_iterator => NULL()
+      INTEGER                                    :: last = -1
    END TYPE neighbor_list_iterator_p_type
 ! **************************************************************************************************
 

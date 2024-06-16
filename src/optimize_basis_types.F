@@ -98,7 +98,7 @@ MODULE optimize_basis_types
       TYPE(comp_group_type), DIMENSION(:), ALLOCATABLE  :: comp_group
       INTEGER :: ntraining_sets = -1
       INTEGER :: ncombinations = -1
-      LOGICAL :: use_condition_number
+      LOGICAL :: use_condition_number = .FALSE.
       INTEGER, DIMENSION(:), POINTER   :: group_partition => NULL()
       INTEGER :: n_groups_created = -1
       INTEGER, DIMENSION(:), ALLOCATABLE :: sub_sources

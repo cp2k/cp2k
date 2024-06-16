@@ -70,7 +70,7 @@ MODULE qs_density_mixing_types
       REAL(KIND=dp), DIMENSION(:, :), POINTER           :: norm_res_buffer => NULL()
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER        :: fmat => NULL(), gmat => NULL(), pulay_matrix => NULL(), smat => NULL()
       !
-      INTEGER                                           :: nat_local, max_shell
+      INTEGER                                           :: nat_local = -1, max_shell = -1
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER        :: acharge => NULL()
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER        :: dacharge => NULL()
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER        :: dfbroy => NULL()

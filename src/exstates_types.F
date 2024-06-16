@@ -52,9 +52,9 @@ MODULE exstates_types
 !> \author JGH
 ! *****************************************************************************
    TYPE excited_energy_type
-      INTEGER                                            :: state
+      INTEGER                                            :: state = -1
       REAL(KIND=dp)                                      :: evalue = 0.0_dp
-      INTEGER                                            :: xc_kernel_method
+      INTEGER                                            :: xc_kernel_method = -1
       REAL(KIND=dp)                                      :: eps_delta_rho = 1.E-02_dp
       INTEGER                                            :: diff_order = -1
       LOGICAL                                            :: debug_forces = .FALSE.

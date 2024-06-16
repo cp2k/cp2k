@@ -312,7 +312,7 @@ MODULE lri_environment_types
       ! store integrals (needed for basis optimization)
       LOGICAL                                                 :: store_integrals = .FALSE.
       ! distant pair approximation
-      LOGICAL                                                 :: distant_pair_approximation
+      LOGICAL                                                 :: distant_pair_approximation = .FALSE.
       CHARACTER(len=10)                                       :: distant_pair_method = ""
       REAL(KIND=dp)                                           :: r_in = 0.0_dp
       REAL(KIND=dp)                                           :: r_out = 0.0_dp
