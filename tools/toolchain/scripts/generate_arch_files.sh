@@ -72,7 +72,7 @@ PROFOPT_FLAGS="\$(PROFOPT)"
 # we error out for these warnings (-Werror=uninitialized -Wno-maybe-uninitialized -> error on variables that must be used uninitialized)
 WFLAGS_ERROR="-Werror=aliasing -Werror=ampersand -Werror=c-binding-type -Werror=intrinsic-shadow -Werror=intrinsics-std -Werror=line-truncation -Werror=tabs -Werror=target-lifetime -Werror=underflow -Werror=unused-but-set-variable -Werror=unused-variable -Werror=unused-dummy-argument -Werror=unused-parameter -Werror=unused-label -Werror=conversion -Werror=zerotrip -Wno-maybe-uninitialized"
 # we just warn for those (that eventually might be promoted to WFLAGSERROR). It is useless to put something here with 100s of warnings.
-WFLAGS_WARN="-Wunitialized -Wuse-without-only"
+WFLAGS_WARN="-Wuninitialized -Wuse-without-only"
 # while here we collect all other warnings, some we'll ignore
 # TODO: -Wpedantic with -std2008 requires us to drop the old MPI-90 interface entirely and SIRIUS (-Wuninitialized) and DBCSR (default initializers) to initialize their types
 WFLAGS_WARNALL="-Wno-pedantic -Wall -Wextra -Wsurprising -Warray-temporaries -Wcharacter-truncation -Wconversion-extra -Wimplicit-interface -Wimplicit-procedure -Wreal-q-constant -Walign-commons -Wfunction-elimination -Wrealloc-lhs -Wcompare-reals -Wzerotrip"
