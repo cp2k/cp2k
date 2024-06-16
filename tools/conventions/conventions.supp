@@ -179,10 +179,8 @@ statistical_methods.F: Found WRITE statement with hardcoded unit in "tests" http
 submatrix_dissection.F: Found type submatrix_dissection_type without initializer https://cp2k.org/conv#c016
 swarm_mpi.F: Found CLOSE statement in procedure "logger_init_master" https://cp2k.org/conv#c204
 swarm_mpi.F: Found OPEN statement in procedure "logger_finalize" https://cp2k.org/conv#c203
-taper_types.F: Found type taper_type without initializer https://cp2k.org/conv#c016
 task_list_methods.F: Found WRITE statement with hardcoded unit in "generate_qs_task_list" https://cp2k.org/conv#c012
 timings.F: Found WRITE statement with hardcoded unit in "timestop_handler" https://cp2k.org/conv#c012
-tip_scan_types.F: Found type scanning_type without initializer https://cp2k.org/conv#c016
 tmc_analysis.F: Found WRITE statement with hardcoded unit in "print_average_displacement" https://cp2k.org/conv#c012
 tmc_analysis.F: Found WRITE statement with hardcoded unit in "print_dipole_moment" https://cp2k.org/conv#c012
 tmc_analysis.F: Found WRITE statement with hardcoded unit in "print_paircorrelation" https://cp2k.org/conv#c012
@@ -199,13 +197,6 @@ topology_generate_util.F: Found WRITE statement with hardcoded unit in "generate
 topology_generate_util.F: Found WRITE statement with hardcoded unit in "topology_generate_molecule" https://cp2k.org/conv#c012
 topology_gromos.F: Found READ with unchecked STAT in "read_topology_gromos" https://cp2k.org/conv#c001
 topology_pdb.F: Found READ with unchecked STAT in "read_coordinate_pdb" https://cp2k.org/conv#c001
-topology_types.F: Found type atom_info_type without initializer https://cp2k.org/conv#c016
-topology_types.F: Found type connectivity_info_type without initializer https://cp2k.org/conv#c016
-topology_types.F: Found type constraint_info_type without initializer https://cp2k.org/conv#c016
-topology_types.F: Found type constr_list_type without initializer https://cp2k.org/conv#c016
-topology_types.F: Found type topology_parameters_type without initializer https://cp2k.org/conv#c016
-transport_env_types.F: Found type cp2k_csr_interop_type without initializer https://cp2k.org/conv#c016
-transport_env_types.F: Found type cp2k_transport_parameters without initializer https://cp2k.org/conv#c016
 transport_env_types.F: Found type transport_env_type without initializer https://cp2k.org/conv#c016
 xc.F: Found CLOSE statement in procedure "xc_vxc_pw_create_debug" https://cp2k.org/conv#c204
 xc.F: Found CLOSE statement in procedure "xc_vxc_pw_create_test_lsd" https://cp2k.org/conv#c204

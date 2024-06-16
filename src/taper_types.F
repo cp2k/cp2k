@@ -26,8 +26,8 @@ MODULE taper_types
 !> \brief Taper type
 ! **************************************************************************************************
    TYPE taper_type
-      LOGICAL                               :: apply_taper
-      REAL(KIND=dp)                         :: r0, rscale
+      LOGICAL                               :: apply_taper = .FALSE.
+      REAL(KIND=dp)                         :: r0 = -1.0_dp, rscale = -1.0_dp
    END TYPE taper_type
 
    PUBLIC :: taper_type, taper_create, taper_release, taper_eval, dtaper_eval
