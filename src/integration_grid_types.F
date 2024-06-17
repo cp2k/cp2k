@@ -17,12 +17,12 @@ MODULE integration_grid_types
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'integration_grid_types'
 
    TYPE grid_batch_val_1d_type
-      INTEGER                                                  :: np1
+      INTEGER                                                  :: np1 = -1
       REAL(KIND=dp), DIMENSION(:), ALLOCATABLE                 :: val1d
    END TYPE grid_batch_val_1d_type
 
    TYPE grid_batch_val_2d_type
-      INTEGER                                                  :: np1, np2
+      INTEGER                                                  :: np1 = -1, np2 = -1
       REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE              :: val2d
    END TYPE grid_batch_val_2d_type
 
@@ -32,12 +32,12 @@ MODULE integration_grid_types
    END TYPE gnlist_type
 
    TYPE grid_batch_info_type
-      INTEGER                                                  :: np
-      INTEGER                                                  :: ref_atom
-      INTEGER                                                  :: ibatch
-      TYPE(gnlist_type)                                        :: gnlist
-      REAL(KIND=dp), DIMENSION(3)                              :: rcenter
-      REAL(KIND=dp)                                            :: radius
+      INTEGER                                                  :: np = -1
+      INTEGER                                                  :: ref_atom = -1
+      INTEGER                                                  :: ibatch = -1
+      TYPE(gnlist_type)                                        :: gnlist = gnlist_type()
+      REAL(KIND=dp), DIMENSION(3)                              :: rcenter = 0.0_dp
+      REAL(KIND=dp)                                            :: radius = 0.0_dp
       REAL(dp), DIMENSION(:, :), ALLOCATABLE                   :: rco
       REAL(dp), DIMENSION(:), ALLOCATABLE                      :: weight
       REAL(dp), DIMENSION(:), ALLOCATABLE                      :: wref
@@ -45,12 +45,12 @@ MODULE integration_grid_types
    END TYPE grid_batch_info_type
 
    TYPE integration_grid_type
-      INTEGER                                                  :: nbatch
+      INTEGER                                                  :: nbatch = -1
       TYPE(grid_batch_info_type), DIMENSION(:), ALLOCATABLE    :: grid_batch
    END TYPE integration_grid_type
 
    TYPE integration_grid_value_type
-      INTEGER                                                  :: nbatch
+      INTEGER                                                  :: nbatch = -1
       TYPE(grid_batch_val_1d_type), DIMENSION(:), ALLOCATABLE  :: grid_val_1d
       TYPE(grid_batch_val_2d_type), DIMENSION(:), ALLOCATABLE  :: grid_val_2d
    END TYPE integration_grid_value_type

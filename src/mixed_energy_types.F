@@ -20,13 +20,13 @@ MODULE mixed_energy_types
 
 ! **************************************************************************************************
    TYPE mixed_energy_type
-      REAL(kind=dp) :: pot
-      REAL(kind=dp) :: kin
+      REAL(kind=dp) :: pot = 0.0_dp
+      REAL(kind=dp) :: kin = 0.0_dp
    END TYPE mixed_energy_type
 
 ! **************************************************************************************************
    TYPE mixed_force_type
-      REAL(KIND=dp), DIMENSION(:, :), POINTER         :: forces
+      REAL(KIND=dp), DIMENSION(:, :), POINTER         :: forces => NULL()
    END TYPE mixed_force_type
 
 ! Public data types

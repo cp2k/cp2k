@@ -45,14 +45,14 @@ MODULE qs_ks_qmmm_types
 !> \author Teodoro Laino
 ! **************************************************************************************************
    TYPE qs_ks_qmmm_env_type
-      INTEGER :: n_evals
-      REAL(KIND=dp)                               :: pc_ener
-      TYPE(pw_env_type), POINTER                  :: pw_env
-      TYPE(pw_r3d_rs_type)                             :: v_qmmm_rspace
-      TYPE(pw_r3d_rs_type), POINTER                             :: v_metal_rspace
-      TYPE(cube_info_type), DIMENSION(:), POINTER  :: cube_info
+      INTEGER :: n_evals = -1
+      REAL(KIND=dp)                               :: pc_ener = -1.0_dp
+      TYPE(pw_env_type), POINTER                  :: pw_env => NULL()
+      TYPE(pw_r3d_rs_type)                             :: v_qmmm_rspace = pw_r3d_rs_type()
+      TYPE(pw_r3d_rs_type), POINTER                             :: v_metal_rspace => NULL()
+      TYPE(cube_info_type), DIMENSION(:), POINTER  :: cube_info => NULL()
       TYPE(dbcsr_p_type), DIMENSION(:), &
-         POINTER                                :: matrix_h
+         POINTER                                :: matrix_h => NULL()
    END TYPE qs_ks_qmmm_env_type
 
 CONTAINS

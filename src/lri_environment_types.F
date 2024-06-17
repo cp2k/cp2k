@@ -45,62 +45,63 @@ MODULE lri_environment_types
 ! **************************************************************************************************
 ! Integral container
    TYPE carray
-      INTEGER                                                 :: compression
-      REAL(KIND=dp), DIMENSION(:), POINTER                    :: cdp
-      REAL(KIND=sp), DIMENSION(:), POINTER                    :: csp
-      INTEGER(INT_8), DIMENSION(:), POINTER                   :: cip
+      INTEGER                                                 :: compression = -1
+      REAL(KIND=dp), DIMENSION(:), POINTER                    :: cdp => NULL()
+      REAL(KIND=sp), DIMENSION(:), POINTER                    :: csp => NULL()
+      INTEGER(INT_8), DIMENSION(:), POINTER                   :: cip => NULL()
    END TYPE carray
+
    TYPE int_container
-      INTEGER                                                 :: na, nb, nc
-      TYPE(carray), DIMENSION(:), POINTER                     :: ca
+      INTEGER                                                 :: na = -1, nb = -1, nc = -1
+      TYPE(carray), DIMENSION(:), POINTER                     :: ca => NULL()
    END TYPE int_container
 ! **************************************************************************************************
    TYPE lri_rhoab_type
       ! number of spherical basis functions (a)
-      INTEGER                                                 :: nba
+      INTEGER                                                 :: nba = -1
       ! number of spherical basis functions (b)
-      INTEGER                                                 :: nbb
+      INTEGER                                                 :: nbb = -1
       ! number of spherical fit basis functions (ai)
-      INTEGER                                                 :: nfa
+      INTEGER                                                 :: nfa = -1
       ! number of spherical fit basis functions (bi)
-      INTEGER                                                 :: nfb
+      INTEGER                                                 :: nfb = -1
       ! expansion coeffs for RI density
-      REAL(KIND=dp), DIMENSION(:), POINTER                    :: avec
-      REAL(KIND=dp), DIMENSION(:), POINTER                    :: aveca
-      REAL(KIND=dp), DIMENSION(:), POINTER                    :: avecb
+      REAL(KIND=dp), DIMENSION(:), POINTER                    :: avec => NULL()
+      REAL(KIND=dp), DIMENSION(:), POINTER                    :: aveca => NULL()
+      REAL(KIND=dp), DIMENSION(:), POINTER                    :: avecb => NULL()
       ! projection coeffs for RI density: SUM_ab (ab,i)*Pab
-      REAL(KIND=dp), DIMENSION(:), POINTER                    :: tvec
-      REAL(KIND=dp), DIMENSION(:), POINTER                    :: tveca
-      REAL(KIND=dp), DIMENSION(:), POINTER                    :: tvecb
+      REAL(KIND=dp), DIMENSION(:), POINTER                    :: tvec => NULL()
+      REAL(KIND=dp), DIMENSION(:), POINTER                    :: tveca => NULL()
+      REAL(KIND=dp), DIMENSION(:), POINTER                    :: tvecb => NULL()
       ! integral (ai) * sinv * tvec
-      REAL(KIND=dp)                                           :: nst
-      REAL(KIND=dp)                                           :: nsta
-      REAL(KIND=dp)                                           :: nstb
+      REAL(KIND=dp)                                           :: nst = 0.0_dp
+      REAL(KIND=dp)                                           :: nsta = 0.0_dp
+      REAL(KIND=dp)                                           :: nstb = 0.0_dp
       ! Lagrange parameter
-      REAL(KIND=dp)                                           :: lambda
-      REAL(KIND=dp)                                           :: lambdaa
-      REAL(KIND=dp)                                           :: lambdab
+      REAL(KIND=dp)                                           :: lambda = 0.0_dp
+      REAL(KIND=dp)                                           :: lambdaa = 0.0_dp
+      REAL(KIND=dp)                                           :: lambdab = 0.0_dp
       ! Charge of pair density
-      REAL(KIND=dp)                                           :: charge
-      REAL(KIND=dp)                                           :: chargea
-      REAL(KIND=dp)                                           :: chargeb
+      REAL(KIND=dp)                                           :: charge = 0.0_dp
+      REAL(KIND=dp)                                           :: chargea = 0.0_dp
+      REAL(KIND=dp)                                           :: chargeb = 0.0_dp
    END TYPE lri_rhoab_type
 
 ! **************************************************************************************************
 
    TYPE lri_int_type
       ! whether to calculate force for pair
-      LOGICAL                                                 :: calc_force_pair
+      LOGICAL                                                 :: calc_force_pair = .FALSE.
       ! number of spherical basis functions (a)
-      INTEGER                                                 :: nba
+      INTEGER                                                 :: nba = -1
       ! number of spherical basis functions (b)
-      INTEGER                                                 :: nbb
+      INTEGER                                                 :: nbb = -1
       ! number of spherical fit basis functions (ai)
-      INTEGER                                                 :: nfa
+      INTEGER                                                 :: nfa = -1
       ! number of spherical fit basis functions (bi)
-      INTEGER                                                 :: nfb
+      INTEGER                                                 :: nfb = -1
       ! condition number of overlap matrix
-      REAL(KIND=dp)                                           :: cond_num
+      REAL(KIND=dp)                                           :: cond_num = 0.0_dp
       ! integrals (a,b,ai)
       REAL(KIND=dp), DIMENSION(:, :, :), ALLOCATABLE          :: abaint
       REAL(KIND=dp), DIMENSION(:), ALLOCATABLE                :: abascr
@@ -108,9 +109,9 @@ MODULE lri_environment_types
       REAL(KIND=dp), DIMENSION(:, :, :), ALLOCATABLE          :: abbint
       REAL(KIND=dp), DIMENSION(:), ALLOCATABLE                :: abbscr
       ! compressed aba integrals
-      TYPE(int_container)                                     :: cabai
+      TYPE(int_container)                                     :: cabai = int_container()
       ! compressed abb integrals
-      TYPE(int_container)                                     :: cabbi
+      TYPE(int_container)                                     :: cabbi = int_container()
       ! integrals (da/dA,b,dai/dA)
       REAL(KIND=dp), DIMENSION(:, :, :, :), ALLOCATABLE       :: dabdaint
       ! integrals (da/dA,b,bi)
@@ -124,38 +125,38 @@ MODULE lri_environment_types
       ! derivative d(ai,bi)/dA
       REAL(KIND=dp), DIMENSION(:, :, :), ALLOCATABLE          :: dsab
       ! inverse of integrals (ai,bi)
-      REAL(KIND=dp), DIMENSION(:, :), POINTER                 :: sinv
+      REAL(KIND=dp), DIMENSION(:, :), POINTER                 :: sinv => NULL()
       ! integral (ai) / (bi), dim(1..nfa,nfa+1..nfa+nfb)
-      REAL(KIND=dp), DIMENSION(:), POINTER                    :: n
+      REAL(KIND=dp), DIMENSION(:), POINTER                    :: n => NULL()
       ! sinv * (ai)
-      REAL(KIND=dp), DIMENSION(:), POINTER                    :: sn
+      REAL(KIND=dp), DIMENSION(:), POINTER                    :: sn => NULL()
       ! (ai) * sinv * (ai)
-      REAL(KIND=dp)                                           :: nsn
+      REAL(KIND=dp)                                           :: nsn = 0.0_dp
       ! distant pair approximation
-      LOGICAL                                                 :: lrisr
-      LOGICAL                                                 :: lriff
-      REAL(KIND=dp)                                           :: wsr, wff, dwsr, dwff
-      REAL(KIND=dp), DIMENSION(:, :), POINTER                 :: asinv, bsinv
-      REAL(KIND=dp), DIMENSION(:), POINTER                    :: na, nb
-      REAL(KIND=dp), DIMENSION(:), POINTER                    :: sna, snb
-      REAL(KIND=dp)                                           :: nsna, nsnb
+      LOGICAL                                                 :: lrisr = .FALSE.
+      LOGICAL                                                 :: lriff = .FALSE.
+      REAL(KIND=dp)                                           :: wsr = 0.0_dp, wff = 0.0_dp, dwsr = 0.0_dp, dwff = 0.0_dp
+      REAL(KIND=dp), DIMENSION(:, :), POINTER                 :: asinv => NULL(), bsinv => NULL()
+      REAL(KIND=dp), DIMENSION(:), POINTER                    :: na => NULL(), nb => NULL()
+      REAL(KIND=dp), DIMENSION(:), POINTER                    :: sna => NULL(), snb => NULL()
+      REAL(KIND=dp)                                           :: nsna = 0.0_dp, nsnb = 0.0_dp
       !
       ! dmax: max deviation for integrals of primitive gtos; for debugging
       ! dmax for overlap integrals (ai,bi); fit bas
-      REAL(KIND=dp)                                           :: dmax_ab
+      REAL(KIND=dp)                                           :: dmax_ab = 0.0_dp
       ! dmax for overlap integrals (a,b); orb bas
-      REAL(KIND=dp)                                           :: dmax_oo
+      REAL(KIND=dp)                                           :: dmax_oo = 0.0_dp
       ! dmax for integrals (a,b,ai)
-      REAL(KIND=dp)                                           :: dmax_aba
+      REAL(KIND=dp)                                           :: dmax_aba = 0.0_dp
       ! dmax for integrals (a,b,bi)
-      REAL(KIND=dp)                                           :: dmax_abb
+      REAL(KIND=dp)                                           :: dmax_abb = 0.0_dp
    END TYPE lri_int_type
 
    TYPE lri_int_rho_type
       ! integrals (aa,bb), orb basis
-      REAL(KIND=dp), DIMENSION(:, :, :, :), POINTER           :: soaabb
+      REAL(KIND=dp), DIMENSION(:, :, :, :), POINTER           :: soaabb => NULL()
       ! dmax for (aa,bb) integrals; for debugging
-      REAL(KIND=dp)                                           :: dmax_aabb
+      REAL(KIND=dp)                                           :: dmax_aabb = 0.0_dp
    END TYPE lri_int_rho_type
 
    TYPE lri_node_type
@@ -182,174 +183,175 @@ MODULE lri_environment_types
 ! **************************************************************************************************
 
    TYPE lri_bas_type
-      INTEGER, DIMENSION(:, :, :), POINTER                    :: orb_index
-      INTEGER, DIMENSION(:, :, :), POINTER                    :: ri_index
+      INTEGER, DIMENSION(:, :, :), POINTER                    :: orb_index => NULL()
+      INTEGER, DIMENSION(:, :, :), POINTER                    :: ri_index => NULL()
       ! integral of ri basis fbas
-      REAL(KIND=dp), DIMENSION(:), POINTER                    :: int_fbas
+      REAL(KIND=dp), DIMENSION(:), POINTER                    :: int_fbas => NULL()
       ! self overlap ri basis
-      REAL(KIND=dp), DIMENSION(:, :), POINTER                 :: ri_ovlp
+      REAL(KIND=dp), DIMENSION(:, :), POINTER                 :: ri_ovlp => NULL()
       ! inverse of self overlap ri basis
-      REAL(KIND=dp), DIMENSION(:, :), POINTER                 :: ri_ovlp_inv
+      REAL(KIND=dp), DIMENSION(:, :), POINTER                 :: ri_ovlp_inv => NULL()
       ! self overlap orb basis
-      REAL(KIND=dp), DIMENSION(:, :), POINTER                 :: orb_ovlp
+      REAL(KIND=dp), DIMENSION(:, :), POINTER                 :: orb_ovlp => NULL()
       ! self overlap (a,a,fa)
       REAL(KIND=dp), DIMENSION(:, :, :), ALLOCATABLE          :: ovlp3
       ! contraction matrix for SHG integrals ri basis
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER              :: scon_ri
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER              :: scon_ri => NULL()
       ! contraction matrix for SHG integrals orb basis
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER              :: scon_orb
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER              :: scon_orb => NULL()
       ! contraction matrix for SHG integrals aba/abb
-      REAL(KIND=dp), DIMENSION(:, :, :, :), POINTER           :: scon_mix
+      REAL(KIND=dp), DIMENSION(:, :, :, :), POINTER           :: scon_mix => NULL()
    END TYPE lri_bas_type
 
 ! **************************************************************************************************
 
    TYPE lri_clebsch_gordon_type
       ! Clebsch-Gordon (CG) coefficients
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER                :: cg_coeff
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER                :: cg_coeff => NULL()
       ! list of non-zero CG coefficients
-      INTEGER, DIMENSION(:, :, :), POINTER                      :: cg_none0_list
+      INTEGER, DIMENSION(:, :, :), POINTER                      :: cg_none0_list => NULL()
       ! number of non-zero CG coefficients
-      INTEGER, DIMENSION(:, :), POINTER                         :: ncg_none0
+      INTEGER, DIMENSION(:, :), POINTER                         :: ncg_none0 => NULL()
    END TYPE lri_clebsch_gordon_type
 
 ! **************************************************************************************************
 
    TYPE lri_ppl_type
       ! integrals Vppl*fbas (potential*fit basis) dim(natom,nsgf)
-      REAL(KIND=dp), DIMENSION(:, :), POINTER                   :: v_int
+      REAL(KIND=dp), DIMENSION(:, :), POINTER                   :: v_int => NULL()
    END TYPE lri_ppl_type
 
    TYPE lri_ppl_int_type
-      TYPE(lri_ppl_type), DIMENSION(:), POINTER                 :: lri_ppl
-      REAL(KIND=dp)                                             :: ecore_pp_ri
+      TYPE(lri_ppl_type), DIMENSION(:), POINTER                 :: lri_ppl => NULL()
+      REAL(KIND=dp)                                             :: ecore_pp_ri = 0.0_dp
    END TYPE lri_ppl_int_type
 
 ! **************************************************************************************************
 
    TYPE ri_fit_type
-      INTEGER, DIMENSION(:, :), POINTER                         :: bas_ptr
-      REAL(KIND=dp), DIMENSION(:), POINTER                      :: nvec
-      REAL(KIND=dp), DIMENSION(:), POINTER                      :: rm1n
-      REAL(KIND=dp), DIMENSION(:, :), POINTER                   :: tvec
-      REAL(KIND=dp), DIMENSION(:, :), POINTER                   :: rm1t
-      REAL(KIND=dp), DIMENSION(:, :), POINTER                   :: avec
-      REAL(KIND=dp), DIMENSION(:, :), POINTER                   :: fout
-      REAL(KIND=dp)                                             :: ntrm1n
-      REAL(KIND=dp), DIMENSION(2)                               :: ftrm1n
-      REAL(KIND=dp), DIMENSION(2)                               :: echarge
-      REAL(KIND=dp), DIMENSION(2)                               :: lambda
+      INTEGER, DIMENSION(:, :), POINTER                         :: bas_ptr => NULL()
+      REAL(KIND=dp), DIMENSION(:), POINTER                      :: nvec => NULL()
+      REAL(KIND=dp), DIMENSION(:), POINTER                      :: rm1n => NULL()
+      REAL(KIND=dp), DIMENSION(:, :), POINTER                   :: tvec => NULL()
+      REAL(KIND=dp), DIMENSION(:, :), POINTER                   :: rm1t => NULL()
+      REAL(KIND=dp), DIMENSION(:, :), POINTER                   :: avec => NULL()
+      REAL(KIND=dp), DIMENSION(:, :), POINTER                   :: fout => NULL()
+      REAL(KIND=dp)                                             :: ntrm1n = 0.0_dp
+      REAL(KIND=dp), DIMENSION(2)                               :: ftrm1n = 0.0_dp
+      REAL(KIND=dp), DIMENSION(2)                               :: echarge = 0.0_dp
+      REAL(KIND=dp), DIMENSION(2)                               :: lambda = 0.0_dp
    END TYPE ri_fit_type
 
 ! **************************************************************************************************
    TYPE wmat_type
-      REAL(KIND=dp), DIMENSION(:, :), POINTER                   :: mat
+      REAL(KIND=dp), DIMENSION(:, :), POINTER                   :: mat => NULL()
    END TYPE wmat_type
+
    TYPE wbas_type
-      REAL(KIND=dp), DIMENSION(:), POINTER                      :: vec
+      REAL(KIND=dp), DIMENSION(:), POINTER                      :: vec => NULL()
    END TYPE wbas_type
 ! **************************************************************************************************
    TYPE stat_type
-      REAL(KIND=dp)                                             :: pairs_tt
-      REAL(KIND=dp)                                             :: pairs_sr
-      REAL(KIND=dp)                                             :: pairs_ff
-      REAL(KIND=dp)                                             :: overlap_error
-      REAL(KIND=dp)                                             :: rho_tt
-      REAL(KIND=dp)                                             :: rho_sr
-      REAL(KIND=dp)                                             :: rho_ff
-      REAL(KIND=dp)                                             :: rho_1c
-      REAL(KIND=dp)                                             :: coef_mem
-      REAL(KIND=dp)                                             :: oint_mem
-      REAL(KIND=dp)                                             :: rhos_mem
-      REAL(KIND=dp)                                             :: abai_mem
-      REAL(KIND=dp)                                             :: ppli_mem
+      REAL(KIND=dp)                                             :: pairs_tt = 0.0_dp
+      REAL(KIND=dp)                                             :: pairs_sr = 0.0_dp
+      REAL(KIND=dp)                                             :: pairs_ff = 0.0_dp
+      REAL(KIND=dp)                                             :: overlap_error = 0.0_dp
+      REAL(KIND=dp)                                             :: rho_tt = 0.0_dp
+      REAL(KIND=dp)                                             :: rho_sr = 0.0_dp
+      REAL(KIND=dp)                                             :: rho_ff = 0.0_dp
+      REAL(KIND=dp)                                             :: rho_1c = 0.0_dp
+      REAL(KIND=dp)                                             :: coef_mem = 0.0_dp
+      REAL(KIND=dp)                                             :: oint_mem = 0.0_dp
+      REAL(KIND=dp)                                             :: rhos_mem = 0.0_dp
+      REAL(KIND=dp)                                             :: abai_mem = 0.0_dp
+      REAL(KIND=dp)                                             :: ppli_mem = 0.0_dp
    END TYPE stat_type
 ! **************************************************************************************************
 
    TYPE lri_environment_type
       ! parameter for (pseudo)inverse of overlap
-      INTEGER                                                 :: lri_overlap_inv
+      INTEGER                                                 :: lri_overlap_inv = -1
       ! flag for debugging lri integrals
-      LOGICAL                                                 :: debug
+      LOGICAL                                                 :: debug = .FALSE.
       ! flag for shg (solid haromonic Gaussian) integrals
-      LOGICAL                                                 :: use_shg_integrals
+      LOGICAL                                                 :: use_shg_integrals = .FALSE.
       ! parameter for inversion (autoselect); maximal condition
       ! number up to where inversion is legal
-      REAL(KIND=dp)                                           :: cond_max
+      REAL(KIND=dp)                                           :: cond_max = 0.0_dp
       ! parameter for checking distance between atom pairs
-      REAL(KIND=dp)                                           :: delta
+      REAL(KIND=dp)                                           :: delta = 0.0_dp
       ! threshold for aba and abb integrals
-      REAL(KIND=dp)                                           :: eps_o3_int
+      REAL(KIND=dp)                                           :: eps_o3_int = 0.0_dp
       ! orbital basis set
-      TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER       :: orb_basis
+      TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER       :: orb_basis => NULL()
       ! lri (fit) basis set
-      TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER       :: ri_basis
+      TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER       :: ri_basis => NULL()
       ! orb_basis neighborlist
-      TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER   :: soo_list
-      TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER   :: saa_list
-      TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER   :: soa_list
+      TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER   :: soo_list => NULL()
+      TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER   :: saa_list => NULL()
+      TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER   :: soa_list => NULL()
       ! local RI integrals
-      TYPE(lri_list_type), POINTER                            :: lri_ints
+      TYPE(lri_list_type), POINTER                            :: lri_ints => NULL()
       ! local Vppl integrals
-      TYPE(lri_ppl_int_type), POINTER                         :: lri_ppl_ints
+      TYPE(lri_ppl_int_type), POINTER                         :: lri_ppl_ints => NULL()
       ! local integral of rho**2; for optimization
-      TYPE(lri_list_type), POINTER                            :: lri_ints_rho
+      TYPE(lri_list_type), POINTER                            :: lri_ints_rho => NULL()
       ! properties of orb and aux basis
-      TYPE(lri_bas_type), DIMENSION(:), POINTER               :: bas_prop
+      TYPE(lri_bas_type), DIMENSION(:), POINTER               :: bas_prop => NULL()
       ! Clebsch-Gordon for solid harmonics
-      TYPE(lri_clebsch_gordon_type), POINTER                  :: cg_shg
+      TYPE(lri_clebsch_gordon_type), POINTER                  :: cg_shg => NULL()
       ! orbital basis overlap
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER               :: ob_smat
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER               :: ob_smat => NULL()
       ! statistics
-      LOGICAL                                                 :: statistics
-      TYPE(stat_type)                                         :: stat
+      LOGICAL                                                 :: statistics = .FALSE.
+      TYPE(stat_type)                                         :: stat = stat_type()
       ! exact one-center terms
-      LOGICAL                                                 :: exact_1c_terms
+      LOGICAL                                                 :: exact_1c_terms = .FALSE.
       ! use RI for local pp
-      LOGICAL                                                 :: ppl_ri
+      LOGICAL                                                 :: ppl_ri = .FALSE.
       ! store integrals (needed for basis optimization)
-      LOGICAL                                                 :: store_integrals
+      LOGICAL                                                 :: store_integrals = .FALSE.
       ! distant pair approximation
-      LOGICAL                                                 :: distant_pair_approximation
-      CHARACTER(len=10)                                       :: distant_pair_method
-      REAL(KIND=dp)                                           :: r_in
-      REAL(KIND=dp)                                           :: r_out
-      REAL(KIND=dp), DIMENSION(:), POINTER                    :: aradius
-      TYPE(wbas_type), DIMENSION(:), POINTER                  :: wbas
-      TYPE(wmat_type), DIMENSION(:, :), POINTER               :: wmat
+      LOGICAL                                                 :: distant_pair_approximation = .FALSE.
+      CHARACTER(len=10)                                       :: distant_pair_method = ""
+      REAL(KIND=dp)                                           :: r_in = 0.0_dp
+      REAL(KIND=dp)                                           :: r_out = 0.0_dp
+      REAL(KIND=dp), DIMENSION(:), POINTER                    :: aradius => NULL()
+      TYPE(wbas_type), DIMENSION(:), POINTER                  :: wbas => NULL()
+      TYPE(wmat_type), DIMENSION(:, :), POINTER               :: wmat => NULL()
       ! RI overlap and inverse
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER               :: ri_smat, &
-                                                                 ri_sinv
-      TYPE(ri_fit_type), POINTER                              :: ri_fit
-      CHARACTER(len=10)                                       :: ri_sinv_app
-      TYPE(o3c_container_type), POINTER                       :: o3c
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER               :: ri_smat => NULL(), &
+                                                                 ri_sinv => NULL()
+      TYPE(ri_fit_type), POINTER                              :: ri_fit => NULL()
+      CHARACTER(len=10)                                       :: ri_sinv_app = ""
+      TYPE(o3c_container_type), POINTER                       :: o3c => NULL()
    END TYPE lri_environment_type
 
 ! **************************************************************************************************
 
    TYPE lri_kind_type
       ! expansion coeff for lri density dim(natom,nsgf)
-      REAL(KIND=dp), DIMENSION(:, :), POINTER                   :: acoef
+      REAL(KIND=dp), DIMENSION(:, :), POINTER                   :: acoef => NULL()
       ! integrals V*fbas (potential*fit basis) dim(natom,nsgf)
-      REAL(KIND=dp), DIMENSION(:, :), POINTER                   :: v_int
+      REAL(KIND=dp), DIMENSION(:, :), POINTER                   :: v_int => NULL()
       ! SUM_i integral(V*fbas_i)*davec/dR dim(natom,3)
-      REAL(KIND=dp), DIMENSION(:, :), POINTER                   :: v_dadr
+      REAL(KIND=dp), DIMENSION(:, :), POINTER                   :: v_dadr => NULL()
       ! integrals V*dfbas/dR
-      REAL(KIND=dp), DIMENSION(:, :), POINTER                   :: v_dfdr
+      REAL(KIND=dp), DIMENSION(:, :), POINTER                   :: v_dfdr => NULL()
    END TYPE lri_kind_type
 
    TYPE lri_spin_type
-      TYPE(lri_kind_type), DIMENSION(:), POINTER                :: lri_kinds
+      TYPE(lri_kind_type), DIMENSION(:), POINTER                :: lri_kinds => NULL()
    END TYPE lri_spin_type
 
 ! **************************************************************************************************
 
    TYPE lri_force_type
-      REAL(KIND=dp), DIMENSION(:), POINTER                      :: st
-      REAL(KIND=dp), DIMENSION(:, :), POINTER                   :: dssn, &
-                                                                   dsst
+      REAL(KIND=dp), DIMENSION(:), POINTER                      :: st => NULL()
+      REAL(KIND=dp), DIMENSION(:, :), POINTER                   :: dssn => NULL(), &
+                                                                   dsst => NULL()
       ! derivative dtvec/dR
-      REAL(KIND=dp), DIMENSION(:, :), POINTER                   :: dtvec
+      REAL(KIND=dp), DIMENSION(:, :), POINTER                   :: dtvec => NULL()
    END TYPE lri_force_type
 
 ! **************************************************************************************************

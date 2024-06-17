@@ -64,11 +64,11 @@ MODULE qs_matrix_pools
 !> \author fawzi
 ! **************************************************************************************************
    TYPE qs_matrix_pools_type
-      INTEGER :: ref_count
-      TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER        :: ao_mo_fm_pools, &
-                                                               ao_ao_fm_pools, mo_mo_fm_pools
-      TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER        :: ao_mosub_fm_pools, &
-                                                               mosub_mosub_fm_pools
+      INTEGER :: ref_count = -1
+      TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER        :: ao_mo_fm_pools => NULL(), &
+                                                               ao_ao_fm_pools => NULL(), mo_mo_fm_pools => NULL()
+      TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER        :: ao_mosub_fm_pools => NULL(), &
+                                                               mosub_mosub_fm_pools => NULL()
    END TYPE qs_matrix_pools_type
 
 CONTAINS

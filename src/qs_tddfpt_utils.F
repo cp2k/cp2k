@@ -50,10 +50,10 @@ MODULE qs_tddfpt_utils
 
 ! **************************************************************************************************
    TYPE simple_solution_sorter
-      INTEGER                               :: orbit
-      INTEGER                               :: lumo
-      REAL(KIND=DP)                        :: value
-      TYPE(simple_solution_sorter), POINTER :: next
+      INTEGER                               :: orbit = -1
+      INTEGER                               :: lumo = -1
+      REAL(KIND=DP)                        :: value = -1.0_dp
+      TYPE(simple_solution_sorter), POINTER :: next => NULL()
    END TYPE simple_solution_sorter
 
    PRIVATE

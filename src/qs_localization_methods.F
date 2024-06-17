@@ -75,10 +75,11 @@ MODULE qs_localization_methods
    PRIVATE
 
    TYPE set_c_1d_type
-      COMPLEX(KIND=dp), POINTER, DIMENSION(:) :: c_array
+      COMPLEX(KIND=dp), POINTER, DIMENSION(:) :: c_array => NULL()
    END TYPE
+
    TYPE set_c_2d_type
-      COMPLEX(KIND=dp), POINTER, DIMENSION(:, :) :: c_array
+      COMPLEX(KIND=dp), POINTER, DIMENSION(:, :) :: c_array => NULL()
    END TYPE
 
 CONTAINS

@@ -88,29 +88,29 @@ MODULE qs_pdos
    PUBLIC :: calculate_projected_dos
 
    TYPE ldos_type
-      INTEGER :: maxl, nlist
-      LOGICAL :: separate_components
-      INTEGER, DIMENSION(:), POINTER           :: list_index
+      INTEGER :: maxl = -1, nlist = -1
+      LOGICAL :: separate_components = .FALSE.
+      INTEGER, DIMENSION(:), POINTER           :: list_index => NULL()
       REAL(KIND=dp), DIMENSION(:, :), &
-         POINTER                                :: pdos_array
+         POINTER                                :: pdos_array => NULL()
    END TYPE ldos_type
 
    TYPE r_ldos_type
-      INTEGER :: nlist, npoints
-      INTEGER, DIMENSION(:, :), POINTER :: index_grid_local
-      INTEGER, DIMENSION(:), POINTER           :: list_index
-      REAL(KIND=dp), DIMENSION(:), POINTER     :: x_range, y_range, z_range
-      REAL(KIND=dp), DIMENSION(:), POINTER     :: eval_range
+      INTEGER :: nlist = -1, npoints = -1
+      INTEGER, DIMENSION(:, :), POINTER :: index_grid_local => NULL()
+      INTEGER, DIMENSION(:), POINTER           :: list_index => NULL()
+      REAL(KIND=dp), DIMENSION(:), POINTER     :: x_range => NULL(), y_range => NULL(), z_range => NULL()
+      REAL(KIND=dp), DIMENSION(:), POINTER     :: eval_range => NULL()
       REAL(KIND=dp), DIMENSION(:), &
-         POINTER                                 :: pdos_array
+         POINTER                                 :: pdos_array => NULL()
    END TYPE r_ldos_type
 
    TYPE ldos_p_type
-      TYPE(ldos_type), POINTER :: ldos
+      TYPE(ldos_type), POINTER :: ldos => NULL()
    END TYPE ldos_p_type
 
    TYPE r_ldos_p_type
-      TYPE(r_ldos_type), POINTER :: ldos
+      TYPE(r_ldos_type), POINTER :: ldos => NULL()
    END TYPE r_ldos_p_type
 CONTAINS
 

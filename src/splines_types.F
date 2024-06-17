@@ -38,41 +38,41 @@ MODULE splines_types
 !> \author unknown
 ! **************************************************************************************************
    TYPE spline_data_type
-      INTEGER :: ref_count
-      REAL(KIND=dp), POINTER :: y(:) ! the function values y(x)
-      REAL(KIND=dp), POINTER :: y2(:) ! the 2nd derivative via interpolation
-      INTEGER                 :: n ! dimension of above arrays
+      INTEGER :: ref_count = -1
+      REAL(KIND=dp), POINTER :: y(:) => NULL() ! the function values y(x)
+      REAL(KIND=dp), POINTER :: y2(:) => NULL() ! the 2nd derivative via interpolation
+      INTEGER                 :: n = -1 ! dimension of above arrays
       ! not used if uniform increments
-      REAL(KIND=dp)          :: h ! uniform increment of x if applicable
-      REAL(KIND=dp)          :: invh ! inverse of h
-      REAL(KIND=dp)          :: h26 ! 1/6 * h**2 if uniform increments
+      REAL(KIND=dp)          :: h = -1.0_dp ! uniform increment of x if applicable
+      REAL(KIND=dp)          :: invh = -1.0_dp ! inverse of h
+      REAL(KIND=dp)          :: h26 = -1.0_dp ! 1/6 * h**2 if uniform increments
       ! 1/6 otherwise
-      REAL(KIND=dp)          :: x1 ! starting x value if uniform incr.
-      REAL(KIND=dp)          :: xn ! end x value if uniform incr.
+      REAL(KIND=dp)          :: x1 = -1.0_dp ! starting x value if uniform incr.
+      REAL(KIND=dp)          :: xn = -1.0_dp ! end x value if uniform incr.
    END TYPE spline_data_type
 
 ! **************************************************************************************************
    TYPE spline_data_p_type
-      TYPE(spline_data_type), POINTER :: spline_data
+      TYPE(spline_data_type), POINTER :: spline_data => NULL()
    END TYPE spline_data_p_type
 
 ! **************************************************************************************************
    TYPE spline_data_pp_type
-      TYPE(spline_data_p_type), POINTER, DIMENSION(:)  :: spl_p
+      TYPE(spline_data_p_type), POINTER, DIMENSION(:)  :: spl_p => NULL()
    END TYPE spline_data_pp_type
 
 ! **************************************************************************************************
    TYPE spline_environment_type
-      TYPE(spline_data_pp_type), POINTER, DIMENSION(:) :: spl_pp
-      INTEGER, POINTER, DIMENSION(:, :) :: spltab
+      TYPE(spline_data_pp_type), POINTER, DIMENSION(:) :: spl_pp => NULL()
+      INTEGER, POINTER, DIMENSION(:, :) :: spltab => NULL()
    END TYPE spline_environment_type
 
 ! **************************************************************************************************
    TYPE spline_factor_type
-      REAL(KIND=dp) :: rcutsq_f, cutoff
-      REAL(KIND=dp), DIMENSION(:), POINTER :: rscale
-      REAL(KIND=dp), DIMENSION(:), POINTER :: fscale
-      REAL(KIND=dp), DIMENSION(:), POINTER :: dscale
+      REAL(KIND=dp) :: rcutsq_f = -1.0_dp, cutoff = -1.0_dp
+      REAL(KIND=dp), DIMENSION(:), POINTER :: rscale => NULL()
+      REAL(KIND=dp), DIMENSION(:), POINTER :: fscale => NULL()
+      REAL(KIND=dp), DIMENSION(:), POINTER :: dscale => NULL()
    END TYPE spline_factor_type
 
 CONTAINS

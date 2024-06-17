@@ -92,10 +92,10 @@ MODULE qs_dispersion_pairpot
              qs_dispersion_setcn
 
    TYPE dcnum_type
-      INTEGER                                :: neighbors
-      INTEGER, DIMENSION(:), POINTER         :: nlist
-      REAL(KIND=dp), DIMENSION(:), POINTER   :: dvals
-      REAL(KIND=dp), DIMENSION(:, :), POINTER :: rik
+      INTEGER                                :: neighbors = -1
+      INTEGER, DIMENSION(:), POINTER         :: nlist => NULL()
+      REAL(KIND=dp), DIMENSION(:), POINTER   :: dvals => NULL()
+      REAL(KIND=dp), DIMENSION(:, :), POINTER :: rik => NULL()
    END TYPE dcnum_type
 
    PUBLIC :: d3_cnumber, dcnum_type, dcnum_distribute

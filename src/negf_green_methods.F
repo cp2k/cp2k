@@ -45,21 +45,21 @@ MODULE negf_green_methods
 
    TYPE sancho_work_matrices_type
       ! A_{n+1} = A_n + D_n + E_n
-      TYPE(cp_cfm_type), POINTER                         :: a
+      TYPE(cp_cfm_type), POINTER                         :: a => NULL()
       ! A0_{n+1} = A0_n + D_n
-      TYPE(cp_cfm_type), POINTER                         :: a0
+      TYPE(cp_cfm_type), POINTER                         :: a0 => NULL()
       ! A_inv = A^-1
-      TYPE(cp_cfm_type), POINTER                         :: a_inv
+      TYPE(cp_cfm_type), POINTER                         :: a_inv => NULL()
       ! B_{n+1} = - B_n A_n^-1 B_n \equiv B_n A_n^-1 B_n
-      TYPE(cp_cfm_type), POINTER                         :: b
+      TYPE(cp_cfm_type), POINTER                         :: b => NULL()
       ! C_{n+1} = - C_n A_n^-1 C_n \equiv C_n A_n^-1 C_n
-      TYPE(cp_cfm_type), POINTER                         :: c
+      TYPE(cp_cfm_type), POINTER                         :: c => NULL()
       ! D_n = - B_n A_n^-1 C_n
-      TYPE(cp_cfm_type), POINTER                         :: d
+      TYPE(cp_cfm_type), POINTER                         :: d => NULL()
       ! E_n = - C_n A_n^-1 B_n
-      TYPE(cp_cfm_type), POINTER                         :: e
+      TYPE(cp_cfm_type), POINTER                         :: e => NULL()
       ! a scratch area for matrix multiplication
-      TYPE(cp_cfm_type), POINTER                         :: scratch
+      TYPE(cp_cfm_type), POINTER                         :: scratch => NULL()
    END TYPE sancho_work_matrices_type
 
 CONTAINS

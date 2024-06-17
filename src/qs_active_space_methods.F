@@ -161,7 +161,7 @@ MODULE qs_active_space_methods
    PUBLIC :: active_space_main
 
    TYPE, EXTENDS(eri_type_eri_element_func) :: eri_fcidump_print
-      INTEGER :: unit_nr, bra_start, ket_start
+      INTEGER :: unit_nr = -1, bra_start = -1, ket_start = -1
    CONTAINS
       PROCEDURE :: func => eri_fcidump_print_func
    END TYPE

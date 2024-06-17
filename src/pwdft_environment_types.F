@@ -90,7 +90,7 @@ MODULE pwdft_environment_types
 CONTAINS
 
 ! **************************************************************************************************
-!> \brief Releases the given pwdft environment (see doc/ReferenceCounting.html)
+!> \brief Releases the given pwdft environment
 !> \param pwdft_env The pwdft environment to release
 !> \par History
 !>      07.2018 initial create

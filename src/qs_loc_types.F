@@ -78,10 +78,10 @@ MODULE qs_loc_types
 !> \author MI
 ! **************************************************************************************************
    TYPE qs_loc_env_type
-      LOGICAL                                     :: do_localize, first_time
-      LOGICAL                                     :: molecular_states
-      LOGICAL                                     :: wannier_states
-      CHARACTER(LEN=default_string_length)        :: tag_mo
+      LOGICAL                                     :: do_localize = .FALSE., first_time = .FALSE.
+      LOGICAL                                     :: molecular_states = .FALSE.
+      LOGICAL                                     :: wannier_states = .FALSE.
+      CHARACTER(LEN=default_string_length)        :: tag_mo = ""
       TYPE(mp_para_env_type), POINTER             :: para_env => NULL()
       TYPE(cp_fm_type), DIMENSION(:), &
          POINTER                                  :: moloc_coeff => NULL()
@@ -95,9 +95,9 @@ MODULE qs_loc_types
          POINTER                                  :: particle_set => NULL()
       TYPE(dbcsr_p_type), DIMENSION(:, :), &
          POINTER                                  :: op_sm_set => NULL()
-      REAL(KIND=dp)                               :: start_time, target_time
-      REAL(KIND=dp)                               :: weights(6)
-      INTEGER                                     :: dim_op
+      REAL(KIND=dp)                               :: start_time = -1.0_dp, target_time = -1.0_dp
+      REAL(KIND=dp)                               :: weights(6) = -1.0_dp
+      INTEGER                                     :: dim_op = -1
    END TYPE qs_loc_env_type
 
 ! **************************************************************************************************
@@ -119,32 +119,32 @@ MODULE qs_loc_types
 !> \param spreads_file_name output file names
 ! **************************************************************************************************
    TYPE localized_wfn_control_type
-      INTEGER                              :: ref_count
-      INTEGER                              :: min_or_max
-      INTEGER                              :: localization_method
-      INTEGER                              :: operator_type
-      INTEGER, DIMENSION(2)                :: nloc_states, nguess
-      INTEGER                              :: set_of_states
-      INTEGER, DIMENSION(2, 2)             :: lu_bound_states
-      INTEGER                              :: max_iter
-      INTEGER                              :: out_each
-      INTEGER                              :: nextra
-      INTEGER                              :: coeff_po_guess, coeff_po_guess_mo_space
-      REAL(KIND=dp)                        :: eps_localization
-      REAL(KIND=dp)                        :: max_crazy_angle
-      REAL(KIND=dp)                        :: crazy_scale
-      REAL(KIND=dp)                        :: eps_occ
-      REAL(KIND=dp), DIMENSION(2)          :: lu_ene_bound
-      LOGICAL                              :: crazy_use_diag
-      LOGICAL                              :: print_cubes, jacobi_fallback, jacobi_refinement
-      LOGICAL                              :: print_centers
-      LOGICAL                              :: print_spreads
-      LOGICAL                              :: do_homo
-      LOGICAL                              :: do_mixed, do_cg_po
-      LOGICAL                              :: loc_restart
-      LOGICAL                              :: use_history
+      INTEGER                              :: ref_count = -1
+      INTEGER                              :: min_or_max = -1
+      INTEGER                              :: localization_method = -1
+      INTEGER                              :: operator_type = -1
+      INTEGER, DIMENSION(2)                :: nloc_states = -1, nguess = -1
+      INTEGER                              :: set_of_states = -1
+      INTEGER, DIMENSION(2, 2)             :: lu_bound_states = -1
+      INTEGER                              :: max_iter = -1
+      INTEGER                              :: out_each = -1
+      INTEGER                              :: nextra = -1
+      INTEGER                              :: coeff_po_guess = -1, coeff_po_guess_mo_space = -1
+      REAL(KIND=dp)                        :: eps_localization = -1.0_dp
+      REAL(KIND=dp)                        :: max_crazy_angle = -1.0_dp
+      REAL(KIND=dp)                        :: crazy_scale = -1.0_dp
+      REAL(KIND=dp)                        :: eps_occ = -1.0_dp
+      REAL(KIND=dp), DIMENSION(2)          :: lu_ene_bound = -1.0_dp
+      LOGICAL                              :: crazy_use_diag = .FALSE.
+      LOGICAL                              :: print_cubes = .FALSE., jacobi_fallback = .FALSE., jacobi_refinement = .FALSE.
+      LOGICAL                              :: print_centers = .FALSE.
+      LOGICAL                              :: print_spreads = .FALSE.
+      LOGICAL                              :: do_homo = .FALSE.
+      LOGICAL                              :: do_mixed = .FALSE., do_cg_po = .FALSE.
+      LOGICAL                              :: loc_restart = .FALSE.
+      LOGICAL                              :: use_history = .FALSE.
       INTEGER, POINTER, DIMENSION(:, :)    :: loc_states => NULL()
-      TYPE(cp_2d_r_p_type), DIMENSION(2)   :: centers_set
+      TYPE(cp_2d_r_p_type), DIMENSION(2)   :: centers_set = cp_2d_r_p_type()
    END TYPE localized_wfn_control_type
 
 ! *** Public ***

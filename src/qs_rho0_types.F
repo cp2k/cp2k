@@ -33,40 +33,40 @@ MODULE qs_rho0_types
 
 ! **************************************************************************************************
    TYPE mpole_rho_atom
-      REAL(dp), DIMENSION(:), POINTER             ::  Qlm_h, &
-                                                     Qlm_s, &
-                                                     Qlm_tot, &
-                                                     Qlm_car
-      REAL(dp)                                    ::  Qlm_z
-      REAL(dp), DIMENSION(2)                      ::  Q0
+      REAL(dp), DIMENSION(:), POINTER             ::  Qlm_h => NULL(), &
+                                                     Qlm_s => NULL(), &
+                                                     Qlm_tot => NULL(), &
+                                                     Qlm_car => NULL()
+      REAL(dp)                                    ::  Qlm_z = -1.0_dp
+      REAL(dp), DIMENSION(2)                      ::  Q0 = -1.0_dp
    END TYPE mpole_rho_atom
 
 ! **************************************************************************************************
    TYPE mpole_gau_overlap
-      REAL(dp), DIMENSION(:, :, :), POINTER         :: Qlm_gg
-      REAL(dp), DIMENSION(:, :), POINTER           :: g0_h, vg0_h
-      REAL(dp)                                    :: rpgf0_h, rpgf0_s
+      REAL(dp), DIMENSION(:, :, :), POINTER         :: Qlm_gg => NULL()
+      REAL(dp), DIMENSION(:, :), POINTER           :: g0_h => NULL(), vg0_h => NULL()
+      REAL(dp)                                    :: rpgf0_h = -1.0_dp, rpgf0_s = -1.0_dp
    END TYPE mpole_gau_overlap
 
 ! **************************************************************************************************
    TYPE rho0_mpole_type
-      TYPE(mpole_rho_atom), DIMENSION(:), POINTER  :: mp_rho
+      TYPE(mpole_rho_atom), DIMENSION(:), POINTER  :: mp_rho => NULL()
       TYPE(mpole_gau_overlap), DIMENSION(:), &
-         POINTER   :: mp_gau
-      REAL(dp)                                    :: zet0_h, &
-                                                     total_rho0_h
-      REAL(dp)                                    :: max_rpgf0_s
-      REAL(dp), DIMENSION(:), POINTER             :: norm_g0l_h
-      INTEGER, DIMENSION(:), POINTER             :: lmax0_kind
-      INTEGER                                     :: lmax_0, igrid_zet0_s
-      TYPE(pw_r3d_rs_type), POINTER                    :: rho0_s_rs
-      TYPE(pw_c1d_gs_type), POINTER ::                                                   rho0_s_gs
+         POINTER   :: mp_gau => NULL()
+      REAL(dp)                                    :: zet0_h = -1.0_dp, &
+                                                     total_rho0_h = -1.0_dp
+      REAL(dp)                                    :: max_rpgf0_s = -1.0_dp
+      REAL(dp), DIMENSION(:), POINTER             :: norm_g0l_h => NULL()
+      INTEGER, DIMENSION(:), POINTER             :: lmax0_kind => NULL()
+      INTEGER                                     :: lmax_0 = -1, igrid_zet0_s = -1
+      TYPE(pw_r3d_rs_type), POINTER                    :: rho0_s_rs => NULL()
+      TYPE(pw_c1d_gs_type), POINTER ::              rho0_s_gs => NULL()
    END TYPE rho0_mpole_type
 
 ! **************************************************************************************************
    TYPE rho0_atom_type
-      TYPE(rho_atom_coeff), POINTER               :: rho0_rad_h, &
-                                                     vrho0_rad_h
+      TYPE(rho_atom_coeff), POINTER               :: rho0_rad_h => NULL(), &
+                                                     vrho0_rad_h => NULL()
    END TYPE rho0_atom_type
 
 ! Public Types

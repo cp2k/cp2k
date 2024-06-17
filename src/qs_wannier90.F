@@ -82,7 +82,7 @@ MODULE qs_wannier90
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_wannier90'
 
    TYPE berry_matrix_type
-      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER      :: sinmat, cosmat
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER      :: sinmat => NULL(), cosmat => NULL()
    END TYPE berry_matrix_type
 
    PUBLIC :: wannier90_interface

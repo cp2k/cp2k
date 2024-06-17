@@ -66,186 +66,186 @@ MODULE qmmm_types_low
 !>      Teodoro Laino
 ! **************************************************************************************************
    TYPE gridlevel_info_type
-      INTEGER                                                 :: auxbas_grid
-      INTEGER                                                 :: coarser_grid
+      INTEGER                                                 :: auxbas_grid = -1
+      INTEGER                                                 :: coarser_grid = -1
    END TYPE gridlevel_info_type
 
 ! **************************************************************************************************
 !> \brief Real Space Potential
 ! **************************************************************************************************
    TYPE qmmm_pot_type
-      REAL(KIND=dp), DIMENSION(:, :), POINTER :: Pot0_2
-      REAL(KIND=dp)   :: Rmax, Rmin, dx, Rc
-      INTEGER         :: npts
-      INTEGER, DIMENSION(:), POINTER :: mm_atom_index
+      REAL(KIND=dp), DIMENSION(:, :), POINTER :: Pot0_2 => NULL()
+      REAL(KIND=dp)   :: Rmax = -1.0_dp, Rmin = -1.0_dp, dx = -1.0_dp, Rc = -1.0_dp
+      INTEGER         :: npts = -1
+      INTEGER, DIMENSION(:), POINTER :: mm_atom_index => NULL()
    END TYPE qmmm_pot_type
 
    TYPE qmmm_pot_p_type
-      TYPE(qmmm_pot_type), POINTER :: pot
+      TYPE(qmmm_pot_type), POINTER :: pot => NULL()
    END TYPE qmmm_pot_p_type
 
 ! **************************************************************************************************
 !> \brief Periodic Potential
 ! **************************************************************************************************
    TYPE qmmm_per_pot_type
-      REAL(KIND=dp), DIMENSION(:), POINTER :: lg, gx, gy, gz
-      REAL(KIND=dp)  :: Gmax, Fac(3)
-      INTEGER        :: Kmax(3), n_rep_real(3)
-      INTEGER, DIMENSION(:), POINTER :: mm_atom_index
-      TYPE(pw_pool_type), POINTER :: pw_pool
-      TYPE(pw_grid_type), POINTER :: pw_grid
-      TYPE(pw_r3d_rs_type), POINTER :: TabLR
+      REAL(KIND=dp), DIMENSION(:), POINTER :: lg => NULL(), gx => NULL(), gy => NULL(), gz => NULL()
+      REAL(KIND=dp)  :: Gmax = -1.0_dp, Fac(3) = -1.0_dp
+      INTEGER        :: Kmax(3) = -1, n_rep_real(3) = -1
+      INTEGER, DIMENSION(:), POINTER :: mm_atom_index => NULL()
+      TYPE(pw_pool_type), POINTER :: pw_pool => NULL()
+      TYPE(pw_grid_type), POINTER :: pw_grid => NULL()
+      TYPE(pw_r3d_rs_type), POINTER :: TabLR => NULL()
    END TYPE qmmm_per_pot_type
 
    TYPE qmmm_per_pot_p_type
-      TYPE(qmmm_per_pot_type), POINTER :: pot
+      TYPE(qmmm_per_pot_type), POINTER :: pot => NULL()
    END TYPE qmmm_per_pot_p_type
 
 ! **************************************************************************************************
 !> \brief LINKs IMOMM
 ! **************************************************************************************************
    TYPE qmmm_imomm_link_type
-      INTEGER  :: qm_index, mm_index
-      REAL(KIND=dp) :: alpha
+      INTEGER  :: qm_index = -1, mm_index = -1
+      REAL(KIND=dp) :: alpha = -1.0_dp
    END TYPE qmmm_imomm_link_type
 
    TYPE qmmm_imomm_link_p_type
-      TYPE(qmmm_imomm_link_type), POINTER :: link
+      TYPE(qmmm_imomm_link_type), POINTER :: link => NULL()
    END TYPE qmmm_imomm_link_p_type
 
 ! **************************************************************************************************
 !> \brief LINKs PSEUDO
 ! **************************************************************************************************
    TYPE qmmm_pseudo_link_type
-      INTEGER  :: qm_index, mm_index
+      INTEGER  :: qm_index = -1, mm_index = -1
    END TYPE qmmm_pseudo_link_type
 
    TYPE qmmm_pseudo_link_p_type
-      TYPE(qmmm_pseudo_link_type), POINTER :: link
+      TYPE(qmmm_pseudo_link_type), POINTER :: link => NULL()
    END TYPE qmmm_pseudo_link_p_type
 
 ! **************************************************************************************************
 !> \brief LINKs summary
 ! **************************************************************************************************
    TYPE qmmm_links_type
-      TYPE(qmmm_imomm_link_p_type), DIMENSION(:), POINTER :: imomm
-      TYPE(qmmm_pseudo_link_p_type), DIMENSION(:), POINTER :: pseudo
+      TYPE(qmmm_imomm_link_p_type), DIMENSION(:), POINTER :: imomm => NULL()
+      TYPE(qmmm_pseudo_link_p_type), DIMENSION(:), POINTER :: pseudo => NULL()
    END TYPE qmmm_links_type
 
 ! **************************************************************************************************
 !> \brief ...
 ! **************************************************************************************************
    TYPE add_env_type
-      INTEGER       :: Index1, Index2
-      REAL(KIND=dp) :: alpha
+      INTEGER       :: Index1 = -1, Index2 = -1
+      REAL(KIND=dp) :: alpha = -1.0_dp
    END TYPE add_env_type
 
 ! **************************************************************************************************
 !> \brief ...
 ! **************************************************************************************************
    TYPE add_set_type
-      INTEGER                                                 :: num_mm_atoms
-      TYPE(add_env_type), DIMENSION(:), POINTER              :: add_env
-      TYPE(particle_type), DIMENSION(:), POINTER              :: added_particles
-      INTEGER, DIMENSION(:), POINTER                   :: mm_atom_index
-      REAL(KIND=dp), DIMENSION(:), POINTER                    :: mm_atom_chrg
-      REAL(KIND=dp), DIMENSION(:), POINTER                    :: mm_el_pot_radius
-      REAL(KIND=dp), DIMENSION(:), POINTER                    :: mm_el_pot_radius_corr
-      TYPE(qmmm_pot_p_type), DIMENSION(:), POINTER            :: Potentials
-      TYPE(qmmm_per_pot_p_type), DIMENSION(:), POINTER        :: Per_Potentials
-      TYPE(qmmm_gaussian_p_type), DIMENSION(:), POINTER        :: pgfs
+      INTEGER                                                 :: num_mm_atoms = -1
+      TYPE(add_env_type), DIMENSION(:), POINTER              :: add_env => NULL()
+      TYPE(particle_type), DIMENSION(:), POINTER              :: added_particles => NULL()
+      INTEGER, DIMENSION(:), POINTER                   :: mm_atom_index => NULL()
+      REAL(KIND=dp), DIMENSION(:), POINTER                    :: mm_atom_chrg => NULL()
+      REAL(KIND=dp), DIMENSION(:), POINTER                    :: mm_el_pot_radius => NULL()
+      REAL(KIND=dp), DIMENSION(:), POINTER                    :: mm_el_pot_radius_corr => NULL()
+      TYPE(qmmm_pot_p_type), DIMENSION(:), POINTER            :: Potentials => NULL()
+      TYPE(qmmm_per_pot_p_type), DIMENSION(:), POINTER        :: Per_Potentials => NULL()
+      TYPE(qmmm_gaussian_p_type), DIMENSION(:), POINTER        :: pgfs => NULL()
    END TYPE add_set_type
 
 ! **************************************************************************************************
 !> \brief parameters for core-shell model potentials
 ! **************************************************************************************************
    TYPE add_shell_type
-      INTEGER                                                 :: num_mm_atoms
-      TYPE(particle_type), DIMENSION(:), POINTER              :: added_particles
-      TYPE(particle_type), DIMENSION(:), POINTER              :: added_cores
-      INTEGER, DIMENSION(:), POINTER                   :: mm_core_index
-      REAL(KIND=dp), DIMENSION(:), POINTER                    :: mm_core_chrg
-      REAL(KIND=dp), DIMENSION(:), POINTER                    :: mm_el_pot_radius
-      REAL(KIND=dp), DIMENSION(:), POINTER                    :: mm_el_pot_radius_corr
-      TYPE(qmmm_pot_p_type), DIMENSION(:), POINTER            :: Potentials
-      TYPE(qmmm_per_pot_p_type), DIMENSION(:), POINTER        :: Per_Potentials
-      TYPE(qmmm_gaussian_p_type), DIMENSION(:), POINTER        :: pgfs
+      INTEGER                                                 :: num_mm_atoms = -1
+      TYPE(particle_type), DIMENSION(:), POINTER              :: added_particles => NULL()
+      TYPE(particle_type), DIMENSION(:), POINTER              :: added_cores => NULL()
+      INTEGER, DIMENSION(:), POINTER                   :: mm_core_index => NULL()
+      REAL(KIND=dp), DIMENSION(:), POINTER                    :: mm_core_chrg => NULL()
+      REAL(KIND=dp), DIMENSION(:), POINTER                    :: mm_el_pot_radius => NULL()
+      REAL(KIND=dp), DIMENSION(:), POINTER                    :: mm_el_pot_radius_corr => NULL()
+      TYPE(qmmm_pot_p_type), DIMENSION(:), POINTER            :: Potentials => NULL()
+      TYPE(qmmm_per_pot_p_type), DIMENSION(:), POINTER        :: Per_Potentials => NULL()
+      TYPE(qmmm_gaussian_p_type), DIMENSION(:), POINTER        :: pgfs => NULL()
    END TYPE add_shell_type
 
 ! **************************************************************************************************
 !> \brief ...
 ! **************************************************************************************************
    TYPE image_charge_type
-      LOGICAL                                    :: all_mm
-      LOGICAL                                    :: coeff_iterative
-      LOGICAL                                    :: image_restart
-      INTEGER                                    :: state_image_matrix
-      INTEGER, DIMENSION(:), POINTER             :: image_mm_list
-      TYPE(particle_type), DIMENSION(:), POINTER :: particles_all
-      REAL(KIND=dp), DIMENSION(:, :), POINTER    :: image_forcesMM
-      REAL(KIND=dp)                              :: V0
-      REAL(KIND=dp)                              :: eta
-      INTEGER                                    :: image_matrix_method
-      TYPE(cp_eri_mme_param)                     :: eri_mme_param
+      LOGICAL                                    :: all_mm = .FALSE.
+      LOGICAL                                    :: coeff_iterative = .FALSE.
+      LOGICAL                                    :: image_restart = .FALSE.
+      INTEGER                                    :: state_image_matrix = -1
+      INTEGER, DIMENSION(:), POINTER             :: image_mm_list => NULL()
+      TYPE(particle_type), DIMENSION(:), POINTER :: particles_all => NULL()
+      REAL(KIND=dp), DIMENSION(:, :), POINTER    :: image_forcesMM => NULL()
+      REAL(KIND=dp)                              :: V0 = -1.0_dp
+      REAL(KIND=dp)                              :: eta = -1.0_dp
+      INTEGER                                    :: image_matrix_method = -1
+      TYPE(cp_eri_mme_param)                     :: eri_mme_param = cp_eri_mme_param()
    END TYPE image_charge_type
 
 ! **************************************************************************************************
 !> \brief ...
 ! **************************************************************************************************
    TYPE qmmm_env_qm_type
-      LOGICAL                                                 :: center_qm_subsys
-      LOGICAL                                                 :: center_qm_subsys0, do_translate
-      LOGICAL                                                 :: center_qm_subsys_pbc_aware
-      LOGICAL                                                 :: do_force_mixing
-      LOGICAL                                                 :: compatibility
-      LOGICAL                                                 :: qmmm_link
-      LOGICAL                                                 :: move_mm_charges
-      LOGICAL                                                 :: add_mm_charges
-      LOGICAL                                                 :: periodic
-      LOGICAL                                                 :: multipole
-      LOGICAL                                                 :: image_charge
-      INTEGER                                                 :: par_scheme
-      INTEGER                                                 :: qmmm_coupl_type
-      INTEGER                                                 :: num_qm_atoms
-      INTEGER                                                 :: num_mm_atoms
-      INTEGER                                                 :: num_image_mm_atoms
-      REAL(KIND=dp)                                           :: eps_mm_rspace
-      REAL(KIND=dp), DIMENSION(3)                             :: dOmmOqm, utrasl, transl_v
-      REAL(KIND=dp), DIMENSION(2)                             :: spherical_cutoff
-      REAL(KIND=dp), DIMENSION(:), POINTER                    :: maxradius
-      INTEGER, DIMENSION(:), POINTER                    :: qm_atom_index
-      INTEGER, DIMENSION(:), POINTER                    :: mm_atom_index
-      INTEGER, DIMENSION(:), POINTER                    :: mm_link_atoms
-      REAL(KIND=dp), DIMENSION(:), POINTER                    :: mm_atom_chrg
-      REAL(KIND=dp), DIMENSION(:), POINTER                    :: mm_el_pot_radius
-      REAL(KIND=dp), DIMENSION(:), POINTER                    :: mm_el_pot_radius_corr
-      TYPE(qmmm_pot_p_type), DIMENSION(:), POINTER            :: Potentials
-      TYPE(qmmm_per_pot_p_type), DIMENSION(:), POINTER        :: Per_Potentials
-      TYPE(gridlevel_info_type)                               :: gridlevel_info
-      TYPE(qmmm_gaussian_p_type), DIMENSION(:), POINTER        :: pgfs
-      TYPE(pw_pool_p_type), DIMENSION(:), POINTER             :: aug_pools
-      TYPE(qmmm_links_type), POINTER                          :: qmmm_links
-      TYPE(add_set_type), POINTER                             :: added_charges
-      TYPE(add_shell_type), POINTER                           :: added_shells
-      TYPE(image_charge_type), POINTER                        :: image_charge_pot
-      TYPE(ewald_environment_type), POINTER                   :: ewald_env
-      TYPE(ewald_pw_type), POINTER                            :: ewald_pw
+      LOGICAL                                                 :: center_qm_subsys = .FALSE.
+      LOGICAL                                                 :: center_qm_subsys0 = .FALSE., do_translate = .FALSE.
+      LOGICAL                                                 :: center_qm_subsys_pbc_aware = .FALSE.
+      LOGICAL                                                 :: do_force_mixing = .FALSE.
+      LOGICAL                                                 :: compatibility = .FALSE.
+      LOGICAL                                                 :: qmmm_link = .FALSE.
+      LOGICAL                                                 :: move_mm_charges = .FALSE.
+      LOGICAL                                                 :: add_mm_charges = .FALSE.
+      LOGICAL                                                 :: periodic = .FALSE.
+      LOGICAL                                                 :: multipole = .FALSE.
+      LOGICAL                                                 :: image_charge = .FALSE.
+      INTEGER                                                 :: par_scheme = -1
+      INTEGER                                                 :: qmmm_coupl_type = -1
+      INTEGER                                                 :: num_qm_atoms = -1
+      INTEGER                                                 :: num_mm_atoms = -1
+      INTEGER                                                 :: num_image_mm_atoms = -1
+      REAL(KIND=dp)                                           :: eps_mm_rspace = -1.0_dp
+      REAL(KIND=dp), DIMENSION(3)                             :: dOmmOqm = -1.0_dp, utrasl = -1.0_dp, transl_v = -1.0_dp
+      REAL(KIND=dp), DIMENSION(2)                             :: spherical_cutoff = -1.0_dp
+      REAL(KIND=dp), DIMENSION(:), POINTER                    :: maxradius => NULL()
+      INTEGER, DIMENSION(:), POINTER                    :: qm_atom_index => NULL()
+      INTEGER, DIMENSION(:), POINTER                    :: mm_atom_index => NULL()
+      INTEGER, DIMENSION(:), POINTER                    :: mm_link_atoms => NULL()
+      REAL(KIND=dp), DIMENSION(:), POINTER                    :: mm_atom_chrg => NULL()
+      REAL(KIND=dp), DIMENSION(:), POINTER                    :: mm_el_pot_radius => NULL()
+      REAL(KIND=dp), DIMENSION(:), POINTER                    :: mm_el_pot_radius_corr => NULL()
+      TYPE(qmmm_pot_p_type), DIMENSION(:), POINTER            :: Potentials => NULL()
+      TYPE(qmmm_per_pot_p_type), DIMENSION(:), POINTER        :: Per_Potentials => NULL()
+      TYPE(gridlevel_info_type)                               :: gridlevel_info = gridlevel_info_type()
+      TYPE(qmmm_gaussian_p_type), DIMENSION(:), POINTER        :: pgfs => NULL()
+      TYPE(pw_pool_p_type), DIMENSION(:), POINTER             :: aug_pools => NULL()
+      TYPE(qmmm_links_type), POINTER                          :: qmmm_links => NULL()
+      TYPE(add_set_type), POINTER                             :: added_charges => NULL()
+      TYPE(add_shell_type), POINTER                           :: added_shells => NULL()
+      TYPE(image_charge_type), POINTER                        :: image_charge_pot => NULL()
+      TYPE(ewald_environment_type), POINTER                   :: ewald_env => NULL()
+      TYPE(ewald_pw_type), POINTER                            :: ewald_pw => NULL()
    END TYPE qmmm_env_qm_type
 
 ! **************************************************************************************************
 !> \brief ...
 ! **************************************************************************************************
    TYPE qmmm_env_mm_type
-      LOGICAL                                                 :: qmmm_link
-      LOGICAL                                                 :: use_qmmm_ff
-      LOGICAL                                                 :: multiple_potential
-      INTEGER                                                 :: qmmm_coupl_type
-      INTEGER, DIMENSION(:), POINTER                   :: qm_atom_index
-      INTEGER, DIMENSION(:), POINTER                   :: mm_link_atoms
-      REAL(KIND=dp), DIMENSION(:), POINTER                   :: mm_link_scale_factor
-      REAL(KIND=dp), DIMENSION(:), POINTER                   :: fist_scale_charge_link
-      INTEGER, DIMENSION(:), POINTER                   :: qm_molecule_index
-      TYPE(input_info_type), POINTER                           :: inp_info
+      LOGICAL                                                 :: qmmm_link = .FALSE.
+      LOGICAL                                                 :: use_qmmm_ff = .FALSE.
+      LOGICAL                                                 :: multiple_potential = .FALSE.
+      INTEGER                                                 :: qmmm_coupl_type = -1
+      INTEGER, DIMENSION(:), POINTER                   :: qm_atom_index => NULL()
+      INTEGER, DIMENSION(:), POINTER                   :: mm_link_atoms => NULL()
+      REAL(KIND=dp), DIMENSION(:), POINTER                   :: mm_link_scale_factor => NULL()
+      REAL(KIND=dp), DIMENSION(:), POINTER                   :: fist_scale_charge_link => NULL()
+      INTEGER, DIMENSION(:), POINTER                   :: qm_molecule_index => NULL()
+      TYPE(input_info_type), POINTER                           :: inp_info => NULL()
    END TYPE qmmm_env_mm_type
 
 CONTAINS

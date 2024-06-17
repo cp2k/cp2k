@@ -60,25 +60,25 @@ MODULE mode_selective
    LOGICAL, PARAMETER                   :: debug_this_module = .FALSE.
 
    TYPE ms_vib_type
-      INTEGER                                  :: mat_size
-      INTEGER                                  :: select_id
-      INTEGER, DIMENSION(:), POINTER           :: inv_atoms
-      REAL(KIND=dp)                            :: eps(2)
-      REAL(KIND=dp)                            :: sel_freq
-      REAL(KIND=dp)                            :: low_freq
-      REAL(KIND=dp), POINTER, DIMENSION(:, :)    :: b_vec
-      REAL(KIND=dp), POINTER, DIMENSION(:, :)    :: delta_vec
-      REAL(KIND=dp), POINTER, DIMENSION(:, :)    :: ms_force
-      REAL(KIND=dp), DIMENSION(:), POINTER     :: eig_bfgs
-      REAL(KIND=dp), DIMENSION(:), POINTER     :: f_range
-      REAL(KIND=dp), DIMENSION(:), POINTER     :: inv_range
-      REAL(KIND=dp), POINTER, DIMENSION(:)     :: step_b
-      REAL(KIND=dp), POINTER, DIMENSION(:)     :: step_r
-      REAL(KIND=dp), DIMENSION(:, :), POINTER  :: b_mat
-      REAL(KIND=dp), DIMENSION(:, :), POINTER  :: dip_deriv
-      REAL(KIND=dp), DIMENSION(:, :), POINTER  :: hes_bfgs
-      REAL(KIND=dp), DIMENSION(:, :), POINTER  :: s_mat
-      INTEGER                                  :: initial_guess
+      INTEGER                                  :: mat_size = -1
+      INTEGER                                  :: select_id = -1
+      INTEGER, DIMENSION(:), POINTER           :: inv_atoms => NULL()
+      REAL(KIND=dp)                            :: eps(2) = 0.0_dp
+      REAL(KIND=dp)                            :: sel_freq = 0.0_dp
+      REAL(KIND=dp)                            :: low_freq = 0.0_dp
+      REAL(KIND=dp), POINTER, DIMENSION(:, :)    :: b_vec => NULL()
+      REAL(KIND=dp), POINTER, DIMENSION(:, :)    :: delta_vec => NULL()
+      REAL(KIND=dp), POINTER, DIMENSION(:, :)    :: ms_force => NULL()
+      REAL(KIND=dp), DIMENSION(:), POINTER     :: eig_bfgs => NULL()
+      REAL(KIND=dp), DIMENSION(:), POINTER     :: f_range => NULL()
+      REAL(KIND=dp), DIMENSION(:), POINTER     :: inv_range => NULL()
+      REAL(KIND=dp), POINTER, DIMENSION(:)     :: step_b => NULL()
+      REAL(KIND=dp), POINTER, DIMENSION(:)     :: step_r => NULL()
+      REAL(KIND=dp), DIMENSION(:, :), POINTER  :: b_mat => NULL()
+      REAL(KIND=dp), DIMENSION(:, :), POINTER  :: dip_deriv => NULL()
+      REAL(KIND=dp), DIMENSION(:, :), POINTER  :: hes_bfgs => NULL()
+      REAL(KIND=dp), DIMENSION(:, :), POINTER  :: s_mat => NULL()
+      INTEGER                                  :: initial_guess = -1
    END TYPE ms_vib_type
 
    PUBLIC :: ms_vb_anal

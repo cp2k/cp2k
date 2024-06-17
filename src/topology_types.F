@@ -33,151 +33,152 @@ MODULE topology_types
 
 ! **************************************************************************************************
    TYPE atom_info_type
-      INTEGER, DIMENSION(:), POINTER         :: id_molname
-      INTEGER, DIMENSION(:), POINTER         :: id_resname
-      INTEGER, DIMENSION(:), POINTER         :: id_atmname
-      INTEGER, DIMENSION(:), POINTER         :: id_atom_names
-      INTEGER, DIMENSION(:), POINTER         :: id_element
-      INTEGER, POINTER                       :: resid(:)
-      REAL(KIND=dp), DIMENSION(:, :), POINTER :: r
-      INTEGER, POINTER                       :: map_mol_typ(:)
-      INTEGER, POINTER                       :: map_mol_num(:)
-      INTEGER, POINTER                       :: map_mol_res(:)
-      REAL(KIND=dp), POINTER                 :: atm_charge(:)
-      REAL(KIND=dp), POINTER                 :: atm_mass(:)
-      REAL(KIND=dp), POINTER                 :: occup(:)
-      REAL(KIND=dp), POINTER                 :: beta(:)
+      INTEGER, DIMENSION(:), POINTER         :: id_molname => NULL()
+      INTEGER, DIMENSION(:), POINTER         :: id_resname => NULL()
+      INTEGER, DIMENSION(:), POINTER         :: id_atmname => NULL()
+      INTEGER, DIMENSION(:), POINTER         :: id_atom_names => NULL()
+      INTEGER, DIMENSION(:), POINTER         :: id_element => NULL()
+      INTEGER, POINTER                       :: resid(:) => NULL()
+      REAL(KIND=dp), DIMENSION(:, :), POINTER :: r => NULL()
+      INTEGER, POINTER                       :: map_mol_typ(:) => NULL()
+      INTEGER, POINTER                       :: map_mol_num(:) => NULL()
+      INTEGER, POINTER                       :: map_mol_res(:) => NULL()
+      REAL(KIND=dp), POINTER                 :: atm_charge(:) => NULL()
+      REAL(KIND=dp), POINTER                 :: atm_mass(:) => NULL()
+      REAL(KIND=dp), POINTER                 :: occup(:) => NULL()
+      REAL(KIND=dp), POINTER                 :: beta(:) => NULL()
    END TYPE atom_info_type
 
 ! **************************************************************************************************
    TYPE connectivity_info_type
-      INTEGER, POINTER :: bond_a(:), bond_b(:), bond_type(:)
-      INTEGER, POINTER :: ub_a(:), ub_b(:), ub_c(:)
-      INTEGER, POINTER :: theta_a(:), theta_b(:), theta_c(:), theta_type(:)
-      INTEGER, POINTER :: phi_a(:), phi_b(:), phi_c(:), phi_d(:), phi_type(:)
-      INTEGER, POINTER :: impr_a(:), impr_b(:), impr_c(:), impr_d(:), impr_type(:)
-      INTEGER, POINTER :: onfo_a(:), onfo_b(:)
-      INTEGER, POINTER :: c_bond_a(:), c_bond_b(:), c_bond_type(:)
+      INTEGER, POINTER :: bond_a(:) => NULL(), bond_b(:) => NULL(), bond_type(:) => NULL()
+      INTEGER, POINTER :: ub_a(:) => NULL(), ub_b(:) => NULL(), ub_c(:) => NULL()
+      INTEGER, POINTER :: theta_a(:) => NULL(), theta_b(:) => NULL(), theta_c(:) => NULL(), theta_type(:) => NULL()
+      INTEGER, POINTER :: phi_a(:) => NULL(), phi_b(:) => NULL(), phi_c(:) => NULL(), phi_d(:) => NULL(), phi_type(:) => NULL()
+      INTEGER, POINTER :: impr_a(:) => NULL(), impr_b(:) => NULL(), impr_c(:) => NULL(), &
+                          impr_d(:) => NULL(), impr_type(:) => NULL()
+      INTEGER, POINTER :: onfo_a(:) => NULL(), onfo_b(:) => NULL()
+      INTEGER, POINTER :: c_bond_a(:) => NULL(), c_bond_b(:) => NULL(), c_bond_type(:) => NULL()
    END TYPE connectivity_info_type
 
 ! **************************************************************************************************
    TYPE constraint_info_type
       ! Bonds involving Hydrogens
-      LOGICAL                                       :: hbonds_restraint ! Restraints control
-      REAL(KIND=dp)                                 :: hbonds_k0 ! Restraints control
+      LOGICAL                                       :: hbonds_restraint = .FALSE. ! Restraints control
+      REAL(KIND=dp)                                 :: hbonds_k0 = -1.0_dp ! Restraints control
       ! Fixed Atoms
-      INTEGER                                       :: nfixed_atoms
-      INTEGER, POINTER                              :: fixed_atoms(:), fixed_type(:), fixed_mol_type(:)
-      LOGICAL, POINTER                              :: fixed_restraint(:) ! Restraints control
-      REAL(KIND=dp), POINTER                        :: fixed_k0(:) ! Restraints control
+      INTEGER                                       :: nfixed_atoms = -1
+     INTEGER, POINTER                              :: fixed_atoms(:) => NULL(), fixed_type(:) => NULL(), fixed_mol_type(:) => NULL()
+      LOGICAL, POINTER                              :: fixed_restraint(:) => NULL() ! Restraints control
+      REAL(KIND=dp), POINTER                        :: fixed_k0(:) => NULL() ! Restraints control
       ! Freeze QM or MM
-      INTEGER                                       :: freeze_qm, freeze_mm, freeze_qm_type, freeze_mm_type
-      LOGICAL                                       :: fixed_mm_restraint, fixed_qm_restraint ! Restraints control
-      REAL(KIND=dp)                                 :: fixed_mm_k0, fixed_qm_k0 ! Restraints control
+      INTEGER                                       :: freeze_qm = -1, freeze_mm = -1, freeze_qm_type = -1, freeze_mm_type = -1
+      LOGICAL                                       :: fixed_mm_restraint = .FALSE., fixed_qm_restraint = .FALSE. ! Restraints control
+      REAL(KIND=dp)                                 :: fixed_mm_k0 = -1.0_dp, fixed_qm_k0 = -1.0_dp ! Restraints control
       ! Freeze with molnames
-      LOGICAL, POINTER                              :: fixed_mol_restraint(:) ! Restraints control
-      REAL(KIND=dp), POINTER                        :: fixed_mol_k0(:) ! Restraints control
-      CHARACTER(LEN=default_string_length), POINTER :: fixed_molnames(:)
-      LOGICAL, POINTER, DIMENSION(:)                :: fixed_exclude_qm, fixed_exclude_mm
+      LOGICAL, POINTER                              :: fixed_mol_restraint(:) => NULL() ! Restraints control
+      REAL(KIND=dp), POINTER                        :: fixed_mol_k0(:) => NULL() ! Restraints control
+      CHARACTER(LEN=default_string_length), POINTER :: fixed_molnames(:) => NULL()
+      LOGICAL, POINTER, DIMENSION(:)                :: fixed_exclude_qm => NULL(), fixed_exclude_mm => NULL()
       ! Collective constraints
-      INTEGER                                       :: nconst_colv
-      INTEGER, POINTER                              :: const_colv_mol(:)
-      CHARACTER(LEN=default_string_length), POINTER :: const_colv_molname(:)
-      REAL(KIND=dp), POINTER                        :: const_colv_target(:)
-      REAL(KIND=dp), POINTER                        :: const_colv_target_growth(:)
-      TYPE(colvar_p_type), POINTER, DIMENSION(:)    :: colvar_set
-      LOGICAL, POINTER                              :: colv_intermolecular(:)
-      LOGICAL, POINTER                              :: colv_restraint(:) ! Restraints control
-      REAL(KIND=dp), POINTER                        :: colv_k0(:) ! Restraints control
-      LOGICAL, POINTER, DIMENSION(:)                :: colv_exclude_qm, colv_exclude_mm
+      INTEGER                                       :: nconst_colv = -1
+      INTEGER, POINTER                              :: const_colv_mol(:) => NULL()
+      CHARACTER(LEN=default_string_length), POINTER :: const_colv_molname(:) => NULL()
+      REAL(KIND=dp), POINTER                        :: const_colv_target(:) => NULL()
+      REAL(KIND=dp), POINTER                        :: const_colv_target_growth(:) => NULL()
+      TYPE(colvar_p_type), POINTER, DIMENSION(:)    :: colvar_set => NULL()
+      LOGICAL, POINTER                              :: colv_intermolecular(:) => NULL()
+      LOGICAL, POINTER                              :: colv_restraint(:) => NULL() ! Restraints control
+      REAL(KIND=dp), POINTER                        :: colv_k0(:) => NULL() ! Restraints control
+      LOGICAL, POINTER, DIMENSION(:)                :: colv_exclude_qm => NULL(), colv_exclude_mm => NULL()
       ! G3x3
-      INTEGER                                       :: nconst_g33
-      INTEGER, POINTER                              :: const_g33_mol(:)
-      CHARACTER(LEN=default_string_length), POINTER :: const_g33_molname(:)
-      INTEGER, POINTER                              :: const_g33_a(:)
-      INTEGER, POINTER                              :: const_g33_b(:)
-      INTEGER, POINTER                              :: const_g33_c(:)
-      REAL(KIND=dp), POINTER                        :: const_g33_dab(:)
-      REAL(KIND=dp), POINTER                        :: const_g33_dac(:)
-      REAL(KIND=dp), POINTER                        :: const_g33_dbc(:)
-      LOGICAL, POINTER                              :: g33_intermolecular(:)
-      LOGICAL, POINTER                              :: g33_restraint(:) ! Restraints control
-      REAL(KIND=dp), POINTER                        :: g33_k0(:) ! Restraints control
-      LOGICAL, POINTER, DIMENSION(:)                :: g33_exclude_qm, g33_exclude_mm
+      INTEGER                                       :: nconst_g33 = -1
+      INTEGER, POINTER                              :: const_g33_mol(:) => NULL()
+      CHARACTER(LEN=default_string_length), POINTER :: const_g33_molname(:) => NULL()
+      INTEGER, POINTER                              :: const_g33_a(:) => NULL()
+      INTEGER, POINTER                              :: const_g33_b(:) => NULL()
+      INTEGER, POINTER                              :: const_g33_c(:) => NULL()
+      REAL(KIND=dp), POINTER                        :: const_g33_dab(:) => NULL()
+      REAL(KIND=dp), POINTER                        :: const_g33_dac(:) => NULL()
+      REAL(KIND=dp), POINTER                        :: const_g33_dbc(:) => NULL()
+      LOGICAL, POINTER                              :: g33_intermolecular(:) => NULL()
+      LOGICAL, POINTER                              :: g33_restraint(:) => NULL() ! Restraints control
+      REAL(KIND=dp), POINTER                        :: g33_k0(:) => NULL() ! Restraints control
+      LOGICAL, POINTER, DIMENSION(:)                :: g33_exclude_qm => NULL(), g33_exclude_mm => NULL()
       ! G4x6
-      INTEGER                                       :: nconst_g46
-      INTEGER, POINTER                              :: const_g46_mol(:)
-      CHARACTER(LEN=default_string_length), POINTER :: const_g46_molname(:)
-      INTEGER, POINTER                              :: const_g46_a(:)
-      INTEGER, POINTER                              :: const_g46_b(:)
-      INTEGER, POINTER                              :: const_g46_c(:)
-      INTEGER, POINTER                              :: const_g46_d(:)
-      REAL(KIND=dp), POINTER                        :: const_g46_dab(:)
-      REAL(KIND=dp), POINTER                        :: const_g46_dac(:)
-      REAL(KIND=dp), POINTER                        :: const_g46_dbc(:)
-      REAL(KIND=dp), POINTER                        :: const_g46_dad(:)
-      REAL(KIND=dp), POINTER                        :: const_g46_dbd(:)
-      REAL(KIND=dp), POINTER                        :: const_g46_dcd(:)
-      LOGICAL, POINTER                              :: g46_intermolecular(:)
-      LOGICAL, POINTER                              :: g46_restraint(:) ! Restraints control
-      REAL(KIND=dp), POINTER                        :: g46_k0(:) ! Restraints control
-      LOGICAL, POINTER, DIMENSION(:)                :: g46_exclude_qm, g46_exclude_mm
+      INTEGER                                       :: nconst_g46 = -1
+      INTEGER, POINTER                              :: const_g46_mol(:) => NULL()
+      CHARACTER(LEN=default_string_length), POINTER :: const_g46_molname(:) => NULL()
+      INTEGER, POINTER                              :: const_g46_a(:) => NULL()
+      INTEGER, POINTER                              :: const_g46_b(:) => NULL()
+      INTEGER, POINTER                              :: const_g46_c(:) => NULL()
+      INTEGER, POINTER                              :: const_g46_d(:) => NULL()
+      REAL(KIND=dp), POINTER                        :: const_g46_dab(:) => NULL()
+      REAL(KIND=dp), POINTER                        :: const_g46_dac(:) => NULL()
+      REAL(KIND=dp), POINTER                        :: const_g46_dbc(:) => NULL()
+      REAL(KIND=dp), POINTER                        :: const_g46_dad(:) => NULL()
+      REAL(KIND=dp), POINTER                        :: const_g46_dbd(:) => NULL()
+      REAL(KIND=dp), POINTER                        :: const_g46_dcd(:) => NULL()
+      LOGICAL, POINTER                              :: g46_intermolecular(:) => NULL()
+      LOGICAL, POINTER                              :: g46_restraint(:) => NULL() ! Restraints control
+      REAL(KIND=dp), POINTER                        :: g46_k0(:) => NULL() ! Restraints control
+      LOGICAL, POINTER, DIMENSION(:)                :: g46_exclude_qm => NULL(), g46_exclude_mm => NULL()
       ! virtual_site
-      INTEGER                                       :: nconst_vsite
-      INTEGER, POINTER                              :: const_vsite_mol(:)
-      CHARACTER(LEN=default_string_length), POINTER :: const_vsite_molname(:)
-      INTEGER, POINTER                              :: const_vsite_a(:)
-      INTEGER, POINTER                              :: const_vsite_b(:)
-      INTEGER, POINTER                              :: const_vsite_c(:)
-      INTEGER, POINTER                              :: const_vsite_d(:)
-      REAL(KIND=dp), POINTER                        :: const_vsite_wbc(:)
-      REAL(KIND=dp), POINTER                        :: const_vsite_wdc(:)
-      LOGICAL, POINTER                              :: vsite_intermolecular(:)
-      LOGICAL, POINTER                              :: vsite_restraint(:) ! Restraints control
-      REAL(KIND=dp), POINTER                        :: vsite_k0(:) ! Restraints control
-      LOGICAL, POINTER, DIMENSION(:)                :: vsite_exclude_qm, vsite_exclude_mm
+      INTEGER                                       :: nconst_vsite = -1
+      INTEGER, POINTER                              :: const_vsite_mol(:) => NULL()
+      CHARACTER(LEN=default_string_length), POINTER :: const_vsite_molname(:) => NULL()
+      INTEGER, POINTER                              :: const_vsite_a(:) => NULL()
+      INTEGER, POINTER                              :: const_vsite_b(:) => NULL()
+      INTEGER, POINTER                              :: const_vsite_c(:) => NULL()
+      INTEGER, POINTER                              :: const_vsite_d(:) => NULL()
+      REAL(KIND=dp), POINTER                        :: const_vsite_wbc(:) => NULL()
+      REAL(KIND=dp), POINTER                        :: const_vsite_wdc(:) => NULL()
+      LOGICAL, POINTER                              :: vsite_intermolecular(:) => NULL()
+      LOGICAL, POINTER                              :: vsite_restraint(:) => NULL() ! Restraints control
+      REAL(KIND=dp), POINTER                        :: vsite_k0(:) => NULL() ! Restraints control
+      LOGICAL, POINTER, DIMENSION(:)                :: vsite_exclude_qm => NULL(), vsite_exclude_mm => NULL()
    END TYPE constraint_info_type
 
 ! **************************************************************************************************
    TYPE topology_parameters_type
-      TYPE(atom_info_type), POINTER             :: atom_info
-      TYPE(connectivity_info_type), POINTER     :: conn_info
-      TYPE(constraint_info_type), POINTER       :: cons_info
-      TYPE(cell_type), POINTER                 :: cell, cell_ref, cell_muc
-      INTEGER                                   :: conn_type
-      INTEGER                                   :: coord_type
-      INTEGER                                   :: exclude_vdw
-      INTEGER                                   :: exclude_ei
-      INTEGER                                   :: bondparm_type
+      TYPE(atom_info_type), POINTER             :: atom_info => NULL()
+      TYPE(connectivity_info_type), POINTER     :: conn_info => NULL()
+      TYPE(constraint_info_type), POINTER       :: cons_info => NULL()
+      TYPE(cell_type), POINTER                 :: cell => NULL(), cell_ref => NULL(), cell_muc => NULL()
+      INTEGER                                   :: conn_type = -1
+      INTEGER                                   :: coord_type = -1
+      INTEGER                                   :: exclude_vdw = -1
+      INTEGER                                   :: exclude_ei = -1
+      INTEGER                                   :: bondparm_type = -1
       !TRY TO REMOVE THIS FIVE VARIABLE IN THE FUTURE
-      INTEGER                                   :: natoms, natom_type
-      INTEGER                                   :: nmol, nmol_type, nmol_conn
+      INTEGER                                   :: natoms = -1, natom_type = -1
+      INTEGER                                   :: nmol = -1, nmol_type = -1, nmol_conn = -1
       !TRY TO REMOVE THIS FIVE VARIABLE IN THE FUTURE
-      LOGICAL                                   :: aa_element
-      LOGICAL                                   :: molname_generated
-      REAL(KIND=dp)                             :: bondparm_factor
-      LOGICAL                                   :: create_molecules
-      LOGICAL                                   :: reorder_atom
-      LOGICAL                                   :: molecules_check
-      LOGICAL                                   :: coordinate
-      LOGICAL                                   :: use_g96_velocity
-      CHARACTER(LEN=default_path_length)       :: coord_file_name
-      CHARACTER(LEN=default_path_length)       :: conn_file_name
-      LOGICAL                                   :: const_atom
-      LOGICAL                                   :: const_hydr
-      LOGICAL                                   :: const_colv
-      LOGICAL                                   :: const_33
-      LOGICAL                                   :: const_46
-      LOGICAL                                   :: const_vsite
-      LOGICAL                                   :: charge_occup
-      LOGICAL                                   :: charge_beta
-      LOGICAL                                   :: charge_extended
-      LOGICAL                                   :: para_res
+      LOGICAL                                   :: aa_element = .FALSE.
+      LOGICAL                                   :: molname_generated = .FALSE.
+      REAL(KIND=dp)                             :: bondparm_factor = -1.0_dp
+      LOGICAL                                   :: create_molecules = .FALSE.
+      LOGICAL                                   :: reorder_atom = .FALSE.
+      LOGICAL                                   :: molecules_check = .FALSE.
+      LOGICAL                                   :: coordinate = .FALSE.
+      LOGICAL                                   :: use_g96_velocity = .FALSE.
+      CHARACTER(LEN=default_path_length)       :: coord_file_name = ""
+      CHARACTER(LEN=default_path_length)       :: conn_file_name = ""
+      LOGICAL                                   :: const_atom = .FALSE.
+      LOGICAL                                   :: const_hydr = .FALSE.
+      LOGICAL                                   :: const_colv = .FALSE.
+      LOGICAL                                   :: const_33 = .FALSE.
+      LOGICAL                                   :: const_46 = .FALSE.
+      LOGICAL                                   :: const_vsite = .FALSE.
+      LOGICAL                                   :: charge_occup = .FALSE.
+      LOGICAL                                   :: charge_beta = .FALSE.
+      LOGICAL                                   :: charge_extended = .FALSE.
+      LOGICAL                                   :: para_res = .FALSE.
    END TYPE topology_parameters_type
 
 ! **************************************************************************************************
    TYPE constr_list_type
-      INTEGER, DIMENSION(:), POINTER :: constr
+      INTEGER, DIMENSION(:), POINTER :: constr => NULL()
    END TYPE constr_list_type
 
    PUBLIC :: atom_info_type, &

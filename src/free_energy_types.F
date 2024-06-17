@@ -35,45 +35,45 @@ MODULE free_energy_types
 
 ! **************************************************************************************************
    TYPE ui_var_type
-      REAL(KIND=dp), DIMENSION(:), POINTER           :: ss
-      INTEGER                                        :: icolvar
+      REAL(KIND=dp), DIMENSION(:), POINTER           :: ss => NULL()
+      INTEGER                                        :: icolvar = -1
    END TYPE ui_var_type
 
 ! **************************************************************************************************
    TYPE ui_conv_type
       ! Specifying convergence parameters
-      INTEGER                                        :: cg_width, max_cg_width
-      INTEGER                                        :: cg_points
-      REAL(KIND=dp)                                  :: eps_conv
-      REAL(KIND=dp)                                  :: k_conf_lm
-      REAL(KIND=dp)                                  :: sw_conf_lm
-      REAL(KIND=dp)                                  :: vn_conf_lm
-      LOGICAL                                        :: test_k, &
-                                                        test_sw, &
-                                                        test_vn
+      INTEGER                                        :: cg_width = -1, max_cg_width = -1
+      INTEGER                                        :: cg_points = -1
+      REAL(KIND=dp)                                  :: eps_conv = 0.0_dp
+      REAL(KIND=dp)                                  :: k_conf_lm = 0.0_dp
+      REAL(KIND=dp)                                  :: sw_conf_lm = 0.0_dp
+      REAL(KIND=dp)                                  :: vn_conf_lm = 0.0_dp
+      LOGICAL                                        :: test_k = .FALSE., &
+                                                        test_sw = .FALSE., &
+                                                        test_vn = .FALSE.
    END TYPE ui_conv_type
 
 ! **************************************************************************************************
    TYPE statistical_type
       ! Collecting coarse grained data
-      REAL(KIND=dp), DIMENSION(:), POINTER           :: avg
-      REAL(KIND=dp), DIMENSION(:, :), POINTER         :: var
+      REAL(KIND=dp), DIMENSION(:), POINTER           :: avg => NULL()
+      REAL(KIND=dp), DIMENSION(:, :), POINTER         :: var => NULL()
    END TYPE statistical_type
 
 ! **************************************************************************************************
    TYPE free_energy_type
-      INTEGER                                        :: ncolvar
-      INTEGER                                        :: TYPE
-      INTEGER                                        :: nr_points, &
-                                                        nr_rejected
-      TYPE(ui_conv_type), POINTER                    :: conv_par
-      TYPE(ui_var_type), POINTER, DIMENSION(:)       :: uivar
-      TYPE(statistical_type), DIMENSION(:), POINTER  :: cg_data
+      INTEGER                                        :: ncolvar = -1
+      INTEGER                                        :: TYPE = -1
+      INTEGER                                        :: nr_points = -1, &
+                                                        nr_rejected = -1
+      TYPE(ui_conv_type), POINTER                    :: conv_par => NULL()
+      TYPE(ui_var_type), POINTER, DIMENSION(:)       :: uivar => NULL()
+      TYPE(statistical_type), DIMENSION(:), POINTER  :: cg_data => NULL()
       ! Old data
-      REAL(KIND=dp)                                  :: eps_conv
-      REAL(KIND=dp), DIMENSION(:, :), POINTER         :: covmx
+      REAL(KIND=dp)                                  :: eps_conv = 0.0_dp
+      REAL(KIND=dp), DIMENSION(:, :), POINTER         :: covmx => NULL()
 
-      CHARACTER(len=default_string_length)           :: plumed_input_file
+      CHARACTER(len=default_string_length)           :: plumed_input_file = ""
    END TYPE free_energy_type
 
 CONTAINS

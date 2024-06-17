@@ -74,7 +74,7 @@ WFLAGS_ERROR="-Werror=aliasing -Werror=ampersand -Werror=c-binding-type -Werror=
 # we just warn for those (that eventually might be promoted to WFLAGSERROR). It is useless to put something here with 100s of warnings.
 WFLAGS_WARN="-Wuninitialized -Wuse-without-only"
 # while here we collect all other warnings, some we'll ignore
-# TODO: -Wpedantic with -std2008 requires an upgrade of the MPI interfaces from mpi to mpi_f08
+# TODO: -Wpedantic with -std2008 requires us to drop the old MPI-90 interface entirely and SIRIUS (-Wuninitialized) and DBCSR (default initializers) to initialize their types
 WFLAGS_WARNALL="-Wno-pedantic -Wall -Wextra -Wsurprising -Warray-temporaries -Wcharacter-truncation -Wconversion-extra -Wimplicit-interface -Wimplicit-procedure -Wreal-q-constant -Walign-commons -Wfunction-elimination -Wrealloc-lhs -Wcompare-reals -Wzerotrip"
 
 # IEEE_EXCEPTIONS dependency

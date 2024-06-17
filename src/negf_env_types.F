@@ -85,11 +85,11 @@ MODULE negf_env_types
 !> \author Sergey Chulkov
 ! **************************************************************************************************
    TYPE negf_env_contact_type
-      REAL(kind=dp), DIMENSION(3)                        :: direction_vector, origin
-      REAL(kind=dp), DIMENSION(3)                        :: direction_vector_bias, origin_bias
+      REAL(kind=dp), DIMENSION(3)                        :: direction_vector = -1.0_dp, origin = -1.0_dp
+      REAL(kind=dp), DIMENSION(3)                        :: direction_vector_bias = -1.0_dp, origin_bias = -1.0_dp
       !> an axis towards the secondary contact unit cell which coincides with the transport direction
       !> 0 (undefined), 1 (+x), 2 (+y), 3 (+z), -1 (-x), -2 (-y), -3 (-z)
-      INTEGER                                            :: direction_axis
+      INTEGER                                            :: direction_axis = -1
       !> atoms belonging to a primary contact unit cell
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atomlist_cell0
       !> atoms belonging to a secondary contact unit cell (will be removed one day ...)
@@ -98,7 +98,7 @@ MODULE negf_env_types
       TYPE(negf_atom_map_type), ALLOCATABLE, &
          DIMENSION(:)                                    :: atom_map_cell0, atom_map_cell1
       !> energy of the HOMO
-      REAL(kind=dp)                                      :: homo_energy
+      REAL(kind=dp)                                      :: homo_energy = -1.0_dp
       !> diagonal (h_00) and off-diagonal (h_01) blocks of the contact Kohn-Sham matrix ([number_of_spins]).
       !> The matrix h_01 is of the shape [nao_cell0 x nao_cell1]
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)      :: h_00, h_01
@@ -127,9 +127,9 @@ MODULE negf_env_types
       !> overlap matrix of the scattering region -- contact interface for every contact ([ncontacts])
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)       :: s_sc
       !> structure needed for density mixing
-      TYPE(mixing_storage_type), POINTER                  :: mixing_storage
+      TYPE(mixing_storage_type), POINTER                  :: mixing_storage => NULL()
       !> density mixing method
-      INTEGER                                             :: mixing_method
+      INTEGER                                             :: mixing_method = -1
    END TYPE negf_env_type
 
 ! **************************************************************************************************

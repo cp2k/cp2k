@@ -111,9 +111,9 @@ MODULE xtb_matrices
    IMPLICIT NONE
 
    TYPE neighbor_atoms_type
-      REAL(KIND=dp), DIMENSION(:, :), POINTER     :: coord
-      REAL(KIND=dp), DIMENSION(:), POINTER        :: rab
-      INTEGER, DIMENSION(:), POINTER              :: katom
+      REAL(KIND=dp), DIMENSION(:, :), POINTER     :: coord => NULL()
+      REAL(KIND=dp), DIMENSION(:), POINTER        :: rab => NULL()
+      INTEGER, DIMENSION(:), POINTER              :: katom => NULL()
    END TYPE neighbor_atoms_type
 
    PRIVATE

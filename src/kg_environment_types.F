@@ -42,8 +42,8 @@ MODULE kg_environment_types
    PUBLIC :: kg_environment_type, kg_env_release, energy_correction_type
 
    TYPE subset_type
-      TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER :: sab_orb
-      TYPE(task_list_type), POINTER :: task_list
+      TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER :: sab_orb => NULL()
+      TYPE(task_list_type), POINTER :: task_list => NULL()
    END TYPE subset_type
 
 ! *****************************************************************************
@@ -53,36 +53,36 @@ MODULE kg_environment_types
 !> \author JGH
 ! *****************************************************************************
    TYPE energy_correction_type
-      CHARACTER(len=20)                                :: ec_name
-      INTEGER                                          :: energy_functional
-      INTEGER                                          :: ks_solver
-      INTEGER                                          :: factorization
-      REAL(KIND=dp)                                    :: eps_default
+      CHARACTER(len=20)                                :: ec_name = ""
+      INTEGER                                          :: energy_functional = -1
+      INTEGER                                          :: ks_solver = -1
+      INTEGER                                          :: factorization = -1
+      REAL(KIND=dp)                                    :: eps_default = 0.0_dp
       ! basis set
-      CHARACTER(len=20)                                :: basis
-      LOGICAL                                          :: mao
-      INTEGER                                          :: mao_max_iter
-      REAL(KIND=dp)                                    :: mao_eps_grad
+      CHARACTER(len=20)                                :: basis = ""
+      LOGICAL                                          :: mao = .FALSE.
+      INTEGER                                          :: mao_max_iter = -1
+      REAL(KIND=dp)                                    :: mao_eps_grad = 0.0_dp
       ! energy components
-      REAL(KIND=dp)                                    :: etotal
-      REAL(KIND=dp)                                    :: eband, exc, ehartree, vhxc
-      REAL(KIND=dp)                                    :: edispersion
+      REAL(KIND=dp)                                    :: etotal = 0.0_dp
+      REAL(KIND=dp)                                    :: eband = 0.0_dp, exc = 0.0_dp, ehartree = 0.0_dp, vhxc = 0.0_dp
+      REAL(KIND=dp)                                    :: edispersion = 0.0_dp
       ! full neighbor lists and corresponding task list
       TYPE(neighbor_list_set_p_type), &
-         DIMENSION(:), POINTER                         :: sab_orb, sac_ppl, sap_ppnl
-      TYPE(task_list_type), POINTER                    :: task_list
+         DIMENSION(:), POINTER                         :: sab_orb => NULL(), sac_ppl => NULL(), sap_ppnl => NULL()
+      TYPE(task_list_type), POINTER                    :: task_list => NULL()
       ! the XC function to be used for the correction, dispersion info
-      TYPE(section_vals_type), POINTER                 :: xc_section
-      TYPE(qs_dispersion_type), POINTER                :: dispersion_env
+      TYPE(section_vals_type), POINTER                 :: xc_section => NULL()
+      TYPE(qs_dispersion_type), POINTER                :: dispersion_env => NULL()
       ! matrices in complete basis
       ! KS: Kohn-Sham; H: Core; S: overlap; T: kinetic energy;
-      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER  :: matrix_ks
-      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER  :: matrix_h
-      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER  :: matrix_s
-      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER  :: matrix_t
-      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER  :: matrix_p
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER  :: matrix_ks => NULL()
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER  :: matrix_h => NULL()
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER  :: matrix_s => NULL()
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER  :: matrix_t => NULL()
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER  :: matrix_p => NULL()
       ! reduce basis
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER     :: mao_coef
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER     :: mao_coef => NULL()
    END TYPE energy_correction_type
 
 ! **************************************************************************************************
@@ -100,29 +100,29 @@ MODULE kg_environment_types
 !> \author Martin Haeufel
 ! **************************************************************************************************
    TYPE kg_environment_type
-      INTEGER                                         :: nspins
-      INTEGER                                         :: natom
-      TYPE(section_vals_type), POINTER                :: xc_section_kg
+      INTEGER                                         :: nspins = -1
+      INTEGER                                         :: natom = -1
+      TYPE(section_vals_type), POINTER                :: xc_section_kg => NULL()
       INTEGER, ALLOCATABLE, DIMENSION(:)              :: atom_to_molecule
-      TYPE(molecule_type), DIMENSION(:), POINTER      :: molecule_set
-      INTEGER                                         :: tnadd_method
+      TYPE(molecule_type), DIMENSION(:), POINTER      :: molecule_set => NULL()
+      INTEGER                                         :: tnadd_method = -1
       TYPE(neighbor_list_set_p_type), &
-         DIMENSION(:), POINTER                        :: sab_orb_full, sac_kin
+         DIMENSION(:), POINTER                        :: sab_orb_full => NULL(), sac_kin => NULL()
       !
-      INTEGER, DIMENSION(:), POINTER                  :: subset_of_mol
-      TYPE(subset_type), DIMENSION(:), POINTER        :: subset
-      INTEGER                                         :: nsubsets
-      INTEGER                                         :: maxdegree
-      INTEGER                                         :: coloring_method
+      INTEGER, DIMENSION(:), POINTER                  :: subset_of_mol => NULL()
+      TYPE(subset_type), DIMENSION(:), POINTER        :: subset => NULL()
+      INTEGER                                         :: nsubsets = -1
+      INTEGER                                         :: maxdegree = -1
+      INTEGER                                         :: coloring_method = -1
       !
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER       :: tnadd_mat
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER       :: tnadd_mat => NULL()
       ! LRI
-      TYPE(lri_environment_type), POINTER             :: lri_env, lri_env1
-      TYPE(lri_density_type), POINTER                 :: lri_density, lri_rho1
+      TYPE(lri_environment_type), POINTER             :: lri_env => NULL(), lri_env1 => NULL()
+      TYPE(lri_density_type), POINTER                 :: lri_density => NULL(), lri_rho1 => NULL()
       ! atomic grid
-      TYPE(atom_integration_grid_type), POINTER       :: int_grid_atom
-      TYPE(integration_grid_type), POINTER            :: int_grid_molecules
-      TYPE(integration_grid_type), POINTER            :: int_grid_full
+      TYPE(atom_integration_grid_type), POINTER       :: int_grid_atom => NULL()
+      TYPE(integration_grid_type), POINTER            :: int_grid_molecules => NULL()
+      TYPE(integration_grid_type), POINTER            :: int_grid_full => NULL()
    END TYPE kg_environment_type
 
 CONTAINS

@@ -92,23 +92,26 @@ MODULE molsym
 !> \author jgh
 ! **************************************************************************************************
    TYPE molsym_type
-      CHARACTER(LEN=4)                            :: point_group_symbol
-      INTEGER                                    :: point_group_order
-      INTEGER                                    :: ncn, ndod, ngroup, nico, nlin, nsig, nsn, ntet
-      LOGICAL                                    :: cubic, dgroup, igroup, invers, linear, maxis, &
-                                                    ogroup, sgroup, sigmad, sigmah, sigmav, tgroup
-      REAL(KIND=dp)                              :: eps_geo
-      REAL(KIND=dp), DIMENSION(3)                :: center_of_mass, tenval
-      REAL(KIND=dp), DIMENSION(3)                :: x_axis, y_axis, z_axis
-      REAL(KIND=dp), DIMENSION(:), POINTER       :: ain, aw
-      REAL(KIND=dp), DIMENSION(3, 3)              :: inptostd, rotmat, tenmat, tenvec
-      REAL(KIND=dp), DIMENSION(3, maxsig)         :: sig
-      REAL(KIND=dp), DIMENSION(3, maxsec, 2:maxcn) :: sec
-      REAL(KIND=dp), DIMENSION(3, maxses, 2:maxsn) :: ses
-      INTEGER, DIMENSION(maxcn)                  :: nsec
-      INTEGER, DIMENSION(maxsn)                  :: nses
-      INTEGER, DIMENSION(:), POINTER             :: group_of, llequatom, nequatom, &
-                                                    symequ_list, ulequatom
+      CHARACTER(LEN=4)                            :: point_group_symbol = ""
+      INTEGER                                    :: point_group_order = -1
+      INTEGER                                    :: ncn = -1, ndod = -1, ngroup = -1, nico = -1, &
+                                                    nlin = -1, nsig = -1, nsn = -1, ntet = -1
+      LOGICAL                                    :: cubic = .FALSE., dgroup = .FALSE., igroup = .FALSE., &
+                                                    invers = .FALSE., linear = .FALSE., maxis = .FALSE., &
+                                                    ogroup = .FALSE., sgroup = .FALSE., sigmad = .FALSE., &
+                                                    sigmah = .FALSE., sigmav = .FALSE., tgroup = .FALSE.
+      REAL(KIND=dp)                              :: eps_geo = 0.0_dp
+      REAL(KIND=dp), DIMENSION(3)                :: center_of_mass = 0.0_dp, tenval = 0.0_dp
+      REAL(KIND=dp), DIMENSION(3)                :: x_axis = 0.0_dp, y_axis = 0.0_dp, z_axis = 0.0_dp
+      REAL(KIND=dp), DIMENSION(:), POINTER       :: ain => NULL(), aw => NULL()
+      REAL(KIND=dp), DIMENSION(3, 3)              :: inptostd = 0.0_dp, rotmat = 0.0_dp, tenmat = 0.0_dp, tenvec = 0.0_dp
+      REAL(KIND=dp), DIMENSION(3, maxsig)         :: sig = 0.0_dp
+      REAL(KIND=dp), DIMENSION(3, maxsec, 2:maxcn) :: sec = 0.0_dp
+      REAL(KIND=dp), DIMENSION(3, maxses, 2:maxsn) :: ses = 0.0_dp
+      INTEGER, DIMENSION(maxcn)                  :: nsec = -1
+      INTEGER, DIMENSION(maxsn)                  :: nses = -1
+      INTEGER, DIMENSION(:), POINTER             :: group_of => NULL(), llequatom => NULL(), nequatom => NULL(), &
+                                                    symequ_list => NULL(), ulequatom => NULL()
    END TYPE molsym_type
 
 ! **************************************************************************************************

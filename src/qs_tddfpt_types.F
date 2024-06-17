@@ -30,12 +30,12 @@ MODULE qs_tddfpt_types
 
 ! **************************************************************************************************
    TYPE tddfpt_env_type
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: evals ! eigenvalues
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: evals => NULL() ! eigenvalues
       TYPE(cp_fm_type), DIMENSION(:, :), &
-         POINTER                                       :: evecs ! eigenvectors
-      TYPE(cp_fm_type), DIMENSION(:), POINTER          :: invS ! the inverse of the metric
+         POINTER                                       :: evecs => NULL() ! eigenvectors
+      TYPE(cp_fm_type), DIMENSION(:), POINTER          :: invS => NULL() ! the inverse of the metric
       TYPE(cp_fm_pool_p_type), DIMENSION(:), &
-         POINTER                                       :: ao_mo_fm_pools
+         POINTER                                       :: ao_mo_fm_pools => NULL()
    END TYPE tddfpt_env_type
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_tddfpt_types'

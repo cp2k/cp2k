@@ -33,7 +33,7 @@ MODULE qs_atomic_block
    PUBLIC ::  calculate_atomic_block_dm
 
    TYPE atom_matrix_type
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER   :: mat
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER   :: mat => NULL()
    END TYPE atom_matrix_type
 
 CONTAINS

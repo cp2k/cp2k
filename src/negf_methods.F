@@ -140,8 +140,8 @@ MODULE negf_methods
 !> \author Sergey Chulkov
 ! **************************************************************************************************
    TYPE integration_status_type
-      INTEGER                                            :: npoints
-      REAL(kind=dp)                                      :: error
+      INTEGER                                            :: npoints = -1
+      REAL(kind=dp)                                      :: error = -1.0_dp
    END TYPE integration_status_type
 
 CONTAINS
@@ -265,7 +265,6 @@ CONTAINS
       END DO
 
       IF (ncontacts > 1) THEN
-         NULLIFY (qs_env)
          CALL force_env_get(force_env, qs_env=qs_env)
          CALL shift_potential(negf_env, negf_control, sub_env, qs_env, base_contact=1, log_unit=log_unit)
 
@@ -1309,7 +1308,6 @@ CONTAINS
       CALL timeset(routineN, handle)
       npoints = SIZE(omega)
 
-      NULLIFY (fm_struct)
       CALL cp_fm_get_info(s0, matrix_struct=fm_struct)
       CALL sancho_work_matrices_create(work, fm_struct)
 

@@ -61,8 +61,8 @@ MODULE qs_rho_types
 ! **************************************************************************************************
    TYPE qs_rho_type
       PRIVATE
-      TYPE(kpoint_transitional_type)                 :: rho_ao
-      TYPE(kpoint_transitional_type)                 :: rho_ao_im
+      TYPE(kpoint_transitional_type)                 :: rho_ao = kpoint_transitional_type()
+      TYPE(kpoint_transitional_type)                 :: rho_ao_im = kpoint_transitional_type()
       TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER           :: rho_r => Null()
       TYPE(pw_c1d_gs_type), DIMENSION(:), POINTER ::                                                        rho_g => Null()
       TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER ::                                                        tau_r => Null()
@@ -85,7 +85,7 @@ MODULE qs_rho_types
 
 ! **************************************************************************************************
    TYPE qs_rho_p_type
-      TYPE(qs_rho_type), POINTER                     :: rho
+      TYPE(qs_rho_type), POINTER                     :: rho => NULL()
    END TYPE qs_rho_p_type
 
 CONTAINS

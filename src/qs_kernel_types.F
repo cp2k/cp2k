@@ -49,23 +49,23 @@ MODULE qs_kernel_types
       ! response density
       TYPE(xc_rho_set_type), POINTER                     :: xc_rho1_set => Null()
       !> first and second derivatives of exchange-correlation functional
-      TYPE(xc_derivative_set_type)                       :: xc_deriv_set
+      TYPE(xc_derivative_set_type)                       :: xc_deriv_set = xc_derivative_set_type()
       !> XC input section
-      LOGICAL                                            :: do_exck
+      LOGICAL                                            :: do_exck = .FALSE.
       TYPE(section_vals_type), POINTER                   :: xc_section => Null()
       !> flags which indicate required components of the exchange-correlation functional
       !> (density, gradient, etc)
-      TYPE(xc_rho_cflags_type)                           :: xc_rho1_cflags
+      TYPE(xc_rho_cflags_type)                           :: xc_rho1_cflags = xc_rho_cflags_type()
       !> the method used to compute position derivatives of densities and potentials
-      INTEGER                                            :: deriv_method_id
+      INTEGER                                            :: deriv_method_id = -1
       !> the density smoothing method
-      INTEGER                                            :: rho_smooth_id
+      INTEGER                                            :: rho_smooth_id = -1
       !> scaling coefficients in the linear combination:
       !> K = alpha * K_{\alpha,\alpha} + beta * K_{\alpha,\beta}
-      REAL(kind=dp)                                      :: alpha, beta
+      REAL(kind=dp)                                      :: alpha = -1.0_dp, beta = -1.0_dp
       !> flags for finite differences/analytic XC kernels
-      LOGICAL                                            :: deriv2_analytic
-      LOGICAL                                            :: deriv3_analytic
+      LOGICAL                                            :: deriv2_analytic = .FALSE.
+      LOGICAL                                            :: deriv3_analytic = .FALSE.
       ! Local resolution of the identity for Coulomb
       TYPE(lri_environment_type), POINTER                :: lri_env => Null()
       TYPE(lri_density_type), POINTER                    :: lri_density => Null()

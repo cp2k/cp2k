@@ -37,9 +37,9 @@ MODULE negf_atom_map
 ! **************************************************************************************************
    TYPE negf_atom_map_type
       !> atomic index within the target FORCE_EVAL
-      INTEGER                                            :: iatom
+      INTEGER                                            :: iatom = -1
       !> cell replica
-      INTEGER, DIMENSION(3)                              :: cell
+      INTEGER, DIMENSION(3)                              :: cell = -1
    END TYPE negf_atom_map_type
 
    PRIVATE :: qs_kind_group_type, qs_kind_groups_create, qs_kind_groups_release
@@ -49,11 +49,11 @@ MODULE negf_atom_map
 ! **************************************************************************************************
    TYPE qs_kind_group_type
       !> atomic symbol
-      CHARACTER(len=2)                                   :: element_symbol
+      CHARACTER(len=2)                                   :: element_symbol = ""
       !> number of atoms of this kind in 'atom_list'
-      INTEGER                                            :: natoms
+      INTEGER                                            :: natoms = -1
       !> number of spherical Gaussian functions per atom
-      INTEGER                                            :: nsgf
+      INTEGER                                            :: nsgf = -1
       !> list of atomic indices
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_list
       !> atomic coordinates [3 x natoms]

@@ -96,30 +96,30 @@ MODULE qs_resp
    PUBLIC :: resp_fit
 
    TYPE resp_type
-      LOGICAL                                :: equal_charges, itc, &
-                                                molecular_sys, rheavies, &
-                                                use_repeat_method
-      INTEGER                                :: nres, ncons, &
-                                                nrest_sec, ncons_sec, &
-                                                npoints, stride(3), my_fit, &
-                                                npoints_proc, &
-                                                auto_vdw_radii_table
-      INTEGER, DIMENSION(:), POINTER         :: atom_surf_list
-      INTEGER, DIMENSION(:, :), POINTER       :: fitpoints
-      REAL(KIND=dp)                          :: rheavies_strength, &
-                                                length, eta, &
-                                                sum_vhartree, offset
-      REAL(KIND=dp), DIMENSION(3)            :: box_hi, box_low
-      REAL(KIND=dp), DIMENSION(:), POINTER   :: rmin_kind, &
-                                                rmax_kind
-      REAL(KIND=dp), DIMENSION(:), POINTER   :: range_surf
-      REAL(KIND=dp), DIMENSION(:), POINTER   :: rhs
-      REAL(KIND=dp), DIMENSION(:), POINTER   :: sum_vpot
-      REAL(KIND=dp), DIMENSION(:, :), POINTER :: matrix
+      LOGICAL                                :: equal_charges = .FALSE., itc = .FALSE., &
+                                                molecular_sys = .FALSE., rheavies = .FALSE., &
+                                                use_repeat_method = .FALSE.
+      INTEGER                                :: nres = -1, ncons = -1, &
+                                                nrest_sec = -1, ncons_sec = -1, &
+                                                npoints = -1, stride(3) = -1, my_fit = -1, &
+                                                npoints_proc = -1, &
+                                                auto_vdw_radii_table = -1
+      INTEGER, DIMENSION(:), POINTER         :: atom_surf_list => NULL()
+      INTEGER, DIMENSION(:, :), POINTER       :: fitpoints => NULL()
+      REAL(KIND=dp)                          :: rheavies_strength = -1.0_dp, &
+                                                length = -1.0_dp, eta = -1.0_dp, &
+                                                sum_vhartree = -1.0_dp, offset = -1.0_dp
+      REAL(KIND=dp), DIMENSION(3)            :: box_hi = -1.0_dp, box_low = -1.0_dp
+      REAL(KIND=dp), DIMENSION(:), POINTER   :: rmin_kind => NULL(), &
+                                                rmax_kind => NULL()
+      REAL(KIND=dp), DIMENSION(:), POINTER   :: range_surf => NULL()
+      REAL(KIND=dp), DIMENSION(:), POINTER   :: rhs => NULL()
+      REAL(KIND=dp), DIMENSION(:), POINTER   :: sum_vpot => NULL()
+      REAL(KIND=dp), DIMENSION(:, :), POINTER :: matrix => NULL()
    END TYPE resp_type
 
    TYPE resp_p_type
-      TYPE(resp_type), POINTER              ::  p_resp
+      TYPE(resp_type), POINTER              ::  p_resp => NULL()
    END TYPE resp_p_type
 
 CONTAINS

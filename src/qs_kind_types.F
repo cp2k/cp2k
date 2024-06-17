@@ -128,7 +128,7 @@ MODULE qs_kind_types
       INTEGER                                :: max_scf = -1
       REAL(KIND=dp)                          :: eps_u_ramping = 0.0_dp
       REAL(KIND=dp)                          :: eps_scf = HUGE(0.0_dp)
-      REAL(KIND=dp)                          :: u_minus_j_target
+      REAL(KIND=dp)                          :: u_minus_j_target = 0.0_dp
       REAL(KIND=dp)                          :: u_minus_j = 0.0_dp
       REAL(KIND=dp)                          :: u_ramping = 0.0_dp
       REAL(KIND=dp)                          :: U = 0.0_dp
@@ -183,7 +183,7 @@ MODULE qs_kind_types
       TYPE(atom_upfpot_type), POINTER        :: upf_potential => Null()
       !
       TYPE(basis_set_container_type), &
-         DIMENSION(20)                       :: basis_sets
+         DIMENSION(20)                       :: basis_sets = basis_set_container_type()
       ! Atomic radii
       REAL(KIND=dp)                          :: covalent_radius = 0.0_dp
       REAL(KIND=dp)                          :: vdw_radius = 0.0_dp
@@ -228,7 +228,7 @@ MODULE qs_kind_types
 ! **************************************************************************************************
    TYPE qs_kind_p_type
       TYPE(qs_kind_type), DIMENSION(:), &
-         POINTER                             :: qs_kind_set
+         POINTER                             :: qs_kind_set => NULL()
    END TYPE qs_kind_p_type
 
    ! Public subroutines

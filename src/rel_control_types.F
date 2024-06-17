@@ -53,12 +53,12 @@ MODULE rel_control_types
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
    TYPE rel_control_type
-      INTEGER                               :: rel_method
-      INTEGER                               :: rel_DKH_order
-      INTEGER                               :: rel_ZORA_type
-      INTEGER                               :: rel_transformation
-      INTEGER                               :: rel_z_cutoff
-      INTEGER                               :: rel_potential
+      INTEGER                               :: rel_method = -1
+      INTEGER                               :: rel_DKH_order = -1
+      INTEGER                               :: rel_ZORA_type = -1
+      INTEGER                               :: rel_transformation = -1
+      INTEGER                               :: rel_z_cutoff = -1
+      INTEGER                               :: rel_potential = -1
    END TYPE rel_control_type
 
 CONTAINS

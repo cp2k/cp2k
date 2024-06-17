@@ -63,142 +63,142 @@ MODULE qs_ot_types
    ! needed for spins as e.g. in qs_ot_scf      !
 ! **************************************************************************************************
    TYPE qs_ot_settings_type
-      LOGICAL           :: do_rotation, do_ener
-      LOGICAL           :: ks
-      CHARACTER(LEN=4)  :: ot_method
-      CHARACTER(LEN=3)  :: ot_algorithm
-      CHARACTER(LEN=4)  :: line_search_method
-      CHARACTER(LEN=20) :: preconditioner_name
-      INTEGER           :: preconditioner_type
-      INTEGER           :: cholesky_type
-      CHARACTER(LEN=20) :: precond_solver_name
-      INTEGER           :: precond_solver_type
-      LOGICAL           :: safer_diis
-      REAL(KIND=dp)   :: ds_min
-      REAL(KIND=dp)   :: energy_gap
-      INTEGER           :: diis_m
-      REAL(KIND=dp)   :: gold_target
-      REAL(KIND=dp)   :: eps_taylor ! minimum accuracy of the taylor expansion
-      INTEGER           :: max_taylor ! maximum order of the taylor expansion before switching to diagonalization
-      INTEGER           :: irac_degree ! this is used to control the refinement polynomial degree
-      INTEGER           :: max_irac ! maximum number of iteration for the refinement
-      REAL(KIND=dp)   :: eps_irac ! target accuracy for the refinement
-      REAL(KIND=dp)   :: eps_irac_quick_exit
-      REAL(dp)          :: eps_irac_filter_matrix
-      REAL(KIND=dp)   :: eps_irac_switch
-      LOGICAL           :: on_the_fly_loc
-      CHARACTER(LEN=4)  :: ortho_irac
-      LOGICAL           :: occupation_preconditioner, add_nondiag_energy
-      REAL(KIND=dp)   :: nondiag_energy_strength
-      REAL(KIND=dp)   :: broyden_beta, broyden_gamma, broyden_sigma
-      REAL(KIND=dp)   :: broyden_eta, broyden_omega, broyden_sigma_decrease
-      REAL(KIND=dp)   :: broyden_sigma_min
-      LOGICAL           :: broyden_forget_history, broyden_adaptive_sigma
-      LOGICAL           :: broyden_enable_flip
+      LOGICAL           :: do_rotation = .FALSE., do_ener = .FALSE.
+      LOGICAL           :: ks = .FALSE.
+      CHARACTER(LEN=4)  :: ot_method = ""
+      CHARACTER(LEN=3)  :: ot_algorithm = ""
+      CHARACTER(LEN=4)  :: line_search_method = ""
+      CHARACTER(LEN=20) :: preconditioner_name = ""
+      INTEGER           :: preconditioner_type = -1
+      INTEGER           :: cholesky_type = -1
+      CHARACTER(LEN=20) :: precond_solver_name = ""
+      INTEGER           :: precond_solver_type = -1
+      LOGICAL           :: safer_diis = .FALSE.
+      REAL(KIND=dp)   :: ds_min = -1.0_dp
+      REAL(KIND=dp)   :: energy_gap = -1.0_dp
+      INTEGER           :: diis_m = -1
+      REAL(KIND=dp)   :: gold_target = -1.0_dp
+      REAL(KIND=dp)   :: eps_taylor = -1.0_dp ! minimum accuracy of the taylor expansion
+      INTEGER           :: max_taylor = -1 ! maximum order of the taylor expansion before switching to diagonalization
+      INTEGER           :: irac_degree = -1 ! this is used to control the refinement polynomial degree
+      INTEGER           :: max_irac = -1 ! maximum number of iteration for the refinement
+      REAL(KIND=dp)   :: eps_irac = -1.0_dp ! target accuracy for the refinement
+      REAL(KIND=dp)   :: eps_irac_quick_exit = -1.0_dp
+      REAL(KIND=dp)          :: eps_irac_filter_matrix = -1.0_dp
+      REAL(KIND=dp)   :: eps_irac_switch = -1.0_dp
+      LOGICAL           :: on_the_fly_loc = .FALSE.
+      CHARACTER(LEN=4)  :: ortho_irac = ""
+      LOGICAL           :: occupation_preconditioner = .FALSE., add_nondiag_energy = .FALSE.
+      REAL(KIND=dp)   :: nondiag_energy_strength = -1.0_dp
+      REAL(KIND=dp)   :: broyden_beta = -1.0_dp, broyden_gamma = -1.0_dp, broyden_sigma = -1.0_dp
+      REAL(KIND=dp)   :: broyden_eta = -1.0_dp, broyden_omega = -1.0_dp, broyden_sigma_decrease = -1.0_dp
+      REAL(KIND=dp)   :: broyden_sigma_min = -1.0_dp
+      LOGICAL           :: broyden_forget_history = .FALSE., broyden_adaptive_sigma = .FALSE.
+      LOGICAL           :: broyden_enable_flip = .FALSE.
    END TYPE qs_ot_settings_type
 
 ! **************************************************************************************************
    TYPE qs_ot_type
       ! this sets the method to be used
-      TYPE(qs_ot_settings_type) :: settings
-      LOGICAL                   :: restricted
+      TYPE(qs_ot_settings_type) :: settings = qs_ot_settings_type()
+      LOGICAL                   :: restricted = .FALSE.
 
       ! first part of the variables, for occupied subspace invariant optimisation
 
       ! add a preconditioner matrix. should be symmetric and positive definite
       ! the type of this matrix might change in the future
-      TYPE(preconditioner_type), POINTER :: preconditioner
+      TYPE(preconditioner_type), POINTER :: preconditioner => NULL()
 
       ! these will/might change during iterations
 
       ! OT / TOD
-      TYPE(dbcsr_type), POINTER :: matrix_p
-      TYPE(dbcsr_type), POINTER :: matrix_r
-      TYPE(dbcsr_type), POINTER :: matrix_sinp
-      TYPE(dbcsr_type), POINTER :: matrix_cosp
-      TYPE(dbcsr_type), POINTER :: matrix_sinp_b
-      TYPE(dbcsr_type), POINTER :: matrix_cosp_b
-      TYPE(dbcsr_type), POINTER :: matrix_buf1
-      TYPE(dbcsr_type), POINTER :: matrix_buf2
-      TYPE(dbcsr_type), POINTER :: matrix_buf3
-      TYPE(dbcsr_type), POINTER :: matrix_buf4
-      TYPE(dbcsr_type), POINTER :: matrix_os
-      TYPE(dbcsr_type), POINTER :: matrix_buf1_ortho
-      TYPE(dbcsr_type), POINTER :: matrix_buf2_ortho
+      TYPE(dbcsr_type), POINTER :: matrix_p => NULL()
+      TYPE(dbcsr_type), POINTER :: matrix_r => NULL()
+      TYPE(dbcsr_type), POINTER :: matrix_sinp => NULL()
+      TYPE(dbcsr_type), POINTER :: matrix_cosp => NULL()
+      TYPE(dbcsr_type), POINTER :: matrix_sinp_b => NULL()
+      TYPE(dbcsr_type), POINTER :: matrix_cosp_b => NULL()
+      TYPE(dbcsr_type), POINTER :: matrix_buf1 => NULL()
+      TYPE(dbcsr_type), POINTER :: matrix_buf2 => NULL()
+      TYPE(dbcsr_type), POINTER :: matrix_buf3 => NULL()
+      TYPE(dbcsr_type), POINTER :: matrix_buf4 => NULL()
+      TYPE(dbcsr_type), POINTER :: matrix_os => NULL()
+      TYPE(dbcsr_type), POINTER :: matrix_buf1_ortho => NULL()
+      TYPE(dbcsr_type), POINTER :: matrix_buf2_ortho => NULL()
 
-      REAL(KIND=dp), DIMENSION(:), POINTER :: evals
-      REAL(KIND=dp), DIMENSION(:), POINTER :: dum
+      REAL(KIND=dp), DIMENSION(:), POINTER :: evals => NULL()
+      REAL(KIND=dp), DIMENSION(:), POINTER :: dum => NULL()
 
       ! matrix os valid
-      LOGICAL os_valid
+      LOGICAL :: os_valid = .FALSE.
 
       ! for efficient/parallel writing to the blacs_matrix
-      TYPE(mp_para_env_type), POINTER :: para_env
-      TYPE(cp_blacs_env_type), POINTER :: blacs_env
+      TYPE(mp_para_env_type), POINTER :: para_env => NULL()
+      TYPE(cp_blacs_env_type), POINTER :: blacs_env => NULL()
 
       ! mo-like vectors
-      TYPE(dbcsr_type), POINTER :: matrix_c0, matrix_sc0, matrix_psc0
+      TYPE(dbcsr_type), POINTER :: matrix_c0 => NULL(), matrix_sc0 => NULL(), matrix_psc0 => NULL()
 
       ! OT / IR
-      TYPE(dbcsr_type), POINTER :: buf1_k_k_nosym, buf2_k_k_nosym, &
-                                   buf3_k_k_nosym, buf4_k_k_nosym, &
-                                   buf1_k_k_sym, buf2_k_k_sym, buf3_k_k_sym, buf4_k_k_sym, &
-                                   p_k_k_sym, buf1_n_k, buf1_n_k_dp
+      TYPE(dbcsr_type), POINTER :: buf1_k_k_nosym => NULL(), buf2_k_k_nosym => NULL(), &
+                                   buf3_k_k_nosym => NULL(), buf4_k_k_nosym => NULL(), &
+                                   buf1_k_k_sym => NULL(), buf2_k_k_sym => NULL(), buf3_k_k_sym => NULL(), buf4_k_k_sym => NULL(), &
+                                   p_k_k_sym => NULL(), buf1_n_k => NULL(), buf1_n_k_dp => NULL()
 
       ! only here for the ease of programming. These will have to be supplied
       ! explicitly at all times
-      TYPE(dbcsr_type), POINTER :: matrix_x, matrix_sx, matrix_gx
-      TYPE(dbcsr_type), POINTER :: matrix_dx, matrix_gx_old
+      TYPE(dbcsr_type), POINTER :: matrix_x => NULL(), matrix_sx => NULL(), matrix_gx => NULL()
+      TYPE(dbcsr_type), POINTER :: matrix_dx => NULL(), matrix_gx_old => NULL()
 
-      LOGICAL :: use_gx_old, use_dx
+      LOGICAL :: use_gx_old = .FALSE., use_dx = .FALSE.
 
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER :: matrix_h_e, matrix_h_x
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER :: matrix_h_e => NULL(), matrix_h_x => NULL()
 
-      REAL(KIND=dp), DIMENSION(:, :), POINTER  :: ls_diis
-      REAL(KIND=dp), DIMENSION(:, :), POINTER  :: lss_diis
-      REAL(KIND=dp), DIMENSION(:), POINTER  :: c_diis
-      REAL(KIND=dp), DIMENSION(:), POINTER  :: c_broy
-      REAL(KIND=dp), DIMENSION(:), POINTER  :: energy_h
-      INTEGER, DIMENSION(:), POINTER         :: ipivot
+      REAL(KIND=dp), DIMENSION(:, :), POINTER  :: ls_diis => NULL()
+      REAL(KIND=dp), DIMENSION(:, :), POINTER  :: lss_diis => NULL()
+      REAL(KIND=dp), DIMENSION(:), POINTER  :: c_diis => NULL()
+      REAL(KIND=dp), DIMENSION(:), POINTER  :: c_broy => NULL()
+      REAL(KIND=dp), DIMENSION(:), POINTER  :: energy_h => NULL()
+      INTEGER, DIMENSION(:), POINTER         :: ipivot => NULL()
 
-      REAL(KIND=dp)  :: ot_pos(53), ot_energy(53), ot_grad(53) ! HARD LIMIT FOR THE LS
-      INTEGER          :: line_search_left, line_search_right, line_search_mid
-      INTEGER          :: line_search_count
-      LOGICAL          :: line_search_might_be_done
-      REAL(KIND=dp)  :: delta, gnorm, gnorm_old, etotal, gradient
-      LOGICAL          :: energy_only
-      INTEGER          :: diis_iter
-      CHARACTER(LEN=8) :: OT_METHOD_FULL
-      INTEGER          :: OT_count
-      REAL(KIND=dp)  :: ds_min
-      REAL(KIND=dp)  :: broyden_adaptive_sigma
+      REAL(KIND=dp)  :: ot_pos(53) = -1.0_dp, ot_energy(53) = -1.0_dp, ot_grad(53) = -1.0_dp ! HARD LIMIT FOR THE LS
+      INTEGER          :: line_search_left = -1, line_search_right = -1, line_search_mid = -1
+      INTEGER          :: line_search_count = -1
+      LOGICAL          :: line_search_might_be_done = .FALSE.
+      REAL(KIND=dp)  :: delta = -1.0_dp, gnorm = -1.0_dp, gnorm_old = -1.0_dp, etotal = -1.0_dp, gradient = -1.0_dp
+      LOGICAL          :: energy_only = .FALSE.
+      INTEGER          :: diis_iter = -1
+      CHARACTER(LEN=8) :: OT_METHOD_FULL = ""
+      INTEGER          :: OT_count = -1
+      REAL(KIND=dp)  :: ds_min = -1.0_dp
+      REAL(KIND=dp)  :: broyden_adaptive_sigma = -1.0_dp
 
-      LOGICAL          :: do_taylor
-      INTEGER          :: taylor_order
-      REAL(KIND=dp)  :: largest_eval_upper_bound
+      LOGICAL          :: do_taylor = .FALSE.
+      INTEGER          :: taylor_order = -1
+      REAL(KIND=dp)  :: largest_eval_upper_bound = -1.0_dp
 
       ! second part of the variables, if an explicit rotation is required as well
-      TYPE(dbcsr_type), POINTER :: rot_mat_u ! rotation matrix
-      TYPE(dbcsr_type), POINTER :: rot_mat_x ! antisymmetric matrix that parametrises rot_matrix_u
-      TYPE(dbcsr_type), POINTER :: rot_mat_dedu ! derivative of the total energy wrt to u
-      TYPE(dbcsr_type), POINTER :: rot_mat_chc ! for convencience, the matrix c^T H c
+      TYPE(dbcsr_type), POINTER :: rot_mat_u => NULL() ! rotation matrix
+      TYPE(dbcsr_type), POINTER :: rot_mat_x => NULL() ! antisymmetric matrix that parametrises rot_matrix_u
+      TYPE(dbcsr_type), POINTER :: rot_mat_dedu => NULL() ! derivative of the total energy wrt to u
+      TYPE(dbcsr_type), POINTER :: rot_mat_chc => NULL() ! for convencience, the matrix c^T H c
 
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER :: rot_mat_h_e
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER :: rot_mat_h_x
-      TYPE(dbcsr_type), POINTER :: rot_mat_gx
-      TYPE(dbcsr_type), POINTER :: rot_mat_gx_old
-      TYPE(dbcsr_type), POINTER :: rot_mat_dx
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER :: rot_mat_h_e => NULL()
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER :: rot_mat_h_x => NULL()
+      TYPE(dbcsr_type), POINTER :: rot_mat_gx => NULL()
+      TYPE(dbcsr_type), POINTER :: rot_mat_gx_old => NULL()
+      TYPE(dbcsr_type), POINTER :: rot_mat_dx => NULL()
 
-      REAL(KIND=dp), DIMENSION(:), POINTER :: rot_mat_evals
-      TYPE(dbcsr_type), POINTER :: rot_mat_evec
+      REAL(KIND=dp), DIMENSION(:), POINTER :: rot_mat_evals => NULL()
+      TYPE(dbcsr_type), POINTER :: rot_mat_evec => NULL()
 
       ! third part of the variables, if we need to optimize orbital energies
-      REAL(KIND=dp), POINTER, DIMENSION(:) :: ener_x
-      REAL(KIND=dp), POINTER, DIMENSION(:) :: ener_dx
-      REAL(KIND=dp), POINTER, DIMENSION(:) :: ener_gx
-      REAL(KIND=dp), POINTER, DIMENSION(:) :: ener_gx_old
-      REAL(KIND=dp), POINTER, DIMENSION(:, :) :: ener_h_e
-      REAL(KIND=dp), POINTER, DIMENSION(:, :) :: ener_h_x
+      REAL(KIND=dp), POINTER, DIMENSION(:) :: ener_x => NULL()
+      REAL(KIND=dp), POINTER, DIMENSION(:) :: ener_dx => NULL()
+      REAL(KIND=dp), POINTER, DIMENSION(:) :: ener_gx => NULL()
+      REAL(KIND=dp), POINTER, DIMENSION(:) :: ener_gx_old => NULL()
+      REAL(KIND=dp), POINTER, DIMENSION(:, :) :: ener_h_e => NULL()
+      REAL(KIND=dp), POINTER, DIMENSION(:, :) :: ener_h_x => NULL()
    END TYPE qs_ot_type
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_ot_types'

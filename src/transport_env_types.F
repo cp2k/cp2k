@@ -38,63 +38,63 @@ MODULE transport_env_types
 
 ! DO NOT change the ORDERING or the NAMES in the following data type
    TYPE, BIND(C) :: cp2k_transport_parameters
-      INTEGER(C_INT)  :: n_occ
-      INTEGER(C_INT)  :: n_atoms
-      REAL(C_DOUBLE)  :: energy_diff
-      REAL(C_DOUBLE)  :: evoltfactor
-      REAL(C_DOUBLE)  :: e_charge
-      REAL(C_DOUBLE)  :: boltzmann
-      REAL(C_DOUBLE)  :: h_bar
-      INTEGER(C_INT)  :: iscf
-      INTEGER(C_INT)  :: method
-      INTEGER(C_INT)  :: qt_formalism
-      INTEGER(C_INT)  :: injection_method
-      INTEGER(C_INT)  :: rlaxis_integration_method
-      INTEGER(C_INT)  :: linear_solver
-      INTEGER(C_INT)  :: matrixinv_method
-      INTEGER(C_INT)  :: transport_neutral
-      INTEGER(C_INT)  :: num_pole
-      INTEGER(C_INT)  :: ordering
-      INTEGER(C_INT)  :: row_ordering
-      INTEGER(C_INT)  :: verbosity
-      INTEGER(C_INT)  :: pexsi_np_symb_fact
-      INTEGER(C_INT)  :: n_kpoint
-      INTEGER(C_INT)  :: num_interval
-      INTEGER(C_INT)  :: num_contacts
-      INTEGER(C_INT)  :: stride_contacts
-      INTEGER(C_INT)  :: tasks_per_energy_point
-      INTEGER(C_INT)  :: tasks_per_pole
-      INTEGER(C_INT)  :: gpus_per_point
-      INTEGER(C_INT)  :: n_points_beyn
-      INTEGER(C_INT)  :: ncrc_beyn
-      INTEGER(C_INT)  :: tasks_per_integration_point
-      INTEGER(C_INT)  :: n_points_inv
-      INTEGER(C_INT)  :: cutout(2)
-      REAL(C_DOUBLE)  :: colzero_threshold
-      REAL(C_DOUBLE)  :: eps_limit
-      REAL(C_DOUBLE)  :: eps_limit_cc
-      REAL(C_DOUBLE)  :: eps_decay
-      REAL(C_DOUBLE)  :: eps_singularity_curvatures
-      REAL(C_DOUBLE)  :: eps_mu
-      REAL(C_DOUBLE)  :: eps_eigval_degen
-      REAL(C_DOUBLE)  :: eps_fermi
-      REAL(C_DOUBLE)  :: energy_interval
-      REAL(C_DOUBLE)  :: min_interval
-      REAL(C_DOUBLE)  :: temperature
-      REAL(C_DOUBLE)  :: dens_mixing
-      REAL(C_DOUBLE)  :: n_rand_beyn
-      REAL(C_DOUBLE)  :: n_rand_cc_beyn
-      REAL(C_DOUBLE)  :: svd_cutoff
-      TYPE(C_PTR)     :: contacts_data
-      TYPE(C_PTR)     :: nsgf
-      TYPE(C_PTR)     :: zeff
-      LOGICAL(C_BOOL) :: obc_equilibrium
-      LOGICAL(C_BOOL) :: extra_scf
+      INTEGER(C_INT)  :: n_occ = -1_C_INT
+      INTEGER(C_INT)  :: n_atoms = -1_C_INT
+      REAL(C_DOUBLE)  :: energy_diff = -1.0_C_DOUBLE
+      REAL(C_DOUBLE)  :: evoltfactor = -1.0_C_DOUBLE
+      REAL(C_DOUBLE)  :: e_charge = -1.0_C_DOUBLE
+      REAL(C_DOUBLE)  :: boltzmann = -1.0_C_DOUBLE
+      REAL(C_DOUBLE)  :: h_bar = -1.0_C_DOUBLE
+      INTEGER(C_INT)  :: iscf = -1_C_INT
+      INTEGER(C_INT)  :: method = -1_C_INT
+      INTEGER(C_INT)  :: qt_formalism = -1_C_INT
+      INTEGER(C_INT)  :: injection_method = -1_C_INT
+      INTEGER(C_INT)  :: rlaxis_integration_method = -1_C_INT
+      INTEGER(C_INT)  :: linear_solver = -1_C_INT
+      INTEGER(C_INT)  :: matrixinv_method = -1_C_INT
+      INTEGER(C_INT)  :: transport_neutral = -1_C_INT
+      INTEGER(C_INT)  :: num_pole = -1_C_INT
+      INTEGER(C_INT)  :: ordering = -1_C_INT
+      INTEGER(C_INT)  :: row_ordering = -1_C_INT
+      INTEGER(C_INT)  :: verbosity = -1_C_INT
+      INTEGER(C_INT)  :: pexsi_np_symb_fact = -1_C_INT
+      INTEGER(C_INT)  :: n_kpoint = -1_C_INT
+      INTEGER(C_INT)  :: num_interval = -1_C_INT
+      INTEGER(C_INT)  :: num_contacts = -1_C_INT
+      INTEGER(C_INT)  :: stride_contacts = -1_C_INT
+      INTEGER(C_INT)  :: tasks_per_energy_point = -1_C_INT
+      INTEGER(C_INT)  :: tasks_per_pole = -1_C_INT
+      INTEGER(C_INT)  :: gpus_per_point = -1_C_INT
+      INTEGER(C_INT)  :: n_points_beyn = -1_C_INT
+      INTEGER(C_INT)  :: ncrc_beyn = -1_C_INT
+      INTEGER(C_INT)  :: tasks_per_integration_point = -1_C_INT
+      INTEGER(C_INT)  :: n_points_inv = -1_C_INT
+      INTEGER(C_INT)  :: cutout(2) = -1_C_INT
+      REAL(C_DOUBLE)  :: colzero_threshold = -1.0_C_DOUBLE
+      REAL(C_DOUBLE)  :: eps_limit = -1.0_C_DOUBLE
+      REAL(C_DOUBLE)  :: eps_limit_cc = -1.0_C_DOUBLE
+      REAL(C_DOUBLE)  :: eps_decay = -1.0_C_DOUBLE
+      REAL(C_DOUBLE)  :: eps_singularity_curvatures = -1.0_C_DOUBLE
+      REAL(C_DOUBLE)  :: eps_mu = -1.0_C_DOUBLE
+      REAL(C_DOUBLE)  :: eps_eigval_degen = -1.0_C_DOUBLE
+      REAL(C_DOUBLE)  :: eps_fermi = -1.0_C_DOUBLE
+      REAL(C_DOUBLE)  :: energy_interval = -1.0_C_DOUBLE
+      REAL(C_DOUBLE)  :: min_interval = -1.0_C_DOUBLE
+      REAL(C_DOUBLE)  :: temperature = -1.0_C_DOUBLE
+      REAL(C_DOUBLE)  :: dens_mixing = -1.0_C_DOUBLE
+      REAL(C_DOUBLE)  :: n_rand_beyn = -1.0_C_DOUBLE
+      REAL(C_DOUBLE)  :: n_rand_cc_beyn = -1.0_C_DOUBLE
+      REAL(C_DOUBLE)  :: svd_cutoff = -1.0_C_DOUBLE
+      TYPE(C_PTR)     :: contacts_data = C_NULL_PTR
+      TYPE(C_PTR)     :: nsgf = C_NULL_PTR
+      TYPE(C_PTR)     :: zeff = C_NULL_PTR
+      LOGICAL(C_BOOL) :: obc_equilibrium = .FALSE._C_BOOL
+      LOGICAL(C_BOOL) :: extra_scf = .FALSE._C_BOOL
    END TYPE cp2k_transport_parameters
 
    TYPE transport_env_type
       TYPE(C_FUNPTR)                   :: ext_c_method_ptr = C_NULL_FUNPTR
-      TYPE(cp2k_transport_parameters)  :: params
+      TYPE(cp2k_transport_parameters)  :: params = cp2k_transport_parameters()
       TYPE(dbcsr_type)              :: template_matrix_sym
       TYPE(dbcsr_type)              :: template_matrix_nosym
       TYPE(dbcsr_type)              :: csr_sparsity
@@ -103,7 +103,7 @@ MODULE transport_env_types
       TYPE(dbcsr_csr_type)                   :: ks_matrix
       TYPE(dbcsr_csr_type)                   :: p_matrix
       TYPE(dbcsr_csr_type)                   :: imagp_matrix
-      LOGICAL                          :: csr_screening
+      LOGICAL                          :: csr_screening = .FALSE.
       INTEGER, DIMENSION(:), POINTER   :: contacts_data => NULL()
       INTEGER, DIMENSION(:), POINTER   :: nsgf => NULL()
       REAL(dp), DIMENSION(:), POINTER  :: zeff => NULL()
@@ -111,17 +111,17 @@ MODULE transport_env_types
 
 ! DO NOT change the ORDERING or the NAMES in the following data type
    TYPE, BIND(C) :: cp2k_csr_interop_type
-      INTEGER(C_INT) :: nrows_total
-      INTEGER(C_INT) :: ncols_total
-      INTEGER(C_INT) :: nze_total
-      INTEGER(C_INT) :: nze_local
-      INTEGER(C_INT) :: nrows_local
-      INTEGER(C_INT) :: data_type
-      INTEGER(C_INT) :: first_row
-      TYPE(C_PTR)    :: rowptr_local
-      TYPE(C_PTR)    :: colind_local
-      TYPE(C_PTR)    :: nzerow_local
-      TYPE(C_PTR)    :: nzvals_local
+      INTEGER(C_INT) :: nrows_total = -1_C_INT
+      INTEGER(C_INT) :: ncols_total = -1_C_INT
+      INTEGER(C_INT) :: nze_total = -1_C_INT
+      INTEGER(C_INT) :: nze_local = -1_C_INT
+      INTEGER(C_INT) :: nrows_local = -1_C_INT
+      INTEGER(C_INT) :: data_type = -1_C_INT
+      INTEGER(C_INT) :: first_row = -1_C_INT
+      TYPE(C_PTR)    :: rowptr_local = C_NULL_PTR
+      TYPE(C_PTR)    :: colind_local = C_NULL_PTR
+      TYPE(C_PTR)    :: nzerow_local = C_NULL_PTR
+      TYPE(C_PTR)    :: nzvals_local = C_NULL_PTR
    END TYPE cp2k_csr_interop_type
 
    PUBLIC :: csr_interop_nullify, &

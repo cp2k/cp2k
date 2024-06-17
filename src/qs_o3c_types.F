@@ -32,40 +32,40 @@ MODULE qs_o3c_types
 
    TYPE o3c_int_type
       PRIVATE
-      INTEGER                                    :: katom, kkind
-      INTEGER                                    :: ni, nj, nk
-      REAL(KIND=dp), DIMENSION(3)                :: rik
-      INTEGER, DIMENSION(3)                      :: cellk
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER :: integral
-      REAL(KIND=dp), DIMENSION(:, :), POINTER    :: tvec
-      REAL(KIND=dp), DIMENSION(:, :), POINTER    :: force_i
-      REAL(KIND=dp), DIMENSION(:, :), POINTER    :: force_j
-      REAL(KIND=dp), DIMENSION(:, :), POINTER    :: force_k
+      INTEGER                                    :: katom = -1, kkind = -1
+      INTEGER                                    :: ni = -1, nj = -1, nk = -1
+      REAL(KIND=dp), DIMENSION(3)                :: rik = -1.0_dp
+      INTEGER, DIMENSION(3)                      :: cellk = -1
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER :: integral => NULL()
+      REAL(KIND=dp), DIMENSION(:, :), POINTER    :: tvec => NULL()
+      REAL(KIND=dp), DIMENSION(:, :), POINTER    :: force_i => NULL()
+      REAL(KIND=dp), DIMENSION(:, :), POINTER    :: force_j => NULL()
+      REAL(KIND=dp), DIMENSION(:, :), POINTER    :: force_k => NULL()
    END TYPE o3c_int_type
 
    TYPE o3c_pair_type
       PRIVATE
-      INTEGER                                    :: iatom, ikind
-      INTEGER                                    :: jatom, jkind
-      REAL(KIND=dp), DIMENSION(3)                :: rij
-      INTEGER, DIMENSION(3)                      :: cellj
-      INTEGER                                    :: nklist
-      TYPE(o3c_int_type), DIMENSION(:), POINTER  :: ijk
+      INTEGER                                    :: iatom = -1, ikind = -1
+      INTEGER                                    :: jatom = -1, jkind = -1
+      REAL(KIND=dp), DIMENSION(3)                :: rij = -1.0_dp
+      INTEGER, DIMENSION(3)                      :: cellj = -1
+      INTEGER                                    :: nklist = -1
+      TYPE(o3c_int_type), DIMENSION(:), POINTER  :: ijk => NULL()
    END TYPE o3c_pair_type
 
    TYPE o3c_container_type
       PRIVATE
-      LOGICAL                                    :: ijsymmetric
-      INTEGER                                    :: nijpairs
-      INTEGER                                    :: nspin
-      TYPE(o3c_pair_type), DIMENSION(:), POINTER :: ijpair
+      LOGICAL                                    :: ijsymmetric = .FALSE.
+      INTEGER                                    :: nijpairs = -1
+      INTEGER                                    :: nspin = -1
+      TYPE(o3c_pair_type), DIMENSION(:), POINTER :: ijpair => NULL()
       ! basis sets and neighbor lists are pointing to other resources
       ! we don't keep track if the data is available and correct
       TYPE(gto_basis_set_p_type), DIMENSION(:), &
-         POINTER                                 :: basis_set_list_a, basis_set_list_b, &
-                                                    basis_set_list_c
+         POINTER                                 :: basis_set_list_a => NULL(), basis_set_list_b => NULL(), &
+                                                    basis_set_list_c => NULL()
       TYPE(neighbor_list_set_p_type), &
-         DIMENSION(:), POINTER                   :: sab_nl, sac_nl
+         DIMENSION(:), POINTER                   :: sab_nl => NULL(), sac_nl => NULL()
    END TYPE o3c_container_type
 
 ! **************************************************************************************************
@@ -74,9 +74,9 @@ MODULE qs_o3c_types
 
    TYPE o3c_iterator_type
       PRIVATE
-      TYPE(o3c_container_type), POINTER     :: o3c
-      INTEGER                               :: ijp_last, k_last
-      INTEGER, DIMENSION(:), POINTER        :: ijp_thread, k_thread
+      TYPE(o3c_container_type), POINTER     :: o3c => NULL()
+      INTEGER                               :: ijp_last = -1, k_last = -1
+      INTEGER, DIMENSION(:), POINTER        :: ijp_thread => NULL(), k_thread => NULL()
    END TYPE o3c_iterator_type
 
 ! **************************************************************************************************
@@ -85,8 +85,8 @@ MODULE qs_o3c_types
 
    TYPE o3c_vec_type
       PRIVATE
-      INTEGER                               :: n
-      REAL(KIND=dp), DIMENSION(:), POINTER  :: v
+      INTEGER                               :: n = -1
+      REAL(KIND=dp), DIMENSION(:), POINTER  :: v => NULL()
    END TYPE o3c_vec_type
 
 ! **************************************************************************************************

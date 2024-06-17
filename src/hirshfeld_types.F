@@ -34,24 +34,24 @@ MODULE hirshfeld_types
 !> \author JGH
 ! **************************************************************************************************
    TYPE hirshfeld_type
-      LOGICAL                       :: iterative, &
-                                       use_bohr
-      INTEGER                       :: shape_function_type
-      INTEGER                       :: ref_charge, &
-                                       radius_type
+      LOGICAL                       :: iterative = .FALSE., &
+                                       use_bohr = .FALSE.
+      INTEGER                       :: shape_function_type = -1
+      INTEGER                       :: ref_charge = -1, &
+                                       radius_type = -1
       TYPE(shape_fn), DIMENSION(:), &
-         POINTER                    :: kind_shape_fn
+         POINTER                    :: kind_shape_fn => NULL()
       REAL(KIND=dp), DIMENSION(:), &
-         POINTER                    :: charges
-      TYPE(pw_r3d_rs_type), POINTER      :: fnorm
+         POINTER                    :: charges => NULL()
+      TYPE(pw_r3d_rs_type), POINTER      :: fnorm => NULL()
    END TYPE hirshfeld_type
 
    TYPE shape_fn
-      INTEGER                       :: numexp
+      INTEGER                       :: numexp = -1
       REAL(KIND=dp), DIMENSION(:), &
-         POINTER                    :: zet
+         POINTER                    :: zet => NULL()
       REAL(KIND=dp), DIMENSION(:), &
-         POINTER                    :: coef
+         POINTER                    :: coef => NULL()
    END TYPE shape_fn
 
 ! **************************************************************************************************

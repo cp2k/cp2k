@@ -65,9 +65,9 @@ MODULE mao_methods
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mao_methods'
 
    TYPE mblocks
-      INTEGER                                        :: n, ma
-      REAL(KIND=dp), DIMENSION(:, :), POINTER        :: mat
-      REAL(KIND=dp), DIMENSION(:), POINTER           :: eig
+      INTEGER                                        :: n = -1, ma = -1
+      REAL(KIND=dp), DIMENSION(:, :), POINTER        :: mat => NULL()
+      REAL(KIND=dp), DIMENSION(:), POINTER           :: eig => NULL()
    END TYPE mblocks
 
    PUBLIC :: mao_initialization, mao_function, mao_function_gradient, mao_orthogonalization, &
