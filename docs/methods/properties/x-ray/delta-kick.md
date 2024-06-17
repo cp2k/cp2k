@@ -57,8 +57,7 @@ $$
 This δ-kick perturbes the ground state wave-function at $t=0^-$ using either the dipole moment
 operator (length gauge) or using the momentum one (velocity gauge). Then, this excited wave-function
 is propagated in real time by numerically integrating the DFT equivalent of the Schrodinger
-equation. For more information, have a look for instance at the recent work in CP2K by
-[](#Mattiat2022).
+equation.
 
 The electric δ-kick can be written in the frequency domain:
 
@@ -70,18 +69,18 @@ The field amplitude in the Fourier space is $F^0 / 2 \pi$ for all frequencies: t
 perturbation does indeed contain all the frequencies. The time-dependent wave-function can be thus
 described to be the one at the ground state plus all the possible excited states. During the time
 propagation, the dipole moment of the molecule will be given by the superposition of all possible
-oscillations related to all the excited states. This complex behavior in the time domain became
-simple in the frequency one since we know the amplitude of the perturbation applied at each
+oscillations related to all the excited states. This complex behavior in the time domain becomes
+simple in the frequency domain, since we know the amplitude of the perturbation applied at each
 frequency:
 
 $$
 \mu^\omega = \frac{1}{2 \pi} \alpha(\omega, \omega)  F^0
 $$
 
-Therefore, in order to get the polarizability $\alpha(\omega, \omega)$ one prepares the perturbed
-state at $t=0^-$ for a given field amplitude, then propagates the wave-function in real time and
-compute the time-dependent dipole moment. The dipole moment is Fourier transformed and the
-polarizability is extracted using:
+Therefore, in order to get the polarizability $\alpha(\omega, \omega)$, one prepares the perturbed
+state at $t=0^-$ for a given field amplitude, then propagates the wave-function in real time. During
+the propagation the dipole moment is computed at each time step. The dipole moment is finally
+Fourier transformed and the polarizability is extracted using:
 
 $$
 \text{Re} \left[ \alpha(\omega, \omega) \right]  = 2 \pi \frac{\text{Re} \left[ \mu^\omega \right] }{F^0} \\
@@ -89,10 +88,10 @@ $$
 $$
 
 The amplitude of the dipole moment in the Fourier space may be very small if the frequencies are far
-from resonances. But, in principle, one can extract the whole spectra from one Real-Time
-calculation. Of course, numerically speaking this is not the case since the time scale involved for
-UV frequencies is quite different from the one involved for X-Rays: a Real-Time propagation
-calculation is thus run for a specific range of frequency.
+from resonances. But, in principle, one can extract the whole spectrum from one Real-Time
+propagation. As a matter of fact, the whole spectrum from core to valence excitations is very broad
+and for numerical efficiency the propagation parameters are set to focus only on one specific part
+of the spectrum.
 
 ### Absorption spectrum
 
@@ -118,11 +117,11 @@ $$
 
 In this tutorial, we will study the response of a carbon-monoxide in the gas phase upon a δ-kick
 along its perpendicular direction. We will focus on the X-Ray range, but in principle, other ranges
-of frequency can be sampled using this technic.
+of frequency can be sampled using this approach.
 
-This has been done for isolated carbon-monoxide at the DFT/PBEh level using a PCSEG-2 basis set. One
-can look at the input file contained in RTP.inp, in the following we will emphasize a few important
-points related to the δ-kick technic.
+The input file RTP.inp presents an example to propagate the electronic density of an isolated
+carbon-monoxide molecule, upon the application of a predefined δ-kick. Ste simulation is performedd
+at the DFT/PBEh level using a PCSEG-2 basis set.
 
 ```none
 &GLOBAL
@@ -226,39 +225,39 @@ points related to the δ-kick technic.
 
 ### Time step
 
-The time step used to propagate the wave-function is related to the frequency of interest.
-Typically, one should do a trade-off between the maximal frequency that can be sampled, this gives
-the time step value, and the accuracy of the sampling itself, related to the total simulation time.
-Typically, the time step should be about one order of magnitude lower than the frequency of
-interest. Here, we will tackle the Oxygen K-edge: the electronic transition between the Oxygen 1s
-and the first available excited state.
+The time step used to propagate the wave-function is adapted to optimally resolve the frequency of
+interest. Typically, the time-step cjoice results from a trade-off between the resolution of the
+highest frequency of interest and the computationl cost to sufficiently extend the sampling, such to
+achieve sufficient accuracy. As a rule of thumb, the time step should be about one order of
+magnitude smaller than the period corresponding to the maximum frequency to be resolved. For core
+excitation from the Oxygen 1s, the K-edge is arounf 530 eV, corresponding to a period of 0.0078 fs.
 
-According to Linear Response TDDFT calculation (using the XAS_TDP module, see
+According to Linear Response TDDFT calculations (using the XAS_TDP module, see
 [this tutorial](./tddft)), the first transition occurs at 529 eV with an oscillator strength of
-0.044 a.u. In our δ-kick approach, it means that the induced dipole moment should have an
-oscillatory component around the frequency corresponding to 529 eV. Hence, we should have a time
-step smaller than this frequency. For this tutorial, we have set the
-[TIMESTEP](#CP2K_INPUT.MOTION.MD.TIMESTEP) to `[fs] 0.00078`, which leads to about 10 time steps per
-period for an oscillation at 529 eV.
+0.044 a.u. For the δ-kick approach, this means that the induced dipole moment should have an
+oscillatory component around the frequency corresponding to 529 eV. Hence, the
+[TIMESTEP](#CP2K_INPUT.MOTION.MD.TIMESTEP) is set ten times smaller than the maximum frequency,
+i.e., to `[fs] 0.00078`, which allawos the sampling of the fasted oscillation by means of at 10
+propagation steps.
 
-The total time of the simulation is then given by the number of time steps required, here 500000,
-and is related to the precision of the calculation: the more total time, the better the accuracy.
-This value is less clear to determine: it depends on the strength of the perturbation, the error
-thresholds used for the Real Time simulation, the amplitude of the polarizability value itself, and
-the overall noise of the calculation. A good way to check that the total simulation time is enough
-is to compute the polarizability for the targetted frequency using either 80% of the simulation time
-or 100%.
+The total time of the simulation is then given by the number of time steps, here 500000, and it
+affects the smoothness and sharpness of the resulting spectrum. Longer simulation times give a
+better resolutin of the spectral peaks, i.e., a more accurate determination of the resonances. There
+is no always valid rule to decide how long the propagation needs to be extended, because the
+fluctuations might be strongly system dependent. It is always a good idea to check whether the
+obtained spectrum has converged with respect to further extensiont of the sampling.
 
 ### Field properties
 
 The field perturbation (the δ-kick) is defined by its amplitude and polarization.
 
-The amplitude depends on the system of interest, typically $10^{-3}$ would do, and a good way to
-check it is to run 2 simulations: one with once the amplitude and another with twice the amplitude.
-Within the linear regime, the response of the system should have doubled as well. If this is not the
-case, lower the field amplitude. For instance, by one or two orders of magnitude. Note that applying
-a too-low field may lead to numerical noise. For isolated carbon monoxide, we have checked that
-$10^{-3}$ is within the linear regime.
+The amplitude depends on the system of interest, a typical value is $10^{-3}$. Also in this case a
+convergence check by running more than one propagation at different amplitudes is the best way to
+asses the parameter. On the other hand, this brute force approach might request too large
+computational respurces for large systems. Within the linear regime, the response of the system
+should double by dubling the field amplitude. When this is not the case, the response is not linear
+and one should reduce the field amplitude. Note that applying a too-low field may lead to numerical
+noise. For isolated carbon monoxide, we have checked that $10^{-3}$ is within the linear regime.
 
 **Please note that the actual perturbation applied in CP2K is not
 [DELTA_PULSE_SCALE](#CP2K_INPUT.FORCE_EVAL.DFT.REAL_TIME_PROPAGATION.DELTA_PULSE_SCALE) and depends
@@ -279,14 +278,13 @@ to `0.001`.
 
 ### Note about the choice of the Gauge
 
-For an isolated system, use the length implementation because the perturbation is applied up to all
-perturbative orders by setting [PERIODIC](#CP2K_INPUT.FORCE_EVAL.DFT.REAL_TIME_PROPAGATION.PERIODIC)
-to `.FALSE.`.
+For an isolated system, use the length gauge implementation because the perturbation is applied up
+to all perturbative orders by setting
+[PERIODIC](#CP2K_INPUT.FORCE_EVAL.DFT.REAL_TIME_PROPAGATION.PERIODIC) to `.FALSE.`.
 
 For condensed phase systems, use the velocity gauge instead by setting
 [PERIODIC](#CP2K_INPUT.FORCE_EVAL.DFT.REAL_TIME_PROPAGATION.PERIODIC) to `.TRUE.`. In this case, the
-perturbation will be applied only within the first order. We have used the length one for this
-tutorial.
+perturbation will be applied only within the first order.
 
 ## Analyzing the results
 
