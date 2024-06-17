@@ -156,7 +156,7 @@ else
 fi
 # CUDA handling
 if [ "${ENABLE_CUDA}" = __TRUE__ ] && [ "${GPUVER}" != no ]; then
-  CUDA_LIBS="-lcudart -lnvrtc -lcuda -lcufft -lcublas -lrt IF_DEBUG(-lnvToolsExt|)"
+  CUDA_LIBS="-lcudart -lnvrtc -lcuda -lcufft -lcublasLt -lcublas -lrt IF_DEBUG(-lnvToolsExt|)"
   CUDA_DFLAGS="-D__OFFLOAD_CUDA -D__DBCSR_ACC IF_DEBUG(-D__OFFLOAD_PROFILING|)"
   if [ "${with_cusolvermp}" != "__DONTUSE__" ]; then
     CUDA_LIBS+=" -lcusolverMp -lcusolver -lcal -lnvidia-ml"
@@ -170,6 +170,7 @@ if [ "${ENABLE_CUDA}" = __TRUE__ ] && [ "${GPUVER}" != no ]; then
   check_lib -lnvrtc "cuda"
   check_lib -lcuda "cuda"
   check_lib -lcufft "cuda"
+  check_lib -lcublasLt "cuda"
   check_lib -lcublas "cuda"
 
   # Set include flags
