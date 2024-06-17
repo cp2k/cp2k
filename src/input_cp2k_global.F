@@ -231,7 +231,7 @@ CONTAINS
          "FFTW3 is often (close to) optimal, and well tested with CP2K. SpFFT enables GPU accelarated FFTs.", &
          usage="PREFERRED_FFT_LIBRARY FFTW3", &
          citations=(/Frigo2005/), &
-         default_i_val=do_fft_fftw3, &
+         default_i_val=do_fft_spfft, &
          enum_i_vals=(/do_fft_sg, do_fft_fftw3, do_fft_fftw3, do_fft_spfft/), &
          enum_c_vals=s2a("FFTSG", "FFTW3", "FFTW", "SPFFT"), &
          enum_desc=s2a("Stefan Goedecker's FFT (FFTSG), always available, "// &

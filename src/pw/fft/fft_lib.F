@@ -17,7 +17,9 @@ MODULE fft_lib
         fft_alloc => fftw_alloc, fft_dealloc => fftw_dealloc, fftw31dm, fftw33d, &
         fftw3_create_plan_1dm, fftw3_create_plan_3d, fftw3_destroy_plan, fftw3_do_cleanup, &
         fftw3_do_init, fftw3_get_lengths
-   USE spfft_lib,                       ONLY: spfft_create_plan_3d
+   USE spfft_lib,                       ONLY: spfft_3d,&
+                                              spfft_create_plan_3d,&
+                                              spfft_destroy_plan
 #include "../../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -151,7 +153,7 @@ CONTAINS
       plan%n_3d = n
 !$    plan%need_alt_plan = .FALSE.
 
-      ! Planning only needed for FFTW3
+      ! Planning only needed for FFTW3 and SpLA
       IF (fft_type == 3) THEN
          CALL fftw3_create_plan_3d(plan, zin, zout, plan_style)
          plan%valid = .TRUE.
@@ -177,7 +179,8 @@ CONTAINS
    SUBROUTINE fft_3d(plan, scale, zin, zout, stat)
       TYPE(fft_plan_type), INTENT(IN)                    :: plan
       REAL(KIND=dp), INTENT(IN)                          :: scale
-      COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT)      :: zin, zout
+      COMPLEX(KIND=dp), DIMENSION(:, :, :), &
+         INTENT(INOUT)                                   :: zin, zout
       INTEGER, INTENT(OUT)                               :: stat
 
       stat = plan%fsign
@@ -189,6 +192,8 @@ CONTAINS
             CALL fftsg3d(plan%fft_in_place, stat, scale, plan%n_3d, zin, zout)
          CASE (3)
             CALL fftw33d(plan, scale, zin, zout, stat)
+         CASE (4)
+            CALL spfft_3d(plan, scale, zin, zout, stat)
          END SELECT
       END IF
       ! stat is set to zero on error, -1,+1 are OK
@@ -230,7 +235,8 @@ CONTAINS
 !$    plan%need_alt_plan = .FALSE.
 
       ! Planning only needed for FFTW3
-      IF ((fft_type .EQ. 3) .AND. (n*m .NE. 0)) THEN
+      IF ((fft_type .EQ. 3 .OR. fft_type .EQ. 4) .AND. (n*m .NE. 0)) THEN
+         plan%fft_type = 3
          CALL fftw3_create_plan_1dm(plan, zin, zout, plan_style)
          plan%valid = .TRUE.
       ELSE
@@ -248,9 +254,14 @@ CONTAINS
 
 ! Planning only needed for FFTW3
 
-      IF (plan%valid .AND. plan%fft_type .EQ. 3) THEN
+      IF (plan%valid) THEN
+      IF (plan%fft_type == 3) THEN
          CALL fftw3_destroy_plan(plan)
          plan%valid = .FALSE.
+      ELSE IF (plan%fft_type == 4) THEN
+         CALL spfft_destroy_plan(plan)
+         plan%valid = .FALSE.
+      END IF
       END IF
 
    END SUBROUTINE
