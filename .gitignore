@@ -94,6 +94,9 @@ dkms.conf
 ### CMake ###
 build*/
 
+# Spack
+build-*
+
 ### CMake Patch ###
 # External projects
 *-prefix/
