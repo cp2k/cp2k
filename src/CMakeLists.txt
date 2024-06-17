@@ -290,6 +290,9 @@ list(
   iao_analysis.F
   iao_types.F
   ipi_driver.F
+  ipi_environment.F
+  ipi_environment_types.F
+  ipi_server.F
   iterate_matrix.F
   kg_correction.F
   kg_environment.F

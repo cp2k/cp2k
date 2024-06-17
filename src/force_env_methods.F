@@ -66,8 +66,8 @@ MODULE force_env_methods
    USE fist_force,                      ONLY: fist_calc_energy_force
    USE force_env_types,                 ONLY: &
         force_env_get, force_env_get_natom, force_env_p_type, force_env_set, force_env_type, &
-        use_eip_force, use_embed, use_fist_force, use_mixed_force, use_nnp_force, use_prog_name, &
-        use_pwdft_force, use_qmmm, use_qmmmx, use_qs_force
+        use_eip_force, use_embed, use_fist_force, use_ipi, use_mixed_force, use_nnp_force, &
+        use_prog_name, use_pwdft_force, use_qmmm, use_qmmmx, use_qs_force
    USE force_env_utils,                 ONLY: rescale_forces,&
                                               write_atener,&
                                               write_forces
@@ -89,6 +89,8 @@ MODULE force_env_methods
                                               section_vals_retain,&
                                               section_vals_type,&
                                               section_vals_val_get
+   USE ipi_environment_types,           ONLY: ipi_environment_type
+   USE ipi_server,                      ONLY: request_forces
    USE kahan_sum,                       ONLY: accurate_sum
    USE kinds,                           ONLY: default_path_length,&
                                               default_string_length,&
@@ -283,6 +285,8 @@ CONTAINS
                                        calculate_forces)
          CASE (use_embed)
             CALL embed_energy(force_env)
+         CASE (use_ipi)
+            CALL request_forces(force_env%ipi_env)
          CASE default
             CPABORT("")
          END SELECT
@@ -749,13 +753,14 @@ CONTAINS
 !> \param mixed_env ...
 !> \param embed_env ...
 !> \param nnp_env ...
+!> \param ipi_env ...
 !> \par History
 !>      04.2003 created [fawzi]
 !> \author fawzi
 ! **************************************************************************************************
    SUBROUTINE force_env_create(force_env, root_section, para_env, globenv, fist_env, &
                                qs_env, meta_env, sub_force_env, qmmm_env, qmmmx_env, eip_env, pwdft_env, force_env_section, &
-                               mixed_env, embed_env, nnp_env)
+                               mixed_env, embed_env, nnp_env, ipi_env)
 
       TYPE(force_env_type), POINTER                      :: force_env
       TYPE(section_vals_type), POINTER                   :: root_section
@@ -774,6 +779,7 @@ CONTAINS
       TYPE(mixed_environment_type), OPTIONAL, POINTER    :: mixed_env
       TYPE(embed_env_type), OPTIONAL, POINTER            :: embed_env
       TYPE(nnp_type), OPTIONAL, POINTER                  :: nnp_env
+      TYPE(ipi_environment_type), OPTIONAL, POINTER      :: ipi_env
 
       ALLOCATE (force_env)
       NULLIFY (force_env%fist_env, force_env%qs_env, &
@@ -853,6 +859,12 @@ CONTAINS
          CPASSERT(force_env%in_use == 0)
          force_env%in_use = use_nnp_force
          force_env%nnp_env => nnp_env
+      END IF
+      IF (PRESENT(ipi_env)) THEN
+         CPASSERT(ASSOCIATED(ipi_env))
+         CPASSERT(force_env%in_use == 0)
+         force_env%in_use = use_ipi
+         force_env%ipi_env => ipi_env
       END IF
       CPASSERT(force_env%in_use /= 0)
 
