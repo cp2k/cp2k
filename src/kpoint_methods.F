@@ -1499,6 +1499,8 @@ CONTAINS
       IF (asym) fsign = -1.0_dp
 
       IF (dorot .OR. perm) THEN
+         CALL cp_abort(__LOCATION__, "k-points need FULL_GRID currently. "// &
+                       "Reduced grids not yet working correctly")
          CALL dbcsr_set(smat, 0.0_dp)
          IF (perm) THEN
             CALL dbcsr_get_info(pmat, distribution=dist)
