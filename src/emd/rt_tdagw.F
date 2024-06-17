@@ -132,6 +132,7 @@ MODULE rt_tdagw
    USE message_passing,                 ONLY: mp_para_env_type
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type
+   USE cell_types,                      ONLY: cell_type
    USE input_constants,                 ONLY: rtp_tdagw_ham_ks,&
                                               rtp_tdagw_ham_g0w0,&
                                               rtp_tdagw_hartree_dbt,&
@@ -161,6 +162,7 @@ MODULE rt_tdagw
    USE qs_integrate_potential_product,  ONLY: integrate_v_rspace
    USE qs_collocate_density,            ONLY: calculate_rho_elec
    USE physcon,                         ONLY: femtoseconds
+   USE mathconstants,                   ONLY: twopi
 
 #include "../base/base_uses.f90"
 
@@ -186,19 +188,21 @@ CONTAINS
       TYPE(tdagw_env_type)                               :: tdagw_env
       TYPE(rt_prop_type), POINTER                        :: rtp
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
+      TYPE(cell_type), POINTER                           :: cell
       TYPE(section_vals_type), POINTER                   :: input, rtp_section
       ! TODO : Maybe complex?
       INTEGER                                            :: i,j,re,im, k
       LOGICAL                                            :: converged
       REAL(kind=dp)                                      :: metric, enum_re, enum_im,&
                                                             idempotence_dev, a_metric_1, a_metric_2
+      REAL(kind=dp), DIMENSION(3)                        :: kvec
       ! TODO : Debug - printing of COHSEX
       INTEGER, DIMENSION(2)                              :: custom_unit
 
       ! ********************** ALLOCATIONS **********************
       CALL create_tdagw_env(tdagw_env, qs_env)
       ! Get the logger unit number, only print if we are the source process
-      CALL get_qs_env(qs_env, bs_env=bs_env, input=input, rtp=rtp)
+      CALL get_qs_env(qs_env, bs_env=bs_env, input=input, rtp=rtp, cell=cell)
       ! TODO : Print a nicer header
       IF (tdagw_env%unit_nr > 0) WRITE(tdagw_env%unit_nr, *) "=== Starting time-dependent adiabatic GW real time propagation ==="
 
