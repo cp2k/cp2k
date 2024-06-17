@@ -81,7 +81,7 @@ case "$with_elpa" in
       AVX512_flags=""
       FMA_flag=""
       SSE4_flag=""
-      config_flags="--disable-avx --disable-avx2 --disable-avx512 --disable-sse --disable-sse-assembly"
+      config_flags="--disable-avx-kernels --disable-avx2-kernels --disable-avx512-kernels --disable-sse-kernels --disable-sse-assembly-kernels"
       if [ "${TARGET_CPU}" = "native" ]; then
         if [ -f /proc/cpuinfo ] && [ "${OPENBLAS_ARCH}" = "x86_64" ]; then
           has_AVX=$(grep '\bavx\b' /proc/cpuinfo 1> /dev/null && echo 'yes' || echo 'no')
@@ -96,7 +96,7 @@ case "$with_elpa" in
           grep '\bavx512cd\b' /proc/cpuinfo 1> /dev/null && AVX512_flags+=" -mavx512cd"
           grep '\bavx512bw\b' /proc/cpuinfo 1> /dev/null && AVX512_flags+=" -mavx512bw"
           grep '\bavx512vl\b' /proc/cpuinfo 1> /dev/null && AVX512_flags+=" -mavx512vl"
-          config_flags="--enable-avx=${has_AVX} --enable-avx2=${has_AVX2} --enable-avx512=${has_AVX512}"
+          config_flags="--enable-avx-kernels=${has_AVX} --enable-avx2-kernels=${has_AVX2} --enable-avx512-kernels=${has_AVX512}"
         fi
       fi
       for TARGET in "cpu" "nvidia"; do
@@ -113,9 +113,10 @@ case "$with_elpa" in
           --disable-c-tests \
           --disable-cpp-tests \
           ${config_flags} \
-          --enable-nvidia-gpu=$([ "$TARGET" = "nvidia" ] && echo "yes" || echo "no") \
+          --enable-nvidia-gpu-kernels=$([ "$TARGET" = "nvidia" ] && echo "yes" || echo "no") \
           --with-cuda-path=${CUDA_PATH:-${CUDA_HOME:-/CUDA_HOME-notset}} \
           --with-NVIDIA-GPU-compute-capability=$([ "$TARGET" = "nvidia" ] && echo "sm_$ARCH_NUM" || echo "sm_35") \
+          --without-cusolver \
           CUDA_CFLAGS="-std=c++14 -allow-unsupported-compiler" \
           OMPI_MCA_plm_rsh_agent=/bin/false \
           FC=${MPIFC} \

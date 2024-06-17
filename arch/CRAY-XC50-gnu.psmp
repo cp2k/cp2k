@@ -337,9 +337,9 @@ endif
 
 CFLAGS         += $(DFLAGS)
 
-CXXFLAGS       := $(CFLAGS) -std=c++11
+CXXFLAGS       := $(CFLAGS)
 
-OFFLOAD_FLAGS  := $(DFLAGS) -O3 -Xcompiler="-fopenmp" -arch sm_60 --std=c++11
+OFFLOAD_FLAGS  := $(DFLAGS) -O3 -Xcompiler="-fopenmp" -arch sm_60
 
 FCFLAGS        := $(CFLAGS)
 ifeq ($(shell [ $(shell gcc -dumpversion | cut -d. -f1) -gt 9 ] && echo yes), yes)
