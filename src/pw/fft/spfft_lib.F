@@ -23,8 +23,9 @@ MODULE spfft_lib
       C_NULL_CHAR, &
       C_SIZE_T, C_F_POINTER
    USE spfft, ONLY: &
-      spfft_grid_create, spfft_grid_destroy, spfft_transform_create, SPFFT_PU_HOST, SPFFT_PU_GPU, SPFFT_SUCCESS, &
-      SPFFT_TRANS_C2C, SPFFT_INDEX_TRIPLETS, spfft_transform_destroy
+      spfft_transform_create_independent, SPFFT_PU_HOST, SPFFT_PU_GPU, SPFFT_SUCCESS, &
+      SPFFT_TRANS_C2C, SPFFT_INDEX_TRIPLETS, spfft_transform_destroy, SPFFT_NO_SCALING, spfft_transform_get_space_domain, &
+      spfft_transform_forward
    USE omp_lib, ONLY: omp_get_thread_num
 #endif
    USE cp_files, ONLY: get_unit_number
@@ -39,10 +40,10 @@ MODULE spfft_lib
    PRIVATE
 
 #if defined(__SPFFT) && defined(__parallel)
-   INTEGER(C_INT), PARAMETER :: spfft_processing_unit = SPFFT_PU_HOST + SPFFT_PU_GPU
+   INTEGER(C_INT), PARAMETER :: spfft_processing_unit = SPFFT_PU_HOST !+ SPFFT_PU_GPU
 #endif
 
-   PUBLIC :: spfft_create_plan_3d, spfft_create_plan_1dm, spfft_destroy_plan
+   PUBLIC :: spfft_create_plan_3d, spfft_destroy_plan, spfft_3d
 
 CONTAINS
 
@@ -55,22 +56,17 @@ CONTAINS
       TYPE(fft_plan_type), INTENT(INOUT)              :: plan
 #if defined ( __SPFFT ) && defined(__parallel)
       INTEGER :: number_of_threads, i, j, k
-      INTEGER(KIND=int_8) :: counter
       INTEGER(KIND=C_INT) :: errorcode
       INTEGER, DIMENSION(:, :, :, :), ALLOCATABLE :: indices
-      TYPE(C_PTR) :: grid
 
       number_of_threads = 1
+      !$OMP PARALLEL DEFAULT(NONE) SHARED(number_of_threads)
+      !$OMP MASTER
 !$    number_of_threads = omp_get_thread_num()
-      IF (number_of_threads > 1) &
-         CPABORT("SPFFT can currently not be called with more than one thread!")
-
-      errorcode = spfft_grid_create(grid, plan%n_3d(1), plan%n_3d(2), plan%n_3d(3), plan%n_3d(2)*plan%n_3d(3), &
-                                    spfft_processing_unit, number_of_threads)
-      IF (errorcode /= SPFFT_SUCCESS) CPABORT("Error in SPFFT!")
+!$OMP END MASTER
+!$OMP END PARALLEL
 
       ! Setup index map for SPFFT
-      counter = 1
       ALLOCATE (indices(3, plan%n_3d(1), plan%n_3d(2), plan%n_3d(3)))
       DO k = 1, plan%n_3d(3)
       DO j = 1, plan%n_3d(2)
@@ -82,14 +78,9 @@ CONTAINS
       END DO
       END DO
 
-      ! TODO:
-      ! Use ngpts instead of n (before SPFFT_INDEX_TRIPLETS)
-      errorcode = spfft_transform_create(plan%spfft_transform, grid, spfft_processing_unit, SPFFT_TRANS_C2C, &
-                                         plan%n_3d(1), plan%n_3d(2), plan%n_3d(3), plan%n_3d(3), &
-                                         plan%n, SPFFT_INDEX_TRIPLETS, indices)
-      IF (errorcode /= SPFFT_SUCCESS) CPABORT("Error in SPFFT!")
-
-      errorcode = spfft_grid_destroy(grid)
+      errorcode = spfft_transform_create_independent(plan%spfft_transform, number_of_threads, spfft_processing_unit, &
+                                                     SPFFT_TRANS_C2C, plan%n_3d(1), plan%n_3d(2), plan%n_3d(3), &
+                                                     PRODUCT(plan%n_3d), SPFFT_INDEX_TRIPLETS, indices)
       IF (errorcode /= SPFFT_SUCCESS) CPABORT("Error in SPFFT!")
 #else
       MARK_USED(plan)
@@ -101,18 +92,42 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief ...
 !> \param plan ...
+!> \param scale ...
+!> \param zin ...
+!> \param zout ...
+!> \param stat ...
 ! **************************************************************************************************
-   SUBROUTINE spfft_create_plan_1dm(plan)
+   SUBROUTINE spfft_3d(plan, scale, zin, zout, stat)
 
-      TYPE(fft_plan_type), INTENT(INOUT)              :: plan
+      TYPE(fft_plan_type), INTENT(IN)                      :: plan
+      REAL(KIND=dp), INTENT(IN)                            :: scale
+      COMPLEX(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT), CONTIGUOUS, TARGET :: zin
+      COMPLEX(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT), CONTIGUOUS, TARGET :: zout
+      INTEGER, INTENT(OUT)                                 :: stat
 #if defined (__SPFFT) && defined(__parallel)
-      MARK_USED(plan)
+      COMPLEX(KIND=C_DOUBLE_COMPLEX), DIMENSION(:, :, :), POINTER, CONTIGUOUS :: complex_ptr
+      INTEGER(KIND=C_INT) :: errorcode
+      TYPE(C_PTR) :: spfft_ptr
+
+      ! set space domain array to use memory allocted by the library
+      errorCode = spfft_transform_get_space_domain(plan%spfft_transform, SPFFT_PU_HOST, spfft_ptr)
+      IF (errorCode /= SPFFT_SUCCESS) CPABORT("FFT with SpFFT failed!")
+
+      CALL C_F_POINTER(spfft_ptr, complex_ptr, plan%n_3d)
+
+      errorCode = spfft_transform_forward(plan%spfft_transform, SPFFT_PU_HOST, zin, SPFFT_NO_SCALING)
+      IF (errorCode /= SPFFT_SUCCESS) CPABORT("FFT with SpFFT failed!")
+
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(zout, scale, complex_ptr)
+      zout = scale*CMPLX(complex_ptr, KIND=dp)
+!$OMP END PARALLEL WORKSHARE
 #else
       MARK_USED(plan)
       CPABORT("In order to use SPFFT, you have to install it!")
 #endif
+      stat = 0
 
-   END SUBROUTINE spfft_create_plan_1dm
+   END SUBROUTINE spfft_3d
 
 ! **************************************************************************************************
 !> \brief ...
