@@ -77,7 +77,7 @@ CONTAINS
             END DO
          END DO
          ! check all rotations needed
-         NULLIFY(orbrot)
+         NULLIFY (orbrot)
          CALL get_qs_env(qs_env, dft_control=dft_control)
          DO ik = 1, kpoints%nkp
             kpsym => kpoints%kp_sym(ik)%kpoint_sym
