@@ -132,6 +132,7 @@ MODULE qs_environment
    USE particle_types,                  ONLY: particle_type
    USE pw_env_types,                    ONLY: pw_env_type
    USE qmmm_types_low,                  ONLY: qmmm_env_qm_type
+   USE qs_basis_rotation_methods,       ONLY: qs_basis_rotation
    USE qs_dftb_parameters,              ONLY: qs_dftb_param_init
    USE qs_dftb_types,                   ONLY: qs_dftb_pairpot_type
    USE qs_dispersion_nonloc,            ONLY: qs_dispersion_nonloc_init
@@ -390,6 +391,10 @@ CONTAINS
          CALL kpoint_initialize_mos(kpoints, qs_env%mos)
          CALL get_qs_env(qs_env=qs_env, wf_history=wf_history)
          CALL wfi_create_for_kp(wf_history)
+      END IF
+      ! basis set symmetry rotations
+      IF (do_kpoints) THEN
+         CALL qs_basis_rotation(qs_env, kpoints)
       END IF
 
       do_hfx = .FALSE.

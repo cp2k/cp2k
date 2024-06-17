@@ -67,11 +67,11 @@ MODULE cryssym
       INTEGER, DIMENSION(:, :, :), ALLOCATABLE    :: rotations
       REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE :: translations
       !K290
-      REAL(KIND=dp), DIMENSION(3, 3, 48)          :: rt
-      REAL(KIND=dp), DIMENSION(3, 48)             :: vt
+      REAL(KIND=dp), DIMENSION(3, 3, 48)          :: rt = 0.0_dp
+      REAL(KIND=dp), DIMENSION(3, 48)             :: vt = 0.0_dp
       INTEGER, ALLOCATABLE, DIMENSION(:, :)       :: f0
-      INTEGER                                     :: nrtot
-      INTEGER, DIMENSION(48)                      :: ibrot
+      INTEGER                                     :: nrtot = 0
+      INTEGER, DIMENSION(48)                      :: ibrot = 1
    END TYPE csym_type
 
 CONTAINS
@@ -445,7 +445,9 @@ CONTAINS
       csym%vt = vt
       csym%nrtot = nc
       ALLOCATE (csym%f0(nat, nc))
-      csym%f0(1:nat, 1:nc) = f0(1:nat, 1:nc)
+      DO i = 1, nc
+         csym%f0(1:nat, i) = f0(i, 1:nat)
+      END DO
       csym%ibrot = 0
       csym%ibrot(1:nc) = ib(1:nc)
 
@@ -609,7 +611,7 @@ CONTAINS
    SUBROUTINE print_kp_symmetry(csym)
       TYPE(csym_type), INTENT(IN)                        :: csym
 
-      INTEGER                                            :: i, iunit, plevel
+      INTEGER                                            :: i, iunit, nat, plevel
 
       iunit = csym%punit
       IF (iunit >= 0) THEN
@@ -626,6 +628,13 @@ CONTAINS
             WRITE (iunit, '(T2,i10,3F10.5,T45,3I12)') i, csym%kpmesh(1:3, i), &
                csym%kplink(1:2, i), csym%kpop(i)
          END DO
+         IF (csym%nrtot > 0) THEN
+            WRITE (iunit, '(/,A)') "       Atom Transformation Table"
+            nat = SIZE(csym%f0, 1)
+            DO i = 1, csym%nrtot
+               WRITE (iunit, '(T10,A,I3,(T21,12I5))') " Rot=", csym%ibrot(i), csym%f0(1:nat, i)
+            END DO
+         END IF
       END IF
 
    END SUBROUTINE print_kp_symmetry
