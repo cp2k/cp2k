@@ -54,11 +54,6 @@ eip_silicon.F: Found WRITE statement with hardcoded unit in "eip_lenosky_silicon
 eip_silicon.F: Found WRITE statement with hardcoded unit in "subfeniat_b" https://cp2k.org/conv#c012
 eip_silicon.F: Found WRITE statement with hardcoded unit in "subfeniat_l" https://cp2k.org/conv#c012
 extended_system_init.F: Found WRITE statement with hardcoded unit in "init_barostat_variables" https://cp2k.org/conv#c012
-extended_system_types.F: Found type lnhc_parameters_type without initializer https://cp2k.org/conv#c016
-extended_system_types.F: Found type map_info_type without initializer https://cp2k.org/conv#c016
-extended_system_types.F: Found type nhc_info_type without initializer https://cp2k.org/conv#c016
-extended_system_types.F: Found type npt_info_type without initializer https://cp2k.org/conv#c016
-extended_system_types.F: Found type point_info_type without initializer https://cp2k.org/conv#c016
 farming_methods.F: Found CLOSE statement in procedure "farming_parse_input" https://cp2k.org/conv#c204
 farming_methods.F: Found OPEN statement in procedure "farming_parse_input" https://cp2k.org/conv#c203
 fftw3_lib.F: Same actual argument associated with INTENT(OUT) argument 'in' and INTENT(OUT) argument 'out' at (1)
