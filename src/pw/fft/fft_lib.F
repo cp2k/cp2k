@@ -164,10 +164,6 @@ CONTAINS
 
    END SUBROUTINE fft_create_plan_3d
 
-!
-! really ugly, plan is intent out, because plan%fsign is also a status flag
-! if something goes wrong, plan%fsign is set to zero, and the plan becomes invalid
-!
 ! **************************************************************************************************
 !> \brief ...
 !> \param plan ...
