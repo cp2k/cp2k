@@ -17,7 +17,9 @@ MODULE fft_lib
         fft_alloc => fftw_alloc, fft_dealloc => fftw_dealloc, fftw31dm, fftw33d, &
         fftw3_create_plan_1dm, fftw3_create_plan_3d, fftw3_destroy_plan, fftw3_do_cleanup, &
         fftw3_do_init, fftw3_get_lengths
-   USE spfft_lib,                       ONLY: spfft_3d,&
+   USE spfft_lib,                       ONLY: spfft1dm,&
+                                              spfft_3d,&
+                                              spfft_create_plan_1dm,&
                                               spfft_create_plan_3d,&
                                               spfft_destroy_plan
 #include "../../base/base_uses.f90"
@@ -231,9 +233,11 @@ CONTAINS
 !$    plan%need_alt_plan = .FALSE.
 
       ! Planning only needed for FFTW3
-      IF ((fft_type .EQ. 3 .OR. fft_type .EQ. 4) .AND. (n*m .NE. 0)) THEN
-         plan%fft_type = 3
+      IF (fft_type .EQ. 3 .AND. (n*m .NE. 0)) THEN
          CALL fftw3_create_plan_1dm(plan, zin, zout, plan_style)
+         plan%valid = .TRUE.
+      ELSE IF (fft_type .EQ. 4) THEN
+         CALL spfft_create_plan_1dm(plan)
          plan%valid = .TRUE.
       ELSE
          plan%valid = .FALSE.
@@ -272,7 +276,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE fft_1dm(plan, zin, zout, scale, stat)
       TYPE(fft_plan_type), INTENT(IN)                    :: plan
-      COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT)      :: zin, zout
+      COMPLEX(KIND=dp), DIMENSION(plan%n, plan%m), &
+         INTENT(INOUT), TARGET                           :: zin, zout
       REAL(KIND=dp), INTENT(IN)                          :: scale
       INTEGER, INTENT(OUT)                               :: stat
 
@@ -285,6 +290,8 @@ CONTAINS
             CALL fftsg1dm(stat, plan%trans, plan%n, plan%m, zin, zout, scale)
          CASE (3)
             CALL fftw31dm(plan, zin, zout, scale, stat)
+         CASE (4)
+            CALL spfft1dm(plan, zin, zout, scale, stat)
          END SELECT
       END IF
       ! stat is set to zero on error, -1,+1 are OK
