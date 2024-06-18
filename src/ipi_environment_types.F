@@ -74,7 +74,7 @@ MODULE ipi_environment_types
       TYPE(cp_subsys_type), POINTER                    :: subsys => Null()
       TYPE(section_vals_type), POINTER                 :: force_env_input => Null()
       TYPE(cell_type), POINTER                         :: cell_ref => Null()
-      INTEGER                                          :: sockfd
+      INTEGER                                          :: sockfd = -1
    END TYPE ipi_environment_type
 
 CONTAINS
