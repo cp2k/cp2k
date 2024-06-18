@@ -25,7 +25,7 @@ MODULE spfft_lib
    USE spfft, ONLY: &
       spfft_transform_create_independent, SPFFT_PU_HOST, SPFFT_PU_GPU, SPFFT_SUCCESS, &
       SPFFT_TRANS_C2C, SPFFT_INDEX_TRIPLETS, spfft_transform_destroy, SPFFT_NO_SCALING, spfft_transform_get_space_domain, &
-      spfft_transform_forward
+      spfft_transform_forward, spfft_multi_transform_forward_ptr
    USE omp_lib, ONLY: omp_get_thread_num
 #endif
    USE cp_files, ONLY: get_unit_number
@@ -43,7 +43,7 @@ MODULE spfft_lib
    INTEGER(C_INT), PARAMETER :: spfft_processing_unit = SPFFT_PU_HOST !+ SPFFT_PU_GPU
 #endif
 
-   PUBLIC :: spfft_create_plan_3d, spfft_destroy_plan, spfft_3d
+   PUBLIC :: spfft_create_plan_3d, spfft_destroy_plan, spfft_3d, spfft_create_plan_1dm, spfft1dm
 
 CONTAINS
 
@@ -92,6 +92,44 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief ...
 !> \param plan ...
+! **************************************************************************************************
+   SUBROUTINE spfft_create_plan_1dm(plan)
+
+      TYPE(fft_plan_type), INTENT(INOUT)              :: plan
+#if defined ( __SPFFT ) && defined(__parallel)
+      INTEGER :: number_of_threads, i
+      INTEGER(KIND=C_INT) :: errorcode
+      INTEGER, DIMENSION(:, :), ALLOCATABLE :: indices
+
+      number_of_threads = 1
+      !$OMP PARALLEL DEFAULT(NONE) SHARED(number_of_threads)
+      !$OMP MASTER
+!$    number_of_threads = omp_get_thread_num()
+!$OMP END MASTER
+!$OMP END PARALLEL
+
+      ! Setup index map for SPFFT
+      ! We map 1D FFTs to 3D FFTs
+      ALLOCATE (indices(3, plan%n))
+      DO i = 1, plan%n
+         indices(1, i) = i - 1
+         indices(2, i) = 0
+         indices(3, i) = 0
+      END DO
+
+      errorcode = spfft_transform_create_independent(plan%spfft_transform, number_of_threads, spfft_processing_unit, &
+                                                     SPFFT_TRANS_C2C, plan%n, 1, 1, plan%n, SPFFT_INDEX_TRIPLETS, indices)
+      IF (errorcode /= SPFFT_SUCCESS) CPABORT("Error in SPFFT!")
+#else
+      MARK_USED(plan)
+      CPABORT("In order to use SPFFT, you have to install it!")
+#endif
+
+   END SUBROUTINE spfft_create_plan_1dm
+
+! **************************************************************************************************
+!> \brief ...
+!> \param plan ...
 !> \param scale ...
 !> \param zin ...
 !> \param zout ...
@@ -128,6 +166,61 @@ CONTAINS
       stat = 0
 
    END SUBROUTINE spfft_3d
+
+! **************************************************************************************************
+!> \brief ...
+!> \param plan ...
+!> \param zin ...
+!> \param zout ...
+!> \param scale ...
+!> \param stat ...
+! **************************************************************************************************
+   SUBROUTINE spfft1dm(plan, zin, zout, scale, stat)
+
+      TYPE(fft_plan_type), INTENT(IN)                      :: plan
+      COMPLEX(KIND=dp), DIMENSION(plan%n, plan%m), INTENT(INOUT), TARGET :: zin, zout
+      REAL(KIND=dp), INTENT(IN)                            :: scale
+      INTEGER, INTENT(OUT)                                 :: stat
+#if defined (__SPFFT) && defined(__parallel)
+      COMPLEX(KIND=C_DOUBLE_COMPLEX), DIMENSION(:, :), POINTER, CONTIGUOUS :: complex_ptr
+      INTEGER :: i
+      INTEGER(KIND=C_INT) :: errorcode
+      INTEGER(KIND=C_INT), DIMENSION(:), ALLOCATABLE, TARGET :: scalingTypes
+      TYPE(C_PTR), DIMENSION(:), ALLOCATABLE :: inputLocations, outputLocations
+      TYPE(C_PTR) :: spfft_ptr
+
+      ! set space domain array to use memory allocted by the library
+      errorCode = spfft_transform_get_space_domain(plan%spfft_transform, SPFFT_PU_HOST, spfft_ptr)
+      IF (errorCode /= SPFFT_SUCCESS) CPABORT("FFT with SpFFT failed!")
+
+      CALL C_F_POINTER(spfft_ptr, complex_ptr, [plan%n, plan%m])
+
+      ALLOCATE (scalingTypes(plan%m))
+      scalingTypes = SPFFT_NO_SCALING
+
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(zin, complex_ptr)
+      complex_ptr = zin
+!$OMP END PARALLEL WORKSHARE
+
+      ALLOCATE (inputLocations(plan%m), outputLocations(plan%m))
+      DO i = 1, plan%m
+         inputLocations(i) = C_LOC(complex_ptr(1, i))
+         outputLocations(i) = C_LOC(zout(1, i))
+      END DO
+
+   errorCode = spfft_multi_transform_forward_ptr(plan%m, plan%spfft_transform, inputLocations, outputLocations, C_LOC(scalingTypes))
+      IF (errorCode /= SPFFT_SUCCESS) CPABORT("FFT with SpFFT failed!")
+
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(zout, scale, complex_ptr)
+      zout = scale*zout
+!$OMP END PARALLEL WORKSHARE
+#else
+      MARK_USED(plan)
+      CPABORT("In order to use SPFFT, you have to install it!")
+#endif
+      stat = 0
+
+   END SUBROUTINE spfft1dm
 
 ! **************************************************************************************************
 !> \brief ...
