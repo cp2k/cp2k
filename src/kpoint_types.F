@@ -92,7 +92,7 @@ MODULE kpoint_types
 !> \author JGH
 ! **************************************************************************************************
    TYPE kind_rotmat_type
-      REAL(KIND=dp), DIMENSION(:, :), POINTER           :: rmat
+      REAL(KIND=dp), DIMENSION(:, :), POINTER           :: rmat => NULL()
    END TYPE kind_rotmat_type
 
 ! **************************************************************************************************

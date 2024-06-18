@@ -169,13 +169,17 @@ CONTAINS
 
       INTEGER :: i, ib(48), ib0(48), ihc, ihc0, ihg, ihg0, indpg, indpg0, invadd, istrin, iswght, &
          isy, isy0, itype, j, k, l, li, li0, lmax, n, nc, nc0, ntot, ntvec0
-      INTEGER, DIMENSION(49, 1)                          :: f00 = 0
+      INTEGER, DIMENSION(49, 1)                          :: f00
       REAL(KIND=dp) :: a01(3), a02(3), a03(3), b01(3), b02(3), b03(3), b1(3), b2(3), b3(3), &
          dtotstr, origin(3), origin0(3), proj1, proj2, proj3, r(3, 3, 48), r0(3, 3, 48), totstr, &
          tvec0(3, 1), volum, vv0(3)
-      REAL(KIND=dp), DIMENSION(3, 1)                     :: x0 = 0._dp
-      REAL(KIND=dp), DIMENSION(3, 48)                    :: v = 0._dp, v0 = 0._dp
+      REAL(KIND=dp), DIMENSION(3, 1)                     :: x0
+      REAL(KIND=dp), DIMENSION(3, 48)                    :: v, v0
 
+      f00 = 0
+      x0 = 0._dp
+      v = 0._dp
+      v0 = 0._dp
 ! ==--------------------------------------------------------------==
 ! READ IN LATTICE STRUCTURE
 ! ==--------------------------------------------------------------==
@@ -202,11 +206,11 @@ CONTAINS
          itype = itype + 1
          IF (itype .GT. nsp) THEN
             IF (iout > 0) &
-               WRITE (6, '(A,I4,")")') &
+               WRITE (iout, '(A,I4,")")') &
                ' KPSYM| NUMBER OF ATOMIC TYPES EXCEEDS DIMENSION (NSP=)', &
                nsp
             IF (iout > 0) &
-               WRITE (6, '(" KPSYM| THE ARRAY TY IS:",/,9(1X,10I7,/))') &
+               WRITE (iout, '(" KPSYM| THE ARRAY TY IS:",/,9(1X,10I7,/))') &
                (ty(j), j=1, nat)
             CALL stopgm('K290', 'FATAL ERROR')
          END IF
@@ -403,7 +407,7 @@ CONTAINS
          IF (iout > 0) &
             WRITE (iout, '(" KPSYM| INVALID SWITCH FOR SYMMETRIZATION",I10)') istriz
          IF (iout > 0) &
-            WRITE (6, '(" KPSYM| INVALID SWITCH FOR SYMMETRIZATION",I10)') istriz
+            WRITE (iout, '(" KPSYM| INVALID SWITCH FOR SYMMETRIZATION",I10)') istriz
          CALL stopgm('K290', 'ISTRIZ WRONG ARGUMENT')
       END IF
       IF (iout > 0) &
@@ -429,11 +433,11 @@ CONTAINS
          ! We use only the rotations for Bravais lattices
          IF (ntvec .EQ. 1) THEN
             IF (iout > 0) &
-               WRITE (6, *) ' KPSYM| NUMBER OF ROTATIONS FOR BRAVAIS LATTICE', nc0
+               WRITE (iout, *) ' KPSYM| NUMBER OF ROTATIONS FOR BRAVAIS LATTICE', nc0
             IF (iout > 0) &
-               WRITE (6, *) ' KPSYM| NUMBER OF ROTATIONS FOR CRYSTAL LATTICE', nc
+               WRITE (iout, *) ' KPSYM| NUMBER OF ROTATIONS FOR CRYSTAL LATTICE', nc
             IF (iout > 0) &
-               WRITE (6, *) ' KPSYM| NO DUPLICATION FOUND'
+               WRITE (iout, *) ' KPSYM| NO DUPLICATION FOUND'
             CALL stopgm('ERROR', &
                         'SOMETHING IS WRONG IN GROUP DETERMINATION')
          END IF
@@ -836,7 +840,7 @@ CONTAINS
          f0(49, i) = i
       END DO
       DO k2 = 2, nat
-         IF (ty(1) .NE. ty(k2)) go to 100
+         IF (ty(1) .NE. ty(k2)) GOTO 100
          DO i = 1, 3
             xb(i) = x(i, k2) - x(i, 1)
          END DO
@@ -891,7 +895,7 @@ CONTAINS
                      END DO
                      ! Calculate new API
                      CALL calbrec(ap, api)
-                     GOTO 200
+                     GOTO 200  ! EXIT
                   END IF
                END IF
             END DO
@@ -1224,7 +1228,7 @@ CONTAINS
          ! F0(49,1:NAT) has only inequivalent atom indexes for translation
          DO k2 = 1, nat
             IF (f0(49, k2) .LT. k2) GOTO 185
-            IF (ty(1) .NE. ty(k2)) go to 185
+            IF (ty(1) .NE. ty(k2)) GOTO 185
             DO i = 1, 3
                xb(i) = rx(i, 1) - x(i, k2)
             END DO
@@ -1245,7 +1249,7 @@ CONTAINS
 185         CONTINUE
          END DO
          iis(l) = 0
-         go to 210
+         GOTO 210
 190      CONTINUE
          nca = nca + 1
          DO i = 1, 3
@@ -1267,7 +1271,7 @@ CONTAINS
       li = 0
       DO n = 1, nc
          l = ib(n)
-         IF (iis(l) .EQ. 0) go to 230
+         IF (iis(l) .EQ. 0) GOTO 230 ! CYCLE
          i = i + 1
          ib(i) = ib(n)
          IF (ib(i) .EQ. ni) li = i
@@ -1296,7 +1300,7 @@ CONTAINS
       IF (ihg .LT. 6) THEN
          IF (nc .EQ. 0) THEN
             IF (iout > 0) &
-               WRITE (6, '(" ATFTM1! IHG=",A," NC=",I2)') icst(ihg), nC
+               WRITE (iout, '(" ATFTM1! IHG=",A," NC=",I2)') icst(ihg), nC
             CALL stopgm('ATFTM1', 'NUMBER OF ROTATION NULL')
             ! Triclinic system
          ELSEIF (nc .EQ. 1) THEN
@@ -1439,7 +1443,7 @@ CONTAINS
       ELSEIF (ihg .GE. 6) THEN
          IF (nc .EQ. 0) THEN
             IF (iout > 0) &
-               WRITE (6, '(" ATFTM1! IHG=",A," NC=",I2)') icst(ihg), nC
+               WRITE (iout, '(" ATFTM1! IHG=",A," NC=",I2)') icst(ihg), nC
             CALL stopgm('ATFTM1', 'NUMBER OF ROTATION NULL')
             ! Triclinic system
          ELSEIF (nc .EQ. 1) THEN
@@ -2255,7 +2259,7 @@ CONTAINS
       INTEGER, PARAMETER                                 :: no = 0, nrsdir = 100
 
       INTEGER                                            :: i, i1, i2, i3, ibsign, igarb0, igarbage, &
-                                                            igarbg, ii, imesh, iop, iplace = -2, &
+                                                            igarbg, ii, imesh, iop, iplace, &
                                                             iremov, iwvk, j, jplace, k, n, nplane
       REAL(dp)                                           :: diff, proja(3), projb(3), &
                                                             rsdir(4, nrsdir), ur1, ur2, ur3, &
@@ -2640,7 +2644,7 @@ CONTAINS
          END DO
          ! List too long
          IF (iout > 0) &
-            WRITE (6, '(2A,/,A)') &
+            WRITE (iout, '(2A,/,A)') &
             ' SUBROUTINE MESH *** FATAL ERROR *** LINKED LIST', &
             ' TOO LONG ***', ' CHOOSE A BETTER HASH-FUNCTION'
          CALL stopgm('MESH', 'WARNING')
@@ -2655,9 +2659,9 @@ CONTAINS
             list(ihash) = istore
             IF (istore .GT. nmesh) THEN
                IF (iout > 0) &
-                  WRITE (6, '(A)') 'SUBROUTINE MESH *** FATAL ERROR ***'
+                  WRITE (iout, '(A)') 'SUBROUTINE MESH *** FATAL ERROR ***'
                IF (iout > 0) &
-                  WRITE (6, '(A,I10,A,/,A,3F10.5)') &
+                  WRITE (iout, '(A,I10,A,/,A,3F10.5)') &
                   ' ISTORE=', istore, ' EXCEEDS DIMENSIONS', &
                   ' WVK = ', wvk
                CALL stopgm('MESH', 'WARNING')
@@ -3030,7 +3034,6 @@ CONTAINS
                END DO
                ! 1/2*BVEC further confines the 1Bz - include into RSDIR
                nplane = nplane + 1
-               ! WRITE(6,*)NPLANE,' PLANE INCLUDED, I1,2,3 = ',I1,I2,I3
                CPASSERT(nplane <= nrsdir)
                DO i = 1, 3
                   rsdir(i, nplane) = bvec(i)
