@@ -2204,7 +2204,8 @@ CONTAINS
                END IF
             CASE ("UPF")
                ALLOCATE (qs_kind%upf_potential)
-               CALL atom_read_upf(qs_kind%upf_potential, potential_name, read_header=.TRUE.)
+               qs_kind%upf_potential%zion = 0
+               qs_kind%upf_potential%filename = ADJUSTL(TRIM(potential_name))
                CALL get_qs_kind(qs_kind, elec_conf=elec_conf)
                IF (.NOT. ASSOCIATED(elec_conf)) THEN
                   CALL set_qs_kind(qs_kind, elec_conf=qs_kind%upf_potential%econf)

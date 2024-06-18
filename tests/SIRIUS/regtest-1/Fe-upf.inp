@@ -1,0 +1,65 @@
+&GLOBAL
+  PRINT_LEVEL MEDIUM
+  PROJECT Fe
+&END GLOBAL
+
+&FORCE_EVAL
+  METHOD SIRIUS
+  &DFT
+    &XC
+      &XC_FUNCTIONAL
+        &LDA_C_PZ
+        &END LDA_C_PZ
+        &LDA_X
+        &END LDA_X
+      &END XC_FUNCTIONAL
+    &END XC
+  &END DFT
+  &PW_DFT
+    &CONTROL
+      CYCLIC_BLOCK_SIZE 16
+      GEN_EVP_SOLVER_NAME lapack
+      PROCESSING_UNIT cpu
+      REDUCE_GVEC true
+      STD_EVP_SOLVER_NAME lapack
+      VERBOSITY 1
+    &END CONTROL
+    &ITERATIVE_SOLVER
+      CONVERGE_BY_ENERGY 1
+      ENERGY_TOLERANCE 1e-2
+      NUM_STEPS 20
+      RESIDUAL_TOLERANCE 1e-6
+      SUBSPACE_SIZE 4
+      TYPE davidson
+    &END ITERATIVE_SOLVER
+    &MIXER
+      BETA 0.7
+      MAX_HISTORY 8
+      TYPE broyden2
+    &END MIXER
+    &PARAMETERS
+      ELECTRONIC_STRUCTURE_METHOD pseudopotential
+      ENERGY_TOL 1e-8
+      GK_CUTOFF 6.0
+      NGRIDK 2 2 2
+      NUM_DFT_ITER 100
+      NUM_MAG_DIMS 1
+      PW_CUTOFF 25.00
+      SMEARING_WIDTH 0.02
+      USE_SYMMETRY true
+    &END PARAMETERS
+  &END PW_DFT
+  &SUBSYS
+    &CELL
+      ABC [bohr] 5.5415878223 5.5415878223 5.5415878223
+    &END CELL
+    &COORD
+      SCALED
+      Fe 0.0  0.0  0.0
+      Fe 0.5  0.5  0.5
+    &END COORD
+    &KIND Fe
+      POTENTIAL UPF "Fe.pbe-spn-kjpaw_psl.0.2.1.UPF"
+    &END KIND
+  &END SUBSYS
+&END FORCE_EVAL
