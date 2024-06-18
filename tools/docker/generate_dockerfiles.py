@@ -513,7 +513,6 @@ FROM intel/hpckit:2024.1.1-devel-ubuntu22.04
         with_intelmpi="",
         with_mkl="",
         with_libtorch="no",
-        with_sirius="no",
     )
 
 
