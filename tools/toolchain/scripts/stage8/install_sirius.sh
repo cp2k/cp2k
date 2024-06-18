@@ -6,7 +6,7 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")/.." && pwd -P)"
 
-sirius_ver="7.5.2"
+sirius_ver="7.6.0"
 sirius_sha256="9ae01935578532c84f1d0d673dbbcdd490e26be22efa6c4acf7129f9dc1a0c60"
 
 source "${SCRIPT_DIR}"/common_vars.sh
@@ -71,6 +71,7 @@ case "$with_sirius" in
     require_env SPFFT_LDFLAGS
     require_env SPFFT_LIBS
     require_env SPLA_ROOT
+    require_env PUGIXML_ROOT
     require_env SPLA_CFLAGS
     require_env SPLA_LDFLAGS
     require_env SPLA_LIBS
@@ -151,7 +152,7 @@ case "$with_sirius" in
       SpFFT_DIR="${SpFFT_ROOT}/lib/cmake/SpFFT"
       SpLA_DIR="${SpLA_ROOT}/lib/cmake/SPLA"
       COSTA_DIR="${COSMA_ROOT}/lib/cmake/costa"
-      CMAKE_PREFIX_PATH="${CMAKE_PREFIX_PATH}:${GSL_ROOT}:${SPGLIB_ROOT}:${LIBXC_ROOT}:${SpFFT_DIR}:${SpLA_DIR}:${COSTA_DIR}" cmake \
+      CMAKE_PREFIX_PATH="${CMAKE_PREFIX_PATH}:${GSL_ROOT}:${SPGLIB_ROOT}:${LIBXC_ROOT}:${SpFFT_DIR}:${SpLA_DIR}:${COSTA_DIR}:${PUGIXML_ROOT}" cmake \
         -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}" \
         -DCMAKE_CXX_FLAGS_RELEASE="${SIRIUS_OPT}" \
         -DCMAKE_CXX_FLAGS_RELWITHDEBINFO="${SIRIUS_DBG}" \
@@ -160,6 +161,7 @@ case "$with_sirius" in
         -DCMAKE_Fortran_COMPILER="${MPIFC}" \
         -DCMAKE_VERBOSE_MAKEFILE=ON \
         -DBUILD_SHARED_LIBS=OFF \
+        -DSIRIUS_USE_PUGIXML=ON \
         -DSIRIUS_USE_MEMORY_POOL=OFF \
         -DSIRIUS_USE_ELPA=OFF \
         ${EXTRA_CMAKE_FLAGS} .. \
@@ -190,6 +192,7 @@ case "$with_sirius" in
           -DGPU_MODEL=P100 \
           -DSIRIUS_USE_MEMORY_POOL=OFF \
           -DBUILD_SHARED_LIBS=OFF \
+          -DSIRIUS_USE_PUGIXML=ON \
           -DCMAKE_CXX_COMPILER="${MPICXX}" \
           -DCMAKE_C_COMPILER="${MPICC}" \
           -DCMAKE_Fortran_COMPILER="${MPIFC}" \
@@ -243,6 +246,7 @@ case "$with_sirius" in
     require_env SPFFT_LDFLAGS
     require_env SPFFT_LIBS
     require_env SPLA_ROOT
+    require_env PUGIXML_ROOT
     require_env SPLA_CFLAGS
     require_env SPLA_LDFLAGS
     require_env SPLA_LIBS
