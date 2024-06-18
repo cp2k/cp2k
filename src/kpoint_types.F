@@ -53,6 +53,7 @@ MODULE kpoint_types
    PUBLIC :: read_kpoint_section, write_kpoint_info
    PUBLIC :: kpoint_env_type, kpoint_env_p_type
    PUBLIC :: kpoint_env_create, get_kpoint_env
+   PUBLIC :: kind_rotmat_type
    PUBLIC :: kpoint_sym_type
    PUBLIC :: kpoint_sym_create
 
@@ -86,6 +87,15 @@ MODULE kpoint_types
    END TYPE kpoint_env_p_type
 
 ! **************************************************************************************************
+!> \brief Rotation matrices for basis sets
+!> \param rmat      atom basis function rotation matrix
+!> \author JGH
+! **************************************************************************************************
+   TYPE kind_rotmat_type
+      REAL(KIND=dp), DIMENSION(:, :), POINTER           :: rmat
+   END TYPE kind_rotmat_type
+
+! **************************************************************************************************
 !> \brief Keeps symmetry information about a specific k-point
 !> \param apply_symmetry ...
 !> \param nwght     kpoint multiplicity
@@ -97,8 +107,10 @@ MODULE kpoint_types
    TYPE kpoint_sym_type
       LOGICAL                                           :: apply_symmetry = .FALSE.
       INTEGER                                           :: nwght = -1
+      INTEGER                                           :: nwred = -1
       REAL(KIND=dp), DIMENSION(:, :), POINTER           :: xkp => NULL()
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER        :: rot => NULL()
+      INTEGER, DIMENSION(:), POINTER                    :: rotp => NULL()
       INTEGER, DIMENSION(:, :), POINTER                 :: f0 => NULL()
    END TYPE kpoint_sym_type
 
@@ -168,8 +180,13 @@ MODULE kpoint_types
          POINTER                              :: kp_env => Null()
       TYPE(kpoint_env_p_type), DIMENSION(:), &
          POINTER                              :: kp_aux_env => Null()
+      ! symmetry
       TYPE(kpoint_sym_p_type), DIMENSION(:), &
          POINTER                              :: kp_sym => Null()
+      INTEGER, DIMENSION(:), POINTER          :: atype => Null()
+      TYPE(kind_rotmat_type), DIMENSION(:, :), &
+         POINTER                              :: kind_rotmat => Null()
+      ! pools
       TYPE(qs_matrix_pools_type), POINTER     :: mpools => Null()
       TYPE(qs_diis_buffer_type_kp), POINTER   :: scf_diis_buffer => Null()
       TYPE(qs_matrix_pools_type), POINTER     :: mpools_aux_fit => Null()
@@ -233,7 +250,7 @@ CONTAINS
    SUBROUTINE kpoint_release(kpoint)
       TYPE(kpoint_type), POINTER                         :: kpoint
 
-      INTEGER                                            :: ik
+      INTEGER                                            :: i, ik, j
 
       IF (ASSOCIATED(kpoint)) THEN
 
@@ -279,6 +296,19 @@ CONTAINS
                CALL kpoint_sym_release(kpoint%kp_sym(ik)%kpoint_sym)
             END DO
             DEALLOCATE (kpoint%kp_sym)
+         END IF
+
+         IF (ASSOCIATED(kpoint%atype)) DEALLOCATE (kpoint%atype)
+
+         IF (ASSOCIATED(kpoint%kind_rotmat)) THEN
+            DO i = 1, SIZE(kpoint%kind_rotmat, 1)
+               DO j = 1, SIZE(kpoint%kind_rotmat, 2)
+                  IF (ASSOCIATED(kpoint%kind_rotmat(i, j)%rmat)) THEN
+                     DEALLOCATE (kpoint%kind_rotmat(i, j)%rmat)
+                  END IF
+               END DO
+            END DO
+            DEALLOCATE (kpoint%kind_rotmat)
          END IF
 
          IF (ASSOCIATED(kpoint%scf_diis_buffer)) THEN
@@ -773,10 +803,12 @@ CONTAINS
       ALLOCATE (kp_sym)
 
       kp_sym%nwght = 0
+      kp_sym%nwred = 0
       kp_sym%apply_symmetry = .FALSE.
 
       NULLIFY (kp_sym%rot)
       NULLIFY (kp_sym%xkp)
+      NULLIFY (kp_sym%rotp)
       NULLIFY (kp_sym%f0)
 
    END SUBROUTINE kpoint_sym_create
@@ -799,6 +831,9 @@ CONTAINS
          END IF
          IF (ASSOCIATED(kp_sym%f0)) THEN
             DEALLOCATE (kp_sym%f0)
+         END IF
+         IF (ASSOCIATED(kp_sym%rotp)) THEN
+            DEALLOCATE (kp_sym%rotp)
          END IF
 
          DEALLOCATE (kp_sym)

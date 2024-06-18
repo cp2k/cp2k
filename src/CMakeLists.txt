@@ -304,6 +304,7 @@ list(
   kpoint_methods.F
   kpoint_transitional.F
   kpoint_types.F
+  kpsym.F
   libgrpp_integrals.F
   libint_2c_3c.F
   libint_wrapper.F
@@ -492,6 +493,7 @@ list(
   qs_atomic_block.F
   qs_band_structure.F
   qs_basis_gradient.F
+  qs_basis_rotation_methods.F
   qs_block_davidson_types.F
   qs_cdft_methods.F
   qs_cdft_opt_types.F
