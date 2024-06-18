@@ -445,7 +445,7 @@ CONTAINS
       END DO
 
       DEALLOCATE (hab, work, verf, vnuc, ff)
-      IF (calculate_forces) THEN
+      IF (calculate_forces .OR. doat) THEN
          DEALLOCATE (pab)
       END IF
 
@@ -465,7 +465,7 @@ CONTAINS
 
       DEALLOCATE (basis_set_list)
 
-      IF (calculate_forces) THEN
+      IF (calculate_forces .OR. doat) THEN
          ! *** If LSD, then recover alpha density and beta density     ***
          ! *** from the total density (1) and the spin density (2)     ***
          IF (SIZE(matrix_p, 1) == 2) THEN
@@ -591,6 +591,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Integrals = -Z*erfc(a*r)/r
 !> \param matrix_h ...
+!> \param matrix_p ...
 !> \param qs_kind_set ...
 !> \param atomic_kind_set ...
 !> \param particle_set ...
@@ -599,11 +600,13 @@ CONTAINS
 !> \param eps_core_charge ...
 !> \param sab_orb ...
 !> \param sac_ae ...
+!> \param atcore ...
 ! **************************************************************************************************
-   SUBROUTINE build_erfc(matrix_h, qs_kind_set, atomic_kind_set, particle_set, &
-                         calpha, ccore, eps_core_charge, sab_orb, sac_ae)
+   SUBROUTINE build_erfc(matrix_h, matrix_p, qs_kind_set, atomic_kind_set, particle_set, &
+                         calpha, ccore, eps_core_charge, sab_orb, sac_ae, atcore)
 
       TYPE(dbcsr_p_type)                                 :: matrix_h
+      TYPE(dbcsr_p_type), DIMENSION(:)                   :: matrix_p
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
@@ -611,6 +614,8 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: eps_core_charge
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_orb, sac_ae
+      REAL(KIND=dp), DIMENSION(:), INTENT(INOUT), &
+         OPTIONAL                                        :: atcore
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'build_erfc'
 
@@ -621,9 +626,10 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, lb_max, lb_min, npgfa, &
                                                             npgfb, nsgfa, nsgfb
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa, first_sgfb
-      LOGICAL                                            :: dokp, found
-      REAL(KIND=dp)                                      :: alpha_c, core_charge, core_radius, dab, &
-                                                            dac, dbc, f0, rab2, rac2, rbc2, zeta_c
+      LOGICAL                                            :: doat, found
+      REAL(KIND=dp)                                      :: alpha_c, atk0, atk1, core_charge, &
+                                                            core_radius, dab, dac, dbc, f0, rab2, &
+                                                            rac2, rbc2, zeta_c
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: ff
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: habd, work
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: hab, pab, verf, vnuc
@@ -631,11 +637,12 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), POINTER               :: set_radius_a, set_radius_b
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: h_block, p_block, rpgfa, rpgfb, sphi_a, &
                                                             sphi_b, zeta, zetb
-      TYPE(all_potential_type), POINTER                  :: all_potential
-      TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: basis_set_list
-      TYPE(gto_basis_set_type), POINTER                  :: basis_set_a, basis_set_b
       TYPE(neighbor_list_iterator_p_type), &
          DIMENSION(:), POINTER                           :: ap_iterator
+      TYPE(gto_basis_set_type), POINTER                  :: basis_set_a, basis_set_b
+      TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: basis_set_list
+      TYPE(all_potential_type), POINTER                  :: all_potential
+      REAL(KIND=dp), DIMENSION(SIZE(particle_set))       :: at_thread
       TYPE(sgp_potential_type), POINTER                  :: sgp_potential
 
 !$    INTEGER(kind=omp_lock_kind), &
@@ -650,6 +657,19 @@ CONTAINS
 
       nkind = SIZE(atomic_kind_set)
       natom = SIZE(particle_set)
+
+      doat = PRESENT(atcore)
+
+      IF (doat) THEN
+         IF (SIZE(matrix_p, 1) == 2) THEN
+            CALL dbcsr_add(matrix_p(1)%matrix, matrix_p(2)%matrix, &
+                           alpha_scalar=1.0_dp, beta_scalar=1.0_dp)
+            CALL dbcsr_add(matrix_p(2)%matrix, matrix_p(1)%matrix, &
+                           alpha_scalar=-2.0_dp, beta_scalar=1.0_dp)
+         END IF
+      END IF
+
+      at_thread = 0.0_dp
 
       ALLOCATE (basis_set_list(nkind))
       DO ikind = 1, nkind
@@ -676,9 +696,9 @@ CONTAINS
 !$OMP PARALLEL &
 !$OMP DEFAULT (NONE) &
 !$OMP SHARED  (ap_iterator, basis_set_list, &
-!$OMP          matrix_h, atomic_kind_set, qs_kind_set, particle_set, &
+!$OMP          matrix_h, matrix_p, atomic_kind_set, qs_kind_set, particle_set, &
 !$OMP          sab_orb, sac_ae, nthread, ncoset, nkind, calpha, ccore, eps_core_charge, &
-!$OMP          slot, ldsab,  maxnset, ldai, maxl, maxco, dokp, locks, natom) &
+!$OMP          slot, ldsab,  maxnset, ldai, maxl, maxco, doat, locks, natom) &
 !$OMP PRIVATE (ikind, jkind, iatom, jatom, rab, basis_set_a, basis_set_b, &
 !$OMP          first_sgfa, la_max, la_min, npgfa, nsgfa, sphi_a, &
 !$OMP          zeta, first_sgfb, lb_max, lb_min, npgfb, nsetb, rpgfb, set_radius_b, sphi_b, &
@@ -686,8 +706,9 @@ CONTAINS
 !$OMP          sgfa, jset, ncob, sgfb, nsgfb, p_block, work, pab, hab, kkind, nseta, &
 !$OMP          rac, dac, rbc, rab2, rac2, rbc2, dbc, na_plus, nb_plus, verf, vnuc, &
 !$OMP          set_radius_a,  core_radius, rpgfa, mepos, &
-!$OMP          habd, f0, katom, cellind, img, nij, ff, &
-!$OMP          sgp_potential, all_potential, hash, hash1, hash2, iatom8)
+!$OMP          atk0, atk1, habd, f0, katom, cellind, img, nij, ff, &
+!$OMP          sgp_potential, all_potential, hash, hash1, hash2, iatom8) &
+!$OMP REDUCTION (+ : at_thread )
 
 !$OMP SINGLE
 !$    ALLOCATE (locks(nlock))
@@ -704,6 +725,9 @@ CONTAINS
 
       ALLOCATE (hab(ldsab, ldsab, maxnset*maxnset), work(ldsab, ldsab))
       ALLOCATE (verf(ldai, ldai, 2*maxl + 1), vnuc(ldai, ldai, 2*maxl + 1), ff(0:2*maxl))
+      IF (doat) THEN
+         ALLOCATE (pab(maxco, maxco, maxnset*maxnset))
+      END IF
 
 !$OMP DO SCHEDULE(GUIDED)
       DO slot = 1, sab_orb(1)%nl_size
@@ -765,6 +789,32 @@ CONTAINS
          NULLIFY (h_block)
          CALL dbcsr_get_block_p(matrix=matrix_h%matrix, &
                                 row=irow, col=icol, BLOCK=h_block, found=found)
+         IF (doat) THEN
+            NULLIFY (p_block)
+            CALL dbcsr_get_block_p(matrix=matrix_p(1)%matrix, &
+                                   row=irow, col=icol, BLOCK=p_block, found=found)
+            CPASSERT(ASSOCIATED(p_block))
+            ! *** Decontract density matrix block ***
+            DO iset = 1, nseta
+               ncoa = npgfa(iset)*ncoset(la_max(iset))
+               sgfa = first_sgfa(1, iset)
+               DO jset = 1, nsetb
+                  ncob = npgfb(jset)*ncoset(lb_max(jset))
+                  sgfb = first_sgfb(1, jset)
+                  nij = jset + (iset - 1)*maxnset
+                  ! *** Decontract density matrix block ***
+                  IF (iatom <= jatom) THEN
+                     work(1:ncoa, 1:nsgfb(jset)) = MATMUL(sphi_a(1:ncoa, sgfa:sgfa + nsgfa(iset) - 1), &
+                                                          p_block(sgfa:sgfa + nsgfa(iset) - 1, sgfb:sgfb + nsgfb(jset) - 1))
+                  ELSE
+                     work(1:ncoa, 1:nsgfb(jset)) = MATMUL(sphi_a(1:ncoa, sgfa:sgfa + nsgfa(iset) - 1), &
+                                                       TRANSPOSE(p_block(sgfb:sgfb + nsgfb(jset) - 1, sgfa:sgfa + nsgfa(iset) - 1)))
+                  END IF
+                  pab(1:ncoa, 1:ncob, nij) = MATMUL(work(1:ncoa, 1:nsgfb(jset)), &
+                                                    TRANSPOSE(sphi_b(1:ncob, sgfb:sgfb + nsgfb(jset) - 1)))
+               END DO
+            END DO
+         END IF
 
          ! loop over all kinds of atoms
          hab = 0._dp
@@ -801,12 +851,20 @@ CONTAINS
                      rac2 = dac*dac
                      rbc2 = dbc*dbc
                      nij = jset + (iset - 1)*maxnset
+                     IF (doat) THEN
+                        atk0 = f0*SUM(hab(1:ncoa, 1:ncob, nij)*pab(1:ncoa, 1:ncob, nij))
+                     END IF
                      !
                      CALL verfc( &
                         la_max(iset), npgfa(iset), zeta(:, iset), rpgfa(:, iset), la_min(iset), &
                         lb_max(jset), npgfb(jset), zetb(:, jset), rpgfb(:, jset), lb_min(jset), &
                         alpha_c, core_radius, zeta_c, core_charge, &
                         rab, rab2, rac, rac2, rbc2, hab(:, :, nij), verf, vnuc, ff(0:))
+                     !
+                     IF (doat) THEN
+                        atk1 = f0*SUM(hab(1:ncoa, 1:ncob, nij)*pab(1:ncoa, 1:ncob, nij))
+                        at_thread(katom) = at_thread(katom) + (atk1 - atk0)
+                     END IF
                   END DO
                END DO
             END DO
@@ -856,6 +914,21 @@ CONTAINS
       CALL neighbor_list_iterator_release(ap_iterator)
 
       DEALLOCATE (basis_set_list)
+
+      IF (doat) THEN
+         ! *** If LSD, then recover alpha density and beta density     ***
+         ! *** from the total density (1) and the spin density (2)     ***
+         IF (SIZE(matrix_p, 1) == 2) THEN
+            CALL dbcsr_add(matrix_p(1)%matrix, matrix_p(2)%matrix, &
+                           alpha_scalar=0.5_dp, beta_scalar=0.5_dp)
+            CALL dbcsr_add(matrix_p(2)%matrix, matrix_p(1)%matrix, &
+                           alpha_scalar=-1.0_dp, beta_scalar=1.0_dp)
+         END IF
+      END IF
+
+      IF (doat) THEN
+         atcore(1:natom) = atcore(1:natom) + at_thread(1:natom)
+      END IF
 
       CALL timestop(handle)
 

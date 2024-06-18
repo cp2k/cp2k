@@ -688,7 +688,7 @@ CONTAINS
       END DO ! slot
 
       DEALLOCATE (hab, work, ppl_work)
-      IF (calculate_forces) THEN
+      IF (calculate_forces .OR. doat) THEN
          DEALLOCATE (pab, ppl_fwork)
       END IF
 
