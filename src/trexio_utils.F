@@ -825,11 +825,11 @@ CONTAINS
          rc = trexio_close(f)
          CALL trexio_error(rc)
       END IF
-#endif
-
+#else
       MARK_USED(qs_env)
       MARK_USED(trexio_section)
       CPWARN('TREXIO support has not been enabled in this build.')
+#endif
       CALL timestop(handle)
 
    END SUBROUTINE write_trexio
