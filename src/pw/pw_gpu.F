@@ -291,10 +291,6 @@ CONTAINS
          fft_scratch_size%nmray = MAXVAL(nyzray)
          fft_scratch_size%nyzray = nyzray(g_pos)
          fft_scratch_size%rs_group = rs_group
-         fft_scratch_size%g_pos = g_pos
-         fft_scratch_size%r_pos = r_pos
-         fft_scratch_size%r_dim = r_dim
-         fft_scratch_size%numtask = numtask
 
          IF (r_dim(2) > 1) THEN
             !
@@ -453,10 +449,6 @@ CONTAINS
          fft_scratch_size%nmray = MAXVAL(nyzray)
          fft_scratch_size%nyzray = nyzray(g_pos)
          fft_scratch_size%rs_group = rs_group
-         fft_scratch_size%g_pos = g_pos
-         fft_scratch_size%r_pos = r_pos
-         fft_scratch_size%r_dim = r_dim
-         fft_scratch_size%numtask = numtask
 
          IF (r_dim(2) > 1) THEN
             !
