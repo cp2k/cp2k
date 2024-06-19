@@ -69,8 +69,6 @@ MODULE fft_tools
       INTEGER                              :: nbx = 0, nbz = 0
       INTEGER                              :: nmray = 0, nyzray = 0
       TYPE(mp_cart_type)                   :: rs_group = mp_cart_type()
-      INTEGER, DIMENSION(2)                :: g_pos = 0, r_pos = 0, r_dim = 0
-      INTEGER                              :: numtask = 0
    END TYPE fft_scratch_sizes
 
    TYPE fft_scratch_type
@@ -602,10 +600,6 @@ CONTAINS
       fft_scratch_size%nmray = MAXVAL(nyzray)
       fft_scratch_size%nyzray = nyzray(g_pos)
       fft_scratch_size%rs_group = rs_group
-      fft_scratch_size%g_pos = g_pos
-      fft_scratch_size%r_pos = r_pos
-      fft_scratch_size%r_dim = r_dim
-      fft_scratch_size%numtask = numtask
 
       IF (test) THEN
          IF (g_pos == 0 .AND. output_unit > 0) THEN
@@ -1048,8 +1042,6 @@ CONTAINS
       fft_scratch_size%mcz2 = mcz2
       fft_scratch_size%mcy3 = mcy3
       fft_scratch_size%rs_group = group
-      fft_scratch_size%g_pos = my_pos
-      fft_scratch_size%numtask = DIM(1)*DIM(2)
 
       IF (DIM(1) > 1 .AND. DIM(2) > 1) THEN
 
@@ -1756,8 +1748,8 @@ CONTAINS
          END IF
       END IF
 
-      myx = fft_scratch%sizes%r_pos(1)
-      myz = fft_scratch%sizes%r_pos(2)
+      myx = fft_scratch%sizes%rs_group%mepos_cart(1)
+      myz = fft_scratch%sizes%rs_group%mepos_cart(2)
       nz = bo(2, 3, rs_pos) - bo(1, 3, rs_pos) + 1
 
 !$OMP PARALLEL DO DEFAULT(NONE), &
@@ -1915,8 +1907,8 @@ CONTAINS
       END IF
 
 ! Now do the actual packing
-      myx = fft_scratch%sizes%r_pos(1)
-      myz = fft_scratch%sizes%r_pos(2)
+      myx = fft_scratch%sizes%rs_group%mepos_cart(1)
+      myz = fft_scratch%sizes%rs_group%mepos_cart(2)
       mp = p2p(my_pos)
       nz = bo(2, 3, mp) - bo(1, 3, mp) + 1
       nx = bo(2, 1, mp) - bo(1, 1, mp) + 1
@@ -2412,7 +2404,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      np = fft_scratch%sizes%numtask
+      np = fft_scratch%sizes%rs_group%num_pe
       mip = fft_scratch%mip
       scount => fft_scratch%scount
       rcount => fft_scratch%rcount
@@ -2506,7 +2498,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      np = fft_scratch%sizes%numtask
+      np = fft_scratch%sizes%rs_group%num_pe
       mip = fft_scratch%mip
       scount => fft_scratch%scount
       rcount => fft_scratch%rcount
@@ -2939,7 +2931,7 @@ CONTAINS
 
             IF (tf_type .NE. 400) THEN
                fft_scratch_new%fft_scratch%sizes = fft_sizes
-               np = fft_sizes%numtask
+               np = fft_sizes%rs_group%num_pe
                ALLOCATE (fft_scratch_new%fft_scratch%scount(0:np - 1), fft_scratch_new%fft_scratch%rcount(0:np - 1), &
                          fft_scratch_new%fft_scratch%sdispl(0:np - 1), fft_scratch_new%fft_scratch%rdispl(0:np - 1), &
                          fft_scratch_new%fft_scratch%pgcube(0:np - 1, 2))
@@ -3055,7 +3047,7 @@ CONTAINS
                mmax = fft_sizes%mmax
                lg = fft_sizes%lg
                mg = fft_sizes%mg
-               np = fft_sizes%numtask
+               np = fft_sizes%rs_group%num_pe
                nmray = fft_sizes%nmray
                nyzray = fft_sizes%nyzray
 #if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_PW)
@@ -3107,8 +3099,8 @@ CONTAINS
                nmax = fft_sizes%nmax
                nmray = fft_sizes%nmray
                nyzray = fft_sizes%nyzray
-               m1 = fft_sizes%r_dim(1)
-               m2 = fft_sizes%r_dim(2)
+               m1 = fft_sizes%rs_group%num_pe_cart(1)
+               m2 = fft_sizes%rs_group%num_pe_cart(2)
                nbx = fft_sizes%nbx
                nbz = fft_sizes%nbz
                CALL fft_alloc(fft_scratch_new%fft_scratch%p1buf, [mx1*my1, n(3)])
@@ -3372,12 +3364,6 @@ CONTAINS
       equal = equal .AND. fft_size_1%nyzray == fft_size_2%nyzray
 
       equal = equal .AND. fft_size_1%rs_group == fft_size_2%rs_group
-
-      equal = equal .AND. ALL(fft_size_1%g_pos == fft_size_2%g_pos)
-      equal = equal .AND. ALL(fft_size_1%r_pos == fft_size_2%r_pos)
-      equal = equal .AND. ALL(fft_size_1%r_dim == fft_size_2%r_dim)
-
-      equal = equal .AND. fft_size_1%numtask == fft_size_2%numtask
 
    END SUBROUTINE is_equal
 

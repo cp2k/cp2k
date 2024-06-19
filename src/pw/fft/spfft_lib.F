@@ -161,6 +161,9 @@ CONTAINS
 !$OMP END PARALLEL WORKSHARE
 #else
       MARK_USED(plan)
+      MARK_USED(zin)
+      MARK_USED(zout)
+      MARK_USED(scale)
       CPABORT("In order to use SPFFT, you have to install it!")
 #endif
       stat = 0
@@ -216,6 +219,9 @@ CONTAINS
 !$OMP END PARALLEL WORKSHARE
 #else
       MARK_USED(plan)
+      MARK_USED(zin)
+      MARK_USED(zout)
+      MARK_USED(scale)
       CPABORT("In order to use SPFFT, you have to install it!")
 #endif
       stat = 0
