@@ -1330,13 +1330,6 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="realspace", &
-                          description="If both rho and rho_gspace are needed ", &
-                          usage="realspace", default_l_val=.FALSE., &
-                          lone_keyword_l_val=.TRUE.)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
       CALL keyword_create(keyword, __LOCATION__, name="REL_CUTOFF", &
                           variants=(/"RELATIVE_CUTOFF"/), &
                           description="Determines the grid at which a Gaussian is mapped,"// &

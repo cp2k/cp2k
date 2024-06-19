@@ -150,8 +150,6 @@ MODULE qs_tddfpt2_subgroups
    TYPE mgrid_saved_parameters
       !> create commensurate grids
       LOGICAL                                     :: commensurate_mgrids = .FALSE.
-      !> create real-space grids
-      LOGICAL                                     :: realspace_mgrids = .FALSE.
       !> do not perform load balancing
       LOGICAL                                     :: skip_load_balance = .FALSE.
       !> cutoff value at the finest grid level
@@ -508,7 +506,6 @@ CONTAINS
 
       ! ++ save global plane-wave grid parameters to the variable 'mgrid_saved'
       mgrid_saved%commensurate_mgrids = qs_control%commensurate_mgrids
-      mgrid_saved%realspace_mgrids = qs_control%realspace_mgrids
       mgrid_saved%skip_load_balance = qs_control%skip_load_balance_distributed
       mgrid_saved%cutoff = qs_control%cutoff
       mgrid_saved%progression_factor = qs_control%progression_factor
@@ -517,7 +514,6 @@ CONTAINS
 
       ! ++ set parameters from 'tddfpt_control' as default ones for all newly allocated plane-wave grids
       qs_control%commensurate_mgrids = tddfpt_control%mgrid_commensurate_mgrids
-      qs_control%realspace_mgrids = tddfpt_control%mgrid_realspace_mgrids
       qs_control%skip_load_balance_distributed = tddfpt_control%mgrid_skip_load_balance
       qs_control%cutoff = tddfpt_control%mgrid_cutoff
       qs_control%progression_factor = tddfpt_control%mgrid_progression_factor
@@ -573,7 +569,6 @@ CONTAINS
          DEALLOCATE (qs_control%e_cutoff)
 
       qs_control%commensurate_mgrids = mgrid_saved%commensurate_mgrids
-      qs_control%realspace_mgrids = mgrid_saved%realspace_mgrids
       qs_control%skip_load_balance_distributed = mgrid_saved%skip_load_balance
       qs_control%cutoff = mgrid_saved%cutoff
       qs_control%progression_factor = mgrid_saved%progression_factor
