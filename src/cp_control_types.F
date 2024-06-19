@@ -339,7 +339,6 @@ MODULE cp_control_types
       LOGICAL                              :: do_ls_scf = .FALSE.
       LOGICAL                              :: do_kg = .FALSE.
       LOGICAL                              :: commensurate_mgrids = .FALSE.
-      LOGICAL                              :: realspace_mgrids = .FALSE.
       LOGICAL                              :: gapw = .FALSE., gapw_xc = .FALSE., gpw = .FALSE., pao = .FALSE.
       LOGICAL                              :: lrigpw = .FALSE., rigpw = .FALSE.
       LOGICAL                              :: lri_optbas = .FALSE.
@@ -535,8 +534,6 @@ MODULE cp_control_types
       !> are not initialised when it is equal to .FALSE. as in this case the default
       !> set of plain-wave grids will be used
       LOGICAL                              :: mgrid_is_explicit = .FALSE.
-      !> same as qs_control%realspace_mgrids
-      LOGICAL                              :: mgrid_realspace_mgrids = .FALSE.
       !> do not perform load balancing
       LOGICAL                              :: mgrid_skip_load_balance = .FALSE.
       !> cutoff value at the finest grid level

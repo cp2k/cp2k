@@ -644,7 +644,6 @@ CONTAINS
       CALL section_vals_val_get(mgrid_section, "CUTOFF", r_val=cutoff)
       CALL section_vals_val_get(mgrid_section, "PROGRESSION_FACTOR", r_val=qs_control%progression_factor)
       CALL section_vals_val_get(mgrid_section, "COMMENSURATE", l_val=qs_control%commensurate_mgrids)
-      CALL section_vals_val_get(mgrid_section, "REALSPACE", l_val=qs_control%realspace_mgrids)
       CALL section_vals_val_get(mgrid_section, "REL_CUTOFF", r_val=qs_control%relative_cutoff)
       CALL section_vals_val_get(mgrid_section, "SKIP_LOAD_BALANCE_DISTRIBUTED", &
                                 l_val=qs_control%skip_load_balance_distributed)
@@ -1490,9 +1489,6 @@ CONTAINS
          ELSE
             NULLIFY (t_control%mgrid_e_cutoff)
          END IF
-
-         CALL section_vals_val_get(mgrid_section, "REALSPACE", l_val=t_control%mgrid_realspace_mgrids, explicit=explicit)
-         IF (.NOT. explicit) t_control%mgrid_realspace_mgrids = qs_control%realspace_mgrids
 
          CALL section_vals_val_get(mgrid_section, "SKIP_LOAD_BALANCE_DISTRIBUTED", &
                                    l_val=t_control%mgrid_skip_load_balance, explicit=explicit)
