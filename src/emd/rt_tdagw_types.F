@@ -811,7 +811,9 @@ CONTAINS
          CALL copy_fm_to_dbcsr(bs_env%fm_W_MIC_freq_zero, tdagw_env%w_dbcsr%matrix)
       ELSE
          ! Assume only Hartree available - this is added latero
-         CALL dbcsr_set(tdagw_env%w_dbcsr%matrix, 0.0_dp)
+         ! DEBUG : Try w_dbcsr instead - should have just a small effect
+         ! CALL dbcsr_set(tdagw_env%w_dbcsr%matrix, 0.0_dp)
+         CALL copy_fm_to_dbcsr(bs_env%fm_W_MIC_freq_zero, tdagw_env%w_dbcsr%matrix)
       END IF
       CALL dbt_create(tdagw_env%w_dbcsr%matrix, tdagw_env%screened_dbt)
       CALL dbt_copy_matrix_to_tensor(tdagw_env%w_dbcsr%matrix, tdagw_env%screened_dbt)

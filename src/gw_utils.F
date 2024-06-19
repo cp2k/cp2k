@@ -35,6 +35,7 @@ MODULE gw_utils
                                               dbcsr_release,&
                                               dbcsr_set,&
                                               dbcsr_type,&
+                                              dbcsr_type_symmetric,&
                                               dbcsr_type_no_symmetry
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               copy_fm_to_dbcsr,&
@@ -1630,6 +1631,8 @@ CONTAINS
       xc_section => section_vals_get_subs_vals(input, "DFT%XC")
       CALL section_vals_val_get(xc_section, "XC_FUNCTIONAL%_SECTION_PARAMETERS_", i_val=myfun)
       CALL section_vals_val_set(xc_section, "XC_FUNCTIONAL%_SECTION_PARAMETERS_", i_val=xc_none)
+      CALL section_vals_val_get(xc_section, "HF%FRACTION", r_val=myfraction)
+      CALL section_vals_val_set(xc_section, "HF%FRACTION", r_val=0.0_dp)
 
       ! save the energy before the energy gets updated
       energy_total = energy%total
@@ -1692,7 +1695,10 @@ CONTAINS
       dft_control%nimages = nimages
 
       ! set the DFT functional and HF fraction back
-      CALL section_vals_val_set(xc_section, "XC_FUNCTIONAL%_SECTION_PARAMETERS_", i_val=myfun)
+      CALL section_vals_val_set(xc_section, "XC_FUNCTIONAL%_SECTION_PARAMETERS_", &
+                                i_val=myfun)
+      CALL section_vals_val_set(xc_section, "HF%FRACTION", &
+                                r_val=myfraction)
 
       IF (bs_env%small_cell_full_kp_or_large_cell_Gamma == small_cell_full_kp) THEN
          ! calculate KS-matrix again with XC

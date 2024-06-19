@@ -215,7 +215,7 @@ CONTAINS
          ! Calculate Coulomb RI elements, necessary for Hartree calculation
          CALL init_hartree(qs_env, tdagw_env%hartree_dbt, tdagw_env%v_dbcsr%matrix)
          ! Add the Hartree to the screened_dbt tensor - now W = V + W^c
-         CALL dbcsr_add(tdagw_env%w_dbcsr%matrix, tdagw_env%v_dbcsr%matrix, 0.0_dp, 1.0_dp)
+         CALL dbcsr_add(tdagw_env%w_dbcsr%matrix, tdagw_env%v_dbcsr%matrix, 1.0_dp, 1.0_dp)
          CALL dbt_copy_matrix_to_tensor(tdagw_env%w_dbcsr%matrix, tdagw_env%screened_dbt)
          @:SPIN_DO(j, re, im, tdagw_env%n_spin)
             CALL get_hartree_local(qs_env, tdagw_env, tdagw_env%rho(re)%matrix, tdagw_env%hartree_orig(re)%matrix)
