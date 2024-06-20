@@ -157,6 +157,7 @@ CONTAINS
          iunit = get_unit_number()
          OPEN (UNIT=iunit, FILE=wisdom_file, STATUS="UNKNOWN", FORM="FORMATTED", ACTION="WRITE", IOSTAT=istat)
          IF (istat == 0) THEN
+            CLOSE (iunit)
             file_name_length = LEN_TRIM(wisdom_file)
             ALLOCATE (wisdom_file_name_c(file_name_length + 1))
             DO i = 1, file_name_length
@@ -167,7 +168,6 @@ CONTAINS
             isuccess = fftw_export_wisdom_to_filename(wisdom_file_name_c)
             IF (isuccess == 0) &
                CPABORT("Error exporting wisdom to file "//wisdom_file)
-            CLOSE (iunit)
          END IF
       END IF
 
@@ -222,23 +222,17 @@ CONTAINS
       ! all nodes are opening the file here...
       INQUIRE (FILE=wisdom_file, exist=exist)
       IF (exist) THEN
-         iunit = get_unit_number()
-         OPEN (UNIT=iunit, FILE=wisdom_file, STATUS="OLD", FORM="FORMATTED", POSITION="REWIND", &
-               ACTION="READ", IOSTAT=istat)
-         IF (istat == 0) THEN
-            file_name_length = LEN_TRIM(wisdom_file)
-            ALLOCATE (wisdom_file_name_c(file_name_length + 1))
-            DO i = 1, file_name_length
-               wisdom_file_name_c(i) = wisdom_file(i:i)
-            END DO
-            wisdom_file_name_c(file_name_length + 1) = C_NULL_CHAR
-            WRITE (*, *) wisdom_file_name_c
-            isuccess = fftw_import_wisdom_from_filename(wisdom_file_name_c)
-            IF (isuccess == 0) &
-               CPABORT("Error importing wisdom from file "//wisdom_file)
-            ! write(*,*) "FFTW3 import wisdom from file ....",MERGE((/"OK    "/),(/"NOT OK"/),(/isuccess==1/))
-            CLOSE (iunit)
-         END IF
+         file_name_length = LEN_TRIM(wisdom_file)
+         ALLOCATE (wisdom_file_name_c(file_name_length + 1))
+         DO i = 1, file_name_length
+            wisdom_file_name_c(i) = wisdom_file(i:i)
+         END DO
+         wisdom_file_name_c(file_name_length + 1) = C_NULL_CHAR
+         WRITE (*, *) wisdom_file_name_c
+         isuccess = fftw_import_wisdom_from_filename(wisdom_file_name_c)
+         IF (isuccess == 0) &
+            CPABORT("Error importing wisdom from file "//wisdom_file)
+         ! write(*,*) "FFTW3 import wisdom from file ....",MERGE((/"OK    "/),(/"NOT OK"/),(/isuccess==1/))
       END IF
 
 #if defined (__MKL)
