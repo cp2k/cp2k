@@ -5,7 +5,6 @@
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
 MODULE fftw3_lib
-
    USE ISO_C_BINDING, ONLY: C_ASSOCIATED, &
                             C_CHAR, &
                             C_DOUBLE, &
@@ -148,7 +147,7 @@ CONTAINS
       LOGICAL                                  :: ionode
 
 #if defined ( __FFTW3 )
-      CHARACTER(C_CHAR), DIMENSION(:), ALLOCATABLE :: wisdom_file_name_c
+      CHARACTER(LEN=:, KIND=C_CHAR), ALLOCATABLE :: wisdom_file_name_c
       INTEGER                                  :: iunit, istat, file_name_length, i
       INTEGER(KIND=C_INT)                      :: isuccess
       ! Write out FFTW3 wisdom to file (if we can)
@@ -157,17 +156,16 @@ CONTAINS
          iunit = get_unit_number()
          OPEN (UNIT=iunit, FILE=wisdom_file, STATUS="UNKNOWN", FORM="FORMATTED", ACTION="WRITE", IOSTAT=istat)
          IF (istat == 0) THEN
-            CLOSE (iunit)
             file_name_length = LEN_TRIM(wisdom_file)
-            ALLOCATE (wisdom_file_name_c(file_name_length + 1))
+            ALLOCATE (CHARACTER(LEN=file_name_length + 1, KIND=C_CHAR) :: wisdom_file_name_c)
             DO i = 1, file_name_length
-               wisdom_file_name_c(i) = wisdom_file(i:i)
+               wisdom_file_name_c(i:i) = wisdom_file(i:i)
             END DO
-            wisdom_file_name_c(file_name_length + 1) = C_NULL_CHAR
-            WRITE (*, *) wisdom_file_name_c
+            wisdom_file_name_c(file_name_length + 1:file_name_length + 1) = C_NULL_CHAR
             isuccess = fftw_export_wisdom_to_filename(wisdom_file_name_c)
             IF (isuccess == 0) &
                CPABORT("Error exporting wisdom to file "//wisdom_file)
+            CLOSE (iunit)
          END IF
       END IF
 
@@ -188,8 +186,8 @@ CONTAINS
       CHARACTER(LEN=*), INTENT(IN)             :: wisdom_file
 
 #if defined ( __FFTW3 )
-      CHARACTER(C_CHAR), DIMENSION(:), ALLOCATABLE :: wisdom_file_name_c
-      INTEGER                                  :: istat, iunit, file_name_length, i
+      CHARACTER(LEN=:, KIND=C_CHAR), ALLOCATABLE :: wisdom_file_name_c
+      INTEGER                                  :: file_name_length, i
       INTEGER(KIND=C_INT) :: isuccess
       LOGICAL                                  :: exist
 
@@ -223,16 +221,14 @@ CONTAINS
       INQUIRE (FILE=wisdom_file, exist=exist)
       IF (exist) THEN
          file_name_length = LEN_TRIM(wisdom_file)
-         ALLOCATE (wisdom_file_name_c(file_name_length + 1))
+         ALLOCATE (CHARACTER(LEN=file_name_length + 1, KIND=C_CHAR) :: wisdom_file_name_c)
          DO i = 1, file_name_length
-            wisdom_file_name_c(i) = wisdom_file(i:i)
+            wisdom_file_name_c(i:i) = wisdom_file(i:i)
          END DO
-         wisdom_file_name_c(file_name_length + 1) = C_NULL_CHAR
-         WRITE (*, *) wisdom_file_name_c
+         wisdom_file_name_c(file_name_length + 1:file_name_length + 1) = C_NULL_CHAR
          isuccess = fftw_import_wisdom_from_filename(wisdom_file_name_c)
          IF (isuccess == 0) &
             CPABORT("Error importing wisdom from file "//wisdom_file)
-         ! write(*,*) "FFTW3 import wisdom from file ....",MERGE((/"OK    "/),(/"NOT OK"/),(/isuccess==1/))
       END IF
 
 #if defined (__MKL)
