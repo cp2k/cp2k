@@ -350,6 +350,13 @@ CONTAINS
             CALL cite_reference(Caldeweyher2017)
             CALL cite_reference(Caldeweyher2019)
             CALL cite_reference(Caldeweyher2020)
+            DO ikind = 1, nkind
+               CALL get_atomic_kind(atomic_kind_set(ikind), element_symbol=symbol, z=elem)
+               ALLOCATE (disp)
+               disp%type = dftd4_pp
+               disp%defined = .TRUE.
+               CALL set_qs_kind(qs_kind_set(ikind), dispersion=disp)
+            END DO
          END SELECT
       END SELECT
 
@@ -1380,18 +1387,17 @@ CONTAINS
          CALL get_atomic_kind_set(atomic_kind_set, atom_of_kind=atom_of_kind, kind_of=kind_of)
       END IF
 
+      evdw = 0._dp
       IF (dispersion_env%pp_type == vdw_pairpot_dftd4) THEN
 #if defined(__DFTD4)
          IF (calculate_forces .OR. debugall) THEN
-            CALL calculate_dispersion_d4_pairpot(dispersion_env, particle_set, energy, force=force, atom_of_kind=atom_of_kind)
+            CALL calculate_dispersion_d4_pairpot(dispersion_env, particle_set, evdw, force=force, atom_of_kind=atom_of_kind)
          ELSE
-            CALL calculate_dispersion_d4_pairpot(dispersion_env, particle_set, energy)
+            CALL calculate_dispersion_d4_pairpot(dispersion_env, particle_set, evdw)
          END IF
 #else
          CPABORT("Build without DFTD4")
 #endif
-         CALL timestop(handle)
-         RETURN
       END IF
 
       ALLOCATE (dodisp(nkind), ghost(nkind), floating(nkind), atomnumber(nkind), c6d2(nkind), radd2(nkind))
@@ -1581,7 +1587,6 @@ CONTAINS
          END IF
       END IF
 
-      evdw = 0._dp
       sab_vdw => dispersion_env%sab_vdw
       nkind = SIZE(atomic_kind_set)
 
@@ -2034,23 +2039,22 @@ CONTAINS
                END IF
             ELSE IF (disp_a%type == dftd4_pp .AND. dr > 0.001_dp) THEN
 #if defined(__DFTD4)
-               IF (calculate_forces .OR. debugall) THEN
-                  CALL calculate_dispersion_force_d4(dispersion_env, ikind, jkind, rij, fdij)
+               IF (use_virial .OR. atstress) THEN
+                  CALL calculate_dispersion_force_d4(dispersion_env, ikind, jkind, rij,  devdw, fdij)
                   atom_a = atom_of_kind(iatom)
                   atom_b = atom_of_kind(jatom)
-                  !force(ikind)%dispersion(:, atom_a) = force(ikind)%dispersion(:, atom_a) - fdij(:)
-                  !force(jkind)%dispersion(:, atom_b) = force(jkind)%dispersion(:, atom_b) + fdij(:)
                   IF (use_virial) THEN
                      CALL virial_pair_force(pv_virial_thread, -1._dp, fdij, rij)
                   END IF
                   IF (atstress) THEN
                      CALL virial_pair_force(atstr(:, :, iatom), -0.5_dp, fdij, rij)
                      CALL virial_pair_force(atstr(:, :, jatom), -0.5_dp, fdij, rij)
-                  END IF
+                  END IF   
                END IF
 #else
                CPABORT("Build without DFTD4")
 #endif
+               domol = .FALSE.
             END IF
          END IF
       END DO
@@ -3738,7 +3742,6 @@ CONTAINS
             DO iatom = 1, natom
                ikind = el_num(iatom)
                ind_atom = atom_of_kind(iatom)
-               WRITE (*, *) ikind, ind_atom, iatom
                force(ikind)%dispersion(:, ind_atom) = force(ikind)%dispersion(:, ind_atom) + gradient(:, iatom)
             END DO
             DEALLOCATE (gradient)
@@ -3763,7 +3766,7 @@ CONTAINS
 !> \param rij ...
 !> \param force ...
 ! **************************************************************************************************
-   SUBROUTINE calculate_dispersion_force_d4(dispersion_env, ikind, jkind, rij, force)
+   SUBROUTINE calculate_dispersion_force_d4(dispersion_env, ikind, jkind, rij, energy, force)
 
       USE dftd4, ONLY: structure_type, d4_model, damping_param, &
                        realspace_cutoff, new, new_d4_model, &
@@ -3771,6 +3774,7 @@ CONTAINS
       TYPE(qs_dispersion_type), INTENT(IN), POINTER      :: dispersion_env
       INTEGER, INTENT(IN)                                :: ikind, jkind
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: rij
+      REAL(KIND=dp), INTENT(OUT)                         :: energy
       REAL(KIND=dp), DIMENSION(3), INTENT(OUT)           :: force
 
       TYPE(d4_model)                                     :: disp
@@ -3779,7 +3783,6 @@ CONTAINS
       class(damping_param), ALLOCATABLE                  :: param
       TYPE(realspace_cutoff)                             :: cutoff
 
-      REAL(KIND=dp)                                      :: energy
       REAL(KIND=dp), DIMENSION(3, 2)                     :: gradient, xyz
       REAL(KIND=dp), DIMENSION(3, 3)                     :: sigma
       INTEGER, DIMENSION(2)                              :: el_num
