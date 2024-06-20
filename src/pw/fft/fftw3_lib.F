@@ -148,7 +148,8 @@ CONTAINS
       LOGICAL                                  :: ionode
 
 #if defined ( __FFTW3 )
-      INTEGER                                  :: iunit, istat
+      CHARACTER(C_CHAR), DIMENSION(:), ALLOCATABLE :: wisdom_file_name_c
+      INTEGER                                  :: iunit, istat, file_name_length, i
       INTEGER(KIND=C_INT)                      :: isuccess
       ! Write out FFTW3 wisdom to file (if we can)
       ! only the ionode updates the wisdom
@@ -156,7 +157,14 @@ CONTAINS
          iunit = get_unit_number()
          OPEN (UNIT=iunit, FILE=wisdom_file, STATUS="UNKNOWN", FORM="FORMATTED", ACTION="WRITE", IOSTAT=istat)
          IF (istat == 0) THEN
-            isuccess = fftw_export_wisdom_to_filename(wisdom_file//C_NULL_CHAR)
+            file_name_length = LEN_TRIM(wisdom_file)
+            ALLOCATE (wisdom_file_name_c(file_name_length + 1))
+            DO i = 1, file_name_length
+               wisdom_file_name_c(i) = wisdom_file(i:i)
+            END DO
+            wisdom_file_name_c(file_name_length + 1) = C_NULL_CHAR
+            WRITE (*, *) wisdom_file_name_c
+            isuccess = fftw_export_wisdom_to_filename(wisdom_file_name_c)
             IF (isuccess == 0) &
                CPABORT("Error exporting wisdom to file "//wisdom_file)
             CLOSE (iunit)
@@ -180,7 +188,8 @@ CONTAINS
       CHARACTER(LEN=*), INTENT(IN)             :: wisdom_file
 
 #if defined ( __FFTW3 )
-      INTEGER                                  :: istat, iunit
+      CHARACTER(C_CHAR), DIMENSION(:), ALLOCATABLE :: wisdom_file_name_c
+      INTEGER                                  :: istat, iunit, file_name_length, i
       INTEGER(KIND=C_INT) :: isuccess
       LOGICAL                                  :: exist
 
@@ -217,7 +226,14 @@ CONTAINS
          OPEN (UNIT=iunit, FILE=wisdom_file, STATUS="OLD", FORM="FORMATTED", POSITION="REWIND", &
                ACTION="READ", IOSTAT=istat)
          IF (istat == 0) THEN
-            isuccess = fftw_import_wisdom_from_filename(wisdom_file//C_NULL_CHAR)
+            file_name_length = LEN_TRIM(wisdom_file)
+            ALLOCATE (wisdom_file_name_c(file_name_length + 1))
+            DO i = 1, file_name_length
+               wisdom_file_name_c(i) = wisdom_file(i:i)
+            END DO
+            wisdom_file_name_c(file_name_length + 1) = C_NULL_CHAR
+            WRITE (*, *) wisdom_file_name_c
+            isuccess = fftw_import_wisdom_from_filename(wisdom_file_name_c)
             IF (isuccess == 0) &
                CPABORT("Error importing wisdom from file "//wisdom_file)
             ! write(*,*) "FFTW3 import wisdom from file ....",MERGE((/"OK    "/),(/"NOT OK"/),(/isuccess==1/))
