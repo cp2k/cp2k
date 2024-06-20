@@ -1391,9 +1391,10 @@ CONTAINS
       IF (dispersion_env%pp_type == vdw_pairpot_dftd4) THEN
 #if defined(__DFTD4)
          IF (calculate_forces .OR. debugall) THEN
-            CALL calculate_dispersion_d4_pairpot(dispersion_env, particle_set, evdw, force=force, atom_of_kind=atom_of_kind)
+            CALL calculate_dispersion_d4_pairpot(dispersion_env, particle_set, cell, evdw, &
+                 force=force, atom_of_kind=atom_of_kind)
          ELSE
-            CALL calculate_dispersion_d4_pairpot(dispersion_env, particle_set, evdw)
+            CALL calculate_dispersion_d4_pairpot(dispersion_env, particle_set, cell, evdw)
          END IF
 #else
          CPABORT("Build without DFTD4")
@@ -3684,11 +3685,12 @@ CONTAINS
 !> \param force ...
 !> \param atom_of_kind ...
 ! **************************************************************************************************
-   SUBROUTINE calculate_dispersion_d4_pairpot(dispersion_env, particle_set, energy, force, atom_of_kind)
+   SUBROUTINE calculate_dispersion_d4_pairpot(dispersion_env, particle_set, cell, energy, force, atom_of_kind)
 
       USE dftd4, ONLY: structure_type, d4_model, damping_param, &
                        realspace_cutoff, new, new_d4_model, &
                        get_rational_damping, get_dispersion
+
       TYPE(d4_model)                                     :: disp
       TYPE(structure_type)                               :: mol
 
@@ -3697,6 +3699,7 @@ CONTAINS
 
       TYPE(qs_dispersion_type), POINTER, INTENT(IN)                       :: dispersion_env
       TYPE(particle_type), DIMENSION(:), POINTER, INTENT(IN)              :: particle_set
+      TYPE(cell_type), POINTER, INTENT(IN)                                :: cell
       REAL(KIND=dp), INTENT(OUT)                                          :: energy
       TYPE(qs_force_type), DIMENSION(:), OPTIONAL, POINTER, INTENT(INOUT) :: force
       INTEGER, DIMENSION(:), OPTIONAL, INTENT(IN)                         :: atom_of_kind
@@ -3708,7 +3711,9 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: gradient, xyz
       REAL(KIND=dp), DIMENSION(3, 3)                     :: stress
       INTEGER                                            :: handle, ikind
-
+      !REAL(KIND=dp), DIMENSION(3, 3)                    :: h
+      INTEGER, DIMENSION(3)                              :: periodic
+      LOGICAL, DIMENSION(3)                              :: lperiod
       CALL timeset(routineN, handle)
 
       !get information about particles
@@ -3721,8 +3726,14 @@ CONTAINS
          el_num(iatom) = ikind
       END DO
 
+      !get information about cell / lattice
+      CALL get_cell(cell=cell, periodic=periodic)
+      lperiod(1)=periodic(1)==1
+      lperiod(2)=periodic(2)==1
+      lperiod(3)=periodic(3)==1
+
       !prepare for the call to the dispersion function
-      CALL new(mol, el_num, xyz)
+      CALL new(mol, el_num, xyz, lattice=cell%hmat, periodic=lperiod)
       CALL new_d4_model(disp, mol)
       CALL get_rational_damping(dispersion_env%ref_functional, param, s9=dispersion_env%s9)
 
