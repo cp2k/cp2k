@@ -3724,7 +3724,7 @@ CONTAINS
       !prepare for the call to the dispersion function
       CALL new(mol, el_num, xyz)
       CALL new_d4_model(disp, mol)
-      CALL get_rational_damping(dispersion_env%ref_functional, param)
+      CALL get_rational_damping(dispersion_env%ref_functional, param, s9=dispersion_env%s9)
 
       ! Coordination number cutoff
       cutoff%cn = dispersion_env%rc_cn
@@ -3796,7 +3796,7 @@ CONTAINS
       !prepare for the call to the dispersion function
       CALL new(mol, el_num, xyz)
       CALL new_d4_model(disp, mol)
-      CALL get_rational_damping(dispersion_env%ref_functional, param)
+      CALL get_rational_damping(dispersion_env%ref_functional, param, s9=dispersion_env%s9)
 
       ! Coordination number cutoff
       cutoff%cn = dispersion_env%rc_cn

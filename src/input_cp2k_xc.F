@@ -1039,7 +1039,7 @@ CONTAINS
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="FACTOR_S9_TERM", &
                           description="S9 prefactor of the many-body term in the DFT-D4 method.", &
-                          usage="FACTOR_S9_TERM 1.e-0_dp", default_r_val=1.e-0_dp)
+                          usage="FACTOR_S9_TERM 1.e-0", default_r_val=1.00_dp)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="LONG_RANGE_CORRECTION", &
