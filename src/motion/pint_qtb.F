@@ -18,8 +18,8 @@ MODULE pint_qtb
                                               cp_logger_type
    USE cp_output_handling,              ONLY: debug_print_level,&
                                               silent_print_level
-   USE fft_lib,                         ONLY: fft_1dm,&
-                                              fft_create_plan_1dm,&
+   USE fft_lib,                         ONLY: fft_1d,&
+                                              fft_create_plan_1d,&
                                               fft_destroy_plan
    USE fft_plan,                        ONLY: fft_plan_type
    USE fft_tools,                       ONLY: FWFFT,&
@@ -962,8 +962,8 @@ CONTAINS
 
       INTEGER                                            :: stat
 
-      CALL fft_create_plan_1dm(plan, fft_type, FWFFT, .FALSE., n, 1, z_in, z_out, fft_plan_style)
-      CALL fft_1dm(plan, z_in, z_out, 1.d0, stat)
+      CALL fft_create_plan_1d(plan, fft_type, FWFFT, .FALSE., n, 1, z_in, z_out, fft_plan_style)
+      CALL fft_1d(plan, z_in, z_out, 1.d0, stat)
       CALL fft_destroy_plan(plan)
    END SUBROUTINE pint_qtb_fft
 
