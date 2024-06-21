@@ -14,7 +14,7 @@ MODULE fftsg_lib
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'fftsg_lib'
 
-   PUBLIC :: fftsg_do_init, fftsg_do_cleanup, fftsg_get_lengths, fftsg3d, fftsg1dm
+   PUBLIC :: fftsg_do_init, fftsg_do_cleanup, fftsg_get_lengths, fftsg_3d, fftsg_1d
 
 CONTAINS
 
@@ -75,7 +75,7 @@ CONTAINS
 !> \param zin ...
 !> \param zout ...
 ! **************************************************************************************************
-   SUBROUTINE fftsg3d(fft_in_place, fsign, scale, n, zin, zout)
+   SUBROUTINE fftsg_3d(fft_in_place, fsign, scale, n, zin, zout)
 
       LOGICAL, INTENT(IN)                                :: fft_in_place
       INTEGER, INTENT(INOUT)                             :: fsign
@@ -120,7 +120,7 @@ CONTAINS
 
       END IF
 
-   END SUBROUTINE fftsg3d
+   END SUBROUTINE fftsg_3d
 
 ! **************************************************************************************************
 !> \brief ...
@@ -132,7 +132,7 @@ CONTAINS
 !> \param zout ...
 !> \param scale ...
 ! **************************************************************************************************
-   SUBROUTINE fftsg1dm(fsign, trans, n, m, zin, zout, scale)
+   SUBROUTINE fftsg_1d(fsign, trans, n, m, zin, zout, scale)
 
       INTEGER, INTENT(INOUT)                             :: fsign
       LOGICAL, INTENT(IN)                                :: trans
@@ -153,7 +153,7 @@ CONTAINS
          CALL mltfftsg("N", "N", zin, n, m, zout, n, m, n, m, fsign, scale)
       END IF
 
-   END SUBROUTINE fftsg1dm
+   END SUBROUTINE fftsg_1d
 
 END MODULE
 

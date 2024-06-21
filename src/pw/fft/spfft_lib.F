@@ -43,7 +43,7 @@ MODULE spfft_lib
    INTEGER(C_INT), PARAMETER :: spfft_processing_unit = SPFFT_PU_HOST !+ SPFFT_PU_GPU
 #endif
 
-   PUBLIC :: spfft_create_plan_3d, spfft_destroy_plan, spfft_3d, spfft_create_plan_1dm, spfft1dm
+   PUBLIC :: spfft_create_plan_3d, spfft_destroy_plan, spfft_3d, spfft_create_plan_1d, spfft_1d
 
 CONTAINS
 
@@ -93,7 +93,7 @@ CONTAINS
 !> \brief ...
 !> \param plan ...
 ! **************************************************************************************************
-   SUBROUTINE spfft_create_plan_1dm(plan)
+   SUBROUTINE spfft_create_plan_1d(plan)
 
       TYPE(fft_plan_type), INTENT(INOUT)              :: plan
 #if defined ( __SPFFT ) && defined(__parallel)
@@ -125,7 +125,7 @@ CONTAINS
       CPABORT("In order to use SPFFT, you have to install it!")
 #endif
 
-   END SUBROUTINE spfft_create_plan_1dm
+   END SUBROUTINE spfft_create_plan_1d
 
 ! **************************************************************************************************
 !> \brief ...
@@ -178,7 +178,7 @@ CONTAINS
 !> \param scale ...
 !> \param stat ...
 ! **************************************************************************************************
-   SUBROUTINE spfft1dm(plan, zin, zout, scale, stat)
+   SUBROUTINE spfft_1d(plan, zin, zout, scale, stat)
 
       TYPE(fft_plan_type), INTENT(IN)                      :: plan
       COMPLEX(KIND=dp), DIMENSION(plan%n, plan%m), INTENT(INOUT), TARGET :: zin, zout
@@ -226,7 +226,7 @@ CONTAINS
 #endif
       stat = 0
 
-   END SUBROUTINE spfft1dm
+   END SUBROUTINE spfft_1d
 
 ! **************************************************************************************************
 !> \brief ...

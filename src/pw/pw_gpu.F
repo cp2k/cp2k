@@ -316,7 +316,7 @@ CONTAINS
 
             ! FFT along y
             ! use the inbuild fft-lib
-            ! CALL fft_1dm(fft_scratch%fft_plan(2), rbuf, pbuf, 1.0_dp, stat)
+            ! CALL fft_1d(fft_scratch%fft_plan(2), rbuf, pbuf, 1.0_dp, stat)
             ! or cufft (works faster, but is only faster if plans are stored)
             CALL pw_gpu_f(rbuf, pbuf, +1, n(2), mx2*mz2)
 
@@ -476,7 +476,7 @@ CONTAINS
 
             ! FFT along y
             ! use the inbuild fft-lib
-            ! CALL fft_1dm(fft_scratch%fft_plan(5), qbuf, rbuf, 1.0_dp, stat)
+            ! CALL fft_1d(fft_scratch%fft_plan(5), qbuf, rbuf, 1.0_dp, stat)
             ! or cufft (works faster, but is only faster if plans are stored)
             CALL pw_gpu_f(qbuf, rbuf, -1, n(2), mx2*mz2)
 

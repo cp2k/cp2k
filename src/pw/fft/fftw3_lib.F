@@ -33,7 +33,7 @@ MODULE fftw3_lib
    IMPLICIT NONE
    PRIVATE
 
-   PUBLIC :: fftw3_do_init, fftw3_do_cleanup, fftw3_get_lengths, fftw33d, fftw3_1d
+   PUBLIC :: fftw3_do_init, fftw3_do_cleanup, fftw3_get_lengths, fftw3_3d, fftw3_1d
    PUBLIC :: fftw3_destroy_plan, fftw3_create_plan_1d, fftw3_create_plan_3d
    PUBLIC :: fftw_alloc, fftw_dealloc
 
@@ -518,8 +518,6 @@ CONTAINS
                                      zin, zout, fft_direction, fftw_plan_type, &
                                      valid)
 
-      IMPLICIT NONE
-
       TYPE(C_PTR), INTENT(INOUT)                         :: plan
       COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT)      :: zin, zout
       INTEGER, INTENT(IN) :: dim_n(2), dim_istride(2), dim_ostride(2), &
@@ -570,8 +568,6 @@ CONTAINS
 !> \return ...
 ! **************************************************************************************************
    FUNCTION fftw3_is_mkl_wrapper() RESULT(is_mkl)
-
-      IMPLICIT NONE
 
       LOGICAL :: is_mkl
 #if defined ( __FFTW3 )
@@ -719,9 +715,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE fftw3_create_plan_3d(plan, zin, zout, plan_style)
 
-      TYPE(fft_plan_type), INTENT(INOUT)              :: plan
-      COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT)      :: zin
-      COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT)      :: zout
+      TYPE(fft_plan_type), INTENT(INOUT)                 :: plan
+      COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT)      :: zin, zout
       INTEGER                                            :: plan_style
 #if defined ( __FFTW3 )
       INTEGER                                            :: n1, n2, n3
@@ -904,8 +899,7 @@ CONTAINS
    SUBROUTINE fftw3_workshare_execute_dft(plan, plan_r, split_dim, nt, tid, &
                                           input, istride, output, ostride)
 
-      INTEGER, INTENT(IN)                           :: split_dim, nt, tid
-      INTEGER, INTENT(IN)                           :: istride, ostride
+      INTEGER, INTENT(IN)                           :: split_dim, nt, tid, istride, ostride
       COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT) :: input, output
       TYPE(C_PTR)                                   :: plan, plan_r
 #if defined (__FFTW3)
@@ -968,12 +962,11 @@ CONTAINS
 !> \param zout ...
 !> \param stat ...
 ! **************************************************************************************************
-   SUBROUTINE fftw33d(plan, scale, zin, zout, stat)
+   SUBROUTINE fftw3_3d(plan, scale, zin, zout, stat)
 
       TYPE(fft_plan_type), INTENT(IN)                      :: plan
       REAL(KIND=dp), INTENT(IN)                            :: scale
-      COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT), TARGET:: zin
-      COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT), TARGET:: zout
+      COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT), TARGET :: zin, zout
       INTEGER, INTENT(OUT)                                 :: stat
 #if defined ( __FFTW3 )
       COMPLEX(KIND=dp), POINTER                            :: xout(:)
@@ -1048,7 +1041,7 @@ CONTAINS
 
 #endif
 
-   END SUBROUTINE fftw33d
+   END SUBROUTINE fftw3_3d
 
 ! **************************************************************************************************
 
@@ -1061,9 +1054,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE fftw3_create_plan_1d(plan, zin, zout, plan_style)
 
-      TYPE(fft_plan_type), INTENT(INOUT)              :: plan
-      COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT)         :: zin
-      COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT)         :: zout
+      TYPE(fft_plan_type), INTENT(INOUT)                 :: plan
+      COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT)      :: zin, zout
       INTEGER, INTENT(IN)                                :: plan_style
 #if defined ( __FFTW3 )
       INTEGER                                            :: ii, di, io, DO, num_threads, num_rows
@@ -1191,9 +1183,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE fftw3_1d(plan, zin, zout, scale, stat)
       TYPE(fft_plan_type), INTENT(IN)                    :: plan
-      COMPLEX(KIND=dp), DIMENSION(*), INTENT(IN), TARGET :: zin
-      COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT), &
-         TARGET                                          :: zout
+      COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT), TARGET :: zin, zout
       REAL(KIND=dp), INTENT(IN)                          :: scale
       INTEGER, INTENT(OUT)                               :: stat
 
@@ -1239,7 +1229,7 @@ CONTAINS
 !$OMP MASTER
          stat = 1
 !$OMP END MASTER
-         CALL dfftw_execute_dft(fftw_plan, zin(in_offset:in_offset), zout(out_offset:out_offset))
+         CALL fftw_execute_dft(fftw_plan, zin(in_offset:in_offset), zout(out_offset:out_offset))
 !$    end if
 ! all theads need to meet at this barrier
 !$OMP BARRIER

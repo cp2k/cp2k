@@ -8,18 +8,18 @@ MODULE fft_lib
 
    USE fft_kinds,                       ONLY: dp
    USE fft_plan,                        ONLY: fft_plan_type
-   USE fftsg_lib,                       ONLY: fftsg1dm,&
-                                              fftsg3d,&
+   USE fftsg_lib,                       ONLY: fftsg_1d,&
+                                              fftsg_3d,&
                                               fftsg_do_cleanup,&
                                               fftsg_do_init,&
                                               fftsg_get_lengths
    USE fftw3_lib,                       ONLY: &
-        fft_alloc => fftw_alloc, fft_dealloc => fftw_dealloc, fftw33d, fftw3_1d, &
+        fft_alloc => fftw_alloc, fft_dealloc => fftw_dealloc, fftw3_1d, fftw3_3d, &
         fftw3_create_plan_1d, fftw3_create_plan_3d, fftw3_destroy_plan, fftw3_do_cleanup, &
         fftw3_do_init, fftw3_get_lengths
-   USE spfft_lib,                       ONLY: spfft1dm,&
+   USE spfft_lib,                       ONLY: spfft_1d,&
                                               spfft_3d,&
-                                              spfft_create_plan_1dm,&
+                                              spfft_create_plan_1d,&
                                               spfft_create_plan_3d,&
                                               spfft_destroy_plan
 #include "../../base/base_uses.f90"
@@ -30,7 +30,7 @@ MODULE fft_lib
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'fft_lib'
 
    PUBLIC :: fft_do_cleanup, fft_do_init, fft_get_lengths, fft_create_plan_3d
-   PUBLIC :: fft_create_plan_1dm, fft_1dm, fft_library, fft_3d, fft_destroy_plan
+   PUBLIC :: fft_create_plan_1d, fft_1d, fft_library, fft_3d, fft_destroy_plan
    PUBLIC :: fft_alloc, fft_dealloc
 
 CONTAINS
@@ -187,9 +187,9 @@ CONTAINS
          CASE DEFAULT
             CPABORT("fft_3d")
          CASE (1)
-            CALL fftsg3d(plan%fft_in_place, stat, scale, plan%n_3d, zin, zout)
+            CALL fftsg_3d(plan%fft_in_place, stat, scale, plan%n_3d, zin, zout)
          CASE (3)
-            CALL fftw33d(plan, scale, zin, zout, stat)
+            CALL fftw3_3d(plan, scale, zin, zout, stat)
          CASE (4)
             CALL spfft_3d(plan, scale, zin, zout, stat)
          END SELECT
@@ -217,7 +217,7 @@ CONTAINS
 !> \param zout ...
 !> \param plan_style ...
 ! **************************************************************************************************
-   SUBROUTINE fft_create_plan_1dm(plan, fft_type, fsign, trans, n, m, zin, zout, plan_style)
+   SUBROUTINE fft_create_plan_1d(plan, fft_type, fsign, trans, n, m, zin, zout, plan_style)
       TYPE(fft_plan_type), INTENT(INOUT)                 :: plan
       INTEGER, INTENT(IN)                                :: fft_type, fsign
       LOGICAL, INTENT(IN)                                :: trans
@@ -237,13 +237,13 @@ CONTAINS
          CALL fftw3_create_plan_1d(plan, zin, zout, plan_style)
          plan%valid = .TRUE.
       ELSE IF (fft_type .EQ. 4) THEN
-         CALL spfft_create_plan_1dm(plan)
+         CALL spfft_create_plan_1d(plan)
          plan%valid = .TRUE.
       ELSE
          plan%valid = .FALSE.
       END IF
 
-   END SUBROUTINE fft_create_plan_1dm
+   END SUBROUTINE fft_create_plan_1d
 
 ! **************************************************************************************************
 !> \brief ...
@@ -274,7 +274,7 @@ CONTAINS
 !> \param scale ...
 !> \param stat ...
 ! **************************************************************************************************
-   SUBROUTINE fft_1dm(plan, zin, zout, scale, stat)
+   SUBROUTINE fft_1d(plan, zin, zout, scale, stat)
       TYPE(fft_plan_type), INTENT(IN)                    :: plan
       COMPLEX(KIND=dp), DIMENSION(plan%n, plan%m), &
          INTENT(INOUT), TARGET                           :: zin, zout
@@ -285,13 +285,13 @@ CONTAINS
       IF (plan%n*plan%m > 0) THEN
          SELECT CASE (plan%fft_type)
          CASE DEFAULT
-            CPABORT("fft_1dm")
+            CPABORT("fft_1d")
          CASE (1)
-            CALL fftsg1dm(stat, plan%trans, plan%n, plan%m, zin, zout, scale)
+            CALL fftsg_1d(stat, plan%trans, plan%n, plan%m, zin, zout, scale)
          CASE (3)
             CALL fftw3_1d(plan, zin, zout, scale, stat)
          CASE (4)
-            CALL spfft1dm(plan, zin, zout, scale, stat)
+            CALL spfft_1d(plan, zin, zout, scale, stat)
          END SELECT
       END IF
       ! stat is set to zero on error, -1,+1 are OK
@@ -301,7 +301,7 @@ CONTAINS
          stat = 0
       END IF
 
-   END SUBROUTINE fft_1dm
+   END SUBROUTINE fft_1d
 
 END MODULE
 
