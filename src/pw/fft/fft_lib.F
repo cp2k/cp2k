@@ -222,7 +222,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: fft_type, fsign
       LOGICAL, INTENT(IN)                                :: trans
       INTEGER, INTENT(IN)                                :: n, m
-      COMPLEX(KIND=dp), DIMENSION(*), INTENT(IN)         :: zin, zout
+      COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT)         :: zin, zout
       INTEGER, INTENT(IN)                                :: plan_style
 
       plan%fft_type = fft_type
