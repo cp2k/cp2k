@@ -14,8 +14,8 @@ MODULE fft_lib
                                               fftsg_do_init,&
                                               fftsg_get_lengths
    USE fftw3_lib,                       ONLY: &
-        fft_alloc => fftw_alloc, fft_dealloc => fftw_dealloc, fftw31dm, fftw33d, &
-        fftw3_create_plan_1dm, fftw3_create_plan_3d, fftw3_destroy_plan, fftw3_do_cleanup, &
+        fft_alloc => fftw_alloc, fft_dealloc => fftw_dealloc, fftw33d, fftw3_1d, &
+        fftw3_create_plan_1d, fftw3_create_plan_3d, fftw3_destroy_plan, fftw3_do_cleanup, &
         fftw3_do_init, fftw3_get_lengths
    USE spfft_lib,                       ONLY: spfft1dm,&
                                               spfft_3d,&
@@ -222,7 +222,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: fft_type, fsign
       LOGICAL, INTENT(IN)                                :: trans
       INTEGER, INTENT(IN)                                :: n, m
-      COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT)         :: zin, zout
+      COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT)      :: zin, zout
       INTEGER, INTENT(IN)                                :: plan_style
 
       plan%fft_type = fft_type
@@ -234,7 +234,7 @@ CONTAINS
 
       ! Planning only needed for FFTW3
       IF (fft_type .EQ. 3 .AND. (n*m .NE. 0)) THEN
-         CALL fftw3_create_plan_1dm(plan, zin, zout, plan_style)
+         CALL fftw3_create_plan_1d(plan, zin, zout, plan_style)
          plan%valid = .TRUE.
       ELSE IF (fft_type .EQ. 4) THEN
          CALL spfft_create_plan_1dm(plan)
@@ -289,7 +289,7 @@ CONTAINS
          CASE (1)
             CALL fftsg1dm(stat, plan%trans, plan%n, plan%m, zin, zout, scale)
          CASE (3)
-            CALL fftw31dm(plan, zin, zout, scale, stat)
+            CALL fftw3_1d(plan, zin, zout, scale, stat)
          CASE (4)
             CALL spfft1dm(plan, zin, zout, scale, stat)
          END SELECT
