@@ -2,7 +2,7 @@
 #
 # CP2K (Intel/MKL x86_64) arch file for Linux clusters
 #
-# Tested with: Intel 22.2 , Intel MPI, Intel MKL,
+# Tested with: Intel 2024.2.0, Intel MPI, Intel MKL,
 #              LIBINT 2.6.0, LIBXC 6.2.2, ELPA 2024.03.001,
 #              PLUMED 2.9.0, SPGLIB 2.3.1, LIBVORI 220621,
 #              GSL 2.7, COSMA 2.6.6, HDF5 1.14.2, SIRIUS 7.5.2,
@@ -13,7 +13,7 @@
 #        Optionally, the Intel compiler version can be specified as argument.
 #        Replace or adapt the "module add" commands below if needed.
 #
-# Last update: 12.06.2024
+# Last update: 21.06.2024
 #
 # \
    if [[ "${0}" == "${BASH_SOURCE}" ]]; then \
@@ -78,9 +78,9 @@ SUPERLU_VER    := 6.1.0
 LMAX           := 5
 MAX_CONTR      := 4
 
-CC             := mpiicc
-FC             := mpiifort
-LD             := mpiifort
+CC             := mpiicx
+FC             := mpiifx
+LD             := mpiifx
 AR             := ar -r
 
 ifeq ($(strip $(TARGET_CPU)), native)
@@ -88,7 +88,7 @@ ifeq ($(strip $(TARGET_CPU)), native)
 else
    CFLAGS         := -O2 -fPIC -fp-model precise -funroll-loops -g -mtune=$(TARGET_CPU) -qopenmp -qopenmp-simd -traceback
 endif
-CFLAGS         += -I/opt/intel/oneapi/compiler/latest/opt/compiler/include/intel64 -diag-disable=10448
+#CFLAGS         += -I/opt/intel/oneapi/compiler/latest/opt/compiler/include/intel64
 
 DFLAGS         := -D__parallel
 DFLAGS         += -D__SCALAPACK

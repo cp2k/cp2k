@@ -127,10 +127,6 @@ fi
 if [ "${with_intel}" == "__DONTUSE__" ]; then
   CFLAGS="$G_CFLAGS -std=c11 -Wall -Wextra -Werror -Wno-vla-parameter -Wno-deprecated-declarations \$(DFLAGS)"
 else
-  CC_arch+=" IF_MPI(-cc=${I_MPI_CC}|)"
-  CXX_arch+=" IF_MPI(-cxx=${I_MPI_CXX}|)"
-  FC_arch+=" IF_MPI(-fc=${I_MPI_FC}|)"
-  LD_arch+=" IF_MPI(-fc=${I_MPI_FC}|)"
   CFLAGS="${G_CFLAGS} -std=c11 -Wall \$(DFLAGS)"
   CXXFLAGS="${G_CFLAGS} -std=c++14 -Wall \$(DFLAGS)"
   FCFLAGS="${FCFLAGS} -diag-disable=8291 -diag-disable=8293 -fpp -fpscomp logicals -free"
