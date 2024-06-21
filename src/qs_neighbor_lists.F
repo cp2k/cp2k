@@ -322,8 +322,8 @@ CONTAINS
       TYPE(molecule_type), DIMENSION(:), POINTER         :: molecule_set
       TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER :: saa_list, sab_all, sab_almo, &
          sab_cn, sab_core, sab_gcp, sab_kp, sab_kp_nosym, sab_lrc, sab_orb, sab_scp, sab_se, &
-         sab_tbe, sab_vdw, sab_xb, sab_xtb_nonbond, sab_xtbe, sac_ae, sac_lri, sac_ppl, sap_oce, &
-         sap_ppnl, soa_list, soo_list
+         sab_tbe, sab_vdw, sab_xb, sab_xtb_nonbond, sab_xtb_pp, sab_xtbe, sac_ae, sac_lri, &
+         sac_ppl, sap_oce, sap_ppnl, soa_list, soo_list
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(paw_proj_set_type), POINTER                   :: paw_proj
       TYPE(qs_dftb_atom_type), POINTER                   :: dftb_atom
@@ -355,6 +355,7 @@ CONTAINS
       NULLIFY (sab_xtbe)
       NULLIFY (sab_core)
       NULLIFY (sab_xb)
+      NULLIFY (sab_xtb_pp)
       NULLIFY (sab_xtb_nonbond)
       NULLIFY (sab_all)
       NULLIFY (sab_vdw)
@@ -398,6 +399,7 @@ CONTAINS
                       sab_xtbe=sab_xtbe, &
                       sab_core=sab_core, &
                       sab_xb=sab_xb, &
+                      sab_xtb_pp=sab_xtb_pp, &
                       sab_xtb_nonbond=sab_xtb_nonbond, &
                       sab_scp=sab_scp, &
                       sab_all=sab_all, &
@@ -783,6 +785,12 @@ CONTAINS
                                       subcells=subcells, nlname="sab_tbe")
             CALL set_ks_env(ks_env=ks_env, sab_tbe=sab_tbe)
          END IF
+         ! Repulsive Potential
+         pair_radius = dft_control%qs_control%xtb_control%rcpair
+         default_present = .TRUE.
+         CALL build_neighbor_lists(sab_xtb_pp, particle_set, atom2d, cell, pair_radius, &
+                                   subcells=subcells, nlname="sab_xtb_pp")
+         CALL set_ks_env(ks_env=ks_env, sab_xtb_pp=sab_xtb_pp)
          ! SR part of Coulomb interaction
          DO ikind = 1, nkind
             CALL get_qs_kind(qs_kind_set(ikind), xtb_parameter=xtb_atom)

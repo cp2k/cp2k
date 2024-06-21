@@ -1307,9 +1307,25 @@ CONTAINS
                CPABORT("GFN type")
             END SELECT
          END IF
-         CALL section_vals_val_get(xtb_parameter, "COULOMB_CONSTANTS", r_vals=scal)
-         qs_control%xtb_control%kg = scal(1)
-         qs_control%xtb_control%kf = scal(2)
+         CALL section_vals_val_get(xtb_parameter, "COULOMB_CONSTANTS", explicit=explicit)
+         IF (explicit) THEN
+            CALL section_vals_val_get(xtb_parameter, "COULOMB_CONSTANTS", r_vals=scal)
+            qs_control%xtb_control%kg = scal(1)
+            qs_control%xtb_control%kf = scal(2)
+         ELSE
+            SELECT CASE (qs_control%xtb_control%gfn_type)
+            CASE (0)
+               qs_control%xtb_control%kg = 2.00_dp
+               qs_control%xtb_control%kf = 1.50_dp
+            CASE (1)
+               qs_control%xtb_control%kg = 2.00_dp
+               qs_control%xtb_control%kf = 1.50_dp
+            CASE (2)
+               CPABORT("gfn2-xtb tbd")
+            CASE DEFAULT
+               CPABORT("GFN type")
+            END SELECT
+         END IF
          CALL section_vals_val_get(xtb_parameter, "CN_CONSTANTS", r_vals=scal)
          qs_control%xtb_control%kcns = scal(1)
          qs_control%xtb_control%kcnp = scal(2)
@@ -1333,6 +1349,8 @@ CONTAINS
                CALL read_gp_section(qs_control%xtb_control%nonbonded, genpot_section, 0)
             END IF
          END IF !nonbonded
+         CALL section_vals_val_get(xtb_section, "EPS_PAIRPOTENTIAL", &
+                                   r_val=qs_control%xtb_control%eps_pair)
          ! SR Coulomb
          CALL section_vals_val_get(xtb_parameter, "COULOMB_SR_CUT", r_vals=scal)
          qs_control%xtb_control%coulomb_sr_cut = scal(1)
@@ -1342,17 +1360,29 @@ CONTAINS
          CALL section_vals_val_get(xtb_parameter, "XB_RADIUS", r_val=qs_control%xtb_control%xb_radius)
          ! Kab
          CALL section_vals_val_get(xtb_parameter, "KAB_PARAM", n_rep_val=n_rep)
-         ! For debug purposes
-         CALL section_vals_val_get(xtb_section, "COULOMB_INTERACTION", &
-                                   l_val=qs_control%xtb_control%coulomb_interaction)
-         CALL section_vals_val_get(xtb_section, "COULOMB_LR", &
-                                   l_val=qs_control%xtb_control%coulomb_lr)
-         CALL section_vals_val_get(xtb_section, "TB3_INTERACTION", &
-                                   l_val=qs_control%xtb_control%tb3_interaction)
-         ! Check for bad atomic charges
-         CALL section_vals_val_get(xtb_section, "CHECK_ATOMIC_CHARGES", &
-                                   l_val=qs_control%xtb_control%check_atomic_charges)
-
+         ! Coulomb
+         SELECT CASE (qs_control%xtb_control%gfn_type)
+         CASE (0)
+            qs_control%xtb_control%coulomb_interaction = .FALSE.
+            qs_control%xtb_control%coulomb_lr = .FALSE.
+            qs_control%xtb_control%tb3_interaction = .FALSE.
+            qs_control%xtb_control%check_atomic_charges = .FALSE.
+         CASE (1)
+            ! For debugging purposes
+            CALL section_vals_val_get(xtb_section, "COULOMB_INTERACTION", &
+                                      l_val=qs_control%xtb_control%coulomb_interaction)
+            CALL section_vals_val_get(xtb_section, "COULOMB_LR", &
+                                      l_val=qs_control%xtb_control%coulomb_lr)
+            CALL section_vals_val_get(xtb_section, "TB3_INTERACTION", &
+                                      l_val=qs_control%xtb_control%tb3_interaction)
+            ! Check for bad atomic charges
+            CALL section_vals_val_get(xtb_section, "CHECK_ATOMIC_CHARGES", &
+                                      l_val=qs_control%xtb_control%check_atomic_charges)
+         CASE (2)
+            CPABORT("gfn2-xtb tbd")
+         CASE DEFAULT
+            CPABORT("GFN type")
+         END SELECT
          qs_control%xtb_control%kab_nval = n_rep
          IF (n_rep > 0) THEN
             ALLOCATE (qs_control%xtb_control%kab_param(3, n_rep))
@@ -1378,6 +1408,7 @@ CONTAINS
             qs_control%xtb_control%gscal = scal(3)
             qs_control%xtb_control%c1srb = scal(4)
             qs_control%xtb_control%c2srb = scal(5)
+            qs_control%xtb_control%shift = scal(6)
          END IF
 
       END IF
@@ -2021,6 +2052,8 @@ CONTAINS
             "xTB| Basis expansion STO-NG", xtb_control%sto_ng
          WRITE (UNIT=output_unit, FMT="(T2,A,T71,I10)") &
             "xTB| Basis expansion STO-NG for Hydrogen", xtb_control%h_sto_ng
+         WRITE (UNIT=output_unit, FMT="(T2,A,T71,E10.4)") &
+            "xTB| Repulsive pair potential accuracy", xtb_control%eps_pair
          WRITE (UNIT=output_unit, FMT="(T2,A,T71,L10)") &
             "xTB| Halogen interaction potential", xtb_control%xb_interaction
          WRITE (UNIT=output_unit, FMT="(T2,A,T71,F10.3)") &

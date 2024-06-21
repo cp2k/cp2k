@@ -2684,6 +2684,7 @@ CONTAINS
       TYPE(dft_control_type), INTENT(IN)                 :: dft_control
       TYPE(section_vals_type), POINTER                   :: subsys_section
 
+      INTEGER                                            :: gfn_type
       LOGICAL                                            :: defined
       TYPE(qs_dftb_atom_type), POINTER                   :: dftb_parameter
       TYPE(semi_empirical_type), POINTER                 :: se_parameter
@@ -2704,7 +2705,8 @@ CONTAINS
       ELSE IF (dft_control%qs_control%xtb) THEN
          CALL get_qs_kind(qs_kind, xtb_parameter=xtb_parameter)
          CPASSERT(ASSOCIATED(xtb_parameter))
-         CALL write_xtb_atom_param(xtb_parameter, subsys_section)
+         gfn_type = dft_control%qs_control%xtb_control%gfn_type
+         CALL write_xtb_atom_param(xtb_parameter, gfn_type, subsys_section)
       END IF
 
    END SUBROUTINE check_qs_kind

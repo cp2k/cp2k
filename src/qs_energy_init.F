@@ -306,8 +306,7 @@ CONTAINS
                                         calculate_forces=.FALSE.)
          CALL qs_env_update_s_mstruct(qs_env)
       ELSEIF (dft_control%qs_control%xtb) THEN
-         CALL build_xtb_matrices(qs_env=qs_env, para_env=para_env, &
-                                 calculate_forces=.FALSE.)
+         CALL build_xtb_matrices(qs_env=qs_env, calculate_forces=.FALSE.)
          CALL get_qs_env(qs_env=qs_env, dispersion_env=dispersion_env, energy=energy)
          CALL calculate_dispersion_pairpot(qs_env, dispersion_env, energy%dispersion, calc_forces)
          CALL qs_env_update_s_mstruct(qs_env)

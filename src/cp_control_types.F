@@ -173,10 +173,13 @@ MODULE cp_control_types
       REAL, DIMENSION(:), POINTER          :: kab_vals => NULL()
       !
       TYPE(pair_potential_p_type), POINTER :: nonbonded => NULL()
+      REAL(KIND=dp)                        :: eps_pair = 0.0_dp
+      REAL(KIND=dp), DIMENSION(:, :), &
+         POINTER                           :: rcpair => NULL()
       !
       ! SRB terms
       REAL(KIND=dp)                        :: ksrb = 0.0_dp, esrb = 0.0_dp, gscal = 0.0_dp
-      REAL(KIND=dp)                        :: c1srb = 0.0_dp, c2srb = 0.0_dp
+      REAL(KIND=dp)                        :: c1srb = 0.0_dp, c2srb = 0.0_dp, shift = 0.0_dp
       !
    END TYPE xtb_control_type
 
@@ -1078,6 +1081,7 @@ CONTAINS
       NULLIFY (xtb_control%kab_vals)
       NULLIFY (xtb_control%kab_types)
       NULLIFY (xtb_control%nonbonded)
+      NULLIFY (xtb_control%rcpair)
 
    END SUBROUTINE xtb_control_create
 
@@ -1097,6 +1101,9 @@ CONTAINS
          END IF
          IF (ASSOCIATED(xtb_control%kab_types)) THEN
             DEALLOCATE (xtb_control%kab_types)
+         END IF
+         IF (ASSOCIATED(xtb_control%rcpair)) THEN
+            DEALLOCATE (xtb_control%rcpair)
          END IF
          IF (ASSOCIATED(xtb_control%nonbonded)) THEN
             CALL pair_potential_p_release(xtb_control%nonbonded)

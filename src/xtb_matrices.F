@@ -127,21 +127,85 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief ...
 !> \param qs_env ...
-!> \param para_env ...
+!> \param calculate_forces ...
+!> \param just_energy ...
+!> \param ext_ks_matrix ...
+! **************************************************************************************************
+   SUBROUTINE build_xtb_ks_matrix(qs_env, calculate_forces, just_energy, ext_ks_matrix)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      LOGICAL, INTENT(in)                                :: calculate_forces, just_energy
+      TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
+         POINTER                                         :: ext_ks_matrix
+
+      INTEGER                                            :: gfn_type
+      TYPE(dft_control_type), POINTER                    :: dft_control
+
+      CALL get_qs_env(qs_env=qs_env, dft_control=dft_control)
+      gfn_type = dft_control%qs_control%xtb_control%gfn_type
+
+      SELECT CASE (gfn_type)
+      CASE (0)
+         CPABORT("gfn_type = 0 not yet available")
+      CASE (1)
+         CALL build_gfn1_xtb_ks_matrix(qs_env, calculate_forces, just_energy, ext_ks_matrix)
+      CASE (2)
+         CPABORT("gfn_type = 2 not yet available")
+      CASE DEFAULT
+         CPABORT("Unknown gfn_type")
+      END SELECT
+
+   END SUBROUTINE build_xtb_ks_matrix
+
+! **************************************************************************************************
+!> \brief ...
+!> \param qs_env ...
 !> \param calculate_forces ...
 ! **************************************************************************************************
-   SUBROUTINE build_xtb_matrices(qs_env, para_env, calculate_forces)
+   SUBROUTINE build_xtb_matrices(qs_env, calculate_forces)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(mp_para_env_type), POINTER                    :: para_env
       LOGICAL, INTENT(IN)                                :: calculate_forces
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'build_xtb_matrices'
+      INTEGER                                            :: gfn_type
+      TYPE(dft_control_type), POINTER                    :: dft_control
 
-      INTEGER :: after, atom_a, atom_b, atom_c, handle, i, iatom, ic, icol, ikind, img, ir, irow, &
-         iset, iw, j, jatom, jkind, jset, katom, kkind, la, lb, ldsab, lmaxa, lmaxb, maxder, maxs, &
-         n1, n2, na, natom, natorb_a, natorb_b, nb, ncoa, ncob, nderivatives, nimg, nkind, nsa, &
-         nsb, nseta, nsetb, nshell, sgfa, sgfb, za, zat, zb
+      CALL get_qs_env(qs_env=qs_env, dft_control=dft_control)
+      gfn_type = dft_control%qs_control%xtb_control%gfn_type
+
+      SELECT CASE (gfn_type)
+      CASE (0)
+         CALL build_gfn0_xtb_matrices(qs_env, calculate_forces)
+         CPABORT("gfn_type = 0 not yet available")
+      CASE (1)
+         CALL build_gfn1_xtb_matrices(qs_env, calculate_forces)
+      CASE (2)
+         CPABORT("gfn_type = 2 not yet available")
+      CASE DEFAULT
+         CPABORT("Unknown gfn_type")
+      END SELECT
+
+   END SUBROUTINE build_xtb_matrices
+
+! **************************************************************************************************
+!> \brief ...
+!> \param qs_env ...
+!> \param calculate_forces ...
+! **************************************************************************************************
+   SUBROUTINE build_gfn0_xtb_matrices(qs_env, calculate_forces)
+
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      LOGICAL, INTENT(IN)                                :: calculate_forces
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'build_gfn0_xtb_matrices'
+      REAL(KIND=dp), DIMENSION(5:9), PARAMETER :: &
+         cnfac = (/0.05646607_dp, 0.10514203_dp, 0.09753494_dp, 0.30470380_dp, 0.23261783_dp/), &
+         ensrb = (/2.20568300_dp, 2.49640820_dp, 2.81007174_dp, 4.51078438_dp, 4.67476223_dp/), &
+         r0srb = (/1.35974851_dp, 0.98310699_dp, 0.98423007_dp, 0.76716063_dp, 1.06139799_dp/)
+
+      INTEGER :: atom_a, atom_b, atom_c, handle, i, iatom, ic, icol, ikind, img, ir, irow, iset, &
+         j, jatom, jkind, jset, katom, kkind, la, lb, ldsab, lmaxa, lmaxb, maxder, maxs, n1, n2, &
+         na, natom, natorb_a, natorb_b, nb, ncoa, ncob, nderivatives, nimg, nkind, nsa, nsb, &
+         nseta, nsetb, nshell, sgfa, sgfb, za, zb
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, atomnumber, kind_of
       INTEGER, DIMENSION(25)                             :: laoa, laob, lval, naoa, naob
       INTEGER, DIMENSION(3)                              :: cell
@@ -149,19 +213,19 @@ CONTAINS
                                                             npgfb, nsgfa, nsgfb
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa, first_sgfb
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
-      LOGICAL :: defined, diagblock, do_nonbonded, floating_a, found, ghost_a, norml1, norml2, &
-         omit_headers, use_arnoldi, use_virial, xb_inter
+      LOGICAL                                            :: defined, diagblock, do_nonbonded, &
+                                                            floating_a, found, ghost_a, use_virial
       LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: floating, ghost
-      REAL(KIND=dp) :: alphaa, alphab, derepij, dfp, dhij, dr, drk, drx, ena, enb, enonbonded, &
-         erep, erepij, etaa, etab, exb, f0, f1, fen, fhua, fhub, fhud, foab, hij, k2sh, kab, kcnd, &
-         kcnp, kcns, kd, ken, kf, kg, kia, kjb, kp, ks, ksp, kx2, kxr, rcova, rcovab, rcovb, rrab, &
-         zneffa, zneffb
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: cnumbers, kx
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: dfblock, huckel, kcnlk, owork, rcab
+      REAL(KIND=dp) :: alphaa, alphab, c1srb, c2srb, den1, den2, derepij, desrbij, dfp, dhij, dr, &
+         dr0, drk, drx, ena, enb, enonbonded, enta, entb, erep, erepij, esrb, esrbij, etaa, etab, &
+         etasrb, f0, f1, fen, fhua, fhub, fhud, foab, gscal, hij, k2sh, kab, kcnd, kcnp, kcns, kd, &
+         ken, kf, kg, kia, kjb, kp, ks, ksp, ksrb, kx2, kxr, rcova, rcovab, rcovb, rra0, rrab, &
+         rrb0, shift, zneffa, zneffb
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: cnumbers
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: dfblock, huckel, kcnlk, owork
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: oint, sint
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :, :)  :: kijab
       REAL(KIND=dp), DIMENSION(0:3)                      :: kl
-      REAL(KIND=dp), DIMENSION(2)                        :: condnum
       REAL(KIND=dp), DIMENSION(3)                        :: fdik, fdika, fdikb, force_ab, force_rr, &
                                                             rij, rik
       REAL(KIND=dp), DIMENSION(5)                        :: dpia, dpib, hena, henb, kappaa, kappab, &
@@ -172,7 +236,6 @@ CONTAINS
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(atprop_type), POINTER                         :: atprop
       TYPE(block_p_type), DIMENSION(2:4)                 :: dsblocks
-      TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_h, matrix_p, matrix_s, matrix_w
       TYPE(dcnum_type), ALLOCATABLE, DIMENSION(:)        :: dcnum
@@ -180,6 +243,822 @@ CONTAINS
       TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: basis_set_list
       TYPE(gto_basis_set_type), POINTER                  :: basis_set_a, basis_set_b
       TYPE(kpoint_type), POINTER                         :: kpoints
+      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(neighbor_list_iterator_p_type), &
+         DIMENSION(:), POINTER                           :: nl_iterator
+      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
+         POINTER                                         :: sab_orb, sab_xtb_nonbond
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(qs_dispersion_type), POINTER                  :: dispersion_env
+      TYPE(qs_energy_type), POINTER                      :: energy
+      TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+      TYPE(qs_ks_env_type), POINTER                      :: ks_env
+      TYPE(qs_rho_type), POINTER                         :: rho
+      TYPE(virial_type), POINTER                         :: virial
+      TYPE(xtb_atom_type), POINTER                       :: xtb_atom_a, xtb_atom_b
+      TYPE(xtb_control_type), POINTER                    :: xtb_control
+
+      CALL timeset(routineN, handle)
+
+      NULLIFY (logger, virial, atprop)
+      logger => cp_get_default_logger()
+
+      NULLIFY (matrix_h, matrix_s, matrix_p, matrix_w, atomic_kind_set, &
+               qs_kind_set, sab_orb, ks_env)
+
+      CALL get_qs_env(qs_env=qs_env, &
+                      ks_env=ks_env, &
+                      energy=energy, &
+                      atomic_kind_set=atomic_kind_set, &
+                      qs_kind_set=qs_kind_set, &
+                      matrix_h_kp=matrix_h, &
+                      matrix_s_kp=matrix_s, &
+                      para_env=para_env, &
+                      atprop=atprop, &
+                      dft_control=dft_control, &
+                      sab_orb=sab_orb)
+
+      nkind = SIZE(atomic_kind_set)
+      xtb_control => dft_control%qs_control%xtb_control
+      do_nonbonded = xtb_control%do_nonbonded
+      nimg = dft_control%nimages
+      nderivatives = 0
+      IF (calculate_forces) nderivatives = 1
+      IF (dft_control%tddfpt2_control%enabled) nderivatives = 1
+      maxder = ncoset(nderivatives)
+
+      IF (do_nonbonded) energy%xtb_nonbonded = 0.0_dp
+
+      ! global parameters (Table 2 from Ref.)
+      ks = xtb_control%ks
+      kp = xtb_control%kp
+      kd = xtb_control%kd
+      ksp = xtb_control%ksp
+      k2sh = xtb_control%k2sh
+      kg = xtb_control%kg
+      kf = xtb_control%kf
+      kcns = xtb_control%kcns
+      kcnp = xtb_control%kcnp
+      kcnd = xtb_control%kcnd
+      ken = xtb_control%ken
+      kxr = xtb_control%kxr
+      kx2 = xtb_control%kx2
+      ! SRB parameters
+      ksrb = xtb_control%ksrb
+      etasrb = xtb_control%esrb
+      c1srb = xtb_control%c1srb*0.01_dp
+      c2srb = xtb_control%c2srb*0.01_dp
+      gscal = xtb_control%gscal
+      shift = xtb_control%shift
+
+      NULLIFY (particle_set)
+      CALL get_qs_env(qs_env=qs_env, particle_set=particle_set)
+      natom = SIZE(particle_set)
+      CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, atom_of_kind=atom_of_kind)
+      CALL get_qs_kind_set(qs_kind_set=qs_kind_set, maxsgf=maxs, basis_type="ORB")
+
+      IF (calculate_forces) THEN
+         NULLIFY (rho, force, matrix_w)
+         CALL get_qs_env(qs_env=qs_env, &
+                         rho=rho, matrix_w_kp=matrix_w, &
+                         virial=virial, force=force)
+         CALL qs_rho_get(rho, rho_ao_kp=matrix_p)
+
+         IF (SIZE(matrix_p, 1) == 2) THEN
+            DO img = 1, nimg
+               CALL dbcsr_add(matrix_p(1, img)%matrix, matrix_p(2, img)%matrix, &
+                              alpha_scalar=1.0_dp, beta_scalar=1.0_dp)
+               CALL dbcsr_add(matrix_w(1, img)%matrix, matrix_w(2, img)%matrix, &
+                              alpha_scalar=1.0_dp, beta_scalar=1.0_dp)
+            END DO
+         END IF
+         use_virial = virial%pv_availability .AND. (.NOT. virial%pv_numer)
+      END IF
+      ! atomic energy decomposition
+      IF (atprop%energy) THEN
+         CALL atprop_array_init(atprop%atecc, natom)
+      END IF
+
+      NULLIFY (cell_to_index)
+      IF (nimg > 1) THEN
+         CALL get_ks_env(ks_env=ks_env, kpoints=kpoints)
+         CALL get_kpoint_info(kpoint=kpoints, cell_to_index=cell_to_index)
+      END IF
+
+      ! set up basis set lists
+      ALLOCATE (basis_set_list(nkind))
+      CALL basis_set_list_setup(basis_set_list, "ORB", qs_kind_set)
+
+      ! allocate overlap matrix
+      CALL dbcsr_allocate_matrix_set(matrix_s, maxder, nimg)
+      CALL create_sab_matrix(ks_env, matrix_s, "xTB OVERLAP MATRIX", basis_set_list, basis_set_list, &
+                             sab_orb, .TRUE.)
+      CALL set_ks_env(ks_env, matrix_s_kp=matrix_s)
+
+      ! initialize H matrix
+      CALL dbcsr_allocate_matrix_set(matrix_h, 1, nimg)
+      DO img = 1, nimg
+         ALLOCATE (matrix_h(1, img)%matrix)
+         CALL dbcsr_create(matrix_h(1, img)%matrix, template=matrix_s(1, 1)%matrix, &
+                           name="HAMILTONIAN MATRIX")
+         CALL cp_dbcsr_alloc_block_from_nbl(matrix_h(1, img)%matrix, sab_orb)
+      END DO
+      CALL set_ks_env(ks_env, matrix_h_kp=matrix_h)
+
+      ! Calculate coordination numbers
+      ! needed for effective atomic energy levels (Eq. 12)
+      ! code taken from D3 dispersion energy
+      ALLOCATE (cnumbers(natom))
+      cnumbers = 0._dp
+      IF (calculate_forces) THEN
+         ALLOCATE (dcnum(natom))
+         dcnum(:)%neighbors = 0
+         DO iatom = 1, natom
+            ALLOCATE (dcnum(iatom)%nlist(10), dcnum(iatom)%dvals(10), dcnum(iatom)%rik(3, 10))
+         END DO
+      ELSE
+         ALLOCATE (dcnum(1))
+      END IF
+
+      ALLOCATE (ghost(nkind), floating(nkind), atomnumber(nkind))
+      DO ikind = 1, nkind
+         CALL get_atomic_kind(atomic_kind_set(ikind), z=za)
+         CALL get_qs_kind(qs_kind_set(ikind), ghost=ghost_a, floating=floating_a)
+         ghost(ikind) = ghost_a
+         floating(ikind) = floating_a
+         atomnumber(ikind) = za
+      END DO
+      CALL get_qs_env(qs_env=qs_env, dispersion_env=dispersion_env)
+      CALL d3_cnumber(qs_env, dispersion_env, cnumbers, dcnum, ghost, floating, atomnumber, &
+                      calculate_forces, .FALSE.)
+      DEALLOCATE (ghost, floating, atomnumber)
+      CALL para_env%sum(cnumbers)
+      IF (calculate_forces) THEN
+         CALL dcnum_distribute(dcnum, para_env)
+      END IF
+
+!deb xxxxxxxx
+      ! Calculate Huckel parameters
+      ! Eq 12
+      ! huckel(nshell,natom)
+      ALLOCATE (kcnlk(0:3, nkind))
+      DO ikind = 1, nkind
+         CALL get_atomic_kind(atomic_kind_set(ikind), z=za)
+         IF (metal(za)) THEN
+            kcnlk(0:3, ikind) = 0.0_dp
+         ELSEIF (early3d(za)) THEN
+            kcnlk(0, ikind) = kcns
+            kcnlk(1, ikind) = kcnp
+            kcnlk(2, ikind) = 0.005_dp
+            kcnlk(3, ikind) = 0.0_dp
+         ELSE
+            kcnlk(0, ikind) = kcns
+            kcnlk(1, ikind) = kcnp
+            kcnlk(2, ikind) = kcnd
+            kcnlk(3, ikind) = 0.0_dp
+         END IF
+      END DO
+      ALLOCATE (huckel(5, natom))
+      CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, kind_of=kind_of)
+      DO iatom = 1, natom
+         ikind = kind_of(iatom)
+         CALL get_qs_kind(qs_kind_set(ikind), xtb_parameter=xtb_atom_a)
+         CALL get_xtb_atom_param(xtb_atom_a, nshell=nshell, lval=lval, hen=hena)
+         huckel(:, iatom) = 0.0_dp
+         DO i = 1, nshell
+            huckel(i, iatom) = hena(i)*(1._dp + kcnlk(lval(i), ikind)*cnumbers(iatom))
+         END DO
+      END DO
+!deb xxxxxxxxxxxx
+
+!deb xxxxxxxxxxxx
+      ! Calculate KAB parameters and Huckel parameters and electronegativity correction
+      kl(0) = ks
+      kl(1) = kp
+      kl(2) = kd
+      kl(3) = 0.0_dp
+      ALLOCATE (kijab(maxs, maxs, nkind, nkind))
+      kijab = 0.0_dp
+      DO ikind = 1, nkind
+         CALL get_qs_kind(qs_kind_set(ikind), xtb_parameter=xtb_atom_a)
+         CALL get_xtb_atom_param(xtb_atom_a, defined=defined, natorb=natorb_a)
+         IF (.NOT. defined .OR. natorb_a < 1) CYCLE
+         CALL get_xtb_atom_param(xtb_atom_a, z=za, nao=naoa, lao=laoa, &
+                                 en=enta, electronegativity=ena)
+         DO jkind = 1, nkind
+            CALL get_qs_kind(qs_kind_set(jkind), xtb_parameter=xtb_atom_b)
+            CALL get_xtb_atom_param(xtb_atom_b, defined=defined, natorb=natorb_b)
+            IF (.NOT. defined .OR. natorb_b < 1) CYCLE
+            CALL get_xtb_atom_param(xtb_atom_b, z=zb, nao=naob, lao=laob, &
+                                    en=entb, electronegativity=enb)
+            ! get Fen = (1+ken*deltaEN^2)
+            fen = 1.0_dp + ken*(ena - enb)**2
+            ! Kab
+            kab = xtb_set_kab(za, zb, xtb_control)
+            DO j = 1, natorb_b
+               lb = laob(j)
+               nb = naob(j)
+               DO i = 1, natorb_a
+                  la = laoa(i)
+                  na = naoa(i)
+                  kia = kl(la)
+                  kjb = kl(lb)
+                  IF (zb == 1 .AND. nb == 2) kjb = k2sh
+                  IF (za == 1 .AND. na == 2) kia = k2sh
+                  IF ((zb == 1 .AND. nb == 2) .OR. (za == 1 .AND. na == 2)) THEN
+                     kijab(i, j, ikind, jkind) = 0.5_dp*(kia + kjb)
+                  ELSE
+                     IF ((la == 0 .AND. lb == 1) .OR. (la == 1 .AND. lb == 0)) THEN
+                        kijab(i, j, ikind, jkind) = ksp*kab*fen
+                     ELSE
+                        kijab(i, j, ikind, jkind) = 0.5_dp*(kia + kjb)*kab*fen
+                     END IF
+                  END IF
+               END DO
+            END DO
+         END DO
+      END DO
+!deb xxxxxxxxxxxx
+
+      ! initialize repulsion and srb energy
+      erep = 0._dp
+      esrb = 0._dp
+
+      ! loop over all atom pairs with a non-zero overlap (sab_orb)
+      CALL neighbor_list_iterator_create(nl_iterator, sab_orb)
+      DO WHILE (neighbor_list_iterate(nl_iterator) == 0)
+         CALL get_iterator_info(nl_iterator, ikind=ikind, jkind=jkind, &
+                                iatom=iatom, jatom=jatom, r=rij, cell=cell)
+         CALL get_qs_kind(qs_kind_set(ikind), xtb_parameter=xtb_atom_a)
+         CALL get_xtb_atom_param(xtb_atom_a, defined=defined, natorb=natorb_a)
+         IF (.NOT. defined .OR. natorb_a < 1) CYCLE
+         CALL get_qs_kind(qs_kind_set(jkind), xtb_parameter=xtb_atom_b)
+         CALL get_xtb_atom_param(xtb_atom_b, defined=defined, natorb=natorb_b)
+         IF (.NOT. defined .OR. natorb_b < 1) CYCLE
+
+         dr = SQRT(SUM(rij(:)**2))
+
+         ! atomic parameters
+         CALL get_xtb_atom_param(xtb_atom_a, z=za, nao=naoa, lao=laoa, rcov=rcova, eta=etaa, &
+                                 lmax=lmaxa, nshell=nsa, alpha=alphaa, zneff=zneffa, kpoly=kpolya, &
+                                 kappa=kappaa, hen=hena)
+         CALL get_xtb_atom_param(xtb_atom_b, z=zb, nao=naob, lao=laob, rcov=rcovb, eta=etab, &
+                                 lmax=lmaxb, nshell=nsb, alpha=alphab, zneff=zneffb, kpoly=kpolyb, &
+                                 kappa=kappab, hen=henb)
+
+         IF (nimg == 1) THEN
+            ic = 1
+         ELSE
+            ic = cell_to_index(cell(1), cell(2), cell(3))
+            CPASSERT(ic > 0)
+         END IF
+
+         icol = MAX(iatom, jatom)
+         irow = MIN(iatom, jatom)
+         NULLIFY (sblock, fblock)
+         CALL dbcsr_get_block_p(matrix=matrix_s(1, ic)%matrix, &
+                                row=irow, col=icol, BLOCK=sblock, found=found)
+         CPASSERT(found)
+         CALL dbcsr_get_block_p(matrix=matrix_h(1, ic)%matrix, &
+                                row=irow, col=icol, BLOCK=fblock, found=found)
+         CPASSERT(found)
+
+         IF (calculate_forces) THEN
+            NULLIFY (pblock)
+            CALL dbcsr_get_block_p(matrix=matrix_p(1, ic)%matrix, &
+                                   row=irow, col=icol, block=pblock, found=found)
+            CPASSERT(ASSOCIATED(pblock))
+            NULLIFY (wblock)
+            CALL dbcsr_get_block_p(matrix=matrix_w(1, ic)%matrix, &
+                                   row=irow, col=icol, block=wblock, found=found)
+            CPASSERT(ASSOCIATED(wblock))
+            DO i = 2, 4
+               NULLIFY (dsblocks(i)%block)
+               CALL dbcsr_get_block_p(matrix=matrix_s(i, ic)%matrix, &
+                                      row=irow, col=icol, BLOCK=dsblocks(i)%block, found=found)
+               CPASSERT(found)
+            END DO
+         END IF
+
+         ! overlap
+         basis_set_a => basis_set_list(ikind)%gto_basis_set
+         IF (.NOT. ASSOCIATED(basis_set_a)) CYCLE
+         basis_set_b => basis_set_list(jkind)%gto_basis_set
+         IF (.NOT. ASSOCIATED(basis_set_b)) CYCLE
+         atom_a = atom_of_kind(iatom)
+         atom_b = atom_of_kind(jatom)
+         ! basis ikind
+         first_sgfa => basis_set_a%first_sgf
+         la_max => basis_set_a%lmax
+         la_min => basis_set_a%lmin
+         npgfa => basis_set_a%npgf
+         nseta = basis_set_a%nset
+         nsgfa => basis_set_a%nsgf_set
+         rpgfa => basis_set_a%pgf_radius
+         set_radius_a => basis_set_a%set_radius
+         scon_a => basis_set_a%scon
+         zeta => basis_set_a%zet
+         ! basis jkind
+         first_sgfb => basis_set_b%first_sgf
+         lb_max => basis_set_b%lmax
+         lb_min => basis_set_b%lmin
+         npgfb => basis_set_b%npgf
+         nsetb = basis_set_b%nset
+         nsgfb => basis_set_b%nsgf_set
+         rpgfb => basis_set_b%pgf_radius
+         set_radius_b => basis_set_b%set_radius
+         scon_b => basis_set_b%scon
+         zetb => basis_set_b%zet
+
+         ldsab = get_memory_usage(qs_kind_set, "ORB", "ORB")
+         ALLOCATE (oint(ldsab, ldsab, maxder), owork(ldsab, ldsab))
+         ALLOCATE (sint(natorb_a, natorb_b, maxder))
+         sint = 0.0_dp
+
+         DO iset = 1, nseta
+            ncoa = npgfa(iset)*ncoset(la_max(iset))
+            n1 = npgfa(iset)*(ncoset(la_max(iset)) - ncoset(la_min(iset) - 1))
+            sgfa = first_sgfa(1, iset)
+            DO jset = 1, nsetb
+               IF (set_radius_a(iset) + set_radius_b(jset) < dr) CYCLE
+               ncob = npgfb(jset)*ncoset(lb_max(jset))
+               n2 = npgfb(jset)*(ncoset(lb_max(jset)) - ncoset(lb_min(jset) - 1))
+               sgfb = first_sgfb(1, jset)
+               IF (calculate_forces) THEN
+                  CALL overlap_ab(la_max(iset), la_min(iset), npgfa(iset), rpgfa(:, iset), zeta(:, iset), &
+                                  lb_max(jset), lb_min(jset), npgfb(jset), rpgfb(:, jset), zetb(:, jset), &
+                                  rij, sab=oint(:, :, 1), dab=oint(:, :, 2:4))
+               ELSE
+                  CALL overlap_ab(la_max(iset), la_min(iset), npgfa(iset), rpgfa(:, iset), zeta(:, iset), &
+                                  lb_max(jset), lb_min(jset), npgfb(jset), rpgfb(:, jset), zetb(:, jset), &
+                                  rij, sab=oint(:, :, 1))
+               END IF
+               ! Contraction
+               CALL contraction(oint(:, :, 1), owork, ca=scon_a(:, sgfa:), na=n1, ma=nsgfa(iset), &
+                                cb=scon_b(:, sgfb:), nb=n2, mb=nsgfb(jset), fscale=1.0_dp, trans=.FALSE.)
+               CALL block_add("IN", owork, nsgfa(iset), nsgfb(jset), sint(:, :, 1), sgfa, sgfb, trans=.FALSE.)
+               IF (calculate_forces) THEN
+                  DO i = 2, 4
+                     CALL contraction(oint(:, :, i), owork, ca=scon_a(:, sgfa:), na=n1, ma=nsgfa(iset), &
+                                      cb=scon_b(:, sgfb:), nb=n2, mb=nsgfb(jset), fscale=1.0_dp, trans=.FALSE.)
+                     CALL block_add("IN", owork, nsgfa(iset), nsgfb(jset), sint(:, :, i), sgfa, sgfb, trans=.FALSE.)
+                  END DO
+               END IF
+            END DO
+         END DO
+         ! forces W matrix
+         IF (calculate_forces) THEN
+            DO i = 1, 3
+               IF (iatom <= jatom) THEN
+                  force_ab(i) = SUM(sint(:, :, i + 1)*wblock(:, :))
+               ELSE
+                  force_ab(i) = SUM(sint(:, :, i + 1)*TRANSPOSE(wblock(:, :)))
+               END IF
+            END DO
+            f1 = 2.0_dp
+            force(ikind)%overlap(:, atom_a) = force(ikind)%overlap(:, atom_a) - f1*force_ab(:)
+            force(jkind)%overlap(:, atom_b) = force(jkind)%overlap(:, atom_b) + f1*force_ab(:)
+            IF (use_virial .AND. dr > 1.e-3_dp) THEN
+               IF (iatom == jatom) f1 = 1.0_dp
+               CALL virial_pair_force(virial%pv_virial, -f1, force_ab, rij)
+               IF (atprop%stress) THEN
+                  CALL virial_pair_force(atprop%atstress(:, :, iatom), -0.5_dp*f1, force_ab, rij)
+                  CALL virial_pair_force(atprop%atstress(:, :, jatom), -0.5_dp*f1, force_ab, rij)
+               END IF
+            END IF
+         END IF
+         ! update S matrix
+         IF (iatom <= jatom) THEN
+            sblock(:, :) = sblock(:, :) + sint(:, :, 1)
+         ELSE
+            sblock(:, :) = sblock(:, :) + TRANSPOSE(sint(:, :, 1))
+         END IF
+         IF (calculate_forces) THEN
+            DO i = 2, 4
+               IF (iatom <= jatom) THEN
+                  dsblocks(i)%block(:, :) = dsblocks(i)%block(:, :) + sint(:, :, i)
+               ELSE
+                  dsblocks(i)%block(:, :) = dsblocks(i)%block(:, :) - TRANSPOSE(sint(:, :, i))
+               END IF
+            END DO
+         END IF
+
+!deb
+         ! Calculate Pi = Pia * Pib (Eq. 11)
+         rcovab = rcova + rcovb
+         rrab = SQRT(dr/rcovab)
+         DO i = 1, nsa
+            pia(i) = 1._dp + kpolya(i)*rrab
+         END DO
+         DO i = 1, nsb
+            pib(i) = 1._dp + kpolyb(i)*rrab
+         END DO
+         IF (calculate_forces) THEN
+            IF (dr > 1.e-6_dp) THEN
+               drx = 0.5_dp/rrab/rcovab
+            ELSE
+               drx = 0.0_dp
+            END IF
+            dpia(1:nsa) = drx*kpolya(1:nsa)
+            dpib(1:nsb) = drx*kpolyb(1:nsb)
+         END IF
+
+         ! diagonal block
+         diagblock = .FALSE.
+         IF (iatom == jatom .AND. dr < 0.001_dp) diagblock = .TRUE.
+         !
+         ! Eq. 10
+         !
+         IF (diagblock) THEN
+            DO i = 1, natorb_a
+               na = naoa(i)
+               fblock(i, i) = fblock(i, i) + huckel(na, iatom)
+            END DO
+         ELSE
+            DO j = 1, natorb_b
+               nb = naob(j)
+               DO i = 1, natorb_a
+                  na = naoa(i)
+                  hij = 0.5_dp*(huckel(na, iatom) + huckel(nb, jatom))*pia(na)*pib(nb)
+                  IF (iatom <= jatom) THEN
+                     fblock(i, j) = fblock(i, j) + hij*sint(i, j, 1)*kijab(i, j, ikind, jkind)
+                  ELSE
+                     fblock(j, i) = fblock(j, i) + hij*sint(i, j, 1)*kijab(i, j, ikind, jkind)
+                  END IF
+               END DO
+            END DO
+         END IF
+         IF (calculate_forces) THEN
+            f0 = 1.0_dp
+            IF (irow == iatom) f0 = -1.0_dp
+            ! Derivative wrt coordination number
+            fhua = 0.0_dp
+            fhub = 0.0_dp
+            fhud = 0.0_dp
+            IF (diagblock) THEN
+               DO i = 1, natorb_a
+                  la = laoa(i)
+                  na = naoa(i)
+                  fhud = fhud + pblock(i, i)*kcnlk(la, ikind)*hena(na)
+               END DO
+            ELSE
+               DO j = 1, natorb_b
+                  lb = laob(j)
+                  nb = naob(j)
+                  DO i = 1, natorb_a
+                     la = laoa(i)
+                     na = naoa(i)
+                     hij = 0.5_dp*pia(na)*pib(nb)
+                     IF (iatom <= jatom) THEN
+                        fhua = fhua + hij*kijab(i, j, ikind, jkind)*sint(i, j, 1)*pblock(i, j)*kcnlk(la, ikind)*hena(na)
+                        fhub = fhub + hij*kijab(i, j, ikind, jkind)*sint(i, j, 1)*pblock(i, j)*kcnlk(lb, jkind)*henb(nb)
+                     ELSE
+                        fhua = fhua + hij*kijab(i, j, ikind, jkind)*sint(i, j, 1)*pblock(j, i)*kcnlk(la, ikind)*hena(na)
+                        fhub = fhub + hij*kijab(i, j, ikind, jkind)*sint(i, j, 1)*pblock(j, i)*kcnlk(lb, jkind)*henb(nb)
+                     END IF
+                  END DO
+               END DO
+               IF (iatom /= jatom) THEN
+                  fhua = 2.0_dp*fhua
+                  fhub = 2.0_dp*fhub
+               END IF
+            END IF
+            ! iatom
+            atom_a = atom_of_kind(iatom)
+            DO i = 1, dcnum(iatom)%neighbors
+               katom = dcnum(iatom)%nlist(i)
+               kkind = kind_of(katom)
+               atom_c = atom_of_kind(katom)
+               rik = dcnum(iatom)%rik(:, i)
+               drk = SQRT(SUM(rik(:)**2))
+               IF (drk > 1.e-3_dp) THEN
+                  fdika(:) = fhua*dcnum(iatom)%dvals(i)*rik(:)/drk
+                  force(ikind)%all_potential(:, atom_a) = force(ikind)%all_potential(:, atom_a) - fdika(:)
+                  force(kkind)%all_potential(:, atom_c) = force(kkind)%all_potential(:, atom_c) + fdika(:)
+                  fdikb(:) = fhud*dcnum(iatom)%dvals(i)*rik(:)/drk
+                  force(ikind)%all_potential(:, atom_a) = force(ikind)%all_potential(:, atom_a) - fdikb(:)
+                  force(kkind)%all_potential(:, atom_c) = force(kkind)%all_potential(:, atom_c) + fdikb(:)
+                  IF (use_virial) THEN
+                     fdik = fdika + fdikb
+                     CALL virial_pair_force(virial%pv_virial, -1._dp, fdik, rik)
+                     IF (atprop%stress) THEN
+                        CALL virial_pair_force(atprop%atstress(:, :, iatom), -0.5_dp, fdik, rik)
+                        CALL virial_pair_force(atprop%atstress(:, :, katom), -0.5_dp, fdik, rik)
+                     END IF
+                  END IF
+               END IF
+            END DO
+            ! jatom
+            atom_b = atom_of_kind(jatom)
+            DO i = 1, dcnum(jatom)%neighbors
+               katom = dcnum(jatom)%nlist(i)
+               kkind = kind_of(katom)
+               atom_c = atom_of_kind(katom)
+               rik = dcnum(jatom)%rik(:, i)
+               drk = SQRT(SUM(rik(:)**2))
+               IF (drk > 1.e-3_dp) THEN
+                  fdik(:) = fhub*dcnum(jatom)%dvals(i)*rik(:)/drk
+                  force(jkind)%all_potential(:, atom_b) = force(jkind)%all_potential(:, atom_b) - fdik(:)
+                  force(kkind)%all_potential(:, atom_c) = force(kkind)%all_potential(:, atom_c) + fdik(:)
+                  IF (use_virial) THEN
+                     CALL virial_pair_force(virial%pv_virial, -1._dp, fdik, rik)
+                     IF (atprop%stress) THEN
+                        CALL virial_pair_force(atprop%atstress(:, :, iatom), -0.5_dp, fdik, rik)
+                        CALL virial_pair_force(atprop%atstress(:, :, katom), -0.5_dp, fdik, rik)
+                     END IF
+                  END IF
+               END IF
+            END DO
+            IF (diagblock) THEN
+               force_ab = 0._dp
+            ELSE
+               ! force from R dendent Huckel element
+               n1 = SIZE(fblock, 1)
+               n2 = SIZE(fblock, 2)
+               ALLOCATE (dfblock(n1, n2))
+               dfblock = 0.0_dp
+               DO j = 1, natorb_b
+                  lb = laob(j)
+                  nb = naob(j)
+                  DO i = 1, natorb_a
+                     la = laoa(i)
+                     na = naoa(i)
+                     dhij = 0.5_dp*(huckel(na, iatom) + huckel(nb, jatom))*(dpia(na)*pib(nb) + pia(na)*dpib(nb))
+                     IF (iatom <= jatom) THEN
+                        dfblock(i, j) = dfblock(i, j) + dhij*sint(i, j, 1)*kijab(i, j, ikind, jkind)
+                     ELSE
+                        dfblock(j, i) = dfblock(j, i) + dhij*sint(i, j, 1)*kijab(i, j, ikind, jkind)
+                     END IF
+                  END DO
+               END DO
+               dfp = f0*SUM(dfblock(:, :)*pblock(:, :))
+               DO ir = 1, 3
+                  foab = 2.0_dp*dfp*rij(ir)/dr
+                  ! force from overlap matrix contribution to H
+                  DO j = 1, natorb_b
+                     lb = laob(j)
+                     nb = naob(j)
+                     DO i = 1, natorb_a
+                        la = laoa(i)
+                        na = naoa(i)
+                        hij = 0.5_dp*(huckel(na, iatom) + huckel(nb, jatom))*pia(na)*pib(nb)
+                        IF (iatom <= jatom) THEN
+                           foab = foab + 2.0_dp*hij*sint(i, j, ir + 1)*pblock(i, j)*kijab(i, j, ikind, jkind)
+                        ELSE
+                           foab = foab - 2.0_dp*hij*sint(i, j, ir + 1)*pblock(j, i)*kijab(i, j, ikind, jkind)
+                        END IF
+                     END DO
+                  END DO
+                  force_ab(ir) = foab
+               END DO
+               DEALLOCATE (dfblock)
+            END IF
+         END IF
+
+         IF (calculate_forces) THEN
+            atom_a = atom_of_kind(iatom)
+            atom_b = atom_of_kind(jatom)
+            IF (irow == iatom) force_ab = -force_ab
+            force(ikind)%all_potential(:, atom_a) = force(ikind)%all_potential(:, atom_a) - force_ab(:)
+            force(jkind)%all_potential(:, atom_b) = force(jkind)%all_potential(:, atom_b) + force_ab(:)
+            IF (use_virial) THEN
+               f1 = 1.0_dp
+               IF (iatom == jatom) f1 = 0.5_dp
+               CALL virial_pair_force(virial%pv_virial, -f1, force_ab, rij)
+               IF (atprop%stress) THEN
+                  CALL virial_pair_force(atprop%atstress(:, :, iatom), -0.5_dp*f1, force_ab, rij)
+                  CALL virial_pair_force(atprop%atstress(:, :, jatom), -0.5_dp*f1, force_ab, rij)
+               END IF
+            END IF
+         END IF
+
+         DEALLOCATE (oint, owork, sint)
+
+         ! repulsive potential
+         IF (dr > 0.001_dp) THEN
+            erepij = zneffa*zneffb/dr*EXP(-SQRT(alphaa*alphab)*dr**kf)
+            erep = erep + erepij
+            IF (atprop%energy) THEN
+               atprop%atecc(iatom) = atprop%atecc(iatom) + 0.5_dp*erepij
+               atprop%atecc(jatom) = atprop%atecc(jatom) + 0.5_dp*erepij
+            END IF
+            IF (calculate_forces .AND. (iatom /= jatom .OR. dr > 0.001_dp)) THEN
+               derepij = -(1.0_dp/dr + SQRT(alphaa*alphab)*kf*dr**(kf - 1.0_dp))*erepij
+               force_rr(1) = derepij*rij(1)/dr
+               force_rr(2) = derepij*rij(2)/dr
+               force_rr(3) = derepij*rij(3)/dr
+               atom_a = atom_of_kind(iatom)
+               atom_b = atom_of_kind(jatom)
+               force(ikind)%repulsive(:, atom_a) = force(ikind)%repulsive(:, atom_a) - force_rr(:)
+               force(jkind)%repulsive(:, atom_b) = force(jkind)%repulsive(:, atom_b) + force_rr(:)
+               IF (use_virial) THEN
+                  f1 = 1.0_dp
+                  IF (iatom == jatom) f1 = 0.5_dp
+                  CALL virial_pair_force(virial%pv_virial, -f1, force_rr, rij)
+                  IF (atprop%stress) THEN
+                     CALL virial_pair_force(atprop%atstress(:, :, iatom), -0.5_dp*f1, force_rr, rij)
+                     CALL virial_pair_force(atprop%atstress(:, :, jatom), -0.5_dp*f1, force_rr, rij)
+                  END IF
+               END IF
+            END IF
+         END IF
+         ! short-ranged correction term
+         IF (za >= 5 .AND. za <= 9 .AND. zb >= 5 .AND. zb <= 9 .AND. za /= zb) THEN
+            rra0 = r0srb(za) + cnfac(za)*cnumbers(iatom) + shift
+            rrb0 = r0srb(zb) + cnfac(zb)*cnumbers(jatom) + shift
+            den1 = ABS(ensrb(za) - ensrb(zb))
+            dr0 = (rra0 + rrb0)*(1._dp - c1srb*den1 - c2srb*den1*den1)
+            den2 = (enta - entb)**2
+            esrbij = ksrb*EXP(-etasrb*(1._dp + gscal*den2)*(dr - dr0)**2)
+            esrb = esrb + esrbij
+            IF (atprop%energy) THEN
+               atprop%atecc(iatom) = atprop%atecc(iatom) + 0.5_dp*esrbij
+               atprop%atecc(jatom) = atprop%atecc(jatom) + 0.5_dp*esrbij
+            END IF
+            IF (calculate_forces) THEN
+               desrbij = esrbij*(-etasrb*(1._dp + gscal*den2)*(dr - dr0))
+               force_rr(1) = desrbij*rij(1)/dr
+               force_rr(2) = desrbij*rij(2)/dr
+               force_rr(3) = desrbij*rij(3)/dr
+               atom_a = atom_of_kind(iatom)
+               atom_b = atom_of_kind(jatom)
+               force(ikind)%repulsive(:, atom_a) = force(ikind)%repulsive(:, atom_a) - force_rr(:)
+               force(jkind)%repulsive(:, atom_b) = force(jkind)%repulsive(:, atom_b) + force_rr(:)
+               IF (use_virial) THEN
+                  f1 = 1.0_dp
+                  IF (iatom == jatom) f1 = 0.5_dp
+                  CALL virial_pair_force(virial%pv_virial, -f1, force_rr, rij)
+                  IF (atprop%stress) THEN
+                     CALL virial_pair_force(atprop%atstress(:, :, iatom), -0.5_dp*f1, force_rr, rij)
+                     CALL virial_pair_force(atprop%atstress(:, :, jatom), -0.5_dp*f1, force_rr, rij)
+                  END IF
+               END IF
+               ! coordination number derivatives
+               ! iatom
+               fhua = desrbij*cnfac(za)
+               DO i = 1, dcnum(iatom)%neighbors
+                  katom = dcnum(iatom)%nlist(i)
+                  kkind = kind_of(katom)
+                  atom_c = atom_of_kind(katom)
+                  rik = dcnum(iatom)%rik(:, i)
+                  drk = SQRT(SUM(rik(:)**2))
+                  IF (drk > 1.e-3_dp) THEN
+                     fdika(:) = fhua*dcnum(iatom)%dvals(i)*rik(:)/drk
+                     force(ikind)%repulsive(:, atom_a) = force(ikind)%repulsive(:, atom_a) - fdika(:)
+                     force(kkind)%repulsive(:, atom_c) = force(kkind)%repulsive(:, atom_c) + fdika(:)
+                     fdikb(:) = fhud*dcnum(iatom)%dvals(i)*rik(:)/drk
+                     force(ikind)%repulsive(:, atom_a) = force(ikind)%repulsive(:, atom_a) - fdikb(:)
+                     force(kkind)%repulsive(:, atom_c) = force(kkind)%repulsive(:, atom_c) + fdikb(:)
+                     IF (use_virial) THEN
+                        fdik = fdika + fdikb
+                        CALL virial_pair_force(virial%pv_virial, -1._dp, fdik, rik)
+                        IF (atprop%stress) THEN
+                           CALL virial_pair_force(atprop%atstress(:, :, iatom), -0.5_dp, fdik, rik)
+                           CALL virial_pair_force(atprop%atstress(:, :, katom), -0.5_dp, fdik, rik)
+                        END IF
+                     END IF
+                  END IF
+               END DO
+               ! jatom
+               fhub = desrbij*cnfac(zb)
+               DO i = 1, dcnum(jatom)%neighbors
+                  katom = dcnum(jatom)%nlist(i)
+                  kkind = kind_of(katom)
+                  atom_c = atom_of_kind(katom)
+                  rik = dcnum(jatom)%rik(:, i)
+                  drk = SQRT(SUM(rik(:)**2))
+                  IF (drk > 1.e-3_dp) THEN
+                     fdik(:) = fhub*dcnum(jatom)%dvals(i)*rik(:)/drk
+                     force(jkind)%repulsive(:, atom_b) = force(jkind)%repulsive(:, atom_b) - fdik(:)
+                     force(kkind)%repulsive(:, atom_c) = force(kkind)%repulsive(:, atom_c) + fdik(:)
+                     IF (use_virial) THEN
+                        CALL virial_pair_force(virial%pv_virial, -1._dp, fdik, rik)
+                        IF (atprop%stress) THEN
+                           CALL virial_pair_force(atprop%atstress(:, :, iatom), -0.5_dp, fdik, rik)
+                           CALL virial_pair_force(atprop%atstress(:, :, katom), -0.5_dp, fdik, rik)
+                        END IF
+                     END IF
+                  END IF
+               END DO
+            END IF
+         END IF
+
+      END DO
+      CALL neighbor_list_iterator_release(nl_iterator)
+
+      DO i = 1, SIZE(matrix_h, 1)
+         DO img = 1, nimg
+            CALL dbcsr_finalize(matrix_h(i, img)%matrix)
+            CALL dbcsr_finalize(matrix_s(i, img)%matrix)
+         END DO
+      END DO
+
+      enonbonded = 0.0_dp
+      IF (do_nonbonded) THEN
+         ! nonbonded interactions
+         NULLIFY (sab_xtb_nonbond)
+         CALL get_qs_env(qs_env=qs_env, sab_xtb_nonbond=sab_xtb_nonbond)
+         CALL nonbonded_correction(enonbonded, force, qs_env, xtb_control, sab_xtb_nonbond, &
+                                   atomic_kind_set, calculate_forces, use_virial, virial, atprop, atom_of_kind)
+      END IF
+      ! set repulsive energy
+      erep = erep + esrb + enonbonded
+      IF (do_nonbonded) THEN
+         CALL para_env%sum(enonbonded)
+         energy%xtb_nonbonded = enonbonded
+      END IF
+      CALL para_env%sum(esrb)
+      energy%srb = esrb
+      CALL para_env%sum(erep)
+      energy%repulsive = erep
+
+      ! deallocate coordination numbers
+      DEALLOCATE (cnumbers)
+      IF (calculate_forces) THEN
+         DO iatom = 1, natom
+            DEALLOCATE (dcnum(iatom)%nlist, dcnum(iatom)%dvals, dcnum(iatom)%rik)
+         END DO
+      END IF
+      DEALLOCATE (dcnum)
+!deb =========================
+
+      ! deallocate Huckel parameters
+      DEALLOCATE (huckel)
+      ! deallocate KAB parameters
+      DEALLOCATE (kijab)
+
+      ! AO matrix outputs
+      CALL ao_matrix_output(qs_env, matrix_h, matrix_s, calculate_forces)
+
+      DEALLOCATE (basis_set_list)
+      IF (calculate_forces) THEN
+         IF (SIZE(matrix_p, 1) == 2) THEN
+            DO img = 1, nimg
+               CALL dbcsr_add(matrix_p(1, img)%matrix, matrix_p(2, img)%matrix, alpha_scalar=1.0_dp, &
+                              beta_scalar=-1.0_dp)
+            END DO
+         END IF
+      END IF
+
+      CALL timestop(handle)
+
+   END SUBROUTINE build_gfn0_xtb_matrices
+
+! **************************************************************************************************
+!> \brief ...
+!> \param qs_env ...
+!> \param calculate_forces ...
+! **************************************************************************************************
+   SUBROUTINE build_gfn1_xtb_matrices(qs_env, calculate_forces)
+
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      LOGICAL, INTENT(IN)                                :: calculate_forces
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'build_gfn1_xtb_matrices'
+
+      INTEGER :: atom_a, atom_b, atom_c, handle, i, iatom, ic, icol, ikind, img, ir, irow, iset, &
+         j, jatom, jkind, jset, katom, kkind, la, lb, ldsab, lmaxa, lmaxb, maxder, maxs, n1, n2, &
+         na, natom, natorb_a, natorb_b, nb, ncoa, ncob, nderivatives, nimg, nkind, nsa, nsb, &
+         nseta, nsetb, nshell, sgfa, sgfb, za, zat, zb
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, atomnumber, kind_of
+      INTEGER, DIMENSION(25)                             :: laoa, laob, lval, naoa, naob
+      INTEGER, DIMENSION(3)                              :: cell
+      INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, lb_max, lb_min, npgfa, &
+                                                            npgfb, nsgfa, nsgfb
+      INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa, first_sgfb
+      INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
+      LOGICAL                                            :: defined, diagblock, do_nonbonded, &
+                                                            floating_a, found, ghost_a, &
+                                                            use_virial, xb_inter
+      LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: floating, ghost
+      REAL(KIND=dp) :: alphaa, alphab, derepij, dfp, dhij, dr, drk, drx, ena, enb, enonbonded, &
+         erep, erepij, etaa, etab, exb, f0, f1, fen, fhua, fhub, fhud, foab, hij, k2sh, kab, kcnd, &
+         kcnp, kcns, kd, ken, kf, kg, kia, kjb, kp, ks, ksp, kx2, kxr, rcova, rcovab, rcovb, rrab, &
+         zneffa, zneffb
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: cnumbers, kx
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: dfblock, huckel, kcnlk, owork, rcab
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: oint, sint
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :, :)  :: kijab
+      REAL(KIND=dp), DIMENSION(0:3)                      :: kl
+      REAL(KIND=dp), DIMENSION(3)                        :: fdik, fdika, fdikb, force_ab, force_rr, &
+                                                            rij, rik
+      REAL(KIND=dp), DIMENSION(5)                        :: dpia, dpib, hena, henb, kappaa, kappab, &
+                                                            kpolya, kpolyb, pia, pib
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: set_radius_a, set_radius_b
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: fblock, pblock, rpgfa, rpgfb, sblock, &
+                                                            scon_a, scon_b, wblock, zeta, zetb
+      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      TYPE(atprop_type), POINTER                         :: atprop
+      TYPE(block_p_type), DIMENSION(2:4)                 :: dsblocks
+      TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_h, matrix_p, matrix_s, matrix_w
+      TYPE(dcnum_type), ALLOCATABLE, DIMENSION(:)        :: dcnum
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: basis_set_list
+      TYPE(gto_basis_set_type), POINTER                  :: basis_set_a, basis_set_b
+      TYPE(kpoint_type), POINTER                         :: kpoints
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(neighbor_atoms_type), ALLOCATABLE, &
          DIMENSION(:)                                    :: neighbor_atoms
       TYPE(neighbor_list_iterator_p_type), &
@@ -212,6 +1091,7 @@ CONTAINS
                       qs_kind_set=qs_kind_set, &
                       matrix_h_kp=matrix_h, &
                       matrix_s_kp=matrix_s, &
+                      para_env=para_env, &
                       atprop=atprop, &
                       dft_control=dft_control, &
                       sab_orb=sab_orb)
@@ -898,6 +1778,62 @@ CONTAINS
       ! deallocate KAB parameters
       DEALLOCATE (kijab)
 
+      ! AO matrix outputs
+      CALL ao_matrix_output(qs_env, matrix_h, matrix_s, calculate_forces)
+
+      DEALLOCATE (basis_set_list)
+      IF (calculate_forces) THEN
+         IF (SIZE(matrix_p, 1) == 2) THEN
+            DO img = 1, nimg
+               CALL dbcsr_add(matrix_p(1, img)%matrix, matrix_p(2, img)%matrix, alpha_scalar=1.0_dp, &
+                              beta_scalar=-1.0_dp)
+            END DO
+         END IF
+      END IF
+
+      IF (xb_inter) THEN
+         DO ikind = 1, nkind
+            IF (ASSOCIATED(neighbor_atoms(ikind)%coord)) THEN
+               DEALLOCATE (neighbor_atoms(ikind)%coord)
+            END IF
+            IF (ASSOCIATED(neighbor_atoms(ikind)%rab)) THEN
+               DEALLOCATE (neighbor_atoms(ikind)%rab)
+            END IF
+            IF (ASSOCIATED(neighbor_atoms(ikind)%katom)) THEN
+               DEALLOCATE (neighbor_atoms(ikind)%katom)
+            END IF
+         END DO
+         DEALLOCATE (neighbor_atoms)
+         DEALLOCATE (kx, rcab)
+      END IF
+
+      CALL timestop(handle)
+
+   END SUBROUTINE build_gfn1_xtb_matrices
+
+! **************************************************************************************************
+!> \brief ...
+!> \param qs_env ...
+!> \param matrix_h ...
+!> \param matrix_s ...
+!> \param calculate_forces ...
+! **************************************************************************************************
+   SUBROUTINE ao_matrix_output(qs_env, matrix_h, matrix_s, calculate_forces)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_h, matrix_s
+      LOGICAL, INTENT(IN)                                :: calculate_forces
+
+      INTEGER                                            :: after, i, img, iw, nimg
+      LOGICAL                                            :: norml1, norml2, omit_headers, use_arnoldi
+      REAL(KIND=dp), DIMENSION(2)                        :: condnum
+      TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
+      TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(mp_para_env_type), POINTER                    :: para_env
+
+      logger => cp_get_default_logger()
+
+      CALL get_qs_env(qs_env, para_env=para_env)
+      nimg = SIZE(matrix_h, 2)
       CALL section_vals_val_get(qs_env%input, "DFT%PRINT%AO_MATRICES%OMIT_HEADERS", l_val=omit_headers)
       IF (BTEST(cp_print_key_should_output(logger%iter_info, &
                                            qs_env%input, "DFT%PRINT%AO_MATRICES/CORE_HAMILTONIAN"), cp_p_file)) THEN
@@ -946,35 +1882,7 @@ CONTAINS
          END IF
       END IF
 
-      DEALLOCATE (basis_set_list)
-      IF (calculate_forces) THEN
-         IF (SIZE(matrix_p, 1) == 2) THEN
-            DO img = 1, nimg
-               CALL dbcsr_add(matrix_p(1, img)%matrix, matrix_p(2, img)%matrix, alpha_scalar=1.0_dp, &
-                              beta_scalar=-1.0_dp)
-            END DO
-         END IF
-      END IF
-
-      IF (xb_inter) THEN
-         DO ikind = 1, nkind
-            IF (ASSOCIATED(neighbor_atoms(ikind)%coord)) THEN
-               DEALLOCATE (neighbor_atoms(ikind)%coord)
-            END IF
-            IF (ASSOCIATED(neighbor_atoms(ikind)%rab)) THEN
-               DEALLOCATE (neighbor_atoms(ikind)%rab)
-            END IF
-            IF (ASSOCIATED(neighbor_atoms(ikind)%katom)) THEN
-               DEALLOCATE (neighbor_atoms(ikind)%katom)
-            END IF
-         END DO
-         DEALLOCATE (neighbor_atoms)
-         DEALLOCATE (kx, rcab)
-      END IF
-
-      CALL timestop(handle)
-
-   END SUBROUTINE build_xtb_matrices
+   END SUBROUTINE ao_matrix_output
 
 ! **************************************************************************************************
 !> \brief ...
@@ -1049,6 +1957,8 @@ CONTAINS
                       dft_control=dft_control, &
                       para_env=para_env, &
                       sab_orb=sab_orb)
+
+      CPASSERT(dft_control%qs_control%xtb_control%gfn_type == 1)
 
       nkind = SIZE(atomic_kind_set)
       xtb_control => dft_control%qs_control%xtb_control
@@ -1515,13 +2425,13 @@ CONTAINS
 !> \param just_energy ...
 !> \param ext_ks_matrix ...
 ! **************************************************************************************************
-   SUBROUTINE build_xtb_ks_matrix(qs_env, calculate_forces, just_energy, ext_ks_matrix)
+   SUBROUTINE build_gfn1_xtb_ks_matrix(qs_env, calculate_forces, just_energy, ext_ks_matrix)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       LOGICAL, INTENT(in)                                :: calculate_forces, just_energy
       TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: ext_ks_matrix
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'build_xtb_ks_matrix'
+      CHARACTER(len=*), PARAMETER :: routineN = 'build_gfn1_xtb_ks_matrix'
 
       INTEGER                                            :: atom_a, handle, iatom, ikind, img, &
                                                             iounit, is, ispin, na, natom, natorb, &
@@ -1752,7 +2662,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE build_xtb_ks_matrix
+   END SUBROUTINE build_gfn1_xtb_ks_matrix
 
 ! **************************************************************************************************
 !> \brief  Distributes the neighbor atom information to all processors

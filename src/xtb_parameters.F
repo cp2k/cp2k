@@ -252,10 +252,18 @@ CONTAINS
                      DO i = 1, param%nshell
                         CALL parser_get_object(parser, param%zeta(i))
                      END DO
+                  CASE ("EN")
+                     CALL parser_get_object(parser, param%en)
                   CASE ("GAM")
                      CALL parser_get_object(parser, param%eta)
-                  CASE ("GAM3")
-                     CALL parser_get_object(parser, param%xgamma)
+                  CASE ("KQAT2")
+                     CALL parser_get_object(parser, param%kqat2)
+                  CASE ("KCNS")
+                     CALL parser_get_object(parser, param%kcn(1))
+                  CASE ("KCNP")
+                     CALL parser_get_object(parser, param%kcn(2))
+                  CASE ("KCND")
+                     CALL parser_get_object(parser, param%kcn(3))
                   CASE ("REPA")
                      CALL parser_get_object(parser, param%alpha)
                   CASE ("REPB")
@@ -266,15 +274,22 @@ CONTAINS
                      CALL parser_get_object(parser, param%kpoly(2))
                   CASE ("POLYD")
                      CALL parser_get_object(parser, param%kpoly(3))
-                  CASE ("LPARP")
-                     CALL parser_get_object(parser, param%kappa(2))
-                  CASE ("LPARD")
-                     CALL parser_get_object(parser, param%kappa(3))
+                  CASE ("KQS")
+                     CALL parser_get_object(parser, param%kq(1))
+                  CASE ("KQP")
+                     CALL parser_get_object(parser, param%kq(2))
+                  CASE ("KQD")
+                     CALL parser_get_object(parser, param%kq(3))
+                  CASE ("XI")
+                     CALL parser_get_object(parser, param%xi)
+                  CASE ("KAPPA")
+                     CALL parser_get_object(parser, param%kappa0)
+                  CASE ("ALPG")
+                     CALL parser_get_object(parser, param%alpg)
                   CASE ("$END")
                      EXIT
                   CASE DEFAULT
-                     WRITE (6, *) "XTB|", ADJUSTL(TRIM(aname))
-                        !!!CPABORT ("Unknown parameter in xTB file")
+                     CPABORT("Unknown parameter in xTB file")
                   END SELECT
                END DO
             ELSE
@@ -379,6 +394,8 @@ CONTAINS
                      CALL parser_get_object(parser, param%eta)
                   CASE ("GAM3")
                      CALL parser_get_object(parser, param%xgamma)
+                  CASE ("CXB")
+                     CALL parser_get_object(parser, param%kx)
                   CASE ("REPA")
                      CALL parser_get_object(parser, param%alpha)
                   CASE ("REPB")
@@ -396,8 +413,7 @@ CONTAINS
                   CASE ("$END")
                      EXIT
                   CASE DEFAULT
-                     WRITE (6, *) "XTB|", ADJUSTL(TRIM(aname))
-                        !!!CPABORT ("Unknown parameter in xTB file")
+                     CPABORT("Unknown parameter in xTB file")
                   END SELECT
                END DO
             ELSE
@@ -493,7 +509,8 @@ CONTAINS
             param%kpoly(is) = kp(l + 1)
          END DO
          ! kx
-         IF (param%kx < -10._dp) THEN
+         param%kx = 0.1_dp*param%kx
+         IF (param%kx < -5._dp) THEN
             ! use defaults
             SELECT CASE (param%z)
             CASE DEFAULT

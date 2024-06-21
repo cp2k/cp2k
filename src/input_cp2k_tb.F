@@ -204,6 +204,12 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="EPS_PAIRPOTENTIAL", &
+                          description="Accuracy for the repulsive pair potential.", &
+                          usage="EPS_PAIRPOTENTIAL 1.0E-8", default_r_val=1.0e-8_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
    END SUBROUTINE create_xtb_control_section
 
 ! **************************************************************************************************
@@ -449,9 +455,10 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="SRB_PARAMETER", &
-                          description="SRB parameters (ksrb, esrb, gscal, c1, c2).", &
-                          usage="SRB_PARAMETER -0.0129 3.48 0.51 -1.71 2.11", n_var=5, &
-                          default_r_vals=(/-0.0129_dp, 3.48_dp, 0.51_dp, -1.71_dp, 2.11_dp/))
+                          description="SRB parameters (ksrb, esrb, gscal, c1, c2, shift).", &
+                          usage="SRB_PARAMETER -0.0129 3.48 0.51 -1.71 2.11 0.0537", n_var=6, &
+                          default_r_vals=(/-0.0129_dp, 3.4847_dp, 0.5097_dp, &
+                                           -1.70549806_dp, 2.10878369_dp, 0.0537_dp/))
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

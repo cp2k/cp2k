@@ -205,6 +205,7 @@ MODULE qs_environment
    USE xtb_parameters,                  ONLY: init_xtb_basis,&
                                               xtb_parameters_init,&
                                               xtb_parameters_set
+   USE xtb_potentials,                  ONLY: xtb_pp_radius
    USE xtb_types,                       ONLY: allocate_xtb_atom_param
 #include "./base/base_uses.f90"
 
@@ -821,6 +822,10 @@ CONTAINS
             END IF
          END DO
          !
+         ! set repulsive potential range
+         !
+         ALLOCATE (xtb_control%rcpair(nkind, nkind))
+         CALL xtb_pp_radius(qs_kind_set, xtb_control%rcpair, xtb_control%eps_pair, xtb_control%kf)
          ! check for Ewald
          IF (xtb_control%do_ewald) THEN
             ALLOCATE (ewald_env)

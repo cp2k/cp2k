@@ -332,8 +332,7 @@ CONTAINS
       ELSEIF (dft_control%qs_control%dftb) THEN
          CPABORT("TDDFPT| DFTB not available")
       ELSEIF (dft_control%qs_control%xtb) THEN
-         CALL build_xtb_matrices(qs_env=qs_env, para_env=para_env, &
-                                 calculate_forces=.TRUE.)
+         CALL build_xtb_matrices(qs_env=qs_env, calculate_forces=.TRUE.)
          CALL build_xtb_ks_matrix(qs_env, calculate_forces=.TRUE., just_energy=.FALSE.)
       ELSE
          CALL build_core_hamiltonian_matrix(qs_env=qs_env, calculate_forces=.TRUE.)

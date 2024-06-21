@@ -287,8 +287,7 @@ CONTAINS
          CALL calculate_dftb_dispersion(qs_env=qs_env, para_env=para_env, &
                                         calculate_forces=.TRUE.)
       ELSEIF (dft_control%qs_control%xtb) THEN
-         CALL build_xtb_matrices(qs_env=qs_env, para_env=para_env, &
-                                 calculate_forces=.TRUE.)
+         CALL build_xtb_matrices(qs_env=qs_env, calculate_forces=.TRUE.)
       ELSEIF (perform_ec) THEN
          ! Calculates core and grid based forces
          CALL energy_correction(qs_env, ec_init=.FALSE., calculate_forces=.TRUE.)

@@ -238,7 +238,7 @@ CONTAINS
       END SELECT
 
       WRITE (iw, '( 2(16x,a,/) )') &
-         '                 Version 1.0                       ', &
+         '                 Version 1.1                       ', &
          '            J. Hutter and A. Hehn                  '
 
    END SUBROUTINE xtb_header
