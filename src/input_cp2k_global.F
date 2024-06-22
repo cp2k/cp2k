@@ -235,11 +235,11 @@ CONTAINS
          usage="PREFERRED_FFT_LIBRARY FFTW3", &
          citations=(/Frigo2005/), &
 #if defined(__parallel) && defined(__SPFFT)
-         default_i_val=do_fft_spfft, &
+         default_i_val=do_fft_sg, &
          enum_i_vals=(/do_fft_sg, do_fft_fftw3, do_fft_fftw3, do_fft_spfft/), &
          enum_c_vals=s2a("FFTSG", "FFTW3", "FFTW", "SPFFT"), &
 #else
-         default_i_val=do_fft_fftw3, &
+         default_i_val=do_fft_sg, &
          enum_i_vals=(/do_fft_sg, do_fft_fftw3, do_fft_fftw3/), &
          enum_c_vals=s2a("FFTSG", "FFTW3", "FFTW"), &
 #endif
