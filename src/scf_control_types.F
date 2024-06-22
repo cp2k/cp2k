@@ -136,6 +136,7 @@ MODULE scf_control_types
                                                use_cholesky = .FALSE., use_ot = .FALSE., &
                                                use_diag = .FALSE., do_outer_scf_reortho = .FALSE., &
                                                ignore_convergence_failure = .FALSE.
+      LOGICAL                               :: force_scf_calculation = .FALSE.
       LOGICAL                               :: non_selfconsistent = .FALSE.
       INTEGER, DIMENSION(2)                 :: added_mos = -1
       INTEGER                               :: roks_scheme = -1

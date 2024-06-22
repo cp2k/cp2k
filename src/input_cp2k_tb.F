@@ -206,7 +206,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="EPS_PAIRPOTENTIAL", &
                           description="Accuracy for the repulsive pair potential.", &
-                          usage="EPS_PAIRPOTENTIAL 1.0E-8", default_r_val=1.0e-8_dp)
+                          usage="EPS_PAIRPOTENTIAL 1.0E-8", default_r_val=1.0e-10_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
