@@ -9,6 +9,7 @@ MODULE fft_lib
    USE fft_kinds,                       ONLY: dp
    USE fft_plan,                        ONLY: fft_plan_type
    USE fftsg_lib,                       ONLY: fftsg_1d,&
+                                              fftsg_2d,&
                                               fftsg_3d,&
                                               fftsg_do_cleanup,&
                                               fftsg_do_init,&
@@ -194,20 +195,10 @@ CONTAINS
       plan(1)%fft_type = fft_type
       plan(1)%fsign = fsign
       plan(1)%trans = trans
+      plan(1)%n_3d = [n1, n2, m]
       plan(1)%n = n1
       plan(1)%m = m*n2
 !$    plan(1)%need_alt_plan = .FALSE.
-
-      ! Planning only needed for FFTW3
-      IF (fft_type .EQ. 3 .AND. (n1*m .NE. 0)) THEN
-         CALL fftw3_create_plan_1d(plan(1), zin, zintermed, plan_style)
-         plan(1)%valid = .TRUE.
-      ELSE IF (fft_type .EQ. 4) THEN
-         CALL spfft_create_plan_1d(plan(1))
-         plan(1)%valid = .TRUE.
-      ELSE
-         plan(1)%valid = .FALSE.
-      END IF
 
       plan(2)%fft_type = fft_type
       plan(2)%fsign = fsign
@@ -217,13 +208,18 @@ CONTAINS
 !$    plan(2)%need_alt_plan = .FALSE.
 
       ! Planning only needed for FFTW3
-      IF (fft_type .EQ. 3 .AND. (n2*m .NE. 0)) THEN
+      IF (fft_type .EQ. 3 .AND. (n1*m .NE. 0) .AND. (n2*m .NE. 0)) THEN
+         CALL fftw3_create_plan_1d(plan(1), zin, zintermed, plan_style)
          CALL fftw3_create_plan_1d(plan(2), zintermed, zout, plan_style)
+         plan(1)%valid = .TRUE.
          plan(2)%valid = .TRUE.
       ELSE IF (fft_type .EQ. 4) THEN
+         CALL spfft_create_plan_1d(plan(1))
          CALL spfft_create_plan_1d(plan(2))
+         plan(1)%valid = .TRUE.
          plan(2)%valid = .TRUE.
       ELSE
+         plan(1)%valid = .FALSE.
          plan(2)%valid = .FALSE.
       END IF
 
@@ -355,8 +351,7 @@ CONTAINS
          CASE DEFAULT
             CPABORT("fft_2d")
          CASE (1)
-            CALL fftsg_1d(plan(1)%fsign, plan(1)%trans, plan(1)%n, plan(1)%m, zin, zintermed, scale)
-            CALL fftsg_1d(plan(2)%fsign, plan(2)%trans, plan(2)%n, plan(2)%m, zintermed, zout, 1.0_dp)
+            CALL fftsg_2d(plan(1)%fsign, plan(1)%trans, scale, plan(1)%n_3d, zin, zintermed, zout)
             stat = plan(1)%fsign
          CASE (3)
             CALL fftw3_1d(plan(1), zin, zintermed, scale, stat)

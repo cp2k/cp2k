@@ -14,7 +14,7 @@ MODULE fftsg_lib
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'fftsg_lib'
 
-   PUBLIC :: fftsg_do_init, fftsg_do_cleanup, fftsg_get_lengths, fftsg_3d, fftsg_1d
+   PUBLIC :: fftsg_do_init, fftsg_do_cleanup, fftsg_get_lengths, fftsg_3d, fftsg_2d, fftsg_1d
 
 CONTAINS
 
@@ -78,7 +78,7 @@ CONTAINS
    SUBROUTINE fftsg_3d(fft_in_place, fsign, scale, n, zin, zout)
 
       LOGICAL, INTENT(IN)                                :: fft_in_place
-      INTEGER, INTENT(INOUT)                             :: fsign
+      INTEGER, INTENT(IN)                                :: fsign
       REAL(KIND=dp), INTENT(IN)                          :: scale
       INTEGER, DIMENSION(*), INTENT(IN)                  :: n
       COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT)      :: zin, zout
@@ -121,6 +121,29 @@ CONTAINS
       END IF
 
    END SUBROUTINE fftsg_3d
+
+! **************************************************************************************************
+!> \brief ...
+!> \param fsign ...
+!> \param trans ...
+!> \param scale ...
+!> \param n ...
+!> \param zin ...
+!> \param zintermed ...
+!> \param zout ...
+! **************************************************************************************************
+   SUBROUTINE fftsg_2d(fsign, trans, scale, n, zin, zintermed, zout)
+
+      INTEGER, INTENT(IN)                                :: fsign
+      LOGICAL, INTENT(IN)                                :: trans
+      REAL(KIND=dp), INTENT(IN)                          :: scale
+      INTEGER, DIMENSION(3), INTENT(IN)                  :: n
+      COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT)      :: zin, zintermed, zout
+
+      CALL fftsg_1d(fsign, trans, n(1), n(2)*n(3), zin, zintermed, scale)
+      CALL fftsg_1d(fsign, trans, n(2), n(1)*n(3), zintermed, zout, 1.0_dp)
+
+   END SUBROUTINE fftsg_2d
 
 ! **************************************************************************************************
 !> \brief ...
