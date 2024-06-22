@@ -134,7 +134,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE fftsg_1d(fsign, trans, n, m, zin, zout, scale)
 
-      INTEGER, INTENT(INOUT)                             :: fsign
+      INTEGER, INTENT(IN)                                :: fsign
       LOGICAL, INTENT(IN)                                :: trans
       INTEGER, INTENT(IN)                                :: n, m
       COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT)      :: zin
