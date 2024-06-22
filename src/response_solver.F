@@ -147,7 +147,7 @@ MODULE response_solver
    USE virial_types,                    ONLY: virial_type
    USE xtb_ehess,                       ONLY: xtb_coulomb_hessian
    USE xtb_ehess_force,                 ONLY: calc_xtb_ehess_force
-   USE xtb_matrices,                    ONLY: xtb_hab_force
+   USE xtb_hab_force,                   ONLY: build_xtb_hab_force
    USE xtb_types,                       ONLY: get_xtb_atom_param,&
                                               xtb_atom_type
 #include "./base/base_uses.f90"
@@ -2606,7 +2606,7 @@ CONTAINS
       END IF
       ! Hcore  matrix
       IF (debug_forces) fodeb(1:3) = force(1)%all_potential(1:3, 1)
-      CALL xtb_hab_force(qs_env, mpa(1)%matrix)
+      CALL build_xtb_hab_force(qs_env, mpa(1)%matrix)
       IF (debug_forces) THEN
          fodeb(1:3) = force(1)%all_potential(1:3, 1) - fodeb(1:3)
          CALL para_env%sum(fodeb)

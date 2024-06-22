@@ -133,7 +133,7 @@ MODULE qs_ks_methods
    USE smeagol_interface,               ONLY: smeagol_shift_v_hartree
    USE surface_dipole,                  ONLY: calc_dipsurf_potential
    USE virial_types,                    ONLY: virial_type
-   USE xtb_matrices,                    ONLY: build_xtb_ks_matrix
+   USE xtb_ks_matrix,                   ONLY: build_xtb_ks_matrix
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE

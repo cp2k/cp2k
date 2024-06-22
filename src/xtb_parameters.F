@@ -159,6 +159,7 @@ MODULE xtb_parameters
 ! *** Public data types ***
 
    PUBLIC :: xtb_parameters_init, xtb_parameters_set, init_xtb_basis, xtb_set_kab
+   PUBLIC :: metal, early3d
 
 CONTAINS
 
@@ -716,6 +717,38 @@ CONTAINS
       END DO
 
    END SUBROUTINE xtb_get_shells
+
+! **************************************************************************************************
+!> \brief ...
+!> \param z ...
+!> \return ...
+! **************************************************************************************************
+   FUNCTION metal(z) RESULT(ismetal)
+      INTEGER                                            :: z
+      LOGICAL                                            :: ismetal
+
+      SELECT CASE (z)
+      CASE DEFAULT
+         ismetal = .TRUE.
+      CASE (1:2, 6:10, 14:18, 32:36, 50:54, 82:86)
+         ismetal = .FALSE.
+      END SELECT
+
+   END FUNCTION metal
+
+! **************************************************************************************************
+!> \brief ...
+!> \param z ...
+!> \return ...
+! **************************************************************************************************
+   FUNCTION early3d(z) RESULT(isearly3d)
+      INTEGER                                            :: z
+      LOGICAL                                            :: isearly3d
+
+      isearly3d = .FALSE.
+      IF (z >= 21 .AND. z <= 24) isearly3d = .TRUE.
+
+   END FUNCTION early3d
 
 END MODULE xtb_parameters
 

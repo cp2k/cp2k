@@ -66,8 +66,8 @@ MODULE qs_tddfpt2_fprint
                                               response_force,&
                                               response_force_xtb
    USE ri_environment_methods,          ONLY: build_ri_matrices
-   USE xtb_matrices,                    ONLY: build_xtb_ks_matrix,&
-                                              build_xtb_matrices
+   USE xtb_ks_matrix,                   ONLY: build_xtb_ks_matrix
+   USE xtb_matrices,                    ONLY: build_xtb_matrices
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE

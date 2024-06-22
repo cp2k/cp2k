@@ -842,6 +842,8 @@ list(
   xtb_eeq.F
   xtb_ehess.F
   xtb_ehess_force.F
+  xtb_hab_force.F
+  xtb_ks_matrix.F
   xtb_matrices.F
   xtb_parameters.F
   xtb_potentials.F
