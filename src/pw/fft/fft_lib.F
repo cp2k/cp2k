@@ -191,8 +191,41 @@ CONTAINS
       COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT)      :: zin, zintermed, zout
       INTEGER, INTENT(IN)                                :: plan_style
 
-      CALL fft_create_plan_1d(plan(1), fft_type, fsign, trans, n1, m*n2, zin, zintermed, plan_style)
-      CALL fft_create_plan_1d(plan(2), fft_type, fsign, trans, n2, m*n1, zintermed, zout, plan_style)
+      plan(1)%fft_type = fft_type
+      plan(1)%fsign = fsign
+      plan(1)%trans = trans
+      plan(1)%n = n1
+      plan(1)%m = m*n2
+!$    plan(1)%need_alt_plan = .FALSE.
+
+      ! Planning only needed for FFTW3
+      IF (fft_type .EQ. 3 .AND. (n1*m .NE. 0)) THEN
+         CALL fftw3_create_plan_1d(plan(1), zin, zintermed, plan_style)
+         plan(1)%valid = .TRUE.
+      ELSE IF (fft_type .EQ. 4) THEN
+         CALL spfft_create_plan_1d(plan(1))
+         plan(1)%valid = .TRUE.
+      ELSE
+         plan(1)%valid = .FALSE.
+      END IF
+
+      plan(2)%fft_type = fft_type
+      plan(2)%fsign = fsign
+      plan(2)%trans = trans
+      plan(2)%n = n2
+      plan(2)%m = m*n1
+!$    plan(2)%need_alt_plan = .FALSE.
+
+      ! Planning only needed for FFTW3
+      IF (fft_type .EQ. 3 .AND. (n2*m .NE. 0)) THEN
+         CALL fftw3_create_plan_1d(plan(2), zintermed, zout, plan_style)
+         plan(2)%valid = .TRUE.
+      ELSE IF (fft_type .EQ. 4) THEN
+         CALL spfft_create_plan_1d(plan(2))
+         plan(2)%valid = .TRUE.
+      ELSE
+         plan(2)%valid = .FALSE.
+      END IF
 
    END SUBROUTINE fft_create_plan_2d
 
@@ -312,8 +345,35 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: scale
       INTEGER, INTENT(OUT)                               :: stat
 
-      CALL fft_1d(plan(1), zin, zintermed, scale, stat)
-      CALL fft_1d(plan(2), zintermed, zout, 1.0_dp, stat)
+      INTEGER                                            :: stat2
+
+      IF (plan(1)%fft_type /= plan(2)%fft_type) &
+         CPABORT("FFT directions must match!")
+
+      IF (plan(1)%n*plan(1)%m > 0 .AND. plan(2)%n*plan(2)%m > 0) THEN
+         SELECT CASE (plan(1)%fft_type)
+         CASE DEFAULT
+            CPABORT("fft_2d")
+         CASE (1)
+            CALL fftsg_1d(plan(1)%fsign, plan(1)%trans, plan(1)%n, plan(1)%m, zin, zintermed, scale)
+            CALL fftsg_1d(plan(2)%fsign, plan(2)%trans, plan(2)%n, plan(2)%m, zintermed, zout, 1.0_dp)
+            stat = plan(1)%fsign
+         CASE (3)
+            CALL fftw3_1d(plan(1), zin, zintermed, scale, stat)
+            CALL fftw3_1d(plan(2), zintermed, zout, 1.0_dp, stat2)
+            stat = stat*stat2
+         CASE (4)
+            CALL spfft_1d(plan(1), zin, zintermed, scale, stat)
+            CALL spfft_1d(plan(2), zintermed, zout, 1.0_dp, stat2)
+            stat = stat*stat2
+         END SELECT
+      END IF
+      ! stat is set to zero on error, -1,+1 are OK
+      IF (stat .EQ. 0) THEN
+         stat = 1
+      ELSE
+         stat = 0
+      END IF
 
    END SUBROUTINE fft_2d
 
