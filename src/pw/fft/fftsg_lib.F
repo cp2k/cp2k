@@ -140,8 +140,20 @@ CONTAINS
       INTEGER, DIMENSION(3), INTENT(IN)                  :: n
       COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT)      :: zin, zintermed, zout
 
-      CALL fftsg_1d(fsign, trans, n(1), n(2)*n(3), zin, zintermed, scale)
-      CALL fftsg_1d(fsign, trans, n(2), n(1)*n(3), zintermed, zout, 1.0_dp)
+      ! We implement out-of-place FFTs for now
+
+      IF (trans) THEN
+         IF (fsign > 0) THEN
+            CALL mltfftsg("T", "N", zin, n(2)*n(3), n(1), zintermed, n(1), n(2)*n(3), n(1), n(2)*n(3), fsign, scale)
+            CALL mltfftsg("T", "N", zintermed, n(1)*n(3), n(2), zout, n(2), n(1)*n(3), n(2), n(1)*n(3), fsign, 1.0_dp)
+         ELSE
+            CALL mltfftsg("N", "T", zin, n(1), n(2)*n(3), zintermed, n(2)*n(3), n(1), n(1), n(2)*n(3), fsign, scale)
+            CALL mltfftsg("N", "T", zintermed, n(2), n(1)*n(3), zout, n(1)*n(3), n(2), n(2), n(1)*n(3), fsign, 1.0_dp)
+         END IF
+      ELSE
+         CALL mltfftsg("N", "N", zin, n(1), n(2)*n(3), zintermed, n(1), n(2)*n(3), n(1), n(2)*n(3), fsign, scale)
+         CALL mltfftsg("N", "N", zintermed, n(2), n(1)*n(3), zout, n(2), n(1)*n(3), n(2), n(1)*n(3), fsign, 1.0_dp)
+      END IF
 
    END SUBROUTINE fftsg_2d
 
