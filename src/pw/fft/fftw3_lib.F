@@ -154,9 +154,8 @@ CONTAINS
       ! only the ionode updates the wisdom
       IF (ionode) THEN
          iunit = get_unit_number()
-         OPEN (UNIT=iunit, FILE=wisdom_file, STATUS="REPLACE", FORM="FORMATTED", ACTION="WRITE", IOSTAT=istat)
+         OPEN (UNIT=iunit, FILE=wisdom_file, STATUS="UNKNOWN", FORM="FORMATTED", ACTION="WRITE", IOSTAT=istat)
          IF (istat == 0) THEN
-            CLOSE (iunit)
             file_name_length = LEN_TRIM(wisdom_file)
             ALLOCATE (wisdom_file_name_c(file_name_length + 1))
             DO i = 1, file_name_length
@@ -166,7 +165,7 @@ CONTAINS
             isuccess = fftw_export_wisdom_to_filename(wisdom_file_name_c)
             IF (isuccess == 0) &
                CPABORT("Error exporting wisdom to file "//wisdom_file)
-            WRITE (*, *) "Exported wisdom to file "//wisdom_file
+            CLOSE (iunit)
          END IF
       END IF
 
@@ -217,6 +216,10 @@ CONTAINS
 #include <mkl_version.h>
 #endif
 
+      isuccess = fftw_init_threads()
+      IF (isuccess == 0) &
+         CPABORT("Error initializing FFTW with threads")
+
       ! Read FFTW wisdom (if available)
       ! all nodes are opening the file here...
       INQUIRE (FILE=wisdom_file, exist=file_exists)
@@ -229,8 +232,8 @@ CONTAINS
          wisdom_file_name_c(file_name_length + 1) = C_NULL_CHAR
          isuccess = fftw_import_wisdom_from_filename(wisdom_file_name_c)
          IF (isuccess == 0) &
-            CPABORT("Error importing wisdom from file "//wisdom_file)
-         WRITE (*, *) "Imported wisdom to file "//wisdom_file
+            CALL cp_abort(__LOCATION__, "Error importing wisdom from file "//wisdom_file//". "// &
+                          "Maybe the was created with a different configuration than CP2K is run with.")
       END IF
 
 #if defined (__MKL)
