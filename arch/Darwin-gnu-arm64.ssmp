@@ -3,15 +3,15 @@
 # CP2K Darwin arch file for a serial arm64 binary
 # (https://www.cp2k.org/howto:compile_on_macos)
 #
-# Tested with: GNU 13.2.0, FFTW 3.3.10, LIBINT 2.6.0, LIBVORI 220621,
+# Tested with: GNU 14.1.0, FFTW 3.3.10, LIBINT 2.6.0, LIBVORI 220621,
 #              LIBXC 6.2.2, OpenBLAS 0.3.27, SPGLIB 2.3.1,
 #              LIBGRPP 20231215
-# on an Apple M1 (macOS 14.4.1 Sonoma)
+# on an Apple M1 (macOS 14.5.0 Sonoma)
 #
 # Usage: Source this arch file and then run make as instructed.
 #        Ensure the links in /opt/homebrew/bin to the gcc version.
 #
-# Last update: 10.05.2024
+# Last update: 23.06.2024
 #
 # \
    if [[ "${0}" == "${BASH_SOURCE}" ]]; then \
@@ -26,7 +26,7 @@
       brew install cmake; \
       brew install coreutils; \
       brew install fftw; \
-      brew install gcc@13; \
+      brew install gcc; \
       brew install libxc; \
       brew install openblas; \
       brew install pkg-config; \
@@ -62,7 +62,6 @@ TARGET_CPU     := native
 USE_LIBGRPP    := 20231215
 USE_LIBINT     := 2.6.0
 USE_LIBVORI    := 220621
-USE_LIBXC      := 6.2.2
 USE_SPGLIB     := 2.3.1
 
 LMAX           := 5
