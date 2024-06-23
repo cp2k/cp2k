@@ -3,6 +3,7 @@
 # Directories have been reordered according the execution time needed for a gfortran pdbg run using 2 MPI tasks
 # in case a new directory is added just add it at the top of the list..
 # the order will be regularly checked and modified...
+QS/regtest-fftw-wisdom                                      fftw3
 Fist/regtest-water
 QS/regtest-ecp                                              libgrpp
 QS/regtest-ecp-2                                            libgrpp
