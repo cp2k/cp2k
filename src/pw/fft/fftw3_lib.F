@@ -24,7 +24,7 @@ MODULE fftw3_lib
 #endif
    USE cp_files, ONLY: get_unit_number
    USE fft_kinds, ONLY: dp
-   USE fft_plan, ONLY: fft_plan_type
+   USE fft_plan, ONLY: fft_plan_type, FWFFT, BWFFT
 
 !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads
 
@@ -749,7 +749,7 @@ CONTAINS
       fftw_plan_type = fftw_plan_type + FFTW_UNALIGNED
 #endif
 
-      IF (plan%fsign == +1) THEN
+      IF (plan%fsign == FWFFT) THEN
          fft_direction = FFTW_FORWARD
       ELSE
          fft_direction = FFTW_BACKWARD
@@ -1105,15 +1105,15 @@ CONTAINS
       di = plan%n
       io = 1
       DO = plan%n
-      IF (plan%fsign == +1 .AND. plan%trans) THEN
+      IF (plan%fsign == FWFFT .AND. plan%trans) THEN
          ii = plan%m
          di = 1
-      ELSEIF (plan%fsign == -1 .AND. plan%trans) THEN
+      ELSEIF (plan%fsign == BWFFT .AND. plan%trans) THEN
          io = plan%m
          DO = 1
       END IF
 
-      IF (plan%fsign == +1) THEN
+      IF (plan%fsign == FWFFT) THEN
          plan%fftw_plan = fftw_plan_many_dft(1, [plan%n], num_rows, zin, [0], ii, di, &
                                              zout, [0], io, DO, FFTW_FORWARD, fftw_plan_type)
       ELSE
@@ -1123,7 +1123,7 @@ CONTAINS
 
 !$    IF (plan%need_alt_plan) THEN
 !$       plan%alt_num_rows = plan%m - (plan%num_threads_needed - 1)*num_rows
-!$       IF (plan%fsign == +1) THEN
+!$       IF (plan%fsign == FWFFT) THEN
 !$          plan%alt_fftw_plan = fftw_plan_many_dft(1, [plan%n], plan%alt_num_rows, zin, [0], ii, di, &
 !$                                                  zout, [0], io, DO, FFTW_FORWARD, fftw_plan_type)
 !$       ELSE
@@ -1212,9 +1212,9 @@ CONTAINS
 
 !$       in_offset = 1 + plan%num_rows*my_id*plan%n
 !$       out_offset = 1 + plan%num_rows*my_id*plan%n
-!$       IF (plan%fsign == +1 .AND. plan%trans) THEN
+!$       IF (plan%fsign == FWFFT .AND. plan%trans) THEN
 !$          in_offset = 1 + plan%num_rows*my_id
-!$       ELSEIF (plan%fsign == -1 .AND. plan%trans) THEN
+!$       ELSEIF (plan%fsign == BWFFT .AND. plan%trans) THEN
 !$          out_offset = 1 + plan%num_rows*my_id
 !$       END IF
 !$       scal_offset = 1 + plan%n*plan%num_rows*my_id

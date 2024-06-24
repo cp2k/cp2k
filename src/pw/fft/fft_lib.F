@@ -7,7 +7,9 @@
 MODULE fft_lib
 
    USE fft_kinds,                       ONLY: dp
-   USE fft_plan,                        ONLY: fft_plan_type
+   USE fft_plan,                        ONLY: BWFFT,&
+                                              FWFFT,&
+                                              fft_plan_type
    USE fftsg_lib,                       ONLY: fftsg_1d,&
                                               fftsg_2d,&
                                               fftsg_3d,&
@@ -33,6 +35,7 @@ MODULE fft_lib
    PUBLIC :: fft_do_cleanup, fft_do_init, fft_get_lengths, fft_create_plan_2d, fft_create_plan_3d
    PUBLIC :: fft_create_plan_1d, fft_1d, fft_2d, fft_library, fft_3d, fft_destroy_plan
    PUBLIC :: fft_alloc, fft_dealloc
+   PUBLIC :: FWFFT, BWFFT
 
 CONTAINS
 ! **************************************************************************************************

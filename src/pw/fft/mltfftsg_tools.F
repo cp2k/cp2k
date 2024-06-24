@@ -10,6 +10,8 @@ MODULE mltfftsg_tools
    USE ISO_C_BINDING,                   ONLY: C_F_POINTER,&
                                               C_LOC
    USE fft_kinds,                       ONLY: dp
+   USE fft_plan,                        ONLY: BWFFT,&
+                                              FWFFT
 
 !$ USE OMP_LIB, ONLY: omp_get_num_threads, omp_get_thread_num
 
@@ -302,7 +304,7 @@ CONTAINS
       atb = after*before
 
       IF (now == 4) THEN
-         IF (isign == 1) THEN
+         IF (isign == FWFFT) THEN
             ia = 1
             nin1 = ia - after
             nout1 = ia - atn
@@ -588,7 +590,7 @@ CONTAINS
             END DO
          END IF
       ELSE IF (now == 8) THEN
-         IF (isign == -1) THEN
+         IF (isign == BWFFT) THEN
             ia = 1
             nin1 = ia - after
             nout1 = ia - atn
@@ -809,7 +811,7 @@ CONTAINS
          DO ia = 2, after
             ias = ia - 1
             IF (4*ias == 3*after) THEN
-               IF (isign == 1) THEN
+               IF (isign == FWFFT) THEN
                   nin1 = ia - after
                   nout1 = ia - atn
                   DO ib = 1, before
@@ -873,7 +875,7 @@ CONTAINS
                   END DO
                END IF
             ELSE IF (8*ias == 3*after) THEN
-               IF (isign == 1) THEN
+               IF (isign == FWFFT) THEN
                   nin1 = ia - after
                   nout1 = ia - atn
                   DO ib = 1, before
@@ -1043,7 +1045,7 @@ CONTAINS
          DO ia = 2, after
             ias = ia - 1
             IF (8*ias == 5*after) THEN
-               IF (isign == 1) THEN
+               IF (isign == FWFFT) THEN
                   nin1 = ia - after
                   nout1 = ia - atn
                   DO ib = 1, before
@@ -1373,7 +1375,7 @@ CONTAINS
       atb = after*before
 
       IF (now == 4) THEN
-         IF (isign == 1) THEN
+         IF (isign == FWFFT) THEN
             ia = 1
             nin1 = ia - after
             nout1 = ia - atn
@@ -1659,7 +1661,7 @@ CONTAINS
             END DO
          END IF
       ELSE IF (now == 8) THEN
-         IF (isign == -1) THEN
+         IF (isign == BWFFT) THEN
             ia = 1
             nin1 = ia - after
             nout1 = ia - atn
@@ -1880,7 +1882,7 @@ CONTAINS
          DO ia = 2, after
             ias = ia - 1
             IF (4*ias == 3*after) THEN
-               IF (isign == 1) THEN
+               IF (isign == FWFFT) THEN
                   nin1 = ia - after
                   nout1 = ia - atn
                   DO ib = 1, before
@@ -1944,7 +1946,7 @@ CONTAINS
                   END DO
                END IF
             ELSE IF (8*ias == 3*after) THEN
-               IF (isign == 1) THEN
+               IF (isign == FWFFT) THEN
                   nin1 = ia - after
                   nout1 = ia - atn
                   DO ib = 1, before
@@ -2114,7 +2116,7 @@ CONTAINS
          DO ia = 2, after
             ias = ia - 1
             IF (8*ias == 5*after) THEN
-               IF (isign == 1) THEN
+               IF (isign == FWFFT) THEN
                   nin1 = ia - after
                   nout1 = ia - atn
                   DO ib = 1, before
@@ -2445,7 +2447,7 @@ CONTAINS
       atb = after*before
 
       IF (now == 4) THEN
-         IF (isign == 1) THEN
+         IF (isign == FWFFT) THEN
             ia = 1
             nin1 = ia - after
             nout1 = ia - atn
@@ -2731,7 +2733,7 @@ CONTAINS
             END DO
          END IF
       ELSE IF (now == 8) THEN
-         IF (isign == -1) THEN
+         IF (isign == BWFFT) THEN
             ia = 1
             nin1 = ia - after
             nout1 = ia - atn
@@ -2952,7 +2954,7 @@ CONTAINS
          DO ia = 2, after
             ias = ia - 1
             IF (4*ias == 3*after) THEN
-               IF (isign == 1) THEN
+               IF (isign == FWFFT) THEN
                   nin1 = ia - after
                   nout1 = ia - atn
                   DO ib = 1, before
@@ -3016,7 +3018,7 @@ CONTAINS
                   END DO
                END IF
             ELSE IF (8*ias == 3*after) THEN
-               IF (isign == 1) THEN
+               IF (isign == FWFFT) THEN
                   nin1 = ia - after
                   nout1 = ia - atn
                   DO ib = 1, before
@@ -3186,7 +3188,7 @@ CONTAINS
          DO ia = 2, after
             ias = ia - 1
             IF (8*ias == 5*after) THEN
-               IF (isign == 1) THEN
+               IF (isign == FWFFT) THEN
                   nin1 = ia - after
                   nout1 = ia - atn
                   DO ib = 1, before

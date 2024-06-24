@@ -6,6 +6,7 @@
 !--------------------------------------------------------------------------------------------------!
 MODULE fftsg_lib
    USE fft_kinds,                       ONLY: dp
+   USE fft_plan,                        ONLY: FWFFT
    USE mltfftsg_tools,                  ONLY: mltfftsg
 
    IMPLICIT NONE
@@ -143,7 +144,7 @@ CONTAINS
       ! We implement out-of-place FFTs for now
 
       IF (trans) THEN
-         IF (fsign > 0) THEN
+         IF (fsign == FWFFT) THEN
             CALL mltfftsg("T", "N", zin, n(2)*n(3), n(1), zintermed, n(1), n(2)*n(3), n(1), n(2)*n(3), fsign, scale)
             CALL mltfftsg("T", "N", zintermed, n(1)*n(3), n(2), zout, n(2), n(1)*n(3), n(2), n(1)*n(3), fsign, 1.0_dp)
          ELSE
@@ -179,7 +180,7 @@ CONTAINS
 !------------------------------------------------------------------------------
 
       IF (trans) THEN
-         IF (fsign > 0) THEN
+         IF (fsign == FWFFT) THEN
             CALL mltfftsg("T", "N", zin, m, n, zout, n, m, n, m, fsign, scale)
          ELSE
             CALL mltfftsg("N", "T", zin, n, m, zout, m, n, n, m, fsign, scale)
