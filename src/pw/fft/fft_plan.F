@@ -22,7 +22,10 @@ MODULE fft_plan
    IMPLICIT NONE
    PRIVATE
 
-   PUBLIC :: fft_plan_type
+   PUBLIC :: fft_plan_type, FWFFT, BWFFT
+
+   ! We use the signs as they are also used for FFT-SG
+   INTEGER, PARAMETER :: FWFFT = +1, BWFFT = -1
 
    TYPE fft_plan_type
 

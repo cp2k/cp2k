@@ -30,7 +30,7 @@ MODULE spfft_lib
 #endif
    USE cp_files, ONLY: get_unit_number
    USE fft_kinds, ONLY: dp, int_8
-   USE fft_plan, ONLY: fft_plan_type
+   USE fft_plan, ONLY: fft_plan_type, FWFFT, BWFFT
 
 !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads
 

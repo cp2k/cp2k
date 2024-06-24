@@ -32,7 +32,7 @@ MODULE fft_tools
                                               C_SIZE_T
    USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
    USE fft_lib,                         ONLY: &
-        fft_1d, fft_2d, fft_3d, fft_alloc, fft_create_plan_1d, fft_create_plan_2d, &
+        BWFFT, FWFFT, fft_1d, fft_2d, fft_3d, fft_alloc, fft_create_plan_1d, fft_create_plan_2d, &
         fft_create_plan_3d, fft_dealloc, fft_destroy_plan, fft_do_cleanup, fft_do_init, &
         fft_get_lengths, fft_library
    USE fft_plan,                        ONLY: fft_plan_type
@@ -137,11 +137,10 @@ MODULE fft_tools
    PUBLIC :: fft_alloc, fft_dealloc
    PUBLIC :: init_fft_scratch_pool
    PUBLIC :: fft_radix_operations, fft_fw1d
-   PUBLIC :: FWFFT, BWFFT
    PUBLIC :: FFT_RADIX_CLOSEST, FFT_RADIX_NEXT
    PUBLIC :: FFT_RADIX_NEXT_ODD
+   PUBLIC :: FWFFT, BWFFT
 
-   INTEGER, PARAMETER :: FWFFT = +1, BWFFT = -1
    INTEGER, PARAMETER :: FFT_RADIX_CLOSEST = 493, FFT_RADIX_NEXT = 494
    INTEGER, PARAMETER :: FFT_RADIX_ALLOWED = 495, FFT_RADIX_DISALLOWED = 496
    INTEGER, PARAMETER :: FFT_RADIX_NEXT_ODD = 497
