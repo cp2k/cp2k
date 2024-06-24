@@ -13,12 +13,18 @@ files_to_sync:
   - .packit.yaml
 upstream_package_name: cp2k
 downstream_package_name: cp2k
-update_release: false
 upstream_tag_template: v{version}
 
 # Run only smoke tests by default
 test_command:
   default_identifier: smoke
+
+targets:
+  # TODO: Match F40 release
+  - fedora-development-x86_64
+  - fedora-development-aarch64
+  - fedora-latest-x86_64
+  - fedora-latest-aarch64
 
 jobs:
   - &copr_build
@@ -26,34 +32,18 @@ jobs:
     trigger: release
     owner: lecris
     project: release
-    targets:
-      # TODO: Match F40 release
-      - fedora-development-x86_64
-      - fedora-development-aarch64
-      - fedora-latest-x86_64
-      - fedora-latest-aarch64
   - <<: *copr_build
     trigger: commit
     branch: master
     project: nightly
-    additional_repos:
-      - copr://@scikit-build/release
+    update_release: true
   - &tests
     job: tests
     trigger: commit
-    targets:
-      # TODO: Match F40 release
-      - fedora-development-x86_64
-      - fedora-development-aarch64
-      - fedora-latest-x86_64
-      - fedora-latest-aarch64
     tmt_plan: .*/smoke
-  - <<: *copr_build
+  - job: copr_build
     trigger: pull_request
     manual_trigger: true
-    project: cp2k
-    update_release: true
-    release_suffix: "{PACKIT_RPMSPEC_RELEASE}"
   - <<: *tests
     identifier: smoke
     trigger: pull_request
