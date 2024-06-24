@@ -1388,11 +1388,17 @@ CONTAINS
       END IF
 
       evdw = 0._dp
+      pv_virial_thread(:, :) = 0._dp
       IF (dispersion_env%pp_type == vdw_pairpot_dftd4) THEN
 #if defined(__DFTD4)
          IF (calculate_forces .OR. debugall) THEN
-            CALL calculate_dispersion_d4_pairpot(dispersion_env, particle_set, cell, evdw, &
-                 force=force, atom_of_kind=atom_of_kind)
+            IF (use_virial) THEN
+              CALL calculate_dispersion_d4_pairpot(dispersion_env, particle_set, cell, &
+                  evdw, force=force, atom_of_kind=atom_of_kind, virial=pv_virial_thread)
+            ELSE
+              CALL calculate_dispersion_d4_pairpot(dispersion_env, particle_set, cell, &
+                  evdw, force=force, atom_of_kind=atom_of_kind)
+            END IF
          ELSE
             CALL calculate_dispersion_d4_pairpot(dispersion_env, particle_set, cell, evdw)
          END IF
@@ -1592,9 +1598,6 @@ CONTAINS
       nkind = SIZE(atomic_kind_set)
 
       num_pe = 1
-
-      pv_virial_thread(:, :) = 0._dp
-
       CALL neighbor_list_iterator_create(nl_iterator, sab_vdw, nthread=num_pe)
 
       mepos = 0
@@ -2040,18 +2043,9 @@ CONTAINS
                END IF
             ELSE IF (disp_a%type == dftd4_pp .AND. dr > 0.001_dp) THEN
 #if defined(__DFTD4)
-               IF (use_virial .OR. atstress) THEN
-                  CALL calculate_dispersion_force_d4(dispersion_env, ikind, jkind, rij,  devdw, fdij)
-                  atom_a = atom_of_kind(iatom)
-                  atom_b = atom_of_kind(jatom)
-                  IF (use_virial) THEN
-                     CALL virial_pair_force(pv_virial_thread, -1._dp, fdij, rij)
-                  END IF
-                  IF (atstress) THEN
-                     CALL virial_pair_force(atstr(:, :, iatom), -0.5_dp, fdij, rij)
-                     CALL virial_pair_force(atstr(:, :, jatom), -0.5_dp, fdij, rij)
-                  END IF   
-               END IF
+               IF (atstress) THEN
+                  CPABORT("atomic stress with DFTD4 not implemented")
+               END IF   
 #else
                CPABORT("Build without DFTD4")
 #endif
@@ -3685,7 +3679,7 @@ CONTAINS
 !> \param force ...
 !> \param atom_of_kind ...
 ! **************************************************************************************************
-   SUBROUTINE calculate_dispersion_d4_pairpot(dispersion_env, particle_set, cell, energy, force, atom_of_kind)
+   SUBROUTINE calculate_dispersion_d4_pairpot(dispersion_env, particle_set, cell, energy, force, atom_of_kind, virial)
 
       USE dftd4, ONLY: structure_type, d4_model, damping_param, &
                        realspace_cutoff, new, new_d4_model, &
@@ -3703,6 +3697,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(OUT)                                          :: energy
       TYPE(qs_force_type), DIMENSION(:), OPTIONAL, POINTER, INTENT(INOUT) :: force
       INTEGER, DIMENSION(:), OPTIONAL, INTENT(IN)                         :: atom_of_kind
+      REAL(KIND=dp), DIMENSION(3, 3), OPTIONAL, INTENT(OUT)               :: virial
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_dispersion_d4_pairpot'
 
@@ -3749,7 +3744,9 @@ CONTAINS
          IF (PRESENT(atom_of_kind)) THEN
             ALLOCATE (gradient(3, mol%nat))
             CALL get_dispersion(mol, disp, param, cutoff, energy, gradient, stress)
-            !sigma needed for viral terms
+            IF (PRESENT(virial)) THEN
+               virial=stress
+            END IF
             DO iatom = 1, natom
                ikind = el_num(iatom)
                ind_atom = atom_of_kind(iatom)
@@ -3760,6 +3757,9 @@ CONTAINS
             CPABORT("missing atom_of_kind")
          END IF
       ELSE
+         IF (PRESENT(virial)) THEN
+            CPABORT("missing force for virial term")
+         END IF
          CALL get_dispersion(mol, disp, param, cutoff, energy)
       END IF
 
@@ -3768,59 +3768,6 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE calculate_dispersion_d4_pairpot
-
-! **************************************************************************************************
-!> \brief ...
-!> \param dispersion_env ...
-!> \param ikind ...
-!> \param jkind ...
-!> \param rij ...
-!> \param force ...
-! **************************************************************************************************
-   SUBROUTINE calculate_dispersion_force_d4(dispersion_env, ikind, jkind, rij, energy, force)
-
-      USE dftd4, ONLY: structure_type, d4_model, damping_param, &
-                       realspace_cutoff, new, new_d4_model, &
-                       get_rational_damping, get_dispersion
-      TYPE(qs_dispersion_type), INTENT(IN), POINTER      :: dispersion_env
-      INTEGER, INTENT(IN)                                :: ikind, jkind
-      REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: rij
-      REAL(KIND=dp), INTENT(OUT)                         :: energy
-      REAL(KIND=dp), DIMENSION(3), INTENT(OUT)           :: force
-
-      TYPE(d4_model)                                     :: disp
-      TYPE(structure_type)                               :: mol
-
-      class(damping_param), ALLOCATABLE                  :: param
-      TYPE(realspace_cutoff)                             :: cutoff
-
-      REAL(KIND=dp), DIMENSION(3, 2)                     :: gradient, xyz
-      REAL(KIND=dp), DIMENSION(3, 3)                     :: sigma
-      INTEGER, DIMENSION(2)                              :: el_num
-
-      !get information about particles
-      xyz = 0.0_dp
-      xyz(:, 2) = rij
-      el_num(1) = ikind
-      el_num(2) = jkind
-
-      !prepare for the call to the dispersion function
-      CALL new(mol, el_num, xyz)
-      CALL new_d4_model(disp, mol)
-      CALL get_rational_damping(dispersion_env%ref_functional, param, s9=dispersion_env%s9)
-
-      ! Coordination number cutoff
-      cutoff%cn = dispersion_env%rc_cn
-      ! Two-body interaction cutoff
-      cutoff%disp2 = dispersion_env%rc_d4*2._dp
-      ! Three-body interaction cutoff
-      cutoff%disp3 = dispersion_env%rc_disp*2._dp
-
-      !> Wrapper to handle the evaluation of dispersion energy and derivatives
-      CALL get_dispersion(mol, disp, param, cutoff, energy, gradient, sigma)
-      force(:) = gradient(:, 1)
-
-   END SUBROUTINE calculate_dispersion_force_d4
 
 #endif
 
