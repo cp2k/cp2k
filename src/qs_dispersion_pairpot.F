@@ -1393,11 +1393,11 @@ CONTAINS
 #if defined(__DFTD4)
          IF (calculate_forces .OR. debugall) THEN
             IF (use_virial) THEN
-              CALL calculate_dispersion_d4_pairpot(dispersion_env, particle_set, cell, &
-                  evdw, force=force, atom_of_kind=atom_of_kind, virial=pv_virial_thread)
+               CALL calculate_dispersion_d4_pairpot(dispersion_env, particle_set, cell, &
+                                                    evdw, force=force, atom_of_kind=atom_of_kind, virial=pv_virial_thread)
             ELSE
-              CALL calculate_dispersion_d4_pairpot(dispersion_env, particle_set, cell, &
-                  evdw, force=force, atom_of_kind=atom_of_kind)
+               CALL calculate_dispersion_d4_pairpot(dispersion_env, particle_set, cell, &
+                                                    evdw, force=force, atom_of_kind=atom_of_kind)
             END IF
          ELSE
             CALL calculate_dispersion_d4_pairpot(dispersion_env, particle_set, cell, evdw)
@@ -2045,7 +2045,7 @@ CONTAINS
 #if defined(__DFTD4)
                IF (atstress) THEN
                   CPABORT("atomic stress with DFTD4 not implemented")
-               END IF   
+               END IF
 #else
                CPABORT("Build without DFTD4")
 #endif
@@ -3675,16 +3675,17 @@ CONTAINS
 !> \brief ...
 !> \param dispersion_env ...
 !> \param particle_set ...
+!> \param cell ...
 !> \param energy ...
 !> \param force ...
 !> \param atom_of_kind ...
+!> \param virial ...
 ! **************************************************************************************************
    SUBROUTINE calculate_dispersion_d4_pairpot(dispersion_env, particle_set, cell, energy, force, atom_of_kind, virial)
 
       USE dftd4, ONLY: structure_type, d4_model, damping_param, &
                        realspace_cutoff, new, new_d4_model, &
                        get_rational_damping, get_dispersion
-
       TYPE(d4_model)                                     :: disp
       TYPE(structure_type)                               :: mol
 
@@ -3723,9 +3724,9 @@ CONTAINS
 
       !get information about cell / lattice
       CALL get_cell(cell=cell, periodic=periodic)
-      lperiod(1)=periodic(1)==1
-      lperiod(2)=periodic(2)==1
-      lperiod(3)=periodic(3)==1
+      lperiod(1) = periodic(1) == 1
+      lperiod(2) = periodic(2) == 1
+      lperiod(3) = periodic(3) == 1
 
       !prepare for the call to the dispersion function
       CALL new(mol, el_num, xyz, lattice=cell%hmat, periodic=lperiod)
@@ -3745,7 +3746,7 @@ CONTAINS
             ALLOCATE (gradient(3, mol%nat))
             CALL get_dispersion(mol, disp, param, cutoff, energy, gradient, stress)
             IF (PRESENT(virial)) THEN
-               virial=stress
+               virial = stress
             END IF
             DO iatom = 1, natom
                ikind = el_num(iatom)
