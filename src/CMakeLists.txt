@@ -523,6 +523,7 @@ list(
   qs_diis.F
   qs_diis_types.F
   qs_dispersion_nonloc.F
+  qs_dispersion_d4.F
   qs_dispersion_pairpot.F
   qs_dispersion_types.F
   qs_dispersion_utils.F

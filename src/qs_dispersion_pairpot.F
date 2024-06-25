@@ -57,6 +57,7 @@ MODULE qs_dispersion_pairpot
    USE physcon,                         ONLY: bohr,&
                                               kcalmol,&
                                               kjmol
+   USE qs_dispersion_d4,                ONLY: calculate_dispersion_d4_pairpot
    USE qs_dispersion_types,             ONLY: dftd2_pp,&
                                               dftd3_pp,&
                                               dftd4_pp,&
@@ -1390,7 +1391,6 @@ CONTAINS
       evdw = 0._dp
       pv_virial_thread(:, :) = 0._dp
       IF (dispersion_env%pp_type == vdw_pairpot_dftd4) THEN
-#if defined(__DFTD4)
          IF (calculate_forces .OR. debugall) THEN
             IF (use_virial) THEN
                CALL calculate_dispersion_d4_pairpot(dispersion_env, particle_set, cell, &
@@ -1402,9 +1402,6 @@ CONTAINS
          ELSE
             CALL calculate_dispersion_d4_pairpot(dispersion_env, particle_set, cell, evdw)
          END IF
-#else
-         CPABORT("Build without DFTD4")
-#endif
       END IF
 
       ALLOCATE (dodisp(nkind), ghost(nkind), floating(nkind), atomnumber(nkind), c6d2(nkind), radd2(nkind))
@@ -2042,13 +2039,9 @@ CONTAINS
 
                END IF
             ELSE IF (disp_a%type == dftd4_pp .AND. dr > 0.001_dp) THEN
-#if defined(__DFTD4)
                IF (atstress) THEN
                   CPABORT("atomic stress with DFTD4 not implemented")
                END IF
-#else
-               CPABORT("Build without DFTD4")
-#endif
                domol = .FALSE.
             END IF
          END IF
@@ -3669,107 +3662,5 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE exclude_d3_kind_pair
-
-#if defined(__DFTD4)
-   ! **************************************************************************************************
-!> \brief ...
-!> \param dispersion_env ...
-!> \param particle_set ...
-!> \param cell ...
-!> \param energy ...
-!> \param force ...
-!> \param atom_of_kind ...
-!> \param virial ...
-! **************************************************************************************************
-   SUBROUTINE calculate_dispersion_d4_pairpot(dispersion_env, particle_set, cell, energy, force, atom_of_kind, virial)
-
-      USE dftd4, ONLY: structure_type, d4_model, damping_param, &
-                       realspace_cutoff, new, new_d4_model, &
-                       get_rational_damping, get_dispersion
-      TYPE(d4_model)                                     :: disp
-      TYPE(structure_type)                               :: mol
-
-      class(damping_param), ALLOCATABLE                  :: param
-      TYPE(realspace_cutoff)                             :: cutoff
-
-      TYPE(qs_dispersion_type), POINTER, INTENT(IN)                       :: dispersion_env
-      TYPE(particle_type), DIMENSION(:), POINTER, INTENT(IN)              :: particle_set
-      TYPE(cell_type), POINTER, INTENT(IN)                                :: cell
-      REAL(KIND=dp), INTENT(OUT)                                          :: energy
-      TYPE(qs_force_type), DIMENSION(:), OPTIONAL, POINTER, INTENT(INOUT) :: force
-      INTEGER, DIMENSION(:), OPTIONAL, INTENT(IN)                         :: atom_of_kind
-      REAL(KIND=dp), DIMENSION(3, 3), OPTIONAL, INTENT(OUT)               :: virial
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_dispersion_d4_pairpot'
-
-      INTEGER                                            :: iatom, natom, ind_atom
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: el_num
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: gradient, xyz
-      REAL(KIND=dp), DIMENSION(3, 3)                     :: stress
-      INTEGER                                            :: handle, ikind
-      !REAL(KIND=dp), DIMENSION(3, 3)                    :: h
-      INTEGER, DIMENSION(3)                              :: periodic
-      LOGICAL, DIMENSION(3)                              :: lperiod
-      CALL timeset(routineN, handle)
-
-      !get information about particles
-      natom = SIZE(particle_set)
-      ALLOCATE (xyz(3, natom))
-      ALLOCATE (el_num(natom))
-      DO iatom = 1, natom
-         xyz(:, iatom) = particle_set(iatom)%r(:)
-         CALL get_atomic_kind(particle_set(iatom)%atomic_kind, kind_number=ikind)
-         el_num(iatom) = ikind
-      END DO
-
-      !get information about cell / lattice
-      CALL get_cell(cell=cell, periodic=periodic)
-      lperiod(1) = periodic(1) == 1
-      lperiod(2) = periodic(2) == 1
-      lperiod(3) = periodic(3) == 1
-
-      !prepare for the call to the dispersion function
-      CALL new(mol, el_num, xyz, lattice=cell%hmat, periodic=lperiod)
-      CALL new_d4_model(disp, mol)
-      CALL get_rational_damping(dispersion_env%ref_functional, param, s9=dispersion_env%s9)
-
-      ! Coordination number cutoff
-      cutoff%cn = dispersion_env%rc_cn
-      ! Two-body interaction cutoff
-      cutoff%disp2 = dispersion_env%rc_d4*2._dp
-      ! Three-body interaction cutoff
-      cutoff%disp3 = dispersion_env%rc_disp*2._dp
-
-      !> Wrapper to handle the evaluation of dispersion energy and derivatives
-      IF (PRESENT(force)) THEN
-         IF (PRESENT(atom_of_kind)) THEN
-            ALLOCATE (gradient(3, mol%nat))
-            CALL get_dispersion(mol, disp, param, cutoff, energy, gradient, stress)
-            IF (PRESENT(virial)) THEN
-               virial = stress
-            END IF
-            DO iatom = 1, natom
-               ikind = el_num(iatom)
-               ind_atom = atom_of_kind(iatom)
-               force(ikind)%dispersion(:, ind_atom) = force(ikind)%dispersion(:, ind_atom) + gradient(:, iatom)
-            END DO
-            DEALLOCATE (gradient)
-         ELSE
-            CPABORT("missing atom_of_kind")
-         END IF
-      ELSE
-         IF (PRESENT(virial)) THEN
-            CPABORT("missing force for virial term")
-         END IF
-         CALL get_dispersion(mol, disp, param, cutoff, energy)
-      END IF
-
-      DEALLOCATE (el_num, xyz)
-
-      CALL timestop(handle)
-
-   END SUBROUTINE calculate_dispersion_d4_pairpot
-
-#endif
 
 END MODULE qs_dispersion_pairpot
