@@ -3179,14 +3179,14 @@ CONTAINS
                CALL fft_alloc(fft_scratch_new%fft_scratch%zoptr, n)
 
                !in place plans
-               CALL fft_create_plan_3d(fft_scratch_new%fft_scratch%fft_plan(1), fft_type, .TRUE., FWFFT, n, &
+               CALL fft_create_plan_3d(fft_scratch_new%fft_scratch%fft_plan(1), .TRUE., FWFFT, n, &
                                        fft_scratch_new%fft_scratch%ziptr, fft_scratch_new%fft_scratch%ziptr)
-               CALL fft_create_plan_3d(fft_scratch_new%fft_scratch%fft_plan(2), fft_type, .TRUE., BWFFT, n, &
+               CALL fft_create_plan_3d(fft_scratch_new%fft_scratch%fft_plan(2), .TRUE., BWFFT, n, &
                                        fft_scratch_new%fft_scratch%ziptr, fft_scratch_new%fft_scratch%ziptr)
                ! out of place plans
-               CALL fft_create_plan_3d(fft_scratch_new%fft_scratch%fft_plan(3), fft_type, .FALSE., FWFFT, n, &
+               CALL fft_create_plan_3d(fft_scratch_new%fft_scratch%fft_plan(3), .FALSE., FWFFT, n, &
                                        fft_scratch_new%fft_scratch%ziptr, fft_scratch_new%fft_scratch%zoptr)
-               CALL fft_create_plan_3d(fft_scratch_new%fft_scratch%fft_plan(4), fft_type, .FALSE., BWFFT, n, &
+               CALL fft_create_plan_3d(fft_scratch_new%fft_scratch%fft_plan(4), .FALSE., BWFFT, n, &
                                        fft_scratch_new%fft_scratch%ziptr, fft_scratch_new%fft_scratch%zoptr)
 
             END SELECT
