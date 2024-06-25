@@ -23,7 +23,6 @@ MODULE pint_qtb
                                               fft_destroy_plan
    USE fft_plan,                        ONLY: fft_plan_type
    USE fft_tools,                       ONLY: FWFFT,&
-                                              fft_plan_style,&
                                               fft_type
    USE input_constants,                 ONLY: propagator_rpmd
    USE input_section_types,             ONLY: section_vals_get,&
@@ -962,7 +961,7 @@ CONTAINS
 
       INTEGER                                            :: stat
 
-      CALL fft_create_plan_1d(plan, fft_type, FWFFT, .FALSE., n, 1, z_in, z_out, fft_plan_style)
+      CALL fft_create_plan_1d(plan, fft_type, FWFFT, .FALSE., n, 1, z_in, z_out)
       CALL fft_1d(plan, z_in, z_out, 1.d0, stat)
       CALL fft_destroy_plan(plan)
    END SUBROUTINE pint_qtb_fft
