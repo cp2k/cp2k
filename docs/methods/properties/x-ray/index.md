@@ -9,5 +9,4 @@ delta-scf
 tddft
 delta-kick
 correction_scheme
-resonant_excitation
 ```

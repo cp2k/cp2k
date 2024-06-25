@@ -1,27 +1,44 @@
-# X-Ray Resonant Excitation
 
-In this tutorial, we will present a simulation of resonant X-Ray excitation of an isolated carbon
-monoxide in real-time using a time-dependent field. On this page, you will find an overview of the
-method, some equations, and the CP2K input file. A longer version is available in the form of a
-jupyter notebook file in [this zip file](https://www.cp2k.org/_media/howto:rtp_field_xas.zip) along
-with the simulated data so that you do not need to run this calculation yourself to perform the
-analysis. This kind of calculation is not easy to grasp: do not hesitate to have a first look before
-diving into the equations and details! This tutorial is connected to this article REF where you can
-find complementary information.
+# Real-Time TDDFT 
 
-## Real-Time TDDFT for resonant excitation
 
-Such real-time calculation aims to promote a small number of electrons from one specific state to
-another using an electromagnetic field. The electronic dynamics are propagated as the field is
-applied, leading to an electronic excitation increasing with time if the field frequency matches the
-targetted electronic transition energy.
+In real time time-dependent DFT, instead of solving the static Schroedinger equation (SE), the aim is to solve the time dependent  SE (TDSE)
 
-### Real-Time TDDFT reminders
+$$
+i \frac{\partial}{\partial t} \Phi({\bf r},t) = \hat{H}({\bf r},t) \Phi({\bf r},t),
+$$
+Contrary to the time independent case, there is no variational principle for the total energy, 
+and  the total energy has to be replaced by the quantum mechanical action,
 
-The light is treated classically using either the length or velocity gauge to interact with the
-electrons. The simulation starts usually from the electronic ground state, but one can also
-construct another starting state in CP2K. The field is applied as the wave function is propagated in
-real-time. This time-dependent field $\textbf{F}(t)$ has typically an envelope, $E_{\text{env}}$,
+$$
+A[\Phi] =  \int^{t_1}_{t_0} dt \langle \Phi(t) | i\frac{\partial}{\partial t} - \hat{H}(t)| \Phi(t)\rangle
+$$
+
+for which it is valid that the function $\Phi(t)$ that makes the action stationary will be the solution.
+The resulting time-dependent Kohn-Sham (TD-KS) equations read as
+
+$$
+i \frac{\partial}{\partial t} \phi_i({\bf r},t) =  \left[  -\frac{\nabla^2}{2}+v_{\text{KS}}({\bf r},t) + \textbf{F}(t) \right] \phi_i({\bf r},t),
+$$
+
+with $\phi_i$ the KS orbitals and the time dependent density
+
+$$
+\rho({\bf r},t)  = \sum_i f_i |\phi_i({\bf r},t)|^2.
+$$
+
+$\textbf{F}(t)$ is a time dependent external field. By applying an external electric field, we intend to simulate 
+the interaction  between the electron and an  external radiation. 
+The light is then treated classically using, either the length gauge for non periodic systems, or the velocity gauge for
+periodic systems. 
+
+The simulation starts usually from the electronic ground state, but  it is also possible to start  
+the simulation from a RESTART file or by mixing the wavefunction coefficients to build a different state.
+
+## The length gauge and the velocity gauge 
+
+The field is applied as the wave function is propagated in
+real-time. The intensity of the time-dependent field $\textbf{F}(t)$ is in general modulated by an envelope function, $E_{\text{env}}(t)$,
 and is defined as:
 
 $$
@@ -31,16 +48,46 @@ $$
 Where $\textbf{F}$ is the field polarization, $\omega_{0}$ is the carrying frequency at which the
 field oscillates, and $\phi$ its initial phase.
 
-The DFT equivalent of the Schrodinger equation is solved numerically time step per time step:
+
+
+## Propagators in TDDFT
+
+The time independent SE  is a boundary value problem, while the time-dependent is an initial value problem. 
+Hence, the time-dependent KS-equations cannot be solved iteratively.
+A practical method for solving the TDKS equation is the so called real time propagation. 
+For a given initial state at time $t_0$, the wavefunctions, respectively the density, 
+of a system are propagated stepwise to a final state at $t_f$.
+In order to derive a numerically feasible method for the propagation, the TDKS equation is reformulated in its integral form
 
 $$
-i \frac{\text{d}}{\text{d} t} |\psi_i(t)> = \hat{H}^{KS}(t) |\psi_i(t)>.
+\phi_i({\bf r},t_f) = \hat{U}(t_f,t_0)  \phi_i({\bf r},t_0) \qquad  \hat{U}(t_f,t_0) = \hat{T}\exp\left\{  -i \int_{t_0}^{t_f} H({\bf r} , \tau)d\tau\right\}
 $$
 
-Where $|\psi_i>$ is the $i^{\text{th}}$ time-dependent Molecular Orbital (MO) describing the
-$i^{\text{th}}$ electrons and $\hat{H}^{KS}$ the time-dependent Kohn-Sham Hamiltonian. This
-Hamiltonian is time-dependent because of the evolution of the electronic degrees of freedom and the
-field evolution. In the case of Ehrenfest dynamics, the nuclei also move in real-time.
+where $\hat{T}\exp$ is the time ordered exponential. 
+In general, the state at $t_f$ is not directly derived from $t_0$. Instead the interval is split into smaller time steps $\delta t$,
+ for which the propagation is performed. 
+
+ In the case of Ehrenfest dynamics, the nuclei also move in real-time.
+
+
+
+###  Resonant Excitation
+
+In this tutorial, we will present a simulation of resonant X-Ray excitation of an isolated carbon
+monoxide in real-time using a time-dependent field. On this page, you will find an overview of the
+method, some equations, and the CP2K input file. A longer version is available in the form of a
+jupyter notebook file in [this zip file](https://www.cp2k.org/_media/howto:rtp_field_xas.zip) along
+with the simulated data so that you do not need to run this calculation yourself to perform the
+analysis. This tutorial is connected to this article REF where you can
+find complementary information.
+
+
+Such real-time calculation aims to promote a small number of electrons from one specific state to
+another using an electromagnetic field. The electronic dynamics are propagated as the field is
+applied, leading to an electronic excitation increasing with time, if the field frequency matches the
+aimed electronic transition energy.
+
+
 
 This equation is propagated for each $i$ electron with a time step $\Delta t$: the MOs evolved
 collectively over time in a **continuous manner**. Especially, the energy evolution is continuous:
