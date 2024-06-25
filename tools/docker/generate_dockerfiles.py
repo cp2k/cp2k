@@ -505,7 +505,7 @@ RUN ln -sf /usr/bin/gcc-{gcc_version}      /usr/local/bin/gcc  && \
 # ======================================================================================
 def toolchain_intel() -> str:
     return rf"""
-FROM intel/hpckit:2024.1.1-devel-ubuntu22.04
+FROM intel/hpckit:2024.2.0-devel-ubuntu22.04
 
 """ + install_toolchain(
         base_image="ubuntu",
