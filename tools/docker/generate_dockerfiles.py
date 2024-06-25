@@ -35,7 +35,10 @@ def main() -> None:
         f.write(toolchain_full(base_image="fedora:38") + regtest("psmp"))
 
     with OutputFile(f"Dockerfile.test_intel-psmp", args.check) as f:
-        f.write(toolchain_intel() + regtest("psmp", intel=True))
+        f.write(
+            toolchain_intel()
+            + regtest("psmp", intel=True, testopts="--mpiexec mpiexec")
+        )
 
     with OutputFile(f"Dockerfile.test_nvhpc", args.check) as f:
         f.write(toolchain_nvhpc())

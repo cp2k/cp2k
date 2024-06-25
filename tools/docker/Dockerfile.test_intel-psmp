@@ -75,7 +75,7 @@ COPY ./tests ./tests
 COPY ./tools/regtesting ./tools/regtesting
 
 # Run regression tests.
-ARG TESTOPTS=""
+ARG TESTOPTS="--mpiexec mpiexec"
 COPY ./tools/docker/scripts/test_regtest.sh ./
 RUN /bin/bash -o pipefail -c " \
     TESTOPTS='${TESTOPTS}' \
