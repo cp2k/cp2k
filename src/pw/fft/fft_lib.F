@@ -97,12 +97,10 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
-!> \param fft_type ...
 !> \param wisdom_file ...
 !> \param ionode ...
 ! **************************************************************************************************
-   SUBROUTINE fft_do_cleanup(fft_type, wisdom_file, ionode)
-      INTEGER, INTENT(IN)                                :: fft_type
+   SUBROUTINE fft_do_cleanup(wisdom_file, ionode)
       CHARACTER(LEN=*), INTENT(IN)                       :: wisdom_file
       LOGICAL, INTENT(IN)                                :: ionode
 
@@ -119,13 +117,10 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
-!> \param fft_type ...
 !> \param DATA ...
 !> \param max_length ...
 ! **************************************************************************************************
-   SUBROUTINE fft_get_lengths(fft_type, DATA, max_length)
-
-      INTEGER, INTENT(IN)                                :: fft_type
+   SUBROUTINE fft_get_lengths(DATA, max_length)
       INTEGER, DIMENSION(*)                              :: DATA
       INTEGER, INTENT(INOUT)                             :: max_length
 

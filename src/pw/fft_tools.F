@@ -212,7 +212,7 @@ CONTAINS
 
       ! finalize fft libs
 
-      CALL fft_do_cleanup(fft_type, wisdom_file, para_env%is_source())
+      CALL fft_do_cleanup(wisdom_file, para_env%is_source())
 
    END SUBROUTINE finalize_fft
 
@@ -239,7 +239,7 @@ CONTAINS
       DATA = -1
 
       ! if the user wants to use fftsg sizes go for it
-      CALL fft_get_lengths(fft_type, DATA, ldata)
+      CALL fft_get_lengths(DATA, ldata)
 
       iloc = 0
       DO i = 1, ldata
