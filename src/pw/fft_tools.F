@@ -3004,14 +3004,14 @@ CONTAINS
                ALLOCATE (fft_scratch_new%fft_scratch%rbuf6(mx1*mz1*mcy3, 0:DIM(1) - 1))
 
                !set up fft plans
-               CALL fft_create_plan_2d(fft_scratch_new%fft_scratch%fft_plan(1:2), fft_type, FWFFT, .TRUE., mz1, my1, mx1, &
+               CALL fft_create_plan_2d(fft_scratch_new%fft_scratch%fft_plan(1:2), FWFFT, .TRUE., mz1, my1, mx1, &
                                        fft_scratch_new%fft_scratch%a1buf, fft_scratch_new%fft_scratch%a3buf, &
                                        fft_scratch_new%fft_scratch%a4buf)
                CALL fft_create_plan_1d(fft_scratch_new%fft_scratch%fft_plan(3), FWFFT, .TRUE., n(1), my3*mz3, &
                                        fft_scratch_new%fft_scratch%a5buf, fft_scratch_new%fft_scratch%a6buf)
                CALL fft_create_plan_1d(fft_scratch_new%fft_scratch%fft_plan(4), BWFFT, .TRUE., n(1), my3*mz3, &
                                        fft_scratch_new%fft_scratch%a6buf, fft_scratch_new%fft_scratch%a5buf)
-               CALL fft_create_plan_2d(fft_scratch_new%fft_scratch%fft_plan(5:6), fft_type, BWFFT, .TRUE., my1, mz1, mx1, &
+               CALL fft_create_plan_2d(fft_scratch_new%fft_scratch%fft_plan(5:6), BWFFT, .TRUE., my1, mz1, mx1, &
                                        fft_scratch_new%fft_scratch%a4buf, fft_scratch_new%fft_scratch%a3buf, &
                                        fft_scratch_new%fft_scratch%a1buf)
 
@@ -3052,14 +3052,14 @@ CONTAINS
                END IF
 
                !set up fft plans
-               CALL fft_create_plan_2d(fft_scratch_new%fft_scratch%fft_plan(1:2), fft_type, FWFFT, .TRUE., nz, ny, nx, &
+               CALL fft_create_plan_2d(fft_scratch_new%fft_scratch%fft_plan(1:2), FWFFT, .TRUE., nz, ny, nx, &
                                        fft_scratch_new%fft_scratch%tbuf, fft_scratch_new%fft_scratch%r1buf, &
                                        fft_scratch_new%fft_scratch%tbuf)
                CALL fft_create_plan_1d(fft_scratch_new%fft_scratch%fft_plan(3), FWFFT, .TRUE., n(1), nyzray, &
                                        fft_scratch_new%fft_scratch%r1buf, fft_scratch_new%fft_scratch%r2buf)
                CALL fft_create_plan_1d(fft_scratch_new%fft_scratch%fft_plan(4), BWFFT, .TRUE., n(1), nyzray, &
                                        fft_scratch_new%fft_scratch%r2buf, fft_scratch_new%fft_scratch%r1buf)
-               CALL fft_create_plan_2d(fft_scratch_new%fft_scratch%fft_plan(5:6), fft_type, BWFFT, .TRUE., ny, nz, nx, &
+               CALL fft_create_plan_2d(fft_scratch_new%fft_scratch%fft_plan(5:6), BWFFT, .TRUE., ny, nz, nx, &
                                        fft_scratch_new%fft_scratch%tbuf, fft_scratch_new%fft_scratch%r1buf, &
                                        fft_scratch_new%fft_scratch%tbuf)
 
