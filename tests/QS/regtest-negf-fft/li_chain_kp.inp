@@ -21,6 +21,8 @@
   PRINT_LEVEL low
   PROJECT ${project}
   RUN_TYPE negf
+# FFTSG does not work for these kind of calculations in most cases
+  PREFERRED_FFT_LIBRARY FFTW3
 &END GLOBAL
 
 &MULTIPLE_FORCE_EVALS

@@ -65,6 +65,8 @@
   PRINT_LEVEL MEDIUM
   PROJECT H2-big-1
   RUN_TYPE ENERGY
+# FFTSG does not work in most cases
+  PREFERRED_FFT_LIBRARY FFTW3
   &TIMINGS
     ! explicitly test timing MPI
     TIME_MPI
