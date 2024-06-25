@@ -33,11 +33,12 @@ MODULE fft_lib
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'fft_lib'
 
    PUBLIC :: fft_do_cleanup, fft_do_init, fft_get_lengths, fft_create_plan_2d, fft_create_plan_3d
-   PUBLIC :: fft_create_plan_1d, fft_1d, fft_2d, fft_library, fft_3d, fft_destroy_plan
+   PUBLIC :: fft_create_plan_1d, fft_1d, fft_2d, fft_3d, fft_destroy_plan
    PUBLIC :: fft_alloc, fft_dealloc
-   PUBLIC :: FWFFT, BWFFT
+   PUBLIC :: FWFFT, BWFFT, fft_type
 
    LOGICAL, SAVE :: use_fftsg_sizes = .TRUE.
+   INTEGER, SAVE :: fft_type = 0
 
 CONTAINS
 ! **************************************************************************************************
@@ -56,7 +57,7 @@ CONTAINS
 
       SELECT CASE (fftlib)
       CASE DEFAULT
-         flib = -1
+         CPABORT("Unknown FFT library: "//fftlib)
       CASE ("FFTSG")
          flib = 1
       CASE ("FFTW3")
@@ -69,18 +70,19 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
-!> \param fft_type ...
 !> \param wisdom_file ...
 !> \param plan_style ...
 !> \param fftsg_sizes ...
+!> \param fftlib ...
 ! **************************************************************************************************
-   SUBROUTINE fft_do_init(fft_type, wisdom_file, plan_style, fftsg_sizes)
-      INTEGER, INTENT(IN)                                :: fft_type
+   SUBROUTINE fft_do_init(wisdom_file, plan_style, fftsg_sizes, fftlib)
       CHARACTER(LEN=*), INTENT(IN)                       :: wisdom_file
       INTEGER, INTENT(IN)                                :: plan_style
       LOGICAL, INTENT(IN)                                :: fftsg_sizes
+      CHARACTER(LEN=*), INTENT(IN)                       :: fftlib
 
       use_fftsg_sizes = fftsg_sizes
+      fft_type = fft_library(fftlib)
 
       SELECT CASE (fft_type)
       CASE DEFAULT
