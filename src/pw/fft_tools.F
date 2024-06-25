@@ -151,14 +151,13 @@ MODULE fft_tools
    INTEGER, SAVE :: fft_type = 0
    LOGICAL, SAVE :: alltoall_sgl = .FALSE.
    LOGICAL, SAVE :: use_fftsg_sizes = .TRUE.
-   INTEGER, SAVE :: fft_plan_style = 1
 
    ! these are only needed for pw_gpu (-D__OFFLOAD)
    PUBLIC :: get_fft_scratch, release_fft_scratch
    PUBLIC :: cube_transpose_1, cube_transpose_2
    PUBLIC :: yz_to_x, x_to_yz, xz_to_yz, yz_to_xz
    PUBLIC :: fft_scratch_sizes, fft_scratch_type
-   PUBLIC :: fft_type, fft_plan_style
+   PUBLIC :: fft_type
 
    INTERFACE fft3d
       MODULE PROCEDURE fft3d_s, fft3d_ps, fft3d_pb
@@ -191,11 +190,10 @@ CONTAINS
       alltoall_sgl = alltoall
       fft_pool_scratch_limit = pool_limit
       fft_type = fft_library(fftlib)
-      fft_plan_style = plan_style
 
       IF (fft_type <= 0) CPABORT("Unknown FFT library: "//TRIM(fftlib))
 
-      CALL fft_do_init(fft_type, wisdom_file)
+      CALL fft_do_init(fft_type, wisdom_file, plan_style)
 
       ! setup the FFT scratch pool, if one is associated, clear first
       CALL release_fft_scratch_pool()
@@ -340,7 +338,7 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       IF (fft_type == 3) THEN
-         CALL fft_create_plan_1d(fft_plan, fft_type, FWFFT, trans, n, m, zin, zout, fft_plan_style)
+         CALL fft_create_plan_1d(fft_plan, fft_type, FWFFT, trans, n, m, zin, zout)
          CALL fft_1d(fft_plan, zin, zout, scale, stat)
          CALL fft_destroy_plan(fft_plan)
       ELSE
@@ -2981,17 +2979,17 @@ CONTAINS
 
                !set up fft plans
                CALL fft_create_plan_1d(fft_scratch_new%fft_scratch%fft_plan(1), fft_type, FWFFT, .TRUE., n(3), mx1*my1, &
-                                       fft_scratch_new%fft_scratch%a1buf, fft_scratch_new%fft_scratch%a2buf, fft_plan_style)
+                                       fft_scratch_new%fft_scratch%a1buf, fft_scratch_new%fft_scratch%a2buf)
                CALL fft_create_plan_1d(fft_scratch_new%fft_scratch%fft_plan(2), fft_type, FWFFT, .TRUE., n(2), mx2*mz2, &
-                                       fft_scratch_new%fft_scratch%a3buf, fft_scratch_new%fft_scratch%a4buf, fft_plan_style)
+                                       fft_scratch_new%fft_scratch%a3buf, fft_scratch_new%fft_scratch%a4buf)
                CALL fft_create_plan_1d(fft_scratch_new%fft_scratch%fft_plan(3), fft_type, FWFFT, .TRUE., n(1), my3*mz3, &
-                                       fft_scratch_new%fft_scratch%a5buf, fft_scratch_new%fft_scratch%a6buf, fft_plan_style)
+                                       fft_scratch_new%fft_scratch%a5buf, fft_scratch_new%fft_scratch%a6buf)
                CALL fft_create_plan_1d(fft_scratch_new%fft_scratch%fft_plan(4), fft_type, BWFFT, .TRUE., n(1), my3*mz3, &
-                                       fft_scratch_new%fft_scratch%a6buf, fft_scratch_new%fft_scratch%a5buf, fft_plan_style)
+                                       fft_scratch_new%fft_scratch%a6buf, fft_scratch_new%fft_scratch%a5buf)
                CALL fft_create_plan_1d(fft_scratch_new%fft_scratch%fft_plan(5), fft_type, BWFFT, .TRUE., n(2), mx2*mz2, &
-                                       fft_scratch_new%fft_scratch%a4buf, fft_scratch_new%fft_scratch%a3buf, fft_plan_style)
+                                       fft_scratch_new%fft_scratch%a4buf, fft_scratch_new%fft_scratch%a3buf)
                CALL fft_create_plan_1d(fft_scratch_new%fft_scratch%fft_plan(6), fft_type, BWFFT, .TRUE., n(3), mx1*my1, &
-                                       fft_scratch_new%fft_scratch%a2buf, fft_scratch_new%fft_scratch%a1buf, fft_plan_style)
+                                       fft_scratch_new%fft_scratch%a2buf, fft_scratch_new%fft_scratch%a1buf)
 
             CASE (101) ! fft3d_pb: full cube distribution (dim 1)
                CPASSERT(PRESENT(fft_sizes))
@@ -3020,14 +3018,14 @@ CONTAINS
                !set up fft plans
                CALL fft_create_plan_2d(fft_scratch_new%fft_scratch%fft_plan(1:2), fft_type, FWFFT, .TRUE., mz1, my1, mx1, &
                                        fft_scratch_new%fft_scratch%a1buf, fft_scratch_new%fft_scratch%a3buf, &
-                                       fft_scratch_new%fft_scratch%a4buf, fft_plan_style)
+                                       fft_scratch_new%fft_scratch%a4buf)
                CALL fft_create_plan_1d(fft_scratch_new%fft_scratch%fft_plan(3), fft_type, FWFFT, .TRUE., n(1), my3*mz3, &
-                                       fft_scratch_new%fft_scratch%a5buf, fft_scratch_new%fft_scratch%a6buf, fft_plan_style)
+                                       fft_scratch_new%fft_scratch%a5buf, fft_scratch_new%fft_scratch%a6buf)
                CALL fft_create_plan_1d(fft_scratch_new%fft_scratch%fft_plan(4), fft_type, BWFFT, .TRUE., n(1), my3*mz3, &
-                                       fft_scratch_new%fft_scratch%a6buf, fft_scratch_new%fft_scratch%a5buf, fft_plan_style)
+                                       fft_scratch_new%fft_scratch%a6buf, fft_scratch_new%fft_scratch%a5buf)
                CALL fft_create_plan_2d(fft_scratch_new%fft_scratch%fft_plan(5:6), fft_type, BWFFT, .TRUE., my1, mz1, mx1, &
                                        fft_scratch_new%fft_scratch%a4buf, fft_scratch_new%fft_scratch%a3buf, &
-                                       fft_scratch_new%fft_scratch%a1buf, fft_plan_style)
+                                       fft_scratch_new%fft_scratch%a1buf)
 
             CASE (200) ! fft3d_ps: plane distribution
                CPASSERT(PRESENT(fft_sizes))
@@ -3068,14 +3066,14 @@ CONTAINS
                !set up fft plans
                CALL fft_create_plan_2d(fft_scratch_new%fft_scratch%fft_plan(1:2), fft_type, FWFFT, .TRUE., nz, ny, nx, &
                                        fft_scratch_new%fft_scratch%tbuf, fft_scratch_new%fft_scratch%r1buf, &
-                                       fft_scratch_new%fft_scratch%tbuf, fft_plan_style)
+                                       fft_scratch_new%fft_scratch%tbuf)
                CALL fft_create_plan_1d(fft_scratch_new%fft_scratch%fft_plan(3), fft_type, FWFFT, .TRUE., n(1), nyzray, &
-                                       fft_scratch_new%fft_scratch%r1buf, fft_scratch_new%fft_scratch%r2buf, fft_plan_style)
+                                       fft_scratch_new%fft_scratch%r1buf, fft_scratch_new%fft_scratch%r2buf)
                CALL fft_create_plan_1d(fft_scratch_new%fft_scratch%fft_plan(4), fft_type, BWFFT, .TRUE., n(1), nyzray, &
-                                       fft_scratch_new%fft_scratch%r2buf, fft_scratch_new%fft_scratch%r1buf, fft_plan_style)
+                                       fft_scratch_new%fft_scratch%r2buf, fft_scratch_new%fft_scratch%r1buf)
                CALL fft_create_plan_2d(fft_scratch_new%fft_scratch%fft_plan(5:6), fft_type, BWFFT, .TRUE., ny, nz, nx, &
                                        fft_scratch_new%fft_scratch%tbuf, fft_scratch_new%fft_scratch%r1buf, &
-                                       fft_scratch_new%fft_scratch%tbuf, fft_plan_style)
+                                       fft_scratch_new%fft_scratch%tbuf)
 
             CASE (300) ! fft3d_ps: block distribution
                CPASSERT(PRESENT(fft_sizes))
@@ -3175,17 +3173,17 @@ CONTAINS
 
                !set up fft plans
                CALL fft_create_plan_1d(fft_scratch_new%fft_scratch%fft_plan(1), fft_type, FWFFT, .TRUE., n(3), mx1*my1, &
-                                       fft_scratch_new%fft_scratch%p1buf, fft_scratch_new%fft_scratch%p2buf, fft_plan_style)
+                                       fft_scratch_new%fft_scratch%p1buf, fft_scratch_new%fft_scratch%p2buf)
                CALL fft_create_plan_1d(fft_scratch_new%fft_scratch%fft_plan(2), fft_type, FWFFT, .TRUE., n(2), mx2*mz2, &
-                                       fft_scratch_new%fft_scratch%p3buf, fft_scratch_new%fft_scratch%p4buf, fft_plan_style)
+                                       fft_scratch_new%fft_scratch%p3buf, fft_scratch_new%fft_scratch%p4buf)
                CALL fft_create_plan_1d(fft_scratch_new%fft_scratch%fft_plan(3), fft_type, FWFFT, .TRUE., n(1), nyzray, &
-                                       fft_scratch_new%fft_scratch%p5buf, fft_scratch_new%fft_scratch%p6buf, fft_plan_style)
+                                       fft_scratch_new%fft_scratch%p5buf, fft_scratch_new%fft_scratch%p6buf)
                CALL fft_create_plan_1d(fft_scratch_new%fft_scratch%fft_plan(4), fft_type, BWFFT, .TRUE., n(1), nyzray, &
-                                       fft_scratch_new%fft_scratch%p6buf, fft_scratch_new%fft_scratch%p7buf, fft_plan_style)
+                                       fft_scratch_new%fft_scratch%p6buf, fft_scratch_new%fft_scratch%p7buf)
                CALL fft_create_plan_1d(fft_scratch_new%fft_scratch%fft_plan(5), fft_type, BWFFT, .TRUE., n(2), mx2*mz2, &
-                                       fft_scratch_new%fft_scratch%p4buf, fft_scratch_new%fft_scratch%p3buf, fft_plan_style)
+                                       fft_scratch_new%fft_scratch%p4buf, fft_scratch_new%fft_scratch%p3buf)
                CALL fft_create_plan_1d(fft_scratch_new%fft_scratch%fft_plan(6), fft_type, BWFFT, .TRUE., n(3), mx1*my1, &
-                                       fft_scratch_new%fft_scratch%p3buf, fft_scratch_new%fft_scratch%p1buf, fft_plan_style)
+                                       fft_scratch_new%fft_scratch%p3buf, fft_scratch_new%fft_scratch%p1buf)
 
             CASE (400) ! serial FFT
                np = 0
@@ -3194,14 +3192,14 @@ CONTAINS
 
                !in place plans
                CALL fft_create_plan_3d(fft_scratch_new%fft_scratch%fft_plan(1), fft_type, .TRUE., FWFFT, n, &
-                                       fft_scratch_new%fft_scratch%ziptr, fft_scratch_new%fft_scratch%ziptr, fft_plan_style)
+                                       fft_scratch_new%fft_scratch%ziptr, fft_scratch_new%fft_scratch%ziptr)
                CALL fft_create_plan_3d(fft_scratch_new%fft_scratch%fft_plan(2), fft_type, .TRUE., BWFFT, n, &
-                                       fft_scratch_new%fft_scratch%ziptr, fft_scratch_new%fft_scratch%ziptr, fft_plan_style)
+                                       fft_scratch_new%fft_scratch%ziptr, fft_scratch_new%fft_scratch%ziptr)
                ! out of place plans
                CALL fft_create_plan_3d(fft_scratch_new%fft_scratch%fft_plan(3), fft_type, .FALSE., FWFFT, n, &
-                                       fft_scratch_new%fft_scratch%ziptr, fft_scratch_new%fft_scratch%zoptr, fft_plan_style)
+                                       fft_scratch_new%fft_scratch%ziptr, fft_scratch_new%fft_scratch%zoptr)
                CALL fft_create_plan_3d(fft_scratch_new%fft_scratch%fft_plan(4), fft_type, .FALSE., BWFFT, n, &
-                                       fft_scratch_new%fft_scratch%ziptr, fft_scratch_new%fft_scratch%zoptr, fft_plan_style)
+                                       fft_scratch_new%fft_scratch%ziptr, fft_scratch_new%fft_scratch%zoptr)
 
             END SELECT
 

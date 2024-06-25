@@ -69,10 +69,12 @@ CONTAINS
 !> \brief ...
 !> \param fft_type ...
 !> \param wisdom_file ...
+!> \param plan_style ...
 ! **************************************************************************************************
-   SUBROUTINE fft_do_init(fft_type, wisdom_file)
+   SUBROUTINE fft_do_init(fft_type, wisdom_file, plan_style)
       INTEGER, INTENT(IN)                                :: fft_type
       CHARACTER(LEN=*), INTENT(IN)                       :: wisdom_file
+      INTEGER, INTENT(IN)                                :: plan_style
 
       SELECT CASE (fft_type)
       CASE DEFAULT
@@ -80,7 +82,7 @@ CONTAINS
       CASE (1)
          CALL fftsg_do_init()
       CASE (3, 4)
-         CALL fftw3_do_init(wisdom_file)
+         CALL fftw3_do_init(wisdom_file, plan_style)
       END SELECT
 
    END SUBROUTINE
@@ -141,9 +143,8 @@ CONTAINS
 !> \param n ...
 !> \param zin ...
 !> \param zout ...
-!> \param plan_style ...
 ! **************************************************************************************************
-   SUBROUTINE fft_create_plan_3d(plan, fft_type, fft_in_place, fsign, n, zin, zout, plan_style)
+   SUBROUTINE fft_create_plan_3d(plan, fft_type, fft_in_place, fsign, n, zin, zout)
 
       TYPE(fft_plan_type), INTENT(INOUT)                 :: plan
       INTEGER, INTENT(IN)                                :: fft_type
@@ -151,7 +152,6 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: fsign
       INTEGER, DIMENSION(3), INTENT(IN)                  :: n
       COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT)      :: zin, zout
-      INTEGER, INTENT(IN)                                :: plan_style
 
       plan%fft_type = fft_type
       plan%fsign = fsign
@@ -161,7 +161,7 @@ CONTAINS
 
       ! Planning only needed for FFTW3 and SpLA
       IF (fft_type == 3) THEN
-         CALL fftw3_create_plan_3d(plan, zin, zout, plan_style)
+         CALL fftw3_create_plan_3d(plan, zin, zout)
          plan%valid = .TRUE.
       ELSE IF (fft_type == 4) THEN
          CALL spfft_create_plan_3d(plan)
@@ -184,16 +184,14 @@ CONTAINS
 !> \param zin ...
 !> \param zintermed ...
 !> \param zout ...
-!> \param plan_style ...
 ! **************************************************************************************************
-   SUBROUTINE fft_create_plan_2d(plan, fft_type, fsign, trans, n1, n2, m, zin, zintermed, zout, plan_style)
+   SUBROUTINE fft_create_plan_2d(plan, fft_type, fsign, trans, n1, n2, m, zin, zintermed, zout)
 
       TYPE(fft_plan_type), INTENT(INOUT)                 :: plan(2)
       INTEGER, INTENT(IN)                                :: fft_type, fsign
       LOGICAL, INTENT(IN)                                :: trans
       INTEGER, INTENT(IN)                                :: n1, n2, m
       COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT)      :: zin, zintermed, zout
-      INTEGER, INTENT(IN)                                :: plan_style
 
       plan(1)%fft_type = fft_type
       plan(1)%fsign = fsign
@@ -212,8 +210,8 @@ CONTAINS
 
       ! Planning only needed for FFTW3
       IF (fft_type .EQ. 3 .AND. (n1*m .NE. 0) .AND. (n2*m .NE. 0)) THEN
-         CALL fftw3_create_plan_1d(plan(1), zin, zintermed, plan_style)
-         CALL fftw3_create_plan_1d(plan(2), zintermed, zout, plan_style)
+         CALL fftw3_create_plan_1d(plan(1), zin, zintermed)
+         CALL fftw3_create_plan_1d(plan(2), zintermed, zout)
          plan(1)%valid = .TRUE.
          plan(2)%valid = .TRUE.
       ELSE IF (fft_type .EQ. 4) THEN
@@ -277,15 +275,13 @@ CONTAINS
 !> \param m ...
 !> \param zin ...
 !> \param zout ...
-!> \param plan_style ...
 ! **************************************************************************************************
-   SUBROUTINE fft_create_plan_1d(plan, fft_type, fsign, trans, n, m, zin, zout, plan_style)
+   SUBROUTINE fft_create_plan_1d(plan, fft_type, fsign, trans, n, m, zin, zout)
       TYPE(fft_plan_type), INTENT(INOUT)                 :: plan
       INTEGER, INTENT(IN)                                :: fft_type, fsign
       LOGICAL, INTENT(IN)                                :: trans
       INTEGER, INTENT(IN)                                :: n, m
       COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT)      :: zin, zout
-      INTEGER, INTENT(IN)                                :: plan_style
 
       plan%fft_type = fft_type
       plan%fsign = fsign
@@ -296,7 +292,7 @@ CONTAINS
 
       ! Planning only needed for FFTW3
       IF (fft_type .EQ. 3 .AND. (n*m .NE. 0)) THEN
-         CALL fftw3_create_plan_1d(plan, zin, zout, plan_style)
+         CALL fftw3_create_plan_1d(plan, zin, zout)
          plan%valid = .TRUE.
       ELSE IF (fft_type .EQ. 4) THEN
          CALL spfft_create_plan_1d(plan)

@@ -37,6 +37,8 @@ MODULE fftw3_lib
    PUBLIC :: fftw3_destroy_plan, fftw3_create_plan_1d, fftw3_create_plan_3d
    PUBLIC :: fftw_alloc, fftw_dealloc
 
+   INTEGER(C_INT), SAVE :: fftw_plan_type = -1_C_INT
+
 #if defined ( __FFTW3 )
 #if defined ( __FFTW3_MKL )
 #include "fftw/fftw3.f03"
@@ -183,9 +185,10 @@ CONTAINS
 !> \brief ...
 !> \param wisdom_file ...
 ! **************************************************************************************************
-   SUBROUTINE fftw3_do_init(wisdom_file)
+   SUBROUTINE fftw3_do_init(wisdom_file, plan_style)
 
       CHARACTER(LEN=*), INTENT(IN)             :: wisdom_file
+      INTEGER, INTENT(IN) :: plan_style
 
 #if defined ( __FFTW3 )
       CHARACTER(LEN=1, KIND=C_CHAR), DIMENSION(:), ALLOCATABLE :: wisdom_file_name_c
@@ -247,6 +250,19 @@ CONTAINS
          END IF
       END IF
 
+      SELECT CASE (plan_style)
+      CASE (1)
+         fftw_plan_type = FFTW_ESTIMATE
+      CASE (2)
+         fftw_plan_type = FFTW_MEASURE
+      CASE (3)
+         fftw_plan_type = FFTW_PATIENT
+      CASE (4)
+         fftw_plan_type = FFTW_EXHAUSTIVE
+      CASE DEFAULT
+         CPABORT("fftw3_do_init: set plan type")
+      END SELECT
+
 #if defined (__MKL)
       ! Now check if we have a real FFTW3 library, or are using MKL wrappers
 
@@ -277,6 +293,11 @@ CONTAINS
 !$       END IF
 !$    END IF
 #endif
+
+#if defined (__FFTW3_UNALIGNED)
+      fftw_plan_type = fftw_plan_type + FFTW_UNALIGNED
+#endif
+
 #else
       MARK_USED(wisdom_file)
 #endif
@@ -515,14 +536,14 @@ CONTAINS
    SUBROUTINE fftw3_create_guru_plan(plan, fft_rank, dim_n, &
                                      dim_istride, dim_ostride, hm_rank, &
                                      hm_n, hm_istride, hm_ostride, &
-                                     zin, zout, fft_direction, fftw_plan_type, &
+                                     zin, zout, fft_direction, &
                                      valid)
 
       TYPE(C_PTR), INTENT(INOUT)                         :: plan
       COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT)      :: zin, zout
       INTEGER, INTENT(IN) :: dim_n(2), dim_istride(2), dim_ostride(2), &
                              hm_n(2), hm_istride(2), hm_ostride(2), fft_rank, &
-                             fft_direction, fftw_plan_type, hm_rank
+                             fft_direction, hm_rank
       LOGICAL, INTENT(OUT)                               :: valid
 
 #if defined (__FFTW3)
@@ -596,8 +617,7 @@ CONTAINS
       CALL fftw3_create_guru_plan(test_plan, 1, &
                                   dim_n, dim_istride, dim_ostride, &
                                   2, howmany_n, howmany_istride, howmany_ostride, &
-                                  zin, zin, &
-                                  FFTW_FORWARD, FFTW_ESTIMATE, guru_supported)
+                                  zin, zin, FFTW_FORWARD, guru_supported)
       IF (guru_supported) THEN
          CALL fftw_destroy_plan(test_plan)
          is_mkl = .FALSE.
@@ -663,17 +683,15 @@ CONTAINS
 !> \param rows_per_th_r ...
 ! **************************************************************************************************
    SUBROUTINE fftw3_create_3d_plans(plan, plan_r, dim_n, dim_istride, dim_ostride, &
-                                    hm_n, hm_istride, hm_ostride, &
-                                    input, output, &
-                                    fft_direction, fftw_plan_type, rows_per_th, &
-                                    rows_per_th_r)
+                                    hm_n, hm_istride, hm_ostride, input, output, &
+                                    fft_direction, rows_per_th, rows_per_th_r)
 
       TYPE(C_PTR), INTENT(INOUT)                         :: plan, plan_r
       INTEGER, INTENT(INOUT)                             :: dim_n(2), dim_istride(2), &
                                                             dim_ostride(2), hm_n(2), &
                                                             hm_istride(2), hm_ostride(2)
       COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT)      :: input, output
-      INTEGER, INTENT(INOUT)                             :: fft_direction, fftw_plan_type
+      INTEGER, INTENT(INOUT)                             :: fft_direction
       INTEGER, INTENT(IN)                                :: rows_per_th, rows_per_th_r
 
       LOGICAL                                            :: valid
@@ -684,8 +702,7 @@ CONTAINS
       CALL fftw3_create_guru_plan(plan, 1, &
                                   dim_n, dim_istride, dim_ostride, &
                                   2, hm_n, hm_istride, hm_ostride, &
-                                  input, output, &
-                                  fft_direction, fftw_plan_type, valid)
+                                  input, output, fft_direction, valid)
 
       IF (.NOT. valid) THEN
          CPABORT("fftw3_create_plan")
@@ -696,8 +713,7 @@ CONTAINS
       CALL fftw3_create_guru_plan(plan_r, 1, &
                                   dim_n, dim_istride, dim_ostride, &
                                   2, hm_n, hm_istride, hm_ostride, &
-                                  input, output, &
-                                  fft_direction, fftw_plan_type, valid)
+                                  input, output, fft_direction, valid)
       IF (.NOT. valid) THEN
          CPABORT("fftw3_create_plan (remaining)")
       END IF
@@ -711,13 +727,11 @@ CONTAINS
 !> \param plan ...
 !> \param zin ...
 !> \param zout ...
-!> \param plan_style ...
 ! **************************************************************************************************
-   SUBROUTINE fftw3_create_plan_3d(plan, zin, zout, plan_style)
+   SUBROUTINE fftw3_create_plan_3d(plan, zin, zout)
 
       TYPE(fft_plan_type), INTENT(INOUT)                 :: plan
       COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT)      :: zin, zout
-      INTEGER                                            :: plan_style
 #if defined ( __FFTW3 )
       INTEGER                                            :: n1, n2, n3
       INTEGER                                            :: nt
@@ -730,24 +744,6 @@ CONTAINS
       ! GURU Interface
       INTEGER :: dim_n(2), dim_istride(2), dim_ostride(2), &
                  howmany_n(2), howmany_istride(2), howmany_ostride(2)
-
-      INTEGER :: fftw_plan_type
-      SELECT CASE (plan_style)
-      CASE (1)
-         fftw_plan_type = FFTW_ESTIMATE
-      CASE (2)
-         fftw_plan_type = FFTW_MEASURE
-      CASE (3)
-         fftw_plan_type = FFTW_PATIENT
-      CASE (4)
-         fftw_plan_type = FFTW_EXHAUSTIVE
-      CASE DEFAULT
-         CPABORT("fftw3_create_plan_3d")
-      END SELECT
-
-#if defined (__FFTW3_UNALIGNED)
-      fftw_plan_type = fftw_plan_type + FFTW_UNALIGNED
-#endif
 
       IF (plan%fsign == FWFFT) THEN
          fft_direction = FFTW_FORWARD
@@ -767,7 +763,11 @@ CONTAINS
 !$OMP END PARALLEL
 
       IF ((fftw3_is_mkl_wrapper()) .OR. &
-          (.NOT. plan_style == 1) .OR. &
+#if defined (__FFTW3_UNALIGNED)
+          (.NOT. fftw_plan_type == 1_C_INT + FFTW_UNALIGNED) .OR. &
+#else
+          (.NOT. fftw_plan_type == 1_C_INT) .OR. &
+#endif
           (n1 < 256 .AND. n2 < 256 .AND. n3 < 256 .AND. nt == 1)) THEN
          ! If the plan type is MEASURE, PATIENT and EXHAUSTIVE or
          ! the grid size is small (and we are single-threaded) then
@@ -823,8 +823,7 @@ CONTAINS
          CALL fftw3_create_3d_plans(plan%fftw_plan_nx, plan%fftw_plan_nx_r, &
                                     dim_n, dim_istride, dim_ostride, howmany_n, &
                                     howmany_istride, howmany_ostride, &
-                                    zin, tmp, &
-                                    fft_direction, fftw_plan_type, rows_per_th, &
+                                    zin, tmp, fft_direction, rows_per_th, &
                                     rows_per_th_r)
 
          !!!! Plan for Y : M(n3,n1,n2) -> fftw(y) -> M(n1,n2,n3)
@@ -844,8 +843,7 @@ CONTAINS
          CALL fftw3_create_3d_plans(plan%fftw_plan_ny, plan%fftw_plan_ny_r, &
                                     dim_n, dim_istride, dim_ostride, &
                                     howmany_n, howmany_istride, howmany_ostride, &
-                                    tmp, zin, &
-                                    fft_direction, fftw_plan_type, rows_per_th, &
+                                    tmp, zin, fft_direction, rows_per_th, &
                                     rows_per_th_r)
 
          !!!! Plan for Z : M(n1,n2,n3) -> fftw(z) -> M(n1,n2,n3)
@@ -864,8 +862,7 @@ CONTAINS
          CALL fftw3_create_3d_plans(plan%fftw_plan_nz, plan%fftw_plan_nz_r, &
                                     dim_n, dim_istride, dim_ostride, &
                                     howmany_n, howmany_istride, howmany_ostride, &
-                                    zin, tmp, &
-                                    fft_direction, fftw_plan_type, rows_per_th, &
+                                    zin, tmp, fft_direction, rows_per_th, &
                                     rows_per_th_r)
 
          plan%separated_plans = .TRUE.
@@ -875,7 +872,6 @@ CONTAINS
 
 #else
       MARK_USED(plan)
-      MARK_USED(plan_style)
       !MARK_USED does not work with assumed size arguments
       IF (.FALSE.) THEN; DO; IF (ABS(zin(1)) > ABS(zout(1))) EXIT; END DO; END IF
 #endif
@@ -1050,33 +1046,14 @@ CONTAINS
 !> \param plan ...
 !> \param zin ...
 !> \param zout ...
-!> \param plan_style ...
 ! **************************************************************************************************
-   SUBROUTINE fftw3_create_plan_1d(plan, zin, zout, plan_style)
+   SUBROUTINE fftw3_create_plan_1d(plan, zin, zout)
 
       TYPE(fft_plan_type), INTENT(INOUT)                 :: plan
       COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT)      :: zin, zout
-      INTEGER, INTENT(IN)                                :: plan_style
 #if defined ( __FFTW3 )
       INTEGER                                            :: ii, di, io, DO, num_threads, num_rows
 
-      INTEGER :: fftw_plan_type
-      SELECT CASE (plan_style)
-      CASE (1)
-         fftw_plan_type = FFTW_ESTIMATE
-      CASE (2)
-         fftw_plan_type = FFTW_MEASURE
-      CASE (3)
-         fftw_plan_type = FFTW_PATIENT
-      CASE (4)
-         fftw_plan_type = FFTW_EXHAUSTIVE
-      CASE DEFAULT
-         CPABORT("fftw3_create_plan_1d")
-      END SELECT
-
-#if defined (__FFTW3_UNALIGNED)
-      fftw_plan_type = fftw_plan_type + FFTW_UNALIGNED
-#endif
       num_threads = 1
       plan%separated_plans = .FALSE.
 !$OMP PARALLEL DEFAULT(NONE), &
@@ -1134,7 +1111,6 @@ CONTAINS
 
 #else
       MARK_USED(plan)
-      MARK_USED(plan_style)
       !MARK_USED does not work with assumed size arguments
       IF (.FALSE.) THEN; DO; IF (ABS(zin(1)) > ABS(zout(1))) EXIT; END DO; END IF
 #endif
