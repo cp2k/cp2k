@@ -414,9 +414,17 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="EN_CONSTANT", &
+      CALL keyword_create(keyword, __LOCATION__, name="EN_CONSTANTS", &
                           description="Scaling parameters for electronegativity correction term.", &
-                          usage="EN_CONSTANT -0.007", n_var=1, default_r_val=-0.007_dp)
+                          usage="EN_CONSTANTS -0.007 0.000 0.000", n_var=3, &
+                          default_r_vals=(/-0.007_dp, 0.000_dp, 0.000_dp/))
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="BEN_CONSTANT", &
+                          description="Scaling parameter for electronegativity correction term.", &
+                          usage="BEN_CONSTANT 4.0", n_var=1, &
+                          default_r_val=4.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

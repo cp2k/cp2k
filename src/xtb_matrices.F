@@ -78,9 +78,11 @@ MODULE xtb_matrices
    USE virial_types,                    ONLY: virial_type
    USE xtb_parameters,                  ONLY: early3d,&
                                               metal,&
+                                              pp_gfn0,&
                                               xtb_set_kab
    USE xtb_potentials,                  ONLY: nonbonded_correction,&
                                               repulsive_potential,&
+                                              srb_potential,&
                                               xb_interaction
    USE xtb_types,                       ONLY: get_xtb_atom_param,&
                                               xtb_atom_type
@@ -137,14 +139,10 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: calculate_forces
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'build_gfn0_xtb_matrices'
-      REAL(KIND=dp), DIMENSION(5:9), PARAMETER :: &
-         cnfac = (/0.05646607_dp, 0.10514203_dp, 0.09753494_dp, 0.30470380_dp, 0.23261783_dp/), &
-         ensrb = (/2.20568300_dp, 2.49640820_dp, 2.81007174_dp, 4.51078438_dp, 4.67476223_dp/), &
-         r0srb = (/1.35974851_dp, 0.98310699_dp, 0.98423007_dp, 0.76716063_dp, 1.06139799_dp/)
 
       INTEGER :: atom_a, atom_b, atom_c, handle, i, iatom, ic, icol, ikind, img, ir, irow, iset, &
-         j, jatom, jkind, jset, katom, kkind, la, lb, ldsab, lmaxa, lmaxb, maxder, maxs, n1, n2, &
-         na, natom, natorb_a, natorb_b, nb, ncoa, ncob, nderivatives, nimg, nkind, nsa, nsb, &
+         j, jatom, jkind, jset, katom, kkind, l, la, lb, ldsab, lmaxa, lmaxb, maxder, maxs, n1, &
+         n2, na, natom, natorb_a, natorb_b, nb, ncoa, ncob, nderivatives, nimg, nkind, nsa, nsb, &
          nseta, nsetb, nshell, sgfa, sgfb, za, zb
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, atomnumber, kind_of
       INTEGER, DIMENSION(25)                             :: laoa, laob, lval, naoa, naob
@@ -156,20 +154,19 @@ CONTAINS
       LOGICAL                                            :: defined, diagblock, do_nonbonded, &
                                                             floating_a, found, ghost_a, use_virial
       LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: floating, ghost
-      REAL(KIND=dp) :: alphaa, alphab, c1srb, c2srb, den1, den2, derepij, desrbij, dfp, dhij, dr, &
-         dr0, drk, drx, ena, enb, enonbonded, enta, entb, erep, erepij, esrb, esrbij, etaa, etab, &
-         etasrb, f0, f1, fen, fhua, fhub, fhud, foab, gscal, hij, k2sh, kab, kcnd, kcnp, kcns, kd, &
-         ken, kf, kg, kia, kjb, kp, ks, ksp, ksrb, kx2, kxr, rcova, rcovab, rcovb, rra0, rrab, &
-         rrb0, shift, zneffa, zneffb
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: cnumbers
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: dfblock, huckel, kcnlk, owork
+      REAL(KIND=dp) :: alphaa, alphab, ben, den, dfp, dhij, dr, drk, drx, enonbonded, erep, esrb, &
+         etaa, etab, f0, f1, fhua, fhub, fhud, foab, hij, kab, kcnd, kcnp, kcns, kd, kden, ken, &
+         kf, kia, kjb, kp, kpen, kqat2, ks, ksen, rcova, rcovab, rcovb, rrab, xijab, yijab, &
+         zneffa, zneffb
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: charge, cnumbers
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: dfblock, huckel, owork
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: oint, sint
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :, :)  :: kijab
       REAL(KIND=dp), DIMENSION(0:3)                      :: kl
-      REAL(KIND=dp), DIMENSION(3)                        :: fdik, fdika, fdikb, force_ab, force_rr, &
-                                                            rij, rik
+      REAL(KIND=dp), DIMENSION(3)                        :: fdik, fdika, fdikb, force_ab, rij, rik
       REAL(KIND=dp), DIMENSION(5)                        :: dpia, dpib, hena, henb, kappaa, kappab, &
-                                                            kpolya, kpolyb, pia, pib
+                                                            kcn, kpolya, kpolyb, kq, pia, pib, &
+                                                            zetaa, zetab
       REAL(KIND=dp), DIMENSION(:), POINTER               :: set_radius_a, set_radius_b
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: fblock, pblock, rpgfa, rpgfb, sblock, &
                                                             scon_a, scon_b, wblock, zeta, zetb
@@ -228,29 +225,18 @@ CONTAINS
       IF (dft_control%tddfpt2_control%enabled) nderivatives = 1
       maxder = ncoset(nderivatives)
 
-      IF (do_nonbonded) energy%xtb_nonbonded = 0.0_dp
-
-      ! global parameters (Table 2 from Ref.)
+      ! global parameters
       ks = xtb_control%ks
       kp = xtb_control%kp
       kd = xtb_control%kd
-      ksp = xtb_control%ksp
-      k2sh = xtb_control%k2sh
-      kg = xtb_control%kg
+      ksen = xtb_control%ks
+      kpen = xtb_control%kp
+      kden = xtb_control%kd
+      ben = xtb_control%ben
       kf = xtb_control%kf
       kcns = xtb_control%kcns
       kcnp = xtb_control%kcnp
       kcnd = xtb_control%kcnd
-      ken = xtb_control%ken
-      kxr = xtb_control%kxr
-      kx2 = xtb_control%kx2
-      ! SRB parameters
-      ksrb = xtb_control%ksrb
-      etasrb = xtb_control%esrb
-      c1srb = xtb_control%c1srb*0.01_dp
-      c2srb = xtb_control%c2srb*0.01_dp
-      gscal = xtb_control%gscal
-      shift = xtb_control%shift
 
       NULLIFY (particle_set)
       CALL get_qs_env(qs_env=qs_env, particle_set=particle_set)
@@ -331,49 +317,34 @@ CONTAINS
       END DO
       CALL get_qs_env(qs_env=qs_env, dispersion_env=dispersion_env)
       CALL d3_cnumber(qs_env, dispersion_env, cnumbers, dcnum, ghost, floating, atomnumber, &
-                      calculate_forces, .FALSE.)
+                      calculate_forces, 2, .FALSE.)
       DEALLOCATE (ghost, floating, atomnumber)
       CALL para_env%sum(cnumbers)
       IF (calculate_forces) THEN
          CALL dcnum_distribute(dcnum, para_env)
       END IF
 
-!deb xxxxxxxx
-      ! Calculate Huckel parameters
-      ! Eq 12
-      ! huckel(nshell,natom)
-      ALLOCATE (kcnlk(0:3, nkind))
-      DO ikind = 1, nkind
-         CALL get_atomic_kind(atomic_kind_set(ikind), z=za)
-         IF (metal(za)) THEN
-            kcnlk(0:3, ikind) = 0.0_dp
-         ELSEIF (early3d(za)) THEN
-            kcnlk(0, ikind) = kcns
-            kcnlk(1, ikind) = kcnp
-            kcnlk(2, ikind) = 0.005_dp
-            kcnlk(3, ikind) = 0.0_dp
-         ELSE
-            kcnlk(0, ikind) = kcns
-            kcnlk(1, ikind) = kcnp
-            kcnlk(2, ikind) = kcnd
-            kcnlk(3, ikind) = 0.0_dp
-         END IF
-      END DO
+!deb EEQ
+      ALLOCATE (charge(natom))
+      charge = 0._dp
+!deb EEQ
       ALLOCATE (huckel(5, natom))
       CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, kind_of=kind_of)
       DO iatom = 1, natom
          ikind = kind_of(iatom)
          CALL get_qs_kind(qs_kind_set(ikind), xtb_parameter=xtb_atom_a)
-         CALL get_xtb_atom_param(xtb_atom_a, nshell=nshell, lval=lval, hen=hena)
+         CALL get_xtb_atom_param(xtb_atom_a, nshell=nshell, lval=lval, &
+                                 kcn=kcn, kq=kq, kqat2=kqat2, hen=hena)
          huckel(:, iatom) = 0.0_dp
          DO i = 1, nshell
-            huckel(i, iatom) = hena(i)*(1._dp + kcnlk(lval(i), ikind)*cnumbers(iatom))
+            l = lval(i) + 1
+            huckel(i, iatom) = hena(i) - kcn(l)*cnumbers(iatom) &
+                               - kq(l)*charge(iatom) - kqat2*charge(iatom)**2
          END DO
       END DO
-!deb xxxxxxxxxxxx
 
-!deb xxxxxxxxxxxx
       ! Calculate KAB parameters and Huckel parameters and electronegativity correction
+      ! kijab -> K_l_l'[A,B] * X_l_l'[ENa, ENb] * Y[xia, xib]
       kl(0) = ks
       kl(1) = kp
       kl(2) = kd
@@ -385,17 +356,15 @@ CONTAINS
          CALL get_xtb_atom_param(xtb_atom_a, defined=defined, natorb=natorb_a)
          IF (.NOT. defined .OR. natorb_a < 1) CYCLE
          CALL get_xtb_atom_param(xtb_atom_a, z=za, nao=naoa, lao=laoa, &
-                                 en=enta, electronegativity=ena)
+                                 electronegativity=etaa, zeta=zetaa)
          DO jkind = 1, nkind
             CALL get_qs_kind(qs_kind_set(jkind), xtb_parameter=xtb_atom_b)
             CALL get_xtb_atom_param(xtb_atom_b, defined=defined, natorb=natorb_b)
             IF (.NOT. defined .OR. natorb_b < 1) CYCLE
             CALL get_xtb_atom_param(xtb_atom_b, z=zb, nao=naob, lao=laob, &
-                                    en=entb, electronegativity=enb)
-            ! get Fen = (1+ken*deltaEN^2)
-            fen = 1.0_dp + ken*(ena - enb)**2
+                                    electronegativity=etab, zeta=zetab)
             ! Kab
-            kab = xtb_set_kab(za, zb, xtb_control)
+            kab = pp_gfn0(za, zb)
             DO j = 1, natorb_b
                lb = laob(j)
                nb = naob(j)
@@ -404,22 +373,41 @@ CONTAINS
                   na = naoa(i)
                   kia = kl(la)
                   kjb = kl(lb)
-                  IF (zb == 1 .AND. nb == 2) kjb = k2sh
-                  IF (za == 1 .AND. na == 2) kia = k2sh
-                  IF ((zb == 1 .AND. nb == 2) .OR. (za == 1 .AND. na == 2)) THEN
-                     kijab(i, j, ikind, jkind) = 0.5_dp*(kia + kjb)
-                  ELSE
-                     IF ((la == 0 .AND. lb == 1) .OR. (la == 1 .AND. lb == 0)) THEN
-                        kijab(i, j, ikind, jkind) = ksp*kab*fen
-                     ELSE
-                        kijab(i, j, ikind, jkind) = 0.5_dp*(kia + kjb)*kab*fen
-                     END IF
-                  END IF
+                  IF (zb == 1 .AND. nb == 2) kjb = 0.0_dp
+                  IF (za == 1 .AND. na == 2) kia = 0.0_dp
+                  kijab(i, j, ikind, jkind) = 0.5_dp*(kia + kjb)*kab
+               END DO
+            END DO
+            ! Yab
+            DO j = 1, natorb_b
+               nb = naob(j)
+               kjb = zetab(nb)
+               DO i = 1, natorb_a
+                  na = naoa(i)
+                  kia = zetaa(na)
+                  yijab = 2.0_dp*SQRT(kia*kjb)/(kia + kjb)
+                  kijab(i, j, ikind, jkind) = kijab(i, j, ikind, jkind)*yijab
+               END DO
+            END DO
+            ! X
+            kl(0) = ksen
+            kl(1) = kpen
+            kl(2) = kden
+            kl(3) = 0.0_dp
+            den = etaa - etab
+            DO j = 1, natorb_b
+               lb = laob(j)
+               kjb = kl(lb)
+               DO i = 1, natorb_a
+                  la = laoa(i)
+                  kia = kl(la)
+                  ken = 0.5_dp*(kia + kjb)
+                  xijab = 1.0_dp + ken*den**2 + ken*ben*den**4
+                  kijab(i, j, ikind, jkind) = kijab(i, j, ikind, jkind)*xijab
                END DO
             END DO
          END DO
       END DO
-!deb xxxxxxxxxxxx
 
       ! initialize repulsion and srb energy
       erep = 0._dp
@@ -584,7 +572,6 @@ CONTAINS
             END DO
          END IF
 
-!deb
          ! Calculate Pi = Pia * Pib (Eq. 11)
          rcovab = rcova + rcovb
          rrab = SQRT(dr/rcovab)
@@ -640,7 +627,7 @@ CONTAINS
                DO i = 1, natorb_a
                   la = laoa(i)
                   na = naoa(i)
-                  fhud = fhud + pblock(i, i)*kcnlk(la, ikind)*hena(na)
+!                 fhud = fhud + pblock(i, i)*kcnlk(la, ikind)*hena(na)
                END DO
             ELSE
                DO j = 1, natorb_b
@@ -651,11 +638,11 @@ CONTAINS
                      na = naoa(i)
                      hij = 0.5_dp*pia(na)*pib(nb)
                      IF (iatom <= jatom) THEN
-                        fhua = fhua + hij*kijab(i, j, ikind, jkind)*sint(i, j, 1)*pblock(i, j)*kcnlk(la, ikind)*hena(na)
-                        fhub = fhub + hij*kijab(i, j, ikind, jkind)*sint(i, j, 1)*pblock(i, j)*kcnlk(lb, jkind)*henb(nb)
+!                       fhua = fhua + hij*kijab(i, j, ikind, jkind)*sint(i, j, 1)*pblock(i, j)*kcnlk(la, ikind)*hena(na)
+!                       fhub = fhub + hij*kijab(i, j, ikind, jkind)*sint(i, j, 1)*pblock(i, j)*kcnlk(lb, jkind)*henb(nb)
                      ELSE
-                        fhua = fhua + hij*kijab(i, j, ikind, jkind)*sint(i, j, 1)*pblock(j, i)*kcnlk(la, ikind)*hena(na)
-                        fhub = fhub + hij*kijab(i, j, ikind, jkind)*sint(i, j, 1)*pblock(j, i)*kcnlk(lb, jkind)*henb(nb)
+!                       fhua = fhua + hij*kijab(i, j, ikind, jkind)*sint(i, j, 1)*pblock(j, i)*kcnlk(la, ikind)*hena(na)
+!                       fhub = fhub + hij*kijab(i, j, ikind, jkind)*sint(i, j, 1)*pblock(j, i)*kcnlk(lb, jkind)*henb(nb)
                      END IF
                   END DO
                END DO
@@ -775,115 +762,6 @@ CONTAINS
 
          DEALLOCATE (oint, owork, sint)
 
-         ! repulsive potential
-         IF (dr > 0.001_dp) THEN
-            erepij = zneffa*zneffb/dr*EXP(-SQRT(alphaa*alphab)*dr**kf)
-            erep = erep + erepij
-            IF (atprop%energy) THEN
-               atprop%atecc(iatom) = atprop%atecc(iatom) + 0.5_dp*erepij
-               atprop%atecc(jatom) = atprop%atecc(jatom) + 0.5_dp*erepij
-            END IF
-            IF (calculate_forces .AND. (iatom /= jatom .OR. dr > 0.001_dp)) THEN
-               derepij = -(1.0_dp/dr + SQRT(alphaa*alphab)*kf*dr**(kf - 1.0_dp))*erepij
-               force_rr(1) = derepij*rij(1)/dr
-               force_rr(2) = derepij*rij(2)/dr
-               force_rr(3) = derepij*rij(3)/dr
-               atom_a = atom_of_kind(iatom)
-               atom_b = atom_of_kind(jatom)
-               force(ikind)%repulsive(:, atom_a) = force(ikind)%repulsive(:, atom_a) - force_rr(:)
-               force(jkind)%repulsive(:, atom_b) = force(jkind)%repulsive(:, atom_b) + force_rr(:)
-               IF (use_virial) THEN
-                  f1 = 1.0_dp
-                  IF (iatom == jatom) f1 = 0.5_dp
-                  CALL virial_pair_force(virial%pv_virial, -f1, force_rr, rij)
-                  IF (atprop%stress) THEN
-                     CALL virial_pair_force(atprop%atstress(:, :, iatom), -0.5_dp*f1, force_rr, rij)
-                     CALL virial_pair_force(atprop%atstress(:, :, jatom), -0.5_dp*f1, force_rr, rij)
-                  END IF
-               END IF
-            END IF
-         END IF
-         ! short-ranged correction term
-         IF (za >= 5 .AND. za <= 9 .AND. zb >= 5 .AND. zb <= 9 .AND. za /= zb) THEN
-            rra0 = r0srb(za) + cnfac(za)*cnumbers(iatom) + shift
-            rrb0 = r0srb(zb) + cnfac(zb)*cnumbers(jatom) + shift
-            den1 = ABS(ensrb(za) - ensrb(zb))
-            dr0 = (rra0 + rrb0)*(1._dp - c1srb*den1 - c2srb*den1*den1)
-            den2 = (enta - entb)**2
-            esrbij = ksrb*EXP(-etasrb*(1._dp + gscal*den2)*(dr - dr0)**2)
-            esrb = esrb + esrbij
-            IF (atprop%energy) THEN
-               atprop%atecc(iatom) = atprop%atecc(iatom) + 0.5_dp*esrbij
-               atprop%atecc(jatom) = atprop%atecc(jatom) + 0.5_dp*esrbij
-            END IF
-            IF (calculate_forces) THEN
-               desrbij = esrbij*(-etasrb*(1._dp + gscal*den2)*(dr - dr0))
-               force_rr(1) = desrbij*rij(1)/dr
-               force_rr(2) = desrbij*rij(2)/dr
-               force_rr(3) = desrbij*rij(3)/dr
-               atom_a = atom_of_kind(iatom)
-               atom_b = atom_of_kind(jatom)
-               force(ikind)%repulsive(:, atom_a) = force(ikind)%repulsive(:, atom_a) - force_rr(:)
-               force(jkind)%repulsive(:, atom_b) = force(jkind)%repulsive(:, atom_b) + force_rr(:)
-               IF (use_virial) THEN
-                  f1 = 1.0_dp
-                  IF (iatom == jatom) f1 = 0.5_dp
-                  CALL virial_pair_force(virial%pv_virial, -f1, force_rr, rij)
-                  IF (atprop%stress) THEN
-                     CALL virial_pair_force(atprop%atstress(:, :, iatom), -0.5_dp*f1, force_rr, rij)
-                     CALL virial_pair_force(atprop%atstress(:, :, jatom), -0.5_dp*f1, force_rr, rij)
-                  END IF
-               END IF
-               ! coordination number derivatives
-               ! iatom
-               fhua = desrbij*cnfac(za)
-               DO i = 1, dcnum(iatom)%neighbors
-                  katom = dcnum(iatom)%nlist(i)
-                  kkind = kind_of(katom)
-                  atom_c = atom_of_kind(katom)
-                  rik = dcnum(iatom)%rik(:, i)
-                  drk = SQRT(SUM(rik(:)**2))
-                  IF (drk > 1.e-3_dp) THEN
-                     fdika(:) = fhua*dcnum(iatom)%dvals(i)*rik(:)/drk
-                     force(ikind)%repulsive(:, atom_a) = force(ikind)%repulsive(:, atom_a) - fdika(:)
-                     force(kkind)%repulsive(:, atom_c) = force(kkind)%repulsive(:, atom_c) + fdika(:)
-                     fdikb(:) = fhud*dcnum(iatom)%dvals(i)*rik(:)/drk
-                     force(ikind)%repulsive(:, atom_a) = force(ikind)%repulsive(:, atom_a) - fdikb(:)
-                     force(kkind)%repulsive(:, atom_c) = force(kkind)%repulsive(:, atom_c) + fdikb(:)
-                     IF (use_virial) THEN
-                        fdik = fdika + fdikb
-                        CALL virial_pair_force(virial%pv_virial, -1._dp, fdik, rik)
-                        IF (atprop%stress) THEN
-                           CALL virial_pair_force(atprop%atstress(:, :, iatom), -0.5_dp, fdik, rik)
-                           CALL virial_pair_force(atprop%atstress(:, :, katom), -0.5_dp, fdik, rik)
-                        END IF
-                     END IF
-                  END IF
-               END DO
-               ! jatom
-               fhub = desrbij*cnfac(zb)
-               DO i = 1, dcnum(jatom)%neighbors
-                  katom = dcnum(jatom)%nlist(i)
-                  kkind = kind_of(katom)
-                  atom_c = atom_of_kind(katom)
-                  rik = dcnum(jatom)%rik(:, i)
-                  drk = SQRT(SUM(rik(:)**2))
-                  IF (drk > 1.e-3_dp) THEN
-                     fdik(:) = fhub*dcnum(jatom)%dvals(i)*rik(:)/drk
-                     force(jkind)%repulsive(:, atom_b) = force(jkind)%repulsive(:, atom_b) - fdik(:)
-                     force(kkind)%repulsive(:, atom_c) = force(kkind)%repulsive(:, atom_c) + fdik(:)
-                     IF (use_virial) THEN
-                        CALL virial_pair_force(virial%pv_virial, -1._dp, fdik, rik)
-                        IF (atprop%stress) THEN
-                           CALL virial_pair_force(atprop%atstress(:, :, iatom), -0.5_dp, fdik, rik)
-                           CALL virial_pair_force(atprop%atstress(:, :, katom), -0.5_dp, fdik, rik)
-                        END IF
-                     END IF
-                  END IF
-               END DO
-            END IF
-         END IF
-
       END DO
       CALL neighbor_list_iterator_release(nl_iterator)
 
@@ -894,6 +772,12 @@ CONTAINS
          END DO
       END DO
 
+      erep = 0.0_dp
+      CALL repulsive_potential(qs_env, erep, kf, calculate_forces)
+
+      esrb = 0.0_dp
+      CALL srb_potential(qs_env, esrb, calculate_forces, xtb_control, cnumbers, dcnum)
+
       enonbonded = 0.0_dp
       IF (do_nonbonded) THEN
          ! nonbonded interactions
@@ -902,6 +786,7 @@ CONTAINS
          CALL nonbonded_correction(enonbonded, force, qs_env, xtb_control, sab_xtb_nonbond, &
                                    atomic_kind_set, calculate_forces, use_virial, virial, atprop, atom_of_kind)
       END IF
+
       ! set repulsive energy
       erep = erep + esrb + enonbonded
       IF (do_nonbonded) THEN
@@ -921,12 +806,13 @@ CONTAINS
          END DO
       END IF
       DEALLOCATE (dcnum)
-!deb =========================
 
       ! deallocate Huckel parameters
       DEALLOCATE (huckel)
       ! deallocate KAB parameters
       DEALLOCATE (kijab)
+
+      DEALLOCATE (charge)
 
       ! AO matrix outputs
       CALL ao_matrix_output(qs_env, matrix_h, matrix_s, calculate_forces)
@@ -1136,7 +1022,7 @@ CONTAINS
       END DO
       CALL get_qs_env(qs_env=qs_env, dispersion_env=dispersion_env)
       CALL d3_cnumber(qs_env, dispersion_env, cnumbers, dcnum, ghost, floating, atomnumber, &
-                      calculate_forces, .FALSE.)
+                      calculate_forces, 1, .FALSE.)
       DEALLOCATE (ghost, floating, atomnumber)
       CALL para_env%sum(cnumbers)
       IF (calculate_forces) THEN
@@ -1622,6 +1508,7 @@ CONTAINS
       DEALLOCATE (huckel)
       ! deallocate KAB parameters
       DEALLOCATE (kijab)
+      DEALLOCATE (kcnlk)
 
       ! AO matrix outputs
       CALL ao_matrix_output(qs_env, matrix_h, matrix_s, calculate_forces)

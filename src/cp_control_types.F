@@ -153,6 +153,8 @@ MODULE cp_control_types
       REAL(KIND=dp)                        :: kg = 0.0_dp, kf = 0.0_dp
       REAL(KIND=dp)                        :: kcns = 0.0_dp, kcnp = 0.0_dp, kcnd = 0.0_dp
       REAL(KIND=dp)                        :: ken = 0.0_dp
+      REAL(KIND=dp)                        :: ksen = 0.0_dp, kpen = 0.0_dp, kden = 0.0_dp
+      REAL(KIND=dp)                        :: ben = 0.0_dp
       REAL(KIND=dp)                        :: kxr = 0.0_dp, kx2 = 0.0_dp
       !
       LOGICAL                              :: xb_interaction = .FALSE.

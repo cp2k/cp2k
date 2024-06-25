@@ -159,7 +159,7 @@ MODULE xtb_parameters
 ! *** Public data types ***
 
    PUBLIC :: xtb_parameters_init, xtb_parameters_set, init_xtb_basis, xtb_set_kab
-   PUBLIC :: metal, early3d
+   PUBLIC :: metal, early3d, pp_gfn0
 
 CONTAINS
 
@@ -749,6 +749,30 @@ CONTAINS
       IF (z >= 21 .AND. z <= 24) isearly3d = .TRUE.
 
    END FUNCTION early3d
+
+! **************************************************************************************************
+!> \brief ...
+!> \param za ...
+!> \param zb ...
+!> \return ...
+! **************************************************************************************************
+   FUNCTION pp_gfn0(za, zb) RESULT(pparm)
+      INTEGER                                            :: za, zb
+      REAL(KIND=dp)                                      :: pparm
+
+      pparm = 1.0_dp
+      IF ((za > 20 .AND. za < 30) .OR. (za > 38 .AND. za < 48) .OR. (za > 56 .AND. za < 80)) THEN
+         IF ((zb > 20 .AND. zb < 30) .OR. (zb > 38 .AND. zb < 48) .OR. (zb > 56 .AND. zb < 80)) THEN
+            pparm = 1.1_dp
+            IF (za == 29 .OR. za == 47 .OR. za == 79) THEN
+               IF (za == 29 .OR. za == 47 .OR. za == 79) THEN
+                  pparm = 0.9_dp
+               END IF
+            END IF
+         END IF
+      END IF
+
+   END FUNCTION pp_gfn0
 
 END MODULE xtb_parameters
 

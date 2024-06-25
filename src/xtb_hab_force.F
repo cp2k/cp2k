@@ -222,7 +222,7 @@ CONTAINS
       END DO
       CALL get_qs_env(qs_env=qs_env, dispersion_env=dispersion_env)
       CALL d3_cnumber(qs_env, dispersion_env, cnumbers, dcnum, ghost, floating, atomnumber, &
-                      .TRUE., .FALSE.)
+                      .TRUE., 1, .FALSE.)
       DEALLOCATE (ghost, floating, atomnumber)
       CALL para_env%sum(cnumbers)
       CALL dcnum_distribute(dcnum, para_env)

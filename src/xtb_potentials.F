@@ -44,6 +44,7 @@ MODULE xtb_potentials
                                               pair_potential_single_type
    USE pair_potential_util,             ONLY: ener_pot
    USE particle_types,                  ONLY: particle_type
+   USE qs_dispersion_pairpot,           ONLY: dcnum_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_force_types,                  ONLY: qs_force_type
@@ -75,7 +76,7 @@ MODULE xtb_potentials
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xtb_potentials'
 
-   PUBLIC :: xtb_pp_radius, repulsive_potential
+   PUBLIC :: xtb_pp_radius, repulsive_potential, srb_potential
    PUBLIC :: nonbonded_correction, xb_interaction
    PUBLIC :: neighbor_atoms_type
 
@@ -183,6 +184,175 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE repulsive_potential
+
+! **************************************************************************************************
+!> \brief ...
+!> \param qs_env ...
+!> \param esrb ...
+!> \param calculate_forces ...
+!> \param xtb_control ...
+!> \param cnumbers ...
+!> \param dcnum ...
+! **************************************************************************************************
+   SUBROUTINE srb_potential(qs_env, esrb, calculate_forces, xtb_control, cnumbers, dcnum)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      REAL(dp), INTENT(INOUT)                            :: esrb
+      LOGICAL, INTENT(IN)                                :: calculate_forces
+      TYPE(xtb_control_type), POINTER                    :: xtb_control
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: cnumbers
+      TYPE(dcnum_type), DIMENSION(:), INTENT(IN)         :: dcnum
+
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'srb_potential'
+      REAL(KIND=dp), DIMENSION(5:9), PARAMETER :: &
+         cnfac = (/0.05646607_dp, 0.10514203_dp, 0.09753494_dp, 0.30470380_dp, 0.23261783_dp/), &
+         ensrb = (/2.20568300_dp, 2.49640820_dp, 2.81007174_dp, 4.51078438_dp, 4.67476223_dp/), &
+         r0srb = (/1.35974851_dp, 0.98310699_dp, 0.98423007_dp, 0.76716063_dp, 1.06139799_dp/)
+
+      INTEGER                                            :: atom_a, atom_b, atom_c, handle, i, &
+                                                            iatom, ikind, jatom, jkind, katom, &
+                                                            kkind, za, zb
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, kind_of
+      INTEGER, DIMENSION(3)                              :: cell
+      LOGICAL                                            :: defined, use_virial
+      REAL(KIND=dp)                                      :: c1srb, c2srb, den1, den2, desrbij, dr, &
+                                                            dr0, drk, enta, entb, esrbij, etasrb, &
+                                                            f1, fhua, fhub, gscal, ksrb, rra0, &
+                                                            rrb0, shift
+      REAL(KIND=dp), DIMENSION(3)                        :: fdik, fdika, fdikb, force_rr, rij, rik
+      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      TYPE(atprop_type), POINTER                         :: atprop
+      TYPE(neighbor_list_iterator_p_type), &
+         DIMENSION(:), POINTER                           :: nl_iterator
+      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
+         POINTER                                         :: sab_xtb_pp
+      TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+      TYPE(virial_type), POINTER                         :: virial
+      TYPE(xtb_atom_type), POINTER                       :: xtb_atom_a, xtb_atom_b
+
+      CALL timeset(routineN, handle)
+
+      esrb = 0._dp
+
+      CALL get_qs_env(qs_env=qs_env, &
+                      atomic_kind_set=atomic_kind_set, &
+                      qs_kind_set=qs_kind_set, &
+                      atprop=atprop, &
+                      sab_xtb_pp=sab_xtb_pp)
+      CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, atom_of_kind=atom_of_kind, &
+                               kind_of=kind_of)
+
+      IF (calculate_forces) THEN
+         CALL get_qs_env(qs_env=qs_env, virial=virial, force=force)
+         use_virial = virial%pv_availability .AND. (.NOT. virial%pv_numer)
+      END IF
+
+      ! SRB parameters
+      ksrb = xtb_control%ksrb
+      etasrb = xtb_control%esrb
+      c1srb = xtb_control%c1srb*0.01_dp
+      c2srb = xtb_control%c2srb*0.01_dp
+      gscal = xtb_control%gscal
+      shift = xtb_control%shift
+
+      CALL neighbor_list_iterator_create(nl_iterator, sab_xtb_pp)
+      DO WHILE (neighbor_list_iterate(nl_iterator) == 0)
+         CALL get_iterator_info(nl_iterator, ikind=ikind, jkind=jkind, &
+                                iatom=iatom, jatom=jatom, r=rij, cell=cell)
+         CALL get_qs_kind(qs_kind_set(ikind), xtb_parameter=xtb_atom_a)
+         CALL get_xtb_atom_param(xtb_atom_a, z=za, en=enta, defined=defined)
+         IF (.NOT. defined) CYCLE
+         CALL get_qs_kind(qs_kind_set(jkind), xtb_parameter=xtb_atom_b)
+         CALL get_xtb_atom_param(xtb_atom_b, z=zb, en=entb, defined=defined)
+         IF (.NOT. defined) CYCLE
+
+         dr = SQRT(SUM(rij(:)**2))
+         ! short-ranged correction term
+         IF (dr > 0.001_dp) THEN
+         IF (za >= 5 .AND. za <= 9 .AND. zb >= 5 .AND. zb <= 9 .AND. za /= zb) THEN
+            rra0 = r0srb(za) + cnfac(za)*cnumbers(iatom) + shift
+            rrb0 = r0srb(zb) + cnfac(zb)*cnumbers(jatom) + shift
+            den1 = ABS(ensrb(za) - ensrb(zb))
+            dr0 = (rra0 + rrb0)*(1._dp - c1srb*den1 - c2srb*den1*den1)
+            den2 = (enta - entb)**2
+            esrbij = ksrb*EXP(-etasrb*(1._dp + gscal*den2)*(dr - dr0)**2)
+            esrb = esrb + esrbij
+            IF (atprop%energy) THEN
+               atprop%atecc(iatom) = atprop%atecc(iatom) + 0.5_dp*esrbij
+               atprop%atecc(jatom) = atprop%atecc(jatom) + 0.5_dp*esrbij
+            END IF
+            IF (calculate_forces) THEN
+               desrbij = esrbij*(-etasrb*(1._dp + gscal*den2)*(dr - dr0))
+               force_rr(1) = desrbij*rij(1)/dr
+               force_rr(2) = desrbij*rij(2)/dr
+               force_rr(3) = desrbij*rij(3)/dr
+               atom_a = atom_of_kind(iatom)
+               atom_b = atom_of_kind(jatom)
+               force(ikind)%repulsive(:, atom_a) = force(ikind)%repulsive(:, atom_a) - force_rr(:)
+               force(jkind)%repulsive(:, atom_b) = force(jkind)%repulsive(:, atom_b) + force_rr(:)
+               IF (use_virial) THEN
+                  f1 = 1.0_dp
+                  IF (iatom == jatom) f1 = 0.5_dp
+                  CALL virial_pair_force(virial%pv_virial, -f1, force_rr, rij)
+                  IF (atprop%stress) THEN
+                     CALL virial_pair_force(atprop%atstress(:, :, iatom), -0.5_dp*f1, force_rr, rij)
+                     CALL virial_pair_force(atprop%atstress(:, :, jatom), -0.5_dp*f1, force_rr, rij)
+                  END IF
+               END IF
+               ! coordination number derivatives
+               ! iatom
+               fhua = desrbij*cnfac(za)
+               DO i = 1, dcnum(iatom)%neighbors
+                  katom = dcnum(iatom)%nlist(i)
+                  kkind = kind_of(katom)
+                  atom_c = atom_of_kind(katom)
+                  rik = dcnum(iatom)%rik(:, i)
+                  drk = SQRT(SUM(rik(:)**2))
+                  IF (drk > 1.e-3_dp) THEN
+                     fdika(:) = fhua*dcnum(iatom)%dvals(i)*rik(:)/drk
+                     force(ikind)%repulsive(:, atom_a) = force(ikind)%repulsive(:, atom_a) - fdika(:)
+                     force(kkind)%repulsive(:, atom_c) = force(kkind)%repulsive(:, atom_c) + fdika(:)
+                     IF (use_virial) THEN
+                        fdik = fdika + fdikb
+                        CALL virial_pair_force(virial%pv_virial, -1._dp, fdik, rik)
+                        IF (atprop%stress) THEN
+                           CALL virial_pair_force(atprop%atstress(:, :, iatom), -0.5_dp, fdik, rik)
+                           CALL virial_pair_force(atprop%atstress(:, :, katom), -0.5_dp, fdik, rik)
+                        END IF
+                     END IF
+                  END IF
+               END DO
+               ! jatom
+               fhub = desrbij*cnfac(zb)
+               DO i = 1, dcnum(jatom)%neighbors
+                  katom = dcnum(jatom)%nlist(i)
+                  kkind = kind_of(katom)
+                  atom_c = atom_of_kind(katom)
+                  rik = dcnum(jatom)%rik(:, i)
+                  drk = SQRT(SUM(rik(:)**2))
+                  IF (drk > 1.e-3_dp) THEN
+                     fdik(:) = fhub*dcnum(jatom)%dvals(i)*rik(:)/drk
+                     force(jkind)%repulsive(:, atom_b) = force(jkind)%repulsive(:, atom_b) - fdik(:)
+                     force(kkind)%repulsive(:, atom_c) = force(kkind)%repulsive(:, atom_c) + fdik(:)
+                     IF (use_virial) THEN
+                        CALL virial_pair_force(virial%pv_virial, -1._dp, fdik, rik)
+                        IF (atprop%stress) THEN
+                           CALL virial_pair_force(atprop%atstress(:, :, iatom), -0.5_dp, fdik, rik)
+                           CALL virial_pair_force(atprop%atstress(:, :, katom), -0.5_dp, fdik, rik)
+                        END IF
+                     END IF
+                  END IF
+               END DO
+            END IF
+         END IF
+         END IF
+
+      END DO
+      CALL neighbor_list_iterator_release(nl_iterator)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE srb_potential
 
 ! **************************************************************************************************
 !> \brief ...

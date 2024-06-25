@@ -1330,8 +1330,39 @@ CONTAINS
          qs_control%xtb_control%kcns = scal(1)
          qs_control%xtb_control%kcnp = scal(2)
          qs_control%xtb_control%kcnd = scal(3)
-         CALL section_vals_val_get(xtb_parameter, "EN_CONSTANT", r_vals=scal)
-         qs_control%xtb_control%ken = scal(1)
+         !
+         CALL section_vals_val_get(xtb_parameter, "EN_CONSTANTS", explicit=explicit)
+         IF (explicit) THEN
+            CALL section_vals_val_get(xtb_parameter, "EN_CONSTANTS", r_vals=scal)
+            SELECT CASE (qs_control%xtb_control%gfn_type)
+            CASE (0)
+               qs_control%xtb_control%ksen = scal(1)
+               qs_control%xtb_control%kpen = scal(2)
+               qs_control%xtb_control%kden = scal(3)
+            CASE (1)
+               qs_control%xtb_control%ken = scal(1)
+            CASE (2)
+               CPABORT("gfn2-xtb tbd")
+            CASE DEFAULT
+               CPABORT("GFN type")
+            END SELECT
+         ELSE
+            SELECT CASE (qs_control%xtb_control%gfn_type)
+            CASE (0)
+               qs_control%xtb_control%ksen = 0.006_dp
+               qs_control%xtb_control%kpen = -0.001_dp
+               qs_control%xtb_control%kden = -0.002_dp
+            CASE (1)
+               qs_control%xtb_control%ken = -0.007_dp
+            CASE (2)
+               CPABORT("gfn2-xtb tbd")
+            CASE DEFAULT
+               CPABORT("GFN type")
+            END SELECT
+         END IF
+         ! ben
+         CALL section_vals_val_get(xtb_parameter, "BEN_CONSTANT", r_vals=scal)
+         qs_control%xtb_control%ben = scal(1)
          ! XB
          CALL section_vals_val_get(xtb_section, "USE_HALOGEN_CORRECTION", &
                                    l_val=qs_control%xtb_control%xb_interaction)
