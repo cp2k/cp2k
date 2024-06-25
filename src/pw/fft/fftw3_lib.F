@@ -147,7 +147,7 @@ CONTAINS
       LOGICAL                                  :: ionode
 
 #if defined ( __FFTW3 )
-      CHARACTER(C_CHAR), DIMENSION(:), ALLOCATABLE :: wisdom_file_name_c
+      CHARACTER(LEN=1, KIND=C_CHAR), DIMENSION(:), ALLOCATABLE :: wisdom_file_name_c
       INTEGER                                  :: file_name_length, i, iunit, istat
       INTEGER(KIND=C_INT)                      :: isuccess
       ! Write out FFTW3 wisdom to file (if we can)
@@ -188,7 +188,7 @@ CONTAINS
       CHARACTER(LEN=*), INTENT(IN)             :: wisdom_file
 
 #if defined ( __FFTW3 )
-      CHARACTER(C_CHAR), DIMENSION(:), ALLOCATABLE :: wisdom_file_name_c
+      CHARACTER(LEN=1, KIND=C_CHAR), DIMENSION(:), ALLOCATABLE :: wisdom_file_name_c
       INTEGER                                  :: file_name_length, i, istat, iunit
       INTEGER(KIND=C_INT)                      :: isuccess
       LOGICAL :: file_exists
