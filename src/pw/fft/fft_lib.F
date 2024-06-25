@@ -37,6 +37,8 @@ MODULE fft_lib
    PUBLIC :: fft_alloc, fft_dealloc
    PUBLIC :: FWFFT, BWFFT
 
+   LOGICAL, SAVE :: use_fftsg_sizes = .TRUE.
+
 CONTAINS
 ! **************************************************************************************************
 !> \brief Interface to FFT libraries
@@ -70,11 +72,15 @@ CONTAINS
 !> \param fft_type ...
 !> \param wisdom_file ...
 !> \param plan_style ...
+!> \param fftsg_sizes ...
 ! **************************************************************************************************
-   SUBROUTINE fft_do_init(fft_type, wisdom_file, plan_style)
+   SUBROUTINE fft_do_init(fft_type, wisdom_file, plan_style, fftsg_sizes)
       INTEGER, INTENT(IN)                                :: fft_type
       CHARACTER(LEN=*), INTENT(IN)                       :: wisdom_file
       INTEGER, INTENT(IN)                                :: plan_style
+      LOGICAL, INTENT(IN)                                :: fftsg_sizes
+
+      use_fftsg_sizes = fftsg_sizes
 
       SELECT CASE (fft_type)
       CASE DEFAULT
@@ -121,14 +127,18 @@ CONTAINS
       INTEGER, DIMENSION(*)                              :: DATA
       INTEGER, INTENT(INOUT)                             :: max_length
 
-      SELECT CASE (fft_type)
-      CASE DEFAULT
-         CPABORT("fft_get_lengths")
-      CASE (1)
+      IF (use_fftsg_sizes) THEN
          CALL fftsg_get_lengths(DATA, max_length)
-      CASE (3, 4)
-         CALL fftw3_get_lengths(DATA, max_length)
-      END SELECT
+      ELSE
+         SELECT CASE (fft_type)
+         CASE DEFAULT
+            CPABORT("fft_get_lengths")
+         CASE (1)
+            CALL fftsg_get_lengths(DATA, max_length)
+         CASE (3, 4)
+            CALL fftw3_get_lengths(DATA, max_length)
+         END SELECT
+      END IF
 
    END SUBROUTINE fft_get_lengths
 
