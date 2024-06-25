@@ -10,8 +10,8 @@ cosma_ver="2.6.6"
 cosma_sha256="1604be101e77192fbcc5551236bc87888d336e402f5409bbdd9dea900401cc37"
 costa_ver="2.2.2"
 costa_sha256="e87bc37aad14ac0c5922237be5d5390145c9ac6aef0350ed17d86cb2d994e67c"
-tiled_mm_ver="2.3"
-tiled_mm_sha256="504c6201f5a9be9741c55036bf8e2656ae3f4bc19996295b264ee5e303c9253c"
+tiled_mm_ver="2.3.1"
+tiled_mm_sha256="68914a483e62f796b790ea428210b1d5ef5943d6289e53d1aa62f56a20fbccc8"
 
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
