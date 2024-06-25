@@ -961,7 +961,7 @@ CONTAINS
 
       INTEGER                                            :: stat
 
-      CALL fft_create_plan_1d(plan, fft_type, FWFFT, .FALSE., n, 1, z_in, z_out)
+      CALL fft_create_plan_1d(plan, FWFFT, .FALSE., n, 1, z_in, z_out)
       CALL fft_1d(plan, z_in, z_out, 1.d0, stat)
       CALL fft_destroy_plan(plan)
    END SUBROUTINE pint_qtb_fft
