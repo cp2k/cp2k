@@ -7,25 +7,27 @@
 
 ! **************************************************************************************************
 !> \brief Calculation of dispersion using pair potentials
-!> \author JGH
+!> \author Johann Pototschnig
 ! **************************************************************************************************
 MODULE qs_dispersion_d4
 
-   USE atomic_kind_types,               ONLY: get_atomic_kind
-   USE cell_types,                      ONLY: cell_type,&
-                                              get_cell
-   USE dftd4,                           ONLY: d4_model,&
-                                              damping_param,&
-                                              get_dispersion,&
-                                              get_rational_damping,&
-                                              new,&
-                                              new_d4_model,&
-                                              realspace_cutoff,&
-                                              structure_type
-   USE kinds,                           ONLY: dp
-   USE particle_types,                  ONLY: particle_type
-   USE qs_dispersion_types,             ONLY: qs_dispersion_type
-   USE qs_force_types,                  ONLY: qs_force_type
+   USE atomic_kind_types, ONLY: get_atomic_kind
+   USE cell_types, ONLY: cell_type, &
+                         get_cell
+#if defined(__DFTD4)
+   USE dftd4, ONLY: d4_model, &
+                    damping_param, &
+                    get_dispersion, &
+                    get_rational_damping, &
+                    new, &
+                    new_d4_model, &
+                    realspace_cutoff, &
+                    structure_type
+#endif
+   USE kinds, ONLY: dp
+   USE particle_types, ONLY: particle_type
+   USE qs_dispersion_types, ONLY: qs_dispersion_type
+   USE qs_force_types, ONLY: qs_force_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -53,20 +55,23 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE calculate_dispersion_d4_pairpot(dispersion_env, particle_set, cell, energy, force, atom_of_kind, virial)
 
+      TYPE(qs_dispersion_type), INTENT(IN), POINTER      :: dispersion_env
+      TYPE(particle_type), DIMENSION(:), INTENT(IN), &
+         POINTER                                         :: particle_set
+      TYPE(cell_type), INTENT(IN), POINTER               :: cell
+      REAL(KIND=dp), INTENT(OUT)                         :: energy
+      TYPE(qs_force_type), DIMENSION(:), INTENT(INOUT), &
+         OPTIONAL, POINTER                               :: force
+      INTEGER, DIMENSION(:), INTENT(IN), OPTIONAL        :: atom_of_kind
+      REAL(KIND=dp), DIMENSION(3, 3), INTENT(OUT), &
+         OPTIONAL                                        :: virial
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_dispersion_d4_pairpot'
+
       class(damping_param), ALLOCATABLE                  :: param
       TYPE(d4_model)                                     :: disp
       TYPE(structure_type)                               :: mol
       TYPE(realspace_cutoff)                             :: cutoff
-
-      TYPE(qs_dispersion_type), POINTER, INTENT(IN)                       :: dispersion_env
-      TYPE(particle_type), DIMENSION(:), POINTER, INTENT(IN)              :: particle_set
-      TYPE(cell_type), POINTER, INTENT(IN)                                :: cell
-      REAL(KIND=dp), INTENT(OUT)                                          :: energy
-      TYPE(qs_force_type), DIMENSION(:), OPTIONAL, POINTER, INTENT(INOUT) :: force
-      INTEGER, DIMENSION(:), OPTIONAL, INTENT(IN)                         :: atom_of_kind
-      REAL(KIND=dp), DIMENSION(3, 3), OPTIONAL, INTENT(OUT)               :: virial
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_dispersion_d4_pairpot'
 
       INTEGER                                            :: iatom, natom, ind_atom
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: el_num
@@ -160,6 +165,14 @@ CONTAINS
       INTEGER, DIMENSION(:), INTENT(IN), OPTIONAL        :: atom_of_kind
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(OUT), &
          OPTIONAL                                        :: virial
+
+      MARK_USED(dispersion_env)
+      MARK_USED(particle_set)
+      MARK_USED(cell)
+      MARK_USED(energy)
+      MARK_USED(force)
+      MARK_USED(atom_of_kind)
+      MARK_USED(virial)
 
       CPABORT("Build without DFTD4")
 
