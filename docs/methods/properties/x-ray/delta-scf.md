@@ -1,15 +1,23 @@
 # MgS and MgO: Periodic systems and XAS
 
-In this exercise we are going to compute near-edge X-ray absorption spectra of bulk MgS and MgO, performing all-electron calculations with the GAPW method, using the Transition Potential and $\Delta SCF$ approaches. Our goal is to identify differences in the electronic structure, and as a consequence in the K-edge absorption spectrum, of the magnesium due to the different anions it is bounded to. We are also going to analyze the influence of basis set quality in the calculations.
+In this exercise we are going to compute near-edge X-ray absorption spectra of bulk MgS and MgO,
+performing all-electron calculations with the GAPW method, using the Transition Potential and
+$\Delta SCF$ approaches. Our goal is to identify differences in the electronic structure, and as a
+consequence in the K-edge absorption spectrum, of the magnesium due to the different anions it is
+bounded to. We are also going to analyze the influence of basis set quality in the calculations.
 
-Before starting, it is recommended to create one directory for each system (MgO and MgS) and, within the system's directory, create the subfolders 'optimization', 'dscf' and 'xas'.
+Before starting, it is recommended to create one directory for each system (MgO and MgS) and, within
+the system's directory, create the subfolders 'optimization', 'dscf' and 'xas'.
 
 ## Part 1: optimizing geometry
-The first step of the calculation is to optimize the geometry of the systems you are going to work with. It is also possible to use experimental geometries if available.
+
+The first step of the calculation is to optimize the geometry of the systems you are going to work
+with. It is also possible to use experimental geometries if available.
 
 ### MgO
 
-To start the calculation, download or copy the input ''MgO_opt.inp'' to the optimization folder in the work directory of MgO. 
+To start the calculation, download or copy the input ''MgO_opt.inp'' to the optimization folder in
+the work directory of MgO.
 
 ```
 &GLOBAL
@@ -96,11 +104,15 @@ To start the calculation, download or copy the input ''MgO_opt.inp'' to the opti
 &END FORCE_EVAL
 ```
 
-Since both systems have only two atoms in their unit cells it is not necessary to have a separate .xyz file with the atomic positions. To make it simple we are going to write the coordinates in the ''&COORD'' subsection of the input file. 
+Since both systems have only two atoms in their unit cells it is not necessary to have a separate
+.xyz file with the atomic positions. To make it simple we are going to write the coordinates in the
+''&COORD'' subsection of the input file.
 
-Do not forget to put in your work directory the files ''GTH_POTENTIALS'' and ''GTH_BASIS_SETS'', which contain the parameters for the pseudopotentials and basis sets used in the calculations.
+Do not forget to put in your work directory the files ''GTH_POTENTIALS'' and ''GTH_BASIS_SETS'',
+which contain the parameters for the pseudopotentials and basis sets used in the calculations.
 
-After the calculation is finished, you can check the files created in your directory. First open the output file ''MgO_opt.out'' and search for the following banner: 
+After the calculation is finished, you can check the files created in your directory. First open the
+output file ''MgO_opt.out'' and search for the following banner:
 
 ```
 *******************************************************************************
@@ -108,11 +120,16 @@ After the calculation is finished, you can check the files created in your direc
 *******************************************************************************
 ```
 
-If you found it, it means that the optimization of the geometry is done, and you can find the final atomic coordinates in the file ''MgO-pos-1.xyz''. You can visualize the optimized geometry using Avogadro or VESTA programs, for example. 
+If you found it, it means that the optimization of the geometry is done, and you can find the final
+atomic coordinates in the file ''MgO-pos-1.xyz''. You can visualize the optimized geometry using
+Avogadro or VESTA programs, for example.
 
-cp2k prints out the coordinates for each step of the calculation (they are indicated in the file by the index i, right below the number of atoms), so in order to use the optimized geometry in the following calculations, you should use the positions corresponding to the last iteration.
+cp2k prints out the coordinates for each step of the calculation (they are indicated in the file by
+the index i, right below the number of atoms), so in order to use the optimized geometry in the
+following calculations, you should use the positions corresponding to the last iteration.
 
-It is also important to check for warnings in your output file. In the end of the file, you can find the following banner:
+It is also important to check for warnings in your output file. In the end of the file, you can find
+the following banner:
 
 ```
 -------------------------------------------------------------------------------
@@ -122,20 +139,27 @@ The number of warnings for this run is : 0
 -------------------------------------------------------------------------------
 ```
 
-which means that the calculation ran without problems. If the number is different than 0, search for the warning messages throughout the output file.
+which means that the calculation ran without problems. If the number is different than 0, search for
+the warning messages throughout the output file.
 
 ### MgS
 
-Now we are going to perform the same calculation, but for the MgS system. In order to do so, let's make some changes to the input file ''MgO_opt.inp''. You can either download the input file above again, and change its name no ''MgS_opt.inp'', or type in your terminal:
+Now we are going to perform the same calculation, but for the MgS system. In order to do so, let's
+make some changes to the input file ''MgO_opt.inp''. You can either download the input file above
+again, and change its name no ''MgS_opt.inp'', or type in your terminal:
 
 ```
 cp MgO_opt.inp MgS_opt.inp
 ```
 
-This will create a copy of the previous input file with the name ''MgS_opt.inp''. Move the new file to the optimization folder of the MgS work directory. Now we need to make some modifications to the input in order to perform the calculation for the MgS system.
-Let's start with the project name: change it to ''MgS''.
+This will create a copy of the previous input file with the name ''MgS_opt.inp''. Move the new file
+to the optimization folder of the MgS work directory. Now we need to make some modifications to the
+input in order to perform the calculation for the MgS system. Let's start with the project name:
+change it to ''MgS''.
 
-Now, in the ''&COORD'' subsection, we are going to give the initial atomic coordinates as multiples of the lattice vectors. In order to do it, delete the two lines with the coordinates of the previous system, and add the following:
+Now, in the ''&COORD'' subsection, we are going to give the initial atomic coordinates as multiples
+of the lattice vectors. In order to do it, delete the two lines with the coordinates of the previous
+system, and add the following:
 
 ```
       SCALED
@@ -143,24 +167,34 @@ Now, in the ''&COORD'' subsection, we are going to give the initial atomic coord
       Mg    0.0  0.0  0.0
 ```
 
-We also need to change the lattice parameters in the ''&CELL'' subsection, since the vectors have different lengths now. Delete the numbers that follow the ''ABC'' keyword and type:
+We also need to change the lattice parameters in the ''&CELL'' subsection, since the vectors have
+different lengths now. Delete the numbers that follow the ''ABC'' keyword and type:
 
 ```
 3.697 3.697 3.697
 ```
 
-In order to deal with a smaller number of atoms, we are declaring the structures of MgO and MgS using the rhombohedral unit cell, so the lengths of the lattice vectors *a*, *b*, and *c*, so as the angles $\alpha$ , $\beta$ and $\gamma$, are the same.
+In order to deal with a smaller number of atoms, we are declaring the structures of MgO and MgS
+using the rhombohedral unit cell, so the lengths of the lattice vectors *a*, *b*, and *c*, so as the
+angles $\alpha$ , $\beta$ and $\gamma$, are the same.
 
-The last modification that needs to be done is regarding the atomic types. In this case, we do not have oxygen in the system anymore, so the subsection ''&KIND O'' can be renamed ''&KIND S''. The only modification that needs to be done is in the keyword ''ELEMENT'', where ''O'' has to be replaced by ''S''. 
+The last modification that needs to be done is regarding the atomic types. In this case, we do not
+have oxygen in the system anymore, so the subsection ''&KIND O'' can be renamed ''&KIND S''. The
+only modification that needs to be done is in the keyword ''ELEMENT'', where ''O'' has to be
+replaced by ''S''.
 
 #### Even though we are not changing the name of the basis set or pseudopotential used, cp2k will use the parameters for the sulfur atom now, since the ''ELEMENT'' type is different. However, it is important to check in the ''GTH_BASIS_SET'' and ''GTH_POTENTIALS'' files whether the names are the same for different atoms.
 
-Now the input is ready, and it can be run in the same way as before, just remember to change the file ''cp2k.sh''.
+Now the input is ready, and it can be run in the same way as before, just remember to change the
+file ''cp2k.sh''.
 
-After the calculation is finished, open the output file ''MgS_opt.out'' and look for the same banner as before. The optimized atomic positions are written in the file ''MgS-pos-1.xyz''.
+After the calculation is finished, open the output file ''MgS_opt.out'' and look for the same banner
+as before. The optimized atomic positions are written in the file ''MgS-pos-1.xyz''.
 
 ## Part 2: XAS calculations
-To compute the absorption spectra, download or copy the input file bellow to the working directory. It is a general input that needs to be edited depending on which system you are working with.
+
+To compute the absorption spectra, download or copy the input file bellow to the working directory.
+It is a general input that needs to be edited depending on which system you are working with.
 
 ```
 &GLOBAL
@@ -317,22 +351,32 @@ To compute the absorption spectra, download or copy the input file bellow to the
 
 ### MgS
 
-To compute the absorption spectra for the bulk MgS, first rename the input file changing the ''X'' to ''S''. It can be done by typing in the terminal:
+To compute the absorption spectra for the bulk MgS, first rename the input file changing the ''X''
+to ''S''. It can be done by typing in the terminal:
 
 ```
 cp MgX_xas.inp MgS_xas.inp
 ```
 
-Now change all the ''X''s in the input file to ''S''s. Move the new input file to the correct working directory.
-The next step is to add the optimized coordinates of the system, which you can find in the ''.xyz'' file written by the program after the geometry optimization. Use the last iteration step values and write them in the ''&COORD'' subsection. The final step is to add the correct values for the lattice vectors. You can copy it from the geometry optimization input file. 
+Now change all the ''X''s in the input file to ''S''s. Move the new input file to the correct
+working directory. The next step is to add the optimized coordinates of the system, which you can
+find in the ''.xyz'' file written by the program after the geometry optimization. Use the last
+iteration step values and write them in the ''&COORD'' subsection. The final step is to add the
+correct values for the lattice vectors. You can copy it from the geometry optimization input file.
 
 #### At this time we are using cartesian coordinates to indicate the position of the atoms, so the keyword ''SCALED'' should be removed.
 
 To run this calculation, proceed as you did before.
 
-This calculation should take longer than the geometry optimization to run. Once finished, check the number of warnings and if the calculation converged. Sometimes it does not converge within the maximum number of iterations we set in the input file. If this is the case, you can increase the number using the keyword ''MAX_SCF''.
+This calculation should take longer than the geometry optimization to run. Once finished, check the
+number of warnings and if the calculation converged. Sometimes it does not converge within the
+maximum number of iterations we set in the input file. If this is the case, you can increase the
+number using the keyword ''MAX_SCF''.
 
-You can check in the working directory that some files were created. The absorption energies and intensities (oscillator strength) are written in the files named ''MgS-xas_at1_st1.spectrum'' and ''MgS-xas_at2_st1.spectrum'', where the first one corresponds to the atom 1 in your input file, and the second one to atom number 2.
+You can check in the working directory that some files were created. The absorption energies and
+intensities (oscillator strength) are written in the files named ''MgS-xas_at1_st1.spectrum'' and
+''MgS-xas_at2_st1.spectrum'', where the first one corresponds to the atom 1 in your input file, and
+the second one to atom number 2.
 
 The file looks like
 
@@ -348,22 +392,39 @@ The file looks like
     18    694.86428215      0.00000000     -0.00000010     -0.00000012      0.00000000   0.00000
 ```
 
-and the first column corresponds to the index of the KS virtual state, the second to the energy in eV, the third, fourth, and fifth to the intensities projected onto x, y and z, respectively, and in the sixth column you can find the norm of the absorption intensity, which is the quantity we are interested at. 
+and the first column corresponds to the index of the KS virtual state, the second to the energy in
+eV, the third, fourth, and fifth to the intensities projected onto x, y and z, respectively, and in
+the sixth column you can find the norm of the absorption intensity, which is the quantity we are
+interested at.
 
-To convolute the spectra with gaussian functions, download the files {{exercises:2019_conexs_newcastle:lib_tools.zip}} and extract them in the same directory as the output files. Now run the script typing in the terminal:
+To convolute the spectra with gaussian functions, download the files
+{{exercises:2019_conexs_newcastle:lib_tools.zip}} and extract them in the same directory as the
+output files. Now run the script typing in the terminal:
 
 ```
 ./get_average_spectrum.sh
 ```
 
-As an output, you are going to get two files: ''spectrum.inp'' and ''spectrum.out''. The first one contains the same information as the ''Mgs-xas_at1_st1.spectrum'' file, and in the second one you will find you absorption spectrum for atom 1. Change the name of the files to ''S_K-edge.inp'' and ''S_K-edge.out'', for example. You can now plot both absorption intensities from the file ''S_K-edge.inp'' and the convoluted spectrum from the file ''S_K-edge.out''. From the first one only the second and sixth columns need to be plotted.  
+As an output, you are going to get two files: ''spectrum.inp'' and ''spectrum.out''. The first one
+contains the same information as the ''Mgs-xas_at1_st1.spectrum'' file, and in the second one you
+will find you absorption spectrum for atom 1. Change the name of the files to ''S_K-edge.inp'' and
+''S_K-edge.out'', for example. You can now plot both absorption intensities from the file
+''S_K-edge.inp'' and the convoluted spectrum from the file ''S_K-edge.out''. From the first one only
+the second and sixth columns need to be plotted.
 
-In order to obtain the spectrum for atom 2, you can open the file ''get_average_spectrum.sh'' and replace ''at1'' by ''at2'' in the line ''for i in $(ls ${DIR}/*xas_at2*spectrum)''. Run the script again and you will obtain the same two files again, but now with the absorption intensities and spectrum of atom 2. Change their names to ''Mg_K-edge.inp'' and ''Mg_K-edge.out'', and plot the absorption spectrum.
-
+In order to obtain the spectrum for atom 2, you can open the file ''get_average_spectrum.sh'' and
+replace ''at1'' by ''at2'' in the line ''for i in $(ls $\{DIR}/*xas_at2*spectrum)''. Run the script
+again and you will obtain the same two files again, but now with the absorption intensities and
+spectrum of atom 2. Change their names to ''Mg_K-edge.inp'' and ''Mg_K-edge.out'', and plot the
+absorption spectrum.
 
 ## Part 3: $\Delta SCF$ calculations
 
-Now, to finally finish the calculation, we need to get an accurate energy for the first transition. In order to do that, we need to perform a  $\Delta SCF$ calculation. Copy the input file of the previous step to the 'dscf' directory. Change its name to ''MgX_dscf.inp'', where ''X'' can be again ''S'' or ''O''. The only thing that needs to be changed in the input file is the keyword ''METHOD'' in the ''&XAS'' section.  Use now
+Now, to finally finish the calculation, we need to get an accurate energy for the first transition.
+In order to do that, we need to perform a $\Delta SCF$ calculation. Copy the input file of the
+previous step to the 'dscf' directory. Change its name to ''MgX_dscf.inp'', where ''X'' can be again
+''S'' or ''O''. The only thing that needs to be changed in the input file is the keyword ''METHOD''
+in the ''&XAS'' section. Use now
 
 ```
       METHOD DSCF
@@ -377,15 +438,19 @@ After the calculation is done, look for the message
 Ionization potential of the excited atom:                  -92.73815588900608
 ```
 
-in the output file. The energy is given in Hartree, and to convert it to electron volts multiply the value by 27.211. This is the energy of the first transition, and you can use this value to rigidly shift your absorption spectrum.
+in the output file. The energy is given in Hartree, and to convert it to electron volts multiply the
+value by 27.211. This is the energy of the first transition, and you can use this value to rigidly
+shift your absorption spectrum.
 
 ## Part 4: Changing basis set
 
-Before performing the XAS calculations for the MgO system and comparing the Mg absorption spectra, you can try to change the basis set you are using to run the absorption calculations to analyze differences it can bring to the description of the process. Try to perform the calculations using:
+Before performing the XAS calculations for the MgO system and comparing the Mg absorption spectra,
+you can try to change the basis set you are using to run the absorption calculations to analyze
+differences it can bring to the description of the process. Try to perform the calculations using:
 
-  * pc-0 (smaller basis set)
-  * pob-TZVP (basis set for solid-state calculations)
-  * DZVP-all
-  * Ahlrichs-def2-SVP 
+- pc-0 (smaller basis set)
+- pob-TZVP (basis set for solid-state calculations)
+- DZVP-all
+- Ahlrichs-def2-SVP
 
-#### In this exercise, we have obtained absorption spectra using a simple basis set to perform the calculations on small machines and using a limited time. Therefore, careful tests on the basis set size, XC functional, etc have to be carried out for production runs to get more reliable spectra. 
+#### In this exercise, we have obtained absorption spectra using a simple basis set to perform the calculations on small machines and using a limited time. Therefore, careful tests on the basis set size, XC functional, etc have to be carried out for production runs to get more reliable spectra.
