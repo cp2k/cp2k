@@ -50,10 +50,7 @@ MODULE input_cp2k_global
       electronic_spectra_run, energy_force_run, energy_run, fftw_plan_estimate, &
       fftw_plan_exhaustive, fftw_plan_measure, fftw_plan_patient, gaussian, geo_opt_run, &
       linear_response_run, mol_dyn_run, mon_car_run, negf_run, none_run, pint_run, &
-      real_time_propagation, tree_mc_run, vib_anal
-#if defined(__parallel) && defined(__SPFFT)
-   USE input_constants, ONLY: do_fft_spfft
-#endif
+      real_time_propagation, tree_mc_run, vib_anal, do_fft_spfft
    USE input_keyword_types, ONLY: keyword_create, &
                                   keyword_release, &
                                   keyword_type
@@ -236,23 +233,19 @@ CONTAINS
          citations=(/Frigo2005/), &
 #if defined(__parallel) && defined(__SPFFT)
          default_i_val=do_fft_spfft, &
+#elif defined(__FFTW3)
+         default_i_val=do_fft_fftw3, &
+#else
+         default_i_val=do_fft_sg, &
+#endif
          enum_i_vals=(/do_fft_sg, do_fft_fftw3, do_fft_fftw3, do_fft_spfft/), &
          enum_c_vals=s2a("FFTSG", "FFTW3", "FFTW", "SPFFT"), &
-#else
-         default_i_val=do_fft_fftw3, &
-         enum_i_vals=(/do_fft_sg, do_fft_fftw3, do_fft_fftw3/), &
-         enum_c_vals=s2a("FFTSG", "FFTW3", "FFTW"), &
-#endif
          enum_desc=s2a("Stefan Goedecker's FFT (FFTSG), always available, "// &
                        "will be used in case a FFT library is specified and not available.", &
                        "a fast portable FFT library. Recommended. "// &
                        "See also the FFTW_PLAN_TYPE, and FFTW_WISDOM_FILE_NAME keywords.", &
-#if defined(__parallel) && defined(__SPFFT)
-                       "Same as FFTW3 (for compatibility with CP2K 2.3)", &
+                       "Same as FFTW3", &
                        "Use SpFFT, a GPU-accelerated FFT library"))
-#else
-      "Same as FFTW3 (for compatibility with CP2K 2.3)"))
-#endif
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
