@@ -150,7 +150,6 @@ MODULE fft_tools
    ! these saved variables are FFT globals
    INTEGER, SAVE :: fft_type = 0
    LOGICAL, SAVE :: alltoall_sgl = .FALSE.
-   LOGICAL, SAVE :: use_fftsg_sizes = .TRUE.
 
    ! these are only needed for pw_gpu (-D__OFFLOAD)
    PUBLIC :: get_fft_scratch, release_fft_scratch
@@ -186,14 +185,13 @@ CONTAINS
       CHARACTER(LEN=*), INTENT(IN)                       :: wisdom_file
       INTEGER, INTENT(IN)                                :: plan_style
 
-      use_fftsg_sizes = fftsg_sizes
       alltoall_sgl = alltoall
       fft_pool_scratch_limit = pool_limit
       fft_type = fft_library(fftlib)
 
       IF (fft_type <= 0) CPABORT("Unknown FFT library: "//TRIM(fftlib))
 
-      CALL fft_do_init(fft_type, wisdom_file, plan_style)
+      CALL fft_do_init(fft_type, wisdom_file, plan_style, fftsg_sizes)
 
       ! setup the FFT scratch pool, if one is associated, clear first
       CALL release_fft_scratch_pool()
@@ -237,8 +235,6 @@ CONTAINS
       INTEGER, INTENT(OUT)                               :: radix_out
       INTEGER, INTENT(IN)                                :: operation
 
-      INTEGER, PARAMETER                                 :: fft_type_sg = 1
-
       INTEGER                                            :: i, iloc, ldata
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: DATA
 
@@ -247,11 +243,7 @@ CONTAINS
       DATA = -1
 
       ! if the user wants to use fftsg sizes go for it
-      IF (use_fftsg_sizes) THEN
-         CALL fft_get_lengths(fft_type_sg, DATA, ldata)
-      ELSE
-         CALL fft_get_lengths(fft_type, DATA, ldata)
-      END IF
+      CALL fft_get_lengths(fft_type, DATA, ldata)
 
       iloc = 0
       DO i = 1, ldata
