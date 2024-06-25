@@ -84,7 +84,6 @@ CONTAINS
       !REAL(KIND=dp), DIMENSION(3, 3)                    :: h
       INTEGER, DIMENSION(3)                              :: periodic
       LOGICAL, DIMENSION(3)                              :: lperiod
-      INTEGER                                            :: mpi_nodes, mpi_rank
 
       CALL timeset(routineN, handle)
 
@@ -141,9 +140,7 @@ CONTAINS
       END IF
 
       !dispersion energy is computed by every MPI process
-      CALL para_env%get_size(mpi_nodes)
-      CALL para_env%get_rank(mpi_rank)
-      IF (mpi_nodes > 1 .AND. mpi_rank > 0) energy = 0.00_dp
+      IF (para_env%num_pe > 1 .AND. para_env%mepos > 0) energy = 0.00_dp
 
       DEALLOCATE (el_num, xyz)
 
