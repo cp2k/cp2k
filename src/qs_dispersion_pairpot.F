@@ -1393,14 +1393,14 @@ CONTAINS
       IF (dispersion_env%pp_type == vdw_pairpot_dftd4) THEN
          IF (calculate_forces .OR. debugall) THEN
             IF (use_virial) THEN
-               CALL calculate_dispersion_d4_pairpot(dispersion_env, particle_set, cell, &
+               CALL calculate_dispersion_d4_pairpot(dispersion_env, particle_set, cell, para_env, &
                                                     evdw, force=force, atom_of_kind=atom_of_kind, virial=pv_virial_thread)
             ELSE
-               CALL calculate_dispersion_d4_pairpot(dispersion_env, particle_set, cell, &
+               CALL calculate_dispersion_d4_pairpot(dispersion_env, particle_set, cell, para_env, &
                                                     evdw, force=force, atom_of_kind=atom_of_kind)
             END IF
          ELSE
-            CALL calculate_dispersion_d4_pairpot(dispersion_env, particle_set, cell, evdw)
+            CALL calculate_dispersion_d4_pairpot(dispersion_env, particle_set, cell, para_env, evdw)
          END IF
       END IF
 

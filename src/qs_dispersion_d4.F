@@ -28,6 +28,7 @@ MODULE qs_dispersion_d4
    USE particle_types, ONLY: particle_type
    USE qs_dispersion_types, ONLY: qs_dispersion_type
    USE qs_force_types, ONLY: qs_force_type
+   USE message_passing, ONLY: mp_para_env_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -48,17 +49,19 @@ CONTAINS
 !> \param dispersion_env ...
 !> \param particle_set ...
 !> \param cell ...
+!> \param para_env ...
 !> \param energy ...
 !> \param force ...
 !> \param atom_of_kind ...
 !> \param virial ...
 ! **************************************************************************************************
-   SUBROUTINE calculate_dispersion_d4_pairpot(dispersion_env, particle_set, cell, energy, force, atom_of_kind, virial)
+   SUBROUTINE calculate_dispersion_d4_pairpot(dispersion_env, particle_set, cell, para_env, energy, force, atom_of_kind, virial)
 
       TYPE(qs_dispersion_type), INTENT(IN), POINTER      :: dispersion_env
       TYPE(particle_type), DIMENSION(:), INTENT(IN), &
          POINTER                                         :: particle_set
       TYPE(cell_type), INTENT(IN), POINTER               :: cell
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       REAL(KIND=dp), INTENT(OUT)                         :: energy
       TYPE(qs_force_type), DIMENSION(:), INTENT(INOUT), &
          OPTIONAL, POINTER                               :: force
@@ -81,6 +84,8 @@ CONTAINS
       !REAL(KIND=dp), DIMENSION(3, 3)                    :: h
       INTEGER, DIMENSION(3)                              :: periodic
       LOGICAL, DIMENSION(3)                              :: lperiod
+      INTEGER                                            :: mpi_nodes, mpi_rank
+
       CALL timeset(routineN, handle)
 
       !get information about particles
@@ -135,6 +140,11 @@ CONTAINS
          CALL get_dispersion(mol, disp, param, cutoff, energy)
       END IF
 
+      !dispersion energy is computed by every MPI process
+      CALL para_env%get_size(mpi_nodes)
+      CALL para_env%get_rank(mpi_rank)
+      IF (mpi_nodes > 1 .AND. mpi_rank > 0) energy = 0.00_dp
+
       DEALLOCATE (el_num, xyz)
 
       CALL timestop(handle)
@@ -148,17 +158,19 @@ CONTAINS
 !> \param dispersion_env ...
 !> \param particle_set ...
 !> \param cell ...
+!> \param para_env ...
 !> \param energy ...
 !> \param force ...
 !> \param atom_of_kind ...
 !> \param virial ...
 ! **************************************************************************************************
-   SUBROUTINE calculate_dispersion_d4_pairpot(dispersion_env, particle_set, cell, energy, force, atom_of_kind, virial)
+   SUBROUTINE calculate_dispersion_d4_pairpot(dispersion_env, particle_set, cell, para_env, energy, force, atom_of_kind, virial)
 
       TYPE(qs_dispersion_type), INTENT(IN), POINTER      :: dispersion_env
       TYPE(particle_type), DIMENSION(:), INTENT(IN), &
          POINTER                                         :: particle_set
       TYPE(cell_type), INTENT(IN), POINTER               :: cell
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       REAL(KIND=dp), INTENT(OUT)                         :: energy
       TYPE(qs_force_type), DIMENSION(:), INTENT(INOUT), &
          OPTIONAL, POINTER                               :: force
@@ -169,6 +181,7 @@ CONTAINS
       MARK_USED(dispersion_env)
       MARK_USED(particle_set)
       MARK_USED(cell)
+      MARK_USED(para_env)
       MARK_USED(energy)
       MARK_USED(force)
       MARK_USED(atom_of_kind)
