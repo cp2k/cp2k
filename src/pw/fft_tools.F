@@ -34,7 +34,7 @@ MODULE fft_tools
    USE fft_lib,                         ONLY: &
         BWFFT, FWFFT, fft_1d, fft_2d, fft_3d, fft_alloc, fft_create_plan_1d, fft_create_plan_2d, &
         fft_create_plan_3d, fft_dealloc, fft_destroy_plan, fft_do_cleanup, fft_do_init, &
-        fft_get_lengths, fft_library
+        fft_get_lengths, fft_type
    USE fft_plan,                        ONLY: fft_plan_type
    USE kinds,                           ONLY: dp,&
                                               dp_size,&
@@ -148,7 +148,6 @@ MODULE fft_tools
    REAL(KIND=dp), PARAMETER :: ratio_sparse_alltoall = 0.5_dp
 
    ! these saved variables are FFT globals
-   INTEGER, SAVE :: fft_type = 0
    LOGICAL, SAVE :: alltoall_sgl = .FALSE.
 
    ! these are only needed for pw_gpu (-D__OFFLOAD)
@@ -187,11 +186,8 @@ CONTAINS
 
       alltoall_sgl = alltoall
       fft_pool_scratch_limit = pool_limit
-      fft_type = fft_library(fftlib)
 
-      IF (fft_type <= 0) CPABORT("Unknown FFT library: "//TRIM(fftlib))
-
-      CALL fft_do_init(fft_type, wisdom_file, plan_style, fftsg_sizes)
+      CALL fft_do_init(wisdom_file, plan_style, fftsg_sizes, fftlib)
 
       ! setup the FFT scratch pool, if one is associated, clear first
       CALL release_fft_scratch_pool()
