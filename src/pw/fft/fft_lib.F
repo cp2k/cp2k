@@ -197,7 +197,6 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: n1, n2, m
       COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT)      :: zin, zintermed, zout
 
-      plan(1)%fft_type = fft_type
       plan(1)%fsign = fsign
       plan(1)%trans = trans
       plan(1)%n_3d = [n1, n2, m]
@@ -205,15 +204,15 @@ CONTAINS
       plan(1)%m = m*n2
 !$    plan(1)%need_alt_plan = .FALSE.
 
-      plan(2)%fft_type = fft_type
       plan(2)%fsign = fsign
       plan(2)%trans = trans
       plan(2)%n = n2
       plan(2)%m = m*n1
 !$    plan(2)%need_alt_plan = .FALSE.
 
+IF ((n1 > 0) .AND. (m > 0) .AND. (n2 > 0)) THEN
       ! Planning only needed for FFTW3
-      IF (fft_type .EQ. 3 .AND. (n1*m .NE. 0) .AND. (n2*m .NE. 0)) THEN
+      IF (fft_type .EQ. 3) THEN
          CALL fftw3_create_plan_1d(plan(1), zin, zintermed)
          CALL fftw3_create_plan_1d(plan(2), zintermed, zout)
          plan(1)%valid = .TRUE.
@@ -223,6 +222,10 @@ CONTAINS
          CALL spfft_create_plan_1d(plan(2))
          plan(1)%valid = .TRUE.
          plan(2)%valid = .TRUE.
+      ELSE
+         plan(1)%valid = .FALSE.
+         plan(2)%valid = .FALSE.
+      END IF
       ELSE
          plan(1)%valid = .FALSE.
          plan(2)%valid = .FALSE.
@@ -322,6 +325,15 @@ CONTAINS
       ELSE IF (plan%fft_type == 4) THEN
          CALL spfft_destroy_plan(plan)
          plan%valid = .FALSE.
+         ELSE IF (plan%fft_type == -1) THEN
+      IF (fft_type == 3) THEN
+         CALL fftw3_destroy_plan(plan)
+         plan%valid = .FALSE.
+      ELSE IF (fft_type == 4) THEN
+         CALL spfft_destroy_plan(plan)
+         plan%valid = .FALSE.
+         ELSE IF (plan%fft_type == -1) THEN
+      END IF
       END IF
       END IF
 
@@ -349,7 +361,7 @@ CONTAINS
          CPABORT("FFT directions must match!")
 
       IF (plan(1)%n*plan(1)%m > 0 .AND. plan(2)%n*plan(2)%m > 0) THEN
-         SELECT CASE (plan(1)%fft_type)
+         SELECT CASE (fft_type)
          CASE DEFAULT
             CPABORT("fft_2d")
          CASE (1)
