@@ -53,16 +53,18 @@ Evaluating these expressions in the framework of TDDFT, the equations of motion 
 $$
 M\ddot{\bf R}  = -\frac{\partial}{\partial {\bf R}} U({\bf R},t) - \sum_j\left\langle \Phi^j | \frac{\partial}{\partial{\bf R}} V_{\text{int}}({\bf r},{\bf R})| \Phi^j \right\rangle
 $$
-for the nuclear motion
-and the time dependent SE for the electrons. 
-These equations are valid for the exact wavefunctions. In the Kohn-Sham approach, the wavefunctions are replaced by a linear combination of basis functions. For plane waves the equations remain the same, since they do not depend on the nuclear coordinates and therefore are independent of the change of the ionic positions during MD. The case of a Gaussian basis set requires a more detailed analysis.
-Using Gaussian basis sets for the expansion of the wavefunctions an implicit dependence of the wavefunctions on the nuclear positions is introduced. Since in an MD approach the nuclear positions are function of time, the time derivative in the quantum mechanical action has to be replaced by the total time derivative
+for the nuclear motion, wile for the electrons the  time dependent SE as given above is used. 
+These equations are valid for the exact wavefunctions. In the Kohn-Sham approach, the wavefunctions are replaced by a linear combination of basis functions. 
+For plane waves the equations remain the same, since they do not depend on the nuclear coordinates and therefore are independent of the change of the ionic positions during MD. 
+The case of a Gaussian basis set requires a more detailed analysis.
+Using Gaussian basis sets for the expansion of the wavefunctions, an implicit dependence of the wavefunctions on the nuclear positions is introduced. 
+Since in an MD approach the nuclear positions are function of time, the time derivative in the quantum mechanical action has to be replaced by the total time derivative
 
 $$
-\frac{d}{dt} = \frac{\partial}{\partial t} + \sum_A \frac{\partial {\bf R}_A}{\partial t}\frac{\partial}{\partial {\bf R}_A}
+\frac{d}{dt} = \frac{\partial}{\partial t} + \sum_A \frac{\partial {\bf R}_A}{\partial t}\frac{\partial}{\partial {\bf R}_A}.
 $$
 
-due to the introduction of the basis the independent variables for making the action constant become the expansion coefficients $C_{j\alpha}(t)$
+Due to the introduction of the basis, the independent variables for making the action constant become the expansion coefficients $C_{j\alpha}(t)$
 of the molecular orbital $j$ in the contracted basis functions  $\psi_\alpha({\pf r},t)$
 $$
 \dot{C}_{j\alpha} = -\sum_{\alpha\beta}S^{-1}_{\beta\gamma}\left(  i H_{\beta\gamma} + B_{\beta\gamma} \right) C_{j\gamma}
@@ -76,10 +78,14 @@ Hence, in Ehrenfest dynamics an additional contribution due to the derivative of
 used in the exponential operator. Instead of being purely imaginary, the matrix in the exponential of the propagator becomes fully complex.
 
 
+To run RTP or Ehrenfest MD with CP2K, the corresponding `RUN_TYPE` in the `GLOBAL` section has to be selected.
 
-To run RTP o
-The simulation starts usually from the electronic ground state, but  it is also possible to start  
-the simulation from a SCF RESTART file or by mixing the wavefunction coefficients to build a different state.
+
+To run RTP or Ehrenfest MD an initial set of coefficients is needed, which represent the electronic state at time $t_0$. 
+The simulation can start  from the electronic ground state, by requiring an initial SCF optimization or providing the restart file
+of a previously optimized ground state.  
+More often, one wants to start the propagation from a perturbed state. This can be generated with several different approaches.
+
 
 
 
