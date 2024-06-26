@@ -35,12 +35,20 @@ MODULE fft_lib
    PUBLIC :: fft_do_cleanup, fft_do_init, fft_get_lengths, fft_create_plan_2d, fft_create_plan_3d
    PUBLIC :: fft_create_plan_1d, fft_1d, fft_2d, fft_3d, fft_destroy_plan
    PUBLIC :: fft_alloc, fft_dealloc
-   PUBLIC :: FWFFT, BWFFT, fft_type
+   PUBLIC :: FWFFT, BWFFT, fft_arbitrary_lengths_available
 
    LOGICAL, SAVE :: use_fftsg_sizes = .TRUE.
    INTEGER, SAVE :: fft_type = 0
 
 CONTAINS
+! **************************************************************************************************
+!> \brief ...
+!> \return ...
+! **************************************************************************************************
+   LOGICAL FUNCTION fft_arbitrary_lengths_available()
+      fft_arbitrary_lengths_available = (fft_type == 3) .OR. (fft_type == 4)
+   END FUNCTION fft_arbitrary_lengths_available
+
 ! **************************************************************************************************
 !> \brief Interface to FFT libraries
 !> \param fftlib ...
