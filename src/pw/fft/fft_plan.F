@@ -35,16 +35,24 @@ MODULE fft_plan
 
 !   Handle for the FFTW plan
       TYPE(C_PTR)                         :: fftw_plan = C_NULL_PTR
+      TYPE(C_PTR)                         :: fftw_plan_fw = C_NULL_PTR
+      TYPE(C_PTR)                         :: fftw_plan_bw = C_NULL_PTR
 
 !   Plan for the remaining rows for 1D FFT when number of threads does not divide the number of rows exactly
 !$    TYPE(C_PTR)                         :: alt_fftw_plan = C_NULL_PTR
+!$    TYPE(C_PTR)                         :: alt_fftw_plan_fw = C_NULL_PTR
+!$    TYPE(C_PTR)                         :: alt_fftw_plan_bw = C_NULL_PTR
 !$    LOGICAL                             :: need_alt_plan = .FALSE.
 !$    INTEGER                             :: num_threads_needed = -1, num_rows = -1, alt_num_rows = -1
 
 !   Individual plans (used by hand-optimised 3D FFT)
       TYPE(C_PTR)                     :: fftw_plan_nx = C_NULL_PTR, fftw_plan_ny = C_NULL_PTR, fftw_plan_nz = C_NULL_PTR
+      TYPE(C_PTR)                     :: fftw_plan_nx_fw = C_NULL_PTR, fftw_plan_ny_fw = C_NULL_PTR, fftw_plan_nz_fw = C_NULL_PTR
+      TYPE(C_PTR)                     :: fftw_plan_nx_bw = C_NULL_PTR, fftw_plan_ny_bw = C_NULL_PTR, fftw_plan_nz_bw = C_NULL_PTR
 !   Plans for the remaining rows (when the number of threads does not divide the number of rows exactly)
       TYPE(C_PTR)                     :: fftw_plan_nx_r = C_NULL_PTR, fftw_plan_ny_r = C_NULL_PTR, fftw_plan_nz_r = C_NULL_PTR
+   TYPE(C_PTR)                     :: fftw_plan_nx_r_fw = C_NULL_PTR, fftw_plan_ny_r_fw = C_NULL_PTR, fftw_plan_nz_r_fw = C_NULL_PTR
+   TYPE(C_PTR)                     :: fftw_plan_nx_r_bw = C_NULL_PTR, fftw_plan_ny_r_bw = C_NULL_PTR, fftw_plan_nz_r_bw = C_NULL_PTR
 
       TYPE(C_PTR) :: spfft_transform = C_NULL_PTR
 
