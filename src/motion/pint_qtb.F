@@ -18,12 +18,7 @@ MODULE pint_qtb
                                               cp_logger_type
    USE cp_output_handling,              ONLY: debug_print_level,&
                                               silent_print_level
-   USE fft_lib,                         ONLY: fft_1d,&
-                                              fft_create_plan_1d,&
-                                              fft_destroy_plan
-   USE fft_plan,                        ONLY: fft_plan_type
-   USE fft_tools,                       ONLY: FWFFT,&
-                                              fft_arbitrary_lengths_available
+   USE fft_tools,                       ONLY: fft_fw1d
    USE input_constants,                 ONLY: propagator_rpmd
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
@@ -263,19 +258,15 @@ CONTAINS
       COMPLEX(KIND=dp)                                   :: tmp1
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:)        :: filter
       INTEGER                                            :: handle, i, ibead, idim, log_unit, ndim, &
-                                                            nf, p, print_level, step
+                                                            nf, p, print_level, stat, step
       REAL(KIND=dp)                                      :: aa, bb, correct, dt, dw, fcut, h, kT, &
                                                             tmp, w
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: fp
       REAL(KIND=dp), DIMENSION(:), POINTER               :: fp1
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(fft_plan_type)                                :: plan
       TYPE(mp_para_env_type), POINTER                    :: para_env
 
       CALL timeset(routineN, handle)
-
-      IF (.NOT. fft_arbitrary_lengths_available()) CALL cp_warn(__LOCATION__, "The FFT library in use cannot"// &
-                                                                " handle transformation of an arbitrary length.")
 
       p = pint_env%p
       ndim = pint_env%ndim
@@ -363,7 +354,7 @@ CONTAINS
             END DO
 
             !compute the filter in time space - FFT
-            CALL pint_qtb_fft(filter, filter, plan, nf)
+            CALL fft_fw1d(nf, 1, .FALSE., filter, filter, 1.0_dp, stat)
             !reordering + normalisation
             !normalisation : 1/nf comes from the DFT, 1/sqrt(step) is to
             !take into account the effective timestep h = step*dt and
@@ -945,25 +936,5 @@ CONTAINS
       END IF
 
    END SUBROUTINE pint_qtb_linreg
-
-! **************************************************************************************************
-!> \brief ...
-!> \param z_in ...
-!> \param z_out ...
-!> \param plan ...
-!> \param n ...
-! **************************************************************************************************
-   SUBROUTINE pint_qtb_fft(z_in, z_out, plan, n)
-
-      INTEGER                                            :: n
-      TYPE(fft_plan_type)                                :: plan
-      COMPLEX(KIND=dp), DIMENSION(n)                     :: z_out, z_in
-
-      INTEGER                                            :: stat
-
-      CALL fft_create_plan_1d(plan, FWFFT, .FALSE., n, 1, z_in, z_out)
-      CALL fft_1d(plan, z_in, z_out, 1.d0, stat)
-      CALL fft_destroy_plan(plan)
-   END SUBROUTINE pint_qtb_fft
 
 END MODULE
