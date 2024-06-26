@@ -142,6 +142,7 @@ MODULE post_scf_bandstructure_types
       ! threshold for inverting ao overlap matrix, RI cfm_1d
       REAL(KIND=dp)                                :: eps_eigval_mat_s = -1.0_dp, &
                                                       eps_eigval_mat_RI = -1.0_dp, &
+                                                      input_regularization_RI = -1.0_dp, &
                                                       regularization_RI = -1.0_dp
 
       ! global full cfm_1d used in GW
@@ -231,11 +232,11 @@ MODULE post_scf_bandstructure_types
 
       ! parameters for SOC calculation
       REAL(KIND=dp)                                :: energy_window_soc = -1.0_dp
+      ! sizes: mat_V_SOC_xyz: xyz, img
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER :: mat_V_SOC_xyz => NULL()
       TYPE(cp_fm_type), DIMENSION(3)               :: fm_V_SOC_xyz_mo
-      TYPE(cp_cfm_type)                            :: cfm_ks_spinor_ao_Gamma, &
-                                                      cfm_SOC_spinor_ao_Gamma, &
-                                                      cfm_s_spinor_Gamma
+      ! small-cell GW: dimension = number of kpoints; large-cell GW: Gamma-point, dimension = 1
+      TYPE(cp_cfm_type), DIMENSION(:), ALLOCATABLE :: cfm_SOC_spinor_ao
       TYPE(band_edges_type)                        :: band_edges_scf_SOC, &
                                                       band_edges_G0W0_SOC
 
@@ -269,10 +270,10 @@ MODULE post_scf_bandstructure_types
       INTEGER, DIMENSION(:), ALLOCATABLE           :: task_Delta_R
       INTEGER, DIMENSION(:, :), ALLOCATABLE        :: nblocks_3c
 
-      ! full complex fm for k-dependent mo coefficients C_μn(k,spin,re/im) from SCF
-      TYPE(cp_fm_type), DIMENSION(:, :, :), ALLOCATABLE :: fm_mo_coeff_kp, &
-                                                           fm_ks_kp, &
-                                                           fm_s_kp
+      ! cfm for k-dep overl mat S_µν(k), KS mat h_µν(k,spin) and mo coeff C_μn(k,spin) from SCF
+      TYPE(cp_cfm_type), DIMENSION(:), ALLOCATABLE      :: cfm_s_kp
+      TYPE(cp_cfm_type), DIMENSION(:, :), ALLOCATABLE   :: cfm_mo_coeff_kp, &
+                                                           cfm_ks_kp
       TYPE(cp_fm_type), DIMENSION(:), ALLOCATABLE       :: fm_G_S, &
                                                            fm_Sigma_x_R
       TYPE(cp_fm_type), DIMENSION(:, :), ALLOCATABLE    :: fm_V_xc_R, &
@@ -371,9 +372,7 @@ CONTAINS
       CALL safe_fm_destroy_3d(bs_env%fm_Sigma_c_R_neg_tau)
       CALL safe_fm_destroy_3d(bs_env%fm_Sigma_c_R_pos_tau)
 
-      IF (bs_env%small_cell_full_kp_or_large_cell_Gamma == small_cell_full_kp) THEN
-         CALL t_destroy_2d(bs_env%t_3c_int)
-      END IF
+      CALL t_destroy_2d(bs_env%t_3c_int)
 
       CALL release_dbcsr_p_type(bs_env%mat_ao_ao)
       CALL release_dbcsr_p_type(bs_env%mat_RI_RI)
@@ -382,9 +381,9 @@ CONTAINS
       CALL release_dbcsr_p_type(bs_env%mat_ao_ao_tensor)
       CALL release_dbcsr_p_type(bs_env%mat_RI_RI_tensor)
 
-      CALL safe_fm_destroy_3d(bs_env%fm_ks_kp)
-      CALL safe_fm_destroy_3d(bs_env%fm_s_kp)
-      CALL safe_fm_destroy_3d(bs_env%fm_mo_coeff_kp)
+      CALL safe_cfm_destroy_1d(bs_env%cfm_s_kp)
+      CALL safe_cfm_destroy_2d(bs_env%cfm_ks_kp)
+      CALL safe_cfm_destroy_2d(bs_env%cfm_mo_coeff_kp)
 
       CALL mp_para_env_release(bs_env%para_env)
       IF (ASSOCIATED(bs_env%para_env_tensor)) CALL mp_para_env_release(bs_env%para_env_tensor)
@@ -403,9 +402,7 @@ CONTAINS
       CALL cp_fm_release(bs_env%fm_V_SOC_xyz_mo(1))
       CALL cp_fm_release(bs_env%fm_V_SOC_xyz_mo(2))
       CALL cp_fm_release(bs_env%fm_V_SOC_xyz_mo(3))
-      CALL cp_cfm_release(bs_env%cfm_ks_spinor_ao_Gamma)
-      CALL cp_cfm_release(bs_env%cfm_SOC_spinor_ao_Gamma)
-      CALL cp_cfm_release(bs_env%cfm_s_spinor_Gamma)
+      CALL safe_cfm_destroy_1d(bs_env%cfm_SOC_spinor_ao)
 
       DEALLOCATE (bs_env)
 
@@ -533,6 +530,44 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
+!> \param cfm_1d ...
+! **************************************************************************************************
+   SUBROUTINE safe_cfm_destroy_1d(cfm_1d)
+      TYPE(cp_cfm_type), ALLOCATABLE, DIMENSION(:)       :: cfm_1d
+
+      INTEGER                                            :: i
+
+      IF (ALLOCATED(cfm_1d)) THEN
+         DO i = 1, SIZE(cfm_1d, 1)
+            CALL cp_cfm_release(cfm_1d(i))
+         END DO
+         DEALLOCATE (cfm_1d)
+      END IF
+
+   END SUBROUTINE safe_cfm_destroy_1d
+
+! **************************************************************************************************
+!> \brief ...
+!> \param cfm_2d ...
+! **************************************************************************************************
+   SUBROUTINE safe_cfm_destroy_2d(cfm_2d)
+      TYPE(cp_cfm_type), ALLOCATABLE, DIMENSION(:, :)    :: cfm_2d
+
+      INTEGER                                            :: i, j
+
+      IF (ALLOCATED(cfm_2d)) THEN
+         DO i = 1, SIZE(cfm_2d, 1)
+         DO j = 1, SIZE(cfm_2d, 2)
+            CALL cp_cfm_release(cfm_2d(i, j))
+         END DO
+         END DO
+         DEALLOCATE (cfm_2d)
+      END IF
+
+   END SUBROUTINE safe_cfm_destroy_2d
+
+! **************************************************************************************************
+!> \brief ...
 !> \param t_2d ...
 ! **************************************************************************************************
    SUBROUTINE t_destroy_2d(t_2d)
@@ -546,8 +581,8 @@ CONTAINS
                CALL dbt_destroy(t_2d(i, j))
             END DO
          END DO
+         DEALLOCATE (t_2d)
       END IF
-      DEALLOCATE (t_2d)
 
    END SUBROUTINE t_destroy_2d
 

@@ -40,8 +40,8 @@ MODULE soc_pseudopotential_utils
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'soc_pseudopotential_utils'
 
-   PUBLIC :: add_dbcsr_submat, cfm_add_on_diag, add_fm_submat, get_cfm_submat, create_cfm_double, &
-             add_cfm_submat
+   PUBLIC :: add_dbcsr_submat, cfm_add_on_diag, add_fm_submat, add_cfm_submat, &
+             get_cfm_submat, create_cfm_double
 
 CONTAINS
 
@@ -91,7 +91,8 @@ CONTAINS
                               nrow=nao, ncol=nao, &
                               s_firstrow=1, s_firstcol=1, &
                               t_firstrow=nstart_row, t_firstcol=nstart_col)
-
+      ! careful: inside add_dbcsr_submat, mat_V_SOC_xyz is multiplied by i because the real matrix
+      !          mat_V_SOC_xyz is antisymmetric as V_SOC matrix is purely imaginary and Hermitian
       CALL cp_cfm_scale_and_add_fm(z_zero, cfm_mat_work_double, gaussi, fm_mat_work_double_im)
 
       CALL cp_cfm_scale(factor, cfm_mat_work_double)
@@ -144,9 +145,11 @@ CONTAINS
             i_global = row_indices(i_row)
             IF (j_global == i_global) THEN
                IF (i_global .LE. nao) THEN
-                  cfm%local_data(i_row, j_col) = cfm%local_data(i_row, j_col) + alpha(i_global)*z_one
+                  cfm%local_data(i_row, j_col) = cfm%local_data(i_row, j_col) + &
+                                                 alpha(i_global)*z_one
                ELSE
-                  cfm%local_data(i_row, j_col) = cfm%local_data(i_row, j_col) + alpha(i_global - nao)*z_one
+                  cfm%local_data(i_row, j_col) = cfm%local_data(i_row, j_col) + &
+                                                 alpha(i_global - nao)*z_one
                END IF
             END IF
          END DO
@@ -314,31 +317,51 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
-!> \param fm_orig ...
 !> \param cfm_double ...
+!> \param fm_orig ...
+!> \param cfm_orig ...
 ! **************************************************************************************************
-   SUBROUTINE create_cfm_double(fm_orig, cfm_double)
-      TYPE(cp_fm_type)                                   :: fm_orig
+   SUBROUTINE create_cfm_double(cfm_double, fm_orig, cfm_orig)
       TYPE(cp_cfm_type)                                  :: cfm_double
+      TYPE(cp_fm_type), OPTIONAL                         :: fm_orig
+      TYPE(cp_cfm_type), OPTIONAL                        :: cfm_orig
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'create_cfm_double'
 
       INTEGER                                            :: handle, ncol_global_orig, &
                                                             nrow_global_orig
-      TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_double
+      LOGICAL                                            :: do_cfm_templ, do_fm_templ
+      TYPE(cp_fm_struct_type), POINTER                   :: matrix_struct, matrix_struct_double
 
       CALL timeset(routineN, handle)
 
-      CALL cp_fm_get_info(matrix=fm_orig, nrow_global=nrow_global_orig, ncol_global=ncol_global_orig)
+      do_fm_templ = PRESENT(fm_orig)
+      do_cfm_templ = PRESENT(cfm_orig)
 
-      CALL cp_fm_struct_create(fm_struct_double, &
+      ! either fm template or cfm template
+      CPASSERT(do_fm_templ .NEQV. do_cfm_templ)
+
+      IF (do_fm_templ) THEN
+         CALL cp_fm_get_info(matrix=fm_orig, nrow_global=nrow_global_orig, &
+                             ncol_global=ncol_global_orig)
+         matrix_struct => fm_orig%matrix_struct
+      END IF
+      IF (do_cfm_templ) THEN
+         CALL cp_cfm_get_info(matrix=cfm_orig, nrow_global=nrow_global_orig, &
+                              ncol_global=ncol_global_orig)
+         matrix_struct => cfm_orig%matrix_struct
+      END IF
+
+      CALL cp_fm_struct_create(matrix_struct_double, &
                                nrow_global=2*nrow_global_orig, &
                                ncol_global=2*ncol_global_orig, &
-                               template_fmstruct=fm_orig%matrix_struct)
+                               template_fmstruct=matrix_struct)
 
-      CALL cp_cfm_create(cfm_double, fm_struct_double)
+      CALL cp_cfm_create(cfm_double, matrix_struct_double)
 
-      CALL cp_fm_struct_release(fm_struct_double)
+      CALL cp_cfm_set_all(cfm_double, z_zero)
+
+      CALL cp_fm_struct_release(matrix_struct_double)
 
       CALL timestop(handle)
 

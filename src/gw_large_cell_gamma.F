@@ -56,7 +56,6 @@ MODULE gw_large_cell_gamma
                                               local_dbt_to_global_mat
    USE gw_utils,                        ONLY: analyt_conti_and_print,&
                                               de_init_bs_env,&
-                                              get_VBM_CBM_bandgaps,&
                                               time_to_freq
    USE input_section_types,             ONLY: section_vals_type
    USE kinds,                           ONLY: default_string_length,&
@@ -74,7 +73,8 @@ MODULE gw_large_cell_gamma
    USE particle_types,                  ONLY: particle_type
    USE post_scf_bandstructure_types,    ONLY: post_scf_bandstructure_type
    USE post_scf_bandstructure_utils,    ONLY: MIC_contribution_from_ikp,&
-                                              cfm_ikp_from_fm_Gamma
+                                              cfm_ikp_from_fm_Gamma,&
+                                              get_all_VBM_CBM_bandgaps
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_kind_types,                   ONLY: qs_kind_type
@@ -2293,7 +2293,7 @@ CONTAINS
 
       END DO ! ispin
 
-      CALL get_VBM_CBM_bandgaps(bs_env)
+      CALL get_all_VBM_CBM_bandgaps(bs_env)
 
       CALL cp_fm_release(fm_Sigma_x_Gamma)
       CALL cp_fm_release(fm_Sigma_c_Gamma_time)
