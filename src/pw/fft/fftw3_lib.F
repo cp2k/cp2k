@@ -319,9 +319,8 @@ CONTAINS
 !> \author JGH
 ! **************************************************************************************************
    SUBROUTINE fftw3_get_lengths(DATA, max_length)
-
-      INTEGER, DIMENSION(*)                              :: DATA
       INTEGER, INTENT(INOUT)                             :: max_length
+      INTEGER, DIMENSION(max_length)                              :: DATA
 
       INTEGER                                            :: h, i, j, k, m, maxn, maxn_elevens, &
                                                             maxn_fives, maxn_sevens, &
@@ -540,7 +539,7 @@ CONTAINS
                                      valid)
 
       TYPE(C_PTR), INTENT(INOUT)                         :: plan
-      COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT)      :: zin, zout
+      COMPLEX(KIND=dp), DIMENSION(:), CONTIGUOUS, INTENT(INOUT)      :: zin, zout
       INTEGER, INTENT(IN) :: dim_n(2), dim_istride(2), dim_ostride(2), &
                              hm_n(2), hm_istride(2), hm_ostride(2), fft_rank, &
                              fft_direction, hm_rank
@@ -596,7 +595,7 @@ CONTAINS
       INTEGER :: dim_n(2), dim_istride(2), dim_ostride(2), &
                  howmany_n(2), howmany_istride(2), howmany_ostride(2)
       TYPE(C_PTR)                          :: test_plan
-      COMPLEX(KIND=dp), DIMENSION(1, 1, 1) :: zin
+      COMPLEX(KIND=dp), DIMENSION(1) :: zin
 
       ! Attempt to create a plan with the guru interface for a 2d sub-space
       ! If this fails (e.g. for MKL's FFTW3 interface), fall back to the
@@ -690,7 +689,7 @@ CONTAINS
       INTEGER, INTENT(INOUT)                             :: dim_n(2), dim_istride(2), &
                                                             dim_ostride(2), hm_n(2), &
                                                             hm_istride(2), hm_ostride(2)
-      COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT)      :: input, output
+      COMPLEX(KIND=dp), DIMENSION(:), CONTIGUOUS, INTENT(INOUT)      :: input, output
       INTEGER, INTENT(IN)                                :: fft_direction
       INTEGER, INTENT(IN)                                :: rows_per_th, rows_per_th_r
 
@@ -731,7 +730,7 @@ CONTAINS
    SUBROUTINE fftw3_create_plan_3d(plan, zin, zout)
 
       TYPE(fft_plan_type), INTENT(INOUT)                 :: plan
-      COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT)      :: zin, zout
+      COMPLEX(KIND=dp), DIMENSION(PRODUCT(plan%n_3d)), INTENT(INOUT)      :: zin, zout
 #if defined ( __FFTW3 )
       INTEGER                                            :: n1, n2, n3
       INTEGER                                            :: nt
@@ -906,7 +905,8 @@ CONTAINS
                                           input, istride, output, ostride)
 
       INTEGER, INTENT(IN)                           :: split_dim, nt, tid, istride, ostride
-      COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT) :: input, output
+      COMPLEX(KIND=dp), DIMENSION(split_dim*istride), INTENT(INOUT) :: input
+      COMPLEX(KIND=dp), DIMENSION(split_dim*ostride), INTENT(INOUT) :: output
       TYPE(C_PTR)                                   :: plan, plan_r
 #if defined (__FFTW3)
       INTEGER                                     :: i_off, o_off
@@ -973,7 +973,7 @@ CONTAINS
       TYPE(fft_plan_type), INTENT(IN)                      :: plan
       INTEGER, INTENT(IN)                                  :: fsign
       REAL(KIND=dp), INTENT(IN)                            :: scale
-      COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT), TARGET :: zin, zout
+      COMPLEX(KIND=dp), DIMENSION(PRODUCT(plan%n_3d)), INTENT(INOUT), TARGET :: zin, zout
       INTEGER, INTENT(OUT)                                 :: stat
 #if defined ( __FFTW3 )
       COMPLEX(KIND=dp), POINTER                            :: xout(:)
@@ -1080,7 +1080,7 @@ CONTAINS
    SUBROUTINE fftw3_create_plan_1d(plan, zin, zout)
 
       TYPE(fft_plan_type), INTENT(INOUT)                 :: plan
-      COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT)      :: zin, zout
+      COMPLEX(KIND=dp), DIMENSION(plan%n*plan%m), INTENT(INOUT)      :: zin, zout
 #if defined ( __FFTW3 )
       INTEGER                                            :: ii, di, io, DO, num_threads, num_rows
 
@@ -1202,7 +1202,7 @@ CONTAINS
    SUBROUTINE fftw3_1d(plan, fsign, zin, zout, scale, stat)
       TYPE(fft_plan_type), INTENT(IN)                    :: plan
       INTEGER, INTENT(IN)                                :: fsign
-      COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT), TARGET :: zin, zout
+      COMPLEX(KIND=dp), DIMENSION(plan%n*plan%m), INTENT(INOUT), TARGET :: zin, zout
       REAL(KIND=dp), INTENT(IN)                          :: scale
       INTEGER, INTENT(OUT)                               :: stat
 
