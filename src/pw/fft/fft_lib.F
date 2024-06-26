@@ -210,22 +210,22 @@ CONTAINS
       plan(2)%m = m*n1
 !$    plan(2)%need_alt_plan = .FALSE.
 
-IF ((n1 > 0) .AND. (m > 0) .AND. (n2 > 0)) THEN
-      ! Planning only needed for FFTW3
-      IF (fft_type .EQ. 3) THEN
-         CALL fftw3_create_plan_1d(plan(1), zin, zintermed)
-         CALL fftw3_create_plan_1d(plan(2), zintermed, zout)
-         plan(1)%valid = .TRUE.
-         plan(2)%valid = .TRUE.
-      ELSE IF (fft_type .EQ. 4) THEN
-         CALL spfft_create_plan_1d(plan(1))
-         CALL spfft_create_plan_1d(plan(2))
-         plan(1)%valid = .TRUE.
-         plan(2)%valid = .TRUE.
-      ELSE
-         plan(1)%valid = .FALSE.
-         plan(2)%valid = .FALSE.
-      END IF
+      IF ((n1 > 0) .AND. (m > 0) .AND. (n2 > 0)) THEN
+         ! Planning only needed for FFTW3
+         IF (fft_type .EQ. 3) THEN
+            CALL fftw3_create_plan_1d(plan(1), zin, zintermed)
+            CALL fftw3_create_plan_1d(plan(2), zintermed, zout)
+            plan(1)%valid = .TRUE.
+            plan(2)%valid = .TRUE.
+         ELSE IF (fft_type .EQ. 4) THEN
+            CALL spfft_create_plan_1d(plan(1))
+            CALL spfft_create_plan_1d(plan(2))
+            plan(1)%valid = .TRUE.
+            plan(2)%valid = .TRUE.
+         ELSE
+            plan(1)%valid = .FALSE.
+            plan(2)%valid = .FALSE.
+         END IF
       ELSE
          plan(1)%valid = .FALSE.
          plan(2)%valid = .FALSE.
@@ -319,22 +319,21 @@ IF ((n1 > 0) .AND. (m > 0) .AND. (n2 > 0)) THEN
 ! Planning only needed for FFTW3
 
       IF (plan%valid) THEN
-      IF (plan%fft_type == 3) THEN
-         CALL fftw3_destroy_plan(plan)
-         plan%valid = .FALSE.
-      ELSE IF (plan%fft_type == 4) THEN
-         CALL spfft_destroy_plan(plan)
-         plan%valid = .FALSE.
+         IF (plan%fft_type == 3) THEN
+            CALL fftw3_destroy_plan(plan)
+            plan%valid = .FALSE.
+         ELSE IF (plan%fft_type == 4) THEN
+            CALL spfft_destroy_plan(plan)
+            plan%valid = .FALSE.
          ELSE IF (plan%fft_type == -1) THEN
-      IF (fft_type == 3) THEN
-         CALL fftw3_destroy_plan(plan)
-         plan%valid = .FALSE.
-      ELSE IF (fft_type == 4) THEN
-         CALL spfft_destroy_plan(plan)
-         plan%valid = .FALSE.
-         ELSE IF (plan%fft_type == -1) THEN
-      END IF
-      END IF
+            IF (fft_type == 3) THEN
+               CALL fftw3_destroy_plan(plan)
+               plan%valid = .FALSE.
+            ELSE IF (fft_type == 4) THEN
+               CALL spfft_destroy_plan(plan)
+               plan%valid = .FALSE.
+            END IF
+         END IF
       END IF
 
    END SUBROUTINE
