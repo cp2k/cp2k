@@ -32,9 +32,9 @@ MODULE fft_tools
                                               C_SIZE_T
    USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
    USE fft_lib,                         ONLY: &
-        BWFFT, FWFFT, fft_1d, fft_2d, fft_3d, fft_alloc, fft_create_plan_1d, fft_create_plan_2d, &
-        fft_create_plan_3d, fft_dealloc, fft_destroy_plan, fft_do_cleanup, fft_do_init, &
-        fft_get_lengths, fft_type
+        BWFFT, FWFFT, fft_1d, fft_2d, fft_3d, fft_alloc, fft_arbitrary_lengths_available, &
+        fft_create_plan_1d, fft_create_plan_2d, fft_create_plan_3d, fft_dealloc, fft_destroy_plan, &
+        fft_do_cleanup, fft_do_init, fft_get_lengths
    USE fft_plan,                        ONLY: fft_plan_type
    USE kinds,                           ONLY: dp,&
                                               dp_size,&
@@ -155,7 +155,7 @@ MODULE fft_tools
    PUBLIC :: cube_transpose_1, cube_transpose_2
    PUBLIC :: yz_to_x, x_to_yz, xz_to_yz, yz_to_xz
    PUBLIC :: fft_scratch_sizes, fft_scratch_type
-   PUBLIC :: fft_type
+   PUBLIC :: fft_arbitrary_lengths_available
 
    INTERFACE fft3d
       MODULE PROCEDURE fft3d_s, fft3d_ps, fft3d_pb
@@ -327,7 +327,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      IF (fft_type == 3) THEN
+      IF (fft_arbitrary_lengths_available()) THEN
          CALL fft_create_plan_1d(fft_plan, FWFFT, trans, n, m, zin, zout)
          CALL fft_1d(fft_plan, zin, zout, scale, stat)
          CALL fft_destroy_plan(fft_plan)

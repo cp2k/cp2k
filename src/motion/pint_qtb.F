@@ -23,7 +23,7 @@ MODULE pint_qtb
                                               fft_destroy_plan
    USE fft_plan,                        ONLY: fft_plan_type
    USE fft_tools,                       ONLY: FWFFT,&
-                                              fft_type
+                                              fft_arbitrary_lengths_available
    USE input_constants,                 ONLY: propagator_rpmd
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
@@ -274,8 +274,8 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      IF (fft_type /= 3) CALL cp_warn(__LOCATION__, "The FFT library in use cannot"// &
-                                      " handle transformation of an arbitrary length.")
+      IF (.NOT. fft_arbitrary_lengths_available()) CALL cp_warn(__LOCATION__, "The FFT library in use cannot"// &
+                                                                " handle transformation of an arbitrary length.")
 
       p = pint_env%p
       ndim = pint_env%ndim
