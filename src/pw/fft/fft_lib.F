@@ -153,20 +153,17 @@ CONTAINS
 !> \brief ...
 !> \param plan ...
 !> \param fft_in_place ...
-!> \param fsign ...
 !> \param n ...
 !> \param zin ...
 !> \param zout ...
 ! **************************************************************************************************
-   SUBROUTINE fft_create_plan_3d(plan, fft_in_place, fsign, n, zin, zout)
+   SUBROUTINE fft_create_plan_3d(plan, fft_in_place, n, zin, zout)
 
       TYPE(fft_plan_type), INTENT(INOUT)                 :: plan
       LOGICAL, INTENT(IN)                                :: fft_in_place
-      INTEGER, INTENT(IN)                                :: fsign
       INTEGER, DIMENSION(3), INTENT(IN)                  :: n
       COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT)      :: zin, zout
 
-      plan%fsign = fsign
       plan%fft_in_place = fft_in_place
       plan%n_3d = n
 !$    plan%need_alt_plan = .FALSE.
@@ -243,13 +240,15 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief ...
 !> \param plan ...
+!> \param fsign ...
 !> \param scale ...
 !> \param zin ...
 !> \param zout ...
 !> \param stat ...
 ! **************************************************************************************************
-   SUBROUTINE fft_3d(plan, scale, zin, zout, stat)
+   SUBROUTINE fft_3d(plan, fsign, scale, zin, zout, stat)
       TYPE(fft_plan_type), INTENT(IN)                    :: plan
+      INTEGER, INTENT(IN)                                :: fsign
       REAL(KIND=dp), INTENT(IN)                          :: scale
       COMPLEX(KIND=dp), DIMENSION(:, :, :), &
          INTENT(INOUT)                                   :: zin, zout
@@ -261,11 +260,11 @@ CONTAINS
          CASE DEFAULT
             CPABORT("fft_3d")
          CASE (1)
-            CALL fftsg_3d(plan%fft_in_place, stat, scale, plan%n_3d, zin, zout)
+            CALL fftsg_3d(plan%fft_in_place, fsign, scale, plan%n_3d, zin, zout)
          CASE (3)
-            CALL fftw3_3d(plan, scale, zin, zout, stat)
+            CALL fftw3_3d(plan, fsign, scale, zin, zout, stat)
          CASE (4)
-            CALL spfft_3d(plan, scale, zin, zout, stat)
+            CALL spfft_3d(plan, fsign, scale, zin, zout, stat)
          END SELECT
       END IF
       ! stat is set to zero on error, -1,+1 are OK

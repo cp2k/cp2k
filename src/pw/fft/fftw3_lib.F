@@ -691,7 +691,7 @@ CONTAINS
                                                             dim_ostride(2), hm_n(2), &
                                                             hm_istride(2), hm_ostride(2)
       COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT)      :: input, output
-      INTEGER, INTENT(INOUT)                             :: fft_direction
+      INTEGER, INTENT(IN)                                :: fft_direction
       INTEGER, INTENT(IN)                                :: rows_per_th, rows_per_th_r
 
       LOGICAL                                            :: valid
@@ -737,19 +737,12 @@ CONTAINS
       INTEGER                                            :: nt
       INTEGER                                            :: rows_per_th
       INTEGER                                            :: rows_per_th_r
-      INTEGER                                            :: fft_direction
       INTEGER                                            :: th_planA, th_planB
       COMPLEX(KIND=dp), ALLOCATABLE                      :: tmp(:)
 
       ! GURU Interface
       INTEGER :: dim_n(2), dim_istride(2), dim_ostride(2), &
                  howmany_n(2), howmany_istride(2), howmany_ostride(2)
-
-      IF (plan%fsign == FWFFT) THEN
-         fft_direction = FFTW_FORWARD
-      ELSE
-         fft_direction = FFTW_BACKWARD
-      END IF
 
       n1 = plan%n_3d(1)
       n2 = plan%n_3d(2)
@@ -778,9 +771,11 @@ CONTAINS
 !$       CALL fftw_plan_with_nthreads(nt)
 
          IF (plan%fft_in_place) THEN
-            plan%fftw_plan = fftw_plan_dft_3d(n3, n2, n1, zin, zin, fft_direction, fftw_plan_type)
+            plan%fftw_plan_fw = fftw_plan_dft_3d(n3, n2, n1, zin, zin, FFTW_FORWARD, fftw_plan_type)
+            plan%fftw_plan_bw = fftw_plan_dft_3d(n3, n2, n1, zin, zin, FFTW_BACKWARD, fftw_plan_type)
          ELSE
-            plan%fftw_plan = fftw_plan_dft_3d(n3, n2, n1, zin, zout, fft_direction, fftw_plan_type)
+            plan%fftw_plan_fw = fftw_plan_dft_3d(n3, n2, n1, zin, zout, FFTW_FORWARD, fftw_plan_type)
+            plan%fftw_plan_bw = fftw_plan_dft_3d(n3, n2, n1, zin, zout, FFTW_BACKWARD, fftw_plan_type)
          END IF
       ELSE
          ALLOCATE (tmp(n1*n2*n3))
@@ -820,10 +815,15 @@ CONTAINS
          howmany_istride(2) = n1*n2
          howmany_ostride(1) = 1
          howmany_ostride(2) = n1*n2
-         CALL fftw3_create_3d_plans(plan%fftw_plan_nx, plan%fftw_plan_nx_r, &
+         CALL fftw3_create_3d_plans(plan%fftw_plan_nx_fw, plan%fftw_plan_nx_r_fw, &
                                     dim_n, dim_istride, dim_ostride, howmany_n, &
                                     howmany_istride, howmany_ostride, &
-                                    zin, tmp, fft_direction, rows_per_th, &
+                                    zin, tmp, FFTW_FORWARD, rows_per_th, &
+                                    rows_per_th_r)
+         CALL fftw3_create_3d_plans(plan%fftw_plan_nx_bw, plan%fftw_plan_nx_r_bw, &
+                                    dim_n, dim_istride, dim_ostride, howmany_n, &
+                                    howmany_istride, howmany_ostride, &
+                                    zin, tmp, FFTW_BACKWARD, rows_per_th, &
                                     rows_per_th_r)
 
          !!!! Plan for Y : M(n3,n1,n2) -> fftw(y) -> M(n1,n2,n3)
@@ -840,10 +840,15 @@ CONTAINS
          howmany_ostride(1) = n2*n3
          howmany_ostride(2) = 1
 
-         CALL fftw3_create_3d_plans(plan%fftw_plan_ny, plan%fftw_plan_ny_r, &
+         CALL fftw3_create_3d_plans(plan%fftw_plan_ny_fw, plan%fftw_plan_ny_r_fw, &
                                     dim_n, dim_istride, dim_ostride, &
                                     howmany_n, howmany_istride, howmany_ostride, &
-                                    tmp, zin, fft_direction, rows_per_th, &
+                                    tmp, zin, FFTW_FORWARD, rows_per_th, &
+                                    rows_per_th_r)
+         CALL fftw3_create_3d_plans(plan%fftw_plan_ny_bw, plan%fftw_plan_ny_r_bw, &
+                                    dim_n, dim_istride, dim_ostride, &
+                                    howmany_n, howmany_istride, howmany_ostride, &
+                                    tmp, zin, FFTW_BACKWARD, rows_per_th, &
                                     rows_per_th_r)
 
          !!!! Plan for Z : M(n1,n2,n3) -> fftw(z) -> M(n1,n2,n3)
@@ -859,10 +864,15 @@ CONTAINS
          howmany_ostride(1) = n3     ! To transpose: n1
          howmany_ostride(2) = n2*n3  ! To transpose: 1
 
-         CALL fftw3_create_3d_plans(plan%fftw_plan_nz, plan%fftw_plan_nz_r, &
+         CALL fftw3_create_3d_plans(plan%fftw_plan_nz_fw, plan%fftw_plan_nz_r_fw, &
                                     dim_n, dim_istride, dim_ostride, &
                                     howmany_n, howmany_istride, howmany_ostride, &
-                                    zin, tmp, fft_direction, rows_per_th, &
+                                    zin, tmp, FFTW_FORWARD, rows_per_th, &
+                                    rows_per_th_r)
+         CALL fftw3_create_3d_plans(plan%fftw_plan_nz_bw, plan%fftw_plan_nz_r_bw, &
+                                    dim_n, dim_istride, dim_ostride, &
+                                    howmany_n, howmany_istride, howmany_ostride, &
+                                    zin, tmp, FFTW_BACKWARD, rows_per_th, &
                                     rows_per_th_r)
 
          plan%separated_plans = .TRUE.
@@ -958,9 +968,10 @@ CONTAINS
 !> \param zout ...
 !> \param stat ...
 ! **************************************************************************************************
-   SUBROUTINE fftw3_3d(plan, scale, zin, zout, stat)
+   SUBROUTINE fftw3_3d(plan, fsign, scale, zin, zout, stat)
 
       TYPE(fft_plan_type), INTENT(IN)                      :: plan
+      INTEGER, INTENT(IN)                                  :: fsign
       REAL(KIND=dp), INTENT(IN)                            :: scale
       COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT), TARGET :: zin, zout
       INTEGER, INTENT(OUT)                                 :: stat
@@ -986,42 +997,61 @@ CONTAINS
 
       ! Either compute the full 3D FFT using a multithreaded plan
       IF (.NOT. plan%separated_plans) THEN
-         CALL fftw_execute_dft(plan%fftw_plan, zin, xout)
+      IF (fsign == FWFFT) THEN
+         CALL fftw_execute_dft(plan%fftw_plan_fw, zin, xout)
       ELSE
-         ! Or use the 3 stage FFT scheme described in fftw3_create_plan_3d
-         ALLOCATE (tmp1(n1*n2*n3))   ! Temporary vector used for transpositions
-         !$OMP PARALLEL DEFAULT(NONE) PRIVATE(tid,nt,i,j,k) SHARED(zin,tmp1,n1,n2,n3,plan,xout)
-         tid = 0
-         nt = 1
+         CALL fftw_execute_dft(plan%fftw_plan_bw, zin, xout)
+      END IF
+      ELSE
+      ! Or use the 3 stage FFT scheme described in fftw3_create_plan_3d
+      ALLOCATE (tmp1(n1*n2*n3))   ! Temporary vector used for transpositions
+      !$OMP PARALLEL DEFAULT(NONE) PRIVATE(tid,nt,i,j,k) SHARED(zin,tmp1,n1,n2,n3,plan,xout,fsign)
+      tid = 0
+      nt = 1
 
-!$       tid = omp_get_thread_num()
-!$       nt = omp_get_num_threads()
-         CALL fftw3_workshare_execute_dft(plan%fftw_plan_nx, plan%fftw_plan_nx_r, &
+!$    tid = omp_get_thread_num()
+!$    nt = omp_get_num_threads()
+      IF (fsign == FWFFT) THEN
+         CALL fftw3_workshare_execute_dft(plan%fftw_plan_nx_fw, plan%fftw_plan_nx_r_fw, &
                                           n3, nt, tid, &
                                           zin, n1*n2, tmp1, n1*n2)
 
          !$OMP BARRIER
-         CALL fftw3_workshare_execute_dft(plan%fftw_plan_ny, plan%fftw_plan_ny_r, &
+         CALL fftw3_workshare_execute_dft(plan%fftw_plan_ny_fw, plan%fftw_plan_ny_r_fw, &
                                           n3, nt, tid, &
                                           tmp1, n1*n2, xout, 1)
          !$OMP BARRIER
-         CALL fftw3_workshare_execute_dft(plan%fftw_plan_nz, plan%fftw_plan_nz_r, &
+         CALL fftw3_workshare_execute_dft(plan%fftw_plan_nz_fw, plan%fftw_plan_nz_r_fw, &
                                           n1, nt, tid, &
                                           xout, n2*n3, tmp1, n2*n3)
-         !$OMP BARRIER
+      ELSE
+         CALL fftw3_workshare_execute_dft(plan%fftw_plan_nx_bw, plan%fftw_plan_nx_r_bw, &
+                                          n3, nt, tid, &
+                                          zin, n1*n2, tmp1, n1*n2)
 
-         !$OMP DO COLLAPSE(3)
-         DO i = 1, n1
-            DO j = 1, n2
-               DO k = 1, n3
-                  xout((i - 1) + (j - 1)*n1 + (k - 1)*n1*n2 + 1) = &
-                     tmp1((k - 1) + (j - 1)*n3 + (i - 1)*n3*n2 + 1)
-               END DO
+         !$OMP BARRIER
+         CALL fftw3_workshare_execute_dft(plan%fftw_plan_ny_bw, plan%fftw_plan_ny_r_bw, &
+                                          n3, nt, tid, &
+                                          tmp1, n1*n2, xout, 1)
+         !$OMP BARRIER
+         CALL fftw3_workshare_execute_dft(plan%fftw_plan_nz_bw, plan%fftw_plan_nz_r_bw, &
+                                          n1, nt, tid, &
+                                          xout, n2*n3, tmp1, n2*n3)
+      END IF
+      !$OMP BARRIER
+
+      !$OMP DO COLLAPSE(3)
+      DO i = 1, n1
+         DO j = 1, n2
+            DO k = 1, n3
+               xout((i - 1) + (j - 1)*n1 + (k - 1)*n1*n2 + 1) = &
+                  tmp1((k - 1) + (j - 1)*n3 + (i - 1)*n3*n2 + 1)
             END DO
          END DO
-         !$OMP END DO
+      END DO
+      !$OMP END DO
 
-         !$OMP END PARALLEL
+      !$OMP END PARALLEL
       END IF
 
       IF (scale /= 1.0_dp) THEN
@@ -1128,10 +1158,14 @@ CONTAINS
 #if defined ( __FFTW3 )
 !$    IF (plan%need_alt_plan) THEN
 !$       CALL fftw_destroy_plan(plan%alt_fftw_plan)
+!$       CALL fftw_destroy_plan(plan%alt_fftw_plan_fw)
+!$       CALL fftw_destroy_plan(plan%alt_fftw_plan_bw)
 !$    END IF
 
       IF (.NOT. plan%separated_plans) THEN
          CALL fftw_destroy_plan(plan%fftw_plan)
+         CALL fftw_destroy_plan(plan%fftw_plan_fw)
+         CALL fftw_destroy_plan(plan%fftw_plan_bw)
       ELSE
          ! If it is a separated plan then we have to destroy
          ! each dim plan individually
@@ -1141,6 +1175,18 @@ CONTAINS
          CALL fftw_destroy_plan(plan%fftw_plan_nx_r)
          CALL fftw_destroy_plan(plan%fftw_plan_ny_r)
          CALL fftw_destroy_plan(plan%fftw_plan_nz_r)
+         CALL fftw_destroy_plan(plan%fftw_plan_nx_fw)
+         CALL fftw_destroy_plan(plan%fftw_plan_ny_fw)
+         CALL fftw_destroy_plan(plan%fftw_plan_nz_fw)
+         CALL fftw_destroy_plan(plan%fftw_plan_nx_r_fw)
+         CALL fftw_destroy_plan(plan%fftw_plan_ny_r_fw)
+         CALL fftw_destroy_plan(plan%fftw_plan_nz_r_fw)
+         CALL fftw_destroy_plan(plan%fftw_plan_nx_bw)
+         CALL fftw_destroy_plan(plan%fftw_plan_ny_bw)
+         CALL fftw_destroy_plan(plan%fftw_plan_nz_bw)
+         CALL fftw_destroy_plan(plan%fftw_plan_nx_r_bw)
+         CALL fftw_destroy_plan(plan%fftw_plan_ny_r_bw)
+         CALL fftw_destroy_plan(plan%fftw_plan_nz_r_bw)
       END IF
 
 #else

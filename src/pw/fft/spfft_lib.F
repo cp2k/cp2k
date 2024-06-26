@@ -25,7 +25,7 @@ MODULE spfft_lib
    USE spfft, ONLY: &
       spfft_transform_create_independent, SPFFT_PU_HOST, SPFFT_PU_GPU, SPFFT_SUCCESS, &
       SPFFT_TRANS_C2C, SPFFT_INDEX_TRIPLETS, spfft_transform_destroy, SPFFT_NO_SCALING, spfft_transform_get_space_domain, &
-      spfft_transform_forward, spfft_multi_transform_forward_ptr
+      spfft_transform_forward, spfft_multi_transform_forward_ptr, spfft_transform_backward
    USE omp_lib, ONLY: omp_get_thread_num
 #endif
    USE cp_files, ONLY: get_unit_number
@@ -130,15 +130,17 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief ...
 !> \param plan ...
+!> \param fsign ...
 !> \param scale ...
 !> \param zin ...
 !> \param zout ...
 !> \param stat ...
 ! **************************************************************************************************
-   SUBROUTINE spfft_3d(plan, scale, zin, zout, stat)
+   SUBROUTINE spfft_3d(plan, fsign, scale, zin, zout, stat)
 
       TYPE(fft_plan_type), INTENT(IN)                      :: plan
       REAL(KIND=dp), INTENT(IN)                            :: scale
+      INTEGER, INTENT(IN)                                  :: fsign
       COMPLEX(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT), CONTIGUOUS, TARGET :: zin
       COMPLEX(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT), CONTIGUOUS, TARGET :: zout
       INTEGER, INTENT(OUT)                                 :: stat
@@ -153,7 +155,11 @@ CONTAINS
 
       CALL C_F_POINTER(spfft_ptr, complex_ptr, plan%n_3d)
 
-      errorCode = spfft_transform_forward(plan%spfft_transform, SPFFT_PU_HOST, zin, SPFFT_NO_SCALING)
+      IF (fsign == FWFFT) THEN
+         errorCode = spfft_transform_forward(plan%spfft_transform, SPFFT_PU_HOST, zin, SPFFT_NO_SCALING)
+      ELSE
+         errorCode = spfft_transform_backward(plan%spfft_transform, zin, SPFFT_PU_HOST)
+      END IF
       IF (errorCode /= SPFFT_SUCCESS) CPABORT("FFT with SpFFT failed!")
 
 !$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(zout, scale, complex_ptr)
@@ -164,6 +170,7 @@ CONTAINS
       MARK_USED(zin)
       MARK_USED(zout)
       MARK_USED(scale)
+      MARK_USED(fsign)
       CPABORT("In order to use SPFFT, you have to install it!")
 #endif
       stat = 0

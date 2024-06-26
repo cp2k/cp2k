@@ -414,17 +414,9 @@ CONTAINS
 
       IF (fft_in_place) THEN
          zoptr => zdum
-         IF (fsign == FWFFT) THEN
-            CALL fft_3d(fft_scratch%fft_plan(1), norm, zin, zoptr, stat)
-         ELSE
-            CALL fft_3d(fft_scratch%fft_plan(2), norm, zin, zoptr, stat)
-         END IF
+         CALL fft_3d(fft_scratch%fft_plan(1), fsign, norm, zin, zoptr, stat)
       ELSE
-         IF (fsign == FWFFT) THEN
-            CALL fft_3d(fft_scratch%fft_plan(3), norm, zin, zout, stat)
-         ELSE
-            CALL fft_3d(fft_scratch%fft_plan(4), norm, zin, zout, stat)
-         END IF
+         CALL fft_3d(fft_scratch%fft_plan(2), fsign, norm, zin, zout, stat)
       END IF
 
       CALL release_fft_scratch(fft_scratch)
@@ -3181,14 +3173,10 @@ CONTAINS
                CALL fft_alloc(fft_scratch_new%fft_scratch%zoptr, n)
 
                !in place plans
-               CALL fft_create_plan_3d(fft_scratch_new%fft_scratch%fft_plan(1), .TRUE., FWFFT, n, &
-                                       fft_scratch_new%fft_scratch%ziptr, fft_scratch_new%fft_scratch%ziptr)
-               CALL fft_create_plan_3d(fft_scratch_new%fft_scratch%fft_plan(2), .TRUE., BWFFT, n, &
+               CALL fft_create_plan_3d(fft_scratch_new%fft_scratch%fft_plan(1), .TRUE., n, &
                                        fft_scratch_new%fft_scratch%ziptr, fft_scratch_new%fft_scratch%ziptr)
                ! out of place plans
-               CALL fft_create_plan_3d(fft_scratch_new%fft_scratch%fft_plan(3), .FALSE., FWFFT, n, &
-                                       fft_scratch_new%fft_scratch%ziptr, fft_scratch_new%fft_scratch%zoptr)
-               CALL fft_create_plan_3d(fft_scratch_new%fft_scratch%fft_plan(4), .FALSE., BWFFT, n, &
+               CALL fft_create_plan_3d(fft_scratch_new%fft_scratch%fft_plan(2), .FALSE., n, &
                                        fft_scratch_new%fft_scratch%ziptr, fft_scratch_new%fft_scratch%zoptr)
 
             END SELECT
