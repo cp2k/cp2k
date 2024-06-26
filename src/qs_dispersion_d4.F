@@ -121,7 +121,7 @@ CONTAINS
             ALLOCATE (gradient(3, mol%nat))
             CALL get_dispersion(mol, disp, param, cutoff, energy, gradient, stress)
             IF (PRESENT(virial)) THEN
-               virial = stress
+               virial = -1.00_dp*stress
             END IF
             DO iatom = 1, natom
                ikind = el_num(iatom)
