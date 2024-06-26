@@ -15,9 +15,9 @@ MODULE gw_small_cell_full_kp
    USE cp_cfm_types,                    ONLY: cp_cfm_create,&
                                               cp_cfm_get_info,&
                                               cp_cfm_release,&
+                                              cp_cfm_to_cfm,&
                                               cp_cfm_to_fm,&
-                                              cp_cfm_type,&
-                                              cp_fm_to_cfm
+                                              cp_cfm_type
    USE cp_dbcsr_api,                    ONLY: dbcsr_create,&
                                               dbcsr_distribution_release,&
                                               dbcsr_distribution_type,&
@@ -50,7 +50,6 @@ MODULE gw_small_cell_full_kp
    USE gw_utils,                        ONLY: add_R,&
                                               analyt_conti_and_print,&
                                               de_init_bs_env,&
-                                              get_VBM_CBM_bandgaps,&
                                               is_cell_in_index_to_cell,&
                                               time_to_freq
    USE kinds,                           ONLY: dp
@@ -63,6 +62,7 @@ MODULE gw_small_cell_full_kp
    USE particle_methods,                ONLY: get_particle_set
    USE particle_types,                  ONLY: particle_type
    USE post_scf_bandstructure_types,    ONLY: post_scf_bandstructure_type
+   USE post_scf_bandstructure_utils,    ONLY: get_all_VBM_CBM_bandgaps
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_kind_types,                   ONLY: qs_kind_type
@@ -417,8 +417,7 @@ CONTAINS
       DO ikp = 1, nkp
 
          ! get C_µn(k)
-         CALL cp_fm_to_cfm(bs_env%fm_mo_coeff_kp(ikp, ispin, 1), &
-                           bs_env%fm_mo_coeff_kp(ikp, ispin, 2), bs_env%cfm_work_mo)
+         CALL cp_cfm_to_cfm(bs_env%cfm_mo_coeff_kp(ikp, ispin), bs_env%cfm_work_mo)
 
          ! G^occ/vir_µλ(i|τ|,k) = sum_n^occ/vir C_µn(k)^* e^(-|(ϵ_nk-ϵ_F)τ|) C_λn(k)
          DO j_col_local = 1, ncol_local
@@ -1763,8 +1762,7 @@ CONTAINS
          DO ikp = 1, bs_env%nkp_bs_and_DOS
 
             ! 1. get C_µn(k)
-            CALL cp_fm_to_cfm(bs_env%fm_mo_coeff_kp(ikp, ispin, 1), &
-                              bs_env%fm_mo_coeff_kp(ikp, ispin, 2), cfm_mo_coeff)
+            CALL cp_cfm_to_cfm(bs_env%cfm_mo_coeff_kp(ikp, ispin), cfm_mo_coeff)
 
             ! 2. Σ^x_µν(k) = sum_R Σ^x_µν^R e^ikR
             !    Σ^x_nn(k) = sum_µν C^*_µn(k) Σ^x_µν(k) C_νn(k)
@@ -1792,7 +1790,7 @@ CONTAINS
 
       END DO ! ispin
 
-      CALL get_VBM_CBM_bandgaps(bs_env)
+      CALL get_all_VBM_CBM_bandgaps(bs_env)
 
       CALL cp_cfm_release(cfm_mo_coeff)
 

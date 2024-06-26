@@ -2064,6 +2064,15 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="REGULARIZATION_RI", &
+                          description="Parameter for RI regularization, setting a negative "// &
+                          "value triggers the default value. Affects RI basis set convergence "// &
+                          "but in any case large RI basis will give RI basis set convergence.", &
+                          usage="REGULARIZATION_RI 1.0E-4", &
+                          default_r_val=-1.0_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       CALL keyword_create(keyword, __LOCATION__, name="MEMORY_PER_PROC", &
                           description="Specify the available memory per MPI process. Set "// &
                           "`MEMORY_PER_PROC` as accurately as possible for good performance. If "// &

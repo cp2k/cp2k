@@ -8,10 +8,7 @@
 MODULE soc_pseudopotential_methods
    USE atomic_kind_types,               ONLY: atomic_kind_type
    USE core_ppnl,                       ONLY: build_core_ppnl
-   USE cp_cfm_types,                    ONLY: cp_cfm_create,&
-                                              cp_cfm_get_info,&
-                                              cp_cfm_set_all,&
-                                              cp_cfm_to_cfm,&
+   USE cp_cfm_types,                    ONLY: cp_cfm_get_info,&
                                               cp_cfm_type
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_api,                    ONLY: dbcsr_add,&
@@ -26,7 +23,6 @@ MODULE soc_pseudopotential_methods
                                               copy_fm_to_dbcsr,&
                                               dbcsr_allocate_matrix_set,&
                                               dbcsr_deallocate_matrix_set
-   USE cp_fm_struct,                    ONLY: cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_get_info,&
                                               cp_fm_release,&
@@ -34,9 +30,6 @@ MODULE soc_pseudopotential_methods
    USE kinds,                           ONLY: dp
    USE kpoint_types,                    ONLY: get_kpoint_info,&
                                               kpoint_type
-   USE mathconstants,                   ONLY: gaussi,&
-                                              z_one,&
-                                              z_zero
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE particle_types,                  ONLY: particle_type
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -45,9 +38,6 @@ MODULE soc_pseudopotential_methods
    USE qs_kind_types,                   ONLY: qs_kind_type
    USE qs_neighbor_list_types,          ONLY: get_neighbor_list_set_p,&
                                               neighbor_list_set_p_type
-   USE soc_pseudopotential_utils,       ONLY: add_dbcsr_submat,&
-                                              add_fm_submat,&
-                                              create_cfm_double
    USE virial_types,                    ONLY: virial_type
 #include "./base/base_uses.f90"
 
@@ -57,14 +47,15 @@ MODULE soc_pseudopotential_methods
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'soc_pseudopotential_methods'
 
-   PUBLIC :: V_SOC_xyz_from_pseudopotential, H_KS_spinor, remove_soc_outside_energy_window_ao, &
+   PUBLIC :: V_SOC_xyz_from_pseudopotential, &
+             remove_soc_outside_energy_window_ao, &
              remove_soc_outside_energy_window_mo
 
 CONTAINS
 
 ! **************************************************************************************************
-!> \brief Compute V^SOC_µν^(α) = ħ/2 < ϕ_µ | sum_ℓ ΔV_ℓ^SO(r,r') L^(α) | ϕ_ν >, α = x, y, z, see
-!>        Hartwigsen, Goedecker, Hutter, Eq.(18), (19) (doi.org/10.1103/PhysRevB.58.3641)
+!> \brief V^SOC_µν^(α),R = ħ/2 < ϕ_µ cell O | sum_ℓ ΔV_ℓ^SO(r,r') L^(α) | ϕ_ν cell R>, α = x,y,z
+!>        see Hartwigsen, Goedecker, Hutter, Eq.(18), (19) (doi.org/10.1103/PhysRevB.58.3641)
 !>        Caution: V^SOC_µν^(α) is purely imaginary and Hermitian; V^SOC_µν^(α) is stored as real
 !>                 dbcsr matrix mat_V_SOC_xyz without symmetry; V^SOC_µν^(α) is stored without
 !>                 the imaginary unit, i.e. mat_V_SOC_xyz is real and antisymmetric
@@ -72,6 +63,7 @@ CONTAINS
 !> \param mat_V_SOC_xyz ...
 !> \par History
 !>    * 09.2023 created
+!> \author Jan Wilhelm
 ! **************************************************************************************************
    SUBROUTINE V_SOC_xyz_from_pseudopotential(qs_env, mat_V_SOC_xyz)
       TYPE(qs_environment_type), POINTER                 :: qs_env
@@ -143,16 +135,16 @@ CONTAINS
                            eps_ppnl, nimages=nimages, cell_to_index=cell_to_index, &
                            basis_type="ORB", matrix_l=mat_l)
 
-! JW TODO: 1 -> nimages and TEST THIS!!!
-
       NULLIFY (mat_l_nosym)
       CALL dbcsr_allocate_matrix_set(mat_l_nosym, 3, nimages)
       DO xyz = 1, 3
          DO img = 1, nimages
+
             ALLOCATE (mat_l_nosym(xyz, img)%matrix)
             CALL dbcsr_create(mat_l_nosym(xyz, img)%matrix, template=matrix_s(1, 1)%matrix, &
                               matrix_type=dbcsr_type_no_symmetry)
             CALL dbcsr_desymmetrize(mat_l(xyz, img)%matrix, mat_l_nosym(xyz, img)%matrix)
+
          END DO
       END DO
 
@@ -177,77 +169,6 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE V_SOC_xyz_from_pseudopotential
-
-! **************************************************************************************************
-!> \brief Spinor KS-matrix H_µν,σσ' = h_µν,σ*δ_σσ' + sum_α V^SOC_µν^(α)*Pauli-matrix^(α)_σσ', see
-!>        Hartwigsen, Goedecker, Hutter, Eq.(18) (doi.org/10.1103/PhysRevB.58.3641)
-!> \param cfm_ks_spinor_ao ...
-!> \param fm_ks ...
-!> \param n_spin ...
-!> \param mat_V_SOC_xyz ...
-!> \param cfm_s_double ...
-!> \param fm_s ...
-!> \param cfm_SOC_spinor_ao ...
-! **************************************************************************************************
-   SUBROUTINE H_KS_spinor(cfm_ks_spinor_ao, fm_ks, n_spin, mat_V_SOC_xyz, cfm_s_double, fm_s, &
-                          cfm_SOC_spinor_ao)
-      TYPE(cp_cfm_type)                                  :: cfm_ks_spinor_ao
-      TYPE(cp_fm_type), DIMENSION(:)                     :: fm_ks
-      INTEGER                                            :: n_spin
-      TYPE(dbcsr_p_type), DIMENSION(:)                   :: mat_V_SOC_xyz
-      TYPE(cp_cfm_type), OPTIONAL                        :: cfm_s_double
-      TYPE(cp_fm_type), OPTIONAL                         :: fm_s
-      TYPE(cp_cfm_type), OPTIONAL                        :: cfm_SOC_spinor_ao
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'H_KS_spinor'
-
-      INTEGER                                            :: handle, nao, s
-      TYPE(cp_fm_struct_type), POINTER                   :: str
-
-      CALL timeset(routineN, handle)
-
-      CALL cp_fm_get_info(fm_ks(1), nrow_global=nao)
-
-      CALL create_cfm_double(fm_ks(1), cfm_ks_spinor_ao)
-      CALL cp_cfm_set_all(cfm_ks_spinor_ao, z_zero)
-
-      str => fm_ks(1)%matrix_struct
-
-      s = nao + 1
-
-      CALL add_dbcsr_submat(cfm_ks_spinor_ao, mat_V_SOC_xyz(1)%matrix, str, s, 1, z_one, .TRUE.)
-      CALL add_dbcsr_submat(cfm_ks_spinor_ao, mat_V_SOC_xyz(2)%matrix, str, s, 1, gaussi, .TRUE.)
-      CALL add_dbcsr_submat(cfm_ks_spinor_ao, mat_V_SOC_xyz(3)%matrix, str, 1, 1, z_one, .FALSE.)
-      CALL add_dbcsr_submat(cfm_ks_spinor_ao, mat_V_SOC_xyz(3)%matrix, str, s, s, -z_one, .FALSE.)
-
-      IF (PRESENT(cfm_SOC_spinor_ao)) THEN
-         CALL cp_cfm_create(cfm_SOC_spinor_ao, cfm_ks_spinor_ao%matrix_struct)
-         CALL cp_cfm_to_cfm(cfm_ks_spinor_ao, cfm_SOC_spinor_ao)
-      END IF
-
-      CALL add_fm_submat(cfm_ks_spinor_ao, fm_ks(1), 1, 1)
-
-      SELECT CASE (n_spin)
-      CASE (1)
-         CALL add_fm_submat(cfm_ks_spinor_ao, fm_ks(1), s, s)
-      CASE (2)
-         CPASSERT(SIZE(fm_ks) == 2)
-         CALL add_fm_submat(cfm_ks_spinor_ao, fm_ks(2), s, s)
-      CASE DEFAULT
-         CPABORT("We have either one or two spin channels.")
-      END SELECT
-
-      IF (PRESENT(cfm_s_double)) THEN
-         CPASSERT(PRESENT(fm_s))
-         CALL create_cfm_double(fm_s, cfm_s_double)
-         CALL cp_cfm_set_all(cfm_s_double, z_zero)
-         CALL add_fm_submat(cfm_s_double, fm_s, 1, 1)
-         CALL add_fm_submat(cfm_s_double, fm_s, s, s)
-      END IF
-
-      CALL timestop(handle)
-
-   END SUBROUTINE H_KS_spinor
 
 ! **************************************************************************************************
 !> \brief Remove SOC outside of energy window (otherwise, numerical problems arise
