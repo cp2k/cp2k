@@ -29,8 +29,7 @@ MODULE negf_integr_cc
                                               fft_dealloc,&
                                               fft_fw1d
    USE kahan_sum,                       ONLY: accurate_sum
-   USE kinds,                           ONLY: dp,&
-                                              int_8
+   USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: z_one,&
                                               z_zero
    USE negf_integr_utils,               ONLY: contour_shape_arc,&
@@ -438,9 +437,6 @@ CONTAINS
       REAL(kind=dp)                                      :: rscale
       REAL(kind=dp), ALLOCATABLE, DIMENSION(:)           :: weights
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
-
-!      TYPE(fft_plan_type)                                :: fft_plan
-!      INTEGER(kind=int_8)                                :: plan
 
       CALL timeset(routineN, handle)
 

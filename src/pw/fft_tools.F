@@ -187,10 +187,12 @@ CONTAINS
       alltoall_sgl = alltoall
       fft_pool_scratch_limit = pool_limit
 
+      ! setup the FFT scratch pool, if one is associated, clear it first (may happen if several libraries have to be tried)
+      ! release it first to prevent memory leaks
+      CALL release_fft_scratch_pool()
+
       CALL fft_do_init(wisdom_file, plan_style, fftsg_sizes, fftlib)
 
-      ! setup the FFT scratch pool, if one is associated, clear first
-      CALL release_fft_scratch_pool()
       CALL init_fft_scratch_pool()
 
    END SUBROUTINE init_fft
