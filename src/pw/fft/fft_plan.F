@@ -28,8 +28,6 @@ MODULE fft_plan
    INTEGER, PARAMETER :: FWFFT = +1, BWFFT = -1
 
    TYPE fft_plan_type
-
-      INTEGER                             :: fft_type = -1
       INTEGER                             :: fsign = 0
       LOGICAL                             :: trans = .FALSE., fft_in_place = .FALSE., valid = .FALSE., separated_plans = .FALSE.
       INTEGER                             :: n = -1, m = -1

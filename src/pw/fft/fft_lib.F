@@ -158,7 +158,6 @@ CONTAINS
       INTEGER, DIMENSION(3), INTENT(IN)                  :: n
       COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT)      :: zin, zout
 
-      plan%fft_type = fft_type
       plan%fsign = fsign
       plan%fft_in_place = fft_in_place
       plan%n_3d = n
@@ -250,7 +249,7 @@ CONTAINS
 
       stat = plan%fsign
       IF (plan%n_3d(1)*plan%n_3d(2)*plan%n_3d(3) > 0) THEN
-         SELECT CASE (plan%fft_type)
+         SELECT CASE (fft_type)
          CASE DEFAULT
             CPABORT("fft_3d")
          CASE (1)
@@ -318,20 +317,12 @@ CONTAINS
 ! Planning only needed for FFTW3
 
       IF (plan%valid) THEN
-         IF (plan%fft_type == 3) THEN
+         IF (fft_type == 3) THEN
             CALL fftw3_destroy_plan(plan)
             plan%valid = .FALSE.
-         ELSE IF (plan%fft_type == 4) THEN
+         ELSE IF (fft_type == 4) THEN
             CALL spfft_destroy_plan(plan)
             plan%valid = .FALSE.
-         ELSE IF (plan%fft_type == -1) THEN
-            IF (fft_type == 3) THEN
-               CALL fftw3_destroy_plan(plan)
-               plan%valid = .FALSE.
-            ELSE IF (fft_type == 4) THEN
-               CALL spfft_destroy_plan(plan)
-               plan%valid = .FALSE.
-            END IF
          END IF
       END IF
 
