@@ -175,4 +175,7 @@ QS/regtest-gpw-4/H2O-analytic_vee.inp
 # Test produced 2.05 MiB of output.
 Fist/regtest-7-2/UO2-2x2x2-binary_restart-npt-nve-cs-2.inp
 
+# Test produced 5.83 MiB of output.
+QS/regtest-fftw-wisdom/test_wisdom_import.inp
+
 #EOF
