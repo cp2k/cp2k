@@ -25,7 +25,7 @@ MODULE spfft_lib
    USE spfft, ONLY: &
       spfft_transform_create_independent, SPFFT_PU_HOST, SPFFT_PU_GPU, SPFFT_SUCCESS, &
       SPFFT_TRANS_C2C, SPFFT_INDEX_TRIPLETS, spfft_transform_destroy, SPFFT_NO_SCALING, spfft_transform_get_space_domain, &
-      spfft_transform_forward, spfft_multi_transform_forward_ptr, spfft_transform_backward
+      spfft_transform_forward, spfft_multi_transform_forward_ptr, spfft_transform_backward, spfft_multi_transform_backward_ptr
    USE omp_lib, ONLY: omp_get_thread_num
 #endif
    USE cp_files, ONLY: get_unit_number
@@ -180,14 +180,16 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief ...
 !> \param plan ...
+!> \param fsign ...
 !> \param zin ...
 !> \param zout ...
 !> \param scale ...
 !> \param stat ...
 ! **************************************************************************************************
-   SUBROUTINE spfft_1d(plan, zin, zout, scale, stat)
+   SUBROUTINE spfft_1d(plan, fsign, zin, zout, scale, stat)
 
       TYPE(fft_plan_type), INTENT(IN)                      :: plan
+      INTEGER, INTENT(IN)                                  :: fsign
       COMPLEX(KIND=dp), DIMENSION(plan%n, plan%m), INTENT(INOUT), TARGET :: zin, zout
       REAL(KIND=dp), INTENT(IN)                            :: scale
       INTEGER, INTENT(OUT)                                 :: stat
@@ -218,7 +220,13 @@ CONTAINS
          outputLocations(i) = C_LOC(zout(1, i))
       END DO
 
-   errorCode = spfft_multi_transform_forward_ptr(plan%m, plan%spfft_transform, inputLocations, outputLocations, C_LOC(scalingTypes))
+      IF (fsign == FWFFT) THEN
+         errorCode = spfft_multi_transform_forward_ptr(plan%m, plan%spfft_transform, &
+                                                       inputLocations, outputLocations, C_LOC(scalingTypes))
+      ELSE
+         errorCode = spfft_multi_transform_backward_ptr(plan%m, plan%spfft_transform, &
+                                                        inputLocations, outputLocations)
+      END IF
       IF (errorCode /= SPFFT_SUCCESS) CPABORT("FFT with SpFFT failed!")
 
 !$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(zout, scale, complex_ptr)
@@ -229,6 +237,7 @@ CONTAINS
       MARK_USED(zin)
       MARK_USED(zout)
       MARK_USED(scale)
+      MARK_USED(fsign)
       CPABORT("In order to use SPFFT, you have to install it!")
 #endif
       stat = 0

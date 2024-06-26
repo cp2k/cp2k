@@ -1105,6 +1105,7 @@ CONTAINS
 ! Check for total number of rows not divisible by num_threads
 !$    IF (num_rows*plan%num_threads_needed .NE. plan%m) THEN
 !$       plan%need_alt_plan = .TRUE.
+!$       plan%alt_num_rows = plan%m - (plan%num_threads_needed - 1)*num_rows
 !$    END IF
 
 !$    plan%num_rows = num_rows
@@ -1112,31 +1113,34 @@ CONTAINS
       di = plan%n
       io = 1
       DO = plan%n
-      IF (plan%fsign == FWFFT .AND. plan%trans) THEN
+      IF (plan%trans) THEN
          ii = plan%m
          di = 1
-      ELSEIF (plan%fsign == BWFFT .AND. plan%trans) THEN
+      END IF
+
+      plan%fftw_plan_fw = fftw_plan_many_dft(1, [plan%n], num_rows, zin, [0], ii, di, &
+                                             zout, [0], io, DO, FFTW_FORWARD, fftw_plan_type)
+
+!$    IF (plan%need_alt_plan) THEN
+!$       plan%alt_fftw_plan_fw = fftw_plan_many_dft(1, [plan%n], plan%alt_num_rows, zin, [0], ii, di, &
+!$                                                  zout, [0], io, DO, FFTW_FORWARD, fftw_plan_type)
+!$    END IF
+
+      ii = 1
+      di = plan%n
+      io = 1
+      DO = plan%n
+      IF (plan%trans) THEN
          io = plan%m
          DO = 1
       END IF
 
-      IF (plan%fsign == FWFFT) THEN
-         plan%fftw_plan = fftw_plan_many_dft(1, [plan%n], num_rows, zin, [0], ii, di, &
-                                             zout, [0], io, DO, FFTW_FORWARD, fftw_plan_type)
-      ELSE
-         plan%fftw_plan = fftw_plan_many_dft(1, [plan%n], num_rows, zin, [0], ii, di, &
+      plan%fftw_plan_bw = fftw_plan_many_dft(1, [plan%n], num_rows, zin, [0], ii, di, &
                                              zout, [0], io, DO, FFTW_BACKWARD, fftw_plan_type)
-      END IF
 
 !$    IF (plan%need_alt_plan) THEN
-!$       plan%alt_num_rows = plan%m - (plan%num_threads_needed - 1)*num_rows
-!$       IF (plan%fsign == FWFFT) THEN
-!$          plan%alt_fftw_plan = fftw_plan_many_dft(1, [plan%n], plan%alt_num_rows, zin, [0], ii, di, &
-!$                                                  zout, [0], io, DO, FFTW_FORWARD, fftw_plan_type)
-!$       ELSE
-!$          plan%alt_fftw_plan = fftw_plan_many_dft(1, [plan%n], plan%alt_num_rows, zin, [0], ii, di, &
+!$       plan%alt_fftw_plan_bw = fftw_plan_many_dft(1, [plan%n], plan%alt_num_rows, zin, [0], ii, di, &
 !$                                                  zout, [0], io, DO, FFTW_BACKWARD, fftw_plan_type)
-!$       END IF
 !$    END IF
 
 #else
@@ -1157,24 +1161,16 @@ CONTAINS
 
 #if defined ( __FFTW3 )
 !$    IF (plan%need_alt_plan) THEN
-!$       CALL fftw_destroy_plan(plan%alt_fftw_plan)
 !$       CALL fftw_destroy_plan(plan%alt_fftw_plan_fw)
 !$       CALL fftw_destroy_plan(plan%alt_fftw_plan_bw)
 !$    END IF
 
       IF (.NOT. plan%separated_plans) THEN
-         CALL fftw_destroy_plan(plan%fftw_plan)
          CALL fftw_destroy_plan(plan%fftw_plan_fw)
          CALL fftw_destroy_plan(plan%fftw_plan_bw)
       ELSE
          ! If it is a separated plan then we have to destroy
          ! each dim plan individually
-         CALL fftw_destroy_plan(plan%fftw_plan_nx)
-         CALL fftw_destroy_plan(plan%fftw_plan_ny)
-         CALL fftw_destroy_plan(plan%fftw_plan_nz)
-         CALL fftw_destroy_plan(plan%fftw_plan_nx_r)
-         CALL fftw_destroy_plan(plan%fftw_plan_ny_r)
-         CALL fftw_destroy_plan(plan%fftw_plan_nz_r)
          CALL fftw_destroy_plan(plan%fftw_plan_nx_fw)
          CALL fftw_destroy_plan(plan%fftw_plan_ny_fw)
          CALL fftw_destroy_plan(plan%fftw_plan_nz_fw)
@@ -1203,8 +1199,9 @@ CONTAINS
 !> \param scale ...
 !> \param stat ...
 ! **************************************************************************************************
-   SUBROUTINE fftw3_1d(plan, zin, zout, scale, stat)
+   SUBROUTINE fftw3_1d(plan, fsign, zin, zout, scale, stat)
       TYPE(fft_plan_type), INTENT(IN)                    :: plan
+      INTEGER, INTENT(IN)                                :: fsign
       COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT), TARGET :: zin, zout
       REAL(KIND=dp), INTENT(IN)                          :: scale
       INTEGER, INTENT(OUT)                               :: stat
@@ -1220,13 +1217,16 @@ CONTAINS
 
 !$OMP PARALLEL DEFAULT(NONE), &
 !$OMP          PRIVATE(my_id,num_rows,in_offset,out_offset,scal_offset,fftw_plan), &
-!$OMP          SHARED(zin,zout), &
-!$OMP          SHARED(plan,scale,stat)
+!$OMP          SHARED(zin,zout,plan,scale,stat,fsign)
 !$    my_id = omp_get_thread_num()
 
 !$    if (my_id < plan%num_threads_needed) then
 
-         fftw_plan = plan%fftw_plan
+         IF (fsign == FWFFT) THEN
+            fftw_plan = plan%fftw_plan_fw
+         ELSE
+            fftw_plan = plan%fftw_plan_bw
+         END IF
 
          in_offset = 1
          out_offset = 1
@@ -1234,15 +1234,19 @@ CONTAINS
 
 !$       in_offset = 1 + plan%num_rows*my_id*plan%n
 !$       out_offset = 1 + plan%num_rows*my_id*plan%n
-!$       IF (plan%fsign == FWFFT .AND. plan%trans) THEN
+!$       IF (fsign == FWFFT .AND. plan%trans) THEN
 !$          in_offset = 1 + plan%num_rows*my_id
-!$       ELSEIF (plan%fsign == BWFFT .AND. plan%trans) THEN
+!$       ELSEIF (fsign == BWFFT .AND. plan%trans) THEN
 !$          out_offset = 1 + plan%num_rows*my_id
 !$       END IF
 !$       scal_offset = 1 + plan%n*plan%num_rows*my_id
 !$       IF (plan%need_alt_plan .AND. my_id .EQ. plan%num_threads_needed - 1) THEN
 !$          num_rows = plan%alt_num_rows
-!$          fftw_plan = plan%alt_fftw_plan
+!$          IF (fsign == FWFFT) THEN
+!$             fftw_plan = plan%alt_fftw_plan_fw
+!$          ELSE
+!$             fftw_plan = plan%alt_fftw_plan_bw
+!$          END IF
 !$       ELSE
 !$          num_rows = plan%num_rows
 !$       END IF

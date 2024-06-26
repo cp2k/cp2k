@@ -184,7 +184,6 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief ...
 !> \param plan ...
-!> \param fsign ...
 !> \param trans ...
 !> \param n1 ...
 !> \param n2 ...
@@ -193,22 +192,19 @@ CONTAINS
 !> \param zintermed ...
 !> \param zout ...
 ! **************************************************************************************************
-   SUBROUTINE fft_create_plan_2d(plan, fsign, trans, n1, n2, m, zin, zintermed, zout)
+   SUBROUTINE fft_create_plan_2d(plan, trans, n1, n2, m, zin, zintermed, zout)
 
       TYPE(fft_plan_type), INTENT(INOUT)                 :: plan(2)
-      INTEGER, INTENT(IN)                                :: fsign
       LOGICAL, INTENT(IN)                                :: trans
       INTEGER, INTENT(IN)                                :: n1, n2, m
       COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT)      :: zin, zintermed, zout
 
-      plan(1)%fsign = fsign
       plan(1)%trans = trans
       plan(1)%n_3d = [n1, n2, m]
       plan(1)%n = n1
       plan(1)%m = m*n2
 !$    plan(1)%need_alt_plan = .FALSE.
 
-      plan(2)%fsign = fsign
       plan(2)%trans = trans
       plan(2)%n = n2
       plan(2)%m = m*n1
@@ -254,7 +250,7 @@ CONTAINS
          INTENT(INOUT)                                   :: zin, zout
       INTEGER, INTENT(OUT)                               :: stat
 
-      stat = plan%fsign
+      stat = fsign
       IF (plan%n_3d(1)*plan%n_3d(2)*plan%n_3d(3) > 0) THEN
          SELECT CASE (fft_type)
          CASE DEFAULT
@@ -281,21 +277,18 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief ...
 !> \param plan ...
-!> \param fsign ...
 !> \param trans ...
 !> \param n ...
 !> \param m ...
 !> \param zin ...
 !> \param zout ...
 ! **************************************************************************************************
-   SUBROUTINE fft_create_plan_1d(plan, fsign, trans, n, m, zin, zout)
+   SUBROUTINE fft_create_plan_1d(plan, trans, n, m, zin, zout)
       TYPE(fft_plan_type), INTENT(INOUT)                 :: plan
-      INTEGER, INTENT(IN)                                :: fsign
       LOGICAL, INTENT(IN)                                :: trans
       INTEGER, INTENT(IN)                                :: n, m
       COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT)      :: zin, zout
 
-      plan%fsign = fsign
       plan%trans = trans
       plan%n = n
       plan%m = m
@@ -340,14 +333,16 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief ...
 !> \param plan ...
+!> \param fsign ...
 !> \param zin ...
 !> \param zintermed ...
 !> \param zout ...
 !> \param scale ...
 !> \param stat ...
 ! **************************************************************************************************
-   SUBROUTINE fft_2d(plan, zin, zintermed, zout, scale, stat)
+   SUBROUTINE fft_2d(plan, fsign, zin, zintermed, zout, scale, stat)
       TYPE(fft_plan_type), INTENT(IN)                    :: plan(2)
+      INTEGER, INTENT(IN)                                :: fsign
       COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT), &
          TARGET                                          :: zin, zintermed, zout
       REAL(KIND=dp), INTENT(IN)                          :: scale
@@ -360,15 +355,25 @@ CONTAINS
          CASE DEFAULT
             CPABORT("fft_2d")
          CASE (1)
-            CALL fftsg_2d(plan(1)%fsign, plan(1)%trans, scale, plan(1)%n_3d, zin, zintermed, zout)
-            stat = plan(1)%fsign
+            CALL fftsg_2d(fsign, plan(1)%trans, scale, plan(1)%n_3d, zin, zintermed, zout)
+            stat = fsign
          CASE (3)
-            CALL fftw3_1d(plan(1), zin, zintermed, scale, stat)
-            CALL fftw3_1d(plan(2), zintermed, zout, 1.0_dp, stat2)
+            IF (fsign == FWFFT) THEN
+               CALL fftw3_1d(plan(1), fsign, zin, zintermed, scale, stat)
+               CALL fftw3_1d(plan(2), fsign, zintermed, zout, 1.0_dp, stat2)
+            ELSE
+               CALL fftw3_1d(plan(2), fsign, zin, zintermed, scale, stat)
+               CALL fftw3_1d(plan(1), fsign, zintermed, zout, 1.0_dp, stat2)
+            END IF
             stat = stat*stat2
          CASE (4)
-            CALL spfft_1d(plan(1), zin, zintermed, scale, stat)
-            CALL spfft_1d(plan(2), zintermed, zout, 1.0_dp, stat2)
+            IF (fsign == FWFFT) THEN
+               CALL spfft_1d(plan(1), fsign, zin, zintermed, scale, stat)
+               CALL spfft_1d(plan(2), fsign, zintermed, zout, 1.0_dp, stat2)
+            ELSE
+               CALL spfft_1d(plan(2), fsign, zin, zintermed, scale, stat)
+               CALL spfft_1d(plan(1), fsign, zintermed, zout, 1.0_dp, stat2)
+            END IF
             stat = stat*stat2
          END SELECT
       END IF
@@ -384,29 +389,31 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief ...
 !> \param plan ...
+!> \param fsign ...
 !> \param zin ...
 !> \param zout ...
 !> \param scale ...
 !> \param stat ...
 ! **************************************************************************************************
-   SUBROUTINE fft_1d(plan, zin, zout, scale, stat)
+   SUBROUTINE fft_1d(plan, fsign, zin, zout, scale, stat)
       TYPE(fft_plan_type), INTENT(IN)                    :: plan
+      INTEGER, INTENT(IN)                                :: fsign
       COMPLEX(KIND=dp), DIMENSION(plan%n, plan%m), &
          INTENT(INOUT), TARGET                           :: zin, zout
       REAL(KIND=dp), INTENT(IN)                          :: scale
       INTEGER, INTENT(OUT)                               :: stat
 
-      stat = plan%fsign
+      stat = fsign
       IF (plan%n*plan%m > 0) THEN
          SELECT CASE (fft_type)
          CASE DEFAULT
             CPABORT("fft_1d")
          CASE (1)
-            CALL fftsg_1d(stat, plan%trans, plan%n, plan%m, zin, zout, scale)
+            CALL fftsg_1d(fsign, plan%trans, plan%n, plan%m, zin, zout, scale)
          CASE (3)
-            CALL fftw3_1d(plan, zin, zout, scale, stat)
+            CALL fftw3_1d(plan, fsign, zin, zout, scale, stat)
          CASE (4)
-            CALL spfft_1d(plan, zin, zout, scale, stat)
+            CALL spfft_1d(plan, fsign, zin, zout, scale, stat)
          END SELECT
       END IF
       ! stat is set to zero on error, -1,+1 are OK
