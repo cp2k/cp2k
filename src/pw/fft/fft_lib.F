@@ -289,7 +289,6 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: n, m
       COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT)      :: zin, zout
 
-      plan%fft_type = fft_type
       plan%fsign = fsign
       plan%trans = trans
       plan%n = n
@@ -358,9 +357,6 @@ CONTAINS
 
       INTEGER                                            :: stat2
 
-      IF (plan(1)%fft_type /= plan(2)%fft_type) &
-         CPABORT("FFT directions must match!")
-
       IF (plan(1)%n*plan(1)%m > 0 .AND. plan(2)%n*plan(2)%m > 0) THEN
          SELECT CASE (fft_type)
          CASE DEFAULT
@@ -404,7 +400,7 @@ CONTAINS
 
       stat = plan%fsign
       IF (plan%n*plan%m > 0) THEN
-         SELECT CASE (plan%fft_type)
+         SELECT CASE (fft_type)
          CASE DEFAULT
             CPABORT("fft_1d")
          CASE (1)
