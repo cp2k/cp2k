@@ -27,6 +27,7 @@
       METHOD xTB
       &XTB
         GFN_TYPE 0
+        VDW_POTENTIAL DFTD3
         &PARAMETER
         &END PARAMETER
       &END XTB

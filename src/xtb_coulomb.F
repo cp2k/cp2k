@@ -274,11 +274,11 @@ CONTAINS
             CASE DEFAULT
                CPABORT("Invalid Ewald type")
             CASE (do_ewald_none)
-               CPABORT("Not allowed with DFTB")
+               CPABORT("Not allowed with xTB/DFTB")
             CASE (do_ewald_ewald)
-               CPABORT("Standard Ewald not implemented in DFTB")
+               CPABORT("Standard Ewald not implemented in xTB/DFTB")
             CASE (do_ewald_pme)
-               CPABORT("PME not implemented in DFTB")
+               CPABORT("PME not implemented in xTB/DFTB")
             CASE (do_ewald_spme)
                CALL tb_spme_evaluate(ewald_env, ewald_pw, particle_set, cell, &
                                      gmcharge, mcharge, calculate_forces, virial, &

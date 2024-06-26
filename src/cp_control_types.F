@@ -140,6 +140,7 @@ MODULE cp_control_types
       INTEGER                              :: sto_ng = 0
       INTEGER                              :: h_sto_ng = 0
       !
+      INTEGER                              :: vdw_type = -1
       CHARACTER(LEN=default_path_length)   :: parameter_file_path = ""
       CHARACTER(LEN=default_path_length)   :: parameter_file_name = ""
       !

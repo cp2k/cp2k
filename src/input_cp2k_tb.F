@@ -180,6 +180,13 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="VDW_POTENTIAL", &
+                          description="vdW potential to be used: NONE, DFTD3, DFTD4. "// &
+                          "Defaults: DFTD3(gfn1), DFTD4(gfn0, gfn2).", &
+                          usage="VDW_POTENTIAL type", default_c_val="")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       CALL keyword_create(keyword, __LOCATION__, name="COULOMB_INTERACTION", &
                           description="Use Coulomb interaction terms (electrostatics + TB3); for debug only", &
                           usage="COULOMB_INTERACTION T", default_l_val=.TRUE., lone_keyword_l_val=.TRUE.)

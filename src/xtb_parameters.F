@@ -261,10 +261,13 @@ CONTAINS
                      CALL parser_get_object(parser, param%kqat2)
                   CASE ("KCNS")
                      CALL parser_get_object(parser, param%kcn(1))
+                     param%kcn(1) = param%kcn(1)*0.1_dp !from orig xtb code
                   CASE ("KCNP")
                      CALL parser_get_object(parser, param%kcn(2))
+                     param%kcn(2) = param%kcn(2)*0.1_dp !from orig xtb code
                   CASE ("KCND")
                      CALL parser_get_object(parser, param%kcn(3))
+                     param%kcn(3) = param%kcn(3)*0.1_dp !from orig xtb code
                   CASE ("REPA")
                      CALL parser_get_object(parser, param%alpha)
                   CASE ("REPB")

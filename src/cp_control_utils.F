@@ -51,7 +51,7 @@ MODULE cp_control_utils
         sccs_derivative_cd3, sccs_derivative_cd5, sccs_derivative_cd7, sccs_derivative_fft, &
         sccs_fattebert_gygi, sic_ad, sic_eo, sic_list_all, sic_list_unpaired, sic_mauri_spz, &
         sic_mauri_us, sic_none, slater, tddfpt_dipole_length, tddfpt_excitations, &
-        tddfpt_kernel_stda, use_mom_ref_user
+        tddfpt_kernel_stda, use_mom_ref_user, xtb_vdw_type_d3, xtb_vdw_type_d4, xtb_vdw_type_none
    USE input_cp2k_check,                ONLY: xc_functionals_expand
    USE input_cp2k_dft,                  ONLY: create_dft_section
    USE input_enumeration_types,         ONLY: enum_i2c,&
@@ -724,6 +724,7 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'read_qs_section'
 
+      CHARACTER(LEN=default_string_length)               :: cval
       CHARACTER(LEN=default_string_length), &
          DIMENSION(:), POINTER                           :: clist
       INTEGER                                            :: handle, itmp, j, jj, k, n_rep, n_var, &
@@ -1207,6 +1208,35 @@ CONTAINS
          ELSE
             qs_control%xtb_control%do_ewald = (qs_control%periodicity /= 0)
          END IF
+         ! vdW
+         CALL section_vals_val_get(xtb_section, "VDW_POTENTIAL", explicit=explicit)
+         IF (explicit) THEN
+            CALL section_vals_val_get(xtb_section, "VDW_POTENTIAL", c_val=cval)
+            CALL uppercase(cval)
+            SELECT CASE (cval)
+            CASE ("NONE")
+               qs_control%xtb_control%vdw_type = xtb_vdw_type_none
+            CASE ("DFTD3")
+               qs_control%xtb_control%vdw_type = xtb_vdw_type_d3
+            CASE ("DFTD4")
+               qs_control%xtb_control%vdw_type = xtb_vdw_type_d4
+            CASE DEFAULT
+               CPABORT("vdW type")
+            END SELECT
+         ELSE
+            SELECT CASE (qs_control%xtb_control%gfn_type)
+            CASE (0)
+               qs_control%xtb_control%vdw_type = xtb_vdw_type_d4
+            CASE (1)
+               qs_control%xtb_control%vdw_type = xtb_vdw_type_d3
+            CASE (2)
+               qs_control%xtb_control%vdw_type = xtb_vdw_type_d4
+               CPABORT("gfn2-xtb tbd")
+            CASE DEFAULT
+               CPABORT("GFN type")
+            END SELECT
+         END IF
+         !
          CALL section_vals_val_get(xtb_section, "STO_NG", i_val=ngauss)
          qs_control%xtb_control%sto_ng = ngauss
          CALL section_vals_val_get(xtb_section, "HYDROGEN_STO_NG", i_val=ngauss)
@@ -2091,8 +2121,20 @@ CONTAINS
             "xTB| Halogen interaction potential cutoff radius", xtb_control%xb_radius
          WRITE (UNIT=output_unit, FMT="(T2,A,T71,L10)") &
             "xTB| Nonbonded interactions", xtb_control%do_nonbonded
-         WRITE (UNIT=output_unit, FMT="(T2,A,T31,A50)") &
-            "xTB| D3 Dispersion: Parameter file", ADJUSTR(TRIM(xtb_control%dispersion_parameter_file))
+         SELECT CASE (xtb_control%vdw_type)
+         CASE (xtb_vdw_type_none)
+            WRITE (UNIT=output_unit, FMT="(T2,A)") "xTB| No vdW potential selected"
+         CASE (xtb_vdw_type_d3)
+            WRITE (UNIT=output_unit, FMT="(T2,A,T72,A)") "xTB| vdW potential type:", "DFTD3(BJ)"
+            WRITE (UNIT=output_unit, FMT="(T2,A,T31,A50)") &
+               "xTB| D3 Dispersion: Parameter file", ADJUSTR(TRIM(xtb_control%dispersion_parameter_file))
+         CASE (xtb_vdw_type_d4)
+            WRITE (UNIT=output_unit, FMT="(T2,A,T76,A)") "xTB| vdW potential type:", "DFTD4"
+            WRITE (UNIT=output_unit, FMT="(T2,A,T31,A50)") &
+               "xTB| D4 Dispersion: Parameter file", ADJUSTR(TRIM(xtb_control%dispersion_parameter_file))
+         CASE DEFAULT
+            CPABORT("vdw type")
+         END SELECT
          WRITE (UNIT=output_unit, FMT="(T2,A,T51,3F10.3)") &
             "xTB| Huckel constants ks kp kd", xtb_control%ks, xtb_control%kp, xtb_control%kd
          WRITE (UNIT=output_unit, FMT="(T2,A,T61,2F10.3)") &

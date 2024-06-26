@@ -164,9 +164,8 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :, :)  :: kijab
       REAL(KIND=dp), DIMENSION(0:3)                      :: kl
       REAL(KIND=dp), DIMENSION(3)                        :: fdik, fdika, fdikb, force_ab, rij, rik
-      REAL(KIND=dp), DIMENSION(5)                        :: dpia, dpib, hena, henb, kappaa, kappab, &
-                                                            kcn, kpolya, kpolyb, kq, pia, pib, &
-                                                            zetaa, zetab
+      REAL(KIND=dp), DIMENSION(5)                        :: dpia, dpib, hena, henb, kcn, kpolya, &
+                                                            kpolyb, kq, pia, pib, zetaa, zetab
       REAL(KIND=dp), DIMENSION(:), POINTER               :: set_radius_a, set_radius_b
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: fblock, pblock, rpgfa, rpgfb, sblock, &
                                                             scon_a, scon_b, wblock, zeta, zetb
@@ -430,10 +429,10 @@ CONTAINS
          ! atomic parameters
          CALL get_xtb_atom_param(xtb_atom_a, z=za, nao=naoa, lao=laoa, rcov=rcova, eta=etaa, &
                                  lmax=lmaxa, nshell=nsa, alpha=alphaa, zneff=zneffa, kpoly=kpolya, &
-                                 kappa=kappaa, hen=hena)
+                                 hen=hena)
          CALL get_xtb_atom_param(xtb_atom_b, z=zb, nao=naob, lao=laob, rcov=rcovb, eta=etab, &
                                  lmax=lmaxb, nshell=nsb, alpha=alphab, zneff=zneffb, kpoly=kpolyb, &
-                                 kappa=kappab, hen=henb)
+                                 hen=henb)
 
          IF (nimg == 1) THEN
             ic = 1
@@ -867,8 +866,8 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :, :)  :: kijab
       REAL(KIND=dp), DIMENSION(0:3)                      :: kl
       REAL(KIND=dp), DIMENSION(3)                        :: fdik, fdika, fdikb, force_ab, rij, rik
-      REAL(KIND=dp), DIMENSION(5)                        :: dpia, dpib, hena, henb, kappaa, kappab, &
-                                                            kpolya, kpolyb, pia, pib
+      REAL(KIND=dp), DIMENSION(5)                        :: dpia, dpib, hena, henb, kpolya, kpolyb, &
+                                                            pia, pib
       REAL(KIND=dp), DIMENSION(:), POINTER               :: set_radius_a, set_radius_b
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: fblock, pblock, rpgfa, rpgfb, sblock, &
                                                             scon_a, scon_b, wblock, zeta, zetb
@@ -1123,10 +1122,10 @@ CONTAINS
          ! atomic parameters
          CALL get_xtb_atom_param(xtb_atom_a, z=za, nao=naoa, lao=laoa, rcov=rcova, eta=etaa, &
                                  lmax=lmaxa, nshell=nsa, alpha=alphaa, zneff=zneffa, kpoly=kpolya, &
-                                 kappa=kappaa, hen=hena)
+                                 hen=hena)
          CALL get_xtb_atom_param(xtb_atom_b, z=zb, nao=naob, lao=laob, rcov=rcovb, eta=etab, &
                                  lmax=lmaxb, nshell=nsb, alpha=alphab, zneff=zneffb, kpoly=kpolyb, &
-                                 kappa=kappab, hen=henb)
+                                 hen=henb)
 
          IF (nimg == 1) THEN
             ic = 1
