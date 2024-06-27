@@ -1,9 +1,9 @@
 # regetest - implicit Poisson solver: mixed BC, non-square (rectangular parallelepiped) cell
 &GLOBAL
+  PREFERRED_FFT_LIBRARY FFTW3
   PRINT_LEVEL MEDIUM
   PROJECT Ar_mixed_aa_planar-ns_cell
   RUN_TYPE ENERGY
-  PREFERRED_FFT_LIBRARY FFTW3
 &END GLOBAL
 
 &FORCE_EVAL
