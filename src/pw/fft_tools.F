@@ -316,7 +316,7 @@ CONTAINS
    SUBROUTINE fft_fw1d(n, m, trans, zin, zout, scale, stat)
       INTEGER, INTENT(in)                                :: n, m
       LOGICAL, INTENT(in)                                :: trans
-      COMPLEX(kind=dp), DIMENSION(*), INTENT(inout)      :: zin, zout
+      COMPLEX(kind=dp), DIMENSION(n*m), INTENT(inout)    :: zin, zout
       REAL(kind=dp), INTENT(in)                          :: scale
       INTEGER, INTENT(out)                               :: stat
 
@@ -3189,24 +3189,24 @@ CONTAINS
       INTEGER                                            :: scratch_id
       TYPE(fft_scratch_pool_type), POINTER               :: fft_scratch_current
 
-IF (ASSOCIATED(fft_scratch)) THEN
-      scratch_id = fft_scratch%fft_scratch_id
+      IF (ASSOCIATED(fft_scratch)) THEN
+         scratch_id = fft_scratch%fft_scratch_id
 
-      fft_scratch_current => fft_scratch_first
-      DO
-         IF (ASSOCIATED(fft_scratch_current)) THEN
-            IF (scratch_id == fft_scratch_current%fft_scratch%fft_scratch_id) THEN
-               fft_scratch%in_use = .FALSE.
-               NULLIFY (fft_scratch)
+         fft_scratch_current => fft_scratch_first
+         DO
+            IF (ASSOCIATED(fft_scratch_current)) THEN
+               IF (scratch_id == fft_scratch_current%fft_scratch%fft_scratch_id) THEN
+                  fft_scratch%in_use = .FALSE.
+                  NULLIFY (fft_scratch)
+                  EXIT
+               END IF
+               fft_scratch_current => fft_scratch_current%fft_scratch_next
+            ELSE
+               ! We cannot find the scratch type in this pool
+               CPABORT("")
                EXIT
             END IF
-            fft_scratch_current => fft_scratch_current%fft_scratch_next
-         ELSE
-            ! We cannot find the scratch type in this pool
-            CPABORT("")
-            EXIT
-         END IF
-      END DO
+         END DO
       END IF
 
    END SUBROUTINE release_fft_scratch

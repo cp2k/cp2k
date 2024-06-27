@@ -129,8 +129,8 @@ CONTAINS
 !> \param max_length ...
 ! **************************************************************************************************
    SUBROUTINE fft_get_lengths(DATA, max_length)
-      INTEGER, DIMENSION(*)                              :: DATA
       INTEGER, INTENT(INOUT)                             :: max_length
+      INTEGER, DIMENSION(max_length)                     :: DATA
 
       IF (use_fftsg_sizes) THEN
          CALL fftsg_get_lengths(DATA, max_length)
@@ -162,7 +162,8 @@ CONTAINS
       TYPE(fft_plan_type), INTENT(INOUT)                 :: plan
       LOGICAL, INTENT(IN)                                :: fft_in_place
       INTEGER, DIMENSION(3), INTENT(IN)                  :: n
-      COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT)      :: zin, zout
+      COMPLEX(KIND=dp), DIMENSION(PRODUCT(n)), &
+         INTENT(INOUT)                                   :: zin, zout
 
       plan%fft_in_place = fft_in_place
       plan%n_3d = n
@@ -197,7 +198,8 @@ CONTAINS
       TYPE(fft_plan_type), INTENT(INOUT)                 :: plan(2)
       LOGICAL, INTENT(IN)                                :: trans
       INTEGER, INTENT(IN)                                :: n1, n2, m
-      COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT)      :: zin, zintermed, zout
+      COMPLEX(KIND=dp), DIMENSION(n1*n2*m), &
+         INTENT(INOUT)                                   :: zin, zintermed, zout
 
       plan(1)%trans = trans
       plan(1)%n_3d = [n1, n2, m]
@@ -287,7 +289,7 @@ CONTAINS
       TYPE(fft_plan_type), INTENT(INOUT)                 :: plan
       LOGICAL, INTENT(IN)                                :: trans
       INTEGER, INTENT(IN)                                :: n, m
-      COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT)      :: zin, zout
+      COMPLEX(KIND=dp), DIMENSION(n*m), INTENT(INOUT)    :: zin, zout
 
       plan%trans = trans
       plan%n = n
@@ -343,8 +345,9 @@ CONTAINS
    SUBROUTINE fft_2d(plan, fsign, zin, zintermed, zout, scale, stat)
       TYPE(fft_plan_type), INTENT(IN)                    :: plan(2)
       INTEGER, INTENT(IN)                                :: fsign
-      COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT), &
-         TARGET                                          :: zin, zintermed, zout
+      COMPLEX(KIND=dp), &
+         DIMENSION(PRODUCT(plan(1)%n_3d)), &
+         INTENT(INOUT), TARGET                           :: zin, zintermed, zout
       REAL(KIND=dp), INTENT(IN)                          :: scale
       INTEGER, INTENT(OUT)                               :: stat
 
