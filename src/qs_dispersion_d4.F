@@ -122,6 +122,7 @@ CONTAINS
             CALL get_dispersion(mol, disp, param, cutoff, energy, gradient, stress)
             IF (PRESENT(virial)) THEN
                virial = -1.00_dp*stress
+               IF (para_env%num_pe > 1 .AND. para_env%mepos > 0) virial = 0.00_dp
             END IF
             DO iatom = 1, natom
                ikind = el_num(iatom)
