@@ -232,9 +232,9 @@ CONTAINS
          usage="PREFERRED_FFT_LIBRARY FFTW3", &
          citations=(/Frigo2005/), &
 #if defined(__parallel) && defined(__SPFFT)
-         default_i_val=do_fft_fftw3, &
+         default_i_val=do_fft_spfft, &
 #elif defined(__FFTW3)
-         default_i_val=do_fft_sg, &
+         default_i_val=do_fft_fftw3, &
 #else
          default_i_val=do_fft_sg, &
 #endif

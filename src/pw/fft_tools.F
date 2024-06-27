@@ -2833,7 +2833,7 @@ CONTAINS
    SUBROUTINE get_fft_scratch(fft_scratch, tf_type, n, fft_sizes)
       TYPE(fft_scratch_type), POINTER          :: fft_scratch
       INTEGER, INTENT(IN)                      :: tf_type
-      INTEGER, DIMENSION(:), INTENT(IN)        :: n
+      INTEGER, DIMENSION(3), INTENT(IN)        :: n
       TYPE(fft_scratch_sizes), INTENT(IN), &
          OPTIONAL                               :: fft_sizes
 
@@ -3189,6 +3189,7 @@ CONTAINS
       INTEGER                                            :: scratch_id
       TYPE(fft_scratch_pool_type), POINTER               :: fft_scratch_current
 
+IF (ASSOCIATED(fft_scratch)) THEN
       scratch_id = fft_scratch%fft_scratch_id
 
       fft_scratch_current => fft_scratch_first
@@ -3206,6 +3207,7 @@ CONTAINS
             EXIT
          END IF
       END DO
+      END IF
 
    END SUBROUTINE release_fft_scratch
 
