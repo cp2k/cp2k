@@ -7,7 +7,7 @@ QS/regtest-fftw-wisdom                                      fftw3
 Fist/regtest-water
 QS/regtest-dft-vdw-corr-4                                   libdftd4
 QS/regtest-ecp                                              libgrpp
-QS/regtest-ecp-2                                            libgrpp
+QS/regtest-ecp-2                                            libgrpp fftw3
 QS/regtest-as-3                                             libint mpiranks%2==0
 QS/regtest-as-2                                             libint
 QS/regtest-wfn-restart
@@ -103,7 +103,7 @@ QS/regtest-almo-strong
 QS/regtest-elpa-2                                           elpa
 QS/regtest-cdft-5
 Pimd/regtest-1
-Pimd/regtest-2
+Pimd/regtest-2                                              fftw3
 QS/regtest-pao-2
 QS/regtest-tddfpt-2                                         libint
 QS/regtest-tddfpt-3                                         libint
