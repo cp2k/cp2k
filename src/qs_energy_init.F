@@ -307,8 +307,6 @@ CONTAINS
          CALL qs_env_update_s_mstruct(qs_env)
       ELSEIF (dft_control%qs_control%xtb) THEN
          CALL build_xtb_matrices(qs_env=qs_env, calculate_forces=.FALSE.)
-         CALL get_qs_env(qs_env=qs_env, dispersion_env=dispersion_env, energy=energy)
-         CALL calculate_dispersion_pairpot(qs_env, dispersion_env, energy%dispersion, calc_forces)
          CALL qs_env_update_s_mstruct(qs_env)
       ELSE
          CALL build_core_hamiltonian_matrix(qs_env=qs_env, calculate_forces=.FALSE.)

@@ -144,16 +144,15 @@ CONTAINS
          j, jatom, jkind, jset, katom, kkind, l, la, lb, ldsab, lmaxa, lmaxb, maxder, maxs, n1, &
          n2, na, natom, natorb_a, natorb_b, nb, ncoa, ncob, nderivatives, nimg, nkind, nsa, nsb, &
          nseta, nsetb, nshell, sgfa, sgfb, za, zb
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, atomnumber, kind_of
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, kind_of
       INTEGER, DIMENSION(25)                             :: laoa, laob, lval, naoa, naob
       INTEGER, DIMENSION(3)                              :: cell
       INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, lb_max, lb_min, npgfa, &
                                                             npgfb, nsgfa, nsgfb
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa, first_sgfb
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
-      LOGICAL                                            :: defined, diagblock, do_nonbonded, &
-                                                            floating_a, found, ghost_a, use_virial
-      LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: floating, ghost
+      LOGICAL                                            :: defined, diagblock, do_nonbonded, found, &
+                                                            use_virial
       REAL(KIND=dp) :: alphaa, alphab, ben, den, dfp, dhij, dr, drk, drx, enonbonded, erep, esrb, &
          etaa, etab, f0, f1, fhua, fhub, fhud, foab, hij, kab, kcnd, kcnp, kcns, kd, kden, ken, &
          kf, kia, kjb, kp, kpen, kqat2, ks, ksen, rcova, rcovab, rcovb, rrab, xijab, yijab, &
@@ -294,39 +293,19 @@ CONTAINS
       ! Calculate coordination numbers
       ! needed for effective atomic energy levels (Eq. 12)
       ! code taken from D3 dispersion energy
-      ALLOCATE (cnumbers(natom))
-      cnumbers = 0._dp
-      IF (calculate_forces) THEN
-         ALLOCATE (dcnum(natom))
-         dcnum(:)%neighbors = 0
-         DO iatom = 1, natom
-            ALLOCATE (dcnum(iatom)%nlist(10), dcnum(iatom)%dvals(10), dcnum(iatom)%rik(3, 10))
-         END DO
-      ELSE
-         ALLOCATE (dcnum(1))
-      END IF
-
-      ALLOCATE (ghost(nkind), floating(nkind), atomnumber(nkind))
-      DO ikind = 1, nkind
-         CALL get_atomic_kind(atomic_kind_set(ikind), z=za)
-         CALL get_qs_kind(qs_kind_set(ikind), ghost=ghost_a, floating=floating_a)
-         ghost(ikind) = ghost_a
-         floating(ikind) = floating_a
-         atomnumber(ikind) = za
-      END DO
-      CALL get_qs_env(qs_env=qs_env, dispersion_env=dispersion_env)
-      CALL d3_cnumber(qs_env, dispersion_env, cnumbers, dcnum, ghost, floating, atomnumber, &
-                      calculate_forces, 2, .FALSE.)
-      DEALLOCATE (ghost, floating, atomnumber)
-      CALL para_env%sum(cnumbers)
-      IF (calculate_forces) THEN
-         CALL dcnum_distribute(dcnum, para_env)
-      END IF
+      CALL cnumber_init(qs_env, cnumbers, dcnum, 2, calculate_forces)
 
 !deb EEQ
       ALLOCATE (charge(natom))
       charge = 0._dp
 !deb EEQ
+
+!deb vdW
+      CALL get_qs_env(qs_env=qs_env, dispersion_env=dispersion_env)
+      CALL calculate_dispersion_pairpot(qs_env, dispersion_env, &
+                                        energy%dispersion, calculate_forces)
+!deb vdW
+
       ALLOCATE (huckel(5, natom))
       CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, kind_of=kind_of)
       DO iatom = 1, natom
@@ -798,13 +777,7 @@ CONTAINS
       energy%repulsive = erep
 
       ! deallocate coordination numbers
-      DEALLOCATE (cnumbers)
-      IF (calculate_forces) THEN
-         DO iatom = 1, natom
-            DEALLOCATE (dcnum(iatom)%nlist, dcnum(iatom)%dvals, dcnum(iatom)%rik)
-         END DO
-      END IF
-      DEALLOCATE (dcnum)
+      CALL cnumber_release(cnumbers, dcnum, calculate_forces)
 
       ! deallocate Huckel parameters
       DEALLOCATE (huckel)
@@ -846,17 +819,15 @@ CONTAINS
          j, jatom, jkind, jset, katom, kkind, la, lb, ldsab, lmaxa, lmaxb, maxder, maxs, n1, n2, &
          na, natom, natorb_a, natorb_b, nb, ncoa, ncob, nderivatives, nimg, nkind, nsa, nsb, &
          nseta, nsetb, nshell, sgfa, sgfb, za, zb
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, atomnumber, kind_of
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, kind_of
       INTEGER, DIMENSION(25)                             :: laoa, laob, lval, naoa, naob
       INTEGER, DIMENSION(3)                              :: cell
       INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, lb_max, lb_min, npgfa, &
                                                             npgfb, nsgfa, nsgfb
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa, first_sgfb
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
-      LOGICAL                                            :: defined, diagblock, do_nonbonded, &
-                                                            floating_a, found, ghost_a, &
+      LOGICAL                                            :: defined, diagblock, do_nonbonded, found, &
                                                             use_virial, xb_inter
-      LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: floating, ghost
       REAL(KIND=dp) :: alphaa, alphab, dfp, dhij, dr, drk, drx, ena, enb, enonbonded, erep, etaa, &
          etab, exb, f0, f1, fen, fhua, fhub, fhud, foab, hij, k2sh, kab, kcnd, kcnp, kcns, kd, &
          ken, kf, kg, kia, kjb, kp, ks, ksp, kx2, kxr, rcova, rcovab, rcovb, rrab, zneffa, zneffb
@@ -999,34 +970,12 @@ CONTAINS
       ! Calculate coordination numbers
       ! needed for effective atomic energy levels (Eq. 12)
       ! code taken from D3 dispersion energy
-      ALLOCATE (cnumbers(natom))
-      cnumbers = 0._dp
-      IF (calculate_forces) THEN
-         ALLOCATE (dcnum(natom))
-         dcnum(:)%neighbors = 0
-         DO iatom = 1, natom
-            ALLOCATE (dcnum(iatom)%nlist(10), dcnum(iatom)%dvals(10), dcnum(iatom)%rik(3, 10))
-         END DO
-      ELSE
-         ALLOCATE (dcnum(1))
-      END IF
+      CALL cnumber_init(qs_env, cnumbers, dcnum, 1, calculate_forces)
 
-      ALLOCATE (ghost(nkind), floating(nkind), atomnumber(nkind))
-      DO ikind = 1, nkind
-         CALL get_atomic_kind(atomic_kind_set(ikind), z=za)
-         CALL get_qs_kind(qs_kind_set(ikind), ghost=ghost_a, floating=floating_a)
-         ghost(ikind) = ghost_a
-         floating(ikind) = floating_a
-         atomnumber(ikind) = za
-      END DO
+      ! vdW Potential
       CALL get_qs_env(qs_env=qs_env, dispersion_env=dispersion_env)
-      CALL d3_cnumber(qs_env, dispersion_env, cnumbers, dcnum, ghost, floating, atomnumber, &
-                      calculate_forces, 1, .FALSE.)
-      DEALLOCATE (ghost, floating, atomnumber)
-      CALL para_env%sum(cnumbers)
-      IF (calculate_forces) THEN
-         CALL dcnum_distribute(dcnum, para_env)
-      END IF
+      CALL calculate_dispersion_pairpot(qs_env, dispersion_env, &
+                                        energy%dispersion, calculate_forces)
 
       ! Calculate Huckel parameters
       ! Eq 12
@@ -1495,13 +1444,7 @@ CONTAINS
       energy%repulsive = erep
 
       ! deallocate coordination numbers
-      DEALLOCATE (cnumbers)
-      IF (calculate_forces) THEN
-         DO iatom = 1, natom
-            DEALLOCATE (dcnum(iatom)%nlist, dcnum(iatom)%dvals, dcnum(iatom)%rik)
-         END DO
-      END IF
-      DEALLOCATE (dcnum)
+      CALL cnumber_release(cnumbers, dcnum, calculate_forces)
 
       ! deallocate Huckel parameters
       DEALLOCATE (huckel)

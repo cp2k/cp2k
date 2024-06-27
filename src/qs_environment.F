@@ -1376,9 +1376,7 @@ CONTAINS
       ELSE IF (dft_control%qs_control%method_id == do_method_xtb) THEN
          ALLOCATE (dispersion_env)
          SELECT CASE (xtb_control%vdw_type)
-         CASE (xtb_vdw_type_none)
-            dispersion_env%type = xc_vdw_fun_none
-         CASE (xtb_vdw_type_d3)
+         CASE (xtb_vdw_type_none, xtb_vdw_type_d3)
             ! set general defaults
             dispersion_env%doabc = .FALSE.
             dispersion_env%c9cnst = .FALSE.
@@ -1407,12 +1405,13 @@ CONTAINS
             dispersion_env%scaling = 0._dp
             dispersion_env%nd3_exclude_pair = 0
             dispersion_env%parameter_file_name = xtb_control%dispersion_parameter_file
+            CALL qs_dispersion_pairpot_init(atomic_kind_set, qs_kind_set, dispersion_env, para_env=para_env)
+            IF (xtb_control%vdw_type == xtb_vdw_type_none) dispersion_env%type = xc_vdw_fun_none
          CASE (xtb_vdw_type_d4)
             CPABORT("D4 NYA")
          CASE DEFAULT
             CPABORT("vdw type")
          END SELECT
-         CALL qs_dispersion_pairpot_init(atomic_kind_set, qs_kind_set, dispersion_env, para_env=para_env)
          CALL set_qs_env(qs_env, dispersion_env=dispersion_env)
       ELSE IF (dft_control%qs_control%semi_empirical) THEN
          ALLOCATE (dispersion_env)

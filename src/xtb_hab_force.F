@@ -38,10 +38,9 @@ MODULE xtb_hab_force
    USE message_passing,                 ONLY: mp_para_env_type
    USE orbital_pointers,                ONLY: ncoset
    USE particle_types,                  ONLY: particle_type
-   USE qs_dispersion_pairpot,           ONLY: d3_cnumber,&
-                                              dcnum_distribute,&
+   USE qs_dispersion_pairpot,           ONLY: cnumber_init,&
+                                              cnumber_release,&
                                               dcnum_type
-   USE qs_dispersion_types,             ONLY: qs_dispersion_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_force_types,                  ONLY: qs_force_type
@@ -91,15 +90,13 @@ CONTAINS
          j, jatom, jkind, jset, katom, kkind, la, lb, ldsab, lmaxa, lmaxb, maxder, maxs, n1, n2, &
          na, natom, natorb_a, natorb_b, nb, ncoa, ncob, nderivatives, nimg, nkind, nsa, nsb, &
          nseta, nsetb, nshell, sgfa, sgfb, za, zb
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, atomnumber, kind_of
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, kind_of
       INTEGER, DIMENSION(25)                             :: laoa, laob, lval, naoa, naob
       INTEGER, DIMENSION(3)                              :: cell
       INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, lb_max, lb_min, npgfa, &
                                                             npgfb, nsgfa, nsgfb
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa, first_sgfb
-      LOGICAL                                            :: defined, diagblock, floating_a, found, &
-                                                            ghost_a, use_virial
-      LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: floating, ghost
+      LOGICAL                                            :: defined, diagblock, found, use_virial
       REAL(KIND=dp) :: alphaa, alphab, dfp, dhij, dr, drk, drx, ena, enb, etaa, etab, f0, fen, &
          fhua, fhub, fhud, foab, hij, k2sh, kab, kcnd, kcnp, kcns, kd, ken, kf, kg, kia, kjb, kp, &
          ks, ksp, kx2, kxr, rcova, rcovab, rcovb, rrab, zneffa, zneffb
@@ -128,7 +125,6 @@ CONTAINS
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_orb
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
-      TYPE(qs_dispersion_type), POINTER                  :: dispersion_env
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
@@ -204,28 +200,7 @@ CONTAINS
       ! Calculate coordination numbers
       ! needed for effective atomic energy levels (Eq. 12)
       ! code taken from D3 dispersion energy
-      ALLOCATE (cnumbers(natom))
-      cnumbers = 0._dp
-      ALLOCATE (dcnum(natom))
-      dcnum(:)%neighbors = 0
-      DO iatom = 1, natom
-         ALLOCATE (dcnum(iatom)%nlist(10), dcnum(iatom)%dvals(10), dcnum(iatom)%rik(3, 10))
-      END DO
-
-      ALLOCATE (ghost(nkind), floating(nkind), atomnumber(nkind))
-      DO ikind = 1, nkind
-         CALL get_atomic_kind(atomic_kind_set(ikind), z=za)
-         CALL get_qs_kind(qs_kind_set(ikind), ghost=ghost_a, floating=floating_a)
-         ghost(ikind) = ghost_a
-         floating(ikind) = floating_a
-         atomnumber(ikind) = za
-      END DO
-      CALL get_qs_env(qs_env=qs_env, dispersion_env=dispersion_env)
-      CALL d3_cnumber(qs_env, dispersion_env, cnumbers, dcnum, ghost, floating, atomnumber, &
-                      .TRUE., 1, .FALSE.)
-      DEALLOCATE (ghost, floating, atomnumber)
-      CALL para_env%sum(cnumbers)
-      CALL dcnum_distribute(dcnum, para_env)
+      CALL cnumber_init(qs_env, cnumbers, dcnum, 1, .TRUE.)
 
       ! Calculate Huckel parameters
       ! Eq 12
@@ -592,11 +567,7 @@ CONTAINS
       CALL dbcsr_deallocate_matrix_set(matrix_h)
 
       ! deallocate coordination numbers
-      DEALLOCATE (cnumbers)
-      DO iatom = 1, natom
-         DEALLOCATE (dcnum(iatom)%nlist, dcnum(iatom)%dvals, dcnum(iatom)%rik)
-      END DO
-      DEALLOCATE (dcnum)
+      CALL cnumber_release(cnumbers, dcnum, .TRUE.)
 
       ! deallocate Huckel parameters
       DEALLOCATE (huckel)

@@ -1082,7 +1082,8 @@ CONTAINS
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="VERBOSE_OUTPUT", &
-                          description="Extensive output for the DFT-D2 and DFT-D3 models", &
+                          description="Extensive output for the DFT-D2 and DFT-D3 models."// &
+                          " Needs PRINT_DFTD section to be specified.", &
                           usage="VERBOSE_OUTPUT", default_l_val=.FALSE., &
                           lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(subsection, keyword)
