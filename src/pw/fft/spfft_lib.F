@@ -141,11 +141,11 @@ CONTAINS
       TYPE(fft_plan_type), INTENT(IN)                      :: plan
       REAL(KIND=dp), INTENT(IN)                            :: scale
       INTEGER, INTENT(IN)                                  :: fsign
-      COMPLEX(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT), CONTIGUOUS :: zin
-      COMPLEX(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT), CONTIGUOUS :: zout
+      COMPLEX(KIND=dp), DIMENSION(PRODUCT(plan%n_3d)), INTENT(INOUT) :: zin
+      COMPLEX(KIND=dp), DIMENSION(PRODUCT(plan%n_3d)), INTENT(INOUT) :: zout
       INTEGER, INTENT(OUT)                                 :: stat
 #if defined (__SPFFT) && defined(__parallel)
-      COMPLEX(KIND=C_DOUBLE_COMPLEX), DIMENSION(:, :, :), POINTER, CONTIGUOUS :: complex_ptr
+      COMPLEX(KIND=C_DOUBLE_COMPLEX), DIMENSION(:), POINTER, CONTIGUOUS :: complex_ptr
       INTEGER(KIND=C_INT) :: errorcode
       TYPE(C_PTR) :: spfft_ptr
 
@@ -153,18 +153,46 @@ CONTAINS
       errorCode = spfft_transform_get_space_domain(plan%spfft_transform, SPFFT_PU_HOST, spfft_ptr)
       IF (errorCode /= SPFFT_SUCCESS) CPABORT("FFT with SpFFT failed!")
 
-      CALL C_F_POINTER(spfft_ptr, complex_ptr, plan%n_3d)
+      CALL C_F_POINTER(spfft_ptr, complex_ptr, [PRODUCT(plan%n_3d)])
 
-      IF (fsign == FWFFT) THEN
-         errorCode = spfft_transform_forward(plan%spfft_transform, SPFFT_PU_HOST, zin, SPFFT_NO_SCALING)
+      IF (plan%fft_in_place) THEN
+         IF (fsign == FWFFT) THEN
+            complex_ptr = zin
+            errorCode = spfft_transform_forward(plan%spfft_transform, SPFFT_PU_HOST, zin, SPFFT_NO_SCALING)
+         ELSE
+            errorCode = spfft_transform_backward(plan%spfft_transform, zin, SPFFT_PU_HOST)
+         END IF
       ELSE
-         errorCode = spfft_transform_backward(plan%spfft_transform, zin, SPFFT_PU_HOST)
+         IF (fsign == FWFFT) THEN
+            complex_ptr = zin
+            errorCode = spfft_transform_forward(plan%spfft_transform, SPFFT_PU_HOST, zout, SPFFT_NO_SCALING)
+         ELSE
+            errorCode = spfft_transform_backward(plan%spfft_transform, zin, SPFFT_PU_HOST)
+         END IF
       END IF
       IF (errorCode /= SPFFT_SUCCESS) CPABORT("FFT with SpFFT failed!")
 
-!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(zout, scale, complex_ptr)
-      zout = scale*CMPLX(complex_ptr, KIND=dp)
+      IF (plan%fft_in_place) THEN
+      IF (fsign == FWFFT) THEN
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(zin, scale)
+         zin = scale*CMPLX(zin, KIND=dp)
 !$OMP END PARALLEL WORKSHARE
+      ELSE
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(zin, scale, complex_ptr)
+         zin = scale*CMPLX(complex_ptr, KIND=dp)
+!$OMP END PARALLEL WORKSHARE
+      END IF
+      ELSE
+      IF (fsign == FWFFT) THEN
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(zout, scale)
+         zout = scale*CMPLX(zout, KIND=dp)
+!$OMP END PARALLEL WORKSHARE
+      ELSE
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(zout, scale, complex_ptr)
+         zout = scale*CMPLX(complex_ptr, KIND=dp)
+!$OMP END PARALLEL WORKSHARE
+      END IF
+      END IF
 #else
       MARK_USED(plan)
       MARK_USED(zin)
