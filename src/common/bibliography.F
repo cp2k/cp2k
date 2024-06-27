@@ -91,7 +91,8 @@ MODULE bibliography
                             Rycroft2009, Thomas2015, Brehm2018, Brehm2020, Shigeta2001, Heinecke2016, &
                             Brehm2021, Bussy2021a, Bussy2021b, Ditler2021, Ditler2022, Mattiat2019, &
                             Mattiat2022, Belleflamme2023, Knizia2013, Musaelian2023, Eriksen2020, &
-                            Bussy2023, Wang2018, Zeng2023, Graml2024, Solca2024, Freeman1977, Gruneis2009, &
+                            Bussy2023, Wang2018, Zeng2023, Graml2024, Solca2024, &
+                            Caldeweyher2017, Caldeweyher2019, Caldeweyher2020, Freeman1977, Gruneis2009, &
                             Stein2022, Stein2024
 
 CONTAINS
@@ -5010,6 +5011,71 @@ CONTAINS
                          "DI 10.1007/978-3-031-61763-8_13", &
                          "ER"), &
                          DOI="10.1007/978-3-031-61763-8_13")
+
+      CALL add_reference(key=Caldeweyher2017, ISI_record=s2a( &
+                         "PT J", &
+                         "AU Caldeweyher, E", &
+                         "   Bannwarth, C", &
+                         "   Grimme, S", &
+                         "AF Caldeweyher, Eike", &
+                         "   Bannwarth, Christoph", &
+                         "   Grimme, Stefan", &
+                         "TI Extension of the D3 dispersion coefficient model", &
+                         "SO JOURNAL OF CHEMICAL PHYSICS", &
+                         "PD JUL 21", &
+                         "PY 2017", &
+                         "VL 147", &
+                         "AR 034112", &
+                         "DI 10.1063/1.4993215", &
+                         "ER"), &
+                         DOI="10.1063/1.4993215")
+
+      CALL add_reference(key=Caldeweyher2019, ISI_record=s2a( &
+                         "PT J", &
+                         "AU Caldeweyher, E", &
+                         "   Ehlert, S", &
+                         "   Hansen, A", &
+                         "   Neugebauer, H", &
+                         "   Spicher, S", &
+                         "   Bannwarth, C", &
+                         "   Grimme, S", &
+                         "AF Caldeweyher, Eike", &
+                         "   Ehlert, Sebastian", &
+                         "   Hansen, Andreas", &
+                         "   Neugebauer, Hagen", &
+                         "   Spicher, Sebastian", &
+                         "   Bannwarth, Christoph", &
+                         "   Grimme, Stefan", &
+                         "TI A generally applicable atomic-charge dependent London dispersion", &
+                         "   correction", &
+                         "SO JOURNAL OF CHEMICAL PHYSICS", &
+                         "PY 2019", &
+                         "VL 150", &
+                         "AR 154122", &
+                         "DI 10.1063/1.5090222", &
+                         "ER"), &
+                         DOI="10.1063/1.5090222")
+
+      CALL add_reference(key=Caldeweyher2020, ISI_record=s2a( &
+                         "PT J", &
+                         "AU Caldeweyher, E", &
+                         "   Mewes, JM", &
+                         "   Ehlert, S", &
+                         "   Grimme, S", &
+                         "AF Caldeweyher, Eike", &
+                         "   Mewes, Jan-Michael", &
+                         "   Ehlert, Sebastian", &
+                         "   Grimme, Stefan", &
+                         "TI Extension and evaluation of the D4 London-dispersion model for periodic", &
+                         "   systems", &
+                         "SO PHYSICAL CHEMISTRY CHEMICAL PHYSICS", &
+                         "PY 2020", &
+                         "VL 22", &
+                         "BP 8499", &
+                         "EP 8512", &
+                         "DI 10.1039/d0cp00502a", &
+                         "ER"), &
+                         DOI="10.1039/d0cp00502a")
 
       CALL add_reference(key=Freeman1977, ISI_record=s2a( &
                          "TY JOUR", &

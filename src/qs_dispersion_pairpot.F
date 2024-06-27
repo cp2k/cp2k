@@ -16,7 +16,10 @@ MODULE qs_dispersion_pairpot
                                               get_atomic_kind_set
    USE atprop_types,                    ONLY: atprop_array_init,&
                                               atprop_type
-   USE bibliography,                    ONLY: Goerigk2017,&
+   USE bibliography,                    ONLY: Caldeweyher2017,&
+                                              Caldeweyher2019,&
+                                              Caldeweyher2020,&
+                                              Goerigk2017,&
                                               cite_reference,&
                                               grimme2006,&
                                               grimme2010,&
@@ -39,6 +42,7 @@ MODULE qs_dispersion_pairpot
    USE input_constants,                 ONLY: vdw_pairpot_dftd2,&
                                               vdw_pairpot_dftd3,&
                                               vdw_pairpot_dftd3bj,&
+                                              vdw_pairpot_dftd4,&
                                               xc_vdw_fun_none,&
                                               xc_vdw_fun_pairpot
    USE input_section_types,             ONLY: section_vals_type,&
@@ -53,8 +57,10 @@ MODULE qs_dispersion_pairpot
    USE physcon,                         ONLY: bohr,&
                                               kcalmol,&
                                               kjmol
+   USE qs_dispersion_d4,                ONLY: calculate_dispersion_d4_pairpot
    USE qs_dispersion_types,             ONLY: dftd2_pp,&
                                               dftd3_pp,&
+                                              dftd4_pp,&
                                               qs_atom_dispersion_type,&
                                               qs_dispersion_type
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -340,7 +346,18 @@ CONTAINS
                   END DO
                END IF
             END IF
-
+         CASE (vdw_pairpot_dftd4)
+            !most checks are done by the library
+            CALL cite_reference(Caldeweyher2017)
+            CALL cite_reference(Caldeweyher2019)
+            CALL cite_reference(Caldeweyher2020)
+            DO ikind = 1, nkind
+               CALL get_atomic_kind(atomic_kind_set(ikind), element_symbol=symbol, z=elem)
+               ALLOCATE (disp)
+               disp%type = dftd4_pp
+               disp%defined = .TRUE.
+               CALL set_qs_kind(qs_kind_set(ikind), dispersion=disp)
+            END DO
          END SELECT
       END SELECT
 
@@ -1346,12 +1363,15 @@ CONTAINS
             WRITE (unit_nr, *) " Dispersion potential type: DFT-D3"
          ELSE IF (dispersion_env%pp_type == vdw_pairpot_dftd3bj) THEN
             WRITE (unit_nr, *) " Dispersion potential type: DFT-D3(BJ)"
+         ELSE IF (dispersion_env%pp_type == vdw_pairpot_dftd4) THEN
+            WRITE (unit_nr, *) " Dispersion potential type: DFT-D4"
          END IF
       END IF
 
       NULLIFY (particle_set)
       CALL get_qs_env(qs_env=qs_env, particle_set=particle_set)
       natom = SIZE(particle_set)
+
       IF (calculate_forces .OR. debugall) THEN
          NULLIFY (force)
          CALL get_qs_env(qs_env=qs_env, force=force)
@@ -1366,6 +1386,22 @@ CONTAINS
       ELSE IF ((dispersion_env%pp_type == vdw_pairpot_dftd3 .OR. &
                 dispersion_env%pp_type == vdw_pairpot_dftd3bj) .AND. dispersion_env%doabc) THEN
          CALL get_atomic_kind_set(atomic_kind_set, atom_of_kind=atom_of_kind, kind_of=kind_of)
+      END IF
+
+      evdw = 0._dp
+      pv_virial_thread(:, :) = 0._dp
+      IF (dispersion_env%pp_type == vdw_pairpot_dftd4) THEN
+         IF (calculate_forces .OR. debugall) THEN
+            IF (use_virial) THEN
+               CALL calculate_dispersion_d4_pairpot(dispersion_env, particle_set, cell, para_env, &
+                                                    evdw, force=force, atom_of_kind=atom_of_kind, virial=pv_virial_thread)
+            ELSE
+               CALL calculate_dispersion_d4_pairpot(dispersion_env, particle_set, cell, para_env, &
+                                                    evdw, force=force, atom_of_kind=atom_of_kind)
+            END IF
+         ELSE
+            CALL calculate_dispersion_d4_pairpot(dispersion_env, particle_set, cell, para_env, evdw)
+         END IF
       END IF
 
       ALLOCATE (dodisp(nkind), ghost(nkind), floating(nkind), atomnumber(nkind), c6d2(nkind), radd2(nkind))
@@ -1555,14 +1591,10 @@ CONTAINS
          END IF
       END IF
 
-      evdw = 0._dp
       sab_vdw => dispersion_env%sab_vdw
       nkind = SIZE(atomic_kind_set)
 
       num_pe = 1
-
-      pv_virial_thread(:, :) = 0._dp
-
       CALL neighbor_list_iterator_create(nl_iterator, sab_vdw, nthread=num_pe)
 
       mepos = 0
@@ -2006,6 +2038,11 @@ CONTAINS
                   END DO
 
                END IF
+            ELSE IF (disp_a%type == dftd4_pp .AND. dr > 0.001_dp) THEN
+               IF (atstress) THEN
+                  CPABORT("atomic stress with DFTD4 not implemented")
+               END IF
+               domol = .FALSE.
             END IF
          END IF
       END DO

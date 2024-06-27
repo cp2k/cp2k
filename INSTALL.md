@@ -472,6 +472,13 @@ DeePMD-kit - Deep Potential Molecular Dyanmics. Support for DeePMD-kit can be en
   <https://docs.deepmodeling.com/projects/deepmd/en/master/install/install-from-c-library.html>
 - For more information see <https://github.com/deepmodeling/deepmd-kit.git>.
 
+### 2z. DFTD4 (optional, dispersion correction)
+
+- dftd4 - Generally Applicable Atomic-Charge Dependent London Dispersion Correction.
+- For more information see <https://github.com/dftd4/dftd4>
+- Add `-D__DFTD4` to DFLAGS, `-ldftd4 -lmstore -lmulticharge -lmctc-lib` to LIBS and
+  `-I'${DFTD4_DFTD4}/../..' -I'${DFTD4_DFTD4}' -I'${DFTD4_MCTC}'` to CFLAGS
+
 ## 3. Compile
 
 ### 3a. ARCH files

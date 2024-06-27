@@ -5,6 +5,7 @@
 # the order will be regularly checked and modified...
 QS/regtest-fftw-wisdom                                      fftw3
 Fist/regtest-water
+QS/regtest-dft-vdw-corr-4                                   libdftd4
 QS/regtest-ecp                                              libgrpp
 QS/regtest-ecp-2                                            libgrpp
 QS/regtest-as-3                                             libint mpiranks%2==0

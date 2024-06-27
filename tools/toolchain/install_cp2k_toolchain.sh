@@ -154,6 +154,8 @@ The --with-PKG options follow the rules:
                           Default = no
   --with-cmake            Cmake utilities
                           Default = install
+  --with-ninja            Ninja utilities
+                          Default = install
   --with-openmpi          OpenMPI, important if you want a parallel version of CP2K.
                           Default = system
   --with-mpich            MPICH, MPI library like OpenMPI. one should
@@ -229,6 +231,9 @@ The --with-PKG options follow the rules:
                           Default = install
   --with-libtorch         Enable libtorch the machine learning framework needed for NequIP and Allegro
                           Default = no
+  --with-dftd4            Enable the DFTD4 package by Grimme
+                          This package requires cmake, ninja
+                          Default = install
 
 FURTHER INSTRUCTIONS
 
@@ -261,12 +266,12 @@ EOF
 # PACKAGE LIST: register all new dependent tools and libs here. Order
 # is important, the first in the list gets installed first
 # ------------------------------------------------------------------------
-tool_list="gcc intel cmake"
+tool_list="gcc intel cmake ninja"
 mpi_list="mpich openmpi intelmpi"
 math_list="mkl acml openblas"
 lib_list="fftw libint libxc libgrpp libxsmm cosma scalapack elpa cusolvermp plumed \
           spfft spla ptscotch superlu pexsi quip gsl spglib hdf5 libvdwxc sirius
-          libvori libtorch deepmd"
+          libvori libtorch deepmd dftd4"
 package_list="${tool_list} ${mpi_list} ${math_list} ${lib_list}"
 # ------------------------------------------------------------------------
 
@@ -315,6 +320,9 @@ with_spla="__DONTUSE__"
 with_cosma="__INSTALL__"
 with_libvori="__INSTALL__"
 with_libtorch="__DONTUSE__"
+with_ninja="__DONTUSE__"
+with_dftd4="__DONTUSE__"
+
 # for MPI, we try to detect system MPI variant
 if (command -v mpiexec > /dev/null 2>&1); then
   # check if we are dealing with openmpi, mpich or intelmpi
@@ -531,6 +539,9 @@ while [ $# -ge 1 ]; do
     --with-cmake*)
       with_cmake=$(read_with "${1}")
       ;;
+    --with-ninja*)
+      with_ninja=$(read_with "${1}")
+      ;;
     --with-mpich-device=*)
       user_input="${1#*=}"
       export MPICH_DEVICE="${user_input}"
@@ -649,6 +660,9 @@ while [ $# -ge 1 ]; do
       ;;
     --with-spla*)
       with_spla=$(read_with "${1}")
+      ;;
+    --with-dftd4*)
+      with_dftd4=$(read_with "${1}")
       ;;
     --help*)
       show_help
@@ -786,6 +800,11 @@ else
   fi
 fi
 
+#dftd4 installation requires ninja
+if [ "${with_dftd4}" = "__INSTALL__" ]; then
+  [ "${with_ninja}" = "__DONTUSE__" ] && with_ninja="__INSTALL__"
+fi
+
 # several packages require cmake.
 if [ "${with_spglib}" = "__INSTALL__" ] ||
   [ "${with_libvori}" = "__INSTALL__" ] ||
@@ -794,7 +813,9 @@ if [ "${with_spglib}" = "__INSTALL__" ] ||
   [ "${with_sirius}" = "__INSTALL__" ] ||
   [ "${with_cosma}" = "__INSTALL__" ] ||
   [ "${with_spfft}" = "__INSTALL__" ] ||
-  [ "${with_spla}" = "__INSTALL__" ]; then
+  [ "${with_spla}" = "__INSTALL__" ] ||
+  [ "${with_ninja}" = "__INSTALL__" ] ||
+  [ "${with_dftd4}" = "__INSTALL__" ]; then
   [ "${with_cmake}" = "__DONTUSE__" ] && with_cmake="__INSTALL__"
 fi
 

@@ -209,6 +209,9 @@ CONTAINS
 #if defined(__MKL)
       flags = TRIM(flags)//" mkl"
 #endif
+#if defined(__DFTD4)
+      flags = TRIM(flags)//" libdftd4"
+#endif
 #if defined(__SIRIUS)
       flags = TRIM(flags)//" sirius"
 #endif

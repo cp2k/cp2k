@@ -1,0 +1,9 @@
+# runs are executed in the same order as in this file
+# the second field tells which test should be run in order to compare with the last available output
+# e.g. 0 means do not compare anything, running is enough
+#      1 compares the last total energy in the file
+#      for details see cp2k/tools/do_regtest
+pbe_dftd4.inp                                          33    1.0E-14              -0.00141644869634
+pbe_dftd4_force.inp                                    72    1.0E-07                     0.00007217 
+pbe_dftd4_stress.inp                                   31    1.0E-07             -5.16289312880E-03
+#EOF
