@@ -21,8 +21,10 @@ MODULE fft_lib
         fftw3_create_plan_1d, fftw3_create_plan_3d, fftw3_destroy_plan, fftw3_do_cleanup, &
         fftw3_do_init, fftw3_get_lengths
    USE spfft_lib,                       ONLY: spfft_1d,&
+                                              spfft_2d,&
                                               spfft_3d,&
                                               spfft_create_plan_1d,&
+                                              spfft_create_plan_2d,&
                                               spfft_create_plan_3d,&
                                               spfft_destroy_plan
 #include "../../base/base_uses.f90"
@@ -220,8 +222,7 @@ CONTAINS
             plan(1)%valid = .TRUE.
             plan(2)%valid = .TRUE.
          ELSE IF (fft_type .EQ. 4) THEN
-            CALL spfft_create_plan_1d(plan(1))
-            CALL spfft_create_plan_1d(plan(2))
+            CALL spfft_create_plan_2d(plan(1))
             plan(1)%valid = .TRUE.
             plan(2)%valid = .TRUE.
          ELSE
@@ -372,14 +373,7 @@ CONTAINS
             END IF
             stat = stat*stat2
          CASE (4)
-            IF (fsign == FWFFT) THEN
-               CALL spfft_1d(plan(1), fsign, zin, zintermed, scale, stat)
-               CALL spfft_1d(plan(2), fsign, zintermed, zout, 1.0_dp, stat2)
-            ELSE
-               CALL spfft_1d(plan(2), fsign, zin, zintermed, scale, stat)
-               CALL spfft_1d(plan(1), fsign, zintermed, zout, 1.0_dp, stat2)
-            END IF
-            stat = stat*stat2
+            CALL spfft_2d(plan(1), fsign, zin, zout, scale, stat)
          END SELECT
       END IF
       ! stat is set to zero on error, -1,+1 are OK
