@@ -218,11 +218,11 @@ CONTAINS
 
       TYPE(fft_plan_type), INTENT(IN)                      :: plan
       INTEGER, INTENT(IN)                                  :: fsign
-      COMPLEX(KIND=dp), DIMENSION(plan%n, plan%m), INTENT(INOUT), TARGET :: zin, zout
+      COMPLEX(KIND=dp), DIMENSION(plan%n*plan%m), INTENT(INOUT), TARGET :: zin, zout
       REAL(KIND=dp), INTENT(IN)                            :: scale
       INTEGER, INTENT(OUT)                                 :: stat
 #if defined (__SPFFT) && defined(__parallel)
-      COMPLEX(KIND=C_DOUBLE_COMPLEX), DIMENSION(:, :), POINTER, CONTIGUOUS :: complex_ptr
+      COMPLEX(KIND=C_DOUBLE_COMPLEX), DIMENSION(:), POINTER, CONTIGUOUS :: complex_ptr
       INTEGER :: i
       INTEGER(KIND=C_INT) :: errorcode
       INTEGER(KIND=C_INT), DIMENSION(:), ALLOCATABLE, TARGET :: scalingTypes
@@ -233,19 +233,23 @@ CONTAINS
       errorCode = spfft_transform_get_space_domain(plan%spfft_transform, SPFFT_PU_HOST, spfft_ptr)
       IF (errorCode /= SPFFT_SUCCESS) CPABORT("FFT with SpFFT failed!")
 
-      CALL C_F_POINTER(spfft_ptr, complex_ptr, [plan%n, plan%m])
+      CALL C_F_POINTER(spfft_ptr, complex_ptr, [plan%n*plan%m])
 
       ALLOCATE (scalingTypes(plan%m))
       scalingTypes = SPFFT_NO_SCALING
 
+      IF (fsign == FWFFT .AND. plan%trans) THEN
+         complex_ptr = RESHAPE(TRANSPOSE(RESHAPE(zin, [plan%m, plan%n])), [plan%m*plan%n])
+      ELSE
 !$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(zin, complex_ptr)
-      complex_ptr = zin
+         complex_ptr = zin
 !$OMP END PARALLEL WORKSHARE
+      END IF
 
       ALLOCATE (inputLocations(plan%m), outputLocations(plan%m))
       DO i = 1, plan%m
-         inputLocations(i) = C_LOC(complex_ptr(1, i))
-         outputLocations(i) = C_LOC(zout(1, i))
+         inputLocations(i) = C_LOC(complex_ptr(i*plan%n))
+         outputLocations(i) = C_LOC(zout(i*plan%n))
       END DO
 
       IF (fsign == FWFFT) THEN
@@ -257,9 +261,15 @@ CONTAINS
       END IF
       IF (errorCode /= SPFFT_SUCCESS) CPABORT("FFT with SpFFT failed!")
 
-!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(zout, scale, complex_ptr)
-      zout = scale*zout
+      IF (fsign == BWFFT .AND. plan%trans) THEN
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(zout, scale, plan)
+         zout = scale*RESHAPE(TRANSPOSE(RESHAPE(zout, [plan%n, plan%m])), [plan%m*plan%n])
 !$OMP END PARALLEL WORKSHARE
+      ELSE
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(zout, scale)
+         zout = scale*zout
+!$OMP END PARALLEL WORKSHARE
+      END IF
 #else
       MARK_USED(plan)
       MARK_USED(zin)
