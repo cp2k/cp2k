@@ -573,8 +573,8 @@ CONTAINS
       MARK_USED(hm_ostride)
       MARK_USED(fft_direction)
       MARK_USED(fftw_plan_type)
-      !MARK_USED does not work with assumed size arguments
-      IF (.FALSE.) THEN; DO; IF (ABS(zin(1)) > ABS(zout(1))) EXIT; END DO; END IF
+      MARK_USED(zin)
+      MARK_USED(zout)
       valid = .FALSE.
 
 #endif
@@ -881,8 +881,8 @@ CONTAINS
 
 #else
       MARK_USED(plan)
-      !MARK_USED does not work with assumed size arguments
-      IF (.FALSE.) THEN; DO; IF (ABS(zin(1)) > ABS(zout(1))) EXIT; END DO; END IF
+      MARK_USED(zin)
+      MARK_USED(zout)
 #endif
 
    END SUBROUTINE fftw3_create_plan_3d
@@ -952,8 +952,8 @@ CONTAINS
       MARK_USED(tid)
       MARK_USED(istride)
       MARK_USED(ostride)
-      !MARK_USED does not work with assumed size arguments
-      IF (.FALSE.) THEN; DO; IF (ABS(input(1)) > ABS(output(1))) EXIT; END DO; END IF
+      MARK_USED(input)
+      MARK_USED(output)
 #endif
 
    END SUBROUTINE
@@ -1061,8 +1061,8 @@ CONTAINS
 #else
       MARK_USED(plan)
       MARK_USED(scale)
-      !MARK_USED does not work with assumed size arguments
-      IF (.FALSE.) THEN; DO; IF (ABS(zin(1)) > ABS(zout(1))) EXIT; END DO; END IF
+      MARK_USED(zin)
+      MARK_USED(zout)
       stat = 0
 
 #endif
@@ -1145,8 +1145,8 @@ CONTAINS
 
 #else
       MARK_USED(plan)
-      !MARK_USED does not work with assumed size arguments
-      IF (.FALSE.) THEN; DO; IF (ABS(zin(1)) > ABS(zout(1))) EXIT; END DO; END IF
+      MARK_USED(zin)
+      MARK_USED(zout)
 #endif
 
    END SUBROUTINE fftw3_create_plan_1d
@@ -1266,8 +1266,8 @@ CONTAINS
 #else
       MARK_USED(plan)
       MARK_USED(scale)
-      !MARK_USED does not work with assumed size arguments
-      IF (.FALSE.) THEN; DO; IF (ABS(zin(1)) > ABS(zout(1))) EXIT; END DO; END IF
+      MARK_USED(zin)
+      MARK_USED(zout)
       stat = 0
 
 !$    else
