@@ -29,10 +29,14 @@ case "${with_ninja}" in
     if verify_checksums "${install_lock_file}"; then
       echo "ninja-v${ninja_ver} is already installed, skipping it."
     else
+      if [ -f ninja-v${ninja_ver}.tar.gz ]; then
+        echo "ninja-v${ninja_ver}.tar.gz is found"
+      else
+        download_pkg_from_cp2k_org "${ninja_sha256}" "ninja-v${ninja_ver}.tar.gz"
+      fi
       echo "Installing from scratch into ${pkg_install_dir}"
       mkdir -p ${pkg_install_dir}
 
-      wget --quiet "https://github.com/ninja-build/ninja/archive/refs/tags/v${ninja_ver}.tar.gz" -O "ninja-v${ninja_ver}.tar.gz"
       tar -xzf ninja-v${ninja_ver}.tar.gz
       cd ninja-${ninja_ver}
       cmake -DCMAKE_INSTALL_PREFIX=${pkg_install_dir} \

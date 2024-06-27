@@ -41,7 +41,7 @@ case "$with_dftd4" in
       if [ -f dftd4-${dftd4_ver}.tar.gz ]; then
         echo " dftd4-${dftd4_ver}.tar.gz is found"
       else
-        wget --quiet "https://github.com/dftd4/dftd4/archive/refs/tags/v${dftd4_ver}.tar.gz" -O "dftd4-${dftd4_ver}.tar.gz"
+        download_pkg_from_cp2k_org "${dftd4_sha256}" "dftd4-${dftd4_ver}.tar.gz"
       fi
 
       echo "Installing from scratch into ${pkg_install_dir}"
