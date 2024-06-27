@@ -184,8 +184,7 @@ CONTAINS
       TYPE(fft_plan_type), INTENT(IN)                      :: plan
       REAL(KIND=dp), INTENT(IN)                            :: scale
       INTEGER, INTENT(IN)                                  :: fsign
-      COMPLEX(KIND=dp), DIMENSION(PRODUCT(plan%n_3d)), INTENT(INOUT) :: zin
-      COMPLEX(KIND=dp), DIMENSION(PRODUCT(plan%n_3d)), INTENT(INOUT) :: zout
+      COMPLEX(KIND=dp), DIMENSION(PRODUCT(plan%n_3d)), INTENT(INOUT) :: zin, zout
       INTEGER, INTENT(OUT)                                 :: stat
 #if defined (__SPFFT) && defined(__parallel)
       COMPLEX(KIND=C_DOUBLE_COMPLEX), DIMENSION(:), POINTER, CONTIGUOUS :: complex_ptr
@@ -216,25 +215,25 @@ CONTAINS
       IF (errorCode /= SPFFT_SUCCESS) CPABORT("FFT with SpFFT failed!")
 
       IF (plan%fft_in_place) THEN
-      IF (fsign == FWFFT) THEN
+         IF (fsign == FWFFT) THEN
 !$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(zin, scale)
-         zin = scale*CMPLX(zin, KIND=dp)
+            zin = scale*CMPLX(zin, KIND=dp)
 !$OMP END PARALLEL WORKSHARE
-      ELSE
+         ELSE
 !$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(zin, scale, complex_ptr)
-         zin = scale*CMPLX(complex_ptr, KIND=dp)
+            zin = scale*CMPLX(complex_ptr, KIND=dp)
 !$OMP END PARALLEL WORKSHARE
-      END IF
+         END IF
       ELSE
-      IF (fsign == FWFFT) THEN
+         IF (fsign == FWFFT) THEN
 !$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(zout, scale)
-         zout = scale*CMPLX(zout, KIND=dp)
+            zout = scale*CMPLX(zout, KIND=dp)
 !$OMP END PARALLEL WORKSHARE
-      ELSE
+         ELSE
 !$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(zout, scale, complex_ptr)
-         zout = scale*CMPLX(complex_ptr, KIND=dp)
+            zout = scale*CMPLX(complex_ptr, KIND=dp)
 !$OMP END PARALLEL WORKSHARE
-      END IF
+         END IF
       END IF
 #else
       MARK_USED(plan)
@@ -253,20 +252,20 @@ CONTAINS
 !> \param plan ...
 !> \param fsign ...
 !> \param zin ...
+!> \param zintermed ...
 !> \param zout ...
 !> \param scale ...
 !> \param stat ...
 ! **************************************************************************************************
-   SUBROUTINE spfft_2d(plan, fsign, zin, zout, scale, stat)
+   SUBROUTINE spfft_2d(plan, fsign, zin, zintermed, zout, scale, stat)
 
       TYPE(fft_plan_type), INTENT(IN)                      :: plan
       INTEGER, INTENT(IN)                                  :: fsign
-      COMPLEX(KIND=dp), DIMENSION(PRODUCT(plan%n_3d)), INTENT(INOUT), TARGET :: zin, zout
+      COMPLEX(KIND=dp), DIMENSION(PRODUCT(plan%n_3d)), INTENT(INOUT), TARGET :: zin, zintermed, zout
       REAL(KIND=dp), INTENT(IN)                            :: scale
       INTEGER, INTENT(OUT)                                 :: stat
 #if defined (__SPFFT) && defined(__parallel)
-      COMPLEX(KIND=C_DOUBLE_COMPLEX), DIMENSION(:, :, :), ALLOCATABLE, TARGET :: complex_array
-      INTEGER :: i, j, k
+      INTEGER :: i, j
       INTEGER(KIND=C_INT) :: errorcode
       INTEGER(KIND=C_INT), DIMENSION(:), ALLOCATABLE, TARGET :: scalingTypes
       TYPE(C_PTR), DIMENSION(:), ALLOCATABLE :: inputLocations, outputLocations
@@ -274,30 +273,25 @@ CONTAINS
       ALLOCATE (scalingTypes(plan%n_3d(3)))
       scalingTypes = SPFFT_NO_SCALING
 
-      ! Allocate a temporary array to ensure enough memory being available
-      ALLOCATE (complex_array(plan%n_3d(1), plan%n_3d(2), plan%n_3d(3)))
-
       IF (fsign == FWFFT) THEN
          IF (plan%trans) THEN
             ! Copy input to intermediate buffer
-!$OMP PARALLEL DO DEFAULT(NONE) SHARED(zin,scale,plan,complex_array) PRIVATE(i, j, k) COLLAPSE(3)
-            DO i = 1, plan%n_3d(1)
-            DO j = 1, plan%n_3d(2)
-            DO k = 1, plan%n_3d(3)
-               complex_array(i, j, k) = scale*zin((k - 1) + (i - 1)*plan%n_3d(3) + (j - 1)*plan%n_3d(1)*plan%n_3d(3))
-            END DO
+!$OMP PARALLEL DO DEFAULT(NONE) SHARED(zin,scale,plan,zintermed) PRIVATE(i, j) COLLAPSE(2)
+            DO i = 1, plan%n_3d(1)*plan%n_3d(2)
+            DO j = 1, plan%n_3d(3)
+               zintermed(i + (j - 1)*plan%n_3d(1)) = scale*zin(j + (i - 1)*plan%n_3d(3))
             END DO
             END DO
 !$OMP END PARALLEL DO
          ELSE
-!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(zin,scale,complex_array,plan)
-            complex_array = scale*RESHAPE(zin, plan%n_3d)
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(zin,scale,zintermed)
+            zintermed = scale*zin
 !$OMP END PARALLEL WORKSHARE
          END IF
 
          ! Compile an array with the starting points of each FFT
          DO i = 1, plan%n_3d(3)
-            inputLocations(i) = C_LOC(complex_array(:, :, i))
+            inputLocations(i) = C_LOC(zintermed(i*plan%n_3d(1)*plan%n_3d(2)))
             outputLocations(i) = C_LOC(zout(i*plan%n_3d(1)*plan%n_3d(2)))
          END DO
 
@@ -308,7 +302,7 @@ CONTAINS
       ELSE
          DO i = 1, plan%n_3d(3)
             inputLocations(i) = C_LOC(zin(i*plan%n_3d(1)*plan%n_3d(2)))
-            outputLocations(i) = C_LOC(complex_array(:, :, i))
+            outputLocations(i) = C_LOC(zintermed(i*plan%n_3d(1)*plan%n_3d(2)))
          END DO
 
          errorCode = spfft_multi_transform_backward_ptr(plan%n_3d(3), plan%spfft_transform, &
@@ -316,18 +310,16 @@ CONTAINS
          IF (errorCode /= SPFFT_SUCCESS) CPABORT("FFT with SpFFT failed!")
 
          IF (plan%trans) THEN
-!$OMP PARALLEL DO DEFAULT(NONE) SHARED(zout,scale,plan,complex_array) PRIVATE(i, j, k) COLLAPSE(3)
-            DO i = 1, plan%n_3d(1)
-            DO j = 1, plan%n_3d(2)
-            DO k = 1, plan%n_3d(3)
-               zout((k - 1) + (i - 1)*plan%n_3d(3) + (j - 1)*plan%n_3d(1)*plan%n_3d(3)) = scale*complex_array(i, j, k)
-            END DO
+!$OMP PARALLEL DO DEFAULT(NONE) SHARED(zout,scale,plan,zintermed) PRIVATE(i, j) COLLAPSE(2)
+            DO i = 1, plan%n_3d(1)*plan%n_3d(2)
+            DO j = 1, plan%n_3d(3)
+               zout(j + (i - 1)*plan%n_3d(3)) = scale*zintermed(i + (j - 1)*plan%n_3d(3))
             END DO
             END DO
 !$OMP END PARALLEL DO
          ELSE
-!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(zout,scale,complex_array,plan)
-            zout = scale*RESHAPE(complex_array, [PRODUCT(plan%n_3d)])
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(zout,scale,zintermed)
+            zout = scale*zintermed
 !$OMP END PARALLEL WORKSHARE
          END IF
       END IF
@@ -337,6 +329,7 @@ CONTAINS
       MARK_USED(zout)
       MARK_USED(scale)
       MARK_USED(fsign)
+      MARK_USED(zintermed)
       CPABORT("In order to use SPFFT, you have to install it!")
 #endif
       stat = 0

@@ -373,7 +373,7 @@ CONTAINS
             END IF
             stat = stat*stat2
          CASE (4)
-            CALL spfft_2d(plan(1), fsign, zin, zout, scale, stat)
+            CALL spfft_2d(plan(1), fsign, zin, zintermed, zout, scale, stat)
          END SELECT
       END IF
       ! stat is set to zero on error, -1,+1 are OK
