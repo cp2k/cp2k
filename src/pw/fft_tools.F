@@ -356,9 +356,9 @@ CONTAINS
 
       INTEGER, INTENT(IN)                                :: fsign
       INTEGER, DIMENSION(:), INTENT(INOUT)               :: n
-      COMPLEX(KIND=dp), CONTIGUOUS, DIMENSION(:, :, :), &
+      COMPLEX(KIND=dp), DIMENSION(n(1), n(2), n(3)), &
          INTENT(INOUT)                                   :: zin
-      COMPLEX(KIND=dp), CONTIGUOUS, DIMENSION(:, :, :), &
+      COMPLEX(KIND=dp), DIMENSION(n(1), n(2), n(3)), &
          INTENT(INOUT), OPTIONAL, TARGET                 :: zout
       INTEGER, INTENT(OUT), OPTIONAL                     :: status
       LOGICAL, INTENT(IN), OPTIONAL                      :: debug
