@@ -141,8 +141,8 @@ CONTAINS
       TYPE(fft_plan_type), INTENT(IN)                      :: plan
       REAL(KIND=dp), INTENT(IN)                            :: scale
       INTEGER, INTENT(IN)                                  :: fsign
-      COMPLEX(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT), CONTIGUOUS, TARGET :: zin
-      COMPLEX(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT), CONTIGUOUS, TARGET :: zout
+      COMPLEX(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT), CONTIGUOUS :: zin
+      COMPLEX(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT), CONTIGUOUS :: zout
       INTEGER, INTENT(OUT)                                 :: stat
 #if defined (__SPFFT) && defined(__parallel)
       COMPLEX(KIND=C_DOUBLE_COMPLEX), DIMENSION(:, :, :), POINTER, CONTIGUOUS :: complex_ptr
