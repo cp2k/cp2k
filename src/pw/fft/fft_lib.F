@@ -248,8 +248,10 @@ CONTAINS
       TYPE(fft_plan_type), INTENT(IN)                    :: plan
       INTEGER, INTENT(IN)                                :: fsign
       REAL(KIND=dp), INTENT(IN)                          :: scale
+      COMPLEX(KIND=dp), DIMENSION(plan%n_3d(1), plan%&
+         n_3d(2), plan%n_3d(3)), INTENT(INOUT)           :: zin
       COMPLEX(KIND=dp), DIMENSION(:, :, :), &
-         INTENT(INOUT)                                   :: zin, zout
+         INTENT(INOUT)                                   :: zout
       INTEGER, INTENT(OUT)                               :: stat
 
       stat = fsign
