@@ -41,9 +41,9 @@ case "${with_ninja}" in
       cd ninja-${ninja_ver}
       cmake -DCMAKE_INSTALL_PREFIX=${pkg_install_dir} \
         -Bbuild-ninja \
-        > configure.log 2>&1
-      cmake --build build-ninja > cmake.log 2>&1
-      cmake --install build-ninja > install.log 2>&1
+        > configure.log 2>&1 || tail -n ${LOG_LINES} configure.log
+      cmake --build build-ninja -j $(get_nprocs) > cmake.log 2>&1 || tail -n ${LOG_LINES} cmake.log
+      cmake --install build-ninja > install.log 2>&1 || tail -n ${LOG_LINES} install.log
 
       write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage0/$(basename ${SCRIPT_NAME})"
     fi
