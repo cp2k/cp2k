@@ -85,8 +85,8 @@ CONTAINS
 
       INTEGER :: atom_a, atom_b, atom_c, handle, i, iatom, ic, icol, ikind, img, ir, irow, iset, &
          j, jatom, jkind, jset, katom, kkind, la, lb, ldsab, maxder, n1, n2, na, natom, natorb_a, &
-         natorb_b, nb, ncoa, ncob, nderivatives, nimg, nkind, nsa, nsb, nseta, nsetb, &
-         sgfa, sgfb, za, zb
+         natorb_b, nb, ncoa, ncob, nderivatives, nimg, nkind, nsa, nsb, nseta, nsetb, sgfa, sgfb, &
+         za, zb
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, kind_of
       INTEGER, DIMENSION(25)                             :: laoa, laob, naoa, naob
       INTEGER, DIMENSION(3)                              :: cell
