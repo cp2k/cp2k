@@ -2972,8 +2972,7 @@ CONTAINS
                !set up fft plans
                CALL fft_alloc(complex_array_2d, [mx1*my1, n(3)])
                CALL fft_create_plan_2d(fft_scratch_new%fft_scratch%fft_plan(1:2), .TRUE., mz1, my1, mx1, &
-                                       complex_array_2d, fft_scratch_new%fft_scratch%a3buf, &
-                                       fft_scratch_new%fft_scratch%a4buf)
+                                       fft_scratch_new%fft_scratch%a3buf, fft_scratch_new%fft_scratch%a4buf)
                CALL fft_dealloc(complex_array_2d)
                CALL fft_alloc(complex_array_2d, [n(1), my3*mz3])
                CALL fft_create_plan_1d(fft_scratch_new%fft_scratch%fft_plan(3), .TRUE., n(1), my3*mz3, &
@@ -3017,8 +3016,7 @@ CONTAINS
 
                !set up fft plans
                CALL fft_create_plan_2d(fft_scratch_new%fft_scratch%fft_plan(1:2), .TRUE., nz, ny, nx, &
-                                       fft_scratch_new%fft_scratch%tbuf, fft_scratch_new%fft_scratch%r1buf, &
-                                       fft_scratch_new%fft_scratch%tbuf)
+                                       fft_scratch_new%fft_scratch%r1buf, fft_scratch_new%fft_scratch%tbuf)
                CALL fft_alloc(complex_array_2d, [lg, mg])
                CALL fft_create_plan_1d(fft_scratch_new%fft_scratch%fft_plan(3), .TRUE., n(1), nyzray, &
                                        fft_scratch_new%fft_scratch%r1buf, complex_array_2d)
