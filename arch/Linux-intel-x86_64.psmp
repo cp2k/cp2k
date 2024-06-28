@@ -2,7 +2,7 @@
 #
 # CP2K (Intel/MKL x86_64) arch file for Linux clusters
 #
-# Tested with: Intel 22.2 , Intel MPI, Intel MKL,
+# Tested with: Intel 22.2, 2021.13, Intel MPI, Intel MKL,
 #              LIBINT 2.6.0, LIBXC 6.2.2, ELPA 2024.03.001,
 #              PLUMED 2.9.0, SPGLIB 2.3.1, LIBVORI 220621,
 #              GSL 2.7, COSMA 2.6.6, HDF5 1.14.2, SIRIUS 7.5.2,
@@ -13,7 +13,7 @@
 #        Optionally, the Intel compiler version can be specified as argument.
 #        Replace or adapt the "module add" commands below if needed.
 #
-# Last update: 12.06.2024
+# Last update: 27.06.2024
 #
 # \
    if [[ "${0}" == "${BASH_SOURCE}" ]]; then \
@@ -88,7 +88,7 @@ ifeq ($(strip $(TARGET_CPU)), native)
 else
    CFLAGS         := -O2 -fPIC -fp-model precise -funroll-loops -g -mtune=$(TARGET_CPU) -qopenmp -qopenmp-simd -traceback
 endif
-CFLAGS         += -I/opt/intel/oneapi/compiler/latest/opt/compiler/include/intel64 -diag-disable=10448
+CFLAGS         += -diag-disable=10448
 
 DFLAGS         := -D__parallel
 DFLAGS         += -D__SCALAPACK
@@ -108,7 +108,6 @@ ifeq ($(SHARED), yes)
    LDFLAGS        += -Wl,-rpath=$(CP2K_LIB)
    LDFLAGS        += -Wl,-rpath=$(CP2K_LIB)/exts/dbcsr
 else
-#  LDFLAGS        := -static-intel -static_mpi
    LDFLAGS        := -static-intel
 endif
 
@@ -131,14 +130,14 @@ endif
 
 ifneq ($(USE_ELPA),)
    USE_ELPA       := $(strip $(USE_ELPA))
-   ELPA_INC       := $(INSTALL_PATH)/elpa-$(USE_ELPA)/cpu/include/elpa-$(USE_ELPA)
+   ELPA_INC       := $(INSTALL_PATH)/elpa-$(USE_ELPA)/cpu/include/elpa_openmp-$(USE_ELPA)
    ELPA_LIB       := $(INSTALL_PATH)/elpa-$(USE_ELPA)/cpu/lib
    CFLAGS         += -I$(ELPA_INC)/elpa -I$(ELPA_INC)/modules
    DFLAGS         += -D__ELPA
    ifeq ($(SHARED), yes)
-      LIBS           += -Wl,-rpath=$(ELPA_LIB) -L$(ELPA_LIB) -lelpa
+      LIBS           += -Wl,-rpath=$(ELPA_LIB) -L$(ELPA_LIB) -lelpa_openmp
    else
-      LIBS           += $(ELPA_LIB)/libelpa.a
+      LIBS           += $(ELPA_LIB)/libelpa_openmp.a
    endif
 endif
 
