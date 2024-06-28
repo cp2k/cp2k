@@ -192,16 +192,15 @@ CONTAINS
 !> \param n2 ...
 !> \param m ...
 !> \param zin ...
-!> \param zintermed ...
 !> \param zout ...
 ! **************************************************************************************************
-   SUBROUTINE fft_create_plan_2d(plan, trans, n1, n2, m, zin, zintermed, zout)
+   SUBROUTINE fft_create_plan_2d(plan, trans, n1, n2, m, zin, zout)
 
       TYPE(fft_plan_type), INTENT(INOUT)                 :: plan(2)
       LOGICAL, INTENT(IN)                                :: trans
       INTEGER, INTENT(IN)                                :: n1, n2, m
       COMPLEX(KIND=dp), DIMENSION(n1*n2*m), &
-         INTENT(INOUT)                                   :: zin, zintermed, zout
+         INTENT(INOUT)                                   :: zin, zout
 
       plan(1)%trans = trans
       plan(1)%n_3d = [n1, n2, m]
@@ -217,8 +216,8 @@ CONTAINS
       IF ((n1 > 0) .AND. (m > 0) .AND. (n2 > 0)) THEN
          ! Planning only needed for FFTW3
          IF (fft_type .EQ. 3) THEN
-            CALL fftw3_create_plan_1d(plan(1), zin, zintermed)
-            CALL fftw3_create_plan_1d(plan(2), zintermed, zout)
+            CALL fftw3_create_plan_1d(plan(1), zin, zout)
+            CALL fftw3_create_plan_1d(plan(2), zin, zout)
             plan(1)%valid = .TRUE.
             plan(2)%valid = .TRUE.
          ELSE IF (fft_type .EQ. 4) THEN
