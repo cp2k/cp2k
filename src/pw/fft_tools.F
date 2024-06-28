@@ -81,22 +81,19 @@ MODULE fft_tools
       ! to be used in cube_transpose_* routines
       TYPE(mp_cart_type), DIMENSION(2)     :: cart_sub_comm = mp_cart_type()
       INTEGER, DIMENSION(2)                :: dim = -1, pos = -1
-      ! to be used in fft3d_s
-      COMPLEX(KIND=dp), DIMENSION(:, :, :), POINTER, CONTIGUOUS &
-         :: ziptr => NULL(), zoptr => NULL()
       ! to be used in fft3d_ps : block distribution
       COMPLEX(KIND=dp), DIMENSION(:, :), CONTIGUOUS, POINTER &
          :: p1buf => NULL(), p2buf => NULL(), p3buf => NULL(), p4buf => NULL(), &
-            p5buf => NULL(), p6buf => NULL(), p7buf => NULL()
+            p5buf => NULL(), p7buf => NULL()
       ! to be used in fft3d_ps : plane distribution
       COMPLEX(KIND=dp), DIMENSION(:, :), POINTER, CONTIGUOUS &
-         :: r1buf => NULL(), r2buf => NULL()
+         :: r1buf => NULL()
       COMPLEX(KIND=dp), DIMENSION(:, :, :), POINTER, CONTIGUOUS &
          :: tbuf => NULL()
       ! to be used in fft3d_pb
       COMPLEX(KIND=dp), DIMENSION(:, :), POINTER, CONTIGUOUS &
-         :: a1buf => NULL(), a2buf => NULL(), a3buf => NULL(), &
-            a4buf => NULL(), a5buf => NULL(), a6buf => NULL()
+         :: a2buf => NULL(), a3buf => NULL(), &
+            a4buf => NULL(), a5buf => NULL()
       ! to be used in communication routines
       INTEGER, DIMENSION(:), CONTIGUOUS, POINTER       :: scount => NULL(), rcount => NULL(), sdispl => NULL(), rdispl => NULL()
       INTEGER, DIMENSION(:, :), CONTIGUOUS, POINTER     :: pgcube => NULL()
@@ -109,7 +106,7 @@ MODULE fft_tools
          :: xzbuf_sgl => NULL(), yzbuf_sgl => NULL()
       COMPLEX(KIND=dp), DIMENSION(:, :), POINTER, CONTIGUOUS &
          :: rbuf1 => NULL(), rbuf2 => NULL(), rbuf3 => NULL(), rbuf4 => NULL(), &
-            rbuf5 => NULL(), rbuf6 => NULL(), rr => NULL()
+            rbuf5 => NULL(), rr => NULL()
       COMPLEX(KIND=sp), DIMENSION(:, :), POINTER, CONTIGUOUS &
          :: ss => NULL(), tt => NULL()
       INTEGER, DIMENSION(:, :), POINTER, CONTIGUOUS     :: pgrid => NULL()
@@ -2564,12 +2561,6 @@ CONTAINS
 #endif
 
       ! deallocate structures
-      IF (ASSOCIATED(fft_scratch%ziptr)) THEN
-         CALL fft_dealloc(fft_scratch%ziptr)
-      END IF
-      IF (ASSOCIATED(fft_scratch%zoptr)) THEN
-         CALL fft_dealloc(fft_scratch%zoptr)
-      END IF
       IF (ASSOCIATED(fft_scratch%p1buf)) THEN
          CALL fft_dealloc(fft_scratch%p1buf)
       END IF
@@ -2605,9 +2596,6 @@ CONTAINS
          CALL fft_dealloc(fft_scratch%p5buf)
 #endif
       END IF
-      IF (ASSOCIATED(fft_scratch%p6buf)) THEN
-         CALL fft_dealloc(fft_scratch%p6buf)
-      END IF
       IF (ASSOCIATED(fft_scratch%p7buf)) THEN
 #if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_PW)
          dummy_ptr_z => fft_scratch%p7buf(1, 1)
@@ -2624,9 +2612,6 @@ CONTAINS
          CALL fft_dealloc(fft_scratch%r1buf)
 #endif
       END IF
-      IF (ASSOCIATED(fft_scratch%r2buf)) THEN
-         CALL fft_dealloc(fft_scratch%r2buf)
-      END IF
       IF (ASSOCIATED(fft_scratch%tbuf)) THEN
 #if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_PW)
          dummy_ptr_z => fft_scratch%tbuf(1, 1, 1)
@@ -2634,9 +2619,6 @@ CONTAINS
 #else
          CALL fft_dealloc(fft_scratch%tbuf)
 #endif
-      END IF
-      IF (ASSOCIATED(fft_scratch%a1buf)) THEN
-         CALL fft_dealloc(fft_scratch%a1buf)
       END IF
       IF (ASSOCIATED(fft_scratch%a2buf)) THEN
          CALL fft_dealloc(fft_scratch%a2buf)
@@ -2649,9 +2631,6 @@ CONTAINS
       END IF
       IF (ASSOCIATED(fft_scratch%a5buf)) THEN
          CALL fft_dealloc(fft_scratch%a5buf)
-      END IF
-      IF (ASSOCIATED(fft_scratch%a6buf)) THEN
-         CALL fft_dealloc(fft_scratch%a6buf)
       END IF
       IF (ASSOCIATED(fft_scratch%scount)) THEN
          DEALLOCATE (fft_scratch%scount, fft_scratch%rcount, &
@@ -2711,10 +2690,6 @@ CONTAINS
       IF (ASSOCIATED(fft_scratch%rbuf5)) THEN
          DEALLOCATE (fft_scratch%rbuf5)
       END IF
-      IF (ASSOCIATED(fft_scratch%rbuf6)) THEN
-         DEALLOCATE (fft_scratch%rbuf6)
-      END IF
-
       IF (fft_scratch%cart_sub_comm(1) /= mp_comm_null) THEN
          CALL fft_scratch%cart_sub_comm(1)%free()
       END IF
@@ -2839,6 +2814,10 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'get_fft_scratch'
 
+      COMPLEX(KIND=dp), DIMENSION(:, :, :), POINTER, CONTIGUOUS &
+         :: complex_array_3d_1, complex_array_3d_2
+      COMPLEX(KIND=dp), DIMENSION(:, :), POINTER, CONTIGUOUS &
+         :: complex_array_2d
       INTEGER :: coord(2), DIM(2), handle, i, ix, iz, lg, lmax, m1, m2, &
                  mcx2, mcy3, mcz1, mcz2, mg, mmax, mx1, mx2, my1, my3, mz1, mz2, mz3, &
                  nbx, nbz, nm, nmax, nmray, np, nx, ny, nyzray, nz, pos(2)
@@ -2922,12 +2901,10 @@ CONTAINS
                mz2 = fft_sizes%mz2
                my3 = fft_sizes%my3
                mz3 = fft_sizes%mz3
-               CALL fft_alloc(fft_scratch_new%fft_scratch%a1buf, [mx1*my1, n(3)])
                CALL fft_alloc(fft_scratch_new%fft_scratch%a2buf, [n(3), mx1*my1])
                CALL fft_alloc(fft_scratch_new%fft_scratch%a3buf, [mx2*mz2, n(2)])
                CALL fft_alloc(fft_scratch_new%fft_scratch%a4buf, [n(2), mx2*mz2])
                CALL fft_alloc(fft_scratch_new%fft_scratch%a5buf, [my3*mz3, n(1)])
-               CALL fft_alloc(fft_scratch_new%fft_scratch%a6buf, [n(1), my3*mz3])
                fft_scratch_new%fft_scratch%group = fft_sizes%rs_group
 
                dim = fft_sizes%rs_group%num_pe_cart
@@ -2960,12 +2937,16 @@ CONTAINS
                END DO
 
                !set up fft plans
+               CALL fft_alloc(complex_array_2d, [mx1*my1, n(3)])
                CALL fft_create_plan_1d(fft_scratch_new%fft_scratch%fft_plan(1), .TRUE., n(3), mx1*my1, &
-                                       fft_scratch_new%fft_scratch%a1buf, fft_scratch_new%fft_scratch%a2buf)
+                                       complex_array_2d, fft_scratch_new%fft_scratch%a2buf)
+               CALL fft_dealloc(complex_array_2d)
                CALL fft_create_plan_1d(fft_scratch_new%fft_scratch%fft_plan(2), .TRUE., n(2), mx2*mz2, &
                                        fft_scratch_new%fft_scratch%a3buf, fft_scratch_new%fft_scratch%a4buf)
+               CALL fft_alloc(complex_array_2d, [n(1), my3*mz3])
                CALL fft_create_plan_1d(fft_scratch_new%fft_scratch%fft_plan(3), .TRUE., n(1), my3*mz3, &
-                                       fft_scratch_new%fft_scratch%a5buf, fft_scratch_new%fft_scratch%a6buf)
+                                       fft_scratch_new%fft_scratch%a5buf, complex_array_2d)
+               CALL fft_dealloc(complex_array_2d)
 
             CASE (101) ! fft3d_pb: full cube distribution (dim 1)
                CPASSERT(PRESENT(fft_sizes))
@@ -2974,13 +2955,11 @@ CONTAINS
                mz1 = fft_sizes%mz1
                my3 = fft_sizes%my3
                mz3 = fft_sizes%mz3
-               CALL fft_alloc(fft_scratch_new%fft_scratch%a1buf, [mx1*my1, n(3)])
                CALL fft_alloc(fft_scratch_new%fft_scratch%a2buf, [n(3), mx1*my1])
                fft_scratch_new%fft_scratch%group = fft_sizes%rs_group
                CALL fft_alloc(fft_scratch_new%fft_scratch%a3buf, [mx1*mz1, n(2)])
                CALL fft_alloc(fft_scratch_new%fft_scratch%a4buf, [n(2), mx1*mz1])
                CALL fft_alloc(fft_scratch_new%fft_scratch%a5buf, [my3*mz3, n(1)])
-               CALL fft_alloc(fft_scratch_new%fft_scratch%a6buf, [n(1), my3*mz3])
 
                dim = fft_sizes%rs_group%num_pe_cart
                pos = fft_sizes%rs_group%mepos_cart
@@ -2989,14 +2968,17 @@ CONTAINS
                fft_scratch_new%fft_scratch%pos = pos
                mcy3 = fft_sizes%mcy3
                ALLOCATE (fft_scratch_new%fft_scratch%rbuf5(mx1*mz3*mcy3, 0:DIM(1) - 1))
-               ALLOCATE (fft_scratch_new%fft_scratch%rbuf6(mx1*mz1*mcy3, 0:DIM(1) - 1))
 
                !set up fft plans
+               CALL fft_alloc(complex_array_2d, [mx1*my1, n(3)])
                CALL fft_create_plan_2d(fft_scratch_new%fft_scratch%fft_plan(1:2), .TRUE., mz1, my1, mx1, &
-                                       fft_scratch_new%fft_scratch%a1buf, fft_scratch_new%fft_scratch%a3buf, &
+                                       complex_array_2d, fft_scratch_new%fft_scratch%a3buf, &
                                        fft_scratch_new%fft_scratch%a4buf)
+               CALL fft_dealloc(complex_array_2d)
+               CALL fft_alloc(complex_array_2d, [n(1), my3*mz3])
                CALL fft_create_plan_1d(fft_scratch_new%fft_scratch%fft_plan(3), .TRUE., n(1), my3*mz3, &
-                                       fft_scratch_new%fft_scratch%a5buf, fft_scratch_new%fft_scratch%a6buf)
+                                       fft_scratch_new%fft_scratch%a5buf, complex_array_2d)
+               CALL fft_dealloc(complex_array_2d)
 
             CASE (200) ! fft3d_ps: plane distribution
                CPASSERT(PRESENT(fft_sizes))
@@ -3025,7 +3007,6 @@ CONTAINS
                CALL fft_alloc(fft_scratch_new%fft_scratch%tbuf, [ny, nz, nx])
 #endif
                fft_scratch_new%fft_scratch%group = fft_sizes%rs_group
-               CALL fft_alloc(fft_scratch_new%fft_scratch%r2buf, [lg, mg])
                nm = nmray*mx2
                IF (alltoall_sgl) THEN
                   ALLOCATE (fft_scratch_new%fft_scratch%ss(mmax, lmax))
@@ -3038,8 +3019,10 @@ CONTAINS
                CALL fft_create_plan_2d(fft_scratch_new%fft_scratch%fft_plan(1:2), .TRUE., nz, ny, nx, &
                                        fft_scratch_new%fft_scratch%tbuf, fft_scratch_new%fft_scratch%r1buf, &
                                        fft_scratch_new%fft_scratch%tbuf)
+               CALL fft_alloc(complex_array_2d, [lg, mg])
                CALL fft_create_plan_1d(fft_scratch_new%fft_scratch%fft_plan(3), .TRUE., n(1), nyzray, &
-                                       fft_scratch_new%fft_scratch%r1buf, fft_scratch_new%fft_scratch%r2buf)
+                                       fft_scratch_new%fft_scratch%r1buf, complex_array_2d)
+               CALL fft_dealloc(complex_array_2d)
 
             CASE (300) ! fft3d_ps: block distribution
                CPASSERT(PRESENT(fft_sizes))
@@ -3058,7 +3041,6 @@ CONTAINS
                nbx = fft_sizes%nbx
                nbz = fft_sizes%nbz
                CALL fft_alloc(fft_scratch_new%fft_scratch%p1buf, [mx1*my1, n(3)])
-               CALL fft_alloc(fft_scratch_new%fft_scratch%p6buf, [lg, mg])
 #if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_PW)
                length = INT(2*dp_size*MAX(n(3), 1)*MAX(mx1*my1, 1), KIND=C_SIZE_T)
                ierr = offload_malloc_pinned_mem(cptr_p2buf, length)
@@ -3142,20 +3124,21 @@ CONTAINS
                                        fft_scratch_new%fft_scratch%p1buf, fft_scratch_new%fft_scratch%p2buf)
                CALL fft_create_plan_1d(fft_scratch_new%fft_scratch%fft_plan(2), .TRUE., n(2), mx2*mz2, &
                                        fft_scratch_new%fft_scratch%p3buf, fft_scratch_new%fft_scratch%p4buf)
+               CALL fft_alloc(complex_array_2d, [lg, mg])
                CALL fft_create_plan_1d(fft_scratch_new%fft_scratch%fft_plan(3), .TRUE., n(1), nyzray, &
-                                       fft_scratch_new%fft_scratch%p5buf, fft_scratch_new%fft_scratch%p6buf)
+                                       fft_scratch_new%fft_scratch%p5buf, complex_array_2d)
+               CALL fft_dealloc(complex_array_2d)
 
             CASE (400) ! serial FFT
-               np = 0
-               CALL fft_alloc(fft_scratch_new%fft_scratch%ziptr, n)
-               CALL fft_alloc(fft_scratch_new%fft_scratch%zoptr, n)
+               CALL fft_alloc(complex_array_3d_1, n)
+               CALL fft_alloc(complex_array_3d_2, n)
 
                !in place plans
-               CALL fft_create_plan_3d(fft_scratch_new%fft_scratch%fft_plan(1), .TRUE., n, &
-                                       fft_scratch_new%fft_scratch%ziptr, fft_scratch_new%fft_scratch%ziptr)
+               CALL fft_create_plan_3d(fft_scratch_new%fft_scratch%fft_plan(1), .TRUE., n, complex_array_3d_1, complex_array_3d_1)
                ! out of place plans
-               CALL fft_create_plan_3d(fft_scratch_new%fft_scratch%fft_plan(2), .FALSE., n, &
-                                       fft_scratch_new%fft_scratch%ziptr, fft_scratch_new%fft_scratch%zoptr)
+               CALL fft_create_plan_3d(fft_scratch_new%fft_scratch%fft_plan(2), .FALSE., n, complex_array_3d_1, complex_array_3d_2)
+               CALL fft_dealloc(complex_array_3d_1)
+               CALL fft_dealloc(complex_array_3d_2)
 
             END SELECT
 
