@@ -66,10 +66,8 @@ case "$with_dftd4" in
         -DCMAKE_VERBOSE_MAKEFILE=ON \
         ${EXTRA_CMAKE_FLAGS} .. \
         > cmake.log 2>&1 || tail -n ${LOG_LINES} cmake.log
-
-      cmake --build . >> build.log 2>&1 || tail -n ${LOG_LINES} build.log
-
-      cmake --install . >> install.log 2>&1
+      cmake --build . -j $(get_nprocs) >> build.log 2>&1 || tail -n ${LOG_LINES} build.log
+      cmake --install . >> install.log 2>&1 || tail -n ${LOG_LINES} install.log
 
       cd ..
       echo "==================== Linking Grimme_D4 to user paths ===================="
