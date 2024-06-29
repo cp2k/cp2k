@@ -10,7 +10,7 @@
 #              SPGLIB 2.3.1, PLUMED 2.9.0,
 #              LIBVORI 220621, GSL 2.7.1,
 #              COSMA 2.6.6, SIRIUS 7.5.2,
-#              LIBGRPP 20231215,
+#              LIBGRPP 20231215, DFTD4 3.6.0,
 #              SPFFT 1.0.6, SPLA 1.6.0
 # on an Apple M1 (macOS 14.5.0 Sonoma)
 #
@@ -18,7 +18,7 @@
 #        Ensure the links in /opt/homebrew/bin to the gcc version
 #        and "brew unlink openmpi" (or mpich) if installed.
 #
-# Last update: 11.06.2024
+# Last update: 30.06.2024
 #
 # \
    if [[ "${0}" == "${BASH_SOURCE}" ]]; then \
@@ -73,7 +73,9 @@
 # Set options
 DO_CHECKS      := no
 TARGET_CPU     := native
+GNU_VER        := 14.1.0
 USE_COSMA      := 2.6.6
+USE_DFTD4      := 3.6.0
 USE_LIBGRPP    := 20231215
 USE_LIBINT     := 2.6.0
 USE_LIBVORI    := 220621
@@ -151,6 +153,15 @@ LIBXC_HOME     := $(shell brew --prefix libxc)
 CFLAGS         += -I$(LIBXC_HOME)/include
 DFLAGS         += -D__LIBXC
 LIBS           += -Wl,-rpath,$(LIBXC_HOME)/lib -L$(LIBXC_HOME)/lib -lxcf03 -lxc
+
+ifneq ($(USE_DFTD4),)
+   USE_DFTD4      := $(strip $(USE_DFTD4))
+   DFTD4_INC      := $(INSTALL_PATH)/dftd4-$(USE_DFTD4)/include
+   DFTD4_LIB      := $(INSTALL_PATH)/dftd4-$(USE_DFTD4)/lib
+   CFLAGS         += -I$(DFTD4_INC)/dftd4/GNU-$(GNU_VER)
+   DFLAGS         += -D__DFTD4
+   LIBS           += -L$(DFTD4_LIB) -ldftd4 -lmstore -lmulticharge -lmctc-lib
+endif
 
 ifneq ($(USE_LIBGRPP),)
    USE_LIBGRPP    := $(strip $(USE_LIBGRPP))
