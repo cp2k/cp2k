@@ -651,24 +651,24 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
-!> \param matrix_ks ...
+!> \param mat_rs ...
 !> \param ispin ...
 !> \param xkp ...
 !> \param cell_to_index_scf ...
 !> \param sab_nl ...
 !> \param bs_env ...
-!> \param cfm_ks ...
+!> \param cfm_kp ...
 !> \param imag_rs_mat ...
 ! **************************************************************************************************
-   SUBROUTINE rsmat_to_kp(matrix_ks, ispin, xkp, cell_to_index_scf, sab_nl, bs_env, cfm_ks, imag_rs_mat)
-      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_ks
+   SUBROUTINE rsmat_to_kp(mat_rs, ispin, xkp, cell_to_index_scf, sab_nl, bs_env, cfm_kp, imag_rs_mat)
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: mat_rs
       INTEGER                                            :: ispin
       REAL(KIND=dp), DIMENSION(3)                        :: xkp
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index_scf
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_nl
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
-      TYPE(cp_cfm_type)                                  :: cfm_ks
+      TYPE(cp_cfm_type)                                  :: cfm_kp
       LOGICAL, OPTIONAL                                  :: imag_rs_mat
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'rsmat_to_kp'
@@ -685,25 +685,26 @@ CONTAINS
       IF (PRESENT(imag_rs_mat)) imag_rs_mat_private = imag_rs_mat
 
       IF (imag_rs_mat_private) THEN
-         CALL dbcsr_create(rmat, template=matrix_ks(1, 1)%matrix, matrix_type=dbcsr_type_antisymmetric)
-         CALL dbcsr_create(cmat, template=matrix_ks(1, 1)%matrix, matrix_type=dbcsr_type_symmetric)
+         CALL dbcsr_create(rmat, template=mat_rs(1, 1)%matrix, matrix_type=dbcsr_type_antisymmetric)
+         CALL dbcsr_create(cmat, template=mat_rs(1, 1)%matrix, matrix_type=dbcsr_type_symmetric)
       ELSE
-         CALL dbcsr_create(rmat, template=matrix_ks(1, 1)%matrix, matrix_type=dbcsr_type_symmetric)
-         CALL dbcsr_create(cmat, template=matrix_ks(1, 1)%matrix, matrix_type=dbcsr_type_antisymmetric)
+         CALL dbcsr_create(rmat, template=mat_rs(1, 1)%matrix, matrix_type=dbcsr_type_symmetric)
+         CALL dbcsr_create(cmat, template=mat_rs(1, 1)%matrix, matrix_type=dbcsr_type_antisymmetric)
       END IF
-      CALL dbcsr_create(nsmat, template=matrix_ks(1, 1)%matrix, matrix_type=dbcsr_type_no_symmetry)
+      CALL dbcsr_create(nsmat, template=mat_rs(1, 1)%matrix, matrix_type=dbcsr_type_no_symmetry)
       CALL cp_dbcsr_alloc_block_from_nbl(rmat, sab_nl)
       CALL cp_dbcsr_alloc_block_from_nbl(cmat, sab_nl)
 
       CALL dbcsr_set(rmat, 0.0_dp)
       CALL dbcsr_set(cmat, 0.0_dp)
-      CALL rskp_transform(rmatrix=rmat, cmatrix=cmat, rsmat=matrix_ks, ispin=ispin, &
+      CALL rskp_transform(rmatrix=rmat, cmatrix=cmat, rsmat=mat_rs, ispin=ispin, &
                           xkp=xkp, cell_to_index=cell_to_index_scf, sab_nl=sab_nl)
+
       CALL dbcsr_desymmetrize(rmat, nsmat)
       CALL copy_dbcsr_to_fm(nsmat, bs_env%fm_work_mo(1))
       CALL dbcsr_desymmetrize(cmat, nsmat)
       CALL copy_dbcsr_to_fm(nsmat, bs_env%fm_work_mo(2))
-      CALL cp_fm_to_cfm(bs_env%fm_work_mo(1), bs_env%fm_work_mo(2), cfm_ks)
+      CALL cp_fm_to_cfm(bs_env%fm_work_mo(1), bs_env%fm_work_mo(2), cfm_kp)
 
       CALL dbcsr_deallocate_matrix(rmat)
       CALL dbcsr_deallocate_matrix(cmat)
@@ -2737,7 +2738,7 @@ CONTAINS
                                                             nkp_bs_and_DOS, s
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index_scf
       REAL(KIND=dp), DIMENSION(3)                        :: xkp
-      TYPE(cp_cfm_type)                                  :: cfm_V_SOC_xyz
+      TYPE(cp_cfm_type)                                  :: cfm_V_SOC_xyz_ikp
       TYPE(cp_fm_struct_type), POINTER                   :: str
       TYPE(kpoint_type), POINTER                         :: kpoints_scf
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
@@ -2750,7 +2751,7 @@ CONTAINS
       s = bs_env%n_ao + 1
       str => bs_env%cfm_ks_kp(1, 1)%matrix_struct
 
-      CALL cp_cfm_create(cfm_V_SOC_xyz, bs_env%cfm_work_mo%matrix_struct)
+      CALL cp_cfm_create(cfm_V_SOC_xyz_ikp, bs_env%cfm_work_mo%matrix_struct)
 
       CALL alloc_cfm_double_array_1d(bs_env%cfm_SOC_spinor_ao, bs_env%cfm_ks_kp(1, 1), nkp_bs_and_DOS)
 
@@ -2759,42 +2760,43 @@ CONTAINS
       NULLIFY (sab_nl)
       CALL get_kpoint_info(kpoints_scf, sab_nl=sab_nl, cell_to_index=cell_to_index_scf)
 
-      DO ikp = 1, nkp_bs_and_DOS
+      DO i_dim = 1, 3
 
-         xkp(1:3) = bs_env%kpoints_DOS%xkp(1:3, ikp)
+         DO ikp = 1, nkp_bs_and_DOS
 
-         DO i_dim = 1, 3
+            xkp(1:3) = bs_env%kpoints_DOS%xkp(1:3, ikp)
 
-            CALL cp_cfm_set_all(cfm_V_SOC_xyz, z_zero)
+            CALL cp_cfm_set_all(cfm_V_SOC_xyz_ikp, z_zero)
+
             CALL rsmat_to_kp(bs_env%mat_V_SOC_xyz, i_dim, xkp, cell_to_index_scf, &
-                             sab_nl, bs_env, cfm_V_SOC_xyz, imag_rs_mat=.TRUE.)
+                             sab_nl, bs_env, cfm_V_SOC_xyz_ikp, imag_rs_mat=.TRUE.)
 
             ! multiply V_SOC with i because bs_env%mat_V_SOC_xyz stores imag. part (real part = 0)
-            CALL cp_cfm_scale(gaussi, cfm_V_SOC_xyz)
+            CALL cp_cfm_scale(gaussi, cfm_V_SOC_xyz_ikp)
 
             SELECT CASE (i_dim)
             CASE (1)
                ! add V^SOC_x * σ_x for σ_x = ( (0,1) (1,0) )
-               CALL add_cfm_submat(bs_env%cfm_SOC_spinor_ao(ikp), cfm_V_SOC_xyz, 1, s)
-               CALL add_cfm_submat(bs_env%cfm_SOC_spinor_ao(ikp), cfm_V_SOC_xyz, s, 1)
+               CALL add_cfm_submat(bs_env%cfm_SOC_spinor_ao(ikp), cfm_V_SOC_xyz_ikp, 1, s)
+               CALL add_cfm_submat(bs_env%cfm_SOC_spinor_ao(ikp), cfm_V_SOC_xyz_ikp, s, 1)
             CASE (2)
                ! add V^SOC_y * σ_y for σ_y = ( (0,-i) (i,0) )
-               CALL cp_cfm_scale(gaussi, cfm_V_SOC_xyz)
-               CALL add_cfm_submat(bs_env%cfm_SOC_spinor_ao(ikp), cfm_V_SOC_xyz, 1, s)
-               CALL cp_cfm_scale(-z_one, cfm_V_SOC_xyz)
-               CALL add_cfm_submat(bs_env%cfm_SOC_spinor_ao(ikp), cfm_V_SOC_xyz, s, 1)
+               CALL cp_cfm_scale(gaussi, cfm_V_SOC_xyz_ikp)
+               CALL add_cfm_submat(bs_env%cfm_SOC_spinor_ao(ikp), cfm_V_SOC_xyz_ikp, 1, s)
+               CALL cp_cfm_scale(-z_one, cfm_V_SOC_xyz_ikp)
+               CALL add_cfm_submat(bs_env%cfm_SOC_spinor_ao(ikp), cfm_V_SOC_xyz_ikp, s, 1)
             CASE (3)
                ! add V^SOC_z * σ_z for σ_z = ( (1,0) (0,1) )
-               CALL add_cfm_submat(bs_env%cfm_SOC_spinor_ao(ikp), cfm_V_SOC_xyz, 1, 1)
-               CALL cp_cfm_scale(-z_one, cfm_V_SOC_xyz)
-               CALL add_cfm_submat(bs_env%cfm_SOC_spinor_ao(ikp), cfm_V_SOC_xyz, s, s)
+               CALL add_cfm_submat(bs_env%cfm_SOC_spinor_ao(ikp), cfm_V_SOC_xyz_ikp, 1, 1)
+               CALL cp_cfm_scale(-z_one, cfm_V_SOC_xyz_ikp)
+               CALL add_cfm_submat(bs_env%cfm_SOC_spinor_ao(ikp), cfm_V_SOC_xyz_ikp, s, s)
             END SELECT
 
          END DO
 
       END DO ! ikp
 
-      CALL cp_cfm_release(cfm_V_SOC_xyz)
+      CALL cp_cfm_release(cfm_V_SOC_xyz_ikp)
 
       CALL timestop(handle)
 

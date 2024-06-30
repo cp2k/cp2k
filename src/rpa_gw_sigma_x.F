@@ -471,7 +471,6 @@ CONTAINS
             END IF
 
             IF (do_kpoints_from_Gamma .AND. print_exx == gw_print_exx) THEN
-               ! JW not yet there: open shell
                ALLOCATE (mat_exchange_for_kp_from_gamma(1))
 
                DO ispin = 1, 1

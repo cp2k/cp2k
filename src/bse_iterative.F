@@ -1099,7 +1099,6 @@ CONTAINS
 
       DO i_Z_vector = 1, num_Z_vectors
 
-         ! JW TO DO: OMP PARALLELIZATION
          DO LLL = 1, local_RI_size
 
             ! M_ja^P = sum_b Z_jb*B_ba^P
