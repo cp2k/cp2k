@@ -12,6 +12,7 @@ MODULE soc_pseudopotential_methods
                                               cp_cfm_type
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_api,                    ONLY: dbcsr_add,&
+                                              dbcsr_copy,&
                                               dbcsr_create,&
                                               dbcsr_desymmetrize,&
                                               dbcsr_p_type,&
@@ -73,7 +74,7 @@ CONTAINS
 
       INTEGER                                            :: handle, img, nder, nimages, xyz
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
-      LOGICAL                                            :: calculate_forces, do_symmetric, &
+      LOGICAL                                            :: calculate_forces, do_kp, do_symmetric, &
                                                             use_virial
       REAL(KIND=dp)                                      :: eps_ppnl
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
@@ -98,6 +99,7 @@ CONTAINS
 
       eps_ppnl = dft_control%qs_control%eps_ppnl
       nimages = dft_control%nimages
+      do_kp = (nimages > 1)
       CALL get_neighbor_list_set_p(neighbor_list_sets=sab_orb, symmetric=do_symmetric)
       CALL get_kpoint_info(kpoint=kpoints, cell_to_index=cell_to_index)
 
@@ -141,9 +143,15 @@ CONTAINS
          DO img = 1, nimages
 
             ALLOCATE (mat_l_nosym(xyz, img)%matrix)
-            CALL dbcsr_create(mat_l_nosym(xyz, img)%matrix, template=matrix_s(1, 1)%matrix, &
-                              matrix_type=dbcsr_type_no_symmetry)
-            CALL dbcsr_desymmetrize(mat_l(xyz, img)%matrix, mat_l_nosym(xyz, img)%matrix)
+            IF (do_kp) THEN
+               CALL dbcsr_create(mat_l_nosym(xyz, img)%matrix, template=matrix_s(1, 1)%matrix, &
+                                 matrix_type=dbcsr_type_antisymmetric)
+               CALL dbcsr_copy(mat_l_nosym(xyz, img)%matrix, mat_l(xyz, img)%matrix)
+            ELSE
+               CALL dbcsr_create(mat_l_nosym(xyz, img)%matrix, template=matrix_s(1, 1)%matrix, &
+                                 matrix_type=dbcsr_type_no_symmetry)
+               CALL dbcsr_desymmetrize(mat_l(xyz, img)%matrix, mat_l_nosym(xyz, img)%matrix)
+            END IF
 
          END DO
       END DO
@@ -153,8 +161,17 @@ CONTAINS
       DO xyz = 1, 3
          DO img = 1, nimages
             ALLOCATE (mat_V_SOC_xyz(xyz, img)%matrix)
-            CALL dbcsr_create(mat_V_SOC_xyz(xyz, img)%matrix, template=matrix_s(1, 1)%matrix, &
-                              matrix_type=dbcsr_type_no_symmetry)
+            IF (do_kp) THEN
+               ! mat_V_SOC_xyz^R with neighbor cell R actually has no symmetry
+               ! mat_V_SOC_xyz^R_µν = mat_V_SOC_xyz^R_νµ* (the actual symmetry is
+               ! mat_V_SOC_xyz^R_µν = mat_V_SOC_xyz^-R_νµ* )  but rskp_transform
+               ! for mat_V_SOC_xyz^R -> mat_V_SOC_xyz(k) requires symmetry...
+               CALL dbcsr_create(mat_V_SOC_xyz(xyz, img)%matrix, template=matrix_s(1, 1)%matrix, &
+                                 matrix_type=dbcsr_type_antisymmetric)
+            ELSE
+               CALL dbcsr_create(mat_V_SOC_xyz(xyz, img)%matrix, template=matrix_s(1, 1)%matrix, &
+                                 matrix_type=dbcsr_type_no_symmetry)
+            END IF
             CALL cp_dbcsr_alloc_block_from_nbl(mat_V_SOC_xyz(xyz, img)%matrix, sab_orb)
             ! factor 0.5 from ħ/2 prefactor
             CALL dbcsr_add(mat_V_SOC_xyz(xyz, img)%matrix, mat_l_nosym(xyz, img)%matrix, &
