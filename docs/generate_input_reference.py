@@ -184,7 +184,7 @@ def process_xc_functional_section(
 
     # Render note.
     output += ["```{note}"]
-    output += ["Thanks to [Libxc](https://www.tddft.org/programs/Libxc) there are 600+"]
+    output += ["Thanks to [Libxc](https://libxc.gitlab.io/) there are 600+"]
     output += ["functionals available. For ease of browsing their documentation has"]
     output += ["been inlined into this page. Each of the functionals has a"]
     output += ["corresponding subsection that, if present, enables the functional."]
@@ -198,6 +198,8 @@ def process_xc_functional_section(
     subsections_by_prefix: Dict[str, List[str]] = {prefix: [] for prefix in prefixes}
     for subsection in subsections:
         subsection_name = get_name(subsection)
+        if subsection_name == "LDA_X":
+            continue  # Special case where libxc deviates from its naming convention.
         for prefix in reversed(prefixes):  # reverse order because "" always matches
             if subsection_name.startswith(prefix):
                 subsections_by_prefix[prefix].append(subsection_name)
@@ -207,6 +209,8 @@ def process_xc_functional_section(
     for prefix, section_names in subsections_by_prefix.items():
         category = f"Libxc {prefix[:-1]}" if prefix else "Built-in"
         items = [f"[{s[len(prefix):]}](#{section_xref}.{s})" for s in section_names]
+        if prefix == "LDA_X_":
+            items.insert(0, f"[LDA_X](#{section_xref}.LDA_X)")  # special case
         output += [f"## {category} Functionals", "", ",\n".join(items), ""]
 
     # Render inline subsections
