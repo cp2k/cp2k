@@ -3,8 +3,7 @@
 # author: Ole Schuett
 
 from typing import Dict, Tuple, List, Set, Optional
-import lxml.etree as ET
-import lxml
+import xml.etree.ElementTree as ET
 from pathlib import Path
 import re
 import sys
@@ -103,7 +102,7 @@ def build_input_reference(cp2k_input_xml_fn: str, output_dir: Path) -> None:
 
 # ======================================================================================
 def process_section(
-    section: lxml.etree._Element,
+    section: ET.Element,
     section_path: SectionPath,
     has_name_collision: bool,
     output_dir: Path,
@@ -172,7 +171,7 @@ def process_section(
 
 # ======================================================================================
 def process_xc_functional_section(
-    section: lxml.etree._Element,
+    section: ET.Element,
     section_path: SectionPath,
     output_dir: Path,
 ) -> int:
@@ -229,7 +228,7 @@ def process_xc_functional_section(
 
 # ======================================================================================
 def render_section_header(
-    section: lxml.etree._Element,
+    section: ET.Element,
     section_path: SectionPath,
     has_name_collision: bool = False,
 ) -> Tuple[List[str], str, str]:
@@ -260,7 +259,7 @@ def render_section_header(
 
 # ======================================================================================
 def render_keyword(
-    keyword: lxml.etree._Element,
+    keyword: ET.Element,
     section_xref: Optional[str],
     github: bool = True,
 ) -> List[str]:
@@ -377,12 +376,12 @@ def lookup_mentions(xref: Optional[str]) -> List[str]:
 
 
 # ======================================================================================
-def get_name(element: lxml.etree._Element) -> str:
+def get_name(element: ET.Element) -> str:
     return get_text(element.find("NAME"))
 
 
 # ======================================================================================
-def get_text(element: Optional[lxml.etree._Element]) -> str:
+def get_text(element: Optional[ET.Element]) -> str:
     if element is not None:
         if element.text is not None:
             return element.text

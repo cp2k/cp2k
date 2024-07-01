@@ -30,7 +30,6 @@ pip3 install --quiet \
   numpy \
   matplotlib \
   requests \
-  types-lxml \
   types-requests \
   mypy==1.5.1
 
