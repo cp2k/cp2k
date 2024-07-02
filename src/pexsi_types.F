@@ -85,20 +85,21 @@ MODULE pexsi_types
 !> \author Patrick Seewald
 ! **************************************************************************************************
    TYPE lib_pexsi_env
-      TYPE(dbcsr_type)                         :: dbcsr_template_matrix_sym, &
-                                                  dbcsr_template_matrix_nonsym
-      TYPE(dbcsr_csr_type)                     :: csr_mat_p, csr_mat_ks, csr_mat_s, &
-                                                  csr_mat_E, csr_mat_F
+      TYPE(dbcsr_type)                         :: dbcsr_template_matrix_sym = dbcsr_type(), &
+                                                  dbcsr_template_matrix_nonsym = dbcsr_type()
+      TYPE(dbcsr_csr_type)                     :: csr_mat_p = dbcsr_csr_type(), csr_mat_ks = dbcsr_csr_type(), &
+                                                  csr_mat_s = dbcsr_csr_type(), csr_mat_E = dbcsr_csr_type(), &
+                                                  csr_mat_F = dbcsr_csr_type()
       TYPE(cp_pexsi_options)                   :: options
       REAL(KIND=dp), DIMENSION(:), POINTER     :: kTS => NULL()
       TYPE(dbcsr_p_type), DIMENSION(:), &
          POINTER                               :: matrix_w => NULL()
       INTEGER(KIND=C_INTPTR_T)                 :: plan = 0_C_INTPTR_T
       INTEGER                                  :: nspin = -1, num_ranks_per_pole = -1
-      TYPE(mp_comm_type) :: mp_group = mp_comm_type()
+      TYPE(mp_comm_type)                       :: mp_group = mp_comm_type()
       TYPE(dbcsr_type), DIMENSION(:), &
          POINTER                               :: max_ev_vector => NULL()
-      TYPE(dbcsr_type)                         :: csr_sparsity
+      TYPE(dbcsr_type)                         :: csr_sparsity = dbcsr_type()
       INTEGER, DIMENSION(2)                    :: mp_dims = -1
 
       LOGICAL                                  :: csr_screening = .FALSE., do_adaptive_tol_nel = .FALSE.
