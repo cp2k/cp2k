@@ -13,11 +13,14 @@ The most common [CMake] workflow is to create a `build/` directory in the root d
 source tree, and run [CMake] as follows:
 
 ```bash
-cd ${CP2K_REPOSITORY}
+cd <CP2K_REPOSITORY>
 mkdir build/
 cmake -S . -B build             # -S <SOURCE_DIR> -B <BUILD_DIR>
 cmake --build build -- -j 32    # -build <BUILD_DIR> -- <BUILD_TOOL_OPTIONS>
 ```
+
+`<CP2K_REPOSITORY>` is a placeholder for the path to the CP2K repository, containing the source code
+to be compiled.
 
 ### Generators
 
@@ -78,7 +81,7 @@ cmake --build build
 
 ### Default Dependencies
 
-All optional dependencies are turned off by default.
+All optional dependencies are turned off by default, with the exception of MPI.
 
 For simplicity, `-DCP2K_BUILD_OPTIONS` is provided to turn on some of the optional dependencies.
 `-DCP2K_BUILD_OPTIONS` can take the following values:
@@ -118,8 +121,8 @@ The target architecture can be selected with `-DCP2K_WITH_GPU`.
 
 Build CP2K with CUDA acceleration for Nvidia A100 GPUs, with multiple optional dependencies:
 
-```
-cd ${CP2K_REPOSITORY} && make build/
+```bash
+cd <CP2K_REPOSITORY> && make build/
 cmake -S . -B build \
     -GNinja \
     -DCP2K_ENABLE_REGTESTS=ON \
