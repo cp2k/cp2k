@@ -2,8 +2,9 @@
 #
 # CP2K (GNU) arch file for a serial static x86_64 binary
 #
-# Tested with: GNU 13.1.0, FFTW 3.3.10, LIBINT 2.6.0, LIBVORI 220621,
-#              LIBXC 6.2.2, OpenBLAS 0.3.27, SPGLIB 2.3.1
+# Tested with: GNU 14.1.0, FFTW 3.3.10, LIBINT 2.6.0, LIBVORI 220621,
+#              LIBXC 6.2.2, OpenBLAS 0.3.27, SPGLIB 2.3.1, LIBVORI 220621,
+#              LIBGRPP 20231215, DFTD4 3.6.0
 #
 # Usage: Source this arch file and then run make as instructed.
 #
@@ -18,7 +19,8 @@
    this_file=${BASH_SOURCE##*/}; \
    cd tools/toolchain; \
    [[ -z "${target_cpu}" ]] && target_cpu="native"; \
-   ./install_cp2k_toolchain.sh -j${maxtasks} --mpi-mode=no --no-arch-files --target-cpu=${target_cpu} --with-gcc; \
+   echo "Found GCC $(gcc -dumpfullversion) compiler"; \
+   ./install_cp2k_toolchain.sh -j${maxtasks} --mpi-mode=no --no-arch-files --target-cpu=${target_cpu} --with-gcc --with-dftd4; \
    source ./install/setup; \
    cd ../..; \
    echo; \
@@ -33,7 +35,10 @@
 # Set options
 DO_CHECKS      := no
 TARGET_CPU     := native
+GNU_VER        := $(shell gcc -dumpfullversion)
+USE_DFTD4      := 3.6.0
 USE_FFTW       := 3.3.10
+USE_LIBGRPP    := 20231215
 USE_LIBINT     := 2.6.0
 USE_LIBVORI    := 220621
 USE_LIBXC      := 6.2.2
@@ -101,6 +106,27 @@ ifneq ($(USE_LIBXC),)
    LIBS           += $(LIBXC_LIB)/libxc.a
 endif
 
+ifneq ($(USE_DFTD4),)
+   USE_DFTD4      := $(strip $(USE_DFTD4))
+   DFTD4_INC      := $(INSTALL_PATH)/dftd4-$(USE_DFTD4)/include
+   DFTD4_LIB      := $(INSTALL_PATH)/dftd4-$(USE_DFTD4)/lib64
+   CFLAGS         += -I$(DFTD4_INC)/dftd4/GNU-$(GNU_VER)
+   DFLAGS         += -D__DFTD4
+   LIBS           += $(DFTD4_LIB)/libdftd4.a
+   LIBS           += $(DFTD4_LIB)/libmstore.a
+   LIBS           += $(DFTD4_LIB)/libmulticharge.a
+   LIBS           += $(DFTD4_LIB)/libmctc-lib.a
+endif
+
+ifneq ($(USE_LIBGRPP),)
+   USE_LIBGRPP    := $(strip $(USE_LIBGRPP))
+   LIBGRPP_INC    := $(INSTALL_PATH)/libgrpp-main-$(USE_LIBGRPP)/include
+   LIBGRPP_LIB    := $(INSTALL_PATH)/libgrpp-main-$(USE_LIBGRPP)/lib
+   CFLAGS         += -I$(LIBGRPP_INC)
+   DFLAGS         += -D__LIBGRPP
+   LIBS           += $(LIBGRPP_LIB)/liblibgrpp.a
+endif
+
 ifneq ($(USE_LIBINT),)
    USE_LIBINT     := $(strip $(USE_LIBINT))
    LMAX           := $(strip $(LMAX))
@@ -108,7 +134,6 @@ ifneq ($(USE_LIBINT),)
    LIBINT_LIB     := $(INSTALL_PATH)/libint-v$(USE_LIBINT)-cp2k-lmax-$(LMAX)/lib
    CFLAGS         += -I$(LIBINT_INC)
    DFLAGS         += -D__LIBINT
-   LIBS           += $(LIBINT_LIB)/libint2.a
    LIBS           += $(LIBINT_LIB)/libint2.a
 endif
 
