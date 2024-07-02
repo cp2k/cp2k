@@ -53,10 +53,6 @@ case "$with_dftd4" in
       mkdir build
       cd build
 
-      if [ -n "${MKL_LIBS}" ]; then
-        EXTRA_CMAKE_FLAGS=" -DMKLROOT=${MKLROOT} "
-      fi
-
       CMAKE_PREFIX_PATH="${CMAKE_PREFIX_PATH}:${OPENBLAS_ROOT}" cmake \
         -B . -G Ninja \
         -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}" \
@@ -64,7 +60,7 @@ case "$with_dftd4" in
         -DCMAKE_C_COMPILER="${MPICC}" \
         -DCMAKE_Fortran_COMPILER="${MPIFC}" \
         -DCMAKE_VERBOSE_MAKEFILE=ON \
-        ${EXTRA_CMAKE_FLAGS} .. \
+        .. \
         > cmake.log 2>&1 || tail -n ${LOG_LINES} cmake.log
       cmake --build . -j $(get_nprocs) >> build.log 2>&1 || tail -n ${LOG_LINES} build.log
       cmake --install . >> install.log 2>&1 || tail -n ${LOG_LINES} install.log
