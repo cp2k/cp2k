@@ -9,9 +9,10 @@ CP2K dependencies should be installed independently, either manually or using a 
 The most common [CMake] workflow is to create a `build/` directory in the root directory of the source tree, and run [CMake] as follows:
 
 ```bash
-cd ${CP2K_REPOSITORY} && mkdir build/
-cmake -S . -B build # -S <SOURCE_DIR> -B <BUILD_DIR>
-cmake -B build      # -B <BUILD_DIR>
+cd ${CP2K_REPOSITORY}
+mkdir build/
+cmake -S . -B build             # -S <SOURCE_DIR> -B <BUILD_DIR>
+cmake --build build -- -j 32    # -build <BUILD_DIR> -- <BUILD_TOOL_OPTIONS>
 ```
 
 ### Generators
@@ -55,14 +56,14 @@ To build with Intel OneAPI MKL:
 
 ```bash
 cmake -S . -B build -DCP2K_BLAS_VENDOR=MKL -DCP2K_SCALAPACK_VENDOR=MKL
-cmake -B build
+cmake --build build
 ```
 
 To build with Cray LibSci:
 
 ```bash
 cmake -S . -B build -DCP2K_BLAS_VENDOR=SCI -DCP2K_SCALAPACK_VENDOR=SCI
-cmake -B build
+cmake --build build
 ```
 
 ## Build Customization
@@ -116,7 +117,7 @@ cmake -S . -B build \
     -DCP2K_USE_COSMA=ON \
     -DCP2K_USE_ACCEL=CUDA -DCP2K_WITH_GPU=A100
 
-cmake -B build -j 32
+cmake --build build -j 32
 ```
 
 [CMake]: https://cmake.org
