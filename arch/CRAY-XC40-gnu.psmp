@@ -8,13 +8,13 @@
 #              LIBINT 2.6.0, LIBPEXSI 1.2.0, LIBXC 6.2.2,
 #              LIBVORI 220621, LIBXSMM 1.17, PLUMED 2.9.0,
 #              SIRIUS 7.5.2, SPGLIB 2.3.1, LIBGRPP 20231215,
-#              SPFFT 1.0.6, SPLA 1.6.0
+#              SPFFT 1.1.0, SPLA 1.6.1, DFTD4 3.6.0
 #
 # Usage: Source this arch file and then run make as instructed.
 #        A full toolchain installation is performed as default.
 #        Replace or adapt the "module add" commands below if needed.
 #
-# Last update: 12.06.2024
+# Last update: 02.07.2024
 #
 # \
    if [ "${0}" = "${BASH_SOURCE}" ]; then \
@@ -49,7 +49,7 @@
    echo "   module restore cp2k_mc_gnu_psmp"; \
    cd tools/toolchain; \
    rm -rf build; \
-   ./install_cp2k_toolchain.sh -j${maxtasks} --no-arch-files --with-gcc=system --with-libvdwxc --with-pexsi --with-plumed; \
+   ./install_cp2k_toolchain.sh -j${maxtasks} --no-arch-files --with-gcc=system --with-libvdwxc --with-pexsi --with-plumed --with-dftd4; \
    cd ../..; \
    printf "Sourcing ${PWD}/tools/toolchain/install/setup ... "; \
    source ${PWD}/tools/toolchain/install/setup; \
@@ -68,7 +68,9 @@
 
 # Set options
 DO_CHECKS      := no
+GNU_VER        := $(shell gcc -dumpfullversion)
 USE_COSMA      := 2.6.6
+USE_DFTD4      := 3.6.0
 USE_ELPA       := 2024.03.001
 USE_HDF5       := 1.14.2
 USE_LIBGRPP    := 20231215
@@ -78,8 +80,8 @@ USE_LIBVORI    := 220621
 USE_LIBXC      := 6.2.2
 USE_LIBXSMM    := 1.17
 USE_PLUMED     := 2.9.0
-USE_SPFFT      := 1.0.6
-USE_SPLA       := 1.6.0
+USE_SPFFT      := 1.1.0
+USE_SPLA       := 1.6.1
 #USE_QUIP       := 0.9.10
 USE_SIRIUS     := 7.5.2
 USE_SPGLIB     := 2.3.1
@@ -179,6 +181,18 @@ ifneq ($(USE_LIBXC),)
    DFLAGS         += -D__LIBXC
    LIBS           += $(LIBXC_LIB)/libxcf03.a
    LIBS           += $(LIBXC_LIB)/libxc.a
+endif
+
+ifneq ($(USE_DFTD4),)
+   USE_DFTD4      := $(strip $(USE_DFTD4))
+   DFTD4_INC      := $(INSTALL_PATH)/dftd4-$(USE_DFTD4)/include
+   DFTD4_LIB      := $(INSTALL_PATH)/dftd4-$(USE_DFTD4)/lib64
+   CFLAGS         += -I$(DFTD4_INC)/dftd4/GNU-$(GNU_VER)
+   DFLAGS         += -D__DFTD4
+   LIBS           += $(DFTD4_LIB)/libdftd4.a
+   LIBS           += $(DFTD4_LIB)/libmstore.a
+   LIBS           += $(DFTD4_LIB)/libmulticharge.a
+   LIBS           += $(DFTD4_LIB)/libmctc-lib.a
 endif
 
 ifneq ($(USE_LIBGRPP),)
