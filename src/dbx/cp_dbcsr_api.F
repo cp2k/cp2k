@@ -259,15 +259,15 @@ MODULE cp_dbcsr_api
    END TYPE
 
    TYPE dbcsr_type
-      TYPE(dbcsr_type_prv), PRIVATE :: prv
+      TYPE(dbcsr_type_prv), PRIVATE :: prv = dbcsr_type_prv()
    END TYPE dbcsr_type
 
    TYPE dbcsr_distribution_type
-      TYPE(dbcsr_distribution_type_prv), PRIVATE        :: prv
+      TYPE(dbcsr_distribution_type_prv), PRIVATE        :: prv = dbcsr_distribution_type_prv()
    END TYPE dbcsr_distribution_type
 
    TYPE dbcsr_iterator_type
-      TYPE(dbcsr_iterator_type_prv), PRIVATE :: prv
+      TYPE(dbcsr_iterator_type_prv), PRIVATE :: prv = dbcsr_iterator_type_prv()
    END TYPE dbcsr_iterator_type
 
    INTERFACE dbcsr_add

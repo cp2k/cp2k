@@ -95,14 +95,14 @@ MODULE transport_env_types
    TYPE transport_env_type
       TYPE(C_FUNPTR)                   :: ext_c_method_ptr = C_NULL_FUNPTR
       TYPE(cp2k_transport_parameters)  :: params = cp2k_transport_parameters()
-      TYPE(dbcsr_type)              :: template_matrix_sym
-      TYPE(dbcsr_type)              :: template_matrix_nosym
-      TYPE(dbcsr_type)              :: csr_sparsity
+      TYPE(dbcsr_type)              :: template_matrix_sym = dbcsr_type()
+      TYPE(dbcsr_type)              :: template_matrix_nosym = dbcsr_type()
+      TYPE(dbcsr_type)              :: csr_sparsity = dbcsr_type()
       TYPE(dbcsr_type), POINTER        :: dm_imag => NULL()
-      TYPE(dbcsr_csr_type)                   :: s_matrix
-      TYPE(dbcsr_csr_type)                   :: ks_matrix
-      TYPE(dbcsr_csr_type)                   :: p_matrix
-      TYPE(dbcsr_csr_type)                   :: imagp_matrix
+      TYPE(dbcsr_csr_type)                   :: s_matrix = dbcsr_csr_type()
+      TYPE(dbcsr_csr_type)                   :: ks_matrix = dbcsr_csr_type()
+      TYPE(dbcsr_csr_type)                   :: p_matrix = dbcsr_csr_type()
+      TYPE(dbcsr_csr_type)                   :: imagp_matrix = dbcsr_csr_type()
       LOGICAL                          :: csr_screening = .FALSE.
       INTEGER, DIMENSION(:), POINTER   :: contacts_data => NULL()
       INTEGER, DIMENSION(:), POINTER   :: nsgf => NULL()
