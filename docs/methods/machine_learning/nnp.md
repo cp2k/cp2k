@@ -1,6 +1,20 @@
 # Neural Network Potentials
 
-Unfortunately no one has gotten around to writing this page yet :-(
+## Input Section
+
+NNPs in CP2K are supported via the `NNP` Force_Eval section. As an example, a basic `NNP` section would be:
+
+```
+&NNP
+  NNP_INPUT_FILE_NAME PATH/TO/input.nn
+  SCALE_FILE_NAME PATH/TO/scaling.data
+  &MODEL
+    WEIGHTS PATH/TO/weights
+  &END MODEL
+&END NNP
+```
+
+Where `PATH/TO/` points to the relevant `NNP` input files.
 
 In the meantime, the following links might be helpful:
 
