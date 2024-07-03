@@ -3,30 +3,23 @@
 
 
 In real time time-dependent DFT, instead of solving the static Schroedinger equation (SE), the aim is to solve the time dependent  SE (TDSE)
-
 $$
-i \frac{\partial}{\partial t} \Phi({\bf r},t) = \hat{H}({\bf r},t) \Phi({\bf r},t),
+i \frac{\partial}{\partial t} \Psi({\bf r},t) = \hat{H}({\bf r},t) \Psi({\bf r},t),
 $$
 Contrary to the time independent case, there is no variational principle for the total energy, 
 and  the total energy has to be replaced by the quantum mechanical action,
-
 $$
-A[\Phi] =  \int^{t_f}_{t_0} dt \langle \Phi(t) | i\frac{\partial}{\partial t} - \hat{H}(t)| \Phi(t)\rangle
+A[\Psi] =  \int^{t_f}_{t_0} dt \langle \Psi(t) | i\frac{\partial}{\partial t} - \hat{H}(t)| \Psi(t)\rangle
 $$
-
 for which it is valid that the function $\Phi(t)$ that makes the action stationary will be the solution.
 The resulting time-dependent Kohn-Sham (TD-KS) equations read as
-
 $$
-i \frac{\partial}{\partial t} \phi_i({\bf r},t) =  \left[  -\frac{\nabla^2}{2}+v_{\text{KS}}({\bf r},t) + \textbf{F}(t) \right] \phi_i({\bf r},t),
+i \frac{\partial}{\partial t} \psi_i({\bf r},t) =  \left[  -\frac{\nabla^2}{2}+v_{\text{KS}}({\bf r},t) + \textbf{F}(t) \right] \psi_i({\bf r},t),
 $$
-
 with $\phi_i$ the KS orbitals and the time dependent density
-
 $$
-\rho({\bf r},t)  = \sum_i f_i |\phi_i({\bf r},t)|^2.
+\rho({\bf r},t)  = \sum_i f_i |\psi_i({\bf r},t)|^2.
 $$
-
 $\textbf{F}(t)$ is a time dependent external field, if it has been specified. 
 By applying an external electric field, we intend to simulate 
 the interaction  between the electron and an  external radiation. 
@@ -36,22 +29,17 @@ periodic systems.
 A rather general derivation for Ehrenfest (non-adiabatic quantum-classical molecular) dynamics can be obtained 
 starting from the action of a system. For a situation in which the the electrons are treated quantum mechanically 
 while the nuclei are treated classically the total action can be written as the sum of the two environments
-
 $$
-A = A_c + A_q \qquad A_c = \int_{t_0}^{t_f} \left[ \sum_A \frac{}{} -U({\bf R},t)\right]dt
+A = A_c + A_q \qquad A_c = \int_{t_0}^{t_f} \left[ \sum_A \frac{M_A}{2}\dot{\bf R}_A -U({\bf R},t)\right]dt
 $$
-
 and the quantum mechanical action as above defined. 
 The equations of motion are then derived by making the action stationary 
-
 $$
-\frac{\delta A}{\delta\langle \Phi({\bf r}, t)|} = 0 \qquad \frac{\delta A}{\delta\langle {\bf R}( t)|} = 0
+\frac{\delta A}{\delta\langle \Psi({\bf r}, t)|} = 0 \qquad \frac{\delta A}{\delta\langle {\bf R}( t)|} = 0
 $$
-
 Evaluating these expressions in the framework of TDDFT, the equations of motion become
-
 $$
-M\ddot{\bf R}  = -\frac{\partial}{\partial {\bf R}} U({\bf R},t) - \sum_j\left\langle \Phi^j | \frac{\partial}{\partial{\bf R}} V_{\text{int}}({\bf r},{\bf R})| \Phi^j \right\rangle
+M\ddot{\bf R}  = -\frac{\partial}{\partial {\bf R}} U({\bf R},t) - \sum_j\left\langle \Psi^j \left| \frac{\partial}{\partial{\bf R}} V_{\text{int}}({\bf r},{\bf R})\right| \Psi^j \right\rangle
 $$
 for the nuclear motion, wile for the electrons the  time dependent SE as given above is used. 
 These equations are valid for the exact wavefunctions. In the Kohn-Sham approach, the wavefunctions are replaced by a linear combination of basis functions. 
@@ -59,188 +47,94 @@ For plane waves the equations remain the same, since they do not depend on the n
 The case of a Gaussian basis set requires a more detailed analysis.
 Using Gaussian basis sets for the expansion of the wavefunctions, an implicit dependence of the wavefunctions on the nuclear positions is introduced. 
 Since in an MD approach the nuclear positions are function of time, the time derivative in the quantum mechanical action has to be replaced by the total time derivative
-
 $$
 \frac{d}{dt} = \frac{\partial}{\partial t} + \sum_A \frac{\partial {\bf R}_A}{\partial t}\frac{\partial}{\partial {\bf R}_A}.
 $$
-
 Due to the introduction of the basis, the independent variables for making the action constant become the expansion coefficients $C_{j\alpha}(t)$
-of the molecular orbital $j$ in the contracted basis functions  $\psi_\alpha({\pf r},t)$
+of the molecular orbital $j$ in the contracted basis functions  $\phi_\alpha({\bf r},t)$
 $$
 \dot{C}_{j\alpha} = -\sum_{\alpha\beta}S^{-1}_{\beta\gamma}\left(  i H_{\beta\gamma} + B_{\beta\gamma} \right) C_{j\gamma}
 $$
 where
 $$
-S_{\alpha\beta} = \langle \psi_\alpha| \psi_\beta \rangle \qquad B_{\alpha\beta} = \langle \psi_\alpha | \frac{d}{dt} \psi_{\beta} \rangle
+S_{\alpha\beta} = \langle \phi_\alpha| \phi_\beta \rangle \qquad B_{\alpha\beta} = \langle \phi_\alpha | \frac{d}{dt} \phi_{\beta} \rangle
 $$
-
 Hence, in Ehrenfest dynamics an additional contribution due to the derivative of the basis functions becomes part of the Hamiltonian 
 used in the exponential operator. Instead of being purely imaginary, the matrix in the exponential of the propagator becomes fully complex.
 
 
-To run RTP or Ehrenfest MD with CP2K, the corresponding `RUN_TYPE` in the `GLOBAL` section has to be selected.
+To run RTP or Ehrenfest MD with CP2K, the corresponding {\tt{RUN\_TYPE}} in the {\tt{GLOBAL}} section has to be selected, and the {\tt MOTION/MD} section has to be present to specify the time step length ({\tt{TIMESTEP}}) and the desired number of steps ({\tt{STEPS}}). It is crucial to set an appropriate timestep to propagate  the electronic degrees of freedom, i.e., in the order of attoseconds.
+All other input parameters  related to the RT-TDDFT run are specified from the section {\tt{DFT/REAL\_TIME\_PROPAGATION}}.
+The simulation needs to start from the electronic density at $t_0$ ({\tt{INITIAL\_WFN}}). This can be the ground state  obtained by means of an initial SCF optimization ({\tt{SCF\_WFN}}) or providing the restart file of a previously computed state ({\tt{RESTART\_WFN}}).  
+The propagation can also be restarted setting the initial wavefunction as {\tt{RT\_RESTART}} and providing the correct restart file, which has a different format with respect to the SCF restart file. The path to the restart file is in both cases provided by the usual {\tt{DFT/RESTART\_FILE\_NAME}} key.
 
+Three different propagators are available in CP2K, the enforced time-reversible symmetry propagator (ETRS), the exponential midpoint (EM) propagator, and the Crank-Nicholson propagator which can be seen as a first order Pad\'e approximation of the EM propagator. The ETRS approach starts with an exponential approximation to the evolution operator $\hat{U}(t,0)=\exp{-it\hat{H}(0)}$, to then compute the final time-reversible and unitary propagator self-consistently. 
+In the real time propagation scheme (fixed ionic positions) the self consistent solution only involves the calculation of the new Kohn-Sham matrix for the propagated coefficients. For Ehrenfest MD, the iterative procedure is embedded into the integrator of the nuclear EOM.
+Hence, each iteration step for Ehrenfest dynamics involves a real time propagation step and a complete evaluation of the forces. Due to this, more iterations are needed to reach self consistency for the propagator. The convergence criterion implemented in CP2K is defined as 
+\be
+||  \Delta C^T S \Delta C||_{\text{}max} < \epsilon
+\ee
+with $\Delta C$ as the difference of coefficient matrices in two successive steps, and $\epsilon$ given by {\tt{EPS\_ITER}}.
 
-To run RTP or Ehrenfest MD an initial set of coefficients is needed, which represent the electronic state at time $t_0$. 
-The simulation can start  from the electronic ground state, by requiring an initial SCF optimization or providing the restart file
-of a previously optimized ground state.  
-More often, one wants to start the propagation from a perturbed state. This can be generated with several different approaches.
-
-
+In terms of computational cost, the most expensive part is the evaluation of the matrix exponential in the propagator. Four different methods among those listed in \cite{Moler.2003} have been implemented in CP2K, i.e., the Taylor expansion, the diagonalization, the Pad\'e approximation, and the Arnoldi subspace iteration, to be selected via the {\tt{MAT\_ESP}} input key. The Arnoldi method often provides a superior performance. Comparing the theoretical scaling, the Arnoldi method is expected to be about 5 times as fast as Pad\'e or Taylor. However, the Pade approximation can be sometime the faster and more stable choice than the Arnoldi method (e.g., large time step). 
+Since propagation schemes  require an iterative procedure, it is convenient to apply an extrapolation scheme in order to speed up convergence.  For Ehrenfest dynamics, an extrapolation based on the product of the density and the overlap matrix turns out to be the a good choice. Nevertheless, the quality of the different extrapolation strongly depends on the system applied to and the settings of the simulation. Therefore, which method to use and the extrapolation order needs to be tested on the system of interest.
+For very large systems, the density-based method can be used to achieve linear scaling performance (see the
+[DENSITY_PROPAGATION](#CP2K_INPUT.FORCE_EVAL.DFT.REAL_TIME_PROPAGATION.DENSITY_PROPAGATION)
+keyword).
 
 
 ## The external electric field
 
-The field is applied as the wave function is propagated in real-time.
- 
-The intensity of the time-dependent field $\textbf{F}(t)$ is in general modulated by an envelope function, $E_{\text{env}}(t)$,
-and is defined as:
-
-$$
-\textbf{F}(t) = \textbf{F} E_{\text{env}}(t) \cos \left( \omega_{0} t + \phi \right).
-$$
-
-Where $\textbf{F}$ is the field polarization, $\omega_{0}$ is the carrying frequency at which the
-field oscillates, and $\phi$ its initial phase.
-
-When an external field is applied, it is necessary to specify the GAUGE.
-By default, CP2K assumes the length gauge.
-
-## Propagators in TDDFT
-
-The time independent SE  is a boundary value problem, while the time-dependent is an initial value problem. 
-Hence, the time-dependent KS-equations cannot be solved iteratively.
-A practical method for solving the TDKS equation is the so called real time propagation. 
-For a given initial state at time $t_0$, the wavefunctions, respectively the density, 
-of a system are propagated stepwise to a final state at $t_f$.
-In order to derive a numerically feasible method for the propagation, the TDKS equation is reformulated in its integral form
-
-$$
-\phi_i({\bf r},t_f) = \hat{U}(t_f,t_0)  \phi_i({\bf r},t_0) \qquad  \hat{U}(t_f,t_0) = \hat{T}\exp\left\{  -i \int_{t_0}^{t_f} H({\bf r} , \tau)d\tau\right\}
-$$
-
-where $\hat{T}\exp$ is the time ordered exponential. 
-In general, the state at $t_f$ is not directly derived from $t_0$. Instead the interval is split into smaller time steps $\delta t$,
- for which the propagation is performed. 
-
- In the case of Ehrenfest dynamics, the nuclei also move in real-time.
-
+One of the most relevant application domains for RT-TDDFT is the study of lightÐmatter interactions, e.g., in the field of spectroscopy, excited state dynamics and radiation damage.  To mimic these phenomena, at any time during the propagation, it is possible to apply a time dependent electric field ${\bf F}(t)$. The applied field is in general modulated by an envelope function, $E_{\text{env}}(t)$ and is defined as:
+\be
+\textbf{E}(t) = \textbf{P} E_{\text{env}}(t) \cos \left( \omega_{0} t + \phi \right).
+\ee
+Where $\textbf{P}$ is the field polarization, $\omega_{0}$ is the carrying frequency at which the field oscillates, and $\phi$ its initial phase.
+The characteristic of the applied field as well as its  time extension are provided through the section {\tt{DFT/EFIELD}}. The time dependent electric field defined within this section can only be used in combination with RT-TDDFT.
+By default the coupling between the electric field and the electronic degrees of freedom is described within the length gauge,   by adding to the Hamiltonian the dipole coupling term $ e \textbf{E}(t) \cdot {\bf r} $. This approach is only valid for isolated molecular systems, and not when periodic boundary conditions are applied. 
+The velocity-gauge form of the equations suitable for  periodic systems is obtained through a gauge transformation involving the vector potential\cite{Bertsch.2000,Yabana.2011,Pemmaraju.2018}
+\be
+{\bf A}(t) = c \int^t {\bf E}(t') dt' .
+\ee
+In the time dependent KS equations, the vector potential ${\bf A}(t)$ appears in the kinetic energy term and, in the case where non-local pseudopotentials are used, the gauge field also transforms the electronÐion interaction. To use this representation the {\tt{VELOCITY\_GAUGE }} input keyword has to be activated. The total energy varies with time as the  applied external field interacts with the system. To monitor the time evolution of the field as well as of the various terms contributing to the total electronic energy, the corresponding print key can be activated from the {\tt{REAL\_TIME\_PROPAGATION/PRINT}} section.
 
 
 ###  Resonant Excitation
 
-In this tutorial, we will present a simulation of resonant X-Ray excitation of an isolated carbon
-monoxide in real-time using a time-dependent field. On this page, you will find an overview of the
-method, some equations, and the CP2K input file. A longer version is available in the form of a
-jupyter notebook file in [this zip file](https://www.cp2k.org/_media/howto:rtp_field_xas.zip) along
-with the simulated data so that you do not need to run this calculation yourself to perform the
-analysis. This tutorial is connected to this article REF where you can
-find complementary information.
-
-
-Such real-time calculation aims to promote a small number of electrons from one specific state to
-another using an electromagnetic field. The electronic dynamics are propagated as the field is
+The input file provided below  starts a RT--TDDFT  simulation for an  isolated carbon
+monoxide molecule perturbed by a resonant X-ray  field. 
+Such real-time calculation aims to promote electrons from some core occupied state to empty.
+What states are going to be addressed depends on the frequency of the field, which has to be resonant to some core state transition.
+  The electronic dynamics are propagated as the field is
 applied, leading to an electronic excitation increasing with time, if the field frequency matches the
 aimed electronic transition energy.
 
-
-
-This equation is propagated for each $i$ electron with a time step $\Delta t$: the MOs evolved
+This equation is propagated for each $i$ electron with a time step $\delta t$: the MOs evolved
 collectively over time in a **continuous manner**. Especially, the energy evolution is continuous:
 the electrons cannot absorb exactly one photon at a given frequency to instantaneously go from one
 electronic state to another.\
 If one applies a field resonant with a given electronic transition,
 the MOs involved in this transition will gradually be transformed from their initial state to the
 corresponding excited state. This will happen in real-time without defining any specific electronic
-transition before starting the simulation but only the field parameters. Yet, it is better to
-characterize first what electronic transition we want to address before running such Real-Time
-Propagation (RTP) calculation. To do so, we will use the Linear Response TDDFT scheme.
+transition before starting the simulation. 
+Some preliminary calculations to determine the spectral features of the system under study are in general useful to 
+better define the desired properties of the perturbing field. For core state excitations these information can be obtained
+by XAS simulations.  
 
-### Connection between Real-Time and Linear Response
+Once the RTP has started, the evolution of the electronic structure can be monitored by means of several descriptors,
+like the time dependent dipole moment,  current density,  total electronic density, as well as the projection of the 
+time dependent orbitals onto some preselected reference states. 
+This latter is particularly useful to verify the variation in population of specific states, while monitoring density differences is 
+usually helpful to detect charge transfer processes. 
 
-For X-Rays, we use the XAS_TDP scheme implemented in CP2K, see for instance [this tutorial](./tddft)
-for more information. For isolated carbon monoxide and with our calculation parameters (PBEh
-functional and PCSEG2 basis set), the first available excited state for the Oxygen 1s has a resonant
-frequency of $\omega_{res} = \omega = 529$ eV with an associated oscillator strength of 0.044 a.u.
-Note that this result is also confirmed using a real-time approach,
-[the $\delta$-kick technic](./delta-kick).
-
-Hence, applying an electric field with a carrying frequency of 529 eV should promote electrons from
-the oxygen 1s toward this excited state, noted $|\omega>$. Within the RT-TDDFT approach, it means
-that the Molecular Orbital corresponding to the Oxygen 1s, $|1s(t)>$, will be transformed with time
-as:
-
+ By projecting the time-dependent molecular orbitals onto some reference  states (e.g., the initial MOs)
+means computing the overlap between the propagated orbital $\psi_i({\bf r}, t) = \sum_\alpha C_{i\alpha}(t)\phi({\bf r})$
+and any reference orbital $\psi^{\text{ref}}_m$. For instance, considering as reference orbitals the static unoccupied ones, 
+the quantity 
 $$
-|1s(t)>  = \sqrt{\rho_{GS}(t)} |1s> + \sqrt{\rho_{Exc}(t)} |\omega>.
+N_{\text{exc}}(t)= \sum_m^{\text{unocc}}\sum_i^{\text{occ}} \left\|  \langle  \psi^{\text{ref}}_m |\psi_i(t)\rangle \right\|^2
 $$
-
-$\rho_{GS}$ is the time-dependent ground state population and $\rho_{Exc}$ the excited state one.
-Note that this equation leaves aside the time-dependent phase factor between these two states.
-
-If the field is resonant with only one electronic transition and if we assume that the rest of the
-electrons do not evolve we can use the generalized version of the Rabi oscillation formula to get a
-prediction of the excited state population with time:
-
-$$
-\rho_{\text{Exc}}(t) = \sin  \left( \frac{ | \mathbf{\mu}^{res} \cdot \mathbf{F}| \times A(t)}{2} \right)^2; \ \ \ 
-A(t) = \int_{- \infty}^t E_{env}(t') dt'
-$$
-
-Where $\mathbf{\mu}^{res}$ is the transition dipole moment between the ground and excited state,
-$\mathbf{F}$ is the polarization of the field, and $A(t)$ is the integral of the field envelope. In
-today's case where the amount of electron promoted is small, one can use this approximate formula:
-
-$$
-\rho_{\text{Exc}}(t) \approx    \tau \left( \frac{A(t)}{2} \right)^2.
-$$
-
-Where $\tau  = |\mathbf{\mu}^{res} \cdot \mathbf{F}|^2 $ can be seen as an instantaneous promoting
-rate for the core electron upon the resonant field.
-
-### Real-Time evolution expectations
-
-In the perturbative regime, one can expect the above-mentioned excited population prediction to be
-correct as the oscillator strength is provided by Linear Response. Thus, one can track in real-time
-these ground and excited population using projection of the time-dependent molecular orbital:
-
-$$
-\rho_{GS}(t) = |<1s | 1s(t)>|^2 ; \ \ \ \rho_{Exc}(t) = |<\omega | 1s(t)>|^2
-$$
-
-Moreover, we should also have: $\rho_{Exc}(t) = 1 -  \rho_{GS}(t)$. These projections are written
-for the Molecular Orbital originally corresponding to the Oxygen 1s, but we can also write them for
-the other electrons. Yet, in the case of core X-Ray excitation, we do not expect the other electrons
-to be affected within the perturbative regime: for any Molecular Orbital $i$ which is not the one
-corresponding to the Oxygen 1s we should have:
-
-$$
-|\psi_i(t)> \approx e^{ -i E_i t} |\psi_i(t=0)>,
-$$
-
-with $E_i$ the energy associated to the \$i^\[\\text\{th}} molecular orbital. Let us define the
-projection for all the molecular orbital either toward their ground state or the targetted excited
-state:
-
-$$
-\rho^i_{GS}(t) = |<\psi_i(t=0) | \psi_i(t)>|^2 ; \ \ \ \rho^i_{Exc}(t) = |<\omega | \psi_i(t)>|^2
-$$
-
-For all MOs except the ones corresponding to the Oxygen 1s we should have $\rho^i_{GS}(t) = 1$ and
-$\rho^i_{Exc}(t) \approx 0$. Therefore, here is the generalized formula for the ground state
-population and the excited state one for the whole wave-function:
-
-$$
-\rho_{GS}(t) = \sum_{i=1}^{N_e} |<\psi_i(t=0) | \psi_i(t)>|^2 ; \ \ \  \rho_{Exc}(t) = \sum_{i=1}^{N_e} |<\omega| \psi_i(t)>|^2.
-$$
-
-We should have in the perturbative regime $\rho_{GS}(t)$ close to the number of electron $N_e$:
-$\rho_{GS}(t) = N_e - \rho_{Exc}(t)$.
-
-Finally, if we neglect the off-resonance interaction with the field, the evolution of the energy is:
-
-$$
-\Delta E(t) = E(t) - E_{GS} = \hbar \omega \rho_{Exc}(t)
-$$
+is an estimate of the number of excited electrons. 
 
 ## CP2K input
 
@@ -399,28 +293,21 @@ RTP.inp is the input file used for such simulation:
 &END FORCE_EVAL
 ```
 
-We will not detail all the parameters and instead focus on the one related to the real-time
-propagation, the field, and the time-dependent projection part.
+In the following the chosen parameters for  real-time
+propagation, electric field, and the time-dependent projection are discussed.
 
 ### Real-Time Propagation parameters
-
 In this simulation, we start from an SCF-optimized state which corresponds to the ground state by
 setting [INITIAL_WFN](#CP2K_INPUT.FORCE_EVAL.DFT.REAL_TIME_PROPAGATION.INITIAL_WFN) to `SCF_WFN`.
-
 Before the Real-Time Propagation starts, a ground state calculation will thus be performed. We use a
 Molecular Orbital-based description of the wave function for the propagation along with the Arnoldi
 approach to compute the exponential by setting
 [MAT_EXP](#CP2K_INPUT.FORCE_EVAL.DFT.REAL_TIME_PROPAGATION.MAT_EXP) to `ARNOLDI`.
-
-Note that for extensive systems, the density-based method can be used for linear scaling (see the
-[DENSITY_PROPAGATION](#CP2K_INPUT.FORCE_EVAL.DFT.REAL_TIME_PROPAGATION.DENSITY_PROPAGATION)
-keyword). For each time step, the AERTS algorithm is used with a convergence threshold defined by
+ For each time step, the ERTS algorithm is used with a convergence threshold defined by
 [EPS_ITER](#CP2K_INPUT.FORCE_EVAL.DFT.REAL_TIME_PROPAGATION.EPS_ITER), which we set to `1.0E-11`.
-
 Note that the smaller this threshold, the more iterations per time step will be needed to converge.
 Hence, we have set the maximal iteration number
 [MAX_ITER](#CP2K_INPUT.FORCE_EVAL.DFT.REAL_TIME_PROPAGATION.MAX_ITER) at quite high value of 100.
-
 The time step used is rather small since we have to describe a core-hole excitation process that
 takes place with a typical frequency of 529 eV. Following the rule of thumb to set the time step to
 about 10 times the field frequency, we set [TIMESTEP](#CP2K_INPUT.MOTION.MD.TIMESTEP) to
@@ -428,22 +315,12 @@ about 10 times the field frequency, we set [TIMESTEP](#CP2K_INPUT.MOTION.MD.TIME
 
 ### Field parameters
 
-The interaction between the field and the electron is done through the length gauge by default. For
-periodic systems (or isolated ones), use the velocity gauge by setting the
-[VELOCITY_GAUGE](#CP2K_INPUT.FORCE_EVAL.DFT.REAL_TIME_PROPAGATION.VELOCITY_GAUGE) keyword to True.
-The time-dependent electric field is defined for both gauges in the
-[EFIELD](#CP2K_INPUT.FORCE_EVAL.DFT.EFIELD) section. It should be noted that one can define several
-[EFIELD](#CP2K_INPUT.FORCE_EVAL.DFT.EFIELD) sections to apply several fields within the same
-simulation.
-
 The field is defined by its envelope, its intensity, its polarization along the laboratory x, y, and
 z-axis, its wavelength, and the original phase. Several types of field envelopes can be used. Here
 we use a Gaussian one with a width of $\sigma=0.3073$ fs and centered at $T0=1.3190$ fs. The
 intensity used is 4.08E+13 W.cm$^{-2}$. Along with a carrying frequency of 529 eV (approximately
 2.34374655955 nm), it should promote about $10^{-3}$ from the Oxygen 1s to the first available
-excited state. See
-[the jupyter notebook tutorial](https://www.cp2k.org/_media/howto:rtp_field_xas.zip) for more
-information about how to choose these parameters depending on your system.
+excited state. 
 
 ```none
 &EFIELD
@@ -576,17 +453,4 @@ $$
 
 Where $\omega'$ stands for the other equivalent excited state, with $\omega=\omega'=529$ eV.
 
-## Conclusion
 
-In this tutorial, we have presented the ingredients needed to perform a Real-Time simulation with an
-explicit field in order to trigger a specific electronic transition. Such approaches can be used for
-other frequencies without much changes in the parameters and also extended to Ehrenfest dynamics.
-Note that in this case, the projection toward the reference state is less trivial to define, see the
-[PROPAGATE_REF](#CP2K_INPUT.FORCE_EVAL.DFT.REAL_TIME_PROPAGATION.PRINT.PROJECTION_MO.PROPAGATE_REF)
-keyword.
-
-This has been done within the perturbative regime (the amount of excited electron is small compared
-to 1) and [the jupyter notebook](https://www.cp2k.org/_media/howto:rtp_field_xas.zip) presents an
-extensive connection to the Linear Response prediction and also discusses the obtained results.
-Please note that applying a field with the intention to promote about one electron can bring more
-challenges as well as applying a field with a large amplitude.
