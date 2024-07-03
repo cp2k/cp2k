@@ -73,7 +73,7 @@
 # Set options
 DO_CHECKS      := no
 TARGET_CPU     := native
-GNU_VER        := 14.1.0
+GNU_VER        := $(shell gcc -dumpfullversion)
 USE_COSMA      := 2.6.6
 USE_DFTD4      := 3.6.0
 USE_LIBGRPP    := 20231215
