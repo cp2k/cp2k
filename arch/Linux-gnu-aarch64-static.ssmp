@@ -3,11 +3,12 @@
 # CP2K (GNU aarch64) arch file for a serial static ARM64 binary
 #
 # Tested with: GNU 12.3.0, FFTW 3.3.10, LIBINT 2.6.0, LIBVORI 220621,
-#              LIBXC 6.2.2, OpenBLAS 0.3.27, SPGLIB 2.3.1
+#              LIBXC 6.2.2, OpenBLAS 0.3.27, SPGLIB 2.3.1, DFTD4 3.6.0,
+#              LIBGRPP 20231215
 #
 # Usage: Source this arch file and then run make as instructed.
 #
-# Last update: 09.05.2024
+# Last update: 03.07.2024
 #
 # \
    if [[ "${0}" == "${BASH_SOURCE}" ]]; then \
@@ -18,7 +19,7 @@
    this_file=${BASH_SOURCE##*/}; \
    cd tools/toolchain; \
    [[ -z "${target_cpu}" ]] && target_cpu="native"; \
-   ./install_cp2k_toolchain.sh -j${maxtasks} --mpi-mode=no --no-arch-files --target-cpu=${target_cpu} --with-cmake=system --with-gcc=system --with-libxsmm=no; \
+   ./install_cp2k_toolchain.sh -j${maxtasks} --mpi-mode=no --no-arch-files --target-cpu=${target_cpu} --with-gcc --with-libxsmm=no; \
    source ./install/setup; \
    cd ../..; \
    echo; \
@@ -33,7 +34,10 @@
 # Set options
 DO_CHECKS      := no
 TARGET_CPU     := native
+GNU_VER        := $(shell gcc -dumpfullversion)
+USE_DFTD4      := 3.6.0
 USE_FFTW       := 3.3.10
+USE_LIBGRPP    := 20231215
 USE_LIBINT     := 2.6.0
 USE_LIBVORI    := 220621
 USE_LIBXC      := 6.2.2
@@ -99,6 +103,31 @@ ifneq ($(USE_LIBXC),)
    DFLAGS         += -D__LIBXC
    LIBS           += $(LIBXC_LIB)/libxcf03.a
    LIBS           += $(LIBXC_LIB)/libxc.a
+endif
+
+ifneq ($(USE_DFTD4),)
+   USE_DFTD4      := $(strip $(USE_DFTD4))
+   DFTD4_INC      := $(INSTALL_PATH)/dftd4-$(USE_DFTD4)/include
+   DFTD4_LIB      := $(INSTALL_PATH)/dftd4-$(USE_DFTD4)/lib64
+   CFLAGS         += -I$(DFTD4_INC)/dftd4/GNU-$(GNU_VER)
+   DFLAGS         += -D__DFTD4
+   ifeq ($(SHARED), yes)
+      LIBS           += -Wl,-rpath=$(DFTD4_LIB) -L$(DFTD4_LIB) -ldftd4 -lmstore -lmulticharge -lmctc-lib
+   else
+      LIBS           += $(DFTD4_LIB)/libdftd4.a
+      LIBS           += $(DFTD4_LIB)/libmstore.a
+      LIBS           += $(DFTD4_LIB)/libmulticharge.a
+      LIBS           += $(DFTD4_LIB)/libmctc-lib.a
+   endif
+endif
+
+ifneq ($(USE_LIBGRPP),)
+   USE_LIBGRPP    := $(strip $(USE_LIBGRPP))
+   LIBGRPP_INC    := $(INSTALL_PATH)/libgrpp-main-$(USE_LIBGRPP)/include
+   LIBGRPP_LIB    := $(INSTALL_PATH)/libgrpp-main-$(USE_LIBGRPP)/lib
+   CFLAGS         += -I$(LIBGRPP_INC)
+   DFLAGS         += -D__LIBGRPP
+   LIBS           += $(LIBGRPP_LIB)/liblibgrpp.a
 endif
 
 ifneq ($(USE_LIBINT),)
