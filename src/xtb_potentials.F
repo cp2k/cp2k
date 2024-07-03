@@ -87,22 +87,24 @@ CONTAINS
 !> \param qs_env ...
 !> \param erep ...
 !> \param kf ...
+!> \param enscale ...
 !> \param calculate_forces ...
 ! **************************************************************************************************
-   SUBROUTINE repulsive_potential(qs_env, erep, kf, calculate_forces)
+   SUBROUTINE repulsive_potential(qs_env, erep, kf, enscale, calculate_forces)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       REAL(dp), INTENT(INOUT)                            :: erep
-      REAL(dp), INTENT(IN)                               :: kf
+      REAL(dp), INTENT(IN)                               :: kf, enscale
       LOGICAL, INTENT(IN)                                :: calculate_forces
 
       CHARACTER(len=*), PARAMETER :: routineN = 'repulsive_potential'
 
       INTEGER                                            :: atom_a, atom_b, handle, iatom, ikind, &
-                                                            jatom, jkind
+                                                            jatom, jkind, za, zb
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind
       INTEGER, DIMENSION(3)                              :: cell
       LOGICAL                                            :: defined, use_virial
-      REAL(KIND=dp)                                      :: alphaa, alphab, derepij, dr, erepij, f1, &
+      REAL(KIND=dp)                                      :: alphaa, alphab, den2, den4, derepij, dr, &
+                                                            ena, enb, ens, erepij, f1, sal, &
                                                             zneffa, zneffb
       REAL(KIND=dp), DIMENSION(3)                        :: force_rr, rij
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
@@ -136,10 +138,10 @@ CONTAINS
       DO WHILE (neighbor_list_iterate(nl_iterator) == 0)
          CALL get_iterator_info(nl_iterator, ikind=ikind, jkind=jkind, &
                                 iatom=iatom, jatom=jatom, r=rij, cell=cell)
-         CALL get_qs_kind(qs_kind_set(ikind), xtb_parameter=xtb_atom_a)
+         CALL get_qs_kind(qs_kind_set(ikind), zatom=za, xtb_parameter=xtb_atom_a)
          CALL get_xtb_atom_param(xtb_atom_a, defined=defined)
          IF (.NOT. defined) CYCLE
-         CALL get_qs_kind(qs_kind_set(jkind), xtb_parameter=xtb_atom_b)
+         CALL get_qs_kind(qs_kind_set(jkind), zatom=zb, xtb_parameter=xtb_atom_b)
          CALL get_xtb_atom_param(xtb_atom_b, defined=defined)
          IF (.NOT. defined) CYCLE
 
@@ -148,17 +150,23 @@ CONTAINS
          IF (dr > 0.001_dp) THEN
 
             ! atomic parameters
-            CALL get_xtb_atom_param(xtb_atom_a, alpha=alphaa, zneff=zneffa)
-            CALL get_xtb_atom_param(xtb_atom_b, alpha=alphab, zneff=zneffb)
+            CALL get_xtb_atom_param(xtb_atom_a, en=ena, alpha=alphaa, zneff=zneffa)
+            CALL get_xtb_atom_param(xtb_atom_b, en=enb, alpha=alphab, zneff=zneffb)
 
-            erepij = zneffa*zneffb/dr*EXP(-SQRT(alphaa*alphab)*dr**kf)
+            ! scaling (not in papers! but in code)
+            den2 = (ena - enb)**2
+            den4 = den2*den2
+            sal = SQRT(alphaa*alphab)
+            ens = 1.0_dp + (0.01_dp*den2 + 0.01_dp*den4)*enscale
+
+            erepij = zneffa*zneffb/dr*EXP(-ens*sal*dr**kf)
             erep = erep + erepij
             IF (atprop%energy) THEN
                atprop%atecc(iatom) = atprop%atecc(iatom) + 0.5_dp*erepij
                atprop%atecc(jatom) = atprop%atecc(jatom) + 0.5_dp*erepij
             END IF
             IF (calculate_forces .AND. (iatom /= jatom .OR. dr > 0.001_dp)) THEN
-               derepij = -(1.0_dp/dr + SQRT(alphaa*alphab)*kf*dr**(kf - 1.0_dp))*erepij
+               derepij = -(1.0_dp/dr + ens*sal*kf*dr**(kf - 1.0_dp))*erepij
                force_rr(1) = derepij*rij(1)/dr
                force_rr(2) = derepij*rij(2)/dr
                force_rr(3) = derepij*rij(3)/dr
@@ -260,10 +268,10 @@ CONTAINS
          CALL get_iterator_info(nl_iterator, ikind=ikind, jkind=jkind, &
                                 iatom=iatom, jatom=jatom, r=rij, cell=cell)
          CALL get_qs_kind(qs_kind_set(ikind), xtb_parameter=xtb_atom_a)
-         CALL get_xtb_atom_param(xtb_atom_a, z=za, en=enta, defined=defined)
+         CALL get_xtb_atom_param(xtb_atom_a, z=za, electronegativity=enta, defined=defined)
          IF (.NOT. defined) CYCLE
          CALL get_qs_kind(qs_kind_set(jkind), xtb_parameter=xtb_atom_b)
-         CALL get_xtb_atom_param(xtb_atom_b, z=zb, en=entb, defined=defined)
+         CALL get_xtb_atom_param(xtb_atom_b, z=zb, electronegativity=entb, defined=defined)
          IF (.NOT. defined) CYCLE
 
          dr = SQRT(SUM(rij(:)**2))

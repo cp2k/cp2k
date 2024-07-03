@@ -489,6 +489,7 @@ CONTAINS
          i = param%z
          ! Electronegativity
          param%electronegativity = eneg(i)
+         IF (param%en == 0.0_dp) param%en = eneg(i)
          ! covalent radius
          param%rcov = crad(i)*bohr
          ! shell occupances

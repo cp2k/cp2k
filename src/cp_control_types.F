@@ -157,6 +157,7 @@ MODULE cp_control_types
       REAL(KIND=dp)                        :: ksen = 0.0_dp, kpen = 0.0_dp, kden = 0.0_dp
       REAL(KIND=dp)                        :: ben = 0.0_dp
       REAL(KIND=dp)                        :: kxr = 0.0_dp, kx2 = 0.0_dp
+      REAL(KIND=dp)                        :: enscale = 0.0_dp
       !
       LOGICAL                              :: xb_interaction = .FALSE.
       LOGICAL                              :: do_nonbonded = .FALSE.

@@ -19,6 +19,7 @@ MODULE xtb_hcore
    USE cp_control_types,                ONLY: dft_control_type,&
                                               xtb_control_type
    USE kinds,                           ONLY: dp
+   USE physcon,                         ONLY: evolt
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_kind_types,                   ONLY: get_qs_kind,&
@@ -87,6 +88,9 @@ CONTAINS
          CALL get_qs_kind(qs_kind_set(ikind), xtb_parameter=xtb_atom_a)
          CALL get_xtb_atom_param(xtb_atom_a, nshell=nshell, lval=lval, &
                                  kcn=kcn, kq=kq, kqat2=kqat2, hen=hena)
+         kcn = kcn/evolt
+         kq = kq/evolt
+         kqat2 = kqat2/evolt
          huckel(:, iatom) = 0.0_dp
          DO i = 1, nshell
             l = lval(i) + 1
@@ -204,9 +208,9 @@ CONTAINS
       INTEGER, DIMENSION(25)                             :: laoa, laob, naoa, naob
       LOGICAL                                            :: defined
       REAL(KIND=dp)                                      :: ben, den, etaa, etab, kab, kd, kden, &
-                                                            ken, kia, kjb, kp, kpen, ks, ksen, &
-                                                            ksp, xijab, yijab
-      REAL(KIND=dp), DIMENSION(0:3)                      :: kl
+                                                            kdiff, ken, kia, kjb, km, kp, kpen, &
+                                                            ks, ksen, ksp, xijab, yijab
+      REAL(KIND=dp), DIMENSION(0:3)                      :: ke, kl
       REAL(KIND=dp), DIMENSION(5)                        :: zetaa, zetab
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
@@ -225,15 +229,21 @@ CONTAINS
       kp = xtb_control%kp
       kd = xtb_control%kd
       ksp = xtb_control%ksp
-      ksen = xtb_control%ks
-      kpen = xtb_control%kp
-      kden = xtb_control%kd
+      ksen = xtb_control%ksen
+      kpen = xtb_control%kpen
+      kden = xtb_control%kden
       ben = xtb_control%ben
+      kdiff = xtb_control%k2sh
 
       kl(0) = ks
       kl(1) = kp
       kl(2) = kd
       kl(3) = 0.0_dp
+
+      ke(0) = ksen
+      ke(1) = kpen
+      ke(2) = kden
+      ke(3) = 0.0_dp
 
       ! Calculate KAB parameters and electronegativity correction
       ALLOCATE (kijab(maxs, maxs, nkind, nkind))
@@ -244,13 +254,13 @@ CONTAINS
          CALL get_xtb_atom_param(xtb_atom_a, defined=defined, natorb=natorb_a)
          IF (.NOT. defined .OR. natorb_a < 1) CYCLE
          CALL get_xtb_atom_param(xtb_atom_a, z=za, nao=naoa, lao=laoa, &
-                                 electronegativity=etaa, zeta=zetaa)
+                                 en=etaa, zeta=zetaa)
          DO jkind = 1, nkind
             CALL get_qs_kind(qs_kind_set(jkind), xtb_parameter=xtb_atom_b)
             CALL get_xtb_atom_param(xtb_atom_b, defined=defined, natorb=natorb_b)
             IF (.NOT. defined .OR. natorb_b < 1) CYCLE
             CALL get_xtb_atom_param(xtb_atom_b, z=zb, nao=naob, lao=laob, &
-                                    electronegativity=etab, zeta=zetab)
+                                    en=etab, zeta=zetab)
             ! Kab
             kab = pp_gfn0(za, zb)
             DO j = 1, natorb_b
@@ -261,9 +271,17 @@ CONTAINS
                   na = naoa(i)
                   kia = kl(la)
                   kjb = kl(lb)
-                  IF (zb == 1 .AND. nb == 2) kjb = 0.0_dp
-                  IF (za == 1 .AND. na == 2) kia = 0.0_dp
-                  kijab(i, j, ikind, jkind) = 0.5_dp*(kia + kjb)*kab
+                  km = 0.5_dp*(kia + kjb)*kab
+                  IF (za == 1 .AND. na == 2) THEN
+                     IF (zb == 1 .AND. nb == 2) THEN
+                        km = 0._dp
+                     ELSE
+                        km = km*kdiff
+                     END IF
+                  ELSEIF (zb == 1 .AND. nb == 2) THEN
+                     km = km*kdiff
+                  END IF
+                  kijab(i, j, ikind, jkind) = km
                END DO
             END DO
             ! Yab
@@ -278,17 +296,13 @@ CONTAINS
                END DO
             END DO
             ! X
-            kl(0) = ksen
-            kl(1) = kpen
-            kl(2) = kden
-            kl(3) = 0.0_dp
             den = etaa - etab
             DO j = 1, natorb_b
                lb = laob(j)
-               kjb = kl(lb)
+               kjb = ke(lb)
                DO i = 1, natorb_a
                   la = laoa(i)
-                  kia = kl(la)
+                  kia = ke(la)
                   ken = 0.5_dp*(kia + kjb)
                   xijab = 1.0_dp + ken*den**2 + ken*ben*den**4
                   kijab(i, j, ikind, jkind) = kijab(i, j, ikind, jkind)*xijab

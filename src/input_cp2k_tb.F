@@ -435,6 +435,13 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="ENSCALE", &
+                          description="Scaling parameter repulsive energy (dEN in exponential).", &
+                          usage="ENSCALE 0.01", n_var=1, &
+                          default_r_val=0.0_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       CALL keyword_create(keyword, __LOCATION__, name="HALOGEN_BINDING", &
                           description="Scaling parameters for electronegativity correction term.", &
                           usage="HALOGEN_BINDING 1.30 0.44", n_var=2, default_r_vals=(/1.30_dp, 0.44_dp/))

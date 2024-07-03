@@ -1853,7 +1853,7 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_solve'
 
-      INTEGER                                  :: handle, info, n
+      INTEGER                                  :: handle, info, n, nrhs
       INTEGER, ALLOCATABLE, DIMENSION(:)       :: ipivot
       REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a, a_general
 #if defined(__parallel)
@@ -1867,20 +1867,21 @@ CONTAINS
       a => matrix_a%local_data
       a_general => general_a%local_data
       n = matrix_a%matrix_struct%nrow_global
+      nrhs = general_a%matrix_struct%ncol_global
       ALLOCATE (ipivot(n + matrix_a%matrix_struct%nrow_block))
 
 #if defined(__parallel)
       desca(:) = matrix_a%matrix_struct%descriptor(:)
       descb(:) = general_a%matrix_struct%descriptor(:)
       CALL pdgetrf(n, n, a, 1, 1, desca, ipivot, info)
-      CALL pdgetrs("N", n, n, a, 1, 1, desca, ipivot, a_general, &
+      CALL pdgetrs("N", n, nrhs, a, 1, 1, desca, ipivot, a_general, &
                    1, 1, descb, info)
 
 #else
       lda = SIZE(a, 1)
       ldb = SIZE(a_general, 1)
       CALL dgetrf(n, n, a, lda, ipivot, info)
-      CALL dgetrs("N", n, n, a, lda, ipivot, a_general, ldb, info)
+      CALL dgetrs("N", n, nrhs, a, lda, ipivot, a_general, ldb, info)
 
 #endif
       ! info is allowed to be zero

@@ -1393,6 +1393,23 @@ CONTAINS
          ! ben
          CALL section_vals_val_get(xtb_parameter, "BEN_CONSTANT", r_vals=scal)
          qs_control%xtb_control%ben = scal(1)
+         ! enscale (hidden parameter in repulsion
+         CALL section_vals_val_get(xtb_parameter, "ENSCALE", explicit=explicit)
+         IF (explicit) THEN
+            CALL section_vals_val_get(xtb_parameter, "ENSCALE", &
+                                      r_val=qs_control%xtb_control%enscale)
+         ELSE
+            SELECT CASE (qs_control%xtb_control%gfn_type)
+            CASE (0)
+               qs_control%xtb_control%enscale = -0.09_dp
+            CASE (1)
+               qs_control%xtb_control%enscale = 0._dp
+            CASE (2)
+               CPABORT("gfn2-xtb tbd")
+            CASE DEFAULT
+               CPABORT("GFN type")
+            END SELECT
+         END IF
          ! XB
          CALL section_vals_val_get(xtb_section, "USE_HALOGEN_CORRECTION", &
                                    l_val=qs_control%xtb_control%xb_interaction)
@@ -2115,6 +2132,8 @@ CONTAINS
             "xTB| Basis expansion STO-NG for Hydrogen", xtb_control%h_sto_ng
          WRITE (UNIT=output_unit, FMT="(T2,A,T71,E10.4)") &
             "xTB| Repulsive pair potential accuracy", xtb_control%eps_pair
+         WRITE (UNIT=output_unit, FMT="(T2,A,T71,F10.6)") &
+            "xTB| Repulsive enhancement factor", xtb_control%enscale
          WRITE (UNIT=output_unit, FMT="(T2,A,T71,L10)") &
             "xTB| Halogen interaction potential", xtb_control%xb_interaction
          WRITE (UNIT=output_unit, FMT="(T2,A,T71,F10.3)") &

@@ -74,6 +74,7 @@ MODULE xtb_matrices
                                               qs_rho_type
    USE virial_methods,                  ONLY: virial_pair_force
    USE virial_types,                    ONLY: virial_type
+   USE xtb_eeq,                         ONLY: xtb_eeq_calculation
    USE xtb_hcore,                       ONLY: gfn0_huckel,&
                                               gfn0_kpair,&
                                               gfn1_huckel,&
@@ -115,7 +116,6 @@ CONTAINS
       SELECT CASE (gfn_type)
       CASE (0)
          CALL build_gfn0_xtb_matrices(qs_env, calculate_forces)
-         CPABORT("gfn_type = 0 not yet available")
       CASE (1)
          CALL build_gfn1_xtb_matrices(qs_env, calculate_forces)
       CASE (2)
@@ -151,9 +151,9 @@ CONTAINS
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
       LOGICAL                                            :: defined, diagblock, do_nonbonded, found, &
                                                             use_virial
-      REAL(KIND=dp) :: alphaa, alphab, dfp, dhij, dr, drk, drx, enonbonded, erep, esrb, etaa, &
-         etab, f0, f1, fhua, fhub, fhud, foab, hij, kf, rcova, rcovab, rcovb, rrab, zneffa, zneffb
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: charges, cnumbers
+      REAL(KIND=dp) :: dfp, dhij, dr, drk, drx, eeq_energy, enonbonded, enscale, erep, esrb, etaa, &
+         etab, f0, f1, fhua, fhub, fhud, foab, hij, kf, rcova, rcovab, rcovb, rrab
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: charges, cnumbers, dcharges
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: dfblock, dhuckel, dqhuckel, huckel, owork
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: oint, sint
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :, :)  :: kijab
@@ -277,10 +277,14 @@ CONTAINS
       ! code taken from D3 dispersion energy
       CALL cnumber_init(qs_env, cnumbers, dcnum, 2, calculate_forces)
 
-!deb EEQ
       ALLOCATE (charges(natom))
       charges = 0._dp
-!deb EEQ
+      CALL xtb_eeq_calculation(qs_env, charges, cnumbers, eeq_energy)
+      IF (calculate_forces) THEN
+         ALLOCATE (dcharges(natom))
+         dcharges = 0._dp
+      END IF
+      energy%eeq = eeq_energy
 
 !deb vdW
       CALL get_qs_env(qs_env=qs_env, dispersion_env=dispersion_env)
@@ -310,11 +314,9 @@ CONTAINS
 
          ! atomic parameters
          CALL get_xtb_atom_param(xtb_atom_a, z=za, nao=naoa, lao=laoa, rcov=rcova, eta=etaa, &
-                                 lmax=lmaxa, nshell=nsa, alpha=alphaa, zneff=zneffa, kpoly=kpolya, &
-                                 hen=hena)
+                                 lmax=lmaxa, nshell=nsa, kpoly=kpolya, hen=hena)
          CALL get_xtb_atom_param(xtb_atom_b, z=zb, nao=naob, lao=laob, rcov=rcovb, eta=etab, &
-                                 lmax=lmaxb, nshell=nsb, alpha=alphab, zneff=zneffb, kpoly=kpolyb, &
-                                 hen=henb)
+                                 lmax=lmaxb, nshell=nsb, kpoly=kpolyb, hen=henb)
 
          IF (nimg == 1) THEN
             ic = 1
@@ -650,8 +652,9 @@ CONTAINS
       END DO
 
       kf = xtb_control%kf
+      enscale = xtb_control%enscale
       erep = 0.0_dp
-      CALL repulsive_potential(qs_env, erep, kf, calculate_forces)
+      CALL repulsive_potential(qs_env, erep, kf, enscale, calculate_forces)
 
       esrb = 0.0_dp
       CALL srb_potential(qs_env, esrb, calculate_forces, xtb_control, cnumbers, dcnum)
@@ -682,13 +685,16 @@ CONTAINS
       ! deallocate Huckel parameters
       DEALLOCATE (huckel)
       IF (calculate_forces) THEN
-         DEALLOCATE (huckel, dhuckel, dqhuckel)
+         DEALLOCATE (dhuckel, dqhuckel)
       END IF
       ! deallocate KAB parameters
       DEALLOCATE (kijab)
 
       ! deallocate charges
       DEALLOCATE (charges)
+      IF (calculate_forces) THEN
+         DEALLOCATE (dcharges)
+      END IF
 
       ! AO matrix outputs
       CALL ao_matrix_output(qs_env, matrix_h, matrix_s, calculate_forces)
@@ -732,8 +738,10 @@ CONTAINS
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
       LOGICAL                                            :: defined, diagblock, do_nonbonded, found, &
                                                             use_virial, xb_inter
-      REAL(KIND=dp) :: alphaa, alphab, dfp, dhij, dr, drk, drx, enonbonded, erep, etaa, etab, exb, &
-         f0, f1, fhua, fhub, fhud, foab, hij, kf, rcova, rcovab, rcovb, rrab, zneffa, zneffb
+      REAL(KIND=dp)                                      :: dfp, dhij, dr, drk, drx, enonbonded, &
+                                                            enscale, erep, etaa, etab, exb, f0, &
+                                                            f1, fhua, fhub, fhud, foab, hij, kf, &
+                                                            rcova, rcovab, rcovb, rrab
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: cnumbers
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: dfblock, dhuckel, huckel, owork
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: oint, sint
@@ -885,9 +893,9 @@ CONTAINS
 
          ! atomic parameters
          CALL get_xtb_atom_param(xtb_atom_a, z=za, nao=naoa, lao=laoa, rcov=rcova, eta=etaa, &
-                                 lmax=lmaxa, nshell=nsa, alpha=alphaa, zneff=zneffa, kpoly=kpolya)
+                                 lmax=lmaxa, nshell=nsa, kpoly=kpolya)
          CALL get_xtb_atom_param(xtb_atom_b, z=zb, nao=naob, lao=laob, rcov=rcovb, eta=etab, &
-                                 lmax=lmaxb, nshell=nsb, alpha=alphab, zneff=zneffb, kpoly=kpolyb)
+                                 lmax=lmaxb, nshell=nsb, kpoly=kpolyb)
 
          IF (nimg == 1) THEN
             ic = 1
@@ -1223,8 +1231,9 @@ CONTAINS
       END DO
 
       kf = xtb_control%kf
+      enscale = xtb_control%enscale
       erep = 0.0_dp
-      CALL repulsive_potential(qs_env, erep, kf, calculate_forces)
+      CALL repulsive_potential(qs_env, erep, kf, enscale, calculate_forces)
 
       exb = 0.0_dp
       IF (xb_inter) THEN

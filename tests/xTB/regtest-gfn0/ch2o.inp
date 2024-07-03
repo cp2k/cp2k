@@ -1,3 +1,25 @@
+#        :::::::::::::::::::::::::::::::::::::::::::::::::::::
+#        :: total energy              -6.466884243868 Eh    ::
+#        :: gradient norm              0.072915159303 Eh/a0 ::
+#        :: HOMO-LUMO gap              3.295393711756 eV    ::
+#        ::.................................................::
+#        :: H0 energy                 -6.484772063910 Eh    ::
+#        :: repulsion energy           0.060433908986 Eh    ::
+#        :: electrostat energy        -0.029397544272 Eh    ::
+#        :: -> Gsolv                   0.000000000000 Eh    ::
+#        ::    -> Gsasa                0.000000000000 Eh    ::
+#        ::    -> Gshift               0.000000000000 Eh    ::
+#        :: dispersion energy         -0.000301529719 Eh    ::
+#        :: short-range corr.         -0.012847014953 Eh    ::
+#        :: add. restraining           0.000000000000 Eh    ::
+#        :: total charge               0.000000000000 e     ::
+#        :::::::::::::::::::::::::::::::::::::::::::::::::::::
+# Total energy:                                              -114.35443644117835
+# Core Hamiltonian energy:                                   -113.63089500176872
+# Repulsive potential energy:                                   0.06011648035989
+# SRB Correction energy:                                       -0.00000000000000
+# Charge equilibration energy:                                 -0.78332280174990
+# Dispersion energy:                                           -0.00033511801961
 &GLOBAL
   PRINT_LEVEL MEDIUM
   PROJECT CH2O
@@ -16,11 +38,10 @@
   &DFT
     &PRINT
       &AO_MATRICES
-        DENSITY T
-        KOHN_SHAM_MATRIX T
-        &EACH
-          QS_SCF 0
-        &END EACH
+        #       DENSITY T
+        #       KOHN_SHAM_MATRIX T
+        #       OVERLAP T
+        #       CORE_HAMILTONIAN
       &END AO_MATRICES
     &END PRINT
     &QS
@@ -33,6 +54,7 @@
       &END XTB
     &END QS
     &SCF
+      SCF_GUESS NONE
     &END SCF
   &END DFT
   &SUBSYS
