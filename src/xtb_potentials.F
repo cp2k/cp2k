@@ -290,7 +290,7 @@ CONTAINS
                atprop%atecc(jatom) = atprop%atecc(jatom) + 0.5_dp*esrbij
             END IF
             IF (calculate_forces) THEN
-               desrbij = esrbij*(-etasrb*(1._dp + gscal*den2)*(dr - dr0))
+               desrbij = 2.0_dp*esrbij*(-etasrb*(1._dp + gscal*den2)*(dr - dr0))
                force_rr(1) = desrbij*rij(1)/dr
                force_rr(2) = desrbij*rij(2)/dr
                force_rr(3) = desrbij*rij(3)/dr
@@ -309,7 +309,7 @@ CONTAINS
                END IF
                ! coordination number derivatives
                ! iatom
-               fhua = desrbij*cnfac(za)
+               fhua = -desrbij*cnfac(za)*(1._dp - c1srb*den1 - c2srb*den1*den1)
                DO i = 1, dcnum(iatom)%neighbors
                   katom = dcnum(iatom)%nlist(i)
                   kkind = kind_of(katom)
@@ -331,7 +331,7 @@ CONTAINS
                   END IF
                END DO
                ! jatom
-               fhub = desrbij*cnfac(zb)
+               fhub = -desrbij*cnfac(zb)*(1._dp - c1srb*den1 - c2srb*den1*den1)
                DO i = 1, dcnum(jatom)%neighbors
                   katom = dcnum(jatom)%nlist(i)
                   kkind = kind_of(katom)

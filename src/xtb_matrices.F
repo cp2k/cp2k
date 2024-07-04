@@ -74,7 +74,8 @@ MODULE xtb_matrices
                                               qs_rho_type
    USE virial_methods,                  ONLY: virial_pair_force
    USE virial_types,                    ONLY: virial_type
-   USE xtb_eeq,                         ONLY: xtb_eeq_calculation
+   USE xtb_eeq,                         ONLY: xtb_eeq_calculation,&
+                                              xtb_eeq_forces
    USE xtb_hcore,                       ONLY: gfn0_huckel,&
                                               gfn0_kpair,&
                                               gfn1_huckel,&
@@ -152,7 +153,8 @@ CONTAINS
       LOGICAL                                            :: defined, diagblock, do_nonbonded, found, &
                                                             use_virial
       REAL(KIND=dp) :: dfp, dhij, dr, drk, drx, eeq_energy, enonbonded, enscale, erep, esrb, etaa, &
-         etab, f0, f1, fhua, fhub, fhud, foab, hij, kf, rcova, rcovab, rcovb, rrab
+         etab, f0, f1, f2, fhua, fhub, fhud, foab, fqa, fqb, hij, kf, qlambda, rcova, rcovab, &
+         rcovb, rrab
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: charges, cnumbers, dcharges
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: dfblock, dhuckel, dqhuckel, huckel, owork
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: oint, sint
@@ -279,10 +281,10 @@ CONTAINS
 
       ALLOCATE (charges(natom))
       charges = 0._dp
-      CALL xtb_eeq_calculation(qs_env, charges, cnumbers, eeq_energy)
+      CALL xtb_eeq_calculation(qs_env, charges, cnumbers, eeq_energy, qlambda)
       IF (calculate_forces) THEN
          ALLOCATE (dcharges(natom))
-         dcharges = 0._dp
+         dcharges = qlambda
       END IF
       energy%eeq = eeq_energy
 
@@ -290,6 +292,7 @@ CONTAINS
       CALL get_qs_env(qs_env=qs_env, dispersion_env=dispersion_env)
       CALL calculate_dispersion_pairpot(qs_env, dispersion_env, &
                                         energy%dispersion, calculate_forces)
+      ! for D4: update dcharges
 !deb vdW
 
       ! Calculate Huckel parameters
@@ -498,16 +501,22 @@ CONTAINS
          IF (calculate_forces) THEN
             f0 = 1.0_dp
             IF (irow == iatom) f0 = -1.0_dp
+            f2 = 1.0_dp
+            IF (iatom /= jatom) f2 = 2.0_dp
             ! Derivative wrt coordination number
             fhua = 0.0_dp
             fhub = 0.0_dp
             fhud = 0.0_dp
+            fqa = 0.0_dp
+            fqb = 0.0_dp
             IF (diagblock) THEN
                DO i = 1, natorb_a
                   la = laoa(i)
                   na = naoa(i)
                   fhud = fhud + pblock(i, i)*dhuckel(na, iatom)
+                  fqa = fqa + pblock(i, i)*dqhuckel(na, iatom)
                END DO
+               dcharges(iatom) = dcharges(iatom) + fqa
             ELSE
                DO j = 1, natorb_b
                   lb = laob(j)
@@ -516,19 +525,22 @@ CONTAINS
                      la = laoa(i)
                      na = naoa(i)
                      hij = 0.5_dp*pia(na)*pib(nb)
+                     drx = f2*hij*kijab(i, j, ikind, jkind)*sint(i, j, 1)
                      IF (iatom <= jatom) THEN
-                        fhua = fhua + hij*kijab(i, j, ikind, jkind)*sint(i, j, 1)*pblock(i, j)*dhuckel(na, iatom)
-                        fhub = fhub + hij*kijab(i, j, ikind, jkind)*sint(i, j, 1)*pblock(i, j)*dhuckel(nb, jatom)
+                        fhua = fhua + drx*pblock(i, j)*dhuckel(na, iatom)
+                        fhub = fhub + drx*pblock(i, j)*dhuckel(nb, jatom)
+                        fqa = fqa + drx*pblock(i, j)*dqhuckel(na, iatom)
+                        fqb = fqb + drx*pblock(i, j)*dqhuckel(nb, jatom)
                      ELSE
-                        fhua = fhua + hij*kijab(i, j, ikind, jkind)*sint(i, j, 1)*pblock(j, i)*dhuckel(na, iatom)
-                        fhub = fhub + hij*kijab(i, j, ikind, jkind)*sint(i, j, 1)*pblock(j, i)*dhuckel(nb, jatom)
+                        fhua = fhua + drx*pblock(j, i)*dhuckel(na, iatom)
+                        fhub = fhub + drx*pblock(j, i)*dhuckel(nb, jatom)
+                        fqa = fqa + drx*pblock(j, i)*dqhuckel(na, iatom)
+                        fqb = fqb + drx*pblock(j, i)*dqhuckel(nb, jatom)
                      END IF
                   END DO
                END DO
-               IF (iatom /= jatom) THEN
-                  fhua = 2.0_dp*fhua
-                  fhub = 2.0_dp*fhub
-               END IF
+               dcharges(iatom) = dcharges(iatom) + fqa
+               dcharges(jatom) = dcharges(jatom) + fqb
             END IF
             ! iatom
             atom_a = atom_of_kind(iatom)
@@ -650,6 +662,11 @@ CONTAINS
             CALL dbcsr_finalize(matrix_s(i, img)%matrix)
          END DO
       END DO
+
+      ! EEQ forces (response and direct)
+      IF (calculate_forces) THEN
+         CALL xtb_eeq_forces(qs_env, charges, dcharges, cnumbers, dcnum)
+      END IF
 
       kf = xtb_control%kf
       enscale = xtb_control%enscale
