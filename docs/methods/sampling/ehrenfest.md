@@ -100,7 +100,7 @@ means of an initial SCF optimization (`SCF_WFN`) or providing the restart file o
 computed state (`RESTART_WFN`). The propagation can also be restarted setting the initial
 wavefunction as `RT_RESTART` and providing the correct restart file, which has a different format
 with respect to the SCF restart file. The path to the restart file is in both cases provided by the
-usual [RESTART_FILE_NAME](#CP2K_INPUT.FORCE_EVAL.DFT.RESTART_FILE_NAME) key.
+usual [WFN_RESTART_FILE_NAME](#CP2K_INPUT.FORCE_EVAL.DFT.WFN_RESTART_FILE_NAME) key.
 
 Three different propagators are available in CP2K, the enforced time-reversible symmetry propagator
 (ETRS), the exponential midpoint (EM) propagator, and the Crank-Nicholson propagator which can be
