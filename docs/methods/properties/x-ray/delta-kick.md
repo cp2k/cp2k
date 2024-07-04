@@ -3,23 +3,20 @@
 This tutorial shows how to run a Real-Time Time-Dependent DFT calculation using the so-called δ-kick
 approach to compute absorption electronic spectra.
 
-We warmly recommend having a look first at the Linear-Response approach, for instance at
-[the X-Ray frequencies](./tddft). See also this article and the supplementary information: LINK
+For the corresponding Linear-Response approach, read the tutorial [the X-Ray frequencies](./tddft).
 
 This tutorial is structured as follows:
 
 - Brief theory overview
 - CP2K input file overview
 
-Then, the link between the CP2K output (time-dependent dipole moment) and the quantity targetted
-(the absorption spectra in the frequency domain) is performed in this jupyter notebook:
-[download this file](https://www.cp2k.org/_media/howto:delta_kick_analyse.zip). Of course, one can
-use its own script and method. Yet, as these analyses present some subtilities, we propose our which
-shows quantitative results with the Linear Response one.
+Along the RTP run, the time dependent dipole moment is sampled and it is then Fourier transformed to
+produce the absorption spectrum in the frequency domain. An example script is provided at
+[download this file](https://www.cp2k.org/_media/howto:delta_kick_analyse.zip).
 
 ## Theory Overview
 
-### Response theory reminders
+### Response theory
 
 In the perturbative regime and at the linear order, the time-dependent response of an electronic
 cloud can be decomposed in the Fourier space: the response at a given frequency is proportional to
@@ -32,7 +29,7 @@ $$
 \mu^\omega = \alpha(\omega, \omega) \cdot F^\omega
 $$
 
-This quantity involved a dot product between the field vector and the polarizability matrix. For the
+This quantity involves a dot product between the field vector and the polarizability matrix. For the
 next paragraphs, we will drop the vectorial behavior and discuss it later.
 
 In Linear-Response-TDDFT approaches, one computes the excited state promoted by an electric field
@@ -45,19 +42,19 @@ at the beginning of the simulation and then propagate this excited electronic cl
 induced dipole moment. We will deduce the polarizability tensor for any frequency from this induced
 dipole moment.
 
-### The δ-kick technic
+### The δ-kic
 
-In the δ-kick technic, the electronic structure is first obtained at the ground state, for instance
-using DFT, and then perturbed with an instantaneous electric field named a δ-kick:
+To apply the δ-kck, i.e., an intense electric field in a very sort time, the electronic structure is
+first obtained at the ground state, for instance using DFT, and then perturbed with an instantaneous
+electric field:
 
 $$
 F(t) = F^0 \delta(t)
 $$
 
-This δ-kick perturbes the ground state wave-function at $t=0^-$ using either the dipole moment
-operator (length gauge) or using the momentum one (velocity gauge). Then, this excited wave-function
-is propagated in real time by numerically integrating the DFT equivalent of the Schrodinger
-equation.
+The same result is obtained by applying a constant field with a very narrow Gaussian envelope. This
+field perturbes the ground state wave-function at $t=0^-$. Then, this excited wave-function is
+propagated in real time by numerically integrating the time dependent Schrodinger equation.
 
 The electric δ-kick can be written in the frequency domain:
 
@@ -66,45 +63,45 @@ F^\omega = \frac{F^0}{2 \pi} \int_{-\infty}^{+ \infty} \delta(t) e^{i \omega t} 
 $$
 
 The field amplitude in the Fourier space is $F^0 / 2 \pi$ for all frequencies: this instantaneous
-perturbation does indeed contain all the frequencies. The time-dependent wave-function can be thus
-described to be the one at the ground state plus all the possible excited states. During the time
-propagation, the dipole moment of the molecule will be given by the superposition of all possible
-oscillations related to all the excited states. This complex behavior in the time domain becomes
-simple in the frequency domain, since we know the amplitude of the perturbation applied at each
-frequency:
+perturbation does indeed contain all the frequencies. The time-dependent wave-function can be
+described to be the ground state one plus all possible excited states. The total dipole
+moment\
+results from the superposition of all possible oscillations related to all the excited
+states. This complex behavior in the time domain becomes simple in the frequency domain, since we
+know the amplitude of the perturbation applied at each frequency:
 
 $$
 \mu^\omega = \frac{1}{2 \pi} \alpha(\omega, \omega)  F^0
 $$
 
 Therefore, in order to get the polarizability $\alpha(\omega, \omega)$, one prepares the perturbed
-state at $t=0^-$ for a given field amplitude, then propagates the wave-function in real time. During
-the propagation the dipole moment is computed at each time step. The dipole moment is finally
-Fourier transformed and the polarizability is extracted using:
+state at $t=0^-$ for a given field amplitude of the field, then propagates the wave-function in real
+time. The time dependent dipole moment is extracted along the propagation and it is finally Fourier
+transformed to calculate the polarizability as
 
 $$
 \text{Re} \left[ \alpha(\omega, \omega) \right]  = 2 \pi \frac{\text{Re} \left[ \mu^\omega \right] }{F^0} \\
 \text{Im} \left[ \alpha(\omega, \omega) \right] = 2 \pi \frac{\text{Im}  \left[ \mu^\omega \right] }{F^0}
 $$
 
-The amplitude of the dipole moment in the Fourier space may be very small if the frequencies are far
-from resonances. But, in principle, one can extract the whole spectrum from one Real-Time
-propagation. As a matter of fact, the whole spectrum from core to valence excitations is very broad
-and for numerical efficiency the propagation parameters are set to focus only on one specific part
-of the spectrum.
+The amplitude of the dipole moment in the Fourier space may be very small, if the frequencies are
+far from resonances. But, in principle, one can extract the whole spectrum from one RTP run. As a
+matter of fact, the whole spectrum from core to valence excitations is very broad and for numerical
+efficiency the propagation parameters are set to focus only on one specific part of the spectrum.
 
 ### Absorption spectrum
 
-Using the time-dependent dipole moment, we got the frequency-dependent polarizability $\alpha$
-assuming a perturbative and linear response regime. The real and imaginary part of the
-polarizability defines the nature of the response. If the frequency is at an electronic resonance,
-then the polarizability has an imaginary part. The polarizability is pure real off resonances.
+Under the assumption of linear response to the perturbation,\
+the real and imaginary part of the
+calculated frequency-dependent polarizability define the nature of the response. If the frequency is
+at an electronic resonance, then the polarizability has an imaginary part. The polarizability is
+pure real off resonances.
 
-From one Real-Time propagation, one can obtain 3 components of the polarizability tensor. For
-instance, applying a δ-kick along the $x$ direction will provides the components $\alpha_{xx}$,
-$\alpha_{yx}$ and $\alpha_{zx}$ by Fourier Transform the dipole moment along the $x$, $y$ and $z$
-direction respectively. Therefore, to get the full polarizability tensor, one should run 3 Real-Time
-propagations using a perturbation along 3 orthogonal directions, for instance, $x$, $y$, and $z$.
+From one Real-Time propagation, one can obtain three components of the polarizability tensor. For
+instance, applying a $\delta$-kick along $x$ provides the components $\alpha_{xx}$, $\alpha_{yx}$
+and $\alpha_{zx}$, corresponding to the Fourier transform in $x$, $y$ and $z$, respectively.
+Therefore, to get the full polarizability tensor, one should run 3 Real-Time propagations each
+perturbing along one of the three Cartesian axis.
 
 To compare with experiments, one often assumes that the system is averaged over all possible
 orientations in space. Then, the absorption spectrum $I(\omega)$ is proportional to:
@@ -115,13 +112,14 @@ $$
 
 ## CP2K Input
 
-In this tutorial, we will study the response of a carbon-monoxide in the gas phase upon a δ-kick
-along its perpendicular direction. We will focus on the X-Ray range, but in principle, other ranges
-of frequency can be sampled using this approach.
+In this tutorial, we will study the response of a carbon-monoxide in the gas phase obtained by
+applying the $\delta$-kick along its perpendicular direction. We will focus on the X-Ray range, but
+in principle, other ranges of frequency can be sampled using the same approach.
 
 The input file RTP.inp presents an example to propagate the electronic density of an isolated
-carbon-monoxide molecule, upon the application of a predefined δ-kick. Ste simulation is performedd
-at the DFT/PBEh level using a PCSEG-2 basis set.
+carbon-monoxide molecule, upon the application of a predefined $\delta$-kick. The simulation is
+performed at the DFT/PBEh level of theory. For the expansion of the density the all-electron PCSEG-2
+basis sets are used.
 
 ```none
 &GLOBAL
@@ -226,52 +224,46 @@ at the DFT/PBEh level using a PCSEG-2 basis set.
 ### Time step
 
 The time step used to propagate the wave-function is adapted to optimally resolve the frequency of
-interest. Typically, the time-step cjoice results from a trade-off between the resolution of the
-highest frequency of interest and the computationl cost to sufficiently extend the sampling, such to
-achieve sufficient accuracy. As a rule of thumb, the time step should be about one order of
-magnitude smaller than the period corresponding to the maximum frequency to be resolved. For core
-excitation from the Oxygen 1s, the K-edge is arounf 530 eV, corresponding to a period of 0.0078 fs.
+interest. Typically, the time-step choice results from a trade-off between the resolution of the
+highest frequency of interest and the computational cost to sufficiently extend the sampling. As a
+rule of thumb, the time step should be about one order of magnitude smaller than the period
+corresponding to the maximum frequency to be resolved. For core excitation from the Oxygen 1s, the
+K-edge is around 530 eV, corresponding to a period of 0.0078 fs.
 
 According to Linear Response TDDFT calculations (using the XAS_TDP module, see
 [this tutorial](./tddft)), the first transition occurs at 529 eV with an oscillator strength of
-0.044 a.u. For the δ-kick approach, this means that the induced dipole moment should have an
+0.044 a.u. For the $\delta$-kick approach, this means that the induced dipole moment should have an
 oscillatory component around the frequency corresponding to 529 eV. Hence, the
 [TIMESTEP](#CP2K_INPUT.MOTION.MD.TIMESTEP) is set ten times smaller than the maximum frequency,
-i.e., to `[fs] 0.00078`, which allawos the sampling of the fasted oscillation by means of at 10
+i.e., to `[fs] 0.00078`, which allows the sampling of the fasted oscillation by means of at 10
 propagation steps.
 
 The total time of the simulation is then given by the number of time steps, here 500000, and it
 affects the smoothness and sharpness of the resulting spectrum. Longer simulation times give a
-better resolutin of the spectral peaks, i.e., a more accurate determination of the resonances. There
-is no always valid rule to decide how long the propagation needs to be extended, because the
+better resolution of the spectral peaks, i.e., a more accurate determination of the resonances.
+There is no always valid rule to decide how long the propagation needs to be extended, because the
 fluctuations might be strongly system dependent. It is always a good idea to check whether the
-obtained spectrum has converged with respect to further extensiont of the sampling.
+obtained spectrum has converged with respect to further extension of the sampling.
 
 ### Field properties
 
-The field perturbation (the δ-kick) is defined by its amplitude and polarization.
+The field perturbation (the $\delta$-kick) is defined by its amplitude and polarization.
 
 The amplitude depends on the system of interest, a typical value is $10^{-3}$. Also in this case a
 convergence check by running more than one propagation at different amplitudes is the best way to
-asses the parameter. On the other hand, this brute force approach might request too large
-computational respurces for large systems. Within the linear regime, the response of the system
-should double by dubling the field amplitude. When this is not the case, the response is not linear
-and one should reduce the field amplitude. Note that applying a too-low field may lead to numerical
-noise. For isolated carbon monoxide, we have checked that $10^{-3}$ is within the linear regime.
+asses the parameter. Within the linear regime, the response of the system should double by twice the
+field's amplitude. Note that when applying a too-low field, numerical noise might become dominant.
+For isolated CO, $10^{-3}$ is a good value.
 
 **Please note that the actual perturbation applied in CP2K is not
 [DELTA_PULSE_SCALE](#CP2K_INPUT.FORCE_EVAL.DFT.REAL_TIME_PROPAGATION.DELTA_PULSE_SCALE) and depends
-on the cell size. Look at the output file just before the Real Time propagation part to know the
-exact perturbation amplitude used**
+on the cell size. The corresponding amplitude value is written in the output file just before, when
+RTP is initialized**
 
-The polarization of the field determines which excited state is triggered: the electric field and
-the transition dipole moment should be non-perpendicular. One way to know how to select the
-polarization is to run a Linear-Response TDDFT calculation and to look at the transition dipole
-moment decomposition along the laboratory axis (or the oscillator strength decomposition). For
-instance, have a look at the first part of [this tutorial](./resonant_excitation) on Real Time TDDFT
-with a time-dependent field for isolated carbon monoxide. Relying on this calculation, the
-electronic transition at 529 eV is perpendicular to the CO bond. For the geometry we are using, it
-means that the field polarization should be along x (or y) by setting
+The field's polarization determines what excited states are most probably triggered since the
+electric field and the transition dipole moment should be non-perpendicular. For the present
+example, we know that the electronic transition at 529 eV is perpendicular to the CO bond. For the
+geometry we are using, it means that the field polarization should be along $x$ (or $y$) , i.e.,
 [DELTA_PULSE_DIRECTION](#CP2K_INPUT.FORCE_EVAL.DFT.REAL_TIME_PROPAGATION.DELTA_PULSE_DIRECTION) to
 `1 0 0` and [DELTA_PULSE_SCALE](#CP2K_INPUT.FORCE_EVAL.DFT.REAL_TIME_PROPAGATION.DELTA_PULSE_SCALE)
 to `0.001`.
@@ -288,6 +280,6 @@ perturbation will be applied only within the first order.
 
 ## Analyzing the results
 
-To analyze the Real Time propagation simulation, we propose to go through a jupyter notebook:
-[download this file](https://www.cp2k.org/_media/howto:delta_kick_analyse.zip). Note that this zip
-file also contains the data needed to perform the analyses (the output of the CP2K run).
+The a jupyter notebook:
+[download this file](https://www.cp2k.org/_media/howto:delta_kick_analyse.zip). provides some tools
+to analyse and verify the results obtained by running this example.
