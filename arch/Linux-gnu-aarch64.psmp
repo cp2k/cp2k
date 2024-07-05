@@ -2,7 +2,7 @@
 #
 # CP2K (GNU aarch64) arch file for Linux clusters
 #
-# Tested with: GNU 12.3.0, MPICH 4.0.3, 
+# Tested with: GNU 14.1.0, MPICH 4.0.3, 
 #              ScaLAPACK 2.2.1, OpenBLAS 0.3.27,
 #              FFTW 3.3.10, HDF5 1.14.2,
 #              LIBINT 2.6.0, LIBXC 6.2.2,
@@ -15,7 +15,7 @@
 # Usage: Source this arch file and then run make as instructed.
 #        A full toolchain installation is performed as default.
 #
-# Last update: 03.07.2024
+# Last update: 05.07.2024
 #
 # \
    if [[ "${0}" == "${BASH_SOURCE}" ]]; then \
@@ -222,7 +222,7 @@ endif
 ifneq ($(USE_DFTD4),)
    USE_DFTD4      := $(strip $(USE_DFTD4))
    DFTD4_INC      := $(INSTALL_PATH)/dftd4-$(USE_DFTD4)/include
-   DFTD4_LIB      := $(INSTALL_PATH)/dftd4-$(USE_DFTD4)/lib64
+   DFTD4_LIB      := $(INSTALL_PATH)/dftd4-$(USE_DFTD4)/lib
    CFLAGS         += -I$(DFTD4_INC)/dftd4/GNU-$(GNU_VER)
    DFLAGS         += -D__DFTD4
    ifeq ($(SHARED), yes)
