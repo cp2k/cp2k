@@ -6,8 +6,8 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")/.." && pwd -P)"
 
-openmpi_ver="4.1.6"
-openmpi_sha256="f740994485516deb63b5311af122c265179f5328a0d857a567b85db00b11e415"
+openmpi_ver="5.0.3"
+openmpi_sha256="990582f206b3ab32e938aa31bbf07c639368e4405dca196fabe7f0f76eeda90b"
 openmpi_pkg="openmpi-${openmpi_ver}.tar.bz2"
 
 source "${SCRIPT_DIR}"/common_vars.sh
@@ -55,18 +55,12 @@ case "${with_openmpi}" in
           CFLAGS="${CFLAGS} -fgnu89-inline"
         fi
       fi
-      if [ $(command -v srun) ]; then
-        echo "Slurm installation found. OpenMPI will be configured with --with-pmi."
-        EXTRA_CONFIGURE_FLAGS="--with-pmi"
-      else
-        EXTRA_CONFIGURE_FLAGS=""
-      fi
       # We still require MPI-1.0-compatability for PTSCOTCH
       ./configure CFLAGS="${CFLAGS}" \
         --prefix=${pkg_install_dir} \
         --libdir="${pkg_install_dir}/lib" \
         --enable-mpi1-compatibility \
-        ${EXTRA_CONFIGURE_FLAGS} \
+        --enable-static \
         > configure.log 2>&1 || tail -n ${LOG_LINES} configure.log
       make -j $(get_nprocs) > make.log 2>&1 || tail -n ${LOG_LINES} make.log
       make -j $(get_nprocs) install > install.log 2>&1 || tail -n ${LOG_LINES} install.log
