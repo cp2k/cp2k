@@ -215,6 +215,7 @@ QMMM/QS/regtest-2-swave
 QS/regtest-dm-ls-scf-4
 QS/regtest-hybrid-3                                         libint
 xTB/regtest-4
+xTB/regtest-gfn0
 QS/regtest-bs
 QS/regtest-gpw-6-2
 QS/regtest-dft-vdw-corr-4                                   libdftd4
