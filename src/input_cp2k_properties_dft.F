@@ -2105,6 +2105,18 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="HEDIN_SHIFT", &
+                          description="If true, use Hedin's shift in G0W0, evGW and evGW0. "// &
+                          "Details see in Li et al. JCTC 18, 7570 "// &
+                          "(2022), Figure 1. G0W0 with Hedin's shift should give "// &
+                          "similar GW eigenvalues as evGW0; at a lower "// &
+                          "computational cost.", &
+                          usage="HEDIN_SHIFT", &
+                          default_l_val=.TRUE., &
+                          lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       NULLIFY (subsection, print_key)
       CALL section_create(subsection, __LOCATION__, name="PRINT", &
                           description="Printing of GW restarts.", &

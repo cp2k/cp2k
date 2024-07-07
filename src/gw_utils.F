@@ -264,6 +264,7 @@ CONTAINS
       CALL section_vals_val_get(gw_sec, "REGULARIZATION_RI", r_val=bs_env%input_regularization_RI)
       CALL section_vals_val_get(gw_sec, "MEMORY_PER_PROC", r_val=bs_env%input_memory_per_proc_GB)
       CALL section_vals_val_get(gw_sec, "APPROX_KP_EXTRAPOL", l_val=bs_env%approx_kp_extrapol)
+      CALL section_vals_val_get(gw_sec, "HEDIN_SHIFT", l_val=bs_env%do_hedin_shift)
 
       CALL timestop(handle)
 
@@ -2854,8 +2855,8 @@ CONTAINS
                                 Sigma_c_ikp_n_freq(:, 1:bs_env%num_freq_points_fit, 1)*z_one + &
                                 Sigma_c_ikp_n_freq(:, 1:bs_env%num_freq_points_fit, 2)*gaussi, &
                                 Sigma_x_ikp_n(:) - V_xc_ikp_n(:), &
-                                eigenval_scf(:), &
-                                eigenval_scf(:), &
+                                eigenval_scf(:), eigenval_scf(:), &
+                                bs_env%do_hedin_shift, &
                                 i_mo, bs_env%n_occ(ispin), bs_env%n_vir(ispin), &
                                 bs_env%nparam_pade, bs_env%num_freq_points_fit, &
                                 ri_rpa_g0w0_crossing_newton, bs_env%n_occ(ispin), &
@@ -2878,6 +2879,11 @@ CONTAINS
       ! in kpoints_DOS, the last nkp_only_bs are bandstructure k-points
       is_bandstruc_kpoint = (ikp > bs_env%nkp_only_DOS)
       print_ikp = print_DOS_kpoints .OR. is_bandstruc_kpoint
+
+      IF (bs_env%unit_nr > 0) THEN
+         WRITE (bs_env%unit_nr, FMT="(T2,A)") " "
+         WRITE (bs_env%unit_nr, FMT="(T2,A,L80)") "Apply Hedin shift", bs_env%do_hedin_shift
+      END IF
 
       IF (bs_env%para_env%is_source() .AND. print_ikp) THEN
 
