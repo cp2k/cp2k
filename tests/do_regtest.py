@@ -202,17 +202,22 @@ async def main() -> None:
         print(f'PlotPoint: name="{p}th_percentile", plot="timings", ', end="")
         print(f'label="{p}th %ile", y={v:.2f}, yerr=0.0')
 
-    print("\n----------------------------- Slow Tests -------------------------------")
-    slow_test_threshold = 2 * percentile(timings, 0.95)
-    print(f"Duration threshold (2x 95th %ile): {slow_test_threshold:.2f} sec")
-    slow_tests_all = [r for r in all_results if r.duration > slow_test_threshold]
-    slow_tests = [r for r in slow_tests_all if r.fullname not in cfg.slow_suppressions]
-    num_slow_suppressed = len(slow_tests_all) - len(slow_tests)
-    print(f"Found {len(slow_tests)} slow tests ({num_slow_suppressed} suppressed):")
-    for r in slow_tests:
-        print(f"    {r.fullname :<80s} ( {r.duration:6.2f} sec)")
-    if not cfg.flag_slow:
-        slow_tests = []
+    if cfg.flag_slow:
+        print("\n" + "-" * 15 + "--------------- Slow Tests ---------------" + "-" * 15)
+        slow_test_threshold = 2 * percentile(timings, 0.95)
+        maybe_slow = [r for r in all_results if r.duration > slow_test_threshold]
+        suppressions = cfg.slow_suppressions
+        slow_reruns: List[str] = []
+        for batch in {r.batch for r in maybe_slow if r.fullname not in suppressions}:
+            print(f"Re-running {batch.name} to avoid false positives.")
+            res = (await run_batch(batch, cfg)).results
+            slow_reruns += [r.fullname for r in res if r.duration > slow_test_threshold]
+        slow_tests = [r for r in maybe_slow if r.fullname in slow_reruns]
+        num_suppressed = len([r for r in maybe_slow if r.fullname in suppressions])
+        print(f"Duration threshold (2x 95th %ile): {slow_test_threshold:.2f} sec")
+        print(f"Found {len(slow_tests)} slow tests ({num_suppressed} suppressed):")
+        for r in slow_tests:
+            print(f"    {r.fullname :<80s} ( {r.duration:6.2f} sec)")
 
     print("\n------------------------------- Summary --------------------------------")
     total_duration = time.perf_counter() - start_time
@@ -221,7 +226,7 @@ async def main() -> None:
     num_failed = sum(r.status in failure_modes for r in all_results)
     num_wrong = sum(r.status == "WRONG RESULT" for r in all_results)
     num_ok = sum(r.status == "OK" for r in all_results)
-    status_ok = (num_ok == num_tests) and (not slow_tests)
+    status_ok = (num_ok == num_tests) and (not cfg.flag_slow or not slow_tests)
     print(f"Number of FAILED  tests {num_failed}")
     print(f"Number of WRONG   tests {num_wrong}")
     print(f"Number of CORRECT tests {num_ok}")
@@ -229,7 +234,7 @@ async def main() -> None:
     summary = f"\nSummary: correct: {num_ok} / {num_tests}"
     summary += f"; wrong: {num_wrong}" if num_wrong > 0 else ""
     summary += f"; failed: {num_failed}" if num_failed > 0 else ""
-    summary += f"; slow: {len(slow_tests)}" if slow_tests else ""
+    summary += f"; slow: {len(slow_tests)}" if cfg.flag_slow and slow_tests else ""
     summary += f"; {total_duration/60.0:.0f}min"
     print(summary)
     print("Status: " + ("OK" if status_ok else "FAILED") + "\n")
