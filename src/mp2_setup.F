@@ -140,6 +140,8 @@ CONTAINS
                                 i_val=mp2_env%ri_g0w0%crossing_search)
       CALL section_vals_val_get(mp2_section, "RI_RPA%GW%FERMI_LEVEL_OFFSET", &
                                 r_val=mp2_env%ri_g0w0%fermi_level_offset)
+      CALL section_vals_val_get(mp2_section, "RI_RPA%GW%HEDIN_SHIFT", &
+                                l_val=mp2_env%ri_g0w0%do_hedin_shift)
       CALL section_vals_val_get(mp2_section, "RI_RPA%GW%EV_GW_ITER", &
                                 i_val=mp2_env%ri_g0w0%iter_evGW)
       CALL section_vals_val_get(mp2_section, "RI_RPA%GW%SC_GW0_ITER", &

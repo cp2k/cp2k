@@ -204,7 +204,8 @@ MODULE mp2_types
       INTEGER                                            :: iter_evGW = 0, &
                                                             iter_sc_GW0 = 0
       REAL(KIND=dp)                                      :: eps_iter = 0.0_dp
-      LOGICAL                                            :: do_ri_Sigma_x = .FALSE., &
+      LOGICAL                                            :: do_hedin_shift = .FALSE., &
+                                                            do_ri_Sigma_x = .FALSE., &
                                                             do_periodic = .FALSE., &
                                                             print_self_energy = .FALSE.
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: vec_Sigma_x_minus_vxc_gw

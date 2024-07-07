@@ -1435,7 +1435,8 @@ CONTAINS
                   CALL continuation_pade(vec_gw_energ(:, ikp, 1), vec_omega_fit_gw, &
                                          z_value(:, ikp, 1), m_value(:, ikp, 1), vec_Sigma_c_gw(:, :, ikp, 1), &
                                          mp2_env%ri_g0w0%vec_Sigma_x_minus_vxc_gw(:, 1, ikp), &
-                                         Eigenval(:, ikp, 1), Eigenval_scf(:, ikp, 1), n_level_gw, &
+                                         Eigenval(:, ikp, 1), Eigenval_scf(:, ikp, 1), &
+                                         mp2_env%ri_g0w0%do_hedin_shift, n_level_gw, &
                                          gw_corr_lev_occ(1), gw_corr_lev_virt(1), mp2_env%ri_g0w0%nparam_pade, &
                                          num_fit_points, crossing_search, homo(1), fermi_level_offset, &
                                          do_im_time, mp2_env%ri_g0w0%print_self_energy, count_ev_sc_GW, &
@@ -1443,7 +1444,6 @@ CONTAINS
                                          mp2_env%ri_g0w0%min_level_self_energy, &
                                          mp2_env%ri_g0w0%max_level_self_energy, mp2_env%ri_g0w0%dos_eta, &
                                          mp2_env%ri_g0w0%dos_min, mp2_env%ri_g0w0%dos_max)
-
                CASE DEFAULT
                   CPABORT("Only two-model and Pade approximation are implemented.")
                END SELECT
@@ -1463,7 +1463,8 @@ CONTAINS
                      CALL continuation_pade(vec_gw_energ(:, ikp, 2), vec_omega_fit_gw, &
                                             z_value(:, ikp, 2), m_value(:, ikp, 2), vec_Sigma_c_gw(:, :, ikp, 2), &
                                             mp2_env%ri_g0w0%vec_Sigma_x_minus_vxc_gw(:, 2, ikp), &
-                                            Eigenval(:, ikp, 2), Eigenval_scf(:, ikp, 2), n_level_gw, &
+                                            Eigenval(:, ikp, 2), Eigenval_scf(:, ikp, 2), &
+                                            mp2_env%ri_g0w0%do_hedin_shift, n_level_gw, &
                                             gw_corr_lev_occ(2), gw_corr_lev_virt(2), mp2_env%ri_g0w0%nparam_pade, &
                                             num_fit_points, crossing_search, homo(2), &
                                             fermi_level_offset, do_im_time, &
@@ -4279,6 +4280,7 @@ CONTAINS
 !> \param vec_Sigma_x_minus_vxc_gw ...
 !> \param Eigenval quasiparticle energy during ev self-consistent GW
 !> \param Eigenval_scf KS/HF eigenvalue
+!> \param do_hedin_shift ...
 !> \param n_level_gw ...
 !> \param gw_corr_lev_occ ...
 !> \param gw_corr_lev_vir ...
@@ -4303,7 +4305,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE continuation_pade(vec_gw_energ, vec_omega_fit_gw, &
                                 z_value, m_value, vec_Sigma_c_gw, vec_Sigma_x_minus_vxc_gw, &
-                                Eigenval, Eigenval_scf, n_level_gw, gw_corr_lev_occ, gw_corr_lev_vir, &
+                                Eigenval, Eigenval_scf, do_hedin_shift, n_level_gw, &
+                                gw_corr_lev_occ, gw_corr_lev_vir, &
                                 nparam_pade, num_fit_points, crossing_search, homo, &
                                 fermi_level_offset, do_gw_im_time, print_self_energy, count_ev_sc_GW, &
                                 vec_gw_dos, dos_lower_bound, dos_precision, ndos, &
@@ -4317,6 +4320,7 @@ CONTAINS
       COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(IN)      :: vec_Sigma_c_gw
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: vec_Sigma_x_minus_vxc_gw, Eigenval, &
                                                             Eigenval_scf
+      LOGICAL, INTENT(IN)                                :: do_hedin_shift
       INTEGER, INTENT(IN)                                :: n_level_gw, gw_corr_lev_occ, &
                                                             gw_corr_lev_vir, nparam_pade, &
                                                             num_fit_points, crossing_search, homo
@@ -4340,8 +4344,9 @@ CONTAINS
                                                             Sigma_c_gw_reorder
       INTEGER                                            :: handle, i_omega, idos, iunit, jquad, &
                                                             n_level_gw_ref, num_omega
-      REAL(KIND=dp)                                      :: e_fermi, energy_val, level_energ_GW, &
-                                                            omega, omega_dos, omega_dos_pade_eval, &
+      REAL(KIND=dp)                                      :: e_fermi, energy_val, hedin_shift, &
+                                                            level_energ_GW_start, omega, &
+                                                            omega_dos, omega_dos_pade_eval, &
                                                             sign_occ_virt
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: vec_omega_fit_gw_sign, &
                                                             vec_omega_fit_gw_sign_reorder, &
@@ -4410,17 +4415,24 @@ CONTAINS
                                      coeff_pade, sigma_c_pade)
          CALL get_z_and_m_value_pade(energy_val, nparam_pade, omega_points_pade, &
                                      coeff_pade, z_value(n_level_gw), m_value(n_level_gw))
-         level_energ_GW = (Eigenval_scf(n_level_gw_ref) - &
-                           m_value(n_level_gw)*Eigenval(n_level_gw_ref) + &
-                           REAL(sigma_c_pade) + &
-                           vec_Sigma_x_minus_vxc_gw(n_level_gw_ref))* &
-                          z_value(n_level_gw)
+         level_energ_GW_start = (Eigenval_scf(n_level_gw_ref) - &
+                                 m_value(n_level_gw)*Eigenval(n_level_gw_ref) + &
+                                 REAL(sigma_c_pade) + &
+                                 vec_Sigma_x_minus_vxc_gw(n_level_gw_ref))* &
+                                z_value(n_level_gw)
+
+         ! calculate Hedin shift; the last line is for evGW0 and evGW
+         hedin_shift = 0.0_dp
+         IF (do_hedin_shift) hedin_shift = REAL(sigma_c_pade) + &
+                                           vec_Sigma_x_minus_vxc_gw(n_level_gw_ref) &
+                                           - Eigenval(n_level_gw_ref) + Eigenval_scf(n_level_gw_ref)
       END IF
 
       iunit = cp_logger_get_default_unit_nr()
 
       IF (PRESENT(min_level_self_energy) .AND. PRESENT(max_level_self_energy)) THEN
-         IF (n_level_gw_ref >= min_level_self_energy .AND. n_level_gw_ref <= max_level_self_energy) THEN
+         IF (n_level_gw_ref >= min_level_self_energy .AND. &
+             n_level_gw_ref <= max_level_self_energy) THEN
             ALLOCATE (vec_sigma_real(ndos))
             ALLOCATE (vec_sigma_imag(ndos))
             WRITE (string_level, "(I4)") n_level_gw_ref
@@ -4435,6 +4447,8 @@ CONTAINS
 
       IF (PRESENT(ndos)) THEN
       IF (ndos /= 0) THEN
+         ! Hedin shift not implemented
+         CPASSERT(.NOT. do_hedin_shift)
          DO idos = 1, ndos
             omega_dos = dos_lower_bound + REAL(idos - 1, KIND=dp)*dos_precision
             omega_dos_pade_eval = omega_dos - e_fermi
@@ -4495,6 +4509,8 @@ CONTAINS
       !*** perform crossing search
       SELECT CASE (crossing_search)
       CASE (ri_rpa_g0w0_crossing_z_shot)
+         ! Hedin shift not implemented
+         CPASSERT(.NOT. do_hedin_shift)
          energy_val = Eigenval(n_level_gw_ref) - e_fermi
          CALL evaluate_pade_function(energy_val, nparam_pade, omega_points_pade, &
                                      coeff_pade, sigma_c_pade)
@@ -4507,7 +4523,7 @@ CONTAINS
          CALL get_sigma_c_bisection_pade(vec_gw_energ(n_level_gw), Eigenval_scf(n_level_gw_ref), &
                                          vec_Sigma_x_minus_vxc_gw(n_level_gw_ref), e_fermi, &
                                          nparam_pade, omega_points_pade, coeff_pade, &
-                                         start_val=level_energ_GW)
+                                         level_energ_GW_start, hedin_shift)
          z_value(n_level_gw) = 1.0_dp
          m_value(n_level_gw) = 0.0_dp
 
@@ -4515,7 +4531,7 @@ CONTAINS
          CALL get_sigma_c_newton_pade(vec_gw_energ(n_level_gw), Eigenval_scf(n_level_gw_ref), &
                                       vec_Sigma_x_minus_vxc_gw(n_level_gw_ref), e_fermi, &
                                       nparam_pade, omega_points_pade, coeff_pade, &
-                                      start_val=level_energ_GW)
+                                      level_energ_GW_start, hedin_shift)
          z_value(n_level_gw) = 1.0_dp
          m_value(n_level_gw) = 0.0_dp
 
@@ -4747,36 +4763,32 @@ CONTAINS
 !> \param omega_points_pade selection of frequency points of Sigma_c(iomega)
 !> \param coeff_pade pade coefficients
 !> \param start_val start value for the quasiparticle iteration
+!> \param hedin_shift ...
 ! **************************************************************************************************
    SUBROUTINE get_sigma_c_bisection_pade(gw_energ, Eigenval_scf, Sigma_x_minus_vxc_gw, e_fermi, &
-                                         nparam_pade, omega_points_pade, coeff_pade, start_val)
+                                         nparam_pade, omega_points_pade, coeff_pade, start_val, &
+                                         hedin_shift)
 
       REAL(KIND=dp), INTENT(OUT)                         :: gw_energ
       REAL(KIND=dp), INTENT(IN)                          :: Eigenval_scf, Sigma_x_minus_vxc_gw, &
                                                             e_fermi
       INTEGER, INTENT(IN)                                :: nparam_pade
       COMPLEX(KIND=dp), DIMENSION(:), INTENT(IN)         :: omega_points_pade, coeff_pade
-      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: start_val
+      REAL(KIND=dp), INTENT(IN)                          :: start_val, hedin_shift
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'get_sigma_c_bisection_pade'
 
       COMPLEX(KIND=dp)                                   :: sigma_c
       INTEGER                                            :: handle, icount
-      REAL(KIND=dp)                                      :: delta, energy_val, my_start_val, &
-                                                            qp_energy, qp_energy_old, threshold
+      REAL(KIND=dp)                                      :: delta, energy_val, qp_energy, &
+                                                            qp_energy_old, threshold
 
       CALL timeset(routineN, handle)
 
       threshold = 1.0E-7_dp
 
-      IF (PRESENT(start_val)) THEN
-         my_start_val = start_val
-      ELSE
-         my_start_val = Eigenval_scf
-      END IF
-
-      qp_energy = my_start_val
-      qp_energy_old = my_start_val
+      qp_energy = start_val
+      qp_energy_old = start_val
       delta = 1.0E-3_dp
 
       icount = 0
@@ -4784,7 +4796,7 @@ CONTAINS
          icount = icount + 1
          qp_energy = qp_energy_old + 0.5_dp*delta
          qp_energy_old = qp_energy
-         energy_val = qp_energy - e_fermi
+         energy_val = qp_energy - e_fermi - hedin_shift
          CALL evaluate_pade_function(energy_val, nparam_pade, omega_points_pade, &
                                      coeff_pade, sigma_c)
          qp_energy = Eigenval_scf + REAL(sigma_c) + Sigma_x_minus_vxc_gw
@@ -4809,43 +4821,38 @@ CONTAINS
 !> \param omega_points_pade selection of frequency points of Sigma_c(iomega)
 !> \param coeff_pade pade coefficients
 !> \param start_val start value for the quasiparticle iteration
+!> \param hedin_shift ...
 ! **************************************************************************************************
    SUBROUTINE get_sigma_c_newton_pade(gw_energ, Eigenval_scf, Sigma_x_minus_vxc_gw, e_fermi, &
-                                      nparam_pade, omega_points_pade, coeff_pade, start_val)
+                                      nparam_pade, omega_points_pade, coeff_pade, start_val, &
+                                      hedin_shift)
 
       REAL(KIND=dp), INTENT(OUT)                         :: gw_energ
       REAL(KIND=dp), INTENT(IN)                          :: Eigenval_scf, Sigma_x_minus_vxc_gw, &
                                                             e_fermi
       INTEGER, INTENT(IN)                                :: nparam_pade
       COMPLEX(KIND=dp), DIMENSION(:), INTENT(IN)         :: omega_points_pade, coeff_pade
-      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: start_val
+      REAL(KIND=dp), INTENT(IN)                          :: start_val, hedin_shift
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'get_sigma_c_newton_pade'
 
       COMPLEX(KIND=dp)                                   :: sigma_c
       INTEGER                                            :: handle, icount
-      REAL(KIND=dp)                                      :: delta, energy_val, m_value, &
-                                                            my_start_val, qp_energy, &
+      REAL(KIND=dp)                                      :: delta, energy_val, m_value, qp_energy, &
                                                             qp_energy_old, threshold
 
       CALL timeset(routineN, handle)
 
       threshold = 1.0E-7_dp
 
-      IF (PRESENT(start_val)) THEN
-         my_start_val = start_val
-      ELSE
-         my_start_val = Eigenval_scf
-      END IF
-
-      qp_energy = my_start_val
-      qp_energy_old = my_start_val
+      qp_energy = start_val
+      qp_energy_old = start_val
       delta = 1.0E-3_dp
 
       icount = 0
       DO WHILE (ABS(delta) > threshold)
          icount = icount + 1
-         energy_val = qp_energy - e_fermi
+         energy_val = qp_energy - e_fermi - hedin_shift
          CALL evaluate_pade_function(energy_val, nparam_pade, omega_points_pade, &
                                      coeff_pade, sigma_c)
          !get m_value --> derivative of function

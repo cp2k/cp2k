@@ -75,6 +75,9 @@ MODULE post_scf_bandstructure_types
                                                          band_edges_G0W0, &
                                                          band_edges_HF
 
+      ! parameters that influence the GW flavor
+      LOGICAL                                         :: do_hedin_shift = .FALSE.
+
       ! general parameters on molecular orbitals and basis sets
       INTEGER                                      :: n_ao = -1, &
                                                       n_RI = -1, &
@@ -103,6 +106,7 @@ MODULE post_scf_bandstructure_types
       TYPE(kpoint_type), POINTER                   :: kpoints_chi_eps_W => NULL(), &
                                                       kpoints_DOS => NULL()
       LOGICAL                                      :: approx_kp_extrapol = .FALSE.
+
       REAL(KIND=dp)                                :: wkp_orig = -1.0_dp
       REAL(KIND=dp), DIMENSION(:), ALLOCATABLE     :: wkp_s_p, &
                                                       wkp_no_extra
