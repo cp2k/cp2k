@@ -5,22 +5,37 @@ by [this script](../tools/docker/scripts/test_manual.sh).
 
 To build a local version of the manual perform the following steps:
 
-1. Install the required Python packaged:
+1. Create and activate a [virtual Python environment](https://docs.python.org/3/tutorial/venv.html):
 
-   `pip3 install -r ./requirements.txt`
+   ```
+   python3 -m venv ../docs_venv
+   source ../docs_venv/bin/activate
+   ```
+
+1. Install the required Python packages:
+
+   ```
+   pip3 install -r ./requirements.txt
+   ```
 
 1. (optional) Build a CP2K binary and use it to generate the `cp2k_input.xml` and `references.html`
    files:
 
-   `../exe/local/cp2k.psmp --xml`
+   ```
+   ../exe/local/cp2k.psmp --xml
+   ```
 
 1. (optional) Generate Markdown pages from the aforementioned files:
 
-   `./generate_input_reference.py ./cp2k_input.xml ./references.html`
+   ```
+   ./generate_input_reference.py ./cp2k_input.xml ./references.html
+   ```
 
 1. Run Sphinx:
 
-   `make html`
+   ```
+   make html
+   ```
 
 1. Browse the HTML output in the `_build/html` directory.
 
