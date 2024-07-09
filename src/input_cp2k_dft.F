@@ -2899,21 +2899,21 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="OVERWRITE_MOS", &
                         description="If set to True, the active molecular orbitals in memory will be replaced by the mixed wfn "// &
                         "at the end of the wfn mixing procedure. For instance, you can then use this new set of MOs to perform "// &
-                          "RTP or EMD directly. Not that in the case of an RTP run with INITIAL_WFN=RESTART_WFN, this keyword "// &
-                          "is not used: the mixed wfn is used to start the time-dependent run. "// &
-                          "Default value is False.", &
+                     "RTP or EMD directly. Note that in the case of an RTP run with INITIAL_WFN=RESTART_WFN, the OVERWRITE_MOS "// &
+                          "keyword is not used.", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL section_create(subsection, __LOCATION__, name="UPDATE", &
-                          description="update a result MO with with a linear combination of of original MOs."// &
-                          " This section can be repeated to build arbitrary linear combinations using repeatedly y=a*y+b*x.", &
+                          description="Update a result MO with with a linear combination of original MOs."// &
+                          " This section can be repeated to build arbitrary linear combinations using repeatedly y=a*y+b*x.\n "// &
+                          "RESULT is (y), RESULT_SCALE is (a), ORIG is (x), ORIG_SCALE is (b)", &
                           n_keywords=1, n_subsections=0, repeats=.TRUE.)
 
       CALL keyword_create(keyword, __LOCATION__, name="RESULT_MO_INDEX", &
                           description="Index of the MO (y) to be modified. Counting down in energy: "// &
-                          "set to 1 for the HOMO, to 3 for the HOMO-3.", &
+                          "set to 1 for the highest MO, to 3 for the highest MO-2.", &
                           usage="RESULT_MO_INDEX 1", type_of_var=integer_t, default_i_val=0)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
@@ -2923,6 +2923,14 @@ CONTAINS
                           "the marks set in MOLECULAR_STATES. The value corresponds to the repetition "// &
                           "of MARK_STATES in MOLECULAR_STATES", &
                           usage="ORIG_MARKED_STATE 1", type_of_var=integer_t, default_i_val=0)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="REVERSE_MO_INDEX", &
+                          description="Reverses the index order of the OCCUPIED and EXTERNAL MOs. With this keyword "// &
+                          "ORIG_MO_INDEX/RESULT_MO_INDEX 1 point to the lowest energy MO (instead of the highest) "// &
+                          "and counts up in energy. The VIRTUAL MOs indexing is unchanged.", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
@@ -2944,11 +2952,11 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="ORIG_MO_INDEX", &
                           description="Index of the original MO (x). "// &
                           "If ORIG_TYPE is OCCUPIED, it counts down in energy: set to 1 to point to "// &
-                          "the HOMO and to 3 for the HOMO-3. "// &
+                          "the highest MO and to 3 for the highest MO-2. "// &
                           "If ORIG_TYPE is VIRTUAL, it counts up in energy: set to 1 to point to "// &
-                          "the LUMO and to 3 for the LUMO+3. "// &
+                          "the lowest virtual MO and to 3 for the lowest MO+2. "// &
                           "If ORIG_TYPE is EXTERNAL, it counts down in energy for the external "// &
-                          "set of MOs: set to 1 to point to the HOMO and to 3 for the HOMO-3. "// &
+                          "set of MOs: set to 1 to point to the highest MO and to 3 for the highest MO-2. "// &
                           "Do not set to zero or negative values.", &
                           usage="ORIG_MO_INDEX 1", type_of_var=integer_t, default_i_val=0)
       CALL section_add_keyword(subsection, keyword)
@@ -2972,21 +2980,21 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="ORIG_SCALE", &
-                          description="Scaling factor of the result variable (b).", &
+                          description="Scaling factor of the original variable (b).", &
                           usage="ORIG_SCALE 0.0", type_of_var=real_t)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="ORIG_TYPE", &
-                          description="Type of the orgine MO. Note that using VIRTUAL along with an RTP run with "// &
-                          "INITIAL_WFN=RESTART_WFN will probably crash since no virtual state "// &
-                          "will be available.", &
+                          description="Type of the original MO. Note that if ADDED_MOS was used in the "// &
+                          "SCF construction of the MO matrix, these extra MOs are also treated as OCCUPIED. ", &
                           enum_c_vals=s2a("OCCUPIED", "VIRTUAL", 'EXTERNAL'), &
                           usage="ORIG_TYPE OCCUPIED", &
                           default_i_val=wfn_mix_orig_occ, &
-                          enum_desc=s2a("The original MO is in the MOs matrix itself.", &
-                                        "The original MO is not in the MOs matrix but in the 'unoccupied' one. "// &
-                                        "The SCF cycle shall provide it.", &
+                          enum_desc=s2a("The original MO is the result of the SCF procedure. This can also contain "// &
+                                        "unoccupied MOs if the SCF%ADDED_MOS keyword was used.", &
+                                        "The original MO is taken from the result of additional MOs calculated a "// &
+                                        "posteriori of the SCF by request of the user. E.g. by specifying print%mo_cubes%nlumo. ", &
                                         "The orginal MO is from an external .wfn file. Use the keyword "// &
                                         "ORIG_EXT_FILE_NAME to define its name."), &
                           enum_i_vals=(/wfn_mix_orig_occ, wfn_mix_orig_virtual, wfn_mix_orig_external/))
