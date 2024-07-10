@@ -2073,6 +2073,18 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="CUTOFF_RADIUS_RI", &
+                          description="The cutoff radius (in Angstrom) for the truncated  "// &
+                          "Coulomb operator. The larger the cutoff radius, the faster "// &
+                          "converges the resolution of the identity (RI) with respect to the "// &
+                          "RI basis set size. Larger cutoff radius means higher computational "// &
+                          "cost.", &
+                          usage="CUTOFF_RADIUS_RI 3.0", &
+                          default_r_val=cp_unit_to_cp2k(value=3.0_dp, unit_str="angstrom"), &
+                          type_of_var=real_t, unit_str="angstrom")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       CALL keyword_create(keyword, __LOCATION__, name="MEMORY_PER_PROC", &
                           description="Specify the available memory per MPI process. Set "// &
                           "`MEMORY_PER_PROC` as accurately as possible for good performance. If "// &
@@ -2112,7 +2124,7 @@ CONTAINS
                           "similar GW eigenvalues as evGW0; at a lower "// &
                           "computational cost.", &
                           usage="HEDIN_SHIFT", &
-                          default_l_val=.TRUE., &
+                          default_l_val=.FALSE., &
                           lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)

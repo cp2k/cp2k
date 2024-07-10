@@ -1088,7 +1088,10 @@ MODULE input_constants
                                                int_ldos_z = 21, &
                                                int_ldos_none = 22, &
                                                small_cell_full_kp = 31, &
-                                               large_cell_Gamma = 32
+                                               large_cell_Gamma = 32, &
+                                               G0W0 = 35, &
+                                               evGW0 = 36, &
+                                               evGW = 37
 
    ! periodic RESP parameters
    INTEGER, PARAMETER, PUBLIC               :: do_resp_x_dir = 0, &

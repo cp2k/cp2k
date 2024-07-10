@@ -5095,15 +5095,25 @@ CONTAINS
                WRITE (unit_nr, '(T3,A,F42.4)') 'GW direct gap at current kpoint (eV)', E_GAP_GW*evolt
             ELSE IF (do_alpha) THEN
                WRITE (unit_nr, '(T3,A)') ' '
-               WRITE (unit_nr, '(T3,A,F36.4)') 'Alpha GW direct gap at current kpoint (eV)', E_GAP_GW*evolt
+               WRITE (unit_nr, '(T3,A,F36.4)') 'Alpha GW direct gap at current kpoint (eV)', &
+                  E_GAP_GW*evolt
             ELSE IF (do_beta) THEN
                WRITE (unit_nr, '(T3,A)') ' '
-               WRITE (unit_nr, '(T3,A,F37.4)') 'Beta GW direct gap at current kpoint (eV)', E_GAP_GW*evolt
+               WRITE (unit_nr, '(T3,A,F37.4)') 'Beta GW direct gap at current kpoint (eV)', &
+                  E_GAP_GW*evolt
             END IF
          ELSE
             IF (do_closed_shell) THEN
                WRITE (unit_nr, '(T3,A)') ' '
-               WRITE (unit_nr, '(T3,A,F57.4)') 'GW HOMO-LUMO gap (eV)', E_GAP_GW*evolt
+               IF (count_ev_sc_GW > 1) THEN
+                  WRITE (unit_nr, '(T3,A,I3,A,F39.4)') 'HOMO-LUMO gap in evGW iteration', &
+                     count_ev_sc_GW, ' (eV)', E_GAP_GW*evolt
+               ELSE IF (count_sc_GW0 > 1) THEN
+                  WRITE (unit_nr, '(T3,A,I3,A,F38.4)') 'HOMO-LUMO gap in evGW0 iteration', &
+                     count_sc_GW0, ' (eV)', E_GAP_GW*evolt
+               ELSE
+                  WRITE (unit_nr, '(T3,A,F57.4)') 'G0W0 HOMO-LUMO gap (eV)', E_GAP_GW*evolt
+               END IF
             ELSE IF (do_alpha) THEN
                WRITE (unit_nr, '(T3,A)') ' '
                WRITE (unit_nr, '(T3,A,F51.4)') 'Alpha GW HOMO-LUMO gap (eV)', E_GAP_GW*evolt
