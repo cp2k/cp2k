@@ -3,7 +3,7 @@
 # Usage: docker build -f ./Dockerfile.test_intel-psmp ../../
 #
 
-FROM intel/hpckit:2024.2.0-devel-ubuntu22.04
+FROM intel/hpckit:2024.2.0-1-devel-ubuntu22.04
 
 # Install requirements for the toolchain.
 WORKDIR /opt/cp2k-toolchain
