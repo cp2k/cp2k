@@ -1525,7 +1525,7 @@ CONTAINS
       IF (u > 0) THEN
          WRITE (u, FMT="(T2,2A,F21.1,A)") "Cutoff radius for the truncated Coulomb ", &
             "operator in Σ^x:", bs_env%trunc_coulomb%cutoff_radius*angstrom, " Å"
-         WRITE (u, FMT="(T2,2A,F17.1,A)") "Cutoff radius for the truncated Coulomb ", &
+         WRITE (u, FMT="(T2,2A,F15.1,A)") "Cutoff radius for the truncated Coulomb ", &
             "operator in RI metric:", bs_env%ri_metric%cutoff_radius*angstrom, " Å"
          WRITE (u, FMT="(T2,A,ES48.1)") "Regularization parameter of RI ", bs_env%regularization_RI
       END IF
@@ -1566,6 +1566,7 @@ CONTAINS
          WRITE (u, '(T2,A,I45)') 'Input: Number of time/freq. points', bs_env%num_time_freq_points
          WRITE (u, '(T2,A,ES27.1)') 'Input: Filter threshold for sparse tensor operations', &
             bs_env%eps_filter
+         WRITE (bs_env%unit_nr, FMT="(T2,A,L62)") "Apply Hedin shift", bs_env%do_hedin_shift
       END IF
 
       CALL timestop(handle)
@@ -2881,11 +2882,6 @@ CONTAINS
       ! in kpoints_DOS, the last nkp_only_bs are bandstructure k-points
       is_bandstruc_kpoint = (ikp > bs_env%nkp_only_DOS)
       print_ikp = print_DOS_kpoints .OR. is_bandstruc_kpoint
-
-      IF (bs_env%unit_nr > 0) THEN
-         WRITE (bs_env%unit_nr, FMT="(T2,A)") " "
-         WRITE (bs_env%unit_nr, FMT="(T2,A,L80)") "Apply Hedin shift", bs_env%do_hedin_shift
-      END IF
 
       IF (bs_env%para_env%is_source() .AND. print_ikp) THEN
 

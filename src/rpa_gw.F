@@ -5112,7 +5112,7 @@ CONTAINS
                   WRITE (unit_nr, '(T3,A,I3,A,F38.4)') 'HOMO-LUMO gap in evGW0 iteration', &
                      count_sc_GW0, ' (eV)', E_GAP_GW*evolt
                ELSE
-                  WRITE (unit_nr, '(T3,A,F57.4)') 'G0W0 HOMO-LUMO gap (eV)', E_GAP_GW*evolt
+                  WRITE (unit_nr, '(T3,A,F55.4)') 'G0W0 HOMO-LUMO gap (eV)', E_GAP_GW*evolt
                END IF
             ELSE IF (do_alpha) THEN
                WRITE (unit_nr, '(T3,A)') ' '
