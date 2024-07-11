@@ -658,14 +658,14 @@ CONTAINS
             WRITE (unit_nr, '(T2,A4,T7,A57)') 'BSE|', 'Excitation energies from solving the BSE without the TDA:'
          END IF
          WRITE (unit_nr, '(T2,A4)') 'BSE|'
-         WRITE (unit_nr, '(T2,A4,T13,A10,T27,A13,T42,A12,T59,A22)') 'BSE|', &
-            'Excitation', "Multiplet", 'TDA/full BSE', 'Excitation energy (eV)'
+         WRITE (unit_nr, '(T2,A4,T11,A12,T26,A11,T40,A12,T55,A27)') 'BSE|', &
+            'Excitation n', "Spin Config", 'TDA/full BSE', 'Excitation energy Ω^n (eV)'
       END IF
       !prints actual energies values
       IF (unit_nr > 0) THEN
          DO i_exc = 1, MIN(homo*virtual, mp2_env%ri_g0w0%num_print_exc)
-            WRITE (unit_nr, '(T2,A4,T7,I16,T27,A7,A6,T48,A6,T59,F22.4)') &
-               'BSE|', i_exc, multiplet, " State", info_approximation, Exc_ens(i_exc)*evolt
+            WRITE (unit_nr, '(T2,A4,T7,I16,T30,A7,T46,A6,T59,F22.4)') &
+               'BSE|', i_exc, multiplet, info_approximation, Exc_ens(i_exc)*evolt
          END DO
       END IF
       !prints single particle transitions
@@ -680,8 +680,8 @@ CONTAINS
          WRITE (unit_nr, '(T2,A4,T15,A27,I5,A13,I5,A3)') 'BSE|', '-- Quick reminder: HOMO i =', &
             homo_irred, ' and LUMO a =', homo_irred + 1, " --"
          WRITE (unit_nr, '(T2,A4)') 'BSE|'
-         WRITE (unit_nr, '(T2,A4,T7,A9,T20,A1,T22,A2,T29,A1,T42,A12,T71,A10)') &
-            "BSE|", "n-th exc.", "i", "=>", "a", 'TDA/full BSE', "|X_ia^n|"
+         WRITE (unit_nr, '(T2,A4,T7,A12,T25,A1,T27,A2,T34,A1,T50,A12,T71,A10)') &
+            "BSE|", "Excitation n", "i", "=>", "a", 'TDA/full BSE', "|X_ia^n|"
       END IF
       DO i_exc = 1, MIN(homo*virtual, mp2_env%ri_g0w0%num_print_exc)
          !Iterate through eigenvector and print values above threshold
@@ -690,7 +690,7 @@ CONTAINS
          IF (unit_nr > 0) THEN
             WRITE (unit_nr, '(T2,A4)') 'BSE|'
             DO k = 1, num_entries
-               WRITE (unit_nr, '(T2,A4,T11,I5,T16,I5,T22,A2,T25,I5,T48,A6,T59,F22.4)') &
+               WRITE (unit_nr, '(T2,A4,T14,I5,T21,I5,T27,A2,T30,I5,T56,A6,T65,F16.4)') &
                   "BSE|", i_exc, homo_irred - homo + idx_homo(k), "=>", &
                   homo_irred + idx_virt(k), info_approximation, ABS(eigvec_entries(k))
             END DO
