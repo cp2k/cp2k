@@ -1,5 +1,5 @@
-scGW0_H2O_PBE_default_values.inp                      78      1e-04                         17.188
-evGW_H2O_PBE_default_values.inp                       78      1e-04                         17.474
+scGW0_H2O_PBE_default_values.inp                     111      1e-04                        17.2026
+evGW_H2O_PBE_default_values.inp                      112      1e-04                        17.5131
 G0W0_H2O_PBE_GAPW.inp                                 78      1e-04                         16.699
 G0W0_H2O_PBE0.inp                                     78      1e-04                         16.717
 G0W0_H2O_PBE0_30_pts.inp                              78      1e-04                         15.607

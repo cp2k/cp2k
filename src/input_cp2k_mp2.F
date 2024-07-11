@@ -37,7 +37,7 @@ MODULE input_cp2k_mp2
       ot_precond_s_inverse, ri_default, ri_rpa_g0w0_crossing_bisection, &
       ri_rpa_g0w0_crossing_newton, ri_rpa_g0w0_crossing_z_shot, soc_lda, soc_none, soc_pbe, &
       wfc_mm_style_gemm, wfc_mm_style_syrk, z_solver_cg, z_solver_pople, z_solver_richardson, &
-      z_solver_sd, rpa_exchange_none, rpa_exchange_axk, rpa_exchange_sosex
+      z_solver_sd, rpa_exchange_none, rpa_exchange_axk, rpa_exchange_sosex, G0W0, evGW0, evGW
    USE input_cp2k_hfx, ONLY: create_hfx_section
    USE input_cp2k_kpoints, ONLY: create_kpoint_set_section
    USE input_keyword_types, ONLY: keyword_create, &
@@ -694,9 +694,25 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="SELF_CONSISTENCY", &
+                          description="Decide the level of self-consistency of eigenvalues "// &
+                          "(= quasiparticle energies = single-electron energies) in GW. "// &
+                          "Updates of Kohn-Sham orbitals (for example qsGW) are not implemented. "// &
+                          "For details which type of eigenvalue self-consistency might be good, "// &
+                          "please consult Golze, Dvorak, Rinke, Front. Chem. 2019.", &
+                          usage="GW_SELF_CONSISTENCY evGW0", &
+                          enum_c_vals=s2a("G0W0", "evGW0", "evGW"), &
+                          enum_i_vals=(/G0W0, evGW0, evGW/), &
+                          enum_desc=s2a("Use DFT eigenvalues; not update.", &
+                                        "Update DFT eigenvalues in G, not in W.", &
+                                        "Update DFT eigenvalues in G and W."), &
+                          default_i_val=G0W0)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       CALL keyword_create(keyword, __LOCATION__, name="CORR_MOS_OCC", &
                           variants=(/"CORR_OCC"/), &
-                          description="Number of occupied MOs whose energies are corrected by RI-G0W0. "// &
+                          description="Number of occupied MOs whose energies are corrected in GW. "// &
                           "Counting beginning from HOMO, e.g. 3 corrected occ. MOs correspond "// &
                           "to correction of HOMO, HOMO-1 and HOMO-2. Numerical effort and "// &
                           "storage of RI-G0W0 increase linearly with this number. In case you "// &
@@ -709,7 +725,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="CORR_MOS_VIRT", &
                           variants=(/"CORR_VIRT"/), &
-                          description="Number of virtual MOs whose energies are corrected by RI-G0W0. "// &
+                          description="Number of virtual MOs whose energies are corrected by GW. "// &
                           "Counting beginning from LUMO, e.g. 3 corrected occ. MOs correspond "// &
                           "to correction of LUMO, LUMO+1 and LUMO+2. Numerical effort and "// &
                           "storage of RI-G0W0 increase linearly with this number. In case you "// &
@@ -773,16 +789,21 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="EV_GW_ITER", &
-                          description="Maximum number of iterations for eigenvalue self-consistency cycle. The "// &
-                          "computational effort of GW scales linearly with this number. ", &
+                          description="Maximum number of iterations for eigenvalue "// &
+                          "self-consistency cycle. The computational effort of GW scales "// &
+                          "linearly with this number. In case of choosing "// &
+                          "GW_SELF_CONSISTENCY EVGW, the code sets EV_GW_ITER 10.", &
                           usage="EV_GW_ITER 3", &
                           default_i_val=1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="SC_GW0_ITER", &
-                          description="Maximum number of iterations for GW0 self-consistency cycle. The "// &
-                          "computational effort of GW is not much affected by the number of scGW0 cycles. ", &
+                          description="Maximum number of iterations for GW0 "// &
+                          "self-consistency cycle. The computational effort "// &
+                          "of GW is not much affected by the number of scGW0 cycles. "// &
+                          "In case of choosing "// &
+                          "GW_SELF_CONSISTENCY EVGW0, the code sets SC_GW0_ITER 10.", &
                           usage="SC_GW0_ITER 3", &
                           default_i_val=1)
       CALL section_add_keyword(section, keyword)

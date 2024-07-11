@@ -233,7 +233,7 @@ CONTAINS
             IF (ASSOCIATED(gth_potential)) THEN
                gpotential(ikind)%gth_potential => gth_potential
                IF (do_soc .AND. (.NOT. gth_potential%soc)) THEN
-                  CPWARN("Spin-orbit coupling selected, but GTH potential without SOC parameters provided")
+                  CPABORT("Spin-orbit coupling selected, but GTH potential without SOC parameters provided")
                END IF
             ELSE IF (ASSOCIATED(sgp_potential)) THEN
                spotential(ikind)%sgp_potential => sgp_potential

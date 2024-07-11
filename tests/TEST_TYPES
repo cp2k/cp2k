@@ -1,4 +1,4 @@
-110
+112
 Total energy:!3
 MD| Potential energy!5
 Total energy \[eV\]:!4
@@ -76,7 +76,7 @@ Diabatic electronic coupling (wfn !7
 Charge transfer energy!6
 Diabatic electronic coupling (Lowdin!6
 Ground state energy!4
-GW HOMO-LUMO gap (eV)!5
+G0W0 HOMO-LUMO gap (eV)!5
 Beta GW HOMO-LUMO gap (eV)!6
 IC HOMO-LUMO gap (eV)!5
 HOMO SCF Cycle:     4!9
@@ -109,6 +109,8 @@ SCF+SOC direct band gap !6
 G0W0+SOC direct band gap !6
 BSE|                1    Singlet State         -TDA- !6
 BSE|                1    Singlet State        -full- !6
+HOMO-LUMO gap in evGW0 iteration  3 (eV)!8
+HOMO-LUMO gap in evGW iteration  3 (eV)!8
 #
 # these are the tests the can be selected for regtesting.
 # do regtest will grep for test_grep (first column) and look if the numeric value
