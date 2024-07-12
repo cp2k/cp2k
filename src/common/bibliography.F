@@ -93,7 +93,9 @@ MODULE bibliography
                             Mattiat2022, Belleflamme2023, Knizia2013, Musaelian2023, Eriksen2020, &
                             Bussy2023, Wang2018, Zeng2023, Graml2024, Solca2024, &
                             Caldeweyher2017, Caldeweyher2019, Caldeweyher2020, Freeman1977, Gruneis2009, &
-                            Stein2022, Stein2024
+                            Stein2022, Stein2024, &
+                            Blase2018, Blase2020, Bruneval2015, Golze2019, Gui2018, Jacquemin2017, Liu2020, &
+                            Sander2015, Schreiber2008
 
 CONTAINS
 
@@ -5154,6 +5156,191 @@ CONTAINS
                          "UR https://doi.org/10.1063/5.0180704", &
                          "ER"), &
                          DOI="10.1063/5.0180704")
+
+      CALL add_reference(key=Blase2018, ISI_record=s2a( &
+                         "VR 1.0", &
+                         "PT J", &
+                         "TI The Bethe-Salpeter equation in chemistry: relations with TD-DFT, ", &
+                         "   applications and challenges", &
+                         "AF Blase, Xavier", &
+                         "   Duchemin, Ivan", &
+                         "   Jacquemin, Denis", &
+                         "AU Blase, X", &
+                         "   Duchemin, I", &
+                         "   Jacquemin, D", &
+                         "SO Chemical Society reviews", &
+                         "VL 47", &
+                         "BP 1022", &
+                         "EP 1043", &
+                         "PY 2018", &
+                         "DI 10.1039/c7cs00049a", &
+                         "ER"), &
+                         DOI="10.1039/c7cs00049a")
+
+      CALL add_reference(key=Blase2020, ISI_record=s2a( &
+                         "VR 1.0", &
+                         "PT J", &
+                         "TI The Bethe–Salpeter Equation Formalism: From Physics to Chemistry", &
+                         "AF Blase, Xavier", &
+                         "   Duchemin, Ivan", &
+                         "   Jacquemin, Denis", &
+                         "   Loos, Pierre-François", &
+                         "AU Blase, X", &
+                         "   Duchemin, I", &
+                         "   Jacquemin, D", &
+                         "   Loos, P", &
+                         "SO The Journal of Physical Chemistry Letters", &
+                         "VL 11", &
+                         "BP 7371", &
+                         "EP 7382", &
+                         "PY 2020", &
+                         "DI 10.1021/acs.jpclett.0c01875", &
+                         "ER"), &
+                         DOI="10.1021/acs.jpclett.0c01875")
+
+      CALL add_reference(key=Bruneval2015, ISI_record=s2a( &
+                         "VR 1.0", &
+                         "PT J", &
+                         "TI A systematic benchmark of the ab initio Bethe-Salpeter equation ", &
+                         "   approach for low-lying optical excitations of small organic molecules", &
+                         "AF Bruneval, Fabien", &
+                         "   Hamed, Samia M.", &
+                         "   Neaton, Jeffrey B.", &
+                         "AU Bruneval, F", &
+                         "   Hamed, SM", &
+                         "   Neaton, JB", &
+                         "SO The Journal of chemical physics", &
+                         "VL 142", &
+                         "BP 244101", &
+                         "PY 2015", &
+                         "DI 10.1063/1.4922489", &
+                         "ER"), &
+                         DOI="10.1063/1.4922489")
+
+      CALL add_reference(key=Golze2019, ISI_record=s2a( &
+                         "VR 1.0", &
+                         "PT J", &
+                         "TI The GW Compendium: A Practical Guide to Theoretical Photoemission Spectroscopy", &
+                         "AF Golze, Dorothea", &
+                         "   Dvorak, Marc", &
+                         "   Rinke, Patrick", &
+                         "AU Golze, D", &
+                         "   Dvorak, M", &
+                         "   Rinke, P", &
+                         "SO Frontiers in chemistry", &
+                         "SN 2296-2646", &
+                         "VL 7", &
+                         "BP 377", &
+                         "PY 2019", &
+                         "DI 10.3389/fchem.2019.00377", &
+                         "ER"), &
+                         DOI="10.3389/fchem.2019.00377")
+
+      CALL add_reference(key=Gui2018, ISI_record=s2a( &
+                         "VR 1.0", &
+                         "PT J", &
+                         "TI Accuracy Assessment of GW Starting Points for Calculating Molecular ", &
+                         "   Excitation Energies Using the Bethe-Salpeter Formalism", &
+                         "AF Gui, Xin", &
+                         "   Holzer, Christof", &
+                         "   Klopper, Wim", &
+                         "AU Gui, X", &
+                         "   Holzer, C", &
+                         "   Klopper, W", &
+                         "SO Journal of chemical theory and computation", &
+                         "VL 14", &
+                         "BP 2127", &
+                         "EP 2136", &
+                         "PY 2018", &
+                         "DI 10.1021/acs.jctc.8b00014", &
+                         "ER"), &
+                         DOI="10.1021/acs.jctc.8b00014")
+
+      CALL add_reference(key=Jacquemin2017, ISI_record=s2a( &
+                         "VR 1.0", &
+                         "PT J", &
+                         "TI Is the Bethe-Salpeter Formalism Accurate for Excitation Energies? ", &
+                         "   Comparisons with TD-DFT, CASPT2, and EOM-CCSD", &
+                         "AF Jacquemin, Denis", &
+                         "   Duchemin, Ivan", &
+                         "   Blase, Xavier", &
+                         "AU Jacquemin, D", &
+                         "   Duchemin, I", &
+                         "   Blase, X", &
+                         "SO The Journal of Physical Chemistry Letters", &
+                         "VL 8", &
+                         "BP 1524", &
+                         "EP 1529", &
+                         "PY 2017", &
+                         "DI 10.1021/acs.jpclett.7b00381", &
+                         "ER"), &
+                         DOI="10.1021/acs.jpclett.7b00381")
+
+      CALL add_reference(key=Liu2020, ISI_record=s2a( &
+                         "VR 1.0", &
+                         "PT J", &
+                         "TI All-electron ab initio Bethe-Salpeter equation approach to ", &
+                         "   neutral excitations in molecules with numeric atom-centered orbitals", &
+                         "AF Liu, Chi", &
+                         "   Kloppenburg, Jan", &
+                         "   Yao, Yi", &
+                         "   Ren, Xinguo", &
+                         "   Appel, Heiko", &
+                         "   Kanai, Yosuke", &
+                         "   Blum, Volker", &
+                         "AU Liu, C", &
+                         "   Kloppenburg, J", &
+                         "   Yao, Y", &
+                         "   Ren, X", &
+                         "   Appel, H", &
+                         "   Kanai, Y", &
+                         "   Blum, V", &
+                         "SO The Journal of chemical physics", &
+                         "VL 152", &
+                         "BP 044105", &
+                         "PY 2020", &
+                         "DI 10.1063/1.5123290", &
+                         "ER"), &
+                         DOI="10.1063/1.5123290")
+
+      CALL add_reference(key=Sander2015, ISI_record=s2a( &
+                         "VR 1.0", &
+                         "PT J", &
+                         "TI Beyond the Tamm-Dancoff approximation for extended systems ", &
+                         "   using exact diagonalization", &
+                         "AF Sander, Tobias", &
+                         "   Maggio, Emanuele", &
+                         "   Kresse, Georg", &
+                         "AU Sander, T", &
+                         "   Maggio, E", &
+                         "   Kresse, G", &
+                         "SO Physical Review B", &
+                         "SN 1098-0121", &
+                         "VL 92", &
+                         "PY 2015", &
+                         "DI 10.1103/PhysRevB.92.045209", &
+                         "ER"), &
+                         DOI="10.1103/PhysRevB.92.045209")
+
+      CALL add_reference(key=Schreiber2008, ISI_record=s2a( &
+                         "VR 1.0", &
+                         "PT J", &
+                         "TI Benchmarks for electronically excited states: CASPT2, CC2, CCSD, and CC3", &
+                         "AF Schreiber, Marko", &
+                         "   Silva-Junior, Mario R.", &
+                         "   Sauer, Stephan P. A.", &
+                         "   Thiel, Walter", &
+                         "AU Schreiber, M", &
+                         "   Silva-Junior, MR", &
+                         "   Sauer, SPA", &
+                         "   Thiel, W", &
+                         "SO The Journal of chemical physics", &
+                         "VL 128", &
+                         "BP 134110", &
+                         "PY 2008", &
+                         "DI 10.1063/1.2889385", &
+                         "ER"), &
+                         DOI="10.1063/1.2889385")
 
    END SUBROUTINE add_all_references
 

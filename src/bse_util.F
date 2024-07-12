@@ -24,7 +24,8 @@ MODULE bse_util
                                               cp_fm_set_all,&
                                               cp_fm_to_fm_submat_general,&
                                               cp_fm_type
-   USE kinds,                           ONLY: dp
+   USE kinds,                           ONLY: dp,&
+                                              int_8
    USE message_passing,                 ONLY: mp_para_env_type,&
                                               mp_request_type
    USE mp2_types,                       ONLY: integ_mat_buffer_type,&
@@ -995,6 +996,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'estimate_BSE_resources'
 
       INTEGER                                            :: handle, num_BSE_matrices
+      INTEGER(KIND=int_8)                                :: full_dim
       REAL(KIND=dp)                                      :: mem_est, mem_est_per_rank
 
       CALL timeset(routineN, handle)
@@ -1006,8 +1008,11 @@ CONTAINS
       IF (bse_abba) THEN
          num_BSE_matrices = 10
       END IF
-      mem_est = REAL(8*(homo_red**2*virtual_red**2)*num_BSE_matrices, KIND=dp)/REAL(1024**3, KIND=dp)
+
+      full_dim = (INT(homo_red, KIND=int_8)**2*INT(virtual_red, KIND=int_8)**2)*INT(num_BSE_matrices, KIND=int_8)
+      mem_est = REAL(8*full_dim, KIND=dp)/REAL(1024**3, KIND=dp)
       mem_est_per_rank = REAL(mem_est/para_env%num_pe, KIND=dp)
+
       IF (unit_nr > 0) THEN
          WRITE (unit_nr, '(T2,A4,T7,A40,T68,F13.3)') 'BSE|', 'Total peak memory estimate from BSE [GB]', &
             mem_est
@@ -1017,7 +1022,8 @@ CONTAINS
       END IF
       ! Rough estimation of diagonalization runtimes. Baseline was a full BSE Naphthalene
       ! run with 11000x11000 entries in A/B/C, which took 10s on 32 ranks
-      diag_runtime_est = REAL(homo_red*virtual_red/11000, KIND=dp)**3*10*32/REAL(para_env%num_pe, KIND=dp)
+      diag_runtime_est = REAL(INT(homo_red, KIND=int_8)*INT(virtual_red, KIND=int_8)/11000_int_8, KIND=dp)**3* &
+                         10*32/REAL(para_env%num_pe, KIND=dp)
 
       CALL timestop(handle)
 
@@ -1202,8 +1208,8 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       ! Determine index in homo and virtual for truncation
-      ! Uses indices of outermost orbitals within energy range (-mp2_env%ri_g0w0%bse_cutoff_occ,mp2_env%ri_g0w0%bse_cutoff_virt)
-      IF (mp2_env%ri_g0w0%bse_cutoff_occ > 0 .OR. mp2_env%ri_g0w0%bse_cutoff_virt > 0) THEN
+      ! Uses indices of outermost orbitals within energy range (-mp2_env%ri_g0w0%bse_cutoff_occ,mp2_env%ri_g0w0%bse_cutoff_empty)
+      IF (mp2_env%ri_g0w0%bse_cutoff_occ > 0 .OR. mp2_env%ri_g0w0%bse_cutoff_empty > 0) THEN
          IF (-mp2_env%ri_g0w0%bse_cutoff_occ .LT. Eigenval(1) - Eigenval(homo) &
              .OR. mp2_env%ri_g0w0%bse_cutoff_occ < 0) THEN
             homo_red = homo
@@ -1219,14 +1225,14 @@ CONTAINS
             homo_red = homo - homo_incl + 1
          END IF
 
-         IF (mp2_env%ri_g0w0%bse_cutoff_virt .GT. Eigenval(homo + virtual) - Eigenval(homo + 1) &
-             .OR. mp2_env%ri_g0w0%bse_cutoff_virt < 0) THEN
+         IF (mp2_env%ri_g0w0%bse_cutoff_empty .GT. Eigenval(homo + virtual) - Eigenval(homo + 1) &
+             .OR. mp2_env%ri_g0w0%bse_cutoff_empty < 0) THEN
             virt_red = virtual
             virt_incl = virtual
          ELSE
             virt_incl = homo + 1
             DO j_virt = 1, virtual
-               IF (Eigenval(homo + j_virt) - Eigenval(homo + 1) .GT. mp2_env%ri_g0w0%bse_cutoff_virt) THEN
+               IF (Eigenval(homo + j_virt) - Eigenval(homo + 1) .GT. mp2_env%ri_g0w0%bse_cutoff_empty) THEN
                   virt_incl = j_virt - 1
                   EXIT
                END IF
@@ -1246,22 +1252,22 @@ CONTAINS
          ELSE
             WRITE (unit_nr, '(T2,A4,T7,A37)') 'BSE|', 'No cutoff given for occupied orbitals'
          END IF
-         IF (mp2_env%ri_g0w0%bse_cutoff_virt > 0) THEN
-            WRITE (unit_nr, '(T2,A4,T7,A28,T71,F10.3)') 'BSE|', 'Cutoff virtual orbitals [eV]', &
-               mp2_env%ri_g0w0%bse_cutoff_virt*evolt
+         IF (mp2_env%ri_g0w0%bse_cutoff_empty > 0) THEN
+            WRITE (unit_nr, '(T2,A4,T7,A26,T71,F10.3)') 'BSE|', 'Cutoff empty orbitals [eV]', &
+               mp2_env%ri_g0w0%bse_cutoff_empty*evolt
          ELSE
-            WRITE (unit_nr, '(T2,A4,T7,A36)') 'BSE|', 'No cutoff given for virtual orbitals'
+            WRITE (unit_nr, '(T2,A4,T7,A34)') 'BSE|', 'No cutoff given for empty orbitals'
          END IF
          WRITE (unit_nr, '(T2,A4,T7,A20,T71,I10)') 'BSE|', 'First occupied index', homo_incl
-         WRITE (unit_nr, '(T2,A4,T7,A34,T71,I10)') 'BSE|', 'Last virtual index (not MO index!)', virt_incl
+         WRITE (unit_nr, '(T2,A4,T7,A32,T71,I10)') 'BSE|', 'Last empty index (not MO index!)', virt_incl
          WRITE (unit_nr, '(T2,A4,T7,A35,T71,F10.3)') 'BSE|', 'Energy of first occupied index [eV]', Eigenval(homo_incl)*evolt
-         WRITE (unit_nr, '(T2,A4,T7,A33,T71,F10.3)') 'BSE|', 'Energy of last virtual index [eV]', Eigenval(homo + virt_incl)*evolt
+         WRITE (unit_nr, '(T2,A4,T7,A31,T71,F10.3)') 'BSE|', 'Energy of last empty index [eV]', Eigenval(homo + virt_incl)*evolt
          WRITE (unit_nr, '(T2,A4,T7,A54,T71,F10.3)') 'BSE|', 'Energy difference of first occupied index to HOMO [eV]', &
             -(Eigenval(homo_incl) - Eigenval(homo))*evolt
-         WRITE (unit_nr, '(T2,A4,T7,A52,T71,F10.3)') 'BSE|', 'Energy difference of last virtual index to LUMO [eV]', &
+         WRITE (unit_nr, '(T2,A4,T7,A50,T71,F10.3)') 'BSE|', 'Energy difference of last empty index to LUMO [eV]', &
             (Eigenval(homo + virt_incl) - Eigenval(homo + 1))*evolt
          WRITE (unit_nr, '(T2,A4,T7,A35,T71,I10)') 'BSE|', 'Number of GW-corrected occupied MOs', mp2_env%ri_g0w0%corr_mos_occ
-         WRITE (unit_nr, '(T2,A4,T7,A34,T71,I10)') 'BSE|', 'Number of GW-corrected virtual MOs', mp2_env%ri_g0w0%corr_mos_virt
+         WRITE (unit_nr, '(T2,A4,T7,A32,T71,I10)') 'BSE|', 'Number of GW-corrected empty MOs', mp2_env%ri_g0w0%corr_mos_virt
          WRITE (unit_nr, '(T2,A4)') 'BSE|'
       END IF
       IF (unit_nr > 0) THEN
@@ -1286,7 +1292,7 @@ CONTAINS
       CALL cp_fm_create(fm_mat_S_ab_trunc, fm_struct_ab, "fm_S_ab_trunc")
 
       !Copy parts of original matrices to truncated ones
-      IF (mp2_env%ri_g0w0%bse_cutoff_occ > 0 .OR. mp2_env%ri_g0w0%bse_cutoff_virt > 0) THEN
+      IF (mp2_env%ri_g0w0%bse_cutoff_occ > 0 .OR. mp2_env%ri_g0w0%bse_cutoff_empty > 0) THEN
          !Truncate eigenvals
          ALLOCATE (Eigenval_reduced(homo_red + virt_red))
          Eigenval_reduced(:) = Eigenval(homo_incl:homo + virt_incl)
