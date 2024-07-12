@@ -95,7 +95,7 @@ MODULE bibliography
                             Caldeweyher2017, Caldeweyher2019, Caldeweyher2020, Freeman1977, Gruneis2009, &
                             Stein2022, Stein2024, &
                             Blase2018, Blase2020, Bruneval2015, Golze2019, Gui2018, Jacquemin2017, Liu2020, &
-                            Sander2015, Schreiber2008
+                            Sander2015, Schreiber2008, Hueser2013, vanSetten2015
 
 CONTAINS
 
@@ -5341,6 +5341,67 @@ CONTAINS
                          "DI 10.1063/1.2889385", &
                          "ER"), &
                          DOI="10.1063/1.2889385")
+
+      CALL add_reference(key=Hueser2013, ISI_record=s2a( &
+                         "VR 1.0", &
+                         "PT J", &
+                         "TI Quasiparticle GW calculations for solids, molecules, and two-dimensional materials", &
+                         "AF Hueser, Falco", &
+                         "   Olsen, Thomas", &
+                         "   Thygesen, Kristian S.", &
+                         "AU Hueser, F", &
+                         "   Olsen, T", &
+                         "   Thygesen, KS", &
+                         "SO Physical Review B", &
+                         "SN 1098-0121", &
+                         "VL 87", &
+                         "PY 2013", &
+                         "DI 10.1103/PhysRevB.87.235132", &
+                         "ER"), &
+                         DOI="10.1103/PhysRevB.87.235132")
+
+      CALL add_reference(key=vanSetten2015, ISI_record=s2a( &
+                         "VR 1.0", &
+                         "PT J", &
+                         "TI GW100: Benchmarking G0W0 for Molecular Systems", &
+                         "AF van Setten, Michiel J.", &
+                         "   Caruso, Fabio", &
+                         "   Sharifzadeh, Sahar", &
+                         "   Ren, Xinguo", &
+                         "   Scheffler, Matthias", &
+                         "   Liu, Fang", &
+                         "   Lischner, Johannes", &
+                         "   Lin, Lin", &
+                         "   Deslippe, Jack R.", &
+                         "   Louie, Steven G.", &
+                         "   Yang, Chao", &
+                         "   Weigend, Florian", &
+                         "   Neaton, Jeffrey B.", &
+                         "   Evers, Ferdinand", &
+                         "   Rinke, Patrick", &
+                         "AU van Setten, MJ", &
+                         "   Caruso, F", &
+                         "   Sharifzadeh, S", &
+                         "   Ren, X", &
+                         "   Scheffler, M", &
+                         "   Liu, F", &
+                         "   Lischner, J", &
+                         "   Lin, L", &
+                         "   Deslippe, JR", &
+                         "   Louie, SG", &
+                         "   Yang, C", &
+                         "   Weigend, F", &
+                         "   Neaton, JB", &
+                         "   Evers, F", &
+                         "   Rinke, P", &
+                         "SO Journal of chemical theory and computation", &
+                         "VL 11", &
+                         "BP 5665", &
+                         "EP 5687", &
+                         "PY 2015", &
+                         "DI 10.1021/acs.jctc.5b00453", &
+                         "ER"), &
+                         DOI="10.1021/acs.jctc.5b00453")
 
    END SUBROUTINE add_all_references
 

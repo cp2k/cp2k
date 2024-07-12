@@ -243,8 +243,7 @@ The basis sets `aug-cc-pVDZ` and `aug-cc-pVDZ-RIFIT` in `BASIS-aug` can be obtai
 Set Exchange Library:
 <a href="https://www.basissetexchange.org/basis/aug-cc-pvdz/format/cp2k/?version=1&elements=1" target="_blank">aug-cc-pVDZ</a>,
 <a href="https://www.basissetexchange.org/basis/aug-cc-pvdz-rifit/format/cp2k/?version=1&elements=1" target="_blank">aug-cc-pVDZ-RIFIT</a>.
-The geometry for $\mathrm{H}_2$ was taken from the
-[GW100](https://doi.org/10.1021/acs.jctc.5b00453)-Paper.
+The geometry for $\mathrm{H}_2$ was taken from [vanSetten2015](#vanSetten2015).
 
 ### 3.2 Output
 
