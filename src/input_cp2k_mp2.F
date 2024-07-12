@@ -1311,11 +1311,11 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="BSE_APPROX", &
+      CALL keyword_create(keyword, __LOCATION__, name="TDA", &
                           description="Level of approximation applied to BSE calculations. "// &
-                          "Choose between Tamm Dancoff approximation (TDA) and diagonalization of the full ABBA-matrix.", &
-                          usage="&BSE_APPROX TDA", &
-                          enum_c_vals=s2a("TDA", "ABBA", "BOTH"), &
+                          "Choose between Tamm Dancoff approximation (TDA) and/or diagonalization of the full ABBA-matrix.", &
+                          usage="&TDA ON", &
+                          enum_c_vals=s2a("ON", "OFF", "TDA+ABBA"), &
                           enum_i_vals=(/bse_tda, bse_abba, bse_both/), &
                           enum_desc=s2a("The TDA is applied, i.e. B=0.", &
                                         "The ABBA-matrix is diagonalized, i.e. the TDA is not applied.", &
@@ -1325,21 +1325,21 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="ENERGY_CUTOFF_OCC", &
-                          description="Removing all orbitals with indices i,j from A_ia,jb and B_ia,jb with energy difference "// &
+                          description="Remove all orbitals with indices i,j from A_ia,jb and B_ia,jb with energy difference "// &
                           "to HOMO level larger than the given energy cutoff, i.e. "// &
-                          "$\epsilon_{\mathrm{HOMO}}-\epsilon_a>\mathtt{ENERGY\_CUTOFF\_OCC}$. "// &
+               "$\varepsilon_i\in[\varepsilon_{i=\text{HOMO}}^{GW}-E_\text{cut}^\text{occ},\varepsilon_{i=\text{HOMO}}^{GW}]$. "// &
                           "Can be used to accelerate runtime and reduce memory consumption.", &
                           usage="ENERGY_CUTOFF_OCC 10.0", unit_str="eV", &
                           type_of_var=real_t, default_r_val=-1.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="ENERGY_CUTOFF_VIRT", &
-                          description="Removing all orbitals with indices a,b from A_ia,jb and B_ia,jb with energy difference "// &
+      CALL keyword_create(keyword, __LOCATION__, name="ENERGY_CUTOFF_EMPTY", &
+                          description="Remove all orbitals with indices a,b from A_ia,jb and B_ia,jb with energy difference "// &
                           "to LUMO level larger than the given energy cutoff, i.e. "// &
-                          "$\epsilon_i-\epsilon_{\mathrm{LUMO}}>\mathtt{ENERGY\_CUTOFF\_VIRT}$. "// &
+             "$\varepsilon_a\in[\varepsilon_{a=\text{LUMO}}^{GW},\varepsilon_{a=\text{LUMO}}^{GW}+E_\text{cut}^\text{empty}]$. "// &
                           "Can be used to accelerate runtime and reduce memory consumption.", &
-                          usage="ENERGY_CUTOFF_VIRT 10.0", unit_str="eV", &
+                          usage="ENERGY_CUTOFF_EMPTY 10.0", unit_str="eV", &
                           type_of_var=real_t, default_r_val=-1.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -1353,8 +1353,8 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="NUM_PRINT_EXC", &
                           description="Number of printed excitation energies. Does not affect computation time.", &
-                          usage="NUM_PRINT_EXC 10", &
-                          default_i_val=10)
+                          usage="NUM_PRINT_EXC 25", &
+                          default_i_val=25)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

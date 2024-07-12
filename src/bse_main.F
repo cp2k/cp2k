@@ -115,7 +115,7 @@ CONTAINS
          my_do_fulldiag = .TRUE.
       END SELECT
       !Approximation: TDA and/or full ABBA matrix
-      SELECT CASE (mp2_env%ri_g0w0%bse_approx)
+      SELECT CASE (mp2_env%ri_g0w0%flag_tda)
       CASE (bse_tda)
          my_do_tda = .TRUE.
       CASE (bse_abba)

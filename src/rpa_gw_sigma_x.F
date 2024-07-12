@@ -548,6 +548,16 @@ CONTAINS
 
             gw_corr_lev_occ = mp2_env%ri_g0w0%corr_mos_occ
             gw_corr_lev_virt = mp2_env%ri_g0w0%corr_mos_virt
+            ! If BSE is invoked, we want to compute all the orbitals
+            ! In the future, this will only include orbitals that are relevant for the BSE within the given cutoff
+            IF (mp2_env%ri_g0w0%do_bse) THEN
+               IF (mp2_env%ri_g0w0%bse_cutoff_occ < 0) THEN
+                  gw_corr_lev_occ = -1
+               END IF
+               IF (mp2_env%ri_g0w0%bse_cutoff_empty < 0) THEN
+                  gw_corr_lev_virt = -1
+               END IF
+            END IF
             ! if requested number of occ/virt levels for correction either exceed the number of
             ! occ/virt levels or the requested number is negative, default to correct all
             ! occ/virt level energies
