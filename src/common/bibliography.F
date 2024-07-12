@@ -3140,7 +3140,7 @@ CONTAINS
                          "VL 25", &
                          "IS 29", &
                          "AR 295501", &
-                         "PD JUL 24 2013", &
+                         "PD JUL 24", &
                          "PY 2013", &
                          "TC 3", &
                          "ZB 1", &
@@ -3751,7 +3751,6 @@ CONTAINS
                          "AU Messmer, Peter", &
                          "AU Hutter, Juerg", &
                          "AU VandeVondele, Joost", &
-                         "VL John Wiley & Sons, Ltd", &
                          "SN 9781118670712", &
                          "UR https://doi.org/10.1002/9781118670712.ch8", &
                          "DO 10.1002/9781118670712.ch8", &

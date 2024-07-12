@@ -18,17 +18,16 @@ To build a local version of the manual perform the following steps:
    pip3 install -r ./requirements.txt
    ```
 
-1. (optional) Build a CP2K binary and use it to generate the `cp2k_input.xml` and `references.html`
-   files:
+1. (optional) Build a CP2K binary and use it to generate the `cp2k_input.xml` file:
 
    ```
    ../exe/local/cp2k.psmp --xml
    ```
 
-1. (optional) Generate Markdown pages from the aforementioned files:
+1. (optional) Generate Markdown pages from the `cp2k_input.xml` file:
 
    ```
-   ./generate_input_reference.py ./cp2k_input.xml ./references.html
+   ./generate_input_reference.py ./cp2k_input.xml
    ```
 
 1. Run Sphinx:
