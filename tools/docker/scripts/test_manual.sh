@@ -48,7 +48,7 @@ cd /workspace/artifacts/manual
 set +e # disable error trapping for remainder of script
 (
   set -e # abort if error is encountered
-  /opt/cp2k/docs/generate_input_reference.py ./cp2k_input.xml ./references.html
+  /opt/cp2k/docs/generate_input_reference.py ./cp2k_input.xml
   echo ""
   sphinx-build /opt/cp2k/docs/ /workspace/artifacts/manual -W -n --keep-going --jobs 16
   /opt/cp2k/docs/fix_github_links.py /workspace/artifacts/manual

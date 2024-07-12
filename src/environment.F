@@ -101,8 +101,7 @@ MODULE environment
                                               write_rng_matrices
    USE physcon,                         ONLY: write_physcon
    USE reference_manager,               ONLY: collect_citations_from_ranks,&
-                                              print_all_references,&
-                                              print_format_journal
+                                              print_cited_references
    USE string_utilities,                ONLY: ascii_to_string,&
                                               integer_to_string,&
                                               string_to_ascii
@@ -1257,13 +1256,11 @@ CONTAINS
          WRITE (UNIT=iw, FMT="(T2,A,T30,A,T80,A)") "-", "R E F E R E N C E S", "-"
          WRITE (UNIT=iw, FMT="(T2,A,T80,A)") "-", "-"
          WRITE (UNIT=iw, FMT="(T2,A)") REPEAT("-", 79)
-
          WRITE (UNIT=iw, FMT="(T2,A)") ""
          WRITE (UNIT=iw, FMT="(T2,A)") TRIM(cp2k_version)//", the CP2K developers group ("//TRIM(cp2k_year)//")."
          WRITE (UNIT=iw, FMT="(T2,A)") "CP2K is freely available from "//TRIM(cp2k_home)//" ."
-
-         CALL print_all_references(sorted=.TRUE., cited_only=.TRUE., &
-                                   FORMAT=print_format_journal, unit=iw)
+         WRITE (UNIT=iw, FMT="(T2,A)") ""
+         CALL print_cited_references(unit=iw)
       END IF
       CALL cp_print_key_finished_output(iw, logger, root_section, &
                                         "GLOBAL%REFERENCES")

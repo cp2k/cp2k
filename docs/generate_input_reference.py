@@ -7,6 +7,8 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 import re
 import sys
+import locale
+from datetime import datetime
 from collections import defaultdict
 from functools import cache
 
@@ -16,62 +18,63 @@ SectionPath = Tuple[str, ...]
 
 # ======================================================================================
 def main() -> None:
-    if len(sys.argv) != 3:
-        print("generate_input_reference.py <cp2k_input.xml> <references.html>")
+    if len(sys.argv) != 2:
+        print("generate_input_reference.py <cp2k_input.xml>")
         sys.exit(1)
 
-    cp2k_input_xml_fn, references_html_fn = sys.argv[1:]
+    cp2k_input_xml_fn = sys.argv[1]
     output_dir = Path(__file__).resolve().parent
-
-    build_bibliography(references_html_fn, output_dir)
-    build_input_reference(cp2k_input_xml_fn, output_dir)
+    locale.setlocale(locale.LC_ALL, locale="C.UTF8")  # needed for strptime
+    root = ET.parse(cp2k_input_xml_fn).getroot()
+    build_bibliography(root, output_dir)
+    build_input_reference(root, output_dir)
 
 
 # ======================================================================================
-def build_bibliography(references_html_fn: str, output_dir: Path) -> None:
-    content = Path(references_html_fn).read_text()
-    entries = re.findall(r"<TR>.*?</TR>", content, re.DOTALL)
+def get_reference_epoch(reference: ET.Element) -> int:
+    year = int(get_text(reference.find("YEAR")) or "1900")
+    day = int(get_text(reference.find("DAY")) or "0")
+    month_str = get_text(reference.find("MONTH"))
+    month = datetime.strptime(month_str, "%b").month if month_str else 0
+    return day + 31 * month + 12 * 31 * (year - 1900)
+
+
+# ======================================================================================
+def build_bibliography(root: ET.Element, output_dir: Path) -> None:
+    references = root.findall("REFERENCE")
+    references.sort(key=get_reference_epoch, reverse=True)
 
     output = []
     output += ["%", "% This file was created by generate_input_reference.py", "%"]
     output += ["# Bibliography", ""]
 
-    for entry in entries:
-        pattern = (
-            r'<TR><TD>\[(.*?)\]</TD><TD>\n <A NAME="reference_\d+">(.*?)</A><br>'
-            r"(.*?)</TD></TR>"
-        )
-        parts = re.search(pattern, entry, re.DOTALL)
-        assert parts
-        key = parts.group(1)
-        title = parts.group(3).strip()
-        if "<br>" in parts.group(2):
-            m = re.match(r"(.*?)<br>(.*)", parts.group(2), re.DOTALL)
-            assert m
-            authors, mix = m.groups()
-        else:
-            authors, mix = "", parts.group(2)
-
-        if "https://doi.org" in mix:
-            m = re.match(r'\s*<A HREF="(.*?)">(.*?)</A>', mix, re.DOTALL)
-            assert m
-            doi, ref = m.groups()
-        else:
-            doi, ref = "", mix.strip()
+    for r in references:
+        key = r.attrib.get("key")
+        authors = "; ".join([get_text(a) for a in r.findall("AUTHOR")])
+        doi = get_text(r.find("DOI"))
+        source = get_text(r.find("SOURCE"))
+        volume = get_text(r.find("VOLUME"))
+        issue = get_text(r.find("ISSUE"))
+        pages = get_text(r.find("PAGES"))
+        year = get_text(r.find("YEAR"))
+        title = get_text(r.find("TITLE"))
+        ref = source
+        ref += f", {volume}" if volume else ""
+        ref += f" ({issue})" if volume and issue else ""
+        ref += f", {pages}"
+        ref += f" ({year})." if year else ""
 
         output += [f"({key})=", f"## {key}", ""]
         if doi:
-            output += [f"{authors} **{title}** _[{ref}]({doi})_", ""]
+            output += [f"{authors}. **{title}.** _[{ref}](https://doi.org/{doi})_", ""]
         else:
-            output += [f"{authors} **{title}** _{ref}_", ""]
+            output += [f"{authors}. **{title}.** _{ref}_", ""]
 
     write_file(output_dir / "bibliography.md", "\n".join(output))
 
 
 # ======================================================================================
-def build_input_reference(cp2k_input_xml_fn: str, output_dir: Path) -> None:
-    tree = ET.parse(cp2k_input_xml_fn)
-    root = tree.getroot()
+def build_input_reference(root: ET.Element, output_dir: Path) -> None:
     num_files_written = process_section(root, ("CP2K_INPUT",), False, output_dir)
 
     # Build landing page.

@@ -24,18 +24,21 @@
 MODULE reference_manager
    USE kinds,                           ONLY: default_string_length
    USE message_passing,                 ONLY: mp_para_env_type
-   USE string_utilities,                ONLY: uppercase
+   USE string_utilities,                ONLY: substitute_special_xml_tokens,&
+                                              uppercase
    USE util,                            ONLY: sort
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
 
-   PUBLIC ::  print_reference, print_all_references, cite_reference
-   PUBLIC ::  collect_citations_from_ranks
+   PUBLIC :: cite_reference
+   PUBLIC :: collect_citations_from_ranks
+   PUBLIC :: print_cited_references
+   PUBLIC :: export_references_as_xml
 
-   INTEGER, PUBLIC, PARAMETER :: print_format_isi = 101, &
-                                 print_format_journal = 102, &
-                                 print_format_html = 103
+   PUBLIC :: add_reference          ! use this one only in bibliography.F
+   PUBLIC :: remove_all_references  ! use only in f77_interface.F
+   PUBLIC :: get_citation_key       ! a string key describing the reference (e.g. Kohn1965b)
 
    PRIVATE
 
@@ -49,7 +52,6 @@ MODULE reference_manager
    INTEGER, PARAMETER :: ISI_length = 128
 
    ! the way we store a reference, should remain fully private
-! **************************************************************************************************
    TYPE reference_type
       PRIVATE
       ! the reference in a format as returned by the web of science
@@ -63,18 +65,13 @@ MODULE reference_manager
    END TYPE reference_type
 
    ! useful to build arrays
-! **************************************************************************************************
    TYPE reference_p_type
       TYPE(reference_type), POINTER :: ref => NULL()
    END TYPE
 
-   ! thebibliography
+   ! the bibliography
    INTEGER, SAVE :: nbib = 0
    TYPE(reference_p_type), DIMENSION(max_reference) :: thebib
-
-   PUBLIC :: add_reference, & ! use this one only in bibliography.F
-             remove_all_references, & ! use only in f77_interface.F
-             get_citation_key         ! a string key describing the reference (e.g. Kohn1965b)
 
 CONTAINS
 
@@ -211,135 +208,38 @@ CONTAINS
          DEALLOCATE (thebib(i)%ref)
       END DO
    END SUBROUTINE remove_all_references
-!****f* reference_manager/print_all_references *
 
 ! **************************************************************************************************
-!> \brief printout of all references in a specific format
-!>      optionally printing only those that are actually cited
-!>      during program execution
-!> \param cited_only print only those marked as cited
-!> \param sorted sort entries most recent first according to the date,
-!>              otherways sort with respect to key
-!> \param FORMAT see module parameters print_format_XXXXXXXXX
+!> \brief printout of all cited references in the journal format sorted by publication year
 !> \param unit ...
-!> \param list optionally, output a sub-list only
 !> \par History
-!>      08.2007 Joost VandeVondele [ ]
+!>      08.2007 Joost VandeVondele
+!>      07.2024 Ole Schuett
 ! **************************************************************************************************
-   SUBROUTINE print_all_references(cited_only, sorted, FORMAT, unit, list)
-      LOGICAL, INTENT(IN)                                :: cited_only, sorted
-      INTEGER, INTENT(IN)                                :: FORMAT, unit
-      INTEGER, DIMENSION(:), INTENT(IN), OPTIONAL        :: list
+   SUBROUTINE print_cited_references(unit)
+      INTEGER, INTENT(IN)                                :: unit
 
-      INTEGER                                            :: I, irecord, nref
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: indx, irank, ival
+      INTEGER                                            :: i
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: irank, ival
 
-! we'll sort the references wrt to the publication year
-! the most recent first, publications without a year get last
+      ALLOCATE (ival(nbib), irank(nbib))
 
-      IF (PRESENT(list)) THEN
-         nref = SIZE(list)
-      ELSE
-         nref = nbib
-      END IF
-
-      ALLOCATE (ival(nref))
-      ALLOCATE (irank(nref))
-      ALLOCATE (indx(nref))
-
-      IF (PRESENT(list)) THEN
-         indx(:) = list
-      ELSE
-         DO I = 1, nref
-            indx(I) = I
-         END DO
-      END IF
-
-      DO I = 1, nref
-         irank(I) = I
+      ! we'll sort the references wrt to the publication year
+      ! the most recent first, publications without a year get last
+      DO i = 1, nbib
+         irank(i) = i
+         ival(i) = -get_epoch(thebib(i)%ref%ISI_record)
       END DO
+      CALL sort(ival, nbib, irank)
 
-      IF (sorted) THEN
-         DO I = 1, nref
-            ival(I) = -get_epoch(thebib(indx(I))%ref%ISI_record)
-         END DO
-      ELSE
-         DO I = 1, nref
-            ival(I) = indx(I)
-         END DO
-      END IF
-      CALL sort(ival, nref, irank)
-
-      SELECT CASE (FORMAT)
-      CASE (print_format_isi)
-      CASE (print_format_journal)
-         WRITE (unit, '(A)') ""
-      CASE (print_format_html)
-         WRITE (unit, '(A)') '<TABLE border="1">'
-      CASE DEFAULT
-         CPABORT("print_reference: wrong format")
-      END SELECT
-
-      DO I = 1, nref
-         irecord = indx(irank(I))
-         IF (.NOT. cited_only .OR. thebib(irecord)%ref%is_cited) THEN
-            SELECT CASE (FORMAT)
-            CASE (print_format_isi)
-            CASE (print_format_journal)
-            CASE (print_format_html)
-               WRITE (unit, '(A)') "<TR><TD>"//'['//TRIM(thebib(irecord)%ref%citation_key)//']'//"</TD><TD>"
-            CASE DEFAULT
-               CPABORT("print_reference: wrong format")
-            END SELECT
-
-            CALL print_reference(irecord, FORMAT, unit)
-
-            SELECT CASE (FORMAT)
-            CASE (print_format_isi)
-            CASE (print_format_journal)
-               WRITE (unit, '(A)') ""
-            CASE (print_format_html)
-               WRITE (unit, '(A)') '</TD></TR>'
-            CASE DEFAULT
-               CPABORT("print_reference: wrong format")
-            END SELECT
+      DO i = 1, nbib
+         IF (thebib(irank(i))%ref%is_cited) THEN
+            CALL print_reference_journal(key=irank(i), unit=unit)
+            WRITE (unit, '(A)') ""
          END IF
       END DO
-      IF (FORMAT .EQ. print_format_html) THEN
-         WRITE (unit, '(A)') "</TABLE>"
-      END IF
 
-   END SUBROUTINE print_all_references
-!****f* reference_manager/print_reference *
-
-! **************************************************************************************************
-!> \brief printout of a specified reference to a given unit in a selectable format
-!> \param key as returned from add_reference
-!> \param FORMAT see module parameters print_format_XXXXXXXXX
-!> \param unit ...
-!> \par History
-!>      08.2007 Joost VandeVondele [ ]
-! **************************************************************************************************
-   SUBROUTINE print_reference(key, FORMAT, unit)
-      INTEGER, INTENT(IN)                                :: key, FORMAT, unit
-
-      INTEGER                                            :: I
-
-      IF (key < 1 .OR. key > max_reference) CPABORT("citation key out of range")
-
-      SELECT CASE (FORMAT)
-      CASE (print_format_isi)
-         DO I = 1, SIZE(thebib(key)%ref%ISI_record)
-            WRITE (unit, '(T2,A)') TRIM(thebib(key)%ref%ISI_record(I))
-         END DO
-      CASE (print_format_journal)
-         CALL print_reference_journal(key, unit)
-      CASE (print_format_html)
-         CALL print_reference_html(key, unit)
-      CASE DEFAULT
-         CPABORT("print_reference: wrong format")
-      END SELECT
-   END SUBROUTINE print_reference
+   END SUBROUTINE print_cited_references
 
 ! **************************************************************************************************
 !> \brief prints a reference in a journal style citation format,
@@ -424,68 +324,52 @@ CONTAINS
    END SUBROUTINE print_reference_journal
 
 ! **************************************************************************************************
-!> \brief prints a reference in a journal style citation format,
-!>      adding 'beautifying' html tags, and a link to the journal
-!>      using the DOI
-!> \param key ...
+!> \brief Exports all references as XML.
 !> \param unit ...
-!> \par History
-!>      08.2007 created [Joost VandeVondele]
+!> \author Ole Schuett
 ! **************************************************************************************************
-   SUBROUTINE print_reference_html(key, unit)
-      INTEGER, INTENT(IN)                                :: key, unit
+   SUBROUTINE export_references_as_xml(unit)
+      INTEGER, INTENT(IN)                                :: unit
 
       CHARACTER(LEN=ISI_length)                          :: author, title
-      CHARACTER(LEN=ISI_length*4)                        :: journal
-      INTEGER                                            :: iauthor, ititle, line
+      INTEGER                                            :: i, line
 
-! write the author list
+      DO i = 1, nbib
+         WRITE (unit, '(T2,A)') '<REFERENCE key="'//TRIM(thebib(i)%ref%citation_key)//'">'
 
-      WRITE (unit, '(T2,A,I0,A)', ADVANCE="NO") '<A NAME="reference_', key, '">'
-      line = 1; iauthor = 0
-      author = get_next_author(thebib(key)%ref%ISI_record, line)
-      DO WHILE (author .NE. "")
-         iauthor = iauthor + 1
-         IF (iauthor .NE. 1) WRITE (unit, '(A)', ADVANCE="NO") "; "
-         WRITE (unit, '(A)', ADVANCE="NO") TRIM(author)
-         author = get_next_author(thebib(key)%ref%ISI_record, line)
+         ! Authors
+         line = 1
+         DO WHILE (.TRUE.)
+            author = get_next_author(thebib(i)%ref%ISI_record, line)
+            IF (LEN_TRIM(author) == 0) EXIT
+            WRITE (unit, '(T3,A)') '<AUTHOR>'//TRIM(author)//'</AUTHOR>'
+         END DO
+
+         ! DOI, journal, volume (issue), pages (year).
+         WRITE (unit, '(T3,A)') '<DOI>'//TRIM(substitute_special_xml_tokens(thebib(i)%ref%DOI))//'</DOI>'
+         WRITE (unit, '(T3,A)') '<SOURCE>'//TRIM(get_source(thebib(i)%ref%ISI_record))//'</SOURCE>'
+         WRITE (unit, '(T3,A)') '<VOLUME>'//TRIM(get_volume(thebib(i)%ref%ISI_record))//'</VOLUME>'
+         WRITE (unit, '(T3,A)') '<ISSUE>'//TRIM(get_issue(thebib(i)%ref%ISI_record))//'</ISSUE>'
+         WRITE (unit, '(T3,A)') '<PAGES>'//TRIM(get_pages(thebib(i)%ref%ISI_record))//'</PAGES>'
+         WRITE (unit, '(T3,A)') '<YEAR>'//TRIM(get_year(thebib(i)%ref%ISI_record))//'</YEAR>'
+         WRITE (unit, '(T3,A)') '<MONTH>'//TRIM(get_month(thebib(i)%ref%ISI_record))//'</MONTH>'
+         WRITE (unit, '(T3,A)') '<DAY>'//TRIM(ADJUSTL(get_day(thebib(i)%ref%ISI_record)))//'</DAY>'
+
+         ! Title
+         line = 1
+         title = get_next_title(thebib(i)%ref%ISI_record, line)
+         WRITE (unit, '(T3,A)', ADVANCE='NO') '<TITLE>'//TRIM(title)
+         DO WHILE (.TRUE.)
+            title = ADJUSTL(get_next_title(thebib(i)%ref%ISI_record, line))
+            IF (LEN_TRIM(title) == 0) EXIT
+            WRITE (unit, '(1X,A)', ADVANCE="NO") TRIM(title)
+         END DO
+         WRITE (unit, '(A)') '</TITLE>'
+
+         WRITE (unit, '(T2,A)') '</REFERENCE>'
       END DO
-      IF (iauthor > 0) WRITE (unit, '(A)') ".<br>"
 
-      ! DOI
-      IF (thebib(key)%ref%DOI .NE. "") THEN
-         WRITE (unit, '(T2,A)', ADVANCE="NO") '<A HREF="https://doi.org/'//TRIM(thebib(key)%ref%DOI)//'">'
-      END IF
-      ! Journal, volume (issue), pages (year).
-      journal = TRIM(get_source(thebib(key)%ref%ISI_record))
-      IF (get_volume(thebib(key)%ref%ISI_record) .NE. "") THEN
-         journal = TRIM(journal)//", "//get_volume(thebib(key)%ref%ISI_record)
-         IF (get_issue(thebib(key)%ref%ISI_record) .NE. "") THEN
-            journal = TRIM(journal)//" ("//TRIM(get_issue(thebib(key)%ref%ISI_record))//")"
-         END IF
-      END IF
-      journal = TRIM(journal)//", "//get_pages(thebib(key)%ref%ISI_record)
-      IF (get_year(thebib(key)%ref%ISI_record) .NE. "") THEN
-         journal = TRIM(journal)//" ("//TRIM(get_year(thebib(key)%ref%ISI_record))//")."
-      END IF
-      WRITE (unit, '(A)', ADVANCE="NO") TRIM(journal)
-      IF (thebib(key)%ref%DOI .NE. "") THEN
-         WRITE (unit, '(A)', ADVANCE="NO") '</A>'
-      END IF
-      WRITE (unit, '(A)') "</A><br>"
-
-      ! Title
-      line = 1; ititle = 0
-      title = get_next_title(thebib(key)%ref%ISI_record, line)
-      DO WHILE (title .NE. "")
-         ititle = ititle + 1
-         IF (ititle .NE. 1) WRITE (unit, '(A)') ""
-         WRITE (unit, '(T2,A)', ADVANCE="NO") TRIM(title)
-         title = get_next_title(thebib(key)%ref%ISI_record, line)
-      END DO
-      IF (ititle > 0) WRITE (unit, '(A)') "."
-
-   END SUBROUTINE print_reference_html
+   END SUBROUTINE export_references_as_xml
 
 ! **************************************************************************************************
 !> \brief returns the corresponding fields from an ISI record.
