@@ -121,7 +121,7 @@ MODULE cp_units
    PUBLIC :: cp_unit_create, cp_unit_release, &
              cp_unit_to_cp2k, cp_unit_from_cp2k, cp_unit_desc, &
              cp_unit_set_create, cp_unit_set_release, &
-             cp_unit_to_cp2k1, cp_unit_from_cp2k1, cp_unit_compatible, print_all_units
+             cp_unit_to_cp2k1, cp_unit_from_cp2k1, cp_unit_compatible, export_units_as_xml
 
 ! **************************************************************************************************
 !> \brief stores a unit
@@ -1308,88 +1308,46 @@ CONTAINS
    END SUBROUTINE cp_unit_set_release
 
 ! **************************************************************************************************
-!> \brief Prints info on all available units in CP2K
-!> \param unit_nr ...
-!> \author Teodoro Laino [tlaino] - University of Zurich 10.2008
+!> \brief Exports all available units as XML.
+!> \param iw ...
+!> \author Ole Schuett
 ! **************************************************************************************************
-   SUBROUTINE print_all_units(unit_nr)
-      INTEGER, INTENT(IN)                                :: unit_nr
+   SUBROUTINE export_units_as_xml(iw)
+      INTEGER, INTENT(IN)                                :: iw
 
-      CALL print_section_unit(unit_label="Undefined", description="If the default unit "// &
-                              "of a keyword is explicitly undefined, all possible units of measurement can "// &
-                              "be used to define a proper value.", &
-                              units_set=s2a("internal_cp2k"), unit_nr=unit_nr)
+      CALL format_units_as_xml("energy", s2a("hartree", "wavenumber_e", "joule", "kcalmol", &
+                                             "kjmol", "Ry", "eV", "keV", "K_e"), iw)
+      CALL format_units_as_xml("length", s2a("bohr", "m", "pm", "nm", "angstrom"), iw)
+      CALL format_units_as_xml("temperature", s2a("K", "au_temp"), iw)
+      CALL format_units_as_xml("pressure", s2a("bar", "atm", "kbar", "Pa", "MPa", "GPa", "au_p"), iw)
+      CALL format_units_as_xml("angle", s2a("rad", "deg"), iw)
+      CALL format_units_as_xml("time", s2a("s", "fs", "ps", "au_t", "wavenumber_t"), iw)
+      CALL format_units_as_xml("mass", s2a("kg", "amu", "m_e"), iw)
+      CALL format_units_as_xml("potential", s2a("volt", "au_pot"), iw)
+      CALL format_units_as_xml("force", s2a("N", "Newton", "mN", "mNewton", "au_f"), iw)
 
-      CALL print_section_unit(unit_label="Energy", description="Possible units of measurement "// &
-                              "for Energies. The [energy] entry acts like a dummy flag (assumes the unit of "// &
-                              "measurement of energy is in internal units), useful for dimensional analysis.", &
-                              units_set=s2a("hartree", "wavenumber_e", "joule", "kcalmol", "kjmol", "Ry", &
-                                            "eV", "keV", "K_e", "energy"), unit_nr=unit_nr)
-
-      CALL print_section_unit(unit_label="Length", description="Possible units of measurement "// &
-                              "for Lengths. The [length] entry acts like a dummy flag (assumes the unit of "// &
-                              "measurement of length is in internal units), useful for dimensional analysis.", &
-                              units_set=s2a("bohr", "m", "pm", "nm", "angstrom", "length"), unit_nr=unit_nr)
-
-      CALL print_section_unit(unit_label="Temperature", description="Possible units of measurement "// &
-                              "for Temperature. The [temperature] entry acts like a dummy flag (assumes the unit of "// &
-                              "measurement of temperature is in internal units), useful for dimensional analysis.", &
-                              units_set=s2a("K", "au_temp", "temperature"), unit_nr=unit_nr)
-
-      CALL print_section_unit(unit_label="Pressure", description="Possible units of measurement "// &
-                              "for Pressure. The [pressure] entry acts like a dummy flag (assumes the unit of "// &
-                              "measurement of pressure is in internal units), useful for dimensional analysis.", &
-                              units_set=s2a("bar", "atm", "kbar", "Pa", "MPa", "GPa", "au_p", "pressure"), &
-                              unit_nr=unit_nr)
-
-      CALL print_section_unit(unit_label="Angle", description="Possible units of measurement "// &
-                              "for Angles. The [angle] entry acts like a dummy flag (assumes the unit of "// &
-                              "measurement of angle is in internal units), useful for dimensional analysis.", &
-                              units_set=s2a("rad", "deg", "angle"), unit_nr=unit_nr)
-
-      CALL print_section_unit(unit_label="Time", description="Possible units of measurement "// &
-                              "for Time. The [time] entry acts like a dummy flag (assumes the unit of "// &
-                              "measurement of time is in internal units), useful for dimensional analysis.", &
-                              units_set=s2a("s", "fs", "ps", "au_t", "wavenumber_t", "time"), unit_nr=unit_nr)
-
-      CALL print_section_unit(unit_label="Mass", description="Possible units of measurement "// &
-                              "for Masses. The [mass] entry acts like a dummy flag (assumes the unit of "// &
-                              "measurement of mass is in internal units), useful for dimensional analysis.", &
-                              units_set=s2a("kg", "amu", "m_e", "mass"), unit_nr=unit_nr)
-
-      CALL print_section_unit(unit_label="Potential", description="Possible units of measurement "// &
-                              "for potentials. The [potential] entry acts like a dummy flag (assumes the unit of "// &
-                              "measurement of potential is in internal units), useful for dimensional analysis.", &
-                              units_set=s2a("volt", "au_pot", "potential"), unit_nr=unit_nr)
-
-      CALL print_section_unit(unit_label="Force", description="Possible units of measurement "// &
-                              "for forces. The [force] entry acts like a dummy flag (assumes the unit of "// &
-                              "measurement of force is in internal units), useful for dimensional analysis.", &
-                              units_set=s2a("N", "Newton", "mN", "mNewton", "au_f", "force"), unit_nr=unit_nr)
-
-   END SUBROUTINE print_all_units
+   END SUBROUTINE export_units_as_xml
 
 ! **************************************************************************************************
-!> \brief Prints info on all available units in CP2K - Low level
-!> \param unit_label ...
-!> \param description ...
+!> \brief Format units as xml.
+!> \param unit_kind ...
 !> \param units_set ...
-!> \param unit_nr ...
-!> \author Teodoro Laino [tlaino] - University of Zurich 10.2008
+!> \param iw ...
+!> \author Ole Schuett
 ! **************************************************************************************************
-   SUBROUTINE print_section_unit(unit_label, description, units_set, unit_nr)
-      CHARACTER(LEN=*), INTENT(IN)                       :: unit_label, description
+   SUBROUTINE format_units_as_xml(unit_kind, units_set, iw)
+      CHARACTER(LEN=*), INTENT(IN)                       :: unit_kind
       CHARACTER(LEN=*), DIMENSION(:), INTENT(IN)         :: units_set
-      INTEGER, INTENT(IN)                                :: unit_nr
+      INTEGER, INTENT(IN)                                :: iw
 
       INTEGER                                            :: i
 
-      WRITE (unit_nr, FMT='(A)') "<H2>"//TRIM(unit_label)//"</H2>"
-      WRITE (unit_nr, FMT='(A)') description//"<BR><DL>"
+      WRITE (iw, FMT='(T2,A)') '<UNIT_KIND name="'//TRIM(unit_kind)//'">'
       DO i = 1, SIZE(units_set)
-         WRITE (unit_nr, FMT='(A)') "<DD><B>"//TRIM(units_set(i))//"</B></DD>"
+         WRITE (iw, FMT='(T3,A)') '<UNIT>'//TRIM(units_set(i))//'</UNIT>'
       END DO
-      WRITE (unit_nr, FMT='(A)') "</DL><P>"
-   END SUBROUTINE print_section_unit
+      WRITE (iw, FMT='(T3,A)') '<UNIT>'//TRIM(unit_kind)//'</UNIT>' ! internal unit
+      WRITE (iw, FMT='(T2,A)') '</UNIT_KIND>'
+   END SUBROUTINE format_units_as_xml
 
 END MODULE cp_units

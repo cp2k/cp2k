@@ -43,7 +43,7 @@ MODULE cp2k_runs
    USE cp_units,                        ONLY: cp_unit_set_create,&
                                               cp_unit_set_release,&
                                               cp_unit_set_type,&
-                                              print_all_units
+                                              export_units_as_xml
    USE dbm_api,                         ONLY: dbm_library_print_stats
    USE environment,                     ONLY: cp2k_finalize,&
                                               cp2k_init,&
@@ -914,6 +914,7 @@ CONTAINS
          " <COMPILE_REVISION>"//TRIM(compile_revision)//"</COMPILE_REVISION>"
 
       CALL export_references_as_xml(unit_number)
+      CALL export_units_as_xml(unit_number)
 
       DO i = 1, root_section%n_subsections
          CALL write_section_xml(root_section%subsections(i)%section, 1, unit_number)
@@ -922,15 +923,6 @@ CONTAINS
       WRITE (UNIT=unit_number, FMT="(A)") "</CP2K_INPUT>"
       CALL close_file(unit_number=unit_number)
       CALL section_release(root_section)
-
-      ! Units
-      CALL open_file(unit_number=unit_number, file_name="units.html", &
-                     file_action="WRITE", file_status="REPLACE")
-      WRITE (unit_number, FMT='(A)') "<HTML><BODY><HEAD><TITLE>The cp2k units list</TITLE>"
-      WRITE (unit_number, FMT='(A)') "<H1>CP2K Available Units of Measurement</H1>"
-      CALL print_all_units(unit_nr=unit_number)
-      WRITE (unit_number, FMT='(A)') "</BODY></HTML>"
-      CALL close_file(unit_number=unit_number)
 
    END SUBROUTINE write_xml_file
 

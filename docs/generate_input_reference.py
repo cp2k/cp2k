@@ -27,6 +27,7 @@ def main() -> None:
     locale.setlocale(locale.LC_ALL, locale="C.UTF8")  # needed for strptime
     root = ET.parse(cp2k_input_xml_fn).getroot()
     build_bibliography(root, output_dir)
+    build_units_reference(root, output_dir)
     build_input_reference(root, output_dir)
 
 
@@ -71,6 +72,28 @@ def build_bibliography(root: ET.Element, output_dir: Path) -> None:
             output += [f"{authors}. **{title}.** _{ref}_", ""]
 
     write_file(output_dir / "bibliography.md", "\n".join(output))
+
+
+# ======================================================================================
+def build_units_reference(root: ET.Element, output_dir: Path) -> None:
+    output = []
+    output += ["%", "% This file was created by generate_input_reference.py", "%"]
+    output += ["# Units", "", "Units of measurement available in CP2K's input.", ""]
+
+    for unit_kind in root.findall("UNIT_KIND"):
+        kind = unit_kind.attrib.get("name")
+        assert kind
+        article = "an" if kind[0] in "aeiou" else "a"
+        output += [f"## {kind.capitalize()}", ""]
+        output += [f"Possible units of measurement for {article} {kind}."]
+        output += [f"The `[{kind}]` entry acts like a dummy flag (assumes the"]
+        output += [f"unit of measurement of {kind} is in internal units),"]
+        output += [f"useful for dimensional analysis.", ""]
+        for unit in unit_kind.findall("UNIT"):
+            output += [f"- `{get_text(unit)}`"]
+        output += [""]
+
+    write_file(output_dir / "units.md", "\n".join(output))
 
 
 # ======================================================================================
