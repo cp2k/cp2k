@@ -105,7 +105,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT), &
          OPTIONAL                                        :: fgshell_coulomb, fgcore_coulomb
       LOGICAL, INTENT(IN)                                :: use_virial
-      REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: charges
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN), OPTIONAL  :: charges
       TYPE(atprop_type), POINTER                         :: atprop
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'spme_evaluate'
@@ -469,7 +469,7 @@ CONTAINS
       TYPE(ewald_pw_type), POINTER                       :: ewald_pw
       TYPE(cell_type), POINTER                           :: box
       TYPE(particle_type), DIMENSION(:), INTENT(IN)      :: particle_set_a
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: charges_a
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: charges_a
       TYPE(particle_type), DIMENSION(:), INTENT(IN)      :: particle_set_b
       REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: potential
 
@@ -610,9 +610,9 @@ CONTAINS
       TYPE(ewald_pw_type), POINTER                       :: ewald_pw
       TYPE(cell_type), POINTER                           :: box
       TYPE(particle_type), DIMENSION(:), INTENT(IN)      :: particle_set_a
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: charges_a
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: charges_a
       TYPE(particle_type), DIMENSION(:), INTENT(IN)      :: particle_set_b
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: charges_b
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: charges_b
       REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: forces_b
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'spme_forces'
@@ -770,7 +770,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: p
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(OUT)     :: rhos
       LOGICAL, INTENT(IN)                                :: is_core, is_shell, unit_charge
-      REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: charges
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN), OPTIONAL  :: charges
 
       INTEGER                                            :: nbox
       LOGICAL                                            :: use_charge_array
@@ -780,7 +780,6 @@ CONTAINS
 
       NULLIFY (shell)
       use_charge_array = PRESENT(charges)
-      IF (use_charge_array) use_charge_array = ASSOCIATED(charges)
       IF (is_core .AND. is_shell) THEN
          CPABORT("Shell-model: cannot be core and shell simultaneously")
       END IF
@@ -823,7 +822,7 @@ CONTAINS
       TYPE(greens_fn_type), INTENT(IN)                   :: green
       INTEGER, INTENT(IN)                                :: p
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(OUT)     :: rhos
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: charges
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: charges
 
       INTEGER                                            :: nbox
       REAL(KIND=dp)                                      :: q
