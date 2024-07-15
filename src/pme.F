@@ -107,7 +107,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT), &
          OPTIONAL                                        :: fgshell_coulomb, fgcore_coulomb
       LOGICAL, INTENT(IN)                                :: use_virial
-      REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: charges
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN), OPTIONAL  :: charges
       TYPE(atprop_type), POINTER                         :: atprop
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'pme_evaluate'
@@ -504,7 +504,7 @@ CONTAINS
       LOGICAL, OPTIONAL                                  :: is1_core, is2_core, is1_shell, is2_shell
       TYPE(particle_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: core_particle_set
-      REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: charges
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN), OPTIONAL  :: charges
 
       COMPLEX(KIND=dp), DIMENSION(:), POINTER            :: ex1, ex2, ey1, ey2, ez1, ez2
       INTEGER, DIMENSION(:), POINTER                     :: center1, center2
@@ -519,7 +519,6 @@ CONTAINS
 
       NULLIFY (shell)
       use_charge_array = PRESENT(charges)
-      IF (use_charge_array) use_charge_array = ASSOCIATED(charges)
       my_is1_core = .FALSE.
       my_is2_core = .FALSE.
       IF (PRESENT(is1_core)) my_is1_core = is1_core
@@ -647,7 +646,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: p1, p2
       TYPE(pw_r3d_rs_type), INTENT(INOUT)                :: rhos1, rhos2
       LOGICAL, OPTIONAL                                  :: is1_core, is2_core, is1_shell, is2_shell
-      REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: charges
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN), OPTIONAL  :: charges
 
       COMPLEX(KIND=dp), DIMENSION(:), POINTER            :: ex1, ex2, ey1, ey2, ez1, ez2
       LOGICAL                                            :: my_is1_core, my_is1_shell, my_is2_core, &
@@ -660,7 +659,6 @@ CONTAINS
 
       NULLIFY (shell)
       use_charge_array = PRESENT(charges)
-      IF (use_charge_array) use_charge_array = ASSOCIATED(charges)
       my_is1_core = .FALSE.
       my_is2_core = .FALSE.
       IF (PRESENT(is1_core)) my_is1_core = is1_core
