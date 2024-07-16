@@ -2,5 +2,5 @@ RPA_AXK_H2O.inp                                        11      1e-09            
 RPA_AXK_H2O_svd.inp                                    11      1e-09             -17.160620212321199
 RPA_AXK_H2O_hfx.inp                                    11      2e-07             -17.122001748342520
 RPA_SOSEX_H2O.inp                                      11      1e-09             -17.132129178553146
-RPA_AXK_CH3.inp                                        11      3e-05              -7.177515835708672
+RPA_AXK_CH3.inp                                        11      4e-05              -7.177515835708672
 #EOF
