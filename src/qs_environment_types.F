@@ -832,7 +832,8 @@ CONTAINS
    SUBROUTINE init_qs_env(qs_env, globenv)
 
       TYPE(qs_environment_type), INTENT(INOUT)           :: qs_env
-      TYPE(global_environment_type), OPTIONAL, POINTER   :: globenv
+      TYPE(global_environment_type), INTENT(IN), &
+         OPTIONAL                                        :: globenv
 
       NULLIFY (qs_env%ls_scf_env)
       NULLIFY (qs_env%almo_scf_env)
@@ -1349,7 +1350,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE qs_env_create(qs_env, globenv)
       TYPE(qs_environment_type), INTENT(OUT)             :: qs_env
-      TYPE(global_environment_type), OPTIONAL, POINTER   :: globenv
+      TYPE(global_environment_type), INTENT(IN), &
+         OPTIONAL                                        :: globenv
 
       CALL init_qs_env(qs_env, globenv=globenv)
    END SUBROUTINE qs_env_create
@@ -1539,6 +1541,7 @@ CONTAINS
       END IF
       IF (ASSOCIATED(qs_env%admm_env)) THEN
          CALL admm_env_release(qs_env%admm_env)
+         DEALLOCATE (qs_env%admm_env)
       END IF
       IF (ASSOCIATED(qs_env%lri_env)) THEN
          CALL lri_env_release(qs_env%lri_env)
@@ -1756,6 +1759,7 @@ CONTAINS
       END IF
       IF (ASSOCIATED(qs_env%admm_env)) THEN
          CALL admm_env_release(qs_env%admm_env)
+         DEALLOCATE (qs_env%admm_env)
       END IF
       IF (ASSOCIATED(qs_env%lri_env)) THEN
          CALL lri_env_release(qs_env%lri_env)

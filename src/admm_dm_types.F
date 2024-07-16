@@ -60,13 +60,12 @@ CONTAINS
 !> \author Ole Schuett
 ! **************************************************************************************************
    SUBROUTINE admm_dm_create(admm_dm, admm_control, nspins, natoms)
-      TYPE(admm_dm_type), POINTER                        :: admm_dm
+      TYPE(admm_dm_type), INTENT(OUT)                    :: admm_dm
       TYPE(admm_control_type), POINTER                   :: admm_control
       INTEGER, INTENT(IN)                                :: nspins, natoms
 
       INTEGER                                            :: i, iatom, iblock, j, jatom
 
-      ALLOCATE (admm_dm)
       ! copy settings from admm_control
       admm_dm%purify = (admm_control%purification_method == do_admm_purify_mcweeny)
       admm_dm%method = admm_control%method
@@ -96,9 +95,7 @@ CONTAINS
 !> \author Ole Schuett
 ! **************************************************************************************************
    SUBROUTINE admm_dm_release(admm_dm)
-      TYPE(admm_dm_type), POINTER                        :: admm_dm
-
-      IF (.NOT. ASSOCIATED(admm_dm)) RETURN
+      TYPE(admm_dm_type), INTENT(INOUT)                  :: admm_dm
 
       IF (ASSOCIATED(admm_dm%matrix_a)) THEN
          CALL dbcsr_release(admm_dm%matrix_a)
@@ -109,7 +106,6 @@ CONTAINS
          DEALLOCATE (admm_dm%block_map)
 
       DEALLOCATE (admm_dm%mcweeny_history)
-      DEALLOCATE (admm_dm)
 
    END SUBROUTINE admm_dm_release
 

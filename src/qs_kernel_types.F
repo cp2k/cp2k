@@ -112,6 +112,7 @@ CONTAINS
          END IF
          IF (ASSOCIATED(kernel_env%admm_env)) THEN
             CALL admm_env_release(kernel_env%admm_env)
+            DEALLOCATE (kernel_env%admm_env)
          END IF
          IF (ASSOCIATED(kernel_env%admm_control)) THEN
             CALL admm_control_release(kernel_env%admm_control)

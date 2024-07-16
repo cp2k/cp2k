@@ -304,6 +304,7 @@ CONTAINS
             ! hfx section
             full_kernel_env%hfxsr_section => hfxsr_section
             !
+            ALLOCATE (full_kernel_env%admm_env)
             CALL aux_admm_init(qs_env, mos, full_kernel_env%admm_env, &
                                full_kernel_env%admm_control, "TDA_HFX")
             CALL get_admm_env(full_kernel_env%admm_env, mos_aux_fit=mos_aux_fit, &

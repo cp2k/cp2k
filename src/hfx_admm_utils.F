@@ -217,6 +217,7 @@ CONTAINS
          ! setup admm environment
          CALL get_qs_env(qs_env, input=input, natom=natoms, qs_kind_set=qs_kind_set)
          CALL get_qs_kind_set(qs_kind_set, nsgf=nao_aux_fit, basis_type="AUX_FIT")
+         ALLOCATE (admm_env)
          CALL admm_env_create(admm_env, dft_control%admm_control, mos, para_env, natoms, nao_aux_fit)
          CALL set_qs_env(qs_env, admm_env=admm_env)
          xc_section => section_vals_get_subs_vals(input, "DFT%XC")
@@ -375,6 +376,7 @@ CONTAINS
       END IF
 
       IF (dft_control%do_admm_dm .AND. .NOT. ASSOCIATED(admm_env%admm_dm)) THEN
+         ALLOCATE (admm_env%admm_dm)
          CALL admm_dm_create(admm_env%admm_dm, dft_control%admm_control, nspins=dft_control%nspins, natoms=natoms)
       END IF
 
@@ -397,7 +399,7 @@ CONTAINS
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
-      TYPE(admm_type), POINTER                           :: admm_env
+      TYPE(admm_type), INTENT(OUT)                       :: admm_env
       TYPE(admm_control_type), POINTER                   :: admm_control
       CHARACTER(LEN=*)                                   :: basis_type
 
@@ -419,8 +421,6 @@ CONTAINS
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
 
       CALL timeset(routineN, handle)
-
-      CPASSERT(.NOT. ASSOCIATED(admm_env))
 
       CALL get_qs_env(qs_env, &
                       para_env=para_env, &
@@ -584,7 +584,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE admm_init_hamiltonians(admm_env, qs_env, aux_basis_type)
 
-      TYPE(admm_type), POINTER                           :: admm_env
+      TYPE(admm_type), INTENT(INOUT)                     :: admm_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
       CHARACTER(len=*)                                   :: aux_basis_type
 
@@ -740,7 +740,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE admm_update_s_mstruct(admm_env, qs_env, aux_basis_type)
 
-      TYPE(admm_type), POINTER                           :: admm_env
+      TYPE(admm_type), INTENT(INOUT)                     :: admm_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
       CHARACTER(len=*)                                   :: aux_basis_type
 
@@ -890,7 +890,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE admm_alloc_ks_matrices(admm_env, qs_env)
 
-      TYPE(admm_type), POINTER                           :: admm_env
+      TYPE(admm_type), INTENT(INOUT)                     :: admm_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
       CHARACTER(len=*), PARAMETER :: routineN = 'admm_alloc_ks_matrices'
@@ -1459,7 +1459,7 @@ CONTAINS
    SUBROUTINE create_admm_xc_section(x_data, xc_section, admm_env)
       TYPE(hfx_type), DIMENSION(:, :), POINTER           :: x_data
       TYPE(section_vals_type), POINTER                   :: xc_section
-      TYPE(admm_type), POINTER                           :: admm_env
+      TYPE(admm_type), INTENT(INOUT)                     :: admm_env
 
       LOGICAL, PARAMETER                                 :: debug_functional = .FALSE.
 #if defined (__LIBXC)

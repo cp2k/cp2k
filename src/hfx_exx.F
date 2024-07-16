@@ -552,13 +552,14 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: xc_section_aux, xc_section_primary
 
       INTEGER                                            :: natom
-      TYPE(admm_type), POINTER                           :: qs_admm_env, tmp_admm_env
+      TYPE(admm_type)                                    :: tmp_admm_env
+      TYPE(admm_type), POINTER                           :: qs_admm_env
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(section_vals_type), POINTER                   :: xc_fun, xc_fun_empty, xc_section, &
                                                             xc_section_empty
 
-      NULLIFY (qs_admm_env, tmp_admm_env, para_env, xc_section, xc_section_empty, xc_fun_empty, &
+      NULLIFY (qs_admm_env, para_env, xc_section, xc_section_empty, xc_fun_empty, &
                xc_fun, dft_control)
 
       IF (ASSOCIATED(qs_env%mp2_env)) THEN

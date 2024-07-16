@@ -253,6 +253,7 @@ CONTAINS
          ! setup admm environment
          CALL get_qs_env(qs_env, input=input, natom=natoms, qs_kind_set=qs_kind_set)
          CALL get_qs_kind_set(qs_kind_set, nsgf=nao_aux_fit, basis_type="AUX_FIT")
+         ALLOCATE (admm_env)
          CALL admm_env_create(admm_env, admm_control, mos, para_env, natoms, nao_aux_fit)
          xc_section => section_vals_get_subs_vals(input, "DFT%XC")
          CALL create_admm_xc_section(x_data=qs_env%x_data, xc_section=xc_section, &
@@ -325,6 +326,7 @@ CONTAINS
       IF (.NOT. (ASSOCIATED(admm_env))) THEN
          CALL get_qs_env(qs_env, input=input, natom=natoms, dft_control=dft_control, qs_kind_set=qs_kind_set)
          CALL get_qs_kind_set(qs_kind_set, nsgf=nao_aux_fit, basis_type="AUX_FIT")
+         ALLOCATE (admm_env)
          CALL admm_env_create(admm_env, dft_control%admm_control, mos, para_env, natoms, nao_aux_fit)
          xc_section => section_vals_get_subs_vals(input, "DFT%XC")
          CALL create_admm_xc_section(x_data=qs_env%x_data, xc_section=xc_section, &
