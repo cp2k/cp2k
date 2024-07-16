@@ -1,5 +1,6 @@
 #!/bin/bash -e
 
+# TODO: hdf5 is not installed automatically.
 # TODO: Review and if possible fix shellcheck errors.
 # shellcheck disable=all
 
