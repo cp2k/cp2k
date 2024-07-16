@@ -622,7 +622,7 @@ CONTAINS
                ! Electrons
                size_1c_int = SIZE(se_kind_a%w_mpole)
                DO jint = 1, size_1c_int
-                  mpole => se_kind_a%w_mpole(jint)%mpole
+                  mpole => se_kind_a%w_mpole(jint)
                   indi = se_orbital_pointer(mpole%indi)
                   indj = se_orbital_pointer(mpole%indj)
                   fac = 1.0_dp
@@ -742,7 +742,7 @@ CONTAINS
                size_1c_int = SIZE(se_kind_a%w_mpole)
                DO jint = 1, size_1c_int
                   tmp = 0.0_dp
-                  mpole => se_kind_a%w_mpole(jint)%mpole
+                  mpole => se_kind_a%w_mpole(jint)
                   indi = se_orbital_pointer(mpole%indi)
                   indj = se_orbital_pointer(mpole%indj)
 
@@ -1391,18 +1391,18 @@ CONTAINS
                IF (nspins == 1) THEN
                   ecab = 0._dp
                   CALL fock2_1el_r3(se_kind_a, se_kind_b, ksa_block_a, ksb_block_a, pa_a, pb_a, &
-                                    ecore=ecab, e1b=se_kind_a%expns3_int(jkind)%expns3%e1b, &
-                                    e2a=se_kind_a%expns3_int(jkind)%expns3%e2a, rp=r3inv)
+                                    ecore=ecab, e1b=se_kind_a%expns3_int(jkind)%e1b, &
+                                    e2a=se_kind_a%expns3_int(jkind)%e2a, rp=r3inv)
                   ecore2 = ecore2 + ecab(1) + ecab(2)
                ELSE IF (nspins == 2) THEN
                   ecab = 0._dp
                   CALL fock2_1el_r3(se_kind_a, se_kind_b, ksa_block_a, ksb_block_a, pa_block_a, &
-                                    pb_block_a, ecore=ecab, e1b=se_kind_a%expns3_int(jkind)%expns3%e1b, &
-                                    e2a=se_kind_a%expns3_int(jkind)%expns3%e2a, rp=r3inv)
+                                    pb_block_a, ecore=ecab, e1b=se_kind_a%expns3_int(jkind)%e1b, &
+                                    e2a=se_kind_a%expns3_int(jkind)%e2a, rp=r3inv)
 
                   CALL fock2_1el_r3(se_kind_a, se_kind_b, ksa_block_b, ksb_block_b, pa_b, pb_b, &
-                                    ecore=ecab, e1b=se_kind_a%expns3_int(jkind)%expns3%e1b, &
-                                    e2a=se_kind_a%expns3_int(jkind)%expns3%e2a, rp=r3inv)
+                                    ecore=ecab, e1b=se_kind_a%expns3_int(jkind)%e1b, &
+                                    e2a=se_kind_a%expns3_int(jkind)%e2a, rp=r3inv)
                   ecore2 = ecore2 + ecab(1) + ecab(2)
                END IF
                IF (atener) THEN
@@ -1412,13 +1412,13 @@ CONTAINS
                ! Coulomb Terms
                IF (nspins == 1) THEN
                   CALL fock2C_r3(se_kind_a, se_kind_b, switch, p_block_tot_a, ksa_block_a, p_block_tot_b, &
-                                 ksb_block_a, factor=0.5_dp, w=se_kind_a%expns3_int(jkind)%expns3%w, rp=r3inv)
+                                 ksb_block_a, factor=0.5_dp, w=se_kind_a%expns3_int(jkind)%w, rp=r3inv)
                ELSE IF (nspins == 2) THEN
                   CALL fock2C_r3(se_kind_a, se_kind_b, switch, p_block_tot_a, ksa_block_a, p_block_tot_b, &
-                                 ksb_block_a, factor=1.0_dp, w=se_kind_a%expns3_int(jkind)%expns3%w, rp=r3inv)
+                                 ksb_block_a, factor=1.0_dp, w=se_kind_a%expns3_int(jkind)%w, rp=r3inv)
 
                   CALL fock2C_r3(se_kind_a, se_kind_b, switch, p_block_tot_a, ksa_block_b, p_block_tot_b, &
-                                 ksb_block_b, factor=1.0_dp, w=se_kind_a%expns3_int(jkind)%expns3%w, rp=r3inv)
+                                 ksb_block_b, factor=1.0_dp, w=se_kind_a%expns3_int(jkind)%w, rp=r3inv)
                END IF
 
                ! Compute forces if requested
@@ -1431,13 +1431,13 @@ CONTAINS
                   ! Derivatives of the One-centre One-electron terms
                   IF (nspins == 1) THEN
                      CALL dfock2_1el_r3(se_kind_a, se_kind_b, dr3inv, pa_a, pb_a, force_ab, &
-                                        se_kind_a%expns3_int(jkind)%expns3%e1b, se_kind_a%expns3_int(jkind)%expns3%e2a)
+                                        se_kind_a%expns3_int(jkind)%e1b, se_kind_a%expns3_int(jkind)%e2a)
                   ELSE IF (nspins == 2) THEN
                      CALL dfock2_1el_r3(se_kind_a, se_kind_b, dr3inv, pa_block_a, pb_block_a, force_ab, &
-                                        se_kind_a%expns3_int(jkind)%expns3%e1b, se_kind_a%expns3_int(jkind)%expns3%e2a)
+                                        se_kind_a%expns3_int(jkind)%e1b, se_kind_a%expns3_int(jkind)%e2a)
 
                      CALL dfock2_1el_r3(se_kind_a, se_kind_b, dr3inv, pa_b, pb_b, force_ab, &
-                                        se_kind_a%expns3_int(jkind)%expns3%e1b, se_kind_a%expns3_int(jkind)%expns3%e2a)
+                                        se_kind_a%expns3_int(jkind)%e1b, se_kind_a%expns3_int(jkind)%e2a)
                   END IF
 
                   ! Sum up force components
@@ -1454,13 +1454,13 @@ CONTAINS
                   force_ab = 0.0_dp
                   IF (nspins == 1) THEN
                      CALL dfock2C_r3(se_kind_a, se_kind_b, switch, p_block_tot_a, p_block_tot_b, factor=0.25_dp, &
-                                     w=se_kind_a%expns3_int(jkind)%expns3%w, drp=dr3inv, force=force_ab)
+                                     w=se_kind_a%expns3_int(jkind)%w, drp=dr3inv, force=force_ab)
                   ELSE IF (nspins == 2) THEN
                      CALL dfock2C_r3(se_kind_a, se_kind_b, switch, p_block_tot_a, p_block_tot_b, factor=0.50_dp, &
-                                     w=se_kind_a%expns3_int(jkind)%expns3%w, drp=dr3inv, force=force_ab)
+                                     w=se_kind_a%expns3_int(jkind)%w, drp=dr3inv, force=force_ab)
 
                      CALL dfock2C_r3(se_kind_a, se_kind_b, switch, p_block_tot_a, p_block_tot_b, factor=0.50_dp, &
-                                     w=se_kind_a%expns3_int(jkind)%expns3%w, drp=dr3inv, force=force_ab)
+                                     w=se_kind_a%expns3_int(jkind)%w, drp=dr3inv, force=force_ab)
                   END IF
 
                   ! Sum up force components

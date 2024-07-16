@@ -56,12 +56,11 @@ CONTAINS
          nkinds = SIZE(qs_kind_set)
          DO i = 1, nkinds
             CALL get_qs_kind(qs_kind_set(i), se_parameter=sepi)
-            check = .NOT. ASSOCIATED(sepi%expns3_int)
+            check = .NOT. ALLOCATED(sepi%expns3_int)
             CPASSERT(check)
             ALLOCATE (sepi%expns3_int(nkinds))
             DO j = 1, nkinds
-               NULLIFY (sepi%expns3_int(j)%expns3)
-               CALL semi_empirical_expns3_create(sepi%expns3_int(j)%expns3)
+               CALL semi_empirical_expns3_create(sepi%expns3_int(j))
             END DO
          END DO
 
@@ -173,13 +172,13 @@ CONTAINS
       END IF
 
       ! Copy info into the semi-empirical type (i)
-      sepi%expns3_int(jkind)%expns3%core_core = core_core
-      sepi%expns3_int(jkind)%expns3%e1b(1:sepi%natorb) = e1b(1:sepi%natorb)
-      sepi%expns3_int(jkind)%expns3%e2a(1:sepj%natorb) = e2a(1:sepj%natorb)
+      sepi%expns3_int(jkind)%core_core = core_core
+      sepi%expns3_int(jkind)%e1b(1:sepi%natorb) = e1b(1:sepi%natorb)
+      sepi%expns3_int(jkind)%e2a(1:sepj%natorb) = e2a(1:sepj%natorb)
       ! Copy info into the semi-empirical type (j)
-      sepj%expns3_int(ikind)%expns3%core_core = core_core
-      sepj%expns3_int(ikind)%expns3%e1b(1:sepj%natorb) = e2a(1:sepj%natorb)
-      sepj%expns3_int(ikind)%expns3%e2a(1:sepi%natorb) = e1b(1:sepi%natorb)
+      sepj%expns3_int(ikind)%core_core = core_core
+      sepj%expns3_int(ikind)%e1b(1:sepj%natorb) = e2a(1:sepj%natorb)
+      sepj%expns3_int(ikind)%e2a(1:sepi%natorb) = e1b(1:sepi%natorb)
 
       ! Electron-Electron contribution - sepi/sepj
       kr = 0
@@ -190,7 +189,7 @@ CONTAINS
             lk = l_index(j)
             kl = indexa(j, j)
             kr = kr + 1
-            sepi%expns3_int(jkind)%expns3%w(kr) = &
+            sepi%expns3_int(jkind)%w(kr) = &
                ijkl_low_3(sepi, sepj, ij, kl, li, li, lk, lk, 0, r, do_method_undef, coeff_int_3)
          END DO
       END DO
@@ -204,7 +203,7 @@ CONTAINS
             lk = l_index(j)
             kl = indexa(j, j)
             kr = kr + 1
-            sepj%expns3_int(ikind)%expns3%w(kr) = &
+            sepj%expns3_int(ikind)%w(kr) = &
                ijkl_low_3(sepj, sepi, ij, kl, li, li, lk, lk, 0, r, do_method_undef, coeff_int_3)
          END DO
       END DO

@@ -35,10 +35,10 @@ MODULE semi_empirical_types
                                               evolt,&
                                               kcalmol
    USE pw_pool_types,                   ONLY: pw_pool_type
-   USE semi_empirical_expns3_types,     ONLY: semi_empirical_expns3_p_type,&
-                                              semi_empirical_expns3_release
+   USE semi_empirical_expns3_types,     ONLY: semi_empirical_expns3_release,&
+                                              semi_empirical_expns3_type
    USE semi_empirical_mpole_types,      ONLY: semi_empirical_mpole_p_release,&
-                                              semi_empirical_mpole_p_type
+                                              semi_empirical_mpole_type
    USE taper_types,                     ONLY: taper_create,&
                                               taper_release,&
                                               taper_type
@@ -94,11 +94,11 @@ MODULE semi_empirical_types
       ! One center - two electron integrals
       REAL(KIND=dp), DIMENSION(:, :), &
          POINTER                           :: w => NULL()
-      TYPE(semi_empirical_mpole_p_type), &
+      TYPE(semi_empirical_mpole_type), &
          POINTER, DIMENSION(:)             :: w_mpole => NULL()
       ! 1/R^3 residual integral part
-      TYPE(semi_empirical_expns3_p_type), &
-         POINTER, DIMENSION(:)             :: expns3_int => NULL()
+      TYPE(semi_empirical_expns3_type), &
+         ALLOCATABLE, DIMENSION(:)             :: expns3_int
    END TYPE semi_empirical_type
 
    TYPE semi_empirical_p_type
@@ -197,7 +197,6 @@ CONTAINS
       NULLIFY (sep%basis)
       NULLIFY (sep%w)
       NULLIFY (sep%w_mpole)
-      NULLIFY (sep%expns3_int)
       CALL zero_se_param(sep)
 
    END SUBROUTINE semi_empirical_create
@@ -227,9 +226,9 @@ CONTAINS
          IF (ASSOCIATED(sep%w)) THEN
             DEALLOCATE (sep%w)
          END IF
-         IF (ASSOCIATED(sep%expns3_int)) THEN
+         IF (ALLOCATED(sep%expns3_int)) THEN
             DO i = 1, SIZE(sep%expns3_int)
-               CALL semi_empirical_expns3_release(sep%expns3_int(i)%expns3)
+               CALL semi_empirical_expns3_release(sep%expns3_int(i))
             END DO
             DEALLOCATE (sep%expns3_int)
          END IF

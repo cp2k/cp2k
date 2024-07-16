@@ -27,20 +27,12 @@ MODULE semi_empirical_expns3_types
       REAL(KIND=dp), DIMENSION(81)                   :: w = -1.0_dp
    END TYPE semi_empirical_expns3_type
 
-! **************************************************************************************************
-!> \brief 1/R^3 expansion type: array of pointers
-!> \author Teodoro Laino [tlaino] - 12.2008
-! **************************************************************************************************
-   TYPE semi_empirical_expns3_p_type
-      TYPE(semi_empirical_expns3_type), POINTER      :: expns3 => NULL()
-   END TYPE semi_empirical_expns3_p_type
-
    ! *** Global parameters ***
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'semi_empirical_expns3_types'
 
-   PUBLIC :: semi_empirical_expns3_p_type, &
-             semi_empirical_expns3_create, &
-             semi_empirical_expns3_release
+   PUBLIC :: semi_empirical_expns3_create, &
+             semi_empirical_expns3_release, &
+             semi_empirical_expns3_type
 
 CONTAINS
 
@@ -50,10 +42,8 @@ CONTAINS
 !> \author Teodoro Laino [tlaino] - 12.2008
 ! **************************************************************************************************
    SUBROUTINE semi_empirical_expns3_create(expns3)
-      TYPE(semi_empirical_expns3_type), POINTER          :: expns3
+      TYPE(semi_empirical_expns3_type), INTENT(OUT)      :: expns3
 
-      CPASSERT(.NOT. ASSOCIATED(expns3))
-      ALLOCATE (expns3)
       expns3%core_core = 0.0_dp
       expns3%e1b = 0.0_dp
       expns3%e2a = 0.0_dp
@@ -66,11 +56,10 @@ CONTAINS
 !> \author Teodoro Laino [tlaino] - 12.2008
 ! **************************************************************************************************
    SUBROUTINE semi_empirical_expns3_release(expns3)
-      TYPE(semi_empirical_expns3_type), POINTER          :: expns3
+      TYPE(semi_empirical_expns3_type), INTENT(INOUT)    :: expns3
 
-      IF (ASSOCIATED(expns3)) THEN
-         DEALLOCATE (expns3)
-      END IF
+      MARK_USED(expns3)
+
    END SUBROUTINE semi_empirical_expns3_release
 
 END MODULE semi_empirical_expns3_types

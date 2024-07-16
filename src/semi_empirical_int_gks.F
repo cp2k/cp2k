@@ -30,7 +30,6 @@ MODULE semi_empirical_int_gks
    USE pw_pool_types,                   ONLY: pw_pool_type
    USE semi_empirical_int_arrays,       ONLY: indexb,&
                                               rij_threshold
-   USE semi_empirical_mpole_types,      ONLY: semi_empirical_mpole_type
    USE semi_empirical_types,            ONLY: se_int_control_type,&
                                               semi_empirical_type,&
                                               setup_se_int_control_type
@@ -1280,31 +1279,30 @@ CONTAINS
       REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: ACOUL
 
       INTEGER                                            :: i, j, jint, size_1c_int
-      TYPE(semi_empirical_mpole_type), POINTER           :: mpole
 
-      NULLIFY (mpole)
       size_1c_int = SIZE(sepi%w_mpole)
       DO jint = 1, size_1c_int
-         mpole => sepi%w_mpole(jint)%mpole
-         i = mpole%indi
-         j = mpole%indj
-         M0(indexb(i, j)) = -mpole%cs
+         ASSOCIATE (mpole => sepi%w_mpole(jint))
+            i = mpole%indi
+            j = mpole%indj
+            M0(indexb(i, j)) = -mpole%cs
 
-         M1(1, indexb(i, j)) = -mpole%ds(1)
-         M1(2, indexb(i, j)) = -mpole%ds(2)
-         M1(3, indexb(i, j)) = -mpole%ds(3)
+            M1(1, indexb(i, j)) = -mpole%ds(1)
+            M1(2, indexb(i, j)) = -mpole%ds(2)
+            M1(3, indexb(i, j)) = -mpole%ds(3)
 
-         M2(1, 1, indexb(i, j)) = -mpole%qq(1, 1)/3.0_dp
-         M2(2, 1, indexb(i, j)) = -mpole%qq(2, 1)/3.0_dp
-         M2(3, 1, indexb(i, j)) = -mpole%qq(3, 1)/3.0_dp
+            M2(1, 1, indexb(i, j)) = -mpole%qq(1, 1)/3.0_dp
+            M2(2, 1, indexb(i, j)) = -mpole%qq(2, 1)/3.0_dp
+            M2(3, 1, indexb(i, j)) = -mpole%qq(3, 1)/3.0_dp
 
-         M2(1, 2, indexb(i, j)) = -mpole%qq(1, 2)/3.0_dp
-         M2(2, 2, indexb(i, j)) = -mpole%qq(2, 2)/3.0_dp
-         M2(3, 2, indexb(i, j)) = -mpole%qq(3, 2)/3.0_dp
+            M2(1, 2, indexb(i, j)) = -mpole%qq(1, 2)/3.0_dp
+            M2(2, 2, indexb(i, j)) = -mpole%qq(2, 2)/3.0_dp
+            M2(3, 2, indexb(i, j)) = -mpole%qq(3, 2)/3.0_dp
 
-         M2(1, 3, indexb(i, j)) = -mpole%qq(1, 3)/3.0_dp
-         M2(2, 3, indexb(i, j)) = -mpole%qq(2, 3)/3.0_dp
-         M2(3, 3, indexb(i, j)) = -mpole%qq(3, 3)/3.0_dp
+            M2(1, 3, indexb(i, j)) = -mpole%qq(1, 3)/3.0_dp
+            M2(2, 3, indexb(i, j)) = -mpole%qq(2, 3)/3.0_dp
+            M2(3, 3, indexb(i, j)) = -mpole%qq(3, 3)/3.0_dp
+         END ASSOCIATE
       END DO
       IF (PRESENT(ACOUL)) ACOUL = sepi%acoul
    END SUBROUTINE get_se_slater_multipole

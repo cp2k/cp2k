@@ -1308,8 +1308,11 @@ CONTAINS
          qs_env%se_store_int_env => se_store_int_env
       END IF
       IF (PRESENT(se_nddo_mpole)) THEN
+      IF (ASSOCIATED(qs_env%se_nddo_mpole)) THEN
          CALL nddo_mpole_release(qs_env%se_nddo_mpole)
-         qs_env%se_nddo_mpole => se_nddo_mpole
+         DEALLOCATE (qs_env%se_nddo_mpole)
+      END IF
+      qs_env%se_nddo_mpole => se_nddo_mpole
       END IF
       IF (PRESENT(se_nonbond_env)) THEN
          IF (ASSOCIATED(qs_env%se_nonbond_env)) THEN
@@ -1534,6 +1537,7 @@ CONTAINS
       END IF
       IF (ASSOCIATED(qs_env%se_nddo_mpole)) THEN
          CALL nddo_mpole_release(qs_env%se_nddo_mpole)
+         DEALLOCATE (qs_env%se_nddo_mpole)
       END IF
       IF (ASSOCIATED(qs_env%se_nonbond_env)) THEN
          CALL fist_nonbond_env_release(qs_env%se_nonbond_env)
@@ -1752,6 +1756,7 @@ CONTAINS
       END IF
       IF (ASSOCIATED(qs_env%se_nddo_mpole)) THEN
          CALL nddo_mpole_release(qs_env%se_nddo_mpole)
+         DEALLOCATE (qs_env%se_nddo_mpole)
       END IF
       IF (ASSOCIATED(qs_env%se_nonbond_env)) THEN
          CALL fist_nonbond_env_release(qs_env%se_nonbond_env)

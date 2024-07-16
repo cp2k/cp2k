@@ -21,7 +21,6 @@ MODULE semi_empirical_mpole_methods
                                               nddo_mpole_release,&
                                               nddo_mpole_type,&
                                               semi_empirical_mpole_p_create,&
-                                              semi_empirical_mpole_p_type,&
                                               semi_empirical_mpole_type
    USE semi_empirical_par_utils,        ONLY: amn_l
    USE semi_empirical_types,            ONLY: semi_empirical_type
@@ -53,7 +52,7 @@ CONTAINS
 !> \author Teodoro Laino [tlaino] - University of Zurich
 ! **************************************************************************************************
    SUBROUTINE semi_empirical_mpole_p_setup(mpoles, se_parameter, method)
-      TYPE(semi_empirical_mpole_p_type), DIMENSION(:), &
+      TYPE(semi_empirical_mpole_type), DIMENSION(:), &
          POINTER                                         :: mpoles
       TYPE(semi_empirical_type), POINTER                 :: se_parameter
       INTEGER, INTENT(IN)                                :: method
@@ -69,7 +68,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3, 45)                    :: M1
       REAL(KIND=dp), DIMENSION(45)                       :: M0
       REAL(KIND=dp), DIMENSION(6, 0:2)                   :: amn
-      TYPE(semi_empirical_mpole_type), POINTER           :: mpole
 
       CPASSERT(.NOT. ASSOCIATED(mpoles))
       ! If there are atomic orbitals proceed with the expansion in multipoles
@@ -82,7 +80,6 @@ CONTAINS
 
          ! Fill in information on multipole expansion due to atomic orbitals charge
          ! distribution
-         NULLIFY (mpole)
          CALL amn_l(se_parameter, amn)
          DO i = 1, natorb
             DO j = 1, i
@@ -92,59 +89,60 @@ CONTAINS
                ! integrals: s px py pz dx2-y2 dzx dz2 dzy dxy (lower triangular)
                ! which differs from the order of the Hamiltonian in CP2K. But I
                ! preferred to keep this order for consistency with the integrals
-               mpole => mpoles(ind2)%mpole
-               mpole%indi = i
-               mpole%indj = j
-               a = loc_index(i)
-               b = loc_index(j)
-               mpole%c = HUGE(0.0_dp)
-               mpole%d = HUGE(0.0_dp)
-               mpole%qs = HUGE(0.0_dp)
-               mpole%qc = HUGE(0.0_dp)
+               ASSOCIATE (mpole => mpoles(ind2))
+                  mpole%indi = i
+                  mpole%indj = j
+                  a = loc_index(i)
+                  b = loc_index(j)
+                  mpole%c = HUGE(0.0_dp)
+                  mpole%d = HUGE(0.0_dp)
+                  mpole%qs = HUGE(0.0_dp)
+                  mpole%qc = HUGE(0.0_dp)
 
-               ! Charge
-               IF (alm(ind1, 0, 0) /= 0.0_dp) THEN
-                  dlm = 1.0_dp/SQRT(REAL((2*0 + 1), KIND=dp))
-                  tmp = -dlm*amn(indexb(a, b), 0)
-                  mpole%c = tmp*alm(ind1, 0, 0)
-                  mpole%task(1) = .TRUE.
-               END IF
+                  ! Charge
+                  IF (alm(ind1, 0, 0) /= 0.0_dp) THEN
+                     dlm = 1.0_dp/SQRT(REAL((2*0 + 1), KIND=dp))
+                     tmp = -dlm*amn(indexb(a, b), 0)
+                     mpole%c = tmp*alm(ind1, 0, 0)
+                     mpole%task(1) = .TRUE.
+                  END IF
 
-               ! Dipole
-               IF (ANY(alm(ind1, 1, -1:1) /= 0.0_dp)) THEN
-                  dlm = 1.0_dp/SQRT(REAL((2*1 + 1), KIND=dp))
-                  tmp = -dlm*amn(indexb(a, b), 1)
-                  mpole%d(1) = tmp*alm(ind1, 1, 1)
-                  mpole%d(2) = tmp*alm(ind1, 1, -1)
-                  mpole%d(3) = tmp*alm(ind1, 1, 0)
-                  mpole%task(2) = .TRUE.
-               END IF
+                  ! Dipole
+                  IF (ANY(alm(ind1, 1, -1:1) /= 0.0_dp)) THEN
+                     dlm = 1.0_dp/SQRT(REAL((2*1 + 1), KIND=dp))
+                     tmp = -dlm*amn(indexb(a, b), 1)
+                     mpole%d(1) = tmp*alm(ind1, 1, 1)
+                     mpole%d(2) = tmp*alm(ind1, 1, -1)
+                     mpole%d(3) = tmp*alm(ind1, 1, 0)
+                     mpole%task(2) = .TRUE.
+                  END IF
 
-               ! Quadrupole
-               IF (ANY(alm(ind1, 2, -2:2) /= 0.0_dp)) THEN
-                  dlm = 1.0_dp/SQRT(REAL((2*2 + 1), KIND=dp))
-                  tmp = -dlm*amn(indexb(a, b), 2)
+                  ! Quadrupole
+                  IF (ANY(alm(ind1, 2, -2:2) /= 0.0_dp)) THEN
+                     dlm = 1.0_dp/SQRT(REAL((2*2 + 1), KIND=dp))
+                     tmp = -dlm*amn(indexb(a, b), 2)
 
-                  ! Spherical components
-                  mpole%qs(1) = tmp*alm(ind1, 2, 0) ! d3z2-r2
-                  mpole%qs(2) = tmp*alm(ind1, 2, 1) ! dzx
-                  mpole%qs(3) = tmp*alm(ind1, 2, -1) ! dzy
-                  mpole%qs(4) = tmp*alm(ind1, 2, 2) ! dx2-y2
-                  mpole%qs(5) = tmp*alm(ind1, 2, -2) ! dxy
+                     ! Spherical components
+                     mpole%qs(1) = tmp*alm(ind1, 2, 0) ! d3z2-r2
+                     mpole%qs(2) = tmp*alm(ind1, 2, 1) ! dzx
+                     mpole%qs(3) = tmp*alm(ind1, 2, -1) ! dzy
+                     mpole%qs(4) = tmp*alm(ind1, 2, 2) ! dx2-y2
+                     mpole%qs(5) = tmp*alm(ind1, 2, -2) ! dxy
 
-                  ! Convert into cartesian components
-                  CALL quadrupole_sph_to_cart(mpole%qc, mpole%qs)
-                  mpole%task(3) = .TRUE.
-               END IF
+                     ! Convert into cartesian components
+                     CALL quadrupole_sph_to_cart(mpole%qc, mpole%qs)
+                     mpole%task(3) = .TRUE.
+                  END IF
 
-               IF (debug_this_module) THEN
-                  WRITE (*, '(A,2I6,A)') "Orbitals ", i, j, &
-                     " ("//label_print_orb(i)//","//label_print_orb(j)//")"
-                  IF (mpole%task(1)) WRITE (*, '(9F12.6)') mpole%c
-                  IF (mpole%task(2)) WRITE (*, '(9F12.6)') mpole%d
-                  IF (mpole%task(3)) WRITE (*, '(9F12.6)') mpole%qc
-                  WRITE (*, *)
-               END IF
+                  IF (debug_this_module) THEN
+                     WRITE (*, '(A,2I6,A)') "Orbitals ", i, j, &
+                        " ("//label_print_orb(i)//","//label_print_orb(j)//")"
+                     IF (mpole%task(1)) WRITE (*, '(9F12.6)') mpole%c
+                     IF (mpole%task(2)) WRITE (*, '(9F12.6)') mpole%d
+                     IF (mpole%task(3)) WRITE (*, '(9F12.6)') mpole%qc
+                     WRITE (*, *)
+                  END IF
+               END ASSOCIATE
             END DO
          END DO
 
@@ -198,29 +196,33 @@ CONTAINS
                DO j = 1, i
                   ind1 = indexa(se_map_alm(i), se_map_alm(j))
                   ind2 = indexb(i, j)
-                  mpole => mpoles(ind2)%mpole
-                  mpole%indi = i
-                  mpole%indj = j
-                  ! Charge
-                  mpole%cs = -M0(indexb(i, j))
-                  ! Dipole
-                  mpole%ds = -M1(1:3, indexb(i, j))
-                  ! Quadrupole
-                  mpole%qq = -3._dp*M2(1:3, 1:3, indexb(i, j))
-                  IF (debug_this_module) THEN
-                     WRITE (*, '(A,2I6,A)') "Orbitals ", i, j, &
-                        " ("//label_print_orb(i)//","//label_print_orb(j)//")"
-                     WRITE (*, '(9F12.6)') mpole%cs
-                     WRITE (*, '(9F12.6)') mpole%ds
-                     WRITE (*, '(9F12.6)') mpole%qq
-                     WRITE (*, *)
-                  END IF
+                  ASSOCIATE (mpole => mpoles(ind2))
+                     mpole%indi = i
+                     mpole%indj = j
+                     ! Charge
+                     mpole%cs = -M0(indexb(i, j))
+                     ! Dipole
+                     mpole%ds = -M1(1:3, indexb(i, j))
+                     ! Quadrupole
+                     mpole%qq = -3._dp*M2(1:3, 1:3, indexb(i, j))
+                     IF (debug_this_module) THEN
+                        WRITE (*, '(A,2I6,A)') "Orbitals ", i, j, &
+                           " ("//label_print_orb(i)//","//label_print_orb(j)//")"
+                        WRITE (*, '(9F12.6)') mpole%cs
+                        WRITE (*, '(9F12.6)') mpole%ds
+                        WRITE (*, '(9F12.6)') mpole%qq
+                        WRITE (*, *)
+                     END IF
+                  END ASSOCIATE
                END DO
             END DO
          ELSE
-            mpole%cs = mpole%c
-            mpole%ds = mpole%d
-            mpole%qq = mpole%qc
+            ind2 = indexb(natorb, natorb)
+            ASSOCIATE (mpole => mpoles(ind2))
+               mpole%cs = mpole%c
+               mpole%ds = mpole%d
+               mpole%qq = mpole%qc
+            END ASSOCIATE
          END IF
       END IF
 
@@ -277,7 +279,9 @@ CONTAINS
 
       IF (ASSOCIATED(nddo_mpole)) THEN
          CALL nddo_mpole_release(nddo_mpole)
+         DEALLOCATE (nddo_mpole)
       END IF
+      ALLOCATE (nddo_mpole)
       CALL nddo_mpole_create(nddo_mpole)
       ! Allocate Global Arrays
       ALLOCATE (nddo_mpole%charge(natom))

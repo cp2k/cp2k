@@ -40,14 +40,6 @@ MODULE semi_empirical_mpole_types
    END TYPE semi_empirical_mpole_type
 
 ! **************************************************************************************************
-!> \brief Semi-empirical integral multipole expansion type - pointer type
-!> \author Teodoro Laino [tlaino] - 08.2008 Zurich University
-! **************************************************************************************************
-   TYPE semi_empirical_mpole_p_type
-      TYPE(semi_empirical_mpole_type), POINTER :: mpole => NULL()
-   END TYPE semi_empirical_mpole_p_type
-
-! **************************************************************************************************
 !> \brief Global Multipolar NDDO information type
 !> \author Teodoro Laino [tlaino] - 08.2008 Zurich University
 ! **************************************************************************************************
@@ -58,7 +50,6 @@ MODULE semi_empirical_mpole_types
    END TYPE nddo_mpole_type
 
    PUBLIC :: semi_empirical_mpole_type, &
-             semi_empirical_mpole_p_type, &
              semi_empirical_mpole_p_create, &
              semi_empirical_mpole_p_release, &
              nddo_mpole_type, &
@@ -74,7 +65,7 @@ CONTAINS
 !> \author Teodoro Laino [tlaino] - 08.2008 Zurich University
 ! **************************************************************************************************
    SUBROUTINE semi_empirical_mpole_p_create(mpole, ndim)
-      TYPE(semi_empirical_mpole_p_type), DIMENSION(:), &
+      TYPE(semi_empirical_mpole_type), DIMENSION(:), &
          POINTER                                         :: mpole
       INTEGER, INTENT(IN)                                :: ndim
 
@@ -83,8 +74,7 @@ CONTAINS
       CPASSERT(.NOT. ASSOCIATED(mpole))
       ALLOCATE (mpole(ndim))
       DO i = 1, ndim
-         NULLIFY (mpole(i)%mpole)
-         CALL semi_empirical_mpole_create(mpole(i)%mpole)
+         CALL semi_empirical_mpole_create(mpole(i))
       END DO
 
    END SUBROUTINE semi_empirical_mpole_p_create
@@ -95,14 +85,14 @@ CONTAINS
 !> \author Teodoro Laino [tlaino] - 08.2008 Zurich University
 ! **************************************************************************************************
    SUBROUTINE semi_empirical_mpole_p_release(mpole)
-      TYPE(semi_empirical_mpole_p_type), DIMENSION(:), &
+      TYPE(semi_empirical_mpole_type), DIMENSION(:), &
          POINTER                                         :: mpole
 
       INTEGER                                            :: i
 
       IF (ASSOCIATED(mpole)) THEN
          DO i = 1, SIZE(mpole)
-            CALL semi_empirical_mpole_release(mpole(i)%mpole)
+            CALL semi_empirical_mpole_release(mpole(i))
          END DO
          DEALLOCATE (mpole)
       END IF
@@ -115,10 +105,8 @@ CONTAINS
 !> \author Teodoro Laino [tlaino] - 08.2008 Zurich University
 ! **************************************************************************************************
    SUBROUTINE semi_empirical_mpole_create(mpole)
-      TYPE(semi_empirical_mpole_type), POINTER           :: mpole
+      TYPE(semi_empirical_mpole_type), INTENT(INOUT)     :: mpole
 
-      CPASSERT(.NOT. ASSOCIATED(mpole))
-      ALLOCATE (mpole)
       mpole%task = .FALSE.
       mpole%indi = 0
       mpole%indj = 0
@@ -137,11 +125,9 @@ CONTAINS
 !> \author Teodoro Laino [tlaino] - 08.2008 Zurich University
 ! **************************************************************************************************
    SUBROUTINE semi_empirical_mpole_release(mpole)
-      TYPE(semi_empirical_mpole_type), POINTER           :: mpole
+      TYPE(semi_empirical_mpole_type), INTENT(INOUT)     :: mpole
 
-      IF (ASSOCIATED(mpole)) THEN
-         DEALLOCATE (mpole)
-      END IF
+      MARK_USED(mpole)
 
    END SUBROUTINE semi_empirical_mpole_release
 
@@ -151,10 +137,8 @@ CONTAINS
 !> \author Teodoro Laino [tlaino] - 08.2008 Zurich University
 ! **************************************************************************************************
    SUBROUTINE nddo_mpole_create(nddo_mpole)
-      TYPE(nddo_mpole_type), POINTER                     :: nddo_mpole
+      TYPE(nddo_mpole_type), INTENT(OUT)                 :: nddo_mpole
 
-      CPASSERT(.NOT. ASSOCIATED(nddo_mpole))
-      ALLOCATE (nddo_mpole)
       NULLIFY (nddo_mpole%charge)
       NULLIFY (nddo_mpole%dipole)
       NULLIFY (nddo_mpole%quadrupole)
@@ -169,28 +153,25 @@ CONTAINS
 !> \author Teodoro Laino [tlaino] - 08.2008 Zurich University
 ! **************************************************************************************************
    SUBROUTINE nddo_mpole_release(nddo_mpole)
-      TYPE(nddo_mpole_type), POINTER                     :: nddo_mpole
+      TYPE(nddo_mpole_type), INTENT(INOUT)               :: nddo_mpole
 
-      IF (ASSOCIATED(nddo_mpole)) THEN
-         IF (ASSOCIATED(nddo_mpole%charge)) THEN
-            DEALLOCATE (nddo_mpole%charge)
-         END IF
-         IF (ASSOCIATED(nddo_mpole%dipole)) THEN
-            DEALLOCATE (nddo_mpole%dipole)
-         END IF
-         IF (ASSOCIATED(nddo_mpole%quadrupole)) THEN
-            DEALLOCATE (nddo_mpole%quadrupole)
-         END IF
-         IF (ASSOCIATED(nddo_mpole%efield0)) THEN
-            DEALLOCATE (nddo_mpole%efield0)
-         END IF
-         IF (ASSOCIATED(nddo_mpole%efield1)) THEN
-            DEALLOCATE (nddo_mpole%efield1)
-         END IF
-         IF (ASSOCIATED(nddo_mpole%efield2)) THEN
-            DEALLOCATE (nddo_mpole%efield2)
-         END IF
-         DEALLOCATE (nddo_mpole)
+      IF (ASSOCIATED(nddo_mpole%charge)) THEN
+         DEALLOCATE (nddo_mpole%charge)
+      END IF
+      IF (ASSOCIATED(nddo_mpole%dipole)) THEN
+         DEALLOCATE (nddo_mpole%dipole)
+      END IF
+      IF (ASSOCIATED(nddo_mpole%quadrupole)) THEN
+         DEALLOCATE (nddo_mpole%quadrupole)
+      END IF
+      IF (ASSOCIATED(nddo_mpole%efield0)) THEN
+         DEALLOCATE (nddo_mpole%efield0)
+      END IF
+      IF (ASSOCIATED(nddo_mpole%efield1)) THEN
+         DEALLOCATE (nddo_mpole%efield1)
+      END IF
+      IF (ASSOCIATED(nddo_mpole%efield2)) THEN
+         DEALLOCATE (nddo_mpole%efield2)
       END IF
 
    END SUBROUTINE nddo_mpole_release

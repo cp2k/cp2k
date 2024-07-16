@@ -192,7 +192,7 @@ CONTAINS
                   rinv = SQRT(r2inv)
                   r3inv = rinv**3
                   ! Core-Core term
-                  enucij = enucij + se_kind_a%expns3_int(jkind)%expns3%core_core*r3inv
+                  enucij = enucij + se_kind_a%expns3_int(jkind)%core_core*r3inv
                END IF
 
                ! Core-Core Derivatives
@@ -207,7 +207,7 @@ CONTAINS
                   IF (se_int_control%do_ewald_r3) THEN
                      dr3inv = -3.0_dp*rij*r3inv*r2inv
                      ! Derivatives of core-core terms
-                     force_ab = force_ab + se_kind_a%expns3_int(jkind)%expns3%core_core*dr3inv
+                     force_ab = force_ab + se_kind_a%expns3_int(jkind)%core_core*dr3inv
                   END IF
                   IF (use_virial) THEN
                      CALL virial_pair_force(virial%pv_virial, -1.0_dp, force_ab, rij)
