@@ -176,7 +176,7 @@ SUBROUTINE rot_2el_2c_first_debug(sepi, sepj, rijv, se_int_control, se_taper, in
    REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rijv
    TYPE(se_int_control_type), INTENT(IN)    :: se_int_control
    LOGICAL, INTENT(IN)                      :: invert
-   TYPE(se_taper_type), POINTER             :: se_taper
+   TYPE(se_taper_type), INTENT(IN)             :: se_taper
    INTEGER, INTENT(IN)                      :: ii, kk
    REAL(KIND=dp), DIMENSION(3, 45, 45), &
       INTENT(IN)                             :: v_d
@@ -279,7 +279,7 @@ SUBROUTINE check_dssss_nucint_ana(sepi, sepj, r, dssss, itype, se_int_control, s
    REAL(dp), INTENT(IN)                     :: dssss
    INTEGER, INTENT(IN)                      :: itype
    TYPE(se_int_control_type), INTENT(IN)    :: se_int_control
-   TYPE(se_taper_type), POINTER                :: se_taper
+   TYPE(se_taper_type), INTENT(IN)                :: se_taper
 
    CHARACTER(len=*), PARAMETER :: moduleN = 'semi_empirical_int_debug', &
                                   routineN = 'check_dssss_nucint_ana', routineP = moduleN//':'//routineN
@@ -339,7 +339,7 @@ SUBROUTINE check_dcore_nucint_ana(sepi, sepj, r, dcore, itype, se_int_control, s
    REAL(dp), DIMENSION(10, 2), INTENT(IN)   :: dcore
    INTEGER, INTENT(IN)                      :: itype
    TYPE(se_int_control_type), INTENT(IN)    :: se_int_control
-   TYPE(se_taper_type), POINTER             :: se_taper
+   TYPE(se_taper_type), INTENT(IN)             :: se_taper
 
    CHARACTER(len=*), PARAMETER :: moduleN = 'semi_empirical_int_debug', &
                                   routineN = 'check_dcore_nucint_ana', routineP = moduleN//':'//routineN
@@ -447,7 +447,7 @@ SUBROUTINE check_drotnuc_ana(sepi, sepj, rijv, itype, se_int_control, se_taper, 
    REAL(dp), DIMENSION(3), INTENT(IN)       :: rijv
    INTEGER, INTENT(IN)                      :: itype
    TYPE(se_int_control_type), INTENT(IN)    :: se_int_control
-   TYPE(se_taper_type), POINTER             :: se_taper
+   TYPE(se_taper_type), INTENT(IN)             :: se_taper
    REAL(dp), DIMENSION(45), INTENT(IN), &
       OPTIONAL                               :: e1b, e2a
    REAL(dp), DIMENSION(3, 45), &
@@ -564,7 +564,7 @@ SUBROUTINE check_dcorecore_ana(sepi, sepj, rijv, itype, se_int_control, se_taper
    REAL(dp), DIMENSION(3), INTENT(IN), &
       OPTIONAL                            :: denuc
    TYPE(se_int_control_type), INTENT(IN)    :: se_int_control
-   TYPE(se_taper_type), POINTER             :: se_taper
+   TYPE(se_taper_type), INTENT(IN)             :: se_taper
 
    CHARACTER(len=*), PARAMETER :: moduleN = 'semi_empirical_int_debug', &
                                   routineN = 'check_dcorecore_ana', routineP = moduleN//':'//routineN
@@ -633,7 +633,7 @@ SUBROUTINE check_dterep_ana(sepi, sepj, r, ri, dri, se_int_control, se_taper, lg
    REAL(dp), DIMENSION(491), INTENT(IN)     :: ri, dri
    TYPE(se_int_control_type), INTENT(IN)    :: se_int_control
    LOGICAL, INTENT(IN)                      :: lgrad
-   TYPE(se_taper_type), POINTER             :: se_taper
+   TYPE(se_taper_type), INTENT(IN)             :: se_taper
 
    CHARACTER(len=*), PARAMETER :: moduleN = 'semi_empirical_int_debug', &
                                   routineN = 'check_dterep_ana', routineP = moduleN//':'//routineN
@@ -714,7 +714,7 @@ SUBROUTINE check_rotint_ana(sepi, sepj, rijv, w, dw, se_int_control, se_taper)
    REAL(dp), DIMENSION(3, 2025), &
       INTENT(IN), OPTIONAL                   :: dw
    TYPE(se_int_control_type), INTENT(IN)    :: se_int_control
-   TYPE(se_taper_type), POINTER             :: se_taper
+   TYPE(se_taper_type), INTENT(IN)             :: se_taper
 
    CHARACTER(len=*), PARAMETER :: moduleN = 'semi_empirical_int_debug', &
                                   routineN = 'rotint_ana', routineP = moduleN//':'//routineN

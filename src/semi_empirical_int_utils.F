@@ -2100,7 +2100,7 @@ CONTAINS
       TYPE(semi_empirical_type), POINTER                 :: sepi, sepj
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: rijv
       TYPE(se_int_control_type), INTENT(IN)              :: se_int_control
-      TYPE(se_taper_type), POINTER                       :: se_taper
+      TYPE(se_taper_type), INTENT(IN)                       :: se_taper
       LOGICAL, INTENT(IN)                                :: invert
       INTEGER, INTENT(IN)                                :: ii, kk
       REAL(KIND=dp), DIMENSION(491), INTENT(IN)          :: rep

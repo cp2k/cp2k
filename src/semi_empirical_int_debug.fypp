@@ -43,7 +43,7 @@ INTERFACE
       REAL(dp), INTENT(IN)                               :: r, dssss
       INTEGER, INTENT(IN)                                :: itype
       TYPE(se_int_control_type), INTENT(IN)              :: se_int_control
-      TYPE(se_taper_type), POINTER                       :: se_taper
+      TYPE(se_taper_type), INTENT(IN)                       :: se_taper
 
    END SUBROUTINE check_dssss_nucint_ana
 END INTERFACE
@@ -68,7 +68,7 @@ INTERFACE
       REAL(dp), DIMENSION(10, 2), INTENT(IN)             :: dcore
       INTEGER, INTENT(IN)                                :: itype
       TYPE(se_int_control_type), INTENT(IN)              :: se_int_control
-      TYPE(se_taper_type), POINTER                       :: se_taper
+      TYPE(se_taper_type), INTENT(IN)                       :: se_taper
 
    END SUBROUTINE check_dcore_nucint_ana
 END INTERFACE
@@ -92,7 +92,7 @@ INTERFACE
       REAL(dp), DIMENSION(3), INTENT(IN)                 :: rijv
       INTEGER, INTENT(IN)                                :: itype
       TYPE(se_int_control_type), INTENT(IN)              :: se_int_control
-      TYPE(se_taper_type), POINTER                       :: se_taper
+      TYPE(se_taper_type), INTENT(IN)                       :: se_taper
       REAL(dp), DIMENSION(45), INTENT(IN), OPTIONAL      :: e1b, e2a
       REAL(dp), DIMENSION(45, 3), INTENT(IN), OPTIONAL   :: de1b, de2a
 
@@ -118,7 +118,7 @@ INTERFACE
       REAL(dp), DIMENSION(3), INTENT(IN)                 :: rijv
       INTEGER, INTENT(IN)                                :: itype
       TYPE(se_int_control_type), INTENT(IN)              :: se_int_control
-      TYPE(se_taper_type), POINTER                       :: se_taper
+      TYPE(se_taper_type), INTENT(IN)                       :: se_taper
       REAL(dp), INTENT(IN), OPTIONAL                     :: enuc
       REAL(dp), DIMENSION(3), INTENT(IN), OPTIONAL       :: denuc
 
@@ -144,7 +144,7 @@ INTERFACE
       TYPE(semi_empirical_type), POINTER                 :: sepi, sepj
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: rijv
       TYPE(se_int_control_type), INTENT(IN)              :: se_int_control
-      TYPE(se_taper_type), POINTER                       :: se_taper
+      TYPE(se_taper_type), INTENT(IN)                       :: se_taper
       LOGICAL, INTENT(IN)                                :: invert
       INTEGER, INTENT(IN)                                :: ii, kk
       REAL(KIND=dp), DIMENSION(45, 45, 3), INTENT(IN)    :: v_d
@@ -170,7 +170,7 @@ INTERFACE
       REAL(dp), INTENT(IN)                               :: r
       REAL(dp), DIMENSION(491), INTENT(IN)               :: ri, dri
       TYPE(se_int_control_type), INTENT(IN)              :: se_int_control
-      TYPE(se_taper_type), POINTER                       :: se_taper
+      TYPE(se_taper_type), INTENT(IN)                       :: se_taper
       LOGICAL, INTENT(IN)                                :: lgrad
 
    END SUBROUTINE check_dterep_ana
@@ -195,7 +195,7 @@ INTERFACE
       REAL(dp), DIMENSION(2025), INTENT(IN), OPTIONAL    :: w
       REAL(dp), DIMENSION(2025, 3), INTENT(IN), OPTIONAL :: dw
       TYPE(se_int_control_type), INTENT(IN)              :: se_int_control
-      TYPE(se_taper_type), POINTER                       :: se_taper
+      TYPE(se_taper_type), INTENT(IN)                       :: se_taper
 
    END SUBROUTINE check_rotint_ana
 END INTERFACE

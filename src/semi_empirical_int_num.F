@@ -78,7 +78,7 @@ CONTAINS
       REAL(dp), DIMENSION(3), INTENT(IN)                 :: rijv
       REAL(dp), DIMENSION(2025), INTENT(OUT)             :: w
       TYPE(se_int_control_type), INTENT(IN)              :: se_int_control
-      TYPE(se_taper_type), POINTER                       :: se_taper
+      TYPE(se_taper_type), INTENT(IN)                    :: se_taper
 
       INTEGER                                            :: i, i1, ii, ij, ij1, iminus, istep, &
                                                             iw_loc, j, j1, jj, k, kk, kl, l, &
@@ -225,7 +225,7 @@ CONTAINS
       TYPE(semi_empirical_type), POINTER                 :: sepi, sepj
       REAL(dp), INTENT(IN)                               :: rij
       REAL(dp), DIMENSION(491), INTENT(OUT)              :: rep
-      TYPE(se_taper_type), POINTER                       :: se_taper
+      TYPE(se_taper_type), INTENT(IN)                    :: se_taper
       TYPE(se_int_control_type), INTENT(IN)              :: se_int_control
 
       REAL(KIND=dp)                                      :: ft
@@ -395,7 +395,7 @@ CONTAINS
       REAL(dp), DIMENSION(45), INTENT(OUT), OPTIONAL     :: e1b, e2a
       INTEGER, INTENT(IN)                                :: itype
       TYPE(se_int_control_type), INTENT(IN)              :: se_int_control
-      TYPE(se_taper_type), POINTER                       :: se_taper
+      TYPE(se_taper_type), INTENT(IN)                    :: se_taper
 
       INTEGER                                            :: i, idd, idp, ind1, ind2, ipp, j, &
                                                             last_orbital(2), m, n
@@ -500,7 +500,7 @@ CONTAINS
       REAL(dp), INTENT(OUT)                              :: enuc
       INTEGER, INTENT(IN)                                :: itype
       TYPE(se_int_control_type), INTENT(IN)              :: se_int_control
-      TYPE(se_taper_type), POINTER                       :: se_taper
+      TYPE(se_taper_type), INTENT(IN)                    :: se_taper
 
       INTEGER                                            :: ig, nt
       REAL(dp)                                           :: aab, alpi, alpj, apdg, ax, dai, daj, &
@@ -674,7 +674,7 @@ CONTAINS
       REAL(dp), INTENT(OUT)                              :: enuc
       INTEGER, INTENT(IN)                                :: itype
       TYPE(se_int_control_type), INTENT(IN)              :: se_int_control
-      TYPE(se_taper_type), POINTER                       :: se_taper
+      TYPE(se_taper_type), INTENT(IN)                    :: se_taper
 
       REAL(dp)                                           :: rij, ssss, ssss_sr, zz
       TYPE(se_int_control_type)                          :: se_int_control_off
@@ -722,7 +722,7 @@ CONTAINS
       REAL(dp), INTENT(IN)                               :: rij
       REAL(dp), INTENT(OUT)                              :: ssss
       INTEGER, INTENT(IN)                                :: itype
-      TYPE(se_taper_type), POINTER                       :: se_taper
+      TYPE(se_taper_type), INTENT(IN)                    :: se_taper
       TYPE(se_int_control_type), INTENT(IN)              :: se_int_control
 
       REAL(KIND=dp)                                      :: ft
@@ -773,7 +773,7 @@ CONTAINS
       REAL(dp), INTENT(IN)                               :: rij
       REAL(dp), DIMENSION(10, 2), INTENT(OUT)            :: core
       INTEGER, INTENT(IN)                                :: itype
-      TYPE(se_taper_type), POINTER                       :: se_taper
+      TYPE(se_taper_type), INTENT(IN)                    :: se_taper
       TYPE(se_int_control_type), INTENT(IN)              :: se_int_control
 
       INTEGER                                            :: i
@@ -988,7 +988,7 @@ CONTAINS
       REAL(dp), DIMENSION(3, 2025), INTENT(OUT)          :: dw
       REAL(dp), INTENT(IN)                               :: delta
       TYPE(se_int_control_type), INTENT(IN)              :: se_int_control
-      TYPE(se_taper_type), POINTER                       :: se_taper
+      TYPE(se_taper_type), INTENT(IN)                    :: se_taper
 
       INTEGER                                            :: i, j, nsize
       REAL(dp)                                           :: od
@@ -1029,7 +1029,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: itype
       REAL(dp), INTENT(IN)                               :: delta
       TYPE(se_int_control_type), INTENT(IN)              :: se_int_control
-      TYPE(se_taper_type), POINTER                       :: se_taper
+      TYPE(se_taper_type), INTENT(IN)                    :: se_taper
 
       INTEGER                                            :: i, j
       LOGICAL                                            :: l_de1b, l_de2a
@@ -1078,7 +1078,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: itype
       REAL(dp), INTENT(IN)                               :: delta
       TYPE(se_int_control_type), INTENT(IN)              :: se_int_control
-      TYPE(se_taper_type), POINTER                       :: se_taper
+      TYPE(se_taper_type), INTENT(IN)                    :: se_taper
 
       INTEGER                                            :: i
       REAL(dp)                                           :: enucm, enucp, od
@@ -1113,7 +1113,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: itype
       REAL(dp), INTENT(IN)                               :: delta
       TYPE(se_int_control_type), INTENT(IN)              :: se_int_control
-      TYPE(se_taper_type), POINTER                       :: se_taper
+      TYPE(se_taper_type), INTENT(IN)                    :: se_taper
 
       INTEGER                                            :: i
       REAL(dp)                                           :: enucm, enucp, od
