@@ -246,6 +246,13 @@ list(
   input_cp2k_colvar.F
   input_cp2k_constraints.F
   input_cp2k_dft.F
+  input_cp2k_print_dft.F
+  input_cp2k_scf.F
+  input_cp2k_as.F
+  input_cp2k_opt.F
+  input_cp2k_qs.F
+  input_cp2k_se.F
+  input_cp2k_xas.F
   input_cp2k_distribution.F
   input_cp2k_ec.F
   input_cp2k_eip.F
