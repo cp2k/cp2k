@@ -23,8 +23,8 @@ MODULE mp2_types
    USE input_constants,                 ONLY: &
         do_eri_mme, eri_default, gw_pade_approx, kp_weights_W_auto, mp2_method_direct, &
         mp2_method_gpw, mp2_method_none, mp2_ri_optimize_basis, ri_mp2_laplace, ri_mp2_method_gpw, &
-        ri_rpa_g0w0_crossing_z_shot, ri_rpa_method_gpw, rpa_exchange_none, soc_none, &
-        rpa_quadrature_cc, wfc_mm_style_gemm
+        ri_rpa_g0w0_crossing_z_shot, ri_rpa_method_gpw, rpa_exchange_none, rpa_quadrature_cc, &
+        soc_none, wfc_mm_style_gemm
    USE input_section_types,             ONLY: section_vals_release,&
                                               section_vals_type
    USE kinds,                           ONLY: dp

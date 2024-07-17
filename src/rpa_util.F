@@ -806,7 +806,7 @@ CONTAINS
                occ_diff = 1.0_dp
             END IF
 
-            IF (avirt + dimen - virtual > iocc) THEN
+            IF (Eigenval(avirt + dimen - virtual) > Eigenval(iocc)) THEN
                fm_mat_S%local_data(:, iiB) = fm_mat_S%local_data(:, iiB)* &
                                              SQRT(eigen_diff*occ_diff/(eigen_diff**2 + omega**2))
             ELSE
