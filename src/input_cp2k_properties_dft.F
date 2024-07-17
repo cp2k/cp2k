@@ -40,10 +40,10 @@ MODULE input_cp2k_properties_dft
       tddfpt_kernel_none, tddfpt_kernel_stda, use_mom_ref_coac, use_mom_ref_com, &
       use_mom_ref_user, use_mom_ref_zero
    USE input_cp2k_atprop, ONLY: create_atprop_section
-   USE input_cp2k_dft, ONLY: create_ddapc_restraint_section, &
-                             create_interp_section, &
-                             create_lrigpw_section, &
+   USE input_cp2k_dft, ONLY: create_interp_section, &
                              create_mgrid_section
+   USE input_cp2k_qs, ONLY: create_ddapc_restraint_section, &
+                            create_lrigpw_section
    USE input_cp2k_kpoints, ONLY: create_kpoint_set_section
    USE input_cp2k_loc, ONLY: create_localize_section
    USE input_cp2k_resp, ONLY: create_resp_section
