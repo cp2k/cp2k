@@ -918,7 +918,7 @@ CONTAINS
 ! **************************************************************************************************
    FUNCTION first_node(neighbor_list) RESULT(first_neighbor_node)
 
-      TYPE(neighbor_list_type), POINTER                  :: neighbor_list
+      TYPE(neighbor_list_type), INTENT(IN)               :: neighbor_list
       TYPE(neighbor_node_type), POINTER                  :: first_neighbor_node
 
       first_neighbor_node => neighbor_list%first_neighbor_node
@@ -934,21 +934,13 @@ CONTAINS
 !> \author  MK
 !> \version 1.0
 ! **************************************************************************************************
-   SUBROUTINE get_neighbor_list(neighbor_list, atom, nnode)
+   ELEMENTAL SUBROUTINE get_neighbor_list(neighbor_list, atom, nnode)
 
-      TYPE(neighbor_list_type), POINTER                  :: neighbor_list
+      TYPE(neighbor_list_type), INTENT(IN)               :: neighbor_list
       INTEGER, INTENT(OUT), OPTIONAL                     :: atom, nnode
 
-      IF (ASSOCIATED(neighbor_list)) THEN
-
-         IF (PRESENT(atom)) atom = neighbor_list%atom
-         IF (PRESENT(nnode)) nnode = neighbor_list%nnode
-
-      ELSE
-
-         CPABORT("The requested neighbor list is not associated")
-
-      END IF
+      IF (PRESENT(atom)) atom = neighbor_list%atom
+      IF (PRESENT(nnode)) nnode = neighbor_list%nnode
 
    END SUBROUTINE get_neighbor_list
 
@@ -961,22 +953,14 @@ CONTAINS
 !> \author  MK
 !> \version 1.0
 ! **************************************************************************************************
-   SUBROUTINE get_neighbor_list_set(neighbor_list_set, nlist, symmetric)
+   ELEMENTAL SUBROUTINE get_neighbor_list_set(neighbor_list_set, nlist, symmetric)
 
-      TYPE(neighbor_list_set_type), POINTER              :: neighbor_list_set
+      TYPE(neighbor_list_set_type), INTENT(IN)           :: neighbor_list_set
       INTEGER, INTENT(OUT), OPTIONAL                     :: nlist
       LOGICAL, INTENT(OUT), OPTIONAL                     :: symmetric
 
-      IF (ASSOCIATED(neighbor_list_set)) THEN
-
-         IF (PRESENT(nlist)) nlist = neighbor_list_set%nlist
-         IF (PRESENT(symmetric)) symmetric = neighbor_list_set%symmetric
-
-      ELSE
-
-         CPABORT("The requested neighbor list set is not associated")
-
-      END IF
+      IF (PRESENT(nlist)) nlist = neighbor_list_set%nlist
+      IF (PRESENT(symmetric)) symmetric = neighbor_list_set%symmetric
 
    END SUBROUTINE get_neighbor_list_set
 
@@ -1033,24 +1017,16 @@ CONTAINS
 !> \author  MK
 !> \version 1.0
 ! **************************************************************************************************
-   SUBROUTINE get_neighbor_node(neighbor_node, neighbor, cell, r)
+   PURE SUBROUTINE get_neighbor_node(neighbor_node, neighbor, cell, r)
 
-      TYPE(neighbor_node_type), POINTER                  :: neighbor_node
+      TYPE(neighbor_node_type), INTENT(IN)               :: neighbor_node
       INTEGER, INTENT(OUT), OPTIONAL                     :: neighbor
       INTEGER, DIMENSION(3), INTENT(OUT), OPTIONAL       :: cell
       REAL(dp), DIMENSION(3), INTENT(OUT), OPTIONAL      :: r
 
-      IF (ASSOCIATED(neighbor_node)) THEN
-
-         IF (PRESENT(neighbor)) neighbor = neighbor_node%neighbor
-         IF (PRESENT(r)) r(:) = neighbor_node%r(:)
-         IF (PRESENT(cell)) cell(:) = neighbor_node%cell(:)
-
-      ELSE
-
-         CPABORT("The requested neighbor node is not associated")
-
-      END IF
+      IF (PRESENT(neighbor)) neighbor = neighbor_node%neighbor
+      IF (PRESENT(r)) r(:) = neighbor_node%r(:)
+      IF (PRESENT(cell)) cell(:) = neighbor_node%cell(:)
 
    END SUBROUTINE get_neighbor_node
 
@@ -1066,25 +1042,18 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE init_neighbor_list_set(neighbor_list_set, symmetric)
 
-      TYPE(neighbor_list_set_type), POINTER              :: neighbor_list_set
+      TYPE(neighbor_list_set_type), INTENT(INOUT)        :: neighbor_list_set
       LOGICAL, INTENT(IN)                                :: symmetric
 
-      IF (ASSOCIATED(neighbor_list_set)) THEN
+      ! *** Initialize the pointers to the last neighbor list ***
+      NULLIFY (neighbor_list_set%last_neighbor_list)
+      NULLIFY (neighbor_list_set%first_neighbor_list)
 
-         ! *** Initialize the pointers to the last neighbor list ***
-         NULLIFY (neighbor_list_set%last_neighbor_list)
+      ! *** Initialize the neighbor list counter ***
+      neighbor_list_set%nlist = 0
 
-         ! *** Initialize the neighbor list counter ***
-         neighbor_list_set%nlist = 0
-
-         ! *** Initialize the neighbor list build properties
-         neighbor_list_set%symmetric = symmetric
-
-      ELSE
-
-         CPABORT("The requested neighbor list set is not associated")
-
-      END IF
+      ! *** Initialize the neighbor list build properties
+      neighbor_list_set%symmetric = symmetric
 
    END SUBROUTINE init_neighbor_list_set
 
