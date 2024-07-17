@@ -179,13 +179,12 @@ CONTAINS
 !> \param zout ...
 !> \param stat ...
 ! **************************************************************************************************
-   SUBROUTINE spfft_3d(plan, fsign, scale, zin, zout, stat)
+   SUBROUTINE spfft_3d(plan, fsign, scale, zin, zout)
 
       TYPE(fft_plan_type), INTENT(IN)                      :: plan
       REAL(KIND=dp), INTENT(IN)                            :: scale
       INTEGER, INTENT(IN)                                  :: fsign
       COMPLEX(KIND=dp), DIMENSION(PRODUCT(plan%n_3d)), INTENT(INOUT) :: zin, zout
-      INTEGER, INTENT(OUT)                                 :: stat
 #if defined (__SPFFT) && defined(__parallel)
       COMPLEX(KIND=C_DOUBLE_COMPLEX), DIMENSION(:), POINTER, CONTIGUOUS :: complex_ptr
       INTEGER(KIND=C_INT) :: errorcode
@@ -243,7 +242,6 @@ CONTAINS
       MARK_USED(fsign)
       CPABORT("In order to use SPFFT, you have to install it!")
 #endif
-      stat = 0
 
    END SUBROUTINE spfft_3d
 
@@ -257,13 +255,12 @@ CONTAINS
 !> \param scale ...
 !> \param stat ...
 ! **************************************************************************************************
-   SUBROUTINE spfft_2d(plan, fsign, zin, zintermed, zout, scale, stat)
+   SUBROUTINE spfft_2d(plan, fsign, zin, zintermed, zout, scale)
 
       TYPE(fft_plan_type), INTENT(IN)                      :: plan
       INTEGER, INTENT(IN)                                  :: fsign
       COMPLEX(KIND=dp), DIMENSION(PRODUCT(plan%n_3d)), INTENT(INOUT), TARGET :: zin, zintermed, zout
       REAL(KIND=dp), INTENT(IN)                            :: scale
-      INTEGER, INTENT(OUT)                                 :: stat
 #if defined (__SPFFT) && defined(__parallel)
       INTEGER :: i, j
       INTEGER(KIND=C_INT) :: errorcode
@@ -332,7 +329,6 @@ CONTAINS
       MARK_USED(zintermed)
       CPABORT("In order to use SPFFT, you have to install it!")
 #endif
-      stat = 0
 
    END SUBROUTINE spfft_2d
 
@@ -345,13 +341,12 @@ CONTAINS
 !> \param scale ...
 !> \param stat ...
 ! **************************************************************************************************
-   SUBROUTINE spfft_1d(plan, fsign, zin, zout, scale, stat)
+   SUBROUTINE spfft_1d(plan, fsign, zin, zout, scale)
 
       TYPE(fft_plan_type), INTENT(IN)                      :: plan
       INTEGER, INTENT(IN)                                  :: fsign
       COMPLEX(KIND=dp), DIMENSION(plan%n*plan%m), INTENT(INOUT), TARGET :: zin, zout
       REAL(KIND=dp), INTENT(IN)                            :: scale
-      INTEGER, INTENT(OUT)                                 :: stat
 #if defined (__SPFFT) && defined(__parallel)
       COMPLEX(KIND=C_DOUBLE_COMPLEX), DIMENSION(:, :), ALLOCATABLE, TARGET :: complex_array
       INTEGER :: i, j
@@ -424,7 +419,6 @@ CONTAINS
       MARK_USED(fsign)
       CPABORT("In order to use SPFFT, you have to install it!")
 #endif
-      stat = 0
 
    END SUBROUTINE spfft_1d
 
@@ -440,7 +434,6 @@ CONTAINS
       INTEGER(KIND=C_INT) :: errorCode
 
       errorCode = spfft_transform_destroy(plan%spfft_transform)
-      IF (errorCode /= SPFFT_SUCCESS) CPABORT("Error in SPFFT!")
 #else
       MARK_USED(plan)
       CPABORT("In order to use SPFFT, you have to install it!")

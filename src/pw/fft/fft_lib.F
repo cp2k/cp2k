@@ -264,7 +264,7 @@ CONTAINS
          CASE (3)
             CALL fftw3_3d(plan, fsign, scale, zin, zout, stat)
          CASE (4)
-            CALL spfft_3d(plan, fsign, scale, zin, zout, stat)
+            CALL spfft_3d(plan, fsign, scale, zin, zout)
          END SELECT
       END IF
       ! stat is set to zero on error, -1,+1 are OK
@@ -372,7 +372,7 @@ CONTAINS
             END IF
             stat = stat*stat2
          CASE (4)
-            CALL spfft_2d(plan(1), fsign, zin, zintermed, zout, scale, stat)
+            CALL spfft_2d(plan(1), fsign, zin, zintermed, zout, scale)
          END SELECT
       END IF
       ! stat is set to zero on error, -1,+1 are OK
@@ -411,7 +411,7 @@ CONTAINS
          CASE (3)
             CALL fftw3_1d(plan, fsign, zin, zout, scale, stat)
          CASE (4)
-            CALL spfft_1d(plan, fsign, zin, zout, scale, stat)
+            CALL spfft_1d(plan, fsign, zin, zout, scale)
          END SELECT
       END IF
       ! stat is set to zero on error, -1,+1 are OK
