@@ -761,7 +761,7 @@ CONTAINS
          DO ikind = 1, nkind
             qs_kind => qs_kind_set(ikind)
             ! Setup proper xTB parameters
-            CPASSERT(.NOT. ASSOCIATED(qs_kind%xtb_parameter))
+            ALLOCATE (qs_kind%xtb_parameter)
             CALL allocate_xtb_atom_param(qs_kind%xtb_parameter)
             ! Set default parameters
             CALL get_qs_kind(qs_kind, element_symbol=element_symbol)

@@ -294,6 +294,7 @@ CONTAINS
             END IF
             IF (ASSOCIATED(qs_kind_set(ikind)%xtb_parameter)) THEN
                CALL deallocate_xtb_atom_param(qs_kind_set(ikind)%xtb_parameter)
+               DEALLOCATE (qs_kind_set(ikind)%xtb_parameter)
             END IF
             IF (ASSOCIATED(qs_kind_set(ikind)%paw_proj_set)) THEN
                CALL deallocate_paw_proj_set(qs_kind_set(ikind)%paw_proj_set)
@@ -2681,7 +2682,6 @@ CONTAINS
          CALL write_dftb_atom_param(dftb_parameter, subsys_section)
       ELSE IF (dft_control%qs_control%xtb) THEN
          CALL get_qs_kind(qs_kind, xtb_parameter=xtb_parameter)
-         CPASSERT(ASSOCIATED(xtb_parameter))
          CALL write_xtb_atom_param(xtb_parameter, subsys_section)
       END IF
 

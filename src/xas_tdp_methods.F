@@ -542,7 +542,9 @@ CONTAINS
 
 !  Clean-up
       CALL xas_tdp_env_release(xas_tdp_env)
+      DEALLOCATE (xas_tdp_env)
       CALL xas_tdp_control_release(xas_tdp_control)
+      DEALLOCATE (xas_tdp_control)
 
    END SUBROUTINE xas_tdp_core
 
@@ -592,6 +594,7 @@ CONTAINS
       xas_tdp_section => section_vals_get_subs_vals(qs_env%input, "DFT%XAS_TDP")
 
       CALL get_qs_env(qs_env, dft_control=dft_control)
+      ALLOCATE (xas_tdp_control)
       CALL xas_tdp_control_create(xas_tdp_control)
       CALL read_xas_tdp_control(xas_tdp_control, xas_tdp_section)
 
@@ -602,6 +605,7 @@ CONTAINS
       do_os = do_uks .OR. xas_tdp_control%do_roks
 
 !  XAS TDP environment type initialization
+      ALLOCATE (xas_tdp_env)
       CALL xas_tdp_env_create(xas_tdp_env)
 
 !  Retrieving the excited atoms indices and correspondig state types
@@ -2458,8 +2462,8 @@ CONTAINS
    SUBROUTINE xas_tdp_post(ex_type, donor_state, xas_tdp_env, xas_tdp_section, qs_env)
 
       INTEGER, INTENT(IN)                                :: ex_type
-      TYPE(donor_state_type), POINTER                    :: donor_state
-      TYPE(xas_tdp_env_type), POINTER                    :: xas_tdp_env
+      TYPE(donor_state_type), INTENT(IN)                 :: donor_state
+      TYPE(xas_tdp_env_type), INTENT(INOUT)              :: xas_tdp_env
       TYPE(section_vals_type), POINTER                   :: xas_tdp_section
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
@@ -3384,7 +3388,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE read_donor_state_restart(donor_state, ex_type, filename, qs_env)
 
-      TYPE(donor_state_type), POINTER                    :: donor_state
+      TYPE(donor_state_type), INTENT(INOUT)              :: donor_state
       INTEGER, INTENT(OUT)                               :: ex_type
       CHARACTER(len=*), INTENT(IN)                       :: filename
       TYPE(qs_environment_type), POINTER                 :: qs_env
@@ -3408,7 +3412,6 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       output_unit = cp_logger_get_default_io_unit()
-      CPASSERT(ASSOCIATED(donor_state))
       CALL get_qs_env(qs_env, para_env=para_env, blacs_env=blacs_env)
       group = para_env
 
@@ -3508,13 +3511,10 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
       INTEGER                                            :: ex_type
-      TYPE(donor_state_type), POINTER                    :: donor_state
-      TYPE(xas_tdp_env_type), POINTER                    :: xas_tdp_env
-
-      NULLIFY (xas_tdp_env, donor_state)
+      TYPE(donor_state_type)                             :: donor_state
+      TYPE(xas_tdp_env_type)                             :: xas_tdp_env
 
       !create a donor_state that we fill with the information we read
-      ALLOCATE (donor_state)
       CALL donor_state_create(donor_state)
       CALL read_donor_state_restart(donor_state, ex_type, rst_filename, qs_env)
 
@@ -3526,7 +3526,6 @@ CONTAINS
       CALL xas_tdp_env_release(xas_tdp_env)
       CALL free_ds_memory(donor_state)
       DEALLOCATE (donor_state%mo_indices)
-      DEALLOCATE (donor_state)
 
    END SUBROUTINE restart_calculation
 

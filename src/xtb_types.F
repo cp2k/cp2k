@@ -88,12 +88,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE allocate_xtb_atom_param(xtb_parameter)
 
-      TYPE(xtb_atom_type), POINTER                       :: xtb_parameter
-
-      IF (ASSOCIATED(xtb_parameter)) &
-         CALL deallocate_xtb_atom_param(xtb_parameter)
-
-      ALLOCATE (xtb_parameter)
+      TYPE(xtb_atom_type), INTENT(INOUT)                 :: xtb_parameter
 
       xtb_parameter%defined = .FALSE.
       xtb_parameter%aname = ""
@@ -131,10 +126,9 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE deallocate_xtb_atom_param(xtb_parameter)
 
-      TYPE(xtb_atom_type), POINTER                       :: xtb_parameter
+      TYPE(xtb_atom_type), INTENT(INOUT)                 :: xtb_parameter
 
-      CPASSERT(ASSOCIATED(xtb_parameter))
-      DEALLOCATE (xtb_parameter)
+      MARK_USED(xtb_parameter)
 
    END SUBROUTINE deallocate_xtb_atom_param
 
@@ -173,7 +167,7 @@ CONTAINS
                                  rcut, rcov, kx, eta, xgamma, alpha, zneff, nshell, nval, lval, kpoly, kappa, &
                                  hen, zeta, occupation, electronegativity, chmax)
 
-      TYPE(xtb_atom_type), POINTER                       :: xtb_parameter
+      TYPE(xtb_atom_type), INTENT(IN)                    :: xtb_parameter
       CHARACTER(LEN=2), INTENT(OUT), OPTIONAL            :: symbol
       CHARACTER(LEN=default_string_length), &
          INTENT(OUT), OPTIONAL                           :: aname, typ
@@ -188,8 +182,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(5), INTENT(OUT), OPTIONAL :: kpoly, kappa, hen, zeta
       INTEGER, DIMENSION(5), INTENT(OUT), OPTIONAL       :: occupation
       REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: electronegativity, chmax
-
-      CPASSERT(ASSOCIATED(xtb_parameter))
 
       IF (PRESENT(symbol)) symbol = xtb_parameter%symbol
       IF (PRESENT(aname)) aname = xtb_parameter%aname
@@ -256,7 +248,7 @@ CONTAINS
                                  rcut, rcov, kx, eta, xgamma, alpha, zneff, nshell, nval, lval, kpoly, kappa, &
                                  hen, zeta, electronegativity, occupation, chmax)
 
-      TYPE(xtb_atom_type), POINTER                       :: xtb_parameter
+      TYPE(xtb_atom_type), INTENT(INOUT)                 :: xtb_parameter
       CHARACTER(LEN=default_string_length), INTENT(IN), &
          OPTIONAL                                        :: aname, typ
       LOGICAL, INTENT(IN), OPTIONAL                      :: defined
@@ -271,8 +263,6 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: electronegativity
       INTEGER, DIMENSION(5), INTENT(IN), OPTIONAL        :: occupation
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: chmax
-
-      CPASSERT(ASSOCIATED(xtb_parameter))
 
       IF (PRESENT(aname)) xtb_parameter%aname = aname
       IF (PRESENT(typ)) xtb_parameter%typ = typ
@@ -311,7 +301,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE write_xtb_atom_param(xtb_parameter, subsys_section)
 
-      TYPE(xtb_atom_type), POINTER                       :: xtb_parameter
+      TYPE(xtb_atom_type), INTENT(IN)                    :: xtb_parameter
       TYPE(section_vals_type), POINTER                   :: subsys_section
 
       CHARACTER(LEN=default_string_length)               :: aname, bb
@@ -325,8 +315,7 @@ CONTAINS
 
       NULLIFY (logger)
       logger => cp_get_default_logger()
-      IF (ASSOCIATED(xtb_parameter) .AND. &
-          BTEST(cp_print_key_should_output(logger%iter_info, subsys_section, &
+      IF (BTEST(cp_print_key_should_output(logger%iter_info, subsys_section, &
                                            "PRINT%KINDS/POTENTIAL"), cp_p_file)) THEN
 
          io_unit = cp_print_key_unit_nr(logger, subsys_section, "PRINT%KINDS", &

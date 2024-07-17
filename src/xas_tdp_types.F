@@ -378,10 +378,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE xas_tdp_control_create(xas_tdp_control)
 
-      TYPE(xas_tdp_control_type), POINTER                :: xas_tdp_control
-
-      CPASSERT(.NOT. ASSOCIATED(xas_tdp_control))
-      ALLOCATE (xas_tdp_control)
+      TYPE(xas_tdp_control_type), INTENT(INOUT)          :: xas_tdp_control
 
       xas_tdp_control%define_excited = xas_tdp_by_index
       xas_tdp_control%n_search = -1
@@ -443,29 +440,26 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE xas_tdp_control_release(xas_tdp_control)
 
-      TYPE(xas_tdp_control_type), POINTER                :: xas_tdp_control
+      TYPE(xas_tdp_control_type), INTENT(INOUT)          :: xas_tdp_control
 
-      IF (ASSOCIATED(xas_tdp_control)) THEN
-         IF (ASSOCIATED(xas_tdp_control%list_ex_atoms)) THEN
-            DEALLOCATE (xas_tdp_control%list_ex_atoms)
-         END IF
-         IF (ASSOCIATED(xas_tdp_control%list_ex_kinds)) THEN
-            DEALLOCATE (xas_tdp_control%list_ex_kinds)
-         END IF
-         IF (ASSOCIATED(xas_tdp_control%state_types)) THEN
-            DEALLOCATE (xas_tdp_control%state_types)
-         END IF
-         IF (ASSOCIATED(xas_tdp_control%grid_info)) THEN
-            DEALLOCATE (xas_tdp_control%grid_info)
-         END IF
-         IF (ASSOCIATED(xas_tdp_control%loc_subsection)) THEN
-            !recursive, print_loc_subsection removed too
-            CALL section_vals_release(xas_tdp_control%loc_subsection)
-         END IF
-         IF (ASSOCIATED(xas_tdp_control%ot_settings)) THEN
-            DEALLOCATE (xas_tdp_control%ot_settings)
-         END IF
-         DEALLOCATE (xas_tdp_control)
+      IF (ASSOCIATED(xas_tdp_control%list_ex_atoms)) THEN
+         DEALLOCATE (xas_tdp_control%list_ex_atoms)
+      END IF
+      IF (ASSOCIATED(xas_tdp_control%list_ex_kinds)) THEN
+         DEALLOCATE (xas_tdp_control%list_ex_kinds)
+      END IF
+      IF (ASSOCIATED(xas_tdp_control%state_types)) THEN
+         DEALLOCATE (xas_tdp_control%state_types)
+      END IF
+      IF (ASSOCIATED(xas_tdp_control%grid_info)) THEN
+         DEALLOCATE (xas_tdp_control%grid_info)
+      END IF
+      IF (ASSOCIATED(xas_tdp_control%loc_subsection)) THEN
+         !recursive, print_loc_subsection removed too
+         CALL section_vals_release(xas_tdp_control%loc_subsection)
+      END IF
+      IF (ASSOCIATED(xas_tdp_control%ot_settings)) THEN
+         DEALLOCATE (xas_tdp_control%ot_settings)
       END IF
 
    END SUBROUTINE xas_tdp_control_release
@@ -477,7 +471,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE read_xas_tdp_control(xas_tdp_control, xas_tdp_section)
 
-      TYPE(xas_tdp_control_type), POINTER                :: xas_tdp_control
+      TYPE(xas_tdp_control_type), INTENT(INOUT)          :: xas_tdp_control
       TYPE(section_vals_type), POINTER                   :: xas_tdp_section
 
       CHARACTER(len=default_string_length), &
@@ -721,9 +715,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE xas_tdp_env_create(xas_tdp_env)
 
-      TYPE(xas_tdp_env_type), POINTER                    :: xas_tdp_env
-
-      ALLOCATE (xas_tdp_env)
+      TYPE(xas_tdp_env_type), INTENT(OUT)                :: xas_tdp_env
 
       xas_tdp_env%nex_atoms = 1
       xas_tdp_env%nex_kinds = 1
@@ -766,120 +758,117 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE xas_tdp_env_release(xas_tdp_env)
 
-      TYPE(xas_tdp_env_type), POINTER                    :: xas_tdp_env
+      TYPE(xas_tdp_env_type), INTENT(INOUT)              :: xas_tdp_env
 
       INTEGER                                            :: i, j
 
-      IF (ASSOCIATED(xas_tdp_env)) THEN
-         IF (ASSOCIATED(xas_tdp_env%ex_atom_indices)) THEN
-            DEALLOCATE (xas_tdp_env%ex_atom_indices)
-         END IF
-         IF (ASSOCIATED(xas_tdp_env%ex_kind_indices)) THEN
-            DEALLOCATE (xas_tdp_env%ex_kind_indices)
-         END IF
+      IF (ASSOCIATED(xas_tdp_env%ex_atom_indices)) THEN
+         DEALLOCATE (xas_tdp_env%ex_atom_indices)
+      END IF
+      IF (ASSOCIATED(xas_tdp_env%ex_kind_indices)) THEN
+         DEALLOCATE (xas_tdp_env%ex_kind_indices)
+      END IF
 
-         IF (ASSOCIATED(xas_tdp_env%state_types)) THEN
-            DEALLOCATE (xas_tdp_env%state_types)
-         END IF
-         IF (ASSOCIATED(xas_tdp_env%donor_states)) THEN
-            CALL deallocate_donor_state_set(xas_tdp_env%donor_states)
-         END IF
-         IF (ASSOCIATED(xas_tdp_env%qs_loc_env)) THEN
-            CALL qs_loc_env_release(xas_tdp_env%qs_loc_env)
-            DEALLOCATE (xas_tdp_env%qs_loc_env)
-         END IF
-         IF (ASSOCIATED(xas_tdp_env%mos_of_ex_atoms)) THEN
-            DEALLOCATE (xas_tdp_env%mos_of_ex_atoms)
-         END IF
-         IF (ASSOCIATED(xas_tdp_env%ri_inv_coul)) THEN
-            DEALLOCATE (xas_tdp_env%ri_inv_coul)
-         END IF
-         IF (ASSOCIATED(xas_tdp_env%ri_inv_ex)) THEN
-            DEALLOCATE (xas_tdp_env%ri_inv_ex)
-         END IF
-         IF (ASSOCIATED(xas_tdp_env%opt_dist2d_coul)) THEN
-            CALL distribution_2d_release(xas_tdp_env%opt_dist2d_coul)
-         END IF
-         IF (ASSOCIATED(xas_tdp_env%opt_dist2d_ex)) THEN
-            CALL distribution_2d_release(xas_tdp_env%opt_dist2d_ex)
-         END IF
-         IF (ASSOCIATED(xas_tdp_env%q_projector)) THEN
-            DO i = 1, SIZE(xas_tdp_env%q_projector)
-               CALL dbcsr_release_p(xas_tdp_env%q_projector(i)%matrix)
+      IF (ASSOCIATED(xas_tdp_env%state_types)) THEN
+         DEALLOCATE (xas_tdp_env%state_types)
+      END IF
+      IF (ASSOCIATED(xas_tdp_env%donor_states)) THEN
+         CALL deallocate_donor_state_set(xas_tdp_env%donor_states)
+      END IF
+      IF (ASSOCIATED(xas_tdp_env%qs_loc_env)) THEN
+         CALL qs_loc_env_release(xas_tdp_env%qs_loc_env)
+         DEALLOCATE (xas_tdp_env%qs_loc_env)
+      END IF
+      IF (ASSOCIATED(xas_tdp_env%mos_of_ex_atoms)) THEN
+         DEALLOCATE (xas_tdp_env%mos_of_ex_atoms)
+      END IF
+      IF (ASSOCIATED(xas_tdp_env%ri_inv_coul)) THEN
+         DEALLOCATE (xas_tdp_env%ri_inv_coul)
+      END IF
+      IF (ASSOCIATED(xas_tdp_env%ri_inv_ex)) THEN
+         DEALLOCATE (xas_tdp_env%ri_inv_ex)
+      END IF
+      IF (ASSOCIATED(xas_tdp_env%opt_dist2d_coul)) THEN
+         CALL distribution_2d_release(xas_tdp_env%opt_dist2d_coul)
+      END IF
+      IF (ASSOCIATED(xas_tdp_env%opt_dist2d_ex)) THEN
+         CALL distribution_2d_release(xas_tdp_env%opt_dist2d_ex)
+      END IF
+      IF (ASSOCIATED(xas_tdp_env%q_projector)) THEN
+         DO i = 1, SIZE(xas_tdp_env%q_projector)
+            CALL dbcsr_release_p(xas_tdp_env%q_projector(i)%matrix)
+         END DO
+         DEALLOCATE (xas_tdp_env%q_projector)
+      END IF
+      IF (ASSOCIATED(xas_tdp_env%dipmat)) THEN
+         DO i = 1, SIZE(xas_tdp_env%dipmat)
+            CALL dbcsr_release_p(xas_tdp_env%dipmat(i)%matrix)
+         END DO
+         DEALLOCATE (xas_tdp_env%dipmat)
+      END IF
+      IF (ASSOCIATED(xas_tdp_env%quadmat)) THEN
+         DO i = 1, SIZE(xas_tdp_env%quadmat)
+            CALL dbcsr_release_p(xas_tdp_env%quadmat(i)%matrix)
+         END DO
+         DEALLOCATE (xas_tdp_env%quadmat)
+      END IF
+      IF (ASSOCIATED(xas_tdp_env%ri_3c_coul)) THEN
+         CALL dbt_destroy(xas_tdp_env%ri_3c_coul)
+         DEALLOCATE (xas_tdp_env%ri_3c_coul)
+      END IF
+      IF (ASSOCIATED(xas_tdp_env%ri_3c_ex)) THEN
+         CALL dbt_destroy(xas_tdp_env%ri_3c_ex)
+         DEALLOCATE (xas_tdp_env%ri_3c_ex)
+      END IF
+      IF (ASSOCIATED(xas_tdp_env%ri_fxc)) THEN
+         DO i = 1, SIZE(xas_tdp_env%ri_fxc, 1)
+            DO j = 1, SIZE(xas_tdp_env%ri_fxc, 2)
+               IF (ASSOCIATED(xas_tdp_env%ri_fxc(i, j)%array)) THEN
+                  DEALLOCATE (xas_tdp_env%ri_fxc(i, j)%array)
+               END IF
             END DO
-            DEALLOCATE (xas_tdp_env%q_projector)
-         END IF
-         IF (ASSOCIATED(xas_tdp_env%dipmat)) THEN
-            DO i = 1, SIZE(xas_tdp_env%dipmat)
-               CALL dbcsr_release_p(xas_tdp_env%dipmat(i)%matrix)
-            END DO
-            DEALLOCATE (xas_tdp_env%dipmat)
-         END IF
-         IF (ASSOCIATED(xas_tdp_env%quadmat)) THEN
-            DO i = 1, SIZE(xas_tdp_env%quadmat)
-               CALL dbcsr_release_p(xas_tdp_env%quadmat(i)%matrix)
-            END DO
-            DEALLOCATE (xas_tdp_env%quadmat)
-         END IF
-         IF (ASSOCIATED(xas_tdp_env%ri_3c_coul)) THEN
-            CALL dbt_destroy(xas_tdp_env%ri_3c_coul)
-            DEALLOCATE (xas_tdp_env%ri_3c_coul)
-         END IF
-         IF (ASSOCIATED(xas_tdp_env%ri_3c_ex)) THEN
-            CALL dbt_destroy(xas_tdp_env%ri_3c_ex)
-            DEALLOCATE (xas_tdp_env%ri_3c_ex)
-         END IF
-         IF (ASSOCIATED(xas_tdp_env%ri_fxc)) THEN
-            DO i = 1, SIZE(xas_tdp_env%ri_fxc, 1)
-               DO j = 1, SIZE(xas_tdp_env%ri_fxc, 2)
-                  IF (ASSOCIATED(xas_tdp_env%ri_fxc(i, j)%array)) THEN
-                     DEALLOCATE (xas_tdp_env%ri_fxc(i, j)%array)
-                  END IF
-               END DO
-            END DO
-            DEALLOCATE (xas_tdp_env%ri_fxc)
-         END IF
-         IF (ASSOCIATED(xas_tdp_env%orb_soc)) THEN
-            DO i = 1, SIZE(xas_tdp_env%orb_soc)
-               CALL dbcsr_release(xas_tdp_env%orb_soc(i)%matrix)
-               DEALLOCATE (xas_tdp_env%orb_soc(i)%matrix)
-            END DO
-            DEALLOCATE (xas_tdp_env%orb_soc)
-         END IF
+         END DO
+         DEALLOCATE (xas_tdp_env%ri_fxc)
+      END IF
+      IF (ASSOCIATED(xas_tdp_env%orb_soc)) THEN
+         DO i = 1, SIZE(xas_tdp_env%orb_soc)
+            CALL dbcsr_release(xas_tdp_env%orb_soc(i)%matrix)
+            DEALLOCATE (xas_tdp_env%orb_soc(i)%matrix)
+         END DO
+         DEALLOCATE (xas_tdp_env%orb_soc)
+      END IF
 
-         CALL cp_fm_release(xas_tdp_env%lumo_evecs)
+      CALL cp_fm_release(xas_tdp_env%lumo_evecs)
 
-         IF (ASSOCIATED(xas_tdp_env%lumo_evals)) THEN
-            DO i = 1, SIZE(xas_tdp_env%lumo_evals)
-               DEALLOCATE (xas_tdp_env%lumo_evals(i)%array)
-            END DO
-            DEALLOCATE (xas_tdp_env%lumo_evals)
-         END IF
-         IF (ASSOCIATED(xas_tdp_env%ot_prec)) THEN
-            DO i = 1, SIZE(xas_tdp_env%ot_prec)
-               CALL dbcsr_release(xas_tdp_env%ot_prec(i)%matrix)
-               DEALLOCATE (xas_tdp_env%ot_prec(i)%matrix)
-            END DO
-            DEALLOCATE (xas_tdp_env%ot_prec)
-         END IF
-         IF (ASSOCIATED(xas_tdp_env%matrix_shalf)) THEN
-            CALL cp_fm_release(xas_tdp_env%matrix_shalf)
-            DEALLOCATE (xas_tdp_env%matrix_shalf)
-            NULLIFY (xas_tdp_env%matrix_shalf)
-         END IF
-         IF (ASSOCIATED(xas_tdp_env%fock_matrix)) THEN
-            DO i = 1, SIZE(xas_tdp_env%fock_matrix)
-               CALL dbcsr_release(xas_tdp_env%fock_matrix(i)%matrix)
-               DEALLOCATE (xas_tdp_env%fock_matrix(i)%matrix)
-            END DO
-            DEALLOCATE (xas_tdp_env%fock_matrix)
-         END IF
-         IF (ASSOCIATED(xas_tdp_env%lumo_coeffs)) THEN
-            CALL cp_fm_release(xas_tdp_env%lumo_coeffs)
-            DEALLOCATE (xas_tdp_env%lumo_coeffs)
-            NULLIFY (xas_tdp_env%lumo_coeffs)
-         END IF
-         DEALLOCATE (xas_tdp_env)
+      IF (ASSOCIATED(xas_tdp_env%lumo_evals)) THEN
+         DO i = 1, SIZE(xas_tdp_env%lumo_evals)
+            DEALLOCATE (xas_tdp_env%lumo_evals(i)%array)
+         END DO
+         DEALLOCATE (xas_tdp_env%lumo_evals)
+      END IF
+      IF (ASSOCIATED(xas_tdp_env%ot_prec)) THEN
+         DO i = 1, SIZE(xas_tdp_env%ot_prec)
+            CALL dbcsr_release(xas_tdp_env%ot_prec(i)%matrix)
+            DEALLOCATE (xas_tdp_env%ot_prec(i)%matrix)
+         END DO
+         DEALLOCATE (xas_tdp_env%ot_prec)
+      END IF
+      IF (ASSOCIATED(xas_tdp_env%matrix_shalf)) THEN
+         CALL cp_fm_release(xas_tdp_env%matrix_shalf)
+         DEALLOCATE (xas_tdp_env%matrix_shalf)
+         NULLIFY (xas_tdp_env%matrix_shalf)
+      END IF
+      IF (ASSOCIATED(xas_tdp_env%fock_matrix)) THEN
+         DO i = 1, SIZE(xas_tdp_env%fock_matrix)
+            CALL dbcsr_release(xas_tdp_env%fock_matrix(i)%matrix)
+            DEALLOCATE (xas_tdp_env%fock_matrix(i)%matrix)
+         END DO
+         DEALLOCATE (xas_tdp_env%fock_matrix)
+      END IF
+      IF (ASSOCIATED(xas_tdp_env%lumo_coeffs)) THEN
+         CALL cp_fm_release(xas_tdp_env%lumo_coeffs)
+         DEALLOCATE (xas_tdp_env%lumo_coeffs)
+         NULLIFY (xas_tdp_env%lumo_coeffs)
       END IF
    END SUBROUTINE xas_tdp_env_release
 
@@ -891,10 +880,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE set_xas_tdp_env(xas_tdp_env, nex_atoms, nex_kinds)
 
-      TYPE(xas_tdp_env_type), POINTER                    :: xas_tdp_env
+      TYPE(xas_tdp_env_type), INTENT(INOUT)              :: xas_tdp_env
       INTEGER, INTENT(IN), OPTIONAL                      :: nex_atoms, nex_kinds
-
-      CPASSERT(ASSOCIATED(xas_tdp_env))
 
       IF (PRESENT(nex_atoms)) xas_tdp_env%nex_atoms = nex_atoms
       IF (PRESENT(nex_kinds)) xas_tdp_env%nex_kinds = nex_kinds
@@ -948,12 +935,10 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE set_donor_state(donor_state, at_index, at_symbol, kind_index, state_type)
 
-      TYPE(donor_state_type), POINTER                    :: donor_state
+      TYPE(donor_state_type), INTENT(INOUT)              :: donor_state
       INTEGER, INTENT(IN), OPTIONAL                      :: at_index
       CHARACTER(LEN=default_string_length), OPTIONAL     :: at_symbol
       INTEGER, INTENT(IN), OPTIONAL                      :: kind_index, state_type
-
-      CPASSERT(ASSOCIATED(donor_state))
 
       IF (PRESENT(at_index)) donor_state%at_index = at_index
       IF (PRESENT(kind_index)) donor_state%kind_index = kind_index
@@ -1106,7 +1091,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE free_ds_memory(donor_state)
 
-      TYPE(donor_state_type), POINTER                    :: donor_state
+      TYPE(donor_state_type), INTENT(INOUT)              :: donor_state
 
       INTEGER                                            :: i
 
