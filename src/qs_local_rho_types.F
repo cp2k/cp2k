@@ -171,7 +171,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE get_local_rho(local_rho_set, rho_atom_set, rho0_atom_set, rho0_mpole, rhoz_set)
 
-      TYPE(local_rho_type), POINTER                      :: local_rho_set
+      TYPE(local_rho_type), INTENT(IN)                   :: local_rho_set
       TYPE(rho_atom_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: rho_atom_set
       TYPE(rho0_atom_type), DIMENSION(:), OPTIONAL, &
@@ -192,9 +192,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE local_rho_set_create(local_rho_set)
 
-      TYPE(local_rho_type), POINTER                      :: local_rho_set
-
-      ALLOCATE (local_rho_set)
+      TYPE(local_rho_type), INTENT(OUT)                  :: local_rho_set
 
       NULLIFY (local_rho_set%rho_atom_set)
       NULLIFY (local_rho_set%rho0_atom_set)
@@ -211,26 +209,22 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE local_rho_set_release(local_rho_set)
 
-      TYPE(local_rho_type), POINTER                      :: local_rho_set
+      TYPE(local_rho_type), INTENT(INOUT)                :: local_rho_set
 
-      IF (ASSOCIATED(local_rho_set)) THEN
-         IF (ASSOCIATED(local_rho_set%rho_atom_set)) THEN
-            CALL deallocate_rho_atom_set(local_rho_set%rho_atom_set)
-         END IF
+      IF (ASSOCIATED(local_rho_set%rho_atom_set)) THEN
+         CALL deallocate_rho_atom_set(local_rho_set%rho_atom_set)
+      END IF
 
-         IF (ASSOCIATED(local_rho_set%rho0_atom_set)) THEN
-            CALL deallocate_rho0_atom(local_rho_set%rho0_atom_set)
-         END IF
+      IF (ASSOCIATED(local_rho_set%rho0_atom_set)) THEN
+         CALL deallocate_rho0_atom(local_rho_set%rho0_atom_set)
+      END IF
 
-         IF (ASSOCIATED(local_rho_set%rho0_mpole)) THEN
-            CALL deallocate_rho0_mpole(local_rho_set%rho0_mpole)
-         END IF
+      IF (ASSOCIATED(local_rho_set%rho0_mpole)) THEN
+         CALL deallocate_rho0_mpole(local_rho_set%rho0_mpole)
+      END IF
 
-         IF (ASSOCIATED(local_rho_set%rhoz_set)) THEN
-            CALL deallocate_rhoz(local_rho_set%rhoz_set)
-         END IF
-
-         DEALLOCATE (local_rho_set)
+      IF (ASSOCIATED(local_rho_set%rhoz_set)) THEN
+         CALL deallocate_rhoz(local_rho_set%rhoz_set)
       END IF
 
    END SUBROUTINE local_rho_set_release
@@ -246,7 +240,7 @@ CONTAINS
    SUBROUTINE set_local_rho(local_rho_set, rho_atom_set, rho0_atom_set, rho0_mpole, &
                             rhoz_set)
 
-      TYPE(local_rho_type), POINTER                      :: local_rho_set
+      TYPE(local_rho_type), INTENT(INOUT)                :: local_rho_set
       TYPE(rho_atom_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: rho_atom_set
       TYPE(rho0_atom_type), DIMENSION(:), OPTIONAL, &

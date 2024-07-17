@@ -667,7 +667,7 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(hartree_local_type), POINTER                  :: hartree_local
       TYPE(hfx_type), DIMENSION(:, :), POINTER           :: x_data
-      TYPE(local_rho_type), POINTER                      :: local_rho_set, local_rho_set_admm
+      TYPE(local_rho_type)                               :: local_rho_set, local_rho_set_admm
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab, sab_aux_fit
@@ -725,7 +725,6 @@ CONTAINS
       END IF
 
       ! GAPW/GAPW_XC initializations
-      NULLIFY (hartree_local, local_rho_set)
       IF (gapw) THEN
          CALL get_qs_env(qs_env, &
                          atomic_kind_set=atomic_kind_set, &
@@ -919,7 +918,6 @@ CONTAINS
             END DO
             !
             ! GAPW/GAPW_XC initializations
-            NULLIFY (local_rho_set_admm)
             IF (admm_env%do_gapw) THEN
                basis_type = "AUX_FIT_SOFT"
                task_list => admm_env%admm_gapw_env%task_list
@@ -1014,12 +1012,12 @@ CONTAINS
             CALL dbcsr_deallocate_matrix_set(mhz)
             DEALLOCATE (mpe)
             IF (admm_env%do_gapw) THEN
-               IF (ASSOCIATED(local_rho_set_admm)) CALL local_rho_set_release(local_rho_set_admm)
+               CALL local_rho_set_release(local_rho_set_admm)
             END IF
          END IF
       END IF
       IF (gapw .OR. gapw_xc) THEN
-         IF (ASSOCIATED(local_rho_set)) CALL local_rho_set_release(local_rho_set)
+         CALL local_rho_set_release(local_rho_set)
          IF (ASSOCIATED(hartree_local)) CALL hartree_local_release(hartree_local)
       END IF
 

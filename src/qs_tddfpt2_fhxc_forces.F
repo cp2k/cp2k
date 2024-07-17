@@ -277,6 +277,7 @@ CONTAINS
          CALL get_qs_env(qs_env, &
                          atomic_kind_set=atomic_kind_set, &
                          qs_kind_set=qs_kind_set)
+         ALLOCATE (local_rho_set)
          CALL local_rho_set_create(local_rho_set)
          CALL allocate_rho_atom_internals(local_rho_set%rho_atom_set, atomic_kind_set, &
                                           qs_kind_set, dft_control, para_env)
@@ -303,6 +304,7 @@ CONTAINS
                                        qs_kind_set, oce, sab, para_env)
          CALL prepare_gapw_den(qs_env, local_rho_set, do_rho0=gapw)
          !
+         ALLOCATE (local_rho_set_f)
          CALL local_rho_set_create(local_rho_set_f)
          CALL allocate_rho_atom_internals(local_rho_set_f%rho_atom_set, atomic_kind_set, &
                                           qs_kind_set, dft_control, para_env)
@@ -310,6 +312,7 @@ CONTAINS
                                        qs_kind_set, oce, sab, para_env)
          CALL prepare_gapw_den(qs_env, local_rho_set_f, do_rho0=.FALSE.)
          !
+         ALLOCATE (local_rho_set_g)
          CALL local_rho_set_create(local_rho_set_g)
          CALL allocate_rho_atom_internals(local_rho_set_g%rho_atom_set, atomic_kind_set, &
                                           qs_kind_set, dft_control, para_env)
@@ -356,6 +359,7 @@ CONTAINS
                   ! nothing to do
                ELSE
                   CALL get_qs_env(qs_env, atomic_kind_set=atomic_kind_set)
+                  ALLOCATE (local_rho_set_admm)
                   CALL local_rho_set_create(local_rho_set_admm)
                   CALL allocate_rho_atom_internals(local_rho_set_admm%rho_atom_set, atomic_kind_set, &
                                                    admm_env%admm_gapw_env%admm_kind_set, dft_control, para_env)
@@ -367,6 +371,7 @@ CONTAINS
                   CALL prepare_gapw_den(qs_env, local_rho_set_admm, do_rho0=.FALSE., &
                                         kind_set_external=admm_env%admm_gapw_env%admm_kind_set)
                   !
+                  ALLOCATE (local_rho_set_f_admm)
                   CALL local_rho_set_create(local_rho_set_f_admm)
                   CALL allocate_rho_atom_internals(local_rho_set_f_admm%rho_atom_set, atomic_kind_set, &
                                                    admm_env%admm_gapw_env%admm_kind_set, dft_control, para_env)
@@ -376,6 +381,7 @@ CONTAINS
                   CALL prepare_gapw_den(qs_env, local_rho_set_f_admm, do_rho0=.FALSE., &
                                         kind_set_external=admm_env%admm_gapw_env%admm_kind_set)
                   !
+                  ALLOCATE (local_rho_set_g_admm)
                   CALL local_rho_set_create(local_rho_set_g_admm)
                   CALL allocate_rho_atom_internals(local_rho_set_g_admm%rho_atom_set, atomic_kind_set, &
                                                    admm_env%admm_gapw_env%admm_kind_set, dft_control, para_env)
@@ -1140,8 +1146,11 @@ CONTAINS
 
       IF (gapw .OR. gapw_xc) THEN
          CALL local_rho_set_release(local_rho_set)
+         DEALLOCATE (local_rho_set)
          CALL local_rho_set_release(local_rho_set_f)
+         DEALLOCATE (local_rho_set_f)
          CALL local_rho_set_release(local_rho_set_g)
+         DEALLOCATE (local_rho_set_g)
          IF (gapw) THEN
             CALL hartree_local_release(hartree_local)
          END IF
@@ -1151,8 +1160,11 @@ CONTAINS
             IF (tddfpt_control%admm_xc_correction) THEN
                IF (qs_env%admm_env%aux_exch_func /= do_admm_aux_exch_func_none) THEN
                   CALL local_rho_set_release(local_rho_set_admm)
+                  DEALLOCATE (local_rho_set_admm)
                   CALL local_rho_set_release(local_rho_set_f_admm)
+                  DEALLOCATE (local_rho_set_f_admm)
                   CALL local_rho_set_release(local_rho_set_g_admm)
+                  DEALLOCATE (local_rho_set_g_admm)
                END IF
             END IF
          END IF

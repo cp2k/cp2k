@@ -129,12 +129,14 @@ CONTAINS
       IF (ASSOCIATED(p_env%p1_admm)) CALL dbcsr_deallocate_matrix_set(p_env%p1_admm)
       IF (ASSOCIATED(p_env%local_rho_set)) THEN
          CALL local_rho_set_release(p_env%local_rho_set)
+         DEALLOCATE (p_env%local_rho_set)
       END IF
       IF (ASSOCIATED(p_env%hartree_local)) THEN
          CALL hartree_local_release(p_env%hartree_local)
       END IF
       IF (ASSOCIATED(p_env%local_rho_set_admm)) THEN
          CALL local_rho_set_release(p_env%local_rho_set_admm)
+         DEALLOCATE (p_env%local_rho_set_admm)
       END IF
       IF (ASSOCIATED(p_env%PS_psi0)) THEN
          CALL cp_fm_release(p_env%PS_psi0)

@@ -441,6 +441,7 @@ CONTAINS
                          atomic_kind_set=atomic_kind_set, &
                          natom=natom, &
                          qs_kind_set=qs_kind_set)
+         ALLOCATE (work_matrices%local_rho_set)
          CALL local_rho_set_create(work_matrices%local_rho_set)
          CALL allocate_rho_atom_internals(work_matrices%local_rho_set%rho_atom_set, atomic_kind_set, &
                                           qs_kind_set, dft_control, sub_env%para_env)
@@ -453,6 +454,7 @@ CONTAINS
          CALL get_qs_env(qs_env, &
                          atomic_kind_set=atomic_kind_set, &
                          qs_kind_set=qs_kind_set)
+         ALLOCATE (work_matrices%local_rho_set)
          CALL local_rho_set_create(work_matrices%local_rho_set)
          CALL allocate_rho_atom_internals(work_matrices%local_rho_set%rho_atom_set, atomic_kind_set, &
                                           qs_kind_set, dft_control, sub_env%para_env)
@@ -468,6 +470,7 @@ CONTAINS
             dbcsr_template_hfx => matrix_s_aux_fit(1)%matrix
             IF (dft_control%qs_control%gapw .OR. dft_control%qs_control%gapw_xc) THEN
                CALL get_qs_env(qs_env, admm_env=admm_env, atomic_kind_set=atomic_kind_set)
+               ALLOCATE (work_matrices%local_rho_set_admm)
                CALL local_rho_set_create(work_matrices%local_rho_set_admm)
                CALL allocate_rho_atom_internals(work_matrices%local_rho_set_admm%rho_atom_set, &
                                                 atomic_kind_set, admm_env%admm_gapw_env%admm_kind_set, &
@@ -935,9 +938,11 @@ CONTAINS
       ! GAPW
       IF (ASSOCIATED(work_matrices%local_rho_set)) THEN
          CALL local_rho_set_release(work_matrices%local_rho_set)
+         DEALLOCATE (work_matrices%local_rho_set)
       END IF
       IF (ASSOCIATED(work_matrices%local_rho_set_admm)) THEN
          CALL local_rho_set_release(work_matrices%local_rho_set_admm)
+         DEALLOCATE (work_matrices%local_rho_set_admm)
       END IF
       IF (ASSOCIATED(work_matrices%hartree_local)) THEN
          CALL hartree_local_release(work_matrices%hartree_local)

@@ -87,7 +87,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE put_rho0_on_grid(qs_env, rho0, tot_rs_int)
 
-      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(qs_environment_type), INTENT(IN)              :: qs_env
       TYPE(rho0_mpole_type), POINTER                     :: rho0
       REAL(KIND=dp), INTENT(OUT)                         :: tot_rs_int
 
@@ -314,11 +314,11 @@ CONTAINS
    SUBROUTINE integrate_vhg0_rspace(qs_env, v_rspace, para_env, calculate_forces, local_rho_set, &
                                     local_rho_set_2nd, atener, kforce)
 
-      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(qs_environment_type), INTENT(IN)              :: qs_env
       TYPE(pw_r3d_rs_type), INTENT(IN)                   :: v_rspace
       TYPE(mp_para_env_type), POINTER                    :: para_env
       LOGICAL, INTENT(IN)                                :: calculate_forces
-      TYPE(local_rho_type), OPTIONAL, POINTER            :: local_rho_set, local_rho_set_2nd
+      TYPE(local_rho_type), INTENT(IN), OPTIONAL         :: local_rho_set, local_rho_set_2nd
       REAL(KIND=dp), DIMENSION(:), OPTIONAL              :: atener
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: kforce
 
@@ -368,11 +368,6 @@ CONTAINS
       ! need to be stored outside qs_env. We can then remove the
       ! attribute 'OPTIONAL' from the argument 'local_rho_set'.
 
-      ! CPASSERT(.NOT. (calculate_forces .AND. PRESENT(local_rho_set)))
-!      IF (calculate_forces .AND. PRESENT(local_rho_set)) THEN
-!         CPWARN("Forces and External Density!")
-!      END IF
-
       NULLIFY (atomic_kind_set, qs_kind_set, dft_control, particle_set)
       NULLIFY (cell, force, pw_env, rho0_mpole, rho_atom_set)
 
@@ -395,14 +390,6 @@ CONTAINS
       ! was called for triplet excited states in spin-restricted case. This check
       ! is also performed before invocation of this subroutine. It should be save
       ! to remove the optional argument 'do_triplet' from the subroutine interface.
-      !my_tddft = PRESENT(local_rho_set)
-      !IF (my_tddft) THEN
-      !   IF (PRESENT(do_triplet)) THEN
-      !      IF (nspins == 1 .AND. do_triplet) RETURN
-      !   ELSE
-      !      IF (nspins == 1 .AND. dft_control%tddfpt_control%res_etype /= tddfpt_singlet) RETURN
-      !   END IF
-      !END IF
 
       IF (PRESENT(local_rho_set)) &
          CALL get_local_rho(local_rho_set, rho0_mpole=rho0_mpole, rho_atom_set=rho_atom_set)

@@ -2399,7 +2399,7 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_ks_aux_fit_hfx, rho_ao_aux, &
                                                             rho_ao_aux_buffer
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(local_rho_type), POINTER                      :: local_rho_buffer
+      TYPE(local_rho_type)                               :: local_rho_buffer
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(pw_c1d_gs_type), DIMENSION(:), POINTER        :: rho_g
       TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: rho_r, v_rspace_dummy, v_tau_rspace_dummy
@@ -2413,7 +2413,7 @@ CONTAINS
       NULLIFY (ks_env, rho_aux_fit, rho_aux_fit_buffer, rho_ao, &
                xc_section_aux, v_rspace_dummy, v_tau_rspace_dummy, &
                rho_ao_aux, rho_ao_aux_buffer, dft_control, &
-               matrix_ks_aux_fit_hfx, task_list, local_rho_buffer, admm_gapw_env)
+               matrix_ks_aux_fit_hfx, task_list, admm_gapw_env)
 
       NULLIFY (rho_g, rho_r, tot_rho_r)
 

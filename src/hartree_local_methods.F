@@ -66,7 +66,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE init_coulomb_local(hartree_local, natom)
 
-      TYPE(hartree_local_type), POINTER                  :: hartree_local
+      TYPE(hartree_local_type), INTENT(INOUT)            :: hartree_local
       INTEGER, INTENT(IN)                                :: natom
 
       CHARACTER(len=*), PARAMETER :: routineN = 'init_coulomb_local'
@@ -210,13 +210,13 @@ CONTAINS
    SUBROUTINE Vh_1c_gg_integrals(qs_env, energy_hartree_1c, ecoul_1c, local_rho_set, para_env, tddft, local_rho_set_2nd, &
                                  core_2nd)
 
-      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(qs_environment_type), INTENT(IN)              :: qs_env
       REAL(kind=dp), INTENT(out)                         :: energy_hartree_1c
       TYPE(ecoul_1center_type), DIMENSION(:), POINTER    :: ecoul_1c
-      TYPE(local_rho_type), POINTER                      :: local_rho_set
+      TYPE(local_rho_type), INTENT(IN)                   :: local_rho_set
       TYPE(mp_para_env_type), POINTER                    :: para_env
       LOGICAL, INTENT(IN)                                :: tddft
-      TYPE(local_rho_type), OPTIONAL, POINTER            :: local_rho_set_2nd
+      TYPE(local_rho_type), INTENT(IN), OPTIONAL         :: local_rho_set_2nd
       LOGICAL, INTENT(IN), OPTIONAL                      :: core_2nd
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'Vh_1c_gg_integrals'

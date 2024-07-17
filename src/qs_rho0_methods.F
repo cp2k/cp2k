@@ -84,7 +84,7 @@ CONTAINS
 
       TYPE(mpole_gau_overlap)                            :: mp_gau
       TYPE(gto_basis_set_type), POINTER                  :: basis_1c
-      TYPE(harmonics_atom_type), POINTER                 :: harmonics
+      TYPE(harmonics_atom_type), INTENT(IN)              :: harmonics
       INTEGER, INTENT(IN)                                :: nchannels, nsotot
 
       CHARACTER(len=*), PARAMETER :: routineN = 'calculate_mpole_gau'
@@ -346,9 +346,9 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE init_rho0(local_rho_set, qs_env, gapw_control, zcore)
 
-      TYPE(local_rho_type), POINTER                      :: local_rho_set
-      TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(gapw_control_type), POINTER                   :: gapw_control
+      TYPE(local_rho_type), INTENT(INOUT)                :: local_rho_set
+      TYPE(qs_environment_type), INTENT(IN)              :: qs_env
+      TYPE(gapw_control_type), INTENT(IN)                :: gapw_control
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: zcore
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'init_rho0'

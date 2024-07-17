@@ -332,6 +332,7 @@ CONTAINS
          CALL get_qs_env(qs_env, &
                          atomic_kind_set=atomic_kind_set, &
                          qs_kind_set=qs_kind_set)
+         ALLOCATE (local_rho_set)
          CALL local_rho_set_create(local_rho_set)
          CALL allocate_rho_atom_internals(local_rho_set%rho_atom_set, atomic_kind_set, &
                                           qs_kind_set, dft_control, para_env)
@@ -365,6 +366,7 @@ CONTAINS
 
          IF (dft_control%do_admm) THEN
             IF (admm_env%do_gapw) THEN
+               ALLOCATE (local_rho_set_admm)
                CALL local_rho_set_create(local_rho_set_admm)
                CALL allocate_rho_atom_internals(local_rho_set_admm%rho_atom_set, atomic_kind_set, &
                                                 admm_env%admm_gapw_env%admm_kind_set, dft_control, para_env)

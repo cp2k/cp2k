@@ -852,7 +852,7 @@ CONTAINS
       TYPE(hartree_local_type), POINTER                  :: hartree_local_gs, hartree_local_t
       TYPE(hfx_type), DIMENSION(:, :), POINTER           :: x_data
       TYPE(kg_environment_type), POINTER                 :: kg_env
-      TYPE(local_rho_type), POINTER                      :: local_rho_set_f, local_rho_set_gs, &
+      TYPE(local_rho_type)                               :: local_rho_set_f, local_rho_set_gs, &
                                                             local_rho_set_t, local_rho_set_vxc, &
                                                             local_rhoz_set_admm
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
@@ -1170,7 +1170,6 @@ CONTAINS
          NULLIFY (oce, sab_orb)
          CALL get_qs_env(qs_env=qs_env, oce=oce, sab_orb=sab_orb)
          ! set up local_rho_set for GS density
-         NULLIFY (local_rho_set_gs)
          CALL get_qs_env(qs_env=qs_env, rho=rho)
          CALL qs_rho_get(rho, rho_ao_kp=matrix_p)
          CALL local_rho_set_create(local_rho_set_gs)
@@ -1182,7 +1181,6 @@ CONTAINS
                                        qs_kind_set, oce, sab_orb, para_env)
          CALL prepare_gapw_den(qs_env, local_rho_set_gs, do_rho0=gapw)
          ! set up local_rho_set for response density
-         NULLIFY (local_rho_set_t)
          CALL local_rho_set_create(local_rho_set_t)
          CALL allocate_rho_atom_internals(local_rho_set_t%rho_atom_set, atomic_kind_set, &
                                           qs_kind_set, dft_control, para_env)
@@ -1250,7 +1248,6 @@ CONTAINS
       IF (gapw .OR. gapw_xc) THEN
          IF (myfun /= xc_none) THEN
             ! add 1c hard and soft XC contributions
-            NULLIFY (local_rho_set_vxc)
             CALL local_rho_set_create(local_rho_set_vxc)
             CALL allocate_rho_atom_internals(local_rho_set_vxc%rho_atom_set, atomic_kind_set, &
                                              qs_kind_set, dft_control, para_env)
@@ -1334,9 +1331,9 @@ CONTAINS
          END IF
          ! release local environments for GAPW
          IF (myfun /= xc_none) THEN
-            IF (ASSOCIATED(local_rho_set_vxc)) CALL local_rho_set_release(local_rho_set_vxc)
+            CALL local_rho_set_release(local_rho_set_vxc)
          END IF
-         IF (ASSOCIATED(local_rho_set_gs)) CALL local_rho_set_release(local_rho_set_gs)
+         CALL local_rho_set_release(local_rho_set_gs)
          IF (gapw) THEN
             IF (ASSOCIATED(hartree_local_gs)) CALL hartree_local_release(hartree_local_gs)
             CALL auxbas_pw_pool%give_back_pw(v_hartree_gspace_gs)
@@ -1579,7 +1576,7 @@ CONTAINS
 
       END IF ! use virial
       IF (gapw .OR. gapw_xc) THEN
-         IF (ASSOCIATED(local_rho_set_t)) CALL local_rho_set_release(local_rho_set_t)
+         CALL local_rho_set_release(local_rho_set_t)
       END IF
 
       IF (debug_forces) fodeb(1:3) = force(1)%rho_core(1:3, 1)
@@ -1630,7 +1627,6 @@ CONTAINS
 
       IF (gapw .OR. gapw_xc) THEN
          !get local_rho_set for GS density and response potential / density
-         NULLIFY (local_rho_set_t)
          CALL local_rho_set_create(local_rho_set_t)
          CALL allocate_rho_atom_internals(local_rho_set_t%rho_atom_set, atomic_kind_set, &
                                           qs_kind_set, dft_control, para_env)
@@ -1640,7 +1636,6 @@ CONTAINS
          CALL calculate_rho_atom_coeff(qs_env, mpa(:), local_rho_set_t%rho_atom_set, &
                                        qs_kind_set, oce, sab_orb, para_env)
          CALL prepare_gapw_den(qs_env, local_rho_set_t, do_rho0=gapw)
-         NULLIFY (local_rho_set_gs)
          CALL local_rho_set_create(local_rho_set_gs)
          CALL allocate_rho_atom_internals(local_rho_set_gs%rho_atom_set, atomic_kind_set, &
                                           qs_kind_set, dft_control, para_env)
@@ -1696,7 +1691,6 @@ CONTAINS
          !GAPW compute atomic fxc contributions
          IF (myfun /= xc_none) THEN
             ! local_rho_set_f
-            NULLIFY (local_rho_set_f)
             CALL local_rho_set_create(local_rho_set_f)
             CALL allocate_rho_atom_internals(local_rho_set_f%rho_atom_set, atomic_kind_set, &
                                              qs_kind_set, dft_control, para_env)
@@ -1816,10 +1810,10 @@ CONTAINS
 
          ! release
          IF (myfun /= xc_none) THEN
-            IF (ASSOCIATED(local_rho_set_f)) CALL local_rho_set_release(local_rho_set_f)
+            CALL local_rho_set_release(local_rho_set_f)
          END IF
-         IF (ASSOCIATED(local_rho_set_t)) CALL local_rho_set_release(local_rho_set_t)
-         IF (ASSOCIATED(local_rho_set_gs)) CALL local_rho_set_release(local_rho_set_gs)
+         CALL local_rho_set_release(local_rho_set_t)
+         CALL local_rho_set_release(local_rho_set_gs)
          IF (gapw) THEN
             IF (ASSOCIATED(hartree_local_t)) CALL hartree_local_release(hartree_local_t)
             CALL auxbas_pw_pool%give_back_pw(v_hartree_gspace_t)

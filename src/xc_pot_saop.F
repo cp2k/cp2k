@@ -514,7 +514,7 @@ CONTAINS
       TYPE(grid_atom_type), POINTER                      :: atomic_grid, grid_atom
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis
       TYPE(harmonics_atom_type), POINTER                 :: harmonics
-      TYPE(local_rho_type), POINTER                      :: local_rho_set
+      TYPE(local_rho_type)                               :: local_rho_set
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: molecular_orbitals
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
@@ -540,7 +540,7 @@ CONTAINS
                atomic_kind_set, qs_kind_set, deriv, atomic_grid, rho_struct_ao, &
                harmonics, molecular_orbitals, rho_structure, r_h, r_s, dr_h, dr_s, &
                r_h_d, r_s_d, rho_atom_set, rho_atom, para_env, &
-               mo_eigenvalues, local_rho_set, matrix_ks, &
+               mo_eigenvalues, matrix_ks, &
                orbital_density_matrix, vxc_SAOP_h, vxc_SAOP_s)
 
       ! tau is needed for fill_rho_set, but should never be used

@@ -902,6 +902,7 @@ CONTAINS
       qs_env%outer_scf_ihistory = 0
       qs_env%broyden_adaptive_sigma = -1.0_dp
 
+      ALLOCATE (qs_env%local_rho_set)
       CALL local_rho_set_create(qs_env%local_rho_set)
       CALL hartree_local_create(qs_env%hartree_local)
       qs_env%run_rtp = .FALSE.
@@ -1413,6 +1414,7 @@ CONTAINS
       IF (ASSOCIATED(qs_env%oce)) CALL deallocate_oce_set(qs_env%oce)
       IF (ASSOCIATED(qs_env%local_rho_set)) THEN
          CALL local_rho_set_release(qs_env%local_rho_set)
+         DEALLOCATE (qs_env%local_rho_set)
       END IF
       IF (ASSOCIATED(qs_env%hartree_local)) THEN
          CALL hartree_local_release(qs_env%hartree_local)
@@ -1639,6 +1641,7 @@ CONTAINS
       IF (ASSOCIATED(qs_env%oce)) CALL deallocate_oce_set(qs_env%oce)
       IF (ASSOCIATED(qs_env%local_rho_set)) THEN
          CALL local_rho_set_release(qs_env%local_rho_set)
+         DEALLOCATE (qs_env%local_rho_set)
       END IF
       IF (ASSOCIATED(qs_env%hartree_local)) THEN
          CALL hartree_local_release(qs_env%hartree_local)

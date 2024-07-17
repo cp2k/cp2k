@@ -559,6 +559,7 @@ CONTAINS
       CALL init_interaction_radii(dft_control%qs_control, admm_kind_set)
 
       !We also init the atomic grids and harmonics
+      ALLOCATE (admm_gapw_env%local_rho_set)
       CALL local_rho_set_create(admm_gapw_env%local_rho_set)
       CALL init_rho_atom(admm_gapw_env%local_rho_set%rho_atom_set, &
                          atomic_kind_set, admm_kind_set, dft_control, para_env)

@@ -149,7 +149,7 @@ CONTAINS
       TYPE(rt_prop_type), INTENT(INOUT)                  :: rtp
       TYPE(mo_set_type), DIMENSION(:), INTENT(IN)        :: mos
       TYPE(qs_matrix_pools_type), POINTER                :: mpools
-      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(dft_control_type), INTENT(IN)                    :: dft_control
       TYPE(dbcsr_type), POINTER                          :: template
       LOGICAL, INTENT(IN)                                :: linear_scaling
       TYPE(mo_set_type), DIMENSION(:), OPTIONAL, POINTER :: mos_aux

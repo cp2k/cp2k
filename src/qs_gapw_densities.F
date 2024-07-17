@@ -47,8 +47,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE prepare_gapw_den(qs_env, local_rho_set, do_rho0, kind_set_external)
 
-      TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(local_rho_type), OPTIONAL, POINTER            :: local_rho_set
+      TYPE(qs_environment_type), INTENT(IN)              :: qs_env
+      TYPE(local_rho_type), INTENT(IN), OPTIONAL         :: local_rho_set
       LOGICAL, INTENT(IN), OPTIONAL                      :: do_rho0
       TYPE(qs_kind_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: kind_set_external

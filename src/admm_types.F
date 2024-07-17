@@ -546,6 +546,7 @@ CONTAINS
 
       IF (ASSOCIATED(admm_gapw_env%local_rho_set)) THEN
          CALL local_rho_set_release(admm_gapw_env%local_rho_set)
+         DEALLOCATE (admm_gapw_env%local_rho_set)
       END IF
 
       IF (ASSOCIATED(admm_gapw_env%task_list)) THEN

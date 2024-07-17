@@ -168,10 +168,12 @@ CONTAINS
          END IF
          IF (ASSOCIATED(ex_env%local_rho_set)) THEN
             CALL local_rho_set_release(ex_env%local_rho_set)
+            DEALLOCATE (ex_env%local_rho_set)
             NULLIFY (ex_env%local_rho_set)
          END IF
          IF (ASSOCIATED(ex_env%local_rho_set_admm)) THEN
             CALL local_rho_set_release(ex_env%local_rho_set_admm)
+            DEALLOCATE (ex_env%local_rho_set_admm)
             NULLIFY (ex_env%local_rho_set_admm)
          END IF
       END IF
