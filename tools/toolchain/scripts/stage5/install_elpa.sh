@@ -48,7 +48,7 @@ case "$with_elpa" in
         # extra LDFLAGS needed
         cray_ldflags="-dynamic"
       fi
-      enable_openmp="no"
+      # enable_openmp="no"
     fi
 
     if verify_checksums "${install_lock_file}"; then
