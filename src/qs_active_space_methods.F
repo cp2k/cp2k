@@ -1371,6 +1371,7 @@ CONTAINS
          ! We need a task list
          NULLIFY (task_list_sub)
          skip_load_balance_distributed = dft_control%qs_control%skip_load_balance_distributed
+         ALLOCATE (task_list_sub)
          CALL allocate_task_list(task_list_sub)
          CALL generate_qs_task_list(ks_env, task_list_sub, &
                                     reorder_rs_grid_ranks=.TRUE., soft_valid=.FALSE., &
@@ -1687,6 +1688,7 @@ CONTAINS
          DEALLOCATE (mo_coeff_as, matrix_pq_rnu, &
                      fm_mo_coeff_as, fm_matrix_pq_rnu, fm_matrix_pq_rs)
          CALL deallocate_task_list(task_list_sub)
+         DEALLOCATE (task_list_sub)
          CALL dbcsr_release(mat_munu%matrix)
          DEALLOCATE (mat_munu%matrix)
          CALL release_neighbor_list_sets(sab_orb_sub)

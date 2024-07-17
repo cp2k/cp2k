@@ -178,6 +178,7 @@ CONTAINS
          IF (.NOT. dft_control%qs_control%gapw) THEN
             CALL get_ks_env(ks_env, task_list=task_list)
             IF (.NOT. ASSOCIATED(task_list)) THEN
+               ALLOCATE (task_list)
                CALL allocate_task_list(task_list)
                CALL set_ks_env(ks_env, task_list=task_list)
             END IF
@@ -189,6 +190,7 @@ CONTAINS
          IF (dft_control%qs_control%gapw .OR. dft_control%qs_control%gapw_xc) THEN
             CALL get_ks_env(ks_env, task_list_soft=task_list)
             IF (.NOT. ASSOCIATED(task_list)) THEN
+               ALLOCATE (task_list)
                CALL allocate_task_list(task_list)
                CALL set_ks_env(ks_env, task_list_soft=task_list)
             END IF
@@ -206,14 +208,17 @@ CONTAINS
 
             IF (ASSOCIATED(qs_env%kg_env%subset)) THEN
                DO isub = 1, qs_env%kg_env%nsubsets
-                  IF (ASSOCIATED(qs_env%kg_env%subset(isub)%task_list)) &
+                  IF (ASSOCIATED(qs_env%kg_env%subset(isub)%task_list)) THEN
                      CALL deallocate_task_list(qs_env%kg_env%subset(isub)%task_list)
+                     DEALLOCATE (qs_env%kg_env%subset(isub)%task_list)
+                  END IF
                END DO
             ELSE
                ALLOCATE (qs_env%kg_env%subset(qs_env%kg_env%nsubsets))
             END IF
 
             DO isub = 1, qs_env%kg_env%nsubsets
+               ALLOCATE (qs_env%kg_env%subset(isub)%task_list)
                CALL allocate_task_list(qs_env%kg_env%subset(isub)%task_list)
                ! generate the subset task list from the neighborlist
                CALL generate_qs_task_list(ks_env, qs_env%kg_env%subset(isub)%task_list, &

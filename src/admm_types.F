@@ -525,7 +525,10 @@ CONTAINS
          DEALLOCATE (admm_env%rho_aux_fit_buffer)
       END IF
 
-      IF (ASSOCIATED(admm_env%task_list_aux_fit)) CALL deallocate_task_list(admm_env%task_list_aux_fit)
+      IF (ASSOCIATED(admm_env%task_list_aux_fit)) THEN
+         CALL deallocate_task_list(admm_env%task_list_aux_fit)
+         DEALLOCATE (admm_env%task_list_aux_fit)
+      END IF
 
    END SUBROUTINE admm_env_release
 
@@ -547,6 +550,7 @@ CONTAINS
 
       IF (ASSOCIATED(admm_gapw_env%task_list)) THEN
          CALL deallocate_task_list(admm_gapw_env%task_list)
+         DEALLOCATE (admm_gapw_env%task_list)
       END IF
 
       IF (ASSOCIATED(admm_gapw_env%oce)) THEN

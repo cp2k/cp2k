@@ -303,7 +303,7 @@ CONTAINS
 !>      none
 ! **************************************************************************************************
    SUBROUTINE init_constraint(constraint_info)
-      TYPE(constraint_info_type), POINTER                :: constraint_info
+      TYPE(constraint_info_type), INTENT(INOUT)          :: constraint_info
 
 ! Bonds involving Hydrogens
 
@@ -544,7 +544,7 @@ CONTAINS
 !>      none
 ! **************************************************************************************************
    SUBROUTINE deallocate_constraint(constraint_info)
-      TYPE(constraint_info_type), POINTER                :: constraint_info
+      TYPE(constraint_info_type), INTENT(INOUT)          :: constraint_info
 
       INTEGER                                            :: i
 

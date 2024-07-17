@@ -152,6 +152,7 @@ CONTAINS
       DO isub = 1, kg_env%nsubsets
          CALL release_neighbor_list_sets(kg_env%subset(isub)%sab_orb)
          CALL deallocate_task_list(kg_env%subset(isub)%task_list)
+         DEALLOCATE (kg_env%subset(isub)%task_list)
       END DO
 
       IF (ASSOCIATED(kg_env%subset_of_mol)) DEALLOCATE (kg_env%subset_of_mol)

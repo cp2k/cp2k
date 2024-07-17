@@ -752,10 +752,14 @@ CONTAINS
       END IF
       IF (ASSOCIATED(ks_env%distribution_2d)) &
          CALL distribution_2d_release(ks_env%distribution_2d)
-      IF (ASSOCIATED(ks_env%task_list)) &
+      IF (ASSOCIATED(ks_env%task_list)) THEN
          CALL deallocate_task_list(ks_env%task_list)
-      IF (ASSOCIATED(ks_env%task_list_soft)) &
+         DEALLOCATE (ks_env%task_list)
+      END IF
+      IF (ASSOCIATED(ks_env%task_list_soft)) THEN
          CALL deallocate_task_list(ks_env%task_list_soft)
+         DEALLOCATE (ks_env%task_list_soft)
+      END IF
 
       IF (ASSOCIATED(ks_env%rho_nlcc_g)) THEN
          CALL ks_env%rho_nlcc_g%release()
@@ -850,10 +854,14 @@ CONTAINS
          CALL qs_rho_release(ks_env%rho_xc)
          DEALLOCATE (ks_env%rho_xc)
       END IF
-      IF (ASSOCIATED(ks_env%task_list)) &
+      IF (ASSOCIATED(ks_env%task_list)) THEN
          CALL deallocate_task_list(ks_env%task_list)
-      IF (ASSOCIATED(ks_env%task_list_soft)) &
+         DEALLOCATE (ks_env%task_list)
+      END IF
+      IF (ASSOCIATED(ks_env%task_list_soft)) THEN
          CALL deallocate_task_list(ks_env%task_list_soft)
+         DEALLOCATE (ks_env%task_list_soft)
+      END IF
 
       IF (ASSOCIATED(ks_env%rho_nlcc_g)) THEN
          CALL ks_env%rho_nlcc_g%release()

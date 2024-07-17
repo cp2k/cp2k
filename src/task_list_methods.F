@@ -119,7 +119,7 @@ CONTAINS
                                     soft_valid, basis_type, pw_env_external, sab_orb_external)
 
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
-      TYPE(task_list_type), POINTER                      :: task_list
+      TYPE(task_list_type), INTENT(INOUT)                :: task_list
       LOGICAL, INTENT(IN)                                :: reorder_rs_grid_ranks, &
                                                             skip_load_balance_distributed
       LOGICAL, INTENT(IN), OPTIONAL                      :: soft_valid
@@ -514,7 +514,7 @@ CONTAINS
 !> \author Ole Schuett
 ! **************************************************************************************************
    SUBROUTINE create_grid_task_list(task_list, qs_kind_set, particle_set, cell, basis_type, rs_grids)
-      TYPE(task_list_type), POINTER                      :: task_list
+      TYPE(task_list_type), INTENT(INOUT)                :: task_list
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(cell_type), POINTER                           :: cell

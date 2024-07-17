@@ -417,14 +417,20 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       IF (sub_env%is_mgrid) THEN
-         IF (ASSOCIATED(sub_env%task_list_aux_fit)) &
+         IF (ASSOCIATED(sub_env%task_list_aux_fit)) THEN
             CALL deallocate_task_list(sub_env%task_list_aux_fit)
+            DEALLOCATE (sub_env%task_list_aux_fit)
+         END IF
 
-         IF (ASSOCIATED(sub_env%task_list_orb)) &
+         IF (ASSOCIATED(sub_env%task_list_orb)) THEN
             CALL deallocate_task_list(sub_env%task_list_orb)
+            DEALLOCATE (sub_env%task_list_orb)
+         END IF
 
-         IF (ASSOCIATED(sub_env%task_list_orb_soft)) &
+         IF (ASSOCIATED(sub_env%task_list_orb_soft)) THEN
             CALL deallocate_task_list(sub_env%task_list_orb_soft)
+            DEALLOCATE (sub_env%task_list_orb_soft)
+         END IF
 
          CALL release_neighbor_list_sets(sub_env%sab_aux_fit)
          CALL release_neighbor_list_sets(sub_env%sab_orb)
@@ -717,6 +723,7 @@ CONTAINS
       CALL atom2d_cleanup(atom2d)
       DEALLOCATE (atom2d, orb_present, orb_radius, pair_radius)
 
+      ALLOCATE (task_list)
       CALL allocate_task_list(task_list)
       CALL generate_qs_task_list(ks_env, task_list, &
                                  reorder_rs_grid_ranks=reorder_grid_ranks, soft_valid=soft_valid, &

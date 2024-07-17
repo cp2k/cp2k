@@ -136,15 +136,13 @@ CONTAINS
 !> \author Mohammad Hossein Bani-Hashemian
 ! **************************************************************************************************
    SUBROUTINE transport_env_release(transport_env)
-      TYPE(transport_env_type), POINTER                  :: transport_env
+      TYPE(transport_env_type), INTENT(INOUT)            :: transport_env
 
       CHARACTER(len=*), PARAMETER :: routineN = 'transport_env_release'
 
       INTEGER                                            :: handle
 
       CALL timeset(routineN, handle)
-
-      CPASSERT(ASSOCIATED(transport_env))
 
       IF (C_ASSOCIATED(transport_env%ext_c_method_ptr)) THEN
          CALL dbcsr_csr_destroy(transport_env%s_matrix)
@@ -162,8 +160,6 @@ CONTAINS
       IF (ASSOCIATED(transport_env%contacts_data)) DEALLOCATE (transport_env%contacts_data)
       IF (ASSOCIATED(transport_env%nsgf)) DEALLOCATE (transport_env%nsgf)
       IF (ASSOCIATED(transport_env%zeff)) DEALLOCATE (transport_env%zeff)
-
-      DEALLOCATE (transport_env)
 
       CALL timestop(handle)
 

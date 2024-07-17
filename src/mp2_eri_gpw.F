@@ -1020,6 +1020,7 @@ CONTAINS
       ! now we need a task list, hard code skip_load_balance_distributed
       NULLIFY (task_list_sub)
       skip_load_balance_distributed = dft_control%qs_control%skip_load_balance_distributed
+      ALLOCATE (task_list_sub)
       CALL allocate_task_list(task_list_sub)
       CALL generate_qs_task_list(ks_env, task_list_sub, &
                                  reorder_rs_grid_ranks=.TRUE., soft_valid=.FALSE., &
@@ -1083,6 +1084,7 @@ CONTAINS
       CALL auxbas_pw_pool%give_back_pw(psi_L)
 
       CALL deallocate_task_list(task_list_sub)
+      DEALLOCATE (task_list_sub)
       CALL pw_env_release(pw_env_sub, para_env=para_env_sub)
 
       CALL get_qs_env(qs_env, dft_control=dft_control)

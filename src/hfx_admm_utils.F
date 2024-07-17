@@ -759,7 +759,11 @@ CONTAINS
 
       !The aux_fit task_list
       skip_load_balance_distributed = dft_control%qs_control%skip_load_balance_distributed
-      IF (ASSOCIATED(admm_env%task_list_aux_fit)) CALL deallocate_task_list(admm_env%task_list_aux_fit)
+      IF (ASSOCIATED(admm_env%task_list_aux_fit)) THEN
+         CALL deallocate_task_list(admm_env%task_list_aux_fit)
+      ELSE
+         ALLOCATE (admm_env%task_list_aux_fit)
+      END IF
       CALL allocate_task_list(admm_env%task_list_aux_fit)
       CALL generate_qs_task_list(ks_env, admm_env%task_list_aux_fit, &
                                  reorder_rs_grid_ranks=.FALSE., soft_valid=.FALSE., &
@@ -821,7 +825,11 @@ CONTAINS
       nkind = SIZE(qs_kind_set)
 
       !Update the task lisft for the AUX_FIT_SOFT basis
-      IF (ASSOCIATED(admm_gapw_env%task_list)) CALL deallocate_task_list(admm_gapw_env%task_list)
+      IF (ASSOCIATED(admm_gapw_env%task_list)) THEN
+         CALL deallocate_task_list(admm_gapw_env%task_list)
+      ELSE
+         ALLOCATE (admm_gapw_env%task_list)
+      END IF
       CALL allocate_task_list(admm_gapw_env%task_list)
 
       !note: we set soft_valid to .FALSE. want to use AUX_FIT_SOFT and not the normal ORB SOFT basis

@@ -94,9 +94,7 @@ CONTAINS
 !>      01.2008 created [Joost VandeVondele]
 ! **************************************************************************************************
    SUBROUTINE allocate_task_list(task_list)
-      TYPE(task_list_type), POINTER                      :: task_list
-
-      ALLOCATE (task_list)
+      TYPE(task_list_type), INTENT(OUT)                  :: task_list
 
       NULLIFY (task_list%tasks)
       NULLIFY (task_list%atom_pair_send)
@@ -142,7 +140,7 @@ CONTAINS
 !>      01.2008 created [Joost VandeVondele]
 ! **************************************************************************************************
    SUBROUTINE deallocate_task_list(task_list)
-      TYPE(task_list_type), POINTER                      :: task_list
+      TYPE(task_list_type), INTENT(INOUT)                :: task_list
 
       INTEGER                                            :: i
 
@@ -194,7 +192,6 @@ CONTAINS
          DEALLOCATE (task_list%grid_basis_sets)
       END IF
 
-      DEALLOCATE (task_list)
    END SUBROUTINE deallocate_task_list
 
 ! **************************************************************************************************

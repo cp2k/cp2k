@@ -1442,6 +1442,7 @@ CONTAINS
 
       IF (ASSOCIATED(qs_env%transport_env)) THEN
          CALL transport_env_release(qs_env%transport_env)
+         DEALLOCATE (qs_env%transport_env)
       END IF
 
       !Only if do_xas_calculation
@@ -1666,6 +1667,7 @@ CONTAINS
 
       IF (ASSOCIATED(qs_env%transport_env)) THEN
          CALL transport_env_release(qs_env%transport_env)
+         DEALLOCATE (qs_env%transport_env)
       END IF
 
       !Only if do_xas_calculation

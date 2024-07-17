@@ -1016,6 +1016,7 @@ CONTAINS
       NULLIFY (task_list)
       CALL get_ks_env(ks_env, task_list=task_list)
       IF (.NOT. ASSOCIATED(task_list)) THEN
+         ALLOCATE (task_list)
          CALL allocate_task_list(task_list)
          CALL set_ks_env(ks_env, task_list=task_list)
       END IF

@@ -2951,7 +2951,11 @@ CONTAINS
       ! Task list
       CALL get_qs_env(qs_env, ks_env=ks_env, dft_control=dft_control)
       skip_load_balance_distributed = dft_control%qs_control%skip_load_balance_distributed
-      IF (ASSOCIATED(ec_env%task_list)) CALL deallocate_task_list(ec_env%task_list)
+      IF (ASSOCIATED(ec_env%task_list)) THEN
+         CALL deallocate_task_list(ec_env%task_list)
+      ELSE
+         ALLOCATE (ec_env%task_list)
+      END IF
       CALL allocate_task_list(ec_env%task_list)
       CALL generate_qs_task_list(ks_env, ec_env%task_list, &
                                  reorder_rs_grid_ranks=.FALSE., soft_valid=.FALSE., &
