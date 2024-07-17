@@ -96,14 +96,13 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE remove_gt_references(gt_ptr, tmc_env)
       TYPE(global_tree_type), POINTER                    :: gt_ptr
-      TYPE(tmc_env_type), POINTER                        :: tmc_env
+      TYPE(tmc_env_type), INTENT(INOUT)                  :: tmc_env
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'remove_gt_references'
 
       INTEGER                                            :: handle
 
       CPASSERT(ASSOCIATED(gt_ptr))
-      CPASSERT(ASSOCIATED(tmc_env))
 
       ! start the timing
       CALL timeset(routineN, handle)
@@ -201,7 +200,7 @@ CONTAINS
    SUBROUTINE search_and_remove_reference_in_list(gt_ptr, elem, tmc_env)
       TYPE(global_tree_type), POINTER                    :: gt_ptr
       TYPE(tree_type), POINTER                           :: elem
-      TYPE(tmc_env_type), POINTER                        :: tmc_env
+      TYPE(tmc_env_type), INTENT(INOUT)                  :: tmc_env
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'search_and_remove_reference_in_list'
 
@@ -213,8 +212,6 @@ CONTAINS
       ! nothing to do, when subtree element is already deleted
       IF (.NOT. ASSOCIATED(elem)) RETURN
       IF (.NOT. ASSOCIATED(gt_ptr)) RETURN
-
-      CPASSERT(ASSOCIATED(tmc_env))
 
       ! start the timing
       CALL timeset(routineN, handle)

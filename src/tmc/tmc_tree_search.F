@@ -505,7 +505,7 @@ CONTAINS
    RECURSIVE SUBROUTINE search_canceling_elements(pt_elem_in, prob, tmc_env)
       TYPE(global_tree_type), INTENT(IN), POINTER        :: pt_elem_in
       REAL(KIND=dp), OPTIONAL                            :: prob
-      TYPE(tmc_env_type), POINTER                        :: tmc_env
+      TYPE(tmc_env_type), INTENT(INOUT)                  :: tmc_env
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'search_canceling_elements'
 
@@ -515,7 +515,6 @@ CONTAINS
 
       NULLIFY (pt_elem, act_pt_ptr)
       CPASSERT(ASSOCIATED(pt_elem_in))
-      CPASSERT(ASSOCIATED(tmc_env))
 
       ! start the timing
       CALL timeset(routineN, handle)

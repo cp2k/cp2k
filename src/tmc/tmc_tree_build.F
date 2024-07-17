@@ -261,7 +261,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE init_tree_mod(start_elem, tmc_env, job_counts, worker_timings)
       TYPE(tree_type), POINTER                           :: start_elem
-      TYPE(tmc_env_type), POINTER                        :: tmc_env
+      TYPE(tmc_env_type), INTENT(INOUT)                  :: tmc_env
       INTEGER, DIMENSION(:)                              :: job_counts
       REAL(KIND=dp), DIMENSION(4)                        :: worker_timings
 
@@ -273,7 +273,6 @@ CONTAINS
       NULLIFY (global_tree)
 
       CPASSERT(ASSOCIATED(start_elem))
-      CPASSERT(ASSOCIATED(tmc_env))
       CPASSERT(ASSOCIATED(tmc_env%m_env))
 
       ! start the timing
@@ -421,7 +420,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE finalize_init(gt_tree_ptr, tmc_env)
       TYPE(global_tree_type), POINTER                    :: gt_tree_ptr
-      TYPE(tmc_env_type), POINTER                        :: tmc_env
+      TYPE(tmc_env_type), INTENT(IN)                     :: tmc_env
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'finalize_init'
 
@@ -429,7 +428,6 @@ CONTAINS
 
       CPASSERT(ASSOCIATED(gt_tree_ptr))
       CPASSERT(.NOT. ASSOCIATED(gt_tree_ptr%parent))
-      CPASSERT(ASSOCIATED(tmc_env))
       CPASSERT(ASSOCIATED(tmc_env%m_env))
       CPASSERT(ASSOCIATED(tmc_env%params))
 
@@ -485,7 +483,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE create_new_gt_tree_node(tmc_env, stat, new_elem, &
                                       reactivation_cc_count)
-      TYPE(tmc_env_type), POINTER                        :: tmc_env
+      TYPE(tmc_env_type), INTENT(INOUT)                  :: tmc_env
       INTEGER, INTENT(OUT)                               :: stat
       TYPE(global_tree_type), INTENT(OUT), POINTER       :: new_elem
       INTEGER                                            :: reactivation_cc_count
@@ -500,7 +498,6 @@ CONTAINS
 
       NULLIFY (tmp_elem, tree_elem, new_elem)
 
-      CPASSERT(ASSOCIATED(tmc_env))
       CPASSERT(ASSOCIATED(tmc_env%params))
       CPASSERT(ASSOCIATED(tmc_env%m_env))
       CPASSERT(ASSOCIATED(tmc_env%m_env%gt_act))
@@ -826,7 +823,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE create_new_subtree_node(act_gt_el, tmc_env)
       TYPE(global_tree_type), POINTER                    :: act_gt_el
-      TYPE(tmc_env_type), POINTER                        :: tmc_env
+      TYPE(tmc_env_type), INTENT(INOUT)                  :: tmc_env
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'create_new_subtree_node'
 
@@ -839,7 +836,6 @@ CONTAINS
 
       CPASSERT(ASSOCIATED(act_gt_el))
       CPASSERT(ASSOCIATED(act_gt_el%conf(act_gt_el%mv_conf)%elem))
-      CPASSERT(ASSOCIATED(tmc_env))
       CPASSERT(ASSOCIATED(tmc_env%params))
 
       ! start the timing
@@ -984,14 +980,13 @@ CONTAINS
    SUBROUTINE remove_gt_elem(gt_ptr, draw, tmc_env)
       TYPE(global_tree_type), POINTER                    :: gt_ptr
       LOGICAL, OPTIONAL                                  :: draw
-      TYPE(tmc_env_type), POINTER                        :: tmc_env
+      TYPE(tmc_env_type), INTENT(INOUT)                  :: tmc_env
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'remove_gt_elem'
 
       INTEGER                                            :: handle
 
       CPASSERT(ASSOCIATED(gt_ptr))
-      CPASSERT(ASSOCIATED(tmc_env))
 
       ! start the timing
       CALL timeset(routineN, handle)
@@ -1044,7 +1039,7 @@ CONTAINS
    SUBROUTINE remove_st_elem(ptr, draw, tmc_env)
       TYPE(tree_type), POINTER                           :: ptr
       LOGICAL, OPTIONAL                                  :: draw
-      TYPE(tmc_env_type), POINTER                        :: tmc_env
+      TYPE(tmc_env_type), INTENT(IN)                     :: tmc_env
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'remove_st_elem'
 
@@ -1053,7 +1048,6 @@ CONTAINS
 
       ready = .TRUE.
       CPASSERT(ASSOCIATED(ptr))
-      CPASSERT(ASSOCIATED(tmc_env))
 
       ! start the timing
       CALL timeset(routineN, handle)
@@ -1128,7 +1122,7 @@ CONTAINS
    RECURSIVE SUBROUTINE remove_unused_g_tree(begin_ptr, end_ptr, removed, tmc_env)
       TYPE(global_tree_type), POINTER                    :: begin_ptr, end_ptr
       LOGICAL                                            :: removed
-      TYPE(tmc_env_type), POINTER                        :: tmc_env
+      TYPE(tmc_env_type), INTENT(INOUT)                  :: tmc_env
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'remove_unused_g_tree'
 
@@ -1140,7 +1134,6 @@ CONTAINS
 
       CPASSERT(ASSOCIATED(begin_ptr))
       CPASSERT(ASSOCIATED(end_ptr))
-      CPASSERT(ASSOCIATED(tmc_env))
 
       ! start the timing
       CALL timeset(routineN, handle)
@@ -1205,7 +1198,7 @@ CONTAINS
       TYPE(tree_type), INTENT(IN), POINTER               :: end_ptr
       TYPE(elem_array_type), DIMENSION(:), POINTER       :: working_elem_list
       LOGICAL                                            :: removed
-      TYPE(tmc_env_type), POINTER                        :: tmc_env
+      TYPE(tmc_env_type), INTENT(IN)                     :: tmc_env
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'remove_unused_s_tree'
 
@@ -1225,7 +1218,6 @@ CONTAINS
       CPASSERT(ASSOCIATED(begin_ptr))
       CPASSERT(ASSOCIATED(end_ptr))
       CPASSERT(ASSOCIATED(working_elem_list))
-      CPASSERT(ASSOCIATED(tmc_env))
 
       !-- if element is last checked in trajectory, go back
       IF (.NOT. ASSOCIATED(begin_ptr, end_ptr)) THEN
@@ -1319,7 +1311,7 @@ CONTAINS
    RECURSIVE SUBROUTINE remove_result_g_tree(end_of_clean_tree, actual_ptr, &
                                              tmc_env)
       TYPE(global_tree_type), POINTER                    :: end_of_clean_tree, actual_ptr
-      TYPE(tmc_env_type), POINTER                        :: tmc_env
+      TYPE(tmc_env_type), INTENT(INOUT)                  :: tmc_env
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'remove_result_g_tree'
 
@@ -1361,7 +1353,7 @@ CONTAINS
    RECURSIVE SUBROUTINE remove_result_s_tree(end_of_clean_tree, actual_ptr, &
                                              tmc_env)
       TYPE(tree_type), POINTER                           :: end_of_clean_tree, actual_ptr
-      TYPE(tmc_env_type), POINTER                        :: tmc_env
+      TYPE(tmc_env_type), INTENT(IN)                     :: tmc_env
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'remove_result_s_tree'
 
@@ -1370,7 +1362,6 @@ CONTAINS
 
       CPASSERT(ASSOCIATED(end_of_clean_tree))
       CPASSERT(ASSOCIATED(actual_ptr))
-      CPASSERT(ASSOCIATED(tmc_env))
 
       ! start the timing
       CALL timeset(routineN, handle)
@@ -1409,7 +1400,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE remove_all_trees(working_elem_list, tmc_env)
       TYPE(elem_array_type), DIMENSION(:), POINTER       :: working_elem_list
-      TYPE(tmc_env_type), POINTER                        :: tmc_env
+      TYPE(tmc_env_type), INTENT(INOUT)                  :: tmc_env
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'remove_all_trees'
 
@@ -1421,7 +1412,6 @@ CONTAINS
       NULLIFY (last_acc_st_elem, tmp_ptr, tmp_gt_ptr)
 
       CPASSERT(ASSOCIATED(working_elem_list))
-      CPASSERT(ASSOCIATED(tmc_env))
       CPASSERT(ASSOCIATED(tmc_env%m_env))
       CPASSERT(ASSOCIATED(tmc_env%m_env%gt_act))
       CPASSERT(ASSOCIATED(tmc_env%m_env%gt_clean_end))
@@ -1501,13 +1491,12 @@ CONTAINS
    RECURSIVE SUBROUTINE dealloc_whole_g_tree(begin_ptr, removed, tmc_env)
       TYPE(global_tree_type), POINTER                    :: begin_ptr
       LOGICAL                                            :: removed
-      TYPE(tmc_env_type), POINTER                        :: tmc_env
+      TYPE(tmc_env_type), INTENT(INOUT)                  :: tmc_env
 
       LOGICAL                                            :: acc_removed, nacc_removed
       TYPE(global_tree_type), POINTER                    :: acc_ptr, nacc_ptr, tmp_ptr
 
       CPASSERT(ASSOCIATED(begin_ptr))
-      CPASSERT(ASSOCIATED(tmc_env))
 
       IF (ASSOCIATED(begin_ptr%acc)) THEN
          acc_ptr => begin_ptr%acc
@@ -1580,13 +1569,12 @@ CONTAINS
 !> \author Mandes 01.2013
 ! **************************************************************************************************
    SUBROUTINE finalize_trees(tmc_env)
-      TYPE(tmc_env_type), POINTER                        :: tmc_env
+      TYPE(tmc_env_type), INTENT(INOUT)                  :: tmc_env
 
       INTEGER                                            :: i
       LOGICAL                                            :: flag
       TYPE(global_tree_type), POINTER                    :: global_tree
 
-      CPASSERT(ASSOCIATED(tmc_env))
       CPASSERT(ASSOCIATED(tmc_env%m_env))
 
       global_tree => tmc_env%m_env%gt_act

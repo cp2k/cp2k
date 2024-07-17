@@ -111,7 +111,7 @@ CONTAINS
 !> \author Mandes 11.2012
 ! **************************************************************************************************
    SUBROUTINE do_tmc_worker(tmc_env, ana_list)
-      TYPE(tmc_env_type), POINTER                        :: tmc_env
+      TYPE(tmc_env_type), INTENT(INOUT)                  :: tmc_env
       TYPE(tmc_ana_list_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: ana_list
 
@@ -129,8 +129,6 @@ CONTAINS
       i1 = -1
       i2 = -1
       NULLIFY (conf, para_env_m_w, ana_restart_conf)
-
-      CPASSERT(ASSOCIATED(tmc_env))
 
       ! start the timing
       CALL timeset(routineN, handle)
@@ -597,7 +595,7 @@ CONTAINS
    SUBROUTINE nested_markov_chain_MC(conf, env_id, tmc_env, calc_status)
       TYPE(tree_type), POINTER                           :: conf
       INTEGER, INTENT(IN)                                :: env_id
-      TYPE(tmc_env_type), POINTER                        :: tmc_env
+      TYPE(tmc_env_type), INTENT(INOUT)                  :: tmc_env
       INTEGER, INTENT(OUT)                               :: calc_status
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'nested_markov_chain_MC'
@@ -609,7 +607,6 @@ CONTAINS
 
       NULLIFY (last_acc_conf)
 
-      CPASSERT(ASSOCIATED(tmc_env))
       CPASSERT(ASSOCIATED(tmc_env%params))
       CPASSERT(ASSOCIATED(tmc_env%tmc_comp_set))
       CPASSERT(ALLOCATED(tmc_env%rng_stream))

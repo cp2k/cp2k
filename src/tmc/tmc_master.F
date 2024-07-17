@@ -100,7 +100,7 @@ CONTAINS
       TYPE(elem_array_type), DIMENSION(:), POINTER       :: work_list
       INTEGER                                            :: cancel_count
       TYPE(mp_para_env_type), POINTER                    :: para_env
-      TYPE(tmc_env_type), POINTER                        :: tmc_env
+      TYPE(tmc_env_type), INTENT(INOUT)                  :: tmc_env
 
       INTEGER                                            :: i, stat, wg
       TYPE(elem_list_type), POINTER                      :: tmp_element
@@ -108,7 +108,6 @@ CONTAINS
       IF (.NOT. ASSOCIATED(cancel_list)) RETURN
       NULLIFY (tmp_element)
 
-      CPASSERT(ASSOCIATED(tmc_env))
       CPASSERT(ASSOCIATED(tmc_env%params))
       CPASSERT(ASSOCIATED(tmc_env%m_env))
       CPASSERT(ASSOCIATED(work_list))
@@ -170,7 +169,7 @@ CONTAINS
       TYPE(elem_list_type), POINTER                      :: ana_list
       TYPE(elem_array_type), DIMENSION(:), POINTER       :: ana_worker_info
       TYPE(mp_para_env_type), POINTER                    :: para_env
-      TYPE(tmc_env_type), POINTER                        :: tmc_env
+      TYPE(tmc_env_type), INTENT(INOUT)                  :: tmc_env
 
       INTEGER                                            :: dest, stat, wg
       TYPE(elem_list_type), POINTER                      :: list_tmp
@@ -208,7 +207,7 @@ CONTAINS
 !> \author Mandes 11.2012
 ! **************************************************************************************************
    SUBROUTINE do_tmc_master(tmc_env, globenv)
-      TYPE(tmc_env_type), POINTER                        :: tmc_env
+      TYPE(tmc_env_type), INTENT(INOUT)                  :: tmc_env
       TYPE(global_environment_type), POINTER             :: globenv
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'do_tmc_master'
@@ -230,8 +229,6 @@ CONTAINS
       external_stop = .FALSE.
       restarted_elem_nr = 0
       NULLIFY (init_conf, worker_info, ana_worker_info, gt_elem_tmp, tree_elem_counters)
-
-      CPASSERT(ASSOCIATED(tmc_env))
 
       CPASSERT(tmc_env%tmc_comp_set%group_nr == 0)
       CPASSERT(ASSOCIATED(tmc_env%tmc_comp_set))

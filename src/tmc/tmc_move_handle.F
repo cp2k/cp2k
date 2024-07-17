@@ -148,6 +148,7 @@ CONTAINS
 
       IF (n_items + n_NMC_items .GT. 0) THEN
          ! initilaize the move array with related sizes, probs, etc.
+         ALLOCATE (tmc_params%move_types)
          CALL move_types_create(tmc_params%move_types, tmc_params%nr_temp)
 
          IF (mv_prob_sum .LE. 0.0) &
@@ -170,6 +171,7 @@ CONTAINS
                   move_type_section => section_vals_get_subs_vals(tmc_section, "NMC_MOVES%MOVE_TYPE")
                   mv_prob_sum = nmc_prob_sum
                   ! allocate the NMC move types
+                  ALLOCATE (tmc_params%nmc_move_types)
                   CALL move_types_create(tmc_params%nmc_move_types, tmc_params%nr_temp)
                   move_types => tmc_params%nmc_move_types
                END IF
@@ -408,8 +410,11 @@ CONTAINS
 
       CPASSERT(ASSOCIATED(tmc_params))
       CALL move_types_release(tmc_params%move_types)
-      IF (ASSOCIATED(tmc_params%nmc_move_types)) &
+      DEALLOCATE (tmc_params%move_types)
+      IF (ASSOCIATED(tmc_params%nmc_move_types)) THEN
          CALL move_types_release(tmc_params%nmc_move_types)
+         DEALLOCATE (tmc_params%nmc_move_types)
+      END IF
    END SUBROUTINE finalize_mv_types
 
 ! **************************************************************************************************

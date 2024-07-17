@@ -205,7 +205,7 @@ CONTAINS
 !> \author Mandes 11.2012
 ! **************************************************************************************************
    SUBROUTINE print_restart_file(tmc_env, job_counts, timings)
-      TYPE(tmc_env_type), POINTER                        :: tmc_env
+      TYPE(tmc_env_type), INTENT(IN)                     :: tmc_env
       INTEGER, DIMENSION(:)                              :: job_counts
       REAL(KIND=dp), DIMENSION(4)                        :: timings
 
@@ -213,7 +213,6 @@ CONTAINS
       INTEGER                                            :: f_unit, i
 
       c_tmp = ""
-      CPASSERT(ASSOCIATED(tmc_env))
       CPASSERT(ASSOCIATED(tmc_env%m_env))
       CPASSERT(ASSOCIATED(tmc_env%params))
       CPASSERT(ASSOCIATED(tmc_env%m_env%gt_act))
@@ -274,7 +273,7 @@ CONTAINS
 !> \author Mandes 11.2012
 ! **************************************************************************************************
    SUBROUTINE read_restart_file(tmc_env, job_counts, timings, file_name)
-      TYPE(tmc_env_type), POINTER                        :: tmc_env
+      TYPE(tmc_env_type), INTENT(INOUT)                  :: tmc_env
       INTEGER, DIMENSION(:)                              :: job_counts
       REAL(KIND=dp), DIMENSION(4)                        :: timings
       CHARACTER(LEN=*)                                   :: file_name
@@ -284,7 +283,6 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: tmp_temp
       REAL(KIND=dp), DIMENSION(nr_mv_types)              :: mv_weight_tmp
 
-      CPASSERT(ASSOCIATED(tmc_env))
       CPASSERT(ASSOCIATED(tmc_env%m_env))
       CPASSERT(ASSOCIATED(tmc_env%params))
       CPASSERT(ASSOCIATED(tmc_env%m_env%gt_act))

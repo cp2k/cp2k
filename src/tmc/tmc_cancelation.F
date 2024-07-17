@@ -53,7 +53,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE add_to_canceling_list(elem, tmc_env)
       TYPE(tree_type), POINTER                           :: elem
-      TYPE(tmc_env_type), POINTER                        :: tmc_env
+      TYPE(tmc_env_type), INTENT(INOUT)                  :: tmc_env
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'add_to_canceling_list'
 
@@ -61,7 +61,6 @@ CONTAINS
       LOGICAL                                            :: need_to_cancel
 
       CPASSERT(ASSOCIATED(elem))
-      CPASSERT(ASSOCIATED(tmc_env))
       CPASSERT(ASSOCIATED(tmc_env%m_env))
       CPASSERT(ASSOCIATED(tmc_env%params))
 

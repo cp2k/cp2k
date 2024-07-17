@@ -83,12 +83,9 @@ CONTAINS
 !> \note deallocating the module variables
 ! **************************************************************************************************
    SUBROUTINE move_types_create(move_types, nr_temp)
-      TYPE(tmc_move_type), POINTER                       :: move_types
+      TYPE(tmc_move_type), INTENT(OUT)                   :: move_types
       INTEGER                                            :: nr_temp
 
-      CPASSERT(.NOT. ASSOCIATED(move_types))
-
-      ALLOCATE (move_types)
       ALLOCATE (move_types%mv_weight(nr_mv_types))
       move_types%mv_weight(:) = 0.0_dp
       ALLOCATE (move_types%mv_size(nr_mv_types, nr_temp))
@@ -113,9 +110,7 @@ CONTAINS
 !> \note deallocating the module variables
 ! **************************************************************************************************
    SUBROUTINE move_types_release(move_types)
-      TYPE(tmc_move_type), POINTER                       :: move_types
-
-      CPASSERT(ASSOCIATED(move_types))
+      TYPE(tmc_move_type), INTENT(INOUT)                 :: move_types
 
       IF (ASSOCIATED(move_types%atom_lists)) DEALLOCATE (move_types%atom_lists)
       DEALLOCATE (move_types%mv_weight)
@@ -125,7 +120,6 @@ CONTAINS
       DEALLOCATE (move_types%acc_count)
       DEALLOCATE (move_types%subbox_acc_count)
       DEALLOCATE (move_types%subbox_count)
-      DEALLOCATE (move_types)
    END SUBROUTINE move_types_release
 
 END MODULE tmc_move_types

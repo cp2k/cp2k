@@ -174,17 +174,13 @@ CONTAINS
 !> \author Mandes 11.2012
 ! **************************************************************************************************
    SUBROUTINE tmc_env_create(tmc_env)
-      TYPE(tmc_env_type), POINTER                        :: tmc_env
+      TYPE(tmc_env_type), INTENT(OUT)                    :: tmc_env
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'tmc_env_create'
 
       INTEGER                                            :: handle
 
       CALL timeset(routineN, handle)
-
-      CPASSERT(.NOT. ASSOCIATED(tmc_env))
-
-      ALLOCATE (tmc_env)
 
       ALLOCATE (tmc_env%tmc_comp_set)
 
@@ -204,7 +200,7 @@ CONTAINS
 !> \author Mandes 11.2012
 ! **************************************************************************************************
    SUBROUTINE tmc_env_release(tmc_env)
-      TYPE(tmc_env_type), POINTER                        :: tmc_env
+      TYPE(tmc_env_type), INTENT(INOUT)                  :: tmc_env
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'tmc_env_release'
 
@@ -212,7 +208,6 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      CPASSERT(ASSOCIATED(tmc_env))
       CPASSERT(ASSOCIATED(tmc_env%params))
 
       DEALLOCATE (tmc_env%params%sub_box_size)
@@ -235,8 +230,6 @@ CONTAINS
 
       DEALLOCATE (tmc_env%tmc_comp_set)
 
-      DEALLOCATE (tmc_env)
-
       CALL timestop(handle)
 
    END SUBROUTINE tmc_env_release
@@ -247,7 +240,7 @@ CONTAINS
 !> \author Mandes 11.2012
 ! **************************************************************************************************
    SUBROUTINE tmc_master_env_create(tmc_env)
-      TYPE(tmc_env_type), POINTER                        :: tmc_env
+      TYPE(tmc_env_type), INTENT(INOUT)                  :: tmc_env
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'tmc_master_env_create'
 
@@ -255,7 +248,6 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      CPASSERT(ASSOCIATED(tmc_env))
       CPASSERT(ASSOCIATED(tmc_env%params))
       CPASSERT(tmc_env%params%nr_temp .GT. 0)
 
@@ -306,7 +298,7 @@ CONTAINS
 !> \author Mandes 11.2012
 ! **************************************************************************************************
    SUBROUTINE tmc_master_env_release(tmc_env)
-      TYPE(tmc_env_type), POINTER                        :: tmc_env
+      TYPE(tmc_env_type), INTENT(INOUT)                  :: tmc_env
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'tmc_master_env_release'
 
@@ -314,7 +306,6 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      CPASSERT(ASSOCIATED(tmc_env))
       CPASSERT(ASSOCIATED(tmc_env%m_env))
 
       CALL clean_list(tmc_env%m_env%analysis_list)
@@ -339,7 +330,7 @@ CONTAINS
 !> \author Mandes 11.2012
 ! **************************************************************************************************
    SUBROUTINE tmc_worker_env_create(tmc_env)
-      TYPE(tmc_env_type), POINTER                        :: tmc_env
+      TYPE(tmc_env_type), INTENT(INOUT)                  :: tmc_env
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'tmc_worker_env_create'
 
@@ -347,7 +338,6 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      CPASSERT(ASSOCIATED(tmc_env))
       CPASSERT(.NOT. ASSOCIATED(tmc_env%w_env))
 
       ALLOCATE (tmc_env%w_env)
@@ -367,7 +357,7 @@ CONTAINS
 !> \author Mandes 11.2012
 ! **************************************************************************************************
    SUBROUTINE tmc_worker_env_release(tmc_env)
-      TYPE(tmc_env_type), POINTER                        :: tmc_env
+      TYPE(tmc_env_type), INTENT(INOUT)                  :: tmc_env
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'tmc_worker_env_release'
 
@@ -375,7 +365,6 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      CPASSERT(ASSOCIATED(tmc_env))
       CPASSERT(ASSOCIATED(tmc_env%w_env))
 
       DEALLOCATE (tmc_env%w_env)

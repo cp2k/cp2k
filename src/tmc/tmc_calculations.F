@@ -67,7 +67,7 @@ CONTAINS
       TYPE(tree_type), POINTER                           :: conf
       INTEGER                                            :: env_id
       LOGICAL                                            :: exact_approx_pot
-      TYPE(tmc_env_type), POINTER                        :: tmc_env
+      TYPE(tmc_env_type), INTENT(INOUT)                  :: tmc_env
 
       INTEGER                                            :: ierr
       LOGICAL                                            :: flag
@@ -78,7 +78,6 @@ CONTAINS
 
       CPASSERT(ASSOCIATED(conf))
       CPASSERT(env_id .GT. 0)
-      CPASSERT(ASSOCIATED(tmc_env))
 
       SELECT CASE (tmc_env%params%task_type)
       CASE (task_type_gaussian_adaptation)
@@ -120,16 +119,6 @@ CONTAINS
 
       ! ---     wait a bit
       rnd = tmc_env%rng_stream%next()
-      !rnd = 0.5
-!TODO    IF(worker_random_wait.AND.exact_approx_pot)THEN
-!      CALL SYSTEM_CLOCK(time0, time_rate, time_max)
-!      wait_end=time0+(1.0+rnd)*worker_wait_msec*time_rate/1000.0
-!      !wait_end=time0+((worker_wait_msec*time_rate+999)/1000)
-!      time_wait: DO
-!        CALL SYSTEM_CLOCK(time1, time_rate, time_max)
-!        IF(time1<time0.OR.time1>wait_end) exit time_wait
-!      END DO time_wait
-!    END IF
       IF (exact_approx_pot) THEN
          conf%potential = e_pot
       ELSE
@@ -599,12 +588,11 @@ CONTAINS
 !> \author Mandes 01.2013
 ! **************************************************************************************************
    SUBROUTINE get_subtree_efficiency(tmc_env, eff)
-      TYPE(tmc_env_type), POINTER                        :: tmc_env
+      TYPE(tmc_env_type), INTENT(IN)                     :: tmc_env
       REAL(KIND=dp), DIMENSION(:), POINTER               :: eff
 
       INTEGER                                            :: i
 
-      CPASSERT(ASSOCIATED(tmc_env))
       CPASSERT(ASSOCIATED(tmc_env%params))
       CPASSERT(ASSOCIATED(tmc_env%m_env))
 

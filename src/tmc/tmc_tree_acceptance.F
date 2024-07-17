@@ -354,7 +354,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE check_acceptance_of_depending_subtree_nodes(tree_elem, tmc_env)
       TYPE(tree_type), POINTER                           :: tree_elem
-      TYPE(tmc_env_type), POINTER                        :: tmc_env
+      TYPE(tmc_env_type), INTENT(INOUT)                  :: tmc_env
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'check_acceptance_of_depending_subtree_nodes'
 
@@ -364,7 +364,6 @@ CONTAINS
 
       NULLIFY (parent_elem, act_elem)
 
-      CPASSERT(ASSOCIATED(tmc_env))
       CPASSERT(ASSOCIATED(tree_elem))
       CPASSERT(tree_elem%stat .EQ. status_calculated)
       CPASSERT(ASSOCIATED(tree_elem%parent))
@@ -432,7 +431,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE check_and_change_status_of_subtree_elem(act_elem, parent_elem, tmc_env)
       TYPE(tree_type), POINTER                           :: act_elem, parent_elem
-      TYPE(tmc_env_type), POINTER                        :: tmc_env
+      TYPE(tmc_env_type), INTENT(INOUT)                  :: tmc_env
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'check_and_change_status_of_subtree_elem'
 
@@ -446,7 +445,6 @@ CONTAINS
       ! start the timing
       CALL timeset(routineN, handle)
 
-      CPASSERT(ASSOCIATED(tmc_env))
       CPASSERT(ASSOCIATED(tmc_env%params))
       CPASSERT(ASSOCIATED(act_elem))
       CPASSERT(ASSOCIATED(parent_elem))
@@ -601,7 +599,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE check_elements(gt_act_elem, tmc_env, check_done, result_acc)
       TYPE(global_tree_type), POINTER                    :: gt_act_elem
-      TYPE(tmc_env_type), POINTER                        :: tmc_env
+      TYPE(tmc_env_type), INTENT(IN)                     :: tmc_env
       LOGICAL                                            :: check_done, result_acc
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'check_elements'
@@ -614,7 +612,6 @@ CONTAINS
       check_done = .FALSE.
 
       CPASSERT(ASSOCIATED(gt_act_elem))
-      CPASSERT(ASSOCIATED(tmc_env))
       CPASSERT(ASSOCIATED(tmc_env%m_env))
 
       ! start the timing
@@ -710,7 +707,7 @@ CONTAINS
 !> \author Mandes 12.2012
 ! **************************************************************************************************
    SUBROUTINE tree_update(tmc_env, result_acc, something_updated)
-      TYPE(tmc_env_type), POINTER                        :: tmc_env
+      TYPE(tmc_env_type), INTENT(IN)                     :: tmc_env
       LOGICAL                                            :: result_acc, something_updated
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'tree_update'
@@ -721,8 +718,6 @@ CONTAINS
       TYPE(tree_type), POINTER                           :: act_element, tmp_element
 
       NULLIFY (gt_act_elem, tmp_element, act_element)
-
-      CPASSERT(ASSOCIATED(tmc_env))
 
       ! start the timing
       CALL timeset(routineN, handle)
@@ -893,7 +888,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE check_elements_for_acc_prob_update(tree_elem, tmc_env)
       TYPE(tree_type), POINTER                           :: tree_elem
-      TYPE(tmc_env_type), POINTER                        :: tmc_env
+      TYPE(tmc_env_type), INTENT(INOUT)                  :: tmc_env
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'check_elements_for_acc_prob_update'
 
@@ -903,7 +898,6 @@ CONTAINS
       NULLIFY (parent_elem, act_elem)
 
       CPASSERT(ASSOCIATED(tree_elem))
-      CPASSERT(ASSOCIATED(tmc_env))
 
       ! start the timing
       CALL timeset(routineN, handle)
@@ -964,7 +958,7 @@ CONTAINS
       TYPE(gt_elem_list_type), POINTER                   :: reference_list
       TYPE(tree_type), POINTER                           :: act_elem, parent_elem
       LOGICAL                                            :: act_parent
-      TYPE(tmc_env_type), POINTER                        :: tmc_env
+      TYPE(tmc_env_type), INTENT(INOUT)                  :: tmc_env
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'update_prob_gt_node_list'
 

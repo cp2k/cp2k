@@ -109,7 +109,7 @@ CONTAINS
       TYPE(cp_logger_type), POINTER                      :: logger, logger_sub
       TYPE(section_vals_type), POINTER                   :: tmc_ana_section
       TYPE(tmc_ana_list_type), DIMENSION(:), POINTER     :: tmc_ana_env_list
-      TYPE(tmc_env_type), POINTER                        :: tmc_env
+      TYPE(tmc_env_type)                                 :: tmc_env
 
 ! start the timing
 
@@ -117,7 +117,7 @@ CONTAINS
 
       CALL cite_reference(Schonherr2014)
 
-      NULLIFY (logger, logger_sub, tmc_env, tmc_ana_env_list)
+      NULLIFY (logger, logger_sub, tmc_ana_env_list)
       logger => cp_get_default_logger()
       output_unit = cp_logger_get_default_io_unit(logger)
 
@@ -158,7 +158,6 @@ CONTAINS
          END IF
 
          CALL tmc_read_input(root_section, tmc_env)
-         !CALL init_move_types(tmc_params=tmc_env%params)
 
          ! init random number generator: use determistic random numbers
          init_rng = .TRUE.
@@ -364,6 +363,7 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       ! create a TMC environment (also to have a params environment)
+      ALLOCATE (tmc_env)
       CALL tmc_env_create(tmc_env)
       ! -- spiltting communicator
       ALLOCATE (tmc_env%tmc_comp_set%para_env_m_ana)
@@ -449,6 +449,7 @@ CONTAINS
          DEALLOCATE (ana_list)
       END IF
       CALL tmc_env_release(tmc_env)
+      DEALLOCATE (tmc_env)
 
       ! end the timing
       CALL timestop(handle)
@@ -563,7 +564,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE tmc_preread_input(input, tmc_env)
       TYPE(section_vals_type), POINTER                   :: input
-      TYPE(tmc_env_type), POINTER                        :: tmc_env
+      TYPE(tmc_env_type), INTENT(INOUT)                  :: tmc_env
 
       CHARACTER(LEN=default_path_length)                 :: c_tmp
       INTEGER                                            :: itmp
@@ -672,7 +673,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE tmc_read_input(input, tmc_env)
       TYPE(section_vals_type), POINTER                   :: input
-      TYPE(tmc_env_type), POINTER                        :: tmc_env
+      TYPE(tmc_env_type), INTENT(INOUT)                  :: tmc_env
 
       INTEGER                                            :: itmp
       LOGICAL                                            :: explicit, flag
@@ -973,14 +974,13 @@ CONTAINS
 !> \author Mandes 11.2012
 ! **************************************************************************************************
    SUBROUTINE tmc_print_params(tmc_env)
-      TYPE(tmc_env_type), POINTER                        :: tmc_env
+      TYPE(tmc_env_type), INTENT(IN)                     :: tmc_env
 
       CHARACTER(LEN=*), PARAMETER :: fmt_my = '(T2,A,"| ",A,T41,A40)', plabel = "TMC"
 
       CHARACTER(LEN=80)                                  :: c_tmp, fmt_tmp
       INTEGER                                            :: file_nr
 
-      CPASSERT(ASSOCIATED(tmc_env))
       CPASSERT(ASSOCIATED(tmc_env%tmc_comp_set))
       ! only the master prints out
       IF (tmc_env%tmc_comp_set%group_nr == 0) THEN
