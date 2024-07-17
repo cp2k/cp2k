@@ -268,6 +268,7 @@ CONTAINS
          CALL init_rho0(p_env%local_rho_set, qs_env, dft_control%qs_control%gapw_control, &
                         zcore=0.0_dp)
          CALL rho0_s_grid_create(pw_env, p_env%local_rho_set%rho0_mpole)
+         ALLOCATE (p_env%hartree_local)
          CALL hartree_local_create(p_env%hartree_local)
          CALL init_coulomb_local(p_env%hartree_local, natom)
       ELSEIF (dft_control%qs_control%gapw_xc) THEN

@@ -849,7 +849,7 @@ CONTAINS
                                                             mpd, mpz
       TYPE(dbcsr_type), POINTER                          :: dbwork
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(hartree_local_type), POINTER                  :: hartree_local_gs, hartree_local_t
+      TYPE(hartree_local_type)                           :: hartree_local_gs, hartree_local_t
       TYPE(hfx_type), DIMENSION(:, :), POINTER           :: x_data
       TYPE(kg_environment_type), POINTER                 :: kg_env
       TYPE(local_rho_type)                               :: local_rho_set_f, local_rho_set_gs, &
@@ -1220,7 +1220,6 @@ CONTAINS
             ! compute GS potential
             CALL auxbas_pw_pool%create_pw(v_hartree_gspace_gs)
             CALL auxbas_pw_pool%create_pw(v_hartree_rspace_gs)
-            NULLIFY (hartree_local_gs)
             CALL hartree_local_create(hartree_local_gs)
             CALL init_coulomb_local(hartree_local_gs, natom)
             CALL pw_poisson_solve(poisson_env, rho_tot_gspace_gs, hartree_gs, v_hartree_gspace_gs)
@@ -1335,7 +1334,7 @@ CONTAINS
          END IF
          CALL local_rho_set_release(local_rho_set_gs)
          IF (gapw) THEN
-            IF (ASSOCIATED(hartree_local_gs)) CALL hartree_local_release(hartree_local_gs)
+            CALL hartree_local_release(hartree_local_gs)
             CALL auxbas_pw_pool%give_back_pw(v_hartree_gspace_gs)
             CALL auxbas_pw_pool%give_back_pw(v_hartree_rspace_gs)
          END IF
@@ -1667,7 +1666,6 @@ CONTAINS
             ! compute response Coulomb potential
             CALL auxbas_pw_pool%create_pw(v_hartree_gspace_t)
             CALL auxbas_pw_pool%create_pw(v_hartree_rspace_t)
-            NULLIFY (hartree_local_t)
             CALL hartree_local_create(hartree_local_t)
             CALL init_coulomb_local(hartree_local_t, natom)
             CALL pw_poisson_solve(poisson_env, rho_tot_gspace_t, hartree_t, v_hartree_gspace_t)
@@ -1815,7 +1813,7 @@ CONTAINS
          CALL local_rho_set_release(local_rho_set_t)
          CALL local_rho_set_release(local_rho_set_gs)
          IF (gapw) THEN
-            IF (ASSOCIATED(hartree_local_t)) CALL hartree_local_release(hartree_local_t)
+            CALL hartree_local_release(hartree_local_t)
             CALL auxbas_pw_pool%give_back_pw(v_hartree_gspace_t)
             CALL auxbas_pw_pool%give_back_pw(v_hartree_rspace_t)
          END IF

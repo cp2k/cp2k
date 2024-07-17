@@ -307,7 +307,7 @@ CONTAINS
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rho_ao_aux, rho_ao_kp
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(hartree_local_type), POINTER                  :: hartree_local
+      TYPE(hartree_local_type)                           :: hartree_local
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab
@@ -328,7 +328,7 @@ CONTAINS
       gapw_xc = dft_control%qs_control%gapw_xc
 
       IF (gapw .OR. gapw_xc) THEN
-         NULLIFY (hartree_local, local_rho_set, local_rho_set_admm)
+         NULLIFY (local_rho_set, local_rho_set_admm)
          CALL get_qs_env(qs_env, &
                          atomic_kind_set=atomic_kind_set, &
                          qs_kind_set=qs_kind_set)

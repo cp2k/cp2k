@@ -448,6 +448,7 @@ CONTAINS
          CALL init_rho0(work_matrices%local_rho_set, qs_env, dft_control%qs_control%gapw_control, &
                         zcore=0.0_dp)
          CALL rho0_s_grid_create(sub_env%pw_env, work_matrices%local_rho_set%rho0_mpole)
+         ALLOCATE (work_matrices%hartree_local)
          CALL hartree_local_create(work_matrices%hartree_local)
          CALL init_coulomb_local(work_matrices%hartree_local, natom)
       ELSEIF (dft_control%qs_control%gapw_xc) THEN
@@ -946,6 +947,7 @@ CONTAINS
       END IF
       IF (ASSOCIATED(work_matrices%hartree_local)) THEN
          CALL hartree_local_release(work_matrices%hartree_local)
+         DEALLOCATE (work_matrices%hartree_local)
       END IF
       ! GAPW_XC
       IF (ASSOCIATED(work_matrices%rho_xc_struct_sub)) THEN

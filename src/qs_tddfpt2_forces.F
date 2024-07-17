@@ -665,7 +665,7 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: mhz, mpe
       TYPE(dbcsr_type), POINTER                          :: dbwork
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(hartree_local_type), POINTER                  :: hartree_local
+      TYPE(hartree_local_type)                           :: hartree_local
       TYPE(hfx_type), DIMENSION(:, :), POINTER           :: x_data
       TYPE(local_rho_type)                               :: local_rho_set, local_rho_set_admm
       TYPE(mp_para_env_type), POINTER                    :: para_env
@@ -1018,7 +1018,7 @@ CONTAINS
       END IF
       IF (gapw .OR. gapw_xc) THEN
          CALL local_rho_set_release(local_rho_set)
-         IF (ASSOCIATED(hartree_local)) CALL hartree_local_release(hartree_local)
+         CALL hartree_local_release(hartree_local)
       END IF
 
       ! HFX

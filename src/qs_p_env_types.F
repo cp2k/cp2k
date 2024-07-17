@@ -133,6 +133,7 @@ CONTAINS
       END IF
       IF (ASSOCIATED(p_env%hartree_local)) THEN
          CALL hartree_local_release(p_env%hartree_local)
+         DEALLOCATE (p_env%hartree_local)
       END IF
       IF (ASSOCIATED(p_env%local_rho_set_admm)) THEN
          CALL local_rho_set_release(p_env%local_rho_set_admm)

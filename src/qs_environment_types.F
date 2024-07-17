@@ -904,6 +904,7 @@ CONTAINS
 
       ALLOCATE (qs_env%local_rho_set)
       CALL local_rho_set_create(qs_env%local_rho_set)
+      ALLOCATE (qs_env%hartree_local)
       CALL hartree_local_create(qs_env%hartree_local)
       qs_env%run_rtp = .FALSE.
       qs_env%linres_run = .FALSE.
@@ -1418,6 +1419,7 @@ CONTAINS
       END IF
       IF (ASSOCIATED(qs_env%hartree_local)) THEN
          CALL hartree_local_release(qs_env%hartree_local)
+         DEALLOCATE (qs_env%hartree_local)
       END IF
       IF (ASSOCIATED(qs_env%scf_control)) THEN
          CALL scf_c_release(qs_env%scf_control)
@@ -1645,6 +1647,7 @@ CONTAINS
       END IF
       IF (ASSOCIATED(qs_env%hartree_local)) THEN
          CALL hartree_local_release(qs_env%hartree_local)
+         DEALLOCATE (qs_env%hartree_local)
       END IF
       IF (ASSOCIATED(qs_env%scf_control)) THEN
          CALL scf_c_release(qs_env%scf_control)

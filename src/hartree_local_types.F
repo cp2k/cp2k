@@ -126,11 +126,9 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE hartree_local_create(hartree_local)
 
-      TYPE(hartree_local_type), POINTER                  :: hartree_local
+      TYPE(hartree_local_type), INTENT(OUT)              :: hartree_local
 
-      ALLOCATE (hartree_local)
-
-      NULLIFY (hartree_local%ecoul_1c)
+      MARK_USED(hartree_local)
 
    END SUBROUTINE hartree_local_create
 
@@ -140,14 +138,10 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE hartree_local_release(hartree_local)
 
-      TYPE(hartree_local_type), POINTER                  :: hartree_local
+      TYPE(hartree_local_type), INTENT(INOUT)            :: hartree_local
 
-      IF (ASSOCIATED(hartree_local)) THEN
-         IF (ASSOCIATED(hartree_local%ecoul_1c)) THEN
-            CALL deallocate_ecoul_1center(hartree_local%ecoul_1c)
-         END IF
-
-         DEALLOCATE (hartree_local)
+      IF (ASSOCIATED(hartree_local%ecoul_1c)) THEN
+         CALL deallocate_ecoul_1center(hartree_local%ecoul_1c)
       END IF
 
    END SUBROUTINE hartree_local_release
