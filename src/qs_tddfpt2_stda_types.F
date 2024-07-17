@@ -117,7 +117,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE stda_init_param(qs_env, stda_kernel, stda_control)
 
-      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(qs_environment_type), INTENT(IN)              :: qs_env
       TYPE(stda_env_type)                                :: stda_kernel
       TYPE(stda_control_type)                            :: stda_control
 
@@ -218,7 +218,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE allocate_stda_env(qs_env, stda_kernel, n_ao, nactive)
 
-      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(qs_environment_type), INTENT(IN)              :: qs_env
       TYPE(stda_env_type)                                :: stda_kernel
       INTEGER, INTENT(IN)                                :: n_ao
       INTEGER, DIMENSION(:), INTENT(IN)                  :: nactive
@@ -241,7 +241,7 @@ CONTAINS
 
       ALLOCATE (stda_kernel%kind_param_set(nkind))
       DO ii = 1, nkind
-         NULLIFY (kind_param)
+         ALLOCATE (kind_param)
          CALL allocate_stda_kind_param(kind_param)
          stda_kernel%kind_param_set(ii)%kind_param => kind_param
       END DO
@@ -256,13 +256,12 @@ CONTAINS
       TYPE(stda_env_type)                                :: stda_kernel
 
       INTEGER                                            :: ii
-      TYPE(stda_kind_type), POINTER                      :: kind_param
 
       ! deallocate stda_kind_parameters
       IF (ASSOCIATED(stda_kernel%kind_param_set)) THEN
          DO ii = 1, SIZE(stda_kernel%kind_param_set)
-            kind_param => stda_kernel%kind_param_set(ii)%kind_param
-            CALL deallocate_stda_kind_param(kind_param)
+            CALL deallocate_stda_kind_param(stda_kernel%kind_param_set(ii)%kind_param)
+            DEALLOCATE (stda_kernel%kind_param_set(ii)%kind_param)
          END DO
          DEALLOCATE (stda_kernel%kind_param_set)
          NULLIFY (stda_kernel%kind_param_set)
@@ -273,14 +272,9 @@ CONTAINS
 !> \brief Allocate sTDA kind parameter
 !> \param kind_param ...
 ! **************************************************************************************************
-   SUBROUTINE allocate_stda_kind_param(kind_param)
+   ELEMENTAL SUBROUTINE allocate_stda_kind_param(kind_param)
 
-      TYPE(stda_kind_type), POINTER                      :: kind_param
-
-      IF (ASSOCIATED(kind_param)) &
-         CALL deallocate_stda_kind_param(kind_param)
-
-      ALLOCATE (kind_param)
+      TYPE(stda_kind_type), INTENT(OUT)                  :: kind_param
 
       kind_param%symbol = ""
       kind_param%z = 0
@@ -293,13 +287,11 @@ CONTAINS
 !> \brief Deallocate sTDA kind parameter
 !> \param kind_param ...
 ! **************************************************************************************************
-   SUBROUTINE deallocate_stda_kind_param(kind_param)
+   ELEMENTAL SUBROUTINE deallocate_stda_kind_param(kind_param)
 
-      TYPE(stda_kind_type), POINTER                      :: kind_param
+      TYPE(stda_kind_type), INTENT(IN)                   :: kind_param
 
-      CPASSERT(ASSOCIATED(kind_param))
-      DEALLOCATE (kind_param)
-      NULLIFY (kind_param)
+      MARK_USED(kind_param)
 
    END SUBROUTINE deallocate_stda_kind_param
 

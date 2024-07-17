@@ -553,8 +553,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE hfxsr_create_work_matrices(work_matrices, qs_env, admm_env)
       TYPE(tddfpt_work_matrices), INTENT(inout)          :: work_matrices
-      TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(admm_type), POINTER                           :: admm_env
+      TYPE(qs_environment_type), INTENT(IN)              :: qs_env
+      TYPE(admm_type), INTENT(IN)                        :: admm_env
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'hfxsr_create_work_matrices'
 
@@ -635,7 +635,7 @@ CONTAINS
       TYPE(tddfpt_ground_state_mos), DIMENSION(:), &
          INTENT(in)                                      :: gs_mos
       INTEGER, INTENT(in)                                :: nstates
-      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(qs_environment_type), INTENT(IN)              :: qs_env
       TYPE(tddfpt_subgroup_env_type), INTENT(in)         :: sub_env
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'stda_create_work_matrices'

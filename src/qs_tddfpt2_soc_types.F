@@ -156,9 +156,7 @@ CONTAINS
 !> \param soc_atom_env ...
 ! **************************************************************************************************
    SUBROUTINE soc_atom_create(soc_atom_env)
-      TYPE(soc_atom_env_type), POINTER                   :: soc_atom_env
-
-      ALLOCATE (soc_atom_env)
+      TYPE(soc_atom_env_type), INTENT(OUT)               :: soc_atom_env
 
       soc_atom_env%nspins = 1
       NULLIFY (soc_atom_env%grid_atom_set)
@@ -173,7 +171,7 @@ CONTAINS
 !> \param soc_atom_env ...
 ! **************************************************************************************************
    SUBROUTINE soc_atom_release(soc_atom_env)
-      TYPE(soc_atom_env_type), POINTER                   :: soc_atom_env
+      TYPE(soc_atom_env_type), INTENT(INOUT)             :: soc_atom_env
 
       INTEGER                                            :: i
 
@@ -208,8 +206,6 @@ CONTAINS
 
       !Clean-up libint
       CALL cp_libint_static_cleanup()
-
-      DEALLOCATE (soc_atom_env)
 
    END SUBROUTINE soc_atom_release
 

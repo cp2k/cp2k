@@ -91,7 +91,7 @@ CONTAINS
       TYPE(distribution_3d_type)                         :: dist_3d
       INTEGER, DIMENSION(:), INTENT(IN)                  :: dist1, dist2, dist3
       INTEGER, INTENT(IN)                                :: nkind
-      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(particle_type), DIMENSION(:), INTENT(IN)      :: particle_set
       TYPE(mp_cart_type), INTENT(IN)                     :: mp_comm_3d
       LOGICAL, INTENT(IN), OPTIONAL                      :: own_comm
 
@@ -165,7 +165,7 @@ CONTAINS
       TYPE(distribution_2d_type), POINTER                :: dist_2d
       INTEGER, DIMENSION(:), INTENT(IN)                  :: dist1, dist2
       INTEGER, INTENT(IN)                                :: nkind
-      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(particle_type), DIMENSION(:), INTENT(IN)      :: particle_set
       TYPE(mp_cart_type), INTENT(IN), OPTIONAL           :: mp_comm_2d
       TYPE(cp_blacs_env_type), OPTIONAL, POINTER         :: blacs_env_ext
 

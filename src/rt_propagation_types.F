@@ -146,7 +146,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE rt_prop_create(rtp, mos, mpools, dft_control, template, linear_scaling, mos_aux)
 
-      TYPE(rt_prop_type), POINTER                        :: rtp
+      TYPE(rt_prop_type), INTENT(INOUT)                  :: rtp
       TYPE(mo_set_type), DIMENSION(:), INTENT(IN)        :: mos
       TYPE(qs_matrix_pools_type), POINTER                :: mpools
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -291,11 +291,12 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE rt_prop_create_mos(rtp, mos, mpools, dft_control, mos_aux, init_mos_old, &
                                  init_mos_new, init_mos_next, init_mos_admn)
-      TYPE(rt_prop_type), POINTER                        :: rtp
+      TYPE(rt_prop_type), INTENT(INOUT)                  :: rtp
       TYPE(mo_set_type), DIMENSION(:), INTENT(IN)        :: mos
       TYPE(qs_matrix_pools_type), POINTER                :: mpools
-      TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(mo_set_type), DIMENSION(:), OPTIONAL, POINTER :: mos_aux
+      TYPE(dft_control_type), INTENT(IN)                 :: dft_control
+      TYPE(mo_set_type), DIMENSION(:), INTENT(IN), &
+         OPTIONAL                                        :: mos_aux
       LOGICAL, OPTIONAL                                  :: init_mos_old, init_mos_new, &
                                                             init_mos_next, init_mos_admn
 
@@ -345,9 +346,7 @@ CONTAINS
       IF (my_mos_next) ALLOCATE (rtp%mos%next(2*nspin))
       NULLIFY (rtp%mos%admm)
       IF ((dft_control%do_admm) .AND. my_mos_admn) THEN
-         IF (PRESENT(mos_aux)) THEN
-            CPASSERT(ASSOCIATED(mos_aux))
-         ELSE
+         IF (.NOT. PRESENT(mos_aux)) THEN
             CPABORT("The optional argument mos_aux is missing which is required with ADMM")
          END IF
          ALLOCATE (rtp%mos%admm(2*nspin))

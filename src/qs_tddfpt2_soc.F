@@ -282,6 +282,7 @@ CONTAINS
       ! this will create the H^SOC in an atomic basis
       CALL integrate_soc_atoms(soc_env%orb_soc, qs_env=qs_env, soc_atom_env=soc_atom_env)
       CALL soc_atom_release(soc_atom_env)
+      DEALLOCATE (soc_atom_env)
 
       !! Point at H^SOC and MOs for better readablity
       NULLIFY (tp_coeffs, orb_soc_x, orb_soc_y, orb_soc_z)
@@ -1193,6 +1194,7 @@ CONTAINS
 
       ! Make soc_atom_env for H^SOC calculations
       ! Compute the contraction coefficients for spherical orbitals
+      ALLOCATE (soc_atom_env)
       CALL soc_atom_create(soc_atom_env)
       IF (do_os) THEN
          soc_atom_env%nspins = 2
