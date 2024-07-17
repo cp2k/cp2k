@@ -40,15 +40,12 @@ CONTAINS
 !> \param rc ...
 !> \param range ...
 ! **************************************************************************************************
-   SUBROUTINE taper_create(taper, rc, range)
-      TYPE(taper_type), POINTER                          :: taper
+   ELEMENTAL SUBROUTINE taper_create(taper, rc, range)
+      TYPE(taper_type), INTENT(OUT)                      :: taper
       REAL(KIND=dp), INTENT(IN)                          :: rc, range
 
-      CPASSERT(.NOT. ASSOCIATED(taper))
-      ALLOCATE (taper)
       IF (range > EPSILON(0.0_dp)) THEN
          taper%apply_taper = .TRUE.
-         CPASSERT(range > 0.0_dp)
          taper%r0 = 2.0_dp*rc - 20.0_dp*range
          taper%rscale = 1.0_dp/range
       ELSE
@@ -61,12 +58,11 @@ CONTAINS
 !> \brief Releases taper type
 !> \param taper ...
 ! **************************************************************************************************
-   SUBROUTINE taper_release(taper)
-      TYPE(taper_type), POINTER                          :: taper
+   ELEMENTAL SUBROUTINE taper_release(taper)
+      TYPE(taper_type), INTENT(INOUT)                    :: taper
 
-      IF (ASSOCIATED(taper)) THEN
-         DEALLOCATE (taper)
-      END IF
+      MARK_USED(taper)
+
    END SUBROUTINE taper_release
 
 ! **************************************************************************************************
@@ -75,8 +71,8 @@ CONTAINS
 !> \param rij ...
 !> \return ...
 ! **************************************************************************************************
-   FUNCTION taper_eval(taper, rij) RESULT(ft)
-      TYPE(taper_type), POINTER                          :: taper
+   ELEMENTAL FUNCTION taper_eval(taper, rij) RESULT(ft)
+      TYPE(taper_type), INTENT(IN)                       :: taper
       REAL(KIND=dp), INTENT(IN)                          :: rij
       REAL(KIND=dp)                                      :: ft
 
@@ -95,8 +91,8 @@ CONTAINS
 !> \param rij ...
 !> \return ...
 ! **************************************************************************************************
-   FUNCTION dtaper_eval(taper, rij) RESULT(dft)
-      TYPE(taper_type), POINTER                          :: taper
+   ELEMENTAL FUNCTION dtaper_eval(taper, rij) RESULT(dft)
+      TYPE(taper_type), INTENT(IN)                       :: taper
       REAL(KIND=dp), INTENT(IN)                          :: rij
       REAL(KIND=dp)                                      :: dft
 

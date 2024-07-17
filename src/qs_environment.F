@@ -1235,6 +1235,7 @@ CONTAINS
                                              dft_control%qs_control%method_id)
          END IF
          ! Taper function
+         ALLOCATE (se_taper)
          CALL se_taper_create(se_taper, se_control%integral_screening, se_control%do_ewald, &
                               se_control%taper_cou, se_control%range_cou, &
                               se_control%taper_exc, se_control%range_exc, &

@@ -519,10 +519,9 @@ CONTAINS
 !> \param rotmat ...
 ! **************************************************************************************************
    SUBROUTINE rotmat_create(rotmat)
-      TYPE(rotmat_type), POINTER                         :: rotmat
+      TYPE(rotmat_type), INTENT(OUT)                     :: rotmat
 
-      CPASSERT(.NOT. ASSOCIATED(rotmat))
-      ALLOCATE (rotmat)
+      MARK_USED(rotmat)
 
    END SUBROUTINE rotmat_create
 
@@ -531,11 +530,9 @@ CONTAINS
 !> \param rotmat ...
 ! **************************************************************************************************
    SUBROUTINE rotmat_release(rotmat)
-      TYPE(rotmat_type), POINTER                         :: rotmat
+      TYPE(rotmat_type), INTENT(INOUT)                   :: rotmat
 
-      IF (ASSOCIATED(rotmat)) THEN
-         DEALLOCATE (rotmat)
-      END IF
+      MARK_USED(rotmat)
 
    END SUBROUTINE rotmat_release
 
@@ -596,27 +593,29 @@ CONTAINS
    SUBROUTINE se_taper_create(se_taper, integral_screening, do_ewald, &
                               taper_cou, range_cou, taper_exc, range_exc, taper_scr, range_scr, &
                               taper_lrc, range_lrc)
-      TYPE(se_taper_type), POINTER                       :: se_taper
+      TYPE(se_taper_type), INTENT(OUT)                   :: se_taper
       INTEGER, INTENT(IN)                                :: integral_screening
       LOGICAL, INTENT(IN)                                :: do_ewald
       REAL(KIND=dp), INTENT(IN)                          :: taper_cou, range_cou, taper_exc, &
                                                             range_exc, taper_scr, range_scr, &
                                                             taper_lrc, range_lrc
 
-      CPASSERT(.NOT. ASSOCIATED(se_taper))
-      ALLOCATE (se_taper)
       NULLIFY (se_taper%taper)
       NULLIFY (se_taper%taper_cou)
       NULLIFY (se_taper%taper_exc)
       NULLIFY (se_taper%taper_lrc)
       NULLIFY (se_taper%taper_add)
       ! Create the sub-typo taper
+      ALLOCATE (se_taper%taper_cou)
       CALL taper_create(se_taper%taper_cou, taper_cou, range_cou)
+      ALLOCATE (se_taper%taper_exc)
       CALL taper_create(se_taper%taper_exc, taper_exc, range_exc)
       IF (integral_screening == do_se_IS_kdso_d) THEN
+         ALLOCATE (se_taper%taper_add)
          CALL taper_create(se_taper%taper_add, taper_scr, range_scr)
       END IF
       IF ((integral_screening /= do_se_IS_slater) .AND. do_ewald) THEN
+         ALLOCATE (se_taper%taper_lrc)
          CALL taper_create(se_taper%taper_lrc, taper_lrc, range_lrc)
       END IF
    END SUBROUTINE se_taper_create
@@ -627,16 +626,25 @@ CONTAINS
 !> \author Teodoro Laino [tlaino] - 03.2009
 ! **************************************************************************************************
    SUBROUTINE se_taper_release(se_taper)
-      TYPE(se_taper_type), POINTER                       :: se_taper
+      TYPE(se_taper_type), INTENT(INOUT)                 :: se_taper
 
-      IF (ASSOCIATED(se_taper)) THEN
+      IF (ASSOCIATED(se_taper%taper_cou)) THEN
          CALL taper_release(se_taper%taper_cou)
-         CALL taper_release(se_taper%taper_exc)
-         CALL taper_release(se_taper%taper_lrc)
-         CALL taper_release(se_taper%taper_add)
-
-         DEALLOCATE (se_taper)
+         DEALLOCATE (se_taper%taper_cou)
       END IF
+      IF (ASSOCIATED(se_taper%taper_exc)) THEN
+         CALL taper_release(se_taper%taper_exc)
+         DEALLOCATE (se_taper%taper_exc)
+      END IF
+      IF (ASSOCIATED(se_taper%taper_lrc)) THEN
+         CALL taper_release(se_taper%taper_lrc)
+         DEALLOCATE (se_taper%taper_lrc)
+      END IF
+      IF (ASSOCIATED(se_taper%taper_add)) THEN
+         CALL taper_release(se_taper%taper_add)
+         DEALLOCATE (se_taper%taper_add)
+      END IF
+
    END SUBROUTINE se_taper_release
 
 ! **************************************************************************************************

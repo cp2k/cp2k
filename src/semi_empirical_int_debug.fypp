@@ -18,7 +18,7 @@ INTERFACE
                                       semi_empirical_type
       TYPE(semi_empirical_type), POINTER                 :: sepi, sepj
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: rjiv
-      TYPE(rotmat_type), POINTER                         :: ij_matrix
+      TYPE(rotmat_type), INTENT(IN)                         :: ij_matrix
       LOGICAL, INTENT(IN)                                :: do_invert
 
    END SUBROUTINE check_rotmat_der

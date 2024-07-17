@@ -105,9 +105,8 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3)                        :: drij
       REAL(KIND=dp), DIMENSION(3, 45)                    :: tmp_d
       REAL(KIND=dp), DIMENSION(45)                       :: tmp
-      TYPE(rotmat_type), POINTER                         :: ij_matrix
+      TYPE(rotmat_type)                         :: ij_matrix
 
-      NULLIFY (ij_matrix)
       rij = DOT_PRODUCT(rijv, rijv)
       ! Initialization
       l_e1b = PRESENT(e1b)
@@ -1247,9 +1246,8 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3, 45, 45)                :: v_d
       REAL(KIND=dp), DIMENSION(45, 45)                   :: v
       REAL(KIND=dp), DIMENSION(491)                      :: rep, rep_d
-      TYPE(rotmat_type), POINTER                         :: ij_matrix
+      TYPE(rotmat_type)                         :: ij_matrix
 
-      NULLIFY (ij_matrix)
       l_w = PRESENT(w)
       lgrad = PRESENT(dw)
       IF (.NOT. (l_w .OR. lgrad)) RETURN

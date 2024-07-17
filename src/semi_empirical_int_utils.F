@@ -1689,7 +1689,7 @@ CONTAINS
       TYPE(semi_empirical_type), POINTER                 :: sepi, sepj
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: rjiv
       REAL(KIND=dp), INTENT(IN)                          :: r
-      TYPE(rotmat_type), POINTER                         :: ij_matrix
+      TYPE(rotmat_type), INTENT(INOUT)                         :: ij_matrix
       LOGICAL, INTENT(IN)                                :: do_derivatives
       LOGICAL, INTENT(OUT), OPTIONAL                     :: do_invert
       LOGICAL, INTENT(IN), OPTIONAL                      :: debug_invert
@@ -1707,7 +1707,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3, 5, 5)                  :: d_d
       REAL(KIND=dp), DIMENSION(5, 5)                     :: d
 
-      CPASSERT(ASSOCIATED(ij_matrix))
       IF (PRESENT(do_invert)) do_invert = .FALSE.
       IF ((sepi%natorb > 1) .OR. (sepj%natorb > 1)) THEN
          ! Compute Geomtric data and interatomic distance
@@ -2106,7 +2105,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: ii, kk
       REAL(KIND=dp), DIMENSION(491), INTENT(IN)          :: rep
       LOGICAL, DIMENSION(45, 45), INTENT(OUT)            :: logv
-      TYPE(rotmat_type), POINTER                         :: ij_matrix
+      TYPE(rotmat_type), INTENT(IN)                         :: ij_matrix
       REAL(KIND=dp), DIMENSION(45, 45), INTENT(OUT)      :: v
       LOGICAL, INTENT(IN)                                :: lgrad
       REAL(KIND=dp), DIMENSION(491), INTENT(IN), &

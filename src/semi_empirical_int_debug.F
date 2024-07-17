@@ -29,15 +29,16 @@ SUBROUTINE check_rotmat_der(sepi, sepj, rjiv, ij_matrix, do_invert)
    IMPLICIT NONE
    TYPE(semi_empirical_type), POINTER       :: sepi, sepj
    REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rjiv
-   TYPE(rotmat_type), POINTER               :: ij_matrix
+   TYPE(rotmat_type), INTENT(IN)               :: ij_matrix
    LOGICAL, INTENT(IN)                      :: do_invert
 
    CHARACTER(len=*), PARAMETER :: moduleN = 'semi_empirical_int_debug', &
                                   routineN = 'check_rotmat_der', routineP = moduleN//':'//routineN
 
    REAL(KIND=dp)                            :: dx, r, r0(3), x(3)
-   TYPE(rotmat_type), POINTER               :: matrix, matrix_m, matrix_n, &
-                                               matrix_p
+   TYPE(rotmat_type), TARGET               :: matrix_m, matrix_n, &
+                                              matrix_p
+   TYPE(rotmat_type), POINTER               :: matrix
    INTEGER                                  :: imap(3), i, j, k, l
 
    INTERFACE
@@ -49,7 +50,7 @@ SUBROUTINE check_rotmat_der(sepi, sepj, rjiv, ij_matrix, do_invert)
       END FUNCTION check_value
    END INTERFACE
 
-   NULLIFY (matrix_m, matrix_p, matrix_n, matrix)
+   NULLIFY (matrix)
    CALL rotmat_create(matrix_p)
    CALL rotmat_create(matrix_m)
    CALL rotmat_create(matrix_n)
@@ -71,7 +72,7 @@ SUBROUTINE check_rotmat_der(sepi, sepj, rjiv, ij_matrix, do_invert)
          IF (i == 1) matrix => matrix_p
          IF (i == 2) matrix => matrix_m
          r0 = rjiv + (-1.0_dp)**(i - 1)*x
-         r = SQRT(DOT_PRODUCT(r0, r0))
+         r = NORM2(r0)
          CALL rotmat(sepi, sepj, r0, r, matrix, do_derivatives=.FALSE., debug_invert=do_invert)
       END DO
       ! SP
@@ -188,7 +189,7 @@ SUBROUTINE rot_2el_2c_first_debug(sepi, sepj, rijv, se_int_control, se_taper, in
    REAL(KIND=dp), DIMENSION(45, 45)         :: v_n, v_p, v_m
 
    REAL(KIND=dp)                            :: dx, r, r0(3), x(3)
-   TYPE(rotmat_type), POINTER               :: matrix
+   TYPE(rotmat_type)               :: matrix
    INTEGER                                  :: imap(3), i, j, k, limkl
 
    INTERFACE
@@ -200,7 +201,6 @@ SUBROUTINE rot_2el_2c_first_debug(sepi, sepj, rijv, se_int_control, se_taper, in
       END FUNCTION check_value
    END INTERFACE
 
-   NULLIFY (matrix)
    dx = 1.0E-6_dp
    imap(1) = 1
    imap(2) = 2
@@ -218,7 +218,7 @@ SUBROUTINE rot_2el_2c_first_debug(sepi, sepj, rijv, se_int_control, se_taper, in
       x(imap(j)) = dx
       DO i = 1, 2
          r0 = rijv + (-1.0_dp)**(i - 1)*x
-         r = SQRT(DOT_PRODUCT(r0, r0))
+         r = NORM2(r0)
 
          CALL rotmat_create(matrix)
          CALL rotmat(sepi, sepj, r0, r, matrix, do_derivatives=.FALSE., debug_invert=invert)

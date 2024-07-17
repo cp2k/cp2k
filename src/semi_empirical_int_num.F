@@ -89,9 +89,8 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(2025)                     :: ww
       REAL(KIND=dp), DIMENSION(45, 45)                   :: v
       REAL(KIND=dp), DIMENSION(491)                      :: rep
-      TYPE(rotmat_type), POINTER                         :: ij_matrix
+      TYPE(rotmat_type)                                  :: ij_matrix
 
-      NULLIFY (ij_matrix)
       rij = DOT_PRODUCT(rijv, rijv)
       IF (rij > rij_threshold) THEN
          ! The repulsion integrals over molecular frame (w) are stored in the
@@ -404,9 +403,8 @@ CONTAINS
       REAL(dp)                                           :: rij
       REAL(dp), DIMENSION(10, 2)                         :: core
       REAL(dp), DIMENSION(45)                            :: tmp
-      TYPE(rotmat_type), POINTER                         :: ij_matrix
+      TYPE(rotmat_type)                                  :: ij_matrix
 
-      NULLIFY (ij_matrix)
       l_e1b = PRESENT(e1b)
       l_e2a = PRESENT(e2a)
       rij = DOT_PRODUCT(rijv, rijv)

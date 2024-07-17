@@ -1300,8 +1300,11 @@ CONTAINS
       IF (PRESENT(et_coupling)) qs_env%et_coupling => et_coupling
       IF (PRESENT(dftb_potential)) qs_env%dftb_potential => dftb_potential
       IF (PRESENT(se_taper)) THEN
+      IF (ASSOCIATED(qs_env%se_taper)) THEN
          CALL se_taper_release(qs_env%se_taper)
-         qs_env%se_taper => se_taper
+         DEALLOCATE (qs_env%se_taper)
+      END IF
+      qs_env%se_taper => se_taper
       END IF
       IF (PRESENT(se_store_int_env)) THEN
          CALL semi_empirical_si_release(qs_env%se_store_int_env)
@@ -1532,6 +1535,7 @@ CONTAINS
       END IF
       IF (ASSOCIATED(qs_env%se_taper)) THEN
          CALL se_taper_release(qs_env%se_taper)
+         DEALLOCATE (qs_env%se_taper)
       END IF
       IF (ASSOCIATED(qs_env%se_store_int_env)) THEN
          CALL semi_empirical_si_release(qs_env%se_store_int_env)
@@ -1752,6 +1756,7 @@ CONTAINS
       END IF
       IF (ASSOCIATED(qs_env%se_taper)) THEN
          CALL se_taper_release(qs_env%se_taper)
+         DEALLOCATE (qs_env%se_taper)
       END IF
       IF (ASSOCIATED(qs_env%se_store_int_env)) THEN
          CALL semi_empirical_si_release(qs_env%se_store_int_env)
