@@ -493,8 +493,13 @@ CONTAINS
          END IF
          ALLOCATE (qs_env%rtp)
          CALL get_qs_env(qs_env, matrix_s=matrix_s)
-         CALL rt_prop_create(qs_env%rtp, qs_env%mos, qs_env%mpools, dft_control, matrix_s(1)%matrix, &
-                             rtp_control%linear_scaling, qs_env%admm_env%mos_aux_fit)
+         IF (dft_control%do_admm) THEN
+            CALL rt_prop_create(qs_env%rtp, qs_env%mos, qs_env%mpools, dft_control, matrix_s(1)%matrix, &
+                                rtp_control%linear_scaling, qs_env%admm_env%mos_aux_fit)
+         ELSE
+            CALL rt_prop_create(qs_env%rtp, qs_env%mos, qs_env%mpools, dft_control, matrix_s(1)%matrix, &
+                                rtp_control%linear_scaling)
+         END IF
          CALL get_restart_wfn(qs_env)
 
          qs_env%run_rtp = .TRUE.

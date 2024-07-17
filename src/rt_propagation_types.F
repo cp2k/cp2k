@@ -147,9 +147,9 @@ CONTAINS
    SUBROUTINE rt_prop_create(rtp, mos, mpools, dft_control, template, linear_scaling, mos_aux)
 
       TYPE(rt_prop_type), INTENT(INOUT)                  :: rtp
-      TYPE(mo_set_type), DIMENSION(:), INTENT(IN)        :: mos
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(qs_matrix_pools_type), POINTER                :: mpools
-      TYPE(dft_control_type), INTENT(IN)                    :: dft_control
+      TYPE(dft_control_type), INTENT(IN)                 :: dft_control
       TYPE(dbcsr_type), POINTER                          :: template
       LOGICAL, INTENT(IN)                                :: linear_scaling
       TYPE(mo_set_type), DIMENSION(:), OPTIONAL, POINTER :: mos_aux
@@ -185,11 +185,7 @@ CONTAINS
             CALL dbcsr_create(rtp%rho%new(i)%matrix, template=template, matrix_type="N")
          END DO
       ELSE
-         IF (PRESENT(mos_aux)) THEN
-            CALL rt_prop_create_mos(rtp, mos, mpools, dft_control, mos_aux)
-         ELSE
-            CALL rt_prop_create_mos(rtp, mos, mpools, dft_control)
-         END IF
+         CALL rt_prop_create_mos(rtp, mos, mpools, dft_control, mos_aux)
       END IF
 
       NULLIFY (rtp%exp_H_old)
@@ -295,8 +291,7 @@ CONTAINS
       TYPE(mo_set_type), DIMENSION(:), INTENT(IN)        :: mos
       TYPE(qs_matrix_pools_type), POINTER                :: mpools
       TYPE(dft_control_type), INTENT(IN)                 :: dft_control
-      TYPE(mo_set_type), DIMENSION(:), INTENT(IN), &
-         OPTIONAL                                        :: mos_aux
+      TYPE(mo_set_type), DIMENSION(:), OPTIONAL, POINTER :: mos_aux
       LOGICAL, OPTIONAL                                  :: init_mos_old, init_mos_new, &
                                                             init_mos_next, init_mos_admn
 
