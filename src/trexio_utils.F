@@ -111,7 +111,7 @@ CONTAINS
       INTEGER(trexio_exit_code)                          :: rc       ! TREXIO return code
       LOGICAL                                            :: explicit, do_kpoints, ecp_semi_local, &
                                                             ecp_local, sgp_potential_present, ionode, &
-                                                            use_real_wfn
+                                                            use_real_wfn, save_cartesian
       REAL(KIND=dp)                                      :: e_nn, zeff
       TYPE(cell_type), POINTER                           :: cell => Null()
       TYPE(cp_logger_type), POINTER                      :: logger => Null()
@@ -123,7 +123,7 @@ CONTAINS
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: kind_set => Null()
       TYPE(sgp_potential_type), POINTER                  :: sgp_potential => Null()
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos => Null()
-      TYPE(mo_set_type), DIMENSION(:, :), POINTER         :: mos_kp => Null()
+      TYPE(mo_set_type), DIMENSION(:, :), POINTER        :: mos_kp => Null()
       TYPE(kpoint_env_p_type), DIMENSION(:), POINTER     :: kp_env => Null()
       TYPE(mp_para_env_type), POINTER                    :: para_env => Null(), para_env_inter_kp => Null()
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env => Null()
@@ -136,24 +136,25 @@ CONTAINS
                                                             nspins, ikind, ishell_loc, ishell, &
                                                             shell_num, prim_num, nset, iset, ipgf, z, &
                                                             sl_lmax, ecp_num, nloc, nsemiloc, sl_l, iecp, &
-                                                            icgf, icgf_loc, ncgf, ncgf_shell, ao_num, nmo, &
-                                                            mo_num, ispin, ikp, imo, rank, ikp_loc, nsgf
+                                                            igf, igf_loc, ncgf, ngf_shell, ao_num, nmo, &
+                                                            mo_num, ispin, ikp, imo, ikp_loc, nsgf, &
+                                                            i, k, l, m
       INTEGER, DIMENSION(2)                              :: nel_spin, kp_range, nmo_spin
       INTEGER, DIMENSION(3)                              :: nkp_grid
       INTEGER, DIMENSION(0:10)                           :: npot
-      INTEGER, DIMENSION(:), ALLOCATABLE              :: nucleus_index, shell_ang_mom, r_power, &
-                                                         shell_index, z_core, max_ang_mom_plus_1, &
-                                                         ang_mom, powers, ao_shell, mo_spin, mo_kpoint
-      INTEGER, DIMENSION(:), POINTER                  :: nshell => Null(), npgf => Null()
-      INTEGER, DIMENSION(:, :), POINTER                  :: l => Null()
-      REAL(KIND=dp), DIMENSION(:), ALLOCATABLE         :: charge, shell_factor, exponents, coefficients, &
-                                                          prim_factor, ao_normalization, mo_energy, &
-                                                          mo_occupation
-      REAL(KIND=dp), DIMENSION(:), POINTER             :: wkp => Null(), norm_cgf => Null()
-      REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE         :: coord, mo_coefficient, mo_coefficient_im, &
-                                                             mos_sgf
-      REAL(KIND=dp), DIMENSION(:, :), POINTER             :: zetas => Null()
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER           :: gcc => Null()
+      INTEGER, DIMENSION(:), ALLOCATABLE                 :: nucleus_index, shell_ang_mom, r_power, &
+                                                            shell_index, z_core, max_ang_mom_plus_1, &
+                                                            ang_mom, powers, ao_shell, mo_spin, mo_kpoint
+      INTEGER, DIMENSION(:), POINTER                     :: nshell => Null(), npgf => Null()
+      INTEGER, DIMENSION(:, :), POINTER                  :: l_shell_set => Null()
+      REAL(KIND=dp), DIMENSION(:), ALLOCATABLE           :: charge, shell_factor, exponents, coefficients, &
+                                                             prim_factor, ao_normalization, mo_energy, &
+                                                             mo_occupation
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: wkp => Null(), norm_cgf => Null()
+      REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE        :: coord, mo_coefficient, mo_coefficient_im, &
+                                                            mos_sgf
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: zetas => Null()
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: gcc => Null()
 #endif
 
       CALL timeset(routineN, handle)
@@ -174,7 +175,6 @@ CONTAINS
 
       CALL get_qs_env(qs_env, para_env=para_env)
       ionode = para_env%is_source()
-      CALL para_env%get_rank(rank)
 
       ! inquire whether a file with the same name already exists, if yes, delete it
       IF (ionode) THEN
@@ -325,11 +325,15 @@ CONTAINS
          rc = trexio_write_state_energy(f, energy%total)
          CALL trexio_error(rc)
 
-         !========================================================================================!
-         ! Basis group
-         !========================================================================================!
-         CALL get_qs_kind_set(kind_set, nshell=shell_num, npgf_seg=prim_num)
+      END IF ! ionode
 
+      !========================================================================================!
+      ! Basis group
+      !========================================================================================!
+      CALL get_qs_env(qs_env, qs_kind_set=kind_set, natom=natoms, particle_set=particle_set)
+      CALL get_qs_kind_set(kind_set, nshell=shell_num, npgf_seg=prim_num)
+
+      IF (ionode) THEN
          rc = trexio_write_basis_type(f, 'Gaussian', LEN_TRIM('Gaussian') + 1)
          CALL trexio_error(rc)
 
@@ -338,64 +342,64 @@ CONTAINS
 
          rc = trexio_write_basis_prim_num(f, prim_num)
          CALL trexio_error(rc)
+      END IF ! ionode
 
-         ! one-to-one mapping between shells and ...
-         ALLOCATE (nucleus_index(shell_num)) ! ...atomic indices
-         ALLOCATE (shell_ang_mom(shell_num)) ! ...angular momenta
-         ALLOCATE (shell_index(prim_num))    ! ...indices of primitive functions
-         ALLOCATE (exponents(prim_num))      ! ...primitive exponents
-         ALLOCATE (coefficients(prim_num))   ! ...contraction coefficients
+      ! one-to-one mapping between shells and ...
+      ALLOCATE (nucleus_index(shell_num)) ! ...atomic indices
+      ALLOCATE (shell_ang_mom(shell_num)) ! ...angular momenta
+      ALLOCATE (shell_index(prim_num))    ! ...indices of primitive functions
+      ALLOCATE (exponents(prim_num))      ! ...primitive exponents
+      ALLOCATE (coefficients(prim_num))   ! ...contraction coefficients
 
-         ishell = 0
-         ipgf = 0
-         DO iatom = 1, natoms
-            ! get the qs_kind (index position in kind_set) for this atom (atomic_kind)
-            CALL get_atomic_kind(particle_set(iatom)%atomic_kind, kind_number=ikind)
-            ! get the primary (orbital) basis set associated to this qs_kind
-            CALL get_qs_kind(kind_set(ikind), basis_set=basis_set, basis_type="ORB")
-            ! get the info from the basis set
-            CALL get_gto_basis_set(basis_set, &
-                                   nset=nset, &
-                                   nshell=nshell, &
-                                   npgf=npgf, &
-                                   zet=zetas, &
-                                   gcc=gcc, &
-                                   l=l)
+      ishell = 0
+      ipgf = 0
+      DO iatom = 1, natoms
+         ! get the qs_kind (index position in kind_set) for this atom (atomic_kind)
+         CALL get_atomic_kind(particle_set(iatom)%atomic_kind, kind_number=ikind)
+         ! get the primary (orbital) basis set associated to this qs_kind
+         CALL get_qs_kind(kind_set(ikind), basis_set=basis_set, basis_type="ORB")
+         ! get the info from the basis set
+         CALL get_gto_basis_set(basis_set, &
+                                nset=nset, &
+                                nshell=nshell, &
+                                npgf=npgf, &
+                                zet=zetas, &
+                                gcc=gcc, &
+                                l=l_shell_set)
 
-            DO iset = 1, nset
-               DO ishell_loc = 1, nshell(iset)
-                  ishell = ishell + 1
+         DO iset = 1, nset
+            DO ishell_loc = 1, nshell(iset)
+               ishell = ishell + 1
 
-                  ! nucleus_index array
-                  nucleus_index(ishell) = iatom
+               ! nucleus_index array
+               nucleus_index(ishell) = iatom
 
-                  ! shell_ang_mom array
-                  shell_ang_mom(ishell) = l(ishell_loc, iset)
+               ! shell_ang_mom array
+               shell_ang_mom(ishell) = l_shell_set(ishell_loc, iset)
 
-                  ! shell_index array
-                  shell_index(ipgf + 1:ipgf + npgf(iset)) = ishell
+               ! shell_index array
+               shell_index(ipgf + 1:ipgf + npgf(iset)) = ishell
 
-                  ! exponents array
-                  exponents(ipgf + 1:ipgf + npgf(iset)) = zetas(1:npgf(iset), iset)
+               ! exponents array
+               exponents(ipgf + 1:ipgf + npgf(iset)) = zetas(1:npgf(iset), iset)
 
-                  ! coefficients array
-                  coefficients(ipgf + 1:ipgf + npgf(iset)) = gcc(1:npgf(iset), ishell_loc, iset)
+               ! coefficients array
+               coefficients(ipgf + 1:ipgf + npgf(iset)) = gcc(1:npgf(iset), ishell_loc, iset)
 
-                  ipgf = ipgf + npgf(iset)
-               END DO
+               ipgf = ipgf + npgf(iset)
             END DO
          END DO
-         ! just a failsafe check
-         CPASSERT(ishell == shell_num)
-         CPASSERT(ipgf == prim_num)
+      END DO
+      ! just a failsafe check
+      CPASSERT(ishell == shell_num)
+      CPASSERT(ipgf == prim_num)
 
+      IF (ionode) THEN
          rc = trexio_write_basis_nucleus_index(f, nucleus_index)
          CALL trexio_error(rc)
-         DEALLOCATE (nucleus_index)
 
          rc = trexio_write_basis_shell_ang_mom(f, shell_ang_mom)
          CALL trexio_error(rc)
-         DEALLOCATE (shell_ang_mom)
 
          ! Normalization factors are shoved in the AO group
          ALLOCATE (shell_factor(shell_num))  ! 1-to-1 map bw shells and normalization factors
@@ -413,15 +417,12 @@ CONTAINS
 
          rc = trexio_write_basis_shell_index(f, shell_index)
          CALL trexio_error(rc)
-         DEALLOCATE (shell_index)
 
          rc = trexio_write_basis_exponent(f, exponents)
          CALL trexio_error(rc)
-         DEALLOCATE (exponents)
 
          rc = trexio_write_basis_coefficient(f, coefficients)
          CALL trexio_error(rc)
-         DEALLOCATE (coefficients)
 
          ! Normalization factors are shoved in the AO group
          ALLOCATE (prim_factor(prim_num))
@@ -429,7 +430,15 @@ CONTAINS
          rc = trexio_write_basis_prim_factor(f, prim_factor)
          CALL trexio_error(rc)
          DEALLOCATE (prim_factor)
+      END IF
 
+      DEALLOCATE (nucleus_index)
+      DEALLOCATE (shell_index)
+      DEALLOCATE (exponents)
+      DEALLOCATE (coefficients)
+      ! shell_ang_mom is needed in the MO group, so will be deallocated there
+
+      IF (ionode) THEN
          !========================================================================================!
          ! ECP group
          !========================================================================================!
@@ -551,73 +560,103 @@ CONTAINS
             DEALLOCATE (powers)
          END IF
 
-         !========================================================================================!
-         ! Grid group
-         !========================================================================================!
-         ! TODO
+      END IF ! ionode
 
-         !========================================================================================!
-         ! AO group
-         !========================================================================================!
-         CALL get_qs_kind_set(kind_set, nshell=shell_num, ncgf=ao_num)
+      !========================================================================================!
+      ! Grid group
+      !========================================================================================!
+      ! TODO
 
-         rc = trexio_write_ao_cartesian(f, 1)
+      !========================================================================================!
+      ! AO group
+      !========================================================================================!
+      CALL get_qs_env(qs_env, qs_kind_set=kind_set)
+      CALL get_qs_kind_set(kind_set, ncgf=ncgf, nsgf=nsgf)
+
+      CALL section_vals_val_get(trexio_section, "CARTESIAN", l_val=save_cartesian)
+      IF (save_cartesian) THEN
+         ao_num = ncgf
+      ELSE
+         ao_num = nsgf
+      END IF
+
+      IF (ionode) THEN
+         IF (save_cartesian) THEN
+            rc = trexio_write_ao_cartesian(f, 1)
+         ELSE
+            rc = trexio_write_ao_cartesian(f, 0)
+         END IF
          CALL trexio_error(rc)
 
          rc = trexio_write_ao_num(f, ao_num)
          CALL trexio_error(rc)
+      END IF
 
-         ! one-to-one mapping between AOs and ...
-         ALLOCATE (ao_shell(ao_num))         ! ..shells
-         ALLOCATE (ao_normalization(ao_num)) ! ..normalization factors
+      ! one-to-one mapping between AOs and ...
+      ALLOCATE (ao_shell(ao_num))         ! ..shells
+      ALLOCATE (ao_normalization(ao_num)) ! ..normalization factors
 
-         ! we need to be consistent with the basis group on the shell indices
-         ishell = 0
-         icgf = 0
-         DO iatom = 1, natoms
-            ! get the qs_kind (index position in kind_set) for this atom (atomic_kind)
-            CALL get_atomic_kind(particle_set(iatom)%atomic_kind, kind_number=ikind)
-            ! get the primary (orbital) basis set associated to this qs_kind
-            CALL get_qs_kind(kind_set(ikind), basis_set=basis_set, basis_type="ORB")
-            ! get the info from the basis set
-            CALL get_gto_basis_set(basis_set, &
-                                   nset=nset, &
-                                   nshell=nshell, &
-                                   norm_cgf=norm_cgf, &
-                                   ncgf=ncgf, &
-                                   l=l)
+      ! we need to be consistent with the basis group on the shell indices
+      ishell = 0
+      igf = 0
+      DO iatom = 1, natoms
+         ! get the qs_kind (index position in kind_set) for this atom (atomic_kind)
+         CALL get_atomic_kind(particle_set(iatom)%atomic_kind, kind_number=ikind)
+         ! get the primary (orbital) basis set associated to this qs_kind
+         CALL get_qs_kind(kind_set(ikind), basis_set=basis_set, basis_type="ORB")
+         ! get the info from the basis set
+         CALL get_gto_basis_set(basis_set, &
+                                nset=nset, &
+                                nshell=nshell, &
+                                norm_cgf=norm_cgf, &
+                                ncgf=ncgf, &
+                                nsgf=nsgf, &
+                                l=l_shell_set)
 
-            icgf_loc = 0
-            DO iset = 1, nset
-               DO ishell_loc = 1, nshell(iset)
-                  ishell = ishell + 1
+         igf_loc = 0
+         DO iset = 1, nset
+            DO ishell_loc = 1, nshell(iset)
+               ishell = ishell + 1
 
-                  ! number of AOs in this shell
-                  ncgf_shell = nco(l(ishell_loc, iset))
+               ! number of AOs in this shell
+               IF (save_cartesian) THEN
+                  ngf_shell = nco(l_shell_set(ishell_loc, iset))
+               ELSE
+                  ngf_shell = nso(l_shell_set(ishell_loc, iset))
+               END IF
 
-                  ! one-to-one mapping between AOs and shells
-                  ao_shell(icgf + 1:icgf + ncgf_shell) = ishell
+               ! one-to-one mapping between AOs and shells
+               ao_shell(igf + 1:igf + ngf_shell) = ishell
 
-                  ! one-to-one mapping between AOs and normalization factors
-                  ao_normalization(icgf + 1:icgf + ncgf_shell) = norm_cgf(icgf_loc + 1:icgf_loc + ncgf_shell)
+               ! one-to-one mapping between AOs and normalization factors
+               IF (save_cartesian) THEN
+                  ao_normalization(igf + 1:igf + ngf_shell) = norm_cgf(igf_loc + 1:igf_loc + ngf_shell)
+               ELSE
+                  ao_normalization(:) = 1.0_dp
+               END IF
 
-                  icgf = icgf + ncgf_shell
-                  icgf_loc = icgf_loc + ncgf_shell
-               END DO
+               igf = igf + ngf_shell
+               igf_loc = igf_loc + ngf_shell
             END DO
-            ! just a failsafe check
-            CPASSERT(icgf_loc == ncgf)
          END DO
+         ! just a failsafe check
+         IF (save_cartesian) THEN
+            CPASSERT(igf_loc == ncgf)
+         ELSE
+            CPASSERT(igf_loc == nsgf)
+         END IF
+      END DO
 
+      IF (ionode) THEN
          rc = trexio_write_ao_shell(f, ao_shell)
          CALL trexio_error(rc)
-         DEALLOCATE (ao_shell)
 
          rc = trexio_write_ao_normalization(f, ao_normalization)
          CALL trexio_error(rc)
-         DEALLOCATE (ao_normalization)
+      END IF
 
-      END IF ! ionode
+      DEALLOCATE (ao_shell)
+      DEALLOCATE (ao_normalization)
 
       !========================================================================================!
       ! MO group
@@ -625,7 +664,7 @@ CONTAINS
       CALL get_qs_env(qs_env, do_kpoints=do_kpoints, kpoints=kpoints, dft_control=dft_control, &
                       particle_set=particle_set, qs_kind_set=kind_set, blacs_env=blacs_env)
       nspins = dft_control%nspins
-      CALL get_qs_kind_set(kind_set, ncgf=ao_num, nsgf=nsgf)
+      CALL get_qs_kind_set(kind_set, nsgf=nsgf)
       nmo_spin = 0
 
       ! figure out that total number of MOs
@@ -677,7 +716,7 @@ CONTAINS
 
       ! in case of kpoints, we do this in 2 steps:
       ! 1. we gather the MOs of each kpt and pipe them into a single large distributed fm matrix;
-      ! 2. we transform the MOs of each kpt to Cartesian AOs and write them in the single large local array;
+      ! 2. we possibly transform the MOs of each kpt to Cartesian AOs and write them in the single large local array;
       IF (do_kpoints) THEN
          CALL get_kpoint_info(kpoints, kp_env=kp_env, nkp=nkp, kp_range=kp_range)
 
@@ -754,11 +793,45 @@ CONTAINS
 
                ! transform and store the MO coefficients
                CALL cp_fm_get_submatrix(fm_mo_coeff, mos_sgf, 1, imo + 1, nsgf, nmo)
-               CALL spherical_to_cartesian_mo(mos_sgf, particle_set, kind_set, mo_coefficient(:, imo + 1:imo + nmo))
+               IF (save_cartesian) THEN
+                  CALL spherical_to_cartesian_mo(mos_sgf, particle_set, kind_set, mo_coefficient(:, imo + 1:imo + nmo))
+               ELSE
+                  ! we have to reorder the MOs since CP2K and TREXIO have different conventions
+                  ! from m = -l, -l+1, ..., 0, ..., l-1, l   of CP2K
+                  ! to   m =  0, +1, -1, +2, -2, ..., +l, -l of TREXIO
+                  i = 0
+                  DO ishell = 1, shell_num
+                     l = shell_ang_mom(ishell)
+                     DO k = 1, 2*l+1
+                        ! map from running index k: 1...2l+1 to magnetic quantum number m in TREXIO convention
+                        m = (-1)**k * FLOOR(REAL(k, KIND=dp)/2.0_dp)
+                        mo_coefficient(i + k, imo + 1:imo + nmo) = mos_sgf(i + l + m + 1, :)
+                     END DO
+                     i = i + 2*l + 1
+                  END DO
+                  CPASSERT(i == nsgf)
+               END IF
 
                IF (.NOT. use_real_wfn) THEN
                   CALL cp_fm_get_submatrix(fm_mo_coeff_im, mos_sgf, 1, imo + 1, nsgf, nmo)
-                  CALL spherical_to_cartesian_mo(mos_sgf, particle_set, kind_set, mo_coefficient_im(:, imo + 1:imo + nmo))
+                  IF (save_cartesian) THEN
+                     CALL spherical_to_cartesian_mo(mos_sgf, particle_set, kind_set, mo_coefficient_im(:, imo + 1:imo + nmo))
+                  ELSE
+                     ! we have to reorder the MOs since CP2K and TREXIO have different conventions
+                     ! from m = -l, -l+1, ..., 0, ..., l-1, l   of CP2K
+                     ! to   m =  0, +1, -1, +2, -2, ..., +l, -l of TREXIO
+                     i = 0
+                     DO ishell = 1, shell_num
+                        l = shell_ang_mom(ishell)
+                        DO k = 1, 2*l+1
+                           ! map from running index k: 1...2l+1 to magnetic quantum number m in TREXIO convention
+                           m = (-1)**k * FLOOR(REAL(k, KIND=dp)/2.0_dp)
+                           mo_coefficient_im(i + k, imo + 1:imo + nmo) = mos_sgf(i + l + m + 1, :)
+                        END DO
+                        i = i + 2*l + 1
+                     END DO
+                     CPASSERT(i == nsgf)
+                  END IF
                END IF
             END DO
          ELSE
@@ -776,7 +849,24 @@ CONTAINS
 
             ! allocate a normal fortran array to store the spherical MO coefficients
             CALL cp_fm_get_submatrix(mos(ispin)%mo_coeff, mos_sgf)
-            CALL spherical_to_cartesian_mo(mos_sgf, particle_set, kind_set, mo_coefficient(:, imo + 1:imo + nmo))
+            IF (save_cartesian) THEN
+               CALL spherical_to_cartesian_mo(mos_sgf, particle_set, kind_set, mo_coefficient(:, imo + 1:imo + nmo))
+            ELSE
+               ! we have to reorder the MOs since CP2K and TREXIO have different conventions
+               ! from m = -l, -l+1, ..., 0, ..., l-1, l   of CP2K
+               ! to   m =  0, +1, -1, +2, -2, ..., +l, -l of TREXIO
+               i = 0
+               DO ishell = 1, shell_num
+                  l = shell_ang_mom(ishell)
+                  DO k = 1, 2*l+1
+                     ! map from running index k: 1...2l+1 to magnetic quantum number m in TREXIO convention
+                     m = (-1)**k * FLOOR(REAL(k, KIND=dp)/2.0_dp)
+                     mo_coefficient(i + k, imo + 1:imo + nmo) = mos_sgf(i + l + m + 1, :)
+                  END DO
+                  i = i + 2*l + 1
+               END DO
+               CPASSERT(i == nsgf)
+            END IF
          END IF
 
          DEALLOCATE (mos_sgf)
@@ -807,6 +897,7 @@ CONTAINS
          END IF
       END IF
 
+      DEALLOCATE (shell_ang_mom)
       DEALLOCATE (mo_coefficient)
       DEALLOCATE (mo_energy)
       DEALLOCATE (mo_occupation)
