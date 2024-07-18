@@ -26,8 +26,7 @@ MODULE mixed_environment
                                               section_vals_type
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_para_env_type
-   USE mixed_energy_types,              ONLY: allocate_mixed_energy,&
-                                              mixed_energy_type
+   USE mixed_energy_types,              ONLY: mixed_energy_type
    USE mixed_environment_types,         ONLY: mixed_environment_type,&
                                               set_mixed_env
    USE molecule_kind_types,             ONLY: molecule_kind_type,&
@@ -144,7 +143,7 @@ CONTAINS
       molecule_kind_set => subsys%molecule_kinds%els
 
       ! Create the mixed_energy_type
-      CALL allocate_mixed_energy(mixed_energy)
+      ALLOCATE (mixed_energy)
 
       ! Print the molecule kind set
       CALL write_molecule_kind_set(molecule_kind_set, subsys_section)

@@ -35,8 +35,7 @@ MODULE mixed_environment_types
                                               mp_para_env_type
    USE mixed_cdft_types,                ONLY: mixed_cdft_type,&
                                               mixed_cdft_type_release
-   USE mixed_energy_types,              ONLY: deallocate_mixed_energy,&
-                                              mixed_energy_type
+   USE mixed_energy_types,              ONLY: mixed_energy_type
    USE molecule_kind_list_types,        ONLY: molecule_kind_list_create,&
                                               molecule_kind_list_release,&
                                               molecule_kind_list_type
@@ -315,14 +314,16 @@ CONTAINS
       END IF
       CALL cell_release(mixed_env%cell_ref)
       CALL mp_para_env_release(mixed_env%para_env)
-      CALL deallocate_mixed_energy(mixed_env%mixed_energy)
+      DEALLOCATE (mixed_env%mixed_energy)
       CALL cp_subsys_release(mixed_env%subsys)
       CALL section_vals_release(mixed_env%input)
       IF (ASSOCIATED(mixed_env%group_distribution)) THEN
          DEALLOCATE (mixed_env%group_distribution)
       END IF
-      IF (ASSOCIATED(mixed_env%cdft_control)) &
+      IF (ASSOCIATED(mixed_env%cdft_control)) THEN
          CALL mixed_cdft_type_release(mixed_env%cdft_control)
+         DEALLOCATE (mixed_env%cdft_control)
+      END IF
       IF (ASSOCIATED(mixed_env%strength)) &
          DEALLOCATE (mixed_env%strength)
 

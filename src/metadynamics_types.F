@@ -227,14 +227,12 @@ CONTAINS
 !> \author alessandro laio and fawzi mohamed
 ! **************************************************************************************************
    SUBROUTINE set_meta_env(meta_env, time)
-      TYPE(meta_env_type), INTENT(IN), POINTER           :: meta_env
+      TYPE(meta_env_type), INTENT(INOUT)                 :: meta_env
       REAL(KIND=dp), OPTIONAL, POINTER                   :: time
 
-      IF (ASSOCIATED(meta_env)) THEN
-         IF (PRESENT(time)) THEN
-            NULLIFY (meta_env%time)
-            meta_env%time => time
-         END IF
+      IF (PRESENT(time)) THEN
+         NULLIFY (meta_env%time)
+         meta_env%time => time
       END IF
    END SUBROUTINE set_meta_env
 
@@ -260,6 +258,7 @@ CONTAINS
 
       ! Hills env
       CALL hills_env_release(meta_env%hills_env)
+      DEALLOCATE (meta_env%hills_env)
       ! Walkers type
       IF (ASSOCIATED(meta_env%multiple_walkers)) THEN
          IF (ASSOCIATED(meta_env%multiple_walkers%walkers_status)) THEN
@@ -285,22 +284,19 @@ CONTAINS
 !> \author Teodoro Laino [tlaino] - University of Zurich 10.2008
 ! **************************************************************************************************
    SUBROUTINE hills_env_release(hills_env)
-      TYPE(hills_env_type), POINTER                      :: hills_env
+      TYPE(hills_env_type), INTENT(INOUT)                :: hills_env
 
-      IF (ASSOCIATED(hills_env)) THEN
-         IF (ASSOCIATED(hills_env%ss_history)) THEN
-            DEALLOCATE (hills_env%ss_history)
-         END IF
-         IF (ASSOCIATED(hills_env%delta_s_history)) THEN
-            DEALLOCATE (hills_env%delta_s_history)
-         END IF
-         IF (ASSOCIATED(hills_env%ww_history)) THEN
-            DEALLOCATE (hills_env%ww_history)
-         END IF
-         IF (ASSOCIATED(hills_env%invdt_history)) THEN
-            DEALLOCATE (hills_env%invdt_history)
-         END IF
-         DEALLOCATE (hills_env)
+      IF (ASSOCIATED(hills_env%ss_history)) THEN
+         DEALLOCATE (hills_env%ss_history)
+      END IF
+      IF (ASSOCIATED(hills_env%delta_s_history)) THEN
+         DEALLOCATE (hills_env%delta_s_history)
+      END IF
+      IF (ASSOCIATED(hills_env%ww_history)) THEN
+         DEALLOCATE (hills_env%ww_history)
+      END IF
+      IF (ASSOCIATED(hills_env%invdt_history)) THEN
+         DEALLOCATE (hills_env%invdt_history)
       END IF
    END SUBROUTINE hills_env_release
 

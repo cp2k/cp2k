@@ -287,7 +287,7 @@ CONTAINS
 !> \author Nico Holmberg [01.2017]
 ! **************************************************************************************************
    SUBROUTINE mixed_cdft_type_create(cdft_control)
-      TYPE(mixed_cdft_type), POINTER                     :: cdft_control
+      TYPE(mixed_cdft_type), INTENT(INOUT)               :: cdft_control
 
       NULLIFY (cdft_control%pw_env, cdft_control%blacs_env, cdft_control%qs_kind_set)
       NULLIFY (cdft_control%dlb_control, cdft_control%dest_list_bo, cdft_control%dest_list)
@@ -305,7 +305,7 @@ CONTAINS
 !> \author Nico Holmberg [01.2017]
 ! **************************************************************************************************
    SUBROUTINE mixed_cdft_type_release(cdft_control)
-      TYPE(mixed_cdft_type), POINTER                     :: cdft_control
+      TYPE(mixed_cdft_type), INTENT(INOUT)               :: cdft_control
 
       INTEGER                                            :: i, j
 
@@ -343,8 +343,10 @@ CONTAINS
          END DO
          DEALLOCATE (cdft_control%occupations)
       END IF
-      IF (ASSOCIATED(cdft_control%dlb_control)) &
+      IF (ASSOCIATED(cdft_control%dlb_control)) THEN
          CALL mixed_cdft_dlb_release(cdft_control%dlb_control)
+         DEALLOCATE (cdft_control%dlb_control)
+      END IF
       IF (ASSOCIATED(cdft_control%sendbuff)) THEN
          DO i = 1, SIZE(cdft_control%sendbuff)
             CALL mixed_cdft_buffers_release(cdft_control%sendbuff(i))
@@ -367,7 +369,6 @@ CONTAINS
       END IF
       CALL mixed_cdft_result_type_release(cdft_control%results)
       CALL mixed_cdft_work_type_release(cdft_control%matrix)
-      DEALLOCATE (cdft_control)
 
    END SUBROUTINE mixed_cdft_type_release
 
@@ -377,7 +378,7 @@ CONTAINS
 !> \author Nico Holmberg [01.2017]
 ! **************************************************************************************************
    SUBROUTINE mixed_cdft_dlb_release(dlb_control)
-      TYPE(mixed_cdft_dlb_type), POINTER                 :: dlb_control
+      TYPE(mixed_cdft_dlb_type), INTENT(INOUT)           :: dlb_control
 
       INTEGER                                            :: i
 
@@ -418,7 +419,6 @@ CONTAINS
          DEALLOCATE (dlb_control%weight)
       IF (ASSOCIATED(dlb_control%gradients)) &
          DEALLOCATE (dlb_control%gradients)
-      DEALLOCATE (dlb_control)
 
    END SUBROUTINE mixed_cdft_dlb_release
 
@@ -428,7 +428,7 @@ CONTAINS
 !> \author Nico Holmberg [01.2017]
 ! **************************************************************************************************
    SUBROUTINE mixed_cdft_buffers_release(buffer)
-      TYPE(buffers)                                      :: buffer
+      TYPE(buffers), INTENT(INOUT)                       :: buffer
 
       IF (ASSOCIATED(buffer%cavity)) &
          DEALLOCATE (buffer%cavity)
@@ -445,7 +445,7 @@ CONTAINS
 !> \author Nico Holmberg [01.2017]
 ! **************************************************************************************************
    SUBROUTINE mixed_cdft_p_buffers_release(p_buffer)
-      TYPE(p_buffers)                                    :: p_buffer
+      TYPE(p_buffers), INTENT(INOUT)                     :: p_buffer
 
       INTEGER                                            :: i
 
@@ -478,7 +478,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE mixed_cdft_result_type_set(results, lowdin, wfn, nonortho, metric, rotation, &
                                          H, S, Wad, Wda, W_diagonal, energy, strength, S_minushalf)
-      TYPE(mixed_cdft_result_type)                       :: results
+      TYPE(mixed_cdft_result_type), INTENT(INOUT)        :: results
       REAL(KIND=dp), DIMENSION(:), OPTIONAL              :: lowdin, wfn, nonortho
       REAL(KIND=dp), DIMENSION(:, :), OPTIONAL           :: metric
       REAL(KIND=dp), DIMENSION(:), OPTIONAL              :: rotation
@@ -560,7 +560,7 @@ CONTAINS
 !> \author Nico Holmberg [11.2017]
 ! **************************************************************************************************
    SUBROUTINE mixed_cdft_result_type_release(results)
-      TYPE(mixed_cdft_result_type)                       :: results
+      TYPE(mixed_cdft_result_type), INTENT(INOUT)        :: results
 
       IF (ALLOCATED(results%lowdin)) DEALLOCATE (results%lowdin)
       IF (ALLOCATED(results%wfn)) DEALLOCATE (results%wfn)
@@ -584,7 +584,7 @@ CONTAINS
 !> \author Nico Holmberg [01.2017]
 ! **************************************************************************************************
    SUBROUTINE mixed_cdft_work_type_init(matrix)
-      TYPE(mixed_cdft_work_type)                         :: matrix
+      TYPE(mixed_cdft_work_type), INTENT(INOUT)          :: matrix
 
       NULLIFY (matrix%w_matrix)
       NULLIFY (matrix%mixed_matrix_s)
@@ -599,7 +599,7 @@ CONTAINS
 !> \author Nico Holmberg [01.2017]
 ! **************************************************************************************************
    SUBROUTINE mixed_cdft_work_type_release(matrix)
-      TYPE(mixed_cdft_work_type)                         :: matrix
+      TYPE(mixed_cdft_work_type), INTENT(INOUT)          :: matrix
 
       INTEGER                                            :: i, j
 

@@ -65,15 +65,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE molecular_scf_guess_env_init(env, nfrags)
 
-      TYPE(molecular_scf_guess_env_type)                 :: env
+      TYPE(molecular_scf_guess_env_type), INTENT(OUT)    :: env
       INTEGER, INTENT(IN)                                :: nfrags
-
-! check if the number of fragments is already set
-!IF (env%nfrags.ne.0) THEN
-!   ! do not allow re-initialization
-!   ! to prevent recursive calls
-!   CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
-!ENDIF
 
       env%nfrags = nfrags
       IF (nfrags .GT. 0) THEN
@@ -93,7 +86,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE molecular_scf_guess_env_destroy(env)
 
-      TYPE(molecular_scf_guess_env_type)                 :: env
+      TYPE(molecular_scf_guess_env_type), INTENT(INOUT)  :: env
 
       INTEGER                                            :: ifrag, jfrag
 
@@ -238,38 +231,24 @@ CONTAINS
          nblocks_new = nblocks + add_blocks_before(dimen) + add_blocks_after
          ALLOCATE (block_sizes_new(nblocks_new))
          ALLOCATE (distr_new_array(nblocks_new))
-         !IF (ASSOCIATED(cluster_distr)) THEN
-         !ALLOCATE (cluster_distr_new(nblocks_new))
-         !END IF
          IF (add_blocks_before(dimen) .GT. 0) THEN
             block_sizes_new(1) = offset(dimen)
             distr_new_array(1) = 0
-            !IF (ASSOCIATED(cluster_distr)) THEN
-            !cluster_distr_new(1) = 0
-            !END IF
          END IF
          block_sizes_new(start_index:nblocks + start_index - 1) = blk_sizes(1:nblocks)
          distr_new_array(start_index:nblocks + start_index - 1) = blk_distr(1:nblocks)
-         !IF (ASSOCIATED(cluster_distr)) THEN
-         !cluster_distr_new(start_index:nblocks+start_index-1) = cluster_distr(1:nblocks)
-         !END IF
          IF (add_blocks_after .GT. 0) THEN
             block_sizes_new(nblocks_new) = trailing_size
             distr_new_array(nblocks_new) = 0
-            !IF (ASSOCIATED(cluster_distr)) THEN
-            !cluster_distr_new(nblocks_new) = 0
-            !END IF
          END IF
 
          ! create final arrays
          IF (dimen == 1) THEN !rows
             row_sizes_new => block_sizes_new
             row_distr_new => distr_new_array
-            !row_cluster_new => cluster_distr_new
          ELSE !columns
             col_sizes_new => block_sizes_new
             col_distr_new => distr_new_array
-            !col_cluster_new => cluster_distr_new
          END IF
       END DO ! both rows and columns are done
 
@@ -286,10 +265,7 @@ CONTAINS
                         reuse_arrays=.TRUE.)
       CALL dbcsr_distribution_release(dist_new)
 
-      !CALL dbcsr_finalize(matrix_new)
-
       ! copy blocks of the small matrix to the big matrix
-      !mynode = dbcsr_mp_mynode(dbcsr_distribution_mp(dbcsr_distribution(matrix_new)))
       CALL dbcsr_work_create(matrix_new, work_mutable=.TRUE.)
 
       ! iterate over local blocks of the small matrix

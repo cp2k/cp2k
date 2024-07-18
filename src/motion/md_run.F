@@ -310,7 +310,7 @@ CONTAINS
                       md_ener=md_ener, t=time, used_time=used_time)
 
       ! Attach the time counter of the meta_env to the one of the MD
-      CALL set_meta_env(force_env%meta_env, time=time)
+      IF (ASSOCIATED(force_env%meta_env)) CALL set_meta_env(force_env%meta_env, time=time)
 
       ! Initialize the md_ener structure
       CALL initialize_md_ener(md_ener, force_env, simpar)
