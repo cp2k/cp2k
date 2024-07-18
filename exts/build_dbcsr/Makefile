@@ -90,10 +90,9 @@ else ifeq ($(GPUVER),A100)
   ARCH_NUMBER = 80
 else ifeq ($(GPUVER),A40)
   ARCH_NUMBER = 86
+  override GPUVER := A100
 else ifeq ($(GPUVER),H100)
   ARCH_NUMBER = 90
-  # TODO: update for H100 tuned parameters
-  override GPUVER := A100
 else ifeq ($(GPUVER),Mi50)
   ARCH_NUMBER = gfx906
 else ifeq ($(GPUVER),Mi100)
@@ -132,7 +131,7 @@ else ifeq (hip,$(USE_ACCEL))
   FCFLAGS := -D__HIP $(filter-out -D__HIP,$(FCFLAGS))
 # OpenCL backend
 else ifeq (opencl,$(USE_ACCEL))
-  CFLAGS := -D__OPENCL $(filter-out -D__OPENCL $(CXXSTD),$(if $(ACCFLAGS),$(ACCFLAGS),$(CFLAGS))) 
+  CFLAGS := -D__OPENCL $(filter-out -D__OPENCL $(CXXSTD),$(if $(ACCFLAGS),$(ACCFLAGS),$(CFLAGS)))
 endif
 
 # Set the configuration =====================================================
