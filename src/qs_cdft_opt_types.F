@@ -92,16 +92,13 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cdft_opt_type_create(cdft_opt_control)
 
-      TYPE(cdft_opt_type), POINTER                       :: cdft_opt_control
+      TYPE(cdft_opt_type), INTENT(OUT)                   :: cdft_opt_control
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'cdft_opt_type_create'
 
       INTEGER                                            :: handle
 
       CALL timeset(routineN, handle)
-
-      CPASSERT(.NOT. ASSOCIATED(cdft_opt_control))
-      ALLOCATE (cdft_opt_control)
 
       ! Load the default values
 
@@ -132,18 +129,12 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cdft_opt_type_release(cdft_opt_control)
 
-      TYPE(cdft_opt_type), POINTER                       :: cdft_opt_control
+      TYPE(cdft_opt_type), INTENT(INOUT)                 :: cdft_opt_control
 
-      IF (ASSOCIATED(cdft_opt_control)) THEN
-         IF (ASSOCIATED(cdft_opt_control%jacobian_vector)) &
-            DEALLOCATE (cdft_opt_control%jacobian_vector)
-         IF (ALLOCATED(cdft_opt_control%jacobian_step)) &
-            DEALLOCATE (cdft_opt_control%jacobian_step)
-
-         DEALLOCATE (cdft_opt_control)
-      END IF
-
-      NULLIFY (cdft_opt_control)
+      IF (ASSOCIATED(cdft_opt_control%jacobian_vector)) &
+         DEALLOCATE (cdft_opt_control%jacobian_vector)
+      IF (ALLOCATED(cdft_opt_control%jacobian_step)) &
+         DEALLOCATE (cdft_opt_control%jacobian_step)
 
    END SUBROUTINE cdft_opt_type_release
 
@@ -229,10 +220,8 @@ CONTAINS
 !> \author Nico Holmberg
 ! **************************************************************************************************
    SUBROUTINE cdft_opt_type_write(cdft_opt_control, optimizer, output_unit)
-      TYPE(cdft_opt_type), POINTER                       :: cdft_opt_control
+      TYPE(cdft_opt_type), INTENT(IN)                    :: cdft_opt_control
       INTEGER                                            :: optimizer, output_unit
-
-      CPASSERT(ASSOCIATED(cdft_opt_control))
 
       SELECT CASE (optimizer)
       CASE DEFAULT
@@ -298,19 +287,14 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cdft_opt_type_copy(new, old)
 
-      TYPE(cdft_opt_type), POINTER                       :: new, old
+      TYPE(cdft_opt_type), INTENT(INOUT)                 :: new, old
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'cdft_opt_type_copy'
 
       INTEGER                                            :: handle
 
-      ! Do nothing if cdft_opt_type is not allocated
-      ! this happens if CDFT is performed with an optimizer other than Broyden/Newton
-      IF (.NOT. ASSOCIATED(old)) RETURN
-
       CALL timeset(routineN, handle)
 
-      IF (.NOT. ASSOCIATED(new)) CALL cdft_opt_type_create(new)
       new%max_ls = old%max_ls
       new%continue_ls = old%continue_ls
       new%factor_ls = old%factor_ls

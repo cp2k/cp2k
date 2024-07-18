@@ -8,7 +8,7 @@
 ! **************************************************************************************************
 !> \brief buffer for the diis of the scf
 !> \par History
-!>      02.2003 rewamped [fawzi]
+!>      02.2003 revamped [fawzi]
 !> \author Matthias Krack
 ! **************************************************************************************************
 MODULE qs_diis_types
@@ -79,7 +79,7 @@ MODULE qs_diis_types
    END TYPE qs_diis_buffer_p_type_sparse
 
 ! **************************************************************************************************
-!> \brief build arrau of pointers to diis buffers in the k-point (complex full matrices) case
+!> \brief build array of pointers to diis buffers in the k-point (complex full matrices) case
 !> \note we keep the overlap matrix and 1 parameter matrix per k-point, in the corresponding kp subgroup
 !> \par History
 !>      04.2023 created

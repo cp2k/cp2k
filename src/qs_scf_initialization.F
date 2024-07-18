@@ -349,8 +349,12 @@ CONTAINS
             dft_control%qs_control%cdft_control%ot_control%optimizer = scf_control%outer_scf%optimizer
             dft_control%qs_control%cdft_control%ot_control%diis_buffer_length = scf_control%outer_scf%diis_buffer_length
             dft_control%qs_control%cdft_control%ot_control%bisect_trust_count = scf_control%outer_scf%bisect_trust_count
-            CALL cdft_opt_type_copy(dft_control%qs_control%cdft_control%ot_control%cdft_opt_control, &
-                                    scf_control%outer_scf%cdft_opt_control)
+            IF (ASSOCIATED(scf_control%outer_scf%cdft_opt_control)) THEN
+               IF (.NOT. ASSOCIATED(dft_control%qs_control%cdft_control%ot_control%cdft_opt_control)) &
+                  ALLOCATE (dft_control%qs_control%cdft_control%ot_control%cdft_opt_control)
+               CALL cdft_opt_type_copy(dft_control%qs_control%cdft_control%ot_control%cdft_opt_control, &
+                                       scf_control%outer_scf%cdft_opt_control)
+            END IF
             ! In case constraint and OT extrapolation orders are different, make sure to use former
             nvariables = SIZE(dft_control%qs_control%cdft_control%target)
             IF (scf_control%outer_scf%extrapolation_order /= &

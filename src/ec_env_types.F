@@ -159,6 +159,7 @@ CONTAINS
          ! dispersion environment
          IF (ASSOCIATED(ec_env%dispersion_env)) THEN
             CALL qs_dispersion_release(ec_env%dispersion_env)
+            DEALLOCATE (ec_env%dispersion_env)
          END IF
 
          IF (ASSOCIATED(ec_env%matrix_hz)) CALL dbcsr_deallocate_matrix_set(ec_env%matrix_hz)

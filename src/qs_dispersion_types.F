@@ -131,52 +131,47 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE qs_dispersion_release(dispersion_env)
 
-      TYPE(qs_dispersion_type), POINTER                  :: dispersion_env
+      TYPE(qs_dispersion_type), INTENT(INOUT)            :: dispersion_env
 
       INTEGER                                            :: i
 
-      IF (ASSOCIATED(dispersion_env)) THEN
-         IF (ASSOCIATED(dispersion_env%maxci)) THEN
-            ! DFT-D3 arrays
-            DEALLOCATE (dispersion_env%maxci)
-            DEALLOCATE (dispersion_env%c6ab)
-            DEALLOCATE (dispersion_env%r0ab)
-            DEALLOCATE (dispersion_env%rcov)
-            DEALLOCATE (dispersion_env%r2r4)
-            DEALLOCATE (dispersion_env%cn)
-            IF (ASSOCIATED(dispersion_env%cnkind)) THEN
-               DEALLOCATE (dispersion_env%cnkind)
-            END IF
-            IF (ASSOCIATED(dispersion_env%cnlist)) THEN
-               DO i = 1, SIZE(dispersion_env%cnlist)
-                  DEALLOCATE (dispersion_env%cnlist(i)%atom)
-               END DO
-               DEALLOCATE (dispersion_env%cnlist)
-            END IF
+      IF (ASSOCIATED(dispersion_env%maxci)) THEN
+         ! DFT-D3 arrays
+         DEALLOCATE (dispersion_env%maxci)
+         DEALLOCATE (dispersion_env%c6ab)
+         DEALLOCATE (dispersion_env%r0ab)
+         DEALLOCATE (dispersion_env%rcov)
+         DEALLOCATE (dispersion_env%r2r4)
+         DEALLOCATE (dispersion_env%cn)
+         IF (ASSOCIATED(dispersion_env%cnkind)) THEN
+            DEALLOCATE (dispersion_env%cnkind)
          END IF
-         ! vdD-DF
-         IF (ASSOCIATED(dispersion_env%q_mesh)) THEN
-            DEALLOCATE (dispersion_env%q_mesh)
+         IF (ASSOCIATED(dispersion_env%cnlist)) THEN
+            DO i = 1, SIZE(dispersion_env%cnlist)
+               DEALLOCATE (dispersion_env%cnlist(i)%atom)
+            END DO
+            DEALLOCATE (dispersion_env%cnlist)
          END IF
-         IF (ASSOCIATED(dispersion_env%kernel)) THEN
-            DEALLOCATE (dispersion_env%kernel)
-         END IF
-         IF (ASSOCIATED(dispersion_env%d2phi_dk2)) THEN
-            DEALLOCATE (dispersion_env%d2phi_dk2)
-         END IF
-         IF (ASSOCIATED(dispersion_env%d2y_dx2)) THEN
-            DEALLOCATE (dispersion_env%d2y_dx2)
-         END IF
-         IF (ASSOCIATED(dispersion_env%d3_exclude_pair)) THEN
-            DEALLOCATE (dispersion_env%d3_exclude_pair)
-         END IF
-         ! neighborlists
-         CALL release_neighbor_list_sets(dispersion_env%sab_vdw)
-         CALL release_neighbor_list_sets(dispersion_env%sab_cn)
-
-         DEALLOCATE (dispersion_env)
-
       END IF
+      ! vdD-DF
+      IF (ASSOCIATED(dispersion_env%q_mesh)) THEN
+         DEALLOCATE (dispersion_env%q_mesh)
+      END IF
+      IF (ASSOCIATED(dispersion_env%kernel)) THEN
+         DEALLOCATE (dispersion_env%kernel)
+      END IF
+      IF (ASSOCIATED(dispersion_env%d2phi_dk2)) THEN
+         DEALLOCATE (dispersion_env%d2phi_dk2)
+      END IF
+      IF (ASSOCIATED(dispersion_env%d2y_dx2)) THEN
+         DEALLOCATE (dispersion_env%d2y_dx2)
+      END IF
+      IF (ASSOCIATED(dispersion_env%d3_exclude_pair)) THEN
+         DEALLOCATE (dispersion_env%d3_exclude_pair)
+      END IF
+      ! neighborlists
+      CALL release_neighbor_list_sets(dispersion_env%sab_vdw)
+      CALL release_neighbor_list_sets(dispersion_env%sab_cn)
 
    END SUBROUTINE qs_dispersion_release
 

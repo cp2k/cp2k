@@ -279,8 +279,10 @@ CONTAINS
       END IF
       DEALLOCATE (scf_control%smear)
 
-      IF (ASSOCIATED(scf_control%outer_scf%cdft_opt_control)) &
+      IF (ASSOCIATED(scf_control%outer_scf%cdft_opt_control)) THEN
          CALL cdft_opt_type_release(scf_control%outer_scf%cdft_opt_control)
+         DEALLOCATE (scf_control%outer_scf%cdft_opt_control)
+      END IF
 
       ! Maximum overlap method orbital indices lists
       ! mom_deoccA, mom_deoccB, mom_occA, mom_occB

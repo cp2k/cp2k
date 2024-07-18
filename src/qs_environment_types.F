@@ -1588,7 +1588,10 @@ CONTAINS
       END IF
 
       ! dispersion
-      CALL qs_dispersion_release(qs_env%dispersion_env)
+      IF (ASSOCIATED(qs_env%dispersion_env)) THEN
+         CALL qs_dispersion_release(qs_env%dispersion_env)
+         DEALLOCATE (qs_env%dispersion_env)
+      END IF
       ! gCP
       IF (ASSOCIATED(qs_env%gcp_env)) THEN
          CALL qs_gcp_release(qs_env%gcp_env)
@@ -1811,7 +1814,10 @@ CONTAINS
       END IF
 
       ! dispersion
-      CALL qs_dispersion_release(qs_env%dispersion_env)
+      IF (ASSOCIATED(qs_env%dispersion_env)) THEN
+         CALL qs_dispersion_release(qs_env%dispersion_env)
+         DEALLOCATE (qs_env%dispersion_env)
+      END IF
       ! gCP
       IF (ASSOCIATED(qs_env%gcp_env)) THEN
          CALL qs_gcp_release(qs_env%gcp_env)

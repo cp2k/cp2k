@@ -548,11 +548,11 @@ CONTAINS
          ! Constraint -> OT
          ! Switch data in scf_control: first save values that might have changed
          IF (ASSOCIATED(scf_control%outer_scf%cdft_opt_control)) THEN
-            CPASSERT(ASSOCIATED(cdft_control%constraint_control%cdft_opt_control))
             CALL cdft_opt_type_copy(cdft_control%constraint_control%cdft_opt_control, &
                                     scf_control%outer_scf%cdft_opt_control)
             ! OT SCF does not need cdft_opt_control
             CALL cdft_opt_type_release(scf_control%outer_scf%cdft_opt_control)
+            DEALLOCATE (scf_control%outer_scf%cdft_opt_control)
          END IF
          ! Now switch
          scf_control%outer_scf%have_scf = cdft_control%ot_control%have_scf
@@ -607,8 +607,12 @@ CONTAINS
          scf_control%outer_scf%optimizer = cdft_control%constraint_control%optimizer
          scf_control%outer_scf%diis_buffer_length = cdft_control%constraint_control%diis_buffer_length
          scf_control%outer_scf%bisect_trust_count = cdft_control%constraint_control%bisect_trust_count
-         CALL cdft_opt_type_copy(scf_control%outer_scf%cdft_opt_control, &
-                                 cdft_control%constraint_control%cdft_opt_control)
+         IF (ASSOCIATED(cdft_control%constraint_control%cdft_opt_control)) THEN
+            IF (.NOT. ASSOCIATED(scf_control%outer_scf%cdft_opt_control)) &
+               ALLOCATE (scf_control%outer_scf%cdft_opt_control)
+            CALL cdft_opt_type_copy(scf_control%outer_scf%cdft_opt_control, &
+                                    cdft_control%constraint_control%cdft_opt_control)
+         END IF
          nvariables = SIZE(cdft_control%constraint%variables, 1)
          IF (ASSOCIATED(scf_env%outer_scf%energy)) &
             DEALLOCATE (scf_env%outer_scf%energy)

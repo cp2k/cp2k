@@ -486,8 +486,14 @@ CONTAINS
          DEALLOCATE (cdft_control%hirshfeld_control)
       END IF
       ! Release OUTER_SCF types
-      CALL cdft_opt_type_release(cdft_control%ot_control%cdft_opt_control)
-      CALL cdft_opt_type_release(cdft_control%constraint_control%cdft_opt_control)
+      IF (ASSOCIATED(cdft_control%ot_control%cdft_opt_control)) THEN
+         CALL cdft_opt_type_release(cdft_control%ot_control%cdft_opt_control)
+         DEALLOCATE (cdft_control%ot_control%cdft_opt_control)
+      END IF
+      IF (ASSOCIATED(cdft_control%constraint_control%cdft_opt_control)) THEN
+         CALL cdft_opt_type_release(cdft_control%constraint_control%cdft_opt_control)
+         DEALLOCATE (cdft_control%constraint_control%cdft_opt_control)
+      END IF
       IF (ASSOCIATED(cdft_control%constraint%variables)) &
          DEALLOCATE (cdft_control%constraint%variables)
       IF (ASSOCIATED(cdft_control%constraint%count)) &

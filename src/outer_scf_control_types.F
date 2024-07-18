@@ -130,6 +130,7 @@ CONTAINS
          CASE (outer_scf_optimizer_broyden, outer_scf_optimizer_newton, &
                outer_scf_optimizer_newton_ls)
             ! CDFT optimizer -> read CDFT_OPT section
+            ALLOCATE (outer_scf%cdft_opt_control)
             CALL cdft_opt_type_create(outer_scf%cdft_opt_control)
             CALL cdft_opt_type_read(outer_scf%cdft_opt_control, &
                                     outer_scf_section)
