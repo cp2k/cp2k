@@ -150,6 +150,9 @@ MODULE qs_environment
    USE qs_gcp_types,                    ONLY: qs_gcp_type
    USE qs_gcp_utils,                    ONLY: qs_gcp_env_set,&
                                               qs_gcp_init
+   USE qs_harris_types,                 ONLY: harris_type
+   USE qs_harris_utils,                 ONLY: harris_env_create,&
+                                              harris_write_input
    USE qs_interactions,                 ONLY: init_interaction_radii,&
                                               init_se_nlradius,&
                                               write_core_charge_radii,&
@@ -260,6 +263,7 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(energy_correction_type), POINTER              :: ec_env
       TYPE(excited_energy_type), POINTER                 :: exstate_env
+      TYPE(harris_type), POINTER                         :: harris_env
       TYPE(kpoint_type), POINTER                         :: kpoints
       TYPE(lri_environment_type), POINTER                :: lri_env
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
@@ -270,12 +274,12 @@ CONTAINS
       TYPE(rel_control_type), POINTER                    :: rel_control
       TYPE(scf_control_type), POINTER                    :: scf_control
       TYPE(section_vals_type), POINTER :: dft_section, ec_hfx_section, ec_section, &
-         et_coupling_section, hfx_section, kpoint_section, mp2_section, rpa_hfx_section, &
-         transport_section
+         et_coupling_section, harris_section, hfx_section, kpoint_section, mp2_section, &
+         rpa_hfx_section, transport_section
 
       NULLIFY (my_cell, my_cell_ref, atomic_kind_set, particle_set, &
                qs_kind_set, kpoint_section, dft_section, ec_section, &
-               subsys, ks_env, dft_control, blacs_env)
+               harris_section, subsys, ks_env, dft_control, blacs_env)
 
       CALL set_qs_env(qs_env, input=force_env_section)
       IF (.NOT. ASSOCIATED(subsys_section)) THEN
@@ -477,6 +481,18 @@ CONTAINS
 
       IF (dft_control%qs_control%do_ls_scf) THEN
          CALL ls_scf_create(qs_env)
+      END IF
+
+      NULLIFY (harris_env)
+      dft_section => section_vals_get_subs_vals(qs_env%input, "DFT")
+      CALL section_vals_val_get(dft_section, "HARRIS_METHOD%_SECTION_PARAMETERS_", &
+                                l_val=qs_env%harris_method)
+      harris_section => section_vals_get_subs_vals(qs_env%input, "DFT%HARRIS_METHOD")
+      CALL harris_env_create(qs_env, harris_env, harris_section)
+      CALL set_qs_env(qs_env, harris_env=harris_env)
+      IF (qs_env%harris_method) THEN
+         ! Print information of the HARRIS section
+         CALL harris_write_input(harris_env)
       END IF
 
       NULLIFY (ec_env)
