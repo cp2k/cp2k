@@ -193,7 +193,7 @@ CONTAINS
                            rho_rad_h_d, rho_rad_s_d, ga_Vlocal_gb_h, ga_Vlocal_gb_s, &
                            int_scr_h, int_scr_s)
 
-      TYPE(rho_atom_type), INTENT(IN), POINTER           :: rho_atom
+      TYPE(rho_atom_type), INTENT(IN)                    :: rho_atom
       TYPE(rho_atom_coeff), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: cpc_h, cpc_s, rho_rad_h, rho_rad_s, &
                                                             drho_rad_h, drho_rad_s, vrho_rad_h, &
@@ -204,24 +204,20 @@ CONTAINS
          POINTER                                         :: ga_Vlocal_gb_h, ga_Vlocal_gb_s, &
                                                             int_scr_h, int_scr_s
 
-      IF (ASSOCIATED(rho_atom)) THEN
-         IF (PRESENT(cpc_h)) cpc_h => rho_atom%cpc_h
-         IF (PRESENT(cpc_s)) cpc_s => rho_atom%cpc_s
-         IF (PRESENT(rho_rad_h)) rho_rad_h => rho_atom%rho_rad_h
-         IF (PRESENT(rho_rad_s)) rho_rad_s => rho_atom%rho_rad_s
-         IF (PRESENT(drho_rad_h)) drho_rad_h => rho_atom%drho_rad_h
-         IF (PRESENT(drho_rad_s)) drho_rad_s => rho_atom%drho_rad_s
-         IF (PRESENT(rho_rad_h_d)) rho_rad_h_d => rho_atom%rho_rad_h_d
-         IF (PRESENT(rho_rad_s_d)) rho_rad_s_d => rho_atom%rho_rad_s_d
-         IF (PRESENT(vrho_rad_h)) vrho_rad_h => rho_atom%vrho_rad_h
-         IF (PRESENT(vrho_rad_s)) vrho_rad_s => rho_atom%vrho_rad_s
-         IF (PRESENT(ga_Vlocal_gb_h)) ga_Vlocal_gb_h => rho_atom%ga_Vlocal_gb_h
-         IF (PRESENT(ga_Vlocal_gb_s)) ga_Vlocal_gb_s => rho_atom%ga_Vlocal_gb_s
-         IF (PRESENT(int_scr_h)) int_scr_h => rho_atom%int_scr_h
-         IF (PRESENT(int_scr_s)) int_scr_s => rho_atom%int_scr_s
-      ELSE
-         CPABORT("The pointer rho_atom is not associated")
-      END IF
+      IF (PRESENT(cpc_h)) cpc_h => rho_atom%cpc_h
+      IF (PRESENT(cpc_s)) cpc_s => rho_atom%cpc_s
+      IF (PRESENT(rho_rad_h)) rho_rad_h => rho_atom%rho_rad_h
+      IF (PRESENT(rho_rad_s)) rho_rad_s => rho_atom%rho_rad_s
+      IF (PRESENT(drho_rad_h)) drho_rad_h => rho_atom%drho_rad_h
+      IF (PRESENT(drho_rad_s)) drho_rad_s => rho_atom%drho_rad_s
+      IF (PRESENT(rho_rad_h_d)) rho_rad_h_d => rho_atom%rho_rad_h_d
+      IF (PRESENT(rho_rad_s_d)) rho_rad_s_d => rho_atom%rho_rad_s_d
+      IF (PRESENT(vrho_rad_h)) vrho_rad_h => rho_atom%vrho_rad_h
+      IF (PRESENT(vrho_rad_s)) vrho_rad_s => rho_atom%vrho_rad_s
+      IF (PRESENT(ga_Vlocal_gb_h)) ga_Vlocal_gb_h => rho_atom%ga_Vlocal_gb_h
+      IF (PRESENT(ga_Vlocal_gb_s)) ga_Vlocal_gb_s => rho_atom%ga_Vlocal_gb_s
+      IF (PRESENT(int_scr_h)) int_scr_h => rho_atom%int_scr_h
+      IF (PRESENT(int_scr_s)) int_scr_s => rho_atom%int_scr_s
 
    END SUBROUTINE get_rho_atom
 

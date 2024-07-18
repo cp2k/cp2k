@@ -398,6 +398,7 @@ CONTAINS
       CALL get_atomic_kind_set(atomic_kind_set, natom=natom)
 
       ! Initialize the multipole and the compensation charge type
+      ALLOCATE (rho0_mpole)
       CALL allocate_rho0_mpole(rho0_mpole)
       CALL allocate_rho0_atom(rho0_atom_set, natom)
 
@@ -519,7 +520,7 @@ CONTAINS
       output_unit = cp_print_key_unit_nr(logger, dft_section, "PRINT%GAPW%RHO0_INFORMATION", &
                                          extension=".Log")
       CALL section_vals_val_get(dft_section, "PRINT%GAPW%RHO0_INFORMATION%UNIT", c_val=unit_str)
-      IF (output_unit > 0) THEN
+      IF (output_unit > 0 .AND. ASSOCIATED(rho0_mpole)) THEN
          CALL write_rho0_info(rho0_mpole, unit_str, output_unit)
       END IF
       CALL cp_print_key_finished_output(output_unit, logger, dft_section, &

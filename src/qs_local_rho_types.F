@@ -221,6 +221,7 @@ CONTAINS
 
       IF (ASSOCIATED(local_rho_set%rho0_mpole)) THEN
          CALL deallocate_rho0_mpole(local_rho_set%rho0_mpole)
+         DEALLOCATE (local_rho_set%rho0_mpole)
       END IF
 
       IF (ASSOCIATED(local_rho_set%rhoz_set)) THEN
@@ -265,6 +266,7 @@ CONTAINS
       IF (PRESENT(rho0_mpole)) THEN
          IF (ASSOCIATED(local_rho_set%rho0_mpole)) THEN
             CALL deallocate_rho0_mpole(local_rho_set%rho0_mpole)
+            DEALLOCATE (local_rho_set%rho0_mpole)
          END IF
          local_rho_set%rho0_mpole => rho0_mpole
       END IF

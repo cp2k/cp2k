@@ -185,13 +185,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE allocate_rho0_mpole(rho0)
 
-      TYPE(rho0_mpole_type), POINTER                     :: rho0
-
-      IF (ASSOCIATED(rho0)) THEN
-         CALL deallocate_rho0_mpole(rho0)
-      END IF
-
-      ALLOCATE (rho0)
+      TYPE(rho0_mpole_type), INTENT(OUT)                 :: rho0
 
       NULLIFY (rho0%mp_rho)
       NULLIFY (rho0%mp_gau)
@@ -210,8 +204,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE calculate_g0(rho0_mpole, grid_atom, ik)
 
-      TYPE(rho0_mpole_type), POINTER                     :: rho0_mpole
-      TYPE(grid_atom_type), POINTER                      :: grid_atom
+      TYPE(rho0_mpole_type), INTENT(INOUT)               :: rho0_mpole
+      TYPE(grid_atom_type), INTENT(IN)                   :: grid_atom
       INTEGER, INTENT(IN)                                :: ik
 
       INTEGER                                            :: ir, l, lmax, nr
@@ -359,37 +353,29 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE deallocate_rho0_mpole(rho0)
 
-      TYPE(rho0_mpole_type), POINTER                     :: rho0
+      TYPE(rho0_mpole_type), INTENT(INOUT)               :: rho0
 
-      IF (ASSOCIATED(rho0)) THEN
+      IF (ASSOCIATED(rho0%mp_gau)) CALL deallocate_mpole_gau(rho0%mp_gau)
 
-         IF (ASSOCIATED(rho0%mp_gau)) CALL deallocate_mpole_gau(rho0%mp_gau)
+      IF (ASSOCIATED(rho0%mp_rho)) CALL deallocate_mpole_rho(rho0%mp_rho)
 
-         IF (ASSOCIATED(rho0%mp_rho)) CALL deallocate_mpole_rho(rho0%mp_rho)
+      IF (ASSOCIATED(rho0%lmax0_kind)) THEN
+         DEALLOCATE (rho0%lmax0_kind)
+      END IF
 
-         IF (ASSOCIATED(rho0%lmax0_kind)) THEN
-            DEALLOCATE (rho0%lmax0_kind)
-         END IF
+      IF (ASSOCIATED(rho0%norm_g0l_h)) THEN
+         DEALLOCATE (rho0%norm_g0l_h)
+      END IF
 
-         IF (ASSOCIATED(rho0%norm_g0l_h)) THEN
-            DEALLOCATE (rho0%norm_g0l_h)
-         END IF
+      IF (ASSOCIATED(rho0%rho0_s_rs)) THEN
+         CALL rho0%rho0_s_rs%release()
+         DEALLOCATE (rho0%rho0_s_rs)
+      END IF
 
-         IF (ASSOCIATED(rho0%rho0_s_rs)) THEN
-            CALL rho0%rho0_s_rs%release()
-            DEALLOCATE (rho0%rho0_s_rs)
-         END IF
+      IF (ASSOCIATED(rho0%rho0_s_gs)) THEN
+         CALL rho0%rho0_s_gs%release()
+         DEALLOCATE (rho0%rho0_s_gs)
 
-         IF (ASSOCIATED(rho0%rho0_s_gs)) THEN
-            CALL rho0%rho0_s_gs%release()
-            DEALLOCATE (rho0%rho0_s_gs)
-
-         END IF
-         DEALLOCATE (rho0)
-      ELSE
-         CALL cp_abort(__LOCATION__, &
-                       "The pointer rho0 is not associated and "// &
-                       "cannot be deallocated")
       END IF
 
    END SUBROUTINE deallocate_rho0_mpole
@@ -423,7 +409,7 @@ CONTAINS
                              zet0_h, igrid_zet0_s, rpgf0_h, rpgf0_s, &
                              max_rpgf0_s, rho0_s_rs, rho0_s_gs)
 
-      TYPE(rho0_mpole_type), POINTER                     :: rho0_mpole
+      TYPE(rho0_mpole_type), INTENT(IN)                  :: rho0_mpole
       REAL(dp), DIMENSION(:, :), OPTIONAL, POINTER       :: g0_h, vg0_h
       INTEGER, INTENT(IN), OPTIONAL                      :: iat, ikind
       INTEGER, INTENT(OUT), OPTIONAL                     :: lmax_0, l0_ikind
@@ -439,33 +425,27 @@ CONTAINS
       TYPE(pw_r3d_rs_type), OPTIONAL, POINTER            :: rho0_s_rs
       TYPE(pw_c1d_gs_type), OPTIONAL, POINTER            :: rho0_s_gs
 
-      IF (ASSOCIATED(rho0_mpole)) THEN
+      IF (PRESENT(lmax_0)) lmax_0 = rho0_mpole%lmax_0
+      IF (PRESENT(mp_rho)) mp_rho => rho0_mpole%mp_rho
+      IF (PRESENT(norm_g0l_h)) norm_g0l_h => rho0_mpole%norm_g0l_h
+      IF (PRESENT(zet0_h)) zet0_h = rho0_mpole%zet0_h
+      IF (PRESENT(igrid_zet0_s)) igrid_zet0_s = rho0_mpole%igrid_zet0_s
+      IF (PRESENT(max_rpgf0_s)) max_rpgf0_s = rho0_mpole%max_rpgf0_s
+      IF (PRESENT(rho0_s_rs)) rho0_s_rs => rho0_mpole%rho0_s_rs
+      IF (PRESENT(rho0_s_gs)) rho0_s_gs => rho0_mpole%rho0_s_gs
 
-         IF (PRESENT(lmax_0)) lmax_0 = rho0_mpole%lmax_0
-         IF (PRESENT(mp_rho)) mp_rho => rho0_mpole%mp_rho
-         IF (PRESENT(norm_g0l_h)) norm_g0l_h => rho0_mpole%norm_g0l_h
-         IF (PRESENT(zet0_h)) zet0_h = rho0_mpole%zet0_h
-         IF (PRESENT(igrid_zet0_s)) igrid_zet0_s = rho0_mpole%igrid_zet0_s
-         IF (PRESENT(max_rpgf0_s)) max_rpgf0_s = rho0_mpole%max_rpgf0_s
-         IF (PRESENT(rho0_s_rs)) rho0_s_rs => rho0_mpole%rho0_s_rs
-         IF (PRESENT(rho0_s_gs)) rho0_s_gs => rho0_mpole%rho0_s_gs
-
-         IF (PRESENT(ikind)) THEN
-            IF (PRESENT(l0_ikind)) l0_ikind = rho0_mpole%lmax0_kind(ikind)
-            IF (PRESENT(mp_gau_ikind)) mp_gau_ikind => rho0_mpole%mp_gau(ikind)
-            IF (PRESENT(g0_h)) g0_h => rho0_mpole%mp_gau(ikind)%g0_h
-            IF (PRESENT(vg0_h)) vg0_h => rho0_mpole%mp_gau(ikind)%vg0_h
-            IF (PRESENT(Qlm_gg)) Qlm_gg => rho0_mpole%mp_gau(ikind)%Qlm_gg
-            IF (PRESENT(rpgf0_h)) rpgf0_h = rho0_mpole%mp_gau(ikind)%rpgf0_h
-            IF (PRESENT(rpgf0_s)) rpgf0_s = rho0_mpole%mp_gau(ikind)%rpgf0_s
-         END IF
-         IF (PRESENT(iat)) THEN
-            IF (PRESENT(Qlm_car)) Qlm_car => rho0_mpole%mp_rho(iat)%Qlm_car
-            IF (PRESENT(Qlm_tot)) Qlm_tot => rho0_mpole%mp_rho(iat)%Qlm_tot
-         END IF
-
-      ELSE
-         CPABORT("The pointer rho0_mpole is not associated")
+      IF (PRESENT(ikind)) THEN
+         IF (PRESENT(l0_ikind)) l0_ikind = rho0_mpole%lmax0_kind(ikind)
+         IF (PRESENT(mp_gau_ikind)) mp_gau_ikind => rho0_mpole%mp_gau(ikind)
+         IF (PRESENT(g0_h)) g0_h => rho0_mpole%mp_gau(ikind)%g0_h
+         IF (PRESENT(vg0_h)) vg0_h => rho0_mpole%mp_gau(ikind)%vg0_h
+         IF (PRESENT(Qlm_gg)) Qlm_gg => rho0_mpole%mp_gau(ikind)%Qlm_gg
+         IF (PRESENT(rpgf0_h)) rpgf0_h = rho0_mpole%mp_gau(ikind)%rpgf0_h
+         IF (PRESENT(rpgf0_s)) rpgf0_s = rho0_mpole%mp_gau(ikind)%rpgf0_s
+      END IF
+      IF (PRESENT(iat)) THEN
+         IF (PRESENT(Qlm_car)) Qlm_car => rho0_mpole%mp_rho(iat)%Qlm_car
+         IF (PRESENT(Qlm_tot)) Qlm_tot => rho0_mpole%mp_rho(iat)%Qlm_tot
       END IF
 
    END SUBROUTINE get_rho0_mpole
@@ -479,7 +459,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE initialize_mpole_rho(mp_rho, nchan_s, nchan_c, zeff)
 
-      TYPE(mpole_rho_atom)                               :: mp_rho
+      TYPE(mpole_rho_atom), INTENT(INOUT)                :: mp_rho
       INTEGER, INTENT(IN)                                :: nchan_s, nchan_c
       REAL(KIND=dp), INTENT(IN)                          :: zeff
 
@@ -505,48 +485,42 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE write_rho0_info(rho0_mpole, unit_str, output_unit)
 
-      TYPE(rho0_mpole_type), POINTER                     :: rho0_mpole
+      TYPE(rho0_mpole_type), INTENT(IN)                  :: rho0_mpole
       CHARACTER(LEN=*), INTENT(IN)                       :: unit_str
       INTEGER, INTENT(in)                                :: output_unit
 
       INTEGER                                            :: ikind, l, nkind
       REAL(dp)                                           :: conv
 
-      IF (ASSOCIATED(rho0_mpole)) THEN
-         conv = cp_unit_from_cp2k(1.0_dp, TRIM(unit_str))
+      conv = cp_unit_from_cp2k(1.0_dp, TRIM(unit_str))
 
-         WRITE (UNIT=output_unit, FMT="(/,T5,A,/)") &
-            "*** Compensation density charges data set ***"
-         WRITE (UNIT=output_unit, FMT="(T2,A,T35,f16.10)") &
-            "- Rho0 exponent :", rho0_mpole%zet0_h
-         WRITE (UNIT=output_unit, FMT="(T2,A,T35,I5)") &
-            "- Global max l :", rho0_mpole%lmax_0
+      WRITE (UNIT=output_unit, FMT="(/,T5,A,/)") &
+         "*** Compensation density charges data set ***"
+      WRITE (UNIT=output_unit, FMT="(T2,A,T35,f16.10)") &
+         "- Rho0 exponent :", rho0_mpole%zet0_h
+      WRITE (UNIT=output_unit, FMT="(T2,A,T35,I5)") &
+         "- Global max l :", rho0_mpole%lmax_0
 
-         WRITE (UNIT=output_unit, FMT="(T2,A)") &
-            "- Normalization constants for g0"
-         DO l = 0, rho0_mpole%lmax_0
-            WRITE (UNIT=output_unit, FMT="(T20,A,T31,I2,T38,A,f15.5)") &
-               "ang. mom.= ", l, " hard= ", rho0_mpole%norm_g0l_h(l)
-         END DO
+      WRITE (UNIT=output_unit, FMT="(T2,A)") &
+         "- Normalization constants for g0"
+      DO l = 0, rho0_mpole%lmax_0
+         WRITE (UNIT=output_unit, FMT="(T20,A,T31,I2,T38,A,f15.5)") &
+            "ang. mom.= ", l, " hard= ", rho0_mpole%norm_g0l_h(l)
+      END DO
 
-         nkind = SIZE(rho0_mpole%lmax0_kind, 1)
-         DO ikind = 1, nkind
-            WRITE (UNIT=output_unit, FMT="(/,T2,A,T55,I2)") &
-               "- rho0 max L and radii in "//TRIM(unit_str)// &
-               " for the atom kind :", ikind
+      nkind = SIZE(rho0_mpole%lmax0_kind, 1)
+      DO ikind = 1, nkind
+         WRITE (UNIT=output_unit, FMT="(/,T2,A,T55,I2)") &
+            "- rho0 max L and radii in "//TRIM(unit_str)// &
+            " for the atom kind :", ikind
 
-            WRITE (UNIT=output_unit, FMT="(T2,T20,A,T55,I5)") &
-               "=> l max  :", rho0_mpole%lmax0_kind(ikind)
+         WRITE (UNIT=output_unit, FMT="(T2,T20,A,T55,I5)") &
+            "=> l max  :", rho0_mpole%lmax0_kind(ikind)
 
-            WRITE (UNIT=output_unit, FMT="(T2,T20,A,T55,f20.10)") &
-               "=> max radius of g0: ", &
-               rho0_mpole%mp_gau(ikind)%rpgf0_h*conv
-         END DO ! ikind
-
-      ELSE
-         WRITE (UNIT=output_unit, FMT="(/,T5,A,/)") &
-            ' WARNING: I cannot print rho0, it is not associated'
-      END IF
+         WRITE (UNIT=output_unit, FMT="(T2,T20,A,T55,f20.10)") &
+            "=> max radius of g0: ", &
+            rho0_mpole%mp_gau(ikind)%rpgf0_h*conv
+      END DO ! ikind
 
    END SUBROUTINE write_rho0_info
 END MODULE qs_rho0_types
