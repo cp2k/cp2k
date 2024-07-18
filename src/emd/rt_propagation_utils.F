@@ -620,7 +620,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE write_rtp_mos_to_output_unit(qs_env, rtp)
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(rt_prop_type), INTENT(IN)                        :: rtp
+      TYPE(rt_prop_type), INTENT(IN)                     :: rtp
 
       CHARACTER(len=*), PARAMETER :: routineN = 'write_rtp_mos_to_output_unit'
 
@@ -719,7 +719,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE write_rtp_mo_cubes(qs_env, rtp)
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(rt_prop_type), INTENT(IN)                        :: rtp
+      TYPE(rt_prop_type), INTENT(IN)                     :: rtp
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'write_rtp_mo_cubes'
 

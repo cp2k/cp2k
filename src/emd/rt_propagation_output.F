@@ -354,7 +354,7 @@ CONTAINS
 ! **************************************************************************************************
 
    SUBROUTINE rt_convergence(rtp, matrix_s, delta_mos, delta_eps)
-      TYPE(rt_prop_type), INTENT(IN)                        :: rtp
+      TYPE(rt_prop_type), INTENT(IN)                     :: rtp
       TYPE(dbcsr_type), POINTER                          :: matrix_s
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: delta_mos
       REAL(dp), INTENT(out)                              :: delta_eps
@@ -466,7 +466,7 @@ CONTAINS
 
    SUBROUTINE rt_convergence_density(rtp, delta_P, delta_eps)
 
-      TYPE(rt_prop_type), INTENT(IN)                        :: rtp
+      TYPE(rt_prop_type), INTENT(IN)                     :: rtp
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: delta_P
       REAL(dp), INTENT(out)                              :: delta_eps
 
@@ -788,7 +788,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE write_available_results(qs_env, rtp)
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(rt_prop_type), INTENT(IN)                        :: rtp
+      TYPE(rt_prop_type), INTENT(IN)                     :: rtp
 
       CHARACTER(len=*), PARAMETER :: routineN = 'write_available_results'
 

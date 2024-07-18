@@ -110,7 +110,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE get_hartree_local(hartree_local, ecoul_1c)
 
-      TYPE(hartree_local_type), INTENT(IN)                  :: hartree_local
+      TYPE(hartree_local_type), INTENT(IN)               :: hartree_local
       TYPE(ecoul_1center_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: ecoul_1c
 
