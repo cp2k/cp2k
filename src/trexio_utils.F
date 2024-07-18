@@ -285,6 +285,15 @@ CONTAINS
 
             rc = trexio_write_pbc_k_point_weight(f, wkp)
             CALL trexio_error(rc)
+         ELSE IF (periodic == 1) THEN
+            rc = trexio_write_pbc_k_point_num(f, 1)
+            CALL trexio_error(rc)
+
+            rc = trexio_write_pbc_k_point(f, (/1.0_dp, 1.0_dp, 1.0_dp/))
+            CALL trexio_error(rc)
+
+            rc = trexio_write_pbc_k_point_weight(f, (/1.0_dp/))
+            CALL trexio_error(rc)
          END IF
 
          !========================================================================================!
