@@ -642,6 +642,7 @@ CONTAINS
                       efield=efield, energy=energy, para_env=para_env, sab_orb=sab_orb)
 
       ! efield history
+      IF (.NOT. ASSOCIATED(efield)) ALLOCATE (efield)
       CALL init_efield_matrices(efield)
       CALL set_qs_env(qs_env, efield=efield)
 

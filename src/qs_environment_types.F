@@ -1143,7 +1143,9 @@ CONTAINS
       IF (PRESENT(mo_loc_history)) qs_env%mo_loc_history => mo_loc_history
       IF (PRESENT(run_rtp)) qs_env%run_rtp = run_rtp
       IF (PRESENT(rtp)) qs_env%rtp => rtp
-      IF (PRESENT(efield)) qs_env%efield => efield
+      IF (PRESENT(efield)) THEN
+         IF (.NOT. ASSOCIATED(qs_env%efield, efield)) qs_env%efield => efield
+      END IF
       IF (PRESENT(active_space)) qs_env%active_space => active_space
 
       IF (PRESENT(ewald_env)) THEN ! accept also null pointers?
@@ -1527,7 +1529,10 @@ CONTAINS
          DEALLOCATE (qs_env%cp_ddapc_env)
       END IF
       CALL cp_ddapc_ewald_release(qs_env%cp_ddapc_ewald)
-      CALL efield_berry_release(qs_env%efield)
+      IF (ASSOCIATED(qs_env%efield)) THEN
+         CALL efield_berry_release(qs_env%efield)
+         DEALLOCATE (qs_env%efield)
+      END IF
       IF (ASSOCIATED(qs_env%x_data)) THEN
          CALL hfx_release(qs_env%x_data)
       END IF
@@ -1750,7 +1755,10 @@ CONTAINS
          DEALLOCATE (qs_env%cp_ddapc_env)
       END IF
       CALL cp_ddapc_ewald_release(qs_env%cp_ddapc_ewald)
-      CALL efield_berry_release(qs_env%efield)
+      IF (ASSOCIATED(qs_env%efield)) THEN
+         CALL efield_berry_release(qs_env%efield)
+         DEALLOCATE (qs_env%efield)
+      END IF
       IF (ASSOCIATED(qs_env%x_data)) THEN
          CALL hfx_release(qs_env%x_data)
       END IF

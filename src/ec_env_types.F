@@ -194,7 +194,10 @@ CONTAINS
             END DO
             DEALLOCATE (ec_env%vadmm_rspace)
          END IF
-         CALL efield_berry_release(ec_env%efield)
+         IF (ASSOCIATED(ec_env%efield)) THEN
+            CALL efield_berry_release(ec_env%efield)
+            DEALLOCATE (ec_env%efield)
+         END IF
 
          IF (ASSOCIATED(ec_env%ls_env)) THEN
             CALL ls_scf_release(ec_env%ls_env)

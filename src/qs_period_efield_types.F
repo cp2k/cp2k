@@ -30,8 +30,8 @@ MODULE qs_period_efield_types
              set_efield_matrices
 
    TYPE efield_berry_type
-      REAL(KIND=dp)                                          :: field_energy = -1.0_dp
-      REAL(KIND=dp), DIMENSION(3)                            :: polarisation = -1.0_dp
+      REAL(KIND=dp)                                          :: field_energy = 0.0_dp
+      REAL(KIND=dp), DIMENSION(3)                            :: polarisation = 0.0_dp
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER           :: cosmat => NULL()
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER           :: sinmat => NULL()
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER           :: dipmat => NULL()
@@ -44,29 +44,15 @@ CONTAINS
 !> \param efield ...
 ! **************************************************************************************************
    SUBROUTINE init_efield_matrices(efield)
-      TYPE(efield_berry_type), POINTER                   :: efield
+      TYPE(efield_berry_type), INTENT(INOUT)             :: efield
 
-      REAL(KIND=dp)                                      :: field_energy
-      REAL(KIND=dp), DIMENSION(3)                        :: polarisation
+      ! retain possible previous values for energy and polarisation (the default values are 0.0_dp)
+      ! Cleanup arrays for previous calculations
+      CALL efield_berry_release(efield)
 
-! retain possible values for energy and polarisation
-
-      IF (ASSOCIATED(efield)) THEN
-         field_energy = efield%field_energy
-         polarisation = efield%polarisation
-         CALL efield_berry_release(efield)
-      ELSE
-         field_energy = 0.0_dp
-         polarisation = 0.0_dp
-      END IF
-
-      ALLOCATE (efield)
       NULLIFY (efield%cosmat)
       NULLIFY (efield%sinmat)
       NULLIFY (efield%dipmat)
-
-      efield%field_energy = field_energy
-      efield%polarisation = polarisation
 
    END SUBROUTINE init_efield_matrices
 
@@ -79,7 +65,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE set_efield_matrices(efield, sinmat, cosmat, dipmat)
 
-      TYPE(efield_berry_type), POINTER                   :: efield
+      TYPE(efield_berry_type), INTENT(INOUT)             :: efield
       TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: sinmat, cosmat, dipmat
 
@@ -94,17 +80,14 @@ CONTAINS
 !> \param efield ...
 ! **************************************************************************************************
    SUBROUTINE efield_berry_release(efield)
-      TYPE(efield_berry_type), POINTER                   :: efield
+      TYPE(efield_berry_type), INTENT(INOUT)             :: efield
 
-      IF (ASSOCIATED(efield)) THEN
-         IF (ASSOCIATED(efield%sinmat) .AND. ASSOCIATED(efield%cosmat)) THEN
-            CALL dbcsr_deallocate_matrix_set(efield%cosmat)
-            CALL dbcsr_deallocate_matrix_set(efield%sinmat)
-         END IF
-         IF (ASSOCIATED(efield%dipmat)) THEN
-            CALL dbcsr_deallocate_matrix_set(efield%dipmat)
-         END IF
-         DEALLOCATE (efield)
+      IF (ASSOCIATED(efield%sinmat) .AND. ASSOCIATED(efield%cosmat)) THEN
+         CALL dbcsr_deallocate_matrix_set(efield%cosmat)
+         CALL dbcsr_deallocate_matrix_set(efield%sinmat)
+      END IF
+      IF (ASSOCIATED(efield%dipmat)) THEN
+         CALL dbcsr_deallocate_matrix_set(efield%dipmat)
       END IF
    END SUBROUTINE efield_berry_release
 

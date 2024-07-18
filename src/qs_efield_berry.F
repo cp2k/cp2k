@@ -156,6 +156,7 @@ CONTAINS
       CALL get_qs_env(qs_env=qs_env, dft_control=dft_control)
       NULLIFY (matrix_s)
       CALL get_qs_env(qs_env=qs_env, efield=efield, cell=cell, matrix_s=matrix_s)
+      IF (.NOT. ASSOCIATED(efield)) ALLOCATE (efield)
       CALL init_efield_matrices(efield)
       ALLOCATE (cosmat(3), sinmat(3))
       DO i = 1, 3
