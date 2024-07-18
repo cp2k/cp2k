@@ -298,6 +298,7 @@ CONTAINS
             END IF
             IF (ASSOCIATED(qs_kind_set(ikind)%paw_proj_set)) THEN
                CALL deallocate_paw_proj_set(qs_kind_set(ikind)%paw_proj_set)
+               DEALLOCATE (qs_kind_set(ikind)%paw_proj_set)
             END IF
             IF (ASSOCIATED(qs_kind_set(ikind)%harmonics)) THEN
                CALL deallocate_harmonics_atom(qs_kind_set(ikind)%harmonics)
@@ -1359,6 +1360,7 @@ CONTAINS
             basis_1c%name = TRIM(bsname)//"_1c"
             CALL add_basis_set_to_container(qs_kind%basis_sets, basis_1c, "GAPW_1C")
             IF (paw_atom) THEN
+               IF (.NOT. ASSOCIATED(qs_kind%paw_proj_set)) ALLOCATE (qs_kind%paw_proj_set)
                CALL allocate_paw_proj_set(qs_kind%paw_proj_set)
                CALL get_qs_kind(qs_kind=qs_kind, paw_proj_set=paw_proj)
                CALL projectors(paw_proj, basis_1c, orb_basis, rc, qs_control, &

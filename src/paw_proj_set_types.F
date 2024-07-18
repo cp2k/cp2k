@@ -93,11 +93,9 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE allocate_paw_proj_set(paw_proj_set)
 
-      TYPE(paw_proj_set_type), POINTER                   :: paw_proj_set
+      TYPE(paw_proj_set_type), INTENT(INOUT)             :: paw_proj_set
 
-      IF (ASSOCIATED(paw_proj_set)) CALL deallocate_paw_proj_set(paw_proj_set)
-
-      ALLOCATE (paw_proj_set)
+      CALL deallocate_paw_proj_set(paw_proj_set)
 
       NULLIFY (paw_proj_set%nprj)
       NULLIFY (paw_proj_set%lx)
@@ -132,35 +130,29 @@ CONTAINS
 !> \version 1.0
 ! **************************************************************************************************
    SUBROUTINE deallocate_paw_proj_set(paw_proj_set)
-      TYPE(paw_proj_set_type), POINTER                   :: paw_proj_set
+      TYPE(paw_proj_set_type), INTENT(INOUT)             :: paw_proj_set
 
-      IF (ASSOCIATED(paw_proj_set)) THEN
-
-         IF (ASSOCIATED(paw_proj_set%zisomin)) DEALLOCATE (paw_proj_set%zisomin)
-         IF (ASSOCIATED(paw_proj_set%nprj)) DEALLOCATE (paw_proj_set%nprj)
-         IF (ASSOCIATED(paw_proj_set%lx)) DEALLOCATE (paw_proj_set%lx)
-         IF (ASSOCIATED(paw_proj_set%ly)) DEALLOCATE (paw_proj_set%ly)
-         IF (ASSOCIATED(paw_proj_set%lz)) DEALLOCATE (paw_proj_set%lz)
-         IF (ASSOCIATED(paw_proj_set%ll)) DEALLOCATE (paw_proj_set%ll)
-         IF (ASSOCIATED(paw_proj_set%m)) DEALLOCATE (paw_proj_set%m)
-         IF (ASSOCIATED(paw_proj_set%first_prj)) DEALLOCATE (paw_proj_set%first_prj)
-         IF (ASSOCIATED(paw_proj_set%last_prj)) DEALLOCATE (paw_proj_set%last_prj)
-         IF (ASSOCIATED(paw_proj_set%first_prjs)) DEALLOCATE (paw_proj_set%first_prjs)
-         IF (ASSOCIATED(paw_proj_set%zetprj)) DEALLOCATE (paw_proj_set%zetprj)
-         IF (ASSOCIATED(paw_proj_set%csprj)) DEALLOCATE (paw_proj_set%csprj)
-         IF (ASSOCIATED(paw_proj_set%chprj)) DEALLOCATE (paw_proj_set%chprj)
-         IF (ASSOCIATED(paw_proj_set%local_oce_sphi_h)) DEALLOCATE (paw_proj_set%local_oce_sphi_h)
-         IF (ASSOCIATED(paw_proj_set%local_oce_sphi_s)) DEALLOCATE (paw_proj_set%local_oce_sphi_s)
-         IF (ASSOCIATED(paw_proj_set%sphi_h)) DEALLOCATE (paw_proj_set%sphi_h)
-         IF (ASSOCIATED(paw_proj_set%sphi_s)) DEALLOCATE (paw_proj_set%sphi_s)
-         IF (ASSOCIATED(paw_proj_set%isoprj)) DEALLOCATE (paw_proj_set%isoprj)
-         IF (ASSOCIATED(paw_proj_set%rzetprj)) DEALLOCATE (paw_proj_set%rzetprj)
-         IF (ASSOCIATED(paw_proj_set%o2nindex)) DEALLOCATE (paw_proj_set%o2nindex)
-         IF (ASSOCIATED(paw_proj_set%n2oindex)) DEALLOCATE (paw_proj_set%n2oindex)
-
-         DEALLOCATE (paw_proj_set)
-
-      END IF
+      IF (ASSOCIATED(paw_proj_set%zisomin)) DEALLOCATE (paw_proj_set%zisomin)
+      IF (ASSOCIATED(paw_proj_set%nprj)) DEALLOCATE (paw_proj_set%nprj)
+      IF (ASSOCIATED(paw_proj_set%lx)) DEALLOCATE (paw_proj_set%lx)
+      IF (ASSOCIATED(paw_proj_set%ly)) DEALLOCATE (paw_proj_set%ly)
+      IF (ASSOCIATED(paw_proj_set%lz)) DEALLOCATE (paw_proj_set%lz)
+      IF (ASSOCIATED(paw_proj_set%ll)) DEALLOCATE (paw_proj_set%ll)
+      IF (ASSOCIATED(paw_proj_set%m)) DEALLOCATE (paw_proj_set%m)
+      IF (ASSOCIATED(paw_proj_set%first_prj)) DEALLOCATE (paw_proj_set%first_prj)
+      IF (ASSOCIATED(paw_proj_set%last_prj)) DEALLOCATE (paw_proj_set%last_prj)
+      IF (ASSOCIATED(paw_proj_set%first_prjs)) DEALLOCATE (paw_proj_set%first_prjs)
+      IF (ASSOCIATED(paw_proj_set%zetprj)) DEALLOCATE (paw_proj_set%zetprj)
+      IF (ASSOCIATED(paw_proj_set%csprj)) DEALLOCATE (paw_proj_set%csprj)
+      IF (ASSOCIATED(paw_proj_set%chprj)) DEALLOCATE (paw_proj_set%chprj)
+      IF (ASSOCIATED(paw_proj_set%local_oce_sphi_h)) DEALLOCATE (paw_proj_set%local_oce_sphi_h)
+      IF (ASSOCIATED(paw_proj_set%local_oce_sphi_s)) DEALLOCATE (paw_proj_set%local_oce_sphi_s)
+      IF (ASSOCIATED(paw_proj_set%sphi_h)) DEALLOCATE (paw_proj_set%sphi_h)
+      IF (ASSOCIATED(paw_proj_set%sphi_s)) DEALLOCATE (paw_proj_set%sphi_s)
+      IF (ASSOCIATED(paw_proj_set%isoprj)) DEALLOCATE (paw_proj_set%isoprj)
+      IF (ASSOCIATED(paw_proj_set%rzetprj)) DEALLOCATE (paw_proj_set%rzetprj)
+      IF (ASSOCIATED(paw_proj_set%o2nindex)) DEALLOCATE (paw_proj_set%o2nindex)
+      IF (ASSOCIATED(paw_proj_set%n2oindex)) DEALLOCATE (paw_proj_set%n2oindex)
 
    END SUBROUTINE deallocate_paw_proj_set
 
@@ -178,7 +170,7 @@ CONTAINS
    SUBROUTINE projectors(paw_proj, basis_1c, orb_basis, rc, qs_control, max_rad_local_type, &
                          force_env_section)
 
-      TYPE(paw_proj_set_type), POINTER                   :: paw_proj
+      TYPE(paw_proj_set_type), INTENT(INOUT)             :: paw_proj
       TYPE(gto_basis_set_type), POINTER                  :: basis_1c, orb_basis
       REAL(KIND=dp)                                      :: rc
       TYPE(qs_control_type), INTENT(IN)                  :: qs_control
@@ -219,7 +211,7 @@ CONTAINS
    SUBROUTINE build_projector(paw_proj, basis_1c, orb_basis, eps_fit, eps_iso, eps_svd, &
                               rc, eps_orb, max_rad_local, force_env_section)
 
-      TYPE(paw_proj_set_type), POINTER                   :: paw_proj
+      TYPE(paw_proj_set_type), INTENT(INOUT)             :: paw_proj
       TYPE(gto_basis_set_type), POINTER                  :: basis_1c, orb_basis
       REAL(KIND=dp), INTENT(IN)                          :: eps_fit, eps_iso, eps_svd, rc, eps_orb, &
                                                             max_rad_local
@@ -252,7 +244,6 @@ CONTAINS
       NULLIFY (first_cgf, first_sgf, last_cgf, last_sgf, gcc, l, set_radius, set_radius2)
       NULLIFY (sphi, lmax, lmin, npgf, nshell, zet, zetb, zetp, smat, work, gcca)
 
-      CPASSERT(ASSOCIATED(paw_proj))
       CPASSERT(ASSOCIATED(orb_basis))
       CPASSERT(ASSOCIATED(basis_1c))
 
@@ -742,7 +733,7 @@ CONTAINS
                                o2nindex, n2oindex, &
                                rcprj, rzetprj, zisomin, zetprj)
 
-      TYPE(paw_proj_set_type), POINTER                   :: paw_proj_set
+      TYPE(paw_proj_set_type), INTENT(IN)                :: paw_proj_set
       REAL(KIND=dp), DIMENSION(:, :), OPTIONAL, POINTER  :: csprj, chprj
       INTEGER, DIMENSION(:), OPTIONAL, POINTER           :: first_prj, first_prjs, last_prj
       REAL(KIND=dp), DIMENSION(:, :), OPTIONAL, POINTER  :: local_oce_sphi_h, local_oce_sphi_s
@@ -753,29 +744,25 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: zisomin
       REAL(KIND=dp), DIMENSION(:, :), OPTIONAL, POINTER  :: zetprj
 
-      IF (ASSOCIATED(paw_proj_set)) THEN
-         IF (PRESENT(csprj)) csprj => paw_proj_set%csprj
-         IF (PRESENT(chprj)) chprj => paw_proj_set%chprj
-         IF (PRESENT(local_oce_sphi_h)) local_oce_sphi_h => paw_proj_set%local_oce_sphi_h
-         IF (PRESENT(local_oce_sphi_s)) local_oce_sphi_s => paw_proj_set%local_oce_sphi_s
-         IF (PRESENT(first_prj)) first_prj => paw_proj_set%first_prj
-         IF (PRESENT(last_prj)) last_prj => paw_proj_set%last_prj
-         IF (PRESENT(first_prjs)) first_prjs => paw_proj_set%first_prjs
-         IF (PRESENT(maxl)) maxl = paw_proj_set%maxl
-         IF (PRESENT(ncgauprj)) ncgauprj = paw_proj_set%ncgauprj
-         IF (PRESENT(nsgauprj)) nsgauprj = paw_proj_set%nsgauprj
-         IF (PRESENT(nsatbas)) nsatbas = paw_proj_set%nsatbas
-         IF (PRESENT(nsotot)) nsotot = paw_proj_set%nsotot
-         IF (PRESENT(nprj)) nprj => paw_proj_set%nprj
-         IF (PRESENT(rcprj)) rcprj = paw_proj_set%rcprj
-         IF (PRESENT(rzetprj)) rzetprj => paw_proj_set%rzetprj
-         IF (PRESENT(zisomin)) zisomin => paw_proj_set%zisomin
-         IF (PRESENT(zetprj)) zetprj => paw_proj_set%zetprj
-         IF (PRESENT(o2nindex)) o2nindex => paw_proj_set%o2nindex
-         IF (PRESENT(n2oindex)) n2oindex => paw_proj_set%n2oindex
-      ELSE
-         CPABORT("The pointer  paw_proj_set is not associated")
-      END IF
+      IF (PRESENT(csprj)) csprj => paw_proj_set%csprj
+      IF (PRESENT(chprj)) chprj => paw_proj_set%chprj
+      IF (PRESENT(local_oce_sphi_h)) local_oce_sphi_h => paw_proj_set%local_oce_sphi_h
+      IF (PRESENT(local_oce_sphi_s)) local_oce_sphi_s => paw_proj_set%local_oce_sphi_s
+      IF (PRESENT(first_prj)) first_prj => paw_proj_set%first_prj
+      IF (PRESENT(last_prj)) last_prj => paw_proj_set%last_prj
+      IF (PRESENT(first_prjs)) first_prjs => paw_proj_set%first_prjs
+      IF (PRESENT(maxl)) maxl = paw_proj_set%maxl
+      IF (PRESENT(ncgauprj)) ncgauprj = paw_proj_set%ncgauprj
+      IF (PRESENT(nsgauprj)) nsgauprj = paw_proj_set%nsgauprj
+      IF (PRESENT(nsatbas)) nsatbas = paw_proj_set%nsatbas
+      IF (PRESENT(nsotot)) nsotot = paw_proj_set%nsotot
+      IF (PRESENT(nprj)) nprj => paw_proj_set%nprj
+      IF (PRESENT(rcprj)) rcprj = paw_proj_set%rcprj
+      IF (PRESENT(rzetprj)) rzetprj => paw_proj_set%rzetprj
+      IF (PRESENT(zisomin)) zisomin => paw_proj_set%zisomin
+      IF (PRESENT(zetprj)) zetprj => paw_proj_set%zetprj
+      IF (PRESENT(o2nindex)) o2nindex => paw_proj_set%o2nindex
+      IF (PRESENT(n2oindex)) n2oindex => paw_proj_set%n2oindex
 
    END SUBROUTINE get_paw_proj_set
 
@@ -788,16 +775,12 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE set_paw_proj_set(paw_proj_set, rzetprj, rcprj)
 
-      TYPE(paw_proj_set_type), POINTER                   :: paw_proj_set
+      TYPE(paw_proj_set_type), INTENT(INOUT)             :: paw_proj_set
       REAL(KIND=dp), DIMENSION(:, :), OPTIONAL, POINTER  :: rzetprj
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: rcprj
 
-      IF (ASSOCIATED(paw_proj_set)) THEN
-         IF (PRESENT(rzetprj)) paw_proj_set%rzetprj(:, 0:) = rzetprj(:, 0:)
-         IF (PRESENT(rcprj)) paw_proj_set%rcprj = rcprj
-      ELSE
-         CPABORT("The pointer paw_proj_set is not associated")
-      END IF
+      IF (PRESENT(rzetprj)) paw_proj_set%rzetprj(:, 0:) = rzetprj(:, 0:)
+      IF (PRESENT(rcprj)) paw_proj_set%rcprj = rcprj
 
    END SUBROUTINE set_paw_proj_set
 

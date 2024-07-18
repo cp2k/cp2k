@@ -2727,6 +2727,8 @@ CONTAINS
                         potparm_nonbond14%pot(i, j)%pot => pot
                         potparm_nonbond14%pot(j, i)%pot => pot
                      ELSE
+                        IF (.NOT. ASSOCIATED(pot)) &
+                           ALLOCATE (pot)
                         CALL pair_potential_single_copy(inp_info%nonbonded14%pot(k)%pot, pot)
                         IF (found) &
                            CALL cp_warn(__LOCATION__, &
@@ -2763,6 +2765,7 @@ CONTAINS
                               potparm_nonbond14%pot(i, j)%pot => pot
                               potparm_nonbond14%pot(j, i)%pot => pot
                            ELSE
+                              IF (.NOT. ASSOCIATED(pot)) ALLOCATE (pot)
                               CALL pair_potential_single_copy(qmmm_env%inp_info%nonbonded14%pot(k)%pot, pot)
                               IF (found) &
                                  CALL cp_warn(__LOCATION__, &
@@ -2984,6 +2987,7 @@ CONTAINS
                         potparm_nonbond%pot(i, j)%pot => pot
                         potparm_nonbond%pot(j, i)%pot => pot
                      ELSE
+                        IF (.NOT. ASSOCIATED(pot)) ALLOCATE (pot)
                         CALL pair_potential_single_copy(inp_info%nonbonded%pot(k)%pot, pot)
                         IF (found) &
                            CALL cp_warn(__LOCATION__, &
@@ -3017,6 +3021,7 @@ CONTAINS
                            potparm_nonbond%pot(i, j)%pot => pot
                            potparm_nonbond%pot(j, i)%pot => pot
                         ELSE
+                           IF (.NOT. ASSOCIATED(pot)) ALLOCATE (pot)
                            CALL pair_potential_single_copy(inp_info%nonbonded%pot(k)%pot, pot)
                            IF (found) &
                               CALL cp_warn(__LOCATION__, &
@@ -3047,6 +3052,7 @@ CONTAINS
                         potparm_nonbond%pot(i, j)%pot => pot
                         potparm_nonbond%pot(j, i)%pot => pot
                      ELSE
+                        IF (.NOT. ASSOCIATED(pot)) ALLOCATE (pot)
                         CALL pair_potential_single_copy(inp_info%nonbonded%pot(k)%pot, pot)
                         IF (found) &
                            CALL cp_warn(__LOCATION__, &
@@ -3084,6 +3090,7 @@ CONTAINS
                               potparm_nonbond%pot(i, j)%pot => pot
                               potparm_nonbond%pot(j, i)%pot => pot
                            ELSE
+                              IF (.NOT. ASSOCIATED(pot)) ALLOCATE (pot)
                               CALL pair_potential_single_copy(qmmm_env%inp_info%nonbonded%pot(k)%pot, pot)
                               IF (found) &
                                  CALL cp_warn(__LOCATION__, &

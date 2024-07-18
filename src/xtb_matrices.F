@@ -2003,13 +2003,11 @@ CONTAINS
                   IF ((TRIM(nonbonded%pot(ingp)%pot%at1) == "*") .OR. &
                       (TRIM(nonbonded%pot(ingp)%pot%at2) == "*")) CYCLE
 
-                  !IF (iw > 0) WRITE (iw, *) "TESTING ", TRIM(name_atm_a), TRIM(name_atm_b), &
-                  !   " with ", TRIM(nonbonded%pot(ingp)%pot%at1), &
-                  !   TRIM(nonbonded%pot(ingp)%pot%at2)
                   IF ((((name_atm_a) == (nonbonded%pot(ingp)%pot%at1)) .AND. &
                        ((name_atm_b) == (nonbonded%pot(ingp)%pot%at2))) .OR. &
                       (((name_atm_b) == (nonbonded%pot(ingp)%pot%at1)) .AND. &
                        ((name_atm_a) == (nonbonded%pot(ingp)%pot%at2)))) THEN
+                     IF (.NOT. ASSOCIATED(pot)) ALLOCATE (pot)
                      CALL pair_potential_single_copy(nonbonded%pot(ingp)%pot, pot)
                      ! multiple potential not implemented, simply overwriting
                      IF (found) &
