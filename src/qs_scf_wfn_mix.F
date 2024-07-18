@@ -154,7 +154,7 @@ CONTAINS
             CALL section_vals_val_get(update_section, "ORIG_MO_INDEX", i_rep_section=i_rep, i_val=orig_mo_index)
             CALL section_vals_val_get(update_section, "ORIG_MARKED_STATE", i_rep_section=i_rep, i_val=mark_number)
             CALL section_vals_val_get(update_section, "ORIG_SPIN_INDEX", i_rep_section=i_rep, i_val=orig_spin_index)
-            ! orig_scal is the 'b' coefficient
+            ! orig_scale is the 'b' coefficient
             CALL section_vals_val_get(update_section, "ORIG_SCALE", i_rep_section=i_rep, r_val=orig_scale)
 
             IF (orig_type == wfn_mix_orig_virtual) mark_ind = 2
@@ -162,7 +162,7 @@ CONTAINS
 
             CALL section_vals_val_get(wfn_mix_section, "OVERWRITE_MOS", l_val=overwrite_mos)
 
-            CALL section_vals_val_get(update_section, "REVERSE_MO_INDEX", l_val=reverse_mo_index)
+            CALL section_vals_val_get(update_section, "REVERSE_MO_INDEX", i_rep_section=i_rep, l_val=reverse_mo_index)
 
             ! First get a copy of the proper orig
             ! Origin is in the MO matrix
@@ -174,7 +174,7 @@ CONTAINS
                   CALL cp_fm_to_fm(mos(orig_spin_index)%mo_coeff, matrix_x, 1, &
                                    mos(orig_spin_index)%nmo - orig_mo_index + 1, 1)
                END IF
-               ! Orgin is in the virtual matrix
+               ! Origin is in the virtual matrix
             ELSE IF (orig_type == wfn_mix_orig_virtual) THEN
                IF (.NOT. ASSOCIATED(unoccupied_orbs)) &
                   CALL cp_abort(__LOCATION__, &
@@ -182,7 +182,7 @@ CONTAINS
                                 "For instance, ask in the SCF section to compute virtual orbitals after the GS optimization.")
                CALL cp_fm_to_fm(unoccupied_orbs(orig_spin_index), matrix_x, 1, orig_mo_index, 1)
 
-               ! Orgin is to be read from an external .wfn file
+               ! Origin is to be read from an external .wfn file
             ELSE IF (orig_type == wfn_mix_orig_external) THEN
                CALL section_vals_val_get(update_section, "ORIG_EXT_FILE_NAME", i_rep_section=i_rep, &
                                          c_val=read_file_name)

@@ -2439,7 +2439,7 @@ CONTAINS
 
       CALL section_create(subsection, __LOCATION__, name="UPDATE", &
                           description="Update a result MO with with a linear combination of original MOs."// &
-                          " This section can be repeated to build arbitrary linear combinations using repeatedly y=a*y+b*x.\n "// &
+                          " This section can be repeated to build arbitrary linear combinations using repeatedly y=a*y+b*x. "// &
                           "RESULT is (y), RESULT_SCALE is (a), ORIG is (x), ORIG_SCALE is (b)", &
                           n_keywords=1, n_subsections=0, repeats=.TRUE.)
 
