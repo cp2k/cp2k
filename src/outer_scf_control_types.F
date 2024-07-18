@@ -99,7 +99,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE outer_scf_read_parameters(outer_scf, outer_scf_section)
 
-      TYPE(outer_scf_control_type)                       :: outer_scf
+      TYPE(outer_scf_control_type), INTENT(INOUT)        :: outer_scf
       TYPE(section_vals_type), POINTER                   :: outer_scf_section
 
       LOGICAL                                            :: exists

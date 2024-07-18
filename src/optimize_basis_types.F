@@ -130,7 +130,7 @@ CONTAINS
 ! **************************************************************************************************
 
    SUBROUTINE deallocate_basis_optimization_type(opt_bas)
-      TYPE(basis_optimization_type)                      :: opt_bas
+      TYPE(basis_optimization_type), INTENT(INOUT)       :: opt_bas
 
       INTEGER                                            :: igroup, ikind
 

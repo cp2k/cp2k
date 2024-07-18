@@ -129,18 +129,10 @@ CONTAINS
 !>    * 02.2017 created [Sergey Chulkov]
 ! **************************************************************************************************
    SUBROUTINE negf_control_create(negf_control)
-      TYPE(negf_control_type), POINTER                   :: negf_control
+      TYPE(negf_control_type), INTENT(INOUT)             :: negf_control
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'negf_control_create'
+      MARK_USED(negf_control)
 
-      INTEGER                                            :: handle
-
-      CPASSERT(.NOT. ASSOCIATED(negf_control))
-      CALL timeset(routineN, handle)
-
-      ALLOCATE (negf_control)
-
-      CALL timestop(handle)
    END SUBROUTINE negf_control_create
 
 ! **************************************************************************************************
@@ -150,7 +142,7 @@ CONTAINS
 !>    * 02.2017 created [Sergey Chulkov]
 ! **************************************************************************************************
    SUBROUTINE negf_control_release(negf_control)
-      TYPE(negf_control_type), POINTER                   :: negf_control
+      TYPE(negf_control_type), INTENT(INOUT)             :: negf_control
 
       CHARACTER(len=*), PARAMETER :: routineN = 'negf_control_release'
 
@@ -158,31 +150,27 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      IF (ASSOCIATED(negf_control)) THEN
-         IF (ALLOCATED(negf_control%atomlist_S)) DEALLOCATE (negf_control%atomlist_S)
-         IF (ALLOCATED(negf_control%atomlist_S_screening)) DEALLOCATE (negf_control%atomlist_S_screening)
+      IF (ALLOCATED(negf_control%atomlist_S)) DEALLOCATE (negf_control%atomlist_S)
+      IF (ALLOCATED(negf_control%atomlist_S_screening)) DEALLOCATE (negf_control%atomlist_S_screening)
 
-         IF (ALLOCATED(negf_control%contacts)) THEN
-            DO i = SIZE(negf_control%contacts), 1, -1
-               IF (ALLOCATED(negf_control%contacts(i)%atomlist_bulk)) &
-                  DEALLOCATE (negf_control%contacts(i)%atomlist_bulk)
+      IF (ALLOCATED(negf_control%contacts)) THEN
+         DO i = SIZE(negf_control%contacts), 1, -1
+            IF (ALLOCATED(negf_control%contacts(i)%atomlist_bulk)) &
+               DEALLOCATE (negf_control%contacts(i)%atomlist_bulk)
 
-               IF (ALLOCATED(negf_control%contacts(i)%atomlist_screening)) &
-                  DEALLOCATE (negf_control%contacts(i)%atomlist_screening)
+            IF (ALLOCATED(negf_control%contacts(i)%atomlist_screening)) &
+               DEALLOCATE (negf_control%contacts(i)%atomlist_screening)
 
-               IF (ALLOCATED(negf_control%contacts(i)%atomlist_cell)) THEN
-                  DO j = SIZE(negf_control%contacts(i)%atomlist_cell), 1, -1
-                     IF (ALLOCATED(negf_control%contacts(i)%atomlist_cell(j)%vector)) &
-                        DEALLOCATE (negf_control%contacts(i)%atomlist_cell(j)%vector)
-                  END DO
-                  DEALLOCATE (negf_control%contacts(i)%atomlist_cell)
-               END IF
-            END DO
+            IF (ALLOCATED(negf_control%contacts(i)%atomlist_cell)) THEN
+               DO j = SIZE(negf_control%contacts(i)%atomlist_cell), 1, -1
+                  IF (ALLOCATED(negf_control%contacts(i)%atomlist_cell(j)%vector)) &
+                     DEALLOCATE (negf_control%contacts(i)%atomlist_cell(j)%vector)
+               END DO
+               DEALLOCATE (negf_control%contacts(i)%atomlist_cell)
+            END IF
+         END DO
 
-            DEALLOCATE (negf_control%contacts)
-         END IF
-
-         DEALLOCATE (negf_control)
+         DEALLOCATE (negf_control%contacts)
       END IF
 
       CALL timestop(handle)
@@ -195,7 +183,7 @@ CONTAINS
 !> \param subsys       subsystem environment
 ! **************************************************************************************************
    SUBROUTINE read_negf_control(negf_control, input, subsys)
-      TYPE(negf_control_type), POINTER                   :: negf_control
+      TYPE(negf_control_type), INTENT(INOUT)             :: negf_control
       TYPE(section_vals_type), POINTER                   :: input
       TYPE(cp_subsys_type), POINTER                      :: subsys
 

@@ -96,7 +96,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE integrate_ppl_rspace(rho_rspace, qs_env)
       TYPE(pw_r3d_rs_type), INTENT(IN)                   :: rho_rspace
-      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(qs_environment_type), INTENT(IN)              :: qs_env
 
       CHARACTER(len=*), PARAMETER :: routineN = 'integrate_ppl_rspace'
 
@@ -281,7 +281,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE integrate_rho_nlcc(rho_rspace, qs_env)
       TYPE(pw_r3d_rs_type), INTENT(IN)                   :: rho_rspace
-      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(qs_environment_type), INTENT(IN)              :: qs_env
 
       CHARACTER(len=*), PARAMETER :: routineN = 'integrate_rho_nlcc'
 
@@ -481,7 +481,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE integrate_v_core_rspace(v_rspace, qs_env, atecc)
       TYPE(pw_r3d_rs_type), INTENT(IN)                   :: v_rspace
-      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(qs_environment_type), INTENT(IN)              :: qs_env
       REAL(KIND=dp), DIMENSION(:), OPTIONAL              :: atecc
 
       CHARACTER(len=*), PARAMETER :: routineN = 'integrate_v_core_rspace'
@@ -643,7 +643,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE integrate_v_gaussian_rspace(v_rspace, qs_env, alpha, ccore, atecc)
       TYPE(pw_r3d_rs_type), INTENT(IN)                   :: v_rspace
-      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(qs_environment_type), INTENT(IN)              :: qs_env
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: alpha, ccore
       REAL(KIND=dp), DIMENSION(:)                        :: atecc
 
@@ -761,7 +761,7 @@ CONTAINS
    SUBROUTINE integrate_v_rspace_one_center(v_rspace, qs_env, int_res, &
                                             calculate_forces, basis_type, atomlist)
       TYPE(pw_r3d_rs_type), INTENT(IN)                   :: v_rspace
-      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(qs_environment_type), INTENT(IN)              :: qs_env
       TYPE(lri_kind_type), DIMENSION(:), POINTER         :: int_res
       LOGICAL, INTENT(IN)                                :: calculate_forces
       CHARACTER(len=*), INTENT(IN)                       :: basis_type
@@ -972,7 +972,7 @@ CONTAINS
    SUBROUTINE integrate_v_rspace_diagonal(v_rspace, ksmat, pmat, qs_env, calculate_forces, basis_type)
       TYPE(pw_r3d_rs_type), INTENT(IN)                   :: v_rspace
       TYPE(dbcsr_type), INTENT(INOUT)                    :: ksmat, pmat
-      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(qs_environment_type), INTENT(IN)              :: qs_env
       LOGICAL, INTENT(IN)                                :: calculate_forces
       CHARACTER(len=*), INTENT(IN)                       :: basis_type
 

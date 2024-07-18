@@ -109,7 +109,7 @@ CONTAINS
       TYPE(pw_r3d_rs_type), INTENT(IN)                   :: v_rspace
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_vhxc_dbasis
       TYPE(dbcsr_type), POINTER                          :: matrix_p
-      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(qs_environment_type), INTENT(IN)              :: qs_env
       INTEGER, INTENT(IN)                                :: lambda
 
       CHARACTER(len=*), PARAMETER :: routineN = 'integrate_v_dbasis'
@@ -582,7 +582,7 @@ CONTAINS
       TYPE(dbcsr_p_type), INTENT(IN), OPTIONAL           :: pmat
       TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: pmat_kp
-      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(qs_environment_type), INTENT(IN)              :: qs_env
       LOGICAL, INTENT(IN)                                :: calculate_forces
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: force_adm
       LOGICAL, INTENT(IN), OPTIONAL                      :: compute_tau, gapw

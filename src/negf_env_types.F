@@ -156,7 +156,7 @@ CONTAINS
    SUBROUTINE negf_env_create(negf_env, sub_env, negf_control, force_env, negf_mixing_section, log_unit)
       TYPE(negf_env_type), INTENT(inout)                 :: negf_env
       TYPE(negf_subgroup_env_type), INTENT(in)           :: sub_env
-      TYPE(negf_control_type), POINTER                   :: negf_control
+      TYPE(negf_control_type), INTENT(IN)                :: negf_control
       TYPE(force_env_type), POINTER                      :: force_env
       TYPE(section_vals_type), POINTER                   :: negf_mixing_section
       INTEGER, INTENT(in)                                :: log_unit
@@ -535,7 +535,7 @@ CONTAINS
       TYPE(negf_env_contact_type), INTENT(inout)         :: contact_env
       TYPE(negf_control_contact_type), INTENT(in)        :: contact_control
       TYPE(negf_subgroup_env_type), INTENT(in)           :: sub_env
-      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(qs_environment_type), INTENT(IN)              :: qs_env
       REAL(kind=dp), INTENT(in)                          :: eps_geometry
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'negf_env_contact_init_matrices_gamma'
@@ -698,9 +698,9 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE negf_env_device_init_matrices(negf_env, negf_control, sub_env, qs_env)
       TYPE(negf_env_type), INTENT(inout)                 :: negf_env
-      TYPE(negf_control_type), POINTER                   :: negf_control
+      TYPE(negf_control_type), INTENT(IN)                :: negf_control
       TYPE(negf_subgroup_env_type), INTENT(in)           :: sub_env
-      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(qs_environment_type), INTENT(IN)              :: qs_env
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'negf_env_device_init_matrices'
 
@@ -970,7 +970,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE negf_homo_energy_estimate(homo_energy, qs_env)
       REAL(kind=dp), INTENT(out)                         :: homo_energy
-      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(qs_environment_type), INTENT(IN)              :: qs_env
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'negf_homo_energy_estimate'
       INTEGER, PARAMETER                                 :: gamma_point = 1

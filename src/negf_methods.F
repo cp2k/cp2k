@@ -170,7 +170,7 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(force_env_p_type), DIMENSION(:), POINTER      :: sub_force_env
       TYPE(global_environment_type), POINTER             :: global_env
-      TYPE(negf_control_type), POINTER                   :: negf_control
+      TYPE(negf_control_type)                            :: negf_control
       TYPE(negf_env_type)                                :: negf_env
       TYPE(negf_subgroup_env_type)                       :: sub_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
@@ -195,7 +195,6 @@ CONTAINS
       negf_contact_section => section_vals_get_subs_vals(negf_section, "CONTACT")
       negf_mixing_section => section_vals_get_subs_vals(negf_section, "MIXING")
 
-      NULLIFY (negf_control)
       CALL negf_control_create(negf_control)
       CALL read_negf_control(negf_control, root_section, cp_subsys)
 
@@ -365,7 +364,7 @@ CONTAINS
    SUBROUTINE guess_fermi_level(contact_id, negf_env, negf_control, sub_env, qs_env, log_unit)
       INTEGER, INTENT(in)                                :: contact_id
       TYPE(negf_env_type), INTENT(in)                    :: negf_env
-      TYPE(negf_control_type), POINTER                   :: negf_control
+      TYPE(negf_control_type), INTENT(INOUT)             :: negf_control
       TYPE(negf_subgroup_env_type), INTENT(in)           :: sub_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
       INTEGER, INTENT(in)                                :: log_unit
@@ -656,7 +655,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE shift_potential(negf_env, negf_control, sub_env, qs_env, base_contact, log_unit)
       TYPE(negf_env_type), INTENT(in)                    :: negf_env
-      TYPE(negf_control_type), POINTER                   :: negf_control
+      TYPE(negf_control_type), INTENT(INOUT)             :: negf_control
       TYPE(negf_subgroup_env_type), INTENT(in)           :: sub_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
       INTEGER, INTENT(in)                                :: base_contact, log_unit
@@ -914,7 +913,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE converge_density(negf_env, negf_control, sub_env, qs_env, v_shift, base_contact, log_unit)
       TYPE(negf_env_type), INTENT(in)                    :: negf_env
-      TYPE(negf_control_type), POINTER                   :: negf_control
+      TYPE(negf_control_type), INTENT(IN)                :: negf_control
       TYPE(negf_subgroup_env_type), INTENT(in)           :: sub_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
       REAL(kind=dp), INTENT(in)                          :: v_shift
@@ -1367,7 +1366,7 @@ CONTAINS
       REAL(kind=dp), INTENT(in)                          :: v_shift
       LOGICAL, INTENT(in)                                :: ignore_bias
       TYPE(negf_env_type), INTENT(in)                    :: negf_env
-      TYPE(negf_control_type), POINTER                   :: negf_control
+      TYPE(negf_control_type), INTENT(IN)                :: negf_control
       TYPE(negf_subgroup_env_type), INTENT(in)           :: sub_env
       INTEGER, INTENT(in)                                :: ispin
       TYPE(cp_cfm_type), DIMENSION(:, :), INTENT(in)     :: g_surf_contacts
@@ -1862,7 +1861,7 @@ CONTAINS
       REAL(kind=dp), INTENT(in)                          :: v_shift
       LOGICAL, INTENT(in)                                :: ignore_bias
       TYPE(negf_env_type), INTENT(in)                    :: negf_env
-      TYPE(negf_control_type), POINTER                   :: negf_control
+      TYPE(negf_control_type), INTENT(IN)                :: negf_control
       TYPE(negf_subgroup_env_type), INTENT(in)           :: sub_env
       INTEGER, INTENT(in)                                :: ispin, base_contact
       INTEGER, INTENT(in), OPTIONAL                      :: just_contact
@@ -2000,7 +1999,7 @@ CONTAINS
       REAL(kind=dp), INTENT(in)                          :: v_shift
       LOGICAL, INTENT(in)                                :: ignore_bias
       TYPE(negf_env_type), INTENT(in)                    :: negf_env
-      TYPE(negf_control_type), POINTER                   :: negf_control
+      TYPE(negf_control_type), INTENT(IN)                :: negf_control
       TYPE(negf_subgroup_env_type), INTENT(in)           :: sub_env
       INTEGER, INTENT(in)                                :: ispin, base_contact
       COMPLEX(kind=dp), INTENT(in)                       :: integr_lbound, integr_ubound
@@ -2330,7 +2329,7 @@ CONTAINS
       TYPE(integration_status_type), INTENT(inout)       :: stats
       REAL(kind=dp), INTENT(in)                          :: v_shift
       TYPE(negf_env_type), INTENT(in)                    :: negf_env
-      TYPE(negf_control_type), POINTER                   :: negf_control
+      TYPE(negf_control_type), INTENT(IN)                :: negf_control
       TYPE(negf_subgroup_env_type), INTENT(in)           :: sub_env
       INTEGER, INTENT(in)                                :: ispin, base_contact
       TYPE(cp_fm_type), INTENT(IN)                       :: matrix_s_global
@@ -2545,7 +2544,7 @@ CONTAINS
       INTEGER, INTENT(in)                                :: contact_id1, contact_id2
       REAL(kind=dp), INTENT(in)                          :: v_shift
       TYPE(negf_env_type), INTENT(in)                    :: negf_env
-      TYPE(negf_control_type), POINTER                   :: negf_control
+      TYPE(negf_control_type), INTENT(IN)                :: negf_control
       TYPE(negf_subgroup_env_type), INTENT(in)           :: sub_env
       INTEGER, INTENT(in)                                :: ispin
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env_global
@@ -2704,7 +2703,7 @@ CONTAINS
       INTEGER, INTENT(in)                                :: npoints
       REAL(kind=dp), INTENT(in)                          :: v_shift
       TYPE(negf_env_type), INTENT(in)                    :: negf_env
-      TYPE(negf_control_type), POINTER                   :: negf_control
+      TYPE(negf_control_type), INTENT(IN)                :: negf_control
       TYPE(negf_subgroup_env_type), INTENT(in)           :: sub_env
       INTEGER, INTENT(in)                                :: base_contact
       INTEGER, INTENT(in), OPTIONAL                      :: just_contact
@@ -2863,7 +2862,7 @@ CONTAINS
       INTEGER, INTENT(in)                                :: npoints
       REAL(kind=dp), INTENT(in)                          :: v_shift
       TYPE(negf_env_type), INTENT(in)                    :: negf_env
-      TYPE(negf_control_type), POINTER                   :: negf_control
+      TYPE(negf_control_type), INTENT(IN)                :: negf_control
       TYPE(negf_subgroup_env_type), INTENT(in)           :: sub_env
       INTEGER, INTENT(in)                                :: contact_id1, contact_id2
 
