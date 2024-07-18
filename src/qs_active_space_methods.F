@@ -262,7 +262,7 @@ CONTAINS
          CALL cp_abort(__LOCATION__, "K-points not allowd for Active Space Interface")
       END IF
 
-      NULLIFY (active_space_env)
+      ALLOCATE (active_space_env)
       CALL create_active_space_type(active_space_env)
       active_space_env%energy_total = 0.0_dp
       active_space_env%energy_ref = 0.0_dp

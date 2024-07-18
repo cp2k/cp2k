@@ -102,7 +102,7 @@ MODULE qs_scf
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_type
    USE pw_pool_types,                   ONLY: pw_pool_type
-   USE qs_block_davidson_types,         ONLY: block_davidson_deallocate
+   USE qs_block_davidson_types,         ONLY: block_davidson_release
    USE qs_cdft_scf_utils,               ONLY: build_diagonal_jacobian,&
                                               create_tmp_logger,&
                                               initialize_inverse_jacobian,&
@@ -946,7 +946,7 @@ CONTAINS
          !
       CASE (block_krylov_diag_method_nr)
       CASE (block_davidson_diag_method_nr)
-         CALL block_davidson_deallocate(scf_env%block_davidson_env)
+         CALL block_davidson_release(scf_env%block_davidson_env)
       CASE (filter_matrix_diag_method_nr)
          !
       CASE DEFAULT

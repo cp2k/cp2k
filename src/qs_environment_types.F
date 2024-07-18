@@ -1491,6 +1491,7 @@ CONTAINS
       END IF
       IF (ASSOCIATED(qs_env%active_space)) THEN
          CALL release_active_space_type(qs_env%active_space)
+         DEALLOCATE (qs_env%active_space)
       END IF
       ! Embedding potentials if provided as input
       IF (qs_env%given_embed_pot) THEN
@@ -1582,6 +1583,7 @@ CONTAINS
       END IF
       IF (ASSOCIATED(qs_env%bs_env)) THEN
          CALL bs_env_release(qs_env%bs_env)
+         DEALLOCATE (qs_env%bs_env)
       END IF
       IF (ASSOCIATED(qs_env%kg_env)) THEN
          CALL kg_env_release(qs_env%kg_env)
@@ -1725,6 +1727,7 @@ CONTAINS
       END IF
       IF (ASSOCIATED(qs_env%active_space)) THEN
          CALL release_active_space_type(qs_env%active_space)
+         DEALLOCATE (qs_env%active_space)
       END IF
       ! Embedding potentials if provided as input
       IF (qs_env%given_embed_pot) THEN

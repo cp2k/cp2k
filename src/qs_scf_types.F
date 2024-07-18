@@ -327,6 +327,7 @@ CONTAINS
       END IF
       IF (ASSOCIATED(scf_env%block_davidson_env)) THEN
          CALL block_davidson_release(scf_env%block_davidson_env)
+         DEALLOCATE (scf_env%block_davidson_env)
       END IF
       IF (fb_env_has_data(scf_env%filter_matrix_env)) THEN
          CALL fb_env_release(scf_env%filter_matrix_env)

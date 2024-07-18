@@ -134,13 +134,8 @@ CONTAINS
 !> \param active_space_env the active space environment to be initialized
 ! **************************************************************************************************
    SUBROUTINE create_active_space_type(active_space_env)
-      TYPE(active_space_type), POINTER                   :: active_space_env
+      TYPE(active_space_type), INTENT(OUT)               :: active_space_env
 
-      IF (ASSOCIATED(active_space_env)) THEN
-         CALL release_active_space_type(active_space_env)
-      END IF
-
-      ALLOCATE (active_space_env)
       NULLIFY (active_space_env%active_orbitals, active_space_env%inactive_orbitals)
       NULLIFY (active_space_env%mos_active, active_space_env%mos_inactive)
       NULLIFY (active_space_env%ks_sub, active_space_env%p_active)
@@ -154,47 +149,42 @@ CONTAINS
 !> \param active_space_env the active space environment to be released
 ! **************************************************************************************************
    SUBROUTINE release_active_space_type(active_space_env)
-      TYPE(active_space_type), POINTER                   :: active_space_env
+      TYPE(active_space_type), INTENT(INOUT)             :: active_space_env
 
       INTEGER                                            :: imo
 
-      IF (ASSOCIATED(active_space_env)) THEN
-
-         IF (ASSOCIATED(active_space_env%active_orbitals)) THEN
-            DEALLOCATE (active_space_env%active_orbitals)
-         END IF
-
-         IF (ASSOCIATED(active_space_env%inactive_orbitals)) THEN
-            DEALLOCATE (active_space_env%inactive_orbitals)
-         END IF
-
-         IF (ASSOCIATED(active_space_env%mos_active)) THEN
-            DO imo = 1, SIZE(active_space_env%mos_active)
-               CALL deallocate_mo_set(active_space_env%mos_active(imo))
-            END DO
-            DEALLOCATE (active_space_env%mos_active)
-         END IF
-
-         IF (ASSOCIATED(active_space_env%mos_inactive)) THEN
-            DO imo = 1, SIZE(active_space_env%mos_inactive)
-               CALL deallocate_mo_set(active_space_env%mos_inactive(imo))
-            END DO
-            DEALLOCATE (active_space_env%mos_inactive)
-         END IF
-
-         CALL release_eri_type(active_space_env%eri)
-
-         CALL cp_fm_release(active_space_env%p_active)
-         CALL cp_fm_release(active_space_env%ks_sub)
-         CALL cp_fm_release(active_space_env%vxc_sub)
-         CALL cp_fm_release(active_space_env%h_sub)
-         CALL cp_fm_release(active_space_env%fock_sub)
-
-         IF (ASSOCIATED(active_space_env%pmat_inactive)) &
-            CALL dbcsr_deallocate_matrix_set(active_space_env%pmat_inactive)
-
-         DEALLOCATE (active_space_env)
+      IF (ASSOCIATED(active_space_env%active_orbitals)) THEN
+         DEALLOCATE (active_space_env%active_orbitals)
       END IF
+
+      IF (ASSOCIATED(active_space_env%inactive_orbitals)) THEN
+         DEALLOCATE (active_space_env%inactive_orbitals)
+      END IF
+
+      IF (ASSOCIATED(active_space_env%mos_active)) THEN
+         DO imo = 1, SIZE(active_space_env%mos_active)
+            CALL deallocate_mo_set(active_space_env%mos_active(imo))
+         END DO
+         DEALLOCATE (active_space_env%mos_active)
+      END IF
+
+      IF (ASSOCIATED(active_space_env%mos_inactive)) THEN
+         DO imo = 1, SIZE(active_space_env%mos_inactive)
+            CALL deallocate_mo_set(active_space_env%mos_inactive(imo))
+         END DO
+         DEALLOCATE (active_space_env%mos_inactive)
+      END IF
+
+      CALL release_eri_type(active_space_env%eri)
+
+      CALL cp_fm_release(active_space_env%p_active)
+      CALL cp_fm_release(active_space_env%ks_sub)
+      CALL cp_fm_release(active_space_env%vxc_sub)
+      CALL cp_fm_release(active_space_env%h_sub)
+      CALL cp_fm_release(active_space_env%fock_sub)
+
+      IF (ASSOCIATED(active_space_env%pmat_inactive)) &
+         CALL dbcsr_deallocate_matrix_set(active_space_env%pmat_inactive)
 
    END SUBROUTINE release_active_space_type
 
@@ -203,7 +193,7 @@ CONTAINS
 !> \param eri_env the ERI environment to be released
 ! **************************************************************************************************
    SUBROUTINE release_eri_type(eri_env)
-      TYPE(eri_type)                                     :: eri_env
+      TYPE(eri_type), INTENT(INOUT)                      :: eri_env
 
       INTEGER                                            :: i
 
@@ -278,7 +268,6 @@ CONTAINS
 !>      04.2016 created [JGH]
 ! **************************************************************************************************
    FUNCTION get_irange_csr(nindex, mp_group) RESULT(irange)
-      USE message_passing, ONLY: mp_comm_type
       INTEGER, INTENT(IN)                                :: nindex
 
       CLASS(mp_comm_type), INTENT(IN)                     :: mp_group

@@ -297,15 +297,13 @@ CONTAINS
 !> \param bs_env ...
 ! **************************************************************************************************
    SUBROUTINE bs_env_release(bs_env)
-      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
+      TYPE(post_scf_bandstructure_type), INTENT(INOUT)   :: bs_env
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'bs_env_release'
 
       INTEGER                                            :: handle
 
       CALL timeset(routineN, handle)
-
-      CPASSERT(ASSOCIATED(bs_env))
 
       CALL safe_kpoints_release(bs_env%kpoints_chi_eps_W)
       CALL safe_kpoints_release(bs_env%kpoints_DOS)
@@ -407,8 +405,6 @@ CONTAINS
       CALL cp_fm_release(bs_env%fm_V_SOC_xyz_mo(2))
       CALL cp_fm_release(bs_env%fm_V_SOC_xyz_mo(3))
       CALL safe_cfm_destroy_1d(bs_env%cfm_SOC_spinor_ao)
-
-      DEALLOCATE (bs_env)
 
       CALL timestop(handle)
 

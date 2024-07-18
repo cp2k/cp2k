@@ -69,8 +69,8 @@ CONTAINS
 !> \param preconditioner ...
 !> \return ...
 ! **************************************************************************************************
-   FUNCTION preconditioner_in_use(preconditioner)
-      TYPE(preconditioner_type)                          :: preconditioner
+   ELEMENTAL FUNCTION preconditioner_in_use(preconditioner)
+      TYPE(preconditioner_type), INTENT(IN)              :: preconditioner
       LOGICAL                                            :: preconditioner_in_use
 
       preconditioner_in_use = .NOT. (preconditioner%in_use .EQ. 0)
@@ -84,7 +84,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE init_preconditioner(preconditioner_env, para_env, blacs_env)
 
-      TYPE(preconditioner_type)                          :: preconditioner_env
+      TYPE(preconditioner_type), INTENT(OUT)             :: preconditioner_env
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
 
@@ -115,7 +115,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE destroy_preconditioner(preconditioner_env)
 
-      TYPE(preconditioner_type)                          :: preconditioner_env
+      TYPE(preconditioner_type), INTENT(INOUT)           :: preconditioner_env
 
       CHARACTER(len=*), PARAMETER :: routineN = 'destroy_preconditioner'
 

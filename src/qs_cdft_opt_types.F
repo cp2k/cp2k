@@ -148,7 +148,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cdft_opt_type_read(cdft_opt_control, inp_section)
 
-      TYPE(cdft_opt_type), POINTER                       :: cdft_opt_control
+      TYPE(cdft_opt_type), INTENT(INOUT)                 :: cdft_opt_control
       TYPE(section_vals_type), POINTER                   :: inp_section
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'cdft_opt_type_read'
@@ -161,7 +161,6 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      CPASSERT(ASSOCIATED(cdft_opt_control))
       cdft_opt_section => section_vals_get_subs_vals(inp_section, "CDFT_OPT")
 
       CALL section_vals_val_get(cdft_opt_section, "MAX_LS", &

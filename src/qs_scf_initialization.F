@@ -793,9 +793,12 @@ CONTAINS
             IF (do_kpoints) &
                CPABORT("Block Davidson diagonalization not possible with kpoint calculations")
             scf_env%method = block_davidson_diag_method_nr
-            IF (.NOT. ASSOCIATED(scf_env%block_davidson_env)) &
-               CALL block_davidson_env_create(scf_env%block_davidson_env, dft_control%nspins, &
-                                              scf_section)
+            IF (.NOT. ASSOCIATED(scf_env%block_davidson_env)) THEN
+               ALLOCATE (scf_env%block_davidson_env(dft_control%nspins))
+               DO ispin = 1, dft_control%nspins
+                  CALL block_davidson_env_create(scf_env%block_davidson_env(ispin), scf_section)
+               END DO
+            END IF
             DO ispin = 1, dft_control%nspins
                CALL get_mo_set(mo_set=mos(ispin), mo_coeff=mo_coeff, nao=nao, nmo=nmo)
                CALL block_davidson_allocate(scf_env%block_davidson_env(ispin), mo_coeff, nao, nmo)
