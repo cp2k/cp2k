@@ -354,7 +354,7 @@ CONTAINS
 ! **************************************************************************************************
 
    SUBROUTINE rt_convergence(rtp, matrix_s, delta_mos, delta_eps)
-      TYPE(rt_prop_type), POINTER                        :: rtp
+      TYPE(rt_prop_type), INTENT(IN)                        :: rtp
       TYPE(dbcsr_type), POINTER                          :: matrix_s
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: delta_mos
       REAL(dp), INTENT(out)                              :: delta_eps
@@ -466,7 +466,7 @@ CONTAINS
 
    SUBROUTINE rt_convergence_density(rtp, delta_P, delta_eps)
 
-      TYPE(rt_prop_type), POINTER                        :: rtp
+      TYPE(rt_prop_type), INTENT(IN)                        :: rtp
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: delta_P
       REAL(dp), INTENT(out)                              :: delta_eps
 
@@ -788,7 +788,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE write_available_results(qs_env, rtp)
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(rt_prop_type), POINTER                        :: rtp
+      TYPE(rt_prop_type), INTENT(IN)                        :: rtp
 
       CHARACTER(len=*), PARAMETER :: routineN = 'write_available_results'
 
@@ -872,9 +872,6 @@ CONTAINS
             CALL make_field(dft_control, field, qs_env%sim_step, qs_env%sim_time)
             WRITE (UNIT=unit_nr, FMT="(I10,F16.6,3(F16.8,1X))") qs_env%sim_step, qs_env%sim_time*femtoseconds, &
                field(1), field(2), field(3)
-!            DO i=1,3
-!               IF (ABS(field(i))< 10E-10) field(i) = 0.0_dp
-!            END IF
          ELSE IF (dft_control%apply_vector_potential) THEN
             WRITE (UNIT=unit_nr, FMT="(I10,F16.6,6(F16.8,1X))") qs_env%sim_step, qs_env%sim_time*femtoseconds, &
                dft_control%rtp_control%field(1), dft_control%rtp_control%field(2), dft_control%rtp_control%field(3), &

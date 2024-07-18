@@ -69,9 +69,7 @@ CONTAINS
 
       DO iat = 1, natom
          ALLOCATE (ecoul_1c(iat)%Vh1_h)
-         NULLIFY (ecoul_1c(iat)%Vh1_h%r_coef)
          ALLOCATE (ecoul_1c(iat)%Vh1_s)
-         NULLIFY (ecoul_1c(iat)%Vh1_s%r_coef)
       END DO
 
    END SUBROUTINE allocate_ecoul_1center
@@ -112,7 +110,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE get_hartree_local(hartree_local, ecoul_1c)
 
-      TYPE(hartree_local_type), POINTER                  :: hartree_local
+      TYPE(hartree_local_type), INTENT(IN)                  :: hartree_local
       TYPE(ecoul_1center_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: ecoul_1c
 
@@ -178,7 +176,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE set_hartree_local(hartree_local, ecoul_1c)
 
-      TYPE(hartree_local_type), POINTER                  :: hartree_local
+      TYPE(hartree_local_type), INTENT(INOUT)            :: hartree_local
       TYPE(ecoul_1center_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: ecoul_1c
 
