@@ -55,7 +55,8 @@ async def main() -> None:
     parser.add_argument("--num_gpus", type=int, default=0)
     parser.add_argument("--timeout", type=int, default=400)
     parser.add_argument("--maxerrors", type=int, default=50)
-    parser.add_argument("--mpiexec", default="mpiexec --bind-to none")
+    help = "Template for launching MPI jobs, {N} is replaced by number of processors."
+    parser.add_argument("--mpiexec", default="mpiexec -n {N} --bind-to none", help=help)
     help = "Runs only the first test of each directory."
     parser.add_argument("--smoketest", dest="smoketest", action="store_true", help=help)
     help = "Runs tests under Valgrind memcheck. Best used together with --keepalive."
@@ -254,7 +255,9 @@ class Config:
         self.num_workers = int(args.maxtasks / self.ompthreads / self.mpiranks)
         self.workers = Semaphore(self.num_workers)
         self.cp2k_root = Path(__file__).resolve().parent.parent
-        self.mpiexec = args.mpiexec.split()
+        self.mpiexec = args.mpiexec
+        if "{N}" not in self.mpiexec:  # backwards compatibility
+            self.mpiexec = self.mpiexec.replace(" ", " -n {N} ", 1)
         self.smoketest = args.smoketest
         self.valgrind = args.valgrind
         self.keepalive = args.keepalive
@@ -319,7 +322,7 @@ class Config:
         if self.valgrind:
             cmd = ["valgrind", "--error-exitcode=42", "--exit-on-first-error=yes"] + cmd
         if self.use_mpi:
-            cmd = [self.mpiexec[0], "-n", str(self.mpiranks)] + self.mpiexec[1:] + cmd
+            cmd = self.mpiexec.format(N=self.mpiranks).split() + cmd
         if self.debug:
             print(f"Creating subprocess: {cmd} {args}")
         return asyncio.create_subprocess_exec(
