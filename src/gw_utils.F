@@ -72,6 +72,7 @@ MODULE gw_utils
                                               rtp_method_gw
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type,&
+                                              section_vals_get,&
                                               section_vals_val_get,&
                                               section_vals_val_set
    USE kinds,                           ONLY: default_string_length,&
@@ -1617,7 +1618,7 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_ks_kp
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(qs_energy_type), POINTER                      :: energy
-      TYPE(section_vals_type), POINTER                   :: input, xc_section
+      TYPE(section_vals_type), POINTER                   :: input, xc_section, hf_section
 
       CALL timeset(routineN, handle)
 
@@ -1631,8 +1632,17 @@ CONTAINS
       xc_section => section_vals_get_subs_vals(input, "DFT%XC")
       CALL section_vals_val_get(xc_section, "XC_FUNCTIONAL%_SECTION_PARAMETERS_", i_val=myfun)
       CALL section_vals_val_set(xc_section, "XC_FUNCTIONAL%_SECTION_PARAMETERS_", i_val=xc_none)
-      CALL section_vals_val_get(xc_section, "HF%FRACTION", r_val=myfraction)
-      CALL section_vals_val_set(xc_section, "HF%FRACTION", r_val=0.0_dp)
+      ! IF (ASSOCIATED(section_vals_get_subs_vals(xc_section, "HF", can_return_null=.TRUE.))) THEN
+      hf_section => section_vals_get_subs_vals(input, "DFT%XC%HF", can_return_null=.TRUE.)
+      hf_present = .FALSE.
+      IF (ASSOCIATED(hf_section)) THEN
+         CALL section_vals_get(hf_section, explicit=hf_present)
+      END IF
+      IF (hf_present) THEN
+         ! Special case for handling hfx
+         CALL section_vals_val_get(xc_section, "HF%FRACTION", r_val=myfraction)
+         CALL section_vals_val_set(xc_section, "HF%FRACTION", r_val=0.0_dp)
+      END IF
 
       ! save the energy before the energy gets updated
       energy_total = energy%total
@@ -1647,7 +1657,11 @@ CONTAINS
 
          DO ispin = 1, bs_env%n_spin
             ALLOCATE (mat_ks_without_v_xc(ispin)%matrix)
-            CALL dbcsr_create(mat_ks_without_v_xc(ispin)%matrix, template=bs_env%mat_ao_ao%matrix)
+            IF (hf_present) THEN
+               CALL dbcsr_create(mat_ks_without_v_xc(ispin)%matrix, template=bs_env%mat_ao_ao%matrix, matrix_type=dbcsr_type_symmetric)
+            ELSE
+               CALL dbcsr_create(mat_ks_without_v_xc(ispin)%matrix, template=bs_env%mat_ao_ao%matrix)
+            END IF
          END DO
 
          ! calculate KS-matrix without XC
@@ -1697,8 +1711,10 @@ CONTAINS
       ! set the DFT functional and HF fraction back
       CALL section_vals_val_set(xc_section, "XC_FUNCTIONAL%_SECTION_PARAMETERS_", &
                                 i_val=myfun)
-      CALL section_vals_val_set(xc_section, "HF%FRACTION", &
-                                r_val=myfraction)
+      IF (hf_present) THEN
+         CALL section_vals_val_set(xc_section, "HF%FRACTION", &
+                                   r_val=myfraction)
+      END IF
 
       IF (bs_env%small_cell_full_kp_or_large_cell_Gamma == small_cell_full_kp) THEN
          ! calculate KS-matrix again with XC
