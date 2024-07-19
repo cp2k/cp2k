@@ -786,7 +786,7 @@ CONTAINS
             CALL set_ks_env(ks_env=ks_env, sab_tbe=sab_tbe)
          END IF
          ! Repulsive Potential
-         pair_radius = dft_control%qs_control%xtb_control%rcpair
+         pair_radius(1:nkind, 1:nkind) = dft_control%qs_control%xtb_control%rcpair(1:nkind, 1:nkind)
          default_present = .TRUE.
          CALL build_neighbor_lists(sab_xtb_pp, particle_set, atom2d, cell, pair_radius, &
                                    subcells=subcells, nlname="sab_xtb_pp")

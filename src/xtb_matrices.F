@@ -280,7 +280,7 @@ CONTAINS
       CALL cnumber_init(qs_env, cnumbers, dcnum, 2, calculate_forces)
 
       ALLOCATE (charges(natom))
-      charges = 0._dp
+      charges = 0.0_dp
       CALL xtb_eeq_calculation(qs_env, charges, cnumbers, eeq_energy, qlambda)
       IF (calculate_forces) THEN
          ALLOCATE (dcharges(natom))

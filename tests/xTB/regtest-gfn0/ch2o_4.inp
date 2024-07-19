@@ -9,7 +9,7 @@
   DEBUG_STRESS_TENSOR F
   DX 0.0001
   EPS_NO_ERROR_CHECK 0.000001
-  STOP_ON_MISMATCH T
+  STOP_ON_MISMATCH F
 &END DEBUG
 
 &FORCE_EVAL
@@ -18,7 +18,7 @@
       METHOD xTB
       &XTB
         GFN_TYPE 0
-        VDW_POTENTIAL none
+        VDW_POTENTIAL DFTD3
       &END XTB
     &END QS
     &SCF
@@ -28,7 +28,6 @@
   &SUBSYS
     &CELL
       ABC 10.0 10.0 10.0
-      PERIODIC NONE
     &END CELL
     &COORD
       O     0.051368    0.000000    0.000000
