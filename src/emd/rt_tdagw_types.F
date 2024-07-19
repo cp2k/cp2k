@@ -55,12 +55,6 @@ MODULE rt_tdagw_types
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               copy_fm_to_dbcsr
    USE qs_mo_types,                     ONLY: mo_set_type
-   USE pw_types,                        ONLY: COMPLEXDATA1D,&
-                                              COMPLEXDATA3D,&
-                                              REALDATA3D,&
-                                              REALSPACE,&
-                                              RECIPROCALSPACE,&
-                                              pw_type
    USE cp_control_types,                ONLY: dft_control_type
    USE qs_environment_types,            ONLY: qs_environment_type,&
                                               get_qs_env
@@ -68,9 +62,6 @@ MODULE rt_tdagw_types
    USE post_scf_bandstructure_utils,    ONLY: create_and_init_bs_env
    USE rt_propagation_types,            ONLY: rt_prop_type,&
                                               get_rtp
-   USE pw_env_types,                    ONLY: pw_env_get,&
-                                              pw_env_type
-   USE pw_pool_types,                   ONLY: pw_pool_type
    USE rt_propagator_init,              ONLY: rt_initialize_rho_from_mos
    USE rt_propagation_methods,          ONLY: s_matrices_create
    USE qs_moments,                      ONLY: build_local_moment_matrix
@@ -114,23 +105,66 @@ MODULE rt_tdagw_types
              release_tdagw_env
 
 ! **************************************************************************************************
-!> \param nspin Number of spin channels that are present
+!> \param n_spin Number of spin channels that are present
+!> \param n_ao Number of atomic orbitals
+!> \param n_RI Number of RI orbitals
+!> \param n_occ Number of occupied orbitals, spin dependent
+!> \param spin_degeneracy Number of electrons per orbital
 !> \param field Electric field calculated at the given timestep
-!> \param moments Moment operators along cartesian directions - used to coupling to the field and
-!>                for derivation of expectation values of moments, which relates to emission
+!> \param moments Moment operators along cartesian directions - centered at zero charge - used for plotting
+!> \param moments_field Moment operators along cartesian directions - used to coupling to the field -
+!>                origin bound to unit cell
 !> \param sim_step Current step of the simulation
+!> \param sim_start Starting step of the simulation
+!> \param sim_nsteps Number of steps of the simulation
 !> \param sim_time Current time of the simulation
 !> \param sim_dt Timestep of the simulation
+!> \param etrs_threshold Self-consistency threshold for enforced time reversal symmetry propagation
+!> \param exp_accuracy Threshold for matrix exponential calculation
+!> \param dft_control DFT control parameters
 !> \param ham_effective Real and imaginary part of the effective Hamiltonian used to propagate
 !>                      the density matrix
 !> \param ham_single_particle Single particle Hamiltonian, taken from G0W0/DFT TODO : Only real?
 !> \param ham_workspace Workspace matrices for use with the Hamiltonian propagation - storage of
 !>                      exponential propagators etc.
 !> \param rho Density matrix at the current time step
+!> \param rho_new Density matrix - workspace in ETRS
+!> \param rho_last Density matrix - workspace in ETRS
+!> \param rho_new_last Density matrix - workspace in ETRS
+!> \param rho_M Density matrix - workspace in ETRS
+!> \param S_inv_fm Inverse overlap matrix, full matrix
+!> \param S_fm Overlap matrix, full matrix
+!> \param S_inv Inverse overlap matrix, sparse matrix
+!> \param rho_dbcsr Density matrix, sparse matrix
 !> \param rho_workspace Matrices for storage of density matrix at different timesteps for
 !>                      interpolation and self-consistency checks etc.
-!> \param S_inv Inverse overlap matrix, used in propagation of the density and in COH contribution
-!>              calculation
+!> \param complex_workspace Workspace for complex density (exact diagonalisation)
+!> \param complex_s Complex overlap matrix (exact diagonalisation)
+!> \param real_eigvals Eigenvalues of hermitian matrix (exact diagonalisation)
+!> \param exp_eigvals Exponentiated eigenvalues (exact diagonalisation)
+!> \param v_dbcsr Sparse matrix with bare Coulomb in RI basis
+!> \param w_dbcsr Sparse matrix with correlation part of dressed Coulomb in RI basis (without bare Coulomb)
+!> \param hartree_dbt Tensor for hartree
+!> \param screened_dbt Tensor for screened Coulomb interaction
+!> \param sigma_dbt Tensor for self-energy
+!> \param greens_dbt Tensor for greens function/density matrix
+!> \param t_two_plus_one Tensor for hartree
+!> \param t_one_plus_one Tensor for hartree
+!> \param t_3c_w Tensor containing 3c integrals
+!> \param t_3c_work_RI__AO_AO Tensor sigma contraction
+!> \param t_3c_work_RI_AO__AO Tensor sigma contraction
+!> \param t_3c_work2_RI_AO__AO Tensor sigma contraction
+!> \param sigma_SEX Screened exchange self-energy
+!> \param sigma_COH Coulomb hole self-energy
+!> \param hartree_orig Original Hartree matrix
+!> \param hartree_curr Current Hartree matrix
+!> \param orders Parameter for exponential calculation (Taylor exp.)
+!> \param etrs_max_iter Maximum number of ETRS iterations
+!> \param hartree_method Which method to use for hartree_calculation
+!> \param ham_single_particle_type Which Hamiltonian to use as single particle basis
+!> \param mat_exp_method Which method to use for matrix exponentiation
+!> \param unit_nr Number of output unit
+!> \param int_3c_array Array containing the local 3c integrals
 !> \author Stepan Marek (01.24)
 ! **************************************************************************************************
    TYPE tdagw_env_type
@@ -161,6 +195,8 @@ MODULE rt_tdagw_types
                                                                    rho_M
       TYPE(cp_fm_p_type)                                        :: S_inv_fm,&
                                                                    S_fm
+      TYPE(dbcsr_type), POINTER                                 :: S_inv,&
+                                                                   rho_dbcsr
       ! TODO : Check how much is actually needed and whether it is not better to separate names
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER                 :: rho_workspace
       ! Workspace required for exact matrix exponentiation
@@ -170,15 +206,9 @@ MODULE rt_tdagw_types
       REAL(kind=dp), DIMENSION(:), POINTER                      :: real_eigvals
       COMPLEX(kind=dp), DIMENSION(:), POINTER                   :: exp_eigvals
       ! Workspace required for hartree_pw
-      TYPE(dbcsr_p_type)                                        :: v_dbcsr
-      TYPE(pw_type), DIMENSION(:), POINTER                      :: rho_gspace,&
-                                                                   rho_gspace_tot,&
-                                                                   rho_rspace
-      TYPE(pw_type), POINTER                                    :: v_hartree_gspace,&
-                                                                   v_hartree_rspace
+      TYPE(dbcsr_p_type)                                        :: v_dbcsr,&
+                                                                   w_dbcsr
       ! TODO : Spins, k-points
-      TYPE(dbcsr_type), POINTER                                 :: S_inv,&
-                                                                   rho_dbcsr
       TYPE(dbt_type), POINTER                                   :: hartree_dbt,&
                                                                    screened_dbt,&
                                                                    sigma_dbt,&
@@ -203,6 +233,13 @@ MODULE rt_tdagw_types
 
 CONTAINS
 
+! **************************************************************************************************
+!> \brief Allocates structures and prepares tdagw_env for run
+!> \param tdagw_env tdagw_env_type that is initialised
+!> \param qs_env Entry point of the calculation
+!> \author Stepan Marek
+!> \date 02.2024
+! **************************************************************************************************
    SUBROUTINE create_tdagw_env(tdagw_env, qs_env)
       TYPE(tdagw_env_type)                                      :: tdagw_env
       TYPE(qs_environment_type),POINTER                         :: qs_env
@@ -275,8 +312,6 @@ CONTAINS
       ! Output unit number, recovered from the post_scf_bandstructure_type
       tdagw_env%unit_nr = bs_env%unit_nr
       IF (tdagw_env%unit_nr > 0) WRITE (tdagw_env%unit_nr, *) "exp_method", tdagw_env%mat_exp_method
-      ! Increase the ri_metric cutoff radius manually
-      ! bs_env%ri_metric%cutoff_radius = 6.0_dp/angstrom
       ! Allocate and determine the expansion orders, based on arguments used in TDDFT
       ! TODO : Last two arguments are indicating that we are using Taylor expansion and not doing ion motion
       ALLOCATE(tdagw_env%orders(2, tdagw_env%n_spin))
@@ -409,8 +444,6 @@ CONTAINS
       CALL cp_fm_create(tdagw_env%S_fm%matrix, bs_env%fm_s_Gamma%matrix_struct)
       ! TODO : Handle different spins
       CALL copy_dbcsr_to_fm(matrix_s(1)%matrix, tdagw_env%S_fm%matrix)
-      ! PRINT *, "=== Overlap matrix"
-      ! CALL cp_fm_write_formatted(tdagw_env%S_fm%matrix, unit=6)
 
       ! Copy the single particle hamiltonian
       ALLOCATE(tdagw_env%ham_single_particle(tdagw_env%n_spin))
@@ -866,107 +899,5 @@ CONTAINS
          CALL dbcsr_release(tdagw_env%w_dbcsr%matrix)
          DEALLOCATE(tdagw_env%w_dbcsr%matrix)
       END IF
-   END SUBROUTINE
-! **************************************************************************************************
-!> \brief Create the workspace for hartree_pw method
-!> \param tdagw_env 
-!> \param rho_dbcsr  
-!> \author Stepan Marek
-!> \date 03.2024
-!> \note Needs to be called after exp_method setup - otherwise could overwrite the pointer to
-!>       complex workspace and therefore lead to memory leaks
-! **************************************************************************************************
-   SUBROUTINE create_hartree_pw_workspace(tdagw_env, qs_env)
-      TYPE(tdagw_env_type)                               :: tdagw_env
-      TYPE(qs_environment_type)                          :: qs_env
-      CHARACTER(len=*), PARAMETER                        :: routineN = "create_hartree_pw_workspace"
-      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
-      TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      INTEGER                                            :: i
-
-      CALL get_qs_env(qs_env, bs_env=bs_env, matrix_s=matrix_s, pw_env=pw_env)
-      CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
-
-      ! Allocate the complex dbcsr matrices
-      ! CALL dbcsr_create(tdagw_env%rho_dbcsr_complex%matrix, name="Complex sparse density",&
-      !                   template=bs_env%mat_ao_ao%matrix, data_type=dbcsr_type_complex_8)
-      NULLIFY(tdagw_env%v_dbcsr%matrix)
-      ALLOCATE(tdagw_env%v_dbcsr%matrix)
-      ! CALL dbcsr_create(tdagw_env%v_dbcsr_complex%matrix, name="Complex sparse hartree",&
-      !                   template=bs_env%mat_ao_ao%matrix, data_type=dbcsr_type_complex_8)
-      ! CALL dbcsr_create(tdagw_env%v_dbcsr%matrix, name="Real sparse hartree",&
-      !                   template=bs_env%mat_ao_ao%matrix)
-      CALL dbcsr_copy(tdagw_env%v_dbcsr%matrix, matrix_s(1)%matrix)
-      ! Allocate pw_grid objects
-      NULLIFY(tdagw_env%rho_gspace)
-      ALLOCATE(tdagw_env%rho_gspace(2))
-      NULLIFY(tdagw_env%rho_rspace)
-      ALLOCATE(tdagw_env%rho_rspace(2))
-      NULLIFY(tdagw_env%rho_gspace_tot)
-      ALLOCATE(tdagw_env%rho_gspace_tot(2))
-      DO i=1,2
-         CALL auxbas_pw_pool%create_pw(tdagw_env%rho_gspace(i), use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
-         CALL auxbas_pw_pool%create_pw(tdagw_env%rho_gspace_tot(i), use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
-         CALL auxbas_pw_pool%create_pw(tdagw_env%rho_rspace(i), use_data=REALDATA3D, in_space=REALSPACE)
-      END DO
-      NULLIFY(tdagw_env%v_hartree_gspace)
-      ALLOCATE(tdagw_env%v_hartree_gspace)
-      NULLIFY(tdagw_env%v_hartree_rspace)
-      ALLOCATE(tdagw_env%v_hartree_rspace)
-      CALL auxbas_pw_pool%create_pw(tdagw_env%v_hartree_gspace, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
-      CALL auxbas_pw_pool%create_pw(tdagw_env%v_hartree_rspace, use_data=REALDATA3D, in_space=REALSPACE)
-      ! If the complex workspace is not allocated, allocate size 1
-      ! IF (.NOT. ASSOCIATED(tdagw_env%complex_workspace)) THEN
-      !    NULLIFY(tdagw_env%complex_workspace)
-      !    ALLOCATE(tdagw_env%complex_workspace(1))
-      !    NULLIFY(tdagw_env%complex_workspace(1)%matrix)
-      !    ALLOCATE(tdagw_env%complex_workspace(1)%matrix)
-      !    CALL cp_cfm_create(tdagw_env%complex_workspace(1)%matrix, bs_env%fm_h_G0W0_Gamma%matrix_struct)
-      !    CALL cp_cfm_set_all(tdagw_env%complex_workspace(1)%matrix, (0.0_dp, 0.0_dp))
-      ! END IF
-   END SUBROUTINE
-! **************************************************************************************************
-!> \brief Create the workspace for hartree_pw method
-!> \param tdagw_env 
-!> \author Stepan Marek
-!> \date 03.2024
-!> \note Needs to be called after exp_method setup - otherwise could overwrite the pointer to
-!>       complex workspace and therefore lead to memory leaks
-! **************************************************************************************************
-   SUBROUTINE release_hartree_pw_workspace(qs_env, tdagw_env)
-      TYPE(qs_environment_type)                          :: qs_env
-      TYPE(tdagw_env_type)                               :: tdagw_env
-      CHARACTER(len=*), PARAMETER                        :: routineN = "release_hartree_pw_workspace"
-      TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      INTEGER                                            :: i
-
-      CALL get_qs_env(qs_env,&
-                      pw_env=pw_env)
-      CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
-      ! Deallocate the complex dbcsr matrices
-      CALL dbcsr_release(tdagw_env%v_dbcsr%matrix)
-      DEALLOCATE(tdagw_env%v_dbcsr%matrix)
-      ! Deallocate pw_grid objects
-      DO i=1,2
-         CALL auxbas_pw_pool%give_back_pw(tdagw_env%rho_gspace(i))
-         CALL auxbas_pw_pool%give_back_pw(tdagw_env%rho_rspace(i))
-         CALL auxbas_pw_pool%give_back_pw(tdagw_env%rho_gspace_tot(i))
-      END DO
-      CALL auxbas_pw_pool%give_back_pw(tdagw_env%v_hartree_rspace)
-      CALL auxbas_pw_pool%give_back_pw(tdagw_env%v_hartree_gspace)
-      DEALLOCATE(tdagw_env%rho_gspace)
-      DEALLOCATE(tdagw_env%rho_rspace)
-      DEALLOCATE(tdagw_env%rho_gspace_tot)
-      DEALLOCATE(tdagw_env%v_hartree_gspace)
-      DEALLOCATE(tdagw_env%v_hartree_rspace)
-      ! If the complex workspace is allocated, deallocate it
-      ! IF (ASSOCIATED(tdagw_env%complex_workspace)) THEN
-      !    CALL cp_cfm_release(tdagw_env%complex_workspace(1)%matrix)
-      !    DEALLOCATE(tdagw_env%complex_workspace(1)%matrix)
-      !    DEALLOCATE(tdagw_env%complex_workspace)
-      ! END IF
    END SUBROUTINE
 END MODULE
