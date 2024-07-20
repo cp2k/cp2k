@@ -61,6 +61,8 @@ case "${with_openmpi}" in
         --libdir="${pkg_install_dir}/lib" \
         --enable-mpi1-compatibility \
         --enable-static \
+        --with-hwloc=internal \
+        --with-libevent=internal \
         > configure.log 2>&1 || tail -n ${LOG_LINES} configure.log
       make -j $(get_nprocs) > make.log 2>&1 || tail -n ${LOG_LINES} make.log
       make -j $(get_nprocs) install > install.log 2>&1 || tail -n ${LOG_LINES} install.log
