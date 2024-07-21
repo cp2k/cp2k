@@ -2,19 +2,18 @@
 
 In this section, we discuss the basics for computing optical properties of molecules using the
 Bethe-Salpeter equation (BSE) in CP2K. The BSE enables the computation of electronic excitation
-energies and optical absorption spectra, for a review, see \[[Blase2018](#Blase2018),
-[Blase2020](#Blase2020), [Bruneval2015](#Bruneval2015), [Sander2015](#Sander2015)\]. In this howto,
-we describe in Sec. [1](#header-theory) the theory and implementation of BSE, in Sec.
-[2](#header-input) the BSE input keywords and in Sec. [3](#header-example) a full CP2K input file of
-a BSE calculation and the corresponding output.
+energies and optical absorption spectra, for a review, see \[[](#Blase2018), [](#Blase2020),
+[](#Bruneval2015), [](#Sander2015)\]. In this howto, we describe in Sec. [1](#header-theory) the
+theory and implementation of BSE, in Sec. [2](#header-input) the BSE input keywords and in Sec.
+[3](#header-example) a full CP2K input file of a BSE calculation and the corresponding output.
 
 (header-theory)=
 
 ## 1. Theory and implementation of BSE
 
 A central goal of a BSE calculation is to compute electronic excitation energies
-$\Omega^{(n)}, n=1,2,\ldots$ (cf. Refs. \[[Blase2018](#Blase2018), [Blase2020](#Blase2020)\] for
-more usecases and details).
+$\Omega^{(n)}, n=1,2,\ldots$ (cf. Refs. \[[](#Blase2018), [](#Blase2020)\] for more usecases and
+details).
 
 The following ingredients are necessary for computing $\Omega^{(n)}$:
 
@@ -24,7 +23,7 @@ The following ingredients are necessary for computing $\Omega^{(n)}$:
 - $GW$ eigenvalues $\varepsilon_i^{GW}$ and $\varepsilon_a^{GW}$ of corresponding KS orbitals.
 
 In CP2K, it is possible to use $G_0W_0$, ev$GW_0$ or ev$GW$ eigenvalues, see details in [GW] and in
-Ref. \[[Golze2019](#Golze2019)\], i.e. we perform BSE@$G_0W_0$/ev$GW_0$/ev$GW$@DFT. Thus, also input
+Ref. \[[](#Golze2019)\], i.e. we perform BSE@$G_0W_0$/ev$GW_0$/ev$GW$@DFT. Thus, also input
 parameters for a DFT and $GW$ calculation can be given (see full input in Sec.
 [3.1](#header-input-file)). We obtain optical properties from BSE solving the following generalized
 eigenvalue problem that involves the block matrix $ABBA$:
@@ -33,7 +32,7 @@ $$\left( \begin{array}{cc}A &  B\\B &  A\end{array} \right)\left( \begin{array}{
 
 We abbreviate $A$ and $B$ as matrices with index $A_{ia,jb}$, i.e. they have
 $N_\mathrm{occ}N_\mathrm{empty}$ rows and $N_\mathrm{occ}N_\mathrm{empty}$ columns. The entries of
-$A$ and $B$ are given by \[[Blase2018](#Blase2018)\]
+$A$ and $B$ are given by \[[](#Blase2018)\]
 
 $$ \begin{align}
     A_{ia,jb} &= (\varepsilon_a^{GW}-\varepsilon_i^{GW})\delta_{ij}\delta_{ab} + \alpha^\mathrm{S/T}
@@ -47,7 +46,7 @@ interaction and $W_{pq,rs}(\omega=0)$ the statically ($\omega=0$) screened Coulo
 where $p,q,r,s \in [ 1, N_\mathrm{occ}+N_\mathrm{empty}]$ are KS orbital indices.
 $(\mathbf{X}^{(n)},\mathbf{Y}^{(n)})$ with elements $X_{ia}^{(n)}$ and $Y_{ia}^{(n)}$ are the
 eigenvectors of the excitation $n$ which relate to the wavefunction of the electronic excitation
-\[[Blase2020](#Blase2020)\],
+\[[](#Blase2020)\],
 
 $$ \begin{align}
 \Psi_\text{excitation}^{(n)}(\mathbf{r}_e,\mathbf{r}_h) = \sum_{ia} X_{ia}^{(n)} \varphi_i(\mathbf{r}_h) \varphi_a(\mathbf{r}_e) + Y_{ia}^{(n)} \varphi_i(\mathbf{r}_e) \varphi_a(\mathbf{r}_h) \quad ,
@@ -114,7 +113,7 @@ In the upper GW/BSE section, the following keywords have been used:
   Setting a small `ENERGY_CUTOFF_OCC` drastically reduces the computation time and the memory
   consumption, but also might affect the computed excitation energies $\Omega^{(n)}$. Recommended to
   use for large systems with more than 30 atoms, but we recommend a careful convergence test by
-  increasing `ENERGY_CUTOFF_OCC` and observing the effect on $\Omega^{(n)}$ \[[Liu2020](#Liu2020)\].
+  increasing `ENERGY_CUTOFF_OCC` and observing the effect on $\Omega^{(n)}$ \[[](#Liu2020)\].
 
 - [ENERGY_CUTOFF_EMPTY](#CP2K_INPUT.FORCE_EVAL.DFT.XC.WF_CORRELATION.RI_RPA.GW.BSE.ENERGY_CUTOFF_EMPTY)
   $E_\text{cut}^\text{empty}$: Analogous to `ENERGY_CUTOFF_OCC`, but for the empty states, i.e. only
@@ -126,9 +125,9 @@ excitation energies:
 
 - [XC_FUNCTIONAL](#CP2K_INPUT.FORCE_EVAL.DFT.XC.XC_FUNCTIONAL): Choose between one of the available
   xc-functionals. The starting point can have a profound influence on the excitation energies
-  \[[Bruneval2015](#Bruneval2015), [Gui2018](#Gui2018), [Jacquemin2017](#Jacquemin2017)\]. We either
-  recommend the PBE functional as DFT starting point when using BSE@ev$GW_0$@PBE or the PBE0
-  functional, when using BSE@$G_0W_0$@PBE0 (see also
+  \[[Bruneval2015](#Bruneval2015), [](#Gui2018), [](#Jacquemin2017)\]. We either recommend the PBE
+  functional as DFT starting point when using BSE@ev$GW_0$@PBE or the PBE0 functional, when using
+  BSE@$G_0W_0$@PBE0 (see also
   [SELF_CONSISTENCY](#CP2K_INPUT.FORCE_EVAL.DFT.XC.WF_CORRELATION.RI_RPA.GW.SELF_CONSISTENCY)).
 
 - [BASIS_SET](#CP2K_INPUT.FORCE_EVAL.SUBSYS.KIND.BASIS_SET): Specify the basis set, which affects
@@ -144,7 +143,7 @@ $N_\mathrm{empty}$ and the estimated memory consumption from the BSE output. The
 is well parallelized, i.e. you can use several nodes that can provide the memory.
 
 We have benchmarked the numerical precision of our BSE implementation and we found excellent
-agreement within only 10 meV compared to the BSE implementation in FHI aims \[[Liu2020](#Liu2020)\].
+agreement within only 10 meV compared to the BSE implementation in FHI aims \[[](#Liu2020)\].
 
 The current BSE implementation in CP2K works for molecules. The inclusion of periodic boundary
 conditions in a $\Gamma$-only approach and with full $k$-point sampling is work in progress.
@@ -243,7 +242,7 @@ The basis sets `aug-cc-pVDZ` and `aug-cc-pVDZ-RIFIT` in `BASIS-aug` can be obtai
 Set Exchange Library:
 <a href="https://www.basissetexchange.org/basis/aug-cc-pvdz/format/cp2k/?version=1&elements=1" target="_blank">aug-cc-pVDZ</a>,
 <a href="https://www.basissetexchange.org/basis/aug-cc-pvdz-rifit/format/cp2k/?version=1&elements=1" target="_blank">aug-cc-pVDZ-RIFIT</a>.
-The geometry for $\mathrm{H}_2$ was taken from [vanSetten2015](#vanSetten2015).
+The geometry for $\mathrm{H}_2$ was taken from [](#vanSetten2015).
 
 ### 3.2 Output
 

@@ -5,8 +5,8 @@ GW for molecules/condensed phase systems with CP2K. In DFT, the energy of a mole
 corresponds to an eigenvalue of the Kohn-Sham matrix. In GW, the procedure for getting the level
 energies is to first perform a DFT calculation (commonly with the PBE or PBE0 functional) to get the
 molecular orbital wavefunctions and then compute a new GW energy for the molecular orbitals of
-interest. For an introduction into the concept of GW, please have a look at [Golze2019](#Golze2019)
-or read Sec. II and the introduction to Sec. III in [Hueser2013](#Hueser2013).
+interest. For an introduction into the concept of GW, please have a look at [](#Golze2019) or read
+Sec. II and the introduction to Sec. III in [](#Hueser2013).
 
 The GW implementation in CP2K is based on the developments described in [](#Wilhelm2016). The
 computational cost of GW is comparable to RPA and MP2 total energy calculations and therefore high.
@@ -27,14 +27,14 @@ calculation is used for computing the molecular orbitals which can be seen from 
 [XC_FUNCTIONAL PBE](#CP2K_INPUT.FORCE_EVAL.DFT.XC.XC_FUNCTIONAL.SECTION_PARAMETERS). The input
 parameters for G0W0 are commented below. While the calculation is running, you can look up the
 G0W0@PBE value for the highest occupied molecular orbital (HOMO) and the lowest unoccupied molecular
-orbital (LUMO) in [vanSetten2015](#vanSetten2015) \[Table 2 and 3 (column AIMS-P16/TM-no RI,
-molecule index 76) which should be -11.97 eV and 2.37 eV for HOMO and LUMO, respectively\]. CP2K
-should be able to exactly reproduce these values. In the output of CP2K, the G0W0@PBE results are
-listed after the SCF after the headline *GW quasiparticle energies*.
+orbital (LUMO) in [](#vanSetten2015) \[Table 2 and 3 (column AIMS-P16/TM-no RI, molecule index 76)
+which should be -11.97 eV and 2.37 eV for HOMO and LUMO, respectively\]. CP2K should be able to
+exactly reproduce these values. In the output of CP2K, the G0W0@PBE results are listed after the SCF
+after the headline *GW quasiparticle energies*.
 
 For checking the basis set convergence, we refer to a detailed analysis in [](#Wilhelm2016) in Fig.
 2 for benzene. An extensive table of basis set extrapolated GW levels can be found in
-[vanSetten2015](#vanSetten2015) (column EXTRA).
+[](#vanSetten2015) (column EXTRA).
 
 ```none
 &FORCE_EVAL
@@ -169,19 +169,19 @@ with 1/N_basis   -11.97 +/- 0.02       1.71 +/- 0.29
 GW100            -12.05                2.01
 ```
 
-For the extrapolation, two schemes have been used as described in [vanSetten2015](#vanSetten2015)
-and its supporting information. The first scheme employs a linear fit on the HOMO or LUMO values
-when they are plotted against the inverse cardinal number $N_\text{card}$ of the basis set while the
-second scheme extrapolates versus the inverse number of basis functions $N_\text{basis}$ which can
-be computed as sum of the number of occupied orbitals and the number of virtual orbitals as printed
-in RI_INFO in the output. You can check the extrapolation from the table above with your tool of
+For the extrapolation, two schemes have been used as described in [](#vanSetten2015) and its
+supporting information. The first scheme employs a linear fit on the HOMO or LUMO values when they
+are plotted against the inverse cardinal number $N_\text{card}$ of the basis set while the second
+scheme extrapolates versus the inverse number of basis functions $N_\text{basis}$ which can be
+computed as sum of the number of occupied orbitals and the number of virtual orbitals as printed in
+RI_INFO in the output. You can check the extrapolation from the table above with your tool of
 choice.
 
 The basis set extrapolated values from the table above deviate from the values reported in
 [vanSetten2015](#vanSetten2015), probably because only two basis sets (def2-TZVP, def2-QZVP) have
-been used in [vanSetten2015](#vanSetten2015) for the extrapolation. The extrapolation for the LUMO
-is not working well because one would need much more diffuse functions to represent unbound
-electronic levels (with positive energy).
+been used in [](#vanSetten2015) for the extrapolation. The extrapolation for the LUMO is not working
+well because one would need much more diffuse functions to represent unbound electronic levels (with
+positive energy).
 
 Often, the HOMO-LUMO gap is of interest. In this case, augmented basis sets (e.g. from the EMSL
 database) can offer an alternative for very fast basis set convergence, see also Fig. 2b in
@@ -204,9 +204,17 @@ The G0W0@PBE HOMO value of the H2O molecule (~ -12.0 eV) is not in good agreemen
 experimental ionization potential (12.62 eV). Benchmarks on molecules and solids indicate that
 self-consistency of eigenvalues in the Green's function G improves the agreement between the GW
 calculation and experiment. This scheme is called GW0@PBE and is our favorite GW flavor so far
-(experience based on nano-sized aromatic molecules). You can also check
-[this video](https://www.youtube.com/watch?v=1vUuethWhbs&t=5563s) or [Golze2019](#Golze2019) on
-which DFT starting functional and which self-consistency scheme could be good for your system.
+(experience based on nano-sized aromatic molecules). You can also check the following video or
+[](#Golze2019) on which DFT starting functional and which self-consistency scheme could be good for
+your system.
+
+```{youtube} 1vUuethWhbs
+---
+url_parameters: ?start=5563
+align: center
+privacy_mode:
+---
+```
 
 You can run GW0 calculations in CP2K by putting
 

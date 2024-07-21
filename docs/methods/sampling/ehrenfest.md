@@ -516,8 +516,9 @@ excited state for the Oxygen 1s is degenerate: there are two available excited s
 the $xy$-plane. That is why a third projection is requested which uses the other excited state
 proposed by the XAD_TDP module. Therefore, the excited state should be understood as the sum over
 the two equivalent excited states:
-\$$
+
+$$
 n_{Exc}(t) = \rho_{\omega}(t) + \rho_{\omega'}(t)
 $$
-where $\\omega'$ stands for the other equivalent excited state, with $\\omega=\\omega'=529\$
-eV.
+
+where $\omega'$ stands for the other equivalent excited state, with $\omega=\omega'=529$ eV.
