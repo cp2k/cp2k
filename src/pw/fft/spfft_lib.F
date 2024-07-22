@@ -351,13 +351,14 @@ CONTAINS
       INTEGER :: i, j
       INTEGER(KIND=C_INT) :: errorcode
       INTEGER(KIND=C_INT), DIMENSION(:), ALLOCATABLE, TARGET :: scalingTypes
-      TYPE(C_PTR), DIMENSION(:), ALLOCATABLE :: inputLocations, outputLocations
+      TYPE(C_PTR), DIMENSION(:), ALLOCATABLE :: inputLocations, outputLocations, transforms
 
       ! Allocate a temporary array to ensure enough memory being available
       ALLOCATE (complex_array(plan%n, plan%m))
 
-      ALLOCATE (scalingTypes(plan%m), inputLocations(plan%m), outputLocations(plan%m))
+      ALLOCATE (scalingTypes(plan%m), inputLocations(plan%m), outputLocations(plan%m), transforms(plan%m))
       scalingTypes = SPFFT_NO_SCALING
+      transforms = plan%spfft_transform
 
       IF (fsign == FWFFT) THEN
          ! Scale here to prevent additional copies between the buffer and the output array
@@ -380,7 +381,7 @@ CONTAINS
             outputLocations(i) = C_LOC(zout(i*plan%n))
          END DO
 
-         errorCode = spfft_multi_transform_forward_ptr(plan%m, plan%spfft_transform, &
+         errorCode = spfft_multi_transform_forward_ptr(plan%m, transforms, &
                                                        inputLocations, outputLocations, C_LOC(scalingTypes))
          IF (errorCode /= SPFFT_SUCCESS) CPABORT("FFT with SpFFT failed!")
 
@@ -390,7 +391,7 @@ CONTAINS
             inputLocations(i) = C_LOC(zin(i*plan%n))
             outputLocations(i) = C_LOC(complex_array(:, i))
          END DO
-         errorCode = spfft_multi_transform_backward_ptr(plan%m, plan%spfft_transform, &
+         errorCode = spfft_multi_transform_backward_ptr(plan%m, transforms, &
                                                         inputLocations, outputLocations)
          IF (errorCode /= SPFFT_SUCCESS) CPABORT("FFT with SpFFT failed!")
 
@@ -409,7 +410,7 @@ CONTAINS
          END IF
       END IF
 
-      DEALLOCATE (complex_array, inputLocations, outputLocations)
+      DEALLOCATE (complex_array, inputLocations, outputLocations, transforms)
 #else
       MARK_USED(plan)
       MARK_USED(zin)

@@ -304,14 +304,13 @@ CONTAINS
       plan%n = n
       plan%m = m
 !$    plan%need_alt_plan = .FALSE.
+      plan%fft_type = fft_type
 
       ! Planning only needed for FFTW3
-      IF ((fft_type .EQ. 3 .OR. fft_type .EQ. 4) .AND. (n*m .NE. 0)) THEN
-         plan%fft_type = 3
+      IF (fft_type .EQ. 3 .AND. (n*m .NE. 0)) THEN
          CALL fftw3_create_plan_1d(plan, zin, zout)
          plan%valid = .TRUE.
       ELSE IF (fft_type .EQ. 4) THEN
-         plan%fft_type = 4
          CALL spfft_create_plan_1d(plan)
          plan%valid = .TRUE.
       ELSE
@@ -415,7 +414,7 @@ CONTAINS
 
       stat = fsign
       IF (plan%n*plan%m > 0) THEN
-         SELECT CASE (plan%fft_type)
+         SELECT CASE (fft_type)
          CASE DEFAULT
             CPABORT("fft_1d")
          CASE (1)
