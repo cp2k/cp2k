@@ -31,6 +31,7 @@ MODULE fft_plan
       LOGICAL                             :: trans = .FALSE., fft_in_place = .FALSE., valid = .FALSE., separated_plans = .FALSE.
       INTEGER                             :: n = -1, m = -1
       INTEGER, DIMENSION(3)               :: n_3d = -1
+      INTEGER                             :: fft_type = -1
 
 !   Handle for the FFTW plan
       TYPE(C_PTR)                         :: fftw_plan_fw = C_NULL_PTR
