@@ -7,7 +7,6 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 import re
 import sys
-import locale
 from datetime import datetime
 from collections import defaultdict
 from functools import cache
@@ -24,7 +23,6 @@ def main() -> None:
 
     cp2k_input_xml_fn = sys.argv[1]
     output_dir = Path(__file__).resolve().parent
-    locale.setlocale(locale.LC_ALL, locale="C.UTF8")  # needed for strptime
     root = ET.parse(cp2k_input_xml_fn).getroot()
     build_bibliography(root, output_dir)
     build_units_reference(root, output_dir)
@@ -34,9 +32,8 @@ def main() -> None:
 # ======================================================================================
 def get_reference_epoch(reference: ET.Element) -> int:
     year = int(get_text(reference.find("YEAR")) or "1900")
+    month = int(get_text(reference.find("MONTH")) or "0")
     day = int(get_text(reference.find("DAY")) or "0")
-    month_str = get_text(reference.find("MONTH"))
-    month = datetime.strptime(month_str, "%b").month if month_str else 0
     return day + 31 * month + 12 * 31 * (year - 1900)
 
 
