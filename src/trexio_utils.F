@@ -708,7 +708,7 @@ CONTAINS
 
       ! allocate all the arrays
       ALLOCATE (mo_coefficient(ao_num, mo_num))
-      mo_coefficient(:, :) = 1.0_dp
+      mo_coefficient(:, :) = 0.0_dp
       ALLOCATE (mo_energy(mo_num))
       mo_energy(:) = 0.0_dp
       ALLOCATE (mo_occupation(mo_num))
@@ -787,7 +787,7 @@ CONTAINS
       DO ispin = 1, nspins
          ! get number of MOs for this spin
          nmo = nmo_spin(ispin)
-         ! allocate local temp array to transform the MOs of each kpoint
+         ! allocate local temp array to transform the MOs of each kpoint/spin
          ALLOCATE (mos_sgf(nsgf, nmo))
 
          IF (do_kpoints) THEN
@@ -858,6 +858,7 @@ CONTAINS
 
             ! allocate a normal fortran array to store the spherical MO coefficients
             CALL cp_fm_get_submatrix(mos(ispin)%mo_coeff, mos_sgf)
+
             IF (save_cartesian) THEN
                CALL spherical_to_cartesian_mo(mos_sgf, particle_set, kind_set, mo_coefficient(:, imo + 1:imo + nmo))
             ELSE
