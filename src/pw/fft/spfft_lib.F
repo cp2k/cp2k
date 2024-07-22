@@ -177,7 +177,6 @@ CONTAINS
 !> \param scale ...
 !> \param zin ...
 !> \param zout ...
-!> \param stat ...
 ! **************************************************************************************************
    SUBROUTINE spfft_3d(plan, fsign, scale, zin, zout)
 
@@ -253,7 +252,6 @@ CONTAINS
 !> \param zintermed ...
 !> \param zout ...
 !> \param scale ...
-!> \param stat ...
 ! **************************************************************************************************
    SUBROUTINE spfft_2d(plan, fsign, zin, zintermed, zout, scale)
 
@@ -267,7 +265,7 @@ CONTAINS
       INTEGER(KIND=C_INT), DIMENSION(:), ALLOCATABLE, TARGET :: scalingTypes
       TYPE(C_PTR), DIMENSION(:), ALLOCATABLE :: inputLocations, outputLocations
 
-      ALLOCATE (scalingTypes(plan%n_3d(3)))
+      ALLOCATE (scalingTypes(plan%n_3d(3)), inputLocations(plan%n_3d(3)), outputLocations(plan%n_3d(3)))
       scalingTypes = SPFFT_NO_SCALING
 
       IF (fsign == FWFFT) THEN
@@ -320,6 +318,8 @@ CONTAINS
 !$OMP END PARALLEL WORKSHARE
          END IF
       END IF
+
+      DEALLOCATE (scalingTypes, inputLocations, outputLocations)
 #else
       MARK_USED(plan)
       MARK_USED(zin)
@@ -339,7 +339,6 @@ CONTAINS
 !> \param zin ...
 !> \param zout ...
 !> \param scale ...
-!> \param stat ...
 ! **************************************************************************************************
    SUBROUTINE spfft_1d(plan, fsign, zin, zout, scale)
 
@@ -357,7 +356,7 @@ CONTAINS
       ! Allocate a temporary array to ensure enough memory being available
       ALLOCATE (complex_array(plan%n, plan%m))
 
-      ALLOCATE (scalingTypes(plan%m))
+      ALLOCATE (scalingTypes(plan%m), inputLocations(plan%m), outputLocations(plan%m))
       scalingTypes = SPFFT_NO_SCALING
 
       IF (fsign == FWFFT) THEN
@@ -366,17 +365,16 @@ CONTAINS
 !$OMP PARALLEL DO DEFAULT(NONE) SHARED(zin,complex_array,scale,plan) PRIVATE(i,j) COLLAPSE(2)
             DO i = 1, plan%n
             DO j = 1, plan%m
-               complex_array(i, j) = zin(j - 1 + (i - 1)*plan%m)
+               complex_array(i, j) = scale*zin(j + (i - 1)*plan%m)
             END DO
             END DO
 !$OMP END PARALLEL DO
          ELSE
 !$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(zin,scale,complex_array,plan)
-            complex_array = scale*RESHAPE(zin, [plan%n, plan%m])
+            complex_array(:, :) = scale*RESHAPE(zin, [plan%n, plan%m])
 !$OMP END PARALLEL WORKSHARE
          END IF
 
-         ALLOCATE (inputLocations(plan%m), outputLocations(plan%m))
          DO i = 1, plan%m
             inputLocations(i) = C_LOC(complex_array(:, i))
             outputLocations(i) = C_LOC(zout(i*plan%n))
@@ -388,7 +386,6 @@ CONTAINS
 
       ELSE
          ! Just setup pointers
-         ALLOCATE (inputLocations(plan%m), outputLocations(plan%m))
          DO i = 1, plan%m
             inputLocations(i) = C_LOC(zin(i*plan%n))
             outputLocations(i) = C_LOC(complex_array(:, i))
@@ -411,6 +408,8 @@ CONTAINS
 !$OMP END PARALLEL WORKSHARE
          END IF
       END IF
+
+      DEALLOCATE (complex_array, inputLocations, outputLocations)
 #else
       MARK_USED(plan)
       MARK_USED(zin)
