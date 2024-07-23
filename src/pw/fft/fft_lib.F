@@ -216,7 +216,7 @@ CONTAINS
 
       IF ((n1 > 0) .AND. (m > 0) .AND. (n2 > 0)) THEN
          ! Planning only needed for FFTW3
-         IF (fft_type .EQ. 3 .OR. fft_type .EQ. 4) THEN
+         IF (fft_type .EQ. 3) THEN
             plan(1)%fft_type = 3
             plan(2)%fft_type = 3
             CALL fftw3_create_plan_1d(plan(1), zin, zout)
@@ -367,7 +367,7 @@ CONTAINS
       CPASSERT(plan(1)%fft_type == plan(2)%fft_type)
 
       IF (plan(1)%n*plan(1)%m > 0 .AND. plan(2)%n*plan(2)%m > 0) THEN
-         SELECT CASE (plan(1)%fft_type)
+         SELECT CASE (fft_type)
          CASE DEFAULT
             CPABORT("fft_2d")
          CASE (1)
@@ -383,7 +383,7 @@ CONTAINS
             END IF
             stat = stat*stat2
          CASE (4)
-            CALL spfft_2d(plan(1), fsign, zin, zintermed, zout, scale)
+            CALL spfft_2d(plan(1), fsign, zin, zout, scale)
          END SELECT
       END IF
       ! stat is set to zero on error, -1,+1 are OK
