@@ -195,7 +195,8 @@ CONTAINS
       INTEGER                                            :: i,j,re,im, k, handle
       LOGICAL                                            :: converged
       REAL(kind=dp)                                      :: metric, enum_re, enum_im,&
-                                                            idempotence_dev, a_metric_1, a_metric_2
+                                                            idempotence_dev, a_metric_1, a_metric_2,&
+                                                            intensity
       REAL(kind=dp), DIMENSION(3)                        :: kvec
 
       CALL timeset(routineN, handle)
@@ -257,30 +258,28 @@ CONTAINS
          END DO
       END IF
 
-      ! Calculate the initial Hartree interaction matrix
-      ! TODO : k-points and the possible divergence
-      IF ( tdagw_env%hartree_method == rtp_tdagw_hartree_dbt ) THEN
-         ! Calculate Coulomb RI elements, necessary for Hartree calculation
-         CALL init_hartree(qs_env, tdagw_env%hartree_dbt, tdagw_env%v_dbcsr%matrix)
-         @:SPIN_DO(j, re, im, tdagw_env%n_spin)
-            CALL get_hartree_local(qs_env, tdagw_env, tdagw_env%rho(re)%matrix, tdagw_env%hartree_orig(re)%matrix)
-            CALL get_hartree_local(qs_env, tdagw_env, tdagw_env%rho(im)%matrix, tdagw_env%hartree_orig(im)%matrix)
-            ! CALL get_hartree(tdagw_env, qs_env, tdagw_env%hartree_dbt, tdagw_env%rho(re)%matrix, tdagw_env%hartree_orig(re)%matrix)
-            ! CALL get_hartree(tdagw_env, qs_env, tdagw_env%hartree_dbt, tdagw_env%rho(im)%matrix, tdagw_env%hartree_orig(im)%matrix)
-            ! PRINT *, "metric hartree_orig, RE spin", j, cp_fm_norm(tdagw_env%hartree_orig(re)%matrix, "M")
-            ! PRINT *, "metric hartree_orig, IM spin", j, cp_fm_norm(tdagw_env%hartree_orig(im)%matrix, "M")
-         END DO
-      ELSEIF ( tdagw_env%hartree_method == rtp_tdagw_hartree_pw ) THEN
-         CALL get_hartree_pw(qs_env, tdagw_env, tdagw_env%rho, tdagw_env%hartree_orig)
-         ! PRINT *, "== Hartree Matrix PW"
-         ! CALL cp_fm_write_formatted(tdagw_env%hartree_orig(1)%matrix, 6)
-      ELSE
-         CPABORT("Only DBT and PW methods for determination of Hartree term implemented.")
-      END IF
-      ! TODO : Look at Hartree from qs_ks_env and compare these
-      ! Print the RI-based Hartree matrix
-      ! PRINT *, "=== RI Hartree matrix"
-      ! CALL cp_fm_write_formatted(tdagw_env%hartree_orig(1)%matrix, 6)
+      ! TODO : Check spectrum of custom delta kick
+      intensity = 0.1_dp
+      @:SPIN_DO(j, re, im, tdagw_env%n_spin)
+         CALL cp_fm_scale_and_add(0.0_dp, tdagw_env%ham_effective(im)%matrix, -intensity, tdagw_env%moments_field(1)%matrix)
+         ! enforce hermiticity of the effective Hamiltonian - apply to components instead?
+         CALL cp_fm_transpose(tdagw_env%ham_effective(im)%matrix, tdagw_env%rho_workspace(1)%matrix)
+         CALL cp_fm_scale_and_add(0.5_dp, tdagw_env%ham_effective(im)%matrix,&
+                                 -0.5_dp, tdagw_env%rho_workspace(1)%matrix)
+         ! Multiply by the S_inv matrix - in the classic ordering
+         CALL parallel_gemm("N", "N", tdagw_env%n_ao, tdagw_env%n_ao, tdagw_env%n_ao,&
+                            1.0_dp, tdagw_env%S_inv_fm%matrix, tdagw_env%ham_effective(im)%matrix,&
+                            0.0_dp, tdagw_env%ham_effective(re)%matrix)
+         CALL cp_fm_to_fm(tdagw_env%ham_effective(re)%matrix, tdagw_env%ham_effective(im)%matrix)
+         CALL cp_fm_set_all(tdagw_env%ham_effective(re)%matrix, 0.0_dp)
+      END DO
+      CALL bch_propagate(tdagw_env%ham_effective, tdagw_env%rho, tdagw_env%rho_new, tdagw_env%rho_workspace)
+
+      ! Copy the new density to the old density
+      @:SPIN_DO(j, re, im, tdagw_env%n_spin)
+         CALL cp_fm_to_fm(tdagw_env%rho_new(re)%matrix, tdagw_env%rho(re)%matrix)
+         CALL cp_fm_to_fm(tdagw_env%rho_new(im)%matrix, tdagw_env%rho(im)%matrix)
+      END DO
 
       ! Setup the files
       rtp_section => section_vals_get_subs_vals(input, "DFT%REAL_TIME_PROPAGATION")
@@ -599,6 +598,7 @@ CONTAINS
          CALL cp_fm_scale_and_add(0.5_dp, tdagw_env%ham_effective(im)%matrix,&
                                  -0.5_dp, tdagw_env%rho_workspace(1)%matrix)
       END DO
+      CALL timestop(handle)
    END SUBROUTINE
 
    ! TODO : Integrate into the main workflow, but also into the Delta kick formalism
