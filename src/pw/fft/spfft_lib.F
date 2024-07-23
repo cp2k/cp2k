@@ -25,7 +25,8 @@ MODULE spfft_lib
    USE spfft, ONLY: &
       spfft_transform_create_independent, SPFFT_PU_HOST, SPFFT_PU_GPU, SPFFT_SUCCESS, &
       SPFFT_TRANS_C2C, SPFFT_INDEX_TRIPLETS, spfft_transform_destroy, SPFFT_NO_SCALING, spfft_transform_get_space_domain, &
-      spfft_transform_forward, spfft_multi_transform_forward_ptr, spfft_transform_backward, spfft_multi_transform_backward_ptr
+      spfft_transform_forward, spfft_multi_transform_forward_ptr, spfft_transform_backward, &
+      spfft_multi_transform_backward_ptr, spfft_transform_forward_ptr, spfft_transform_backward_ptr
    USE omp_lib, ONLY: omp_get_thread_num
 #endif
    USE cp_files, ONLY: get_unit_number
@@ -347,73 +348,44 @@ CONTAINS
       COMPLEX(KIND=dp), DIMENSION(0:plan%n*plan%m - 1), INTENT(INOUT), TARGET :: zin, zout
       REAL(KIND=dp), INTENT(IN)                            :: scale
 #if defined (__SPFFT) && defined(__parallel)
-      COMPLEX(KIND=C_DOUBLE_COMPLEX), DIMENSION(:, :), ALLOCATABLE, TARGET :: complex_array
-      INTEGER :: i, j
+      COMPLEX(KIND=C_DOUBLE_COMPLEX), DIMENSION(:), POINTER :: complex_ptr
+      INTEGER :: i
       INTEGER(KIND=C_INT) :: errorcode
-      INTEGER(KIND=C_INT), DIMENSION(:), ALLOCATABLE, TARGET :: scalingTypes
-      TYPE(C_PTR), DIMENSION(:), ALLOCATABLE, TARGET :: inputLocations, outputLocations, transforms
+      TYPE(C_PTR) :: spfft_ptr
 
-      ! Allocate a temporary array to ensure enough memory being available
-      ALLOCATE (complex_array(0:plan%n - 1, 0:plan%m - 1))
+      ! set space domain array to use memory allocted by the library
+      errorCode = spfft_transform_get_space_domain(plan%spfft_transform, SPFFT_PU_HOST, spfft_ptr)
+      IF (errorCode /= SPFFT_SUCCESS) CPABORT("FFT with SpFFT failed!")
 
-      ALLOCATE (scalingTypes(0:plan%m - 1), inputLocations(0:plan%m - 1), &
-                outputLocations(0:plan%m - 1), transforms(0:plan%m - 1))
-      scalingTypes = SPFFT_NO_SCALING
-      transforms = plan%spfft_transform
+      CALL C_F_POINTER(spfft_ptr, complex_ptr, [plan%n])
 
       IF (fsign == FWFFT) THEN
          ! Scale here to prevent additional copies between the buffer and the output array
-         IF (plan%trans) THEN
-!$OMP PARALLEL DO DEFAULT(NONE) SHARED(zin,complex_array,scale,plan) PRIVATE(i,j) COLLAPSE(2)
-            DO i = 0, plan%n - 1
-            DO j = 0, plan%m - 1
-               complex_array(i, j) = scale*zin(j + i*plan%m)
-            END DO
-            END DO
-!$OMP END PARALLEL DO
-         ELSE
-!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(zin,scale,complex_array,plan)
-            complex_array(:, :) = scale*RESHAPE(zin, [plan%n, plan%m])
-!$OMP END PARALLEL WORKSHARE
-         END IF
-
          DO i = 0, plan%m - 1
-            inputLocations(i) = C_LOC(complex_array(:, i))
-            outputLocations(i) = C_LOC(zout(i*plan%n))
-         END DO
+            IF (plan%trans) THEN
+               complex_ptr(:) = scale*zin(i::plan%m)
+            ELSE
+               complex_ptr(:) = scale*zin(i*plan%n:(i + 1)*plan%n - 1)
+            END IF
 
-         errorCode = spfft_multi_transform_forward_ptr(plan%m, C_LOC(transforms), C_LOC(inputLocations), &
-                                                       C_LOC(outputLocations), C_LOC(scalingTypes))
-         WRITE (*, *) "errorCode", errorCode
-         IF (errorCode /= SPFFT_SUCCESS) CPABORT("FFT with SpFFT failed!")
+            errorCode = spfft_transform_forward(plan%spfft_transform, SPFFT_PU_HOST, &
+                                                zout(i*plan%n), SPFFT_NO_SCALING)
+            IF (errorCode /= SPFFT_SUCCESS) CPABORT("FFT with SpFFT failed!")
+         END DO
 
       ELSE
-         ! Just setup pointers
          DO i = 0, plan%m - 1
-            inputLocations(i) = C_LOC(zin(i*plan%n))
-            outputLocations(i) = C_LOC(complex_array(:, i))
+            errorCode = spfft_transform_backward(plan%spfft_transform, &
+                                                 zin(i*plan%n), SPFFT_PU_HOST)
+            IF (errorCode /= SPFFT_SUCCESS) CPABORT("FFT with SpFFT failed!")
+
+            IF (plan%trans) THEN
+               zout(i::plan%m) = scale*complex_ptr
+            ELSE
+               zout(i*plan%n:(i + 1)*plan%n - 1) = scale*complex_ptr
+            END IF
          END DO
-         errorCode = spfft_multi_transform_backward_ptr(plan%m, C_LOC(transforms), &
-                                                        C_LOC(inputLocations), C_LOC(outputLocations))
-         WRITE (*, *) "errorCode", errorCode
-         IF (errorCode /= SPFFT_SUCCESS) CPABORT("FFT with SpFFT failed!")
-
-         IF (plan%trans) THEN
-!$OMP PARALLEL DO DEFAULT(NONE) SHARED(zout,complex_array,scale,plan) PRIVATE(i,j) COLLAPSE(2)
-            DO i = 0, plan%n - 1
-            DO j = 0, plan%m - 1
-               zout(j + i*plan%m) = scale*complex_array(i, j)
-            END DO
-            END DO
-!$OMP END PARALLEL DO
-         ELSE
-!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(zout,scale,plan,complex_array)
-            zout = scale*RESHAPE(complex_array, [plan%m*plan%n])
-!$OMP END PARALLEL WORKSHARE
-         END IF
       END IF
-
-      DEALLOCATE (complex_array, inputLocations, outputLocations, transforms)
 #else
       MARK_USED(plan)
       MARK_USED(zin)
