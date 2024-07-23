@@ -65,7 +65,7 @@ case "${with_openblas}" in
         "skylake-avx512")
           TARGET="SKYLAKEX"
           ;;
-        "znver*")
+        znver*)
           TARGET="ZEN"
           ;;
         *)
