@@ -27,7 +27,6 @@ MODULE xtb_eeq
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_create,&
-                                              cp_fm_get_element,&
                                               cp_fm_get_info,&
                                               cp_fm_release,&
                                               cp_fm_set_all,&
@@ -90,12 +89,13 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'xtb_eeq_calculation'
 
-      INTEGER                                            :: ewald_type, handle, i, iac, iar, iatom, &
-                                                            ic, ikind, ir, iunit, jatom, jkind, &
-                                                            natom, ncloc, nkind, nrloc, ns
+      INTEGER                                            :: ewald_type, handle, i, ia, iac, iar, &
+                                                            iatom, ic, ikind, ir, iunit, jatom, &
+                                                            jkind, natom, ncloc, ncvloc, nkind, &
+                                                            nrloc, nrvloc, ns
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: kind_of
       INTEGER, DIMENSION(3)                              :: periodic
-      INTEGER, DIMENSION(:), POINTER                     :: cind, rind
+      INTEGER, DIMENSION(:), POINTER                     :: cind, cvind, rind, rvind
       LOGICAL                                            :: defined, do_ewald, do_sparse
       REAL(KIND=dp)                                      :: ad, ala, alb, alk, alpha, betak, deth, &
                                                             dr, edis, gam, grc, grc1, grc2, kappa, &
@@ -325,12 +325,14 @@ CONTAINS
          CALL cp_fm_struct_create(mat_struct, context=blacs_env, para_env=para_env, &
                                   nrow_global=ns, ncol_global=ns)
          CALL cp_fm_create(eeq_mat, mat_struct)
+         CALL cp_fm_get_info(eeq_mat, nrow_local=nrloc, ncol_local=ncloc, &
+                             row_indices=rind, col_indices=cind)
          CALL cp_fm_struct_create(vec_struct, context=blacs_env, para_env=para_env, &
                                   nrow_global=ns, ncol_global=1)
          CALL cp_fm_create(rhs_vec, vec_struct)
+         CALL cp_fm_get_info(rhs_vec, nrow_local=nrvloc, ncol_local=ncvloc, &
+                             row_indices=rvind, col_indices=cvind)
          !
-         CALL cp_fm_get_info(eeq_mat, nrow_local=nrloc, ncol_local=ncloc, &
-                             row_indices=rind, col_indices=cind)
          ! set up matrix
          CALL cp_fm_set_all(eeq_mat, 1.0_dp, 0.0_dp)
          CALL cp_fm_set_all(rhs_vec, 0.0_dp)
@@ -356,14 +358,18 @@ CONTAINS
             END DO
          END DO
          ! set up rhs vector
-         DO ir = 1, nrloc
-            iar = rind(ir)
-            IF (iar > natom) THEN
-               xr = totalcharge
-            ELSE
-               xr = -chia(iar)
-            END IF
-            CALL cp_fm_set_element(rhs_vec, iar, 1, xr)
+         DO ir = 1, nrvloc
+            iar = rvind(ir)
+            DO ic = 1, ncvloc
+               iac = cvind(ic)
+               ia = MAX(iar, iac)
+               IF (ia > natom) THEN
+                  xr = totalcharge
+               ELSE
+                  xr = -chia(ia)
+               END IF
+               CALL cp_fm_set_element(rhs_vec, iar, iac, xr)
+            END DO
          END DO
          !
          ! fm matrices are overwritten!
@@ -371,14 +377,18 @@ CONTAINS
          !
          charges = 0.0_dp
          lambda = 0.0_dp
-         DO ir = 1, nrloc
-            iar = rind(ir)
-            IF (iar <= natom) THEN
-               CALL cp_fm_get_element(rhs_vec, iar, 1, xr)
-               charges(iar) = xr
-            ELSE
-               CALL cp_fm_get_element(rhs_vec, iar, 1, lambda)
-            END IF
+         DO ir = 1, nrvloc
+            iar = rvind(ir)
+            DO ic = 1, ncvloc
+               iac = cvind(ic)
+               ia = MAX(iar, iac)
+               IF (ia <= natom) THEN
+                  xr = rhs_vec%local_data(ir, ic)
+                  charges(ia) = xr
+               ELSE
+                  lambda = rhs_vec%local_data(ir, ic)
+               END IF
+            END DO
          END DO
          CALL para_env%sum(lambda)
          CALL para_env%sum(charges)
@@ -431,10 +441,10 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'xtb_eeq_forces'
 
       INTEGER :: atom_a, atom_b, atom_c, ewald_type, handle, i, ia, iac, iar, iatom, ic, ikind, &
-         ir, iunit, jatom, jkind, katom, kkind, natom, ncloc, nkind, nrloc, ns
+         ir, iunit, jatom, jkind, katom, kkind, natom, ncloc, ncvloc, nkind, nrloc, nrvloc, ns
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, kind_of
       INTEGER, DIMENSION(3)                              :: periodic
-      INTEGER, DIMENSION(:), POINTER                     :: cind, rind
+      INTEGER, DIMENSION(:), POINTER                     :: cind, cvind, rind, rvind
       LOGICAL                                            :: defined, do_ewald, do_sparse, use_virial
       REAL(KIND=dp) :: ad, ala, alb, alk, alpha, betak, ctot, deth, dr, dr2, drk, gam, gam2, grc, &
          grc1, grc2, kappa, papk, qlam, qq, rdl, res, rmax, rzk, rzkm, rzkp, scn, totalcharge, xi, &
@@ -665,12 +675,14 @@ CONTAINS
          CALL cp_fm_struct_create(mat_struct, context=blacs_env, para_env=para_env, &
                                   nrow_global=ns, ncol_global=ns)
          CALL cp_fm_create(eeq_mat, mat_struct)
+         CALL cp_fm_get_info(eeq_mat, nrow_local=nrloc, ncol_local=ncloc, &
+                             row_indices=rind, col_indices=cind)
+         !
          CALL cp_fm_struct_create(vec_struct, context=blacs_env, para_env=para_env, &
                                   nrow_global=ns, ncol_global=1)
          CALL cp_fm_create(rhs_vec, vec_struct)
-         !
-         CALL cp_fm_get_info(eeq_mat, nrow_local=nrloc, ncol_local=ncloc, &
-                             row_indices=rind, col_indices=cind)
+         CALL cp_fm_get_info(rhs_vec, nrow_local=nrvloc, ncol_local=ncvloc, &
+                             row_indices=rvind, col_indices=cvind)
          ! set up matrix
          CALL cp_fm_set_all(eeq_mat, 1.0_dp, 0.0_dp)
          CALL cp_fm_set_all(rhs_vec, 0.0_dp)
@@ -696,14 +708,18 @@ CONTAINS
             END DO
          END DO
          ! set up rhs vector
-         DO ir = 1, nrloc
-            iar = rind(ir)
-            IF (iar > natom) THEN
-               xr = 0.0_dp
-            ELSE
-               xr = dcharges(iar)
-            END IF
-            CALL cp_fm_set_element(rhs_vec, iar, 1, xr)
+         DO ir = 1, nrvloc
+            iar = rvind(ir)
+            DO ic = 1, ncvloc
+               iac = cvind(ic)
+               ia = MAX(iar, iac)
+               IF (ia > natom) THEN
+                  xr = 0.0_dp
+               ELSE
+                  xr = dcharges(ia)
+               END IF
+               CALL cp_fm_set_element(rhs_vec, iar, iac, xr)
+            END DO
          END DO
          !
          ! fm matrices are overwritten!
@@ -711,14 +727,18 @@ CONTAINS
          !
          qlag = 0.0_dp
          qlam = 0.0_dp
-         DO ir = 1, nrloc
-            iar = rind(ir)
-            IF (iar <= natom) THEN
-               CALL cp_fm_get_element(rhs_vec, iar, 1, xr)
-               qlag(iar) = xr
-            ELSE
-               CALL cp_fm_get_element(rhs_vec, iar, 1, qlam)
-            END IF
+         DO ir = 1, nrvloc
+            iar = rvind(ir)
+            DO ic = 1, ncvloc
+               iac = cvind(ic)
+               ia = MAX(iar, iac)
+               IF (ia <= natom) THEN
+                  xr = rhs_vec%local_data(ir, ic)
+                  qlag(iar) = xr
+               ELSE
+                  qlam = rhs_vec%local_data(ir, ic)
+               END IF
+            END DO
          END DO
          CALL para_env%sum(qlam)
          CALL para_env%sum(qlag)

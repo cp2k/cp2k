@@ -198,7 +198,6 @@ CONTAINS
 
       NULLIFY (matrix_h, matrix_s, matrix_p, matrix_w, atomic_kind_set, &
                qs_kind_set, sab_orb, ks_env)
-
       CALL get_qs_env(qs_env=qs_env, &
                       ks_env=ks_env, &
                       energy=energy, &
@@ -284,7 +283,7 @@ CONTAINS
       CALL xtb_eeq_calculation(qs_env, charges, cnumbers, eeq_energy, qlambda)
       IF (calculate_forces) THEN
          ALLOCATE (dcharges(natom))
-         dcharges = qlambda
+         dcharges = qlambda/REAL(para_env%num_pe, KIND=dp)
       END IF
       energy%eeq = eeq_energy
 
@@ -665,6 +664,7 @@ CONTAINS
 
       ! EEQ forces (response and direct)
       IF (calculate_forces) THEN
+         CALL para_env%sum(dcharges)
          CALL xtb_eeq_forces(qs_env, charges, dcharges, cnumbers, dcnum)
       END IF
 

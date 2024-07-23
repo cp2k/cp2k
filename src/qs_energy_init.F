@@ -191,7 +191,7 @@ CONTAINS
                                        subset_of_mol=kg_env%subset_of_mol, current_subset=isubset)
          END DO
       CASE (kg_tnadd_embed_ri)
-!deb should be deleted as soon as atomic grids work
+         ! should be deleted as soon as atomic grids work
          ! allocate the subset list
          IF (.NOT. ASSOCIATED(kg_env%subset_of_mol)) THEN
             ALLOCATE (kg_env%subset_of_mol(SIZE(molecule_set)))
@@ -204,7 +204,7 @@ CONTAINS
             CALL kg_build_neighborlist(qs_env, sab_orb=kg_env%subset(isubset)%sab_orb, molecular=.TRUE., &
                                        subset_of_mol=kg_env%subset_of_mol, current_subset=isubset)
          END DO
-!deb
+         !
          ! LRI neighborlist
          NULLIFY (soo_list)
          CALL kg_build_neighborlist(qs_env, sab_orb=soo_list, molecular=.TRUE.)

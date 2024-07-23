@@ -2787,7 +2787,7 @@ CONTAINS
 #if defined(__SCALAPACK)
       INTEGER                                        :: nrl, ncl, ic, ir
       INTEGER, DIMENSION(:), POINTER                 :: rind, cind
-      REAL(KIND=dp), DIMENSION(:), ALLOCATABLE       :: xvl, yvl
+      REAL(KIND=dp), DIMENSION(:), ALLOCATABLE       :: xvl, yvl, yvm
 #endif
 
       IF (amat%use_sp) THEN
@@ -2805,13 +2805,13 @@ CONTAINS
          CPABORT("cp_fm_matvec: incompatible dimensions")
       END IF
 #if defined(__SCALAPACK)
-      CALL cp_fm_get_info(matrix, nrow_local=nrl, ncol_local=ncl, &
+      CALL cp_fm_get_info(amat, nrow_local=nrl, ncol_local=ncl, &
                           row_indices=rind, col_indices=cind)
       ALLOCATE (xvl(ncl), yvl(nrl), yvm(ny))
       DO ic = 1, ncl
          xvl(ic) = xv(cind(ic))
       END DO
-      yvl = MATMUL(amat%local_data, xvl)
+      yvl(1:ncl) = MATMUL(amat%local_data, xvl(1:ncl))
       yvm = 0.0_dp
       DO ir = 1, nrl
          yvm(rind(ir)) = yvl(ir)
