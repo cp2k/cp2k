@@ -344,19 +344,20 @@ CONTAINS
 
       TYPE(fft_plan_type), INTENT(IN)                      :: plan
       INTEGER, INTENT(IN)                                  :: fsign
-      COMPLEX(KIND=dp), DIMENSION(plan%n*plan%m), INTENT(INOUT), TARGET :: zin, zout
+      COMPLEX(KIND=dp), DIMENSION(0:plan%n*plan%m - 1), INTENT(INOUT), TARGET :: zin, zout
       REAL(KIND=dp), INTENT(IN)                            :: scale
 #if defined (__SPFFT) && defined(__parallel)
       COMPLEX(KIND=C_DOUBLE_COMPLEX), DIMENSION(:, :), ALLOCATABLE, TARGET :: complex_array
       INTEGER :: i, j
       INTEGER(KIND=C_INT) :: errorcode
       INTEGER(KIND=C_INT), DIMENSION(:), ALLOCATABLE, TARGET :: scalingTypes
-      TYPE(C_PTR), DIMENSION(:), ALLOCATABLE :: inputLocations, outputLocations, transforms
+      TYPE(C_PTR), DIMENSION(:), ALLOCATABLE, TARGET :: inputLocations, outputLocations, transforms
 
       ! Allocate a temporary array to ensure enough memory being available
-      ALLOCATE (complex_array(plan%n, plan%m))
+      ALLOCATE (complex_array(0:plan%n - 1, 0:plan%m - 1))
 
-      ALLOCATE (scalingTypes(plan%m), inputLocations(plan%m), outputLocations(plan%m), transforms(plan%m))
+      ALLOCATE (scalingTypes(0:plan%m - 1), inputLocations(0:plan%m - 1), &
+                outputLocations(0:plan%m - 1), transforms(0:plan%m - 1))
       scalingTypes = SPFFT_NO_SCALING
       transforms = plan%spfft_transform
 
@@ -364,9 +365,9 @@ CONTAINS
          ! Scale here to prevent additional copies between the buffer and the output array
          IF (plan%trans) THEN
 !$OMP PARALLEL DO DEFAULT(NONE) SHARED(zin,complex_array,scale,plan) PRIVATE(i,j) COLLAPSE(2)
-            DO i = 1, plan%n
-            DO j = 1, plan%m
-               complex_array(i, j) = scale*zin(j + (i - 1)*plan%m)
+            DO i = 0, plan%n - 1
+            DO j = 0, plan%m - 1
+               complex_array(i, j) = scale*zin(j + i*plan%m)
             END DO
             END DO
 !$OMP END PARALLEL DO
@@ -376,30 +377,32 @@ CONTAINS
 !$OMP END PARALLEL WORKSHARE
          END IF
 
-         DO i = 1, plan%m
+         DO i = 0, plan%m - 1
             inputLocations(i) = C_LOC(complex_array(:, i))
             outputLocations(i) = C_LOC(zout(i*plan%n))
          END DO
 
-         errorCode = spfft_multi_transform_forward_ptr(plan%m, transforms, &
-                                                       inputLocations, outputLocations, C_LOC(scalingTypes))
+         errorCode = spfft_multi_transform_forward_ptr(plan%m, C_LOC(transforms), C_LOC(inputLocations), &
+                                                       C_LOC(outputLocations), C_LOC(scalingTypes))
+         WRITE (*, *) "errorCode", errorCode
          IF (errorCode /= SPFFT_SUCCESS) CPABORT("FFT with SpFFT failed!")
 
       ELSE
          ! Just setup pointers
-         DO i = 1, plan%m
+         DO i = 0, plan%m - 1
             inputLocations(i) = C_LOC(zin(i*plan%n))
             outputLocations(i) = C_LOC(complex_array(:, i))
          END DO
-         errorCode = spfft_multi_transform_backward_ptr(plan%m, transforms, &
-                                                        inputLocations, outputLocations)
+         errorCode = spfft_multi_transform_backward_ptr(plan%m, C_LOC(transforms), &
+                                                        C_LOC(inputLocations), C_LOC(outputLocations))
+         WRITE (*, *) "errorCode", errorCode
          IF (errorCode /= SPFFT_SUCCESS) CPABORT("FFT with SpFFT failed!")
 
          IF (plan%trans) THEN
 !$OMP PARALLEL DO DEFAULT(NONE) SHARED(zout,complex_array,scale,plan) PRIVATE(i,j) COLLAPSE(2)
-            DO i = 1, plan%n
-            DO j = 1, plan%m
-               zout(j - 1 + (i - 1)*plan%m) = scale*complex_array(i, j)
+            DO i = 0, plan%n - 1
+            DO j = 0, plan%m - 1
+               zout(j + i*plan%m) = scale*complex_array(i, j)
             END DO
             END DO
 !$OMP END PARALLEL DO
