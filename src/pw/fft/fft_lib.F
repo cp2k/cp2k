@@ -170,7 +170,6 @@ CONTAINS
       plan%fft_in_place = fft_in_place
       plan%n_3d = n
 !$    plan%need_alt_plan = .FALSE.
-      plan%fft_type = fft_type
 
       ! Planning only needed for FFTW3 and SpLA
       IF (fft_type == 3) THEN
@@ -210,6 +209,7 @@ CONTAINS
 !$    plan(1)%need_alt_plan = .FALSE.
 
       plan(2)%trans = trans
+      plan(2)%n_3d = [n1, n2, m]
       plan(2)%n = n2
       plan(2)%m = m*n1
 !$    plan(2)%need_alt_plan = .FALSE.
@@ -217,21 +217,15 @@ CONTAINS
       IF ((n1 > 0) .AND. (m > 0) .AND. (n2 > 0)) THEN
          ! Planning only needed for FFTW3
          IF (fft_type .EQ. 3) THEN
-            plan(1)%fft_type = 3
-            plan(2)%fft_type = 3
             CALL fftw3_create_plan_1d(plan(1), zin, zout)
             CALL fftw3_create_plan_1d(plan(2), zin, zout)
             plan(1)%valid = .TRUE.
             plan(2)%valid = .TRUE.
          ELSE IF (fft_type .EQ. 4) THEN
-            plan(1)%fft_type = 4
-            plan(2)%fft_type = 4
             CALL spfft_create_plan_2d(plan(1))
             plan(1)%valid = .TRUE.
             plan(2)%valid = .TRUE.
          ELSE
-            plan(1)%fft_type = 1
-            plan(2)%fft_type = 1
             plan(1)%valid = .FALSE.
             plan(2)%valid = .FALSE.
          END IF
@@ -263,7 +257,7 @@ CONTAINS
 
       stat = fsign
       IF (plan%n_3d(1)*plan%n_3d(2)*plan%n_3d(3) > 0) THEN
-         SELECT CASE (plan%fft_type)
+         SELECT CASE (fft_type)
          CASE DEFAULT
             CPABORT("fft_3d")
          CASE (1)
@@ -304,7 +298,6 @@ CONTAINS
       plan%n = n
       plan%m = m
 !$    plan%need_alt_plan = .FALSE.
-      plan%fft_type = fft_type
 
       ! Planning only needed for FFTW3
       IF (fft_type .EQ. 3 .AND. (n*m .NE. 0)) THEN
@@ -314,7 +307,6 @@ CONTAINS
          CALL spfft_create_plan_1d(plan)
          plan%valid = .TRUE.
       ELSE
-         plan%fft_type = 1
          plan%valid = .FALSE.
       END IF
 
@@ -330,10 +322,10 @@ CONTAINS
 ! Planning only needed for FFTW3
 
       IF (plan%valid) THEN
-         IF (plan%fft_type == 3) THEN
+         IF (fft_type == 3) THEN
             CALL fftw3_destroy_plan(plan)
             plan%valid = .FALSE.
-         ELSE IF (plan%fft_type == 4) THEN
+         ELSE IF (fft_type == 4) THEN
             CALL spfft_destroy_plan(plan)
             plan%valid = .FALSE.
          END IF
@@ -363,8 +355,6 @@ CONTAINS
       INTEGER, INTENT(OUT)                               :: stat
 
       INTEGER                                            :: stat2
-
-      CPASSERT(plan(1)%fft_type == plan(2)%fft_type)
 
       IF (plan(1)%n*plan(1)%m > 0 .AND. plan(2)%n*plan(2)%m > 0) THEN
          SELECT CASE (fft_type)

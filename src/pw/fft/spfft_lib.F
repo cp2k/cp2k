@@ -112,20 +112,37 @@ CONTAINS
 !$OMP END MASTER
 !$OMP END PARALLEL
 
-      ! Setup index map for SPFFT
-      ALLOCATE (indices(3, 0:plan%n_3d(1) - 1, 0:plan%n_3d(2) - 1))
-      DO j = 0, plan%n_3d(2) - 1
-      DO i = 0, plan%n_3d(1) - 1
-         indices(1, i, j) = i
-         indices(2, i, j) = j
-         indices(3, i, j) = 0
-      END DO
-      END DO
+      IF (plan%trans) THEN
+         ! Setup index map for SPFFT
+         ALLOCATE (indices(3, 0:plan%n_3d(2) - 1, 0:plan%n_3d(1) - 1))
+         DO j = 0, plan%n_3d(1) - 1
+         DO i = 0, plan%n_3d(2) - 1
+            indices(1, i, j) = i
+            indices(2, i, j) = j
+            indices(3, i, j) = 0
+         END DO
+         END DO
 
-      errorcode = spfft_transform_create_independent(plan%spfft_transform, number_of_threads, spfft_processing_unit, &
-                                                     SPFFT_TRANS_C2C, plan%n_3d(1), plan%n_3d(2), 1, &
-                                                     PRODUCT(plan%n_3d(1:2)), SPFFT_INDEX_TRIPLETS, indices)
-      IF (errorcode /= SPFFT_SUCCESS) CPABORT("Error in SPFFT!")
+         errorcode = spfft_transform_create_independent(plan%spfft_transform, number_of_threads, spfft_processing_unit, &
+                                                        SPFFT_TRANS_C2C, plan%n_3d(2), plan%n_3d(1), 1, &
+                                                        PRODUCT(plan%n_3d(1:2)), SPFFT_INDEX_TRIPLETS, indices)
+         IF (errorcode /= SPFFT_SUCCESS) CPABORT("Error in SPFFT!")
+      ELSE
+         ! Setup index map for SPFFT
+         ALLOCATE (indices(3, 0:plan%n_3d(1) - 1, 0:plan%n_3d(2) - 1))
+         DO j = 0, plan%n_3d(2) - 1
+         DO i = 0, plan%n_3d(1) - 1
+            indices(1, i, j) = i
+            indices(2, i, j) = j
+            indices(3, i, j) = 0
+         END DO
+         END DO
+
+         errorcode = spfft_transform_create_independent(plan%spfft_transform, number_of_threads, spfft_processing_unit, &
+                                                        SPFFT_TRANS_C2C, plan%n_3d(1), plan%n_3d(2), 1, &
+                                                        PRODUCT(plan%n_3d(1:2)), SPFFT_INDEX_TRIPLETS, indices)
+         IF (errorcode /= SPFFT_SUCCESS) CPABORT("Error in SPFFT!")
+      END IF
 #else
       MARK_USED(plan)
       CPABORT("In order to use SPFFT, you have to install it!")
@@ -282,7 +299,6 @@ CONTAINS
 
             errorCode = spfft_transform_forward(plan%spfft_transform, SPFFT_PU_HOST, &
                                                 zout(i*plan%n_3d(1)*plan%n_3d(2)), SPFFT_NO_SCALING)
-            WRITE (*, *) "errorcode", errorcode
             IF (errorCode /= SPFFT_SUCCESS) CPABORT("FFT with SpFFT failed!")
          END DO
 
@@ -290,7 +306,6 @@ CONTAINS
          DO i = 0, plan%n_3d(3) - 1
             errorCode = spfft_transform_backward(plan%spfft_transform, &
                                                  zin(i*plan%n_3d(1)*plan%n_3d(2)), SPFFT_PU_HOST)
-            WRITE (*, *) "errorcode", errorcode
             IF (errorCode /= SPFFT_SUCCESS) CPABORT("FFT with SpFFT failed!")
 
             IF (plan%trans) THEN
