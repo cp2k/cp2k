@@ -71,13 +71,13 @@ CONTAINS
 !$OMP END PARALLEL
 
       ! Setup index map for SPFFT
-      ALLOCATE (indices(3, plan%n_3d(1), plan%n_3d(2), plan%n_3d(3)))
-      DO k = 1, plan%n_3d(3)
-      DO j = 1, plan%n_3d(2)
-      DO i = 1, plan%n_3d(1)
-         indices(1, i, j, k) = i - 1
-         indices(2, i, j, k) = j - 1
-         indices(3, i, j, k) = k - 1
+      ALLOCATE (indices(3, 0:plan%n_3d(1) - 1, 0:plan%n_3d(2) - 1, 0:plan%n_3d(3) - 1))
+      DO k = 0, plan%n_3d(3) - 1
+      DO j = 0, plan%n_3d(2) - 1
+      DO i = 0, plan%n_3d(1) - 1
+         indices(1, i, j, k) = i
+         indices(2, i, j, k) = j
+         indices(3, i, j, k) = k
       END DO
       END DO
       END DO
@@ -106,18 +106,18 @@ CONTAINS
       INTEGER, DIMENSION(:, :, :), ALLOCATABLE :: indices
 
       number_of_threads = 1
-      !$OMP PARALLEL DEFAULT(NONE) SHARED(number_of_threads)
-      !$OMP MASTER
+!$OMP PARALLEL DEFAULT(NONE) SHARED(number_of_threads)
+!$OMP MASTER
 !$    number_of_threads = omp_get_thread_num()
 !$OMP END MASTER
 !$OMP END PARALLEL
 
       ! Setup index map for SPFFT
-      ALLOCATE (indices(3, plan%n_3d(1), plan%n_3d(2)))
-      DO j = 1, plan%n_3d(2)
-      DO i = 1, plan%n_3d(1)
-         indices(1, i, j) = i - 1
-         indices(2, i, j) = j - 1
+      ALLOCATE (indices(3, 0:plan%n_3d(1) - 1, 0:plan%n_3d(2) - 1))
+      DO j = 0, plan%n_3d(2) - 1
+      DO i = 0, plan%n_3d(1) - 1
+         indices(1, i, j) = i
+         indices(2, i, j) = j
          indices(3, i, j) = 0
       END DO
       END DO
@@ -146,17 +146,17 @@ CONTAINS
       INTEGER, DIMENSION(:, :), ALLOCATABLE :: indices
 
       number_of_threads = 1
-      !$OMP PARALLEL DEFAULT(NONE) SHARED(number_of_threads)
-      !$OMP MASTER
+!$OMP PARALLEL DEFAULT(NONE) SHARED(number_of_threads)
+!$OMP MASTER
 !$    number_of_threads = omp_get_thread_num()
 !$OMP END MASTER
 !$OMP END PARALLEL
 
       ! Setup index map for SPFFT
       ! We map 1D FFTs to 3D FFTs
-      ALLOCATE (indices(3, plan%n))
-      DO i = 1, plan%n
-         indices(1, i) = i - 1
+      ALLOCATE (indices(3, 0:plan%n - 1))
+      DO i = 0, plan%n - 1
+         indices(1, i) = i
          indices(2, i) = 0
          indices(3, i) = 0
       END DO
@@ -250,77 +250,56 @@ CONTAINS
 !> \param plan ...
 !> \param fsign ...
 !> \param zin ...
-!> \param zintermed ...
 !> \param zout ...
 !> \param scale ...
 ! **************************************************************************************************
-   SUBROUTINE spfft_2d(plan, fsign, zin, zintermed, zout, scale)
+   SUBROUTINE spfft_2d(plan, fsign, zin, zout, scale)
 
       TYPE(fft_plan_type), INTENT(IN)                      :: plan
       INTEGER, INTENT(IN)                                  :: fsign
-      COMPLEX(KIND=dp), DIMENSION(PRODUCT(plan%n_3d)), INTENT(INOUT), TARGET :: zin, zintermed, zout
+      COMPLEX(KIND=dp), DIMENSION(0:PRODUCT(plan%n_3d) - 1), INTENT(INOUT), TARGET :: zin, zout
       REAL(KIND=dp), INTENT(IN)                            :: scale
 #if defined (__SPFFT) && defined(__parallel)
-      INTEGER :: i, j
+      COMPLEX(KIND=C_DOUBLE_COMPLEX), DIMENSION(:), POINTER :: complex_ptr
+      INTEGER :: i
       INTEGER(KIND=C_INT) :: errorcode
-      INTEGER(KIND=C_INT), DIMENSION(:), ALLOCATABLE, TARGET :: scalingTypes
-      TYPE(C_PTR), DIMENSION(:), ALLOCATABLE :: inputLocations, outputLocations
+      TYPE(C_PTR) :: spfft_ptr
 
-      ALLOCATE (scalingTypes(plan%n_3d(3)), inputLocations(plan%n_3d(3)), outputLocations(plan%n_3d(3)))
-      scalingTypes = SPFFT_NO_SCALING
+      ! set space domain array to use memory allocted by the library
+      errorCode = spfft_transform_get_space_domain(plan%spfft_transform, SPFFT_PU_HOST, spfft_ptr)
+      IF (errorCode /= SPFFT_SUCCESS) CPABORT("FFT with SpFFT failed!")
+
+      CALL C_F_POINTER(spfft_ptr, complex_ptr, [plan%n_3d(1)*plan%n_3d(2)])
 
       IF (fsign == FWFFT) THEN
-         IF (plan%trans) THEN
-            ! Copy input to intermediate buffer
-!$OMP PARALLEL DO DEFAULT(NONE) SHARED(zin,scale,plan,zintermed) PRIVATE(i, j) COLLAPSE(2)
-            DO i = 1, plan%n_3d(1)*plan%n_3d(2)
-            DO j = 1, plan%n_3d(3)
-               zintermed(i + (j - 1)*plan%n_3d(1)) = scale*zin(j + (i - 1)*plan%n_3d(3))
-            END DO
-            END DO
-!$OMP END PARALLEL DO
-         ELSE
-!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(zin,scale,zintermed)
-            zintermed = scale*zin
-!$OMP END PARALLEL WORKSHARE
-         END IF
+         ! Scale here to prevent additional copies between the buffer and the output array
+         DO i = 0, plan%n_3d(3) - 1
+            IF (plan%trans) THEN
+               complex_ptr(:) = scale*zin(i::plan%n_3d(3))
+            ELSE
+               complex_ptr(:) = scale*zin(i*plan%n_3d(1)*plan%n_3d(2):(i + 1)*plan%n_3d(1)*plan%n_3d(2) - 1)
+            END IF
 
-         ! Compile an array with the starting points of each FFT
-         DO i = 1, plan%n_3d(3)
-            inputLocations(i) = C_LOC(zintermed(i*plan%n_3d(1)*plan%n_3d(2)))
-            outputLocations(i) = C_LOC(zout(i*plan%n_3d(1)*plan%n_3d(2)))
+            errorCode = spfft_transform_forward(plan%spfft_transform, SPFFT_PU_HOST, &
+                                                zout(i*plan%n_3d(1)*plan%n_3d(2)), SPFFT_NO_SCALING)
+            WRITE (*, *) "errorcode", errorcode
+            IF (errorCode /= SPFFT_SUCCESS) CPABORT("FFT with SpFFT failed!")
          END DO
 
-         ! Perform the actual FFTs
-         errorCode = spfft_multi_transform_forward_ptr(plan%n_3d(3), plan%spfft_transform, &
-                                                       inputLocations, outputLocations, C_LOC(scalingTypes))
-         IF (errorCode /= SPFFT_SUCCESS) CPABORT("FFT with SpFFT failed!")
       ELSE
-         DO i = 1, plan%n_3d(3)
-            inputLocations(i) = C_LOC(zin(i*plan%n_3d(1)*plan%n_3d(2)))
-            outputLocations(i) = C_LOC(zintermed(i*plan%n_3d(1)*plan%n_3d(2)))
+         DO i = 0, plan%n_3d(3) - 1
+            errorCode = spfft_transform_backward(plan%spfft_transform, &
+                                                 zin(i*plan%n_3d(1)*plan%n_3d(2)), SPFFT_PU_HOST)
+            WRITE (*, *) "errorcode", errorcode
+            IF (errorCode /= SPFFT_SUCCESS) CPABORT("FFT with SpFFT failed!")
+
+            IF (plan%trans) THEN
+               zout(i::plan%n_3d(3)) = scale*complex_ptr
+            ELSE
+               zout(i*plan%n_3d(1)*plan%n_3d(2):(i + 1)*plan%n_3d(1)*plan%n_3d(2) - 1) = scale*complex_ptr
+            END IF
          END DO
-
-         errorCode = spfft_multi_transform_backward_ptr(plan%n_3d(3), plan%spfft_transform, &
-                                                        inputLocations, outputLocations)
-         IF (errorCode /= SPFFT_SUCCESS) CPABORT("FFT with SpFFT failed!")
-
-         IF (plan%trans) THEN
-!$OMP PARALLEL DO DEFAULT(NONE) SHARED(zout,scale,plan,zintermed) PRIVATE(i, j) COLLAPSE(2)
-            DO i = 1, plan%n_3d(1)*plan%n_3d(2)
-            DO j = 1, plan%n_3d(3)
-               zout(j + (i - 1)*plan%n_3d(3)) = scale*zintermed(i + (j - 1)*plan%n_3d(3))
-            END DO
-            END DO
-!$OMP END PARALLEL DO
-         ELSE
-!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(zout,scale,zintermed)
-            zout = scale*zintermed
-!$OMP END PARALLEL WORKSHARE
-         END IF
       END IF
-
-      DEALLOCATE (scalingTypes, inputLocations, outputLocations)
 #else
       MARK_USED(plan)
       MARK_USED(zin)
