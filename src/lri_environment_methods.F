@@ -171,6 +171,8 @@ CONTAINS
 
          IF (ASSOCIATED(lri_env%lri_ints)) THEN
             CALL deallocate_lri_ints(lri_env%lri_ints)
+         ELSE
+            ALLOCATE (lri_env%lri_ints)
          END IF
 
          ! allocate matrices storing the LRI integrals
@@ -420,6 +422,8 @@ CONTAINS
       ELSE
          IF (ASSOCIATED(lri_env%lri_ppl_ints)) THEN
             CALL deallocate_lri_ppl_ints(lri_env%lri_ppl_ints)
+         ELSE
+            ALLOCATE (lri_env%lri_ppl_ints)
          END IF
          CALL allocate_lri_ppl_ints(lri_env, lri_env%lri_ppl_ints, atomic_kind_set)
       END IF
@@ -512,6 +516,8 @@ CONTAINS
 
          IF (ASSOCIATED(lri_env%lri_ints_rho)) THEN
             CALL deallocate_lri_ints_rho(lri_env%lri_ints_rho)
+         ELSE
+            ALLOCATE (lri_env%lri_ints_rho)
          END IF
 
          CALL allocate_lri_ints_rho(lri_env, lri_env%lri_ints_rho, nkind)

@@ -185,7 +185,7 @@ CONTAINS
       TYPE(dbcsr_type), POINTER                          :: pmat
       TYPE(dint_type)                                    :: lridint
       TYPE(gto_basis_set_type), POINTER                  :: fbasa, fbasb, obasa, obasb
-      TYPE(lri_force_type), POINTER                      :: lri_force
+      TYPE(lri_force_type)                               :: lri_force
       TYPE(lri_int_type), POINTER                        :: lrii
       TYPE(lri_kind_type), DIMENSION(:), POINTER         :: lri_coef
       TYPE(lri_list_type), POINTER                       :: lri_rho
@@ -197,7 +197,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (lri_coef, lri_force, lrii, lri_rho, lrho, &
+      NULLIFY (lri_coef, lrii, lri_rho, lrho, &
                nl_iterator, pbij, pmat, soo_list, v_dadra, v_dadrb)
       NULLIFY (dssn, dsst, dtvec, sdssn, sdsst, sdt, st)
 
@@ -288,7 +288,6 @@ CONTAINS
                CALL lri_dint2(lri_env, lrii, lridint, rab, obasa, obasb, fbasa, fbasb, &
                               iatom, jatom, ikind, jkind)
 
-               NULLIFY (lri_force)
                CALL allocate_lri_force_components(lri_force, nfa, nfb)
                st => lri_force%st
                dsst => lri_force%dsst
@@ -448,7 +447,7 @@ CONTAINS
       TYPE(dbcsr_type), POINTER                          :: pmat
       TYPE(dint_type)                                    :: lridint
       TYPE(gto_basis_set_type), POINTER                  :: fbasa, fbasb, obasa, obasb
-      TYPE(lri_force_type), POINTER                      :: lri_force_a, lri_force_b
+      TYPE(lri_force_type)                               :: lri_force_a, lri_force_b
       TYPE(lri_int_type), POINTER                        :: lrii
       TYPE(lri_kind_type), DIMENSION(:), POINTER         :: lri_coef
       TYPE(lri_list_type), POINTER                       :: lri_rho
@@ -555,7 +554,6 @@ CONTAINS
                CALL lri_dint2(lri_env, lrii, lridint, rab, obasa, obasb, fbasa, fbasb, &
                               iatom, jatom, ikind, jkind)
 
-               NULLIFY (lri_force_a, lri_force_b)
                CALL allocate_lri_force_components(lri_force_a, nfa, 0)
                CALL allocate_lri_force_components(lri_force_b, 0, nfb)
                dtveca => lri_force_a%dtvec

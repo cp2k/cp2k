@@ -105,14 +105,14 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: pmatrix
       TYPE(lri_density_type), POINTER                    :: lri_density
       TYPE(lri_environment_type), POINTER                :: lri_env
-      TYPE(lri_opt_type), POINTER                        :: lri_opt
+      TYPE(lri_opt_type)                                 :: lri_opt
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(opt_state_type)                               :: opt_state
       TYPE(qs_rho_type), POINTER                         :: rho_struct
       TYPE(section_vals_type), POINTER                   :: dft_section, input, lri_optbas_section
 
       NULLIFY (atomic_kind_set, dft_section, lri_density, lri_env, &
-               lri_opt, lri_optbas_section, rho_struct)
+               lri_optbas_section, rho_struct)
       NULLIFY (input, logger, para_env)
 
       CALL get_qs_env(qs_env, atomic_kind_set=atomic_kind_set, input=input, &
@@ -220,6 +220,8 @@ CONTAINS
 
          IF (ASSOCIATED(lri_env%lri_ints_rho)) THEN
             CALL deallocate_lri_ints_rho(lri_env%lri_ints_rho)
+         ELSE
+            ALLOCATE (lri_env%lri_ints_rho)
          END IF
 
          CALL allocate_lri_ints_rho(lri_env, lri_env%lri_ints_rho, nkind)
@@ -275,7 +277,7 @@ CONTAINS
                                 x, zet_init, nkind, iunit)
 
       TYPE(lri_environment_type), POINTER                :: lri_env
-      TYPE(lri_opt_type), POINTER                        :: lri_opt
+      TYPE(lri_opt_type), INTENT(INOUT)                  :: lri_opt
       TYPE(section_vals_type), POINTER                   :: lri_optbas_section
       TYPE(opt_state_type)                               :: opt_state
       REAL(KIND=dp), DIMENSION(:), POINTER               :: x, zet_init
@@ -382,7 +384,7 @@ CONTAINS
    SUBROUTINE get_optimization_parameter(lri_opt, lri_optbas_section, &
                                          opt_state)
 
-      TYPE(lri_opt_type), POINTER                        :: lri_opt
+      TYPE(lri_opt_type), INTENT(INOUT)                  :: lri_opt
       TYPE(section_vals_type), POINTER                   :: lri_optbas_section
       TYPE(opt_state_type)                               :: opt_state
 
@@ -448,7 +450,7 @@ CONTAINS
    SUBROUTINE update_exponents(lri_env, lri_opt, x, zet_init, nkind)
 
       TYPE(lri_environment_type), POINTER                :: lri_env
-      TYPE(lri_opt_type), POINTER                        :: lri_opt
+      TYPE(lri_opt_type), INTENT(INOUT)                  :: lri_opt
       REAL(KIND=dp), DIMENSION(:), POINTER               :: x, zet_init
       INTEGER, INTENT(IN)                                :: nkind
 
@@ -524,7 +526,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE transfer_exp(lri_opt, zet, zet_init, zet_trans, nvar)
 
-      TYPE(lri_opt_type), POINTER                        :: lri_opt
+      TYPE(lri_opt_type), INTENT(INOUT)                  :: lri_opt
       REAL(KIND=dp), DIMENSION(:), POINTER               :: zet, zet_init, zet_trans
       INTEGER, INTENT(IN)                                :: nvar
 
@@ -589,7 +591,7 @@ CONTAINS
       TYPE(lri_environment_type), POINTER                :: lri_env
       TYPE(lri_density_type), POINTER                    :: lri_density
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(lri_opt_type), POINTER                        :: lri_opt
+      TYPE(lri_opt_type), INTENT(INOUT)                  :: lri_opt
       TYPE(opt_state_type)                               :: opt_state
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: pmatrix
       TYPE(mp_para_env_type), POINTER                    :: para_env
@@ -638,7 +640,7 @@ CONTAINS
 
       TYPE(lri_environment_type), POINTER                :: lri_env
       TYPE(lri_density_type), POINTER                    :: lri_density
-      TYPE(lri_opt_type), POINTER                        :: lri_opt
+      TYPE(lri_opt_type), INTENT(INOUT)                  :: lri_opt
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: pmatrix
       TYPE(mp_para_env_type), POINTER                    :: para_env
       REAL(KIND=dp), INTENT(OUT)                         :: fobj
@@ -910,7 +912,7 @@ CONTAINS
    SUBROUTINE print_optimization_update(opt_state, lri_opt, iunit)
 
       TYPE(opt_state_type)                               :: opt_state
-      TYPE(lri_opt_type), POINTER                        :: lri_opt
+      TYPE(lri_opt_type), INTENT(IN)                     :: lri_opt
       INTEGER, INTENT(IN)                                :: iunit
 
       INTEGER                                            :: n10
@@ -947,7 +949,7 @@ CONTAINS
       TYPE(lri_environment_type), POINTER                :: lri_env
       TYPE(section_vals_type), POINTER                   :: dft_section
       INTEGER, INTENT(IN)                                :: nkind
-      TYPE(lri_opt_type), POINTER                        :: lri_opt
+      TYPE(lri_opt_type), INTENT(IN)                     :: lri_opt
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
 
       CHARACTER(LEN=default_path_length)                 :: filename

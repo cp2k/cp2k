@@ -455,12 +455,18 @@ CONTAINS
       CALL release_neighbor_list_sets(lri_env%soa_list)
       IF (ASSOCIATED(lri_env%lri_ints)) THEN
          CALL deallocate_lri_ints(lri_env%lri_ints)
+         DEALLOCATE (lri_env%lri_ints)
+         NULLIFY (lri_env%lri_ints)
       END IF
       IF (ASSOCIATED(lri_env%lri_ppl_ints)) THEN
          CALL deallocate_lri_ppl_ints(lri_env%lri_ppl_ints)
+         DEALLOCATE (lri_env%lri_ppl_ints)
+         NULLIFY (lri_env%lri_ppl_ints)
       END IF
       IF (ASSOCIATED(lri_env%lri_ints_rho)) THEN
          CALL deallocate_lri_ints_rho(lri_env%lri_ints_rho)
+         DEALLOCATE (lri_env%lri_ints_rho)
+         NULLIFY (lri_env%lri_ints_rho)
       END IF
       CALL deallocate_bas_properties(lri_env)
       IF (ASSOCIATED(lri_env%aradius)) THEN
@@ -567,8 +573,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE allocate_lri_ints(lri_env, lri_ints, nkind)
 
-      TYPE(lri_environment_type), POINTER                :: lri_env
-      TYPE(lri_list_type), POINTER                       :: lri_ints
+      TYPE(lri_environment_type), INTENT(INOUT)          :: lri_env
+      TYPE(lri_list_type), INTENT(OUT)                   :: lri_ints
       INTEGER, INTENT(IN)                                :: nkind
 
       INTEGER                                            :: i, iac, iatom, ikind, ilist, jatom, &
@@ -577,15 +583,10 @@ CONTAINS
       LOGICAL                                            :: dpa, e1c
       REAL(KIND=dp)                                      :: dab, ra, rab(3), rb
       TYPE(gto_basis_set_type), POINTER                  :: fbasa, fbasb, obasa, obasb
-      TYPE(lri_int_type), POINTER                        :: lrii
       TYPE(neighbor_list_iterator_p_type), &
          DIMENSION(:), POINTER                           :: nl_iterator
 
-      CPASSERT(ASSOCIATED(lri_env))
-
-      NULLIFY (fbasa, fbasb, lrii, nl_iterator, obasa, obasb)
-
-      ALLOCATE (lri_ints)
+      NULLIFY (fbasa, fbasb, nl_iterator, obasa, obasb)
 
       dpa = lri_env%distant_pair_approximation
       ra = lri_env%r_in
@@ -631,113 +632,115 @@ CONTAINS
             ALLOCATE (lri_ints%lri_atom(iac)%lri_node(ilist)%lri_int(nneighbor))
          END IF
 
-         lrii => lri_ints%lri_atom(iac)%lri_node(ilist)%lri_int(jneighbor)
+         ASSOCIATE (lrii => lri_ints%lri_atom(iac)%lri_node(ilist)%lri_int(jneighbor))
 
-         nba = obasa%nsgf
-         nbb = obasb%nsgf
-         nfa = fbasa%nsgf
-         nfb = fbasb%nsgf
-         nn = nfa + nfb
+            nba = obasa%nsgf
+            nbb = obasb%nsgf
+            nfa = fbasa%nsgf
+            nfb = fbasb%nsgf
+            nn = nfa + nfb
 
-         IF (iatom == jatom .AND. dab < lri_env%delta) THEN
-            e1c = lri_env%exact_1c_terms
-         ELSE
-            e1c = .FALSE.
-         END IF
+            IF (iatom == jatom .AND. dab < lri_env%delta) THEN
+               e1c = lri_env%exact_1c_terms
+            ELSE
+               e1c = .FALSE.
+            END IF
 
-         IF (.NOT. e1c) THEN
-            ALLOCATE (lrii%abascr(nfa))
-            lrii%abascr = 0._dp
-            ALLOCATE (lrii%abbscr(nfb))
-            lrii%abbscr = 0._dp
-            lri_env%stat%oint_mem = lri_env%stat%oint_mem + nfa + nfb
-         END IF
+            IF (.NOT. e1c) THEN
+               ALLOCATE (lrii%abascr(nfa))
+               lrii%abascr = 0._dp
+               ALLOCATE (lrii%abbscr(nfb))
+               lrii%abbscr = 0._dp
+               lri_env%stat%oint_mem = lri_env%stat%oint_mem + nfa + nfb
+            END IF
 
-         IF (dpa) THEN
-            lrii%wsr = pswitch(dab, ra, rb, 0)
-            lrii%wff = 1.0_dp - lrii%wsr
-            lrii%dwsr = pswitch(dab, ra, rb, 1)
-            lrii%dwff = -lrii%dwsr
-            lrii%lrisr = (lrii%wsr > 0.0_dp)
-            lrii%lriff = (lrii%wff > 0.0_dp)
-            NULLIFY (lrii%asinv, lrii%bsinv)
-         ELSE
-            lrii%lrisr = .TRUE.
-            lrii%lriff = .FALSE.
-            lrii%wsr = 1.0_dp
-            lrii%wff = 0.0_dp
-            lrii%dwsr = 0.0_dp
-            lrii%dwff = 0.0_dp
-            NULLIFY (lrii%asinv, lrii%bsinv)
-         END IF
+            IF (dpa) THEN
+               lrii%wsr = pswitch(dab, ra, rb, 0)
+               lrii%wff = 1.0_dp - lrii%wsr
+               lrii%dwsr = pswitch(dab, ra, rb, 1)
+               lrii%dwff = -lrii%dwsr
+               lrii%lrisr = (lrii%wsr > 0.0_dp)
+               lrii%lriff = (lrii%wff > 0.0_dp)
+               NULLIFY (lrii%asinv, lrii%bsinv)
+            ELSE
+               lrii%lrisr = .TRUE.
+               lrii%lriff = .FALSE.
+               lrii%wsr = 1.0_dp
+               lrii%wff = 0.0_dp
+               lrii%dwsr = 0.0_dp
+               lrii%dwff = 0.0_dp
+               NULLIFY (lrii%asinv, lrii%bsinv)
+            END IF
 
-         ! compressed storage
-         NULLIFY (lrii%cabai%ca, lrii%cabbi%ca)
+            ! compressed storage
+            NULLIFY (lrii%cabai%ca, lrii%cabbi%ca)
 
-         ! full LRI method term
-         IF (lrii%lrisr) THEN
-            IF (e1c) THEN
+            ! full LRI method term
+            IF (lrii%lrisr) THEN
+               IF (e1c) THEN
+                  NULLIFY (lrii%n, lrii%sn)
+                  NULLIFY (lrii%sinv)
+               ELSE
+                  ALLOCATE (lrii%soo(nba, nbb))
+                  lri_env%stat%oint_mem = lri_env%stat%oint_mem + nba*nbb
+                  lrii%soo = 0._dp
+
+                  IF (iatom == jatom .AND. dab < lri_env%delta) THEN
+                     ALLOCATE (lrii%sinv(nfa, nfa))
+                     lri_env%stat%oint_mem = lri_env%stat%oint_mem + nfa*nfa
+                  ELSE
+                     ALLOCATE (lrii%sinv(nn, nn))
+                     lri_env%stat%oint_mem = lri_env%stat%oint_mem + nn*nn
+                  END IF
+                  lrii%sinv = 0._dp
+
+                  IF (iatom == jatom .AND. dab < lri_env%delta) THEN
+                     ALLOCATE (lrii%n(nfa), lrii%sn(nfa))
+                     lri_env%stat%oint_mem = lri_env%stat%oint_mem + 2.*nfa
+                  ELSE
+                     ALLOCATE (lrii%n(nn), lrii%sn(nn))
+                     lri_env%stat%oint_mem = lri_env%stat%oint_mem + 2.*nn
+                  END IF
+                  lrii%n = 0._dp
+                  lrii%sn = 0._dp
+               END IF
+            ELSE
                NULLIFY (lrii%n, lrii%sn)
                NULLIFY (lrii%sinv)
-            ELSE
-               ALLOCATE (lrii%soo(nba, nbb))
-               lri_env%stat%oint_mem = lri_env%stat%oint_mem + nba*nbb
-               lrii%soo = 0._dp
-
-               IF (iatom == jatom .AND. dab < lri_env%delta) THEN
-                  ALLOCATE (lrii%sinv(nfa, nfa))
-                  lri_env%stat%oint_mem = lri_env%stat%oint_mem + nfa*nfa
-               ELSE
-                  ALLOCATE (lrii%sinv(nn, nn))
-                  lri_env%stat%oint_mem = lri_env%stat%oint_mem + nn*nn
-               END IF
-               lrii%sinv = 0._dp
-
-               IF (iatom == jatom .AND. dab < lri_env%delta) THEN
-                  ALLOCATE (lrii%n(nfa), lrii%sn(nfa))
-                  lri_env%stat%oint_mem = lri_env%stat%oint_mem + 2.*nfa
-               ELSE
-                  ALLOCATE (lrii%n(nn), lrii%sn(nn))
-                  lri_env%stat%oint_mem = lri_env%stat%oint_mem + 2.*nn
-               END IF
-               lrii%n = 0._dp
-               lrii%sn = 0._dp
             END IF
-         ELSE
-            NULLIFY (lrii%n, lrii%sn)
-            NULLIFY (lrii%sinv)
-         END IF
 
-         ! far field approximation
-         IF (lrii%lriff) THEN
-            lrii%asinv => lri_env%bas_prop(ikind)%ri_ovlp_inv
-            lrii%bsinv => lri_env%bas_prop(jkind)%ri_ovlp_inv
-            ALLOCATE (lrii%na(nfa), lrii%sna(nfa))
-            lri_env%stat%oint_mem = lri_env%stat%oint_mem + 2.*nfa
-            lrii%na = 0._dp
-            lrii%sna = 0._dp
-            ALLOCATE (lrii%nb(nfb), lrii%snb(nfb))
-            lri_env%stat%oint_mem = lri_env%stat%oint_mem + 2.*nfb
-            lrii%nb = 0._dp
-            lrii%snb = 0._dp
-            IF (.NOT. ALLOCATED(lrii%soo)) THEN
-               ALLOCATE (lrii%soo(nba, nbb))
-               lri_env%stat%oint_mem = lri_env%stat%oint_mem + nba*nbb
-               lrii%soo = 0._dp
+            ! far field approximation
+            IF (lrii%lriff) THEN
+               lrii%asinv => lri_env%bas_prop(ikind)%ri_ovlp_inv
+               lrii%bsinv => lri_env%bas_prop(jkind)%ri_ovlp_inv
+               ALLOCATE (lrii%na(nfa), lrii%sna(nfa))
+               lri_env%stat%oint_mem = lri_env%stat%oint_mem + 2.*nfa
+               lrii%na = 0._dp
+               lrii%sna = 0._dp
+               ALLOCATE (lrii%nb(nfb), lrii%snb(nfb))
+               lri_env%stat%oint_mem = lri_env%stat%oint_mem + 2.*nfb
+               lrii%nb = 0._dp
+               lrii%snb = 0._dp
+               IF (.NOT. ALLOCATED(lrii%soo)) THEN
+                  ALLOCATE (lrii%soo(nba, nbb))
+                  lri_env%stat%oint_mem = lri_env%stat%oint_mem + nba*nbb
+                  lrii%soo = 0._dp
+               ELSE
+                  CPASSERT(SIZE(lrii%soo, 1) == nba .AND. SIZE(lrii%soo, 2) == nbb)
+               END IF
             ELSE
-               CPASSERT(SIZE(lrii%soo, 1) == nba .AND. SIZE(lrii%soo, 2) == nbb)
+               NULLIFY (lrii%na, lrii%sna)
+               NULLIFY (lrii%nb, lrii%snb)
             END IF
-         ELSE
-            NULLIFY (lrii%na, lrii%sna)
-            NULLIFY (lrii%nb, lrii%snb)
-         END IF
 
-         lrii%dmax_ab = 0._dp
-         lrii%dmax_oo = 0._dp
-         lrii%dmax_aba = 0._dp
-         lrii%dmax_abb = 0._dp
+            lrii%dmax_ab = 0._dp
+            lrii%dmax_oo = 0._dp
+            lrii%dmax_aba = 0._dp
+            lrii%dmax_abb = 0._dp
 
-         lrii%calc_force_pair = .FALSE.
+            lrii%calc_force_pair = .FALSE.
+
+         END ASSOCIATE
 
       END DO
 
@@ -753,19 +756,16 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE allocate_lri_ppl_ints(lri_env, lri_ppl_ints, atomic_kind_set)
 
-      TYPE(lri_environment_type), POINTER                :: lri_env
-      TYPE(lri_ppl_int_type), POINTER                    :: lri_ppl_ints
+      TYPE(lri_environment_type), INTENT(INOUT)          :: lri_env
+      TYPE(lri_ppl_int_type), INTENT(OUT)                :: lri_ppl_ints
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
 
       INTEGER                                            :: ikind, natom, nfa, nkind
       TYPE(atomic_kind_type), POINTER                    :: atomic_kind
       TYPE(gto_basis_set_type), POINTER                  :: fbasa
 
-      CPASSERT(ASSOCIATED(lri_env))
-
       lri_env%stat%ppli_mem = 0.0_dp
       nkind = SIZE(atomic_kind_set)
-      ALLOCATE (lri_ppl_ints)
       ALLOCATE (lri_ppl_ints%lri_ppl(nkind))
       DO ikind = 1, nkind
          fbasa => lri_env%ri_basis(ikind)%gto_basis_set
@@ -786,21 +786,16 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE allocate_lri_ints_rho(lri_env, lri_ints_rho, nkind)
 
-      TYPE(lri_environment_type), POINTER                :: lri_env
-      TYPE(lri_list_type), POINTER                       :: lri_ints_rho
+      TYPE(lri_environment_type), INTENT(INOUT)          :: lri_env
+      TYPE(lri_list_type), INTENT(OUT)                   :: lri_ints_rho
       INTEGER, INTENT(IN)                                :: nkind
 
       INTEGER                                            :: i, iac, iatom, ikind, ilist, jatom, &
                                                             jkind, jneighbor, nba, nbb, nlist, &
                                                             nneighbor
       TYPE(gto_basis_set_type), POINTER                  :: obasa, obasb
-      TYPE(lri_int_rho_type), POINTER                    :: lriir
       TYPE(neighbor_list_iterator_p_type), &
          DIMENSION(:), POINTER                           :: nl_iterator
-
-      CPASSERT(ASSOCIATED(lri_env))
-
-      ALLOCATE (lri_ints_rho)
 
       lri_ints_rho%nkind = nkind
       ALLOCATE (lri_ints_rho%lri_atom(nkind*nkind))
@@ -838,14 +833,15 @@ CONTAINS
             ALLOCATE (lri_ints_rho%lri_atom(iac)%lri_node(ilist)%lri_int_rho(nneighbor))
          END IF
 
-         lriir => lri_ints_rho%lri_atom(iac)%lri_node(ilist)%lri_int_rho(jneighbor)
+         ASSOCIATE (lriir => lri_ints_rho%lri_atom(iac)%lri_node(ilist)%lri_int_rho(jneighbor))
 
-         nba = obasa%nsgf
-         nbb = obasb%nsgf
+            nba = obasa%nsgf
+            nbb = obasb%nsgf
 
-         ALLOCATE (lriir%soaabb(nba, nba, nbb, nbb))
-         lriir%soaabb = 0._dp
-         lriir%dmax_aabb = 0._dp
+            ALLOCATE (lriir%soaabb(nba, nba, nbb, nbb))
+            lriir%soaabb = 0._dp
+            lriir%dmax_aabb = 0._dp
+         END ASSOCIATE
 
       END DO
 
@@ -862,7 +858,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE allocate_lri_rhos(lri_env, lri_rhos, nspin, nkind)
 
-      TYPE(lri_environment_type), POINTER                :: lri_env
+      TYPE(lri_environment_type), INTENT(INOUT)          :: lri_env
       TYPE(lri_list_p_type), DIMENSION(:), POINTER       :: lri_rhos
       INTEGER, INTENT(IN)                                :: nspin, nkind
 
@@ -870,15 +866,10 @@ CONTAINS
                                                             jatom, jkind, jneighbor, nfa, nfb, &
                                                             nlist, nn, nneighbor
       REAL(KIND=dp)                                      :: dab, rab(3)
-      TYPE(lri_int_type), POINTER                        :: lrii
-      TYPE(lri_list_type), POINTER                       :: lri_rho
-      TYPE(lri_rhoab_type), POINTER                      :: lrho
       TYPE(neighbor_list_iterator_p_type), &
          DIMENSION(:), POINTER                           :: nl_iterator
 
-      CPASSERT(ASSOCIATED(lri_env))
-
-      NULLIFY (lri_rho, lrho, lrii, nl_iterator)
+      NULLIFY (nl_iterator)
 
       ALLOCATE (lri_rhos(nspin))
 
@@ -896,69 +887,73 @@ CONTAINS
             lri_rhos(ispin)%lri_list%lri_atom(i)%natom = 0
          END DO
 
-         lri_rho => lri_rhos(ispin)%lri_list
+         ASSOCIATE (lri_rho => lri_rhos(ispin)%lri_list)
 
-         CALL neighbor_list_iterator_create(nl_iterator, lri_env%soo_list)
-         DO WHILE (neighbor_list_iterate(nl_iterator) == 0)
-            CALL get_iterator_info(nl_iterator, ikind=ikind, jkind=jkind, &
-                                   iatom=iatom, jatom=jatom, nlist=nlist, ilist=ilist, &
-                                   nnode=nneighbor, inode=jneighbor, r=rab)
+            CALL neighbor_list_iterator_create(nl_iterator, lri_env%soo_list)
+            DO WHILE (neighbor_list_iterate(nl_iterator) == 0)
+               CALL get_iterator_info(nl_iterator, ikind=ikind, jkind=jkind, &
+                                      iatom=iatom, jatom=jatom, nlist=nlist, ilist=ilist, &
+                                      nnode=nneighbor, inode=jneighbor, r=rab)
 
-            iac = ikind + nkind*(jkind - 1)
-            dab = SQRT(SUM(rab*rab))
+               iac = ikind + nkind*(jkind - 1)
+               dab = SQRT(SUM(rab*rab))
 
-            IF (.NOT. ASSOCIATED(lri_env%lri_ints%lri_atom(iac)%lri_node)) CYCLE
+               IF (.NOT. ASSOCIATED(lri_env%lri_ints%lri_atom(iac)%lri_node)) CYCLE
 
-            IF (.NOT. ASSOCIATED(lri_rho%lri_atom(iac)%lri_node)) THEN
-               lri_rho%lri_atom(iac)%natom = nlist
-               ALLOCATE (lri_rho%lri_atom(iac)%lri_node(nlist))
-               DO i = 1, nlist
-                  NULLIFY (lri_rho%lri_atom(iac)%lri_node(i)%lri_rhoab)
-                  lri_rho%lri_atom(iac)%lri_node(i)%nnode = 0
-               END DO
-            END IF
-            IF (.NOT. ASSOCIATED(lri_rho%lri_atom(iac)%lri_node(ilist)%lri_rhoab)) THEN
-               lri_rho%lri_atom(iac)%lri_node(ilist)%nnode = nneighbor
-               ALLOCATE (lri_rho%lri_atom(iac)%lri_node(ilist)%lri_rhoab(nneighbor))
-            END IF
-
-            lrho => lri_rho%lri_atom(iac)%lri_node(ilist)%lri_rhoab(jneighbor)
-            lrii => lri_env%lri_ints%lri_atom(iac)%lri_node(ilist)%lri_int(jneighbor)
-
-            lrho%nba = lrii%nba
-            lrho%nbb = lrii%nbb
-            lrho%nfa = lrii%nfa
-            lrho%nfb = lrii%nfb
-
-            nfa = lrho%nfa
-            nfb = lrho%nfb
-            nn = nfa + nfb
-
-            NULLIFY (lrho%avec, lrho%tvec)
-            IF (lrii%lrisr) THEN
-               IF (iatom == jatom .AND. dab < lri_env%delta) THEN
-                  IF (.NOT. lri_env%exact_1c_terms) THEN
-                     ALLOCATE (lrho%avec(nfa))
-                     ALLOCATE (lrho%tvec(nfa))
-                     lri_env%stat%rhos_mem = lri_env%stat%rhos_mem + 2*nfa
-                  END IF
-               ELSE
-                  ALLOCATE (lrho%avec(nn))
-                  ALLOCATE (lrho%tvec(nn))
-                  lri_env%stat%rhos_mem = lri_env%stat%rhos_mem + 2*nn
+               IF (.NOT. ASSOCIATED(lri_rho%lri_atom(iac)%lri_node)) THEN
+                  lri_rho%lri_atom(iac)%natom = nlist
+                  ALLOCATE (lri_rho%lri_atom(iac)%lri_node(nlist))
+                  DO i = 1, nlist
+                     NULLIFY (lri_rho%lri_atom(iac)%lri_node(i)%lri_rhoab)
+                     lri_rho%lri_atom(iac)%lri_node(i)%nnode = 0
+                  END DO
                END IF
-            END IF
-            NULLIFY (lrho%aveca, lrho%tveca)
-            NULLIFY (lrho%avecb, lrho%tvecb)
-            IF (lrii%lriff) THEN
-               ALLOCATE (lrho%aveca(nfa))
-               ALLOCATE (lrho%avecb(nfb))
-               ALLOCATE (lrho%tveca(nfa))
-               ALLOCATE (lrho%tvecb(nfb))
-               lri_env%stat%rhos_mem = lri_env%stat%rhos_mem + 2*(nfa + nfb)
-            END IF
+               IF (.NOT. ASSOCIATED(lri_rho%lri_atom(iac)%lri_node(ilist)%lri_rhoab)) THEN
+                  lri_rho%lri_atom(iac)%lri_node(ilist)%nnode = nneighbor
+                  ALLOCATE (lri_rho%lri_atom(iac)%lri_node(ilist)%lri_rhoab(nneighbor))
+               END IF
 
-         END DO
+               ASSOCIATE (lrho => lri_rho%lri_atom(iac)%lri_node(ilist)%lri_rhoab(jneighbor), &
+                          lrii => lri_env%lri_ints%lri_atom(iac)%lri_node(ilist)%lri_int(jneighbor))
+
+                  lrho%nba = lrii%nba
+                  lrho%nbb = lrii%nbb
+                  lrho%nfa = lrii%nfa
+                  lrho%nfb = lrii%nfb
+
+                  nfa = lrho%nfa
+                  nfb = lrho%nfb
+                  nn = nfa + nfb
+
+                  NULLIFY (lrho%avec, lrho%tvec)
+                  IF (lrii%lrisr) THEN
+                     IF (iatom == jatom .AND. dab < lri_env%delta) THEN
+                        IF (.NOT. lri_env%exact_1c_terms) THEN
+                           ALLOCATE (lrho%avec(nfa))
+                           ALLOCATE (lrho%tvec(nfa))
+                           lri_env%stat%rhos_mem = lri_env%stat%rhos_mem + 2*nfa
+                        END IF
+                     ELSE
+                        ALLOCATE (lrho%avec(nn))
+                        ALLOCATE (lrho%tvec(nn))
+                        lri_env%stat%rhos_mem = lri_env%stat%rhos_mem + 2*nn
+                     END IF
+                  END IF
+                  NULLIFY (lrho%aveca, lrho%tveca)
+                  NULLIFY (lrho%avecb, lrho%tvecb)
+                  IF (lrii%lriff) THEN
+                     ALLOCATE (lrho%aveca(nfa))
+                     ALLOCATE (lrho%avecb(nfb))
+                     ALLOCATE (lrho%tveca(nfa))
+                     ALLOCATE (lrho%tvecb(nfb))
+                     lri_env%stat%rhos_mem = lri_env%stat%rhos_mem + 2*(nfa + nfb)
+                  END IF
+
+               END ASSOCIATE
+
+            END DO
+
+         END ASSOCIATE
 
          CALL neighbor_list_iterator_release(nl_iterator)
 
@@ -974,16 +969,14 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE allocate_lri_coefs(lri_env, lri_density, atomic_kind_set)
 
-      TYPE(lri_environment_type), POINTER                :: lri_env
-      TYPE(lri_density_type), POINTER                    :: lri_density
+      TYPE(lri_environment_type), INTENT(INOUT)          :: lri_env
+      TYPE(lri_density_type), INTENT(INOUT)              :: lri_density
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
 
       INTEGER                                            :: ikind, ispin, natom, nkind, nsgf, nspin
       TYPE(atomic_kind_type), POINTER                    :: atomic_kind
       TYPE(gto_basis_set_type), POINTER                  :: fbas
       TYPE(lri_spin_type), DIMENSION(:), POINTER         :: lri_coefs
-
-      CPASSERT(ASSOCIATED(lri_density))
 
       NULLIFY (atomic_kind, fbas, lri_coefs)
 
@@ -1029,16 +1022,12 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE allocate_lri_force_components(lri_force, nfa, nfb)
 
-      TYPE(lri_force_type), POINTER                      :: lri_force
+      TYPE(lri_force_type), INTENT(OUT)                  :: lri_force
       INTEGER, INTENT(IN)                                :: nfa, nfb
 
       INTEGER                                            :: nn
 
       nn = nfa + nfb
-
-      CPASSERT(.NOT. ASSOCIATED(lri_force))
-
-      ALLOCATE (lri_force)
 
       ALLOCATE (lri_force%st(nn))
       lri_force%st = 0._dp
@@ -1106,13 +1095,11 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE deallocate_lri_ints(lri_ints)
 
-      TYPE(lri_list_type), POINTER                       :: lri_ints
+      TYPE(lri_list_type), INTENT(INOUT)                 :: lri_ints
 
       INTEGER                                            :: i, iatom, ijkind, inode, natom, nkind, &
                                                             nnode
-      TYPE(lri_int_type), POINTER                        :: lri_int
 
-      CPASSERT(ASSOCIATED(lri_ints))
       nkind = lri_ints%nkind
 
       IF (nkind > 0) THEN
@@ -1124,7 +1111,7 @@ CONTAINS
                   IF (nnode > 0) THEN
                      IF (ASSOCIATED(lri_ints%lri_atom(ijkind)%lri_node(iatom)%lri_int)) THEN
                         DO inode = 1, nnode
-                           lri_int => lri_ints%lri_atom(ijkind)%lri_node(iatom)%lri_int(inode)
+                           ASSOCIATE (lri_int => lri_ints%lri_atom(ijkind)%lri_node(iatom)%lri_int(inode))
                            IF (ALLOCATED(lri_int%sab)) THEN
                               DEALLOCATE (lri_int%sab)
                            END IF
@@ -1193,6 +1180,7 @@ CONTAINS
                               END DO
                               DEALLOCATE (lri_int%cabbi%ca)
                            END IF
+                           END ASSOCIATE
                         END DO
                         DEALLOCATE (lri_ints%lri_atom(ijkind)%lri_node(iatom)%lri_int)
                      END IF
@@ -1203,7 +1191,6 @@ CONTAINS
          END DO
          DEALLOCATE (lri_ints%lri_atom)
       END IF
-      DEALLOCATE (lri_ints)
 
    END SUBROUTINE deallocate_lri_ints
 
@@ -1213,21 +1200,17 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE deallocate_lri_ppl_ints(lri_ppl_ints)
 
-      TYPE(lri_ppl_int_type), POINTER                    :: lri_ppl_ints
+      TYPE(lri_ppl_int_type), INTENT(INOUT)              :: lri_ppl_ints
 
       INTEGER                                            :: ikind, nkind
 
-      CPASSERT(ASSOCIATED(lri_ppl_ints))
-      IF (ASSOCIATED(lri_ppl_ints%lri_ppl)) THEN
-         nkind = SIZE(lri_ppl_ints%lri_ppl)
-         DO ikind = 1, nkind
-            IF (ASSOCIATED(lri_ppl_ints%lri_ppl(ikind)%v_int)) THEN
-               DEALLOCATE (lri_ppl_ints%lri_ppl(ikind)%v_int)
-            END IF
-         END DO
-         DEALLOCATE (lri_ppl_ints%lri_ppl)
-      END IF
-      DEALLOCATE (lri_ppl_ints)
+      nkind = SIZE(lri_ppl_ints%lri_ppl)
+      DO ikind = 1, nkind
+         IF (ASSOCIATED(lri_ppl_ints%lri_ppl(ikind)%v_int)) THEN
+            DEALLOCATE (lri_ppl_ints%lri_ppl(ikind)%v_int)
+         END IF
+      END DO
+      DEALLOCATE (lri_ppl_ints%lri_ppl)
 
    END SUBROUTINE deallocate_lri_ppl_ints
 
@@ -1237,11 +1220,10 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE deallocate_lri_ints_rho(lri_ints_rho)
 
-      TYPE(lri_list_type), POINTER                       :: lri_ints_rho
+      TYPE(lri_list_type), INTENT(INOUT)                 :: lri_ints_rho
 
       INTEGER                                            :: iatom, ijkind, inode, natom, nkind, nnode
 
-      CPASSERT(ASSOCIATED(lri_ints_rho))
       nkind = lri_ints_rho%nkind
 
       IF (nkind > 0) THEN
@@ -1266,7 +1248,6 @@ CONTAINS
          END DO
          DEALLOCATE (lri_ints_rho%lri_atom)
       END IF
-      DEALLOCATE (lri_ints_rho)
 
    END SUBROUTINE deallocate_lri_ints_rho
 
@@ -1280,43 +1261,42 @@ CONTAINS
 
       INTEGER                                            :: i, iatom, ijkind, inode, natom, nkind, &
                                                             nnode
-      TYPE(lri_list_type), POINTER                       :: lri_rho
-      TYPE(lri_rhoab_type), POINTER                      :: lri_rhoab
 
       IF (ASSOCIATED(lri_rhos)) THEN
          DO i = 1, SIZE(lri_rhos)
-            lri_rho => lri_rhos(i)%lri_list
-            CPASSERT(ASSOCIATED(lri_rho))
-            nkind = lri_rho%nkind
-            IF (nkind > 0) THEN
-               CPASSERT(ASSOCIATED(lri_rho%lri_atom))
-               DO ijkind = 1, SIZE(lri_rho%lri_atom)
-                  natom = lri_rho%lri_atom(ijkind)%natom
-                  IF (natom > 0) THEN
-                     CPASSERT(ASSOCIATED(lri_rho%lri_atom(ijkind)%lri_node))
-                     DO iatom = 1, natom
-                        nnode = lri_rho%lri_atom(ijkind)%lri_node(iatom)%nnode
-                        IF (nnode > 0) THEN
-                           IF (ASSOCIATED(lri_rho%lri_atom(ijkind)%lri_node(iatom)%lri_rhoab)) THEN
-                              DO inode = 1, nnode
-                                 lri_rhoab => lri_rho%lri_atom(ijkind)%lri_node(iatom)%lri_rhoab(inode)
-                                 IF (ASSOCIATED(lri_rhoab%avec)) DEALLOCATE (lri_rhoab%avec)
-                                 IF (ASSOCIATED(lri_rhoab%tvec)) DEALLOCATE (lri_rhoab%tvec)
-                                 IF (ASSOCIATED(lri_rhoab%aveca)) DEALLOCATE (lri_rhoab%aveca)
-                                 IF (ASSOCIATED(lri_rhoab%tveca)) DEALLOCATE (lri_rhoab%tveca)
-                                 IF (ASSOCIATED(lri_rhoab%avecb)) DEALLOCATE (lri_rhoab%avecb)
-                                 IF (ASSOCIATED(lri_rhoab%tvecb)) DEALLOCATE (lri_rhoab%tvecb)
-                              END DO
-                              DEALLOCATE (lri_rho%lri_atom(ijkind)%lri_node(iatom)%lri_rhoab)
+            ASSOCIATE (lri_rho => lri_rhos(i)%lri_list)
+               nkind = lri_rho%nkind
+               IF (nkind > 0) THEN
+                  CPASSERT(ASSOCIATED(lri_rho%lri_atom))
+                  DO ijkind = 1, SIZE(lri_rho%lri_atom)
+                     natom = lri_rho%lri_atom(ijkind)%natom
+                     IF (natom > 0) THEN
+                        CPASSERT(ASSOCIATED(lri_rho%lri_atom(ijkind)%lri_node))
+                        DO iatom = 1, natom
+                           nnode = lri_rho%lri_atom(ijkind)%lri_node(iatom)%nnode
+                           IF (nnode > 0) THEN
+                              IF (ASSOCIATED(lri_rho%lri_atom(ijkind)%lri_node(iatom)%lri_rhoab)) THEN
+                                 DO inode = 1, nnode
+                                    ASSOCIATE (lri_rhoab => lri_rho%lri_atom(ijkind)%lri_node(iatom)%lri_rhoab(inode))
+                                       IF (ASSOCIATED(lri_rhoab%avec)) DEALLOCATE (lri_rhoab%avec)
+                                       IF (ASSOCIATED(lri_rhoab%tvec)) DEALLOCATE (lri_rhoab%tvec)
+                                       IF (ASSOCIATED(lri_rhoab%aveca)) DEALLOCATE (lri_rhoab%aveca)
+                                       IF (ASSOCIATED(lri_rhoab%tveca)) DEALLOCATE (lri_rhoab%tveca)
+                                       IF (ASSOCIATED(lri_rhoab%avecb)) DEALLOCATE (lri_rhoab%avecb)
+                                       IF (ASSOCIATED(lri_rhoab%tvecb)) DEALLOCATE (lri_rhoab%tvecb)
+                                    END ASSOCIATE
+                                 END DO
+                                 DEALLOCATE (lri_rho%lri_atom(ijkind)%lri_node(iatom)%lri_rhoab)
+                              END IF
                            END IF
-                        END IF
-                     END DO
-                     DEALLOCATE (lri_rho%lri_atom(ijkind)%lri_node)
-                  END IF
-               END DO
-               DEALLOCATE (lri_rho%lri_atom)
-            END IF
-            DEALLOCATE (lri_rho)
+                        END DO
+                        DEALLOCATE (lri_rho%lri_atom(ijkind)%lri_node)
+                     END IF
+                  END DO
+                  DEALLOCATE (lri_rho%lri_atom)
+               END IF
+            END ASSOCIATE
+            DEALLOCATE (lri_rhos(i)%lri_list)
          END DO
 
          DEALLOCATE (lri_rhos)
@@ -1366,25 +1346,20 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE deallocate_lri_force_components(lri_force)
 
-      TYPE(lri_force_type), POINTER                      :: lri_force
+      TYPE(lri_force_type), INTENT(INOUT)                :: lri_force
 
-      IF (ASSOCIATED(lri_force)) THEN
-         IF (ASSOCIATED(lri_force%st)) THEN
-            DEALLOCATE (lri_force%st)
-         END IF
-         IF (ASSOCIATED(lri_force%dssn)) THEN
-            DEALLOCATE (lri_force%dssn)
-         END IF
-         IF (ASSOCIATED(lri_force%dsst)) THEN
-            DEALLOCATE (lri_force%dsst)
-         END IF
-         IF (ASSOCIATED(lri_force%dtvec)) THEN
-            DEALLOCATE (lri_force%dtvec)
-         END IF
-         DEALLOCATE (lri_force)
+      IF (ASSOCIATED(lri_force%st)) THEN
+         DEALLOCATE (lri_force%st)
       END IF
-
-      NULLIFY (lri_force)
+      IF (ASSOCIATED(lri_force%dssn)) THEN
+         DEALLOCATE (lri_force%dssn)
+      END IF
+      IF (ASSOCIATED(lri_force%dsst)) THEN
+         DEALLOCATE (lri_force%dsst)
+      END IF
+      IF (ASSOCIATED(lri_force%dtvec)) THEN
+         DEALLOCATE (lri_force%dtvec)
+      END IF
 
    END SUBROUTINE deallocate_lri_force_components
 

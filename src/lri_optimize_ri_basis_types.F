@@ -75,9 +75,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE create_lri_opt(lri_opt)
 
-      TYPE(lri_opt_type), POINTER                        :: lri_opt
-
-      ALLOCATE (lri_opt)
+      TYPE(lri_opt_type), INTENT(OUT)                    :: lri_opt
 
       NULLIFY (lri_opt%ri_gcc_orig)
       NULLIFY (lri_opt%subset)
@@ -101,30 +99,27 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE deallocate_lri_opt(lri_opt)
 
-      TYPE(lri_opt_type), POINTER                        :: lri_opt
+      TYPE(lri_opt_type), INTENT(INOUT)                  :: lri_opt
 
       INTEGER                                            :: i
 
-      IF (ASSOCIATED(lri_opt)) THEN
-         IF (ASSOCIATED(lri_opt%subset)) THEN
-            DO i = 1, SIZE(lri_opt%subset)
-               DEALLOCATE (lri_opt%subset(i)%ncont_l)
-            END DO
-            DEALLOCATE (lri_opt%subset)
-         END IF
-         IF (ASSOCIATED(lri_opt%x)) THEN
-            DEALLOCATE (lri_opt%x)
-         END IF
-         IF (ASSOCIATED(lri_opt%zet_init)) THEN
-            DEALLOCATE (lri_opt%zet_init)
-         END IF
-         IF (ASSOCIATED(lri_opt%ri_gcc_orig)) THEN
-            DO i = 1, SIZE(lri_opt%ri_gcc_orig)
-               DEALLOCATE (lri_opt%ri_gcc_orig(i)%gcc_orig)
-            END DO
-            DEALLOCATE (lri_opt%ri_gcc_orig)
-         END IF
-         DEALLOCATE (lri_opt)
+      IF (ASSOCIATED(lri_opt%subset)) THEN
+         DO i = 1, SIZE(lri_opt%subset)
+            DEALLOCATE (lri_opt%subset(i)%ncont_l)
+         END DO
+         DEALLOCATE (lri_opt%subset)
+      END IF
+      IF (ASSOCIATED(lri_opt%x)) THEN
+         DEALLOCATE (lri_opt%x)
+      END IF
+      IF (ASSOCIATED(lri_opt%zet_init)) THEN
+         DEALLOCATE (lri_opt%zet_init)
+      END IF
+      IF (ASSOCIATED(lri_opt%ri_gcc_orig)) THEN
+         DO i = 1, SIZE(lri_opt%ri_gcc_orig)
+            DEALLOCATE (lri_opt%ri_gcc_orig(i)%gcc_orig)
+         END DO
+         DEALLOCATE (lri_opt%ri_gcc_orig)
       END IF
    END SUBROUTINE deallocate_lri_opt
 
@@ -140,7 +135,7 @@ CONTAINS
 
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: gcc_orig
       TYPE(gto_basis_set_type), POINTER                  :: gto_basis_set
-      TYPE(lri_opt_type), POINTER                        :: lri_opt
+      TYPE(lri_opt_type), INTENT(INOUT)                  :: lri_opt
 
       INTEGER                                            :: il, ipgf, iset, ishell, l, maxpgf, &
                                                             maxshell, nl, nset
@@ -203,7 +198,7 @@ CONTAINS
 
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: gcc
       TYPE(gto_basis_set_type), POINTER                  :: gto_basis_set
-      TYPE(lri_opt_type), POINTER                        :: lri_opt
+      TYPE(lri_opt_type), INTENT(INOUT)                  :: lri_opt
 
       INTEGER                                            :: il, iset, ishell, ishell1, ishell2, &
                                                             istart, nset
