@@ -504,7 +504,8 @@ CONTAINS
       END DO
 
       ! Exact diagonalisation requires complex workspaces
-      IF (tdagw_env%mat_exp_method == do_exact) THEN
+      ! IF (tdagw_env%mat_exp_method == do_exact) THEN
+      IF (.TRUE.) THEN
          NULLIFY(tdagw_env%complex_s)
          ALLOCATE(tdagw_env%complex_s(tdagw_env%n_spin))
          DO i=1,tdagw_env%n_spin
@@ -623,7 +624,8 @@ CONTAINS
          CALL dbcsr_release(tdagw_env%rho_dbcsr)
          DEALLOCATE(tdagw_env%rho_dbcsr)
       END IF
-      IF (tdagw_env%mat_exp_method == do_exact) THEN
+      ! IF (tdagw_env%mat_exp_method == do_exact) THEN
+      IF (.TRUE.) THEN
          DO i=1,SIZE(tdagw_env%complex_s)
             CALL cp_cfm_release(tdagw_env%complex_s(i)%matrix)
          END DO
