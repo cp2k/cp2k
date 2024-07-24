@@ -95,7 +95,7 @@ MODULE bibliography
                             Caldeweyher2017, Caldeweyher2019, Caldeweyher2020, Freeman1977, Gruneis2009, &
                             Stein2022, Stein2024, &
                             Blase2018, Blase2020, Bruneval2015, Golze2019, Gui2018, Jacquemin2017, Liu2020, &
-                            Sander2015, Schreiber2008, Hueser2013, vanSetten2015
+                            Sander2015, Schreiber2008, Hueser2013, vanSetten2015, Setyawan2010
 
 CONTAINS
 
@@ -5401,6 +5401,21 @@ CONTAINS
                          "DI 10.1021/acs.jctc.5b00453", &
                          "ER"), &
                          DOI="10.1021/acs.jctc.5b00453")
+
+      CALL add_reference(key=Setyawan2010, ISI_record=s2a( &
+                         "VR 1.0", &
+                         "PT J", &
+                         "TI High-throughput electronic band structure calculations: Challenges and tools", &
+                         "AF Setyawan, Wahyu", &
+                         "   Curtarolo, Stefano", &
+                         "SO Comput. Mater. Sci.", &
+                         "VL 49", &
+                         "BP 299", &
+                         "EP 312", &
+                         "PY 2010", &
+                         "DI 10.1016/j.commatsci.2010.05.010", &
+                         "ER"), &
+                         DOI="10.1016/j.commatsci.2010.05.010")
 
    END SUBROUTINE add_all_references
 
