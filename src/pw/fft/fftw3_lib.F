@@ -33,8 +33,8 @@ MODULE fftw3_lib
    IMPLICIT NONE
    PRIVATE
 
-   PUBLIC :: fftw3_do_init, fftw3_do_cleanup, fftw3_get_lengths, fftw3_3d, fftw3_1d
-   PUBLIC :: fftw3_destroy_plan, fftw3_create_plan_1d, fftw3_create_plan_3d
+   PUBLIC :: fftw3_do_init, fftw3_do_cleanup, fftw3_get_lengths, fftw3_3d, fftw3_2d, fftw3_1d
+   PUBLIC :: fftw3_destroy_plan, fftw3_create_plan_1d, fftw3_create_plan_2d, fftw3_create_plan_3d
    PUBLIC :: fftw_alloc, fftw_dealloc
 
    INTEGER(C_INT), SAVE :: fftw_plan_type = -1_C_INT
@@ -1077,6 +1077,138 @@ CONTAINS
 !> \param zin ...
 !> \param zout ...
 ! **************************************************************************************************
+   SUBROUTINE fftw3_create_plan_2d(plan, zin, zout)
+
+      TYPE(fft_plan_type), INTENT(INOUT)                 :: plan
+      COMPLEX(KIND=dp), DIMENSION(plan%n*plan%m), INTENT(INOUT)      :: zin, zout
+#if defined ( __FFTW3 )
+      INTEGER                                            :: ii, di, io, DO, num_threads, num_rows, n_2d(2)
+
+      plan%n = plan%n_3d(1)*plan%n_3d(2)
+      plan%m = plan%n_3d(3)
+
+      num_threads = 1
+      plan%separated_plans = .FALSE.
+!$OMP PARALLEL DEFAULT(NONE), &
+!$OMP          SHARED(NUM_THREADS)
+!$OMP MASTER
+!$    num_threads = omp_get_num_threads()
+!$OMP END MASTER
+!$OMP END PARALLEL
+
+      num_rows = plan%m/num_threads
+!$    plan%num_threads_needed = num_threads
+
+! Check for number of rows less than num_threads
+!$    IF (plan%m < num_threads) THEN
+!$       num_rows = 1
+!$       plan%num_threads_needed = plan%m
+!$    END IF
+
+! Check for total number of rows not divisible by num_threads
+!$    IF (num_rows*plan%num_threads_needed .NE. plan%m) THEN
+!$       plan%need_alt_plan = .TRUE.
+!$       plan%alt_num_rows = plan%m - (plan%num_threads_needed - 1)*num_rows
+!$    END IF
+
+!$    plan%num_rows = num_rows
+      ii = 1
+      di = plan%n
+      io = 1
+      DO = plan%n
+      IF (plan%trans) THEN
+         ii = plan%m
+         di = 1
+      END IF
+
+      IF (plan%trans) THEN
+         n_2d = [plan%n_3d(2), plan%n_3d(1)]
+      ELSE
+         n_2d = [plan%n_3d(2), plan%n_3d(1)]
+      END IF
+
+      plan%fftw_plan_fw = fftw_plan_many_dft(2, n_2d, num_rows, zin, [0, 0], ii, di, &
+                                             zout, [0, 0], io, DO, FFTW_FORWARD, fftw_plan_type)
+
+!$    IF (plan%need_alt_plan) THEN
+!$       plan%alt_fftw_plan_fw = fftw_plan_many_dft(2, n_2d, plan%alt_num_rows, zin, [0, 0], ii, di, &
+!$                                                  zout, [0, 0], io, DO, FFTW_FORWARD, fftw_plan_type)
+!$    END IF
+
+      ii = 1
+      di = plan%n
+      io = 1
+      DO = plan%n
+      IF (plan%trans) THEN
+         io = plan%m
+         DO = 1
+      END IF
+
+      plan%fftw_plan_bw = fftw_plan_many_dft(2, n_2d, num_rows, zin, [0, 0], ii, di, &
+                                             zout, [0, 0], io, DO, FFTW_BACKWARD, fftw_plan_type)
+
+!$    IF (plan%need_alt_plan) THEN
+!$       plan%alt_fftw_plan_bw = fftw_plan_many_dft(2, n_2d, plan%alt_num_rows, zin, [0, 0], ii, di, &
+!$                                                  zout, [0, 0], io, DO, FFTW_BACKWARD, fftw_plan_type)
+!$    END IF
+
+      BLOCK
+         INTEGER :: i, stat
+         TYPE(fft_plan_type) :: plan_1d(2)
+         COMPLEX(KIND=dp), DIMENSION(PRODUCT(plan%n_3d)) :: buffer
+
+         plan_1d(1)%trans = plan%trans
+         plan_1d(1)%n = plan%n_3d(1)
+         plan_1d(1)%m = plan%n_3d(2)*plan%n_3d(3)
+         plan_1d(2)%trans = plan%trans
+         plan_1d(2)%n = plan%n_3d(2)
+         plan_1d(2)%m = plan%n_3d(1)*plan%n_3d(3)
+
+         CALL fftw3_create_plan_1d(plan_1d(1), zin, zout)
+         CALL fftw3_create_plan_1d(plan_1d(2), zin, zout)
+
+         IF (plan%trans) THEN
+            zin = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
+            DO i = 1, plan%m
+               zin(i + (i - 1)*plan%m) = CMPLX(1.0_dp, 0.0_dp, KIND=dp)
+            END DO
+            CALL fftw3_1d(plan_1d(1), FWFFT, zin, buffer, 1.0_dp, stat)
+            CALL fftw3_1d(plan_1d(2), FWFFT, buffer, zout, 1.0_dp, stat)
+            CALL fftw3_2d(plan, FWFFT, zin, buffer, 1.0_dp, stat)
+         ELSE
+            zin = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
+            DO i = 1, plan%m
+               zin(i + i*plan%n) = CMPLX(1.0_dp, 0.0_dp, KIND=dp)
+            END DO
+            CALL fftw3_1d(plan_1d(1), FWFFT, zin, buffer, 1.0_dp, stat)
+            CALL fftw3_1d(plan_1d(2), FWFFT, buffer, zout, 1.0_dp, stat)
+            CALL fftw3_2d(plan, FWFFT, zin, buffer, 1.0_dp, stat)
+         END IF
+         !WRITE (*, *) "test 2d", plan%n_3d, plan%n, plan%m, num_rows, NORM2(ABS(zin)), &
+         !NORM2(ABS(zout)), NORM2(ABS(buffer)), MAXVAL(ABS(zout - buffer))
+         !WRITE (*, *)
+         !WRITE (*, *) "exact", zout
+         !WRITE (*, *)
+         !WRITE (*, *) "2d", buffer
+
+      END BLOCK
+
+#else
+      MARK_USED(plan)
+      MARK_USED(zin)
+      MARK_USED(zout)
+#endif
+
+   END SUBROUTINE fftw3_create_plan_2d
+
+! **************************************************************************************************
+
+! **************************************************************************************************
+!> \brief ...
+!> \param plan ...
+!> \param zin ...
+!> \param zout ...
+! **************************************************************************************************
    SUBROUTINE fftw3_create_plan_1d(plan, zin, zout)
 
       TYPE(fft_plan_type), INTENT(INOUT)                 :: plan
@@ -1199,7 +1331,7 @@ CONTAINS
 !> \param scale ...
 !> \param stat ...
 ! **************************************************************************************************
-   SUBROUTINE fftw3_1d(plan, fsign, zin, zout, scale, stat)
+   SUBROUTINE fftw3_2d(plan, fsign, zin, zout, scale, stat)
       TYPE(fft_plan_type), INTENT(IN)                    :: plan
       INTEGER, INTENT(IN)                                :: fsign
       COMPLEX(KIND=dp), DIMENSION(plan%n*plan%m), INTENT(INOUT), TARGET :: zin, zout
@@ -1272,6 +1404,94 @@ CONTAINS
 
 !$    else
 !$    end if
+
+#endif
+
+!$OMP END PARALLEL
+
+      END SUBROUTINE fftw3_2d
+
+! **************************************************************************************************
+!> \brief ...
+!> \param plan ...
+!> \param zin ...
+!> \param zout ...
+!> \param scale ...
+!> \param stat ...
+! **************************************************************************************************
+      SUBROUTINE fftw3_1d(plan, fsign, zin, zout, scale, stat)
+         TYPE(fft_plan_type), INTENT(IN)                    :: plan
+         INTEGER, INTENT(IN)                                :: fsign
+         COMPLEX(KIND=dp), DIMENSION(plan%n*plan%m), INTENT(INOUT), TARGET :: zin, zout
+         REAL(KIND=dp), INTENT(IN)                          :: scale
+         INTEGER, INTENT(OUT)                               :: stat
+
+         INTEGER                                            :: in_offset, my_id, num_rows, out_offset, &
+                                                               scal_offset
+         TYPE(C_PTR)                                        :: fftw_plan
+
+!------------------------------------------------------------------------------
+
+         my_id = 0
+         num_rows = plan%m
+
+!$OMP PARALLEL DEFAULT(NONE), &
+!$OMP          PRIVATE(my_id,num_rows,in_offset,out_offset,scal_offset,fftw_plan), &
+!$OMP          SHARED(zin,zout,plan,scale,stat,fsign)
+!$       my_id = omp_get_thread_num()
+
+!$       if (my_id < plan%num_threads_needed) then
+
+            IF (fsign == FWFFT) THEN
+               fftw_plan = plan%fftw_plan_fw
+            ELSE
+               fftw_plan = plan%fftw_plan_bw
+            END IF
+
+            in_offset = 1
+            out_offset = 1
+            scal_offset = 1
+
+!$          in_offset = 1 + plan%num_rows*my_id*plan%n
+!$          out_offset = 1 + plan%num_rows*my_id*plan%n
+!$          IF (fsign == FWFFT .AND. plan%trans) THEN
+!$             in_offset = 1 + plan%num_rows*my_id
+!$          ELSEIF (fsign == BWFFT .AND. plan%trans) THEN
+!$             out_offset = 1 + plan%num_rows*my_id
+!$          END IF
+!$          scal_offset = 1 + plan%n*plan%num_rows*my_id
+!$          IF (plan%need_alt_plan .AND. my_id .EQ. plan%num_threads_needed - 1) THEN
+!$             num_rows = plan%alt_num_rows
+!$             IF (fsign == FWFFT) THEN
+!$                fftw_plan = plan%alt_fftw_plan_fw
+!$             ELSE
+!$                fftw_plan = plan%alt_fftw_plan_bw
+!$             END IF
+!$          ELSE
+!$             num_rows = plan%num_rows
+!$          END IF
+
+#if defined ( __FFTW3 )
+!$OMP MASTER
+            stat = 1
+!$OMP END MASTER
+            CALL fftw_execute_dft(fftw_plan, zin(in_offset:in_offset), zout(out_offset:out_offset))
+!$       end if
+! all theads need to meet at this barrier
+!$OMP BARRIER
+!$       if (my_id < plan%num_threads_needed) then
+            IF (scale /= 1.0_dp) CALL zdscal(plan%n*num_rows, scale, zout(scal_offset:scal_offset), 1)
+!$       end if
+
+#else
+         MARK_USED(plan)
+         MARK_USED(scale)
+         MARK_USED(zin)
+         MARK_USED(zout)
+         stat = 0
+
+!$       else
+!$       end if
 
 #endif
 

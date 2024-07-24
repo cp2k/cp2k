@@ -798,7 +798,7 @@ CONTAINS
             END IF
 
             ! FFT along y and z
-            CALL fft_2d(fft_scratch%fft_plan(1:2), fsign, cin, sbuf, tbuf, 1._dp, stat)
+            CALL fft_2d(fft_scratch%fft_plan(1), fsign, cin, sbuf, tbuf, 1._dp, stat)
 
             IF (test) THEN
                sum_data = ABS(SUM(tbuf))
@@ -868,7 +868,7 @@ CONTAINS
             END IF
 
             ! FFT along y and z
-            CALL fft_2d(fft_scratch%fft_plan(1:2), fsign, tbuf, sbuf, cin, 1._dp, stat)
+            CALL fft_2d(fft_scratch%fft_plan(1), fsign, tbuf, sbuf, cin, 1._dp, stat)
 
             IF (test) THEN
                sum_data = ABS(SUM(cin))
@@ -1208,7 +1208,7 @@ CONTAINS
             abuf => fft_scratch%a3buf
             bbuf => fft_scratch%a4buf
             ! FFT along z and y
-            CALL fft_2d(fft_scratch%fft_plan(1:2), fsign, zin, abuf, bbuf, norm, stat)
+            CALL fft_2d(fft_scratch%fft_plan(1), fsign, zin, abuf, bbuf, norm, stat)
 
             abuf => fft_scratch%a5buf
 
@@ -1285,7 +1285,7 @@ CONTAINS
             END IF
 
             ! FFT along y and z
-            CALL fft_2d(fft_scratch%fft_plan(1:2), fsign, abuf, bbuf, zin, norm, stat)
+            CALL fft_2d(fft_scratch%fft_plan(1), fsign, abuf, bbuf, zin, norm, stat)
 
             IF (test) THEN
                sum_data = ABS(SUM(zin))
@@ -2968,7 +2968,7 @@ CONTAINS
 
                !set up fft plans
                CALL fft_alloc(complex_array_2d, [mx1*my1, n(3)])
-               CALL fft_create_plan_2d(fft_scratch_new%fft_scratch%fft_plan(1:2), .TRUE., mz1, my1, mx1, &
+               CALL fft_create_plan_2d(fft_scratch_new%fft_scratch%fft_plan(1), .TRUE., mz1, my1, mx1, &
                                        fft_scratch_new%fft_scratch%a3buf, fft_scratch_new%fft_scratch%a4buf)
                CALL fft_dealloc(complex_array_2d)
                CALL fft_alloc(complex_array_2d, [n(1), my3*mz3])
@@ -3011,7 +3011,7 @@ CONTAINS
                END IF
 
                !set up fft plans
-               CALL fft_create_plan_2d(fft_scratch_new%fft_scratch%fft_plan(1:2), .TRUE., nz, ny, nx, &
+               CALL fft_create_plan_2d(fft_scratch_new%fft_scratch%fft_plan(1), .TRUE., nz, ny, nx, &
                                        fft_scratch_new%fft_scratch%r1buf, fft_scratch_new%fft_scratch%tbuf)
                CALL fft_alloc(complex_array_2d, [lg, mg])
                CALL fft_create_plan_1d(fft_scratch_new%fft_scratch%fft_plan(3), .TRUE., n(1), nyzray, &

@@ -17,9 +17,9 @@ MODULE fft_lib
                                               fftsg_do_init,&
                                               fftsg_get_lengths
    USE fftw3_lib,                       ONLY: &
-        fft_alloc => fftw_alloc, fft_dealloc => fftw_dealloc, fftw3_1d, fftw3_3d, &
-        fftw3_create_plan_1d, fftw3_create_plan_3d, fftw3_destroy_plan, fftw3_do_cleanup, &
-        fftw3_do_init, fftw3_get_lengths
+        fft_alloc => fftw_alloc, fft_dealloc => fftw_dealloc, fftw3_1d, fftw3_2d, fftw3_3d, &
+        fftw3_create_plan_1d, fftw3_create_plan_2d, fftw3_create_plan_3d, fftw3_destroy_plan, &
+        fftw3_do_cleanup, fftw3_do_init, fftw3_get_lengths
    USE spfft_lib,                       ONLY: spfft_1d,&
                                               spfft_2d,&
                                               spfft_3d,&
@@ -196,42 +196,31 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE fft_create_plan_2d(plan, trans, n1, n2, m, zin, zout)
 
-      TYPE(fft_plan_type), INTENT(INOUT)                 :: plan(2)
+      TYPE(fft_plan_type), INTENT(INOUT)                 :: plan
       LOGICAL, INTENT(IN)                                :: trans
       INTEGER, INTENT(IN)                                :: n1, n2, m
       COMPLEX(KIND=dp), DIMENSION(n1*n2*m), &
          INTENT(INOUT)                                   :: zin, zout
 
-      plan(1)%trans = trans
-      plan(1)%n_3d = [n1, n2, m]
-      plan(1)%n = n1
-      plan(1)%m = m*n2
-!$    plan(1)%need_alt_plan = .FALSE.
+      plan%trans = trans
+      plan%n_3d = [n1, n2, m]
+      plan%n = n1*n2
+      plan%m = m
+!$    plan%need_alt_plan = .FALSE.
 
-      plan(2)%trans = trans
-      plan(2)%n_3d = [n1, n2, m]
-      plan(2)%n = n2
-      plan(2)%m = m*n1
-!$    plan(2)%need_alt_plan = .FALSE.
-
-      IF ((n1 > 0) .AND. (m > 0) .AND. (n2 > 0)) THEN
+      IF (ALL(plan%n_3d > 0)) THEN
          ! Planning only needed for FFTW3
          IF (fft_type .EQ. 3) THEN
-            CALL fftw3_create_plan_1d(plan(1), zin, zout)
-            CALL fftw3_create_plan_1d(plan(2), zin, zout)
-            plan(1)%valid = .TRUE.
-            plan(2)%valid = .TRUE.
+            CALL fftw3_create_plan_2d(plan, zin, zout)
+            plan%valid = .TRUE.
          ELSE IF (fft_type .EQ. 4) THEN
-            CALL spfft_create_plan_2d(plan(1))
-            plan(1)%valid = .TRUE.
-            plan(2)%valid = .TRUE.
+            CALL spfft_create_plan_2d(plan)
+            plan%valid = .TRUE.
          ELSE
-            plan(1)%valid = .FALSE.
-            plan(2)%valid = .FALSE.
+            plan%valid = .FALSE.
          END IF
       ELSE
-         plan(1)%valid = .FALSE.
-         plan(2)%valid = .FALSE.
+         plan%valid = .FALSE.
       END IF
 
    END SUBROUTINE fft_create_plan_2d
@@ -256,7 +245,7 @@ CONTAINS
       INTEGER, INTENT(OUT)                               :: stat
 
       stat = fsign
-      IF (plan%n_3d(1)*plan%n_3d(2)*plan%n_3d(3) > 0) THEN
+      IF (ALL(plan%n_3d > 0)) THEN
          SELECT CASE (fft_type)
          CASE DEFAULT
             CPABORT("fft_3d")
@@ -346,34 +335,24 @@ CONTAINS
 !> \param stat ...
 ! **************************************************************************************************
    SUBROUTINE fft_2d(plan, fsign, zin, zintermed, zout, scale, stat)
-      TYPE(fft_plan_type), INTENT(IN)                    :: plan(2)
+      TYPE(fft_plan_type), INTENT(IN)                    :: plan
       INTEGER, INTENT(IN)                                :: fsign
-      COMPLEX(KIND=dp), &
-         DIMENSION(PRODUCT(plan(1)%n_3d)), &
+      COMPLEX(KIND=dp), DIMENSION(PRODUCT(plan%n_3d)), &
          INTENT(INOUT), TARGET                           :: zin, zintermed, zout
       REAL(KIND=dp), INTENT(IN)                          :: scale
       INTEGER, INTENT(OUT)                               :: stat
 
-      INTEGER                                            :: stat2
-
-      IF (plan(1)%n*plan(1)%m > 0 .AND. plan(2)%n*plan(2)%m > 0) THEN
+      IF (plan%n > 0 .AND. plan%m > 0) THEN
          SELECT CASE (fft_type)
          CASE DEFAULT
             CPABORT("fft_2d")
          CASE (1)
-            CALL fftsg_2d(fsign, plan(1)%trans, scale, plan(1)%n_3d, zin, zintermed, zout)
+            CALL fftsg_2d(fsign, plan%trans, scale, plan%n_3d, zin, zintermed, zout)
             stat = fsign
          CASE (3)
-            IF (fsign == FWFFT) THEN
-               CALL fftw3_1d(plan(1), fsign, zin, zintermed, scale, stat)
-               CALL fftw3_1d(plan(2), fsign, zintermed, zout, 1.0_dp, stat2)
-            ELSE
-               CALL fftw3_1d(plan(2), fsign, zin, zintermed, scale, stat)
-               CALL fftw3_1d(plan(1), fsign, zintermed, zout, 1.0_dp, stat2)
-            END IF
-            stat = stat*stat2
+            CALL fftw3_2d(plan, fsign, zin, zout, scale, stat)
          CASE (4)
-            CALL spfft_2d(plan(1), fsign, zin, zout, scale)
+            CALL spfft_2d(plan, fsign, zin, zout, scale)
          END SELECT
       END IF
       ! stat is set to zero on error, -1,+1 are OK

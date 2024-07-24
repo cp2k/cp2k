@@ -286,32 +286,32 @@ CONTAINS
       errorCode = spfft_transform_get_space_domain(plan%spfft_transform, SPFFT_PU_HOST, spfft_ptr)
       IF (errorCode /= SPFFT_SUCCESS) CPABORT("FFT with SpFFT failed!")
 
-      CALL C_F_POINTER(spfft_ptr, complex_ptr, [plan%n_3d(1)*plan%n_3d(2)])
+      CALL C_F_POINTER(spfft_ptr, complex_ptr, [plan%n])
 
       IF (fsign == FWFFT) THEN
          ! Scale here to prevent additional copies between the buffer and the output array
-         DO i = 0, plan%n_3d(3) - 1
+         DO i = 0, plan%m - 1
             IF (plan%trans) THEN
-               complex_ptr(:) = scale*zin(i::plan%n_3d(3))
+               complex_ptr(:) = scale*zin(i::plan%m)
             ELSE
-               complex_ptr(:) = scale*zin(i*plan%n_3d(1)*plan%n_3d(2):(i + 1)*plan%n_3d(1)*plan%n_3d(2) - 1)
+               complex_ptr(:) = scale*zin(i*plan%n:(i + 1)*plan%n - 1)
             END IF
 
             errorCode = spfft_transform_forward(plan%spfft_transform, SPFFT_PU_HOST, &
-                                                zout(i*plan%n_3d(1)*plan%n_3d(2)), SPFFT_NO_SCALING)
+                                                zout(i*plan%n), SPFFT_NO_SCALING)
             IF (errorCode /= SPFFT_SUCCESS) CPABORT("FFT with SpFFT failed!")
          END DO
 
       ELSE
-         DO i = 0, plan%n_3d(3) - 1
+         DO i = 0, plan%m - 1
             errorCode = spfft_transform_backward(plan%spfft_transform, &
-                                                 zin(i*plan%n_3d(1)*plan%n_3d(2)), SPFFT_PU_HOST)
+                                                 zin(i*plan%n), SPFFT_PU_HOST)
             IF (errorCode /= SPFFT_SUCCESS) CPABORT("FFT with SpFFT failed!")
 
             IF (plan%trans) THEN
-               zout(i::plan%n_3d(3)) = scale*complex_ptr
+               zout(i::plan%m) = scale*complex_ptr
             ELSE
-               zout(i*plan%n_3d(1)*plan%n_3d(2):(i + 1)*plan%n_3d(1)*plan%n_3d(2) - 1) = scale*complex_ptr
+               zout(i*plan%n:(i + 1)*plan%n - 1) = scale*complex_ptr
             END IF
          END DO
       END IF
