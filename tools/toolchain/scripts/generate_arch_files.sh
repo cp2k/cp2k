@@ -45,9 +45,9 @@ if [ "${with_intel}" != "__DONTUSE__" ]; then
   LDFLAGS_C="-nofor-main"
 else
   if [ "${TARGET_CPU}" = "generic" ]; then
-     BASEFLAGS="-fno-omit-frame-pointer -fopenmp -g -mtune=${TARGET_CPU} IF_ASAN(-fsanitize=address|)"
+    BASEFLAGS="-fno-omit-frame-pointer -fopenmp -g -mtune=${TARGET_CPU} IF_ASAN(-fsanitize=address|)"
   else
-     BASEFLAGS="-fno-omit-frame-pointer -fopenmp -g -march=${TARGET_CPU} -mtune=${TARGET_CPU} IF_ASAN(-fsanitize=address|)"
+    BASEFLAGS="-fno-omit-frame-pointer -fopenmp -g -march=${TARGET_CPU} -mtune=${TARGET_CPU} IF_ASAN(-fsanitize=address|)"
   fi
   OPT_FLAGS="-O3 -funroll-loops"
   LDFLAGS_C=""
