@@ -25,8 +25,6 @@ if [ "${with_intel}" != "__DONTUSE__" ]; then
   CFLAGS="-O2 -fPIC -fp-model=precise -funroll-loops -g -qopenmp -qopenmp-simd -traceback"
   if [ "${TARGET_CPU}" = "native" ]; then
     CFLAGS="${CFLAGS} -xHost"
-  elif [ "${TARGET_CPU}" = "generic" ]; then
-    CFLAGS="${CFLAGS} -mtune=${TARGET_CPU}"
   else
     CFLAGS="${CFLAGS} -mtune=${TARGET_CPU}"
   fi
@@ -34,9 +32,9 @@ if [ "${with_intel}" != "__DONTUSE__" ]; then
 else
   CFLAGS="-O2 -fPIC -fno-omit-frame-pointer -fopenmp -g"
   if [ "${TARGET_CPU}" = "generic" ]; then
-    CFLAGS="${CFLAGS} -mtune=generic ${TSANFLAGS}"
-  else
     CFLAGS="${CFLAGS} -mtune=${TARGET_CPU} ${TSANFLAGS}"
+  else
+    CFLAGS="${CFLAGS} -march=${TARGET_CPU} -mtune=${TARGET_CPU} ${TSANFLAGS}"
   fi
   FFLAGS="${CFLAGS} -fbacktrace"
 fi
