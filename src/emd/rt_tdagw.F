@@ -268,7 +268,7 @@ CONTAINS
       NULLIFY(gon_eigvals)
       ALLOCATE(gon_eigvals(tdagw_env%n_ao))
       @:SPIN_DO(j, re, im, tdagw_env%n_spin)
-         CALL cp_fm_scale_and_add(0.0_dp, tdagw_env%ham_effective(im)%matrix, -intensity, tdagw_env%moments_field(1)%matrix)
+         CALL cp_fm_scale_and_add(0.0_dp, tdagw_env%ham_effective(im)%matrix, 1.0_dp, tdagw_env%moments_field(1)%matrix)
          ! enforce hermiticity of the effective Hamiltonian - apply to components instead?
          CALL cp_fm_transpose(tdagw_env%ham_effective(im)%matrix, tdagw_env%rho_workspace(1)%matrix)
          CALL cp_fm_scale_and_add(0.5_dp, tdagw_env%ham_effective(im)%matrix,&
@@ -280,12 +280,13 @@ CONTAINS
          ! CALL cp_fm_to_fm(tdagw_env%ham_effective(re)%matrix, tdagw_env%ham_effective(im)%matrix)
          CALL cp_fm_set_all(tdagw_env%ham_effective(re)%matrix, 0.0_dp)
          ! TODO : Try exact diagonalisation - diagonalize the (symmetrized) dipole matrix, then carry out exponentiation
-         CALL cp_fm_geeig(tdagw_env%ham_effective(im)%matrix, tdagw_env%S_fm%matrix,&
+         CALL cp_fm_to_fm(tdagw_env%S_fm%matrix, tdagw_env%rho_workspace(1)%matrix)
+         CALL cp_fm_geeig(tdagw_env%ham_effective(im)%matrix, tdagw_env%rho_workspace(1)%matrix,&
                  tdagw_env%ham_workspace(1)%matrix, tdagw_env%real_eigvals, tdagw_env%ham_workspace(2)%matrix)
          IF (tdagw_env%unit_nr > 0) WRITE(tdagw_env%unit_nr, *) "Real eigvals", tdagw_env%real_eigvals
          ! Determine the exponential eigenvalues
          ! Start with real part
-         gon_eigvals(:) = COS(tdagw_env%real_eigvals(:))
+         gon_eigvals(:) = COS( - intensity * tdagw_env%real_eigvals(:))
          IF (tdagw_env%unit_nr > 0) WRITE(tdagw_env%unit_nr, *) "Cos eigvals", gon_eigvals
          ! Scale the real eigenvectors
          CALL cp_fm_to_fm(tdagw_env%ham_workspace(1)%matrix, tdagw_env%ham_workspace(2)%matrix)
@@ -297,7 +298,7 @@ CONTAINS
                             1.0_dp, tdagw_env%ham_effective(im)%matrix, tdagw_env%S_fm%matrix,&
                             0.0_dp, tdagw_env%ham_effective(re)%matrix)
          ! Continue for the imaginary part
-         gon_eigvals(:) = SIN(tdagw_env%real_eigvals(:))
+         gon_eigvals(:) = SIN( - intensity * tdagw_env%real_eigvals(:))
          IF (tdagw_env%unit_nr > 0) WRITE(tdagw_env%unit_nr, *) "Sin eigvals", gon_eigvals
          CALL cp_fm_to_fm(tdagw_env%ham_workspace(1)%matrix, tdagw_env%ham_workspace(2)%matrix)
          CALL cp_fm_column_scale(tdagw_env%ham_workspace(2)%matrix, gon_eigvals)
