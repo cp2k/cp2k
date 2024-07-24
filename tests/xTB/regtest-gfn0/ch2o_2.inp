@@ -27,7 +27,7 @@
   &END DFT
   &SUBSYS
     &CELL
-      ABC 10.0 10.0 10.0
+      ABC 20.0 20.0 20.0
       PERIODIC NONE
     &END CELL
     &COORD

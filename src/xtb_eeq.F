@@ -30,7 +30,6 @@ MODULE xtb_eeq
                                               cp_fm_get_info,&
                                               cp_fm_release,&
                                               cp_fm_set_all,&
-                                              cp_fm_set_element,&
                                               cp_fm_type
    USE cp_log_handling,                 ONLY: cp_logger_get_default_unit_nr
    USE distribution_1d_types,           ONLY: distribution_1d_type
@@ -48,12 +47,7 @@ MODULE xtb_eeq
    USE qs_force_types,                  ONLY: qs_force_type
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               qs_kind_type
-   USE qs_neighbor_list_types,          ONLY: get_iterator_info,&
-                                              neighbor_list_iterate,&
-                                              neighbor_list_iterator_create,&
-                                              neighbor_list_iterator_p_type,&
-                                              neighbor_list_iterator_release,&
-                                              neighbor_list_set_p_type
+   USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
    USE spme,                            ONLY: spme_forces,&
                                               spme_potential
    USE virial_methods,                  ONLY: virial_pair_force
@@ -90,9 +84,9 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'xtb_eeq_calculation'
 
       INTEGER                                            :: ewald_type, handle, i, ia, iac, iar, &
-                                                            iatom, ic, ikind, ir, iunit, jatom, &
-                                                            jkind, natom, ncloc, ncvloc, nkind, &
-                                                            nrloc, nrvloc, ns
+                                                            iatom, ic, ikind, ir, iunit, jkind, &
+                                                            natom, ncloc, ncvloc, nkind, nrloc, &
+                                                            nrvloc, ns
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: kind_of
       INTEGER, DIMENSION(3)                              :: periodic
       INTEGER, DIMENSION(:), POINTER                     :: cind, cvind, rind, rvind
@@ -115,8 +109,6 @@ CONTAINS
       TYPE(ewald_environment_type), POINTER              :: ewald_env
       TYPE(ewald_pw_type), POINTER                       :: ewald_pw
       TYPE(mp_para_env_type), POINTER                    :: para_env
-      TYPE(neighbor_list_iterator_p_type), &
-         DIMENSION(:), POINTER                           :: nl_iterator
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_tbe
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
@@ -204,51 +196,42 @@ CONTAINS
             CALL cp_fm_struct_create(mat_struct, context=blacs_env, para_env=para_env, &
                                      nrow_global=ns, ncol_global=ns)
             CALL cp_fm_create(eeq_mat, mat_struct)
-            CALL cp_fm_set_all(eeq_mat, 1.0_dp, 0.0_dp)
+            CALL cp_fm_set_all(eeq_mat, 0.0_dp, 0.0_dp)
             CALL cp_fm_create(pmat, mat_struct)
-            CALL cp_fm_set_all(pmat, 1.0_dp, 0.0_dp)
+            CALL cp_fm_set_all(pmat, 0.0_dp, 0.0_dp)
             CALL cp_fm_create(mmat, mat_struct)
+            CALL cp_fm_set_all(mmat, 0.0_dp, 0.0_dp)
+            CALL cp_fm_get_info(eeq_mat, nrow_local=nrloc, ncol_local=ncloc, &
+                                row_indices=rind, col_indices=cind)
          END IF
          ! response matrix
-         CALL neighbor_list_iterator_create(nl_iterator, sab_tbe)
-         DO WHILE (neighbor_list_iterate(nl_iterator) == 0)
-            CALL get_iterator_info(nl_iterator, ikind=ikind, jkind=jkind, &
-                                   iatom=iatom, jatom=jatom, r=rij)
-            CALL get_qs_kind(qs_kind_set(ikind), xtb_parameter=xtb_atom_a)
-            CALL get_xtb_atom_param(xtb_atom_a, defined=defined)
-            IF (.NOT. defined) CYCLE
-            CALL get_qs_kind(qs_kind_set(jkind), xtb_parameter=xtb_atom_b)
-            CALL get_xtb_atom_param(xtb_atom_b, defined=defined)
-            IF (.NOT. defined) CYCLE
-            dr = SQRT(SUM(rij**2))
-            IF (iatom == jatom) THEN
-               CPASSERT(dr < 1.e-6_dp)
-               grc1 = adiag(iatom) - ad
-               grc2 = adiag(iatom)
-               IF (do_sparse) THEN
-                  CPABORT("sparse")
+         DO ir = 1, nrloc
+            iar = rind(ir)
+            ri(1:3) = particle_set(iar)%r(1:3)
+            DO ic = 1, ncloc
+               iac = cind(ic)
+               rj(1:3) = particle_set(iac)%r(1:3)
+               rij(1:3) = ri(1:3) - rj(1:3)
+               rij = pbc(rij, cell)
+               dr = SQRT(SUM(rij**2))
+               IF (iar == iac) THEN
+                  CPASSERT(dr < 1.e-6_dp)
+                  grc1 = adiag(iar) - ad
+                  grc2 = adiag(iar)
                ELSE
-                  CALL cp_fm_set_element(eeq_mat, iatom, jatom, grc1)
-                  CALL cp_fm_set_element(pmat, iatom, jatom, grc2)
+                  ikind = kind_of(iar)
+                  jkind = kind_of(iac)
+                  grc1 = erf(gab(ikind, jkind)*dr)/dr - erf(alpha*dr)/dr
+                  IF (dr < rmax) THEN
+                     grc2 = erf(gab(ikind, jkind)*dr)/dr
+                  ELSE
+                     grc2 = 0.0_dp
+                  END IF
                END IF
-            ELSE
-               grc1 = erf(gab(ikind, jkind)*dr)/dr - erf(alpha*dr)/dr
-               IF (dr < rmax) THEN
-                  grc2 = erf(gab(ikind, jkind)*dr)/dr
-               ELSE
-                  grc2 = 0.0_dp
-               END IF
-               IF (do_sparse) THEN
-                  CPABORT("sparse")
-               ELSE
-                  CALL cp_fm_set_element(eeq_mat, iatom, jatom, grc1)
-                  CALL cp_fm_set_element(eeq_mat, jatom, iatom, grc1)
-                  CALL cp_fm_set_element(pmat, iatom, jatom, grc2)
-                  CALL cp_fm_set_element(pmat, jatom, iatom, grc2)
-               END IF
-            END IF
+               eeq_mat%local_data(ir, ic) = grc1
+               pmat%local_data(ir, ic) = grc2
+            END DO
          END DO
-         CALL neighbor_list_iterator_release(nl_iterator)
          !
          ! preconditioner invers
          CALL cp_fm_invert(pmat, mmat)
@@ -258,8 +241,7 @@ CONTAINS
          CALL cp_fm_matvec(mmat, -chia, xv0)
          grc = (SUM(xv0) - totalcharge)/REAL(natom, KIND=dp)
          xv0 = xv0 - grc
-         CALL cp_fm_matvec(eeq_mat, xv0, rv0)
-         CALL spme_potential(ewald_env, ewald_pw, cell, particle_set, xv0, particle_set, rv0)
+         CALL apply_potential(eeq_mat, ewald_env, ewald_pw, cell, particle_set, xv0, rv0)
          edis = 0.5_dp*DOT_PRODUCT(xv0, rv0) + DOT_PRODUCT(xv0, chia)
          rv0 = -(chia + rv0)
          grc = SUM(rv0)/REAL(natom, KIND=dp)
@@ -275,8 +257,7 @@ CONTAINS
          pv0 = zv0
          DO i = 1, natom
             rzk = DOT_PRODUCT(rv0, zv0)
-            CALL cp_fm_matvec(eeq_mat, pv0, av0)
-            CALL spme_potential(ewald_env, ewald_pw, cell, particle_set, pv0, particle_set, av0)
+            CALL apply_potential(eeq_mat, ewald_env, ewald_pw, cell, particle_set, pv0, av0)
             grc = SUM(av0)/REAL(natom, KIND=dp)
             av0 = av0 - grc
             papk = DOT_PRODUCT(pv0, av0)
@@ -286,8 +267,7 @@ CONTAINS
             rzkm = DOT_PRODUCT(rv0, zv0)
             res = SQRT(DOT_PRODUCT(rv0, rv0))
             !
-            CALL cp_fm_matvec(eeq_mat, xv0, zv0)
-            CALL spme_potential(ewald_env, ewald_pw, cell, particle_set, xv0, particle_set, zv0)
+            CALL apply_potential(eeq_mat, ewald_env, ewald_pw, cell, particle_set, xv0, zv0)
             edis = 0.5_dp*DOT_PRODUCT(xv0, zv0) + DOT_PRODUCT(xv0, chia)
             IF (iunit > 0) THEN
                rdl = MAX(-LOG10(res), 0.0_dp)
@@ -307,8 +287,7 @@ CONTAINS
          END DO
          !
          charges = xv0
-         CALL cp_fm_matvec(eeq_mat, xv0, rv0)
-         CALL spme_potential(ewald_env, ewald_pw, cell, particle_set, xv0, particle_set, rv0)
+         CALL apply_potential(eeq_mat, ewald_env, ewald_pw, cell, particle_set, xv0, rv0)
          rv0 = -(chia + rv0)
          lambda = SUM(rv0)/REAL(natom, KIND=dp)
          rv0 = rv0 - lambda
@@ -354,7 +333,7 @@ CONTAINS
                   dr = SQRT(SUM(rij**2))
                   grc = erf(gab(ikind, jkind)*dr)/dr
                END IF
-               CALL cp_fm_set_element(eeq_mat, iar, iac, grc)
+               eeq_mat%local_data(ir, ic) = grc
             END DO
          END DO
          ! set up rhs vector
@@ -368,7 +347,7 @@ CONTAINS
                ELSE
                   xr = -chia(ia)
                END IF
-               CALL cp_fm_set_element(rhs_vec, iar, iac, xr)
+               rhs_vec%local_data(ir, ic) = xr
             END DO
          END DO
          !
@@ -465,8 +444,6 @@ CONTAINS
       TYPE(ewald_environment_type), POINTER              :: ewald_env
       TYPE(ewald_pw_type), POINTER                       :: ewald_pw
       TYPE(mp_para_env_type), POINTER                    :: para_env
-      TYPE(neighbor_list_iterator_p_type), &
-         DIMENSION(:), POINTER                           :: nl_iterator
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_tbe
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
@@ -561,47 +538,37 @@ CONTAINS
             CALL cp_fm_set_all(pmat, 1.0_dp, 0.0_dp)
             CALL cp_fm_create(mmat, mat_struct)
             CALL cp_fm_set_all(mmat, 0.0_dp, 0.0_dp)
+            CALL cp_fm_get_info(eeq_mat, nrow_local=nrloc, ncol_local=ncloc, &
+                                row_indices=rind, col_indices=cind)
          END IF
          ! response matrix
-         CALL neighbor_list_iterator_create(nl_iterator, sab_tbe)
-         DO WHILE (neighbor_list_iterate(nl_iterator) == 0)
-            CALL get_iterator_info(nl_iterator, ikind=ikind, jkind=jkind, &
-                                   iatom=iatom, jatom=jatom, r=rij)
-            CALL get_qs_kind(qs_kind_set(ikind), xtb_parameter=xtb_atom_a)
-            CALL get_xtb_atom_param(xtb_atom_a, defined=defined)
-            IF (.NOT. defined) CYCLE
-            CALL get_qs_kind(qs_kind_set(jkind), xtb_parameter=xtb_atom_b)
-            CALL get_xtb_atom_param(xtb_atom_b, defined=defined)
-            IF (.NOT. defined) CYCLE
-            dr = SQRT(SUM(rij**2))
-            IF (iatom == jatom) THEN
-               CPASSERT(dr < 1.e-6_dp)
-               grc1 = adiag(iatom) - ad
-               grc2 = adiag(iatom)
-               IF (do_sparse) THEN
-                  CPABORT("sparse")
+         DO ir = 1, nrloc
+            iar = rind(ir)
+            ri(1:3) = particle_set(iar)%r(1:3)
+            DO ic = 1, ncloc
+               iac = cind(ic)
+               rj(1:3) = particle_set(iac)%r(1:3)
+               rij(1:3) = ri(1:3) - rj(1:3)
+               rij = pbc(rij, cell)
+               dr = SQRT(SUM(rij**2))
+               IF (iar == iac) THEN
+                  CPASSERT(dr < 1.e-6_dp)
+                  grc1 = adiag(iar) - ad
+                  grc2 = adiag(iar)
                ELSE
-                  CALL cp_fm_set_element(eeq_mat, iatom, iatom, grc1)
-                  CALL cp_fm_set_element(pmat, iatom, iatom, grc2)
+                  ikind = kind_of(iar)
+                  jkind = kind_of(iac)
+                  grc1 = erf(gab(ikind, jkind)*dr)/dr - erf(alpha*dr)/dr
+                  IF (dr < rmax) THEN
+                     grc2 = erf(gab(ikind, jkind)*dr)/dr
+                  ELSE
+                     grc2 = 0.0_dp
+                  END IF
                END IF
-            ELSE
-               grc1 = erf(gab(ikind, jkind)*dr)/dr - erf(alpha*dr)/dr
-               IF (dr < rmax) THEN
-                  grc2 = erf(gab(ikind, jkind)*dr)/dr
-               ELSE
-                  grc2 = 0.0_dp
-               END IF
-               IF (do_sparse) THEN
-                  CPABORT("sparse")
-               ELSE
-                  CALL cp_fm_set_element(eeq_mat, iatom, jatom, grc1)
-                  CALL cp_fm_set_element(eeq_mat, jatom, iatom, grc1)
-                  CALL cp_fm_set_element(pmat, iatom, jatom, grc2)
-                  CALL cp_fm_set_element(pmat, jatom, iatom, grc2)
-               END IF
-            END IF
+               eeq_mat%local_data(ir, ic) = grc1
+               pmat%local_data(ir, ic) = grc2
+            END DO
          END DO
-         CALL neighbor_list_iterator_release(nl_iterator)
          !
          ! preconditioner invers
          CALL cp_fm_invert(pmat, mmat)
@@ -611,8 +578,7 @@ CONTAINS
          CALL cp_fm_matvec(mmat, -dcharges, xv0)
          grc = SUM(xv0)/REAL(natom, KIND=dp)
          xv0 = xv0 - grc
-         CALL cp_fm_matvec(eeq_mat, xv0, rv0)
-         CALL spme_potential(ewald_env, ewald_pw, cell, particle_set, xv0, particle_set, rv0)
+         CALL apply_potential(eeq_mat, ewald_env, ewald_pw, cell, particle_set, xv0, rv0)
          rv0 = -(dcharges + rv0)
          grc = SUM(rv0)/REAL(natom, KIND=dp)
          rv0 = rv0 - grc
@@ -626,8 +592,7 @@ CONTAINS
          pv0 = zv0
          DO i = 1, natom
             rzk = DOT_PRODUCT(rv0, zv0)
-            CALL cp_fm_matvec(eeq_mat, pv0, av0)
-            CALL spme_potential(ewald_env, ewald_pw, cell, particle_set, pv0, particle_set, av0)
+            CALL apply_potential(eeq_mat, ewald_env, ewald_pw, cell, particle_set, pv0, av0)
             grc = SUM(av0)/REAL(natom, KIND=dp)
             av0 = av0 - grc
             papk = DOT_PRODUCT(pv0, av0)
@@ -637,8 +602,7 @@ CONTAINS
             rzkm = DOT_PRODUCT(rv0, zv0)
             res = SQRT(DOT_PRODUCT(rv0, rv0))
             !
-            CALL cp_fm_matvec(eeq_mat, xv0, zv0)
-            CALL spme_potential(ewald_env, ewald_pw, cell, particle_set, xv0, particle_set, zv0)
+            CALL apply_potential(eeq_mat, ewald_env, ewald_pw, cell, particle_set, xv0, zv0)
             IF (iunit > 0) THEN
                rdl = MAX(-LOG10(res), 0.0_dp)
                WRITE (iunit, '(I1)', advance='NO') MIN(NINT(rdl), 9)
@@ -656,8 +620,7 @@ CONTAINS
             pv0 = zv0 + betak*pv0
          END DO
          qlag = -xv0
-         CALL cp_fm_matvec(eeq_mat, xv0, rv0)
-         CALL spme_potential(ewald_env, ewald_pw, cell, particle_set, xv0, particle_set, rv0)
+         CALL apply_potential(eeq_mat, ewald_env, ewald_pw, cell, particle_set, xv0, rv0)
          rv0 = -(dcharges + rv0)
          qlam = -SUM(rv0)/REAL(natom, KIND=dp)
          IF (iunit > 0) WRITE (iunit, *)
@@ -704,7 +667,7 @@ CONTAINS
                   dr = SQRT(SUM(rij**2))
                   grc = erf(gab(ikind, jkind)*dr)/dr
                END IF
-               CALL cp_fm_set_element(eeq_mat, iar, iac, grc)
+               eeq_mat%local_data(ir, ic) = grc
             END DO
          END DO
          ! set up rhs vector
@@ -718,7 +681,7 @@ CONTAINS
                ELSE
                   xr = dcharges(ia)
                END IF
-               CALL cp_fm_set_element(rhs_vec, iar, iac, xr)
+               rhs_vec%local_data(ir, ic) = xr
             END DO
          END DO
          !
@@ -856,5 +819,34 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE xtb_eeq_forces
+
+! **************************************************************************************************
+!> \brief ...
+!> \param fm_mat ...
+!> \param ewald_env ...
+!> \param ewald_pw ...
+!> \param cell ...
+!> \param particle_set ...
+!> \param charges ...
+!> \param potential ...
+! **************************************************************************************************
+   SUBROUTINE apply_potential(fm_mat, ewald_env, ewald_pw, cell, particle_set, charges, potential)
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat
+      TYPE(ewald_environment_type), POINTER              :: ewald_env
+      TYPE(ewald_pw_type), POINTER                       :: ewald_pw
+      TYPE(cell_type), POINTER                           :: cell
+      TYPE(particle_type), DIMENSION(:), INTENT(IN)      :: particle_set
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: charges
+      REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: potential
+
+      TYPE(mp_para_env_type), POINTER                    :: para_env
+
+      CALL ewald_env_get(ewald_env, para_env=para_env)
+      potential = 0.0_dp
+      CALL spme_potential(ewald_env, ewald_pw, cell, particle_set, charges, particle_set, potential)
+      CALL para_env%sum(potential)
+      CALL cp_fm_matvec(fm_mat, charges, potential, alpha=1.0_dp, beta=1.0_dp)
+
+   END SUBROUTINE apply_potential
 
 END MODULE xtb_eeq
