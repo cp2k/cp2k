@@ -5408,6 +5408,8 @@ CONTAINS
                          "TI High-throughput electronic band structure calculations: Challenges and tools", &
                          "AF Setyawan, Wahyu", &
                          "   Curtarolo, Stefano", &
+                         "AU Setyawan, W", &
+                         "   Curtarolo, S", &
                          "SO Comput. Mater. Sci.", &
                          "VL 49", &
                          "BP 299", &
