@@ -1584,6 +1584,7 @@ target_link_libraries(
     $<$<BOOL:${CP2K_USE_SPGLIB}>:Spglib::symspg>
     $<$<BOOL:${CP2K_USE_LIBXC}>:cp2k::Libxc::xc>
     $<$<BOOL:${CP2K_USE_ELPA}>:cp2k::ELPA::elpa>
+    $<$<BOOL:${CP2K_USE_PLUMED}>:cp2k::plumed::plumed>
     $<$<BOOL:${CP2K_USE_FFTW3_}>:cp2k::FFTW3::fftw3>
     $<$<AND:$<BOOL:${CP2K_USE_FFTW3_}>,$<BOOL:${CP2K_ENABLE_FFTW3_THREADS_SUPPORT}>>:cp2k::FFTW3::fftw3_threads>
     $<$<AND:$<BOOL:${CP2K_USE_FFTW3_}>,$<BOOL:${CP2K_ENABLE_FFTW3_OPENMP_SUPPORT}>>:cp2k::FFTW3::fftw3_omp>
@@ -1620,7 +1621,7 @@ target_compile_definitions(
     $<$<CONFIG:DEBUG>:__HAS_IEEE_EXCEPTIONS>
     $<$<CONFIG:DEBUG>:__CHECK_DIAG>
     $<$<BOOL:${CP2K_USE_PEXSI}>:__PEXSI>
-    $<$<BOOL:${CP2K_USE_PLUMED2}>:__PLUMED2>
+    $<$<BOOL:${CP2K_USE_PLUMED}>:__PLUMED2>
     $<$<BOOL:${CP2K_USE_QUIP}>:__QUIP>
     $<$<BOOL:${CP2K_USE_MAXWELL}>:__LIBMAXWELL>
     $<$<BOOL:${CP2K_USE_VORI}>:__LIBVORI>
