@@ -30,12 +30,7 @@ if [ "${with_intel}" != "__DONTUSE__" ]; then
   fi
   FFLAGS="${CFLAGS}"
 else
-  CFLAGS="-O2 -fPIC -fno-omit-frame-pointer -fopenmp -g"
-  if [ "${TARGET_CPU}" = "generic" ]; then
-    CFLAGS="${CFLAGS} -mtune=${TARGET_CPU} ${TSANFLAGS}"
-  else
-    CFLAGS="${CFLAGS} -march=${TARGET_CPU} -mtune=${TARGET_CPU} ${TSANFLAGS}"
-  fi
+  CFLAGS="-O2 -fPIC -fno-omit-frame-pointer -fopenmp -g -mtune=${TARGET_CPU} ${TSANFLAGS}"
   FFLAGS="${CFLAGS} -fbacktrace"
 fi
 CXXFLAGS="${CFLAGS}"
