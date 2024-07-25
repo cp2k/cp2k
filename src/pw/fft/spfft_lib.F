@@ -26,7 +26,8 @@ MODULE spfft_lib
       spfft_transform_create_independent, SPFFT_PU_HOST, SPFFT_PU_GPU, SPFFT_SUCCESS, &
       SPFFT_TRANS_C2C, SPFFT_INDEX_TRIPLETS, spfft_transform_destroy, SPFFT_NO_SCALING, spfft_transform_get_space_domain, &
       spfft_transform_forward, spfft_multi_transform_forward_ptr, spfft_transform_backward, &
-      spfft_multi_transform_backward_ptr, spfft_transform_forward_ptr, spfft_transform_backward_ptr
+      spfft_multi_transform_backward_ptr, spfft_transform_forward_ptr, spfft_transform_backward_ptr, &
+      spfft_multi_transform_forward, spfft_multi_transform_backward
    USE omp_lib, ONLY: omp_get_thread_num
 #endif
    USE cp_files, ONLY: get_unit_number
@@ -111,7 +112,7 @@ CONTAINS
 !$    number_of_threads = omp_get_thread_num()
 !$OMP END MASTER
 !$OMP END PARALLEL
-      ALLOCATE (plan%spfft_transform_multi(0:plan%m - 1))
+      ALLOCATE (plan%spfft_transform_multi(0:plan%n_3d(3) - 1))
 
       IF (plan%trans) THEN
          ! Setup index map for SPFFT
@@ -124,7 +125,7 @@ CONTAINS
          END DO
          END DO
 
-         DO i = 0, plan%m - 1
+         DO i = 0, plan%n_3d(3) - 1
            errorcode = spfft_transform_create_independent(plan%spfft_transform_multi(i), number_of_threads, spfft_processing_unit, &
                                                            SPFFT_TRANS_C2C, plan%n_3d(2), plan%n_3d(1), 1, &
                                                            PRODUCT(plan%n_3d(1:2)), SPFFT_INDEX_TRIPLETS, indices)
@@ -141,7 +142,7 @@ CONTAINS
          END DO
          END DO
 
-         DO i = 0, plan%m - 1
+         DO i = 0, plan%n_3d(3) - 1
            errorcode = spfft_transform_create_independent(plan%spfft_transform_multi(i), number_of_threads, spfft_processing_unit, &
                                                            SPFFT_TRANS_C2C, plan%n_3d(1), plan%n_3d(2), 1, &
                                                            PRODUCT(plan%n_3d(1:2)), SPFFT_INDEX_TRIPLETS, indices)
@@ -312,22 +313,18 @@ CONTAINS
             END IF
          END DO
 
-         DO i = 0, plan%n_3d(3) - 1
-            errorCode = spfft_transform_forward(plan%spfft_transform_multi(i), &
-                                                spfftLocations(i), zout(i*plan%n_3d(1)*plan%n_3d(2)), spfftScalings(i))
-            IF (errorCode /= SPFFT_SUCCESS) CPABORT("FFT with SpFFT failed!")
-         END DO
+         errorCode = spfft_multi_transform_forward(plan%n_3d(3), C_LOC(plan%spfft_transform_multi), &
+                                                   C_LOC(spfftLocations), C_LOC(cp2kPointers), C_LOC(spfftScalings))
+         IF (errorCode /= SPFFT_SUCCESS) CPABORT("FFT with SpFFT failed!")
 
       ELSE
          DO i = 0, plan%n_3d(3) - 1
             cp2kPointers(i) = C_LOC(zin(i*plan%n_3d(1)*plan%n_3d(2)))
          END DO
 
-         DO i = 0, plan%n_3d(3) - 1
-            errorCode = spfft_transform_backward(plan%spfft_transform_multi(i), &
-                                                 zin(i*plan%n_3d(1)*plan%n_3d(2)), spfftLocations(i))
-            IF (errorCode /= SPFFT_SUCCESS) CPABORT("FFT with SpFFT failed!")
-         END DO
+         errorCode = spfft_multi_transform_backward(plan%n_3d(3), C_LOC(plan%spfft_transform_multi), &
+                                                    C_LOC(cp2kPointers), C_LOC(spfftLocations))
+         IF (errorCode /= SPFFT_SUCCESS) CPABORT("FFT with SpFFT failed!")
 
          DO i = 0, plan%n_3d(3) - 1
             ! set space domain array to use memory allocted by the library
