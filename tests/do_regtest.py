@@ -257,7 +257,7 @@ class Config:
         self.cp2k_root = Path(__file__).resolve().parent.parent
         self.mpiexec = args.mpiexec
         if "{N}" not in self.mpiexec:  # backwards compatibility
-            self.mpiexec = self.mpiexec.replace(" ", " -n {N} ", 1)
+            self.mpiexec = f"{self.mpiexec} ".replace(" ", " -n {N} ", 1).strip()
         self.smoketest = args.smoketest
         self.valgrind = args.valgrind
         self.keepalive = args.keepalive
