@@ -54,7 +54,11 @@ FC             := gfortran
 LD             := gfortran
 AR             := ar -r
 
-CFLAGS         := -O2 -fopenmp -fopenmp-simd -ftree-vectorize -funroll-loops -g -mtune=$(TARGET_CPU)
+ifeq ($(TARGET_CPU), generic)
+   CFLAGS         := -O2 -fopenmp -fopenmp-simd -ftree-vectorize -funroll-loops -g -mtune=$(TARGET_CPU)
+else
+   CFLAGS         := -O2 -fopenmp -fopenmp-simd -ftree-vectorize -funroll-loops -g -march=$(TARGET_CPU) -mtune=$(TARGET_CPU)
+endif
 
 DFLAGS         += -D__MAX_CONTR=$(strip $(MAX_CONTR))
 
