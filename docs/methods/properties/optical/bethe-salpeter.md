@@ -1,19 +1,17 @@
 # *GW* + Bethe-Salpeter equation
 
-In this section, we discuss the basics for computing optical properties of molecules using the
-Bethe-Salpeter equation (BSE) in CP2K. The BSE enables the computation of electronic excitation
-energies and optical absorption spectra, for a review, see \[[](#Blase2018), [](#Blase2020),
-[](#Bruneval2015), [](#Sander2015)\]. In this howto, we describe in Sec. [1](#header-theory) the
-theory and implementation of BSE, in Sec. [2](#header-input) the BSE input keywords and in Sec.
-[3](#header-example) a full CP2K input file of a BSE calculation and the corresponding output.
+The Bethe-Salpeter equation (BSE) is a method for computing electronic excitation energies and
+optical absorption spectra. We describe in Sec. [1](#header-theory) the theory and implementation of
+BSE, in Sec. [2](#header-input) the BSE input keywords and in Sec. [3](#header-example) a full CP2K
+input file of a BSE calculation and the corresponding output. For reviews on BSE, see
+\[[](#Blase2018), [](#Blase2020), [](#Bruneval2015), [](#Sander2015)\].
 
 (header-theory)=
 
 ## 1. Theory and implementation of BSE
 
 A central goal of a BSE calculation is to compute electronic excitation energies
-$\Omega^{(n)}, n=1,2,\ldots$ (cf. Refs. \[[](#Blase2018), [](#Blase2020)\] for more usecases and
-details).
+$\Omega^{(n)}, n=1,2,\ldots$.
 
 The following ingredients are necessary for computing $\Omega^{(n)}$:
 
@@ -22,9 +20,9 @@ The following ingredients are necessary for computing $\Omega^{(n)}$:
   $a=N_\mathrm{occ}+1,\ldots,N_\mathrm{occ}+N_\mathrm{empty}$,
 - $GW$ eigenvalues $\varepsilon_i^{GW}$ and $\varepsilon_a^{GW}$ of corresponding KS orbitals.
 
-In CP2K, it is possible to use $G_0W_0$, ev$GW_0$ or ev$GW$ eigenvalues, see details in [GW] and in
-Ref. \[[](#Golze2019)\], i.e. we perform BSE@$G_0W_0$/ev$GW_0$/ev$GW$@DFT. Thus, also input
-parameters for a DFT and $GW$ calculation can be given (see full input in Sec.
+It is possible to use $G_0W_0$, ev$GW_0$ or ev$GW$ eigenvalues, see details in [GW] and in Ref.
+\[[](#Golze2019)\], i.e. we perform BSE@$G_0W_0$/ev$GW_0$/ev$GW$@DFT. Thus, also input parameters
+for a DFT and $GW$ calculation influence the BSE calcualation (see full input in Sec.
 [3.1](#header-input-file)). We obtain optical properties from BSE solving the following generalized
 eigenvalue problem that involves the block matrix $ABBA$:
 
@@ -32,7 +30,7 @@ $$\left( \begin{array}{cc}A &  B\\B &  A\end{array} \right)\left( \begin{array}{
 
 We abbreviate $A$ and $B$ as matrices with index $A_{ia,jb}$, i.e. they have
 $N_\mathrm{occ}N_\mathrm{empty}$ rows and $N_\mathrm{occ}N_\mathrm{empty}$ columns. The entries of
-$A$ and $B$ are given by \[[](#Blase2018)\]
+$A$ and
 
 $$ \begin{align}
     A_{ia,jb} &= (\varepsilon_a^{GW}-\varepsilon_i^{GW})\delta_{ij}\delta_{ab} + \alpha^\mathrm{S/T}
@@ -55,7 +53,7 @@ $$ \begin{align}
 i.e. $X_{ia}^{(n)}$ and $Y_{ia}^{(n)}$ describe the transition amplitude between occupied orbital
 $\varphi_i$ and empty orbital $\varphi_a$ of the $n$-th excitation.
 
-the Tamm-Dancoff approximation (TDA) is also implemented, which constrains $B=0$. In case $A$ is
+The Tamm-Dancoff approximation (TDA) is also implemented, which constrains $B=0$. In case $A$ is
 positive definite, and excitation energies $\Omega^{(n)}>0$, we have $\mathbf{Y}=0$ and $\mathbf{X}$
 can be computed from the Hermitian eigenvalue problem
 
@@ -63,7 +61,7 @@ $$ A \mathbf{X}^{(n)}_\mathbf{TDA} = \Omega^{(n)}_\mathbf{TDA} \mathbf{X}^{(n)}_
 
 Diagonalizing $A$ in TDA, or the full block-matrix $ABBA$, takes in the order of
 $(N_\mathrm{occ} N_\mathrm{empty})^3$ floating point operations. This translates to a computational
-scaling of $O(N^6)$ in the system size $N$, e.g. the number of electrons.
+scaling of $O(N^6)$ in the system size $N$.
 
 (header-input)=
 
@@ -93,15 +91,15 @@ In the upper GW/BSE section, the following keywords have been used:
 
 - [TDA](#CP2K_INPUT.FORCE_EVAL.DFT.XC.WF_CORRELATION.RI_RPA.GW.BSE.TDA): Three options available:
 
-  - `ON` diagonalize of $A$,
-  - `OFF` Generalized diagonalization of $ABBA$,
+  - `ON` diagonalize $A$,
+  - `OFF` generalized diagonalization of $ABBA$,
   - `TDA+ABBA` CP2K diagonalizes $ABBA$ as well as $A$.
 
 - [SPIN_CONFIG](#CP2K_INPUT.FORCE_EVAL.DFT.XC.WF_CORRELATION.RI_RPA.GW.BSE.SPIN_CONFIG): Two options
-  available:
-
-  - `SINGLET` for computing singlet excitation energies ($\alpha^S=2$),
-  - `TRIPLET` for computing triplet excitation energies ($\alpha^T=0$).
+  available: Choose between `SINGLET` for computing singlet excitation energies $(\alpha^S = 2)$ and
+  `TRIPLET` for computing triplet excitation energies $(\alpha^T=0)$. Standard is `SINGLET` as an
+  electronic excitation directly after photoexcitation is a singlet due to angular momentum
+  conservation; triplet excited states can form by intersystem crossing.
 
 - [NUM_PRINT_EXC](#CP2K_INPUT.FORCE_EVAL.DFT.XC.WF_CORRELATION.RI_RPA.GW.BSE.NUM_PRINT_EXC): Number
   of excitations $N_\text{exc}^\text{print}$ to be printed.
@@ -120,8 +118,7 @@ In the upper GW/BSE section, the following keywords have been used:
   empty states in the interval
   $\varepsilon_a\in[\varepsilon_{a=\text{LUMO}}^{GW},\varepsilon_{a=\text{LUMO}}^{GW}+E_\text{cut}^\text{empty}]$.
 
-In addition to these keywords, the following settings from DFT will have an influence on the BSE
-excitation energies:
+The following settings from DFT will also have an influence on the BSE excitation energies:
 
 - [XC_FUNCTIONAL](#CP2K_INPUT.FORCE_EVAL.DFT.XC.XC_FUNCTIONAL): Choose between one of the available
   xc-functionals. The starting point can have a profound influence on the excitation energies
@@ -289,9 +286,10 @@ the 1=>4 (HOMO=>LUMO+2) transition ($X_{i=\text{HOMO},a=\text{LUMO+2}}^{(n=1)}=0
 
 Going to larger systems is a challenge for a $GW$+BSE-calculation, since the memory consumption
 increases with $N_\mathrm{occ}^2 N_\mathrm{empty}^2$. The used $N_\mathrm{occ}$, $N_\mathrm{empty}$
-and the required memory of a calculation are printed in the output file to help you estimating the
-memory consumption and distributing the calculation on several nodes to provide the memory. In the
-following, we provide a sample output of a BSE calculation on a nanographene with 206 atoms:
+and the required memory of a calculation are printed in the output file to estimate the memory
+consumption. We recommend to use several nodes to provide the required memory. In the following, we
+provide a sample output of a BSE calculation on a nanographene with 206 atoms which has a memory
+requirement of 2.2 TB RAM:
 
 ```none
  BSE| Cutoff occupied orbitals [eV]                                       80.000
