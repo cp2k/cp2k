@@ -223,26 +223,26 @@ The periodic *GW* calculation is activated via the bandstructure section:
 All parameters from above have been chosen to converge the *GW* bandgap within 10 meV, see also
 details in forthcoming publication (TODO Link):
 
-- [NUM_TIME_FREQ_POINTS](#CP2K_INPUT.FORCE_EVAL.DFT.PROPERTIES.BANDSTRUCTURE.GW.NUM_TIME_FREQ_POINTS):
+- [NUM_TIME_FREQ_POINTS](#CP2K_INPUT.FORCE_EVAL.PROPERTIES.BANDSTRUCTURE.GW.NUM_TIME_FREQ_POINTS):
   Number of imaginary-time and imaginary-frequency points used for computing the self-energy.
   Between 20 and 30 points are usually enough for converging quasiparticle energies within 10 meV.
   Grids up to 34 points are available.
-- [MEMORY_PER_PROC](#CP2K_INPUT.FORCE_EVAL.DFT.PROPERTIES.BANDSTRUCTURE.GW.MEMORY_PER_PROC):
+- [MEMORY_PER_PROC](#CP2K_INPUT.FORCE_EVAL.PROPERTIES.BANDSTRUCTURE.GW.MEMORY_PER_PROC):
   Specifies the available memory per MPI process in GB which is specific to your hardware. A larger
   `MEMORY_PER_PROC` can increase performance but also the memory requirement increases.
-- [EPS_FILTER](#CP2K_INPUT.FORCE_EVAL.DFT.PROPERTIES.BANDSTRUCTURE.GW.EPS_FILTER): Filter for
+- [EPS_FILTER](#CP2K_INPUT.FORCE_EVAL.PROPERTIES.BANDSTRUCTURE.GW.EPS_FILTER): Filter for
   three-center integrals, 10<sup>-11</sup> should be well-converged.
-- [REGULARIZATION_RI](#CP2K_INPUT.FORCE_EVAL.DFT.PROPERTIES.BANDSTRUCTURE.GW.REGULARIZATION_RI):
+- [REGULARIZATION_RI](#CP2K_INPUT.FORCE_EVAL.PROPERTIES.BANDSTRUCTURE.GW.REGULARIZATION_RI):
   Regularization parameter for resolution-of-the-identity (RI) basis set. For big RI basis set (> 50
   RI function per atom) we recommend 10<sup>-2</sup> to prevent for linear dependencies. For small
   RI basis set, one can turn RI regularization off by setting 0.0.
-- [CUTOFF_RADIUS_RI](#CP2K_INPUT.FORCE_EVAL.DFT.PROPERTIES.BANDSTRUCTURE.GW.CUTOFF_RADIUS_RI):
+- [CUTOFF_RADIUS_RI](#CP2K_INPUT.FORCE_EVAL.PROPERTIES.BANDSTRUCTURE.GW.CUTOFF_RADIUS_RI):
   Cutoff radius of truncated Coulomb metric in Å. A larger cutoff leads to faster the RI basis set
   convergence, but also computational cost increases. A cutoff of 7 Å is an accurate choice.
-- [&SOC](#CP2K_INPUT.FORCE_EVAL.DFT.PROPERTIES.BANDSTRUCTURE.SOC): Activates spin-orbit coupling
+- [&SOC](#CP2K_INPUT.FORCE_EVAL.PROPERTIES.BANDSTRUCTURE.SOC): Activates spin-orbit coupling
   (SOC from Hartwigsen-Goedecker-Hutter pseudopotentials \[[Hartwigsen1998](#Hartwigsen1998)\]. SOC
   also needs `POTENTIAL_FILE_NAME  GTH_SOC_POTENTIALS`.
-- [&BANDSTRUCTURE_PATH](#CP2K_INPUT.FORCE_EVAL.DFT.PROPERTIES.BANDSTRUCTURE.BANDSTRUCTURE_PATH):
+- [&BANDSTRUCTURE_PATH](#CP2K_INPUT.FORCE_EVAL.PROPERTIES.BANDSTRUCTURE.BANDSTRUCTURE_PATH):
   Specify the *k*-path in the Brillouin zone for computing the band structure. Relative
   *k*-coordinates are needed which you can retrieve for your crystal structure from
   [](#Setyawan2010).
