@@ -373,7 +373,7 @@ Again, the only difference with respect to a standard XAS-LRTDDFT input file is 
 figure 3 a) of [](#Bussy2021b). In this case, the GW2X correction amounts to a blue shift of 3.7 eV,
 aligning the calculated spectrum to the experimental one remarkably well. The NH3 structure file as
 well as the necessary basis set file (also for the OCS example) are available
-[here](https://www.cp2k.org/_media/howto:gw2x.zip).
+[here](https://github.com/cp2k/cp2k-examples/tree/master/x-ray/gw2x).
 
 ## FAQ
 

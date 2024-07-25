@@ -17,7 +17,7 @@ The tasks to be performed are:
   molecule by following changes of two different collective variables.
 
 All relevant files can be downloaded
-[here](https://www.cp2k.org/_media/exercises:common:tutorial_mtd.tar).
+[here](https://github.com/cp2k/cp2k-examples/tree/master/metadynamics).
 
 ## First task: dynamics of formic acid and water molecules on rutile (110)
 
@@ -43,8 +43,8 @@ The first step is to perform simple MD simulations for a few picoseconds at a co
 to monitor possible rearrangements of the adsorbates. In this case, the initial equilibration of the
 whole system is obtained by a short MD run of 10 ps, at 300 K. The coordinates of the surface after
 MD are given in
-[snapshot_MD-300K.xyz](https://www.cp2k.org/_media/exercises:common:snapshot_md-300k.tar). By
-visualizing the trajectory produced by the MD run, we notice there are no considerable
+[snapshot_MD-300K.xyz](https://github.com/cp2k/cp2k-examples/blob/master/metadynamics/snapshot_MD-300K.xyz).
+By visualizing the trajectory produced by the MD run, we notice there are no considerable
 rearrangements of the adsorbates apart from simple fluctuations of the H-bond environment.
 
 The next step is to set up a few collective variables (CV) that can be later used for the
@@ -87,11 +87,13 @@ be computed at every timestep.
   &END MD
 ```
 
-The input [TiO2_reftraj.inp](https://www.cp2k.org/_media/exercises:common:tio2_reftraj.tar) was
-prepared with the definition of two CVs. The first one is the coordination number (CN) between one
-of the oxygen atoms of one specific monodentate formate and the lattice titanium atom to which it is
-bound and describes the interaction between these two atoms. This CV should be approximately 0 if
-this formate leaves and moves far from the surface, and 1 when the molecule is close to the surface.
+The input
+[TiO2_reftraj.inp](https://github.com/cp2k/cp2k-examples/blob/master/metadynamics/TiO2_reftraj.inp)
+was prepared with the definition of two CVs. The first one is the coordination number (CN) between
+one of the oxygen atoms of one specific monodentate formate and the lattice titanium atom to which
+it is bound and describes the interaction between these two atoms. This CV should be approximately 0
+if this formate leaves and moves far from the surface, and 1 when the molecule is close to the
+surface.
 
 ```
     &COLVAR
@@ -143,9 +145,9 @@ explains the low fluctuation amplitude in the second CV.
 ## Second task: metadynamics of the dynamic equilibrium between formic acid and water on rutile (110)
 
 The MTD simulation employs the above described CVs, and the input file can be found in
-[TiO2_metadyn.inp](https://www.cp2k.org/_media/exercises:common:tio2_metadyn.tar). The
-[MOTION/FREE_ENERGY/METADYN](#CP2K_INPUT.MOTION.FREE_ENERGY.METADYN) input section was modified to
-activate the MTD algorithm.
+[TiO2_metadyn.inp](https://github.com/cp2k/cp2k-examples/blob/master/metadynamics/TiO2_metadyn.inp).
+The [MOTION/FREE_ENERGY/METADYN](#CP2K_INPUT.MOTION.FREE_ENERGY.METADYN) input section was modified
+to activate the MTD algorithm.
 
 ```
   &FREE_ENERGY

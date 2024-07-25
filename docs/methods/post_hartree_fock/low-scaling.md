@@ -40,7 +40,7 @@ input might require a few nodes on an HPC). To maintain a resonable cost, the sy
 with low quality basis sets. In practice, such small systems should be simulated with the standard
 quartic scaling implementation. Moreover, it is never recommended to run post-HF calculations with
 double-zeta quality basis sets. All files required to run these examples can be found
-[here](https://www.cp2k.org/_media/howto:posthf_examples.zip).
+[here](https://github.com/cp2k/cp2k-examples/tree/master/post_hartree_fock).
 
 ### SOS-MP2 liquid water
 

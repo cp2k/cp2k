@@ -375,7 +375,7 @@ instead be equally shared among the two atoms $\mathrm{Zn}^{0.5+} + \mathrm{Zn}^
 of separation. We can force the charge to localize onto one of these atoms with CDFT.
 
 You can download the input files from
-[here](https://www.cp2k.org/_media/:howto:cdft-tutorial-zn.zip). Unzip the folder and execute the
+[here](https://github.com/cp2k/cp2k-examples/tree/master/cdft/zn). Unzip the folder and execute the
 file `energy.bash` (use flag `-h` for usage instructions) to run a standard DFT calculation,
 followed by two CDFT simulations where the first Zn atom is constrained to charges +1 and 0,
 respectively. The script will also run a mixed CDFT calculation, which will be analyzed in a
@@ -493,7 +493,7 @@ We will calculate the charge transfer energy with four different constraints: de
 constraint, Becke constraint with atomic size adjustments using covalent radii from
 [this publication](https://dx.doi.org/10.1002/chem.200800987), and a fragment based Becke constraint
 with and without the same atomic size adjustments. The input files can be downloaded from
-[here](https://www.cp2k.org/_media/:howto:cdft-tutorial-water.zip). Execute the file `energy.bash`
+[here](https://github.com/cp2k/cp2k-examples/tree/master/cdft/water). Execute the file `energy.bash`
 to run all the simulations: standard DFT simulations for the full and two fragment systems, and the
 aforementioned CDFT simulations with different constraints. Modify the include (`.inc`) file if
 necessary as you would have before. Study the input files while the calculations are running.
@@ -519,7 +519,7 @@ After the calculations have finished, answer the following questions
 
 This tutorial is exactly the same as the Zn dimer example above but using Hirshfeld partitioning
 based constraints instead of Becke constraints. You can find the input files
-[here](https://www.cp2k.org/_media/:howto:cdft-tutorial-hirshfeld.zip).
+[here](https://github.com/cp2k/cp2k-examples/tree/master/cdft/hirshfeld).
 
 It might be instructive to visualize how the Becke and Hirshfeld weight function schemes differ, in
 particular, how the methods assign a volume to each atom in the system. You can activate the section
@@ -816,10 +816,10 @@ and energies are then obtained by solving a generalized eigenvalue equation wher
 Hamiltonian matrix describes how the CDFT states interact with each other.
 
 In this tutorial, you will reproduce the DFT and CDFT results from the figure above. You can find
-the input files [here](https://www.cp2k.org/_media/:howto:cdft-tutorial-h2.zip). The reference data
-used to plot Figure 4 are also included in the zip-folder. Please note that the reference results
-were obtained with a larger basis set and planewave cutoff as well as tighter convergence criteria
-than the settings you will be using in this tutorial.
+the input files [here](https://github.com/cp2k/cp2k-examples/tree/master/cdft/h2). The reference
+data used to plot Figure 4 are also included in the zip-folder. Please note that the reference
+results were obtained with a larger basis set and planewave cutoff as well as tighter convergence
+criteria than the settings you will be using in this tutorial.
 
 - Start by examining the simulation script `energy.bash`. This tutorial involves a rather large
   number of simulations so running them will take a while. You can use the flag `-x` to separately

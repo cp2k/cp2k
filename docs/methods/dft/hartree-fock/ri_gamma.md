@@ -7,7 +7,7 @@ this page.
 
 The implementations for standard RI-HFX is described in [](#Bussy2023). All files necessary to run
 the examples discussed below can be found
-[here](https://www.cp2k.org/_media/howto:ri_hfx_examples.zip).
+[here](https://github.com/cp2k/cp2k-examples/tree/master/RI_HFX).
 
 ## Application domain
 

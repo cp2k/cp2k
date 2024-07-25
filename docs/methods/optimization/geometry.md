@@ -5,9 +5,9 @@
 This tutorial is designed to illustrate how to relax the structure of a system (without changing the
 cell dimensions) using CP2K. We use the relaxation of a water ($H_2O$) molecule as an example.
 
-The example files are contained in
-[geometry_optimisation.tgz](https://www.cp2k.org/_media/geometry_optimisation.tgz) that comes with
-this tutorial. The calculation was carried out with CP2K version 2.4.
+The example files can be downloaded from
+[here](https://github.com/cp2k/cp2k-examples/tree/master/geometry_optimisation). The calculation was
+carried out with CP2K version 2.4.
 
 It should be noted that before running the geometry optimisation, the reader should have already
 know how to perform a simple Kohn-Sham Density Functional Theory energy and force calculation (this
