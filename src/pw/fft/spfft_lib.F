@@ -111,6 +111,7 @@ CONTAINS
 !$    number_of_threads = omp_get_thread_num()
 !$OMP END MASTER
 !$OMP END PARALLEL
+      ALLOCATE (plan%spfft_transform_multi(0:plan%m - 1))
 
       IF (plan%trans) THEN
          ! Setup index map for SPFFT
@@ -123,10 +124,12 @@ CONTAINS
          END DO
          END DO
 
-         errorcode = spfft_transform_create_independent(plan%spfft_transform, number_of_threads, spfft_processing_unit, &
-                                                        SPFFT_TRANS_C2C, plan%n_3d(2), plan%n_3d(1), 1, &
-                                                        PRODUCT(plan%n_3d(1:2)), SPFFT_INDEX_TRIPLETS, indices)
-         IF (errorcode /= SPFFT_SUCCESS) CPABORT("Error in SPFFT!")
+         DO i = 0, plan%m - 1
+           errorcode = spfft_transform_create_independent(plan%spfft_transform_multi(i), number_of_threads, spfft_processing_unit, &
+                                                           SPFFT_TRANS_C2C, plan%n_3d(2), plan%n_3d(1), 1, &
+                                                           PRODUCT(plan%n_3d(1:2)), SPFFT_INDEX_TRIPLETS, indices)
+            IF (errorcode /= SPFFT_SUCCESS) CPABORT("Error in SPFFT!")
+         END DO
       ELSE
          ! Setup index map for SPFFT
          ALLOCATE (indices(3, 0:plan%n_3d(1) - 1, 0:plan%n_3d(2) - 1))
@@ -138,10 +141,12 @@ CONTAINS
          END DO
          END DO
 
-         errorcode = spfft_transform_create_independent(plan%spfft_transform, number_of_threads, spfft_processing_unit, &
-                                                        SPFFT_TRANS_C2C, plan%n_3d(1), plan%n_3d(2), 1, &
-                                                        PRODUCT(plan%n_3d(1:2)), SPFFT_INDEX_TRIPLETS, indices)
-         IF (errorcode /= SPFFT_SUCCESS) CPABORT("Error in SPFFT!")
+         DO i = 0, plan%m - 1
+           errorcode = spfft_transform_create_independent(plan%spfft_transform_multi(i), number_of_threads, spfft_processing_unit, &
+                                                           SPFFT_TRANS_C2C, plan%n_3d(1), plan%n_3d(2), 1, &
+                                                           PRODUCT(plan%n_3d(1:2)), SPFFT_INDEX_TRIPLETS, indices)
+            IF (errorcode /= SPFFT_SUCCESS) CPABORT("Error in SPFFT!")
+         END DO
       END IF
 #else
       MARK_USED(plan)
@@ -281,32 +286,55 @@ CONTAINS
       INTEGER :: i
       INTEGER(KIND=C_INT) :: errorcode
       TYPE(C_PTR) :: spfft_ptr
+      INTEGER(C_INT), DIMENSION(:), ALLOCATABLE, TARGET :: spfftLocations, spfftScalings
+      TYPE(C_PTR), DIMENSION(:), ALLOCATABLE, TARGET :: cp2kPointers
 
-      ! set space domain array to use memory allocted by the library
-      errorCode = spfft_transform_get_space_domain(plan%spfft_transform, SPFFT_PU_HOST, spfft_ptr)
-      IF (errorCode /= SPFFT_SUCCESS) CPABORT("FFT with SpFFT failed!")
-
-      CALL C_F_POINTER(spfft_ptr, complex_ptr, [plan%n_3d(1)*plan%n_3d(2)])
+      ALLOCATE (cp2kPointers(0:plan%n_3d(3) - 1), spfftLocations(0:plan%n_3d(3) - 1), spfftScalings(0:plan%n_3d(3) - 1))
+      spfftLocations = SPFFT_PU_HOST
+      spfftScalings = SPFFT_NO_SCALING
 
       IF (fsign == FWFFT) THEN
          ! Scale here to prevent additional copies between the buffer and the output array
          DO i = 0, plan%n_3d(3) - 1
+            cp2kPointers(i) = C_LOC(zout(i*plan%n_3d(1)*plan%n_3d(2)))
+
+            ! set space domain array to use memory allocted by the library
+            errorCode = spfft_transform_get_space_domain(plan%spfft_transform_multi(i), &
+                                                         spfftLocations(i), spfft_ptr)
+            IF (errorCode /= SPFFT_SUCCESS) CPABORT("FFT with SpFFT failed!")
+
+            CALL C_F_POINTER(spfft_ptr, complex_ptr, [plan%n_3d(1)*plan%n_3d(2)])
+
             IF (plan%trans) THEN
                complex_ptr(:) = scale*zin(i::plan%n_3d(3))
             ELSE
                complex_ptr(:) = scale*zin(i*plan%n_3d(1)*plan%n_3d(2):(i + 1)*plan%n_3d(1)*plan%n_3d(2) - 1)
             END IF
+         END DO
 
-            errorCode = spfft_transform_forward(plan%spfft_transform, SPFFT_PU_HOST, &
-                                                zout(i*plan%n_3d(1)*plan%n_3d(2)), SPFFT_NO_SCALING)
+         DO i = 0, plan%n_3d(3) - 1
+            errorCode = spfft_transform_forward(plan%spfft_transform_multi(i), &
+                                                spfftLocations(i), zout(i*plan%n_3d(1)*plan%n_3d(2)), spfftScalings(i))
             IF (errorCode /= SPFFT_SUCCESS) CPABORT("FFT with SpFFT failed!")
          END DO
 
       ELSE
          DO i = 0, plan%n_3d(3) - 1
-            errorCode = spfft_transform_backward(plan%spfft_transform, &
-                                                 zin(i*plan%n_3d(1)*plan%n_3d(2)), SPFFT_PU_HOST)
+            cp2kPointers(i) = C_LOC(zin(i*plan%n_3d(1)*plan%n_3d(2)))
+         END DO
+
+         DO i = 0, plan%n_3d(3) - 1
+            errorCode = spfft_transform_backward(plan%spfft_transform_multi(i), &
+                                                 zin(i*plan%n_3d(1)*plan%n_3d(2)), spfftLocations(i))
             IF (errorCode /= SPFFT_SUCCESS) CPABORT("FFT with SpFFT failed!")
+         END DO
+
+         DO i = 0, plan%n_3d(3) - 1
+            ! set space domain array to use memory allocted by the library
+            errorCode = spfft_transform_get_space_domain(plan%spfft_transform_multi(i), spfftLocations(i), spfft_ptr)
+            IF (errorCode /= SPFFT_SUCCESS) CPABORT("FFT with SpFFT failed!")
+
+            CALL C_F_POINTER(spfft_ptr, complex_ptr, [plan%n_3d(1)*plan%n_3d(2)])
 
             IF (plan%trans) THEN
                zout(i::plan%n_3d(3)) = scale*complex_ptr
@@ -400,9 +428,17 @@ CONTAINS
       TYPE(fft_plan_type), INTENT(INOUT)   :: plan
 
 #if defined ( __SPFFT ) && defined(__parallel)
+      INTEGER :: i
       INTEGER(KIND=C_INT) :: errorCode
 
       errorCode = spfft_transform_destroy(plan%spfft_transform)
+      IF (ASSOCIATED(plan%spfft_transform_multi)) THEN
+      DO i = 0, SIZE(plan%spfft_transform_multi) - 1
+         errorCode = spfft_transform_destroy(plan%spfft_transform_multi(i))
+      END DO
+      DEALLOCATE (plan%spfft_transform_multi)
+      NULLIFY (plan%spfft_transform_multi)
+      END IF
 #else
       MARK_USED(plan)
       CPABORT("In order to use SPFFT, you have to install it!")
