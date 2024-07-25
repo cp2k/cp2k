@@ -305,7 +305,6 @@ CONTAINS
 
       ! Writes the data that is already available in qs_env
       CALL get_qs_env(qs_env, scf_env=scf_env)
-      CALL write_available_results(qs_env, scf_env)
 
       my_localized_wfn = .FALSE.
       NULLIFY (admm_env, dft_control, pw_env, auxbas_pw_pool, pw_pools, mos, rho, &
@@ -353,6 +352,8 @@ CONTAINS
          ! In MP2 case update the Hartree potential
          CALL update_hartree_with_mp2(rho, qs_env)
       END IF
+
+      CALL write_available_results(qs_env, scf_env)
 
       !    **** the kinetic energy
       IF (cp_print_key_should_output(logger%iter_info, input, &
