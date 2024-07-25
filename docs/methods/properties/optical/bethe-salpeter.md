@@ -155,7 +155,7 @@ conditions in a $\Gamma$-only approach and with full $k$-point sampling is work 
 
 In this section, we provide a minimal example of a BSE calculation on $\mathrm{H}_2$. For the
 calculation you need the input file BSE_H2.inp and the aug-cc-DZVP basis
-([Download](https://www.cp2k.org/_media/howto:bse_example_h2.zip)).
+([Download](https://github.com/cp2k/cp2k-examples/tree/master/bethe-salpeter/H2)).
 
 Please copy both files into your working directory and run CP2K by
 
@@ -164,7 +164,7 @@ mpirun -n 1 cp2k.psmp BSE_H2.inp
 ```
 
 which requires 12 GB RAM and takes roughly 2 minutes on 1 core. You can find the output file also in
-the [Download](https://www.cp2k.org/_media/howto:bse_example_h2.zip).
+the [Download](https://github.com/cp2k/cp2k-examples/tree/master/bethe-salpeter/H2).
 
 ```none
 &GLOBAL

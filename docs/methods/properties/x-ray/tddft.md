@@ -392,7 +392,7 @@ This input file would generate a spectrum such as the one visible on figure 4 of
 This is a much larger calculation than the first example though and would require a few hours on
 20-30 processors (mostly to converge the SCF). In you are interested in reproducing this result,
 input, geometry and pcseg-2/admm-2 basis sets are available
-[here](https://www.cp2k.org/_media/howto:sodal.zip).
+[here](https://github.com/cp2k/cp2k-examples/tree/master/x-ray/sodal).
 
 ### TiCl$_4$ molecule (L-edge + SOC)
 
@@ -515,7 +515,7 @@ Note that this calculation is meant to be a benchmark calculation, hence the ove
 [GRID](#CP2K_INPUT.FORCE_EVAL.DFT.XAS_TDP.GRID) and
 [CUTOFF](#CP2K_INPUT.FORCE_EVAL.DFT.MGRID.CUTOFF) values. The result can be seen in [](#Bussy2021),
 figure 1 a). The calculation takes about 10 minutes on 4 cores. All necessary files are available
-[here](https://www.cp2k.org/_media/howto:ticl4.zip).
+[here](https://github.com/cp2k/cp2k-examples/tree/master/x-ray/TiCl4).
 
 In the output file, the donor state identification yields overlaps that are greater than one. This
 is due to the degenerate nature of 2p states. The candidate Kohn-Sham orbital is projected on 3 STOs

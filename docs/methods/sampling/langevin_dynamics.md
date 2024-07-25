@@ -14,8 +14,8 @@ kick-starts the molecular dynamics. The initial atomic velocities are set to be 
 atoms in the system will be performing NVT Langevin dynamics, while the rest will be performing NVE
 Born-Oppenheimer dynamics.
 
-The example files are contained in
-[langevin_regions.tgz](https://www.cp2k.org/_media/howto:langevin_regions.tgz). The calculation were
+The example files can be downloaded from
+[here](https://github.com/cp2k/cp2k-examples/tree/master/langevin_regions). The calculation were
 carried out using CP2K version 2.5.
 
 ## Input Flags

@@ -7,7 +7,7 @@ this page.
 
 The implementation for RI-HFXk (with k-point sampling) is described in
 [doi:10.1063/5.0189659](https://doi.org/10.1063/5.0189659). All files necessary to run the examples
-discussed below can be found [here](https://www.cp2k.org/_media/howto:ri_hfx_examples.zip).
+discussed below can be found [here](https://github.com/cp2k/cp2k-examples/tree/master/RI_HFX).
 
 ## Application domain
 
@@ -105,7 +105,7 @@ However, many more images are required for HFX calculation than for PBE, due to 
 exact-exchange. Using a very tight value of
 [EPS_PGF_ORB](#CP2K_INPUT.ATOM.METHOD.XC.HF.RI.EPS_PGF_ORB) (e.g. $1.0\times 10^{-12}$) in the
 initial PBE calculation leads to a lot of images there as well. An example is provided in the
-example file [bundle](https://www.cp2k.org/_media/howto:ri_hfx_examples.zip). The example bellow
+example file [bundle](https://github.com/cp2k/cp2k-examples/tree/master/RI_HFX). The example bellow
 takes about 5 minutes to run on 32 CPUs if restarted from a PBE wavefunction, and 10 minutes
 otherwise.
 

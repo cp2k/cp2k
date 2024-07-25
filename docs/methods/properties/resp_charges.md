@@ -378,10 +378,10 @@ $\tilde{V}_\mathrm{RESP}$ is printed instead of $V_\mathrm{RESP}$ when the varia
 ## Example input files
 
 - Isolated methanol molecule - nonperiodic fit:
-  [methanol_nonperiodic.tar.gz](https://www.cp2k.org/_media/howto:methanol_nonperiodic.tar.gz)
+  [methanol_nonperiodic](https://github.com/cp2k/cp2k-examples/tree/master/resp_charges/methanol_nonperiodic)
 - Metal-organic framework IRMOF-1 - periodic fit using REPEAT:
-  [irmof-1_REPEAT.tar.gz](https://www.cp2k.org/_media/howto:irmof-1_repeat.tar.gz)
+  [irmof-1_REPEAT](https://github.com/cp2k/cp2k-examples/tree/master/resp_charges/irmof-1_REPEAT)
 - Metal-organic framework MIL-53-Al - periodic fit using REPEAT:
-  [mil-53-al-repeat.tar.gz](https://www.cp2k.org/_media/howto:mil-53-al-repeat.tar.gz)
+  [mil-53-al-repeat](https://github.com/cp2k/cp2k-examples/tree/master/resp_charges/mil-53-al-repeat)
 - Graphene on Ru(0001) - periodic fit:
-  [graphene_Ru.tar.gz](https://www.cp2k.org/_media/howto:graphene_ru.tar.gz)
+  [graphene_Ru](https://github.com/cp2k/cp2k-examples/tree/master/resp_charges/graphene_Ru)

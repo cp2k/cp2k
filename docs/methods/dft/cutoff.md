@@ -17,9 +17,9 @@ This tutorial assumes the reader already has some knowledge of how to perform a 
 calculation using `QUICKSTEP` (this can be found in tutorial:
 [Calculating Energy and Forces using Quickstep](https://www.cp2k.org/howto:static_calculation)).
 
-A completed example from an earlier calculation can be obtained from the file
-[converging_grid.tgz](https://www.cp2k.org/_media/converging_grid.tgz) that comes with this
-tutorial. The calculations were carried out using CP2K version 2.4.
+A completed example from an earlier calculation can be obtained from
+[here](https://github.com/cp2k/cp2k-examples/tree/master/converging_grid). The calculations were
+carried out using CP2K version 2.4.
 
 ## "QUICKSTEP" Multi-Grid
 

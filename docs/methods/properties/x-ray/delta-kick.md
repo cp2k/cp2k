@@ -11,8 +11,8 @@ This tutorial is structured as follows:
 - CP2K input file overview
 
 Along the RTP run, the time dependent dipole moment is sampled and it is then Fourier transformed to
-produce the absorption spectrum in the frequency domain. An example script is provided at
-[download this file](https://www.cp2k.org/_media/howto:delta_kick_analyse.zip).
+produce the absorption spectrum in the frequency domain. An example script is provided
+[here](https://github.com/cp2k/cp2k-examples/tree/master/x-ray/delta_kick_analyse).
 
 ## Theory Overview
 

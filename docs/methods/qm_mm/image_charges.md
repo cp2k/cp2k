@@ -131,5 +131,7 @@ potential to describe Pauli repulsion and dispersion between molecule and metal.
 is a single water molecule on Pt111. The interactions between water and metal are modeled by the
 Siepmann-Sprik potential, see [](#SIEPMANN1995).
 
-- Guanine@Au111: [Au111_guanine.tar.gz](https://www.cp2k.org/_media/howto:au111_guanine.tar.gz)
-- H2O@Pt111: [Pt111_1H2O.tar.gz](https://www.cp2k.org/_media/howto:pt111_1h2o.tar.gz)
+- Guanine@Au111:
+  [Au111_guanine](https://github.com/cp2k/cp2k-examples/tree/master/image_charges/Au111_guanine)
+- H2O@Pt111:
+  [Pt111_1H2O](https://github.com/cp2k/cp2k-examples/tree/master/image_charges/Pt111_1H2O)
