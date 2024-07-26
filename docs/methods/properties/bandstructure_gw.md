@@ -145,8 +145,15 @@ The following settings from DFT will also have an influence on *GW* quasiparticl
   *G*<sub>0</sub>*W*<sub>0</sub>, ev*GW*<sub>0</sub> or ev*GW* calculation. For molecules, we
   recommend either ev*GW*<sub>0</sub>@PBE or *G*<sub>0</sub>*W*<sub>0</sub>@PBE0. For further
   guidance on selecting an appropriate DFT starting functional and self-consistency scheme for your
-  system, you may consult [this video](https://www.youtube.com/watch?v=1vUuethWhbs&t=5563s) or
-  [](#Golze2019).
+  system, you may consult [](#Golze2019) or the following video:
+
+```{youtube} 1vUuethWhbs
+---
+url_parameters: ?start=5563
+align: center
+privacy_mode:
+---
+```
 
 - [BASIS_SET](#CP2K_INPUT.FORCE_EVAL.SUBSYS.KIND.BASIS_SET): The basis set is of Gaussian type and
   can have strong influence on the quasiparticle energies. For computing quasiparticle energies, a
