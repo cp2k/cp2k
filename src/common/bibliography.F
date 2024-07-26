@@ -1466,7 +1466,8 @@ CONTAINS
 
       CALL add_reference(key=Clabaut2021, &
                          authors=s2a("Clabaut, P"), &
-                         title="Ph.D. Solvation and adsorptions at the solid/water interface : Developments and applications", &
+                         title="Solvation and adsorptions at the solid/water interface: Developments and applications", &
+                         source="Ph.D. thesis at Université de Lyon", &
                          year=2021)
 
       CALL add_reference(key=Richters2018, &
@@ -1563,7 +1564,7 @@ CONTAINS
                                      "Ehrlich, Stephan", "Najibi, Asim", "Grimme, Stefan"), &
                          title="A look at the density functional theory zoo with the advanced GMTKN55 database for "// &
                          "general main group thermochemistry, kinetics and noncovalent interactions", &
-                         volume="19", issue="48", &
+                         source="Phys. Chem. Chem. Phys.", volume="19", issue="48", &
                          year=2017, doi="10.1039/C7CP04913G")
 
       CALL add_reference(key=Wilhelm2016a, &
@@ -1799,28 +1800,28 @@ CONTAINS
       CALL add_reference(key=Freeman1977, &
                          authors=s2a("Freeman, David L."), &
                          title="Coupled-cluster expansion applied to the electron gas: Inclusion of ring and exchange effects", &
-                         volume="15", issue="12", &
+                         source="Phys. Rev. B", volume="15", issue="12", &
                          year=1977, doi="10.1103/PhysRevB.15.5512")
 
       CALL add_reference(key=Gruneis2009, &
                          authors=s2a("Grueneis, Andreas", "Marsman, Martijn", "Harl, Judith", &
                                      "Schimka, Laurids", "Kresse, Georg"), &
                          title="Making the random phase approximation to electronic correlation accurate", &
-                         volume="131", issue="15", &
+                         source="J. Chem. Phys.", volume="131", issue="15", &
                          year=2009, doi="10.1063/1.3250347")
 
       CALL add_reference(key=Stein2022, &
                          authors=s2a("Stein, Frederick", "Hutter, Juerg"), &
                          title="Double-hybrid density functionals for the condensed phase: "// &
                          "Gradients, stress tensor, and auxiliary-density matrix method acceleration", &
-                         volume="156", issue="7", &
+                         source="J. Chem. Phys.", volume="156", issue="7", &
                          year=2022, doi="10.1063/5.0082327")
 
       CALL add_reference(key=Stein2024, &
                          authors=s2a("Stein, Frederick", "Hutter, Juerg"), &
                          title="Massively parallel implementation of gradients within the random phase approximation: "// &
                          "Application to the polymorphs of benzene", &
-                         volume="160", issue="2", &
+                         source="J. Chem. Phys.", volume="160", issue="2", &
                          year=2024, doi="10.1063/5.0180704")
 
       CALL add_reference(key=Blase2018, &
