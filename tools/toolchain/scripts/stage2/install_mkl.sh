@@ -115,7 +115,6 @@ export CP_DFLAGS="\${CP_DFLAGS} -D__MKL -D__FFTW3 IF_COVERAGE(IF_MPI(|-U__FFTW3)
 EOF
   if [ -n "${mkl_scalapack_lib}" ]; then
     cat << EOF >> "${BUILDDIR}/setup_mkl"
-export CP_DFLAGS="\${CP_DFLAGS} IF_MPI(-D__SCALAPACK|)"
 export with_scalapack="__DONTUSE__"
 EOF
   fi

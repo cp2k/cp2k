@@ -547,7 +547,8 @@ make ARCH=Linux-x86-64-gfortran VERSION=sopt realclean
 The following flags should be present (or not) in the arch file, partially depending on installed
 libraries (see 2.)
 
-- `-D__parallel -D__SCALAPACK` parallel runs
+- `-D__parallel` builds an MPI parallel CP2K binary (implies the use and thus the availabiltity of
+  the ScaLAPACK/BLACS libraries)
 - `-D__LIBINT` use LIBINT (needed for HF exchange)
 - `-D__LIBXC` use LIBXC
 - `-D__LIBGRPP` use libgrpp (for calculations with ECPs)

@@ -62,7 +62,7 @@ CONTAINS
                                                   lrwork, lwork, n
       INTEGER, DIMENSION(:), POINTER           :: iwork
       REAL(KIND=dp), DIMENSION(:), POINTER     :: rwork
-#if defined(__SCALAPACK)
+#if defined(__parallel)
       INTEGER, DIMENSION(9)                    :: descm, descv
       COMPLEX(KIND=dp), DIMENSION(:, :), &
          POINTER                                :: v
@@ -81,11 +81,11 @@ CONTAINS
       lrwork = -1
       liwork = -1
 
-#if defined(__SCALAPACK)
+#if defined(__parallel)
       v => eigenvectors%local_data
       descm(:) = matrix%matrix_struct%descriptor(:)
       descv(:) = eigenvectors%matrix_struct%descriptor(:)
-      CALL PZHEEVD('V', 'U', n, m(1, 1), 1, 1, descm, eigenvalues(1), v(1, 1), 1, 1, descv, &
+      CALL pzheevd('V', 'U', n, m(1, 1), 1, 1, descm, eigenvalues(1), v(1, 1), 1, 1, descv, &
                    work(1), lwork, rwork(1), lrwork, iwork(1), liwork, info)
       ! The work space query for lwork does not return always sufficiently large values.
       ! Let's add some margin to avoid crashes.
@@ -94,7 +94,7 @@ CONTAINS
       lrwork = CEILING(REAL(rwork(1), KIND=dp)) + 1000000
       liwork = iwork(1)
 #else
-      CALL ZHEEVD('V', 'U', n, m(1, 1), SIZE(m, 1), eigenvalues(1), &
+      CALL zheevd('V', 'U', n, m(1, 1), SIZE(m, 1), eigenvalues(1), &
                   work(1), lwork, rwork(1), lrwork, iwork(1), liwork, info)
       lwork = CEILING(REAL(work(1), KIND=dp))
       lrwork = CEILING(REAL(rwork(1), KIND=dp))
@@ -104,7 +104,7 @@ CONTAINS
       DEALLOCATE (iwork, rwork, work)
       ALLOCATE (iwork(liwork), rwork(lrwork), work(lwork))
 
-#if defined(__SCALAPACK)
+#if defined(__parallel)
 ! Scalapack takes advantage of IEEE754 exceptions for speedup.
 ! Therefore, we disable floating point traps temporarily.
 #if defined (__HAS_IEEE_EXCEPTIONS)
@@ -112,7 +112,7 @@ CONTAINS
       CALL ieee_set_halting_mode(IEEE_ALL, .FALSE.)
 #endif
 
-      CALL PZHEEVD('V', 'U', n, m(1, 1), 1, 1, descm, eigenvalues(1), v(1, 1), 1, 1, descv, &
+      CALL pzheevd('V', 'U', n, m(1, 1), 1, 1, descm, eigenvalues(1), v(1, 1), 1, 1, descv, &
                    work(1), lwork, rwork(1), lrwork, iwork(1), liwork, info)
 
 #if defined (__HAS_IEEE_EXCEPTIONS)

@@ -2,7 +2,7 @@ CC       = gcc
 FC       = mpifort
 LD       = mpifort
 AR       = ar -r
-DFLAGS   = -D__FFTW3 -D__NO_STATM_ACCESS -D__parallel -D__SCALAPACK
+DFLAGS   = -D__FFTW3 -D__NO_STATM_ACCESS -D__parallel
 FCFLAGS  = -O2 -fopenmp -funroll-loops -ftree-vectorize -march=native -ffree-form $(DFLAGS)
 LDFLAGS  = $(FCFLAGS)
 LIBS     = -llapack -lblas -lscalapack -lfftw3 -lfftw3_omp -lmpich

@@ -34,7 +34,6 @@ DFLAGS    = -D__FFTW3
 DFLAGS   += -D__MAX_CONTR=4
 DFLAGS   += -D__MKL
 DFLAGS   += -D__parallel
-DFLAGS   += -D__SCALAPACK
 
 FCFLAGS   = $(CFLAGS) $(DFLAGS)
 FCFLAGS  += -diag-disable=8291
