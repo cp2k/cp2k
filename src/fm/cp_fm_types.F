@@ -174,10 +174,6 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-#if ! defined(__parallel)
-      CPABORT("Distributed full matrices using BLACS/ScaLAPACK require an MPI parallel CP2K binary")
-#endif
-
       context => matrix_struct%context
       matrix%matrix_struct => matrix_struct
       CALL cp_fm_struct_retain(matrix%matrix_struct)

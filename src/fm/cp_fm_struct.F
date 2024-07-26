@@ -151,10 +151,6 @@ CONTAINS
 
       LOGICAL :: my_square_blocks, my_force_block
 
-#if ! defined(__parallel)
-      CPABORT("Distributed full matrices using BLACS/ScaLAPACK require an MPI parallel CP2K binary")
-#endif
-
       ALLOCATE (fmstruct)
 
       fmstruct%nrow_block = optimal_blacs_row_block_size

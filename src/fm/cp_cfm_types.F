@@ -119,15 +119,11 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cp_cfm_create(matrix, matrix_struct, name)
       TYPE(cp_cfm_type), INTENT(OUT)                     :: matrix
-      TYPE(cp_fm_struct_type), TARGET, INTENT(IN)        :: matrix_struct
+      TYPE(cp_fm_struct_type), INTENT(IN), TARGET        :: matrix_struct
       CHARACTER(len=*), INTENT(in), OPTIONAL             :: name
 
       INTEGER                                            :: ncol_local, npcol, nprow, nrow_local
       TYPE(cp_blacs_env_type), POINTER                   :: context
-
-#if ! defined(__parallel)
-      CPABORT("Distributed full matrices using BLACS/ScaLAPACK require an MPI parallel CP2K binary")
-#endif
 
       context => matrix_struct%context
       matrix%matrix_struct => matrix_struct
