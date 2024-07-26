@@ -1,5 +1,5 @@
-RI_RPA_grad_MP2_H2O.inp                                11     5e-08            -16.994618476831036
-RI_RPA_grad_MP2_CH3.inp                                11     5e-08             -7.515607384605213
-RI_RPA_grad_MP2_H2O_HF_PBE.inp                         11     5e-08            -17.057843090414949
-RI_RPA_grad_MP2_H2O_HF_PBE_ADMM.inp                    11     5e-08            -17.066232490836303
+RI_RPA_grad_MP2_H2O.inp                                11     8e-08            -16.994618476831036
+RI_RPA_grad_MP2_CH3.inp                                11     8e-08             -7.515607384605213
+RI_RPA_grad_MP2_H2O_HF_PBE.inp                         11     8e-08            -17.057843090414949
+RI_RPA_grad_MP2_H2O_HF_PBE_ADMM.inp                    11     8e-08            -17.066232490836303
 #EOF
