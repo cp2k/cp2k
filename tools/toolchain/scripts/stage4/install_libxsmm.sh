@@ -82,6 +82,7 @@ EOF
     echo "==================== Finding Libxsmm from system paths ===================="
     check_lib -lxsmm "libxsmm"
     check_lib -lxsmmf "libxsmm"
+    check_lib -lxsmmext "libxsmm"
     add_include_from_paths LIBXSMM_CFLAGS "libxsmm.h" $INCLUDE_PATHS
     add_lib_from_paths LIBXSMM_LDFLAGS "libxsmm.*" $LIB_PATHS
     ;;
@@ -98,7 +99,7 @@ EOF
     ;;
 esac
 if [ "$with_libxsmm" != "__DONTUSE__" ]; then
-  LIBXSMM_LIBS="-lxsmmf -lxsmm -ldl -lpthread"
+  LIBXSMM_LIBS="-lxsmmf -lxsmmext -lxsmm -ldl -lpthread"
   if [ "$with_libxsmm" != "__SYSTEM__" ]; then
     cat << EOF > "${BUILDDIR}/setup_libxsmm"
 prepend_path PATH "${pkg_install_dir}/bin"
