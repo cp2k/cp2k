@@ -55,7 +55,7 @@ USE_PLUMED=0
 CHECKS=0
 
 # === PRE-PROCESSOR FLAGS (base) ===
-DFLAGS   = -D__parallel -D__SCALAPACK \
+DFLAGS   = -D__parallel \
            -D__FFTW3 \
            -D__LIBXSMM \
            -D__LIBXC

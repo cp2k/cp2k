@@ -883,13 +883,6 @@ if [ "${ENABLE_CRAY}" = "__TRUE__" ]; then
   export MPIFC="${FC}"
   export MPIFORT="${MPIFC}"
   export MPIF77="${MPIFC}"
-  # CRAY libsci should contains core math libraries, scalapack
-  # doesn't need LDFLAGS or CFLAGS, nor do the one need to
-  # explicitly link the math and scalapack libraries, as all is
-  # taken care of by the cray compiler wrappers.
-  if [ "$with_scalapack" = "__DONTUSE__" ]; then
-    export CP_DFLAGS="${CP_DFLAGS} IF_MPI(-D__SCALAPACK|)"
-  fi
   case $MPI_MODE in
     mpich)
       if [ "$MPICH_DIR" ]; then

@@ -83,7 +83,7 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:)       :: ipivot
       COMPLEX(KIND=dp), DIMENSION(:), POINTER  :: diag
 
-#if defined(__SCALAPACK)
+#if defined(__parallel)
       INTEGER                                  :: myprow, nprow, npcol, nrow_local, irow_local, &
                                                   mypcol, ncol_local, icol_local, j
       INTEGER, DIMENSION(9)                    :: desca
@@ -101,7 +101,7 @@ CONTAINS
       P = 0
       ALLOCATE (diag(n))
       diag(:) = 0.0_dp
-#if defined(__SCALAPACK)
+#if defined(__parallel)
       ! Use LU decomposition
       desca(:) = matrix_lu%matrix_struct%descriptor(:)
       CALL pzgetrf(n, n, a(1, 1), 1, 1, desca, ipivot, info)
@@ -327,7 +327,7 @@ CONTAINS
                END DO
             END IF
          ELSE
-#if defined(__SCALAPACK)
+#if defined(__parallel)
             CPABORT("to do (pdscal,pdcopy,pdaxpy)")
 #else
             CPABORT("")
@@ -434,7 +434,7 @@ CONTAINS
                END DO
             END IF
          ELSE
-#if defined(__SCALAPACK)
+#if defined(__parallel)
             CPABORT("to do (pdscal,pdcopy,pdaxpy)")
 #else
             CPABORT("")
@@ -465,7 +465,7 @@ CONTAINS
       INTEGER                                            :: counter, handle, info, irow, nrow_global
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: ipivot
 
-#if defined(__SCALAPACK)
+#if defined(__parallel)
       INTEGER                                            :: icol, ncol_local, nrow_local
       INTEGER, DIMENSION(9)                              :: desca
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
@@ -479,7 +479,7 @@ CONTAINS
       a => matrix_a%local_data
 
       ALLOCATE (ipivot(nrow_global))
-#if defined(__SCALAPACK)
+#if defined(__parallel)
       CALL cp_cfm_get_info(matrix_a, nrow_local=nrow_local, ncol_local=ncol_local, &
                            row_indices=row_indices, col_indices=col_indices)
 
@@ -574,7 +574,7 @@ CONTAINS
 
       COMPLEX(kind=dp), DIMENSION(:, :), POINTER         :: a, b, c
       INTEGER                                            :: handle, i_a, i_b, i_c, j_a, j_b, j_c
-#if defined(__SCALAPACK)
+#if defined(__parallel)
       INTEGER, DIMENSION(9)                              :: desca, descb, descc
 #else
       INTEGER                                            :: lda, ldb, ldc
@@ -616,7 +616,7 @@ CONTAINS
          j_c = 1
       END IF
 
-#if defined(__SCALAPACK)
+#if defined(__parallel)
       desca(:) = matrix_a%matrix_struct%descriptor(:)
       descb(:) = matrix_b%matrix_struct%descriptor(:)
       descc(:) = matrix_c%matrix_struct%descriptor(:)
@@ -651,7 +651,7 @@ CONTAINS
       COMPLEX(kind=dp), DIMENSION(:, :), POINTER         :: a
       INTEGER                                            :: handle, icol_local, ncol_local, &
                                                             nrow_local
-#if defined(__SCALAPACK)
+#if defined(__parallel)
       INTEGER, DIMENSION(:), POINTER                     :: col_indices
 #endif
 
@@ -659,7 +659,7 @@ CONTAINS
 
       a => matrix_a%local_data
 
-#if defined(__SCALAPACK)
+#if defined(__parallel)
       CALL cp_cfm_get_info(matrix_a, nrow_local=nrow_local, ncol_local=ncol_local, col_indices=col_indices)
       ncol_local = MIN(ncol_local, SIZE(scaling))
 
@@ -751,7 +751,7 @@ CONTAINS
       INTEGER                                            :: counter, handle, info, irow, nrow_global
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: ipivot
 
-#if defined(__SCALAPACK)
+#if defined(__parallel)
       INTEGER                                            :: icol, ncol_local, nrow_local
       INTEGER, DIMENSION(9)                              :: desca, descb
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
@@ -766,7 +766,7 @@ CONTAINS
       nrow_global = matrix_a%matrix_struct%nrow_global
       ALLOCATE (ipivot(nrow_global))
 
-#if defined(__SCALAPACK)
+#if defined(__parallel)
       desca(:) = matrix_a%matrix_struct%descriptor(:)
       descb(:) = general_a%matrix_struct%descriptor(:)
       CALL pzgetrf(nrow_global, nrow_global, a(1, 1), 1, 1, desca, ipivot, info)
@@ -845,7 +845,7 @@ CONTAINS
       INTEGER                                            :: handle, info, lwork, nrows_global
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: ipivot
 
-#if defined(__SCALAPACK)
+#if defined(__parallel)
       INTEGER                                            :: liwork
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: iwork
       INTEGER, DIMENSION(1)                              :: iwork1
@@ -862,7 +862,7 @@ CONTAINS
       ALLOCATE (ipivot(nrows_global))
 
       ! do LU decomposition
-#if defined(__SCALAPACK)
+#if defined(__parallel)
       desca = matrix%matrix_struct%descriptor
       CALL pzgetrf(nrows_global, nrows_global, &
                    mat(1, 1), 1, 1, desca, ipivot, info)
@@ -876,7 +876,7 @@ CONTAINS
       END IF
 
       ! do inversion
-#if defined(__SCALAPACK)
+#if defined(__parallel)
       CALL pzgetri(nrows_global, mat(1, 1), 1, 1, desca, &
                    ipivot, work1, -1, iwork1, -1, info)
       lwork = INT(work1(1))
@@ -928,7 +928,7 @@ CONTAINS
 
       COMPLEX(kind=dp), DIMENSION(:, :), POINTER         :: a
       INTEGER                                            :: handle, info, my_n
-#if defined(__SCALAPACK)
+#if defined(__parallel)
       INTEGER, DIMENSION(9)                              :: desca
 #else
       INTEGER                                            :: lda
@@ -945,7 +945,7 @@ CONTAINS
 
       a => matrix%local_data
 
-#if defined(__SCALAPACK)
+#if defined(__parallel)
       desca(:) = matrix%matrix_struct%descriptor(:)
       CALL pzpotrf('U', my_n, a(1, 1), 1, 1, desca, info)
 #else
@@ -984,7 +984,7 @@ CONTAINS
       COMPLEX(kind=dp), DIMENSION(:, :), POINTER  :: aa
       INTEGER                                    :: info, handle
       INTEGER                                    :: my_n
-#if defined(__SCALAPACK)
+#if defined(__parallel)
       INTEGER, DIMENSION(9)                      :: desca
 #endif
 
@@ -999,7 +999,7 @@ CONTAINS
 
       aa => matrix%local_data
 
-#if defined(__SCALAPACK)
+#if defined(__parallel)
       desca = matrix%matrix_struct%descriptor
       CALL pzpotri('U', my_n, aa(1, 1), 1, 1, desca, info)
 #else
@@ -1141,7 +1141,7 @@ CONTAINS
 
       IF (invert) THEN
 
-#if defined(__SCALAPACK)
+#if defined(__parallel)
          CALL pztrsm(side_char, uplo, transa, unit_diag, m, n, al, &
                      triangular_matrix%local_data(1, 1), 1, 1, &
                      triangular_matrix%matrix_struct%descriptor, &
@@ -1156,7 +1156,7 @@ CONTAINS
 
       ELSE
 
-#if defined(__SCALAPACK)
+#if defined(__parallel)
          CALL pztrmm(side_char, uplo, transa, unit_diag, m, n, al, &
                      triangular_matrix%local_data(1, 1), 1, 1, &
                      triangular_matrix%matrix_struct%descriptor, &
@@ -1193,7 +1193,7 @@ CONTAINS
       INTEGER                                  :: handle, info, ncol_global
       COMPLEX(kind=dp), DIMENSION(:, :), &
          POINTER                                :: a
-#if defined(__SCALAPACK)
+#if defined(__parallel)
       INTEGER, DIMENSION(9)                    :: desca
 #endif
 
@@ -1207,7 +1207,7 @@ CONTAINS
 
       a => matrix_a%local_data
 
-#if defined(__SCALAPACK)
+#if defined(__parallel)
       desca(:) = matrix_a%matrix_struct%descriptor(:)
       CALL pztrtri(my_uplo, unit_diag, ncol_global, a(1, 1), 1, 1, desca, info)
 #else
@@ -1241,7 +1241,7 @@ CONTAINS
 
       COMPLEX(kind=dp), DIMENSION(:, :), POINTER         :: aa, cc
       INTEGER                                            :: handle, ncol_global, nrow_global
-#if defined(__SCALAPACK)
+#if defined(__parallel)
       INTEGER, DIMENSION(9)                              :: desca, descc
 #else
       INTEGER                                            :: ii, jj
@@ -1258,7 +1258,7 @@ CONTAINS
       aa => matrix%local_data
       cc => matrixt%local_data
 
-#if defined(__SCALAPACK)
+#if defined(__parallel)
       desca = matrix%matrix_struct%descriptor
       descc = matrixt%matrix_struct%descriptor
       SELECT CASE (trans)
@@ -1317,7 +1317,7 @@ CONTAINS
                                                             nrows, nrows_local
       REAL(kind=dp), ALLOCATABLE, DIMENSION(:)           :: work
 
-#if defined(__SCALAPACK)
+#if defined(__parallel)
       INTEGER, DIMENSION(9)                              :: desca
 #else
       INTEGER                                            :: lda
@@ -1336,13 +1336,13 @@ CONTAINS
       CASE ('M', 'm')
          lwork = 1
       CASE ('1', 'O', 'o')
-#if defined(__SCALAPACK)
+#if defined(__parallel)
          lwork = ncols_local
 #else
          lwork = 1
 #endif
       CASE ('I', 'i')
-#if defined(__SCALAPACK)
+#if defined(__parallel)
          lwork = nrows_local
 #else
          lwork = nrows
@@ -1355,7 +1355,7 @@ CONTAINS
 
       ALLOCATE (work(lwork))
 
-#if defined(__SCALAPACK)
+#if defined(__parallel)
       desca = matrix%matrix_struct%descriptor
       res = pzlange(mode, nrows, ncols, aa(1, 1), 1, 1, desca, work)
 #else
@@ -1385,7 +1385,7 @@ CONTAINS
       INTEGER                                  :: handle, nrow, ncol
       COMPLEX(KIND=dp)                         :: sn_cmplx
 
-#if defined(__SCALAPACK)
+#if defined(__parallel)
       INTEGER                                  :: info, lwork
       INTEGER, DIMENSION(9)                    :: desc
       REAL(dp), DIMENSION(:), ALLOCATABLE      :: work
@@ -1395,7 +1395,7 @@ CONTAINS
       CALL cp_cfm_get_info(matrix, nrow_global=nrow, ncol_global=ncol)
       sn_cmplx = CMPLX(sn, 0.0_dp, dp)
 
-#if defined(__SCALAPACK)
+#if defined(__parallel)
       lwork = 2*ncol + 1
       ALLOCATE (work(lwork))
       desc(:) = matrix%matrix_struct%descriptor(:)
@@ -1430,7 +1430,7 @@ CONTAINS
       INTEGER                                  :: handle, nrow, ncol
       COMPLEX(KIND=dp)                         :: sn_cmplx
 
-#if defined(__SCALAPACK)
+#if defined(__parallel)
       INTEGER                                  :: info, lwork
       INTEGER, DIMENSION(9)                    :: desc
       REAL(dp), DIMENSION(:), ALLOCATABLE      :: work
@@ -1440,7 +1440,7 @@ CONTAINS
       CALL cp_cfm_get_info(matrix, nrow_global=nrow, ncol_global=ncol)
       sn_cmplx = CMPLX(sn, 0.0_dp, dp)
 
-#if defined(__SCALAPACK)
+#if defined(__parallel)
       lwork = 2*nrow + 1
       ALLOCATE (work(lwork))
       desc(:) = matrix%matrix_struct%descriptor(:)

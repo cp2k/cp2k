@@ -111,7 +111,6 @@ else
 endif
 
 DFLAGS         := -D__parallel
-DFLAGS         += -D__SCALAPACK
 DFLAGS         += -D__HAS_IEEE_EXCEPTIONS
 DFLAGS         += -D__MAX_CONTR=$(strip $(MAX_CONTR))
 

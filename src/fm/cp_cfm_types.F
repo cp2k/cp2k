@@ -119,15 +119,11 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cp_cfm_create(matrix, matrix_struct, name)
       TYPE(cp_cfm_type), INTENT(OUT)                     :: matrix
-      TYPE(cp_fm_struct_type), TARGET, INTENT(IN)       :: matrix_struct
+      TYPE(cp_fm_struct_type), INTENT(IN), TARGET        :: matrix_struct
       CHARACTER(len=*), INTENT(in), OPTIONAL             :: name
 
       INTEGER                                            :: ncol_local, npcol, nprow, nrow_local
       TYPE(cp_blacs_env_type), POINTER                   :: context
-
-#if defined(__parallel) && ! defined(__SCALAPACK)
-      CPABORT("full matrices need ScaLAPACK for parallel run")
-#endif
 
       context => matrix_struct%context
       matrix%matrix_struct => matrix_struct
@@ -181,7 +177,7 @@ CONTAINS
       COMPLEX(kind=dp), INTENT(in), OPTIONAL             :: beta
 
       INTEGER                                            :: irow_local, nrow_local
-#if defined(__SCALAPACK)
+#if defined(__parallel)
       INTEGER                                            :: icol_local, ncol_local
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
 #endif
@@ -189,7 +185,7 @@ CONTAINS
       CALL zcopy(SIZE(matrix%local_data), alpha, 0, matrix%local_data(1, 1), 1)
 
       IF (PRESENT(beta)) THEN
-#if defined(__SCALAPACK)
+#if defined(__parallel)
          CALL cp_cfm_get_info(matrix, nrow_local=nrow_local, ncol_local=ncol_local, &
                               row_indices=row_indices, col_indices=col_indices)
 
@@ -233,14 +229,14 @@ CONTAINS
       INTEGER, INTENT(in)                                :: irow_global, icol_global
       COMPLEX(kind=dp), INTENT(out)                      :: alpha
 
-#if defined(__SCALAPACK)
+#if defined(__parallel)
       INTEGER                                            :: icol_local, ipcol, iprow, irow_local, &
                                                             mypcol, myprow, npcol, nprow
       INTEGER, DIMENSION(9)                              :: desca
       TYPE(cp_blacs_env_type), POINTER                   :: context
 #endif
 
-#if defined(__SCALAPACK)
+#if defined(__parallel)
       context => matrix%matrix_struct%context
       myprow = context%mepos(1)
       mypcol = context%mepos(2)
@@ -280,14 +276,14 @@ CONTAINS
       INTEGER, INTENT(in)                                :: irow_global, icol_global
       COMPLEX(kind=dp), INTENT(in)                       :: alpha
 
-#if defined(__SCALAPACK)
+#if defined(__parallel)
       INTEGER                                            :: icol_local, ipcol, iprow, irow_local, &
                                                             mypcol, myprow, npcol, nprow
       INTEGER, DIMENSION(9)                              :: desca
       TYPE(cp_blacs_env_type), POINTER                   :: context
 #endif
 
-#if defined(__SCALAPACK)
+#if defined(__parallel)
       context => matrix%matrix_struct%context
       myprow = context%mepos(1)
       mypcol = context%mepos(2)
@@ -348,7 +344,7 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       IF (SIZE(target_m) /= 0) THEN
-#if defined(__SCALAPACK)
+#if defined(__parallel)
          do_zero = .TRUE.
 #else
          do_zero = .FALSE.
@@ -653,7 +649,7 @@ CONTAINS
             CPABORT("cannot copy between full matrixes of differen sizes")
          IF (source%matrix_struct%ncol_global /= destination%matrix_struct%ncol_global) &
             CPABORT("cannot copy between full matrixes of differen sizes")
-#if defined(__SCALAPACK)
+#if defined(__parallel)
          CALL pzcopy(source%matrix_struct%nrow_global* &
                      source%matrix_struct%ncol_global, &
                      source%local_data(1, 1), 1, 1, source%matrix_struct%descriptor, 1, &
@@ -683,7 +679,7 @@ CONTAINS
 
       COMPLEX(kind=dp), DIMENSION(:, :), POINTER         :: a, b
       INTEGER                                            :: handle, n, ss, ts
-#if defined(__SCALAPACK)
+#if defined(__parallel)
       INTEGER                                            :: i
       INTEGER, DIMENSION(9)                              :: desca, descb
 #endif
@@ -701,7 +697,7 @@ CONTAINS
       a => msource%local_data
       b => mtarget%local_data
 
-#if defined(__SCALAPACK)
+#if defined(__parallel)
       desca(:) = msource%matrix_struct%descriptor(:)
       descb(:) = mtarget%matrix_struct%descriptor(:)
       DO i = 0, ncol - 1
@@ -729,7 +725,7 @@ CONTAINS
 
       COMPLEX(kind=dp), DIMENSION(:, :), POINTER         :: aa, bb
       INTEGER                                            :: handle, ncol, nrow
-#if defined(__SCALAPACK)
+#if defined(__parallel)
       INTEGER, DIMENSION(9)                              :: desca, descb
 #endif
 
@@ -741,7 +737,7 @@ CONTAINS
       aa => msource%local_data
       bb => mtarget%local_data
 
-#if defined(__SCALAPACK)
+#if defined(__parallel)
       desca(:) = msource%matrix_struct%descriptor(:)
       descb(:) = mtarget%matrix_struct%descriptor(:)
       CALL pzlacpy(uplo, nrow, ncol, aa(1, 1), 1, 1, desca, bb(1, 1), 1, 1, descb)

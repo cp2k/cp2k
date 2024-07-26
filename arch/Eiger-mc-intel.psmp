@@ -80,7 +80,6 @@ CFLAGS         := -O2 -fPIC -fp-model precise -funroll-loops -g -mtune=core-avx2
 CFLAGS         += -diag-disable=10448
 
 DFLAGS         := -D__parallel
-DFLAGS         += -D__SCALAPACK
 DFLAGS         += -D__MKL
 DFLAGS         += -D__FFTW3
 DFLAGS         += -D__MAX_CONTR=$(strip $(MAX_CONTR))

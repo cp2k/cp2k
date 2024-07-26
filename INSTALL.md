@@ -115,7 +115,7 @@ When building on/for Windows using the Minimalist GNU for Windows (MinGW) enviro
 `-D__MINGW`, `-D__NO_STATM_ACCESS` and `-D__NO_SOCKETS` to avoid undefined references during
 linking, respectively errors while printing the statistics.
 
-### 2e. MPI and SCALAPACK (optional, required for MPI parallel builds)
+### 2e. MPI and ScaLAPACK (optional, required for MPI parallel builds)
 
 MPI (version 3) and SCALAPACK are needed for parallel code. (Use the latest versions available and
 download all patches!).
@@ -197,7 +197,7 @@ required.
   upgraded version cufft i.e. >= 7.0.35) - use this together with `-D__HAS_PATCHED_CUFFT_70`.
 - Use `-D__OFFLOAD_PROFILING` to turn on Nvidia Tools Extensions. It requires to link
   `-lnvToolsExt`.
-- Link to a blas/scalapack library that accelerates large DGEMMs (e.g., libsci_acc)
+- Link to a BLAS/ScaLAPACK library that accelerates large DGEMMs (e.g., libsci_acc)
 - Use `-D__NO_OFFLOAD_GRID` to disable the GPU backend of the grid library.
 - Use `-D__NO_OFFLOAD_DBM` to disable the GPU backend of the sparse tensor library.
 - Use `-D__NO_OFFLOAD_PW` to disable the GPU backend of FFTs and associated gather/scatter
@@ -219,7 +219,7 @@ required.
 
 Library ELPA for the solution of the eigenvalue problem
 
-- ELPA replaces the ScaLapack `SYEVD` to improve the performance of the diagonalization
+- ELPA replaces the ScaLAPACK `SYEVD` to improve the performance of the diagonalization
 - A version of ELPA can be downloaded from <http://elpa.rzg.mpg.de/software>.
 - During the installation the `libelpa_openmp.a` is created.
 - Minimal supported version of ELPA is 2018.05.001.
@@ -238,7 +238,7 @@ Library ELPA for the solution of the eigenvalue problem
 NVIDIA cuSOLVERMp is a high-performance, distributed-memory, GPU-accelerated library that provides
 tools for the solution of dense linear systems and eigenvalue problems.
 
-- cuSOLVERMp replaces the ScaLapack `SYEVD` to improve the performance of the diagonalization
+- cuSOLVERMp replaces the ScaLAPACK `SYEVD` to improve the performance of the diagonalization
 - A version of cuSOLVERMp can be downloaded from <https://docs.nvidia.com/hpc-sdk/cusolvermp>.
 - Add `-D__CUSOLVERMP` to `DFLAGS`
 - Add `-lcusolverMp -lcusolver -lcal -lnvidia-ml` to `LIBS`
@@ -547,7 +547,8 @@ make ARCH=Linux-x86-64-gfortran VERSION=sopt realclean
 The following flags should be present (or not) in the arch file, partially depending on installed
 libraries (see 2.)
 
-- `-D__parallel -D__SCALAPACK` parallel runs
+- `-D__parallel` builds an MPI parallel CP2K binary (implies the use and thus the availabiltity of
+  the ScaLAPACK/BLACS libraries)
 - `-D__LIBINT` use LIBINT (needed for HF exchange)
 - `-D__LIBXC` use LIBXC
 - `-D__LIBGRPP` use libgrpp (for calculations with ECPs)
@@ -559,7 +560,7 @@ libraries (see 2.)
   ~10%) speedup.
 - `-D__PILAENV_BLOCKSIZE`: can be used to specify the blocksize (e.g.,
   `-D__PILAENV_BLOCKSIZE=1024`), which is a hack to overwrite (if the linker allows this) the
-  PILAENV function provided by Scalapack. This can lead to much improved PDGEMM performance. The
+  PILAENV function provided by ScaLAPACK. This can lead to much improved PDGEMM performance. The
   optimal value depends on hardware (GPU?) and precise problem. Alternatively, Cray provides an
   environment variable to this effect (e.g., `export LIBSCI_ACC_PILAENV=4000`)
 - `-D__STATM_RESIDENT` or `-D__STATM_TOTAL` toggles memory usage reporting between resident memory
@@ -576,7 +577,7 @@ Features useful to deal with legacy systems
   thread safe (serialized).
 - `-D__NO_SOCKETS` disables the socket interface in case of troubles compiling on systems that do
   not support POSIX sockets.
-- `-D__HAS_IEEE_EXCEPTIONS` disables trapping temporarily for libraries like scalapack.
+- `-D__HAS_IEEE_EXCEPTIONS` disables trapping temporarily for libraries like ScaLAPACK.
 - The Makefile automatically compiles in the path to the data directory via the flag `-D__DATA_DIR`.
   If you want to compile in a different path, set the variable `DATA_DIR` in your arch-file.
 - `-D__NO_STATM_ACCESS` - Do not try to read from /proc/self/statm to get memory usage information.

@@ -1610,7 +1610,6 @@ target_compile_definitions(
   cp2k
   PUBLIC
     $<$<BOOL:${CP2K_USE_MPI}>:__parallel>
-    $<$<BOOL:${CP2K_USE_MPI}>:__SCALAPACK>
     $<$<BOOL:${CP2K_USE_MPI_F08}>:__MPI_F08>
     __COMPILE_DATE=\"${CP2K_TIMESTAMP}\"
     __COMPILE_HOST=\"${CP2K_HOST_NAME}\"

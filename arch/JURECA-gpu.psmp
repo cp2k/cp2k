@@ -99,7 +99,6 @@ AR             := ar -r
 CFLAGS         := -O2 -fPIC -fopenmp -fopenmp-simd -ftree-vectorize -funroll-loops -g -mtune=$(TARGET_CPU)
 
 DFLAGS         := -D__parallel
-DFLAGS         += -D__SCALAPACK
 DFLAGS         += -D__MAX_CONTR=$(strip $(MAX_CONTR))
 
 INSTALL_PATH   := $(PWD)/tools/toolchain/install
