@@ -18,6 +18,14 @@ restarts from scratch with the restart method choosen in
 connection with langevin and a reduced SCF convergence (just on SCF step) and history restart to
 simulate big systems.
 
+```{youtube} cGDiVSWpXLc
+---
+url_parameters: ?start=2
+align: center
+privacy_mode:
+---
+```
+
 ## Trajectory
 
 With the printkey [TRAJECTORY](#CP2K_INPUT.MOTION.PRINT.TRAJECTORY) you can control the output of

@@ -19,6 +19,14 @@ The tasks to be performed are:
 All relevant files can be downloaded
 [here](https://github.com/cp2k/cp2k-examples/tree/master/metadynamics).
 
+```{youtube} t8jxq4e0Qtw
+---
+url_parameters: ?start=1839
+align: center
+privacy_mode:
+---
+```
+
 ## First task: dynamics of formic acid and water molecules on rutile (110)
 
 In the proposed example, formic acid molecules are initially adsorbed onto the rutile surface as

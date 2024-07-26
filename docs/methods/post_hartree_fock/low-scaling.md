@@ -31,6 +31,14 @@ Therefore, they are only interesting for large to very large systems (hundreds o
 still consume a lot of resources. For smaller system, the standard MP2 and RPA implementations are
 recomended (they also have gradients implemented).
 
+```{youtube} Mi0hm54x9dA
+---
+url_parameters: ?start=300
+align: center
+privacy_mode:
+---
+```
+
 ## Simple examples
 
 We cover two simple examples of low-scaling post-HF calculations: SOS-MP2 water MD, and titania
