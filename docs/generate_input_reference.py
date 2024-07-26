@@ -52,21 +52,19 @@ def build_bibliography(root: ET.Element, output_dir: Path) -> None:
         doi = get_text(r.find("DOI"))
         source = get_text(r.find("SOURCE"))
         volume = get_text(r.find("VOLUME"))
-        issue = get_text(r.find("ISSUE"))
         pages = get_text(r.find("PAGES"))
         year = get_text(r.find("YEAR"))
         title = get_text(r.find("TITLE"))
         ref = source
-        ref += f", {volume}" if volume else ""
-        ref += f" ({issue})" if volume and issue else ""
+        ref += f" **{volume}**" if volume else ""
         ref += f", {pages}"
-        ref += f" ({year})." if year else ""
+        ref += f" ({year})" if year else ""
 
         output += [f"({key})=", f"## {key}", ""]
         if doi:
-            output += [f"{authors}. **{title}.** _[{ref}](https://doi.org/{doi})_", ""]
+            output += [f"{authors}, _{title},_ [{ref}](https://doi.org/{doi}).", ""]
         else:
-            output += [f"{authors}. **{title}.** _{ref}_", ""]
+            output += [f"{authors}, _{title},_ {ref}.", ""]
 
     write_file(output_dir / "bibliography.md", "\n".join(output))
 
