@@ -13,7 +13,7 @@
 # Usage: Source this arch file and then run make as instructed.
 #        Replace or adapt the "module load" commands below if needed.
 #
-# Last update: 18.07.2024
+# Last update: 26.07.2024
 #
 # \
    if [[ "${0}" == "${BASH_SOURCE}" ]]; then \
@@ -31,24 +31,25 @@
    export CRAY_LIBSCI_PREFIX_DIR=${CRAY_PE_LIBSCI_PREFIX_DIR}; \
    export CPATH=${CPATH}:${CRAY_PE_LIBSCI_PREFIX_DIR}/include; \
    export COSMA_SCALAPACK_LINK_LIBRARIES=${CRAY_PE_LIBSCI_PREFIX_DIR}; \
-   ./install_cp2k_toolchain.sh -j32 --enable-cray --no-arch-files --target-cpu=znver2 --with-dftd4 --with-fftw --with-libtorch=no --with-libvdwxc --with-libxsmm --with-pexsi --with-plumed --with-quip; \
+   [[ -z "${TARGET_CPU}" ]] && export TARGET_CPU="native"; \
+   ./install_cp2k_toolchain.sh -j32 --enable-cray --no-arch-files --target-cpu=${TARGET_CPU} --with-dftd4 --with-fftw --with-libtorch=no --with-libvdwxc --with-libxsmm --with-pexsi --with-plumed --with-quip; \
    source ./install/setup; \
    cd ../..; \
    echo; \
    echo "Check the output above for error messages and consistency!"; \
    echo; \
    echo "If everything is OK, you can build a CP2K production binary with"; \
-   echo "   make -j32 ARCH=${this_file%.*} VERSION=${this_file##*.}"; \
+   echo "   make -j32 ARCH=${this_file%.*} VERSION=${this_file##*.} TARGET_CPU=${TARGET_CPU}"; \
    echo; \
    echo "Alternatively, you can add further checks, e.g. for regression testing, with"; \
-   echo "   make -j ARCH=${this_file%.*} VERSION=${this_file##*.} DO_CHECKS=yes"; \
+   echo "   make -j32 ARCH=${this_file%.*} VERSION=${this_file##*.} TARGET_CPU=${TARGET_CPU} DO_CHECKS=yes"; \
    echo; \
    return
 
 # Set options
 DO_CHECKS      := no
 SHARED         := no
-TARGET_CPU     := znver2
+TARGET_CPU     := native
 USE_COSMA      := 2.6.6
 USE_DFTD4      := 3.6.0
 USE_ELPA       := 2024.03.001
@@ -83,7 +84,11 @@ GNU_VER        := $(shell $(CC) -dumpfullversion)
 LMAX           := 5
 MAX_CONTR      := 4
 
-CFLAGS         := -O2 -fopenmp -fopenmp-simd -ftree-vectorize -funroll-loops -g -mtune=$(TARGET_CPU)
+ifeq ($(TARGET_CPU), generic)
+   CFLAGS         := -O2 -fopenmp -fopenmp-simd -ftree-vectorize -funroll-loops -g -mtune=$(TARGET_CPU)
+else
+   CFLAGS         := -O2 -fopenmp -fopenmp-simd -ftree-vectorize -funroll-loops -g -march=$(TARGET_CPU) -mtune=$(TARGET_CPU)
+endif
 
 DFLAGS         := -D__parallel
 DFLAGS         += -D__FFTW3

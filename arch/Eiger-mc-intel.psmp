@@ -13,7 +13,7 @@
 # Usage: Source this arch file and then run make as instructed.
 #        Replace or adapt the "module load" commands below if needed.
 #
-# Last update: 16.07.2024
+# Last update: 26.07.2024
 #
 # \
    if [[ "${0}" == "${BASH_SOURCE}" ]]; then \
@@ -28,24 +28,25 @@
    module load cpeIntel; \
    module load cray-fftw; \
    module list; \
-   ./install_cp2k_toolchain.sh -j32 --enable-cray --no-arch-files --target-cpu=core-avx2 --with-dftd4 --with-elpa --with-fftw --with-libtorch=no --with-intel --with-mkl --with-libtorch=no --with-libvdwxc --with-pexsi --with-plumed --with-quip=no; \
+   [[ -z "${TARGET_CPU}" ]] && export TARGET_CPU="core-avx2"; \
+   ./install_cp2k_toolchain.sh -j32 --enable-cray --no-arch-files --target-cpu=${TARGET_CPU} --with-dftd4 --with-elpa --with-fftw --with-libtorch=no --with-intel --with-mkl --with-libtorch=no --with-libvdwxc --with-pexsi --with-plumed --with-quip=no; \
    source ./install/setup; \
    cd ../..; \
    echo; \
    echo "Check the output above for error messages and consistency!"; \
    echo; \
    echo "If everything is OK, you can build a CP2K production binary with"; \
-   echo "   make -j ARCH=${this_file%.*} VERSION=${this_file##*.}"; \
+   echo "   make -j32 ARCH=${this_file%.*} VERSION=${this_file##*.} TARGET_CPU=${TARGET_CPU}"; \
    echo; \
    echo "Alternatively, you can add further checks, e.g. for regression testing, with"; \
-   echo "   make -j ARCH=${this_file%.*} VERSION=${this_file##*.} DO_CHECKS=yes"; \
+   echo "   make -j32 ARCH=${this_file%.*} VERSION=${this_file##*.} TARGET_CPU=${TARGET_CPU} DO_CHECKS=yes"; \
    echo; \
    return
 
 # Set options
 DO_CHECKS      := no
 SHARED         := no
-TARGET_CPU     := native
+TARGET_CPU     := core-avx2
 USE_COSMA      := 2.6.6
 USE_DFTD4      := 3.6.0
 USE_ELPA       := 2024.03.001
@@ -76,7 +77,7 @@ FC             := ftn
 LD             := ftn
 AR             := ar -r
 
-CFLAGS         := -O2 -fPIC -fp-model precise -funroll-loops -g -mtune=core-avx2 -qopenmp -qopenmp-simd -traceback
+CFLAGS         := -O2 -fPIC -fp-model precise -funroll-loops -g -mtune=$(TARGET_CPU) -qopenmp -qopenmp-simd -traceback
 CFLAGS         += -diag-disable=10448
 
 DFLAGS         := -D__parallel
