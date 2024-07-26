@@ -136,8 +136,8 @@ CONTAINS
    SUBROUTINE add_reference(key, authors, title, source, volume, issue, pages, year, month, day, doi)
       INTEGER, INTENT(OUT)                               :: key
       CHARACTER(LEN=*), DIMENSION(:), INTENT(IN)         :: authors
-      CHARACTER(LEN=*), INTENT(IN)                       :: title
-      CHARACTER(LEN=*), INTENT(IN), OPTIONAL             :: source, volume, issue, pages
+      CHARACTER(LEN=*), INTENT(IN)                       :: title, source
+      CHARACTER(LEN=*), INTENT(IN), OPTIONAL             :: volume, issue, pages
       INTEGER, INTENT(IN)                                :: year
       INTEGER, INTENT(IN), OPTIONAL                      :: month, day
       CHARACTER(LEN=*), INTENT(IN), OPTIONAL             :: doi
@@ -161,12 +161,10 @@ CONTAINS
 
       ! Copy mandatory attributes.
       thebib(key)%ref%title = TRIM(title)
+      thebib(key)%ref%source = TRIM(source)
       thebib(key)%ref%year = year
 
       ! Copy optional attributes.
-      IF (PRESENT(source)) THEN
-         thebib(key)%ref%source = TRIM(source)
-      END IF
       IF (PRESENT(volume)) THEN
          thebib(key)%ref%volume = TRIM(volume)
       END IF
@@ -305,10 +303,7 @@ CONTAINS
       END IF
 
       ! Journal, volume (issue), pages (year).
-      journal = ""
-      IF (ALLOCATED(thebib(key)%ref%source)) THEN
-         journal = thebib(key)%ref%source
-      END IF
+      journal = thebib(key)%ref%source
       IF (ALLOCATED(thebib(key)%ref%volume)) THEN
          journal = TRIM(journal)//", "//thebib(key)%ref%volume
          IF (ALLOCATED(thebib(key)%ref%issue)) THEN
@@ -368,14 +363,13 @@ CONTAINS
             WRITE (unit, '(T3,A)') '<AUTHOR>'//TRIM(thebib(i)%ref%authors(j))//'</AUTHOR>'
          END DO
 
-         ! Title
+         ! Title and source.
          WRITE (unit, '(T3,A)') '<TITLE>'//thebib(i)%ref%title//'</TITLE>'
+         WRITE (unit, '(T3,A)') '<SOURCE>'//thebib(i)%ref%source//'</SOURCE>'
 
-         ! DOI, journal, volume, issue, pages, year, month.
+         ! DOI, volume, issue, pages, year, month.
          IF (ALLOCATED(thebib(i)%ref%doi)) &
             WRITE (unit, '(T3,A)') '<DOI>'//TRIM(substitute_special_xml_tokens(thebib(i)%ref%doi))//'</DOI>'
-         IF (ALLOCATED(thebib(i)%ref%source)) &
-            WRITE (unit, '(T3,A)') '<SOURCE>'//thebib(i)%ref%source//'</SOURCE>'
          IF (ALLOCATED(thebib(i)%ref%volume)) &
             WRITE (unit, '(T3,A)') '<VOLUME>'//thebib(i)%ref%volume//'</VOLUME>'
          IF (ALLOCATED(thebib(i)%ref%issue)) &
