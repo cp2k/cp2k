@@ -540,6 +540,7 @@ CONTAINS
       END IF
 
       ncubes = SIZE(list_cubes)
+      CALL cp_fm_get_info(moloc_coeff(ispin), ncol_global=nmo)
       ncubes = MIN(ncubes, nmo)
       ALLOCATE (centers(6, ncubes))
       DO i = 1, ncubes
