@@ -16,6 +16,8 @@ MODULE hfx_ri_kp
                                               get_atomic_kind_set
    USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                               gto_basis_set_p_type
+   USE bibliography,                    ONLY: Bussy2024,&
+                                              cite_reference
    USE cell_types,                      ONLY: cell_type,&
                                               pbc,&
                                               real_to_scaled,&
@@ -450,6 +452,8 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: hfx_section
 
       NULLIFY (para_env, para_env_sub, blacs_env_sub, hfx_section, dbcsr_template)
+
+      CALL cite_reference(Bussy2024)
 
       CALL timeset(routineN, handle)
 

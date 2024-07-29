@@ -5,9 +5,9 @@ in a slightly different flavor. Hartree-Fock exchange (HFX) has two distinct RI 
 for [$\Gamma$-point calculations](./ri_gamma), and one for k-point sampling, which is covered on
 this page.
 
-The implementation for RI-HFXk (with k-point sampling) is described in
-[doi:10.1063/5.0189659](https://doi.org/10.1063/5.0189659). All files necessary to run the examples
-discussed below can be found [here](https://github.com/cp2k/cp2k-examples/tree/master/RI_HFX).
+The implementation for RI-HFXk (with k-point sampling) is described in [](#Bussy2024). All files
+necessary to run the examples discussed below can be found
+[here](https://github.com/cp2k/cp2k-examples/tree/master/RI_HFX).
 
 ## Application domain
 
