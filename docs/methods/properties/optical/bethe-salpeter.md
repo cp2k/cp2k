@@ -18,11 +18,12 @@ The following ingredients are necessary for computing $\Omega^{(n)}$:
 - Occupied Kohn-Sham (KS) orbitals $\varphi_i(\mathbf{r})$ and empty KS orbitals
   $\varphi_a(\mathbf{r})$ from a DFT calculation, where $i=1,\ldots,N_\mathrm{occ}$ and
   $a=N_\mathrm{occ}+1,\ldots,N_\mathrm{occ}+N_\mathrm{empty}$,
-- $GW$ eigenvalues $\varepsilon_i^{GW}$ and $\varepsilon_a^{GW}$ of corresponding KS orbitals.
+- *GW* eigenvalues $\varepsilon_i^{GW}$ and $\varepsilon_a^{GW}$ of corresponding KS orbitals.
 
-It is possible to use $G_0W_0$, ev$GW_0$ or ev$GW$ eigenvalues, see details in [GW] and in Ref.
-\[[](#Golze2019)\], i.e. we perform BSE@$G_0W_0$/ev$GW_0$/ev$GW$@DFT. Thus, also input parameters
-for a DFT and $GW$ calculation influence the BSE calcualation (see full input in Sec.
+It is possible to use *G*<sub>0</sub>*W*<sub>0</sub>, ev*GW*<sub>0</sub> or ev*GW* eigenvalues, see
+details in [GW] and in Ref. \[[](#Golze2019)\], i.e. we perform
+BSE@*G*<sub>0</sub>*W*<sub>0</sub>/ev*GW*<sub>0</sub>/ev*GW*@DFT. Thus, also input parameters for a
+DFT and *GW* calculation influence the BSE calcualation (see full input in Sec.
 [3.1](#header-input-file)). We obtain optical properties from BSE solving the following generalized
 eigenvalue problem that involves the block matrix $ABBA$:
 
@@ -86,8 +87,9 @@ For starting a BSE calculation one needs to set the [RUN_TYPE](#CP2K_INPUT.GLOBA
 In the upper GW/BSE section, the following keywords have been used:
 
 - [SELF_CONSISTENCY](#CP2K_INPUT.FORCE_EVAL.DFT.XC.WF_CORRELATION.RI_RPA.GW.SELF_CONSISTENCY):
-  Determines which GW self-consistency ($G_0W_0$, ev$GW_0$ or ev$G_0W_0$) is used to calculate the
-  single-particle GW energies $\varepsilon_p^{GW}$ needed in the BSE calculation.
+  Determines which *GW* self-consistency (*G*<sub>0</sub>*W*<sub>0</sub>, ev*GW*<sub>0</sub> or
+  ev*GW*) is used to calculate the single-particle *GW* energies $\varepsilon_p^{GW}$ needed in the
+  BSE calculation.
 
 - [TDA](#CP2K_INPUT.FORCE_EVAL.DFT.XC.WF_CORRELATION.RI_RPA.GW.BSE.TDA): Three options available:
 
@@ -123,8 +125,8 @@ The following settings from DFT will also have an influence on the BSE excitatio
 - [XC_FUNCTIONAL](#CP2K_INPUT.FORCE_EVAL.DFT.XC.XC_FUNCTIONAL): Choose between one of the available
   xc-functionals. The starting point can have a profound influence on the excitation energies
   \[[Bruneval2015](#Bruneval2015), [](#Gui2018), [](#Jacquemin2017)\]. We either recommend the PBE
-  functional as DFT starting point when using BSE@ev$GW_0$@PBE or the PBE0 functional, when using
-  BSE@$G_0W_0$@PBE0 (see also
+  functional as DFT starting point when using BSE@ev*GW*<sub>0</sub>@PBE or the PBE0 functional,
+  when using BSE@*G*<sub>0</sub>*W*<sub>0</sub>@PBE0 (see also
   [SELF_CONSISTENCY](#CP2K_INPUT.FORCE_EVAL.DFT.XC.WF_CORRELATION.RI_RPA.GW.SELF_CONSISTENCY)).
 
 - [BASIS_SET](#CP2K_INPUT.FORCE_EVAL.SUBSYS.KIND.BASIS_SET): Specify the basis set, which affects
@@ -143,7 +145,7 @@ We have benchmarked the numerical precision of our BSE implementation and we fou
 agreement within only 10 meV compared to the BSE implementation in FHI aims \[[](#Liu2020)\].
 
 The current BSE implementation in CP2K works for molecules. The inclusion of periodic boundary
-conditions in a $\Gamma$-only approach and with full $k$-point sampling is work in progress.
+conditions in a Γ-only approach and with full *k*-point sampling is work in progress.
 
 (header-example)=
 
@@ -153,7 +155,7 @@ conditions in a $\Gamma$-only approach and with full $k$-point sampling is work 
 
 ### 3.1 Input file
 
-In this section, we provide a minimal example of a BSE calculation on $\mathrm{H}_2$. For the
+In this section, we provide a minimal example of a BSE calculation on H<sub>2</sub>. For the
 calculation you need the input file BSE_H2.inp and the aug-cc-DZVP basis
 ([Download](https://github.com/cp2k/cp2k-examples/tree/master/bethe-salpeter/H2)).
 
@@ -163,83 +165,13 @@ Please copy both files into your working directory and run CP2K by
 mpirun -n 1 cp2k.psmp BSE_H2.inp
 ```
 
-which requires 12 GB RAM and takes roughly 2 minutes on 1 core. You can find the output file also in
-the [Download](https://github.com/cp2k/cp2k-examples/tree/master/bethe-salpeter/H2).
-
-```none
-&GLOBAL
-  PROJECT  H2
-  RUN_TYPE ENERGY
-&END GLOBAL
-&FORCE_EVAL
-  METHOD Quickstep
-  &DFT
-    BASIS_SET_FILE_NAME BASIS-aug               ! Custom Basis set file (aug-cc-pVDZ and aug-cc-pVDZ-RIFIT 
-    POTENTIAL_FILE_NAME POTENTIAL               ! from the Basis Set Exchange library - www.basissetexchange.org/)
-    &QS
-      METHOD GAPW                               ! All electron calculation
-      EPS_DEFAULT 1.0E-16
-      EPS_PGF_ORB 1.0E-16
-    &END QS
-    &POISSON
-      PERIODIC NONE
-      PSOLVER MT
-    &END
-    &SCF
-      SCF_GUESS RESTART
-      EPS_SCF 1e-7
-    &END SCF
-    &XC
-      &XC_FUNCTIONAL PBE0                       ! Choice of functional has a profound influence on the results
-      &END XC_FUNCTIONAL
-      &WF_CORRELATION
-        &RI_RPA                                 ! In the RI_RPA and the GW section, additional numerical parameters, e.g.
-          &GW
-            SELF_CONSISTENCY      G0W0          ! can be changed to EV_GW0 or EV_GW
-            &BSE  
-              TDA                 TDA+ABBA      ! Diagonalizing ABBA and A
-              SPIN_CONFIG         SINGLET       ! or TRIPLET
-              NUM_PRINT_EXC       20            ! Number of printed excitations
-              ENERGY_CUTOFF_OCC   -1            ! Set to positive numbers (eV) to
-              ENERGY_CUTOFF_EMPTY -1            ! truncate matrices A_ia,jb and B_ia,jb
-            &END BSE
-          &END GW
-        &END RI_RPA
-      &END WF_CORRELATION
-    &END XC
-  &END DFT
-  &SUBSYS
-    &CELL
-      ABC 20 20 20
-      PERIODIC NONE
-    &END CELL
-    &COORD
-      H 0.0000 0.0000 0.0000                    ! H2 molecule geometry from GW100 Paper
-      H 0.0000 0.0000 0.74144
-    &END COORD
-    &TOPOLOGY
-      &CENTER_COORDINATES
-      &END
-    &END TOPOLOGY
-    &KIND H
-      BASIS_SET ORB    aug-cc-pVDZ              ! For production runs, the basis set should be checked for convergence.
-      BASIS_SET RI_AUX aug-cc-pVDZ-RIFIT        ! In general, pVDZ should be a solid choice.
-      POTENTIAL ALL
-    &END KIND
-    &KIND O
-      BASIS_SET ORB    aug-cc-pVDZ
-      BASIS_SET RI_AUX aug-cc-pVDZ-RIFIT
-      POTENTIAL ALL
-    &END KIND
-  &END SUBSYS
-&END FORCE_EVAL
-```
-
-The basis sets `aug-cc-pVDZ` and `aug-cc-pVDZ-RIFIT` in `BASIS-aug` can be obtained from the Basis
-Set Exchange Library:
+which requires 12 GB RAM and takes roughly 2 minutes on 1 core. You can find the input and output
+file [here](https://github.com/cp2k/cp2k-examples/tree/master/bethe-salpeter/H2). We use the basis
+sets `aug-cc-pVDZ` and `aug-cc-pVDZ-RIFIT` from the file `BASIS-aug`. These basis sets can be
+obtained from the Basis Set Exchange Library:
 <a href="https://www.basissetexchange.org/basis/aug-cc-pvdz/format/cp2k/?version=1&elements=1" target="_blank">aug-cc-pVDZ</a>,
 <a href="https://www.basissetexchange.org/basis/aug-cc-pvdz-rifit/format/cp2k/?version=1&elements=1" target="_blank">aug-cc-pVDZ-RIFIT</a>.
-The geometry for $\mathrm{H}_2$ was taken from [](#vanSetten2015).
+The geometry for H<sub>2</sub> was taken from \[[](#vanSetten2015)\].
 
 ### 3.2 Output
 
@@ -277,14 +209,14 @@ printed:
  BSE|            4      1 =>     5                     -full-             0.7076
 ```
 
-In the case of the $\mathrm{H}_2$, the lowest excitation *n* = 1 is mainly built up by a transition
-from the HOMO (i=1) to the LUMO (a=2), what is apparent from
+In the case of H<sub>2</sub>, the lowest excitation *n* = 1 is mainly built up by a transition from
+the HOMO (i=1) to the LUMO (a=2), what is apparent from
 $X_{i=\text{HOMO},a=\text{LUMO}}^{(n=1)}=0.663$, and also contains a considerable contribution from
 the 1=>4 (HOMO=>LUMO+2) transition ($X_{i=\text{HOMO},a=\text{LUMO+2}}^{(n=1)}=0.2549$ ).
 
 ### 3.3 Large scale calculations
 
-Going to larger systems is a challenge for a $GW$+BSE-calculation, since the memory consumption
+Going to larger systems is a challenge for a *GW*+BSE-calculation, since the memory consumption
 increases with $N_\mathrm{occ}^2 N_\mathrm{empty}^2$. The used $N_\mathrm{occ}$, $N_\mathrm{empty}$
 and the required memory of a calculation are printed in the output file to estimate the memory
 consumption. We recommend to use several nodes to provide the required memory. In the following, we

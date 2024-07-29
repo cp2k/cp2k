@@ -1119,6 +1119,12 @@ CONTAINS
             band_edges_G0W0_SOC%DBG = 1000.0_dp
          END IF
 
+         IF (bs_env%unit_nr > 0) THEN
+            WRITE (bs_env%unit_nr, '(A)') ''
+            WRITE (bs_env%unit_nr, '(T2,A,F43.1,A)') 'SOC requested, SOC energy window:', &
+               bs_env%energy_window_soc*evolt, ' eV'
+         END IF
+
       END IF
 
       IF (bs_env%do_ldos) THEN

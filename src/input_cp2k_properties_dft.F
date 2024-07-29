@@ -2165,7 +2165,8 @@ CONTAINS
                           "<https://doi.org/10.1103/PhysRevB.58.3641>, "// &
                           "$V_{\mu\nu}^{\mathrm{SOC}, (\alpha)} = "// &
                           "(\hbar/2) \langle \phi_\mu | \sum_l \Delta "// &
-                          "V_l^\mathrm{SO}(\mathbf{r},\mathbf{r}') L^{(\alpha)} | \phi_\nu \rangle, "// &
+                          "V_l^\mathrm{SO}(\mathbf{r},\mathbf{r}') "// &
+                          "L^{(\alpha)} | \phi_\nu \rangle, "// &
                           "\alpha = x, y, z$.", &
                           n_keywords=1, n_subsections=1, repeats=.FALSE.)
 
@@ -2184,7 +2185,7 @@ CONTAINS
                           "\varepsilon_\mathrm{CBM}+E_\mathrm{window}/2]$. Might be necessary "// &
                           "to use for large systems to prevent numerical instabilities.", &
                           usage="ENERGY_WINDOW 5.0", &
-                          default_r_val=cp_unit_to_cp2k(value=-1.0_dp, unit_str="eV"), &
+                          default_r_val=cp_unit_to_cp2k(value=40.0_dp, unit_str="eV"), &
                           unit_str="eV")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)

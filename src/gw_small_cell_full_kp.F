@@ -11,26 +11,14 @@
 !> \date 05.2024
 ! **************************************************************************************************
 MODULE gw_small_cell_full_kp
-   USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_cfm_types,                    ONLY: cp_cfm_create,&
                                               cp_cfm_get_info,&
                                               cp_cfm_release,&
                                               cp_cfm_to_cfm,&
                                               cp_cfm_to_fm,&
                                               cp_cfm_type
-   USE cp_dbcsr_api,                    ONLY: dbcsr_create,&
-                                              dbcsr_distribution_release,&
-                                              dbcsr_distribution_type,&
-                                              dbcsr_p_type,&
-                                              dbcsr_release,&
-                                              dbcsr_set,&
-                                              dbcsr_type,&
-                                              dbcsr_type_no_symmetry
-   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
-                                              cp_dbcsr_dist2d_to_dist
    USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_get_diag,&
-                                              cp_fm_get_info,&
                                               cp_fm_release,&
                                               cp_fm_set_all,&
                                               cp_fm_type
@@ -40,9 +28,10 @@ MODULE gw_small_cell_full_kp
                                               dbt_create,&
                                               dbt_destroy,&
                                               dbt_type
-   USE distribution_2d_types,           ONLY: distribution_2d_type
-   USE gw_communication,                ONLY: fm_to_local_tensor,&
-                                              local_dbt_to_global_mat
+   USE gw_communication,                ONLY: fm_to_local_array,&
+                                              fm_to_local_tensor,&
+                                              local_array_to_fm,&
+                                              local_dbt_to_global_fm
    USE gw_kp_to_real_space_and_back,    ONLY: add_ikp_to_all_rs,&
                                               fm_add_ikp_to_rs,&
                                               fm_trafo_rs_to_ikp,&
@@ -50,26 +39,19 @@ MODULE gw_small_cell_full_kp
    USE gw_utils,                        ONLY: add_R,&
                                               analyt_conti_and_print,&
                                               de_init_bs_env,&
+                                              get_V_tr_R,&
                                               is_cell_in_index_to_cell,&
+                                              power,&
                                               time_to_freq
    USE kinds,                           ONLY: dp
    USE kpoint_coulomb_2c,               ONLY: build_2c_coulomb_matrix_kp_small_cell
-   USE libint_2c_3c,                    ONLY: libint_potential_type
    USE machine,                         ONLY: m_walltime
    USE mathconstants,                   ONLY: z_one,&
                                               z_zero
    USE parallel_gemm_api,               ONLY: parallel_gemm
-   USE particle_methods,                ONLY: get_particle_set
-   USE particle_types,                  ONLY: particle_type
    USE post_scf_bandstructure_types,    ONLY: post_scf_bandstructure_type
    USE post_scf_bandstructure_utils,    ONLY: get_all_VBM_CBM_bandgaps
-   USE qs_environment_types,            ONLY: get_qs_env,&
-                                              qs_environment_type
-   USE qs_kind_types,                   ONLY: qs_kind_type
-   USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type,&
-                                              release_neighbor_list_sets
-   USE qs_tensors,                      ONLY: build_2c_integrals,&
-                                              build_2c_neighbor_lists
+   USE qs_environment_types,            ONLY: qs_environment_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -102,8 +84,8 @@ CONTAINS
       ! G^occ_µλ(i|τ|,k) = sum_n^occ C_µn(k)^* e^(-|(ϵ_nk-ϵ_F)τ|) C_λn(k)
       ! G^vir_µλ(i|τ|,k) = sum_n^vir C_µn(k)^* e^(-|(ϵ_nk-ϵ_F)τ|) C_λn(k)
       ! k-point k -> cell S: G^occ/vir_µλ^S(i|τ|) = sum_k w_k G^occ/vir_µλ(i|τ|,k) e^(ikS)
-      ! χ_PQ^R(iτ) = sum_λR1νR2 [ sum_µS (µR1-S νR2 | P0) G^vir_µλ^S(i|τ|) ]
-      !                         [ sum_σS (σR2-S λR1 | QR) G^occ_σν^S(i|τ|) ]
+      ! χ_PQ^R(iτ) = sum_λR1νR2 [ sum_µS (µR1-S νR2 | P0) G^vir_λµ^S(i|τ|) ]
+      !                         [ sum_σS (σR2-S λR1 | QR) G^occ_νσ^S(i|τ|) ]
       CALL compute_chi(bs_env)
 
       ! χ_PQ^R(iτ) -> χ_PQ(iω,k) -> ε_PQ(iω,k) -> W_PQ(iω,k) -> Ŵ(iω,k) = M^-1(k)*W(iω,k)*M^-1(k)
@@ -187,7 +169,6 @@ CONTAINS
 
                   ! 3-cells check because in M^vir_νR2,λR1,QR (step 3.): R2 is index on ν
                   IF (.NOT. cell_found) CYCLE
-
                   ! 2. M^occ/vir_λR1,νR2,P0 = sum_µS (λR1 µR2-S | P0) G^occ/vir_νµ^S(iτ)
                   CALL G_times_3c(Gocc_S, t_Gocc, bs_env, i_cell_R1, i_cell_R2)
                   CALL G_times_3c(Gvir_S, t_Gvir, bs_env, i_cell_R2, i_cell_R1)
@@ -225,7 +206,7 @@ CONTAINS
 
    END SUBROUTINE compute_chi
 
-! **************************************************************************************************
+! *************************************************************************************************
 !> \brief ...
 !> \param R ...
 !> \param template ...
@@ -459,193 +440,6 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE G_occ_vir
-
-! **************************************************************************************************
-!> \brief ...
-!> \param t_R ...
-!> \param fm_R ...
-!> \param mat_global ...
-!> \param mat_local ...
-!> \param bs_env ...
-! **************************************************************************************************
-   SUBROUTINE local_dbt_to_global_fm(t_R, fm_R, mat_global, mat_local, bs_env)
-      TYPE(dbt_type), DIMENSION(:)                       :: t_R
-      TYPE(cp_fm_type), DIMENSION(:)                     :: fm_R
-      TYPE(dbcsr_p_type)                                 :: mat_global, mat_local
-      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'local_dbt_to_global_fm'
-
-      INTEGER                                            :: handle, i_cell, n_images
-
-      CALL timeset(routineN, handle)
-
-      n_images = SIZE(t_R)
-
-      CPASSERT(n_images == SIZE(fm_R))
-
-      DO i_cell = 1, n_images
-         CALL dbcsr_set(mat_global%matrix, 0.0_dp)
-         CALL dbcsr_set(mat_local%matrix, 0.0_dp)
-         CALL local_dbt_to_global_mat(t_R(i_cell), mat_local%matrix, mat_global%matrix, &
-                                      bs_env%para_env)
-         CALL copy_dbcsr_to_fm(mat_global%matrix, fm_R(i_cell))
-      END DO
-
-      CALL timestop(handle)
-
-   END SUBROUTINE local_dbt_to_global_fm
-
-! **************************************************************************************************
-!> \brief ...
-!> \param fm_S ...
-!> \param array_S ...
-!> \param weight ...
-!> \param add ...
-! **************************************************************************************************
-   SUBROUTINE fm_to_local_array(fm_S, array_S, weight, add)
-
-      TYPE(cp_fm_type), DIMENSION(:)                     :: fm_S
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: array_S
-      REAL(KIND=dp), OPTIONAL                            :: weight
-      LOGICAL, OPTIONAL                                  :: add
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'fm_to_local_array'
-
-      INTEGER                                            :: handle, i, i_row_local, img, j, &
-                                                            j_col_local, n_basis, ncol_local, &
-                                                            nimages, nrow_local
-      INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
-      LOGICAL                                            :: my_add
-      REAL(KIND=dp)                                      :: my_weight
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: array_tmp
-
-      CALL timeset(routineN, handle)
-
-      my_weight = 1.0_dp
-      IF (PRESENT(weight)) my_weight = weight
-
-      my_add = .FALSE.
-      IF (PRESENT(add)) my_add = add
-
-      n_basis = SIZE(array_S, 1)
-      nimages = SIZE(array_S, 3)
-
-      ! checks
-      CPASSERT(SIZE(array_S, 2) == n_basis)
-      CPASSERT(SIZE(fm_S) == nimages)
-      CPASSERT(LBOUND(array_S, 1) == 1)
-      CPASSERT(LBOUND(array_S, 2) == 1)
-      CPASSERT(LBOUND(array_S, 3) == 1)
-
-      CALL cp_fm_get_info(matrix=fm_S(1), &
-                          nrow_local=nrow_local, &
-                          ncol_local=ncol_local, &
-                          row_indices=row_indices, &
-                          col_indices=col_indices)
-
-      IF (.NOT. my_add) array_S(:, :, :) = 0.0_dp
-      ALLOCATE (array_tmp(SIZE(array_S, 1), SIZE(array_S, 2), SIZE(array_S, 3)))
-      array_tmp(:, :, :) = 0.0_dp
-
-      DO img = 1, nimages
-         DO i_row_local = 1, nrow_local
-
-            i = row_indices(i_row_local)
-
-            DO j_col_local = 1, ncol_local
-
-               j = col_indices(j_col_local)
-
-               array_tmp(i, j, img) = fm_S(img)%local_data(i_row_local, j_col_local)
-
-            END DO ! j_col_local
-         END DO ! i_row_local
-      END DO ! img
-
-      CALL fm_S(1)%matrix_struct%para_env%sync()
-      CALL fm_S(1)%matrix_struct%para_env%sum(array_tmp)
-      CALL fm_S(1)%matrix_struct%para_env%sync()
-
-      array_S(:, :, :) = array_S(:, :, :) + my_weight*array_tmp(:, :, :)
-
-      CALL timestop(handle)
-
-   END SUBROUTINE fm_to_local_array
-
-! **************************************************************************************************
-!> \brief ...
-!> \param array_S ...
-!> \param fm_S ...
-!> \param weight ...
-!> \param add ...
-! **************************************************************************************************
-   SUBROUTINE local_array_to_fm(array_S, fm_S, weight, add)
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: array_S
-      TYPE(cp_fm_type), DIMENSION(:)                     :: fm_S
-      REAL(KIND=dp), OPTIONAL                            :: weight
-      LOGICAL, OPTIONAL                                  :: add
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'local_array_to_fm'
-
-      INTEGER                                            :: handle, i, i_row_local, img, j, &
-                                                            j_col_local, n_basis, ncol_local, &
-                                                            nimages, nrow_local
-      INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
-      LOGICAL                                            :: my_add
-      REAL(KIND=dp)                                      :: my_weight, S_ij
-
-      CALL timeset(routineN, handle)
-
-      my_weight = 1.0_dp
-      IF (PRESENT(weight)) my_weight = weight
-
-      my_add = .FALSE.
-      IF (PRESENT(add)) my_add = add
-
-      n_basis = SIZE(array_S, 1)
-      nimages = SIZE(array_S, 3)
-
-      ! checks
-      CPASSERT(SIZE(array_S, 2) == n_basis)
-      CPASSERT(SIZE(fm_S) == nimages)
-      CPASSERT(LBOUND(array_S, 1) == 1)
-      CPASSERT(LBOUND(array_S, 2) == 1)
-      CPASSERT(LBOUND(array_S, 3) == 1)
-
-      CALL cp_fm_get_info(matrix=fm_S(1), &
-                          nrow_local=nrow_local, &
-                          ncol_local=ncol_local, &
-                          row_indices=row_indices, &
-                          col_indices=col_indices)
-
-      DO img = 1, nimages
-
-         DO i_row_local = 1, nrow_local
-
-            i = row_indices(i_row_local)
-
-            DO j_col_local = 1, ncol_local
-
-               j = col_indices(j_col_local)
-
-               IF (my_add) THEN
-                  S_ij = fm_S(img)%local_data(i_row_local, j_col_local) + &
-                         array_S(i, j, img)*my_weight
-               ELSE
-                  S_ij = array_S(i, j, img)*my_weight
-               END IF
-               fm_S(img)%local_data(i_row_local, j_col_local) = S_ij
-
-            END DO ! j_col_local
-
-         END DO ! i_row_local
-
-      END DO ! img
-
-      CALL timestop(handle)
-
-   END SUBROUTINE local_array_to_fm
 
 ! **************************************************************************************************
 !> \brief ...
@@ -948,82 +742,6 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief ...
 !> \param matrix ...
-!> \param exponent ...
-!> \param eps ...
-! **************************************************************************************************
-   SUBROUTINE power(matrix, exponent, eps)
-      COMPLEX(KIND=dp), DIMENSION(:, :)                  :: matrix
-      REAL(KIND=dp)                                      :: exponent, eps
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'power'
-
-      COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :)     :: eigenvectors
-      COMPLEX(KIND=dp), DIMENSION(:), POINTER            :: work
-      COMPLEX(KIND=dp), DIMENSION(:, :), POINTER         :: A
-      INTEGER                                            :: handle, i, info, liwork, lrwork, lwork, n
-      INTEGER, DIMENSION(:), POINTER                     :: iwork
-      REAL(KIND=dp)                                      :: pos_eval
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigenvalues
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: rwork
-
-      CALL timeset(routineN, handle)
-
-      ! code by Ole Schütt
-      IF (SIZE(matrix, 1) /= SIZE(matrix, 2)) CPABORT("expected square matrix")
-
-      ! make matrix perfectly Hermitian
-      matrix(:, :) = 0.5_dp*(matrix(:, :) + CONJG(TRANSPOSE(matrix(:, :))))
-
-      n = SIZE(matrix, 1)
-      ALLOCATE (iwork(1), rwork(1), work(1), A(n, n), eigenvalues(n), eigenvectors(n, n))
-
-      A(:, :) = matrix ! ZHEEVD will overwrite A
-      ! work space query
-      lwork = -1
-      lrwork = -1
-      liwork = -1
-
-      CALL ZHEEVD('V', 'U', n, A(1, 1), n, eigenvalues(1), &
-                  work(1), lwork, rwork(1), lrwork, iwork(1), liwork, info)
-      lwork = INT(REAL(work(1), dp))
-      lrwork = INT(REAL(rwork(1), dp))
-      liwork = iwork(1)
-
-      DEALLOCATE (iwork, rwork, work)
-      ALLOCATE (iwork(liwork))
-      iwork(:) = 0
-      ALLOCATE (rwork(lrwork))
-      rwork(:) = 0.0_dp
-      ALLOCATE (work(lwork))
-      work(:) = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
-
-      CALL ZHEEVD('V', 'U', n, A(1, 1), n, eigenvalues(1), &
-                  work(1), lwork, rwork(1), lrwork, iwork(1), liwork, info)
-
-      eigenvectors(:, :) = A(:, :)
-
-      IF (info /= 0) CPABORT("diagonalization failed")
-
-      DO i = 1, n
-         IF (eigenvalues(i) > eps) THEN
-            pos_eval = (eigenvalues(i))**(0.5_dp*exponent)
-         ELSE
-            pos_eval = 0.0_dp
-         END IF
-         eigenvectors(:, i) = eigenvectors(:, i)*pos_eval
-      END DO
-
-      CALL ZGEMM("N", "C", n, n, n, z_one, eigenvectors, n, eigenvectors, n, z_zero, matrix, n)
-
-      DEALLOCATE (iwork, rwork, work, A, eigenvalues, eigenvectors)
-
-      CALL timestop(handle)
-
-   END SUBROUTINE power
-
-! **************************************************************************************************
-!> \brief ...
-!> \param matrix ...
 !> \param alpha ...
 ! **************************************************************************************************
    SUBROUTINE add_on_diag(matrix, alpha)
@@ -1087,7 +805,7 @@ CONTAINS
          ! invert M_PQ(k)
          CALL power(M_inv, -1.0_dp, 0.0_dp)
 
-         ! W(k) = sum_R e^ikR W^R [k-mesh is not extrapolated for stable mult. with M^-1(k) ]
+         ! W(k) = sum_R e^ikR W^R [only R in the supercell that is determined by the SCF k-mesh]
          CALL trafo_rs_to_ikp(W_R, W_k, &
                               bs_env%kpoints_scf_desymm%index_to_cell, &
                               bs_env%kpoints_scf_desymm%xkp(1:3, ikp))
@@ -1351,93 +1069,6 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE get_Minv_Vtr_Minv_R
-
-! **************************************************************************************************
-!> \brief ...
-!> \param V_tr_R ...
-!> \param pot_type ...
-!> \param regularization_RI ...
-!> \param bs_env ...
-!> \param qs_env ...
-! **************************************************************************************************
-   SUBROUTINE get_V_tr_R(V_tr_R, pot_type, regularization_RI, bs_env, qs_env)
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: V_tr_R
-      TYPE(libint_potential_type)                        :: pot_type
-      REAL(KIND=dp)                                      :: regularization_RI
-      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
-      TYPE(qs_environment_type), POINTER                 :: qs_env
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'get_V_tr_R'
-
-      INTEGER                                            :: handle, img, nimages_scf_desymm
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: sizes_RI
-      INTEGER, DIMENSION(:), POINTER                     :: col_bsize, row_bsize
-      TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
-      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: fm_V_tr_R
-      TYPE(dbcsr_distribution_type)                      :: dbcsr_dist
-      TYPE(dbcsr_type), ALLOCATABLE, DIMENSION(:)        :: mat_V_tr_R
-      TYPE(distribution_2d_type), POINTER                :: dist_2d
-      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
-         POINTER                                         :: sab_RI
-      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
-      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
-
-      CALL timeset(routineN, handle)
-
-      NULLIFY (sab_RI, dist_2d)
-
-      CALL get_qs_env(qs_env=qs_env, &
-                      blacs_env=blacs_env, &
-                      distribution_2d=dist_2d, &
-                      qs_kind_set=qs_kind_set, &
-                      particle_set=particle_set)
-
-      ALLOCATE (sizes_RI(bs_env%n_atom))
-      CALL get_particle_set(particle_set, qs_kind_set, nsgf=sizes_RI, basis=bs_env%basis_set_RI)
-      CALL build_2c_neighbor_lists(sab_RI, bs_env%basis_set_RI, bs_env%basis_set_RI, &
-                                   pot_type, "2c_nl_RI", qs_env, sym_ij=.FALSE., &
-                                   dist_2d=dist_2d)
-      CALL cp_dbcsr_dist2d_to_dist(dist_2d, dbcsr_dist)
-      ALLOCATE (row_bsize(SIZE(sizes_RI)))
-      ALLOCATE (col_bsize(SIZE(sizes_RI)))
-      row_bsize(:) = sizes_RI
-      col_bsize(:) = sizes_RI
-
-      nimages_scf_desymm = bs_env%nimages_scf_desymm
-      ALLOCATE (mat_V_tr_R(nimages_scf_desymm))
-      CALL dbcsr_create(mat_V_tr_R(1), "(RI|RI)", dbcsr_dist, dbcsr_type_no_symmetry, &
-                        row_bsize, col_bsize)
-      DEALLOCATE (row_bsize, col_bsize)
-
-      DO img = 2, nimages_scf_desymm
-         CALL dbcsr_create(mat_V_tr_R(img), template=mat_V_tr_R(1))
-      END DO
-
-      CALL build_2c_integrals(mat_V_tr_R, 0.0_dp, qs_env, sab_RI, bs_env%basis_set_RI, &
-                              bs_env%basis_set_RI, pot_type, do_kpoints=.TRUE., &
-                              ext_kpoints=bs_env%kpoints_scf_desymm, &
-                              regularization_RI=regularization_RI)
-
-      ALLOCATE (fm_V_tr_R(nimages_scf_desymm))
-      DO img = 1, nimages_scf_desymm
-         CALL cp_fm_create(fm_V_tr_R(img), bs_env%fm_RI_RI%matrix_struct)
-         CALL copy_dbcsr_to_fm(mat_V_tr_R(img), fm_V_tr_R(img))
-         CALL dbcsr_release(mat_V_tr_R(img))
-      END DO
-
-      IF (.NOT. ALLOCATED(V_tr_R)) THEN
-         ALLOCATE (V_tr_R(bs_env%n_RI, bs_env%n_RI, nimages_scf_desymm))
-      END IF
-
-      CALL fm_to_local_array(fm_V_tr_R, V_tr_R)
-
-      CALL cp_fm_release(fm_V_tr_R)
-      CALL dbcsr_distribution_release(dbcsr_dist)
-      CALL release_neighbor_list_sets(sab_RI)
-
-      CALL timestop(handle)
-
-   END SUBROUTINE get_V_tr_R
 
 ! **************************************************************************************************
 !> \brief ...

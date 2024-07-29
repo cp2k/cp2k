@@ -14,10 +14,12 @@ MODULE gw_communication
    USE cp_dbcsr_api,                    ONLY: &
         dbcsr_copy, dbcsr_create, dbcsr_filter, dbcsr_finalize, dbcsr_get_info, &
         dbcsr_get_stored_coordinates, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
-        dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_release, &
-        dbcsr_reserve_all_blocks, dbcsr_reserve_blocks, dbcsr_set, dbcsr_type
-   USE cp_dbcsr_operations,             ONLY: copy_fm_to_dbcsr
-   USE cp_fm_types,                     ONLY: cp_fm_type
+        dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_p_type, &
+        dbcsr_release, dbcsr_reserve_all_blocks, dbcsr_reserve_blocks, dbcsr_set, dbcsr_type
+   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
+                                              copy_fm_to_dbcsr
+   USE cp_fm_types,                     ONLY: cp_fm_get_info,&
+                                              cp_fm_type
    USE dbt_api,                         ONLY: dbt_clear,&
                                               dbt_copy,&
                                               dbt_copy_matrix_to_tensor,&
@@ -38,7 +40,8 @@ MODULE gw_communication
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'gw_communication'
 
-   PUBLIC :: local_dbt_to_global_mat, fm_to_local_tensor
+   PUBLIC :: local_dbt_to_global_mat, fm_to_local_tensor, fm_to_local_array, local_array_to_fm, &
+             local_dbt_to_global_fm
 
    TYPE buffer_type
       REAL(KIND=dp), DIMENSION(:), POINTER  :: msg => NULL()
@@ -748,5 +751,192 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE local_matrix_to_global_matrix
+
+! **************************************************************************************************
+!> \brief ...
+!> \param fm_S ...
+!> \param array_S ...
+!> \param weight ...
+!> \param add ...
+! **************************************************************************************************
+   SUBROUTINE fm_to_local_array(fm_S, array_S, weight, add)
+
+      TYPE(cp_fm_type), DIMENSION(:)                     :: fm_S
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: array_S
+      REAL(KIND=dp), OPTIONAL                            :: weight
+      LOGICAL, OPTIONAL                                  :: add
+
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'fm_to_local_array'
+
+      INTEGER                                            :: handle, i, i_row_local, img, j, &
+                                                            j_col_local, n_basis, ncol_local, &
+                                                            nimages, nrow_local
+      INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
+      LOGICAL                                            :: my_add
+      REAL(KIND=dp)                                      :: my_weight
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: array_tmp
+
+      CALL timeset(routineN, handle)
+
+      my_weight = 1.0_dp
+      IF (PRESENT(weight)) my_weight = weight
+
+      my_add = .FALSE.
+      IF (PRESENT(add)) my_add = add
+
+      n_basis = SIZE(array_S, 1)
+      nimages = SIZE(array_S, 3)
+
+      ! checks
+      CPASSERT(SIZE(array_S, 2) == n_basis)
+      CPASSERT(SIZE(fm_S) == nimages)
+      CPASSERT(LBOUND(array_S, 1) == 1)
+      CPASSERT(LBOUND(array_S, 2) == 1)
+      CPASSERT(LBOUND(array_S, 3) == 1)
+
+      CALL cp_fm_get_info(matrix=fm_S(1), &
+                          nrow_local=nrow_local, &
+                          ncol_local=ncol_local, &
+                          row_indices=row_indices, &
+                          col_indices=col_indices)
+
+      IF (.NOT. my_add) array_S(:, :, :) = 0.0_dp
+      ALLOCATE (array_tmp(SIZE(array_S, 1), SIZE(array_S, 2), SIZE(array_S, 3)))
+      array_tmp(:, :, :) = 0.0_dp
+
+      DO img = 1, nimages
+         DO i_row_local = 1, nrow_local
+
+            i = row_indices(i_row_local)
+
+            DO j_col_local = 1, ncol_local
+
+               j = col_indices(j_col_local)
+
+               array_tmp(i, j, img) = fm_S(img)%local_data(i_row_local, j_col_local)
+
+            END DO ! j_col_local
+         END DO ! i_row_local
+      END DO ! img
+
+      CALL fm_S(1)%matrix_struct%para_env%sync()
+      CALL fm_S(1)%matrix_struct%para_env%sum(array_tmp)
+      CALL fm_S(1)%matrix_struct%para_env%sync()
+
+      array_S(:, :, :) = array_S(:, :, :) + my_weight*array_tmp(:, :, :)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE fm_to_local_array
+
+! **************************************************************************************************
+!> \brief ...
+!> \param array_S ...
+!> \param fm_S ...
+!> \param weight ...
+!> \param add ...
+! **************************************************************************************************
+   SUBROUTINE local_array_to_fm(array_S, fm_S, weight, add)
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: array_S
+      TYPE(cp_fm_type), DIMENSION(:)                     :: fm_S
+      REAL(KIND=dp), OPTIONAL                            :: weight
+      LOGICAL, OPTIONAL                                  :: add
+
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'local_array_to_fm'
+
+      INTEGER                                            :: handle, i, i_row_local, img, j, &
+                                                            j_col_local, n_basis, ncol_local, &
+                                                            nimages, nrow_local
+      INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
+      LOGICAL                                            :: my_add
+      REAL(KIND=dp)                                      :: my_weight, S_ij
+
+      CALL timeset(routineN, handle)
+
+      my_weight = 1.0_dp
+      IF (PRESENT(weight)) my_weight = weight
+
+      my_add = .FALSE.
+      IF (PRESENT(add)) my_add = add
+
+      n_basis = SIZE(array_S, 1)
+      nimages = SIZE(array_S, 3)
+
+      ! checks
+      CPASSERT(SIZE(array_S, 2) == n_basis)
+      CPASSERT(SIZE(fm_S) == nimages)
+      CPASSERT(LBOUND(array_S, 1) == 1)
+      CPASSERT(LBOUND(array_S, 2) == 1)
+      CPASSERT(LBOUND(array_S, 3) == 1)
+
+      CALL cp_fm_get_info(matrix=fm_S(1), &
+                          nrow_local=nrow_local, &
+                          ncol_local=ncol_local, &
+                          row_indices=row_indices, &
+                          col_indices=col_indices)
+
+      DO img = 1, nimages
+
+         DO i_row_local = 1, nrow_local
+
+            i = row_indices(i_row_local)
+
+            DO j_col_local = 1, ncol_local
+
+               j = col_indices(j_col_local)
+
+               IF (my_add) THEN
+                  S_ij = fm_S(img)%local_data(i_row_local, j_col_local) + &
+                         array_S(i, j, img)*my_weight
+               ELSE
+                  S_ij = array_S(i, j, img)*my_weight
+               END IF
+               fm_S(img)%local_data(i_row_local, j_col_local) = S_ij
+
+            END DO ! j_col_local
+
+         END DO ! i_row_local
+
+      END DO ! img
+
+      CALL timestop(handle)
+
+   END SUBROUTINE local_array_to_fm
+
+! **************************************************************************************************
+!> \brief ...
+!> \param t_R ...
+!> \param fm_R ...
+!> \param mat_global ...
+!> \param mat_local ...
+!> \param bs_env ...
+! **************************************************************************************************
+   SUBROUTINE local_dbt_to_global_fm(t_R, fm_R, mat_global, mat_local, bs_env)
+      TYPE(dbt_type), DIMENSION(:)                       :: t_R
+      TYPE(cp_fm_type), DIMENSION(:)                     :: fm_R
+      TYPE(dbcsr_p_type)                                 :: mat_global, mat_local
+      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'local_dbt_to_global_fm'
+
+      INTEGER                                            :: handle, i_cell, n_images
+
+      CALL timeset(routineN, handle)
+
+      n_images = SIZE(t_R)
+
+      CPASSERT(n_images == SIZE(fm_R))
+
+      DO i_cell = 1, n_images
+         CALL dbcsr_set(mat_global%matrix, 0.0_dp)
+         CALL dbcsr_set(mat_local%matrix, 0.0_dp)
+         CALL local_dbt_to_global_mat(t_R(i_cell), mat_local%matrix, mat_global%matrix, &
+                                      bs_env%para_env)
+         CALL copy_dbcsr_to_fm(mat_global%matrix, fm_R(i_cell))
+      END DO
+
+      CALL timestop(handle)
+
+   END SUBROUTINE local_dbt_to_global_fm
 
 END MODULE gw_communication

@@ -682,7 +682,9 @@ CONTAINS
 
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, __LOCATION__, name="GW", &
-                          description="Parameters influencing the RI-G0W0 method", &
+                          description="Parameters influencing GW calculations on molecules, "// &
+                          "see also 'Electronic band structure from GW', "// &
+                          "https://manual.cp2k.org/trunk/methods/properties/bandstructure_gw.html.", &
                           n_keywords=24, n_subsections=1, repeats=.FALSE.)
 
       NULLIFY (keyword, subsection)
