@@ -91,7 +91,7 @@ MODULE bibliography
                             Rycroft2009, Thomas2015, Brehm2018, Brehm2020, Shigeta2001, Heinecke2016, &
                             Brehm2021, Bussy2021a, Bussy2021b, Ditler2021, Ditler2022, Mattiat2019, &
                             Mattiat2022, Belleflamme2023, Knizia2013, Musaelian2023, Eriksen2020, &
-                            Bussy2023, Wang2018, Zeng2023, Graml2024, Solca2024, &
+                            Bussy2023, Bussy2024, Wang2018, Zeng2023, Graml2024, Solca2024, &
                             Caldeweyher2017, Caldeweyher2019, Caldeweyher2020, Freeman1977, Gruneis2009, &
                             Stein2022, Stein2024, &
                             Blase2018, Blase2020, Bruneval2015, Golze2019, Gui2018, Jacquemin2017, Liu2020, &
@@ -1672,6 +1672,13 @@ CONTAINS
                          "A massively parallel and GPU accelerated implementation.", &
                          source="J. Chem. Phys.", volume="158", issue="16", &
                          year=2023, doi="10.1063/5.0144493")
+
+      CALL add_reference(key=Bussy2024, &
+                         authors=s2a("Bussy, Augustin", "Hutter, Juerg"), &
+                         title="Efficient periodic resolution-of-the-identity Hartree–Fock exchange "// &
+                         "method with k-point sampling and Gaussian basis sets", &
+                         source="J. Chem. Phys.", volume="160", issue="6", &
+                         year=2024, doi="10.1063/5.0189659")
 
       CALL add_reference(key=Heinecke2016, &
                          authors=s2a("Heinecke, A", "Henry, G", "Hutchinson, M", "Pabst, H"), &
