@@ -639,9 +639,9 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      ! JW: bounds_IL and bounds_k do not safe any operations, but maybe communication
-      !     maybe remove "bounds_1=bounds_IL, &" and "bounds_2=bounds_k, &" later and
-      !     check whether performance improves
+      ! JW bounds_IL and bounds_k do not safe any operations, but maybe communication
+      !    maybe remove "bounds_1=bounds_IL, &" and "bounds_2=bounds_k, &" later and
+      !    check whether performance improves
 
       bounds_IL(1:2) = [bs_env%i_ao_start_from_atom(atoms_IL(1)), &
                         bs_env%i_ao_end_from_atom(atoms_IL(2))]

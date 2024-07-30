@@ -95,7 +95,7 @@ MODULE bibliography
                             Caldeweyher2017, Caldeweyher2019, Caldeweyher2020, Freeman1977, Gruneis2009, &
                             Stein2022, Stein2024, &
                             Blase2018, Blase2020, Bruneval2015, Golze2019, Gui2018, Jacquemin2017, Liu2020, &
-                            Sander2015, Schreiber2008, Hueser2013, vanSetten2015, Setyawan2010
+                            Sander2015, Schreiber2008, vanSetten2015, Setyawan2010
 
 CONTAINS
 
@@ -1889,12 +1889,6 @@ CONTAINS
                          title="Benchmarks for electronically excited states: CASPT2, CC2, CCSD, and CC3", &
                          source="The Journal of chemical physics", volume="128", pages="134110", &
                          year=2008, doi="10.1063/1.2889385")
-
-      CALL add_reference(key=Hueser2013, &
-                         authors=s2a("Hueser, F", "Olsen, T", "Thygesen, KS"), &
-                         title="Quasiparticle GW calculations for solids, molecules, and two-dimensional materials", &
-                         source="Physical Review B", volume="87", &
-                         year=2013, doi="10.1103/PhysRevB.87.235132")
 
       CALL add_reference(key=vanSetten2015, &
                          authors=s2a("van Setten, MJ", "Caruso, F", "Sharifzadeh, S", "Ren, X", "Scheffler, M", &

@@ -4,8 +4,8 @@
 energies of molecules. In this tutorial, we describe the band gap problem of DFT to motivate the
 usage of *GW*, we briefly discuss the theoretical framework of *GW* and the *GW* implementation in
 CP2K. We also provide input and output files of *GW* calculations performed with CP2K. The *GW*
-theory of this tutorial is taken from [](#Golze2019) and many useful details on *GW* can be found in
-this review.
+theory of this tutorial is taken from \[[](#Golze2019)\] and many useful details on *GW* can be
+found in this review.
 
 ## 1. The band gap problem of DFT
 
@@ -25,12 +25,12 @@ electronic band structure of a solid. This approximation comes with limitations:
 
 - When using one of the common GGA exchange-correlation (xc) functionals, the band gap in the KS-DFT
   band structure $\varepsilon_{n\mathbf{k}}^\text{DFT}$ is much too small compared to experimental
-  band gaps (Fig. 26 in [](#Golze2019)). Even with the exact xc functional, the band gap in the
+  band gaps (Fig. 26 in \[[](#Golze2019))\]. Even with the exact xc functional, the band gap in the
   KS-DFT band structure $\varepsilon_{n\mathbf{k}}^\text{DFT}$ will be too small due to the
   derivative discontinuity.
 
-- The KS-DFT band structure $\varepsilon_{n\mathbf{k}}^\text{DFT}$ is insensitive to screening by
-  the environment. As an example, the KS eigenvalue gap
+- The GGA band structure $\varepsilon_{n\mathbf{k}}^\text{DFT}$ is insensitive to screening by the
+  environment. As an example, the GGA eigenvalue gap
   $\varepsilon_{n=\text{LUMO}}^\text{DFT}-\varepsilon_{n=\text{HOMO}}^\text{DFT}$ of a molecule is
   almost identical for the molecule in gas phase and the molecule being on a surface. In experiment
   however, the surface induces an image-charge effect which can reduce the HOMO-LUMO gap of the
@@ -80,9 +80,10 @@ $\varepsilon_{n\mathbf{k}}^\text{DFT}$ and we add the xc contribution from
 $\braket{\psi_{n\mathbf{k}}|
 \Sigma^{G_0W_0}(\varepsilon_{n\mathbf{k}}^{G_0W_0}) |\psi_{n\mathbf{k}}}$.
 
-The DFT xc functional can influence the *G*<sub>0</sub>*W*<sub>0</sub> quasiparticle energies. For
-molecules, it is recommended to start the *G*<sub>0</sub>*W*<sub>0</sub> calculation from the PBE0
-functional and for solids, from the PBE functional.
+The DFT xc start functional of *G*<sub>0</sub>*W*<sub>0</sub> can influence the
+*G*<sub>0</sub>*W*<sub>0</sub> quasiparticle energies. For molecules, it is recommended to start the
+*G*<sub>0</sub>*W*<sub>0</sub> calculation from the PBE0 functional and for solids, from the PBE
+functional.
 
 CP2K also allows to perform eigenvalue-selfconsistency in $G$ (ev*GW*<sub>0</sub>) and
 eigenvalue-selfconsistency in $G$ and in $W$ (ev*GW*). For solids, it has been shown that band gaps
@@ -91,18 +92,19 @@ from ev*GW*$_0$@PBE can be in better agreement with experimental band gaps than 
 
 CP2K contains three different *GW* implementations:
 
-- *GW* for molecules [](#Wilhelm2016) (Sec. 3)
+- *GW* for molecules \[[](#Wilhelm2016)\] (Sec. 3)
 - *GW* for computing the band structure of a solid with small unit cell with *k*-point sampling in
   DFT (publication in preparation TODO: insert reference, Sec. 4)
-- *GW* for computing the band structure of a large cell in a Γ-only approach [](#Graml2024) (Sec. 5)
+- *GW* for computing the band structure of a large cell in a Γ-only approach \[[](#Graml2024)\]
+  (Sec. 5)
 
 In the following, we will discuss details and usage of these *GW* implementations.
 
 ## 3. *GW* for molecules
 
-For starting a *G*<sub>0</sub>*W*<sub>0</sub>, ev*GW*<sub>0</sub> or ev*GW* calculation, one needs
-to set the [RUN_TYPE](#CP2K_INPUT.GLOBAL.RUN_TYPE) to `ENERGY` and one needs to put the following
-section:
+For starting a *G*<sub>0</sub>*W*<sub>0</sub>, ev*GW*<sub>0</sub> or ev*GW* calculation for a
+molecule, one needs to set the [RUN_TYPE](#CP2K_INPUT.GLOBAL.RUN_TYPE) to `ENERGY` and one needs to
+put the following section:
 
 ```
 &XC
@@ -124,19 +126,21 @@ section:
 In the upper *GW* section, the following keywords have been used:
 
 - [QUADRATURE_POINTS](#CP2K_INPUT.FORCE_EVAL.DFT.XC.WF_CORRELATION.RI_RPA.QUADRATURE_POINTS): Number
-  of imaginary-frequency points used for computing the self-energy. 100 points are usually enough
-  for converging quasiparticle energies within 10 meV.
+  of imaginary-frequency points used for computing the self-energy (Eq. (21) in
+  \[[](#Wilhelm2016))\]. 100 points are usually enough for converging quasiparticle energies within
+  10 meV.
 
 - [SELF_CONSISTENCY](#CP2K_INPUT.FORCE_EVAL.DFT.XC.WF_CORRELATION.RI_RPA.GW.SELF_CONSISTENCY):
   Determines which *GW* self-consistency (*G*<sub>0</sub>*W*<sub>0</sub>, ev*GW*<sub>0</sub> or
   ev*GW*) is used to calculate the *GW* quasiparticle energies.
 
 The numerical precision of the *GW* implementation is 10 meV compared to reference calculations, for
-example the *GW*100 test set [](#vanSetten2015). To help new users get familiar with the *GW*
+example the *GW*100 test set \[[](#vanSetten2015)\]. To help new users get familiar with the *GW*
 implementation in CP2K, we recommend starting by reproducing the HOMO and LUMO
 *G*<sub>0</sub>*W*<sub>0</sub>@PBE quasiparticle energies of the H<sub>2</sub>O molecule from the
 GW100 test set. The reference values are $\varepsilon_\text{HOMO}^{G_0W_0\text{@PBE}}$ = -11.97 eV
-and $\varepsilon_\text{LUMO}^{G_0W_0\text{@PBE}}$ = 2.37 eV; input and output files are available
+and $\varepsilon_\text{LUMO}^{G_0W_0\text{@PBE}}$ = 2.37 eV; CP2K input and output files for the
+*G*<sub>0</sub>*W*<sub>0</sub>@PBE calculation of the H<sub>2</sub>O molecule are available
 [here](https://github.com/cp2k/cp2k-examples/tree/master/bandstructure_gw/1_H2O_GW100).
 
 The following settings from DFT will also have an influence on *GW* quasiparticle energies:
@@ -145,19 +149,11 @@ The following settings from DFT will also have an influence on *GW* quasiparticl
   *G*<sub>0</sub>*W*<sub>0</sub>, ev*GW*<sub>0</sub> or ev*GW* calculation. For molecules, we
   recommend either ev*GW*<sub>0</sub>@PBE or *G*<sub>0</sub>*W*<sub>0</sub>@PBE0. For further
   guidance on selecting an appropriate DFT starting functional and self-consistency scheme for your
-  system, you may consult [](#Golze2019) or the following video:
-
-```{youtube} 1vUuethWhbs
----
-url_parameters: ?start=5563
-align: center
-privacy_mode:
----
-```
+  system, you may consult \[[](#Golze2019)\].
 
 - [BASIS_SET](#CP2K_INPUT.FORCE_EVAL.SUBSYS.KIND.BASIS_SET): The basis set is of Gaussian type and
   can have strong influence on the quasiparticle energies. For computing quasiparticle energies, a
-  basis set extrapolation is necessary, see Fig. 2a in [](#Wilhelm2016) and we recommend
+  basis set extrapolation is necessary, see Fig. 2a in \[[](#Wilhelm2016)\] and we recommend
   all-electron GAPW calculations with correlation-consistent basis sets from the
   <a href="https://www.basissetexchange.org/" target="_blank">EMSL database</a>. For computing the
   HOMO-LUMO gap from *GW*, we recommend augmented basis sets, for example
@@ -247,11 +243,11 @@ details in forthcoming publication (TODO Link):
   radius of truncated Coulomb metric in Å. A larger cutoff leads to faster the RI basis set
   convergence, but also computational cost increases. A cutoff of 7 Å is an accurate choice.
 - [&SOC](#CP2K_INPUT.FORCE_EVAL.PROPERTIES.BANDSTRUCTURE.SOC): Activates spin-orbit coupling (SOC
-  from Hartwigsen-Goedecker-Hutter pseudopotentials \[[Hartwigsen1998](#Hartwigsen1998)\]. SOC also
+  from Hartwigsen-Goedecker-Hutter pseudopotentials \[[Hartwigsen1998](#Hartwigsen1998)\]). SOC also
   needs `POTENTIAL_FILE_NAME  GTH_SOC_POTENTIALS`.
 - [&BANDSTRUCTURE_PATH](#CP2K_INPUT.FORCE_EVAL.PROPERTIES.BANDSTRUCTURE.BANDSTRUCTURE_PATH): Specify
   the *k*-path in the Brillouin zone for computing the band structure. Relative *k*-coordinates are
-  needed which you can retrieve for your crystal structure from [](#Setyawan2010).
+  needed which you can retrieve for your crystal structure from \[[](#Setyawan2010)\].
 
 We recommend TZVP-MOLOPT basis sets together with GTH/HGH pseudopotentials, see basis set
 convergence study in (TODOref). At present, 2d-periodic boundary conditions are supported, 1d- and
@@ -271,21 +267,21 @@ hours on 20 large-memory nodes).
 
 ## 5. *GW* for large cells in Γ-only approach
 
-For a large unit cell, a Γ-only *GW* algorithm is available in CP2K [](#Graml2024). The requirement
-on the cell is that elements of the density matrix decay by several orders of magnitude when the two
-basis functions of the matrix element have a distance similar to the cell size. As rule of thumb,
-for a 2d material, a 9x9 unit cell is large enough for the Γ-only algorithm, see Fig. 1 in
-[](#Graml2024).
+For a large unit cell, a Γ-only *GW* algorithm is available in CP2K \[[](#Graml2024)\]. The
+requirement on the cell is that elements of the density matrix decay by several orders of magnitude
+when the two basis functions of the matrix element have a distance similar to the cell size. As rule
+of thumb, for a 2d material, a 9x9 unit cell is large enough for the Γ-only algorithm, see Fig. 1 in
+\[[](#Graml2024)\].
 
 The input file for a Γ-only *GW* calculation is identical as for *GW* for small cells with *k*-point
-sampling except that the `&KPOINTS` section in DFT needs to be avoided. An exemplary input and
+sampling except that the `&KPOINTS` section in DFT needs to be removed. An exemplary input and
 output is available
-\[<a href="https://github.com/cp2k/cp2k-examples/tree/master/bandstructure_gw/5_9x9_supercell_2d_MoS2" target="_blank">here</a>\]
+\[<a href="https://github.com/cp2k/cp2k-examples/tree/master/bandstructure_gw/5_9x9_supercell_2d_MoS2" target="_blank">here</a>\].
 Running the input file requires access to a large computer (the calculation took 2.5 hours on 32
 nodes on Noctua2 cluster in Paderborn). The computational parameters from this input file reach
 numerical convergence of the band gap within ~ 50 meV (TZVP basis set, 10 time and frequency
-points). Detailed convergence tests are available in the SI, Table S1 of [](#Graml2024) We recommend
-the numerical parameters from the input file for large-scale GW calculations. The code prints
-restart files with ending .matrix that can be used to restart a crashed calculation.
+points). Detailed convergence tests are available in the SI, Table S1 of \[[](#Graml2024)\] We
+recommend the numerical parameters from the input file for large-scale GW calculations. The code
+prints restart files with ending .matrix that can be used to restart a crashed calculation.
 
 In case anything does not work, please feel free to contact jan.wilhelm (at) ur.de.
