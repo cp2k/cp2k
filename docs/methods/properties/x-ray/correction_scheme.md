@@ -28,7 +28,7 @@ $$
 $$
 
 where $a, b$ refer to virtual Hartree-Fock spin-orbitals and $j,k$ to occupied HF spin-orbitals. The
-DFT generalization of this theory is known as GW2X ([](#YShigeta2001)). It involves calculating the
+DFT generalization of this theory is known as GW2X ([](#Shigeta2001)). It involves calculating the
 Generalized Fock matrix and the rotation of the occupied and virtual DFT orbitals separately, such
 that they become pseudocanonical. Alternatively, the diagonal elements of the generalized Fock
 matrix can be used as approximations for the orbital energies (thus saving on the orbital rotation).

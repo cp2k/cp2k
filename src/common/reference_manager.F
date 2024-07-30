@@ -142,7 +142,7 @@ CONTAINS
 
       CHARACTER                                          :: tmp
       CHARACTER(LEN=default_string_length)               :: author, citation_key, key_a, key_b
-      INTEGER                                            :: commaloc, i, ires, match, mylen
+      INTEGER                                            :: i, ires, match, mylen, periodloc
 
       IF (nbib + 1 > max_reference) CPABORT("increase max_reference")
       nbib = nbib + 1
@@ -181,8 +181,8 @@ CONTAINS
 
       ! construct a citation_key
       author = authors(1)
-      commaloc = INDEX(author, ',')
-      IF (commaloc > 0) author = author(1:commaloc - 1)
+      periodloc = INDEX(author, '.', back=.TRUE.)
+      IF (periodloc > 0) author = author(periodloc + 1:)
       CPASSERT(LEN_TRIM(author) > 0)
       WRITE (citation_key, '(A,I4)') TRIM(author), year
 
