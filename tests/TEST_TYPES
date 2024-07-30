@@ -1,4 +1,4 @@
-112
+114
 Total energy:!3
 MD| Potential energy!5
 Total energy \[eV\]:!4
@@ -108,9 +108,11 @@ G0W0 direct band gap !6
 SCF+SOC direct band gap !6
 G0W0+SOC direct band gap !6
 BSE|                1       Singlet          -TDA- !5
-BSE|                1       Singlet         -full- !5
+BSE|                1       Singlet         -ABBA- !5
 HOMO-LUMO gap in evGW0 iteration  3 (eV)!8
 HOMO-LUMO gap in evGW iteration  3 (eV)!8
+BSE|             1     -TDA- !7
+BSE|             1     -ABBA- !7
 #
 # these are the tests the can be selected for regtesting.
 # do regtest will grep for test_grep (first column) and look if the numeric value

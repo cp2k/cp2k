@@ -44,7 +44,7 @@
             RI_SIGMA_X
             &BSE
               BSE_DIAG_METHOD FULLDIAG
-              ENERGY_CUTOFF_EMPTY 60.0
+              ENERGY_CUTOFF_EMPTY 50.0
               ENERGY_CUTOFF_OCC 60.0
               TDA OFF
             &END BSE

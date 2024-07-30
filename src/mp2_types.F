@@ -264,6 +264,13 @@ MODULE mp2_types
                                                             soc_energy_window = 0.0_dp
       INTEGER, DIMENSION(:), POINTER                     :: stride_loc_bandgap => NULL()
 
+      !BSE optical spectrum
+      REAL(KIND=dp)                                      :: bse_spectrum_freq_step_size = 0.0_dp, &
+                                                            bse_spectrum_freq_start = 0.0_dp, &
+                                                            bse_spectrum_freq_end = 0.0_dp, &
+                                                            bse_spectrum_eta = 0.0_dp
+      LOGICAL                                            :: bse_print_spectrum = .FALSE.
+
       !GW_DOS
       REAL(KIND=dp)                                      :: dos_upper = 0.0_dp, &
                                                             dos_lower = 0.0_dp, &
