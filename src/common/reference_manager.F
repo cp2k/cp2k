@@ -55,7 +55,6 @@ MODULE reference_manager
       CHARACTER(LEN=:), ALLOCATABLE                                   :: title
       CHARACTER(LEN=:), ALLOCATABLE                                   :: source
       CHARACTER(LEN=:), ALLOCATABLE                                   :: volume
-      CHARACTER(LEN=:), ALLOCATABLE                                   :: issue
       CHARACTER(LEN=:), ALLOCATABLE                                   :: pages
       INTEGER                                                         :: year = 0
       INTEGER                                                         :: month = 0
@@ -121,7 +120,6 @@ CONTAINS
 !> \param title ...
 !> \param source ...
 !> \param volume ...
-!> \param issue ...
 !> \param pages ...
 !> \param year ...
 !> \param month ...
@@ -133,11 +131,11 @@ CONTAINS
 !> \note
 !>      - see bibliography.F for it use.
 ! **************************************************************************************************
-   SUBROUTINE add_reference(key, authors, title, source, volume, issue, pages, year, month, day, doi)
+   SUBROUTINE add_reference(key, authors, title, source, volume, pages, year, month, day, doi)
       INTEGER, INTENT(OUT)                               :: key
       CHARACTER(LEN=*), DIMENSION(:), INTENT(IN)         :: authors
       CHARACTER(LEN=*), INTENT(IN)                       :: title, source
-      CHARACTER(LEN=*), INTENT(IN), OPTIONAL             :: volume, issue, pages
+      CHARACTER(LEN=*), INTENT(IN), OPTIONAL             :: volume, pages
       INTEGER, INTENT(IN)                                :: year
       INTEGER, INTENT(IN), OPTIONAL                      :: month, day
       CHARACTER(LEN=*), INTENT(IN), OPTIONAL             :: doi
@@ -167,9 +165,6 @@ CONTAINS
       ! Copy optional attributes.
       IF (PRESENT(volume)) THEN
          thebib(key)%ref%volume = TRIM(volume)
-      END IF
-      IF (PRESENT(issue)) THEN
-         thebib(key)%ref%issue = TRIM(issue)
       END IF
       IF (PRESENT(pages)) THEN
          thebib(key)%ref%pages = TRIM(pages)
@@ -302,13 +297,10 @@ CONTAINS
          ipos_line = ipos_line + 2
       END IF
 
-      ! Journal, volume (issue), pages (year).
+      ! Journal, volume, pages (year).
       journal = thebib(key)%ref%source
       IF (ALLOCATED(thebib(key)%ref%volume)) THEN
          journal = TRIM(journal)//", "//thebib(key)%ref%volume
-         IF (ALLOCATED(thebib(key)%ref%issue)) THEN
-            journal = TRIM(journal)//" ("//thebib(key)%ref%issue//")"
-         END IF
       END IF
       IF (ALLOCATED(thebib(key)%ref%pages)) THEN
          journal = TRIM(journal)//", "//thebib(key)%ref%pages
@@ -367,13 +359,11 @@ CONTAINS
          WRITE (unit, '(T3,A)') '<TITLE>'//thebib(i)%ref%title//'</TITLE>'
          WRITE (unit, '(T3,A)') '<SOURCE>'//thebib(i)%ref%source//'</SOURCE>'
 
-         ! DOI, volume, issue, pages, year, month.
+         ! DOI, volume, pages, year, month.
          IF (ALLOCATED(thebib(i)%ref%doi)) &
             WRITE (unit, '(T3,A)') '<DOI>'//TRIM(substitute_special_xml_tokens(thebib(i)%ref%doi))//'</DOI>'
          IF (ALLOCATED(thebib(i)%ref%volume)) &
             WRITE (unit, '(T3,A)') '<VOLUME>'//thebib(i)%ref%volume//'</VOLUME>'
-         IF (ALLOCATED(thebib(i)%ref%issue)) &
-            WRITE (unit, '(T3,A)') '<ISSUE>'//thebib(i)%ref%issue//'</ISSUE>'
          IF (ALLOCATED(thebib(i)%ref%pages)) &
             WRITE (unit, '(T3,A)') '<PAGES>'//thebib(i)%ref%pages//'</PAGES>'
          IF (thebib(i)%ref%year > 0) &
