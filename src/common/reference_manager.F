@@ -57,8 +57,6 @@ MODULE reference_manager
       CHARACTER(LEN=:), ALLOCATABLE                                   :: volume
       CHARACTER(LEN=:), ALLOCATABLE                                   :: pages
       INTEGER                                                         :: year = 0
-      INTEGER                                                         :: month = 0
-      INTEGER                                                         :: day = 0
       CHARACTER(LEN=:), ALLOCATABLE                                   :: doi
       ! has this reference been cited in the program run
       LOGICAL                                                         :: is_cited = .FALSE.
@@ -122,8 +120,6 @@ CONTAINS
 !> \param volume ...
 !> \param pages ...
 !> \param year ...
-!> \param month ...
-!> \param day ...
 !> \param doi ...
 !> \par History
 !>      08.2007 created [Joost VandeVondele]
@@ -131,13 +127,12 @@ CONTAINS
 !> \note
 !>      - see bibliography.F for it use.
 ! **************************************************************************************************
-   SUBROUTINE add_reference(key, authors, title, source, volume, pages, year, month, day, doi)
+   SUBROUTINE add_reference(key, authors, title, source, volume, pages, year, doi)
       INTEGER, INTENT(OUT)                               :: key
       CHARACTER(LEN=*), DIMENSION(:), INTENT(IN)         :: authors
       CHARACTER(LEN=*), INTENT(IN)                       :: title, source
       CHARACTER(LEN=*), INTENT(IN), OPTIONAL             :: volume, pages
       INTEGER, INTENT(IN)                                :: year
-      INTEGER, INTENT(IN), OPTIONAL                      :: month, day
       CHARACTER(LEN=*), INTENT(IN), OPTIONAL             :: doi
 
       CHARACTER                                          :: tmp
@@ -168,12 +163,6 @@ CONTAINS
       END IF
       IF (PRESENT(pages)) THEN
          thebib(key)%ref%pages = TRIM(pages)
-      END IF
-      IF (PRESENT(month)) THEN
-         thebib(key)%ref%month = month
-      END IF
-      IF (PRESENT(day)) THEN
-         thebib(key)%ref%day = day
       END IF
       IF (PRESENT(doi)) THEN
          thebib(key)%ref%doi = TRIM(doi)
@@ -248,7 +237,7 @@ CONTAINS
       ! the most recent first, publications without a year get last
       DO i = 1, nbib
          irank(i) = i
-         ival(i) = -get_epoch(thebib(i)%ref)
+         ival(i) = -thebib(i)%ref%year
       END DO
       CALL sort(ival, nbib, irank)
 
@@ -338,11 +327,6 @@ CONTAINS
             WRITE (unit, '(T3,A)') '<PAGES>'//thebib(i)%ref%pages//'</PAGES>'
          IF (thebib(i)%ref%year > 0) &
             WRITE (unit, '(T3,A,I4.4,A)') '<YEAR>', thebib(i)%ref%year, '</YEAR>'
-         IF (thebib(i)%ref%month > 0) &
-            WRITE (unit, '(T3,A,I2.2,A)') '<MONTH>', thebib(i)%ref%month, '</MONTH>'
-         IF (thebib(i)%ref%day > 0) &
-            WRITE (unit, '(T3,A,I2.2,A)') '<DAY>', thebib(i)%ref%day, '</DAY>'
-
          WRITE (unit, '(T2,A)') '</REFERENCE>'
       END DO
 
@@ -359,20 +343,6 @@ CONTAINS
 
       res = thebib(key)%ref%citation_key
    END FUNCTION get_citation_key
-
-! **************************************************************************************************
-!> \brief This returns something epoch like, but can only be used to order the records
-!>        missing years, months, days are implied zero(1900)
-!> \param ref ...
-!> \return ...
-! **************************************************************************************************
-   PURE FUNCTION get_epoch(ref) RESULT(epoch)
-      TYPE(reference_type), INTENT(IN)                   :: ref
-      INTEGER                                            :: epoch
-
-      epoch = ref%day + 31*ref%month + 12*31*(ref%year - 1900)
-
-   END FUNCTION get_epoch
 
 ! **************************************************************************************************
 !> \brief Helper routine for print_reference_journal()
