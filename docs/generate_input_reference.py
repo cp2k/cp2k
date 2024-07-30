@@ -48,7 +48,7 @@ def build_bibliography(root: ET.Element, output_dir: Path) -> None:
 
     for r in references:
         key = r.attrib.get("key")
-        authors = "; ".join([get_text(a) for a in r.findall("AUTHOR")])
+        authors = ", ".join([get_text(a) for a in r.findall("AUTHOR")])
         doi = get_text(r.find("DOI"))
         source = get_text(r.find("SOURCE"))
         volume = get_text(r.find("VOLUME"))
