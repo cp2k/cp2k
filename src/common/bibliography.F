@@ -1514,30 +1514,6 @@ CONTAINS
                          source="Phys. Rev. B", volume="65", pages="224117", &
                          year=2002, doi="10.1103/PhysRevB.65.224117")
 
-      CALL add_reference(key=Cohen2000, &
-                         authors=s2a("M. H. Cohen", "D. Frydel", "K. Burke", "E. Engel"), &
-                         title="Total energy density as an interpretative tool", &
-                         source="J. Chem. Phys.", volume="113", pages="2990", &
-                         year=2000, doi="10.1063/1.1286805")
-
-      CALL add_reference(key=Rogers2002, &
-                         authors=s2a("C. L. Rogers", "A. M. Rappe"), &
-                         title="Geometric formulation of quantum stress fields", &
-                         source="Phys. Rev. B", volume="65", pages="224117", &
-                         year=2002, doi="10.1103/PhysRevB.65.224117")
-
-      CALL add_reference(key=Cohen2000, &
-                         authors=s2a("M. H. Cohen", "D. Frydel", "K. Burke", "E. Engel"), &
-                         title="Total energy density as an interpretative tool", &
-                         source="J. Chem. Phys.", volume="113", pages="2990", &
-                         year=2000, doi="10.1063/1.1286805")
-
-      CALL add_reference(key=Rogers2002, &
-                         authors=s2a("C. L. Rogers", "A. M. Rappe"), &
-                         title="Geometric formulation of quantum stress fields", &
-                         source="Phys. Rev. B", volume="65", pages="224117", &
-                         year=2002, doi="10.1103/PhysRevB.65.224117")
-
       CALL add_reference(key=Filippetti2000, &
                          authors=s2a("A. Filippetti", "V. Fiorentini"), &
                          title="Theory and applications of the stress density", &
