@@ -27,6 +27,9 @@ MODULE bse_main
                                               truncate_BSE_matrices
    USE cp_fm_types,                     ONLY: cp_fm_release,&
                                               cp_fm_type
+   USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                              cp_logger_type
+   USE cp_output_handling,              ONLY: debug_print_level
    USE group_dist_types,                ONLY: group_dist_d1_type
    USE input_constants,                 ONLY: bse_abba,&
                                               bse_both,&
@@ -36,6 +39,7 @@ MODULE bse_main
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_para_env_type
    USE mp2_types,                       ONLY: mp2_type
+   USE qs_environment_types,            ONLY: qs_environment_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -56,31 +60,38 @@ CONTAINS
 !> \param fm_mat_Q_static_bse ...
 !> \param fm_mat_Q_static_bse_gemm ...
 !> \param Eigenval ...
+!> \param Eigenval_scf ...
 !> \param homo ...
 !> \param virtual ...
 !> \param dimen_RI ...
 !> \param dimen_RI_red ...
+!> \param bse_lev_virt ...
 !> \param gd_array ...
 !> \param color_sub ...
 !> \param mp2_env ...
+!> \param qs_env ...
+!> \param mo_coeff ...
 !> \param unit_nr ...
 ! **************************************************************************************************
    SUBROUTINE start_bse_calculation(fm_mat_S_ia_bse, fm_mat_S_ij_bse, fm_mat_S_ab_bse, &
                                     fm_mat_Q_static_bse, fm_mat_Q_static_bse_gemm, &
-                                    Eigenval, homo, virtual, dimen_RI, dimen_RI_red, &
-                                    gd_array, color_sub, mp2_env, unit_nr)
+                                    Eigenval, Eigenval_scf, &
+                                    homo, virtual, dimen_RI, dimen_RI_red, bse_lev_virt, &
+                                    gd_array, color_sub, mp2_env, qs_env, mo_coeff, unit_nr)
 
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_S_ia_bse, fm_mat_S_ij_bse, &
                                                             fm_mat_S_ab_bse
       TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_mat_Q_static_bse, &
                                                             fm_mat_Q_static_bse_gemm
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
-         INTENT(IN)                                      :: Eigenval
+         INTENT(IN)                                      :: Eigenval, Eigenval_scf
       INTEGER, DIMENSION(:), INTENT(IN)                  :: homo, virtual
-      INTEGER, INTENT(IN)                                :: dimen_RI, dimen_RI_red
+      INTEGER, INTENT(IN)                                :: dimen_RI, dimen_RI_red, bse_lev_virt
       TYPE(group_dist_d1_type), INTENT(IN)               :: gd_array
       INTEGER, INTENT(IN)                                :: color_sub
       TYPE(mp2_type)                                     :: mp2_env
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: mo_coeff
       INTEGER, INTENT(IN)                                :: unit_nr
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'start_bse_calculation'
@@ -95,6 +106,7 @@ CONTAINS
       TYPE(cp_fm_type) :: fm_A_BSE, fm_B_BSE, fm_C_BSE, fm_inv_sqrt_A_minus_B, fm_mat_S_ab_trunc, &
          fm_mat_S_bar_ia_bse, fm_mat_S_bar_ij_bse, fm_mat_S_ia_trunc, fm_mat_S_ij_trunc, &
          fm_sqrt_A_minus_B
+      TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(mp_para_env_type), POINTER                    :: para_env
 
       CALL timeset(routineN, handle)
@@ -127,13 +139,20 @@ CONTAINS
 
       CALL print_BSE_start_flag(my_do_tda, my_do_abba, unit_nr)
 
-      CALL fm_mat_S_ia_bse%matrix_struct%para_env%sync()
+      ! Link BSE debug flag against debug print level
+      logger => cp_get_default_logger()
+      IF (logger%iter_info%print_level == debug_print_level) THEN
+         mp2_env%ri_g0w0%bse_debug_print = .TRUE.
+      END IF
 
+      CALL fm_mat_S_ia_bse%matrix_struct%para_env%sync()
+      ! We apply the BSE cutoffs using the DFT Eigenenergies
       ! Reduce matrices in case of energy cutoff for occupied and unoccupied in A/B-BSE-matrices
       CALL truncate_BSE_matrices(fm_mat_S_ia_bse, fm_mat_S_ij_bse, fm_mat_S_ab_bse, &
                                  fm_mat_S_ia_trunc, fm_mat_S_ij_trunc, fm_mat_S_ab_trunc, &
-                                 Eigenval(:, 1, 1), Eigenval_reduced, &
+                                 Eigenval_scf(:, 1, 1), Eigenval(:, 1, 1), Eigenval_reduced, &
                                  homo(1), virtual(1), dimen_RI, unit_nr, &
+                                 bse_lev_virt, &
                                  homo_red, virtual_red, &
                                  mp2_env)
       ! \bar{B}^P_rs = \sum_R W_PR B^R_rs where B^R_rs = \sum_T [1/sqrt(v)]_RT (T|rs)
@@ -185,7 +204,7 @@ CONTAINS
          IF (my_do_tda) THEN
             ! Solving the hermitian eigenvalue equation A X^n = Ω^n X^n
             CALL diagonalize_A(fm_A_BSE, homo_red, virtual_red, homo(1), &
-                               unit_nr, diag_runtime_est, mp2_env)
+                               unit_nr, diag_runtime_est, mp2_env, qs_env, mo_coeff)
          END IF
          ! Release to avoid faulty use of changed A matrix
          CALL cp_fm_release(fm_A_BSE)
@@ -195,7 +214,7 @@ CONTAINS
             ! Eq. (A10) in F. Furche J. Chem. Phys., Vol. 114, No. 14, (2001).
             CALL diagonalize_C(fm_C_BSE, homo_red, virtual_red, homo(1), &
                                fm_sqrt_A_minus_B, fm_inv_sqrt_A_minus_B, &
-                               unit_nr, diag_runtime_est, mp2_env)
+                               unit_nr, diag_runtime_est, mp2_env, qs_env, mo_coeff)
          END IF
          ! Release to avoid faulty use of changed C matrix
          CALL cp_fm_release(fm_C_BSE)

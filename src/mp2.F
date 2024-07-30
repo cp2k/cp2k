@@ -246,7 +246,8 @@ CONTAINS
          CALL cite_reference(Bussy2023)
          CALL cite_reference(Stein2024)
          !Gradients available for RI-MP2, and low-scaling Laplace MP2/RPA
-IF (.NOT. (mp2_env%method == ri_mp2_method_gpw .OR. mp2_env%method == ri_rpa_method_gpw .OR. mp2_env%method == ri_mp2_laplace)) THEN
+         IF (.NOT. (mp2_env%method == ri_mp2_method_gpw .OR. &
+                    mp2_env%method == ri_rpa_method_gpw .OR. mp2_env%method == ri_mp2_laplace)) THEN
             CPABORT("No forces/gradients for the selected method.")
          END IF
       END IF

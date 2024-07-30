@@ -9,12 +9,14 @@
 !> \brief Routines to calculate EXX within GW
 !> \par History
 !>      07.2020 separated from mp2.F [F. Stein, code by Jan Wilhelm]
+!>      07.2024 determine number of corrected MOs from BSE cutoffs [Maximilian Graml]
 !> \author Jan Wilhelm, Frederick Stein
 ! **************************************************************************************************
 MODULE rpa_gw_sigma_x
    USE admm_methods,                    ONLY: admm_mo_merge_ks_matrix
    USE admm_types,                      ONLY: admm_type,&
                                               get_admm_env
+   USE bse_util,                        ONLY: determine_cutoff_indices
    USE cp_cfm_basic_linalg,             ONLY: cp_cfm_scale_and_add_fm
    USE cp_cfm_types,                    ONLY: cp_cfm_create,&
                                               cp_cfm_get_info,&
@@ -119,9 +121,10 @@ CONTAINS
 
       CHARACTER(4)                                       :: occ_virt
       CHARACTER(LEN=40)                                  :: line
-      INTEGER :: dimen, gw_corr_lev_occ, gw_corr_lev_tot, gw_corr_lev_virt, handle, homo, i_img, &
-         ikp, irep, ispin, iunit, myfun, myfun_aux, myfun_prim, n_level_gw, n_level_gw_ref, &
-         n_rep_hf, nkp, nkp_Sigma, nmo, nspins, print_exx
+      INTEGER :: dimen, gw_corr_lev_occ, gw_corr_lev_tot, gw_corr_lev_virt, handle, homo, &
+         homo_reduced_bse, homo_startindex_bse, i_img, ikp, irep, ispin, iunit, myfun, myfun_aux, &
+         myfun_prim, n_level_gw, n_level_gw_ref, n_rep_hf, nkp, nkp_Sigma, nmo, nspins, print_exx, &
+         virtual_reduced_bse, virtual_startindex_bse
       LOGICAL :: calc_ints, charge_constrain_tmp, do_admm_rpa, do_hfx, do_kpoints_cubic_RPA, &
          do_kpoints_from_Gamma, do_ri_Sigma_x, really_read_line
       REAL(KIND=dp) :: E_GAP_GW, E_HOMO_GW, E_LUMO_GW, eh1, ehfx, eigval_dft, eigval_hf_at_dft, &
@@ -130,6 +133,7 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: Eigenval_kp_HF_at_DFT, vec_Sigma_x
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: Eigenval_kp, vec_Sigma_x_minus_vxc_gw, &
                                                             vec_Sigma_x_minus_vxc_gw_im
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: mo_eigenvalues
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(dbcsr_p_type), ALLOCATABLE, DIMENSION(:)      :: mat_exchange_for_kp_from_gamma
@@ -522,6 +526,7 @@ CONTAINS
 
             CALL get_mo_set(mo_set=mos_mp2(ispin), &
                             mo_coeff=mo_coeff, &
+                            eigenvalues=mo_eigenvalues, &
                             nmo=nmo, &
                             homo=homo, &
                             nao=dimen)
@@ -548,16 +553,45 @@ CONTAINS
 
             gw_corr_lev_occ = mp2_env%ri_g0w0%corr_mos_occ
             gw_corr_lev_virt = mp2_env%ri_g0w0%corr_mos_virt
-            ! If BSE is invoked, we want to compute all the orbitals
-            ! In the future, this will only include orbitals that are relevant for the BSE within the given cutoff
+
+            ! If BSE is invoked, manipulate corrected MO number
             IF (mp2_env%ri_g0w0%do_bse) THEN
+               ! Logic: If cutoff is negative, all MOs are included in BSE, i.e. we need to correct them all
+               !        If cutoff is positive, we can reduce the number of MOs to be corrected and force gw_corr_lev_...
+               !        to a sufficiently large number by setting it to -2 and read indices afterwards
+               ! Handling for occupied levels
                IF (mp2_env%ri_g0w0%bse_cutoff_occ < 0) THEN
                   gw_corr_lev_occ = -1
+               ELSE
+                  IF (gw_corr_lev_occ > 0) THEN
+                     gw_corr_lev_occ = -2
+                  END IF
                END IF
+               ! Handling for virtual levels
                IF (mp2_env%ri_g0w0%bse_cutoff_empty < 0) THEN
                   gw_corr_lev_virt = -1
+               ELSE
+                  IF (gw_corr_lev_virt > 0) THEN
+                     gw_corr_lev_virt = -2
+                  END IF
+               END IF
+
+               ! Obtain indices from DFT if gw_corr... are set to -2
+               CALL determine_cutoff_indices(mo_eigenvalues, &
+                                             homo, dimen - homo, &
+                                             homo_reduced_bse, virtual_reduced_bse, &
+                                             homo_startindex_bse, virtual_startindex_bse, &
+                                             mp2_env)
+               IF (gw_corr_lev_occ == -2) THEN
+                  CPWARN("BSE cutoff overwrites user input for CORR_MOS_OCC")
+                  gw_corr_lev_occ = homo_reduced_bse
+               END IF
+               IF (gw_corr_lev_virt == -2) THEN
+                  CPWARN("BSE cutoff overwrites user input for CORR_MOS_VIRT")
+                  gw_corr_lev_virt = virtual_reduced_bse
                END IF
             END IF
+
             ! if requested number of occ/virt levels for correction either exceed the number of
             ! occ/virt levels or the requested number is negative, default to correct all
             ! occ/virt level energies

@@ -14,8 +14,10 @@
 MODULE bse_full_diag
 
    USE bse_util,                        ONLY: comp_eigvec_coeff_BSE,&
+                                              compute_absorption_spectrum,&
                                               filter_eigvec_contrib,&
-                                              fm_general_add_bse
+                                              fm_general_add_bse,&
+                                              get_oscillator_strengths
    USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
                                               cp_blacs_env_release,&
                                               cp_blacs_env_type
@@ -38,6 +40,7 @@ MODULE bse_full_diag
    USE mp2_types,                       ONLY: mp2_type
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE physcon,                         ONLY: evolt
+   USE qs_environment_types,            ONLY: qs_environment_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -358,7 +361,7 @@ CONTAINS
       IF (eigvals_AB_diff(1) < 0) THEN
          CALL cp_abort(__LOCATION__, &
                        "Matrix (A-B) is not positive definite. "// &
-                       "Hermitian diagonalization of full BSE matrix is ill-defined.")
+                       "Hermitian diagonalization of full ABBA matrix is ill-defined.")
       END IF
 
       ! We keep fm_inv_sqrt_A_minus_B for print of singleparticle transitions of ABBA
@@ -404,10 +407,12 @@ CONTAINS
 !> \param unit_nr ...
 !> \param diag_est ...
 !> \param mp2_env ...
+!> \param qs_env ...
+!> \param mo_coeff ...
 ! **************************************************************************************************
    SUBROUTINE diagonalize_C(fm_C, homo, virtual, homo_irred, &
                             fm_sqrt_A_minus_B, fm_inv_sqrt_A_minus_B, &
-                            unit_nr, diag_est, mp2_env)
+                            unit_nr, diag_est, mp2_env, qs_env, mo_coeff)
 
       TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_C
       INTEGER, INTENT(IN)                                :: homo, virtual, homo_irred
@@ -415,13 +420,16 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: unit_nr
       REAL(KIND=dp), INTENT(IN)                          :: diag_est
       TYPE(mp2_type), INTENT(INOUT)                      :: mp2_env
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: mo_coeff
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'diagonalize_C'
 
       INTEGER                                            :: diag_info, handle
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: Exc_ens
-      TYPE(cp_fm_type)                                   :: fm_eigvec, fm_mat_eigvec_transform, &
-                                                            fm_mat_eigvec_transform_neg
+      TYPE(cp_fm_type)                                   :: fm_eigvec_X, fm_eigvec_Y, fm_eigvec_Z, &
+                                                            fm_mat_eigvec_transform_diff, &
+                                                            fm_mat_eigvec_transform_sum
 
       CALL timeset(routineN, handle)
 
@@ -432,12 +440,20 @@ CONTAINS
 
       !We have now the full matrix C=(A-B)^0.5 (A+B) (A-B)^0.5
       !Now: Diagonalize it
-      CALL cp_fm_create(fm_eigvec, fm_C%matrix_struct)
+      CALL cp_fm_create(fm_eigvec_Z, fm_C%matrix_struct)
 
       ALLOCATE (Exc_ens(homo*virtual))
 
-      CALL choose_eigv_solver(fm_C, fm_eigvec, Exc_ens, diag_info)
+      CALL choose_eigv_solver(fm_C, fm_eigvec_Z, Exc_ens, diag_info)
       CPASSERT(diag_info == 0)
+      ! C could have negative eigenvalues, since we do not explicitly check A+B
+      ! for positive definiteness (would make another O(N^6) Diagon. necessary)
+      ! Instead, we include a check here
+      IF (Exc_ens(1) < 0) THEN
+         CALL cp_abort(__LOCATION__, &
+                       "Matrix C=(A-B)^0.5 (A+B) (A-B)^0.5 has negative eigenvalues, i.e. "// &
+                       "(A+B) is not positive definite.")
+      END IF
       Exc_ens = SQRT(Exc_ens)
 
       ! Prepare eigenvector for interpretation of singleparticle transitions
@@ -448,36 +464,48 @@ CONTAINS
       ! the (A-B)^+-0.5 with eigenvectors and then the eigenvalues
       ! One has to be careful about the index structure, since the eigenvector matrix is not symmetric anymore!
 
-      ! First, Eq. I from (A10) from Furche: (X+Y)_n = (Ω_n)^0.5 (A-B)^0.5 T_n
-      CALL cp_fm_create(fm_mat_eigvec_transform, fm_C%matrix_struct)
-      CALL cp_fm_set_all(fm_mat_eigvec_transform, 0.0_dp)
+      ! First, Eq. I from (A10) from Furche: (X+Y)_n = (Ω_n)^-0.5 (A-B)^0.5 T_n
+      CALL cp_fm_create(fm_mat_eigvec_transform_sum, fm_C%matrix_struct)
+      CALL cp_fm_set_all(fm_mat_eigvec_transform_sum, 0.0_dp)
       CALL parallel_gemm(transa="N", transb="N", m=homo*virtual, n=homo*virtual, k=homo*virtual, alpha=1.0_dp, &
-                         matrix_a=fm_sqrt_A_minus_B, matrix_b=fm_eigvec, beta=0.0_dp, &
-                         matrix_c=fm_mat_eigvec_transform)
+                         matrix_a=fm_sqrt_A_minus_B, matrix_b=fm_eigvec_Z, beta=0.0_dp, &
+                         matrix_c=fm_mat_eigvec_transform_sum)
       CALL cp_fm_release(fm_sqrt_A_minus_B)
-      CALL comp_eigvec_coeff_BSE(fm_mat_eigvec_transform, Exc_ens, -0.5_dp, gamma=2.0_dp, do_transpose=.TRUE.)
+      CALL comp_eigvec_coeff_BSE(fm_mat_eigvec_transform_sum, Exc_ens, -0.5_dp, gamma=2.0_dp, do_transpose=.TRUE.)
 
       ! Second, Eq. II from (A10) from Furche: (X-Y)_n = (Ω_n)^0.5 (A-B)^-0.5 T_n
-      CALL cp_fm_create(fm_mat_eigvec_transform_neg, fm_C%matrix_struct)
-      CALL cp_fm_set_all(fm_mat_eigvec_transform_neg, 0.0_dp)
+      CALL cp_fm_create(fm_mat_eigvec_transform_diff, fm_C%matrix_struct)
+      CALL cp_fm_set_all(fm_mat_eigvec_transform_diff, 0.0_dp)
       CALL parallel_gemm(transa="N", transb="N", m=homo*virtual, n=homo*virtual, k=homo*virtual, alpha=1.0_dp, &
-                         matrix_a=fm_inv_sqrt_A_minus_B, matrix_b=fm_eigvec, beta=0.0_dp, &
-                         matrix_c=fm_mat_eigvec_transform_neg)
+                         matrix_a=fm_inv_sqrt_A_minus_B, matrix_b=fm_eigvec_Z, beta=0.0_dp, &
+                         matrix_c=fm_mat_eigvec_transform_diff)
       CALL cp_fm_release(fm_inv_sqrt_A_minus_B)
-      CALL cp_fm_release(fm_eigvec)
-      CALL comp_eigvec_coeff_BSE(fm_mat_eigvec_transform_neg, Exc_ens, 0.5_dp, gamma=2.0_dp, do_transpose=.TRUE.)
+      CALL cp_fm_release(fm_eigvec_Z)
+      CALL comp_eigvec_coeff_BSE(fm_mat_eigvec_transform_diff, Exc_ens, 0.5_dp, gamma=2.0_dp, do_transpose=.TRUE.)
 
       ! Now, we add the two equations to obtain X_n
-      CALL cp_fm_scale_and_add(1.0_dp, fm_mat_eigvec_transform, 1.0_dp, fm_mat_eigvec_transform_neg)
+      ! Add overwrites the first argument, therefore we copy it beforehand
+      CALL cp_fm_create(fm_eigvec_X, fm_C%matrix_struct)
+      CALL cp_fm_to_fm(fm_mat_eigvec_transform_sum, fm_eigvec_X)
+      CALL cp_fm_scale_and_add(1.0_dp, fm_eigvec_X, 1.0_dp, fm_mat_eigvec_transform_diff)
+
+      ! Now, we subtract the two equations to obtain Y_n
+      ! Add overwrites the first argument, therefore we copy it beforehand
+      CALL cp_fm_create(fm_eigvec_Y, fm_C%matrix_struct)
+      CALL cp_fm_to_fm(fm_mat_eigvec_transform_sum, fm_eigvec_Y)
+      CALL cp_fm_scale_and_add(1.0_dp, fm_eigvec_Y, -1.0_dp, fm_mat_eigvec_transform_diff)
 
       !Cleanup
-      CALL cp_fm_release(fm_mat_eigvec_transform_neg)
+      CALL cp_fm_release(fm_mat_eigvec_transform_diff)
+      CALL cp_fm_release(fm_mat_eigvec_transform_sum)
 
-      CALL success_message(Exc_ens, fm_mat_eigvec_transform, mp2_env, &
-                           homo, virtual, homo_irred, unit_nr, .FALSE.)
+      CALL success_message(Exc_ens, fm_eigvec_X, mp2_env, qs_env, mo_coeff, &
+                           homo, virtual, homo_irred, unit_nr, &
+                           .FALSE., fm_eigvec_Y)
 
       DEALLOCATE (Exc_ens)
-      CALL cp_fm_release(fm_mat_eigvec_transform)
+      CALL cp_fm_release(fm_eigvec_X)
+      CALL cp_fm_release(fm_eigvec_Y)
 
       CALL timestop(handle)
 
@@ -492,14 +520,18 @@ CONTAINS
 !> \param unit_nr ...
 !> \param diag_est ...
 !> \param mp2_env ...
+!> \param qs_env ...
+!> \param mo_coeff ...
 ! **************************************************************************************************
    SUBROUTINE diagonalize_A(fm_A, homo, virtual, homo_irred, &
-                            unit_nr, diag_est, mp2_env)
+                            unit_nr, diag_est, mp2_env, qs_env, mo_coeff)
 
       TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_A
       INTEGER, INTENT(IN)                                :: homo, virtual, homo_irred, unit_nr
       REAL(KIND=dp), INTENT(IN)                          :: diag_est
       TYPE(mp2_type), INTENT(INOUT)                      :: mp2_env
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: mo_coeff
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'diagonalize_A'
 
@@ -523,7 +555,7 @@ CONTAINS
 
       CALL choose_eigv_solver(fm_A, fm_eigvec, Exc_ens, diag_info)
       CPASSERT(diag_info == 0)
-      CALL success_message(Exc_ens, fm_eigvec, mp2_env, &
+      CALL success_message(Exc_ens, fm_eigvec, mp2_env, qs_env, mo_coeff, &
                            homo, virtual, homo_irred, unit_nr, .TRUE.)
 
       CALL cp_fm_release(fm_eigvec)
@@ -536,22 +568,29 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Prints the success message (incl. energies) for full diag of BSE (TDA/full ABBA via flag)
 !> \param Exc_ens ...
-!> \param fm_eigvec ...
+!> \param fm_eigvec_X ...
 !> \param mp2_env ...
+!> \param qs_env ...
+!> \param mo_coeff ...
 !> \param homo ...
 !> \param virtual ...
 !> \param homo_irred ...
 !> \param unit_nr ...
 !> \param flag_TDA ...
+!> \param fm_eigvec_Y ...
 ! **************************************************************************************************
-   SUBROUTINE success_message(Exc_ens, fm_eigvec, mp2_env, &
-                              homo, virtual, homo_irred, unit_nr, flag_TDA)
+   SUBROUTINE success_message(Exc_ens, fm_eigvec_X, mp2_env, qs_env, mo_coeff, &
+                              homo, virtual, homo_irred, unit_nr, &
+                              flag_TDA, fm_eigvec_Y)
 
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: Exc_ens
-      TYPE(cp_fm_type), INTENT(IN)                       :: fm_eigvec
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_eigvec_X
       TYPE(mp2_type), INTENT(INOUT)                      :: mp2_env
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: mo_coeff
       INTEGER                                            :: homo, virtual, homo_irred, unit_nr
       LOGICAL, OPTIONAL                                  :: flag_TDA
+      TYPE(cp_fm_type), INTENT(IN), OPTIONAL             :: fm_eigvec_Y
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'success_message'
 
@@ -559,7 +598,9 @@ CONTAINS
       INTEGER                                            :: handle, i_exc, k, num_entries
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: idx_homo, idx_virt
       REAL(KIND=dp)                                      :: alpha
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigvec_entries
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigvec_entries, oscill_str
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: abs_spectrum
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: dipole_exc
 
       CALL timeset(routineN, handle)
 
@@ -577,7 +618,7 @@ CONTAINS
       IF (flag_TDA) THEN
          info_approximation = " -TDA- "
       ELSE
-         info_approximation = "-full-"
+         info_approximation = "-ABBA-"
       END IF
 
       !Get information about eigenvector
@@ -603,7 +644,7 @@ CONTAINS
             WRITE (unit_nr, '(T2,A4,T7,A71)') 'BSE|', 'in PRB 92,045209 (2015); http://dx.doi.org/10.1103/PhysRevB.92.045209 .'
          ELSE
             WRITE (unit_nr, '(T2,A4,T7,A74)') 'BSE|', '**************************************************************************'
-            WRITE (unit_nr, '(T2,A4,T7,A74)') 'BSE|', '*          Full Bethe Salpeter equation (BSE) (i.e. without TDA)         *'
+            WRITE (unit_nr, '(T2,A4,T7,A74)') 'BSE|', '*      Full ("ABBA") Bethe Salpeter equation (BSE) (i.e. without TDA)    *'
             WRITE (unit_nr, '(T2,A4,T7,A74)') 'BSE|', '**************************************************************************'
             WRITE (unit_nr, '(T2,A4)') 'BSE|'
             WRITE (unit_nr, '(T2,A4,T7,A48,A24)') 'BSE|', 'The excitations are calculated by diagonalizing ', &
@@ -658,8 +699,8 @@ CONTAINS
             WRITE (unit_nr, '(T2,A4,T7,A57)') 'BSE|', 'Excitation energies from solving the BSE without the TDA:'
          END IF
          WRITE (unit_nr, '(T2,A4)') 'BSE|'
-         WRITE (unit_nr, '(T2,A4,T11,A12,T26,A11,T40,A12,T55,A27)') 'BSE|', &
-            'Excitation n', "Spin Config", 'TDA/full BSE', 'Excitation energy Ω^n (eV)'
+         WRITE (unit_nr, '(T2,A4,T11,A12,T26,A11,T44,A8,T55,A27)') 'BSE|', &
+            'Excitation n', "Spin Config", 'TDA/ABBA', 'Excitation energy Ω^n (eV)'
       END IF
       !prints actual energies values
       IF (unit_nr > 0) THEN
@@ -680,12 +721,12 @@ CONTAINS
          WRITE (unit_nr, '(T2,A4,T15,A27,I5,A13,I5,A3)') 'BSE|', '-- Quick reminder: HOMO i =', &
             homo_irred, ' and LUMO a =', homo_irred + 1, " --"
          WRITE (unit_nr, '(T2,A4)') 'BSE|'
-         WRITE (unit_nr, '(T2,A4,T7,A12,T25,A1,T27,A2,T34,A1,T50,A12,T71,A10)') &
-            "BSE|", "Excitation n", "i", "=>", "a", 'TDA/full BSE', "|X_ia^n|"
+         WRITE (unit_nr, '(T2,A4,T7,A12,T25,A1,T27,A2,T34,A1,T54,A8,T71,A10)') &
+            "BSE|", "Excitation n", "i", "=>", "a", 'TDA/ABBA', "|X_ia^n|"
       END IF
       DO i_exc = 1, MIN(homo*virtual, mp2_env%ri_g0w0%num_print_exc)
          !Iterate through eigenvector and print values above threshold
-         CALL filter_eigvec_contrib(fm_eigvec, idx_homo, idx_virt, eigvec_entries, &
+         CALL filter_eigvec_contrib(fm_eigvec_X, idx_homo, idx_virt, eigvec_entries, &
                                     i_exc, virtual, num_entries, mp2_env)
          IF (unit_nr > 0) THEN
             WRITE (unit_nr, '(T2,A4)') 'BSE|'
@@ -700,12 +741,70 @@ CONTAINS
          DEALLOCATE (idx_virt)
          DEALLOCATE (eigvec_entries)
       END DO
+      ! Compute BSE dipoles and oscillator strengths
+      CALL get_oscillator_strengths(fm_eigvec_X, Exc_ens, &
+                                    dipole_exc, oscill_str, &
+                                    mp2_env, qs_env, mo_coeff, &
+                                    homo, virtual, unit_nr, &
+                                    fm_eigvec_Y)
+      IF (unit_nr > 0) THEN
+         WRITE (unit_nr, '(T2,A4)') 'BSE|'
+         WRITE (unit_nr, '(T2,A4,T7,A63)') &
+            'BSE|', "Dipoles d_r^n and oscillator strength f^n of excitation level n"
+         WRITE (unit_nr, '(T2,A4,T7,A17)') &
+            'BSE|', "are obtained from"
+         WRITE (unit_nr, '(T2,A4)') 'BSE|'
+         IF (flag_TDA) THEN
+            WRITE (unit_nr, '(T2,A4,T12,A51)') &
+               'BSE|', "d_r^n = sqrt(2) sum_ia < ψ_i | µ | ψ_a >  X_ia^n"
+         ELSE
+            WRITE (unit_nr, '(T2,A4,T12,A63)') &
+               'BSE|', "d_r^n = sqrt(2) sum_ia < ψ_i | µ | ψ_a > ( X_ia^n + Y_ia^n )"
+         END IF
+         WRITE (unit_nr, '(T2,A4)') 'BSE|'
+         WRITE (unit_nr, '(T2,A4,T20,A44)') &
+            'BSE|', "f^n = 2/3 * Ω^n sum_r∈(x,y,z) ( d_r^n )^2"
+         WRITE (unit_nr, '(T2,A4)') 'BSE|'
+         WRITE (unit_nr, '(T2,A4,T7,A19)') &
+            'BSE|', "where we introduced"
+         WRITE (unit_nr, '(T2,A4)') 'BSE|'
+         WRITE (unit_nr, '(T2,A4,T7,A5,T15,A28)') &
+            'BSE|', "ψ_i:", "occupied molecular orbitals,"
+         WRITE (unit_nr, '(T2,A4,T7,A5,T15,A28)') &
+            'BSE|', "ψ_a:", "empty molecular orbitals and"
+         WRITE (unit_nr, '(T2,A4,T7,A3,T15,A16)') &
+            'BSE|', "µ:", "dipole operator."
+         WRITE (unit_nr, '(T2,A4)') 'BSE|'
+         WRITE (unit_nr, '(T2,A4,T7,A28)') &
+            'BSE|', "prelim Ref.: Eqs. (23), (24)"
+         WRITE (unit_nr, '(T2,A4,T7,A71)') &
+            'BSE|', "in J. Chem. Phys. 152, 044105 (2020); https://doi.org/10.1063/1.5123290"
+         WRITE (unit_nr, '(T2,A4)') 'BSE|'
+         WRITE (unit_nr, '(T2,A4)') 'BSE|'
+         WRITE (unit_nr, '(T2,A4,T8,A12,T22,A8,T35,A8,T45,A8,T55,A8,T65,A16)') 'BSE|', &
+            'Excitation n', "TDA/ABBA", "Dipole X", "Dipole Y", "Dipole Z", 'Osc. strength'
+         DO i_exc = 1, MIN(homo*virtual, mp2_env%ri_g0w0%num_print_exc)
+            WRITE (unit_nr, '(T2,A4,T8,I12,T24,A6,T35,F8.3,T45,F8.3,T55,F8.3,T65,F16.3)') &
+               'BSE|', i_exc, info_approximation, dipole_exc(1, 1, i_exc), dipole_exc(2, 1, i_exc), &
+               dipole_exc(3, 1, i_exc), oscill_str(i_exc)
+         END DO
+         WRITE (unit_nr, '(T2,A4)') 'BSE|'
+      END IF
+
+      ! Compute and print the absorption spectrum to external file
+      IF (mp2_env%ri_g0w0%bse_print_spectrum) THEN
+         CALL compute_absorption_spectrum(abs_spectrum, oscill_str, Exc_ens, &
+                                          info_approximation, mp2_env)
+         DEALLOCATE (abs_spectrum)
+      END IF
+      DEALLOCATE (oscill_str, dipole_exc)
       IF (unit_nr > 0) THEN
          WRITE (unit_nr, '(T2,A4)') 'BSE|'
          WRITE (unit_nr, '(T2,A4)') 'BSE|'
       END IF
 
       CALL timestop(handle)
+
    END SUBROUTINE success_message
 
 END MODULE bse_full_diag

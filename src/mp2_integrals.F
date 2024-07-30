@@ -153,6 +153,8 @@ CONTAINS
 !> \param mo_coeff_v ...
 !> \param mo_coeff_all ...
 !> \param mo_coeff_gw ...
+!> \param mo_coeff_o_bse ...
+!> \param mo_coeff_v_bse ...
 !> \param eps_filter ...
 !> \param unit_nr ...
 !> \param mp2_memory ...
@@ -168,6 +170,7 @@ CONTAINS
 !> \param ends_array_mc_block ...
 !> \param gw_corr_lev_occ ...
 !> \param gw_corr_lev_virt ...
+!> \param bse_lev_virt ...
 !> \param do_im_time ...
 !> \param do_kpoints_cubic_RPA ...
 !> \param kpoints ...
@@ -187,11 +190,12 @@ CONTAINS
                                     fm_matrix_Minv, fm_matrix_Minv_Vtrunc_Minv, &
                                     nmo, homo, mat_munu, &
                                     sab_orb_sub, mo_coeff_o, mo_coeff_v, mo_coeff_all, &
-                                    mo_coeff_gw, eps_filter, unit_nr, &
+                                    mo_coeff_gw, mo_coeff_o_bse, mo_coeff_v_bse, eps_filter, unit_nr, &
                                     mp2_memory, calc_PQ_cond_num, calc_forces, blacs_env_sub, my_do_gw, do_bse, &
                                     gd_B_all, starts_array_mc, ends_array_mc, &
                                     starts_array_mc_block, ends_array_mc_block, &
                                     gw_corr_lev_occ, gw_corr_lev_virt, &
+                                    bse_lev_virt, &
                                     do_im_time, do_kpoints_cubic_RPA, kpoints, &
                                     t_3c_M, t_3c_O, t_3c_O_compressed, t_3c_O_ind, &
                                     ri_metric, gd_B_occ_bse, gd_B_virt_bse)
@@ -223,7 +227,8 @@ CONTAINS
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          INTENT(IN), POINTER                             :: sab_orb_sub
       TYPE(dbcsr_p_type), DIMENSION(:), INTENT(IN)       :: mo_coeff_o, mo_coeff_v, mo_coeff_all, &
-                                                            mo_coeff_gw
+                                                            mo_coeff_gw, mo_coeff_o_bse, &
+                                                            mo_coeff_v_bse
       REAL(KIND=dp), INTENT(IN)                          :: eps_filter
       INTEGER, INTENT(IN)                                :: unit_nr
       REAL(KIND=dp), INTENT(IN)                          :: mp2_memory
@@ -234,7 +239,8 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(OUT)    :: starts_array_mc, ends_array_mc, &
                                                             starts_array_mc_block, &
                                                             ends_array_mc_block
-      INTEGER, INTENT(IN)                                :: gw_corr_lev_occ, gw_corr_lev_virt
+      INTEGER, INTENT(IN)                                :: gw_corr_lev_occ, gw_corr_lev_virt, &
+                                                            bse_lev_virt
       LOGICAL, INTENT(IN)                                :: do_im_time, do_kpoints_cubic_RPA
       TYPE(kpoint_type), POINTER                         :: kpoints
       TYPE(dbt_type), INTENT(OUT)                        :: t_3c_M
@@ -265,8 +271,8 @@ CONTAINS
                                                             periodic
       LOGICAL                                            :: do_gpw, do_kpoints_from_Gamma, do_svd, &
                                                             memory_info
-      REAL(KIND=dp) :: compression_factor, cutoff_old, eps_pgf_orb, eps_pgf_orb_old, mem_for_iaK, &
-         memory_3c, occ, omega_pot, rc_ang, relative_cutoff_old
+      REAL(KIND=dp) :: compression_factor, cutoff_old, eps_pgf_orb, eps_pgf_orb_old, mem_for_abK, &
+         mem_for_iaK, mem_for_ijK, memory_3c, occ, omega_pot, rc_ang, relative_cutoff_old
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: e_cutoff_old
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: my_Lrows, my_Vrows
       TYPE(cp_eri_mme_param), POINTER                    :: eri_param
@@ -419,6 +425,8 @@ CONTAINS
          END IF
 
          mem_for_iaK = dimen_RI*REAL(SUM(homo*virtual), KIND=dp)*8.0_dp/(1024_dp**2)
+         mem_for_ijK = dimen_RI*REAL(SUM([homo(1)]**2), KIND=dp)*8.0_dp/(1024_dp**2)
+         mem_for_abK = dimen_RI*REAL(SUM([bse_lev_virt]**2), KIND=dp)*8.0_dp/(1024_dp**2)
 
          IF (.NOT. do_im_time) THEN
             WRITE (unit_nr, '(T3,A,T66,F11.2,A4)') 'RI_INFO| Total memory for (ia|K) integrals:', &
@@ -429,6 +437,12 @@ CONTAINS
                WRITE (unit_nr, '(T3,A,T66,F11.2,A4)') 'RI_INFO| Total memory for G0W0-(nm|K) integrals:', &
                   mem_for_iaK, ' MiB'
             END IF
+         END IF
+         IF (do_bse) THEN
+            WRITE (unit_nr, '(T3,A,T66,F11.2,A4)') 'RI_INFO| Total memory for (ij|K) integrals:', &
+               mem_for_ijK, ' MiB'
+            WRITE (unit_nr, '(T3,A,T66,F11.2,A4)') 'RI_INFO| Total memory for (ab|K) integrals:', &
+               mem_for_abK, ' MiB'
          END IF
          CALL m_flush(unit_nr)
       END IF
@@ -467,16 +481,17 @@ CONTAINS
             CALL get_group_dist(gd_B_all, para_env_sub%mepos, my_B_all_start, my_B_all_end, my_B_all_size)
 
             IF (do_bse) THEN
-
                ! virt x virt matrices
-               CALL create_intermediate_matrices(intermed_mat_bse_ab, mo_coeff_v(1)%matrix, virtual(1), virtual(1), &
+               CALL create_intermediate_matrices(intermed_mat_bse_ab, mo_coeff_v_bse(1)%matrix, bse_lev_virt, bse_lev_virt, &
                                                  "bse_ab", blacs_env_sub, para_env_sub)
 
-               CALL create_group_dist(gd_B_virt_bse, para_env_sub%num_pe, virtual(1))
+               CALL create_group_dist(gd_B_virt_bse, para_env_sub%num_pe, bse_lev_virt)
                CALL get_group_dist(gd_B_virt_bse, para_env_sub%mepos, my_B_virt_bse_start, my_B_virt_bse_end, my_B_virt_bse_size)
 
                ! occ x occ matrices
-               CALL create_intermediate_matrices(intermed_mat_bse_ij, mo_coeff_o(1)%matrix, homo(1), homo(1), &
+               ! We do not implement bse_lev_occ here, because the small number of occupied levels
+               ! does not critically influence the memory
+               CALL create_intermediate_matrices(intermed_mat_bse_ij, mo_coeff_o_bse(1)%matrix, homo(1), homo(1), &
                                                  "bse_ij", blacs_env_sub, para_env_sub)
 
                CALL create_group_dist(gd_B_occ_bse, para_env_sub%num_pe, homo(1))
@@ -508,7 +523,7 @@ CONTAINS
             ALLOCATE (BIb_C_bse_ij(my_group_L_size, my_B_occ_bse_size, homo(1)))
             BIb_C_bse_ij = 0.0_dp
 
-            ALLOCATE (BIb_C_bse_ab(my_group_L_size, my_B_virt_bse_size, virtual(1)))
+            ALLOCATE (BIb_C_bse_ab(my_group_L_size, my_B_virt_bse_size, bse_lev_virt))
             BIb_C_bse_ab = 0.0_dp
 
          END IF
@@ -567,7 +582,7 @@ CONTAINS
                DO LLL = 1, my_group_L_size
                   CALL ao_to_mo_and_store_B(para_env_sub, mat_munu_local_L(LLL), intermed_mat_bse_ab, &
                                             BIb_C_bse_ab(LLL, :, :), &
-                                            mo_coeff_v(1)%matrix, mo_coeff_v(1)%matrix, eps_filter, &
+                                            mo_coeff_v_bse(1)%matrix, mo_coeff_v_bse(1)%matrix, eps_filter, &
                                             my_B_all_end, my_B_all_start)
                END DO
                CALL contract_B_L(BIb_C_bse_ab, my_Lrows, gd_B_virt_bse%sizes, gd_array%sizes, qs_env%mp2_env%eri_blksize, &

@@ -719,7 +719,9 @@ CONTAINS
                           "to correction of HOMO, HOMO-1 and HOMO-2. Numerical effort and "// &
                           "storage of RI-G0W0 increase linearly with this number. In case you "// &
                           "want to correct all occ. MOs, insert either a negative number or "// &
-                          "a number larger than the number of occ. MOs.", &
+                          "a number larger than the number of occ. MOs. Invoking CORR_MOS_OCC -2 "// &
+                          "together with a BSE cutoff, sets a sufficiently large CORR_MOS_OCC "// &
+                          "for the given BSE cutoff deduced from DFT eigenvalues.", &
                           usage="CORR_OCC 3", &
                           default_i_val=10)
       CALL section_add_keyword(section, keyword)
@@ -732,7 +734,9 @@ CONTAINS
                           "to correction of LUMO, LUMO+1 and LUMO+2. Numerical effort and "// &
                           "storage of RI-G0W0 increase linearly with this number. In case you "// &
                           "want to correct all virt. MOs, insert either a negative number or "// &
-                          "a number larger than the number of virt. MOs.", &
+                          "a number larger than the number of virt. MOs. Invoking CORR_MOS_VIRT -2 "// &
+                          "together with a BSE cutoff, sets a sufficiently large CORR_MOS_VIRT "// &
+                          "for the given BSE cutoff deduced from DFT eigenvalues.", &
                           usage="CORR_VIRT 3", &
                           default_i_val=10)
       CALL section_add_keyword(section, keyword)
@@ -1279,7 +1283,7 @@ CONTAINS
                           "enables of electronic excitation energies $\Omega^{(n)}$. The BSE can be solved by diagonalizing "// &
                           "the full ABBA-matrix or by setting B=0, i.e. within the Tamm-Dancoff approximation (TDA). "// &
                          "Preliminary reference: Eq. (35) in PRB 92, 045209 (2015); http://dx.doi.org/10.1103/PhysRevB.92.045209", &
-                          n_keywords=8, n_subsections=2, repeats=.FALSE.)
+                          n_keywords=8, n_subsections=3, repeats=.FALSE.)
 
       NULLIFY (keyword)
 
@@ -1372,6 +1376,64 @@ CONTAINS
       CALL create_bse_iterat_section(subsection)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
+
+      NULLIFY (subsection)
+      CALL create_bse_spectrum_section(subsection)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+
+   END SUBROUTINE
+
+   SUBROUTINE create_bse_spectrum_section(section)
+      TYPE(section_type), POINTER                        :: section
+
+      TYPE(keyword_type), POINTER                        :: keyword
+
+      CPASSERT(.NOT. ASSOCIATED(section))
+      CALL section_create(section, __LOCATION__, name="BSE_SPECTRUM", &
+                          description="Parameters influencing the output of the optical spectrum "// &
+                          "obtained from a BSE calculation.", &
+                          n_keywords=9, n_subsections=0, repeats=.FALSE.)
+
+      NULLIFY (keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="_SECTION_PARAMETERS_", &
+                          description="Activates printing of optical spectrum after a BSE calculation.", &
+                          usage="&BSE .TRUE.", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="FREQUENCY_STEP_SIZE", &
+                          description="Step size of frequencies for the optical spectrum.", &
+                          usage="FREQUENCY_STEP_SIZE 0.1", unit_str="eV", &
+                          type_of_var=real_t, &
+                          default_r_val=cp_unit_to_cp2k(value=0.1_dp, unit_str="eV"))
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="FREQUENCY_STARTING_POINT", &
+                          description="First frequency to print in the optical spectrum.", &
+                          usage="FREQUENCY_STARTING_POINT 0", unit_str="eV", &
+                          type_of_var=real_t, default_r_val=0.0_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="FREQUENCY_END_POINT", &
+                          description="Last frequency to print in the optical spectrum.", &
+                          usage="FREQUENCY_END_POINT 0", unit_str="eV", &
+                          type_of_var=real_t, &
+                          default_r_val=cp_unit_to_cp2k(value=100.0_dp, unit_str="eV"))
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="ETA", &
+                          description="Broadening of the peaks in the optical spectrum.", &
+                          usage="ETA 0.01", unit_str="eV", &
+                          type_of_var=real_t, &
+                          default_r_val=cp_unit_to_cp2k(value=0.01_dp, unit_str="eV"))
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
 
    END SUBROUTINE
 
