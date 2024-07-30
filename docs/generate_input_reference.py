@@ -30,17 +30,17 @@ def main() -> None:
 
 
 # ======================================================================================
-def get_reference_epoch(reference: ET.Element) -> int:
-    year = int(get_text(reference.find("YEAR")) or "1900")
-    month = int(get_text(reference.find("MONTH")) or "0")
-    day = int(get_text(reference.find("DAY")) or "0")
-    return day + 31 * month + 12 * 31 * (year - 1900)
+def get_reference_sortkey(ref: ET.Element) -> str:
+    year = int(get_text(ref.find("YEAR")))
+    key = ref.attrib.get("key")
+    inverse_year = 10000 - year
+    return f"{inverse_year:05d}_{key}"
 
 
 # ======================================================================================
 def build_bibliography(root: ET.Element, output_dir: Path) -> None:
     references = root.findall("REFERENCE")
-    references.sort(key=get_reference_epoch, reverse=True)
+    references.sort(key=get_reference_sortkey)
 
     output = []
     output += ["%", "% This file was created by generate_input_reference.py", "%"]
