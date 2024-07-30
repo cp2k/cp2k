@@ -39,7 +39,6 @@ cube_utils.F: Found WRITE statement with hardcoded unit in "return_cube_nonortho
 d3_poly.F: Found CALL RANDOM_NUMBER in procedure "poly_random" https://cp2k.org/conv#c104
 dkh_main.F: Found WRITE statement with hardcoded unit in "kintegral_a" https://cp2k.org/conv#c012
 dkh_main.F: Found WRITE statement with hardcoded unit in "kintegral" https://cp2k.org/conv#c012
-dm_ls_scf_types.F: Found type ls_scf_env_type without initializer https://cp2k.org/conv#c016
 domain_submatrix_methods.F: Found WRITE statement with hardcoded unit in "print_submatrices" https://cp2k.org/conv#c012
 dumpdcd.F: Found CLOSE statement in procedure "dumpdcd" https://cp2k.org/conv#c204
 dumpdcd.F: Found OPEN statement in procedure "dumpdcd" https://cp2k.org/conv#c203
@@ -75,7 +74,6 @@ graph_utils.F: Found WRITE statement with hardcoded unit in "get_val_res" https:
 hfx_compression_methods.F: Found READ with unchecked STAT in "hfx_decompress_cache" https://cp2k.org/conv#c001
 hfx_energy_potential.F: Found WRITE statement with hardcoded unit in "print_integrals" https://cp2k.org/conv#c012
 input_enumeration_types.F: Found WRITE statement with hardcoded unit in "enum_i2c" https://cp2k.org/conv#c012
-input_keyword_types.F: Found type keyword_type without initializer https://cp2k.org/conv#c016
 input_parsing.F: Found WRITE statement with hardcoded unit in "section_vals_parse" https://cp2k.org/conv#c012
 kpsym.F: Found GOTO statement in procedure "atftm1" https://cp2k.org/conv#c201
 kpsym.F: Found GOTO statement in procedure "bzdefine" https://cp2k.org/conv#c201
@@ -133,7 +131,6 @@ parallel_gemm_api.F: Found CALL cp_fm_gemm in procedure "parallel_gemm_fm" https
 parallel_rng_types_unittest.F: Found WRITE statement with hardcoded unit in "dump_reload_check" https://cp2k.org/conv#c012
 parallel_rng_types_unittest.F: Found WRITE statement with hardcoded unit in "parallel_rng_types_test" https://cp2k.org/conv#c012
 parallel_rng_types_unittest.F: Found WRITE statement with hardcoded unit in "shuffle_check" https://cp2k.org/conv#c012
-pexsi_types.F: Found type lib_pexsi_env without initializer https://cp2k.org/conv#c016
 powell.F: Found GOTO statement in procedure "newuob" https://cp2k.org/conv#c201
 preconditioner_makes.F: Found WRITE statement with hardcoded unit in "make_full_all" https://cp2k.org/conv#c012
 preconditioner_makes.F: Found WRITE statement with hardcoded unit in "make_full_all_ortho" https://cp2k.org/conv#c012
@@ -202,7 +199,6 @@ topology_generate_util.F: Found WRITE statement with hardcoded unit in "generate
 topology_generate_util.F: Found WRITE statement with hardcoded unit in "topology_generate_molecule" https://cp2k.org/conv#c012
 topology_gromos.F: Found READ with unchecked STAT in "read_topology_gromos" https://cp2k.org/conv#c001
 topology_pdb.F: Found READ with unchecked STAT in "read_coordinate_pdb" https://cp2k.org/conv#c001
-transport_env_types.F: Found type transport_env_type without initializer https://cp2k.org/conv#c016
 xc.F: Found CLOSE statement in procedure "xc_vxc_pw_create_debug" https://cp2k.org/conv#c204
 xc.F: Found CLOSE statement in procedure "xc_vxc_pw_create_test_lsd" https://cp2k.org/conv#c204
 xc.F: Found OPEN statement in procedure "xc_vxc_pw_create_debug" https://cp2k.org/conv#c203
