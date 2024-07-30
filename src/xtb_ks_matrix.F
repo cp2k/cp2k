@@ -178,7 +178,7 @@ CONTAINS
       END IF
 
       IF (do_efield) THEN
-         CPABORT("gfn0 QMMM NYA")
+         CPABORT("gfn0 Efield NYA")
          ! Mulliken charges
          CALL get_qs_env(qs_env=qs_env, particle_set=particle_set, matrix_s_kp=matrix_s)
          CALL qs_rho_get(rho, rho_ao_kp=matrix_p)
@@ -225,6 +225,7 @@ CONTAINS
       END IF
 
       IF (do_efield) THEN
+         CPABORT("gfn0 Efield NYA")
          CALL efield_tb_matrix(qs_env, ks_matrix, rho, mcharge, energy, calculate_forces, just_energy)
       END IF
 
@@ -250,7 +251,7 @@ CONTAINS
       END IF
 
       energy%total = energy%core + energy%eeq + energy%efield + energy%qmmm_el + &
-                     energy%repulsive + energy%dispersion
+                     energy%repulsive + energy%dispersion + energy%kTS
 
       iounit = cp_print_key_unit_nr(logger, scf_section, "PRINT%DETAILED_ENERGY", &
                                     extension=".scfLog")
@@ -492,7 +493,7 @@ CONTAINS
       END IF
 
       energy%total = energy%core + energy%hartree + energy%efield + energy%qmmm_el + &
-                     energy%repulsive + energy%dispersion + energy%dftb3
+                     energy%repulsive + energy%dispersion + energy%dftb3 + energy%kTS
 
       iounit = cp_print_key_unit_nr(logger, scf_section, "PRINT%DETAILED_ENERGY", &
                                     extension=".scfLog")

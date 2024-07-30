@@ -141,23 +141,33 @@ CONTAINS
       INTEGER                                            :: i
 
       IF (ASSOCIATED(dispersion_env)) THEN
+         ! DFT-D3 arrays
          IF (ASSOCIATED(dispersion_env%maxci)) THEN
-            ! DFT-D3 arrays
             DEALLOCATE (dispersion_env%maxci)
+         END IF
+         IF (ASSOCIATED(dispersion_env%c6ab)) THEN
             DEALLOCATE (dispersion_env%c6ab)
+         END IF
+         IF (ASSOCIATED(dispersion_env%r0ab)) THEN
             DEALLOCATE (dispersion_env%r0ab)
+         END IF
+         IF (ASSOCIATED(dispersion_env%rcov)) THEN
             DEALLOCATE (dispersion_env%rcov)
+         END IF
+         IF (ASSOCIATED(dispersion_env%r2r4)) THEN
             DEALLOCATE (dispersion_env%r2r4)
+         END IF
+         IF (ASSOCIATED(dispersion_env%cn)) THEN
             DEALLOCATE (dispersion_env%cn)
-            IF (ASSOCIATED(dispersion_env%cnkind)) THEN
-               DEALLOCATE (dispersion_env%cnkind)
-            END IF
-            IF (ASSOCIATED(dispersion_env%cnlist)) THEN
-               DO i = 1, SIZE(dispersion_env%cnlist)
-                  DEALLOCATE (dispersion_env%cnlist(i)%atom)
-               END DO
-               DEALLOCATE (dispersion_env%cnlist)
-            END IF
+         END IF
+         IF (ASSOCIATED(dispersion_env%cnkind)) THEN
+            DEALLOCATE (dispersion_env%cnkind)
+         END IF
+         IF (ASSOCIATED(dispersion_env%cnlist)) THEN
+            DO i = 1, SIZE(dispersion_env%cnlist)
+               DEALLOCATE (dispersion_env%cnlist(i)%atom)
+            END DO
+            DEALLOCATE (dispersion_env%cnlist)
          END IF
          ! vdD-DF
          IF (ASSOCIATED(dispersion_env%q_mesh)) THEN
