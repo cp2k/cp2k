@@ -300,7 +300,7 @@ CONTAINS
                          year=1999, month=10, day=15, doi="10.1063/1.480097")
 
       CALL add_reference(key=Henkelman2014, &
-                         authors=s2a("Xiao, P, Wu, Q, Henkelman, G"), &
+                         authors=s2a("Xiao, P", "Wu, Q", "Henkelman, G"), &
                          title="Basin constrained k-dimer method for saddle point finding", &
                          source="JOURNAL OF CHEMICAL PHYSICS", volume="141", pages="164111", &
                          year=2014, month=10, day=15, doi="10.1063/1.4898664")
@@ -873,7 +873,7 @@ CONTAINS
                          year=1958, month=10, day=1, doi="10.1103/PhysRev.112.90")
 
       CALL add_reference(key=Mitchell1993, &
-                         authors=s2a("Mitchell, PJ", "Fincham D"), &
+                         authors=s2a("Mitchell, PJ", "Fincham, D"), &
                          title="Shell model simulations by adiabatic dynamics", &
                          source="J. Phys.: Condens. Matter", volume="5", &
                          year=1993, month=2, day=22, doi="10.1088/0953-8984/5/8/006")
@@ -1730,7 +1730,7 @@ CONTAINS
                          year=2023, doi="10.1063/5.0122671")
 
       CALL add_reference(key=Knizia2013, &
-                         authors=s2a("Knizia Gerald"), &
+                         authors=s2a("Knizia, Gerald"), &
                          title="Intrinsic Atomic Orbitals: An Unbiased Bridge between Quantum Theory and Chemical Concepts", &
                          source="Journal of Chemical Theory and Computation", volume="9", pages="4834-4843", &
                          year=2013, doi="10.1021/ct400687b")
