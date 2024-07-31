@@ -27,25 +27,25 @@ $$\left( \begin{array}{cc}A &  B\\B &  A\end{array} \right)\left( \begin{array}{
 
 We abbreviate $A$ and $B$ as matrices with index $A_{ia,jb}$, i.e. they have
 $N_\mathrm{occ}N_\mathrm{empty}$ rows and $N_\mathrm{occ}N_\mathrm{empty}$ columns.
-The matrices $A$ and $B$ are different in TDDFT and *GW*/BSE; for TDDFT they read
+The matrices $A$ and $B$ are different in TDDFT and *GW*/BSE; for TDDFT they read (for singlet excitations, details on the TDDFT page)
 
 $$ \begin{align}
-    A_{ia,jb} &= (\varepsilon_a^\text{DFT}-\varepsilon_i^\text{DFT}\delta_{ij}\delta_{ab} + \alpha^\mathrm{S/T}
-    v_{ia,jb} + \langle ia|f_\text{xc}(\Omega^{(n)})|jb\rangle \quad ,\\
+    A_{ia,jb} &= (\varepsilon_a^\text{DFT}-\varepsilon_i^\text{DFT}\delta_{ij}\delta_{ab} + 
+    2v_{ia,jb} + \langle ia|f_\text{xc}(\Omega^{(n)})|jb\rangle \quad ,\\
     B_{ia,jb} &= \alpha^\mathrm{(S/T)} v_{ia,bj} +  \langle ia|f_\text{xc}(\Omega^{(n)})|jb\rangle \quad ,
 \end{align}$$
 
-and for *GW*/BSE:
+and for *GW*/BSE (details on the *GW*/BSE page):
 
 $$ \begin{align}
-    A_{ia,jb} &= (\varepsilon_a^{GW}-\varepsilon_i^{GW})\delta_{ij}\delta_{ab} + \alpha^\mathrm{S/T}
-    v_{ia,jb} - W_{ij,ab}(\omega=0) \quad ,\\
+    A_{ia,jb} &= (\varepsilon_a^{GW}-\varepsilon_i^{GW})\delta_{ij}\delta_{ab} + 
+    2v_{ia,jb} - W_{ij,ab}(\omega=0) \quad ,\\
     B_{ia,jb} &= \alpha^\mathrm{(S/T)} v_{ia,bj} - W_{ib,aj}(\omega=0) \quad .
 \end{align}$$
 
-TDDFT with the common Adiabatic Local Density Approximation (ALDA) or a hybrid functional (i.e. PBE0) can be a good choice for calculating excitation energies of molecules. 
-Exceptions include charge-transfer excitations where the excited electron is transferred over a significant distance within the molecule. In such cases, the standard 
-approximate exchange-correlation functionals might fail, and more sophisticated approaches like range-separated hybrid functionals might be needed.
+TDDFT with the common Adiabatic Local Density Approximation (ALDA) or with a hybrid functional (i.e. PBE0) can be a good choice for calculating excitation energies of molecules. 
+Exceptions include charge-transfer excitations where the excited electron is transferred over a significant distance within the molecule. 
+In such cases, range-separated hybrid functionals might be needed.
 For solids, the applicability of TDDFT depends on whether the solid is metallic or has a finite bandgap. For metals, ALDA often yields good excitation energies. 
 However, for semiconductors and insulators, ALDA fails because the the ALDA xc kernel does not adequately include the Coulomb interaction between the electron and the hole of 
 the electron-hole pair (exciton) that forms upon excitation.
@@ -54,6 +54,7 @@ In contrast, the *GW*/BSE approach is well-suited for computing the excitation e
 This inclusion is crucial for accurately describing excitonic effects, which are significant in materials with a finite bandgap. 
 Thus, while TDDFT is convenient and computationally less demanding than *GW*/BSE for molecular systems and metals, 
 *GW*/BSE provides a more accurate description for excitonic effects in semiconductors and insulators.
+For a more detailed discussion on TDDFT and *GW*/BSE, we recommend for example: [C. A. Ullrich, *Time-Dependent Density-Functional Theory - Concepts and Applications*](https://doi.org/10.1093/acprof:oso/9780199563029.001.0001)
 
 
 
