@@ -47,7 +47,7 @@ TDDFT with the common Adiabatic Local Density Approximation (ALDA) or with a hyb
 Exceptions include charge-transfer excitations where the excited electron is transferred over a significant distance within the molecule. 
 In such cases, range-separated hybrid functionals might be needed.
 For solids, the applicability of TDDFT depends on whether the solid is metallic or has a finite bandgap. For metals, ALDA often yields good excitation energies. 
-However, for semiconductors and insulators, ALDA fails because the the ALDA xc kernel does not adequately include the Coulomb interaction between the electron and the hole of 
+However, for semiconductors and insulators, ALDA fails because the ALDA xc kernel does not adequately include the Coulomb interaction between the electron and the hole of 
 the electron-hole pair (exciton) that forms upon excitation.
 In contrast, the *GW*/BSE approach is well-suited for computing the excitation energies of excitons in semiconductors and insulators. 
 *GW*/BSE accounts for the attractive interaction between the electron and hole in the A-matrix via the screened Coulomb interaction $W_{ij,ab}$. 
