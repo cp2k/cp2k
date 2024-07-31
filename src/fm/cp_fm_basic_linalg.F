@@ -2784,7 +2784,7 @@ CONTAINS
 
       INTEGER                                        :: na, nc, nx, ny
       REAL(KIND=dp)                                  :: aval, bval
-#if defined(__SCALAPACK)
+#if defined(__parallel)
       INTEGER                                        :: nrl, ncl, ic, ir
       INTEGER, DIMENSION(:), POINTER                 :: rind, cind
       REAL(KIND=dp), DIMENSION(:), ALLOCATABLE       :: xvl, yvl, yvm
@@ -2804,7 +2804,7 @@ CONTAINS
       IF ((nx /= ny) .OR. (nc /= nx)) THEN
          CPABORT("cp_fm_matvec: incompatible dimensions")
       END IF
-#if defined(__SCALAPACK)
+#if defined(__parallel)
       CALL cp_fm_get_info(amat, nrow_local=nrl, ncol_local=ncl, &
                           row_indices=rind, col_indices=cind)
       ALLOCATE (xvl(ncl), yvl(nrl), yvm(ny))

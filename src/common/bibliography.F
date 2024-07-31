@@ -1051,7 +1051,6 @@ CONTAINS
                          authors=s2a("R. Z. Khaliullin", "A. T. Bell", "M. Head-Gordon"), &
                          title="Analysis of charge transfer effects in molecular complexes "// &
                          "based on absolutely localized molecular orbitals", &
-<<<<<<< HEAD
                          source="J. Chem. Phys.", volume="128", pages="184112", &
                          year=2008, doi="10.1063/1.2912041")
 
@@ -1884,6 +1883,12 @@ CONTAINS
                          "for Integrating Density Functional Theory and Non-Equilibrium Green Functions", &
                          source="J. Chem. Theory Comput.", volume="20", pages="6772-6780", &
                          year=2024, doi="10.1021/acs.jctc.4c00371")
+
+      CALL add_reference(key=Pracht2019, &
+                         authors=s2a("P. Pracht", "E. Caldeweyher", "S. Ehlert", "S. Grimme"), &
+                         title="A Robust Non-Self-Consistent Tight-Binding Quantum Chemistry Method for large Molecules", &
+                         source="ChemRxiv", volume="", pages="", &
+                         year=2019, doi="10.26434/chemrxiv.8326202.v1")
 
    END SUBROUTINE add_all_references
 
