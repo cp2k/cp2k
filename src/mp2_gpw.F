@@ -361,9 +361,8 @@ CONTAINS
       ! After the components are inside of the routines, we can move this line insight the branch
       ALLOCATE (mo_coeff_o(nspins), mo_coeff_v(nspins), mo_coeff_all(nspins), mo_coeff_gw(nspins))
 
-      IF (do_bse) THEN
-         ALLOCATE (mo_coeff_o_bse(1), mo_coeff_v_bse(1))
-      END IF
+      ! Always allocate for usage in call of replicate_mat_to_subgroup
+      ALLOCATE (mo_coeff_o_bse(1), mo_coeff_v_bse(1))
 
       ! for imag. time, we do not need this
       IF (.NOT. do_im_time) THEN
@@ -513,17 +512,18 @@ CONTAINS
                CALL dbcsr_release(mo_coeff_all(ispin)%matrix)
                DEALLOCATE (mo_coeff_all(ispin)%matrix)
             END IF
-            IF (do_bse) THEN
-               CALL dbcsr_release(mo_coeff_o_bse(1)%matrix)
-               CALL dbcsr_release(mo_coeff_v_bse(1)%matrix)
-               DEALLOCATE (mo_coeff_o_bse(1)%matrix)
-               DEALLOCATE (mo_coeff_v_bse(1)%matrix)
-            END IF
          END DO
          DEALLOCATE (mo_coeff_o, mo_coeff_v)
          IF (my_do_gw) DEALLOCATE (mo_coeff_all)
 
       END IF
+      IF (do_bse) THEN
+         CALL dbcsr_release(mo_coeff_o_bse(1)%matrix)
+         CALL dbcsr_release(mo_coeff_v_bse(1)%matrix)
+         DEALLOCATE (mo_coeff_o_bse(1)%matrix)
+         DEALLOCATE (mo_coeff_v_bse(1)%matrix)
+      END IF
+      DEALLOCATE (mo_coeff_o_bse, mo_coeff_v_bse)
 
       ! Release some memory for RPA exchange correction
       IF (calc_forces .AND. do_im_time .OR. &
