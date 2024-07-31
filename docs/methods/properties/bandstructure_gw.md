@@ -25,7 +25,7 @@ electronic band structure of a solid. This approximation comes with limitations:
 
 - When using one of the common GGA exchange-correlation (xc) functionals, the band gap in the KS-DFT
   band structure $\varepsilon_{n\mathbf{k}}^\text{DFT}$ is much too small compared to experimental
-  band gaps (Fig. 26 in \[[](#Golze2019))\]. Even with the exact xc functional, the band gap in the
+  band gaps (Fig. 26 in \[[](#Golze2019)\]). Even with the exact xc functional, the band gap in the
   KS-DFT band structure $\varepsilon_{n\mathbf{k}}^\text{DFT}$ will be too small due to the
   derivative discontinuity.
 
@@ -127,7 +127,7 @@ In the upper *GW* section, the following keywords have been used:
 
 - [QUADRATURE_POINTS](#CP2K_INPUT.FORCE_EVAL.DFT.XC.WF_CORRELATION.RI_RPA.QUADRATURE_POINTS): Number
   of imaginary-frequency points used for computing the self-energy (Eq. (21) in
-  \[[](#Wilhelm2016))\]. 100 points are usually enough for converging quasiparticle energies within
+  \[[](#Wilhelm2016)\]). 100 points are usually enough for converging quasiparticle energies within
   10 meV.
 
 - [SELF_CONSISTENCY](#CP2K_INPUT.FORCE_EVAL.DFT.XC.WF_CORRELATION.RI_RPA.GW.SELF_CONSISTENCY):
@@ -281,7 +281,7 @@ Running the input file requires access to a large computer (the calculation took
 nodes on Noctua2 cluster in Paderborn). The computational parameters from this input file reach
 numerical convergence of the band gap within ~ 50 meV (TZVP basis set, 10 time and frequency
 points). Detailed convergence tests are available in the SI, Table S1 of \[[](#Graml2024)\] We
-recommend the numerical parameters from the input file for large-scale GW calculations. The code
+recommend the numerical parameters from the input file for large-scale *GW* calculations. The code
 prints restart files with ending .matrix that can be used to restart a crashed calculation.
 
 In case anything does not work, please feel free to contact jan.wilhelm (at) ur.de.
