@@ -12,17 +12,10 @@
 !>      (often ourselves, but this need not to be the case), and as a form
 !>      of documentation.
 !>
-!>      reference_manager.F provides an easy way to cite these references from the code
+!>      add references here as an easy way to cite these references from the code
 !>      (e.g., whenever the relevant part of the code is executed)
 !>      and to add citations to the input
 !>      at the end of the run a bibliography is printed that can be used, e.g., in papers
-!> \note
-!>      references need to be input using the ISI citation format, because it is
-!>      uniform, easy to parse, and can be exported for example from web of science.
-!>      (mark the reference, and click 'export to reference software', open the resulting file)
-!>      Furthermore, it can be easily converted to and from using the bibutils tools
-!>      a collection of easy to use conversion programs that can be found at
-!>      https://ctan.org/pkg/bibutils by Chris Putnam
 !> \author Joost VandeVondele
 ! **************************************************************************************************
 MODULE bibliography
@@ -104,10 +97,16 @@ CONTAINS
 !> \par History
 !>      08.2007 created [Joost VandeVondele]
 !> \note
-!>     - note that the ISI record is fixed format (line length limited and the
-!>       first 3 characters can indicate record type)
 !>     - please add DOI whenever available, this will result in a clickable
 !>       link in the input reference manual.
+!>     - please provide for journal articles:
+!>       - all author names, abbreviate the first names
+!>       - the title of the article
+!>       - the abbreviated journal name (please use the ISO4 standard)
+!>       - volume
+!>       - pages (in case there is starting and end page: please provide start page-end page;
+!>                in case there is article number, e.g. J. Chem. Phys, Phys. Rev., then provide
+!>                the article number)
 ! **************************************************************************************************
    SUBROUTINE add_all_references()
       CALL add_reference(key=Ceriotti2012, &
