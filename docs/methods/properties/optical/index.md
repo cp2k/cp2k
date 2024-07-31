@@ -30,7 +30,7 @@ $N_\mathrm{occ}N_\mathrm{empty}$ rows and $N_\mathrm{occ}N_\mathrm{empty}$ colum
 The matrices $A$ and $B$ are different in TDDFT and *GW*/BSE; for TDDFT they read (for singlet excitations, details on the TDDFT page)
 
 $$ \begin{align}
-    A_{ia,jb} &= (\varepsilon_a^\text{DFT}-\varepsilon_i^\text{DFT}\delta_{ij}\delta_{ab} + 
+    A_{ia,jb} &= (\varepsilon_a^\text{DFT}-\varepsilon_i^\text{DFT})\delta_{ij}\delta_{ab} + 
     2v_{ia,jb} + \langle ia|f_\text{xc}(\Omega^{(n)})|jb\rangle \quad ,\\
     B_{ia,jb} &= 2v_{ia,bj} +  \langle ia|f_\text{xc}(\Omega^{(n)})|jb\rangle \quad ,
 \end{align}$$
