@@ -42,3 +42,21 @@ $$ \begin{align}
     v_{ia,jb} - W_{ij,ab}(\omega=0) \quad ,\\
     B_{ia,jb} &= \alpha^\mathrm{(S/T)} v_{ia,bj} - W_{ib,aj}(\omega=0) \quad .
 \end{align}$$
+
+TDDFT with the common Adiabatic Local Density Approximation (ALDA) or a hybrid functional (i.e. PBE0) can be a good choice for calculating excitation energies of molecules. 
+Exceptions include charge-transfer excitations where the excited electron is transferred over a significant distance within the molecule. In such cases, the standard 
+approximate exchange-correlation functionals might fail, and more sophisticated approaches like range-separated hybrid functionals might be needed.
+For solids, the applicability of TDDFT depends on whether the solid is metallic or has a finite bandgap. For metals, ALDA often yields good excitation energies. 
+However, for semiconductors and insulators, ALDA fails because the the ALDA xc kernel does not adequately include the Coulomb interaction between the electron and the hole of 
+the electron-hole pair (exciton) that forms upon excitation.
+In contrast, the *GW*/BSE approach is well-suited for computing the excitation energies of excitons in semiconductors and insulators. 
+*GW*/BSE accounts for the attractive interaction between the electron and hole in the A-matrix via the screened Coulomb interaction $W_{ij,ab}$. 
+This inclusion is crucial for accurately describing excitonic effects, which are significant in materials with a finite bandgap. 
+Thus, while TDDFT is convenient and computationally less demanding than *GW*/BSE for molecular systems and metals, 
+*GW*/BSE provides a more accurate description for excitonic effects in semiconductors and insulators.
+
+
+
+
+
+
