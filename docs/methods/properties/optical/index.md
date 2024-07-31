@@ -19,7 +19,7 @@ These excitation energies are directly related to the positions and
 intensities of spectral lines observed in absorption and emission spectra.
 
 The excitation energies $\Omega_n$ can be computed using various theoretical approaches. 
-Two commonly used methods are Linear-Response Time-Dependent Density Functional Theory (LR-TDDFT) and 
+Two commonly used methods are linear-response Time-Dependent Density Functional Theory (LR-TDDFT) and 
 the linear-response *GW*/Bethe-Salpeter Equation (*GW*/BSE) approach. Both methods can be formulated using
 Casida's equation
 
