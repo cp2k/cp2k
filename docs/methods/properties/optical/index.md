@@ -59,7 +59,7 @@ This inclusion is crucial for accurately describing excitonic effects, which are
 Thus, TDDFT with ALDA/hybrid functionals is convenient and computationally less demanding than *GW*/BSE for molecular systems and metals, 
 *GW*/BSE can describe excitonic effects in semiconductors and insulators.
 For a more detailed discussion on TDDFT and *GW*/BSE, we recommend for example: 
-[C. A. Ullrich, *Time-Dependent Density-Functional Theory - Concepts and Applications*](https://doi.org/10.1093/acprof:oso/9780199563029.001.0001)
+[C. A. Ullrich, *Time-Dependent Density-Functional Theory - Concepts and Applications*](https://doi.org/10.1093/acprof:oso/9780199563029.001.0001).
 
 
 
