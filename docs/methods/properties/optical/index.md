@@ -27,9 +27,15 @@ $$\left( \begin{array}{cc}A &  B\\B &  A\end{array} \right)\left( \begin{array}{
 
 We abbreviate $A$ and $B$ as matrices with index $A_{ia,jb}$, i.e. they have
 $N_\mathrm{occ}N_\mathrm{empty}$ rows and $N_\mathrm{occ}N_\mathrm{empty}$ columns.
-The matrices $A$ and $B$ are different in TDDFT and *GW*/BSE
-The entries of
-$A$ and
+The matrices $A$ and $B$ are different in TDDFT and *GW*/BSE; for TDDFT they read
+
+$$ \begin{align}
+    A_{ia,jb} &= (\varepsilon_a^\text{DFT}-\varepsilon_i^\text{DFT}\delta_{ij}\delta_{ab} + \alpha^\mathrm{S/T}
+    v_{ia,jb} + \langle ia|f_\text{xc}(\Omega^{(n)})|jb\rangle \quad ,\\
+    B_{ia,jb} &= \alpha^\mathrm{(S/T)} v_{ia,bj} +  \langle ia|f_\text{xc}(\Omega^{(n)})|jb\rangle \quad ,
+\end{align}$$
+
+and for *GW*/BSE:
 
 $$ \begin{align}
     A_{ia,jb} &= (\varepsilon_a^{GW}-\varepsilon_i^{GW})\delta_{ij}\delta_{ab} + \alpha^\mathrm{S/T}
