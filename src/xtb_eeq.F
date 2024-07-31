@@ -33,7 +33,8 @@ MODULE xtb_eeq
    USE qs_force_types,                  ONLY: qs_force_type
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               qs_kind_type
-   USE spme,                            ONLY: spme_forces
+   USE spme,                            ONLY: spme_forces,&
+                                              spme_virial
    USE virial_methods,                  ONLY: virial_pair_force
    USE virial_types,                    ONLY: virial_type
    USE xtb_types,                       ONLY: get_xtb_atom_param,&
@@ -191,6 +192,7 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: gam
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: epforce, gab
       REAL(KIND=dp), DIMENSION(3)                        :: fdik, ri, rij, rik, rj
+      REAL(KIND=dp), DIMENSION(3, 3)                     :: pvir
       REAL(KIND=dp), DIMENSION(:), POINTER               :: chrgx, dchia, qlag
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(atprop_type), POINTER                         :: atprop
@@ -371,6 +373,15 @@ CONTAINS
             END IF
          END DO
          DEALLOCATE (epforce)
+         ! virial
+         IF (use_virial) THEN
+            chrgx = charges - qlag
+            CALL spme_virial(ewald_env, ewald_pw, particle_set, cell, chrgx, pvir)
+            virial%pv_virial = virial%pv_virial + pvir
+            chrgx = qlag
+            CALL spme_virial(ewald_env, ewald_pw, particle_set, cell, chrgx, pvir)
+            virial%pv_virial = virial%pv_virial - pvir
+         END IF
       END IF
 
       DEALLOCATE (gab, chrgx, dchia, qlag)
