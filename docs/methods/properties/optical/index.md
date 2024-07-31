@@ -56,9 +56,10 @@ In contrast, the *GW*/BSE approach is well-suited for computing the excitation e
 This inclusion is crucial for accurately describing excitonic effects, which are significant in materials with a finite bandgap. 
 
 
-Thus, while TDDFT is convenient and computationally less demanding than *GW*/BSE for molecular systems and metals, 
-*GW*/BSE provides a more accurate description for excitonic effects in semiconductors and insulators.
-For a more detailed discussion on TDDFT and *GW*/BSE, we recommend for example: [C. A. Ullrich, *Time-Dependent Density-Functional Theory - Concepts and Applications*](https://doi.org/10.1093/acprof:oso/9780199563029.001.0001)
+Thus, TDDFT with ALDA/hybrid functionals is convenient and computationally less demanding than *GW*/BSE for molecular systems and metals, 
+*GW*/BSE can describe excitonic effects in semiconductors and insulators.
+For a more detailed discussion on TDDFT and *GW*/BSE, we recommend for example: 
+[C. A. Ullrich, *Time-Dependent Density-Functional Theory - Concepts and Applications*](https://doi.org/10.1093/acprof:oso/9780199563029.001.0001)
 
 
 
