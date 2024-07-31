@@ -39,8 +39,8 @@ and for *GW*/BSE (details on the *GW*/BSE page):
 
 $$ \begin{align}
     A_{ia,jb} &= (\varepsilon_a^{GW}-\varepsilon_i^{GW})\delta_{ij}\delta_{ab} + 
-    2v_{ia,jb} - W_{ij,ab}(\omega=0) \quad ,\\
-    B_{ia,jb} &= 2 v_{ia,bj} - W_{ib,aj}(\omega=0) \quad .
+    2v_{ia,jb} - W_{ij,ab} \quad ,\\
+    B_{ia,jb} &= 2 v_{ia,bj} - W_{ib,aj} \quad .
 \end{align}$$
 
 TDDFT with the common Adiabatic Local Density Approximation (ALDA) or with a hybrid functional (i.e. PBE0) can be a good choice for calculating excitation energies of molecules. 
