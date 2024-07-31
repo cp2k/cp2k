@@ -46,12 +46,16 @@ $$ \begin{align}
 TDDFT with the common Adiabatic Local Density Approximation (ALDA) or with a hybrid functional (i.e. PBE0) can be a good choice for calculating excitation energies of molecules. 
 Exceptions include charge-transfer excitations where the excited electron is transferred over a significant distance within the molecule. 
 In such cases, range-separated hybrid functionals might be needed.
-For solids, the applicability of TDDFT depends on whether the solid is metallic or has a finite bandgap. For metals, ALDA often yields good excitation energies. 
+
+
+For solids, the applicability of TDDFT can depend on whether the solid is metallic or has a finite bandgap. For metals, ALDA often yields good excitation energies. 
 However, for semiconductors and insulators, ALDA fails because the ALDA xc kernel does not adequately include the Coulomb interaction between the electron and the hole of 
 the electron-hole pair (exciton) that forms upon excitation.
 In contrast, the *GW*/BSE approach is well-suited for computing the excitation energies of excitons in semiconductors and insulators. 
 *GW*/BSE accounts for the attractive interaction between the electron and hole in the A-matrix via the screened Coulomb interaction $W_{ij,ab}$. 
 This inclusion is crucial for accurately describing excitonic effects, which are significant in materials with a finite bandgap. 
+
+
 Thus, while TDDFT is convenient and computationally less demanding than *GW*/BSE for molecular systems and metals, 
 *GW*/BSE provides a more accurate description for excitonic effects in semiconductors and insulators.
 For a more detailed discussion on TDDFT and *GW*/BSE, we recommend for example: [C. A. Ullrich, *Time-Dependent Density-Functional Theory - Concepts and Applications*](https://doi.org/10.1093/acprof:oso/9780199563029.001.0001)
