@@ -26,7 +26,9 @@ Casida's equation
 $$\left( \begin{array}{cc}A &  B\\B &  A\end{array} \right)\left( \begin{array}{cc}\mathbf{X}^{(n)}\\\mathbf{Y}^{(n)}\end{array} \right) = \Omega^{(n)}\left(\begin{array}{cc}1&0\\0&-1\end{array}\right)\left(\begin{array}{cc}\mathbf{X}^{(n)}\\\mathbf{Y}^{(n)}\end{array}\right) \quad .$$
 
 We abbreviate $A$ and $B$ as matrices with index $A_{ia,jb}$, i.e. they have
-$N_\mathrm{occ}N_\mathrm{empty}$ rows and $N_\mathrm{occ}N_\mathrm{empty}$ columns. The entries of
+$N_\mathrm{occ}N_\mathrm{empty}$ rows and $N_\mathrm{occ}N_\mathrm{empty}$ columns.
+The matrices $A$ and $B$ are different in TDDFT and *GW*/BSE
+The entries of
 $A$ and
 
 $$ \begin{align}
