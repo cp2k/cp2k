@@ -29,7 +29,7 @@ MODULE rt_tdagw_types
                                               cp_fm_transpose,&
                                               cp_fm_column_scale,&
                                               cp_fm_scale_and_add
-   USE dbcsr_api,                       ONLY: dbcsr_type,&
+   USE cp_dbcsr_api,                    ONLY: dbcsr_type,&
                                               dbcsr_p_type,&
                                               dbcsr_create,&
                                               dbcsr_release,&
@@ -67,15 +67,15 @@ MODULE rt_tdagw_types
    USE qs_moments,                      ONLY: build_local_moment_matrix
    USE moments_utils,                   ONLY: get_reference_point
    USE matrix_exp,                      ONLY: get_nsquare_norder
-   USE gw_integrals,                    ONLY: build_3c_integrals
-   USE gw_methods,                      ONLY: compute_3c_integrals
-   USE gw_utils,                        ONLY: create_and_init_bs_env_for_gw,&
-                                              setup_AO_and_RI_basis_set,&
-                                              get_RI_basis_and_basis_function_indices,&
-                                              set_heuristic_parameters,&
-                                              set_parallelization_parameters,&
-                                              allocate_and_fill_matrices_and_arrays,&
-                                              create_tensors
+   USE gw_integrals,                    ONLY: build_3c_integral_block
+   USE gw_large_cell_Gamma,             ONLY: compute_3c_integrals
+!    USE gw_utils,                        ONLY: create_and_init_bs_env_for_gw,&
+!                                               setup_AO_and_RI_basis_set,&
+!                                               get_RI_basis_and_basis_function_indices,&
+!                                               set_heuristic_parameters,&
+!                                               set_parallelization_parameters,&
+!                                               allocate_and_fill_matrices_and_arrays,&
+!                                               create_tensors
    USE libint_wrapper,                  ONLY: cp_libint_static_init
    USE input_constants,                 ONLY: use_mom_ref_coac,&
                                               rtp_tdagw_ham_g0w0,&
@@ -226,7 +226,7 @@ MODULE rt_tdagw_types
       INTEGER                                                   :: hartree_method
       INTEGER                                                   :: ham_single_particle_type
       INTEGER                                                   :: mat_exp_method
-      INTEGER                                                   :: unit_nr
+      INTEGER                                                   :: unit_nr 
       REAL(kind=dp), DIMENSION(:,:,:), POINTER                  :: int_3c_array
 
    END TYPE tdagw_env_type
@@ -266,18 +266,9 @@ CONTAINS
                       dft_control=tdagw_env%dft_control,&
                       input=input)
       bs_sec => section_vals_get_subs_vals(input, "PROPERTIES%BANDSTRUCTURE")
+      ! TODO : Ability to run without the GW code?
       IF (.NOT. ASSOCIATED(bs_env)) THEN
-         NULLIFY(qs_env%bs_env)
-         ! Run the initialisations routines
-         CALL create_and_init_bs_env(qs_env, qs_env%bs_env, bs_sec)
-         bs_env => qs_env%bs_env
-         CALL setup_AO_and_RI_basis_set(qs_env, bs_env)
-         CALL get_RI_basis_and_basis_function_indices(qs_env, bs_env)
-         CALL set_heuristic_parameters(bs_env, qs_env)
-         CALL set_parallelization_parameters(qs_env, bs_env)
-         CALL allocate_and_fill_matrices_and_arrays(qs_env, bs_env)
-         CALL cp_libint_static_init()
-         CALL create_tensors(qs_env, bs_env)
+         CPABORT("Cannot run RT-aGW without running GW calculation (PROPERTIES) before")
       END IF
       ! Number of spins
       tdagw_env%n_spin = bs_env%n_spin
@@ -317,8 +308,8 @@ CONTAINS
       ALLOCATE(tdagw_env%orders(2, tdagw_env%n_spin))
       IF (tdagw_env%ham_single_particle_type == rtp_tdagw_ham_g0w0) THEN
          @:SPIN_DO(i, re, im, tdagw_env%n_spin)
-            CALL get_nsquare_norder(2.0_dp*MAX(ABS(MAXVAL(bs_env%eigenval_G0W0(:,bs_env%nkp_DOS,i))),&
-                                    ABS(MINVAL(bs_env%eigenval_G0W0(:,bs_env%nkp_DOS,i)))),&
+            CALL get_nsquare_norder(2.0_dp*MAX(ABS(MAXVAL(bs_env%eigenval_G0W0(:,bs_env%nkp_only_DOS,i))),&
+                                    ABS(MINVAL(bs_env%eigenval_G0W0(:,bs_env%nkp_only_DOS,i)))),&
                                     tdagw_env%orders(1,i), tdagw_env%orders(2,i),&
                                     tdagw_env%dft_control%rtp_control%eps_exp,&
                                     1, .FALSE.)
@@ -445,16 +436,38 @@ CONTAINS
       ! TODO : Handle different spins
       CALL copy_dbcsr_to_fm(matrix_s(1)%matrix, tdagw_env%S_fm%matrix)
 
-      ! Copy the single particle hamiltonian
+      ! Create the single particle hamiltonian
+      ! Allocate workspace first
+      NULLIFY(tdagw_env%ham_workspace)
+      ALLOCATE(tdagw_env%ham_workspace(2*tdagw_env%n_spin))
+      DO i=1,2*tdagw_env%n_spin
+         ALLOCATE(tdagw_env%ham_workspace(i)%matrix)
+         CALL cp_fm_create(tdagw_env%ham_workspace(i)%matrix, bs_env%fm_ks_Gamma(1)%matrix_struct)
+         CALL cp_fm_set_all(tdagw_env%ham_workspace(i)%matrix, 0.0_dp)
+      END DO
+      ! Now onto the Hamiltonian itself
       ALLOCATE(tdagw_env%ham_single_particle(tdagw_env%n_spin))
       @:SPIN_DO(i, re, im, tdagw_env%n_spin)
          ALLOCATE(tdagw_env%ham_single_particle(i)%matrix)
          IF ( tdagw_env%ham_single_particle_type == rtp_tdagw_ham_g0w0 ) THEN
             ! G0W0 Hamiltonian
-            CALL cp_fm_create(tdagw_env%ham_single_particle(i)%matrix, bs_env%fm_h_G0W0_Gamma%matrix_struct)
-            ! TODO : So far no spin resolution in Hamiltonian of GW
-            CALL cp_fm_to_fm(bs_env%fm_h_G0W0_Gamma, tdagw_env%ham_single_particle(i)%matrix)
-            ! CALL cp_fm_to_fm(bs_env%fm_ks_Gamma(i), tdagw_env%ham_single_particle(i)%matrix)
+            CALL cp_fm_create(tdagw_env%ham_single_particle(i)%matrix, bs_env%fm_ks_Gamma(i)%matrix_struct)
+            CALL cp_fm_to_fm(bs_env%fm_mo_coeff_Gamma(i), tdagw_env%ham_workspace(1)%matrix)
+            ! TODO : Checked that Gamma point is the zero k-point
+            ! C * Lambda
+            CALL cp_fm_column_scale(tdagw_env%ham_workspace(1)%matrix, bs_env%eigenval_G0W0(:,1,i))
+            ! C * Lambda * C^T
+            CALL parallel_gemm("N", "T", tdagw_env%n_ao, tdagw_env%n_ao, tdagw_env%n_ao,&
+                               1.0_dp, tdagw_env%ham_workspace(1)%matrix, bs_env%fm_mo_coeff_Gamma(i),&
+                               0.0_dp, tdagw_env%ham_workspace(2)%matrix)
+            ! S * C * Lambda * C^T
+            CALL parallel_gemm("N", "N", tdagw_env%n_ao, tdagw_env%n_ao, tdagw_env%n_ao,&
+                               1.0_dp, tdagw_env%S_fm%matrix, tdagw_env%ham_workspace(2)%matrix,&
+                               0.0_dp, tdagw_env%ham_workspace(1)%matrix)
+            ! S * C * Lambda * C^T * S = H
+            CALL parallel_gemm("N", "N", tdagw_env%n_ao, tdagw_env%n_ao, tdagw_env%n_ao,&
+                               1.0_dp, tdagw_env%ham_workspace(1)%matrix, tdagw_env%S_fm%matrix,&
+                               0.0_dp, tdagw_env%ham_single_particle(i)%matrix)
          ELSE
             ! KS Hamiltonian
             CALL cp_fm_create(tdagw_env%ham_single_particle(i)%matrix, bs_env%fm_ks_Gamma(i)%matrix_struct)
@@ -464,7 +477,6 @@ CONTAINS
 
       ! Create the matrices and workspaces for effective Hamiltonian
       ALLOCATE(tdagw_env%ham_effective(2*tdagw_env%n_spin))
-      ALLOCATE(tdagw_env%ham_workspace(2*tdagw_env%n_spin))
       ALLOCATE(tdagw_env%rho_new(2*tdagw_env%n_spin))
       ALLOCATE(tdagw_env%rho_new_last(2*tdagw_env%n_spin))
       ALLOCATE(tdagw_env%rho_M(2*tdagw_env%n_spin))
@@ -472,9 +484,6 @@ CONTAINS
          ALLOCATE(tdagw_env%ham_effective(i)%matrix)
          CALL cp_fm_create(tdagw_env%ham_effective(i)%matrix, bs_env%fm_ks_Gamma(1)%matrix_struct)
          CALL cp_fm_set_all(tdagw_env%ham_effective(i)%matrix, 0.0_dp)
-         ALLOCATE(tdagw_env%ham_workspace(i)%matrix)
-         CALL cp_fm_create(tdagw_env%ham_workspace(i)%matrix, bs_env%fm_ks_Gamma(1)%matrix_struct)
-         CALL cp_fm_set_all(tdagw_env%ham_workspace(i)%matrix, 0.0_dp)
          ALLOCATE(tdagw_env%rho_new(i)%matrix)
          CALL cp_fm_create(tdagw_env%rho_new(i)%matrix, bs_env%fm_ks_Gamma(1)%matrix_struct)
          CALL cp_fm_set_all(tdagw_env%rho_new(i)%matrix, 0.0_dp)
@@ -564,7 +573,8 @@ CONTAINS
          CALL create_hartree_dbt_workspace(tdagw_env, qs_env)
          CALL create_hartree_ri_workspace(tdagw_env, qs_env)
       ELSEIF ( tdagw_env%hartree_method == rtp_tdagw_hartree_pw) THEN
-         CALL create_hartree_pw_workspace(tdagw_env, qs_env)
+         ! CALL create_hartree_pw_workspace(tdagw_env, qs_env)
+         CPABORT("PW Hartree no longer supported")
       END IF
       ! Rho-dbcsr is used by both Hartree methods
       NULLIFY(tdagw_env%rho_dbcsr)
@@ -618,7 +628,8 @@ CONTAINS
       IF ( tdagw_env%hartree_method == rtp_tdagw_hartree_dbt ) THEN
          CALL release_hartree_dbt_workspace(tdagw_env)
       ELSEIF (tdagw_env%hartree_method == rtp_tdagw_hartree_pw) THEN
-         CALL release_hartree_pw_workspace(qs_env, tdagw_env)
+         ! CALL release_hartree_pw_workspace(qs_env, tdagw_env)
+         CPABORT("PW Hartree no longer supported")
       END IF
       IF (ASSOCIATED(tdagw_env%rho_dbcsr)) THEN
          CALL dbcsr_release(tdagw_env%rho_dbcsr)
@@ -673,7 +684,7 @@ CONTAINS
       CALL get_qs_env(qs_env, bs_env=bs_env)
 
       ALLOCATE(tdagw_env%int_3c_array(tdagw_env%n_ao, tdagw_env%n_ao, tdagw_env%n_RI))
-      CALL build_3c_integrals(tdagw_env%int_3c_array, qs_env, potential_parameter=bs_env%ri_metric,&
+      CALL build_3c_integral_block(tdagw_env%int_3c_array, qs_env, potential_parameter=bs_env%ri_metric,&
                               basis_j=bs_env%basis_set_AO, basis_k=bs_env%basis_set_AO,&
                               basis_i=bs_env%basis_set_RI,&
                               j_bf_start_from_atom=bs_env%i_ao_start_from_atom,&

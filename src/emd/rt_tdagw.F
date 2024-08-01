@@ -39,7 +39,7 @@ MODULE rt_tdagw
                                               cp_cfm_create,&
                                               cp_cfm_release
    USE kinds,                           ONLY: dp
-   USE dbcsr_api,                       ONLY: dbcsr_p_type,&
+   USE cp_dbcsr_api,                    ONLY: dbcsr_p_type,&
                                               dbcsr_type,&
                                               dbcsr_print,&
                                               dbcsr_has_symmetry,&
@@ -125,8 +125,8 @@ MODULE rt_tdagw
    USE efield_utils,                    ONLY: make_field
    USE rt_propagator_init,              ONLY: rt_initialize_rho_from_mos
    USE rt_propagation_methods,          ONLY: s_matrices_create
-   USE gw_methods,                      ONLY: compute_3c_integrals
-   USE gw_integrals,                    ONLY: build_3c_integrals
+   USE gw_large_cell_Gamma,             ONLY: compute_3c_integrals
+   USE gw_integrals,                    ONLY: build_3c_integral_block
    USE matrix_exp,                      ONLY: taylor_full_complex
    USE cp_log_handling,                 ONLY: cp_logger_type,&
                                               cp_get_default_logger,&
@@ -146,22 +146,7 @@ MODULE rt_tdagw
    USE rt_tdagw_types,                  ONLY: tdagw_env_type,&
                                               create_tdagw_env,&
                                               release_tdagw_env
-   USE pw_types,                        ONLY: COMPLEXDATA1D,&
-                                              COMPLEXDATA3D,&
-                                              REALDATA3D,&
-                                              REALSPACE,&
-                                              RECIPROCALSPACE,&
-                                              pw_type
-   USE pw_env_types,                    ONLY: pw_env_get,&
-                                              pw_env_type
-   USE pw_methods,                      ONLY: pw_axpy,&
-                                              pw_scale,&
-                                              pw_transfer,&
-                                              pw_zero
-   USE pw_poisson_methods,              ONLY: pw_poisson_solve
    USE qs_ks_types,                     ONLY: qs_ks_env_type
-   USE pw_poisson_types,                ONLY: pw_poisson_type
-   USE pw_pool_types,                   ONLY: pw_pool_type
    USE qs_integrate_potential_product,  ONLY: integrate_v_rspace
    USE qs_collocate_density,            ONLY: calculate_rho_elec
    USE physcon,                         ONLY: femtoseconds
@@ -275,11 +260,17 @@ CONTAINS
          ! Extra minus sign for the charge of electrons
          intensity = rtp_control%delta_pulse_scale
          metric = 0.0_dp
+         kvec(:) = cell%h_inv(1, :)*rtp_control%delta_pulse_direction(1) + &
+                   cell%h_inv(2, :)*rtp_control%delta_pulse_direction(2) + &
+                   cell%h_inv(3, :)*rtp_control%delta_pulse_direction(3)
+         kvec = kvec*twopi*rtp_control%delta_pulse_scale
          @:SPIN_DO(j, re, im, tdagw_env%n_spin)
             CALL cp_fm_set_all(tdagw_env%ham_effective(im)%matrix, 0.0_dp)
             DO k=1,3
+               ! CALL cp_fm_scale_and_add(1.0_dp, tdagw_env%ham_effective(im)%matrix,&
+               !         REAL(rtp_control%delta_pulse_direction(k), kind=dp), tdagw_env%moments_field(k)%matrix)
                CALL cp_fm_scale_and_add(1.0_dp, tdagw_env%ham_effective(im)%matrix,&
-                       REAL(rtp_control%delta_pulse_direction(k), kind=dp), tdagw_env%moments_field(k)%matrix)
+                       kvec(k), tdagw_env%moments_field(k)%matrix)
             END DO
             ! enforce hermiticity of the effective Hamiltonian - apply to components instead?
             CALL cp_fm_transpose(tdagw_env%ham_effective(im)%matrix, tdagw_env%rho_workspace(1)%matrix)
@@ -351,8 +342,6 @@ CONTAINS
          ! Update the simulation time
          tdagw_env%sim_time = REAL(i, dp)*rtp%dt
          tdagw_env%sim_step = i
-         PRINT *, "metric rho, RE spin", j, "time", tdagw_env%sim_time, cp_fm_norm(tdagw_env%rho(re)%matrix, "M")
-         PRINT *, "metric rho, IM spin", j, "time", tdagw_env%sim_time, cp_fm_norm(tdagw_env%rho(im)%matrix, "M")
          ! Start the enforced time reversal method
          ! This method determines the density matrix at time (t+dt) by guessing the effective Hamiltonian at (t + dt)
          ! and using the Hamiltonian at time (t), it propagates density from time (t) while ensuring that the density
@@ -603,8 +592,13 @@ CONTAINS
          CALL cp_fm_set_all(tdagw_env%ham_effective(im)%matrix, 0.0_dp)
       END DO
       ! Determine the field at current time
-      ! TODO : Understand and implement rtp%istep - that should mainly be used for restart calculations?
-      CALL make_field(tdagw_env%dft_control, tdagw_env%field, tdagw_env%sim_step, tdagw_env%sim_time)
+      IF (tdagw_env%dft_control%apply_efield_field) THEN
+         ! TODO : Understand and implement rtp%istep - that should mainly be used for restart calculations?
+         CALL make_field(tdagw_env%dft_control, tdagw_env%field, tdagw_env%sim_step, tdagw_env%sim_time)
+      ELSE
+         ! No field
+         tdagw_env%field(:) = 0.0_dp
+      END IF
       IF ( tdagw_env%hartree_method == rtp_tdagw_hartree_pw ) THEN
          ! TODO : Remove hartree_pw
          CPABORT("PW Hartree no longer supported.")
@@ -996,7 +990,7 @@ CONTAINS
       field_unit = cp_print_key_unit_nr(logger, rtp_section, "PRINT%FIELD", extension=".field")
       ! If the file descriptor is non-zero, output field
       IF (field_unit /= -1) THEN
-         WRITE(field_unit, '(E20.8,E20.8,E20.8,E20.8)') tdagw_env%sim_time*femtoseconds,&
+         WRITE(field_unit, '(E20.8E3,E20.8E3,E20.8E3,E20.8E3)') tdagw_env%sim_time*femtoseconds,&
                tdagw_env%field(1), tdagw_env%field(2), tdagw_env%field(3)
       END IF
       
@@ -1045,7 +1039,7 @@ CONTAINS
             moments(i) = - moments(i) * tdagw_env%spin_degeneracy
          END DO
          ! Output to the file
-         IF (moments_unit_re > 0) WRITE(moments_unit_re, '(E16.8,E16.8,E16.8,E16.8)') tdagw_env%sim_time*femtoseconds, moments(1),&
+         IF (moments_unit_re > 0) WRITE(moments_unit_re, '(E20.8E3,E20.8E3,E20.8E3,E20.8E3)') tdagw_env%sim_time*femtoseconds, moments(1),&
              moments(2), moments(3)
          ! Need to transpose due to the definition of trace function
          CALL cp_fm_transpose(rho(im)%matrix, tdagw_env%rho_workspace(1)%matrix)
@@ -1053,7 +1047,7 @@ CONTAINS
             CALL cp_fm_trace(tdagw_env%rho_workspace(1)%matrix, tdagw_env%moments(i)%matrix, moments(i))
          END DO
          ! Output to the file
-         IF(moments_unit_im > 0) WRITE(moments_unit_im, '(E16.8,E16.8,E16.8,E16.8)') tdagw_env%sim_time*femtoseconds, moments(1),&
+         IF(moments_unit_im > 0) WRITE(moments_unit_im, '(D16.8,D16.8,D16.8,D16.8)') tdagw_env%sim_time*femtoseconds, moments(1),&
              moments(2), moments(3)
       END DO
    END SUBROUTINE
@@ -1192,115 +1186,6 @@ CONTAINS
          CALL parallel_gemm("N", "N", tdagw_env%n_ao, tdagw_env%n_ao, tdagw_env%n_ao,&
                             1.0_dp, tdagw_env%rho_workspace(1)%matrix, mos(j), 0.0_dp, tdagw_env%rho_workspace(2)%matrix)
          CALL cp_fm_write_formatted(tdagw_env%rho_workspace(2)%matrix, rho_unit_im)
-      END DO
-   END SUBROUTINE
-
-! **************************************************************************************************
-!> \brief Outputs the expectation value of moments from a given density matrix
-!> \note  Moments matrix is provided by the tdagw_env, uses rho_workspace(1:3) 
-!> \param tdagw_env Entry point - tdagw environment
-!> \param rho Density matrix in AO basis
-!> \param rtp_section RTP section of the input parameters, where moments destination may be present
-! **************************************************************************************************
-   SUBROUTINE output_moments(tdagw_env, rho, mos, rtp_section)
-      TYPE(tdagw_env_type)                               :: tdagw_env
-      TYPE(cp_fm_p_type), DIMENSION(:)                   :: rho
-      TYPE(cp_fm_type), DIMENSION(:)                     :: mos
-      TYPE(section_vals_type), POINTER                   :: rtp_section
-      CHARACTER(len=*), PARAMETER                        :: routineN = "output_moments"
-      TYPE(cp_logger_type), POINTER                      :: logger
-      INTEGER                                            :: i,j,re,im,&
-                                                            moments_unit_re,&
-                                                            moments_unit_im
-      CHARACTER(len=14), DIMENSION(4)                    :: file_labels
-      REAL(kind=dp), DIMENSION(3)                        :: moments
-      
-      ! Start by getting the relevant file unit
-      MARK_USED(mos)
-      file_labels(1) = "_SPIN_A_RE.dat"
-      file_labels(2) = "_SPIN_A_IM.dat"
-      file_labels(3) = "_SPIN_B_RE.dat"
-      file_labels(4) = "_SPIN_B_IM.dat"
-      logger => cp_get_default_logger()
-      @:SPIN_DO(j, re, im, tdagw_env%n_spin)
-         moments_unit_re = cp_print_key_unit_nr(logger, rtp_section, "PRINT%MOMENTS", extension=file_labels(re))
-         moments_unit_im = cp_print_key_unit_nr(logger, rtp_section, "PRINT%MOMENTS", extension=file_labels(im))
-         ! If, for any reason, the file unit is not provided, skip to next cycle immediately
-         ! TODO : Either centralize or let user define the output format
-         ! TODO : Let user define the output units
-         ! TODO : Handle case of complex molecular orbital matrix?
-         ! TODO : Specify output units in config
-         IF (.NOT.(moments_unit_re == -1)) THEN
-            DO i=1,3
-               ! S_inv * r
-               CALL cp_dbcsr_sm_fm_multiply(tdagw_env%S_inv, tdagw_env%moments(i)%matrix,&
-                                            tdagw_env%rho_workspace(1)%matrix, tdagw_env%n_ao)
-               ! S_inv * rho
-               CALL cp_dbcsr_sm_fm_multiply(tdagw_env%S_inv, rho(re)%matrix,&
-                                            tdagw_env%rho_workspace(2)%matrix, tdagw_env%n_ao)
-               ! Need to transpose due to the definition of trace function
-               CALL cp_fm_transpose(tdagw_env%rho_workspace(2)%matrix, tdagw_env%rho_workspace(3)%matrix)
-               ! Tr(S_inv * rho * S_inv * r)
-               CALL cp_fm_trace(tdagw_env%rho_workspace(3)%matrix, tdagw_env%rho_workspace(1)%matrix, moments(i))
-            !   ! r * C
-            !   CALL parallel_gemm("N","N",tdagw_env%n_ao,tdagw_env%n_ao,tdagw_env%n_ao,&
-            !                   1.0_dp,tdagw_env%moments(i)%matrix,mos(j),0.0_dp,&
-            !                   tdagw_env%rho_workspace(1)%matrix)
-            !   ! C^T * r * C
-            !   CALL parallel_gemm("T","N",tdagw_env%n_ao,tdagw_env%n_ao,tdagw_env%n_ao,&
-            !                   1.0_dp,mos(j),tdagw_env%rho_workspace(1)%matrix,0.0_dp,&
-            !                   tdagw_env%rho_workspace(2)%matrix)
-            !   ! C * C^T * r * C
-            !   CALL parallel_gemm("N","N",tdagw_env%n_ao,tdagw_env%n_ao,tdagw_env%n_ao,&
-            !                   1.0_dp,mos(j),tdagw_env%rho_workspace(2)%matrix,0.0_dp,&
-            !                   tdagw_env%rho_workspace(1)%matrix)
-            !   ! rho * C * C^T * r * C
-            !   CALL parallel_gemm("N","N",tdagw_env%n_ao,tdagw_env%n_ao,tdagw_env%n_ao,&
-            !                   1.0_dp,rho(re)%matrix,tdagw_env%rho_workspace(1)%matrix,0.0_dp,&
-            !                   tdagw_env%rho_workspace(2)%matrix)
-            !   ! Tr( C^T * rho * C * C^T * r * C)
-            !   CALL cp_fm_trace(mos(j), tdagw_env%rho_workspace(2)%matrix, moments(i))
-            !   PRINT *, "Cart index", i, "moment", moments(i)
-            END DO
-            ! Output to the file
-            WRITE(moments_unit_re, '(E16.8,E16.8,E16.8,E16.8)') tdagw_env%sim_time*femtoseconds, moments(1),&
-                moments(2), moments(3)
-         END IF
-         IF (.NOT.(moments_unit_im == -1)) THEN
-            DO i=1,3
-               ! S_inv * r
-               CALL cp_dbcsr_sm_fm_multiply(tdagw_env%S_inv, tdagw_env%moments(i)%matrix,&
-                                            tdagw_env%rho_workspace(1)%matrix, tdagw_env%n_ao)
-               ! S_inv * rho
-               CALL cp_dbcsr_sm_fm_multiply(tdagw_env%S_inv, rho(im)%matrix,&
-                                            tdagw_env%rho_workspace(2)%matrix, tdagw_env%n_ao)
-               ! Need to transpose due to the definition of trace function
-               CALL cp_fm_transpose(tdagw_env%rho_workspace(2)%matrix, tdagw_env%rho_workspace(3)%matrix)
-               ! Tr(S_inv * rho * S_inv * r)
-               CALL cp_fm_trace(tdagw_env%rho_workspace(3)%matrix, tdagw_env%rho_workspace(1)%matrix, moments(i))
-            !   ! r * C
-            !   CALL parallel_gemm("N","N",tdagw_env%n_ao,tdagw_env%n_ao,tdagw_env%n_ao,&
-            !                   1.0_dp,tdagw_env%moments(i)%matrix,mos(j),0.0_dp,&
-            !                   tdagw_env%rho_workspace(1)%matrix)
-            !   ! C^T * r * C
-            !   CALL parallel_gemm("T","N",tdagw_env%n_ao,tdagw_env%n_ao,tdagw_env%n_ao,&
-            !                   1.0_dp,mos(j),tdagw_env%rho_workspace(1)%matrix,0.0_dp,&
-            !                   tdagw_env%rho_workspace(2)%matrix)
-            !   ! C * C^T * r * C
-            !   CALL parallel_gemm("N","N",tdagw_env%n_ao,tdagw_env%n_ao,tdagw_env%n_ao,&
-            !                   1.0_dp,mos(j),tdagw_env%rho_workspace(2)%matrix,0.0_dp,&
-            !                   tdagw_env%rho_workspace(1)%matrix)
-            !   ! rho * C * C^T * r * C
-            !   CALL parallel_gemm("N","N",tdagw_env%n_ao,tdagw_env%n_ao,tdagw_env%n_ao,&
-            !                   1.0_dp,rho(im)%matrix,tdagw_env%rho_workspace(1)%matrix,0.0_dp,&
-            !                   tdagw_env%rho_workspace(2)%matrix)
-            !   ! Tr( C^T * rho * C * C^T * r * C)
-            !   CALL cp_fm_trace(mos(j), tdagw_env%rho_workspace(2)%matrix, moments(i))
-            END DO
-            ! Output to the file
-            WRITE(moments_unit_im, '(E16.8,E16.8,E16.8,E16.8)') tdagw_env%sim_time*femtoseconds, moments(1),&
-                moments(2), moments(3)
-         END IF
       END DO
    END SUBROUTINE
 
@@ -1512,7 +1397,7 @@ CONTAINS
       TYPE(dbcsr_type), ALLOCATABLE, TARGET              :: matrix_desym
       TYPE(dbcsr_type), POINTER                          :: matrix_desym_p
       TYPE(dbcsr_iterator_type)                          :: iterator_matrix
-      LOGICAL                                            :: data_transpose, found
+      LOGICAL                                            :: found
       INTEGER, DIMENSION(2)                              :: block_shape
       ! Pair of indices for current block
       INTEGER, DIMENSION(3)                              :: index_tensor
@@ -1605,7 +1490,7 @@ CONTAINS
       ! PRINT *, "Blocks reserved"
       DO j=1,number_of_blocks
          CALL dbcsr_get_block_p(matrix_desym_p, indices_block_matrix_1(j), indices_block_matrix_2(j),&
-                             block_matrix, data_transpose,found, block_shape(1), block_shape(2))
+                             block_matrix,found, block_shape(1), block_shape(2))
          ALLOCATE(block_tensor(block_shape(1),block_shape(2),1))
          block_tensor(:,:,1) = block_matrix(:,:)
          index_tensor = [indices_block_matrix_1(j), indices_block_matrix_2(j),1]
@@ -1798,7 +1683,7 @@ CONTAINS
       INTEGER                                            :: my_prow, my_pcol, nblkrows_local, nblkcols_local,&
                                                             i, j, k, n, nblocks, ind_1, ind_2, row_offset, col_offset,&
                                                             row_size, col_size, j_n_AO, k_n_AO, i_n_RI, n_RI,&
-                                                            ri_offset, ind_i
+                                                            ri_offset, ind_i, handle
       REAL(kind=dp), DIMENSION(:), ALLOCATABLE           :: Pvector, Qvector
       REAL(kind=dp), DIMENSION(:,:), POINTER             :: block_matrix
       ! REAL(kind=dp), DIMENSION(:,:,:), ALLOCATABLE       :: int_3c
@@ -1812,6 +1697,7 @@ CONTAINS
       ! TODO : Only calculate integrals which are needed for a given rank, which are given by structure
       !        of the density matrix
 
+      CALL timeset(routineN, handle)
       ! Get the relevant environments
       CALL get_qs_env(qs_env, bs_env=bs_env, para_env=para_env)
       n_RI = tdagw_env%n_RI
@@ -1933,5 +1819,7 @@ CONTAINS
       CALL dbcsr_release(v_dbcsr_ao)
       DEALLOCATE(Qvector)
       DEALLOCATE(Pvector)
+
+      CALL timestop(handle)
    END SUBROUTINE get_hartree_local
 END MODULE rt_tdagw

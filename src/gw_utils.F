@@ -697,17 +697,6 @@ CONTAINS
       END IF
       CALL cp_fm_struct_release(fm_struct_RI_global)
 
-      ALLOCATE (bs_env%eigenval_G0W0(bs_env%n_ao, bs_env%nkp_DOS, bs_env%n_spin))
-
-      num_time_freq_points = bs_env%num_time_freq_points
-
-      ALLOCATE (bs_env%imag_freq_points(num_time_freq_points))
-      ALLOCATE (bs_env%imag_time_points(num_time_freq_points))
-      ALLOCATE (bs_env%imag_time_weights_freq_zero(num_time_freq_points))
-      ALLOCATE (bs_env%weights_cos_t_to_w(num_time_freq_points, num_time_freq_points))
-      ALLOCATE (bs_env%weights_cos_w_to_t(num_time_freq_points, num_time_freq_points))
-      ALLOCATE (bs_env%weights_sin_t_to_w(num_time_freq_points, num_time_freq_points))
-
       ! create blacs_env for subgroups of tensor operations
       NULLIFY (blacs_env_tensor)
       CALL cp_blacs_env_create(blacs_env=blacs_env_tensor, para_env=bs_env%para_env_tensor)
@@ -1613,12 +1602,14 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'compute_V_xc'
 
       INTEGER                                            :: handle, img, ispin, myfun, nimages
-      REAL(KIND=dp)                                      :: energy_ex, energy_exc, energy_total
+      REAL(KIND=dp)                                      :: energy_ex, energy_exc, energy_total,&
+                                                            myfraction
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: mat_ks_without_v_xc
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_ks_kp
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(section_vals_type), POINTER                   :: input, xc_section, hf_section
+      LOGICAL                                            :: hf_present
 
       CALL timeset(routineN, handle)
 
@@ -1756,6 +1747,7 @@ CONTAINS
 
       ALLOCATE (bs_env%imag_freq_points(num_time_freq_points))
       ALLOCATE (bs_env%imag_time_points(num_time_freq_points))
+      ALLOCATE (bs_env%imag_time_weights_freq_zero(num_time_freq_points))
       ALLOCATE (bs_env%weights_cos_t_to_w(num_time_freq_points, num_time_freq_points))
       ALLOCATE (bs_env%weights_cos_w_to_t(num_time_freq_points, num_time_freq_points))
       ALLOCATE (bs_env%weights_sin_t_to_w(num_time_freq_points, num_time_freq_points))
