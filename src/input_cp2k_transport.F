@@ -428,7 +428,8 @@ CONTAINS
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, __LOCATION__, name="PEXSI", &
                           description="Parameters for the PEXSI solver to be used within OMEN.", &
-                          n_keywords=4, n_subsections=0, repeats=.FALSE.)
+                          n_keywords=4, n_subsections=0, repeats=.FALSE., &
+                          deprecation_notice="Support for the PEXSI library is slated for removal.")
 
       NULLIFY (keyword)
 
