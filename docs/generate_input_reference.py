@@ -256,6 +256,7 @@ def render_section_header(
     # Collect information from section fields.
     repeats = "repeats" in section.attrib and section.attrib["repeats"] == "yes"
     description = get_text(section.find("DESCRIPTION"))
+    deprecation_notice = get_text(section.find("DEPRECATION_NOTICE"))
     location = get_text(section.find("LOCATION"))
     section_name = section_path[-1]  # section.find("NAME") doesn't work for root
     section_xref = ".".join(section_path)  # used for cross-referencing
@@ -269,6 +270,10 @@ def render_section_header(
     collision_resolution_suffix = "_SECTION" if has_name_collision else ""
     output += [f"({section_xref}{collision_resolution_suffix})="]
     output += [f"# {section_name}", ""]
+    if deprecation_notice:
+        output += ["```{warning}"]
+        output += ["This section is deprecated and may be removed in a future version."]
+        output += ["", escape_markdown(deprecation_notice), "", "```", ""]
     if repeats:
         output += ["**Section can be repeated.**", ""]
     if references:
