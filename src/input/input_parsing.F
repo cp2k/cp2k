@@ -112,6 +112,13 @@ CONTAINS
       CALL section_vals_add_values(section_vals)
       irs = SIZE(section_vals%values, 2)
 
+      IF (ALLOCATED(section%deprecation_notice)) THEN
+         CALL cp_warn(__LOCATION__, &
+                      "The specified section '"//TRIM(section%name)// &
+                      "' is deprecated and may be removed in a future version: "// &
+                      section%deprecation_notice)
+      END IF
+
       IF (ASSOCIATED(section%keywords(-1)%keyword)) THEN ! reads section params
          keyword => section%keywords(-1)%keyword
          NULLIFY (el)

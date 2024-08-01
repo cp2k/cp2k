@@ -105,6 +105,7 @@ MODULE input_section_types
       CHARACTER(len=default_string_length)        :: name = ""
       CHARACTER(len=default_string_length)        :: location = ""
       CHARACTER, DIMENSION(:), POINTER              :: description => Null()
+      CHARACTER(LEN=:), ALLOCATABLE               :: deprecation_notice
       INTEGER, POINTER, DIMENSION(:)              :: citations => NULL()
       TYPE(keyword_p_type), DIMENSION(:), POINTER :: keywords => NULL()
       TYPE(section_p_type), POINTER, DIMENSION(:) :: subsections => NULL()
@@ -149,16 +150,18 @@ CONTAINS
 !>        structure, defaults to 0
 !> \param repeats if this section can repeat (defaults to false)
 !> \param citations ...
+!> \param deprecation_notice show this warning that the section is deprecated
 !> \author fawzi
 ! **************************************************************************************************
    SUBROUTINE section_create(section, location, name, description, n_keywords, &
-                             n_subsections, repeats, citations)
+                             n_subsections, repeats, citations, deprecation_notice)
 
       TYPE(section_type), POINTER                        :: section
       CHARACTER(len=*), INTENT(in)                       :: location, name, description
       INTEGER, INTENT(in), OPTIONAL                      :: n_keywords, n_subsections
       LOGICAL, INTENT(in), OPTIONAL                      :: repeats
       INTEGER, DIMENSION(:), INTENT(IN), OPTIONAL        :: citations
+      CHARACTER(len=*), INTENT(IN), OPTIONAL             :: deprecation_notice
 
       INTEGER                                            :: i, my_n_keywords, my_n_subsections, n
 
@@ -204,6 +207,10 @@ CONTAINS
       DO i = 1, my_n_subsections
          NULLIFY (section%subsections(i)%section)
       END DO
+
+      IF (PRESENT(deprecation_notice)) THEN
+         section%deprecation_notice = TRIM(deprecation_notice)
+      END IF
 
    END SUBROUTINE section_create
 
@@ -1567,6 +1574,11 @@ CONTAINS
             REPEAT(" ", l1)//"<DESCRIPTION>"// &
             TRIM(substitute_special_xml_tokens(a2s(section%description))) &
             //"</DESCRIPTION>"
+
+         IF (ALLOCATED(section%deprecation_notice)) &
+            WRITE (UNIT=unit_number, FMT="(A)") REPEAT(" ", l1)//"<DEPRECATION_NOTICE>"// &
+            TRIM(substitute_special_xml_tokens(section%deprecation_notice)) &
+            //"</DEPRECATION_NOTICE>"
 
          IF (ASSOCIATED(section%citations)) THEN
             DO i = 1, SIZE(section%citations, 1)
