@@ -1541,6 +1541,7 @@ CONTAINS
       CALL cp_fm_struct_release(fm_struct_dipoles)
       CALL cp_fm_struct_release(fm_struct_dipoles_reordered)
       CALL cp_fm_struct_release(fm_struct_dipole_exc)
+      CALL cp_fm_struct_release(fm_struct_dipoles_trunc)
       DO idir = 1, 3
          CALL cp_fm_release(fm_dipole_per_dir_reordered(idir))
          CALL cp_fm_release(fm_dipole_exc(idir))
