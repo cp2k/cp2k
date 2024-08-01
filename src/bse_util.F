@@ -1545,7 +1545,10 @@ CONTAINS
       DO idir = 1, 3
          CALL cp_fm_release(fm_dipole_per_dir_reordered(idir))
          CALL cp_fm_release(fm_dipole_exc(idir))
+         CALL cp_fm_release(fm_dipoles_per_dir_trunc(idir))
+         CALL cp_fm_release(fm_dipole_per_dir(idir))
       END DO
+      CALL cp_fm_release(fm_eigvec_XYsum)
 
       CALL timestop(handle)
 

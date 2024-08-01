@@ -164,9 +164,7 @@ CONTAINS
       CALL fm_general_add_bse(fm_A, fm_W, -1.0_dp, homo, virtual, &
                               virtual, virtual, unit_nr, reordering, mp2_env)
       !full matrix W is not needed anymore, release it to save memory
-      CALL cp_fm_struct_release(fm_struct_W)
       CALL cp_fm_release(fm_W)
-      CALL cp_fm_struct_release(fm_struct_A)
 
       !Now add the energy differences (ε_a-ε_i) on the diagonal (i.e. δ_ij δ_ab) of A_ia,jb
       DO ii = 1, nrow_local_A
