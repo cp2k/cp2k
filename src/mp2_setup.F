@@ -186,40 +186,50 @@ CONTAINS
       bse_section => section_vals_get_subs_vals(mp2_section, "RI_RPA%GW%BSE")
       CALL section_vals_val_get(bse_section, "_SECTION_PARAMETERS_", &
                                 l_val=mp2_env%ri_g0w0%do_bse)
-      CALL section_vals_val_get(mp2_section, "RI_RPA%GW%BSE%SPIN_CONFIG", &
+      CALL section_vals_val_get(bse_section, "SPIN_CONFIG", &
                                 i_val=mp2_env%ri_g0w0%bse_spin_config)
-      CALL section_vals_val_get(mp2_section, "RI_RPA%GW%BSE%ENERGY_CUTOFF_OCC", &
+      CALL section_vals_val_get(bse_section, "ENERGY_CUTOFF_OCC", &
                                 r_val=mp2_env%ri_g0w0%bse_cutoff_occ)
-      CALL section_vals_val_get(mp2_section, "RI_RPA%GW%BSE%ENERGY_CUTOFF_EMPTY", &
+      CALL section_vals_val_get(bse_section, "ENERGY_CUTOFF_EMPTY", &
                                 r_val=mp2_env%ri_g0w0%bse_cutoff_empty)
-      CALL section_vals_val_get(mp2_section, "RI_RPA%GW%BSE%NUM_PRINT_EXC", &
+      CALL section_vals_val_get(bse_section, "NUM_PRINT_EXC", &
                                 i_val=mp2_env%ri_g0w0%num_print_exc)
-      CALL section_vals_val_get(mp2_section, "RI_RPA%GW%BSE%EPS_X", &
+      CALL section_vals_val_get(bse_section, "EPS_X", &
                                 r_val=mp2_env%ri_g0w0%eps_x)
-      CALL section_vals_val_get(mp2_section, "RI_RPA%GW%BSE%BSE_ITERAT%DAVIDSON_ABORT_COND", &
+      CALL section_vals_val_get(bse_section, "BSE_ITERAT%DAVIDSON_ABORT_COND", &
                                 i_val=mp2_env%ri_g0w0%davidson_abort_cond)
-      CALL section_vals_val_get(mp2_section, "RI_RPA%GW%BSE%BSE_ITERAT%NUM_EXC_EN", &
+      CALL section_vals_val_get(bse_section, "BSE_ITERAT%NUM_EXC_EN", &
                                 i_val=mp2_env%ri_g0w0%num_exc_en)
-      CALL section_vals_val_get(mp2_section, "RI_RPA%GW%BSE%BSE_ITERAT%NUM_ADD_START_Z_SPACE", &
+      CALL section_vals_val_get(bse_section, "BSE_ITERAT%NUM_ADD_START_Z_SPACE", &
                                 i_val=mp2_env%ri_g0w0%num_add_start_z_space)
-      CALL section_vals_val_get(mp2_section, "RI_RPA%GW%BSE%BSE_ITERAT%FAC_MAX_Z_SPACE", &
+      CALL section_vals_val_get(bse_section, "BSE_ITERAT%FAC_MAX_Z_SPACE", &
                                 i_val=mp2_env%ri_g0w0%fac_max_z_space)
-      CALL section_vals_val_get(mp2_section, "RI_RPA%GW%BSE%BSE_ITERAT%NUM_NEW_T", &
+      CALL section_vals_val_get(bse_section, "BSE_ITERAT%NUM_NEW_T", &
                                 i_val=mp2_env%ri_g0w0%num_new_t)
-      CALL section_vals_val_get(mp2_section, "RI_RPA%GW%BSE%BSE_ITERAT%EPS_RES", &
+      CALL section_vals_val_get(bse_section, "BSE_ITERAT%EPS_RES", &
                                 r_val=mp2_env%ri_g0w0%eps_res)
-      CALL section_vals_val_get(mp2_section, "RI_RPA%GW%BSE%BSE_ITERAT%EPS_EXC_EN", &
+      CALL section_vals_val_get(bse_section, "BSE_ITERAT%EPS_EXC_EN", &
                                 r_val=mp2_env%ri_g0w0%eps_exc_en)
-      CALL section_vals_val_get(mp2_section, "RI_RPA%GW%BSE%BSE_ITERAT%NUM_DAVIDSON_ITER", &
+      CALL section_vals_val_get(bse_section, "BSE_ITERAT%NUM_DAVIDSON_ITER", &
                                 i_val=mp2_env%ri_g0w0%num_davidson_iter)
-      CALL section_vals_val_get(mp2_section, "RI_RPA%GW%BSE%BSE_ITERAT%Z_SPACE_ENERGY_CUTOFF", &
+      CALL section_vals_val_get(bse_section, "BSE_ITERAT%Z_SPACE_ENERGY_CUTOFF", &
                                 r_val=mp2_env%ri_g0w0%z_space_energy_cutoff)
-      CALL section_vals_val_get(mp2_section, "RI_RPA%GW%BSE%BSE_DIAG_METHOD", &
+      CALL section_vals_val_get(bse_section, "BSE_DIAG_METHOD", &
                                 i_val=mp2_env%ri_g0w0%bse_diag_method)
-      CALL section_vals_val_get(mp2_section, "RI_RPA%GW%BSE%TDA", &
+      CALL section_vals_val_get(bse_section, "TDA", &
                                 i_val=mp2_env%ri_g0w0%flag_tda)
-      CALL section_vals_val_get(mp2_section, "RI_RPA%GW%BSE%BSE_DEBUG_PRINT", &
+      CALL section_vals_val_get(bse_section, "BSE_DEBUG_PRINT", &
                                 l_val=mp2_env%ri_g0w0%bse_debug_print)
+      CALL section_vals_val_get(bse_section, "BSE_SPECTRUM%_SECTION_PARAMETERS_", &
+                                l_val=mp2_env%ri_g0w0%bse_print_spectrum)
+      CALL section_vals_val_get(bse_section, "BSE_SPECTRUM%FREQUENCY_STEP_SIZE", &
+                                r_val=mp2_env%ri_g0w0%bse_spectrum_freq_step_size)
+      CALL section_vals_val_get(bse_section, "BSE_SPECTRUM%FREQUENCY_STARTING_POINT", &
+                                r_val=mp2_env%ri_g0w0%bse_spectrum_freq_start)
+      CALL section_vals_val_get(bse_section, "BSE_SPECTRUM%FREQUENCY_END_POINT", &
+                                r_val=mp2_env%ri_g0w0%bse_spectrum_freq_end)
+      CALL section_vals_val_get(bse_section, "BSE_SPECTRUM%ETA", &
+                                r_val=mp2_env%ri_g0w0%bse_spectrum_eta)
 
       CALL section_vals_val_get(mp2_section, "RI_RPA%GW%IMAGE_CHARGE_MODEL", &
                                 l_val=mp2_env%ri_g0w0%do_ic_model)
