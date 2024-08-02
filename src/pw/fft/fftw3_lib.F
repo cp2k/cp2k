@@ -546,8 +546,13 @@ CONTAINS
       LOGICAL, INTENT(OUT)                               :: valid
 
 #if defined (__FFTW3)
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'fftw3_create_guru_plan'
+
+      INTEGER :: handle
       TYPE(fftw_iodim) :: dim(2), hm(2)
       INTEGER :: i
+
+      CALL timeset(routineN, handle)
 
       DO i = 1, 2
          DIM(i) = fftw_iodim(dim_n(i), dim_istride(i), dim_ostride(i))
@@ -560,6 +565,8 @@ CONTAINS
                                 fft_direction, fftw_plan_type)
 
       valid = C_ASSOCIATED(plan)
+
+      CALL timestop(handle)
 
 #else
       MARK_USED(plan)
@@ -693,7 +700,12 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: fft_direction
       INTEGER, INTENT(IN)                                :: rows_per_th, rows_per_th_r
 
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'fftw3_create_3d_plans'
+
+      INTEGER :: handle
       LOGICAL                                            :: valid
+
+      CALL timeset(routineN, handle)
 
 ! First plans will have an additional row
 
@@ -717,6 +729,8 @@ CONTAINS
          CPABORT("fftw3_create_plan (remaining)")
       END IF
 
+      CALL timestop(handle)
+
    END SUBROUTINE
 
 ! **************************************************************************************************
@@ -732,6 +746,9 @@ CONTAINS
       TYPE(fft_plan_type), INTENT(INOUT)                 :: plan
       COMPLEX(KIND=dp), DIMENSION(PRODUCT(plan%n_3d)), INTENT(INOUT)      :: zin, zout
 #if defined ( __FFTW3 )
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'fftw3_create_plan_3d'
+
+      INTEGER :: handle
       INTEGER                                            :: n1, n2, n3
       INTEGER                                            :: nt
       INTEGER                                            :: rows_per_th
@@ -742,6 +759,8 @@ CONTAINS
       ! GURU Interface
       INTEGER :: dim_n(2), dim_istride(2), dim_ostride(2), &
                  howmany_n(2), howmany_istride(2), howmany_ostride(2)
+
+      CALL timeset(routineN, handle)
 
       n1 = plan%n_3d(1)
       n2 = plan%n_3d(2)
@@ -879,6 +898,7 @@ CONTAINS
          DEALLOCATE (tmp)
       END IF
 
+      CALL timestop(handle)
 #else
       MARK_USED(plan)
       MARK_USED(zin)
@@ -909,9 +929,14 @@ CONTAINS
       COMPLEX(KIND=dp), DIMENSION(split_dim*ostride), INTENT(INOUT) :: output
       TYPE(C_PTR)                                   :: plan, plan_r
 #if defined (__FFTW3)
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'fftw3_workshare_execute_dft'
+
+      INTEGER :: handle
       INTEGER                                     :: i_off, o_off
       INTEGER                                     :: th_planA, th_planB
       INTEGER :: rows_per_thread, rows_per_thread_r
+
+      CALL timeset(routineN, handle)
 
       CALL fftw3_compute_rows_per_th(split_dim, nt, rows_per_thread, &
                                      rows_per_thread_r, &
@@ -944,6 +969,8 @@ CONTAINS
                                output(o_off))
 
       END IF
+
+      CALL timestop(handle)
 #else
       MARK_USED(plan)
       MARK_USED(plan_r)
@@ -976,11 +1003,16 @@ CONTAINS
       COMPLEX(KIND=dp), DIMENSION(PRODUCT(plan%n_3d)), INTENT(INOUT), TARGET :: zin, zout
       INTEGER, INTENT(OUT)                                 :: stat
 #if defined ( __FFTW3 )
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'fftw3_3d'
+
+      INTEGER :: handle
       COMPLEX(KIND=dp), POINTER                            :: xout(:)
       COMPLEX(KIND=dp), ALLOCATABLE                        :: tmp1(:)
       INTEGER                                              :: n1, n2, n3
       INTEGER                                              :: tid, nt
       INTEGER                                              :: i, j, k
+
+      CALL timeset(routineN, handle)
 
       n1 = plan%n_3d(1)
       n2 = plan%n_3d(2)
@@ -1058,6 +1090,7 @@ CONTAINS
          CALL zdscal(n1*n2*n3, scale, xout, 1)
       END IF
 
+      CALL timestop(handle)
 #else
       MARK_USED(plan)
       MARK_USED(scale)
@@ -1082,7 +1115,12 @@ CONTAINS
       TYPE(fft_plan_type), INTENT(INOUT)                 :: plan
       COMPLEX(KIND=dp), DIMENSION(plan%n*plan%m), INTENT(INOUT)      :: zin, zout
 #if defined ( __FFTW3 )
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'fftw3_create_plan_1d'
+
+      INTEGER :: handle
       INTEGER                                            :: ii, di, io, DO, num_threads, num_rows
+
+      CALL timeset(routineN, handle)
 
       num_threads = 1
       plan%separated_plans = .FALSE.
@@ -1143,6 +1181,7 @@ CONTAINS
 !$                                                  zout, [0], io, DO, FFTW_BACKWARD, fftw_plan_type)
 !$    END IF
 
+      CALL timestop(handle)
 #else
       MARK_USED(plan)
       MARK_USED(zin)
@@ -1206,11 +1245,14 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: scale
       INTEGER, INTENT(OUT)                               :: stat
 
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'fftw3_1d'
+
+      INTEGER :: handle
       INTEGER                                            :: in_offset, my_id, num_rows, out_offset, &
                                                             scal_offset
       TYPE(C_PTR)                                        :: fftw_plan
 
-!------------------------------------------------------------------------------
+      CALL timeset(routineN, handle)
 
       my_id = 0
       num_rows = plan%m
@@ -1276,6 +1318,8 @@ CONTAINS
 #endif
 
 !$OMP END PARALLEL
+
+      CALL timestop(handle)
 
       END SUBROUTINE fftw3_1d
 

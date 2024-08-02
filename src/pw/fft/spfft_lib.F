@@ -60,9 +60,14 @@ CONTAINS
 
       TYPE(fft_plan_type), INTENT(INOUT)              :: plan
 #if defined ( __SPFFT ) && defined(__parallel)
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'spfft_create_plan_3d'
+
+      INTEGER :: handle
       INTEGER :: number_of_threads, i, j, k
       INTEGER(KIND=C_INT) :: errorcode
       INTEGER, DIMENSION(:, :, :, :), ALLOCATABLE :: indices
+
+      CALL timeset(routineN, handle)
 
       number_of_threads = 1
       !$OMP PARALLEL DEFAULT(NONE) SHARED(number_of_threads)
@@ -87,6 +92,8 @@ CONTAINS
                                                      SPFFT_TRANS_C2C, plan%n_3d(1), plan%n_3d(2), plan%n_3d(3), &
                                                      PRODUCT(plan%n_3d), SPFFT_INDEX_TRIPLETS, indices)
       IF (errorcode /= SPFFT_SUCCESS) CPABORT("Error in SPFFT!")
+
+      CALL timestop(handle)
 #else
       MARK_USED(plan)
       CPABORT("In order to use SPFFT, you have to install it!")
@@ -102,9 +109,14 @@ CONTAINS
 
       TYPE(fft_plan_type), INTENT(INOUT)              :: plan
 #if defined ( __SPFFT ) && defined(__parallel)
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'spfft_create_plan_2d'
+
+      INTEGER :: handle
       INTEGER :: number_of_threads, i, j
       INTEGER(KIND=C_INT) :: errorcode
       INTEGER, DIMENSION(:, :, :), ALLOCATABLE :: indices
+
+      CALL timeset(routineN, handle)
 
       number_of_threads = 1
 !$OMP PARALLEL DEFAULT(NONE) SHARED(number_of_threads)
@@ -149,6 +161,8 @@ CONTAINS
             IF (errorcode /= SPFFT_SUCCESS) CPABORT("Error in SPFFT!")
          END DO
       END IF
+
+      CALL timestop(handle)
 #else
       MARK_USED(plan)
       CPABORT("In order to use SPFFT, you have to install it!")
@@ -164,9 +178,14 @@ CONTAINS
 
       TYPE(fft_plan_type), INTENT(INOUT)              :: plan
 #if defined ( __SPFFT ) && defined(__parallel)
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'spfft_create_plan_1d'
+
+      INTEGER :: handle
       INTEGER :: number_of_threads, i
       INTEGER(KIND=C_INT) :: errorcode
       INTEGER, DIMENSION(:, :), ALLOCATABLE :: indices
+
+      CALL timeset(routineN, handle)
 
       number_of_threads = 1
 !$OMP PARALLEL DEFAULT(NONE) SHARED(number_of_threads)
@@ -174,6 +193,7 @@ CONTAINS
 !$    number_of_threads = omp_get_thread_num()
 !$OMP END MASTER
 !$OMP END PARALLEL
+      ALLOCATE (plan%spfft_transform_multi(0:plan%m - 1))
 
       ! Setup index map for SPFFT
       ! We map 1D FFTs to 3D FFTs
@@ -184,9 +204,13 @@ CONTAINS
          indices(3, i) = 0
       END DO
 
-      errorcode = spfft_transform_create_independent(plan%spfft_transform, number_of_threads, spfft_processing_unit, &
-                                                     SPFFT_TRANS_C2C, plan%n, 1, 1, plan%n, SPFFT_INDEX_TRIPLETS, indices)
-      IF (errorcode /= SPFFT_SUCCESS) CPABORT("Error in SPFFT!")
+      DO i = 0, plan%m - 1
+         errorcode = spfft_transform_create_independent(plan%spfft_transform_multi(i), number_of_threads, spfft_processing_unit, &
+                                                        SPFFT_TRANS_C2C, plan%n, 1, 1, plan%n, SPFFT_INDEX_TRIPLETS, indices)
+         IF (errorcode /= SPFFT_SUCCESS) CPABORT("Error in SPFFT!")
+      END DO
+
+      CALL timestop(handle)
 #else
       MARK_USED(plan)
       CPABORT("In order to use SPFFT, you have to install it!")
@@ -209,9 +233,14 @@ CONTAINS
       INTEGER, INTENT(IN)                                  :: fsign
       COMPLEX(KIND=dp), DIMENSION(PRODUCT(plan%n_3d)), INTENT(INOUT) :: zin, zout
 #if defined (__SPFFT) && defined(__parallel)
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'spfft_3d'
+
+      INTEGER :: handle
       COMPLEX(KIND=C_DOUBLE_COMPLEX), DIMENSION(:), POINTER, CONTIGUOUS :: complex_ptr
       INTEGER(KIND=C_INT) :: errorcode
       TYPE(C_PTR) :: spfft_ptr
+
+      CALL timeset(routineN, handle)
 
       ! set space domain array to use memory allocted by the library
       errorCode = spfft_transform_get_space_domain(plan%spfft_transform, SPFFT_PU_HOST, spfft_ptr)
@@ -257,6 +286,8 @@ CONTAINS
 !$OMP END PARALLEL WORKSHARE
          END IF
       END IF
+
+      CALL timestop(handle)
 #else
       MARK_USED(plan)
       MARK_USED(zin)
@@ -283,12 +314,17 @@ CONTAINS
       COMPLEX(KIND=dp), DIMENSION(0:PRODUCT(plan%n_3d) - 1), INTENT(INOUT), TARGET :: zin, zout
       REAL(KIND=dp), INTENT(IN)                            :: scale
 #if defined (__SPFFT) && defined(__parallel)
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'spfft_2d'
+
+      INTEGER :: handle
       COMPLEX(KIND=C_DOUBLE_COMPLEX), DIMENSION(:), POINTER :: complex_ptr
       INTEGER :: i
       INTEGER(KIND=C_INT) :: errorcode
       TYPE(C_PTR) :: spfft_ptr
       INTEGER(C_INT), DIMENSION(:), ALLOCATABLE, TARGET :: spfftLocations, spfftScalings
       TYPE(C_PTR), DIMENSION(:), ALLOCATABLE, TARGET :: cp2kPointers
+
+      CALL timeset(routineN, handle)
 
       ALLOCATE (cp2kPointers(0:plan%n_3d(3) - 1), spfftLocations(0:plan%n_3d(3) - 1), spfftScalings(0:plan%n_3d(3) - 1))
       spfftLocations = SPFFT_PU_HOST
@@ -340,6 +376,8 @@ CONTAINS
             END IF
          END DO
       END IF
+
+      CALL timestop(handle)
 #else
       MARK_USED(plan)
       MARK_USED(zin)
@@ -367,36 +405,60 @@ CONTAINS
       COMPLEX(KIND=dp), DIMENSION(0:plan%n*plan%m - 1), INTENT(INOUT), TARGET :: zin, zout
       REAL(KIND=dp), INTENT(IN)                            :: scale
 #if defined (__SPFFT) && defined(__parallel)
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'spfft_1d'
+
+      INTEGER :: handle
       COMPLEX(KIND=C_DOUBLE_COMPLEX), DIMENSION(:), POINTER :: complex_ptr
       INTEGER :: i
       INTEGER(KIND=C_INT) :: errorcode
       TYPE(C_PTR) :: spfft_ptr
+      INTEGER(C_INT), DIMENSION(:), ALLOCATABLE, TARGET :: spfftLocations, spfftScalings
+      TYPE(C_PTR), DIMENSION(:), ALLOCATABLE, TARGET :: cp2kPointers
 
-      ! set space domain array to use memory allocted by the library
-      errorCode = spfft_transform_get_space_domain(plan%spfft_transform, SPFFT_PU_HOST, spfft_ptr)
-      IF (errorCode /= SPFFT_SUCCESS) CPABORT("FFT with SpFFT failed!")
+      CALL timeset(routineN, handle)
 
-      CALL C_F_POINTER(spfft_ptr, complex_ptr, [plan%n])
+      ALLOCATE (cp2kPointers(0:plan%m - 1), spfftLocations(0:plan%m - 1), spfftScalings(0:plan%m - 1))
+      spfftLocations = SPFFT_PU_HOST
+      spfftScalings = SPFFT_NO_SCALING
 
       IF (fsign == FWFFT) THEN
          ! Scale here to prevent additional copies between the buffer and the output array
          DO i = 0, plan%m - 1
+            cp2kPointers(i) = C_LOC(zout(i*plan%n))
+
+            ! set space domain array to use memory allocted by the library
+            errorCode = spfft_transform_get_space_domain(plan%spfft_transform_multi(i), &
+                                                         spfftLocations(i), spfft_ptr)
+            IF (errorCode /= SPFFT_SUCCESS) CPABORT("FFT with SpFFT failed!")
+
+            CALL C_F_POINTER(spfft_ptr, complex_ptr, [plan%n])
+
             IF (plan%trans) THEN
                complex_ptr(:) = scale*zin(i::plan%m)
             ELSE
                complex_ptr(:) = scale*zin(i*plan%n:(i + 1)*plan%n - 1)
             END IF
-
-            errorCode = spfft_transform_forward(plan%spfft_transform, SPFFT_PU_HOST, &
-                                                zout(i*plan%n), SPFFT_NO_SCALING)
-            IF (errorCode /= SPFFT_SUCCESS) CPABORT("FFT with SpFFT failed!")
          END DO
+
+         errorCode = spfft_multi_transform_forward(plan%m, C_LOC(plan%spfft_transform_multi), &
+                                                   C_LOC(spfftLocations), C_LOC(cp2kPointers), C_LOC(spfftScalings))
+         IF (errorCode /= SPFFT_SUCCESS) CPABORT("FFT with SpFFT failed!")
 
       ELSE
          DO i = 0, plan%m - 1
-            errorCode = spfft_transform_backward(plan%spfft_transform, &
-                                                 zin(i*plan%n), SPFFT_PU_HOST)
+            cp2kPointers(i) = C_LOC(zin(i*plan%n))
+         END DO
+
+         errorCode = spfft_multi_transform_backward(plan%m, C_LOC(plan%spfft_transform_multi), &
+                                                    C_LOC(cp2kPointers), C_LOC(spfftLocations))
+         IF (errorCode /= SPFFT_SUCCESS) CPABORT("FFT with SpFFT failed!")
+
+         DO i = 0, plan%m - 1
+            ! set space domain array to use memory allocted by the library
+            errorCode = spfft_transform_get_space_domain(plan%spfft_transform_multi(i), spfftLocations(i), spfft_ptr)
             IF (errorCode /= SPFFT_SUCCESS) CPABORT("FFT with SpFFT failed!")
+
+            CALL C_F_POINTER(spfft_ptr, complex_ptr, [plan%n])
 
             IF (plan%trans) THEN
                zout(i::plan%m) = scale*complex_ptr
@@ -405,6 +467,8 @@ CONTAINS
             END IF
          END DO
       END IF
+
+      CALL timestop(handle)
 #else
       MARK_USED(plan)
       MARK_USED(zin)
