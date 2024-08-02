@@ -1031,8 +1031,8 @@ CONTAINS
             moments(i) = - moments(i) * tdagw_env%spin_degeneracy
          END DO
          ! Output to the file
-         IF (moments_unit_re > 0) WRITE(moments_unit_re, '(E20.8E3,E20.8E3,E20.8E3,E20.8E3)') tdagw_env%sim_time*femtoseconds, moments(1),&
-             moments(2), moments(3)
+         IF (moments_unit_re > 0) WRITE(moments_unit_re, '(E20.8E3,E20.8E3,E20.8E3,E20.8E3)') tdagw_env%sim_time*femtoseconds,&
+                 moments(1),moments(2), moments(3)
          ! Need to transpose due to the definition of trace function
          CALL cp_fm_transpose(rho(im)%matrix, tdagw_env%rho_workspace(1)%matrix)
          DO i=1,3

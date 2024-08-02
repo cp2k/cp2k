@@ -1649,7 +1649,8 @@ CONTAINS
          DO ispin = 1, bs_env%n_spin
             ALLOCATE (mat_ks_without_v_xc(ispin)%matrix)
             IF (hf_present) THEN
-               CALL dbcsr_create(mat_ks_without_v_xc(ispin)%matrix, template=bs_env%mat_ao_ao%matrix, matrix_type=dbcsr_type_symmetric)
+               CALL dbcsr_create(mat_ks_without_v_xc(ispin)%matrix, template=bs_env%mat_ao_ao%matrix,&
+                       matrix_type=dbcsr_type_symmetric)
             ELSE
                CALL dbcsr_create(mat_ks_without_v_xc(ispin)%matrix, template=bs_env%mat_ao_ao%matrix)
             END IF
