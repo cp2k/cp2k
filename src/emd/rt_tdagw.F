@@ -120,7 +120,8 @@ MODULE rt_tdagw
    USE cp_fm_diag,                      ONLY: cp_fm_geeig
    USE cp_cfm_diag,                     ONLY: cp_cfm_geeig
    USE parallel_gemm_api,               ONLY: parallel_gemm
-   USE qs_moments,                      ONLY: build_local_moment_matrix
+   USE qs_moments,                      ONLY: build_local_moment_matrix,&
+                                              build_berry_moment_matrix
    USE qs_ks_methods,                   ONLY: qs_ks_build_kohn_sham_matrix
    USE efield_utils,                    ONLY: make_field
    USE rt_propagator_init,              ONLY: rt_initialize_rho_from_mos
@@ -188,12 +189,14 @@ CONTAINS
       REAL(kind=dp), DIMENSION(:), POINTER               :: gon_eigvals
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(rtp_control_type), POINTER                    :: rtp_control
+      TYPE(dbcsr_type), POINTER                          :: cosmat, sinmat
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
 
       CALL timeset(routineN, handle)
       ! ********************** ALLOCATIONS **********************
       CALL create_tdagw_env(tdagw_env, qs_env)
       ! Get the logger unit number, only print if we are the source process
-      CALL get_qs_env(qs_env, bs_env=bs_env, input=input, rtp=rtp, cell=cell, dft_control=dft_control)
+      CALL get_qs_env(qs_env, bs_env=bs_env, input=input, rtp=rtp, cell=cell, dft_control=dft_control, matrix_s=matrix_s)
       rtp_control => dft_control%rtp_control
       ! TODO : Print a nicer header
       IF (tdagw_env%unit_nr > 0) WRITE(tdagw_env%unit_nr, *) "=== Starting time-dependent adiabatic GW real time propagation ==="
@@ -255,78 +258,39 @@ CONTAINS
       tdagw_env%sim_time = REAL(tdagw_env%sim_start, dp)*rtp%dt
       CALL output_moments(tdagw_env, tdagw_env%rho, bs_env%fm_mo_coeff_Gamma, rtp_section)
 
-      ! TODO : Check spectrum of custom delta kick
+      ! Debug : Alternative application of delta kick - copying the formalism used in TDDFT
       IF (rtp_control%apply_delta_pulse) THEN
-         ! Extra minus sign for the charge of electrons
-         intensity = rtp_control%delta_pulse_scale
-         metric = 0.0_dp
-         kvec(:) = cell%h_inv(1, :)*rtp_control%delta_pulse_direction(1) + &
-                   cell%h_inv(2, :)*rtp_control%delta_pulse_direction(2) + &
-                   cell%h_inv(3, :)*rtp_control%delta_pulse_direction(3)
-         kvec = kvec*twopi*rtp_control%delta_pulse_scale
+         ! Get the dbcsr exp matrices
+         NULLIFY(cosmat)
+         NULLIFY(sinmat)
+         ALLOCATE(cosmat)
+         ALLOCATE(sinmat)
+         CALL dbcsr_create(cosmat, template=matrix_s(1)%matrix)
+         CALL dbcsr_create(sinmat, template=matrix_s(1)%matrix)
+
          @:SPIN_DO(j, re, im, tdagw_env%n_spin)
-            CALL cp_fm_set_all(tdagw_env%ham_effective(im)%matrix, 0.0_dp)
-            DO k=1,3
-               ! CALL cp_fm_scale_and_add(1.0_dp, tdagw_env%ham_effective(im)%matrix,&
-               !         REAL(rtp_control%delta_pulse_direction(k), kind=dp), tdagw_env%moments_field(k)%matrix)
-               CALL cp_fm_scale_and_add(1.0_dp, tdagw_env%ham_effective(im)%matrix,&
-                       kvec(k), tdagw_env%moments_field(k)%matrix)
-            END DO
-            ! enforce hermiticity of the effective Hamiltonian - apply to components instead?
-            CALL cp_fm_transpose(tdagw_env%ham_effective(im)%matrix, tdagw_env%rho_workspace(1)%matrix)
-            CALL cp_fm_scale_and_add(0.5_dp, tdagw_env%ham_effective(im)%matrix,&
-                                    -0.5_dp, tdagw_env%rho_workspace(1)%matrix)
-            IF (tdagw_env%mat_exp_method == do_bch) THEN
-               ! Multiply by the S_inv matrix - in the classic ordering
-               CALL parallel_gemm("N", "N", tdagw_env%n_ao, tdagw_env%n_ao, tdagw_env%n_ao,&
-                                  intensity, tdagw_env%S_inv_fm%matrix, tdagw_env%ham_effective(im)%matrix,&
-                                  0.0_dp, tdagw_env%ham_effective(re)%matrix)
-               CALL cp_fm_to_fm(tdagw_env%ham_effective(re)%matrix, tdagw_env%ham_effective(im)%matrix)
-               CALL cp_fm_set_all(tdagw_env%ham_effective(re)%matrix, 0.0_dp)
-            ELSE IF (tdagw_env%mat_exp_method == do_exact) THEN
-               NULLIFY(gon_eigvals)
-               ALLOCATE(gon_eigvals(tdagw_env%n_ao))
-               CALL cp_fm_to_fm(tdagw_env%S_fm%matrix, tdagw_env%rho_workspace(1)%matrix)
-               CALL cp_fm_geeig(tdagw_env%ham_effective(im)%matrix, tdagw_env%rho_workspace(1)%matrix,&
-                       tdagw_env%ham_workspace(1)%matrix, tdagw_env%real_eigvals, tdagw_env%ham_workspace(2)%matrix)
-               IF (tdagw_env%unit_nr > 0) WRITE(tdagw_env%unit_nr, *) "Real eigvals", tdagw_env%real_eigvals
-               ! Determine the exponential eigenvalues
-               ! Start with real part
-               gon_eigvals(:) = COS(intensity * tdagw_env%real_eigvals(:))
-               IF (tdagw_env%unit_nr > 0) WRITE(tdagw_env%unit_nr, *) "Cos eigvals", gon_eigvals
-               ! Scale the real eigenvectors
-               CALL cp_fm_to_fm(tdagw_env%ham_workspace(1)%matrix, tdagw_env%ham_workspace(2)%matrix)
-               CALL cp_fm_column_scale(tdagw_env%ham_workspace(2)%matrix, gon_eigvals)
-               CALL parallel_gemm("N", "T", tdagw_env%n_ao, tdagw_env%n_ao, tdagw_env%n_ao,&
-                                  1.0_dp, tdagw_env%ham_workspace(2)%matrix, tdagw_env%ham_workspace(1)%matrix,&
-                                  0.0_dp, tdagw_env%ham_effective(im)%matrix)
-               CALL parallel_gemm("N", "N", tdagw_env%n_ao, tdagw_env%n_ao, tdagw_env%n_ao,&
-                                  1.0_dp, tdagw_env%ham_effective(im)%matrix, tdagw_env%S_fm%matrix,&
-                                  0.0_dp, tdagw_env%ham_effective(re)%matrix)
-               ! Continue for the imaginary part
-               gon_eigvals(:) = SIN(intensity * tdagw_env%real_eigvals(:))
-               IF (tdagw_env%unit_nr > 0) WRITE(tdagw_env%unit_nr, *) "Sin eigvals", gon_eigvals
-               CALL cp_fm_to_fm(tdagw_env%ham_workspace(1)%matrix, tdagw_env%ham_workspace(2)%matrix)
-               CALL cp_fm_column_scale(tdagw_env%ham_workspace(2)%matrix, gon_eigvals)
-               CALL parallel_gemm("N", "T", tdagw_env%n_ao, tdagw_env%n_ao, tdagw_env%n_ao,&
-                                  1.0_dp, tdagw_env%ham_workspace(2)%matrix, tdagw_env%ham_workspace(1)%matrix,&
-                                  0.0_dp, tdagw_env%ham_effective(im)%matrix)
-               CALL parallel_gemm("N", "N", tdagw_env%n_ao, tdagw_env%n_ao, tdagw_env%n_ao,&
-                                  1.0_dp, tdagw_env%ham_effective(im)%matrix, tdagw_env%S_fm%matrix,&
-                                  0.0_dp, tdagw_env%ham_workspace(2)%matrix)
-               CALL cp_fm_to_fm(tdagw_env%ham_workspace(2)%matrix, tdagw_env%ham_effective(im)%matrix)
-               DEALLOCATE(gon_eigvals)
-            END IF
+            CALL dbcsr_copy(cosmat, matrix_s(j)%matrix)
+            CALL dbcsr_copy(sinmat, matrix_s(j)%matrix)
+            kvec(:) = cell%h_inv(1, :)*rtp_control%delta_pulse_direction(1) + &
+                      cell%h_inv(2, :)*rtp_control%delta_pulse_direction(2) + &
+                      cell%h_inv(3, :)*rtp_control%delta_pulse_direction(3)
+            kvec = kvec*twopi*rtp_control%delta_pulse_scale
+            CALL build_berry_moment_matrix(qs_env, cosmat, sinmat, -kvec)
+
+            CALL copy_dbcsr_to_fm(cosmat, tdagw_env%ham_workspace(re)%matrix)
+            CALL copy_dbcsr_to_fm(sinmat, tdagw_env%ham_workspace(im)%matrix)
+            CALL parallel_gemm("N", "N", tdagw_env%n_ao, tdagw_env%n_ao, tdagw_env%n_ao,&
+                    1.0_dp, tdagw_env%S_inv_fm%matrix, tdagw_env%ham_workspace(re)%matrix,&
+                    0.0_dp, tdagw_env%ham_effective(re)%matrix)
+            CALL parallel_gemm("N", "N", tdagw_env%n_ao, tdagw_env%n_ao, tdagw_env%n_ao,&
+                    1.0_dp, tdagw_env%S_inv_fm%matrix, tdagw_env%ham_workspace(im)%matrix,&
+                    0.0_dp, tdagw_env%ham_effective(im)%matrix)
          END DO
-         IF (tdagw_env%mat_exp_method == do_bch) THEN
-            CALL bch_propagate(tdagw_env%ham_effective, tdagw_env%rho, tdagw_env%rho_new, tdagw_env%rho_workspace,&
-                    threshold_opt=tdagw_env%exp_accuracy)
-         ELSE IF (tdagw_env%mat_exp_method == do_exact) THEN
-            ! Exponential is constructed - apply it to the density matrix
-            CALL propagate_density(tdagw_env, tdagw_env%ham_effective, tdagw_env%rho, tdagw_env%rho_new)
-         ELSE
-            CPABORT("Only exact and BCH exponential schemes adopted for delta kick")
-         END IF
+
+         custom_exp_method = tdagw_env%mat_exp_method
+         tdagw_env%mat_exp_method = do_exact
+         CALL propagate_density(tdagw_env, tdagw_env%ham_effective, tdagw_env%rho, tdagw_env%rho_new)
+         tdagw_env%mat_exp_method = custom_exp_method
          metric = rho_metric(tdagw_env%rho_new, tdagw_env%rho, tdagw_env%n_spin)
          IF (tdagw_env%unit_nr > 0) WRITE(tdagw_env%unit_nr, *) "Metric difference after delta kick", metric
          ! Copy the new density to the old density
@@ -334,7 +298,95 @@ CONTAINS
             CALL cp_fm_to_fm(tdagw_env%rho_new(re)%matrix, tdagw_env%rho(re)%matrix)
             CALL cp_fm_to_fm(tdagw_env%rho_new(im)%matrix, tdagw_env%rho(im)%matrix)
          END DO
+
+         CALL dbcsr_release(cosmat)
+         CALL dbcsr_release(sinmat)
+         DEALLOCATE(cosmat)
+         DEALLOCATE(sinmat)
       END IF
+      ! TODO : Check spectrum of custom delta kick
+      ! IF (rtp_control%apply_delta_pulse) THEN
+      !    ! Extra minus sign for the charge of electrons
+      !    intensity = rtp_control%delta_pulse_scale
+      !    metric = 0.0_dp
+      !    kvec(:) = cell%h_inv(1, :)*rtp_control%delta_pulse_direction(1) + &
+      !              cell%h_inv(2, :)*rtp_control%delta_pulse_direction(2) + &
+      !              cell%h_inv(3, :)*rtp_control%delta_pulse_direction(3)
+      !    kvec = kvec*twopi*rtp_control%delta_pulse_scale
+      !    @:SPIN_DO(j, re, im, tdagw_env%n_spin)
+      !       CALL cp_fm_set_all(tdagw_env%ham_effective(im)%matrix, 0.0_dp)
+      !       DO k=1,3
+      !          ! CALL cp_fm_scale_and_add(1.0_dp, tdagw_env%ham_effective(im)%matrix,&
+      !          !         REAL(rtp_control%delta_pulse_direction(k), kind=dp), tdagw_env%moments_field(k)%matrix)
+      !          CALL cp_fm_scale_and_add(1.0_dp, tdagw_env%ham_effective(im)%matrix,&
+      !                  kvec(k), tdagw_env%moments_field(k)%matrix)
+      !       END DO
+      !       ! enforce hermiticity of the effective Hamiltonian - apply to components instead?
+      !       CALL cp_fm_transpose(tdagw_env%ham_effective(im)%matrix, tdagw_env%rho_workspace(1)%matrix)
+      !       CALL cp_fm_scale_and_add(0.5_dp, tdagw_env%ham_effective(im)%matrix,&
+      !                               -0.5_dp, tdagw_env%rho_workspace(1)%matrix)
+      !       IF (tdagw_env%mat_exp_method == do_bch) THEN
+      !          ! Multiply by the S_inv matrix - in the classic ordering
+      !          CALL parallel_gemm("N", "N", tdagw_env%n_ao, tdagw_env%n_ao, tdagw_env%n_ao,&
+      !                             intensity, tdagw_env%S_inv_fm%matrix, tdagw_env%ham_effective(im)%matrix,&
+      !                             0.0_dp, tdagw_env%ham_effective(re)%matrix)
+      !          CALL cp_fm_to_fm(tdagw_env%ham_effective(re)%matrix, tdagw_env%ham_effective(im)%matrix)
+      !          CALL cp_fm_set_all(tdagw_env%ham_effective(re)%matrix, 0.0_dp)
+      !       ELSE IF (tdagw_env%mat_exp_method == do_exact) THEN
+      !          NULLIFY(gon_eigvals)
+      !          ALLOCATE(gon_eigvals(tdagw_env%n_ao))
+      !          CALL cp_fm_to_fm(tdagw_env%S_fm%matrix, tdagw_env%rho_workspace(1)%matrix)
+      !          CALL cp_fm_geeig(tdagw_env%ham_effective(im)%matrix, tdagw_env%rho_workspace(1)%matrix,&
+      !                  tdagw_env%ham_workspace(1)%matrix, tdagw_env%real_eigvals, tdagw_env%ham_workspace(2)%matrix)
+      !          IF (tdagw_env%unit_nr > 0) WRITE(tdagw_env%unit_nr, *) "Real eigvals", tdagw_env%real_eigvals
+      !          ! Determine the exponential eigenvalues
+      !          ! Start with real part
+      !          gon_eigvals(:) = COS(intensity * tdagw_env%real_eigvals(:))
+      !          IF (tdagw_env%unit_nr > 0) WRITE(tdagw_env%unit_nr, *) "Cos eigvals", gon_eigvals
+      !          ! Scale the real eigenvectors
+      !          CALL cp_fm_to_fm(tdagw_env%ham_workspace(1)%matrix, tdagw_env%ham_workspace(2)%matrix)
+      !          CALL cp_fm_column_scale(tdagw_env%ham_workspace(2)%matrix, gon_eigvals)
+      !          CALL parallel_gemm("N", "T", tdagw_env%n_ao, tdagw_env%n_ao, tdagw_env%n_ao,&
+      !                             1.0_dp, tdagw_env%ham_workspace(2)%matrix, tdagw_env%ham_workspace(1)%matrix,&
+      !                             0.0_dp, tdagw_env%ham_effective(im)%matrix)
+      !          CALL parallel_gemm("N", "N", tdagw_env%n_ao, tdagw_env%n_ao, tdagw_env%n_ao,&
+      !                             1.0_dp, tdagw_env%ham_effective(im)%matrix, tdagw_env%S_fm%matrix,&
+      !                             0.0_dp, tdagw_env%ham_effective(re)%matrix)
+      !          ! Continue for the imaginary part
+      !          gon_eigvals(:) = SIN(intensity * tdagw_env%real_eigvals(:))
+      !          IF (tdagw_env%unit_nr > 0) WRITE(tdagw_env%unit_nr, *) "Sin eigvals", gon_eigvals
+      !          CALL cp_fm_to_fm(tdagw_env%ham_workspace(1)%matrix, tdagw_env%ham_workspace(2)%matrix)
+      !          CALL cp_fm_column_scale(tdagw_env%ham_workspace(2)%matrix, gon_eigvals)
+      !          CALL parallel_gemm("N", "T", tdagw_env%n_ao, tdagw_env%n_ao, tdagw_env%n_ao,&
+      !                             1.0_dp, tdagw_env%ham_workspace(2)%matrix, tdagw_env%ham_workspace(1)%matrix,&
+      !                             0.0_dp, tdagw_env%ham_effective(im)%matrix)
+      !          CALL parallel_gemm("N", "N", tdagw_env%n_ao, tdagw_env%n_ao, tdagw_env%n_ao,&
+      !                             1.0_dp, tdagw_env%ham_effective(im)%matrix, tdagw_env%S_fm%matrix,&
+      !                             0.0_dp, tdagw_env%ham_workspace(2)%matrix)
+      !          CALL cp_fm_to_fm(tdagw_env%ham_workspace(2)%matrix, tdagw_env%ham_effective(im)%matrix)
+      !          PRINT *, "Exponential from TDaGW"
+      !          CALL cp_fm_write_formatted(tdagw_env%ham_effective(re)%matrix, tdagw_env%unit_nr)
+      !          CALL cp_fm_write_formatted(tdagw_env%ham_effective(im)%matrix, tdagw_env%unit_nr)
+      !          DEALLOCATE(gon_eigvals)
+      !       END IF
+      !    END DO
+      !    IF (tdagw_env%mat_exp_method == do_bch) THEN
+      !       CALL bch_propagate(tdagw_env%ham_effective, tdagw_env%rho, tdagw_env%rho_new, tdagw_env%rho_workspace,&
+      !               threshold_opt=tdagw_env%exp_accuracy)
+      !    ELSE IF (tdagw_env%mat_exp_method == do_exact) THEN
+      !       ! Exponential is constructed - apply it to the density matrix
+      !       CALL propagate_density(tdagw_env, tdagw_env%ham_effective, tdagw_env%rho, tdagw_env%rho_new)
+      !    ELSE
+      !       CPABORT("Only exact and BCH exponential schemes adopted for delta kick")
+      !    END IF
+      !    metric = rho_metric(tdagw_env%rho_new, tdagw_env%rho, tdagw_env%n_spin)
+      !    IF (tdagw_env%unit_nr > 0) WRITE(tdagw_env%unit_nr, *) "Metric difference after delta kick", metric
+      !    ! Copy the new density to the old density
+      !    @:SPIN_DO(j, re, im, tdagw_env%n_spin)
+      !       CALL cp_fm_to_fm(tdagw_env%rho_new(re)%matrix, tdagw_env%rho(re)%matrix)
+      !       CALL cp_fm_to_fm(tdagw_env%rho_new(im)%matrix, tdagw_env%rho(im)%matrix)
+      !    END DO
+      ! END IF
 
       ! ********************** Start the time loop **********************
       DO i = tdagw_env%sim_start, tdagw_env%sim_nsteps
@@ -686,6 +738,8 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
+      converged = .FALSE.
+
       IF (PRESENT(threshold_opt)) THEN
          threshold = threshold_opt
       ELSE
@@ -762,7 +816,10 @@ CONTAINS
          END IF
       END DO
       ! TODO : An informative message, maybe about number of terms and convergence
-      CPASSERT(converged)
+      IF (.NOT. converged) THEN
+         PRINT *, "BCH Metric", metric, "BCH Threshold", threshold
+         CPABORT("BCH did not converge")
+      END IF
 
       CALL timestop(handle)
    END SUBROUTINE bch_propagate
@@ -897,7 +954,10 @@ CONTAINS
                   CALL cp_fm_to_fm(tdagw_env%rho_workspace(4)%matrix, tdagw_env%rho_workspace(2)%matrix)
                END IF
             END DO
-            CPASSERT(converged)
+         IF (.NOT. converged) THEN
+            PRINT *, "BCH Metric", convergence, "BCH Threshold", tdagw_env%exp_accuracy
+            CPABORT("BCH did not converge")
+         END IF
          END DO
       ELSE
          CPABORT("Only BCH, exact and Taylor matrix exponentiation implemented.")
