@@ -310,6 +310,7 @@ CONTAINS
             END DO
          END DO
       END DO
+
       ! Forces from (0.5*q+l)*dA/dR*q
       IF (do_ewald) THEN
          CALL ewald_env_get(ewald_env, alpha=alpha)
@@ -348,6 +349,7 @@ CONTAINS
             END DO
          END DO
       END DO
+
       ! Forces from Ewald potential: (q+l)*A*q
       IF (do_ewald) THEN
          ALLOCATE (epforce(3, natom))
@@ -364,15 +366,9 @@ CONTAINS
             ikind = kind_of(iatom)
             i = atom_of_kind(iatom)
             force(ikind)%rho_elec(:, i) = force(ikind)%rho_elec(:, i) + epforce(:, iatom)
-            IF (use_virial) THEN
-               fdik(1:3) = epforce(1:3, iatom)
-               CALL virial_pair_force(virial%pv_virial, -1._dp, fdik, rik)
-               IF (atprop%stress) THEN
-                  CALL virial_pair_force(atprop%atstress(:, :, iatom), -0.5_dp, fdik, rik)
-               END IF
-            END IF
          END DO
          DEALLOCATE (epforce)
+
          ! virial
          IF (use_virial) THEN
             chrgx = charges - qlag

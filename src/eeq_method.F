@@ -634,8 +634,8 @@ CONTAINS
          !
       END IF
       !
-      ! energy:  -0.5*q^T.X - lambda*totalcharge
-      eeq_energy = 0.5*SUM(charges(1:natom)*chia(1:natom)) - lambda*qtot
+      ! energy:   0.5*(q^T.X - lambda*totalcharge)
+      eeq_energy = 0.5*SUM(charges(1:natom)*chia(1:natom)) - 0.5_dp*lambda*qtot
 
       IF (do_ewald) THEN
          CALL cp_fm_struct_release(mat_struct)
