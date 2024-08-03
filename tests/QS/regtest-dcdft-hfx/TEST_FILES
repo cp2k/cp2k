@@ -11,7 +11,7 @@ N2_t03.inp                                            11      2e-11             
 # HFX(ADMM-NONE) - PBE0 (no hfx_reuse)
 N2_t04.inp                                            11      2e-11                -19.828806787106984
 # HFX(ADMM-PBEX) - PBE0 (no hfx_reuse)
-N2_t05.inp                                            11      2e-11                -19.835080433980490
+N2_t05.inp                                            11      2e-11                -19.835052685265172
 # HFX(ADMM-PBEX) - PBE0(ADMM) - MO solver (no hfx_reuse)
 N2_t06.inp                                            11      2e-11                -19.826210273097672
 # HFX(ADMM-PBEX) - PBE0(ADMM) - MO solver (hfx_reuse)
