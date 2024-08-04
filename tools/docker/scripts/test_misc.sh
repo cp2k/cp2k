@@ -28,7 +28,7 @@ echo ""
 # prepare inputs for minimax_to_fortran_source.py
 unzip -q -d ./tools/minimax_tools/1_xData 1_xData.zip
 
-run_test ./tools/prettify/prettify_test.py
+run_test ./tools/precommit/format_fortran_test.py
 run_test ./tools/minimax_tools/minimax_to_fortran_source.py --check
 run_test ./tools/docker/generate_dockerfiles.py --check
 
