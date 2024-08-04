@@ -7,6 +7,9 @@
 /regtesting/
 /install/
 
+# ignore former git submodules
+/tools/prettify/fprettify
+
 # ignore local arch files not meant to be shared
 /arch/local*
 

@@ -6,7 +6,7 @@ import tempfile
 import shutil
 import sys
 
-from prettify import main
+from format_fortran import main
 from prettify_cp2k import selftest
 
 
