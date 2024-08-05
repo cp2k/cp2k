@@ -9,13 +9,13 @@
 #              ELPA 2024.03.001, PLUMED 2.9.0,
 #              SPGLIB 2.3.1, LIBVORI 220621,
 #              GSL 2.7, COSMA 2.6.6, SIRIUS 7.5.2,
-#              LIBGRPP 20231215, SPFFT 1.1.0, SPLA 1.6.1,
+#              LIBGRPP 20231225, SPFFT 1.1.0, SPLA 1.6.1,
 #              DFTD4 3.6.0
 #
 # Usage: Source this arch file and then run make as instructed.
 #        A full toolchain installation is performed as default.
 #
-# Last update: 05.07.2024
+# Last update: 04.08.2024
 #
 # \
    if [[ "${0}" == "${BASH_SOURCE}" ]]; then \
@@ -59,7 +59,7 @@ USE_DFTD4      := 3.6.0
 USE_ELPA       := 2024.03.001
 USE_FFTW       := 3.3.10
 USE_HDF5       := 1.14.2
-USE_LIBGRPP    := 20231215
+USE_LIBGRPP    := 20231225
 USE_LIBINT     := 2.6.0
 USE_LIBPEXSI   := 1.2.0
 USE_LIBVORI    := 220621
