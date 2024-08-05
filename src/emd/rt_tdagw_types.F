@@ -648,18 +648,18 @@ CONTAINS
          DEALLOCATE(tdagw_env%real_eigvals)
          DEALLOCATE(tdagw_env%exp_eigvals)
       END IF
-      IF (tdagw_env%mat_exp_method == do_exact) THEN
-         DO i=1,SIZE(tdagw_env%complex_s)
-            CALL cp_cfm_release(tdagw_env%complex_s(i)%matrix)
-         END DO
-         DEALLOCATE(tdagw_env%complex_s)
-         DO i=1,SIZE(tdagw_env%complex_workspace)
-            CALL cp_cfm_release(tdagw_env%complex_workspace(i)%matrix)
-         END DO
-         DEALLOCATE(tdagw_env%complex_workspace)
-         DEALLOCATE(tdagw_env%real_eigvals)
-         DEALLOCATE(tdagw_env%exp_eigvals)
-      END IF
+      ! IF (tdagw_env%mat_exp_method == do_exact) THEN
+      !    DO i=1,SIZE(tdagw_env%complex_s)
+      !       CALL cp_cfm_release(tdagw_env%complex_s(i)%matrix)
+      !    END DO
+      !    DEALLOCATE(tdagw_env%complex_s)
+      !    DO i=1,SIZE(tdagw_env%complex_workspace)
+      !       CALL cp_cfm_release(tdagw_env%complex_workspace(i)%matrix)
+      !    END DO
+      !    DEALLOCATE(tdagw_env%complex_workspace)
+      !    DEALLOCATE(tdagw_env%real_eigvals)
+      !    DEALLOCATE(tdagw_env%exp_eigvals)
+      ! END IF
       
    END SUBROUTINE
 ! **************************************************************************************************
