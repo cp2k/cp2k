@@ -231,6 +231,8 @@ CONTAINS
                   NULLIFY (kpoint%kind_rotmat(i, j)%rmat)
                END DO
             END DO
+            ALLOCATE (kpoint%ibrot(ns))
+            kpoint%ibrot(1:ns) = crys_sym%ibrot(1:ns)
          END IF
 
          CALL release_csym_type(crys_sym)
@@ -1153,7 +1155,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'kpoint_density_transform'
 
       INTEGER                                            :: handle, ic, ik, ikk, indx, ir, is, &
-                                                            ispin, nc, nimg, nkp, nspin
+                                                            ispin, nc, nimg, nkp, nspin, jr, ira
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
       LOGICAL                                            :: aux_fit, do_ext, do_symmetric, my_kpgrp, &
                                                             real_only
@@ -1292,7 +1294,12 @@ CONTAINS
                wkpx = wkp(ik)/REAL(kpsym%nwght, KIND=dp)
                DO is = 1, kpsym%nwght
                   ir = ABS(kpsym%rotp(is))
-                  kind_rot => kpoint%kind_rotmat(ir, :)
+                  ira = 0
+                  DO jr = 1, SIZE(kpoint%ibrot)
+                     IF(ir == kpoint%ibrot(jr)) ira = jr
+                  END DO
+                  CPASSERT(ira > 0)
+                  kind_rot => kpoint%kind_rotmat(ira, :)
                   IF (real_only) THEN
                      CALL symtrans(srpmat, rpmat, kind_rot, kpsym%rot(1:3, 1:3, is), &
                                    kpsym%f0(:, is), kpoint%atype, symmetric=.TRUE.)
@@ -1581,6 +1588,26 @@ CONTAINS
 
    END SUBROUTINE symtrans
 
+   SUBROUTINE matprint(mat)
+      TYPE(dbcsr_type), POINTER                          :: mat
+
+      INTEGER                                            :: icol, irow, i
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: mblock
+      TYPE(dbcsr_iterator_type)                          :: iter
+
+      CALL dbcsr_iterator_start(iter, mat)
+      DO WHILE (dbcsr_iterator_blocks_left(iter))
+         CALL dbcsr_iterator_next_block(iter, irow, icol, mblock)
+         !
+         WRITE(6,'(A,2I4)') 'BLOCK  ',irow,icol
+         DO i=1,SIZE(mblock,1)
+            WRITE(6,'(8F12.6)') mblock(i,:)
+         END DO
+         !
+      END DO
+      CALL dbcsr_iterator_stop(iter)
+
+   END SUBROUTINE matprint
 ! **************************************************************************************************
 
 END MODULE kpoint_methods

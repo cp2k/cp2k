@@ -327,8 +327,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(-2:2, -2:2)               :: r2
       REAL(KIND=dp), DIMENSION(3, 3)                     :: t
 
-      MARK_USED(rotmat)
-
       CALL release_rotmat(orbrotmat)
 
       ALLOCATE (orbrotmat(0:lval))

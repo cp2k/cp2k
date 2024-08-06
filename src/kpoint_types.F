@@ -184,6 +184,7 @@ MODULE kpoint_types
       TYPE(kpoint_sym_p_type), DIMENSION(:), &
          POINTER                              :: kp_sym => Null()
       INTEGER, DIMENSION(:), POINTER          :: atype => Null()
+      INTEGER, DIMENSION(:), POINTER          :: ibrot => Null()
       TYPE(kind_rotmat_type), DIMENSION(:, :), &
          POINTER                              :: kind_rotmat => Null()
       ! pools
@@ -299,6 +300,7 @@ CONTAINS
          END IF
 
          IF (ASSOCIATED(kpoint%atype)) DEALLOCATE (kpoint%atype)
+         IF (ASSOCIATED(kpoint%ibrot)) DEALLOCATE (kpoint%ibrot)
 
          IF (ASSOCIATED(kpoint%kind_rotmat)) THEN
             DO i = 1, SIZE(kpoint%kind_rotmat, 1)
