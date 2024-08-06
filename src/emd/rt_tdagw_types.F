@@ -78,6 +78,9 @@ MODULE rt_tdagw_types
 !                                               create_tensors
    USE libint_wrapper,                  ONLY: cp_libint_static_init
    USE input_constants,                 ONLY: use_mom_ref_coac,&
+                                              use_mom_ref_zero,&
+                                              use_mom_ref_user,&
+                                              use_mom_ref_com,&
                                               rtp_tdagw_ham_g0w0,&
                                               rtp_tdagw_ham_ks,&
                                               rtp_tdagw_hartree_dbt,&
@@ -356,7 +359,8 @@ CONTAINS
          CALL copy_dbcsr_to_fm(moments_dbcsr_p(i)%matrix, tdagw_env%moments(i)%matrix)
       END DO
       ! Now, repeat without reference point to get the moments for field
-      CALL build_local_moment_matrix(qs_env, moments_dbcsr_p, 1)
+      CALL get_reference_point(rpoint, qs_env=qs_env, reference=use_mom_ref_zero, ref_point=custom_ref_point)
+      CALL build_local_moment_matrix(qs_env, moments_dbcsr_p, 1, rpoint)
       NULLIFY(tdagw_env%moments_field)
       ALLOCATE(tdagw_env%moments_field(3))
       DO i=1,3

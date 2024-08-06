@@ -306,7 +306,7 @@ CONTAINS
       ! END IF
       ! TODO : Check spectrum of custom delta kick
       IF (rtp_control%apply_delta_pulse) THEN
-         ! Extra minus sign for the charge of electrons
+         ! Extra minus for the propagation of density
          intensity = -rtp_control%delta_pulse_scale
          metric = 0.0_dp
          kvec(:) = cell%h_inv(1, :)*rtp_control%delta_pulse_direction(1) + &
@@ -319,12 +319,14 @@ CONTAINS
                ! CALL cp_fm_scale_and_add(1.0_dp, tdagw_env%ham_effective(im)%matrix,&
                !         REAL(rtp_control%delta_pulse_direction(k), kind=dp), tdagw_env%moments_field(k)%matrix)
                CALL cp_fm_scale_and_add(1.0_dp, tdagw_env%ham_effective(im)%matrix,&
-                       kvec(k), tdagw_env%moments_field(k)%matrix)
+                       kvec(k), tdagw_env%moments(k)%matrix)
             END DO
             ! enforce hermiticity of the effective Hamiltonian - apply to components instead?
             CALL cp_fm_transpose(tdagw_env%ham_effective(im)%matrix, tdagw_env%rho_workspace(1)%matrix)
             CALL cp_fm_scale_and_add(0.5_dp, tdagw_env%ham_effective(im)%matrix,&
-                                    -0.5_dp, tdagw_env%rho_workspace(1)%matrix)
+                                     0.5_dp, tdagw_env%rho_workspace(1)%matrix)
+            PRINT *, "TDaGW Ham effective"
+            CALL cp_fm_write_formatted(tdagw_env%ham_effective(im)%matrix, 6)
             IF (tdagw_env%mat_exp_method == do_bch) THEN
                ! Multiply by the S_inv matrix - in the classic ordering
                CALL parallel_gemm("N", "N", tdagw_env%n_ao, tdagw_env%n_ao, tdagw_env%n_ao,&
@@ -353,7 +355,7 @@ CONTAINS
                                   1.0_dp, tdagw_env%ham_effective(im)%matrix, tdagw_env%S_fm%matrix,&
                                   0.0_dp, tdagw_env%ham_effective(re)%matrix)
                ! Continue for the imaginary part
-               gon_eigvals(:) = -SIN(intensity * tdagw_env%real_eigvals(:))
+               gon_eigvals(:) = SIN(intensity * tdagw_env%real_eigvals(:))
                IF (tdagw_env%unit_nr > 0) WRITE(tdagw_env%unit_nr, *) "Sin eigvals", gon_eigvals
                CALL cp_fm_to_fm(tdagw_env%ham_workspace(1)%matrix, tdagw_env%ham_workspace(2)%matrix)
                CALL cp_fm_column_scale(tdagw_env%ham_workspace(2)%matrix, gon_eigvals)
