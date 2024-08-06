@@ -50,8 +50,8 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(kpoint_type), POINTER                         :: kpoints
 
-      INTEGER                                            :: ik, ikind, ir, ira, irot, lval, nkind, &
-                                                            nrot
+      INTEGER                                            :: ik, ikind, ir, ira, irot, jr, lval, &
+                                                            nkind, nrot
       REAL(KIND=dp), DIMENSION(3, 3)                     :: rotmat
       TYPE(cell_type), POINTER                           :: cell
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -84,12 +84,14 @@ CONTAINS
             IF (kpsym%apply_symmetry) THEN
                DO irot = 1, SIZE(kpsym%rotp)
                   ir = kpsym%rotp(irot)
-                  ira = ABS(ir)
-                  IF (ira > 0 .AND. ira <= nrot) THEN
+                  ira = 0
+                  DO jr = 1, SIZE(kpoints%ibrot)
+                     IF (ir == kpoints%ibrot(jr)) ira = jr
+                  END DO
+                  IF (ira > 0) THEN
                      IF (.NOT. ASSOCIATED(kpoints%kind_rotmat(ira, 1)%rmat)) THEN
                         rotmat(1:3, 1:3) = MATMUL(cell%h_inv, &
                                                   MATMUL(kpsym%rot(:, :, irot), cell%hmat))
-                        NULLIFY (orbrot)
                         CALL calculate_rotmat(orbrot, rotmat, lval)
                         IF (dft_control%qs_control%method_id == do_method_dftb) THEN
                            CPABORT("ROTMAT")
