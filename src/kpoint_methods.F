@@ -1154,8 +1154,8 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'kpoint_density_transform'
 
-      INTEGER                                            :: handle, ic, ik, ikk, indx, ir, is, &
-                                                            ispin, nc, nimg, nkp, nspin, jr, ira
+      INTEGER                                            :: handle, ic, ik, ikk, indx, ir, ira, is, &
+                                                            ispin, jr, nc, nimg, nkp, nspin
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
       LOGICAL                                            :: aux_fit, do_ext, do_symmetric, my_kpgrp, &
                                                             real_only
@@ -1296,7 +1296,7 @@ CONTAINS
                   ir = ABS(kpsym%rotp(is))
                   ira = 0
                   DO jr = 1, SIZE(kpoint%ibrot)
-                     IF(ir == kpoint%ibrot(jr)) ira = jr
+                     IF (ir == kpoint%ibrot(jr)) ira = jr
                   END DO
                   CPASSERT(ira > 0)
                   kind_rot => kpoint%kind_rotmat(ira, :)
@@ -1588,10 +1588,14 @@ CONTAINS
 
    END SUBROUTINE symtrans
 
+! **************************************************************************************************
+!> \brief ...
+!> \param mat ...
+! **************************************************************************************************
    SUBROUTINE matprint(mat)
       TYPE(dbcsr_type), POINTER                          :: mat
 
-      INTEGER                                            :: icol, irow, i
+      INTEGER                                            :: i, icol, irow
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: mblock
       TYPE(dbcsr_iterator_type)                          :: iter
 
@@ -1599,9 +1603,9 @@ CONTAINS
       DO WHILE (dbcsr_iterator_blocks_left(iter))
          CALL dbcsr_iterator_next_block(iter, irow, icol, mblock)
          !
-         WRITE(6,'(A,2I4)') 'BLOCK  ',irow,icol
-         DO i=1,SIZE(mblock,1)
-            WRITE(6,'(8F12.6)') mblock(i,:)
+         WRITE (6, '(A,2I4)') 'BLOCK  ', irow, icol
+         DO i = 1, SIZE(mblock, 1)
+            WRITE (6, '(8F12.6)') mblock(i, :)
          END DO
          !
       END DO
