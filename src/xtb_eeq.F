@@ -30,15 +30,15 @@ MODULE xtb_eeq
    USE qs_dispersion_pairpot,           ONLY: dcnum_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
+   USE qs_force_types,                  ONLY: qs_force_type
+   USE qs_kind_types,                   ONLY: get_qs_kind,&
+                                              qs_kind_type
    USE qs_neighbor_list_types,          ONLY: get_iterator_info,&
                                               neighbor_list_iterate,&
                                               neighbor_list_iterator_create,&
                                               neighbor_list_iterator_p_type,&
                                               neighbor_list_iterator_release,&
                                               neighbor_list_set_p_type
-   USE qs_force_types,                  ONLY: qs_force_type
-   USE qs_kind_types,                   ONLY: get_qs_kind,&
-                                              qs_kind_type
    USE spme,                            ONLY: spme_forces,&
                                               spme_virial
    USE virial_methods,                  ONLY: virial_pair_force
@@ -194,11 +194,12 @@ CONTAINS
       LOGICAL                                            :: defined, do_ewald, do_sparse, use_virial
       REAL(KIND=dp)                                      :: ala, alb, alpha, ctot, dr, dr2, drk, &
                                                             elag, gam2, gama, grc, kappa, qlam, &
-                                                            qq, scn, totalcharge, xi, rcut, qq1, qq2
+                                                            qq, qq1, qq2, rcut, scn, totalcharge, &
+                                                            xi
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: gam
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: epforce, gab
       REAL(KIND=dp), DIMENSION(3)                        :: fdik, ri, rij, rik, rj
-      REAL(KIND=dp), DIMENSION(3, 3)                     :: pvir, pv0, pv1, pv2
+      REAL(KIND=dp), DIMENSION(3, 3)                     :: pvir
       REAL(KIND=dp), DIMENSION(:), POINTER               :: chrgx, dchia, qlag
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(atprop_type), POINTER                         :: atprop
@@ -207,13 +208,13 @@ CONTAINS
       TYPE(distribution_1d_type), POINTER                :: local_particles
       TYPE(ewald_environment_type), POINTER              :: ewald_env
       TYPE(ewald_pw_type), POINTER                       :: ewald_pw
-      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
-      TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
-      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(neighbor_list_iterator_p_type), &
          DIMENSION(:), POINTER                           :: nl_iterator
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_tbe
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(virial_type), POINTER                         :: virial
       TYPE(xtb_atom_type), POINTER                       :: xtb_atom_a, xtb_atom_b
       TYPE(xtb_control_type), POINTER                    :: xtb_control
@@ -323,14 +324,9 @@ CONTAINS
 
       ! Forces from (0.5*q+l)*dA/dR*q
       IF (do_ewald) THEN
-!deb
-         pv0 = 0.0_dp
-         pv1 = 0.0_dp
-         pv2 = 0.0_dp
-!deb
          CALL get_qs_env(qs_env, sab_tbe=sab_tbe)
          CALL ewald_env_get(ewald_env, alpha=alpha, rcut=rcut)
-         rcut = 2.0_dp * rcut
+         rcut = 2.0_dp*rcut
          CALL neighbor_list_iterator_create(nl_iterator, sab_tbe)
          DO WHILE (neighbor_list_iterate(nl_iterator) == 0)
             CALL get_iterator_info(nl_iterator, ikind=ikind, jkind=jkind, &
@@ -352,12 +348,7 @@ CONTAINS
             force(ikind)%rho_elec(:, atom_a) = force(ikind)%rho_elec(:, atom_a) + fdik(:)
             force(jkind)%rho_elec(:, atom_b) = force(jkind)%rho_elec(:, atom_b) - fdik(:)
             IF (use_virial) THEN
-               CALL virial_pair_force(virial%pv_virial,  1._dp, fdik, rij)
-!deb
-               pv1 = 0.0_dp
-               CALL virial_pair_force(pv1,  1._dp, fdik, rij)
-       WRITE(6,*) "PV  LIST    ",iatom,jatom,SUM(pv1)
-!deb
+               CALL virial_pair_force(virial%pv_virial, 1._dp, fdik, rij)
                IF (atprop%stress) THEN
                   CALL virial_pair_force(atprop%atstress(:, :, iatom), -0.5_dp, fdik, rij)
                   CALL virial_pair_force(atprop%atstress(:, :, jatom), -0.5_dp, fdik, rij)
@@ -368,11 +359,6 @@ CONTAINS
             force(jkind)%rho_elec(:, atom_b) = force(jkind)%rho_elec(:, atom_b) + fdik(:)
             IF (use_virial) THEN
                CALL virial_pair_force(virial%pv_virial, -1._dp, fdik, rij)
-!deb
-               pv2 = 0.0_dp
-               CALL virial_pair_force(pv2,  -1._dp, fdik, rij)
-       WRITE(6,*) "PV  LIST    ",jatom,iatom,SUM(pv2)
-!deb
                IF (atprop%stress) THEN
                   CALL virial_pair_force(atprop%atstress(:, :, iatom), 0.5_dp, fdik, rij)
                   CALL virial_pair_force(atprop%atstress(:, :, jatom), 0.5_dp, fdik, rij)
@@ -380,44 +366,6 @@ CONTAINS
             END IF
          END DO
          CALL neighbor_list_iterator_release(nl_iterator)
-
-         DO ikind = 1, nkind
-            DO ia = 1, local_particles%n_el(ikind)
-               iatom = local_particles%list(ikind)%array(ia)
-               atom_a = atom_of_kind(iatom)
-               ri(1:3) = particle_set(iatom)%r(1:3)
-               DO jatom = 1, natom
-                  IF (iatom == jatom) CYCLE
-                  jkind = kind_of(jatom)
-                  atom_b = atom_of_kind(jatom)
-                  qq = (0.5_dp*charges(iatom) - qlag(iatom))*charges(jatom)
-                  rj(1:3) = particle_set(jatom)%r(1:3)
-                  rij(1:3) = ri(1:3) - rj(1:3)
-                  rij = pbc(rij, cell)
-                  dr2 = SUM(rij**2)
-                  dr = SQRT(dr2)
-                  gama = gab(ikind, jkind)
-                  gam2 = gama*gama
-                  grc = 2._dp*gama*EXP(-gam2*dr2)*oorootpi/dr - erf(gama*dr)/dr2 &
-                        - 2._dp*alpha*EXP(-alpha**2*dr2)*oorootpi/dr + erf(alpha*dr)/dr2
-                  fdik(:) = qq*grc*rij(:)/dr
-!                 force(ikind)%rho_elec(:, atom_a) = force(ikind)%rho_elec(:, atom_a) + fdik(:)
-!                 force(jkind)%rho_elec(:, atom_b) = force(jkind)%rho_elec(:, atom_b) - fdik(:)
-                  IF (use_virial) THEN
-!                    CALL virial_pair_force(virial%pv_virial, -1._dp, fdik, rij)
-!deb
-               pv0= 0.0_dp
-               CALL virial_pair_force(pv0,  -1._dp, fdik, rij)
-       WRITE(6,*) "PV  LOOP    ",iatom,jatom,SUM(pv0)
-!deb
-                     IF (atprop%stress) THEN
-                        CALL virial_pair_force(atprop%atstress(:, :, iatom), -0.5_dp, fdik, rij)
-                        CALL virial_pair_force(atprop%atstress(:, :, jatom), -0.5_dp, fdik, rij)
-                     END IF
-                  END IF
-               END DO
-            END DO
-         END DO
       ELSE
          DO ikind = 1, nkind
             DO ia = 1, local_particles%n_el(ikind)

@@ -15,7 +15,8 @@ MODULE eeq_method
                                               get_atomic_kind_set
    USE cell_types,                      ONLY: cell_type,&
                                               get_cell,&
-                                              pbc
+                                              pbc,&
+                                              plane_distance
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_fm_basic_linalg,              ONLY: cp_fm_invert,&
@@ -405,14 +406,17 @@ CONTAINS
       REAL(KIND=dp), PARAMETER                           :: eps_pcg = 1.E-7_dp
 
       INTEGER                                            :: ewald_type, handle, i, ia, iac, iar, ic, &
-                                                            ikind, ir, iunit, jkind, natom, ncloc, &
-                                                            ncvloc, nkind, nrloc, nrvloc, ns
+                                                            ikind, ir, iunit, ix, iy, iz, jkind, &
+                                                            natom, ncloc, ncvloc, nkind, nrloc, &
+                                                            nrvloc, ns
+      INTEGER, DIMENSION(3)                              :: cvec, ncell, periodic
       INTEGER, DIMENSION(:), POINTER                     :: cind, cvind, rind, rvind
       LOGICAL                                            :: do_ewald, do_sparse
       REAL(KIND=dp)                                      :: ad, alk, alpha, betak, deth, dr, grc, &
-                                                            grc1, grc2, papk, qtot, rdl, res, &
-                                                            rmax, rzk, rzkm, rzkp, xr
-      REAL(KIND=dp), DIMENSION(3)                        :: ri, rij, rj
+                                                            grc1, grc2, papk, qtot, rcut, rdl, &
+                                                            res, rmax, rzk, rzkm, rzkp, xr
+      REAL(KIND=dp), DIMENSION(3)                        :: ri, rij, rijl, rj
+      REAL(KIND=dp), DIMENSION(3, 3)                     :: hmat
       REAL(KIND=dp), DIMENSION(:), POINTER               :: av0, pv0, rv0, xv0, zv0
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_struct_type), POINTER                   :: mat_struct, vec_struct
@@ -446,14 +450,22 @@ CONTAINS
          CPASSERT(PRESENT(ewald_env))
          CPASSERT(PRESENT(ewald_pw))
          CALL get_cell(cell=cell, deth=deth)
-         CALL ewald_env_get(ewald_env, alpha=alpha, ewald_type=ewald_type)
+         CALL ewald_env_get(ewald_env, alpha=alpha, rcut=rcut, ewald_type=ewald_type)
          ad = 2.0_dp*alpha*oorootpi
          IF (ewald_type /= do_ewald_spme) THEN
             CALL cp_abort(__LOCATION__, "Only SPME Ewald method available with EEQ.")
          END IF
          ! check alpha for MIC
          !
-         rmax = MIN(8.0_dp, 0.5_dp*deth**0.333_dp)
+         rmax = 2.0_dp*rcut
+         ! max cells used
+         CALL get_cell(cell, h=hmat, periodic=periodic)
+         ncell(1) = CEILING(rmax/plane_distance(1, 0, 0, cell))
+         ncell(2) = CEILING(rmax/plane_distance(0, 1, 0, cell))
+         ncell(3) = CEILING(rmax/plane_distance(0, 0, 1, cell))
+         IF (periodic(1) == 0) ncell(1) = 0
+         IF (periodic(2) == 0) ncell(2) = 0
+         IF (periodic(3) == 0) ncell(3) = 0
          !
          ns = natom
          CALL cp_fm_struct_create(mat_struct, context=blacs_env, para_env=para_env, &
@@ -477,20 +489,29 @@ CONTAINS
                rj(1:3) = particle_set(iac)%r(1:3)
                rij(1:3) = ri(1:3) - rj(1:3)
                rij = pbc(rij, cell)
-               dr = SQRT(SUM(rij**2))
-               IF (iar == iac) THEN
-                  grc2 = gam(ikind) + 2.0_dp*gab(ikind, ikind)*oorootpi
-                  grc1 = grc2 - ad
-               ELSE
-                  grc1 = erf(gab(ikind, jkind)*dr)/dr - erf(alpha*dr)/dr
-                  IF (dr < rmax) THEN
-                     grc2 = erf(gab(ikind, jkind)*dr)/dr
-                  ELSE
-                     grc2 = 0.0_dp
-                  END IF
-               END IF
-               eeq_mat%local_data(ir, ic) = grc1
-               pmat%local_data(ir, ic) = grc2
+               DO ix = -ncell(1), ncell(1)
+                  DO iy = -ncell(2), ncell(2)
+                     DO iz = -ncell(3), ncell(3)
+                        cvec = [ix, iy, iz]
+                        rijl = rij + MATMUL(hmat, cvec)
+                        dr = SQRT(SUM(rijl**2))
+                        IF (dr > rmax) CYCLE
+                        IF (iar == iac) THEN
+                           grc2 = gam(ikind) + 2.0_dp*gab(ikind, ikind)*oorootpi
+                           grc1 = grc2 - ad
+                        ELSE
+                           grc1 = erf(gab(ikind, jkind)*dr)/dr - erf(alpha*dr)/dr
+                           IF (dr < rmax) THEN
+                              grc2 = erf(gab(ikind, jkind)*dr)/dr
+                           ELSE
+                              grc2 = 0.0_dp
+                           END IF
+                        END IF
+                        eeq_mat%local_data(ir, ic) = eeq_mat%local_data(ir, ic) + grc1
+                        pmat%local_data(ir, ic) = pmat%local_data(ir, ic) + grc2
+                     END DO
+                  END DO
+               END DO
             END DO
          END DO
          !
