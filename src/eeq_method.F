@@ -35,10 +35,12 @@ MODULE eeq_method
    USE distribution_2d_types,           ONLY: distribution_2d_type
    USE ewald_environment_types,         ONLY: ewald_env_create,&
                                               ewald_env_get,&
+                                              ewald_env_release,&
                                               ewald_env_set,&
                                               ewald_environment_type,&
                                               read_ewald_section_tb
    USE ewald_pw_types,                  ONLY: ewald_pw_create,&
+                                              ewald_pw_release,&
                                               ewald_pw_type
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type
@@ -50,6 +52,7 @@ MODULE eeq_method
    USE physcon,                         ONLY: bohr
    USE pw_poisson_types,                ONLY: do_ewald_spme
    USE qs_dispersion_pairpot,           ONLY: cnumber_init,&
+                                              cnumber_release,&
                                               dcnum_type
    USE qs_dispersion_types,             ONLY: qs_dispersion_release,&
                                               qs_dispersion_type
@@ -173,9 +176,51 @@ MODULE eeq_method
       & 1.31_dp, 1.23_dp, 1.18_dp, 1.16_dp, 1.11_dp, 1.12_dp, 1.13_dp, 1.32_dp, &
       & 1.30_dp, 1.30_dp, 1.36_dp, 1.31_dp, 1.38_dp, 1.42_dp]
 
-   PUBLIC :: eeq_solver
+   PUBLIC :: eeq_solver, eeq_print
 
 CONTAINS
+
+! **************************************************************************************************
+!> \brief ...
+!> \param qs_env ...
+!> \param iounit ...
+!> \param print_level ...
+! **************************************************************************************************
+   SUBROUTINE eeq_print(qs_env, iounit, print_level)
+
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      INTEGER, INTENT(IN)                                :: iounit, print_level
+
+      CHARACTER(LEN=2)                                   :: element_symbol
+      INTEGER                                            :: iatom, ikind, natom
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: charges
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+
+      MARK_USED(print_level)
+
+      CALL get_qs_env(qs_env, natom=natom, particle_set=particle_set)
+      ALLOCATE (charges(natom))
+      CALL eeq_charges(qs_env, charges)
+
+      IF (iounit > 0) THEN
+
+         WRITE (UNIT=iounit, FMT="(/,T2,A)") "EEQ Charges (Standard Parametrization)"
+         WRITE (UNIT=iounit, FMT="(/,T2,A)") &
+            "#     Atom  Element     Kind            Atomic Charge"
+
+         DO iatom = 1, natom
+            CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind, &
+                                 element_symbol=element_symbol, &
+                                 kind_number=ikind)
+            WRITE (UNIT=iounit, FMT="(T4,I8,T18,A2,I10,T43,F12.4)") &
+               iatom, element_symbol, ikind, charges(iatom)
+         END DO
+
+      END IF
+
+      DEALLOCATE (charges)
+
+   END SUBROUTINE eeq_print
 
 ! **************************************************************************************************
 !> \brief ...

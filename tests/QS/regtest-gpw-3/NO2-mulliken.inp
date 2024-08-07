@@ -19,6 +19,8 @@
       &MULLIKEN ON
         PRINT_ALL
       &END MULLIKEN
+      &EEQ_CHARGES ON
+      &END EEQ_CHARGES
     &END PRINT
     &QS
       EPS_DEFAULT 1.0E-12
