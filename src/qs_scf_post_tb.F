@@ -48,7 +48,7 @@ MODULE qs_scf_post_tb
    USE cp_result_methods,               ONLY: cp_results_erase,&
                                               put_results
    USE cp_result_types,                 ONLY: cp_result_type
-   USE eeq_method,                      ONLY: eeq_print     
+   USE eeq_method,                      ONLY: eeq_print
    USE input_constants,                 ONLY: ot_precond_full_all
    USE input_section_types,             ONLY: section_get_ival,&
                                               section_get_ivals,&

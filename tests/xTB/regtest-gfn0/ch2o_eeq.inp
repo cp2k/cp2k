@@ -6,6 +6,10 @@
 
 &FORCE_EVAL
   &DFT
+    &PRINT
+      &EEQ_CHARGES ON
+      &END EEQ_CHARGES
+    &END PRINT
     &QS
       METHOD xTB
       &XTB
@@ -16,10 +20,6 @@
     &SCF
       SCF_GUESS ATOMIC
     &END SCF
-    &PRINT
-       &EEQ_CHARGES ON
-       &END EEQ_CHARGES
-    &END PRINT
   &END DFT
   &SUBSYS
     &CELL

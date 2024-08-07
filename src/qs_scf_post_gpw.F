@@ -2663,14 +2663,14 @@ CONTAINS
          END IF
       END IF
 
-      ! Compute EEQ charges   
+      ! Compute EEQ charges
       print_key => section_vals_get_subs_vals(input, "DFT%PRINT%EEQ_CHARGES")
       IF (BTEST(cp_print_key_should_output(logger%iter_info, print_key), cp_p_file)) THEN
          unit_nr = cp_print_key_unit_nr(logger, input, "DFT%PRINT%EEQ_CHARGES", extension=".eeq", log_filename=.FALSE.)
          print_level = 1
          CALL eeq_print(qs_env, unit_nr, print_level)
          CALL cp_print_key_finished_output(unit_nr, logger, input, "DFT%PRINT%MULLIKEN")
-      END IF                                  
+      END IF
 
       ! Do a Voronoi Integration or write a compressed BQB File
       print_key_voro => section_vals_get_subs_vals(input, "DFT%PRINT%VORONOI")
