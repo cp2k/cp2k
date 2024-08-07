@@ -1595,17 +1595,18 @@ CONTAINS
    SUBROUTINE matprint(mat)
       TYPE(dbcsr_type), POINTER                          :: mat
 
-      INTEGER                                            :: i, icol, irow
+      INTEGER                                            :: i, icol, iounit, irow
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: mblock
       TYPE(dbcsr_iterator_type)                          :: iter
 
+      iounit = cp_logger_get_default_io_unit()
       CALL dbcsr_iterator_start(iter, mat)
       DO WHILE (dbcsr_iterator_blocks_left(iter))
          CALL dbcsr_iterator_next_block(iter, irow, icol, mblock)
          !
          WRITE (6, '(A,2I4)') 'BLOCK  ', irow, icol
          DO i = 1, SIZE(mblock, 1)
-            WRITE (6, '(8F12.6)') mblock(i, :)
+            IF (iounit > 0) WRITE (iounit, '(8F12.6)') mblock(i, :)
          END DO
          !
       END DO
