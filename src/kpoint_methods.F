@@ -1604,7 +1604,7 @@ CONTAINS
       DO WHILE (dbcsr_iterator_blocks_left(iter))
          CALL dbcsr_iterator_next_block(iter, irow, icol, mblock)
          !
-         IF(iounit > 0) THEN
+         IF (iounit > 0) THEN
             WRITE (iounit, '(A,2I4)') 'BLOCK  ', irow, icol
             DO i = 1, SIZE(mblock, 1)
                WRITE (iounit, '(8F12.6)') mblock(i, :)
