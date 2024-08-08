@@ -52,7 +52,13 @@ if(NOT CP2K_CONFIG_PACKAGE)
     # a vendor specific blas/lapack/scalapack implementation
 
     if(NOT CP2K_SCALAPACK_FOUND)
-      cp2k_find_libraries(SCALAPACK "scalapack")
+      cp2k_find_libraries(SCALAPACK "scalapack-openmpi")
+      if(NOT CP2K_SCALAPACK_FOUND)
+        cp2k_find_libraries(SCALAPACK "scalapack-mpich")
+        if(NOT CP2K_SCALAPACK_FOUND)
+          cp2k_find_libraries(SCALAPACK "scalapack")
+        endif()
+      endif()
     endif()
   elseif(TARGET cp2k::BLAS::MKL::scalapack_link)
     # we have mkl check for the different mkl target
