@@ -962,6 +962,19 @@ CONTAINS
 
       IF (bs_env%unit_nr > 0) WRITE (bs_env%unit_nr, '(A)') ' '
 
+      ! Marek : Reading of the W(w=0) potential for RTP
+      ! TODO : is the condition bs_env%all_W_exist sufficient for reading?
+      IF (bs_env%rtp_method == rtp_method_gw) THEN
+         CALL cp_fm_create(bs_env%fm_W_MIC_freq_zero, bs_env%fm_W_MIC_freq%matrix_struct)
+         t1 = m_walltime()
+         CALL fm_read(bs_env%fm_W_MIC_freq_zero, bs_env, "W_freq_rtp", 0)
+         IF (bs_env%unit_nr > 0) THEN
+            WRITE (bs_env%unit_nr, '(T2,A,I5,A,I3,A,F7.1,A)') &
+               'Read W^MIC(w=0) from file for frequency point  ', 1, ' /', 1, &
+               ',    Execution time', m_walltime() - t1, ' s'
+         END IF
+      END IF
+
       CALL timestop(handle)
 
    END SUBROUTINE read_W_MIC_time
@@ -1082,6 +1095,8 @@ CONTAINS
             CALL cp_fm_scale_and_add(1.0_dp, bs_env%fm_W_MIC_freq_zero,&
                                      bs_env%imag_time_weights_freq_zero(i_t), fm_W_MIC_time(i_t))
          END DO 
+         ! Done, save to file
+         CALL fm_write(bs_env%fm_W_MIC_freq_zero, 0, "W_freq_rtp", qs_env)
       END IF
 
       IF (bs_env%unit_nr > 0) WRITE (bs_env%unit_nr, '(A)') ' '
