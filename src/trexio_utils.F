@@ -638,11 +638,7 @@ CONTAINS
                ao_shell(igf + 1:igf + ngf_shell) = ishell
 
                ! one-to-one mapping between AOs and normalization factors
-               IF (save_cartesian) THEN
-                  ao_normalization(igf + 1:igf + ngf_shell) = norm_cgf(igf_loc + 1:igf_loc + ngf_shell)
-               ELSE
-                  ao_normalization(:) = 1.0_dp
-               END IF
+               ao_normalization(igf + 1:igf + ngf_shell) = norm_cgf(igf_loc + 1:igf_loc + ngf_shell)
 
                igf = igf + ngf_shell
                igf_loc = igf_loc + ngf_shell
