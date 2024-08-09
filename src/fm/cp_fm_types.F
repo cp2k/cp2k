@@ -1404,7 +1404,9 @@ CONTAINS
          CALL pdcopy(n, a, 1, ss + i, desca, 1, b, 1, ts + i, descb, 1)
       END DO
 #else
-      CALL dcopy(ncol*n, a(:, ss), 1, b(:, ts), 1)
+      IF (ss <= SIZE(a, 2) .AND. ts <= SIZE(b, 2)) THEN
+         CALL dcopy(ncol*n, a(:, ss), 1, b(:, ts), 1)
+      END IF
 #endif
 
       CALL timestop(handle)
