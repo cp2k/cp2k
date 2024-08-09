@@ -1475,26 +1475,38 @@ CONTAINS
                   END IF
                END IF
 
-               CALL calc_mat_Q(fm_mat_S(1), do_ri_sos_laplace_mp2, first_cycle, iter_sc_GW0, virtual(1), &
-                               Eigenval(:, 1, 1), Eigenval_scf(:, 1, 1), &
-                               homo(1), omega, omega_old, jquad, mm_style, dimen_RI_red, dimen_ia(1), alpha, fm_mat_Q(1), &
-                               fm_mat_Q_gemm(1), do_bse, fm_mat_Q_static_bse_gemm, dgemm_counter, &
-                               num_integ_points)
-
-               IF (my_open_shell) THEN
-                  CALL calc_mat_Q(fm_mat_S(2), do_ri_sos_laplace_mp2, first_cycle, iter_sc_GW0, virtual(2), &
-                                  Eigenval(:, 1, 2), Eigenval_scf(:, 1, 2), &
-                                  homo(2), omega, omega_old, jquad, mm_style, &
-                                  dimen_RI_red, dimen_ia(2), alpha, fm_mat_Q(2), fm_mat_Q_gemm(2), do_bse, &
-                                  fm_mat_Q_static_bse_gemm, dgemm_counter, &
+               IF (iter_sc_GW0 > 1) THEN
+               DO ispin = 1, nspins
+                  CALL calc_mat_Q(fm_mat_S(ispin), do_ri_sos_laplace_mp2, first_cycle, virtual(ispin), &
+                                  Eigenval_scf(:, 1, ispin), homo(ispin), omega, omega_old, jquad, mm_style, &
+                                  dimen_RI_red, dimen_ia(ispin), alpha, fm_mat_Q(ispin), &
+                                  fm_mat_Q_gemm(ispin), do_bse, fm_mat_Q_static_bse_gemm, dgemm_counter, &
                                   num_integ_points)
+               END DO
 
-                  ! For SOS-MP2 we need both matrices separately
-                  IF (.NOT. do_ri_sos_laplace_mp2) THEN
-                     CALL cp_fm_scale_and_add(alpha=1.0_dp, matrix_a=fm_mat_Q(1), beta=1.0_dp, matrix_b=fm_mat_Q(2))
-                  END IF
+               ! For SOS-MP2 we need both matrices separately
+               IF (.NOT. do_ri_sos_laplace_mp2) THEN
+               DO ispin = 2, nspins
+                  CALL cp_fm_scale_and_add(alpha=1.0_dp, matrix_a=fm_mat_Q(1), beta=1.0_dp, matrix_b=fm_mat_Q(ispin))
+               END DO
+               END IF
+               ELSE
+               DO ispin = 1, nspins
+                  CALL calc_mat_Q(fm_mat_S(ispin), do_ri_sos_laplace_mp2, first_cycle, virtual(ispin), &
+                                  Eigenval(:, 1, ispin), homo(ispin), omega, omega_old, jquad, mm_style, &
+                                  dimen_RI_red, dimen_ia(ispin), alpha, fm_mat_Q(ispin), &
+                                  fm_mat_Q_gemm(ispin), do_bse, fm_mat_Q_static_bse_gemm, dgemm_counter, &
+                                  num_integ_points)
+               END DO
 
-               END IF ! open shell
+               ! For SOS-MP2 we need both matrices separately
+               IF (.NOT. do_ri_sos_laplace_mp2) THEN
+               DO ispin = 2, nspins
+                  CALL cp_fm_scale_and_add(alpha=1.0_dp, matrix_a=fm_mat_Q(1), beta=1.0_dp, matrix_b=fm_mat_Q(ispin))
+               END DO
+               END IF
+
+               END IF
 
             END IF ! im time
 
