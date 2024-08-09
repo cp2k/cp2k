@@ -18,7 +18,12 @@ MODULE rt_tdagw
                                               rtp_control_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
-   USE qs_mo_types,                     ONLY: mo_set_type
+   USE force_env_types,                 ONLY: force_env_type
+   USE qs_mo_types,                     ONLY: mo_set_type,&
+                                              init_mo_set
+   USE atomic_kind_types,               ONLY: atomic_kind_type
+   USE qs_kind_types,                   ONLY: qs_kind_type
+   USE particle_types,                  ONLY: particle_type
    USE rt_propagation_types,            ONLY: get_rtp,&
                                               rt_prop_type
    USE post_scf_bandstructure_types,    ONLY: post_scf_bandstructure_type
@@ -31,6 +36,8 @@ MODULE rt_tdagw
                                               cp_fm_get_element,&
                                               cp_fm_set_element,&
                                               cp_fm_get_info,&
+                                              cp_fm_write_unformatted,&
+                                              cp_fm_read_unformatted,&
                                               cp_fm_write_formatted
    USE cp_cfm_types,                    ONLY: cp_cfm_type,&
                                               cp_fm_to_cfm,&
@@ -38,7 +45,8 @@ MODULE rt_tdagw
                                               cp_cfm_to_fm,&
                                               cp_cfm_create,&
                                               cp_cfm_release
-   USE kinds,                           ONLY: dp
+   USE kinds,                           ONLY: dp,&
+                                              default_path_length
    USE cp_dbcsr_api,                    ONLY: dbcsr_p_type,&
                                               dbcsr_type,&
                                               dbcsr_print,&
@@ -122,7 +130,11 @@ MODULE rt_tdagw
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE qs_moments,                      ONLY: build_local_moment_matrix,&
                                               build_berry_moment_matrix
+   USE qs_mo_io,                        ONLY: read_mo_set_from_restart
    USE qs_ks_methods,                   ONLY: qs_ks_build_kohn_sham_matrix
+   USE force_env_methods,               ONLY: force_env_calc_energy_force
+   USE qs_energy_init,                  ONLY: qs_energies_init
+   USE qs_energy_utils,                 ONLY: qs_energies_properties
    USE efield_utils,                    ONLY: make_field
    USE rt_propagator_init,              ONLY: rt_initialize_rho_from_mos
    USE rt_propagation_methods,          ONLY: s_matrices_create
@@ -143,13 +155,16 @@ MODULE rt_tdagw
                                               rtp_tdagw_hartree_pw,&
                                               do_taylor,&
                                               do_bch,&
-                                              do_exact
+                                              do_exact,&
+                                              use_rt_restart
    USE rt_tdagw_types,                  ONLY: tdagw_env_type,&
                                               create_tdagw_env,&
                                               release_tdagw_env
    USE qs_ks_types,                     ONLY: qs_ks_env_type
    USE qs_integrate_potential_product,  ONLY: integrate_v_rspace
    USE qs_collocate_density,            ONLY: calculate_rho_elec
+   USE cp_files,                        ONLY: open_file,&
+                                              close_file
    USE physcon,                         ONLY: femtoseconds
    USE mathconstants,                   ONLY: twopi
 
@@ -171,16 +186,18 @@ CONTAINS
 !> \brief Runs the electron-only real time adiabatic GW (TD Bethe-Salpeter) propagation
 !> \param qs_env Quickstep environment data, entry point of the calculation
 ! **************************************************************************************************
-   SUBROUTINE run_propagation_gw(qs_env)
+   SUBROUTINE run_propagation_gw(qs_env, force_env)
       TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(force_env_type), POINTER                      :: force_env
       CHARACTER(len=*), PARAMETER                        :: routineN = 'run_propagation_gw'
       TYPE(tdagw_env_type)                               :: tdagw_env
       TYPE(rt_prop_type), POINTER                        :: rtp
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(section_vals_type), POINTER                   :: input, rtp_section
+      TYPE(section_vals_type), POINTER                   :: input, rtp_section, dft_section
       ! TODO : Maybe complex?
-      INTEGER                                            :: i,j,re,im, k, handle, custom_exp_method
+      INTEGER                                            :: i,j,re,im, k, handle, custom_exp_method,&
+                                                            rho_unit_nr
       LOGICAL                                            :: converged
       REAL(kind=dp)                                      :: metric, enum_re, enum_im,&
                                                             idempotence_dev, a_metric_1, a_metric_2,&
@@ -190,14 +207,74 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(rtp_control_type), POINTER                    :: rtp_control
       TYPE(dbcsr_type), POINTER                          :: cosmat, sinmat
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s, matrix_ks
+      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_fm_type)                                   :: buffer_matrix, buffer_matrix_2
+      CHARACTER(len=default_path_length)                 :: save_name
 
       CALL timeset(routineN, handle)
+      ! Run the initial SCF calculation / read restart information
+      ! CALL get_qs_env(qs_env, input=input, dft_control=dft_control)
+      ! SELECT CASE(dft_control%rtp_control%initial_wfn)
+      !    CASE (use_restart_wfn)
+      !       ! Initialise qs values and matrices
+      !       CALL qs_energies_init(qs_env, .FALSE.)
+      !       CALL get_qs_env(qs_env, mos=mos, atomic_kind_set=atomic_kind_set,&
+      !               qs_kind_set=qs_kind_set, particle_set=particle_set,&
+      !               para_env=para_env, matrix_ks=matrix_ks)
+      !       @:SPIN_DO(j,re,im,SIZE(mos))
+      !          CALL init_mo_set(mos(j), qs_env%mpools%ao_mo_fm_pools(j)%pool, name="MO")
+      !       END DO
+      !       dft_section => section_vals_get_subs_vals(input, "DFT")
+      !       ! Read the restart wfn
+      !       CALL read_mo_set_from_restart(mos, atomic_kind_set, qs_kind_set, particle_set,&
+      !               para_env, id_nr=0, multiplicity=dft_control%multiplicity, dft_section=dft_section)
+      !       ! Build the Kohn-Sham matrix
+      !       ! CALL qs_ks_build_kohn_sham_matrix(qs_env, calculate_forces=.FALSE., just_energy=.FALSE.)
+      !       CALL cp_fm_create(buffer_matrix, matrix_struct=mos(1)%mo_coeff%matrix_struct)
+      !       CALL cp_fm_create(buffer_matrix_2, matrix_struct=mos(1)%mo_coeff%matrix_struct)
+      !       CALL cp_fm_to_fm(mos(1)%mo_coeff, buffer_matrix)
+      !       PRINT *, "DEBUG G0W0 - MOS"
+      !       CALL cp_fm_write_formatted(buffer_matrix, 6)
+      !       CALL cp_fm_column_scale(buffer_matrix, mos(1)%eigenvalues)
+      !       CALL parallel_gemm("N", "T", mos(1)%nao, mos(1)%nmo, mos(1)%nao,&
+      !               1.0_dp, buffer_matrix, mos(1)%mo_coeff,&
+      !               0.0_dp, buffer_matrix_2)
+      !       CALL copy_fm_to_dbcsr(buffer_matrix_2, matrix_ks(1)%matrix)
+      !       CALL cp_fm_release(buffer_matrix)
+      !       CALL cp_fm_release(buffer_matrix_2)
+      !       ! With the mo set read, rerun the properties calculation only
+      !       ! For G0W0, this should just read all the required files
+      !       CALL qs_energies_properties(qs_env, calc_forces=.FALSE.)
+      !    CASE default
+      !       ! TODO : Decide on the effect of energy consistency
+      !       CALL force_env_calc_energy_force(force_env, calc_force=.FALSE., &
+      !                                        consistent_energies=.FALSE.)
+      ! END SELECT
+      CALL force_env_calc_energy_force(force_env, calc_force=.FALSE., &
+                                       consistent_energies=.FALSE.)
       ! ********************** ALLOCATIONS **********************
-      CALL create_tdagw_env(tdagw_env, qs_env)
+      CALL create_tdagw_env(tdagw_env, qs_env, force_env)
       ! Get the logger unit number, only print if we are the source process
-      CALL get_qs_env(qs_env, bs_env=bs_env, input=input, rtp=rtp, cell=cell, dft_control=dft_control, matrix_s=matrix_s)
+      CALL get_qs_env(qs_env, bs_env=bs_env, rtp=rtp, cell=cell, matrix_s=matrix_s, input=input, dft_control=dft_control)
       rtp_control => dft_control%rtp_control
+      IF (dft_control%rtp_control%initial_wfn == use_rt_restart ) THEN
+         ! Load up the old density
+         WRITE (save_name, "(A,I0)") "RHO_SAVE_RE_", tdagw_env%sim_start-1
+         CALL open_file(save_name, file_status="OLD", file_form="UNFORMATTED", file_action="READ",&
+                        unit_number=rho_unit_nr)
+         CALL cp_fm_read_unformatted(tdagw_env%rho(1)%matrix, rho_unit_nr)
+         CALL close_file(rho_unit_nr)
+         WRITE (save_name, "(A,I0)") "RHO_SAVE_IM_", tdagw_env%sim_start-1
+         CALL open_file(save_name, file_status="OLD", file_form="UNFORMATTED", file_action="READ",&
+                        unit_number=rho_unit_nr)
+         CALL cp_fm_read_unformatted(tdagw_env%rho(2)%matrix, rho_unit_nr)
+         CALL close_file(rho_unit_nr)
+      END IF
       ! TODO : Print a nicer header
       IF (tdagw_env%unit_nr > 0) WRITE(tdagw_env%unit_nr, *) "=== Starting time-dependent adiabatic GW real time propagation ==="
 
@@ -212,9 +289,10 @@ CONTAINS
          CALL dbcsr_add(tdagw_env%w_dbcsr%matrix, tdagw_env%v_dbcsr%matrix, 1.0_dp, 1.0_dp)
          CALL dbt_copy_matrix_to_tensor(tdagw_env%w_dbcsr%matrix, tdagw_env%screened_dbt)
          ! TODO : So far only uncoupled spins
+         ! Uses rho_orig - same as rho for initial run but different for continued run
          @:SPIN_DO(j, re, im, tdagw_env%n_spin)
-            CALL get_hartree_local(qs_env, tdagw_env, tdagw_env%rho(re)%matrix, tdagw_env%hartree_orig(re)%matrix)
-            CALL get_hartree_local(qs_env, tdagw_env, tdagw_env%rho(im)%matrix, tdagw_env%hartree_orig(im)%matrix)
+            CALL get_hartree_local(qs_env, tdagw_env, tdagw_env%rho_orig(re)%matrix, tdagw_env%hartree_orig(re)%matrix)
+            CALL get_hartree_local(qs_env, tdagw_env, tdagw_env%rho_orig(im)%matrix, tdagw_env%hartree_orig(im)%matrix)
             ! Scaling by spin degeneracy
             CALL cp_fm_scale(tdagw_env%spin_degeneracy, tdagw_env%hartree_orig(re)%matrix)
             CALL cp_fm_scale(tdagw_env%spin_degeneracy, tdagw_env%hartree_orig(im)%matrix)
@@ -230,10 +308,11 @@ CONTAINS
       IF (tdagw_env%ham_single_particle_type == rtp_tdagw_ham_g0w0) THEN
          ! Subtract the v_xc from COH part of the self-energy, as V_xc is also not updated during the timestepping
          @:SPIN_DO(j, re, im, tdagw_env%n_spin)
-            CALL get_sigma(tdagw_env, qs_env, tdagw_env%sigma_COH(re), -0.5_dp, greens_dbcsr_opt=tdagw_env%S_inv)
+            CALL get_sigma(tdagw_env, qs_env, tdagw_env%sigma_COH(re), -0.5_dp, greens_fm_opt=tdagw_env%S_inv_fm)
             ! TODO : Enable subtraction of COH? So far, COH does not enter, as per the reference paper
-            CALL get_sigma(tdagw_env, qs_env, tdagw_env%sigma_SEX(re), -1.0_dp, greens_fm_opt=tdagw_env%rho(re))
-            CALL get_sigma(tdagw_env, qs_env, tdagw_env%sigma_SEX(im), -1.0_dp, greens_fm_opt=tdagw_env%rho(im))
+            ! Uses rho_orig - same as rho for initial run but different for continued run
+            CALL get_sigma(tdagw_env, qs_env, tdagw_env%sigma_SEX(re), -1.0_dp, greens_fm_opt=tdagw_env%rho_orig(re))
+            CALL get_sigma(tdagw_env, qs_env, tdagw_env%sigma_SEX(im), -1.0_dp, greens_fm_opt=tdagw_env%rho_orig(im))
             ! TODO : Allow for subtraction of COH
             CALL cp_fm_scale_and_add(0.0_dp, tdagw_env%sigma_COH(re)%matrix, -1.0_dp, tdagw_env%sigma_SEX(re)%matrix)
             CALL cp_fm_scale_and_add(0.0_dp, tdagw_env%sigma_COH(im)%matrix, -1.0_dp, tdagw_env%sigma_SEX(im)%matrix)
@@ -255,57 +334,11 @@ CONTAINS
       ! Output 0 time moments
       ! Setup the files
       rtp_section => section_vals_get_subs_vals(input, "DFT%REAL_TIME_PROPAGATION")
-      tdagw_env%sim_time = REAL(tdagw_env%sim_start, dp)*rtp%dt
+      tdagw_env%sim_time = REAL(tdagw_env%sim_start, dp)*tdagw_env%sim_dt
       CALL output_moments(tdagw_env, tdagw_env%rho, bs_env%fm_mo_coeff_Gamma, rtp_section)
 
-      ! Debug : Alternative application of delta kick - copying the formalism used in TDDFT
-      ! IF (rtp_control%apply_delta_pulse) THEN
-      !    ! Get the dbcsr exp matrices
-      !    NULLIFY(cosmat)
-      !    NULLIFY(sinmat)
-      !    ALLOCATE(cosmat)
-      !    ALLOCATE(sinmat)
-      !    CALL dbcsr_create(cosmat, template=matrix_s(1)%matrix)
-      !    CALL dbcsr_create(sinmat, template=matrix_s(1)%matrix)
-
-      !    @:SPIN_DO(j, re, im, tdagw_env%n_spin)
-      !       CALL dbcsr_copy(cosmat, matrix_s(j)%matrix)
-      !       CALL dbcsr_copy(sinmat, matrix_s(j)%matrix)
-      !       kvec(:) = cell%h_inv(1, :)*rtp_control%delta_pulse_direction(1) + &
-      !                 cell%h_inv(2, :)*rtp_control%delta_pulse_direction(2) + &
-      !                 cell%h_inv(3, :)*rtp_control%delta_pulse_direction(3)
-      !       kvec = kvec*twopi*rtp_control%delta_pulse_scale
-      !       CALL build_berry_moment_matrix(qs_env, cosmat, sinmat, -kvec)
-
-      !       CALL copy_dbcsr_to_fm(cosmat, tdagw_env%ham_workspace(re)%matrix)
-      !       CALL copy_dbcsr_to_fm(sinmat, tdagw_env%ham_workspace(im)%matrix)
-      !       CALL parallel_gemm("N", "N", tdagw_env%n_ao, tdagw_env%n_ao, tdagw_env%n_ao,&
-      !               1.0_dp, tdagw_env%S_inv_fm%matrix, tdagw_env%ham_workspace(re)%matrix,&
-      !               0.0_dp, tdagw_env%ham_effective(re)%matrix)
-      !       CALL parallel_gemm("N", "N", tdagw_env%n_ao, tdagw_env%n_ao, tdagw_env%n_ao,&
-      !               1.0_dp, tdagw_env%S_inv_fm%matrix, tdagw_env%ham_workspace(im)%matrix,&
-      !               0.0_dp, tdagw_env%ham_effective(im)%matrix)
-      !    END DO
-
-      !    custom_exp_method = tdagw_env%mat_exp_method
-      !    tdagw_env%mat_exp_method = do_exact
-      !    CALL propagate_density(tdagw_env, tdagw_env%ham_effective, tdagw_env%rho, tdagw_env%rho_new)
-      !    tdagw_env%mat_exp_method = custom_exp_method
-      !    metric = rho_metric(tdagw_env%rho_new, tdagw_env%rho, tdagw_env%n_spin)
-      !    IF (tdagw_env%unit_nr > 0) WRITE(tdagw_env%unit_nr, *) "Metric difference after delta kick", metric
-      !    ! Copy the new density to the old density
-      !    @:SPIN_DO(j, re, im, tdagw_env%n_spin)
-      !       CALL cp_fm_to_fm(tdagw_env%rho_new(re)%matrix, tdagw_env%rho(re)%matrix)
-      !       CALL cp_fm_to_fm(tdagw_env%rho_new(im)%matrix, tdagw_env%rho(im)%matrix)
-      !    END DO
-
-      !    CALL dbcsr_release(cosmat)
-      !    CALL dbcsr_release(sinmat)
-      !    DEALLOCATE(cosmat)
-      !    DEALLOCATE(sinmat)
-      ! END IF
-      ! TODO : Check spectrum of custom delta kick
-      IF (rtp_control%apply_delta_pulse) THEN
+      ! Do not apply the delta kick if we are doing a restart calculation
+      IF (rtp_control%apply_delta_pulse .AND. rtp_control%initial_wfn /= use_rt_restart) THEN
          ! Extra minus for the propagation of density
          intensity = -rtp_control%delta_pulse_scale
          metric = 0.0_dp
@@ -325,8 +358,6 @@ CONTAINS
             CALL cp_fm_transpose(tdagw_env%ham_effective(im)%matrix, tdagw_env%rho_workspace(1)%matrix)
             CALL cp_fm_scale_and_add(0.5_dp, tdagw_env%ham_effective(im)%matrix,&
                                      0.5_dp, tdagw_env%rho_workspace(1)%matrix)
-            PRINT *, "TDaGW Ham effective"
-            CALL cp_fm_write_formatted(tdagw_env%ham_effective(im)%matrix, 6)
             IF (tdagw_env%mat_exp_method == do_bch) THEN
                ! Multiply by the S_inv matrix - in the classic ordering
                CALL parallel_gemm("N", "N", tdagw_env%n_ao, tdagw_env%n_ao, tdagw_env%n_ao,&
@@ -366,9 +397,6 @@ CONTAINS
                                   1.0_dp, tdagw_env%ham_effective(im)%matrix, tdagw_env%S_fm%matrix,&
                                   0.0_dp, tdagw_env%ham_workspace(2)%matrix)
                CALL cp_fm_to_fm(tdagw_env%ham_workspace(2)%matrix, tdagw_env%ham_effective(im)%matrix)
-               PRINT *, "Exponential from TDaGW"
-               CALL cp_fm_write_formatted(tdagw_env%ham_effective(re)%matrix, tdagw_env%unit_nr)
-               CALL cp_fm_write_formatted(tdagw_env%ham_effective(im)%matrix, tdagw_env%unit_nr)
                DEALLOCATE(gon_eigvals)
             END IF
          END DO
@@ -394,7 +422,7 @@ CONTAINS
       DO i = tdagw_env%sim_start, tdagw_env%sim_nsteps
 
          ! Update the simulation time
-         tdagw_env%sim_time = REAL(i, dp)*rtp%dt
+         tdagw_env%sim_time = REAL(i, dp)*tdagw_env%sim_dt
          tdagw_env%sim_step = i
          ! Start the enforced time reversal method
          ! This method determines the density matrix at time (t+dt) by guessing the effective Hamiltonian at (t + dt)
@@ -427,7 +455,7 @@ CONTAINS
             CALL cp_fm_to_fm(tdagw_env%rho_M(im)%matrix, tdagw_env%rho_new_last(im)%matrix)
          END DO
          ! *********** Start the self-consistent loop ************************
-         tdagw_env%sim_time = REAL(i+1, dp)*rtp%dt
+         tdagw_env%sim_time = REAL(i+1, dp)*tdagw_env%sim_dt
          tdagw_env%sim_step = i+1
          converged = .FALSE.
          DO k=1,tdagw_env%etrs_max_iter
@@ -471,6 +499,16 @@ CONTAINS
          CALL output_moments(tdagw_env, tdagw_env%rho, bs_env%fm_mo_coeff_Gamma, rtp_section)
       END DO
       ! ********************** End the time loop **********************
+      WRITE (save_name, "(A,I0)") "RHO_SAVE_RE_", tdagw_env%sim_nsteps
+      CALL open_file(save_name, file_status="NEW", file_form="UNFORMATTED", file_action="WRITE",&
+                     unit_number=rho_unit_nr)
+      CALL cp_fm_write_unformatted(tdagw_env%rho(1)%matrix, rho_unit_nr)
+      CALL close_file(rho_unit_nr)
+      WRITE (save_name, "(A,I0)") "RHO_SAVE_IM_", tdagw_env%sim_nsteps
+      CALL open_file(save_name, file_status="NEW", file_form="UNFORMATTED", file_action="WRITE",&
+                     unit_number=rho_unit_nr)
+      CALL cp_fm_write_unformatted(tdagw_env%rho(2)%matrix, rho_unit_nr)
+      CALL close_file(rho_unit_nr)
 
       ! ********************** DEALLOCATIONS **********************
       CALL release_tdagw_env(tdagw_env, qs_env)
@@ -567,10 +605,16 @@ CONTAINS
          IF (tdagw_env%mat_exp_method == do_taylor .OR. tdagw_env%mat_exp_method == do_bch) THEN
             ! In Taylor and BCH, we first evaluate the entire exponent and then evaluate exponential in series
             ! In order to produce correct result, need to remultiply by inverse overlap matrix
-            CALL cp_dbcsr_sm_fm_multiply(tdagw_env%S_inv, tdagw_env%ham_effective(re)%matrix,&
-                                         tdagw_env%rho_workspace(1)%matrix, tdagw_env%n_ao)
-            CALL cp_dbcsr_sm_fm_multiply(tdagw_env%S_inv, tdagw_env%ham_effective(im)%matrix,&
-                                         tdagw_env%rho_workspace(2)%matrix, tdagw_env%n_ao)
+            ! CALL cp_dbcsr_sm_fm_multiply(tdagw_env%S_inv, tdagw_env%ham_effective(re)%matrix,&
+            !                              tdagw_env%rho_workspace(1)%matrix, tdagw_env%n_ao)
+            ! CALL cp_dbcsr_sm_fm_multiply(tdagw_env%S_inv, tdagw_env%ham_effective(im)%matrix,&
+            !                              tdagw_env%rho_workspace(2)%matrix, tdagw_env%n_ao)
+            CALL parallel_gemm("N", "N", tdagw_env%n_ao, tdagw_env%n_ao, tdagw_env%n_ao,&
+                               1.0_dp, tdagw_env%S_inv_fm%matrix, tdagw_env%ham_effective(re)%matrix,&
+                               0.0_dp, tdagw_env%rho_workspace(1)%matrix)
+            CALL parallel_gemm("N", "N", tdagw_env%n_ao, tdagw_env%n_ao, tdagw_env%n_ao,&
+                               1.0_dp, tdagw_env%S_inv_fm%matrix, tdagw_env%ham_effective(im)%matrix,&
+                               0.0_dp, tdagw_env%rho_workspace(2)%matrix)
 
             ! The evolution of density matrix is derived from the right multiplying term
             ! Imaginary part of the exponent = -real part of the matrix

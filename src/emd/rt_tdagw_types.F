@@ -58,6 +58,7 @@ MODULE rt_tdagw_types
    USE cp_control_types,                ONLY: dft_control_type
    USE qs_environment_types,            ONLY: qs_environment_type,&
                                               get_qs_env
+   USE force_env_types,                 ONLY: force_env_type
    USE post_scf_bandstructure_types,    ONLY: post_scf_bandstructure_type
    USE post_scf_bandstructure_utils,    ONLY: create_and_init_bs_env
    USE rt_propagation_types,            ONLY: rt_prop_type,&
@@ -195,7 +196,8 @@ MODULE rt_tdagw_types
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER                 :: rho,&
                                                                    rho_new,&
                                                                    rho_new_last,&
-                                                                   rho_M
+                                                                   rho_M,&
+                                                                   rho_orig
       TYPE(cp_fm_p_type)                                        :: S_inv_fm,&
                                                                    S_fm
       TYPE(dbcsr_type), POINTER                                 :: S_inv,&
@@ -243,9 +245,10 @@ CONTAINS
 !> \author Stepan Marek
 !> \date 02.2024
 ! **************************************************************************************************
-   SUBROUTINE create_tdagw_env(tdagw_env, qs_env)
+   SUBROUTINE create_tdagw_env(tdagw_env, qs_env, force_env)
       TYPE(tdagw_env_type)                                      :: tdagw_env
       TYPE(qs_environment_type),POINTER                         :: qs_env
+      TYPE(force_env_type), POINTER                             :: force_env
       CHARACTER(len=*), PARAMETER                               :: routineN="create_tdagw_env"
       TYPE(post_scf_bandstructure_type), POINTER                :: bs_env
       TYPE(rt_prop_type), POINTER                               :: rtp
@@ -258,7 +261,7 @@ CONTAINS
                                                                    occupations
       REAL(kind=dp), DIMENSION(3)                               :: rpoint
       ! TYPE(cp_fm_type)                                          :: S_inv_fm
-      TYPE(section_vals_type), POINTER                          :: input, bs_sec
+      TYPE(section_vals_type), POINTER                          :: input, bs_sec, md_sec
       ! Extract the other types first
 
       CALL get_qs_env(qs_env,&
@@ -289,7 +292,9 @@ CONTAINS
       tdagw_env%sim_step = 0
       tdagw_env%sim_time = 0
       ! Time step is taken from rtp
-      tdagw_env%sim_dt = rtp%dt
+      md_sec => section_vals_get_subs_vals(force_env%root_section, "MOTION%MD")
+      CALL section_vals_val_get(md_sec, "TIMESTEP", r_val=tdagw_env%sim_dt)
+      ! tdagw_env%sim_dt = rtp%dt
       ! Threshold for etrs is taken from the eps_energy from RT propagation
       tdagw_env%etrs_threshold = tdagw_env%dft_control%rtp_control%eps_ener
       ! TODO : Check whether dft_control can be dropped from tdagw_env
@@ -314,7 +319,7 @@ CONTAINS
             CALL get_nsquare_norder(2.0_dp*MAX(ABS(MAXVAL(bs_env%eigenval_G0W0(:,bs_env%nkp_only_DOS,i))),&
                                     ABS(MINVAL(bs_env%eigenval_G0W0(:,bs_env%nkp_only_DOS,i)))),&
                                     tdagw_env%orders(1,i), tdagw_env%orders(2,i),&
-                                    tdagw_env%dft_control%rtp_control%eps_exp,&
+                                    tdagw_env%exp_accuracy,&
                                     1, .FALSE.)
          END DO
       ELSE
@@ -323,13 +328,15 @@ CONTAINS
             CALL get_nsquare_norder(2.0_dp*MAX(ABS(MAXVAL(bs_env%eigenval_scf_Gamma(:,i))),&
                                     ABS(MINVAL(bs_env%eigenval_scf_Gamma(:,i)))),&
                                     tdagw_env%orders(1,i), tdagw_env%orders(2,i),&
-                                    tdagw_env%dft_control%rtp_control%eps_exp,&
+                                    tdagw_env%exp_accuracy,&
                                     1, .FALSE.)
          END DO
       END IF
       ! Sim start index and total number of steps as well
-      tdagw_env%sim_start = rtp%i_start
-      tdagw_env%sim_nsteps = rtp%nsteps
+      CALL section_vals_val_get(md_sec, "STEP_START_VAL", i_val=tdagw_env%sim_start)
+      ! tdagw_env%sim_start = rtp%i_start
+      CALL section_vals_val_get(md_sec, "STEPS", i_val=tdagw_env%sim_nsteps)
+      ! tdagw_env%sim_nsteps = rtp%nsteps
 
       ! Construct moments from dbcsr
       ALLOCATE(moments_dbcsr_p(3))
@@ -426,19 +433,21 @@ CONTAINS
       END DO
       DEALLOCATE(occupations)
       ! Create the inverse overlap matrix, for use in density propagation 
-      CALL s_matrices_create(matrix_s, rtp)
-      CALL get_rtp(rtp, S_inv=tdagw_env%S_inv)
-      ! TODO : Check that dbcsr overlap inverse coincides with fm overlap inverse
-      ! CALL dbcsr_print(tdagw_env%S_inv)
-      NULLIFY(tdagw_env%S_inv_fm%matrix)
-      ALLOCATE(tdagw_env%S_inv_fm%matrix)
-      CALL cp_fm_create(tdagw_env%S_inv_fm%matrix, bs_env%fm_s_Gamma%matrix_struct)
-      CALL copy_dbcsr_to_fm(tdagw_env%S_inv, tdagw_env%S_inv_fm%matrix)
+      ! Start by creating the actual overlap matrix
+      ! TODO : Handle different spins and k-points
       NULLIFY(tdagw_env%S_fm%matrix)
       ALLOCATE(tdagw_env%S_fm%matrix)
       CALL cp_fm_create(tdagw_env%S_fm%matrix, bs_env%fm_s_Gamma%matrix_struct)
-      ! TODO : Handle different spins
       CALL copy_dbcsr_to_fm(matrix_s(1)%matrix, tdagw_env%S_fm%matrix)
+      NULLIFY(tdagw_env%S_inv_fm%matrix)
+      ALLOCATE(tdagw_env%S_inv_fm%matrix)
+      CALL cp_fm_create(tdagw_env%S_inv_fm%matrix, bs_env%fm_s_Gamma%matrix_struct)
+      CALL cp_fm_invert(tdagw_env%S_fm%matrix, tdagw_env%S_inv_fm%matrix)
+      ! CALL s_matrices_create(matrix_s, rtp)
+      ! CALL get_rtp(rtp, S_inv=tdagw_env%S_inv)
+      ! TODO : Check that dbcsr overlap inverse coincides with fm overlap inverse
+      ! CALL dbcsr_print(tdagw_env%S_inv)
+      ! CALL copy_dbcsr_to_fm(tdagw_env%S_inv, tdagw_env%S_inv_fm%matrix)
 
       ! Create the single particle hamiltonian
       ! Allocate workspace first
@@ -484,6 +493,7 @@ CONTAINS
       ALLOCATE(tdagw_env%rho_new(2*tdagw_env%n_spin))
       ALLOCATE(tdagw_env%rho_new_last(2*tdagw_env%n_spin))
       ALLOCATE(tdagw_env%rho_M(2*tdagw_env%n_spin))
+      ALLOCATE(tdagw_env%rho_orig(2*tdagw_env%n_spin))
       DO i=1,2*tdagw_env%n_spin
          ALLOCATE(tdagw_env%ham_effective(i)%matrix)
          CALL cp_fm_create(tdagw_env%ham_effective(i)%matrix, bs_env%fm_ks_Gamma(1)%matrix_struct)
@@ -497,6 +507,9 @@ CONTAINS
          ALLOCATE(tdagw_env%rho_M(i)%matrix)
          CALL cp_fm_create(tdagw_env%rho_M(i)%matrix, bs_env%fm_ks_Gamma(1)%matrix_struct)
          CALL cp_fm_set_all(tdagw_env%rho_M(i)%matrix, 0.0_dp)
+         ALLOCATE(tdagw_env%rho_orig(i)%matrix)
+         CALL cp_fm_create(tdagw_env%rho_orig(i)%matrix, bs_env%fm_ks_Gamma(1)%matrix_struct)
+         CALL cp_fm_to_fm(tdagw_env%rho(i)%matrix, tdagw_env%rho_orig(i)%matrix)
       END DO
 
       ! Allocate space for density propagation
@@ -614,6 +627,7 @@ CONTAINS
       CALL cp_fm_release(tdagw_env%rho_new)
       CALL cp_fm_release(tdagw_env%rho_new_last)
       CALL cp_fm_release(tdagw_env%rho_M)
+      CALL cp_fm_release(tdagw_env%rho_orig)
       CALL cp_fm_release(tdagw_env%S_inv_fm%matrix)
 
       CALL cp_fm_release(tdagw_env%moments)

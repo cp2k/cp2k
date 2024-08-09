@@ -190,14 +190,7 @@ CONTAINS
       END IF
       CALL init_propagators(qs_env)
       IF (rtp_control%fixed_ions) THEN
-         SELECT CASE (rtp_control%rtp_method)
-            ! Marek : TD-aGW method uses different propagation structure - density matrix is not updated self-consistenly, but
-            ! rather derived from the Green's function, which is being evolved.
-            CASE (rtp_method_gw)
-               CALL run_propagation_gw(qs_env)
-            CASE default
-               CALL run_propagation(qs_env, force_env, globenv)
-         END SELECT
+         CALL run_propagation(qs_env, force_env, globenv)
       ELSE
          rtp_control%initial_step = .TRUE.
          CALL force_env_calc_energy_force(force_env, calc_force=.TRUE.)
