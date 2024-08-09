@@ -267,9 +267,9 @@ MODULE mp2_types
       !BSE optical spectrum
       REAL(KIND=dp)                                      :: bse_spectrum_freq_step_size = 0.0_dp, &
                                                             bse_spectrum_freq_start = 0.0_dp, &
-                                                            bse_spectrum_freq_end = 0.0_dp, &
-                                                            bse_spectrum_eta = 0.0_dp
+                                                            bse_spectrum_freq_end = 0.0_dp
       LOGICAL                                            :: bse_print_spectrum = .FALSE.
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: bse_eta_spectrum_list => NULL()
 
       !GW_DOS
       REAL(KIND=dp)                                      :: dos_upper = 0.0_dp, &

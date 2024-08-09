@@ -597,7 +597,6 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: idx_homo, idx_virt
       REAL(KIND=dp)                                      :: alpha
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigvec_entries, oscill_str
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: abs_spectrum
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: dipole_exc
 
       CALL timeset(routineN, handle)
@@ -791,9 +790,8 @@ CONTAINS
 
       ! Compute and print the absorption spectrum to external file
       IF (mp2_env%ri_g0w0%bse_print_spectrum) THEN
-         CALL compute_absorption_spectrum(abs_spectrum, oscill_str, Exc_ens, &
-                                          info_approximation, mp2_env)
-         DEALLOCATE (abs_spectrum)
+         CALL compute_absorption_spectrum(oscill_str, Exc_ens, &
+                                          info_approximation, unit_nr, mp2_env)
       END IF
       DEALLOCATE (oscill_str, dipole_exc)
       IF (unit_nr > 0) THEN

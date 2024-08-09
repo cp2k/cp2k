@@ -1427,11 +1427,11 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="ETA", &
-                          description="Broadening of the peaks in the optical spectrum.", &
-                          usage="ETA 0.01", unit_str="eV", &
-                          type_of_var=real_t, &
-                          default_r_val=cp_unit_to_cp2k(value=0.01_dp, unit_str="eV"))
+      CALL keyword_create(keyword, __LOCATION__, name="ETA_LIST", &
+                          description="List of broadening of the peaks in the optical spectrum.", &
+                          usage="ETA_LIST 0.01 ...", unit_str="eV", &
+                          default_r_vals=(/0.01_dp/), &
+                          type_of_var=real_t, n_var=-1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

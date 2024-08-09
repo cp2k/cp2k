@@ -228,8 +228,8 @@ CONTAINS
                                 r_val=mp2_env%ri_g0w0%bse_spectrum_freq_start)
       CALL section_vals_val_get(bse_section, "BSE_SPECTRUM%FREQUENCY_END_POINT", &
                                 r_val=mp2_env%ri_g0w0%bse_spectrum_freq_end)
-      CALL section_vals_val_get(bse_section, "BSE_SPECTRUM%ETA", &
-                                r_val=mp2_env%ri_g0w0%bse_spectrum_eta)
+      CALL section_vals_val_get(bse_section, "BSE_SPECTRUM%ETA_LIST", &
+                                r_vals=mp2_env%ri_g0w0%bse_eta_spectrum_list)
 
       CALL section_vals_val_get(mp2_section, "RI_RPA%GW%IMAGE_CHARGE_MODEL", &
                                 l_val=mp2_env%ri_g0w0%do_ic_model)

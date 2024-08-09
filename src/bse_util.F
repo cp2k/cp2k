@@ -1037,8 +1037,8 @@ CONTAINS
       mem_est_per_rank = REAL(mem_est/para_env%num_pe, KIND=dp)
 
       IF (unit_nr > 0) THEN
-         WRITE (unit_nr, '(T2,A4,T7,A40,T68,F13.3)') 'BSE|', 'Total peak memory estimate from BSE [GB]', &
-            mem_est
+         ! WRITE (unit_nr, '(T2,A4,T7,A40,T68,F13.3)') 'BSE|', 'Total peak memory estimate from BSE [GB]', &
+         !    mem_est
          WRITE (unit_nr, '(T2,A4,T7,A40,T68,ES13.3)') 'BSE|', 'Total peak memory estimate from BSE [GB]', &
             mem_est
          WRITE (unit_nr, '(T2,A4,T7,A47,T68,F13.3)') 'BSE|', 'Peak memory estimate per MPI rank from BSE [GB]', &
@@ -1696,67 +1696,73 @@ CONTAINS
 !> \param info_approximation ...
 !> \param mp2_env ...
 ! **************************************************************************************************
-   SUBROUTINE compute_absorption_spectrum(abs_spectrum, oscill_str, Exc_ens, &
-                                          info_approximation, mp2_env)
-
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
-         INTENT(OUT)                                     :: abs_spectrum
+   SUBROUTINE compute_absorption_spectrum(oscill_str, Exc_ens, &
+                                          info_approximation, unit_nr, mp2_env)
+                                          
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
          INTENT(IN)                                      :: oscill_str, Exc_ens
       CHARACTER(LEN=10)                                  :: info_approximation
+      INTEGER, INTENT(IN)                                :: unit_nr
       TYPE(mp2_type), INTENT(INOUT)                      :: mp2_env
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_absorption_spectrum'
 
-      CHARACTER(LEN=18)                                  :: file_name_spectrum
-      INTEGER                                            :: handle, i, j, num_steps, unit_nr
+      CHARACTER(LEN=28)                                  :: file_name_spectrum
+      CHARACTER(LEN=10)                                  :: eta_str
+      INTEGER                                            :: handle, i, j, num_steps, unit_nr_file, k
       REAL(KIND=dp)                                      :: eta, freq_end, freq_start, freq_step, &
                                                             omega
+      REAL(KIND=dp), DIMENSION(:),POINTER                        :: eta_list
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)    :: abs_spectrum
 
       CALL timeset(routineN, handle)
 
       freq_step = mp2_env%ri_g0w0%bse_spectrum_freq_step_size
       freq_start = mp2_env%ri_g0w0%bse_spectrum_freq_start
       freq_end = mp2_env%ri_g0w0%bse_spectrum_freq_end
-      eta = mp2_env%ri_g0w0%bse_spectrum_eta
+      eta_list => mp2_env%ri_g0w0%bse_eta_spectrum_list
 
-      file_name_spectrum = 'BSE'//TRIM(ADJUSTL(info_approximation))//'.spectrum'
 
       ! Calculate number of steps to fit given frequency range
       num_steps = NINT((freq_end - freq_start)/freq_step) + 1
 
-      ALLOCATE (abs_spectrum(num_steps, 2))
-      abs_spectrum(:, :) = 0.0_dp
+      DO k=1, SIZE(eta_list) 
+         eta = eta_list(k)
+         ! Convert to str
+         WRITE(eta_str, '(F6.3)') eta
+         file_name_spectrum = 'BSE'//TRIM(ADJUSTL(info_approximation))//'eta='//TRIM(eta_str)//'.spectrum'
+         ALLOCATE (abs_spectrum(num_steps, 2))
+         abs_spectrum(:, :) = 0.0_dp
 
-      ! Calculate the imaginary part of the mean dipole polarizability α_{avg}(ω)
-      ! which is given by (cf. C. Ullrichs Book on TDDFT, Eq. 7.51)
-      ! α_{avg}(ω) = \sum_{n=1}^{N_exc} \frac{f_n}{(ω+iη)² - (Ω^n)²}
-      ! and then the imaginary part is (in the limit η -> 0)
-      ! Im[α_{avg}(ω)] = \sum_{n=1}^{N_exc} f_n * η / ((ω - Ω^n)² + η²)
-      ! where f_n are the oscillator strengths and E_exc the excitation energies
-      DO i = 1, num_steps
-         omega = freq_start + (i - 1)*freq_step
-         abs_spectrum(i, 1) = omega
-         DO j = 1, SIZE(oscill_str)
-            abs_spectrum(i, 2) = abs_spectrum(i, 2) - oscill_str(j)* &
-                                 AIMAG(1/((omega + CMPLX(0.0, eta, kind=dp))**2 - Exc_ens(j)**2))
+         ! Calculate the imaginary part of the mean dipole polarizability α_{avg}(ω)
+         ! which is given by (cf. C. Ullrichs Book on TDDFT, Eq. 7.51)
+         ! α_{avg}(ω) = \sum_{n=1}^{N_exc} \frac{f_n}{(ω+iη)² - (Ω^n)²}
+         ! and then the imaginary part is (in the limit η -> 0)
+         ! Im[α_{avg}(ω)] = \sum_{n=1}^{N_exc} f_n * η / ((ω - Ω^n)² + η²)
+         ! where f_n are the oscillator strengths and E_exc the excitation energies
+         DO i = 1, num_steps
+            omega = freq_start + (i - 1)*freq_step
+            abs_spectrum(i, 1) = omega
+            DO j = 1, SIZE(oscill_str)
+               abs_spectrum(i, 2) = abs_spectrum(i, 2) - oscill_str(j)* &
+                                    AIMAG(1/((omega + CMPLX(0.0, eta, kind=dp))**2 - Exc_ens(j)**2))
+            END DO
          END DO
+         ! Print it to file
+         unit_nr_file = cp_logger_get_default_unit_nr()
+         IF (unit_nr_file > 0) THEN
+            CALL open_file(file_name_spectrum, unit_number=unit_nr_file, &
+                           file_status="UNKNOWN", file_action="WRITE")
+            WRITE (unit_nr_file, '(A62,A6)') "# Absorption spectrum from Bethe Salpeter equation for method ", &
+               TRIM(ADJUSTL(info_approximation))
+            DO i = 1, num_steps
+               WRITE (unit_nr_file, '(F17.10, F17.10)') abs_spectrum(i, 1)*evolt, abs_spectrum(i, 2)
+            END DO
+            CALL close_file(unit_nr_file)
+         END IF
+         DEALLOCATE(abs_spectrum)
       END DO
 
-      ! Print it to file
-      unit_nr = cp_logger_get_default_unit_nr()
-      IF (unit_nr > 0) THEN
-         CALL open_file(file_name_spectrum, unit_number=unit_nr, &
-                        file_status="UNKNOWN", file_action="WRITE")
-         WRITE (unit_nr, '(A62,A6)') "# Absorption spectrum from Bethe Salpeter equation for method ", &
-            TRIM(ADJUSTL(info_approximation))
-         DO i = 1, num_steps
-            WRITE (unit_nr, '(F17.10, F17.10)') abs_spectrum(i, 1)*evolt, abs_spectrum(i, 2)
-         END DO
-         CALL close_file(unit_nr)
-      END IF
-
-      unit_nr = cp_logger_get_default_unit_nr()
       IF (unit_nr > 0) THEN
          WRITE (unit_nr, '(T2,A4)') 'BSE|'
          WRITE (unit_nr, '(T2,A4,T7,A50,A)') &
