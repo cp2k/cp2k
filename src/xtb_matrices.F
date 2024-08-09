@@ -152,9 +152,9 @@ CONTAINS
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
       LOGICAL                                            :: defined, diagblock, do_nonbonded, found, &
                                                             use_virial
-      REAL(KIND=dp) :: dfp, dhij, dr, drk, drx, eeq_energy, enonbonded, enscale, erep, esrb, etaa, &
-         etab, f0, f1, f2, fhua, fhub, fhud, foab, fqa, fqb, hij, kf, qlambda, rcova, rcovab, &
-         rcovb, rrab
+      REAL(KIND=dp) :: dfp, dhij, dr, drk, drx, eeq_energy, ef_energy, enonbonded, enscale, erep, &
+         esrb, etaa, etab, f0, f1, f2, fhua, fhub, fhud, foab, fqa, fqb, hij, kf, qlambda, rcova, &
+         rcovab, rcovb, rrab
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: charges, cnumbers, dcharges
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: dfblock, dhuckel, dqhuckel, huckel, owork
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: oint, sint
@@ -280,12 +280,13 @@ CONTAINS
 
       ALLOCATE (charges(natom))
       charges = 0.0_dp
-      CALL xtb_eeq_calculation(qs_env, charges, cnumbers, eeq_energy, qlambda)
+      CALL xtb_eeq_calculation(qs_env, charges, cnumbers, eeq_energy, ef_energy, qlambda)
       IF (calculate_forces) THEN
          ALLOCATE (dcharges(natom))
          dcharges = qlambda/REAL(para_env%num_pe, KIND=dp)
       END IF
       energy%eeq = eeq_energy
+      energy%efield = ef_energy
 
 !deb vdW
       CALL get_qs_env(qs_env=qs_env, dispersion_env=dispersion_env)

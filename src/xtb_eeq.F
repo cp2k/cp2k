@@ -16,16 +16,22 @@ MODULE xtb_eeq
                                               atprop_type
    USE cell_types,                      ONLY: cell_type,&
                                               pbc
+   USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_control_types,                ONLY: dft_control_type,&
                                               xtb_control_type
    USE cp_log_handling,                 ONLY: cp_logger_get_default_unit_nr
    USE distribution_1d_types,           ONLY: distribution_1d_type
-   USE eeq_method,                      ONLY: eeq_solver
+   USE eeq_method,                      ONLY: eeq_efield_energy,&
+                                              eeq_efield_force_loc,&
+                                              eeq_efield_force_periodic,&
+                                              eeq_efield_pot,&
+                                              eeq_solver
    USE ewald_environment_types,         ONLY: ewald_env_get,&
                                               ewald_environment_type
    USE ewald_pw_types,                  ONLY: ewald_pw_type
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: oorootpi
+   USE message_passing,                 ONLY: mp_para_env_type
    USE particle_types,                  ONLY: particle_type
    USE qs_dispersion_pairpot,           ONLY: dcnum_type
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -63,14 +69,15 @@ CONTAINS
 !> \param charges ...
 !> \param cnumbers ...
 !> \param eeq_energy ...
+!> \param ef_energy ...
 !> \param lambda ...
 ! **************************************************************************************************
-   SUBROUTINE xtb_eeq_calculation(qs_env, charges, cnumbers, eeq_energy, lambda)
+   SUBROUTINE xtb_eeq_calculation(qs_env, charges, cnumbers, eeq_energy, ef_energy, lambda)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: charges
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: cnumbers
-      REAL(KIND=dp), INTENT(INOUT)                       :: eeq_energy, lambda
+      REAL(KIND=dp), INTENT(INOUT)                       :: eeq_energy, ef_energy, lambda
 
       CHARACTER(len=*), PARAMETER :: routineN = 'xtb_eeq_calculation'
 
@@ -80,14 +87,16 @@ CONTAINS
       LOGICAL                                            :: defined, do_ewald, do_sparse
       REAL(KIND=dp)                                      :: ala, alb, gama, kappa, scn, totalcharge, &
                                                             xi
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: chia, gam
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: chia, efr, gam
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: gab
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(atprop_type), POINTER                         :: atprop
       TYPE(cell_type), POINTER                           :: cell
+      TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(ewald_environment_type), POINTER              :: ewald_env
       TYPE(ewald_pw_type), POINTER                       :: ewald_pw
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(xtb_atom_type), POINTER                       :: xtb_atom_a, xtb_atom_b
@@ -148,21 +157,40 @@ CONTAINS
          !
       END DO
 
+      ef_energy = 0.0_dp
+      IF (dft_control%apply_period_efield .OR. dft_control%apply_efield .OR. &
+          dft_control%apply_efield_field) THEN
+         ALLOCATE (efr(natom))
+         efr = 0.0_dp
+         CALL eeq_efield_pot(qs_env, efr)
+         chia = chia + efr
+      END IF
+
       do_ewald = xtb_control%do_ewald
       do_sparse = .FALSE.
       IF (natom > 100000 .AND. do_ewald) do_sparse = .TRUE.
 
+      CALL get_qs_env(qs_env, para_env=para_env, blacs_env=blacs_env)
       IF (do_ewald) THEN
          CALL get_qs_env(qs_env=qs_env, &
                          ewald_env=ewald_env, ewald_pw=ewald_pw)
-         CALL eeq_solver(qs_env, charges, lambda, eeq_energy, &
+         CALL eeq_solver(charges, lambda, eeq_energy, &
                          particle_set, kind_of, cell, chia, gam, gab, &
+                         para_env, blacs_env, &
                          totalcharge=totalcharge, ewald=do_ewald, sparse=do_sparse, &
                          ewald_env=ewald_env, ewald_pw=ewald_pw, iounit=iunit)
       ELSE
-         CALL eeq_solver(qs_env, charges, lambda, eeq_energy, &
+         CALL eeq_solver(charges, lambda, eeq_energy, &
                          particle_set, kind_of, cell, chia, gam, gab, &
+                         para_env, blacs_env, &
                          totalcharge=totalcharge, iounit=iunit)
+      END IF
+
+      IF (dft_control%apply_period_efield .OR. dft_control%apply_efield .OR. &
+          dft_control%apply_efield_field) THEN
+         CALL eeq_efield_energy(qs_env, charges, ef_energy)
+         eeq_energy = eeq_energy - SUM(charges*efr)
+         DEALLOCATE (efr)
       END IF
 
       DEALLOCATE (gab, gam, chia)
@@ -204,10 +232,12 @@ CONTAINS
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(atprop_type), POINTER                         :: atprop
       TYPE(cell_type), POINTER                           :: cell
+      TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(distribution_1d_type), POINTER                :: local_particles
       TYPE(ewald_environment_type), POINTER              :: ewald_env
       TYPE(ewald_pw_type), POINTER                       :: ewald_pw
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(neighbor_list_iterator_p_type), &
          DIMENSION(:), POINTER                           :: nl_iterator
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
@@ -268,18 +298,19 @@ CONTAINS
       do_sparse = .FALSE.
       IF (natom > 100000 .AND. do_ewald) do_sparse = .TRUE.
 
+      CALL get_qs_env(qs_env, para_env=para_env, blacs_env=blacs_env)
       IF (do_ewald) THEN
          CALL get_qs_env(qs_env=qs_env, &
                          ewald_env=ewald_env, ewald_pw=ewald_pw)
-         CALL eeq_solver(qs_env, qlag, qlam, elag, &
-                         particle_set, kind_of, cell, dcharges, gam, gab, &
+         CALL eeq_solver(qlag, qlam, elag, &
+                         particle_set, kind_of, cell, -dcharges, gam, gab, &
+                         para_env, blacs_env, &
                          ewald=do_ewald, sparse=do_sparse, &
                          ewald_env=ewald_env, ewald_pw=ewald_pw, iounit=iunit)
-         qlag = -qlag
-         qlam = -qlam
       ELSE
-         CALL eeq_solver(qs_env, qlag, qlam, elag, &
-                         particle_set, kind_of, cell, -dcharges, gam, gab, iounit=iunit)
+         CALL eeq_solver(qlag, qlam, elag, &
+                         particle_set, kind_of, cell, -dcharges, gam, gab, &
+                         para_env, blacs_env, iounit=iunit)
       END IF
 
       ALLOCATE (chrgx(natom), dchia(natom))
@@ -292,6 +323,15 @@ CONTAINS
          ctot = 0.5_dp*(charges(iatom) - qlag(iatom))
          dchia(iatom) = -ctot*kappa/scn
       END DO
+
+      ! Efield
+      IF (dft_control%apply_period_efield) THEN
+         CALL eeq_efield_force_periodic(qs_env, charges, qlag)
+      ELSE IF (dft_control%apply_efield) THEN
+         CALL eeq_efield_force_loc(qs_env, charges, qlag)
+      ELSE IF (dft_control%apply_efield_field) THEN
+         CPABORT("apply field")
+      END IF
 
       ! Forces from q*X
       CALL get_qs_env(qs_env=qs_env, &

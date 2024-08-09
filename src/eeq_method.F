@@ -45,7 +45,8 @@ MODULE eeq_method
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type
    USE kinds,                           ONLY: dp
-   USE mathconstants,                   ONLY: oorootpi
+   USE mathconstants,                   ONLY: oorootpi,&
+                                              twopi
    USE message_passing,                 ONLY: mp_para_env_type
    USE molecule_types,                  ONLY: molecule_type
    USE particle_types,                  ONLY: particle_type
@@ -58,6 +59,7 @@ MODULE eeq_method
                                               qs_dispersion_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
+   USE qs_force_types,                  ONLY: qs_force_type
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               qs_kind_type
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
@@ -67,6 +69,8 @@ MODULE eeq_method
                                               local_atoms_type,&
                                               pair_radius_setup
    USE spme,                            ONLY: spme_potential
+   USE virial_methods,                  ONLY: virial_pair_force
+   USE virial_types,                    ONLY: virial_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -176,7 +180,8 @@ MODULE eeq_method
       & 1.31_dp, 1.23_dp, 1.18_dp, 1.16_dp, 1.11_dp, 1.12_dp, 1.13_dp, 1.32_dp, &
       & 1.30_dp, 1.30_dp, 1.36_dp, 1.31_dp, 1.38_dp, 1.42_dp]
 
-   PUBLIC :: eeq_solver, eeq_print
+   PUBLIC :: eeq_solver, eeq_print, eeq_charges, eeq_efield_energy, eeq_efield_pot, &
+             eeq_efield_force_loc, eeq_efield_force_periodic
 
 CONTAINS
 
@@ -241,10 +246,11 @@ CONTAINS
       LOGICAL                                            :: do_ewald, do_sparse
       REAL(KIND=dp)                                      :: ala, alb, eeq_energy, kappa, lambda, &
                                                             scn, totalcharge, xi
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: chia, cnumbers, gam
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: chia, cnumbers, efr, gam
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: gab
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell, cell_ref
+      TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(dcnum_type), ALLOCATABLE, DIMENSION(:)        :: dcnum
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(ewald_environment_type), POINTER              :: ewald_env
@@ -264,6 +270,7 @@ CONTAINS
                       atomic_kind_set=atomic_kind_set, &
                       particle_set=particle_set, &
                       para_env=para_env, &
+                      blacs_env=blacs_env, &
                       cell=cell, &
                       dft_control=dft_control)
       CALL get_qs_env(qs_env, nkind=nkind, natom=natom)
@@ -303,6 +310,16 @@ CONTAINS
          !
       END DO
 
+      ! efield
+      IF (dft_control%apply_period_efield .OR. dft_control%apply_efield .OR. &
+          dft_control%apply_efield_field) THEN
+         ALLOCATE (efr(natom))
+         efr = 0.0_dp
+         CALL eeq_efield_pot(qs_env, efr)
+         chia = chia + efr
+         DEALLOCATE (efr)
+      END IF
+
       CALL cnumber_release(cnumbers, dcnum, .FALSE.)
 
       CALL get_cell(cell, periodic=periodic)
@@ -320,16 +337,18 @@ CONTAINS
          ALLOCATE (ewald_pw)
          CALL ewald_pw_create(ewald_pw, ewald_env, cell, cell_ref, print_section=print_section)
          !
-         CALL eeq_solver(qs_env, charges, lambda, eeq_energy, &
+         CALL eeq_solver(charges, lambda, eeq_energy, &
                          particle_set, kind_of, cell, chia, gam, gab, &
+                         para_env, blacs_env, &
                          totalcharge=totalcharge, ewald=do_ewald, sparse=do_sparse, &
                          ewald_env=ewald_env, ewald_pw=ewald_pw, iounit=iunit)
          !
          CALL ewald_env_release(ewald_env)
          CALL ewald_pw_release(ewald_pw)
       ELSE
-         CALL eeq_solver(qs_env, charges, lambda, eeq_energy, &
+         CALL eeq_solver(charges, lambda, eeq_energy, &
                          particle_set, kind_of, cell, chia, gam, gab, &
+                         para_env, blacs_env, &
                          totalcharge=totalcharge, iounit=iunit)
       END IF
 
@@ -413,7 +432,6 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
-!> \param qs_env ...
 !> \param charges ...
 !> \param lambda ...
 !> \param eeq_energy ...
@@ -423,6 +441,8 @@ CONTAINS
 !> \param chia ...
 !> \param gam ...
 !> \param gab ...
+!> \param para_env ...
+!> \param blacs_env ...
 !> \param totalcharge ...
 !> \param ewald ...
 !> \param sparse ...
@@ -430,10 +450,10 @@ CONTAINS
 !> \param ewald_pw ...
 !> \param iounit ...
 ! **************************************************************************************************
-   SUBROUTINE eeq_solver(qs_env, charges, lambda, eeq_energy, particle_set, kind_of, cell, &
-                         chia, gam, gab, totalcharge, ewald, sparse, ewald_env, ewald_pw, iounit)
+   SUBROUTINE eeq_solver(charges, lambda, eeq_energy, particle_set, kind_of, cell, &
+                         chia, gam, gab, para_env, blacs_env, &
+                         totalcharge, ewald, sparse, ewald_env, ewald_pw, iounit)
 
-      TYPE(qs_environment_type), POINTER                 :: qs_env
       REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: charges
       REAL(KIND=dp), INTENT(INOUT)                       :: lambda, eeq_energy
       TYPE(particle_type), DIMENSION(:), INTENT(IN)      :: particle_set
@@ -441,6 +461,8 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: cell
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: chia, gam
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: gab
+      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: totalcharge
       LOGICAL, INTENT(IN), OPTIONAL                      :: ewald, sparse
       TYPE(ewald_environment_type), OPTIONAL, POINTER    :: ewald_env
@@ -463,10 +485,8 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3)                        :: ri, rij, rijl, rj
       REAL(KIND=dp), DIMENSION(3, 3)                     :: hmat
       REAL(KIND=dp), DIMENSION(:), POINTER               :: av0, pv0, rv0, xv0, zv0
-      TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_struct_type), POINTER                   :: mat_struct, vec_struct
       TYPE(cp_fm_type)                                   :: eeq_mat, mmat, pmat, rhs_vec
-      TYPE(mp_para_env_type), POINTER                    :: para_env
 
       CALL timeset(routineN, handle)
 
@@ -489,7 +509,6 @@ CONTAINS
       !
       natom = SIZE(particle_set)
       nkind = SIZE(gam)
-      CALL get_qs_env(qs_env=qs_env, para_env=para_env, blacs_env=blacs_env)
       !
       IF (do_ewald) THEN
          CPASSERT(PRESENT(ewald_env))
@@ -747,5 +766,256 @@ CONTAINS
       CALL cp_fm_matvec(fm_mat, charges, potential, alpha=1.0_dp, beta=1.0_dp)
 
    END SUBROUTINE apply_potential
+
+! **************************************************************************************************
+!> \brief ...
+!> \param qs_env ...
+!> \param charges ...
+!> \param ef_energy ...
+! **************************************************************************************************
+   SUBROUTINE eeq_efield_energy(qs_env, charges, ef_energy)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: charges
+      REAL(KIND=dp), INTENT(OUT)                         :: ef_energy
+
+      COMPLEX(KIND=dp)                                   :: zdeta
+      COMPLEX(KIND=dp), DIMENSION(3)                     :: zi
+      INTEGER                                            :: ia, idir, natom
+      LOGICAL                                            :: dfield
+      REAL(KIND=dp)                                      :: kr, q
+      REAL(KIND=dp), DIMENSION(3)                        :: fieldpol, fpolvec, kvec, qi, ria
+      REAL(KIND=dp), DIMENSION(3, 3)                     :: hmat
+      TYPE(cell_type), POINTER                           :: cell
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+
+      CALL get_qs_env(qs_env, natom=natom, dft_control=dft_control)
+      CALL get_qs_env(qs_env, cell=cell, particle_set=particle_set)
+
+      IF (dft_control%apply_period_efield) THEN
+         dfield = dft_control%period_efield%displacement_field
+
+         fieldpol = dft_control%period_efield%polarisation
+         fieldpol = fieldpol/SQRT(DOT_PRODUCT(fieldpol, fieldpol))
+         fieldpol = -fieldpol*dft_control%period_efield%strength
+         hmat = cell%hmat(:, :)/twopi
+         DO idir = 1, 3
+            fpolvec(idir) = fieldpol(1)*hmat(1, idir) + fieldpol(2)*hmat(2, idir) &
+                            + fieldpol(3)*hmat(3, idir)
+         END DO
+
+         zi(:) = CMPLX(1._dp, 0._dp, dp)
+         DO ia = 1, natom
+            q = charges(ia)
+            ria = particle_set(ia)%r
+            ria = pbc(ria, cell)
+            DO idir = 1, 3
+               kvec(:) = twopi*cell%h_inv(idir, :)
+               kr = SUM(kvec(:)*ria(:))
+               zdeta = CMPLX(COS(kr), SIN(kr), KIND=dp)**q
+               zi(idir) = zi(idir)*zdeta
+            END DO
+         END DO
+         qi = AIMAG(LOG(zi))
+         IF (dfield) THEN
+            CPABORT("dfield")
+         ELSE
+            ef_energy = -SUM(fpolvec(:)*qi(:))
+         END IF
+
+      ELSE IF (dft_control%apply_efield) THEN
+
+         fieldpol = dft_control%efield_fields(1)%efield%polarisation* &
+                    dft_control%efield_fields(1)%efield%strength
+
+         ef_energy = 0.0_dp
+         DO ia = 1, natom
+            ria = particle_set(ia)%r
+            ria = pbc(ria, cell)
+            q = charges(ia)
+            ef_energy = ef_energy - q*SUM(fieldpol*ria)
+         END DO
+
+      ELSE
+         CPABORT("apply field")
+      END IF
+
+   END SUBROUTINE eeq_efield_energy
+
+! **************************************************************************************************
+!> \brief ...
+!> \param qs_env ...
+!> \param efr ...
+! **************************************************************************************************
+   SUBROUTINE eeq_efield_pot(qs_env, efr)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: efr
+
+      INTEGER                                            :: ia, idir, natom
+      LOGICAL                                            :: dfield
+      REAL(KIND=dp)                                      :: kr
+      REAL(KIND=dp), DIMENSION(3)                        :: fieldpol, fpolvec, kvec, ria
+      REAL(KIND=dp), DIMENSION(3, 3)                     :: hmat
+      TYPE(cell_type), POINTER                           :: cell
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+
+      CALL get_qs_env(qs_env, natom=natom, dft_control=dft_control)
+      CALL get_qs_env(qs_env, cell=cell, particle_set=particle_set)
+
+      IF (dft_control%apply_period_efield) THEN
+         dfield = dft_control%period_efield%displacement_field
+         CPASSERT(.NOT. dfield)
+
+         fieldpol = dft_control%period_efield%polarisation
+         fieldpol = fieldpol/SQRT(DOT_PRODUCT(fieldpol, fieldpol))
+         fieldpol = -fieldpol*dft_control%period_efield%strength
+         hmat = cell%hmat(:, :)/twopi
+         DO idir = 1, 3
+            fpolvec(idir) = fieldpol(1)*hmat(1, idir) + fieldpol(2)*hmat(2, idir) &
+                            + fieldpol(3)*hmat(3, idir)
+         END DO
+
+         efr = 0.0_dp
+         DO ia = 1, natom
+            ria = particle_set(ia)%r
+            ria = pbc(ria, cell)
+            DO idir = 1, 3
+               kvec(:) = twopi*cell%h_inv(idir, :)
+               kr = SUM(kvec(:)*ria(:))
+               efr(ia) = efr(ia) - kr*fpolvec(idir)
+            END DO
+         END DO
+
+      ELSE IF (dft_control%apply_efield) THEN
+
+         fieldpol = dft_control%efield_fields(1)%efield%polarisation* &
+                    dft_control%efield_fields(1)%efield%strength
+
+         DO ia = 1, natom
+            ria = particle_set(ia)%r
+            ria = pbc(ria, cell)
+            efr(ia) = -SUM(fieldpol*ria)
+         END DO
+
+      ELSE
+         CPABORT("apply field")
+      END IF
+
+   END SUBROUTINE eeq_efield_pot
+
+! **************************************************************************************************
+!> \brief ...
+!> \param qs_env ...
+!> \param charges ...
+!> \param qlag ...
+! **************************************************************************************************
+   SUBROUTINE eeq_efield_force_loc(qs_env, charges, qlag)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: charges, qlag
+
+      INTEGER                                            :: atom_a, ia, iatom, ikind, natom, nkind
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind
+      REAL(KIND=dp)                                      :: q
+      REAL(KIND=dp), DIMENSION(3)                        :: fieldpol
+      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      TYPE(cell_type), POINTER                           :: cell
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(distribution_1d_type), POINTER                :: local_particles
+      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
+
+      CALL get_qs_env(qs_env=qs_env, &
+                      dft_control=dft_control, &
+                      cell=cell, particle_set=particle_set, &
+                      nkind=nkind, natom=natom, &
+                      para_env=para_env, &
+                      local_particles=local_particles)
+
+      fieldpol = dft_control%efield_fields(1)%efield%polarisation* &
+                 dft_control%efield_fields(1)%efield%strength
+
+      CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set)
+      CALL get_atomic_kind_set(atomic_kind_set, atom_of_kind=atom_of_kind)
+      CALL get_qs_env(qs_env=qs_env, force=force)
+
+      DO ikind = 1, nkind
+         force(ikind)%efield = 0.0_dp
+         DO ia = 1, local_particles%n_el(ikind)
+            iatom = local_particles%list(ikind)%array(ia)
+            q = charges(iatom) - qlag(iatom)
+            atom_a = atom_of_kind(iatom)
+            force(ikind)%efield(1:3, atom_a) = -q*fieldpol(1:3)
+         END DO
+         CALL para_env%sum(force(ikind)%efield)
+      END DO
+
+   END SUBROUTINE eeq_efield_force_loc
+
+! **************************************************************************************************
+!> \brief ...
+!> \param qs_env ...
+!> \param charges ...
+!> \param qlag ...
+! **************************************************************************************************
+   SUBROUTINE eeq_efield_force_periodic(qs_env, charges, qlag)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: charges, qlag
+
+      INTEGER                                            :: atom_a, ia, iatom, ikind, natom, nkind
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind
+      LOGICAL                                            :: dfield, use_virial
+      REAL(KIND=dp)                                      :: q
+      REAL(KIND=dp), DIMENSION(3)                        :: fa, fieldpol, ria
+      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      TYPE(cell_type), POINTER                           :: cell
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(distribution_1d_type), POINTER                :: local_particles
+      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
+      TYPE(virial_type), POINTER                         :: virial
+
+      CALL get_qs_env(qs_env=qs_env, &
+                      dft_control=dft_control, &
+                      cell=cell, particle_set=particle_set, &
+                      virial=virial, &
+                      nkind=nkind, natom=natom, &
+                      para_env=para_env, &
+                      local_particles=local_particles)
+
+      dfield = dft_control%period_efield%displacement_field
+      CPASSERT(.NOT. dfield)
+
+      fieldpol = dft_control%period_efield%polarisation
+      fieldpol = fieldpol/SQRT(DOT_PRODUCT(fieldpol, fieldpol))
+      fieldpol = -fieldpol*dft_control%period_efield%strength
+
+      use_virial = virial%pv_availability .AND. (.NOT. virial%pv_numer)
+
+      CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set)
+      CALL get_atomic_kind_set(atomic_kind_set, atom_of_kind=atom_of_kind)
+      CALL get_qs_env(qs_env=qs_env, force=force)
+
+      DO ikind = 1, nkind
+         force(ikind)%efield = 0.0_dp
+         DO ia = 1, local_particles%n_el(ikind)
+            iatom = local_particles%list(ikind)%array(ia)
+            q = charges(iatom) - qlag(iatom)
+            fa(1:3) = -q*fieldpol(1:3)
+            atom_a = atom_of_kind(iatom)
+            force(ikind)%efield(1:3, atom_a) = fa
+            IF (use_virial) THEN
+               ria = particle_set(ia)%r
+               ria = pbc(ria, cell)
+               CALL virial_pair_force(virial%pv_virial, -0.5_dp, fa, ria)
+               CALL virial_pair_force(virial%pv_virial, -0.5_dp, ria, fa)
+            END IF
+         END DO
+         CALL para_env%sum(force(ikind)%efield)
+      END DO
+
+   END SUBROUTINE eeq_efield_force_periodic
 
 END MODULE eeq_method

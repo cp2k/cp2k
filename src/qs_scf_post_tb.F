@@ -48,7 +48,8 @@ MODULE qs_scf_post_tb
    USE cp_result_methods,               ONLY: cp_results_erase,&
                                               put_results
    USE cp_result_types,                 ONLY: cp_result_type
-   USE eeq_method,                      ONLY: eeq_print
+   USE eeq_method,                      ONLY: eeq_charges,&
+                                              eeq_print
    USE input_constants,                 ONLY: ot_precond_full_all
    USE input_section_types,             ONLY: section_get_ival,&
                                               section_get_ivals,&
@@ -178,7 +179,7 @@ CONTAINS
       LOGICAL                                            :: do_cube, do_kpoints, explicit, has_homo, &
                                                             omit_headers, print_it, rebuild
       REAL(KIND=dp)                                      :: zeff
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: mcharge
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: echarge, mcharge
       REAL(KIND=dp), DIMENSION(2, 2)                     :: homo_lumo
       REAL(KIND=dp), DIMENSION(:), POINTER               :: mo_eigenvalues
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: charges
@@ -380,7 +381,15 @@ CONTAINS
          unit_nr = cp_print_key_unit_nr(logger, print_section, "MOMENTS", &
                                         extension=".data", middle_name="tb_dipole", log_filename=.FALSE.)
          moments_section => section_vals_get_subs_vals(print_section, "MOMENTS")
-         CALL tb_dipole(qs_env, moments_section, unit_nr, mcharge)
+         IF (tb_type == "xTB" .AND. dft_control%qs_control%xtb_control%gfn_type == 0) THEN
+            ALLOCATE (echarge(natom))
+            echarge = 0.0_dp
+            CALL eeq_charges(qs_env, echarge)
+            CALL tb_dipole(qs_env, moments_section, unit_nr, echarge)
+            DEALLOCATE (echarge)
+         ELSE
+            CALL tb_dipole(qs_env, moments_section, unit_nr, mcharge)
+         END IF
          CALL cp_print_key_finished_output(unit_nr, logger, print_key)
       END IF
 

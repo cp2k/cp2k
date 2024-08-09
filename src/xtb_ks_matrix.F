@@ -107,35 +107,28 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'build_gfn0_xtb_ks_matrix'
 
-      INTEGER                                            :: atom_a, handle, iatom, ikind, img, &
-                                                            iounit, is, ispin, na, natom, natorb, &
-                                                            nimg, nkind, ns, nsgf, nspins
-      INTEGER, DIMENSION(25)                             :: lao
-      INTEGER, DIMENSION(5)                              :: occ
-      LOGICAL                                            :: do_efield
+      INTEGER                                            :: handle, img, iounit, ispin, natom, nimg, &
+                                                            nspins
       REAL(KIND=dp)                                      :: pc_ener, qmmm_el
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: mcharge
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: aocg, charges
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_p1, mo_derivs, p_matrix
-      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: ks_matrix, matrix_h, matrix_p, matrix_s
-      TYPE(dbcsr_type), POINTER                          :: mo_coeff, s_matrix
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_p1, mo_derivs
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: ks_matrix, matrix_h
+      TYPE(dbcsr_type), POINTER                          :: mo_coeff
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mp_para_env_type), POINTER                    :: para_env
-      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho
-      TYPE(qs_scf_env_type), POINTER                     :: scf_env
       TYPE(section_vals_type), POINTER                   :: scf_section
-      TYPE(xtb_atom_type), POINTER                       :: xtb_kind
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (dft_control, logger, scf_section, matrix_p, particle_set, ks_env, &
-               ks_matrix, rho, energy)
+      MARK_USED(calculate_forces)
+
+      NULLIFY (dft_control, logger, scf_section, ks_env, ks_matrix, rho, &
+               energy)
       CPASSERT(ASSOCIATED(qs_env))
 
       logger => cp_get_default_logger()
@@ -149,18 +142,15 @@ CONTAINS
                       para_env=para_env, &
                       ks_env=ks_env, &
                       matrix_ks_kp=ks_matrix, &
-                      rho=rho, &
                       energy=energy)
 
       energy%hartree = 0.0_dp
       energy%qmmm_el = 0.0_dp
-      energy%efield = 0.0_dp
 
       scf_section => section_vals_get_subs_vals(qs_env%input, "DFT%SCF")
       nspins = dft_control%nspins
       nimg = dft_control%nimages
       CPASSERT(ASSOCIATED(matrix_h))
-      CPASSERT(ASSOCIATED(rho))
       CPASSERT(SIZE(ks_matrix) > 0)
 
       DO ispin = 1, nspins
@@ -170,70 +160,8 @@ CONTAINS
          END DO
       END DO
 
-      IF (dft_control%apply_period_efield .OR. dft_control%apply_efield .OR. &
-          dft_control%apply_efield_field) THEN
-         do_efield = .TRUE.
-      ELSE
-         do_efield = .FALSE.
-      END IF
-
-      IF (do_efield) THEN
-         CPABORT("gfn0 Efield NYA")
-         ! Mulliken charges
-         CALL get_qs_env(qs_env=qs_env, particle_set=particle_set, matrix_s_kp=matrix_s)
-         CALL qs_rho_get(rho, rho_ao_kp=matrix_p)
-         natom = SIZE(particle_set)
-         ALLOCATE (mcharge(natom), charges(natom, 5))
-         charges = 0.0_dp
-         nkind = SIZE(atomic_kind_set)
-         CALL get_qs_kind_set(qs_kind_set, maxsgf=nsgf)
-         ALLOCATE (aocg(nsgf, natom))
-         aocg = 0.0_dp
-         IF (nimg > 1) THEN
-            CALL ao_charges(matrix_p, matrix_s, aocg, para_env)
-         ELSE
-            p_matrix => matrix_p(:, 1)
-            s_matrix => matrix_s(1, 1)%matrix
-            CALL ao_charges(p_matrix, s_matrix, aocg, para_env)
-         END IF
-         DO ikind = 1, nkind
-            CALL get_atomic_kind(atomic_kind_set(ikind), natom=na)
-            CALL get_qs_kind(qs_kind_set(ikind), xtb_parameter=xtb_kind)
-            CALL get_xtb_atom_param(xtb_kind, natorb=natorb, lao=lao, occupation=occ)
-            DO iatom = 1, na
-               atom_a = atomic_kind_set(ikind)%atom_list(iatom)
-               charges(atom_a, :) = REAL(occ(:), KIND=dp)
-               DO is = 1, natorb
-                  ns = lao(is) + 1
-                  charges(atom_a, ns) = charges(atom_a, ns) - aocg(is, atom_a)
-               END DO
-            END DO
-         END DO
-         DEALLOCATE (aocg)
-         ! charge mixing
-         IF (dft_control%qs_control%do_ls_scf) THEN
-            !
-         ELSE
-            CALL get_qs_env(qs_env=qs_env, scf_env=scf_env)
-            CALL charge_mixing(scf_env%mixing_method, scf_env%mixing_store, &
-                               charges, para_env, scf_env%iter_count)
-         END IF
-
-         DO iatom = 1, natom
-            mcharge(iatom) = SUM(charges(iatom, :))
-         END DO
-      END IF
-
-      IF (do_efield) THEN
-         CPABORT("gfn0 Efield NYA")
-         CALL efield_tb_matrix(qs_env, ks_matrix, rho, mcharge, energy, calculate_forces, just_energy)
-      END IF
-
-      IF (dft_control%qs_control%xtb_control%coulomb_interaction .OR. do_efield) THEN
-         DEALLOCATE (mcharge, charges)
-      END IF
-
       IF (qs_env%qmmm) THEN
+         CALL get_qs_env(qs_env=qs_env, rho=rho, natom=natom)
          CPASSERT(SIZE(ks_matrix, 2) == 1)
          DO ispin = 1, nspins
             ! If QM/MM sumup the 1el Hamiltonian
