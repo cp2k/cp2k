@@ -1128,7 +1128,7 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: Eigenval_last, Eigenval_scf, &
                                                             vec_Sigma_x_gw
       TYPE(cp_cfm_type)                                  :: cfm_mat_Q
-      TYPE(cp_fm_type) :: fm_mat_Q_static_bse, fm_mat_Q_static_bse_gemm, fm_mat_RI_global_work, &
+      TYPE(cp_fm_type) :: fm_mat_Q_static_bse_gemm, fm_mat_RI_global_work, &
          fm_mat_S_ia_bse, fm_mat_work, fm_mo_coeff_occ_scaled, fm_mo_coeff_virt_scaled, &
          fm_scaled_dm_occ_tau, fm_scaled_dm_virt_tau
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: fm_mat_S_gw_work, fm_mat_W, &
@@ -1318,10 +1318,6 @@ CONTAINS
             CALL cp_fm_to_fm(fm_mat_Q_gemm(1), fm_mat_Q_static_bse_gemm)
             CALL cp_fm_set_all(fm_mat_Q_static_bse_gemm, 0.0_dp)
 
-            CALL cp_fm_create(fm_mat_Q_static_bse, fm_mat_Q(1)%matrix_struct)
-            CALL cp_fm_to_fm(fm_mat_Q(1), fm_mat_Q_static_bse)
-            CALL cp_fm_set_all(fm_mat_Q_static_bse, 0.0_dp)
-
          END IF
 
       END IF
@@ -1481,7 +1477,7 @@ CONTAINS
                                   Eigenval_scf(:, 1, ispin), homo(ispin), omega, omega_old, jquad, mm_style, &
                                   dimen_RI_red, dimen_ia(ispin), alpha, fm_mat_Q(ispin), &
                                   fm_mat_Q_gemm(ispin), do_bse, fm_mat_Q_static_bse_gemm, dgemm_counter, &
-                                  num_integ_points)
+                                  num_integ_points, count_ev_sc_GW)
                END DO
 
                ! For SOS-MP2 we need both matrices separately
@@ -1496,7 +1492,7 @@ CONTAINS
                                   Eigenval(:, 1, ispin), homo(ispin), omega, omega_old, jquad, mm_style, &
                                   dimen_RI_red, dimen_ia(ispin), alpha, fm_mat_Q(ispin), &
                                   fm_mat_Q_gemm(ispin), do_bse, fm_mat_Q_static_bse_gemm, dgemm_counter, &
-                                  num_integ_points)
+                                  num_integ_points, count_ev_sc_GW)
                END DO
 
                ! For SOS-MP2 we need both matrices separately
@@ -1571,7 +1567,7 @@ CONTAINS
                                               do_bse, do_im_time, do_periodic, first_cycle_periodic_correction, &
                                               fermi_level_offset, &
                                               omega, Eigenval(:, 1, :), delta_corr, vec_omega_fit_gw, vec_W_gw, wj, &
-                                              fm_mat_Q(1), fm_mat_Q_static_bse, fm_mat_R_gw, fm_mat_S_gw, &
+                                              fm_mat_Q(1), fm_mat_R_gw, fm_mat_S_gw, &
                                               fm_mat_S_gw_work, mo_coeff(1), para_env, &
                                               para_env_RPA, matrix_berry_im_mo_mo, matrix_berry_re_mo_mo, &
                                               kpoints, qs_env, mp2_env)
@@ -1728,6 +1724,12 @@ CONTAINS
 
       ! postprocessing after GW for Bethe-Salpeter
       IF (do_bse) THEN
+         ! Check used GW flavor; in Case of evGW we use W0 for BSE
+         IF (iter_evGW > 1) THEN
+            CALL cp_warn(__LOCATION__, &
+                        "BSE@evGW applies W0, i.e. screening with DFT energies! "// &
+                        "Use BSE@evGW0 to avoid this warning!")
+         END IF
          ! Create a copy of fm_mat_S for usage in BSE
          CALL cp_fm_create(fm_mat_S_ia_bse, fm_mat_S(1)%matrix_struct)
          CALL cp_fm_to_fm(fm_mat_S(1), fm_mat_S_ia_bse)
@@ -1741,7 +1743,7 @@ CONTAINS
          END IF
          ! Main routine for all BSE postprocessing
          CALL start_bse_calculation(fm_mat_S_ia_bse, fm_mat_S_ij_bse, fm_mat_S_ab_bse, &
-                                    fm_mat_Q_static_bse, fm_mat_Q_static_bse_gemm, &
+                                    fm_mat_Q_static_bse_gemm, &
                                     Eigenval, Eigenval_scf, &
                                     homo, virtual, dimen_RI, dimen_RI_red, bse_lev_virt, &
                                     gd_array, color_sub, mp2_env, qs_env, mo_coeff, unit_nr)

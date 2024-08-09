@@ -655,7 +655,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE calc_mat_Q(fm_mat_S, do_ri_sos_laplace_mp2, first_cycle, virtual, &
                          Eigenval, homo, omega, omega_old, jquad, mm_style, dimen_RI, dimen_ia, alpha, fm_mat_Q, fm_mat_Q_gemm, &
-                         do_bse, fm_mat_Q_static_bse_gemm, dgemm_counter, num_integ_points)
+                         do_bse, fm_mat_Q_static_bse_gemm, dgemm_counter, &
+                         num_integ_points, count_ev_sc_GW)
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_S
       LOGICAL, INTENT(IN)                                :: do_ri_sos_laplace_mp2, first_cycle
       INTEGER, INTENT(IN)                                :: virtual
@@ -668,7 +669,7 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: do_bse
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_Q_static_bse_gemm
       TYPE(dgemm_counter_type), INTENT(INOUT)            :: dgemm_counter
-      INTEGER, INTENT(IN)                                :: num_integ_points
+      INTEGER, INTENT(IN)                                :: num_integ_points, count_ev_sc_GW
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'calc_mat_Q'
 
@@ -689,7 +690,8 @@ CONTAINS
       ! fm_mat_Q_static_bse_gemm does not enter W_ijab (A matrix in TDA), but only full ABBA
       ! (since only B_ij_bar enters W_ijab)
       ! Changing jquad, since omega=0 is at last idx
-      IF (do_bse .AND. jquad == num_integ_points) THEN
+      ! We enforce W0 for BSE in case of evGW
+      IF (do_bse .AND. jquad == num_integ_points .AND. count_ev_sc_GW == 1) THEN
          CALL cp_fm_to_fm(fm_mat_Q_gemm, fm_mat_Q_static_bse_gemm)
       END IF
       CALL timestop(handle)

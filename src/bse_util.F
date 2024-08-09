@@ -828,10 +828,10 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE deallocate_matrices_bse(fm_mat_S_bar_ia_bse, fm_mat_S_bar_ij_bse, &
                                       fm_mat_S_trunc, fm_mat_S_ij_trunc, fm_mat_S_ab_trunc, &
-                                      fm_mat_Q_static_bse, fm_mat_Q_static_bse_gemm)
+                                      fm_mat_Q_static_bse_gemm)
 
       TYPE(cp_fm_type), INTENT(INOUT) :: fm_mat_S_bar_ia_bse, fm_mat_S_bar_ij_bse, fm_mat_S_trunc, &
-         fm_mat_S_ij_trunc, fm_mat_S_ab_trunc, fm_mat_Q_static_bse, fm_mat_Q_static_bse_gemm
+         fm_mat_S_ij_trunc, fm_mat_S_ab_trunc, fm_mat_Q_static_bse_gemm
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_matrices_bse'
 
@@ -844,7 +844,6 @@ CONTAINS
       CALL cp_fm_release(fm_mat_S_trunc)
       CALL cp_fm_release(fm_mat_S_ij_trunc)
       CALL cp_fm_release(fm_mat_S_ab_trunc)
-      CALL cp_fm_release(fm_mat_Q_static_bse)
       CALL cp_fm_release(fm_mat_Q_static_bse_gemm)
 
       CALL timestop(handle)
