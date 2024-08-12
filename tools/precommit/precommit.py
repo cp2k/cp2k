@@ -118,6 +118,8 @@ def main() -> None:
                 continue
             if root.startswith("./.git"):
                 continue
+            if root.startswith("./build"):
+                continue
             if "/.mypy_cache/" in root:
                 continue
             file_list += [os.path.join(root, fn) for fn in files]
