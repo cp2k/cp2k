@@ -1128,9 +1128,9 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: Eigenval_last, Eigenval_scf, &
                                                             vec_Sigma_x_gw
       TYPE(cp_cfm_type)                                  :: cfm_mat_Q
-      TYPE(cp_fm_type) :: fm_mat_Q_static_bse_gemm, fm_mat_RI_global_work, &
-         fm_mat_S_ia_bse, fm_mat_work, fm_mo_coeff_occ_scaled, fm_mo_coeff_virt_scaled, &
-         fm_scaled_dm_occ_tau, fm_scaled_dm_virt_tau
+      TYPE(cp_fm_type) :: fm_mat_Q_static_bse_gemm, fm_mat_RI_global_work, fm_mat_S_ia_bse, &
+         fm_mat_work, fm_mo_coeff_occ_scaled, fm_mo_coeff_virt_scaled, fm_scaled_dm_occ_tau, &
+         fm_scaled_dm_virt_tau
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: fm_mat_S_gw_work, fm_mat_W, &
                                                             fm_mo_coeff_occ, fm_mo_coeff_virt
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :)     :: fm_mat_L_kpoints, fm_mat_Minv_L_kpoints
@@ -1563,8 +1563,8 @@ CONTAINS
                   END IF
                ELSE
                   CALL compute_GW_self_energy(vec_Sigma_c_gw, dimen_nm_gw, dimen_RI_red, gw_corr_lev_occ, &
-                                              gw_corr_lev_virt, homo, jquad, nmo, num_fit_points, num_integ_points, &
-                                              do_bse, do_im_time, do_periodic, first_cycle_periodic_correction, &
+                                              gw_corr_lev_virt, homo, jquad, nmo, num_fit_points, &
+                                              do_im_time, do_periodic, first_cycle_periodic_correction, &
                                               fermi_level_offset, &
                                               omega, Eigenval(:, 1, :), delta_corr, vec_omega_fit_gw, vec_W_gw, wj, &
                                               fm_mat_Q(1), fm_mat_R_gw, fm_mat_S_gw, &
@@ -1727,8 +1727,8 @@ CONTAINS
          ! Check used GW flavor; in Case of evGW we use W0 for BSE
          IF (iter_evGW > 1) THEN
             CALL cp_warn(__LOCATION__, &
-                        "BSE@evGW applies W0, i.e. screening with DFT energies! "// &
-                        "Use BSE@evGW0 to avoid this warning!")
+                         "BSE@evGW applies W0, i.e. screening with DFT energies! "// &
+                         "Use BSE@evGW0 to avoid this warning!")
          END IF
          ! Create a copy of fm_mat_S for usage in BSE
          CALL cp_fm_create(fm_mat_S_ia_bse, fm_mat_S(1)%matrix_struct)

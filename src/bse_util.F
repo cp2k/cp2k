@@ -823,7 +823,6 @@ CONTAINS
 !> \param fm_mat_S_trunc ...
 !> \param fm_mat_S_ij_trunc ...
 !> \param fm_mat_S_ab_trunc ...
-!> \param fm_mat_Q_static_bse ...
 !> \param fm_mat_Q_static_bse_gemm ...
 ! **************************************************************************************************
    SUBROUTINE deallocate_matrices_bse(fm_mat_S_bar_ia_bse, fm_mat_S_bar_ij_bse, &
@@ -1689,15 +1688,15 @@ CONTAINS
 !>    provided by the user.
 !>    Prelim Ref.: C. Ullrich, Time-Dependent Density-Functional Theory: Concepts and Applications
 !>    (Oxford University Press, Oxford, 2012), Eq. 7.51
-!> \param abs_spectrum ...
 !> \param oscill_str ...
 !> \param Exc_ens ...
 !> \param info_approximation ...
+!> \param unit_nr ...
 !> \param mp2_env ...
 ! **************************************************************************************************
    SUBROUTINE compute_absorption_spectrum(oscill_str, Exc_ens, &
                                           info_approximation, unit_nr, mp2_env)
-                                          
+
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
          INTENT(IN)                                      :: oscill_str, Exc_ens
       CHARACTER(LEN=10)                                  :: info_approximation
@@ -1706,13 +1705,13 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_absorption_spectrum'
 
-      CHARACTER(LEN=28)                                  :: file_name_spectrum
       CHARACTER(LEN=10)                                  :: eta_str
-      INTEGER                                            :: handle, i, j, num_steps, unit_nr_file, k
+      CHARACTER(LEN=28)                                  :: file_name_spectrum
+      INTEGER                                            :: handle, i, j, k, num_steps, unit_nr_file
       REAL(KIND=dp)                                      :: eta, freq_end, freq_start, freq_step, &
                                                             omega
-      REAL(KIND=dp), DIMENSION(:),POINTER                        :: eta_list
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)    :: abs_spectrum
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: abs_spectrum
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: eta_list
 
       CALL timeset(routineN, handle)
 
@@ -1721,14 +1720,13 @@ CONTAINS
       freq_end = mp2_env%ri_g0w0%bse_spectrum_freq_end
       eta_list => mp2_env%ri_g0w0%bse_eta_spectrum_list
 
-
       ! Calculate number of steps to fit given frequency range
       num_steps = NINT((freq_end - freq_start)/freq_step) + 1
 
-      DO k=1, SIZE(eta_list) 
+      DO k = 1, SIZE(eta_list)
          eta = eta_list(k)
          ! Convert to str
-         WRITE(eta_str, '(F6.3)') eta
+         WRITE (eta_str, '(F6.3)') eta
          file_name_spectrum = 'BSE'//TRIM(ADJUSTL(info_approximation))//'eta='//TRIM(eta_str)//'.spectrum'
          ALLOCATE (abs_spectrum(num_steps, 2))
          abs_spectrum(:, :) = 0.0_dp
@@ -1759,7 +1757,7 @@ CONTAINS
             END DO
             CALL close_file(unit_nr_file)
          END IF
-         DEALLOCATE(abs_spectrum)
+         DEALLOCATE (abs_spectrum)
       END DO
 
       IF (unit_nr > 0) THEN
