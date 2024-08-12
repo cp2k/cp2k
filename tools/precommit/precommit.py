@@ -116,6 +116,8 @@ def main() -> None:
                 continue
             if root.startswith("./regtesting"):
                 continue
+            if root.startswith("./build"):
+                continue
             if root.startswith("./.git"):
                 continue
             if "/.mypy_cache/" in root:
