@@ -60,7 +60,7 @@ if(NOT CP2K_CONFIG_PACKAGE)
       endif()
     endif()
     if(NOT CP2K_SCALAPACK_FOUND)
-          cp2k_find_libraries(SCALAPACK "scalapack")
+      cp2k_find_libraries(SCALAPACK "scalapack")
     endif()
 
   elseif(TARGET cp2k::BLAS::MKL::scalapack_link)
