@@ -164,6 +164,7 @@ MODULE rt_tdagw
    USE qs_integrate_potential_product,  ONLY: integrate_v_rspace
    USE qs_collocate_density,            ONLY: calculate_rho_elec
    USE cp_files,                        ONLY: open_file,&
+                                              file_exists,&
                                               close_file
    USE physcon,                         ONLY: femtoseconds
    USE mathconstants,                   ONLY: twopi
@@ -198,7 +199,7 @@ CONTAINS
       ! TODO : Maybe complex?
       INTEGER                                            :: i,j,re,im, k, handle, custom_exp_method,&
                                                             rho_unit_nr
-      LOGICAL                                            :: converged
+      LOGICAL                                            :: converged, run_delta_kick
       REAL(kind=dp)                                      :: metric, enum_re, enum_im,&
                                                             idempotence_dev, a_metric_1, a_metric_2,&
                                                             intensity
@@ -262,18 +263,32 @@ CONTAINS
       ! Get the logger unit number, only print if we are the source process
       CALL get_qs_env(qs_env, bs_env=bs_env, rtp=rtp, cell=cell, matrix_s=matrix_s, input=input, dft_control=dft_control)
       rtp_control => dft_control%rtp_control
+      run_delta_kick = .TRUE.
       IF (dft_control%rtp_control%initial_wfn == use_rt_restart ) THEN
+         IF (file_exists("RESTART_INFO")) THEN
+            CALL open_file("RESTART_INFO", file_status="OLD", file_form="UNFORMATTED", file_action="READ",&
+                           unit_number=rho_unit_nr)
+            ! TODO : Error handling?
+            READ(rho_unit_nr) tdagw_env%sim_start
+            CALL close_file(rho_unit_nr)
+            run_delta_kick = .FALSE.
+         ELSE
+            CPWARN("Restart required but no RESTART_INFO file found - starting from sim_step given in&
+                    config and running delta kick")
+         END IF
          ! Load up the old density
-         WRITE (save_name, "(A,I0)") "RHO_SAVE_RE_", tdagw_env%sim_start-1
-         CALL open_file(save_name, file_status="OLD", file_form="UNFORMATTED", file_action="READ",&
-                        unit_number=rho_unit_nr)
-         CALL cp_fm_read_unformatted(tdagw_env%rho(1)%matrix, rho_unit_nr)
-         CALL close_file(rho_unit_nr)
-         WRITE (save_name, "(A,I0)") "RHO_SAVE_IM_", tdagw_env%sim_start-1
-         CALL open_file(save_name, file_status="OLD", file_form="UNFORMATTED", file_action="READ",&
-                        unit_number=rho_unit_nr)
-         CALL cp_fm_read_unformatted(tdagw_env%rho(2)%matrix, rho_unit_nr)
-         CALL close_file(rho_unit_nr)
+         IF (file_exists("RHO_SAVE_RE") .AND. file_exists("RHO_SAVE_IM")) THEN
+            CALL open_file("RHO_SAVE_RE", file_status="OLD", file_form="UNFORMATTED", file_action="READ",&
+                           unit_number=rho_unit_nr)
+            CALL cp_fm_read_unformatted(tdagw_env%rho(1)%matrix, rho_unit_nr)
+            CALL close_file(rho_unit_nr)
+            CALL open_file("RHO_SAVE_IM", file_status="OLD", file_form="UNFORMATTED", file_action="READ",&
+                           unit_number=rho_unit_nr)
+            CALL cp_fm_read_unformatted(tdagw_env%rho(2)%matrix, rho_unit_nr)
+            CALL close_file(rho_unit_nr)
+         ELSE
+            CPWARN("Restart required but either RHO_SAVE_RE or RHO_SAVE_IM file not found - starting from the SCF density")
+         END IF
       END IF
       ! TODO : Print a nicer header
       IF (tdagw_env%unit_nr > 0) WRITE(tdagw_env%unit_nr, *) "=== Starting time-dependent adiabatic GW real time propagation ==="
@@ -338,7 +353,7 @@ CONTAINS
       CALL output_moments(tdagw_env, tdagw_env%rho, bs_env%fm_mo_coeff_Gamma, rtp_section)
 
       ! Do not apply the delta kick if we are doing a restart calculation
-      IF (rtp_control%apply_delta_pulse .AND. rtp_control%initial_wfn /= use_rt_restart) THEN
+      IF (rtp_control%apply_delta_pulse .AND. run_delta_kick) THEN
          ! Extra minus for the propagation of density
          intensity = -rtp_control%delta_pulse_scale
          metric = 0.0_dp
@@ -497,18 +512,39 @@ CONTAINS
          CALL output_mos_rho(tdagw_env, tdagw_env%rho, bs_env%fm_mo_coeff_Gamma, rtp_section)
          CALL output_mos_cohsex(tdagw_env, tdagw_env%sigma_SEX, bs_env%fm_mo_coeff_Gamma, rtp_section)
          CALL output_moments(tdagw_env, tdagw_env%rho, bs_env%fm_mo_coeff_Gamma, rtp_section)
+         ! Output restart files
+         IF (file_exists("RHO_SAVE_RE")) THEN
+            CALL open_file("RHO_SAVE_RE", file_status="OLD", file_form="UNFORMATTED", file_action="WRITE",&
+                           unit_number=rho_unit_nr)
+         ELSE
+            CALL open_file("RHO_SAVE_RE", file_status="NEW", file_form="UNFORMATTED", file_action="WRITE",&
+                           unit_number=rho_unit_nr)
+         END IF
+         CALL cp_fm_write_unformatted(tdagw_env%rho(1)%matrix, rho_unit_nr)
+         CALL close_file(rho_unit_nr)
+         IF (file_exists("RHO_SAVE_IM")) THEN
+            CALL open_file("RHO_SAVE_IM", file_status="OLD", file_form="UNFORMATTED", file_action="WRITE",&
+                           unit_number=rho_unit_nr)
+         ELSE
+            CALL open_file("RHO_SAVE_IM", file_status="NEW", file_form="UNFORMATTED", file_action="WRITE",&
+                           unit_number=rho_unit_nr)
+         END IF
+         CALL cp_fm_write_unformatted(tdagw_env%rho(2)%matrix, rho_unit_nr)
+         CALL close_file(rho_unit_nr)
+         ! Write the restart info file - contains the next start number
+         ! TODO : Move to the end of each loop, so that the last iteration is always saved (or every n-th iteration)
+         IF (file_exists("RESTART_INFO")) THEN
+            CALL open_file("RESTART_INFO", file_status="OLD", file_form="UNFORMATTED", file_action="WRITE",&
+                           unit_number=rho_unit_nr)
+         ELSE
+            CALL open_file("RESTART_INFO", file_status="NEW", file_form="UNFORMATTED", file_action="WRITE",&
+                           unit_number=rho_unit_nr)
+         END IF
+         ! Output the next starting timestep
+         WRITE (rho_unit_nr) i+1
+         CALL close_file(rho_unit_nr)
       END DO
       ! ********************** End the time loop **********************
-      WRITE (save_name, "(A,I0)") "RHO_SAVE_RE_", tdagw_env%sim_nsteps
-      CALL open_file(save_name, file_status="NEW", file_form="UNFORMATTED", file_action="WRITE",&
-                     unit_number=rho_unit_nr)
-      CALL cp_fm_write_unformatted(tdagw_env%rho(1)%matrix, rho_unit_nr)
-      CALL close_file(rho_unit_nr)
-      WRITE (save_name, "(A,I0)") "RHO_SAVE_IM_", tdagw_env%sim_nsteps
-      CALL open_file(save_name, file_status="NEW", file_form="UNFORMATTED", file_action="WRITE",&
-                     unit_number=rho_unit_nr)
-      CALL cp_fm_write_unformatted(tdagw_env%rho(2)%matrix, rho_unit_nr)
-      CALL close_file(rho_unit_nr)
 
       ! ********************** DEALLOCATIONS **********************
       CALL release_tdagw_env(tdagw_env, qs_env)
