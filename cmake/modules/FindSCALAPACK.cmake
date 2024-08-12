@@ -50,10 +50,19 @@ if(NOT CP2K_CONFIG_PACKAGE)
     # scalapack is vendor specific then we sahould have a target blas::scalapack
     # available. it removes the problem of modifying too many files when we add
     # a vendor specific blas/lapack/scalapack implementation
-
+    if(CP2K_USE_MPI)
+      if(NOT CP2K_SCALAPACK_FOUND)
+        if("${MPI_Fortran_LIBRARY_VERSION_STRING}" MATCHES "Open MPI")
+          cp2k_find_libraries(SCALAPACK "scalapack-openmpi")
+        else()
+          cp2k_find_libraries(SCALAPACK "scalapack-mpich")
+        endif()
+      endif()
+    endif()
     if(NOT CP2K_SCALAPACK_FOUND)
       cp2k_find_libraries(SCALAPACK "scalapack")
     endif()
+
   elseif(TARGET cp2k::BLAS::MKL::scalapack_link)
     # we have mkl check for the different mkl target
     get_target_property(
