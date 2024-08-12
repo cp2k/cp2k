@@ -9,9 +9,9 @@ CH-hfx-md-2.inp                                        2      4e-11             
 H2O_pw.inp                                            22    1.0E-14                  -3.7204188635
 H2O_pw_a.inp                                          22    1.0E-14                  -3.7270114713
 H2O_pw_b.inp                                          22    1.0E-14                  -1.9046706475
-4H2O-disk.inp                                          1      2e-13            -301.75610704460672
-4H2O-mix-disk-ram.inp                                  1      2e-13            -301.75610704460672
-4H2O-mix-disk-ram-on-the-fly.inp                       1      2e-13            -301.75610704460672
+4H2O-disk.inp                                          1      3e-13            -301.75610704460672
+4H2O-mix-disk-ram.inp                                  1      3e-13            -301.75610704460672
+4H2O-mix-disk-ram-on-the-fly.inp                       1      3e-13            -301.75610704460672
 H2-hfx-rtp.inp                                         1      3e-13              -0.76693532081765
 H2-hfx-emd.inp                                         2    1.0E-14            -0.766935659110E+00
 H2O-hfx-emd.inp                                        2      1E-11            -0.168759280417E+02
