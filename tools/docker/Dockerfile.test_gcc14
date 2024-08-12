@@ -1,0 +1,64 @@
+#
+# This file was created by generate_dockerfiles.py.
+# Usage: docker build -f ./Dockerfile.test_gcc14 ../../
+#
+
+FROM ubuntu:24.04
+
+# Add Ubuntu universe repository.
+RUN apt-get update -qq && apt-get install -qq --no-install-recommends software-properties-common
+RUN add-apt-repository universe
+
+# Install Ubuntu packages.
+RUN export DEBIAN_FRONTEND=noninteractive DEBCONF_NONINTERACTIVE_SEEN=true && \
+    apt-get update -qq && apt-get install -qq --no-install-recommends \
+    cmake \
+    less \
+    nano \
+    make \
+    ninja-build \
+    wget \
+    python3 \
+    ca-certificates \
+    gcc-14 \
+    g++-14 \
+    gfortran-14 \
+    libfftw3-dev \
+    libopenblas-dev \
+    libint2-dev \
+    libxc-dev \
+    libxsmm-dev \
+    libspglib-f08-dev \
+   && rm -rf /var/lib/apt/lists/*
+
+# Create links in /usr/local/bin to overrule links in /usr/bin.
+RUN ln -sf /usr/bin/gcc-14      /usr/local/bin/gcc  && \
+    ln -sf /usr/bin/g++-14      /usr/local/bin/g++  && \
+    ln -sf /usr/bin/gfortran-14 /usr/local/bin/gfortran
+
+# Install DBCSR
+COPY ./tools/docker/scripts/install_dbcsr.sh ./
+RUN  ./install_dbcsr.sh
+
+# Install CP2K sources.
+WORKDIR /opt/cp2k
+COPY ./src ./src
+COPY ./data ./data
+COPY ./tests ./tests
+COPY ./tools/build_utils ./tools/build_utils
+COPY ./cmake ./cmake
+COPY ./CMakeLists.txt .
+
+# Build CP2K with CMake and run regression tests.
+ARG TESTOPTS=""
+COPY ./tools/docker/scripts/build_cp2k_cmake.sh ./tools/docker/scripts/test_regtest_cmake.sh ./
+RUN /bin/bash -o pipefail -c " \
+    TESTOPTS='${TESTOPTS}' \
+    ./test_regtest_cmake.sh ubuntu ssmp |& tee report.log && \
+    rm -rf regtesting"
+
+# Output the report if the image is old and was therefore pulled from the build cache.
+CMD cat $(find ./report.log -mmin +10) | sed '/^Summary:/ s/$/ (cached)/'
+ENTRYPOINT []
+
+#EOF
