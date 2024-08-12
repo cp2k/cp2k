@@ -22,7 +22,7 @@ COPY ./tools/toolchain/scripts/VERSION \
 COPY ./tools/toolchain/install_cp2k_toolchain.sh .
 RUN ./install_cp2k_toolchain.sh \
     --install-all \
-    --with-gcc=install \
+    --with-gcc=system \
     --mpi-mode=openmpi \
     --dry-run
 
