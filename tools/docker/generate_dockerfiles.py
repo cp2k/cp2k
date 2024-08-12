@@ -27,8 +27,7 @@ def main() -> None:
             f.write(toolchain_full(target_cpu="generic") + regtest(version))
 
     with OutputFile(f"Dockerfile.test_openmpi-psmp", args.check) as f:
-        # Also testing --with-gcc=install here, see github.com/cp2k/cp2k/issues/2062 .
-        f.write(toolchain_full(mpi_mode="openmpi", with_gcc="install"))
+        f.write(toolchain_full(mpi_mode="openmpi"))
         f.write(regtest("psmp"))
 
     with OutputFile(f"Dockerfile.test_fedora-psmp", args.check) as f:
