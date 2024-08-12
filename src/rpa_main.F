@@ -1725,10 +1725,13 @@ CONTAINS
       ! postprocessing after GW for Bethe-Salpeter
       IF (do_bse) THEN
          ! Check used GW flavor; in Case of evGW we use W0 for BSE
-         IF (iter_evGW > 1) THEN
-            CALL cp_warn(__LOCATION__, &
-                         "BSE@evGW applies W0, i.e. screening with DFT energies! "// &
-                         "Use BSE@evGW0 to avoid this warning!")
+         ! Use environment variable, since local iter_evGW is overwritten if evGW0 is invoked
+         IF (mp2_env%ri_g0w0%iter_evGW > 1) THEN
+            IF (unit_nr > 0) THEN
+               CALL cp_warn(__LOCATION__, &
+                           "BSE@evGW applies W0, i.e. screening with DFT energies! "// &
+                           "Use BSE@evGW0 to avoid this warning!")
+            END IF
          END IF
          ! Create a copy of fm_mat_S for usage in BSE
          CALL cp_fm_create(fm_mat_S_ia_bse, fm_mat_S(1)%matrix_struct)
