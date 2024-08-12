@@ -90,7 +90,11 @@ MODULE pexsi_types
       TYPE(dbcsr_csr_type)                     :: csr_mat_p = dbcsr_csr_type(), csr_mat_ks = dbcsr_csr_type(), &
                                                   csr_mat_s = dbcsr_csr_type(), csr_mat_E = dbcsr_csr_type(), &
                                                   csr_mat_F = dbcsr_csr_type()
+#if defined(__LIBPEXSI)
       TYPE(cp_pexsi_options)                   :: options
+#else
+      TYPE(cp_pexsi_options)                   :: options = cp_pexsi_options()
+#endif
       REAL(KIND=dp), DIMENSION(:), POINTER     :: kTS => NULL()
       TYPE(dbcsr_p_type), DIMENSION(:), &
          POINTER                               :: matrix_w => NULL()
