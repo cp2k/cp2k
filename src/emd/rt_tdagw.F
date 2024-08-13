@@ -144,7 +144,9 @@ MODULE rt_tdagw
    USE cp_log_handling,                 ONLY: cp_logger_type,&
                                               cp_get_default_logger,&
                                               cp_logger_get_unit_nr
-   USE cp_output_handling,              ONLY: cp_print_key_unit_nr
+   USE cp_output_handling,              ONLY: cp_print_key_unit_nr,&
+                                              cp_print_key_finished_output,&
+                                              cp_print_key_generate_filename
    USE message_passing,                 ONLY: mp_para_env_type
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type
@@ -195,11 +197,11 @@ CONTAINS
       TYPE(rt_prop_type), POINTER                        :: rtp
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(section_vals_type), POINTER                   :: input, rtp_section, dft_section
+      TYPE(section_vals_type), POINTER                   :: input, rtp_section, dft_section, restart_section
       ! TODO : Maybe complex?
       INTEGER                                            :: i,j,re,im, k, handle, custom_exp_method,&
                                                             rho_unit_nr
-      LOGICAL                                            :: converged, run_delta_kick
+      LOGICAL                                            :: converged, run_restart
       REAL(kind=dp)                                      :: metric, enum_re, enum_im,&
                                                             idempotence_dev, a_metric_1, a_metric_2,&
                                                             intensity
@@ -215,7 +217,8 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(cp_fm_type)                                   :: buffer_matrix, buffer_matrix_2
-      CHARACTER(len=default_path_length)                 :: save_name
+      CHARACTER(len=default_path_length)                 :: save_name_re, save_name_im, save_name_info
+      TYPE(cp_logger_type), POINTER                      :: logger
 
       CALL timeset(routineN, handle)
       ! Run the initial SCF calculation / read restart information
@@ -263,26 +266,35 @@ CONTAINS
       ! Get the logger unit number, only print if we are the source process
       CALL get_qs_env(qs_env, bs_env=bs_env, rtp=rtp, cell=cell, matrix_s=matrix_s, input=input, dft_control=dft_control)
       rtp_control => dft_control%rtp_control
-      run_delta_kick = .TRUE.
+      run_restart = .FALSE.
+      logger => cp_get_default_logger()
+      restart_section => section_vals_get_subs_vals(input, "DFT%REAL_TIME_PROPAGATION%PRINT%RESTART")
       IF (dft_control%rtp_control%initial_wfn == use_rt_restart ) THEN
-         IF (file_exists("RESTART_INFO")) THEN
-            CALL open_file("RESTART_INFO", file_status="OLD", file_form="UNFORMATTED", file_action="READ",&
+         save_name_info = cp_print_key_generate_filename(logger, restart_section, extension=".info", my_local=.FALSE.)
+         IF (file_exists(save_name_info)) THEN
+            CALL open_file(save_name_info, file_status="OLD", file_form="UNFORMATTED", file_action="READ",&
                            unit_number=rho_unit_nr)
             ! TODO : Error handling?
             READ(rho_unit_nr) tdagw_env%sim_start
             CALL close_file(rho_unit_nr)
-            run_delta_kick = .FALSE.
+            run_restart = .TRUE.
+            IF (tdagw_env%unit_nr > 0) WRITE (tdagw_env%unit_nr, *) "Starting from timestep ", tdagw_env%sim_start,&
+                    ", no delta kick applied"
          ELSE
             CPWARN("Restart required but no RESTART_INFO file found - starting from sim_step given in&
                     config and running delta kick")
          END IF
          ! Load up the old density
-         IF (file_exists("RHO_SAVE_RE") .AND. file_exists("RHO_SAVE_IM")) THEN
-            CALL open_file("RHO_SAVE_RE", file_status="OLD", file_form="UNFORMATTED", file_action="READ",&
+         save_name_re = cp_print_key_generate_filename(logger, restart_section, extension="_RE.matrix", my_local=.FALSE.)
+         save_name_im = cp_print_key_generate_filename(logger, restart_section, extension="_IM.matrix", my_local=.FALSE.)
+         IF (file_exists(save_name_re) .AND. file_exists(save_name_im)) THEN
+            ! Get unit numbers
+            ! rho_unit_re = cp_print_key_unit_nr(logger, input, "DFT%REAL_TIME_PROPAGATION%PRINT%RESTART", extension="_RE.matrix")
+            CALL open_file(save_name_re, file_status="OLD", file_form="UNFORMATTED", file_action="READ",&
                            unit_number=rho_unit_nr)
             CALL cp_fm_read_unformatted(tdagw_env%rho(1)%matrix, rho_unit_nr)
             CALL close_file(rho_unit_nr)
-            CALL open_file("RHO_SAVE_IM", file_status="OLD", file_form="UNFORMATTED", file_action="READ",&
+            CALL open_file(save_name_im, file_status="OLD", file_form="UNFORMATTED", file_action="READ",&
                            unit_number=rho_unit_nr)
             CALL cp_fm_read_unformatted(tdagw_env%rho(2)%matrix, rho_unit_nr)
             CALL close_file(rho_unit_nr)
@@ -346,14 +358,14 @@ CONTAINS
          END DO
       END IF
 
-      ! Output 0 time moments
       ! Setup the files
       rtp_section => section_vals_get_subs_vals(input, "DFT%REAL_TIME_PROPAGATION")
       tdagw_env%sim_time = REAL(tdagw_env%sim_start, dp)*tdagw_env%sim_dt
-      CALL output_moments(tdagw_env, tdagw_env%rho, bs_env%fm_mo_coeff_Gamma, rtp_section)
+      ! Output 0 time moments
+      IF (.NOT. run_restart) CALL output_moments(tdagw_env, tdagw_env%rho, bs_env%fm_mo_coeff_Gamma, rtp_section)
 
       ! Do not apply the delta kick if we are doing a restart calculation
-      IF (rtp_control%apply_delta_pulse .AND. run_delta_kick) THEN
+      IF (rtp_control%apply_delta_pulse .AND. (.NOT. run_restart)) THEN
          ! Extra minus for the propagation of density
          intensity = -rtp_control%delta_pulse_scale
          metric = 0.0_dp
@@ -513,31 +525,34 @@ CONTAINS
          CALL output_mos_cohsex(tdagw_env, tdagw_env%sigma_SEX, bs_env%fm_mo_coeff_Gamma, rtp_section)
          CALL output_moments(tdagw_env, tdagw_env%rho, bs_env%fm_mo_coeff_Gamma, rtp_section)
          ! Output restart files
-         IF (file_exists("RHO_SAVE_RE")) THEN
-            CALL open_file("RHO_SAVE_RE", file_status="OLD", file_form="UNFORMATTED", file_action="WRITE",&
+         save_name_re = cp_print_key_generate_filename(logger, restart_section, extension="_RE.matrix", my_local=.FALSE.)
+         save_name_im = cp_print_key_generate_filename(logger, restart_section, extension="_IM.matrix", my_local=.FALSE.)
+         IF (file_exists(save_name_re)) THEN
+            CALL open_file(save_name_re, file_status="OLD", file_form="UNFORMATTED", file_action="WRITE",&
                            unit_number=rho_unit_nr)
          ELSE
-            CALL open_file("RHO_SAVE_RE", file_status="NEW", file_form="UNFORMATTED", file_action="WRITE",&
+            CALL open_file(save_name_re, file_status="NEW", file_form="UNFORMATTED", file_action="WRITE",&
                            unit_number=rho_unit_nr)
          END IF
          CALL cp_fm_write_unformatted(tdagw_env%rho(1)%matrix, rho_unit_nr)
          CALL close_file(rho_unit_nr)
-         IF (file_exists("RHO_SAVE_IM")) THEN
-            CALL open_file("RHO_SAVE_IM", file_status="OLD", file_form="UNFORMATTED", file_action="WRITE",&
+         IF (file_exists(save_name_im)) THEN
+            CALL open_file(save_name_im, file_status="OLD", file_form="UNFORMATTED", file_action="WRITE",&
                            unit_number=rho_unit_nr)
          ELSE
-            CALL open_file("RHO_SAVE_IM", file_status="NEW", file_form="UNFORMATTED", file_action="WRITE",&
+            CALL open_file(save_name_im, file_status="NEW", file_form="UNFORMATTED", file_action="WRITE",&
                            unit_number=rho_unit_nr)
          END IF
          CALL cp_fm_write_unformatted(tdagw_env%rho(2)%matrix, rho_unit_nr)
          CALL close_file(rho_unit_nr)
          ! Write the restart info file - contains the next start number
+         save_name_re = cp_print_key_generate_filename(logger, restart_section, extension=".info", my_local=.FALSE.)
          ! TODO : Move to the end of each loop, so that the last iteration is always saved (or every n-th iteration)
-         IF (file_exists("RESTART_INFO")) THEN
-            CALL open_file("RESTART_INFO", file_status="OLD", file_form="UNFORMATTED", file_action="WRITE",&
+         IF (file_exists(save_name_info)) THEN
+            CALL open_file(save_name_info, file_status="OLD", file_form="UNFORMATTED", file_action="WRITE",&
                            unit_number=rho_unit_nr)
          ELSE
-            CALL open_file("RESTART_INFO", file_status="NEW", file_form="UNFORMATTED", file_action="WRITE",&
+            CALL open_file(save_name_info, file_status="NEW", file_form="UNFORMATTED", file_action="WRITE",&
                            unit_number=rho_unit_nr)
          END IF
          ! Output the next starting timestep
@@ -1044,6 +1059,8 @@ CONTAINS
          CALL parallel_gemm("N", "N", tdagw_env%n_ao, tdagw_env%n_ao, tdagw_env%n_ao,&
                             1.0_dp, tdagw_env%rho_workspace(1)%matrix, mos(j), 0.0_dp, tdagw_env%rho_workspace(2)%matrix)
          CALL cp_fm_write_formatted(tdagw_env%rho_workspace(2)%matrix, rho_unit_im)
+         CALL cp_print_key_finished_output(rho_unit_re, logger, rtp_section, "PRINT%DENSITY_MATRIX")
+         CALL cp_print_key_finished_output(rho_unit_im, logger, rtp_section, "PRINT%DENSITY_MATRIX")
       END DO
    END SUBROUTINE
 ! **************************************************************************************************
@@ -1061,12 +1078,13 @@ CONTAINS
       ! Get logger
       logger => cp_get_default_logger()
       ! Get file descriptor
-      field_unit = cp_print_key_unit_nr(logger, rtp_section, "PRINT%FIELD", extension=".field")
+      field_unit = cp_print_key_unit_nr(logger, rtp_section, "PRINT%FIELD", extension=".dat")
       ! If the file descriptor is non-zero, output field
       IF (field_unit /= -1) THEN
          WRITE(field_unit, '(E20.8E3,E20.8E3,E20.8E3,E20.8E3)') tdagw_env%sim_time*femtoseconds,&
                tdagw_env%field(1), tdagw_env%field(2), tdagw_env%field(3)
       END IF
+      CALL cp_print_key_finished_output(field_unit, logger, rtp_section, "PRINT%FIELD")
       
    END SUBROUTINE
 
@@ -1123,6 +1141,9 @@ CONTAINS
          ! Output to the file
          IF(moments_unit_im > 0) WRITE(moments_unit_im, '(D16.8,D16.8,D16.8,D16.8)') tdagw_env%sim_time*femtoseconds, moments(1),&
              moments(2), moments(3)
+         ! Close the files
+         CALL cp_print_key_finished_output(moments_unit_re, logger, rtp_section, "PRINT%MOMENTS")
+         CALL cp_print_key_finished_output(moments_unit_im, logger, rtp_section, "PRINT%MOMENTS")
       END DO
    END SUBROUTINE
 ! **************************************************************************************************
@@ -1260,6 +1281,10 @@ CONTAINS
          CALL parallel_gemm("N", "N", tdagw_env%n_ao, tdagw_env%n_ao, tdagw_env%n_ao,&
                             1.0_dp, tdagw_env%rho_workspace(1)%matrix, mos(j), 0.0_dp, tdagw_env%rho_workspace(2)%matrix)
          CALL cp_fm_write_formatted(tdagw_env%rho_workspace(2)%matrix, rho_unit_im)
+         IF (.NOT. PRESENT(custom_unit)) THEN
+            CALL cp_print_key_finished_output(rho_unit_re, logger, rtp_section, "PRINT%DENSITY_MATRIX")
+            CALL cp_print_key_finished_output(rho_unit_im, logger, rtp_section, "PRINT%DENSITY_MATRIX")
+         END IF
       END DO
    END SUBROUTINE
 
