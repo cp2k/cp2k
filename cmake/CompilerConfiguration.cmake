@@ -38,11 +38,11 @@ add_compile_options(
   "$<$<COMPILE_LANG_AND_ID:C,GNU>:-march=native;-mtune=native>"
   "$<$<COMPILE_LANG_AND_ID:Fortran,GNU>:-march=native;-mtune=native;-fbacktrace;-ffree-line-length-none;-ffree-form;-std=f2008;-fimplicit-none;-Werror=aliasing;-Werror=ampersand;-Werror=c-binding-type;-Werror=conversion;-Werror=intrinsic-shadow;-Werror=intrinsics-std;-Werror=line-truncation;-Werror=tabs;-Werror=target-lifetime;-Werror=underflow;-Werror=unused-but-set-variable;-Werror=unused-variable>"
   "$<$<AND:$<COMPILE_LANG_AND_ID:Fortran,GNU>,$<VERSION_GREATER_EQUAL:${CMAKE_Fortran_COMPILER_VERSION},11>>:-fallow-argument-mismatch>"
-  "$<$<COMPILE_LANG_AND_ID:Fortran,Intel>:-free -stand=f18 -fpp -heap-arrays>"
-  "$<$<COMPILE_LANG_AND_ID:Fortran,PGI>:-Mfreeform -Mextend -Mallocatable=03>"
-  "$<$<COMPILE_LANG_AND_ID:Fortran,NAG>:-f2008 -free -Warn=reallocation -Warn=subnormal>"
-  "$<$<COMPILE_LANG_AND_ID:C,Cray>:-hnoacc -h nomessage=1234>"
-  "$<$<COMPILE_LANG_AND_ID:Fortran,Cray>:-f free -M3105 -ME7212  -hnoacc -M1234>"
+  "$<$<COMPILE_LANG_AND_ID:Fortran,Intel>:-free;-stand=f18;-fpp;-heap-arrays>"
+  "$<$<COMPILE_LANG_AND_ID:Fortran,PGI>:-Mfreeform;-Mextend;-Mallocatable=03>"
+  "$<$<COMPILE_LANG_AND_ID:Fortran,NAG>:-f2008;-free;-Warn=reallocation;-Warn=subnormal>"
+  "$<$<COMPILE_LANG_AND_ID:C,Cray>:-hnoacc;-h;nomessage=1234>"
+  "$<$<COMPILE_LANG_AND_ID:Fortran,Cray>:-f;free;-M3105;-ME7212;-hnoacc;-M1234>"
 )
 
 add_compile_options(
@@ -80,8 +80,8 @@ add_compile_options(
   "$<$<AND:$<CONFIG:COVERAGE>,$<COMPILE_LANG_AND_ID:C,GNU>>:-O0;-g;--coverage;-Wall>"
 )
 
-if(NOT CP2K_USE_MPI OR NOT "${MPI_Fortran_LIBRARY_VERSION_STRING}" MATCHES "Open
-  MPI")
+if(NOT CP2K_USE_MPI OR NOT "${MPI_Fortran_LIBRARY_VERSION_STRING}" MATCHES
+                       "Open MPI")
   add_compile_options(
     "$<$<AND:$<CONFIG:COVERAGE>,$<COMPILE_LANG_AND_ID:Fortran,GNU>>:-fsanitize=leak>"
     "$<$<AND:$<CONFIG:COVERAGE>,$<COMPILE_LANG_AND_ID:C,GNU>>:-O0;-g;--coverage;-Wall>"
