@@ -773,8 +773,6 @@ CONTAINS
 !> \param jquad ...
 !> \param nmo ...
 !> \param num_fit_points ...
-!> \param num_integ_points ...
-!> \param do_bse ...
 !> \param do_im_time ...
 !> \param do_periodic ...
 !> \param first_cycle_periodic_correction ...
@@ -786,7 +784,6 @@ CONTAINS
 !> \param vec_W_gw ...
 !> \param wj ...
 !> \param fm_mat_Q ...
-!> \param fm_mat_Q_static_bse ...
 !> \param fm_mat_R_gw ...
 !> \param fm_mat_S_gw ...
 !> \param fm_mat_S_gw_work ...
@@ -801,10 +798,10 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE compute_GW_self_energy(vec_Sigma_c_gw, dimen_nm_gw, dimen_RI, gw_corr_lev_occ, &
                                      gw_corr_lev_virt, homo, jquad, nmo, num_fit_points, &
-                                     num_integ_points, do_bse, do_im_time, do_periodic, &
+                                     do_im_time, do_periodic, &
                                      first_cycle_periodic_correction, fermi_level_offset, &
                                      omega, Eigenval, delta_corr, vec_omega_fit_gw, vec_W_gw, wj, &
-                                     fm_mat_Q, fm_mat_Q_static_bse, fm_mat_R_gw, fm_mat_S_gw, &
+                                     fm_mat_Q, fm_mat_R_gw, fm_mat_S_gw, &
                                      fm_mat_S_gw_work, mo_coeff, para_env, &
                                      para_env_RPA, matrix_berry_im_mo_mo, matrix_berry_re_mo_mo, &
                                      kpoints, qs_env, mp2_env)
@@ -813,9 +810,8 @@ CONTAINS
          DIMENSION(:, :, :, :), INTENT(INOUT)            :: vec_Sigma_c_gw
       INTEGER, INTENT(IN)                                :: dimen_nm_gw, dimen_RI
       INTEGER, DIMENSION(:), INTENT(IN)                  :: gw_corr_lev_occ, gw_corr_lev_virt, homo
-      INTEGER, INTENT(IN)                                :: jquad, nmo, num_fit_points, &
-                                                            num_integ_points
-      LOGICAL, INTENT(IN)                                :: do_bse, do_im_time, do_periodic
+      INTEGER, INTENT(IN)                                :: jquad, nmo, num_fit_points
+      LOGICAL, INTENT(IN)                                :: do_im_time, do_periodic
       LOGICAL, INTENT(INOUT) :: first_cycle_periodic_correction
       REAL(KIND=dp), INTENT(INOUT)                       :: fermi_level_offset, omega
       REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: Eigenval
@@ -827,8 +823,7 @@ CONTAINS
          INTENT(INOUT)                                   :: vec_W_gw
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
          INTENT(IN)                                      :: wj
-      TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_Q, fm_mat_Q_static_bse, &
-                                                            fm_mat_R_gw
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_Q, fm_mat_R_gw
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: fm_mat_S_gw, fm_mat_S_gw_work
       TYPE(cp_fm_type), INTENT(IN)                       :: mo_coeff
       TYPE(mp_para_env_type), POINTER                    :: para_env, para_env_RPA
@@ -859,11 +854,6 @@ CONTAINS
          CALL cp_fm_cholesky_invert(fm_mat_Q)
          ! symmetrize the result, fm_mat_R_gw is only temporary work matrix
          CALL cp_fm_upper_to_full(fm_mat_Q, fm_mat_R_gw)
-
-         ! Omega=0 is at last index, not at jquad==1
-         IF (do_bse .AND. jquad == num_integ_points) THEN
-            CALL cp_fm_to_fm(fm_mat_Q, fm_mat_Q_static_bse)
-         END IF
 
          ! periodic correction for GW (paper Phys. Rev. B 95, 235123 (2017))
          IF (do_periodic) THEN

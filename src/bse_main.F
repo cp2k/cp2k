@@ -57,7 +57,6 @@ CONTAINS
 !> \param fm_mat_S_ia_bse ...
 !> \param fm_mat_S_ij_bse ...
 !> \param fm_mat_S_ab_bse ...
-!> \param fm_mat_Q_static_bse ...
 !> \param fm_mat_Q_static_bse_gemm ...
 !> \param Eigenval ...
 !> \param Eigenval_scf ...
@@ -74,15 +73,14 @@ CONTAINS
 !> \param unit_nr ...
 ! **************************************************************************************************
    SUBROUTINE start_bse_calculation(fm_mat_S_ia_bse, fm_mat_S_ij_bse, fm_mat_S_ab_bse, &
-                                    fm_mat_Q_static_bse, fm_mat_Q_static_bse_gemm, &
+                                    fm_mat_Q_static_bse_gemm, &
                                     Eigenval, Eigenval_scf, &
                                     homo, virtual, dimen_RI, dimen_RI_red, bse_lev_virt, &
                                     gd_array, color_sub, mp2_env, qs_env, mo_coeff, unit_nr)
 
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_S_ia_bse, fm_mat_S_ij_bse, &
                                                             fm_mat_S_ab_bse
-      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_mat_Q_static_bse, &
-                                                            fm_mat_Q_static_bse_gemm
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_mat_Q_static_bse_gemm
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
          INTENT(IN)                                      :: Eigenval, Eigenval_scf
       INTEGER, DIMENSION(:), INTENT(IN)                  :: homo, virtual
@@ -222,7 +220,7 @@ CONTAINS
 
       CALL deallocate_matrices_bse(fm_mat_S_bar_ia_bse, fm_mat_S_bar_ij_bse, &
                                    fm_mat_S_ia_trunc, fm_mat_S_ij_trunc, fm_mat_S_ab_trunc, &
-                                   fm_mat_Q_static_bse, fm_mat_Q_static_bse_gemm)
+                                   fm_mat_Q_static_bse_gemm)
       DEALLOCATE (Eigenval_reduced)
       IF (my_do_iterat_diag) THEN
          ! Contains untested Block-Davidson algorithm
