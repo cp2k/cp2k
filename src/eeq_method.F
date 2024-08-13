@@ -197,19 +197,29 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: iounit, print_level
 
       CHARACTER(LEN=2)                                   :: element_symbol
-      INTEGER                                            :: iatom, ikind, natom
+      INTEGER                                            :: enshift_type, iatom, ikind, natom
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: charges
+      TYPE(cell_type), POINTER                           :: cell
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
 
       MARK_USED(print_level)
 
       CALL get_qs_env(qs_env, natom=natom, particle_set=particle_set)
       ALLOCATE (charges(natom))
-      CALL eeq_charges(qs_env, charges)
+      CALL get_qs_env(qs_env, cell=cell)
+      enshift_type = 2
+      IF (ALL(cell%perd == 0)) enshift_type = 1
+      CALL eeq_charges(qs_env, charges, enshift_type)
 
       IF (iounit > 0) THEN
 
-         WRITE (UNIT=iounit, FMT="(/,T2,A)") "EEQ Charges (Standard Parametrization)"
+         IF (enshift_type == 1) THEN
+            WRITE (UNIT=iounit, FMT="(/,T2,A)") "EEQ Charges (Standard Parametrization (Molecules))"
+         ELSE IF (enshift_type == 2) THEN
+            WRITE (UNIT=iounit, FMT="(/,T2,A)") "EEQ Charges (Standard Parametrization (Crystals))"
+         ELSE
+            CPABORT("Unknown enshift_type")
+         END IF
          WRITE (UNIT=iounit, FMT="(/,T2,A)") &
             "#     Atom  Element     Kind            Atomic Charge"
 
@@ -231,11 +241,13 @@ CONTAINS
 !> \brief ...
 !> \param qs_env ...
 !> \param charges ...
+!> \param enshift_type ...
 ! **************************************************************************************************
-   SUBROUTINE eeq_charges(qs_env, charges)
+   SUBROUTINE eeq_charges(qs_env, charges, enshift_type)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: charges
+      INTEGER, INTENT(IN)                                :: enshift_type
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'eeq_charges'
 
@@ -244,8 +256,8 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: kind_of
       INTEGER, DIMENSION(3)                              :: periodic
       LOGICAL                                            :: do_ewald, do_sparse
-      REAL(KIND=dp)                                      :: ala, alb, eeq_energy, kappa, lambda, &
-                                                            scn, totalcharge, xi
+      REAL(KIND=dp)                                      :: ala, alb, eeq_energy, esg, kappa, &
+                                                            lambda, scn, sgamma, totalcharge, xi
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: chia, cnumbers, efr, gam
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: gab
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
@@ -297,6 +309,8 @@ CONTAINS
       END DO
 
       ! Chi[a,a]
+      sgamma = 8.0_dp ! see D4 for periodic systems paper
+      esg = 1.0_dp + EXP(sgamma)
       ALLOCATE (chia(natom))
       CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, kind_of=kind_of)
       DO iatom = 1, natom
@@ -305,7 +319,13 @@ CONTAINS
          xi = eeqChi(za)
          kappa = eeqkCN(za)
          !
-         scn = SQRT(cnumbers(iatom)) + 1.0e-14_dp
+         IF (enshift_type == 1) THEN
+            scn = SQRT(cnumbers(iatom)) + 1.0e-14_dp
+         ELSE IF (enshift_type == 2) THEN
+            scn = LOG(esg/(esg - cnumbers(iatom)))
+         ELSE
+            CPABORT("Unknown enshift_type")
+         END IF
          chia(iatom) = xi - kappa*scn
          !
       END DO

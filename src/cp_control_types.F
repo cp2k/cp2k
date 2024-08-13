@@ -185,6 +185,8 @@ MODULE cp_control_types
       REAL(KIND=dp)                        :: ksrb = 0.0_dp, esrb = 0.0_dp, gscal = 0.0_dp
       REAL(KIND=dp)                        :: c1srb = 0.0_dp, c2srb = 0.0_dp, shift = 0.0_dp
       !
+      ! EN shift in EEQ (molecular=1 or crystaline=2)
+      INTEGER                              :: enshift_type = 1
    END TYPE xtb_control_type
 
 ! **************************************************************************************************

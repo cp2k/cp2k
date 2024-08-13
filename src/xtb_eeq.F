@@ -81,12 +81,12 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'xtb_eeq_calculation'
 
-      INTEGER                                            :: handle, iatom, ikind, iunit, jkind, &
-                                                            natom, nkind
+      INTEGER                                            :: enshift_type, handle, iatom, ikind, &
+                                                            iunit, jkind, natom, nkind
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: kind_of
       LOGICAL                                            :: defined, do_ewald, do_sparse
-      REAL(KIND=dp)                                      :: ala, alb, gama, kappa, scn, totalcharge, &
-                                                            xi
+      REAL(KIND=dp)                                      :: ala, alb, cn, esg, gama, kappa, scn, &
+                                                            sgamma, totalcharge, xi
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: chia, efr, gam
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: gab
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
@@ -145,6 +145,13 @@ CONTAINS
       END DO
 
       ! Chi[a,a]
+      enshift_type = xtb_control%enshift_type
+      IF (enshift_type == 0) THEN
+         enshift_type = 2
+         IF (ALL(cell%perd == 0)) enshift_type = 1
+      END IF
+      sgamma = 8.0_dp ! see D4 for periodic systems paper
+      esg = 1.0_dp + EXP(sgamma)
       ALLOCATE (chia(natom))
       CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, kind_of=kind_of)
       DO iatom = 1, natom
@@ -152,7 +159,14 @@ CONTAINS
          CALL get_qs_kind(qs_kind_set(ikind), xtb_parameter=xtb_atom_a)
          CALL get_xtb_atom_param(xtb_atom_a, xi=xi, kappa0=kappa)
          !
-         scn = SQRT(cnumbers(iatom)) + 1.0e-14_dp
+         IF (enshift_type == 1) THEN
+            scn = SQRT(cnumbers(iatom)) + 1.0e-14_dp
+         ELSE IF (enshift_type == 2) THEN
+            cn = cnumbers(iatom)/esg
+            scn = LOG(esg/(esg - cnumbers(iatom)))
+         ELSE
+            CPABORT("Unknown enshift_type")
+         END IF
          chia(iatom) = xi - kappa*scn
          !
       END DO
@@ -215,15 +229,16 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'xtb_eeq_forces'
 
-      INTEGER                                            :: atom_a, atom_b, atom_c, handle, i, ia, &
-                                                            iatom, ikind, iunit, jatom, jkind, &
-                                                            katom, kkind, natom, nkind
+      INTEGER                                            :: atom_a, atom_b, atom_c, enshift_type, &
+                                                            handle, i, ia, iatom, ikind, iunit, &
+                                                            jatom, jkind, katom, kkind, natom, &
+                                                            nkind
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, kind_of
       LOGICAL                                            :: defined, do_ewald, do_sparse, use_virial
-      REAL(KIND=dp)                                      :: ala, alb, alpha, ctot, dr, dr2, drk, &
-                                                            elag, gam2, gama, grc, kappa, qlam, &
-                                                            qq, qq1, qq2, rcut, scn, totalcharge, &
-                                                            xi
+      REAL(KIND=dp)                                      :: ala, alb, alpha, cn, ctot, dr, dr2, drk, &
+                                                            elag, esg, gam2, gama, grc, kappa, &
+                                                            qlam, qq, qq1, qq2, rcut, scn, sgamma, &
+                                                            totalcharge, xi
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: gam
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: epforce, gab
       REAL(KIND=dp), DIMENSION(3)                        :: fdik, ri, rij, rik, rj
@@ -313,15 +328,30 @@ CONTAINS
                          para_env, blacs_env, iounit=iunit)
       END IF
 
+      enshift_type = xtb_control%enshift_type
+      IF (enshift_type == 0) THEN
+         enshift_type = 2
+         IF (ALL(cell%perd == 0)) enshift_type = 1
+      END IF
+      sgamma = 8.0_dp ! see D4 for periodic systems paper
+      esg = 1.0_dp + EXP(sgamma)
       ALLOCATE (chrgx(natom), dchia(natom))
       DO iatom = 1, natom
          ikind = kind_of(iatom)
          CALL get_qs_kind(qs_kind_set(ikind), xtb_parameter=xtb_atom_a)
          CALL get_xtb_atom_param(xtb_atom_a, xi=xi, kappa0=kappa, eta=gama)
          !
-         scn = SQRT(cnumbers(iatom)) + 1.0e-14_dp
          ctot = 0.5_dp*(charges(iatom) - qlag(iatom))
-         dchia(iatom) = -ctot*kappa/scn
+         IF (enshift_type == 1) THEN
+            scn = SQRT(cnumbers(iatom)) + 1.0e-14_dp
+            dchia(iatom) = -ctot*kappa/scn
+         ELSE IF (enshift_type == 2) THEN
+            cn = cnumbers(iatom)
+            scn = 1.0_dp/(esg - cn)
+            dchia(iatom) = -ctot*kappa*scn
+         ELSE
+            CPABORT("Unknown enshift_type")
+         END IF
       END DO
 
       ! Efield

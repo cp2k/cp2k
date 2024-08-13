@@ -1489,6 +1489,19 @@ CONTAINS
             qs_control%xtb_control%shift = scal(6)
          END IF
 
+         CALL section_vals_val_get(xtb_section, "EN_SHIFT_TYPE", c_val=cval)
+         CALL uppercase(cval)
+         SELECT CASE (TRIM(cval))
+         CASE ("SELECT")
+            qs_control%xtb_control%enshift_type = 0
+         CASE ("MOLECULE")
+            qs_control%xtb_control%enshift_type = 1
+         CASE ("CRYSTAL")
+            qs_control%xtb_control%enshift_type = 2
+         CASE DEFAULT
+            CPABORT("Unknown value for EN_SHIFT_TYPE")
+         END SELECT
+
       END IF
 
       ! Optimize LRI basis set

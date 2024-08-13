@@ -217,6 +217,14 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="EN_SHIFT_TYPE", &
+                          description="Shift function for electronegativity in EEQ method. "// &
+                          "[Select/Molecule/Crystal] Default Select from periodicity.", &
+                          usage="EN_SHIFT_TYPE [Select/Molecule/Crystal]", &
+                          n_var=1, type_of_var=char_t, default_c_val="Molecule")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
    END SUBROUTINE create_xtb_control_section
 
 ! **************************************************************************************************

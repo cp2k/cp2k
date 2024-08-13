@@ -172,10 +172,8 @@ CONTAINS
 
       CHARACTER(LEN=6)                                   :: ana
       CHARACTER(LEN=default_string_length)               :: aname
-      INTEGER                                            :: after, handle, homo, iat, iatom, ikind, &
-                                                            img, ispin, iw, nat, natom, nkind, &
-                                                            nlumo_stm, nlumos, nspins, &
-                                                            print_level, unit_nr
+      INTEGER :: after, enshift_type, handle, homo, iat, iatom, ikind, img, ispin, iw, nat, natom, &
+         nkind, nlumo_stm, nlumos, nspins, print_level, unit_nr
       LOGICAL                                            :: do_cube, do_kpoints, explicit, has_homo, &
                                                             omit_headers, print_it, rebuild
       REAL(KIND=dp)                                      :: zeff
@@ -184,6 +182,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), POINTER               :: mo_eigenvalues
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: charges
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_1d_r_p_type), DIMENSION(:), POINTER        :: unoccupied_evals_stm
       TYPE(cp_fm_type), DIMENSION(:), POINTER            :: unoccupied_orbs_stm
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
@@ -382,9 +381,15 @@ CONTAINS
                                         extension=".data", middle_name="tb_dipole", log_filename=.FALSE.)
          moments_section => section_vals_get_subs_vals(print_section, "MOMENTS")
          IF (tb_type == "xTB" .AND. dft_control%qs_control%xtb_control%gfn_type == 0) THEN
+            enshift_type = dft_control%qs_control%xtb_control%enshift_type
+            IF (enshift_type == 0) THEN
+               CALL get_qs_env(qs_env, cell=cell)
+               enshift_type = 1
+               IF (.NOT. ALL(cell%perd == 0)) enshift_type = 2
+            END IF
             ALLOCATE (echarge(natom))
             echarge = 0.0_dp
-            CALL eeq_charges(qs_env, echarge)
+            CALL eeq_charges(qs_env, echarge, enshift_type)
             CALL tb_dipole(qs_env, moments_section, unit_nr, echarge)
             DEALLOCATE (echarge)
          ELSE

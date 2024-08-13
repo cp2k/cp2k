@@ -161,6 +161,7 @@ CONTAINS
       END DO
 
       IF (qs_env%qmmm) THEN
+         CPABORT("gfn0 QMMM NYA")
          CALL get_qs_env(qs_env=qs_env, rho=rho, natom=natom)
          CPASSERT(SIZE(ks_matrix, 2) == 1)
          DO ispin = 1, nspins
@@ -175,7 +176,6 @@ CONTAINS
          END DO
          pc_ener = qs_env%ks_qmmm_env%pc_ener
          energy%qmmm_el = energy%qmmm_el + pc_ener
-         CPABORT("gfn0 QMMM NYA")
       END IF
 
       energy%total = energy%core + energy%eeq + energy%efield + energy%qmmm_el + &

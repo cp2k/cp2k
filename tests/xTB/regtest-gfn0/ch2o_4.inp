@@ -17,6 +17,7 @@
     &QS
       METHOD xTB
       &XTB
+        EN_SHIFT_TYPE Molecule
         GFN_TYPE 0
         VDW_POTENTIAL DFTD3
       &END XTB
