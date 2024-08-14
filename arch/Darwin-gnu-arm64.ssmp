@@ -11,7 +11,7 @@
 # Usage: Source this arch file and then run make as instructed.
 #        Ensure the links in /opt/homebrew/bin to the gcc version.
 #
-# Last update: 04.08.2024
+# Last update: 14.08.2024
 #
 # \
    if [[ "${0}" == "${BASH_SOURCE}" ]]; then \
@@ -47,10 +47,10 @@
    echo "Check the output above for error messages and consistency!"; \
    echo; \
    echo "If everything is OK, you can build a CP2K production binary with"; \
-   echo "   make -j ARCH=${this_file%.*} VERSION=${this_file##*.}"; \
+   echo "   make -j ARCH=${this_file%.*} VERSION=${this_file##*.} TARGET_CPU=${target_cpu}"; \
    echo; \
    echo "Alternatively, you can add further checks, e.g. for regression testing, with"; \
-   echo "   make -j ARCH=${this_file%.*} VERSION=${this_file##*.} DO_CHECKS=yes"; \
+   echo "   make -j ARCH=${this_file%.*} VERSION=${this_file##*.} TARGET_CPU=${target_cpu} DO_CHECKS=yes"; \
    echo; \
    echo "Run always the following command before using the CP2K binary"; \
    echo "   source ${PWD}/tools/toolchain/install/setup"; \
