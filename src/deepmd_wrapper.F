@@ -134,11 +134,11 @@ CONTAINS
       MARK_USED(coord)
       MARK_USED(atype)
       MARK_USED(cell)
-      MARK_USED(energy)
-      MARK_USED(force)
-      MARK_USED(virial)
-      MARK_USED(atomic_energy)
-      MARK_USED(atomic_virial)
+      energy = 0.0_dp
+      force = 0.0_dp
+      virial = 0.0_dp
+      atomic_energy = 0.0_dp
+      atomic_virial = 0.0_dp
 #endif
 
       CALL timestop(handle)
