@@ -136,7 +136,7 @@ CONTAINS
                                                             nspins, ikind, ishell_loc, ishell, &
                                                             shell_num, prim_num, nset, iset, ipgf, z, &
                                                             sl_lmax, ecp_num, nloc, nsemiloc, sl_l, iecp, &
-                                                            igf, igf_loc, ncgf, ngf_shell, ao_num, nmo, &
+                                                            igf, icgf, ncgf, ngf_shell, lshell, ao_num, nmo, &
                                                             mo_num, ispin, ikp, imo, ikp_loc, nsgf, &
                                                             i, k, l, m
       INTEGER, DIMENSION(2)                              :: nel_spin, kp_range, nmo_spin
@@ -148,11 +148,11 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: nshell => Null(), npgf => Null()
       INTEGER, DIMENSION(:, :), POINTER                  :: l_shell_set => Null()
       REAL(KIND=dp), DIMENSION(:), ALLOCATABLE           :: charge, shell_factor, exponents, coefficients, &
-                                                             prim_factor, ao_normalization, mo_energy, &
-                                                             mo_occupation
+                                                            prim_factor, ao_normalization, mo_energy, &
+                                                            mo_occupation
       REAL(KIND=dp), DIMENSION(:), POINTER               :: wkp => Null(), norm_cgf => Null()
       REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE        :: coord, mo_coefficient, mo_coefficient_im, &
-                                                            mos_sgf
+                                                            mos_sgf, diag_nsgf, diag_ncgf, temp
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: zetas => Null()
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: gcc => Null()
 #endif
@@ -606,8 +606,8 @@ CONTAINS
       ALLOCATE (ao_normalization(ao_num)) ! ..normalization factors
 
       ! we need to be consistent with the basis group on the shell indices
-      ishell = 0
-      igf = 0
+      ishell = 0  ! global shell index
+      igf = 0     ! global AO index
       DO iatom = 1, natoms
          ! get the qs_kind (index position in kind_set) for this atom (atomic_kind)
          CALL get_atomic_kind(particle_set(iatom)%atomic_kind, kind_number=ikind)
@@ -622,34 +622,86 @@ CONTAINS
                                 nsgf=nsgf, &
                                 l=l_shell_set)
 
-         igf_loc = 0
+         icgf = 0
          DO iset = 1, nset
             DO ishell_loc = 1, nshell(iset)
+               ! global shell index
                ishell = ishell + 1
+               ! angular momentum l of this shell
+               lshell = l_shell_set(ishell_loc, iset)
 
                ! number of AOs in this shell
                IF (save_cartesian) THEN
-                  ngf_shell = nco(l_shell_set(ishell_loc, iset))
+                  ngf_shell = nco(lshell)
                ELSE
-                  ngf_shell = nso(l_shell_set(ishell_loc, iset))
+                  ngf_shell = nso(lshell)
                END IF
 
                ! one-to-one mapping between AOs and shells
                ao_shell(igf + 1:igf + ngf_shell) = ishell
 
                ! one-to-one mapping between AOs and normalization factors
-               ao_normalization(igf + 1:igf + ngf_shell) = norm_cgf(igf_loc + 1:igf_loc + ngf_shell)
+               IF (save_cartesian) THEN
+                  ao_normalization(igf + 1:igf + ngf_shell) = norm_cgf(icgf + 1:icgf + ngf_shell)
+               ELSE
+                  ! allocate some temporary arrays
+                  ALLOCATE (diag_ncgf(nco(lshell),nco(lshell)))
+                  ALLOCATE (diag_nsgf(nso(lshell),nso(lshell)))
+                  ALLOCATE (temp(nso(lshell),nco(lshell)))
+                  diag_ncgf = 0.0_dp
+                  diag_nsgf = 0.0_dp
+                  temp = 0.0_dp
+
+                  DO i = 1, nco(lshell)
+                     diag_ncgf(i,i) = norm_cgf(icgf+i)
+                  END DO
+
+                  ! IF (ionode) THEN
+                  !    WRITE(*,*) "lshell = ", lshell
+                  !    DO i = 1, nco(lshell)
+                  !       WRITE(*,'(*(F12.8))') (diag_ncgf(i,k), k=1, nco(lshell))
+                  !    END DO
+                  !    WRITE(*,*) ""
+                  ! END IF
+
+                  temp = MATMUL(orbtramat(lshell)%c2s, diag_ncgf)
+
+                  ! IF (ionode) THEN
+                  !    DO i = 1, nso(lshell)
+                  !       WRITE(*,'(*(F12.8))') (temp(i,k), k=1, nco(lshell))
+                  !    END DO
+                  !    WRITE(*,*) ""
+                  ! END IF
+
+                  diag_nsgf = MATMUL(temp, TRANSPOSE(orbtramat(lshell)%s2c))
+                  ! CALL dgemm("N", "T", nso(lshell), nso(lshell), nco(lshell), &
+                  !            1.0_dp, temp(1,1), nso(lshell), &
+                  !            orbtramat(lshell)%s2c, nso(lshell), &
+                  !            0.0_dp, diag_nsgf(1,1), nso(lshell))
+
+                  DO i = 1, nso(lshell)
+                     ao_normalization(igf + i) = diag_nsgf(i,i)
+                  END DO
+
+                  ! IF (ionode) THEN
+                  !    DO i = 1, nso(lshell)
+                  !       WRITE(*,'(*(F12.8))') (diag_nsgf(i,k), k=1, nso(lshell))
+                  !    END DO
+                  !    WRITE(*,*) ""
+                  ! END IF
+
+                  DEALLOCATE (diag_ncgf)
+                  DEALLOCATE (diag_nsgf)
+                  DEALLOCATE (temp)
+               END IF
+
 
                igf = igf + ngf_shell
-               igf_loc = igf_loc + ngf_shell
+               icgf = icgf + nco(lshell)
             END DO
          END DO
          ! just a failsafe check
-         IF (save_cartesian) THEN
-            CPASSERT(igf_loc == ncgf)
-         ELSE
-            CPASSERT(igf_loc == nsgf)
-         END IF
+         CPASSERT(icgf == ncgf)
       END DO
 
       IF (ionode) THEN
