@@ -87,7 +87,7 @@ CONTAINS
 #else
       MARK_USED(matrix)
       MARK_USED(eigenvectors)
-      MARK_USED(eigenvalues)
+      eigenvalues = 0.0_dp
       MARK_USED(n)
       MARK_USED(nmo)
       MARK_USED(eigenvalues_buffer)
