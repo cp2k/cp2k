@@ -933,10 +933,11 @@ CONTAINS
          IF (PRESENT(e_0)) THEN
             CPASSERT(ASSOCIATED(e_0))
             IF (ASSOCIATED(rho)) THEN
-!$OMP              PARALLEL DO DEFAULT(NONE) SHARED(bo,e_0,pot,rho,&
-!$OMP                          rho_cutoff,rho_smooth_cutoff,rho_smooth_cutoff_2,&
-!$OMP                          rho_smooth_cutoff_range_2,my_e_0_scale_factor)&
-!$OMP                    PRIVATE(k,j,i,my_rho,my_rho_n,my_rho_n2) COLLAPSE(3)
+!$OMP PARALLEL DO DEFAULT(NONE) &
+!$OMP             SHARED(bo,e_0,pot,rho,rho_cutoff,rho_smooth_cutoff,rho_smooth_cutoff_2, &
+!$OMP                    rho_smooth_cutoff_range_2,my_e_0_scale_factor) &
+!$OMP             PRIVATE(k,j,i,my_rho,my_rho_n,my_rho_n2) &
+!$OMP             COLLAPSE(3)
                DO k = bo(1, 3), bo(2, 3)
                   DO j = bo(1, 2), bo(2, 2)
                      DO i = bo(1, 1), bo(2, 1)
@@ -965,11 +966,13 @@ CONTAINS
                      END DO
                   END DO
                END DO
+!$OMP END PARALLEL DO
             ELSE
-!$OMP              PARALLEL DO DEFAULT(NONE) SHARED(bo,pot,e_0,rhoa,rhob,&
-!$OMP                          rho_cutoff,rho_smooth_cutoff,rho_smooth_cutoff_2,&
-!$OMP                          rho_smooth_cutoff_range_2,my_e_0_scale_factor)&
-!$OMP                    PRIVATE(k,j,i,my_rho,my_rho_n,my_rho_n2) COLLAPSE(3)
+!$OMP PARALLEL DO DEFAULT(NONE) &
+!$OMP             SHARED(bo,pot,e_0,rhoa,rhob,rho_cutoff,rho_smooth_cutoff,rho_smooth_cutoff_2, &
+!$OMP                    rho_smooth_cutoff_range_2,my_e_0_scale_factor) &
+!$OMP             PRIVATE(k,j,i,my_rho,my_rho_n,my_rho_n2) &
+!$OMP             COLLAPSE(3)
                DO k = bo(1, 3), bo(2, 3)
                   DO j = bo(1, 2), bo(2, 2)
                      DO i = bo(1, 1), bo(2, 1)
@@ -998,13 +1001,15 @@ CONTAINS
                      END DO
                   END DO
                END DO
+!$OMP END PARALLEL DO
             END IF
          ELSE
             IF (ASSOCIATED(rho)) THEN
-!$OMP              PARALLEL DO DEFAULT(NONE) SHARED(bo,pot,&
-!$OMP                          rho_cutoff,rho_smooth_cutoff,rho_smooth_cutoff_2,&
-!$OMP                          rho_smooth_cutoff_range_2,rho)&
-!$OMP                    PRIVATE(k,j,i,my_rho,my_rho_n,my_rho_n2) COLLAPSE(3)
+!$OMP PARALLEL DO DEFAULT(NONE) &
+!$OMP             SHARED(bo,pot,rho_cutoff,rho_smooth_cutoff,rho_smooth_cutoff_2, &
+!$OMP                    rho_smooth_cutoff_range_2,rho) &
+!$OMP             PRIVATE(k,j,i,my_rho,my_rho_n,my_rho_n2) &
+!$OMP             COLLAPSE(3)
                DO k = bo(1, 3), bo(2, 3)
                   DO j = bo(1, 2), bo(2, 2)
                      DO i = bo(1, 1), bo(2, 1)
@@ -1027,11 +1032,13 @@ CONTAINS
                      END DO
                   END DO
                END DO
+!$OMP END PARALLEL DO
             ELSE
-!$OMP              PARALLEL DO DEFAULT(NONE) SHARED(bo,pot,&
-!$OMP                          rho_cutoff,rho_smooth_cutoff,rho_smooth_cutoff_2,&
-!$OMP                          rho_smooth_cutoff_range_2,rhoa,rhob)&
-!$OMP                    PRIVATE(k,j,i,my_rho,my_rho_n,my_rho_n2) COLLAPSE(3)
+!$OMP PARALLEL DO DEFAULT(NONE) &
+!$OMP             SHARED(bo,pot,rho_cutoff,rho_smooth_cutoff,rho_smooth_cutoff_2, &
+!$OMP                    rho_smooth_cutoff_range_2,rhoa,rhob) &
+!$OMP             PRIVATE(k,j,i,my_rho,my_rho_n,my_rho_n2) &
+!$OMP             COLLAPSE(3)
                DO k = bo(1, 3), bo(2, 3)
                   DO j = bo(1, 2), bo(2, 2)
                      DO i = bo(1, 1), bo(2, 1)
@@ -1054,6 +1061,7 @@ CONTAINS
                      END DO
                   END DO
                END DO
+!$OMP END PARALLEL DO
             END IF
          END IF
       END IF
@@ -1235,9 +1243,9 @@ CONTAINS
             CALL pw_pool%create_pw(virial_pw)
             CALL pw_zero(virial_pw)
             DO idir = 1, 3
-!$OMP             PARALLEL WORKSHARE DEFAULT(NONE) SHARED(virial_pw,pw_to_deriv_rho,deriv_data,idir)
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(virial_pw,pw_to_deriv_rho,deriv_data,idir)
                virial_pw%array(:, :, :) = pw_to_deriv_rho(idir)%array(:, :, :)*deriv_data(:, :, :)
-!$OMP             END PARALLEL WORKSHARE
+!$OMP END PARALLEL WORKSHARE
                DO jdir = 1, idir
                   virial_xc(idir, jdir) = -pw_grid%dvol* &
                                           accurate_dot_product(virial_pw%array(:, :, :), &
@@ -1249,9 +1257,9 @@ CONTAINS
          END IF ! use_virial
          DO idir = 1, 3
             CPASSERT(ASSOCIATED(pw_to_deriv_rho(idir)%array))
-!$OMP          PARALLEL WORKSHARE DEFAULT(NONE) SHARED(deriv_data,pw_to_deriv_rho,idir)
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(deriv_data,pw_to_deriv_rho,idir)
             pw_to_deriv_rho(idir)%array(:, :, :) = pw_to_deriv_rho(idir)%array(:, :, :)*deriv_data(:, :, :)
-!$OMP          END PARALLEL WORKSHARE
+!$OMP END PARALLEL WORKSHARE
          END DO
 
          ! Deallocate pw to save memory
@@ -1290,9 +1298,9 @@ CONTAINS
                   CALL pw_pool%create_pw(virial_pw)
                   CALL pw_zero(virial_pw)
                   DO idir = 1, 3
-!$OMP                PARALLEL WORKSHARE DEFAULT(NONE) SHARED(deriv_data,pw_to_deriv,virial_pw,idir)
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(deriv_data,pw_to_deriv,virial_pw,idir)
                      virial_pw%array(:, :, :) = pw_to_deriv(idir)%array(:, :, :)*deriv_data(:, :, :)
-!$OMP                END PARALLEL WORKSHARE
+!$OMP END PARALLEL WORKSHARE
                      DO jdir = 1, idir
                         virial_xc(idir, jdir) = virial_xc(idir, jdir) - pw_grid%dvol* &
                                                 accurate_dot_product(virial_pw%array(:, :, :), &
@@ -1304,10 +1312,9 @@ CONTAINS
                END IF ! use_virial
 
                DO idir = 1, 3
-!$OMP             PARALLEL WORKSHARE DEFAULT(NONE) SHARED(deriv_data,idir,pw_to_deriv)
-                  pw_to_deriv(idir)%array(:, :, :) = deriv_data(:, :, :)* &
-                                                     pw_to_deriv(idir)%array(:, :, :)
-!$OMP             END PARALLEL WORKSHARE
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(deriv_data,idir,pw_to_deriv)
+                  pw_to_deriv(idir)%array(:, :, :) = deriv_data(:, :, :)*pw_to_deriv(idir)%array(:, :, :)
+!$OMP END PARALLEL WORKSHARE
                END DO
             END IF ! deriv_att
 
@@ -1346,7 +1353,7 @@ CONTAINS
             END IF
          END IF
 
-         ! ** Add laplace part to vxc_rho
+         ! Add laplace part to vxc_rho
          IF (has_laplace) THEN
             IF (lsd) THEN
                IF (ispin == 1) THEN
@@ -2370,10 +2377,10 @@ CONTAINS
          CALL xc_derivative_get(deriv_att, deriv_data=deriv_data)
          CALL virial_drho_drho1(virial_pw, drho, drho1, deriv_data, virial_xc)
 
-!$OMP    PARALLEL WORKSHARE DEFAULT(NONE) SHARED(dr1dr,gradient_cut,norm_drho,v_drho,deriv_data)
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(dr1dr,gradient_cut,norm_drho,v_drho,deriv_data)
          v_drho(:, :, :) = v_drho(:, :, :) + &
                            deriv_data(:, :, :)*dr1dr(:, :, :)/MAX(gradient_cut, norm_drho(:, :, :))**2
-!$OMP    END PARALLEL WORKSHARE
+!$OMP END PARALLEL WORKSHARE
       END IF
 
       CALL timestop(handle)
@@ -2417,8 +2424,10 @@ CONTAINS
       deriv_att1 => xc_dset_get_derivative(deriv_set1, description)
       IF (ASSOCIATED(deriv_att1)) THEN
          CALL xc_derivative_get(deriv_att1, deriv_data=deriv_data1)
-!$OMP PARALLEL DO DEFAULT(NONE) SHARED(bo,deriv_data1,weight,norm_drho,v_drho,rho1,gradient_cut) &
-!$OMP PRIVATE(i,j,k,de) COLLAPSE(3)
+!$OMP PARALLEL DO DEFAULT(NONE) &
+!$OMP             SHARED(bo,deriv_data1,weight,norm_drho,v_drho,rho1,gradient_cut) &
+!$OMP             PRIVATE(i,j,k,de) &
+!$OMP             COLLAPSE(3)
          DO k = bo(1, 3), bo(2, 3)
             DO j = bo(1, 2), bo(2, 2)
                DO i = bo(1, 1), bo(2, 1)
@@ -2467,8 +2476,10 @@ CONTAINS
       deriv_att1 => xc_dset_get_derivative(deriv_set1, description)
       IF (ASSOCIATED(deriv_att1)) THEN
          CALL xc_derivative_get(deriv_att1, deriv_data=deriv_data1)
-!$OMP PARALLEL DO DEFAULT(NONE) SHARED(bo,deriv_data1,weight,v,rho1,rho, rho_cutoff) &
-!$OMP PRIVATE(i,j,k,de) COLLAPSE(3)
+!$OMP PARALLEL DO DEFAULT(NONE) &
+!$OMP             SHARED(bo,deriv_data1,weight,v,rho1,rho, rho_cutoff) &
+!$OMP             PRIVATE(i,j,k,de) &
+!$OMP             COLLAPSE(3)
          DO k = bo(1, 3), bo(2, 3)
             DO j = bo(1, 2), bo(2, 2)
                DO i = bo(1, 1), bo(2, 1)
@@ -2524,8 +2535,10 @@ CONTAINS
       deriv_att1 => xc_dset_get_derivative(deriv_set1, description)
       IF (ASSOCIATED(deriv_att1)) THEN
          CALL xc_derivative_get(deriv_att1, deriv_data=deriv_data1)
-!$OMP    PARALLEL DO PRIVATE(k,j,i,de)  DEFAULT(NONE) &
-!$OMP    SHARED(bo,drb1drb,dra1dra,deriv_data1,weight,gradient_cut,norm_drhoa,v_drhoa,v_drhob) COLLAPSE(3)
+!$OMP PARALLEL DO DEFAULT(NONE) &
+!$OMP             PRIVATE(k,j,i,de) &
+!$OMP             SHARED(bo,drb1drb,dra1dra,deriv_data1,weight,gradient_cut,norm_drhoa,v_drhoa,v_drhob) &
+!$OMP             COLLAPSE(3)
          DO k = bo(1, 3), bo(2, 3)
             DO j = bo(1, 2), bo(2, 2)
                DO i = bo(1, 1), bo(2, 1)
@@ -2536,6 +2549,7 @@ CONTAINS
                END DO
             END DO
          END DO
+!$OMP END PARALLEL DO
       END IF
 
       CALL timestop(handle)
@@ -2804,9 +2818,9 @@ CONTAINS
                CALL virial_drho_drho(virial_pw, drhoa, v_drhoa(1), virial_xc)
                CALL virial_drho_drho(virial_pw, drhob, v_drhob(2), virial_xc)
                DO idir = 1, 3
-!$OMP          PARALLEL WORKSHARE DEFAULT(NONE) SHARED(drho,idir,v_drho,virial_pw)
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(drho,idir,v_drho,virial_pw)
                   virial_pw%array(:, :, :) = drho(idir)%array(:, :, :)*(v_drho(1)%array(:, :, :) + v_drho(2)%array(:, :, :))
-!$OMP          END PARALLEL WORKSHARE
+!$OMP END PARALLEL WORKSHARE
                   DO jdir = 1, idir
                      tmp = -0.5_dp*virial_pw%pw_grid%dvol*accurate_dot_product(virial_pw%array(:, :, :), &
                                                                                drho(jdir)%array(:, :, :))
@@ -2817,9 +2831,11 @@ CONTAINS
             END IF ! my_compute_virial
 
             IF (my_gapw) THEN
-!$OMP            PARALLEL DO PRIVATE(ia,idir,ispin,ir) DEFAULT(NONE) &
-!$OMP            SHARED(bo,nspins,vxg,drhoa,drhob,v_drhoa,v_drhob,v_drho, &
-!$OMP                   e_drhoa,e_drhob,e_drho,drho1a,drho1b,fac,drho,drho1) COLLAPSE(3)
+!$OMP PARALLEL DO DEFAULT(NONE) &
+!$OMP             PRIVATE(ia,idir,ispin,ir) &
+!$OMP             SHARED(bo,nspins,vxg,drhoa,drhob,v_drhoa,v_drhob,v_drho, &
+!$OMP                    e_drhoa,e_drhob,e_drho,drho1a,drho1b,fac,drho,drho1) &
+!$OMP             COLLAPSE(3)
                DO ir = bo(1, 2), bo(2, 2)
                   DO ia = bo(1, 1), bo(2, 1)
                      DO idir = 1, 3
@@ -2852,37 +2868,37 @@ CONTAINS
                      END DO
                   END DO
                END DO
+!$OMP END PARALLEL DO
             ELSE
 
                ! partial integration
                DO idir = 1, 3
 
                   DO ispin = 1, nspins
-!$OMP                PARALLEL WORKSHARE DEFAULT(NONE) &
-!$OMP                SHARED(v_drho_r,v_drhoa,v_drhob,v_drho,drhoa,drhob,drho,ispin,idir)
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(v_drho_r,v_drhoa,v_drhob,v_drho,drhoa,drhob,drho,ispin,idir)
                      v_drho_r(idir, ispin)%array(:, :, :) = &
                         v_drhoa(ispin)%array(:, :, :)*drhoa(idir)%array(:, :, :) + &
                         v_drhob(ispin)%array(:, :, :)*drhob(idir)%array(:, :, :) + &
                         v_drho(ispin)%array(:, :, :)*drho(idir)%array(:, :, :)
-!$OMP                END PARALLEL WORKSHARE
+!$OMP END PARALLEL WORKSHARE
                   END DO
                   IF (ASSOCIATED(e_drhoa)) THEN
-!$OMP                PARALLEL WORKSHARE DEFAULT(NONE) &
-!$OMP                SHARED(v_drho_r,e_drhoa,drho1a,idir)
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(v_drho_r,e_drhoa,drho1a,idir)
                      v_drho_r(idir, 1)%array(:, :, :) = v_drho_r(idir, 1)%array(:, :, :) - &
                                                         e_drhoa(:, :, :)*drho1a(idir)%array(:, :, :)
-!$OMP                END PARALLEL WORKSHARE
+!$OMP END PARALLEL WORKSHARE
                   END IF
                   IF (nspins /= 1 .AND. ASSOCIATED(e_drhob)) THEN
-!$OMP                PARALLEL WORKSHARE DEFAULT(NONE)&
-!$OMP                SHARED(v_drho_r,e_drhob,drho1b,idir)
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(v_drho_r,e_drhob,drho1b,idir)
                      v_drho_r(idir, 2)%array(:, :, :) = v_drho_r(idir, 2)%array(:, :, :) - &
                                                         e_drhob(:, :, :)*drho1b(idir)%array(:, :, :)
-!$OMP                END PARALLEL WORKSHARE
+!$OMP END PARALLEL WORKSHARE
                   END IF
                   IF (ASSOCIATED(e_drho)) THEN
-!$OMP                  PARALLEL DO PRIVATE(k,j,i) DEFAULT(NONE)&
-!$OMP                  SHARED(bo,v_drho_r,e_drho,drho1a,drho1b,drho1,fac,idir,nspins) COLLAPSE(3)
+!$OMP PARALLEL DO DEFAULT(NONE) &
+!$OMP              PRIVATE(k,j,i) &
+!$OMP              SHARED(bo,v_drho_r,e_drho,drho1a,drho1b,drho1,fac,idir,nspins) &
+!$OMP              COLLAPSE(3)
                      DO k = bo(1, 3), bo(2, 3)
                         DO j = bo(1, 2), bo(2, 2)
                            DO i = bo(1, 1), bo(2, 1)
@@ -2899,6 +2915,7 @@ CONTAINS
                            END DO
                         END DO
                      END DO
+!$OMP END PARALLEL DO
                   END IF
                END DO
 
@@ -2970,8 +2987,10 @@ CONTAINS
             IF (my_gapw) THEN
 
                DO idir = 1, 3
-!$OMP               PARALLEL DO PRIVATE(ia,ir) DEFAULT(NONE) &
-!$OMP               SHARED(bo,vxg,drho,v_drho,e_drho,drho1,idir,factor2) COLLAPSE(2)
+!$OMP PARALLEL DO DEFAULT(NONE) &
+!$OMP             PRIVATE(ia,ir) &
+!$OMP             SHARED(bo,vxg,drho,v_drho,e_drho,drho1,idir,factor2) &
+!$OMP             COLLAPSE(2)
                   DO ia = bo(1, 1), bo(2, 1)
                      DO ir = bo(1, 2), bo(2, 2)
                         vxg(idir, ia, ir, 1) = -drho(idir)%array(ia, ir, 1)*v_drho(1)%array(ia, ir, 1)
@@ -2980,16 +2999,16 @@ CONTAINS
                         END IF
                      END DO
                   END DO
+!$OMP END PARALLEL DO
                END DO
 
             ELSE
                ! partial integration
                DO idir = 1, 3
-!$OMP             PARALLEL WORKSHARE DEFAULT(NONE)&
-!$OMP             SHARED(v_drho_r,drho,v_drho,drho1,e_drho,idir)
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(v_drho_r,drho,v_drho,drho1,e_drho,idir)
                   v_drho_r(idir, 1)%array(:, :, :) = drho(idir)%array(:, :, :)*v_drho(1)%array(:, :, :) - &
                                                      drho1(idir)%array(:, :, :)*e_drho(:, :, :)
-!$OMP             END PARALLEL WORKSHARE
+!$OMP END PARALLEL WORKSHARE
                END DO
 
                CALL xc_pw_divergence(xc_deriv_method_id, v_drho_r(:, 1), tmp_g, vxc_g, v_xc(1))
@@ -3043,6 +3062,7 @@ CONTAINS
       END IF
 
       CALL timestop(handle)
+
    END SUBROUTINE xc_calc_2nd_deriv_analytical
 
 ! **************************************************************************************************
@@ -3101,10 +3121,9 @@ CONTAINS
       REAL(KIND=dp)                                      :: tmp
 
       DO idir = 1, 3
-!$OMP    PARALLEL WORKSHARE DEFAULT(NONE)&
-!$OMP    SHARED(drho,idir,virial_pw,deriv_data)
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(drho,idir,virial_pw,deriv_data)
          virial_pw%array(:, :, :) = drho(idir)%array(:, :, :)*deriv_data(:, :, :)
-!$OMP    END PARALLEL WORKSHARE
+!$OMP END PARALLEL WORKSHARE
          DO jdir = 1, 3
             tmp = virial_pw%pw_grid%dvol*accurate_dot_product(virial_pw%array(:, :, :), &
                                                               drho1(jdir)%array(:, :, :))
@@ -3132,8 +3151,7 @@ CONTAINS
       REAL(KIND=dp)                                      :: tmp
 
       DO idir = 1, 3
-!$OMP PARALLEL WORKSHARE DEFAULT(NONE)&
-!$OMP SHARED(drho,idir,v_drho,virial_pw)
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(drho,idir,v_drho,virial_pw)
          virial_pw%array(:, :, :) = drho(idir)%array(:, :, :)*v_drho%array(:, :, :)
 !$OMP END PARALLEL WORKSHARE
          DO jdir = 1, idir
@@ -3382,7 +3400,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE calc_drho_from_ab
 
 ! **************************************************************************************************
 !> \brief allocates and calculates dot products of two density gradients
@@ -3534,4 +3552,3 @@ CONTAINS
    END SUBROUTINE check_for_derivatives
 
 END MODULE xc
-

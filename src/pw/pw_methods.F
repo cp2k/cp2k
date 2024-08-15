@@ -246,9 +246,14 @@ CONTAINS
 
             CALL timeset(routineN, handle)
 
+            ! This OMP clause causes an internal compiler error (ICE) with ifx (<=2024.2.1)
+#if defined(__MKL)
+            pw%array = ${type2type("0.0_dp", "r3d", kind)}$
+#else
 !$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw)
             pw%array = ${type2type("0.0_dp", "r3d", kind)}$
 !$OMP END PARALLEL WORKSHARE
+#endif
 
             CALL timestop(handle)
 
@@ -424,8 +429,8 @@ CONTAINS
                        ngpts => SIZE(pw%pw_grid%gsq), ghat => pw%pw_grid%g_hat, yzq => pw%pw_grid%para%yzq)
 
                IF (PRESENT(scale)) THEN
-!$OMP PARALLEL DO DEFAULT(NONE), &
-!$OMP             PRIVATE(l, m, mn, n), &
+!$OMP PARALLEL DO DEFAULT(NONE) &
+!$OMP             PRIVATE(l, m, mn, n) &
 !$OMP             SHARED(c, pw, scale)
                   DO gpt = 1, ngpts
                      l = mapl(ghat(1, gpt)) + 1
@@ -436,8 +441,8 @@ CONTAINS
                   END DO
 !$OMP END PARALLEL DO
                ELSE
-!$OMP PARALLEL DO DEFAULT(NONE), &
-!$OMP             PRIVATE(l, m, mn, n), &
+!$OMP PARALLEL DO DEFAULT(NONE) &
+!$OMP             PRIVATE(l, m, mn, n) &
 !$OMP             SHARED(c, pw)
                   DO gpt = 1, ngpts
                      l = mapl(ghat(1, gpt)) + 1
@@ -482,8 +487,8 @@ CONTAINS
                IF (.NOT. PRESENT(scale)) c = z_zero
 
                IF (PRESENT(scale)) THEN
-!$OMP PARALLEL DO DEFAULT(NONE), &
-!$OMP             PRIVATE(l, m, mn, n), &
+!$OMP PARALLEL DO DEFAULT(NONE) &
+!$OMP             PRIVATE(l, m, mn, n) &
 !$OMP             SHARED(c, pw, scale)
                   DO gpt = 1, ngpts
                      l = mapl(ghat(1, gpt)) + 1
@@ -494,8 +499,8 @@ CONTAINS
                   END DO
 !$OMP END PARALLEL DO
                ELSE
-!$OMP PARALLEL DO DEFAULT(NONE), &
-!$OMP             PRIVATE(l, m, mn, n), &
+!$OMP PARALLEL DO DEFAULT(NONE) &
+!$OMP             PRIVATE(l, m, mn, n) &
 !$OMP             SHARED(c, pw)
                   DO gpt = 1, ngpts
                      l = mapl(ghat(1, gpt)) + 1
@@ -515,8 +520,8 @@ CONTAINS
                           ghat => pw%pw_grid%g_hat, ngpts => SIZE(pw%pw_grid%gsq), yzq => pw%pw_grid%para%yzq)
 
                   IF (PRESENT(scale)) THEN
-!$OMP PARALLEL DO DEFAULT(NONE), &
-!$OMP             PRIVATE(l, m, mn, n), &
+!$OMP PARALLEL DO DEFAULT(NONE) &
+!$OMP             PRIVATE(l, m, mn, n) &
 !$OMP             SHARED(c, pw, scale)
                      DO gpt = 1, ngpts
                         l = mapl(ghat(1, gpt)) + 1
@@ -527,7 +532,7 @@ CONTAINS
                      END DO
 !$OMP END PARALLEL DO
                   ELSE
-!$OMP PARALLEL DO DEFAULT(NONE), &
+!$OMP PARALLEL DO DEFAULT(NONE) &
 !$OMP             PRIVATE(l, m, mn, n) &
 !$OMP             SHARED(c, pw)
                      DO gpt = 1, ngpts
@@ -609,7 +614,9 @@ CONTAINS
 
                      IF ((pw1%pw_grid%id_nr == pw2%pw_grid%reference)) THEN
                         IF (ng1 >= ng2) THEN
-!$OMP PARALLEL DO PRIVATE(i,j) DEFAULT(NONE) SHARED(ng2, pw1, pw2)
+!$OMP PARALLEL DO DEFAULT(NONE) &
+!$OMP             PRIVATE(i,j) &
+!$OMP             SHARED(ng2, pw1, pw2)
                            DO i = 1, ng2
                               j = pw2%pw_grid%gidx(i)
                               pw2%array(i) = ${type2type("pw1%array(j)", kind, kind2)}$
@@ -617,7 +624,9 @@ CONTAINS
 !$OMP END PARALLEL DO
                         ELSE
                            CALL pw_zero(pw2)
-!$OMP PARALLEL DO PRIVATE(i,j) DEFAULT(NONE) SHARED(ng1, pw1, pw2)
+!$OMP PARALLEL DO DEFAULT(NONE) &
+!$OMP             PRIVATE(i,j) &
+!$OMP             SHARED(ng1, pw1, pw2)
                            DO i = 1, ng1
                               j = pw2%pw_grid%gidx(i)
                               pw2%array(j) = ${type2type("pw1%array(i)", kind, kind2)}$

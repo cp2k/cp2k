@@ -1941,9 +1941,10 @@ CONTAINS
             Lstart_pos = ranges_info_array(1, irep, comm_exchange%mepos)
             start_point = ranges_info_array(3, irep, comm_exchange%mepos)
             end_point = ranges_info_array(4, irep, comm_exchange%mepos)
-!$OMP       PARALLEL DO DEFAULT(NONE) PRIVATE(kkk,lll,iiB) &
-!$OMP                                 SHARED(start_point,end_point,Lstart_pos,my_block_size,&
-!$OMP                                        Gamma_P_ia,my_i,my_B_size,Y_i_aP)
+!$OMP PARALLEL DO DEFAULT(NONE) &
+!$OMP             PRIVATE(kkk,lll,iiB) &
+!$OMP             SHARED(start_point,end_point,Lstart_pos,my_block_size,&
+!$OMP                    Gamma_P_ia,my_i,my_B_size,Y_i_aP)
             DO kkk = start_point, end_point
                lll = kkk - start_point + Lstart_pos
                DO iiB = 1, my_block_size
@@ -1952,7 +1953,7 @@ CONTAINS
                      Y_i_aP(1:my_B_size, lll, iiB)
                END DO
             END DO
-!$OMP              END PARALLEL DO
+!$OMP END PARALLEL DO
          END DO
          CALL timestop(handle2)
 
@@ -1974,16 +1975,17 @@ CONTAINS
                Lstart_pos = ranges_info_array(1, irep, proc_send)
                start_point = ranges_info_array(3, irep, proc_send)
                end_point = ranges_info_array(4, irep, proc_send)
-!$OMP             PARALLEL DO DEFAULT(NONE) PRIVATE(kkk,lll,iiB) &
-!$OMP                                       SHARED(start_point,end_point,Lstart_pos,my_block_size,&
-!$OMP                                              BI_C_send,my_B_size,Y_i_aP)
+!$OMP PARALLEL DO DEFAULT(NONE) &
+!$OMP             PRIVATE(kkk,lll,iiB) &
+!$OMP             SHARED(start_point,end_point,Lstart_pos,my_block_size,&
+!$OMP                    BI_C_send,my_B_size,Y_i_aP)
                DO kkk = start_point, end_point
                   lll = kkk - start_point + Lstart_pos
                   DO iiB = 1, my_block_size
                      BI_C_send(1:my_B_size, iiB, kkk) = Y_i_aP(1:my_B_size, lll, iiB)
                   END DO
                END DO
-!$OMP                END PARALLEL DO
+!$OMP END PARALLEL DO
             END DO
             CALL timestop(handle2)
 
@@ -2007,12 +2009,13 @@ CONTAINS
                DO irep = 0, num_integ_group - 1
                   start_point = ranges_info_array(3, irep, comm_exchange%mepos)
                   end_point = ranges_info_array(4, irep, comm_exchange%mepos)
-!$OMP             PARALLEL WORKSHARE DEFAULT(NONE) SHARED(start_point,end_point,my_block_size,&
-!$OMP                                           Gamma_P_ia,rec_i,iiB,my_B_size,BI_C_rec)
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) &
+!$OMP                    SHARED(start_point,end_point,my_block_size,&
+!$OMP                           Gamma_P_ia,rec_i,iiB,my_B_size,BI_C_rec)
                   Gamma_P_ia(:, rec_i:rec_i + my_block_size - 1, start_point:end_point) = &
                      Gamma_P_ia(:, rec_i:rec_i + my_block_size - 1, start_point:end_point) + &
                      BI_C_rec(1:my_B_size, :, start_point:end_point)
-!$OMP             END PARALLEL WORKSHARE
+!$OMP END PARALLEL WORKSHARE
                END DO
                CALL timestop(handle2)
 
@@ -2049,12 +2052,19 @@ CONTAINS
                DO irep = 0, num_integ_group - 1
                   start_point = ranges_info_array(3, irep, comm_exchange%mepos)
                   end_point = ranges_info_array(4, irep, comm_exchange%mepos)
-!$OMP             PARALLEL WORKSHARE DEFAULT(NONE) SHARED(start_point,end_point,my_block_size,&
-!$OMP                                           Gamma_P_ia,rec_i,iiB,my_B_size,BI_C_rec)
+#if defined(__MKL)
                   Gamma_P_ia(:, rec_i:rec_i + my_block_size - 1, start_point:end_point) = &
                      Gamma_P_ia(:, rec_i:rec_i + my_block_size - 1, start_point:end_point) + &
                      BI_C_rec(1:my_B_size, :, start_point:end_point)
-!$OMP             END PARALLEL WORKSHARE
+#else
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) &
+!$OMP                    SHARED(start_point,end_point,my_block_size,&
+!$OMP                           Gamma_P_ia,rec_i,my_B_size,BI_C_rec)
+                  Gamma_P_ia(:, rec_i:rec_i + my_block_size - 1, start_point:end_point) = &
+                     Gamma_P_ia(:, rec_i:rec_i + my_block_size - 1, start_point:end_point) + &
+                     BI_C_rec(1:my_B_size, :, start_point:end_point)
+!$OMP END PARALLEL WORKSHARE
+#endif
                END DO
                CALL timestop(handle2)
 
