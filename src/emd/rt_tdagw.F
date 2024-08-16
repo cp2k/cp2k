@@ -369,10 +369,11 @@ CONTAINS
          ! Extra minus for the propagation of density
          intensity = -rtp_control%delta_pulse_scale
          metric = 0.0_dp
-         kvec(:) = cell%h_inv(1, :)*rtp_control%delta_pulse_direction(1) + &
-                   cell%h_inv(2, :)*rtp_control%delta_pulse_direction(2) + &
-                   cell%h_inv(3, :)*rtp_control%delta_pulse_direction(3)
-         kvec = kvec*twopi*rtp_control%delta_pulse_scale
+         ! kvec(:) = cell%h_inv(1, :)*rtp_control%delta_pulse_direction(1) + &
+         !           cell%h_inv(2, :)*rtp_control%delta_pulse_direction(2) + &
+         !           cell%h_inv(3, :)*rtp_control%delta_pulse_direction(3)
+         ! kvec = kvec*twopi*rtp_control%delta_pulse_scale
+         kvec(:) = rtp_control%delta_pulse_direction(:)
          @:SPIN_DO(j, re, im, tdagw_env%n_spin)
             CALL cp_fm_set_all(tdagw_env%ham_effective(im)%matrix, 0.0_dp)
             DO k=1,3
@@ -525,39 +526,24 @@ CONTAINS
          CALL output_mos_cohsex(tdagw_env, tdagw_env%sigma_SEX, bs_env%fm_mo_coeff_Gamma, rtp_section)
          CALL output_moments(tdagw_env, tdagw_env%rho, bs_env%fm_mo_coeff_Gamma, rtp_section)
          ! Output restart files
-         save_name_re = cp_print_key_generate_filename(logger, restart_section, extension="_RE.matrix", my_local=.FALSE.)
-         save_name_im = cp_print_key_generate_filename(logger, restart_section, extension="_IM.matrix", my_local=.FALSE.)
-         IF (file_exists(save_name_re)) THEN
-            CALL open_file(save_name_re, file_status="OLD", file_form="UNFORMATTED", file_action="WRITE",&
-                           unit_number=rho_unit_nr)
-         ELSE
-            CALL open_file(save_name_re, file_status="NEW", file_form="UNFORMATTED", file_action="WRITE",&
-                           unit_number=rho_unit_nr)
-         END IF
+         ! TODO : Spin dependency/k-point dependency
+         ! Real part of density matrix
+         rho_unit_nr = cp_print_key_unit_nr(logger, restart_section, extension="_RE.matrix", file_form="UNFORMATTED",&
+                 file_position="REWIND")
          CALL cp_fm_write_unformatted(tdagw_env%rho(1)%matrix, rho_unit_nr)
-         CALL close_file(rho_unit_nr)
-         IF (file_exists(save_name_im)) THEN
-            CALL open_file(save_name_im, file_status="OLD", file_form="UNFORMATTED", file_action="WRITE",&
-                           unit_number=rho_unit_nr)
-         ELSE
-            CALL open_file(save_name_im, file_status="NEW", file_form="UNFORMATTED", file_action="WRITE",&
-                           unit_number=rho_unit_nr)
-         END IF
+         CALL cp_print_key_finished_output(rho_unit_nr, logger, restart_section)
+         ! Imag part of density matrix
+         rho_unit_nr = cp_print_key_unit_nr(logger, restart_section, extension="_IM.matrix", file_form="UNFORMATTED",&
+                 file_position="REWIND")
          CALL cp_fm_write_unformatted(tdagw_env%rho(2)%matrix, rho_unit_nr)
-         CALL close_file(rho_unit_nr)
-         ! Write the restart info file - contains the next start number
-         save_name_re = cp_print_key_generate_filename(logger, restart_section, extension=".info", my_local=.FALSE.)
-         ! TODO : Move to the end of each loop, so that the last iteration is always saved (or every n-th iteration)
-         IF (file_exists(save_name_info)) THEN
-            CALL open_file(save_name_info, file_status="OLD", file_form="UNFORMATTED", file_action="WRITE",&
-                           unit_number=rho_unit_nr)
-         ELSE
-            CALL open_file(save_name_info, file_status="NEW", file_form="UNFORMATTED", file_action="WRITE",&
-                           unit_number=rho_unit_nr)
+         CALL cp_print_key_finished_output(rho_unit_nr, logger, restart_section)
+         ! Restart info
+         rho_unit_nr = cp_print_key_unit_nr(logger, restart_section, extension=".info", file_form="UNFORMATTED",&
+                 file_position="REWIND")
+         IF (tdagw_env%unit_nr > 0) THEN
+            WRITE (rho_unit_nr) i+1
          END IF
-         ! Output the next starting timestep
-         WRITE (rho_unit_nr) i+1
-         CALL close_file(rho_unit_nr)
+         CALL cp_print_key_finished_output(rho_unit_nr, logger, restart_section)
       END DO
       ! ********************** End the time loop **********************
 
