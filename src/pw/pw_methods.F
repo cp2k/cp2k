@@ -247,7 +247,7 @@ CONTAINS
             CALL timeset(routineN, handle)
 
             ! This OMP clause causes an internal compiler error (ICE) with ifx (<=2024.2.1)
-#if defined(__MKL)
+#if defined(__INTEL_LLVM_COMPILER)
             pw%array = ${type2type("0.0_dp", "r3d", kind)}$
 #else
 !$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw)

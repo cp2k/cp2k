@@ -42,6 +42,7 @@ FLAG_EXCEPTIONS = (
     r"__DATA_DIR",
     r"__FFTW3_UNALIGNED",
     r"__FORCE_USE_FAST_MATH",
+    r"__INTEL_LLVM_COMPILER",
     r"__INTEL_COMPILER",
     r"OFFLOAD_CHECK",
     r"__OFFLOAD_CUDA",
