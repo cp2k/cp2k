@@ -2052,7 +2052,7 @@ CONTAINS
                DO irep = 0, num_integ_group - 1
                   start_point = ranges_info_array(3, irep, comm_exchange%mepos)
                   end_point = ranges_info_array(4, irep, comm_exchange%mepos)
-#if defined(__MKL)
+#if defined(__INTEL_LLVM_COMPILER)
                   Gamma_P_ia(:, rec_i:rec_i + my_block_size - 1, start_point:end_point) = &
                      Gamma_P_ia(:, rec_i:rec_i + my_block_size - 1, start_point:end_point) + &
                      BI_C_rec(1:my_B_size, :, start_point:end_point)

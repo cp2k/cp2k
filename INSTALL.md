@@ -104,8 +104,8 @@ Examples are the sequential variant of the Intel MKL, the Cray libsci, the OpenB
 and the reference BLAS/LAPACK packages. If compiling with MKL, users must define `-D__MKL` to ensure
 the code is thread-safe. MKL with multiple OpenMP threads in CP2K requires that CP2K was compiled
 with the Intel compiler. If the `cpp` precompiler is used in a separate precompilation step in
-combination with the Intel Fortran compiler, `-D__INTEL_COMPILER` must be added explicitly (the
-Intel compiler sets `__INTEL_COMPILER` otherwise automatically).
+combination with the Intel Fortran compiler, `-D__INTEL_LLVM_COMPILER` (`-D__INTEL_COMPILER`) must
+be added explicitly (the Intel compiler sets `D__INTEL_LLVM_COMPILER` otherwise automatically).
 
 On the Mac, BLAS and LAPACK may be provided by Apple's Accelerate framework. If using this
 framework, `-D__ACCELERATE` must be defined to account for some interface incompatibilities between
