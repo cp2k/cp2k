@@ -26,6 +26,9 @@ MODULE rt_propagation
                                               cp_to_string
    USE cp_output_handling,              ONLY: cp_add_iter_level,&
                                               cp_iterate,&
+                                              cp_p_file,&
+                                              cp_print_key_generate_filename,&
+                                              cp_print_key_should_output,&
                                               cp_print_key_unit_nr,&
                                               cp_rm_iter_level
    USE efield_utils,                    ONLY: calculate_ecore_efield
@@ -44,7 +47,8 @@ MODULE rt_propagation
                                               section_vals_type,&
                                               section_vals_val_get,&
                                               section_vals_val_set
-   USE kinds,                           ONLY: dp
+   USE kinds,                           ONLY: default_path_length,&
+                                              dp
    USE machine,                         ONLY: m_walltime
    USE md_environment_types,            ONLY: md_environment_type
    USE pw_env_types,                    ONLY: pw_env_type
@@ -60,6 +64,7 @@ MODULE rt_propagation
    USE qs_ks_types,                     ONLY: qs_ks_did_change,&
                                               qs_ks_env_type,&
                                               set_ks_env
+   USE qs_mo_io,                        ONLY: wfn_restart_file_name
    USE qs_mo_types,                     ONLY: get_mo_set,&
                                               init_mo_set,&
                                               mo_set_type
@@ -405,16 +410,36 @@ CONTAINS
       TYPE(qs_environment_type), OPTIONAL, POINTER       :: qs_env
       TYPE(force_env_type), POINTER                      :: force_env
 
+      CHARACTER(len=default_path_length)                 :: file_name
       REAL(KIND=dp), DIMENSION(:), POINTER               :: tmp_vals
+      TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(section_vals_type), POINTER                   :: efield_section, motion_section, &
+      TYPE(section_vals_type), POINTER                   :: dft_section, efield_section, &
+                                                            motion_section, print_key, &
                                                             root_section, rt_section
 
       CALL get_qs_env(qs_env=qs_env, dft_control=dft_control)
       root_section => force_env%root_section
       motion_section => section_vals_get_subs_vals(root_section, "MOTION")
+      dft_section => section_vals_get_subs_vals(root_section, "FORCE_EVAL%DFT")
       rt_section => section_vals_get_subs_vals(root_section, "FORCE_EVAL%DFT%REAL_TIME_PROPAGATION")
+
       CALL section_vals_val_set(rt_section, "INITIAL_WFN", i_val=use_rt_restart)
+      CALL section_vals_val_set(rt_section, "APPLY_DELTA_PULSE", l_val=.FALSE.)
+      CALL section_vals_val_set(rt_section, "APPLY_DELTA_PULSE_MAG", l_val=.FALSE.)
+      CALL section_vals_val_set(rt_section, "APPLY_WFN_MIX_INIT_RESTART", l_val=.FALSE.)
+
+      logger => cp_get_default_logger()
+
+      ! to continue propagating the TD wavefunction we need to read from the new .rtpwfn
+      IF (BTEST(cp_print_key_should_output(logger%iter_info, &
+                                           rt_section, "PRINT%RESTART"), cp_p_file)) THEN
+         print_key => section_vals_get_subs_vals(rt_section, "PRINT%RESTART")
+         file_name = cp_print_key_generate_filename(logger, print_key, &
+                                                    extension=".rtpwfn", my_local=.FALSE.)
+         CALL section_vals_val_set(dft_section, "WFN_RESTART_FILE_NAME", c_val=TRIM(file_name))
+      END IF
+
       ! coming from RTP
       IF (.NOT. PRESENT(md_env)) THEN
          CALL section_vals_val_set(motion_section, "MD%STEP_START_VAL", i_val=force_env%qs_env%sim_step)
