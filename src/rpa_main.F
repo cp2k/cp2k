@@ -1283,7 +1283,6 @@ CONTAINS
             CALL keep_initial_quad(tj, wj, tau_tj, tau_wj, weights_cos_tf_t_to_w, &
                                    weights_cos_tf_w_to_t, do_ri_sos_laplace_mp2, do_im_time, &
                                    num_integ_points, unit_nr, qs_env)
-
          END IF
       ELSE
          IF (calc_forces) CPABORT("Forces with Clenshaw-Curtis grid not implemented.")
