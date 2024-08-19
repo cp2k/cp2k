@@ -1590,8 +1590,9 @@ CONTAINS
          END DO ! jquad
 
          IF (mp2_env%ri_rpa%sigma_param /= sigma_none) THEN
-            CALL finalize_rpa_sigma(rpa_sigma, unit_nr, mp2_env%ri_rpa%e_sigma_corr)
+            CALL finalize_rpa_sigma(rpa_sigma, mp2_env%ri_rpa%e_sigma_corr)
             IF (do_minimax_quad) mp2_env%ri_rpa%e_sigma_corr = mp2_env%ri_rpa%e_sigma_corr/2.0_dp
+            CALL para_env%sum(mp2_env%ri_rpa%e_sigma_corr)
          END IF
 
          CALL para_env%sum(Erpa)

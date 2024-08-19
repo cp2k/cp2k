@@ -665,7 +665,7 @@ CONTAINS
          IF (.NOT. update_xc_energy) Emp2 = 0.0_dp
 
          IF (unit_nr > 0 .AND. update_xc_energy) WRITE (unit_nr, '(T3,A,T56,F25.14)') 'RI-RPA energy  =   ', Emp2
-         IF (mp2_env%ri_rpa%sigma_param /= sigma_none) THEN
+         IF (unit_nr > 0 .AND. mp2_env%ri_rpa%sigma_param /= sigma_none) THEN
             WRITE (unit_nr, '(T3,A,T56,F25.14)') 'Sigma corr. to RI-RPA energy  =   ', &
                mp2_env%ri_rpa%e_sigma_corr
          END IF

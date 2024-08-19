@@ -184,14 +184,15 @@ CONTAINS
 !> \param unit_nr ...
 !> \param e_sigma_corr ...
 ! **************************************************************************************************
-   SUBROUTINE finalize_rpa_sigma(rpa_sigma, unit_nr, e_sigma_corr)
+   !SUBROUTINE finalize_rpa_sigma(rpa_sigma, unit_nr, e_sigma_corr)
+   SUBROUTINE finalize_rpa_sigma(rpa_sigma, e_sigma_corr)
       TYPE(rpa_sigma_type), INTENT(INOUT)                :: rpa_sigma
-      INTEGER                                            :: unit_nr
+      !INTEGER                                            :: unit_nr
       REAL(KIND=dp), INTENT(OUT)                         :: e_sigma_corr
 
       e_sigma_corr = rpa_sigma%e_sigma_corr
-      WRITE (unit_nr, '(T3,A,T56,F25.14)') 'RI-RPA energy from eigenvalues of Q(w)  = ', &
-         rpa_sigma%e_rpa_corr
+      !WRITE (unit_nr, '(T3,A,T56,F25.14)') 'RI-RPA energy from eigenvalues of Q(w)  = '
+        ! rpa_sigma%e_rpa_corr
 
       CALL rpa_sigma_cleanup(rpa_sigma)
 
