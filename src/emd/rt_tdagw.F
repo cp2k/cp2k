@@ -141,12 +141,6 @@ MODULE rt_tdagw
    USE gw_large_cell_Gamma,             ONLY: compute_3c_integrals
    USE gw_integrals,                    ONLY: build_3c_integral_block
    USE matrix_exp,                      ONLY: taylor_full_complex
-   USE cp_log_handling,                 ONLY: cp_logger_type,&
-                                              cp_get_default_logger,&
-                                              cp_logger_get_unit_nr
-   USE cp_output_handling,              ONLY: cp_print_key_unit_nr,&
-                                              cp_print_key_finished_output,&
-                                              cp_print_key_generate_filename
    USE message_passing,                 ONLY: mp_para_env_type
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type
@@ -162,6 +156,11 @@ MODULE rt_tdagw
    USE rt_tdagw_types,                  ONLY: tdagw_env_type,&
                                               create_tdagw_env,&
                                               release_tdagw_env
+   USE rt_tdagw_io,                     ONLY: output_moments,&
+                                              output_field,&
+                                              output_mos_contravariant,&
+                                              read_restart,&
+                                              output_restart
    USE qs_ks_types,                     ONLY: qs_ks_env_type
    USE qs_integrate_potential_product,  ONLY: integrate_v_rspace
    USE qs_collocate_density,            ONLY: calculate_rho_elec
@@ -197,7 +196,8 @@ CONTAINS
       TYPE(rt_prop_type), POINTER                        :: rtp
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(section_vals_type), POINTER                   :: input, rtp_section, dft_section, restart_section
+      TYPE(section_vals_type), POINTER                   :: input, rtp_section, dft_section, restart_section,&
+                                                            output_section
       ! TODO : Maybe complex?
       INTEGER                                            :: i,j,re,im, k, handle, custom_exp_method,&
                                                             rho_unit_nr
@@ -218,89 +218,19 @@ CONTAINS
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(cp_fm_type)                                   :: buffer_matrix, buffer_matrix_2
       CHARACTER(len=default_path_length)                 :: save_name_re, save_name_im, save_name_info
-      TYPE(cp_logger_type), POINTER                      :: logger
 
       CALL timeset(routineN, handle)
       ! Run the initial SCF calculation / read restart information
-      ! CALL get_qs_env(qs_env, input=input, dft_control=dft_control)
-      ! SELECT CASE(dft_control%rtp_control%initial_wfn)
-      !    CASE (use_restart_wfn)
-      !       ! Initialise qs values and matrices
-      !       CALL qs_energies_init(qs_env, .FALSE.)
-      !       CALL get_qs_env(qs_env, mos=mos, atomic_kind_set=atomic_kind_set,&
-      !               qs_kind_set=qs_kind_set, particle_set=particle_set,&
-      !               para_env=para_env, matrix_ks=matrix_ks)
-      !       @:SPIN_DO(j,re,im,SIZE(mos))
-      !          CALL init_mo_set(mos(j), qs_env%mpools%ao_mo_fm_pools(j)%pool, name="MO")
-      !       END DO
-      !       dft_section => section_vals_get_subs_vals(input, "DFT")
-      !       ! Read the restart wfn
-      !       CALL read_mo_set_from_restart(mos, atomic_kind_set, qs_kind_set, particle_set,&
-      !               para_env, id_nr=0, multiplicity=dft_control%multiplicity, dft_section=dft_section)
-      !       ! Build the Kohn-Sham matrix
-      !       ! CALL qs_ks_build_kohn_sham_matrix(qs_env, calculate_forces=.FALSE., just_energy=.FALSE.)
-      !       CALL cp_fm_create(buffer_matrix, matrix_struct=mos(1)%mo_coeff%matrix_struct)
-      !       CALL cp_fm_create(buffer_matrix_2, matrix_struct=mos(1)%mo_coeff%matrix_struct)
-      !       CALL cp_fm_to_fm(mos(1)%mo_coeff, buffer_matrix)
-      !       PRINT *, "DEBUG G0W0 - MOS"
-      !       CALL cp_fm_write_formatted(buffer_matrix, 6)
-      !       CALL cp_fm_column_scale(buffer_matrix, mos(1)%eigenvalues)
-      !       CALL parallel_gemm("N", "T", mos(1)%nao, mos(1)%nmo, mos(1)%nao,&
-      !               1.0_dp, buffer_matrix, mos(1)%mo_coeff,&
-      !               0.0_dp, buffer_matrix_2)
-      !       CALL copy_fm_to_dbcsr(buffer_matrix_2, matrix_ks(1)%matrix)
-      !       CALL cp_fm_release(buffer_matrix)
-      !       CALL cp_fm_release(buffer_matrix_2)
-      !       ! With the mo set read, rerun the properties calculation only
-      !       ! For G0W0, this should just read all the required files
-      !       CALL qs_energies_properties(qs_env, calc_forces=.FALSE.)
-      !    CASE default
-      !       ! TODO : Decide on the effect of energy consistency
-      !       CALL force_env_calc_energy_force(force_env, calc_force=.FALSE., &
-      !                                        consistent_energies=.FALSE.)
-      ! END SELECT
       CALL force_env_calc_energy_force(force_env, calc_force=.FALSE., &
                                        consistent_energies=.FALSE.)
       ! ********************** ALLOCATIONS **********************
       CALL create_tdagw_env(tdagw_env, qs_env, force_env)
-      ! Get the logger unit number, only print if we are the source process
+      ! Restart input
       CALL get_qs_env(qs_env, bs_env=bs_env, rtp=rtp, cell=cell, matrix_s=matrix_s, input=input, dft_control=dft_control)
       rtp_control => dft_control%rtp_control
-      run_restart = .FALSE.
-      logger => cp_get_default_logger()
       restart_section => section_vals_get_subs_vals(input, "DFT%REAL_TIME_PROPAGATION%PRINT%RESTART")
       IF (dft_control%rtp_control%initial_wfn == use_rt_restart ) THEN
-         save_name_info = cp_print_key_generate_filename(logger, restart_section, extension=".info", my_local=.FALSE.)
-         IF (file_exists(save_name_info)) THEN
-            CALL open_file(save_name_info, file_status="OLD", file_form="UNFORMATTED", file_action="READ",&
-                           unit_number=rho_unit_nr)
-            ! TODO : Error handling?
-            READ(rho_unit_nr) tdagw_env%sim_start
-            CALL close_file(rho_unit_nr)
-            run_restart = .TRUE.
-            IF (tdagw_env%unit_nr > 0) WRITE (tdagw_env%unit_nr, *) "Starting from timestep ", tdagw_env%sim_start,&
-                    ", no delta kick applied"
-         ELSE
-            CPWARN("Restart required but no RESTART_INFO file found - starting from sim_step given in&
-                    config and running delta kick")
-         END IF
-         ! Load up the old density
-         save_name_re = cp_print_key_generate_filename(logger, restart_section, extension="_RE.matrix", my_local=.FALSE.)
-         save_name_im = cp_print_key_generate_filename(logger, restart_section, extension="_IM.matrix", my_local=.FALSE.)
-         IF (file_exists(save_name_re) .AND. file_exists(save_name_im)) THEN
-            ! Get unit numbers
-            ! rho_unit_re = cp_print_key_unit_nr(logger, input, "DFT%REAL_TIME_PROPAGATION%PRINT%RESTART", extension="_RE.matrix")
-            CALL open_file(save_name_re, file_status="OLD", file_form="UNFORMATTED", file_action="READ",&
-                           unit_number=rho_unit_nr)
-            CALL cp_fm_read_unformatted(tdagw_env%rho(1)%matrix, rho_unit_nr)
-            CALL close_file(rho_unit_nr)
-            CALL open_file(save_name_im, file_status="OLD", file_form="UNFORMATTED", file_action="READ",&
-                           unit_number=rho_unit_nr)
-            CALL cp_fm_read_unformatted(tdagw_env%rho(2)%matrix, rho_unit_nr)
-            CALL close_file(rho_unit_nr)
-         ELSE
-            CPWARN("Restart required but either RHO_SAVE_RE or RHO_SAVE_IM file not found - starting from the SCF density")
-         END IF
+         CALL read_restart(tdagw_env, restart_section, run_restart)
       END IF
       ! TODO : Print a nicer header
       IF (tdagw_env%unit_nr > 0) WRITE(tdagw_env%unit_nr, *) "=== Starting time-dependent adiabatic GW real time propagation ==="
@@ -360,9 +290,10 @@ CONTAINS
 
       ! Setup the files
       rtp_section => section_vals_get_subs_vals(input, "DFT%REAL_TIME_PROPAGATION")
+      output_section => section_vals_get_subs_vals(rtp_section, "PRINT%FIELD")
       tdagw_env%sim_time = REAL(tdagw_env%sim_start, dp)*tdagw_env%sim_dt
       ! Output 0 time moments
-      IF (.NOT. run_restart) CALL output_moments(tdagw_env, tdagw_env%rho, bs_env%fm_mo_coeff_Gamma, rtp_section)
+      IF (.NOT. run_restart) CALL output_moments(tdagw_env, tdagw_env%rho, bs_env%fm_mo_coeff_Gamma, output_section)
 
       ! Do not apply the delta kick if we are doing a restart calculation
       IF (rtp_control%apply_delta_pulse .AND. (.NOT. run_restart)) THEN
@@ -469,7 +400,8 @@ CONTAINS
          ! Update the effective Hamiltonian
          CALL update_effective_ham(tdagw_env, qs_env, tdagw_env%rho)
          ! Print the updated field
-         CALL output_field(tdagw_env, rtp_section)
+         output_section => section_vals_get_subs_vals(rtp_section, "PRINT%FIELD")
+         CALL output_field(tdagw_env, output_section)
          ! Convert the effective hamiltonian into the exponential
          CALL ham_to_exp(tdagw_env)
          ! Propagate the density to mid-point
@@ -510,6 +442,7 @@ CONTAINS
          CALL get_idempotence_deviation(tdagw_env, tdagw_env%rho_new, idempotence_dev)
          a_metric_1 = antiherm_metric(tdagw_env%sigma_SEX(re),tdagw_env%sigma_SEX(im))
          a_metric_2 = antiherm_metric(tdagw_env%hartree_curr(re),tdagw_env%hartree_curr(im))
+         ! TODO : Move to io
          IF (tdagw_env%unit_nr > 0) WRITE(tdagw_env%unit_nr, *) "Sim step : ", tdagw_env%sim_step, "Convergence : ", metric,&
                                                                 "Threshold : ", tdagw_env%etrs_threshold,&
                                                                 "Electron number", enum_re, enum_im, "SC iterations : ", k,&
@@ -522,28 +455,14 @@ CONTAINS
             CALL cp_fm_to_fm(tdagw_env%rho_new(im)%matrix, tdagw_env%rho(im)%matrix)
          END DO
          ! TODO : k-points
-         CALL output_mos_rho(tdagw_env, tdagw_env%rho, bs_env%fm_mo_coeff_Gamma, rtp_section)
-         CALL output_mos_cohsex(tdagw_env, tdagw_env%sigma_SEX, bs_env%fm_mo_coeff_Gamma, rtp_section)
-         CALL output_moments(tdagw_env, tdagw_env%rho, bs_env%fm_mo_coeff_Gamma, rtp_section)
+         output_section => section_vals_get_subs_vals(rtp_section, "PRINT%DENSITY_MATRIX")
+         CALL output_mos_contravariant(tdagw_env, tdagw_env%rho, bs_env%fm_mo_coeff_Gamma, output_section)
+         output_section => section_vals_get_subs_vals(rtp_section, "PRINT%MOMENTS")
+         CALL output_moments(tdagw_env, tdagw_env%rho, bs_env%fm_mo_coeff_Gamma, output_section)
          ! Output restart files
-         ! TODO : Spin dependency/k-point dependency
-         ! Real part of density matrix
-         rho_unit_nr = cp_print_key_unit_nr(logger, restart_section, extension="_RE.matrix", file_form="UNFORMATTED",&
-                 file_position="REWIND")
-         CALL cp_fm_write_unformatted(tdagw_env%rho(1)%matrix, rho_unit_nr)
-         CALL cp_print_key_finished_output(rho_unit_nr, logger, restart_section)
-         ! Imag part of density matrix
-         rho_unit_nr = cp_print_key_unit_nr(logger, restart_section, extension="_IM.matrix", file_form="UNFORMATTED",&
-                 file_position="REWIND")
-         CALL cp_fm_write_unformatted(tdagw_env%rho(2)%matrix, rho_unit_nr)
-         CALL cp_print_key_finished_output(rho_unit_nr, logger, restart_section)
-         ! Restart info
-         rho_unit_nr = cp_print_key_unit_nr(logger, restart_section, extension=".info", file_form="UNFORMATTED",&
-                 file_position="REWIND")
-         IF (tdagw_env%unit_nr > 0) THEN
-            WRITE (rho_unit_nr) i+1
-         END IF
-         CALL cp_print_key_finished_output(rho_unit_nr, logger, restart_section)
+         ! TODO : k-point dependency
+         ! Output so that the restart starts at the following time index
+         CALL output_restart(restart_section, tdagw_env%rho, i+1)
       END DO
       ! ********************** End the time loop **********************
 
@@ -982,157 +901,6 @@ CONTAINS
    END SUBROUTINE
 
 ! **************************************************************************************************
-!> \brief Outputs rho in basis of MOs to a file
-!> \param tdagw_env Entry point - tdagw environment
-!> \param rho Density matrix in AO basis
-!> \param mos Spin dependent molecular orbitals
-!> \param rtp_section RTP input section
-! **************************************************************************************************
-   SUBROUTINE output_mos_rho(tdagw_env, rho, mos, rtp_section)
-      TYPE(tdagw_env_type)                               :: tdagw_env
-      TYPE(cp_fm_p_type), DIMENSION(:)                   :: rho
-      TYPE(cp_fm_type), DIMENSION(:)                     :: mos
-      TYPE(section_vals_type), POINTER                   :: rtp_section
-      CHARACTER(len=*), PARAMETER                        :: routineN = "output_mos_rho"
-      TYPE(cp_logger_type), POINTER                      :: logger
-      INTEGER                                            :: j, re, im,&
-                                                            rho_unit_re, rho_unit_im
-      CHARACTER(len=14), DIMENSION(4)                    :: file_labels
-      
-      file_labels(1) = "_SPIN_A_RE.dat"
-      file_labels(2) = "_SPIN_A_IM.dat"
-      file_labels(3) = "_SPIN_B_RE.dat"
-      file_labels(4) = "_SPIN_B_IM.dat"
-      logger => cp_get_default_logger()
-      ! Start by multiplying the current density by MOS
-      @:SPIN_DO(j,re, im, tdagw_env%n_spin)
-         rho_unit_re = cp_print_key_unit_nr(logger, rtp_section, "PRINT%DENSITY_MATRIX", extension=file_labels(re))
-         rho_unit_im = cp_print_key_unit_nr(logger, rtp_section, "PRINT%DENSITY_MATRIX", extension=file_labels(im))
-         ! Transform the density matrix into molecular orbitals basis and print it out
-         ! TODO : Number of molecular orbitals and atomic orbitals might not be the same
-         ! TODO : Spins in S_fm
-         ! Real part
-         ! Scale by spin degeneracy
-         ! S * rho
-         CALL parallel_gemm("N", "N", tdagw_env%n_ao, tdagw_env%n_ao, tdagw_env%n_ao,&
-                            tdagw_env%spin_degeneracy, tdagw_env%S_fm%matrix, rho(re)%matrix,&
-                            0.0_dp,tdagw_env%rho_workspace(1)%matrix)
-         ! C^T * S * rho
-         CALL parallel_gemm("T", "N", tdagw_env%n_ao, tdagw_env%n_ao, tdagw_env%n_ao,&
-                            1.0_dp, mos(j), tdagw_env%rho_workspace(1)%matrix, 0.0_dp, tdagw_env%rho_workspace(2)%matrix)
-         ! C^T * S * rho * S
-         CALL parallel_gemm("N", "N", tdagw_env%n_ao, tdagw_env%n_ao, tdagw_env%n_ao,&
-                            1.0_dp, tdagw_env%rho_workspace(2)%matrix, tdagw_env%S_fm%matrix,&
-                            0.0_dp, tdagw_env%rho_workspace(1)%matrix)
-         ! C^T * S * rho * S * C
-         CALL parallel_gemm("N", "N", tdagw_env%n_ao, tdagw_env%n_ao, tdagw_env%n_ao,&
-                            1.0_dp, tdagw_env%rho_workspace(1)%matrix, mos(j), 0.0_dp, tdagw_env%rho_workspace(2)%matrix)
-         CALL cp_fm_write_formatted(tdagw_env%rho_workspace(2)%matrix, rho_unit_re)
-         ! Imag part
-         ! Scale by spin degeneracy
-         ! S * rho
-         CALL parallel_gemm("N", "N", tdagw_env%n_ao, tdagw_env%n_ao, tdagw_env%n_ao,&
-                            tdagw_env%spin_degeneracy, tdagw_env%S_fm%matrix, rho(im)%matrix,&
-                            0.0_dp, tdagw_env%rho_workspace(1)%matrix)
-         ! C^T * S * rho
-         CALL parallel_gemm("T", "N", tdagw_env%n_ao, tdagw_env%n_ao, tdagw_env%n_ao,&
-                            1.0_dp, mos(j), tdagw_env%rho_workspace(1)%matrix, 0.0_dp, tdagw_env%rho_workspace(2)%matrix)
-         ! C^T * rho * S
-         CALL parallel_gemm("N", "N", tdagw_env%n_ao, tdagw_env%n_ao, tdagw_env%n_ao,&
-                            1.0_dp, tdagw_env%rho_workspace(2)%matrix, tdagw_env%S_fm%matrix,&
-                            0.0_dp, tdagw_env%rho_workspace(1)%matrix)
-         ! C^T * rho * S * C
-         CALL parallel_gemm("N", "N", tdagw_env%n_ao, tdagw_env%n_ao, tdagw_env%n_ao,&
-                            1.0_dp, tdagw_env%rho_workspace(1)%matrix, mos(j), 0.0_dp, tdagw_env%rho_workspace(2)%matrix)
-         CALL cp_fm_write_formatted(tdagw_env%rho_workspace(2)%matrix, rho_unit_im)
-         CALL cp_print_key_finished_output(rho_unit_re, logger, rtp_section, "PRINT%DENSITY_MATRIX")
-         CALL cp_print_key_finished_output(rho_unit_im, logger, rtp_section, "PRINT%DENSITY_MATRIX")
-      END DO
-   END SUBROUTINE
-! **************************************************************************************************
-!> \brief Prints the current field components into a file provided by input
-!> \param tdagw_env Entry point - tdagw environment
-!> \param rtp_section RTP input section
-! **************************************************************************************************
-   SUBROUTINE output_field(tdagw_env, rtp_section)
-      TYPE(tdagw_env_type)                               :: tdagw_env
-      TYPE(section_vals_type) , POINTER                  :: rtp_section
-      CHARACTER(len=*), PARAMETER                        :: routineN="output_field"
-      TYPE(cp_logger_type), POINTER                      :: logger
-      INTEGER                                            :: field_unit
-      
-      ! Get logger
-      logger => cp_get_default_logger()
-      ! Get file descriptor
-      field_unit = cp_print_key_unit_nr(logger, rtp_section, "PRINT%FIELD", extension=".dat")
-      ! If the file descriptor is non-zero, output field
-      IF (field_unit /= -1) THEN
-         WRITE(field_unit, '(E20.8E3,E20.8E3,E20.8E3,E20.8E3)') tdagw_env%sim_time*femtoseconds,&
-               tdagw_env%field(1), tdagw_env%field(2), tdagw_env%field(3)
-      END IF
-      CALL cp_print_key_finished_output(field_unit, logger, rtp_section, "PRINT%FIELD")
-      
-   END SUBROUTINE
-
-! **************************************************************************************************
-!> \brief Outputs the expectation value of moments from a given density matrix
-!> \note  Moments matrix is provided by the tdagw_env, uses rho_workspace(1:3) 
-!> \param tdagw_env Entry point - tdagw environment
-!> \param rho Density matrix in AO basis
-!> \param rtp_section RTP section of the input parameters, where moments destination may be present
-! **************************************************************************************************
-   SUBROUTINE output_moments(tdagw_env, rho, mos, rtp_section)
-      TYPE(tdagw_env_type)                               :: tdagw_env
-      TYPE(cp_fm_p_type), DIMENSION(:)                   :: rho
-      TYPE(cp_fm_type), DIMENSION(:)                     :: mos
-      TYPE(section_vals_type), POINTER                   :: rtp_section
-      CHARACTER(len=*), PARAMETER                        :: routineN = "output_moments"
-      TYPE(cp_logger_type), POINTER                      :: logger
-      INTEGER                                            :: i,j,re,im,&
-                                                            moments_unit_re,&
-                                                            moments_unit_im
-      CHARACTER(len=14), DIMENSION(4)                    :: file_labels
-      REAL(kind=dp), DIMENSION(3)                        :: moments
-      
-      ! Start by getting the relevant file unit
-      MARK_USED(mos)
-      file_labels(1) = "_SPIN_A_RE.dat"
-      file_labels(2) = "_SPIN_A_IM.dat"
-      file_labels(3) = "_SPIN_B_RE.dat"
-      file_labels(4) = "_SPIN_B_IM.dat"
-      logger => cp_get_default_logger()
-      @:SPIN_DO(j, re, im, tdagw_env%n_spin)
-         moments_unit_re = cp_print_key_unit_nr(logger, rtp_section, "PRINT%MOMENTS", extension=file_labels(re))
-         moments_unit_im = cp_print_key_unit_nr(logger, rtp_section, "PRINT%MOMENTS", extension=file_labels(im))
-         ! If, for any reason, the file unit is not provided, skip to next cycle immediately
-         ! TODO : Either centralize or let user define the output format
-         ! TODO : Let user define the output units
-         ! TODO : Handle case of complex molecular orbital matrix?
-         ! TODO : Specify output units in config
-         ! Need to transpose due to the definition of trace function
-         CALL cp_fm_transpose(rho(re)%matrix, tdagw_env%rho_workspace(1)%matrix)
-         DO i=1,3
-            CALL cp_fm_trace(tdagw_env%rho_workspace(1)%matrix, tdagw_env%moments(i)%matrix, moments(i))
-            ! Scale by spin degeneracy and electron charge
-            moments(i) = - moments(i) * tdagw_env%spin_degeneracy
-         END DO
-         ! Output to the file
-         IF (moments_unit_re > 0) WRITE(moments_unit_re, '(E20.8E3,E20.8E3,E20.8E3,E20.8E3)') tdagw_env%sim_time*femtoseconds,&
-                 moments(1),moments(2), moments(3)
-         ! Need to transpose due to the definition of trace function
-         CALL cp_fm_transpose(rho(im)%matrix, tdagw_env%rho_workspace(1)%matrix)
-         DO i=1,3
-            CALL cp_fm_trace(tdagw_env%rho_workspace(1)%matrix, tdagw_env%moments(i)%matrix, moments(i))
-         END DO
-         ! Output to the file
-         IF(moments_unit_im > 0) WRITE(moments_unit_im, '(D16.8,D16.8,D16.8,D16.8)') tdagw_env%sim_time*femtoseconds, moments(1),&
-             moments(2), moments(3)
-         ! Close the files
-         CALL cp_print_key_finished_output(moments_unit_re, logger, rtp_section, "PRINT%MOMENTS")
-         CALL cp_print_key_finished_output(moments_unit_im, logger, rtp_section, "PRINT%MOMENTS")
-      END DO
-   END SUBROUTINE
-! **************************************************************************************************
 !> \brief Outputs the number of electrons in the system from the density matrix
 !> \note  Moments matrix is provided by the tdagw_env, uses rho_workspace(1:3) 
 !> \param tdagw_env Entry point - tdagw environment
@@ -1212,67 +980,6 @@ CONTAINS
       END DO
       deviation_metric = SQRT(deviation_metric) - SQRT(buffer_dev)
    END SUBROUTINE get_idempotence_deviation
-! **************************************************************************************************
-!> \brief Outputs COHSEX energy in basis of MOs to a file
-!> \note Differs from the density matrix output due to differing representations of the operators
-!> \param tdagw_env Entry point - tdagw environment
-!> \param cohsex cohsex matrix in AO basis, covariant representation
-!> \param mos Spin dependent molecular orbitals
-!> \param rtp_section RTP input section
-! **************************************************************************************************
-   SUBROUTINE output_mos_cohsex(tdagw_env, cohsex, mos, rtp_section, custom_unit)
-      TYPE(tdagw_env_type)                               :: tdagw_env
-      TYPE(cp_fm_p_type), DIMENSION(:)                   :: cohsex
-      TYPE(cp_fm_type), DIMENSION(:)                     :: mos
-      TYPE(section_vals_type), POINTER                   :: rtp_section
-      INTEGER, DIMENSION(2), OPTIONAL                    :: custom_unit
-      CHARACTER(len=*), PARAMETER                        :: routineN = "output_mos_cohsex"
-      TYPE(cp_logger_type), POINTER                      :: logger
-      INTEGER                                            :: j, re, im,&
-                                                            rho_unit_re, rho_unit_im
-      CHARACTER(len=21), DIMENSION(4)                    :: file_labels
-      
-      file_labels(1) = "_COHSEX_SPIN_A_RE.dat"
-      file_labels(2) = "_COHSEX_SPIN_A_IM.dat"
-      file_labels(3) = "_COHSEX_SPIN_B_RE.dat"
-      file_labels(4) = "_COHSEX_SPIN_B_IM.dat"
-      logger => cp_get_default_logger()
-      ! Start by multiplying the current density by MOS
-      ! TODO : Avoid multiplications if not required
-      @:SPIN_DO(j,re, im, tdagw_env%n_spin)
-         IF(.NOT. PRESENT(custom_unit)) THEN
-            rho_unit_re = cp_print_key_unit_nr(logger, rtp_section, "PRINT%DENSITY_MATRIX", extension=file_labels(re))
-            rho_unit_im = cp_print_key_unit_nr(logger, rtp_section, "PRINT%DENSITY_MATRIX", extension=file_labels(im))
-         ELSE
-            rho_unit_re = custom_unit(1)
-            rho_unit_im = custom_unit(2)
-         END IF
-         ! Transform the density matrix into molecular orbitals basis and print it out
-         ! TODO : Number of molecular orbitals and atomic orbitals might not be the same
-         ! TODO : Spins in S_fm
-         ! Real part
-         ! C^T * cohsex
-         CALL parallel_gemm("T", "N", tdagw_env%n_ao, tdagw_env%n_ao, tdagw_env%n_ao,&
-                            1.0_dp, mos(j), cohsex(re)%matrix, 0.0_dp, tdagw_env%rho_workspace(1)%matrix)
-         ! C^T * cohsex * C
-         CALL parallel_gemm("N", "N", tdagw_env%n_ao, tdagw_env%n_ao, tdagw_env%n_ao,&
-                            1.0_dp, tdagw_env%rho_workspace(1)%matrix, mos(j),&
-                            0.0_dp, tdagw_env%rho_workspace(2)%matrix)
-         CALL cp_fm_write_formatted(tdagw_env%rho_workspace(2)%matrix, rho_unit_re)
-         ! Imag part
-         ! C^T * cohsex
-         CALL parallel_gemm("T", "N", tdagw_env%n_ao, tdagw_env%n_ao, tdagw_env%n_ao,&
-                            1.0_dp, mos(j), cohsex(im)%matrix, 0.0_dp, tdagw_env%rho_workspace(1)%matrix)
-         ! C^T * cohsex * C
-         CALL parallel_gemm("N", "N", tdagw_env%n_ao, tdagw_env%n_ao, tdagw_env%n_ao,&
-                            1.0_dp, tdagw_env%rho_workspace(1)%matrix, mos(j), 0.0_dp, tdagw_env%rho_workspace(2)%matrix)
-         CALL cp_fm_write_formatted(tdagw_env%rho_workspace(2)%matrix, rho_unit_im)
-         IF (.NOT. PRESENT(custom_unit)) THEN
-            CALL cp_print_key_finished_output(rho_unit_re, logger, rtp_section, "PRINT%DENSITY_MATRIX")
-            CALL cp_print_key_finished_output(rho_unit_im, logger, rtp_section, "PRINT%DENSITY_MATRIX")
-         END IF
-      END DO
-   END SUBROUTINE
 
 ! **************************************************************************************************
 !> \brief Calculates the self-energy by contraction of screened potential
@@ -1797,11 +1504,6 @@ CONTAINS
       CALL copy_fm_to_dbcsr(rho_ao, tdagw_env%rho_dbcsr)
       nblocks = dbcsr_get_num_blocks(tdagw_env%rho_dbcsr)
       CALL dbcsr_iterator_start(iterator_matrix, tdagw_env%rho_dbcsr)
-      ! TODO : Test whether these 3c integrals do not give different results
-      !         - very similar values observed
-      ! CALL compute_3c_integrals(qs_env,&
-      !                    bs_env,&
-      !                    tdagw_env%t_3c_w)
       DO n=1,nblocks
          CALL dbcsr_iterator_next_block(iterator_matrix, ind_1, ind_2, block_matrix,&
                  row_offset=row_offset, col_offset=col_offset, row_size=row_size, col_size=col_size)
