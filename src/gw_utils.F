@@ -69,7 +69,7 @@ MODULE gw_utils
                                               ri_rpa_g0w0_crossing_newton,&
                                               small_cell_full_kp,&
                                               xc_none,&
-                                              rtp_method_gw
+                                              rtp_method_gwbse
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type,&
                                               section_vals_get,&
@@ -251,8 +251,8 @@ CONTAINS
       ! 2. consume a lot of memory and should not be kept until the quantity is
       !    deallocated in bs_env_release
 
-      IF (ASSOCIATED(bs_env%nl_3c%ij_list) .AND. (bs_env%rtp_method == rtp_method_gw)) THEN
-         PRINT *, "Retaining nl_3c for TD-aGW"
+      IF (ASSOCIATED(bs_env%nl_3c%ij_list) .AND. (bs_env%rtp_method == rtp_method_gwbse)) THEN
+         IF (bs_env%unit_nr > 0) WRITE(bs_env%unit_nr, *) "Retaining nl_3c for GWBSE"
       ELSE
          CALL neighbor_list_3c_destroy(bs_env%nl_3c)
       END IF

@@ -42,9 +42,7 @@ MODULE rt_propagation
    USE input_constants,                 ONLY: real_time_propagation,&
                                               use_restart_wfn,&
                                               use_rt_restart,&
-                                              use_scf_wfn,&
-                                              rtp_method_tddft,&
-                                              rtp_method_gw
+                                              use_scf_wfn
    USE input_cp2k_restarts,             ONLY: write_restart
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
@@ -92,7 +90,6 @@ MODULE rt_propagation
    USE rt_propagation_velocity_gauge,   ONLY: velocity_gauge_ks_matrix
    USE rt_propagator_init,              ONLY: init_propagators,&
                                               rt_initialize_rho_from_mos
-   USE rt_tdagw,                        ONLY: run_propagation_gw
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE

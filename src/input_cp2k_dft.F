@@ -51,8 +51,8 @@ MODULE input_cp2k_dft
         tddfpt_singlet, tddfpt_triplet, use_mom_ref_coac, use_mom_ref_com, use_mom_ref_user, &
         use_mom_ref_zero, use_restart_wfn, use_rt_restart, use_scf_wfn, weight_type_mass, &
         weight_type_unit, &
-        rtp_method_tddft, rtp_method_gw, rtp_tdagw_ham_ks, rtp_tdagw_ham_g0w0,&
-        rtp_tdagw_hartree_dbt, rtp_tdagw_hartree_pw
+        rtp_method_tddft, rtp_method_gwbse, rtp_gwbse_ham_ks, rtp_gwbse_ham_g0w0,&
+        rtp_gwbse_hartree_dbt, rtp_gwbse_hartree_pw
    USE input_cp2k_almo,                 ONLY: create_almo_scf_section
    USE input_cp2k_as,                   ONLY: create_active_space_section
    USE input_cp2k_ec,                   ONLY: create_ec_section
@@ -1642,7 +1642,7 @@ CONTAINS
                                         "Uses a Baker-Campbell-Hausdorff expansion to propagate the density matrix,"// &
                                         " only works for density propagation",&
                                         "Uses diagonalisation of the exponent matrices to determine the "//&
-                                        "matrix exponential exactly. Only implemented for TD-aGW."))
+                                        "matrix exponential exactly. Only implemented for GWBSE."))
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -1672,28 +1672,28 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      ! Marek : Controlling flow to TD-aGW
+      ! Marek : Controlling flow to GWBSE
       CALL keyword_create(keyword, __LOCATION__, name="RTP_METHOD", &
                           description="Which method is used for the time propagation of electronic structure. "// &
-                          "By default, use the TDDFT method. Can also choose TD-aGW method, which propagates the lesser "// &
+                          "By default, use the TDDFT method. Can also choose GWBSE method, which propagates the lesser "// &
                           "Green's function instead of density matrix/molecular orbitals.", &
-                          usage="RTP_METHOD TDAGW", &
+                          usage="RTP_METHOD GWBSE", &
                           default_i_val=rtp_method_tddft,&
-                          enum_c_vals=s2a("TDDFT", "TDAGW"),&
-                          enum_i_vals=(/rtp_method_tddft, rtp_method_gw/),&
+                          enum_c_vals=s2a("TDDFT", "GWBSE"),&
+                          enum_i_vals=(/rtp_method_tddft, rtp_method_gwbse/),&
                           enum_desc=s2a("Use TDDFT for density matrix/MO propagation.",&
-                                        "Use TD-aGW for Green's function propagation"))
+                                        "Use GWBSE for Green's function propagation"))
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      ! Marek : Development option - run TD-aGW starting from the KS Hamiltonian
-      CALL keyword_create(keyword, __LOCATION__, name="TDAGW_HAMILTONIAN", &
+      ! Marek : Development option - run GWBSE starting from the KS Hamiltonian
+      CALL keyword_create(keyword, __LOCATION__, name="GWBSE_HAMILTONIAN", &
                           description="Which Hamiltonian to use as the single-particle Hamiltonian"// &
                                       " in the Green's propagator.",&
-                          usage="TDAGW_HAMILTONIAN G0W0", &
-                          default_i_val=rtp_tdagw_ham_g0w0,&
+                          usage="GWBSE_HAMILTONIAN G0W0", &
+                          default_i_val=rtp_gwbse_ham_g0w0,&
                           enum_c_vals=s2a("KS", "G0W0"),&
-                          enum_i_vals=(/rtp_tdagw_ham_ks, rtp_tdagw_ham_g0w0/),&
+                          enum_i_vals=(/rtp_gwbse_ham_ks, rtp_gwbse_ham_g0w0/),&
                           enum_desc=s2a("Use Kohn-Sham Hamiltonian for Green's propagation.",&
                                         "Use G0W0 Hamiltonian for Green's function propagation"))
       CALL section_add_keyword(section, keyword)
@@ -1702,11 +1702,11 @@ CONTAINS
       ! Marek : Which method to use for Hartree term evaluation
       CALL keyword_create(keyword, __LOCATION__, name="HARTREE_METHOD", &
                           description="Which method to use for Hartree term evaluation"// &
-                                      " in the TD-aGW method for RTP.",&
+                                      " in the GWBSE method for RTP.",&
                           usage="HARTREE_METHOD DBT", &
-                          default_i_val=rtp_tdagw_hartree_dbt,&
+                          default_i_val=rtp_gwbse_hartree_dbt,&
                           enum_c_vals=s2a("DBT", "PW"),&
-                          enum_i_vals=(/rtp_tdagw_hartree_dbt, rtp_tdagw_hartree_pw/),&
+                          enum_i_vals=(/rtp_gwbse_hartree_dbt, rtp_gwbse_hartree_pw/),&
                           enum_desc=s2a("Use sparse tensor representation of Hartree term.",&
                                         "Use plane wave representation of Hartree term."))
       CALL section_add_keyword(section, keyword)

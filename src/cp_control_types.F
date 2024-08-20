@@ -13,7 +13,7 @@ MODULE cp_control_types
    USE cp_fm_types,                     ONLY: cp_fm_release,&
                                               cp_fm_type
    USE input_constants,                 ONLY: do_full_density,&
-                                              rtp_tdagw_ham_G0W0,&
+                                              rtp_gwbse_ham_G0W0,&
                                               rtp_method_tddft
    USE kinds,                           ONLY: default_path_length,&
                                               default_string_length,&
@@ -72,7 +72,7 @@ MODULE cp_control_types
       INTEGER                              :: propagator = 0
       LOGICAL                              :: fixed_ions = .FALSE.
       INTEGER                              :: rtp_method = rtp_method_tddft
-      INTEGER                              :: tdagw_ham = rtp_tdagw_ham_G0W0
+      INTEGER                              :: gwbse_ham = rtp_gwbse_ham_G0W0
       INTEGER                              :: initial_wfn = 0
       REAL(dp)                             :: eps_exp = 0.0_dp
       LOGICAL                              :: initial_step = .FALSE.

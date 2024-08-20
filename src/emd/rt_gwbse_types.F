@@ -6,11 +6,11 @@
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
-!> \brief Data storage and other types for time propagation via TD-aGW method.
+!> \brief Data storage and other types for time propagation via GWBSE method.
 !> \author Stepan Marek (01.24)
 ! **************************************************************************************************
 
-MODULE rt_tdagw_types
+MODULE rt_gwbse_types
 
    USE kinds,                           ONLY: dp
    USE cp_fm_types,                     ONLY: cp_fm_type,&
@@ -82,10 +82,10 @@ MODULE rt_tdagw_types
                                               use_mom_ref_zero,&
                                               use_mom_ref_user,&
                                               use_mom_ref_com,&
-                                              rtp_tdagw_ham_g0w0,&
-                                              rtp_tdagw_ham_ks,&
-                                              rtp_tdagw_hartree_dbt,&
-                                              rtp_tdagw_hartree_pw,&
+                                              rtp_gwbse_ham_g0w0,&
+                                              rtp_gwbse_ham_ks,&
+                                              rtp_gwbse_hartree_dbt,&
+                                              rtp_gwbse_hartree_pw,&
                                               do_taylor,&
                                               do_bch,&
                                               do_exact
@@ -100,13 +100,13 @@ MODULE rt_tdagw_types
 
    PRIVATE
 
-   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = "rt_tdagw"
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = "rt_gwbse"
 
-   #:include "tdagw_macros.fypp"
+   #:include "rt_gwbse_macros.fypp"
    
-   PUBLIC :: tdagw_env_type,&
-             create_tdagw_env,&
-             release_tdagw_env
+   PUBLIC :: gwbse_env_type,&
+             create_gwbse_env,&
+             release_gwbse_env
 
 ! **************************************************************************************************
 !> \param n_spin Number of spin channels that are present
@@ -171,7 +171,7 @@ MODULE rt_tdagw_types
 !> \param int_3c_array Array containing the local 3c integrals
 !> \author Stepan Marek (01.24)
 ! **************************************************************************************************
-   TYPE tdagw_env_type
+   TYPE gwbse_env_type
       INTEGER                                                   :: n_spin,&
                                                                    n_ao,&
                                                                    n_RI
@@ -234,22 +234,22 @@ MODULE rt_tdagw_types
       INTEGER                                                   :: unit_nr 
       REAL(kind=dp), DIMENSION(:,:,:), POINTER                  :: int_3c_array
 
-   END TYPE tdagw_env_type
+   END TYPE gwbse_env_type
 
 CONTAINS
 
 ! **************************************************************************************************
-!> \brief Allocates structures and prepares tdagw_env for run
-!> \param tdagw_env tdagw_env_type that is initialised
+!> \brief Allocates structures and prepares gwbse_env for run
+!> \param gwbse_env gwbse_env_type that is initialised
 !> \param qs_env Entry point of the calculation
 !> \author Stepan Marek
 !> \date 02.2024
 ! **************************************************************************************************
-   SUBROUTINE create_tdagw_env(tdagw_env, qs_env, force_env)
-      TYPE(tdagw_env_type)                                      :: tdagw_env
+   SUBROUTINE create_gwbse_env(gwbse_env, qs_env, force_env)
+      TYPE(gwbse_env_type)                                      :: gwbse_env
       TYPE(qs_environment_type),POINTER                         :: qs_env
       TYPE(force_env_type), POINTER                             :: force_env
-      CHARACTER(len=*), PARAMETER                               :: routineN="create_tdagw_env"
+      CHARACTER(len=*), PARAMETER                               :: routineN="create_gwbse_env"
       TYPE(post_scf_bandstructure_type), POINTER                :: bs_env
       TYPE(rt_prop_type), POINTER                               :: rtp
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER                 :: moments_dbcsr_p
@@ -269,7 +269,7 @@ CONTAINS
                       rtp=rtp,&
                       matrix_s=matrix_s,&
                       mos=mos,&
-                      dft_control=tdagw_env%dft_control,&
+                      dft_control=gwbse_env%dft_control,&
                       input=input)
       bs_sec => section_vals_get_subs_vals(input, "PROPERTIES%BANDSTRUCTURE")
       ! TODO : Ability to run without the GW code?
@@ -277,66 +277,66 @@ CONTAINS
          CPABORT("Cannot run RT-aGW without running GW calculation (PROPERTIES) before")
       END IF
       ! Number of spins
-      tdagw_env%n_spin = bs_env%n_spin
+      gwbse_env%n_spin = bs_env%n_spin
       ! Number of atomic orbitals
-      tdagw_env%n_ao = bs_env%n_ao
+      gwbse_env%n_ao = bs_env%n_ao
       ! Number of auxiliary basis orbitals
-      tdagw_env%n_RI = bs_env%n_RI
+      gwbse_env%n_RI = bs_env%n_RI
       ! Number of occupied orbitals - for closed shell equals to half the number of electrons
-      tdagw_env%n_occ(:) = bs_env%n_occ(:)
+      gwbse_env%n_occ(:) = bs_env%n_occ(:)
       ! Spin degeneracy - number of spins per orbital
-      tdagw_env%spin_degeneracy = bs_env%spin_degeneracy
+      gwbse_env%spin_degeneracy = bs_env%spin_degeneracy
       ! Default field is zero
-      tdagw_env%field(:) = 0.0_dp
+      gwbse_env%field(:) = 0.0_dp
       ! Default time is zero
-      tdagw_env%sim_step = 0
-      tdagw_env%sim_time = 0
+      gwbse_env%sim_step = 0
+      gwbse_env%sim_time = 0
       ! Time step is taken from rtp
       md_sec => section_vals_get_subs_vals(force_env%root_section, "MOTION%MD")
-      CALL section_vals_val_get(md_sec, "TIMESTEP", r_val=tdagw_env%sim_dt)
-      ! tdagw_env%sim_dt = rtp%dt
+      CALL section_vals_val_get(md_sec, "TIMESTEP", r_val=gwbse_env%sim_dt)
+      ! gwbse_env%sim_dt = rtp%dt
       ! Threshold for etrs is taken from the eps_energy from RT propagation
-      tdagw_env%etrs_threshold = tdagw_env%dft_control%rtp_control%eps_ener
-      ! TODO : Check whether dft_control can be dropped from tdagw_env
-      tdagw_env%exp_accuracy = tdagw_env%dft_control%rtp_control%eps_exp
+      gwbse_env%etrs_threshold = gwbse_env%dft_control%rtp_control%eps_ener
+      ! TODO : Check whether dft_control can be dropped from gwbse_env
+      gwbse_env%exp_accuracy = gwbse_env%dft_control%rtp_control%eps_exp
       ! Recover custom options
       CALL section_vals_val_get(input, "DFT%REAL_TIME_PROPAGATION%HARTREE_METHOD",&
-                                i_val=tdagw_env%hartree_method)
-      CALL section_vals_val_get(input, "DFT%REAL_TIME_PROPAGATION%TDAGW_HAMILTONIAN",&
-                                i_val=tdagw_env%ham_single_particle_type)
+                                i_val=gwbse_env%hartree_method)
+      CALL section_vals_val_get(input, "DFT%REAL_TIME_PROPAGATION%GWBSE_HAMILTONIAN",&
+                                i_val=gwbse_env%ham_single_particle_type)
       CALL section_vals_val_get(input, "DFT%REAL_TIME_PROPAGATION%MAX_ITER",&
-                                i_val=tdagw_env%etrs_max_iter)
+                                i_val=gwbse_env%etrs_max_iter)
       CALL section_vals_val_get(input, "DFT%REAL_TIME_PROPAGATION%MAT_EXP",&
-                                i_val=tdagw_env%mat_exp_method)
+                                i_val=gwbse_env%mat_exp_method)
       ! Output unit number, recovered from the post_scf_bandstructure_type
-      tdagw_env%unit_nr = bs_env%unit_nr
-      IF (tdagw_env%unit_nr > 0) WRITE (tdagw_env%unit_nr, *) "exp_method", tdagw_env%mat_exp_method
+      gwbse_env%unit_nr = bs_env%unit_nr
+      IF (gwbse_env%unit_nr > 0) WRITE (gwbse_env%unit_nr, *) "exp_method", gwbse_env%mat_exp_method
       ! Allocate and determine the expansion orders, based on arguments used in TDDFT
       ! TODO : Last two arguments are indicating that we are using Taylor expansion and not doing ion motion
-      ALLOCATE(tdagw_env%orders(2, tdagw_env%n_spin))
-      IF (tdagw_env%ham_single_particle_type == rtp_tdagw_ham_g0w0) THEN
-         @:SPIN_DO(i, re, im, tdagw_env%n_spin)
+      ALLOCATE(gwbse_env%orders(2, gwbse_env%n_spin))
+      IF (gwbse_env%ham_single_particle_type == rtp_gwbse_ham_g0w0) THEN
+         @:SPIN_DO(i, re, im, gwbse_env%n_spin)
             CALL get_nsquare_norder(2.0_dp*MAX(ABS(MAXVAL(bs_env%eigenval_G0W0(:,bs_env%nkp_only_DOS,i))),&
                                     ABS(MINVAL(bs_env%eigenval_G0W0(:,bs_env%nkp_only_DOS,i)))),&
-                                    tdagw_env%orders(1,i), tdagw_env%orders(2,i),&
-                                    tdagw_env%exp_accuracy,&
+                                    gwbse_env%orders(1,i), gwbse_env%orders(2,i),&
+                                    gwbse_env%exp_accuracy,&
                                     1, .FALSE.)
          END DO
       ELSE
          ! KS Ham
-         @:SPIN_DO(i,re,im,tdagw_env%n_spin)
+         @:SPIN_DO(i,re,im,gwbse_env%n_spin)
             CALL get_nsquare_norder(2.0_dp*MAX(ABS(MAXVAL(bs_env%eigenval_scf_Gamma(:,i))),&
                                     ABS(MINVAL(bs_env%eigenval_scf_Gamma(:,i)))),&
-                                    tdagw_env%orders(1,i), tdagw_env%orders(2,i),&
-                                    tdagw_env%exp_accuracy,&
+                                    gwbse_env%orders(1,i), gwbse_env%orders(2,i),&
+                                    gwbse_env%exp_accuracy,&
                                     1, .FALSE.)
          END DO
       END IF
       ! Sim start index and total number of steps as well
-      CALL section_vals_val_get(md_sec, "STEP_START_VAL", i_val=tdagw_env%sim_start)
-      ! tdagw_env%sim_start = rtp%i_start
-      CALL section_vals_val_get(md_sec, "STEPS", i_val=tdagw_env%sim_nsteps)
-      ! tdagw_env%sim_nsteps = rtp%nsteps
+      CALL section_vals_val_get(md_sec, "STEP_START_VAL", i_val=gwbse_env%sim_start)
+      ! gwbse_env%sim_start = rtp%i_start
+      CALL section_vals_val_get(md_sec, "STEPS", i_val=gwbse_env%sim_nsteps)
+      ! gwbse_env%sim_nsteps = rtp%nsteps
 
       ! Construct moments from dbcsr
       ALLOCATE(moments_dbcsr_p(3))
@@ -358,23 +358,23 @@ CONTAINS
       DEALLOCATE(custom_ref_point)
       CALL build_local_moment_matrix(qs_env, moments_dbcsr_p, 1, rpoint)
       ! Copy to full matrix
-      ALLOCATE(tdagw_env%moments(3))
+      ALLOCATE(gwbse_env%moments(3))
       DO i=1,3
          ! Again, matrices are created from overlap template
-         ALLOCATE(tdagw_env%moments(i)%matrix)
-         CALL cp_fm_create(tdagw_env%moments(i)%matrix, bs_env%fm_s_Gamma%matrix_struct)
-         CALL copy_dbcsr_to_fm(moments_dbcsr_p(i)%matrix, tdagw_env%moments(i)%matrix)
+         ALLOCATE(gwbse_env%moments(i)%matrix)
+         CALL cp_fm_create(gwbse_env%moments(i)%matrix, bs_env%fm_s_Gamma%matrix_struct)
+         CALL copy_dbcsr_to_fm(moments_dbcsr_p(i)%matrix, gwbse_env%moments(i)%matrix)
       END DO
       ! Now, repeat without reference point to get the moments for field
       CALL get_reference_point(rpoint, qs_env=qs_env, reference=use_mom_ref_zero, ref_point=custom_ref_point)
       CALL build_local_moment_matrix(qs_env, moments_dbcsr_p, 1, rpoint)
-      NULLIFY(tdagw_env%moments_field)
-      ALLOCATE(tdagw_env%moments_field(3))
+      NULLIFY(gwbse_env%moments_field)
+      ALLOCATE(gwbse_env%moments_field(3))
       DO i=1,3
-         NULLIFY(tdagw_env%moments_field(i)%matrix)
-         ALLOCATE(tdagw_env%moments_field(i)%matrix)
-         CALL cp_fm_create(tdagw_env%moments_field(i)%matrix, bs_env%fm_s_Gamma%matrix_struct)
-         CALL copy_dbcsr_to_fm(moments_dbcsr_p(i)%matrix, tdagw_env%moments_field(i)%matrix)
+         NULLIFY(gwbse_env%moments_field(i)%matrix)
+         ALLOCATE(gwbse_env%moments_field(i)%matrix)
+         CALL cp_fm_create(gwbse_env%moments_field(i)%matrix, bs_env%fm_s_Gamma%matrix_struct)
+         CALL copy_dbcsr_to_fm(moments_dbcsr_p(i)%matrix, gwbse_env%moments_field(i)%matrix)
       END DO
 
       ! Now can deallocate dbcsr matrices
@@ -388,7 +388,7 @@ CONTAINS
       ! DEBUG : change to initialisation directly from mo_coeffs
       ! CALL rt_initialize_rho_from_mos(rtp, mos)
       ! CALL get_rtp(rtp, rho_new=rho_dbcsr)
-      ! IF (.NOT. tdagw_env%dft_control%rtp_control%apply_delta_pulse ) THEN
+      ! IF (.NOT. gwbse_env%dft_control%rtp_control%apply_delta_pulse ) THEN
       !    CALL rt_initialize_rho_from_mos(rtp, mos)
       ! ELSE
       !    CALL rt_initialize_rho_from_mos(rtp, mos, rtp%mos%old)
@@ -399,310 +399,310 @@ CONTAINS
       ! DO i=1,SIZE(rho_dbcsr)
       !    CALL dbcsr_scale(rho_dbcsr(i)%matrix, 0.5_dp)
       ! END DO
-      ! DO i=1,2*tdagw_env%n_spin
-      !    NULLIFY(tdagw_env%rho(i)%matrix)
-      !    ALLOCATE(tdagw_env%rho(i)%matrix)
-      !    CALL cp_fm_create(tdagw_env%rho(i)%matrix, matrix_struct=bs_env%fm_s_Gamma%matrix_struct)
-      !    CALL copy_dbcsr_to_fm(rho_dbcsr(i)%matrix, tdagw_env%rho(i)%matrix)
+      ! DO i=1,2*gwbse_env%n_spin
+      !    NULLIFY(gwbse_env%rho(i)%matrix)
+      !    ALLOCATE(gwbse_env%rho(i)%matrix)
+      !    CALL cp_fm_create(gwbse_env%rho(i)%matrix, matrix_struct=bs_env%fm_s_Gamma%matrix_struct)
+      !    CALL copy_dbcsr_to_fm(rho_dbcsr(i)%matrix, gwbse_env%rho(i)%matrix)
       ! END DO
       ! Get the rho from fm_MOS - have to use the reimplementation of the delta kick
-      ALLOCATE(tdagw_env%rho(2*tdagw_env%n_spin))
-      ALLOCATE(occupations(tdagw_env%n_ao))
+      ALLOCATE(gwbse_env%rho(2*gwbse_env%n_spin))
+      ALLOCATE(occupations(gwbse_env%n_ao))
       ! Iterate over both spins
-      @:SPIN_DO(i, re, im, tdagw_env%n_spin)
+      @:SPIN_DO(i, re, im, gwbse_env%n_spin)
          occupations(:) = 0.0_dp
-         occupations(1:tdagw_env%n_occ(i)) = 1.0_dp
+         occupations(1:gwbse_env%n_occ(i)) = 1.0_dp
          ! TODO : Handle complex orbitals - then we have non-trivial imaginary part
          ! Create real part
-         NULLIFY(tdagw_env%rho(re)%matrix)
-         ALLOCATE(tdagw_env%rho(re)%matrix)
-         CALL cp_fm_create(tdagw_env%rho(re)%matrix, matrix_struct=bs_env%fm_s_Gamma%matrix_struct)
+         NULLIFY(gwbse_env%rho(re)%matrix)
+         ALLOCATE(gwbse_env%rho(re)%matrix)
+         CALL cp_fm_create(gwbse_env%rho(re)%matrix, matrix_struct=bs_env%fm_s_Gamma%matrix_struct)
          ! Create imaginary part
-         NULLIFY(tdagw_env%rho(im)%matrix)
-         ALLOCATE(tdagw_env%rho(im)%matrix)
-         CALL cp_fm_create(tdagw_env%rho(im)%matrix, matrix_struct=bs_env%fm_s_Gamma%matrix_struct)
+         NULLIFY(gwbse_env%rho(im)%matrix)
+         ALLOCATE(gwbse_env%rho(im)%matrix)
+         CALL cp_fm_create(gwbse_env%rho(im)%matrix, matrix_struct=bs_env%fm_s_Gamma%matrix_struct)
          ! Populate real part
-         CALL cp_fm_to_fm(bs_env%fm_mo_coeff_Gamma(i), tdagw_env%rho(im)%matrix)
-         CALL cp_fm_column_scale(tdagw_env%rho(im)%matrix, occupations)
-         CALL parallel_gemm("N", "T", tdagw_env%n_ao, tdagw_env%n_ao, tdagw_env%n_ao,&
+         CALL cp_fm_to_fm(bs_env%fm_mo_coeff_Gamma(i), gwbse_env%rho(im)%matrix)
+         CALL cp_fm_column_scale(gwbse_env%rho(im)%matrix, occupations)
+         CALL parallel_gemm("N", "T", gwbse_env%n_ao, gwbse_env%n_ao, gwbse_env%n_ao,&
                             1.0_dp, bs_env%fm_mo_coeff_Gamma(i),&
-                            tdagw_env%rho(im)%matrix,&
-                            0.0_dp, tdagw_env%rho(re)%matrix)
+                            gwbse_env%rho(im)%matrix,&
+                            0.0_dp, gwbse_env%rho(re)%matrix)
          ! Populate imaginary part
-         CALL cp_fm_set_all(tdagw_env%rho(im)%matrix, 0.0_dp)
+         CALL cp_fm_set_all(gwbse_env%rho(im)%matrix, 0.0_dp)
       END DO
       DEALLOCATE(occupations)
       ! Create the inverse overlap matrix, for use in density propagation 
       ! Start by creating the actual overlap matrix
       ! TODO : Handle different spins and k-points
-      NULLIFY(tdagw_env%S_fm%matrix)
-      ALLOCATE(tdagw_env%S_fm%matrix)
-      CALL cp_fm_create(tdagw_env%S_fm%matrix, bs_env%fm_s_Gamma%matrix_struct)
-      CALL copy_dbcsr_to_fm(matrix_s(1)%matrix, tdagw_env%S_fm%matrix)
-      NULLIFY(tdagw_env%S_inv_fm%matrix)
-      ALLOCATE(tdagw_env%S_inv_fm%matrix)
-      CALL cp_fm_create(tdagw_env%S_inv_fm%matrix, bs_env%fm_s_Gamma%matrix_struct)
-      CALL cp_fm_invert(tdagw_env%S_fm%matrix, tdagw_env%S_inv_fm%matrix)
+      NULLIFY(gwbse_env%S_fm%matrix)
+      ALLOCATE(gwbse_env%S_fm%matrix)
+      CALL cp_fm_create(gwbse_env%S_fm%matrix, bs_env%fm_s_Gamma%matrix_struct)
+      CALL copy_dbcsr_to_fm(matrix_s(1)%matrix, gwbse_env%S_fm%matrix)
+      NULLIFY(gwbse_env%S_inv_fm%matrix)
+      ALLOCATE(gwbse_env%S_inv_fm%matrix)
+      CALL cp_fm_create(gwbse_env%S_inv_fm%matrix, bs_env%fm_s_Gamma%matrix_struct)
+      CALL cp_fm_invert(gwbse_env%S_fm%matrix, gwbse_env%S_inv_fm%matrix)
       ! CALL s_matrices_create(matrix_s, rtp)
-      ! CALL get_rtp(rtp, S_inv=tdagw_env%S_inv)
+      ! CALL get_rtp(rtp, S_inv=gwbse_env%S_inv)
       ! TODO : Check that dbcsr overlap inverse coincides with fm overlap inverse
-      ! CALL dbcsr_print(tdagw_env%S_inv)
-      ! CALL copy_dbcsr_to_fm(tdagw_env%S_inv, tdagw_env%S_inv_fm%matrix)
+      ! CALL dbcsr_print(gwbse_env%S_inv)
+      ! CALL copy_dbcsr_to_fm(gwbse_env%S_inv, gwbse_env%S_inv_fm%matrix)
 
       ! Create the single particle hamiltonian
       ! Allocate workspace first
-      NULLIFY(tdagw_env%ham_workspace)
-      ALLOCATE(tdagw_env%ham_workspace(2*tdagw_env%n_spin))
-      DO i=1,2*tdagw_env%n_spin
-         ALLOCATE(tdagw_env%ham_workspace(i)%matrix)
-         CALL cp_fm_create(tdagw_env%ham_workspace(i)%matrix, bs_env%fm_ks_Gamma(1)%matrix_struct)
-         CALL cp_fm_set_all(tdagw_env%ham_workspace(i)%matrix, 0.0_dp)
+      NULLIFY(gwbse_env%ham_workspace)
+      ALLOCATE(gwbse_env%ham_workspace(2*gwbse_env%n_spin))
+      DO i=1,2*gwbse_env%n_spin
+         ALLOCATE(gwbse_env%ham_workspace(i)%matrix)
+         CALL cp_fm_create(gwbse_env%ham_workspace(i)%matrix, bs_env%fm_ks_Gamma(1)%matrix_struct)
+         CALL cp_fm_set_all(gwbse_env%ham_workspace(i)%matrix, 0.0_dp)
       END DO
       ! Now onto the Hamiltonian itself
-      ALLOCATE(tdagw_env%ham_single_particle(tdagw_env%n_spin))
-      @:SPIN_DO(i, re, im, tdagw_env%n_spin)
-         ALLOCATE(tdagw_env%ham_single_particle(i)%matrix)
-         IF ( tdagw_env%ham_single_particle_type == rtp_tdagw_ham_g0w0 ) THEN
+      ALLOCATE(gwbse_env%ham_single_particle(gwbse_env%n_spin))
+      @:SPIN_DO(i, re, im, gwbse_env%n_spin)
+         ALLOCATE(gwbse_env%ham_single_particle(i)%matrix)
+         IF ( gwbse_env%ham_single_particle_type == rtp_gwbse_ham_g0w0 ) THEN
             ! G0W0 Hamiltonian
-            CALL cp_fm_create(tdagw_env%ham_single_particle(i)%matrix, bs_env%fm_ks_Gamma(i)%matrix_struct)
-            CALL cp_fm_to_fm(bs_env%fm_mo_coeff_Gamma(i), tdagw_env%ham_workspace(1)%matrix)
+            CALL cp_fm_create(gwbse_env%ham_single_particle(i)%matrix, bs_env%fm_ks_Gamma(i)%matrix_struct)
+            CALL cp_fm_to_fm(bs_env%fm_mo_coeff_Gamma(i), gwbse_env%ham_workspace(1)%matrix)
             ! TODO : Checked that Gamma point is the zero k-point
             ! C * Lambda
-            CALL cp_fm_column_scale(tdagw_env%ham_workspace(1)%matrix, bs_env%eigenval_G0W0(:,1,i))
+            CALL cp_fm_column_scale(gwbse_env%ham_workspace(1)%matrix, bs_env%eigenval_G0W0(:,1,i))
             ! C * Lambda * C^T
-            CALL parallel_gemm("N", "T", tdagw_env%n_ao, tdagw_env%n_ao, tdagw_env%n_ao,&
-                               1.0_dp, tdagw_env%ham_workspace(1)%matrix, bs_env%fm_mo_coeff_Gamma(i),&
-                               0.0_dp, tdagw_env%ham_workspace(2)%matrix)
+            CALL parallel_gemm("N", "T", gwbse_env%n_ao, gwbse_env%n_ao, gwbse_env%n_ao,&
+                               1.0_dp, gwbse_env%ham_workspace(1)%matrix, bs_env%fm_mo_coeff_Gamma(i),&
+                               0.0_dp, gwbse_env%ham_workspace(2)%matrix)
             ! S * C * Lambda * C^T
-            CALL parallel_gemm("N", "N", tdagw_env%n_ao, tdagw_env%n_ao, tdagw_env%n_ao,&
-                               1.0_dp, tdagw_env%S_fm%matrix, tdagw_env%ham_workspace(2)%matrix,&
-                               0.0_dp, tdagw_env%ham_workspace(1)%matrix)
+            CALL parallel_gemm("N", "N", gwbse_env%n_ao, gwbse_env%n_ao, gwbse_env%n_ao,&
+                               1.0_dp, gwbse_env%S_fm%matrix, gwbse_env%ham_workspace(2)%matrix,&
+                               0.0_dp, gwbse_env%ham_workspace(1)%matrix)
             ! S * C * Lambda * C^T * S = H
-            CALL parallel_gemm("N", "N", tdagw_env%n_ao, tdagw_env%n_ao, tdagw_env%n_ao,&
-                               1.0_dp, tdagw_env%ham_workspace(1)%matrix, tdagw_env%S_fm%matrix,&
-                               0.0_dp, tdagw_env%ham_single_particle(i)%matrix)
+            CALL parallel_gemm("N", "N", gwbse_env%n_ao, gwbse_env%n_ao, gwbse_env%n_ao,&
+                               1.0_dp, gwbse_env%ham_workspace(1)%matrix, gwbse_env%S_fm%matrix,&
+                               0.0_dp, gwbse_env%ham_single_particle(i)%matrix)
          ELSE
             ! KS Hamiltonian
-            CALL cp_fm_create(tdagw_env%ham_single_particle(i)%matrix, bs_env%fm_ks_Gamma(i)%matrix_struct)
-            CALL cp_fm_to_fm(bs_env%fm_ks_Gamma(i), tdagw_env%ham_single_particle(i)%matrix)
+            CALL cp_fm_create(gwbse_env%ham_single_particle(i)%matrix, bs_env%fm_ks_Gamma(i)%matrix_struct)
+            CALL cp_fm_to_fm(bs_env%fm_ks_Gamma(i), gwbse_env%ham_single_particle(i)%matrix)
          END IF
       END DO
 
       ! Create the matrices and workspaces for effective Hamiltonian
-      ALLOCATE(tdagw_env%ham_effective(2*tdagw_env%n_spin))
-      ALLOCATE(tdagw_env%rho_new(2*tdagw_env%n_spin))
-      ALLOCATE(tdagw_env%rho_new_last(2*tdagw_env%n_spin))
-      ALLOCATE(tdagw_env%rho_M(2*tdagw_env%n_spin))
-      ALLOCATE(tdagw_env%rho_orig(2*tdagw_env%n_spin))
-      DO i=1,2*tdagw_env%n_spin
-         ALLOCATE(tdagw_env%ham_effective(i)%matrix)
-         CALL cp_fm_create(tdagw_env%ham_effective(i)%matrix, bs_env%fm_ks_Gamma(1)%matrix_struct)
-         CALL cp_fm_set_all(tdagw_env%ham_effective(i)%matrix, 0.0_dp)
-         ALLOCATE(tdagw_env%rho_new(i)%matrix)
-         CALL cp_fm_create(tdagw_env%rho_new(i)%matrix, bs_env%fm_ks_Gamma(1)%matrix_struct)
-         CALL cp_fm_set_all(tdagw_env%rho_new(i)%matrix, 0.0_dp)
-         ALLOCATE(tdagw_env%rho_new_last(i)%matrix)
-         CALL cp_fm_create(tdagw_env%rho_new_last(i)%matrix, bs_env%fm_ks_Gamma(1)%matrix_struct)
-         CALL cp_fm_set_all(tdagw_env%rho_new_last(i)%matrix, 0.0_dp)
-         ALLOCATE(tdagw_env%rho_M(i)%matrix)
-         CALL cp_fm_create(tdagw_env%rho_M(i)%matrix, bs_env%fm_ks_Gamma(1)%matrix_struct)
-         CALL cp_fm_set_all(tdagw_env%rho_M(i)%matrix, 0.0_dp)
-         ALLOCATE(tdagw_env%rho_orig(i)%matrix)
-         CALL cp_fm_create(tdagw_env%rho_orig(i)%matrix, bs_env%fm_ks_Gamma(1)%matrix_struct)
-         CALL cp_fm_to_fm(tdagw_env%rho(i)%matrix, tdagw_env%rho_orig(i)%matrix)
+      ALLOCATE(gwbse_env%ham_effective(2*gwbse_env%n_spin))
+      ALLOCATE(gwbse_env%rho_new(2*gwbse_env%n_spin))
+      ALLOCATE(gwbse_env%rho_new_last(2*gwbse_env%n_spin))
+      ALLOCATE(gwbse_env%rho_M(2*gwbse_env%n_spin))
+      ALLOCATE(gwbse_env%rho_orig(2*gwbse_env%n_spin))
+      DO i=1,2*gwbse_env%n_spin
+         ALLOCATE(gwbse_env%ham_effective(i)%matrix)
+         CALL cp_fm_create(gwbse_env%ham_effective(i)%matrix, bs_env%fm_ks_Gamma(1)%matrix_struct)
+         CALL cp_fm_set_all(gwbse_env%ham_effective(i)%matrix, 0.0_dp)
+         ALLOCATE(gwbse_env%rho_new(i)%matrix)
+         CALL cp_fm_create(gwbse_env%rho_new(i)%matrix, bs_env%fm_ks_Gamma(1)%matrix_struct)
+         CALL cp_fm_set_all(gwbse_env%rho_new(i)%matrix, 0.0_dp)
+         ALLOCATE(gwbse_env%rho_new_last(i)%matrix)
+         CALL cp_fm_create(gwbse_env%rho_new_last(i)%matrix, bs_env%fm_ks_Gamma(1)%matrix_struct)
+         CALL cp_fm_set_all(gwbse_env%rho_new_last(i)%matrix, 0.0_dp)
+         ALLOCATE(gwbse_env%rho_M(i)%matrix)
+         CALL cp_fm_create(gwbse_env%rho_M(i)%matrix, bs_env%fm_ks_Gamma(1)%matrix_struct)
+         CALL cp_fm_set_all(gwbse_env%rho_M(i)%matrix, 0.0_dp)
+         ALLOCATE(gwbse_env%rho_orig(i)%matrix)
+         CALL cp_fm_create(gwbse_env%rho_orig(i)%matrix, bs_env%fm_ks_Gamma(1)%matrix_struct)
+         CALL cp_fm_to_fm(gwbse_env%rho(i)%matrix, gwbse_env%rho_orig(i)%matrix)
       END DO
 
       ! Allocate space for density propagation
-      SELECT CASE (tdagw_env%mat_exp_method)
+      SELECT CASE (gwbse_env%mat_exp_method)
          CASE (do_taylor)
-            ALLOCATE(tdagw_env%rho_workspace(3))
+            ALLOCATE(gwbse_env%rho_workspace(3))
          CASE (do_exact)
-            ALLOCATE(tdagw_env%rho_workspace(3))
+            ALLOCATE(gwbse_env%rho_workspace(3))
          CASE (do_bch)
-            ALLOCATE(tdagw_env%rho_workspace(4))
+            ALLOCATE(gwbse_env%rho_workspace(4))
          CASE DEFAULT
             CPABORT("Only Taylor, exact and BCH matrix propagation implemented")
       END SELECT
-      DO i=1,SIZE(tdagw_env%rho_workspace)
-         ALLOCATE(tdagw_env%rho_workspace(i)%matrix)
-         CALL cp_fm_create(tdagw_env%rho_workspace(i)%matrix, bs_env%fm_ks_Gamma(1)%matrix_struct)
-         CALL cp_fm_set_all(tdagw_env%rho_workspace(i)%matrix, 0.0_dp)
+      DO i=1,SIZE(gwbse_env%rho_workspace)
+         ALLOCATE(gwbse_env%rho_workspace(i)%matrix)
+         CALL cp_fm_create(gwbse_env%rho_workspace(i)%matrix, bs_env%fm_ks_Gamma(1)%matrix_struct)
+         CALL cp_fm_set_all(gwbse_env%rho_workspace(i)%matrix, 0.0_dp)
       END DO
 
       ! Exact diagonalisation requires complex workspaces
-      ! IF (tdagw_env%mat_exp_method == do_exact) THEN
+      ! IF (gwbse_env%mat_exp_method == do_exact) THEN
       IF (.TRUE.) THEN
-         NULLIFY(tdagw_env%complex_s)
-         ALLOCATE(tdagw_env%complex_s(tdagw_env%n_spin))
-         DO i=1,tdagw_env%n_spin
-            NULLIFY(tdagw_env%complex_s(i)%matrix)
-            ALLOCATE(tdagw_env%complex_s(i)%matrix)
+         NULLIFY(gwbse_env%complex_s)
+         ALLOCATE(gwbse_env%complex_s(gwbse_env%n_spin))
+         DO i=1,gwbse_env%n_spin
+            NULLIFY(gwbse_env%complex_s(i)%matrix)
+            ALLOCATE(gwbse_env%complex_s(i)%matrix)
             ! TODO : True spin dependence - from qs_env or present somewhere in bs_env?
-            CALL cp_cfm_create(tdagw_env%complex_s(i)%matrix, bs_env%fm_s_Gamma%matrix_struct)
-            CALL cp_cfm_set_all(tdagw_env%complex_s(i)%matrix, (0.0_dp, 0.0_dp))
-            CALL cp_fm_to_cfm(msourcer=bs_env%fm_s_Gamma, mtarget=tdagw_env%complex_s(i)%matrix)
+            CALL cp_cfm_create(gwbse_env%complex_s(i)%matrix, bs_env%fm_s_Gamma%matrix_struct)
+            CALL cp_cfm_set_all(gwbse_env%complex_s(i)%matrix, (0.0_dp, 0.0_dp))
+            CALL cp_fm_to_cfm(msourcer=bs_env%fm_s_Gamma, mtarget=gwbse_env%complex_s(i)%matrix)
          END DO
-         NULLIFY(tdagw_env%complex_workspace)
-         ALLOCATE(tdagw_env%complex_workspace(4))
-         DO i=1,SIZE(tdagw_env%complex_workspace)
-            NULLIFY(tdagw_env%complex_workspace(i)%matrix)
-            ALLOCATE(tdagw_env%complex_workspace(i)%matrix)
-            CALL cp_cfm_create(tdagw_env%complex_workspace(i)%matrix, bs_env%fm_ks_Gamma(1)%matrix_struct)
-            CALL cp_cfm_set_all(tdagw_env%complex_workspace(i)%matrix, (0.0_dp, 0.0_dp))
+         NULLIFY(gwbse_env%complex_workspace)
+         ALLOCATE(gwbse_env%complex_workspace(4))
+         DO i=1,SIZE(gwbse_env%complex_workspace)
+            NULLIFY(gwbse_env%complex_workspace(i)%matrix)
+            ALLOCATE(gwbse_env%complex_workspace(i)%matrix)
+            CALL cp_cfm_create(gwbse_env%complex_workspace(i)%matrix, bs_env%fm_ks_Gamma(1)%matrix_struct)
+            CALL cp_cfm_set_all(gwbse_env%complex_workspace(i)%matrix, (0.0_dp, 0.0_dp))
          END DO
-         NULLIFY(tdagw_env%real_eigvals)
-         ALLOCATE(tdagw_env%real_eigvals(tdagw_env%n_ao))
-         tdagw_env%real_eigvals(:) = 0.0_dp
-         NULLIFY(tdagw_env%exp_eigvals)
-         ALLOCATE(tdagw_env%exp_eigvals(tdagw_env%n_ao))
-         tdagw_env%exp_eigvals(:) = (0.0_dp, 0.0_dp)
+         NULLIFY(gwbse_env%real_eigvals)
+         ALLOCATE(gwbse_env%real_eigvals(gwbse_env%n_ao))
+         gwbse_env%real_eigvals(:) = 0.0_dp
+         NULLIFY(gwbse_env%exp_eigvals)
+         ALLOCATE(gwbse_env%exp_eigvals(gwbse_env%n_ao))
+         gwbse_env%exp_eigvals(:) = (0.0_dp, 0.0_dp)
       END IF
 
       ! Self-energy components
-      ALLOCATE(tdagw_env%hartree_dbt)
+      ALLOCATE(gwbse_env%hartree_dbt)
 
       ! Allocate self-energy parts and dynamic Hartree potential
       ! TODO : Hartree probably has spin independent form
-      ALLOCATE(tdagw_env%hartree_orig(2*tdagw_env%n_spin))
-      ALLOCATE(tdagw_env%hartree_curr(2*tdagw_env%n_spin))
-      ALLOCATE(tdagw_env%sigma_SEX(2*tdagw_env%n_spin))
-      ALLOCATE(tdagw_env%sigma_COH(2*tdagw_env%n_spin))
-      DO i=1,2*tdagw_env%n_spin
-         ALLOCATE(tdagw_env%hartree_orig(i)%matrix)
-         ALLOCATE(tdagw_env%hartree_curr(i)%matrix)
-         ALLOCATE(tdagw_env%sigma_SEX(i)%matrix)
-         ALLOCATE(tdagw_env%sigma_COH(i)%matrix)
-         CALL cp_fm_create(tdagw_env%sigma_COH(i)%matrix, bs_env%fm_ks_Gamma(1)%matrix_struct)
-         CALL cp_fm_create(tdagw_env%sigma_SEX(i)%matrix, bs_env%fm_ks_Gamma(1)%matrix_struct)
-         CALL cp_fm_create(tdagw_env%hartree_orig(i)%matrix, bs_env%fm_ks_Gamma(1)%matrix_struct)
-         CALL cp_fm_create(tdagw_env%hartree_curr(i)%matrix, bs_env%fm_ks_Gamma(1)%matrix_struct)
-         CALL cp_fm_set_all(tdagw_env%sigma_COH(i)%matrix, 0.0_dp)
-         CALL cp_fm_set_all(tdagw_env%sigma_SEX(i)%matrix, 0.0_dp)
-         CALL cp_fm_set_all(tdagw_env%hartree_orig(i)%matrix, 0.0_dp)
-         CALL cp_fm_set_all(tdagw_env%hartree_curr(i)%matrix, 0.0_dp)
+      ALLOCATE(gwbse_env%hartree_orig(2*gwbse_env%n_spin))
+      ALLOCATE(gwbse_env%hartree_curr(2*gwbse_env%n_spin))
+      ALLOCATE(gwbse_env%sigma_SEX(2*gwbse_env%n_spin))
+      ALLOCATE(gwbse_env%sigma_COH(2*gwbse_env%n_spin))
+      DO i=1,2*gwbse_env%n_spin
+         ALLOCATE(gwbse_env%hartree_orig(i)%matrix)
+         ALLOCATE(gwbse_env%hartree_curr(i)%matrix)
+         ALLOCATE(gwbse_env%sigma_SEX(i)%matrix)
+         ALLOCATE(gwbse_env%sigma_COH(i)%matrix)
+         CALL cp_fm_create(gwbse_env%sigma_COH(i)%matrix, bs_env%fm_ks_Gamma(1)%matrix_struct)
+         CALL cp_fm_create(gwbse_env%sigma_SEX(i)%matrix, bs_env%fm_ks_Gamma(1)%matrix_struct)
+         CALL cp_fm_create(gwbse_env%hartree_orig(i)%matrix, bs_env%fm_ks_Gamma(1)%matrix_struct)
+         CALL cp_fm_create(gwbse_env%hartree_curr(i)%matrix, bs_env%fm_ks_Gamma(1)%matrix_struct)
+         CALL cp_fm_set_all(gwbse_env%sigma_COH(i)%matrix, 0.0_dp)
+         CALL cp_fm_set_all(gwbse_env%sigma_SEX(i)%matrix, 0.0_dp)
+         CALL cp_fm_set_all(gwbse_env%hartree_orig(i)%matrix, 0.0_dp)
+         CALL cp_fm_set_all(gwbse_env%hartree_curr(i)%matrix, 0.0_dp)
       END DO
 
       ! Allocate workspaces for get_sigma
-      CALL create_sigma_workspace(tdagw_env, qs_env)
+      CALL create_sigma_workspace(gwbse_env, qs_env)
 
       ! Depending on the chosen methods, allocate extra workspace
-      IF ( tdagw_env%hartree_method == rtp_tdagw_hartree_dbt ) THEN
-         CALL create_hartree_dbt_workspace(tdagw_env, qs_env)
-         CALL create_hartree_ri_workspace(tdagw_env, qs_env)
-      ELSEIF ( tdagw_env%hartree_method == rtp_tdagw_hartree_pw) THEN
-         ! CALL create_hartree_pw_workspace(tdagw_env, qs_env)
+      IF ( gwbse_env%hartree_method == rtp_gwbse_hartree_dbt ) THEN
+         CALL create_hartree_dbt_workspace(gwbse_env, qs_env)
+         CALL create_hartree_ri_workspace(gwbse_env, qs_env)
+      ELSEIF ( gwbse_env%hartree_method == rtp_gwbse_hartree_pw) THEN
+         ! CALL create_hartree_pw_workspace(gwbse_env, qs_env)
          CPABORT("PW Hartree no longer supported")
       END IF
       ! Rho-dbcsr is used by both Hartree methods
-      NULLIFY(tdagw_env%rho_dbcsr)
-      ALLOCATE(tdagw_env%rho_dbcsr)
-      CALL dbcsr_create(tdagw_env%rho_dbcsr, name="Sparse density", template=bs_env%mat_ao_ao%matrix)
+      NULLIFY(gwbse_env%rho_dbcsr)
+      ALLOCATE(gwbse_env%rho_dbcsr)
+      CALL dbcsr_create(gwbse_env%rho_dbcsr, name="Sparse density", template=bs_env%mat_ao_ao%matrix)
 
-      NULLIFY(tdagw_env%v_dbcsr%matrix)
-      ALLOCATE(tdagw_env%v_dbcsr%matrix)
+      NULLIFY(gwbse_env%v_dbcsr%matrix)
+      ALLOCATE(gwbse_env%v_dbcsr%matrix)
       
    END SUBROUTINE
 
 ! **************************************************************************************************
 !> \brief Releases the environment allocated structures
-!> \param tdagw_env 
+!> \param gwbse_env 
 !> \author Stepan Marek
 !> \date 02.2024
 ! **************************************************************************************************
-   SUBROUTINE release_tdagw_env(tdagw_env, qs_env)
-      TYPE(tdagw_env_type)                                      :: tdagw_env
+   SUBROUTINE release_gwbse_env(gwbse_env, qs_env)
+      TYPE(gwbse_env_type)                                      :: gwbse_env
       TYPE(qs_environment_type), POINTER                        :: qs_env
-      CHARACTER(len=*), PARAMETER                               :: routineN = "release_tdagw_env"
+      CHARACTER(len=*), PARAMETER                               :: routineN = "release_gwbse_env"
       INTEGER                                                   :: i
 
-      CALL cp_fm_release(tdagw_env%rho)
-      CALL cp_fm_release(tdagw_env%ham_effective)
-      CALL cp_fm_release(tdagw_env%ham_workspace)
-      CALL cp_fm_release(tdagw_env%sigma_COH)
-      CALL cp_fm_release(tdagw_env%sigma_SEX)
-      CALL cp_fm_release(tdagw_env%hartree_orig)
-      CALL cp_fm_release(tdagw_env%hartree_curr)
-      CALL cp_fm_release(tdagw_env%ham_single_particle)
-      CALL cp_fm_release(tdagw_env%rho_workspace)
-      CALL cp_fm_release(tdagw_env%rho_new)
-      CALL cp_fm_release(tdagw_env%rho_new_last)
-      CALL cp_fm_release(tdagw_env%rho_M)
-      CALL cp_fm_release(tdagw_env%rho_orig)
-      CALL cp_fm_release(tdagw_env%S_inv_fm%matrix)
+      CALL cp_fm_release(gwbse_env%rho)
+      CALL cp_fm_release(gwbse_env%ham_effective)
+      CALL cp_fm_release(gwbse_env%ham_workspace)
+      CALL cp_fm_release(gwbse_env%sigma_COH)
+      CALL cp_fm_release(gwbse_env%sigma_SEX)
+      CALL cp_fm_release(gwbse_env%hartree_orig)
+      CALL cp_fm_release(gwbse_env%hartree_curr)
+      CALL cp_fm_release(gwbse_env%ham_single_particle)
+      CALL cp_fm_release(gwbse_env%rho_workspace)
+      CALL cp_fm_release(gwbse_env%rho_new)
+      CALL cp_fm_release(gwbse_env%rho_new_last)
+      CALL cp_fm_release(gwbse_env%rho_M)
+      CALL cp_fm_release(gwbse_env%rho_orig)
+      CALL cp_fm_release(gwbse_env%S_inv_fm%matrix)
 
-      CALL cp_fm_release(tdagw_env%moments)
-      CALL cp_fm_release(tdagw_env%moments_field)
+      CALL cp_fm_release(gwbse_env%moments)
+      CALL cp_fm_release(gwbse_env%moments_field)
 
       ! TODO : Decide on where and when to releae this
-      CALL dbcsr_release(tdagw_env%v_dbcsr%matrix)
-      DEALLOCATE(tdagw_env%v_dbcsr%matrix)
+      CALL dbcsr_release(gwbse_env%v_dbcsr%matrix)
+      DEALLOCATE(gwbse_env%v_dbcsr%matrix)
 
-      NULLIFY(tdagw_env%S_inv)
-      DEALLOCATE(tdagw_env%orders)
+      NULLIFY(gwbse_env%S_inv)
+      DEALLOCATE(gwbse_env%orders)
 
-      CALL release_sigma_workspace(tdagw_env)
+      CALL release_sigma_workspace(gwbse_env)
 
       ! Depending on methods, deallocate additional workspace
-      IF ( tdagw_env%hartree_method == rtp_tdagw_hartree_dbt ) THEN
-         CALL release_hartree_dbt_workspace(tdagw_env)
-      ELSEIF (tdagw_env%hartree_method == rtp_tdagw_hartree_pw) THEN
-         ! CALL release_hartree_pw_workspace(qs_env, tdagw_env)
+      IF ( gwbse_env%hartree_method == rtp_gwbse_hartree_dbt ) THEN
+         CALL release_hartree_dbt_workspace(gwbse_env)
+      ELSEIF (gwbse_env%hartree_method == rtp_gwbse_hartree_pw) THEN
+         ! CALL release_hartree_pw_workspace(qs_env, gwbse_env)
          CPABORT("PW Hartree no longer supported")
       END IF
-      IF (ASSOCIATED(tdagw_env%rho_dbcsr)) THEN
-         CALL dbcsr_release(tdagw_env%rho_dbcsr)
-         DEALLOCATE(tdagw_env%rho_dbcsr)
+      IF (ASSOCIATED(gwbse_env%rho_dbcsr)) THEN
+         CALL dbcsr_release(gwbse_env%rho_dbcsr)
+         DEALLOCATE(gwbse_env%rho_dbcsr)
       END IF
-      ! IF (tdagw_env%mat_exp_method == do_exact) THEN
+      ! IF (gwbse_env%mat_exp_method == do_exact) THEN
       IF (.TRUE.) THEN
-         DO i=1,SIZE(tdagw_env%complex_s)
-            CALL cp_cfm_release(tdagw_env%complex_s(i)%matrix)
+         DO i=1,SIZE(gwbse_env%complex_s)
+            CALL cp_cfm_release(gwbse_env%complex_s(i)%matrix)
          END DO
-         DEALLOCATE(tdagw_env%complex_s)
-         DO i=1,SIZE(tdagw_env%complex_workspace)
-            CALL cp_cfm_release(tdagw_env%complex_workspace(i)%matrix)
+         DEALLOCATE(gwbse_env%complex_s)
+         DO i=1,SIZE(gwbse_env%complex_workspace)
+            CALL cp_cfm_release(gwbse_env%complex_workspace(i)%matrix)
          END DO
-         DEALLOCATE(tdagw_env%complex_workspace)
-         DEALLOCATE(tdagw_env%real_eigvals)
-         DEALLOCATE(tdagw_env%exp_eigvals)
+         DEALLOCATE(gwbse_env%complex_workspace)
+         DEALLOCATE(gwbse_env%real_eigvals)
+         DEALLOCATE(gwbse_env%exp_eigvals)
       END IF
-      ! IF (tdagw_env%mat_exp_method == do_exact) THEN
-      !    DO i=1,SIZE(tdagw_env%complex_s)
-      !       CALL cp_cfm_release(tdagw_env%complex_s(i)%matrix)
+      ! IF (gwbse_env%mat_exp_method == do_exact) THEN
+      !    DO i=1,SIZE(gwbse_env%complex_s)
+      !       CALL cp_cfm_release(gwbse_env%complex_s(i)%matrix)
       !    END DO
-      !    DEALLOCATE(tdagw_env%complex_s)
-      !    DO i=1,SIZE(tdagw_env%complex_workspace)
-      !       CALL cp_cfm_release(tdagw_env%complex_workspace(i)%matrix)
+      !    DEALLOCATE(gwbse_env%complex_s)
+      !    DO i=1,SIZE(gwbse_env%complex_workspace)
+      !       CALL cp_cfm_release(gwbse_env%complex_workspace(i)%matrix)
       !    END DO
-      !    DEALLOCATE(tdagw_env%complex_workspace)
-      !    DEALLOCATE(tdagw_env%real_eigvals)
-      !    DEALLOCATE(tdagw_env%exp_eigvals)
+      !    DEALLOCATE(gwbse_env%complex_workspace)
+      !    DEALLOCATE(gwbse_env%real_eigvals)
+      !    DEALLOCATE(gwbse_env%exp_eigvals)
       ! END IF
       
    END SUBROUTINE
 ! **************************************************************************************************
 !> \brief Allocates the workspaces for Hartree RI method
 !> \note RI method calculates the Hartree contraction without the use of DBT, as it cannot emulate vectors
-!> \param tdagw_env 
+!> \param gwbse_env 
 !> \param qs_env Quickstep environment - entry point of calculation
 !> \author Stepan Marek
 !> \date 05.2024
 ! **************************************************************************************************
-   SUBROUTINE create_hartree_ri_workspace(tdagw_env, qs_env)
-      TYPE(tdagw_env_type)                              :: tdagw_env
+   SUBROUTINE create_hartree_ri_workspace(gwbse_env, qs_env)
+      TYPE(gwbse_env_type)                              :: gwbse_env
       TYPE(qs_environment_type), POINTER                :: qs_env
       CHARACTER(len=*), PARAMETER                       :: routineN = "create_hartree_ri_workspace"
       TYPE(post_scf_bandstructure_type), POINTER        :: bs_env
       REAL(kind=dp)                                     :: size_mb
 
       ! TODO : Implement option/decision to not precompute all the 3c integrals
-      size_mb = REAL(tdagw_env%n_ao * tdagw_env%n_ao * tdagw_env%n_RI * STORAGE_SIZE(size_mb)) / (1024_dp * 1024_dp)
-      IF (tdagw_env%unit_nr > 0) WRITE(tdagw_env%unit_nr, *) "Approximate size of int_3c in MB", size_mb
+      size_mb = REAL(gwbse_env%n_ao * gwbse_env%n_ao * gwbse_env%n_RI * STORAGE_SIZE(size_mb)) / (1024_dp * 1024_dp)
+      IF (gwbse_env%unit_nr > 0) WRITE(gwbse_env%unit_nr, *) "Approximate size of int_3c in MB", size_mb
 
       CALL get_qs_env(qs_env, bs_env=bs_env)
 
-      ALLOCATE(tdagw_env%int_3c_array(tdagw_env%n_ao, tdagw_env%n_ao, tdagw_env%n_RI))
-      CALL build_3c_integral_block(tdagw_env%int_3c_array, qs_env, potential_parameter=bs_env%ri_metric,&
+      ALLOCATE(gwbse_env%int_3c_array(gwbse_env%n_ao, gwbse_env%n_ao, gwbse_env%n_RI))
+      CALL build_3c_integral_block(gwbse_env%int_3c_array, qs_env, potential_parameter=bs_env%ri_metric,&
                               basis_j=bs_env%basis_set_AO, basis_k=bs_env%basis_set_AO,&
                               basis_i=bs_env%basis_set_RI,&
                               j_bf_start_from_atom=bs_env%i_ao_start_from_atom,&
@@ -712,13 +712,13 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Allocates the workspaces for Hartree dbt method, mainly the density tensors
 !> \note DBT method uses 2D and 3D tensors, where one dimension has size 1, in order to emulate vectors
-!> \param tdagw_env 
+!> \param gwbse_env 
 !> \param qs_env Quickstep environment - entry point of calculation
 !> \author Stepan Marek
 !> \date 02.2024
 ! **************************************************************************************************
-   SUBROUTINE create_hartree_dbt_workspace(tdagw_env, qs_env)
-      TYPE(tdagw_env_type)                               :: tdagw_env
+   SUBROUTINE create_hartree_dbt_workspace(gwbse_env, qs_env)
+      TYPE(gwbse_env_type)                               :: gwbse_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
       CHARACTER(len=*), PARAMETER                        :: routineN = "create_hartree_dbt_workspace"
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
@@ -755,9 +755,9 @@ CONTAINS
       ! Create the tensor distribution
       CALL dbt_distribution_new(dist, pgrid, distvec(1,:), distvec(2,:), distvec_one)
       ! Create the tensor aligned for the task distribution
-      NULLIFY(tdagw_env%t_two_plus_one)
-      ALLOCATE(tdagw_env%t_two_plus_one)
-      CALL dbt_create(tdagw_env%t_two_plus_one, "2+1 index tensor", dist, [1], [2, 3],&
+      NULLIFY(gwbse_env%t_two_plus_one)
+      ALLOCATE(gwbse_env%t_two_plus_one)
+      CALL dbt_create(gwbse_env%t_two_plus_one, "2+1 index tensor", dist, [1], [2, 3],&
                       bs_env%sizes_AO,&
                       bs_env%sizes_AO,&
                       [1])
@@ -785,9 +785,9 @@ CONTAINS
       CALL dbt_default_distvec(1, pdims(2), [1], distvec_one)
       ! Create tensor distribution
       CALL dbt_distribution_new(dist, pgrid, distvec(1,:), distvec_one)
-      NULLIFY(tdagw_env%t_one_plus_one)
-      ALLOCATE(tdagw_env%t_one_plus_one)
-      CALL dbt_create(tdagw_env%t_one_plus_one, "tensor vector", dist, [1], [2], bs_env%sizes_RI, [1])
+      NULLIFY(gwbse_env%t_one_plus_one)
+      ALLOCATE(gwbse_env%t_one_plus_one)
+      CALL dbt_create(gwbse_env%t_one_plus_one, "tensor vector", dist, [1], [2], bs_env%sizes_RI, [1])
       ! No longer need the process information
       CALL dbt_pgrid_destroy(pgrid)
       CALL dbt_distribution_destroy(dist)
@@ -796,47 +796,47 @@ CONTAINS
       DEALLOCATE(pdims)
 
       ! 3c tensors - do not populate yet, just allocate distributions
-      NULLIFY(tdagw_env%t_3c_work_RI__AO_AO)
-      ALLOCATE(tdagw_env%t_3c_work_RI__AO_AO)
-      CALL dbt_create(bs_env%t_RI__AO_AO, tdagw_env%t_3c_work_RI__AO_AO)
+      NULLIFY(gwbse_env%t_3c_work_RI__AO_AO)
+      ALLOCATE(gwbse_env%t_3c_work_RI__AO_AO)
+      CALL dbt_create(bs_env%t_RI__AO_AO, gwbse_env%t_3c_work_RI__AO_AO)
 
-      NULLIFY(tdagw_env%hartree_dbt)
-      ALLOCATE(tdagw_env%hartree_dbt)
+      NULLIFY(gwbse_env%hartree_dbt)
+      ALLOCATE(gwbse_env%hartree_dbt)
    END SUBROUTINE
 ! **************************************************************************************************
 !> \brief Releases the workspaces for Hartree dbt method
-!> \param tdagw_env 
+!> \param gwbse_env 
 !> \author Stepan Marek
 !> \date 02.2024
 ! **************************************************************************************************
-   SUBROUTINE release_hartree_dbt_workspace(tdagw_env)
-      TYPE(tdagw_env_type)                               :: tdagw_env
+   SUBROUTINE release_hartree_dbt_workspace(gwbse_env)
+      TYPE(gwbse_env_type)                               :: gwbse_env
       CHARACTER(len=*), PARAMETER                        :: routineN = "release_hartree_dbt_workspace"
-      IF (ASSOCIATED(tdagw_env%t_two_plus_one)) THEN
-         CALL dbt_destroy(tdagw_env%t_two_plus_one)
-         DEALLOCATE(tdagw_env%t_two_plus_one)
+      IF (ASSOCIATED(gwbse_env%t_two_plus_one)) THEN
+         CALL dbt_destroy(gwbse_env%t_two_plus_one)
+         DEALLOCATE(gwbse_env%t_two_plus_one)
       END IF
-      IF (ASSOCIATED(tdagw_env%t_one_plus_one)) THEN
-         CALL dbt_destroy(tdagw_env%t_one_plus_one)
-         DEALLOCATE(tdagw_env%t_one_plus_one)
+      IF (ASSOCIATED(gwbse_env%t_one_plus_one)) THEN
+         CALL dbt_destroy(gwbse_env%t_one_plus_one)
+         DEALLOCATE(gwbse_env%t_one_plus_one)
       END IF
-      IF (ASSOCIATED(tdagw_env%t_3c_work_RI__AO_AO)) THEN
-         CALL dbt_destroy(tdagw_env%t_3c_work_RI__AO_AO)
-         DEALLOCATE(tdagw_env%t_3c_work_RI__AO_AO)
+      IF (ASSOCIATED(gwbse_env%t_3c_work_RI__AO_AO)) THEN
+         CALL dbt_destroy(gwbse_env%t_3c_work_RI__AO_AO)
+         DEALLOCATE(gwbse_env%t_3c_work_RI__AO_AO)
       END IF
 
-      CALL dbt_destroy(tdagw_env%hartree_dbt)
-      DEALLOCATE(tdagw_env%hartree_dbt)
+      CALL dbt_destroy(gwbse_env%hartree_dbt)
+      DEALLOCATE(gwbse_env%hartree_dbt)
    END SUBROUTINE
 ! **************************************************************************************************
 !> \brief Allocates the workspaces for self-energy determination routine
-!> \param tdagw_env Structure for holding information and workspace structures 
+!> \param gwbse_env Structure for holding information and workspace structures 
 !> \param qs_env Quickstep environment - entry point of calculation
 !> \author Stepan Marek
 !> \date 02.2024
 ! **************************************************************************************************
-   SUBROUTINE create_sigma_workspace(tdagw_env, qs_env)
-      TYPE(tdagw_env_type)                               :: tdagw_env
+   SUBROUTINE create_sigma_workspace(gwbse_env, qs_env)
+      TYPE(gwbse_env_type)                               :: gwbse_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
       CHARACTER(len=*), PARAMETER                        :: routineN = "create_sigma_workspace"
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
@@ -845,91 +845,91 @@ CONTAINS
       CALL get_qs_env(qs_env, bs_env=bs_env)
 
       ! t_3c_w
-      NULLIFY(tdagw_env%t_3c_w)
-      ALLOCATE(tdagw_env%t_3c_w)
-      CALL dbt_create(bs_env%t_RI__AO_AO, tdagw_env%t_3c_w)
+      NULLIFY(gwbse_env%t_3c_w)
+      ALLOCATE(gwbse_env%t_3c_w)
+      CALL dbt_create(bs_env%t_RI__AO_AO, gwbse_env%t_3c_w)
       ! TODO : Provide option/decision whether to store the 3c integrals precomputed
-      CALL compute_3c_integrals(qs_env, bs_env, tdagw_env%t_3c_w)
+      CALL compute_3c_integrals(qs_env, bs_env, gwbse_env%t_3c_w)
       ! t_3c_work_RI_AO__AO
-      NULLIFY(tdagw_env%t_3c_work_RI_AO__AO)
-      ALLOCATE(tdagw_env%t_3c_work_RI_AO__AO)
-      CALL dbt_create(bs_env%t_RI_AO__AO, tdagw_env%t_3c_work_RI_AO__AO)
+      NULLIFY(gwbse_env%t_3c_work_RI_AO__AO)
+      ALLOCATE(gwbse_env%t_3c_work_RI_AO__AO)
+      CALL dbt_create(bs_env%t_RI_AO__AO, gwbse_env%t_3c_work_RI_AO__AO)
       ! t_3c_work2_RI_AO__AO
-      NULLIFY(tdagw_env%t_3c_work2_RI_AO__AO)
-      ALLOCATE(tdagw_env%t_3c_work2_RI_AO__AO)
-      CALL dbt_create(bs_env%t_RI_AO__AO, tdagw_env%t_3c_work2_RI_AO__AO)
+      NULLIFY(gwbse_env%t_3c_work2_RI_AO__AO)
+      ALLOCATE(gwbse_env%t_3c_work2_RI_AO__AO)
+      CALL dbt_create(bs_env%t_RI_AO__AO, gwbse_env%t_3c_work2_RI_AO__AO)
       ! t_W
-      NULLIFY(tdagw_env%screened_dbt)
-      ALLOCATE(tdagw_env%screened_dbt)
+      NULLIFY(gwbse_env%screened_dbt)
+      ALLOCATE(gwbse_env%screened_dbt)
       ! Populate screened_dbt from gw run
       ! TODO : Avoid without G0W0 run?
-      NULLIFY(tdagw_env%w_dbcsr%matrix)
-      ALLOCATE(tdagw_env%w_dbcsr%matrix)
+      NULLIFY(gwbse_env%w_dbcsr%matrix)
+      ALLOCATE(gwbse_env%w_dbcsr%matrix)
       ! ! TODO : Debug - subtract the antihermitian part, create by numerical inacuraccy of FFT
       ! CALL cp_fm_create(W_fm, matrix_struct=bs_env%fm_W_MIC_freq_zero%matrix_struct)
       ! CALL cp_fm_transpose(bs_env%fm_W_MIC_freq_zero, W_fm)
       ! CALL cp_fm_scale_and_add(0.5_dp, W_fm, 0.5_dp, bs_env%fm_W_MIC_freq_zero)
-      CALL dbcsr_create(tdagw_env%w_dbcsr%matrix, name="W", template=bs_env%mat_RI_RI%matrix)
-      ! CALL copy_fm_to_dbcsr(W_fm, tdagw_env%w_dbcsr%matrix)
-      IF (tdagw_env%ham_single_particle_type == rtp_tdagw_ham_g0w0) THEN
-         CALL copy_fm_to_dbcsr(bs_env%fm_W_MIC_freq_zero, tdagw_env%w_dbcsr%matrix)
+      CALL dbcsr_create(gwbse_env%w_dbcsr%matrix, name="W", template=bs_env%mat_RI_RI%matrix)
+      ! CALL copy_fm_to_dbcsr(W_fm, gwbse_env%w_dbcsr%matrix)
+      IF (gwbse_env%ham_single_particle_type == rtp_gwbse_ham_g0w0) THEN
+         CALL copy_fm_to_dbcsr(bs_env%fm_W_MIC_freq_zero, gwbse_env%w_dbcsr%matrix)
       ELSE
          ! Assume only Hartree available - this is added latero
          ! DEBUG : Try w_dbcsr instead - should have just a small effect
-         ! CALL dbcsr_set(tdagw_env%w_dbcsr%matrix, 0.0_dp)
-         CALL copy_fm_to_dbcsr(bs_env%fm_W_MIC_freq_zero, tdagw_env%w_dbcsr%matrix)
-         CALL dbcsr_set(tdagw_env%w_dbcsr%matrix, 0.0_dp)
+         ! CALL dbcsr_set(gwbse_env%w_dbcsr%matrix, 0.0_dp)
+         CALL copy_fm_to_dbcsr(bs_env%fm_W_MIC_freq_zero, gwbse_env%w_dbcsr%matrix)
+         CALL dbcsr_set(gwbse_env%w_dbcsr%matrix, 0.0_dp)
       END IF
-      CALL dbt_create(tdagw_env%w_dbcsr%matrix, tdagw_env%screened_dbt)
-      CALL dbt_copy_matrix_to_tensor(tdagw_env%w_dbcsr%matrix, tdagw_env%screened_dbt)
+      CALL dbt_create(gwbse_env%w_dbcsr%matrix, gwbse_env%screened_dbt)
+      CALL dbt_copy_matrix_to_tensor(gwbse_env%w_dbcsr%matrix, gwbse_env%screened_dbt)
       ! PRINT *, "W_PQ matrix from BS_ENV"
       ! CALL cp_fm_write_formatted(bs_env%fm_W_MIC_freq_zero, 6)
       ! sigma_dbt
-      NULLIFY(tdagw_env%sigma_dbt)
-      ALLOCATE(tdagw_env%sigma_dbt)
-      CALL dbt_create(bs_env%mat_ao_ao%matrix, tdagw_env%sigma_dbt)
+      NULLIFY(gwbse_env%sigma_dbt)
+      ALLOCATE(gwbse_env%sigma_dbt)
+      CALL dbt_create(bs_env%mat_ao_ao%matrix, gwbse_env%sigma_dbt)
       ! greens_dbt
-      NULLIFY(tdagw_env%greens_dbt)
-      ALLOCATE(tdagw_env%greens_dbt)
-      CALL dbt_create(bs_env%mat_ao_ao%matrix, tdagw_env%greens_dbt)
+      NULLIFY(gwbse_env%greens_dbt)
+      ALLOCATE(gwbse_env%greens_dbt)
+      CALL dbt_create(bs_env%mat_ao_ao%matrix, gwbse_env%greens_dbt)
    END SUBROUTINE
 ! **************************************************************************************************
 !> \brief Releases the workspaces for self-energy determination
-!> \param tdagw_env 
+!> \param gwbse_env 
 !> \author Stepan Marek
 !> \date 02.2024
 ! **************************************************************************************************
-   SUBROUTINE release_sigma_workspace(tdagw_env)
-      TYPE(tdagw_env_type)                               :: tdagw_env
+   SUBROUTINE release_sigma_workspace(gwbse_env)
+      TYPE(gwbse_env_type)                               :: gwbse_env
       CHARACTER(len=*), PARAMETER                        :: routineN = "release_sigma_workspace"
       
-      IF (ASSOCIATED(tdagw_env%t_3c_w)) THEN 
-         CALL dbt_destroy(tdagw_env%t_3c_w)
-         DEALLOCATE(tdagw_env%t_3c_w)
+      IF (ASSOCIATED(gwbse_env%t_3c_w)) THEN 
+         CALL dbt_destroy(gwbse_env%t_3c_w)
+         DEALLOCATE(gwbse_env%t_3c_w)
       END IF
-      IF (ASSOCIATED(tdagw_env%t_3c_work_RI_AO__AO)) THEN 
-         CALL dbt_destroy(tdagw_env%t_3c_work_RI_AO__AO)
-         DEALLOCATE(tdagw_env%t_3c_work_RI_AO__AO)
+      IF (ASSOCIATED(gwbse_env%t_3c_work_RI_AO__AO)) THEN 
+         CALL dbt_destroy(gwbse_env%t_3c_work_RI_AO__AO)
+         DEALLOCATE(gwbse_env%t_3c_work_RI_AO__AO)
       END IF
-      IF (ASSOCIATED(tdagw_env%t_3c_work2_RI_AO__AO)) THEN 
-         CALL dbt_destroy(tdagw_env%t_3c_work2_RI_AO__AO)
-         DEALLOCATE(tdagw_env%t_3c_work2_RI_AO__AO)
+      IF (ASSOCIATED(gwbse_env%t_3c_work2_RI_AO__AO)) THEN 
+         CALL dbt_destroy(gwbse_env%t_3c_work2_RI_AO__AO)
+         DEALLOCATE(gwbse_env%t_3c_work2_RI_AO__AO)
       END IF
-      IF (ASSOCIATED(tdagw_env%screened_dbt)) THEN
-         CALL dbt_destroy(tdagw_env%screened_dbt)
-         DEALLOCATE(tdagw_env%screened_dbt)
+      IF (ASSOCIATED(gwbse_env%screened_dbt)) THEN
+         CALL dbt_destroy(gwbse_env%screened_dbt)
+         DEALLOCATE(gwbse_env%screened_dbt)
       END IF
-      IF (ASSOCIATED(tdagw_env%sigma_dbt)) THEN
-         CALL dbt_destroy(tdagw_env%sigma_dbt)
-         DEALLOCATE(tdagw_env%sigma_dbt)
+      IF (ASSOCIATED(gwbse_env%sigma_dbt)) THEN
+         CALL dbt_destroy(gwbse_env%sigma_dbt)
+         DEALLOCATE(gwbse_env%sigma_dbt)
       END IF
-      IF (ASSOCIATED(tdagw_env%greens_dbt)) THEN
-         CALL dbt_destroy(tdagw_env%greens_dbt)
-         DEALLOCATE(tdagw_env%greens_dbt)
+      IF (ASSOCIATED(gwbse_env%greens_dbt)) THEN
+         CALL dbt_destroy(gwbse_env%greens_dbt)
+         DEALLOCATE(gwbse_env%greens_dbt)
       END IF
-      IF (ASSOCIATED(tdagw_env%w_dbcsr%matrix)) THEN
-         CALL dbcsr_release(tdagw_env%w_dbcsr%matrix)
-         DEALLOCATE(tdagw_env%w_dbcsr%matrix)
+      IF (ASSOCIATED(gwbse_env%w_dbcsr%matrix)) THEN
+         CALL dbcsr_release(gwbse_env%w_dbcsr%matrix)
+         DEALLOCATE(gwbse_env%w_dbcsr%matrix)
       END IF
    END SUBROUTINE
 END MODULE
