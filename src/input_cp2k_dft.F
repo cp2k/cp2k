@@ -1723,7 +1723,7 @@ CONTAINS
                           " only a constant vector potential as of now (corresonding to a delta-pulse)."// &
                           " uses DELTA_PULSE_SCALE and DELTA_PULSE_DIRECTION to define the vector potential", &
                           usage="VELOCITY_GAUGE T", &
-                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+                          default_l_val=.TRUE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
