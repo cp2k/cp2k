@@ -29,7 +29,8 @@ MODULE rpa_sigma_functional
    USE kinds,                           ONLY: dp
    USE machine,                         ONLY: m_flush
    USE mathconstants,                   ONLY: pi
-   USE message_passing,                 ONLY: mp_comm_type
+   USE message_passing,                 ONLY: mp_comm_type,&
+                                              mp_para_env_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -131,12 +132,14 @@ CONTAINS
 !> \param fm_mat_Q ...
 !> \param wj ...
 ! **************************************************************************************************
-   SUBROUTINE rpa_sigma_matrix_spectral(rpa_sigma, fm_mat_Q, wj)
+   SUBROUTINE rpa_sigma_matrix_spectral(rpa_sigma, fm_mat_Q, wj, para_env_RPA)
 
       ! Arguments
       TYPE(rpa_sigma_type)                               :: rpa_sigma
       TYPE(cp_fm_type)                                   :: fm_mat_Q
       REAL(KIND=dp)                                      :: wj
+      TYPE(mp_para_env_type), INTENT(IN)                 :: para_env_RPA
+      
 
       ! copy the Q matrix into the dummy matrix to avoid changing it.
       CALL cp_fm_to_fm(fm_mat_Q, rpa_sigma%mat_Q_diagonal)
@@ -145,7 +148,7 @@ CONTAINS
       CALL choose_eigv_solver(rpa_sigma%mat_Q_diagonal, rpa_sigma%fm_evec, rpa_sigma%sigma_eigenvalue)
 
       ! Computing the integration to calculate the sigma correction.
-      CALL compute_Erpa_by_eig_val_int(rpa_sigma, wj)
+      CALL compute_Erpa_by_eig_val_int(rpa_sigma, wj, para_env_RPA)
 
    END SUBROUTINE rpa_sigma_matrix_spectral
 ! **************************************************************************************************
@@ -155,26 +158,33 @@ CONTAINS
 !> \param rpa_sigma ...
 !> \param wj ...
 ! **************************************************************************************************
-   SUBROUTINE compute_Erpa_by_eig_val_int(rpa_sigma, wj)
+   SUBROUTINE compute_Erpa_by_eig_val_int(rpa_sigma, wj, para_env_RPA)
       !Arguments
       TYPE(rpa_sigma_type), INTENT(INOUT)                :: rpa_sigma
       REAL(KIND=dp), INTENT(IN)                          :: wj
 
       INTEGER                                            :: iaux
       REAL(KIND=dp)                                      :: dedw_rpa, dedw_sigma
+      TYPE(mp_para_env_type), INTENT(IN)                 :: para_env_RPA
+      
 
       dedw_sigma = 0.0_dp
       dedw_rpa = 0.0_dp
       DO iaux = 1, rpa_sigma%dimen_RI_red
          dedw_rpa = dedw_rpa + LOG(1.0_dp + rpa_sigma%sigma_eigenvalue(iaux)) - rpa_sigma%sigma_eigenvalue(iaux)
+            
          ! if sigma-functional calculation is active, calculate spline-correction
-         IF ((rpa_sigma%sigma_eigenvalue(iaux) > 0.0_dp)) &
-            dedw_sigma = dedw_sigma - cubic_spline_integr(rpa_sigma%sigma_eigenvalue(iaux), rpa_sigma%sigma_param)
-
+         IF (rpa_sigma%sigma_eigenvalue(iaux) > 0.0_dp) THEN
+            ! IF (MODULO(iaux, para_env_RPA%num_pe) /= para_env_RPA%mepos) CYCLE
+            !  dedw_rpa = dedw_rpa + LOG(1.0_dp + rpa_sigma%sigma_eigenvalue(iaux)) - rpa_sigma%sigma_eigenvalue(iaux)
+             IF (MODULO(iaux, para_env_RPA%num_pe) /= para_env_RPA%mepos) CYCLE 
+                dedw_sigma = dedw_sigma - cubic_spline_integr(rpa_sigma%sigma_eigenvalue(iaux), rpa_sigma%sigma_param)
+         END IF
       END DO
       ! (use 4.0_dp its better for compilers)
       rpa_sigma%e_sigma_corr = rpa_sigma%e_sigma_corr + (wj*dedw_sigma/(2.0_dp*pi*2.0_dp))
       rpa_sigma%e_rpa_corr = rpa_sigma%e_rpa_corr + (wj*dedw_rpa/(2.0_dp*pi*4.0_dp))
+      
 
    END SUBROUTINE compute_Erpa_by_eig_val_int
 
@@ -184,15 +194,20 @@ CONTAINS
 !> \param unit_nr ...
 !> \param e_sigma_corr ...
 ! **************************************************************************************************
-   !SUBROUTINE finalize_rpa_sigma(rpa_sigma, unit_nr, e_sigma_corr)
-   SUBROUTINE finalize_rpa_sigma(rpa_sigma, e_sigma_corr)
+   SUBROUTINE finalize_rpa_sigma(rpa_sigma, unit_nr, e_sigma_corr,para_env,do_minimax_quad)
+   !SUBROUTINE finalize_rpa_sigma(rpa_sigma, e_sigma_corr)
       TYPE(rpa_sigma_type), INTENT(INOUT)                :: rpa_sigma
-      !INTEGER                                            :: unit_nr
+      INTEGER                                            :: unit_nr
       REAL(KIND=dp), INTENT(OUT)                         :: e_sigma_corr
-
+      TYPE(mp_para_env_type), INTENT(IN)                 :: para_env
+      LOGICAL, INTENT(IN)                                :: do_minimax_quad
+      
+      IF (do_minimax_quad) rpa_sigma%e_rpa_corr = rpa_sigma%e_rpa_corr/2.0_dp
+      CALL para_env%sum(rpa_sigma%e_rpa_corr)
       e_sigma_corr = rpa_sigma%e_sigma_corr
-      !WRITE (unit_nr, '(T3,A,T56,F25.14)') 'RI-RPA energy from eigenvalues of Q(w)  = '
-        ! rpa_sigma%e_rpa_corr
+      IF (unit_nr >0 ) WRITE (unit_nr, '(T3,A,T56,F25.14)') &
+                              'RI-RPA energy from eigenvalues of Q(w)  = ', &
+                                rpa_sigma%e_rpa_corr
 
       CALL rpa_sigma_cleanup(rpa_sigma)
 
