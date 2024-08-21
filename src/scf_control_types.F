@@ -155,7 +155,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE scf_c_create(scf_control)
 
-      TYPE(scf_control_type), INTENT(OUT)                :: scf_control
+      TYPE(scf_control_type), INTENT(INOUT)              :: scf_control
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'scf_c_create'
 

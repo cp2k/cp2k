@@ -49,7 +49,7 @@ MODULE mp2_gpw_method
    USE pw_pool_types,                   ONLY: pw_pool_type
    USE pw_types,                        ONLY: pw_c1d_gs_type,&
                                               pw_r3d_rs_type
-   USE qs_collocate_density,            ONLY: calculate_wavefunction
+   USE qs_collocate_density,            ONLY: collocate_function
    USE qs_environment_types,            ONLY: qs_environment_type
    USE qs_integrate_potential,          ONLY: integrate_v_rspace
    USE qs_kind_types,                   ONLY: qs_kind_type
@@ -80,7 +80,6 @@ CONTAINS
 !> \param particle_set ...
 !> \param atomic_kind_set ...
 !> \param qs_kind_set ...
-!> \param mo_coeff ...
 !> \param Eigenval ...
 !> \param nmo ...
 !> \param homo ...
@@ -96,7 +95,7 @@ CONTAINS
 !> \param Emp2_AB ...
 ! **************************************************************************************************
    SUBROUTINE mp2_gpw_compute(Emp2, Emp2_Cou, Emp2_EX, qs_env, para_env, para_env_sub, color_sub, &
-                              cell, particle_set, atomic_kind_set, qs_kind_set, mo_coeff, Eigenval, nmo, homo, &
+                              cell, particle_set, atomic_kind_set, qs_kind_set, Eigenval, nmo, homo, &
                               mat_munu, sab_orb_sub, mo_coeff_o, mo_coeff_v, eps_filter, unit_nr, &
                               mp2_memory, calc_ex, blacs_env_sub, Emp2_AB)
 
@@ -108,7 +107,6 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
-      TYPE(cp_fm_type), INTENT(IN)                       :: mo_coeff
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: Eigenval
       INTEGER, INTENT(IN)                                :: nmo
       INTEGER, DIMENSION(:), INTENT(IN)                  :: homo
@@ -361,9 +359,9 @@ CONTAINS
       ALLOCATE (psi_i(my_I_occupied_start:my_I_occupied_end))
       DO i = my_I_occupied_start, my_I_occupied_end
          CALL auxbas_pw_pool%create_pw(psi_i(i))
-         CALL calculate_wavefunction(mo_coeff, i, psi_i(i), rho_g, atomic_kind_set, &
-                                     qs_kind_set, cell, dft_control, particle_set, &
-                                     pw_env_sub, external_vector=my_Cocc(:, i - my_I_occupied_start + 1))
+         CALL collocate_function(my_Cocc(:, i - my_I_occupied_start + 1), &
+                                 psi_i(i), rho_g, atomic_kind_set, qs_kind_set, cell, particle_set, &
+                                 pw_env_sub, dft_control%qs_control%eps_rho_rspace)
       END DO
 
       Emp2 = 0.0_dp
@@ -380,9 +378,9 @@ CONTAINS
          IF (calc_ex) BIb_C = 0.0_dp
 
          ! psi_a
-         CALL calculate_wavefunction(mo_coeff, a, psi_a, rho_g, atomic_kind_set, &
-                                     qs_kind_set, cell, dft_control, particle_set, &
-                                     pw_env_sub, external_vector=my_Cvirt(:, a - (homo(1) + my_A_virtual_start) + 1))
+         CALL collocate_function(my_Cvirt(:, a - (homo(1) + my_A_virtual_start) + 1), &
+                                 psi_a, rho_g, atomic_kind_set, qs_kind_set, cell, particle_set, &
+                                 pw_env_sub, dft_control%qs_control%eps_rho_rspace)
          i_counter = 0
          DO i = my_I_occupied_start, my_I_occupied_end
             i_counter = i_counter + 1
