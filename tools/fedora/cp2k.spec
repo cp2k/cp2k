@@ -164,9 +164,6 @@ cmake_common_args=(
   "-DCP2K_DEBUG_MODE:BOOL=OFF"
   "-DCP2K_BLAS_VENDOR:STRING=FlexiBLAS"
   "-DCP2K_USE_STATIC_BLAS:BOOL=OFF"
-  # Unit tests are included in REGTESTS
-  # Note: Enabling this will write build files in the source folder :/
-  "-DCP2K_ENABLE_REGTESTS:BOOL=ON"
   # Dependencies equivalent with Default
   "-DCP2K_USE_FFTW3:BOOL=ON"
   "-DCP2K_USE_COSMA:BOOL=OFF"  # Not packaged
@@ -231,7 +228,6 @@ for mpi in '' mpich %{?with_openmpi:openmpi} ; do
     module load mpi/${mpi}-%{_arch}
     bindir=${MPI_BIN}
     libdir=${MPI_LIB}
-    export CP2K_STEM=%{buildroot}${MPI_BIN}/cp2k
     # Note, final position arguments are also here
     test_mpi_args=(
       "--mpiranks 2"
@@ -241,7 +237,6 @@ for mpi in '' mpich %{?with_openmpi:openmpi} ; do
   else
     bindir=%{_bindir}
     libdir=%{_libdir}
-    export CP2K_STEM=%{buildroot}/usr/bin/cp2k
     test_mpi_args=(
       "local"
       "ssmp"
@@ -250,7 +245,7 @@ for mpi in '' mpich %{?with_openmpi:openmpi} ; do
   # Run packaged do_regtest.sh with appropriate buildroot runpaths
   env PATH=%{buildroot}${bindir}:${PATH} \
     LD_LIBRARY_PATH=%{buildroot}${libdir} \
-    tests/do_regtest.py ${test_common_args[@]} ${test_mpi_args[@]}
+    tests/do_regtest.py %{buildroot}${bindir} ${test_mpi_args[@]}
   [ -n "$mpi" ] && module unload mpi/${mpi}-%{_arch}
 done
 

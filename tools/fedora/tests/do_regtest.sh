@@ -17,12 +17,10 @@ rlJournalStart
     if [[ "${CP2K_VARIANT}" != "serial" ]]; then
       rlRun "module avail" 0 "Show available modules"
       rlRun "module load mpi/${CP2K_VARIANT}" 0 "Load MPI module: ${CP2K_VARIANT}"
-      rlRun "export CP2K_STEM=$MPI_BIN/cp2k" 0 "Export CP2K_STEM"
       rlRun "args=\"\$args --mpiranks 2\"" 0 "Set MPI arguments"
-      rlRun "args=\"\$args local_${CP2K_VARIANT} psmp\"" 0 "Set run specific arguments"
+      rlRun "args=\"\$args $MPI_BIN psmp\"" 0 "Set run specific arguments"
     else
-      rlRun "export CP2K_STEM=/usr/bin/cp2k" 0 "Export CP2K_STEM"
-      rlRun "args=\"\$args local ssmp\"" 0 "Set run specific arguments"
+      rlRun "args=\"\$args /usr/bin ssmp\"" 0 "Set run specific arguments"
     fi
     rlRun "./do_regtest.py $args" 0 "Run regression tests"
   rlPhaseEnd

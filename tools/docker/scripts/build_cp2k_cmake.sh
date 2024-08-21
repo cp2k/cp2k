@@ -43,7 +43,6 @@ if [[ "${PROFILE}" == "spack" ]] && [[ "${VERSION}" == "psmp" ]]; then
     -DCP2K_USE_LIBTORCH=OFF \
     -DCP2K_USE_MPI=ON \
     -DCP2K_USE_MPI_F08=ON \
-    -DCP2K_ENABLE_REGTESTS=ON \
     .. |& tee ./cmake.log
   CMAKE_EXIT_CODE=$?
 
@@ -52,7 +51,6 @@ elif [[ "${PROFILE}" == "toolchain" ]] && [[ "${VERSION}" == "ssmp" ]]; then
     -GNinja \
     -DCMAKE_INSTALL_PREFIX=/opt/cp2k \
     -Werror=dev \
-    -DCP2K_ENABLE_REGTESTS=ON \
     -DCP2K_BLAS_VENDOR=OpenBLAS \
     -DCP2K_USE_LIBINT2=ON \
     -DCP2K_USE_LIBXC=ON \
@@ -73,7 +71,6 @@ elif [[ "${PROFILE}" == "toolchain" ]] && [[ "${VERSION}" == "sdbg" ]]; then
     -DCMAKE_INSTALL_PREFIX=/opt/cp2k \
     -Werror=dev \
     -DCP2K_DEBUG_MODE=ON \
-    -DCP2K_ENABLE_REGTESTS=ON \
     -DCP2K_BLAS_VENDOR=OpenBLAS \
     -DCP2K_USE_LIBINT2=ON \
     -DCP2K_USE_LIBXC=ON \
@@ -95,7 +92,6 @@ elif [[ "${PROFILE}" == "toolchain" ]] && [[ "${VERSION}" == "psmp" ]]; then
     -GNinja \
     -DCMAKE_INSTALL_PREFIX=/opt/cp2k \
     -Werror=dev \
-    -DCP2K_ENABLE_REGTESTS=ON \
     -DCP2K_BLAS_VENDOR=OpenBLAS \
     -DCP2K_USE_LIBINT2=ON \
     -DCP2K_USE_LIBXC=ON \
@@ -107,7 +103,6 @@ elif [[ "${PROFILE}" == "toolchain" ]] && [[ "${VERSION}" == "psmp" ]]; then
     -DCP2K_USE_LIBXSMM=ON \
     -DCP2K_USE_SUPERLU=ON \
     -DCP2K_USE_PLUMED=ON \
-    -DCP2K_USE_PEXSI=ON \
     -DCP2K_USE_SPLA=ON \
     -DCP2K_USE_METIS=ON \
     -DCP2K_USE_ELPA=OFF \
@@ -126,7 +121,6 @@ elif [[ "${PROFILE}" == "toolchain" ]] && [[ "${VERSION}" == "pdbg" ]]; then
     -DCMAKE_INSTALL_PREFIX=/opt/cp2k \
     -Werror=dev \
     -DCP2K_DEBUG_MODE=ON \
-    -DCP2K_ENABLE_REGTESTS=ON \
     -DCP2K_BLAS_VENDOR=OpenBLAS \
     -DCP2K_USE_LIBINT2=ON \
     -DCP2K_USE_LIBXC=ON \
@@ -147,7 +141,6 @@ elif [[ "${PROFILE}" == "ubuntu" ]] && [[ "${VERSION}" == "ssmp" ]]; then
     -GNinja \
     -DCMAKE_INSTALL_PREFIX=/opt/cp2k \
     -Werror=dev \
-    -DCP2K_ENABLE_REGTESTS=ON \
     -DCP2K_BLAS_VENDOR=OpenBLAS \
     -DCP2K_USE_LIBINT2=ON \
     -DCP2K_USE_LIBXC=ON \
@@ -169,7 +162,6 @@ elif [[ "${PROFILE}" == "ubuntu_i386" ]] && [[ "${VERSION}" == "ssmp" ]]; then
     -GNinja \
     -DCMAKE_INSTALL_PREFIX=/opt/cp2k \
     -Werror=dev \
-    -DCP2K_ENABLE_REGTESTS=ON \
     -DCP2K_BLAS_VENDOR=OpenBLAS \
     -DCP2K_USE_LIBINT2=ON \
     -DCP2K_USE_LIBXC=ON \
@@ -190,7 +182,6 @@ elif [[ "${PROFILE}" == "minimal" ]] && [[ "${VERSION}" == "ssmp" ]]; then
     -GNinja \
     -DCMAKE_INSTALL_PREFIX=/opt/cp2k \
     -Werror=dev \
-    -DCP2K_ENABLE_REGTESTS=ON \
     -DCP2K_BLAS_VENDOR=OpenBLAS \
     -DCP2K_USE_LIBINT2=OFF \
     -DCP2K_USE_LIBXC=OFF \
