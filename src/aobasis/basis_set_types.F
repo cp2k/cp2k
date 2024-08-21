@@ -279,13 +279,15 @@ CONTAINS
 !> \brief ...
 !> \param basis_set ...
 !> \param pbasis ...
+!> \param lmax ...
 ! **************************************************************************************************
-   SUBROUTINE create_primitive_basis_set(basis_set, pbasis)
+   SUBROUTINE create_primitive_basis_set(basis_set, pbasis, lmax)
 
       ! Create a primitives only basis set
 
       TYPE(gto_basis_set_type), INTENT(IN)               :: basis_set
       TYPE(gto_basis_set_type), POINTER                  :: pbasis
+      INTEGER, INTENT(IN), OPTIONAL                      :: lmax
 
       INTEGER                                            :: i, ico, ip, ipgf, iset, ishell, l, lm, &
                                                             lshell, m, maxco, mpgf, nc, ncgf, ns, &
@@ -331,6 +333,11 @@ CONTAINS
       END DO
 
       CALL allocate_gto_basis_set(pbasis)
+
+      IF (PRESENT(lmax)) THEN
+         ! if requested, reduce max l val
+         lm = MIN(lm, lmax)
+      END IF
 
       pbasis%name = basis_set%name//"_primitive"
       pbasis%kind_radius = basis_set%kind_radius

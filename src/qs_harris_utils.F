@@ -132,7 +132,7 @@ CONTAINS
 
       IF (unit_nr > 0) THEN
 
-         WRITE (unit_nr, '(T2,A)') &
+         WRITE (unit_nr, '(/,T2,A)') &
             "!"//REPEAT("-", 29)//"   Harris Model    "//REPEAT("-", 29)//"!"
 
          ! Type of energy functional

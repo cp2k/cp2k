@@ -24,6 +24,7 @@ MODULE qs_environment
                                               create_ri_aux_basis_set
    USE basis_set_container_types,       ONLY: add_basis_set_to_container
    USE basis_set_types,                 ONLY: basis_sort_zet,&
+                                              create_primitive_basis_set,&
                                               get_gto_basis_set,&
                                               gto_basis_set_type
    USE bibliography,                    ONLY: Iannuzzi2006,&
@@ -92,8 +93,8 @@ MODULE qs_environment
         do_method_gapw, do_method_gapw_xc, do_method_gpw, do_method_lrigpw, do_method_mndo, &
         do_method_mndod, do_method_ofgpw, do_method_pdg, do_method_pm3, do_method_pm6, &
         do_method_pm6fm, do_method_pnnl, do_method_rigpw, do_method_rm1, do_method_xtb, &
-        do_qmmm_gauss, do_qmmm_swave, general_roks, kg_tnadd_embed_ri, rel_none, rel_trans_atom, &
-        vdw_pairpot_dftd2, vdw_pairpot_dftd3, vdw_pairpot_dftd3bj, wfi_aspc_nr, &
+        do_qmmm_gauss, do_qmmm_swave, general_roks, hden_atomic, kg_tnadd_embed_ri, rel_none, &
+        rel_trans_atom, vdw_pairpot_dftd2, vdw_pairpot_dftd3, vdw_pairpot_dftd3bj, wfi_aspc_nr, &
         wfi_linear_ps_method_nr, wfi_linear_wf_method_nr, wfi_ps_method_nr, &
         wfi_use_guess_method_nr, xc_vdw_fun_none, xc_vdw_fun_nonloc, xc_vdw_fun_pairpot
    USE input_section_types,             ONLY: section_vals_get,&
@@ -274,12 +275,12 @@ CONTAINS
       TYPE(rel_control_type), POINTER                    :: rel_control
       TYPE(scf_control_type), POINTER                    :: scf_control
       TYPE(section_vals_type), POINTER :: dft_section, ec_hfx_section, ec_section, &
-         et_coupling_section, harris_section, hfx_section, kpoint_section, mp2_section, &
-         rpa_hfx_section, transport_section
+         et_coupling_section, hfx_section, kpoint_section, mp2_section, rpa_hfx_section, &
+         transport_section
 
       NULLIFY (my_cell, my_cell_ref, atomic_kind_set, particle_set, &
                qs_kind_set, kpoint_section, dft_section, ec_section, &
-               harris_section, subsys, ks_env, dft_control, blacs_env)
+               subsys, ks_env, dft_control, blacs_env)
 
       CALL set_qs_env(qs_env, input=force_env_section)
       IF (.NOT. ASSOCIATED(subsys_section)) THEN
@@ -483,13 +484,7 @@ CONTAINS
          CALL ls_scf_create(qs_env)
       END IF
 
-      NULLIFY (harris_env)
-      dft_section => section_vals_get_subs_vals(qs_env%input, "DFT")
-      CALL section_vals_val_get(dft_section, "HARRIS_METHOD%_SECTION_PARAMETERS_", &
-                                l_val=qs_env%harris_method)
-      harris_section => section_vals_get_subs_vals(qs_env%input, "DFT%HARRIS_METHOD")
-      CALL harris_env_create(qs_env, harris_env, harris_section)
-      CALL set_qs_env(qs_env, harris_env=harris_env)
+      CALL get_qs_env(qs_env, harris_env=harris_env)
       IF (qs_env%harris_method) THEN
          ! Print information of the HARRIS section
          CALL harris_write_input(harris_env)
@@ -615,6 +610,7 @@ CONTAINS
       TYPE(gto_basis_set_type), POINTER                  :: aux_fit_basis, lri_aux_basis, &
                                                             ri_aux_basis_set, ri_hfx_basis, &
                                                             ri_xas_basis, tmp_basis_set
+      TYPE(harris_type), POINTER                         :: harris_env
       TYPE(local_rho_type), POINTER                      :: local_rho_set
       TYPE(lri_environment_type), POINTER                :: lri_env
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos, mos_last_converged
@@ -640,8 +636,8 @@ CONTAINS
       TYPE(scf_control_type), POINTER                    :: scf_control
       TYPE(se_taper_type), POINTER                       :: se_taper
       TYPE(section_vals_type), POINTER :: dft_section, et_coupling_section, et_ddapc_section, &
-         ewald_section, lri_section, mp2_section, nl_section, poisson_section, pp_section, &
-         print_section, qs_section, se_section, tddfpt_section, xc_section, xtb_section
+         ewald_section, harris_section, lri_section, mp2_section, nl_section, poisson_section, &
+         pp_section, print_section, qs_section, se_section, tddfpt_section, xc_section, xtb_section
       TYPE(semi_empirical_control_type), POINTER         :: se_control
       TYPE(semi_empirical_si_type), POINTER              :: se_store_int_env
       TYPE(xtb_control_type), POINTER                    :: xtb_control
@@ -935,11 +931,36 @@ CONTAINS
             qs_kind => qs_kind_set(ikind)
             CALL get_qs_kind(qs_kind, basis_set=ri_hfx_basis, basis_type="RI_HXC")
             IF (.NOT. (ASSOCIATED(ri_hfx_basis))) THEN
-               ! RI_HXC basis set is not yet loaded
-               CALL cp_warn(__LOCATION__, "Automatic Generation of RI_HXC basis. "// &
-                            "This is experimental code.")
                ! Generate a default basis
                CALL create_ri_aux_basis_set(ri_hfx_basis, qs_kind, dft_control%auto_basis_ri_hxc)
+               CALL add_basis_set_to_container(qs_kind%basis_sets, ri_hfx_basis, "RI_HXC")
+            END IF
+         END DO
+      END IF
+
+      ! Harris method
+      NULLIFY (harris_env)
+      CALL section_vals_val_get(dft_section, "HARRIS_METHOD%_SECTION_PARAMETERS_", &
+                                l_val=qs_env%harris_method)
+      harris_section => section_vals_get_subs_vals(dft_section, "HARRIS_METHOD")
+      CALL harris_env_create(qs_env, harris_env, harris_section)
+      CALL set_qs_env(qs_env, harris_env=harris_env)
+      !
+      IF (qs_env%harris_method) THEN
+         CALL get_qs_env(qs_env, nkind=nkind)
+         ! Check if RI_HXC basis is available, auto-generate if needed
+         DO ikind = 1, nkind
+            NULLIFY (tmp_basis_set)
+            qs_kind => qs_kind_set(ikind)
+            CALL get_qs_kind(qs_kind, basis_set=ri_hfx_basis, basis_type="RI_HXC")
+            IF (.NOT. (ASSOCIATED(ri_hfx_basis))) THEN
+               ! Generate a default basis
+               CALL create_ri_aux_basis_set(tmp_basis_set, qs_kind, dft_control%auto_basis_ri_hxc)
+               IF (qs_env%harris_env%density_source == hden_atomic) THEN
+                  CALL create_primitive_basis_set(tmp_basis_set, ri_hfx_basis, lmax=0)
+               ELSE
+                  ri_hfx_basis => tmp_basis_set
+               END IF
                CALL add_basis_set_to_container(qs_kind%basis_sets, ri_hfx_basis, "RI_HXC")
             END IF
          END DO
@@ -1090,6 +1111,9 @@ CONTAINS
       ! set (non)-self consistency
       IF (dft_control%qs_control%dftb) THEN
          scf_control%non_selfconsistent = .NOT. dft_control%qs_control%dftb_control%self_consistent
+      END IF
+      IF (qs_env%harris_method) THEN
+         scf_control%non_selfconsistent = .TRUE.
       END IF
       CALL scf_c_create(scf_control)
       CALL scf_c_read_parameters(scf_control, dft_section)

@@ -12,14 +12,42 @@
 !> \author JGH
 ! **************************************************************************************************
 MODULE qs_harris_types
+   USE atomic_kind_types,               ONLY: atomic_kind_type,&
+                                              get_atomic_kind_set
+   USE basis_set_types,                 ONLY: get_gto_basis_set,&
+                                              gto_basis_set_type
+   USE distribution_1d_types,           ONLY: distribution_1d_type
+   USE kinds,                           ONLY: default_string_length,&
+                                              dp
+   USE qs_kind_types,                   ONLY: get_qs_kind,&
+                                              qs_kind_type
 #include "./base/base_uses.f90"
+
    IMPLICIT NONE
 
    PRIVATE
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_harris_types'
 
-   PUBLIC :: harris_type, harris_env_release
+! *****************************************************************************
+   TYPE rho_vec_type
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)       :: rvecs
+   END TYPE rho_vec_type
+
+   TYPE harris_rhoin_type
+      CHARACTER(LEN=default_string_length)             :: basis_type = "NDef"
+      TYPE(rho_vec_type), ALLOCATABLE, DIMENSION(:)    :: rhovec
+      INTEGER, ALLOCATABLE, DIMENSION(:)               :: basptr
+   END TYPE harris_rhoin_type
+
+   TYPE harris_energy_type
+      REAL(KIND=dp)                                    :: eharris = 0.0_dp
+      REAL(KIND=dp)                                    :: eband = 0.0_dp
+      REAL(KIND=dp)                                    :: exc_correction = 0.0_dp
+      REAL(KIND=dp)                                    :: eh_correction = 0.0_dp
+      REAL(KIND=dp)                                    :: ewald_correction = 0.0_dp
+      REAL(KIND=dp)                                    :: dispersion = 0.0_dp
+   END TYPE harris_energy_type
 
 ! *****************************************************************************
 !> \brief Contains information on the Harris method
@@ -32,11 +60,102 @@ MODULE qs_harris_types
       INTEGER                                          :: density_source = 0
       INTEGER                                          :: orbital_basis = 0
       !
+      TYPE(harris_energy_type)                         :: energy
+      !
+      TYPE(harris_rhoin_type)                          :: rhoin
+      !
       LOGICAL                                          :: debug_forces = .FALSE.
       LOGICAL                                          :: debug_stress = .FALSE.
    END TYPE harris_type
+! **************************************************************************************************
+
+   PUBLIC :: harris_type, harris_energy_type, harris_env_release, &
+             harris_print_energy, harris_rhoin_type
+
+! **************************************************************************************************
 
 CONTAINS
+
+! **************************************************************************************************
+
+! **************************************************************************************************
+!> \brief ...
+!> \param iounit ...
+!> \param energy ...
+! **************************************************************************************************
+   SUBROUTINE harris_print_energy(iounit, energy)
+      INTEGER, INTENT(IN)                                :: iounit
+      TYPE(harris_energy_type)                           :: energy
+
+      IF (iounit > 0) THEN
+         WRITE (UNIT=iounit, FMT="(/,(T2,A))") "HARRIS MODEL ENERGY INFORMATION"
+         WRITE (UNIT=iounit, FMT="(/,(T4,A,T56,F25.14))") &
+            "Harris model energy:                           ", energy%eharris, &
+            "Band energy:                                   ", energy%eband, &
+            "Hartree correction energy:                     ", energy%eh_correction, &
+            "XC correction energy:                          ", energy%exc_correction, &
+            "Ewald sum correction energy:                   ", energy%ewald_correction, &
+            "Dispersion energy (pair potential):            ", energy%dispersion
+      END IF
+
+   END SUBROUTINE harris_print_energy
+
+! **************************************************************************************************
+!> \brief ...
+!> \param rhoin ...
+!> \param basis_type ...
+!> \param qs_kind_set ...
+!> \param atomic_kind_set ...
+!> \param local_particles ...
+! **************************************************************************************************
+   SUBROUTINE harris_rhoin_init(rhoin, basis_type, qs_kind_set, atomic_kind_set, local_particles)
+      TYPE(harris_rhoin_type), POINTER                   :: rhoin
+      CHARACTER(LEN=*)                                   :: basis_type
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      TYPE(distribution_1d_type), POINTER                :: local_particles
+
+      INTEGER                                            :: iatom, ikind, iptr, natom, nkind, &
+                                                            nparticle_local, nsgf
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, kind_of, nbasf
+      TYPE(gto_basis_set_type), POINTER                  :: basis_set
+      TYPE(qs_kind_type), POINTER                        :: qs_kind
+
+      CALL harris_rhoin_release(rhoin)
+
+      rhoin%basis_type = basis_type
+
+      CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, &
+                               atom_of_kind=atom_of_kind, kind_of=kind_of)
+      natom = SIZE(atom_of_kind)
+      nkind = SIZE(qs_kind_set)
+
+      ALLOCATE (nbasf(nkind))
+      DO ikind = 1, nkind
+         qs_kind => qs_kind_set(ikind)
+         CALL get_qs_kind(qs_kind, basis_set=basis_set, basis_type=basis_type)
+         CALL get_gto_basis_set(basis_set, nsgf=nsgf)
+         nbasf(ikind) = nsgf
+      END DO
+
+      ALLOCATE (rhoin%basptr(natom))
+      iptr = 0
+      DO iatom = 1, natom
+         ikind = kind_of(iatom)
+         rhoin%basptr(iatom) = iptr + 1
+         iptr = iptr + nbasf(ikind)
+      END DO
+
+      ALLOCATE (rhoin%rhovec(nkind))
+      DO ikind = 1, nkind
+         nsgf = nbasf(ikind)
+         nparticle_local = local_particles%n_el(ikind)
+         ALLOCATE (rhoin%rhovec(ikind)%rvecs(nsgf, nparticle_local))
+      END DO
+
+      DEALLOCATE (nbasf)
+
+   END SUBROUTINE harris_rhoin_init
 
 ! **************************************************************************************************
 !> \brief ...
@@ -45,20 +164,38 @@ CONTAINS
    SUBROUTINE harris_env_release(harris_env)
       TYPE(harris_type), POINTER                         :: harris_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'harris_env_release'
-
-      INTEGER                                            :: handle
-
-      CALL timeset(routineN, handle)
-
       IF (ASSOCIATED(harris_env)) THEN
-
+         !
+         CALL harris_rhoin_release(harris_env%rhoin)
+         !
+         DEALLOCATE (harris_env)
       END IF
 
       NULLIFY (harris_env)
 
-      CALL timestop(handle)
-
    END SUBROUTINE harris_env_release
+
+! **************************************************************************************************
+!> \brief ...
+!> \param rhoin ...
+! **************************************************************************************************
+   SUBROUTINE harris_rhoin_release(rhoin)
+      TYPE(harris_rhoin_type)                            :: rhoin
+
+      INTEGER                                            :: i
+
+      IF (ALLOCATED(rhoin%rhovec)) THEN
+         DO i = 1, SIZE(rhoin%rhovec)
+            IF (ALLOCATED(rhoin%rhovec(i)%rvecs)) THEN
+               DEALLOCATE (rhoin%rhovec(i)%rvecs)
+            END IF
+         END DO
+         DEALLOCATE (rhoin%rhovec)
+      END IF
+      IF (ALLOCATED(rhoin%basptr)) THEN
+         DEALLOCATE (rhoin%basptr)
+      END IF
+
+   END SUBROUTINE harris_rhoin_release
 
 END MODULE qs_harris_types
