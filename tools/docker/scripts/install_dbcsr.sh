@@ -1,7 +1,7 @@
 #!/bin/bash -e
 
-DBCSR_ver="2.6.0"
-DBCSR_sha256="c67b02ff9abc7c1f529af446a9f01f3ef9e5b0574f220259128da8d5ca7e9dc6"
+DBCSR_ver="2.7.0"
+DBCSR_sha256="25c367b49fb108c5230bcfb127f05fc16deff2bb467f437023dfa6045aff66f6"
 
 echo "==================== Installing DBCSR ===================="
 
