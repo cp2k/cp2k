@@ -48,7 +48,7 @@ fi
 echo -e "\n========== Running Regtests =========="
 set -x
 # shellcheck disable=SC2086
-./tests/do_regtest.py local ${VERSION} ${TESTOPTS}
+./tests/do_regtest.py ./build/bin/ ${VERSION} ${TESTOPTS}
 
 exit 0 # Prevent CI from overwriting do_regtest's summary message.
 

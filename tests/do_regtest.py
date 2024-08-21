@@ -42,10 +42,6 @@ KEEPALIVE_SKIP_DIRS = [
 ]
 
 
-def cp2k_stem() -> str:
-    return os.getenv("CP2K_STEM", "cp2k")
-
-
 # ======================================================================================
 async def main() -> None:
     parser = argparse.ArgumentParser(description="Runs CP2K regression test suite.")
@@ -71,7 +67,7 @@ async def main() -> None:
     parser.add_argument("--workbasedir", type=Path)
     parser.add_argument("--skip_unittests", action="store_true")
     parser.add_argument("--skip_regtests", action="store_true")
-    parser.add_argument("arch")
+    parser.add_argument("binary_dir", type=Path)
     parser.add_argument("version")
     cfg = Config(parser.parse_args())
 
@@ -79,9 +75,7 @@ async def main() -> None:
     start_time = time.perf_counter()
 
     # Query CP2K binary for feature flags.
-    version_bytes, _ = await (
-        await cfg.launch_exe(cp2k_stem(), "--version")
-    ).communicate()
+    version_bytes, _ = await (await cfg.launch_exe("cp2k", "--version")).communicate()
     version_output = version_bytes.decode("utf8", errors="replace")
     flags_line = re.search(r" cp2kflags:(.*)\n", version_output)
     if not flags_line:
@@ -103,7 +97,7 @@ async def main() -> None:
     print(f"Keepalive:      {cfg.keepalive}")
     print(f"Flag slow:      {cfg.flag_slow}")
     print(f"Debug:          {cfg.debug}")
-    print(f"ARCH:           {cfg.arch}")
+    print(f"Binary dir:     {cfg.binary_dir}")
     print(f"VERSION:        {cfg.version}")
     print(f"Flags:          " + ",".join(flags))
 
@@ -262,7 +256,7 @@ class Config:
         self.valgrind = args.valgrind
         self.keepalive = args.keepalive
         self.flag_slow = args.flagslow
-        self.arch = args.arch
+        self.binary_dir = args.binary_dir.resolve()
         self.version = args.version
         self.debug = args.debug
         self.max_errors = args.maxerrors
@@ -271,12 +265,8 @@ class Config:
         self.skip_unittests = args.skip_unittests
         self.skip_regtests = args.skip_regtests
         datestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-        leaf_dir = f"TEST-{args.arch}-{args.version}-{datestamp}"
-        self.work_base_dir = (
-            args.workbasedir / leaf_dir
-            if args.workbasedir
-            else self.cp2k_root / "regtesting" / args.arch / args.version / leaf_dir
-        )
+        leaf_dir = f"TEST-{args.version}-{datestamp}"
+        self.work_base_dir = (args.workbasedir or args.binary_dir).resolve() / leaf_dir
         self.error_summary = self.work_base_dir / "error_summary"
 
         # Parse suppression files.
@@ -316,9 +306,7 @@ class Config:
         if exe_path.is_absolute():
             cmd = [str(exe_path)]
         else:
-            cmd = [
-                str(self.cp2k_root / "exe" / self.arch / f"{exe_stem}.{self.version}")
-            ]
+            cmd = [str(self.binary_dir / f"{exe_stem}.{self.version}")]
         if self.valgrind:
             cmd = ["valgrind", "--error-exitcode=42", "--exit-on-first-error=yes"] + cmd
         if self.use_mpi:
@@ -454,9 +442,7 @@ class Cp2kShell:
 
     async def start(self) -> None:
         assert self._child is None
-        self._child = await self.cfg.launch_exe(
-            cp2k_stem(), "--shell", cwd=self.workdir
-        )
+        self._child = await self.cfg.launch_exe("cp2k", "--shell", cwd=self.workdir)
         await self.ready()
         await self.sendline("HARSH")  # With harsh mode any error leads to an abort.
         await self.ready()
@@ -601,7 +587,7 @@ async def run_regtests_classic(batch: Batch, cfg: Config) -> List[TestResult]:
     for test in batch.regtests:
         start_time = time.perf_counter()
         start_dirsize = dirsize(batch.workdir)
-        child = await cfg.launch_exe(cp2k_stem(), test.inp_fn, cwd=batch.workdir)
+        child = await cfg.launch_exe("cp2k", test.inp_fn, cwd=batch.workdir)
         output, returncode, timed_out = await wait_for_child_process(child, cfg.timeout)
         test.out_path.write_bytes(output)
         duration = time.perf_counter() - start_time

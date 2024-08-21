@@ -99,14 +99,6 @@ with `-DCP2K_USE_<LIBRARY>=ON`. `<LIBRARY>` is the name of the optional dependen
 Please refer to the `CMakeLists.txt` file for an up-to-date list of the dependencies enabled by each
 option.
 
-### Regression Testing
-
-By default, [CMake] creates the executables in the `bin/` subdirectory of the build directory. This
-is incompatible with CP2K's `do_regtest.py` script to run regression tests.
-
-`-DCP2K_ENABLE_REGTESTS=ON` instructs [CMake] to create binaries in the usual location (`exe` folder
-in the root of the source tree), so that `do_regtest.py` works as expected.
-
 ### GPUs
 
 CP2K is GPU-accelerated. In order to enable GPU acceleration with \[CUDA\] or \[HIP\],
@@ -125,7 +117,6 @@ Build CP2K with CUDA acceleration for Nvidia A100 GPUs, with multiple optional d
 cd <CP2K_REPOSITORY> && make build/
 cmake -S . -B build \
     -GNinja \
-    -DCP2K_ENABLE_REGTESTS=ON \
     -DCP2K_USE_LIBXC=ON \
     -DCP2K_USE_LIBINT2=ON \
     -DCP2K_USE_SPGLIB=ON \

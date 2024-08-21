@@ -92,10 +92,6 @@ endforeach()
 # =================================================================================================
 # OPTIONS
 
-# option(CP2K_BUILD_DBCSR "Build dbcsr before building cp2k" OFF)
-option(CP2K_ENABLE_REGTESTS
-       "Enable installation of the binaries for running regtests afterwards"
-       OFF)
 option(CMAKE_POSITION_INDEPENDENT_CODE "Enable position independent code" ON)
 option(CP2K_ENABLE_CONSISTENCY_CHECKS
        "Check that the list of compiled files and files contained in src match"
@@ -377,21 +373,9 @@ if(CP2K_ENABLE_CONSISTENCY_CHECKS)
   return()
 endif()
 
-# for the time being I change the bin directory to point to
-# ../exe/build-cmake-{cuda,hip,cpu} when we want to run the regtests afterwards.
-# This solution does not require modifying the regtests scripts at all and cmake
-# does not mind this change when we want to install cp2k with a command like
-# `make install`
-if(CP2K_ENABLE_REGTESTS)
-  set(CMAKE_RUNTIME_OUTPUT_DIRECTORY
-      "${cp2k_SOURCE_DIR}/exe/${__cp2k_cmake_name}"
-      CACHE PATH "Single output directory for building all executables.")
-else()
-  set(CMAKE_RUNTIME_OUTPUT_DIRECTORY
-      ${cp2k_BINARY_DIR}/bin
-      CACHE PATH "Single output directory for building all executables.")
-
-endif()
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY
+    ${cp2k_BINARY_DIR}/bin
+    CACHE PATH "Single output directory for building all executables.")
 
 # Python
 #
@@ -1034,10 +1018,10 @@ if(NOT CP2K_USE_LIBTORCH)
   message("   - libtorch")
 endif()
 
-if(CP2K_ENABLE_REGTESTS OR cp2k_TESTS)
+if(cp2k_TESTS)
   message("\n\n" "To run the regtests you need to run the following commands\n"
           "\n\n cd ..\n" " export CP2K_DATA_DIR=${CMAKE_SOURCE_DIR}/data/\n"
-          " ./tests/do_regtest.py ${__cp2k_cmake_name} ${__cp2k_ext}\n\n")
+          " ./tests/do_regtest.py ${cp2k_BINARY_DIR}/bin ${__cp2k_ext}\n\n")
 endif()
 
 # files needed for cmake
