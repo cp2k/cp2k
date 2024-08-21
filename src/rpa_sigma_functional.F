@@ -6,14 +6,11 @@
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
-!> \brief Routines to calculate RI-RPA energy and Total energy using Sigma functionals
+!> \brief Routines to calculate RI-RPA energy and Sigma correction to the RPA energies
+!>         using the cubic spline based on eigen values of Q(w).
 !> \par History
-!> lallaal
 ! **************************************************************************************************
 MODULE rpa_sigma_functional
-!   USE bibliography,                    ONLY: &
-!        Bates2013, DelBen2013, DelBen2015, Freeman1977, Gruneis2009, Ren2011, Ren2013, &
-!        Wilhelm2016a, Wilhelm2016b, Wilhelm2017, Wilhelm2018, cite_reference
    USE cp_fm_diag,                      ONLY: choose_eigv_solver
    USE cp_fm_struct,                    ONLY: cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_create,&
@@ -44,7 +41,7 @@ MODULE rpa_sigma_functional
    TYPE rpa_sigma_type
       PRIVATE
       REAL(KIND=dp)                                      :: e_sigma_corr = 0.0_dp
-      REAL(KIND=dp)                                      :: e_rpa_corr = 0.0_dp
+      REAL(KIND=dp)                                      :: e_rpa_by_eig_val = 0.0_dp
       INTEGER                                            :: sigma_param = 0
       TYPE(cp_fm_type)                                   :: mat_Q_diagonal = cp_fm_type()
       TYPE(cp_fm_type)                                   :: fm_evec = cp_fm_type()
@@ -55,9 +52,8 @@ MODULE rpa_sigma_functional
 CONTAINS
 
 ! **************************************************************************************************
-!!> \brief trial2 for serial diagonalization of fm_mat_Q(1)%local_data
-! **************************************************************************************************
-!> \brief ...
+!> \brief ... Collect the Q(w) (fm_mat_Q) matrix to create rpa_sigma a derived type variable.
+!>             and write out the choosen parametrization for the cubic spline.
 !> \param rpa_sigma ...
 !> \param sigma_param ...
 !> \param fm_mat_Q ...
@@ -65,12 +61,13 @@ CONTAINS
 !> \param para_env ...
 ! **************************************************************************************************
    SUBROUTINE rpa_sigma_create(rpa_sigma, sigma_param, fm_mat_Q, unit_nr, para_env)
+
       TYPE(rpa_sigma_type), INTENT(OUT)                  :: rpa_sigma
       INTEGER                                            :: sigma_param
       TYPE(cp_fm_type)                                   :: fm_mat_Q
       INTEGER                                            :: unit_nr
 
-      CLASS(mp_comm_type), INTENT(IN) :: para_env
+      CLASS(mp_comm_type), INTENT(IN)                    :: para_env
 
       TYPE(cp_fm_struct_type), POINTER                   :: matrix_struct
 
@@ -113,7 +110,7 @@ CONTAINS
    END SUBROUTINE rpa_sigma_create
 
 ! **************************************************************************************************
-!> \brief ...
+!> \brief ... Memory cleanup routine
 !> \param rpa_sigma ...
 ! **************************************************************************************************
    SUBROUTINE rpa_sigma_cleanup(rpa_sigma)
@@ -127,19 +124,18 @@ CONTAINS
    END SUBROUTINE rpa_sigma_cleanup
 
 ! **************************************************************************************************
-!> \brief ...
+!> \brief ... Diagonalize and store the eigenvalues of fm_mat_Q in rpa_sigma%sigma_eigenvalue.
 !> \param rpa_sigma ...
 !> \param fm_mat_Q ...
 !> \param wj ...
+!> \param para_env_RPA ...
 ! **************************************************************************************************
    SUBROUTINE rpa_sigma_matrix_spectral(rpa_sigma, fm_mat_Q, wj, para_env_RPA)
 
-      ! Arguments
       TYPE(rpa_sigma_type)                               :: rpa_sigma
       TYPE(cp_fm_type)                                   :: fm_mat_Q
       REAL(KIND=dp)                                      :: wj
       TYPE(mp_para_env_type), INTENT(IN)                 :: para_env_RPA
-      
 
       ! copy the Q matrix into the dummy matrix to avoid changing it.
       CALL cp_fm_to_fm(fm_mat_Q, rpa_sigma%mat_Q_diagonal)
@@ -148,81 +144,78 @@ CONTAINS
       CALL choose_eigv_solver(rpa_sigma%mat_Q_diagonal, rpa_sigma%fm_evec, rpa_sigma%sigma_eigenvalue)
 
       ! Computing the integration to calculate the sigma correction.
-      CALL compute_Erpa_by_eig_val_int(rpa_sigma, wj, para_env_RPA)
+      CALL compute_e_sigma_corr_by_freq_int(rpa_sigma, wj, para_env_RPA)
 
    END SUBROUTINE rpa_sigma_matrix_spectral
 ! **************************************************************************************************
 
 ! **************************************************************************************************
-!> \brief ...
+!> \brief ... To compute the e_sigma_corr and e_rpa_by_eig_val by freq integration over the eigenvalues of Q(w)
+!>            e_sigma_corr = - H(sigma) &  e_rpa_by_eig_val = log(1+sigma)-sigma
 !> \param rpa_sigma ...
 !> \param wj ...
+!> \param para_env_RPA ...
 ! **************************************************************************************************
-   SUBROUTINE compute_Erpa_by_eig_val_int(rpa_sigma, wj, para_env_RPA)
-      !Arguments
+   SUBROUTINE compute_e_sigma_corr_by_freq_int(rpa_sigma, wj, para_env_RPA)
       TYPE(rpa_sigma_type), INTENT(INOUT)                :: rpa_sigma
       REAL(KIND=dp), INTENT(IN)                          :: wj
+      TYPE(mp_para_env_type), INTENT(IN)                 :: para_env_RPA
 
       INTEGER                                            :: iaux
       REAL(KIND=dp)                                      :: dedw_rpa, dedw_sigma
-      TYPE(mp_para_env_type), INTENT(IN)                 :: para_env_RPA
-      
 
       dedw_sigma = 0.0_dp
       dedw_rpa = 0.0_dp
+
+      ! Loop which  take each eigenvalue to: i) get E_RPA & ii) integrates the spline to get E_c correction
       DO iaux = 1, rpa_sigma%dimen_RI_red
-         dedw_rpa = dedw_rpa + LOG(1.0_dp + rpa_sigma%sigma_eigenvalue(iaux)) - rpa_sigma%sigma_eigenvalue(iaux)
-            
-         ! if sigma-functional calculation is active, calculate spline-correction
          IF (rpa_sigma%sigma_eigenvalue(iaux) > 0.0_dp) THEN
-            ! IF (MODULO(iaux, para_env_RPA%num_pe) /= para_env_RPA%mepos) CYCLE
-            !  dedw_rpa = dedw_rpa + LOG(1.0_dp + rpa_sigma%sigma_eigenvalue(iaux)) - rpa_sigma%sigma_eigenvalue(iaux)
-             IF (MODULO(iaux, para_env_RPA%num_pe) /= para_env_RPA%mepos) CYCLE 
-                dedw_sigma = dedw_sigma - cubic_spline_integr(rpa_sigma%sigma_eigenvalue(iaux), rpa_sigma%sigma_param)
+            IF (MODULO(iaux, para_env_RPA%num_pe) /= para_env_RPA%mepos) CYCLE
+            dedw_rpa = dedw_rpa + LOG(1.0_dp + rpa_sigma%sigma_eigenvalue(iaux)) - rpa_sigma%sigma_eigenvalue(iaux)
+            IF (MODULO(iaux, para_env_RPA%num_pe) /= para_env_RPA%mepos) CYCLE
+            dedw_sigma = dedw_sigma - cubic_spline_integr(rpa_sigma%sigma_eigenvalue(iaux), rpa_sigma%sigma_param)
          END IF
       END DO
-      ! (use 4.0_dp its better for compilers)
-      rpa_sigma%e_sigma_corr = rpa_sigma%e_sigma_corr + (wj*dedw_sigma/(2.0_dp*pi*2.0_dp))
-      rpa_sigma%e_rpa_corr = rpa_sigma%e_rpa_corr + (wj*dedw_rpa/(2.0_dp*pi*4.0_dp))
-      
 
-   END SUBROUTINE compute_Erpa_by_eig_val_int
+      ! (use 2.0_dp its better for compilers)
+      rpa_sigma%e_sigma_corr = rpa_sigma%e_sigma_corr + (wj*dedw_sigma/(2.0_dp*pi*2.0_dp))
+      rpa_sigma%e_rpa_by_eig_val = rpa_sigma%e_rpa_by_eig_val + (wj*dedw_rpa/(2.0_dp*pi*2.0_dp))
+
+   END SUBROUTINE compute_e_sigma_corr_by_freq_int
 
 ! **************************************************************************************************
-!> \brief ...
+!> \brief ... Save the calculated value of E_c correction to the global variable and  memory clean.
 !> \param rpa_sigma ...
 !> \param unit_nr ...
 !> \param e_sigma_corr ...
+!> \param para_env ...
+!> \param do_minimax_quad ...
 ! **************************************************************************************************
-   SUBROUTINE finalize_rpa_sigma(rpa_sigma, unit_nr, e_sigma_corr,para_env,do_minimax_quad)
-   !SUBROUTINE finalize_rpa_sigma(rpa_sigma, e_sigma_corr)
+   SUBROUTINE finalize_rpa_sigma(rpa_sigma, unit_nr, e_sigma_corr, para_env, do_minimax_quad)
       TYPE(rpa_sigma_type), INTENT(INOUT)                :: rpa_sigma
       INTEGER                                            :: unit_nr
       REAL(KIND=dp), INTENT(OUT)                         :: e_sigma_corr
       TYPE(mp_para_env_type), INTENT(IN)                 :: para_env
       LOGICAL, INTENT(IN)                                :: do_minimax_quad
-      
-      IF (do_minimax_quad) rpa_sigma%e_rpa_corr = rpa_sigma%e_rpa_corr/2.0_dp
-      CALL para_env%sum(rpa_sigma%e_rpa_corr)
+
+      IF (do_minimax_quad) rpa_sigma%e_rpa_by_eig_val = rpa_sigma%e_rpa_by_eig_val/2.0_dp
+      CALL para_env%sum(rpa_sigma%e_rpa_by_eig_val)
       e_sigma_corr = rpa_sigma%e_sigma_corr
-      IF (unit_nr >0 ) WRITE (unit_nr, '(T3,A,T56,F25.14)') &
-                              'RI-RPA energy from eigenvalues of Q(w)  = ', &
-                                rpa_sigma%e_rpa_corr
+      IF (unit_nr > 0) WRITE (unit_nr, '(T3,A,T56,F25.14)') &
+         'RI-RPA energy from eigenvalues of Q(w)  = ', &
+         rpa_sigma%e_rpa_by_eig_val
 
       CALL rpa_sigma_cleanup(rpa_sigma)
 
    END SUBROUTINE finalize_rpa_sigma
 
-   ! integrates cubic spline part of the energy for sigma-functional
 ! **************************************************************************************************
-!> \brief ...
+!> \brief ... integrates cubic spline to get eigenvalue sigma based E_c correction.
 !> \param sigma ...
 !> \param sigma_param ...
-!> \return ...
+!> \return ... Integration value H(sigma) wrt to coupling constant eq 35 in Trushin et al  JCP 2021
 ! **************************************************************************************************
    FUNCTION cubic_spline_integr(sigma, sigma_param) RESULT(integral)
-      !use rpa_sigma_parameters, only: sigma_param
-
       REAL(KIND=dp), INTENT(in)                          :: sigma
       INTEGER                                            :: sigma_param
       REAL(KIND=dp)                                      :: integral
@@ -688,10 +681,10 @@ CONTAINS
 
       END SELECT
 
-      ! determine to which interval s belongs
+      ! determine to which interval sigma eigenvalue belongs
       m = intervalnum(x_coord, n, sigma)
 
-      ! evaluate integral
+      ! Numerically evaluate integral
       integral = 0.0_dp
       IF (m == 1) THEN
          integral = 0.5_dp*coeff(2, 1)*sigma
@@ -699,7 +692,8 @@ CONTAINS
       IF ((m > 1) .AND. (m < n)) THEN
          h = sigma - x_coord(m)
          integral = 0.5_dp*coeff(2, 1)*x_coord(2)**2/sigma &
-                    + (coeff(1, m)*h + coeff(2, m)/2.0_dp*h**2 + coeff(3, m)/3.0_dp*h**3 + coeff(4, m)/4.0_dp*h**4)/sigma
+                    + (coeff(1, m)*h + coeff(2, m)/2.0_dp*h**2 + &
+                       coeff(3, m)/3.0_dp*h**3 + coeff(4, m)/4.0_dp*h**4)/sigma
          DO i = 2, m - 1
             h = x_coord(i + 1) - x_coord(i)
             integral = integral &
@@ -724,11 +718,11 @@ CONTAINS
    END FUNCTION cubic_spline_integr
 
 ! **************************************************************************************************
-!> \brief ...
+!> \brief ... Determine the interval which contains the sigma eigenvalue.
 !> \param x_coord ...
 !> \param n ...
 !> \param sigma ...
-!> \return ...
+!> \return ... an integer m
 ! **************************************************************************************************
    INTEGER FUNCTION intervalnum(x_coord, n, sigma) RESULT(inum)
 

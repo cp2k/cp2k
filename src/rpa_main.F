@@ -1521,7 +1521,7 @@ CONTAINS
 
             ! for developing Sigma functional  closed and open shell are taken cared for
             IF (mp2_env%ri_rpa%sigma_param /= sigma_none) THEN
-               CALL rpa_sigma_matrix_spectral(rpa_sigma, fm_mat_Q(1), wj(jquad),para_env_RPA)
+               CALL rpa_sigma_matrix_spectral(rpa_sigma, fm_mat_Q(1), wj(jquad), para_env_RPA)
             END IF
 
             IF (do_ri_sos_laplace_mp2) THEN
@@ -1590,7 +1590,7 @@ CONTAINS
          END DO ! jquad
 
          IF (mp2_env%ri_rpa%sigma_param /= sigma_none) THEN
-            CALL finalize_rpa_sigma(rpa_sigma, unit_nr, mp2_env%ri_rpa%e_sigma_corr,para_env,do_minimax_quad)
+            CALL finalize_rpa_sigma(rpa_sigma, unit_nr, mp2_env%ri_rpa%e_sigma_corr, para_env, do_minimax_quad)
             IF (do_minimax_quad) mp2_env%ri_rpa%e_sigma_corr = mp2_env%ri_rpa%e_sigma_corr/2.0_dp
             CALL para_env%sum(mp2_env%ri_rpa%e_sigma_corr)
          END IF
