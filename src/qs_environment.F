@@ -1071,6 +1071,10 @@ CONTAINS
 
       !   *** SCF parameters ***
       ALLOCATE (scf_control)
+      ! set (non)-self consistency
+      IF (dft_control%qs_control%dftb) THEN
+         scf_control%non_selfconsistent = .NOT. dft_control%qs_control%dftb_control%self_consistent
+      END IF
       CALL scf_c_create(scf_control)
       CALL scf_c_read_parameters(scf_control, dft_section)
 
@@ -1086,11 +1090,6 @@ CONTAINS
          IF (dft_control%qs_control%dftb_control%orthogonal_basis) has_unit_metric = .TRUE.
       END IF
       CALL set_qs_env(qs_env, has_unit_metric=has_unit_metric)
-
-      ! check for (non)-self consistency
-      IF (dft_control%qs_control%dftb) THEN
-         scf_control%non_selfconsistent = .NOT. dft_control%qs_control%dftb_control%self_consistent
-      END IF
 
       !   *** Activate the interpolation ***
       CALL wfi_create(wf_history, &
