@@ -1117,7 +1117,6 @@ CONTAINS
       END IF
       CALL scf_c_create(scf_control)
       CALL scf_c_read_parameters(scf_control, dft_section)
-
       !   *** Allocate the data structure for Quickstep energies ***
       CALL allocate_qs_energy(energy)
 

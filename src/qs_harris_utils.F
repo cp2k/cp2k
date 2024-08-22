@@ -160,4 +160,10 @@ CONTAINS
 
    END SUBROUTINE harris_write_input
 
+!  SUBROUTINE harris_density_update()
+!  END SUBROUTINE harris_density_update
+
+!  SUBROUTINE calculate_harris_density(qs_env, rhoin, rho_struct, atomic_kind_set, para_env)
+!  END SUBROUTINE calculate_harris_density
+
 END MODULE qs_harris_utils

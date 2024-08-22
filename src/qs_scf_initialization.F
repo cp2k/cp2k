@@ -1045,7 +1045,7 @@ CONTAINS
 
       INTEGER                                            :: extrapolation_method_nr, handle, ispin, &
                                                             nmo, output_unit
-      LOGICAL                                            :: orthogonal_wf
+      LOGICAL                                            :: orthogonal_wf, do_harris
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -1066,6 +1066,8 @@ CONTAINS
                       dft_control=dft_control, &
                       para_env=para_env)
 
+      do_harris = qs_env%harris_method
+
       extrapolation_method_nr = wfi_use_guess_method_nr
       IF (ASSOCIATED(qs_env%wf_history)) THEN
          CALL wfi_extrapolate(qs_env%wf_history, &
@@ -1084,22 +1086,29 @@ CONTAINS
             END DO
          END IF
       END IF
-      output_unit = cp_print_key_unit_nr(logger, scf_section, "PRINT%PROGRAM_RUN_INFO", &
-                                         extension=".scfLog")
-      IF (output_unit > 0) THEN
-         WRITE (UNIT=output_unit, FMT="(/,T2,A,I0)") &
-            "Extrapolation method: "// &
-            TRIM(wfi_get_method_label(extrapolation_method_nr))
-         IF (extrapolation_method_nr == wfi_ps_method_nr) THEN
-            WRITE (UNIT=output_unit, FMT="(T2,A,I0,A)") &
-               "Extrapolation order:  ", &
-               MAX((MIN(qs_env%wf_history%memory_depth, qs_env%wf_history%snapshot_count) - 1), 0)
+
+      IF (.NOT. do_harris) THEN
+         output_unit = cp_print_key_unit_nr(logger, scf_section, "PRINT%PROGRAM_RUN_INFO", &
+                                            extension=".scfLog")
+         IF (output_unit > 0) THEN
+            WRITE (UNIT=output_unit, FMT="(/,T2,A,I0)") &
+               "Extrapolation method: "// &
+               TRIM(wfi_get_method_label(extrapolation_method_nr))
+            IF (extrapolation_method_nr == wfi_ps_method_nr) THEN
+               WRITE (UNIT=output_unit, FMT="(T2,A,I0,A)") &
+                  "Extrapolation order:  ", &
+                  MAX((MIN(qs_env%wf_history%memory_depth, qs_env%wf_history%snapshot_count) - 1), 0)
+            END IF
          END IF
+         CALL cp_print_key_finished_output(output_unit, logger, scf_section, &
+                                           "PRINT%PROGRAM_RUN_INFO")
       END IF
 
-      CALL cp_print_key_finished_output(output_unit, logger, scf_section, &
-                                        "PRINT%PROGRAM_RUN_INFO")
-      IF (extrapolation_method_nr == wfi_use_guess_method_nr) THEN
+      IF (do_harris) THEN
+!deb     CALL harris_density_update(scf_env=scf_env, qs_env=qs_env)
+         CALL qs_rho_update_rho(rho, qs_env=qs_env)
+         CALL qs_ks_did_change(qs_env%ks_env, rho_changed=.TRUE.)
+      ELSE IF (extrapolation_method_nr == wfi_use_guess_method_nr) THEN
          CALL calculate_first_density_matrix(scf_env=scf_env, qs_env=qs_env)
          CALL qs_rho_update_rho(rho, qs_env=qs_env)
          CALL qs_ks_did_change(qs_env%ks_env, rho_changed=.TRUE.)

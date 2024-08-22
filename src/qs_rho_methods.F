@@ -23,6 +23,7 @@ MODULE qs_rho_methods
    USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set,&
                                               dbcsr_deallocate_matrix_set
    USE cp_log_handling,                 ONLY: cp_to_string
+   USE qs_harris_types,                 ONLY: harris_type
    USE kinds,                           ONLY: default_string_length,&
                                               dp
    USE kpoint_types,                    ONLY: get_kpoint_info,&
@@ -386,6 +387,7 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_ao
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rho_ao_kp
       TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(harris_type), POINTER                         :: harris_env
       TYPE(kpoint_type), POINTER                         :: kpoints
       TYPE(lri_density_type), POINTER                    :: lri_density
       TYPE(lri_environment_type), POINTER                :: lri_env
@@ -397,7 +399,17 @@ CONTAINS
                       para_env=para_env)
       IF (PRESENT(para_env_external)) para_env => para_env_external
 
-      IF (dft_control%qs_control%semi_empirical .OR. &
+      IF (qs_env%harris_method) THEN
+         CALL get_qs_env(qs_env, harris_env=harris_env)
+!deb
+         stop "AA"
+!        CALL calculate_harris_density(qs_env, harris_env%rhoin, &
+!                                      rho_struct=rho_struct, &
+!                                      atomic_kind_set=atomic_kind_set, &
+!                                      para_env=para_env)
+         CALL qs_rho_set(rho_struct, rho_r_valid=.TRUE., rho_g_valid=.TRUE.)
+
+      ELSEIF (dft_control%qs_control%semi_empirical .OR. &
           dft_control%qs_control%dftb .OR. dft_control%qs_control%xtb) THEN
 
          CALL qs_rho_set(rho_struct, rho_r_valid=.FALSE., rho_g_valid=.FALSE.)
