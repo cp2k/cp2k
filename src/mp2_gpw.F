@@ -393,7 +393,7 @@ CONTAINS
             CALL mp2_ri_gpw_compute_in( &
                BIb_C, BIb_C_gw, BIb_C_bse_ij, BIb_C_bse_ab, gd_array, gd_B_virtual, dimen_RI, dimen_RI_red, qs_env, &
                para_env, para_env_sub, color_sub, cell, particle_set, &
-               atomic_kind_set, qs_kind_set, mo_coeff, fm_matrix_PQ, fm_matrix_L_kpoints, fm_matrix_Minv_L_kpoints, &
+               atomic_kind_set, qs_kind_set, fm_matrix_PQ, fm_matrix_L_kpoints, fm_matrix_Minv_L_kpoints, &
                fm_matrix_Minv, fm_matrix_Minv_Vtrunc_Minv, nmo, homo, mat_munu, sab_orb_sub, &
                mo_coeff_o, mo_coeff_v, mo_coeff_all, mo_coeff_gw, mo_coeff_o_bse, mo_coeff_v_bse, &
                mp2_env%mp2_gpw%eps_filter, unit_nr, &
@@ -410,7 +410,7 @@ CONTAINS
             CALL mp2_ri_gpw_compute_in(BIb_C, BIb_C_gw, BIb_C_bse_ij, BIb_C_bse_ab, gd_array, gd_B_virtual, &
                                        dimen_RI, dimen_RI_red, qs_env, para_env, para_env_sub, &
                                        color_sub, cell, particle_set, &
-                                       atomic_kind_set, qs_kind_set, mo_coeff, fm_matrix_PQ, &
+                                       atomic_kind_set, qs_kind_set, fm_matrix_PQ, &
                                        fm_matrix_L_kpoints, fm_matrix_Minv_L_kpoints, &
                                        fm_matrix_Minv, fm_matrix_Minv_Vtrunc_Minv, nmo, homo, &
                                        mat_munu, sab_orb_sub, &
@@ -436,7 +436,7 @@ CONTAINS
             CALL mp2_gpw_compute( &
                Emp2, Emp2_Cou, Emp2_EX, qs_env, para_env, para_env_sub, color_sub, &
                cell, particle_set, &
-               atomic_kind_set, qs_kind_set, mo_coeff(1), Eigenval, nmo, homo, mat_munu, &
+               atomic_kind_set, qs_kind_set, Eigenval, nmo, homo, mat_munu, &
                sab_orb_sub, mo_coeff_o, mo_coeff_v, mp2_env%mp2_gpw%eps_filter, unit_nr, &
                mp2_env%mp2_memory, calc_ex, blacs_env_sub, Emp2_AB)
 
@@ -445,7 +445,7 @@ CONTAINS
             IF (unit_nr > 0) WRITE (unit_nr, '(T3,A)') 'Beta (ia|'
             CALL mp2_gpw_compute( &
                Emp2_BB, Emp2_Cou_BB, Emp2_EX_BB, qs_env, para_env, para_env_sub, color_sub, cell, particle_set, &
-               atomic_kind_set, qs_kind_set, mo_coeff(2), Eigenval(:, 2:2), nmo, homo(2:2), mat_munu, &
+               atomic_kind_set, qs_kind_set, Eigenval(:, 2:2), nmo, homo(2:2), mat_munu, &
                sab_orb_sub, mo_coeff_o(2:2), mo_coeff_v(2:2), mp2_env%mp2_gpw%eps_filter, unit_nr, &
                mp2_env%mp2_memory, calc_ex, blacs_env_sub)
 
@@ -467,7 +467,7 @@ CONTAINS
             ! closed shell case
             CALL mp2_gpw_compute( &
                Emp2, Emp2_Cou, Emp2_EX, qs_env, para_env, para_env_sub, color_sub, cell, particle_set, &
-               atomic_kind_set, qs_kind_set, mo_coeff(1), Eigenval(:, 1:1), nmo, homo(1:1), mat_munu, &
+               atomic_kind_set, qs_kind_set, Eigenval(:, 1:1), nmo, homo(1:1), mat_munu, &
                sab_orb_sub, mo_coeff_o(1:1), mo_coeff_v(1:1), mp2_env%mp2_gpw%eps_filter, unit_nr, &
                mp2_env%mp2_memory, calc_ex, blacs_env_sub)
          END IF

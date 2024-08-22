@@ -115,7 +115,7 @@ MODULE rpa_im_time_force_methods
    USE pw_types,                        ONLY: pw_c1d_gs_type,&
                                               pw_r3d_rs_type
    USE qs_collocate_density,            ONLY: calculate_rho_elec,&
-                                              calculate_wavefunction
+                                              collocate_function
    USE qs_density_matrices,             ONLY: calculate_whz_matrix
    USE qs_energy_matrix_w,              ONLY: qs_energies_compute_w
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -2832,9 +2832,9 @@ CONTAINS
             wf_vector = 0.0_dp
             wf_vector(j_RI) = 1.0_dp
 
-            CALL calculate_wavefunction(mos(1)%mo_coeff, 1, psi_L, rho_g, atomic_kind_set, &
-                                        qs_kind_set, cell, dft_control, particle_set, pw_env_ext, &
-                                        basis_type="RI_AUX", external_vector=wf_vector)
+            CALL collocate_function(wf_vector, psi_L, rho_g, atomic_kind_set, qs_kind_set, cell, &
+                                    particle_set, pw_env_ext, dft_control%qs_control%eps_rho_rspace, &
+                                    basis_type="RI_AUX")
 
             IF (use_virial) THEN
                CALL calc_potential_gpw(rho_r, rho_g, poisson_env, pot_g, mp2_env%potential_parameter, dvg)
@@ -2854,9 +2854,9 @@ CONTAINS
                END DO
 
                CALL pw_copy(rho_g, rho_g_copy)
-               CALL calculate_wavefunction(mos(1)%mo_coeff, 1, psi_L, rho_g, atomic_kind_set, &
-                                           qs_kind_set, cell, dft_control, particle_set, pw_env_ext, &
-                                           basis_type="RI_AUX", external_vector=wf_vector)
+               CALL collocate_function(wf_vector, psi_L, rho_g, atomic_kind_set, qs_kind_set, cell, &
+                                       particle_set, pw_env_ext, dft_control%qs_control%eps_rho_rspace, &
+                                       basis_type="RI_AUX")
 
                CALL calc_potential_gpw(psi_L, rho_g, poisson_env, pot_g, mp2_env%potential_parameter, &
                                        no_transfer=.TRUE.)

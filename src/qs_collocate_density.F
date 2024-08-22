@@ -84,9 +84,9 @@ MODULE qs_collocate_density
                             pw_pool_type, &
                             pw_pools_create_pws, &
                             pw_pools_give_back_pws
-   USE pw_types, ONLY: &
-      pw_r3d_rs_type, &
-      pw_c1d_gs_type, pw_r3d_rs_type
+   USE pw_types, ONLY: pw_r3d_rs_type, &
+                       pw_c1d_gs_type, &
+                       pw_r3d_rs_type
    USE qs_environment_types, ONLY: get_qs_env, &
                                    qs_environment_type
    USE qs_kind_types, ONLY: get_qs_kind, &
@@ -129,6 +129,7 @@ MODULE qs_collocate_density
              calculate_rho_elec, &
              calculate_drho_elec, &
              calculate_wavefunction, &
+             collocate_function, &
              calculate_rho_nlcc, &
              calculate_drho_elec_dR, &
              calculate_drho_core, &
@@ -2607,26 +2608,18 @@ CONTAINS
 !> \param particle_set ...
 !> \param pw_env ...
 !> \param basis_type ...
-!> \param external_vector ...
 !> \par History
 !>      08.2002 created [Joost VandeVondele]
 !>      03.2006 made independent of qs_env [Joost VandeVondele]
-!> \note
-!>      modified calculate_rho_elec, should write the wavefunction represented by
-!>      it's presumably dominated by the FFT and the rs->pw and back routines
-!>
-!>    BUGS ???
-!>      does it take correctly the periodic images of the basis functions into account
-!>      i.e. is only correct if the basis functions are localised enough to be just in 1 cell ?
+!>      08.2024 call collocate_function [JGH]
 ! **************************************************************************************************
    SUBROUTINE calculate_wavefunction(mo_vectors, ivector, rho, rho_gspace, &
                                      atomic_kind_set, qs_kind_set, cell, dft_control, particle_set, &
-                                     pw_env, basis_type, external_vector)
-
+                                     pw_env, basis_type)
       TYPE(cp_fm_type), INTENT(IN)                       :: mo_vectors
       INTEGER, INTENT(IN)                                :: ivector
-      TYPE(pw_r3d_rs_type), INTENT(INOUT)                       :: rho
-      TYPE(pw_c1d_gs_type), INTENT(INOUT) :: rho_gspace
+      TYPE(pw_r3d_rs_type), INTENT(INOUT)                :: rho
+      TYPE(pw_c1d_gs_type), INTENT(INOUT)                :: rho_gspace
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(cell_type), POINTER                           :: cell
@@ -2634,28 +2627,88 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(pw_env_type), POINTER                         :: pw_env
       CHARACTER(LEN=*), INTENT(IN), OPTIONAL             :: basis_type
-      REAL(KIND=dp), DIMENSION(:), OPTIONAL              :: external_vector
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_wavefunction'
 
+      INTEGER                                            :: handle, i, nao
+      LOGICAL                                            :: local
+      REAL(KIND=dp)                                      :: eps_rho_rspace
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: eigenvector
+
+      CALL timeset(routineN, handle)
+
+      CALL cp_fm_get_info(matrix=mo_vectors, nrow_global=nao)
+      ALLOCATE (eigenvector(nao))
+      DO i = 1, nao
+         CALL cp_fm_get_element(mo_vectors, i, ivector, eigenvector(i), local)
+      END DO
+
+      eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
+
+      CALL collocate_function(eigenvector, rho, rho_gspace, &
+                              atomic_kind_set, qs_kind_set, cell, particle_set, pw_env, &
+                              eps_rho_rspace, basis_type)
+
+      DEALLOCATE (eigenvector)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE calculate_wavefunction
+
+! **************************************************************************************************
+!> \brief maps a given function on the grid
+!> \param vector ...
+!> \param rho ...
+!> \param rho_gspace ...
+!> \param atomic_kind_set ...
+!> \param qs_kind_set ...
+!> \param cell ...
+!> \param particle_set ...
+!> \param pw_env ...
+!> \param eps_rho_rspace ...
+!> \param basis_type ...
+!> \par History
+!>      08.2002 created [Joost VandeVondele]
+!>      03.2006 made independent of qs_env [Joost VandeVondele]
+!>      08.2024 specialized version from calculate_wavefunction [JGH]
+!> \notes
+!>      modified calculate_rho_elec, should write the wavefunction represented by vector
+!>      it's presumably dominated by the FFT and the rs->pw and back routines
+! **************************************************************************************************
+   SUBROUTINE collocate_function(vector, rho, rho_gspace, &
+                                 atomic_kind_set, qs_kind_set, cell, particle_set, pw_env, &
+                                 eps_rho_rspace, basis_type)
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: vector
+      TYPE(pw_r3d_rs_type), INTENT(INOUT)                :: rho
+      TYPE(pw_c1d_gs_type), INTENT(INOUT)                :: rho_gspace
+      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+      TYPE(cell_type), POINTER                           :: cell
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(pw_env_type), POINTER                         :: pw_env
+      REAL(KIND=dp), INTENT(IN)                          :: eps_rho_rspace
+      CHARACTER(LEN=*), INTENT(IN), OPTIONAL             :: basis_type
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'collocate_function'
+
       CHARACTER(LEN=default_string_length)               :: my_basis_type
       INTEGER :: group_size, handle, i, iatom, igrid_level, ikind, ipgf, iset, maxco, maxsgf_set, &
-                 my_pos, na1, na2, nao, natom, ncoa, nseta, offset, sgfa
+                 my_pos, na1, na2, natom, ncoa, nseta, offset, sgfa
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: where_is_the_point
       INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, npgfa, nsgfa
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa
-      LOGICAL                                            :: local
-      REAL(KIND=dp)                                      :: dab, eps_rho_rspace, radius, scale
+      REAL(KIND=dp)                                      :: dab, radius, scale
       REAL(KIND=dp), DIMENSION(3)                        :: ra
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: eigenvector
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: pab, sphi_a, work, zeta
       TYPE(gridlevel_info_type), POINTER                 :: gridlevel_info
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis_set
       TYPE(mp_comm_type)                                 :: group
       TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
-      TYPE(pw_c1d_gs_type), ALLOCATABLE, DIMENSION(:) :: mgrid_gspace
-      TYPE(pw_r3d_rs_type), ALLOCATABLE, DIMENSION(:)           ::  mgrid_rspace
+      TYPE(pw_c1d_gs_type), ALLOCATABLE, DIMENSION(:)    :: mgrid_gspace
+      TYPE(pw_r3d_rs_type), ALLOCATABLE, DIMENSION(:)    :: mgrid_rspace
       TYPE(realspace_grid_type), DIMENSION(:), POINTER   :: rs_rho
+
+      CALL timeset(routineN, handle)
 
       IF (PRESENT(basis_type)) THEN
          my_basis_type = basis_type
@@ -2663,22 +2716,8 @@ CONTAINS
          my_basis_type = "ORB"
       END IF
 
-      CALL timeset(routineN, handle)
-
-      NULLIFY (eigenvector, orb_basis_set, pab, work, la_max, la_min, &
+      NULLIFY (orb_basis_set, pab, work, la_max, la_min, &
                npgfa, nsgfa, sphi_a, zeta, first_sgfa, rs_rho, pw_pools)
-
-      IF (PRESENT(external_vector)) THEN
-         nao = SIZE(external_vector)
-         ALLOCATE (eigenvector(nao))
-         eigenvector = external_vector
-      ELSE
-         CALL cp_fm_get_info(matrix=mo_vectors, nrow_global=nao)
-         ALLOCATE (eigenvector(nao))
-         DO i = 1, nao
-            CALL cp_fm_get_element(mo_vectors, i, ivector, eigenvector(i), local)
-         END DO
-      END IF
 
       ! *** set up the pw multi-grids
       CPASSERT(ASSOCIATED(pw_env))
@@ -2693,8 +2732,7 @@ CONTAINS
          CALL rs_grid_zero(rs_rho(igrid_level))
       END DO
 
-      eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
-!   *** Allocate work storage ***
+      !   *** Allocate work storage ***
       CALL get_atomic_kind_set(atomic_kind_set, natom=natom)
       CALL get_qs_kind_set(qs_kind_set, &
                            maxco=maxco, &
@@ -2731,7 +2769,7 @@ CONTAINS
             sgfa = first_sgfa(1, iset)
 
             DO i = 1, nsgfa(iset)
-               work(i, 1) = eigenvector(offset + i)
+               work(i, 1) = vector(offset + i)
             END DO
 
             CALL dgemm("N", "N", ncoa, 1, nsgfa(iset), &
@@ -2783,10 +2821,7 @@ CONTAINS
       CALL pw_transfer(rho_gspace, rho)
 
       ! Release work storage
-      DEALLOCATE (eigenvector)
-
       DEALLOCATE (pab)
-
       DEALLOCATE (work)
 
       ! give back the pw multi-grids
@@ -2795,6 +2830,6 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE calculate_wavefunction
+   END SUBROUTINE collocate_function
 
 END MODULE qs_collocate_density

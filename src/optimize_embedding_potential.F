@@ -71,7 +71,8 @@ MODULE optimize_embedding_potential
    USE pw_types,                        ONLY: pw_c1d_gs_type,&
                                               pw_r3d_rs_type
    USE qs_collocate_density,            ONLY: calculate_rho_resp_all,&
-                                              calculate_wavefunction
+                                              calculate_wavefunction,&
+                                              collocate_function
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type,&
                                               set_qs_env
@@ -1791,10 +1792,10 @@ CONTAINS
          CALL para_env%sum(wf_vector)
 
          ! Calculate the variable part of the embedding potential
-         CALL calculate_wavefunction(mo_coeff, 1, psi_L, rho_g, atomic_kind_set, &
-                                     qs_kind_set, cell, dft_control, particle_set, pw_env, &
-                                     basis_type="RI_AUX", &
-                                     external_vector=wf_vector)
+         CALL collocate_function(wf_vector, psi_L, rho_g, atomic_kind_set, &
+                                 qs_kind_set, cell, particle_set, pw_env, &
+                                 dft_control%qs_control%eps_rho_rspace, &
+                                 basis_type="RI_AUX")
          ! Update the full embedding potential
          IF (add_const_pot) THEN
             CALL pw_copy(const_pot, embed_pot)
@@ -1818,10 +1819,10 @@ CONTAINS
          CALL para_env%sum(wf_vector)
 
          ! Calculate the variable part of the embedding potential
-         CALL calculate_wavefunction(mo_coeff, 1, psi_L, rho_g, atomic_kind_set, &
-                                     qs_kind_set, cell, dft_control, particle_set, pw_env, &
-                                     basis_type="RI_AUX", &
-                                     external_vector=wf_vector)
+         CALL collocate_function(wf_vector, psi_L, rho_g, atomic_kind_set, &
+                                 qs_kind_set, cell, particle_set, pw_env, &
+                                 dft_control%qs_control%eps_rho_rspace, &
+                                 basis_type="RI_AUX")
          ! No constant potential for spin-dependent potential
          CALL pw_zero(spin_embed_pot)
          CALL pw_axpy(psi_L, spin_embed_pot)
@@ -1843,10 +1844,10 @@ CONTAINS
          CALL calculate_wavefunction(mo_coeff, 1, psi_L, rho_g, atomic_kind_set, &
                                      qs_kind_set, cell, dft_control, particle_set, pw_env)
 
-         CALL calculate_wavefunction(mo_coeff, 1, psi_L, rho_g, atomic_kind_set, &
-                                     qs_kind_set, cell, dft_control, particle_set, pw_env, &
-                                     basis_type="RI_AUX", &
-                                     external_vector=wf_vector)
+         CALL collocate_function(wf_vector, psi_L, rho_g, atomic_kind_set, &
+                                 qs_kind_set, cell, particle_set, pw_env, &
+                                 dft_control%qs_control%eps_rho_rspace, &
+                                 basis_type="RI_AUX")
 
          ! Update the full embedding potential
          IF (add_const_pot) THEN
