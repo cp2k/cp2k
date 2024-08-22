@@ -36,77 +36,77 @@
 !>      Ole Schuett (2020)
 ! **************************************************************************************************
 MODULE qs_collocate_density
-   USE admm_types,                      ONLY: get_admm_env
-   USE ao_util,                         ONLY: exp_radius_very_extended
-   USE atomic_kind_types,               ONLY: atomic_kind_type, &
-                                              get_atomic_kind, &
-                                              get_atomic_kind_set
-   USE basis_set_types,                 ONLY: get_gto_basis_set, &
-                                              gto_basis_set_type
-   USE cell_types,                      ONLY: cell_type, &
-                                              pbc
-   USE cp_control_types,                ONLY: dft_control_type
-   USE cp_dbcsr_operations,             ONLY: dbcsr_deallocate_matrix_set
-   USE cp_fm_types,                     ONLY: cp_fm_get_element, &
-                                              cp_fm_get_info, &
-                                              cp_fm_type
-   USE cp_dbcsr_api,                    ONLY: dbcsr_copy, &
-                                              dbcsr_get_block_p, &
-                                              dbcsr_p_type, &
-                                              dbcsr_type
-   USE external_potential_types,        ONLY: get_potential, &
-                                              gth_potential_type
-   USE gaussian_gridlevels,             ONLY: gaussian_gridlevel, &
-                                              gridlevel_info_type
-   USE grid_api,                        ONLY: &
+   USE admm_types, ONLY: get_admm_env
+   USE ao_util, ONLY: exp_radius_very_extended
+   USE atomic_kind_types, ONLY: atomic_kind_type, &
+                                get_atomic_kind, &
+                                get_atomic_kind_set
+   USE basis_set_types, ONLY: get_gto_basis_set, &
+                              gto_basis_set_type
+   USE cell_types, ONLY: cell_type, &
+                         pbc
+   USE cp_control_types, ONLY: dft_control_type
+   USE cp_dbcsr_operations, ONLY: dbcsr_deallocate_matrix_set
+   USE cp_fm_types, ONLY: cp_fm_get_element, &
+                          cp_fm_get_info, &
+                          cp_fm_type
+   USE cp_dbcsr_api, ONLY: dbcsr_copy, &
+                           dbcsr_get_block_p, &
+                           dbcsr_p_type, &
+                           dbcsr_type
+   USE external_potential_types, ONLY: get_potential, &
+                                       gth_potential_type
+   USE gaussian_gridlevels, ONLY: gaussian_gridlevel, &
+                                  gridlevel_info_type
+   USE grid_api, ONLY: &
       GRID_FUNC_AB, GRID_FUNC_CORE_X, GRID_FUNC_CORE_Y, GRID_FUNC_CORE_Z, GRID_FUNC_DAB_X, &
       GRID_FUNC_DAB_Y, GRID_FUNC_DAB_Z, GRID_FUNC_DABpADB_X, GRID_FUNC_DABpADB_Y, &
       GRID_FUNC_DABpADB_Z, GRID_FUNC_DADB, GRID_FUNC_DX, GRID_FUNC_DXDX, GRID_FUNC_DXDY, &
       GRID_FUNC_DY, GRID_FUNC_DYDY, GRID_FUNC_DYDZ, GRID_FUNC_DZ, GRID_FUNC_DZDX, &
       GRID_FUNC_DZDZ, collocate_pgf_product, grid_collocate_task_list
-   USE input_constants,                 ONLY: &
+   USE input_constants, ONLY: &
       orb_dx2, orb_dxy, orb_dy2, orb_dyz, orb_dz2, orb_dzx, orb_px, orb_py, orb_pz, orb_s
-   USE kinds,                           ONLY: default_string_length, &
-                                              dp
-   USE lri_environment_types,           ONLY: lri_kind_type
-   USE memory_utilities,                ONLY: reallocate
-   USE message_passing,                 ONLY: mp_comm_type
-   USE orbital_pointers,                ONLY: coset, &
-                                              ncoset
-   USE particle_types,                  ONLY: particle_type
-   USE pw_env_types,                    ONLY: pw_env_get, &
-                                              pw_env_type
-   USE pw_methods,                      ONLY: pw_axpy, &
-                                              pw_integrate_function, &
-                                              pw_transfer, &
-                                              pw_zero
-   USE pw_pool_types,                   ONLY: pw_pool_p_type, &
-                                              pw_pool_type, &
-                                              pw_pools_create_pws, &
-                                              pw_pools_give_back_pws
-   USE pw_types,                        ONLY: pw_r3d_rs_type, &
-                                              pw_c1d_gs_type, &
-                                              pw_r3d_rs_type
-   USE qs_environment_types,            ONLY: get_qs_env, &
-                                              qs_environment_type
-   USE qs_kind_types,                   ONLY: get_qs_kind, &
-                                              get_qs_kind_set, &
-                                              qs_kind_type
-   USE qs_ks_types,                     ONLY: get_ks_env, &
-                                              qs_ks_env_type
-   USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
-   USE realspace_grid_types,            ONLY: map_gaussian_here, &
-                                              realspace_grid_desc_p_type, &
-                                              realspace_grid_type, &
-                                              rs_grid_zero, &
-                                              transfer_rs2pw
-   USE rs_pw_interface,                 ONLY: density_rs2pw
-   USE task_list_methods,               ONLY: rs_copy_to_buffer, &
-                                              rs_distribute_matrix, &
-                                              rs_scatter_matrices
-   USE task_list_types,                 ONLY: atom_pair_type, &
-                                              task_list_type, &
-                                              task_type
+   USE kinds, ONLY: default_string_length, &
+                    dp
+   USE lri_environment_types, ONLY: lri_kind_type
+   USE memory_utilities, ONLY: reallocate
+   USE message_passing, ONLY: mp_comm_type
+   USE orbital_pointers, ONLY: coset, &
+                               ncoset
+   USE particle_types, ONLY: particle_type
+   USE pw_env_types, ONLY: pw_env_get, &
+                           pw_env_type
+   USE pw_methods, ONLY: pw_axpy, &
+                         pw_integrate_function, &
+                         pw_transfer, &
+                         pw_zero
+   USE pw_pool_types, ONLY: pw_pool_p_type, &
+                            pw_pool_type, &
+                            pw_pools_create_pws, &
+                            pw_pools_give_back_pws
+   USE pw_types, ONLY: pw_r3d_rs_type, &
+                       pw_c1d_gs_type, &
+                       pw_r3d_rs_type
+   USE qs_environment_types, ONLY: get_qs_env, &
+                                   qs_environment_type
+   USE qs_kind_types, ONLY: get_qs_kind, &
+                            get_qs_kind_set, &
+                            qs_kind_type
+   USE qs_ks_types, ONLY: get_ks_env, &
+                          qs_ks_env_type
+   USE qs_neighbor_list_types, ONLY: neighbor_list_set_p_type
+   USE realspace_grid_types, ONLY: map_gaussian_here, &
+                                   realspace_grid_desc_p_type, &
+                                   realspace_grid_type, &
+                                   rs_grid_zero, &
+                                   transfer_rs2pw
+   USE rs_pw_interface, ONLY: density_rs2pw
+   USE task_list_methods, ONLY: rs_copy_to_buffer, &
+                                rs_distribute_matrix, &
+                                rs_scatter_matrices
+   USE task_list_types, ONLY: atom_pair_type, &
+                              task_list_type, &
+                              task_type
 
 !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads
 
@@ -2595,7 +2595,6 @@ CONTAINS
 
    END SUBROUTINE collocate_single_gaussian
 
-
 ! **************************************************************************************************
 !> \brief maps a given wavefunction on the grid
 !> \param mo_vectors ...
@@ -2656,26 +2655,26 @@ CONTAINS
 
    END SUBROUTINE calculate_wavefunction
 
-! **************************************************************************************************		
-!> \brief maps a given function on the grid		
-!> \param vector ...		
-!> \param rho ...		
-!> \param rho_gspace ...		
-!> \param atomic_kind_set ...		
-!> \param qs_kind_set ...		
-!> \param cell ...		
-!> \param particle_set ...		
-!> \param pw_env ...		
-!> \param eps_rho_rspace ...		
-!> \param basis_type ...		
-!> \par History		
-!>      08.2002 created [Joost VandeVondele]		
-!>      03.2006 made independent of qs_env [Joost VandeVondele]		
-!>      08.2024 specialized version from calculate_wavefunction [JGH]		
-!> \notes		
-!>      modified calculate_rho_elec, should write the wavefunction represented by vector		
-!>      it's presumably dominated by the FFT and the rs->pw and back routines		
-! **************************************************************************************************		
+! **************************************************************************************************
+!> \brief maps a given function on the grid
+!> \param vector ...
+!> \param rho ...
+!> \param rho_gspace ...
+!> \param atomic_kind_set ...
+!> \param qs_kind_set ...
+!> \param cell ...
+!> \param particle_set ...
+!> \param pw_env ...
+!> \param eps_rho_rspace ...
+!> \param basis_type ...
+!> \par History
+!>      08.2002 created [Joost VandeVondele]
+!>      03.2006 made independent of qs_env [Joost VandeVondele]
+!>      08.2024 specialized version from calculate_wavefunction [JGH]
+!> \notes
+!>      modified calculate_rho_elec, should write the wavefunction represented by vector
+!>      it's presumably dominated by the FFT and the rs->pw and back routines
+! **************************************************************************************************
    SUBROUTINE collocate_function(vector, rho, rho_gspace, &
                                  atomic_kind_set, qs_kind_set, cell, particle_set, pw_env, &
                                  eps_rho_rspace, basis_type)
