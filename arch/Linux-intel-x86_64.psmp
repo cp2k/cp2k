@@ -2,7 +2,7 @@
 #
 # CP2K (Intel/MKL x86_64) arch file for Linux clusters
 #
-# Tested with: Intel 22.2, 2021.13, Intel MPI, Intel MKL,
+# Tested with: Intel oneAPI Toolkit 2024.2.1, Intel MPI, Intel MKL,
 #              LIBINT 2.6.0, LIBXC 6.2.2, ELPA 2024.03.001,
 #              PLUMED 2.9.0, SPGLIB 2.3.1, LIBVORI 220621,
 #              GSL 2.7, COSMA 2.6.6, HDF5 1.14.2, SIRIUS 7.5.2,
@@ -15,7 +15,7 @@
 #        Optionally, the Intel compiler version can be specified as argument.
 #        Replace or adapt the "module add" commands below if needed.
 #
-# Last update: 14.08.2024
+# Last update: 22.08.2024
 #
 # \
    if [[ "${0}" == "${BASH_SOURCE}" ]]; then \
@@ -27,25 +27,26 @@
    cd tools/toolchain; \
    rm -rf build; \
    [[ -z "${target_cpu}" ]] && target_cpu="native"; \
+   [[ -z "${with_ifx}" ]] && with_ifx="no"; \
    if [[ -n "${1}" ]]; then \
       module add ${1}; \
       module list; \
    fi; \
-   ./install_cp2k_toolchain.sh --install-all -j${maxtasks} --no-arch-files --target-cpu=${target_cpu} --with-intelmpi --with-mkl --with-libtorch=no; \
+   ./install_cp2k_toolchain.sh --install-all -j${maxtasks} --no-arch-files --target-cpu=${target_cpu} --with-ifx=${with_ifx} --with-intelmpi --with-mkl --with-libtorch=no; \
    source ./install/setup; \
    cd ../..; \
    echo; \
    echo "Check the output above for error messages and consistency!"; \
    echo; \
    echo "If everything is OK, you can build a CP2K production binary with"; \
-   echo "   make -j ARCH=${this_file%.*} VERSION=${this_file##*.}"; \
+   echo "   make -j ARCH=${this_file%.*} VERSION=${this_file##*.} TARGET_CPU=${target_cpu}" WITH_IFX=${with_ifx}; \
    echo; \
    echo "Alternatively, you can add further checks, e.g. for regression testing, with"; \
-   echo "   make -j ARCH=${this_file%.*} VERSION=${this_file##*.} TARGET_CPU=${target_cpu} DO_CHECKS=yes"; \
+   echo "   make -j ARCH=${this_file%.*} VERSION=${this_file##*.} TARGET_CPU=${target_cpu} WITH_IFX=${with_ifx} DO_CHECKS=yes"; \
    echo "or build CP2K only with shared libraries using"; \
-   echo "   make -j ARCH=${this_file%.*} VERSION=${this_file##*.} TARGET_CPU=${target_cpu} SHARED=yes"; \
+   echo "   make -j ARCH=${this_file%.*} VERSION=${this_file##*.} TARGET_CPU=${target_cpu} WITH_IFX=${with_ifx} SHARED=yes"; \
    echo "or build CP2K as a library with"; \
-   echo "   make -j ARCH=${this_file%.*} VERSION=${this_file##*.} TARGET_CPU=${target_cpu} libcp2k"; \
+   echo "   make -j ARCH=${this_file%.*} VERSION=${this_file##*.} TARGET_CPU=${target_cpu} WITH_IFX=${with_ifx} libcp2k"; \
    echo; \
    echo "Run always the following command before using the CP2K binary"; \
    echo "   source ${PWD}/tools/toolchain/install/setup"; \
@@ -77,13 +78,19 @@ LIBVDWXC_VER   := 0.4.0
 # Only needed for LIBPEXSI
 SCOTCH_VER     := 6.0.0
 SUPERLU_VER    := 6.1.0
+WITH_IFX       := no
 
 LMAX           := 5
 MAX_CONTR      := 4
 
-CC             := mpiicc
-FC             := mpiifort
-LD             := mpiifort
+CC             := mpiicx
+ifeq ($(strip $(WITH_IFX)), yes)
+  FC             := mpiifx
+  LD             := mpiifx
+else
+  FC             := mpiifort -diag-disable=10448
+  LD             := mpiifort
+endif
 AR             := ar -r
 
 ifeq ($(strip $(TARGET_CPU)), native)
@@ -91,7 +98,6 @@ ifeq ($(strip $(TARGET_CPU)), native)
 else
    CFLAGS         := -O2 -fPIC -fp-model precise -funroll-loops -g -mtune=$(TARGET_CPU) -qopenmp -qopenmp-simd -traceback
 endif
-CFLAGS         += -diag-disable=10448
 
 DFLAGS         := -D__parallel
 DFLAGS         += -D__MKL
@@ -193,7 +199,7 @@ ifneq ($(USE_DFTD4),)
    USE_DFTD4      := $(strip $(USE_DFTD4))
    DFTD4_INC      := $(INSTALL_PATH)/dftd4-$(USE_DFTD4)/include
    DFTD4_LIB      := $(INSTALL_PATH)/dftd4-$(USE_DFTD4)/lib64
-   CFLAGS         += -I$(shell ls -d $(DFTD4_INC)/dftd4/Intel-*)
+   CFLAGS         += -I$(shell ls -d $(DFTD4_INC)/dftd4/Intel*)
    DFLAGS         += -D__DFTD4
    ifeq ($(SHARED), yes)
       LIBS           += -Wl,-rpath=$(DFTD4_LIB) -L$(DFTD4_LIB) -ldftd4 -lmstore -lmulticharge -lmctc-lib
@@ -394,12 +400,16 @@ LIBS           += -lz -lstdc++
 
 # Required due to memory leak that occurs if high optimisations are used
 mp2_optimize_ri_basis.o: mp2_optimize_ri_basis.F
-	$(FC) -c $(subst O2,O0,$(FCFLAGS)) $<
+	$(FC) -c $(subst -O2,-O0,$(FCFLAGS)) $<
 # Required due to SEGFAULTS occurring for higher optimisation levels
 paw_basis_types.o: paw_basis_types.F
-	$(FC) -c $(subst O2,O1,$(FCFLAGS)) $<
+	$(FC) -c $(subst -O2,-O1,$(FCFLAGS)) $<
 # Reduce compilation time
+mp2_ri_gpw.o: mp2_ri_gpw.F
+	$(FC) -c $(subst -O2,-O1,$(FCFLAGS)) $<
 hfx_contraction_methods.o: hfx_contraction_methods.F
+	$(FC) -c $(subst -O2,-O1,$(FCFLAGS)) $<
+commutator_rpnl.o: commutator_rpnl.F
 	$(FC) -c $(subst -O2,-O1,$(FCFLAGS)) $<
 
 # End

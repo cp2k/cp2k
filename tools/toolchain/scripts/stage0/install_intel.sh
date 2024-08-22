@@ -28,13 +28,11 @@ case "${with_intel}" in
     ;;
   __SYSTEM__)
     echo "==================== Finding Intel compiler from system paths ===================="
-    if [ "${intel_classic}" = "yes" ]; then
-      check_command icc "intel" && CC="$(realpath $(command -v icc))" || exit 1
-      check_command icpc "intel" && CXX="$(realpath $(command -v icpc))" || exit 1
-      check_command ifort "intel" && FC="$(realpath $(command -v ifort))" || exit 1
+    check_command icx "intel" && CC="$(realpath $(command -v icx))" || exit 1
+    check_command icpx "intel" && CXX="$(realpath $(command -v icpx))" || exit 1
+    if [ "${with_ifx}" = "yes" ]; then
+      check_command ifx "intel" && FC="$(realpath $(command -v ifx))" || exit 1
     else
-      check_command icx "intel" && CC="$(realpath $(command -v icx))" || exit 1
-      check_command icpx "intel" && CXX="$(realpath $(command -v icpx))" || exit 1
       check_command ifort "intel" && FC="$(realpath $(command -v ifort))" || exit 1
     fi
     F90="${FC}"
@@ -49,13 +47,11 @@ case "${with_intel}" in
     check_dir "${pkg_install_dir}/bin"
     check_dir "${pkg_install_dir}/lib"
     check_dir "${pkg_install_dir}/include"
-    if [ "${intel_classic}" = "yes" ]; then
-      check_command ${pkg_install_dir}/bin/icc "intel" && CC="${pkg_install_dir}/bin/icc" || exit 1
-      check_command ${pkg_install_dir}/bin/icpc "intel" && CXX="${pkg_install_dir}/bin/icpc" || exit 1
-      check_command ${pkg_install_dir}/bin/ifort "intel" && FC="${pkg_install_dir}/bin/ifort" || exit 1
+    check_command ${pkg_install_dir}/bin/icx "intel" && CC="${pkg_install_dir}/bin/icx" || exit 1
+    check_command ${pkg_install_dir}/bin/icpx "intel" && CXX="${pkg_install_dir}/bin/icpx" || exit 1
+    if [ "${with_ifx}" = "yes" ]; then
+      check_command ${pkg_install_dir}/bin/ifx "intel" && FC="${pkg_install_dir}/bin/ifx" || exit 1
     else
-      check_command ${pkg_install_dir}/bin/icx "intel" && CC="${pkg_install_dir}/bin/icx" || exit 1
-      check_command ${pkg_install_dir}/bin/icpx "intel" && CXX="${pkg_install_dir}/bin/icpx" || exit 1
       check_command ${pkg_install_dir}/bin/ifort "intel" && FC="${pkg_install_dir}/bin/ifort" || exit 1
     fi
     F90="${FC}"

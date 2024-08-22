@@ -150,7 +150,7 @@ The --with-PKG options follow the rules:
                           Default = system
   --with-intel            Use the Intel compiler to compile CP2K.
                           Default = system
-  --with-intel-classic    Use the classic Intel compiler to compile CP2K.
+  --with-ifx              Use the new Intel Fortran compiler ifx instead of ifort to compile CP2K.
                           Default = no
   --with-cmake            Cmake utilities
                           Default = install
@@ -357,7 +357,7 @@ enable_tsan="__FALSE__"
 enable_opencl="__FALSE__"
 enable_cuda="__FALSE__"
 enable_hip="__FALSE__"
-export intel_classic="no"
+export with_ifx="no"
 export GPUVER="no"
 export MPICH_DEVICE="ch4"
 export TARGET_CPU="native"
@@ -565,8 +565,8 @@ while [ $# -ge 1 ]; do
         export MPI_MODE=intelmpi
       fi
       ;;
-    --with-intel-classic*)
-      intel_classic=$(read_with "${1}" "yes")
+    --with-ifx*)
+      with_ifx=$(read_with "${1}" "yes")
       ;;
     --with-intel*)
       with_intel=$(read_with "${1}" "__SYSTEM__")
