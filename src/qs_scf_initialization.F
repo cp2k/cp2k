@@ -1045,7 +1045,7 @@ CONTAINS
 
       INTEGER                                            :: extrapolation_method_nr, handle, ispin, &
                                                             nmo, output_unit
-      LOGICAL                                            :: orthogonal_wf, do_harris
+      LOGICAL                                            :: do_harris, orthogonal_wf
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dft_control_type), POINTER                    :: dft_control
