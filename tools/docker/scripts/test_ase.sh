@@ -12,7 +12,7 @@ ln -s ../../data ./share/cp2k/data
 cat > /usr/bin/cp2k_shell << EndOfMessage
 #!/bin/bash -e
 export OMP_NUM_THREADS=1
-/opt/cp2k/exe/local/cp2k.ssmp --shell "\$@"
+/opt/cp2k/build/bin/cp2k.ssmp --shell "\$@"
 EndOfMessage
 chmod +x /usr/bin/cp2k_shell
 
@@ -21,7 +21,7 @@ chmod +x /usr/bin/cp2k_shell
 cat > /usr/bin/cp2k << EndOfMessage
 #!/bin/bash -e
 export OMP_NUM_THREADS=1
-/opt/cp2k/exe/local/cp2k.ssmp "\$@"
+/opt/cp2k/build/bin/cp2k.ssmp "\$@"
 EndOfMessage
 chmod +x /usr/bin/cp2k
 

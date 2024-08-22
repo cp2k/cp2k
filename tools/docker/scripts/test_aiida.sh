@@ -61,7 +61,7 @@ service postgresql start
 cat > /usr/bin/cp2k << EndOfMessage
 #!/bin/bash -e
 export OMP_NUM_THREADS=2
-/opt/cp2k/exe/local/cp2k.ssmp "\$@"
+/opt/cp2k/build/bin/cp2k.ssmp "\$@"
 EndOfMessage
 chmod +x /usr/bin/cp2k
 
