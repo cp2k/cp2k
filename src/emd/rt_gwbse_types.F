@@ -21,9 +21,11 @@ MODULE rt_gwbse_types
                                               cp_fm_write_formatted,&
                                               cp_fm_to_fm
    USE cp_cfm_types,                    ONLY: cp_cfm_p_type,&
+                                              cp_cfm_type,&
                                               cp_cfm_set_all,&
                                               cp_cfm_create,&
                                               cp_fm_to_cfm,&
+                                              cp_cfm_to_fm,&
                                               cp_cfm_release
    USE cp_fm_basic_linalg,              ONLY: cp_fm_invert,&
                                               cp_fm_transpose,&
@@ -106,7 +108,9 @@ MODULE rt_gwbse_types
    
    PUBLIC :: gwbse_env_type,&
              create_gwbse_env,&
-             release_gwbse_env
+             release_gwbse_env,&
+             multiply_cfm_fm,&
+             multiply_fm_cfm
 
 ! **************************************************************************************************
 !> \param n_spin Number of spin channels that are present
@@ -178,7 +182,7 @@ MODULE rt_gwbse_types
       INTEGER, DIMENSION(2)                                     :: n_occ
       REAL(kind=dp)                                             :: spin_degeneracy
       REAL(kind=dp), DIMENSION(3)                               :: field
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER                 :: moments,&
+      TYPE(cp_fm_p_type), DIMENSION(3)                          :: moments,&
                                                                    moments_field
       INTEGER                                                   :: sim_step,&
                                                                    sim_start,&
@@ -189,11 +193,12 @@ MODULE rt_gwbse_types
                                                                    exp_accuracy
       TYPE(dft_control_type), POINTER                           :: dft_control
 
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER                 :: ham_effective
+      ! Different indices signify different spins
+      TYPE(cp_cfm_p_type), DIMENSION(:), POINTER                :: ham_effective
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER                 :: ham_single_particle
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER                 :: ham_workspace
+      TYPE(cp_cfm_p_type), DIMENSION(:), POINTER                :: ham_workspace
 
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER                 :: rho,&
+      TYPE(cp_cfm_p_type), DIMENSION(:), POINTER                :: rho,&
                                                                    rho_new,&
                                                                    rho_new_last,&
                                                                    rho_M,&
@@ -203,11 +208,11 @@ MODULE rt_gwbse_types
       TYPE(dbcsr_type), POINTER                                 :: S_inv,&
                                                                    rho_dbcsr
       ! TODO : Check how much is actually needed and whether it is not better to separate names
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER                 :: rho_workspace
+      ! Indices only correspond to different workspaces
+      TYPE(cp_cfm_p_type), DIMENSION(:), POINTER                :: rho_workspace
+      ! Many methods use real and imaginary parts separately - prevent unnecessary reallocation
+      TYPE(cp_fm_p_type), DIMENSION(:), POINTER                 :: real_workspace
       ! Workspace required for exact matrix exponentiation
-      ! Complex workspace also used for hartree_pw
-      TYPE(cp_cfm_p_type), DIMENSION(:), POINTER                :: complex_workspace,&
-                                                                   complex_s
       REAL(kind=dp), DIMENSION(:), POINTER                      :: real_eigvals
       COMPLEX(kind=dp), DIMENSION(:), POINTER                   :: exp_eigvals
       ! Workspace required for hartree_pw
@@ -224,6 +229,7 @@ MODULE rt_gwbse_types
                                                                    t_3c_work_RI__AO_AO,&
                                                                    t_3c_work_RI_AO__AO,&
                                                                    t_3c_work2_RI_AO__AO
+      ! These matrices are always real
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER                 :: sigma_SEX, sigma_COH
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER                 :: hartree_orig, hartree_curr
       INTEGER, DIMENSION(:,:), POINTER                          :: orders
@@ -339,6 +345,7 @@ CONTAINS
       ! gwbse_env%sim_nsteps = rtp%nsteps
 
       ! Construct moments from dbcsr
+      NULLIFY(moments_dbcsr_p)
       ALLOCATE(moments_dbcsr_p(3))
       DO i=1,3
          ! Make sure the pointer is empty
@@ -358,9 +365,9 @@ CONTAINS
       DEALLOCATE(custom_ref_point)
       CALL build_local_moment_matrix(qs_env, moments_dbcsr_p, 1, rpoint)
       ! Copy to full matrix
-      ALLOCATE(gwbse_env%moments(3))
       DO i=1,3
          ! Again, matrices are created from overlap template
+         NULLIFY(gwbse_env%moments(i)%matrix)
          ALLOCATE(gwbse_env%moments(i)%matrix)
          CALL cp_fm_create(gwbse_env%moments(i)%matrix, bs_env%fm_s_Gamma%matrix_struct)
          CALL copy_dbcsr_to_fm(moments_dbcsr_p(i)%matrix, gwbse_env%moments(i)%matrix)
@@ -368,8 +375,6 @@ CONTAINS
       ! Now, repeat without reference point to get the moments for field
       CALL get_reference_point(rpoint, qs_env=qs_env, reference=use_mom_ref_zero, ref_point=custom_ref_point)
       CALL build_local_moment_matrix(qs_env, moments_dbcsr_p, 1, rpoint)
-      NULLIFY(gwbse_env%moments_field)
-      ALLOCATE(gwbse_env%moments_field(3))
       DO i=1,3
          NULLIFY(gwbse_env%moments_field(i)%matrix)
          ALLOCATE(gwbse_env%moments_field(i)%matrix)
@@ -383,53 +388,59 @@ CONTAINS
       END DO
       DEALLOCATE(moments_dbcsr_p)
 
+      ! Allocate space for density propagation and other operations
+      NULLIFY(gwbse_env%rho_workspace)
+      SELECT CASE (gwbse_env%mat_exp_method)
+         CASE (do_exact)
+            ALLOCATE(gwbse_env%rho_workspace(3))
+         CASE (do_bch)
+            ALLOCATE(gwbse_env%rho_workspace(4))
+         CASE DEFAULT
+            CPABORT("Only exact and BCH matrix propagation implemented in rt-GWBSE")
+      END SELECT
+      DO i=1,SIZE(gwbse_env%rho_workspace)
+         ALLOCATE(gwbse_env%rho_workspace(i)%matrix)
+         CALL cp_cfm_create(gwbse_env%rho_workspace(i)%matrix, bs_env%fm_ks_Gamma(1)%matrix_struct)
+         CALL cp_cfm_set_all(gwbse_env%rho_workspace(i)%matrix, CMPLX(0.0, 0.0, kind=dp))
+      END DO
+      ! Allocate real workspace
+      NULLIFY(gwbse_env%real_workspace)
+      SELECT CASE (gwbse_env%mat_exp_method)
+         CASE (do_exact)
+            ALLOCATE(gwbse_env%real_workspace(4))
+         CASE (do_bch)
+            ALLOCATE(gwbse_env%real_workspace(2))
+         CASE DEFAULT
+            CPABORT("Only exact and BCH matrix propagation implemented in rt-GWBSE")
+      END SELECT
+      DO i=1,SIZE(gwbse_env%real_workspace)
+         NULLIFY(gwbse_env%real_workspace(i)%matrix)
+         ALLOCATE(gwbse_env%real_workspace(i)%matrix)
+         CALL cp_fm_create(gwbse_env%real_workspace(i)%matrix, bs_env%fm_ks_Gamma(1)%matrix_struct)
+         CALL cp_fm_set_all(gwbse_env%real_workspace(i)%matrix, 0.0_dp)
+      END DO
       ! Initiate density through results of DFT
       ! TODO : Handle cases, when initial method uses density only? Do such cases exist?
       ! DEBUG : change to initialisation directly from mo_coeffs
-      ! CALL rt_initialize_rho_from_mos(rtp, mos)
-      ! CALL get_rtp(rtp, rho_new=rho_dbcsr)
-      ! IF (.NOT. gwbse_env%dft_control%rtp_control%apply_delta_pulse ) THEN
-      !    CALL rt_initialize_rho_from_mos(rtp, mos)
-      ! ELSE
-      !    CALL rt_initialize_rho_from_mos(rtp, mos, rtp%mos%old)
-      ! END IF
-      ! Get the rho from RTP init - includes the RTP implementation of the delta kick
-      ! CALL get_rtp(rtp, rho_new=rho_dbcsr)
-      ! ! Redo the scaling to 1
-      ! DO i=1,SIZE(rho_dbcsr)
-      !    CALL dbcsr_scale(rho_dbcsr(i)%matrix, 0.5_dp)
-      ! END DO
-      ! DO i=1,2*gwbse_env%n_spin
-      !    NULLIFY(gwbse_env%rho(i)%matrix)
-      !    ALLOCATE(gwbse_env%rho(i)%matrix)
-      !    CALL cp_fm_create(gwbse_env%rho(i)%matrix, matrix_struct=bs_env%fm_s_Gamma%matrix_struct)
-      !    CALL copy_dbcsr_to_fm(rho_dbcsr(i)%matrix, gwbse_env%rho(i)%matrix)
-      ! END DO
       ! Get the rho from fm_MOS - have to use the reimplementation of the delta kick
-      ALLOCATE(gwbse_env%rho(2*gwbse_env%n_spin))
+      ALLOCATE(gwbse_env%rho(gwbse_env%n_spin))
       ALLOCATE(occupations(gwbse_env%n_ao))
       ! Iterate over both spins
-      @:SPIN_DO(i, re, im, gwbse_env%n_spin)
+      DO i=1,gwbse_env%n_spin
          occupations(:) = 0.0_dp
          occupations(1:gwbse_env%n_occ(i)) = 1.0_dp
+         NULLIFY(gwbse_env%rho(i)%matrix)
+         ALLOCATE(gwbse_env%rho(i)%matrix)
+         CALL cp_cfm_create(gwbse_env%rho(i)%matrix, matrix_struct=bs_env%fm_s_Gamma%matrix_struct)
          ! TODO : Handle complex orbitals - then we have non-trivial imaginary part
          ! Create real part
-         NULLIFY(gwbse_env%rho(re)%matrix)
-         ALLOCATE(gwbse_env%rho(re)%matrix)
-         CALL cp_fm_create(gwbse_env%rho(re)%matrix, matrix_struct=bs_env%fm_s_Gamma%matrix_struct)
-         ! Create imaginary part
-         NULLIFY(gwbse_env%rho(im)%matrix)
-         ALLOCATE(gwbse_env%rho(im)%matrix)
-         CALL cp_fm_create(gwbse_env%rho(im)%matrix, matrix_struct=bs_env%fm_s_Gamma%matrix_struct)
-         ! Populate real part
-         CALL cp_fm_to_fm(bs_env%fm_mo_coeff_Gamma(i), gwbse_env%rho(im)%matrix)
-         CALL cp_fm_column_scale(gwbse_env%rho(im)%matrix, occupations)
+         CALL cp_fm_to_fm(bs_env%fm_mo_coeff_Gamma(i), gwbse_env%real_workspace(1)%matrix)
+         CALL cp_fm_column_scale(gwbse_env%real_workspace(1)%matrix, occupations)
          CALL parallel_gemm("N", "T", gwbse_env%n_ao, gwbse_env%n_ao, gwbse_env%n_ao,&
-                            1.0_dp, bs_env%fm_mo_coeff_Gamma(i),&
-                            gwbse_env%rho(im)%matrix,&
-                            0.0_dp, gwbse_env%rho(re)%matrix)
-         ! Populate imaginary part
-         CALL cp_fm_set_all(gwbse_env%rho(im)%matrix, 0.0_dp)
+                            1.0_dp, gwbse_env%real_workspace(1)%matrix, bs_env%fm_mo_coeff_Gamma(i),&
+                            0.0_dp, gwbse_env%real_workspace(2)%matrix)
+         ! Sets imaginary part to zero
+         CALL cp_fm_to_cfm(msourcer=gwbse_env%real_workspace(2)%matrix, mtarget=gwbse_env%rho(i)%matrix)
       END DO
       DEALLOCATE(occupations)
       ! Create the inverse overlap matrix, for use in density propagation 
@@ -443,44 +454,40 @@ CONTAINS
       ALLOCATE(gwbse_env%S_inv_fm%matrix)
       CALL cp_fm_create(gwbse_env%S_inv_fm%matrix, bs_env%fm_s_Gamma%matrix_struct)
       CALL cp_fm_invert(gwbse_env%S_fm%matrix, gwbse_env%S_inv_fm%matrix)
-      ! CALL s_matrices_create(matrix_s, rtp)
-      ! CALL get_rtp(rtp, S_inv=gwbse_env%S_inv)
-      ! TODO : Check that dbcsr overlap inverse coincides with fm overlap inverse
-      ! CALL dbcsr_print(gwbse_env%S_inv)
-      ! CALL copy_dbcsr_to_fm(gwbse_env%S_inv, gwbse_env%S_inv_fm%matrix)
 
       ! Create the single particle hamiltonian
       ! Allocate workspace first
       NULLIFY(gwbse_env%ham_workspace)
-      ALLOCATE(gwbse_env%ham_workspace(2*gwbse_env%n_spin))
-      DO i=1,2*gwbse_env%n_spin
+      ALLOCATE(gwbse_env%ham_workspace(gwbse_env%n_spin))
+      DO i=1,gwbse_env%n_spin
          ALLOCATE(gwbse_env%ham_workspace(i)%matrix)
-         CALL cp_fm_create(gwbse_env%ham_workspace(i)%matrix, bs_env%fm_ks_Gamma(1)%matrix_struct)
-         CALL cp_fm_set_all(gwbse_env%ham_workspace(i)%matrix, 0.0_dp)
+         CALL cp_cfm_create(gwbse_env%ham_workspace(i)%matrix, bs_env%fm_ks_Gamma(1)%matrix_struct)
+         CALL cp_cfm_set_all(gwbse_env%ham_workspace(i)%matrix, CMPLX(0.0, 0.0, kind=dp))
       END DO
       ! Now onto the Hamiltonian itself
       ALLOCATE(gwbse_env%ham_single_particle(gwbse_env%n_spin))
-      @:SPIN_DO(i, re, im, gwbse_env%n_spin)
+      DO i=1,gwbse_env%n_spin
          ALLOCATE(gwbse_env%ham_single_particle(i)%matrix)
          IF ( gwbse_env%ham_single_particle_type == rtp_gwbse_ham_g0w0 ) THEN
             ! G0W0 Hamiltonian
             CALL cp_fm_create(gwbse_env%ham_single_particle(i)%matrix, bs_env%fm_ks_Gamma(i)%matrix_struct)
-            CALL cp_fm_to_fm(bs_env%fm_mo_coeff_Gamma(i), gwbse_env%ham_workspace(1)%matrix)
+            CALL cp_fm_to_cfm(msourcer=bs_env%fm_mo_coeff_Gamma(i), mtarget=gwbse_env%ham_workspace(1)%matrix)
             ! TODO : Checked that Gamma point is the zero k-point
             ! C * Lambda
-            CALL cp_fm_column_scale(gwbse_env%ham_workspace(1)%matrix, bs_env%eigenval_G0W0(:,1,i))
+            CALL cp_cfm_column_scale(gwbse_env%ham_workspace(1)%matrix, bs_env%eigenval_G0W0(:,1,i))
             ! C * Lambda * C^T
-            CALL parallel_gemm("N", "T", gwbse_env%n_ao, gwbse_env%n_ao, gwbse_env%n_ao,&
+            CALL multiply_cfm_fm("N", "T", gwbse_env%n_ao, gwbse_env%n_ao, gwbse_env%n_ao,&
                                1.0_dp, gwbse_env%ham_workspace(1)%matrix, bs_env%fm_mo_coeff_Gamma(i),&
                                0.0_dp, gwbse_env%ham_workspace(2)%matrix)
             ! S * C * Lambda * C^T
-            CALL parallel_gemm("N", "N", gwbse_env%n_ao, gwbse_env%n_ao, gwbse_env%n_ao,&
+            CALL multiply_fm_cfm("N", "N", gwbse_env%n_ao, gwbse_env%n_ao, gwbse_env%n_ao,&
                                1.0_dp, gwbse_env%S_fm%matrix, gwbse_env%ham_workspace(2)%matrix,&
                                0.0_dp, gwbse_env%ham_workspace(1)%matrix)
             ! S * C * Lambda * C^T * S = H
-            CALL parallel_gemm("N", "N", gwbse_env%n_ao, gwbse_env%n_ao, gwbse_env%n_ao,&
+            CALL multiply_cfm_fm("N", "N", gwbse_env%n_ao, gwbse_env%n_ao, gwbse_env%n_ao,&
                                1.0_dp, gwbse_env%ham_workspace(1)%matrix, gwbse_env%S_fm%matrix,&
-                               0.0_dp, gwbse_env%ham_single_particle(i)%matrix)
+                               0.0_dp, gwbse_env%ham_workspace(2)%matrix)
+            CALL cp_cfm_to_fm(msource=gwbse_env%ham_workspace(2)%matrix, mtargetr=gwbse_env%ham_single_particle(i)%matrix)
          ELSE
             ! KS Hamiltonian
             CALL cp_fm_create(gwbse_env%ham_single_particle(i)%matrix, bs_env%fm_ks_Gamma(i)%matrix_struct)
@@ -489,85 +496,49 @@ CONTAINS
       END DO
 
       ! Create the matrices and workspaces for effective Hamiltonian
-      ALLOCATE(gwbse_env%ham_effective(2*gwbse_env%n_spin))
-      ALLOCATE(gwbse_env%rho_new(2*gwbse_env%n_spin))
-      ALLOCATE(gwbse_env%rho_new_last(2*gwbse_env%n_spin))
-      ALLOCATE(gwbse_env%rho_M(2*gwbse_env%n_spin))
-      ALLOCATE(gwbse_env%rho_orig(2*gwbse_env%n_spin))
-      DO i=1,2*gwbse_env%n_spin
+      ALLOCATE(gwbse_env%ham_effective(gwbse_env%n_spin))
+      ALLOCATE(gwbse_env%rho_new(gwbse_env%n_spin))
+      ALLOCATE(gwbse_env%rho_new_last(gwbse_env%n_spin))
+      ALLOCATE(gwbse_env%rho_M(gwbse_env%n_spin))
+      ALLOCATE(gwbse_env%rho_orig(gwbse_env%n_spin))
+      DO i=1,gwbse_env%n_spin
          ALLOCATE(gwbse_env%ham_effective(i)%matrix)
-         CALL cp_fm_create(gwbse_env%ham_effective(i)%matrix, bs_env%fm_ks_Gamma(1)%matrix_struct)
-         CALL cp_fm_set_all(gwbse_env%ham_effective(i)%matrix, 0.0_dp)
+         CALL cp_cfm_create(gwbse_env%ham_effective(i)%matrix, bs_env%fm_ks_Gamma(1)%matrix_struct)
+         CALL cp_cfm_set_all(gwbse_env%ham_effective(i)%matrix, CMPLX(0.0, 0.0, kind=dp))
          ALLOCATE(gwbse_env%rho_new(i)%matrix)
-         CALL cp_fm_create(gwbse_env%rho_new(i)%matrix, bs_env%fm_ks_Gamma(1)%matrix_struct)
-         CALL cp_fm_set_all(gwbse_env%rho_new(i)%matrix, 0.0_dp)
+         CALL cp_cfm_create(gwbse_env%rho_new(i)%matrix, bs_env%fm_ks_Gamma(1)%matrix_struct)
+         CALL cp_cfm_set_all(gwbse_env%rho_new(i)%matrix, CMPLX(0.0, 0.0, kind=dp))
          ALLOCATE(gwbse_env%rho_new_last(i)%matrix)
-         CALL cp_fm_create(gwbse_env%rho_new_last(i)%matrix, bs_env%fm_ks_Gamma(1)%matrix_struct)
-         CALL cp_fm_set_all(gwbse_env%rho_new_last(i)%matrix, 0.0_dp)
+         CALL cp_cfm_create(gwbse_env%rho_new_last(i)%matrix, bs_env%fm_ks_Gamma(1)%matrix_struct)
+         CALL cp_cfm_set_all(gwbse_env%rho_new_last(i)%matrix, CMPLX(0.0, 0.0, kind=dp))
          ALLOCATE(gwbse_env%rho_M(i)%matrix)
-         CALL cp_fm_create(gwbse_env%rho_M(i)%matrix, bs_env%fm_ks_Gamma(1)%matrix_struct)
-         CALL cp_fm_set_all(gwbse_env%rho_M(i)%matrix, 0.0_dp)
+         CALL cp_cfm_create(gwbse_env%rho_M(i)%matrix, bs_env%fm_ks_Gamma(1)%matrix_struct)
+         CALL cp_cfm_set_all(gwbse_env%rho_M(i)%matrix, CMPLX(0.0, 0.0, kind=dp))
          ALLOCATE(gwbse_env%rho_orig(i)%matrix)
-         CALL cp_fm_create(gwbse_env%rho_orig(i)%matrix, bs_env%fm_ks_Gamma(1)%matrix_struct)
-         CALL cp_fm_to_fm(gwbse_env%rho(i)%matrix, gwbse_env%rho_orig(i)%matrix)
+         CALL cp_cfm_create(gwbse_env%rho_orig(i)%matrix, bs_env%fm_ks_Gamma(1)%matrix_struct)
+         CALL cp_cfm_to_cfm(gwbse_env%rho(i)%matrix, gwbse_env%rho_orig(i)%matrix)
       END DO
 
-      ! Allocate space for density propagation
-      SELECT CASE (gwbse_env%mat_exp_method)
-         CASE (do_taylor)
-            ALLOCATE(gwbse_env%rho_workspace(3))
-         CASE (do_exact)
-            ALLOCATE(gwbse_env%rho_workspace(3))
-         CASE (do_bch)
-            ALLOCATE(gwbse_env%rho_workspace(4))
-         CASE DEFAULT
-            CPABORT("Only Taylor, exact and BCH matrix propagation implemented")
-      END SELECT
-      DO i=1,SIZE(gwbse_env%rho_workspace)
-         ALLOCATE(gwbse_env%rho_workspace(i)%matrix)
-         CALL cp_fm_create(gwbse_env%rho_workspace(i)%matrix, bs_env%fm_ks_Gamma(1)%matrix_struct)
-         CALL cp_fm_set_all(gwbse_env%rho_workspace(i)%matrix, 0.0_dp)
-      END DO
 
       ! Exact diagonalisation requires complex workspaces
       ! IF (gwbse_env%mat_exp_method == do_exact) THEN
-      IF (.TRUE.) THEN
-         NULLIFY(gwbse_env%complex_s)
-         ALLOCATE(gwbse_env%complex_s(gwbse_env%n_spin))
-         DO i=1,gwbse_env%n_spin
-            NULLIFY(gwbse_env%complex_s(i)%matrix)
-            ALLOCATE(gwbse_env%complex_s(i)%matrix)
-            ! TODO : True spin dependence - from qs_env or present somewhere in bs_env?
-            CALL cp_cfm_create(gwbse_env%complex_s(i)%matrix, bs_env%fm_s_Gamma%matrix_struct)
-            CALL cp_cfm_set_all(gwbse_env%complex_s(i)%matrix, (0.0_dp, 0.0_dp))
-            CALL cp_fm_to_cfm(msourcer=bs_env%fm_s_Gamma, mtarget=gwbse_env%complex_s(i)%matrix)
-         END DO
-         NULLIFY(gwbse_env%complex_workspace)
-         ALLOCATE(gwbse_env%complex_workspace(4))
-         DO i=1,SIZE(gwbse_env%complex_workspace)
-            NULLIFY(gwbse_env%complex_workspace(i)%matrix)
-            ALLOCATE(gwbse_env%complex_workspace(i)%matrix)
-            CALL cp_cfm_create(gwbse_env%complex_workspace(i)%matrix, bs_env%fm_ks_Gamma(1)%matrix_struct)
-            CALL cp_cfm_set_all(gwbse_env%complex_workspace(i)%matrix, (0.0_dp, 0.0_dp))
-         END DO
-         NULLIFY(gwbse_env%real_eigvals)
-         ALLOCATE(gwbse_env%real_eigvals(gwbse_env%n_ao))
-         gwbse_env%real_eigvals(:) = 0.0_dp
-         NULLIFY(gwbse_env%exp_eigvals)
-         ALLOCATE(gwbse_env%exp_eigvals(gwbse_env%n_ao))
-         gwbse_env%exp_eigvals(:) = (0.0_dp, 0.0_dp)
-      END IF
+      NULLIFY(gwbse_env%real_eigvals)
+      ALLOCATE(gwbse_env%real_eigvals(gwbse_env%n_ao))
+      gwbse_env%real_eigvals(:) = 0.0_dp
+      NULLIFY(gwbse_env%exp_eigvals)
+      ALLOCATE(gwbse_env%exp_eigvals(gwbse_env%n_ao))
+      gwbse_env%exp_eigvals(:) = (0.0_dp, 0.0_dp)
 
       ! Self-energy components
       ALLOCATE(gwbse_env%hartree_dbt)
 
       ! Allocate self-energy parts and dynamic Hartree potential
       ! TODO : Hartree probably has spin independent form
-      ALLOCATE(gwbse_env%hartree_orig(2*gwbse_env%n_spin))
-      ALLOCATE(gwbse_env%hartree_curr(2*gwbse_env%n_spin))
-      ALLOCATE(gwbse_env%sigma_SEX(2*gwbse_env%n_spin))
-      ALLOCATE(gwbse_env%sigma_COH(2*gwbse_env%n_spin))
-      DO i=1,2*gwbse_env%n_spin
+      ALLOCATE(gwbse_env%hartree_orig(gwbse_env%n_spin))
+      ALLOCATE(gwbse_env%hartree_curr(gwbse_env%n_spin))
+      ALLOCATE(gwbse_env%sigma_SEX(gwbse_env%n_spin))
+      ALLOCATE(gwbse_env%sigma_COH(gwbse_env%n_spin))
+      DO i=1,gwbse_env%n_spin
          ALLOCATE(gwbse_env%hartree_orig(i)%matrix)
          ALLOCATE(gwbse_env%hartree_curr(i)%matrix)
          ALLOCATE(gwbse_env%sigma_SEX(i)%matrix)
@@ -587,7 +558,7 @@ CONTAINS
 
       ! Depending on the chosen methods, allocate extra workspace
       IF ( gwbse_env%hartree_method == rtp_gwbse_hartree_dbt ) THEN
-         CALL create_hartree_dbt_workspace(gwbse_env, qs_env)
+         ! CALL create_hartree_dbt_workspace(gwbse_env, qs_env)
          CALL create_hartree_ri_workspace(gwbse_env, qs_env)
       ELSEIF ( gwbse_env%hartree_method == rtp_gwbse_hartree_pw) THEN
          ! CALL create_hartree_pw_workspace(gwbse_env, qs_env)
@@ -604,6 +575,24 @@ CONTAINS
    END SUBROUTINE
 
 ! **************************************************************************************************
+!> \brief Simple reimplementation of cp_fm_release_pp1 for complex matrices
+!> \param matrices cp_cfm_p_type(:) 
+!> \author Stepan Marek
+!> \date 02.2024
+! **************************************************************************************************
+   SUBROUTINE cp_cfm_release_pp1(matrices)
+      TYPE(cp_cfm_p_type), DIMENSION(:), POINTER                :: matrices
+      INTEGER                                                   :: i
+
+      DO i=1,SIZE(matrices)
+         CALL cp_cfm_release(matrices(i)%matrix)
+         DEALLOCATE(matrices(i)%matrix)
+      END DO
+      DEALLOCATE(matrices)
+      NULLIFY(matrices)
+   END SUBROUTINE cp_cfm_release_pp1
+
+! **************************************************************************************************
 !> \brief Releases the environment allocated structures
 !> \param gwbse_env 
 !> \author Stepan Marek
@@ -615,25 +604,35 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                               :: routineN = "release_gwbse_env"
       INTEGER                                                   :: i
 
-      CALL cp_fm_release(gwbse_env%rho)
-      CALL cp_fm_release(gwbse_env%ham_effective)
-      CALL cp_fm_release(gwbse_env%ham_workspace)
+      CALL cp_cfm_release_pp1(gwbse_env%rho)
+      CALL cp_cfm_release_pp1(gwbse_env%ham_effective)
+      CALL cp_cfm_release_pp1(gwbse_env%ham_workspace)
       CALL cp_fm_release(gwbse_env%sigma_COH)
       CALL cp_fm_release(gwbse_env%sigma_SEX)
       CALL cp_fm_release(gwbse_env%hartree_orig)
       CALL cp_fm_release(gwbse_env%hartree_curr)
       CALL cp_fm_release(gwbse_env%ham_single_particle)
-      CALL cp_fm_release(gwbse_env%rho_workspace)
-      CALL cp_fm_release(gwbse_env%rho_new)
-      CALL cp_fm_release(gwbse_env%rho_new_last)
-      CALL cp_fm_release(gwbse_env%rho_M)
-      CALL cp_fm_release(gwbse_env%rho_orig)
+      CALL cp_cfm_release_pp1(gwbse_env%rho_workspace)
+      CALL cp_cfm_release_pp1(gwbse_env%rho_new)
+      CALL cp_cfm_release_pp1(gwbse_env%rho_new_last)
+      CALL cp_cfm_release_pp1(gwbse_env%rho_M)
+      CALL cp_cfm_release_pp1(gwbse_env%rho_orig)
+      CALL cp_fm_release(gwbse_env%real_workspace)
       CALL cp_fm_release(gwbse_env%S_inv_fm%matrix)
+      DEALLOCATE(gwbse_env%S_inv_fm%matrix)
+      CALL cp_fm_release(gwbse_env%S_fm%matrix)
+      DEALLOCATE(gwbse_env%S_fm%matrix)
 
-      CALL cp_fm_release(gwbse_env%moments)
-      CALL cp_fm_release(gwbse_env%moments_field)
+      DO i=1,3
+         CALL cp_fm_release(gwbse_env%moments(i)%matrix)
+         DEALLOCATE(gwbse_env%moments(i)%matrix)
+         NULLIFY(gwbse_env%moments(i)%matrix)
+         CALL cp_fm_release(gwbse_env%moments_field(i)%matrix)
+         DEALLOCATE(gwbse_env%moments_field(i)%matrix)
+         NULLIFY(gwbse_env%moments_field(i)%matrix)
+      END DO
 
-      ! TODO : Decide on where and when to releae this
+      ! TODO : Decide on where and when to release this
       CALL dbcsr_release(gwbse_env%v_dbcsr%matrix)
       DEALLOCATE(gwbse_env%v_dbcsr%matrix)
 
@@ -653,31 +652,9 @@ CONTAINS
          CALL dbcsr_release(gwbse_env%rho_dbcsr)
          DEALLOCATE(gwbse_env%rho_dbcsr)
       END IF
-      ! IF (gwbse_env%mat_exp_method == do_exact) THEN
-      IF (.TRUE.) THEN
-         DO i=1,SIZE(gwbse_env%complex_s)
-            CALL cp_cfm_release(gwbse_env%complex_s(i)%matrix)
-         END DO
-         DEALLOCATE(gwbse_env%complex_s)
-         DO i=1,SIZE(gwbse_env%complex_workspace)
-            CALL cp_cfm_release(gwbse_env%complex_workspace(i)%matrix)
-         END DO
-         DEALLOCATE(gwbse_env%complex_workspace)
-         DEALLOCATE(gwbse_env%real_eigvals)
-         DEALLOCATE(gwbse_env%exp_eigvals)
-      END IF
-      ! IF (gwbse_env%mat_exp_method == do_exact) THEN
-      !    DO i=1,SIZE(gwbse_env%complex_s)
-      !       CALL cp_cfm_release(gwbse_env%complex_s(i)%matrix)
-      !    END DO
-      !    DEALLOCATE(gwbse_env%complex_s)
-      !    DO i=1,SIZE(gwbse_env%complex_workspace)
-      !       CALL cp_cfm_release(gwbse_env%complex_workspace(i)%matrix)
-      !    END DO
-      !    DEALLOCATE(gwbse_env%complex_workspace)
-      !    DEALLOCATE(gwbse_env%real_eigvals)
-      !    DEALLOCATE(gwbse_env%exp_eigvals)
-      ! END IF
+
+      DEALLOCATE(gwbse_env%real_eigvals)
+      DEALLOCATE(gwbse_env%exp_eigvals)
       
    END SUBROUTINE
 ! **************************************************************************************************
@@ -932,4 +909,92 @@ CONTAINS
          DEALLOCATE(gwbse_env%w_dbcsr%matrix)
       END IF
    END SUBROUTINE
+   SUBROUTINE multiply_fm_cfm(trans_r, trans_c, na, nb, nc,&
+                   alpha, matrix_r, matrix_c, beta, res)
+      ! Transposition
+      CHARACTER(len=1)                                   :: trans_r, trans_c
+      INTEGER                                            :: na, nb, nc
+      ! accept real numbers
+      ! TODO : complex number support via interface?
+      REAL(kind=dp)                                      :: alpha, beta
+      TYPE(cp_fm_type)                                   :: matrix_r
+      TYPE(cp_cfm_type)                                  :: matrix_c, res
+      CHARACTER(len=*), PARAMETER                        :: routineN="multiply_fm_cfm"
+      TYPE(cp_fm_type)                                   :: work_re, work_im, res_re, res_im
+      REAL(kind=dp)                                      :: i_unit
+      CHARACTER(len=1)                                   :: trans_cr
+
+      CALL cp_fm_create(work_re, matrix_c%matrix_struct)
+      CALL cp_fm_create(work_im, matrix_c%matrix_struct)
+      CALL cp_fm_create(res_re, res%matrix_struct)
+      CALL cp_fm_create(res_im, res%matrix_struct)
+      CALL cp_cfm_to_fm(matrix_c, work_re, work_im)
+      SELECT CASE (trans_c)
+         CASE ("C")
+            i_unit = -1.0_dp
+            trans_cr = "T"
+         CASE ("T")
+            i_unit = 1.0_dp
+            trans_cr = "T"
+         CASE default
+            i_unit = 1.0_dp
+            trans_cr = "N"
+      END SELECT
+      ! Actual multiplication
+      ! TODO : Correct character for trans_c
+      CALL parallel_gemm(trans_r, trans_cr, na, nb, nc, &
+              alpha, matrix_r, work_re, beta, res_re)
+      CALL parallel_gemm(trans_r, trans_cr, na, nb, nc, &
+              i_unit*alpha, matrix_r, work_im, beta, res_im)
+      CALL cp_fm_to_cfm(res_re, res_im, res)
+      CALL cp_fm_release(work_re)
+      CALL cp_fm_release(work_im)
+      CALL cp_fm_release(res_re)
+      CALL cp_fm_release(res_im)
+
+   END SUBROUTINE multiply_fm_cfm
+   SUBROUTINE multiply_cfm_fm(trans_c, trans_r, na, nb, nc,&
+                   alpha, matrix_c, matrix_r, beta, res)
+      ! Transposition
+      CHARACTER(len=1)                                   :: trans_c, trans_r
+      INTEGER                                            :: na, nb, nc
+      ! accept real numbers
+      ! TODO : complex number support via interface?
+      REAL(kind=dp)                                      :: alpha, beta
+      TYPE(cp_cfm_type)                                  :: matrix_c, res
+      TYPE(cp_fm_type)                                   :: matrix_r
+      CHARACTER(len=*), PARAMETER                        :: routineN="multiply_fm_cfm"
+      TYPE(cp_fm_type)                                   :: work_re, work_im, res_re, res_im
+      REAL(kind=dp)                                      :: i_unit
+      CHARACTER(len=1)                                   :: trans_cr
+
+      CALL cp_fm_create(work_re, matrix_c%matrix_struct)
+      CALL cp_fm_create(work_im, matrix_c%matrix_struct)
+      CALL cp_fm_create(res_re, res%matrix_struct)
+      CALL cp_fm_create(res_im, res%matrix_struct)
+      CALL cp_cfm_to_fm(matrix_c, work_re, work_im)
+      SELECT CASE (trans_c)
+         CASE ("C")
+            i_unit = -1.0_dp
+            trans_cr = "T"
+         CASE ("T")
+            i_unit = 1.0_dp
+            trans_cr = "T"
+         CASE default
+            i_unit = 1.0_dp
+            trans_cr = "N"
+      END SELECT
+      ! Actual multiplication
+      ! TODO : Correct character for trans_c
+      CALL parallel_gemm(trans_cr, trans_r, na, nb, nc, &
+              alpha, work_re, matrix_r, beta, res_re)
+      CALL parallel_gemm(trans_cr, trans_r, na, nb, nc, &
+              i_unit*alpha, work_im, matrix_r, beta, res_im)
+      CALL cp_fm_to_cfm(res_re, res_im, res)
+      CALL cp_fm_release(work_re)
+      CALL cp_fm_release(work_im)
+      CALL cp_fm_release(res_re)
+      CALL cp_fm_release(res_im)
+
+   END SUBROUTINE multiply_cfm_fm
 END MODULE

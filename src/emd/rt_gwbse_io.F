@@ -16,6 +16,9 @@ MODULE rt_gwbse_io
                                               cp_fm_read_unformatted,&
                                               cp_fm_write_unformatted,&
                                               cp_fm_write_formatted
+   USE cp_cfm_types,                    ONLY: cp_cfm_type,&
+                                              cp_cfm_p_type,&
+                                              cp_cfm_to_fm
    USE kinds,                           ONLY: dp,&
                                               default_path_length
    USE cp_fm_basic_linalg,              ONLY: cp_fm_trace,&
@@ -28,7 +31,9 @@ MODULE rt_gwbse_io
                                               cp_print_key_finished_output,&
                                               cp_print_key_generate_filename
    USE input_section_types,             ONLY: section_vals_type
-   USE rt_gwbse_types,                  ONLY: gwbse_env_type
+   USE rt_gwbse_types,                  ONLY: gwbse_env_type,&
+                                              multiply_cfm_fm,&
+                                              multiply_fm_cfm
    USE cp_files,                        ONLY: open_file,&
                                               file_exists,&
                                               close_file
@@ -63,13 +68,12 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE output_mos_contravariant(gwbse_env, rho, mos, print_key_section)
       TYPE(gwbse_env_type)                               :: gwbse_env
-      TYPE(cp_fm_p_type), DIMENSION(:)                   :: rho
+      TYPE(cp_cfm_p_type), DIMENSION(:)                  :: rho
       TYPE(cp_fm_type), DIMENSION(:)                     :: mos
       TYPE(section_vals_type), POINTER                   :: print_key_section
       CHARACTER(len=*), PARAMETER                        :: routineN = "output_mos_rho"
       TYPE(cp_logger_type), POINTER                      :: logger
-      INTEGER                                            :: j, re, im,&
-                                                            rho_unit_re, rho_unit_im
+      INTEGER                                            :: j, rho_unit_re, rho_unit_im
       CHARACTER(len=14), DIMENSION(4)                    :: file_labels
       
       file_labels(1) = "_SPIN_A_RE.dat"
@@ -78,46 +82,33 @@ CONTAINS
       file_labels(4) = "_SPIN_B_IM.dat"
       logger => cp_get_default_logger()
       ! Start by multiplying the current density by MOS
-      @:SPIN_DO(j,re, im, gwbse_env%n_spin)
-         rho_unit_re = cp_print_key_unit_nr(logger, print_key_section, extension=file_labels(re))
-         rho_unit_im = cp_print_key_unit_nr(logger, print_key_section, extension=file_labels(im))
+      DO j=1,gwbse_env%n_spin
+         rho_unit_re = cp_print_key_unit_nr(logger, print_key_section, extension=file_labels(2*j-1))
+         rho_unit_im = cp_print_key_unit_nr(logger, print_key_section, extension=file_labels(2*j))
          ! Transform the density matrix into molecular orbitals basis and print it out
          ! TODO : Number of molecular orbitals and atomic orbitals might not be the same
          ! TODO : Spins in S_fm
-         ! Real part
-         ! Scale by spin degeneracy
          ! S * rho
-         CALL parallel_gemm("N", "N", gwbse_env%n_ao, gwbse_env%n_ao, gwbse_env%n_ao,&
-                            gwbse_env%spin_degeneracy, gwbse_env%S_fm%matrix, rho(re)%matrix,&
-                            0.0_dp,gwbse_env%rho_workspace(1)%matrix)
+         CALL multiply_fm_cfm("N", "N", gwbse_env%n_ao, gwbse_env%n_ao, gwbse_env%n_ao,&
+                            1.0_dp, gwbse_env%S_fm%matrix, rho(j)%matrix,&
+                            0.0_dp, gwbse_env%rho_workspace(1)%matrix)
          ! C^T * S * rho
-         CALL parallel_gemm("T", "N", gwbse_env%n_ao, gwbse_env%n_ao, gwbse_env%n_ao,&
-                            1.0_dp, mos(j), gwbse_env%rho_workspace(1)%matrix, 0.0_dp, gwbse_env%rho_workspace(2)%matrix)
+         CALL multiply_fm_cfm("T", "N", gwbse_env%n_ao, gwbse_env%n_ao, gwbse_env%n_ao,&
+                            1.0_dp, mos(j), gwbse_env%rho_workspace(1)%matrix,&
+                            0.0_dp, gwbse_env%rho_workspace(2)%matrix)
          ! C^T * S * rho * S
-         CALL parallel_gemm("N", "N", gwbse_env%n_ao, gwbse_env%n_ao, gwbse_env%n_ao,&
+         CALL multiply_cfm_fm("N", "N", gwbse_env%n_ao, gwbse_env%n_ao, gwbse_env%n_ao,&
                             1.0_dp, gwbse_env%rho_workspace(2)%matrix, gwbse_env%S_fm%matrix,&
                             0.0_dp, gwbse_env%rho_workspace(1)%matrix)
          ! C^T * S * rho * S * C
-         CALL parallel_gemm("N", "N", gwbse_env%n_ao, gwbse_env%n_ao, gwbse_env%n_ao,&
-                            1.0_dp, gwbse_env%rho_workspace(1)%matrix, mos(j), 0.0_dp, gwbse_env%rho_workspace(2)%matrix)
-         CALL cp_fm_write_formatted(gwbse_env%rho_workspace(2)%matrix, rho_unit_re)
-         ! Imag part
-         ! Scale by spin degeneracy
-         ! S * rho
-         CALL parallel_gemm("N", "N", gwbse_env%n_ao, gwbse_env%n_ao, gwbse_env%n_ao,&
-                            gwbse_env%spin_degeneracy, gwbse_env%S_fm%matrix, rho(im)%matrix,&
-                            0.0_dp, gwbse_env%rho_workspace(1)%matrix)
-         ! C^T * S * rho
-         CALL parallel_gemm("T", "N", gwbse_env%n_ao, gwbse_env%n_ao, gwbse_env%n_ao,&
-                            1.0_dp, mos(j), gwbse_env%rho_workspace(1)%matrix, 0.0_dp, gwbse_env%rho_workspace(2)%matrix)
-         ! C^T * rho * S
-         CALL parallel_gemm("N", "N", gwbse_env%n_ao, gwbse_env%n_ao, gwbse_env%n_ao,&
-                            1.0_dp, gwbse_env%rho_workspace(2)%matrix, gwbse_env%S_fm%matrix,&
-                            0.0_dp, gwbse_env%rho_workspace(1)%matrix)
-         ! C^T * rho * S * C
-         CALL parallel_gemm("N", "N", gwbse_env%n_ao, gwbse_env%n_ao, gwbse_env%n_ao,&
-                            1.0_dp, gwbse_env%rho_workspace(1)%matrix, mos(j), 0.0_dp, gwbse_env%rho_workspace(2)%matrix)
-         CALL cp_fm_write_formatted(gwbse_env%rho_workspace(2)%matrix, rho_unit_im)
+         CALL multiply_cfm_fm("N", "N", gwbse_env%n_ao, gwbse_env%n_ao, gwbse_env%n_ao,&
+                            1.0_dp, gwbse_env%rho_workspace(1)%matrix, mos(j),&
+                            0.0_dp, gwbse_env%rho_workspace(2)%matrix)
+         ! Print real and imaginary parts separately
+         CALL cp_cfm_to_fm(gwbse_env%rho_workspace(2)%matrix,&
+                           gwbse_env%real_workspace(1)%matrix, gwbse_env%real_workspace(2)%matrix)
+         CALL cp_fm_write_formatted(gwbse_env%real_workspace(1)%matrix, rho_unit_re)
+         CALL cp_fm_write_formatted(gwbse_env%real_workspace(2)%matrix, rho_unit_im)
          CALL cp_print_key_finished_output(rho_unit_re, logger, print_key_section)
          CALL cp_print_key_finished_output(rho_unit_im, logger, print_key_section)
       END DO
@@ -132,13 +123,12 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE output_mos_covariant(gwbse_env, ham, mos, print_key_section)
       TYPE(gwbse_env_type)                               :: gwbse_env
-      TYPE(cp_fm_p_type), DIMENSION(:)                   :: ham
+      TYPE(cp_cfm_p_type), DIMENSION(:)                  :: ham
       TYPE(cp_fm_type), DIMENSION(:)                     :: mos
       TYPE(section_vals_type), POINTER                   :: print_key_section
       CHARACTER(len=*), PARAMETER                        :: routineN = "output_mos_cohsex"
       TYPE(cp_logger_type), POINTER                      :: logger
-      INTEGER                                            :: j, re, im,&
-                                                            rho_unit_re, rho_unit_im
+      INTEGER                                            :: j, rho_unit_re, rho_unit_im
       CHARACTER(len=21), DIMENSION(4)                    :: file_labels
       
       file_labels(1) = "_SPIN_A_RE.dat"
@@ -146,30 +136,23 @@ CONTAINS
       file_labels(3) = "_SPIN_B_RE.dat"
       file_labels(4) = "_SPIN_B_IM.dat"
       logger => cp_get_default_logger()
-      ! Start by multiplying the current density by MOS
-      ! TODO : Avoid multiplications if not required
-      @:SPIN_DO(j,re, im, gwbse_env%n_spin)
-         rho_unit_re = cp_print_key_unit_nr(logger, print_key_section, extension=file_labels(re))
-         rho_unit_im = cp_print_key_unit_nr(logger, print_key_section, extension=file_labels(im))
-         ! Transform the density matrix into molecular orbitals basis and print it out
+      DO j=1,gwbse_env%n_spin
+         rho_unit_re = cp_print_key_unit_nr(logger, print_key_section, extension=file_labels(2*j-1))
+         rho_unit_im = cp_print_key_unit_nr(logger, print_key_section, extension=file_labels(2*j))
          ! TODO : Number of molecular orbitals and atomic orbitals might not be the same
-         ! Real part
          ! C^T * cohsex
-         CALL parallel_gemm("T", "N", gwbse_env%n_ao, gwbse_env%n_ao, gwbse_env%n_ao,&
-                            1.0_dp, mos(j), ham(re)%matrix, 0.0_dp, gwbse_env%rho_workspace(1)%matrix)
+         CALL multiply_fm_cfm("T", "N", gwbse_env%n_ao, gwbse_env%n_ao, gwbse_env%n_ao,&
+                              1.0_dp, mos(j), ham(j)%matrix,&
+                              0.0_dp, gwbse_env%rho_workspace(1)%matrix)
          ! C^T * cohsex * C
-         CALL parallel_gemm("N", "N", gwbse_env%n_ao, gwbse_env%n_ao, gwbse_env%n_ao,&
-                            1.0_dp, gwbse_env%rho_workspace(1)%matrix, mos(j),&
-                            0.0_dp, gwbse_env%rho_workspace(2)%matrix)
-         CALL cp_fm_write_formatted(gwbse_env%rho_workspace(2)%matrix, rho_unit_re)
-         ! Imag part
-         ! C^T * cohsex
-         CALL parallel_gemm("T", "N", gwbse_env%n_ao, gwbse_env%n_ao, gwbse_env%n_ao,&
-                            1.0_dp, mos(j), ham(im)%matrix, 0.0_dp, gwbse_env%rho_workspace(1)%matrix)
-         ! C^T * cohsex * C
-         CALL parallel_gemm("N", "N", gwbse_env%n_ao, gwbse_env%n_ao, gwbse_env%n_ao,&
-                            1.0_dp, gwbse_env%rho_workspace(1)%matrix, mos(j), 0.0_dp, gwbse_env%rho_workspace(2)%matrix)
-         CALL cp_fm_write_formatted(gwbse_env%rho_workspace(2)%matrix, rho_unit_im)
+         CALL multiply_cfm_fm("N", "N", gwbse_env%n_ao, gwbse_env%n_ao, gwbse_env%n_ao,&
+                              1.0_dp, gwbse_env%rho_workspace(1)%matrix, mos(j),&
+                              0.0_dp, gwbse_env%rho_workspace(2)%matrix)
+         ! Print real and imaginary parts separately
+         CALL cp_cfm_to_fm(gwbse_env%rho_workspace(2)%matrix,&
+                           gwbse_env%real_workspace(1)%matrix, gwbse_env%real_workspace(2)%matrix)
+         CALL cp_fm_write_formatted(gwbse_env%real_workspace(1)%matrix, rho_unit_re)
+         CALL cp_fm_write_formatted(gwbse_env%real_workspace(2)%matrix, rho_unit_im)
          CALL cp_print_key_finished_output(rho_unit_re, logger, print_key_section)
          CALL cp_print_key_finished_output(rho_unit_im, logger, print_key_section)
       END DO
@@ -206,48 +189,49 @@ CONTAINS
 !> \param rho Density matrix in AO basis
 !> \param rtp_section RTP section of the input parameters, where moments destination may be present
 ! **************************************************************************************************
-   SUBROUTINE output_moments(gwbse_env, rho, mos, print_key_section)
+   SUBROUTINE output_moments(gwbse_env, rho, print_key_section)
       TYPE(gwbse_env_type)                               :: gwbse_env
-      TYPE(cp_fm_p_type), DIMENSION(:)                   :: rho
-      TYPE(cp_fm_type), DIMENSION(:)                     :: mos
+      TYPE(cp_cfm_p_type), DIMENSION(:)                  :: rho
       TYPE(section_vals_type), POINTER                   :: print_key_section
       CHARACTER(len=*), PARAMETER                        :: routineN = "output_moments"
       TYPE(cp_logger_type), POINTER                      :: logger
-      INTEGER                                            :: i,j,re,im,&
-                                                            moments_unit_re,&
-                                                            moments_unit_im
+      INTEGER                                            :: i,j, moments_unit_re, moments_unit_im
       CHARACTER(len=14), DIMENSION(4)                    :: file_labels
       REAL(kind=dp), DIMENSION(3)                        :: moments
       
       ! Start by getting the relevant file unit
-      MARK_USED(mos)
       file_labels(1) = "_SPIN_A_RE.dat"
       file_labels(2) = "_SPIN_A_IM.dat"
       file_labels(3) = "_SPIN_B_RE.dat"
       file_labels(4) = "_SPIN_B_IM.dat"
       logger => cp_get_default_logger()
-      @:SPIN_DO(j, re, im, gwbse_env%n_spin)
-         moments_unit_re = cp_print_key_unit_nr(logger, print_key_section, extension=file_labels(re))
-         moments_unit_im = cp_print_key_unit_nr(logger, print_key_section, extension=file_labels(im))
+      DO j=1,gwbse_env%n_spin
+         moments_unit_re = cp_print_key_unit_nr(logger, print_key_section, extension=file_labels(2*j-1))
+         moments_unit_im = cp_print_key_unit_nr(logger, print_key_section, extension=file_labels(2*j))
          ! If, for any reason, the file unit is not provided, skip to next cycle immediately
          ! TODO : Either centralize or let user define the output format
          ! TODO : Let user define the output units
          ! TODO : Handle case of complex molecular orbital matrix?
          ! TODO : Specify output units in config
          ! Need to transpose due to the definition of trace function
-         CALL cp_fm_transpose(rho(re)%matrix, gwbse_env%rho_workspace(1)%matrix)
+         CALL cp_cfm_to_fm(msource=rho(j)%matrix, mtargetr=gwbse_env%real_workspace(2)%matrix)
          DO i=1,3
-            CALL cp_fm_trace(gwbse_env%rho_workspace(1)%matrix, gwbse_env%moments(i)%matrix, moments(i))
+            ! Moments should be symmetric, test without transopose?
+            CALL cp_fm_transpose(gwbse_env%moments(i)%matrix, gwbse_env%real_workspace(1)%matrix)
+            CALL cp_fm_trace(gwbse_env%real_workspace(1)%matrix, gwbse_env%real_workspace(2)%matrix, moments(i))
             ! Scale by spin degeneracy and electron charge
             moments(i) = - moments(i) * gwbse_env%spin_degeneracy
          END DO
          ! Output to the file
          IF (moments_unit_re > 0) WRITE(moments_unit_re, '(E20.8E3,E20.8E3,E20.8E3,E20.8E3)') gwbse_env%sim_time*femtoseconds,&
                  moments(1),moments(2), moments(3)
-         ! Need to transpose due to the definition of trace function
-         CALL cp_fm_transpose(rho(im)%matrix, gwbse_env%rho_workspace(1)%matrix)
+         ! Same for imaginary part
+         CALL cp_cfm_to_fm(msource=rho(j)%matrix, mtargeti=gwbse_env%real_workspace(2)%matrix)
          DO i=1,3
-            CALL cp_fm_trace(gwbse_env%rho_workspace(1)%matrix, gwbse_env%moments(i)%matrix, moments(i))
+            CALL cp_fm_transpose(gwbse_env%moments(i)%matrix, gwbse_env%real_workspace(1)%matrix)
+            CALL cp_fm_trace(gwbse_env%real_workspace(1)%matrix, gwbse_env%real_workspace(2)%matrix, moments(i))
+            ! Scale by spin degeneracy and electron charge
+            moments(i) = - moments(i) * gwbse_env%spin_degeneracy
          END DO
          ! Output to the file
          IF(moments_unit_im > 0) WRITE(moments_unit_im, '(D16.8,D16.8,D16.8,D16.8)') gwbse_env%sim_time*femtoseconds, moments(1),&
@@ -311,7 +295,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN="read_restart"
       TYPE(cp_logger_type), POINTER                      :: logger
       CHARACTER(len=default_path_length)                 :: save_name, save_name_2
-      INTEGER                                            :: rho_unit_nr, j, re, im
+      INTEGER                                            :: rho_unit_nr, j
       CHARACTER(len=14), DIMENSION(4)                    :: file_labels
 
       run_restart = .FALSE.
@@ -336,18 +320,20 @@ CONTAINS
       file_labels(2) = "_SPIN_A_IM.dat"
       file_labels(3) = "_SPIN_B_RE.dat"
       file_labels(4) = "_SPIN_B_IM.dat"
-      @:SPIN_DO(j, re, im, gwbse_env%n_spin)
-         save_name = cp_print_key_generate_filename(logger, restart_section, extension=file_labels(re), my_local=.FALSE.)
-         save_name_2 = cp_print_key_generate_filename(logger, restart_section, extension=file_labels(im), my_local=.FALSE.)
+      DO j=1,gwbse_env%n_spin
+         save_name = cp_print_key_generate_filename(logger, restart_section, extension=file_labels(2*j-1), my_local=.FALSE.)
+         save_name_2 = cp_print_key_generate_filename(logger, restart_section, extension=file_labels(2*j), my_local=.FALSE.)
          IF (file_exists(save_name) .AND. file_exists(save_name_2)) THEN
             CALL open_file(save_name, file_status="OLD", file_form="UNFORMATTED", file_action="READ",&
                            unit_number=rho_unit_nr)
-            CALL cp_fm_read_unformatted(gwbse_env%rho(re)%matrix, rho_unit_nr)
+            CALL cp_fm_read_unformatted(gwbse_env%real_workspace(1)%matrix, rho_unit_nr)
             CALL close_file(rho_unit_nr)
             CALL open_file(save_name_2, file_status="OLD", file_form="UNFORMATTED", file_action="READ",&
                            unit_number=rho_unit_nr)
-            CALL cp_fm_read_unformatted(gwbse_env%rho(im)%matrix, rho_unit_nr)
+            CALL cp_fm_read_unformatted(gwbse_env%real_workspace(2)%matrix, rho_unit_nr)
             CALL close_file(rho_unit_nr)
+            CALL cp_fm_to_cfm(gwbse_env%real_workspace(1)%matrix, gwbse_env%real_workspace(2)%matrix,&
+                              gwbse_env%rho(j)%matrix)
          ELSE
             ! TODO : Spin dependent warning - for some spins, SCF may be used while for others restart is used
             CPWARN("Restart required but some restart density matrices not found - starting from SCF density.")
