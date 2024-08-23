@@ -92,6 +92,7 @@ endforeach()
 # =================================================================================================
 # OPTIONS
 
+option(CP2K_TESTS "Showing test path" ON)
 option(CMAKE_POSITION_INDEPENDENT_CODE "Enable position independent code" ON)
 option(CP2K_ENABLE_CONSISTENCY_CHECKS
        "Check that the list of compiled files and files contained in src match"
@@ -1018,7 +1019,7 @@ if(NOT CP2K_USE_LIBTORCH)
   message("   - libtorch")
 endif()
 
-if(cp2k_TESTS)
+if(CP2K_TESTS)
   message("\n\n" "To run the regtests you need to run the following commands\n"
           "\n\n cd ..\n" " export CP2K_DATA_DIR=${CMAKE_SOURCE_DIR}/data/\n"
           " ./tests/do_regtest.py ${cp2k_BINARY_DIR}/bin ${__cp2k_ext}\n\n")
