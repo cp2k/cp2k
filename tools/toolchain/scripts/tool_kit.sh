@@ -625,18 +625,18 @@ download_pkg_from_urlpath() {
   # usage: download_pkg_from_url_path sha256 filename urlpath [outfile]
   local __sha256="$1"
   local __filename="$2"
-  local __url="$3/$__filename"
+  local __url="$3/${__filename}"
   local __outfile="$4"
-  local __command="wget ${DOWNLOADER_FLAGS} --quiet $__url"
-  if [ "${__outfile}" ]; then __command+=" -O $__filename"; fi
+  local __command="wget ${DOWNLOADER_FLAGS} --quiet ${__url}"
+  if [ "${__outfile}" ]; then __command+=" -O ${__outfile}"; fi
   echo "${__command}"
   # download
   if ! eval "${__command}"; then
-    report_error "failed to download $__url"
+    report_error "failed to download ${__url}"
     return 1
   fi
   # checksum
-  checksum "$__filename" "$__sha256"
+  checksum "${__filename}" "${__sha256}"
 }
 
 # download from CP2K.org
