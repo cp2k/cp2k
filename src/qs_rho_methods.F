@@ -46,6 +46,7 @@ MODULE qs_rho_methods
                                               qs_environment_type,&
                                               set_qs_env
    USE qs_harris_types,                 ONLY: harris_type
+   USE qs_harris_utils,                 ONLY: calculate_harris_density
    USE qs_kind_types,                   ONLY: qs_kind_type
    USE qs_ks_types,                     ONLY: get_ks_env,&
                                               qs_ks_env_type
@@ -401,12 +402,7 @@ CONTAINS
 
       IF (qs_env%harris_method) THEN
          CALL get_qs_env(qs_env, harris_env=harris_env)
-!deb
-         STOP "AA"
-!        CALL calculate_harris_density(qs_env, harris_env%rhoin, &
-!                                      rho_struct=rho_struct, &
-!                                      atomic_kind_set=atomic_kind_set, &
-!                                      para_env=para_env)
+         CALL calculate_harris_density(qs_env, harris_env%rhoin, rho_struct)
          CALL qs_rho_set(rho_struct, rho_r_valid=.TRUE., rho_g_valid=.TRUE.)
 
       ELSEIF (dft_control%qs_control%semi_empirical .OR. &

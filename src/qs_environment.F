@@ -151,7 +151,8 @@ MODULE qs_environment
    USE qs_gcp_types,                    ONLY: qs_gcp_type
    USE qs_gcp_utils,                    ONLY: qs_gcp_env_set,&
                                               qs_gcp_init
-   USE qs_harris_types,                 ONLY: harris_type
+   USE qs_harris_types,                 ONLY: harris_rhoin_init,&
+                                              harris_type
    USE qs_harris_utils,                 ONLY: harris_env_create,&
                                               harris_write_input
    USE qs_interactions,                 ONLY: init_interaction_radii,&
@@ -262,6 +263,7 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: my_cell, my_cell_ref
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(distribution_1d_type), POINTER                :: local_particles
       TYPE(energy_correction_type), POINTER              :: ec_env
       TYPE(excited_energy_type), POINTER                 :: exstate_env
       TYPE(harris_type), POINTER                         :: harris_env
@@ -486,6 +488,10 @@ CONTAINS
 
       CALL get_qs_env(qs_env, harris_env=harris_env)
       IF (qs_env%harris_method) THEN
+         ! initialize the Harris input density
+         CALL get_qs_env(qs_env, local_particles=local_particles)
+         CALL harris_rhoin_init(harris_env%rhoin, "RHOIN", qs_kind_set, atomic_kind_set, &
+                                local_particles, dft_control%nspins)
          ! Print information of the HARRIS section
          CALL harris_write_input(harris_env)
       END IF
@@ -608,8 +614,9 @@ CONTAINS
       TYPE(fist_nonbond_env_type), POINTER               :: se_nonbond_env
       TYPE(gapw_control_type), POINTER                   :: gapw_control
       TYPE(gto_basis_set_type), POINTER                  :: aux_fit_basis, lri_aux_basis, &
-                                                            ri_aux_basis_set, ri_hfx_basis, &
-                                                            ri_xas_basis, tmp_basis_set
+                                                            rhoin_basis, ri_aux_basis_set, &
+                                                            ri_hfx_basis, ri_xas_basis, &
+                                                            tmp_basis_set
       TYPE(harris_type), POINTER                         :: harris_env
       TYPE(local_rho_type), POINTER                      :: local_rho_set
       TYPE(lri_environment_type), POINTER                :: lri_env
@@ -952,16 +959,16 @@ CONTAINS
          DO ikind = 1, nkind
             NULLIFY (tmp_basis_set)
             qs_kind => qs_kind_set(ikind)
-            CALL get_qs_kind(qs_kind, basis_set=ri_hfx_basis, basis_type="RI_HXC")
-            IF (.NOT. (ASSOCIATED(ri_hfx_basis))) THEN
+            CALL get_qs_kind(qs_kind, basis_set=rhoin_basis, basis_type="RHOIN")
+            IF (.NOT. (ASSOCIATED(rhoin_basis))) THEN
                ! Generate a default basis
                CALL create_ri_aux_basis_set(tmp_basis_set, qs_kind, dft_control%auto_basis_ri_hxc)
                IF (qs_env%harris_env%density_source == hden_atomic) THEN
-                  CALL create_primitive_basis_set(tmp_basis_set, ri_hfx_basis, lmax=0)
+                  CALL create_primitive_basis_set(tmp_basis_set, rhoin_basis, lmax=0)
                ELSE
-                  ri_hfx_basis => tmp_basis_set
+                  rhoin_basis => tmp_basis_set
                END IF
-               CALL add_basis_set_to_container(qs_kind%basis_sets, ri_hfx_basis, "RI_HXC")
+               CALL add_basis_set_to_container(qs_kind%basis_sets, rhoin_basis, "RHOIN")
             END IF
          END DO
       END IF

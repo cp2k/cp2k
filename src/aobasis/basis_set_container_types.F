@@ -45,7 +45,8 @@ MODULE basis_set_container_types
                                                p_lri_aux_basis = 116, &
                                                aux_opt_basis = 117, &
                                                min_basis = 118, &
-                                               tda_k_basis = 119
+                                               tda_k_basis = 119, &
+                                               rhoin_basis = 120
 ! **************************************************************************************************
    TYPE basis_set_container_type
       PRIVATE
@@ -133,6 +134,8 @@ CONTAINS
          basis_type_nr = ri_xas_basis
       CASE ("AUX_OPT")
          basis_type_nr = aux_opt_basis
+      CASE ("RHOIN")
+         basis_type_nr = rhoin_basis
       CASE DEFAULT
          basis_type_nr = unknown_basis
       END SELECT

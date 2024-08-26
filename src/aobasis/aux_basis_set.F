@@ -220,7 +220,6 @@ CONTAINS
       ALLOCATE (aux_basis%scon(maxco, nsgf))
       ALLOCATE (aux_basis%norm_cgf(ncgf))
       aux_basis%norm_type = 2
-!     CALL init_orb_basis_set(aux_basis)
 
    END SUBROUTINE create_aux_basis
 

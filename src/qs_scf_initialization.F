@@ -73,6 +73,8 @@ MODULE qs_scf_initialization
                                               fb_env_write_info
    USE qs_fb_env_types,                 ONLY: fb_env_create,&
                                               fb_env_has_data
+   USE qs_harris_types,                 ONLY: harris_type
+   USE qs_harris_utils,                 ONLY: harris_density_update
    USE qs_initial_guess,                ONLY: calculate_first_density_matrix
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               qs_kind_type,&
@@ -1049,6 +1051,7 @@ CONTAINS
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(harris_type), POINTER                         :: harris_env
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(qs_rho_type), POINTER                         :: rho
@@ -1105,7 +1108,8 @@ CONTAINS
       END IF
 
       IF (do_harris) THEN
-!deb     CALL harris_density_update(scf_env=scf_env, qs_env=qs_env)
+         CALL get_qs_env(qs_env, harris_env=harris_env)
+         CALL harris_density_update(qs_env, harris_env)
          CALL qs_rho_update_rho(rho, qs_env=qs_env)
          CALL qs_ks_did_change(qs_env%ks_env, rho_changed=.TRUE.)
       ELSE IF (extrapolation_method_nr == wfi_use_guess_method_nr) THEN

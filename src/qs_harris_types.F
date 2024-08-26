@@ -36,8 +36,11 @@ MODULE qs_harris_types
 
    TYPE harris_rhoin_type
       CHARACTER(LEN=default_string_length)             :: basis_type = "NDef"
-      TYPE(rho_vec_type), ALLOCATABLE, DIMENSION(:)    :: rhovec
-      INTEGER, ALLOCATABLE, DIMENSION(:)               :: basptr
+      TYPE(rho_vec_type), ALLOCATABLE, DIMENSION(:, :) :: rhovec
+      INTEGER                                          :: nspin = 0
+      INTEGER                                          :: nbas = 0
+      INTEGER, ALLOCATABLE, DIMENSION(:, :)            :: basptr
+      LOGICAL                                          :: frozen = .FALSE.
    END TYPE harris_rhoin_type
 
    TYPE harris_energy_type
@@ -70,7 +73,7 @@ MODULE qs_harris_types
 ! **************************************************************************************************
 
    PUBLIC :: harris_type, harris_energy_type, harris_env_release, &
-             harris_print_energy, harris_rhoin_type
+             harris_print_energy, harris_rhoin_type, harris_rhoin_init
 
 ! **************************************************************************************************
 
@@ -107,15 +110,18 @@ CONTAINS
 !> \param qs_kind_set ...
 !> \param atomic_kind_set ...
 !> \param local_particles ...
+!> \param nspin ...
 ! **************************************************************************************************
-   SUBROUTINE harris_rhoin_init(rhoin, basis_type, qs_kind_set, atomic_kind_set, local_particles)
-      TYPE(harris_rhoin_type), POINTER                   :: rhoin
+   SUBROUTINE harris_rhoin_init(rhoin, basis_type, qs_kind_set, atomic_kind_set, &
+                                local_particles, nspin)
+      TYPE(harris_rhoin_type)                            :: rhoin
       CHARACTER(LEN=*)                                   :: basis_type
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(distribution_1d_type), POINTER                :: local_particles
+      INTEGER, INTENT(IN)                                :: nspin
 
-      INTEGER                                            :: iatom, ikind, iptr, natom, nkind, &
+      INTEGER                                            :: iatom, ikind, iptr, ispin, natom, nkind, &
                                                             nparticle_local, nsgf
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, kind_of, nbasf
       TYPE(gto_basis_set_type), POINTER                  :: basis_set
@@ -124,6 +130,7 @@ CONTAINS
       CALL harris_rhoin_release(rhoin)
 
       rhoin%basis_type = basis_type
+      rhoin%nspin = nspin
 
       CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, &
                                atom_of_kind=atom_of_kind, kind_of=kind_of)
@@ -138,19 +145,23 @@ CONTAINS
          nbasf(ikind) = nsgf
       END DO
 
-      ALLOCATE (rhoin%basptr(natom))
-      iptr = 0
+      ALLOCATE (rhoin%basptr(natom, 2))
+      iptr = 1
       DO iatom = 1, natom
          ikind = kind_of(iatom)
-         rhoin%basptr(iatom) = iptr + 1
+         rhoin%basptr(iatom, 1) = iptr
          iptr = iptr + nbasf(ikind)
+         rhoin%basptr(iatom, 2) = iptr - 1
       END DO
+      rhoin%nbas = iptr - 1
 
-      ALLOCATE (rhoin%rhovec(nkind))
-      DO ikind = 1, nkind
-         nsgf = nbasf(ikind)
-         nparticle_local = local_particles%n_el(ikind)
-         ALLOCATE (rhoin%rhovec(ikind)%rvecs(nsgf, nparticle_local))
+      ALLOCATE (rhoin%rhovec(nkind, nspin))
+      DO ispin = 1, nspin
+         DO ikind = 1, nkind
+            nsgf = nbasf(ikind)
+            nparticle_local = local_particles%n_el(ikind)
+            ALLOCATE (rhoin%rhovec(ikind, ispin)%rvecs(nsgf, nparticle_local))
+         END DO
       END DO
 
       DEALLOCATE (nbasf)
@@ -182,19 +193,25 @@ CONTAINS
    SUBROUTINE harris_rhoin_release(rhoin)
       TYPE(harris_rhoin_type)                            :: rhoin
 
-      INTEGER                                            :: i
+      INTEGER                                            :: i, j
 
       IF (ALLOCATED(rhoin%rhovec)) THEN
-         DO i = 1, SIZE(rhoin%rhovec)
-            IF (ALLOCATED(rhoin%rhovec(i)%rvecs)) THEN
-               DEALLOCATE (rhoin%rhovec(i)%rvecs)
-            END IF
+         DO i = 1, SIZE(rhoin%rhovec, 2)
+            DO j = 1, SIZE(rhoin%rhovec, 1)
+               IF (ALLOCATED(rhoin%rhovec(j, i)%rvecs)) THEN
+                  DEALLOCATE (rhoin%rhovec(j, i)%rvecs)
+               END IF
+            END DO
          END DO
          DEALLOCATE (rhoin%rhovec)
       END IF
       IF (ALLOCATED(rhoin%basptr)) THEN
          DEALLOCATE (rhoin%basptr)
       END IF
+      rhoin%basis_type = "NDef"
+      rhoin%nspin = 0
+      rhoin%nbas = 0
+      rhoin%frozen = .FALSE.
 
    END SUBROUTINE harris_rhoin_release
 
