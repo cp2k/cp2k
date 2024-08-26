@@ -480,16 +480,16 @@ CONTAINS
             ! C * Lambda * C^T
             CALL multiply_cfm_fm("N", "T", gwbse_env%n_ao, gwbse_env%n_ao, gwbse_env%n_ao,&
                                1.0_dp, gwbse_env%ham_workspace(1)%matrix, bs_env%fm_mo_coeff_Gamma(i),&
-                               0.0_dp, gwbse_env%ham_workspace(2)%matrix)
+                               0.0_dp, gwbse_env%rho_workspace(1)%matrix)
             ! S * C * Lambda * C^T
             CALL multiply_fm_cfm("N", "N", gwbse_env%n_ao, gwbse_env%n_ao, gwbse_env%n_ao,&
-                               1.0_dp, gwbse_env%S_fm%matrix, gwbse_env%ham_workspace(2)%matrix,&
+                               1.0_dp, gwbse_env%S_fm%matrix, gwbse_env%rho_workspace(1)%matrix,&
                                0.0_dp, gwbse_env%ham_workspace(1)%matrix)
             ! S * C * Lambda * C^T * S = H
             CALL multiply_cfm_fm("N", "N", gwbse_env%n_ao, gwbse_env%n_ao, gwbse_env%n_ao,&
                                1.0_dp, gwbse_env%ham_workspace(1)%matrix, gwbse_env%S_fm%matrix,&
-                               0.0_dp, gwbse_env%ham_workspace(2)%matrix)
-            CALL cp_cfm_to_fm(msource=gwbse_env%ham_workspace(2)%matrix, mtargetr=gwbse_env%ham_single_particle(i)%matrix)
+                               0.0_dp, gwbse_env%rho_workspace(1)%matrix)
+            CALL cp_cfm_to_fm(msource=gwbse_env%rho_workspace(1)%matrix, mtargetr=gwbse_env%ham_single_particle(i)%matrix)
          ELSE
             ! KS Hamiltonian
             CALL cp_fm_create(gwbse_env%ham_single_particle(i)%matrix, bs_env%fm_ks_Gamma(i)%matrix_struct)
@@ -547,6 +547,8 @@ CONTAINS
          ALLOCATE(gwbse_env%sigma_COH(i)%matrix)
          CALL cp_fm_create(gwbse_env%sigma_COH(i)%matrix, bs_env%fm_ks_Gamma(1)%matrix_struct)
          CALL cp_fm_create(gwbse_env%sigma_SEX(i)%matrix, bs_env%fm_ks_Gamma(1)%matrix_struct)
+         PRINT *, "Size after create", gwbse_env%sigma_SEX(i)%matrix%matrix_struct%nrow_global,&
+                        gwbse_env%sigma_SEX(i)%matrix%matrix_struct%ncol_global
          CALL cp_fm_create(gwbse_env%hartree_orig(i)%matrix, bs_env%fm_ks_Gamma(1)%matrix_struct)
          CALL cp_fm_create(gwbse_env%hartree_curr(i)%matrix, bs_env%fm_ks_Gamma(1)%matrix_struct)
          CALL cp_fm_set_all(gwbse_env%sigma_COH(i)%matrix, 0.0_dp)
@@ -600,9 +602,8 @@ CONTAINS
 !> \author Stepan Marek
 !> \date 02.2024
 ! **************************************************************************************************
-   SUBROUTINE release_gwbse_env(gwbse_env, qs_env)
+   SUBROUTINE release_gwbse_env(gwbse_env)
       TYPE(gwbse_env_type)                                      :: gwbse_env
-      TYPE(qs_environment_type), POINTER                        :: qs_env
       CHARACTER(len=*), PARAMETER                               :: routineN = "release_gwbse_env"
       INTEGER                                                   :: i
 
@@ -645,7 +646,8 @@ CONTAINS
 
       ! Depending on methods, deallocate additional workspace
       IF ( gwbse_env%hartree_method == rtp_gwbse_hartree_dbt ) THEN
-         CALL release_hartree_dbt_workspace(gwbse_env)
+         ! CALL release_hartree_dbt_workspace(gwbse_env)
+         CALL release_hartree_ri_workspace(gwbse_env)
       ELSEIF (gwbse_env%hartree_method == rtp_gwbse_hartree_pw) THEN
          ! CALL release_hartree_pw_workspace(qs_env, gwbse_env)
          CPABORT("PW Hartree no longer supported")
@@ -688,125 +690,12 @@ CONTAINS
                               k_bf_start_from_atom=bs_env%i_ao_start_from_atom,&
                               i_bf_start_from_atom=bs_env%i_RI_start_from_atom)
    END SUBROUTINE create_hartree_ri_workspace
-! **************************************************************************************************
-!> \brief Allocates the workspaces for Hartree dbt method, mainly the density tensors
-!> \note DBT method uses 2D and 3D tensors, where one dimension has size 1, in order to emulate vectors
-!> \param gwbse_env 
-!> \param qs_env Quickstep environment - entry point of calculation
-!> \author Stepan Marek
-!> \date 02.2024
-! **************************************************************************************************
-   SUBROUTINE create_hartree_dbt_workspace(gwbse_env, qs_env)
-      TYPE(gwbse_env_type)                               :: gwbse_env
-      TYPE(qs_environment_type), POINTER                 :: qs_env
-      CHARACTER(len=*), PARAMETER                        :: routineN = "create_hartree_dbt_workspace"
-      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
-      INTEGER, ALLOCATABLE, DIMENSION(:,:)               :: distvec
-      INTEGER, DIMENSION(1)                              :: distvec_one
-      TYPE(dbt_distribution_type)                        :: dist
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: pdims, pcoord
-      TYPE(dbt_pgrid_type)                               :: pgrid
-      INTEGER                                            :: j
-      ! Create a 1D tensor (vector) for the result of contraction with density matrix
-      ! Taken from gw_utils
-      ! Get bs_env
-      CALL get_qs_env(qs_env, bs_env=bs_env)
+   SUBROUTINE release_hartree_ri_workspace(gwbse_env)
+      TYPE(gwbse_env_type)                              :: gwbse_env
+      CHARACTER(len=*), PARAMETER                       :: routineN = "release_hartree_ri_workspace"
 
-      ! Create the 3-index tensor with one dimension of size 1 from tensor primitives
-      ! Create 3-index process grid
-      ALLOCATE(pdims(3), source=0)
-      ALLOCATE(pcoord(3), source=0)
-      ! Set elements to zero - otherwise can get erronous behaviour
-      ! DO j=1,3
-      !    pdims(j) = 0
-      !    pcoord(j) = 0
-      ! END DO
-      ! Process grid creation
-      CALL dbt_pgrid_create(bs_env%para_env_tensor, pdims, pgrid)
-      ! Determine processes on the created grid
-      CALL dbt_mp_environ_pgrid(pgrid, pdims, pcoord)
-      ! Prepare task distribution on the process grid for each dimension
-      ALLOCATE(distvec(2, SIZE(bs_env%sizes_AO)))
-      DO j=1,2
-         CALL dbt_default_distvec(SIZE(bs_env%sizes_AO), pdims(j), bs_env%sizes_AO, distvec(j,:))
-      END DO
-      CALL dbt_default_distvec(1, pdims(3), [1], distvec_one)
-      ! Create the tensor distribution
-      CALL dbt_distribution_new(dist, pgrid, distvec(1,:), distvec(2,:), distvec_one)
-      ! Create the tensor aligned for the task distribution
-      NULLIFY(gwbse_env%t_two_plus_one)
-      ALLOCATE(gwbse_env%t_two_plus_one)
-      CALL dbt_create(gwbse_env%t_two_plus_one, "2+1 index tensor", dist, [1], [2, 3],&
-                      bs_env%sizes_AO,&
-                      bs_env%sizes_AO,&
-                      [1])
-      ! No longer need the process information
-      CALL dbt_pgrid_destroy(pgrid)
-      CALL dbt_distribution_destroy(dist)
-      DEALLOCATE(distvec)
-      DEALLOCATE(pdims)
-      DEALLOCATE(pcoord)
-
-      ! Create the one + one tensor - true vector
-      ALLOCATE(pdims(2))
-      ALLOCATE(pcoord(2))
-      DO j=1,2
-         pdims(j) = 0
-         pcoord(j) = 0
-      END DO
-      ALLOCATE(distvec(1,SIZE(bs_env%sizes_RI)))
-      ! Create the process grid
-      CALL dbt_pgrid_create(bs_env%para_env_tensor, pdims, pgrid)
-      ! Populate the process grid
-      CALL dbt_mp_environ_pgrid(pgrid, pdims, pcoord)
-      ! Prepare distribution vectors that allocate tasks to tensor blocks
-      CALL dbt_default_distvec(SIZE(bs_env%sizes_RI), pdims(1), bs_env%sizes_RI, distvec(1,:))
-      CALL dbt_default_distvec(1, pdims(2), [1], distvec_one)
-      ! Create tensor distribution
-      CALL dbt_distribution_new(dist, pgrid, distvec(1,:), distvec_one)
-      NULLIFY(gwbse_env%t_one_plus_one)
-      ALLOCATE(gwbse_env%t_one_plus_one)
-      CALL dbt_create(gwbse_env%t_one_plus_one, "tensor vector", dist, [1], [2], bs_env%sizes_RI, [1])
-      ! No longer need the process information
-      CALL dbt_pgrid_destroy(pgrid)
-      CALL dbt_distribution_destroy(dist)
-      DEALLOCATE(distvec)
-      DEALLOCATE(pcoord)
-      DEALLOCATE(pdims)
-
-      ! 3c tensors - do not populate yet, just allocate distributions
-      NULLIFY(gwbse_env%t_3c_work_RI__AO_AO)
-      ALLOCATE(gwbse_env%t_3c_work_RI__AO_AO)
-      CALL dbt_create(bs_env%t_RI__AO_AO, gwbse_env%t_3c_work_RI__AO_AO)
-
-      NULLIFY(gwbse_env%hartree_dbt)
-      ALLOCATE(gwbse_env%hartree_dbt)
-   END SUBROUTINE
-! **************************************************************************************************
-!> \brief Releases the workspaces for Hartree dbt method
-!> \param gwbse_env 
-!> \author Stepan Marek
-!> \date 02.2024
-! **************************************************************************************************
-   SUBROUTINE release_hartree_dbt_workspace(gwbse_env)
-      TYPE(gwbse_env_type)                               :: gwbse_env
-      CHARACTER(len=*), PARAMETER                        :: routineN = "release_hartree_dbt_workspace"
-      IF (ASSOCIATED(gwbse_env%t_two_plus_one)) THEN
-         CALL dbt_destroy(gwbse_env%t_two_plus_one)
-         DEALLOCATE(gwbse_env%t_two_plus_one)
-      END IF
-      IF (ASSOCIATED(gwbse_env%t_one_plus_one)) THEN
-         CALL dbt_destroy(gwbse_env%t_one_plus_one)
-         DEALLOCATE(gwbse_env%t_one_plus_one)
-      END IF
-      IF (ASSOCIATED(gwbse_env%t_3c_work_RI__AO_AO)) THEN
-         CALL dbt_destroy(gwbse_env%t_3c_work_RI__AO_AO)
-         DEALLOCATE(gwbse_env%t_3c_work_RI__AO_AO)
-      END IF
-
-      CALL dbt_destroy(gwbse_env%hartree_dbt)
-      DEALLOCATE(gwbse_env%hartree_dbt)
-   END SUBROUTINE
+      DEALLOCATE(gwbse_env%int_3c_array)
+   END SUBROUTINE release_hartree_ri_workspace
 ! **************************************************************************************************
 !> \brief Allocates the workspaces for self-energy determination routine
 !> \param gwbse_env Structure for holding information and workspace structures 

@@ -406,6 +406,9 @@ CONTAINS
          gwbse_env%sim_time = REAL(i+1, dp)*gwbse_env%sim_dt
          gwbse_env%sim_step = i+1
          converged = .FALSE.
+         CALL cp_cfm_to_fm(gwbse_env%rho(1)%matrix, gwbse_env%real_workspace(1)%matrix, gwbse_env%real_workspace(2)%matrix)
+         CALL cp_fm_write_formatted(gwbse_env%real_workspace(1)%matrix, gwbse_env%unit_nr)
+         CALL cp_fm_write_formatted(gwbse_env%real_workspace(2)%matrix, gwbse_env%unit_nr)
          DO k=1,gwbse_env%etrs_max_iter
             CALL update_effective_ham(gwbse_env, qs_env, gwbse_env%rho_new_last)
             CALL ham_to_exp(gwbse_env)
@@ -427,8 +430,10 @@ CONTAINS
          END DO
          CALL get_electron_number(gwbse_env, gwbse_env%rho_new, enum_re, enum_im)
          CALL get_idempotence_deviation(gwbse_env, gwbse_env%rho_new, idempotence_dev)
-         a_metric_1 = antiherm_metric(gwbse_env%sigma_SEX(j))
-         a_metric_2 = antiherm_metric(gwbse_env%hartree_curr(j))
+         DO j=1,gwbse_env%n_spin
+            CALL antiherm_metric(real_fm=gwbse_env%sigma_SEX(j), workspace=gwbse_env%rho_workspace, metric=a_metric_1)
+            CALL antiherm_metric(real_fm=gwbse_env%hartree_curr(j), workspace=gwbse_env%rho_workspace, metric=a_metric_2)
+         END DO
          ! TODO : Move to io
          IF (gwbse_env%unit_nr > 0) WRITE(gwbse_env%unit_nr, *) "Sim step : ", gwbse_env%sim_step, "Convergence : ", metric,&
                                                                 "Threshold : ", gwbse_env%etrs_threshold,&
@@ -448,12 +453,12 @@ CONTAINS
          ! Output restart files
          ! TODO : k-point dependency
          ! Output so that the restart starts at the following time index
-         CALL output_restart(restart_section, gwbse_env%rho, i+1)
+         CALL output_restart(restart_section, gwbse_env%rho, i+1, workspace_opt=gwbse_env%real_workspace)
       END DO
       ! ********************** End the time loop **********************
 
       ! ********************** DEALLOCATIONS **********************
-      CALL release_gwbse_env(gwbse_env, qs_env)
+      CALL release_gwbse_env(gwbse_env)
       ! Deallocate the neighbour list that is not deallocated in gw anymore
       IF (ASSOCIATED(bs_env%nl_3c%ij_list)) CALL neighbor_list_3c_destroy(bs_env%nl_3c)
 
@@ -511,30 +516,25 @@ CONTAINS
 !> \param real_fm Real part of the full matrix
 !> \param imag_fm Imaginary part of the full matrix
 ! **************************************************************************************************
-   FUNCTION antiherm_metric(real_fm, imag_fm) RESULT (metric)
+   SUBROUTINE antiherm_metric(real_fm, imag_fm, workspace, metric)
       TYPE(cp_fm_p_type), INTENT(IN)                    :: real_fm
       TYPE(cp_fm_p_type), INTENT(IN), OPTIONAL          :: imag_fm
-      REAL(kind=dp)                                     :: metric
-      TYPE(cp_cfm_type)                                 :: complex_fm,&
-                                                           conjugate_fm
+      REAL(kind=dp), INTENT(OUT)                        :: metric
+      TYPE(cp_cfm_p_type), DIMENSION(:), POINTER        :: workspace
       COMPLEX(kind=dp)                                  :: complex_one
 
-      CALL cp_cfm_create(complex_fm, real_fm%matrix%matrix_struct)
-      CALL cp_cfm_create(conjugate_fm, real_fm%matrix%matrix_struct)
       ! Get the complex and complex conjugate matrix
       IF (PRESENT(imag_fm)) THEN
-         CALL cp_fm_to_cfm(real_fm%matrix, imag_fm%matrix, complex_fm)
+         CALL cp_fm_to_cfm(real_fm%matrix, imag_fm%matrix, workspace(1)%matrix)
       ELSE
-         CALL cp_fm_to_cfm(msourcer=real_fm%matrix, mtarget=complex_fm)
+         CALL cp_fm_to_cfm(msourcer=real_fm%matrix, mtarget=workspace(1)%matrix)
       END IF
-      CALL cp_cfm_transpose(complex_fm, "C", conjugate_fm)
+      CALL cp_cfm_transpose(workspace(1)%matrix, "C", workspace(2)%matrix)
       ! Subtract these, and get the metric
-      complex_one = 1.0
-      CALL cp_cfm_scale_and_add(complex_one, complex_fm, -complex_one, conjugate_fm)
-      metric = cp_cfm_norm(complex_fm, "M")
-      CALL cp_cfm_release(complex_fm)
-      CALL cp_cfm_release(conjugate_fm)
-   END FUNCTION
+      complex_one = CMPLX(1.0, 0.0, kind=dp)
+      CALL cp_cfm_scale_and_add(complex_one, workspace(1)%matrix, -complex_one, workspace(2)%matrix)
+      metric = cp_cfm_norm(workspace(1)%matrix, "M")
+   END SUBROUTINE
 
 ! **************************************************************************************************
 !> \brief For Taylor and Exact exp_method, calculates the matrix exponential of the
@@ -649,6 +649,7 @@ CONTAINS
          ! iGW = - rho W = - Re(rho) W - i Im(rho) W
          CALL get_sigma(gwbse_env, qs_env, gwbse_env%sigma_SEX(j),&
                         -1.0_dp, greens_cfm_opt=rho(j))
+
          CALL cp_fm_to_cfm(msourcer=gwbse_env%sigma_SEX(j)%matrix, mtarget=gwbse_env%ham_workspace(j)%matrix)
          CALL cp_cfm_scale_and_add(CMPLX(1.0, 0.0, kind=dp), gwbse_env%ham_effective(j)%matrix,&
                                    CMPLX(1.0, 0.0, kind=dp), gwbse_env%ham_workspace(j)%matrix)

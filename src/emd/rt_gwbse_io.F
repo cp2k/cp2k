@@ -252,22 +252,22 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE output_restart(restart_section, rho, time_index, workspace_opt)
       TYPE(section_vals_type), POINTER                   :: restart_section
-      TYPE(cp_cfm_p_type), DIMENSION(:)                  :: rho
+      TYPE(cp_cfm_p_type), DIMENSION(:), POINTER         :: rho
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER,OPTIONAL :: workspace_opt
       CHARACTER(len=*), PARAMETER                        :: routineN="output_restart"
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: workspace
-      CHARACTER(len=14), DIMENSION(4)                    :: file_labels
+      CHARACTER(len=17), DIMENSION(4)                    :: file_labels
       TYPE(cp_logger_type), POINTER                      :: logger
       INTEGER                                            :: rho_unit_nr, j, n_spin, time_index
 
       ! Default labels distinguishing up to two spin species and real/imaginary parts
-      file_labels(1) = "_SPIN_A_RE.dat"
-      file_labels(2) = "_SPIN_A_IM.dat"
-      file_labels(3) = "_SPIN_B_RE.dat"
-      file_labels(4) = "_SPIN_B_IM.dat"
+      file_labels(1) = "_SPIN_A_RE.matrix"
+      file_labels(2) = "_SPIN_A_IM.matrix"
+      file_labels(3) = "_SPIN_B_RE.matrix"
+      file_labels(4) = "_SPIN_B_IM.matrix"
 
       logger => cp_get_default_logger()
-      n_spin = SIZE(rho) /2
+      n_spin = SIZE(rho)
 
       ! Setup the real and imaginary matrix parts
       IF (PRESENT(workspace_opt)) THEN
@@ -318,7 +318,7 @@ CONTAINS
       TYPE(cp_logger_type), POINTER                      :: logger
       CHARACTER(len=default_path_length)                 :: save_name, save_name_2
       INTEGER                                            :: rho_unit_nr, j
-      CHARACTER(len=14), DIMENSION(4)                    :: file_labels
+      CHARACTER(len=17), DIMENSION(4)                    :: file_labels
 
       run_restart = .FALSE.
       logger => cp_get_default_logger()
@@ -338,10 +338,10 @@ CONTAINS
       END IF
 
       ! Default labels distinguishing up to two spin species and real/imaginary parts
-      file_labels(1) = "_SPIN_A_RE.dat"
-      file_labels(2) = "_SPIN_A_IM.dat"
-      file_labels(3) = "_SPIN_B_RE.dat"
-      file_labels(4) = "_SPIN_B_IM.dat"
+      file_labels(1) = "_SPIN_A_RE.matrix"
+      file_labels(2) = "_SPIN_A_IM.matrix"
+      file_labels(3) = "_SPIN_B_RE.matrix"
+      file_labels(4) = "_SPIN_B_IM.matrix"
       DO j=1,gwbse_env%n_spin
          save_name = cp_print_key_generate_filename(logger, restart_section, extension=file_labels(2*j-1), my_local=.FALSE.)
          save_name_2 = cp_print_key_generate_filename(logger, restart_section, extension=file_labels(2*j), my_local=.FALSE.)
