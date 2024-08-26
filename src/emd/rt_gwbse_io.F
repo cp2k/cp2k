@@ -13,11 +13,14 @@
 MODULE rt_gwbse_io
    USE cp_fm_types,                     ONLY: cp_fm_type,&
                                               cp_fm_p_type,&
+                                              cp_fm_create,&
+                                              cp_fm_release,&
                                               cp_fm_read_unformatted,&
                                               cp_fm_write_unformatted,&
                                               cp_fm_write_formatted
    USE cp_cfm_types,                    ONLY: cp_cfm_type,&
                                               cp_cfm_p_type,&
+                                              cp_fm_to_cfm,&
                                               cp_cfm_to_fm
    USE kinds,                           ONLY: dp,&
                                               default_path_length
@@ -247,13 +250,15 @@ CONTAINS
 !> \param rho Density matrix in AO basis
 !> \param time_index Time index to be written into the info file
 ! **************************************************************************************************
-   SUBROUTINE output_restart(restart_section, rho, time_index)
+   SUBROUTINE output_restart(restart_section, rho, time_index, workspace_opt)
       TYPE(section_vals_type), POINTER                   :: restart_section
-      TYPE(cp_fm_p_type), DIMENSION(:)                   :: rho
+      TYPE(cp_cfm_p_type), DIMENSION(:)                  :: rho
+      TYPE(cp_fm_p_type), DIMENSION(:), POINTER,OPTIONAL :: workspace_opt
       CHARACTER(len=*), PARAMETER                        :: routineN="output_restart"
+      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: workspace
       CHARACTER(len=14), DIMENSION(4)                    :: file_labels
       TYPE(cp_logger_type), POINTER                      :: logger
-      INTEGER                                            :: rho_unit_nr, j, re, im, n_spin, time_index
+      INTEGER                                            :: rho_unit_nr, j, n_spin, time_index
 
       ! Default labels distinguishing up to two spin species and real/imaginary parts
       file_labels(1) = "_SPIN_A_RE.dat"
@@ -264,16 +269,27 @@ CONTAINS
       logger => cp_get_default_logger()
       n_spin = SIZE(rho) /2
 
-      @:SPIN_DO(j, re, im, n_spin)
+      ! Setup the real and imaginary matrix parts
+      IF (PRESENT(workspace_opt)) THEN
+         workspace => workspace_opt
+      ELSE
+         NULLIFY(workspace)
+         ALLOCATE(workspace(2))
+         CALL cp_fm_create(workspace(1)%matrix, rho(1)%matrix%matrix_struct)
+         CALL cp_fm_create(workspace(2)%matrix, rho(1)%matrix%matrix_struct)
+      ENDIF
+
+      DO j=1,n_spin
+         CALL cp_cfm_to_fm(rho(j)%matrix, workspace(1)%matrix, workspace(2)%matrix)
          ! Real part
-         rho_unit_nr = cp_print_key_unit_nr(logger, restart_section, extension=file_labels(re),&
+         rho_unit_nr = cp_print_key_unit_nr(logger, restart_section, extension=file_labels(2*j-1),&
                                             file_form="UNFORMATTED", file_position="REWIND")
-         CALL cp_fm_write_unformatted(rho(re)%matrix, rho_unit_nr)
+         CALL cp_fm_write_unformatted(workspace(1)%matrix, rho_unit_nr)
          CALL cp_print_key_finished_output(rho_unit_nr, logger, restart_section)
          ! Imag part
-         rho_unit_nr = cp_print_key_unit_nr(logger, restart_section, extension=file_labels(im),&
+         rho_unit_nr = cp_print_key_unit_nr(logger, restart_section, extension=file_labels(2*j),&
                                             file_form="UNFORMATTED", file_position="REWIND")
-         CALL cp_fm_write_unformatted(rho(im)%matrix, rho_unit_nr)
+         CALL cp_fm_write_unformatted(workspace(2)%matrix, rho_unit_nr)
          CALL cp_print_key_finished_output(rho_unit_nr, logger, restart_section)
          ! Info
          rho_unit_nr = cp_print_key_unit_nr(logger, restart_section, extension=".info",&
@@ -281,6 +297,12 @@ CONTAINS
          IF (rho_unit_nr > 0) WRITE(rho_unit_nr) time_index
          CALL cp_print_key_finished_output(rho_unit_nr, logger, restart_section)
       END DO
+
+      IF (.NOT. PRESENT(workspace_opt)) THEN
+         CALL cp_fm_release(workspace(1)%matrix)
+         CALL cp_fm_release(workspace(2)%matrix)
+         DEALLOCATE(workspace)
+      END IF
    END SUBROUTINE output_restart
 ! **************************************************************************************************
 !> \brief Reads the density matrix from restart files and updates the starting time

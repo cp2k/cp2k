@@ -26,11 +26,13 @@ MODULE rt_gwbse_types
                                               cp_cfm_create,&
                                               cp_fm_to_cfm,&
                                               cp_cfm_to_fm,&
+                                              cp_cfm_to_cfm,&
                                               cp_cfm_release
    USE cp_fm_basic_linalg,              ONLY: cp_fm_invert,&
                                               cp_fm_transpose,&
                                               cp_fm_column_scale,&
                                               cp_fm_scale_and_add
+   USE cp_cfm_basic_linalg,             ONLY: cp_cfm_column_scale
    USE cp_dbcsr_api,                    ONLY: dbcsr_type,&
                                               dbcsr_p_type,&
                                               dbcsr_create,&
@@ -474,7 +476,7 @@ CONTAINS
             CALL cp_fm_to_cfm(msourcer=bs_env%fm_mo_coeff_Gamma(i), mtarget=gwbse_env%ham_workspace(1)%matrix)
             ! TODO : Checked that Gamma point is the zero k-point
             ! C * Lambda
-            CALL cp_cfm_column_scale(gwbse_env%ham_workspace(1)%matrix, bs_env%eigenval_G0W0(:,1,i))
+            CALL cp_cfm_column_scale(gwbse_env%ham_workspace(1)%matrix, CMPLX(bs_env%eigenval_G0W0(:,1,i), 0.0, kind=dp))
             ! C * Lambda * C^T
             CALL multiply_cfm_fm("N", "T", gwbse_env%n_ao, gwbse_env%n_ao, gwbse_env%n_ao,&
                                1.0_dp, gwbse_env%ham_workspace(1)%matrix, bs_env%fm_mo_coeff_Gamma(i),&

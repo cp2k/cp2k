@@ -40,10 +40,12 @@ MODULE rt_gwbse
                                               cp_fm_read_unformatted,&
                                               cp_fm_write_formatted
    USE cp_cfm_types,                    ONLY: cp_cfm_type,&
+                                              cp_cfm_p_type,&
                                               cp_fm_to_cfm,&
                                               cp_cfm_to_cfm,&
                                               cp_cfm_to_fm,&
                                               cp_cfm_create,&
+                                              cp_cfm_get_info,&
                                               cp_cfm_release
    USE kinds,                           ONLY: dp,&
                                               default_path_length
@@ -122,8 +124,10 @@ MODULE rt_gwbse
                                               cp_fm_column_scale,&
                                               cp_fm_scale_and_add
    USE cp_cfm_basic_linalg,             ONLY: cp_cfm_scale_and_add,&
+                                              cp_cfm_scale,&
                                               cp_cfm_transpose,&
                                               cp_cfm_norm,&
+                                              cp_cfm_trace,&
                                               cp_cfm_column_scale
    USE cp_fm_diag,                      ONLY: cp_fm_geeig
    USE cp_cfm_diag,                     ONLY: cp_cfm_geeig
@@ -155,7 +159,9 @@ MODULE rt_gwbse
                                               use_rt_restart
    USE rt_gwbse_types,                  ONLY: gwbse_env_type,&
                                               create_gwbse_env,&
-                                              release_gwbse_env
+                                              release_gwbse_env,&
+                                              multiply_cfm_fm,&
+                                              multiply_fm_cfm
    USE rt_gwbse_io,                     ONLY: output_moments,&
                                               output_field,&
                                               output_mos_contravariant,&
@@ -196,11 +202,10 @@ CONTAINS
       TYPE(rt_prop_type), POINTER                        :: rtp
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(section_vals_type), POINTER                   :: input, rtp_section, dft_section, restart_section,&
+      TYPE(section_vals_type), POINTER                   :: input, rtp_section, restart_section,&
                                                             output_section
       ! TODO : Maybe complex?
-      INTEGER                                            :: i,j,re,im, k, handle, custom_exp_method,&
-                                                            rho_unit_nr
+      INTEGER                                            :: i,j,k, handle
       LOGICAL                                            :: converged, run_restart
       REAL(kind=dp)                                      :: metric, enum_re, enum_im,&
                                                             idempotence_dev, a_metric_1, a_metric_2,&
@@ -209,14 +214,6 @@ CONTAINS
       REAL(kind=dp), DIMENSION(:), POINTER               :: gon_eigvals
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(rtp_control_type), POINTER                    :: rtp_control
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s, matrix_ks
-      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
-      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
-      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
-      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
-      TYPE(mp_para_env_type), POINTER                    :: para_env
-      TYPE(cp_fm_type)                                   :: buffer_matrix, buffer_matrix_2
-      CHARACTER(len=default_path_length)                 :: save_name_re, save_name_im, save_name_info
 
       CALL timeset(routineN, handle)
       ! Run the initial SCF calculation / read restart information
@@ -225,7 +222,7 @@ CONTAINS
       ! ********************** ALLOCATIONS **********************
       CALL create_gwbse_env(gwbse_env, qs_env, force_env)
       ! Restart input
-      CALL get_qs_env(qs_env, bs_env=bs_env, rtp=rtp, cell=cell, matrix_s=matrix_s, input=input, dft_control=dft_control)
+      CALL get_qs_env(qs_env, bs_env=bs_env, rtp=rtp, cell=cell, input=input, dft_control=dft_control)
       rtp_control => dft_control%rtp_control
       restart_section => section_vals_get_subs_vals(input, "DFT%REAL_TIME_PROPAGATION%PRINT%RESTART")
       IF (dft_control%rtp_control%initial_wfn == use_rt_restart ) THEN
@@ -258,14 +255,14 @@ CONTAINS
             CALL get_sigma(gwbse_env, qs_env, gwbse_env%sigma_COH(j), -0.5_dp, greens_fm_opt=gwbse_env%S_inv_fm)
             ! TODO : Enable subtraction of COH? So far, COH does not enter, as per the reference paper
             ! Uses rho_orig - same as rho for initial run but different for continued run
-            CALL get_sigma(gwbse_env, qs_env, gwbse_env%sigma_SEX(j), -1.0_dp, greens_fm_opt=gwbse_env%rho_orig(j))
+            CALL get_sigma(gwbse_env, qs_env, gwbse_env%sigma_SEX(j), -1.0_dp, greens_cfm_opt=gwbse_env%rho_orig(j))
             ! TODO : Allow for subtraction of COH
             CALL cp_fm_scale_and_add(0.0_dp, gwbse_env%sigma_COH(j)%matrix, -1.0_dp, gwbse_env%sigma_SEX(j)%matrix)
          END DO
       ELSE
          ! KS Hamiltonian - use time-dependent Fock exchange
          DO j=1,gwbse_env%n_spin
-            CALL get_sigma(gwbse_env, qs_env, gwbse_env%sigma_SEX(j), -1.0_dp, greens_fm_opt=gwbse_env%rho_orig(j))
+            CALL get_sigma(gwbse_env, qs_env, gwbse_env%sigma_SEX(j), -1.0_dp, greens_cfm_opt=gwbse_env%rho_orig(j))
             ! TODO : Allow for subtraction of COH
             CALL cp_fm_scale_and_add(0.0_dp, gwbse_env%sigma_COH(j)%matrix, -1.0_dp, gwbse_env%sigma_SEX(j)%matrix)
          END DO
@@ -276,7 +273,7 @@ CONTAINS
       output_section => section_vals_get_subs_vals(rtp_section, "PRINT%FIELD")
       gwbse_env%sim_time = REAL(gwbse_env%sim_start, dp)*gwbse_env%sim_dt
       ! Output 0 time moments
-      IF (.NOT. run_restart) CALL output_moments(gwbse_env, gwbse_env%rho, bs_env%fm_mo_coeff_Gamma, output_section)
+      IF (.NOT. run_restart) CALL output_moments(gwbse_env, gwbse_env%rho, output_section)
 
       ! Do not apply the delta kick if we are doing a restart calculation
       IF (rtp_control%apply_delta_pulse .AND. (.NOT. run_restart)) THEN
@@ -307,7 +304,7 @@ CONTAINS
                                   intensity, gwbse_env%S_inv_fm%matrix, gwbse_env%real_workspace(1)%matrix,&
                                   0.0_dp, gwbse_env%real_workspace(2)%matrix)
                ! Sets real part to zero
-               CALL cp_fm_to_cfm(msourei=gwbse_env%real_workspace(2)%matrix, gwbse_env%ham_effective(j)%matrix)
+               CALL cp_fm_to_cfm(msourcei=gwbse_env%real_workspace(2)%matrix, mtarget=gwbse_env%ham_effective(j)%matrix)
             ELSE IF (gwbse_env%mat_exp_method == do_exact) THEN
                NULLIFY(gon_eigvals)
                ALLOCATE(gon_eigvals(gwbse_env%n_ao))
@@ -330,7 +327,7 @@ CONTAINS
                ! C * Lambda * C^T * S
                CALL parallel_gemm("N", "N", gwbse_env%n_ao, gwbse_env%n_ao, gwbse_env%n_ao,&
                                   1.0_dp, gwbse_env%real_workspace(4)%matrix, gwbse_env%S_fm%matrix,&
-                                  0.0_dp, gwbse_env%ham_effective(1)%matrix)
+                                  0.0_dp, gwbse_env%real_workspace(1)%matrix)
                ! Continue for the imaginary part
                gon_eigvals(:) = SIN(intensity * gwbse_env%real_eigvals(:))
                IF (gwbse_env%unit_nr > 0) WRITE(gwbse_env%unit_nr, *) "Sin eigvals", gon_eigvals
@@ -347,7 +344,7 @@ CONTAINS
                                   0.0_dp, gwbse_env%real_workspace(2)%matrix)
                ! Copy everything to the complex hamiltonian
                CALL cp_fm_to_cfm(gwbse_env%real_workspace(1)%matrix, gwbse_env%real_workspace(2)%matrix,&
-                                 gwbse_env%ham_effective(j))
+                                 gwbse_env%ham_effective(j)%matrix)
                DEALLOCATE(gon_eigvals)
             END IF
          END DO
@@ -363,9 +360,8 @@ CONTAINS
          metric = rho_metric(gwbse_env%rho_new, gwbse_env%rho, gwbse_env%n_spin)
          IF (gwbse_env%unit_nr > 0) WRITE(gwbse_env%unit_nr, *) "Metric difference after delta kick", metric
          ! Copy the new density to the old density
-         @:SPIN_DO(j, re, im, gwbse_env%n_spin)
-            CALL cp_cfm_to_cfm(gwbse_env%rho_new(re)%matrix, gwbse_env%rho(re)%matrix)
-            CALL cp_cfm_to_cfm(gwbse_env%rho_new(im)%matrix, gwbse_env%rho(im)%matrix)
+         DO j=1,gwbse_env%n_spin
+            CALL cp_cfm_to_cfm(gwbse_env%rho_new(j)%matrix, gwbse_env%rho(j)%matrix)
          END DO
       END IF
 
@@ -431,8 +427,8 @@ CONTAINS
          END DO
          CALL get_electron_number(gwbse_env, gwbse_env%rho_new, enum_re, enum_im)
          CALL get_idempotence_deviation(gwbse_env, gwbse_env%rho_new, idempotence_dev)
-         a_metric_1 = antiherm_metric(gwbse_env%sigma_SEX(re),gwbse_env%sigma_SEX(im))
-         a_metric_2 = antiherm_metric(gwbse_env%hartree_curr(re),gwbse_env%hartree_curr(im))
+         a_metric_1 = antiherm_metric(gwbse_env%sigma_SEX(j))
+         a_metric_2 = antiherm_metric(gwbse_env%hartree_curr(j))
          ! TODO : Move to io
          IF (gwbse_env%unit_nr > 0) WRITE(gwbse_env%unit_nr, *) "Sim step : ", gwbse_env%sim_step, "Convergence : ", metric,&
                                                                 "Threshold : ", gwbse_env%etrs_threshold,&
@@ -448,7 +444,7 @@ CONTAINS
          output_section => section_vals_get_subs_vals(rtp_section, "PRINT%DENSITY_MATRIX")
          CALL output_mos_contravariant(gwbse_env, gwbse_env%rho, bs_env%fm_mo_coeff_Gamma, output_section)
          output_section => section_vals_get_subs_vals(rtp_section, "PRINT%MOMENTS")
-         CALL output_moments(gwbse_env, gwbse_env%rho, bs_env%fm_mo_coeff_Gamma, output_section)
+         CALL output_moments(gwbse_env, gwbse_env%rho, output_section)
          ! Output restart files
          ! TODO : k-point dependency
          ! Output so that the restart starts at the following time index
@@ -471,16 +467,16 @@ CONTAINS
 !> \param nspin Number of spin indices
 ! **************************************************************************************************
 ! TODO : Provide workspace by outside body
-   FUNCTION rho_metric(rho_new, rho_old, nspin, workspace) RESULT(metric)
+   FUNCTION rho_metric(rho_new, rho_old, nspin, workspace_opt) RESULT(metric)
       TYPE(cp_cfm_p_type), DIMENSION(:), INTENT(IN)      :: rho_new,&
                                                             rho_old
       INTEGER, INTENT(IN)                                :: nspin
       TYPE(cp_cfm_type), POINTER, OPTIONAL               :: workspace_opt
       CHARACTER(len=*), PARAMETER                        :: routineN = "rho_metric"
-      TYPE(cp_cfm_type), OPTIONAL                        :: workspace
+      TYPE(cp_cfm_type)                                  :: workspace
       REAL(kind=dp)                                      :: metric
       REAL(kind=dp), DIMENSION(:), ALLOCATABLE           :: partial_metric
-      INTEGER                                            :: j, re, im
+      INTEGER                                            :: j
       COMPLEX(kind=dp)                                   :: scale_factor
       
       ALLOCATE(partial_metric(nspin))
@@ -493,9 +489,9 @@ CONTAINS
       END IF
       scale_factor = 1.0
       DO j=1,nspin
-         CALL cp_cfm_to_cfm(rho_new(j), workspace)
+         CALL cp_cfm_to_cfm(rho_new(j)%matrix, workspace)
          ! Get the difference in the resulting matrix
-         CALL cp_cfm_scale_and_add(scale_factor, workspace, -scale_factor, rho_old(j))
+         CALL cp_cfm_scale_and_add(scale_factor, workspace, -scale_factor, rho_old(j)%matrix)
          ! Now, get the relevant number
          partial_metric(j) = cp_cfm_norm(workspace, 'M')
       END DO
@@ -516,8 +512,8 @@ CONTAINS
 !> \param imag_fm Imaginary part of the full matrix
 ! **************************************************************************************************
    FUNCTION antiherm_metric(real_fm, imag_fm) RESULT (metric)
-      TYPE(cp_fm_p_type), INTENT(IN)                    :: real_fm,&
-                                                           imag_fm
+      TYPE(cp_fm_p_type), INTENT(IN)                    :: real_fm
+      TYPE(cp_fm_p_type), INTENT(IN), OPTIONAL          :: imag_fm
       REAL(kind=dp)                                     :: metric
       TYPE(cp_cfm_type)                                 :: complex_fm,&
                                                            conjugate_fm
@@ -526,7 +522,11 @@ CONTAINS
       CALL cp_cfm_create(complex_fm, real_fm%matrix%matrix_struct)
       CALL cp_cfm_create(conjugate_fm, real_fm%matrix%matrix_struct)
       ! Get the complex and complex conjugate matrix
-      CALL cp_fm_to_cfm(real_fm%matrix, imag_fm%matrix, complex_fm)
+      IF (PRESENT(imag_fm)) THEN
+         CALL cp_fm_to_cfm(real_fm%matrix, imag_fm%matrix, complex_fm)
+      ELSE
+         CALL cp_fm_to_cfm(msourcer=real_fm%matrix, mtarget=complex_fm)
+      END IF
       CALL cp_cfm_transpose(complex_fm, "C", conjugate_fm)
       ! Subtract these, and get the metric
       complex_one = 1.0
@@ -547,7 +547,7 @@ CONTAINS
    SUBROUTINE ham_to_exp(gwbse_env)
       TYPE(gwbse_env_type)                               :: gwbse_env
       CHARACTER(len=*), PARAMETER                        :: routineN = "ham_to_exp"
-      INTEGER                                            :: j, re, im, handle
+      INTEGER                                            :: j, handle
       CALL timeset(routineN, handle)
       DO, j=1,gwbse_env%n_spin
          IF (gwbse_env%mat_exp_method == do_taylor .OR. gwbse_env%mat_exp_method == do_bch) THEN
@@ -563,7 +563,7 @@ CONTAINS
 
             ! The evolution of density matrix is derived from the right multiplying term
             ! Imaginary part of the exponent = -real part of the matrix
-            CALL cp_cfm_scale(CMPLX(0.0, -gwbse_env%sim_dt/2), gwbse_env%rho_workspace(1)%matrix)
+            CALL cp_cfm_scale(CMPLX(0.0, -gwbse_env%sim_dt/2, kind=dp), gwbse_env%rho_workspace(1)%matrix)
             ! TODO : Understand which input options set the orders
             IF (gwbse_env%mat_exp_method == do_taylor) THEN
                CPABORT("Taylor exponentiaton no longer supported")
@@ -610,7 +610,6 @@ CONTAINS
       TYPE(cp_cfm_p_type), DIMENSION(:)                  :: rho
       CHARACTER(len=*), PARAMETER                        :: routineN = "update_effective_ham"
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
-      REAL(kind=dp)                                      :: a_metric
       INTEGER                                            :: k, j, nspin, handle
 
       CALL timeset(routineN, handle)
@@ -637,22 +636,20 @@ CONTAINS
       DO j=1,nspin
          DO k=1,3
             ! Minus sign due to charge of electrons
-            CALL cp_fm_to_cfm(msourcer=gwbse_env%moments_field(k)%matrix, gwbse_env%ham_workspace(1)%matrix)
+            CALL cp_fm_to_cfm(msourcer=gwbse_env%moments_field(k)%matrix, mtarget=gwbse_env%ham_workspace(1)%matrix)
             CALL cp_cfm_scale_and_add(CMPLX(1.0, 0.0, kind=dp), gwbse_env%ham_effective(j)%matrix,&
                                       CMPLX(gwbse_env%field(k), 0.0, kind=dp), gwbse_env%ham_workspace(1)%matrix)
-            CALL cp_fm_scale_and_add(1.0_dp, gwbse_env%ham_effective(re)%matrix,&
-                                    gwbse_env%field(k), gwbse_env%moments_field(k)%matrix)
          END DO
          ! Add the COH part
          ! TODO : Separate the updated and reference part of the Hamiltonian more clearly
-         CALL cp_fm_to_cfm(gwbse_env%sigma_COH(j)%matrix, gwbse_env%ham_workspace(1)%matrix)
+         CALL cp_fm_to_cfm(msourcer=gwbse_env%sigma_COH(j)%matrix, mtarget=gwbse_env%ham_workspace(1)%matrix)
          CALL cp_cfm_scale_and_add(CMPLX(1.0, 0.0, kind=dp), gwbse_env%ham_effective(j)%matrix,&
                                    CMPLX(1.0, 0.0, kind=dp), gwbse_env%ham_workspace(1)%matrix)
          ! Calculate the SEX part - based on provided rho
          ! iGW = - rho W = - Re(rho) W - i Im(rho) W
          CALL get_sigma(gwbse_env, qs_env, gwbse_env%sigma_SEX(j),&
                         -1.0_dp, greens_cfm_opt=rho(j))
-         CALL cp_fm_to_cfm(gwbse_env%sigma_SEX(j)%matrix, gwbse_env%ham_workspace(j)%matrix)
+         CALL cp_fm_to_cfm(msourcer=gwbse_env%sigma_SEX(j)%matrix, mtarget=gwbse_env%ham_workspace(j)%matrix)
          CALL cp_cfm_scale_and_add(CMPLX(1.0, 0.0, kind=dp), gwbse_env%ham_effective(j)%matrix,&
                                    CMPLX(1.0, 0.0, kind=dp), gwbse_env%ham_workspace(j)%matrix)
          ! Calculate update Hartree potential
@@ -661,23 +658,23 @@ CONTAINS
          IF ( gwbse_env%hartree_method == rtp_gwbse_hartree_dbt ) THEN
             CALL get_hartree_local(qs_env, gwbse_env, rho(j)%matrix,&
                              gwbse_env%hartree_curr(j)%matrix)
-            CALL cp_fm_to_cfm(gwbse_env%hartree_curr(j)%matrix, gwbse_env%ham_workspace(1)%matrix)
-            CALL cp_cfm_scale_and_add(CMPLX(1.0, 0.0, kind=dp), gwbse_env%ham_effective(j)%matrix,
+            CALL cp_fm_to_cfm(msourcer=gwbse_env%hartree_curr(j)%matrix, mtarget=gwbse_env%ham_workspace(1)%matrix)
+            CALL cp_cfm_scale_and_add(CMPLX(1.0, 0.0, kind=dp), gwbse_env%ham_effective(j)%matrix,&
                                       CMPLX(1.0, 0.0, kind=dp), gwbse_env%ham_workspace(1)%matrix)
          ELSEIF (gwbse_env%hartree_method == rtp_gwbse_hartree_pw ) THEN
             ! TODO : Remove PW Hartree
             CPABORT("PW Hartree no longer supported")
          END IF
          ! Subtract original Hartree, which is purely real
-         CALL cp_fm_to_cfm(gwbse_env%hartree_orig(j)%matrix, gwbse_env%ham_workspace(1)%matrix)
+         CALL cp_fm_to_cfm(msourcer=gwbse_env%hartree_orig(j)%matrix, mtarget=gwbse_env%ham_workspace(1)%matrix)
          CALL cp_cfm_scale_and_add(CMPLX(1.0, 0.0, kind=dp), gwbse_env%ham_effective(j)%matrix,&
-                                   CMPLX(-1.0, 0.0, kind=dp), gwbse_env%hartree_orig(j)%matrix)
+                                   CMPLX(-1.0, 0.0, kind=dp), gwbse_env%ham_workspace(j)%matrix)
          ! TODO - enforce hermiticity of the effective Hamiltonian - apply to components instead?
          ! Important components without forced Hermiticity - moments matrix, sigma matrices, Hartree matrix
          ! single particle Ham
          CALL cp_cfm_transpose(gwbse_env%ham_effective(j)%matrix, 'C', gwbse_env%ham_workspace(1)%matrix)
-         CALL cp_cfm_scale_and_add(0.5_dp, gwbse_env%ham_effective(j)%matrix,&
-                                  0.5_dp, gwbse_env%rho_workspace(1)%matrix)
+         CALL cp_cfm_scale_and_add(CMPLX(0.5, 0.0, kind=dp), gwbse_env%ham_effective(j)%matrix,&
+                                  CMPLX(0.5, 0.0, kind=dp), gwbse_env%rho_workspace(1)%matrix)
       END DO
       CALL timestop(handle)
    END SUBROUTINE
@@ -706,7 +703,7 @@ CONTAINS
       INTEGER, OPTIONAL                                 :: max_iter_opt
       CHARACTER(len=*), PARAMETER                       :: routineN="bch_propagate"
       REAL(kind=dp)                                     :: threshold, prefactor, metric
-      INTEGER                                           :: max_iter, i, re, im, n_spin, n_ao, k,&
+      INTEGER                                           :: max_iter, i, n_spin, n_ao, k,&
                                                            w_stride, handle
       LOGICAL                                           :: converged
 
@@ -728,37 +725,37 @@ CONTAINS
 
       n_spin = SIZE(target_matrix)
       n_ao = 0
-      CALL cp_fm_get_info(target_matrix(1)%matrix, nrow_global=n_ao)
+      CALL cp_cfm_get_info(target_matrix(1)%matrix, nrow_global=n_ao)
       w_stride = n_spin
 
       ! Initiate
-      DO i=1,nspin
-         CALL cp_cfm_to_cfm(target_matrix(j)%matrix, result_matrix(j)%matrix)
-         CALL cp_cfm_to_cfm(target_matrix(j)%matrix, workspace(j)%matrix)
+      DO i=1,n_spin
+         CALL cp_cfm_to_cfm(target_matrix(i)%matrix, result_matrix(i)%matrix)
+         CALL cp_cfm_to_cfm(target_matrix(i)%matrix, workspace(i)%matrix)
       END DO
 
       ! Start the BCH iterations
       ! TODO : Spin mixing terms?
       DO k=1,max_iter
          prefactor = 1.0_dp/REAL(k, kind=dp)
-         DO i=1,nspin
+         DO i=1,n_spin
             CALL parallel_gemm("N", "N", n_ao, n_ao, n_ao,&
-                               CMPLX(prefactor, 0.0, kind=dp), propagator_matrix(j)%matrix, workspace(j)%matrix,&
-                               CMPLX(0.0, 0.0, kind=dp), workspace(j+w_stride)%matrix)
+                               CMPLX(prefactor, 0.0, kind=dp), propagator_matrix(i)%matrix, workspace(i)%matrix,&
+                               CMPLX(0.0, 0.0, kind=dp), workspace(i+w_stride)%matrix)
             CALL parallel_gemm("N", "C", n_ao, n_ao, n_ao,&
-                               CMPLX(prefactor, 0.0, kind=dp), workspace(j)%matrix, propagator_matrix(j)%matrix,&
-                               CMPLX(1.0, 0.0, kind=dp), workspace(j+w_stride)%matrix)
+                               CMPLX(prefactor, 0.0, kind=dp), workspace(i)%matrix, propagator_matrix(i)%matrix,&
+                               CMPLX(1.0, 0.0, kind=dp), workspace(i+w_stride)%matrix)
             ! Add to the result
-            CALL cp_cfm_scale_and_add(CMPLX(1.0, 0.0, kind=dp), result_matrix(j)%matrix,&
-                                      CMPLX(1.0, 0.0, kind=dp), workspace(j+w_stride)%matrix)
+            CALL cp_cfm_scale_and_add(CMPLX(1.0, 0.0, kind=dp), result_matrix(i)%matrix,&
+                                      CMPLX(1.0, 0.0, kind=dp), workspace(i+w_stride)%matrix)
          END DO
          metric = rho_metric(workspace(w_stride+1:), workspace(1:w_stride), n_spin)
          IF (metric <= threshold) THEN
             converged = .TRUE.
             EXIT
          ELSE
-            DO j=1,nspin
-               CALL cp_cfm_to_cfm(workspace(j+w_stride)%matrix, workspace(j)%matrix)
+            DO i=1,n_spin
+               CALL cp_cfm_to_cfm(workspace(i+w_stride)%matrix, workspace(i)%matrix)
             END DO
          END IF
       END DO
@@ -783,30 +780,19 @@ CONTAINS
                                                             rho_old,&
                                                             rho_new
       CHARACTER(len=*), PARAMETER                        :: routineN = "propagate_density"
-      INTEGER                                            :: j, k, handle
-      REAL(kind=dp)                                      :: convergence,&
-                                                            prefactor
-      LOGICAL                                            :: converged
+      INTEGER                                            :: j, handle
 
       CALL timeset(routineN, handle)
-      ! TODO : Consult/think about using complex routines and types
-      ! (ham_exp(re)^T - i * ham_exp(im)^T) * (rho_full(re) + i * rho_full(im)) * (ham_exp(re) + i * ham_exp(im)) = 
-      ! + ham_exp(re)^T * (rho_full(re) * ham_exp(re) - rho_full(im) * ham_exp(im)) | Term 1
-      ! + ham_exp(im)^T * (rho_full(re) * ham_exp(im) + rho_full(im) * ham_exp(re)) | Term 2
-      ! - i * ham_exp(im)^T * (rho_full(re) * ham_exp(re) - rho_full(im) * ham_exp(im)) | Term 1
-      ! + i * ham_exp(re)^T * (rho_full(re) * ham_exp(im) + rho_full(im) * ham_exp(re)) | Term 2
-      ! workspace 2 - real part, workspace 3 - imag part
-      ! Real part
-      ! Term 1 - right multiplication first
       IF (gwbse_env%mat_exp_method == do_taylor .OR. gwbse_env%mat_exp_method == do_exact) THEN
+         ! For these methods, exponential is explicitly constructed
          DO j=1,gwbse_env%n_spin
             ! rho * (exp^dagger)
             CALL parallel_gemm("N", "C", gwbse_env%n_ao, gwbse_env%n_ao, gwbse_env%n_ao,&
-                               CMPLX(1.0, 0.0, kind=dp), rho_old(j)%matrix, exponential(j)%matrix,
+                               CMPLX(1.0, 0.0, kind=dp), rho_old(j)%matrix, exponential(j)%matrix,&
                                CMPLX(0.0, 0.0, kind=dp), gwbse_env%rho_workspace(1)%matrix)
             ! exp * rho * (exp^dagger)
             CALL parallel_gemm("N", "N", gwbse_env%n_ao, gwbse_env%n_ao, gwbse_env%n_ao,&
-                               CMPLX(1.0, 0.0, kind=dp), exponential(j)matrix, gwbse_env%rho_workspace(1)%matrix,
+                               CMPLX(1.0, 0.0, kind=dp), exponential(j)%matrix, gwbse_env%rho_workspace(1)%matrix,&
                                CMPLX(0.0, 0.0, kind=dp), rho_new(j)%matrix)
          END DO
       ELSE IF (gwbse_env%mat_exp_method == do_bch) THEN
@@ -834,7 +820,7 @@ CONTAINS
       REAL(kind=dp), INTENT(OUT)                         :: electron_n_re, electron_n_im
       CHARACTER(len=*), PARAMETER                        :: routineN="get_electron_number"
       COMPLEX(kind=dp)                                   :: electron_n_buffer
-      INTEGER                                            :: i, re, im
+      INTEGER                                            :: j
 
       electron_n_re = 0.0_dp
       electron_n_im = 0.0_dp
@@ -861,8 +847,9 @@ CONTAINS
       TYPE(cp_cfm_p_type),DIMENSION(:)                  :: rho
       REAL(kind=dp), INTENT(OUT)                        :: deviation_metric
       CHARACTER(len=*), PARAMETER                       :: routineN="get_idempotence_deviation"
-      COMPLEX(kind=dp)                                  :: buffer_1, buffer_2, buffer_3, buffer_dev
-      INTEGER                                           :: re,im,i
+      COMPLEX(kind=dp)                                  :: buffer_1, buffer_2
+      REAL(kind=dp)                                     :: buffer_dev
+      INTEGER                                           :: j
 
       deviation_metric = 0.0_dp
       buffer_dev = 0.0_dp
@@ -870,8 +857,8 @@ CONTAINS
       ! TODO : Handle better operations where real and complex matrix trace are present
       CALL cp_fm_to_cfm(msourcer=gwbse_env%S_fm%matrix, mtarget=gwbse_env%rho_workspace(1)%matrix)
       DO j=1,gwbse_env%n_spin
-         CALL cp_cfm_trace(gwbse_env%rho_workspace(1)%matrix, rho(re)%matrix, buffer_1)
-         buffer_dev = buffer_dev + ABS(buffer_1) * ABS(buffeer_1)
+         CALL cp_cfm_trace(gwbse_env%rho_workspace(1)%matrix, rho(j)%matrix, buffer_1)
+         buffer_dev = buffer_dev + REAL(ABS(buffer_1) * ABS(buffer_1))
       END DO
       ! Now, determine Tr(S * rho_re * S * rho_re) - Tr(S * rho_im * S * rho_im) + 2i Tr(S * rho_re * S * rho_im)
       DO j=1,gwbse_env%n_spin
@@ -881,11 +868,11 @@ CONTAINS
                             0.0_dp, gwbse_env%rho_workspace(2)%matrix)
          ! rho * S * rho
          CALL parallel_gemm("N", "N", gwbse_env%n_ao, gwbse_env%n_ao, gwbse_env%n_ao,&
-                            1.0_dp, rho(j)%matrix, gwbse_env%rho_workspace(2)%matrix,&
-                            0.0_dp, gwbse_env%rho_workspace(3)%matrix)
+                            CMPLX(1.0, 0.0, kind=dp), rho(j)%matrix, gwbse_env%rho_workspace(2)%matrix,&
+                            CMPLX(1.0, 0.0, kind=dp), gwbse_env%rho_workspace(3)%matrix)
          ! Tr (S * rho * S * rho)
          CALL cp_cfm_trace(gwbse_env%rho_workspace(1)%matrix, gwbse_env%rho_workspace(3)%matrix, buffer_2)
-         deviation_metric = deviation_metric + ABS(buffer_2) * ABS(buffer_2)
+         deviation_metric = deviation_metric + REAL(ABS(buffer_2) * ABS(buffer_2))
       END DO
       deviation_metric = SQRT(deviation_metric) - SQRT(buffer_dev)
    END SUBROUTINE get_idempotence_deviation
@@ -926,17 +913,17 @@ CONTAINS
       END IF
 
       ! TODO : Do not release and allocate greens_dbcsr every iteration - measure performance gain
+      NULLIFY(greens_dbcsr)
       IF (PRESENT(greens_dbcsr_opt)) THEN
          greens_dbcsr => greens_dbcsr_opt
       ELSE IF (PRESENT(greens_fm_opt) .OR. PRESENT(greens_cfm_opt)) THEN
-         NULLIFY(greens_dbcsr)
          ALLOCATE(greens_dbcsr)
          CALL dbcsr_create(greens_dbcsr, name="greens", template=bs_env%mat_ao_ao%matrix)
-         IF PRESENT(greens_fm_opt) THEN
+         IF (PRESENT(greens_fm_opt)) THEN
             CALL copy_fm_to_dbcsr(greens_fm_opt%matrix, greens_dbcsr)
          ELSE
             ! Only the real part contributes
-            CALL cp_cfm_to_fm(msource=greens_cfm_opt, mtargetr=gwbse_env%real_workspace(1)%matrix)
+            CALL cp_cfm_to_fm(msource=greens_cfm_opt%matrix, mtargetr=gwbse_env%real_workspace(1)%matrix)
             CALL copy_fm_to_dbcsr(gwbse_env%real_workspace(1)%matrix, greens_dbcsr)
          END IF
       ELSE
@@ -1091,285 +1078,6 @@ CONTAINS
       CALL cp_fm_release(metric_inv_fm)
    END SUBROUTINE
 ! **************************************************************************************************
-!> \brief Copies the data from a matrix to a 3d tensor, to the first index in the 3rd dimension
-!> \param matrix DBCSR Matrix from which the data are copied to the tensor
-!> \param tensor Tensor representation of the Hartree matrix in the auxiliary basis
-!> \author Stepan Marek
-!> \date 01.2024
-! **************************************************************************************************
-   SUBROUTINE copy_matrix_to_3d_tensor(matrix, tensor)
-      TYPE(dbt_type), POINTER, INTENT(OUT)               :: tensor
-      TYPE(dbcsr_type), POINTER, INTENT(IN)              :: matrix
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'copy_matrix_to_3d_tensor'
-      TYPE(dbcsr_type), ALLOCATABLE, TARGET              :: matrix_desym
-      TYPE(dbcsr_type), POINTER                          :: matrix_desym_p
-      TYPE(dbcsr_iterator_type)                          :: iterator_matrix
-      LOGICAL                                            :: found
-      INTEGER, DIMENSION(2)                              :: block_shape
-      ! Pair of indices for current block
-      INTEGER, DIMENSION(3)                              :: index_tensor
-      REAL(kind=dp), DIMENSION(:,:), POINTER             :: block_matrix
-      REAL(kind=dp), DIMENSION(:,:,:), ALLOCATABLE       :: block_tensor
-      INTEGER                                            :: j,number_of_blocks,backup
-      INTEGER, DIMENSION(:), ALLOCATABLE                 :: indices_block_matrix_1,&
-                                                            indices_block_matrix_2,&
-                                                            indices_block_matrix_custom,&
-                                                            my_ploc
-      INTEGER                                            :: thread_lower,&
-                                                            thread_upper,&
-                                                            thread_number,&
-                                                            per_thread,&
-                                                            per_this_thread,&
-                                                            extra_threads,&
-                                                            thread_id,&
-                                                            handle
-
-      CALL timeset(routineN, handle)
-      
-      ! Desymmetrize the matrix
-      IF (dbcsr_has_symmetry(matrix)) THEN
-         ALLOCATE(matrix_desym)
-         CALL dbcsr_desymmetrize(matrix, matrix_desym)
-         matrix_desym_p => matrix_desym
-      ELSE
-         matrix_desym_p => matrix
-      END IF
-      ! Get the number of blocks to initiate index vectors
-      number_of_blocks = dbcsr_get_num_blocks(matrix_desym_p)
-      ALLOCATE(indices_block_matrix_1(number_of_blocks))
-      ALLOCATE(indices_block_matrix_2(number_of_blocks))
-      ALLOCATE(indices_block_matrix_custom(number_of_blocks), source=1)
-      ALLOCATE(my_ploc(3), source=0)
-      ! TODO : Think about parallelisation
-      ! TODO : This returns the same value for every process - wrong pgrid creation?
-      CALL dbt_get_info(tensor, my_ploc)
-      CALL dbcsr_iterator_start(iterator_matrix, matrix_desym_p)
-      DO j=1,number_of_blocks
-         CALL dbcsr_iterator_next_block(iterator_matrix, indices_block_matrix_1(j), indices_block_matrix_2(j), block_matrix)
-      END DO
-      DEALLOCATE(my_ploc)
-      CALL dbcsr_iterator_stop(iterator_matrix)
-      ! Construct parallelisation bounds
-      ! Proceed as in dbt - determine distribution of blocks among threads - maybe distvec function? Or integer division
-      ! TODO : The reservations are a confusing mess of a spaghetti code - tread lightly
-      !        Sure, the statement below does nthreads-times more work than necessary, but it works - any attempts at
-      !        parallelisations have failed
-      backup = omp_get_max_threads()
-      IF (backup > number_of_blocks) THEN
-         CALL omp_set_num_threads(number_of_blocks)
-         per_thread = 1
-         extra_threads = 0
-      ELSE
-         ! At least one job per thread should be safe ...
-         per_thread = number_of_blocks / backup
-         extra_threads = MODULO(number_of_blocks, backup)
-      END IF
-      !$OMP PARALLEL DEFAULT(none) SHARED(tensor, indices_block_matrix_1, indices_block_matrix_2, indices_block_matrix_custom,& 
-      !$OMP number_of_blocks, per_thread, extra_threads) &
-      !$OMP PRIVATE(thread_lower, thread_upper, per_this_thread, thread_id, thread_number)
-         ! Get the omp variables
-         thread_number = omp_get_num_threads()
-         thread_id = omp_get_thread_num()
-         ! Default (higher) bound on reservations to be made by every thread
-         per_this_thread = per_thread
-         IF (thread_id < extra_threads) THEN
-            ! This thread is one of the lucky few who gets to do extra work
-            per_this_thread = per_this_thread + 1
-         END IF
-         ! Get the lower bound for this thread indices, accounting for difference in conventions for omp
-         thread_lower = MIN(extra_threads, thread_id) * (per_thread + 1) +&
-                        MAX(thread_id - extra_threads, 0) * per_thread + 1
-         thread_upper = MIN(thread_lower + per_this_thread - 1, number_of_blocks)
-         ! If the lower bound is within the range, some reservations will be made
-         IF (thread_lower .LE. number_of_blocks) THEN
-            ! Determine the upper bound by minimum
-            thread_upper = MIN(thread_lower + per_this_thread - 1, number_of_blocks)
-            ! All index fields should be identical 
-            CALL dbt_reserve_blocks(tensor,&
-                                    indices_block_matrix_1(thread_lower:thread_upper),&
-                                    indices_block_matrix_2(thread_lower:thread_upper),&
-                                    indices_block_matrix_custom(thread_lower:thread_upper))
-         END IF
-         ! PRINT *, "thread", thread_id, "done"
-      !$OMP END PARALLEL
-      ! TODO : Only run when necessary?
-      CALL omp_set_num_threads(backup)
-      ! PRINT *, "Blocks reserved"
-      DO j=1,number_of_blocks
-         CALL dbcsr_get_block_p(matrix_desym_p, indices_block_matrix_1(j), indices_block_matrix_2(j),&
-                             block_matrix,found, block_shape(1), block_shape(2))
-         ALLOCATE(block_tensor(block_shape(1),block_shape(2),1))
-         block_tensor(:,:,1) = block_matrix(:,:)
-         index_tensor = [indices_block_matrix_1(j), indices_block_matrix_2(j),1]
-         CALL dbt_put_block(tensor, index_tensor, SHAPE(block_tensor), block_tensor)
-         DEALLOCATE(block_tensor)
-      END DO
-      ! PRINT *, "Blocks copied"
-      DEALLOCATE(indices_block_matrix_1)
-      DEALLOCATE(indices_block_matrix_2)
-      DEALLOCATE(indices_block_matrix_custom)
-
-      IF (dbcsr_has_symmetry(matrix)) THEN
-         CALL dbcsr_release(matrix_desym)
-         DEALLOCATE(matrix_desym)
-      END IF
-
-      CALL timestop(handle)
-
-   END SUBROUTINE
-! **************************************************************************************************
-!> \brief Copies the data from a 3d tensor to a matrix, only taking into account fist slice
-!>        along the third dimension
-!> \param matrix DBCSR Matrix from which the data are copied to the tensor
-!> \param tensor Tensor representation of the Hartree matrix in the auxiliary basis
-!> \author Stepan Marek
-!> \date 01.2024
-! **************************************************************************************************
-   SUBROUTINE copy_3d_tensor_to_matrix(tensor, matrix)
-      TYPE(dbt_type), POINTER, INTENT(IN)                :: tensor
-      TYPE(dbcsr_type), POINTER, INTENT(OUT)             :: matrix
-      CHARACTER(len=*), PARAMETER                        :: routineN = "copy_3d_tensor_to_matrix"
-      TYPE(dbt_iterator_type)                            :: iterator_tensor
-      INTEGER, DIMENSION(3)                              :: indices_block_tensor,&
-                                                            sizes_block_tensor
-      REAL(kind=dp), DIMENSION(:,:,:), ALLOCATABLE       :: block_tensor
-      REAL(kind=dp), DIMENSION(:,:), ALLOCATABLE         :: block_matrix
-      LOGICAL                                            :: found
-      INTEGER                                            :: backup,&
-                                                            handle
-      
-      CALL timeset(routineN, handle)
-
-      ! Start the block iterator
-      ! Has to be inside an omp block
-      backup = omp_get_max_threads()
-      CALL omp_set_num_threads(1)
-      !$OMP PARALLEL SHARED(iterator_tensor, tensor, indices_block_tensor, sizes_block_tensor, matrix, &
-      !$OMP block_tensor, found, block_matrix)
-      CALL dbt_iterator_start(iterator_tensor, tensor)
-      DO WHILE (dbt_iterator_blocks_left(iterator_tensor))
-         ! Get the tensor indices - last should always be one
-         CALL dbt_iterator_next_block(iterator_tensor, indices_block_tensor, sizes_block_tensor)
-         CPASSERT(indices_block_tensor(3) == 1)
-         ! Reserve the blocks in the matrix
-         CALL dbcsr_reserve_blocks(matrix, [indices_block_tensor(1)], [indices_block_tensor(2)]) 
-         ! Initiate storage for the block
-         ALLOCATE(block_tensor(sizes_block_tensor(1), sizes_block_tensor(2), 1))
-         ! Get the block
-         CALL dbt_get_block(tensor, indices_block_tensor, sizes_block_tensor, block_tensor, found)
-         CPASSERT(found)
-         ! Now copy data to matrix
-         ALLOCATE(block_matrix(sizes_block_tensor(1), sizes_block_tensor(2)))
-         block_matrix(:,:) = block_tensor(:,:,1)
-         ! TODO : Handle symmetry and transpose
-         CALL dbcsr_put_block(matrix, indices_block_tensor(1), indices_block_tensor(2), block_matrix)
-         DEALLOCATE(block_tensor)
-         DEALLOCATE(block_matrix)
-      END DO
-      CALL dbt_iterator_stop(iterator_tensor)
-      !$OMP END PARALLEL
-      CALL omp_set_num_threads(backup)
-      
-      CALL timestop(handle)
-   END SUBROUTINE
-! **************************************************************************************************
-!> \brief Calculates the Hartree matrix in the atomic orbital basis, given a density matrix
-!> \note Uses precalculated Hartree matrix kernel in the auxiliary basis. Hartree term is one-electron.
-!>       Furthermore uses rho_dbcsr, t_two_plus_one and t_one_plus_one workspaces stored in gwbse_env
-!> \param qs_env Quickstep environment - entry point of calculation
-!> \param V_dbt Tensor representation of the Hartree matrix in the auxiliary basis
-!> \param rho Density matrix in ao basis
-!> \param V_ao Overwritten by the Hartree matrix in the atomic orbital basis
-!> \author Stepan Marek
-!> \date 01.2024
-! **************************************************************************************************
-   SUBROUTINE get_hartree(gwbse_env, qs_env, V_dbt, rho, V_ao)
-      TYPE(gwbse_env_type)                               :: gwbse_env
-      TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(dbt_type), POINTER, INTENT(INOUT)             :: V_dbt
-      TYPE(cp_fm_type), POINTER, INTENT(IN)              :: rho
-      TYPE(cp_fm_type), POINTER, INTENT(OUT)             :: V_ao
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'get_hartree'
-      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
-      INTEGER                                            :: handle
-
-      CALL timeset(routineN, handle)
-
-      CALL get_qs_env(qs_env, bs_env=bs_env)
-
-      ! build 3c integrals
-      CALL compute_3c_integrals(qs_env,&
-                         bs_env,&
-                         gwbse_env%t_3c_w)
-
-      ! Convert density to tensor
-      ! CALL copy_fm_to_dbcsr(gwbse_env%rho_workspace(2)%matrix, gwbse_env%rho_dbcsr)
-      CALL copy_fm_to_dbcsr(rho, gwbse_env%rho_dbcsr)
-      ! Maybe doable via creation
-      CALL copy_matrix_to_3d_tensor(gwbse_env%rho_dbcsr, gwbse_env%t_two_plus_one)
-      ! Contract T _ (Q 1) = sum _ Q (Q|mu'nu') D _ (mu' nu' 1)
-      ! TODO : Copy filter to gwbse options?
-      CALL dbt_contract(alpha=1.0_dp,&
-                   tensor_1=gwbse_env%t_3c_w,&
-                   tensor_2=gwbse_env%t_two_plus_one,&
-                   beta=0.0_dp,&
-                   tensor_3=gwbse_env%t_one_plus_one,&
-                   contract_1=[2,3],notcontract_1=[1],map_1=[1],&
-                   contract_2=[1,2],notcontract_2=[3],map_2=[2],&
-                   filter_eps=bs_env%eps_filter)
-      ! TODO : Alternative - a Pvector approach for debugging
-      ! CALL dbt_create(gwbse_env%t_one_plus_one, extra_vector, name="Pvector")
-      ! CALL dbt_contract(alpha=1.0_dp,&
-      !              tensor_1=V_dbt,&
-      !              tensor_2=gwbse_env%t_one_plus_one,&
-      !              beta=0.0_dp,&
-      !              tensor_3=extra_vector,&
-      !              contract_1=[2],notcontract_1=[1],map_1=[1],&
-      !              contract_2=[1],notcontract_2=[2],map_2=[2],&
-      !              filter_eps=bs_env%eps_filter)
-      ! TODO : Get the dbt block and check results
-      ! Contract Q _ (mu nu Q) = sum _ P (mu nu | P) V _ (PQ)
-      CALL dbt_contract(alpha=1.0_dp,&
-                   tensor_1=gwbse_env%t_3c_w,&
-                   tensor_2=V_dbt,&
-                   beta=0.0_dp,&
-                   tensor_3=gwbse_env%t_3c_work_RI__AO_AO,&
-                   contract_1=[1],notcontract_1=[2,3],map_1=[2,3],&
-                   contract_2=[1],notcontract_2=[2],map_2=[1],&
-                   filter_eps=bs_env%eps_filter)
-      ! Final contraction V ^ H _ (mu nu 1) = sum _ (Q) Q _ (mu nu Q) T _ (Q 1)
-      CALL dbt_clear(gwbse_env%t_two_plus_one)
-      CALL dbt_contract(alpha=1.0_dp,&
-                   tensor_1=gwbse_env%t_3c_work_RI__AO_AO,&
-                   tensor_2=gwbse_env%t_one_plus_one,&
-                   beta=0.0_dp,&
-                   tensor_3=gwbse_env%t_two_plus_one,&
-                   contract_1=[1], notcontract_1=[2,3], map_1=[1,2],&
-                   contract_2=[1], notcontract_2=[2], map_2=[3],&
-                   filter_eps=bs_env%eps_filter)
-      ! Copy result to output matrix
-      CALL dbcsr_clear(gwbse_env%rho_dbcsr)
-      CALL copy_3d_tensor_to_matrix(gwbse_env%t_two_plus_one, gwbse_env%rho_dbcsr)
-      CALL copy_dbcsr_to_fm(gwbse_env%rho_dbcsr, V_ao)
-      ! TODO : Alternative multiplication
-      ! CALL dbt_contract(alpha=1.0_dp,&
-      !              tensor_1=gwbse_env%t_3c_w,&
-      !              tensor_2=extra_vector,&
-      !              beta=0.0_dp,&
-      !              tensor_3=gwbse_env%t_two_plus_one,&
-      !              contract_1=[1], notcontract_1=[2,3], map_1=[1,2],&
-      !              contract_2=[1], notcontract_2=[2], map_2=[3],&
-      !              filter_eps=bs_env%eps_filter)
-      ! Free memory by clearing the tensors
-      CALL dbt_clear(gwbse_env%t_two_plus_one)
-      CALL dbt_clear(gwbse_env%t_one_plus_one)
-      CALL dbt_clear(gwbse_env%t_3c_w)
-      CALL dbt_clear(gwbse_env%t_3c_work_RI__AO_AO)
-      CALL dbcsr_clear(gwbse_env%rho_dbcsr)
-
-      CALL timestop(handle)
-   END SUBROUTINE
-! **************************************************************************************************
 !> \brief Calculates the Hartree matrix in the atomic orbital basis, given a density matrix, in local arrays
 !>        Calculates the values for single spin species present in given rho
 !> \param qs_env Entry point
@@ -1388,15 +1096,13 @@ CONTAINS
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_iterator_type)                          :: iterator_matrix
-      INTEGER                                            :: my_prow, my_pcol, nblkrows_local, nblkcols_local,&
-                                                            i, j, k, n, nblocks, ind_1, ind_2, row_offset, col_offset,&
+      INTEGER                                            :: i, j, k, n, nblocks, ind_1, ind_2, row_offset, col_offset,&
                                                             row_size, col_size, j_n_AO, k_n_AO, i_n_RI, n_RI,&
                                                             ri_offset, ind_i, handle
       REAL(kind=dp), DIMENSION(:), ALLOCATABLE           :: Pvector, Qvector
       REAL(kind=dp), DIMENSION(:,:), POINTER             :: block_matrix
       REAL(kind=dp), DIMENSION(:,:,:), POINTER           :: int_3c
       TYPE(dbcsr_type)                                   :: v_dbcsr_ao
-      LOGICAL                                            :: found
 
       ! Very ineffective first implementation - calculate all 3cs an all ranks
       ! Importantly - dbcsr blocks are ordered by atoms - i.e. ethene with 6 atoms will have 6x6 block structure
@@ -1417,7 +1123,7 @@ CONTAINS
       ! First step - analyze the structure of copied dbcsr matrix on all ranks
       CALL dbcsr_clear(gwbse_env%rho_dbcsr)
       ! Only the real part of the density matrix contributes
-      CALL copy_cfm_to_fm(msource=rho_ao, mtargetr=gwbse_env%real_workspace(1)%matrix)
+      CALL cp_cfm_to_fm(msource=rho_ao, mtargetr=gwbse_env%real_workspace(1)%matrix)
       CALL copy_fm_to_dbcsr(gwbse_env%real_workspace(1)%matrix, gwbse_env%rho_dbcsr)
       nblocks = dbcsr_get_num_blocks(gwbse_env%rho_dbcsr)
       CALL dbcsr_iterator_start(iterator_matrix, gwbse_env%rho_dbcsr)
