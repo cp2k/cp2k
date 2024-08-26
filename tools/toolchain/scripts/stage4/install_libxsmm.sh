@@ -6,9 +6,8 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")/.." && pwd -P)"
 
-# https://github.com/libxsmm/libxsmm/archive/92b08d68724e9a2653056acb5a3c6667ecaeaea1.tar.gz
-libxsmm_ver="92b08d68724e9a2653056acb5a3c6667ecaeaea1"
-libxsmm_sha256="559cc4815b0dc50181c453f9e207ee9f488d584567066085d6e655505d6af1dd"
+libxsmm_ver="210af57a7880fbec2aba861d83896a3eba63f8ae"
+libxsmm_sha256="4ff7da8b7ca85860beb4e9b952ad4434dc44ee69079a00953300f94e7b5f3126"
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
 source "${SCRIPT_DIR}"/signal_trap.sh
@@ -41,7 +40,11 @@ EOF
       if [ -f libxsmm-${libxsmm_ver}.tar.gz ]; then
         echo "libxsmm-${libxsmm_ver}.tar.gz is found"
       else
-        download_pkg_from_cp2k_org "${libxsmm_sha256}" "libxsmm-${libxsmm_ver}.tar.gz"
+        if ! download_pkg_from_cp2k_org "${libxsmm_sha256}" "libxsmm-${libxsmm_ver}.tar.gz"; then
+          download_pkg_from_urlpath "${libxsmm_sha256}" "${libxsmm_ver}.tar.gz" \
+            https://github.com/libxsmm/libxsmm/archive \
+            "libxsmm-${libxsmm_ver}.tar.gz"
+        fi
       fi
       [ -d libxsmm-${libxsmm_ver} ] && rm -rf libxsmm-${libxsmm_ver}
       tar -xzf libxsmm-${libxsmm_ver}.tar.gz
