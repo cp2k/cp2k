@@ -19,6 +19,7 @@ MODULE qs_harris_utils
    USE cell_types,                      ONLY: cell_type
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                              cp_logger_get_default_io_unit,&
                                               cp_logger_get_default_unit_nr,&
                                               cp_logger_type
    USE distribution_1d_types,           ONLY: distribution_1d_type
@@ -46,6 +47,7 @@ MODULE qs_harris_utils
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_harris_types,                 ONLY: harris_energy_type,&
+                                              harris_print_energy,&
                                               harris_rhoin_type,&
                                               harris_type
    USE qs_kind_types,                   ONLY: get_qs_kind,&
@@ -406,8 +408,9 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'harris_energy_correction'
 
-      INTEGER                                            :: handle, ispin, nspins
+      INTEGER                                            :: handle, iounit, ispin, nspins
       REAL(KIND=dp)                                      :: dvol, ec, eh, exc, vxc
+      TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(harris_energy_type), POINTER                  :: energy
       TYPE(harris_type), POINTER                         :: harris_env
       TYPE(pw_c1d_gs_type), POINTER                      :: rho_core
@@ -463,22 +466,14 @@ CONTAINS
 
       CALL auxbas_pw_pool%give_back_pw(core_rspace)
 
-      ! Get band energy
-      WRITE (6, *) "H ENERGY total  ", energy%eharris
-      WRITE (6, *) "H ENERGY band   ", energy%eband
-      WRITE (6, *) "H ENERGY h      ", energy%eh_correction
-      WRITE (6, *) "H ENERGY xc     ", energy%exc_correction
-      WRITE (6, *) "H ENERGY ewald  ", energy%ewald_correction
-      WRITE (6, *) "H ENERGY disp   ", energy%dispersion
-      WRITE (6, *)
+      ks_energy%total = ks_energy%total + ks_energy%core
+      ks_energy%nonscf_correction = energy%eharris - ks_energy%total
+      ks_energy%total = energy%eharris
 
-      WRITE (6, *) "ENERGY total  ", ks_energy%total
-      WRITE (6, *) "ENERGY exc    ", ks_energy%exc
-      WRITE (6, *) "ENERGY har    ", ks_energy%hartree
-      WRITE (6, *) "ENERGY core   ", ks_energy%core
-      WRITE (6, *) "ENERGY ovlap  ", ks_energy%core_overlap
-      WRITE (6, *) "ENERGY self   ", ks_energy%core_self
-      WRITE (6, *) "ENERGY disp   ", ks_energy%dispersion
+      logger => cp_get_default_logger()
+      iounit = cp_logger_get_default_io_unit(logger)
+
+      CALL harris_print_energy(iounit, energy)
 
       CALL timestop(handle)
 

@@ -97,7 +97,7 @@ CONTAINS
 
       IF (iounit > 0) THEN
          WRITE (UNIT=iounit, FMT="(/,(T2,A))") "HARRIS MODEL ENERGY INFORMATION"
-         WRITE (UNIT=iounit, FMT="(/,(T4,A,T56,F25.14))") &
+         WRITE (UNIT=iounit, FMT="((T3,A,T56,F25.14))") &
             "Harris model energy:                           ", energy%eharris, &
             "Band energy:                                   ", energy%eband, &
             "Hartree correction energy:                     ", energy%eh_correction, &

@@ -23,7 +23,8 @@ MODULE qs_nonscf
                                               section_vals_type
    USE kinds,                           ONLY: dp
    USE kpoint_types,                    ONLY: kpoint_type
-   USE machine,                         ONLY: m_walltime
+   USE machine,                         ONLY: m_flush,&
+                                              m_walltime
    USE message_passing,                 ONLY: mp_para_env_type
    USE qs_charges_types,                ONLY: qs_charges_type
    USE qs_core_energies,                ONLY: calculate_ptrace
@@ -196,6 +197,7 @@ CONTAINS
       CALL get_qs_env(qs_env, matrix_ks_kp=matrixkp_ks)
       CALL calculate_ptrace(matrixkp_ks, rho_ao_kp, energy%band, dft_control%nspins)
       ! core energy : Tr(Ph)
+      energy%total = energy%total - energy%core
       CALL get_qs_env(qs_env, matrix_h_kp=matrix_h)
       CALL calculate_ptrace(matrix_h, rho_ao_kp, energy%core, dft_control%nspins)
 
@@ -318,7 +320,29 @@ CONTAINS
          ELSE
             CPABORT("NONSCF not available")
          END IF
+         IF (dft_control%smear) THEN
+            WRITE (UNIT=iounit, FMT="((T3,A,T56,F25.14))") &
+               "Electronic entropic energy:", energy%kTS
+            WRITE (UNIT=iounit, FMT="((T3,A,T56,F25.14))") &
+               "Fermi energy:", energy%efermi
+         END IF
+         IF (energy%qmmm_el /= 0.0_dp) THEN
+            WRITE (UNIT=iounit, FMT="(T3,A,T56,F25.14)") &
+               "QM/MM Electrostatic energy:                    ", energy%qmmm_el
+            IF (qs_env%qmmm_env_qm%image_charge) THEN
+               WRITE (UNIT=iounit, FMT="(T3,A,T56,F25.14)") &
+                  "QM/MM image charge energy:                ", energy%image_charge
+            END IF
+         END IF
 
+         IF (dft_control%qs_control%semi_empirical) THEN
+            CPABORT("NONSCF not available")
+         ELSEIF (dft_control%qs_control%dftb .OR. dft_control%qs_control%xtb) THEN
+            WRITE (UNIT=iounit, FMT="(/,(T3,A,T56,F25.14))") &
+               "Total energy:                                  ", energy%total
+         END IF
+
+         CALL m_flush(iounit)
       END IF
 
    END SUBROUTINE qs_nonscf_print_summary
