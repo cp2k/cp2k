@@ -30,14 +30,23 @@ MODULE qs_harris_utils
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_para_env_type
    USE particle_types,                  ONLY: particle_type
-   USE pw_env_types,                    ONLY: pw_env_type
-   USE pw_methods,                      ONLY: pw_integrate_function
+   USE pw_env_types,                    ONLY: pw_env_get,&
+                                              pw_env_type
+   USE pw_grid_types,                   ONLY: pw_grid_type
+   USE pw_methods,                      ONLY: pw_integral_ab,&
+                                              pw_integrate_function,&
+                                              pw_scale,&
+                                              pw_transfer,&
+                                              pw_zero
+   USE pw_pool_types,                   ONLY: pw_pool_type
    USE pw_types,                        ONLY: pw_c1d_gs_type,&
                                               pw_r3d_rs_type
    USE qs_collocate_density,            ONLY: collocate_function
+   USE qs_energy_types,                 ONLY: qs_energy_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
-   USE qs_harris_types,                 ONLY: harris_rhoin_type,&
+   USE qs_harris_types,                 ONLY: harris_energy_type,&
+                                              harris_rhoin_type,&
                                               harris_type
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               qs_kind_type
@@ -51,7 +60,8 @@ MODULE qs_harris_utils
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_harris_utils'
 
-   PUBLIC :: harris_env_create, harris_write_input, harris_density_update, calculate_harris_density
+   PUBLIC :: harris_env_create, harris_write_input, harris_density_update, calculate_harris_density, &
+             harris_energy_correction, harris_set_potentials
 
 CONTAINS
 
@@ -334,5 +344,144 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE calculate_harris_density
+
+! **************************************************************************************************
+!> \brief ...
+!> \param harris_env ...
+!> \param vh_rspace ...
+!> \param vxc_rspace ...
+! **************************************************************************************************
+   SUBROUTINE harris_set_potentials(harris_env, vh_rspace, vxc_rspace)
+      TYPE(harris_type), POINTER                         :: harris_env
+      TYPE(pw_r3d_rs_type), INTENT(IN)                   :: vh_rspace
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: vxc_rspace
+
+      INTEGER                                            :: iab, ispin, nspins
+      TYPE(pw_grid_type), POINTER                        :: pw_grid
+
+      ! release possible old potentials
+      IF (ASSOCIATED(harris_env%vh_rspace%pw_grid)) THEN
+         CALL harris_env%vh_rspace%release()
+      END IF
+      IF (ASSOCIATED(harris_env%vxc_rspace)) THEN
+         DO iab = 1, SIZE(harris_env%vxc_rspace)
+            CALL harris_env%vxc_rspace(iab)%release()
+         END DO
+         DEALLOCATE (harris_env%vxc_rspace)
+      END IF
+
+      ! generate new potential data structures
+      nspins = harris_env%rhoin%nspin
+      ALLOCATE (harris_env%vxc_rspace(nspins))
+
+      pw_grid => vh_rspace%pw_grid
+      CALL harris_env%vh_rspace%create(pw_grid)
+      DO ispin = 1, nspins
+         CALL harris_env%vxc_rspace(ispin)%create(pw_grid)
+      END DO
+
+      ! copy potentials
+      CALL pw_transfer(vh_rspace, harris_env%vh_rspace)
+      IF (ASSOCIATED(vxc_rspace)) THEN
+         DO ispin = 1, nspins
+            CALL pw_transfer(vxc_rspace(ispin), harris_env%vxc_rspace(ispin))
+            CALL pw_scale(harris_env%vxc_rspace(ispin), vxc_rspace(ispin)%pw_grid%dvol)
+         END DO
+      ELSE
+         DO ispin = 1, nspins
+            CALL pw_zero(harris_env%vxc_rspace(ispin))
+         END DO
+      END IF
+
+   END SUBROUTINE harris_set_potentials
+
+! **************************************************************************************************
+!> \brief ...
+!> \param qs_env ...
+!> \param calculate_forces ...
+! **************************************************************************************************
+   SUBROUTINE harris_energy_correction(qs_env, calculate_forces)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      LOGICAL, INTENT(IN)                                :: calculate_forces
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'harris_energy_correction'
+
+      INTEGER                                            :: handle, ispin, nspins
+      REAL(KIND=dp)                                      :: dvol, ec, eh, exc, vxc
+      TYPE(harris_energy_type), POINTER                  :: energy
+      TYPE(harris_type), POINTER                         :: harris_env
+      TYPE(pw_c1d_gs_type), POINTER                      :: rho_core
+      TYPE(pw_env_type), POINTER                         :: pw_env
+      TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
+      TYPE(pw_r3d_rs_type)                               :: core_rspace
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: rho_r
+      TYPE(qs_energy_type), POINTER                      :: ks_energy
+      TYPE(qs_rho_type), POINTER                         :: rho
+
+      MARK_USED(calculate_forces)
+
+      CALL timeset(routineN, handle)
+
+      CALL get_qs_env(qs_env, harris_env=harris_env, energy=ks_energy)
+      energy => harris_env%energy
+      energy%eband = ks_energy%band
+      energy%ewald_correction = ks_energy%core_overlap + ks_energy%core_self
+      energy%dispersion = ks_energy%dispersion
+
+      nspins = harris_env%rhoin%nspin
+
+      CALL get_qs_env(qs_env, rho=rho, rho_core=rho_core)
+      CALL qs_rho_get(rho, rho_r=rho_r)
+
+      CALL get_qs_env(qs_env=qs_env, pw_env=pw_env)
+      CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
+      CALL auxbas_pw_pool%create_pw(core_rspace)
+      CALL pw_transfer(rho_core, core_rspace)
+
+      dvol = harris_env%vh_rspace%pw_grid%dvol
+      eh = 0.0_dp
+      DO ispin = 1, nspins
+         eh = eh + pw_integral_ab(rho_r(ispin), harris_env%vh_rspace)/dvol
+      END DO
+      ec = pw_integral_ab(core_rspace, harris_env%vh_rspace)/dvol
+      eh = 0.5_dp*(eh + ec)
+      energy%eh_correction = ec - eh
+
+      exc = ks_energy%exc
+      vxc = 0.0_dp
+      IF (ASSOCIATED(harris_env%vxc_rspace)) THEN
+         DO ispin = 1, nspins
+            vxc = vxc + pw_integral_ab(rho_r(ispin), harris_env%vxc_rspace(ispin))/ &
+                  harris_env%vxc_rspace(ispin)%pw_grid%dvol
+         END DO
+      END IF
+      energy%exc_correction = exc - vxc
+
+      ! Total Harris model energy
+      energy%eharris = energy%eband + energy%eh_correction + energy%exc_correction + &
+                       energy%ewald_correction + energy%dispersion
+
+      CALL auxbas_pw_pool%give_back_pw(core_rspace)
+
+      ! Get band energy
+      WRITE (6, *) "H ENERGY total  ", energy%eharris
+      WRITE (6, *) "H ENERGY band   ", energy%eband
+      WRITE (6, *) "H ENERGY h      ", energy%eh_correction
+      WRITE (6, *) "H ENERGY xc     ", energy%exc_correction
+      WRITE (6, *) "H ENERGY ewald  ", energy%ewald_correction
+      WRITE (6, *) "H ENERGY disp   ", energy%dispersion
+      WRITE (6, *)
+
+      WRITE (6, *) "ENERGY total  ", ks_energy%total
+      WRITE (6, *) "ENERGY exc    ", ks_energy%exc
+      WRITE (6, *) "ENERGY har    ", ks_energy%hartree
+      WRITE (6, *) "ENERGY core   ", ks_energy%core
+      WRITE (6, *) "ENERGY ovlap  ", ks_energy%core_overlap
+      WRITE (6, *) "ENERGY self   ", ks_energy%core_self
+      WRITE (6, *) "ENERGY disp   ", ks_energy%dispersion
+
+      CALL timestop(handle)
+
+   END SUBROUTINE harris_energy_correction
 
 END MODULE qs_harris_utils

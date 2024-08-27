@@ -131,7 +131,7 @@ CONTAINS
          DO
 
             IF (ostate%state == 2) THEN
-               pe = [(x(1)*x(2)**i, i=1, num_gto)]
+               pe(1:num_gto) = [(x(1)*x(2)**i, i=1, num_gto)]
                CALL density_fit(density%op, density%grid, num_gto, pe, co, ostate%f)
             END IF
 
@@ -148,7 +148,7 @@ CONTAINS
 
          ostate%state = 8
          CALL powell_optimize(ostate%nvar, x, ostate)
-         pe = [(x(1)*x(2)**i, i=1, num_gto)]
+         pe(1:num_gto) = [(x(1)*x(2)**i, i=1, num_gto)]
       END IF
 
       CALL density_fit(density%op, density%grid, num_gto, pe, co, ostate%f)

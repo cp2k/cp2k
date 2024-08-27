@@ -19,6 +19,7 @@ MODULE qs_harris_types
    USE distribution_1d_types,           ONLY: distribution_1d_type
    USE kinds,                           ONLY: default_string_length,&
                                               dp
+   USE pw_types,                        ONLY: pw_r3d_rs_type
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               qs_kind_type
 #include "./base/base_uses.f90"
@@ -66,6 +67,10 @@ MODULE qs_harris_types
       TYPE(harris_energy_type)                         :: energy
       !
       TYPE(harris_rhoin_type)                          :: rhoin
+      !
+      TYPE(pw_r3d_rs_type)                             :: vh_rspace = pw_r3d_rs_type()
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER      :: vxc_rspace => Null()
+
       !
       LOGICAL                                          :: debug_forces = .FALSE.
       LOGICAL                                          :: debug_stress = .FALSE.
@@ -175,9 +180,21 @@ CONTAINS
    SUBROUTINE harris_env_release(harris_env)
       TYPE(harris_type), POINTER                         :: harris_env
 
+      INTEGER                                            :: iab
+
       IF (ASSOCIATED(harris_env)) THEN
          !
          CALL harris_rhoin_release(harris_env%rhoin)
+         !
+         IF (ASSOCIATED(harris_env%vh_rspace%pw_grid)) THEN
+            CALL harris_env%vh_rspace%release()
+         END IF
+         IF (ASSOCIATED(harris_env%vxc_rspace)) THEN
+            DO iab = 1, SIZE(harris_env%vxc_rspace)
+               CALL harris_env%vxc_rspace(iab)%release()
+            END DO
+            DEALLOCATE (harris_env%vxc_rspace)
+         END IF
          !
          DEALLOCATE (harris_env)
       END IF
