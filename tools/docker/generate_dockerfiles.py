@@ -78,7 +78,6 @@ def main() -> None:
         f.write(
             toolchain_full(
                 base_image="arm64v8/ubuntu:24.04",
-                with_libxsmm="no",
                 with_libtorch="no",
                 with_deepmd="no",
             )
