@@ -6,7 +6,7 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")/.." && pwd -P)"
 
-pugixml_ver="1.14.0"
+pugixml_ver="1.14"
 pugixml_sha256="2f10e276870c64b1db6809050a75e11a897a8d7456c4be5c6b2e35a11168a015"
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
