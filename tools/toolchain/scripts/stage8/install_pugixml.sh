@@ -25,7 +25,7 @@ case "${with_sirius}" in
     pkg_install_dir="${INSTALLDIR}/pugixml-${pugixml_ver}"
     install_lock_file="$pkg_install_dir/install_successful"
     if verify_checksums "${install_lock_file}"; then
-      echo "pugixml-${spla_ver} is already installed, skipping it."
+      echo "pugixml-${pugixml_ver} is already installed, skipping it."
     else
       if [ -f pugixml-${pugixml_ver}.tar.gz ]; then
         echo "pugixml-${pugixml_ver}.tar.gz is found"
@@ -34,9 +34,9 @@ case "${with_sirius}" in
 
       fi
       echo "Installing from scratch into ${pkg_install_dir}"
-      [ -d pugixml-${spla_ver} ] && rm -rf pugixml-${spla_ver}
-      tar -xzf pugixml-${spla_ver}.tar.gz
-      cd pugixml-${spla_ver}
+      [ -d pugixml-${pugixml_ver} ] && rm -rf pugixml-${spla_ver}
+      tar -xzf pugixml-${pugixml_ver}.tar.gz
+      cd pugixml-${pugixml_ver}
       mkdir -p build
       cd build
       cmake \
