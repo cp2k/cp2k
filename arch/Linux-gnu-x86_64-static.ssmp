@@ -2,13 +2,13 @@
 #
 # CP2K (GNU) arch file for a serial static x86_64 binary
 #
-# Tested with: GNU 14.1.0, FFTW 3.3.10, LIBINT 2.6.0, LIBVORI 220621,
+# Tested with: GNU 14.2.0, FFTW 3.3.10, LIBINT 2.6.0, LIBVORI 220621,
 #              LIBXC 6.2.2, OpenBLAS 0.3.28, SPGLIB 2.3.1, LIBVORI 220621,
 #              LIBGRPP 20231225, DFTD4 3.6.0
 #
 # Usage: Source this arch file and then run make as instructed.
 #
-# Last update: 14.08.2024
+# Last update: 30.08.2024
 #
 # \
    if [[ "${0}" == "${BASH_SOURCE}" ]]; then \

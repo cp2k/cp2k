@@ -3,15 +3,15 @@
 # CP2K Darwin arch file for a serial arm64 binary
 # (https://www.cp2k.org/howto:compile_on_macos)
 #
-# Tested with: GNU 14.1.0, FFTW 3.3.10, LIBINT 2.6.0, LIBVORI 220621,
+# Tested with: GNU 14.2.0, FFTW 3.3.10, LIBINT 2.6.0, LIBVORI 220621,
 #              LIBXC 6.2.2, OpenBLAS 0.3.27, SPGLIB 2.3.1,
 #              LIBGRPP 20231225, DFTD4 3.6.0,
-# on an Apple M1 (macOS 14.6 Sonoma)
+# on an Apple M1 (macOS 14.6.1 Sonoma)
 #
 # Usage: Source this arch file and then run make as instructed.
 #        Ensure the links in /opt/homebrew/bin to the gcc version.
 #
-# Last update: 14.08.2024
+# Last update: 30.08.2024
 #
 # \
    if [[ "${0}" == "${BASH_SOURCE}" ]]; then \
