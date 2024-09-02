@@ -23,7 +23,8 @@ MODULE bse_util
                                               dbcsr_deallocate_matrix_set
    USE cp_files,                        ONLY: close_file,&
                                               open_file
-   USE cp_fm_basic_linalg,              ONLY: cp_fm_upper_to_full
+   USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add,&
+                                              cp_fm_upper_to_full
    USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose,&
                                               cp_fm_cholesky_invert
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
@@ -1438,8 +1439,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'get_oscillator_strengths'
 
-      INTEGER                                            :: handle, idir, ii, jj, n, n_occ, n_virt, &
-                                                            nao, ncol_local, nrow_local
+      INTEGER                                            :: handle, idir, n, n_occ, n_virt, nao
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_dipole_exc, fm_struct_dipoles, &
                                                             fm_struct_dipoles_reordered, &
                                                             fm_struct_dipoles_trunc
@@ -1516,15 +1516,7 @@ CONTAINS
       CALL cp_fm_set_all(fm_eigvec_XYsum, 0.0_dp)
       CALL cp_fm_to_fm(fm_eigvec_X, fm_eigvec_XYsum)
       IF (PRESENT(fm_eigvec_Y)) THEN
-         !CALL cp_fm_to_fm(fm_eigvec_Y, fm_eigvec_XYsum)
-         CALL cp_fm_get_info(matrix=fm_eigvec_X, &
-                             nrow_local=nrow_local, &
-                             ncol_local=ncol_local)
-         DO ii = 1, nrow_local
-            DO jj = 1, ncol_local
-               fm_eigvec_XYsum%local_data(ii, jj) = fm_eigvec_XYsum%local_data(ii, jj) + fm_eigvec_Y%local_data(ii, jj)
-            END DO
-         END DO
+         CALL cp_fm_scale_and_add(1.0_dp, fm_eigvec_XYsum, 1.0_dp, fm_eigvec_Y)
       END IF
       DO idir = 1, 3
          CALL parallel_gemm('N', 'N', 1, homo_red*virtual_red, homo_red*virtual_red, SQRT(2.0_dp), &
