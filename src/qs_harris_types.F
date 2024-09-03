@@ -38,6 +38,7 @@ MODULE qs_harris_types
    TYPE harris_rhoin_type
       CHARACTER(LEN=default_string_length)             :: basis_type = "NDef"
       TYPE(rho_vec_type), ALLOCATABLE, DIMENSION(:, :) :: rhovec
+      TYPE(rho_vec_type), ALLOCATABLE, DIMENSION(:, :) :: intvec
       INTEGER                                          :: nspin = 0
       INTEGER                                          :: nbas = 0
       INTEGER, ALLOCATABLE, DIMENSION(:, :)            :: basptr
@@ -169,6 +170,15 @@ CONTAINS
          END DO
       END DO
 
+      ALLOCATE (rhoin%intvec(nkind, nspin))
+      DO ispin = 1, nspin
+         DO ikind = 1, nkind
+            nsgf = nbasf(ikind)
+            nparticle_local = local_particles%n_el(ikind)
+            ALLOCATE (rhoin%intvec(ikind, ispin)%rvecs(nsgf, nparticle_local))
+         END DO
+      END DO
+
       DEALLOCATE (nbasf)
 
    END SUBROUTINE harris_rhoin_init
@@ -221,6 +231,16 @@ CONTAINS
             END DO
          END DO
          DEALLOCATE (rhoin%rhovec)
+      END IF
+      IF (ALLOCATED(rhoin%intvec)) THEN
+         DO i = 1, SIZE(rhoin%intvec, 2)
+            DO j = 1, SIZE(rhoin%intvec, 1)
+               IF (ALLOCATED(rhoin%intvec(j, i)%rvecs)) THEN
+                  DEALLOCATE (rhoin%intvec(j, i)%rvecs)
+               END IF
+            END DO
+         END DO
+         DEALLOCATE (rhoin%intvec)
       END IF
       IF (ALLOCATED(rhoin%basptr)) THEN
          DEALLOCATE (rhoin%basptr)

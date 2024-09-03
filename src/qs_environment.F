@@ -489,7 +489,7 @@ CONTAINS
 
       CALL get_qs_env(qs_env, harris_env=harris_env)
       IF (qs_env%harris_method) THEN
-         ! initialize the Harris input density
+         ! initialize the Harris input density and potential integrals
          CALL get_qs_env(qs_env, local_particles=local_particles)
          CALL harris_rhoin_init(harris_env%rhoin, "RHOIN", qs_kind_set, atomic_kind_set, &
                                 local_particles, dft_control%nspins)
