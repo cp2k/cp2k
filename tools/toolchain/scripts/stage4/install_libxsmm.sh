@@ -6,8 +6,8 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")/.." && pwd -P)"
 
-libxsmm_ver="fdf618151989060d8ca3f1c9474b74c79f99001e"
-libxsmm_sha256="2f7f300416463f0399638010a65b999f3f269af3b96c30b11bd2bb4e774ff585"
+libxsmm_ver="3edfb7100cec3322bac9ae4eafea3b3838654ced"
+libxsmm_sha256="8ab0a9a60bbbd0efce30f9b40875cbe70d17246a2c7fd6ce5efaaa9a80ea6644"
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
 source "${SCRIPT_DIR}"/signal_trap.sh
@@ -63,14 +63,14 @@ EOF
         CXX=$CXX \
         CC=$CC \
         FC=$FC \
-        INTRINSICS=1 \
+        WRAP=0 \
         PREFIX=${pkg_install_dir} \
         > make.log 2>&1 || tail -n ${LOG_LINES} make.log
       make -j $(get_nprocs) \
         CXX=$CXX \
         CC=$CC \
         FC=$FC \
-        INTRINSICS=1 \
+        WRAP=0 \
         PREFIX=${pkg_install_dir} \
         install > install.log 2>&1 || tail -n ${LOG_LINES} install.log
       cd ..
