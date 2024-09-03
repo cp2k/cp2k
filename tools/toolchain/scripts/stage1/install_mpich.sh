@@ -56,7 +56,7 @@ case "${with_mpich}" in
         MPICC="" \
         FFLAGS="${FCFLAGS} ${compat_flag}" \
         FCFLAGS="${FCFLAGS} ${compat_flag}" \
-        --without-x \
+        --without-x --without-slurm \
         --enable-gl=no \
         --with-device=${MPICH_DEVICE} \
         > configure.log 2>&1 || tail -n ${LOG_LINES} configure.log

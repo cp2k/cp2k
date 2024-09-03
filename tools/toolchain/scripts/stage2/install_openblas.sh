@@ -44,72 +44,52 @@ case "${with_openblas}" in
       tar -zxf ${openblas_pkg}
       cd OpenBLAS-${openblas_ver}
 
-      # First attempt to make openblas using auto detected
-      # TARGET, if this fails, then make with forced
-      # TARGET=NEHALEM
+      # Build OpenBLAS with DYNAMIC_ARCH unless native architecture is requested.
+      # If the latter fails, then build with DYNAMIC_ARCH. Relying on DYNAMIC_ARCH
+      # is more flexible and more reliable on ARM64. However, it increaes the time
+      # needed to build OpenBLAS.
+      # It is supported to omit the PREFIX when building OpenBLAS as well as
+      # omitting build-keys for the install target.
       #
-      # wrt NUM_THREADS=128: this is what the most common Linux distros seem to choose atm
-      #                      for a good compromise between memory usage and scalability
+      # NUM_THREADS=128: this is what the most common Linux distros seem to choose atm
+      #                  for a good compromise between memory usage and scalability
+      # USE_THREADS=1: is not needed since CP2K's ARCH-files do not rely on
+      #                plain PThread based OpenBLAS (OpenMP is used).
       #
       # Unfortunately, NO_SHARED=1 breaks ScaLAPACK build.
-      case "${TARGET_CPU}" in
-        "generic")
-          TARGET="NEHALEM"
-          ;;
-        "native")
-          TARGET=${OPENBLAS_LIBCORE}
-          ;;
-        "broadwell" | "skylake")
-          TARGET="HASWELL"
-          ;;
-        "skylake-avx512")
-          TARGET="SKYLAKEX"
-          ;;
-        znver*)
-          TARGET="ZEN"
-          ;;
-        *)
-          TARGET=${TARGET_CPU}
-          ;;
-      esac
-      TARGET=$(echo ${TARGET} | tr '[:lower:]' '[:upper:]')
-      echo "Installing OpenBLAS library for target ${TARGET}"
-      (
+      BUILD_DYNAMIC=0
+      if [ "native" != "${TARGET_CPU}" ] || [ ! "${OPENBLAS_LIBCORE}" ]; then
+        BUILD_DYNAMIC=1
+      fi
+      if [ "0" = "${BUILD_DYNAMIC}" ]; then
+        TARGET=$(tr '[:lower:]' '[:upper:]' <<< "${OPENBLAS_LIBCORE}")
+        echo "Installing OpenBLAS library for target ${TARGET}"
         make -j $(get_nprocs) \
-          MAKE_NB_JOBS=0 \
           TARGET=${TARGET} \
+          MAKE_NB_JOBS=0 \
           NUM_THREADS=128 \
-          USE_THREAD=1 \
+          USE_OPENMP=1 \
+          NO_AFFINITY=1 \
+          CC="${CC}" \
+          FC="${FC}" \
+          PREFIX="${pkg_install_dir}" \
+          > make.${OPENBLAS_LIBCORE}.log 2>&1 || tail -n ${LOG_LINES} make.${OPENBLAS_LIBCORE}.log
+        BUILD_DYNAMIC=$?
+      fi
+      if [ "0" != "${BUILD_DYNAMIC}" ]; then
+        echo "Installing OpenBLAS library for dynamic target"
+        make -j $(get_nprocs) \
+          DYNAMIC_ARCH=1 \
+          MAKE_NB_JOBS=0 \
+          NUM_THREADS=128 \
           USE_OPENMP=1 \
           NO_AFFINITY=1 \
           CC="${CC}" \
           FC="${FC}" \
           PREFIX="${pkg_install_dir}" \
           > make.log 2>&1 || tail -n ${LOG_LINES} make.log
-      ) || (
-        make -j $(get_nprocs) \
-          MAKE_NB_JOBS=0 \
-          TARGET=NEHALEM \
-          NUM_THREADS=128 \
-          USE_THREAD=1 \
-          USE_OPENMP=1 \
-          NO_AFFINITY=1 \
-          CC="${CC}" \
-          FC="${FC}" \
-          PREFIX="${pkg_install_dir}" \
-          > make.nehalem.log 2>&1 || tail -n ${LOG_LINES} make.nehalem.log
-      )
-      make -j $(get_nprocs) \
-        MAKE_NB_JOBS=0 \
-        TARGET=${TARGET} \
-        NUM_THREADS=128 \
-        USE_THREAD=1 \
-        USE_OPENMP=1 \
-        NO_AFFINITY=1 \
-        CC="${CC}" \
-        FC="${FC}" \
-        PREFIX="${pkg_install_dir}" \
-        install > install.log 2>&1 || tail -n ${LOG_LINES} install.log
+      fi
+      make MAKE_NB_JOBS=0 PREFIX="${pkg_install_dir}" install > install.log 2>&1 || tail -n ${LOG_LINES} install.log
       cd ..
       write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage2/$(basename ${SCRIPT_NAME})"
     fi
