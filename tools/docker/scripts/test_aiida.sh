@@ -2,23 +2,8 @@
 
 # author: Ole Schuett
 
-# shellcheck disable=SC1091
-source /opt/cp2k-toolchain/install/setup
-
-echo -e "\n========== Compiling CP2K =========="
-cd /opt/cp2k
-echo -n "Compiling cp2k... "
-if make -j VERSION=sdbg &> make.out; then
-  echo "done."
-else
-  echo -e "failed.\n\n"
-  tail -n 100 make.out
-  mkdir -p /workspace/artifacts/
-  cp make.out /workspace/artifacts/
-  echo -e "\nSummary: Compilation failed."
-  echo -e "Status: FAILED\n"
-  exit 0
-fi
+# Compile CP2K.
+./build_cp2k_cmake.sh "ubuntu" "ssmp" || exit 0
 
 echo -e "\n========== Installing Dependencies =========="
 apt-get update -qq
@@ -28,27 +13,32 @@ apt-get install -qq --no-install-recommends \
   python3-setuptools \
   python3-wheel \
   python3-pip \
+  python3-venv \
   python3-dev \
   python3-reentry \
   postgresql \
   libpq-dev \
   rabbitmq-server \
   sudo \
+  git \
   ssh
 rm -rf /var/lib/apt/lists/*
+
+# Create and activate a virtual environment for Python packages.
+python3 -m venv /opt/venv
+export PATH="/opt/venv/bin:$PATH"
 
 # Some buggy Python packages open utf8 files in text mode.
 # As a workaround we set locale.getpreferredencoding() to utf8.
 export LANG="en_US.UTF-8" LANGUAGE="en_US:en" LC_ALL="en_US.UTF-8"
 locale-gen ${LANG}
 
-# create ubuntu user with sudo powers
-adduser --disabled-password --gecos "" ubuntu
-echo "ubuntu ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
-
 # link mpi executables into path
 MPI_INSTALL_DIR=$(dirname "$(command -v mpiexec)")
 for i in "${MPI_INSTALL_DIR}"/*; do ln -sf "$i" /usr/bin/; done
+
+# Pick a compiler (needed to build some Python packages)
+export CC=gcc
 
 echo -e "\n========== Installing AiiDA-CP2K plugin =========="
 git clone --quiet https://github.com/aiidateam/aiida-cp2k.git /opt/aiida-cp2k/
@@ -70,9 +60,8 @@ service postgresql start
 # setup code
 cat > /usr/bin/cp2k << EndOfMessage
 #!/bin/bash -e
-source /opt/cp2k-toolchain/install/setup
 export OMP_NUM_THREADS=2
-/opt/cp2k/exe/local/cp2k.sdbg "\$@"
+/opt/cp2k/build/bin/cp2k.ssmp "\$@"
 EndOfMessage
 chmod +x /usr/bin/cp2k
 
@@ -81,7 +70,7 @@ set +e # disable error trapping for remainder of script
 (
   set -e         # abort on error
   ulimit -t 1800 # abort after 30 minutes
-  $AS_UBUNTU_USER py.test
+  $AS_UBUNTU_USER /opt/venv/bin/py.test
 )
 
 EXIT_CODE=$?

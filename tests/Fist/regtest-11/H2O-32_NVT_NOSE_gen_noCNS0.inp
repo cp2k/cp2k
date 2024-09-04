@@ -15,8 +15,8 @@
       TYPE NOSE
       &DEFINE_REGION
         LIST 1 2 3 \
-@INCLUDE file1.inc
-@INCLUDE file2.inc
+        @INCLUDE file1.inc
+        @INCLUDE file2.inc
         LIST 31 32 33 37 38 39 43 44 45 49 50 51 55 56 57
         LIST 61 62 63 67 68 69 73 74 75 79 80 81 85 86 87 91 92 93
       &END DEFINE_REGION
@@ -27,7 +27,7 @@
       &END DEFINE_REGION
       &NOSE
         TIMECON \
-@INCLUDE file0.inc
+        @INCLUDE file0.inc
       &END NOSE
     &END THERMOSTAT
   &END MD

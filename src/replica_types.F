@@ -94,21 +94,21 @@ MODULE replica_types
 !> \author fawzi
 ! **************************************************************************************************
    TYPE replica_env_type
-      INTEGER                                           :: ref_count, id_nr, f_env_id, &
-                                                           nrep, ndim, nparticle, &
-                                                           my_rep_group, force_dim
-      REAL(kind=dp), DIMENSION(:, :), POINTER            :: r, v, f
-      LOGICAL                                           :: sync_v, keep_wf_history
-      CHARACTER(LEN=default_path_length)                :: original_project_name
-      TYPE(qs_wf_history_p_type), DIMENSION(:), POINTER :: wf_history
-      TYPE(cp_result_p_type), DIMENSION(:), POINTER       :: results
-      INTEGER, DIMENSION(:), POINTER                    :: local_rep_indices
-      INTEGER, DIMENSION(:), POINTER                    :: replica_owner, force_rank, &
-                                                           inter_rep_rank
-      LOGICAL, DIMENSION(:), POINTER                    :: rep_is_local
-      TYPE(mp_para_cart_type), POINTER                  :: cart
-      TYPE(mp_para_env_type), POINTER                   :: para_env, para_env_f, &
-                                                           para_env_inter_rep
+      INTEGER                                           :: ref_count = -1, id_nr = -1, f_env_id = -1, &
+                                                           nrep = -1, ndim = -1, nparticle = -1, &
+                                                           my_rep_group = -1, force_dim = -1
+      REAL(kind=dp), DIMENSION(:, :), POINTER            :: r => NULL(), v => NULL(), f => NULL()
+      LOGICAL                                           :: sync_v = .FALSE., keep_wf_history = .FALSE.
+      CHARACTER(LEN=default_path_length)                :: original_project_name = ""
+      TYPE(qs_wf_history_p_type), DIMENSION(:), POINTER :: wf_history => NULL()
+      TYPE(cp_result_p_type), DIMENSION(:), POINTER       :: results => NULL()
+      INTEGER, DIMENSION(:), POINTER                    :: local_rep_indices => NULL()
+      INTEGER, DIMENSION(:), POINTER                    :: replica_owner => NULL(), force_rank => NULL(), &
+                                                           inter_rep_rank => NULL()
+      LOGICAL, DIMENSION(:), POINTER                    :: rep_is_local => NULL()
+      TYPE(mp_para_cart_type), POINTER                  :: cart => NULL()
+      TYPE(mp_para_env_type), POINTER                   :: para_env => NULL(), para_env_f => NULL(), &
+                                                           para_env_inter_rep => NULL()
    END TYPE replica_env_type
 
 ! **************************************************************************************************
@@ -119,7 +119,7 @@ MODULE replica_types
 !> \author fawzi
 ! **************************************************************************************************
    TYPE replica_env_p_type
-      TYPE(replica_env_type), POINTER                   :: rep_env
+      TYPE(replica_env_type), POINTER                   :: rep_env => NULL()
    END TYPE replica_env_p_type
 
    TYPE(replica_env_p_type), POINTER, DIMENSION(:), PRIVATE :: rep_envs

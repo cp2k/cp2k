@@ -21,6 +21,9 @@ MODULE rpa_util
                                               cp_cfm_release,&
                                               cp_cfm_set_all,&
                                               cp_cfm_type
+   USE cp_dbcsr_api,                    ONLY: &
+        dbcsr_create, dbcsr_deallocate_matrix, dbcsr_filter, dbcsr_get_info, dbcsr_multiply, &
+        dbcsr_p_type, dbcsr_release, dbcsr_set, dbcsr_type
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               copy_fm_to_dbcsr,&
                                               dbcsr_allocate_matrix_set,&
@@ -34,9 +37,6 @@ MODULE rpa_util
    USE cp_fm_types,                     ONLY: &
         cp_fm_copy_general, cp_fm_create, cp_fm_get_info, cp_fm_release, cp_fm_set_all, &
         cp_fm_set_element, cp_fm_to_fm, cp_fm_to_fm_submat_general, cp_fm_type
-   USE dbcsr_api,                       ONLY: &
-        dbcsr_create, dbcsr_deallocate_matrix, dbcsr_filter, dbcsr_get_info, dbcsr_multiply, &
-        dbcsr_p_type, dbcsr_release, dbcsr_set, dbcsr_type
    USE dbt_api,                         ONLY: dbt_destroy,&
                                               dbt_type
    USE dgemm_counter_types,             ONLY: dgemm_counter_start,&
@@ -636,10 +636,8 @@ CONTAINS
 !> \param fm_mat_S ...
 !> \param do_ri_sos_laplace_mp2 ...
 !> \param first_cycle ...
-!> \param iter_sc_GW0 ...
 !> \param virtual ...
 !> \param Eigenval ...
-!> \param Eigenval_scf ...
 !> \param homo ...
 !> \param omega ...
 !> \param omega_old ...
@@ -653,15 +651,17 @@ CONTAINS
 !> \param do_bse ...
 !> \param fm_mat_Q_static_bse_gemm ...
 !> \param dgemm_counter ...
+!> \param num_integ_points ...
+!> \param count_ev_sc_GW ...
 ! **************************************************************************************************
-   SUBROUTINE calc_mat_Q(fm_mat_S, do_ri_sos_laplace_mp2, first_cycle, iter_sc_GW0, virtual, &
-                         Eigenval, Eigenval_scf, &
-                         homo, omega, omega_old, jquad, mm_style, dimen_RI, dimen_ia, alpha, fm_mat_Q, fm_mat_Q_gemm, &
-                         do_bse, fm_mat_Q_static_bse_gemm, dgemm_counter)
+   SUBROUTINE calc_mat_Q(fm_mat_S, do_ri_sos_laplace_mp2, first_cycle, virtual, &
+                         Eigenval, homo, omega, omega_old, jquad, mm_style, dimen_RI, dimen_ia, alpha, fm_mat_Q, fm_mat_Q_gemm, &
+                         do_bse, fm_mat_Q_static_bse_gemm, dgemm_counter, &
+                         num_integ_points, count_ev_sc_GW)
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_S
       LOGICAL, INTENT(IN)                                :: do_ri_sos_laplace_mp2, first_cycle
-      INTEGER, INTENT(IN)                                :: iter_sc_GW0, virtual
-      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: Eigenval, Eigenval_scf
+      INTEGER, INTENT(IN)                                :: virtual
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: Eigenval
       INTEGER, INTENT(IN)                                :: homo
       REAL(KIND=dp), INTENT(IN)                          :: omega, omega_old
       INTEGER, INTENT(IN)                                :: jquad, mm_style, dimen_RI, dimen_ia
@@ -670,6 +670,7 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: do_bse
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_Q_static_bse_gemm
       TYPE(dgemm_counter_type), INTENT(INOUT)            :: dgemm_counter
+      INTEGER, INTENT(IN)                                :: num_integ_points, count_ev_sc_GW
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'calc_mat_Q'
 
@@ -681,19 +682,17 @@ CONTAINS
          ! the first index of tau_tj starts with 0 (see mp2_weights)
          CALL calc_fm_mat_S_laplace(fm_mat_S, homo, virtual, Eigenval, omega - omega_old)
       ELSE
-         IF (iter_sc_GW0 == 1) THEN
-            CALL calc_fm_mat_S_rpa(fm_mat_S, first_cycle, virtual, Eigenval, &
-                                   homo, omega, omega_old)
-         ELSE
-            CALL calc_fm_mat_S_rpa(fm_mat_S, first_cycle, virtual, Eigenval_scf, &
-                                   homo, omega, omega_old)
-         END IF
+         CALL calc_fm_mat_S_rpa(fm_mat_S, first_cycle, virtual, Eigenval, &
+                                homo, omega, omega_old)
       END IF
 
       CALL contract_S_to_Q(mm_style, dimen_RI, dimen_ia, alpha, fm_mat_S, fm_mat_Q_gemm, &
                            fm_mat_Q, dgemm_counter)
-
-      IF (do_bse .AND. jquad == 1) THEN
+      ! fm_mat_Q_static_bse_gemm does not enter W_ijab (A matrix in TDA), but only full ABBA
+      ! (since only B_ij_bar enters W_ijab)
+      ! Changing jquad, since omega=0 is at last idx
+      ! We enforce W0 for BSE in case of evGW
+      IF (do_bse .AND. jquad == num_integ_points .AND. count_ev_sc_GW == 1) THEN
          CALL cp_fm_to_fm(fm_mat_Q_gemm, fm_mat_Q_static_bse_gemm)
       END IF
       CALL timestop(handle)
@@ -874,20 +873,19 @@ CONTAINS
 !> \param dimen_RI ...
 !> \param trace_Qomega ...
 !> \param fm_mat_Q ...
-!> \param para_env_RPA ...
 ! **************************************************************************************************
-   SUBROUTINE Q_trace_and_add_unit_matrix(dimen_RI, trace_Qomega, fm_mat_Q, para_env_RPA)
+   SUBROUTINE Q_trace_and_add_unit_matrix(dimen_RI, trace_Qomega, fm_mat_Q)
 
       INTEGER, INTENT(IN)                                :: dimen_RI
       REAL(KIND=dp), DIMENSION(dimen_RI), INTENT(OUT)    :: trace_Qomega
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_Q
-      TYPE(mp_para_env_type), INTENT(IN)                 :: para_env_RPA
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'Q_trace_and_add_unit_matrix'
 
       INTEGER                                            :: handle, i_global, iiB, j_global, jjB, &
                                                             ncol_local, nrow_local
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
+      TYPE(mp_para_env_type), POINTER                    :: para_env
 
       CALL timeset(routineN, handle)
 
@@ -895,7 +893,8 @@ CONTAINS
                           nrow_local=nrow_local, &
                           ncol_local=ncol_local, &
                           row_indices=row_indices, &
-                          col_indices=col_indices)
+                          col_indices=col_indices, &
+                          para_env=para_env)
 
       ! calculate the trace of Q and add 1 on the diagonal
       trace_Qomega = 0.0_dp
@@ -911,7 +910,7 @@ CONTAINS
             END IF
          END DO
       END DO
-      CALL para_env_RPA%sum(trace_Qomega)
+      CALL para_env%sum(trace_Qomega)
 
       CALL timestop(handle)
 

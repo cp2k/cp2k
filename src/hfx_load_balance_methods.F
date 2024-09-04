@@ -1810,10 +1810,12 @@ CONTAINS
 !> \return ...
 ! **************************************************************************************************
       REAL(KIND=dp) FUNCTION poly2(x, a0, a1, a2)
-         INTEGER                                            :: x
-         REAL(KIND=dp)                                      :: a0, a1, a2
+         INTEGER, INTENT(IN)                                :: x
+         REAL(KIND=dp), INTENT(IN)                          :: a0, a1, a2
+         REAL(KIND=dp)                                      :: r
 
-         poly2 = a0 + a1*x + a2*x*x
+         r = REAL(x, KIND=dp)
+         poly2 = a0 + (a1 + a2*r)*r
       END FUNCTION poly2
 
    END FUNCTION cost_model

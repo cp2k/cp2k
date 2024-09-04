@@ -51,11 +51,8 @@ MODULE qs_linres_nmr_shift
                                               pw_spline_precond_set_kind,&
                                               pw_spline_precond_type,&
                                               spl3_pbc
-   USE pw_types,                        ONLY: COMPLEXDATA1D,&
-                                              REALDATA3D,&
-                                              REALSPACE,&
-                                              RECIPROCALSPACE,&
-                                              pw_type
+   USE pw_types,                        ONLY: pw_c1d_gs_type,&
+                                              pw_r3d_rs_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_grid_atom,                    ONLY: grid_atom_type
@@ -116,12 +113,13 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: cell
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(pw_c1d_gs_type)                               :: pw_gspace_work
+      TYPE(pw_c1d_gs_type), ALLOCATABLE, DIMENSION(:, :) :: shift_pw_gspace
+      TYPE(pw_c1d_gs_type), DIMENSION(:), POINTER        :: jrho1_g
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type)                                      :: pw_gspace_work, shift_pw_rspace
-      TYPE(pw_type), ALLOCATABLE, DIMENSION(:, :)        :: shift_pw_gspace
-      TYPE(pw_type), DIMENSION(:), POINTER               :: jrho1_g
+      TYPE(pw_r3d_rs_type)                               :: shift_pw_rspace
       TYPE(realspace_grid_desc_type), POINTER            :: auxbas_rs_desc
       TYPE(section_vals_type), POINTER                   :: nmr_section
 
@@ -157,8 +155,7 @@ CONTAINS
       ALLOCATE (shift_pw_gspace(3, nspins))
       DO ispin = 1, nspins
          DO idir = 1, 3
-            CALL auxbas_pw_pool%create_pw(shift_pw_gspace(idir, ispin), &
-                                          use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+            CALL auxbas_pw_pool%create_pw(shift_pw_gspace(idir, ispin))
             CALL pw_zero(shift_pw_gspace(idir, ispin))
          END DO
       END DO
@@ -166,8 +163,7 @@ CONTAINS
       !
       CALL set_vecp(iB, iiB, iiiB)
       !
-      CALL auxbas_pw_pool%create_pw(pw_gspace_work, &
-                                    use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+      CALL auxbas_pw_pool%create_pw(pw_gspace_work)
       CALL pw_zero(pw_gspace_work)
       DO ispin = 1, nspins
          !
@@ -195,8 +191,7 @@ CONTAINS
       !
       ! compute shildings
       IF (interpolate_shift) THEN
-         CALL auxbas_pw_pool%create_pw(shift_pw_rspace, &
-                                       use_data=REALDATA3D, in_space=REALSPACE)
+         CALL auxbas_pw_pool%create_pw(shift_pw_rspace)
          DO ispin = 1, nspins
             DO idir = 1, 3
                ! Here first G->R and then interpolation to get the shifts.
@@ -505,7 +500,7 @@ CONTAINS
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(pw_type), INTENT(IN)                          :: shift_pw_rspace
+      TYPE(pw_r3d_rs_type), INTENT(IN)                   :: shift_pw_rspace
       INTEGER, INTENT(IN)                                :: i_B, idir
       TYPE(section_vals_type), POINTER                   :: nmr_section
 
@@ -520,8 +515,8 @@ CONTAINS
       REAL(dp), DIMENSION(:, :), POINTER                 :: r_nics
       REAL(dp), DIMENSION(:, :, :), POINTER              :: chemical_shift, chemical_shift_nics
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
+      TYPE(pw_r3d_rs_type)                               :: shiftspl
       TYPE(pw_spline_precond_type)                       :: precond
-      TYPE(pw_type)                                      :: shiftspl
       TYPE(section_vals_type), POINTER                   :: interp_section
 
       CALL timeset(routineN, handle)
@@ -540,8 +535,7 @@ CONTAINS
 
       ! calculate spline coefficients
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
-      CALL auxbas_pw_pool%create_pw(shiftspl, &
-                                    use_data=REALDATA3D, in_space=REALSPACE)
+      CALL auxbas_pw_pool%create_pw(shiftspl)
 
       CALL pw_spline_precond_create(precond, precond_kind=aint_precond, &
                                     pool=auxbas_pw_pool, pbc=.TRUE., transpose=.FALSE.)
@@ -604,7 +598,7 @@ CONTAINS
       TYPE(nmr_env_type)                                 :: nmr_env
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(pw_type), INTENT(IN)                          :: shift_pw_gspace
+      TYPE(pw_c1d_gs_type), INTENT(IN)                   :: shift_pw_gspace
       INTEGER, INTENT(IN)                                :: i_B, idir
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'gsum_shift_pwgrid'
@@ -663,7 +657,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE gsumr(r, pw, cplx)
       REAL(dp), INTENT(IN)                               :: r(3)
-      TYPE(pw_type), INTENT(IN)                          :: pw
+      TYPE(pw_c1d_gs_type), INTENT(IN)                   :: pw
       COMPLEX(dp)                                        :: cplx
 
       COMPLEX(dp)                                        :: rg
@@ -674,9 +668,9 @@ CONTAINS
       cplx = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
       DO ig = grid%first_gne0, grid%ngpts_cut_local
          rg = (grid%g(1, ig)*r(1) + grid%g(2, ig)*r(2) + grid%g(3, ig)*r(3))*gaussi
-         cplx = cplx + pw%cc(ig)*EXP(rg)
+         cplx = cplx + pw%array(ig)*EXP(rg)
       END DO
-      IF (grid%have_g0) cplx = cplx + pw%cc(1)
+      IF (grid%have_g0) cplx = cplx + pw%array(1)
       CALL grid%para%group%sum(cplx)
    END SUBROUTINE gsumr
 

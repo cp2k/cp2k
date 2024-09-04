@@ -14,12 +14,12 @@
 MODULE preconditioner_types
    USE cp_blacs_env,                    ONLY: cp_blacs_env_release,&
                                               cp_blacs_env_type
-   USE cp_fm_types,                     ONLY: cp_fm_release,&
-                                              cp_fm_type
-   USE dbcsr_api,                       ONLY: dbcsr_deallocate_matrix,&
+   USE cp_dbcsr_api,                    ONLY: dbcsr_deallocate_matrix,&
                                               dbcsr_p_type,&
                                               dbcsr_release_p,&
                                               dbcsr_type
+   USE cp_fm_types,                     ONLY: cp_fm_release,&
+                                              cp_fm_type
    USE input_constants,                 ONLY: cholesky_reduce,&
                                               ot_precond_solver_default
    USE kinds,                           ONLY: dp
@@ -41,23 +41,23 @@ MODULE preconditioner_types
 ! **************************************************************************************************
    TYPE preconditioner_type
 !    PRIVATE
-      TYPE(dbcsr_type), POINTER :: sparse_matrix
-      TYPE(cp_fm_type), POINTER :: fm
-      TYPE(dbcsr_type), POINTER           :: dbcsr_matrix
-      TYPE(dbcsr_type), POINTER           :: max_ev_vector
-      TYPE(dbcsr_type), POINTER           :: min_ev_vector
-      TYPE(dbcsr_p_type), POINTER, DIMENSION(:) :: inverse_history
-      TYPE(mp_para_env_type), POINTER   :: para_env
-      TYPE(cp_blacs_env_type), POINTER   :: ctxt
-      INTEGER :: in_use, solver, ihistory, cholesky_use
-      REAL(KIND=dp), DIMENSION(:), POINTER :: occ_evals, full_evals
-      REAL(KIND=dp) :: energy_gap
-      REAL(KIND=dp) :: condition_num
+      TYPE(dbcsr_type), POINTER :: sparse_matrix => NULL()
+      TYPE(cp_fm_type), POINTER :: fm => NULL()
+      TYPE(dbcsr_type), POINTER           :: dbcsr_matrix => NULL()
+      TYPE(dbcsr_type), POINTER           :: max_ev_vector => NULL()
+      TYPE(dbcsr_type), POINTER           :: min_ev_vector => NULL()
+      TYPE(dbcsr_p_type), POINTER, DIMENSION(:) :: inverse_history => NULL()
+      TYPE(mp_para_env_type), POINTER   :: para_env => NULL()
+      TYPE(cp_blacs_env_type), POINTER   :: ctxt => NULL()
+      INTEGER :: in_use = -1, solver = -1, ihistory = -1, cholesky_use = -1
+      REAL(KIND=dp), DIMENSION(:), POINTER :: occ_evals => NULL(), full_evals => NULL()
+      REAL(KIND=dp) :: energy_gap = -1.0_dp
+      REAL(KIND=dp) :: condition_num = -1.0_dp
    END TYPE preconditioner_type
 
 ! **************************************************************************************************
    TYPE preconditioner_p_type
-      TYPE(preconditioner_type), POINTER :: preconditioner
+      TYPE(preconditioner_type), POINTER :: preconditioner => NULL()
    END TYPE preconditioner_p_type
 
 CONTAINS

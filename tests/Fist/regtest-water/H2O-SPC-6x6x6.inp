@@ -1,0 +1,179 @@
+# Cubic cell with 6*6*6 = 216 H2O molecules
+@SET model SPC
+@SET doh   1.000000000
+@SET dhh   1.632980862
+@SET a     3.16
+@SET na    6
+@SET nb    6
+@SET nc    6
+@SET nh2o  ${na}x${nb}x${nc}
+@SET pf    10
+&GLOBAL
+  PRINT_LEVEL medium
+  PROJECT H2O-${model}-${nh2o}
+  RUN_TYPE MD
+&END GLOBAL
+
+&MOTION
+  &CONSTRAINT
+    &G3X3
+      ATOMS 1 2 3
+      DISTANCES [Angstrom] ${doh} ${doh} ${dhh}
+      MOLNAME H2O
+    &END G3X3
+  &END CONSTRAINT
+  &MD
+    ENSEMBLE NpT_i
+    STEPS 50
+    TEMPERATURE [K] 300.0
+    TEMP_KIND on
+    TIMESTEP [fs] 0.5
+    &BAROSTAT
+      PRESSURE [bar] 1.0
+      TIMECON [fs] 1000.0
+      &PRINT
+        &ENERGY
+          &EACH
+            MD ${pf}
+          &END EACH
+        &END ENERGY
+      &END PRINT
+    &END BAROSTAT
+    &PRINT
+      &CENTER_OF_MASS on
+        &EACH
+          MD ${pf}
+        &END EACH
+      &END CENTER_OF_MASS
+      &ENERGY on
+        &EACH
+          MD ${pf}
+        &END EACH
+      &END ENERGY
+      &PROGRAM_RUN_INFO on
+        &EACH
+          MD ${pf}
+        &END EACH
+      &END PROGRAM_RUN_INFO
+      &TEMP_KIND on
+        &EACH
+          MD ${pf}
+        &END EACH
+      &END TEMP_KIND
+    &END PRINT
+    &THERMOSTAT
+      REGION global
+      TYPE CSVR
+      &CSVR
+        TIMECON [fs] 100.0
+      &END CSVR
+    &END THERMOSTAT
+  &END MD
+  &PRINT
+    &CELL on
+      &EACH
+        MD ${pf}
+      &END EACH
+    &END CELL
+    &FORCES off
+      FORMAT xyz
+      &EACH
+        MD ${pf}
+      &END EACH
+    &END FORCES
+    &RESTART
+      BACKUP_COPIES 0
+      &EACH
+        MD ${pf}
+      &END EACH
+    &END RESTART
+    &RESTART_HISTORY
+      &EACH
+        MD 0
+      &END EACH
+    &END RESTART_HISTORY
+    &STRESS on
+      &EACH
+        MD ${pf}
+      &END EACH
+    &END STRESS
+    &STRUCTURE_DATA on
+      ANGLE 2 1 3
+      DISTANCE 1 2
+      DISTANCE 1 3
+      DISTANCE 2 3
+      &EACH
+        MD ${pf}
+      &END EACH
+    &END STRUCTURE_DATA
+    &TRAJECTORY on
+      FORMAT xyz
+      &EACH
+        MD ${pf}
+      &END EACH
+    &END TRAJECTORY
+    &VELOCITIES off
+      FORMAT xyz
+      &EACH
+        MD ${pf}
+      &END EACH
+    &END VELOCITIES
+  &END PRINT
+&END MOTION
+
+&FORCE_EVAL
+  METHOD Fist
+  STRESS_TENSOR analytical
+  &MM
+    @FFTYPE H2O/${model}
+    &POISSON
+      &EWALD
+        ALPHA 0.35
+        EWALD_TYPE SPME
+        GMAX 6*${na} 6*${nb} 6*${nc}
+        O_SPLINE 6
+      &END EWALD
+    &END POISSON
+    &PRINT
+      &DIPOLE off
+      &END DIPOLE
+      &FF_INFO on
+        SPLINE_DATA off
+        SPLINE_INFO on
+      &END FF_INFO
+      &PROGRAM_RUN_INFO
+        &EACH
+          MD ${pf}
+        &END EACH
+      &END PROGRAM_RUN_INFO
+    &END PRINT
+  &END MM
+  &PRINT
+    &PROGRAM_RUN_INFO
+      &EACH
+        MD ${pf}
+      &END EACH
+    &END PROGRAM_RUN_INFO
+  &END PRINT
+  &SUBSYS
+    &CELL
+      ABC [Angstrom] ${a} ${a} ${a}
+      MULTIPLE_UNIT_CELL ${na} ${nb} ${nc}
+    &END CELL
+    &COORD
+      UNIT Angstrom
+      OW        1.5800000000        1.5800000000        1.5800000000  H2O
+      HW        1.5800000000        1.5800000000        2.5800000000  H2O
+      HW        2.5228161427        1.5800000000        1.2466867524  H2O
+    &END COORD
+    &KIND OW
+      ELEMENT O
+    &END KIND
+    &KIND HW
+      ELEMENT H
+    &END KIND
+    &TOPOLOGY
+      MULTIPLE_UNIT_CELL ${na} ${nb} ${nc}
+    &END TOPOLOGY
+  &END SUBSYS
+&END FORCE_EVAL

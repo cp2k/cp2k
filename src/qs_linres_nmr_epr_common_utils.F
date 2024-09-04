@@ -20,9 +20,7 @@ MODULE qs_linres_nmr_epr_common_utils
    USE pw_grid_types,                   ONLY: pw_grid_type
    USE pw_methods,                      ONLY: pw_transfer
    USE pw_pool_types,                   ONLY: pw_pool_type
-   USE pw_types,                        ONLY: COMPLEXDATA1D,&
-                                              RECIPROCALSPACE,&
-                                              pw_type
+   USE pw_types,                        ONLY: pw_c1d_gs_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -58,35 +56,33 @@ CONTAINS
    SUBROUTINE mult_G_ov_G2_grid(pw_pool, rho_gspace, funcG_times_rho, idir, my_chi)
 
       TYPE(pw_pool_type), POINTER                        :: pw_pool
-      TYPE(pw_type), INTENT(IN)                          :: rho_gspace
-      TYPE(pw_type), INTENT(INOUT)                       :: funcG_times_rho
+      TYPE(pw_c1d_gs_type), INTENT(IN)                   :: rho_gspace
+      TYPE(pw_c1d_gs_type), INTENT(INOUT)                :: funcG_times_rho
       INTEGER, INTENT(IN)                                :: idir
       REAL(dp), INTENT(IN)                               :: my_chi
 
       INTEGER                                            :: handle, ig, ng
       REAL(dp)                                           :: g2
+      TYPE(pw_c1d_gs_type)                               :: influence_fn
       TYPE(pw_grid_type), POINTER                        :: grid
       CHARACTER(len=*), PARAMETER                        :: routineN = 'mult_G_ov_G2_grid'
 
-      TYPE(pw_type)                                      :: influence_fn
-
       CALL timeset(routineN, handle)
 
-      CALL pw_pool%create_pw(influence_fn, &
-                             use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+      CALL pw_pool%create_pw(influence_fn)
 
       grid => influence_fn%pw_grid
       DO ig = grid%first_gne0, grid%ngpts_cut_local
          g2 = grid%gsq(ig)
-         influence_fn%cc(ig) = gaussi*grid%g(idir, ig)/g2
+         influence_fn%array(ig) = gaussi*grid%g(idir, ig)/g2
       END DO ! ig
-      IF (grid%have_g0) influence_fn%cc(1) = 0.0_dp
+      IF (grid%have_g0) influence_fn%array(1) = 0.0_dp
 
       CALL pw_transfer(rho_gspace, funcG_times_rho)
 
       ng = SIZE(grid%gsq)
-      funcG_times_rho%cc(1:ng) = funcG_times_rho%cc(1:ng)*influence_fn%cc(1:ng)
-      IF (grid%have_g0) funcG_times_rho%cc(1) = my_chi
+      funcG_times_rho%array(1:ng) = funcG_times_rho%array(1:ng)*influence_fn%array(1:ng)
+      IF (grid%have_g0) funcG_times_rho%array(1) = my_chi
 
       CALL pw_pool%give_back_pw(influence_fn)
 

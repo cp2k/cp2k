@@ -6,20 +6,20 @@
 !! http://alin.elenaworld.net
 #global section sets what kind of calculations you want to do an general
 ! settings
-@set pfreq 100 ! the frequency for printing .cube properties and restart files
-@set name dimer
-@set period T
-@set method GPW ! use GAPW/ GPW for dft
-@set zk 10.0  ! coupling constant for collective variables and atoms
-@set zmass 100.0 ! mass for collective variables
-@set zgamma 0.001 ! friction coefficient for lagrange equations for cvs
-@set Tz  3000.0 ! temperature
-@set Nz 1   ! number of steps to integrate z
-@set dtz 0.5 ! time step to integrate the z
-@set dt 1.0 ! time steps to integrate atoms
-@set N 1 ! the length of the mini-trajectory
-@set M 2 ! number of cycles/steps for the HMC part
-@set Temp 25 ! physical system temperature
+@SET pfreq 100 ! the frequency for printing .cube properties and restart files
+@SET name dimer
+@SET period T
+@SET method GPW ! use GAPW/ GPW for dft
+@SET zk 10.0  ! coupling constant for collective variables and atoms
+@SET zmass 100.0 ! mass for collective variables
+@SET zgamma 0.001 ! friction coefficient for lagrange equations for cvs
+@SET Tz  3000.0 ! temperature
+@SET Nz 1   ! number of steps to integrate z
+@SET dtz 0.5 ! time step to integrate the z
+@SET dt 1.0 ! time steps to integrate atoms
+@SET N 1 ! the length of the mini-trajectory
+@SET M 2 ! number of cycles/steps for the HMC part
+@SET Temp 25 ! physical system temperature
 &GLOBAL
   ECHO_INPUT yes
   PREFERRED_FFT_LIBRARY FFTSG

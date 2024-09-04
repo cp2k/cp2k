@@ -128,7 +128,7 @@ MODULE qs_kind_types
       INTEGER                                :: max_scf = -1
       REAL(KIND=dp)                          :: eps_u_ramping = 0.0_dp
       REAL(KIND=dp)                          :: eps_scf = HUGE(0.0_dp)
-      REAL(KIND=dp)                          :: u_minus_j_target
+      REAL(KIND=dp)                          :: u_minus_j_target = 0.0_dp
       REAL(KIND=dp)                          :: u_minus_j = 0.0_dp
       REAL(KIND=dp)                          :: u_ramping = 0.0_dp
       REAL(KIND=dp)                          :: U = 0.0_dp
@@ -183,7 +183,7 @@ MODULE qs_kind_types
       TYPE(atom_upfpot_type), POINTER        :: upf_potential => Null()
       !
       TYPE(basis_set_container_type), &
-         DIMENSION(20)                       :: basis_sets
+         DIMENSION(20)                       :: basis_sets = basis_set_container_type()
       ! Atomic radii
       REAL(KIND=dp)                          :: covalent_radius = 0.0_dp
       REAL(KIND=dp)                          :: vdw_radius = 0.0_dp
@@ -228,7 +228,7 @@ MODULE qs_kind_types
 ! **************************************************************************************************
    TYPE qs_kind_p_type
       TYPE(qs_kind_type), DIMENSION(:), &
-         POINTER                             :: qs_kind_set
+         POINTER                             :: qs_kind_set => NULL()
    END TYPE qs_kind_p_type
 
    ! Public subroutines
@@ -3286,6 +3286,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: z
       INTEGER, DIMENSION(0:lmat, 10), INTENT(OUT)        :: ncalc, ncore, nelem
 
+      CHARACTER(LEN=default_string_length)               :: message
       INTEGER                                            :: ii, iounit, l, ll, lmin, nc, nn
       INTEGER, DIMENSION(0:lmat)                         :: econfx
       TYPE(cp_logger_type), POINTER                      :: logger
@@ -3404,12 +3405,23 @@ CONTAINS
          ! if there is still no core, check for special cases
          IF (ncore(0, 1) <= 0) THEN
             IF (z >= 58 .AND. z <= 71) THEN
-               ! 4f-in-core PPs Lathanides
+               ! 4f-in-core PPs for lanthanides
                nc = z - SUM(econf)
                ! setup ncore
                ncore = 0
                SELECT CASE (nc)
-               CASE (47)
+               CASE (29:42)
+                  ncore(0, 1) = 2
+                  ncore(0, 2) = 2
+                  ncore(0, 3) = 2
+                  ncore(1, 1) = 6
+                  ncore(1, 2) = 6
+                  ncore(2, 1) = 10
+                  ncore(3, 1) = nc - 28
+                  message = "A small-core pseudopotential with 4f-in-core is used for the lanthanide "// &
+                            TRIM(ptable(z)%symbol)
+                  CPHINT(TRIM(message))
+               CASE (47:60)
                   ncore(0, 1) = 2
                   ncore(0, 2) = 2
                   ncore(0, 3) = 2
@@ -3419,139 +3431,10 @@ CONTAINS
                   ncore(1, 3) = 6
                   ncore(2, 1) = 10
                   ncore(2, 2) = 10
-                  ncore(3, 1) = 1
-               CASE (48)
-                  ncore(0, 1) = 2
-                  ncore(0, 2) = 2
-                  ncore(0, 3) = 2
-                  ncore(0, 4) = 2
-                  ncore(1, 1) = 6
-                  ncore(1, 2) = 6
-                  ncore(1, 3) = 6
-                  ncore(2, 1) = 10
-                  ncore(2, 2) = 10
-                  ncore(3, 1) = 2
-               CASE (49)
-                  ncore(0, 1) = 2
-                  ncore(0, 2) = 2
-                  ncore(0, 3) = 2
-                  ncore(0, 4) = 2
-                  ncore(1, 1) = 6
-                  ncore(1, 2) = 6
-                  ncore(1, 3) = 6
-                  ncore(2, 1) = 10
-                  ncore(2, 2) = 10
-                  ncore(3, 1) = 3
-               CASE (50)
-                  ncore(0, 1) = 2
-                  ncore(0, 2) = 2
-                  ncore(0, 3) = 2
-                  ncore(0, 4) = 2
-                  ncore(1, 1) = 6
-                  ncore(1, 2) = 6
-                  ncore(1, 3) = 6
-                  ncore(2, 1) = 10
-                  ncore(2, 2) = 10
-                  ncore(3, 1) = 4
-               CASE (51)
-                  ncore(0, 1) = 2
-                  ncore(0, 2) = 2
-                  ncore(0, 3) = 2
-                  ncore(0, 4) = 2
-                  ncore(1, 1) = 6
-                  ncore(1, 2) = 6
-                  ncore(1, 3) = 6
-                  ncore(2, 1) = 10
-                  ncore(2, 2) = 10
-                  ncore(3, 1) = 5
-               CASE (52)
-                  ncore(0, 1) = 2
-                  ncore(0, 2) = 2
-                  ncore(0, 3) = 2
-                  ncore(0, 4) = 2
-                  ncore(1, 1) = 6
-                  ncore(1, 2) = 6
-                  ncore(1, 3) = 6
-                  ncore(2, 1) = 10
-                  ncore(2, 2) = 10
-                  ncore(3, 1) = 6
-               CASE (53)
-                  ncore(0, 1) = 2
-                  ncore(0, 2) = 2
-                  ncore(0, 3) = 2
-                  ncore(0, 4) = 2
-                  ncore(1, 1) = 6
-                  ncore(1, 2) = 6
-                  ncore(1, 3) = 6
-                  ncore(2, 1) = 10
-                  ncore(2, 2) = 10
-                  ncore(3, 1) = 7
-               CASE (54)
-                  ncore(0, 1) = 2
-                  ncore(0, 2) = 2
-                  ncore(0, 3) = 2
-                  ncore(0, 4) = 2
-                  ncore(1, 1) = 6
-                  ncore(1, 2) = 6
-                  ncore(1, 3) = 6
-                  ncore(2, 1) = 10
-                  ncore(2, 2) = 10
-                  ncore(3, 1) = 8
-               CASE (55)
-                  ncore(0, 1) = 2
-                  ncore(0, 2) = 2
-                  ncore(0, 3) = 2
-                  ncore(0, 4) = 2
-                  ncore(1, 1) = 6
-                  ncore(1, 2) = 6
-                  ncore(1, 3) = 6
-                  ncore(2, 1) = 10
-                  ncore(2, 2) = 10
-                  ncore(3, 1) = 9
-               CASE (56)
-                  ncore(0, 1) = 2
-                  ncore(0, 2) = 2
-                  ncore(0, 3) = 2
-                  ncore(0, 4) = 2
-                  ncore(1, 1) = 6
-                  ncore(1, 2) = 6
-                  ncore(1, 3) = 6
-                  ncore(2, 1) = 10
-                  ncore(2, 2) = 10
-                  ncore(3, 1) = 10
-               CASE (57)
-                  ncore(0, 1) = 2
-                  ncore(0, 2) = 2
-                  ncore(0, 3) = 2
-                  ncore(0, 4) = 2
-                  ncore(1, 1) = 6
-                  ncore(1, 2) = 6
-                  ncore(1, 3) = 6
-                  ncore(2, 1) = 10
-                  ncore(2, 2) = 10
-                  ncore(3, 1) = 11
-               CASE (58)
-                  ncore(0, 1) = 2
-                  ncore(0, 2) = 2
-                  ncore(0, 3) = 2
-                  ncore(0, 4) = 2
-                  ncore(1, 1) = 6
-                  ncore(1, 2) = 6
-                  ncore(1, 3) = 6
-                  ncore(2, 1) = 10
-                  ncore(2, 2) = 10
-                  ncore(3, 1) = 12
-               CASE (59)
-                  ncore(0, 1) = 2
-                  ncore(0, 2) = 2
-                  ncore(0, 3) = 2
-                  ncore(0, 4) = 2
-                  ncore(1, 1) = 6
-                  ncore(1, 2) = 6
-                  ncore(1, 3) = 6
-                  ncore(2, 1) = 10
-                  ncore(2, 2) = 10
-                  ncore(3, 1) = 13
+                  ncore(3, 1) = nc - 46
+                  message = "A medium-core pseudopotential with 4f-in-core is used for the lanthanide "// &
+                            TRIM(ptable(z)%symbol)
+                  CPHINT(TRIM(message))
                CASE DEFAULT
                   ncore(0, 1) = -1
                END SELECT

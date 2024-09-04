@@ -90,15 +90,15 @@
       &END DISTRIBUTION
     &END QS
     &SCF
-@IF ${Diag}
+      @IF ${Diag}
       SCF_GUESS ATOMIC
       MAX_SCF 300
       EPS_SCF 1.0E-5
       &MIXING
         ALPHA 0.2
       &END MIXING
-@ENDIF
-@IF ${OT}
+      @ENDIF
+      @IF ${OT}
       SCF_GUESS ATOMIC
       MAX_SCF 31
       EPS_SCF 1.0E-5
@@ -110,7 +110,7 @@
         EPS_SCF 1.0E-5
         MAX_SCF 50
       &END OUTER_SCF
-@ENDIF
+      @ENDIF
       &PRINT
         &RESTART ${RST}
           BACKUP_COPIES 0

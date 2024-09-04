@@ -40,6 +40,7 @@
         KPOINTS 1 2 2
       &END DOS
       &GW
+        HEDIN_SHIFT FALSE
         NUM_TIME_FREQ_POINTS 6
       &END GW
     &END BANDSTRUCTURE

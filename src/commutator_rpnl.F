@@ -18,7 +18,7 @@ MODULE commutator_rpnl
                                               gto_basis_set_type
    USE block_p_types,                   ONLY: block_p_type
    USE cell_types,                      ONLY: cell_type
-   USE dbcsr_api,                       ONLY: dbcsr_get_block_p,&
+   USE cp_dbcsr_api,                    ONLY: dbcsr_get_block_p,&
                                               dbcsr_p_type
    USE external_potential_types,        ONLY: gth_potential_p_type,&
                                               gth_potential_type,&

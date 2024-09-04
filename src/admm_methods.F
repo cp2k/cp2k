@@ -13,7 +13,7 @@
 !> \author Manuel Guidon
 ! **************************************************************************************************
 MODULE admm_methods
-   USE admm_types,                      ONLY: admm_gapw_type,&
+   USE admm_types,                      ONLY: admm_gapw_r3d_rs_type,&
                                               admm_type,&
                                               get_admm_env
    USE atomic_kind_types,               ONLY: atomic_kind_type
@@ -32,6 +32,12 @@ MODULE admm_methods
                                               cp_cfm_type,&
                                               cp_fm_to_cfm
    USE cp_control_types,                ONLY: dft_control_type
+   USE cp_dbcsr_api,                    ONLY: &
+        dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, dbcsr_desymmetrize, &
+        dbcsr_dot, dbcsr_get_block_p, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
+        dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_p_type, &
+        dbcsr_release, dbcsr_scale, dbcsr_set, dbcsr_type, dbcsr_type_antisymmetric, &
+        dbcsr_type_no_symmetry, dbcsr_type_symmetric
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               copy_fm_to_dbcsr,&
@@ -63,12 +69,6 @@ MODULE admm_methods
                                               cp_print_key_finished_output,&
                                               cp_print_key_should_output,&
                                               cp_print_key_unit_nr
-   USE dbcsr_api,                       ONLY: &
-        dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, dbcsr_desymmetrize, &
-        dbcsr_dot, dbcsr_get_block_p, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
-        dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_p_type, &
-        dbcsr_release, dbcsr_scale, dbcsr_set, dbcsr_type, dbcsr_type_antisymmetric, &
-        dbcsr_type_no_symmetry, dbcsr_type_symmetric
    USE input_constants,                 ONLY: do_admm_purify_cauchy,&
                                               do_admm_purify_cauchy_subspace,&
                                               do_admm_purify_mo_diag,&
@@ -90,7 +90,8 @@ MODULE admm_methods
                                               z_zero
    USE message_passing,                 ONLY: mp_para_env_type
    USE parallel_gemm_api,               ONLY: parallel_gemm
-   USE pw_types,                        ONLY: pw_type
+   USE pw_types,                        ONLY: pw_c1d_gs_type,&
+                                              pw_r3d_rs_type
    USE qs_collocate_density,            ONLY: calculate_rho_elec
    USE qs_energy_types,                 ONLY: qs_energy_type
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -160,7 +161,8 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos, mos_aux_fit
       TYPE(mp_para_env_type), POINTER                    :: para_env
-      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_g_aux, rho_r_aux
+      TYPE(pw_c1d_gs_type), DIMENSION(:), POINTER        :: rho_g_aux
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: rho_r_aux
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho, rho_aux_fit
       TYPE(task_list_type), POINTER                      :: task_list
@@ -320,7 +322,8 @@ CONTAINS
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_aux_fit, sab_kp
-      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_g_aux, rho_r_aux
+      TYPE(pw_c1d_gs_type), DIMENSION(:), POINTER        :: rho_g_aux
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: rho_r_aux
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho_aux_fit, rho_orb
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
@@ -2390,7 +2393,7 @@ CONTAINS
       LOGICAL                                            :: gapw
       REAL(dp)                                           :: tmp
       REAL(KIND=dp), DIMENSION(:), POINTER               :: tot_rho_r
-      TYPE(admm_gapw_type), POINTER                      :: admm_gapw_env
+      TYPE(admm_gapw_r3d_rs_type), POINTER               :: admm_gapw_env
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_ao
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_ks_aux_fit_hfx, rho_ao_aux, &
@@ -2398,8 +2401,8 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(local_rho_type), POINTER                      :: local_rho_buffer
       TYPE(mp_para_env_type), POINTER                    :: para_env
-      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_g, rho_r, v_rspace_dummy, &
-                                                            v_tau_rspace_dummy
+      TYPE(pw_c1d_gs_type), DIMENSION(:), POINTER        :: rho_g
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: rho_r, v_rspace_dummy, v_tau_rspace_dummy
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho_aux_fit, rho_aux_fit_buffer
       TYPE(section_vals_type), POINTER                   :: xc_section_aux

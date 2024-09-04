@@ -5,7 +5,6 @@
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
 MODULE fftw3_lib
-
    USE ISO_C_BINDING, ONLY: C_ASSOCIATED, &
                             C_CHAR, &
                             C_DOUBLE, &
@@ -148,18 +147,27 @@ CONTAINS
       LOGICAL                                  :: ionode
 
 #if defined ( __FFTW3 )
-      INTEGER                                  :: iunit, istat
+      CHARACTER(LEN=1, KIND=C_CHAR), DIMENSION(:), ALLOCATABLE :: wisdom_file_name_c
+      INTEGER                                  :: file_name_length, i, iunit, istat
       INTEGER(KIND=C_INT)                      :: isuccess
       ! Write out FFTW3 wisdom to file (if we can)
       ! only the ionode updates the wisdom
       IF (ionode) THEN
          iunit = get_unit_number()
+         ! Check whether the file can be opened in the necessary manner
          OPEN (UNIT=iunit, FILE=wisdom_file, STATUS="UNKNOWN", FORM="FORMATTED", ACTION="WRITE", IOSTAT=istat)
          IF (istat == 0) THEN
-            isuccess = fftw_export_wisdom_to_filename(wisdom_file//C_NULL_CHAR)
-            IF (isuccess == 0) &
-               CPABORT("Error exporting wisdom to file "//wisdom_file)
             CLOSE (iunit)
+            file_name_length = LEN_TRIM(wisdom_file)
+            ALLOCATE (wisdom_file_name_c(file_name_length + 1))
+            DO i = 1, file_name_length
+               wisdom_file_name_c(i) = wisdom_file(i:i)
+            END DO
+            wisdom_file_name_c(file_name_length + 1) = C_NULL_CHAR
+            isuccess = fftw_export_wisdom_to_filename(wisdom_file_name_c)
+            IF (isuccess == 0) &
+               CALL cp_warn(__LOCATION__, "Error exporting wisdom to file "//TRIM(wisdom_file)//". "// &
+                            "Wisdom was not exported.")
          END IF
       END IF
 
@@ -180,9 +188,10 @@ CONTAINS
       CHARACTER(LEN=*), INTENT(IN)             :: wisdom_file
 
 #if defined ( __FFTW3 )
-      INTEGER                                  :: istat, iunit
-      INTEGER(KIND=C_INT) :: isuccess
-      LOGICAL                                  :: exist
+      CHARACTER(LEN=1, KIND=C_CHAR), DIMENSION(:), ALLOCATABLE :: wisdom_file_name_c
+      INTEGER                                  :: file_name_length, i, istat, iunit
+      INTEGER(KIND=C_INT)                      :: isuccess
+      LOGICAL :: file_exists
 
 #if defined(__MKL)
 !$    LOGICAL                                  :: mkl_is_safe
@@ -209,19 +218,32 @@ CONTAINS
 #include <mkl_version.h>
 #endif
 
+      isuccess = fftw_init_threads()
+      IF (isuccess == 0) &
+         CPABORT("Error initializing FFTW with threads")
+
       ! Read FFTW wisdom (if available)
       ! all nodes are opening the file here...
-      INQUIRE (FILE=wisdom_file, exist=exist)
-      IF (exist) THEN
+      INQUIRE (FILE=wisdom_file, exist=file_exists)
+      IF (file_exists) THEN
          iunit = get_unit_number()
+         file_name_length = LEN_TRIM(wisdom_file)
+         ! Check whether the file can be opened in the necessary manner
          OPEN (UNIT=iunit, FILE=wisdom_file, STATUS="OLD", FORM="FORMATTED", POSITION="REWIND", &
                ACTION="READ", IOSTAT=istat)
          IF (istat == 0) THEN
-            isuccess = fftw_import_wisdom_from_filename(wisdom_file//C_NULL_CHAR)
-            IF (isuccess == 0) &
-               CPABORT("Error importing wisdom from file "//wisdom_file)
-            ! write(*,*) "FFTW3 import wisdom from file ....",MERGE((/"OK    "/),(/"NOT OK"/),(/isuccess==1/))
             CLOSE (iunit)
+            file_name_length = LEN_TRIM(wisdom_file)
+            ALLOCATE (wisdom_file_name_c(file_name_length + 1))
+            DO i = 1, file_name_length
+               wisdom_file_name_c(i) = wisdom_file(i:i)
+            END DO
+            wisdom_file_name_c(file_name_length + 1) = C_NULL_CHAR
+            isuccess = fftw_import_wisdom_from_filename(wisdom_file_name_c)
+            IF (isuccess == 0) &
+               CALL cp_warn(__LOCATION__, "Error importing wisdom from file "//TRIM(wisdom_file)//". "// &
+                            "Maybe the file was created with a different configuration than CP2K is run with. "// &
+                            "CP2K continues without importing wisdom.")
          END IF
       END IF
 
@@ -247,11 +269,11 @@ CONTAINS
 !DEC$ ENDIF
 #endif
 !$       IF (.NOT. mkl_is_safe) THEN
-!$          STOP "Intel's FFTW3 interface to MKL is not "// &
-!$             "thread-safe prior to MKL 11.1.0!  Please "// &
-!$             "rebuild CP2K, linking against FFTW 3 from "// &
-!$             "www.fftw.org or a newer version of MKL. "// &
-!$             "Now exiting..."
+!$          CALL cp_abort(__LOCATION__, "Intel's FFTW3 interface to MKL is not "// &
+!$                        "thread-safe prior to MKL 11.1.0!  Please "// &
+!$                        "rebuild CP2K, linking against FFTW 3 from "// &
+!$                        "www.fftw.org or a newer version of MKL. "// &
+!$                        "Now exiting...")
 !$       END IF
 !$    END IF
 #endif
@@ -563,8 +585,11 @@ CONTAINS
       ! If this fails (e.g. for MKL's FFTW3 interface), fall back to the
       ! FFTW3 threaded 3D transform instead of the hand-optimised version
       dim_n(1) = 1
+      dim_n(2) = 1
       dim_istride(1) = 1
+      dim_istride(2) = 1
       dim_ostride(1) = 1
+      dim_ostride(2) = 1
       howmany_n(1) = 1
       howmany_n(2) = 1
       howmany_istride(1) = 1

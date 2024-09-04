@@ -9,6 +9,7 @@
 #define DBM_MPI_H
 
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdint.h>
 
 #if defined(__parallel)
@@ -182,6 +183,18 @@ void dbm_mpi_alltoallv_double(const double *sendbuf, const int *sendcounts,
                               const int *sdispls, double *recvbuf,
                               const int *recvcounts, const int *rdispls,
                               const dbm_mpi_comm_t comm);
+
+/*******************************************************************************
+ * \brief Wrapper around MPI_Alloc_mem.
+ * \author Hans Pabst
+ ******************************************************************************/
+void *dbm_mpi_alloc_mem(size_t size);
+
+/*******************************************************************************
+ * \brief Wrapper around MPI_Free_mem.
+ * \author Hans Pabst
+ ******************************************************************************/
+void dbm_mpi_free_mem(void *ptr);
 
 #endif
 

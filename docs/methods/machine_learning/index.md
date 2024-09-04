@@ -3,9 +3,10 @@
 ```{toctree}
 ---
 titlesonly:
-maxdepth: 1
+maxdepth: 2
 ---
 nequip
 nnp
 pao-ml
+deepmd
 ```

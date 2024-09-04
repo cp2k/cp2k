@@ -13,44 +13,44 @@
 ! **************************************************************************************************
 MODULE dielectric_methods
 
-   USE dct,                             ONLY: pw_expand
-   USE dielectric_types,                ONLY: &
-        derivative_cd3, derivative_cd5, derivative_cd7, derivative_fft, derivative_fft_use_deps, &
-        derivative_fft_use_drho, dielectric_parameters, dielectric_type, rho_dependent, &
-        spatially_dependent, spatially_rho_dependent
-   USE kinds,                           ONLY: dp
-   USE mathconstants,                   ONLY: twopi
-   USE pw_grid_types,                   ONLY: pw_grid_type
-   USE pw_methods,                      ONLY: pw_axpy,&
-                                              pw_copy,&
-                                              pw_derive,&
-                                              pw_transfer,&
-                                              pw_zero
-   USE pw_pool_types,                   ONLY: pw_pool_create,&
-                                              pw_pool_release,&
-                                              pw_pool_type
-   USE pw_types,                        ONLY: COMPLEXDATA1D,&
-                                              REALDATA3D,&
-                                              REALSPACE,&
-                                              RECIPROCALSPACE,&
-                                              pw_type
-   USE realspace_grid_types,            ONLY: realspace_grid_type
-   USE rs_methods,                      ONLY: derive_fdm_cd3,&
-                                              derive_fdm_cd5,&
-                                              derive_fdm_cd7,&
-                                              pw_mollifier,&
-                                              setup_grid_axes
+   USE dct, ONLY: pw_expand
+   USE dielectric_types, ONLY: &
+      derivative_cd3, derivative_cd5, derivative_cd7, derivative_fft, derivative_fft_use_deps, &
+      derivative_fft_use_drho, dielectric_parameters, dielectric_type, rho_dependent, &
+      spatially_dependent, spatially_rho_dependent
+   USE kinds, ONLY: dp
+   USE mathconstants, ONLY: twopi
+   USE pw_grid_types, ONLY: pw_grid_type
+   USE pw_methods, ONLY: pw_axpy, &
+                         pw_set, pw_copy, &
+                         pw_derive, &
+                         pw_transfer, &
+                         pw_zero
+   USE pw_pool_types, ONLY: pw_pool_create, &
+                            pw_pool_release, &
+                            pw_pool_type
+   USE pw_types, ONLY: &
+      pw_c1d_gs_type, &
+      pw_r3d_rs_type
+   USE realspace_grid_types, ONLY: realspace_grid_type
+   USE rs_methods, ONLY: derive_fdm_cd3, &
+                         derive_fdm_cd5, &
+                         derive_fdm_cd7, &
+                         pw_mollifier, &
+                         setup_grid_axes
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dielectric_methods'
 
-   PUBLIC dielectric_create, dielectric_compute, derive_fft
+   PUBLIC :: dielectric_create, dielectric_compute, derive_fft
 
    INTERFACE dielectric_compute
-      MODULE PROCEDURE dielectric_compute_periodic, &
-         dielectric_compute_neumann
+      MODULE PROCEDURE dielectric_compute_periodic_r3d_rs, &
+         dielectric_compute_neumann_r3d_rs
+      MODULE PROCEDURE dielectric_compute_periodic_c1d_gs, &
+         dielectric_compute_neumann_c1d_gs
    END INTERFACE dielectric_compute
 
 CONTAINS
@@ -80,15 +80,12 @@ CONTAINS
          NULLIFY (dielectric%eps)
          NULLIFY (dielectric%deps_drho)
          ALLOCATE (dielectric%eps, dielectric%deps_drho)
-         CALL pw_pool%create_pw(dielectric%eps, &
-                                use_data=REALDATA3D, in_space=REALSPACE)
-         CALL pw_pool%create_pw(dielectric%deps_drho, &
-                                use_data=REALDATA3D, in_space=REALSPACE)
-         dielectric%eps%cr3d = 1.0_dp
+         CALL pw_pool%create_pw(dielectric%eps)
+         CALL pw_pool%create_pw(dielectric%deps_drho)
+         CALL pw_set(dielectric%eps, 1.0_dp)
          CALL pw_zero(dielectric%deps_drho)
          DO i = 1, 3
-            CALL pw_pool%create_pw(dielectric%dln_eps(i), &
-                                   use_data=REALDATA3D, in_space=REALSPACE)
+            CALL pw_pool%create_pw(dielectric%dln_eps(i))
             CALL pw_zero(dielectric%dln_eps(i))
          END DO
          dielectric%params = dielectric_params
@@ -99,6 +96,7 @@ CONTAINS
 
    END SUBROUTINE dielectric_create
 
+   #:for kind in ["c1d_gs", "r3d_rs"]
 ! **************************************************************************************************
 !> \brief   evaluates the dielectric constant
 !> \param dielectric  the dielectric data type to be initialized
@@ -112,159 +110,160 @@ CONTAINS
 !>       07.2015 density-independent dielectric regions [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
 ! **************************************************************************************************
-   SUBROUTINE dielectric_compute_periodic(dielectric, diel_rs_grid, pw_pool, rho, rho_core)
+      SUBROUTINE dielectric_compute_periodic_${kind}$ (dielectric, diel_rs_grid, pw_pool, rho, rho_core)
 
-      TYPE(dielectric_type), INTENT(INOUT), POINTER      :: dielectric
-      TYPE(realspace_grid_type), POINTER                 :: diel_rs_grid
-      TYPE(pw_pool_type), INTENT(IN), POINTER            :: pw_pool
-      TYPE(pw_type), INTENT(IN)                          :: rho
-      TYPE(pw_type), INTENT(IN), OPTIONAL                :: rho_core
+         TYPE(dielectric_type), INTENT(INOUT), POINTER      :: dielectric
+         TYPE(realspace_grid_type), POINTER                 :: diel_rs_grid
+         TYPE(pw_pool_type), INTENT(IN), POINTER            :: pw_pool
+         TYPE(pw_${kind}$_type), INTENT(IN)                          :: rho
+         TYPE(pw_c1d_gs_type), INTENT(IN), OPTIONAL                :: rho_core
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'dielectric_compute_periodic'
-      REAL(dp), PARAMETER                                :: small_value = EPSILON(1.0_dp)
+         CHARACTER(LEN=*), PARAMETER :: routineN = 'dielectric_compute_periodic'
+         REAL(dp), PARAMETER                                :: small_value = EPSILON(1.0_dp)
 
-      INTEGER                                            :: derivative_method, dielec_functiontype, &
-                                                            handle, i, idir, j, k, times_called
-      INTEGER, DIMENSION(3)                              :: lb, ub
-      REAL(dp)                                           :: eps0, rho_max, rho_min
-      TYPE(pw_type)                                      :: ln_eps, rho_core_rs, rho_elec_rs
-      TYPE(pw_type), DIMENSION(3)                        :: deps, drho
+         INTEGER                                            :: derivative_method, dielec_functiontype, &
+                                                               handle, i, idir, j, k, times_called
+         INTEGER, DIMENSION(3)                              :: lb, ub
+         REAL(dp)                                           :: eps0, rho_max, rho_min
+         TYPE(pw_r3d_rs_type)                                      :: ln_eps, rho_elec_rs
+         TYPE(pw_r3d_rs_type) :: rho_core_rs
+         TYPE(pw_r3d_rs_type), DIMENSION(3)                        :: deps, drho
 
-      CALL timeset(routineN, handle)
+         CALL timeset(routineN, handle)
 
-      rho_min = dielectric%params%rho_min
-      rho_max = dielectric%params%rho_max
-      eps0 = dielectric%params%eps0
-      derivative_method = dielectric%params%derivative_method
-      times_called = dielectric%params%times_called
-      dielec_functiontype = dielectric%params%dielec_functiontype
+         rho_min = dielectric%params%rho_min
+         rho_max = dielectric%params%rho_max
+         eps0 = dielectric%params%eps0
+         derivative_method = dielectric%params%derivative_method
+         times_called = dielectric%params%times_called
+         dielec_functiontype = dielectric%params%dielec_functiontype
 
-      IF (.NOT. dielec_functiontype .EQ. rho_dependent .AND. &
-          ((derivative_method .EQ. derivative_fft_use_deps) .OR. &
-           (derivative_method .EQ. derivative_fft_use_deps))) THEN
-         CALL cp_abort(__LOCATION__, &
-                       "The specified derivative method is not compatible with the type of "// &
-                       "the dielectric constant function.")
-      END IF
-
-      CALL pw_pool%create_pw(rho_elec_rs, use_data=REALDATA3D, in_space=REALSPACE)
-
-      ! for evaluating epsilon make sure rho is in the real space
-      CALL pw_transfer(rho, rho_elec_rs)
-
-      IF (PRESENT(rho_core)) THEN
-         ! make sure rho_core is in the real space
-         CALL pw_pool%create_pw(rho_core_rs, use_data=REALDATA3D, in_space=REALSPACE)
-         CALL pw_transfer(rho_core, rho_core_rs)
-         IF (dielectric%params%dielec_core_correction) THEN
-            ! use (rho_elec - rho_core) to compute dielectric to avoid obtaining spurious
-            ! epsilon in the core region
-            CALL pw_axpy(rho_core_rs, rho_elec_rs, -2.0_dp)
-         ELSE
-            CALL pw_axpy(rho_core_rs, rho_elec_rs, -1.0_dp)
+         IF (.NOT. dielec_functiontype .EQ. rho_dependent .AND. &
+             ((derivative_method .EQ. derivative_fft_use_deps) .OR. &
+              (derivative_method .EQ. derivative_fft_use_deps))) THEN
+            CALL cp_abort(__LOCATION__, &
+                          "The specified derivative method is not compatible with the type of "// &
+                          "the dielectric constant function.")
          END IF
-         CALL pw_pool%give_back_pw(rho_core_rs)
-      ELSE
-         CPABORT("For dielectric constant larger than 1, rho_core has to be present.")
-      END IF
+
+         CALL pw_pool%create_pw(rho_elec_rs)
+
+         ! for evaluating epsilon make sure rho is in the real space
+         CALL pw_transfer(rho, rho_elec_rs)
+
+         IF (PRESENT(rho_core)) THEN
+            ! make sure rho_core is in the real space
+            CALL pw_pool%create_pw(rho_core_rs)
+            CALL pw_transfer(rho_core, rho_core_rs)
+            IF (dielectric%params%dielec_core_correction) THEN
+               ! use (rho_elec - rho_core) to compute dielectric to avoid obtaining spurious
+               ! epsilon in the core region
+               CALL pw_axpy(rho_core_rs, rho_elec_rs, -2.0_dp)
+            ELSE
+               CALL pw_axpy(rho_core_rs, rho_elec_rs, -1.0_dp)
+            END IF
+            CALL pw_pool%give_back_pw(rho_core_rs)
+         ELSE
+            CPABORT("For dielectric constant larger than 1, rho_core has to be present.")
+         END IF
 
 ! calculate the dielectric constant
-      SELECT CASE (dielec_functiontype)
-      CASE (rho_dependent)
-         CALL dielectric_constant_sccs(rho_elec_rs, dielectric%eps, dielectric%deps_drho, &
-                                       eps0, rho_max, rho_min)
-      CASE (spatially_dependent)
-         IF (times_called .EQ. 0) THEN
-            CALL dielectric_constant_spatially_dependent(dielectric%eps, pw_pool, dielectric%params)
-         END IF
-      CASE (spatially_rho_dependent)
-         CALL dielectric_constant_spatially_rho_dependent(rho_elec_rs, dielectric%eps, &
-                                                          dielectric%deps_drho, pw_pool, dielectric%params)
-      END SELECT
+         SELECT CASE (dielec_functiontype)
+         CASE (rho_dependent)
+            CALL dielectric_constant_sccs(rho_elec_rs, dielectric%eps, dielectric%deps_drho, &
+                                          eps0, rho_max, rho_min)
+         CASE (spatially_dependent)
+            IF (times_called .EQ. 0) THEN
+               CALL dielectric_constant_spatially_dependent(dielectric%eps, pw_pool, dielectric%params)
+            END IF
+         CASE (spatially_rho_dependent)
+            CALL dielectric_constant_spatially_rho_dependent(rho_elec_rs, dielectric%eps, &
+                                                             dielectric%deps_drho, pw_pool, dielectric%params)
+         END SELECT
 
 ! derivatives
-      IF ((dielec_functiontype .EQ. rho_dependent) .OR. &
-          (dielec_functiontype .EQ. spatially_rho_dependent) .OR. &
-          ((dielec_functiontype .EQ. spatially_dependent) .AND. times_called .EQ. 0)) THEN
-         SELECT CASE (derivative_method)
-         CASE (derivative_cd3, derivative_cd5, derivative_cd7, derivative_fft)
-            CALL pw_pool%create_pw(ln_eps, use_data=REALDATA3D, in_space=REALSPACE)
-            ln_eps%cr3d = LOG(dielectric%eps%cr3d)
-         CASE (derivative_fft_use_deps)
-            DO i = 1, 3
-               CALL pw_pool%create_pw(deps(i), use_data=REALDATA3D, in_space=REALSPACE)
-               CALL pw_zero(deps(i))
-            END DO
-         CASE (derivative_fft_use_drho)
-            DO i = 1, 3
-               CALL pw_pool%create_pw(deps(i), use_data=REALDATA3D, in_space=REALSPACE)
-               CALL pw_pool%create_pw(drho(i), use_data=REALDATA3D, in_space=REALSPACE)
-               CALL pw_zero(deps(i))
-               CALL pw_zero(drho(i))
-            END DO
-         END SELECT
+         IF ((dielec_functiontype .EQ. rho_dependent) .OR. &
+             (dielec_functiontype .EQ. spatially_rho_dependent) .OR. &
+             ((dielec_functiontype .EQ. spatially_dependent) .AND. times_called .EQ. 0)) THEN
+            SELECT CASE (derivative_method)
+            CASE (derivative_cd3, derivative_cd5, derivative_cd7, derivative_fft)
+               CALL pw_pool%create_pw(ln_eps)
+               ln_eps%array = LOG(dielectric%eps%array)
+            CASE (derivative_fft_use_deps)
+               DO i = 1, 3
+                  CALL pw_pool%create_pw(deps(i))
+                  CALL pw_zero(deps(i))
+               END DO
+            CASE (derivative_fft_use_drho)
+               DO i = 1, 3
+                  CALL pw_pool%create_pw(deps(i))
+                  CALL pw_pool%create_pw(drho(i))
+                  CALL pw_zero(deps(i))
+                  CALL pw_zero(drho(i))
+               END DO
+            END SELECT
 
-         SELECT CASE (derivative_method)
-         CASE (derivative_cd3)
-            CALL derive_fdm_cd3(ln_eps, dielectric%dln_eps, diel_rs_grid)
-         CASE (derivative_cd5)
-            CALL derive_fdm_cd5(ln_eps, dielectric%dln_eps, diel_rs_grid)
-         CASE (derivative_cd7)
-            CALL derive_fdm_cd7(ln_eps, dielectric%dln_eps, diel_rs_grid)
-         CASE (derivative_fft)
-            CALL derive_fft(ln_eps, dielectric%dln_eps, pw_pool)
-         CASE (derivative_fft_use_deps)
-            ! \Nabla ln(\eps) = \frac{\Nabla \eps}{\eps}
-            CALL derive_fft(dielectric%eps, deps, pw_pool)
+            SELECT CASE (derivative_method)
+            CASE (derivative_cd3)
+               CALL derive_fdm_cd3(ln_eps, dielectric%dln_eps, diel_rs_grid)
+            CASE (derivative_cd5)
+               CALL derive_fdm_cd5(ln_eps, dielectric%dln_eps, diel_rs_grid)
+            CASE (derivative_cd7)
+               CALL derive_fdm_cd7(ln_eps, dielectric%dln_eps, diel_rs_grid)
+            CASE (derivative_fft)
+               CALL derive_fft(ln_eps, dielectric%dln_eps, pw_pool)
+            CASE (derivative_fft_use_deps)
+               ! \Nabla ln(\eps) = \frac{\Nabla \eps}{\eps}
+               CALL derive_fft(dielectric%eps, deps, pw_pool)
 
-            lb(1:3) = pw_pool%pw_grid%bounds_local(1, 1:3)
-            ub(1:3) = pw_pool%pw_grid%bounds_local(2, 1:3)
-            ! damp oscillations cuased by fft-based derivative in the region
-            ! where electron density is zero
-            DO idir = 1, 3
-               DO k = lb(3), ub(3)
-                  DO j = lb(2), ub(2)
-                     DO i = lb(1), ub(1)
-                        IF (ABS(dielectric%deps_drho%cr3d(i, j, k)) .LE. small_value) THEN
-                           deps(idir)%cr3d(i, j, k) = 0.0_dp
-                        END IF
+               lb(1:3) = pw_pool%pw_grid%bounds_local(1, 1:3)
+               ub(1:3) = pw_pool%pw_grid%bounds_local(2, 1:3)
+               ! damp oscillations cuased by fft-based derivative in the region
+               ! where electron density is zero
+               DO idir = 1, 3
+                  DO k = lb(3), ub(3)
+                     DO j = lb(2), ub(2)
+                        DO i = lb(1), ub(1)
+                           IF (ABS(dielectric%deps_drho%array(i, j, k)) .LE. small_value) THEN
+                              deps(idir)%array(i, j, k) = 0.0_dp
+                           END IF
+                        END DO
                      END DO
                   END DO
+                  dielectric%dln_eps(idir)%array = deps(idir)%array/dielectric%eps%array
                END DO
-               dielectric%dln_eps(idir)%cr3d = deps(idir)%cr3d/dielectric%eps%cr3d
-            END DO
-         CASE (derivative_fft_use_drho)
-            ! \Nabla \eps = \Nabla \rho \cdot \frac{\partial \eps}{\partial \rho}
-            ! \Nabla ln(\eps) = \frac{\Nabla \eps}{\eps}
-            CALL derive_fft(rho_elec_rs, drho, pw_pool)
-            DO i = 1, 3
-               deps(i)%cr3d = drho(i)%cr3d*dielectric%deps_drho%cr3d
-               dielectric%dln_eps(i)%cr3d = deps(i)%cr3d/dielectric%eps%cr3d
-            END DO
-         END SELECT
+            CASE (derivative_fft_use_drho)
+               ! \Nabla \eps = \Nabla \rho \cdot \frac{\partial \eps}{\partial \rho}
+               ! \Nabla ln(\eps) = \frac{\Nabla \eps}{\eps}
+               CALL derive_fft(rho_elec_rs, drho, pw_pool)
+               DO i = 1, 3
+                  deps(i)%array = drho(i)%array*dielectric%deps_drho%array
+                  dielectric%dln_eps(i)%array = deps(i)%array/dielectric%eps%array
+               END DO
+            END SELECT
 
-         SELECT CASE (derivative_method)
-         CASE (derivative_cd3, derivative_cd5, derivative_cd7, derivative_fft)
-            CALL pw_pool%give_back_pw(ln_eps)
-         CASE (derivative_fft_use_deps)
-            DO i = 1, 3
-               CALL pw_pool%give_back_pw(deps(i))
-            END DO
-         CASE (derivative_fft_use_drho)
-            DO i = 1, 3
-               CALL pw_pool%give_back_pw(drho(i))
-               CALL pw_pool%give_back_pw(deps(i))
-            END DO
-         END SELECT
-      END IF
+            SELECT CASE (derivative_method)
+            CASE (derivative_cd3, derivative_cd5, derivative_cd7, derivative_fft)
+               CALL pw_pool%give_back_pw(ln_eps)
+            CASE (derivative_fft_use_deps)
+               DO i = 1, 3
+                  CALL pw_pool%give_back_pw(deps(i))
+               END DO
+            CASE (derivative_fft_use_drho)
+               DO i = 1, 3
+                  CALL pw_pool%give_back_pw(drho(i))
+                  CALL pw_pool%give_back_pw(deps(i))
+               END DO
+            END SELECT
+         END IF
 
-      CALL pw_pool%give_back_pw(rho_elec_rs)
+         CALL pw_pool%give_back_pw(rho_elec_rs)
 
-      dielectric%params%times_called = dielectric%params%times_called + 1
+         dielectric%params%times_called = dielectric%params%times_called + 1
 
-      CALL timestop(handle)
+         CALL timestop(handle)
 
-   END SUBROUTINE dielectric_compute_periodic
+      END SUBROUTINE dielectric_compute_periodic_${kind}$
 
 ! **************************************************************************************************
 !> \brief   evaluates the dielectric constant for non-periodic (Neumann-type)
@@ -286,180 +285,181 @@ CONTAINS
 !>       11.2015 created [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
 ! **************************************************************************************************
-   SUBROUTINE dielectric_compute_neumann(dielectric, diel_rs_grid, pw_pool_orig, &
-                                         dct_pw_grid, neumann_directions, recv_msgs_bnds, &
-                                         dests_expand, srcs_expand, flipg_stat, bounds_shftd, rho, rho_core)
+      SUBROUTINE dielectric_compute_neumann_${kind}$ (dielectric, diel_rs_grid, pw_pool_orig, &
+                                                      dct_pw_grid, neumann_directions, recv_msgs_bnds, &
+                                                      dests_expand, srcs_expand, flipg_stat, bounds_shftd, rho, rho_core)
 
-      TYPE(dielectric_type), INTENT(INOUT), POINTER      :: dielectric
-      TYPE(realspace_grid_type), POINTER                 :: diel_rs_grid
-      TYPE(pw_pool_type), INTENT(IN), POINTER            :: pw_pool_orig
-      TYPE(pw_grid_type), INTENT(IN), POINTER            :: dct_pw_grid
-      INTEGER, INTENT(IN)                                :: neumann_directions
-      INTEGER, DIMENSION(:, :, :), INTENT(IN), POINTER   :: recv_msgs_bnds
-      INTEGER, DIMENSION(:), INTENT(IN), POINTER         :: dests_expand, srcs_expand, flipg_stat
-      INTEGER, DIMENSION(2, 3), INTENT(IN)               :: bounds_shftd
-      TYPE(pw_type), INTENT(IN)                          :: rho
-      TYPE(pw_type), INTENT(IN), OPTIONAL                :: rho_core
+         TYPE(dielectric_type), INTENT(INOUT), POINTER      :: dielectric
+         TYPE(realspace_grid_type), POINTER                 :: diel_rs_grid
+         TYPE(pw_pool_type), INTENT(IN), POINTER            :: pw_pool_orig
+         TYPE(pw_grid_type), INTENT(IN), POINTER            :: dct_pw_grid
+         INTEGER, INTENT(IN)                                :: neumann_directions
+         INTEGER, DIMENSION(:, :, :), INTENT(IN), POINTER   :: recv_msgs_bnds
+         INTEGER, DIMENSION(:), INTENT(IN), POINTER         :: dests_expand, srcs_expand, flipg_stat
+         INTEGER, DIMENSION(2, 3), INTENT(IN)               :: bounds_shftd
+         TYPE(pw_${kind}$_type), INTENT(IN)                          :: rho
+         TYPE(pw_c1d_gs_type), INTENT(IN), OPTIONAL                :: rho_core
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'dielectric_compute_neumann'
-      REAL(dp), PARAMETER                                :: small_value = EPSILON(1.0_dp)
+         CHARACTER(LEN=*), PARAMETER :: routineN = 'dielectric_compute_neumann'
+         REAL(dp), PARAMETER                                :: small_value = EPSILON(1.0_dp)
 
-      INTEGER                                            :: derivative_method, dielec_functiontype, &
-                                                            handle, i, idir, j, k, times_called
-      INTEGER, DIMENSION(3)                              :: lb, ub
-      REAL(dp)                                           :: eps0, rho_max, rho_min
-      TYPE(pw_pool_type), POINTER                        :: pw_pool_xpndd
-      TYPE(pw_type)                                      :: ln_eps, rho_core_rs, rho_core_rs_xpndd, &
-                                                            rho_elec_rs, rho_elec_rs_xpndd
-      TYPE(pw_type), DIMENSION(3)                        :: deps, drho
+         INTEGER                                            :: derivative_method, dielec_functiontype, &
+                                                               handle, i, idir, j, k, times_called
+         INTEGER, DIMENSION(3)                              :: lb, ub
+         REAL(dp)                                           :: eps0, rho_max, rho_min
+         TYPE(pw_pool_type), POINTER                        :: pw_pool_xpndd
+         TYPE(pw_r3d_rs_type)                                      :: ln_eps, rho_core_rs, rho_core_rs_xpndd, &
+                                                                      rho_elec_rs, rho_elec_rs_xpndd
+         TYPE(pw_r3d_rs_type), DIMENSION(3)                        :: deps, drho
 
-      CALL timeset(routineN, handle)
+         CALL timeset(routineN, handle)
 
-      rho_min = dielectric%params%rho_min
-      rho_max = dielectric%params%rho_max
-      eps0 = dielectric%params%eps0
-      derivative_method = dielectric%params%derivative_method
-      times_called = dielectric%params%times_called
-      dielec_functiontype = dielectric%params%dielec_functiontype
+         rho_min = dielectric%params%rho_min
+         rho_max = dielectric%params%rho_max
+         eps0 = dielectric%params%eps0
+         derivative_method = dielectric%params%derivative_method
+         times_called = dielectric%params%times_called
+         dielec_functiontype = dielectric%params%dielec_functiontype
 
-      IF (.NOT. dielec_functiontype .EQ. rho_dependent .AND. &
-          ((derivative_method .EQ. derivative_fft_use_deps) .OR. &
-           (derivative_method .EQ. derivative_fft_use_deps))) THEN
-         CALL cp_abort(__LOCATION__, &
-                       "The specified derivative method is not compatible with the type of "// &
-                       "the dielectric constant function.")
-      END IF
-
-      CALL pw_pool_create(pw_pool_xpndd, pw_grid=dct_pw_grid)
-
-      ! make sure rho is in the real space
-      CALL pw_pool_orig%create_pw(rho_elec_rs, use_data=REALDATA3D, in_space=REALSPACE)
-      CALL pw_transfer(rho, rho_elec_rs)
-      ! expand rho_elec
-      CALL pw_pool_xpndd%create_pw(rho_elec_rs_xpndd, use_data=REALDATA3D, in_space=REALSPACE)
-      CALL pw_expand(neumann_directions, recv_msgs_bnds, dests_expand, srcs_expand, flipg_stat, bounds_shftd, &
-                     rho_elec_rs, rho_elec_rs_xpndd)
-
-      IF (PRESENT(rho_core)) THEN
-         ! make sure rho_core is in the real space
-         CALL pw_pool_orig%create_pw(rho_core_rs, use_data=REALDATA3D, in_space=REALSPACE)
-         CALL pw_transfer(rho_core, rho_core_rs)
-         ! expand rho_core
-         CALL pw_pool_xpndd%create_pw(rho_core_rs_xpndd, use_data=REALDATA3D, in_space=REALSPACE)
-         CALL pw_expand(neumann_directions, recv_msgs_bnds, dests_expand, srcs_expand, flipg_stat, bounds_shftd, &
-                        rho_core_rs, rho_core_rs_xpndd)
-
-         IF (dielectric%params%dielec_core_correction) THEN
-            ! use (rho_elec - rho_core) to compute dielectric
-            CALL pw_axpy(rho_core_rs_xpndd, rho_elec_rs_xpndd, -2.0_dp)
-         ELSE
-            CALL pw_axpy(rho_core_rs_xpndd, rho_elec_rs_xpndd, -1.0_dp)
+         IF (.NOT. dielec_functiontype .EQ. rho_dependent .AND. &
+             ((derivative_method .EQ. derivative_fft_use_deps) .OR. &
+              (derivative_method .EQ. derivative_fft_use_deps))) THEN
+            CALL cp_abort(__LOCATION__, &
+                          "The specified derivative method is not compatible with the type of "// &
+                          "the dielectric constant function.")
          END IF
-         CALL pw_pool_orig%give_back_pw(rho_core_rs)
-         CALL pw_pool_xpndd%give_back_pw(rho_core_rs_xpndd)
-      ELSE
-         CPABORT("For dielectric constant larger than 1, rho_core has to be present.")
-      END IF
+
+         CALL pw_pool_create(pw_pool_xpndd, pw_grid=dct_pw_grid)
+
+         ! make sure rho is in the real space
+         CALL pw_pool_orig%create_pw(rho_elec_rs)
+         CALL pw_transfer(rho, rho_elec_rs)
+         ! expand rho_elec
+         CALL pw_pool_xpndd%create_pw(rho_elec_rs_xpndd)
+         CALL pw_expand(neumann_directions, recv_msgs_bnds, dests_expand, srcs_expand, flipg_stat, bounds_shftd, &
+                        rho_elec_rs, rho_elec_rs_xpndd)
+
+         IF (PRESENT(rho_core)) THEN
+            ! make sure rho_core is in the real space
+            CALL pw_pool_orig%create_pw(rho_core_rs)
+            CALL pw_transfer(rho_core, rho_core_rs)
+            ! expand rho_core
+            CALL pw_pool_xpndd%create_pw(rho_core_rs_xpndd)
+            CALL pw_expand(neumann_directions, recv_msgs_bnds, dests_expand, srcs_expand, flipg_stat, bounds_shftd, &
+                           rho_core_rs, rho_core_rs_xpndd)
+
+            IF (dielectric%params%dielec_core_correction) THEN
+               ! use (rho_elec - rho_core) to compute dielectric
+               CALL pw_axpy(rho_core_rs_xpndd, rho_elec_rs_xpndd, -2.0_dp)
+            ELSE
+               CALL pw_axpy(rho_core_rs_xpndd, rho_elec_rs_xpndd, -1.0_dp)
+            END IF
+            CALL pw_pool_orig%give_back_pw(rho_core_rs)
+            CALL pw_pool_xpndd%give_back_pw(rho_core_rs_xpndd)
+         ELSE
+            CPABORT("For dielectric constant larger than 1, rho_core has to be present.")
+         END IF
 
 ! calculate the dielectric constant
-      SELECT CASE (dielec_functiontype)
-      CASE (rho_dependent)
-         CALL dielectric_constant_sccs(rho_elec_rs_xpndd, dielectric%eps, dielectric%deps_drho, &
-                                       eps0, rho_max, rho_min)
-      CASE (spatially_dependent)
-         IF (times_called .EQ. 0) THEN
-            CALL dielectric_constant_spatially_dependent(dielectric%eps, pw_pool_xpndd, dielectric%params)
-         END IF
-      CASE (spatially_rho_dependent)
-         CALL dielectric_constant_spatially_rho_dependent(rho_elec_rs_xpndd, dielectric%eps, &
-                                                          dielectric%deps_drho, pw_pool_xpndd, dielectric%params)
-      END SELECT
+         SELECT CASE (dielec_functiontype)
+         CASE (rho_dependent)
+            CALL dielectric_constant_sccs(rho_elec_rs_xpndd, dielectric%eps, dielectric%deps_drho, &
+                                          eps0, rho_max, rho_min)
+         CASE (spatially_dependent)
+            IF (times_called .EQ. 0) THEN
+               CALL dielectric_constant_spatially_dependent(dielectric%eps, pw_pool_xpndd, dielectric%params)
+            END IF
+         CASE (spatially_rho_dependent)
+            CALL dielectric_constant_spatially_rho_dependent(rho_elec_rs_xpndd, dielectric%eps, &
+                                                             dielectric%deps_drho, pw_pool_xpndd, dielectric%params)
+         END SELECT
 
 ! derivatives
-      IF ((dielec_functiontype .EQ. rho_dependent) .OR. &
-          (dielec_functiontype .EQ. spatially_rho_dependent) .OR. &
-          ((dielec_functiontype .EQ. spatially_dependent) .AND. times_called .EQ. 0)) THEN
-         SELECT CASE (derivative_method)
-         CASE (derivative_cd3, derivative_cd5, derivative_cd7, derivative_fft)
-            CALL pw_pool_xpndd%create_pw(ln_eps, use_data=REALDATA3D, in_space=REALSPACE)
-            ln_eps%cr3d = LOG(dielectric%eps%cr3d)
-         CASE (derivative_fft_use_deps)
-            DO i = 1, 3
-               CALL pw_pool_xpndd%create_pw(deps(i), use_data=REALDATA3D, in_space=REALSPACE)
-               CALL pw_zero(deps(i))
-            END DO
-         CASE (derivative_fft_use_drho)
-            DO i = 1, 3
-               CALL pw_pool_xpndd%create_pw(deps(i), use_data=REALDATA3D, in_space=REALSPACE)
-               CALL pw_pool_xpndd%create_pw(drho(i), use_data=REALDATA3D, in_space=REALSPACE)
-               CALL pw_zero(deps(i))
-               CALL pw_zero(drho(i))
-            END DO
-         END SELECT
+         IF ((dielec_functiontype .EQ. rho_dependent) .OR. &
+             (dielec_functiontype .EQ. spatially_rho_dependent) .OR. &
+             ((dielec_functiontype .EQ. spatially_dependent) .AND. times_called .EQ. 0)) THEN
+            SELECT CASE (derivative_method)
+            CASE (derivative_cd3, derivative_cd5, derivative_cd7, derivative_fft)
+               CALL pw_pool_xpndd%create_pw(ln_eps)
+               ln_eps%array = LOG(dielectric%eps%array)
+            CASE (derivative_fft_use_deps)
+               DO i = 1, 3
+                  CALL pw_pool_xpndd%create_pw(deps(i))
+                  CALL pw_zero(deps(i))
+               END DO
+            CASE (derivative_fft_use_drho)
+               DO i = 1, 3
+                  CALL pw_pool_xpndd%create_pw(deps(i))
+                  CALL pw_pool_xpndd%create_pw(drho(i))
+                  CALL pw_zero(deps(i))
+                  CALL pw_zero(drho(i))
+               END DO
+            END SELECT
 
-         SELECT CASE (derivative_method)
-         CASE (derivative_cd3)
-            CALL derive_fdm_cd3(ln_eps, dielectric%dln_eps, diel_rs_grid)
-         CASE (derivative_cd5)
-            CALL derive_fdm_cd5(ln_eps, dielectric%dln_eps, diel_rs_grid)
-         CASE (derivative_cd7)
-            CALL derive_fdm_cd7(ln_eps, dielectric%dln_eps, diel_rs_grid)
-         CASE (derivative_fft)
-            CALL derive_fft(ln_eps, dielectric%dln_eps, pw_pool_xpndd)
-         CASE (derivative_fft_use_deps)
-            ! \Nabla ln(\eps) = \frac{\Nabla \eps}{\eps}
-            CALL derive_fft(dielectric%eps, deps, pw_pool_xpndd)
+            SELECT CASE (derivative_method)
+            CASE (derivative_cd3)
+               CALL derive_fdm_cd3(ln_eps, dielectric%dln_eps, diel_rs_grid)
+            CASE (derivative_cd5)
+               CALL derive_fdm_cd5(ln_eps, dielectric%dln_eps, diel_rs_grid)
+            CASE (derivative_cd7)
+               CALL derive_fdm_cd7(ln_eps, dielectric%dln_eps, diel_rs_grid)
+            CASE (derivative_fft)
+               CALL derive_fft(ln_eps, dielectric%dln_eps, pw_pool_xpndd)
+            CASE (derivative_fft_use_deps)
+               ! \Nabla ln(\eps) = \frac{\Nabla \eps}{\eps}
+               CALL derive_fft(dielectric%eps, deps, pw_pool_xpndd)
 
-            lb(1:3) = pw_pool_xpndd%pw_grid%bounds_local(1, 1:3)
-            ub(1:3) = pw_pool_xpndd%pw_grid%bounds_local(2, 1:3)
-            ! damp oscillations cuased by fft-based derivative in the region
-            ! where electron density is zero
-            DO idir = 1, 3
-               DO k = lb(3), ub(3)
-                  DO j = lb(2), ub(2)
-                     DO i = lb(1), ub(1)
-                        IF (ABS(dielectric%deps_drho%cr3d(i, j, k)) .LE. small_value) THEN
-                           deps(idir)%cr3d(i, j, k) = 0.0_dp
-                        END IF
+               lb(1:3) = pw_pool_xpndd%pw_grid%bounds_local(1, 1:3)
+               ub(1:3) = pw_pool_xpndd%pw_grid%bounds_local(2, 1:3)
+               ! damp oscillations cuased by fft-based derivative in the region
+               ! where electron density is zero
+               DO idir = 1, 3
+                  DO k = lb(3), ub(3)
+                     DO j = lb(2), ub(2)
+                        DO i = lb(1), ub(1)
+                           IF (ABS(dielectric%deps_drho%array(i, j, k)) .LE. small_value) THEN
+                              deps(idir)%array(i, j, k) = 0.0_dp
+                           END IF
+                        END DO
                      END DO
                   END DO
+                  dielectric%dln_eps(idir)%array = deps(idir)%array/dielectric%eps%array
                END DO
-               dielectric%dln_eps(idir)%cr3d = deps(idir)%cr3d/dielectric%eps%cr3d
-            END DO
-         CASE (derivative_fft_use_drho)
-            ! \Nabla \eps = \Nabla \rho \cdot \frac{\partial \eps}{\partial \rho}
-            ! \Nabla ln(\eps) = \frac{\Nabla \eps}{\eps}
-            CALL derive_fft(rho_elec_rs_xpndd, drho, pw_pool_xpndd)
-            DO i = 1, 3
-               deps(i)%cr3d = drho(i)%cr3d*dielectric%deps_drho%cr3d
-               dielectric%dln_eps(i)%cr3d = deps(i)%cr3d/dielectric%eps%cr3d
-            END DO
-         END SELECT
+            CASE (derivative_fft_use_drho)
+               ! \Nabla \eps = \Nabla \rho \cdot \frac{\partial \eps}{\partial \rho}
+               ! \Nabla ln(\eps) = \frac{\Nabla \eps}{\eps}
+               CALL derive_fft(rho_elec_rs_xpndd, drho, pw_pool_xpndd)
+               DO i = 1, 3
+                  deps(i)%array = drho(i)%array*dielectric%deps_drho%array
+                  dielectric%dln_eps(i)%array = deps(i)%array/dielectric%eps%array
+               END DO
+            END SELECT
 
-         SELECT CASE (derivative_method)
-         CASE (derivative_cd3, derivative_cd5, derivative_cd7, derivative_fft)
-            CALL pw_pool_xpndd%give_back_pw(ln_eps)
-         CASE (derivative_fft_use_deps)
-            DO i = 1, 3
-               CALL pw_pool_xpndd%give_back_pw(deps(i))
-            END DO
-         CASE (derivative_fft_use_drho)
-            DO i = 1, 3
-               CALL pw_pool_xpndd%give_back_pw(drho(i))
-               CALL pw_pool_xpndd%give_back_pw(deps(i))
-            END DO
-         END SELECT
-      END IF
+            SELECT CASE (derivative_method)
+            CASE (derivative_cd3, derivative_cd5, derivative_cd7, derivative_fft)
+               CALL pw_pool_xpndd%give_back_pw(ln_eps)
+            CASE (derivative_fft_use_deps)
+               DO i = 1, 3
+                  CALL pw_pool_xpndd%give_back_pw(deps(i))
+               END DO
+            CASE (derivative_fft_use_drho)
+               DO i = 1, 3
+                  CALL pw_pool_xpndd%give_back_pw(drho(i))
+                  CALL pw_pool_xpndd%give_back_pw(deps(i))
+               END DO
+            END SELECT
+         END IF
 
-      CALL pw_pool_orig%give_back_pw(rho_elec_rs)
-      CALL pw_pool_xpndd%give_back_pw(rho_elec_rs_xpndd)
-      CALL pw_pool_release(pw_pool_xpndd)
+         CALL pw_pool_orig%give_back_pw(rho_elec_rs)
+         CALL pw_pool_xpndd%give_back_pw(rho_elec_rs_xpndd)
+         CALL pw_pool_release(pw_pool_xpndd)
 
-      dielectric%params%times_called = dielectric%params%times_called + 1
+         dielectric%params%times_called = dielectric%params%times_called + 1
 
-      CALL timestop(handle)
+         CALL timestop(handle)
 
-   END SUBROUTINE dielectric_compute_neumann
+      END SUBROUTINE dielectric_compute_neumann_${kind}$
+   #:endfor
 
 ! **************************************************************************************************
 !> \brief  calculates the dielectric constant as a function of the electronic density
@@ -476,7 +476,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE dielectric_constant_sccs(rho, eps, deps_drho, eps0, rho_max, rho_min)
 
-      TYPE(pw_type), INTENT(IN)                          :: rho, eps, deps_drho
+      TYPE(pw_r3d_rs_type), INTENT(IN)                          :: rho, eps, deps_drho
       REAL(KIND=dp), INTENT(IN)                          :: eps0, rho_max, rho_min
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'dielectric_constant_sccs'
@@ -501,16 +501,16 @@ CONTAINS
       DO k = lb3, ub3
          DO j = lb2, ub2
             DO i = lb1, ub1
-               IF (rho%cr3d(i, j, k) .LT. rho_min) THEN
-                  eps%cr3d(i, j, k) = eps0
-                  deps_drho%cr3d(i, j, k) = 0.0_dp
-               ELSE IF (rho%cr3d(i, j, k) .GT. rho_max) THEN
-                  eps%cr3d(i, j, k) = 1.0_dp
-                  deps_drho%cr3d(i, j, k) = 0.0_dp
+               IF (rho%array(i, j, k) .LT. rho_min) THEN
+                  eps%array(i, j, k) = eps0
+                  deps_drho%array(i, j, k) = 0.0_dp
+               ELSE IF (rho%array(i, j, k) .GT. rho_max) THEN
+                  eps%array(i, j, k) = 1.0_dp
+                  deps_drho%array(i, j, k) = 0.0_dp
                ELSE
-                  t = twopi*(LOG(rho_max) - LOG(rho%cr3d(i, j, k)))/denom
-                  eps%cr3d(i, j, k) = EXP(LOG(eps0)*(t - SIN(t))/twopi)
-                  deps_drho%cr3d(i, j, k) = -eps%cr3d(i, j, k)*LOG(eps0)*(1.0_dp - COS(t))/(denom*rho%cr3d(i, j, k))
+                  t = twopi*(LOG(rho_max) - LOG(rho%array(i, j, k)))/denom
+                  eps%array(i, j, k) = EXP(LOG(eps0)*(t - SIN(t))/twopi)
+                  deps_drho%array(i, j, k) = -eps%array(i, j, k)*LOG(eps0)*(1.0_dp - COS(t))/(denom*rho%array(i, j, k))
                END IF
             END DO
          END DO
@@ -544,7 +544,7 @@ CONTAINS
                                               x_glbl, y_glbl, z_glbl, &
                                               x_locl, y_locl, z_locl)
 
-      TYPE(pw_type), INTENT(INOUT)                       :: eps
+      TYPE(pw_r3d_rs_type), INTENT(INOUT)                       :: eps
       REAL(KIND=dp), INTENT(IN)                          :: dielec_const
       TYPE(pw_pool_type), POINTER                        :: pw_pool
       REAL(KIND=dp), INTENT(IN)                          :: zeta
@@ -562,7 +562,7 @@ CONTAINS
                                                             forb_xtnt4, forb_xtnt5, forb_xtnt6
       REAL(KIND=dp)                                      :: dx, dy, dz
       TYPE(pw_grid_type), POINTER                        :: pw_grid
-      TYPE(pw_type)                                      :: eps_tmp
+      TYPE(pw_r3d_rs_type)                                      :: eps_tmp
 
       CALL timeset(routineN, handle)
 
@@ -588,7 +588,7 @@ CONTAINS
                        "the simulation cell.")
       END IF
 
-      CALL pw_pool%create_pw(eps_tmp, use_data=REALDATA3D, in_space=REALSPACE)
+      CALL pw_pool%create_pw(eps_tmp)
       CALL pw_copy(eps, eps_tmp)
 
       bounds_local = pw_grid%bounds_local
@@ -602,7 +602,7 @@ CONTAINS
                IF ((x_locl(i) .GE. x_xtnt(1)) .AND. (x_locl(i) .LE. x_xtnt(2)) .AND. &
                    (y_locl(j) .GE. y_xtnt(1)) .AND. (y_locl(j) .LE. y_xtnt(2)) .AND. &
                    (z_locl(k) .GE. z_xtnt(1)) .AND. (z_locl(k) .LE. z_xtnt(2))) THEN
-                  eps_tmp%cr3d(i, j, k) = dielec_const
+                  eps_tmp%array(i, j, k) = dielec_const
                END IF
             END DO
          END DO
@@ -639,7 +639,7 @@ CONTAINS
                                               x_glbl, y_glbl, z_glbl, &
                                               x_locl, y_locl, z_locl)
 
-      TYPE(pw_type), INTENT(INOUT)                       :: eps
+      TYPE(pw_r3d_rs_type), INTENT(INOUT)                       :: eps
       REAL(KIND=dp), INTENT(IN)                          :: dielec_const
       TYPE(pw_pool_type), POINTER                        :: pw_pool
       REAL(dp), INTENT(IN)                               :: zeta
@@ -657,7 +657,7 @@ CONTAINS
                                                             forb_xtnt4, forb_xtnt5, forb_xtnt6
       REAL(KIND=dp)                                      :: bctry, bctrz, distsq, dx, dy, dz
       TYPE(pw_grid_type), POINTER                        :: pw_grid
-      TYPE(pw_type)                                      :: eps_tmp
+      TYPE(pw_r3d_rs_type)                                      :: eps_tmp
 
       CALL timeset(routineN, handle)
 
@@ -684,7 +684,7 @@ CONTAINS
                        "the simulation cell.")
       END IF
 
-      CALL pw_pool%create_pw(eps_tmp, use_data=REALDATA3D, in_space=REALSPACE)
+      CALL pw_pool%create_pw(eps_tmp)
       CALL pw_copy(eps, eps_tmp)
 
       bounds_local = pw_grid%bounds_local
@@ -698,7 +698,7 @@ CONTAINS
                distsq = (y_locl(j) - bctry)**2 + (z_locl(k) - bctrz)**2
                IF ((x_locl(i) .GE. x_xtnt(1)) .AND. (x_locl(i) .LE. x_xtnt(2)) .AND. &
                    (distsq .GE. MINVAL(base_radii)**2) .AND. (distsq .LE. MAXVAL(base_radii)**2)) THEN
-                  eps_tmp%cr3d(i, j, k) = dielec_const
+                  eps_tmp%array(i, j, k) = dielec_const
                END IF
             END DO
          END DO
@@ -722,7 +722,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE dielectric_constant_spatially_dependent(eps, pw_pool, dielectric_params)
 
-      TYPE(pw_type), INTENT(INOUT)                       :: eps
+      TYPE(pw_r3d_rs_type), INTENT(INOUT)                       :: eps
       TYPE(pw_pool_type), INTENT(IN), POINTER            :: pw_pool
       TYPE(dielectric_parameters), INTENT(IN)            :: dielectric_params
 
@@ -738,7 +738,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      eps%cr3d = dielectric_params%eps0
+      eps%array = dielectric_params%eps0
 
       n_aa_cuboidal = dielectric_params%n_aa_cuboidal
       n_xaa_annular = dielectric_params%n_xaa_annular
@@ -795,14 +795,14 @@ CONTAINS
    SUBROUTINE dielectric_constant_spatially_rho_dependent(rho, eps, deps_drho, &
                                                           pw_pool, dielectric_params)
 
-      TYPE(pw_type), INTENT(IN)                          :: rho, eps, deps_drho
+      TYPE(pw_r3d_rs_type), INTENT(IN)                          :: rho, eps, deps_drho
       TYPE(pw_pool_type), INTENT(IN), POINTER            :: pw_pool
       TYPE(dielectric_parameters), INTENT(IN)            :: dielectric_params
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'dielectric_constant_spatially_rho_dependent'
 
       INTEGER                                            :: handle
-      TYPE(pw_type)                                      :: dswch_func_drho, eps_sptldep, swch_func
+      TYPE(pw_r3d_rs_type)                                      :: dswch_func_drho, eps_sptldep, swch_func
 
       CALL timeset(routineN, handle)
 
@@ -810,9 +810,9 @@ CONTAINS
          CPABORT("The dielectric constant has to be greater than or equal to 1.")
       END IF
 
-      CALL pw_pool%create_pw(eps_sptldep, use_data=REALDATA3D, in_space=REALSPACE)
-      CALL pw_pool%create_pw(swch_func, use_data=REALDATA3D, in_space=REALSPACE)
-      CALL pw_pool%create_pw(dswch_func_drho, use_data=REALDATA3D, in_space=REALSPACE)
+      CALL pw_pool%create_pw(eps_sptldep)
+      CALL pw_pool%create_pw(swch_func)
+      CALL pw_pool%create_pw(dswch_func_drho)
       CALL pw_zero(eps_sptldep)
       CALL pw_zero(swch_func)
       CALL pw_zero(dswch_func_drho)
@@ -821,8 +821,8 @@ CONTAINS
       CALL dielectric_constant_sccs(rho, swch_func, dswch_func_drho, 2.0_dp, &
                                     dielectric_params%rho_max, dielectric_params%rho_min)
 
-      eps%cr3d = ((swch_func%cr3d - 1.0_dp)*(eps_sptldep%cr3d - 1.0_dp)) + 1.0_dp
-      deps_drho%cr3d = dswch_func_drho%cr3d*(eps_sptldep%cr3d - 1.0_dp)
+      eps%array = ((swch_func%array - 1.0_dp)*(eps_sptldep%array - 1.0_dp)) + 1.0_dp
+      deps_drho%array = dswch_func_drho%array*(eps_sptldep%array - 1.0_dp)
 
       CALL pw_pool%give_back_pw(dswch_func_drho)
       CALL pw_pool%give_back_pw(swch_func)
@@ -840,21 +840,20 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE derive_fft(f, df, pw_pool)
 
-      TYPE(pw_type), INTENT(IN)                          :: f
-      TYPE(pw_type), DIMENSION(3), INTENT(INOUT)         :: df
+      TYPE(pw_r3d_rs_type), INTENT(IN)                      :: f
+      TYPE(pw_r3d_rs_type), DIMENSION(3), INTENT(INOUT)     :: df
       TYPE(pw_pool_type), POINTER                        :: pw_pool
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'derive_fft'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'derive_fft_r3d'
 
       INTEGER                                            :: handle, i
       INTEGER, DIMENSION(3)                              :: nd
-      TYPE(pw_type), DIMENSION(2)                        :: work_gs
+      TYPE(pw_c1d_gs_type), DIMENSION(2)                    :: work_gs
 
       CALL timeset(routineN, handle)
 
       DO i = 1, 2
-         CALL pw_pool%create_pw(work_gs(i), &
-                                use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+         CALL pw_pool%create_pw(work_gs(i))
       END DO
 
       CALL pw_transfer(f, work_gs(1))

@@ -53,45 +53,45 @@
       LAMBDA 1.0
       COUPLING 1
       PARALLEL_BUILD TRUE
-@IF ( ${USE_DLB} == TRUE )
+      @IF ( ${USE_DLB} == TRUE )
       ! Defaults to FALSE
       DLB TRUE
       LOAD_SCALE 2
       MORE_WORK 0
       VERY_OVERLOADED 15
-@ENDIF
-@IF ( ${COMPUTE_METRIC} == TRUE )
+      @ENDIF
+      @IF ( ${COMPUTE_METRIC} == TRUE )
       ! Defaults to FALSE
       METRIC TRUE
-@ENDIF
-@IF ( ${WFN_OVERLAP_METHOD} == TRUE )
+      @ENDIF
+      @IF ( ${WFN_OVERLAP_METHOD} == TRUE )
       ! Defaults to FALSE
       WFN_OVERLAP TRUE
       WFN_RESTART_FILE_NAME HeH-noconstraint-1_0.wfn
-@ENDIF
+      @ENDIF
     &END MIXED_CDFT
     &PRINT
       &PROGRAM_RUN_INFO
       &END PROGRAM_RUN_INFO
     &END PRINT
   &END MIXED
-@include subsys.inc
+  @INCLUDE subsys.inc
 &END FORCE_EVAL
 
 &FORCE_EVAL
   METHOD QS
-@SET BECKE_STR    ${BECKE_STR_1}
-@SET BECKE_TARGET ${BECKE_TARGET_1}
-@SET PROJECT_NAME ${NAME}-state-1
-@SET WFN_FILE     ${WFN_FILE_1}
-@include dft-common-params.inc
+  @SET BECKE_STR    ${BECKE_STR_1}
+  @SET BECKE_TARGET ${BECKE_TARGET_1}
+  @SET PROJECT_NAME ${NAME}-state-1
+  @SET WFN_FILE     ${WFN_FILE_1}
+  @INCLUDE dft-common-params.inc
 &END FORCE_EVAL
 
 &FORCE_EVAL
   METHOD QS
-@SET BECKE_STR    ${BECKE_STR_2}
-@SET BECKE_TARGET ${BECKE_TARGET_2}
-@SET PROJECT_NAME ${NAME}-state-2
-@SET WFN_FILE     ${WFN_FILE_2}
-@include dft-common-params.inc
+  @SET BECKE_STR    ${BECKE_STR_2}
+  @SET BECKE_TARGET ${BECKE_TARGET_2}
+  @SET PROJECT_NAME ${NAME}-state-2
+  @SET WFN_FILE     ${WFN_FILE_2}
+  @INCLUDE dft-common-params.inc
 &END FORCE_EVAL

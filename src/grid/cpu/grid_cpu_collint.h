@@ -46,6 +46,7 @@ ortho_cx_to_grid_scalar(const int lp, const int cmax, const int i,
 #if (GRID_DO_COLLOCATE)
   // collocate
   double reg[4] = {0.0, 0.0, 0.0, 0.0};
+#pragma omp simd reduction(+ : reg)
   for (int lxp = 0; lxp <= lp; lxp++) {
     const double p = pol[0][lxp][i + cmax];
     reg[0] += cx[lxp * 4 + 0] * p;
@@ -61,6 +62,7 @@ ortho_cx_to_grid_scalar(const int lp, const int cmax, const int i,
 #else
   // integrate
   const double reg[4] = {*grid_0, *grid_1, *grid_2, *grid_3};
+#pragma omp simd
   for (int lxp = 0; lxp <= lp; lxp++) {
     const double p = pol[0][lxp][i + cmax];
     cx[lxp * 4 + 0] += reg[0] * p;
@@ -247,15 +249,13 @@ ortho_cxy_to_cx(const int lp, const int j1, const int j2, const int cmax,
  * \brief Loop body of ortho_cxy_to_grid to be inlined for low values of lp.
  * \author Ole Schuett
  ******************************************************************************/
-static inline void __attribute__((always_inline))
-ortho_cxy_to_grid_low(const int lp, const int j1, const int j2, const int kg1,
-                      const int kg2, const int jg1, const int jg2,
-                      const int cmax, const double pol[3][lp + 1][2 * cmax + 1],
-                      const int map[3][2 * cmax + 1],
-                      const int sections[3][2 * cmax + 1],
-                      const int npts_local[3], int **sphere_bounds_iter,
-                      double *cx, GRID_CONST_WHEN_COLLOCATE double *cxy,
-                      GRID_CONST_WHEN_INTEGRATE double *grid) {
+static inline void __attribute__((always_inline)) ortho_cxy_to_grid_low(
+    const int lp, const int j1, const int j2, const int kg1, const int kg2,
+    const int jg1, const int jg2, const int cmax,
+    const double pol[3][lp + 1][2 * cmax + 1], const int map[3][2 * cmax + 1],
+    const int sections[3][2 * cmax + 1], const int npts_local[3],
+    int **sphere_bounds_iter, double *cx, GRID_CONST_WHEN_COLLOCATE double *cxy,
+    GRID_CONST_WHEN_INTEGRATE double *grid) {
 
 #if (GRID_DO_COLLOCATE)
   // collocate
@@ -454,7 +454,7 @@ ortho_cxyz_to_grid(const int lp, const double zetp, const double dh[3][3],
   }
   const int(*map)[2 * cmax + 1] = (const int(*)[2 * cmax + 1]) map_mutable;
 
-  // Precompute lenght of sections with homogeneous cube to grid mapping.
+  // Precompute length of sections with homogeneous cube to grid mapping.
   int sections_mutable[3][2 * cmax + 1];
   for (int i = 0; i < 3; i++) {
     for (int kg = 2 * cmax; kg >= 0; kg--) {
@@ -497,15 +497,13 @@ ortho_cxyz_to_grid(const int lp, const double zetp, const double dh[3][3],
  * \brief Collocates coefficients C_i onto the grid for general case.
  * \author Ole Schuett
  ******************************************************************************/
-static inline void __attribute__((always_inline))
-general_ci_to_grid(const int lp, const int jg, const int kg, const int ismin,
-                   const int ismax, const int npts_local[3],
-                   const int index_min[3], const int index_max[3],
-                   const int map_i[], const int sections_i[],
-                   const double gp[3], const int k, const int j,
-                   const double exp_ij[], const double exp_jk[],
-                   const double exp_ki[], GRID_CONST_WHEN_COLLOCATE double *ci,
-                   GRID_CONST_WHEN_INTEGRATE double *grid) {
+static inline void __attribute__((always_inline)) general_ci_to_grid(
+    const int lp, const int jg, const int kg, const int ismin, const int ismax,
+    const int npts_local[3], const int index_min[3], const int index_max[3],
+    const int map_i[], const int sections_i[], const double gp[3], const int k,
+    const int j, const double exp_ij[], const double exp_jk[],
+    const double exp_ki[], GRID_CONST_WHEN_COLLOCATE double *ci,
+    GRID_CONST_WHEN_INTEGRATE double *grid) {
 
   const int base = kg * npts_local[1] * npts_local[0] + jg * npts_local[0];
 
@@ -739,7 +737,7 @@ general_precompute_mapping(const int index_min, const int index_max,
     }
   }
 
-  // Precompute lenght of sections with homogeneous cube to grid mapping.
+  // Precompute length of sections with homogeneous cube to grid mapping.
   const int range = index_max - index_min + 1;
   for (int kg = range - 1; kg >= 0; kg--) {
     if (kg == range - 1 || map[kg] != map[kg + 1] - 1) {

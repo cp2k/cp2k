@@ -22,9 +22,6 @@
     &END QS
     &SCF
       SCF_GUESS RANDOM
-      &OT ON
-        PRECONDITIONER NONE
-      &END OT
     &END SCF
   &END DFT
   &SUBSYS

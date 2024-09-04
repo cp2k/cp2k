@@ -24,12 +24,12 @@ MODULE fist_neighbor_list_types
 
 ! **************************************************************************************************
    TYPE neighbor_kind_pairs_type
-      INTEGER, POINTER, DIMENSION(:, :)  :: list, ij_kind
-      INTEGER, POINTER, DIMENSION(:)    :: id_kind
-      INTEGER, POINTER, DIMENSION(:)    :: grp_kind_start, grp_kind_end
-      INTEGER                           :: cell_vector(3), npairs
-      INTEGER                           :: ngrp_kind
-      REAL(KIND=dp)                     :: rmax
+      INTEGER, POINTER, DIMENSION(:, :)  :: list => NULL(), ij_kind => NULL()
+      INTEGER, POINTER, DIMENSION(:)    :: id_kind => NULL()
+      INTEGER, POINTER, DIMENSION(:)    :: grp_kind_start => NULL(), grp_kind_end => NULL()
+      INTEGER                           :: cell_vector(3) = -1, npairs = -1
+      INTEGER                           :: ngrp_kind = -1
+      REAL(KIND=dp)                     :: rmax = 0.0_dp
       ! The *_scale arrays are scaling factors for the corresponding nonbonding
       ! interaction energies and forces for the pairs in 'list'. To keep the size
       ! of these arrays small, pairs whose interaction must be scaled are moved
@@ -38,16 +38,16 @@ MODULE fist_neighbor_list_types
       ! reallocate the *_scale arrays for every new scaled pair interaction.
       ! The field is_info is only used to switch between the regular nonbonded
       ! and the nonbonded14 splines for the van der waals interactions.
-      REAL(KIND=dp), POINTER, DIMENSION(:)    :: ei_scale
-      REAL(KIND=dp), POINTER, DIMENSION(:)    :: vdw_scale
-      LOGICAL, POINTER, DIMENSION(:)          :: is_onfo
-      INTEGER                                 :: nscale
+      REAL(KIND=dp), POINTER, DIMENSION(:)    :: ei_scale => NULL()
+      REAL(KIND=dp), POINTER, DIMENSION(:)    :: vdw_scale => NULL()
+      LOGICAL, POINTER, DIMENSION(:)          :: is_onfo => NULL()
+      INTEGER                                 :: nscale = -1
    END TYPE neighbor_kind_pairs_type
 
 ! **************************************************************************************************
    TYPE fist_neighbor_type
-      TYPE(neighbor_kind_pairs_type), DIMENSION(:), POINTER :: neighbor_kind_pairs
-      INTEGER                                               :: nlists
+      TYPE(neighbor_kind_pairs_type), DIMENSION(:), POINTER :: neighbor_kind_pairs => NULL()
+      INTEGER                                               :: nlists = -1
    END TYPE fist_neighbor_type
 
    PUBLIC :: neighbor_kind_pairs_type, &

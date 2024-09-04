@@ -63,22 +63,22 @@ MODULE qs_cdft_opt_types
 ! **************************************************************************************************
 
    TYPE cdft_opt_type
-      LOGICAL                              :: build_jacobian
-      LOGICAL                              :: broyden_update
-      LOGICAL                              :: continue_ls
-      LOGICAL                              :: jacobian_restart
-      REAL(KIND=dp)                        :: newton_step
-      REAL(KIND=dp)                        :: newton_step_save
-      REAL(KIND=dp)                        :: factor_ls
+      LOGICAL                              :: build_jacobian = .FALSE.
+      LOGICAL                              :: broyden_update = .FALSE.
+      LOGICAL                              :: continue_ls = .FALSE.
+      LOGICAL                              :: jacobian_restart = .FALSE.
+      REAL(KIND=dp)                        :: newton_step = 0.0_dp
+      REAL(KIND=dp)                        :: newton_step_save = 0.0_dp
+      REAL(KIND=dp)                        :: factor_ls = 0.0_dp
       REAL(KIND=dp), DIMENSION(:), &
          ALLOCATABLE                       :: jacobian_step
       REAL(KIND=dp), DIMENSION(:), &
-         POINTER                           :: jacobian_vector
-      INTEGER                              :: jacobian_type
-      INTEGER                              :: broyden_type
-      INTEGER                              :: jacobian_freq(2)
-      INTEGER                              :: ijacobian(2)
-      INTEGER                              :: max_ls
+         POINTER                           :: jacobian_vector => NULL()
+      INTEGER                              :: jacobian_type = -1
+      INTEGER                              :: broyden_type = -1
+      INTEGER                              :: jacobian_freq(2) = -1
+      INTEGER                              :: ijacobian(2) = -1
+      INTEGER                              :: max_ls = -1
    END TYPE cdft_opt_type
 
 CONTAINS

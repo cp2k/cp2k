@@ -85,32 +85,32 @@ MODULE nnp_environment_types
       TYPE(nnp_acsf_ang_type), DIMENSION(:), POINTER      :: ang => NULL() ! DIM(n_ele)
       INTEGER, DIMENSION(:), ALLOCATABLE                  :: n_rad ! # radial symfnct for this element
       INTEGER, DIMENSION(:), ALLOCATABLE                  :: n_ang ! # angular symfnct for this element
-      INTEGER                                             :: n_ele ! # elements
+      INTEGER                                             :: n_ele = -1 ! # elements
       CHARACTER(len=2), ALLOCATABLE, DIMENSION(:)         :: ele ! elements(n_ele)
       INTEGER, ALLOCATABLE, DIMENSION(:)                  :: nuc_ele ! elements(n_ele)
-      LOGICAL                                             :: scale_acsf
-      LOGICAL                                             :: scale_sigma_acsf
-      LOGICAL                                             :: center_acsf
-      LOGICAL                                             :: normnodes
-      INTEGER                                             :: n_radgrp
-      INTEGER                                             :: n_anggrp
-      INTEGER                                             :: cut_type ! cutofftype
-      REAL(KIND=dp)                                       :: eshortmin
-      REAL(KIND=dp)                                       :: eshortmax
-      REAL(KIND=dp)                                       :: scmax !scale
-      REAL(KIND=dp)                                       :: scmin !scale
-      REAL(KIND=dp)                                       :: max_cut !largest cutoff
+      LOGICAL                                             :: scale_acsf = .FALSE.
+      LOGICAL                                             :: scale_sigma_acsf = .FALSE.
+      LOGICAL                                             :: center_acsf = .FALSE.
+      LOGICAL                                             :: normnodes = .FALSE.
+      INTEGER                                             :: n_radgrp = -1
+      INTEGER                                             :: n_anggrp = -1
+      INTEGER                                             :: cut_type = -1 ! cutofftype
+      REAL(KIND=dp)                                       :: eshortmin = -1.0_dp
+      REAL(KIND=dp)                                       :: eshortmax = -1.0_dp
+      REAL(KIND=dp)                                       :: scmax = -1.0_dp !scale
+      REAL(KIND=dp)                                       :: scmin = -1.0_dp !scale
+      REAL(KIND=dp)                                       :: max_cut = -1.0_dp !largest cutoff
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)            :: atom_energies !DIM(n_ele)
       TYPE(nnp_arc_type), POINTER, DIMENSION(:)           :: arc => NULL() ! DIM(n_ele)
-      INTEGER                                             :: n_committee
-      INTEGER                                             :: n_hlayer
-      INTEGER                                             :: n_layer
+      INTEGER                                             :: n_committee = -1
+      INTEGER                                             :: n_hlayer = -1
+      INTEGER                                             :: n_layer = -1
       INTEGER, ALLOCATABLE, DIMENSION(:)                  :: n_hnodes
       INTEGER, ALLOCATABLE, DIMENSION(:)                  :: actfnct
-      INTEGER                                             :: expol ! extrapolation coutner
-      LOGICAL                                             :: output_expol ! output extrapolation
+      INTEGER                                             :: expol = -1 ! extrapolation coutner
+      LOGICAL                                             :: output_expol = .FALSE. ! output extrapolation
       ! structures for calculation
-      INTEGER                                             :: num_atoms
+      INTEGER                                             :: num_atoms = -1
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)         :: atomic_energy
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)            :: committee_energy
       INTEGER, ALLOCATABLE, DIMENSION(:)                  :: ele_ind, nuc_atoms, sort, sort_inv
@@ -120,7 +120,7 @@ MODULE nnp_environment_types
       CHARACTER(len=default_string_length), &
          ALLOCATABLE, DIMENSION(:)                        :: atoms
       REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE         :: nnp_forces
-      REAL(KIND=dp)                                       :: nnp_potential_energy
+      REAL(KIND=dp)                                       :: nnp_potential_energy = -1.0_dp
       TYPE(cp_subsys_type), POINTER                       :: subsys => NULL()
       TYPE(section_vals_type), POINTER                    :: nnp_input => NULL()
       TYPE(section_vals_type), POINTER                    :: force_env_input => NULL()
@@ -128,12 +128,12 @@ MODULE nnp_environment_types
       TYPE(cell_type), POINTER                            :: cell_ref => NULL()
       LOGICAL                                             :: use_ref_cell = .FALSE.
       ! bias
-      LOGICAL                                             :: bias
-      LOGICAL                                             :: bias_align
-      REAL(KIND=dp)                                       :: bias_energy
-      REAL(KIND=dp)                                       :: bias_kb
-      REAL(KIND=dp)                                       :: bias_sigma0
-      REAL(KIND=dp)                                       :: bias_sigma
+      LOGICAL                                             :: bias = .FALSE.
+      LOGICAL                                             :: bias_align = .FALSE.
+      REAL(KIND=dp)                                       :: bias_energy = -1.0_dp
+      REAL(KIND=dp)                                       :: bias_kb = -1.0_dp
+      REAL(KIND=dp)                                       :: bias_sigma0 = -1.0_dp
+      REAL(KIND=dp)                                       :: bias_sigma = -1.0_dp
       REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE         :: bias_forces
       REAL(KIND=dp), DIMENSION(:), ALLOCATABLE            :: bias_e_avrg
    END TYPE nnp_type
@@ -148,11 +148,11 @@ MODULE nnp_environment_types
 !> \date   2020-10-10
 ! **************************************************************************************************
    TYPE nnp_symfgrp_type
-      INTEGER                                             :: n_symf
+      INTEGER                                             :: n_symf = -1
       INTEGER, DIMENSION(:), ALLOCATABLE                  :: symf
       INTEGER, DIMENSION(:), ALLOCATABLE                  :: ele_ind
       CHARACTER(LEN=2), DIMENSION(:), ALLOCATABLE         :: ele
-      REAL(KIND=dp)                                       :: cutoff
+      REAL(KIND=dp)                                       :: cutoff = -1.0_dp
    END TYPE
 
 ! **************************************************************************************************
@@ -181,7 +181,7 @@ MODULE nnp_environment_types
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)            :: sigma
       CHARACTER(len=2), ALLOCATABLE, DIMENSION(:)         :: ele
       INTEGER, ALLOCATABLE, DIMENSION(:)                  :: nuc_ele
-      INTEGER                                             :: n_symfgrp
+      INTEGER                                             :: n_symfgrp = -1
       TYPE(nnp_symfgrp_type), DIMENSION(:), ALLOCATABLE   :: symfgrp
    END TYPE
 
@@ -216,7 +216,7 @@ MODULE nnp_environment_types
       CHARACTER(len=2), ALLOCATABLE, DIMENSION(:)         :: ele2
       INTEGER, ALLOCATABLE, DIMENSION(:)                  :: nuc_ele1
       INTEGER, ALLOCATABLE, DIMENSION(:)                  :: nuc_ele2
-      INTEGER                                             :: n_symfgrp
+      INTEGER                                             :: n_symfgrp = -1
       TYPE(nnp_symfgrp_type), DIMENSION(:), ALLOCATABLE   :: symfgrp
    END TYPE
 
@@ -228,7 +228,7 @@ MODULE nnp_environment_types
 !> \date   2020-10-10
 ! **************************************************************************************************
    TYPE nnp_neighbor_type
-      INTEGER, DIMENSION(3)                               :: pbc_copies
+      INTEGER, DIMENSION(3)                               :: pbc_copies = -1
       INTEGER, DIMENSION(:), ALLOCATABLE                  :: n_rad
       INTEGER, DIMENSION(:), ALLOCATABLE                  :: n_ang1
       INTEGER, DIMENSION(:), ALLOCATABLE                  :: n_ang2
@@ -246,7 +246,7 @@ MODULE nnp_environment_types
 !> \date   2020-10-10
 ! **************************************************************************************************
    TYPE nnp_arc_type
-      TYPE(nnp_arc_layer_type), POINTER, DIMENSION(:)     :: layer ! DIM(n_layer)
+      TYPE(nnp_arc_layer_type), POINTER, DIMENSION(:)     :: layer => NULL() ! DIM(n_layer)
       INTEGER, ALLOCATABLE, DIMENSION(:)                  :: n_nodes
    END TYPE
 

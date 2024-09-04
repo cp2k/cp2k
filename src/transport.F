@@ -30,6 +30,11 @@ MODULE transport
    USE bibliography,                    ONLY: Bruck2014,&
                                               cite_reference
    USE cp_control_types,                ONLY: dft_control_type
+   USE cp_dbcsr_api,                    ONLY: &
+        dbcsr_convert_csr_to_dbcsr, dbcsr_convert_dbcsr_to_csr, dbcsr_copy, dbcsr_create, &
+        dbcsr_csr_create, dbcsr_csr_create_from_dbcsr, dbcsr_csr_dbcsr_blkrow_dist, &
+        dbcsr_csr_print_sparsity, dbcsr_csr_type, dbcsr_deallocate_matrix, dbcsr_desymmetrize, &
+        dbcsr_has_symmetry, dbcsr_set, dbcsr_type, dbcsr_type_no_symmetry, dbcsr_type_real_8
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_to_csr_screening
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_unit_nr,&
@@ -39,12 +44,6 @@ MODULE transport
                                               cp_print_key_should_output,&
                                               cp_print_key_unit_nr
    USE cp_realspace_grid_cube,          ONLY: cp_pw_to_cube
-   USE dbcsr_api,                       ONLY: &
-        dbcsr_convert_csr_to_dbcsr, dbcsr_convert_dbcsr_to_csr, dbcsr_copy, &
-        dbcsr_copy_into_existing, dbcsr_create, dbcsr_csr_create, dbcsr_csr_create_from_dbcsr, &
-        dbcsr_csr_dbcsr_blkrow_dist, dbcsr_csr_print_sparsity, dbcsr_csr_type, &
-        dbcsr_deallocate_matrix, dbcsr_desymmetrize, dbcsr_has_symmetry, dbcsr_set, dbcsr_type, &
-        dbcsr_type_no_symmetry, dbcsr_type_real_8
    USE input_section_types,             ONLY: section_get_ivals,&
                                               section_vals_get,&
                                               section_vals_get_subs_vals,&
@@ -62,11 +61,8 @@ MODULE transport
                                               pw_env_type
    USE pw_methods,                      ONLY: pw_zero
    USE pw_pool_types,                   ONLY: pw_pool_type
-   USE pw_types,                        ONLY: COMPLEXDATA1D,&
-                                              REALDATA3D,&
-                                              REALSPACE,&
-                                              RECIPROCALSPACE,&
-                                              pw_type
+   USE pw_types,                        ONLY: pw_c1d_gs_type,&
+                                              pw_r3d_rs_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type,&
                                               set_qs_env
@@ -332,7 +328,7 @@ CONTAINS
 
       CALL cp_dbcsr_to_csr_screening(ks_env, transport_env%csr_sparsity)
 
-      IF (.NOT. transport_env%csr_screening) CALL dbcsr_set(transport_env%csr_sparsity, 1.0)
+      IF (.NOT. transport_env%csr_screening) CALL dbcsr_set(transport_env%csr_sparsity, 1.0_dp)
       CALL dbcsr_csr_create_from_dbcsr(transport_env%template_matrix_nosym, &
                                        transport_env%s_matrix, &
                                        dbcsr_csr_dbcsr_blkrow_dist, &
@@ -408,16 +404,16 @@ CONTAINS
       CALL csr_interop_nullify(p_mat)
       CALL csr_interop_nullify(imagp_mat)
 
-      CALL dbcsr_copy_into_existing(transport_env%template_matrix_sym, matrix_s)
+      CALL dbcsr_copy(transport_env%template_matrix_sym, matrix_s, keep_sparsity=.TRUE.)
       CALL convert_dbcsr_to_csr_interop(transport_env%template_matrix_sym, transport_env%s_matrix, s_mat)
 
-      CALL dbcsr_copy_into_existing(transport_env%template_matrix_sym, matrix_ks)
+      CALL dbcsr_copy(transport_env%template_matrix_sym, matrix_ks, keep_sparsity=.TRUE.)
       CALL convert_dbcsr_to_csr_interop(transport_env%template_matrix_sym, transport_env%ks_matrix, ks_mat)
 
-      CALL dbcsr_copy_into_existing(transport_env%template_matrix_sym, matrix_p)
+      CALL dbcsr_copy(transport_env%template_matrix_sym, matrix_p, keep_sparsity=.TRUE.)
       CALL convert_dbcsr_to_csr_interop(transport_env%template_matrix_sym, transport_env%p_matrix, p_mat)
 
-      CALL dbcsr_copy_into_existing(transport_env%template_matrix_sym, matrix_s)
+      CALL dbcsr_copy(transport_env%template_matrix_sym, matrix_s, keep_sparsity=.TRUE.)
       CALL convert_dbcsr_to_csr_interop(transport_env%template_matrix_sym, transport_env%imagp_matrix, imagp_mat)
 
       CALL c_method(transport_env%params, s_mat, ks_mat, p_mat, imagp_mat)
@@ -654,10 +650,12 @@ CONTAINS
       TYPE(dbcsr_type), POINTER                          :: zero
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(particle_list_type), POINTER                  :: particles
+      TYPE(pw_c1d_gs_type)                               :: gs
+      TYPE(pw_c1d_gs_type), DIMENSION(:), POINTER        :: rho_g
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type)                                      :: gs, rs
-      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_g, rho_r
+      TYPE(pw_r3d_rs_type)                               :: rs
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: rho_r
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(qs_subsys_type), POINTER                      :: subsys
       TYPE(section_vals_type), POINTER                   :: dft_section
@@ -694,8 +692,8 @@ CONTAINS
                current_env%gauge = -1
                current_env%gauge_init = .FALSE.
 
-               CALL auxbas_pw_pool%create_pw(rs, use_data=REALDATA3D, in_space=REALSPACE)
-               CALL auxbas_pw_pool%create_pw(gs, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+               CALL auxbas_pw_pool%create_pw(rs)
+               CALL auxbas_pw_pool%create_pw(gs)
 
                NULLIFY (zero)
                ALLOCATE (zero)

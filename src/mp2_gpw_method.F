@@ -15,6 +15,10 @@ MODULE mp2_gpw_method
    USE cell_types,                      ONLY: cell_type
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_control_types,                ONLY: dft_control_type
+   USE cp_dbcsr_api,                    ONLY: &
+        dbcsr_create, dbcsr_get_info, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
+        dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, &
+        dbcsr_p_type, dbcsr_release, dbcsr_set, dbcsr_type, dbcsr_type_no_symmetry
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               cp_dbcsr_m_by_n_from_template
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
@@ -24,10 +28,6 @@ MODULE mp2_gpw_method
                                               cp_fm_get_info,&
                                               cp_fm_release,&
                                               cp_fm_type
-   USE dbcsr_api,                       ONLY: &
-        dbcsr_create, dbcsr_get_info, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
-        dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, &
-        dbcsr_p_type, dbcsr_release, dbcsr_set, dbcsr_type, dbcsr_type_no_symmetry
    USE group_dist_types,                ONLY: create_group_dist,&
                                               get_group_dist,&
                                               group_dist_d1_type,&
@@ -47,10 +47,9 @@ MODULE mp2_gpw_method
                                               pw_zero
    USE pw_poisson_types,                ONLY: pw_poisson_type
    USE pw_pool_types,                   ONLY: pw_pool_type
-   USE pw_types,                        ONLY: REALDATA3D,&
-                                              REALSPACE,&
-                                              pw_type
-   USE qs_collocate_density,            ONLY: calculate_wavefunction
+   USE pw_types,                        ONLY: pw_c1d_gs_type,&
+                                              pw_r3d_rs_type
+   USE qs_collocate_density,            ONLY: collocate_function
    USE qs_environment_types,            ONLY: qs_environment_type
    USE qs_integrate_potential,          ONLY: integrate_v_rspace
    USE qs_kind_types,                   ONLY: qs_kind_type
@@ -81,7 +80,6 @@ CONTAINS
 !> \param particle_set ...
 !> \param atomic_kind_set ...
 !> \param qs_kind_set ...
-!> \param mo_coeff ...
 !> \param Eigenval ...
 !> \param nmo ...
 !> \param homo ...
@@ -97,7 +95,7 @@ CONTAINS
 !> \param Emp2_AB ...
 ! **************************************************************************************************
    SUBROUTINE mp2_gpw_compute(Emp2, Emp2_Cou, Emp2_EX, qs_env, para_env, para_env_sub, color_sub, &
-                              cell, particle_set, atomic_kind_set, qs_kind_set, mo_coeff, Eigenval, nmo, homo, &
+                              cell, particle_set, atomic_kind_set, qs_kind_set, Eigenval, nmo, homo, &
                               mat_munu, sab_orb_sub, mo_coeff_o, mo_coeff_v, eps_filter, unit_nr, &
                               mp2_memory, calc_ex, blacs_env_sub, Emp2_AB)
 
@@ -109,7 +107,6 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
-      TYPE(cp_fm_type), INTENT(IN)                       :: mo_coeff
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: Eigenval
       INTEGER, INTENT(IN)                                :: nmo
       INTEGER, DIMENSION(:), INTENT(IN)                  :: homo
@@ -156,11 +153,12 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(group_dist_d1_type)                           :: gd_exchange
       TYPE(mp_comm_type)                                 :: comm_exchange
+      TYPE(pw_c1d_gs_type)                               :: pot_g, rho_g
       TYPE(pw_env_type), POINTER                         :: pw_env_sub
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type)                                      :: pot_g, psi_a, rho_g, rho_r
-      TYPE(pw_type), ALLOCATABLE, DIMENSION(:)           :: psi_i
+      TYPE(pw_r3d_rs_type)                               :: psi_a, rho_r
+      TYPE(pw_r3d_rs_type), ALLOCATABLE, DIMENSION(:)    :: psi_i
       TYPE(task_list_type), POINTER                      :: task_list_sub
 
       CALL timeset(routineN, handle)
@@ -219,7 +217,7 @@ CONTAINS
       CALL prepare_gpw(qs_env, dft_control, e_cutoff_old, cutoff_old, relative_cutoff_old, para_env_sub, pw_env_sub, &
                        auxbas_pw_pool, poisson_env, task_list_sub, rho_r, rho_g, pot_g, psi_a, sab_orb_sub)
 
-      wfn_size = REAL(SIZE(rho_r%cr3d), KIND=dp)
+      wfn_size = REAL(SIZE(rho_r%array), KIND=dp)
       CALL para_env%max(wfn_size)
 
       ngroup = para_env%num_pe/para_env_sub%num_pe
@@ -360,12 +358,10 @@ CONTAINS
 
       ALLOCATE (psi_i(my_I_occupied_start:my_I_occupied_end))
       DO i = my_I_occupied_start, my_I_occupied_end
-         CALL auxbas_pw_pool%create_pw(psi_i(i), &
-                                       use_data=REALDATA3D, &
-                                       in_space=REALSPACE)
-         CALL calculate_wavefunction(mo_coeff, i, psi_i(i), rho_g, atomic_kind_set, &
-                                     qs_kind_set, cell, dft_control, particle_set, &
-                                     pw_env_sub, external_vector=my_Cocc(:, i - my_I_occupied_start + 1))
+         CALL auxbas_pw_pool%create_pw(psi_i(i))
+         CALL collocate_function(my_Cocc(:, i - my_I_occupied_start + 1), &
+                                 psi_i(i), rho_g, atomic_kind_set, qs_kind_set, cell, particle_set, &
+                                 pw_env_sub, dft_control%qs_control%eps_rho_rspace)
       END DO
 
       Emp2 = 0.0_dp
@@ -382,9 +378,9 @@ CONTAINS
          IF (calc_ex) BIb_C = 0.0_dp
 
          ! psi_a
-         CALL calculate_wavefunction(mo_coeff, a, psi_a, rho_g, atomic_kind_set, &
-                                     qs_kind_set, cell, dft_control, particle_set, &
-                                     pw_env_sub, external_vector=my_Cvirt(:, a - (homo(1) + my_A_virtual_start) + 1))
+         CALL collocate_function(my_Cvirt(:, a - (homo(1) + my_A_virtual_start) + 1), &
+                                 psi_a, rho_g, atomic_kind_set, qs_kind_set, cell, particle_set, &
+                                 pw_env_sub, dft_control%qs_control%eps_rho_rspace)
          i_counter = 0
          DO i = my_I_occupied_start, my_I_occupied_end
             i_counter = i_counter + 1

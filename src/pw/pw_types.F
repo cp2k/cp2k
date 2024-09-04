@@ -23,59 +23,48 @@
 ! **************************************************************************************************
 MODULE pw_types
 
-   USE cp_log_handling,                 ONLY: cp_get_default_logger,&
-                                              cp_logger_get_default_unit_nr,&
-                                              cp_logger_type,&
-                                              cp_to_string
-   USE kinds,                           ONLY: dp
-   USE pw_grid_types,                   ONLY: pw_grid_type
-   USE pw_grids,                        ONLY: pw_grid_release,&
-                                              pw_grid_retain
-   USE timings,                         ONLY: print_stack
+   USE cp_log_handling, ONLY: cp_to_string
+   USE kinds, ONLY: dp
+   USE pw_grid_types, ONLY: pw_grid_type
+   USE pw_grids, ONLY: pw_grid_release, &
+                       pw_grid_retain
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
 
+   #:include 'pw_types.fypp'
+
    PRIVATE
-   PUBLIC :: pw_type, pw_p_type
+   #:for space in pw_spaces
+      #:for kind in pw_kinds
+         PUBLIC :: pw_${kind}$_${space}$_type, pw_${kind}$_${space}$_p_type
+      #:endfor
+   #:endfor
 
-   ! Flags for the structure member 'in_use'
-   ! NODATA only for internal use, we enforce a certain data type
-   INTEGER, PARAMETER, PUBLIC :: REALDATA1D = 301, COMPLEXDATA1D = 302
-   INTEGER, PARAMETER, PUBLIC :: REALDATA3D = 303, COMPLEXDATA3D = 304
-   INTEGER, PARAMETER         :: NODATA = 305
-
-   ! Flags for the structure member 'in_space'
-   ! NOSPACE only for internal usage, we enforce the choice of a proper space
-   INTEGER, PARAMETER :: NOSPACE = 371
-   INTEGER, PARAMETER, PUBLIC :: REALSPACE = 372, RECIPROCALSPACE = 373
+   #:for space in pw_spaces
+      #:for kind, type in zip(pw_kinds, pw_types)
+! **************************************************************************************************
+         TYPE pw_${kind}$_${space}$_type
+            ${type}$, CONTIGUOUS, POINTER :: array => NULL()
+            TYPE(pw_grid_type), POINTER :: pw_grid => NULL()
+         CONTAINS
+            PROCEDURE, PUBLIC, NON_OVERRIDABLE :: create => pw_create_${kind}$_${space}$
+            PROCEDURE, PUBLIC, NON_OVERRIDABLE :: release => pw_release_${kind}$_${space}$
+         END TYPE pw_${kind}$_${space}$_type
 
 ! **************************************************************************************************
-   TYPE pw_type
-      REAL(KIND=dp), DIMENSION(:), CONTIGUOUS, POINTER :: cr => NULL()
-      REAL(KIND=dp), DIMENSION(:, :, :), CONTIGUOUS, POINTER :: cr3d => NULL()
-      COMPLEX(KIND=dp), DIMENSION(:), CONTIGUOUS, POINTER :: cc => NULL()
-      COMPLEX(KIND=dp), DIMENSION(:, :, :), CONTIGUOUS, POINTER :: cc3d => NULL()
-
-      INTEGER :: in_use = NODATA ! Which data is used [r1d/c1d/r3d/c3d]
-      INTEGER :: in_space = NOSPACE ! Real/Reciprocal space
-
-      TYPE(pw_grid_type), POINTER :: pw_grid => NULL()
-   CONTAINS
-      PROCEDURE, PUBLIC, NON_OVERRIDABLE :: create => pw_create
-      PROCEDURE, PUBLIC, NON_OVERRIDABLE :: release => pw_release
-   END TYPE pw_type
-
-! **************************************************************************************************
-   TYPE pw_p_type
-      TYPE(pw_type), POINTER :: pw => NULL()
-   END TYPE pw_p_type
+         TYPE pw_${kind}$_${space}$_p_type
+            TYPE(pw_${kind}$_${space}$_type), POINTER :: pw => NULL()
+         END TYPE pw_${kind}$_${space}$_p_type
+      #:endfor
+   #:endfor
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pw_types'
    LOGICAL, PARAMETER, PRIVATE :: debug_this_module = .FALSE.
 
 CONTAINS
-
+   #:for space in pw_spaces
+      #:for kind, type in zip(pw_kinds, pw_types)
 ! **************************************************************************************************
 !> \brief releases the given pw
 !> \param pw the pw to release
@@ -85,118 +74,69 @@ CONTAINS
 !> \note
 !>      see doc/ReferenceCounting.html
 ! **************************************************************************************************
-   SUBROUTINE pw_release(pw)
-      CLASS(pw_type), INTENT(INOUT)                       :: pw
+         SUBROUTINE pw_release_${kind}$_${space}$ (pw)
+            CLASS(pw_${kind}$_${space}$_type), INTENT(INOUT)                       :: pw
 
-      SELECT CASE (pw%in_use)
-      CASE (REALDATA1D)
-         IF (ASSOCIATED(pw%cr)) DEALLOCATE (pw%cr)
-      CASE (COMPLEXDATA1D)
-         IF (ASSOCIATED(pw%cc)) DEALLOCATE (pw%cc)
-      CASE (REALDATA3D)
-         IF (ASSOCIATED(pw%cr3d)) DEALLOCATE (pw%cr3d)
-      CASE (COMPLEXDATA3D)
-         IF (ASSOCIATED(pw%cc3d)) DEALLOCATE (pw%cc3d)
-      CASE (NODATA)
-         ! Only, if the pw grid was never created
-      CASE default
-         CPABORT("unknown data type "//cp_to_string(pw%in_use))
-      END SELECT
-      CALL pw_grid_release(pw%pw_grid)
-      pw%in_space = NOSPACE
-      pw%in_use = NODATA
-   END SUBROUTINE pw_release
+            IF (ASSOCIATED(pw%array)) DEALLOCATE (pw%array)
+            CALL pw_grid_release(pw%pw_grid)
+         END SUBROUTINE pw_release_${kind}$_${space}$
 
 ! **************************************************************************************************
-!> \brief allocates and initializes pw_type
+!> \brief allocates and initializes pw_r3d_rs_type
 !> \param pw the type that will bw allocated and initialized
 !> \param pw_grid ...
-!> \param use_data which kind of data will be used
-!> \param in_space in which space the pw is (real or reciprocal)
-!> \param cr3d_ptr pointer with the cr3d data (make sense only if
-!>        use_data==REALDATA3D)
+!> \param array_ptr pointer with to data
 !> \par History
 !>      11.2003 created [fawzi]
 !> \author fawzi
 ! **************************************************************************************************
-   SUBROUTINE pw_create(pw, pw_grid, use_data, in_space, cr3d_ptr)
-      CLASS(pw_type), INTENT(INOUT)                         :: pw
-      TYPE(pw_grid_type), INTENT(IN), POINTER            :: pw_grid
-      INTEGER, INTENT(in)                                :: use_data, in_space
-      REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :, :), &
-         INTENT(IN), OPTIONAL, POINTER                   :: cr3d_ptr
+         SUBROUTINE pw_create_${kind}$_${space}$ (pw, pw_grid, array_ptr)
+            CLASS(pw_${kind}$_${space}$_type), INTENT(INOUT)                         :: pw
+            TYPE(pw_grid_type), INTENT(IN), POINTER            :: pw_grid
+            ${type}$, CONTIGUOUS, INTENT(IN), OPTIONAL, POINTER                   :: array_ptr
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_create'
+            CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_create_${kind}$'
 
-      INTEGER                                            :: handle
-      INTEGER, DIMENSION(:, :), POINTER                  :: bounds
-      TYPE(cp_logger_type), POINTER                      :: logger
+            INTEGER                                            :: handle
 
-      CALL timeset(routineN, handle)
-      logger => cp_get_default_logger()
-      IF (debug_this_module) THEN
-         WRITE (cp_logger_get_default_unit_nr(logger), "('*** allocated pw ***')")
-         IF (PRESENT(cr3d_ptr)) THEN
-            IF (ASSOCIATED(cr3d_ptr)) THEN
-               WRITE (cp_logger_get_default_unit_nr(logger), "('*** cr3d associated ***')")
+            CALL timeset(routineN, handle)
+
+            ! Ensure a clean grid to prevent memory leaks
+            CALL pw%release()
+
+            pw%pw_grid => pw_grid
+            CALL pw_grid_retain(pw%pw_grid)
+
+            #:if kind[1]=="1"
+            IF (PRESENT(array_ptr)) THEN
+            IF (ASSOCIATED(array_ptr)) THEN
+               CPASSERT(SIZE(array_ptr) == pw%pw_grid%ngpts_cut_local)
+               pw%array(1:pw%pw_grid%ngpts_cut_local) => array_ptr
             END IF
-         END IF
-         CALL print_stack(cp_logger_get_default_unit_nr(logger))
-      END IF
-
-      IF (in_space /= REALSPACE .AND. in_space /= RECIPROCALSPACE) &
-         CPABORT("Choose a proper space in which the grid lives!")
-
-      IF (PRESENT(cr3d_ptr)) THEN
-         IF (ASSOCIATED(cr3d_ptr)) THEN
-            CPASSERT(use_data == REALDATA3D)
-         END IF
-      END IF
-
-      ! Ensure a clean grid to prevent memory leaks
-      CALL pw%release()
-
-      pw%in_use = use_data
-      pw%pw_grid => pw_grid
-      CALL pw_grid_retain(pw%pw_grid)
-      bounds => pw%pw_grid%bounds_local
-
-      SELECT CASE (use_data)
-      CASE (REALDATA1D)
-         ALLOCATE (pw%cr(pw%pw_grid%ngpts_cut_local))
-
-      CASE (COMPLEXDATA1D)
-         ALLOCATE (pw%cc(pw%pw_grid%ngpts_cut_local))
-
-      CASE (REALDATA3D)
-         IF (PRESENT(cr3d_ptr)) THEN
-            IF (ASSOCIATED(cr3d_ptr)) THEN
-               IF (ALL(bounds(1, :) <= bounds(2, :))) THEN
-                  CPASSERT(ALL(LBOUND(cr3d_ptr) == bounds(1, :)))
-                  CPASSERT(ALL(UBOUND(cr3d_ptr) == bounds(2, :)))
+            END IF
+            IF (.NOT. ASSOCIATED(pw%array)) ALLOCATE (pw%array(pw%pw_grid%ngpts_cut_local))
+            #:elif kind[1]=="3"
+            ASSOCIATE (bounds => pw%pw_grid%bounds_local)
+               IF (PRESENT(array_ptr)) THEN
+                  IF (ASSOCIATED(array_ptr)) THEN
+                     IF (ALL(bounds(1, :) <= bounds(2, :))) THEN
+                        CPASSERT(ALL(LBOUND(array_ptr) == bounds(1, :)))
+                        CPASSERT(ALL(UBOUND(array_ptr) == bounds(2, :)))
+                     END IF
+                     pw%array => array_ptr
+                  END IF
                END IF
-               pw%cr3d => cr3d_ptr
-            END IF
-         END IF
-         IF (.NOT. ASSOCIATED(pw%cr3d)) THEN
-            ALLOCATE (pw%cr3d( &
-                      bounds(1, 1):bounds(2, 1), &
-                      bounds(1, 2):bounds(2, 2), &
-                      bounds(1, 3):bounds(2, 3)))
-         END IF
-
-      CASE (COMPLEXDATA3D)
-         ALLOCATE (pw%cc3d( &
-                   bounds(1, 1):bounds(2, 1), &
-                   bounds(1, 2):bounds(2, 2), &
-                   bounds(1, 3):bounds(2, 3)))
-      CASE (NODATA)
-         CPABORT("Choose a proper data type!")
-      CASE default
-         CPABORT("unknown data type")
-      END SELECT
-      pw%in_space = in_space
-      CALL timestop(handle)
-   END SUBROUTINE pw_create
+               IF (.NOT. ASSOCIATED(pw%array)) THEN
+                  ALLOCATE (pw%array( &
+                            bounds(1, 1):bounds(2, 1), &
+                            bounds(1, 2):bounds(2, 2), &
+                            bounds(1, 3):bounds(2, 3)))
+               END IF
+            END ASSOCIATE
+            #:endif
+            CALL timestop(handle)
+         END SUBROUTINE pw_create_${kind}$_${space}$
+      #:endfor
+   #:endfor
 
 END MODULE pw_types

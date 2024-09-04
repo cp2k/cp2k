@@ -32,6 +32,9 @@
           EPS_FILTER 1.0E-12
           RI_FLAVOR RHO
         &END RI
+        &SCREENING
+          EPS_SCHWARZ_FORCES 1.0E-6
+        &END SCREENING
       &END HF
       &XC_FUNCTIONAL NONE
       &END XC_FUNCTIONAL

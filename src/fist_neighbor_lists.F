@@ -66,8 +66,8 @@ MODULE fist_neighbor_lists
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'fist_neighbor_lists'
 
    TYPE local_atoms_type
-      INTEGER, DIMENSION(:), POINTER                   :: list, &
-                                                          list_local_a_index
+      INTEGER, DIMENSION(:), POINTER                   :: list => NULL(), &
+                                                          list_local_a_index => NULL()
    END TYPE local_atoms_type
 
    ! Public subroutines

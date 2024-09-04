@@ -51,6 +51,7 @@ FYPPEXE      := $(TOOLSDIR)/build_utils/fypp/bin/fypp
 SRCDIR       := $(DBCSRHOME)/src
 TESTSDIR     := $(DBCSRHOME)/tests
 ARCHFILE     :=
+CXXSTD       := -std=c++14
 
 PYTHON       := /usr/bin/env python3
 
@@ -87,6 +88,11 @@ else ifeq ($(GPUVER),V100)
   ARCH_NUMBER = 70
 else ifeq ($(GPUVER),A100)
   ARCH_NUMBER = 80
+else ifeq ($(GPUVER),A40)
+  ARCH_NUMBER = 86
+  override GPUVER := A100
+else ifeq ($(GPUVER),H100)
+  ARCH_NUMBER = 90
 else ifeq ($(GPUVER),Mi50)
   ARCH_NUMBER = gfx906
 else ifeq ($(GPUVER),Mi100)
@@ -103,25 +109,29 @@ endif
 
 # Set ACCFLAGS ==============================================================
 
+# Adjust C++ standard level
+override ACCFLAGS := $(CXXSTD) $(filter-out -std=c++11,$(ACCFLAGS))
+
 # If compiling with nvcc
 ifeq (cuda,$(USE_ACCEL))
-  override ACCFLAGS += -D__CUDA
-  FCFLAGS += -D__CUDA
-  CXXFLAGS += -D__CUDA
+  override ACCFLAGS := -D__CUDA -DARCH_NUMBER=$(ARCH_NUMBER) $(filter-out -D__CUDA,$(ACCFLAGS))
+  CXXFLAGS := -D__CUDA $(filter-out -D__CUDA,$(CXXFLAGS))
+  FCFLAGS := -D__CUDA $(filter-out -D__CUDA,$(FCFLAGS))
   #if "-arch" has not yet been set in ACCFLAGS
   ifeq (,$(findstring -arch,$(ACCFLAGS)))
-    override ACCFLAGS += -arch sm_$(ARCH_NUMBER)
+    override ACCFLAGS := -arch sm_$(ARCH_NUMBER) $(ACCFLAGS)
   endif
   ifeq (,$(findstring -Xcompiler,$(ACCFLAGS)))
-    override ACCFLAGS += -Xcompiler="$(CXXFLAGS)"
+    override ACCFLAGS := $(ACCFLAGS) -Xcompiler="$(CXXFLAGS)"
   endif
 # If compiling with hipcc
 else ifeq (hip,$(USE_ACCEL))
-  override ACCFLAGS += -D__HIP
-  FCFLAGS += -D__HIP
+  override ACCFLAGS := -D__HIP -DARCH_NUMBER=$(ARCH_NUMBER) $(filter-out -D__HIP,$(ACCFLAGS))
+  CXXFLAGS := -D__HIP $(filter-out -D__HIP,$(CXXFLAGS))
+  FCFLAGS := -D__HIP $(filter-out -D__HIP,$(FCFLAGS))
 # OpenCL backend
 else ifeq (opencl,$(USE_ACCEL))
-  CFLAGS := $(if $(ACCFLAGS),$(ACCFLAGS),$(CFLAGS)) -D__OPENCL
+  CFLAGS := -D__OPENCL $(filter-out -D__OPENCL $(CXXSTD),$(if $(ACCFLAGS),$(ACCFLAGS),$(CFLAGS)))
 endif
 
 # Set the configuration =====================================================
@@ -261,61 +271,57 @@ FYPPFLAGS ?= -n
 %.o: %.c
 	$(CC) -c $(CFLAGS) $<
 
-# Compile the CUDA/HIP files
 ifneq ($(ACC),)
+# if compiling CUDA/HIP backend
 ifneq (opencl,$(USE_ACCEL))
-%.o: %.cpp
+%.o: %.cpp parameters.h smm_acc_kernels.h
 	$(ACC) -c $(ACCFLAGS) -I'$(SRCDIR)' $<
-libsmm_acc.o: libsmm_acc.cpp parameters.h smm_acc_kernels.h
-	$(ACC) -c $(ACCFLAGS) -DARCH_NUMBER=$(ARCH_NUMBER) $<
-libsmm_acc_benchmark.o: libsmm_acc_benchmark.cpp parameters.h
-	$(ACC) -c $(ACCFLAGS) -I'$(SRCDIR)' $<
-libsmm_acc_init.o: libsmm_acc_init.cpp libsmm_acc_init.h parameters.h
-	$(ACC) -c $(ACCFLAGS) -I'$(SRCDIR)' $<
-endif
-endif
-
 # if compiling CUDA backend
 ifeq (cuda,$(USE_ACCEL))
-ifneq ($(ACC),)
-%.o: %.cpp
+%.o: %.cu parameters.h smm_acc_kernels.h
 	$(ACC) -c $(ACCFLAGS) -I'$(SRCDIR)' $<
+calculate_norms.o: calculate_norms.cpp
+	$(ACC) -c $(ACCFLAGS) -I'$(SRCDIR)' -x cu $<
 acc_cuda.o: acc_cuda.cpp acc_cuda.h
 	$(ACC) -c $(ACCFLAGS) -I'$(SRCDIR)' $<
-%.o: %.cu
-	$(ACC) -c $(ACCFLAGS) -I'$(SRCDIR)' $<
 # if compiling HIP backend
-else ifeq (hip,$(USE_ACCEL))
-%.o: %.cpp
-	$(ACC) -c $(ACCFLAGS) -I'$(SRCDIR)' $<
+else
+calculate_norms.o: calculate_norms.cpp
+	$(OFFLOAD_CC) -D__HIP -c $(OFFLOAD_FLAGS) -I'$(SRCDIR)' $<
 acc_hip.o: acc_hip.cpp acc_hip.h
 	$(ACC) -c $(ACCFLAGS) -I'$(SRCDIR)' $<
 endif
+
 # if compiling OpenCL backend
-else ifeq (opencl,$(USE_ACCEL))
+else
 OPENCL_KRNLGEN := $(LIBSMM_ACC_ABS_DIR)/../opencl/acc_opencl.sh
 OPENCL_KERNELS := $(wildcard $(LIBSMM_ACC_ABS_DIR)/../opencl/smm/kernels/*.cl)
 OPENCL_DEFAULT := $(wildcard $(LIBSMM_ACC_ABS_DIR)/../opencl/smm/tune_multiply.csv)
 OPENCL_WITHGPU := $(wildcard $(LIBSMM_ACC_ABS_DIR)/../opencl/smm/params/tune_multiply_$(GPUVER).csv)
 OPENCL_PARAMS := $(if $(OPENCL_WITHGPU),$(OPENCL_WITHGPU),$(OPENCL_DEFAULT))
 OPENCL_PARDEP := $(if $(ACC_MAKEDEP),$(shell $(ACC_MAKEDEP) $(LIBSMM_ACC_ABS_DIR)/../opencl/smm/.with_gpu $(GPUVER)))
-$(LIBSMM_ACC_ABS_DIR)/../opencl/smm/opencl_kernels.h: $(OPENCL_KRNLGEN) $(OPENCL_KERNELS) $(OPENCL_PARAMS) $(OPENCL_PARDEP)
+OPENCL_COMMON := $(wildcard $(LIBSMM_ACC_ABS_DIR)/../opencl/common/*.h)
+$(LIBSMM_ACC_ABS_DIR)/../opencl/smm/opencl_kernels.h: $(OPENCL_KRNLGEN) $(OPENCL_KERNELS) $(OPENCL_COMMON) \
+                                                      $(OPENCL_PARAMS) $(OPENCL_PARDEP)
 	$(OPENCL_KRNLGEN) $(OPENCL_KERNELS) $(OPENCL_PARAMS) $@
 opencl_libsmm.o: opencl_libsmm.c $(LIBSMM_ACC_ABS_DIR)/../opencl/smm/opencl_kernels.h
 ifeq (Darwin,$(shell uname))
   LDFLAGS += -framework OpenCL
 else
   # OpenCL include directory (cl.h not installed per "opencl-headers" package)
-  ifeq (,$(CUDATOOLKIT_HOME))
-    CUDATOOLKIT_HOME := $(NVSDKCOMPUTE_ROOT)
+  NVCC := $(shell which nvcc 2>/dev/null)
+  NVCC_PATH := $(if $(NVCC),$(wildcard $(dir $(NVCC))/..))
+  CUDA_FILE := $(wildcard $(NVCC_PATH)/../cuda/include/cuda.h)
+  CUDA_PATH := $(if $(CUDA_FILE),$(NVCC_PATH)/../cuda,$(NVCC_PATH))
+  CUDA_LIBS := $(if $(wildcard $(CUDA_PATH)/lib64),lib64,lib)
+  ifneq (,$(CUDA_PATH))
+    CFLAGS += -I$(CUDA_PATH)/include
+  else ifneq (,$(wildcard $(OPENCL_ROOT)/include/CL/cl.h))
+    CFLAGS += -I$(OPENCL_ROOT)/include
+  else ifneq (,$(wildcard $(OPENCL_ROOT)/include/sycl/CL/cl.h))
+    CFLAGS += -I$(OPENCL_ROOT)/include/sycl
   endif
-  ifeq (,$(CUDATOOLKIT_HOME))
-    NVCC := $(call which,nvcc)
-    CUDATOOLKIT_HOME := $(if $(NVCC),$(abspath $(dir $(NVCC))/..))
-  endif
-  ifneq (,$(CUDATOOLKIT_HOME))
-    CFLAGS += -I$(CUDATOOLKIT_HOME)/include
-  endif
+endif
 endif
 endif
 

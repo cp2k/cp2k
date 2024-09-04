@@ -16,6 +16,12 @@ MODULE rt_propagation_utils
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_control_types,                ONLY: dft_control_type,&
                                               rtp_control_type
+   USE cp_dbcsr_api,                    ONLY: &
+        dbcsr_add, dbcsr_binary_read, dbcsr_checksum, dbcsr_copy, dbcsr_create, &
+        dbcsr_deallocate_matrix, dbcsr_desymmetrize, dbcsr_distribution_type, dbcsr_filter, &
+        dbcsr_get_info, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
+        dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_p_type, dbcsr_scale, &
+        dbcsr_set, dbcsr_type
    USE cp_dbcsr_operations,             ONLY: cp_dbcsr_plus_fm_fm_t,&
                                               dbcsr_deallocate_matrix_set
    USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale
@@ -34,12 +40,6 @@ MODULE rt_propagation_utils
                                               cp_print_key_should_output,&
                                               cp_print_key_unit_nr
    USE cp_realspace_grid_cube,          ONLY: cp_pw_to_cube
-   USE dbcsr_api,                       ONLY: &
-        dbcsr_add, dbcsr_binary_read, dbcsr_checksum, dbcsr_copy, dbcsr_copy_into_existing, &
-        dbcsr_create, dbcsr_deallocate_matrix, dbcsr_desymmetrize, dbcsr_distribution_type, &
-        dbcsr_filter, dbcsr_get_info, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
-        dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_p_type, dbcsr_scale, &
-        dbcsr_set, dbcsr_type
    USE input_constants,                 ONLY: use_restart_wfn,&
                                               use_rt_restart
    USE input_section_types,             ONLY: section_get_ival,&
@@ -63,11 +63,8 @@ MODULE rt_propagation_utils
                                               pw_zero
    USE pw_pool_types,                   ONLY: pw_pool_p_type,&
                                               pw_pool_type
-   USE pw_types,                        ONLY: COMPLEXDATA1D,&
-                                              REALDATA3D,&
-                                              REALSPACE,&
-                                              RECIPROCALSPACE,&
-                                              pw_type
+   USE pw_types,                        ONLY: pw_c1d_gs_type,&
+                                              pw_r3d_rs_type
    USE qs_collocate_density,            ONLY: calculate_wavefunction
    USE qs_density_matrices,             ONLY: calculate_density_matrix
    USE qs_dftb_matrices,                ONLY: build_dftb_overlap
@@ -266,7 +263,7 @@ CONTAINS
       REAL(KIND=dp)                                      :: alpha, cs_pos
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cp_fm_type)                                   :: mos_occ
-      TYPE(cp_fm_type), DIMENSION(:), POINTER            :: mos_new, mos_old
+      TYPE(cp_fm_type), DIMENSION(:), POINTER            :: mos_old
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dbcsr_distribution_type)                      :: dist
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: p_rmpv, rho_new, rho_old
@@ -382,7 +379,7 @@ CONTAINS
             END DO
             CALL calc_update_rho_sparse(qs_env)
          ELSE
-            CALL get_rtp(rtp=rtp, mos_old=mos_old, mos_new=mos_new)
+            CALL get_rtp(rtp=rtp, mos_old=mos_old)
             CALL read_rt_mos_from_restart(mo_array, mos_old, atomic_kind_set, qs_kind_set, particle_set, para_env, &
                                           id_nr, dft_control%multiplicity, dft_section)
             CALL set_uniform_occupation_mo_array(mo_array, nspin)
@@ -550,9 +547,9 @@ CONTAINS
       IF (rtp%track_imag_density) CALL qs_rho_get(rho_struct=rho, rho_ao_im=rho_ao_im)
       DO ispin = 1, SIZE(rho_ao)
          CALL dbcsr_set(rho_ao(ispin)%matrix, zero)
-         CALL dbcsr_copy_into_existing(rho_ao(ispin)%matrix, rho_new(ispin*2 - 1)%matrix)
+         CALL dbcsr_copy(rho_ao(ispin)%matrix, rho_new(ispin*2 - 1)%matrix, keep_sparsity=.TRUE.)
          IF (rtp%track_imag_density) THEN
-            CALL dbcsr_copy_into_existing(rho_ao_im(ispin)%matrix, rho_new(ispin*2)%matrix)
+            CALL dbcsr_copy(rho_ao_im(ispin)%matrix, rho_new(ispin*2)%matrix, keep_sparsity=.TRUE.)
          END IF
       END DO
 
@@ -743,10 +740,11 @@ CONTAINS
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(particle_list_type), POINTER                  :: particles
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(pw_c1d_gs_type)                               :: wf_g
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type)                                      :: density_r, wf_g, wf_r
+      TYPE(pw_r3d_rs_type)                               :: density_r, wf_r
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_subsys_type), POINTER                      :: subsys
       TYPE(section_vals_type), POINTER                   :: dft_section, input
@@ -791,15 +789,9 @@ CONTAINS
       ! Setup the grids needed to compute a wavefunction given a vector
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, &
                       pw_pools=pw_pools)
-      CALL auxbas_pw_pool%create_pw(wf_r, &
-                                    use_data=REALDATA3D, &
-                                    in_space=REALSPACE)
-      CALL auxbas_pw_pool%create_pw(wf_g, &
-                                    use_data=COMPLEXDATA1D, &
-                                    in_space=RECIPROCALSPACE)
-      CALL auxbas_pw_pool%create_pw(density_r, &
-                                    use_data=REALDATA3D, &
-                                    in_space=REALSPACE)
+      CALL auxbas_pw_pool%create_pw(wf_r)
+      CALL auxbas_pw_pool%create_pw(wf_g)
+      CALL auxbas_pw_pool%create_pw(density_r)
       CALL get_rtp(rtp=rtp, mos_new=mos_new)
 
       DO ispin = 1, nspins

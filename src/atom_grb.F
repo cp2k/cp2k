@@ -39,7 +39,7 @@ MODULE atom_grb
                                               dp
    USE lapack,                          ONLY: lapack_ssygv
    USE mathconstants,                   ONLY: dfac,&
-                                              pi
+                                              rootpi
    USE orbital_pointers,                ONLY: deallocate_orbital_pointers,&
                                               init_orbital_pointers
    USE orbital_transformation_matrices, ONLY: deallocate_spherical_harmonics,&
@@ -322,7 +322,7 @@ CONTAINS
 
          ! Quickstep normalization
          expzet = 0.25_dp*REAL(2*l + 3, dp)
-         prefac = SQRT(SQRT(pi)/2._dp**(l + 2)*dfac(2*l + 1))
+         prefac = SQRT(rootpi/2._dp**(l + 2)*dfac(2*l + 1))
          DO i = 1, m
             zeta = (2._dp*atom%basis%am(i, l))**expzet
             qbasis(i, 1:n, l) = rbasis(i, 1:n, l)*prefac/zeta
@@ -630,7 +630,7 @@ CONTAINS
       ! Quickstep normalization polarization basis
       DO l = 0, 7
          expzet = 0.25_dp*REAL(2*l + 3, dp)
-         prefac = SQRT(SQRT(pi)/2._dp**(l + 2)*dfac(2*l + 1))
+         prefac = SQRT(rootpi/2._dp**(l + 2)*dfac(2*l + 1))
          DO i = 1, num_pol
             zeta = (2._dp*alp(i))**expzet
             pbasis(i, 1:num_pol, l) = pbasis(i, 1:num_pol, l)*prefac/zeta
@@ -639,7 +639,7 @@ CONTAINS
       ! Quickstep normalization extended basis
       DO l = 0, lmat
          expzet = 0.25_dp*REAL(2*l + 3, dp)
-         prefac = SQRT(SQRT(pi)/2._dp**(l + 2)*dfac(2*l + 1))
+         prefac = SQRT(rootpi/2._dp**(l + 2)*dfac(2*l + 1))
          DO i = 1, next_prim(l)
             zeta = (2._dp*ale(i))**expzet
             ebasis(i, 1:next_bas(l), l) = ebasis(i, 1:next_bas(l), l)*prefac/zeta

@@ -1,0 +1,26 @@
+summary: Run regression tests
+framework: beakerlib
+test: ./do_regtest.sh
+# TODO: Reduce the tests duration
+duration: 2h
+environment+:
+  # Cannot run unittest outside of the build environment
+  CP2K_SKIP_UNITTEST: true
+
+/serial:
+  summary+: (serial)
+  environment+:
+    CP2K_VARIANT: serial
+/openmpi:
+  summary+: (openmpi)
+  environment+:
+    CP2K_VARIANT: openmpi
+    # prterun blocks running mpiexec as root. Set some environment variables to workaround it
+    OMPI_ALLOW_RUN_AS_ROOT: 1
+    OMPI_ALLOW_RUN_AS_ROOT_CONFIRM: 1
+  # TODO: Investigate why openmpi tests are significantly slower
+  duration: 6h
+/mpich:
+  summary+: (mpich)
+  environment+:
+    CP2K_VARIANT: mpich

@@ -15,18 +15,18 @@
 MODULE dm_ls_scf_qs
    USE atomic_kind_types,               ONLY: atomic_kind_type
    USE cp_control_types,                ONLY: dft_control_type
+   USE cp_dbcsr_api,                    ONLY: &
+        dbcsr_complete_redistribute, dbcsr_copy, dbcsr_create, dbcsr_desymmetrize, &
+        dbcsr_distribution_get, dbcsr_distribution_hold, dbcsr_distribution_new, &
+        dbcsr_distribution_release, dbcsr_distribution_type, dbcsr_finalize, dbcsr_get_info, &
+        dbcsr_multiply, dbcsr_nblkrows_total, dbcsr_p_type, dbcsr_release, dbcsr_set, dbcsr_type, &
+        dbcsr_type_real_8
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
    USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_unit_nr,&
                                               cp_logger_type
    USE cp_realspace_grid_cube,          ONLY: cp_pw_to_cube
-   USE dbcsr_api,                       ONLY: &
-        dbcsr_complete_redistribute, dbcsr_copy, dbcsr_copy_into_existing, dbcsr_create, &
-        dbcsr_desymmetrize, dbcsr_distribution_get, dbcsr_distribution_hold, &
-        dbcsr_distribution_new, dbcsr_distribution_release, dbcsr_distribution_type, &
-        dbcsr_finalize, dbcsr_get_info, dbcsr_multiply, dbcsr_nblkrows_total, dbcsr_p_type, &
-        dbcsr_release, dbcsr_set, dbcsr_type, dbcsr_type_real_8
    USE dm_ls_scf_types,                 ONLY: ls_cluster_atomic,&
                                               ls_cluster_molecular,&
                                               ls_mstruct_type,&
@@ -43,11 +43,8 @@ MODULE dm_ls_scf_qs
    USE pw_methods,                      ONLY: pw_zero
    USE pw_pool_types,                   ONLY: pw_pool_p_type,&
                                               pw_pool_type
-   USE pw_types,                        ONLY: COMPLEXDATA1D,&
-                                              REALDATA3D,&
-                                              REALSPACE,&
-                                              RECIPROCALSPACE,&
-                                              pw_type
+   USE pw_types,                        ONLY: pw_c1d_gs_type,&
+                                              pw_r3d_rs_type
    USE qs_atomic_block,                 ONLY: calculate_atomic_block_dm
    USE qs_collocate_density,            ONLY: calculate_rho_elec
    USE qs_density_mixing_types,         ONLY: direct_mixing_nr,&
@@ -300,7 +297,7 @@ CONTAINS
 !> \param matrix_ls ...
 !> \param ls_mstruct ...
 !> \param covariant ...
-!> \param keep_sparsity If set dbcsr_copy_into_existing will be used, by default set to .TRUE.
+!> \param keep_sparsity will be passed on to dbcsr_copy, by default set to .TRUE.
 !> \par History
 !>       2010.10 created [Joost VandeVondele]
 !>       2015.09 add support for PAO [Ole Schuett]
@@ -330,11 +327,7 @@ CONTAINS
       IF (.NOT. ls_mstruct%do_pao) THEN
          CALL dbcsr_create(matrix_declustered, template=matrix_qs)
          CALL matrix_decluster(matrix_declustered, matrix_ls, ls_mstruct)
-         IF (my_keep_sparsity) THEN
-            CALL dbcsr_copy_into_existing(matrix_qs, matrix_declustered) ! preserve sparsity of matrix_qs
-         ELSE
-            CALL dbcsr_copy(matrix_qs, matrix_declustered) ! overwrite sparsity of matrix_qs
-         END IF
+         CALL dbcsr_copy(matrix_qs, matrix_declustered, keep_sparsity=my_keep_sparsity)
          CALL dbcsr_release(matrix_declustered)
 
       ELSE ! using pao
@@ -352,11 +345,7 @@ CONTAINS
          CALL dbcsr_create(matrix_tmp2, template=matrix_qs)
          CALL dbcsr_multiply("N", "N", 1.0_dp, matrix_trafo, matrix_declustered, 0.0_dp, matrix_tmp1)
          CALL dbcsr_multiply("N", "T", 1.0_dp, matrix_tmp1, matrix_trafo, 0.0_dp, matrix_tmp2)
-         IF (my_keep_sparsity) THEN
-            CALL dbcsr_copy_into_existing(matrix_qs, matrix_tmp2) ! preserve sparsity of matrix_qs
-         ELSE
-            CALL dbcsr_copy(matrix_qs, matrix_tmp2) ! overwrite sparsity of matrix_qs
-         END IF
+         CALL dbcsr_copy(matrix_qs, matrix_tmp2, keep_sparsity=my_keep_sparsity)
          CALL dbcsr_release(matrix_declustered)
          CALL dbcsr_release(matrix_tmp1)
          CALL dbcsr_release(matrix_tmp2)
@@ -638,10 +627,11 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks
       TYPE(dbcsr_type), TARGET                           :: matrix_p_qs
       TYPE(particle_list_type), POINTER                  :: particles
+      TYPE(pw_c1d_gs_type)                               :: wf_g
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type)                                      :: wf_g, wf_r
+      TYPE(pw_r3d_rs_type)                               :: wf_r
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_subsys_type), POINTER                      :: subsys
 
@@ -666,13 +656,9 @@ CONTAINS
       CALL pw_env_get(pw_env=pw_env, &
                       auxbas_pw_pool=auxbas_pw_pool, &
                       pw_pools=pw_pools)
-      CALL auxbas_pw_pool%create_pw(pw=wf_r, &
-                                    use_data=REALDATA3D, &
-                                    in_space=REALSPACE)
+      CALL auxbas_pw_pool%create_pw(pw=wf_r)
       CALL pw_zero(wf_r)
-      CALL auxbas_pw_pool%create_pw(pw=wf_g, &
-                                    use_data=COMPLEXDATA1D, &
-                                    in_space=RECIPROCALSPACE)
+      CALL auxbas_pw_pool%create_pw(pw=wf_g)
       CALL pw_zero(wf_g)
       CALL calculate_rho_elec(matrix_p=matrix_p_qs, &
                               rho=wf_r, &

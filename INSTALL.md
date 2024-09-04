@@ -104,8 +104,8 @@ Examples are the sequential variant of the Intel MKL, the Cray libsci, the OpenB
 and the reference BLAS/LAPACK packages. If compiling with MKL, users must define `-D__MKL` to ensure
 the code is thread-safe. MKL with multiple OpenMP threads in CP2K requires that CP2K was compiled
 with the Intel compiler. If the `cpp` precompiler is used in a separate precompilation step in
-combination with the Intel Fortran compiler, `-D__INTEL_COMPILER` must be added explicitly (the
-Intel compiler sets `__INTEL_COMPILER` otherwise automatically).
+combination with the Intel Fortran compiler, `-D__INTEL_LLVM_COMPILER` (`-D__INTEL_COMPILER`) must
+be added explicitly (the Intel compiler sets `D__INTEL_LLVM_COMPILER` otherwise automatically).
 
 On the Mac, BLAS and LAPACK may be provided by Apple's Accelerate framework. If using this
 framework, `-D__ACCELERATE` must be defined to account for some interface incompatibilities between
@@ -115,7 +115,7 @@ When building on/for Windows using the Minimalist GNU for Windows (MinGW) enviro
 `-D__MINGW`, `-D__NO_STATM_ACCESS` and `-D__NO_SOCKETS` to avoid undefined references during
 linking, respectively errors while printing the statistics.
 
-### 2e. MPI and SCALAPACK (optional, required for MPI parallel builds)
+### 2e. MPI and ScaLAPACK (optional, required for MPI parallel builds)
 
 MPI (version 3) and SCALAPACK are needed for parallel code. (Use the latest versions available and
 download all patches!).
@@ -191,13 +191,13 @@ required.
   multiplications.
 - Add `-lstdc++ -lcudart -lnvrtc -lcuda -lcublas` to LIBS.
 - Specify the GPU type (e.g., `GPUVER = P100`), possible values are K20X, K40, K80, P100, V100,
-  A100.
+  A100, H100, A40.
 - Specify the C++ compiler (e.g., `CXX = g++`) and the CXXFLAGS to support the C++11 standard.
 - CUFFT 7.0 has a known bug and is therefore disabled by default. NVIDIA's webpage list a patch (an
   upgraded version cufft i.e. >= 7.0.35) - use this together with `-D__HAS_PATCHED_CUFFT_70`.
 - Use `-D__OFFLOAD_PROFILING` to turn on Nvidia Tools Extensions. It requires to link
   `-lnvToolsExt`.
-- Link to a blas/scalapack library that accelerates large DGEMMs (e.g., libsci_acc)
+- Link to a BLAS/ScaLAPACK library that accelerates large DGEMMs (e.g., libsci_acc)
 - Use `-D__NO_OFFLOAD_GRID` to disable the GPU backend of the grid library.
 - Use `-D__NO_OFFLOAD_DBM` to disable the GPU backend of the sparse tensor library.
 - Use `-D__NO_OFFLOAD_PW` to disable the GPU backend of FFTs and associated gather/scatter
@@ -219,7 +219,7 @@ required.
 
 Library ELPA for the solution of the eigenvalue problem
 
-- ELPA replaces the ScaLapack `SYEVD` to improve the performance of the diagonalization
+- ELPA replaces the ScaLAPACK `SYEVD` to improve the performance of the diagonalization
 - A version of ELPA can be downloaded from <http://elpa.rzg.mpg.de/software>.
 - During the installation the `libelpa_openmp.a` is created.
 - Minimal supported version of ELPA is 2018.05.001.
@@ -238,7 +238,7 @@ Library ELPA for the solution of the eigenvalue problem
 NVIDIA cuSOLVERMp is a high-performance, distributed-memory, GPU-accelerated library that provides
 tools for the solution of dense linear systems and eigenvalue problems.
 
-- cuSOLVERMp replaces the ScaLapack `SYEVD` to improve the performance of the diagonalization
+- cuSOLVERMp replaces the ScaLAPACK `SYEVD` to improve the performance of the diagonalization
 - A version of cuSOLVERMp can be downloaded from <https://docs.nvidia.com/hpc-sdk/cusolvermp>.
 - Add `-D__CUSOLVERMP` to `DFLAGS`
 - Add `-lcusolverMp -lcusolver -lcal -lnvidia-ml` to `LIBS`
@@ -387,44 +387,51 @@ box on Nvidia hardware as well.
 
 ### 2x. OpenCL Devices
 
-OpenCL devices are currently supported for DBCSR and can cover GPUs and other devices. Kernels can
-be automatically tuned like for the CUDA/HIP backend in DBCSR. Note: the OpenCL backend uses some
-functionality from LIBXSMM (dependency).
+OpenCL devices are currently supported for DBCSR and DBM/DBT, and can cover GPUs and other devices.
+Kernels can be automatically tuned.
 
-- Installing an OpenCL runtime depends on the operating system and the device vendor. Debian for
-  instance brings two packages called `opencl-headers` and `ocl-icd-opencl-dev` which can be present
-  in addition to a vendor-specific installation. The OpenCL header files are only necessary if
-  CP2K/DBCSR is compiled from source. Please note, some implementations ship with outdated OpenCL
-  headers which can prevent using latest features (if an application discovers such features only at
-  compile-time). When building from source, for instance `libOpenCL.so` is sufficient (ICD loader)
-  at link-time. However, an Installable Client Driver (ICD) is finally necessary at runtime.
-- Nvidia CUDA, AMD HIP, and Intel OneAPI are fully equipped with an OpenCL runtime (if
-  `opencl-headers` package is not installed, CPATH can be needed to point into such an installation,
-  similarly `LIBRARY_PATH` for finding `libOpenCL.so` at link-time). Installing a minimal or
-  stand-alone OpenCL is also possible, e.g., following the instructions for Debian (or Ubuntu) as
-  given for every [release](https://github.com/intel/compute-runtime/releases) of the
-  [Intel Compute Runtime](https://github.com/intel/compute-runtime).
-- CP2K's toolchain supports `--enable-opencl` to select DBCSR's OpenCL backend. This can be combined
-  with `--enable-cuda` (`--gpu-ver` is then imposed) to use a GPU for CP2K's grid and DBM/DBT
-  components (no OpenCL support yet).
-- For manually writing an ARCH-file add `-D__OPENCL` and `-D__DBCSR_ACC` to `CFLAGS`, and add
-  `-lOpenCL` to the `LIBS` variable, i.e., `OFFLOAD_CC` and `OFFLOAD_FLAGS` can duplicate `CC` and
-  `CFLAGS` (no special offload compiler needed). Please also set `OFFLOAD_TARGET = opencl` to enable
-  the OpenCL backend in DBCSR. For OpenCL, it is not necessary to specify a GPU version (e.g.,
-  `GPUVER = V100` would map to `exts/dbcsr/src/acc/opencl/smm/params/tune_multiply_V100.csv`). In
-  fact, `GPUVER` limits tuned parameters to the specified GPU, and by default all tuned parameters
-  are embedded (`exts/dbcsr/src/acc/opencl/smm/params/*.csv`) and applied at runtime. If auto-tuned
-  parameters are not available for DBCSR, well-chosen defaults will be used to populate kernels at
-  runtime. Refer to the toolchain method (above) for an ARCH-file that blends, e.g., OpenCL and
-  CUDA.
-- Auto-tuned parameters are embedded into the binary, i.e., CP2K does not rely on a hard-coded
-  location. Setting `OPENCL_LIBSMM_SMM_PARAMS=/path/to/csv-file` environment variable can supply
-  parameters for an already built application, or `OPENCL_LIBSMM_SMM_PARAMS=0` can disable using
-  tuned parameters.
-- The environment variable `ACC_OPENCL_VERBOSE=2` prints information about kernels generated at
-  runtime (and thereby checks the installation).
-- Refer to <https://cp2k.github.io/dbcsr/> for, e.g., environment variables, or how to tune kernels
-  (auto tuned parameters).
+Note: the OpenCL backend uses some functionality from LIBXSMM (dependency). CP2K's offload-library
+serving DBM/DBT and other libraries depends on DBCSR's OpenCL backend.
+
+- Installing OpenCL and preparing the runtime environment
+  - Installing an OpenCL runtime depends on the operating system and the device vendor. Debian for
+    instance brings two packages called `opencl-headers` and `ocl-icd-opencl-dev` which can be
+    present in addition to a vendor-specific installation. The OpenCL header files are only
+    necessary if CP2K/DBCSR is compiled from source. Please note, some implementations ship with
+    outdated OpenCL headers which can prevent using latest features (if an application discovers
+    such features only at compile-time). When building from source, for instance `libOpenCL.so` is
+    sufficient at link-time (ICD loader). However, an Installable Client Driver (ICD) is finally
+    necessary at runtime.
+  - Nvidia CUDA, AMD HIP, and Intel OneAPI are fully equipped with an OpenCL runtime (if
+    `opencl-headers` package is not installed, CPATH can be needed to point into the former
+    installation, similarly `LIBRARY_PATH` for finding `libOpenCL.so` at link-time). Installing a
+    minimal or stand-alone OpenCL is also possible, e.g., following the instructions for Debian (or
+    Ubuntu) as given for every [release](https://github.com/intel/compute-runtime/releases) of the
+    [Intel Compute Runtime](https://github.com/intel/compute-runtime).
+  - The environment variable `ACC_OPENCL_VERBOSE` prints information at runtime of CP2K about
+    kernels generated (`ACC_OPENCL_VERBOSE=2`) or executed (`ACC_OPENCL_VERBOSE=3`) which can be
+    used to check an installation.
+- Building CP2K with OpenCL-based DBCSR
+  - CP2K's toolchain supports `--enable-opencl` to select DBCSR's OpenCL backend. This can be
+    combined with `--enable-cuda` (`--gpu-ver` is then imposed) to use a GPU for CP2K's GRID and PW
+    components (no OpenCL support yet) with DBM's CUDA implementation to be preferred.
+  - For manually writing an ARCH-file, add `-D__OPENCL` and `-D__DBCSR_ACC` to `CFLAGS` and add
+    `-lOpenCL` to the `LIBS` variable, i.e., `OFFLOAD_CC` and `OFFLOAD_FLAGS` can duplicate `CC` and
+    `CFLAGS` (no special offload compiler needed). Please also set `OFFLOAD_TARGET = opencl` to
+    enable the OpenCL backend in DBCSR. For OpenCL, it is not necessary to specify a GPU version
+    (e.g., `GPUVER = V100` would map/limit to
+    `exts/dbcsr/src/acc/opencl/smm/params/tune_multiply_V100.csv`). In fact, `GPUVER` limits tuned
+    parameters to the specified GPU, whereas by default all tuned parameters are embedded
+    (`exts/dbcsr/src/acc/opencl/smm/params/*.csv`) and applied at runtime. If auto-tuned parameters
+    are not available for DBCSR, well-chosen defaults will be used to populate kernels at runtime.
+  - Auto-tuned parameters are embedded into the binary, i.e., CP2K does not rely on a hard-coded
+    location. Setting `OPENCL_LIBSMM_SMM_PARAMS=/path/to/csv-file` environment variable can supply
+    parameters for an already built application, or `OPENCL_LIBSMM_SMM_PARAMS=0` can disable using
+    tuned parameters. Refer to <https://cp2k.github.io/dbcsr/> on how to tune kernels (parameters).
+- Building CP2K with OpenCL-based DBM library
+  - For manually writing an ARCH-file, add `-D__OFFLOAD_OPENCL` to `CFLAGS` in addition to following
+    above instructions for "Building CP2K with OpenCL-based DBCSR". An additional Makefile rule can
+    be necessary to transform OpenCL code into a ressource header file.
 
 ### 2y. matrix-matrix multiplication offloading on GPU using SPLA
 
@@ -455,6 +462,22 @@ Calls to `offload_dgemm` also accept pointers on GPU or a combination of them.
 - Add `-D__LIBMAXWELL` to DFLAGS to enable support for LibMaxwell.
 - See <https://brehm-research.de> for more information.
 -->
+
+### 2y. DeePMD-kit (optional, wider range of interaction potentials)
+
+DeePMD-kit - Deep Potential Molecular Dyanmics. Support for DeePMD-kit can be enabled via the flag
+`-D__DEEPMD`.
+
+- DeePMD-kit C interface can be downloaded from
+  <https://docs.deepmodeling.com/projects/deepmd/en/master/install/install-from-c-library.html>
+- For more information see <https://github.com/deepmodeling/deepmd-kit.git>.
+
+### 2z. DFTD4 (optional, dispersion correction)
+
+- dftd4 - Generally Applicable Atomic-Charge Dependent London Dispersion Correction.
+- For more information see <https://github.com/dftd4/dftd4>
+- Add `-D__DFTD4` to DFLAGS, `-ldftd4 -lmstore -lmulticharge -lmctc-lib` to LIBS and
+  `-I'${DFTD4_DFTD4}/../..' -I'${DFTD4_DFTD4}' -I'${DFTD4_MCTC}'` to CFLAGS
 
 ## 3. Compile
 
@@ -524,7 +547,8 @@ make ARCH=Linux-x86-64-gfortran VERSION=sopt realclean
 The following flags should be present (or not) in the arch file, partially depending on installed
 libraries (see 2.)
 
-- `-D__parallel -D__SCALAPACK` parallel runs
+- `-D__parallel` builds an MPI parallel CP2K binary (implies the use and thus the availabiltity of
+  the ScaLAPACK/BLACS libraries)
 - `-D__LIBINT` use LIBINT (needed for HF exchange)
 - `-D__LIBXC` use LIBXC
 - `-D__LIBGRPP` use libgrpp (for calculations with ECPs)
@@ -536,7 +560,7 @@ libraries (see 2.)
   ~10%) speedup.
 - `-D__PILAENV_BLOCKSIZE`: can be used to specify the blocksize (e.g.,
   `-D__PILAENV_BLOCKSIZE=1024`), which is a hack to overwrite (if the linker allows this) the
-  PILAENV function provided by Scalapack. This can lead to much improved PDGEMM performance. The
+  PILAENV function provided by ScaLAPACK. This can lead to much improved PDGEMM performance. The
   optimal value depends on hardware (GPU?) and precise problem. Alternatively, Cray provides an
   environment variable to this effect (e.g., `export LIBSCI_ACC_PILAENV=4000`)
 - `-D__STATM_RESIDENT` or `-D__STATM_TOTAL` toggles memory usage reporting between resident memory
@@ -553,7 +577,7 @@ Features useful to deal with legacy systems
   thread safe (serialized).
 - `-D__NO_SOCKETS` disables the socket interface in case of troubles compiling on systems that do
   not support POSIX sockets.
-- `-D__HAS_IEEE_EXCEPTIONS` disables trapping temporarily for libraries like scalapack.
+- `-D__HAS_IEEE_EXCEPTIONS` disables trapping temporarily for libraries like ScaLAPACK.
 - The Makefile automatically compiles in the path to the data directory via the flag `-D__DATA_DIR`.
   If you want to compile in a different path, set the variable `DATA_DIR` in your arch-file.
 - `-D__NO_STATM_ACCESS` - Do not try to read from /proc/self/statm to get memory usage information.

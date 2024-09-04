@@ -16,7 +16,7 @@ MODULE qs_ks_reference
                                               get_admm_env
    USE atomic_kind_types,               ONLY: atomic_kind_type
    USE cp_control_types,                ONLY: dft_control_type
-   USE dbcsr_api,                       ONLY: dbcsr_p_type
+   USE cp_dbcsr_api,                    ONLY: dbcsr_p_type
    USE hartree_local_methods,           ONLY: Vh_1c_gg_integrals,&
                                               init_coulomb_local
    USE hartree_local_types,             ONLY: hartree_local_create,&
@@ -36,11 +36,8 @@ MODULE qs_ks_reference
    USE pw_poisson_methods,              ONLY: pw_poisson_solve
    USE pw_poisson_types,                ONLY: pw_poisson_type
    USE pw_pool_types,                   ONLY: pw_pool_type
-   USE pw_types,                        ONLY: COMPLEXDATA1D,&
-                                              REALDATA3D,&
-                                              REALSPACE,&
-                                              RECIPROCALSPACE,&
-                                              pw_type
+   USE pw_types,                        ONLY: pw_c1d_gs_type,&
+                                              pw_r3d_rs_type
    USE qs_core_energies,                ONLY: calculate_ecore_overlap,&
                                               calculate_ecore_self
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -96,8 +93,8 @@ CONTAINS
    SUBROUTINE ks_ref_potential(qs_env, vh_rspace, vxc_rspace, vtau_rspace, vadmm_rspace, &
                                ehartree, exc, h_stress)
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(pw_type), INTENT(INOUT)                       :: vh_rspace
-      TYPE(pw_type), DIMENSION(:), POINTER               :: vxc_rspace, vtau_rspace, vadmm_rspace
+      TYPE(pw_r3d_rs_type), INTENT(INOUT)                :: vh_rspace
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: vxc_rspace, vtau_rspace, vadmm_rspace
       REAL(KIND=dp), INTENT(OUT)                         :: ehartree, exc
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(INOUT), &
          OPTIONAL                                        :: h_stress
@@ -110,15 +107,15 @@ CONTAINS
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(pw_c1d_gs_type)                               :: rho_tot_gspace, v_hartree_gspace
+      TYPE(pw_c1d_gs_type), POINTER                      :: rho_core
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_grid_type), POINTER                        :: pw_grid
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type)                                      :: rho_tot_gspace, v_hartree_gspace, &
-                                                            v_hartree_rspace
-      TYPE(pw_type), DIMENSION(:), POINTER               :: v_admm_rspace, v_admm_tau_rspace, &
+      TYPE(pw_r3d_rs_type)                               :: v_hartree_rspace
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: v_admm_rspace, v_admm_tau_rspace, &
                                                             v_rspace, v_tau_rspace
-      TYPE(pw_type), POINTER                             :: rho_core
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho, rho_xc
       TYPE(section_vals_type), POINTER                   :: xc_section
@@ -143,12 +140,9 @@ CONTAINS
                       poisson_env=poisson_env)
 
       ! Calculate the Hartree potential
-      CALL auxbas_pw_pool%create_pw(v_hartree_gspace, &
-                                    use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
-      CALL auxbas_pw_pool%create_pw(v_hartree_rspace, &
-                                    use_data=REALDATA3D, in_space=REALSPACE)
-      CALL auxbas_pw_pool%create_pw(rho_tot_gspace, &
-                                    use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+      CALL auxbas_pw_pool%create_pw(v_hartree_gspace)
+      CALL auxbas_pw_pool%create_pw(v_hartree_rspace)
+      CALL auxbas_pw_pool%create_pw(rho_tot_gspace)
 
       ! Get the total density in g-space [ions + electrons]
       CALL calc_rho_tot_gspace(rho_tot_gspace, qs_env, rho)
@@ -233,17 +227,14 @@ CONTAINS
       END IF
 
       pw_grid => v_hartree_rspace%pw_grid
-      CALL vh_rspace%create(pw_grid, use_data=REALDATA3D, in_space=REALSPACE)
+      CALL vh_rspace%create(pw_grid)
       DO ispin = 1, nspins
-         CALL vxc_rspace(ispin)%create(pw_grid, &
-                                       use_data=REALDATA3D, in_space=REALSPACE)
+         CALL vxc_rspace(ispin)%create(pw_grid)
          IF (ASSOCIATED(vtau_rspace)) THEN
-            CALL vtau_rspace(ispin)%create(pw_grid, &
-                                           use_data=REALDATA3D, in_space=REALSPACE)
+            CALL vtau_rspace(ispin)%create(pw_grid)
          END IF
          IF (ASSOCIATED(vadmm_rspace)) THEN
-            CALL vadmm_rspace(ispin)%create(pw_grid, &
-                                            use_data=REALDATA3D, in_space=REALSPACE)
+            CALL vadmm_rspace(ispin)%create(pw_grid)
          END IF
       END DO
       !
@@ -305,7 +296,7 @@ CONTAINS
    SUBROUTINE ks_ref_potential_atom(qs_env, local_rho_set, local_rho_set_admm, v_hartree_rspace)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(local_rho_type), POINTER                      :: local_rho_set, local_rho_set_admm
-      TYPE(pw_type), INTENT(IN)                          :: v_hartree_rspace
+      TYPE(pw_r3d_rs_type), INTENT(IN)                   :: v_hartree_rspace
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'ks_ref_potential_atom'
 

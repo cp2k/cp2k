@@ -16,7 +16,8 @@
 MODULE input_cp2k_mm
    USE bibliography,                    ONLY: &
         Batzner2022, Clabaut2020, Clabaut2021, Devynck2012, Dick1958, Foiles1986, Mitchell1993, &
-        Musaelian2023, QUIP_ref, Siepmann1995, Tersoff1988, Tosi1964a, Tosi1964b, Yamada2000
+        Musaelian2023, QUIP_ref, Siepmann1995, Tersoff1988, Tosi1964a, Tosi1964b, Wang2018, &
+        Yamada2000, Zeng2023
    USE cp_output_handling,              ONLY: cp_print_key_section_create,&
                                               debug_print_level,&
                                               high_print_level,&
@@ -1187,6 +1188,10 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
+      CALL create_DEEPMD_section(subsection)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+
       CALL create_Goodwin_section(subsection)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
@@ -1429,7 +1434,8 @@ CONTAINS
                           "Mainly intended for things like GAP corrections to DFT "// &
                           "to achieve correlated-wavefunction-like accuracy. "// &
                           "Requires linking with quip library from <http://www.libatoms.org>.", &
-                          citations=(/QUIP_ref/), n_keywords=1, n_subsections=0, repeats=.TRUE.)
+                          citations=(/QUIP_ref/), n_keywords=1, n_subsections=0, repeats=.TRUE., &
+                          deprecation_notice="Support for the QUIP library is slated for removal.")
 
       NULLIFY (keyword)
 
@@ -1480,7 +1486,9 @@ CONTAINS
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, __LOCATION__, name="NEQUIP", &
                           description="This section specifies the input parameters for NEQUIP potential type "// &
-                          "based on equivariant neural networks with message passing. "// &
+                          "based on equivariant neural networks with message passing. Starting from the NequIP 0.6.0, "// &
+                          "one can predict stress if the config.yaml file has the StressForceOutput keyword, "// &
+                          "regardless of whether the model has been trained on the stress. "// &
                           "Requires linking with libtorch library from <https://pytorch.org/cppdocs/installing.html>.", &
                           citations=(/Batzner2022/), n_keywords=1, n_subsections=0, repeats=.FALSE.)
 
@@ -1504,25 +1512,33 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="UNIT_COORDS", &
-                          description="Units of coordinates in the NEQUIP model.pth file.", &
+                          description="Units of coordinates in the NEQUIP model.pth file. "// &
+                          "The units of positions, energies and forces must be self-consistent: "// &
+                          "e.g. coordinates in Angstrom, energies in eV, forces in eV/Angstrom. ", &
                           usage="UNIT angstrom", default_c_val="angstrom")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="UNIT_ENERGY", &
-                          description="Units of energy in the NEQUIP model.pth file.", &
-                          usage="UNIT hartree", default_c_val="hartree")
+                          description="Units of energy in the NEQUIP model.pth file. "// &
+                          "The units of positions, energies and forces must be self-consistent: "// &
+                          "e.g. coordinates in Angstrom, energies in eV, forces in eV/Angstrom. ", &
+                          usage="UNIT hartree", default_c_val="eV")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="UNIT_FORCES", &
-                          description="Units of the forces in the NEQUIP model.pth file.", &
-                          usage="UNIT hartree/bohr", default_c_val="hartree/bohr")
+                          description="Units of the forces in the NEQUIP model.pth file. "// &
+                          "The units of positions, energies and forces must be self-consistent: "// &
+                          "e.g. coordinates in Angstrom, energies in eV, forces in eV/Angstrom. ", &
+                          usage="UNIT hartree/bohr", default_c_val="eV/Angstrom")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="UNIT_CELL", &
-                          description="Units of the cell vectors in the NEQUIP model.pth file.", &
+                          description="Units of the cell vectors in the NEQUIP model.pth file. "// &
+                          "The units of positions, energies and forces must be self-consistent: "// &
+                          "e.g. coordinates in Angstrom, energies in eV, forces in eV/Angstrom. ", &
                           usage="UNIT angstrom", default_c_val="angstrom")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -1542,7 +1558,9 @@ CONTAINS
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, __LOCATION__, name="ALLEGRO", &
                           description="This section specifies the input parameters for ALLEGRO potential type "// &
-                          "based on equivariant neural network potentials. "// &
+                          "based on equivariant neural network potentials. Starting from the NequIP 0.6.0, "// &
+                          "one can predict stress if the config.yaml file has the StressForceOutput keyword, "// &
+                          "regardless of whether the model has been trained on the stress. "// &
                           "Requires linking with libtorch library from <https://pytorch.org/cppdocs/installing.html>.", &
                           citations=(/Musaelian2023/), n_keywords=1, n_subsections=0, repeats=.FALSE.)
 
@@ -1566,30 +1584,82 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="UNIT_COORDS", &
-                          description="Units of coordinates in the ALLEGRO model.pth file.", &
+                          description="Units of coordinates in the ALLEGRO model.pth file. "// &
+                          "The units of positions, energies and forces must be self-consistent: "// &
+                          "e.g. coordinates in Angstrom, energies in eV, forces in eV/Angstrom. ", &
                           usage="UNIT angstrom", default_c_val="angstrom")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="UNIT_ENERGY", &
-                          description="Units of energy in the ALLEGRO model.pth file.", &
-                          usage="UNIT hartree", default_c_val="hartree")
+                          description="Units of energy in the ALLEGRO model.pth file. "// &
+                          "The units of positions, energies and forces must be self-consistent: "// &
+                          "e.g. coordinates in Angstrom, energies in eV, forces in eV/Angstrom. ", &
+                          usage="UNIT hartree", default_c_val="eV")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="UNIT_FORCES", &
-                          description="Units of the forces in the ALLEGRO model.pth file.", &
-                          usage="UNIT hartree/bohr", default_c_val="hartree/bohr")
+                          description="Units of the forces in the ALLEGRO model.pth file. "// &
+                          "The units of positions, energies and forces must be self-consistent: "// &
+                          "e.g. coordinates in Angstrom, energies in eV, forces in eV/Angstrom. ", &
+                          usage="UNIT hartree/bohr", default_c_val="eV/Angstrom")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="UNIT_CELL", &
-                          description="Units of the cell vectors in the ALLEGRO model.pth file.", &
+                          description="Units of the cell vectors in the ALLEGRO model.pth file. "// &
+                          "The units of positions, energies and forces must be self-consistent: "// &
+                          "e.g. coordinates in Angstrom, energies in eV, forces in eV/Angstrom. ", &
                           usage="UNIT angstrom", default_c_val="angstrom")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
    END SUBROUTINE create_ALLEGRO_section
+
+! **************************************************************************************************
+!> \brief This section specifies the input parameters for DEEPMD potential type
+!> \param section the section to create
+!> \author ybzhuang
+! **************************************************************************************************
+   SUBROUTINE create_DEEPMD_section(section)
+      TYPE(section_type), POINTER                        :: section
+
+      TYPE(keyword_type), POINTER                        :: keyword
+
+      CALL section_create(section, __LOCATION__, name="DEEPMD", &
+                          description="This section specifies the input parameters for Deep Potential type. "// &
+                          "Mainly intended for things like neural network to DFT "// &
+                          "to achieve correlated-wavefunction-like accuracy. "// &
+                          "Requires linking with DeePMD-kit library from "// &
+                          "<a href=""https://docs.deepmodeling.com/projects/deepmd/en/master"" "// &
+                          "target=""_blank"">https://docs.deepmodeling.com/projects/deepmd/en/master</a> .", &
+                          citations=(/Wang2018, Zeng2023/), n_keywords=1, n_subsections=0, repeats=.FALSE.)
+      NULLIFY (keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="ATOMS", &
+                          description="Defines the atomic kinds involved in the Deep Potential. "// &
+                          "Provide a list of each element, "// &
+                          "making sure that the mapping from the ATOMS list to DeePMD atom types is correct.", &
+                          usage="ATOMS {KIND 1} {KIND 2} .. {KIND N}", type_of_var=char_t, &
+                          n_var=-1)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="POT_FILE_NAME", &
+                          variants=(/"PARMFILE"/), &
+                          description="Specifies the filename that contains the DeePMD-kit potential.", &
+                          usage="POT_FILE_NAME {FILENAME}", default_lc_val="graph.pb")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="ATOMS_DEEPMD_TYPE", &
+                          description="Specifies the atomic TYPE for the DeePMD-kit potential. "// &
+                          "Provide a list of index, making sure that the mapping "// &
+                          "from the ATOMS list to DeePMD atom types is correct. ", &
+                          usage="ATOMS_DEEPMD_TYPE {TYPE INTEGER 1} {TYPE INTEGER 2} .. "// &
+                          "{TYPE INTEGER N}", type_of_var=integer_t, &
+                          n_var=-1)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+   END SUBROUTINE create_DEEPMD_section
 
 ! **************************************************************************************************
 !> \brief This section specifies the input parameters for Lennard-Jones potential type

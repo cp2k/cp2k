@@ -1,0 +1,61 @@
+&GLOBAL
+  PROJECT Si
+  RUN_TYPE MD
+&END GLOBAL
+
+&MOTION
+  &MD
+    ENSEMBLE NVT
+    STEPS 0
+    TEMPERATURE 300.0
+    TIMESTEP 1
+    &THERMOSTAT
+      REGION GLOBAL
+      TYPE CSVR
+      &CSVR
+        TIMECON 100.
+      &END CSVR
+    &END THERMOSTAT
+  &END MD
+  &PRINT
+    &FORCES
+      UNIT eV*angstrom^-1
+      &EACH
+        MD 1
+      &END EACH
+    &END FORCES
+  &END PRINT
+&END MOTION
+
+&FORCE_EVAL
+  METHOD FIST
+  &MM
+    &FORCEFIELD
+      &NONBONDED
+        &ALLEGRO
+          ATOMS Si
+          PARM_FILE_NAME Allegro/si-deployed-neq060dp.pth
+          UNIT_COORDS angstrom
+          UNIT_ENERGY eV
+          UNIT_FORCES eV*angstrom^-1
+        &END ALLEGRO
+      &END NONBONDED
+    &END FORCEFIELD
+    &POISSON
+      &EWALD
+        EWALD_TYPE none
+      &END EWALD
+    &END POISSON
+  &END MM
+  &SUBSYS
+    &CELL
+      ABC 10.861999859992501 10.861999859992501 10.861999859992501
+      #      MULTIPLE_UNIT_CELL 4 4 4
+    &END CELL
+    &TOPOLOGY
+      COORD_FILE_FORMAT XYZ
+      COORD_FILE_NAME Si.xyz
+      #   MULTIPLE_UNIT_CELL 4 4 4
+    &END TOPOLOGY
+  &END SUBSYS
+&END FORCE_EVAL

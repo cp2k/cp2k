@@ -33,7 +33,8 @@ MODULE lri_environment_init
                                               lri_env_create,&
                                               lri_environment_type
    USE mathconstants,                   ONLY: fac,&
-                                              pi
+                                              pi,&
+                                              rootpi
    USE mathlib,                         ONLY: invert_matrix
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
@@ -474,7 +475,7 @@ CONTAINS
          DO ishell = 1, basis%nshell(iset)
             l = basis%l(ishell, iset)
             expa = 0.5_dp*REAL(2*l + 3, dp)
-            ppl = fac(2*l + 2)*SQRT(pi)/2._dp**REAL(2*l + 3, dp)/fac(l + 1)
+            ppl = fac(2*l + 2)*rootpi/2._dp**REAL(2*l + 3, dp)/fac(l + 1)
             DO isgf = basis%first_sgf(ishell, iset), basis%last_sgf(ishell, iset)
                DO ipgf = 1, basis%npgf(iset)
                   cci = basis%gcc(ipgf, ishell, iset)
@@ -561,7 +562,7 @@ CONTAINS
                   IF (li == lj) THEN
                      l = li
                      expa = 0.5_dp*REAL(2*l + 3, dp)
-                     ppl = fac(2*l + 2)*SQRT(pi)/2._dp**REAL(2*l + 3, dp)/fac(l + 1)
+                     ppl = fac(2*l + 2)*rootpi/2._dp**REAL(2*l + 3, dp)/fac(l + 1)
                      DO isgf = basis%first_sgf(ishell, iset), basis%last_sgf(ishell, iset)
                         m_i = basis%m(isgf)
                         DO jsgf = basis%first_sgf(jshell, jset), basis%last_sgf(jshell, jset)

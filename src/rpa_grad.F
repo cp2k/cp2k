@@ -11,9 +11,6 @@
 !>      10.2021 created [Frederick Stein]
 ! **************************************************************************************************
 MODULE rpa_grad
-   USE ISO_C_BINDING,                   ONLY: C_NULL_PTR,&
-                                              C_PTR,&
-                                              c_associated
    USE cp_array_utils,                  ONLY: cp_1d_r_cp_type,&
                                               cp_3d_r_cp_type
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
@@ -25,9 +22,13 @@ MODULE rpa_grad
                                               cp_fm_struct_get,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: &
-        cp_fm_create, cp_fm_get_info, cp_fm_indxg2l, cp_fm_indxg2p, cp_fm_release, cp_fm_set_all, &
-        cp_fm_to_fm, cp_fm_to_fm_submat_general, cp_fm_type
+   USE cp_fm_types,                     ONLY: cp_fm_create,&
+                                              cp_fm_get_info,&
+                                              cp_fm_release,&
+                                              cp_fm_set_all,&
+                                              cp_fm_to_fm,&
+                                              cp_fm_to_fm_submat_general,&
+                                              cp_fm_type
    USE dgemm_counter_types,             ONLY: dgemm_counter_start,&
                                               dgemm_counter_stop,&
                                               dgemm_counter_type
@@ -43,10 +44,7 @@ MODULE rpa_grad
                                               int_8
    USE libint_2c_3c,                    ONLY: compare_potential_types
    USE local_gemm_api,                  ONLY: LOCAL_GEMM_PU_GPU,&
-                                              local_gemm,&
-                                              local_gemm_create,&
-                                              local_gemm_destroy,&
-                                              local_gemm_set_op_threshold_gpu
+                                              local_gemm_ctxt_type
    USE machine,                         ONLY: m_flush,&
                                               m_memory
    USE mathconstants,                   ONLY: pi
@@ -281,10 +279,10 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'rpa_work_type_create'
 
-      INTEGER :: avirt, col_global, col_local, first_p_pos(2), first_p_pos_col, handle, iocc, &
-         ispin, my_a, my_a_end, my_a_size, my_a_start, my_i, my_i_end, my_i_size, my_i_start, &
-         my_pcol, ncol_block, ncol_local, nspins, num_pe_col, proc_homo, proc_homo_send, &
-         proc_recv, proc_send, proc_virtual, proc_virtual_send
+      INTEGER :: avirt, col_global, col_local, handle, iocc, ispin, my_a, my_a_end, my_a_size, &
+         my_a_start, my_i, my_i_end, my_i_size, my_i_start, my_pcol, ncol_local, nspins, &
+         num_pe_col, proc_homo, proc_homo_send, proc_recv, proc_send, proc_virtual, &
+         proc_virtual_send
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: data2recv, data2send
       INTEGER, DIMENSION(:), POINTER                     :: col_indices
 
@@ -321,9 +319,7 @@ CONTAINS
          CALL create_group_dist(rpa_work%gd_homo(ispin), proc_homo, homo(ispin))
          CALL create_group_dist(rpa_work%gd_virtual(ispin), proc_virtual, virtual(ispin))
 
-         CALL cp_fm_struct_get(fm_mat_S(ispin)%matrix_struct, ncol_local=ncol_local, col_indices=col_indices, &
-                               first_p_pos=first_p_pos, ncol_block=ncol_block)
-         first_p_pos_col = first_p_pos(2)
+         CALL cp_fm_struct_get(fm_mat_S(ispin)%matrix_struct, ncol_local=ncol_local, col_indices=col_indices)
 
          data2send = 0
          ! Count the amount of data2send to each process
@@ -370,7 +366,7 @@ CONTAINS
          data2recv = 0
          DO my_i = my_i_start, my_i_end
          DO my_a = my_a_start, my_a_end
-            proc_recv = cp_fm_indxg2p((my_i - 1)*virtual(ispin) + my_a, ncol_block, 0, first_p_pos_col, num_pe_col)
+            proc_recv = fm_mat_S(ispin)%matrix_struct%g2p_col((my_i - 1)*virtual(ispin) + my_a)
             data2recv(proc_recv) = data2recv(proc_recv) + 1
          END DO
          END DO
@@ -382,7 +378,7 @@ CONTAINS
          data2recv = 0
          DO my_i = my_i_start, my_i_end
          DO my_a = my_a_start, my_a_end
-            proc_recv = cp_fm_indxg2p((my_i - 1)*virtual(ispin) + my_a, ncol_block, 0, first_p_pos_col, num_pe_col)
+            proc_recv = fm_mat_S(ispin)%matrix_struct%g2p_col((my_i - 1)*virtual(ispin) + my_a)
             data2recv(proc_recv) = data2recv(proc_recv) + 1
 
             rpa_work%index2recv(proc_recv, ispin)%array(2, data2recv(proc_recv)) = my_i - my_i_start + 1
@@ -458,9 +454,9 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'prepare_comm_Pij'
 
-      INTEGER :: avirt, col_global, col_local, counter, first_p_pos(2), first_p_pos_col, handle, &
-         ij_counter, iocc, my_i, my_j, my_pcol, my_prow, ncol_block, ncol_local, nrow_local, &
-         num_ij_pairs, num_pe_col, pcol, pcol_recv, pcol_send, proc_shift, tag
+      INTEGER :: avirt, col_global, col_local, counter, handle, ij_counter, iocc, my_i, my_j, &
+         my_pcol, my_prow, ncol_local, nrow_local, num_ij_pairs, num_pe_col, pcol, pcol_recv, &
+         pcol_send, proc_shift, tag
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: data2recv, data2send
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, ncol_locals
       INTEGER, DIMENSION(:, :), POINTER                  :: blacs2mpi
@@ -481,10 +477,9 @@ CONTAINS
 
       CALL cp_fm_struct_get(fm_mat_S%matrix_struct, para_env=para_env, ncol_locals=ncol_locals, &
                             ncol_local=ncol_local, col_indices=col_indices, &
-                            context=context, ncol_block=ncol_block, first_p_pos=first_p_pos, nrow_local=nrow_local)
+                            context=context, nrow_local=nrow_local)
       CALL context%get(my_process_row=my_prow, my_process_column=my_pcol, &
                        blacs2mpi=blacs2mpi)
-      first_p_pos_col = first_p_pos(2)
 
       num_ij_pairs = SIZE(sos_mp2_work%pair_list, 2)
 
@@ -511,7 +506,7 @@ CONTAINS
                   my_j = sos_mp2_work%pair_list(2, ij_counter)
 
                   IF (iocc /= my_j) CYCLE
-                  pcol = cp_fm_indxg2p((my_i - 1)*virtual + avirt, ncol_block, 0, first_p_pos_col, num_pe_col)
+                  pcol = fm_mat_S%matrix_struct%g2p_col((my_i - 1)*virtual + avirt)
                   IF (pcol /= pcol_send) CYCLE
 
                   counter = counter + 1
@@ -545,7 +540,7 @@ CONTAINS
                   my_j = sos_mp2_work%pair_list(2, ij_counter)
 
                   IF (iocc /= my_j) CYCLE
-                  pcol = cp_fm_indxg2p((my_i - 1)*virtual + avirt, ncol_block, 0, first_p_pos_col, num_pe_col)
+                  pcol = fm_mat_S%matrix_struct%g2p_col((my_i - 1)*virtual + avirt)
                   IF (pcol /= pcol_send) CYCLE
 
                   counter = counter + 1
@@ -565,8 +560,7 @@ CONTAINS
             ! Convert to global coordinates to local coordinates as we always work with them
             DO counter = 1, data2send(pcol_send)
                sos_mp2_work%index2send(pcol_send)%array(counter) = &
-                  cp_fm_indxg2l(sos_mp2_work%index2send(pcol_send)%array(counter), &
-                                ncol_block, 0, first_p_pos_col, num_pe_col)
+                  fm_mat_S%matrix_struct%g2l_col(sos_mp2_work%index2send(pcol_send)%array(counter))
             END DO
          END DO
 
@@ -592,9 +586,9 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'prepare_comm_Pab'
 
-      INTEGER :: ab_counter, avirt, col_global, col_local, counter, first_p_pos(2), &
-         first_p_pos_col, handle, iocc, my_a, my_b, my_pcol, my_prow, ncol_block, ncol_local, &
-         nrow_local, num_ab_pairs, num_pe_col, pcol, pcol_recv, pcol_send, proc_shift, tag
+      INTEGER :: ab_counter, avirt, col_global, col_local, counter, handle, iocc, my_a, my_b, &
+         my_pcol, my_prow, ncol_local, nrow_local, num_ab_pairs, num_pe_col, pcol, pcol_recv, &
+         pcol_send, proc_shift, tag
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: data2recv, data2send
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, ncol_locals
       INTEGER, DIMENSION(:, :), POINTER                  :: blacs2mpi
@@ -615,10 +609,9 @@ CONTAINS
 
          CALL cp_fm_struct_get(fm_mat_S%matrix_struct, para_env=para_env, ncol_locals=ncol_locals, &
                                ncol_local=ncol_local, col_indices=col_indices, &
-                               context=context, ncol_block=ncol_block, first_p_pos=first_p_pos, nrow_local=nrow_local)
+                               context=context, nrow_local=nrow_local)
          CALL context%get(my_process_row=my_prow, my_process_column=my_pcol, &
                           blacs2mpi=blacs2mpi)
-         first_p_pos_col = first_p_pos(2)
 
          CALL comm_exchange%from_split(para_env, my_prow)
 
@@ -644,7 +637,7 @@ CONTAINS
                   my_b = sos_mp2_work%pair_list(2, ab_counter)
 
                   IF (avirt /= my_b) CYCLE
-                  pcol = cp_fm_indxg2p((iocc - 1)*virtual + my_a, ncol_block, 0, first_p_pos_col, num_pe_col)
+                  pcol = fm_mat_S%matrix_struct%g2p_col((iocc - 1)*virtual + my_a)
                   IF (pcol /= pcol_send) CYCLE
 
                   counter = counter + 1
@@ -678,7 +671,7 @@ CONTAINS
                   my_b = sos_mp2_work%pair_list(2, ab_counter)
 
                   IF (avirt /= my_b) CYCLE
-                  pcol = cp_fm_indxg2p((iocc - 1)*virtual + my_a, ncol_block, 0, first_p_pos_col, num_pe_col)
+                  pcol = fm_mat_S%matrix_struct%g2p_col((iocc - 1)*virtual + my_a)
                   IF (pcol /= pcol_send) CYCLE
 
                   counter = counter + 1
@@ -698,8 +691,7 @@ CONTAINS
             ! Convert to global coordinates to local coordinates as we always work with them
             DO counter = 1, data2send(pcol_send)
                sos_mp2_work%index2send(pcol_send)%array(counter) = &
-                  cp_fm_indxg2l(sos_mp2_work%index2send(pcol_send)%array(counter), &
-                                ncol_block, 0, first_p_pos_col, num_pe_col)
+                  fm_mat_S%matrix_struct%g2l_col(sos_mp2_work%index2send(pcol_send)%array(counter))
             END DO
          END DO
 
@@ -1034,10 +1026,8 @@ CONTAINS
 
       ! We allocate it at every step to reduce potential memory conflicts with COSMA
       IF (mp2_env%ri_grad%dot_blksize >= blksize_threshold) THEN
-         IF (.NOT. c_associated(mp2_env%local_gemm_ctx)) THEN
-            CALL local_gemm_create(mp2_env%local_gemm_ctx, LOCAL_GEMM_PU_GPU)
-            CALL local_gemm_set_op_threshold_gpu(mp2_env%local_gemm_ctx, spla_threshold)
-         END IF
+         CALL mp2_env%local_gemm_ctx%create(LOCAL_GEMM_PU_GPU)
+         CALL mp2_env%local_gemm_ctx%set_op_threshold_gpu(spla_threshold)
       END IF
 
       tag = 47
@@ -1269,8 +1259,7 @@ CONTAINS
 
       IF (mp2_env%ri_grad%dot_blksize >= blksize_threshold) THEN
          ! release memory allocated by local_gemm when run on GPU. local_gemm_ctx is null on cpu only runs
-         CALL local_gemm_destroy(mp2_env%local_gemm_ctx)
-         mp2_env%local_gemm_ctx = C_NULL_PTR
+         CALL mp2_env%local_gemm_ctx%destroy()
          DEALLOCATE (buffer_compens_1D)
       END IF
 
@@ -1305,7 +1294,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: dot_blksize
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
          INTENT(INOUT), TARGET                           :: buffer_1D
-      TYPE(C_PTR), INTENT(INOUT)                         :: local_gemm_ctx
+      TYPE(local_gemm_ctxt_type), INTENT(INOUT)          :: local_gemm_ctx
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: my_eval_virt, my_eval_occ, recv_eval_virt
       REAL(KIND=dp), INTENT(IN)                          :: omega, weight
 
@@ -1334,10 +1323,10 @@ CONTAINS
                stripesize = MIN(dot_blksize, my_P_size - P_start + 1)
                P_end = P_start + stripesize - 1
 
-               CALL local_gemm("T", "N", my_a_size, recv_a_size, stripesize, &
-                               -weight, mat_S(P_start:P_end, :, my_i), stripesize, &
-                               mat_work(P_start:P_end, :, my_i), stripesize, &
-                               0.0_dp, buffer_unscaled, my_a_size, local_gemm_ctx)
+               CALL local_gemm_ctx%gemm("T", "N", my_a_size, recv_a_size, stripesize, &
+                                        -weight, mat_S(P_start:P_end, :, my_i), stripesize, &
+                                        mat_work(P_start:P_end, :, my_i), stripesize, &
+                                        0.0_dp, buffer_unscaled, my_a_size)
 
                CALL scale_buffer_and_add_compens_virt(buffer_unscaled, buffer_compens, omega, &
                                                       my_eval_virt, recv_eval_virt, my_eval_occ(my_i))
@@ -1399,7 +1388,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: dot_blksize
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
          INTENT(INOUT), TARGET                           :: buffer_1D
-      TYPE(C_PTR), INTENT(INOUT)                         :: local_gemm_ctx
+      TYPE(local_gemm_ctxt_type), INTENT(INOUT)          :: local_gemm_ctx
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: my_eval_virt, my_eval_occ, recv_eval_occ
       REAL(KIND=dp), INTENT(IN)                          :: omega, weight
 
@@ -1428,10 +1417,10 @@ CONTAINS
                stripesize = MIN(dot_blksize, my_P_size - P_start + 1)
                P_end = P_start + stripesize - 1
 
-               CALL local_gemm("T", "N", my_i_size, recv_i_size, stripesize, &
-                               weight, mat_S(P_start:P_end, my_a, :), stripesize, &
-                               mat_work(P_start:P_end, my_a, :), stripesize, &
-                               0.0_dp, buffer_unscaled, my_i_size, local_gemm_ctx)
+               CALL local_gemm_ctx%gemm("T", "N", my_i_size, recv_i_size, stripesize, &
+                                        weight, mat_S(P_start:P_end, my_a, :), stripesize, &
+                                        mat_work(P_start:P_end, my_a, :), stripesize, &
+                                        0.0_dp, buffer_unscaled, my_i_size)
 
                CALL scale_buffer_and_add_compens_occ(buffer_unscaled, buffer_compens, omega, &
                                                      my_eval_occ, recv_eval_occ, my_eval_virt(my_a))
@@ -1625,10 +1614,10 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'calc_Pij_degen'
 
-      INTEGER :: avirt, col_global, col_local, counter, first_p_pos(2), first_p_pos_col, handle, &
-         handle2, ij_counter, iocc, my_col_local, my_i, my_j, my_pcol, my_prow, ncol_block, &
-         ncol_local, nrow_local, num_ij_pairs, num_pe_col, pcol, pcol_recv, pcol_send, proc_shift, &
-         recv_size, send_size, size_recv_buffer, size_send_buffer, tag
+      INTEGER :: avirt, col_global, col_local, counter, handle, handle2, ij_counter, iocc, &
+         my_col_local, my_i, my_j, my_pcol, my_prow, ncol_local, nrow_local, num_ij_pairs, &
+         num_pe_col, pcol, pcol_recv, pcol_send, proc_shift, recv_size, send_size, &
+         size_recv_buffer, size_send_buffer, tag
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, ncol_locals
       INTEGER, DIMENSION(:, :), POINTER                  :: blacs2mpi
       REAL(KIND=dp)                                      :: trace
@@ -1640,10 +1629,9 @@ CONTAINS
 
       CALL cp_fm_struct_get(fm_work_iaP%matrix_struct, para_env=para_env, ncol_locals=ncol_locals, &
                             ncol_local=ncol_local, col_indices=col_indices, &
-                            context=context, ncol_block=ncol_block, first_p_pos=first_p_pos, nrow_local=nrow_local)
+                            context=context, nrow_local=nrow_local)
       CALL context%get(my_process_row=my_prow, my_process_column=my_pcol, &
                        number_of_process_columns=num_pe_col, blacs2mpi=blacs2mpi)
-      first_p_pos_col = first_p_pos(2)
 
       num_ij_pairs = SIZE(pair_list, 2)
 
@@ -1663,10 +1651,10 @@ CONTAINS
             avirt = col_global - (iocc - 1)*virtual
 
             IF (iocc /= my_j) CYCLE
-            pcol = cp_fm_indxg2p((my_i - 1)*virtual + avirt, ncol_block, 0, first_p_pos_col, num_pe_col)
+            pcol = fm_work_iaP%matrix_struct%g2p_col((my_i - 1)*virtual + avirt)
             IF (pcol /= my_pcol) CYCLE
 
-            my_col_local = cp_fm_indxg2l((my_i - 1)*virtual + avirt, ncol_block, 0, first_p_pos_col, num_pe_col)
+            my_col_local = fm_work_iaP%matrix_struct%g2l_col((my_i - 1)*virtual + avirt)
 
             trace = trace + accurate_dot_product_2(fm_mat_S%local_data(:, my_col_local), fm_work_iaP%local_data(:, col_local), &
                                                    dot_blksize)
@@ -1730,10 +1718,10 @@ CONTAINS
                      iocc = MAX(1, col_global - 1)/virtual + 1
                      IF (iocc /= my_j) CYCLE
                      avirt = col_global - (iocc - 1)*virtual
-                     pcol = cp_fm_indxg2p((my_i - 1)*virtual + avirt, ncol_block, 0, first_p_pos_col, num_pe_col)
+                     pcol = fm_work_iaP%matrix_struct%g2p_col((my_i - 1)*virtual + avirt)
                      IF (pcol /= my_pcol) CYCLE
 
-                     my_col_local = cp_fm_indxg2l((my_i - 1)*virtual + avirt, ncol_block, 0, first_p_pos_col, num_pe_col)
+                     my_col_local = fm_work_iaP%matrix_struct%g2l_col((my_i - 1)*virtual + avirt)
 
                      trace = trace + accurate_dot_product_2(fm_mat_S%local_data(:, my_col_local), buffer_recv(:, col_local), &
                                                             dot_blksize)
@@ -1783,10 +1771,10 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'calc_Pab_degen'
 
-      INTEGER :: ab_counter, avirt, col_global, col_local, counter, first_p_pos(2), &
-         first_p_pos_col, handle, handle2, iocc, my_a, my_b, my_col_local, my_pcol, my_prow, &
-         ncol_block, ncol_local, nrow_local, num_ab_pairs, num_pe_col, pcol, pcol_recv, pcol_send, &
-         proc_shift, recv_size, send_size, size_recv_buffer, size_send_buffer, tag
+      INTEGER :: ab_counter, avirt, col_global, col_local, counter, handle, handle2, iocc, my_a, &
+         my_b, my_col_local, my_pcol, my_prow, ncol_local, nrow_local, num_ab_pairs, num_pe_col, &
+         pcol, pcol_recv, pcol_send, proc_shift, recv_size, send_size, size_recv_buffer, &
+         size_send_buffer, tag
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, ncol_locals
       INTEGER, DIMENSION(:, :), POINTER                  :: blacs2mpi
       REAL(KIND=dp)                                      :: trace
@@ -1798,10 +1786,9 @@ CONTAINS
 
       CALL cp_fm_struct_get(fm_work_iaP%matrix_struct, para_env=para_env, ncol_locals=ncol_locals, &
                             ncol_local=ncol_local, col_indices=col_indices, &
-                            context=context, ncol_block=ncol_block, first_p_pos=first_p_pos, nrow_local=nrow_local)
+                            context=context, nrow_local=nrow_local)
       CALL context%get(my_process_row=my_prow, my_process_column=my_pcol, &
                        number_of_process_columns=num_pe_col, blacs2mpi=blacs2mpi)
-      first_p_pos_col = first_p_pos(2)
 
       num_ab_pairs = SIZE(pair_list, 2)
 
@@ -1821,9 +1808,9 @@ CONTAINS
             avirt = col_global - (iocc - 1)*virtual
 
             IF (avirt /= my_b) CYCLE
-            pcol = cp_fm_indxg2p((iocc - 1)*virtual + my_a, ncol_block, 0, first_p_pos_col, num_pe_col)
+            pcol = fm_work_iaP%matrix_struct%g2p_col((iocc - 1)*virtual + my_a)
             IF (pcol /= my_pcol) CYCLE
-            my_col_local = cp_fm_indxg2l((iocc - 1)*virtual + my_a, ncol_block, 0, first_p_pos_col, num_pe_col)
+            my_col_local = fm_work_iaP%matrix_struct%g2l_col((iocc - 1)*virtual + my_a)
 
             trace = trace + accurate_dot_product_2(fm_mat_S%local_data(:, my_col_local), fm_work_iaP%local_data(:, col_local), &
                                                    dot_blksize)
@@ -1889,10 +1876,10 @@ CONTAINS
                      iocc = MAX(1, col_global - 1)/virtual + 1
                      avirt = col_global - (iocc - 1)*virtual
                      IF (avirt /= my_b) CYCLE
-                     pcol = cp_fm_indxg2p((iocc - 1)*virtual + my_a, ncol_block, 0, first_p_pos_col, num_pe_col)
+                     pcol = fm_work_iaP%matrix_struct%g2p_col((iocc - 1)*virtual + my_a)
                      IF (pcol /= my_pcol) CYCLE
 
-                     my_col_local = cp_fm_indxg2l((iocc - 1)*virtual + my_a, ncol_block, 0, first_p_pos_col, num_pe_col)
+                     my_col_local = fm_work_iaP%matrix_struct%g2l_col((iocc - 1)*virtual + my_a)
 
                      trace = trace + accurate_dot_product_2(fm_mat_S%local_data(:, my_col_local), buffer_recv(:, col_local), &
                                                             dot_blksize)
@@ -2610,11 +2597,10 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'dereplicate_and_sum_fm'
 
       INTEGER :: col_local, elements2recv_col, elements2recv_row, elements2send_col, &
-         elements2send_row, first_p_pos_global(2), first_p_pos_sub(2), handle, handle2, &
-         mypcol_global, myprow_global, ncol_block_global, ncol_block_sub, ncol_local_global, &
-         ncol_local_sub, npcol_global, npcol_sub, nprow_global, nprow_sub, nrow_block_global, &
-         nrow_block_sub, nrow_local_global, nrow_local_sub, pcol_recv, pcol_send, proc_recv, &
-         proc_send, proc_send_global, proc_shift, prow_recv, prow_send, row_local, tag
+         elements2send_row, handle, handle2, mypcol_global, myprow_global, ncol_local_global, &
+         ncol_local_sub, npcol_global, npcol_sub, nprow_global, nprow_sub, nrow_local_global, &
+         nrow_local_sub, pcol_recv, pcol_send, proc_recv, proc_send, proc_send_global, proc_shift, &
+         prow_recv, prow_send, row_local, tag
       INTEGER(int_8)                                     :: size_recv_buffer, size_send_buffer
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: data2recv_col, data2recv_row, &
                                                             data2send_col, data2send_row, &
@@ -2643,10 +2629,8 @@ CONTAINS
 
       CALL cp_fm_get_info(fm_sub, col_indices=col_indices_sub, row_indices=row_indices_sub, &
                           nrow_local=nrow_local_sub, ncol_local=ncol_local_sub)
-      CALL cp_fm_struct_get(fm_sub%matrix_struct, para_env=para_env_sub, first_p_pos=first_p_pos_sub, &
-                            nrow_block=nrow_block_sub, ncol_block=ncol_block_sub)
-      CALL cp_fm_struct_get(fm_global%matrix_struct, first_p_pos=first_p_pos_global, nrow_block=nrow_block_global, &
-                            ncol_block=ncol_block_global, para_env=para_env, &
+      CALL cp_fm_struct_get(fm_sub%matrix_struct, para_env=para_env_sub)
+      CALL cp_fm_struct_get(fm_global%matrix_struct, para_env=para_env, &
                             col_indices=col_indices_global, row_indices=row_indices_global, &
                             nrow_local=nrow_local_global, ncol_local=ncol_local_global)
       CALL fm_sub%matrix_struct%context%get(blacs2mpi=blacs2mpi_sub, mpi2blacs=mpi2blacs_sub)
@@ -2666,13 +2650,13 @@ CONTAINS
 
       CALL timeset(routineN//"_data2", handle2)
       ! Create a map how much data has to be sent to what process coordinate, interchange rows and columns to transpose the matrices
-      CALL get_elements2send(data2send_col, npcol_global, row_indices_sub, ncol_block_global, first_p_pos_global(2), index2send_col)
-      CALL get_elements2send(data2send_row, nprow_global, col_indices_sub, nrow_block_global, first_p_pos_global(1), index2send_row)
+      CALL get_elements2send_col(data2send_col, fm_global%matrix_struct, row_indices_sub, index2send_col)
+      CALL get_elements2send_row(data2send_row, fm_global%matrix_struct, col_indices_sub, index2send_row)
 
       ! Create a map how much data has to be sent to what process coordinate, interchange rows and columns to transpose the matrices
       ! Do the reverse for the recieve processes
-      CALL get_elements2send(data2recv_col, npcol_sub, row_indices_global, ncol_block_sub, first_p_pos_sub(2), index2recv_col)
-      CALL get_elements2send(data2recv_row, nprow_sub, col_indices_global, nrow_block_sub, first_p_pos_sub(1), index2recv_row)
+      CALL get_elements2send_col(data2recv_col, fm_sub%matrix_struct, row_indices_global, index2recv_col)
+      CALL get_elements2send_row(data2recv_row, fm_sub%matrix_struct, col_indices_global, index2recv_row)
       CALL timestop(handle2)
 
       CALL timeset(routineN//"_local", handle2)
@@ -2809,27 +2793,26 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief ...
 !> \param data2send ...
-!> \param np_global ...
+!> \param struct_global ...
 !> \param indices_sub ...
-!> \param n_block_global ...
-!> \param first_p_pos_global ...
 !> \param index2send ...
 ! **************************************************************************************************
-   SUBROUTINE get_elements2send(data2send, np_global, indices_sub, n_block_global, first_p_pos_global, index2send)
+   SUBROUTINE get_elements2send_col(data2send, struct_global, indices_sub, index2send)
       INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(OUT)    :: data2send
-      INTEGER, INTENT(IN)                                :: np_global
+      TYPE(cp_fm_struct_type), INTENT(INOUT)             :: struct_global
       INTEGER, DIMENSION(:), INTENT(IN)                  :: indices_sub
-      INTEGER, INTENT(IN)                                :: n_block_global, first_p_pos_global
       TYPE(one_dim_int_array), ALLOCATABLE, &
          DIMENSION(:), INTENT(OUT)                       :: index2send
 
-      INTEGER                                            :: i_global, i_local, proc
+      INTEGER                                            :: i_global, i_local, np_global, proc
+
+      CALL struct_global%context%get(number_of_process_rows=np_global)
 
       ALLOCATE (data2send(0:np_global - 1))
       data2send = 0
       DO i_local = 1, SIZE(indices_sub)
          i_global = indices_sub(i_local)
-         proc = cp_fm_indxg2p(i_global, n_block_global, 0, first_p_pos_global, np_global)
+         proc = struct_global%g2p_col(i_global)
          data2send(proc) = data2send(proc) + 1
       END DO
 
@@ -2843,7 +2826,50 @@ CONTAINS
       data2send = 0
       DO i_local = 1, SIZE(indices_sub)
          i_global = indices_sub(i_local)
-         proc = cp_fm_indxg2p(i_global, n_block_global, 0, first_p_pos_global, np_global)
+         proc = struct_global%g2p_col(i_global)
+         data2send(proc) = data2send(proc) + 1
+         index2send(proc)%array(data2send(proc)) = i_local
+      END DO
+
+   END SUBROUTINE
+
+! **************************************************************************************************
+!> \brief ...
+!> \param data2send ...
+!> \param struct_global ...
+!> \param indices_sub ...
+!> \param index2send ...
+! **************************************************************************************************
+   SUBROUTINE get_elements2send_row(data2send, struct_global, indices_sub, index2send)
+      INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(OUT)    :: data2send
+      TYPE(cp_fm_struct_type), INTENT(INOUT)             :: struct_global
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: indices_sub
+      TYPE(one_dim_int_array), ALLOCATABLE, &
+         DIMENSION(:), INTENT(OUT)                       :: index2send
+
+      INTEGER                                            :: i_global, i_local, np_global, proc
+
+      CALL struct_global%context%get(number_of_process_rows=np_global)
+
+      ALLOCATE (data2send(0:np_global - 1))
+      data2send = 0
+      DO i_local = 1, SIZE(indices_sub)
+         i_global = indices_sub(i_local)
+         proc = struct_global%g2p_row(i_global)
+         data2send(proc) = data2send(proc) + 1
+      END DO
+
+      ALLOCATE (index2send(0:np_global - 1))
+      DO proc = 0, np_global - 1
+         ALLOCATE (index2send(proc)%array(data2send(proc)))
+         ! We want to crash if there is an error
+         index2send(proc)%array = -1
+      END DO
+
+      data2send = 0
+      DO i_local = 1, SIZE(indices_sub)
+         i_global = indices_sub(i_local)
+         proc = struct_global%g2p_row(i_global)
          data2send(proc) = data2send(proc) + 1
          index2send(proc)%array(data2send(proc)) = i_local
       END DO

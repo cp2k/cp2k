@@ -21,7 +21,7 @@ MODULE arnoldi_data_methods
       get_data_z, get_evals_c, get_evals_d, get_evals_s, get_evals_z, get_sel_ind, has_d_cmplx, &
       has_d_real, set_control, set_data_c, set_data_d, set_data_s, &
       set_data_z
-   USE dbcsr_api, ONLY: &
+   USE cp_dbcsr_api, ONLY: &
       dbcsr_distribution_get, dbcsr_distribution_type, dbcsr_get_data_p, dbcsr_get_data_type, &
       dbcsr_get_info, dbcsr_get_matrix_type, dbcsr_mp_grid_setup, dbcsr_p_type, dbcsr_release, &
       dbcsr_type, dbcsr_type_complex_8, dbcsr_type_real_8, dbcsr_type_symmetric

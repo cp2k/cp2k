@@ -14,9 +14,9 @@
 MODULE min_basis_set
    USE basis_set_container_types,       ONLY: add_basis_set_to_container
    USE basis_set_types,                 ONLY: &
-        allocate_sto_basis_set, create_gto_from_sto_basis, deallocate_sto_basis_set, &
-        get_gto_basis_set, gto_basis_set_type, init_orb_basis_set, set_sto_basis_set, srules, &
-        sto_basis_set_type
+        allocate_sto_basis_set, create_gto_from_sto_basis, create_primitive_basis_set, &
+        deallocate_gto_basis_set, deallocate_sto_basis_set, get_gto_basis_set, gto_basis_set_type, &
+        init_orb_basis_set, set_sto_basis_set, srules, sto_basis_set_type
    USE cp_control_types,                ONLY: dft_control_type
    USE kinds,                           ONLY: default_string_length,&
                                               dp
@@ -44,23 +44,41 @@ CONTAINS
 !> \brief ...
 !> \param qs_env ...
 !> \param unit_nr ...
+!> \param basis_type ...
+!> \param primitive ...
 ! **************************************************************************************************
-   SUBROUTINE create_minbas_set(qs_env, unit_nr)
+   SUBROUTINE create_minbas_set(qs_env, unit_nr, basis_type, primitive)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       INTEGER, INTENT(IN)                                :: unit_nr
+      CHARACTER(LEN=*), INTENT(IN), OPTIONAL             :: basis_type
+      INTEGER, INTENT(IN), OPTIONAL                      :: primitive
 
       CHARACTER(LEN=2)                                   :: element_symbol
-      CHARACTER(LEN=default_string_length)               :: bname
-      INTEGER                                            :: ikind, lb, mao, ne, ngau, nkind, nsgf, &
-                                                            ub, z
+      CHARACTER(LEN=default_string_length)               :: bname, btype
+      INTEGER                                            :: ikind, lb, mao, ne, ngau, nkind, nprim, &
+                                                            nsgf, ub, z
       INTEGER, DIMENSION(0:3)                            :: elcon
       INTEGER, DIMENSION(:), POINTER                     :: econf
       REAL(KIND=dp)                                      :: zval
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(gto_basis_set_type), POINTER                  :: refbasis
+      TYPE(gto_basis_set_type), POINTER                  :: pbasis, refbasis
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_kind_type), POINTER                        :: qs_kind
 
+      IF (PRESENT(basis_type)) THEN
+         btype = TRIM(basis_type)
+      ELSE
+         btype = "MIN"
+      END IF
+      IF (PRESENT(primitive)) THEN
+         nprim = primitive
+      ELSE
+         nprim = -1
+      END IF
+
+      IF (unit_nr > 0) THEN
+         WRITE (unit_nr, '(T2,A,T60,A21)') "Generate MINBAS set", ADJUSTR(TRIM(btype))
+      END IF
       ! check for or generate reference basis
       CALL get_qs_env(qs_env=qs_env, qs_kind_set=qs_kind_set)
       CALL get_qs_env(qs_env, dft_control=dft_control)
@@ -69,8 +87,8 @@ CONTAINS
          qs_kind => qs_kind_set(ikind)
          CALL get_qs_kind(qs_kind, zeff=zval, elec_conf=econf, element_symbol=element_symbol)
          CALL get_ptable_info(element_symbol, ielement=z)
-         NULLIFY (refbasis)
-         CALL get_qs_kind(qs_kind=qs_kind, basis_set=refbasis, basis_type="MIN")
+         NULLIFY (refbasis, pbasis)
+         CALL get_qs_kind(qs_kind=qs_kind, basis_set=refbasis, basis_type=btype)
          IF (.NOT. ASSOCIATED(refbasis)) THEN
             CALL get_qs_kind(qs_kind=qs_kind, mao=mao)
             ! generate a minimal basis set
@@ -79,11 +97,21 @@ CONTAINS
             ub = UBOUND(econf, 1)
             ne = ub - lb
             elcon(0:ne) = econf(lb:ub)
-            ! STO-3G
-            ngau = 3
-            CALL create_min_basis(refbasis, z, elcon, mao, ngau)
-            CALL init_interaction_radii_orb_basis(refbasis, dft_control%qs_control%eps_pgf_orb)
-            CALL add_basis_set_to_container(qs_kind%basis_sets, refbasis, "MIN")
+            IF (nprim > 0) THEN
+               ngau = nprim
+               CALL create_min_basis(refbasis, z, elcon, mao, ngau)
+               CALL create_primitive_basis_set(refbasis, pbasis)
+               CALL init_interaction_radii_orb_basis(pbasis, dft_control%qs_control%eps_pgf_orb)
+               CALL add_basis_set_to_container(qs_kind%basis_sets, pbasis, btype)
+               CALL deallocate_gto_basis_set(refbasis)
+            ELSE
+               ! STO-3G
+               ngau = 3
+               CALL create_min_basis(refbasis, z, elcon, mao, ngau)
+               CALL init_interaction_radii_orb_basis(refbasis, dft_control%qs_control%eps_pgf_orb)
+               CALL add_basis_set_to_container(qs_kind%basis_sets, refbasis, btype)
+            END IF
+            CALL get_qs_kind(qs_kind=qs_kind, basis_set=refbasis, basis_type=btype)
          END IF
          IF (unit_nr > 0) THEN
             CALL get_gto_basis_set(refbasis, name=bname, nsgf=nsgf)
@@ -115,7 +143,7 @@ CONTAINS
       CHARACTER(len=6)                                   :: str
       CHARACTER(len=6), DIMENSION(:), POINTER            :: sym
       CHARACTER(LEN=default_string_length)               :: bname
-      INTEGER                                            :: i, iss, l, n, nmao, nn, nss
+      INTEGER                                            :: i, iss, l, lm, n, nmao, nn, nss
       INTEGER, DIMENSION(0:3)                            :: nae, nco, npe
       INTEGER, DIMENSION(4, 7)                           :: ne
       INTEGER, DIMENSION(:), POINTER                     :: lq, nq
@@ -161,6 +189,7 @@ CONTAINS
          CASE (2)
             npe(0) = npe(0) + 2
          CASE (3)
+            npe(1) = npe(1) + 1
          CASE (4)
             npe(0) = npe(0) + 1
             npe(1) = npe(1) + 1
@@ -189,6 +218,15 @@ CONTAINS
          END SELECT
          CALL cp_warn(__LOCATION__, "Reference basis has been adjusted according to MAO value.")
       END IF
+
+      ! All shells should have at least 1 function
+      lm = 0
+      DO l = 0, 3
+         IF (npe(l) > 0) lm = l
+      END DO
+      DO l = 0, lm
+         IF (npe(l) == 0) npe(l) = 1
+      END DO
 
       nss = SUM(npe)
       ALLOCATE (sym(nss), lq(nss), nq(nss), zet(nss))

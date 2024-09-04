@@ -13,7 +13,7 @@
 ! **************************************************************************************************
 
 MODULE arnoldi_types
-   USE dbcsr_api,                       ONLY: dbcsr_type
+   USE cp_dbcsr_api,                    ONLY: dbcsr_type
    USE kinds,                           ONLY: real_4,&
                                               real_8
    USE message_passing,                 ONLY: mp_comm_type

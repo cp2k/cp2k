@@ -15,12 +15,19 @@
 ! **************************************************************************************************
 MODULE qs_p_env_methods
    USE admm_methods,                    ONLY: admm_aux_response_density
-   USE admm_types,                      ONLY: admm_gapw_type,&
+   USE admm_types,                      ONLY: admm_gapw_r3d_rs_type,&
                                               admm_type,&
                                               get_admm_env
    USE atomic_kind_types,               ONLY: atomic_kind_type
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_control_types,                ONLY: dft_control_type
+   USE cp_dbcsr_api,                    ONLY: dbcsr_add,&
+                                              dbcsr_copy,&
+                                              dbcsr_p_type,&
+                                              dbcsr_release,&
+                                              dbcsr_scale,&
+                                              dbcsr_set,&
+                                              dbcsr_type
    USE cp_dbcsr_operations,             ONLY: copy_fm_to_dbcsr,&
                                               cp_dbcsr_plus_fm_fm_t,&
                                               cp_dbcsr_sm_fm_multiply,&
@@ -49,13 +56,6 @@ MODULE qs_p_env_methods
                                               cp_to_string
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                               cp_print_key_unit_nr
-   USE dbcsr_api,                       ONLY: dbcsr_add,&
-                                              dbcsr_copy,&
-                                              dbcsr_p_type,&
-                                              dbcsr_release,&
-                                              dbcsr_scale,&
-                                              dbcsr_set,&
-                                              dbcsr_type
    USE hartree_local_methods,           ONLY: init_coulomb_local
    USE hartree_local_types,             ONLY: hartree_local_create
    USE input_constants,                 ONLY: do_admm_aux_exch_func_none,&
@@ -69,7 +69,8 @@ MODULE qs_p_env_methods
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE preconditioner_types,            ONLY: init_preconditioner
    USE pw_env_types,                    ONLY: pw_env_type
-   USE pw_types,                        ONLY: pw_type
+   USE pw_types,                        ONLY: pw_c1d_gs_type,&
+                                              pw_r3d_rs_type
    USE qs_collocate_density,            ONLY: calculate_rho_elec
    USE qs_energy_types,                 ONLY: qs_energy_type
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -140,7 +141,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'p_env_create'
 
       INTEGER                                            :: handle, n_ao, n_mo, n_spins, natom, spin
-      TYPE(admm_gapw_type), POINTER                      :: admm_gapw_env
+      TYPE(admm_gapw_r3d_rs_type), POINTER               :: admm_gapw_env
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
@@ -407,7 +408,8 @@ CONTAINS
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_aux_fit
-      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_g_aux, rho_r_aux
+      TYPE(pw_c1d_gs_type), DIMENSION(:), POINTER        :: rho_g_aux
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: rho_r_aux
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(task_list_type), POINTER                      :: task_list
 

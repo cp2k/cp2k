@@ -1,0 +1,67 @@
+specfile_path: tools/fedora/cp2k.spec
+files_to_sync:
+  - src: tools/fedora/
+    dest: ./
+    delete: true
+    filters:
+      - "protect .git*"
+      - "protect sources"
+      - "protect changelog"
+      - "- tests/"
+  - src: .fmf/
+    dest: .fmf/
+  - .packit.yaml
+upstream_package_name: cp2k
+downstream_package_name: cp2k
+upstream_tag_template: v{version}
+
+# Run only smoke tests by default
+test_command:
+  default_identifier: smoke
+
+targets:
+  # TODO: Match F40 release
+  - fedora-development-x86_64
+  - fedora-development-aarch64
+  - fedora-latest-x86_64
+  - fedora-latest-aarch64
+
+jobs:
+  - &copr_build
+    job: copr_build
+    trigger: release
+    owner: lecris
+    project: release
+  - <<: *copr_build
+    trigger: commit
+    branch: master
+    project: nightly
+    update_release: true
+  - &tests
+    job: tests
+    trigger: commit
+    tmt_plan: .*/smoke
+  - job: copr_build
+    trigger: pull_request
+    manual_trigger: true
+  - <<: *tests
+    identifier: smoke
+    trigger: pull_request
+    manual_trigger: true
+  - <<: *tests
+    identifier: full
+    trigger: pull_request
+    manual_trigger: true
+    tmt_plan: .*/full
+  - job: propose_downstream
+    trigger: release
+    dist_git_branches:
+      - fedora-rawhide
+  - job: koji_build
+    trigger: commit
+    dist_git_branches:
+      - fedora-all
+  - job: bodhi_update
+    trigger: commit
+    dist_git_branches:
+      - fedora-branched

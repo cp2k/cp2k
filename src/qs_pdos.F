@@ -22,6 +22,7 @@ MODULE qs_pdos
                                               pbc
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_control_types,                ONLY: dft_control_type
+   USE cp_dbcsr_api,                    ONLY: dbcsr_p_type
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm
    USE cp_fm_diag,                      ONLY: cp_fm_power
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
@@ -41,7 +42,6 @@ MODULE qs_pdos
                                               cp_print_key_finished_output,&
                                               cp_print_key_should_output,&
                                               cp_print_key_unit_nr
-   USE dbcsr_api,                       ONLY: dbcsr_p_type
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&
@@ -61,11 +61,8 @@ MODULE qs_pdos
                                               pw_env_type
    USE pw_pool_types,                   ONLY: pw_pool_p_type,&
                                               pw_pool_type
-   USE pw_types,                        ONLY: COMPLEXDATA1D,&
-                                              REALDATA3D,&
-                                              REALSPACE,&
-                                              RECIPROCALSPACE,&
-                                              pw_type
+   USE pw_types,                        ONLY: pw_c1d_gs_type,&
+                                              pw_r3d_rs_type
    USE qs_collocate_density,            ONLY: calculate_wavefunction
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
@@ -91,29 +88,29 @@ MODULE qs_pdos
    PUBLIC :: calculate_projected_dos
 
    TYPE ldos_type
-      INTEGER :: maxl, nlist
-      LOGICAL :: separate_components
-      INTEGER, DIMENSION(:), POINTER           :: list_index
+      INTEGER :: maxl = -1, nlist = -1
+      LOGICAL :: separate_components = .FALSE.
+      INTEGER, DIMENSION(:), POINTER           :: list_index => NULL()
       REAL(KIND=dp), DIMENSION(:, :), &
-         POINTER                                :: pdos_array
+         POINTER                                :: pdos_array => NULL()
    END TYPE ldos_type
 
    TYPE r_ldos_type
-      INTEGER :: nlist, npoints
-      INTEGER, DIMENSION(:, :), POINTER :: index_grid_local
-      INTEGER, DIMENSION(:), POINTER           :: list_index
-      REAL(KIND=dp), DIMENSION(:), POINTER     :: x_range, y_range, z_range
-      REAL(KIND=dp), DIMENSION(:), POINTER     :: eval_range
+      INTEGER :: nlist = -1, npoints = -1
+      INTEGER, DIMENSION(:, :), POINTER :: index_grid_local => NULL()
+      INTEGER, DIMENSION(:), POINTER           :: list_index => NULL()
+      REAL(KIND=dp), DIMENSION(:), POINTER     :: x_range => NULL(), y_range => NULL(), z_range => NULL()
+      REAL(KIND=dp), DIMENSION(:), POINTER     :: eval_range => NULL()
       REAL(KIND=dp), DIMENSION(:), &
-         POINTER                                 :: pdos_array
+         POINTER                                 :: pdos_array => NULL()
    END TYPE r_ldos_type
 
    TYPE ldos_p_type
-      TYPE(ldos_type), POINTER :: ldos
+      TYPE(ldos_type), POINTER :: ldos => NULL()
    END TYPE ldos_p_type
 
    TYPE r_ldos_p_type
-      TYPE(r_ldos_type), POINTER :: ldos
+      TYPE(r_ldos_type), POINTER :: ldos => NULL()
    END TYPE r_ldos_p_type
 CONTAINS
 
@@ -188,10 +185,11 @@ CONTAINS
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis_set
       TYPE(ldos_p_type), DIMENSION(:), POINTER           :: ldos_p
       TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(pw_c1d_gs_type)                               :: wf_g
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type)                                      :: wf_g, wf_r
+      TYPE(pw_r3d_rs_type)                               :: wf_r
       TYPE(r_ldos_p_type), DIMENSION(:), POINTER         :: r_ldos_p
       TYPE(section_vals_type), POINTER                   :: ldos_section
 
@@ -359,12 +357,8 @@ CONTAINS
          CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, &
                          pw_pools=pw_pools)
 
-         CALL auxbas_pw_pool%create_pw(wf_r, &
-                                       use_data=REALDATA3D, &
-                                       in_space=REALSPACE)
-         CALL auxbas_pw_pool%create_pw(wf_g, &
-                                       use_data=COMPLEXDATA1D, &
-                                       in_space=RECIPROCALSPACE)
+         CALL auxbas_pw_pool%create_pw(wf_r)
+         CALL auxbas_pw_pool%create_pw(wf_g)
          ALLOCATE (read_r(4, n_r_ldos))
          DO ildos = 1, n_r_ldos
             WRITE (r_ldos_index(ildos), '(I0)') ildos
@@ -660,7 +654,7 @@ CONTAINS
                   jy = r_ldos_p(ildos)%ldos%index_grid_local(2, il)
                   jz = r_ldos_p(ildos)%ldos%index_grid_local(3, il)
                   r_ldos_p(ildos)%ldos%pdos_array(imo) = r_ldos_p(ildos)%ldos%pdos_array(imo) + &
-                                                         wf_r%cr3d(jx, jy, jz)*wf_r%cr3d(jx, jy, jz)
+                                                         wf_r%array(jx, jy, jz)*wf_r%array(jx, jy, jz)
                END DO
                r_ldos_p(ildos)%ldos%pdos_array(imo) = r_ldos_p(ildos)%ldos%pdos_array(imo)*dvol
             END IF

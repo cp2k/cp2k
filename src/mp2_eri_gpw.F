@@ -17,8 +17,7 @@ MODULE mp2_eri_gpw
    USE cell_types,                      ONLY: cell_type,&
                                               pbc
    USE cp_control_types,                ONLY: dft_control_type
-   USE cp_fm_types,                     ONLY: cp_fm_type
-   USE dbcsr_api,                       ONLY: dbcsr_p_type,&
+   USE cp_dbcsr_api,                    ONLY: dbcsr_p_type,&
                                               dbcsr_set
    USE gaussian_gridlevels,             ONLY: gaussian_gridlevel
    USE input_constants,                 ONLY: do_potential_coulomb,&
@@ -45,13 +44,10 @@ MODULE mp2_eri_gpw
    USE pw_poisson_methods,              ONLY: pw_poisson_solve
    USE pw_poisson_types,                ONLY: pw_poisson_type
    USE pw_pool_types,                   ONLY: pw_pool_type
-   USE pw_types,                        ONLY: COMPLEXDATA1D,&
-                                              REALDATA3D,&
-                                              REALSPACE,&
-                                              RECIPROCALSPACE,&
-                                              pw_type
+   USE pw_types,                        ONLY: pw_c1d_gs_type,&
+                                              pw_r3d_rs_type
    USE qs_collocate_density,            ONLY: calculate_rho_elec,&
-                                              calculate_wavefunction,&
+                                              collocate_function,&
                                               collocate_single_gaussian
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
@@ -89,7 +85,6 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
-!> \param mo_coeff ...
 !> \param psi_L ...
 !> \param rho_g ...
 !> \param atomic_kind_set ...
@@ -107,12 +102,13 @@ CONTAINS
 !> \param qs_env ...
 !> \param task_list_sub ...
 ! **************************************************************************************************
-   SUBROUTINE mp2_eri_3c_integrate_gpw(mo_coeff, psi_L, rho_g, atomic_kind_set, qs_kind_set, cell, dft_control, particle_set, &
+   SUBROUTINE mp2_eri_3c_integrate_gpw(psi_L, rho_g, atomic_kind_set, qs_kind_set, &
+                                       cell, dft_control, particle_set, &
                                        pw_env_sub, external_vector, poisson_env, rho_r, pot_g, &
                                        potential_parameter, mat_munu, qs_env, task_list_sub)
 
-      TYPE(cp_fm_type), INTENT(IN)                       :: mo_coeff
-      TYPE(pw_type), INTENT(INOUT)                       :: psi_L, rho_g
+      TYPE(pw_r3d_rs_type), INTENT(INOUT)                :: psi_L
+      TYPE(pw_c1d_gs_type), INTENT(INOUT)                :: rho_g
       TYPE(atomic_kind_type), DIMENSION(:), INTENT(IN), &
          POINTER                                         :: atomic_kind_set
       TYPE(qs_kind_type), DIMENSION(:), INTENT(IN), &
@@ -124,7 +120,8 @@ CONTAINS
       TYPE(pw_env_type), INTENT(IN), POINTER             :: pw_env_sub
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: external_vector
       TYPE(pw_poisson_type), INTENT(IN), POINTER         :: poisson_env
-      TYPE(pw_type), INTENT(INOUT)                       :: rho_r, pot_g
+      TYPE(pw_r3d_rs_type), INTENT(INOUT)                :: rho_r
+      TYPE(pw_c1d_gs_type), INTENT(INOUT)                :: pot_g
       TYPE(libint_potential_type), INTENT(IN)            :: potential_parameter
       TYPE(dbcsr_p_type), INTENT(INOUT)                  :: mat_munu
       TYPE(qs_environment_type), INTENT(IN), POINTER     :: qs_env
@@ -137,10 +134,9 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       ! pseudo psi_L
-      CALL calculate_wavefunction(mo_coeff, 1, psi_L, rho_g, atomic_kind_set, &
-                                  qs_kind_set, cell, dft_control, particle_set, pw_env_sub, &
-                                  basis_type="RI_AUX", &
-                                  external_vector=external_vector)
+      CALL collocate_function(external_vector, psi_L, rho_g, atomic_kind_set, &
+                              qs_kind_set, cell, particle_set, pw_env_sub, &
+                              dft_control%qs_control%eps_rho_rspace, basis_type="RI_AUX")
 
       CALL calc_potential_gpw(rho_r, rho_g, poisson_env, pot_g, potential_parameter)
 
@@ -197,10 +193,11 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(gto_basis_set_type), POINTER                  :: basis_set_a
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(pw_c1d_gs_type)                               :: pot_g, rho_g
       TYPE(pw_env_type), POINTER                         :: pw_env_sub
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type)                                      :: pot_g, psi_L, rho_g, rho_r
+      TYPE(pw_r3d_rs_type)                               :: psi_L, rho_r
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(realspace_grid_desc_p_type), DIMENSION(:), &
          POINTER                                         :: rs_descs
@@ -352,7 +349,6 @@ CONTAINS
 !> \brief Integrates the potential of a RI function obtaining the forces and stress tensor
 !> \param rho_r ...
 !> \param LLL ...
-!> \param matrix ...
 !> \param rho_g ...
 !> \param atomic_kind_set ...
 !> \param qs_kind_set ...
@@ -375,16 +371,15 @@ CONTAINS
 !> \param psi_L ...
 !> \param factor ...
 ! **************************************************************************************************
-   SUBROUTINE integrate_potential_forces_2c(rho_r, LLL, matrix, rho_g, atomic_kind_set, &
+   SUBROUTINE integrate_potential_forces_2c(rho_r, LLL, rho_g, atomic_kind_set, &
                                             qs_kind_set, particle_set, cell, pw_env_sub, poisson_env, pot_g, &
                                             potential_parameter, use_virial, rho_g_copy, dvg, &
                                             kind_of, atom_of_kind, G_PQ_local, force, h_stress, para_env_sub, &
                                             dft_control, psi_L, factor)
 
-      TYPE(pw_type), INTENT(INOUT)                       :: rho_r
+      TYPE(pw_r3d_rs_type), INTENT(INOUT)                :: rho_r
       INTEGER, INTENT(IN)                                :: LLL
-      TYPE(cp_fm_type), INTENT(IN)                       :: matrix
-      TYPE(pw_type), INTENT(INOUT)                       :: rho_g
+      TYPE(pw_c1d_gs_type), INTENT(INOUT)                :: rho_g
       TYPE(atomic_kind_type), DIMENSION(:), INTENT(IN), &
          POINTER                                         :: atomic_kind_set
       TYPE(qs_kind_type), DIMENSION(:), INTENT(IN), &
@@ -394,10 +389,10 @@ CONTAINS
       TYPE(cell_type), INTENT(IN), POINTER               :: cell
       TYPE(pw_env_type), INTENT(IN), POINTER             :: pw_env_sub
       TYPE(pw_poisson_type), INTENT(IN), POINTER         :: poisson_env
-      TYPE(pw_type), INTENT(INOUT)                       :: pot_g
+      TYPE(pw_c1d_gs_type), INTENT(INOUT)                :: pot_g
       TYPE(libint_potential_type), INTENT(IN)            :: potential_parameter
       LOGICAL, INTENT(IN)                                :: use_virial
-      TYPE(pw_type), INTENT(INOUT)                       :: rho_g_copy, dvg(3)
+      TYPE(pw_c1d_gs_type), INTENT(INOUT)                :: rho_g_copy, dvg(3)
       INTEGER, DIMENSION(:), INTENT(IN)                  :: kind_of, atom_of_kind
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: G_PQ_local
       TYPE(qs_force_type), DIMENSION(:), INTENT(IN), &
@@ -405,7 +400,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(INOUT)      :: h_stress
       TYPE(mp_para_env_type), INTENT(IN)                 :: para_env_sub
       TYPE(dft_control_type), INTENT(IN), POINTER        :: dft_control
-      TYPE(pw_type), INTENT(INOUT)                       :: psi_L
+      TYPE(pw_r3d_rs_type), INTENT(INOUT)                :: psi_L
       REAL(KIND=dp), INTENT(IN)                          :: factor
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'integrate_potential_forces_2c'
@@ -439,10 +434,10 @@ CONTAINS
          ! hartree potential derivatives
          CALL pw_zero(psi_L)
          CALL pw_zero(rho_g)
-         CALL calculate_wavefunction(matrix, 1, psi_L, rho_g, atomic_kind_set, &
-                                     qs_kind_set, cell, dft_control, particle_set, pw_env_sub, &
-                                     basis_type="RI_AUX", &
-                                     external_vector=0.5_dp*factor*G_PQ_local)
+         CALL collocate_function(0.5_dp*factor*G_PQ_local, psi_L, rho_g, atomic_kind_set, &
+                                 qs_kind_set, cell, particle_set, pw_env_sub, &
+                                 dft_control%qs_control%eps_rho_rspace, &
+                                 basis_type="RI_AUX")
          ! transfer to reciprocal space and calculate potential
          CALL calc_potential_gpw(psi_L, rho_g, poisson_env, pot_g, potential_parameter, no_transfer=.TRUE.)
          ! update virial with volume term (first calculate hartree like energy (diagonal part of the virial))
@@ -471,7 +466,7 @@ CONTAINS
                                                task_list_sub)
 
       TYPE(dbcsr_p_type), INTENT(INOUT)                  :: mat_munu
-      TYPE(pw_type), INTENT(IN)                          :: rho_r
+      TYPE(pw_r3d_rs_type), INTENT(IN)                   :: rho_r
       TYPE(dbcsr_p_type), INTENT(IN)                     :: matrix_P_munu
       TYPE(qs_environment_type), INTENT(IN), POINTER     :: qs_env
       TYPE(pw_env_type), INTENT(IN), POINTER             :: pw_env_sub
@@ -526,16 +521,17 @@ CONTAINS
                                                qs_kind_set, particle_set, cell, LLL, force, dft_control)
 
       TYPE(dbcsr_p_type), INTENT(IN)                     :: matrix_P_munu
-      TYPE(pw_type), INTENT(INOUT)                       :: rho_r, rho_g
+      TYPE(pw_r3d_rs_type), INTENT(INOUT)                :: rho_r
+      TYPE(pw_c1d_gs_type), INTENT(INOUT)                :: rho_g
       TYPE(task_list_type), INTENT(IN), POINTER          :: task_list_sub
       TYPE(pw_env_type), INTENT(IN), POINTER             :: pw_env_sub
       TYPE(libint_potential_type), INTENT(IN)            :: potential_parameter
       TYPE(qs_ks_env_type), INTENT(IN), POINTER          :: ks_env
       TYPE(pw_poisson_type), INTENT(IN), POINTER         :: poisson_env
-      TYPE(pw_type), INTENT(INOUT)                       :: pot_g
+      TYPE(pw_c1d_gs_type), INTENT(INOUT)                :: pot_g
       LOGICAL, INTENT(IN)                                :: use_virial
-      TYPE(pw_type), INTENT(INOUT)                       :: rho_g_copy
-      TYPE(pw_type), INTENT(IN)                          :: dvg(3)
+      TYPE(pw_c1d_gs_type), INTENT(INOUT)                :: rho_g_copy
+      TYPE(pw_c1d_gs_type), INTENT(IN)                   :: dvg(3)
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(INOUT)      :: h_stress
       TYPE(mp_para_env_type), INTENT(IN)                 :: para_env_sub
       INTEGER, DIMENSION(:), INTENT(IN)                  :: kind_of, atom_of_kind
@@ -718,9 +714,9 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE virial_gpw_potential(rho_g_copy, pot_g, rho_g, dvg, h_stress, potential_parameter, para_env_sub)
 
-      TYPE(pw_type), INTENT(IN)                          :: rho_g_copy, pot_g
-      TYPE(pw_type), INTENT(INOUT)                       :: rho_g
-      TYPE(pw_type), INTENT(IN)                          :: dvg(3)
+      TYPE(pw_c1d_gs_type), INTENT(IN)                   :: rho_g_copy, pot_g
+      TYPE(pw_c1d_gs_type), INTENT(INOUT)                :: rho_g
+      TYPE(pw_c1d_gs_type), INTENT(IN)                   :: dvg(3)
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(INOUT)      :: h_stress
       TYPE(libint_potential_type), INTENT(IN)            :: potential_parameter
       TYPE(mp_para_env_type), INTENT(IN)                 :: para_env_sub
@@ -760,11 +756,9 @@ CONTAINS
 !> \param potential_parameter parameters of potential V(g)
 ! **************************************************************************************************
    SUBROUTINE factor_virial_gpw(pw, potential_parameter)
-      TYPE(pw_type), INTENT(INOUT)                       :: pw
+      TYPE(pw_c1d_gs_type), INTENT(INOUT)                :: pw
       TYPE(libint_potential_type), INTENT(IN)            :: potential_parameter
 
-      IF (.NOT. (pw%in_space == RECIPROCALSPACE .AND. pw%in_use == COMPLEXDATA1D)) &
-         CPABORT("pw in wrong space or wrong data type")
       SELECT CASE (potential_parameter%potential_type)
       CASE (do_potential_coulomb)
          RETURN
@@ -805,7 +799,7 @@ CONTAINS
                                   G_PQ_local, cell, force, use_virial, h_stress, para_env_sub, dft_control)
 
       TYPE(pw_env_type), INTENT(IN), POINTER             :: pw_env_sub
-      TYPE(pw_type), INTENT(IN)                          :: pot_r
+      TYPE(pw_r3d_rs_type), INTENT(IN)                   :: pot_r
       INTEGER, DIMENSION(:), INTENT(IN)                  :: kind_of, atom_of_kind
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
@@ -975,7 +969,9 @@ CONTAINS
       TYPE(pw_pool_type), INTENT(IN), POINTER            :: auxbas_pw_pool
       TYPE(pw_poisson_type), INTENT(IN), POINTER         :: poisson_env
       TYPE(task_list_type), POINTER                      :: task_list_sub
-      TYPE(pw_type), INTENT(OUT)                         :: rho_r, rho_g, pot_g, psi_L
+      TYPE(pw_r3d_rs_type), INTENT(OUT)                  :: rho_r
+      TYPE(pw_c1d_gs_type), INTENT(OUT)                  :: rho_g, pot_g
+      TYPE(pw_r3d_rs_type), INTENT(OUT)                  :: psi_L
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          INTENT(IN), POINTER                             :: sab_orb_sub
 
@@ -1026,18 +1022,10 @@ CONTAINS
                                  pw_env_external=pw_env_sub, sab_orb_external=sab_orb_sub)
 
       ! get some of the grids ready
-      CALL auxbas_pw_pool%create_pw(rho_r, &
-                                    use_data=REALDATA3D, &
-                                    in_space=REALSPACE)
-      CALL auxbas_pw_pool%create_pw(rho_g, &
-                                    use_data=COMPLEXDATA1D, &
-                                    in_space=RECIPROCALSPACE)
-      CALL auxbas_pw_pool%create_pw(pot_g, &
-                                    use_data=COMPLEXDATA1D, &
-                                    in_space=RECIPROCALSPACE)
-      CALL auxbas_pw_pool%create_pw(psi_L, &
-                                    use_data=REALDATA3D, &
-                                    in_space=REALSPACE)
+      CALL auxbas_pw_pool%create_pw(rho_r)
+      CALL auxbas_pw_pool%create_pw(rho_g)
+      CALL auxbas_pw_pool%create_pw(pot_g)
+      CALL auxbas_pw_pool%create_pw(psi_L)
 
       ! run the FFT once, to set up buffers and to take into account the memory
       CALL pw_zero(rho_r)
@@ -1072,7 +1060,9 @@ CONTAINS
       TYPE(pw_env_type), POINTER                         :: pw_env_sub
       TYPE(task_list_type), POINTER                      :: task_list_sub
       TYPE(pw_pool_type), INTENT(IN), POINTER            :: auxbas_pw_pool
-      TYPE(pw_type), INTENT(INOUT)                       :: rho_r, rho_g, pot_g, psi_L
+      TYPE(pw_r3d_rs_type), INTENT(INOUT)                :: rho_r
+      TYPE(pw_c1d_gs_type), INTENT(INOUT)                :: rho_g, pot_g
+      TYPE(pw_r3d_rs_type), INTENT(INOUT)                :: psi_L
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'cleanup_gpw'
 
@@ -1112,13 +1102,13 @@ CONTAINS
 !> \param no_transfer whether NOT to transform potential from g-space to r-space (default: do it)
 ! **************************************************************************************************
    SUBROUTINE calc_potential_gpw(pot_r, rho_g, poisson_env, pot_g, potential_parameter, dvg, no_transfer)
-      TYPE(pw_type), INTENT(INOUT)                       :: pot_r
-      TYPE(pw_type), INTENT(IN)                          :: rho_g
+      TYPE(pw_r3d_rs_type), INTENT(INOUT)                :: pot_r
+      TYPE(pw_c1d_gs_type), INTENT(IN)                   :: rho_g
       TYPE(pw_poisson_type), INTENT(IN), POINTER         :: poisson_env
-      TYPE(pw_type), INTENT(INOUT)                       :: pot_g
+      TYPE(pw_c1d_gs_type), INTENT(INOUT)                :: pot_g
       TYPE(libint_potential_type), INTENT(IN), OPTIONAL  :: potential_parameter
-      TYPE(pw_type), DIMENSION(3), INTENT(INOUT), &
-         OPTIONAL                                        :: dvg
+      TYPE(pw_c1d_gs_type), DIMENSION(3), &
+         INTENT(INOUT), OPTIONAL                         :: dvg
       LOGICAL, INTENT(IN), OPTIONAL                      :: no_transfer
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_potential_gpw'
@@ -1139,7 +1129,11 @@ CONTAINS
       ! in case we do Coulomb metric for RI, we need the Coulomb operator, but for RI with the
       ! overlap metric, we do not need the Coulomb operator
       IF (my_potential_type /= do_potential_id) THEN
-         CALL pw_poisson_solve(poisson_env, rho_g, vhartree=pot_g, dvhartree=dvg)
+         IF (PRESENT(dvg)) THEN
+            CALL pw_poisson_solve(poisson_env, rho_g, vhartree=pot_g, dvhartree=dvg)
+         ELSE
+            CALL pw_poisson_solve(poisson_env, rho_g, vhartree=pot_g)
+         END IF
          IF (my_potential_type == do_potential_long) CALL pw_gauss_damp(pot_g, potential_parameter%omega)
          IF (my_potential_type == do_potential_short) CALL pw_compl_gauss_damp(pot_g, potential_parameter%omega)
          IF (my_potential_type == do_potential_truncated) CALL pw_truncated(pot_g, potential_parameter%cutoff_radius)

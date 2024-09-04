@@ -54,38 +54,38 @@ MODULE optimize_input
    PUBLIC ::  run_optimize_input
 
    TYPE fm_env_type
-      CHARACTER(LEN=default_path_length) :: optimize_file_name
+      CHARACTER(LEN=default_path_length) :: optimize_file_name = ""
 
-      CHARACTER(LEN=default_path_length) :: ref_traj_file_name
-      CHARACTER(LEN=default_path_length) :: ref_force_file_name
-      CHARACTER(LEN=default_path_length) :: ref_cell_file_name
+      CHARACTER(LEN=default_path_length) :: ref_traj_file_name = ""
+      CHARACTER(LEN=default_path_length) :: ref_force_file_name = ""
+      CHARACTER(LEN=default_path_length) :: ref_cell_file_name = ""
 
-      INTEGER :: group_size
+      INTEGER :: group_size = -1
 
-      REAL(KIND=dp) :: energy_weight
-      REAL(KIND=dp) :: shift_mm
-      REAL(KIND=dp) :: shift_qm
-      LOGICAL       :: shift_average
-      INTEGER :: frame_start, frame_stop, frame_stride, frame_count
+      REAL(KIND=dp) :: energy_weight = -1.0_dp
+      REAL(KIND=dp) :: shift_mm = -1.0_dp
+      REAL(KIND=dp) :: shift_qm = -1.0_dp
+      LOGICAL       :: shift_average = .FALSE.
+      INTEGER :: frame_start = -1, frame_stop = -1, frame_stride = -1, frame_count = -1
    END TYPE
 
    TYPE variable_type
-      CHARACTER(LEN=default_string_length) :: label
-      REAL(KIND=dp)                        :: value
-      LOGICAL                              :: fixed
+      CHARACTER(LEN=default_string_length) :: label = ""
+      REAL(KIND=dp)                        :: value = -1.0_dp
+      LOGICAL                              :: fixed = .FALSE.
    END TYPE
 
    TYPE oi_env_type
-      INTEGER :: method
-      INTEGER :: seed
-      CHARACTER(LEN=default_path_length) :: project_name
-      TYPE(fm_env_type) :: fm_env
+      INTEGER :: method = -1
+      INTEGER :: seed = -1
+      CHARACTER(LEN=default_path_length) :: project_name = ""
+      TYPE(fm_env_type) :: fm_env = fm_env_type()
       TYPE(variable_type), DIMENSION(:), ALLOCATABLE :: variables
-      REAL(KIND=dp) :: rhobeg, rhoend
-      INTEGER       :: maxfun
-      INTEGER       :: iter_start_val
-      REAL(KIND=dp) :: randomize_variables
-      REAL(KIND=dp) :: start_time, target_time
+      REAL(KIND=dp) :: rhobeg = -1.0_dp, rhoend = -1.0_dp
+      INTEGER       :: maxfun = -1
+      INTEGER       :: iter_start_val = -1
+      REAL(KIND=dp) :: randomize_variables = -1.0_dp
+      REAL(KIND=dp) :: start_time = -1.0_dp, target_time = -1.0_dp
    END TYPE
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'optimize_input'

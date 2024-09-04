@@ -41,14 +41,14 @@ MODULE semi_empirical_store_int_types
 !> \date   05.2008
 ! **************************************************************************************************
    TYPE semi_empirical_si_type
-      LOGICAL                                     :: filling_containers, compress
-      INTEGER                                     :: nbuffer
-      REAL(KIND=dp), POINTER, DIMENSION(:)        :: max_val_buffer, uncompressed_container
-      TYPE(hfx_memory_type)                       :: memory_parameter
+      LOGICAL                                     :: filling_containers = .FALSE., compress = .FALSE.
+      INTEGER                                     :: nbuffer = -1
+      REAL(KIND=dp), POINTER, DIMENSION(:)        :: max_val_buffer => NULL(), uncompressed_container => NULL()
+      TYPE(hfx_memory_type)                       :: memory_parameter = hfx_memory_type()
       TYPE(hfx_cache_type), DIMENSION(:), &
-         POINTER                                :: integral_caches
+         POINTER                                :: integral_caches => NULL()
       TYPE(hfx_container_type), DIMENSION(:), &
-         POINTER                                :: integral_containers
+         POINTER                                :: integral_containers => NULL()
    END TYPE semi_empirical_si_type
 
    PUBLIC :: semi_empirical_si_type, &

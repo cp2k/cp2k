@@ -10,7 +10,7 @@
 !> \author Patrick Seewald
 ! **************************************************************************************************
 PROGRAM dbt_tas_unittest
-   USE dbcsr_api,                       ONLY: dbcsr_finalize_lib,&
+   USE cp_dbcsr_api,                    ONLY: dbcsr_finalize_lib,&
                                               dbcsr_init_lib
    USE dbm_api,                         ONLY: dbm_get_name,&
                                               dbm_library_finalize,&

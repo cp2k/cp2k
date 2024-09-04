@@ -93,7 +93,7 @@
 &FORCE_EVAL
   METHOD Fist
   &MM
-@include pmeis_forcefield.inc
+    @INCLUDE pmeis_forcefield.inc
     &POISSON
       &EWALD
         ALPHA .44

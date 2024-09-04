@@ -26,30 +26,30 @@ MODULE qs_force_types
    PRIVATE
 
    TYPE qs_force_type
-      REAL(KIND=dp), DIMENSION(:, :), POINTER :: all_potential, &
-                                                 core_overlap, &
-                                                 gth_ppl, &
-                                                 gth_nlcc, &
-                                                 gth_ppnl, &
-                                                 kinetic, &
-                                                 overlap, &
-                                                 overlap_admm, &
-                                                 rho_core, &
-                                                 rho_elec, &
-                                                 rho_lri_elec, &
-                                                 vhxc_atom, &
-                                                 g0s_Vh_elec, &
-                                                 repulsive, &
-                                                 dispersion, &
-                                                 gcp, &
-                                                 other, &
-                                                 ch_pulay, &
-                                                 fock_4c, &
-                                                 ehrenfest, &
-                                                 efield, &
-                                                 eev, &
-                                                 mp2_non_sep, &
-                                                 total
+      REAL(KIND=dp), DIMENSION(:, :), POINTER :: all_potential => NULL(), &
+                                                 core_overlap => NULL(), &
+                                                 gth_ppl => NULL(), &
+                                                 gth_nlcc => NULL(), &
+                                                 gth_ppnl => NULL(), &
+                                                 kinetic => NULL(), &
+                                                 overlap => NULL(), &
+                                                 overlap_admm => NULL(), &
+                                                 rho_core => NULL(), &
+                                                 rho_elec => NULL(), &
+                                                 rho_lri_elec => NULL(), &
+                                                 vhxc_atom => NULL(), &
+                                                 g0s_Vh_elec => NULL(), &
+                                                 repulsive => NULL(), &
+                                                 dispersion => NULL(), &
+                                                 gcp => NULL(), &
+                                                 other => NULL(), &
+                                                 ch_pulay => NULL(), &
+                                                 fock_4c => NULL(), &
+                                                 ehrenfest => NULL(), &
+                                                 efield => NULL(), &
+                                                 eev => NULL(), &
+                                                 mp2_non_sep => NULL(), &
+                                                 total => NULL()
    END TYPE qs_force_type
 
    PUBLIC :: qs_force_type

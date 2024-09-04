@@ -13,7 +13,7 @@ MODULE qs_tensors
                                               omp_get_thread_num
    USE ai_contraction,                  ONLY: block_add
    USE ai_contraction_sphi,             ONLY: ab_contract,&
-                                              libxsmm_abc_contract
+                                              abc_contract_xsmm
    USE atomic_kind_types,               ONLY: atomic_kind_type
    USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                               gto_basis_set_p_type,&
@@ -23,10 +23,7 @@ MODULE qs_tensors
                                               real_to_scaled
    USE cp_array_utils,                  ONLY: cp_2d_r_p_type
    USE cp_control_types,                ONLY: dft_control_type
-   USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
-   USE cp_files,                        ONLY: close_file,&
-                                              open_file
-   USE dbcsr_api,                       ONLY: dbcsr_filter,&
+   USE cp_dbcsr_api,                    ONLY: dbcsr_filter,&
                                               dbcsr_finalize,&
                                               dbcsr_get_block_p,&
                                               dbcsr_get_matrix_type,&
@@ -34,11 +31,14 @@ MODULE qs_tensors
                                               dbcsr_type,&
                                               dbcsr_type_antisymmetric,&
                                               dbcsr_type_no_symmetry
+   USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
+   USE cp_files,                        ONLY: close_file,&
+                                              open_file
    USE dbt_api,                         ONLY: &
         dbt_blk_sizes, dbt_clear, dbt_copy, dbt_create, dbt_destroy, dbt_filter, dbt_get_block, &
-        dbt_get_info, dbt_get_num_blocks, dbt_get_nze_total, dbt_get_stored_coordinates, &
-        dbt_iterator_next_block, dbt_iterator_num_blocks, dbt_iterator_start, dbt_iterator_stop, &
-        dbt_iterator_type, dbt_ndims, dbt_put_block, dbt_reserve_blocks, dbt_type
+        dbt_get_info, dbt_get_num_blocks, dbt_get_nze_total, dbt_iterator_next_block, &
+        dbt_iterator_num_blocks, dbt_iterator_start, dbt_iterator_stop, dbt_iterator_type, &
+        dbt_ndims, dbt_put_block, dbt_reserve_blocks, dbt_type
    USE distribution_1d_types,           ONLY: distribution_1d_type
    USE distribution_2d_types,           ONLY: distribution_2d_type
    USE gamma,                           ONLY: init_md_ftable
@@ -619,10 +619,12 @@ CONTAINS
 !> \param bounds_k ...
 !> \param RI_range ...
 !> \param img_to_RI_cell ...
+!> \param cell_to_index ...
+!> \param cell_sym ...
 ! **************************************************************************************************
    SUBROUTINE alloc_block_3c(t3c, nl_3c, basis_i, basis_j, basis_k, qs_env, potential_parameter, op_pos, &
                              do_kpoints, do_hfx_kpoints, bounds_i, bounds_j, bounds_k, RI_range, &
-                             img_to_RI_cell)
+                             img_to_RI_cell, cell_to_index, cell_sym)
       TYPE(dbt_type), DIMENSION(:, :), INTENT(INOUT)     :: t3c
       TYPE(neighbor_list_3c_type), INTENT(INOUT)         :: nl_3c
       TYPE(gto_basis_set_p_type), DIMENSION(:)           :: basis_i, basis_j, basis_k
@@ -633,6 +635,8 @@ CONTAINS
       INTEGER, DIMENSION(2), INTENT(IN), OPTIONAL        :: bounds_i, bounds_j, bounds_k
       REAL(dp), INTENT(IN), OPTIONAL                     :: RI_range
       INTEGER, DIMENSION(:), INTENT(IN), OPTIONAL        :: img_to_RI_cell
+      INTEGER, DIMENSION(:, :, :), OPTIONAL, POINTER     :: cell_to_index
+      LOGICAL, INTENT(IN), OPTIONAL                      :: cell_sym
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'alloc_block_3c'
 
@@ -645,8 +649,8 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: img_to_RI_cell_prv
       INTEGER, DIMENSION(3)                              :: blk_idx, cell_j, cell_k, &
                                                             kp_index_lbounds, kp_index_ubounds
-      INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
-      LOGICAL                                            :: do_hfx_kpoints_prv, do_kpoints_prv
+      LOGICAL                                            :: cell_sym_prv, do_hfx_kpoints_prv, &
+                                                            do_kpoints_prv
       REAL(KIND=dp)                                      :: dij, dik, djk, dr_ij, dr_ik, dr_jk, &
                                                             kind_radius_i, kind_radius_j, &
                                                             kind_radius_k
@@ -654,7 +658,6 @@ CONTAINS
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(kpoint_type), POINTER                         :: kpoints
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(neighbor_list_3c_iterator_type)               :: nl_3c_iter
       TYPE(one_dim_int_array), ALLOCATABLE, &
@@ -683,6 +686,12 @@ CONTAINS
       IF (PRESENT(img_to_RI_cell)) THEN
          ALLOCATE (img_to_RI_cell_prv(SIZE(img_to_RI_cell)))
          img_to_RI_cell_prv(:) = img_to_RI_cell
+      END IF
+
+      IF (PRESENT(cell_sym)) THEN
+         cell_sym_prv = cell_sym
+      ELSE
+         cell_sym_prv = .FALSE.
       END IF
 
       dr_ij = 0.0_dp; dr_jk = 0.0_dp; dr_ik = 0.0_dp
@@ -719,16 +728,18 @@ CONTAINS
       END IF
 
       CALL get_qs_env(qs_env, atomic_kind_set=atomic_kind_set, qs_kind_set=qs_kind_set, natom=natom, &
-                      dft_control=dft_control, kpoints=kpoints, para_env=para_env, cell=cell)
+                      dft_control=dft_control, para_env=para_env, cell=cell)
 
       IF (do_kpoints_prv) THEN
-         nimg = dft_control%nimages
+         CPASSERT(PRESENT(cell_to_index))
+         CPASSERT(ASSOCIATED(cell_to_index))
+!         nimg = dft_control%nimages
+         nimg = MAXVAL(cell_to_index)
          ncell_RI = nimg
          IF (do_hfx_kpoints_prv) THEN
             nimg = SIZE(t3c, 1)
             ncell_RI = SIZE(t3c, 2)
          END IF
-         CALL get_kpoint_info(kpoints, cell_to_index=cell_to_index)
       ELSE
          nimg = 1
          ncell_RI = 1
@@ -860,10 +871,11 @@ CONTAINS
       CALL neighbor_list_3c_iterator_destroy(nl_3c_iter)
 
 !TODO: Parallelize creation of block list.
-!$OMP PARALLEL DEFAULT(NONE) SHARED(t3c,nimg,nblk,alloc_i,alloc_j,alloc_k,ncell_RI) &
+!$OMP PARALLEL DEFAULT(NONE) SHARED(t3c,nimg,nblk,alloc_i,alloc_j,alloc_k,ncell_RI,cell_sym_prv) &
 !$OMP PRIVATE(k_img,j_img,nblk_per_thread,A,b)
       DO k_img = 1, ncell_RI
          DO j_img = 1, nimg
+            IF (cell_sym_prv .AND. j_img < k_img) CYCLE
             IF (ALLOCATED(alloc_i(j_img, k_img)%array)) THEN
                nblk_per_thread = nblk(j_img, k_img)/omp_get_num_threads() + 1
                a = omp_get_thread_num()*nblk_per_thread + 1
@@ -876,239 +888,6 @@ CONTAINS
          END DO
       END DO
 !$OMP END PARALLEL
-
-      CALL timestop(handle)
-
-   END SUBROUTINE
-
-! **************************************************************************************************
-!> \brief ...
-!> \param t3c ...
-!> \param nl_3c ...
-!> \param basis_i ...
-!> \param basis_j ...
-!> \param basis_k ...
-!> \param qs_env ...
-!> \param potential_parameter ...
-!> \param op_pos ...
-!> \param do_kpoints ...
-!> \param bounds_i ...
-!> \param bounds_j ...
-!> \param bounds_k ...
-! **************************************************************************************************
-   SUBROUTINE alloc_block_3c_old(t3c, nl_3c, basis_i, basis_j, basis_k, qs_env, potential_parameter, op_pos, &
-                                 do_kpoints, bounds_i, bounds_j, bounds_k)
-      TYPE(dbt_type), DIMENSION(:, :), INTENT(INOUT)     :: t3c
-      TYPE(neighbor_list_3c_type), INTENT(INOUT)         :: nl_3c
-      TYPE(gto_basis_set_p_type), DIMENSION(:)           :: basis_i, basis_j, basis_k
-      TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(libint_potential_type), INTENT(IN)            :: potential_parameter
-      INTEGER, INTENT(IN), OPTIONAL                      :: op_pos
-      LOGICAL, INTENT(IN), OPTIONAL                      :: do_kpoints
-      INTEGER, DIMENSION(2), INTENT(IN), OPTIONAL        :: bounds_i, bounds_j, bounds_k
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'alloc_block_3c_old'
-
-      INTEGER :: blk_cnt, handle, i, i_img, iatom, iblk, ikind, iproc, j_img, jatom, jcell, jkind, &
-         katom, kcell, kkind, natom, nimg, op_ij, op_jk, op_pos_prv
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: tmp
-      INTEGER, DIMENSION(3)                              :: cell_j, cell_k, kp_index_lbounds, &
-                                                            kp_index_ubounds
-      INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
-      LOGICAL                                            :: do_kpoints_prv, new_block
-      REAL(KIND=dp)                                      :: dij, dik, djk, dr_ij, dr_ik, dr_jk, &
-                                                            kind_radius_i, kind_radius_j, &
-                                                            kind_radius_k
-      REAL(KIND=dp), DIMENSION(3)                        :: rij, rik, rjk
-      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
-      TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(kpoint_type), POINTER                         :: kpoints
-      TYPE(mp_para_env_type), POINTER                    :: para_env
-      TYPE(neighbor_list_3c_iterator_type)               :: nl_3c_iter
-      TYPE(one_dim_int_array), ALLOCATABLE, &
-         DIMENSION(:, :)                                 :: alloc_i, alloc_j, alloc_k
-      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
-
-      CALL timeset(routineN, handle)
-      NULLIFY (qs_kind_set, atomic_kind_set)
-
-      IF (PRESENT(do_kpoints)) THEN
-         do_kpoints_prv = do_kpoints
-      ELSE
-         do_kpoints_prv = .FALSE.
-      END IF
-
-      dr_ij = 0.0_dp; dr_jk = 0.0_dp; dr_ik = 0.0_dp
-
-      op_ij = do_potential_id; op_jk = do_potential_id
-
-      IF (PRESENT(op_pos)) THEN
-         op_pos_prv = op_pos
-      ELSE
-         op_pos_prv = 1
-      END IF
-
-      SELECT CASE (op_pos_prv)
-      CASE (1)
-         op_ij = potential_parameter%potential_type
-      CASE (2)
-         op_jk = potential_parameter%potential_type
-      END SELECT
-
-      IF (op_ij == do_potential_truncated .OR. op_ij == do_potential_short) THEN
-         dr_ij = potential_parameter%cutoff_radius*cutoff_screen_factor
-         dr_ik = potential_parameter%cutoff_radius*cutoff_screen_factor
-      ELSEIF (op_ij == do_potential_coulomb) THEN
-         dr_ij = 1000000.0_dp
-         dr_ik = 1000000.0_dp
-      END IF
-
-      IF (op_jk == do_potential_truncated .OR. op_jk == do_potential_short) THEN
-         dr_jk = potential_parameter%cutoff_radius*cutoff_screen_factor
-         dr_ik = potential_parameter%cutoff_radius*cutoff_screen_factor
-      ELSEIF (op_jk == do_potential_coulomb) THEN
-         dr_jk = 1000000.0_dp
-         dr_ik = 1000000.0_dp
-      END IF
-
-      CALL get_qs_env(qs_env, atomic_kind_set=atomic_kind_set, qs_kind_set=qs_kind_set, natom=natom, &
-                      dft_control=dft_control, kpoints=kpoints, para_env=para_env)
-
-      IF (do_kpoints_prv) THEN
-         nimg = dft_control%nimages
-         CALL get_kpoint_info(kpoints, cell_to_index=cell_to_index)
-      ELSE
-         nimg = 1
-      END IF
-
-      ALLOCATE (alloc_i(nimg, nimg))
-      ALLOCATE (alloc_j(nimg, nimg))
-      ALLOCATE (alloc_k(nimg, nimg))
-
-      IF (do_kpoints_prv) THEN
-         kp_index_lbounds = LBOUND(cell_to_index)
-         kp_index_ubounds = UBOUND(cell_to_index)
-      END IF
-
-      CALL neighbor_list_3c_iterator_create(nl_3c_iter, nl_3c)
-      CALL nl_3c_iter_set_bounds(nl_3c_iter, bounds_i, bounds_j, bounds_k)
-      DO WHILE (neighbor_list_3c_iterate(nl_3c_iter) == 0)
-         CALL get_3c_iterator_info(nl_3c_iter, ikind=ikind, jkind=jkind, kkind=kkind, &
-                                   iatom=iatom, jatom=jatom, katom=katom, &
-                                   rij=rij, rjk=rjk, rik=rik, cell_j=cell_j, cell_k=cell_k)
-
-         IF (do_kpoints_prv) THEN
-
-            IF (ANY([cell_j(1), cell_j(2), cell_j(3)] < kp_index_lbounds) .OR. &
-                ANY([cell_j(1), cell_j(2), cell_j(3)] > kp_index_ubounds)) CYCLE
-
-            jcell = cell_to_index(cell_j(1), cell_j(2), cell_j(3))
-            IF (jcell > nimg .OR. jcell < 1) CYCLE
-
-            IF (ANY([cell_k(1), cell_k(2), cell_k(3)] < kp_index_lbounds) .OR. &
-                ANY([cell_k(1), cell_k(2), cell_k(3)] > kp_index_ubounds)) CYCLE
-
-            kcell = cell_to_index(cell_k(1), cell_k(2), cell_k(3))
-            IF (kcell > nimg .OR. kcell < 1) CYCLE
-         ELSE
-            jcell = 1; kcell = 1
-         END IF
-
-         djk = NORM2(rjk)
-         dij = NORM2(rij)
-         dik = NORM2(rik)
-
-         CALL get_gto_basis_set(basis_i(ikind)%gto_basis_set, kind_radius=kind_radius_i)
-         CALL get_gto_basis_set(basis_j(jkind)%gto_basis_set, kind_radius=kind_radius_j)
-         CALL get_gto_basis_set(basis_k(kkind)%gto_basis_set, kind_radius=kind_radius_k)
-
-         IF (kind_radius_j + kind_radius_i + dr_ij < dij) CYCLE
-         IF (kind_radius_j + kind_radius_k + dr_jk < djk) CYCLE
-         IF (kind_radius_k + kind_radius_i + dr_ik < dik) CYCLE
-
-         ! tensor is not symmetric therefore need to allocate rows and columns in
-         ! correspondence with neighborlist. Note that this only allocates half
-         ! of the blocks (since neighborlist is symmetric). After filling the blocks,
-         ! tensor will be added to its transposed
-
-         ASSOCIATE (ai => alloc_i(jcell, kcell))
-            ASSOCIATE (aj => alloc_j(jcell, kcell))
-               ASSOCIATE (ak => alloc_k(jcell, kcell))
-
-                  new_block = .TRUE.
-                  IF (ALLOCATED(aj%array)) THEN
-                     DO iblk = 1, SIZE(aj%array)
-                        IF (ai%array(iblk) == iatom .AND. &
-                            aj%array(iblk) == jatom .AND. &
-                            ak%array(iblk) == katom) THEN
-                           new_block = .FALSE.
-                           EXIT
-                        END IF
-                     END DO
-                  END IF
-                  IF (.NOT. new_block) CYCLE
-
-                  IF (ALLOCATED(ai%array)) THEN
-                     blk_cnt = SIZE(ai%array)
-                     ALLOCATE (tmp(blk_cnt))
-                     tmp(:) = ai%array(:)
-                     DEALLOCATE (ai%array)
-                     ALLOCATE (ai%array(blk_cnt + 1))
-                     ai%array(1:blk_cnt) = tmp(:)
-                     ai%array(blk_cnt + 1) = iatom
-                  ELSE
-                     ALLOCATE (ai%array(1))
-                     ai%array(1) = iatom
-                  END IF
-
-                  IF (ALLOCATED(aj%array)) THEN
-                     tmp(:) = aj%array(:)
-                     DEALLOCATE (aj%array)
-                     ALLOCATE (aj%array(blk_cnt + 1))
-                     aj%array(1:blk_cnt) = tmp(:)
-                     aj%array(blk_cnt + 1) = jatom
-                  ELSE
-                     ALLOCATE (aj%array(1))
-                     aj%array(1) = jatom
-                  END IF
-
-                  IF (ALLOCATED(ak%array)) THEN
-                     tmp(:) = ak%array(:)
-                     DEALLOCATE (ak%array)
-                     ALLOCATE (ak%array(blk_cnt + 1))
-                     ak%array(1:blk_cnt) = tmp(:)
-                     ak%array(blk_cnt + 1) = katom
-                  ELSE
-                     ALLOCATE (ak%array(1))
-                     ak%array(1) = katom
-                  END IF
-
-                  IF (ALLOCATED(tmp)) DEALLOCATE (tmp)
-               END ASSOCIATE
-            END ASSOCIATE
-         END ASSOCIATE
-      END DO
-
-      CALL neighbor_list_3c_iterator_destroy(nl_3c_iter)
-
-      DO i_img = 1, nimg
-         DO j_img = 1, nimg
-            IF (ALLOCATED(alloc_i(i_img, j_img)%array)) THEN
-               DO i = 1, SIZE(alloc_i(i_img, j_img)%array)
-                  CALL dbt_get_stored_coordinates(t3c(i_img, j_img), &
-                                                  [alloc_i(i_img, j_img)%array(i), alloc_j(i_img, j_img)%array(i), &
-                                                   alloc_k(i_img, j_img)%array(i)], &
-                                                  iproc)
-                  CPASSERT(iproc .EQ. para_env%mepos)
-               END DO
-
-               CALL dbt_reserve_blocks(t3c(i_img, j_img), &
-                                       alloc_i(i_img, j_img)%array, &
-                                       alloc_j(i_img, j_img)%array, &
-                                       alloc_k(i_img, j_img)%array)
-            END IF
-         END DO
-      END DO
 
       CALL timestop(handle)
 
@@ -1162,10 +941,10 @@ CONTAINS
 
       INTEGER :: block_end_i, block_end_j, block_end_k, block_start_i, block_start_j, &
          block_start_k, egfi, handle, handle2, i, i_img, i_xyz, iatom, ibasis, ikind, ilist, imax, &
-         iset, j_img, jatom, jcell, jkind, jset, katom, kcell, kkind, kset, m_max, max_ncoi, &
-         max_ncoj, max_ncok, max_nset, max_nsgfi, max_nsgfj, max_nsgfk, maxli, maxlj, maxlk, &
-         mepos, natom, nbasis, ncell_RI, ncoi, ncoj, ncok, nimg, nseti, nsetj, nsetk, nthread, &
-         op_ij, op_jk, op_pos_prv, sgfi, sgfj, sgfk, unit_id
+         iset, j_img, jatom, jcell, jkind, jset, katom, kcell, kkind, kset, m_max, max_ncoj, &
+         max_nset, max_nsgfi, maxli, maxlj, maxlk, mepos, natom, nbasis, ncell_RI, ncoi, ncoj, &
+         ncok, nimg, nseti, nsetj, nsetk, nthread, op_ij, op_jk, op_pos_prv, sgfi, sgfj, sgfk, &
+         unit_id
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: img_to_RI_cell_prv
       INTEGER, DIMENSION(2)                              :: bo
       INTEGER, DIMENSION(3)                              :: blk_idx, blk_size, cell_j, cell_k, &
@@ -1298,7 +1077,7 @@ CONTAINS
       CALL alloc_block_3c(t3c_template, nl_3c, basis_i, basis_j, basis_k, qs_env, potential_parameter, &
                           op_pos=op_pos_prv, do_kpoints=do_kpoints, do_hfx_kpoints=do_hfx_kpoints, &
                           bounds_i=bounds_i, bounds_j=bounds_j, bounds_k=bounds_k, &
-                          RI_range=RI_range, img_to_RI_cell=img_to_RI_cell)
+                          RI_range=RI_range, img_to_RI_cell=img_to_RI_cell, cell_to_index=cell_to_index)
       DO i_xyz = 1, 3
          DO j_img = 1, ncell_RI
             DO i_img = 1, nimg
@@ -1330,7 +1109,6 @@ CONTAINS
       !Need the max l for each basis for libint and max nset, nco and nsgf for LIBXSMM contraction
       nbasis = SIZE(basis_i)
       max_nsgfi = 0
-      max_ncoi = 0
       max_nset = 0
       maxli = 0
       DO ibasis = 1, nbasis
@@ -1339,9 +1117,7 @@ CONTAINS
          maxli = MAX(maxli, imax)
          max_nset = MAX(max_nset, iset)
          max_nsgfi = MAX(max_nsgfi, MAXVAL(nsgfi))
-         max_ncoi = MAX(max_ncoi, MAXVAL(npgfi)*ncoset(maxli))
       END DO
-      max_nsgfj = 0
       max_ncoj = 0
       maxlj = 0
       DO ibasis = 1, nbasis
@@ -1349,24 +1125,19 @@ CONTAINS
                                 nset=jset, nsgf_set=nsgfj, npgf=npgfj)
          maxlj = MAX(maxlj, imax)
          max_nset = MAX(max_nset, jset)
-         max_nsgfj = MAX(max_nsgfj, MAXVAL(nsgfj))
          max_ncoj = MAX(max_ncoj, MAXVAL(npgfj)*ncoset(maxlj))
       END DO
-      max_nsgfk = 0
-      max_ncok = 0
       maxlk = 0
       DO ibasis = 1, nbasis
          CALL get_gto_basis_set(gto_basis_set=basis_k(ibasis)%gto_basis_set, maxl=imax, &
                                 nset=kset, nsgf_set=nsgfk, npgf=npgfk)
          maxlk = MAX(maxlk, imax)
          max_nset = MAX(max_nset, kset)
-         max_nsgfk = MAX(max_nsgfk, MAXVAL(nsgfk))
-         max_ncok = MAX(max_ncok, MAXVAL(npgfk)*ncoset(maxlk))
       END DO
       m_max = maxli + maxlj + maxlk + 1
 
-      !To minimize expensive memory opsand generally optimize contraction, pre-allocate
-      !contiguous sphi arrays (and transposed in the cas of sphi_i)
+      !To minimize expensive memory ops and generally optimize contraction, pre-allocate
+      !contiguous sphi arrays (and transposed in the case of sphi_i)
 
       NULLIFY (tspj, spi, spk)
       ALLOCATE (spi(max_nset, nbasis), tspj(max_nset, nbasis), spk(max_nset, nbasis))
@@ -1375,7 +1146,6 @@ CONTAINS
          DO iset = 1, max_nset
             NULLIFY (spi(iset, ibasis)%array)
             NULLIFY (tspj(iset, ibasis)%array)
-
             NULLIFY (spk(iset, ibasis)%array)
          END DO
       END DO
@@ -1436,9 +1206,8 @@ CONTAINS
 !$OMP PARALLEL DEFAULT(NONE) &
 !$OMP SHARED (nthread,do_kpoints_prv,kp_index_lbounds,kp_index_ubounds,maxli,maxlk,maxlj,bounds_i,&
 !$OMP         bounds_j,bounds_k,nimg,basis_i,basis_j,basis_k,dr_ij,dr_jk,dr_ik,ncoset,op_pos_prv,&
-!$OMP         potential_parameter,der_eps,tspj,spi,spk,cell_to_index,max_ncoi,max_nsgfk,RI_range,&
-!$OMP         max_nsgfj,max_ncok,natom,nl_3c,t3c_der_i,t3c_der_k,t3c_der_j,ncell_RI,&
-!$OMP         img_to_RI_cell_prv,do_hfx_kpoints_prv) &
+!$OMP         potential_parameter,der_eps,tspj,spi,spk,cell_to_index,RI_range,natom,nl_3c,&
+!$OMP         t3c_der_i,t3c_der_k,t3c_der_j,ncell_RI,img_to_RI_cell_prv,do_hfx_kpoints_prv) &
 !$OMP PRIVATE (lib,nl_3c_iter,ikind,jkind,kkind,iatom,jatom,katom,rij,rjk,rik,cell_j,cell_k,&
 !$OMP          prefac,jcell,kcell,first_sgf_i,lmax_i,lmin_i,npgfi,nseti,nsgfi,rpgf_i,set_radius_i,&
 !$OMP          sphi_i,zeti,kind_radius_i,first_sgf_j,lmax_j,lmin_j,npgfj,nsetj,nsgfj,rpgf_j,&
@@ -1455,10 +1224,6 @@ CONTAINS
 
       CALL cp_libint_init_3eri1(lib, MAX(maxli, maxlj, maxlk))
       CALL cp_libint_set_contrdepth(lib, 1)
-
-      !pre-allocate contraction buffers
-      ALLOCATE (cpp_buffer(max_nsgfj*max_ncok), ccp_buffer(max_nsgfj*max_nsgfk*max_ncoi))
-
       CALL neighbor_list_3c_iterator_create(nl_3c_iter, nl_3c)
 
       !We split the provided bounds among the threads such that each threads works on a different set of atoms
@@ -1683,10 +1448,10 @@ CONTAINS
                         IF (der_j_zero(i_xyz)) CYCLE
 
                         block_j_not_zero(i_xyz) = .TRUE.
-                        CALL libxsmm_abc_contract(dijk_contr, dijk_j(:, :, :, i_xyz), tspj(jset, jkind)%array, &
-                                                  spk(kset, kkind)%array, spi(iset, ikind)%array, &
-                                                  ncoj, ncok, ncoi, nsgfj(jset), nsgfk(kset), &
-                                                  nsgfi(iset), cpp_buffer, ccp_buffer)
+                        CALL abc_contract_xsmm(dijk_contr, dijk_j(:, :, :, i_xyz), tspj(jset, jkind)%array, &
+                                               spk(kset, kkind)%array, spi(iset, ikind)%array, &
+                                               ncoj, ncok, ncoi, nsgfj(jset), nsgfk(kset), &
+                                               nsgfi(iset), cpp_buffer, ccp_buffer, prefac)
 
                         block_t_j(block_start_j:block_end_j, &
                                   block_start_k:block_end_k, &
@@ -1694,7 +1459,7 @@ CONTAINS
                            block_t_j(block_start_j:block_end_j, &
                                      block_start_k:block_end_k, &
                                      block_start_i:block_end_i, i_xyz) + &
-                           prefac*dijk_contr(:, :, :)
+                           dijk_contr(:, :, :)
 
                      END DO
 
@@ -1702,10 +1467,10 @@ CONTAINS
                         IF (der_k_zero(i_xyz)) CYCLE
 
                         block_k_not_zero(i_xyz) = .TRUE.
-                        CALL libxsmm_abc_contract(dijk_contr, dijk_k(:, :, :, i_xyz), tspj(jset, jkind)%array, &
-                                                  spk(kset, kkind)%array, spi(iset, ikind)%array, &
-                                                  ncoj, ncok, ncoi, nsgfj(jset), nsgfk(kset), &
-                                                  nsgfi(iset), cpp_buffer, ccp_buffer)
+                        CALL abc_contract_xsmm(dijk_contr, dijk_k(:, :, :, i_xyz), tspj(jset, jkind)%array, &
+                                               spk(kset, kkind)%array, spi(iset, ikind)%array, &
+                                               ncoj, ncok, ncoi, nsgfj(jset), nsgfk(kset), &
+                                               nsgfi(iset), cpp_buffer, ccp_buffer, prefac)
 
                         block_t_k(block_start_j:block_end_j, &
                                   block_start_k:block_end_k, &
@@ -1713,7 +1478,7 @@ CONTAINS
                            block_t_k(block_start_j:block_end_j, &
                                      block_start_k:block_end_k, &
                                      block_start_i:block_end_i, i_xyz) + &
-                           prefac*dijk_contr(:, :, :)
+                           dijk_contr(:, :, :)
 
                      END DO
 
@@ -1737,22 +1502,7 @@ CONTAINS
                                RESHAPE(block_t_i(:, :, :, i_xyz), SHAPE=sp, ORDER=[2, 3, 1]), &
                                summation=.TRUE.)
          END DO
-!$OMP END CRITICAL
-!$OMP CRITICAL
-         IF (nl_3c%sym == symmetric_jk) THEN
 
-            sp = SHAPE(block_t_j(:, :, :, 1))
-            sp([2, 3, 1]) = sp
-
-            DO i_xyz = 1, 3
-               IF (.NOT. block_j_not_zero(i_xyz)) CYCLE
-               CALL dbt_put_block(t3c_der_j(jcell, kcell, i_xyz), blk_idx, sp, &
-                                  RESHAPE(block_t_j(:, :, :, i_xyz), SHAPE=sp, ORDER=[2, 3, 1]), &
-                                  summation=.TRUE.)
-            END DO
-         END IF
-!$OMP END CRITICAL
-!$OMP CRITICAL
          sp = SHAPE(block_t_k(:, :, :, 1))
          sp([2, 3, 1]) = sp
 
@@ -1764,17 +1514,29 @@ CONTAINS
          END DO
 !$OMP END CRITICAL
 
+         IF (nl_3c%sym == symmetric_jk) THEN
+            sp = SHAPE(block_t_j(:, :, :, 1))
+            sp([2, 3, 1]) = sp
+!$OMP CRITICAL
+            DO i_xyz = 1, 3
+               IF (.NOT. block_j_not_zero(i_xyz)) CYCLE
+               CALL dbt_put_block(t3c_der_j(jcell, kcell, i_xyz), blk_idx, sp, &
+                                  RESHAPE(block_t_j(:, :, :, i_xyz), SHAPE=sp, ORDER=[2, 3, 1]), &
+                                  summation=.TRUE.)
+            END DO
+!$OMP END CRITICAL
+         END IF
+
          CALL timestop(handle2)
 
-         DEALLOCATE (block_t_i)
-         DEALLOCATE (block_t_j)
-         DEALLOCATE (block_t_k)
-
+         DEALLOCATE (block_t_i, block_t_j, block_t_k)
          DEALLOCATE (max_contraction_i, max_contraction_j, max_contraction_k)
       END DO
 
-      CALL cp_libint_cleanup_3eri1(lib)
+      IF (ALLOCATED(ccp_buffer)) DEALLOCATE (ccp_buffer)
+      IF (ALLOCATED(cpp_buffer)) DEALLOCATE (cpp_buffer)
 
+      CALL cp_libint_cleanup_3eri1(lib)
       CALL neighbor_list_3c_iterator_destroy(nl_3c_iter)
 !$OMP END PARALLEL
 
@@ -1835,7 +1597,6 @@ CONTAINS
          DO ibasis = 1, nbasis
             IF (ASSOCIATED(spi(iset, ibasis)%array)) DEALLOCATE (spi(iset, ibasis)%array)
             IF (ASSOCIATED(tspj(iset, ibasis)%array)) DEALLOCATE (tspj(iset, ibasis)%array)
-
             IF (ASSOCIATED(spk(iset, ibasis)%array)) DEALLOCATE (spk(iset, ibasis)%array)
          END DO
       END DO
@@ -1880,9 +1641,9 @@ CONTAINS
 
       INTEGER :: block_end_i, block_end_j, block_end_k, block_start_i, block_start_j, &
          block_start_k, egfi, handle, i, i_xyz, iatom, ibasis, ikind, ilist, imax, iset, j_xyz, &
-         jatom, jkind, jset, katom, kkind, kset, m_max, max_ncoi, max_ncoj, max_ncok, max_nset, &
-         max_nsgfi, max_nsgfj, max_nsgfk, maxli, maxlj, maxlk, mepos, natom, nbasis, ncoi, ncoj, &
-         ncok, nseti, nsetj, nsetk, nthread, op_ij, op_jk, op_pos_prv, sgfi, sgfj, sgfk, unit_id
+         jatom, jkind, jset, katom, kkind, kset, m_max, max_ncoj, max_nset, max_nsgfi, maxli, &
+         maxlj, maxlk, mepos, natom, nbasis, ncoi, ncoj, ncok, nseti, nsetj, nsetk, nthread, &
+         op_ij, op_jk, op_pos_prv, sgfi, sgfj, sgfk, unit_id
       INTEGER, DIMENSION(2)                              :: bo
       INTEGER, DIMENSION(3)                              :: blk_size, sp
       INTEGER, DIMENSION(:), POINTER                     :: lmax_i, lmax_j, lmax_k, lmin_i, lmin_j, &
@@ -1965,7 +1726,6 @@ CONTAINS
       !Need the max l for each basis for libint and max nset, nco and nsgf for LIBXSMM contraction
       nbasis = SIZE(basis_i)
       max_nsgfi = 0
-      max_ncoi = 0
       max_nset = 0
       maxli = 0
       DO ibasis = 1, nbasis
@@ -1974,9 +1734,7 @@ CONTAINS
          maxli = MAX(maxli, imax)
          max_nset = MAX(max_nset, iset)
          max_nsgfi = MAX(max_nsgfi, MAXVAL(nsgfi))
-         max_ncoi = MAX(max_ncoi, MAXVAL(npgfi)*ncoset(maxli))
       END DO
-      max_nsgfj = 0
       max_ncoj = 0
       maxlj = 0
       DO ibasis = 1, nbasis
@@ -1984,19 +1742,14 @@ CONTAINS
                                 nset=jset, nsgf_set=nsgfj, npgf=npgfj)
          maxlj = MAX(maxlj, imax)
          max_nset = MAX(max_nset, jset)
-         max_nsgfj = MAX(max_nsgfj, MAXVAL(nsgfj))
          max_ncoj = MAX(max_ncoj, MAXVAL(npgfj)*ncoset(maxlj))
       END DO
-      max_nsgfk = 0
-      max_ncok = 0
       maxlk = 0
       DO ibasis = 1, nbasis
          CALL get_gto_basis_set(gto_basis_set=basis_k(ibasis)%gto_basis_set, maxl=imax, &
                                 nset=kset, nsgf_set=nsgfk, npgf=npgfk)
          maxlk = MAX(maxlk, imax)
          max_nset = MAX(max_nset, kset)
-         max_nsgfk = MAX(max_nsgfk, MAXVAL(nsgfk))
-         max_ncok = MAX(max_ncok, MAXVAL(npgfk)*ncoset(maxlk))
       END DO
       m_max = maxli + maxlj + maxlk + 1
 
@@ -2064,30 +1817,23 @@ CONTAINS
 !$    nthread = omp_get_max_threads()
 
 !$OMP PARALLEL DEFAULT(NONE) &
-!$OMP SHARED (nthread,maxli,maxlk,maxlj,i,work_virial,pref,&
-!$OMP         basis_i,basis_j,basis_k,dr_ij,dr_jk,dr_ik,ncoset,&
-!$OMP         potential_parameter,der_eps,tspj,spi,spk,max_ncoi,max_nsgfk,&
-!$OMP         max_nsgfj,max_ncok,natom,nl_3c,t3c_trace,cell,particle_set) &
-!$OMP PRIVATE (lib,nl_3c_iter,ikind,jkind,kkind,iatom,jatom,katom,rij,rjk,rik,i_xyz,j_xyz,&
-!$OMP          first_sgf_i,lmax_i,lmin_i,npgfi,nseti,nsgfi,rpgf_i,set_radius_i,&
-!$OMP          sphi_i,zeti,kind_radius_i,first_sgf_j,lmax_j,lmin_j,npgfj,nsetj,nsgfj,rpgf_j,&
-!$OMP          set_radius_j,sphi_j,zetj,kind_radius_j,first_sgf_k,lmax_k,lmin_k,npgfk,nsetk,nsgfk,&
-!$OMP          rpgf_k,set_radius_k,sphi_k,zetk,kind_radius_k,djk,dij,dik,ncoi,ncoj,ncok,sgfi,sgfj,&
-!$OMP          sgfk,dijk_j,dijk_k,ri,rj,rk,max_contraction_i,max_contraction_j,tmp_block,&
-!$OMP          max_contraction_k,iset,jset,kset,block_t_i,blk_size,dijk_contr,cpp_buffer,ccp_buffer,&
-!$OMP          block_start_j,block_end_j,block_start_k,block_end_k,block_start_i,block_end_i,found,&
-!$OMP          sp,mepos,bo,block_t_k,der_ext_i,der_ext_j,der_ext_k,ablock,force,scoord,&
-!$OMP          block_k_not_zero,der_k_zero,skip,der_j_zero,block_t_j,block_j_not_zero)
+!$OMP SHARED (nthread,maxli,maxlk,maxlj,i,work_virial,pref,basis_i,basis_j,basis_k,dr_ij,dr_jk,dr_ik,&
+!$OMP         ncoset,potential_parameter,der_eps,tspj,spi,spk,natom,nl_3c,t3c_trace,cell,particle_set) &
+!$OMP PRIVATE (lib,nl_3c_iter,ikind,jkind,kkind,iatom,jatom,katom,rij,rjk,rik,i_xyz,j_xyz,first_sgf_i,&
+!$OMP          lmax_i,lmin_i,npgfi,nseti,nsgfi,rpgf_i,set_radius_i,sphi_i,zeti,kind_radius_i,first_sgf_j,&
+!$OMP          lmax_j,lmin_j,npgfj,nsetj,nsgfj,rpgf_j,set_radius_j,sphi_j,zetj,kind_radius_j,first_sgf_k,&
+!$OMP          lmax_k,lmin_k,npgfk,nsetk,nsgfk,rpgf_k,set_radius_k,sphi_k,zetk,kind_radius_k,djk,dij,dik,&
+!$OMP          ncoi,ncoj,ncok,sgfi,sgfj,sgfk,dijk_j,dijk_k,ri,rj,rk,max_contraction_i,max_contraction_j,&
+!$OMP          tmp_block,max_contraction_k,iset,jset,kset,block_t_i,blk_size,dijk_contr,found,sp,mepos,&
+!$OMP          block_start_j,block_end_j,block_start_k,block_end_k,block_start_i,block_end_i,block_t_k,&
+!$OMP          bo,der_ext_i,der_ext_j,der_ext_k,ablock,force,scoord,skip,cpp_buffer,ccp_buffer,&
+!$OMP          block_k_not_zero,der_k_zero,der_j_zero,block_t_j,block_j_not_zero)
 
       mepos = 0
 !$    mepos = omp_get_thread_num()
 
       CALL cp_libint_init_3eri1(lib, MAX(maxli, maxlj, maxlk))
       CALL cp_libint_set_contrdepth(lib, 1)
-
-      !pre-allocate contraction buffers
-      ALLOCATE (cpp_buffer(max_nsgfj*max_ncok), ccp_buffer(max_nsgfj*max_nsgfk*max_ncoi))
-
       CALL neighbor_list_3c_iterator_create(nl_3c_iter, nl_3c)
 
       !We split the provided bounds among the threads such that each threads works on a different set of atoms
@@ -2241,10 +1987,10 @@ CONTAINS
                         IF (der_j_zero(i_xyz)) CYCLE
 
                         block_j_not_zero(i_xyz) = .TRUE.
-                        CALL libxsmm_abc_contract(dijk_contr, dijk_j(:, :, :, i_xyz), tspj(jset, jkind)%array, &
-                                                  spk(kset, kkind)%array, spi(iset, ikind)%array, &
-                                                  ncoj, ncok, ncoi, nsgfj(jset), nsgfk(kset), &
-                                                  nsgfi(iset), cpp_buffer, ccp_buffer)
+                        CALL abc_contract_xsmm(dijk_contr, dijk_j(:, :, :, i_xyz), tspj(jset, jkind)%array, &
+                                               spk(kset, kkind)%array, spi(iset, ikind)%array, &
+                                               ncoj, ncok, ncoi, nsgfj(jset), nsgfk(kset), &
+                                               nsgfi(iset), cpp_buffer, ccp_buffer)
 
                         block_t_j(block_start_j:block_end_j, &
                                   block_start_k:block_end_k, &
@@ -2260,10 +2006,10 @@ CONTAINS
                         IF (der_k_zero(i_xyz)) CYCLE
 
                         block_k_not_zero(i_xyz) = .TRUE.
-                        CALL libxsmm_abc_contract(dijk_contr, dijk_k(:, :, :, i_xyz), tspj(jset, jkind)%array, &
-                                                  spk(kset, kkind)%array, spi(iset, ikind)%array, &
-                                                  ncoj, ncok, ncoi, nsgfj(jset), nsgfk(kset), &
-                                                  nsgfi(iset), cpp_buffer, ccp_buffer)
+                        CALL abc_contract_xsmm(dijk_contr, dijk_k(:, :, :, i_xyz), tspj(jset, jkind)%array, &
+                                               spk(kset, kkind)%array, spi(iset, ikind)%array, &
+                                               ncoj, ncok, ncoi, nsgfj(jset), nsgfk(kset), &
+                                               nsgfi(iset), cpp_buffer, ccp_buffer)
 
                         block_t_k(block_start_j:block_end_j, &
                                   block_start_k:block_end_k, &
@@ -2316,12 +2062,12 @@ CONTAINS
             END DO
          END DO
 
-         DEALLOCATE (block_t_i)
-         DEALLOCATE (block_t_j)
-         DEALLOCATE (block_t_k)
-
+         DEALLOCATE (block_t_i, block_t_j, block_t_k)
          DEALLOCATE (max_contraction_i, max_contraction_j, max_contraction_k, ablock)
       END DO
+
+      IF (ALLOCATED(ccp_buffer)) DEALLOCATE (ccp_buffer)
+      IF (ALLOCATED(cpp_buffer)) DEALLOCATE (cpp_buffer)
 
       CALL cp_libint_cleanup_3eri1(lib)
       CALL neighbor_list_3c_iterator_destroy(nl_3c_iter)
@@ -2331,7 +2077,6 @@ CONTAINS
          DO ibasis = 1, nbasis
             IF (ASSOCIATED(spi(iset, ibasis)%array)) DEALLOCATE (spi(iset, ibasis)%array)
             IF (ASSOCIATED(tspj(iset, ibasis)%array)) DEALLOCATE (tspj(iset, ibasis)%array)
-
             IF (ASSOCIATED(spk(iset, ibasis)%array)) DEALLOCATE (spk(iset, ibasis)%array)
          END DO
       END DO
@@ -2361,18 +2106,20 @@ CONTAINS
 !> this routine requires that libint has been static initialised somewhere else
 !> \param do_hfx_kpoints ...
 !> \param desymmetrize ...
+!> \param cell_sym ...
 !> \param bounds_i ...
 !> \param bounds_j ...
 !> \param bounds_k ...
 !> \param RI_range ...
 !> \param img_to_RI_cell ...
+!> \param cell_to_index_ext ...
 ! **************************************************************************************************
    SUBROUTINE build_3c_integrals(t3c, filter_eps, qs_env, &
                                  nl_3c, basis_i, basis_j, basis_k, &
                                  potential_parameter, int_eps, &
-                                 op_pos, do_kpoints, do_hfx_kpoints, desymmetrize, &
+                                 op_pos, do_kpoints, do_hfx_kpoints, desymmetrize, cell_sym, &
                                  bounds_i, bounds_j, bounds_k, &
-                                 RI_range, img_to_RI_cell)
+                                 RI_range, img_to_RI_cell, cell_to_index_ext)
 
       TYPE(dbt_type), DIMENSION(:, :), INTENT(INOUT)     :: t3c
       REAL(KIND=dp), INTENT(IN)                          :: filter_eps
@@ -2382,19 +2129,20 @@ CONTAINS
       TYPE(libint_potential_type), INTENT(IN)            :: potential_parameter
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: int_eps
       INTEGER, INTENT(IN), OPTIONAL                      :: op_pos
-      LOGICAL, INTENT(IN), OPTIONAL                      :: do_kpoints, do_hfx_kpoints, desymmetrize
+      LOGICAL, INTENT(IN), OPTIONAL                      :: do_kpoints, do_hfx_kpoints, &
+                                                            desymmetrize, cell_sym
       INTEGER, DIMENSION(2), INTENT(IN), OPTIONAL        :: bounds_i, bounds_j, bounds_k
       REAL(dp), INTENT(IN), OPTIONAL                     :: RI_range
       INTEGER, DIMENSION(:), INTENT(IN), OPTIONAL        :: img_to_RI_cell
+      INTEGER, DIMENSION(:, :, :), OPTIONAL, POINTER     :: cell_to_index_ext
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'build_3c_integrals'
 
       INTEGER :: block_end_i, block_end_j, block_end_k, block_start_i, block_start_j, &
          block_start_k, egfi, handle, handle2, i, iatom, ibasis, ikind, ilist, imax, iset, jatom, &
-         jcell, jkind, jset, katom, kcell, kkind, kset, m_max, max_ncoi, max_ncoj, max_ncok, &
-         max_nset, max_nsgfi, max_nsgfj, max_nsgfk, maxli, maxlj, maxlk, mepos, natom, nbasis, &
-         ncell_RI, ncoi, ncoj, ncok, nimg, nseti, nsetj, nsetk, nthread, op_ij, op_jk, op_pos_prv, &
-         sgfi, sgfj, sgfk, unit_id
+         jcell, jkind, jset, katom, kcell, kkind, kset, m_max, max_ncoj, max_nset, max_nsgfi, &
+         maxli, maxlj, maxlk, mepos, natom, nbasis, ncell_RI, ncoi, ncoj, ncok, nimg, nseti, &
+         nsetj, nsetk, nthread, op_ij, op_jk, op_pos_prv, sgfi, sgfj, sgfk, unit_id
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: img_to_RI_cell_prv
       INTEGER, DIMENSION(2)                              :: bo
       INTEGER, DIMENSION(3)                              :: blk_idx, blk_size, cell_j, cell_k, &
@@ -2404,15 +2152,15 @@ CONTAINS
                                                             nsgfj, nsgfk
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgf_i, first_sgf_j, first_sgf_k
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
-      LOGICAL                                            :: block_not_zero, debug, desymmetrize_prv, &
-                                                            do_hfx_kpoints_prv, do_kpoints_prv, &
-                                                            found, skip
+      LOGICAL                                            :: block_not_zero, cell_sym_prv, debug, &
+                                                            desymmetrize_prv, do_hfx_kpoints_prv, &
+                                                            do_kpoints_prv, found, skip
       REAL(KIND=dp)                                      :: dij, dik, djk, dr_ij, dr_ik, dr_jk, &
                                                             kind_radius_i, kind_radius_j, &
-                                                            kind_radius_k, prefac, sijk_ext
+                                                            kind_radius_k, max_contraction_i, &
+                                                            prefac, sijk_ext
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: ccp_buffer, cpp_buffer, &
-                                                            max_contraction_i, max_contraction_j, &
-                                                            max_contraction_k
+                                                            max_contraction_j, max_contraction_k
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: block_t, dummy_block_t, sijk, &
                                                             sijk_contr, tmp_ijk
       REAL(KIND=dp), DIMENSION(1, 1, 1)                  :: counter
@@ -2464,6 +2212,12 @@ CONTAINS
          desymmetrize_prv = .TRUE.
       END IF
 
+      IF (PRESENT(cell_sym)) THEN
+         cell_sym_prv = cell_sym
+      ELSE
+         cell_sym_prv = .FALSE.
+      END IF
+
       op_ij = do_potential_id; op_jk = do_potential_id
 
       IF (PRESENT(op_pos)) THEN
@@ -2501,25 +2255,32 @@ CONTAINS
 
       ! get stuff
       CALL get_qs_env(qs_env, atomic_kind_set=atomic_kind_set, qs_kind_set=qs_kind_set, cell=cell, &
-                      natom=natom, kpoints=kpoints, dft_control=dft_control, para_env=para_env)
-
-      CALL alloc_block_3c(t3c, nl_3c, basis_i, basis_j, basis_k, qs_env, potential_parameter, &
-                          op_pos=op_pos_prv, do_kpoints=do_kpoints, do_hfx_kpoints=do_hfx_kpoints, &
-                          bounds_i=bounds_i, bounds_j=bounds_j, bounds_k=bounds_k, &
-                          RI_range=RI_range, img_to_RI_cell=img_to_RI_cell)
+                      natom=natom, dft_control=dft_control, para_env=para_env)
 
       IF (do_kpoints_prv) THEN
-         nimg = dft_control%nimages
+         IF (PRESENT(cell_to_index_ext)) THEN
+            cell_to_index => cell_to_index_ext
+            nimg = MAXVAL(cell_to_index)
+         ELSE
+            CALL get_qs_env(qs_env, kpoints=kpoints)
+            CALL get_kpoint_info(kpoints, cell_to_index=cell_to_index)
+            nimg = dft_control%nimages
+         END IF
          ncell_RI = nimg
          IF (do_hfx_kpoints_prv) THEN
             nimg = SIZE(t3c, 1)
             ncell_RI = SIZE(t3c, 2)
          END IF
-         CALL get_kpoint_info(kpoints, cell_to_index=cell_to_index)
       ELSE
          nimg = 1
          ncell_RI = 1
       END IF
+
+      CALL alloc_block_3c(t3c, nl_3c, basis_i, basis_j, basis_k, qs_env, potential_parameter, &
+                          op_pos=op_pos_prv, do_kpoints=do_kpoints, do_hfx_kpoints=do_hfx_kpoints, &
+                          bounds_i=bounds_i, bounds_j=bounds_j, bounds_k=bounds_k, &
+                          RI_range=RI_range, img_to_RI_cell=img_to_RI_cell, cell_sym=cell_sym_prv, &
+                          cell_to_index=cell_to_index)
 
       IF (do_hfx_kpoints_prv) THEN
          CPASSERT(op_pos_prv == 2)
@@ -2531,7 +2292,6 @@ CONTAINS
       !Need the max l for each basis for libint and max nset, nco and nsgf for LIBXSMM contraction
       nbasis = SIZE(basis_i)
       max_nsgfi = 0
-      max_ncoi = 0
       max_nset = 0
       maxli = 0
       DO ibasis = 1, nbasis
@@ -2540,9 +2300,7 @@ CONTAINS
          maxli = MAX(maxli, imax)
          max_nset = MAX(max_nset, iset)
          max_nsgfi = MAX(max_nsgfi, MAXVAL(nsgfi))
-         max_ncoi = MAX(max_ncoi, MAXVAL(npgfi)*ncoset(maxli))
       END DO
-      max_nsgfj = 0
       max_ncoj = 0
       maxlj = 0
       DO ibasis = 1, nbasis
@@ -2550,24 +2308,19 @@ CONTAINS
                                 nset=jset, nsgf_set=nsgfj, npgf=npgfj)
          maxlj = MAX(maxlj, imax)
          max_nset = MAX(max_nset, jset)
-         max_nsgfj = MAX(max_nsgfj, MAXVAL(nsgfj))
          max_ncoj = MAX(max_ncoj, MAXVAL(npgfj)*ncoset(maxlj))
       END DO
-      max_nsgfk = 0
-      max_ncok = 0
       maxlk = 0
       DO ibasis = 1, nbasis
          CALL get_gto_basis_set(gto_basis_set=basis_k(ibasis)%gto_basis_set, maxl=imax, &
                                 nset=kset, nsgf_set=nsgfk, npgf=npgfk)
          maxlk = MAX(maxlk, imax)
          max_nset = MAX(max_nset, kset)
-         max_nsgfk = MAX(max_nsgfk, MAXVAL(nsgfk))
-         max_ncok = MAX(max_ncok, MAXVAL(npgfk)*ncoset(maxlk))
       END DO
       m_max = maxli + maxlj + maxlk
 
-      !To minimize expensive memory opsand generally optimize contraction, pre-allocate
-      !contiguous sphi arrays (and transposed in the cas of sphi_i)
+      !To minimize expensive memory ops and generally optimize contraction, pre-allocate
+      !contiguous sphi arrays (and transposed in the case of sphi_i)
 
       NULLIFY (tspj, spi, spk)
       ALLOCATE (spi(max_nset, nbasis), tspj(max_nset, nbasis), spk(max_nset, nbasis))
@@ -2639,9 +2392,9 @@ CONTAINS
 !$OMP PARALLEL DEFAULT(NONE) &
 !$OMP SHARED (nthread,do_kpoints_prv,kp_index_lbounds,kp_index_ubounds,maxli,maxlk,maxlj,bounds_i,&
 !$OMP         bounds_j,bounds_k,nimg,basis_i,basis_j,basis_k,dr_ij,dr_jk,dr_ik,ncoset,&
-!$OMP         potential_parameter,int_eps,t3c,tspj,spi,spk,debug,cell_to_index,max_ncoi,max_nsgfk,&
-!$OMP         max_nsgfj,max_ncok,natom,nl_3c,cell,op_pos_prv,do_hfx_kpoints_prv,RI_range,ncell_RI, &
-!$OMP         img_to_RI_cell_prv) &
+!$OMP         potential_parameter,int_eps,t3c,tspj,spi,spk,debug,cell_to_index,&
+!$OMP         natom,nl_3c,cell,op_pos_prv,do_hfx_kpoints_prv,RI_range,ncell_RI, &
+!$OMP         img_to_RI_cell_prv, cell_sym_prv) &
 !$OMP PRIVATE (lib,nl_3c_iter,ikind,jkind,kkind,iatom,jatom,katom,rij,rjk,rik,cell_j,cell_k,&
 !$OMP          prefac,jcell,kcell,first_sgf_i,lmax_i,lmin_i,npgfi,nseti,nsgfi,rpgf_i,set_radius_i,&
 !$OMP          sphi_i,zeti,kind_radius_i,first_sgf_j,lmax_j,lmin_j,npgfj,nsetj,nsgfj,rpgf_j,&
@@ -2657,10 +2410,6 @@ CONTAINS
 
       CALL cp_libint_init_3eri(lib, MAX(maxli, maxlj, maxlk))
       CALL cp_libint_set_contrdepth(lib, 1)
-
-      !pre-allocate contraction buffers
-      ALLOCATE (cpp_buffer(max_nsgfj*max_ncok), ccp_buffer(max_nsgfj*max_nsgfk*max_ncoi))
-
       CALL neighbor_list_3c_iterator_create(nl_3c_iter, nl_3c)
 
       !We split the provided bounds among the threads such that each threads works on a different set of atoms
@@ -2695,9 +2444,7 @@ CONTAINS
          dij = NORM2(rij)
          dik = NORM2(rik)
 
-         IF (do_kpoints_prv) THEN
-            prefac = 0.5_dp
-         ELSEIF (nl_3c%sym == symmetric_jk) THEN
+         IF (nl_3c%sym == symmetric_jk) THEN
             IF (jatom == katom) THEN
                ! factor 0.5 due to double-counting of diagonal blocks
                ! (we desymmetrize by adding transpose)
@@ -2716,7 +2463,7 @@ CONTAINS
          ELSE
             prefac = 1.0_dp
          END IF
-         IF (do_hfx_kpoints_prv) prefac = 1.0_dp
+         IF (do_kpoints_prv) prefac = 1.0_dp
 
          IF (do_kpoints_prv) THEN
 
@@ -2740,6 +2487,8 @@ CONTAINS
             jcell = 1; kcell = 1
          END IF
 
+         IF (cell_sym_prv .AND. jcell < kcell) CYCLE
+
          blk_idx = [iatom, jatom, katom]
          IF (do_hfx_kpoints_prv) THEN
             blk_idx(3) = (kcell - 1)*natom + katom
@@ -2762,22 +2511,13 @@ CONTAINS
          IF (kind_radius_j + kind_radius_k + dr_jk < djk) CYCLE
          IF (kind_radius_k + kind_radius_i + dr_ik < dik) CYCLE
 
-         ALLOCATE (max_contraction_i(nseti))
-         max_contraction_i = 0.0_dp
-         DO iset = 1, nseti
-            sgfi = first_sgf_i(1, iset)
-            max_contraction_i(iset) = MAXVAL((/(SUM(ABS(sphi_i(:, i))), i=sgfi, sgfi + nsgfi(iset) - 1)/))
-         END DO
-
          ALLOCATE (max_contraction_j(nsetj))
-         max_contraction_j = 0.0_dp
          DO jset = 1, nsetj
             sgfj = first_sgf_j(1, jset)
             max_contraction_j(jset) = MAXVAL((/(SUM(ABS(sphi_j(:, i))), i=sgfj, sgfj + nsgfj(jset) - 1)/))
          END DO
 
          ALLOCATE (max_contraction_k(nsetk))
-         max_contraction_k = 0.0_dp
          DO kset = 1, nsetk
             sgfk = first_sgf_k(1, kset)
             max_contraction_k(kset) = MAXVAL((/(SUM(ABS(sphi_k(:, i))), i=sgfk, sgfk + nsgfk(kset) - 1)/))
@@ -2790,6 +2530,9 @@ CONTAINS
          block_t = 0.0_dp
          block_not_zero = .FALSE.
          DO iset = 1, nseti
+
+            sgfi = first_sgf_i(1, iset)
+            max_contraction_i = MAXVAL((/(SUM(ABS(sphi_i(:, i))), i=sgfi, sgfi + nsgfi(iset) - 1)/))
 
             DO jset = 1, nsetj
 
@@ -2804,73 +2547,73 @@ CONTAINS
                   ncoj = npgfj(jset)*ncoset(lmax_j(jset))
                   ncok = npgfk(kset)*ncoset(lmax_k(kset))
 
-                  sgfi = first_sgf_i(1, iset)
+                  !ensure non-zero number of triples below
+                  IF (ncoj*ncok*ncoi == 0) CYCLE
+
+                  !need positions for libint. Only relative positions are needed => set ri to 0.0
+                  ri = 0.0_dp
+                  rj = rij ! ri + rij
+                  rk = rik ! ri + rik
+
+                  ALLOCATE (sijk(ncoj, ncok, ncoi))
+                  IF (op_pos_prv == 1) THEN
+                     sijk(:, :, :) = 0.0_dp
+                     CALL eri_3center(sijk, &
+                                      lmin_j(jset), lmax_j(jset), npgfj(jset), zetj(:, jset), rpgf_j(:, jset), rj, &
+                                      lmin_k(kset), lmax_k(kset), npgfk(kset), zetk(:, kset), rpgf_k(:, kset), rk, &
+                                      lmin_i(iset), lmax_i(iset), npgfi(iset), zeti(:, iset), rpgf_i(:, iset), ri, &
+                                      djk, dij, dik, lib, potential_parameter, int_abc_ext=sijk_ext)
+                  ELSE
+                     ALLOCATE (tmp_ijk(ncoi, ncoj, ncok))
+                     tmp_ijk(:, :, :) = 0.0_dp
+                     CALL eri_3center(tmp_ijk, &
+                                      lmin_i(iset), lmax_i(iset), npgfi(iset), zeti(:, iset), rpgf_i(:, iset), ri, &
+                                      lmin_j(jset), lmax_j(jset), npgfj(jset), zetj(:, jset), rpgf_j(:, jset), rj, &
+                                      lmin_k(kset), lmax_k(kset), npgfk(kset), zetk(:, kset), rpgf_k(:, kset), rk, &
+                                      dij, dik, djk, lib, potential_parameter, int_abc_ext=sijk_ext)
+
+                     !F08: sijk = RESHAPE(tmp_ijk, [ncoj, ncok, ncoi], ORDER=[2, 3, 1]) with sijk not allocated
+                     DO i = 1, ncoi !TODO: revise/check for efficiency
+                        sijk(:, :, i) = tmp_ijk(i, :, :)
+                     END DO
+                     DEALLOCATE (tmp_ijk)
+                  END IF
+
+                  IF (PRESENT(int_eps)) THEN
+                     IF (int_eps > sijk_ext*(max_contraction_i* &
+                                             max_contraction_j(jset)* &
+                                             max_contraction_k(kset))) THEN
+                        DEALLOCATE (sijk)
+                        CYCLE
+                     END IF
+                  END IF
+
+                  block_not_zero = .TRUE.
+                  ALLOCATE (sijk_contr(nsgfj(jset), nsgfk(kset), nsgfi(iset)))
+                  CALL abc_contract_xsmm(sijk_contr, sijk, tspj(jset, jkind)%array, &
+                                         spk(kset, kkind)%array, spi(iset, ikind)%array, &
+                                         ncoj, ncok, ncoi, nsgfj(jset), nsgfk(kset), &
+                                         nsgfi(iset), cpp_buffer, ccp_buffer, prefac)
+                  DEALLOCATE (sijk)
+
                   sgfj = first_sgf_j(1, jset)
                   sgfk = first_sgf_k(1, kset)
 
-                  IF (ncoj*ncok*ncoi > 0) THEN
-                     ALLOCATE (sijk(ncoj, ncok, ncoi))
-                     sijk(:, :, :) = 0.0_dp
+                  block_start_j = sgfj
+                  block_end_j = sgfj + nsgfj(jset) - 1
+                  block_start_k = sgfk
+                  block_end_k = sgfk + nsgfk(kset) - 1
+                  block_start_i = sgfi
+                  block_end_i = sgfi + nsgfi(iset) - 1
 
-                     !need positions for libint. Only relative positions are needed => set ri to 0.0
-                     ri = 0.0_dp
-                     rj = rij ! ri + rij
-                     rk = rik ! ri + rik
-
-                     IF (op_pos_prv == 1) THEN
-                        CALL eri_3center(sijk, &
-                                         lmin_j(jset), lmax_j(jset), npgfj(jset), zetj(:, jset), rpgf_j(:, jset), rj, &
-                                         lmin_k(kset), lmax_k(kset), npgfk(kset), zetk(:, kset), rpgf_k(:, kset), rk, &
-                                         lmin_i(iset), lmax_i(iset), npgfi(iset), zeti(:, iset), rpgf_i(:, iset), ri, &
-                                         djk, dij, dik, lib, potential_parameter, int_abc_ext=sijk_ext)
-                     ELSE
-                        ALLOCATE (tmp_ijk(ncoi, ncoj, ncok))
-                        tmp_ijk = 0.0_Dp
-                        CALL eri_3center(tmp_ijk, &
-                                         lmin_i(iset), lmax_i(iset), npgfi(iset), zeti(:, iset), rpgf_i(:, iset), ri, &
-                                         lmin_j(jset), lmax_j(jset), npgfj(jset), zetj(:, jset), rpgf_j(:, jset), rj, &
-                                         lmin_k(kset), lmax_k(kset), npgfk(kset), zetk(:, kset), rpgf_k(:, kset), rk, &
-                                         dij, dik, djk, lib, potential_parameter, int_abc_ext=sijk_ext)
-                        DO i = 1, ncoi
-                           !TODO: this cannot stay for efficiency (probably)
-                           sijk(:, :, i) = tmp_ijk(i, :, :)
-                        END DO
-                        DEALLOCATE (tmp_ijk)
-                     END IF
-
-                     IF (PRESENT(int_eps)) THEN
-                        IF (int_eps > sijk_ext*(max_contraction_i(iset)* &
-                                                max_contraction_j(jset)* &
-                                                max_contraction_k(kset))) THEN
-                           DEALLOCATE (sijk)
-                           CYCLE
-                        END IF
-                     END IF
-
-                     block_not_zero = .TRUE.
-                     ALLOCATE (sijk_contr(nsgfj(jset), nsgfk(kset), nsgfi(iset)))
-                     CALL libxsmm_abc_contract(sijk_contr, sijk, tspj(jset, jkind)%array, &
-                                               spk(kset, kkind)%array, spi(iset, ikind)%array, &
-                                               ncoj, ncok, ncoi, nsgfj(jset), nsgfk(kset), &
-                                               nsgfi(iset), cpp_buffer, ccp_buffer)
-                     DEALLOCATE (sijk)
-
-                     block_start_j = sgfj
-                     block_end_j = sgfj + nsgfj(jset) - 1
-                     block_start_k = sgfk
-                     block_end_k = sgfk + nsgfk(kset) - 1
-                     block_start_i = sgfi
-                     block_end_i = sgfi + nsgfi(iset) - 1
-
+                  block_t(block_start_j:block_end_j, &
+                          block_start_k:block_end_k, &
+                          block_start_i:block_end_i) = &
                      block_t(block_start_j:block_end_j, &
                              block_start_k:block_end_k, &
-                             block_start_i:block_end_i) = &
-                        block_t(block_start_j:block_end_j, &
-                                block_start_k:block_end_k, &
-                                block_start_i:block_end_i) + &
-                        prefac*sijk_contr(:, :, :)
-                     DEALLOCATE (sijk_contr)
-                  END IF ! number of triples > 0
+                             block_start_i:block_end_i) + &
+                     sijk_contr(:, :, :)
+                  DEALLOCATE (sijk_contr)
 
                END DO
 
@@ -2885,9 +2628,9 @@ CONTAINS
                CALL dbt_get_block(t3c(jcell, kcell), blk_idx, dummy_block_t, found=found)
                CPASSERT(found)
             END IF
-            sp = SHAPE(block_t)
 
-            sp([2, 3, 1]) = sp
+            sp = SHAPE(block_t)
+            sp([2, 3, 1]) = sp ! sp = sp([2, 3, 1]) performs worse
 
             CALL dbt_put_block(t3c(jcell, kcell), blk_idx, sp, &
                                RESHAPE(block_t, SHAPE=sp, ORDER=[2, 3, 1]), summation=.TRUE.)
@@ -2897,11 +2640,13 @@ CONTAINS
          END IF
 
          DEALLOCATE (block_t)
-         DEALLOCATE (max_contraction_i, max_contraction_j, max_contraction_k)
+         DEALLOCATE (max_contraction_j, max_contraction_k)
       END DO
 
-      CALL cp_libint_cleanup_3eri(lib)
+      IF (ALLOCATED(ccp_buffer)) DEALLOCATE (ccp_buffer)
+      IF (ALLOCATED(cpp_buffer)) DEALLOCATE (cpp_buffer)
 
+      CALL cp_libint_cleanup_3eri(lib)
       CALL neighbor_list_3c_iterator_destroy(nl_3c_iter)
 !$OMP END PARALLEL
 
@@ -2962,7 +2707,6 @@ CONTAINS
          DO ibasis = 1, nbasis
             IF (ASSOCIATED(spi(iset, ibasis)%array)) DEALLOCATE (spi(iset, ibasis)%array)
             IF (ASSOCIATED(tspj(iset, ibasis)%array)) DEALLOCATE (tspj(iset, ibasis)%array)
-
             IF (ASSOCIATED(spk(iset, ibasis)%array)) DEALLOCATE (spk(iset, ibasis)%array)
          END DO
       END DO
@@ -3203,8 +2947,8 @@ CONTAINS
       END DO
 
       CALL cp_libint_cleanup_2eri1(lib)
-
       CALL neighbor_list_iterator_release(nl_iterator)
+
       DO img = 1, nimg
          DO i_xyz = 1, 3
             CALL dbcsr_finalize(t2c_der(img, i_xyz))
@@ -3382,8 +3126,8 @@ CONTAINS
             END DO
          END DO
       END DO
-      CALL neighbor_list_iterator_release(nl_iterator)
 
+      CALL neighbor_list_iterator_release(nl_iterator)
       CALL cp_libint_cleanup_2eri1(lib)
 
       CALL timestop(handle)
@@ -3434,7 +3178,7 @@ CONTAINS
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
       LOGICAL                                            :: do_hfx_kpoints_prv, do_kpoints_prv, &
                                                             do_symmetric, found, trans
-      REAL(KIND=dp)                                      :: dab, my_regularization_RI
+      REAL(KIND=dp)                                      :: dab, min_zet
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: sij, sij_contr, sij_rs
       REAL(KIND=dp), DIMENSION(3)                        :: ri, rij, rj
       REAL(KIND=dp), DIMENSION(:), POINTER               :: set_radius_i, set_radius_j
@@ -3467,9 +3211,6 @@ CONTAINS
       IF (do_hfx_kpoints_prv) THEN
          CPASSERT(do_kpoints_prv)
       END IF
-
-      my_regularization_RI = 0.0_dp
-      IF (PRESENT(regularization_RI)) my_regularization_RI = regularization_RI
 
       op_prv = potential_parameter%potential_type
 
@@ -3622,14 +3363,15 @@ CONTAINS
                   DEALLOCATE (sij_contr)
 
                   ! RI regularization
-                  IF (.NOT. do_hfx_kpoints_prv) THEN
-                     IF (do_kpoints_prv .AND. cell_j(1) == 0 .AND. cell_j(2) == 0 .AND. cell_j(3) == 0 .AND. &
-                         iatom == jatom .AND. iset == jset) THEN
-                        DO i_diag = 1, nsgfi(iset)
-                           sij_rs(i_diag, i_diag) = sij_rs(i_diag, i_diag) + &
-                                                    regularization_RI*MAX(1.0_dp, 1.0_dp/MINVAL(zeti(:, iset)))
-                        END DO
-                     END IF
+                  IF (.NOT. do_hfx_kpoints_prv .AND. PRESENT(regularization_RI) .AND. &
+                      iatom == jatom .AND. iset == jset .AND. &
+                      cell_j(1) == 0 .AND. cell_j(2) == 0 .AND. cell_j(3) == 0) THEN
+                     DO i_diag = 1, nsgfi(iset)
+                        min_zet = MINVAL(zeti(:, iset))
+                        CPASSERT(min_zet > 1.0E-10_dp)
+                        sij_rs(i_diag, i_diag) = sij_rs(i_diag, i_diag) + &
+                                                 regularization_RI*MAX(1.0_dp, 1.0_dp/min_zet)
+                     END DO
                   END IF
 
                   CALL block_add("IN", sij_rs, &

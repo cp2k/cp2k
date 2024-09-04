@@ -63,8 +63,8 @@ MODULE qs_nl_hash_table_types
 !> \param val       : value of the entry
 ! **************************************************************************************************
    TYPE nl_hash_table_element
-      INTEGER(KIND=int_8) :: key
-      TYPE(neighbor_list_task_type), POINTER :: val
+      INTEGER(KIND=int_8) :: key = -1_int_8
+      TYPE(neighbor_list_task_type), POINTER :: val => NULL()
    END TYPE nl_hash_table_element
 
 ! **************************************************************************************************
@@ -78,9 +78,9 @@ MODULE qs_nl_hash_table_types
 ! **************************************************************************************************
    TYPE nl_hash_table_data
       TYPE(nl_hash_table_element), DIMENSION(:), POINTER :: table => NULL()
-      INTEGER :: nelements
-      INTEGER :: nmax
-      INTEGER :: prime
+      INTEGER :: nelements = -1
+      INTEGER :: nmax = -1
+      INTEGER :: prime = -1
    END TYPE nl_hash_table_data
 
 ! **************************************************************************************************

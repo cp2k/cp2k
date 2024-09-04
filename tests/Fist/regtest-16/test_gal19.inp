@@ -55,7 +55,7 @@
       PERIODIC XYZ
     &END CELL
     &COORD
-@INCLUDE "coord-gal19.inc"
+      @INCLUDE "coord-gal19.inc"
     &END COORD
     &TOPOLOGY
       &GENERATE
@@ -127,7 +127,7 @@
           R 2.4120767 4.0
           RCUT 8
           &GCN
-@INCLUDE "gcn.inc"
+            @INCLUDE "gcn.inc"
           &END GCN
         &END GAL19
         &WILLIAMS

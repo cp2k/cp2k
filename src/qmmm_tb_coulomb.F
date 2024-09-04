@@ -16,7 +16,7 @@ MODULE qmmm_tb_coulomb
    USE cell_types,                      ONLY: cell_type,&
                                               get_cell
    USE cp_control_types,                ONLY: dft_control_type
-   USE dbcsr_api,                       ONLY: dbcsr_add,&
+   USE cp_dbcsr_api,                    ONLY: dbcsr_add,&
                                               dbcsr_get_block_p,&
                                               dbcsr_iterator_blocks_left,&
                                               dbcsr_iterator_next_block,&

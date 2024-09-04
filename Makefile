@@ -253,11 +253,11 @@ $(EXEDIR)/cp2k_shell.$(ONEVERSION): $(EXEDIR)/cp2k.$(ONEVERSION)
 	cd $(EXEDIR); ln -sf cp2k.$(ONEVERSION) cp2k_shell.$(ONEVERSION)
 
 test:
-	@$(CP2KHOME)/tests/do_regtest.py $(ARCH) $(ONEVERSION) $(TESTOPTS)
+	@$(CP2KHOME)/tests/do_regtest.py $(EXEDIR) $(ONEVERSION) $(TESTOPTS)
 
 testbg:
 	@echo "testing: $(ONEVERSION) : full log in $(TSTDIR)/regtest.log "
-	@$(CP2KHOME)/tests/do_regtest.py $(ARCH) $(ONEVERSION) $(TESTOPTS) > $(TSTDIR)/regtest.log 2>&1
+	@$(CP2KHOME)/tests/do_regtest.py $(EXEDIR) $(ONEVERSION) $(TESTOPTS) > $(TSTDIR)/regtest.log 2>&1
 	@grep -e "Summary:" -e "Status:" $(TSTDIR)/regtest.log
 
 endif
@@ -353,12 +353,12 @@ TOOL_HELP += "fprettyclean : Remove prettify marker files and preprettify direct
 
 $(PRETTYOBJDIR)/%.pretty: %.F $(DOXIFYOBJDIR)/%.doxified
 	@mkdir -p $(PRETTYOBJDIR)
-	cd $(dir $<); $(TOOLSRC)/prettify/prettify.py --do-backup --backup-dir=$(PRETTYOBJDIR) $(notdir $<)
+	cd $(dir $<); $(TOOLSRC)/precommit/format_fortran.py --do-backup --backup-dir=$(PRETTYOBJDIR) $(notdir $<)
 	@touch $@
 
 $(PRETTYOBJDIR)/%.pretty_included: %.f90 $(DOXIFYOBJDIR)/%.doxified_included
 	@mkdir -p $(PRETTYOBJDIR)
-	cd $(dir $<); $(TOOLSRC)/prettify/prettify.py --do-backup --backup-dir=$(PRETTYOBJDIR) $(notdir $<)
+	cd $(dir $<); $(TOOLSRC)/precommit/format_fortran.py --do-backup --backup-dir=$(PRETTYOBJDIR) $(notdir $<)
 	@touch $@
 
 $(PRETTYOBJDIR)/%.pretty: %.c $(DOXIFYOBJDIR)/%.doxified

@@ -17,7 +17,7 @@ MODULE maxwell_solver_interface
                               cp_logger_get_default_io_unit, &
                               cp_logger_type
    USE kinds, ONLY: dp
-   USE pw_types, ONLY: pw_type
+   USE pw_types, ONLY: pw_r3d_rs_type
    USE ISO_C_BINDING, ONLY: C_INT, C_DOUBLE
 
 #include "./base/base_uses.f90"
@@ -74,7 +74,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE maxwell_solver(maxwell_control, v_ee, sim_step, sim_time, scaling_factor)
       TYPE(maxwell_control_type), INTENT(IN)             :: maxwell_control
-      TYPE(pw_type), POINTER                           :: v_ee
+      TYPE(pw_r3d_rs_type), POINTER                           :: v_ee
       INTEGER, INTENT(IN)                                :: sim_step
       REAL(KIND=dp), INTENT(IN)                          :: sim_time
       REAL(KIND=dp), INTENT(IN)                          :: scaling_factor
@@ -101,8 +101,8 @@ CONTAINS
       logger => cp_get_default_logger()
       iounit = cp_logger_get_default_io_unit(logger)
 
-      my_rank = v_ee%pw_grid%para%my_pos
-      num_pe = v_ee%pw_grid%para%group_size
+      my_rank = v_ee%pw_grid%para%group%mepos
+      num_pe = v_ee%pw_grid%para%group%num_pe
       gid = v_ee%pw_grid%para%group
       tag = 1
 
@@ -158,7 +158,7 @@ CONTAINS
             IF ((lbounds_local(1) <= i) .AND. (i <= ubounds_local(1)) .AND. &
                 (lbounds_local(2) <= j) .AND. (j <= ubounds_local(2))) THEN
                !allow scaling of external potential values by factor 'scaling' (SCALING_FACTOR in input file)
-               v_ee%cr3d(i, j, lbounds(3):ubounds(3)) = buffer(lbounds(3):ubounds(3))*scaling_factor
+               v_ee%array(i, j, lbounds(3):ubounds(3)) = buffer(lbounds(3):ubounds(3))*scaling_factor
             END IF
 
          END DO

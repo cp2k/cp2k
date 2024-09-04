@@ -65,16 +65,16 @@ MODULE qs_fb_env_types
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! **********************************************************************
    TYPE fb_env_data
-      INTEGER :: ref_count
-      REAL(KIND=dp), DIMENSION(:), POINTER :: rcut
-      TYPE(fb_atomic_halo_list_obj) :: atomic_halos
-      TYPE(fb_trial_fns_obj) :: trial_fns
-      REAL(KIND=dp) :: filter_temperature
-      REAL(KIND=dp) :: auto_cutoff_scale
-      REAL(KIND=dp) :: eps_default
-      LOGICAL :: collective_com
-      INTEGER, DIMENSION(:), POINTER :: local_atoms
-      INTEGER :: nlocal_atoms
+      INTEGER :: ref_count = -1
+      REAL(KIND=dp), DIMENSION(:), POINTER :: rcut => NULL()
+      TYPE(fb_atomic_halo_list_obj) :: atomic_halos = fb_atomic_halo_list_obj()
+      TYPE(fb_trial_fns_obj) :: trial_fns = fb_trial_fns_obj()
+      REAL(KIND=dp) :: filter_temperature = -1.0_dp
+      REAL(KIND=dp) :: auto_cutoff_scale = -1.0_dp
+      REAL(KIND=dp) :: eps_default = -1.0_dp
+      LOGICAL :: collective_com = .FALSE.
+      INTEGER, DIMENSION(:), POINTER :: local_atoms => NULL()
+      INTEGER :: nlocal_atoms = -1
    END TYPE fb_env_data
 
 ! **************************************************************************************************
@@ -84,7 +84,7 @@ MODULE qs_fb_env_types
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! **************************************************************************************************
    TYPE fb_env_obj
-      TYPE(fb_env_data), POINTER, PRIVATE :: obj
+      TYPE(fb_env_data), POINTER, PRIVATE :: obj => NULL()
    END TYPE fb_env_obj
 
 CONTAINS

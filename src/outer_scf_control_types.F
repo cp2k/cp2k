@@ -61,30 +61,30 @@ MODULE outer_scf_control_types
 ! **************************************************************************************************
 
    TYPE outer_scf_control_type
-      LOGICAL       :: have_scf
-      INTEGER       :: max_scf
-      REAL(KIND=dp) :: eps_scf, step_size
-      INTEGER       :: TYPE
-      INTEGER       :: optimizer
-      INTEGER       :: diis_buffer_length
-      INTEGER       :: extrapolation_order
-      INTEGER       :: bisect_trust_count
-      TYPE(cdft_opt_type), POINTER :: cdft_opt_control
+      LOGICAL       :: have_scf = .FALSE.
+      INTEGER       :: max_scf = -1
+      REAL(KIND=dp) :: eps_scf = -1.0_dp, step_size = -1.0_dp
+      INTEGER       :: TYPE = -1
+      INTEGER       :: optimizer = -1
+      INTEGER       :: diis_buffer_length = -1
+      INTEGER       :: extrapolation_order = -1
+      INTEGER       :: bisect_trust_count = -1
+      TYPE(cdft_opt_type), POINTER :: cdft_opt_control => NULL()
    END TYPE outer_scf_control_type
 
    TYPE qs_outer_scf_type
-      INTEGER :: iter_count
-      LOGICAL :: deallocate_jacobian
+      INTEGER :: iter_count = -1
+      LOGICAL :: deallocate_jacobian = .FALSE.
       ! these are the variable of outer loop.
       ! right now, we assume that they can be easily written as
       ! small arrays, but we might want to go the cp_fm_types
       ! at a later stage
       ! also, we just store the full iteration history
-      REAL(KIND=dp), DIMENSION(:), POINTER :: energy
-      REAL(KIND=dp), DIMENSION(:, :), POINTER :: variables
-      REAL(KIND=dp), DIMENSION(:, :), POINTER :: gradient
-      REAL(KIND=dp), DIMENSION(:, :), POINTER :: inv_jacobian
-      INTEGER, DIMENSION(:), POINTER :: count
+      REAL(KIND=dp), DIMENSION(:), POINTER :: energy => NULL()
+      REAL(KIND=dp), DIMENSION(:, :), POINTER :: variables => NULL()
+      REAL(KIND=dp), DIMENSION(:, :), POINTER :: gradient => NULL()
+      REAL(KIND=dp), DIMENSION(:, :), POINTER :: inv_jacobian => NULL()
+      INTEGER, DIMENSION(:), POINTER :: count => NULL()
    END TYPE qs_outer_scf_type
 
 CONTAINS

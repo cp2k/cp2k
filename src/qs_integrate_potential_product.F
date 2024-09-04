@@ -38,12 +38,12 @@ MODULE qs_integrate_potential_product
    USE cell_types,                      ONLY: cell_type,&
                                               pbc
    USE cp_control_types,                ONLY: dft_control_type
-   USE cp_dbcsr_operations,             ONLY: dbcsr_deallocate_matrix_set
-   USE dbcsr_api,                       ONLY: dbcsr_copy,&
+   USE cp_dbcsr_api,                    ONLY: dbcsr_copy,&
                                               dbcsr_finalize,&
                                               dbcsr_get_block_p,&
                                               dbcsr_p_type,&
                                               dbcsr_type
+   USE cp_dbcsr_operations,             ONLY: dbcsr_deallocate_matrix_set
    USE gaussian_gridlevels,             ONLY: gridlevel_info_type
    USE grid_api,                        ONLY: grid_integrate_task_list,&
                                               integrate_pgf_product
@@ -54,7 +54,7 @@ MODULE qs_integrate_potential_product
    USE particle_types,                  ONLY: particle_type
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_type
-   USE pw_types,                        ONLY: pw_type
+   USE pw_types,                        ONLY: pw_r3d_rs_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_force_types,                  ONLY: qs_force_type
@@ -106,7 +106,7 @@ CONTAINS
 !> \param lambda The atom index.
 ! **************************************************************************************************
    SUBROUTINE integrate_v_dbasis(v_rspace, matrix_vhxc_dbasis, matrix_p, qs_env, lambda)
-      TYPE(pw_type), INTENT(IN)                          :: v_rspace
+      TYPE(pw_r3d_rs_type), INTENT(IN)                   :: v_rspace
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_vhxc_dbasis
       TYPE(dbcsr_type), POINTER                          :: matrix_p
       TYPE(qs_environment_type), POINTER                 :: qs_env
@@ -575,7 +575,7 @@ CONTAINS
                                  qs_env, calculate_forces, force_adm, &
                                  compute_tau, gapw, basis_type, pw_env_external, task_list_external)
 
-      TYPE(pw_type), INTENT(IN)                          :: v_rspace
+      TYPE(pw_r3d_rs_type), INTENT(IN)                   :: v_rspace
       TYPE(dbcsr_p_type), INTENT(INOUT), OPTIONAL        :: hmat
       TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: hmat_kp

@@ -16,6 +16,7 @@ MODULE qs_linres_epr_nablavks
                                               get_atomic_kind
    USE cell_types,                      ONLY: cell_type
    USE cp_control_types,                ONLY: dft_control_type
+   USE cp_dbcsr_api,                    ONLY: dbcsr_p_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_p_file,&
@@ -23,7 +24,6 @@ MODULE qs_linres_epr_nablavks
                                               cp_print_key_should_output,&
                                               cp_print_key_unit_nr
    USE cp_realspace_grid_cube,          ONLY: cp_pw_to_cube
-   USE dbcsr_api,                       ONLY: dbcsr_p_type
    USE external_potential_types,        ONLY: all_potential_type,&
                                               get_potential,&
                                               gth_potential_type,&
@@ -50,11 +50,8 @@ MODULE qs_linres_epr_nablavks
    USE pw_poisson_methods,              ONLY: pw_poisson_solve
    USE pw_poisson_types,                ONLY: pw_poisson_type
    USE pw_pool_types,                   ONLY: pw_pool_type
-   USE pw_types,                        ONLY: COMPLEXDATA1D,&
-                                              REALDATA3D,&
-                                              REALSPACE,&
-                                              RECIPROCALSPACE,&
-                                              pw_type
+   USE pw_types,                        ONLY: pw_c1d_gs_type,&
+                                              pw_r3d_rs_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_gapw_densities,               ONLY: prepare_gapw_den
@@ -141,14 +138,17 @@ CONTAINS
       TYPE(oce_matrix_type), POINTER                     :: oce
       TYPE(particle_list_type), POINTER                  :: particles
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(pw_c1d_gs_type)                               :: rho_tot_gspace, v_coulomb_gspace, &
+                                                            v_coulomb_gtemp, v_hartree_gspace, &
+                                                            v_hartree_gtemp, v_xc_gtemp
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type) :: rho_tot_gspace, v_coulomb_gspace, v_coulomb_gtemp, v_coulomb_rtemp, &
-         v_hartree_gspace, v_hartree_gtemp, v_hartree_rtemp, v_xc_gtemp, v_xc_rtemp, wf_r
-      TYPE(pw_type), DIMENSION(:), POINTER               :: rho1_r, rho2_r, rho_r, v_rspace_new, &
+      TYPE(pw_r3d_rs_type)                               :: v_coulomb_rtemp, v_hartree_rtemp, &
+                                                            v_xc_rtemp, wf_r
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: rho1_r, rho2_r, rho_r, v_rspace_new, &
                                                             v_tau_rspace
-      TYPE(pw_type), POINTER                             :: pwx, pwy, pwz
+      TYPE(pw_r3d_rs_type), POINTER                      :: pwx, pwy, pwz
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_p_type), DIMENSION(:, :), POINTER      :: nablavks_set
@@ -280,14 +280,10 @@ CONTAINS
 !   Add Hartree potential
 !   -------------------------------------
 
-      CALL auxbas_pw_pool%create_pw(v_hartree_gspace, &
-                                    use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
-      CALL auxbas_pw_pool%create_pw(v_hartree_gtemp, &
-                                    use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
-      CALL auxbas_pw_pool%create_pw(v_hartree_rtemp, &
-                                    use_data=REALDATA3D, in_space=REALSPACE)
-      CALL auxbas_pw_pool%create_pw(rho_tot_gspace, &
-                                    use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+      CALL auxbas_pw_pool%create_pw(v_hartree_gspace)
+      CALL auxbas_pw_pool%create_pw(v_hartree_gtemp)
+      CALL auxbas_pw_pool%create_pw(v_hartree_rtemp)
+      CALL auxbas_pw_pool%create_pw(rho_tot_gspace)
 
       IF (gapw) THEN
          ! need to rebuild the coeff !
@@ -349,9 +345,9 @@ CONTAINS
                !
                !       gtemp = gtemp * CMPLX(COS(arg),-SIN(arg),KIND=dp)
                !
-               !       v_hartree_gspace%cc(ig) = v_hartree_gspace%cc(ig) + gtemp
+               !       v_hartree_gspace%array(ig) = v_hartree_gspace%array(ig) + gtemp
                !    END DO
-               !    IF ( v_hartree_gspace%pw_grid%have_g0 ) v_hartree_gspace%cc(1) = 0.0_dp
+               !    IF ( v_hartree_gspace%pw_grid%have_g0 ) v_hartree_gspace%array(1) = 0.0_dp
                !
                ! END DO
 
@@ -502,12 +498,9 @@ CONTAINS
 
             IF (gth_gspace) THEN
 
-               CALL auxbas_pw_pool%create_pw(v_coulomb_gspace, &
-                                             use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
-               CALL auxbas_pw_pool%create_pw(v_coulomb_gtemp, &
-                                             use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
-               CALL auxbas_pw_pool%create_pw(v_coulomb_rtemp, &
-                                             use_data=REALDATA3D, in_space=REALSPACE)
+               CALL auxbas_pw_pool%create_pw(v_coulomb_gspace)
+               CALL auxbas_pw_pool%create_pw(v_coulomb_gtemp)
+               CALL auxbas_pw_pool%create_pw(v_coulomb_rtemp)
 
                CALL pw_zero(v_coulomb_gspace)
 
@@ -582,9 +575,9 @@ CONTAINS
                      arg = DOT_PRODUCT(v_coulomb_gspace%pw_grid%g(:, ig), ratom)
 
                      gtemp = gtemp*CMPLX(COS(arg), -SIN(arg), KIND=dp)
-                     v_coulomb_gspace%cc(ig) = v_coulomb_gspace%cc(ig) + gtemp
+                     v_coulomb_gspace%array(ig) = v_coulomb_gspace%array(ig) + gtemp
                   END DO
-                  IF (v_coulomb_gspace%pw_grid%have_g0) v_coulomb_gspace%cc(1) = 0.0_dp
+                  IF (v_coulomb_gspace%pw_grid%have_g0) v_coulomb_gspace%array(1) = 0.0_dp
 
                END DO
 
@@ -613,9 +606,9 @@ CONTAINS
                ! bo(2)
                ! bo = get_limit(natom, para_env%num_pe, para_env%mepos)
                ! DO iat =  bo(1),bo(2) ! natom = # atoms for ikind
-               ! DO ix = lbound(pwx%cr3d,1), ubound(pwx%cr3d,1)
-               ! DO iy = lbound(pwx%cr3d,2), ubound(pwx%cr3d,2)
-               ! DO iz = lbound(pwx%cr3d,3), ubound(pwx%cr3d,3)
+               ! DO ix = lbound(pwx%array,1), ubound(pwx%array,1)
+               ! DO iy = lbound(pwx%array,2), ubound(pwx%array,2)
+               ! DO iz = lbound(pwx%array,3), ubound(pwx%array,3)
 
                bo = pwx%pw_grid%bounds_local
 
@@ -640,66 +633,66 @@ CONTAINS
                            sqrt_rap = MAX(sqrt_rap, 1.e-10_dp)
                            ! d_x
 
-                           pwx%cr3d(ix, iy, iz) = pwx%cr3d(ix, iy, iz) + charge*( &
-                                                  -2.0_dp*sqrt_alpha*EXP(-sqrt_rap**2*sqrt_alpha**2)*rap(1) &
-                                                  /(rootpi*sqrt_rap**2) &
-                                                  + erf(sqrt_rap*sqrt_alpha)*rap(1) &
-                                                  /sqrt_rap**3)
+                           pwx%array(ix, iy, iz) = pwx%array(ix, iy, iz) + charge*( &
+                                                   -2.0_dp*sqrt_alpha*EXP(-sqrt_rap**2*sqrt_alpha**2)*rap(1) &
+                                                   /(rootpi*sqrt_rap**2) &
+                                                   + erf(sqrt_rap*sqrt_alpha)*rap(1) &
+                                                   /sqrt_rap**3)
 
                            ! d_y
 
-                           pwy%cr3d(ix, iy, iz) = pwy%cr3d(ix, iy, iz) + charge*( &
-                                                  -2.0_dp*sqrt_alpha*EXP(-sqrt_rap**2*sqrt_alpha**2)*rap(2) &
-                                                  /(rootpi*sqrt_rap**2) &
-                                                  + erf(sqrt_rap*sqrt_alpha)*rap(2) &
-                                                  /sqrt_rap**3)
+                           pwy%array(ix, iy, iz) = pwy%array(ix, iy, iz) + charge*( &
+                                                   -2.0_dp*sqrt_alpha*EXP(-sqrt_rap**2*sqrt_alpha**2)*rap(2) &
+                                                   /(rootpi*sqrt_rap**2) &
+                                                   + erf(sqrt_rap*sqrt_alpha)*rap(2) &
+                                                   /sqrt_rap**3)
 
                            ! d_z
 
-                           pwz%cr3d(ix, iy, iz) = pwz%cr3d(ix, iy, iz) + charge*( &
-                                                  -2.0_dp*sqrt_alpha*EXP(-sqrt_rap**2*sqrt_alpha**2)*rap(3) &
-                                                  /(rootpi*sqrt_rap**2) &
-                                                  + erf(sqrt_rap*sqrt_alpha)*rap(3) &
-                                                  /sqrt_rap**3)
+                           pwz%array(ix, iy, iz) = pwz%array(ix, iy, iz) + charge*( &
+                                                   -2.0_dp*sqrt_alpha*EXP(-sqrt_rap**2*sqrt_alpha**2)*rap(3) &
+                                                   /(rootpi*sqrt_rap**2) &
+                                                   + erf(sqrt_rap*sqrt_alpha)*rap(3) &
+                                                   /sqrt_rap**3)
 
                            IF (make_soft) CYCLE
 
                            ! d_x
 
                            DO iexp = 1, nexp_ppl
-                              pwx%cr3d(ix, iy, iz) = pwx%cr3d(ix, iy, iz) + ( &
-                                                     -2.0_dp*alpha*rap(1)*exp_rap* &
-                                                     cexp_ppl(iexp)*(sqrt_rap**2)**(iexp - 1))
+                              pwx%array(ix, iy, iz) = pwx%array(ix, iy, iz) + ( &
+                                                      -2.0_dp*alpha*rap(1)*exp_rap* &
+                                                      cexp_ppl(iexp)*(sqrt_rap**2)**(iexp - 1))
                               IF (iexp > 1) THEN
-                                 pwx%cr3d(ix, iy, iz) = pwx%cr3d(ix, iy, iz) + ( &
-                                                        2.0_dp*exp_rap*cexp_ppl(iexp)* &
-                                                        (sqrt_rap**2)**(iexp - 2)*REAL(iexp - 1, dp)*rap(1))
+                                 pwx%array(ix, iy, iz) = pwx%array(ix, iy, iz) + ( &
+                                                         2.0_dp*exp_rap*cexp_ppl(iexp)* &
+                                                         (sqrt_rap**2)**(iexp - 2)*REAL(iexp - 1, dp)*rap(1))
                               END IF
                            END DO
 
                            ! d_y
 
                            DO iexp = 1, nexp_ppl
-                              pwy%cr3d(ix, iy, iz) = pwy%cr3d(ix, iy, iz) + ( &
-                                                     -2.0_dp*alpha*rap(2)*exp_rap* &
-                                                     cexp_ppl(iexp)*(sqrt_rap**2)**(iexp - 1))
+                              pwy%array(ix, iy, iz) = pwy%array(ix, iy, iz) + ( &
+                                                      -2.0_dp*alpha*rap(2)*exp_rap* &
+                                                      cexp_ppl(iexp)*(sqrt_rap**2)**(iexp - 1))
                               IF (iexp > 1) THEN
-                                 pwy%cr3d(ix, iy, iz) = pwy%cr3d(ix, iy, iz) + ( &
-                                                        2.0_dp*exp_rap*cexp_ppl(iexp)* &
-                                                        (sqrt_rap**2)**(iexp - 2)*REAL(iexp - 1, dp)*rap(2))
+                                 pwy%array(ix, iy, iz) = pwy%array(ix, iy, iz) + ( &
+                                                         2.0_dp*exp_rap*cexp_ppl(iexp)* &
+                                                         (sqrt_rap**2)**(iexp - 2)*REAL(iexp - 1, dp)*rap(2))
                               END IF
                            END DO
 
                            ! d_z
 
                            DO iexp = 1, nexp_ppl
-                              pwz%cr3d(ix, iy, iz) = pwz%cr3d(ix, iy, iz) + ( &
-                                                     -2.0_dp*alpha*rap(3)*exp_rap* &
-                                                     cexp_ppl(iexp)*(sqrt_rap**2)**(iexp - 1))
+                              pwz%array(ix, iy, iz) = pwz%array(ix, iy, iz) + ( &
+                                                      -2.0_dp*alpha*rap(3)*exp_rap* &
+                                                      cexp_ppl(iexp)*(sqrt_rap**2)**(iexp - 1))
                               IF (iexp > 1) THEN
-                                 pwz%cr3d(ix, iy, iz) = pwz%cr3d(ix, iy, iz) + ( &
-                                                        2.0_dp*exp_rap*cexp_ppl(iexp)* &
-                                                        (sqrt_rap**2)**(iexp - 2)*REAL(iexp - 1, dp)*rap(3))
+                                 pwz%array(ix, iy, iz) = pwz%array(ix, iy, iz) + ( &
+                                                         2.0_dp*exp_rap*cexp_ppl(iexp)* &
+                                                         (sqrt_rap**2)**(iexp - 2)*REAL(iexp - 1, dp)*rap(3))
                               END IF
                            END DO
 
@@ -848,10 +841,8 @@ CONTAINS
 !   Add V_xc potential
 !   -------------------------------------
 
-      CALL auxbas_pw_pool%create_pw(v_xc_gtemp, &
-                                    use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
-      CALL auxbas_pw_pool%create_pw(v_xc_rtemp, &
-                                    use_data=REALDATA3D, in_space=REALSPACE)
+      CALL auxbas_pw_pool%create_pw(v_xc_gtemp)
+      CALL auxbas_pw_pool%create_pw(v_xc_rtemp)
 
       xc_section => section_vals_get_subs_vals(input, "PROPERTIES%LINRES%EPR%PRINT%G_TENSOR%XC")
       ! a possible vdW section in xc_section will be ignored
@@ -936,9 +927,7 @@ CONTAINS
 
       IF (BTEST(cp_print_key_should_output(logger%iter_info, lr_section, &
                                            "EPR%PRINT%NABLAVKS_CUBES"), cp_p_file)) THEN
-         CALL auxbas_pw_pool%create_pw(wf_r, &
-                                       use_data=REALDATA3D, &
-                                       in_space=REALSPACE)
+         CALL auxbas_pw_pool%create_pw(wf_r)
          DO idir = 1, 3
             CALL pw_zero(wf_r)
             CALL qs_rho_get(nablavks_set(idir, 1)%rho, rho_r=rho_r)

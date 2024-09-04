@@ -56,7 +56,7 @@ CONTAINS
       INTEGER                                  :: handle, info, my_n
       REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a
       REAL(KIND=sp), DIMENSION(:, :), POINTER  :: a_sp
-#if defined(__SCALAPACK)
+#if defined(__parallel)
       INTEGER, DIMENSION(9)                    :: desca
 #endif
 
@@ -72,7 +72,7 @@ CONTAINS
       a => matrix%local_data
       a_sp => matrix%local_data_sp
 
-#if defined(__SCALAPACK)
+#if defined(__parallel)
       desca(:) = matrix%matrix_struct%descriptor(:)
 #if defined(__DLAF)
       IF (matrix%use_sp) THEN
@@ -128,7 +128,7 @@ CONTAINS
       REAL(KIND=sp), DIMENSION(:, :), POINTER  :: a_sp
       INTEGER                                   :: info, handle
       INTEGER                                   :: my_n
-#if defined(__SCALAPACK)
+#if defined(__parallel)
       INTEGER, DIMENSION(9)                     :: desca
 #endif
 
@@ -144,7 +144,7 @@ CONTAINS
       a => matrix%local_data
       a_sp => matrix%local_data_sp
 
-#if defined(__SCALAPACK)
+#if defined(__parallel)
 
       desca(:) = matrix%matrix_struct%descriptor(:)
 
@@ -196,7 +196,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a, b
       INTEGER                                   :: info, handle
       INTEGER                                   :: n, my_itype
-#if defined(__SCALAPACK)
+#if defined(__parallel)
       REAL(KIND=dp)                             :: scale
       INTEGER, DIMENSION(9)                     :: desca, descb
 #endif
@@ -211,7 +211,7 @@ CONTAINS
       a => matrix%local_data
       b => matrixb%local_data
 
-#if defined(__SCALAPACK)
+#if defined(__parallel)
 
       desca(:) = matrix%matrix_struct%descriptor(:)
       descb(:) = matrixb%matrix_struct%descriptor(:)
@@ -266,7 +266,7 @@ CONTAINS
       INTEGER                                   :: myprow, mypcol
       TYPE(cp_blacs_env_type), POINTER          :: context
       CHARACTER                                 :: chol_pos, chol_transa
-#if defined(__SCALAPACK)
+#if defined(__parallel)
       INTEGER                                   :: i
       INTEGER, DIMENSION(9)                     :: desca, descb, descout
 #endif
@@ -308,7 +308,7 @@ CONTAINS
       b_sp => matrixb%local_data_sp
       out_sp => matrixout%local_data_sp
 
-#if defined(__SCALAPACK)
+#if defined(__parallel)
 
       desca(:) = matrix%matrix_struct%descriptor(:)
       descb(:) = matrixb%matrix_struct%descriptor(:)

@@ -40,45 +40,45 @@ MODULE extended_system_types
 
 ! **************************************************************************************************
    TYPE npt_info_type
-      REAL(KIND=dp) :: eps
-      REAL(KIND=dp) :: v
-      REAL(KIND=dp) :: f
-      REAL(KIND=dp) :: mass
+      REAL(KIND=dp) :: eps = -1.0_dp
+      REAL(KIND=dp) :: v = -1.0_dp
+      REAL(KIND=dp) :: f = -1.0_dp
+      REAL(KIND=dp) :: mass = -1.0_dp
    END TYPE npt_info_type
 
 ! **************************************************************************************************
    TYPE nhc_info_type
-      INTEGER        :: degrees_of_freedom
-      REAL(KIND=dp) :: eta
-      REAL(KIND=dp) :: v
-      REAL(KIND=dp) :: f
-      REAL(KIND=dp) :: nkt
-      REAL(KIND=dp) :: mass
+      INTEGER        :: degrees_of_freedom = -1
+      REAL(KIND=dp) :: eta = -1.0_dp
+      REAL(KIND=dp) :: v = -1.0_dp
+      REAL(KIND=dp) :: f = -1.0_dp
+      REAL(KIND=dp) :: nkt = -1.0_dp
+      REAL(KIND=dp) :: mass = -1.0_dp
    END TYPE nhc_info_type
 
 ! **************************************************************************************************
    TYPE point_info_type
-      REAL(KIND=dp), POINTER :: point
+      REAL(KIND=dp), POINTER :: point => NULL()
    END TYPE point_info_type
 
 ! **************************************************************************************************
    TYPE map_info_type
-      INTEGER                                         :: dis_type
-      INTEGER, POINTER, DIMENSION(:)                  :: index, map_index
-      REAL(KIND=dp), POINTER, DIMENSION(:)           :: v_scale
-      REAL(KIND=dp), POINTER, DIMENSION(:)           :: s_kin
-      TYPE(point_info_type), POINTER, DIMENSION(:, :) :: p_scale
-      TYPE(point_info_type), POINTER, DIMENSION(:, :) :: p_kin
+      INTEGER                                         :: dis_type = -1
+      INTEGER, POINTER, DIMENSION(:)                  :: index => NULL(), map_index => NULL()
+      REAL(KIND=dp), POINTER, DIMENSION(:)           :: v_scale => NULL()
+      REAL(KIND=dp), POINTER, DIMENSION(:)           :: s_kin => NULL()
+      TYPE(point_info_type), POINTER, DIMENSION(:, :) :: p_scale => NULL()
+      TYPE(point_info_type), POINTER, DIMENSION(:, :) :: p_kin => NULL()
    END TYPE map_info_type
 
 ! **************************************************************************************************
    TYPE lnhc_parameters_type
-      INTEGER                                 :: nyosh, nc, nhc_len
-      INTEGER                                 :: glob_num_nhc, loc_num_nhc, region
-      REAL(KIND=dp)                           :: tau_nhc, dt_fact
-      REAL(KIND=dp), POINTER                  :: dt_yosh(:)
-      TYPE(nhc_info_type), POINTER            :: nvt(:, :)
-      TYPE(map_info_type), POINTER            :: map_info
+      INTEGER                                 :: nyosh = -1, nc = -1, nhc_len = -1
+      INTEGER                                 :: glob_num_nhc = -1, loc_num_nhc = -1, region = -1
+      REAL(KIND=dp)                           :: tau_nhc = -1.0_dp, dt_fact = -1.0_dp
+      REAL(KIND=dp), POINTER                  :: dt_yosh(:) => NULL()
+      TYPE(nhc_info_type), POINTER            :: nvt(:, :) => NULL()
+      TYPE(map_info_type), POINTER            :: map_info => NULL()
    END TYPE lnhc_parameters_type
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'extended_system_types'

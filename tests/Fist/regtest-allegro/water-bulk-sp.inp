@@ -1,0 +1,57 @@
+&GLOBAL
+  PRINT_LEVEL LOW
+  PROJECT water
+  RUN_TYPE MD
+&END GLOBAL
+
+&MOTION
+  &MD
+    ENSEMBLE NVT
+    STEPS 0
+    TEMPERATURE 300
+    TIMESTEP 0.5
+    &THERMOSTAT
+      &CSVR
+        TIMECON 10
+      &END CSVR
+    &END THERMOSTAT
+  &END MD
+&END MOTION
+
+&FORCE_EVAL
+  METHOD FIST
+  &MM
+    &FORCEFIELD
+      &NONBONDED
+        &ALLEGRO
+          ATOMS H O
+          PARM_FILE_NAME Allegro/gra-water-deployed-neq060sp.pth
+          UNIT_COORDS angstrom
+          UNIT_ENERGY eV
+          UNIT_FORCES eV*angstrom^-1
+        &END ALLEGRO
+      &END NONBONDED
+    &END FORCEFIELD
+    &POISSON
+      &EWALD
+        EWALD_TYPE none
+      &END EWALD
+    &END POISSON
+  &END MM
+  &PRINT
+    &FORCES
+    &END FORCES
+  &END PRINT
+  &SUBSYS
+    &CELL
+      A 9.8528 0.0 0.0
+      B 0.0 9.8528 0.0
+      C 0.0 0.0 9.8528
+    &END CELL
+    &TOPOLOGY
+      COORD_FILE_FORMAT XYZ
+      #     coordinates must be ordered by atomic number
+      COORD_FILE_NAME ../regtest-nequip/water-bulk.xyz
+    &END TOPOLOGY
+  &END SUBSYS
+&END FORCE_EVAL

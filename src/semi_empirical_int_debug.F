@@ -35,11 +35,19 @@ SUBROUTINE check_rotmat_der(sepi, sepj, rjiv, ij_matrix, do_invert)
    CHARACTER(len=*), PARAMETER :: moduleN = 'semi_empirical_int_debug', &
                                   routineN = 'check_rotmat_der', routineP = moduleN//':'//routineN
 
-   LOGICAL                                  :: check_value
    REAL(KIND=dp)                            :: dx, r, r0(3), x(3)
    TYPE(rotmat_type), POINTER               :: matrix, matrix_m, matrix_n, &
                                                matrix_p
    INTEGER                                  :: imap(3), i, j, k, l
+
+   INTERFACE
+      FUNCTION check_value(num, ana, minval, thrs) RESULT(passed)
+         USE kinds, ONLY: dp
+         IMPLICIT NONE
+         REAL(KIND=dp)                            :: num, ana, thrs, minval
+         LOGICAL                                  :: passed
+      END FUNCTION check_value
+   END INTERFACE
 
    NULLIFY (matrix_m, matrix_p, matrix_n, matrix)
    CALL rotmat_create(matrix_p)
@@ -179,10 +187,18 @@ SUBROUTINE rot_2el_2c_first_debug(sepi, sepj, rijv, se_int_control, se_taper, in
    LOGICAL, DIMENSION(45, 45)               :: logv
    REAL(KIND=dp), DIMENSION(45, 45)         :: v_n, v_p, v_m
 
-   LOGICAL                                  :: check_value
    REAL(KIND=dp)                            :: dx, r, r0(3), x(3)
    TYPE(rotmat_type), POINTER               :: matrix
    INTEGER                                  :: imap(3), i, j, k, limkl
+
+   INTERFACE
+      FUNCTION check_value(num, ana, minval, thrs) RESULT(passed)
+         USE kinds, ONLY: dp
+         IMPLICIT NONE
+         REAL(KIND=dp)                            :: num, ana, thrs, minval
+         LOGICAL                                  :: passed
+      END FUNCTION check_value
+   END INTERFACE
 
    NULLIFY (matrix)
    dx = 1.0E-6_dp
@@ -269,7 +285,15 @@ SUBROUTINE check_dssss_nucint_ana(sepi, sepj, r, dssss, itype, se_int_control, s
                                   routineN = 'check_dssss_nucint_ana', routineP = moduleN//':'//routineN
 
    REAL(dp)                                 :: delta, nssss, od, rn, ssssm, ssssp
-   LOGICAL                                  :: check_value
+
+   INTERFACE
+      FUNCTION check_value(num, ana, minval, thrs) RESULT(passed)
+         USE kinds, ONLY: dp
+         IMPLICIT NONE
+         REAL(KIND=dp)                            :: num, ana, thrs, minval
+         LOGICAL                                  :: passed
+      END FUNCTION check_value
+   END INTERFACE
 
    delta = 1.0E-8_dp
    od = 0.5_dp/delta
@@ -323,7 +347,15 @@ SUBROUTINE check_dcore_nucint_ana(sepi, sepj, r, dcore, itype, se_int_control, s
    INTEGER                                  :: i, j
    REAL(dp)                                 :: delta, od, rn
    REAL(dp), DIMENSION(10, 2)               :: corem, corep, ncore
-   LOGICAL                                  :: check_value
+
+   INTERFACE
+      FUNCTION check_value(num, ana, minval, thrs) RESULT(passed)
+         USE kinds, ONLY: dp
+         IMPLICIT NONE
+         REAL(KIND=dp)                            :: num, ana, thrs, minval
+         LOGICAL                                  :: passed
+      END FUNCTION check_value
+   END INTERFACE
 
    delta = 1.0E-8_dp
    od = 0.5_dp/delta
@@ -426,10 +458,19 @@ SUBROUTINE check_drotnuc_ana(sepi, sepj, rijv, itype, se_int_control, se_taper, 
 
    INTEGER                                  :: i, j
    LOGICAL                                  :: l_de1b, l_de2a, l_e1b, l_e2a, &
-                                               lgrad, check_value
+                                               lgrad
    REAL(dp)                                 :: delta
    REAL(KIND=dp), DIMENSION(45)             :: e1b2, e2a2
    REAL(KIND=dp), DIMENSION(3, 45)          :: de1b2, de2a2
+
+   INTERFACE
+      FUNCTION check_value(num, ana, minval, thrs) RESULT(passed)
+         USE kinds, ONLY: dp
+         IMPLICIT NONE
+         REAL(KIND=dp)                            :: num, ana, thrs, minval
+         LOGICAL                                  :: passed
+      END FUNCTION check_value
+   END INTERFACE
 
    l_e1b = PRESENT(e1b)
    l_e2a = PRESENT(e2a)
@@ -528,10 +569,18 @@ SUBROUTINE check_dcorecore_ana(sepi, sepj, rijv, itype, se_int_control, se_taper
    CHARACTER(len=*), PARAMETER :: moduleN = 'semi_empirical_int_debug', &
                                   routineN = 'check_dcorecore_ana', routineP = moduleN//':'//routineN
 
-   LOGICAL                                  :: check_value
    INTEGER                                  :: j
    REAL(dp)                                 :: enuc_num, delta
    REAL(dp), DIMENSION(3)                   :: denuc_num
+
+   INTERFACE
+      FUNCTION check_value(num, ana, minval, thrs) RESULT(passed)
+         USE kinds, ONLY: dp
+         IMPLICIT NONE
+         REAL(KIND=dp)                            :: num, ana, thrs, minval
+         LOGICAL                                  :: passed
+      END FUNCTION check_value
+   END INTERFACE
 
    WRITE (*, *) "DEBUG::"//routineP
    delta = 1.0E-7_dp
@@ -589,10 +638,18 @@ SUBROUTINE check_dterep_ana(sepi, sepj, r, ri, dri, se_int_control, se_taper, lg
    CHARACTER(len=*), PARAMETER :: moduleN = 'semi_empirical_int_debug', &
                                   routineN = 'check_dterep_ana', routineP = moduleN//':'//routineN
 
-   LOGICAL                                  :: check_value
    INTEGER                                  :: j, i
    REAL(dp)                                 :: delta, od, rn
    REAL(dp), DIMENSION(491)                 :: nri, ri0, rim, rip
+
+   INTERFACE
+      FUNCTION check_value(num, ana, minval, thrs) RESULT(passed)
+         USE kinds, ONLY: dp
+         IMPLICIT NONE
+         REAL(KIND=dp)                            :: num, ana, thrs, minval
+         LOGICAL                                  :: passed
+      END FUNCTION check_value
+   END INTERFACE
 
    delta = 1.0E-8_dp
    od = 0.5_dp/delta
@@ -664,9 +721,17 @@ SUBROUTINE check_rotint_ana(sepi, sepj, rijv, w, dw, se_int_control, se_taper)
 
    REAL(dp), DIMENSION(2025)                :: w2
    REAL(dp), DIMENSION(3, 2025)             :: dw2
-   LOGICAL                                  :: check_value
    INTEGER                                  :: j, i
    REAL(KIND=dp)                            :: delta
+
+   INTERFACE
+      FUNCTION check_value(num, ana, minval, thrs) RESULT(passed)
+         USE kinds, ONLY: dp
+         IMPLICIT NONE
+         REAL(KIND=dp)                            :: num, ana, thrs, minval
+         LOGICAL                                  :: passed
+      END FUNCTION check_value
+   END INTERFACE
 
    delta = 1.0E-6_dp
    WRITE (*, *) "DEBUG::"//routineP

@@ -11,7 +11,7 @@
 !>      06.2019 Moved from rpa_ri_gpw [Frederick Stein]
 ! **************************************************************************************************
 MODULE rpa_gw_ic
-   USE dbcsr_api,                       ONLY: dbcsr_type
+   USE cp_dbcsr_api,                    ONLY: dbcsr_type
    USE dbt_api,                         ONLY: &
         dbt_contract, dbt_copy, dbt_copy_matrix_to_tensor, dbt_create, dbt_destroy, dbt_get_block, &
         dbt_get_info, dbt_iterator_blocks_left, dbt_iterator_next_block, dbt_iterator_start, &

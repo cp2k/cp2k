@@ -69,7 +69,10 @@ list(
   basis_set_output.F
   beta_gamma_psi.F
   block_p_types.F
-  bse.F
+  bse_main.F
+  bse_full_diag.F
+  bse_iterative.F
+  bse_util.F
   bsse.F
   cell_methods.F
   colvar_methods.F
@@ -113,6 +116,7 @@ list(
   ct_methods.F
   ct_types.F
   debug_os_integrals.F
+  deepmd_wrapper.F
   dft_plus_u.F
   dgemm_counter_types.F
   distribution_2d_types.F
@@ -205,10 +209,14 @@ list(
   grrm_utils.F
   gapw_1c_basis_set.F
   gw_communication.F
-  gw_methods.F
+  gw_main.F
+  gw_large_cell_gamma.F
+  gw_small_cell_full_kp.F
   post_scf_bandstructure_types.F
   post_scf_bandstructure_utils.F
   gw_utils.F
+  gw_integrals.F
+  gw_kp_to_real_space_and_back.F
   hartree_local_methods.F
   hartree_local_types.F
   header.F
@@ -238,6 +246,13 @@ list(
   input_cp2k_colvar.F
   input_cp2k_constraints.F
   input_cp2k_dft.F
+  input_cp2k_print_dft.F
+  input_cp2k_scf.F
+  input_cp2k_as.F
+  input_cp2k_opt.F
+  input_cp2k_qs.F
+  input_cp2k_se.F
+  input_cp2k_xas.F
   input_cp2k_distribution.F
   input_cp2k_ec.F
   input_cp2k_eip.F
@@ -282,6 +297,9 @@ list(
   iao_analysis.F
   iao_types.F
   ipi_driver.F
+  ipi_environment.F
+  ipi_environment_types.F
+  ipi_server.F
   iterate_matrix.F
   kg_correction.F
   kg_environment.F
@@ -293,6 +311,7 @@ list(
   kpoint_methods.F
   kpoint_transitional.F
   kpoint_types.F
+  kpsym.F
   libgrpp_integrals.F
   libint_2c_3c.F
   libint_wrapper.F
@@ -310,6 +329,7 @@ list(
   lri_optimize_ri_basis_types.F
   ls_matrix_exp.F
   manybody_eam.F
+  manybody_deepmd.F
   manybody_gal21.F
   manybody_gal.F
   manybody_allegro.F
@@ -480,6 +500,7 @@ list(
   qs_atomic_block.F
   qs_band_structure.F
   qs_basis_gradient.F
+  qs_basis_rotation_methods.F
   qs_block_davidson_types.F
   qs_cdft_methods.F
   qs_cdft_opt_types.F
@@ -509,6 +530,7 @@ list(
   qs_diis.F
   qs_diis_types.F
   qs_dispersion_nonloc.F
+  qs_dispersion_d4.F
   qs_dispersion_pairpot.F
   qs_dispersion_types.F
   qs_dispersion_utils.F
@@ -615,6 +637,7 @@ list(
   qs_neighbor_lists.F
   qs_neighbor_list_types.F
   qs_nl_hash_table_types.F
+  qs_nonscf.F
   qs_o3c_methods.F
   qs_o3c_types.F
   qs_oce_methods.F
@@ -700,7 +723,7 @@ list(
   restraint.F
   ri_environment_methods.F
   rmsd.F
-  rpa_axk.F
+  rpa_exchange.F
   rpa_communication.F
   rpa_grad.F
   rpa_gw.F
@@ -942,6 +965,8 @@ list(
   dbt/tas/dbt_tas_test.F
   dbt/tas/dbt_tas_types.F
   dbt/tas/dbt_tas_util.F)
+
+list(APPEND CP2K_SRCS_F dbx/cp_dbcsr_api.F)
 
 list(
   APPEND
@@ -1367,7 +1392,8 @@ set(CP2K_GRID_SRCS_HIP
     grid/hip/grid_hip_context.cu)
 
 set(CP2K_DBM_SRCS_GPU dbm/dbm_multiply_gpu_kernel.cu)
-set(CP2K_DBM_SRCS_GPU_C dbm/dbm_multiply_gpu.c)
+set(CP2K_DBM_SRCS_GPU_C dbm/dbm_multiply_opencl.c dbm/dbm_multiply_gpu.c)
+set(CP2K_DBM_SRCS_OPENCL dbm/dbm_multiply_opencl.cl)
 
 set(CP2K_PW_SRCS_GPU pw/gpu/pw_gpu_kernels.cu)
 
@@ -1508,8 +1534,7 @@ set_target_properties(
   PROPERTIES IMPORTED_LINK_INTERFACE_LANGUAGES "CXX"
              Fortran_MODULE_DIRECTORY mod_files
              POSITION_INDEPENDENT_CODE ON
-             VERSION ${cp2k_VERSION}
-             SOVERSION ${cp2k_APIVERSION})
+             VERSION ${cp2k_VERSION})
 
 if(CP2K_USE_ACCEL MATCHES "CUDA")
   set_property(TARGET cp2k PROPERTY CUDA_ARCHITECTURES
@@ -1544,17 +1569,22 @@ endif()
 
 add_library(cp2k_link_libs INTERFACE)
 
+include_directories(${DFTD4_DFTD4})
+include_directories(${DFTD4_MCTC})
+
 # the order is important so keep it that way
 target_link_libraries(
   cp2k_link_libs
   INTERFACE
+    $<$<BOOL:${CP2K_USE_DFTD4}>:dftd4::dftd4>
     $<$<BOOL:${CP2K_USE_SIRIUS}>:sirius::sirius>
     $<$<BOOL:${CP2K_USE_VORI}>:cp2k::VORI::vori>
     $<$<BOOL:${CP2K_USE_PEXSI}>:cp2k::PEXSI::pexsi>
     $<$<BOOL:${CP2K_USE_PEXSI}>:cp2k::ptscotch::ptscotch>
-    $<$<BOOL:${CP2K_USE_SPGLIB}>:cp2k::LIBSPG::libspg>
+    $<$<BOOL:${CP2K_USE_SPGLIB}>:Spglib::symspg>
     $<$<BOOL:${CP2K_USE_LIBXC}>:cp2k::Libxc::xc>
     $<$<BOOL:${CP2K_USE_ELPA}>:cp2k::ELPA::elpa>
+    $<$<BOOL:${CP2K_USE_PLUMED}>:cp2k::plumed::plumed>
     $<$<BOOL:${CP2K_USE_FFTW3_}>:cp2k::FFTW3::fftw3>
     $<$<AND:$<BOOL:${CP2K_USE_FFTW3_}>,$<BOOL:${CP2K_ENABLE_FFTW3_THREADS_SUPPORT}>>:cp2k::FFTW3::fftw3_threads>
     $<$<AND:$<BOOL:${CP2K_USE_FFTW3_}>,$<BOOL:${CP2K_ENABLE_FFTW3_OPENMP_SUPPORT}>>:cp2k::FFTW3::fftw3_omp>
@@ -1563,7 +1593,7 @@ target_link_libraries(
     $<$<BOOL:${CP2K_USE_TORCH}>:${TORCH_LIBRARIES}>
     $<$<BOOL:${CP2K_USE_COSMA}>:cosma::cosma_prefixed_pxgemm>
     $<$<BOOL:${CP2K_USE_COSMA}>:cosma::cosma>
-    $<$<BOOL:${CP2K_USE_DLAF}>:DLAF::DLAF>
+    $<$<BOOL:${CP2K_USE_DLAF}>:DLAF::Fortran>
     DBCSR::dbcsr
     $<$<BOOL:${CP2K_USE_MPI}>:cp2k::SCALAPACK::scalapack>
     cp2k_linalg_libs
@@ -1571,27 +1601,31 @@ target_link_libraries(
 
 string(TIMESTAMP CP2K_TIMESTAMP "%Y-%m-%d %H:%M:%S")
 
+if(CP2K_DATA_DIR STREQUAL "default")
+  set(CP2K_DATA_DIR "${CMAKE_INSTALL_FULL_DATAROOTDIR}/${PROJECT_NAME}/data")
+endif()
+
 target_link_libraries(cp2k PUBLIC cp2k_link_libs)
 target_compile_definitions(
   cp2k
   PUBLIC
     $<$<BOOL:${CP2K_USE_MPI}>:__parallel>
-    $<$<BOOL:${CP2K_USE_MPI}>:__SCALAPACK>
     $<$<BOOL:${CP2K_USE_MPI_F08}>:__MPI_F08>
     __COMPILE_DATE=\"${CP2K_TIMESTAMP}\"
     __COMPILE_HOST=\"${CP2K_HOST_NAME}\"
     __COMPILE_REVISION=\"${CP2K_GIT_HASH}\"
-    __DATA_DIR=\"${CMAKE_INSTALL_FULL_DATAROOTDIR}/cp2k/data\"
+    __DATA_DIR=\"${CP2K_DATA_DIR}\"
     __COMPILE_ARCH=\"${CMAKE_SYSTEM_PROCESSOR}\"
     $<$<CONFIG:COVERAGE>:__NO_ABORT>
     $<$<CONFIG:DEBUG>:__HAS_IEEE_EXCEPTIONS>
     $<$<CONFIG:DEBUG>:__CHECK_DIAG>
     $<$<BOOL:${CP2K_USE_PEXSI}>:__PEXSI>
-    $<$<BOOL:${CP2K_USE_PLUMED2}>:__PLUMED2>
+    $<$<BOOL:${CP2K_USE_PLUMED}>:__PLUMED2>
     $<$<BOOL:${CP2K_USE_QUIP}>:__QUIP>
     $<$<BOOL:${CP2K_USE_MAXWELL}>:__LIBMAXWELL>
     $<$<BOOL:${CP2K_USE_VORI}>:__LIBVORI>
     $<$<BOOL:${CP2K_USE_SPGLIB}>:__SPGLIB>
+    $<$<BOOL:${CP2K_USE_DFTD4}>:__DFTD4>
     $<$<BOOL:${CP2K_USE_SIRIUS}>:__SIRIUS>
     $<$<BOOL:${CP2K_USE_SPLA}>:__SPLA>
     $<$<BOOL:${CP2K_USE_SpFFT}>:__SPFFT>
@@ -1775,8 +1809,7 @@ install(
   INCLUDES
   DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/${PROJECT_NAME}")
 
-install(DIRECTORY "${CMAKE_SOURCE_DIR}/data"
-        DESTINATION "${CMAKE_INSTALL_FULL_DATAROOTDIR}/${PROJECT_NAME}")
+install(DIRECTORY "${CMAKE_SOURCE_DIR}/data/" DESTINATION "${CP2K_DATA_DIR}")
 
 # ##############################################################################
 # cp2kConfig.cmake, etc...

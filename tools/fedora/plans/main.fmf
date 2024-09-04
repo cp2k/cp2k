@@ -1,0 +1,6 @@
+adjust:
+  # TODO: use initiator == fedora-ci instead
+  when: initiator is not defined or initiator != packit
+  discover:
+    how: fmf
+    dist-git-source: true

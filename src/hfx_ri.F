@@ -21,6 +21,12 @@ MODULE hfx_ri
    USE cell_types,                      ONLY: cell_type
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_control_types,                ONLY: dft_control_type
+   USE cp_dbcsr_api,                    ONLY: &
+        dbcsr_add, dbcsr_add_on_diag, dbcsr_complete_redistribute, dbcsr_copy, dbcsr_create, &
+        dbcsr_desymmetrize, dbcsr_distribution_get, dbcsr_distribution_release, &
+        dbcsr_distribution_type, dbcsr_dot, dbcsr_filter, dbcsr_frobenius_norm, dbcsr_get_info, &
+        dbcsr_get_num_blocks, dbcsr_multiply, dbcsr_p_type, dbcsr_release, dbcsr_scale, &
+        dbcsr_type, dbcsr_type_antisymmetric, dbcsr_type_no_symmetry, dbcsr_type_symmetric
    USE cp_dbcsr_cholesky,               ONLY: cp_dbcsr_cholesky_decompose,&
                                               cp_dbcsr_cholesky_invert
    USE cp_dbcsr_diag,                   ONLY: cp_dbcsr_power
@@ -41,12 +47,6 @@ MODULE hfx_ri
                                               cp_print_key_finished_output,&
                                               cp_print_key_should_output,&
                                               cp_print_key_unit_nr
-   USE dbcsr_api,                       ONLY: &
-        dbcsr_add, dbcsr_add_on_diag, dbcsr_complete_redistribute, dbcsr_copy, dbcsr_create, &
-        dbcsr_desymmetrize, dbcsr_distribution_get, dbcsr_distribution_release, &
-        dbcsr_distribution_type, dbcsr_dot, dbcsr_filter, dbcsr_frobenius_norm, dbcsr_get_info, &
-        dbcsr_get_num_blocks, dbcsr_multiply, dbcsr_p_type, dbcsr_release, dbcsr_scale, &
-        dbcsr_type, dbcsr_type_antisymmetric, dbcsr_type_no_symmetry, dbcsr_type_symmetric
    USE dbt_api,                         ONLY: &
         dbt_batched_contract_finalize, dbt_batched_contract_init, dbt_clear, dbt_contract, &
         dbt_copy, dbt_copy_matrix_to_tensor, dbt_copy_tensor_to_matrix, dbt_create, &
@@ -2755,7 +2755,6 @@ CONTAINS
 
          CALL timeset(routineN//"_3c", handle)
          !Start looping of the batches
-         CALL dbt_batched_contract_init(t_R)
          DO i_mem = 1, n_mem
             ibounds(:, 1) = [batch_start(i_mem), batch_end(i_mem)]
 
@@ -2812,6 +2811,7 @@ CONTAINS
                   ijbounds(:, 2) = jbounds(:, 1)
 
                   !Contract R_PS = (acP) M_acS
+                  CALL dbt_batched_contract_init(t_R)
                   CALL dbt_contract(1.0_dp, t_3c_int_2, t_3c_3, 1.0_dp, t_R, &
                                     contract_1=[2, 3], notcontract_1=[1], &
                                     contract_2=[2, 3], notcontract_2=[1], &
@@ -2819,6 +2819,7 @@ CONTAINS
                                     bounds_1=ijbounds, bounds_3=kbounds, &
                                     unit_nr=unit_nr_dbcsr, flop=nflop)
                   ri_data%dbcsr_nflop = ri_data%dbcsr_nflop + nflop
+                  CALL dbt_batched_contract_finalize(t_R)
 
                END DO !k_mem
             END DO !j_mem
@@ -2873,7 +2874,6 @@ CONTAINS
             CALL dbt_clear(t_3c_help_1)
             CALL dbt_clear(t_3c_help_2)
          END DO !i_mem
-         CALL dbt_batched_contract_finalize(t_R)
          CALL timestop(handle)
 
          CALL timeset(routineN//"_2c", handle)

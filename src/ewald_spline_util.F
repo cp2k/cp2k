@@ -24,11 +24,10 @@ MODULE ewald_spline_util
                                               section_vals_type,&
                                               section_vals_val_get
    USE kinds,                           ONLY: dp
-   USE message_passing,                 ONLY: mp_para_env_type
+   USE message_passing,                 ONLY: mp_comm_self
    USE pw_grid_types,                   ONLY: HALFSPACE,&
                                               pw_grid_type
-   USE pw_grids,                        ONLY: pw_grid_create,&
-                                              pw_grid_setup
+   USE pw_grids,                        ONLY: pw_grid_create
    USE pw_methods,                      ONLY: pw_zero
    USE pw_pool_types,                   ONLY: pw_pool_create,&
                                               pw_pool_type
@@ -36,9 +35,7 @@ MODULE ewald_spline_util
         Eval_Interp_Spl3_pbc, Eval_d_Interp_Spl3_pbc, find_coeffs, pw_spline_do_precond, &
         pw_spline_precond_create, pw_spline_precond_release, pw_spline_precond_set_kind, &
         pw_spline_precond_type, spl3_pbc
-   USE pw_types,                        ONLY: REALDATA3D,&
-                                              REALSPACE,&
-                                              pw_type
+   USE pw_types,                        ONLY: pw_r3d_rs_type
 !NB parallelization
 #include "./base/base_uses.f90"
 
@@ -65,28 +62,26 @@ CONTAINS
 !> \param param_section ...
 !> \param tag ...
 !> \param print_section ...
-!> \param para_env ...
 !> \par History
 !>      12.2005 created [tlaino]
 !> \author Teodoro Laino
 ! **************************************************************************************************
    SUBROUTINE Setup_Ewald_Spline(pw_grid, pw_pool, coeff, LG, gx, gy, gz, hmat, npts, &
-                                 param_section, tag, print_section, para_env)
+                                 param_section, tag, print_section)
       TYPE(pw_grid_type), POINTER                        :: pw_grid
       TYPE(pw_pool_type), POINTER                        :: pw_pool
-      TYPE(pw_type), POINTER                             :: coeff
+      TYPE(pw_r3d_rs_type), POINTER                      :: coeff
       REAL(KIND=dp), DIMENSION(:), POINTER               :: LG, gx, gy, gz
       REAL(KIND=dp), INTENT(IN)                          :: hmat(3, 3)
       INTEGER, INTENT(IN)                                :: npts(3)
       TYPE(section_vals_type), POINTER                   :: param_section
       CHARACTER(LEN=*), INTENT(IN)                       :: tag
       TYPE(section_vals_type), POINTER                   :: print_section
-      TYPE(mp_para_env_type), POINTER                    :: para_env
 
       INTEGER                                            :: bo(2, 3), iounit
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(pw_type)                                      :: pw
+      TYPE(pw_r3d_rs_type)                               :: pw
 
 !
 ! Setting Up Fit Procedure
@@ -98,21 +93,20 @@ CONTAINS
       NULLIFY (cell)
 
       CALL cell_create(cell, hmat=hmat, periodic=(/1, 1, 1/))
-      CALL pw_grid_create(pw_grid, para_env, local=.TRUE.)
       logger => cp_get_default_logger()
       iounit = cp_print_key_unit_nr(logger, print_section, "", &
                                     extension=".Log")
       bo(1, 1:3) = 0
       bo(2, 1:3) = npts(1:3) - 1
-      CALL pw_grid_setup(cell%hmat, pw_grid, grid_span=HALFSPACE, bounds=bo, iounit=iounit)
+      CALL pw_grid_create(pw_grid, mp_comm_self, cell%hmat, grid_span=HALFSPACE, bounds=bo, iounit=iounit)
 
       CALL cp_print_key_finished_output(iounit, logger, print_section, &
                                         "")
       ! pw_pool initialized
       CALL pw_pool_create(pw_pool, pw_grid=pw_grid)
       ALLOCATE (coeff)
-      CALL pw_pool%create_pw(pw, use_data=REALDATA3D, in_space=REALSPACE)
-      CALL pw_pool%create_pw(coeff, use_data=REALDATA3D, in_space=REALSPACE)
+      CALL pw_pool%create_pw(pw)
+      CALL pw_pool%create_pw(coeff)
       ! Evaluate function on grid
       CALL eval_pw_TabLR(pw, pw_pool, coeff, Lg, gx, gy, gz, hmat_mm=hmat, &
                          param_section=param_section, tag=tag)
@@ -140,9 +134,9 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE eval_pw_TabLR(grid, pw_pool, TabLR, Lg, gx, gy, gz, hmat_mm, &
                             param_section, tag)
-      TYPE(pw_type), INTENT(INOUT)                       :: grid
+      TYPE(pw_r3d_rs_type), INTENT(INOUT)                :: grid
       TYPE(pw_pool_type), POINTER                        :: pw_pool
-      TYPE(pw_type), POINTER                             :: TabLR
+      TYPE(pw_r3d_rs_type), POINTER                      :: TabLR
       REAL(KIND=dp), DIMENSION(:), POINTER               :: Lg, gx, gy, gz
       REAL(KIND=dp), DIMENSION(3, 3)                     :: hmat_mm
       TYPE(section_vals_type), POINTER                   :: param_section
@@ -223,15 +217,15 @@ CONTAINS
 
       !NB use DGEMM to compute sum over kg for each i, j, k
       ! number of elements per node, round down
-      NLg_loc = SIZE(Lg)/grid%pw_grid%para%group_size
+      NLg_loc = SIZE(Lg)/grid%pw_grid%para%group%num_pe
       ! number of extra elements not yet accounted for
-      n_extra = MOD(SIZE(Lg), grid%pw_grid%para%group_size)
+      n_extra = MOD(SIZE(Lg), grid%pw_grid%para%group%num_pe)
       ! first n_extra nodes get NLg_loc+1, remaining get NLg_loc
-      IF (grid%pw_grid%para%my_pos < n_extra) THEN
-         Lg_loc_min = (NLg_loc + 1)*grid%pw_grid%para%my_pos + 1
+      IF (grid%pw_grid%para%group%mepos < n_extra) THEN
+         Lg_loc_min = (NLg_loc + 1)*grid%pw_grid%para%group%mepos + 1
          Lg_loc_max = Lg_loc_min + (NLg_loc + 1) - 1
       ELSE
-         Lg_loc_min = (NLg_loc + 1)*n_extra + NLg_loc*(grid%pw_grid%para%my_pos - n_extra) + 1
+         Lg_loc_min = (NLg_loc + 1)*n_extra + NLg_loc*(grid%pw_grid%para%group%mepos - n_extra) + 1
          Lg_loc_max = Lg_loc_min + NLg_loc - 1
       END IF
       ! shouldn't be necessary
@@ -259,7 +253,7 @@ CONTAINS
                                                    sin_gy(Lg_loc_min:Lg_loc_max, j)*sin_gz(Lg_loc_min:Lg_loc_max, k)
             END DO
             CALL DGEMM('N', 'T', act_nx, act_ny, NLg_loc, 1.0D0, lhs(1, 1), act_nx, rhs(1, 1), act_ny, 0.0D0, &
-                       grid%cr3d(gbo(1, 1), gbo(1, 2), k), SIZE(grid%cr3d, 1))
+                       grid%array(gbo(1, 1), gbo(1, 2), k), SIZE(grid%array, 1))
          END DO
 
          ! do sin(gx) sin(gy+gz) term
@@ -275,7 +269,7 @@ CONTAINS
                                                    sin_gy(Lg_loc_min:Lg_loc_max, j)*cos_gz(Lg_loc_min:Lg_loc_max, k)
             END DO
             CALL DGEMM('N', 'T', act_nx, act_ny, NLg_loc, 1.0D0, lhs(1, 1), act_nx, rhs(1, 1), act_ny, 1.0D0, &
-                       grid%cr3d(gbo(1, 1), gbo(1, 2), k), SIZE(grid%cr3d, 1))
+                       grid%array(gbo(1, 1), gbo(1, 2), k), SIZE(grid%array, 1))
          END DO
 
          !NB deallocate temporaries for DGEMM use
@@ -290,10 +284,10 @@ CONTAINS
          DEALLOCATE (sin_gz)
          !NB parallelization
       ELSE ! no work for this node, just zero contribution
-         grid%cr3d(gbo(1, 1):nxlim, gbo(1, 2):nylim, gbo(1, 3):nzlim) = 0.0_dp
+         grid%array(gbo(1, 1):nxlim, gbo(1, 2):nylim, gbo(1, 3):nzlim) = 0.0_dp
       END IF ! NLg_loc > 0
 
-      CALL grid%pw_grid%para%group%sum(grid%cr3d(gbo(1, 1):nxlim, gbo(1, 2):nylim, gbo(1, 3):nzlim))
+      CALL grid%pw_grid%para%group%sum(grid%array(gbo(1, 1):nxlim, gbo(1, 2):nylim, gbo(1, 3):nzlim))
 
       Fake_LoopOnGrid: DO k = gbo(1, 3), gbo(2, 3)
          my_k = k
@@ -304,7 +298,7 @@ CONTAINS
             DO i = gbo(1, 1), gbo(2, 1)
                my_i = i
                IF (i > nxlim) my_i = nxlim - ABS(nxlim - i) + is
-               grid%cr3d(i, j, k) = grid%cr3d(my_i, my_j, my_k)
+               grid%array(i, j, k) = grid%array(my_i, my_j, my_k)
             END DO
          END DO
       END DO Fake_LoopOnGrid
@@ -356,7 +350,7 @@ CONTAINS
                                         param_section, tag)
       REAL(KIND=dp), DIMENSION(3, 3)                     :: hmat_mm
       REAL(KIND=dp), DIMENSION(:), POINTER               :: Lg, gx, gy, gz
-      TYPE(pw_type), POINTER                             :: TabLR
+      TYPE(pw_r3d_rs_type), POINTER                      :: TabLR
       TYPE(section_vals_type), POINTER                   :: param_section
       CHARACTER(LEN=*), INTENT(IN)                       :: tag
 

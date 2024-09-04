@@ -16,19 +16,21 @@ MODULE mp2_ri_grad
    USE cell_types,                      ONLY: cell_type
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_control_types,                ONLY: dft_control_type
+   USE cp_dbcsr_api,                    ONLY: &
+        dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_multiply, dbcsr_p_type, dbcsr_release, &
+        dbcsr_set, dbcsr_transposed, dbcsr_type, dbcsr_type_no_symmetry, dbcsr_type_symmetric
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               dbcsr_deallocate_matrix_set
    USE cp_eri_mme_interface,            ONLY: cp_eri_mme_param
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: &
-        cp_fm_create, cp_fm_get_info, cp_fm_indxg2l, cp_fm_indxg2p, cp_fm_indxl2g, cp_fm_release, &
-        cp_fm_set_all, cp_fm_to_fm_submat, cp_fm_type
-   USE dbcsr_api,                       ONLY: &
-        dbcsr_add, dbcsr_copy, dbcsr_copy_into_existing, dbcsr_create, dbcsr_multiply, &
-        dbcsr_p_type, dbcsr_release, dbcsr_set, dbcsr_transposed, dbcsr_type, &
-        dbcsr_type_no_symmetry, dbcsr_type_symmetric
+   USE cp_fm_types,                     ONLY: cp_fm_create,&
+                                              cp_fm_get_info,&
+                                              cp_fm_release,&
+                                              cp_fm_set_all,&
+                                              cp_fm_to_fm_submat,&
+                                              cp_fm_type
    USE input_constants,                 ONLY: do_eri_gpw,&
                                               do_eri_mme,&
                                               ri_mp2_laplace,&
@@ -58,9 +60,8 @@ MODULE mp2_ri_grad
    USE pw_env_types,                    ONLY: pw_env_type
    USE pw_poisson_types,                ONLY: pw_poisson_type
    USE pw_pool_types,                   ONLY: pw_pool_type
-   USE pw_types,                        ONLY: COMPLEXDATA1D,&
-                                              RECIPROCALSPACE,&
-                                              pw_type
+   USE pw_types,                        ONLY: pw_c1d_gs_type,&
+                                              pw_r3d_rs_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_force_types,                  ONLY: allocate_qs_force,&
@@ -157,11 +158,11 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mp2_eri_force), ALLOCATABLE, DIMENSION(:)     :: force_2c, force_2c_RI, force_3c_aux, &
                                                             force_3c_orb_mu, force_3c_orb_nu
+      TYPE(pw_c1d_gs_type)                               :: dvg(3), pot_g, rho_g, rho_g_copy
       TYPE(pw_env_type), POINTER                         :: pw_env_sub
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type)                                      :: dvg(3), pot_g, psi_L, rho_g, rho_g_copy, &
-                                                            rho_r
+      TYPE(pw_r3d_rs_type)                               :: psi_L, rho_r
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force, mp2_force
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(task_list_type), POINTER                      :: task_list_sub
@@ -341,13 +342,9 @@ CONTAINS
          ! for calculate the MP2-volume contribution to the virial
          ! (hartree potential derivatives)
          IF (use_virial) THEN
-            CALL auxbas_pw_pool%create_pw(rho_g_copy, &
-                                          use_data=COMPLEXDATA1D, &
-                                          in_space=RECIPROCALSPACE)
+            CALL auxbas_pw_pool%create_pw(rho_g_copy)
             DO i = 1, 3
-               CALL auxbas_pw_pool%create_pw(dvg(i), &
-                                             use_data=COMPLEXDATA1D, &
-                                             in_space=RECIPROCALSPACE)
+               CALL auxbas_pw_pool%create_pw(dvg(i))
             END DO
          END IF
 
@@ -364,7 +361,7 @@ CONTAINS
                                         G_P_ia(:, L_counter), matrix_P_inu, &
                                         mo_coeff_v, mo_coeff_o, eps_filter)
 
-            CALL integrate_potential_forces_2c(rho_r, LLL, mo_coeff(1), rho_g, atomic_kind_set, &
+            CALL integrate_potential_forces_2c(rho_r, LLL, rho_g, atomic_kind_set, &
                                                qs_kind_set, particle_set, cell, pw_env_sub, poisson_env, &
                                                pot_g, mp2_env%potential_parameter, use_virial, &
                                                rho_g_copy, dvg, kind_of, atom_of_kind, G_PQ_local(:, L_counter), &
@@ -372,7 +369,7 @@ CONTAINS
 
             IF (.NOT. compare_potential_types(mp2_env%ri_metric, mp2_env%potential_parameter)) THEN
 
-               CALL integrate_potential_forces_2c(rho_r, LLL, mo_coeff(1), rho_g, atomic_kind_set, &
+               CALL integrate_potential_forces_2c(rho_r, LLL, rho_g, atomic_kind_set, &
                                                   qs_kind_set, particle_set, cell, pw_env_sub, poisson_env, &
                                                   pot_g, mp2_env%ri_metric, use_virial, &
                                                   rho_g_copy, dvg, kind_of, atom_of_kind, G_PQ_local_2(:, L_counter), &
@@ -526,7 +523,7 @@ CONTAINS
       CALL dbcsr_add(G_P_munu, G_P_munu_nosym, &
                      alpha_scalar=2.0_dp, beta_scalar=2.0_dp)
       ! this is a trick to avoid that integrate_v_rspace starts to cry
-      CALL dbcsr_copy_into_existing(mat_munu, G_P_munu)
+      CALL dbcsr_copy(mat_munu, G_P_munu, keep_sparsity=.TRUE.)
       CALL dbcsr_copy(G_P_munu, mat_munu)
 
       CALL timestop(handle)
@@ -658,14 +655,12 @@ CONTAINS
 
       INTEGER :: color_exchange, dummy_proc, handle, handle2, handle3, i_global, i_local, iiB, &
          iii, iproc, itmp(2), j_global, j_local, jjB, max_col_size, max_row_size, &
-         my_B_virtual_end, my_B_virtual_start, mypcol, myprow, ncol_block, ncol_block_1i, &
-         ncol_block_2a, ncol_local, ncol_local_1i, ncol_local_2a, npcol, npcol_1i, npcol_2a, &
-         nprow, nprow_1i, nprow_2a, nrow_block, nrow_block_1i, nrow_block_2a, nrow_local, &
-         nrow_local_1i, nrow_local_2a, number_of_rec, number_of_send, proc_receive, &
-         proc_receive_static, proc_send, proc_send_ex, proc_send_static, proc_send_sub, &
-         proc_shift, rec_col_size
-      INTEGER :: rec_counter, rec_row_size, send_col_size, send_counter, send_pcol, send_prow, &
-         send_row_size, size_rec_buffer, size_send_buffer
+         my_B_virtual_end, my_B_virtual_start, mypcol, myprow, ncol_local, ncol_local_1i, &
+         ncol_local_2a, npcol, nprow, nrow_local, nrow_local_1i, nrow_local_2a, number_of_rec, &
+         number_of_send, proc_receive, proc_receive_static, proc_send, proc_send_ex, &
+         proc_send_static, proc_send_sub, proc_shift, rec_col_size, rec_counter, rec_row_size, &
+         send_col_size, send_counter, send_pcol, send_prow, send_row_size, size_rec_buffer, &
+         size_send_buffer
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: iii_vet, map_rec_size, map_send_size, &
                                                             pos_info, pos_info_ex, proc_2_send_pos
       INTEGER, ALLOCATABLE, DIMENSION(:, :) :: grid_2_mepos, mepos_2_grid, my_col_indeces_info_1i, &
@@ -711,9 +706,7 @@ CONTAINS
                           nrow_local=nrow_local, &
                           ncol_local=ncol_local, &
                           row_indices=row_indices, &
-                          col_indices=col_indices, &
-                          nrow_block=nrow_block, &
-                          ncol_block=ncol_block)
+                          col_indices=col_indices)
       myprow = L_mu_q%matrix_struct%context%mepos(1)
       mypcol = L_mu_q%matrix_struct%context%mepos(2)
       nprow = L_mu_q%matrix_struct%context%num_pe(1)
@@ -729,11 +722,7 @@ CONTAINS
                           nrow_local=nrow_local_1i, &
                           ncol_local=ncol_local_1i, &
                           row_indices=row_indices_1i, &
-                          col_indices=col_indices_1i, &
-                          nrow_block=nrow_block_1i, &
-                          ncol_block=ncol_block_1i)
-      nprow_1i = L1_mu_i%matrix_struct%context%num_pe(1)
-      npcol_1i = L1_mu_i%matrix_struct%context%num_pe(2)
+                          col_indices=col_indices_1i)
 
       ALLOCATE (sizes_1i(2, 0:para_env_sub%num_pe - 1))
       CALL para_env_sub%allgather([nrow_local_1i, ncol_local_1i], sizes_1i)
@@ -743,11 +732,7 @@ CONTAINS
                           nrow_local=nrow_local_2a, &
                           ncol_local=ncol_local_2a, &
                           row_indices=row_indices_2a, &
-                          col_indices=col_indices_2a, &
-                          nrow_block=nrow_block_2a, &
-                          ncol_block=ncol_block_2a)
-      nprow_2a = L2_nu_a%matrix_struct%context%num_pe(1)
-      npcol_2a = L2_nu_a%matrix_struct%context%num_pe(2)
+                          col_indices=col_indices_2a)
 
       ALLOCATE (sizes_2a(2, 0:para_env_sub%num_pe - 1))
       CALL para_env_sub%allgather([nrow_local_2a, ncol_local_2a], sizes_2a)
@@ -784,20 +769,16 @@ CONTAINS
       ! row
       DO iiB = 1, nrow_local_1i
          i_global = row_indices_1i(iiB)
-         send_prow = cp_fm_indxg2p(i_global, nrow_block, dummy_proc, &
-                                   L_mu_q%matrix_struct%first_p_pos(1), nprow)
-         i_local = cp_fm_indxg2l(i_global, nrow_block, dummy_proc, &
-                                 L_mu_q%matrix_struct%first_p_pos(1), nprow)
+         send_prow = L_mu_q%matrix_struct%g2p_row(i_global)
+         i_local = L_mu_q%matrix_struct%g2l_row(i_global)
          my_row_indeces_info_1i(1, iiB) = send_prow
          my_row_indeces_info_1i(2, iiB) = i_local
       END DO
       ! col
       DO jjB = 1, ncol_local_1i
          j_global = col_indices_1i(jjB)
-         send_pcol = cp_fm_indxg2p(j_global, ncol_block, dummy_proc, &
-                                   L_mu_q%matrix_struct%first_p_pos(2), npcol)
-         j_local = cp_fm_indxg2l(j_global, ncol_block, dummy_proc, &
-                                 L_mu_q%matrix_struct%first_p_pos(2), npcol)
+         send_pcol = L_mu_q%matrix_struct%g2p_col(j_global)
+         j_local = L_mu_q%matrix_struct%g2l_col(j_global)
          my_col_indeces_info_1i(1, jjB) = send_pcol
          my_col_indeces_info_1i(2, jjB) = j_local
       END DO
@@ -817,20 +798,16 @@ CONTAINS
       ! row
       DO iiB = 1, nrow_local_2a
          i_global = row_indices_2a(iiB)
-         send_prow = cp_fm_indxg2p(i_global, nrow_block, dummy_proc, &
-                                   L_mu_q%matrix_struct%first_p_pos(1), nprow)
-         i_local = cp_fm_indxg2l(i_global, nrow_block, dummy_proc, &
-                                 L_mu_q%matrix_struct%first_p_pos(1), nprow)
+         send_prow = L_mu_q%matrix_struct%g2p_row(i_global)
+         i_local = L_mu_q%matrix_struct%g2l_row(i_global)
          my_row_indeces_info_2a(1, iiB) = send_prow
          my_row_indeces_info_2a(2, iiB) = i_local
       END DO
       ! col
       DO jjB = 1, ncol_local_2a
          j_global = col_indices_2a(jjB) + homo
-         send_pcol = cp_fm_indxg2p(j_global, ncol_block, dummy_proc, &
-                                   L_mu_q%matrix_struct%first_p_pos(2), npcol)
-         j_local = cp_fm_indxg2l(j_global, ncol_block, dummy_proc, &
-                                 L_mu_q%matrix_struct%first_p_pos(2), npcol)
+         send_pcol = L_mu_q%matrix_struct%g2p_col(j_global)
+         j_local = L_mu_q%matrix_struct%g2l_col(j_global)
          my_col_indeces_info_2a(1, jjB) = send_pcol
          my_col_indeces_info_2a(2, jjB) = j_local
       END DO
@@ -1195,13 +1172,7 @@ CONTAINS
                           nrow_local=nrow_local, &
                           ncol_local=ncol_local, &
                           row_indices=row_indices, &
-                          col_indices=col_indices, &
-                          nrow_block=nrow_block, &
-                          ncol_block=ncol_block)
-      myprow = mp2_env%ri_grad%P_mo(kspin)%matrix_struct%context%mepos(1)
-      mypcol = mp2_env%ri_grad%P_mo(kspin)%matrix_struct%context%mepos(2)
-      nprow = mp2_env%ri_grad%P_mo(kspin)%matrix_struct%context%num_pe(1)
-      npcol = mp2_env%ri_grad%P_mo(kspin)%matrix_struct%context%num_pe(2)
+                          col_indices=col_indices)
 
       IF (mp2_env%method == ri_mp2_laplace) THEN
          CALL parallel_gemm('T', 'N', virtual, virtual, dimen, 1.0_dp, &
@@ -1284,14 +1255,12 @@ CONTAINS
 
          ! first loop over row since in this way we can cycle
          DO iiB = 1, send_row_size
-            i_global = cp_fm_indxl2g(iiB, nrow_block, send_prow, &
-                                     mp2_env%ri_grad%P_mo(kspin)%matrix_struct%first_p_pos(1), nprow)
+            i_global = mp2_env%ri_grad%P_mo(kspin)%matrix_struct%l2g_row(iiB, send_prow)
             IF (i_global <= homo) CYCLE
             i_global = i_global - homo
             IF (.NOT. (my_B_virtual_start <= i_global .AND. i_global <= my_B_virtual_end)) CYCLE
             DO jjB = 1, send_col_size
-               j_global = cp_fm_indxl2g(jjB, ncol_block, send_pcol, &
-                                        mp2_env%ri_grad%P_mo(kspin)%matrix_struct%first_p_pos(2), npcol)
+               j_global = mp2_env%ri_grad%P_mo(kspin)%matrix_struct%l2g_col(jjB, send_pcol)
                IF (j_global <= homo) CYCLE
                j_global = j_global - homo
                ab_send(iiB, jjB) = mp2_env%ri_grad%P_ab(kspin)%array(i_global - my_B_virtual_start + 1, j_global)

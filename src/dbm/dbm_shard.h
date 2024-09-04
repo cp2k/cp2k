@@ -39,7 +39,7 @@ typedef struct {
 
   int data_promised;  // referenced by a dbm_block_t.offset, but not yet
                       // allocated
-  int data_allocated; // we over allocate to amortized the resizing cost
+  int data_allocated; // over-allocated to amortize the cost of resizing
   int data_size;      // actually allocated and initialized
   double *data;
 

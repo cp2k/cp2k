@@ -41,7 +41,9 @@
     &END COORD
     &KIND Na
       BASIS_SET DZVP-GTH-PADE
-      POTENTIAL GTH-PADE-q9
+      # Old, unreliable GTH pseudopotential for Na-q9
+      # only retained for compatibility reasons
+      POTENTIAL GTH-PADE-q9_old
     &END KIND
   &END SUBSYS
 &END FORCE_EVAL

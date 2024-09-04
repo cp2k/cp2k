@@ -78,13 +78,13 @@ MODULE qs_fb_atomic_halo_types
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! **************************************************************************************************
    TYPE fb_atomic_halo_data
-      INTEGER :: owner_atom
-      INTEGER :: owner_id_in_halo
-      INTEGER :: natoms
-      INTEGER :: nelectrons
-      INTEGER, DIMENSION(:), POINTER :: halo_atoms
-      LOGICAL :: sorted
-      REAL(KIND=dp) :: cost
+      INTEGER :: owner_atom = -1
+      INTEGER :: owner_id_in_halo = -1
+      INTEGER :: natoms = -1
+      INTEGER :: nelectrons = -1
+      INTEGER, DIMENSION(:), POINTER :: halo_atoms => NULL()
+      LOGICAL :: sorted = .FALSE.
+      REAL(KIND=dp) :: cost = -1.0_dp
    END TYPE fb_atomic_halo_data
 
 ! **************************************************************************************************
@@ -92,7 +92,7 @@ MODULE qs_fb_atomic_halo_types
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! **************************************************************************************************
    TYPE fb_atomic_halo_obj
-      TYPE(fb_atomic_halo_data), POINTER, PRIVATE :: obj
+      TYPE(fb_atomic_halo_data), POINTER, PRIVATE :: obj => NULL()
    END TYPE fb_atomic_halo_obj
 
 ! **************************************************************************************************
@@ -104,9 +104,9 @@ MODULE qs_fb_atomic_halo_types
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! **************************************************************************************************
    TYPE fb_atomic_halo_list_data
-      INTEGER :: nhalos
-      INTEGER :: max_nhalos
-      TYPE(fb_atomic_halo_obj), DIMENSION(:), POINTER :: halos
+      INTEGER :: nhalos = -1
+      INTEGER :: max_nhalos = -1
+      TYPE(fb_atomic_halo_obj), DIMENSION(:), POINTER :: halos => NULL()
    END TYPE fb_atomic_halo_list_data
 
 ! **************************************************************************************************
@@ -114,7 +114,7 @@ MODULE qs_fb_atomic_halo_types
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! **************************************************************************************************
    TYPE fb_atomic_halo_list_obj
-      TYPE(fb_atomic_halo_list_data), POINTER, PRIVATE :: obj
+      TYPE(fb_atomic_halo_list_data), POINTER, PRIVATE :: obj => NULL()
    END TYPE fb_atomic_halo_list_obj
 
 CONTAINS

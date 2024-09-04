@@ -49,40 +49,40 @@
       LAMBDA 1.0
       COUPLING 1
       PARALLEL_BUILD TRUE
-@IF ( ${USE_DLB} == TRUE )
+      @IF ( ${USE_DLB} == TRUE )
       ! Defaults to FALSE
       DLB TRUE
       LOAD_SCALE 2
       MORE_WORK 0
       VERY_OVERLOADED 15
-@ENDIF
+      @ENDIF
     &END MIXED_CDFT
     &PRINT
       &PROGRAM_RUN_INFO
       &END PROGRAM_RUN_INFO
     &END PRINT
   &END MIXED
-@include subsys.inc
+  @INCLUDE subsys.inc
 &END FORCE_EVAL
 
 &FORCE_EVAL
   METHOD QMMM
-@SET BECKE_STR    ${BECKE_STR_1}
-@SET BECKE_TARGET ${BECKE_TARGET_1}
-@SET PROJECT_NAME ${NAME}-state-1
-@SET WFN_FILE     ${WFN_FILE_1}
-@include qmmm-common-params.inc
-@include dft-common-params.inc
-@include mm-common-params.inc
+  @SET BECKE_STR    ${BECKE_STR_1}
+  @SET BECKE_TARGET ${BECKE_TARGET_1}
+  @SET PROJECT_NAME ${NAME}-state-1
+  @SET WFN_FILE     ${WFN_FILE_1}
+  @INCLUDE qmmm-common-params.inc
+  @INCLUDE dft-common-params.inc
+  @INCLUDE mm-common-params.inc
 &END FORCE_EVAL
 
 &FORCE_EVAL
   METHOD QMMM
-@SET BECKE_STR    ${BECKE_STR_2}
-@SET BECKE_TARGET ${BECKE_TARGET_2}
-@SET PROJECT_NAME ${NAME}-state-2
-@SET WFN_FILE     ${WFN_FILE_2}
-@include qmmm-common-params.inc
-@include dft-common-params.inc
-@include mm-common-params.inc
+  @SET BECKE_STR    ${BECKE_STR_2}
+  @SET BECKE_TARGET ${BECKE_TARGET_2}
+  @SET PROJECT_NAME ${NAME}-state-2
+  @SET WFN_FILE     ${WFN_FILE_2}
+  @INCLUDE qmmm-common-params.inc
+  @INCLUDE dft-common-params.inc
+  @INCLUDE mm-common-params.inc
 &END FORCE_EVAL

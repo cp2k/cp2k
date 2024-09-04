@@ -54,24 +54,24 @@ MODULE ewald_environment_types
 ! **************************************************************************************************
    TYPE ewald_environment_type
       PRIVATE
-      LOGICAL   :: do_multipoles ! Flag for using the multipole code
-      INTEGER   :: do_ipol ! Solver for induced dipoles
-      INTEGER   :: max_multipole ! max expansion in the multipoles
-      INTEGER   :: max_ipol_iter ! max number of interaction for induced dipoles
-      INTEGER   :: ewald_type ! type of ewald
-      INTEGER   :: gmax(3) ! max Miller index
-      INTEGER   :: ns_max ! # grid points for small grid (PME)
-      INTEGER   :: o_spline ! order of spline (SPME)
-      REAL(KIND=dp) :: precs ! precision achieved when evaluating the real-space part
-      REAL(KIND=dp) :: alpha, rcut ! ewald alpha and real-space cutoff
-      REAL(KIND=dp) :: epsilon ! tolerance for small grid (PME)
-      REAL(KIND=dp) :: eps_pol ! tolerance for convergence of induced dipoles
-      TYPE(mp_para_env_type), POINTER          :: para_env
-      TYPE(section_vals_type), POINTER         :: poisson_section
+      LOGICAL   :: do_multipoles = .FALSE. ! Flag for using the multipole code
+      INTEGER   :: do_ipol = -1 ! Solver for induced dipoles
+      INTEGER   :: max_multipole = -1 ! max expansion in the multipoles
+      INTEGER   :: max_ipol_iter = -1 ! max number of interaction for induced dipoles
+      INTEGER   :: ewald_type = -1 ! type of ewald
+      INTEGER   :: gmax(3) = -1 ! max Miller index
+      INTEGER   :: ns_max = -1 ! # grid points for small grid (PME)
+      INTEGER   :: o_spline = -1 ! order of spline (SPME)
+      REAL(KIND=dp) :: precs = 0.0_dp ! precision achieved when evaluating the real-space part
+      REAL(KIND=dp) :: alpha = 0.0_dp, rcut = 0.0_dp ! ewald alpha and real-space cutoff
+      REAL(KIND=dp) :: epsilon = 0.0_dp ! tolerance for small grid (PME)
+      REAL(KIND=dp) :: eps_pol = 0.0_dp ! tolerance for convergence of induced dipoles
+      TYPE(mp_para_env_type), POINTER          :: para_env => NULL()
+      TYPE(section_vals_type), POINTER         :: poisson_section => NULL()
       ! interaction cutoff is required to make the electrostatic interaction
       ! continuous at a pair distance equal to rcut. this is ignored by the
       ! multipole code and is otherwise only active when SHIFT_CUTOFF is used.
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER :: interaction_cutoffs
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER :: interaction_cutoffs => NULL()
       ! store current cell, used to rebuild lazily.
       REAL(KIND=dp), DIMENSION(3, 3)          :: cell_hmat = -1.0_dp
    END TYPE ewald_environment_type

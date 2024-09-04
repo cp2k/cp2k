@@ -1,0 +1,213 @@
+&GLOBAL
+  BLACS_GRID SQUARE
+  PREFERRED_FFT_LIBRARY FFTW
+  PRINT_LEVEL LOW
+  PROGRAM_NAME CP2K
+  PROJECT H2O-dimer-dangchang-2
+  RUN_TYPE MD
+&END GLOBAL
+
+&MOTION
+  &CONSTRAINT
+    CONSTRAINT_INIT T
+    ROLL_TOLERANCE 1.0000000000000000E-10
+    SHAKE_TOLERANCE 9.9999999999999982E-13
+    &G3X3
+      ATOMS 1 2 3
+      DISTANCES 1.808845716 1.808845716 2.860459332
+      INTERMOLECULAR FALSE
+      MOLECULE 1
+    &END G3X3
+    &VIRTUAL_SITE
+      ATOMS 4 2 1 3
+      INTERMOLECULAR FALSE
+      MOLECULE 1
+      PARAMETERS 0.18348396 0.18348396
+    &END VIRTUAL_SITE
+  &END CONSTRAINT
+  &MD
+    ENSEMBLE NVE
+    STEPS 1
+    TEMPERATURE 300.0
+    TIMESTEP 1.0
+  &END MD
+  &PRINT
+    &TRAJECTORY
+      PRINT_ATOM_KIND T
+    &END TRAJECTORY
+  &END PRINT
+&END MOTION
+
+&FORCE_EVAL
+  METHOD FIST
+  &MM
+    &FORCEFIELD
+      &BEND
+        ATOMS HW OW HW
+        !K          [rad^2kjmol] 627.600
+        K [rad^2kjmol] 0.000
+        KIND G87
+        THETA0 [deg] 109.500
+      &END BEND
+      &BEND
+        ATOMS HW OW MW
+        !K          [rad^2kjmol]  418.400
+        K [rad^2kjmol] 0.000
+        KIND G87
+        THETA0 [deg] 54.750
+      &END BEND
+      &BEND
+        ATOMS MW HW OW
+        K [rad^2kjmol] 0.000
+        KIND G87
+        THETA0 [deg] 109.500
+      &END BEND
+      &BEND
+        ATOMS MW HW HW
+        K [rad^2kjmol] 0.000
+        KIND G87
+        THETA0 [deg] 109.500
+      &END BEND
+      &BEND
+        ATOMS OW HW HW
+        K [rad^2kjmol] 0.000
+        KIND G87
+        THETA0 [deg] 109.500
+      &END BEND
+      &BEND
+        ATOMS OW MW HW
+        K [rad^2kjmol] 0.000
+        KIND G87
+        THETA0 [deg] 109.500
+      &END BEND
+      &BEND
+        ATOMS HW MW HW
+        K [rad^2kjmol] 0.000
+        KIND G87
+        THETA0 [deg] 109.500
+      &END BEND
+      &BOND
+        ATOMS OW HW
+        K [nm^-2kjmol] 502080.0
+        KIND G87
+        !K      [nm^-2kjmol] 0.0
+        R0 [nm] 0.09572
+      &END BOND
+      &BOND
+        ATOMS OW MW
+        !K      [nm^-2kjmol]  753120.0
+        K [nm^-2kjmol] 00.0
+        KIND G87
+        R0 [nm] 0.01750
+      &END BOND
+      &BOND
+        ATOMS HW HW
+        K [nm^-2kjmol] 000000.0
+        KIND G87
+        R0 [nm] 0.01750
+      &END BOND
+      &BOND
+        ATOMS HW MW
+        K [nm^-2kjmol] 000000.0
+        KIND G87
+        R0 [nm] 0.01750
+      &END BOND
+      &CHARGE
+        ATOM OW
+        CHARGE 0.000000
+      &END CHARGE
+      &CHARGE
+        ATOM HW
+        CHARGE 0.5190
+      &END CHARGE
+      &CHARGE
+        ATOM MW
+        CHARGE -1.038
+      &END CHARGE
+      &DIPOLE
+        APOL 1.444
+        ATOM MW
+      &END DIPOLE
+      &NONBONDED
+        &LENNARD-JONES
+          ATOMS OW OW
+          EPSILON [kcalmol] 0.1825
+          SIGMA [nm] 3.234E-01
+        &END LENNARD-JONES
+        &LENNARD-JONES
+          ATOMS OW MW
+          EPSILON 0.0
+          SIGMA 0.1
+        &END LENNARD-JONES
+        &LENNARD-JONES
+          ATOMS OW HW
+          EPSILON 0.0
+          SIGMA 0.1
+        &END LENNARD-JONES
+        &LENNARD-JONES
+          ATOMS HW HW
+          EPSILON 0.0
+          SIGMA 0.1
+        &END LENNARD-JONES
+        &LENNARD-JONES
+          ATOMS HW MW
+          EPSILON 0.0
+          SIGMA 0.1
+        &END LENNARD-JONES
+        &LENNARD-JONES
+          ATOMS MW MW
+          EPSILON 0.0
+          SIGMA 0.1
+        &END LENNARD-JONES
+      &END NONBONDED
+      &SPLINE
+        EMAX_SPLINE 10000000000.0
+        RCUT_NB 12.00
+      &END SPLINE
+    &END FORCEFIELD
+    &POISSON
+      &EWALD
+        ALPHA 0.3
+        EWALD_TYPE EWALD
+        GMAX 25
+        O_SPLINE 6
+        &MULTIPOLES T
+          EPS_POL 1.0e-6
+          MAX_IPOL_ITER 100
+          MAX_MULTIPOLE_EXPANSION DIPOLE
+          POL_SCF SELF_CONSISTENT
+        &END MULTIPOLES
+      &END EWALD
+    &END POISSON
+  &END MM
+  &SUBSYS
+    &CELL
+      ABC 18.6206 18.6206 18.6206
+      PERIODIC XYZ
+    &END CELL
+    &KIND OW
+      ELEMENT O
+      MASS 15.99940
+    &END KIND
+    &KIND HW
+      ELEMENT H
+      MASS 1.00800
+    &END KIND
+    &KIND MW
+      ELEMENT H
+      MASS 0.00000
+    &END KIND
+    &TOPOLOGY
+      CONN_FILE_FORMAT MOL_SET
+      COORDINATE XYZ
+      COORD_FILE_NAME ../sample_xyz/dimer.xyz
+      &MOL_SET
+        &MOLECULE
+          CONN_FILE_FORMAT PSF
+          CONN_FILE_NAME ../sample_psf/dcw.psf
+          NMOL 2
+        &END MOLECULE
+      &END MOL_SET
+    &END TOPOLOGY
+  &END SUBSYS
+&END FORCE_EVAL

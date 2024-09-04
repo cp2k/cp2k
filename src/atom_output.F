@@ -30,7 +30,8 @@ MODULE atom_output
    USE kinds,                           ONLY: default_string_length,&
                                               dp
    USE mathconstants,                   ONLY: dfac,&
-                                              pi
+                                              pi,&
+                                              rootpi
    USE periodic_table,                  ONLY: ptable
    USE physcon,                         ONLY: evolt
    USE xc_derivatives,                  ONLY: xc_functional_get_info
@@ -472,7 +473,7 @@ CONTAINS
                      WRITE (iw, '(T3,A,I3)') "L Quantum Number:", l
                      ! Quickstep normalization
                      expzet = 0.25_dp*REAL(2*l + 3, dp)
-                     prefac = SQRT(SQRT(pi)/2._dp**(l + 2)*dfac(2*l + 1))
+                     prefac = SQRT(rootpi/2._dp**(l + 2)*dfac(2*l + 1))
                      DO i = 1, atom_basis%nbas(l)
                         zeta = (2._dp*atom_basis%am(i, l))**expzet
                         WRITE (iw, '(T5,F14.8,2x,6F12.8)') atom_basis%am(i, l), wfn(i, 1:im, l)*prefac/zeta

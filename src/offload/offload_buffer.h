@@ -20,7 +20,7 @@ typedef struct {
 } offload_buffer;
 
 /*******************************************************************************
- * \brief Allocates a buffer of given length, ie. number of elements.
+ * \brief Allocates a buffer of given length, ie., number of elements.
  * \author Ole Schuett
  ******************************************************************************/
 void offload_create_buffer(const int length, offload_buffer **buffer);

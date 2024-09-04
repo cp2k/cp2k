@@ -41,10 +41,10 @@ MODULE qs_fb_buffer_types
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! **********************************************************************
    TYPE fb_buffer_i_data
-      INTEGER :: ref_count
-      INTEGER :: n
-      INTEGER, DIMENSION(:), POINTER :: disps
-      INTEGER, DIMENSION(:), POINTER :: data_1d
+      INTEGER :: ref_count = -1
+      INTEGER :: n = -1
+      INTEGER, DIMENSION(:), POINTER :: disps => NULL()
+      INTEGER, DIMENSION(:), POINTER :: data_1d => NULL()
    END TYPE fb_buffer_i_data
 
 ! **********************************************************************
@@ -68,10 +68,10 @@ MODULE qs_fb_buffer_types
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! **********************************************************************
    TYPE fb_buffer_d_data
-      INTEGER :: ref_count
-      INTEGER :: n
-      INTEGER, DIMENSION(:), POINTER :: disps
-      REAL(KIND=dp), DIMENSION(:), POINTER :: data_1d
+      INTEGER :: ref_count = -1
+      INTEGER :: n = -1
+      INTEGER, DIMENSION(:), POINTER :: disps => NULL()
+      REAL(KIND=dp), DIMENSION(:), POINTER :: data_1d => NULL()
    END TYPE fb_buffer_d_data
 
 ! **********************************************************************

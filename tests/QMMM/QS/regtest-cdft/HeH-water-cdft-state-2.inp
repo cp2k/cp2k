@@ -31,10 +31,10 @@
 
 &FORCE_EVAL
   METHOD QMMM
-@SET BECKE_STR ${BECKE_STR_2}
-@SET BECKE_TARGET ${BECKE_TARGET_2}
-@include subsys.inc
-@include qmmm-common-params.inc
-@include dft-common-params.inc
-@include mm-common-params.inc
+  @SET BECKE_STR ${BECKE_STR_2}
+  @SET BECKE_TARGET ${BECKE_TARGET_2}
+  @INCLUDE subsys.inc
+  @INCLUDE qmmm-common-params.inc
+  @INCLUDE dft-common-params.inc
+  @INCLUDE mm-common-params.inc
 &END FORCE_EVAL

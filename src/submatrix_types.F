@@ -27,7 +27,7 @@ MODULE submatrix_types
    END TYPE extvec_type
 
    TYPE, PUBLIC :: set_type
-      TYPE(extvec_type), DIMENSION(0:set_modulus - 1) :: data
+      TYPE(extvec_type), DIMENSION(0:set_modulus - 1) :: data = extvec_type()
       INTEGER, DIMENSION(:), ALLOCATABLE       :: sorted
       INTEGER                                  :: elements = 0
       LOGICAL                                  :: sorted_up_to_date = .FALSE.
@@ -41,7 +41,7 @@ MODULE submatrix_types
    END TYPE set_type
 
    TYPE, PUBLIC :: intBuffer_type
-      INTEGER, DIMENSION(:), POINTER                    :: data
+      INTEGER, DIMENSION(:), POINTER                    :: data => NULL()
       INTEGER                                           :: size = 0
       LOGICAL                                           :: allocated = .FALSE.
       TYPE(mp_request_type)                                           :: mpi_request = mp_request_null
@@ -52,7 +52,7 @@ MODULE submatrix_types
 
    ! TODO: Make data type generic
    TYPE, PUBLIC :: buffer_type
-      REAL(KIND=dp), DIMENSION(:), POINTER     :: data
+      REAL(KIND=dp), DIMENSION(:), POINTER     :: data => NULL()
       INTEGER                                           :: size = 0
       LOGICAL                                           :: allocated = .FALSE.
       TYPE(mp_request_type)                                           :: mpi_request = mp_request_null

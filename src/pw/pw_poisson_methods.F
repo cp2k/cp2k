@@ -12,53 +12,50 @@
 ! **************************************************************************************************
 MODULE pw_poisson_methods
 
-   USE cp_log_handling,                 ONLY: cp_to_string
-   USE dielectric_methods,              ONLY: dielectric_compute
-   USE kinds,                           ONLY: dp
-   USE mathconstants,                   ONLY: fourpi
-   USE mt_util,                         ONLY: MT0D,&
-                                              MT1D,&
-                                              MT2D
-   USE ps_implicit_methods,             ONLY: implicit_poisson_solver_mixed,&
-                                              implicit_poisson_solver_mixed_periodic,&
-                                              implicit_poisson_solver_neumann,&
-                                              implicit_poisson_solver_periodic,&
-                                              ps_implicit_create
-   USE ps_implicit_types,               ONLY: MIXED_BC,&
-                                              MIXED_PERIODIC_BC,&
-                                              NEUMANN_BC,&
-                                              PERIODIC_BC
-   USE ps_wavelet_methods,              ONLY: cp2k_distribution_to_z_slices,&
-                                              ps_wavelet_create,&
-                                              ps_wavelet_solve,&
-                                              z_slices_to_cp2k_distribution
-   USE ps_wavelet_types,                ONLY: WAVELET0D,&
-                                              WAVELET1D,&
-                                              WAVELET2D,&
-                                              WAVELET3D,&
-                                              ps_wavelet_type
-   USE pw_grid_types,                   ONLY: pw_grid_type
-   USE pw_grids,                        ONLY: pw_grid_compare,&
-                                              pw_grid_release,&
-                                              pw_grid_retain
-   USE pw_methods,                      ONLY: pw_copy,&
-                                              pw_derive,&
-                                              pw_integral_ab,&
-                                              pw_transfer
-   USE pw_poisson_types,                ONLY: &
-        ANALYTIC0D, ANALYTIC1D, ANALYTIC2D, MULTIPOLE0D, PERIODIC3D, PS_IMPLICIT, do_ewald_spme, &
-        greens_fn_type, pw_green_create, pw_green_release, pw_poisson_analytic, &
-        pw_poisson_implicit, pw_poisson_mt, pw_poisson_multipole, pw_poisson_none, &
-        pw_poisson_parameter_type, pw_poisson_periodic, pw_poisson_type, pw_poisson_wavelet
-   USE pw_pool_types,                   ONLY: pw_pool_p_type,&
-                                              pw_pool_type,&
-                                              pw_pools_copy,&
-                                              pw_pools_dealloc
-   USE pw_types,                        ONLY: COMPLEXDATA1D,&
-                                              REALDATA3D,&
-                                              REALSPACE,&
-                                              RECIPROCALSPACE,&
-                                              pw_type
+   USE cp_log_handling, ONLY: cp_to_string
+   USE dielectric_methods, ONLY: dielectric_compute
+   USE kinds, ONLY: dp
+   USE mathconstants, ONLY: fourpi
+   USE mt_util, ONLY: MT0D, &
+                      MT1D, &
+                      MT2D
+   USE ps_implicit_methods, ONLY: implicit_poisson_solver_mixed, &
+                                  implicit_poisson_solver_mixed_periodic, &
+                                  implicit_poisson_solver_neumann, &
+                                  implicit_poisson_solver_periodic, &
+                                  ps_implicit_create
+   USE ps_implicit_types, ONLY: MIXED_BC, &
+                                MIXED_PERIODIC_BC, &
+                                NEUMANN_BC, &
+                                PERIODIC_BC
+   USE ps_wavelet_methods, ONLY: cp2k_distribution_to_z_slices, &
+                                 ps_wavelet_create, &
+                                 ps_wavelet_solve, &
+                                 z_slices_to_cp2k_distribution
+   USE ps_wavelet_types, ONLY: WAVELET0D, &
+                               WAVELET1D, &
+                               WAVELET2D, &
+                               WAVELET3D, &
+                               ps_wavelet_type
+   USE pw_grid_types, ONLY: pw_grid_type
+   USE pw_grids, ONLY: pw_grid_compare, &
+                       pw_grid_release, &
+                       pw_grid_retain
+   USE pw_methods, ONLY: pw_copy, &
+                         pw_derive, &
+                         pw_integral_ab, &
+                         pw_transfer, pw_multiply_with
+   USE pw_poisson_types, ONLY: &
+      ANALYTIC0D, ANALYTIC1D, ANALYTIC2D, MULTIPOLE0D, PERIODIC3D, PS_IMPLICIT, do_ewald_spme, &
+      greens_fn_type, pw_green_create, pw_green_release, pw_poisson_analytic, &
+      pw_poisson_implicit, pw_poisson_mt, pw_poisson_multipole, pw_poisson_none, &
+      pw_poisson_parameter_type, pw_poisson_periodic, pw_poisson_type, pw_poisson_wavelet
+   USE pw_pool_types, ONLY: pw_pool_p_type, &
+                            pw_pool_type, &
+                            pw_pools_copy, &
+                            pw_pools_dealloc
+   USE pw_types, ONLY: &
+      pw_r3d_rs_type, pw_c1d_gs_type, pw_r3d_rs_type
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -72,6 +69,26 @@ MODULE pw_poisson_methods
 
    INTEGER, PARAMETER                       :: use_rs_grid = 0, &
                                                use_gs_grid = 1
+
+   INTERFACE pw_poisson_rebuild
+      MODULE PROCEDURE pw_poisson_rebuild_nodens
+      MODULE PROCEDURE pw_poisson_rebuild_c1d_gs, pw_poisson_rebuild_r3d_rs
+   END INTERFACE
+
+   INTERFACE pw_poisson_solve
+      #:for kindd in ['r3d_rs', 'c1d_gs']
+         MODULE PROCEDURE pw_poisson_solve_nov_nodv_${kindd}$
+         #:for kindv in ['r3d_rs', 'c1d_gs']
+            MODULE PROCEDURE pw_poisson_solve_v_nodv_${kindd}$_${kindv}$
+         #:endfor
+         #:for kindg in ['r3d_rs', 'c1d_gs']
+            MODULE PROCEDURE pw_poisson_solve_nov_dv_${kindd}$_${kindg}$
+            #:for kindv in ['r3d_rs', 'c1d_gs']
+               MODULE PROCEDURE pw_poisson_solve_v_dv_${kindd}$_${kindv}$_${kindg}$
+            #:endfor
+         #:endfor
+      #:endfor
+   END INTERFACE
 
 CONTAINS
 
@@ -166,9 +183,8 @@ CONTAINS
 !> \note
 !>      rebuilds if poisson_env%rebuild is true
 ! **************************************************************************************************
-   SUBROUTINE pw_poisson_rebuild(poisson_env, density)
+   SUBROUTINE pw_poisson_rebuild_nodens(poisson_env)
       TYPE(pw_poisson_type), INTENT(INOUT)               :: poisson_env
-      TYPE(pw_type), INTENT(IN), OPTIONAL                :: density
 
       CHARACTER(len=*), PARAMETER :: routineN = 'pw_poisson_rebuild'
 
@@ -189,9 +205,7 @@ CONTAINS
                                  mt_super_ref_pw_grid=poisson_env%mt_super_ref_pw_grid, &
                                  dct_pw_grid=poisson_env%dct_pw_grid)
          CASE (pw_poisson_wavelet)
-            CPASSERT(ASSOCIATED(density%pw_grid))
-            CALL ps_wavelet_create(poisson_env%parameters, poisson_env%wavelet, &
-                                   density%pw_grid)
+            CPABORT("Wavelet solver requires a density!")
          CASE (pw_poisson_implicit)
             ALLOCATE (poisson_env%green_fft)
             CALL pw_green_create(poisson_env%green_fft, cell_hmat=poisson_env%cell_hmat, &
@@ -205,15 +219,687 @@ CONTAINS
                                     poisson_env%green_fft, poisson_env%implicit_env)
          CASE (pw_poisson_none)
          CASE default
-            CPABORT("")
+            CPABORT("Unknown Poisson solver")
          END SELECT
          poisson_env%rebuild = .FALSE.
       END IF
 
       CALL timestop(handle)
 
-   END SUBROUTINE pw_poisson_rebuild
+   END SUBROUTINE pw_poisson_rebuild_nodens
 
+   #:for kindd in ["r3d_rs", "c1d_gs"]
+! **************************************************************************************************
+!> \brief rebuilds all the internal values needed to use the poisson solver
+!> \param poisson_env the environment to rebuild
+!> \param density ...
+!> \author fawzi
+!> \note
+!>      rebuilds if poisson_env%rebuild is true
+! **************************************************************************************************
+      SUBROUTINE pw_poisson_rebuild_${kindd}$ (poisson_env, density)
+         TYPE(pw_poisson_type), INTENT(INOUT)               :: poisson_env
+         TYPE(pw_${kindd}$_type), INTENT(IN)                :: density
+
+         CHARACTER(len=*), PARAMETER :: routineN = 'pw_poisson_rebuild'
+
+         INTEGER                                            :: handle
+
+         CALL timeset(routineN, handle)
+
+         CPASSERT(ASSOCIATED(poisson_env%pw_pools))
+
+         IF (poisson_env%rebuild) THEN
+            CALL pw_poisson_cleanup(poisson_env)
+            SELECT CASE (poisson_env%parameters%solver)
+            CASE (pw_poisson_periodic, pw_poisson_analytic, pw_poisson_mt, pw_poisson_multipole)
+               ALLOCATE (poisson_env%green_fft)
+               CALL pw_green_create(poisson_env%green_fft, cell_hmat=poisson_env%cell_hmat, &
+                                    pw_pool=poisson_env%pw_pools(poisson_env%pw_level)%pool, &
+                                    poisson_params=poisson_env%parameters, &
+                                    mt_super_ref_pw_grid=poisson_env%mt_super_ref_pw_grid, &
+                                    dct_pw_grid=poisson_env%dct_pw_grid)
+            CASE (pw_poisson_wavelet)
+               CPASSERT(ASSOCIATED(density%pw_grid))
+               CALL ps_wavelet_create(poisson_env%parameters, poisson_env%wavelet, &
+                                      density%pw_grid)
+            CASE (pw_poisson_implicit)
+               ALLOCATE (poisson_env%green_fft)
+               CALL pw_green_create(poisson_env%green_fft, cell_hmat=poisson_env%cell_hmat, &
+                                    pw_pool=poisson_env%pw_pools(poisson_env%pw_level)%pool, &
+                                    poisson_params=poisson_env%parameters, &
+                                    mt_super_ref_pw_grid=poisson_env%mt_super_ref_pw_grid, &
+                                    dct_pw_grid=poisson_env%dct_pw_grid)
+               CALL ps_implicit_create(poisson_env%pw_pools(poisson_env%pw_level)%pool, &
+                                       poisson_env%parameters, &
+                                       poisson_env%dct_pw_grid, &
+                                       poisson_env%green_fft, poisson_env%implicit_env)
+            CASE (pw_poisson_none)
+            CASE default
+               CPABORT("Unknown Poisson solver")
+            END SELECT
+            poisson_env%rebuild = .FALSE.
+         END IF
+
+         CALL timestop(handle)
+
+      END SUBROUTINE pw_poisson_rebuild_${kindd}$
+   #:endfor
+
+   #:for kindd in ['r3d_rs', 'c1d_gs']
+! **************************************************************************************************
+!> \brief Solve Poisson equation in a plane wave basis set
+!>      Obtains electrostatic potential and its derivatives with respect to r
+!>      from the density
+!> \param poisson_env ...
+!> \param density ...
+!> \param ehartree ...
+!> \param h_stress ...
+!> \param rho_core ...
+!> \param greenfn ...
+!> \param aux_density Hartree energy and stress tensor between 2 different densities
+!> \par History
+!>      JGH (13-Mar-2001) : completely revised
+!> \author apsi
+! **************************************************************************************************
+      SUBROUTINE pw_poisson_solve_nov_nodv_${kindd}$ (poisson_env, density, ehartree, &
+                                                      h_stress, rho_core, greenfn, aux_density)
+
+         TYPE(pw_poisson_type), INTENT(INOUT)               :: poisson_env
+         TYPE(pw_${kindd}$_type), INTENT(IN)                          :: density
+         REAL(kind=dp), INTENT(out), OPTIONAL               :: ehartree
+         REAL(KIND=dp), DIMENSION(3, 3), INTENT(OUT), &
+            OPTIONAL                                        :: h_stress
+         TYPE(pw_c1d_gs_type), INTENT(IN), OPTIONAL                :: rho_core, greenfn
+         TYPE(pw_${kindd}$_type), INTENT(IN), OPTIONAL :: aux_density
+
+         CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_poisson_solve'
+
+         INTEGER                                            :: handle
+         LOGICAL                                            :: has_dielectric
+         TYPE(pw_grid_type), POINTER                        :: pw_grid
+         TYPE(pw_pool_type), POINTER                        :: pw_pool
+         TYPE(pw_r3d_rs_type)                                    ::             rhor, vhartree_rs
+         TYPE(pw_c1d_gs_type) :: influence_fn, rhog, rhog_aux, tmpg
+
+         CALL timeset(routineN, handle)
+
+         CALL pw_poisson_rebuild(poisson_env, density)
+
+         has_dielectric = poisson_env%parameters%has_dielectric
+
+         ! point pw
+         pw_pool => poisson_env%pw_pools(poisson_env%pw_level)%pool
+         pw_grid => pw_pool%pw_grid
+         ! density in G space
+         CALL pw_pool%create_pw(rhog)
+         IF (PRESENT(aux_density)) THEN
+            CALL pw_pool%create_pw(rhog_aux)
+         END IF
+
+         SELECT CASE (poisson_env%used_grid)
+         CASE (use_gs_grid)
+
+            SELECT CASE (poisson_env%green_fft%method)
+            CASE (PERIODIC3D, ANALYTIC2D, ANALYTIC1D, ANALYTIC0D, MT2D, MT1D, MT0D, MULTIPOLE0D)
+
+               CALL pw_transfer(density, rhog)
+               IF (PRESENT(aux_density)) THEN
+                  CALL pw_transfer(aux_density, rhog_aux)
+               END IF
+               IF (PRESENT(ehartree)) THEN
+                  CALL pw_pool%create_pw(tmpg)
+                  CALL pw_copy(rhog, tmpg)
+               END IF
+               IF (PRESENT(greenfn)) THEN
+                  influence_fn = greenfn
+               ELSE
+                  influence_fn = poisson_env%green_fft%influence_fn
+               END IF
+               CALL pw_multiply_with(rhog, influence_fn)
+               IF (PRESENT(aux_density)) THEN
+                  CALL pw_multiply_with(rhog_aux, influence_fn)
+               END IF
+               IF (PRESENT(ehartree)) THEN
+                  IF (PRESENT(aux_density)) THEN
+                     ehartree = 0.5_dp*pw_integral_ab(rhog_aux, tmpg)
+                  ELSE
+                     ehartree = 0.5_dp*pw_integral_ab(rhog, tmpg)
+                  END IF
+                  CALL pw_pool%give_back_pw(tmpg)
+               END IF
+
+            CASE (PS_IMPLICIT)
+
+               IF (PRESENT(h_stress)) THEN
+                  CPABORT("No stress tensor is implemented for the implicit Poisson solver.")
+               END IF
+
+               IF (has_dielectric .AND. PRESENT(rho_core)) THEN
+                  SELECT CASE (poisson_env%parameters%ps_implicit_params%boundary_condition)
+                  CASE (PERIODIC_BC, MIXED_PERIODIC_BC)
+                     CALL dielectric_compute(poisson_env%implicit_env%dielectric, &
+                                             poisson_env%diel_rs_grid, &
+                                             poisson_env%pw_pools(poisson_env%pw_level)%pool, &
+                                             density, rho_core=rho_core)
+                  CASE (NEUMANN_BC, MIXED_BC)
+                     CALL dielectric_compute(poisson_env%implicit_env%dielectric, &
+                                             poisson_env%diel_rs_grid, &
+                                             poisson_env%pw_pools(poisson_env%pw_level)%pool, &
+                                             poisson_env%dct_pw_grid, &
+                                             poisson_env%parameters%ps_implicit_params%neumann_directions, &
+                                             poisson_env%implicit_env%dct_env%recv_msgs_bnds, &
+                                             poisson_env%implicit_env%dct_env%dests_expand, &
+                                             poisson_env%implicit_env%dct_env%srcs_expand, &
+                                             poisson_env%implicit_env%dct_env%flipg_stat, &
+                                             poisson_env%implicit_env%dct_env%bounds_shftd, &
+                                             density, rho_core=rho_core)
+                  END SELECT
+               END IF
+
+               CALL pw_pool%create_pw(rhor)
+               CALL pw_pool%create_pw(vhartree_rs)
+               CALL pw_transfer(density, rhor)
+
+               SELECT CASE (poisson_env%parameters%ps_implicit_params%boundary_condition)
+               CASE (PERIODIC_BC)
+                  CALL implicit_poisson_solver_periodic(poisson_env, rhor, vhartree_rs, &
+                                                        ehartree=ehartree)
+               CASE (NEUMANN_BC)
+                  CALL implicit_poisson_solver_neumann(poisson_env, rhor, vhartree_rs, &
+                                                       ehartree=ehartree)
+               CASE (MIXED_PERIODIC_BC)
+                  CALL implicit_poisson_solver_mixed_periodic(poisson_env, rhor, vhartree_rs, &
+                                                              electric_enthalpy=ehartree)
+               CASE (MIXED_BC)
+                  CALL implicit_poisson_solver_mixed(poisson_env, rhor, vhartree_rs, &
+                                                     electric_enthalpy=ehartree)
+               END SELECT
+
+               IF (PRESENT(aux_density)) THEN
+                  CALL pw_transfer(aux_density, rhor)
+                  ehartree = 0.5_dp*pw_integral_ab(rhor, vhartree_rs)
+               END IF
+
+               CALL pw_pool%give_back_pw(rhor)
+               CALL pw_pool%give_back_pw(vhartree_rs)
+
+            CASE DEFAULT
+               CALL cp_abort(__LOCATION__, &
+                             "unknown poisson method "// &
+                             cp_to_string(poisson_env%green_fft%method))
+            END SELECT
+
+         CASE (use_rs_grid)
+
+            CALL pw_pool%create_pw(rhor)
+            CALL pw_transfer(density, rhor)
+            CALL cp2k_distribution_to_z_slices(rhor, poisson_env%wavelet, rhor%pw_grid)
+            CALL ps_wavelet_solve(poisson_env%wavelet, rhor%pw_grid)
+            CALL z_slices_to_cp2k_distribution(rhor, poisson_env%wavelet, rhor%pw_grid)
+            IF (PRESENT(ehartree)) THEN
+               IF (PRESENT(aux_density)) THEN
+                  #:if kindd=="r3d_rs"
+                     ehartree = 0.5_dp*pw_integral_ab(aux_density, rhor)
+                  #:else
+                     IF (.NOT. PRESENT(h_stress)) CALL pw_pool%create_pw(rhog)
+                     CALL pw_transfer(rhor, rhog)
+                     ehartree = 0.5_dp*pw_integral_ab(aux_density, rhog)
+                     IF (.NOT. PRESENT(h_stress)) CALL pw_pool%give_back_pw(rhog)
+                  #:endif
+               ELSE
+                  #:if kindd=="r3d_rs"
+                     ehartree = 0.5_dp*pw_integral_ab(density, rhor)
+                  #:else
+                     IF (.NOT. PRESENT(h_stress)) CALL pw_pool%create_pw(rhog)
+                     CALL pw_transfer(rhor, rhog)
+                     ehartree = 0.5_dp*pw_integral_ab(density, rhog)
+                     IF (.NOT. PRESENT(h_stress)) CALL pw_pool%give_back_pw(rhog)
+                  #:endif
+               END IF
+            END IF
+            IF (PRESENT(h_stress)) THEN
+               CALL pw_transfer(rhor, rhog)
+               IF (PRESENT(aux_density)) THEN
+                  CALL pw_transfer(aux_density, rhor)
+                  CALL cp2k_distribution_to_z_slices(rhor, poisson_env%wavelet, rhor%pw_grid)
+                  CALL ps_wavelet_solve(poisson_env%wavelet, rhor%pw_grid)
+                  CALL z_slices_to_cp2k_distribution(rhor, poisson_env%wavelet, rhor%pw_grid)
+                  CALL pw_transfer(rhor, rhog_aux)
+               END IF
+            END IF
+            CALL pw_pool%give_back_pw(rhor)
+
+         END SELECT
+
+         IF (PRESENT(aux_density)) THEN
+            CALL calc_stress_and_gradient_${kindd}$ (poisson_env, rhog, ehartree, rhog_aux, h_stress)
+         ELSE
+            CALL calc_stress_and_gradient_${kindd}$ (poisson_env, rhog, ehartree, h_stress=h_stress)
+         END IF
+
+         CALL pw_pool%give_back_pw(rhog)
+         IF (PRESENT(aux_density)) THEN
+            CALL pw_pool%give_back_pw(rhog_aux)
+         END IF
+
+         CALL timestop(handle)
+
+      END SUBROUTINE pw_poisson_solve_nov_nodv_${kindd}$
+   #:endfor
+
+   #:for kindd in ['r3d_rs', 'c1d_gs']
+      #:for kindv in ['r3d_rs', 'c1d_gs']
+! **************************************************************************************************
+!> \brief Solve Poisson equation in a plane wave basis set
+!>      Obtains electrostatic potential and its derivatives with respect to r
+!>      from the density
+!> \param poisson_env ...
+!> \param density ...
+!> \param ehartree ...
+!> \param vhartree ...
+!> \param h_stress ...
+!> \param rho_core ...
+!> \param greenfn ...
+!> \param aux_density Hartree energy and stress tensor between 2 different densities
+!> \par History
+!>      JGH (13-Mar-2001) : completely revised
+!> \author apsi
+! **************************************************************************************************
+         SUBROUTINE pw_poisson_solve_v_nodv_${kindd}$_${kindv}$ (poisson_env, density, ehartree, vhartree, &
+                                                                 h_stress, rho_core, greenfn, aux_density)
+
+            TYPE(pw_poisson_type), INTENT(INOUT)               :: poisson_env
+            TYPE(pw_${kindd}$_type), INTENT(IN)                          :: density
+            REAL(kind=dp), INTENT(out), OPTIONAL               :: ehartree
+            TYPE(pw_${kindv}$_type), INTENT(INOUT)             :: vhartree
+            REAL(KIND=dp), DIMENSION(3, 3), INTENT(OUT), &
+               OPTIONAL                                        :: h_stress
+            TYPE(pw_c1d_gs_type), INTENT(IN), OPTIONAL                :: rho_core, greenfn
+            TYPE(pw_${kindd}$_type), INTENT(IN), OPTIONAL :: aux_density
+
+            CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_poisson_solve'
+
+            INTEGER                                            :: handle
+            LOGICAL                                            :: has_dielectric
+            TYPE(pw_grid_type), POINTER                        :: pw_grid
+            TYPE(pw_pool_type), POINTER                        :: pw_pool
+            TYPE(pw_r3d_rs_type)                                      :: &
+               rhor, vhartree_rs
+            TYPE(pw_c1d_gs_type) :: influence_fn, rhog, rhog_aux
+
+            CALL timeset(routineN, handle)
+
+            CALL pw_poisson_rebuild(poisson_env, density)
+
+            has_dielectric = poisson_env%parameters%has_dielectric
+
+            ! point pw
+            pw_pool => poisson_env%pw_pools(poisson_env%pw_level)%pool
+            pw_grid => pw_pool%pw_grid
+            IF (.NOT. pw_grid_compare(pw_pool%pw_grid, vhartree%pw_grid)) &
+               CPABORT("vhartree has a different grid than the poisson solver")
+            ! density in G space
+            CALL pw_pool%create_pw(rhog)
+            IF (PRESENT(aux_density)) THEN
+               CALL pw_pool%create_pw(rhog_aux)
+            END IF
+
+            SELECT CASE (poisson_env%used_grid)
+            CASE (use_gs_grid)
+
+               SELECT CASE (poisson_env%green_fft%method)
+               CASE (PERIODIC3D, ANALYTIC2D, ANALYTIC1D, ANALYTIC0D, MT2D, MT1D, MT0D, MULTIPOLE0D)
+
+                  CALL pw_transfer(density, rhog)
+                  IF (PRESENT(aux_density)) THEN
+                     CALL pw_transfer(aux_density, rhog_aux)
+                  END IF
+                  IF (PRESENT(greenfn)) THEN
+                     influence_fn = greenfn
+                  ELSE
+                     influence_fn = poisson_env%green_fft%influence_fn
+                  END IF
+                  CALL pw_multiply_with(rhog, influence_fn)
+                  IF (PRESENT(aux_density)) THEN
+                     CALL pw_multiply_with(rhog_aux, influence_fn)
+                  END IF
+                  CALL pw_transfer(rhog, vhartree)
+                  IF (PRESENT(ehartree)) THEN
+                     IF (PRESENT(aux_density)) THEN
+                        #:if kindd==kindv
+                           ehartree = 0.5_dp*pw_integral_ab(aux_density, vhartree)
+                        #:elif kindd=="c1d_gs"
+                           ehartree = 0.5_dp*pw_integral_ab(aux_density, rhog)
+                        #:else
+                           CALL pw_transfer(aux_density, rhog)
+                           ehartree = 0.5_dp*pw_integral_ab(rhog, vhartree)
+                        #:endif
+                     ELSE
+                        #:if kindd==kindv
+                           ehartree = 0.5_dp*pw_integral_ab(density, vhartree)
+                        #:elif kindd=="c1d_gs"
+                           ehartree = 0.5_dp*pw_integral_ab(density, rhog)
+                        #:else
+                           CALL pw_transfer(density, rhog)
+                           ehartree = 0.5_dp*pw_integral_ab(rhog, vhartree)
+                        #:endif
+                     END IF
+                  END IF
+
+               CASE (PS_IMPLICIT)
+                  IF (PRESENT(h_stress)) THEN
+                     CPABORT("No stress tensor is implemented for the implicit Poisson solver.")
+                  END IF
+
+                  IF (has_dielectric .AND. PRESENT(rho_core)) THEN
+                     SELECT CASE (poisson_env%parameters%ps_implicit_params%boundary_condition)
+                     CASE (PERIODIC_BC, MIXED_PERIODIC_BC)
+                        CALL dielectric_compute(poisson_env%implicit_env%dielectric, &
+                                                poisson_env%diel_rs_grid, &
+                                                poisson_env%pw_pools(poisson_env%pw_level)%pool, &
+                                                density, rho_core=rho_core)
+                     CASE (NEUMANN_BC, MIXED_BC)
+                        CALL dielectric_compute(poisson_env%implicit_env%dielectric, &
+                                                poisson_env%diel_rs_grid, &
+                                                poisson_env%pw_pools(poisson_env%pw_level)%pool, &
+                                                poisson_env%dct_pw_grid, &
+                                                poisson_env%parameters%ps_implicit_params%neumann_directions, &
+                                                poisson_env%implicit_env%dct_env%recv_msgs_bnds, &
+                                                poisson_env%implicit_env%dct_env%dests_expand, &
+                                                poisson_env%implicit_env%dct_env%srcs_expand, &
+                                                poisson_env%implicit_env%dct_env%flipg_stat, &
+                                                poisson_env%implicit_env%dct_env%bounds_shftd, &
+                                                density, rho_core=rho_core)
+                     END SELECT
+                  END IF
+
+                  CALL pw_pool%create_pw(rhor)
+                  CALL pw_pool%create_pw(vhartree_rs)
+                  CALL pw_transfer(density, rhor)
+
+                  SELECT CASE (poisson_env%parameters%ps_implicit_params%boundary_condition)
+                  CASE (PERIODIC_BC)
+                     CALL implicit_poisson_solver_periodic(poisson_env, rhor, vhartree_rs, &
+                                                           ehartree=ehartree)
+                  CASE (NEUMANN_BC)
+                     CALL implicit_poisson_solver_neumann(poisson_env, rhor, vhartree_rs, &
+                                                          ehartree=ehartree)
+                  CASE (MIXED_PERIODIC_BC)
+                     CALL implicit_poisson_solver_mixed_periodic(poisson_env, rhor, vhartree_rs, &
+                                                                 electric_enthalpy=ehartree)
+                  CASE (MIXED_BC)
+                     CALL implicit_poisson_solver_mixed(poisson_env, rhor, vhartree_rs, &
+                                                        electric_enthalpy=ehartree)
+                  END SELECT
+
+                  IF (PRESENT(aux_density)) THEN
+                     CALL pw_transfer(aux_density, rhor)
+                     ehartree = 0.5_dp*pw_integral_ab(rhor, vhartree_rs)
+                  END IF
+
+                  CALL pw_transfer(vhartree_rs, vhartree)
+
+                  CALL pw_pool%give_back_pw(rhor)
+                  CALL pw_pool%give_back_pw(vhartree_rs)
+
+               CASE DEFAULT
+                  CALL cp_abort(__LOCATION__, &
+                                "unknown poisson method "// &
+                                cp_to_string(poisson_env%green_fft%method))
+               END SELECT
+
+            CASE (use_rs_grid)
+
+               CALL pw_pool%create_pw(rhor)
+               CALL pw_transfer(density, rhor)
+               CALL cp2k_distribution_to_z_slices(rhor, poisson_env%wavelet, rhor%pw_grid)
+               CALL ps_wavelet_solve(poisson_env%wavelet, rhor%pw_grid)
+               CALL z_slices_to_cp2k_distribution(rhor, poisson_env%wavelet, rhor%pw_grid)
+               CALL pw_transfer(rhor, vhartree)
+               IF (PRESENT(ehartree)) THEN
+                  IF (PRESENT(aux_density)) THEN
+                     #:if kindd==kindv
+                        ehartree = 0.5_dp*pw_integral_ab(aux_density, vhartree)
+                     #:elif kindd=="r3d_rs"
+                        ehartree = 0.5_dp*pw_integral_ab(aux_density, rhor)
+                     #:else
+                        CALL pw_transfer(vhartree, rhog)
+                        ehartree = 0.5_dp*pw_integral_ab(aux_density, rhog)
+                     #:endif
+                  ELSE
+                     #:if kindd==kindv
+                        ehartree = 0.5_dp*pw_integral_ab(density, vhartree)
+                     #:elif kindd=="r3d_rs"
+                        ehartree = 0.5_dp*pw_integral_ab(density, rhor)
+                     #:else
+                        CALL pw_transfer(vhartree, rhog)
+                        ehartree = 0.5_dp*pw_integral_ab(density, rhog)
+                     #:endif
+                  END IF
+               END IF
+               IF (PRESENT(h_stress)) THEN
+                  CALL pw_transfer(rhor, rhog)
+                  IF (PRESENT(aux_density)) THEN
+                     CALL pw_transfer(aux_density, rhor)
+                     CALL cp2k_distribution_to_z_slices(rhor, poisson_env%wavelet, rhor%pw_grid)
+                     CALL ps_wavelet_solve(poisson_env%wavelet, rhor%pw_grid)
+                     CALL z_slices_to_cp2k_distribution(rhor, poisson_env%wavelet, rhor%pw_grid)
+                     CALL pw_transfer(rhor, rhog_aux)
+                  END IF
+               END IF
+               CALL pw_pool%give_back_pw(rhor)
+
+            END SELECT
+
+            IF (PRESENT(aux_density)) THEN
+               CALL calc_stress_and_gradient_${kindd}$ (poisson_env, rhog, ehartree, rhog_aux, h_stress)
+            ELSE
+               CALL calc_stress_and_gradient_${kindd}$ (poisson_env, rhog, ehartree, h_stress=h_stress)
+            END IF
+
+            CALL pw_pool%give_back_pw(rhog)
+            IF (PRESENT(aux_density)) THEN
+               CALL pw_pool%give_back_pw(rhog_aux)
+            END IF
+
+            CALL timestop(handle)
+
+         END SUBROUTINE pw_poisson_solve_v_nodv_${kindd}$_${kindv}$
+      #:endfor
+   #:endfor
+
+   #:for kindd in ['r3d_rs', 'c1d_gs']
+      #:for kindg in ['r3d_rs', 'c1d_gs']
+! **************************************************************************************************
+!> \brief Solve Poisson equation in a plane wave basis set
+!>      Obtains electrostatic potential and its derivatives with respect to r
+!>      from the density
+!> \param poisson_env ...
+!> \param density ...
+!> \param ehartree ...
+!> \param dvhartree ...
+!> \param h_stress ...
+!> \param rho_core ...
+!> \param greenfn ...
+!> \param aux_density Hartree energy and stress tensor between 2 different densities
+!> \par History
+!>      JGH (13-Mar-2001) : completely revised
+!> \author apsi
+! **************************************************************************************************
+         SUBROUTINE pw_poisson_solve_nov_dv_${kindd}$_${kindg}$ (poisson_env, density, ehartree, &
+                                                                 dvhartree, h_stress, rho_core, greenfn, aux_density)
+
+            TYPE(pw_poisson_type), INTENT(INOUT)               :: poisson_env
+            TYPE(pw_${kindd}$_type), INTENT(IN)                          :: density
+            REAL(kind=dp), INTENT(out), OPTIONAL               :: ehartree
+            TYPE(pw_${kindg}$_type), DIMENSION(3)              :: dvhartree
+            REAL(KIND=dp), DIMENSION(3, 3), INTENT(OUT), &
+               OPTIONAL                                        :: h_stress
+            TYPE(pw_c1d_gs_type), INTENT(IN), OPTIONAL                :: rho_core, greenfn
+            TYPE(pw_${kindd}$_type), INTENT(IN), OPTIONAL :: aux_density
+
+            CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_poisson_solve'
+
+            INTEGER                                            :: handle
+            LOGICAL                                            :: has_dielectric
+            TYPE(pw_grid_type), POINTER                        :: pw_grid
+            TYPE(pw_pool_type), POINTER                        :: pw_pool
+            TYPE(pw_r3d_rs_type)                                      :: &
+               rhor, vhartree_rs
+            TYPE(pw_c1d_gs_type) :: influence_fn, rhog, rhog_aux, tmpg
+
+            CALL timeset(routineN, handle)
+
+            CALL pw_poisson_rebuild(poisson_env, density)
+
+            has_dielectric = poisson_env%parameters%has_dielectric
+
+            ! point pw
+            pw_pool => poisson_env%pw_pools(poisson_env%pw_level)%pool
+            pw_grid => pw_pool%pw_grid
+            ! density in G space
+            CALL pw_pool%create_pw(rhog)
+            IF (PRESENT(aux_density)) THEN
+               CALL pw_pool%create_pw(rhog_aux)
+            END IF
+
+            SELECT CASE (poisson_env%used_grid)
+            CASE (use_gs_grid)
+
+               SELECT CASE (poisson_env%green_fft%method)
+               CASE (PERIODIC3D, ANALYTIC2D, ANALYTIC1D, ANALYTIC0D, MT2D, MT1D, MT0D, MULTIPOLE0D)
+
+                  CALL pw_transfer(density, rhog)
+                  IF (PRESENT(aux_density)) THEN
+                     CALL pw_transfer(aux_density, rhog_aux)
+                  END IF
+                  IF (PRESENT(ehartree)) THEN
+                     CALL pw_pool%create_pw(tmpg)
+                     CALL pw_copy(rhog, tmpg)
+                  END IF
+                  IF (PRESENT(greenfn)) THEN
+                     influence_fn = greenfn
+                  ELSE
+                     influence_fn = poisson_env%green_fft%influence_fn
+                  END IF
+                  CALL pw_multiply_with(rhog, influence_fn)
+                  IF (PRESENT(aux_density)) THEN
+                     CALL pw_multiply_with(rhog_aux, influence_fn)
+                     rhog_aux%array(:) = rhog_aux%array(:)*influence_fn%array(:)
+                  END IF
+                  IF (PRESENT(ehartree)) THEN
+                     IF (PRESENT(aux_density)) THEN
+                        ehartree = 0.5_dp*pw_integral_ab(rhog_aux, tmpg)
+                     ELSE
+                        ehartree = 0.5_dp*pw_integral_ab(rhog, tmpg)
+                     END IF
+                     CALL pw_pool%give_back_pw(tmpg)
+                  END IF
+
+               CASE (PS_IMPLICIT)
+                  IF (PRESENT(h_stress)) THEN
+                     CPABORT("No stress tensor is implemented for the implicit Poisson solver.")
+                  END IF
+
+                  IF (has_dielectric .AND. PRESENT(rho_core)) THEN
+                     SELECT CASE (poisson_env%parameters%ps_implicit_params%boundary_condition)
+                     CASE (PERIODIC_BC, MIXED_PERIODIC_BC)
+                        CALL dielectric_compute(poisson_env%implicit_env%dielectric, &
+                                                poisson_env%diel_rs_grid, &
+                                                poisson_env%pw_pools(poisson_env%pw_level)%pool, &
+                                                density, rho_core=rho_core)
+                     CASE (NEUMANN_BC, MIXED_BC)
+                        CALL dielectric_compute(poisson_env%implicit_env%dielectric, &
+                                                poisson_env%diel_rs_grid, &
+                                                poisson_env%pw_pools(poisson_env%pw_level)%pool, &
+                                                poisson_env%dct_pw_grid, &
+                                                poisson_env%parameters%ps_implicit_params%neumann_directions, &
+                                                poisson_env%implicit_env%dct_env%recv_msgs_bnds, &
+                                                poisson_env%implicit_env%dct_env%dests_expand, &
+                                                poisson_env%implicit_env%dct_env%srcs_expand, &
+                                                poisson_env%implicit_env%dct_env%flipg_stat, &
+                                                poisson_env%implicit_env%dct_env%bounds_shftd, &
+                                                density, rho_core=rho_core)
+                     END SELECT
+                  END IF
+
+                  CALL pw_pool%create_pw(rhor)
+                  CALL pw_pool%create_pw(vhartree_rs)
+                  CALL pw_transfer(density, rhor)
+
+                  SELECT CASE (poisson_env%parameters%ps_implicit_params%boundary_condition)
+                  CASE (PERIODIC_BC)
+                     CALL implicit_poisson_solver_periodic(poisson_env, rhor, vhartree_rs, &
+                                                           ehartree=ehartree)
+                  CASE (NEUMANN_BC)
+                     CALL implicit_poisson_solver_neumann(poisson_env, rhor, vhartree_rs, &
+                                                          ehartree=ehartree)
+                  CASE (MIXED_PERIODIC_BC)
+                     CALL implicit_poisson_solver_mixed_periodic(poisson_env, rhor, vhartree_rs, &
+                                                                 electric_enthalpy=ehartree)
+                  CASE (MIXED_BC)
+                     CALL implicit_poisson_solver_mixed(poisson_env, rhor, vhartree_rs, &
+                                                        electric_enthalpy=ehartree)
+                  END SELECT
+
+                  CALL pw_transfer(rhor, rhog)
+
+                  IF (PRESENT(aux_density)) THEN
+                     CALL pw_transfer(aux_density, rhor)
+                     ehartree = 0.5_dp*pw_integral_ab(rhor, vhartree_rs)
+                  END IF
+
+                  CALL pw_pool%give_back_pw(rhor)
+                  CALL pw_pool%give_back_pw(vhartree_rs)
+
+               CASE DEFAULT
+                  CALL cp_abort(__LOCATION__, &
+                                "unknown poisson method "// &
+                                cp_to_string(poisson_env%green_fft%method))
+               END SELECT
+
+            CASE (use_rs_grid)
+
+               CALL pw_pool%create_pw(rhor)
+               CALL pw_transfer(density, rhor)
+               CALL cp2k_distribution_to_z_slices(rhor, poisson_env%wavelet, rhor%pw_grid)
+               CALL ps_wavelet_solve(poisson_env%wavelet, rhor%pw_grid)
+               CALL z_slices_to_cp2k_distribution(rhor, poisson_env%wavelet, rhor%pw_grid)
+               CALL pw_transfer(rhor, rhog)
+               IF (PRESENT(ehartree)) THEN
+                  #! This is actually not consequent but to keep it working, I leave it that way
+                  #! Correctly, one checks the spaces but in CP2K, there is a separation in r-space/3D and g-space/1D in most cases
+                  #:if kindd=="r3d_rs"
+                     ehartree = 0.5_dp*pw_integral_ab(density, rhor)
+                  #:else
+                     ehartree = 0.5_dp*pw_integral_ab(density, rhog)
+                  #:endif
+               END IF
+               CALL pw_pool%give_back_pw(rhor)
+
+            END SELECT
+
+            IF (PRESENT(aux_density)) THEN
+               CALL calc_stress_and_gradient_${kindg}$ (poisson_env, rhog, ehartree, rhog_aux, h_stress, dvhartree=dvhartree)
+            ELSE
+               CALL calc_stress_and_gradient_${kindg}$ (poisson_env, rhog, ehartree, h_stress=h_stress, dvhartree=dvhartree)
+            END IF
+
+            CALL pw_pool%give_back_pw(rhog)
+            IF (PRESENT(aux_density)) THEN
+               CALL pw_pool%give_back_pw(rhog_aux)
+            END IF
+
+            CALL timestop(handle)
+
+         END SUBROUTINE pw_poisson_solve_nov_dv_${kindd}$_${kindg}$
+      #:endfor
+   #:endfor
+
+   #:for kindd in ['r3d_rs', 'c1d_gs']
+      #:for kindg in ['r3d_rs', 'c1d_gs']
+         #:for kindv in ['r3d_rs', 'c1d_gs']
 ! **************************************************************************************************
 !> \brief Solve Poisson equation in a plane wave basis set
 !>      Obtains electrostatic potential and its derivatives with respect to r
@@ -231,178 +917,237 @@ CONTAINS
 !>      JGH (13-Mar-2001) : completely revised
 !> \author apsi
 ! **************************************************************************************************
-   SUBROUTINE pw_poisson_solve(poisson_env, density, ehartree, vhartree, &
-                               dvhartree, h_stress, rho_core, greenfn, aux_density)
+            SUBROUTINE pw_poisson_solve_v_dv_${kindd}$_${kindv}$_${kindg}$ (poisson_env, density, ehartree, vhartree, &
+                                                                            dvhartree, h_stress, rho_core, greenfn, aux_density)
 
-      TYPE(pw_poisson_type), INTENT(INOUT)               :: poisson_env
-      TYPE(pw_type), INTENT(IN)                          :: density
-      REAL(kind=dp), INTENT(out), OPTIONAL               :: ehartree
-      TYPE(pw_type), INTENT(INOUT), OPTIONAL             :: vhartree
-      TYPE(pw_type), DIMENSION(3), OPTIONAL              :: dvhartree
-      REAL(KIND=dp), DIMENSION(3, 3), INTENT(OUT), &
-         OPTIONAL                                        :: h_stress
-      TYPE(pw_type), INTENT(IN), OPTIONAL                :: rho_core, greenfn, aux_density
+               TYPE(pw_poisson_type), INTENT(INOUT)               :: poisson_env
+               TYPE(pw_${kindd}$_type), INTENT(IN)                          :: density
+               REAL(kind=dp), INTENT(out), OPTIONAL               :: ehartree
+               TYPE(pw_${kindv}$_type), INTENT(INOUT)             :: vhartree
+               TYPE(pw_${kindg}$_type), DIMENSION(3)              :: dvhartree
+               REAL(KIND=dp), DIMENSION(3, 3), INTENT(OUT), &
+                  OPTIONAL                                        :: h_stress
+               TYPE(pw_c1d_gs_type), INTENT(IN), OPTIONAL                :: rho_core, greenfn
+               TYPE(pw_${kindd}$_type), INTENT(IN), OPTIONAL :: aux_density
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_poisson_solve'
+               CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_poisson_solve'
 
-      INTEGER                                            :: alpha, beta, handle, i
-      INTEGER, DIMENSION(3)                              :: n
-      LOGICAL                                            :: has_dielectric
-      REAL(KIND=dp)                                      :: ffa
-      TYPE(pw_grid_type), POINTER                        :: pw_grid
-      TYPE(pw_pool_type), POINTER                        :: pw_pool
-      TYPE(pw_type)                                      :: dvg(3), dvg_aux(3), influence_fn, rhog, &
-                                                            rhog_aux, rhor, tmpg, vhartree_rs
+               INTEGER                                            ::  handle
+               LOGICAL                                            :: has_dielectric
+               TYPE(pw_grid_type), POINTER                        :: pw_grid
+               TYPE(pw_pool_type), POINTER                        :: pw_pool
+               TYPE(pw_r3d_rs_type)                                      ::  rhor, vhartree_rs
+               TYPE(pw_c1d_gs_type) :: influence_fn, rhog, rhog_aux
 
-      CALL timeset(routineN, handle)
+               CALL timeset(routineN, handle)
 
-      CALL pw_poisson_rebuild(poisson_env, density)
+               CALL pw_poisson_rebuild(poisson_env, density)
 
-      has_dielectric = poisson_env%parameters%has_dielectric
+               has_dielectric = poisson_env%parameters%has_dielectric
 
-      ! point pw
-      pw_pool => poisson_env%pw_pools(poisson_env%pw_level)%pool
-      pw_grid => pw_pool%pw_grid
-      IF (PRESENT(vhartree)) THEN
-         IF (.NOT. pw_grid_compare(pw_pool%pw_grid, vhartree%pw_grid)) &
-            CPABORT("vhartree has a different grid than the poisson solver")
-      END IF
-      ! density in G space
-      CALL pw_pool%create_pw(rhog, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
-      IF (PRESENT(aux_density)) THEN
-         CALL pw_pool%create_pw(rhog_aux, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
-      END IF
-
-      SELECT CASE (poisson_env%used_grid)
-      CASE (use_gs_grid)
-
-         SELECT CASE (poisson_env%green_fft%method)
-         CASE (PERIODIC3D, ANALYTIC2D, ANALYTIC1D, ANALYTIC0D, MT2D, MT1D, MT0D, MULTIPOLE0D)
-
-            CALL pw_transfer(density, rhog)
-            IF (PRESENT(aux_density)) THEN
-               CALL pw_transfer(aux_density, rhog_aux)
-            END IF
-            IF (PRESENT(ehartree) .AND. (.NOT. PRESENT(vhartree))) THEN
-               CALL pw_pool%create_pw(tmpg, use_data=COMPLEXDATA1D, &
-                                      in_space=RECIPROCALSPACE)
-               CALL pw_copy(rhog, tmpg)
-            END IF
-            IF (PRESENT(greenfn)) THEN
-               influence_fn = greenfn
-            ELSE
-               influence_fn = poisson_env%green_fft%influence_fn
-            END IF
-            rhog%cc(:) = rhog%cc(:)*influence_fn%cc(:)
-            IF (PRESENT(aux_density)) THEN
-               rhog_aux%cc(:) = rhog_aux%cc(:)*influence_fn%cc(:)
-            END IF
-            IF (PRESENT(vhartree)) THEN
-               CALL pw_transfer(rhog, vhartree)
-               IF (PRESENT(ehartree)) THEN
-                  IF (PRESENT(aux_density)) THEN
-                     ehartree = 0.5_dp*pw_integral_ab(aux_density, vhartree)
-                  ELSE
-                     ehartree = 0.5_dp*pw_integral_ab(density, vhartree)
-                  END IF
+               ! point pw
+               pw_pool => poisson_env%pw_pools(poisson_env%pw_level)%pool
+               pw_grid => pw_pool%pw_grid
+               IF (.NOT. pw_grid_compare(pw_pool%pw_grid, vhartree%pw_grid)) &
+                  CPABORT("vhartree has a different grid than the poisson solver")
+               ! density in G space
+               CALL pw_pool%create_pw(rhog)
+               IF (PRESENT(aux_density)) THEN
+                  CALL pw_pool%create_pw(rhog_aux)
                END IF
-            ELSE IF (PRESENT(ehartree)) THEN
-               ehartree = 0.5_dp*pw_integral_ab(rhog, tmpg)
-               CALL pw_pool%give_back_pw(tmpg)
-            END IF
 
-         CASE (PS_IMPLICIT)
+               SELECT CASE (poisson_env%used_grid)
+               CASE (use_gs_grid)
 
-            IF (has_dielectric .AND. PRESENT(rho_core)) THEN
-               SELECT CASE (poisson_env%parameters%ps_implicit_params%boundary_condition)
-               CASE (PERIODIC_BC, MIXED_PERIODIC_BC)
-                  CALL dielectric_compute(poisson_env%implicit_env%dielectric, &
-                                          poisson_env%diel_rs_grid, &
-                                          poisson_env%pw_pools(poisson_env%pw_level)%pool, &
-                                          density, rho_core=rho_core)
-               CASE (NEUMANN_BC, MIXED_BC)
-                  CALL dielectric_compute(poisson_env%implicit_env%dielectric, &
-                                          poisson_env%diel_rs_grid, &
-                                          poisson_env%pw_pools(poisson_env%pw_level)%pool, &
-                                          poisson_env%dct_pw_grid, &
-                                          poisson_env%parameters%ps_implicit_params%neumann_directions, &
-                                          poisson_env%implicit_env%dct_env%recv_msgs_bnds, &
-                                          poisson_env%implicit_env%dct_env%dests_expand, &
-                                          poisson_env%implicit_env%dct_env%srcs_expand, &
-                                          poisson_env%implicit_env%dct_env%flipg_stat, &
-                                          poisson_env%implicit_env%dct_env%bounds_shftd, &
-                                          density, rho_core=rho_core)
-               END SELECT
-            END IF
+                  SELECT CASE (poisson_env%green_fft%method)
+                  CASE (PERIODIC3D, ANALYTIC2D, ANALYTIC1D, ANALYTIC0D, MT2D, MT1D, MT0D, MULTIPOLE0D)
 
-            CALL pw_pool%create_pw(rhor, use_data=REALDATA3D, in_space=REALSPACE)
-            CALL pw_pool%create_pw(vhartree_rs, use_data=REALDATA3D, in_space=REALSPACE)
-            CALL pw_transfer(density, rhor)
+                     CALL pw_transfer(density, rhog)
+                     IF (PRESENT(aux_density)) THEN
+                        CALL pw_transfer(aux_density, rhog_aux)
+                     END IF
+                     IF (PRESENT(greenfn)) THEN
+                        influence_fn = greenfn
+                     ELSE
+                        influence_fn = poisson_env%green_fft%influence_fn
+                     END IF
+                     CALL pw_multiply_with(rhog, influence_fn)
+                     IF (PRESENT(aux_density)) THEN
+                        CALL pw_multiply_with(rhog_aux, influence_fn)
+                     END IF
+                     CALL pw_transfer(rhog, vhartree)
+                     IF (PRESENT(ehartree)) THEN
+                        IF (PRESENT(aux_density)) THEN
+                           #:if kindd==kindv
+                              ehartree = 0.5_dp*pw_integral_ab(aux_density, vhartree)
+                           #:elif kindd=="c1d_gs"
+                              ehartree = 0.5_dp*pw_integral_ab(aux_density, rhog)
+                           #:else
+                              CALL pw_transfer(aux_density, rhog)
+                              ehartree = 0.5_dp*pw_integral_ab(rhog, vhartree)
+                           #:endif
+                        ELSE
+                           #:if kindd==kindv
+                              ehartree = 0.5_dp*pw_integral_ab(density, vhartree)
+                           #:elif kindd=="c1d_gs"
+                              ehartree = 0.5_dp*pw_integral_ab(density, rhog)
+                           #:else
+                              CALL pw_transfer(density, rhog)
+                              ehartree = 0.5_dp*pw_integral_ab(rhog, vhartree)
+                           #:endif
+                        END IF
+                     END IF
 
-            SELECT CASE (poisson_env%parameters%ps_implicit_params%boundary_condition)
-            CASE (PERIODIC_BC)
-               CALL implicit_poisson_solver_periodic(poisson_env, rhor, vhartree_rs, &
-                                                     ehartree=ehartree)
-            CASE (NEUMANN_BC)
-               CALL implicit_poisson_solver_neumann(poisson_env, rhor, vhartree_rs, &
-                                                    ehartree=ehartree)
-            CASE (MIXED_PERIODIC_BC)
-               CALL implicit_poisson_solver_mixed_periodic(poisson_env, rhor, vhartree_rs, &
+                  CASE (PS_IMPLICIT)
+                     IF (PRESENT(h_stress)) THEN
+                        CALL cp_abort(__LOCATION__, &
+                                      "No stress tensor is implemented for the implicit Poisson solver.")
+                     END IF
+
+                     IF (has_dielectric .AND. PRESENT(rho_core)) THEN
+                        SELECT CASE (poisson_env%parameters%ps_implicit_params%boundary_condition)
+                        CASE (PERIODIC_BC, MIXED_PERIODIC_BC)
+                           CALL dielectric_compute(poisson_env%implicit_env%dielectric, &
+                                                   poisson_env%diel_rs_grid, &
+                                                   poisson_env%pw_pools(poisson_env%pw_level)%pool, &
+                                                   density, rho_core=rho_core)
+                        CASE (NEUMANN_BC, MIXED_BC)
+                           CALL dielectric_compute(poisson_env%implicit_env%dielectric, &
+                                                   poisson_env%diel_rs_grid, &
+                                                   poisson_env%pw_pools(poisson_env%pw_level)%pool, &
+                                                   poisson_env%dct_pw_grid, &
+                                                   poisson_env%parameters%ps_implicit_params%neumann_directions, &
+                                                   poisson_env%implicit_env%dct_env%recv_msgs_bnds, &
+                                                   poisson_env%implicit_env%dct_env%dests_expand, &
+                                                   poisson_env%implicit_env%dct_env%srcs_expand, &
+                                                   poisson_env%implicit_env%dct_env%flipg_stat, &
+                                                   poisson_env%implicit_env%dct_env%bounds_shftd, &
+                                                   density, rho_core=rho_core)
+                        END SELECT
+                     END IF
+
+                     CALL pw_pool%create_pw(rhor)
+                     CALL pw_pool%create_pw(vhartree_rs)
+                     CALL pw_transfer(density, rhor)
+
+                     SELECT CASE (poisson_env%parameters%ps_implicit_params%boundary_condition)
+                     CASE (PERIODIC_BC)
+                        CALL implicit_poisson_solver_periodic(poisson_env, rhor, vhartree_rs, &
+                                                              ehartree=ehartree)
+                     CASE (NEUMANN_BC)
+                        CALL implicit_poisson_solver_neumann(poisson_env, rhor, vhartree_rs, &
+                                                             ehartree=ehartree)
+                     CASE (MIXED_PERIODIC_BC)
+                        CALL implicit_poisson_solver_mixed_periodic(poisson_env, rhor, vhartree_rs, &
+                                                                    electric_enthalpy=ehartree)
+                     CASE (MIXED_BC)
+                        CALL implicit_poisson_solver_mixed(poisson_env, rhor, vhartree_rs, &
                                                            electric_enthalpy=ehartree)
-            CASE (MIXED_BC)
-               CALL implicit_poisson_solver_mixed(poisson_env, rhor, vhartree_rs, &
-                                                  electric_enthalpy=ehartree)
-            END SELECT
+                     END SELECT
 
-            IF (PRESENT(vhartree)) CALL pw_transfer(vhartree_rs, vhartree)
-            IF (PRESENT(dvhartree)) CALL pw_transfer(rhor, rhog)
-            IF (PRESENT(h_stress)) THEN
-               CPABORT("No stress tensor is implemented for the implicit Poisson solver.")
-            END IF
+                     CALL pw_transfer(vhartree_rs, vhartree)
+                     CALL pw_transfer(rhor, rhog)
 
-            CALL pw_pool%give_back_pw(rhor)
-            CALL pw_pool%give_back_pw(vhartree_rs)
+                     IF (PRESENT(aux_density)) THEN
+                        CALL pw_transfer(aux_density, rhor)
+                        ehartree = 0.5_dp*pw_integral_ab(rhor, vhartree_rs)
+                     END IF
 
-         CASE DEFAULT
-            CALL cp_abort(__LOCATION__, &
-                          "unknown poisson method "// &
-                          cp_to_string(poisson_env%green_fft%method))
-         END SELECT
+                     CALL pw_pool%give_back_pw(rhor)
+                     CALL pw_pool%give_back_pw(vhartree_rs)
 
-      CASE (use_rs_grid)
+                  CASE DEFAULT
+                     CALL cp_abort(__LOCATION__, &
+                                   "unknown poisson method "// &
+                                   cp_to_string(poisson_env%green_fft%method))
+                  END SELECT
 
-         CALL pw_pool%create_pw(rhor, use_data=REALDATA3D, in_space=REALSPACE)
-         CALL pw_transfer(density, rhor)
-         CALL cp2k_distribution_to_z_slices(rhor, poisson_env%wavelet, rhor%pw_grid)
-         CALL ps_wavelet_solve(poisson_env%wavelet, rhor%pw_grid)
-         CALL z_slices_to_cp2k_distribution(rhor, poisson_env%wavelet, rhor%pw_grid)
-         IF (PRESENT(vhartree)) THEN
-            CALL pw_transfer(rhor, vhartree)
-            IF (PRESENT(ehartree)) THEN
-               ehartree = 0.5_dp*pw_integral_ab(density, vhartree)
-            END IF
-         ELSE IF (PRESENT(ehartree)) THEN
-            ehartree = 0.5_dp*pw_integral_ab(density, rhor)
-         END IF
-         IF (PRESENT(h_stress) .OR. PRESENT(dvhartree)) THEN
-            CALL pw_transfer(rhor, rhog)
-         END IF
-         CALL pw_pool%give_back_pw(rhor)
+               CASE (use_rs_grid)
 
-      END SELECT
+                  CALL pw_pool%create_pw(rhor)
+                  CALL pw_transfer(density, rhor)
+                  CALL cp2k_distribution_to_z_slices(rhor, poisson_env%wavelet, rhor%pw_grid)
+                  CALL ps_wavelet_solve(poisson_env%wavelet, rhor%pw_grid)
+                  CALL z_slices_to_cp2k_distribution(rhor, poisson_env%wavelet, rhor%pw_grid)
+                  CALL pw_transfer(rhor, vhartree)
+                  CALL pw_transfer(rhor, rhog)
+                  IF (PRESENT(ehartree)) THEN
+                     IF (PRESENT(aux_density)) THEN
+                        #:if kindd==kindv
+                           ehartree = 0.5_dp*pw_integral_ab(aux_density, vhartree)
+                        #:elif kindd=="r3d_rs"
+                           ehartree = 0.5_dp*pw_integral_ab(aux_density, rhor)
+                        #:else
+                           ehartree = 0.5_dp*pw_integral_ab(aux_density, rhog)
+                        #:endif
+                     ELSE
+                        #:if kindd==kindv
+                           ehartree = 0.5_dp*pw_integral_ab(density, vhartree)
+                        #:elif kindd=="r3d_rs"
+                           ehartree = 0.5_dp*pw_integral_ab(density, rhor)
+                        #:else
+                           ehartree = 0.5_dp*pw_integral_ab(density, rhog)
+                        #:endif
+                     END IF
+                  END IF
+                  CALL pw_transfer(rhor, rhog)
+                  IF (PRESENT(aux_density)) THEN
+                     CALL pw_transfer(aux_density, rhor)
+                     CALL cp2k_distribution_to_z_slices(rhor, poisson_env%wavelet, rhor%pw_grid)
+                     CALL ps_wavelet_solve(poisson_env%wavelet, rhor%pw_grid)
+                     CALL z_slices_to_cp2k_distribution(rhor, poisson_env%wavelet, rhor%pw_grid)
+                     CALL pw_transfer(rhor, rhog_aux)
+                  END IF
+                  CALL pw_pool%give_back_pw(rhor)
 
-      ! do we need to calculate the derivative of the potential?
-      IF (PRESENT(h_stress) .OR. PRESENT(dvhartree)) THEN
+               END SELECT
+
+               IF (PRESENT(aux_density)) THEN
+                  CALL calc_stress_and_gradient_${kindg}$ (poisson_env, rhog, ehartree, rhog_aux, h_stress, dvhartree=dvhartree)
+               ELSE
+                  CALL calc_stress_and_gradient_${kindg}$ (poisson_env, rhog, ehartree, h_stress=h_stress, dvhartree=dvhartree)
+               END IF
+
+               CALL pw_pool%give_back_pw(rhog)
+               IF (PRESENT(aux_density)) THEN
+                  CALL pw_pool%give_back_pw(rhog_aux)
+               END IF
+
+               CALL timestop(handle)
+
+            END SUBROUTINE pw_poisson_solve_v_dv_${kindd}$_${kindv}$_${kindg}$
+         #:endfor
+      #:endfor
+   #:endfor
+
+   #:for kind in ["c1d_gs", "r3d_rs"]
+      SUBROUTINE calc_stress_and_gradient_${kind}$ (poisson_env, rhog, ehartree, rhog_aux, h_stress, dvhartree)
+         TYPE(pw_poisson_type), INTENT(IN) :: poisson_env
+         TYPE(pw_c1d_gs_type), INTENT(IN) :: rhog
+         REAL(KIND=dp) :: ehartree
+         TYPE(pw_c1d_gs_type), INTENT(IN), OPTIONAL :: rhog_aux
+         REAL(KIND=dp), DIMENSION(3, 3), INTENT(OUT), OPTIONAL :: h_stress
+         TYPE(pw_${kind}$_type), DIMENSION(3), INTENT(INOUT), OPTIONAL :: dvhartree
+
+         CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_poisson_set'
+
+         REAL(KIND=dp) :: ffa
+         INTEGER :: alpha, beta, n(3), handle, i
+         TYPE(pw_c1d_gs_type) :: dvg(3), dvg_aux(3)
+         TYPE(pw_pool_type), POINTER                        :: pw_pool
+
+         CALL timeset(routineN, handle)
+
+         pw_pool => poisson_env%pw_pools(poisson_env%pw_level)%pool
+
          DO i = 1, 3
-            CALL pw_pool%create_pw(dvg(i), use_data=COMPLEXDATA1D, &
-                                   in_space=RECIPROCALSPACE)
+            CALL pw_pool%create_pw(dvg(i))
             n = 0
             n(i) = 1
             CALL pw_copy(rhog, dvg(i))
             CALL pw_derive(dvg(i), n)
-            IF (PRESENT(aux_density)) THEN
-               CALL pw_pool%create_pw(dvg_aux(i), use_data=COMPLEXDATA1D, &
-                                      in_space=RECIPROCALSPACE)
+            IF (PRESENT(rhog_aux)) THEN
+               CALL pw_pool%create_pw(dvg_aux(i))
                CALL pw_copy(rhog_aux, dvg_aux(i))
                CALL pw_derive(dvg_aux(i), n)
             END IF
@@ -420,7 +1165,7 @@ CONTAINS
             h_stress = 0.0_dp
             DO alpha = 1, 3
                h_stress(alpha, alpha) = ehartree
-               IF (PRESENT(aux_density)) THEN
+               IF (PRESENT(rhog_aux)) THEN
                   DO beta = alpha, 3
                      h_stress(alpha, beta) = h_stress(alpha, beta) &
                                              + ffa*pw_integral_ab(dvg_aux(alpha), dvg(beta))
@@ -495,20 +1240,15 @@ CONTAINS
 
          DO i = 1, 3
             CALL pw_pool%give_back_pw(dvg(i))
-            IF (PRESENT(aux_density)) THEN
+            IF (PRESENT(rhog_aux)) THEN
                CALL pw_pool%give_back_pw(dvg_aux(i))
             END IF
          END DO
 
-      END IF
-      CALL pw_pool%give_back_pw(rhog)
-      IF (PRESENT(aux_density)) THEN
-         CALL pw_pool%give_back_pw(rhog_aux)
-      END IF
+         CALL timestop(handle)
 
-      CALL timestop(handle)
-
-   END SUBROUTINE pw_poisson_solve
+      END SUBROUTINE calc_stress_and_gradient_${kind}$
+   #:endfor
 
 ! **************************************************************************************************
 !> \brief sets cell, grids and parameters used by the poisson solver

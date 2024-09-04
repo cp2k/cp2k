@@ -1,0 +1,60 @@
+&GLOBAL
+  PROJECT water
+  RUN_TYPE MD
+&END GLOBAL
+
+&MOTION
+  &MD
+    ENSEMBLE NVT
+    STEPS 0
+    TEMPERATURE 300
+    TIMESTEP 0.5
+    &THERMOSTAT
+      &CSVR
+        TIMECON 10
+      &END CSVR
+    &END THERMOSTAT
+  &END MD
+&END MOTION
+
+&FORCE_EVAL
+  METHOD FIST
+  STRESS_TENSOR ANALYTICAL
+  &MM
+    &FORCEFIELD
+      &NONBONDED
+        &NEQUIP
+          ATOMS H O
+          PARM_FILE_NAME NequIP/water-deployed-neq060dp.pth
+          UNIT_COORDS angstrom
+          UNIT_ENERGY eV
+          UNIT_FORCES eV*angstrom^-1
+        &END NEQUIP
+      &END NONBONDED
+    &END FORCEFIELD
+    &POISSON
+      &EWALD
+        EWALD_TYPE none
+      &END EWALD
+    &END POISSON
+  &END MM
+  &PRINT
+    &FORCES
+    &END FORCES
+    &STRESS_TENSOR
+      &EACH
+        MD 1
+      &END EACH
+    &END STRESS_TENSOR
+  &END PRINT
+  &SUBSYS
+    &CELL
+      ABC 9.8528 9.8528 9.8528
+    &END CELL
+    &TOPOLOGY
+      COORD_FILE_FORMAT XYZ
+      #     coordinates must be ordered by atomic number
+      COORD_FILE_NAME ./water-bulk.xyz
+    &END TOPOLOGY
+  &END SUBSYS
+&END FORCE_EVAL

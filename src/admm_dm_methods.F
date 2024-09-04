@@ -16,18 +16,19 @@ MODULE admm_dm_methods
                                               mcweeny_history_type
    USE admm_types,                      ONLY: get_admm_env
    USE cp_control_types,                ONLY: dft_control_type
-   USE cp_dbcsr_operations,             ONLY: dbcsr_deallocate_matrix_set
-   USE cp_log_handling,                 ONLY: cp_logger_get_default_unit_nr
-   USE dbcsr_api,                       ONLY: &
+   USE cp_dbcsr_api,                    ONLY: &
         dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_frobenius_norm, dbcsr_get_block_p, &
         dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_start, &
         dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, dbcsr_p_type, dbcsr_release, &
         dbcsr_scale, dbcsr_set, dbcsr_type
+   USE cp_dbcsr_operations,             ONLY: dbcsr_deallocate_matrix_set
+   USE cp_log_handling,                 ONLY: cp_logger_get_default_unit_nr
    USE input_constants,                 ONLY: do_admm_basis_projection,&
                                               do_admm_blocked_projection
    USE iterate_matrix,                  ONLY: invert_Hotelling
    USE kinds,                           ONLY: dp
-   USE pw_types,                        ONLY: pw_type
+   USE pw_types,                        ONLY: pw_c1d_gs_type,&
+                                              pw_r3d_rs_type
    USE qs_collocate_density,            ONLY: calculate_rho_elec
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
@@ -237,7 +238,8 @@ CONTAINS
       TYPE(admm_dm_type), POINTER                        :: admm_dm
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_ao_aux
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_g_aux, rho_r_aux
+      TYPE(pw_c1d_gs_type), DIMENSION(:), POINTER        :: rho_g_aux
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: rho_r_aux
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho_aux
       TYPE(task_list_type), POINTER                      :: task_list_aux_fit

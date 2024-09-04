@@ -39,7 +39,7 @@
         MAX_SCF 10
       &END OUTER_SCF
     &END SCF
-@XCTYPE vdW-DF1
+    @XCTYPE vdW-DF1
     &PRINT
       &MOMENTS ON
         PERIODIC .FALSE.

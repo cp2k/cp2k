@@ -208,7 +208,7 @@ void grid_fill_pol_dgemm(const bool transpose, const double dr,
       double *__restrict__ poly = &idx2(pol, 1, 0);
       double *__restrict__ src1 = &idx2(pol, 0, 0);
       double *__restrict__ dst = &idx2(pol, 2, 0);
-      //#pragma omp simd linear(dst, src1, poly) simdlen(8)
+      // #pragma omp simd linear(dst, src1, poly) simdlen(8)
       GRID_PRAGMA_SIMD((dst, src1, poly), 8)
       for (int ig = 0; ig < (xmax - xmin + 1 + pol_offset); ig++)
         dst[ig] = src1[ig] * poly[ig] * poly[ig];
@@ -464,7 +464,7 @@ void collocate_l0(double *scratch, const double alpha, const bool orthogonal_xy,
     for (int y = 0; y < cube->size[1]; y++) {
       const double *__restrict src = &idx2(exp_xy[0], y, 0);
       double *__restrict dst = &scratch[y * cube->ld_];
-      //#pragma omp simd linear(dst, src) simdlen(8)
+      // #pragma omp simd linear(dst, src) simdlen(8)
       GRID_PRAGMA_SIMD((dst, src), 8)
       for (int x = 0; x < cube->size[2]; x++) {
         dst[x] *= src[x];
@@ -1244,7 +1244,7 @@ void grid_dgemm_collocate_task_list(grid_dgemm_task_list *const ptr,
 
   assert(ctx->nlevels == nlevels);
 
-  //#pragma omp parallel for
+  // #pragma omp parallel for
   for (int level = 0; level < ctx->nlevels; level++) {
     const _layout *layout = &ctx->layouts[level];
     set_grid_parameters(&ctx->grid[level], ctx->orthorhombic,

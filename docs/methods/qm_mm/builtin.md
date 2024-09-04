@@ -10,7 +10,7 @@ will simulate the substrate at the QM level (using the semi-empirical AM1 method
 equilibrate our system with all components at the MM level.
 
 ```{note}
-The input files can be downloaded [here](https://www.cp2k.org/_media/:howto:inputfiles.zip).
+The input files can be downloaded [here](https://github.com/cp2k/cp2k-examples/tree/master/qm_mm).
 ```
 
 ![](qm_mm_substrate_in_protein.png){align=center}

@@ -9,7 +9,7 @@
   &DFT
     WFN_RESTART_FILE_NAME wfn.restart
     CHARGE 0
-@IF ${QS_METHOD} == SE
+    @IF ${QS_METHOD} == SE
     &QS
       METHOD AM1
       &SE
@@ -26,8 +26,8 @@
         &END RESTART
       &END PRINT
     &END SCF
-@ENDIF
-@IF ${QS_METHOD} == DFT
+    @ENDIF
+    @IF ${QS_METHOD} == DFT
     BASIS_SET_FILE_NAME BASIS_SET
     POTENTIAL_FILE_NAME POTENTIAL
     &MGRID
@@ -72,7 +72,7 @@
         XC_SMOOTH_RHO NN10
       &END XC_GRID
     &END XC
-@ENDIF
+    @ENDIF
   &END DFT
   &MM
     &FORCEFIELD
@@ -86,10 +86,10 @@
       &END SPLINE
     &END FORCEFIELD
     &POISSON
-@IF ${QS_METHOD} == DFT
+      @IF ${QS_METHOD} == DFT
       PERIODIC XYZ
       POISSON_SOLVER PERIODIC
-@ENDIF
+      @ENDIF
       &EWALD
         ALPHA 0.35
         EWALD_ACCURACY 1.E-6
@@ -303,18 +303,18 @@
     &CELL
       # 19x16x18 + 4 vacuum on each side
       ABC 27.0 24.0 26.0
-@IF ${QS_METHOD} == DFT
+      @IF ${QS_METHOD} == DFT
       PERIODIC XYZ
-@ENDIF
+      @ENDIF
     &END CELL
-@IF ${QS_METHOD} == SE
+    @IF ${QS_METHOD} == SE
     # SE only supports COULOMB
     ECOUPL COULOMB
-@ENDIF
-@IF ${QS_METHOD} == DFT
+    @ENDIF
+    @IF ${QS_METHOD} == DFT
     #GAUSS is from Laino 2005 using Blochl 1995, Gaussian expansion of the electrostatic potential
     ECOUPL GAUSS
-@ENDIF
+    @ENDIF
     USE_GEEP_LIB 10
     &MM_KIND OX
       RADIUS 1.2
@@ -325,9 +325,9 @@
   &END QMMM
   &SUBSYS
     &CELL
-@IF ${QS_METHOD} == DFT
+      @IF ${QS_METHOD} == DFT
       PERIODIC XYZ
-@ENDIF
+      @ENDIF
       ABC [angstrom] 42.4780006 48.2669983 60.3699989
     &END CELL
     #USER: BASIS_SET - double zeta in valence + polarization (DZVP)

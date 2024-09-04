@@ -20,6 +20,13 @@ MODULE mixed_cdft_utils
    USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
                                               cp_blacs_env_type
    USE cp_control_types,                ONLY: dft_control_type
+   USE cp_dbcsr_api,                    ONLY: dbcsr_desymmetrize,&
+                                              dbcsr_get_info,&
+                                              dbcsr_init_p,&
+                                              dbcsr_p_type,&
+                                              dbcsr_release,&
+                                              dbcsr_release_p,&
+                                              dbcsr_type
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               copy_fm_to_dbcsr_bc
    USE cp_files,                        ONLY: open_file
@@ -45,13 +52,6 @@ MODULE mixed_cdft_utils
    USE cube_utils,                      ONLY: init_cube_info,&
                                               return_cube_max_iradius
    USE d3_poly,                         ONLY: init_d3_poly_module
-   USE dbcsr_api,                       ONLY: dbcsr_desymmetrize,&
-                                              dbcsr_get_info,&
-                                              dbcsr_init_p,&
-                                              dbcsr_p_type,&
-                                              dbcsr_release,&
-                                              dbcsr_release_p,&
-                                              dbcsr_type
    USE force_env_types,                 ONLY: force_env_get,&
                                               force_env_type,&
                                               multiple_fe_list
@@ -91,8 +91,7 @@ MODULE mixed_cdft_utils
                                               pw_grid_type
    USE pw_grids,                        ONLY: do_pw_grid_blocked_false,&
                                               pw_grid_create,&
-                                              pw_grid_release,&
-                                              pw_grid_setup
+                                              pw_grid_release
    USE pw_pool_types,                   ONLY: pw_pool_create,&
                                               pw_pool_p_type,&
                                               pw_pool_type
@@ -224,7 +223,7 @@ CONTAINS
             settings%cutoff(iforce_eval) = auxbas_pw_pool%pw_grid%cutoff
             settings%rel_cutoff(iforce_eval) = dft_control%qs_control%relative_cutoff
             IF (auxbas_pw_pool%pw_grid%spherical) settings%spherical(iforce_eval) = 1
-            settings%rs_dims(:, iforce_eval) = auxbas_pw_pool%pw_grid%para%rs_dims
+            settings%rs_dims(:, iforce_eval) = auxbas_pw_pool%pw_grid%para%group%num_pe_cart
             IF (auxbas_pw_pool%pw_grid%grid_span == HALFSPACE) settings%odd(iforce_eval) = 1
             ! Becke constraint atoms/coeffs
             IF (cdft_control%natoms .GT. SIZE(settings%atoms, 1)) &
@@ -688,7 +687,6 @@ CONTAINS
       ! Init structures only needed when the CDFT states are treated in parallel
       IF (mixed_cdft%run_type == mixed_cdft_parallel) THEN
          ! Start building the mixed auxbas_pw_pool
-         CALL pw_grid_create(pw_grid, force_env%para_env)
          CALL pw_env_create(mixed_cdft%pw_env)
          ! Decide what kind of layout to use and setup the grid
          ! Processor mappings currently supported:
@@ -727,19 +725,19 @@ CONTAINS
             CALL get_qs_env(force_env_qs%qmmm_env%qs_env, &
                             cell=cell_mix)
          END IF
-         CALL pw_grid_setup(cell_mix%hmat, pw_grid, grid_span=settings%grid_span(1), &
-                            npts=settings%npts(:, 1), cutoff=settings%cutoff(1), &
-                            spherical=settings%is_spherical, odd=settings%is_odd, &
-                            fft_usage=.TRUE., ncommensurate=0, icommensurate=1, &
-                            blocked=do_pw_grid_blocked_false, rs_dims=mixed_rs_dims, &
-                            iounit=iounit)
+         CALL pw_grid_create(pw_grid, force_env%para_env, cell_mix%hmat, grid_span=settings%grid_span(1), &
+                             npts=settings%npts(:, 1), cutoff=settings%cutoff(1), &
+                             spherical=settings%is_spherical, odd=settings%is_odd, &
+                             fft_usage=.TRUE., ncommensurate=0, icommensurate=1, &
+                             blocked=do_pw_grid_blocked_false, rs_dims=mixed_rs_dims, &
+                             iounit=iounit)
          ! Check if the layout was successfully created
          IF (mixed_cdft%is_special) THEN
-            IF (.NOT. pw_grid%para%rs_dims(2) /= 1) is_match = .FALSE.
+            IF (.NOT. pw_grid%para%group%num_pe_cart(2) /= 1) is_match = .FALSE.
          ELSE IF (mixed_cdft%is_pencil) THEN
-            IF (.NOT. pw_grid%para%rs_dims(1) == mixed_rs_dims(1)) is_match = .FALSE.
+            IF (.NOT. pw_grid%para%group%num_pe_cart(1) == mixed_rs_dims(1)) is_match = .FALSE.
          ELSE
-            IF (.NOT. pw_grid%para%rs_dims(2) == 1) is_match = .FALSE.
+            IF (.NOT. pw_grid%para%group%num_pe_cart(2) == 1) is_match = .FALSE.
          END IF
          IF (.NOT. is_match) &
             CALL cp_abort(__LOCATION__, &
@@ -858,8 +856,8 @@ CONTAINS
             CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
             ! work out the pw grid points each proc holds in the two (identical) parallel proc groups
             ! note we only care about the x dir since we assume the y dir is not subdivided
-            ALLOCATE (bounds(0:auxbas_pw_pool%pw_grid%para%group_size - 1, 1:2))
-            DO i = 0, auxbas_pw_pool%pw_grid%para%group_size - 1
+            ALLOCATE (bounds(0:auxbas_pw_pool%pw_grid%para%group%num_pe - 1, 1:2))
+            DO i = 0, auxbas_pw_pool%pw_grid%para%group%num_pe - 1
                bounds(i, 1:2) = auxbas_pw_pool%pw_grid%para%bo(1:2, 1, i, 1)
                bounds(i, 1:2) = bounds(i, 1:2) - auxbas_pw_pool%pw_grid%npts(1)/2 - 1
             END DO
@@ -867,7 +865,7 @@ CONTAINS
             ! first get the number of target procs per group
             ntargets = 0
             offset = -1
-            DO i = 0, auxbas_pw_pool%pw_grid%para%group_size - 1
+            DO i = 0, auxbas_pw_pool%pw_grid%para%group%num_pe - 1
                IF ((bounds(i, 1) .GE. bo_mixed(1, 1) .AND. bounds(i, 1) .LE. bo_mixed(2, 1)) .OR. &
                    (bounds(i, 2) .GE. bo_mixed(1, 1) .AND. bounds(i, 2) .LE. bo_mixed(2, 1))) THEN
                   ntargets = ntargets + 1
@@ -895,8 +893,8 @@ CONTAINS
             ! finally determine which procs will send me grid points
             ! now we need info about y dir also
             DEALLOCATE (bounds)
-            ALLOCATE (bounds(0:pw_pools(1)%pool%pw_grid%para%group_size - 1, 1:4))
-            DO i = 0, pw_pools(1)%pool%pw_grid%para%group_size - 1
+            ALLOCATE (bounds(0:pw_pools(1)%pool%pw_grid%para%group%num_pe - 1, 1:4))
+            DO i = 0, pw_pools(1)%pool%pw_grid%para%group%num_pe - 1
                bounds(i, 1:2) = pw_pools(1)%pool%pw_grid%para%bo(1:2, 1, i, 1)
                bounds(i, 3:4) = pw_pools(1)%pool%pw_grid%para%bo(1:2, 2, i, 1)
                bounds(i, 1:2) = bounds(i, 1:2) - pw_pools(1)%pool%pw_grid%npts(1)/2 - 1
@@ -904,7 +902,7 @@ CONTAINS
             END DO
             ntargets = 0
             offset = -1
-            DO i = 0, pw_pools(1)%pool%pw_grid%para%group_size - 1
+            DO i = 0, pw_pools(1)%pool%pw_grid%para%group%num_pe - 1
                IF ((bo(1, 1) .GE. bounds(i, 1) .AND. bo(1, 1) .LE. bounds(i, 2)) .OR. &
                    (bo(2, 1) .GE. bounds(i, 1) .AND. bo(2, 1) .LE. bounds(i, 2))) THEN
                   ntargets = ntargets + 1

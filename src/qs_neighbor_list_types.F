@@ -34,63 +34,63 @@ MODULE qs_neighbor_list_types
 ! **************************************************************************************************
    TYPE neighbor_node_type
       PRIVATE
-      TYPE(neighbor_node_type), POINTER :: next_neighbor_node
-      REAL(dp), DIMENSION(3)            :: r
-      INTEGER, DIMENSION(3)             :: cell
-      INTEGER                           :: neighbor
+      TYPE(neighbor_node_type), POINTER :: next_neighbor_node => NULL()
+      REAL(dp), DIMENSION(3)            :: r = -1.0_dp
+      INTEGER, DIMENSION(3)             :: cell = -1
+      INTEGER                           :: neighbor = -1
    END TYPE neighbor_node_type
 
 ! **************************************************************************************************
    TYPE neighbor_list_type
       PRIVATE
-      TYPE(neighbor_list_type), POINTER :: next_neighbor_list
-      TYPE(neighbor_node_type), POINTER :: first_neighbor_node, &
-                                           last_neighbor_node
-      INTEGER                           :: atom, nnode
+      TYPE(neighbor_list_type), POINTER :: next_neighbor_list => NULL()
+      TYPE(neighbor_node_type), POINTER :: first_neighbor_node => NULL(), &
+                                           last_neighbor_node => NULL()
+      INTEGER                           :: atom = -1, nnode = -1
    END TYPE neighbor_list_type
 
 ! **************************************************************************************************
    TYPE neighbor_list_set_type
       PRIVATE
-      TYPE(neighbor_list_type), POINTER :: first_neighbor_list, &
-                                           last_neighbor_list
-      INTEGER                           :: nlist
-      LOGICAL                           :: symmetric
+      TYPE(neighbor_list_type), POINTER :: first_neighbor_list => NULL(), &
+                                           last_neighbor_list => NULL()
+      INTEGER                           :: nlist = -1
+      LOGICAL                           :: symmetric = .FALSE.
    END TYPE neighbor_list_set_type
 
 ! **************************************************************************************************
    TYPE neighbor_list_p_type
-      TYPE(neighbor_list_type), POINTER :: neighbor_list
+      TYPE(neighbor_list_type), POINTER :: neighbor_list => NULL()
    END TYPE neighbor_list_p_type
 
 ! **************************************************************************************************
    TYPE neighbor_list_set_p_type
-      TYPE(neighbor_list_set_type), POINTER                :: neighbor_list_set
-      INTEGER                                              :: nl_size
-      INTEGER                                              :: nl_start
-      INTEGER                                              :: nl_end
-      TYPE(neighbor_list_task_type), DIMENSION(:), POINTER :: nlist_task
+      TYPE(neighbor_list_set_type), POINTER                :: neighbor_list_set => NULL()
+      INTEGER                                              :: nl_size = -1
+      INTEGER                                              :: nl_start = -1
+      INTEGER                                              :: nl_end = -1
+      TYPE(neighbor_list_task_type), DIMENSION(:), POINTER :: nlist_task => NULL()
    END TYPE neighbor_list_set_p_type
 
 ! **************************************************************************************************
    TYPE list_search_type
       PRIVATE
-      INTEGER                               :: nlist
-      INTEGER, DIMENSION(:), POINTER        :: atom_list
-      INTEGER, DIMENSION(:), POINTER        :: atom_index
+      INTEGER                               :: nlist = -1
+      INTEGER, DIMENSION(:), POINTER        :: atom_list => NULL()
+      INTEGER, DIMENSION(:), POINTER        :: atom_index => NULL()
       TYPE(neighbor_list_p_type), &
-         DIMENSION(:), POINTER              :: neighbor_list
+         DIMENSION(:), POINTER              :: neighbor_list => NULL()
    END TYPE list_search_type
 
 ! **************************************************************************************************
    TYPE neighbor_list_task_type
-      INTEGER                               :: iatom, jatom, &
-                                               ikind, jkind, nkind, &
-                                               ilist, nlist, inode, nnode
-      REAL(KIND=dp), DIMENSION(3)           :: r
-      INTEGER, DIMENSION(3)                 :: cell
+      INTEGER                               :: iatom = -1, jatom = -1, &
+                                               ikind = -1, jkind = -1, nkind = -1, &
+                                               ilist = -1, nlist = -1, inode = -1, nnode = -1
+      REAL(KIND=dp), DIMENSION(3)           :: r = -1.0_dp
+      INTEGER, DIMENSION(3)                 :: cell = -1
       TYPE(neighbor_list_task_type), &
-         POINTER                            :: next ! Pointer for forming a linked list of tasks
+         POINTER                            :: next => NULL() ! Pointer for forming a linked list of tasks
    END TYPE neighbor_list_task_type
 
    INTERFACE nl_sub_iterate
@@ -103,21 +103,21 @@ MODULE qs_neighbor_list_types
 ! **************************************************************************************************
    TYPE neighbor_list_iterator_type
       PRIVATE
-      INTEGER                               :: ikind, jkind, ilist, inode
-      INTEGER                               :: nkind, nlist, nnode
-      INTEGER                               :: iatom, jatom
+      INTEGER                               :: ikind = -1, jkind = -1, ilist = -1, inode = -1
+      INTEGER                               :: nkind = -1, nlist = -1, nnode = -1
+      INTEGER                               :: iatom = -1, jatom = -1
       TYPE(neighbor_list_set_p_type), &
-         DIMENSION(:), POINTER               :: nl
-      TYPE(neighbor_list_type), POINTER     :: neighbor_list
-      TYPE(neighbor_node_type), POINTER     :: neighbor_node
+         DIMENSION(:), POINTER               :: nl => NULL()
+      TYPE(neighbor_list_type), POINTER     :: neighbor_list => NULL()
+      TYPE(neighbor_node_type), POINTER     :: neighbor_node => NULL()
       TYPE(list_search_type), &
-         DIMENSION(:), POINTER               :: list_search
+         DIMENSION(:), POINTER               :: list_search => NULL()
    END TYPE neighbor_list_iterator_type
 
    TYPE neighbor_list_iterator_p_type
       PRIVATE
-      TYPE(neighbor_list_iterator_type), POINTER :: neighbor_list_iterator
-      INTEGER                                    :: last
+      TYPE(neighbor_list_iterator_type), POINTER :: neighbor_list_iterator => NULL()
+      INTEGER                                    :: last = -1
    END TYPE neighbor_list_iterator_p_type
 ! **************************************************************************************************
 

@@ -1,0 +1,92 @@
+&GLOBAL
+  PRINT_LEVEL LOW
+  PROJECT test
+  RUN_TYPE ENERGY
+&END GLOBAL
+
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT
+    BASIS_SET_FILE_NAME BASIS_ccGRB_UZH
+    &EXCITED_STATES T
+      STATE 1
+    &END EXCITED_STATES
+    &MGRID
+      CUTOFF 200
+    &END MGRID
+    &POISSON
+      PERIODIC NONE
+      POISSON_SOLVER MT
+    &END POISSON
+    &QS
+      EPS_DEFAULT 1.e-10
+      METHOD GPW
+    &END QS
+    &SCF
+      EPS_SCF 1.0E-6
+      MAX_SCF 10
+      SCF_GUESS ATOMIC
+      &OT
+        MINIMIZER DIIS
+        PRECONDITIONER FULL_SINGLE_INVERSE
+      &END OT
+      &OUTER_SCF
+        EPS_SCF 1.0E-6
+        MAX_SCF 10
+      &END OUTER_SCF
+    &END SCF
+    &XC
+      &HF
+        &HF_INFO ON
+        &END HF_INFO
+      &END HF
+      &XC_FUNCTIONAL PBE0
+      &END XC_FUNCTIONAL
+    &END XC
+  &END DFT
+  &PROPERTIES
+    &TDDFPT
+      CONVERGENCE [eV] 1.0e-7
+      DO_LRIGPW T
+      KERNEL FULL
+      MAX_ITER 100
+      NSTATES 2
+      &LRIGPW
+        RI_STATISTIC T
+      &END LRIGPW
+      &XC
+        &HFX_KERNEL
+          DO_HFXSR T
+          &HF
+            FRACTION 0.20
+            &HF_INFO ON
+            &END HF_INFO
+          &END HF
+          &HFXLR
+          &END HFXLR
+        &END HFX_KERNEL
+        &XC_KERNEL LDAFXC
+        &END XC_KERNEL
+      &END XC
+    &END TDDFPT
+  &END PROPERTIES
+  &SUBSYS
+    &CELL
+      ABC [angstrom] 5.0 5.0 5.0
+      PERIODIC NONE
+    &END CELL
+    &COORD
+      O   0.000000    0.000000   -0.065587
+      H   0.000000   -0.757136    0.520545
+      H   0.000000    0.757136    0.520545
+    &END COORD
+    &KIND H
+      BASIS_SET ccGRB-D-q1
+      POTENTIAL GTH-PADE-q1
+    &END KIND
+    &KIND O
+      BASIS_SET ccGRB-D-q6
+      POTENTIAL GTH-PADE-q6
+    &END KIND
+  &END SUBSYS
+&END FORCE_EVAL

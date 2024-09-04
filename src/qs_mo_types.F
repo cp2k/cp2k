@@ -21,6 +21,10 @@
 ! **************************************************************************************************
 MODULE qs_mo_types
 
+   USE cp_dbcsr_api,                    ONLY: dbcsr_copy,&
+                                              dbcsr_init_p,&
+                                              dbcsr_release_p,&
+                                              dbcsr_type
    USE cp_dbcsr_operations,             ONLY: dbcsr_copy_columns_hack
    USE cp_fm_pool_types,                ONLY: cp_fm_pool_type,&
                                               fm_pool_create_fm
@@ -30,10 +34,6 @@ MODULE qs_mo_types
                                               cp_fm_release,&
                                               cp_fm_to_fm,&
                                               cp_fm_type
-   USE dbcsr_api,                       ONLY: dbcsr_copy,&
-                                              dbcsr_init_p,&
-                                              dbcsr_release_p,&
-                                              dbcsr_type
    USE kinds,                           ONLY: dp
 #include "./base/base_uses.f90"
 
@@ -79,7 +79,7 @@ MODULE qs_mo_types
    END TYPE mo_set_type
 
    TYPE mo_set_p_type
-      TYPE(mo_set_type), POINTER :: mo_set
+      TYPE(mo_set_type), POINTER :: mo_set => NULL()
    END TYPE mo_set_p_type
 
    PUBLIC :: mo_set_p_type, &

@@ -26,46 +26,46 @@ MODULE qs_dftb_types
 ! **************************************************************************************************
    TYPE qs_dftb_atom_type
       ! PRIVATE
-      CHARACTER(LEN=default_string_length)   :: typ
-      CHARACTER(LEN=default_string_length)   :: name
-      LOGICAL                                :: defined
-      INTEGER                                :: z !atomic number
-      REAL(KIND=dp)                          :: zeff !effective core charge
-      INTEGER                                :: natorb !number of orbitals
-      INTEGER                                :: lmax !max angular momentum
-      REAL(KIND=dp), DIMENSION(0:3)          :: skself !orbital energy
-      REAL(KIND=dp), DIMENSION(0:3)          :: occupation !free atom occupation
-      REAL(KIND=dp), DIMENSION(0:3)          :: eta !orbital hardness
-      REAL(KIND=dp)                          :: energy !free atom energy
-      REAL(KIND=dp)                          :: cutoff !cutoff radius for f matrix
-      REAL(KIND=dp)                          :: xi, di !London parameter
-      REAL(KIND=dp)                          :: rcdisp !cutoff radius for vdW
-      REAL(KIND=dp)                          :: dudq !DFTB3 hardness derivative
+      CHARACTER(LEN=default_string_length)   :: typ = ""
+      CHARACTER(LEN=default_string_length)   :: name = ""
+      LOGICAL                                :: defined = .FALSE.
+      INTEGER                                :: z = -1 !atomic number
+      REAL(KIND=dp)                          :: zeff = -1.0_dp !effective core charge
+      INTEGER                                :: natorb = -1 !number of orbitals
+      INTEGER                                :: lmax = -1 !max angular momentum
+      REAL(KIND=dp), DIMENSION(0:3)          :: skself = -1.0_dp !orbital energy
+      REAL(KIND=dp), DIMENSION(0:3)          :: occupation = -1.0_dp !free atom occupation
+      REAL(KIND=dp), DIMENSION(0:3)          :: eta = -1.0_dp !orbital hardness
+      REAL(KIND=dp)                          :: energy = -1.0_dp !free atom energy
+      REAL(KIND=dp)                          :: cutoff = -1.0_dp !cutoff radius for f matrix
+      REAL(KIND=dp)                          :: xi = -1.0_dp, di = -1.0_dp !London parameter
+      REAL(KIND=dp)                          :: rcdisp = -1.0_dp !cutoff radius for vdW
+      REAL(KIND=dp)                          :: dudq = -1.0_dp !DFTB3 hardness derivative
    END TYPE qs_dftb_atom_type
 
 ! **************************************************************************************************
    TYPE qs_dftb_pairpot_type
-      REAL(KIND=dp)                          :: dgrd ! grid spacing
-      INTEGER                                :: ngrd ! number of grid points
-      INTEGER                                :: ngrdcut ! grid cutoff
-      INTEGER                                :: llm ! number of interactions (l,l,m)
-      INTEGER                                :: n_urpoly ! order of polynomial
-      REAL(KIND=dp)                          :: urep_cut ! cutoff for repulsive pot.
-      REAL(KIND=dp), DIMENSION(10)           :: urep ! coefficients for repulsive
+      REAL(KIND=dp)                          :: dgrd = -1.0_dp ! grid spacing
+      INTEGER                                :: ngrd = -1 ! number of grid points
+      INTEGER                                :: ngrdcut = -1 ! grid cutoff
+      INTEGER                                :: llm = -1 ! number of interactions (l,l,m)
+      INTEGER                                :: n_urpoly = -1 ! order of polynomial
+      REAL(KIND=dp)                          :: urep_cut = -1.0_dp ! cutoff for repulsive pot.
+      REAL(KIND=dp), DIMENSION(10)           :: urep = -1.0_dp ! coefficients for repulsive
       ! potential in polynomial form
-      INTEGER                                :: spdim ! number of points for
+      INTEGER                                :: spdim = -1 ! number of points for
       ! spline representation
-      REAL(KIND=dp)                          :: s_cut ! left-hand cutoff
-      REAL(KIND=dp), DIMENSION(3)            :: srep ! coefficients for extrapolation
-      REAL(KIND=dp), DIMENSION(:, :), POINTER :: spxr ! spline points
-      REAL(KIND=dp), DIMENSION(:, :), POINTER :: scoeff ! spline coefficients
-      REAL(KIND=dp), DIMENSION(2)            :: surr ! coefficients for last point
-      REAL(KIND=dp), DIMENSION(:, :), POINTER :: fmat ! Slater-Koster table (Hamiltonian)
-      REAL(KIND=dp), DIMENSION(:, :), POINTER :: smat ! Slater-Koster table (overlap)
+      REAL(KIND=dp)                          :: s_cut = -1.0_dp ! left-hand cutoff
+      REAL(KIND=dp), DIMENSION(3)            :: srep = -1.0_dp ! coefficients for extrapolation
+      REAL(KIND=dp), DIMENSION(:, :), POINTER :: spxr => NULL() ! spline points
+      REAL(KIND=dp), DIMENSION(:, :), POINTER :: scoeff => NULL() ! spline coefficients
+      REAL(KIND=dp), DIMENSION(2)            :: surr = -1.0_dp ! coefficients for last point
+      REAL(KIND=dp), DIMENSION(:, :), POINTER :: fmat => NULL() ! Slater-Koster table (Hamiltonian)
+      REAL(KIND=dp), DIMENSION(:, :), POINTER :: smat => NULL() ! Slater-Koster table (overlap)
       ! van der Waals parameter
-      REAL(KIND=dp)                          :: xij, dij ! standard LJ parameters
-      REAL(KIND=dp)                          :: x0ij ! Evdw(x0) = 0
-      REAL(KIND=dp)                          :: a, b, c ! Short range polynomial coeffs
+      REAL(KIND=dp)                          :: xij = -1.0_dp, dij = -1.0_dp ! standard LJ parameters
+      REAL(KIND=dp)                          :: x0ij = -1.0_dp ! Evdw(x0) = 0
+      REAL(KIND=dp)                          :: a = -1.0_dp, b = -1.0_dp, c = -1.0_dp ! Short range polynomial coeffs
    END TYPE qs_dftb_pairpot_type
 
 ! *** Public data types ***

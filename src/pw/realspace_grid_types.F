@@ -36,12 +36,8 @@ MODULE realspace_grid_types
                                               pw_grid_type
    USE pw_grids,                        ONLY: pw_grid_release,&
                                               pw_grid_retain
-   USE pw_methods,                      ONLY: pw_copy_from_array,&
-                                              pw_copy_to_array,&
-                                              pw_integrate_function
-   USE pw_types,                        ONLY: COMPLEXDATA3D,&
-                                              REALDATA3D,&
-                                              pw_type
+   USE pw_methods,                      ONLY: pw_integrate_function
+   USE pw_types,                        ONLY: pw_r3d_rs_type
    USE util,                            ONLY: get_limit
 
 !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads
@@ -114,7 +110,6 @@ MODULE realspace_grid_types
       ! they are most useful for fully distributed grids, where they reflect the topology of the grid
       TYPE(mp_comm_type) :: group = mp_comm_null
       INTEGER :: my_pos = -1
-      LOGICAL :: group_head = .FALSE.
       INTEGER :: group_size = 0
       INTEGER, DIMENSION(3) :: group_dim = -1
       INTEGER, DIMENSION(3) :: group_coor = -1
@@ -254,14 +249,13 @@ CONTAINS
          desc%distributed = .FALSE.
          desc%group = mp_comm_null
          desc%group_size = 1
-         desc%group_head = .TRUE.
          desc%group_dim = 1
          desc%group_coor = 0
          desc%my_pos = 0
       ELSE
          ! group size of desc grid
          ! global grid dimensions are still the same
-         desc%group_size = pw_grid%para%group_size
+         desc%group_size = pw_grid%para%group%num_pe
          desc%npts = pw_grid%npts
          desc%ngpts = PRODUCT(INT(desc%npts, KIND=int_8))
          desc%lb = pw_grid%bounds(1, :)
@@ -363,7 +357,6 @@ CONTAINS
             END IF
             desc%distributed = .FALSE.
             desc%parallel = .TRUE.
-            desc%group_head = pw_grid%para%group_head
             desc%group_coor(:) = 0
             desc%my_virtual_pos = 0
 
@@ -390,7 +383,6 @@ CONTAINS
             ! we are going parallel on the real space grid
             desc%parallel = .TRUE.
             desc%distributed = .TRUE.
-            desc%group_head = (desc%my_pos == 0)
 
             ! set up global info about the distribution
             ALLOCATE (desc%rank2coord(3, 0:desc%group_size - 1))
@@ -652,14 +644,13 @@ CONTAINS
    END SUBROUTINE rs_grid_print
 
 ! **************************************************************************************************
-!> \brief Copy a function to a PW grid type from a real space type
+!> \brief ...
 !> \param rs ...
 !> \param pw ...
 ! **************************************************************************************************
    SUBROUTINE transfer_rs2pw(rs, pw)
-
       TYPE(realspace_grid_type), INTENT(IN)              :: rs
-      TYPE(pw_type), INTENT(INOUT)                       :: pw
+      TYPE(pw_r3d_rs_type), INTENT(INOUT)                :: pw
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'transfer_rs2pw'
 
@@ -670,41 +661,22 @@ CONTAINS
 
       IF (.NOT. ASSOCIATED(rs%desc%pw, pw%pw_grid)) &
          CPABORT("Different rs and pw indentifiers")
-      IF ((pw%in_use .NE. REALDATA3D) .AND. (pw%in_use .NE. COMPLEXDATA3D)) &
-         CPABORT("Need REALDATA3D or COMPLEXDATA3D")
 
       IF (rs%desc%distributed) THEN
          CALL transfer_rs2pw_distributed(rs, pw)
       ELSE IF (rs%desc%parallel) THEN
          CALL transfer_rs2pw_replicated(rs, pw)
       ELSE ! treat simple serial case locally
-         IF (pw%in_use == REALDATA3D) THEN
-            IF (rs%desc%border == 0) THEN
-               CALL dcopy(SIZE(rs%r), rs%r, 1, pw%cr3d, 1)
-            ELSE
-               CPASSERT(LBOUND(pw%cr3d, 3) .EQ. rs%lb_real(3))
-!$OMP          PARALLEL DO DEFAULT(NONE) SHARED(pw,rs)
-               DO i = rs%lb_real(3), rs%ub_real(3)
-                  pw%cr3d(:, :, i) = rs%r(rs%lb_real(1):rs%ub_real(1), &
-                                          rs%lb_real(2):rs%ub_real(2), i)
-               END DO
-!$OMP          END PARALLEL DO
-            END IF
-         ELSEIF (pw%in_use == COMPLEXDATA3D) THEN
-            IF (rs%desc%border == 0) THEN
-               CALL pw_copy_from_array(pw, rs%r)
-            ELSE
-               CPASSERT(LBOUND(pw%cr3d, 3) .EQ. rs%lb_real(3))
-!$OMP          PARALLEL DO DEFAULT(NONE) SHARED(pw,rs)
-               DO i = rs%lb_real(3), rs%ub_real(3)
-                  pw%cc3d(:, :, i) = CMPLX(rs%r(rs%lb_real(1):rs%ub_real(1), &
-                                                rs%lb_real(2):rs%ub_real(2), i), &
-                                           0.0_dp, KIND=dp)
-               END DO
-!$OMP          END PARALLEL DO
-            END IF
+         IF (rs%desc%border == 0) THEN
+            CALL dcopy(SIZE(rs%r), rs%r, 1, pw%array, 1)
          ELSE
-            CPABORT("PW type not compatible")
+            CPASSERT(LBOUND(pw%array, 3) .EQ. rs%lb_real(3))
+!$OMP          PARALLEL DO DEFAULT(NONE) SHARED(pw,rs)
+            DO i = rs%lb_real(3), rs%ub_real(3)
+               pw%array(:, :, i) = rs%r(rs%lb_real(1):rs%ub_real(1), &
+                                        rs%lb_real(2):rs%ub_real(2), i)
+            END DO
+!$OMP          END PARALLEL DO
          END IF
       END IF
 
@@ -714,14 +686,14 @@ CONTAINS
    END SUBROUTINE transfer_rs2pw
 
 ! **************************************************************************************************
-!> \brief Copy a function from/to a PW grid type to/from a real space type
+!> \brief ...
 !> \param rs ...
 !> \param pw ...
 ! **************************************************************************************************
    SUBROUTINE transfer_pw2rs(rs, pw)
 
       TYPE(realspace_grid_type), INTENT(IN)              :: rs
-      TYPE(pw_type), INTENT(IN)                          :: pw
+      TYPE(pw_r3d_rs_type), INTENT(IN)                   :: pw
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'transfer_pw2rs'
 
@@ -732,90 +704,47 @@ CONTAINS
 
       IF (.NOT. ASSOCIATED(rs%desc%pw, pw%pw_grid)) &
          CPABORT("Different rs and pw indentifiers")
-      IF ((pw%in_use .NE. REALDATA3D) .AND. (pw%in_use .NE. COMPLEXDATA3D)) &
-         CPABORT("Need REALDATA3D or COMPLEXDATA3D")
 
       IF (rs%desc%distributed) THEN
          CALL transfer_pw2rs_distributed(rs, pw)
       ELSE IF (rs%desc%parallel) THEN
          CALL transfer_pw2rs_replicated(rs, pw)
       ELSE ! treat simple serial case locally
-         IF (pw%in_use == REALDATA3D) THEN
-            IF (rs%desc%border == 0) THEN
-               CALL dcopy(SIZE(rs%r), pw%cr3d, 1, rs%r, 1)
-            ELSE
-!$OMP          PARALLEL DO DEFAULT(NONE) &
-!$OMP                      PRIVATE(i,im,j,jm,k,km) &
-!$OMP                      SHARED(pw,rs)
-               DO k = rs%lb_local(3), rs%ub_local(3)
-                  IF (k < rs%lb_real(3)) THEN
-                     km = k + rs%desc%npts(3)
-                  ELSE IF (k > rs%ub_real(3)) THEN
-                     km = k - rs%desc%npts(3)
-                  ELSE
-                     km = k
-                  END IF
-                  DO j = rs%lb_local(2), rs%ub_local(2)
-                     IF (j < rs%lb_real(2)) THEN
-                        jm = j + rs%desc%npts(2)
-                     ELSE IF (j > rs%ub_real(2)) THEN
-                        jm = j - rs%desc%npts(2)
-                     ELSE
-                        jm = j
-                     END IF
-                     DO i = rs%lb_local(1), rs%ub_local(1)
-                        IF (i < rs%lb_real(1)) THEN
-                           im = i + rs%desc%npts(1)
-                        ELSE IF (i > rs%ub_real(1)) THEN
-                           im = i - rs%desc%npts(1)
-                        ELSE
-                           im = i
-                        END IF
-                        rs%r(i, j, k) = pw%cr3d(im, jm, km)
-                     END DO
-                  END DO
-               END DO
-!$OMP          END PARALLEL DO
-            END IF
-         ELSEIF (pw%in_use == COMPLEXDATA3D) THEN
-            IF (rs%desc%border == 0) THEN
-               CALL pw_copy_to_array(pw, rs%r)
-            ELSE
-!$OMP          PARALLEL DO DEFAULT(NONE) &
-!$OMP                      PRIVATE(i,im,j,jm,k,km) &
-!$OMP                      SHARED(pw,rs)
-               DO k = rs%lb_local(3), rs%ub_local(3)
-                  IF (k < rs%lb_real(3)) THEN
-                     km = k + rs%desc%npts(3)
-                  ELSE IF (k > rs%ub_real(3)) THEN
-                     km = k - rs%desc%npts(3)
-                  ELSE
-                     km = k
-                  END IF
-                  DO j = rs%lb_local(2), rs%ub_local(2)
-                     IF (j < rs%lb_real(2)) THEN
-                        jm = j + rs%desc%npts(2)
-                     ELSE IF (j > rs%ub_real(2)) THEN
-                        jm = j - rs%desc%npts(2)
-                     ELSE
-                        jm = j
-                     END IF
-                     DO i = rs%lb_local(1), rs%ub_local(1)
-                        IF (i < rs%lb_real(1)) THEN
-                           im = i + rs%desc%npts(1)
-                        ELSE IF (i > rs%ub_real(1)) THEN
-                           im = i - rs%desc%npts(1)
-                        ELSE
-                           im = i
-                        END IF
-                        rs%r(i, j, k) = REAL(pw%cc3d(im, jm, km), KIND=dp)
-                     END DO
-                  END DO
-               END DO
-!$OMP          END PARALLEL DO
-            END IF
+         IF (rs%desc%border == 0) THEN
+            CALL dcopy(SIZE(rs%r), pw%array, 1, rs%r, 1)
          ELSE
-            CPABORT("PW type not compatible")
+!$OMP          PARALLEL DO DEFAULT(NONE) &
+!$OMP                      PRIVATE(i,im,j,jm,k,km) &
+!$OMP                      SHARED(pw,rs)
+            DO k = rs%lb_local(3), rs%ub_local(3)
+               IF (k < rs%lb_real(3)) THEN
+                  km = k + rs%desc%npts(3)
+               ELSE IF (k > rs%ub_real(3)) THEN
+                  km = k - rs%desc%npts(3)
+               ELSE
+                  km = k
+               END IF
+               DO j = rs%lb_local(2), rs%ub_local(2)
+                  IF (j < rs%lb_real(2)) THEN
+                     jm = j + rs%desc%npts(2)
+                  ELSE IF (j > rs%ub_real(2)) THEN
+                     jm = j - rs%desc%npts(2)
+                  ELSE
+                     jm = j
+                  END IF
+                  DO i = rs%lb_local(1), rs%ub_local(1)
+                     IF (i < rs%lb_real(1)) THEN
+                        im = i + rs%desc%npts(1)
+                     ELSE IF (i > rs%ub_real(1)) THEN
+                        im = i - rs%desc%npts(1)
+                     ELSE
+                        im = i
+                     END IF
+                     rs%r(i, j, k) = pw%array(im, jm, km)
+                  END DO
+               END DO
+            END DO
+!$OMP          END PARALLEL DO
          END IF
       END IF
 
@@ -831,7 +760,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE transfer_rs2pw_replicated(rs, pw)
       TYPE(realspace_grid_type), INTENT(IN)              :: rs
-      TYPE(pw_type), INTENT(INOUT)                       :: pw
+      TYPE(pw_r3d_rs_type), INTENT(INOUT)                :: pw
 
       INTEGER                                            :: dest, ii, ip, ix, iy, iz, nma, nn, s(3), &
                                                             source
@@ -839,8 +768,8 @@ CONTAINS
       INTEGER, DIMENSION(3)                              :: lb, ub
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: recvbuf, sendbuf, swaparray
 
-      ASSOCIATE (np => pw%pw_grid%para%group_size, bo => pw%pw_grid%para%bo(1:2, 1:3, 0:pw%pw_grid%para%group_size - 1, 1), &
-                 pbo => pw%pw_grid%bounds, group => pw%pw_grid%para%rs_group, mepos => pw%pw_grid%para%rs_mpo, &
+      ASSOCIATE (np => pw%pw_grid%para%group%num_pe, bo => pw%pw_grid%para%bo(1:2, 1:3, 0:pw%pw_grid%para%group%num_pe - 1, 1), &
+                 pbo => pw%pw_grid%bounds, group => pw%pw_grid%para%group, mepos => pw%pw_grid%para%group%mepos, &
                  grid => rs%r)
          ALLOCATE (rcount(0:np - 1))
          DO ip = 1, np
@@ -885,13 +814,7 @@ CONTAINS
          nn = rcount(mepos)
       END ASSOCIATE
 
-      IF (pw%in_use == REALDATA3D) THEN
-         CALL dcopy(nn, sendbuf, 1, pw%cr3d, 1)
-      ELSEIF (pw%in_use == COMPLEXDATA3D) THEN
-         CALL pw_copy_from_array(pw, RESHAPE(sendbuf, SHAPE(pw%cc3d)))
-      ELSE
-         CPABORT("PW type not compatible")
-      END IF
+      CALL dcopy(nn, sendbuf, 1, pw%array, 1)
 
       DEALLOCATE (rcount)
       DEALLOCATE (sendbuf)
@@ -906,7 +829,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE transfer_pw2rs_replicated(rs, pw)
       TYPE(realspace_grid_type), INTENT(IN)              :: rs
-      TYPE(pw_type), INTENT(IN)                          :: pw
+      TYPE(pw_r3d_rs_type), INTENT(IN)                   :: pw
 
       INTEGER                                            :: dest, i, ii, im, ip, ix, iy, iz, j, jm, &
                                                             k, km, nma, nn, source
@@ -915,8 +838,8 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: recvbuf, sendbuf, swaparray
       TYPE(mp_request_type), DIMENSION(2)                :: req
 
-      ASSOCIATE (np => pw%pw_grid%para%group_size, bo => pw%pw_grid%para%bo(1:2, 1:3, 0:pw%pw_grid%para%group_size - 1, 1), &
-                 pbo => pw%pw_grid%bounds, group => pw%pw_grid%para%rs_group, mepos => pw%pw_grid%para%rs_mpo, &
+      ASSOCIATE (np => pw%pw_grid%para%group%num_pe, bo => pw%pw_grid%para%bo(1:2, 1:3, 0:pw%pw_grid%para%group%num_pe - 1, 1), &
+                 pbo => pw%pw_grid%bounds, group => pw%pw_grid%para%group, mepos => pw%pw_grid%para%group%mepos, &
                  grid => rs%r)
          ALLOCATE (rcount(0:np - 1))
          DO ip = 1, np
@@ -930,13 +853,7 @@ CONTAINS
          CALL m_memory()
 
          nn = rcount(mepos)
-         IF (pw%in_use == REALDATA3D) THEN
-            CALL dcopy(nn, pw%cr3d, 1, sendbuf, 1)
-         ELSEIF (pw%in_use == COMPLEXDATA3D) THEN
-            CALL dcopy(nn, TRANSFER(pw%cc3d, sendbuf), 2, sendbuf, 1)
-         ELSE
-            CPABORT("PW type not compatible")
-         END IF
+         CALL dcopy(nn, pw%array, 1, sendbuf, 1)
 
          dest = MODULO(mepos + 1, np)
          source = MODULO(mepos - 1, np)
@@ -1033,7 +950,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE transfer_rs2pw_distributed(rs, pw)
       TYPE(realspace_grid_type), INTENT(IN)              :: rs
-      TYPE(pw_type), INTENT(IN)                          :: pw
+      TYPE(pw_r3d_rs_type), INTENT(IN)                   :: pw
 
       CHARACTER(LEN=200)                                 :: error_string
       INTEGER :: completed, dest_down, dest_up, i, idir, j, k, lb, my_id, my_pw_rank, my_rs_rank, &
@@ -1285,22 +1202,22 @@ CONTAINS
       END DO
 
       ! This is the real redistribution
-      ALLOCATE (bounds(0:pw%pw_grid%para%group_size - 1, 1:4))
+      ALLOCATE (bounds(0:pw%pw_grid%para%group%num_pe - 1, 1:4))
 
       ! work out the pw grid points each proc holds
-      DO i = 0, pw%pw_grid%para%group_size - 1
+      DO i = 0, pw%pw_grid%para%group%num_pe - 1
          bounds(i, 1:2) = pw%pw_grid%para%bo(1:2, 1, i, 1)
          bounds(i, 3:4) = pw%pw_grid%para%bo(1:2, 2, i, 1)
          bounds(i, 1:2) = bounds(i, 1:2) - pw%pw_grid%npts(1)/2 - 1
          bounds(i, 3:4) = bounds(i, 3:4) - pw%pw_grid%npts(2)/2 - 1
       END DO
 
-      ALLOCATE (send_tasks(0:pw%pw_grid%para%group_size - 1, 1:6))
-      ALLOCATE (send_sizes(0:pw%pw_grid%para%group_size - 1))
-      ALLOCATE (send_disps(0:pw%pw_grid%para%group_size - 1))
-      ALLOCATE (recv_tasks(0:pw%pw_grid%para%group_size - 1, 1:6))
-      ALLOCATE (recv_sizes(0:pw%pw_grid%para%group_size - 1))
-      ALLOCATE (recv_disps(0:pw%pw_grid%para%group_size - 1))
+      ALLOCATE (send_tasks(0:pw%pw_grid%para%group%num_pe - 1, 1:6))
+      ALLOCATE (send_sizes(0:pw%pw_grid%para%group%num_pe - 1))
+      ALLOCATE (send_disps(0:pw%pw_grid%para%group%num_pe - 1))
+      ALLOCATE (recv_tasks(0:pw%pw_grid%para%group%num_pe - 1, 1:6))
+      ALLOCATE (recv_sizes(0:pw%pw_grid%para%group%num_pe - 1))
+      ALLOCATE (recv_disps(0:pw%pw_grid%para%group%num_pe - 1))
       send_tasks(:, 1) = 1
       send_tasks(:, 2) = 0
       send_tasks(:, 3) = 1
@@ -1311,7 +1228,7 @@ CONTAINS
       recv_sizes = 0
 
       my_rs_rank = rs%desc%my_pos
-      my_pw_rank = pw%pw_grid%para%rs_mpo
+      my_pw_rank = pw%pw_grid%para%group%mepos
 
       ! find the processors that should hold our data
       ! should be part of the rs grid type
@@ -1363,7 +1280,7 @@ CONTAINS
       ub_recv(:) = ub_send(:)
 !$OMP PARALLEL DO DEFAULT(NONE), &
 !$OMP             SHARED(pw,lb_send,ub_send,bounds,send_tasks,send_sizes)
-      DO j = 0, pw%pw_grid%para%group_size - 1
+      DO j = 0, pw%pw_grid%para%group%num_pe - 1
 
          IF (lb_send(1) .GT. bounds(j, 2)) CYCLE
          IF (ub_send(1) .LT. bounds(j, 1)) CYCLE
@@ -1384,7 +1301,7 @@ CONTAINS
 
       send_disps(0) = 0
       recv_disps(0) = 0
-      DO i = 1, pw%pw_grid%para%group_size - 1
+      DO i = 1, pw%pw_grid%para%group%num_pe - 1
          send_disps(i) = send_disps(i - 1) + send_sizes(i - 1)
          recv_disps(i) = recv_disps(i - 1) + recv_sizes(i - 1)
       END DO
@@ -1453,7 +1370,7 @@ CONTAINS
             DO y = recv_tasks(completed - 1, 3), recv_tasks(completed - 1, 4)
                DO x = recv_tasks(completed - 1, 1), recv_tasks(completed - 1, 2)
                   k = k + 1
-                  pw%cr3d(x, y, z) = recv_bufs(completed - 1)%array(k)
+                  pw%array(x, y, z) = recv_bufs(completed - 1)%array(k)
                END DO
             END DO
          END DO
@@ -1520,7 +1437,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE transfer_pw2rs_distributed(rs, pw)
       TYPE(realspace_grid_type), INTENT(IN)              :: rs
-      TYPE(pw_type), INTENT(IN)                          :: pw
+      TYPE(pw_r3d_rs_type), INTENT(IN)                   :: pw
 
       INTEGER :: completed, dest_down, dest_up, i, idir, j, k, lb, my_id, my_pw_rank, my_rs_rank, &
          n_shifts, nn, num_threads, position, source_down, source_up, ub, x, y, z
@@ -1544,21 +1461,21 @@ CONTAINS
 
       ! This is the real redistribution
 
-      ALLOCATE (bounds(0:pw%pw_grid%para%group_size - 1, 1:4))
+      ALLOCATE (bounds(0:pw%pw_grid%para%group%num_pe - 1, 1:4))
 
-      DO i = 0, pw%pw_grid%para%group_size - 1
+      DO i = 0, pw%pw_grid%para%group%num_pe - 1
          bounds(i, 1:2) = pw%pw_grid%para%bo(1:2, 1, i, 1)
          bounds(i, 3:4) = pw%pw_grid%para%bo(1:2, 2, i, 1)
          bounds(i, 1:2) = bounds(i, 1:2) - pw%pw_grid%npts(1)/2 - 1
          bounds(i, 3:4) = bounds(i, 3:4) - pw%pw_grid%npts(2)/2 - 1
       END DO
 
-      ALLOCATE (send_tasks(0:pw%pw_grid%para%group_size - 1, 1:6))
-      ALLOCATE (send_sizes(0:pw%pw_grid%para%group_size - 1))
-      ALLOCATE (send_disps(0:pw%pw_grid%para%group_size - 1))
-      ALLOCATE (recv_tasks(0:pw%pw_grid%para%group_size - 1, 1:6))
-      ALLOCATE (recv_sizes(0:pw%pw_grid%para%group_size - 1))
-      ALLOCATE (recv_disps(0:pw%pw_grid%para%group_size - 1))
+      ALLOCATE (send_tasks(0:pw%pw_grid%para%group%num_pe - 1, 1:6))
+      ALLOCATE (send_sizes(0:pw%pw_grid%para%group%num_pe - 1))
+      ALLOCATE (send_disps(0:pw%pw_grid%para%group%num_pe - 1))
+      ALLOCATE (recv_tasks(0:pw%pw_grid%para%group%num_pe - 1, 1:6))
+      ALLOCATE (recv_sizes(0:pw%pw_grid%para%group%num_pe - 1))
+      ALLOCATE (recv_disps(0:pw%pw_grid%para%group%num_pe - 1))
 
       send_tasks = 0
       send_tasks(:, 1) = 1
@@ -1579,7 +1496,7 @@ CONTAINS
       recv_sizes = 0
 
       my_rs_rank = rs%desc%my_pos
-      my_pw_rank = pw%pw_grid%para%rs_mpo
+      my_pw_rank = pw%pw_grid%para%group%mepos
 
       ! find the processors that should hold our data
       ! should be part of the rs grid type
@@ -1592,7 +1509,7 @@ CONTAINS
 !$OMP PARALLEL DO DEFAULT(NONE), &
 !$OMP             PRIVATE(coords,idir,pos,lb_send,ub_send), &
 !$OMP             SHARED(rs,bounds,my_rs_rank,send_tasks,send_sizes,pw)
-      DO i = 0, pw%pw_grid%para%group_size - 1
+      DO i = 0, pw%pw_grid%para%group%num_pe - 1
 
          coords(:) = rs%desc%rank2coord(:, rs%desc%real2virtual(i))
          !calculate the real rs grid points on each processor
@@ -1634,7 +1551,7 @@ CONTAINS
 
 !$OMP PARALLEL DO DEFAULT(NONE), &
 !$OMP             SHARED(pw,lb_send,ub_send,bounds,recv_tasks,recv_sizes)
-      DO j = 0, pw%pw_grid%para%group_size - 1
+      DO j = 0, pw%pw_grid%para%group%num_pe - 1
 
          IF (ub_send(1) .LT. bounds(j, 1)) CYCLE
          IF (lb_send(1) .GT. bounds(j, 2)) CYCLE
@@ -1655,7 +1572,7 @@ CONTAINS
 
       send_disps(0) = 0
       recv_disps(0) = 0
-      DO i = 1, pw%pw_grid%para%group_size - 1
+      DO i = 1, pw%pw_grid%para%group%num_pe - 1
          send_disps(i) = send_disps(i - 1) + send_sizes(i - 1)
          recv_disps(i) = recv_disps(i - 1) + recv_sizes(i - 1)
       END DO
@@ -1697,7 +1614,7 @@ CONTAINS
             DO y = send_tasks(i, 3), send_tasks(i, 4)
                DO x = send_tasks(i, 1), send_tasks(i, 2)
                   k = k + 1
-                  send_bufs(i)%array(k) = pw%cr3d(x, y, z)
+                  send_bufs(i)%array(k) = pw%array(x, y, z)
                END DO
             END DO
          END DO

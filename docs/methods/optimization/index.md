@@ -3,8 +3,8 @@
 ```{toctree}
 ---
 titlesonly:
-maxdepth: 1
+maxdepth: 2
 ---
-Geometry Optimization <https://www.cp2k.org/howto:geometry_optimisation>
+geometry
 nudged_elastic_band
 ```

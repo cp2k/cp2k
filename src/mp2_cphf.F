@@ -22,6 +22,12 @@ MODULE mp2_cphf
    USE core_ppnl,                       ONLY: build_core_ppnl
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_control_types,                ONLY: dft_control_type
+   USE cp_dbcsr_api,                    ONLY: dbcsr_add,&
+                                              dbcsr_copy,&
+                                              dbcsr_p_type,&
+                                              dbcsr_release,&
+                                              dbcsr_scale,&
+                                              dbcsr_set
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               cp_dbcsr_plus_fm_fm_t,&
                                               dbcsr_allocate_matrix_set,&
@@ -41,12 +47,6 @@ MODULE mp2_cphf
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                               cp_print_key_unit_nr
-   USE dbcsr_api,                       ONLY: dbcsr_add,&
-                                              dbcsr_copy,&
-                                              dbcsr_p_type,&
-                                              dbcsr_release,&
-                                              dbcsr_scale,&
-                                              dbcsr_set
    USE hfx_admm_utils,                  ONLY: tddft_hfx_matrix
    USE hfx_derivatives,                 ONLY: derivatives_four_center
    USE hfx_exx,                         ONLY: add_exx_to_rhs
@@ -87,11 +87,8 @@ MODULE mp2_cphf
    USE pw_poisson_methods,              ONLY: pw_poisson_solve
    USE pw_poisson_types,                ONLY: pw_poisson_type
    USE pw_pool_types,                   ONLY: pw_pool_type
-   USE pw_types,                        ONLY: COMPLEXDATA1D,&
-                                              REALDATA3D,&
-                                              REALSPACE,&
-                                              RECIPROCALSPACE,&
-                                              pw_type
+   USE pw_types,                        ONLY: pw_c1d_gs_type,&
+                                              pw_r3d_rs_type
    USE qs_2nd_kernel_ao,                ONLY: apply_2nd_order_kernel
    USE qs_density_matrices,             ONLY: calculate_whz_matrix
    USE qs_dispersion_pairpot,           ONLY: calculate_dispersion_pairpot
@@ -1331,16 +1328,17 @@ CONTAINS
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_orb, sac_ae, sac_ppl, sap_ppnl
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(pw_c1d_gs_type)                               :: pot_g, rho_tot_g, temp_pw_g
+      TYPE(pw_c1d_gs_type), ALLOCATABLE, DIMENSION(:)    :: dvg
+      TYPE(pw_c1d_gs_type), DIMENSION(:), POINTER        :: rho_g, rho_mp2_g
+      TYPE(pw_c1d_gs_type), POINTER                      :: rho_core
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type)                                      :: pot_g, pot_r, rho_tot_g, temp_pw_g, &
-                                                            vh_rspace, vhxc_rspace
-      TYPE(pw_type), ALLOCATABLE, DIMENSION(:)           :: dvg
-      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_g, rho_mp2_g, rho_mp2_r, &
-                                                            rho_mp2_r_aux, rho_r, tau_mp2_r, &
-                                                            vadmm_rspace, vtau_rspace, vxc_rspace
-      TYPE(pw_type), POINTER                             :: rho_core
+      TYPE(pw_r3d_rs_type)                               :: pot_r, vh_rspace, vhxc_rspace
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: rho_mp2_r, rho_mp2_r_aux, rho_r, &
+                                                            tau_mp2_r, vadmm_rspace, vtau_rspace, &
+                                                            vxc_rspace
       TYPE(qs_dispersion_type), POINTER                  :: dispersion_env
       TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
@@ -1530,8 +1528,7 @@ CONTAINS
       CALL get_qs_env(qs_env, pw_env=pw_env)
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, &
                       poisson_env=poisson_env)
-      CALL auxbas_pw_pool%create_pw(vhxc_rspace, &
-                                    use_data=REALDATA3D, in_space=REALSPACE)
+      CALL auxbas_pw_pool%create_pw(vhxc_rspace)
       IF (use_virial) h_stress = virial%pv_virial
       IF (debug_forces) THEN
          deb(1:3) = force(1)%rho_elec(1:3, 1)
@@ -1618,15 +1615,9 @@ CONTAINS
                       poisson_env=poisson_env)
 
       ! get some of the grids ready
-      CALL auxbas_pw_pool%create_pw(pot_r, &
-                                    use_data=REALDATA3D, &
-                                    in_space=REALSPACE)
-      CALL auxbas_pw_pool%create_pw(pot_g, &
-                                    use_data=COMPLEXDATA1D, &
-                                    in_space=RECIPROCALSPACE)
-      CALL auxbas_pw_pool%create_pw(rho_tot_g, &
-                                    use_data=COMPLEXDATA1D, &
-                                    in_space=RECIPROCALSPACE)
+      CALL auxbas_pw_pool%create_pw(pot_r)
+      CALL auxbas_pw_pool%create_pw(pot_g)
+      CALL auxbas_pw_pool%create_pw(rho_tot_g)
 
       CALL pw_zero(rho_tot_g)
 
@@ -1638,14 +1629,13 @@ CONTAINS
       IF (use_virial) THEN
          ALLOCATE (dvg(3))
          DO idir = 1, 3
-            CALL auxbas_pw_pool%create_pw(dvg(idir), &
-                                          use_data=COMPLEXDATA1D, &
-                                          in_space=RECIPROCALSPACE)
+            CALL auxbas_pw_pool%create_pw(dvg(idir))
          END DO
+         CALL pw_poisson_solve(poisson_env, rho_tot_g, vhartree=pot_g, dvhartree=dvg)
+      ELSE
+         CALL pw_poisson_solve(poisson_env, rho_tot_g, vhartree=pot_g)
       END IF
 
-      ! calculate the MP2 potential
-      CALL pw_poisson_solve(poisson_env, rho_tot_g, vhartree=pot_g, dvhartree=dvg)
       CALL pw_transfer(pot_g, pot_r)
       CALL pw_scale(pot_r, pot_r%pw_grid%dvol)
       CALL pw_axpy(pot_r, vh_rspace)
@@ -1667,9 +1657,7 @@ CONTAINS
       IF (use_virial) THEN
          ! update virial if necessary with the volume term
          ! first create pw auxiliary stuff
-         CALL auxbas_pw_pool%create_pw(temp_pw_g, &
-                                       use_data=COMPLEXDATA1D, &
-                                       in_space=RECIPROCALSPACE)
+         CALL auxbas_pw_pool%create_pw(temp_pw_g)
 
          ! make a copy of the MP2 density in G space
          CALL pw_copy(rho_tot_g, temp_pw_g)

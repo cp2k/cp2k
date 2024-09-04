@@ -21,33 +21,33 @@ MODULE farming_types
 
 ! **************************************************************************************************
    TYPE job_type
-      CHARACTER(LEN=default_path_length) :: cwd ! the directory to go to
-      CHARACTER(LEN=default_path_length) :: input ! the input file to use
-      CHARACTER(LEN=default_path_length) :: output ! the output file to use
-      INTEGER                            :: ID ! the ID of this job
-      INTEGER, POINTER, DIMENSION(:)     :: dependencies ! the dependencies of this job
-      INTEGER                            :: status ! pending,running,finished
+      CHARACTER(LEN=default_path_length) :: cwd = "" ! the directory to go to
+      CHARACTER(LEN=default_path_length) :: input = "" ! the input file to use
+      CHARACTER(LEN=default_path_length) :: output = "" ! the output file to use
+      INTEGER                            :: ID = -1 ! the ID of this job
+      INTEGER, POINTER, DIMENSION(:)     :: dependencies => NULL() ! the dependencies of this job
+      INTEGER                            :: status = -1 ! pending,running,finished
    END TYPE job_type
 
 ! **************************************************************************************************
    TYPE farming_env_type
-      INTEGER :: group_size_wish
-      LOGICAL :: group_size_wish_set
-      INTEGER :: ngroup_wish
-      LOGICAL :: ngroup_wish_set
-      LOGICAL :: restart
-      LOGICAL :: CYCLE
-      LOGICAL :: captain_minion
-      INTEGER, DIMENSION(:), POINTER                              :: group_partition ! user preference for partitioning the cpus
-      CHARACTER(LEN=default_path_length)                          :: restart_file_name ! restart file for farming
-      CHARACTER(LEN=default_path_length)                          :: cwd ! directory we started from
-      INTEGER                                                     :: Njobs ! how many jobs to run
-      INTEGER                                                     :: restart_n ! where to start
-      INTEGER                                                     :: max_steps ! max number of steps,
+      INTEGER :: group_size_wish = -1
+      LOGICAL :: group_size_wish_set = .FALSE.
+      INTEGER :: ngroup_wish = -1
+      LOGICAL :: ngroup_wish_set = .FALSE.
+      LOGICAL :: restart = .FALSE.
+      LOGICAL :: CYCLE = .FALSE.
+      LOGICAL :: captain_minion = .FALSE.
+      INTEGER, DIMENSION(:), POINTER                              :: group_partition => NULL() ! user preference for partitioning the cpus
+      CHARACTER(LEN=default_path_length)                          :: restart_file_name = "" ! restart file for farming
+      CHARACTER(LEN=default_path_length)                          :: cwd = "" ! directory we started from
+      INTEGER                                                     :: Njobs = -1 ! how many jobs to run
+      INTEGER                                                     :: restart_n = -1 ! where to start
+      INTEGER                                                     :: max_steps = -1 ! max number of steps,
       ! results in max_steps*Ngroup jobs being run
-      INTEGER                                                     :: stride ! for creating minion groups.
-      TYPE(job_type), DIMENSION(:), POINTER                       :: job ! a list of jobs
-      REAL(KIND=dp) :: wait_time
+      INTEGER                                                     :: stride = -1 ! for creating minion groups.
+      TYPE(job_type), DIMENSION(:), POINTER                       :: job => NULL() ! a list of jobs
+      REAL(KIND=dp) :: wait_time = 0.0_dp
    END TYPE farming_env_type
 
 CONTAINS

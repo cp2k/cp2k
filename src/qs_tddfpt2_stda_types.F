@@ -31,30 +31,30 @@ MODULE qs_tddfpt2_stda_types
    PRIVATE
 
    TYPE stda_kind_type
-      CHARACTER(LEN=2)                            :: symbol !element symbol
-      INTEGER                                     :: z !atomic_number
-      INTEGER                                     :: kind_number !kind number
-      REAL(KIND=dp)                               :: hardness_param !hardness_parameter eta
-      REAL(KIND=dp)                               :: rcut !cutoff radius for short-range Coulomb
+      CHARACTER(LEN=2)                            :: symbol = "" !element symbol
+      INTEGER                                     :: z = -1 !atomic_number
+      INTEGER                                     :: kind_number = -1 !kind number
+      REAL(KIND=dp)                               :: hardness_param = -1.0_dp !hardness_parameter eta
+      REAL(KIND=dp)                               :: rcut = -1.0_dp !cutoff radius for short-range Coulomb
    END TYPE
 
    TYPE stda_kind_p_type
-      TYPE(stda_kind_type), POINTER               :: kind_param
+      TYPE(stda_kind_type), POINTER               :: kind_param => NULL()
    END TYPE
 
    TYPE stda_env_type
       !fraction of non-local HF exchange
-      REAL(KIND=dp)                                :: hfx_fraction
-      LOGICAL                                      :: do_exchange
+      REAL(KIND=dp)                                :: hfx_fraction = -1.0_dp
+      LOGICAL                                      :: do_exchange = .FALSE.
       ! empirical parameters
-      REAL(KIND=dp)                                :: alpha_param
-      REAL(KIND=dp)                                :: beta_param
+      REAL(KIND=dp)                                :: alpha_param = -1.0_dp
+      REAL(KIND=dp)                                :: beta_param = -1.0_dp
       ! filter for TD matrix
-      REAL(KIND=dp)                                :: eps_td_filter
-      TYPE(stda_kind_p_type), DIMENSION(:), POINTER:: kind_param_set
+      REAL(KIND=dp)                                :: eps_td_filter = -1.0_dp
+      TYPE(stda_kind_p_type), DIMENSION(:), POINTER:: kind_param_set => NULL()
       !number of atomic orbitals, number of occupied orbitals
-      INTEGER, DIMENSION(2)                        :: n_ao
-      INTEGER, DIMENSION(2)                        :: nactive
+      INTEGER, DIMENSION(2)                        :: n_ao = -1
+      INTEGER, DIMENSION(2)                        :: nactive = -1
    END TYPE
 
    !PARAMETERS

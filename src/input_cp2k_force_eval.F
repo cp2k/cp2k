@@ -20,7 +20,7 @@ MODULE input_cp2k_force_eval
                                               medium_print_level
    USE cp_units,                        ONLY: cp_unit_to_cp2k
    USE input_constants,                 ONLY: &
-        do_eip, do_embed, do_fist, do_mixed, do_nnp, do_qmmm, do_qs, do_sirius, &
+        do_eip, do_embed, do_fist, do_ipi, do_mixed, do_nnp, do_qmmm, do_qs, do_sirius, &
         do_stress_analytical, do_stress_diagonal_anal, do_stress_diagonal_numer, do_stress_none, &
         do_stress_numerical, numerical
    USE input_cp2k_dft,                  ONLY: create_bsse_section,&
@@ -90,7 +90,8 @@ CONTAINS
                                           "QUICKSTEP", &
                                           "NNP", &
                                           "MIXED", &
-                                          "EMBED"), &
+                                          "EMBED", &
+                                          "IPI"), &
                           enum_desc=s2a("Alias for QUICKSTEP", &
                                         "PW DFT using the SIRIUS library", &
                                         "Molecular Mechanics", &
@@ -99,8 +100,9 @@ CONTAINS
                                         "Electronic structure methods (DFT, ...)", &
                                         "Neural Network Potentials", &
                                         "Use a combination of two of the above", &
-                                        "Perform an embedded calculation"), &
-                          enum_i_vals=(/do_qs, do_sirius, do_fist, do_qmmm, do_eip, do_qs, do_nnp, do_mixed, do_embed/), &
+                                        "Perform an embedded calculation", &
+                                        "Recieve forces from i–PI client"), &
+                          enum_i_vals=(/do_qs, do_sirius, do_fist, do_qmmm, do_eip, do_qs, do_nnp, do_mixed, do_embed, do_ipi/), &
                           default_i_val=do_qs)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)

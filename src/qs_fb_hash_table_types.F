@@ -62,8 +62,8 @@ MODULE qs_fb_hash_table_types
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! **************************************************************************************************
    TYPE fb_hash_table_element
-      INTEGER(KIND=int_8) :: key
-      INTEGER :: val
+      INTEGER(KIND=int_8) :: key = -1_int_8
+      INTEGER :: val = -1
    END TYPE fb_hash_table_element
 
 ! **************************************************************************************************
@@ -78,9 +78,9 @@ MODULE qs_fb_hash_table_types
 ! **************************************************************************************************
    TYPE fb_hash_table_data
       TYPE(fb_hash_table_element), DIMENSION(:), POINTER :: table => NULL()
-      INTEGER :: nelements
-      INTEGER :: nmax
-      INTEGER :: prime
+      INTEGER :: nelements = -1
+      INTEGER :: nmax = -1
+      INTEGER :: prime = -1
    END TYPE fb_hash_table_data
 
 ! **************************************************************************************************

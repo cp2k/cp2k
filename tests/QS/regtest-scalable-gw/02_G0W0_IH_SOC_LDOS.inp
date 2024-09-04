@@ -48,6 +48,7 @@
       &END DOS
       &GW
         EPS_FILTER 1.0E-6
+        HEDIN_SHIFT FALSE
         NUM_TIME_FREQ_POINTS 10
       &END GW
       &SOC

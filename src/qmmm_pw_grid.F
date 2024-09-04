@@ -21,8 +21,7 @@ MODULE qmmm_pw_grid
                                               PW_MODE_DISTRIBUTED,&
                                               PW_MODE_LOCAL,&
                                               pw_grid_type
-   USE pw_grids,                        ONLY: pw_grid_create,&
-                                              pw_grid_release
+   USE pw_grids,                        ONLY: pw_grid_release
    USE pw_pool_types,                   ONLY: pw_pool_create,&
                                               pw_pool_p_type,&
                                               pw_pool_type,&
@@ -40,8 +39,8 @@ MODULE qmmm_pw_grid
 CONTAINS
 
 ! **************************************************************************************************
-!> \brief Initialize the qmmm pool of pw_type.
-!>      Then Main difference w.r.t. QS pw_type pools is that this pool
+!> \brief Initialize the qmmm pool of pw_r3d_rs_type.
+!>      Then Main difference w.r.t. QS pw_r3d_rs_type pools is that this pool
 !>      has [0,L] as boundaries.
 !> \param qmmm_env ...
 !> \param pw_env ...
@@ -124,7 +123,9 @@ CONTAINS
       CPASSERT(.NOT. ASSOCIATED(pw_grid_out))
       pw_mode_loc = pw_grid_in%para%mode
       IF (PRESENT(pw_mode)) pw_mode_loc = pw_mode
-      CALL pw_grid_create(pw_grid_out, pw_grid_in%para%group)
+      ! TODO: introduce pw_grid_create_from_grid
+      ALLOCATE (pw_grid_out)
+      CALL pw_grid_out%para%group%from_dup(pw_grid_in%para%group)
       qmmm_grid_tag = qmmm_grid_tag + 1
       pw_grid_out%id_nr = qmmm_grid_tag
       pw_grid_out%ref_count = 1
@@ -158,22 +159,11 @@ CONTAINS
       pw_grid_out%cutoff = pw_grid_in%cutoff
 
       !para
-      pw_grid_out%para%group_size = pw_grid_out%para%group%num_pe
-      pw_grid_out%para%my_pos = pw_grid_out%para%group%mepos
-      pw_grid_out%para%group_head_id = pw_grid_in%para%group_head_id
-      pw_grid_out%para%group_head = &
-         (pw_grid_out%para%group_head_id == pw_grid_out%para%my_pos)
       pw_grid_out%para%mode = pw_mode_loc
       ALLOCATE (pos_of_x(pw_grid_out%bounds(1, 1):pw_grid_out%bounds(2, 1)))
       pos_of_x(:pw_grid_out%bounds(2, 1) - 1) = pw_grid_in%para%pos_of_x
       pos_of_x(pw_grid_out%bounds(2, 1)) = pos_of_x(pw_grid_out%bounds(2, 1) - 1)
       CALL MOVE_ALLOC(pos_of_x, pw_grid_out%para%pos_of_x)
-      pw_grid_out%para%rs_dims = pw_grid_in%para%rs_dims
-      IF (PRODUCT(pw_grid_in%para%rs_dims) /= 0) THEN
-         CALL pw_grid_out%para%rs_group%from_dup(pw_grid_in%para%rs_group)
-      END IF
-      pw_grid_out%para%rs_pos = pw_grid_in%para%rs_pos
-      pw_grid_out%para%rs_mpo = pw_grid_in%para%rs_mpo
 
       NULLIFY (pw_grid_out%g, pw_grid_out%gsq)
       CPASSERT(pw_grid_in%grid_span == FULLSPACE)

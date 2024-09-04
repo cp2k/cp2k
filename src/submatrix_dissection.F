@@ -41,7 +41,7 @@ MODULE submatrix_dissection
 
    USE bibliography,                    ONLY: Lass2018,&
                                               cite_reference
-   USE dbcsr_api,                       ONLY: &
+   USE cp_dbcsr_api,                    ONLY: &
         dbcsr_distribution_get, dbcsr_distribution_type, dbcsr_finalize, dbcsr_get_block_p, &
         dbcsr_get_info, dbcsr_get_stored_coordinates, dbcsr_iterator_blocks_left, &
         dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, &
@@ -67,10 +67,11 @@ MODULE submatrix_dissection
       TYPE(dbcsr_type)                                :: dbcsr_mat
       TYPE(dbcsr_distribution_type)                   :: dist
       LOGICAL                                         :: initialized = .FALSE.
-      TYPE(mp_comm_type)                              :: group
-      INTEGER                                         :: numnodes, myrank, nblkcols, nblkrows, nblks, local_blocks, &
-                                                         cols_per_sm, number_of_submatrices
-      INTEGER, DIMENSION(:), POINTER                  :: row_blk_size, col_blk_size
+      TYPE(mp_comm_type)                              :: group = mp_comm_type()
+      INTEGER                                         :: numnodes = -1, myrank = -1, nblkcols = -1, &
+                                                         nblkrows = -1, nblks = -1, local_blocks = -1, &
+                                                         cols_per_sm = -1, number_of_submatrices = -1
+      INTEGER, DIMENSION(:), POINTER                  :: row_blk_size => NULL(), col_blk_size => NULL()
       INTEGER, DIMENSION(:), ALLOCATABLE              :: coo_cols, coo_rows, coo_col_offsets, coo_cols_local, coo_rows_local, &
                                                          coo_col_offsets_local, submatrix_owners, submatrix_sizes
       TYPE(buffer_type), DIMENSION(:), ALLOCATABLE    :: recvbufs, result_sendbufs ! Indexing starts with 0 to match rank ids!

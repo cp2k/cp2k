@@ -83,5 +83,8 @@ QS/regtest-sccs-3/H2O_sccs_td_cd5_geo_opt.inp
 QS/regtest-sccs-2/H2O_sccs_otdiis_cd5.inp
 QS/regtest-lsroks/ch2o_rs.inp
 QS/regtest-rtp-5/H2O-wfn-mix-dens-pulse-1.inp
+QS/regtest-tddfpt-force-2/h2o_f14.inp
+QS/regtest-tddfpt-force/h2o_tddfpt_newtonx.inp
+QS/regtest-tddfpt-force-gapw/h2o_t08.inp
 
 #EOF

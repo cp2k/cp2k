@@ -20,14 +20,7 @@ MODULE hfx_exx
                                               admm_type,&
                                               get_admm_env
    USE cp_control_types,                ONLY: dft_control_type
-   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
-                                              copy_fm_to_dbcsr,&
-                                              dbcsr_allocate_matrix_set,&
-                                              dbcsr_deallocate_matrix_set
-   USE cp_log_handling,                 ONLY: cp_get_default_logger,&
-                                              cp_logger_get_default_unit_nr,&
-                                              cp_logger_type
-   USE dbcsr_api,                       ONLY: dbcsr_add,&
+   USE cp_dbcsr_api,                    ONLY: dbcsr_add,&
                                               dbcsr_copy,&
                                               dbcsr_create,&
                                               dbcsr_p_type,&
@@ -35,6 +28,13 @@ MODULE hfx_exx
                                               dbcsr_scale,&
                                               dbcsr_set,&
                                               dbcsr_type
+   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
+                                              copy_fm_to_dbcsr,&
+                                              dbcsr_allocate_matrix_set,&
+                                              dbcsr_deallocate_matrix_set
+   USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                              cp_logger_get_default_unit_nr,&
+                                              cp_logger_type
    USE hfx_admm_utils,                  ONLY: create_admm_xc_section,&
                                               tddft_hfx_matrix
    USE hfx_derivatives,                 ONLY: derivatives_four_center
@@ -59,7 +59,7 @@ MODULE hfx_exx
                                               pw_env_type
    USE pw_methods,                      ONLY: pw_scale
    USE pw_pool_types,                   ONLY: pw_pool_type
-   USE pw_types,                        ONLY: pw_type
+   USE pw_types,                        ONLY: pw_r3d_rs_type
    USE qs_energy_types,                 ONLY: qs_energy_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
@@ -345,8 +345,8 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type)                                      :: vh_rspace
-      TYPE(pw_type), DIMENSION(:), POINTER               :: vadmm_rspace, vtau_rspace, vxc_rspace
+      TYPE(pw_r3d_rs_type)                               :: vh_rspace
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: vadmm_rspace, vtau_rspace, vxc_rspace
       TYPE(qs_rho_type), POINTER                         :: rho, rho_aux_fit
       TYPE(section_vals_type), POINTER                   :: hfx_section
       TYPE(task_list_type), POINTER                      :: task_list_aux_fit
@@ -639,7 +639,7 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type), DIMENSION(:), POINTER               :: v_dummy, v_rspace, v_rspace_aux_fit
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: v_dummy, v_rspace, v_rspace_aux_fit
       TYPE(qs_rho_type), POINTER                         :: rho, rho_aux_fit
       TYPE(section_vals_type), POINTER                   :: xc_section_aux, xc_section_primary
       TYPE(virial_type), POINTER                         :: virial

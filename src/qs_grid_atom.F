@@ -24,32 +24,32 @@ MODULE qs_grid_atom
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_grid_atom'
 
    TYPE grid_batch_type
-      INTEGER                                             :: np
-      REAL(KIND=dp), DIMENSION(3)                         :: rcenter
-      REAL(KIND=dp)                                       :: rad
+      INTEGER                                             :: np = -1
+      REAL(KIND=dp), DIMENSION(3)                         :: rcenter = -1.0_dp
+      REAL(KIND=dp)                                       :: rad = -1.0_dp
       REAL(dp), DIMENSION(:, :), ALLOCATABLE              :: rco
       REAL(dp), DIMENSION(:), ALLOCATABLE                 :: weight
    END TYPE grid_batch_type
 
    TYPE atom_integration_grid_type
-      INTEGER                                             :: nr, na
-      INTEGER                                             :: np, ntot
-      INTEGER                                             :: lebedev_grid
+      INTEGER                                             :: nr = -1, na = -1
+      INTEGER                                             :: np = -1, ntot = -1
+      INTEGER                                             :: lebedev_grid = -1
       REAL(dp), DIMENSION(:), ALLOCATABLE                 :: rr
       REAL(dp), DIMENSION(:), ALLOCATABLE                 :: wr, wa
-      INTEGER                                             :: nbatch
+      INTEGER                                             :: nbatch = -1
       TYPE(grid_batch_type), DIMENSION(:), ALLOCATABLE    :: batch
    END TYPE atom_integration_grid_type
 
    TYPE grid_atom_type
-      INTEGER                         :: quadrature
-      INTEGER                         :: nr, ng_sphere
-      REAL(dp), DIMENSION(:), POINTER :: rad, rad2, &
-                                         wr, wa, &
-                                         azi, cos_azi, sin_azi, &
-                                         pol, cos_pol, sin_pol, usin_azi
+      INTEGER                         :: quadrature = -1
+      INTEGER                         :: nr = -1, ng_sphere = -1
+      REAL(dp), DIMENSION(:), POINTER :: rad => NULL(), rad2 => NULL(), &
+                                         wr => NULL(), wa => NULL(), &
+                                         azi => NULL(), cos_azi => NULL(), sin_azi => NULL(), &
+                                         pol => NULL(), cos_pol => NULL(), sin_pol => NULL(), usin_azi => NULL()
       REAL(dp), DIMENSION(:, :), &
-         POINTER :: rad2l, oorad2l, weight
+         POINTER :: rad2l => NULL(), oorad2l => NULL(), weight => NULL()
    END TYPE grid_atom_type
 
    PUBLIC :: allocate_grid_atom, create_grid_atom, deallocate_grid_atom

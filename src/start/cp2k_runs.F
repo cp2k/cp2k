@@ -18,6 +18,10 @@ MODULE cp2k_runs
                                               cp2k_version,&
                                               cp2k_year
    USE cp_control_types,                ONLY: dft_control_type
+   USE cp_dbcsr_api,                    ONLY: dbcsr_finalize_lib,&
+                                              dbcsr_init_lib,&
+                                              dbcsr_print_config,&
+                                              dbcsr_print_statistics
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_config
    USE cp_dlaf_utils_api,               ONLY: cp_dlaf_finalize,&
                                               cp_dlaf_initialize
@@ -39,11 +43,7 @@ MODULE cp2k_runs
    USE cp_units,                        ONLY: cp_unit_set_create,&
                                               cp_unit_set_release,&
                                               cp_unit_set_type,&
-                                              print_all_units
-   USE dbcsr_api,                       ONLY: dbcsr_finalize_lib,&
-                                              dbcsr_init_lib,&
-                                              dbcsr_print_config,&
-                                              dbcsr_print_statistics
+                                              export_units_as_xml
    USE dbm_api,                         ONLY: dbm_library_print_stats
    USE environment,                     ONLY: cp2k_finalize,&
                                               cp2k_init,&
@@ -76,8 +76,8 @@ MODULE cp2k_runs
                                               grid_library_set_config
    USE input_constants,                 ONLY: &
         bsse_run, cell_opt_run, debug_run, do_atom, do_band, do_cp2k, do_embed, do_farming, &
-        do_fist, do_mixed, do_nnp, do_opt_basis, do_optimize_input, do_qmmm, do_qs, do_sirius, &
-        do_swarm, do_tamc, do_test, do_tree_mc, do_tree_mc_ana, driver_run, ehrenfest, &
+        do_fist, do_ipi, do_mixed, do_nnp, do_opt_basis, do_optimize_input, do_qmmm, do_qs, &
+        do_sirius, do_swarm, do_tamc, do_test, do_tree_mc, do_tree_mc_ana, driver_run, ehrenfest, &
         electronic_spectra_run, energy_force_run, energy_run, geo_opt_run, linear_response_run, &
         mol_dyn_run, mon_car_run, negf_run, none_run, pint_run, real_time_propagation, &
         tree_mc_run, vib_anal
@@ -126,8 +126,7 @@ MODULE cp2k_runs
    USE qs_environment_types,            ONLY: get_qs_env
    USE qs_linres_module,                ONLY: linres_calculation
    USE qs_tddfpt_module,                ONLY: tddfpt_calculation
-   USE reference_manager,               ONLY: print_all_references,&
-                                              print_format_html
+   USE reference_manager,               ONLY: export_references_as_xml
    USE rt_propagation,                  ONLY: rt_prop_setup
    USE sirius_interface,                ONLY: cp_sirius_finalize,&
                                               cp_sirius_init
@@ -341,7 +340,8 @@ CONTAINS
              method_name_id /= do_mixed .AND. &
              method_name_id /= do_nnp .AND. &
              method_name_id /= do_embed .AND. &
-             method_name_id /= do_fist) &
+             method_name_id /= do_fist .AND. &
+             method_name_id /= do_ipi) &
             CPABORT("Energy/Force run not available for all methods ")
 
          sublogger => cp_get_default_logger()
@@ -912,6 +912,10 @@ CONTAINS
          " <CP2K_YEAR>"//TRIM(cp2k_year)//"</CP2K_YEAR>", &
          " <COMPILE_DATE>"//TRIM(compile_date)//"</COMPILE_DATE>", &
          " <COMPILE_REVISION>"//TRIM(compile_revision)//"</COMPILE_REVISION>"
+
+      CALL export_references_as_xml(unit_number)
+      CALL export_units_as_xml(unit_number)
+
       DO i = 1, root_section%n_subsections
          CALL write_section_xml(root_section%subsections(i)%section, 1, unit_number)
       END DO
@@ -919,25 +923,6 @@ CONTAINS
       WRITE (UNIT=unit_number, FMT="(A)") "</CP2K_INPUT>"
       CALL close_file(unit_number=unit_number)
       CALL section_release(root_section)
-
-      ! References
-      CALL open_file(unit_number=unit_number, file_name="references.html", &
-                     file_action="WRITE", file_status="REPLACE")
-      WRITE (unit_number, FMT='(A)') "<HTML><BODY><HEAD><TITLE>The cp2k literature list</TITLE>"
-      WRITE (unit_number, FMT='(A)') "<H1>CP2K references</H1>"
-      CALL print_all_references(sorted=.TRUE., cited_only=.FALSE., &
-                                FORMAT=print_format_html, unit=unit_number)
-      WRITE (unit_number, FMT='(A)') "</BODY></HTML>"
-      CALL close_file(unit_number=unit_number)
-
-      ! Units
-      CALL open_file(unit_number=unit_number, file_name="units.html", &
-                     file_action="WRITE", file_status="REPLACE")
-      WRITE (unit_number, FMT='(A)') "<HTML><BODY><HEAD><TITLE>The cp2k units list</TITLE>"
-      WRITE (unit_number, FMT='(A)') "<H1>CP2K Available Units of Measurement</H1>"
-      CALL print_all_units(unit_nr=unit_number)
-      WRITE (unit_number, FMT='(A)') "</BODY></HTML>"
-      CALL close_file(unit_number=unit_number)
 
    END SUBROUTINE write_xml_file
 

@@ -26,6 +26,8 @@ MODULE f77_interface
    USE cell_methods,                    ONLY: init_cell
    USE cell_types,                      ONLY: cell_type
    USE cp2k_info,                       ONLY: get_runtime_info
+   USE cp_dbcsr_api,                    ONLY: dbcsr_finalize_lib,&
+                                              dbcsr_init_lib
    USE cp_dlaf_utils_api,               ONLY: cp_dlaf_finalize,&
                                               cp_dlaf_initialize
    USE cp_error_handling,               ONLY: cp_error_handling_setup
@@ -43,8 +45,6 @@ MODULE f77_interface
                                               cp_subsys_set,&
                                               cp_subsys_type,&
                                               unpack_subsys_particles
-   USE dbcsr_api,                       ONLY: dbcsr_finalize_lib,&
-                                              dbcsr_init_lib
    USE dbm_api,                         ONLY: dbm_library_finalize,&
                                               dbm_library_init
    USE eip_environment,                 ONLY: eip_init
@@ -73,7 +73,7 @@ MODULE f77_interface
    USE grid_api,                        ONLY: grid_library_finalize,&
                                               grid_library_init
    USE input_constants,                 ONLY: &
-        do_eip, do_embed, do_fist, do_mixed, do_nnp, do_qmmm, do_qmmmx, do_qs, do_sirius
+        do_eip, do_embed, do_fist, do_ipi, do_mixed, do_nnp, do_qmmm, do_qmmmx, do_qs, do_sirius
    USE input_cp2k_check,                ONLY: check_cp2k_input
    USE input_cp2k_force_eval,           ONLY: create_force_eval_section
    USE input_cp2k_read,                 ONLY: empty_initial_variables,&
@@ -87,6 +87,8 @@ MODULE f77_interface
         section_vals_get, section_vals_get_subs_vals, section_vals_release, &
         section_vals_remove_values, section_vals_retain, section_vals_type, section_vals_val_get, &
         section_vals_write
+   USE ipi_environment,                 ONLY: ipi_init
+   USE ipi_environment_types,           ONLY: ipi_environment_type
    USE kinds,                           ONLY: default_path_length,&
                                               default_string_length,&
                                               dp
@@ -331,20 +333,20 @@ CONTAINS
          END DO
          DEALLOCATE (f_envs)
 
+         ! Finalize libraries (Offload)
          CALL dbm_library_finalize()
-
          CALL grid_library_finalize()
-
-         ! Finalize the DBCSR configuration
-         CALL dbcsr_finalize_lib()
          CALL pw_gpu_finalize()
+         ! Finalize the DBCSR library
+         CALL dbcsr_finalize_lib()
+
          CALL mp_para_env_release(default_para_env)
          ierr = 0
          CALL cp_rm_default_logger()
 
          CALL cp_dlaf_finalize()
 
-         !   *** deallocate the bibliography ***
+         ! Deallocate the bibliography
          CALL remove_all_references()
          CALL rm_timer_env()
          CALL rm_mp_perf_env()
@@ -594,6 +596,7 @@ CONTAINS
       TYPE(force_env_type), POINTER                      :: force_env, my_force_env
       TYPE(fp_type), POINTER                             :: fp_env
       TYPE(global_environment_type), POINTER             :: globenv
+      TYPE(ipi_environment_type), POINTER                :: ipi_env
       TYPE(keyword_type), POINTER                        :: keyword
       TYPE(meta_env_type), POINTER                       :: meta_env
       TYPE(mixed_environment_type), POINTER              :: mixed_env
@@ -866,6 +869,13 @@ CONTAINS
             CALL nnp_init(nnp_env, root_section, my_para_env, force_env_section=force_env_section, &
                           subsys_section=subsys_section, use_motion_section=use_motion_section)
             CALL force_env_create(my_force_env, root_section, nnp_env=nnp_env, para_env=my_para_env, &
+                                  globenv=globenv, force_env_section=force_env_section)
+
+         CASE (do_ipi)
+            ALLOCATE (ipi_env)
+            CALL ipi_init(ipi_env, root_section, my_para_env, force_env_section=force_env_section, &
+                          subsys_section=subsys_section)
+            CALL force_env_create(my_force_env, root_section, ipi_env=ipi_env, para_env=my_para_env, &
                                   globenv=globenv, force_env_section=force_env_section)
 
          CASE default

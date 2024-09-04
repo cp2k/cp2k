@@ -7,6 +7,7 @@
         "../mpiwrap",
         "../input",
         "../fm",
+        "../dbx",
         "../subsys",
         "../emd",
         "thermostat",

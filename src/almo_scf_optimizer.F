@@ -38,6 +38,17 @@ MODULE almo_scf_optimizer
                                               optimizer_options_type
    USE cell_types,                      ONLY: cell_type
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
+   USE cp_dbcsr_api,                    ONLY: &
+        dbcsr_add, dbcsr_add_on_diag, dbcsr_copy, dbcsr_create, dbcsr_desymmetrize, &
+        dbcsr_distribution_get, dbcsr_distribution_type, dbcsr_dot, dbcsr_filter, dbcsr_finalize, &
+        dbcsr_frobenius_norm, dbcsr_func_dtanh, dbcsr_func_inverse, dbcsr_func_tanh, &
+        dbcsr_function_of_elements, dbcsr_get_block_p, dbcsr_get_diag, dbcsr_get_info, &
+        dbcsr_hadamard_product, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
+        dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, &
+        dbcsr_nblkcols_total, dbcsr_nblkrows_total, dbcsr_norm, dbcsr_norm_maxabsnorm, &
+        dbcsr_p_type, dbcsr_print_block_sum, dbcsr_release, dbcsr_reserve_block2d, dbcsr_scale, &
+        dbcsr_set, dbcsr_set_diag, dbcsr_triu, dbcsr_type, dbcsr_type_no_symmetry, &
+        dbcsr_work_create
    USE cp_dbcsr_cholesky,               ONLY: cp_dbcsr_cholesky_decompose,&
                                               cp_dbcsr_cholesky_invert,&
                                               cp_dbcsr_cholesky_restore
@@ -58,17 +69,6 @@ MODULE almo_scf_optimizer
                                               ct_step_env_init,&
                                               ct_step_env_set,&
                                               ct_step_env_type
-   USE dbcsr_api,                       ONLY: &
-        dbcsr_add, dbcsr_add_on_diag, dbcsr_copy, dbcsr_create, dbcsr_desymmetrize, &
-        dbcsr_distribution_get, dbcsr_distribution_type, dbcsr_dot, dbcsr_filter, dbcsr_finalize, &
-        dbcsr_frobenius_norm, dbcsr_func_dtanh, dbcsr_func_inverse, dbcsr_func_tanh, &
-        dbcsr_function_of_elements, dbcsr_get_block_p, dbcsr_get_diag, dbcsr_get_info, &
-        dbcsr_hadamard_product, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
-        dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, &
-        dbcsr_nblkcols_total, dbcsr_nblkrows_total, dbcsr_norm, dbcsr_norm_maxabsnorm, &
-        dbcsr_p_type, dbcsr_print_block_sum, dbcsr_release, dbcsr_reserve_block2d, dbcsr_scale, &
-        dbcsr_set, dbcsr_set_diag, dbcsr_triu, dbcsr_type, dbcsr_type_no_symmetry, &
-        dbcsr_work_create
    USE domain_submatrix_methods,        ONLY: add_submatrices,&
                                               construct_submatrices,&
                                               copy_submatrices,&
@@ -1043,8 +1043,7 @@ CONTAINS
 
          CALL compute_berry_operator(qs_env, cell, op_sm_set_qs, dim_op)
 
-         !CALL matrix_qs_to_almo(op_sm_set_qs, op_sm_set_almo, &
-         !                       almo_scf_env%mat_distr_aos, .FALSE.)
+         !CALL matrix_qs_to_almo(op_sm_set_qs, op_sm_set_almo, almo_scf_env%mat_distr_aos)
 
       END IF
 
@@ -1208,8 +1207,8 @@ CONTAINS
             DO idim0 = 1, SIZE(op_sm_set_qs, 2) ! this loop is over miller ind
                DO reim = 1, SIZE(op_sm_set_qs, 1) ! this loop is over Re/Im
 
-                  CALL matrix_qs_to_almo(op_sm_set_qs(reim, idim0)%matrix, op_sm_set_almo(reim, idim0)%matrix, &
-                                         almo_scf_env%mat_distr_aos, .FALSE.)
+                  CALL matrix_qs_to_almo(op_sm_set_qs(reim, idim0)%matrix, &
+                                         op_sm_set_almo(reim, idim0)%matrix, almo_scf_env%mat_distr_aos)
 
                   CALL dbcsr_multiply("N", "N", 1.0_dp, &
                                       op_sm_set_almo(reim, idim0)%matrix, &
@@ -1325,8 +1324,9 @@ CONTAINS
 
                      DO reim = 1, SIZE(op_sm_set_qs, 1) ! this loop is over Re/Im
 
-                        !CALL matrix_qs_to_almo(op_sm_set_qs(reim, idim0)%matrix, op_sm_set_almo(reim, idim0)%matrix, &
-                        !                       almo_scf_env%mat_distr_aos, .FALSE.)
+                        !CALL matrix_qs_to_almo(op_sm_set_qs(reim, idim0)%matrix,
+                        !                       op_sm_set_almo(reim, idim0)%matrix, &
+                        !                       almo_scf_env%mat_distr_aos)
                         CALL dbcsr_multiply("N", "N", 1.0_dp, &
                                             op_sm_set_almo(reim, idim0)%matrix, &
                                             matrix_t_out(ispin), &
@@ -2310,8 +2310,8 @@ CONTAINS
 
                DO reim = 1, SIZE(op_sm_set_qs, 1) ! this loop is over Re/Im
 
-                  CALL matrix_qs_to_almo(op_sm_set_qs(reim, idim0)%matrix, op_sm_set_almo(reim, idim0)%matrix, &
-                                         mat_distr_aos, .FALSE.)
+                  CALL matrix_qs_to_almo(op_sm_set_qs(reim, idim0)%matrix, &
+                                         op_sm_set_almo(reim, idim0)%matrix, mat_distr_aos)
 
                   CALL dbcsr_multiply("N", "N", 1.0_dp, &
                                       op_sm_set_almo(reim, idim0)%matrix, &

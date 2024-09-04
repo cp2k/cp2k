@@ -12,7 +12,7 @@
 !> \author JGH
 ! **************************************************************************************************
 MODULE qs_elf_methods
-   USE dbcsr_api,                       ONLY: dbcsr_p_type
+   USE cp_dbcsr_api,                    ONLY: dbcsr_p_type
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: pi
    USE pw_env_types,                    ONLY: pw_env_get,&
@@ -22,11 +22,8 @@ MODULE qs_elf_methods
                                               pw_zero
    USE pw_pool_types,                   ONLY: pw_pool_p_type,&
                                               pw_pool_type
-   USE pw_types,                        ONLY: COMPLEXDATA1D,&
-                                              REALDATA3D,&
-                                              REALSPACE,&
-                                              RECIPROCALSPACE,&
-                                              pw_type
+   USE pw_types,                        ONLY: pw_c1d_gs_type,&
+                                              pw_r3d_rs_type
    USE qs_collocate_density,            ONLY: calculate_rho_elec
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
@@ -56,7 +53,7 @@ CONTAINS
    SUBROUTINE qs_elf_calc(qs_env, elf_r, rho_cutoff)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(pw_type), DIMENSION(:), INTENT(IN)            :: elf_r
+      TYPE(pw_r3d_rs_type), DIMENSION(:), INTENT(IN)     :: elf_r
       REAL(kind=dp), INTENT(IN)                          :: rho_cutoff
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'qs_elf_calc'
@@ -73,14 +70,14 @@ CONTAINS
                                                             udvol
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_ao
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rho_struct_ao
+      TYPE(pw_c1d_gs_type)                               :: tmp_g
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type)                                      :: tmp_g
-      TYPE(pw_type), DIMENSION(3)                        :: drho_r
-      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_struct_r, tau_struct_r
-      TYPE(pw_type), DIMENSION(:, :), POINTER            :: drho_struct_r
-      TYPE(pw_type), POINTER                             :: rho_r, tau_r
+      TYPE(pw_r3d_rs_type), DIMENSION(3)                 :: drho_r
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: rho_struct_r, tau_struct_r
+      TYPE(pw_r3d_rs_type), DIMENSION(:, :), POINTER     :: drho_struct_r
+      TYPE(pw_r3d_rs_type), POINTER                      :: rho_r, tau_r
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho_struct
 
@@ -109,17 +106,14 @@ CONTAINS
       ! We will not have further use for it, so we will need only one
       IF (.NOT. tau_r_valid) THEN
          ALLOCATE (tau_r)
-         CALL auxbas_pw_pool%create_pw(tau_r, &
-                                       use_data=REALDATA3D, in_space=REALSPACE)
+         CALL auxbas_pw_pool%create_pw(tau_r)
       END IF
       IF (.NOT. tau_r_valid .OR. .NOT. drho_r_valid) THEN
-         CALL auxbas_pw_pool%create_pw(tmp_g, &
-                                       use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+         CALL auxbas_pw_pool%create_pw(tmp_g)
       END IF
       IF (.NOT. drho_r_valid) THEN
          DO idir = 1, 3
-            CALL auxbas_pw_pool%create_pw(drho_r(idir), &
-                                          use_data=REALDATA3D, in_space=REALSPACE)
+            CALL auxbas_pw_pool%create_pw(drho_r(idir))
          END DO
       END IF
 
@@ -168,15 +162,15 @@ CONTAINS
          DO k = bo(1, 3), bo(2, 3)
             DO j = bo(1, 2), bo(2, 2)
                DO i = bo(1, 1), bo(2, 1)
-                  norm_drho = drho_r(1)%cr3d(i, j, k)**2 + &
-                              drho_r(2)%cr3d(i, j, k)**2 + &
-                              drho_r(3)%cr3d(i, j, k)**2
-                  norm_drho = norm_drho/MAX(rho_r%cr3d(i, j, k), rho_cutoff)
-                  rho_53 = cfermi*MAX(rho_r%cr3d(i, j, k), rho_cutoff)**f53
-                  elf_kernel = (tau_r%cr3d(i, j, k) - f18*norm_drho) + 2.87E-5_dp
+                  norm_drho = drho_r(1)%array(i, j, k)**2 + &
+                              drho_r(2)%array(i, j, k)**2 + &
+                              drho_r(3)%array(i, j, k)**2
+                  norm_drho = norm_drho/MAX(rho_r%array(i, j, k), rho_cutoff)
+                  rho_53 = cfermi*MAX(rho_r%array(i, j, k), rho_cutoff)**f53
+                  elf_kernel = (tau_r%array(i, j, k) - f18*norm_drho) + 2.87E-5_dp
                   elf_kernel = (elf_kernel/rho_53)**2
-                  elf_r(ispin)%cr3d(i, j, k) = 1.0_dp/(1.0_dp + elf_kernel)
-                  IF (elf_r(ispin)%cr3d(i, j, k) < ELFCUT) elf_r(ispin)%cr3d(i, j, k) = 0.0_dp
+                  elf_r(ispin)%array(i, j, k) = 1.0_dp/(1.0_dp + elf_kernel)
+                  IF (elf_r(ispin)%array(i, j, k) < ELFCUT) elf_r(ispin)%array(i, j, k) = 0.0_dp
                END DO
             END DO
          END DO

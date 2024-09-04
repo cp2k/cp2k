@@ -116,8 +116,8 @@ case "${with_quip}" in
       # enable debug symbols
       echo "F95FLAGS       += -g ${compat_flag}" >> arch/Makefile.linux_${quip_arch}_gfortran
       echo "F77FLAGS       += -g ${compat_flag}" >> arch/Makefile.linux_${quip_arch}_gfortran
-      echo "CFLAGS         += -g" >> arch/Makefile.linux_${quip_arch}_gfortran
-      echo "CPLUSPLUSFLAGS += -g" >> arch/Makefile.linux_${quip_arch}_gfortran
+      echo "CFLAGS         += -g -fpermissive" >> arch/Makefile.linux_${quip_arch}_gfortran
+      echo "CPLUSPLUSFLAGS += -g -fpermissive" >> arch/Makefile.linux_${quip_arch}_gfortran
       # Makefile.linux_${quip_arch}_gfortran_openmp includes Makefile.linux_${quip_arch}_gfortran
       export QUIP_ARCH=linux_${quip_arch}_gfortran_openmp
       # hit enter a few times to accept defaults

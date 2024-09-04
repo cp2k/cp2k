@@ -9,6 +9,7 @@ apt-get install -qq --no-install-recommends \
   libpython3-stdlib \
   python3 \
   python3-pip \
+  python3-venv \
   python3-wheel \
   python3-setuptools \
   python3-dev \
@@ -20,12 +21,15 @@ apt-get install -qq --no-install-recommends \
   wget
 rm -rf /var/lib/apt/lists/*
 
+# Create and activate a virtual environment for Python packages.
+python3 -m venv /opt/venv
+export PATH="/opt/venv/bin:$PATH"
+
 # install python packages
 pip3 install --quiet \
   numpy \
   matplotlib \
   requests \
-  types-lxml \
   types-requests \
   mypy==1.5.1
 

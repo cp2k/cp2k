@@ -82,6 +82,10 @@ MODULE qs_core_hamiltonian
    USE core_ppnl,                       ONLY: build_core_ppnl
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_control_types,                ONLY: dft_control_type
+   USE cp_dbcsr_api,                    ONLY: &
+        dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_distribution_type, dbcsr_iterator_blocks_left, &
+        dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, &
+        dbcsr_p_type, dbcsr_set, dbcsr_type, dbcsr_type_antisymmetric
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
    USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set,&
                                               dbcsr_deallocate_matrix_set
@@ -93,10 +97,6 @@ MODULE qs_core_hamiltonian
                                               cp_print_key_finished_output,&
                                               cp_print_key_should_output,&
                                               cp_print_key_unit_nr
-   USE dbcsr_api,                       ONLY: &
-        dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_distribution_type, dbcsr_iterator_blocks_left, &
-        dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, &
-        dbcsr_p_type, dbcsr_set, dbcsr_type, dbcsr_type_antisymmetric
    USE input_constants,                 ONLY: do_admm_purify_none,&
                                               do_ppl_analytic,&
                                               kg_tnadd_atomic,&
@@ -140,7 +140,7 @@ MODULE qs_core_hamiltonian
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_core_hamiltonian'
 
-   PUBLIC :: build_core_hamiltonian_matrix
+   PUBLIC :: build_core_hamiltonian_matrix, core_matrices
    PUBLIC :: dump_info_core_hamiltonian, qs_matrix_h_allocate_imag_from_real
 
 CONTAINS
@@ -412,15 +412,17 @@ CONTAINS
 !> \param matrix_p ...
 !> \param calculate_forces ...
 !> \param nder ...
+!> \param atcore ...
 ! **************************************************************************************************
-   SUBROUTINE core_matrices(qs_env, matrix_h, matrix_p, calculate_forces, nder)
+   SUBROUTINE core_matrices(qs_env, matrix_h, matrix_p, calculate_forces, nder, atcore)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_h, matrix_p
       LOGICAL, INTENT(IN)                                :: calculate_forces
       INTEGER, INTENT(IN)                                :: nder
+      REAL(KIND=dp), DIMENSION(:), OPTIONAL              :: atcore
 
-      INTEGER                                            :: nimages
+      INTEGER                                            :: natom, nimages
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
       LOGICAL                                            :: all_present, my_gt_nl, ppl_present, &
                                                             ppnl_present, use_virial
@@ -438,8 +440,11 @@ CONTAINS
       TYPE(virial_type), POINTER                         :: virial
 
       NULLIFY (dft_control)
-      CALL get_qs_env(qs_env=qs_env, ks_env=ks_env, dft_control=dft_control)
+      CALL get_qs_env(qs_env=qs_env, ks_env=ks_env, dft_control=dft_control, natom=natom)
       nimages = dft_control%nimages
+      IF (PRESENT(atcore)) THEN
+         CPASSERT(SIZE(atcore) >= natom)
+      END IF
 
       ! check whether a gauge transformed version of the non-local potential part has to be used
       my_gt_nl = .FALSE.
@@ -484,7 +489,8 @@ CONTAINS
       all_present = ASSOCIATED(sac_ae)
       IF (all_present) THEN
          CALL build_core_ae(matrix_h, matrix_p, force, virial, calculate_forces, use_virial, nder, &
-                            qs_kind_set, atomic_kind_set, particle_set, sab_orb, sac_ae, nimages, cell_to_index)
+                            qs_kind_set, atomic_kind_set, particle_set, sab_orb, sac_ae, &
+                            nimages, cell_to_index, atcore=atcore)
       END IF
 
       ! *** compute the ppl contribution to the core hamiltonian ***
@@ -500,12 +506,12 @@ CONTAINS
                ELSE
                   CALL build_core_ppl(matrix_h, matrix_p, force, virial, calculate_forces, use_virial, nder, &
                                       qs_kind_set, atomic_kind_set, particle_set, sab_orb, sac_ppl, &
-                                      nimages, cell_to_index, "ORB")
+                                      nimages, cell_to_index, "ORB", atcore=atcore)
                END IF
             ELSE
                CALL build_core_ppl(matrix_h, matrix_p, force, virial, calculate_forces, use_virial, nder, &
                                    qs_kind_set, atomic_kind_set, particle_set, sab_orb, sac_ppl, &
-                                   nimages, cell_to_index, "ORB")
+                                   nimages, cell_to_index, "ORB", atcore=atcore)
             END IF
          END IF
       END IF
@@ -517,7 +523,7 @@ CONTAINS
          IF (.NOT. my_gt_nl) THEN
             CALL build_core_ppnl(matrix_h, matrix_p, force, virial, calculate_forces, use_virial, nder, &
                                  qs_kind_set, atomic_kind_set, particle_set, sab_orb, sap_ppnl, eps_ppnl, &
-                                 nimages, cell_to_index, "ORB")
+                                 nimages, cell_to_index, "ORB", atcore=atcore)
          END IF
       END IF
 
@@ -569,13 +575,13 @@ CONTAINS
       INTEGER                                            :: after, handle, i, ic, iw, output_unit
       LOGICAL                                            :: omit_headers
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s, matrix_v
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_v
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrixkp_h, matrixkp_s, matrixkp_t
       TYPE(mp_para_env_type), POINTER                    :: para_env
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (logger, matrix_v, matrix_s, para_env)
+      NULLIFY (logger, matrix_v, para_env)
       logger => cp_get_default_logger()
       CALL get_qs_env(qs_env, para_env=para_env)
 
@@ -607,10 +613,9 @@ CONTAINS
                                                  output_unit=iw, omit_headers=omit_headers)
             END DO
             IF (BTEST(cp_print_key_should_output(logger%iter_info, qs_env%input, &
-                                                 "DFT%PRINT%AO_MATRICES/DERIVATIVES"), cp_p_file) &
-                .AND. ASSOCIATED(matrix_s)) THEN
+                                                 "DFT%PRINT%AO_MATRICES/DERIVATIVES"), cp_p_file)) THEN
                DO ic = 1, SIZE(matrixkp_s, 2)
-                  DO i = 2, SIZE(matrix_s)
+                  DO i = 2, SIZE(matrixkp_s, 1)
                      CALL cp_dbcsr_write_sparse_matrix(matrixkp_s(i, ic)%matrix, 4, after, qs_env, para_env, &
                                                        output_unit=iw, omit_headers=omit_headers)
                   END DO

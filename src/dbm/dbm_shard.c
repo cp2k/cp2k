@@ -170,11 +170,11 @@ dbm_block_t *dbm_shard_lookup(const dbm_shard_t *shard, const int row,
  ******************************************************************************/
 dbm_block_t *dbm_shard_promise_new_block(dbm_shard_t *shard, const int row,
                                          const int col, const int block_size) {
-  // Grow blocks array if nessecary.
+  // Grow blocks array if necessary.
   if (shard->nblocks_allocated < shard->nblocks + 1) {
     shard->nblocks_allocated = ALLOCATION_FACTOR * (shard->nblocks + 1);
-    shard->blocks =
-        realloc(shard->blocks, shard->nblocks_allocated * sizeof(dbm_block_t));
+    shard->blocks = (dbm_block_t *)realloc(
+        shard->blocks, shard->nblocks_allocated * sizeof(dbm_block_t));
 
     // rebuild hashtable
     free(shard->hashtable);
@@ -202,10 +202,11 @@ dbm_block_t *dbm_shard_promise_new_block(dbm_shard_t *shard, const int row,
  ******************************************************************************/
 void dbm_shard_allocate_promised_blocks(dbm_shard_t *shard) {
 
-  // Reallocate data array if nessecary.
+  // Reallocate data array if necessary.
   if (shard->data_promised > shard->data_allocated) {
     shard->data_allocated = ALLOCATION_FACTOR * shard->data_promised;
-    shard->data = realloc(shard->data, shard->data_allocated * sizeof(double));
+    shard->data =
+        (double *)realloc(shard->data, shard->data_allocated * sizeof(double));
   }
 
   // Zero new blocks.

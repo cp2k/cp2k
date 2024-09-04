@@ -3,10 +3,7 @@
 # Usage: docker build -f ./Dockerfile.test_intel-psmp ../../
 #
 
-FROM intel/oneapi-hpckit:2023.2.1-devel-ubuntu22.04
-
-# Workaround expired key.
-RUN curl -sS https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB | gpg --dearmor > /usr/share/keyrings/intel-oneapi-archive-keyring.gpg
+FROM intel/hpckit:2024.2.1-0-devel-ubuntu22.04
 
 # Install requirements for the toolchain.
 WORKDIR /opt/cp2k-toolchain
@@ -28,7 +25,6 @@ RUN ./install_cp2k_toolchain.sh \
     --with-intelmpi \
     --with-mkl \
     --with-libtorch=no \
-    --with-sirius=no \
     --dry-run
 
 # Dry-run leaves behind config files for the followup install scripts.
@@ -79,7 +75,7 @@ COPY ./tests ./tests
 COPY ./tools/regtesting ./tools/regtesting
 
 # Run regression tests.
-ARG TESTOPTS=""
+ARG TESTOPTS="--mpiexec mpiexec"
 COPY ./tools/docker/scripts/test_regtest.sh ./
 RUN /bin/bash -o pipefail -c " \
     TESTOPTS='${TESTOPTS}' \

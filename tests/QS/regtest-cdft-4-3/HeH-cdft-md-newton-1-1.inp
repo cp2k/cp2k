@@ -48,8 +48,8 @@
 
 &FORCE_EVAL
   METHOD QS
-@SET BECKE_STR ${BECKE_STR_1}
-@SET BECKE_TARGET ${BECKE_TARGET_1}
-@include dft-common-params.inc
-@include subsys.inc
+  @SET BECKE_STR ${BECKE_STR_1}
+  @SET BECKE_TARGET ${BECKE_TARGET_1}
+  @INCLUDE dft-common-params.inc
+  @INCLUDE subsys.inc
 &END FORCE_EVAL

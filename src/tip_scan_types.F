@@ -10,7 +10,8 @@ MODULE tip_scan_types
                                               section_vals_val_get
    USE kinds,                           ONLY: default_string_length,&
                                               dp
-   USE pw_types,                        ONLY: pw_type
+   USE pw_types,                        ONLY: pw_c1d_gs_type,&
+                                              pw_r3d_rs_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -23,13 +24,13 @@ MODULE tip_scan_types
 
 ! **************************************************************************************************
    TYPE scanning_type
-      INTEGER                              :: num_scan_points
-      REAL(KIND=dp), DIMENSION(3)          :: ref_point
+      INTEGER                              :: num_scan_points = -1
+      REAL(KIND=dp), DIMENSION(3)          :: ref_point = -1.0_dp
       REAL(KIND=dp), DIMENSION(:, :), &
          ALLOCATABLE                       :: tip_pos
-      CHARACTER(LEN=default_string_length) :: tip_cube_file
-      TYPE(pw_type), POINTER               :: tip_pw_r
-      TYPE(pw_type), POINTER               :: tip_pw_g
+      CHARACTER(LEN=default_string_length) :: tip_cube_file = ""
+      TYPE(pw_r3d_rs_type), POINTER               :: tip_pw_r => NULL()
+      TYPE(pw_c1d_gs_type), POINTER               :: tip_pw_g => NULL()
    END TYPE scanning_type
 ! **************************************************************************************************
 

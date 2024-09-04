@@ -45,13 +45,16 @@ case "$with_scalapack" in
       mkdir -p "scalapack-${scalapack_ver}/build"
       pushd "scalapack-${scalapack_ver}/build" > /dev/null
 
-      flags=""
+      cflags=""
+      fflags=""
       if ("${FC}" --version | grep -q 'GNU'); then
-        flags=$(allowed_gfortran_flags "-fallow-argument-mismatch")
+        cflags="-fpermissive"
+        fflags=$(allowed_gfortran_flags "-fallow-argument-mismatch")
       fi
-      FFLAGS=$flags cmake -DCMAKE_FIND_ROOT_PATH="$ROOTDIR" \
+      CFLAGS=${cflags} FFLAGS=${fflags} cmake -DCMAKE_FIND_ROOT_PATH="$ROOTDIR" \
         -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}" \
         -DCMAKE_INSTALL_LIBDIR="lib" \
+        -DCMAKE_VERBOSE_MAKEFILE=ON \
         -DBUILD_SHARED_LIBS=NO \
         -DCMAKE_BUILD_TYPE=Release .. \
         -DBUILD_TESTING=NO \
@@ -96,7 +99,7 @@ EOF
 export SCALAPACK_LDFLAGS="${SCALAPACK_LDFLAGS}"
 export SCALAPACK_LIBS="${SCALAPACK_LIBS}"
 export SCALAPACK_ROOT="${pkg_install_dir}"
-export CP_DFLAGS="\${CP_DFLAGS} IF_MPI(-D__SCALAPACK|)"
+export CP_DFLAGS="\${CP_DFLAGS} IF_MPI(-D__parallel|)"
 export CP_LDFLAGS="\${CP_LDFLAGS} IF_MPI(${SCALAPACK_LDFLAGS}|)"
 export CP_LIBS="IF_MPI(-lscalapack|) \${CP_LIBS}"
 EOF

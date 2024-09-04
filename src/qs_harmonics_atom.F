@@ -30,17 +30,17 @@ MODULE qs_harmonics_atom
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_harmonics_atom'
 
    TYPE harmonics_atom_type
-      INTEGER                                :: max_s_harm, llmax, &
-                                                max_iso_not0, &
-                                                dmax_iso_not0, &
-                                                damax_iso_not0, &
-                                                ngrid
-      REAL(dp), DIMENSION(:, :), POINTER   :: a, slm
-      REAL(dp), DIMENSION(:, :, :), POINTER   :: dslm, dslm_dxyz
-      REAL(dp), DIMENSION(:, :, :), POINTER   :: my_CG
-      REAL(dp), DIMENSION(:, :, :, :), POINTER :: my_CG_dxyz
-      REAL(dp), DIMENSION(:, :, :, :), POINTER :: my_CG_dxyz_asym
-      REAL(dp), DIMENSION(:), POINTER        :: slm_int
+      INTEGER                                :: max_s_harm = -1, llmax = -1, &
+                                                max_iso_not0 = -1, &
+                                                dmax_iso_not0 = -1, &
+                                                damax_iso_not0 = -1, &
+                                                ngrid = -1
+      REAL(dp), DIMENSION(:, :), POINTER   :: a => NULL(), slm => NULL()
+      REAL(dp), DIMENSION(:, :, :), POINTER   :: dslm => NULL(), dslm_dxyz => NULL()
+      REAL(dp), DIMENSION(:, :, :), POINTER   :: my_CG => NULL()
+      REAL(dp), DIMENSION(:, :, :, :), POINTER :: my_CG_dxyz => NULL()
+      REAL(dp), DIMENSION(:, :, :, :), POINTER :: my_CG_dxyz_asym => NULL()
+      REAL(dp), DIMENSION(:), POINTER        :: slm_int => NULL()
 
    END TYPE harmonics_atom_type
 

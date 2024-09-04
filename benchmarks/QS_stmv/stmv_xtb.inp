@@ -74,7 +74,7 @@
     ! it declares each water molecule a molecule, whereas each atom of the virus is an atom as well.
     !
     &COORD
-@INCLUDE 'coord_mol'
+      @INCLUDE 'coord_mol'
     &END COORD
     ! &TOPOLOGY
     !   CONN_FILE ./stmv.psf

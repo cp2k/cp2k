@@ -14,6 +14,7 @@
 #include "../offload/offload_library.h"
 #include "../offload/offload_runtime.h"
 #include "dbm_mempool.h"
+#include "dbm_mpi.h"
 
 /*******************************************************************************
  * \brief Private routine for actually allocating system memory.
@@ -34,7 +35,7 @@ static void *actual_malloc(const size_t size, const bool on_device) {
   (void)on_device; // mark used
 #endif
 
-  void *memory = malloc(size);
+  void *memory = dbm_mpi_alloc_mem(size);
   assert(memory != NULL);
   return memory;
 }
@@ -58,7 +59,7 @@ static void actual_free(void *memory, const bool on_device) {
   (void)on_device; // mark used
 #endif
 
-  free(memory);
+  dbm_mpi_free_mem(memory);
 }
 
 /*******************************************************************************

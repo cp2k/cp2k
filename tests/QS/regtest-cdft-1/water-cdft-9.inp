@@ -23,6 +23,6 @@
 
 &FORCE_EVAL
   METHOD QS
-@include dft-common-params-gapw.inc
-@include subsys-gapw.inc
+  @INCLUDE dft-common-params-gapw.inc
+  @INCLUDE subsys-gapw.inc
 &END FORCE_EVAL

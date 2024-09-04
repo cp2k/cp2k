@@ -21,7 +21,9 @@ FLAG_EXCEPTIONS = (
     r"\$\{.*\}\$",
     r"__.*__",
     r"CUDA_VERSION",
+    r"DBM_LIBXSMM_PREFETCH",
     r"DBM_VALIDATE_AGAINST_DBCSR",
+    r"OPENCL_DBM_SOURCE_MULTIPLY",
     r"FD_DEBUG",
     r"GRID_DO_COLLOCATE",
     r"INTEL_MKL_VERSION",
@@ -40,23 +42,12 @@ FLAG_EXCEPTIONS = (
     r"__DATA_DIR",
     r"__FFTW3_UNALIGNED",
     r"__FORCE_USE_FAST_MATH",
-    r"__HAS_smm_cnt",
-    r"__HAS_smm_ctn",
-    r"__HAS_smm_ctt",
-    r"__HAS_smm_dnt",
-    r"__HAS_smm_dtn",
-    r"__HAS_smm_dtt",
-    r"__HAS_smm_snt",
-    r"__HAS_smm_stn",
-    r"__HAS_smm_stt",
-    r"__HAS_smm_znt",
-    r"__HAS_smm_ztn",
-    r"__HAS_smm_ztt",
+    r"__INTEL_LLVM_COMPILER",
     r"__INTEL_COMPILER",
+    r"OFFLOAD_CHECK",
     r"__OFFLOAD_CUDA",
     r"__OFFLOAD_HIP",
     r"__PILAENV_BLOCKSIZE",
-    r"__PW_CUDA_NO_HOSTALLOC",
     r"__PW_CUDA_NO_HOSTALLOC",
     r"__T_C_G0",
     r"__YUKAWA",
@@ -70,8 +61,7 @@ FLAG_EXCEPTIONS = (
     r"LIBXSMM_VERSION2",
     r"LIBXSMM_VERSION3",
     r"LIBXSMM_VERSION4",
-    r"DBM_LIBXSMM_PREFETCH",
-    r"__PW_CUDA_HIP_KERNELS",
+    r"CPVERSION",
 )
 
 FLAG_EXCEPTIONS_RE = re.compile(r"|".join(FLAG_EXCEPTIONS))
@@ -224,7 +214,8 @@ def check_file(path: pathlib.Path) -> List[str]:
             if line.split()[0] not in ("#if", "#ifdef", "#ifndef", "#elif"):
                 continue
 
-        line = line.split("//", 1)[0]
+        line = line.split("/*", 1)[0]  # C comment
+        line = line.split("//", 1)[0]  # C++ comment
         line_continuation = line.rstrip().endswith("\\")
         line = OP_RE.sub(" ", line)
         line = line.replace("defined", " ")
@@ -240,6 +231,8 @@ def check_file(path: pathlib.Path) -> List[str]:
     flags = {flag for flag in flags if not FLAG_EXCEPTIONS_RE.match(flag)}
 
     for flag in sorted(flags):
+        if fn_ext == ".cl":  # usually compiled at RT (no direct user-control)
+            continue
         if flag == "_OMP_H" and fn_ext == ".cu":
             continue
         if flag not in get_install_txt():

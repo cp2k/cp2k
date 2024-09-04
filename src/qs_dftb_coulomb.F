@@ -20,7 +20,7 @@ MODULE qs_dftb_coulomb
                                               pbc
    USE cp_control_types,                ONLY: dft_control_type,&
                                               dftb_control_type
-   USE dbcsr_api,                       ONLY: dbcsr_add,&
+   USE cp_dbcsr_api,                    ONLY: dbcsr_add,&
                                               dbcsr_get_block_p,&
                                               dbcsr_iterator_blocks_left,&
                                               dbcsr_iterator_next_block,&

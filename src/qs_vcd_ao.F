@@ -19,12 +19,12 @@ MODULE qs_vcd_ao
    USE cell_types,                      ONLY: cell_type,&
                                               pbc
    USE cp_control_types,                ONLY: dft_control_type
-   USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set,&
-                                              dbcsr_deallocate_matrix_set
-   USE dbcsr_api,                       ONLY: &
+   USE cp_dbcsr_api,                    ONLY: &
         dbcsr_add, dbcsr_copy, dbcsr_desymmetrize, dbcsr_distribution_get, &
         dbcsr_distribution_type, dbcsr_finalize, dbcsr_get_block_p, dbcsr_get_info, dbcsr_init_p, &
         dbcsr_p_type, dbcsr_scale, dbcsr_set, dbcsr_type, dbcsr_work_create
+   USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set,&
+                                              dbcsr_deallocate_matrix_set
    USE external_potential_types,        ONLY: get_potential,&
                                               gth_potential_type,&
                                               sgp_potential_type
@@ -45,9 +45,7 @@ MODULE qs_vcd_ao
    USE pw_methods,                      ONLY: pw_axpy,&
                                               pw_zero
    USE pw_pool_types,                   ONLY: pw_pool_type
-   USE pw_types,                        ONLY: REALDATA3D,&
-                                              REALSPACE,&
-                                              pw_type
+   USE pw_types,                        ONLY: pw_r3d_rs_type
    USE qs_energy_types,                 ONLY: qs_energy_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
@@ -992,8 +990,8 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_rvxc, matrix_rvxc_desymm
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type), DIMENSION(:), POINTER               :: v_rspace, v_tau_rspace
-      TYPE(pw_type), POINTER                             :: v_hartree_rspace
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: v_rspace, v_tau_rspace
+      TYPE(pw_r3d_rs_type), POINTER                      :: v_hartree_rspace
       TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho_struct
@@ -1044,8 +1042,7 @@ CONTAINS
       IF (.NOT. ASSOCIATED(v_rspace)) THEN
          ALLOCATE (v_rspace(nspins))
          DO ispin = 1, nspins
-            CALL auxbas_pw_pool%create_pw(v_rspace(ispin), &
-                                          use_data=REALDATA3D, in_space=REALSPACE)
+            CALL auxbas_pw_pool%create_pw(v_rspace(ispin))
             CALL pw_zero(v_rspace(ispin))
          END DO
       END IF
@@ -1088,7 +1085,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE integrate_rv_rspace(v_rspace, hmat, qs_env, rc)
 
-      TYPE(pw_type)                                      :: v_rspace
+      TYPE(pw_r3d_rs_type)                               :: v_rspace
       TYPE(dbcsr_p_type), DIMENSION(:), INTENT(INOUT)    :: hmat
       TYPE(qs_environment_type), POINTER                 :: qs_env
       REAL(KIND=dp), DIMENSION(3)                        :: rc

@@ -41,38 +41,38 @@ MODULE xtb_types
 ! **************************************************************************************************
    TYPE xtb_atom_type
       ! PRIVATE
-      CHARACTER(LEN=default_string_length)   :: typ
-      CHARACTER(LEN=default_string_length)   :: aname
-      CHARACTER(LEN=2)                       :: symbol
-      LOGICAL                                :: defined
-      INTEGER                                :: z !atomic number
-      REAL(KIND=dp)                          :: zeff !effective core charge
-      INTEGER                                :: natorb !number of orbitals
-      INTEGER                                :: lmax !max angular momentum
+      CHARACTER(LEN=default_string_length)   :: typ = ""
+      CHARACTER(LEN=default_string_length)   :: aname = ""
+      CHARACTER(LEN=2)                       :: symbol = ""
+      LOGICAL                                :: defined = .FALSE.
+      INTEGER                                :: z = -1 !atomic number
+      REAL(KIND=dp)                          :: zeff = -1.0_dp !effective core charge
+      INTEGER                                :: natorb = -1 !number of orbitals
+      INTEGER                                :: lmax = -1 !max angular momentum
       !
-      REAL(KIND=dp)                          :: rcut !cutoff radius for sr-Coulomb
-      REAL(KIND=dp)                          :: rcov !covalent radius
-      REAL(KIND=dp)                          :: electronegativity !electronegativity
+      REAL(KIND=dp)                          :: rcut = -1.0_dp !cutoff radius for sr-Coulomb
+      REAL(KIND=dp)                          :: rcov = -1.0_dp !covalent radius
+      REAL(KIND=dp)                          :: electronegativity = -1.0_dp !electronegativity
       !
-      REAL(KIND=dp)                          :: kx !scaling for halogen term
+      REAL(KIND=dp)                          :: kx = -1.0_dp !scaling for halogen term
       !
-      REAL(KIND=dp)                          :: eta !Atomic Hubbard parameter
-      REAL(KIND=dp)                          :: xgamma !charge derivative of eta
-      REAL(KIND=dp)                          :: alpha !exponential scaling parameter for repulsion potential
-      REAL(KIND=dp)                          :: zneff !effective core charge for repulsion potential
+      REAL(KIND=dp)                          :: eta = -1.0_dp !Atomic Hubbard parameter
+      REAL(KIND=dp)                          :: xgamma = -1.0_dp !charge derivative of eta
+      REAL(KIND=dp)                          :: alpha = -1.0_dp !exponential scaling parameter for repulsion potential
+      REAL(KIND=dp)                          :: zneff = -1.0_dp !effective core charge for repulsion potential
       ! shell specific parameters
-      INTEGER                                :: nshell !number of orbital shells
-      INTEGER, DIMENSION(5)                  :: nval ! n-quantum number of shell i
-      INTEGER, DIMENSION(5)                  :: lval ! l-quantum number of shell i
-      INTEGER, DIMENSION(5)                  :: occupation ! occupation of shell i
-      REAL(KIND=dp), DIMENSION(5)            :: kpoly
-      REAL(KIND=dp), DIMENSION(5)            :: kappa
-      REAL(KIND=dp), DIMENSION(5)            :: hen
-      REAL(KIND=dp), DIMENSION(5)            :: zeta
+      INTEGER                                :: nshell = -1 !number of orbital shells
+      INTEGER, DIMENSION(5)                  :: nval = -1 ! n-quantum number of shell i
+      INTEGER, DIMENSION(5)                  :: lval = -1 ! l-quantum number of shell i
+      INTEGER, DIMENSION(5)                  :: occupation = -1 ! occupation of shell i
+      REAL(KIND=dp), DIMENSION(5)            :: kpoly = -1.0_dp
+      REAL(KIND=dp), DIMENSION(5)            :: kappa = -1.0_dp
+      REAL(KIND=dp), DIMENSION(5)            :: hen = -1.0_dp
+      REAL(KIND=dp), DIMENSION(5)            :: zeta = -1.0_dp
       ! AO to shell pointer
-      INTEGER, DIMENSION(25)                 :: nao, lao
+      INTEGER, DIMENSION(25)                 :: nao = -1, lao = -1
       ! Upper limit of Mulliken charge
-      REAL(KIND=dp)                          :: chmax
+      REAL(KIND=dp)                          :: chmax = -1.0_dp
    END TYPE xtb_atom_type
 
 ! *** Public data types ***

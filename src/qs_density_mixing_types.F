@@ -14,7 +14,6 @@
 MODULE qs_density_mixing_types
    USE ao_util,                         ONLY: exp_radius
    USE input_constants,                 ONLY: broy_mix,&
-                                              broy_mix_new,&
                                               direct_p_mix,&
                                               gaussian,&
                                               kerker_mix,&
@@ -46,51 +45,50 @@ MODULE qs_density_mixing_types
    INTEGER, PARAMETER, PUBLIC :: no_mixing_nr = 0, direct_mixing_nr = 1, &
                                  gspace_mixing_nr = 2, pulay_mixing_nr = 3, &
                                  broyden_mixing_nr = 4, &
-                                 broyden_mixing_new_nr = 5, &
                                  multisecant_mixing_nr = 6
    PUBLIC :: cp_1d_z_p_type, mixing_storage_create, mixing_storage_type, mixing_storage_release, create_mixing_section
 
    TYPE cp_1d_z_p_type
-      COMPLEX(dp), DIMENSION(:), POINTER :: cc
+      COMPLEX(dp), DIMENSION(:), POINTER :: cc => NULL()
    END TYPE cp_1d_z_p_type
 
    TYPE mixing_storage_type
-      INTEGER                                           :: ig_max, ncall, ncall_p(2), nbuffer, n_simple_mix, &
-                                                           nskip_mixing, p_metric_method
-      INTEGER, POINTER, DIMENSION(:)                    :: ig_global_index
-      LOGICAL                                           :: gmix_p
-      LOGICAL, POINTER, DIMENSION(:)                    :: paw
-      CHARACTER(len=15)                                 :: iter_method
-      REAL(KIND=dp)                                     :: alpha, bconst, beta, broy_w0, &
-                                                           max_g2, max_gvec_exp, pulay_alpha, &
-                                                           pulay_beta, r_step, reg_par, &
-                                                           sigma_max, wc, wmax
-      REAL(KIND=dp), DIMENSION(:), POINTER              :: p_metric
-      REAL(KIND=dp), DIMENSION(:), POINTER              :: kerker_factor
-      REAL(KIND=dp), DIMENSION(:), POINTER              :: special_metric
-      REAL(KIND=dp), DIMENSION(:, :), POINTER           :: weight
-      REAL(KIND=dp), DIMENSION(:, :), POINTER           :: norm_res_buffer
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER        :: fmat, gmat, pulay_matrix, smat
+   INTEGER                                           :: ig_max = -1, ncall = -1, ncall_p(2) = -1, nbuffer = -1, n_simple_mix = -1, &
+                                                           nskip_mixing = -1, p_metric_method = -1
+      INTEGER, POINTER, DIMENSION(:)                    :: ig_global_index => NULL()
+      LOGICAL                                           :: gmix_p = .FALSE.
+      LOGICAL, POINTER, DIMENSION(:)                    :: paw => NULL()
+      CHARACTER(len=15)                                 :: iter_method = ""
+      REAL(KIND=dp)                                     :: alpha = -1.0_dp, bconst = -1.0_dp, beta = -1.0_dp, broy_w0 = -1.0_dp, &
+                                                           max_g2 = -1.0_dp, max_gvec_exp = -1.0_dp, pulay_alpha = -1.0_dp, &
+                                                           pulay_beta = -1.0_dp, r_step = -1.0_dp, reg_par = -1.0_dp, &
+                                                           sigma_max = -1.0_dp, wc = -1.0_dp, wmax = -1.0_dp
+      REAL(KIND=dp), DIMENSION(:), POINTER              :: p_metric => NULL()
+      REAL(KIND=dp), DIMENSION(:), POINTER              :: kerker_factor => NULL()
+      REAL(KIND=dp), DIMENSION(:), POINTER              :: special_metric => NULL()
+      REAL(KIND=dp), DIMENSION(:, :), POINTER           :: weight => NULL()
+      REAL(KIND=dp), DIMENSION(:, :), POINTER           :: norm_res_buffer => NULL()
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER        :: fmat => NULL(), gmat => NULL(), pulay_matrix => NULL(), smat => NULL()
       !
-      INTEGER                                           :: nat_local, max_shell
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER        :: acharge
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER        :: dacharge
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER        :: dfbroy
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER        :: ubroy
-      REAL(KIND=dp), DIMENSION(:, :), POINTER           :: abroy
-      REAL(KIND=dp), DIMENSION(:), POINTER              :: wbroy
-      INTEGER, DIMENSION(:), POINTER                    :: atlist
+      INTEGER                                           :: nat_local = -1, max_shell = -1
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER        :: acharge => NULL()
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER        :: dacharge => NULL()
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER        :: dfbroy => NULL()
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER        :: ubroy => NULL()
+      REAL(KIND=dp), DIMENSION(:, :), POINTER           :: abroy => NULL()
+      REAL(KIND=dp), DIMENSION(:), POINTER              :: wbroy => NULL()
+      INTEGER, DIMENSION(:), POINTER                    :: atlist => NULL()
       !
-      TYPE(cp_1d_z_p_type), DIMENSION(:), POINTER       :: last_res, rhoin, rhoin_old
-      TYPE(cp_1d_z_p_type), DIMENSION(:, :), POINTER    :: delta_res, u_vec, z_vec
-      TYPE(cp_1d_z_p_type), DIMENSION(:, :), POINTER    :: drho_buffer, rhoin_buffer, res_buffer
+      TYPE(cp_1d_z_p_type), DIMENSION(:), POINTER       :: last_res => NULL(), rhoin => NULL(), rhoin_old => NULL()
+      TYPE(cp_1d_z_p_type), DIMENSION(:, :), POINTER    :: delta_res => NULL(), u_vec => NULL(), z_vec => NULL()
+      TYPE(cp_1d_z_p_type), DIMENSION(:, :), POINTER    :: drho_buffer => NULL(), rhoin_buffer => NULL(), res_buffer => NULL()
       !
-      TYPE(rho_atom_coeff), DIMENSION(:, :), POINTER    :: cpc_h_lastres, cpc_s_lastres
-      TYPE(rho_atom_coeff), DIMENSION(:, :), POINTER    :: cpc_h_in, cpc_s_in
-      TYPE(rho_atom_coeff), DIMENSION(:, :), POINTER    :: cpc_h_old, cpc_s_old
-      TYPE(rho_atom_coeff), DIMENSION(:, :, :), POINTER :: cpc_h_in_buffer, cpc_s_in_buffer
-      TYPE(rho_atom_coeff), DIMENSION(:, :, :), POINTER :: cpc_h_res_buffer, cpc_s_res_buffer
-      TYPE(rho_atom_coeff), DIMENSION(:, :, :), POINTER :: dcpc_h_in, dcpc_s_in
+      TYPE(rho_atom_coeff), DIMENSION(:, :), POINTER    :: cpc_h_lastres => NULL(), cpc_s_lastres => NULL()
+      TYPE(rho_atom_coeff), DIMENSION(:, :), POINTER    :: cpc_h_in => NULL(), cpc_s_in => NULL()
+      TYPE(rho_atom_coeff), DIMENSION(:, :), POINTER    :: cpc_h_old => NULL(), cpc_s_old => NULL()
+      TYPE(rho_atom_coeff), DIMENSION(:, :, :), POINTER :: cpc_h_in_buffer => NULL(), cpc_s_in_buffer => NULL()
+      TYPE(rho_atom_coeff), DIMENSION(:, :, :), POINTER :: cpc_h_res_buffer => NULL(), cpc_s_res_buffer => NULL()
+      TYPE(rho_atom_coeff), DIMENSION(:, :, :), POINTER :: dcpc_h_in => NULL(), dcpc_s_in => NULL()
    END TYPE mixing_storage_type
 
 CONTAINS
@@ -188,11 +186,6 @@ CONTAINS
       CASE (broyden_mixing_nr)
          CALL section_vals_val_get(mixing_section, "BROY_W0", r_val=mixing_store%broy_w0)
          mixing_store%bconst = 20.0_dp
-      CASE (broyden_mixing_new_nr)
-         CALL section_vals_val_get(mixing_section, "BROY_WREF", r_val=mixing_store%wc)
-         CALL section_vals_val_get(mixing_section, "BROY_WMAX", r_val=mixing_store%wmax)
-         mixing_store%bconst = 20.0_dp
-         mixing_store%p_metric_method = 1
       CASE (multisecant_mixing_nr)
          CALL section_vals_val_get(mixing_section, "REGULARIZATION", r_val=mixing_store%reg_par)
          CALL section_vals_val_get(mixing_section, "MAX_STEP", r_val=mixing_store%sigma_max)
@@ -507,14 +500,13 @@ CONTAINS
                                           "KERKER_MIXING", &
                                           "PULAY_MIXING", &
                                           "BROYDEN_MIXING", &
-                                          "BROYDEN_MIXING_NEW", &
                                           "MULTISECANT_MIXING"), &
                           enum_i_vals=(/no_mix, direct_p_mix, kerker_mix, pulay_mix, broy_mix, &
-                                        broy_mix_new, multisec_mix/), &
+                                        multisec_mix/), &
                           enum_desc=s2a("No mixing is applied", &
                                         "Direct mixing of new and old density matrices", &
                                         "Mixing of the potential in reciprocal space using the Kerker damping", &
-                                        "Pulay mixing", "Broyden mixing", "Broyden mixing second version", &
+                                        "Pulay mixing", "Broyden mixing", &
                                         "Multisecant scheme for mixing"))
 
       CALL section_add_keyword(section, keyword)

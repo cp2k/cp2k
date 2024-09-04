@@ -26,6 +26,6 @@ doxygen ./Doxyfile
 
 # Remove CP2K from header bars because we already have the logo.
 cd html
-sed -i 's/"projectname">CP2K/"projectname">/' ./*.html ./*/*.html ./*/*/*.html
+sed -i 's/"projectname">CP2K/"projectname">/' ./*.html ./*/*/*.html
 
 #EOF

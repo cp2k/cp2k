@@ -20,11 +20,8 @@ MODULE mt_util
    USE pw_pool_types,                   ONLY: pw_pool_create,&
                                               pw_pool_release,&
                                               pw_pool_type
-   USE pw_types,                        ONLY: COMPLEXDATA1D,&
-                                              REALDATA3D,&
-                                              REALSPACE,&
-                                              RECIPROCALSPACE,&
-                                              pw_type
+   USE pw_types,                        ONLY: pw_c1d_gs_type,&
+                                              pw_r3d_rs_type
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -53,7 +50,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE MTin_create_screen_fn(screen_function, pw_pool, method, alpha, &
                                     special_dimension, slab_size, super_ref_pw_grid)
-      TYPE(pw_type), POINTER                             :: screen_function
+      TYPE(pw_c1d_gs_type), POINTER                      :: screen_function
       TYPE(pw_pool_type), POINTER                        :: pw_pool
       INTEGER, INTENT(IN)                                :: method
       REAL(KIND=dp), INTENT(in)                          :: alpha
@@ -65,8 +62,9 @@ CONTAINS
 
       INTEGER                                            :: handle, ig, iz
       REAL(KIND=dp)                                      :: alpha2, g2, g3d, gxy, gz, zlength
+      TYPE(pw_c1d_gs_type), POINTER                      :: Vlocg
       TYPE(pw_pool_type), POINTER                        :: pw_pool_aux
-      TYPE(pw_type), POINTER                             :: Vloc, Vlocg
+      TYPE(pw_r3d_rs_type), POINTER                      :: Vloc
 
       CALL timeset(routineN, handle)
       NULLIFY (Vloc, Vlocg, pw_pool_aux)
@@ -79,19 +77,18 @@ CONTAINS
       END IF
       NULLIFY (screen_function)
       ALLOCATE (screen_function)
-      CALL pw_pool%create_pw(screen_function, use_data=COMPLEXDATA1D, &
-                             in_space=RECIPROCALSPACE)
+      CALL pw_pool%create_pw(screen_function)
       CALL pw_zero(screen_function)
       SELECT CASE (method)
       CASE (MT0D)
          NULLIFY (Vloc, Vlocg)
          ALLOCATE (Vloc, Vlocg)
          IF (ASSOCIATED(pw_pool_aux)) THEN
-            CALL pw_pool_aux%create_pw(Vloc, use_data=REALDATA3D, in_space=REALSPACE)
-            CALL pw_pool_aux%create_pw(Vlocg, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+            CALL pw_pool_aux%create_pw(Vloc)
+            CALL pw_pool_aux%create_pw(Vlocg)
          ELSE
-            CALL pw_pool%create_pw(Vloc, use_data=REALDATA3D, in_space=REALSPACE)
-            CALL pw_pool%create_pw(Vlocg, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+            CALL pw_pool%create_pw(Vloc)
+            CALL pw_pool%create_pw(Vlocg)
          END IF
          CALL mt0din(Vloc, alpha)
          CALL pw_transfer(Vloc, Vlocg)
@@ -111,10 +108,10 @@ CONTAINS
          DO ig = screen_function%pw_grid%first_gne0, screen_function%pw_grid%ngpts_cut_local
             g2 = screen_function%pw_grid%gsq(ig)
             g3d = fourpi/g2
-            screen_function%cc(ig) = screen_function%cc(ig) - g3d*EXP(-g2/(4.0E0_dp*alpha2))
+            screen_function%array(ig) = screen_function%array(ig) - g3d*EXP(-g2/(4.0E0_dp*alpha2))
          END DO
          IF (screen_function%pw_grid%have_g0) &
-            screen_function%cc(1) = screen_function%cc(1) + fourpi/(4.0E0_dp*alpha2)
+            screen_function%array(1) = screen_function%array(1) + fourpi/(4.0E0_dp*alpha2)
       CASE (MT2D)
          iz = special_dimension ! iz is the direction with NO PBC
          zlength = slab_size ! zlength is the thickness of the cell
@@ -123,9 +120,9 @@ CONTAINS
             g2 = screen_function%pw_grid%gsq(ig)
             gxy = SQRT(ABS(g2 - gz*gz))
             g3d = fourpi/g2
-            screen_function%cc(ig) = -g3d*COS(gz*zlength/2.0_dp)*EXP(-gxy*zlength/2.0_dp)
+            screen_function%array(ig) = -g3d*COS(gz*zlength/2.0_dp)*EXP(-gxy*zlength/2.0_dp)
          END DO
-         IF (screen_function%pw_grid%have_g0) screen_function%cc(1) = pi*zlength*zlength/2.0_dp
+         IF (screen_function%pw_grid%have_g0) screen_function%array(1) = pi*zlength*zlength/2.0_dp
       CASE (MT1D)
          iz = special_dimension ! iz is the direction with PBC
          CALL mt1din(screen_function)
@@ -144,7 +141,7 @@ CONTAINS
 !> \author Teodoro Laino (09.03.2005)
 ! **************************************************************************************************
    SUBROUTINE mt0din(Vloc, alpha)
-      TYPE(pw_type), POINTER                             :: Vloc
+      TYPE(pw_r3d_rs_type), POINTER                      :: Vloc
       REAL(KIND=dp), INTENT(in)                          :: alpha
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'mt0din'
@@ -162,7 +159,7 @@ CONTAINS
       grid => Vloc%pw_grid
       bo => grid%bounds_local
       glb => grid%bounds(1, :)
-      Vloc%cr3d = 0.0_dp
+      Vloc%array = 0.0_dp
       box = REAL(grid%npts, kind=dp)*grid%dr
       box2 = box/2.0_dp
       omega = PRODUCT(box)
@@ -184,9 +181,9 @@ CONTAINS
                r2 = x*x + y2 + z2
                r = SQRT(r2)
                IF (r .GT. 1.0E-10_dp) THEN
-                  Vloc%cr3d(ii, jj, kk) = erf(alpha*r)/r*fact
+                  Vloc%array(ii, jj, kk) = erf(alpha*r)/r*fact
                ELSE
-                  Vloc%cr3d(ii, jj, kk) = 2.0_dp*alpha*oorootpi*fact
+                  Vloc%array(ii, jj, kk) = 2.0_dp*alpha*oorootpi*fact
                END IF
                ii = ii + 1
             END DO
@@ -205,7 +202,7 @@ CONTAINS
 !> \author Teodoro Laino (11.2005)
 ! **************************************************************************************************
    SUBROUTINE mt1din(screen_function)
-      TYPE(pw_type), POINTER                             :: screen_function
+      TYPE(pw_c1d_gs_type), POINTER                      :: screen_function
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'mt1din'
 

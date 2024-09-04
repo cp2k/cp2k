@@ -14,14 +14,15 @@
 !> \author fawzi
 ! **************************************************************************************************
 MODULE qs_wf_history_types
+   USE cp_dbcsr_api,                    ONLY: dbcsr_deallocate_matrix,&
+                                              dbcsr_p_type,&
+                                              dbcsr_type
    USE cp_dbcsr_operations,             ONLY: dbcsr_deallocate_matrix_set
    USE cp_fm_types,                     ONLY: cp_fm_release,&
                                               cp_fm_type
-   USE dbcsr_api,                       ONLY: dbcsr_deallocate_matrix,&
-                                              dbcsr_p_type,&
-                                              dbcsr_type
    USE kinds,                           ONLY: dp
-   USE pw_types,                        ONLY: pw_type
+   USE pw_types,                        ONLY: pw_c1d_gs_type,&
+                                              pw_r3d_rs_type
    USE qs_rho_types,                    ONLY: qs_rho_release,&
                                               qs_rho_type
 #include "./base/base_uses.f90"
@@ -55,14 +56,14 @@ MODULE qs_wf_history_types
 !> \author fawzi
 ! **************************************************************************************************
    TYPE qs_wf_snapshot_type
-      TYPE(cp_fm_type), DIMENSION(:), POINTER :: wf
-      TYPE(pw_type), DIMENSION(:), POINTER :: rho_r
-      TYPE(pw_type), DIMENSION(:), POINTER :: rho_g
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER :: rho_ao
-      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER :: rho_ao_kp
-      TYPE(dbcsr_type), POINTER :: overlap
-      TYPE(qs_rho_type), POINTER :: rho_frozen
-      REAL(KIND=dp) :: dt
+      TYPE(cp_fm_type), DIMENSION(:), POINTER :: wf => NULL()
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER :: rho_r => NULL()
+      TYPE(pw_c1d_gs_type), DIMENSION(:), POINTER :: rho_g => NULL()
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER :: rho_ao => NULL()
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER :: rho_ao_kp => NULL()
+      TYPE(dbcsr_type), POINTER :: overlap => NULL()
+      TYPE(qs_rho_type), POINTER :: rho_frozen => NULL()
+      REAL(KIND=dp) :: dt = 0.0_dp
    END TYPE qs_wf_snapshot_type
 
 ! **************************************************************************************************
@@ -73,7 +74,7 @@ MODULE qs_wf_history_types
 !> \author fawzi
 ! **************************************************************************************************
    TYPE qs_wf_snapshot_p_type
-      TYPE(qs_wf_snapshot_type), POINTER :: snapshot
+      TYPE(qs_wf_snapshot_type), POINTER :: snapshot => NULL()
    END TYPE qs_wf_snapshot_p_type
 
 ! **************************************************************************************************
@@ -95,11 +96,12 @@ MODULE qs_wf_history_types
 !> \author fawzi
 ! **************************************************************************************************
    TYPE qs_wf_history_type
-      INTEGER :: ref_count, memory_depth, last_state_index, &
-                 interpolation_method_nr, snapshot_count
-      LOGICAL :: store_wf, store_rho_r, store_rho_g, store_rho_ao, store_rho_ao_kp, &
-                 store_overlap, store_frozen_density
-      TYPE(qs_wf_snapshot_p_type), DIMENSION(:), POINTER :: past_states
+      INTEGER :: ref_count = -1, memory_depth = -1, last_state_index = -1, &
+                 interpolation_method_nr = -1, snapshot_count = -1
+      LOGICAL :: store_wf = .FALSE., store_rho_r = .FALSE., store_rho_g = .FALSE., &
+                 store_rho_ao = .FALSE., store_rho_ao_kp = .FALSE., &
+                 store_overlap = .FALSE., store_frozen_density = .FALSE.
+      TYPE(qs_wf_snapshot_p_type), DIMENSION(:), POINTER :: past_states => NULL()
    END TYPE qs_wf_history_type
 
 ! **************************************************************************************************
@@ -108,7 +110,7 @@ MODULE qs_wf_history_types
 !> \author fawzi
 ! **************************************************************************************************
    TYPE qs_wf_history_p_type
-      TYPE(qs_wf_history_type), POINTER :: wf_history
+      TYPE(qs_wf_history_type), POINTER :: wf_history => NULL()
    END TYPE qs_wf_history_p_type
 
 CONTAINS

@@ -39,12 +39,12 @@ MODULE qs_charges_types
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
    TYPE qs_charges_type
-      REAL(KIND=dp) :: total_rho_core_rspace, total_rho_gspace
-      REAL(KIND=dp) :: total_rho0_soft_rspace, total_rho0_hard_lebedev
-      REAL(KIND=dp) :: total_rho_soft_gspace
-      REAL(KIND=dp), DIMENSION(:), POINTER  :: total_rho1_hard, &
-                                               total_rho1_soft
-      REAL(KIND=dp) :: background
+      REAL(KIND=dp) :: total_rho_core_rspace = -1.0_dp, total_rho_gspace = -1.0_dp
+      REAL(KIND=dp) :: total_rho0_soft_rspace = -1.0_dp, total_rho0_hard_lebedev = -1.0_dp
+      REAL(KIND=dp) :: total_rho_soft_gspace = -1.0_dp
+      REAL(KIND=dp), DIMENSION(:), POINTER  :: total_rho1_hard => NULL(), &
+                                               total_rho1_soft => NULL()
+      REAL(KIND=dp) :: background = -1.0_dp
    END TYPE qs_charges_type
 
 CONTAINS

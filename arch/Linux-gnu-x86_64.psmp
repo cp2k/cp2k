@@ -2,13 +2,14 @@
 #
 # CP2K (GNU x86_64) arch file for Linux clusters
 #
-# Tested with: GNU 13.1.0, MPICH 4.0.3 and OpenMPI 4.1.5,
-#              ScaLAPACK 2.2.1, OpenBLAS 0.3.25,
-#              FFTW 3.3.10, ELPA 2023.05.001, HDF5 1.14.2,
+# Tested with: GNU 14.2.0, MPICH 4.0.3 and OpenMPI 5.0.5,
+#              ScaLAPACK 2.2.1, OpenBLAS 0.3.28,
+#              FFTW 3.3.10, ELPA 2024.03.001, HDF5 1.14.2,
 #              LIBINT 2.6.0, LIBXC 6.2.2, PLUMED 2.9.0,
-#              SPGLIB 1.16.2, LIBVORI 220621, GSL 2.7,
-#              COSMA 2.6.6, SIRIUS 7.4.3, LIBTORCH 1.12.1,
-#              LIBGRPP 20231215
+#              SPGLIB 2.3.1, LIBVORI 220621, GSL 2.7,
+#              COSMA 2.6.6, SIRIUS 7.5.2, LIBTORCH 1.12.1,
+#              LIBGRPP 20231225, SPFFT 1.1.0, SPLA 1.6.1,
+#              DFTD4 3.6.0
 # on the Merlin cluster (PSI)
 #
 # Usage: Source this arch file and then run make as instructed.
@@ -16,7 +17,7 @@
 #        Optionally, GNU compiler and MPI implementation can be specified as arguments.
 #        Replace or adapt the "module add" commands below if needed.
 #
-# Last update: 15.12.2023
+# Last update: 30.08.2024
 #
 # \
    if [[ "${0}" == "${BASH_SOURCE}" ]]; then \
@@ -26,8 +27,11 @@
    fi; \
    this_file=${BASH_SOURCE##*/}; \
    cd tools/toolchain; \
+   rm -rf build; \
    [[ -z "${mpi_implementation}" ]] && mpi_implementation="mpich"; \
    [[ -z "${target_cpu}" ]] && target_cpu="native"; \
+   echo "Found GCC $(gcc -dumpfullversion) compiler"; \
+   echo "Building for target CPU ${target_cpu} using ${mpi_implementation}"; \
    if [[ -n "${1}" ]]; then \
       module add ${1}; \
       if [[ -n "${2}" ]]; then \
@@ -47,14 +51,14 @@
    echo "Check the output above for error messages and consistency!"; \
    echo; \
    echo "If everything is OK, you can build a CP2K production binary with"; \
-   echo "   make -j ARCH=${this_file%.*} VERSION=${this_file##*.}"; \
+   echo "   make -j ARCH=${this_file%.*} VERSION=${this_file##*.} TARGET_CPU=${target_cpu}"; \
    echo; \
    echo "Alternatively, you can add further checks, e.g. for regression testing, with"; \
-   echo "   make -j ARCH=${this_file%.*} VERSION=${this_file##*.} DO_CHECKS=yes"; \
+   echo "   make -j ARCH=${this_file%.*} VERSION=${this_file##*.} TARGET_CPU=${target_cpu} DO_CHECKS=yes"; \
    echo "or build CP2K only with shared libraries using"; \
-   echo "   make -j ARCH=${this_file%.*} VERSION=${this_file##*.} SHARED=yes"; \
+   echo "   make -j ARCH=${this_file%.*} VERSION=${this_file##*.} TARGET_CPU=${target_cpu} SHARED=yes"; \
    echo "or build CP2K as a library with"; \
-   echo "   make -j ARCH=${this_file%.*} VERSION=${this_file##*.} libcp2k"; \
+   echo "   make -j ARCH=${this_file%.*} VERSION=${this_file##*.} TARGET_CPU=${target_cpu} libcp2k"; \
    echo; \
    echo "Run always the following command before using the CP2K binary"; \
    echo "   source ${PWD}/tools/toolchain/install/setup"; \
@@ -65,27 +69,29 @@
 DO_CHECKS      := no
 SHARED         := no
 TARGET_CPU     := native
+GNU_VER        := $(shell gcc -dumpfullversion)
 USE_COSMA      := 2.6.6
-USE_ELPA       := 2023.05.001
+USE_DFTD4      := 3.6.0
+USE_ELPA       := 2024.03.001
 USE_FFTW       := 3.3.10
 USE_HDF5       := 1.14.2
-USE_LIBGRPP    := 20231215
+USE_LIBGRPP    := 20231225
 USE_LIBINT     := 2.6.0
 USE_LIBPEXSI   := 1.2.0
 USE_LIBTORCH   := 1.12.1
 USE_LIBVORI    := 220621
 USE_LIBXC      := 6.2.2
 USE_LIBXSMM    := 1.17
-USE_OPENBLAS   := 0.3.25
+USE_OPENBLAS   := 0.3.28
 USE_PLUMED     := 2.9.0
 USE_QUIP       := 0.9.10
 USE_SCALAPACK  := 2.2.1
-USE_SIRIUS     := 7.4.3
-USE_SPGLIB     := 1.16.2
+USE_SIRIUS     := 7.5.2
+USE_SPFFT      := 1.1.0
+USE_SPGLIB     := 2.3.1
+USE_SPLA       := 1.6.1
 # Only needed for SIRIUS
 LIBVDWXC_VER   := 0.4.0
-SPFFT_VER      := 1.0.6
-SPLA_VER       := 1.5.5
 # Only needed for LIBPEXSI
 SCOTCH_VER     := 6.0.0
 SUPERLU_VER    := 6.1.0
@@ -98,10 +104,13 @@ FC             := mpifort
 LD             := mpifort
 AR             := ar -r
 
-CFLAGS         := -O2 -fopenmp -fopenmp-simd -ftree-vectorize -funroll-loops -g -mtune=$(TARGET_CPU)
+ifeq ($(TARGET_CPU), generic)
+   CFLAGS         := -O2 -fopenmp -fopenmp-simd -ftree-vectorize -funroll-loops -g -mtune=$(TARGET_CPU)
+else
+   CFLAGS         := -O2 -fopenmp -fopenmp-simd -ftree-vectorize -funroll-loops -g -march=$(TARGET_CPU) -mtune=$(TARGET_CPU)
+endif
 
 DFLAGS         := -D__parallel
-DFLAGS         += -D__SCALAPACK
 DFLAGS         += -D__HAS_IEEE_EXCEPTIONS
 DFLAGS         += -D__MAX_CONTR=$(strip $(MAX_CONTR))
 
@@ -230,6 +239,22 @@ ifneq ($(USE_LIBXC),)
    endif
 endif
 
+ifneq ($(USE_DFTD4),)
+   USE_DFTD4      := $(strip $(USE_DFTD4))
+   DFTD4_INC      := $(INSTALL_PATH)/dftd4-$(USE_DFTD4)/include
+   DFTD4_LIB      := $(INSTALL_PATH)/dftd4-$(USE_DFTD4)/lib64
+   CFLAGS         += -I$(DFTD4_INC)/dftd4/GNU-$(GNU_VER)
+   DFLAGS         += -D__DFTD4
+   ifeq ($(SHARED), yes)
+      LIBS           += -Wl,-rpath=$(DFTD4_LIB) -L$(DFTD4_LIB) -ldftd4 -lmstore -lmulticharge -lmctc-lib
+   else
+      LIBS           += $(DFTD4_LIB)/libdftd4.a
+      LIBS           += $(DFTD4_LIB)/libmstore.a
+      LIBS           += $(DFTD4_LIB)/libmulticharge.a
+      LIBS           += $(DFTD4_LIB)/libmctc-lib.a
+   endif
+endif
+
 ifneq ($(USE_LIBGRPP),)
    USE_LIBGRPP    := $(strip $(USE_LIBGRPP))
    LIBGRPP_INC    := $(INSTALL_PATH)/libgrpp-main-$(USE_LIBGRPP)/include
@@ -285,32 +310,44 @@ ifneq ($(USE_SIRIUS),)
    LIBVDWXC_VER   := $(strip $(LIBVDWXC_VER))
    LIBVDWXC_INC   := $(INSTALL_PATH)/libvdwxc-$(LIBVDWXC_VER)/include
    LIBVDWXC_LIB   := $(INSTALL_PATH)/libvdwxc-$(LIBVDWXC_VER)/lib
-   SPFFT_VER      := $(strip $(SPFFT_VER))
-   SPFFT_INC      := $(INSTALL_PATH)/SpFFT-$(SPFFT_VER)/include
-   SPFFT_LIB      := $(INSTALL_PATH)/SpFFT-$(SPFFT_VER)/lib
-   SPLA_VER       := $(strip $(SPLA_VER))
-   SPLA_INC       := $(INSTALL_PATH)/SpLA-$(SPLA_VER)/include/spla
-   SPLA_LIB       := $(INSTALL_PATH)/SpLA-$(SPLA_VER)/lib
    SIRIUS_INC     := $(INSTALL_PATH)/sirius-$(USE_SIRIUS)/include
    SIRIUS_LIB     := $(INSTALL_PATH)/sirius-$(USE_SIRIUS)/lib
    CFLAGS         += -I$(LIBVDWXC_INC)
-   CFLAGS         += -I$(SPFFT_INC)
-   CFLAGS         += -I$(SPLA_INC)
    CFLAGS         += -I$(SIRIUS_INC)
    DFLAGS         += -D__LIBVDWXC
-   DFLAGS         += -D__SPFFT
-   DFLAGS         += -D__SPLA
    DFLAGS         += -D__SIRIUS
    ifeq ($(SHARED), yes)
       LIBS           += -Wl,-rpath=$(SIRIUS_LIB) -L$(SIRIUS_LIB) -lsirius
-      LIBS           += -Wl,-rpath=$(SPLA_LIB) -L$(SPLA_LIB) -lspla
-      LIBS           += -Wl,-rpath=$(SPFFT_LIB) -L$(SPFFT_LIB) -lspfft
       LIBS           += -Wl,-rpath=$(LIBVDWXC_LIB) -L$(LIBVDWXC_LIB) -lvdwxc
    else
       LIBS           += $(SIRIUS_LIB)/libsirius.a
-      LIBS           += $(SPLA_LIB)/libspla.a
-      LIBS           += $(SPFFT_LIB)/libspfft.a
       LIBS           += $(LIBVDWXC_LIB)/libvdwxc.a
+   endif
+endif
+
+ifneq ($(USE_SPFFT),)
+   USE_SPFFT      := $(strip $(USE_SPFFT))
+   SPFFT_INC      := $(INSTALL_PATH)/SpFFT-$(USE_SPFFT)/include
+   SPFFT_LIB      := $(INSTALL_PATH)/SpFFT-$(USE_SPFFT)/lib
+   CFLAGS         += -I$(SPFFT_INC)
+   DFLAGS         += -D__SPFFT
+   ifeq ($(SHARED), yes)
+      LIBS           += -Wl,-rpath=$(SPFFT_LIB) -L$(SPFFT_LIB) -lspfft
+   else
+      LIBS           += $(SPFFT_LIB)/libspfft.a
+   endif
+endif
+
+ifneq ($(USE_SPLA),)
+   USE_SPLA       := $(strip $(USE_SPLA))
+   SPLA_INC       := $(INSTALL_PATH)/SpLA-$(USE_SPLA)/include/spla
+   SPLA_LIB       := $(INSTALL_PATH)/SpLA-$(USE_SPLA)/lib
+   CFLAGS         += -I$(SPLA_INC)
+   DFLAGS         += -D__SPLA
+   ifeq ($(SHARED), yes)
+      LIBS           += -Wl,-rpath=$(SPLA_LIB) -L$(SPLA_LIB) -lspla
+   else
+      LIBS           += $(SPLA_LIB)/libspla.a
    endif
 endif
 
@@ -321,10 +358,10 @@ ifneq ($(USE_HDF5),)
    CFLAGS         += -I$(HDF5_INC)
    DFLAGS         += -D__HDF5
    ifeq ($(SHARED), yes)
-      LIBS           += -Wl,-rpath,$(HDF5_LIB) -L$(HDF5_LIB) -lhdf5_fortran -lhdf5_hl -lhdf5
+      LIBS           += -Wl,-rpath,$(HDF5_LIB) -L$(HDF5_LIB) -lhdf5_fortran -lhdf5
    else
       LIBS           += $(HDF5_LIB)/libhdf5_fortran.a
-      LIBS           += $(HDF5_LIB)/libhdf5_hl.a
+      LIBS           += $(HDF5_LIB)/libhdf5_f90cstub.a
       LIBS           += $(HDF5_LIB)/libhdf5.a
    endif
 endif

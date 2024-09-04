@@ -36,173 +36,173 @@ MODULE force_field_types
 
 ! **************************************************************************************************
    TYPE input_info_type
-      CHARACTER(LEN=default_string_length), POINTER :: charge_atm(:)
-      REAL(KIND=dp), POINTER                         :: charge(:)
-      CHARACTER(LEN=default_string_length), POINTER :: apol_atm(:)
-      REAL(KIND=dp), POINTER                         :: apol(:)
-      CHARACTER(LEN=default_string_length), POINTER :: cpol_atm(:)
-      REAL(KIND=dp), POINTER                         :: cpol(:)
-      INTEGER, POINTER                               :: bond_kind(:)
-      CHARACTER(LEN=default_string_length), POINTER :: bond_a(:)
-      CHARACTER(LEN=default_string_length), POINTER :: bond_b(:)
-      REAL(KIND=dp), POINTER                         :: bond_k(:, :)
-      REAL(KIND=dp), POINTER                         :: bond_r0(:)
-      REAL(KIND=dp), POINTER                         :: bond_cs(:)
-      INTEGER, POINTER                               :: bend_kind(:)
-      CHARACTER(LEN=default_string_length), POINTER :: bend_a(:)
-      CHARACTER(LEN=default_string_length), POINTER :: bend_b(:)
-      CHARACTER(LEN=default_string_length), POINTER :: bend_c(:)
-      REAL(KIND=dp), POINTER                         :: bend_k(:)
-      REAL(KIND=dp), POINTER                         :: bend_theta0(:)
-      REAL(KIND=dp), POINTER                         :: bend_cb(:)
-      REAL(KIND=dp), POINTER, DIMENSION(:)           :: bend_r012, &
-                                                        bend_r032, &
-                                                        bend_kbs12, &
-                                                        bend_kbs32, &
-                                                        bend_kss
-      TYPE(legendre_data_type), POINTER, DIMENSION(:):: bend_legendre
-      INTEGER, POINTER                               :: ub_kind(:)
-      CHARACTER(LEN=default_string_length), POINTER :: ub_a(:)
-      CHARACTER(LEN=default_string_length), POINTER :: ub_b(:)
-      CHARACTER(LEN=default_string_length), POINTER :: ub_c(:)
-      REAL(KIND=dp), POINTER                         :: ub_k(:, :)
-      REAL(KIND=dp), POINTER                         :: ub_r0(:)
-      INTEGER, POINTER                               :: torsion_kind(:)
-      CHARACTER(LEN=default_string_length), POINTER :: torsion_a(:)
-      CHARACTER(LEN=default_string_length), POINTER :: torsion_b(:)
-      CHARACTER(LEN=default_string_length), POINTER :: torsion_c(:)
-      CHARACTER(LEN=default_string_length), POINTER :: torsion_d(:)
-      REAL(KIND=dp), POINTER                         :: torsion_k(:)
-      INTEGER, POINTER                               :: torsion_m(:)
-      REAL(KIND=dp), POINTER                         :: torsion_phi0(:)
-      INTEGER, POINTER                               :: impr_kind(:)
-      CHARACTER(LEN=default_string_length), POINTER :: impr_a(:)
-      CHARACTER(LEN=default_string_length), POINTER :: impr_b(:)
-      CHARACTER(LEN=default_string_length), POINTER :: impr_c(:)
-      CHARACTER(LEN=default_string_length), POINTER :: impr_d(:)
-      REAL(KIND=dp), POINTER                         :: impr_k(:)
-      REAL(KIND=dp), POINTER                         :: impr_phi0(:)
-      INTEGER, POINTER                               :: opbend_kind(:)
-      CHARACTER(LEN=default_string_length), POINTER :: opbend_a(:)
-      CHARACTER(LEN=default_string_length), POINTER :: opbend_b(:)
-      CHARACTER(LEN=default_string_length), POINTER :: opbend_c(:)
-      CHARACTER(LEN=default_string_length), POINTER :: opbend_d(:)
-      REAL(KIND=dp), POINTER                         :: opbend_k(:)
-      REAL(KIND=dp), POINTER                         :: opbend_phi0(:)
-      TYPE(pair_potential_p_type), POINTER          :: nonbonded
-      TYPE(pair_potential_p_type), POINTER          :: nonbonded14
-      TYPE(shell_p_type), DIMENSION(:), POINTER     :: shell_list
-      TYPE(damping_info_type), DIMENSION(:), POINTER :: damping_list
+      CHARACTER(LEN=default_string_length), POINTER :: charge_atm(:) => NULL()
+      REAL(KIND=dp), POINTER                         :: charge(:) => NULL()
+      CHARACTER(LEN=default_string_length), POINTER :: apol_atm(:) => NULL()
+      REAL(KIND=dp), POINTER                         :: apol(:) => NULL()
+      CHARACTER(LEN=default_string_length), POINTER :: cpol_atm(:) => NULL()
+      REAL(KIND=dp), POINTER                         :: cpol(:) => NULL()
+      INTEGER, POINTER                               :: bond_kind(:) => NULL()
+      CHARACTER(LEN=default_string_length), POINTER :: bond_a(:) => NULL()
+      CHARACTER(LEN=default_string_length), POINTER :: bond_b(:) => NULL()
+      REAL(KIND=dp), POINTER                         :: bond_k(:, :) => NULL()
+      REAL(KIND=dp), POINTER                         :: bond_r0(:) => NULL()
+      REAL(KIND=dp), POINTER                         :: bond_cs(:) => NULL()
+      INTEGER, POINTER                               :: bend_kind(:) => NULL()
+      CHARACTER(LEN=default_string_length), POINTER :: bend_a(:) => NULL()
+      CHARACTER(LEN=default_string_length), POINTER :: bend_b(:) => NULL()
+      CHARACTER(LEN=default_string_length), POINTER :: bend_c(:) => NULL()
+      REAL(KIND=dp), POINTER                         :: bend_k(:) => NULL()
+      REAL(KIND=dp), POINTER                         :: bend_theta0(:) => NULL()
+      REAL(KIND=dp), POINTER                         :: bend_cb(:) => NULL()
+      REAL(KIND=dp), POINTER, DIMENSION(:)           :: bend_r012 => NULL(), &
+                                                        bend_r032 => NULL(), &
+                                                        bend_kbs12 => NULL(), &
+                                                        bend_kbs32 => NULL(), &
+                                                        bend_kss => NULL()
+      TYPE(legendre_data_type), POINTER, DIMENSION(:):: bend_legendre => NULL()
+      INTEGER, POINTER                               :: ub_kind(:) => NULL()
+      CHARACTER(LEN=default_string_length), POINTER :: ub_a(:) => NULL()
+      CHARACTER(LEN=default_string_length), POINTER :: ub_b(:) => NULL()
+      CHARACTER(LEN=default_string_length), POINTER :: ub_c(:) => NULL()
+      REAL(KIND=dp), POINTER                         :: ub_k(:, :) => NULL()
+      REAL(KIND=dp), POINTER                         :: ub_r0(:) => NULL()
+      INTEGER, POINTER                               :: torsion_kind(:) => NULL()
+      CHARACTER(LEN=default_string_length), POINTER :: torsion_a(:) => NULL()
+      CHARACTER(LEN=default_string_length), POINTER :: torsion_b(:) => NULL()
+      CHARACTER(LEN=default_string_length), POINTER :: torsion_c(:) => NULL()
+      CHARACTER(LEN=default_string_length), POINTER :: torsion_d(:) => NULL()
+      REAL(KIND=dp), POINTER                         :: torsion_k(:) => NULL()
+      INTEGER, POINTER                               :: torsion_m(:) => NULL()
+      REAL(KIND=dp), POINTER                         :: torsion_phi0(:) => NULL()
+      INTEGER, POINTER                               :: impr_kind(:) => NULL()
+      CHARACTER(LEN=default_string_length), POINTER :: impr_a(:) => NULL()
+      CHARACTER(LEN=default_string_length), POINTER :: impr_b(:) => NULL()
+      CHARACTER(LEN=default_string_length), POINTER :: impr_c(:) => NULL()
+      CHARACTER(LEN=default_string_length), POINTER :: impr_d(:) => NULL()
+      REAL(KIND=dp), POINTER                         :: impr_k(:) => NULL()
+      REAL(KIND=dp), POINTER                         :: impr_phi0(:) => NULL()
+      INTEGER, POINTER                               :: opbend_kind(:) => NULL()
+      CHARACTER(LEN=default_string_length), POINTER :: opbend_a(:) => NULL()
+      CHARACTER(LEN=default_string_length), POINTER :: opbend_b(:) => NULL()
+      CHARACTER(LEN=default_string_length), POINTER :: opbend_c(:) => NULL()
+      CHARACTER(LEN=default_string_length), POINTER :: opbend_d(:) => NULL()
+      REAL(KIND=dp), POINTER                         :: opbend_k(:) => NULL()
+      REAL(KIND=dp), POINTER                         :: opbend_phi0(:) => NULL()
+      TYPE(pair_potential_p_type), POINTER          :: nonbonded => NULL()
+      TYPE(pair_potential_p_type), POINTER          :: nonbonded14 => NULL()
+      TYPE(shell_p_type), DIMENSION(:), POINTER     :: shell_list => NULL()
+      TYPE(damping_info_type), DIMENSION(:), POINTER :: damping_list => NULL()
    END TYPE input_info_type
 
 ! **************************************************************************************************
    TYPE charmm_info_type
-      CHARACTER(LEN=default_string_length), POINTER :: bond_a(:)
-      CHARACTER(LEN=default_string_length), POINTER :: bond_b(:)
-      REAL(KIND=dp), POINTER                         :: bond_k(:)
-      REAL(KIND=dp), POINTER                         :: bond_r0(:)
-      CHARACTER(LEN=default_string_length), POINTER :: bend_a(:)
-      CHARACTER(LEN=default_string_length), POINTER :: bend_b(:)
-      CHARACTER(LEN=default_string_length), POINTER :: bend_c(:)
-      REAL(KIND=dp), POINTER                         :: bend_k(:)
-      REAL(KIND=dp), POINTER                         :: bend_theta0(:)
-      CHARACTER(LEN=default_string_length), POINTER :: ub_a(:)
-      CHARACTER(LEN=default_string_length), POINTER :: ub_b(:)
-      CHARACTER(LEN=default_string_length), POINTER :: ub_c(:)
-      REAL(KIND=dp), POINTER                         :: ub_k(:)
-      REAL(KIND=dp), POINTER                         :: ub_r0(:)
-      CHARACTER(LEN=default_string_length), POINTER :: torsion_a(:)
-      CHARACTER(LEN=default_string_length), POINTER :: torsion_b(:)
-      CHARACTER(LEN=default_string_length), POINTER :: torsion_c(:)
-      CHARACTER(LEN=default_string_length), POINTER :: torsion_d(:)
-      REAL(KIND=dp), POINTER                         :: torsion_k(:)
-      INTEGER, POINTER                               :: torsion_m(:)
-      REAL(KIND=dp), POINTER                         :: torsion_phi0(:)
-      CHARACTER(LEN=default_string_length), POINTER :: impr_a(:)
-      CHARACTER(LEN=default_string_length), POINTER :: impr_b(:)
-      CHARACTER(LEN=default_string_length), POINTER :: impr_c(:)
-      CHARACTER(LEN=default_string_length), POINTER :: impr_d(:)
-      REAL(KIND=dp), POINTER                         :: impr_k(:)
-      REAL(KIND=dp), POINTER                         :: impr_phi0(:)
-      CHARACTER(LEN=default_string_length), POINTER :: nonbond_a(:)
-      REAL(KIND=dp), POINTER                        :: nonbond_eps(:)
-      REAL(KIND=dp), POINTER                        :: nonbond_rmin2(:)
-      CHARACTER(LEN=default_string_length), POINTER :: nonbond_a_14(:)
-      REAL(KIND=dp), POINTER                        :: nonbond_eps_14(:)
-      REAL(KIND=dp), POINTER                        :: nonbond_rmin2_14(:)
+      CHARACTER(LEN=default_string_length), POINTER :: bond_a(:) => NULL()
+      CHARACTER(LEN=default_string_length), POINTER :: bond_b(:) => NULL()
+      REAL(KIND=dp), POINTER                         :: bond_k(:) => NULL()
+      REAL(KIND=dp), POINTER                         :: bond_r0(:) => NULL()
+      CHARACTER(LEN=default_string_length), POINTER :: bend_a(:) => NULL()
+      CHARACTER(LEN=default_string_length), POINTER :: bend_b(:) => NULL()
+      CHARACTER(LEN=default_string_length), POINTER :: bend_c(:) => NULL()
+      REAL(KIND=dp), POINTER                         :: bend_k(:) => NULL()
+      REAL(KIND=dp), POINTER                         :: bend_theta0(:) => NULL()
+      CHARACTER(LEN=default_string_length), POINTER :: ub_a(:) => NULL()
+      CHARACTER(LEN=default_string_length), POINTER :: ub_b(:) => NULL()
+      CHARACTER(LEN=default_string_length), POINTER :: ub_c(:) => NULL()
+      REAL(KIND=dp), POINTER                         :: ub_k(:) => NULL()
+      REAL(KIND=dp), POINTER                         :: ub_r0(:) => NULL()
+      CHARACTER(LEN=default_string_length), POINTER :: torsion_a(:) => NULL()
+      CHARACTER(LEN=default_string_length), POINTER :: torsion_b(:) => NULL()
+      CHARACTER(LEN=default_string_length), POINTER :: torsion_c(:) => NULL()
+      CHARACTER(LEN=default_string_length), POINTER :: torsion_d(:) => NULL()
+      REAL(KIND=dp), POINTER                         :: torsion_k(:) => NULL()
+      INTEGER, POINTER                               :: torsion_m(:) => NULL()
+      REAL(KIND=dp), POINTER                         :: torsion_phi0(:) => NULL()
+      CHARACTER(LEN=default_string_length), POINTER :: impr_a(:) => NULL()
+      CHARACTER(LEN=default_string_length), POINTER :: impr_b(:) => NULL()
+      CHARACTER(LEN=default_string_length), POINTER :: impr_c(:) => NULL()
+      CHARACTER(LEN=default_string_length), POINTER :: impr_d(:) => NULL()
+      REAL(KIND=dp), POINTER                         :: impr_k(:) => NULL()
+      REAL(KIND=dp), POINTER                         :: impr_phi0(:) => NULL()
+      CHARACTER(LEN=default_string_length), POINTER :: nonbond_a(:) => NULL()
+      REAL(KIND=dp), POINTER                        :: nonbond_eps(:) => NULL()
+      REAL(KIND=dp), POINTER                        :: nonbond_rmin2(:) => NULL()
+      CHARACTER(LEN=default_string_length), POINTER :: nonbond_a_14(:) => NULL()
+      REAL(KIND=dp), POINTER                        :: nonbond_eps_14(:) => NULL()
+      REAL(KIND=dp), POINTER                        :: nonbond_rmin2_14(:) => NULL()
    END TYPE charmm_info_type
 
 ! **************************************************************************************************
    TYPE amber_info_type
-      CHARACTER(LEN=default_string_length), POINTER :: bond_a(:)
-      CHARACTER(LEN=default_string_length), POINTER :: bond_b(:)
-      REAL(KIND=dp), POINTER                         :: bond_k(:)
-      REAL(KIND=dp), POINTER                         :: bond_r0(:)
-      CHARACTER(LEN=default_string_length), POINTER :: bend_a(:)
-      CHARACTER(LEN=default_string_length), POINTER :: bend_b(:)
-      CHARACTER(LEN=default_string_length), POINTER :: bend_c(:)
-      REAL(KIND=dp), POINTER                         :: bend_k(:)
-      REAL(KIND=dp), POINTER                         :: bend_theta0(:)
-      CHARACTER(LEN=default_string_length), POINTER :: torsion_a(:)
-      CHARACTER(LEN=default_string_length), POINTER :: torsion_b(:)
-      CHARACTER(LEN=default_string_length), POINTER :: torsion_c(:)
-      CHARACTER(LEN=default_string_length), POINTER :: torsion_d(:)
-      REAL(KIND=dp), POINTER                         :: torsion_k(:)
-      INTEGER, POINTER                               :: torsion_m(:)
-      REAL(KIND=dp), POINTER                         :: torsion_phi0(:)
-      CHARACTER(LEN=default_string_length), POINTER :: nonbond_a(:)
-      REAL(KIND=dp), POINTER                        :: nonbond_eps(:)
-      REAL(KIND=dp), POINTER                        :: nonbond_rmin2(:)
-      INTEGER, POINTER                               :: raw_torsion_id(:, :)
-      REAL(KIND=dp), POINTER                         :: raw_torsion_k(:)
-      REAL(KIND=dp), POINTER                         :: raw_torsion_m(:)
-      REAL(KIND=dp), POINTER                         :: raw_torsion_phi0(:)
+      CHARACTER(LEN=default_string_length), POINTER :: bond_a(:) => NULL()
+      CHARACTER(LEN=default_string_length), POINTER :: bond_b(:) => NULL()
+      REAL(KIND=dp), POINTER                         :: bond_k(:) => NULL()
+      REAL(KIND=dp), POINTER                         :: bond_r0(:) => NULL()
+      CHARACTER(LEN=default_string_length), POINTER :: bend_a(:) => NULL()
+      CHARACTER(LEN=default_string_length), POINTER :: bend_b(:) => NULL()
+      CHARACTER(LEN=default_string_length), POINTER :: bend_c(:) => NULL()
+      REAL(KIND=dp), POINTER                         :: bend_k(:) => NULL()
+      REAL(KIND=dp), POINTER                         :: bend_theta0(:) => NULL()
+      CHARACTER(LEN=default_string_length), POINTER :: torsion_a(:) => NULL()
+      CHARACTER(LEN=default_string_length), POINTER :: torsion_b(:) => NULL()
+      CHARACTER(LEN=default_string_length), POINTER :: torsion_c(:) => NULL()
+      CHARACTER(LEN=default_string_length), POINTER :: torsion_d(:) => NULL()
+      REAL(KIND=dp), POINTER                         :: torsion_k(:) => NULL()
+      INTEGER, POINTER                               :: torsion_m(:) => NULL()
+      REAL(KIND=dp), POINTER                         :: torsion_phi0(:) => NULL()
+      CHARACTER(LEN=default_string_length), POINTER :: nonbond_a(:) => NULL()
+      REAL(KIND=dp), POINTER                        :: nonbond_eps(:) => NULL()
+      REAL(KIND=dp), POINTER                        :: nonbond_rmin2(:) => NULL()
+      INTEGER, POINTER                               :: raw_torsion_id(:, :) => NULL()
+      REAL(KIND=dp), POINTER                         :: raw_torsion_k(:) => NULL()
+      REAL(KIND=dp), POINTER                         :: raw_torsion_m(:) => NULL()
+      REAL(KIND=dp), POINTER                         :: raw_torsion_phi0(:) => NULL()
    END TYPE amber_info_type
 
 ! **************************************************************************************************
    TYPE gromos_info_type
-      INTEGER                                        :: ff_gromos_type
-      REAL(KIND=dp), POINTER                         :: solvent_k(:)
-      REAL(KIND=dp), POINTER                         :: solvent_r0(:)
-      REAL(KIND=dp), POINTER                         :: bond_k(:)
-      REAL(KIND=dp), POINTER                         :: bond_r0(:)
-      REAL(KIND=dp), POINTER                         :: bend_k(:)
-      REAL(KIND=dp), POINTER                         :: bend_theta0(:)
-      REAL(KIND=dp), POINTER                         :: torsion_k(:)
-      INTEGER, POINTER                               :: torsion_m(:)
-      REAL(KIND=dp), POINTER                         :: torsion_phi0(:)
-      REAL(KIND=dp), POINTER                         :: impr_k(:)
-      REAL(KIND=dp), POINTER                         :: impr_phi0(:)
-      CHARACTER(LEN=default_string_length), POINTER :: nonbond_a(:)
-      REAL(KIND=dp), POINTER                        :: nonbond_c6(:, :)
-      REAL(KIND=dp), POINTER                        :: nonbond_c12(:, :)
-      CHARACTER(LEN=default_string_length), POINTER :: nonbond_a_14(:)
-      REAL(KIND=dp), POINTER                        :: nonbond_c6_14(:, :)
-      REAL(KIND=dp), POINTER                        :: nonbond_c12_14(:, :)
+      INTEGER                                        :: ff_gromos_type = -1
+      REAL(KIND=dp), POINTER                         :: solvent_k(:) => NULL()
+      REAL(KIND=dp), POINTER                         :: solvent_r0(:) => NULL()
+      REAL(KIND=dp), POINTER                         :: bond_k(:) => NULL()
+      REAL(KIND=dp), POINTER                         :: bond_r0(:) => NULL()
+      REAL(KIND=dp), POINTER                         :: bend_k(:) => NULL()
+      REAL(KIND=dp), POINTER                         :: bend_theta0(:) => NULL()
+      REAL(KIND=dp), POINTER                         :: torsion_k(:) => NULL()
+      INTEGER, POINTER                               :: torsion_m(:) => NULL()
+      REAL(KIND=dp), POINTER                         :: torsion_phi0(:) => NULL()
+      REAL(KIND=dp), POINTER                         :: impr_k(:) => NULL()
+      REAL(KIND=dp), POINTER                         :: impr_phi0(:) => NULL()
+      CHARACTER(LEN=default_string_length), POINTER :: nonbond_a(:) => NULL()
+      REAL(KIND=dp), POINTER                        :: nonbond_c6(:, :) => NULL()
+      REAL(KIND=dp), POINTER                        :: nonbond_c12(:, :) => NULL()
+      CHARACTER(LEN=default_string_length), POINTER :: nonbond_a_14(:) => NULL()
+      REAL(KIND=dp), POINTER                        :: nonbond_c6_14(:, :) => NULL()
+      REAL(KIND=dp), POINTER                        :: nonbond_c12_14(:, :) => NULL()
    END TYPE gromos_info_type
 
 ! **************************************************************************************************
    TYPE force_field_type
-      LOGICAL                                   :: shift_cutoff, &
-                                                   do_nonbonded, &
-                                                   do_electrostatics, &
-                                                   electrostatics, &
-                                                   multiple_potential, &
-                                                   ignore_missing_critical
-      INTEGER                                   :: ff_type
-      REAL(KIND=dp)                             :: rcut_nb
-      REAL(KIND=dp)                             :: ei_scale14
-      REAL(KIND=dp)                             :: vdw_scale14
-      REAL(KIND=dp)                             :: eps_spline, &
-                                                   max_energy, &
-                                                   emax_spline, &
-                                                   rlow_nb
-      INTEGER                                   :: npoints
-      CHARACTER(LEN=default_path_length)       :: ff_file_name
-      TYPE(input_info_type), POINTER            :: inp_info
-      TYPE(charmm_info_type), POINTER           :: chm_info
-      TYPE(gromos_info_type), POINTER           :: gro_info
-      TYPE(amber_info_type), POINTER           :: amb_info
+      LOGICAL                                   :: shift_cutoff = .FALSE., &
+                                                   do_nonbonded = .FALSE., &
+                                                   do_electrostatics = .FALSE., &
+                                                   electrostatics = .FALSE., &
+                                                   multiple_potential = .FALSE., &
+                                                   ignore_missing_critical = .FALSE.
+      INTEGER                                   :: ff_type = -1
+      REAL(KIND=dp)                             :: rcut_nb = 0.0_dp
+      REAL(KIND=dp)                             :: ei_scale14 = 0.0_dp
+      REAL(KIND=dp)                             :: vdw_scale14 = 0.0_dp
+      REAL(KIND=dp)                             :: eps_spline = 0.0_dp, &
+                                                   max_energy = 0.0_dp, &
+                                                   emax_spline = 0.0_dp, &
+                                                   rlow_nb = 0.0_dp
+      INTEGER                                   :: npoints = -1
+      CHARACTER(LEN=default_path_length)       :: ff_file_name = ""
+      TYPE(input_info_type), POINTER            :: inp_info => NULL()
+      TYPE(charmm_info_type), POINTER           :: chm_info => NULL()
+      TYPE(gromos_info_type), POINTER           :: gro_info => NULL()
+      TYPE(amber_info_type), POINTER           :: amb_info => NULL()
    END TYPE force_field_type
 
 ! *** Public subroutines ***

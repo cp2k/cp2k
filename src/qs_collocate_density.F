@@ -36,79 +36,77 @@
 !>      Ole Schuett (2020)
 ! **************************************************************************************************
 MODULE qs_collocate_density
-   USE admm_types,                      ONLY: get_admm_env
-   USE ao_util,                         ONLY: exp_radius_very_extended
-   USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                              get_atomic_kind,&
-                                              get_atomic_kind_set
-   USE basis_set_types,                 ONLY: get_gto_basis_set,&
-                                              gto_basis_set_type
-   USE cell_types,                      ONLY: cell_type,&
-                                              pbc
-   USE cp_control_types,                ONLY: dft_control_type
-   USE cp_dbcsr_operations,             ONLY: dbcsr_deallocate_matrix_set
-   USE cp_fm_types,                     ONLY: cp_fm_get_element,&
-                                              cp_fm_get_info,&
-                                              cp_fm_type
-   USE dbcsr_api,                       ONLY: dbcsr_copy,&
-                                              dbcsr_get_block_p,&
-                                              dbcsr_p_type,&
-                                              dbcsr_type
-   USE external_potential_types,        ONLY: get_potential,&
-                                              gth_potential_type
-   USE gaussian_gridlevels,             ONLY: gaussian_gridlevel,&
-                                              gridlevel_info_type
-   USE grid_api,                        ONLY: &
-        GRID_FUNC_AB, GRID_FUNC_CORE_X, GRID_FUNC_CORE_Y, GRID_FUNC_CORE_Z, GRID_FUNC_DAB_X, &
-        GRID_FUNC_DAB_Y, GRID_FUNC_DAB_Z, GRID_FUNC_DABpADB_X, GRID_FUNC_DABpADB_Y, &
-        GRID_FUNC_DABpADB_Z, GRID_FUNC_DADB, GRID_FUNC_DX, GRID_FUNC_DXDX, GRID_FUNC_DXDY, &
-        GRID_FUNC_DY, GRID_FUNC_DYDY, GRID_FUNC_DYDZ, GRID_FUNC_DZ, GRID_FUNC_DZDX, &
-        GRID_FUNC_DZDZ, collocate_pgf_product, grid_collocate_task_list
-   USE input_constants,                 ONLY: &
-        orb_dx2, orb_dxy, orb_dy2, orb_dyz, orb_dz2, orb_dzx, orb_px, orb_py, orb_pz, orb_s
-   USE kinds,                           ONLY: default_string_length,&
-                                              dp
-   USE lri_environment_types,           ONLY: lri_kind_type
-   USE memory_utilities,                ONLY: reallocate
-   USE message_passing,                 ONLY: mp_comm_type
-   USE orbital_pointers,                ONLY: coset,&
-                                              ncoset
-   USE particle_types,                  ONLY: particle_type
-   USE pw_env_types,                    ONLY: pw_env_get,&
-                                              pw_env_type
-   USE pw_methods,                      ONLY: pw_axpy,&
-                                              pw_integrate_function,&
-                                              pw_transfer,&
-                                              pw_zero
-   USE pw_pool_types,                   ONLY: pw_pool_p_type,&
-                                              pw_pool_type,&
-                                              pw_pools_create_pws,&
-                                              pw_pools_give_back_pws
-   USE pw_types,                        ONLY: COMPLEXDATA1D,&
-                                              REALDATA3D,&
-                                              REALSPACE,&
-                                              RECIPROCALSPACE,&
-                                              pw_type
-   USE qs_environment_types,            ONLY: get_qs_env,&
-                                              qs_environment_type
-   USE qs_kind_types,                   ONLY: get_qs_kind,&
-                                              get_qs_kind_set,&
-                                              qs_kind_type
-   USE qs_ks_types,                     ONLY: get_ks_env,&
-                                              qs_ks_env_type
-   USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
-   USE realspace_grid_types,            ONLY: map_gaussian_here,&
-                                              realspace_grid_desc_p_type,&
-                                              realspace_grid_type,&
-                                              rs_grid_zero,&
-                                              transfer_rs2pw
-   USE rs_pw_interface,                 ONLY: density_rs2pw
-   USE task_list_methods,               ONLY: rs_copy_to_buffer,&
-                                              rs_distribute_matrix,&
-                                              rs_scatter_matrices
-   USE task_list_types,                 ONLY: atom_pair_type,&
-                                              task_list_type,&
-                                              task_type
+   USE admm_types, ONLY: get_admm_env
+   USE ao_util, ONLY: exp_radius_very_extended
+   USE atomic_kind_types, ONLY: atomic_kind_type, &
+                                get_atomic_kind, &
+                                get_atomic_kind_set
+   USE basis_set_types, ONLY: get_gto_basis_set, &
+                              gto_basis_set_type
+   USE cell_types, ONLY: cell_type, &
+                         pbc
+   USE cp_control_types, ONLY: dft_control_type
+   USE cp_dbcsr_operations, ONLY: dbcsr_deallocate_matrix_set
+   USE cp_fm_types, ONLY: cp_fm_get_element, &
+                          cp_fm_get_info, &
+                          cp_fm_type
+   USE cp_dbcsr_api, ONLY: dbcsr_copy, &
+                           dbcsr_get_block_p, &
+                           dbcsr_p_type, &
+                           dbcsr_type
+   USE external_potential_types, ONLY: get_potential, &
+                                       gth_potential_type
+   USE gaussian_gridlevels, ONLY: gaussian_gridlevel, &
+                                  gridlevel_info_type
+   USE grid_api, ONLY: &
+      GRID_FUNC_AB, GRID_FUNC_CORE_X, GRID_FUNC_CORE_Y, GRID_FUNC_CORE_Z, GRID_FUNC_DAB_X, &
+      GRID_FUNC_DAB_Y, GRID_FUNC_DAB_Z, GRID_FUNC_DABpADB_X, GRID_FUNC_DABpADB_Y, &
+      GRID_FUNC_DABpADB_Z, GRID_FUNC_DADB, GRID_FUNC_DX, GRID_FUNC_DXDX, GRID_FUNC_DXDY, &
+      GRID_FUNC_DY, GRID_FUNC_DYDY, GRID_FUNC_DYDZ, GRID_FUNC_DZ, GRID_FUNC_DZDX, &
+      GRID_FUNC_DZDZ, collocate_pgf_product, grid_collocate_task_list
+   USE input_constants, ONLY: &
+      orb_dx2, orb_dxy, orb_dy2, orb_dyz, orb_dz2, orb_dzx, orb_px, orb_py, orb_pz, orb_s
+   USE kinds, ONLY: default_string_length, &
+                    dp
+   USE lri_environment_types, ONLY: lri_kind_type
+   USE memory_utilities, ONLY: reallocate
+   USE message_passing, ONLY: mp_comm_type
+   USE orbital_pointers, ONLY: coset, &
+                               ncoset
+   USE particle_types, ONLY: particle_type
+   USE pw_env_types, ONLY: pw_env_get, &
+                           pw_env_type
+   USE pw_methods, ONLY: pw_axpy, &
+                         pw_integrate_function, &
+                         pw_transfer, &
+                         pw_zero
+   USE pw_pool_types, ONLY: pw_pool_p_type, &
+                            pw_pool_type, &
+                            pw_pools_create_pws, &
+                            pw_pools_give_back_pws
+   USE pw_types, ONLY: pw_r3d_rs_type, &
+                       pw_c1d_gs_type, &
+                       pw_r3d_rs_type
+   USE qs_environment_types, ONLY: get_qs_env, &
+                                   qs_environment_type
+   USE qs_kind_types, ONLY: get_qs_kind, &
+                            get_qs_kind_set, &
+                            qs_kind_type
+   USE qs_ks_types, ONLY: get_ks_env, &
+                          qs_ks_env_type
+   USE qs_neighbor_list_types, ONLY: neighbor_list_set_p_type
+   USE realspace_grid_types, ONLY: map_gaussian_here, &
+                                   realspace_grid_desc_p_type, &
+                                   realspace_grid_type, &
+                                   rs_grid_zero, &
+                                   transfer_rs2pw
+   USE rs_pw_interface, ONLY: density_rs2pw
+   USE task_list_methods, ONLY: rs_copy_to_buffer, &
+                                rs_distribute_matrix, &
+                                rs_scatter_matrices
+   USE task_list_types, ONLY: atom_pair_type, &
+                              task_list_type, &
+                              task_type
 
 !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads
 
@@ -131,10 +129,20 @@ MODULE qs_collocate_density
              calculate_rho_elec, &
              calculate_drho_elec, &
              calculate_wavefunction, &
+             collocate_function, &
              calculate_rho_nlcc, &
              calculate_drho_elec_dR, &
              calculate_drho_core, &
              collocate_single_gaussian
+
+   INTERFACE calculate_rho_core
+      MODULE PROCEDURE calculate_rho_core_r3d_rs
+      MODULE PROCEDURE calculate_rho_core_c1d_gs
+   END INTERFACE
+
+   INTERFACE calculate_rho_resp_all
+      MODULE PROCEDURE calculate_rho_resp_all_r3d_rs, calculate_rho_resp_all_c1d_gs
+   END INTERFACE
 
 CONTAINS
 
@@ -145,7 +153,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE calculate_rho_nlcc(rho_nlcc, qs_env)
 
-      TYPE(pw_type), INTENT(INOUT)                       :: rho_nlcc
+      TYPE(pw_r3d_rs_type), INTENT(INOUT)                       :: rho_nlcc
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
       CHARACTER(len=*), PARAMETER :: routineN = 'calculate_rho_nlcc'
@@ -324,7 +332,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE calculate_ppl_grid(vppl, qs_env)
 
-      TYPE(pw_type), INTENT(INOUT)                       :: vppl
+      TYPE(pw_r3d_rs_type), INTENT(INOUT)                       :: vppl
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
       CHARACTER(len=*), PARAMETER :: routineN = 'calculate_ppl_grid'
@@ -508,7 +516,8 @@ CONTAINS
    SUBROUTINE calculate_lri_rho_elec(lri_rho_g, lri_rho_r, qs_env, &
                                      lri_coef, total_rho, basis_type, exact_1c_terms, pmat, atomlist)
 
-      TYPE(pw_type), INTENT(INOUT)                       :: lri_rho_g, lri_rho_r
+      TYPE(pw_c1d_gs_type), INTENT(INOUT) :: lri_rho_g
+      TYPE(pw_r3d_rs_type), INTENT(INOUT)                       ::  lri_rho_r
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(lri_kind_type), DIMENSION(:), POINTER         :: lri_coef
       REAL(KIND=dp), INTENT(OUT)                         :: total_rho
@@ -520,7 +529,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'calculate_lri_rho_elec'
 
       INTEGER :: atom_a, group_size, handle, iatom, igrid_level, ikind, ipgf, iset, jpgf, jset, &
-         m1, maxco, maxsgf_set, my_pos, na1, natom, nb1, ncoa, ncob, nseta, offset, sgfa, sgfb
+                 m1, maxco, maxsgf_set, my_pos, na1, natom, nb1, ncoa, ncob, nseta, offset, sgfa, sgfb
       INTEGER, DIMENSION(:), POINTER                     :: atom_list, la_max, la_min, npgfa, nsgfa
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa
       LOGICAL                                            :: found
@@ -538,7 +547,8 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
-      TYPE(pw_type), ALLOCATABLE, DIMENSION(:)           :: mgrid_gspace, mgrid_rspace
+      TYPE(pw_c1d_gs_type), ALLOCATABLE, DIMENSION(:) :: mgrid_gspace
+      TYPE(pw_r3d_rs_type), ALLOCATABLE, DIMENSION(:)           ::  mgrid_rspace
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(realspace_grid_type), DIMENSION(:), POINTER   :: rs_rho
       TYPE(realspace_grid_type), POINTER                 :: rs_grid
@@ -568,13 +578,9 @@ CONTAINS
       CPASSERT(ASSOCIATED(pw_env))
       CALL pw_env_get(pw_env=pw_env, rs_grids=rs_rho, pw_pools=pw_pools)
 
-      CALL pw_pools_create_pws(pw_pools, mgrid_rspace, &
-                               use_data=REALDATA3D, &
-                               in_space=REALSPACE)
+      CALL pw_pools_create_pws(pw_pools, mgrid_rspace)
 
-      CALL pw_pools_create_pws(pw_pools, mgrid_gspace, &
-                               use_data=COMPLEXDATA1D, &
-                               in_space=RECIPROCALSPACE)
+      CALL pw_pools_create_pws(pw_pools, mgrid_gspace)
 
       ! *** set up the rs multi-grids *** !
       DO igrid_level = 1, gridlevel_info%ngrid_levels
@@ -587,8 +593,8 @@ CONTAINS
 
       ALLOCATE (pab(maxco, 1))
       offset = 0
-      my_pos = mgrid_rspace(1)%pw_grid%para%my_pos
-      group_size = mgrid_rspace(1)%pw_grid%para%group_size
+      my_pos = mgrid_rspace(1)%pw_grid%para%group%mepos
+      group_size = mgrid_rspace(1)%pw_grid%para%group%num_pe
 
       DO ikind = 1, SIZE(atomic_kind_set)
 
@@ -777,6 +783,7 @@ CONTAINS
 
    END SUBROUTINE calculate_lri_rho_elec
 
+   #:for kind in ["r3d_rs", "c1d_gs"]
 ! **************************************************************************************************
 !> \brief computes the density of the core charges on the grid
 !> \param rho_core ...
@@ -786,135 +793,135 @@ CONTAINS
 !> \param ccore ...
 !> \param only_nopaw ...
 ! **************************************************************************************************
-   SUBROUTINE calculate_rho_core(rho_core, total_rho, qs_env, calpha, ccore, only_nopaw)
+      SUBROUTINE calculate_rho_core_${kind}$ (rho_core, total_rho, qs_env, calpha, ccore, only_nopaw)
 
-      TYPE(pw_type), INTENT(INOUT)                       :: rho_core
-      REAL(KIND=dp), INTENT(OUT)                         :: total_rho
-      TYPE(qs_environment_type), POINTER                 :: qs_env
-      REAL(KIND=dp), DIMENSION(:), OPTIONAL              :: calpha, ccore
-      LOGICAL, INTENT(IN), OPTIONAL                      :: only_nopaw
+         TYPE(pw_${kind}$_type), INTENT(INOUT)                       :: rho_core
+         REAL(KIND=dp), INTENT(OUT)                         :: total_rho
+         TYPE(qs_environment_type), POINTER                 :: qs_env
+         REAL(KIND=dp), DIMENSION(:), OPTIONAL              :: calpha, ccore
+         LOGICAL, INTENT(IN), OPTIONAL                      :: only_nopaw
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'calculate_rho_core'
+         CHARACTER(len=*), PARAMETER :: routineN = 'calculate_rho_core'
 
-      INTEGER                                            :: atom_a, handle, iatom, ikind, ithread, &
-                                                            j, natom, npme, nthread, &
-                                                            subpatch_pattern
-      INTEGER, DIMENSION(:), POINTER                     :: atom_list, cores
-      LOGICAL                                            :: my_only_nopaw, paw_atom
-      REAL(KIND=dp)                                      :: alpha, eps_rho_rspace, radius
-      REAL(KIND=dp), DIMENSION(3)                        :: ra
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: pab
-      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
-      TYPE(cell_type), POINTER                           :: cell
-      TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
-      TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type)                                      :: rhoc_r
-      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
-      TYPE(realspace_grid_type), POINTER                 :: rs_rho
+         INTEGER                                            :: atom_a, handle, iatom, ikind, ithread, &
+                                                               j, natom, npme, nthread, &
+                                                               subpatch_pattern
+         INTEGER, DIMENSION(:), POINTER                     :: atom_list, cores
+         LOGICAL                                            :: my_only_nopaw, paw_atom
+         REAL(KIND=dp)                                      :: alpha, eps_rho_rspace, radius
+         REAL(KIND=dp), DIMENSION(3)                        :: ra
+         REAL(KIND=dp), DIMENSION(:, :), POINTER            :: pab
+         TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+         TYPE(cell_type), POINTER                           :: cell
+         TYPE(dft_control_type), POINTER                    :: dft_control
+         TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+         TYPE(pw_env_type), POINTER                         :: pw_env
+         TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
+         TYPE(pw_r3d_rs_type)                                      :: rhoc_r
+         TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+         TYPE(realspace_grid_type), POINTER                 :: rs_rho
 
-      CALL timeset(routineN, handle)
-      NULLIFY (cell, dft_control, pab, atomic_kind_set, qs_kind_set, particle_set, &
-               atom_list, pw_env, rs_rho, auxbas_pw_pool, cores)
-      ALLOCATE (pab(1, 1))
+         CALL timeset(routineN, handle)
+         NULLIFY (cell, dft_control, pab, atomic_kind_set, qs_kind_set, particle_set, &
+                  atom_list, pw_env, rs_rho, auxbas_pw_pool, cores)
+         ALLOCATE (pab(1, 1))
 
-      my_only_nopaw = .FALSE.
-      IF (PRESENT(only_nopaw)) my_only_nopaw = only_nopaw
-      IF (PRESENT(calpha)) THEN
-         CPASSERT(PRESENT(ccore))
-      END IF
-
-      CALL get_qs_env(qs_env=qs_env, &
-                      atomic_kind_set=atomic_kind_set, &
-                      qs_kind_set=qs_kind_set, &
-                      cell=cell, &
-                      dft_control=dft_control, &
-                      particle_set=particle_set, &
-                      pw_env=pw_env)
-      CALL pw_env_get(pw_env, auxbas_rs_grid=rs_rho, &
-                      auxbas_pw_pool=auxbas_pw_pool)
-      ! be careful in parallel nsmax is chosen with multigrid in mind!
-      CALL rs_grid_zero(rs_rho)
-
-      eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
-
-      DO ikind = 1, SIZE(atomic_kind_set)
-         CALL get_atomic_kind(atomic_kind_set(ikind), natom=natom, atom_list=atom_list)
+         my_only_nopaw = .FALSE.
+         IF (PRESENT(only_nopaw)) my_only_nopaw = only_nopaw
          IF (PRESENT(calpha)) THEN
-            alpha = calpha(ikind)
-            pab(1, 1) = ccore(ikind)
-         ELSE
-            CALL get_qs_kind(qs_kind_set(ikind), paw_atom=paw_atom, &
-                             alpha_core_charge=alpha, ccore_charge=pab(1, 1))
+            CPASSERT(PRESENT(ccore))
          END IF
 
-         IF (my_only_nopaw .AND. paw_atom) CYCLE
-         IF (alpha == 0.0_dp .OR. pab(1, 1) == 0.0_dp) CYCLE
+         CALL get_qs_env(qs_env=qs_env, &
+                         atomic_kind_set=atomic_kind_set, &
+                         qs_kind_set=qs_kind_set, &
+                         cell=cell, &
+                         dft_control=dft_control, &
+                         particle_set=particle_set, &
+                         pw_env=pw_env)
+         CALL pw_env_get(pw_env, auxbas_rs_grid=rs_rho, &
+                         auxbas_pw_pool=auxbas_pw_pool)
+         ! be careful in parallel nsmax is chosen with multigrid in mind!
+         CALL rs_grid_zero(rs_rho)
 
-         nthread = 1
-         ithread = 0
+         eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
 
-         CALL reallocate(cores, 1, natom)
-         npme = 0
-         cores = 0
+         DO ikind = 1, SIZE(atomic_kind_set)
+            CALL get_atomic_kind(atomic_kind_set(ikind), natom=natom, atom_list=atom_list)
+            IF (PRESENT(calpha)) THEN
+               alpha = calpha(ikind)
+               pab(1, 1) = ccore(ikind)
+            ELSE
+               CALL get_qs_kind(qs_kind_set(ikind), paw_atom=paw_atom, &
+                                alpha_core_charge=alpha, ccore_charge=pab(1, 1))
+            END IF
 
-         DO iatom = 1, natom
-            IF (rs_rho%desc%parallel .AND. .NOT. rs_rho%desc%distributed) THEN
-               ! replicated realspace grid, split the atoms up between procs
-               IF (MODULO(iatom, rs_rho%desc%group_size) == rs_rho%desc%my_pos) THEN
+            IF (my_only_nopaw .AND. paw_atom) CYCLE
+            IF (alpha == 0.0_dp .OR. pab(1, 1) == 0.0_dp) CYCLE
+
+            nthread = 1
+            ithread = 0
+
+            CALL reallocate(cores, 1, natom)
+            npme = 0
+            cores = 0
+
+            DO iatom = 1, natom
+               IF (rs_rho%desc%parallel .AND. .NOT. rs_rho%desc%distributed) THEN
+                  ! replicated realspace grid, split the atoms up between procs
+                  IF (MODULO(iatom, rs_rho%desc%group_size) == rs_rho%desc%my_pos) THEN
+                     npme = npme + 1
+                     cores(npme) = iatom
+                  END IF
+               ELSE
                   npme = npme + 1
                   cores(npme) = iatom
                END IF
-            ELSE
-               npme = npme + 1
-               cores(npme) = iatom
+            END DO
+
+            IF (npme .GT. 0) THEN
+               DO j = 1, npme
+
+                  iatom = cores(j)
+                  atom_a = atom_list(iatom)
+                  ra(:) = pbc(particle_set(atom_a)%r, cell)
+                  subpatch_pattern = 0
+                  radius = exp_radius_very_extended(la_min=0, la_max=0, &
+                                                    lb_min=0, lb_max=0, &
+                                                    ra=ra, rb=ra, rp=ra, &
+                                                    zetp=alpha, eps=eps_rho_rspace, &
+                                                    pab=pab, o1=0, o2=0, &  ! without map_consistent
+                                                    prefactor=-1.0_dp, cutoff=0.0_dp)
+
+                  CALL collocate_pgf_product(0, alpha, 0, 0, 0.0_dp, 0, ra, &
+                                             (/0.0_dp, 0.0_dp, 0.0_dp/), -1.0_dp, pab, 0, 0, rs_rho, &
+                                             radius=radius, ga_gb_function=GRID_FUNC_AB, &
+                                             use_subpatch=.TRUE., subpatch_pattern=subpatch_pattern)
+
+               END DO
             END IF
+
          END DO
 
-         IF (npme .GT. 0) THEN
-            DO j = 1, npme
-
-               iatom = cores(j)
-               atom_a = atom_list(iatom)
-               ra(:) = pbc(particle_set(atom_a)%r, cell)
-               subpatch_pattern = 0
-               radius = exp_radius_very_extended(la_min=0, la_max=0, &
-                                                 lb_min=0, lb_max=0, &
-                                                 ra=ra, rb=ra, rp=ra, &
-                                                 zetp=alpha, eps=eps_rho_rspace, &
-                                                 pab=pab, o1=0, o2=0, &  ! without map_consistent
-                                                 prefactor=-1.0_dp, cutoff=0.0_dp)
-
-               CALL collocate_pgf_product(0, alpha, 0, 0, 0.0_dp, 0, ra, &
-                                          (/0.0_dp, 0.0_dp, 0.0_dp/), -1.0_dp, pab, 0, 0, rs_rho, &
-                                          radius=radius, ga_gb_function=GRID_FUNC_AB, &
-                                          use_subpatch=.TRUE., subpatch_pattern=subpatch_pattern)
-
-            END DO
+         IF (ASSOCIATED(cores)) THEN
+            DEALLOCATE (cores)
          END IF
+         DEALLOCATE (pab)
 
-      END DO
+         CALL auxbas_pw_pool%create_pw(rhoc_r)
 
-      IF (ASSOCIATED(cores)) THEN
-         DEALLOCATE (cores)
-      END IF
-      DEALLOCATE (pab)
+         CALL transfer_rs2pw(rs_rho, rhoc_r)
 
-      CALL auxbas_pw_pool%create_pw(rhoc_r, &
-                                    use_data=REALDATA3D, in_space=REALSPACE)
+         total_rho = pw_integrate_function(rhoc_r, isign=-1)
 
-      CALL transfer_rs2pw(rs_rho, rhoc_r)
+         CALL pw_transfer(rhoc_r, rho_core)
 
-      total_rho = pw_integrate_function(rhoc_r, isign=-1)
+         CALL auxbas_pw_pool%give_back_pw(rhoc_r)
 
-      CALL pw_transfer(rhoc_r, rho_core)
+         CALL timestop(handle)
 
-      CALL auxbas_pw_pool%give_back_pw(rhoc_r)
-
-      CALL timestop(handle)
-
-   END SUBROUTINE calculate_rho_core
+      END SUBROUTINE calculate_rho_core_${kind}$
+   #:endfor
 
 ! *****************************************************************************
 !> \brief Computes the derivative of the density of the core charges with
@@ -927,7 +934,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE calculate_drho_core(drho_core, qs_env, beta, lambda)
 
-      TYPE(pw_type), INTENT(INOUT)                       :: drho_core
+      TYPE(pw_c1d_gs_type), INTENT(INOUT)                       :: drho_core
       TYPE(qs_environment_type), POINTER                 :: qs_env
       INTEGER, INTENT(IN)                                :: beta, lambda
 
@@ -946,7 +953,7 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type)                                      :: rhoc_r
+      TYPE(pw_r3d_rs_type)                                      :: rhoc_r
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(realspace_grid_type), POINTER                 :: rs_rho
 
@@ -1036,8 +1043,7 @@ CONTAINS
       END IF
       DEALLOCATE (pab)
 
-      CALL auxbas_pw_pool%create_pw(rhoc_r, &
-                                    use_data=REALDATA3D, in_space=REALSPACE)
+      CALL auxbas_pw_pool%create_pw(rhoc_r)
 
       CALL transfer_rs2pw(rs_rho, rhoc_r)
 
@@ -1060,7 +1066,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE calculate_rho_single_gaussian(rho_gb, qs_env, iatom_in)
 
-      TYPE(pw_type), INTENT(INOUT)                       :: rho_gb
+      TYPE(pw_c1d_gs_type), INTENT(INOUT)                       :: rho_gb
       TYPE(qs_environment_type), POINTER                 :: qs_env
       INTEGER, INTENT(IN)                                :: iatom_in
 
@@ -1075,7 +1081,7 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type)                                      :: rhoc_r
+      TYPE(pw_r3d_rs_type)                                      :: rhoc_r
       TYPE(realspace_grid_type), POINTER                 :: rs_rho
 
       CALL timeset(routineN, handle)
@@ -1125,8 +1131,7 @@ CONTAINS
 
       DEALLOCATE (pab)
 
-      CALL auxbas_pw_pool%create_pw(rhoc_r, &
-                                    use_data=REALDATA3D, in_space=REALSPACE)
+      CALL auxbas_pw_pool%create_pw(rhoc_r)
 
       CALL transfer_rs2pw(rs_rho, rhoc_r)
 
@@ -1151,7 +1156,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE calculate_rho_metal(rho_metal, coeff, total_rho_metal, qs_env)
 
-      TYPE(pw_type), INTENT(INOUT)                       :: rho_metal
+      TYPE(pw_c1d_gs_type), INTENT(INOUT)                       :: rho_metal
       REAL(KIND=dp), DIMENSION(:), POINTER               :: coeff
       REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: total_rho_metal
       TYPE(qs_environment_type), POINTER                 :: qs_env
@@ -1168,7 +1173,7 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type)                                      :: rhoc_r
+      TYPE(pw_r3d_rs_type)                                      :: rhoc_r
       TYPE(realspace_grid_type), POINTER                 :: rs_rho
 
       CALL timeset(routineN, handle)
@@ -1230,8 +1235,7 @@ CONTAINS
 
       DEALLOCATE (pab, cores)
 
-      CALL auxbas_pw_pool%create_pw(rhoc_r, &
-                                    use_data=REALDATA3D, in_space=REALSPACE)
+      CALL auxbas_pw_pool%create_pw(rhoc_r)
 
       CALL transfer_rs2pw(rs_rho, rhoc_r)
 
@@ -1258,7 +1262,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE calculate_rho_resp_single(rho_gb, qs_env, eta, iatom_in)
 
-      TYPE(pw_type), INTENT(INOUT)                       :: rho_gb
+      TYPE(pw_c1d_gs_type), INTENT(INOUT)                       :: rho_gb
       TYPE(qs_environment_type), POINTER                 :: qs_env
       REAL(KIND=dp), INTENT(IN)                          :: eta
       INTEGER, INTENT(IN)                                :: iatom_in
@@ -1274,7 +1278,7 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type)                                      :: rhoc_r
+      TYPE(pw_r3d_rs_type)                                      :: rhoc_r
       TYPE(realspace_grid_type), POINTER                 :: rs_rho
 
       CALL timeset(routineN, handle)
@@ -1324,8 +1328,7 @@ CONTAINS
 
       DEALLOCATE (pab)
 
-      CALL auxbas_pw_pool%create_pw(rhoc_r, &
-                                    use_data=REALDATA3D, in_space=REALSPACE)
+      CALL auxbas_pw_pool%create_pw(rhoc_r)
 
       CALL transfer_rs2pw(rs_rho, rhoc_r)
 
@@ -1337,6 +1340,7 @@ CONTAINS
 
    END SUBROUTINE calculate_rho_resp_single
 
+   #:for kind in ["r3d_rs", "c1d_gs"]
 ! **************************************************************************************************
 !> \brief computes the RESP charge density on a grid based on the RESP charges
 !> \param rho_resp RESP charge density
@@ -1349,97 +1353,97 @@ CONTAINS
 !>        01.2012 created
 !> \author Dorothea Golze
 ! **************************************************************************************************
-   SUBROUTINE calculate_rho_resp_all(rho_resp, coeff, natom, eta, qs_env)
+      SUBROUTINE calculate_rho_resp_all_${kind}$ (rho_resp, coeff, natom, eta, qs_env)
 
-      TYPE(pw_type), INTENT(INOUT)                       :: rho_resp
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: coeff
-      INTEGER, INTENT(IN)                                :: natom
-      REAL(KIND=dp), INTENT(IN)                          :: eta
-      TYPE(qs_environment_type), POINTER                 :: qs_env
+         TYPE(pw_${kind}$_type), INTENT(INOUT)                       :: rho_resp
+         REAL(KIND=dp), DIMENSION(:), POINTER               :: coeff
+         INTEGER, INTENT(IN)                                :: natom
+         REAL(KIND=dp), INTENT(IN)                          :: eta
+         TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'calculate_rho_resp_all'
+         CHARACTER(len=*), PARAMETER :: routineN = 'calculate_rho_resp_all'
 
-      INTEGER                                            :: handle, iatom, j, npme, subpatch_pattern
-      INTEGER, DIMENSION(:), POINTER                     :: cores
-      REAL(KIND=dp)                                      :: eps_rho_rspace, radius
-      REAL(KIND=dp), DIMENSION(3)                        :: ra
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: pab
-      TYPE(cell_type), POINTER                           :: cell
-      TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
-      TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type)                                      :: rhoc_r
-      TYPE(realspace_grid_type), POINTER                 :: rs_rho
+         INTEGER                                            :: handle, iatom, j, npme, subpatch_pattern
+         INTEGER, DIMENSION(:), POINTER                     :: cores
+         REAL(KIND=dp)                                      :: eps_rho_rspace, radius
+         REAL(KIND=dp), DIMENSION(3)                        :: ra
+         REAL(KIND=dp), DIMENSION(:, :), POINTER            :: pab
+         TYPE(cell_type), POINTER                           :: cell
+         TYPE(dft_control_type), POINTER                    :: dft_control
+         TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+         TYPE(pw_env_type), POINTER                         :: pw_env
+         TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
+         TYPE(pw_r3d_rs_type)                                      :: rhoc_r
+         TYPE(realspace_grid_type), POINTER                 :: rs_rho
 
-      CALL timeset(routineN, handle)
+         CALL timeset(routineN, handle)
 
-      NULLIFY (cell, cores, dft_control, pab, pw_env, rs_rho, auxbas_pw_pool, &
-               particle_set)
+         NULLIFY (cell, cores, dft_control, pab, pw_env, rs_rho, auxbas_pw_pool, &
+                  particle_set)
 
-      ALLOCATE (pab(1, 1))
+         ALLOCATE (pab(1, 1))
 
-      CALL get_qs_env(qs_env=qs_env, &
-                      cell=cell, &
-                      dft_control=dft_control, &
-                      particle_set=particle_set, &
-                      pw_env=pw_env)
-      CALL pw_env_get(pw_env, auxbas_rs_grid=rs_rho, &
-                      auxbas_pw_pool=auxbas_pw_pool)
-      CALL rs_grid_zero(rs_rho)
+         CALL get_qs_env(qs_env=qs_env, &
+                         cell=cell, &
+                         dft_control=dft_control, &
+                         particle_set=particle_set, &
+                         pw_env=pw_env)
+         CALL pw_env_get(pw_env, auxbas_rs_grid=rs_rho, &
+                         auxbas_pw_pool=auxbas_pw_pool)
+         CALL rs_grid_zero(rs_rho)
 
-      eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
-      pab(1, 1) = 1.0_dp
+         eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
+         pab(1, 1) = 1.0_dp
 
-      CALL reallocate(cores, 1, natom)
-      npme = 0
-      cores = 0
+         CALL reallocate(cores, 1, natom)
+         npme = 0
+         cores = 0
 
-      DO iatom = 1, natom
-         IF (rs_rho%desc%parallel .AND. .NOT. rs_rho%desc%distributed) THEN
-            IF (MODULO(iatom, rs_rho%desc%group_size) == rs_rho%desc%my_pos) THEN
+         DO iatom = 1, natom
+            IF (rs_rho%desc%parallel .AND. .NOT. rs_rho%desc%distributed) THEN
+               IF (MODULO(iatom, rs_rho%desc%group_size) == rs_rho%desc%my_pos) THEN
+                  npme = npme + 1
+                  cores(npme) = iatom
+               END IF
+            ELSE
                npme = npme + 1
                cores(npme) = iatom
             END IF
-         ELSE
-            npme = npme + 1
-            cores(npme) = iatom
-         END IF
-      END DO
-
-      IF (npme .GT. 0) THEN
-         DO j = 1, npme
-            iatom = cores(j)
-            ra(:) = pbc(particle_set(iatom)%r, cell)
-            subpatch_pattern = 0
-            radius = exp_radius_very_extended(la_min=0, la_max=0, &
-                                              lb_min=0, lb_max=0, &
-                                              ra=ra, rb=ra, rp=ra, &
-                                              zetp=eta, eps=eps_rho_rspace, &
-                                              pab=pab, o1=0, o2=0, &  ! without map_consistent
-                                              prefactor=coeff(iatom), cutoff=0.0_dp)
-
-            CALL collocate_pgf_product( &
-               0, eta, &
-               0, 0, 0.0_dp, 0, ra, (/0.0_dp, 0.0_dp, 0.0_dp/), coeff(iatom), pab, 0, 0, rs_rho, &
-               radius=radius, ga_gb_function=GRID_FUNC_AB, &
-               use_subpatch=.TRUE., subpatch_pattern=subpatch_pattern)
          END DO
-      END IF
 
-      DEALLOCATE (pab, cores)
+         IF (npme .GT. 0) THEN
+            DO j = 1, npme
+               iatom = cores(j)
+               ra(:) = pbc(particle_set(iatom)%r, cell)
+               subpatch_pattern = 0
+               radius = exp_radius_very_extended(la_min=0, la_max=0, &
+                                                 lb_min=0, lb_max=0, &
+                                                 ra=ra, rb=ra, rp=ra, &
+                                                 zetp=eta, eps=eps_rho_rspace, &
+                                                 pab=pab, o1=0, o2=0, &  ! without map_consistent
+                                                 prefactor=coeff(iatom), cutoff=0.0_dp)
 
-      CALL auxbas_pw_pool%create_pw(rhoc_r, &
-                                    use_data=REALDATA3D, in_space=REALSPACE)
+               CALL collocate_pgf_product( &
+                  0, eta, &
+                  0, 0, 0.0_dp, 0, ra, (/0.0_dp, 0.0_dp, 0.0_dp/), coeff(iatom), pab, 0, 0, rs_rho, &
+                  radius=radius, ga_gb_function=GRID_FUNC_AB, &
+                  use_subpatch=.TRUE., subpatch_pattern=subpatch_pattern)
+            END DO
+         END IF
 
-      CALL transfer_rs2pw(rs_rho, rhoc_r)
+         DEALLOCATE (pab, cores)
 
-      CALL pw_transfer(rhoc_r, rho_resp)
-      CALL auxbas_pw_pool%give_back_pw(rhoc_r)
+         CALL auxbas_pw_pool%create_pw(rhoc_r)
 
-      CALL timestop(handle)
+         CALL transfer_rs2pw(rs_rho, rhoc_r)
 
-   END SUBROUTINE calculate_rho_resp_all
+         CALL pw_transfer(rhoc_r, rho_resp)
+         CALL auxbas_pw_pool%give_back_pw(rhoc_r)
+
+         CALL timestop(handle)
+
+      END SUBROUTINE calculate_rho_resp_all_${kind}$
+   #:endfor
 
 ! **************************************************************************************************
 !> \brief computes the density corresponding to a given density matrix on the grid
@@ -1473,7 +1477,8 @@ CONTAINS
       TYPE(dbcsr_type), OPTIONAL, TARGET                 :: matrix_p
       TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: matrix_p_kp
-      TYPE(pw_type), INTENT(INOUT)                       :: rho, rho_gspace
+      TYPE(pw_r3d_rs_type), INTENT(INOUT)                       :: rho
+      TYPE(pw_c1d_gs_type), INTENT(INOUT) :: rho_gspace
       REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: total_rho
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       LOGICAL, INTENT(IN), OPTIONAL                      :: soft_valid, compute_tau, compute_grad
@@ -1638,7 +1643,8 @@ CONTAINS
       TYPE(dbcsr_type), OPTIONAL, TARGET                 :: matrix_p
       TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: matrix_p_kp
-      TYPE(pw_type), DIMENSION(3), INTENT(INOUT)         :: drho, drho_gspace
+      TYPE(pw_r3d_rs_type), DIMENSION(3), INTENT(INOUT)         :: drho
+      TYPE(pw_c1d_gs_type), DIMENSION(3), INTENT(INOUT) :: drho_gspace
       TYPE(qs_environment_type), POINTER                 :: qs_env
       LOGICAL, INTENT(IN), OPTIONAL                      :: soft_valid
       CHARACTER(LEN=*), INTENT(IN), OPTIONAL             :: basis_type
@@ -1647,9 +1653,9 @@ CONTAINS
 
       CHARACTER(LEN=default_string_length)               :: my_basis_type
       INTEGER :: bcol, brow, dabqadb_func, handle, iatom, iatom_old, idir, igrid_level, ikind, &
-         ikind_old, img, img_old, ipgf, iset, iset_old, itask, ithread, jatom, jatom_old, jkind, &
-         jkind_old, jpgf, jset, jset_old, maxco, maxsgf_set, na1, na2, natoms, nb1, nb2, ncoa, &
-         ncob, nimages, nseta, nsetb, ntasks, nthread, sgfa, sgfb
+                 ikind_old, img, img_old, ipgf, iset, iset_old, itask, ithread, jatom, jatom_old, jkind, &
+                 jkind_old, jpgf, jset, jset_old, maxco, maxsgf_set, na1, na2, natoms, nb1, nb2, ncoa, &
+                 ncob, nimages, nseta, nsetb, ntasks, nthread, sgfa, sgfb
       INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, lb_max, lb_min, npgfa, &
                                                             npgfb, nsgfa, nsgfb
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa, first_sgfb
@@ -2024,7 +2030,8 @@ CONTAINS
       TYPE(dbcsr_type), OPTIONAL, TARGET                 :: matrix_p
       TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: matrix_p_kp
-      TYPE(pw_type), INTENT(INOUT)                       :: drho, drho_gspace
+      TYPE(pw_r3d_rs_type), INTENT(INOUT)                       :: drho
+      TYPE(pw_c1d_gs_type), INTENT(INOUT) :: drho_gspace
       TYPE(qs_environment_type), POINTER                 :: qs_env
       LOGICAL, INTENT(IN), OPTIONAL                      :: soft_valid
       CHARACTER(LEN=*), INTENT(IN), OPTIONAL             :: basis_type
@@ -2034,9 +2041,9 @@ CONTAINS
 
       CHARACTER(LEN=default_string_length)               :: my_basis_type
       INTEGER :: bcol, brow, dabqadb_func, handle, iatom, iatom_old, igrid_level, ikind, &
-         ikind_old, img, img_old, ipgf, iset, iset_old, itask, ithread, jatom, jatom_old, jkind, &
-         jkind_old, jpgf, jset, jset_old, maxco, maxsgf_set, na1, na2, natoms, nb1, nb2, ncoa, &
-         ncob, nimages, nseta, nsetb, ntasks, nthread, sgfa, sgfb
+                 ikind_old, img, img_old, ipgf, iset, iset_old, itask, ithread, jatom, jatom_old, jkind, &
+                 jkind_old, jpgf, jset, jset_old, maxco, maxsgf_set, na1, na2, natoms, nb1, nb2, ncoa, &
+                 ncob, nimages, nseta, nsetb, ntasks, nthread, sgfa, sgfb
       INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, lb_max, lb_min, npgfa, &
                                                             npgfb, nsgfa, nsgfb
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa, first_sgfb
@@ -2427,7 +2434,8 @@ CONTAINS
                                         atomic_kind_set, qs_kind_set, cell, dft_control, particle_set, &
                                         pw_env, required_function, basis_type)
 
-      TYPE(pw_type), INTENT(INOUT)                       :: rho, rho_gspace
+      TYPE(pw_r3d_rs_type), INTENT(INOUT)                       :: rho
+      TYPE(pw_c1d_gs_type), INTENT(INOUT) :: rho_gspace
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(cell_type), POINTER                           :: cell
@@ -2441,7 +2449,7 @@ CONTAINS
 
       CHARACTER(LEN=default_string_length)               :: my_basis_type
       INTEGER :: group_size, handle, i, iatom, igrid_level, ikind, ipgf, iset, maxco, maxsgf_set, &
-         my_index, my_pos, na1, na2, natom, ncoa, nseta, offset, sgfa
+                 my_index, my_pos, na1, na2, natom, ncoa, nseta, offset, sgfa
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: where_is_the_point
       INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, npgfa, nsgfa
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa
@@ -2453,7 +2461,8 @@ CONTAINS
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis_set
       TYPE(mp_comm_type)                                 :: group
       TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
-      TYPE(pw_type), ALLOCATABLE, DIMENSION(:)           :: mgrid_gspace, mgrid_rspace
+      TYPE(pw_c1d_gs_type), ALLOCATABLE, DIMENSION(:) :: mgrid_gspace
+      TYPE(pw_r3d_rs_type), ALLOCATABLE, DIMENSION(:)           ::  mgrid_rspace
       TYPE(realspace_grid_type), DIMENSION(:), POINTER   :: rs_rho
 
       IF (PRESENT(basis_type)) THEN
@@ -2472,12 +2481,8 @@ CONTAINS
       CALL pw_env_get(pw_env, rs_grids=rs_rho, pw_pools=pw_pools, &
                       gridlevel_info=gridlevel_info)
 
-      CALL pw_pools_create_pws(pw_pools, mgrid_gspace, &
-                               use_data=COMPLEXDATA1D, &
-                               in_space=RECIPROCALSPACE)
-      CALL pw_pools_create_pws(pw_pools, mgrid_rspace, &
-                               use_data=REALDATA3D, &
-                               in_space=REALSPACE)
+      CALL pw_pools_create_pws(pw_pools, mgrid_gspace)
+      CALL pw_pools_create_pws(pw_pools, mgrid_rspace)
 
       ! *** set up rs multi-grids
       DO igrid_level = 1, gridlevel_info%ngrid_levels
@@ -2496,8 +2501,8 @@ CONTAINS
 
       offset = 0
       group = mgrid_rspace(1)%pw_grid%para%group
-      my_pos = mgrid_rspace(1)%pw_grid%para%my_pos
-      group_size = mgrid_rspace(1)%pw_grid%para%group_size
+      my_pos = mgrid_rspace(1)%pw_grid%para%group%mepos
+      group_size = mgrid_rspace(1)%pw_grid%para%group%num_pe
       ALLOCATE (where_is_the_point(0:group_size - 1))
 
       DO iatom = 1, natom
@@ -2603,25 +2608,18 @@ CONTAINS
 !> \param particle_set ...
 !> \param pw_env ...
 !> \param basis_type ...
-!> \param external_vector ...
 !> \par History
 !>      08.2002 created [Joost VandeVondele]
 !>      03.2006 made independent of qs_env [Joost VandeVondele]
-!> \note
-!>      modified calculate_rho_elec, should write the wavefunction represented by
-!>      it's presumably dominated by the FFT and the rs->pw and back routines
-!>
-!>    BUGS ???
-!>      does it take correctly the periodic images of the basis functions into account
-!>      i.e. is only correct if the basis functions are localised enough to be just in 1 cell ?
+!>      08.2024 call collocate_function [JGH]
 ! **************************************************************************************************
    SUBROUTINE calculate_wavefunction(mo_vectors, ivector, rho, rho_gspace, &
                                      atomic_kind_set, qs_kind_set, cell, dft_control, particle_set, &
-                                     pw_env, basis_type, external_vector)
-
+                                     pw_env, basis_type)
       TYPE(cp_fm_type), INTENT(IN)                       :: mo_vectors
       INTEGER, INTENT(IN)                                :: ivector
-      TYPE(pw_type), INTENT(INOUT)                       :: rho, rho_gspace
+      TYPE(pw_r3d_rs_type), INTENT(INOUT)                :: rho
+      TYPE(pw_c1d_gs_type), INTENT(INOUT)                :: rho_gspace
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(cell_type), POINTER                           :: cell
@@ -2629,27 +2627,88 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(pw_env_type), POINTER                         :: pw_env
       CHARACTER(LEN=*), INTENT(IN), OPTIONAL             :: basis_type
-      REAL(KIND=dp), DIMENSION(:), OPTIONAL              :: external_vector
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_wavefunction'
 
+      INTEGER                                            :: handle, i, nao
+      LOGICAL                                            :: local
+      REAL(KIND=dp)                                      :: eps_rho_rspace
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: eigenvector
+
+      CALL timeset(routineN, handle)
+
+      CALL cp_fm_get_info(matrix=mo_vectors, nrow_global=nao)
+      ALLOCATE (eigenvector(nao))
+      DO i = 1, nao
+         CALL cp_fm_get_element(mo_vectors, i, ivector, eigenvector(i), local)
+      END DO
+
+      eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
+
+      CALL collocate_function(eigenvector, rho, rho_gspace, &
+                              atomic_kind_set, qs_kind_set, cell, particle_set, pw_env, &
+                              eps_rho_rspace, basis_type)
+
+      DEALLOCATE (eigenvector)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE calculate_wavefunction
+
+! **************************************************************************************************
+!> \brief maps a given function on the grid
+!> \param vector ...
+!> \param rho ...
+!> \param rho_gspace ...
+!> \param atomic_kind_set ...
+!> \param qs_kind_set ...
+!> \param cell ...
+!> \param particle_set ...
+!> \param pw_env ...
+!> \param eps_rho_rspace ...
+!> \param basis_type ...
+!> \par History
+!>      08.2002 created [Joost VandeVondele]
+!>      03.2006 made independent of qs_env [Joost VandeVondele]
+!>      08.2024 specialized version from calculate_wavefunction [JGH]
+!> \notes
+!>      modified calculate_rho_elec, should write the wavefunction represented by vector
+!>      it's presumably dominated by the FFT and the rs->pw and back routines
+! **************************************************************************************************
+   SUBROUTINE collocate_function(vector, rho, rho_gspace, &
+                                 atomic_kind_set, qs_kind_set, cell, particle_set, pw_env, &
+                                 eps_rho_rspace, basis_type)
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: vector
+      TYPE(pw_r3d_rs_type), INTENT(INOUT)                :: rho
+      TYPE(pw_c1d_gs_type), INTENT(INOUT)                :: rho_gspace
+      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+      TYPE(cell_type), POINTER                           :: cell
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(pw_env_type), POINTER                         :: pw_env
+      REAL(KIND=dp), INTENT(IN)                          :: eps_rho_rspace
+      CHARACTER(LEN=*), INTENT(IN), OPTIONAL             :: basis_type
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'collocate_function'
+
       CHARACTER(LEN=default_string_length)               :: my_basis_type
       INTEGER :: group_size, handle, i, iatom, igrid_level, ikind, ipgf, iset, maxco, maxsgf_set, &
-         my_pos, na1, na2, nao, natom, ncoa, nseta, offset, sgfa
+                 my_pos, na1, na2, natom, ncoa, nseta, offset, sgfa
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: where_is_the_point
       INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, npgfa, nsgfa
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa
-      LOGICAL                                            :: local
-      REAL(KIND=dp)                                      :: dab, eps_rho_rspace, radius, scale
+      REAL(KIND=dp)                                      :: dab, radius, scale
       REAL(KIND=dp), DIMENSION(3)                        :: ra
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: eigenvector
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: pab, sphi_a, work, zeta
       TYPE(gridlevel_info_type), POINTER                 :: gridlevel_info
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis_set
       TYPE(mp_comm_type)                                 :: group
       TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
-      TYPE(pw_type), ALLOCATABLE, DIMENSION(:)           :: mgrid_gspace, mgrid_rspace
+      TYPE(pw_c1d_gs_type), ALLOCATABLE, DIMENSION(:)    :: mgrid_gspace
+      TYPE(pw_r3d_rs_type), ALLOCATABLE, DIMENSION(:)    :: mgrid_rspace
       TYPE(realspace_grid_type), DIMENSION(:), POINTER   :: rs_rho
+
+      CALL timeset(routineN, handle)
 
       IF (PRESENT(basis_type)) THEN
          my_basis_type = basis_type
@@ -2657,42 +2716,23 @@ CONTAINS
          my_basis_type = "ORB"
       END IF
 
-      CALL timeset(routineN, handle)
-
-      NULLIFY (eigenvector, orb_basis_set, pab, work, la_max, la_min, &
+      NULLIFY (orb_basis_set, pab, work, la_max, la_min, &
                npgfa, nsgfa, sphi_a, zeta, first_sgfa, rs_rho, pw_pools)
-
-      IF (PRESENT(external_vector)) THEN
-         nao = SIZE(external_vector)
-         ALLOCATE (eigenvector(nao))
-         eigenvector = external_vector
-      ELSE
-         CALL cp_fm_get_info(matrix=mo_vectors, nrow_global=nao)
-         ALLOCATE (eigenvector(nao))
-         DO i = 1, nao
-            CALL cp_fm_get_element(mo_vectors, i, ivector, eigenvector(i), local)
-         END DO
-      END IF
 
       ! *** set up the pw multi-grids
       CPASSERT(ASSOCIATED(pw_env))
       CALL pw_env_get(pw_env, rs_grids=rs_rho, pw_pools=pw_pools, &
                       gridlevel_info=gridlevel_info)
 
-      CALL pw_pools_create_pws(pw_pools, mgrid_gspace, &
-                               use_data=COMPLEXDATA1D, &
-                               in_space=RECIPROCALSPACE)
-      CALL pw_pools_create_pws(pw_pools, mgrid_rspace, &
-                               use_data=REALDATA3D, &
-                               in_space=REALSPACE)
+      CALL pw_pools_create_pws(pw_pools, mgrid_gspace)
+      CALL pw_pools_create_pws(pw_pools, mgrid_rspace)
 
       ! *** set up rs multi-grids
       DO igrid_level = 1, gridlevel_info%ngrid_levels
          CALL rs_grid_zero(rs_rho(igrid_level))
       END DO
 
-      eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
-!   *** Allocate work storage ***
+      !   *** Allocate work storage ***
       CALL get_atomic_kind_set(atomic_kind_set, natom=natom)
       CALL get_qs_kind_set(qs_kind_set, &
                            maxco=maxco, &
@@ -2704,8 +2744,8 @@ CONTAINS
 
       offset = 0
       group = mgrid_rspace(1)%pw_grid%para%group
-      my_pos = mgrid_rspace(1)%pw_grid%para%my_pos
-      group_size = mgrid_rspace(1)%pw_grid%para%group_size
+      my_pos = mgrid_rspace(1)%pw_grid%para%group%mepos
+      group_size = mgrid_rspace(1)%pw_grid%para%group%num_pe
       ALLOCATE (where_is_the_point(0:group_size - 1))
 
       DO iatom = 1, natom
@@ -2729,7 +2769,7 @@ CONTAINS
             sgfa = first_sgfa(1, iset)
 
             DO i = 1, nsgfa(iset)
-               work(i, 1) = eigenvector(offset + i)
+               work(i, 1) = vector(offset + i)
             END DO
 
             CALL dgemm("N", "N", ncoa, 1, nsgfa(iset), &
@@ -2781,10 +2821,7 @@ CONTAINS
       CALL pw_transfer(rho_gspace, rho)
 
       ! Release work storage
-      DEALLOCATE (eigenvector)
-
       DEALLOCATE (pab)
-
       DEALLOCATE (work)
 
       ! give back the pw multi-grids
@@ -2793,6 +2830,6 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE calculate_wavefunction
+   END SUBROUTINE collocate_function
 
 END MODULE qs_collocate_density

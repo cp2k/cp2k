@@ -1,0 +1,34 @@
+#!-------------------------------------------------------------------------------------------------!
+#!   CP2K: A general program to perform molecular dynamics simulations                             !
+#!   Copyright 2000-2024 CP2K developers group <https://cp2k.org>                                  !
+#!                                                                                                 !
+#!   SPDX-License-Identifier: GPL-2.0-or-later                                                     !
+#!-------------------------------------------------------------------------------------------------!
+#:mute
+   #:set pw_kinds = ["r1d", "r3d", "c1d", "c3d"]
+   #:set pw_types = ["REAL(KIND=dp), DIMENSION(:)", "REAL(KIND=dp), DIMENSION(:, :, :)", "COMPLEX(KIND=dp), DIMENSION(:)", "COMPLEX(KIND=dp), DIMENSION(:, :, :)"]
+   #:set pw_spaces = ["rs", "gs"]
+   #:set pw_list = [a for a in zip(pw_kinds, pw_types)]
+   #:set pw_kinds2 = [(kind1, kind2) for kind1 in pw_kinds for kind2 in pw_kinds]
+   #:set pw_kinds2_sameD = [(kind1, kind2) for kind1 in pw_kinds for kind2 in pw_kinds if kind1[1:]==kind2[1:]]
+   #:set pw_types2 = [(type1, type2) for type1 in pw_types for type2 in pw_types]
+   #:set pw_types2_sameD = [(type1, type2) for type1 in pw_types for type2 in pw_types if type1.count(':')==type2.count(':')]
+   #:set pw_list2 = [a+b for a in pw_list for b in pw_list]
+   #:set pw_list2_sameD = [a+b for a in pw_list for b in pw_list if a[0][1]==b[0][1]]
+#:endmute
+
+#:def type2type(data, kind1, kind2)
+   #:if kind2[0] == kind1[0] or kind1.split("(")[0] == kind2.split("(")[0]
+      ${data}$
+   #:elif kind2[0] == "r" or kind2.split("(")[0] == "REAL"
+      REAL(${data}$, KIND=dp)
+   #:else
+      #! This branch is required to prevent issues with the Intel compiler and OpenMP
+      #! Apparently, a direct assignment of a real to a complex number is not standardized
+      #! which is why we make the conversion explicit
+      CMPLX(${data}$, 0.0_dp, KIND=dp)
+   #:endif
+#:enddef
+
+#:set is_1D = lambda kind : kind[1]=="1"
+#:set is_3D = lambda kind : kind[1]=="3"

@@ -1,0 +1,47 @@
+&GLOBAL
+  PROJECT water
+  RUN_TYPE ENERGY_FORCE
+  &PRINT DEBUG
+  &END PRINT
+&END GLOBAL
+
+&FORCE_EVAL
+  METHOD FIST
+  &MM
+    &FORCEFIELD
+      &NONBONDED
+        &NEQUIP
+          ATOMS H O
+          PARM_FILE_NAME NequIP/water-deployed-neq060sp.pth
+          UNIT_COORDS angstrom
+          UNIT_ENERGY eV
+          UNIT_FORCES eV*angstrom^-1
+        &END NEQUIP
+      &END NONBONDED
+    &END FORCEFIELD
+    &POISSON
+      &EWALD
+        EWALD_TYPE none
+      &END EWALD
+    &END POISSON
+  &END MM
+  &PRINT
+    &FORCES
+    &END FORCES
+  &END PRINT
+  &SUBSYS
+    &CELL
+      ABC 9.85 9.85 9.85
+      #      MULTIPLE_UNIT_CELL 4 4 4
+    &END CELL
+    #     coordinates must be ordered by atomic number
+    &COORD
+      H     42.886169670000001   -0.055681660000000001      38.329161120000002
+      H     34.202588720000001              -0.6185484      37.365568080000003
+      O     43.209908720000001   -0.062845650000000003             47.25931559
+    &END COORD
+    &TOPOLOGY
+      #   MULTIPLE_UNIT_CELL 4 4 4
+    &END TOPOLOGY
+  &END SUBSYS
+&END FORCE_EVAL

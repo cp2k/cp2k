@@ -19,23 +19,28 @@
 !>      see thebibliography.F on how to add references easily
 !> \par History
 !>      08.2007 [Joost VandeVondele]
+!>      07.2024 [Ole Schuett]
 !> \author Joost VandeVondele
 ! **************************************************************************************************
 MODULE reference_manager
    USE kinds,                           ONLY: default_string_length
    USE message_passing,                 ONLY: mp_para_env_type
-   USE string_utilities,                ONLY: uppercase
+   USE string_utilities,                ONLY: integer_to_string,&
+                                              substitute_special_xml_tokens,&
+                                              uppercase
    USE util,                            ONLY: sort
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
 
-   PUBLIC ::  print_reference, print_all_references, cite_reference
-   PUBLIC ::  collect_citations_from_ranks
+   PUBLIC :: cite_reference
+   PUBLIC :: collect_citations_from_ranks
+   PUBLIC :: print_cited_references
+   PUBLIC :: export_references_as_xml
 
-   INTEGER, PUBLIC, PARAMETER :: print_format_isi = 101, &
-                                 print_format_journal = 102, &
-                                 print_format_html = 103
+   PUBLIC :: add_reference          ! use this one only in bibliography.F
+   PUBLIC :: remove_all_references  ! use only in f77_interface.F
+   PUBLIC :: get_citation_key       ! a string key describing the reference (e.g. Kohn1965b)
 
    PRIVATE
 
@@ -44,37 +49,29 @@ MODULE reference_manager
    ! maximum number of reference that can be added
    INTEGER, PARAMETER :: max_reference = 1024
 
-   ! storage of a reference
-   INTEGER, PARAMETER :: doi_length = 128
-   INTEGER, PARAMETER :: ISI_length = 128
-
-   ! the way we store a reference, should remain fully private
-! **************************************************************************************************
    TYPE reference_type
       PRIVATE
-      ! the reference in a format as returned by the web of science
-      CHARACTER(LEN=ISI_length), DIMENSION(:), POINTER :: ISI_record => NULL()
-      ! the doi only, i.e. without "https://doi.org/"
-      CHARACTER(LEN=doi_length)                        :: DOI = ""
+      CHARACTER(LEN=default_string_length), DIMENSION(:), ALLOCATABLE :: authors
+      CHARACTER(LEN=:), ALLOCATABLE                                   :: title
+      CHARACTER(LEN=:), ALLOCATABLE                                   :: source
+      CHARACTER(LEN=:), ALLOCATABLE                                   :: volume
+      CHARACTER(LEN=:), ALLOCATABLE                                   :: pages
+      INTEGER                                                         :: year = 0
+      CHARACTER(LEN=:), ALLOCATABLE                                   :: doi
       ! has this reference been cited in the program run
-      LOGICAL                                          :: is_cited = .FALSE.
+      LOGICAL                                                         :: is_cited = .FALSE.
       ! this is a citation key for output in the reference lists
-      CHARACTER(LEN=ISI_length)                        :: citation_key = ""
+      CHARACTER(LEN=default_string_length)                            :: citation_key = ""
    END TYPE reference_type
 
    ! useful to build arrays
-! **************************************************************************************************
    TYPE reference_p_type
       TYPE(reference_type), POINTER :: ref => NULL()
    END TYPE
 
-   ! thebibliography
+   ! the bibliography
    INTEGER, SAVE :: nbib = 0
    TYPE(reference_p_type), DIMENSION(max_reference) :: thebib
-
-   PUBLIC :: add_reference, & ! use this one only in bibliography.F
-             remove_all_references, & ! use only in f77_interface.F
-             get_citation_key         ! a string key describing the reference (e.g. Kohn1965b)
 
 CONTAINS
 
@@ -117,54 +114,66 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief add a reference to the bibliography
 !> \param key output, this handle is needed to cite this reference later
-!> \param ISI_record ...
-!> \param DOI ...
+!> \param authors ...
+!> \param title ...
+!> \param source ...
+!> \param volume ...
+!> \param pages ...
+!> \param year ...
+!> \param doi ...
 !> \par History
 !>      08.2007 created [Joost VandeVondele]
+!>      07.2024 complete rewrite [Ole Schuett]
 !> \note
 !>      - see bibliography.F for it use.
-!>      - the ISI record is space sensitive, in particular the first three characters need to be blank
-!>        or contain a key indicating the record type. See the header of this file for tools
-!>        that can convert e.g. bibtex or endnote files to the ISI format
-!>      - DOI: provide the DOI without a link. The link will be automatically created as needed.
 ! **************************************************************************************************
-   SUBROUTINE add_reference(key, ISI_record, DOI)
+   SUBROUTINE add_reference(key, authors, title, source, volume, pages, year, doi)
       INTEGER, INTENT(OUT)                               :: key
-      CHARACTER(LEN=*), DIMENSION(:), INTENT(IN)         :: ISI_record
-      CHARACTER(LEN=*), INTENT(IN)                       :: DOI
+      CHARACTER(LEN=*), DIMENSION(:), INTENT(IN)         :: authors
+      CHARACTER(LEN=*), INTENT(IN)                       :: title, source
+      CHARACTER(LEN=*), INTENT(IN), OPTIONAL             :: volume, pages
+      INTEGER, INTENT(IN)                                :: year
+      CHARACTER(LEN=*), INTENT(IN), OPTIONAL             :: doi
 
       CHARACTER                                          :: tmp
-      CHARACTER(LEN=ISI_length)                          :: author, citation_key, key_a, key_b, year
-      INTEGER                                            :: commaloc, i, ires, line, match, mylen, &
-                                                            nlines
+      CHARACTER(LEN=default_string_length)               :: author, citation_key, key_a, key_b
+      INTEGER                                            :: i, ires, match, mylen, periodloc
 
       IF (nbib + 1 > max_reference) CPABORT("increase max_reference")
       nbib = nbib + 1
       key = nbib
 
-      ! initialize reference to zero
       ALLOCATE (thebib(key)%ref)
-      NULLIFY (thebib(key)%ref%ISI_record)
-      thebib(key)%ref%DOI = ""
-      thebib(key)%ref%is_cited = .FALSE.
 
-      ! Assign DOI
-      thebib(key)%ref%DOI = DOI
+      ! Copy authors.
+      ALLOCATE (thebib(key)%ref%authors(SIZE(authors)))
+      DO i = 1, SIZE(authors)
+         CPASSERT(LEN_TRIM(authors(i)) <= default_string_length)
+         thebib(key)%ref%authors(i) = authors(i)
+      END DO
 
-      ! Assign ISI_record
-      nlines = SIZE(ISI_record, 1)
-      ALLOCATE (thebib(key)%ref%ISI_record(nlines))
-      thebib(key)%ref%ISI_record = ISI_record
+      ! Copy mandatory attributes.
+      thebib(key)%ref%title = TRIM(title)
+      thebib(key)%ref%source = TRIM(source)
+      thebib(key)%ref%year = year
+
+      ! Copy optional attributes.
+      IF (PRESENT(volume)) THEN
+         thebib(key)%ref%volume = TRIM(volume)
+      END IF
+      IF (PRESENT(pages)) THEN
+         thebib(key)%ref%pages = TRIM(pages)
+      END IF
+      IF (PRESENT(doi)) THEN
+         thebib(key)%ref%doi = TRIM(doi)
+      END IF
 
       ! construct a citation_key
-      line = 1
-      author = get_next_author(thebib(key)%ref%ISI_record, line)
-      commaloc = INDEX(author, ',')
-      IF (commaloc .GT. 0) author = author(1:commaloc - 1)
+      author = authors(1)
+      periodloc = INDEX(author, '.', back=.TRUE.)
+      IF (periodloc > 0) author = author(periodloc + 1:)
       CPASSERT(LEN_TRIM(author) > 0)
-      year = get_year(thebib(key)%ref%ISI_record)
-      CPASSERT(LEN_TRIM(year) == 4)
-      citation_key = TRIM(author)//TRIM(year)
+      WRITE (citation_key, '(A,I4)') TRIM(author), year
 
       ! avoid special characters in names, just remove them
       mylen = LEN_TRIM(citation_key)
@@ -205,141 +214,41 @@ CONTAINS
       INTEGER                                            :: i
 
       DO i = 1, nbib
-         IF (ASSOCIATED(thebib(i)%ref%ISI_record)) DEALLOCATE (thebib(i)%ref%ISI_record)
-         thebib(i)%ref%DOI = ""
-
          DEALLOCATE (thebib(i)%ref)
       END DO
    END SUBROUTINE remove_all_references
-!****f* reference_manager/print_all_references *
 
 ! **************************************************************************************************
-!> \brief printout of all references in a specific format
-!>      optionally printing only those that are actually cited
-!>      during program execution
-!> \param cited_only print only those marked as cited
-!> \param sorted sort entries most recent first according to the date,
-!>              otherways sort with respect to key
-!> \param FORMAT see module parameters print_format_XXXXXXXXX
+!> \brief printout of all cited references in the journal format sorted by publication year
 !> \param unit ...
-!> \param list optionally, output a sub-list only
 !> \par History
-!>      08.2007 Joost VandeVondele [ ]
+!>      08.2007 Joost VandeVondele
+!>      07.2024 Ole Schuett
 ! **************************************************************************************************
-   SUBROUTINE print_all_references(cited_only, sorted, FORMAT, unit, list)
-      LOGICAL, INTENT(IN)                                :: cited_only, sorted
-      INTEGER, INTENT(IN)                                :: FORMAT, unit
-      INTEGER, DIMENSION(:), INTENT(IN), OPTIONAL        :: list
+   SUBROUTINE print_cited_references(unit)
+      INTEGER, INTENT(IN)                                :: unit
 
-      INTEGER                                            :: I, irecord, nref
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: indx, irank, ival
+      INTEGER                                            :: i
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: irank, ival
 
-! we'll sort the references wrt to the publication year
-! the most recent first, publications without a year get last
+      ALLOCATE (ival(nbib), irank(nbib))
 
-      IF (PRESENT(list)) THEN
-         nref = SIZE(list)
-      ELSE
-         nref = nbib
-      END IF
-
-      ALLOCATE (ival(nref))
-      ALLOCATE (irank(nref))
-      ALLOCATE (indx(nref))
-
-      IF (PRESENT(list)) THEN
-         indx(:) = list
-      ELSE
-         DO I = 1, nref
-            indx(I) = I
-         END DO
-      END IF
-
-      DO I = 1, nref
-         irank(I) = I
+      ! we'll sort the references wrt to the publication year
+      ! the most recent first, publications without a year get last
+      DO i = 1, nbib
+         irank(i) = i
+         ival(i) = -thebib(i)%ref%year
       END DO
+      CALL sort(ival, nbib, irank)
 
-      IF (sorted) THEN
-         DO I = 1, nref
-            ival(I) = -get_epoch(thebib(indx(I))%ref%ISI_record)
-         END DO
-      ELSE
-         DO I = 1, nref
-            ival(I) = indx(I)
-         END DO
-      END IF
-      CALL sort(ival, nref, irank)
-
-      SELECT CASE (FORMAT)
-      CASE (print_format_isi)
-      CASE (print_format_journal)
-         WRITE (unit, '(A)') ""
-      CASE (print_format_html)
-         WRITE (unit, '(A)') '<TABLE border="1">'
-      CASE DEFAULT
-         CPABORT("print_reference: wrong format")
-      END SELECT
-
-      DO I = 1, nref
-         irecord = indx(irank(I))
-         IF (.NOT. cited_only .OR. thebib(irecord)%ref%is_cited) THEN
-            SELECT CASE (FORMAT)
-            CASE (print_format_isi)
-            CASE (print_format_journal)
-            CASE (print_format_html)
-               WRITE (unit, '(A)') "<TR><TD>"//'['//TRIM(thebib(irecord)%ref%citation_key)//']'//"</TD><TD>"
-            CASE DEFAULT
-               CPABORT("print_reference: wrong format")
-            END SELECT
-
-            CALL print_reference(irecord, FORMAT, unit)
-
-            SELECT CASE (FORMAT)
-            CASE (print_format_isi)
-            CASE (print_format_journal)
-               WRITE (unit, '(A)') ""
-            CASE (print_format_html)
-               WRITE (unit, '(A)') '</TD></TR>'
-            CASE DEFAULT
-               CPABORT("print_reference: wrong format")
-            END SELECT
+      DO i = 1, nbib
+         IF (thebib(irank(i))%ref%is_cited) THEN
+            CALL print_reference_journal(key=irank(i), unit=unit)
+            WRITE (unit, '(A)') ""
          END IF
       END DO
-      IF (FORMAT .EQ. print_format_html) THEN
-         WRITE (unit, '(A)') "</TABLE>"
-      END IF
 
-   END SUBROUTINE print_all_references
-!****f* reference_manager/print_reference *
-
-! **************************************************************************************************
-!> \brief printout of a specified reference to a given unit in a selectable format
-!> \param key as returned from add_reference
-!> \param FORMAT see module parameters print_format_XXXXXXXXX
-!> \param unit ...
-!> \par History
-!>      08.2007 Joost VandeVondele [ ]
-! **************************************************************************************************
-   SUBROUTINE print_reference(key, FORMAT, unit)
-      INTEGER, INTENT(IN)                                :: key, FORMAT, unit
-
-      INTEGER                                            :: I
-
-      IF (key < 1 .OR. key > max_reference) CPABORT("citation key out of range")
-
-      SELECT CASE (FORMAT)
-      CASE (print_format_isi)
-         DO I = 1, SIZE(thebib(key)%ref%ISI_record)
-            WRITE (unit, '(T2,A)') TRIM(thebib(key)%ref%ISI_record(I))
-         END DO
-      CASE (print_format_journal)
-         CALL print_reference_journal(key, unit)
-      CASE (print_format_html)
-         CALL print_reference_html(key, unit)
-      CASE DEFAULT
-         CPABORT("print_reference: wrong format")
-      END SELECT
-   END SUBROUTINE print_reference
+   END SUBROUTINE print_cited_references
 
 ! **************************************************************************************************
 !> \brief prints a reference in a journal style citation format,
@@ -352,377 +261,76 @@ CONTAINS
    SUBROUTINE print_reference_journal(key, unit)
       INTEGER, INTENT(IN)                                :: key, unit
 
-      CHARACTER(LEN=4*ISI_length)                        :: journal
-      CHARACTER(LEN=ISI_length)                          :: author, title
-      INTEGER                                            :: iauthor, ipos_line, ititle, line
+      CHARACTER(LEN=:), ALLOCATABLE                      :: text
+      CHARACTER(LEN=default_string_length)               :: year_str
+      INTEGER                                            :: iauthor
 
-! write the author list
-
-      WRITE (unit, '(T2,A)', ADVANCE="NO") ""
-      line = 1; iauthor = 0; ipos_line = 2
-      author = get_next_author(thebib(key)%ref%ISI_record, line)
-      DO WHILE (author .NE. "")
-         iauthor = iauthor + 1
-         IF (ipos_line + LEN_TRIM(author) > 71) THEN
-            WRITE (unit, '(A)') ";"
-            WRITE (unit, '(T2,A)', ADVANCE="NO") ""
-            ipos_line = 2
-         ELSE
-            IF (iauthor .NE. 1) WRITE (unit, '(A)', ADVANCE="NO") "; "
-            ipos_line = ipos_line + 2
-         END IF
-         WRITE (unit, '(A)', ADVANCE="NO") TRIM(author)
-         ipos_line = ipos_line + LEN_TRIM(author)
-         author = get_next_author(thebib(key)%ref%ISI_record, line)
+      ! Authors
+      text = thebib(key)%ref%authors(1)
+      DO iauthor = 2, SIZE(thebib(key)%ref%authors)
+         text = TRIM(text)//", "//thebib(key)%ref%authors(iauthor)
       END DO
-      IF (iauthor > 0) THEN
-         WRITE (unit, '(A)', ADVANCE="NO") ". "
-         ipos_line = ipos_line + 2
-      END IF
+      CALL write_long_text(TRIM(text)//".", unit)
 
-      ! Journal, volume (issue), pages (year).
-      journal = TRIM(get_source(thebib(key)%ref%ISI_record))
-      IF (get_volume(thebib(key)%ref%ISI_record) .NE. "") THEN
-         journal = TRIM(journal)//", "//get_volume(thebib(key)%ref%ISI_record)
-         IF (get_issue(thebib(key)%ref%ISI_record) .NE. "") THEN
-            journal = TRIM(journal)//" ("//TRIM(get_issue(thebib(key)%ref%ISI_record))//")"
-         END IF
+      ! Journal, volume, pages (year).
+      text = thebib(key)%ref%source
+      IF (ALLOCATED(thebib(key)%ref%volume)) THEN
+         text = text//" "//thebib(key)%ref%volume
       END IF
-      journal = TRIM(journal)//", "//get_pages(thebib(key)%ref%ISI_record)
-      IF (get_year(thebib(key)%ref%ISI_record) .NE. "") THEN
-         journal = TRIM(journal)//" ("//TRIM(get_year(thebib(key)%ref%ISI_record))//")."
+      IF (ALLOCATED(thebib(key)%ref%pages)) THEN
+         text = TRIM(text)//", "//thebib(key)%ref%pages
       END IF
-      IF (ipos_line + LEN_TRIM(journal) > 71) THEN
-         WRITE (unit, '(A)') ""
-         WRITE (unit, '(T2,A)', ADVANCE="NO") ""
-         ipos_line = 2
+      IF (thebib(key)%ref%year > 0) THEN
+         CALL integer_to_string(thebib(key)%ref%year, year_str)
+         text = TRIM(text)//" ("//TRIM(year_str)//")"
       END IF
-      IF (ipos_line + LEN_TRIM(journal) > 71) THEN
-         WRITE (unit, '(A)') TRIM(journal(1:69))
-         WRITE (unit, '(A)', ADVANCE="NO") TRIM(journal(69:))
-      ELSE
-         WRITE (unit, '(A)', ADVANCE="NO") TRIM(journal)
-      END IF
+      CALL write_long_text(TRIM(text)//".", unit)
 
-      WRITE (unit, '(T2,A)') ""
       ! Title
-      line = 1; ititle = 0
-      title = get_next_title(thebib(key)%ref%ISI_record, line)
-      DO WHILE (title .NE. "")
-         ititle = ititle + 1
-         IF (ititle .NE. 1) WRITE (unit, '(A)') ""
-         WRITE (unit, '(T2,A)', ADVANCE="NO") TRIM(title)
-         title = get_next_title(thebib(key)%ref%ISI_record, line)
-      END DO
-      IF (ititle > 0) WRITE (unit, '(A)') "."
+      CALL write_long_text(thebib(key)%ref%title//".", unit)
 
       ! DOI
-      IF (thebib(key)%ref%DOI .NE. "") THEN
-         WRITE (unit, '(T2,A)') "https://doi.org/"//TRIM(thebib(key)%ref%DOI)
+      IF (ALLOCATED(thebib(key)%ref%doi)) THEN
+         WRITE (unit, '(T2,A)') "https://doi.org/"//TRIM(thebib(key)%ref%doi)
       END IF
 
    END SUBROUTINE print_reference_journal
 
 ! **************************************************************************************************
-!> \brief prints a reference in a journal style citation format,
-!>      adding 'beautifying' html tags, and a link to the journal
-!>      using the DOI
-!> \param key ...
+!> \brief Exports all references as XML.
 !> \param unit ...
-!> \par History
-!>      08.2007 created [Joost VandeVondele]
+!> \author Ole Schuett
 ! **************************************************************************************************
-   SUBROUTINE print_reference_html(key, unit)
-      INTEGER, INTENT(IN)                                :: key, unit
+   SUBROUTINE export_references_as_xml(unit)
+      INTEGER, INTENT(IN)                                :: unit
 
-      CHARACTER(LEN=ISI_length)                          :: author, title
-      CHARACTER(LEN=ISI_length*4)                        :: journal
-      INTEGER                                            :: iauthor, ititle, line
+      INTEGER                                            :: i, j
 
-! write the author list
+      DO i = 1, nbib
+         WRITE (unit, '(T2,A)') '<REFERENCE key="'//TRIM(thebib(i)%ref%citation_key)//'">'
 
-      WRITE (unit, '(T2,A,I0,A)', ADVANCE="NO") '<A NAME="reference_', key, '">'
-      line = 1; iauthor = 0
-      author = get_next_author(thebib(key)%ref%ISI_record, line)
-      DO WHILE (author .NE. "")
-         iauthor = iauthor + 1
-         IF (iauthor .NE. 1) WRITE (unit, '(A)', ADVANCE="NO") "; "
-         WRITE (unit, '(A)', ADVANCE="NO") TRIM(author)
-         author = get_next_author(thebib(key)%ref%ISI_record, line)
+         ! Authors
+         DO j = 1, SIZE(thebib(i)%ref%authors)
+            WRITE (unit, '(T3,A)') '<AUTHOR>'//TRIM(thebib(i)%ref%authors(j))//'</AUTHOR>'
+         END DO
+
+         ! Title and source.
+         WRITE (unit, '(T3,A)') '<TITLE>'//thebib(i)%ref%title//'</TITLE>'
+         WRITE (unit, '(T3,A)') '<SOURCE>'//thebib(i)%ref%source//'</SOURCE>'
+
+         ! DOI, volume, pages, year, month.
+         IF (ALLOCATED(thebib(i)%ref%doi)) &
+            WRITE (unit, '(T3,A)') '<DOI>'//TRIM(substitute_special_xml_tokens(thebib(i)%ref%doi))//'</DOI>'
+         IF (ALLOCATED(thebib(i)%ref%volume)) &
+            WRITE (unit, '(T3,A)') '<VOLUME>'//thebib(i)%ref%volume//'</VOLUME>'
+         IF (ALLOCATED(thebib(i)%ref%pages)) &
+            WRITE (unit, '(T3,A)') '<PAGES>'//thebib(i)%ref%pages//'</PAGES>'
+         IF (thebib(i)%ref%year > 0) &
+            WRITE (unit, '(T3,A,I4.4,A)') '<YEAR>', thebib(i)%ref%year, '</YEAR>'
+         WRITE (unit, '(T2,A)') '</REFERENCE>'
       END DO
-      IF (iauthor > 0) WRITE (unit, '(A)') ".<br>"
 
-      ! DOI
-      IF (thebib(key)%ref%DOI .NE. "") THEN
-         WRITE (unit, '(T2,A)', ADVANCE="NO") '<A HREF="https://doi.org/'//TRIM(thebib(key)%ref%DOI)//'">'
-      END IF
-      ! Journal, volume (issue), pages (year).
-      journal = TRIM(get_source(thebib(key)%ref%ISI_record))
-      IF (get_volume(thebib(key)%ref%ISI_record) .NE. "") THEN
-         journal = TRIM(journal)//", "//get_volume(thebib(key)%ref%ISI_record)
-         IF (get_issue(thebib(key)%ref%ISI_record) .NE. "") THEN
-            journal = TRIM(journal)//" ("//TRIM(get_issue(thebib(key)%ref%ISI_record))//")"
-         END IF
-      END IF
-      journal = TRIM(journal)//", "//get_pages(thebib(key)%ref%ISI_record)
-      IF (get_year(thebib(key)%ref%ISI_record) .NE. "") THEN
-         journal = TRIM(journal)//" ("//TRIM(get_year(thebib(key)%ref%ISI_record))//")."
-      END IF
-      WRITE (unit, '(A)', ADVANCE="NO") TRIM(journal)
-      IF (thebib(key)%ref%DOI .NE. "") THEN
-         WRITE (unit, '(A)', ADVANCE="NO") '</A>'
-      END IF
-      WRITE (unit, '(A)') "</A><br>"
-
-      ! Title
-      line = 1; ititle = 0
-      title = get_next_title(thebib(key)%ref%ISI_record, line)
-      DO WHILE (title .NE. "")
-         ititle = ititle + 1
-         IF (ititle .NE. 1) WRITE (unit, '(A)') ""
-         WRITE (unit, '(T2,A)', ADVANCE="NO") TRIM(title)
-         title = get_next_title(thebib(key)%ref%ISI_record, line)
-      END DO
-      IF (ititle > 0) WRITE (unit, '(A)') "."
-
-   END SUBROUTINE print_reference_html
-
-! **************************************************************************************************
-!> \brief returns the corresponding fields from an ISI record.
-!>       returns an empty string if the field can not be found
-!>       iline_start should be initialized to 1 to obtain the first matching entry
-!>       on return it is updated, so that successive calls give successive fields
-!> \param ISI_record ...
-!> \param iline_start ...
-!> \return ...
-!> \par History
-!>      08.2007 created [Joost VandeVondele]
-! **************************************************************************************************
-   FUNCTION get_next_author(ISI_record, iline_start) RESULT(res)
-      CHARACTER(LEN=ISI_length), DIMENSION(:), &
-         INTENT(IN)                                      :: ISI_record
-      INTEGER, INTENT(INOUT)                             :: iline_start
-      CHARACTER(LEN=ISI_length)                          :: res
-
-      INTEGER                                            :: I, N
-      LOGICAL                                            :: in_au_section
-
-      res = ""
-      in_au_section = .FALSE.
-      N = SIZE(ISI_record, 1)
-      IF (iline_start > N) RETURN
-      line_loop: DO I = 1, N
-         IF (ISI_record(I) (1:3) == "AU ") in_au_section = .TRUE.
-         IF (in_au_section .AND. (ISI_record(I) (1:3) /= "AU " .AND. ISI_record(I) (1:3) /= "   ")) in_au_section = .FALSE.
-         IF (in_au_section) THEN
-            IF (I >= iline_start) THEN
-               iline_start = I + 1
-               res = ISI_record(I) (4:)
-               EXIT line_loop
-            END IF
-         END IF
-      END DO line_loop
-
-      ! We might want to fixup the initials, adding a dot after each of them
-
-   END FUNCTION get_next_author
-
-! **************************************************************************************************
-!> \brief ...
-!> \param ISI_record ...
-!> \param iline_start ...
-!> \return ...
-! **************************************************************************************************
-   FUNCTION get_next_title(ISI_record, iline_start) RESULT(res)
-      CHARACTER(LEN=ISI_length), DIMENSION(:), &
-         INTENT(IN)                                      :: ISI_record
-      INTEGER, INTENT(INOUT)                             :: iline_start
-      CHARACTER(LEN=ISI_length)                          :: res
-
-      INTEGER                                            :: I, N
-      LOGICAL                                            :: in_ti_section
-
-      res = ""
-
-      in_ti_section = .FALSE.
-      N = SIZE(ISI_record, 1)
-      IF (iline_start > N) RETURN
-      line_loop: DO I = 1, N
-         IF (ISI_record(I) (1:3) == "TI ") in_ti_section = .TRUE.
-         IF (in_ti_section .AND. (ISI_record(I) (1:3) /= "TI " .AND. ISI_record(I) (1:3) /= "   ")) in_ti_section = .FALSE.
-         IF (in_ti_section) THEN
-            IF (I >= iline_start) THEN
-               iline_start = I + 1
-               res = ISI_record(I) (4:)
-               EXIT line_loop
-            END IF
-         END IF
-      END DO line_loop
-
-   END FUNCTION get_next_title
-
-! **************************************************************************************************
-!> \brief ...
-!> \param ISI_record ...
-!> \return ...
-! **************************************************************************************************
-   PURE FUNCTION get_source(ISI_record) RESULT(res)
-      CHARACTER(LEN=ISI_length), DIMENSION(:), &
-         INTENT(IN)                                      :: ISI_record
-      CHARACTER(LEN=4*ISI_length)                        :: res
-
-      INTEGER                                            :: I, J, N
-
-      N = SIZE(ISI_record, 1)
-      res = ""
-      DO I = 1, N
-         IF (ISI_record(I) (1:3) == "SO ") THEN
-            res = ISI_record(I) (4:)
-            DO J = I + 1, N
-               IF (ISI_record(J) (1:3) == "   ") THEN
-                  res = TRIM(res)//" "//ISI_record(J) (4:)
-               ELSE
-                  EXIT
-               END IF
-            END DO
-            EXIT
-         END IF
-      END DO
-   END FUNCTION get_source
-
-! **************************************************************************************************
-!> \brief ...
-!> \param ISI_record ...
-!> \return ...
-! **************************************************************************************************
-   PURE FUNCTION get_year(ISI_record) RESULT(res)
-      CHARACTER(LEN=ISI_length), DIMENSION(:), &
-         INTENT(IN)                                      :: ISI_record
-      CHARACTER(LEN=ISI_length)                          :: res
-
-      INTEGER                                            :: I, N
-
-      N = SIZE(ISI_record, 1)
-      res = ""
-      DO I = 1, N
-         IF (ISI_record(I) (1:3) == "PY ") res = ISI_record(I) (4:)
-      END DO
-   END FUNCTION get_year
-
-! **************************************************************************************************
-!> \brief ...
-!> \param ISI_record ...
-!> \return ...
-! **************************************************************************************************
-   PURE FUNCTION get_month(ISI_record) RESULT(res)
-      CHARACTER(LEN=ISI_length), DIMENSION(:), &
-         INTENT(IN)                                      :: ISI_record
-      CHARACTER(LEN=ISI_length)                          :: res
-
-      INTEGER                                            :: I, N
-
-      N = SIZE(ISI_record, 1)
-      res = ""
-      DO I = 1, N
-         IF (ISI_record(I) (1:3) == "PD ") res = ISI_record(I) (4:6)
-      END DO
-   END FUNCTION get_month
-
-! **************************************************************************************************
-!> \brief ...
-!> \param ISI_record ...
-!> \return ...
-! **************************************************************************************************
-   PURE FUNCTION get_day(ISI_record) RESULT(res)
-      CHARACTER(LEN=ISI_length), DIMENSION(:), &
-         INTENT(IN)                                      :: ISI_record
-      CHARACTER(LEN=ISI_length)                          :: res
-
-      INTEGER                                            :: D, I, N
-
-      N = SIZE(ISI_record, 1)
-      res = ""
-      DO I = 1, N
-         IF (ISI_record(I) (1:3) == "PD ") res = ISI_record(I) (7:)
-      END DO
-      ! PD can be e.g. OCT-NOV or OCT or OCT 27
-      ! if res can't be read as an integer, it is not a day, and we bail out
-      READ (res, *, ERR=998, END=998) D
-      ! if the day is not in the expected range, we assume it is a parse error
-      IF (D < 0 .OR. D > 31) res = ""
-      RETURN
-998   CONTINUE
-      res = ""
-   END FUNCTION get_day
-
-! **************************************************************************************************
-!> \brief ...
-!> \param ISI_record ...
-!> \return ...
-! **************************************************************************************************
-   PURE FUNCTION get_volume(ISI_record) RESULT(res)
-      CHARACTER(LEN=ISI_length), DIMENSION(:), &
-         INTENT(IN)                                      :: ISI_record
-      CHARACTER(LEN=ISI_length)                          :: res
-
-      INTEGER                                            :: I, N
-
-      N = SIZE(ISI_record, 1)
-      res = ""
-      DO I = 1, N
-         IF (ISI_record(I) (1:3) == "VL ") res = ISI_record(I) (4:)
-      END DO
-   END FUNCTION get_volume
-
-! **************************************************************************************************
-!> \brief ...
-!> \param ISI_record ...
-!> \return ...
-! **************************************************************************************************
-   PURE FUNCTION get_issue(ISI_record) RESULT(res)
-      CHARACTER(LEN=ISI_length), DIMENSION(:), &
-         INTENT(IN)                                      :: ISI_record
-      CHARACTER(LEN=ISI_length)                          :: res
-
-      INTEGER                                            :: I, N
-
-      N = SIZE(ISI_record, 1)
-      res = ""
-      DO I = 1, N
-         IF (ISI_record(I) (1:3) == "IS ") res = ISI_record(I) (4:)
-      END DO
-   END FUNCTION get_issue
-
-! **************************************************************************************************
-!> \brief ...
-!> \param ISI_record ...
-!> \return ...
-! **************************************************************************************************
-   PURE FUNCTION get_pages(ISI_record) RESULT(res)
-      CHARACTER(LEN=ISI_length), DIMENSION(:), &
-         INTENT(IN)                                      :: ISI_record
-      CHARACTER(LEN=ISI_length)                          :: res
-
-      CHARACTER(LEN=ISI_length)                          :: ar, bp, ep
-      INTEGER                                            :: I, N
-
-      N = SIZE(ISI_record, 1)
-      res = ""
-      bp = ""
-      ep = ""
-      ar = ""
-
-      DO I = 1, N
-         IF (ISI_record(I) (1:3) == "BP ") bp = ISI_record(I) (4:)
-         IF (ISI_record(I) (1:3) == "EP ") ep = ISI_record(I) (4:)
-         IF (ISI_record(I) (1:3) == "AR ") ar = ISI_record(I) (4:)
-      END DO
-      IF (bp .NE. "") THEN
-         res = bp
-         IF (ep .NE. "") res = TRIM(res)//"-"//ep
-      END IF
-      IF (res .EQ. "" .AND. ar .NE. "") res = ar
-   END FUNCTION get_pages
+   END SUBROUTINE export_references_as_xml
 
 ! **************************************************************************************************
 !> \brief ...
@@ -736,67 +344,53 @@ CONTAINS
       res = thebib(key)%ref%citation_key
    END FUNCTION get_citation_key
 
-!
-! This returns something epoch like, but can only be used to order the records
-! missing years, months, days are implied zero(1900)
-!
 ! **************************************************************************************************
-!> \brief ...
-!> \param ISI_record ...
+!> \brief Helper routine for print_reference_journal()
+!> \param text ...
+!> \param unit ...
 !> \return ...
+!> \author Ole Schuett
 ! **************************************************************************************************
-   PURE FUNCTION get_epoch(ISI_record) RESULT(res)
-      CHARACTER(LEN=ISI_length), DIMENSION(:), &
-         INTENT(IN)                                      :: ISI_record
-      INTEGER                                            :: res
+   SUBROUTINE write_long_text(text, unit)
+      CHARACTER(LEN=*), INTENT(IN)                       :: text
+      INTEGER, INTENT(IN)                                :: unit
 
-      CHARACTER(LEN=ISI_length)                          :: tmp
-      INTEGER                                            :: day, istat, month, year
+      INTEGER                                            :: a, b
 
-! read year
+      a = 1; b = -1
+      DO WHILE (b < LEN(text))
+         b = next_linebreak(text, pos=a, rowlen=78)
+         WRITE (unit, '(T2,A)') text(a:b)
+         a = b + 1
+      END DO
+   END SUBROUTINE write_long_text
 
-      tmp = get_year(ISI_record)
-      READ (tmp, *, IOSTAT=istat) year
-      IF (istat .NE. 0) year = 1900
+! **************************************************************************************************
+!> \brief Helper routine for write_long_text()
+!> \param text ...
+!> \param pos ...
+!> \param rowlen ...
+!> \return ...
+!> \author Ole Schuett
+! **************************************************************************************************
+   FUNCTION next_linebreak(text, pos, rowlen) RESULT(ibreak)
+      CHARACTER(LEN=*), INTENT(IN)                       :: text
+      INTEGER, INTENT(IN)                                :: pos, rowlen
+      INTEGER                                            :: ibreak
 
-      ! read day
-      tmp = get_day(ISI_record)
-      READ (tmp, *, IOSTAT=istat) day
-      IF (istat .NE. 0) day = 0
+      INTEGER                                            :: i, n
 
-      ! read month
-      tmp = get_month(ISI_record)
-      SELECT CASE (tmp)
-      CASE ("JAN")
-         month = 1
-      CASE ("FEB")
-         month = 2
-      CASE ("MAR")
-         month = 3
-      CASE ("APR")
-         month = 4
-      CASE ("MAY")
-         month = 5
-      CASE ("JUN")
-         month = 6
-      CASE ("JUL")
-         month = 7
-      CASE ("AUG")
-         month = 8
-      CASE ("SEP")
-         month = 9
-      CASE ("OCT")
-         month = 10
-      CASE ("NOV")
-         month = 11
-      CASE ("DEC")
-         month = 12
-      CASE DEFAULT
-         month = 0
-      END SELECT
-
-      res = day + 31*month + 12*31*(year - 1900)
-
-   END FUNCTION get_epoch
+      n = LEN_TRIM(text)
+      IF (n - pos <= rowlen) THEN
+         ibreak = n ! remaining text shorter than line
+      ELSE
+         i = INDEX(text(pos + 1:pos + 1 + rowlen), " ", BACK=.TRUE.)
+         IF (i == 0) THEN
+            ibreak = pos + rowlen - 1 ! no space found, break mid-word
+         ELSE
+            ibreak = pos + i ! break at space closest to rowlen
+         END IF
+      END IF
+   END FUNCTION next_linebreak
 
 END MODULE reference_manager

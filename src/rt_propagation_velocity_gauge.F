@@ -21,10 +21,7 @@ MODULE rt_propagation_velocity_gauge
                                               pbc
    USE core_ppnl,                       ONLY: build_core_ppnl
    USE cp_control_types,                ONLY: dft_control_type
-   USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
-   USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set,&
-                                              dbcsr_deallocate_matrix_set
-   USE dbcsr_api,                       ONLY: dbcsr_add,&
+   USE cp_dbcsr_api,                    ONLY: dbcsr_add,&
                                               dbcsr_create,&
                                               dbcsr_get_block_p,&
                                               dbcsr_init_p,&
@@ -32,6 +29,9 @@ MODULE rt_propagation_velocity_gauge
                                               dbcsr_set,&
                                               dbcsr_type_antisymmetric,&
                                               dbcsr_type_symmetric
+   USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
+   USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set,&
+                                              dbcsr_deallocate_matrix_set
    USE efield_utils,                    ONLY: make_field
    USE external_potential_types,        ONLY: gth_potential_p_type,&
                                               gth_potential_type,&
@@ -267,6 +267,7 @@ CONTAINS
       REAL(kind=dp)                                      :: field(3)
 
       CALL make_field(dft_control, field, qs_env%sim_step, qs_env%sim_time)
+      dft_control%rtp_control%field = field
       dft_control%rtp_control%vec_pot = dft_control%rtp_control%vec_pot - field*qs_env%rtp%dt
       ! Update the vec_pot_initial value for RTP restart:
       dft_control%efield_fields(1)%efield%vec_pot_initial = dft_control%rtp_control%vec_pot

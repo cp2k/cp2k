@@ -19,19 +19,19 @@ N2_t07.inp                                            31      1e-05             
 # BR89 - LDA AO solver
 N2_t08.inp                                            31      1e-05                 -5.02524932385E+02
 # HFX - PBE MO solver
-N2_t09.inp                                            31      1e-05                  6.87213341923E+01
+N2_t09.inp                                            31      1e-05                  6.87212873998E+01
 # HFX - PBE AO solver
-N2_t10.inp                                            31      1e-05                  6.90331816280E+01
+N2_t10.inp                                            31      1e-05                  6.90331362007E+01
 # PBE0 - PADE MO solver
-N2_t11.inp                                            31      1e-05                 -4.60746606987E+02
+N2_t11.inp                                            31      1e-05                 -4.60746548827E+02
 # PBE0 - PADE AO solver
-N2_t12.inp                                            31      1e-05                 -4.60764171148E+02
+N2_t12.inp                                            31      1e-05                 -4.60764113421E+02
 # HFX-ADMM-NONE - PBE MO solver
-N2_t13.inp                                            31      1e-05                 -4.97852690104E+02
+N2_t13.inp                                            31      1e-05                 -4.97853794203E+02
 # HFX-ADMM-NONE - PBE AO solver
-N2_t14.inp                                            31      1e-05                 -4.97852717316E+02
+N2_t14.inp                                            31      1e-05                 -4.97853821220E+02
 # HFX-ADMM-DEFAULT - PBE MO solver
-N2_t15.inp                                            31      1e-05                 -4.98121970425E+02
+N2_t15.inp                                            31      1e-05                 -4.98120398473E+02
 # HFX-ADMM-DEFAULT - PBE AO solver
-N2_t16.inp                                            31      1e-05                 -4.98121969330E+02
+N2_t16.inp                                            31      1e-05                 -4.98120397529E+02
 #EOF

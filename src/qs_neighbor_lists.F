@@ -102,12 +102,12 @@ MODULE qs_neighbor_lists
 
 ! **************************************************************************************************
    TYPE local_atoms_type
-      INTEGER, DIMENSION(:), POINTER                   :: list, &
-                                                          list_local_a_index, &
-                                                          list_local_b_index, &
-                                                          list_1d, &
-                                                          list_a_mol, &
-                                                          list_b_mol
+      INTEGER, DIMENSION(:), POINTER                   :: list => NULL(), &
+                                                          list_local_a_index => NULL(), &
+                                                          list_local_b_index => NULL(), &
+                                                          list_1d => NULL(), &
+                                                          list_a_mol => NULL(), &
+                                                          list_b_mol => NULL()
    END TYPE local_atoms_type
 ! **************************************************************************************************
 

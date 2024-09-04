@@ -44,7 +44,11 @@ if [ "${with_intel}" != "__DONTUSE__" ]; then
   OPT_FLAGS="-O2 -funroll-loops"
   LDFLAGS_C="-nofor-main"
 else
-  BASEFLAGS="-fno-omit-frame-pointer -fopenmp -g -mtune=${TARGET_CPU} IF_ASAN(-fsanitize=address|)"
+  if [ "${TARGET_CPU}" = "generic" ]; then
+    BASEFLAGS="-fno-omit-frame-pointer -fopenmp -g -mtune=${TARGET_CPU} IF_ASAN(-fsanitize=address|)"
+  else
+    BASEFLAGS="-fno-omit-frame-pointer -fopenmp -g -march=${TARGET_CPU} -mtune=${TARGET_CPU} IF_ASAN(-fsanitize=address|)"
+  fi
   OPT_FLAGS="-O3 -funroll-loops"
   LDFLAGS_C=""
 fi
@@ -74,7 +78,7 @@ WFLAGS_ERROR="-Werror=aliasing -Werror=ampersand -Werror=c-binding-type -Werror=
 # we just warn for those (that eventually might be promoted to WFLAGSERROR). It is useless to put something here with 100s of warnings.
 WFLAGS_WARN="-Wuninitialized -Wuse-without-only"
 # while here we collect all other warnings, some we'll ignore
-# TODO: -Wpedantic with -std2008 requires an upgrade of the MPI interfaces from mpi to mpi_f08
+# TODO: -Wpedantic with -std2008 requires us to drop the old MPI-90 interface entirely and SIRIUS (-Wuninitialized) and DBCSR (default initializers) to initialize their types
 WFLAGS_WARNALL="-Wno-pedantic -Wall -Wextra -Wsurprising -Warray-temporaries -Wcharacter-truncation -Wconversion-extra -Wimplicit-interface -Wimplicit-procedure -Wreal-q-constant -Walign-commons -Wfunction-elimination -Wrealloc-lhs -Wcompare-reals -Wzerotrip"
 
 # IEEE_EXCEPTIONS dependency
@@ -127,13 +131,18 @@ fi
 if [ "${with_intel}" == "__DONTUSE__" ]; then
   CFLAGS="$G_CFLAGS -std=c11 -Wall -Wextra -Werror -Wno-vla-parameter -Wno-deprecated-declarations \$(DFLAGS)"
 else
-  CC_arch+=" IF_MPI(-cc=${I_MPI_CC}|)"
-  CXX_arch+=" IF_MPI(-cxx=${I_MPI_CXX}|)"
-  FC_arch+=" IF_MPI(-fc=${I_MPI_FC}|)"
-  LD_arch+=" IF_MPI(-fc=${I_MPI_FC}|)"
+  if [ "${with_ifx}" == "no" ]; then
+    CC_arch+=" IF_MPI(-cc=${I_MPI_CC}|)"
+    CXX_arch+=" IF_MPI(-cxx=${I_MPI_CXX}|)"
+    FC_arch+=" IF_MPI(-fc=${I_MPI_FC}|)"
+    LD_arch+=" IF_MPI(-fc=${I_MPI_FC}|)"
+  fi
   CFLAGS="${G_CFLAGS} -std=c11 -Wall \$(DFLAGS)"
   CXXFLAGS="${G_CFLAGS} -std=c++14 -Wall \$(DFLAGS)"
   FCFLAGS="${FCFLAGS} -diag-disable=8291 -diag-disable=8293 -fpp -fpscomp logicals -free"
+  # Suppress warnings and add include path to omp_lib.mod explicitly.
+  # No clue why the Intel oneAPI setup script does not include that path (bug?)
+  FCFLAGS="${FCFLAGS} -diag-disable=10448 -I/opt/intel/oneapi/2024.1/opt/compiler/include/intel64"
 fi
 
 # Linker flags
@@ -153,7 +162,7 @@ else
 fi
 # CUDA handling
 if [ "${ENABLE_CUDA}" = __TRUE__ ] && [ "${GPUVER}" != no ]; then
-  CUDA_LIBS="-lcudart -lnvrtc -lcuda -lcufft -lcublas -lrt IF_DEBUG(-lnvToolsExt|)"
+  CUDA_LIBS="-lcudart -lnvrtc -lcuda -lcufft -lcublasLt -lcublas -lrt IF_DEBUG(-lnvToolsExt|)"
   CUDA_DFLAGS="-D__OFFLOAD_CUDA -D__DBCSR_ACC IF_DEBUG(-D__OFFLOAD_PROFILING|)"
   if [ "${with_cusolvermp}" != "__DONTUSE__" ]; then
     CUDA_LIBS+=" -lcusolverMp -lcusolver -lcal -lnvidia-ml"
@@ -167,6 +176,7 @@ if [ "${ENABLE_CUDA}" = __TRUE__ ] && [ "${GPUVER}" != no ]; then
   check_lib -lnvrtc "cuda"
   check_lib -lcuda "cuda"
   check_lib -lcufft "cuda"
+  check_lib -lcublasLt "cuda"
   check_lib -lcublas "cuda"
 
   # Set include flags

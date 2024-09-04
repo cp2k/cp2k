@@ -12,8 +12,7 @@
 MODULE pao_main
    USE bibliography,                    ONLY: Schuett2018,&
                                               cite_reference
-   USE cp_external_control,             ONLY: external_control
-   USE dbcsr_api,                       ONLY: dbcsr_add,&
+   USE cp_dbcsr_api,                    ONLY: dbcsr_add,&
                                               dbcsr_copy,&
                                               dbcsr_create,&
                                               dbcsr_p_type,&
@@ -21,6 +20,7 @@ MODULE pao_main
                                               dbcsr_reserve_diag_blocks,&
                                               dbcsr_set,&
                                               dbcsr_type
+   USE cp_external_control,             ONLY: external_control
    USE dm_ls_scf_types,                 ONLY: ls_mstruct_type,&
                                               ls_scf_env_type
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
@@ -286,7 +286,7 @@ CONTAINS
          ! perform line-search step
          CALL linesearch_step(pao%linesearch, energy=energy, slope=pao%norm_G**2)
 
-         IF (pao%linesearch%step_size < 1e-10_dp) CPABORT("PAO gradient is wrong.")
+         IF (pao%linesearch%step_size < 1e-9_dp) CPABORT("PAO gradient is wrong.")
 
          CALL dbcsr_copy(pao%matrix_X, pao%matrix_X_orig) !restore X
          CALL dbcsr_add(pao%matrix_X, pao%matrix_D, 1.0_dp, pao%linesearch%step_size)

@@ -7,6 +7,9 @@
 /regtesting/
 /install/
 
+# ignore former git submodules
+/tools/prettify/fprettify
+
 # ignore local arch files not meant to be shared
 /arch/local*
 
@@ -92,16 +95,10 @@ dkms.conf
 # Executables
 
 ### CMake ###
-CMakeLists.txt.user
-CMakeCache.txt
-CMakeFiles
-CMakeScripts
-Testing
-cmake_install.cmake
-install_manifest.txt
-compile_commands.json
-CTestTestfile.cmake
-_deps
+build*/
+
+# Spack
+build-*
 
 ### CMake Patch ###
 # External projects
@@ -255,6 +252,9 @@ docs/_build/
 docs/CP2K_INPUT/
 docs/CP2K_INPUT.md
 docs/bibliography.md
+docs/cp2k_input.xml
+docs/references.html
+docs/units.html
 
 # PyBuilder
 .pybuilder/
@@ -368,3 +368,5 @@ tags
 [._]*.un~
 
 # End of https://www.gitignore.io/api/python,fortran,c,c++,cuda,emacs,vim,cmake
+
+!tools/fedora/cp2k.spec

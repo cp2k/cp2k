@@ -31,7 +31,8 @@ MODULE negf_integr_cc
    USE kahan_sum,                       ONLY: accurate_sum
    USE kinds,                           ONLY: dp,&
                                               int_8
-   USE mathconstants,                   ONLY: z_one
+   USE mathconstants,                   ONLY: z_one,&
+                                              z_zero
    USE negf_integr_utils,               ONLY: contour_shape_arc,&
                                               contour_shape_linear,&
                                               equidistant_nodes_a_b,&
@@ -64,23 +65,23 @@ MODULE negf_integr_cc
 ! **************************************************************************************************
    TYPE ccquad_type
       !> integration lower and upper bounds
-      COMPLEX(kind=dp)                                   :: a, b
+      COMPLEX(kind=dp)                                   :: a = z_zero, b = z_zero
       !> integration interval:
       !>   cc_interval_full -- [a .. b],
       !>       grid density: 'a' .. .  .   .   .  . .. 'b';
       !>   cc_interval_half -- [a .. 2b-a], assuming int_{b}^{2b-a} f(x) dx = 0,
       !>       grid density: 'a' .. .  .   . 'b'
-      INTEGER                                            :: interval_id
+      INTEGER                                            :: interval_id = -1
       !> integration shape
-      INTEGER                                            :: shape_id
+      INTEGER                                            :: shape_id = -1
       !> estimated error
-      REAL(kind=dp)                                      :: error
+      REAL(kind=dp)                                      :: error = -1.0_dp
       !> approximate integral value
-      TYPE(cp_cfm_type), POINTER                         :: integral
+      TYPE(cp_cfm_type), POINTER                         :: integral => NULL()
       !> error estimate for every element of the 'integral' matrix
-      TYPE(cp_fm_type), POINTER                          :: error_fm
+      TYPE(cp_fm_type), POINTER                          :: error_fm => NULL()
       !> weights associated with matrix elements; the 'error' variable contains the value Trace(error_fm * weights)
-      TYPE(cp_fm_type), POINTER                          :: weights
+      TYPE(cp_fm_type), POINTER                          :: weights => NULL()
       !> integrand value at grid points. Due to symmetry of Clenshaw-Curtis quadratures,
       !> we only need to keep the left half-interval
       TYPE(cp_cfm_type), ALLOCATABLE, DIMENSION(:)     :: zdata_cache

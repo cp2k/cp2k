@@ -30,6 +30,7 @@ MODULE qs_localization_methods
         cp_cfm_create, cp_cfm_get_element, cp_cfm_get_info, cp_cfm_get_submatrix, cp_cfm_release, &
         cp_cfm_set_all, cp_cfm_set_submatrix, cp_cfm_to_cfm, cp_cfm_to_fm, cp_cfm_type, &
         cp_fm_to_cfm
+   USE cp_dbcsr_api,                    ONLY: dbcsr_p_type
    USE cp_dbcsr_operations,             ONLY: cp_dbcsr_sm_fm_multiply
    USE cp_external_control,             ONLY: external_control
    USE cp_fm_basic_linalg,              ONLY: cp_fm_frobenius_norm,&
@@ -52,7 +53,6 @@ MODULE qs_localization_methods
         cp_fm_to_fm, cp_fm_to_fm_submat, cp_fm_type
    USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit,&
                                               cp_logger_get_default_unit_nr
-   USE dbcsr_api,                       ONLY: dbcsr_p_type
    USE kahan_sum,                       ONLY: accurate_sum
    USE kinds,                           ONLY: dp
    USE machine,                         ONLY: m_flush,&
@@ -75,10 +75,11 @@ MODULE qs_localization_methods
    PRIVATE
 
    TYPE set_c_1d_type
-      COMPLEX(KIND=dp), POINTER, DIMENSION(:) :: c_array
+      COMPLEX(KIND=dp), POINTER, DIMENSION(:) :: c_array => NULL()
    END TYPE
+
    TYPE set_c_2d_type
-      COMPLEX(KIND=dp), POINTER, DIMENSION(:, :) :: c_array
+      COMPLEX(KIND=dp), POINTER, DIMENSION(:, :) :: c_array => NULL()
    END TYPE
 
 CONTAINS
@@ -3042,9 +3043,8 @@ CONTAINS
       nrowT = vectors%matrix_struct%ncol_global
       ncolT = vectors%matrix_struct%nrow_global
 
-      CALL cp_fm_struct_create(cstruct, vectors%matrix_struct%para_env, &
-                               vectors%matrix_struct%context, nrowT, ncolT, vectors%matrix_struct%ncol_block, &
-                               vectors%matrix_struct%nrow_block, first_p_pos=vectors%matrix_struct%first_p_pos)
+      CALL cp_fm_struct_create(cstruct, template_fmstruct=vectors%matrix_struct, &
+                               nrow_global=nrowT, ncol_global=ncolT)
       CALL cp_fm_create(CTp, cstruct)
       CALL cp_fm_struct_release(cstruct)
 

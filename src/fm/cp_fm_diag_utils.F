@@ -172,7 +172,7 @@ CONTAINS
 
    END FUNCTION cp_fm_diag_get_optimal_ncpu
 
-#if defined(__SCALAPACK)
+#if defined(__parallel)
 ! **************************************************************************************************
 !> \brief  Determines the largest number of CPUs a matrix can be distributed on without any of the
 !>         processors getting a zero-width column (currently only needed for ELPA).
@@ -272,7 +272,7 @@ CONTAINS
       LOGICAL                                  :: is_elpa
       TYPE(cp_fm_redistribute_info), OPTIONAL, INTENT(OUT) :: redist_info
 
-#if defined(__SCALAPACK)
+#if defined(__parallel)
       REAL(KIND=dp)                            :: fake_local_data(1, 1)
       INTEGER                                  :: fake_descriptor(9), mepos_old, &
                                                   io_unit, ngroups, ncol_block, blksize, nrow_block
@@ -292,7 +292,7 @@ CONTAINS
 #endif
       END IF
 
-#if defined(__SCALAPACK)
+#if defined(__parallel)
 
       logger => cp_get_default_logger()
       io_unit = cp_logger_get_default_io_unit(logger)
@@ -461,7 +461,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_redistribute_end'
 
       INTEGER                                  :: handle
-#if defined(__SCALAPACK)
+#if defined(__parallel)
       REAL(KIND=dp)                            :: fake_local_data(1, 1)
       INTEGER                                  :: fake_descriptor(9), mepos_old, n
       TYPE(mp_para_env_type), POINTER          :: para_env
@@ -469,7 +469,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-#if defined(__SCALAPACK)
+#if defined(__parallel)
 
       ! Check if matrix was redistributed
       IF (ASSOCIATED(work_redistribute%group_distribution)) THEN

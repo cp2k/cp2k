@@ -24,6 +24,10 @@ MODULE qs_linres_current
    USE cp_array_utils,                  ONLY: cp_2d_i_p_type,&
                                               cp_2d_r_p_type
    USE cp_control_types,                ONLY: dft_control_type
+   USE cp_dbcsr_api,                    ONLY: &
+        dbcsr_add_block_node, dbcsr_convert_offsets_to_sizes, dbcsr_copy, dbcsr_create, &
+        dbcsr_deallocate_matrix, dbcsr_distribution_type, dbcsr_finalize, dbcsr_get_block_p, &
+        dbcsr_p_type, dbcsr_set, dbcsr_type, dbcsr_type_antisymmetric, dbcsr_type_no_symmetry
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
    USE cp_dbcsr_operations,             ONLY: cp_dbcsr_plus_fm_fm_t,&
                                               cp_dbcsr_sm_fm_multiply,&
@@ -51,10 +55,6 @@ MODULE qs_linres_current
    USE cube_utils,                      ONLY: compute_cube_center,&
                                               cube_info_type,&
                                               return_cube
-   USE dbcsr_api,                       ONLY: &
-        dbcsr_add_block_node, dbcsr_convert_offsets_to_sizes, dbcsr_copy, dbcsr_create, &
-        dbcsr_deallocate_matrix, dbcsr_distribution_type, dbcsr_finalize, dbcsr_get_block_p, &
-        dbcsr_p_type, dbcsr_set, dbcsr_type, dbcsr_type_antisymmetric, dbcsr_type_no_symmetry
    USE gaussian_gridlevels,             ONLY: gridlevel_info_type
    USE grid_api,                        ONLY: &
         GRID_FUNC_AB, GRID_FUNC_ADBmDAB_X, GRID_FUNC_ADBmDAB_Y, GRID_FUNC_ADBmDAB_Z, &
@@ -84,9 +84,8 @@ MODULE qs_linres_current
                                               pw_scale,&
                                               pw_zero
    USE pw_pool_types,                   ONLY: pw_pool_type
-   USE pw_types,                        ONLY: REALDATA3D,&
-                                              REALSPACE,&
-                                              pw_type
+   USE pw_types,                        ONLY: pw_c1d_gs_type,&
+                                              pw_r3d_rs_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_kind_types,                   ONLY: get_qs_kind,&
@@ -142,8 +141,8 @@ MODULE qs_linres_current
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_linres_current'
 
    TYPE box_type
-      INTEGER :: n
-      REAL(dp), POINTER, DIMENSION(:, :) :: r
+      INTEGER :: n = -1
+      REAL(dp), POINTER, DIMENSION(:, :) :: r => NULL()
    END TYPE box_type
    REAL(dp), DIMENSION(3, 3, 3), PARAMETER  :: Levi_Civita = RESHAPE((/ &
                                                           0.0_dp, 0.0_dp, 0.0_dp, 0.0_dp, 0.0_dp, -1.0_dp, 0.0_dp, 1.0_dp, 0.0_dp, &
@@ -213,10 +212,11 @@ CONTAINS
          POINTER                                         :: sab_all
       TYPE(particle_list_type), POINTER                  :: particles
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(pw_c1d_gs_type), DIMENSION(:), POINTER        :: jrho1_g
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type)                                      :: wf_r
-      TYPE(pw_type), DIMENSION(:), POINTER               :: jrho1_g, jrho1_r
+      TYPE(pw_r3d_rs_type)                               :: wf_r
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: jrho1_r
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_matrix_pools_type), POINTER                :: mpools
       TYPE(qs_subsys_type), POINTER                      :: subsys
@@ -478,8 +478,7 @@ CONTAINS
          CALL pw_env_get(pw_env, auxbas_rs_desc=auxbas_rs_desc, &
                          auxbas_pw_pool=auxbas_pw_pool)
          !
-         CALL auxbas_pw_pool%create_pw(wf_r, use_data=REALDATA3D, &
-                                       in_space=REALSPACE)
+         CALL auxbas_pw_pool%create_pw(wf_r)
          !
          DO idir = 1, 3
             CALL pw_zero(wf_r)
@@ -579,7 +578,8 @@ CONTAINS
 
       TYPE(dbcsr_type), POINTER                          :: mat_d0, mat_jp, mat_jp_rii, mat_jp_riii
       INTEGER, INTENT(IN)                                :: iB, idir
-      TYPE(pw_type), INTENT(INOUT)                       :: current_rs, current_gs
+      TYPE(pw_r3d_rs_type), INTENT(INOUT)                :: current_rs
+      TYPE(pw_c1d_gs_type), INTENT(INOUT)                :: current_gs
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(current_env_type)                             :: current_env
       LOGICAL, INTENT(IN), OPTIONAL                      :: soft_valid, retain_rsgrid

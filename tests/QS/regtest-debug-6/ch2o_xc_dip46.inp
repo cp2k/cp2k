@@ -1,5 +1,5 @@
 &GLOBAL
-  PRINT_LEVEL LOW
+  PRINT_LEVEL medium
   PROJECT td_dipole
   RUN_TYPE DEBUG
 &END GLOBAL
@@ -38,7 +38,7 @@
       &END MOMENTS
     &END PRINT
     &QS
-      EPS_DEFAULT 1.E-10
+      EPS_DEFAULT 1.0E-10
       METHOD GAPW_XC
     &END QS
     &SCF
@@ -62,7 +62,7 @@
   &END DFT
   &PROPERTIES
     &TDDFPT
-      CONVERGENCE [eV] 1.0e-6
+      CONVERGENCE [eV] 1.0E-6
       KERNEL FULL
       MAX_ITER 50
       NSTATES 1

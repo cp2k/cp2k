@@ -38,11 +38,11 @@
       &END PRINT
     &END SCF
     &XC
-@IF 0
+      @IF 0
       &XC_FUNCTIONAL BLYP
       &END XC_FUNCTIONAL
-@ENDIF
-@IF 1
+      @ENDIF
+      @IF 1
       &XC_FUNCTIONAL
         &BECKE88
           SCALE_X 0.72
@@ -75,7 +75,7 @@
           SCREEN_ON_INITIAL_P TRUE
         &END SCREENING
       &END HF
-@ENDIF
+      @ENDIF
     &END XC
   &END DFT
   &SUBSYS

@@ -15,6 +15,14 @@ MODULE rpa_rse
 
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_control_types,                ONLY: dft_control_type
+   USE cp_dbcsr_api,                    ONLY: dbcsr_copy,&
+                                              dbcsr_create,&
+                                              dbcsr_init_p,&
+                                              dbcsr_p_type,&
+                                              dbcsr_release,&
+                                              dbcsr_scale,&
+                                              dbcsr_set,&
+                                              dbcsr_type_symmetric
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               copy_fm_to_dbcsr,&
@@ -31,14 +39,6 @@ MODULE rpa_rse
                                               cp_fm_set_all,&
                                               cp_fm_to_fm_submat,&
                                               cp_fm_type
-   USE dbcsr_api,                       ONLY: dbcsr_copy,&
-                                              dbcsr_create,&
-                                              dbcsr_init_p,&
-                                              dbcsr_p_type,&
-                                              dbcsr_release,&
-                                              dbcsr_scale,&
-                                              dbcsr_set,&
-                                              dbcsr_type_symmetric
    USE hfx_energy_potential,            ONLY: integrate_four_center
    USE hfx_exx,                         ONLY: exx_post_hfx,&
                                               exx_pre_hfx
@@ -51,7 +51,7 @@ MODULE rpa_rse
    USE message_passing,                 ONLY: mp_para_env_type
    USE mp2_types,                       ONLY: mp2_type
    USE parallel_gemm_api,               ONLY: parallel_gemm
-   USE pw_types,                        ONLY: pw_type
+   USE pw_types,                        ONLY: pw_r3d_rs_type
    USE qs_energy_types,                 ONLY: qs_energy_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
@@ -215,8 +215,7 @@ CONTAINS
       CALL exchange_contribution(qs_env, para_env, dimen, mo_coeff, &
                                  hfx_sections, n_rep_hf, &
                                  rho, mat_mu_nu, fm_P_mu_nu, &
-                                 fm_ao, fm_X_mo, fm_ao_mo, &
-                                 mp2_env%ri_grad%free_hfx_buffer)
+                                 fm_ao, fm_X_mo, fm_ao_mo)
 
       ! Calculate DFT exchange-correlation contribution
       CALL xc_contribution(qs_env, fm_ao, fm_ao_mo, fm_XC_mo, mo_coeff, dimen)
@@ -301,13 +300,11 @@ CONTAINS
 !> \param fm_X_ao ...
 !> \param fm_X_mo ...
 !> \param fm_X_ao_mo ...
-!> \param recalc_hfx_integrals ...
 ! **************************************************************************************************
    SUBROUTINE exchange_contribution(qs_env, para_env, dimen, mo_coeff, &
                                     hfx_sections, n_rep_hf, &
                                     rho_work, mat_mu_nu, fm_P_mu_nu, &
-                                    fm_X_ao, fm_X_mo, fm_X_ao_mo, &
-                                    recalc_hfx_integrals)
+                                    fm_X_ao, fm_X_mo, fm_X_ao_mo)
       TYPE(qs_environment_type), INTENT(IN), POINTER     :: qs_env
       TYPE(mp_para_env_type), INTENT(IN), POINTER        :: para_env
       INTEGER, INTENT(IN)                                :: dimen
@@ -321,7 +318,6 @@ CONTAINS
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_X_ao
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: fm_X_mo
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_X_ao_mo
-      LOGICAL, INTENT(IN)                                :: recalc_hfx_integrals
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'exchange_contribution'
 
@@ -333,8 +329,6 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      my_recalc_hfx_integrals = recalc_hfx_integrals
-
       CALL qs_rho_get(rho_work, rho_ao=rho_work_ao)
       ns = SIZE(rho_work_ao)
       NULLIFY (P_mu_nu)
@@ -345,6 +339,8 @@ CONTAINS
          CALL dbcsr_copy(P_mu_nu(is)%matrix, rho_work_ao(1)%matrix)
          CALL dbcsr_set(P_mu_nu(is)%matrix, 0.0_dp)
       END DO
+
+      my_recalc_hfx_integrals = .TRUE.
 
       CALL exx_pre_hfx(hfx_sections, qs_env%mp2_env%ri_rpa%x_data, qs_env%mp2_env%ri_rpa%reuse_hfx)
       DO is = 1, ns
@@ -425,7 +421,7 @@ CONTAINS
       INTEGER                                            :: handle, i
       REAL(KIND=dp)                                      :: exc
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_vxc
-      TYPE(pw_type), DIMENSION(:), POINTER               :: tau_rspace, v_rspace
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: tau_rspace, v_rspace
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(section_vals_type), POINTER                   :: input, xc_section
@@ -535,6 +531,7 @@ CONTAINS
       rse_corr = 0.0_dp
 
       DO ispin = 1, nspins
+         IF (homo(ispin) <= 0 .OR. homo(ispin) >= dimen) CYCLE
          ! Create the occupied-occupied and virtual-virtual blocks, eigenvectors
          NULLIFY (fm_struct_tmp)
          CALL cp_fm_struct_create(fm_struct_tmp, para_env=para_env, context=blacs_env, &

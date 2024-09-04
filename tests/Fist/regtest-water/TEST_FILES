@@ -1,0 +1,6 @@
+# Test common water models
+H2O-SPC-6x6x6.inp                                      2    1.0E-12            -0.262569484903E+01
+H2O-SPCE-6x6x6.inp                                     2    1.0E-12            -0.278895062813E+01
+H2O-TIP3P-6x6x6.inp                                    2    1.0E-12            -0.270534423425E+01
+H2O-TIP3P_FLEXIBLE-6x6x6.inp                           2    1.0E-12            -0.263573237268E+01
+#EOF

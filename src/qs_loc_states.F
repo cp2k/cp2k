@@ -11,13 +11,13 @@
 MODULE qs_loc_states
    USE cp_array_utils,                  ONLY: cp_1d_r_p_type
    USE cp_control_types,                ONLY: dft_control_type
+   USE cp_dbcsr_api,                    ONLY: dbcsr_p_type
    USE cp_fm_types,                     ONLY: cp_fm_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_io_unit,&
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_p_file,&
                                               cp_print_key_should_output
-   USE dbcsr_api,                       ONLY: dbcsr_p_type
    USE input_section_types,             ONLY: section_get_lval,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type
@@ -27,7 +27,8 @@ MODULE qs_loc_states
    USE molecular_states,                ONLY: construct_molecular_states
    USE molecule_types,                  ONLY: molecule_type
    USE particle_list_types,             ONLY: particle_list_type
-   USE pw_types,                        ONLY: pw_type
+   USE pw_types,                        ONLY: pw_c1d_gs_type,&
+                                              pw_r3d_rs_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type,&
                                               set_qs_env
@@ -72,7 +73,8 @@ CONTAINS
       TYPE(qs_loc_env_type), POINTER                     :: qs_loc_env
       TYPE(section_vals_type), POINTER                   :: loc_section
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: mo_local
-      TYPE(pw_type), INTENT(INOUT)                       :: wf_r, wf_g
+      TYPE(pw_r3d_rs_type), INTENT(INOUT)                :: wf_r
+      TYPE(pw_c1d_gs_type), INTENT(INOUT)                :: wf_g
       TYPE(particle_list_type), POINTER                  :: particles
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: coeff
       TYPE(cp_1d_r_p_type), DIMENSION(:), POINTER        :: evals

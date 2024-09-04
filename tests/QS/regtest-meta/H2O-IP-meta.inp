@@ -13,10 +13,10 @@
 
 @SET CHARGE  0
 @SET LSD 0
-@include dft_force_env.inc
+@INCLUDE dft_force_env.inc
 @SET CHARGE -1
 @SET LSD 1
-@include dft_force_env.inc
+@INCLUDE dft_force_env.inc
 &FORCE_EVAL
   METHOD MIXED
   &MIXED

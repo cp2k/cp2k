@@ -32,20 +32,13 @@ if(POLICY CMP0144)
   cmake_policy(SET CMP0144 NEW)
 endif()
 
-set(VERSION_MAJOR 23)
-# anything above 12 is to indicate that it is devel-branch. The git hash commit
-# is the only important information to give. It is retrieved few lines below.
-set(VERSION_MINOR 1)
-set(VERSION_PATCH 00)
-
+# !!! Keep version in sync with cp2k_info.F !!!
 project(
   cp2k
   DESCRIPTION "CP2K"
   HOMEPAGE_URL "https://www.cp2k.org"
-  VERSION ${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}
+  VERSION "2024.2"
   LANGUAGES Fortran C CXX)
-
-set(cp2k_APIVERSION ${cp2k_VERSION_MAJOR}.${cp2k_VERSION_MINOR})
 
 list(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake/modules")
 
@@ -63,6 +56,18 @@ string(REPLACE "-DNDEBUG" "" CMAKE_C_FLAGS_RELEASE ${CMAKE_C_FLAGS_RELEASE})
 string(REPLACE "-DNDEBUG" "" CMAKE_CXX_FLAGS_RELEASE ${CMAKE_CXX_FLAGS_RELEASE})
 string(REPLACE "-DNDEBUG" "" CMAKE_Fortran_FLAGS_RELEASE
                ${CMAKE_Fortran_FLAGS_RELEASE})
+string(REPLACE "-DNDEBUG" "" CMAKE_C_FLAGS_RELWITHDEBINFO
+               ${CMAKE_C_FLAGS_RELWITHDEBINFO})
+string(REPLACE "-DNDEBUG" "" CMAKE_CXX_FLAGS_RELWITHDEBINFO
+               ${CMAKE_CXX_FLAGS_RELWITHDEBINFO})
+string(REPLACE "-DNDEBUG" "" CMAKE_Fortran_FLAGS_RELWITHDEBINFO
+               ${CMAKE_Fortran_FLAGS_RELWITHDEBINFO})
+string(REPLACE "-DNDEBUG" "" CMAKE_C_FLAGS_MINSIZEREL
+               ${CMAKE_C_FLAGS_MINSIZEREL})
+string(REPLACE "-DNDEBUG" "" CMAKE_CXX_FLAGS_MINSIZEREL
+               ${CMAKE_CXX_FLAGS_MINSIZEREL})
+string(REPLACE "-DNDEBUG" "" CMAKE_Fortran_FLAGS_MINSIZEREL
+               ${CMAKE_Fortran_FLAGS_MINSIZEREL})
 
 find_package(PkgConfig)
 
@@ -87,16 +92,13 @@ endforeach()
 # =================================================================================================
 # OPTIONS
 
-# option(CP2K_BUILD_DBCSR "Build dbcsr before building cp2k" OFF)
-option(CP2K_ENABLE_REGTESTS
-       "Enable installation of the binaries for running regtests afterwards"
-       OFF)
 option(CMAKE_POSITION_INDEPENDENT_CODE "Enable position independent code" ON)
 option(CP2K_ENABLE_CONSISTENCY_CHECKS
        "Check that the list of compiled files and files contained in src match"
        OFF)
 option(CP2K_DEBUG_MODE "Enable several additional options for debugging cp2k."
        OFF)
+option(CP2K_USE_DFTD4 "Enable dispersion coorections DFTD4" OFF)
 option(CP2K_USE_SIRIUS "Enable plane wave dft calculations with sirius" OFF)
 option(CP2K_USE_FFTW3 "Use fftw3 for the calculating fast fourier transforms"
        ON)
@@ -169,6 +171,10 @@ set(CP2K_BUILD_OPTIONS
 set_property(CACHE CP2K_BUILD_OPTIONS PROPERTY STRINGS
                                                ${CP2K_BUILD_OPTIONS_LIST})
 
+set(CP2K_DATA_DIR
+    "default"
+    CACHE STRING "Set the location for cp2k data")
+
 string(TOUPPER ${CP2K_BUILD_OPTIONS} cp2k_build_options_up)
 
 if(NOT ${cp2k_build_options_up} IN_LIST CP2K_BUILD_OPTIONS_LIST)
@@ -183,6 +189,7 @@ endif()
 if(${cp2k_build_options_up} STREQUAL "FULL")
   set(CP2K_USE_FFTW3 ON)
   set(CP2K_USE_MPI ON)
+  set(CP2K_USE_DFTD4 ON)
   set(CP2K_USE_SIRIUS ON)
   set(CP2K_USE_LIBXSMM ON)
   set(CP2K_USE_VORI ON)
@@ -204,6 +211,7 @@ if(${cp2k_build_options_up} STREQUAL "SERIAL")
   set(CP2K_USE_FFTW3 ON)
   set(CP2K_USE_MPI OFF)
   set(CP2K_USE_SIRIUS ON)
+  set(CP2K_USE_SIRIUS ON)
   set(CP2K_USE_LIBXSMM ON)
   set(CP2K_USE_VORI ON)
   set(CP2K_USE_COSMA ON)
@@ -222,6 +230,7 @@ endif()
 if(${cp2k_build_options_up} STREQUAL "DEFAULT")
   set(CP2K_USE_FFTW3 ON)
   set(CP2K_USE_MPI ON)
+  set(CP2K_USE_SIRIUS ON)
   set(CP2K_USE_COSMA ON)
   set(CP2K_USE_LIBXSMM ON)
   set(CP2K_USE_LIBXC ON)
@@ -234,7 +243,15 @@ endif()
 # ##############################################################################
 
 set(CP2K_SUPPORTED_ACCELERATION_TARGETS CUDA HIP NONE)
-set(CP2K_SUPPORTED_CUDA_ARCHITECTURES K20X K40 K80 P100 V100 A100)
+set(CP2K_SUPPORTED_CUDA_ARCHITECTURES
+    K20X
+    K40
+    K80
+    P100
+    V100
+    A100
+    H100
+    A40)
 set(CP2K_SUPPORTED_HIP_ARCHITECTURES
     Mi50
     Mi100
@@ -246,7 +263,9 @@ set(CP2K_SUPPORTED_HIP_ARCHITECTURES
     K80
     P100
     V100
-    A100)
+    A100
+    H100
+    A40)
 
 set(CP2K_WITH_GPU
     "P100"
@@ -259,7 +278,7 @@ set_property(
 
 set(CP2K_USE_ACCEL
     "NONE"
-    CACHE STRING "Set hardware acceleartion support: CUDA, HIP")
+    CACHE STRING "Set hardware acceleration support: CUDA, HIP")
 
 set_property(CACHE CP2K_USE_ACCEL
              PROPERTY STRINGS ${CP2K_SUPPORTED_ACCELERATION_TARGETS})
@@ -354,21 +373,9 @@ if(CP2K_ENABLE_CONSISTENCY_CHECKS)
   return()
 endif()
 
-# for the time being I change the bin directory to point to
-# ../exe/build-cmake-{cuda,hip,cpu} when we want to run the regtests afterwards.
-# This solution does not require modifying the regtests scripts at all and cmake
-# does not mind this change when we want to install cp2k with a command like
-# `make install`
-if(CP2K_ENABLE_REGTESTS)
-  set(CMAKE_RUNTIME_OUTPUT_DIRECTORY
-      "${cp2k_SOURCE_DIR}/exe/${__cp2k_cmake_name}"
-      CACHE PATH "Single output directory for building all executables.")
-else()
-  set(CMAKE_RUNTIME_OUTPUT_DIRECTORY
-      ${cp2k_BINARY_DIR}/bin
-      CACHE PATH "Single output directory for building all executables.")
-
-endif()
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY
+    ${cp2k_BINARY_DIR}/bin
+    CACHE PATH "Single output directory for building all executables.")
 
 # Python
 #
@@ -496,6 +503,8 @@ if((CP2K_USE_ACCEL MATCHES CUDA) OR (CP2K_USE_ACCEL MATCHES HIP))
   set(CP2K_GPU_ARCH_NUMBER_P100 60)
   set(CP2K_GPU_ARCH_NUMBER_V100 70)
   set(CP2K_GPU_ARCH_NUMBER_A100 80)
+  set(CP2K_GPU_ARCH_NUMBER_H100 90)
+  set(CP2K_GPU_ARCH_NUMBER_A40 86)
   set(CP2K_GPU_ARCH_NUMBER_Mi50 gfx906)
   set(CP2K_GPU_ARCH_NUMBER_Mi100 gfx908)
   set(CP2K_GPU_ARCH_NUMBER_Mi200 gfx90a)
@@ -568,7 +577,7 @@ elseif(CP2K_USE_ACCEL MATCHES "HIP")
     set(HIP_RELEASE_OPTIONS "-O0 -g --std=c++11")
   endif()
 
-  set(CMAKE_HIP_ARCGITECTURES "${CP2K_GPU_ARCH_NUMBER_${CP2K_WITH_GPU}}")
+  set(CMAKE_HIP_ARCHITECTURES "${CP2K_GPU_ARCH_NUMBER_${CP2K_WITH_GPU}}")
   set(CP2K_USE_HIP ON)
 
   # use hardware atomic operations on Mi250X.
@@ -623,7 +632,7 @@ if(CP2K_USE_VORI)
 endif()
 
 if(CP2K_USE_DLAF)
-  find_package(DLAF REQUIRED)
+  find_package(DLAFFortran REQUIRED)
 endif()
 
 # FFTW3
@@ -674,7 +683,7 @@ endif()
 
 # spglib
 if(CP2K_USE_SPGLIB)
-  find_package(LibSPG REQUIRED)
+  find_package(Spglib CONFIG REQUIRED)
 endif()
 
 if(CP2K_USE_SPLA)
@@ -693,8 +702,12 @@ if(CP2K_USE_SPLA)
     )
   endif()
 endif()
-# SIRIUS
 
+if(CP2K_USE_DFTD4)
+  find_package(dftd4 REQUIRED)
+endif()
+
+# SIRIUS
 if(CP2K_USE_SIRIUS)
   find_package(sirius REQUIRED)
 endif()
@@ -759,10 +772,10 @@ if(CP2K_BUILD_DBCSR)
   add_library(DBCSR::dbcsr ALIAS dbcsr)
 endif()
 
+include(GNUInstallDirs)
+
 # subdirectories
 add_subdirectory(src)
-
-include(GNUInstallDirs)
 
 get_target_property(CP2K_LIBS cp2k_link_libs INTERFACE_LINK_LIBRARIES)
 configure_file(cmake/libcp2k.pc.in libcp2k.pc @ONLY)
@@ -839,6 +852,12 @@ if(CP2K_USE_FFTW3)
           "    - libraries : ${CP2K_FFTW3_LINK_LIBRARIES}\n\n")
 endif()
 
+if(CP2K_USE_PLUMED)
+  message("  - PLUMED\n"
+          "    - include directories : ${CP2K_PLUMED_INCLUDE_DIRS}\n"
+          "    - libraries : ${CP2K_PLUMED_LINK_LIBRARIES}\n\n")
+endif()
+
 if(CP2K_USE_LIBXSMM)
   message(
     "  - libxsmm\n"
@@ -850,6 +869,13 @@ endif()
 if(CP2K_USE_SPLA)
   message(" - SPLA\n" "   - include directories : ${SPLA_INCLUDE_DIRS}\n"
           "   - lbraries : ${SPLA_LIBRARIES}\n\n")
+endif()
+
+if(CP2K_USE_DFTD4)
+  message(
+    " - DFTD4 :\n" "   - include modules     :  ${DFTD4_DFTD4};${DFTD4_MCTC}\n"
+    "   - include directories :  ${DFTD4_INCLUDE_DIR}\n"
+    "   - libraries           :  ${DFTD4_LIBDIR}\n\n")
 endif()
 
 if(CP2K_USE_SIRIUS)
@@ -898,24 +924,9 @@ if(CP2K_USE_VORI)
           "   - libraries :           ${CP2K_LIBVORI_LINK_LIBRARIES}\n\n")
 endif()
 
-if(CP2K_USE_SPGLIB)
-  message(" - spglib\n"
-          "   - include directories : ${CP2K_LIBSPG_INCLUDE_DIRS}\n"
-          "   - libraries           : ${CP2K_LIBSPG_LINK_LIBRARIES}\n\n")
-endif()
-
 if(CP2K_USE_ELPA)
   message(" - ELPA\n" "   - include directories : ${CP2K_ELPA_INCLUDE_DIRS}\n"
           "   - libraries           :  ${CP2K_ELPA_LINK_LIBRARIES}\n\n")
-endif()
-
-if(CP2K_USE_DLAF)
-  get_target_property(CP2K_DLAF_INCLUDE_DIRS DLAF::DLAF
-                      INTERFACE_INCLUDE_DIRECTORIES)
-  get_target_property(CP2K_DLAF_LINK_LIBRARIES DLAF::DLAF
-                      INTERFACE_LINK_LIBRARIES)
-  message(" - DLAF\n" "   - include directories : ${CP2K_DLAF_INCLUDE_DIRS}\n"
-          "   - libraries           :  ${CP2K_DLAF_LINK_LIBRARIES}\n\n")
 endif()
 
 if(CP2K_USE_SUPERLU)
@@ -933,6 +944,10 @@ message(
 
 if(NOT CP2K_USE_MPI)
   message("   - MPI")
+endif()
+
+if(NOT CP2K_USE_DFTD4)
+  message("   - DFTD4")
 endif()
 
 if(NOT CP2K_USE_SIRIUS)
@@ -963,7 +978,7 @@ if(NOT CP2K_USE_DLAF)
   message("   - DLAF")
 endif()
 
-if(NOT CP2K_USE_PLUMMED)
+if(NOT CP2K_USE_PLUMED)
   message("   - PLUMED")
 endif()
 
@@ -1003,11 +1018,9 @@ if(NOT CP2K_USE_LIBTORCH)
   message("   - libtorch")
 endif()
 
-if(CP2K_ENABLE_REGTESTS OR cp2k_TESTS)
-  message("\n\n" "To run the regtests you need to run the following commands\n"
-          "\n\n cd ..\n" " export CP2K_DATA_DIR=${CMAKE_SOURCE_DIR}/data/\n"
-          " ./tests/do_regtest.py ${__cp2k_cmake_name} ${__cp2k_ext}\n\n")
-endif()
+message("\n\n" "To run the regtests you need to run the following commands\n"
+        "\n\n cd ..\n" " export CP2K_DATA_DIR=${CMAKE_SOURCE_DIR}/data/\n"
+        " ./tests/do_regtest.py ${cp2k_BINARY_DIR}/bin ${__cp2k_ext}\n\n")
 
 # files needed for cmake
 

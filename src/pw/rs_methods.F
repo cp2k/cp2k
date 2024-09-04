@@ -20,11 +20,8 @@ MODULE rs_methods
                                               pw_transfer,&
                                               pw_zero
    USE pw_pool_types,                   ONLY: pw_pool_type
-   USE pw_types,                        ONLY: COMPLEXDATA1D,&
-                                              REALDATA3D,&
-                                              REALSPACE,&
-                                              RECIPROCALSPACE,&
-                                              pw_type
+   USE pw_types,                        ONLY: pw_c1d_gs_type,&
+                                              pw_r3d_rs_type
    USE realspace_grid_types,            ONLY: realspace_grid_desc_type,&
                                               realspace_grid_type,&
                                               rs_grid_create,&
@@ -61,8 +58,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE derive_fdm_cd3(f, df, rs_grid)
 
-      TYPE(pw_type), INTENT(IN)                          :: f
-      TYPE(pw_type), DIMENSION(3), INTENT(INOUT)         :: df
+      TYPE(pw_r3d_rs_type), INTENT(IN)                   :: f
+      TYPE(pw_r3d_rs_type), DIMENSION(3), INTENT(INOUT)  :: df
       TYPE(realspace_grid_type), INTENT(IN)              :: rs_grid
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'derive_fdm_cd3'
@@ -130,8 +127,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE derive_fdm_cd5(f, df, rs_grid)
 
-      TYPE(pw_type), INTENT(IN)                          :: f
-      TYPE(pw_type), DIMENSION(3), INTENT(INOUT)         :: df
+      TYPE(pw_r3d_rs_type), INTENT(IN)                   :: f
+      TYPE(pw_r3d_rs_type), DIMENSION(3), INTENT(INOUT)  :: df
       TYPE(realspace_grid_type), INTENT(IN)              :: rs_grid
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'derive_fdm_cd5'
@@ -199,8 +196,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE derive_fdm_cd7(f, df, rs_grid)
 
-      TYPE(pw_type), INTENT(IN)                          :: f
-      TYPE(pw_type), DIMENSION(3), INTENT(INOUT)         :: df
+      TYPE(pw_r3d_rs_type), INTENT(IN)                   :: f
+      TYPE(pw_r3d_rs_type), DIMENSION(3), INTENT(INOUT)  :: df
       TYPE(realspace_grid_type), INTENT(IN)              :: rs_grid
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'derive_fdm_cd7'
@@ -370,8 +367,8 @@ CONTAINS
       TYPE(pw_pool_type), INTENT(IN), POINTER            :: pw_pool
       REAL(dp), INTENT(IN)                               :: zeta
       REAL(dp), ALLOCATABLE, DIMENSION(:), INTENT(IN)    :: x_glbl, y_glbl, z_glbl
-      TYPE(pw_type), INTENT(IN)                          :: pw_in
-      TYPE(pw_type), INTENT(INOUT)                       :: pw_out
+      TYPE(pw_r3d_rs_type), INTENT(IN)                   :: pw_in
+      TYPE(pw_r3d_rs_type), INTENT(INOUT)                :: pw_out
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'pw_mollifier'
 
@@ -381,8 +378,9 @@ CONTAINS
       REAL(dp)                                           :: normfact, xi, xmax, xmin, yj, ymax, &
                                                             ymin, zk, zmax, zmin
       REAL(dp), DIMENSION(3, 3)                          :: dh
+      TYPE(pw_c1d_gs_type)                               :: G_gs, pw_in_gs, pw_out_gs
       TYPE(pw_grid_type), POINTER                        :: pw_grid
-      TYPE(pw_type)                                      :: G, G_gs, pw_in_gs, pw_out_gs
+      TYPE(pw_r3d_rs_type)                               :: G
 
       CALL timeset(routineN, handle)
 
@@ -395,10 +393,10 @@ CONTAINS
       lb2 = bounds_local(1, 2); ub2 = bounds_local(2, 2)
       lb3 = bounds_local(1, 3); ub3 = bounds_local(2, 3)
 
-      CALL pw_pool%create_pw(G, use_data=REALDATA3D, in_space=REALSPACE)
-      CALL pw_pool%create_pw(G_gs, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
-      CALL pw_pool%create_pw(pw_in_gs, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
-      CALL pw_pool%create_pw(pw_out_gs, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+      CALL pw_pool%create_pw(G)
+      CALL pw_pool%create_pw(G_gs)
+      CALL pw_pool%create_pw(pw_in_gs)
+      CALL pw_pool%create_pw(pw_out_gs)
 
       CALL pw_zero(G)
       xmin = x_glbl(bounds(1, 1)); xmax = x_glbl(bounds(2, 1))
@@ -410,21 +408,21 @@ CONTAINS
             DO i = lb1, ub1
                xi = x_glbl(i); yj = y_glbl(j); zk = z_glbl(k)
                IF (norm2((/(xi - xmin), (yj - ymin), (zk - zmin)/)) .LT. zeta - small_value) THEN
-                  G%cr3d(i, j, k) = EXP(1.0_dp/(norm2((/(xi - xmin), (yj - ymin), (zk - zmin)/)/zeta)**2 - 1))
+                  G%array(i, j, k) = EXP(1.0_dp/(norm2((/(xi - xmin), (yj - ymin), (zk - zmin)/)/zeta)**2 - 1))
                ELSE IF (norm2((/(xi - xmax), (yj - ymax), (zk - zmax)/)) .LT. zeta - small_value) THEN
-                  G%cr3d(i, j, k) = EXP(1.0_dp/(norm2((/(xi - xmax), (yj - ymax), (zk - zmax)/)/zeta)**2 - 1))
+                  G%array(i, j, k) = EXP(1.0_dp/(norm2((/(xi - xmax), (yj - ymax), (zk - zmax)/)/zeta)**2 - 1))
                ELSE IF (norm2((/(xi - xmin), (yj - ymax), (zk - zmax)/)) .LT. zeta - small_value) THEN
-                  G%cr3d(i, j, k) = EXP(1.0_dp/(norm2((/(xi - xmin), (yj - ymax), (zk - zmax)/)/zeta)**2 - 1))
+                  G%array(i, j, k) = EXP(1.0_dp/(norm2((/(xi - xmin), (yj - ymax), (zk - zmax)/)/zeta)**2 - 1))
                ELSE IF (norm2((/(xi - xmax), (yj - ymin), (zk - zmax)/)) .LT. zeta - small_value) THEN
-                  G%cr3d(i, j, k) = EXP(1.0_dp/(norm2((/(xi - xmax), (yj - ymin), (zk - zmax)/)/zeta)**2 - 1))
+                  G%array(i, j, k) = EXP(1.0_dp/(norm2((/(xi - xmax), (yj - ymin), (zk - zmax)/)/zeta)**2 - 1))
                ELSE IF (norm2((/(xi - xmax), (yj - ymax), (zk - zmin)/)) .LT. zeta - small_value) THEN
-                  G%cr3d(i, j, k) = EXP(1.0_dp/(norm2((/(xi - xmax), (yj - ymax), (zk - zmin)/)/zeta)**2 - 1))
+                  G%array(i, j, k) = EXP(1.0_dp/(norm2((/(xi - xmax), (yj - ymax), (zk - zmin)/)/zeta)**2 - 1))
                ELSE IF (norm2((/(xi - xmin), (yj - ymin), (zk - zmax)/)) .LT. zeta - small_value) THEN
-                  G%cr3d(i, j, k) = EXP(1.0_dp/(norm2((/(xi - xmin), (yj - ymin), (zk - zmax)/)/zeta)**2 - 1))
+                  G%array(i, j, k) = EXP(1.0_dp/(norm2((/(xi - xmin), (yj - ymin), (zk - zmax)/)/zeta)**2 - 1))
                ELSE IF (norm2((/(xi - xmin), (yj - ymax), (zk - zmin)/)) .LT. zeta - small_value) THEN
-                  G%cr3d(i, j, k) = EXP(1.0_dp/(norm2((/(xi - xmin), (yj - ymax), (zk - zmin)/)/zeta)**2 - 1))
+                  G%array(i, j, k) = EXP(1.0_dp/(norm2((/(xi - xmin), (yj - ymax), (zk - zmin)/)/zeta)**2 - 1))
                ELSE IF (norm2((/(xi - xmax), (yj - ymin), (zk - zmin)/)) .LT. zeta - small_value) THEN
-                  G%cr3d(i, j, k) = EXP(1.0_dp/(norm2((/(xi - xmax), (yj - ymin), (zk - zmin)/)/zeta)**2 - 1))
+                  G%array(i, j, k) = EXP(1.0_dp/(norm2((/(xi - xmax), (yj - ymin), (zk - zmin)/)/zeta)**2 - 1))
                END IF
             END DO
          END DO
@@ -435,7 +433,7 @@ CONTAINS
 
       CALL pw_transfer(G, G_gs)
       CALL pw_transfer(pw_in, pw_in_gs)
-      pw_out_gs%cc = G_gs%cc*pw_in_gs%cc
+      pw_out_gs%array = G_gs%array*pw_in_gs%array
       CALL pw_transfer(pw_out_gs, pw_out)
 
       ! multiply by the reciprocal of the forward Fourier transform normalization prefactor (here 1/N, by convention)
@@ -446,7 +444,7 @@ CONTAINS
       DO k = lb3, ub3
          DO j = lb2, ub2
             DO i = lb1, ub1
-               IF (ABS(pw_out%cr3d(i, j, k)) .LE. 1.0E-10_dp) pw_out%cr3d(i, j, k) = 0.0_dp
+               IF (ABS(pw_out%array(i, j, k)) .LE. 1.0E-10_dp) pw_out%array(i, j, k) = 0.0_dp
             END DO
          END DO
       END DO

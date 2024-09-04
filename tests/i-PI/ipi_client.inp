@@ -1,0 +1,46 @@
+&GLOBAL
+  PRINT_LEVEL LOW
+  RUN_TYPE DRIVER
+  SEED 1
+&END GLOBAL
+
+&MOTION
+  &DRIVER
+    HOST myHost
+    PORT 8421
+    UNIX
+  &END DRIVER
+&END MOTION
+
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT
+    &QS
+      METHOD XTB
+      &XTB
+        &PARAMETER
+          PARAM_FILE_NAME xTB_parameters
+          PARAM_FILE_PATH /opt/cp2k/data/
+        &END PARAMETER
+      &END XTB
+    &END QS
+    &SCF
+      EPS_SCF 1.0E-3
+      &OT ON
+        MINIMIZER DIIS
+        PRECONDITIONER FULL_ALL
+      &END OT
+    &END SCF
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 5.0 5.0 5.0
+      PERIODIC NONE
+    &END CELL
+    &COORD
+      O  0.00  0.00  0.00
+      H  0.00 -0.75  0.50
+      H  0.00  0.75  0.50
+    &END COORD
+  &END SUBSYS
+&END FORCE_EVAL

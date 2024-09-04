@@ -11,16 +11,16 @@
 !> \author Teodoro Laino
 ! **************************************************************************************************
 MODULE qs_ks_qmmm_types
+   USE cp_dbcsr_api,                    ONLY: dbcsr_p_type
    USE cp_dbcsr_operations,             ONLY: dbcsr_deallocate_matrix_set
    USE cube_utils,                      ONLY: cube_info_type,&
                                               destroy_cube_info
-   USE dbcsr_api,                       ONLY: dbcsr_p_type
    USE kinds,                           ONLY: dp
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_release,&
                                               pw_env_type
    USE pw_pool_types,                   ONLY: pw_pool_type
-   USE pw_types,                        ONLY: pw_type
+   USE pw_types,                        ONLY: pw_r3d_rs_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -45,14 +45,14 @@ MODULE qs_ks_qmmm_types
 !> \author Teodoro Laino
 ! **************************************************************************************************
    TYPE qs_ks_qmmm_env_type
-      INTEGER :: n_evals
-      REAL(KIND=dp)                               :: pc_ener
-      TYPE(pw_env_type), POINTER                  :: pw_env
-      TYPE(pw_type)                             :: v_qmmm_rspace
-      TYPE(pw_type), POINTER                             :: v_metal_rspace
-      TYPE(cube_info_type), DIMENSION(:), POINTER  :: cube_info
+      INTEGER :: n_evals = -1
+      REAL(KIND=dp)                               :: pc_ener = -1.0_dp
+      TYPE(pw_env_type), POINTER                  :: pw_env => NULL()
+      TYPE(pw_r3d_rs_type)                             :: v_qmmm_rspace = pw_r3d_rs_type()
+      TYPE(pw_r3d_rs_type), POINTER                             :: v_metal_rspace => NULL()
+      TYPE(cube_info_type), DIMENSION(:), POINTER  :: cube_info => NULL()
       TYPE(dbcsr_p_type), DIMENSION(:), &
-         POINTER                                :: matrix_h
+         POINTER                                :: matrix_h => NULL()
    END TYPE qs_ks_qmmm_env_type
 
 CONTAINS

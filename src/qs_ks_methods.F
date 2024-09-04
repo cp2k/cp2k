@@ -33,6 +33,10 @@ MODULE qs_ks_methods
                                               get_admm_env
    USE cell_types,                      ONLY: cell_type
    USE cp_control_types,                ONLY: dft_control_type
+   USE cp_dbcsr_api,                    ONLY: &
+        dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_filter, dbcsr_get_info, dbcsr_multiply, &
+        dbcsr_p_type, dbcsr_release, dbcsr_set, dbcsr_type, dbcsr_type_antisymmetric, &
+        dbcsr_type_symmetric
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
    USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set,&
                                               dbcsr_copy_columns_hack
@@ -43,10 +47,6 @@ MODULE qs_ks_methods
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_p_file,&
                                               cp_print_key_should_output
-   USE dbcsr_api,                       ONLY: &
-        dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_filter, dbcsr_get_info, dbcsr_multiply, &
-        dbcsr_p_type, dbcsr_release, dbcsr_set, dbcsr_type, dbcsr_type_antisymmetric, &
-        dbcsr_type_symmetric
    USE dft_plus_u,                      ONLY: plus_u
    USE hartree_local_methods,           ONLY: Vh_1c_gg_integrals
    USE hartree_local_types,             ONLY: ecoul_1center_type
@@ -84,11 +84,8 @@ MODULE qs_ks_methods
    USE pw_poisson_types,                ONLY: pw_poisson_implicit,&
                                               pw_poisson_type
    USE pw_pool_types,                   ONLY: pw_pool_type
-   USE pw_types,                        ONLY: COMPLEXDATA1D,&
-                                              REALDATA3D,&
-                                              REALSPACE,&
-                                              RECIPROCALSPACE,&
-                                              pw_type
+   USE pw_types,                        ONLY: pw_c1d_gs_type,&
+                                              pw_r3d_rs_type
    USE qmmm_image_charge,               ONLY: add_image_pot_to_hartree_pot,&
                                               calculate_image_pot,&
                                               integrate_potential_devga_rspace
@@ -182,7 +179,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_ks_build_kohn_sham_matrix'
 
       CHARACTER(len=default_string_length)               :: name
-      INTEGER                                            :: handle, iatom, img, ispin, nimages, ns, &
+      INTEGER                                            :: handle, iatom, img, ispin, nimages, &
                                                             nspins
       LOGICAL :: do_adiabatic_rescaling, do_ddapc, do_hfx, do_ppl, dokp, gapw, gapw_xc, &
          hfx_treat_lsd_in_core, just_energy_xc, lrigpw, my_print, rigpw, use_virial
@@ -203,15 +200,17 @@ CONTAINS
       TYPE(lri_environment_type), POINTER                :: lri_env
       TYPE(lri_kind_type), DIMENSION(:), POINTER         :: lri_v_int
       TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(pw_c1d_gs_type)                               :: rho_tot_gspace, v_hartree_gspace
+      TYPE(pw_c1d_gs_type), POINTER                      :: rho_core
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type)                                      :: rho_tot_gspace, v_hartree_gspace
-      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_r, v_rspace_embed, v_rspace_new, &
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: rho_r, v_rspace_embed, v_rspace_new, &
                                                             v_rspace_new_aux_fit, v_tau_rspace, &
                                                             v_tau_rspace_aux_fit
-      TYPE(pw_type), POINTER :: rho0_s_rs, rho_core, rho_nlcc, v_hartree_rspace, v_sccs_rspace, &
-         v_sic_rspace, v_spin_ddapc_rest_r, vee, vppl_rspace
+      TYPE(pw_r3d_rs_type), POINTER                      :: rho0_s_rs, rho_nlcc, v_hartree_rspace, &
+                                                            v_sccs_rspace, v_sic_rspace, &
+                                                            v_spin_ddapc_rest_r, vee, vppl_rspace
       TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho, rho_struct, rho_xc
@@ -259,12 +258,11 @@ CONTAINS
 
       CALL qs_rho_get(rho, rho_r=rho_r, rho_ao_kp=rho_ao)
 
-      IF (PRESENT(ext_ks_matrix)) THEN
-         ! remap pointer to allow for non-kpoint external ks matrix
-         ! ext_ks_matrix is used in linear response code
-         ns = SIZE(ext_ks_matrix)
-         ks_matrix(1:ns, 1:1) => ext_ks_matrix(1:ns)
-      END IF
+      nimages = dft_control%nimages
+      nspins = dft_control%nspins
+
+      ! remap pointer to allow for non-kpoint external ks matrix
+      IF (PRESENT(ext_ks_matrix)) ks_matrix(1:nspins, 1:1) => ext_ks_matrix(1:nspins)
 
       use_virial = virial%pv_availability .AND. (.NOT. virial%pv_numer)
 
@@ -283,8 +281,6 @@ CONTAINS
          just_energy_xc = .TRUE.
       END IF
 
-      nimages = dft_control%nimages
-      nspins = dft_control%nspins
       CPASSERT(ASSOCIATED(matrix_h))
       CPASSERT(ASSOCIATED(matrix_s))
       CPASSERT(ASSOCIATED(rho))
@@ -344,12 +340,8 @@ CONTAINS
       END IF
 
       ! Calculate the Hartree potential
-      CALL auxbas_pw_pool%create_pw(v_hartree_gspace, &
-                                    use_data=COMPLEXDATA1D, &
-                                    in_space=RECIPROCALSPACE)
-      CALL auxbas_pw_pool%create_pw(rho_tot_gspace, &
-                                    use_data=COMPLEXDATA1D, &
-                                    in_space=RECIPROCALSPACE)
+      CALL auxbas_pw_pool%create_pw(v_hartree_gspace)
+      CALL auxbas_pw_pool%create_pw(rho_tot_gspace)
 
       scf_section => section_vals_get_subs_vals(input, "DFT%SCF")
       IF (BTEST(cp_print_key_should_output(logger%iter_info, scf_section, &
@@ -376,9 +368,7 @@ CONTAINS
          ! Self-consistent continuum solvation (SCCS) model
          NULLIFY (v_sccs_rspace)
          ALLOCATE (v_sccs_rspace)
-         CALL auxbas_pw_pool%create_pw(v_sccs_rspace, &
-                                       use_data=REALDATA3D, &
-                                       in_space=REALSPACE)
+         CALL auxbas_pw_pool%create_pw(v_sccs_rspace)
 
          IF (poisson_env%parameters%solver .EQ. pw_poisson_implicit) THEN
             CPABORT("The implicit Poisson solver cannot be used together with SCCS.")
@@ -647,8 +637,8 @@ CONTAINS
             IF ((poisson_env%parameters%solver .EQ. pw_poisson_implicit) .AND. &
                 (poisson_env%parameters%dielectric_params%dielec_core_correction)) THEN
                BLOCK
-                  TYPE(pw_type) :: v_minus_veps
-                  CALL auxbas_pw_pool%create_pw(v_minus_veps, use_data=REALDATA3D, in_space=REALSPACE)
+                  TYPE(pw_r3d_rs_type) :: v_minus_veps
+                  CALL auxbas_pw_pool%create_pw(v_minus_veps)
                   CALL pw_copy(v_hartree_rspace, v_minus_veps)
                   CALL pw_axpy(poisson_env%implicit_env%v_eps, v_minus_veps, -v_hartree_rspace%pw_grid%dvol)
                   CALL integrate_v_core_rspace(v_minus_veps, qs_env)
@@ -920,7 +910,7 @@ CONTAINS
 !> \param skip_nuclear_density ...
 ! **************************************************************************************************
    SUBROUTINE calc_rho_tot_gspace(rho_tot_gspace, qs_env, rho, skip_nuclear_density)
-      TYPE(pw_type), INTENT(INOUT)                       :: rho_tot_gspace
+      TYPE(pw_c1d_gs_type), INTENT(INOUT)                :: rho_tot_gspace
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(qs_rho_type), POINTER                         :: rho
       LOGICAL, INTENT(IN), OPTIONAL                      :: skip_nuclear_density
@@ -928,8 +918,8 @@ CONTAINS
       INTEGER                                            :: ispin
       LOGICAL                                            :: my_skip
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_g
-      TYPE(pw_type), POINTER                             :: rho0_s_gs, rho_core
+      TYPE(pw_c1d_gs_type), DIMENSION(:), POINTER        :: rho_g
+      TYPE(pw_c1d_gs_type), POINTER                      :: rho0_s_gs, rho_core
       TYPE(qs_charges_type), POINTER                     :: qs_charges
 
       my_skip = .FALSE.

@@ -45,11 +45,11 @@
   &END DFT
   &SUBSYS
     &CELL
-@INCLUDE 'FH-chain.cell'
+      @INCLUDE 'FH-chain.cell'
       MULTIPLE_UNIT_CELL 1 1 1
     &END CELL
     &COORD
-@INCLUDE 'FH-chain.xyz'
+      @INCLUDE 'FH-chain.xyz'
     &END COORD
     &KIND H
       BASIS_SET SZV-GTH

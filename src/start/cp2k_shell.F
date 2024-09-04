@@ -68,7 +68,7 @@ MODULE cp2k_shell
    PRIVATE
 
    ! Queried by ASE. Increase version after bug-fixing or behavior changes.
-   CHARACTER(LEN=*), PARAMETER                           :: CP2K_SHELL_VERSION = "6.0"
+   CHARACTER(LEN=*), PARAMETER                           :: CP2K_SHELL_VERSION = "7.0"
 
    TYPE cp2k_shell_type
       REAL(dp)                                           :: pos_fact = 1.0_dp
@@ -124,6 +124,8 @@ CONTAINS
             CALL get_natom_command(shell, arg1)
          CASE ('SETPOS', 'SET_POS')
             CALL set_pos_command(shell, arg1)
+         CASE ('SETPOSFILE', 'SET_POS_FILE')
+            CALL set_pos_file_command(shell, arg1, arg2)
          CASE ('SETCELL', 'SET_CELL')
             CALL set_cell_command(shell, arg1)
          CASE ('GETCELL', 'GET_CELL')
@@ -318,6 +320,8 @@ CONTAINS
          WRITE (shell%iw, *) ' SET_POS [env_id]: sets the positions of the atoms, should be followed'
          WRITE (shell%iw, *) '   by natom*3 (on a line) and then all the positions. Returns the max'
          WRITE (shell%iw, *) '   change of the coordinates (useful to avoid extra calculations).'
+         WRITE (shell%iw, *) ' SET_POS_FILE <filename> [env_id]: sets the positions of the atoms from a file.'
+         WRITE (shell%iw, *) '   Returns the max change of the coordinates.'
          WRITE (shell%iw, *) ' SET_CELL [env_id]: sets the cell, should be followed by 9 numbers'
          WRITE (shell%iw, *) ' GET_CELL [env_id]: gets the cell vectors'
          WRITE (shell%iw, *) ' GET_STRESS [env_id]: gets the stress tensor of the last calculation on env_id'
@@ -558,14 +562,13 @@ CONTAINS
       CHARACTER(LEN=*), INTENT(IN)                       :: arg1
 
       CHARACTER(LEN=default_path_length)                 :: line
-      INTEGER                                            :: i, ierr, iostat, n_atom
-      REAL(KIND=dp)                                      :: max_change
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: old_pos, pos
+      INTEGER                                            :: ierr, iostat, n_atom
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: pos
 
       IF (.NOT. parse_env_id(arg1, shell)) RETURN
       CALL get_natom(shell%env_id, n_atom, ierr)
       IF (.NOT. my_assert(ierr == 0, 'get_natom failed', shell)) RETURN
-      ALLOCATE (pos(3*n_atom), old_pos(3*n_atom))
+      ALLOCATE (pos(3*n_atom))
       IF (shell%iw > 0) THEN
          READ (*, *, iostat=iostat) n_atom
          IF (.NOT. my_assert(iostat == 0, 'setpos read n_atom failed', shell)) RETURN
@@ -578,21 +581,79 @@ CONTAINS
          CALL uppercase(line)
          IF (.NOT. my_assert(TRIM(line) == '*END', 'missing *END', shell)) RETURN
       END IF
+
+      CALL send_pos_updates(shell, n_atom, pos)
+      DEALLOCATE (pos)
+   END SUBROUTINE set_pos_command
+
+! **************************************************************************************************
+!> \brief Set the positions based on coordinates in a file
+!> \param shell ...
+!> \param arg1 Filename
+!> \param arg2 Environment ID
+! **************************************************************************************************
+   SUBROUTINE set_pos_file_command(shell, arg1, arg2)
+      TYPE(cp2k_shell_type)                              :: shell
+      CHARACTER(LEN=*), INTENT(IN)                       :: arg1, arg2
+
+      INTEGER                                            :: file_unit, ierr, iostat, n_atom
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: pos
+
+      IF (.NOT. parse_env_id(arg2, shell)) RETURN
+      CALL get_natom(shell%env_id, n_atom, ierr)
+      IF (.NOT. my_assert(ierr == 0, 'get_natom failed', shell)) RETURN
+      ALLOCATE (pos(3*n_atom))
+
+      IF (shell%iw > 0) THEN
+         CALL open_file(file_name=TRIM(arg1), unit_number=file_unit, &
+                        file_status="OLD", file_form="FORMATTED", file_action="READ")
+         READ (file_unit, *, iostat=iostat) n_atom
+         IF (.NOT. my_assert(iostat == 0, 'setpos read n_atom failed', shell)) RETURN
+         IF (.NOT. my_assert(n_atom == SIZE(pos), 'setpos invalid number of atoms', shell)) RETURN
+         READ (file_unit, *, iostat=iostat) pos
+         IF (.NOT. my_assert(iostat == 0, 'setpos read coords failed', shell)) RETURN
+         pos(:) = pos(:)/shell%pos_fact
+         CALL close_file(unit_number=file_unit)
+      END IF
+
+      CALL send_pos_updates(shell, n_atom, pos)
+      DEALLOCATE (pos)
+   END SUBROUTINE set_pos_file_command
+
+! **************************************************************************************************
+!> \brief Update the positions for an environment
+!> \param shell Shell on on which to write the maximum change in coordinates
+!> \param n_atom Number of atoms in the target environment
+!> \param pos Positions of the new argument
+! **************************************************************************************************
+   SUBROUTINE send_pos_updates(shell, n_atom, pos)
+      TYPE(cp2k_shell_type)                              :: shell
+      INTEGER                                            :: n_atom
+      REAL(KIND=dp), DIMENSION(:)                        :: pos
+
+      INTEGER                                            :: i, ierr
+      REAL(KIND=dp)                                      :: max_change
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: old_pos
+
+      ! Get the current positions
+      ALLOCATE (old_pos(3*n_atom))
       CALL shell%para_env%bcast(pos)
       CALL get_pos(shell%env_id, old_pos, n_el=3*n_atom, ierr=ierr)
       IF (.NOT. my_assert(ierr == 0, 'get_pos error', shell)) RETURN
+
+      ! Set, measure the change, print do to shell
       CALL set_pos(shell%env_id, new_pos=pos, n_el=3*n_atom, ierr=ierr)
       IF (.NOT. my_assert(ierr == 0, 'set_pos error', shell)) RETURN
       max_change = 0.0_dp
       DO i = 1, SIZE(pos)
          max_change = MAX(max_change, ABS(pos(i) - old_pos(i)))
       END DO
-      DEALLOCATE (pos, old_pos)
+      DEALLOCATE (old_pos)
       IF (shell%iw > 0) THEN
          WRITE (shell%iw, '(ES22.13)') max_change*shell%pos_fact
          CALL m_flush(shell%iw)
       END IF
-   END SUBROUTINE set_pos_command
+   END SUBROUTINE send_pos_updates
 
 ! **************************************************************************************************
 !> \brief ...

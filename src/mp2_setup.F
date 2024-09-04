@@ -21,8 +21,9 @@ MODULE mp2_setup
                                               cp_print_key_unit_nr
    USE cp_parser_methods,               ONLY: read_float_object
    USE input_constants,                 ONLY: &
-        do_eri_mme, do_potential_short, mp2_method_direct, mp2_method_gpw, mp2_method_none, &
-        mp2_ri_optimize_basis, ri_mp2_laplace, ri_mp2_method_gpw, ri_rpa_method_gpw
+        do_eri_mme, do_potential_short, evGW, evGW0, mp2_method_direct, mp2_method_gpw, &
+        mp2_method_none, mp2_ri_optimize_basis, ri_mp2_laplace, ri_mp2_method_gpw, &
+        ri_rpa_method_gpw
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type,&
                                               section_vals_val_get
@@ -65,15 +66,16 @@ CONTAINS
       CHARACTER(LEN=default_string_length), &
          DIMENSION(:), POINTER                           :: string_pointer
       CHARACTER(LEN=max_line_length)                     :: error_message
-      INTEGER                                            :: handle, i, i_special_kp, ival, unit_nr
+      INTEGER                                            :: gw_sc, handle, i, i_special_kp, ival, &
+                                                            unit_nr
       INTEGER, DIMENSION(:), POINTER                     :: tmplist
       LOGICAL                                            :: do_mp2, do_opt_ri_basis, do_ri_mp2, &
                                                             do_ri_sos_mp2, do_rpa
       REAL(KIND=dp), DIMENSION(:), POINTER               :: r_vals
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(section_vals_type), POINTER                   :: cphf_section, eri_mme_section, &
-                                                            gw_section, low_scaling_section, &
-                                                            mp2_section
+      TYPE(section_vals_type), POINTER                   :: bse_section, cphf_section, &
+                                                            eri_mme_section, gw_section, &
+                                                            low_scaling_section, mp2_section
 
       CALL timeset(routineN, handle)
       logger => cp_get_default_logger()
@@ -110,7 +112,12 @@ CONTAINS
       CALL section_vals_val_get(mp2_section, "RI_RPA%SCALE_RPA", r_val=mp2_env%ri_rpa%scale_rpa)
       mp2_env%ri_rpa%reuse_hfx = .FALSE.
 
-      CALL section_vals_val_get(mp2_section, "RI_RPA%AXK", l_val=mp2_env%ri_rpa%do_ri_axk)
+      CALL section_vals_val_get(mp2_section, "RI_RPA%EXCHANGE_CORRECTION%_SECTION_PARAMETERS_", &
+                                i_val=mp2_env%ri_rpa%exchange_correction)
+      CALL section_vals_val_get(mp2_section, "RI_RPA%EXCHANGE_CORRECTION%BLOCK_SIZE", &
+                                i_val=mp2_env%ri_rpa%exchange_block_size)
+      CALL section_vals_val_get(mp2_section, "RI_RPA%EXCHANGE_CORRECTION%USE_HFX_IMPLEMENTATION", &
+                                l_val=mp2_env%ri_rpa%use_hfx_implementation)
 
       CALL section_vals_val_get(mp2_section, "RI_RPA%RSE", l_val=mp2_env%ri_rpa%do_rse)
       CALL section_vals_val_get(mp2_section, "RI_RPA%PRINT_DGEMM_INFO", l_val=mp2_env%ri_rpa%print_dgemm_info)
@@ -119,6 +126,8 @@ CONTAINS
       gw_section => section_vals_get_subs_vals(mp2_section, "RI_RPA%GW")
       CALL section_vals_val_get(gw_section, "_SECTION_PARAMETERS_", &
                                 l_val=mp2_env%ri_rpa%do_ri_g0w0)
+      CALL section_vals_val_get(mp2_section, "RI_RPA%GW%SELF_CONSISTENCY", &
+                                i_val=gw_sc)
       CALL section_vals_val_get(mp2_section, "RI_RPA%GW%CORR_MOS_OCC", &
                                 i_val=mp2_env%ri_g0w0%corr_mos_occ)
       CALL section_vals_val_get(mp2_section, "RI_RPA%GW%CORR_MOS_VIRT", &
@@ -135,10 +144,14 @@ CONTAINS
                                 i_val=mp2_env%ri_g0w0%crossing_search)
       CALL section_vals_val_get(mp2_section, "RI_RPA%GW%FERMI_LEVEL_OFFSET", &
                                 r_val=mp2_env%ri_g0w0%fermi_level_offset)
+      CALL section_vals_val_get(mp2_section, "RI_RPA%GW%HEDIN_SHIFT", &
+                                l_val=mp2_env%ri_g0w0%do_hedin_shift)
       CALL section_vals_val_get(mp2_section, "RI_RPA%GW%EV_GW_ITER", &
                                 i_val=mp2_env%ri_g0w0%iter_evGW)
+      IF (gw_sc == evGW) mp2_env%ri_g0w0%iter_evGW = 10
       CALL section_vals_val_get(mp2_section, "RI_RPA%GW%SC_GW0_ITER", &
                                 i_val=mp2_env%ri_g0w0%iter_sc_GW0)
+      IF (gw_sc == evGW0) mp2_env%ri_g0w0%iter_sc_GW0 = 10
       CALL section_vals_val_get(mp2_section, "RI_RPA%GW%EPS_ITER", &
                                 r_val=mp2_env%ri_g0w0%eps_iter)
       CALL section_vals_val_get(mp2_section, "RI_RPA%GW%PRINT_EXX", &
@@ -147,6 +160,7 @@ CONTAINS
                                 l_val=mp2_env%ri_g0w0%print_self_energy)
       CALL section_vals_val_get(mp2_section, "RI_RPA%GW%RI_SIGMA_X", &
                                 l_val=mp2_env%ri_g0w0%do_ri_Sigma_x)
+
       NULLIFY (r_vals)
       CALL section_vals_val_get(mp2_section, "RI_RPA%GW%IC_CORR_LIST", &
                                 r_vals=r_vals)
@@ -168,14 +182,54 @@ CONTAINS
       CALL section_vals_val_get(mp2_section, "RI_RPA%GW%SOC_ENERGY_WINDOW", &
                                 r_val=mp2_env%ri_g0w0%soc_energy_window)
 
-      CALL section_vals_val_get(mp2_section, "RI_RPA%GW%BSE", &
+      NULLIFY (bse_section)
+      bse_section => section_vals_get_subs_vals(mp2_section, "RI_RPA%GW%BSE")
+      CALL section_vals_val_get(bse_section, "_SECTION_PARAMETERS_", &
                                 l_val=mp2_env%ri_g0w0%do_bse)
-      CALL section_vals_val_get(mp2_section, "RI_RPA%GW%BSE%NUM_Z_VECTORS", &
-                                i_val=mp2_env%ri_g0w0%num_z_vectors)
-      CALL section_vals_val_get(mp2_section, "RI_RPA%GW%BSE%THRESHOLD_MIN_TRANS", &
-                                r_val=mp2_env%ri_g0w0%eps_min_trans)
-      CALL section_vals_val_get(mp2_section, "RI_RPA%GW%BSE%MAX_ITER", &
-                                i_val=mp2_env%ri_g0w0%max_iter_bse)
+      CALL section_vals_val_get(bse_section, "SPIN_CONFIG", &
+                                i_val=mp2_env%ri_g0w0%bse_spin_config)
+      CALL section_vals_val_get(bse_section, "ENERGY_CUTOFF_OCC", &
+                                r_val=mp2_env%ri_g0w0%bse_cutoff_occ)
+      CALL section_vals_val_get(bse_section, "ENERGY_CUTOFF_EMPTY", &
+                                r_val=mp2_env%ri_g0w0%bse_cutoff_empty)
+      CALL section_vals_val_get(bse_section, "NUM_PRINT_EXC", &
+                                i_val=mp2_env%ri_g0w0%num_print_exc)
+      CALL section_vals_val_get(bse_section, "EPS_X", &
+                                r_val=mp2_env%ri_g0w0%eps_x)
+      CALL section_vals_val_get(bse_section, "BSE_ITERAT%DAVIDSON_ABORT_COND", &
+                                i_val=mp2_env%ri_g0w0%davidson_abort_cond)
+      CALL section_vals_val_get(bse_section, "BSE_ITERAT%NUM_EXC_EN", &
+                                i_val=mp2_env%ri_g0w0%num_exc_en)
+      CALL section_vals_val_get(bse_section, "BSE_ITERAT%NUM_ADD_START_Z_SPACE", &
+                                i_val=mp2_env%ri_g0w0%num_add_start_z_space)
+      CALL section_vals_val_get(bse_section, "BSE_ITERAT%FAC_MAX_Z_SPACE", &
+                                i_val=mp2_env%ri_g0w0%fac_max_z_space)
+      CALL section_vals_val_get(bse_section, "BSE_ITERAT%NUM_NEW_T", &
+                                i_val=mp2_env%ri_g0w0%num_new_t)
+      CALL section_vals_val_get(bse_section, "BSE_ITERAT%EPS_RES", &
+                                r_val=mp2_env%ri_g0w0%eps_res)
+      CALL section_vals_val_get(bse_section, "BSE_ITERAT%EPS_EXC_EN", &
+                                r_val=mp2_env%ri_g0w0%eps_exc_en)
+      CALL section_vals_val_get(bse_section, "BSE_ITERAT%NUM_DAVIDSON_ITER", &
+                                i_val=mp2_env%ri_g0w0%num_davidson_iter)
+      CALL section_vals_val_get(bse_section, "BSE_ITERAT%Z_SPACE_ENERGY_CUTOFF", &
+                                r_val=mp2_env%ri_g0w0%z_space_energy_cutoff)
+      CALL section_vals_val_get(bse_section, "BSE_DIAG_METHOD", &
+                                i_val=mp2_env%ri_g0w0%bse_diag_method)
+      CALL section_vals_val_get(bse_section, "TDA", &
+                                i_val=mp2_env%ri_g0w0%flag_tda)
+      CALL section_vals_val_get(bse_section, "BSE_DEBUG_PRINT", &
+                                l_val=mp2_env%ri_g0w0%bse_debug_print)
+      CALL section_vals_val_get(bse_section, "BSE_SPECTRUM%_SECTION_PARAMETERS_", &
+                                l_val=mp2_env%ri_g0w0%bse_print_spectrum)
+      CALL section_vals_val_get(bse_section, "BSE_SPECTRUM%FREQUENCY_STEP_SIZE", &
+                                r_val=mp2_env%ri_g0w0%bse_spectrum_freq_step_size)
+      CALL section_vals_val_get(bse_section, "BSE_SPECTRUM%FREQUENCY_STARTING_POINT", &
+                                r_val=mp2_env%ri_g0w0%bse_spectrum_freq_start)
+      CALL section_vals_val_get(bse_section, "BSE_SPECTRUM%FREQUENCY_END_POINT", &
+                                r_val=mp2_env%ri_g0w0%bse_spectrum_freq_end)
+      CALL section_vals_val_get(bse_section, "BSE_SPECTRUM%ETA_LIST", &
+                                r_vals=mp2_env%ri_g0w0%bse_eta_spectrum_list)
 
       CALL section_vals_val_get(mp2_section, "RI_RPA%GW%IMAGE_CHARGE_MODEL", &
                                 l_val=mp2_env%ri_g0w0%do_ic_model)
@@ -233,6 +287,10 @@ CONTAINS
                                 r_val=mp2_env%ri_g0w0%dos_upper)
       CALL section_vals_val_get(mp2_section, "RI_RPA%GW%PRINT%GW_DOS%STEP", &
                                 r_val=mp2_env%ri_g0w0%dos_prec)
+      CALL section_vals_val_get(mp2_section, "RI_RPA%GW%PRINT%GW_DOS%MIN_LEVEL_SPECTRAL", &
+                                i_val=mp2_env%ri_g0w0%dos_min)
+      CALL section_vals_val_get(mp2_section, "RI_RPA%GW%PRINT%GW_DOS%MAX_LEVEL_SPECTRAL", &
+                                i_val=mp2_env%ri_g0w0%dos_max)
       CALL section_vals_val_get(mp2_section, "RI_RPA%GW%PRINT%GW_DOS%MIN_LEVEL_SELF_ENERGY", &
                                 i_val=mp2_env%ri_g0w0%min_level_self_energy)
       CALL section_vals_val_get(mp2_section, "RI_RPA%GW%PRINT%GW_DOS%MAX_LEVEL_SELF_ENERGY", &
@@ -409,7 +467,6 @@ CONTAINS
       ! Set the CPHF section
       CALL section_vals_val_get(mp2_section, "CANONICAL_GRADIENTS%FREE_HFX_BUFFER", l_val=mp2_env%ri_grad%free_hfx_buffer)
       CALL section_vals_val_get(mp2_section, "CANONICAL_GRADIENTS%EPS_CANONICAL", r_val=mp2_env%ri_grad%eps_canonical)
-      CALL section_vals_val_get(mp2_section, "CANONICAL_GRADIENTS%USE_OLD_GRADIENT_CODE", l_val=mp2_env%ri_grad%use_old_grad)
       CALL section_vals_val_get(mp2_section, "CANONICAL_GRADIENTS%DOT_PRODUCT_BLKSIZE", i_val=mp2_env%ri_grad%dot_blksize)
       CALL section_vals_val_get(mp2_section, "CANONICAL_GRADIENTS%MAX_PARALLEL_COMM", i_val=mp2_env%ri_grad%max_parallel_comm)
       cphf_section => section_vals_get_subs_vals(mp2_section, "CANONICAL_GRADIENTS%CPHF")

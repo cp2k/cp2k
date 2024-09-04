@@ -18,10 +18,10 @@ MODULE qs_tddfpt2_lri_utils
    USE cell_types,                      ONLY: cell_type
    USE cp_control_types,                ONLY: dft_control_type,&
                                               tddfpt2_control_type
-   USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set
-   USE dbcsr_api,                       ONLY: dbcsr_copy,&
+   USE cp_dbcsr_api,                    ONLY: dbcsr_copy,&
                                               dbcsr_deallocate_matrix,&
                                               dbcsr_p_type
+   USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set
    USE distribution_1d_types,           ONLY: distribution_1d_type
    USE distribution_2d_types,           ONLY: distribution_2d_type
    USE input_section_types,             ONLY: section_vals_get,&
@@ -136,10 +136,9 @@ CONTAINS
          IF (.NOT. (ASSOCIATED(p_lri_aux_basis))) THEN
             ! Generate a default basis
             redefine_interaction_radii = .TRUE.
-            CALL cp_warn(__LOCATION__, "Automatic Generation of P_LRI_AUX basis. "// &
-                         "This is experimental code.")
             CALL create_lri_aux_basis_set(p_lri_aux_basis, qs_kind, &
-                                          dft_control%auto_basis_p_lri_aux, lri_env%exact_1c_terms)
+                                          dft_control%auto_basis_p_lri_aux, lri_env%exact_1c_terms, &
+                                          tda_kernel=.TRUE.)
             CALL add_basis_set_to_container(qs_kind%basis_sets, p_lri_aux_basis, "P_LRI_AUX")
          END IF
       END DO !nkind

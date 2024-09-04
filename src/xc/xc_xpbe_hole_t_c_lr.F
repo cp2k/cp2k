@@ -19,7 +19,8 @@ MODULE xc_xpbe_hole_t_c_lr
                                               section_vals_val_get
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: euler,&
-                                              pi
+                                              pi,&
+                                              rootpi
    USE xc_derivative_desc,              ONLY: deriv_norm_drho,&
                                               deriv_norm_drhoa,&
                                               deriv_norm_drhob,&
@@ -537,7 +538,7 @@ CONTAINS
          t61 = D**2
          t64 = D*t21
          t65 = t34*B
-         t69 = SQRT(pi)
+         t69 = rootpi
          t71 = F1*t21
          t73 = t71*t34 + F2
          t77 = C*(1 + t73*t12*t13)

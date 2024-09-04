@@ -19,8 +19,8 @@
 @SET EPS_SCF 1.0e-3
 @SET SCF_GUESS ATOMIC
 @SET METHOD MIXED
-@include ch4-ch4-force-env.inc
+@INCLUDE ch4-ch4-force-env.inc
 @SET METHOD QS
-@include ch4-ch4-force-env.inc
+@INCLUDE ch4-ch4-force-env.inc
 @SET METHOD FIST
-@include ch4-ch4-force-env.inc
+@INCLUDE ch4-ch4-force-env.inc

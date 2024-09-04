@@ -19,6 +19,7 @@ MODULE admm_types
                                               cite_reference
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_control_types,                ONLY: admm_control_type
+   USE cp_dbcsr_api,                    ONLY: dbcsr_p_type
    USE cp_dbcsr_operations,             ONLY: dbcsr_deallocate_matrix_set
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
@@ -26,7 +27,6 @@ MODULE admm_types
    USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_release,&
                                               cp_fm_type
-   USE dbcsr_api,                       ONLY: dbcsr_p_type
    USE input_constants,                 ONLY: do_admm_aux_exch_func_none,&
                                               do_admm_blocked_projection,&
                                               do_admm_blocking_purify_full,&
@@ -63,7 +63,7 @@ MODULE admm_types
 
    IMPLICIT NONE
    PRIVATE
-   PUBLIC :: admm_env_create, admm_env_release, admm_type, admm_gapw_type, set_admm_env, get_admm_env
+   PUBLIC :: admm_env_create, admm_env_release, admm_type, admm_gapw_r3d_rs_type, set_admm_env, get_admm_env
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'admm_types'
 
@@ -82,12 +82,12 @@ MODULE admm_types
 !> \param task_list the task list used for all soft density pw operations
 !> \param oce stores the precomputed oce integrals
 ! **************************************************************************************************
-   TYPE admm_gapw_type
+   TYPE admm_gapw_r3d_rs_type
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: admm_kind_set => Null()
       TYPE(local_rho_type), POINTER                      :: local_rho_set => Null()
       TYPE(task_list_type), POINTER                      :: task_list => Null()
       TYPE(oce_matrix_type), POINTER                     :: oce => Null()
-   END TYPE admm_gapw_type
+   END TYPE admm_gapw_r3d_rs_type
 
 ! **************************************************************************************************
 !> \brief stores some data used in wavefunction fitting
@@ -178,7 +178,7 @@ MODULE admm_types
       LOGICAL                                  :: block_dm = .FALSE.
       LOGICAL                                  :: block_fit = .FALSE.
       INTEGER, DIMENSION(:, :), POINTER        :: block_map => Null()
-      TYPE(admm_gapw_type), POINTER            :: admm_gapw_env => NULL()
+      TYPE(admm_gapw_r3d_rs_type), POINTER            :: admm_gapw_env => NULL()
       LOGICAL                                  :: do_gapw = .FALSE.
       TYPE(admm_dm_type), POINTER              :: admm_dm => Null()
 
@@ -539,7 +539,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE admm_gapw_env_release(admm_gapw_env)
 
-      TYPE(admm_gapw_type), POINTER                      :: admm_gapw_env
+      TYPE(admm_gapw_r3d_rs_type), POINTER               :: admm_gapw_env
 
       IF (ASSOCIATED(admm_gapw_env%admm_kind_set)) THEN
          CALL deallocate_qs_kind_set(admm_gapw_env%admm_kind_set)

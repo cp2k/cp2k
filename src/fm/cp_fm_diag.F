@@ -50,7 +50,7 @@ MODULE cp_fm_diag
                     dp
    USE machine, ONLY: default_output_unit, &
                       m_memory
-#if defined (__SCALAPACK)
+#if defined (__parallel)
    USE message_passing, ONLY: mp_comm_type
 #endif
 #if defined (__HAS_IEEE_EXCEPTIONS)
@@ -221,7 +221,7 @@ CONTAINS
          CALL cp_fm_syevd(matrix, eigenvectors, eigenvalues, info)
 
       ELSE IF (diag_type == FM_DIAG_TYPE_ELPA) THEN
-         IF (SIZE(eigenvalues) < elpa_neigvec_min) THEN
+         IF (matrix%matrix_struct%nrow_global < elpa_neigvec_min) THEN
             ! We don't trust ELPA with very small matrices.
             CALL cp_fm_syevd(matrix, eigenvectors, eigenvalues, info)
          ELSE
@@ -229,7 +229,7 @@ CONTAINS
          END IF
 
       ELSE IF (diag_type == FM_DIAG_TYPE_CUSOLVER) THEN
-         IF (SIZE(eigenvalues) < 64) THEN
+         IF (matrix%matrix_struct%nrow_global < 64) THEN
             ! We don't trust cuSolver with very small matrices.
             CALL cp_fm_syevd(matrix, eigenvectors, eigenvalues, info)
          ELSE
@@ -238,7 +238,7 @@ CONTAINS
 
 #if defined(__DLAF)
       ELSE IF (diag_type == FM_DIAG_TYPE_DLAF) THEN
-         IF (SIZE(eigenvalues) < dlaf_neigvec_min) THEN
+         IF (matrix%matrix_struct%nrow_global < dlaf_neigvec_min) THEN
             ! Use ScaLAPACK for small matrices
             CALL cp_fm_syevd(matrix, eigenvectors, eigenvalues, info)
          ELSE
@@ -271,7 +271,7 @@ CONTAINS
       REAL(KIND=dp)                                      :: eps_abort, eps_warning
       INTEGER                                            :: handle, i, j, ncol, nrow, output_unit
       LOGICAL                                            :: check_eigenvectors
-#if defined(__SCALAPACK)
+#if defined(__parallel)
       TYPE(cp_blacs_env_type), POINTER                   :: context
       INTEGER                                            :: il, jl, ipcol, iprow, &
                                                             mypcol, myprow, npcol, nprow
@@ -311,7 +311,7 @@ CONTAINS
       eps_abort = 10.0_dp*eps_warning
 
       IF (check_eigenvectors) THEN
-#if defined(__SCALAPACK)
+#if defined(__parallel)
          nrow = eigenvectors%matrix_struct%nrow_global
          ncol = MIN(eigenvectors%matrix_struct%ncol_global, nvec)
          CALL cp_fm_gemm("T", "N", ncol, ncol, nrow, 1.0_dp, eigenvectors, eigenvectors, 0.0_dp, matrix)
@@ -419,7 +419,7 @@ CONTAINS
 
       INTEGER                                  :: handle, myinfo, n, nmo
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: eig
-#if defined(__SCALAPACK)
+#if defined(__parallel)
       TYPE(cp_fm_type)                         :: eigenvectors_new, matrix_new
 #else
       CHARACTER(LEN=2*default_string_length)   :: message
@@ -436,7 +436,7 @@ CONTAINS
       n = matrix%matrix_struct%nrow_global
       ALLOCATE (eig(n))
 
-#if defined(__SCALAPACK)
+#if defined(__parallel)
       ! Determine if the input matrix needs to be redistributed before diagonalization.
       ! Heuristics are used to determine the optimal number of CPUs for diagonalization.
       ! The redistributed matrix is stored in matrix_new, which is just a pointer
@@ -539,7 +539,7 @@ CONTAINS
 
       CHARACTER(LEN=2*default_string_length)   :: message
       INTEGER                                  :: handle, myinfo
-#if defined(__SCALAPACK)
+#if defined(__parallel)
       TYPE(cp_blacs_env_type), POINTER         :: context
       INTEGER                                  :: liwork, lwork, &
                                                   mypcol, myprow, n
@@ -556,7 +556,7 @@ CONTAINS
 
       myinfo = 0
 
-#if defined(__SCALAPACK)
+#if defined(__parallel)
 
       n = matrix%matrix_struct%nrow_global
       m => matrix%local_data
@@ -665,7 +665,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                  :: routineN = "cp_fm_syevx"
 
-#if defined(__SCALAPACK)
+#if defined(__parallel)
       REAL(KIND=dp), PARAMETER                     :: orfac = -1.0_dp
 #endif
       REAL(KIND=dp), PARAMETER                     :: vl = 0.0_dp, &
@@ -687,7 +687,7 @@ CONTAINS
 
       REAL(KIND=dp), EXTERNAL                      :: dlamch
 
-#if defined(__SCALAPACK)
+#if defined(__parallel)
       INTEGER                                      :: nn, np0, npe, nq0, nz
       INTEGER, DIMENSION(9)                        :: desca, descz
       INTEGER, DIMENSION(:), ALLOCATABLE           :: iclustr
@@ -737,7 +737,7 @@ CONTAINS
 
       ALLOCATE (w(n))
       eigenvalues(:) = 0.0_dp
-#if defined(__SCALAPACK)
+#if defined(__parallel)
 
       IF (matrix%matrix_struct%nrow_block /= matrix%matrix_struct%ncol_block) THEN
          CPABORT("ERROR in "//routineN//": Invalid blocksize (no square blocks) found")
@@ -920,10 +920,9 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), POINTER    :: eigenvectors
       TYPE(cp_blacs_env_type), POINTER           :: context
 
-#if defined(__SCALAPACK)
+#if defined(__parallel)
       INTEGER           :: icol_local, ipcol, iprow, irow_global, &
-                           irow_local, ncol_block, nrow_block
-      INTEGER, EXTERNAL :: indxg2l, indxg2p
+                           irow_local
 #endif
 
       CALL timeset(routineN, handle)
@@ -955,10 +954,7 @@ CONTAINS
          eigvals(2) = eigenvalues(ncol_global)
       END IF
 
-#if defined(__SCALAPACK)
-      nrow_block = work%matrix_struct%nrow_block
-      ncol_block = work%matrix_struct%ncol_block
-
+#if defined(__parallel)
       eigenvectors => work%local_data
 
       ! Build matrix**exponent with eigenvector quenching
@@ -969,18 +965,14 @@ CONTAINS
 
             n_dependent = n_dependent + 1
 
-            ipcol = indxg2p(icol_global, ncol_block, mypcol, &
-                            work%matrix_struct%first_p_pos(2), npcol)
+            ipcol = work%matrix_struct%g2p_col(icol_global)
 
             IF (mypcol == ipcol) THEN
-               icol_local = indxg2l(icol_global, ncol_block, mypcol, &
-                                    work%matrix_struct%first_p_pos(2), npcol)
+               icol_local = work%matrix_struct%g2l_col(icol_global)
                DO irow_global = 1, nrow_global
-                  iprow = indxg2p(irow_global, nrow_block, myprow, &
-                                  work%matrix_struct%first_p_pos(1), nprow)
+                  iprow = work%matrix_struct%g2p_row(irow_global)
                   IF (myprow == iprow) THEN
-                     irow_local = indxg2l(irow_global, nrow_block, myprow, &
-                                          work%matrix_struct%first_p_pos(1), nprow)
+                     irow_local = work%matrix_struct%g2l_row(irow_global)
                      eigenvectors(irow_local, icol_local) = 0.0_dp
                   END IF
                END DO
@@ -990,18 +982,14 @@ CONTAINS
 
             f = eigenvalues(icol_global)**p
 
-            ipcol = indxg2p(icol_global, ncol_block, mypcol, &
-                            work%matrix_struct%first_p_pos(2), npcol)
+            ipcol = work%matrix_struct%g2p_col(icol_global)
 
             IF (mypcol == ipcol) THEN
-               icol_local = indxg2l(icol_global, ncol_block, mypcol, &
-                                    work%matrix_struct%first_p_pos(2), npcol)
+               icol_local = work%matrix_struct%g2l_col(icol_global)
                DO irow_global = 1, nrow_global
-                  iprow = indxg2p(irow_global, nrow_block, myprow, &
-                                  work%matrix_struct%first_p_pos(1), nprow)
+                  iprow = work%matrix_struct%g2p_row(irow_global)
                   IF (myprow == iprow) THEN
-                     irow_local = indxg2l(irow_global, nrow_block, myprow, &
-                                          work%matrix_struct%first_p_pos(1), nprow)
+                     irow_local = work%matrix_struct%g2l_row(irow_global)
                      eigenvectors(irow_local, icol_local) = &
                         f*eigenvectors(irow_local, icol_local)
                   END IF
@@ -1096,7 +1084,7 @@ CONTAINS
       INTEGER  :: q, p, N
       REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: c_ip
 
-#if defined(__SCALAPACK)
+#if defined(__parallel)
       TYPE(cp_blacs_env_type), POINTER :: context
 
       INTEGER :: myprow, mypcol, nprow, npcol, block_dim_row, block_dim_col, &
@@ -1107,14 +1095,14 @@ CONTAINS
                                                       desc_ev_loc
       TYPE(mp_comm_type):: allgrp
       TYPE(cp_blacs_type) :: ictxt_loc
-      INTEGER, EXTERNAL :: numroc, indxl2g, indxg2l
+      INTEGER, EXTERNAL :: numroc
 #endif
 
       ! -------------------------------------------------------------------------
 
       CALL timeset(routineN, handle)
 
-#if defined(__SCALAPACK)
+#if defined(__parallel)
       context => matrix%matrix_struct%context
       allgrp = matrix%matrix_struct%para_env
 

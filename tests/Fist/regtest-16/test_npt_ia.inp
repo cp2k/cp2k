@@ -97,7 +97,7 @@
       PERIODIC XYZ
     &END CELL
     &COORD
-@INCLUDE "coord-npt_ia.inc"
+      @INCLUDE "coord-npt_ia.inc"
     &END COORD
     &TOPOLOGY
       &GENERATE

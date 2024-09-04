@@ -6,7 +6,7 @@
 @SET DFT_FUNCTIONAL BLYP
 &FORCE_EVAL
   METHOD QMMM
-@IF ${QS_METHOD} == SE
+  @IF ${QS_METHOD} == SE
   &DFT
     CHARGE -1
     &QS
@@ -23,8 +23,8 @@
       &END PRINT
     &END SCF
   &END DFT
-@ENDIF
-@IF ${QS_METHOD} == DFT
+  @ENDIF
+  @IF ${QS_METHOD} == DFT
   &DFT
     BASIS_SET_FILE_NAME BASIS_SET
     CHARGE -1
@@ -87,7 +87,7 @@
     #      &END MULLIKEN
     #    &END PRINT
   &END DFT
-@ENDIF
+  @ENDIF
   &MM
     &FORCEFIELD
       # for LM AMBER params
@@ -96,10 +96,10 @@
       PARM_FILE_NAME ../sample_pot/tyrosine.pot
     &END FORCEFIELD
     &POISSON
-@IF ${QS_METHOD} == DFT
+      @IF ${QS_METHOD} == DFT
       PERIODIC XYZ
       POISSON_SOLVER PERIODIC
-@ENDIF
+      @ENDIF
       &EWALD
         ALPHA 0.35
         EWALD_ACCURACY 1.E-6
@@ -171,18 +171,18 @@
     &CELL
       # big enough for QM region atoms plus a bit
       ABC 18.0 18.0 18.0
-@IF ${QS_METHOD} == DFT
+      @IF ${QS_METHOD} == DFT
       PERIODIC XYZ
-@ENDIF
+      @ENDIF
     &END CELL
-@IF ${QS_METHOD} == SE
+    @IF ${QS_METHOD} == SE
     # SE only supports COULOMB
     ECOUPL COULOMB
-@ENDIF
-@IF ${QS_METHOD} == DFT
+    @ENDIF
+    @IF ${QS_METHOD} == DFT
     #GAUSS is from Laino 2005 using Blochl 1995, Gaussian expansion of the electrostatic potential
     ECOUPL GAUSS
-@ENDIF
+    @ENDIF
     USE_GEEP_LIB 10
     &MM_KIND OX
       RADIUS 1.2
@@ -193,9 +193,9 @@
   &END QMMM
   &SUBSYS
     &CELL
-@IF ${QS_METHOD} == DFT
+      @IF ${QS_METHOD} == DFT
       PERIODIC XYZ
-@ENDIF
+      @ENDIF
       ABC [angstrom] 32.82913000 32.82913000 32.82913000
     &END CELL
     #USER: BASIS_SET - double zeta in valence + polarization (DZVP)

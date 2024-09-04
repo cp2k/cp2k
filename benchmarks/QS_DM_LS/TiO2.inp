@@ -57,7 +57,7 @@
       ABC 70 70 110
     &END CELL
     &COORD
-@INCLUDE 'TiO2_larger.xyz'
+      @INCLUDE 'TiO2_larger.xyz'
     &END COORD
     &KIND Ti
       BASIS_SET DZVP-MOLOPT-SR-GTH

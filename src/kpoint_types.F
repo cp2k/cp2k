@@ -53,6 +53,7 @@ MODULE kpoint_types
    PUBLIC :: read_kpoint_section, write_kpoint_info
    PUBLIC :: kpoint_env_type, kpoint_env_p_type
    PUBLIC :: kpoint_env_create, get_kpoint_env
+   PUBLIC :: kind_rotmat_type
    PUBLIC :: kpoint_sym_type
    PUBLIC :: kpoint_sym_create
 
@@ -70,20 +71,29 @@ MODULE kpoint_types
 !> \author JGH
 ! **************************************************************************************************
    TYPE kpoint_env_type
-      INTEGER                                           :: nkpoint
-      REAL(KIND=dp)                                     :: wkp
-      REAL(KIND=dp), DIMENSION(3)                       :: xkp
-      LOGICAL                                           :: is_local
-      TYPE(mo_set_type), DIMENSION(:, :), POINTER     :: mos
-      TYPE(cp_fm_type), DIMENSION(:, :), POINTER      :: pmat
-      TYPE(cp_fm_type), DIMENSION(:, :), POINTER      :: wmat
-      TYPE(cp_fm_type), DIMENSION(:, :), POINTER      :: smat
-      TYPE(cp_fm_type), DIMENSION(:, :), POINTER      :: amat
+      INTEGER                                           :: nkpoint = -1
+      REAL(KIND=dp)                                     :: wkp = 0.0_dp
+      REAL(KIND=dp), DIMENSION(3)                       :: xkp = 0.0_dp
+      LOGICAL                                           :: is_local = .FALSE.
+      TYPE(mo_set_type), DIMENSION(:, :), POINTER     :: mos => NULL()
+      TYPE(cp_fm_type), DIMENSION(:, :), POINTER      :: pmat => NULL()
+      TYPE(cp_fm_type), DIMENSION(:, :), POINTER      :: wmat => NULL()
+      TYPE(cp_fm_type), DIMENSION(:, :), POINTER      :: smat => NULL()
+      TYPE(cp_fm_type), DIMENSION(:, :), POINTER      :: amat => NULL()
    END TYPE kpoint_env_type
 
    TYPE kpoint_env_p_type
-      TYPE(kpoint_env_type), POINTER                    :: kpoint_env
+      TYPE(kpoint_env_type), POINTER                    :: kpoint_env => NULL()
    END TYPE kpoint_env_p_type
+
+! **************************************************************************************************
+!> \brief Rotation matrices for basis sets
+!> \param rmat      atom basis function rotation matrix
+!> \author JGH
+! **************************************************************************************************
+   TYPE kind_rotmat_type
+      REAL(KIND=dp), DIMENSION(:, :), POINTER           :: rmat => NULL()
+   END TYPE kind_rotmat_type
 
 ! **************************************************************************************************
 !> \brief Keeps symmetry information about a specific k-point
@@ -95,15 +105,17 @@ MODULE kpoint_types
 !> \author JGH
 ! **************************************************************************************************
    TYPE kpoint_sym_type
-      LOGICAL                                           :: apply_symmetry
-      INTEGER                                           :: nwght
-      REAL(KIND=dp), DIMENSION(:, :), POINTER           :: xkp
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER        :: rot
-      INTEGER, DIMENSION(:, :), POINTER                 :: f0
+      LOGICAL                                           :: apply_symmetry = .FALSE.
+      INTEGER                                           :: nwght = -1
+      INTEGER                                           :: nwred = -1
+      REAL(KIND=dp), DIMENSION(:, :), POINTER           :: xkp => NULL()
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER        :: rot => NULL()
+      INTEGER, DIMENSION(:), POINTER                    :: rotp => NULL()
+      INTEGER, DIMENSION(:, :), POINTER                 :: f0 => NULL()
    END TYPE kpoint_sym_type
 
    TYPE kpoint_sym_p_type
-      TYPE(kpoint_sym_type), POINTER                    :: kpoint_sym
+      TYPE(kpoint_sym_type), POINTER                    :: kpoint_sym => NULL()
    END TYPE kpoint_sym_p_type
 
 ! **************************************************************************************************
@@ -136,16 +148,16 @@ MODULE kpoint_types
 !> \author JGH
 ! **************************************************************************************************
    TYPE kpoint_type
-      CHARACTER(LEN=default_string_length)    :: kp_scheme
-      INTEGER, DIMENSION(3)                   :: nkp_grid
-      REAL(KIND=dp), DIMENSION(3)             :: kp_shift
-      LOGICAL                                 :: use_real_wfn
-      LOGICAL                                 :: symmetry
-      LOGICAL                                 :: full_grid
-      LOGICAL                                 :: verbose
-      REAL(KIND=dp)                           :: eps_geo
-      INTEGER                                 :: parallel_group_size
-      INTEGER                                 :: nkp
+      CHARACTER(LEN=default_string_length)    :: kp_scheme = ""
+      INTEGER, DIMENSION(3)                   :: nkp_grid = -1
+      REAL(KIND=dp), DIMENSION(3)             :: kp_shift = 0.0_dp
+      LOGICAL                                 :: use_real_wfn = .FALSE.
+      LOGICAL                                 :: symmetry = .FALSE.
+      LOGICAL                                 :: full_grid = .FALSE.
+      LOGICAL                                 :: verbose = .FALSE.
+      REAL(KIND=dp)                           :: eps_geo = 0.0_dp
+      INTEGER                                 :: parallel_group_size = -1
+      INTEGER                                 :: nkp = -1
       REAL(KIND=dp), DIMENSION(:, :), POINTER :: xkp => Null()
       REAL(KIND=dp), DIMENSION(:), POINTER    :: wkp => Null()
       ! parallel environment
@@ -153,10 +165,10 @@ MODULE kpoint_types
       TYPE(cp_blacs_env_type), POINTER        :: blacs_env_all => Null()
       TYPE(mp_para_env_type), POINTER         :: para_env_kp => Null(), &
                                                  para_env_inter_kp => Null()
-      LOGICAL                                 :: iogrp
-      INTEGER                                 :: nkp_groups
+      LOGICAL                                 :: iogrp = .FALSE.
+      INTEGER                                 :: nkp_groups = -1
       INTEGER, DIMENSION(:, :), POINTER       :: kp_dist => Null()
-      INTEGER, DIMENSION(2)                   :: kp_range
+      INTEGER, DIMENSION(2)                   :: kp_range = -1
       TYPE(cp_blacs_env_type), POINTER        :: blacs_env => Null()
       INTEGER, DIMENSION(:, :, :), POINTER    :: cell_to_index => Null()
       INTEGER, DIMENSION(:, :), POINTER       :: index_to_cell => Null()
@@ -168,8 +180,14 @@ MODULE kpoint_types
          POINTER                              :: kp_env => Null()
       TYPE(kpoint_env_p_type), DIMENSION(:), &
          POINTER                              :: kp_aux_env => Null()
+      ! symmetry
       TYPE(kpoint_sym_p_type), DIMENSION(:), &
          POINTER                              :: kp_sym => Null()
+      INTEGER, DIMENSION(:), POINTER          :: atype => Null()
+      INTEGER, DIMENSION(:), POINTER          :: ibrot => Null()
+      TYPE(kind_rotmat_type), DIMENSION(:, :), &
+         POINTER                              :: kind_rotmat => Null()
+      ! pools
       TYPE(qs_matrix_pools_type), POINTER     :: mpools => Null()
       TYPE(qs_diis_buffer_type_kp), POINTER   :: scf_diis_buffer => Null()
       TYPE(qs_matrix_pools_type), POINTER     :: mpools_aux_fit => Null()
@@ -233,7 +251,7 @@ CONTAINS
    SUBROUTINE kpoint_release(kpoint)
       TYPE(kpoint_type), POINTER                         :: kpoint
 
-      INTEGER                                            :: ik
+      INTEGER                                            :: i, ik, j
 
       IF (ASSOCIATED(kpoint)) THEN
 
@@ -279,6 +297,20 @@ CONTAINS
                CALL kpoint_sym_release(kpoint%kp_sym(ik)%kpoint_sym)
             END DO
             DEALLOCATE (kpoint%kp_sym)
+         END IF
+
+         IF (ASSOCIATED(kpoint%atype)) DEALLOCATE (kpoint%atype)
+         IF (ASSOCIATED(kpoint%ibrot)) DEALLOCATE (kpoint%ibrot)
+
+         IF (ASSOCIATED(kpoint%kind_rotmat)) THEN
+            DO i = 1, SIZE(kpoint%kind_rotmat, 1)
+               DO j = 1, SIZE(kpoint%kind_rotmat, 2)
+                  IF (ASSOCIATED(kpoint%kind_rotmat(i, j)%rmat)) THEN
+                     DEALLOCATE (kpoint%kind_rotmat(i, j)%rmat)
+                  END IF
+               END DO
+            END DO
+            DEALLOCATE (kpoint%kind_rotmat)
          END IF
 
          IF (ASSOCIATED(kpoint%scf_diis_buffer)) THEN
@@ -773,10 +805,12 @@ CONTAINS
       ALLOCATE (kp_sym)
 
       kp_sym%nwght = 0
+      kp_sym%nwred = 0
       kp_sym%apply_symmetry = .FALSE.
 
       NULLIFY (kp_sym%rot)
       NULLIFY (kp_sym%xkp)
+      NULLIFY (kp_sym%rotp)
       NULLIFY (kp_sym%f0)
 
    END SUBROUTINE kpoint_sym_create
@@ -799,6 +833,9 @@ CONTAINS
          END IF
          IF (ASSOCIATED(kp_sym%f0)) THEN
             DEALLOCATE (kp_sym%f0)
+         END IF
+         IF (ASSOCIATED(kp_sym%rotp)) THEN
+            DEALLOCATE (kp_sym%rotp)
          END IF
 
          DEALLOCATE (kp_sym)

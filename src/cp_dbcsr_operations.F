@@ -19,21 +19,21 @@ MODULE cp_dbcsr_operations
    USE mathlib, ONLY: lcm, gcd
    USE cp_blacs_env, ONLY: cp_blacs_env_type
    USE cp_cfm_types, ONLY: cp_cfm_type
-   USE dbcsr_api, ONLY: dbcsr_distribution_get, &
-                        dbcsr_convert_sizes_to_offsets, dbcsr_add, &
-                        dbcsr_complete_redistribute, dbcsr_copy, dbcsr_create, &
-                        dbcsr_deallocate_matrix, &
-                        dbcsr_desymmetrize, dbcsr_distribution_new, &
-                        dbcsr_get_data_type, dbcsr_get_info, dbcsr_get_matrix_type, &
-                        dbcsr_iterator_type, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
-                        dbcsr_iterator_start, dbcsr_iterator_stop, &
-                        dbcsr_multiply, dbcsr_norm, dbcsr_p_type, dbcsr_release, &
-                        dbcsr_reserve_all_blocks, dbcsr_scale, dbcsr_type, &
-                        dbcsr_valid_index, dbcsr_verify_matrix, &
-                        dbcsr_distribution_type, dbcsr_distribution_release, &
-                        dbcsr_norm_frobenius, &
-                        dbcsr_type_antisymmetric, dbcsr_type_complex_8, dbcsr_type_no_symmetry, dbcsr_type_real_8, &
-                        dbcsr_type_symmetric
+   USE cp_dbcsr_api, ONLY: dbcsr_distribution_get, &
+                           dbcsr_convert_sizes_to_offsets, dbcsr_add, &
+                           dbcsr_complete_redistribute, dbcsr_copy, dbcsr_create, &
+                           dbcsr_deallocate_matrix, &
+                           dbcsr_desymmetrize, dbcsr_distribution_new, &
+                           dbcsr_get_data_type, dbcsr_get_info, dbcsr_get_matrix_type, &
+                           dbcsr_iterator_type, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
+                           dbcsr_iterator_start, dbcsr_iterator_stop, &
+                           dbcsr_multiply, dbcsr_norm, dbcsr_p_type, dbcsr_release, &
+                           dbcsr_reserve_all_blocks, dbcsr_scale, dbcsr_type, &
+                           dbcsr_valid_index, dbcsr_verify_matrix, &
+                           dbcsr_distribution_type, dbcsr_distribution_release, &
+                           dbcsr_norm_frobenius, &
+                           dbcsr_type_antisymmetric, dbcsr_type_complex_8, dbcsr_type_no_symmetry, dbcsr_type_real_8, &
+                           dbcsr_type_symmetric
    USE cp_fm_basic_linalg, ONLY: cp_fm_gemm
    USE cp_fm_struct, ONLY: cp_fm_struct_create, &
                            cp_fm_struct_release, &
@@ -112,19 +112,32 @@ CONTAINS
 !> \version 2.0
 ! **************************************************************************************************
       SUBROUTINE copy_${fm}$_to_dbcsr(fm, matrix, keep_sparsity)
-         TYPE(cp_${fm}$_type), INTENT(IN)                      :: fm
-         TYPE(dbcsr_type), INTENT(INOUT)                 :: matrix
+         TYPE(cp_${fm}$_type), INTENT(IN)                   :: fm
+         TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix
          LOGICAL, INTENT(IN), OPTIONAL                      :: keep_sparsity
 
          CHARACTER(LEN=*), PARAMETER :: routineN = 'copy_${fm}$_to_dbcsr'
 
-         TYPE(dbcsr_type)                                :: bc_mat
+         TYPE(dbcsr_type)                                   :: bc_mat, redist_mat
          INTEGER                                            :: handle
+         LOGICAL                                            :: my_keep_sparsity
 
          CALL timeset(routineN, handle)
 
+         my_keep_sparsity = .FALSE.
+         IF (PRESENT(keep_sparsity)) my_keep_sparsity = keep_sparsity
+
          CALL copy_${fm}$_to_dbcsr_bc(fm, bc_mat)
-         CALL dbcsr_complete_redistribute(bc_mat, matrix, keep_sparsity=keep_sparsity)
+
+         IF (my_keep_sparsity) THEN
+            CALL dbcsr_create(redist_mat, template=matrix)
+            CALL dbcsr_complete_redistribute(bc_mat, redist_mat)
+            CALL dbcsr_copy(matrix, redist_mat, keep_sparsity=.TRUE.)
+            CALL dbcsr_release(redist_mat)
+         ELSE
+            CALL dbcsr_complete_redistribute(bc_mat, matrix)
+         END IF
+
          CALL dbcsr_release(bc_mat)
 
          CALL timestop(handle)
@@ -314,9 +327,9 @@ CONTAINS
    SUBROUTINE calculate_fm_block_ranges(bc_mat, first_row, last_row, first_col, last_col)
       TYPE(dbcsr_type), INTENT(IN)                    :: bc_mat
       INTEGER :: col, nblkcols_local, nblkcols_total, nblkrows_local, nblkrows_total, row
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: first_col, first_row, last_col, &
-                                                            last_row, local_col_sizes, &
-                                                            local_row_sizes
+      INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(OUT)    :: first_col, first_row, last_col, &
+                                                            last_row
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: local_col_sizes, local_row_sizes
       INTEGER, DIMENSION(:), POINTER                     :: col_blk_size, local_cols, local_rows, &
                                                             row_blk_size
 
@@ -340,6 +353,7 @@ CONTAINS
       END IF
       ALLOCATE (first_row(nblkrows_total), last_row(nblkrows_total))
       CALL dbcsr_convert_sizes_to_offsets(local_row_sizes, first_row, last_row)
+      DEALLOCATE (local_row_sizes)
 
       ! calculate first_col and last_col
       ALLOCATE (local_col_sizes(nblkcols_total))
@@ -351,6 +365,7 @@ CONTAINS
       END IF
       ALLOCATE (first_col(nblkcols_total), last_col(nblkcols_total))
       CALL dbcsr_convert_sizes_to_offsets(local_col_sizes, first_col, last_col)
+      DEALLOCATE (local_col_sizes)
 
    END SUBROUTINE calculate_fm_block_ranges
 

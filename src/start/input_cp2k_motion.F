@@ -1039,7 +1039,7 @@ CONTAINS
 
       CALL keyword_create( &
          keyword, __LOCATION__, name="KEEP_ANGLES", &
-         description="Keep angles between the cell vectors constant, but allow the lenghts of the"// &
+         description="Keep angles between the cell vectors constant, but allow the lengths of the"// &
          " cell vectors to change independently."// &
          " Albeit general, this is most useful for triclinic cells, to enforce higher symmetry, see KEEP_SYMMETRY.", &
          usage="KEEP_ANGLES TRUE", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)

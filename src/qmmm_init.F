@@ -559,7 +559,6 @@ CONTAINS
                                          pgfs=qmmm_env_qm%pgfs, &
                                          qm_cell_small=qm_cell_small, &
                                          mm_cell=mm_cell, &
-                                         para_env=para_env, &
                                          compatibility=qmmm_env_qm%compatibility, &
                                          qmmm_periodic=qmmm_periodic, &
                                          print_section=print_section, &
@@ -576,7 +575,6 @@ CONTAINS
                                             pgfs=added_charges%pgfs, &
                                             qm_cell_small=qm_cell_small, &
                                             mm_cell=mm_cell, &
-                                            para_env=para_env, &
                                             compatibility=qmmm_env_qm%compatibility, &
                                             qmmm_periodic=qmmm_periodic, &
                                             print_section=print_section, &
@@ -594,7 +592,6 @@ CONTAINS
                                             pgfs=added_shells%pgfs, &
                                             qm_cell_small=qm_cell_small, &
                                             mm_cell=mm_cell, &
-                                            para_env=para_env, &
                                             compatibility=qmmm_env_qm%compatibility, &
                                             qmmm_periodic=qmmm_periodic, &
                                             print_section=print_section, &

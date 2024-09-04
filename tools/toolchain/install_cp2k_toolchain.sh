@@ -150,9 +150,11 @@ The --with-PKG options follow the rules:
                           Default = system
   --with-intel            Use the Intel compiler to compile CP2K.
                           Default = system
-  --with-intel-classic    Use the classic Intel compiler to compile CP2K.
+  --with-ifx              Use the new Intel Fortran compiler ifx instead of ifort to compile CP2K.
                           Default = no
   --with-cmake            Cmake utilities
+                          Default = install
+  --with-ninja            Ninja utilities
                           Default = install
   --with-openmpi          OpenMPI, important if you want a parallel version of CP2K.
                           Default = system
@@ -203,6 +205,8 @@ The --with-PKG options follow the rules:
                           Default = no
   --with-quip             Enable interface to QUIP library
                           Default = no
+  --with-deepmd           Enable interface to DeePMD-kit library.
+                          Default = no
   --with-plumed           Enable interface to the PLUMED library.
                           Default = no
   --with-sirius           Enable interface to the plane wave SIRIUS library.
@@ -227,6 +231,9 @@ The --with-PKG options follow the rules:
                           Default = install
   --with-libtorch         Enable libtorch the machine learning framework needed for NequIP and Allegro
                           Default = no
+  --with-dftd4            Enable the DFTD4 package by Grimme
+                          This package requires cmake, ninja
+                          Default = install
 
 FURTHER INSTRUCTIONS
 
@@ -259,12 +266,12 @@ EOF
 # PACKAGE LIST: register all new dependent tools and libs here. Order
 # is important, the first in the list gets installed first
 # ------------------------------------------------------------------------
-tool_list="gcc intel cmake"
+tool_list="gcc intel cmake ninja"
 mpi_list="mpich openmpi intelmpi"
 math_list="mkl acml openblas"
 lib_list="fftw libint libxc libgrpp libxsmm cosma scalapack elpa cusolvermp plumed \
           spfft spla ptscotch superlu pexsi quip gsl spglib hdf5 libvdwxc sirius
-          libvori libtorch"
+          libvori libtorch deepmd dftd4"
 package_list="${tool_list} ${mpi_list} ${math_list} ${lib_list}"
 # ------------------------------------------------------------------------
 
@@ -313,6 +320,9 @@ with_spla="__DONTUSE__"
 with_cosma="__INSTALL__"
 with_libvori="__INSTALL__"
 with_libtorch="__DONTUSE__"
+with_ninja="__DONTUSE__"
+with_dftd4="__DONTUSE__"
+
 # for MPI, we try to detect system MPI variant
 if (command -v mpiexec > /dev/null 2>&1); then
   # check if we are dealing with openmpi, mpich or intelmpi
@@ -347,7 +357,7 @@ enable_tsan="__FALSE__"
 enable_opencl="__FALSE__"
 enable_cuda="__FALSE__"
 enable_hip="__FALSE__"
-export intel_classic="no"
+export with_ifx="no"
 export GPUVER="no"
 export MPICH_DEVICE="ch4"
 export TARGET_CPU="native"
@@ -460,12 +470,12 @@ while [ $# -ge 1 ]; do
     --gpu-ver=*)
       user_input="${1#*=}"
       case "${user_input}" in
-        K20X | K40 | K80 | P100 | V100 | A100 | Mi50 | Mi100 | Mi250 | no)
+        K20X | K40 | K80 | P100 | V100 | A100 | H100 | A40 | Mi50 | Mi100 | Mi250 | no)
           export GPUVER="${user_input}"
           ;;
         *)
           report_error ${LINENO} \
-            "--gpu-ver currently only supports K20X, K40, K80, P100, V100, A100, Mi50, Mi100, Mi250, and no as options"
+            "--gpu-ver currently only supports K20X, K40, K80, P100, V100, A100, H100, A40, Mi50, Mi100, Mi250, and no as options"
           exit 1
           ;;
       esac
@@ -529,6 +539,9 @@ while [ $# -ge 1 ]; do
     --with-cmake*)
       with_cmake=$(read_with "${1}")
       ;;
+    --with-ninja*)
+      with_ninja=$(read_with "${1}")
+      ;;
     --with-mpich-device=*)
       user_input="${1#*=}"
       export MPICH_DEVICE="${user_input}"
@@ -552,8 +565,8 @@ while [ $# -ge 1 ]; do
         export MPI_MODE=intelmpi
       fi
       ;;
-    --with-intel-classic*)
-      intel_classic=$(read_with "${1}" "yes")
+    --with-ifx*)
+      with_ifx=$(read_with "${1}" "yes")
       ;;
     --with-intel*)
       with_intel=$(read_with "${1}" "__SYSTEM__")
@@ -612,6 +625,9 @@ while [ $# -ge 1 ]; do
     --with-quip*)
       with_quip=$(read_with "${1}")
       ;;
+    --with-deepmd*)
+      with_deepmd=$(read_with $1)
+      ;;
     --with-plumed*)
       with_plumed=$(read_with "${1}")
       ;;
@@ -644,6 +660,9 @@ while [ $# -ge 1 ]; do
       ;;
     --with-spla*)
       with_spla=$(read_with "${1}")
+      ;;
+    --with-dftd4*)
+      with_dftd4=$(read_with "${1}")
       ;;
     --help*)
       show_help
@@ -781,6 +800,11 @@ else
   fi
 fi
 
+#dftd4 installation requires ninja
+if [ "${with_dftd4}" = "__INSTALL__" ]; then
+  [ "${with_ninja}" = "__DONTUSE__" ] && with_ninja="__INSTALL__"
+fi
+
 # several packages require cmake.
 if [ "${with_spglib}" = "__INSTALL__" ] ||
   [ "${with_libvori}" = "__INSTALL__" ] ||
@@ -789,7 +813,9 @@ if [ "${with_spglib}" = "__INSTALL__" ] ||
   [ "${with_sirius}" = "__INSTALL__" ] ||
   [ "${with_cosma}" = "__INSTALL__" ] ||
   [ "${with_spfft}" = "__INSTALL__" ] ||
-  [ "${with_spla}" = "__INSTALL__" ]; then
+  [ "${with_spla}" = "__INSTALL__" ] ||
+  [ "${with_ninja}" = "__INSTALL__" ] ||
+  [ "${with_dftd4}" = "__INSTALL__" ]; then
   [ "${with_cmake}" = "__DONTUSE__" ] && with_cmake="__INSTALL__"
 fi
 
@@ -857,13 +883,6 @@ if [ "${ENABLE_CRAY}" = "__TRUE__" ]; then
   export MPIFC="${FC}"
   export MPIFORT="${MPIFC}"
   export MPIF77="${MPIFC}"
-  # CRAY libsci should contains core math libraries, scalapack
-  # doesn't need LDFLAGS or CFLAGS, nor do the one need to
-  # explicitly link the math and scalapack libraries, as all is
-  # taken care of by the cray compiler wrappers.
-  if [ "$with_scalapack" = "__DONTUSE__" ]; then
-    export CP_DFLAGS="${CP_DFLAGS} IF_MPI(-D__SCALAPACK|)"
-  fi
   case $MPI_MODE in
     mpich)
       if [ "$MPICH_DIR" ]; then
@@ -939,6 +958,12 @@ case ${GPUVER} in
   A100)
     export ARCH_NUM="80"
     ;;
+  A40)
+    export ARCH_NUM="86"
+    ;;
+  H100)
+    export ARCH_NUM="90"
+    ;;
   Mi50)
     # TODO: export ARCH_NUM=
     ;;
@@ -953,7 +978,7 @@ case ${GPUVER} in
     ;;
   *)
     report_error ${LINENO} \
-      "--gpu-ver currently only supports K20X, K40, K80, P100, V100, A100, Mi50, Mi100, Mi250, and no as options"
+      "--gpu-ver currently only supports K20X, K40, K80, P100, V100, A100, H100, A40, Mi50, Mi100, Mi250, and no as options"
     exit 1
     ;;
 esac

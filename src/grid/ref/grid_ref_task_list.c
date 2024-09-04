@@ -348,7 +348,7 @@ static void collocate_one_grid_level(
             /*grid=*/my_grid);
 
       } // end of task loop
-    }   // end of block loop
+    } // end of block loop
 
 // While there should be an implicit barrier at the end of the block loop, this
 // explicit barrier eliminates occasional seg faults with icc compiled binaries.

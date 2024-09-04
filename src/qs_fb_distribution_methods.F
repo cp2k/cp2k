@@ -8,16 +8,16 @@
 MODULE qs_fb_distribution_methods
 
    USE cell_types,                      ONLY: cell_type
-   USE cp_log_handling,                 ONLY: cp_get_default_logger,&
-                                              cp_logger_type
-   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
-                                              cp_print_key_unit_nr
-   USE dbcsr_api,                       ONLY: dbcsr_distribution_get,&
+   USE cp_dbcsr_api,                    ONLY: dbcsr_distribution_get,&
                                               dbcsr_distribution_type,&
                                               dbcsr_get_info,&
                                               dbcsr_nblkcols_total,&
                                               dbcsr_p_type,&
                                               dbcsr_type
+   USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                              cp_logger_type
+   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
+                                              cp_print_key_unit_nr
    USE input_section_types,             ONLY: section_vals_type
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_para_env_type
@@ -51,8 +51,8 @@ MODULE qs_fb_distribution_methods
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! **************************************************************************************************
    TYPE fb_distribution_element
-      INTEGER :: id
-      REAL(KIND=dp) :: cost
+      INTEGER :: id = -1
+      REAL(KIND=dp) :: cost = -1.0_dp
    END TYPE fb_distribution_element
 
 ! **************************************************************************************************
@@ -64,8 +64,8 @@ MODULE qs_fb_distribution_methods
 ! **************************************************************************************************
    TYPE fb_distribution_list
       TYPE(fb_distribution_element), DIMENSION(:), POINTER :: list => NULL()
-      INTEGER :: nelements
-      REAL(KIND=dp) :: cost
+      INTEGER :: nelements = -1
+      REAL(KIND=dp) :: cost = -1.0_dp
    END TYPE fb_distribution_list
 
 ! **************************************************************************************************
@@ -86,7 +86,7 @@ MODULE qs_fb_distribution_methods
 ! **************************************************************************************************
    TYPE fb_preferred_procs_list
       INTEGER, DIMENSION(:), POINTER :: list => NULL()
-      INTEGER :: nprocs
+      INTEGER :: nprocs = -1
    END TYPE fb_preferred_procs_list
 
 ! Parameters related to automatic resizing of the hash_table:

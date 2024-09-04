@@ -16,7 +16,7 @@ MODULE dbt_block
    #:set ndims = range(2,maxdim+1)
 
    USE OMP_LIB, ONLY: omp_get_thread_num, omp_get_num_threads
-   USE dbcsr_api, ONLY: &
+   USE cp_dbcsr_api, ONLY: &
       dbcsr_type, dbcsr_release, &
       dbcsr_iterator_type, dbcsr_iterator_start, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
       dbcsr_has_symmetry, dbcsr_desymmetrize, dbcsr_get_num_blocks, dbcsr_iterator_stop, &

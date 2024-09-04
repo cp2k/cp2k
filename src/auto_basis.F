@@ -28,8 +28,6 @@ MODULE auto_basis
                                               rootpi
    USE orbital_pointers,                ONLY: init_orbital_pointers
    USE periodic_table,                  ONLY: get_ptable_info
-   USE powell,                          ONLY: opt_state_type,&
-                                              powell_optimize
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               qs_kind_type
 #include "./base/base_uses.f90"
@@ -40,7 +38,7 @@ MODULE auto_basis
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'auto_basis'
 
-   PUBLIC :: create_ri_aux_basis_set, create_aux_fit_basis_set, create_lri_aux_basis_set, &
+   PUBLIC :: create_ri_aux_basis_set, create_lri_aux_basis_set, &
              create_oce_basis
 
 CONTAINS
@@ -217,14 +215,16 @@ CONTAINS
 !> \param qs_kind ...
 !> \param basis_cntrl ...
 !> \param exact_1c_terms ...
+!> \param tda_kernel ...
 !> \date    01.11.2017
 !> \author  JGH
 ! **************************************************************************************************
-   SUBROUTINE create_lri_aux_basis_set(lri_aux_basis_set, qs_kind, basis_cntrl, exact_1c_terms)
+   SUBROUTINE create_lri_aux_basis_set(lri_aux_basis_set, qs_kind, basis_cntrl, &
+                                       exact_1c_terms, tda_kernel)
       TYPE(gto_basis_set_type), POINTER                  :: lri_aux_basis_set
       TYPE(qs_kind_type), INTENT(IN)                     :: qs_kind
       INTEGER, INTENT(IN)                                :: basis_cntrl
-      LOGICAL, INTENT(IN)                                :: exact_1c_terms
+      LOGICAL, INTENT(IN), OPTIONAL                      :: exact_1c_terms, tda_kernel
 
       CHARACTER(LEN=2)                                   :: element_symbol
       CHARACTER(LEN=default_string_length)               :: bsname
@@ -234,6 +234,7 @@ CONTAINS
       INTEGER, DIMENSION(0:9, 1:50)                      :: nl
       INTEGER, DIMENSION(1:50)                           :: ls1, ls2, npgf
       INTEGER, DIMENSION(:), POINTER                     :: econf
+      LOGICAL                                            :: e1terms, kernel_basis
       REAL(KIND=dp)                                      :: xv, zval
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: zet
       REAL(KIND=dp), DIMENSION(0:18)                     :: bval, peff, pend, pmax, pmin
@@ -242,8 +243,19 @@ CONTAINS
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis_set
 
       !
-      bv(1:4) = (/2.00_dp, 1.90_dp, 1.80_dp, 1.80_dp/)
-      bx(1:4) = (/2.60_dp, 2.40_dp, 2.20_dp, 2.20_dp/)
+      IF (PRESENT(exact_1c_terms)) THEN
+         e1terms = exact_1c_terms
+      ELSE
+         e1terms = .FALSE.
+      END IF
+      IF (PRESENT(tda_kernel)) THEN
+         kernel_basis = tda_kernel
+      ELSE
+         kernel_basis = .FALSE.
+      END IF
+      IF (kernel_basis .AND. e1terms) THEN
+         CALL cp_warn(__LOCATION__, "LRI Kernel basis generation will ignore exact 1C term option.")
+      END IF
       !
       CPASSERT(.NOT. ASSOCIATED(lri_aux_basis_set))
       NULLIFY (orb_basis_set)
@@ -261,25 +273,47 @@ CONTAINS
             CPWARN("Valence charge and electron configuration not consistent")
          END IF
          !
-         pend = 0.0_dp
          linc = 1
          IF (z > 18) linc = 2
-         SELECT CASE (basis_cntrl)
-         CASE (0)
-            laux = MAX(2*lval, lmax + linc)
-            laux = MIN(laux, 2 + linc)
-         CASE (1)
-            laux = MAX(2*lval, lmax + linc)
-            laux = MIN(laux, 3 + linc)
-         CASE (2)
-            laux = MAX(2*lval, lmax + linc + 1)
-            laux = MIN(laux, 4 + linc)
-         CASE (3)
-            laux = MAX(2*lval, lmax + linc + 1)
-            laux = MIN(laux, 4 + linc)
-         CASE DEFAULT
-            CPABORT("Invalid value of control variable")
-         END SELECT
+         pend = 0.0_dp
+         IF (kernel_basis) THEN
+            bv(1:4) = (/3.20_dp, 2.80_dp, 2.40_dp, 2.00_dp/)
+            bx(1:4) = (/4.00_dp, 3.50_dp, 3.00_dp, 2.50_dp/)
+            !
+            SELECT CASE (basis_cntrl)
+            CASE (0)
+               laux = lval + 1
+            CASE (1)
+               laux = MAX(lval + 1, lmax)
+            CASE (2)
+               laux = MAX(lval + 2, lmax + 1)
+            CASE (3)
+               laux = MAX(lval + 3, lmax + 2)
+               laux = MIN(laux, 2 + linc)
+            CASE DEFAULT
+               CPABORT("Invalid value of control variable")
+            END SELECT
+         ELSE
+            bv(1:4) = (/2.00_dp, 1.90_dp, 1.80_dp, 1.80_dp/)
+            bx(1:4) = (/2.60_dp, 2.40_dp, 2.20_dp, 2.20_dp/)
+            !
+            SELECT CASE (basis_cntrl)
+            CASE (0)
+               laux = MAX(2*lval, lmax + linc)
+               laux = MIN(laux, 2 + linc)
+            CASE (1)
+               laux = MAX(2*lval, lmax + linc)
+               laux = MIN(laux, 3 + linc)
+            CASE (2)
+               laux = MAX(2*lval, lmax + linc + 1)
+               laux = MIN(laux, 4 + linc)
+            CASE (3)
+               laux = MAX(2*lval, lmax + linc + 1)
+               laux = MIN(laux, 4 + linc)
+            CASE DEFAULT
+               CPABORT("Invalid value of control variable")
+            END SELECT
+         END IF
          !
          DO l = 2*lmax + 1, laux
             pmin(l) = pmin(2*lmax)
@@ -287,6 +321,7 @@ CONTAINS
             peff(l) = peff(2*lmax)
          END DO
          !
+         nval = 0
          IF (exact_1c_terms) THEN
             DO l = 0, laux
                IF (l <= lval + 1) THEN
@@ -319,7 +354,12 @@ CONTAINS
          !
          lm = MIN(2*lval, 3)
          n1 = MAXVAL(nval(0:lm))
-         n2 = MAXVAL(nval(lm + 1:laux))
+         IF (laux < lm + 1) THEN
+            n2 = 0
+         ELSE
+            n2 = MAXVAL(nval(lm + 1:laux))
+         END IF
+         !
          nsets = n1 + n2
          ALLOCATE (zet(1, nsets))
          zet = 0.0_dp
@@ -353,220 +393,6 @@ CONTAINS
       END IF
 
    END SUBROUTINE create_lri_aux_basis_set
-! **************************************************************************************************
-!> \brief Create a AUX_FIT basis set using some heuristics
-!> \param aux_fit_basis ...
-!> \param qs_kind ...
-!> \param basis_cntrl ...
-!> \date    01.11.2017
-!> \author  JGH
-! **************************************************************************************************
-   SUBROUTINE create_aux_fit_basis_set(aux_fit_basis, qs_kind, basis_cntrl)
-      TYPE(gto_basis_set_type), POINTER                  :: aux_fit_basis
-      TYPE(qs_kind_type), INTENT(IN)                     :: qs_kind
-      INTEGER, INTENT(IN)                                :: basis_cntrl
-
-      CHARACTER(LEN=2)                                   :: element_symbol
-      CHARACTER(LEN=default_string_length)               :: bsname
-      INTEGER                                            :: i, iset, l, laux, lmax, lval, maxpgf, &
-                                                            mx, nf, np, nsets, nx, z
-      INTEGER, DIMENSION(0:9)                            :: nfun, nval
-      INTEGER, DIMENSION(0:9, 1:20)                      :: nl
-      INTEGER, DIMENSION(1:20)                           :: lset, npgf
-      INTEGER, DIMENSION(:), POINTER                     :: econf
-      REAL(KIND=dp)                                      :: amet, z1, z2, zvel
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: zval
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: gcval, zet
-      REAL(KIND=dp), DIMENSION(0:9)                      :: zeff, zmax, zmin
-      REAL(KIND=dp), DIMENSION(25)                       :: afit, xval
-      TYPE(gto_basis_set_type), POINTER                  :: orb_basis_set
-      TYPE(opt_state_type)                               :: ostate
-
-      !
-      CPABORT("Automatic basis set generation not activated")
-      !
-      CPASSERT(.NOT. ASSOCIATED(aux_fit_basis))
-      NULLIFY (orb_basis_set)
-      CALL get_qs_kind(qs_kind, basis_set=orb_basis_set, basis_type="ORB")
-      IF (ASSOCIATED(orb_basis_set)) THEN
-         CALL get_basis_keyfigures(orb_basis_set, lmax, zmin, zmax, zeff)
-         CALL get_qs_kind(qs_kind, zeff=zvel, elec_conf=econf, element_symbol=element_symbol)
-         CALL get_ptable_info(element_symbol, ielement=z)
-         lval = 0
-         DO l = 0, MAXVAL(UBOUND(econf))
-            IF (econf(l) > 0) lval = l
-         END DO
-         IF (SUM(econf) /= NINT(zvel)) THEN
-            CPWARN("Valence charge and electron configuration not consistent")
-         END IF
-         nval = 0
-         DO l = 0, lval
-            nx = econf(l)
-            DO
-               IF (nx > 0) THEN
-                  nval(l) = nval(l) + 1
-                  nx = nx - 2*(2*l + 1)
-               ELSE
-                  EXIT
-               END IF
-            END DO
-         END DO
-         nfun = nval
-         SELECT CASE (basis_cntrl)
-         CASE (0)
-            laux = lval
-            DO l = 0, lval
-               nfun(l) = nfun(l) + 1
-            END DO
-         CASE (1)
-            laux = MIN(lval + 1, lmax)
-            DO l = 0, lval
-               nfun(l) = nfun(l) + 1
-            END DO
-            IF (laux > lval) nfun(laux) = 1
-         CASE (2)
-            laux = MIN(lval + 1, lmax)
-            DO l = 0, lval
-               nfun(l) = nfun(l) + 2
-            END DO
-            IF (laux > lval) nfun(laux) = 1
-         CASE (3)
-            laux = MIN(lval + 2, lmax)
-            DO l = 0, lval
-               nfun(l) = nfun(l) + 3
-            END DO
-            IF (laux > lval) nfun(lval + 1) = 2
-            IF (laux > lval + 1) nfun(laux) = 1
-         CASE DEFAULT
-            CPABORT("Invalid value of control variable")
-         END SELECT
-         !
-         nsets = 0
-         maxpgf = 0
-         DO l = 0, lval
-            z1 = MAX(zmin(l), 0.10_dp + l*0.025_dp)
-            z2 = zmax(l)
-            mx = CEILING(LOG(z2/z1)/LOG(5.0_dp))
-            IF (nval(l) > 1) THEN
-               nsets = nsets + 2
-               maxpgf = MAX(maxpgf, nval(l), mx, 3)
-            ELSEIF (nval(l) == 1) THEN
-               nsets = nsets + 1
-               maxpgf = MAX(maxpgf, mx, 3)
-            END IF
-            DO i = nval(l) + 1, nfun(l)
-               maxpgf = MAX(maxpgf, mx, 1)
-               nsets = nsets + 1
-            END DO
-         END DO
-         DO l = lval + 1, laux
-            maxpgf = MAX(maxpgf, 1)
-            nsets = nsets + nfun(l)
-         END DO
-         !
-         ALLOCATE (zet(maxpgf, nsets))
-         zet = 0.0_dp
-         nl = 0
-         iset = 0
-         DO l = 0, laux
-            amet = 2.50_dp
-            ! optimize exponensts
-            z1 = MAX(zmin(l), 0.20_dp + l*0.025_dp)
-            z2 = zmax(l)
-            mx = CEILING(LOG(z2/z1)/LOG(4.0_dp))
-            IF (nval(l) > 1) THEN
-               nx = MAX(nfun(l), mx, 3)
-            ELSE IF (nval(l) == 1) THEN
-               nx = MAX(nfun(l), mx, 2)
-            ELSE
-               nx = nfun(l)
-            END IF
-            CPASSERT(nx <= 25)
-            ! Powell optimizer
-            CALL get_basis_functions(orb_basis_set, l, np, nf, zval, gcval)
-            ostate%nf = 0
-            ostate%nvar = nx
-            xval(:) = 5.00_dp
-            xval(1) = z1
-            ostate%rhoend = 1.e-8_dp
-            ostate%rhobeg = 5.e-1_dp
-            ostate%maxfun = 1000
-            ostate%iprint = 0
-            ostate%unit = 0
-            ostate%state = 0
-            DO
-               IF (ostate%state == 2) THEN
-                  afit(1) = xval(1)
-                  DO i = 2, nx
-                     afit(i) = afit(i - 1)*xval(i)
-                  END DO
-                  CALL overlap_maximum(l, np, nf, zval, gcval, nx, afit, amet, ostate%f)
-                  CALL neb_potential(xval, ostate%nvar, ostate%f)
-               END IF
-               IF (ostate%state == -1) EXIT
-               CALL powell_optimize(ostate%nvar, xval, ostate)
-            END DO
-            ostate%state = 8
-            CALL powell_optimize(ostate%nvar, xval, ostate)
-            afit(1) = xval(1)
-            DO i = 2, nx
-               afit(i) = afit(i - 1)*xval(i)
-            END DO
-            DEALLOCATE (zval, gcval)
-            !
-            IF (nval(l) > 1) THEN
-               ! split set
-               iset = iset + 1
-               lset(iset) = l
-               npgf(iset) = nx - 1
-               nl(l, iset) = nval(l) - 1
-               zet(1:nx - 1, iset) = afit(1:nx - 1)
-               ! new set
-               iset = iset + 1
-               lset(iset) = l
-               npgf(iset) = nx - 1
-               nl(l, iset) = 1
-               zet(1:nx - 1, iset) = afit(2:nx)
-               DO i = 1, nfun(l) - 2
-                  iset = iset + 1
-                  lset(iset) = l
-                  npgf(iset) = 1
-                  zet(1, iset) = afit(nx - i + 1)
-                  nl(l, iset) = 1
-               END DO
-            ELSEIF (nval(l) == 1) THEN
-               iset = iset + 1
-               lset(iset) = l
-               npgf(iset) = nx
-               zet(1:nx, iset) = afit(1:nx)
-               nl(l, iset) = 1
-               DO i = 1, nfun(l) - 1
-                  iset = iset + 1
-                  lset(iset) = l
-                  npgf(iset) = 1
-                  zet(1, iset) = afit(nx - i + 1)
-                  nl(l, iset) = 1
-               END DO
-            ELSE
-               DO i = 1, nfun(l)
-                  iset = iset + 1
-                  lset(iset) = l
-                  npgf(iset) = 1
-                  zet(1, iset) = afit(i)
-                  nl(l, iset) = 1
-               END DO
-            END IF
-         END DO
-         !
-         bsname = TRIM(element_symbol)//"-AUX-FIT-"//TRIM(orb_basis_set%name)
-         !
-         CALL create_aux_basis(aux_fit_basis, bsname, nsets, lset, lset, nl, npgf, zet)
-         !
-         DEALLOCATE (zet)
-         !
-      END IF
-
-   END SUBROUTINE create_aux_fit_basis_set
 
 ! **************************************************************************************************
 !> \brief ...

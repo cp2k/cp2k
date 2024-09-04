@@ -13,7 +13,7 @@
 ! **************************************************************************************************
 MODULE ct_types
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
-   USE dbcsr_api,                       ONLY: dbcsr_copy,&
+   USE cp_dbcsr_api,                    ONLY: dbcsr_copy,&
                                               dbcsr_release,&
                                               dbcsr_type
    USE input_constants,                 ONLY: cg_polak_ribiere,&

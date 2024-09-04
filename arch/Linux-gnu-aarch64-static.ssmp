@@ -2,12 +2,13 @@
 #
 # CP2K (GNU aarch64) arch file for a serial static ARM64 binary
 #
-# Tested with: GNU 12.3.0, FFTW 3.3.10, LIBINT 2.6.0, LIBVORI 220621,
-#              LIBXC 6.2.2, OpenBLAS 0.3.25, SPGLIB 1.16.2
+# Tested with: GNU 14.2.0, FFTW 3.3.10, LIBINT 2.6.0, LIBVORI 220621,
+#              LIBXC 6.2.2, OpenBLAS 0.3.28, SPGLIB 2.3.1, DFTD4 3.6.0,
+#              LIBGRPP 20231225
 #
 # Usage: Source this arch file and then run make as instructed.
 #
-# Last update: 22.09.2023
+# Last update: 30.08.2024
 #
 # \
    if [[ "${0}" == "${BASH_SOURCE}" ]]; then \
@@ -17,15 +18,16 @@
    fi; \
    this_file=${BASH_SOURCE##*/}; \
    cd tools/toolchain; \
+   rm -rf build; \
    [[ -z "${target_cpu}" ]] && target_cpu="native"; \
-   ./install_cp2k_toolchain.sh -j${maxtasks} --mpi-mode=no --no-arch-files --target-cpu=${target_cpu} --with-cmake=system --with-gcc=system --with-libxsmm=no; \
+   ./install_cp2k_toolchain.sh -j${maxtasks} --mpi-mode=no --no-arch-files --target-cpu=${target_cpu} --with-gcc --with-dftd4 --with-libxsmm=no; \
    source ./install/setup; \
    cd ../..; \
    echo; \
    echo "Check the output above for error messages and consistency!"; \
    echo; \
    echo "If everything is OK, you can build a CP2K production binary with"; \
-   echo "   make -j ARCH=${this_file%.*} VERSION=${this_file##*.}"; \
+   echo "   make -j ARCH=${this_file%.*} VERSION=${this_file##*.} TARGET_CPU=${target_cpu}"; \
    echo "Further checks are performed, if DO_CHECKS=yes is added."; \
    echo; \
    return
@@ -33,12 +35,15 @@
 # Set options
 DO_CHECKS      := no
 TARGET_CPU     := native
+GNU_VER        := $(shell gcc -dumpfullversion)
+USE_DFTD4      := 3.6.0
 USE_FFTW       := 3.3.10
+USE_LIBGRPP    := 20231225
 USE_LIBINT     := 2.6.0
 USE_LIBVORI    := 220621
 USE_LIBXC      := 6.2.2
-USE_OPENBLAS   := 0.3.25
-USE_SPGLIB     := 1.16.2
+USE_OPENBLAS   := 0.3.28
+USE_SPGLIB     := 2.3.1
 
 LMAX           := 5
 MAX_CONTR      := 4
@@ -99,6 +104,27 @@ ifneq ($(USE_LIBXC),)
    DFLAGS         += -D__LIBXC
    LIBS           += $(LIBXC_LIB)/libxcf03.a
    LIBS           += $(LIBXC_LIB)/libxc.a
+endif
+
+ifneq ($(USE_DFTD4),)
+   USE_DFTD4      := $(strip $(USE_DFTD4))
+   DFTD4_INC      := $(INSTALL_PATH)/dftd4-$(USE_DFTD4)/include
+   DFTD4_LIB      := $(INSTALL_PATH)/dftd4-$(USE_DFTD4)/lib
+   CFLAGS         += -I$(DFTD4_INC)/dftd4/GNU-$(GNU_VER)
+   DFLAGS         += -D__DFTD4
+   LIBS           += $(DFTD4_LIB)/libdftd4.a
+   LIBS           += $(DFTD4_LIB)/libmstore.a
+   LIBS           += $(DFTD4_LIB)/libmulticharge.a
+   LIBS           += $(DFTD4_LIB)/libmctc-lib.a
+endif
+
+ifneq ($(USE_LIBGRPP),)
+   USE_LIBGRPP    := $(strip $(USE_LIBGRPP))
+   LIBGRPP_INC    := $(INSTALL_PATH)/libgrpp-main-$(USE_LIBGRPP)/include
+   LIBGRPP_LIB    := $(INSTALL_PATH)/libgrpp-main-$(USE_LIBGRPP)/lib
+   CFLAGS         += -I$(LIBGRPP_INC)
+   DFLAGS         += -D__LIBGRPP
+   LIBS           += $(LIBGRPP_LIB)/liblibgrpp.a
 endif
 
 ifneq ($(USE_LIBINT),)

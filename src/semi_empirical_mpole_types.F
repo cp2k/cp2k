@@ -27,16 +27,16 @@ MODULE semi_empirical_mpole_types
 !> \author Teodoro Laino [tlaino] - 08.2008 Zurich University
 ! **************************************************************************************************
    TYPE semi_empirical_mpole_type
-      LOGICAL, DIMENSION(3)                    :: task
-      INTEGER                                  :: indi, indj
-      REAL(KIND=dp)                            :: c
-      REAL(KIND=dp), DIMENSION(3)              :: d
-      REAL(KIND=dp), DIMENSION(3, 3)            :: qc ! quadrupole cartesian
-      REAL(KIND=dp), DIMENSION(5)              :: qs ! quadrupole spherical
+      LOGICAL, DIMENSION(3)                    :: task = .FALSE.
+      INTEGER                                  :: indi = -1, indj = -1
+      REAL(KIND=dp)                            :: c = -1.0_dp
+      REAL(KIND=dp), DIMENSION(3)              :: d = -1.0_dp
+      REAL(KIND=dp), DIMENSION(3, 3)            :: qc = -1.0_dp ! quadrupole cartesian
+      REAL(KIND=dp), DIMENSION(5)              :: qs = -1.0_dp ! quadrupole spherical
       ! alternative definition used in GKS integral routines
-      REAL(KIND=dp)                            :: cs
-      REAL(KIND=dp), DIMENSION(3)              :: ds
-      REAL(KIND=dp), DIMENSION(3, 3)            :: qq ! quadrupole cartesian
+      REAL(KIND=dp)                            :: cs = -1.0_dp
+      REAL(KIND=dp), DIMENSION(3)              :: ds = -1.0_dp
+      REAL(KIND=dp), DIMENSION(3, 3)            :: qq = -1.0_dp ! quadrupole cartesian
    END TYPE semi_empirical_mpole_type
 
 ! **************************************************************************************************
@@ -44,7 +44,7 @@ MODULE semi_empirical_mpole_types
 !> \author Teodoro Laino [tlaino] - 08.2008 Zurich University
 ! **************************************************************************************************
    TYPE semi_empirical_mpole_p_type
-      TYPE(semi_empirical_mpole_type), POINTER :: mpole
+      TYPE(semi_empirical_mpole_type), POINTER :: mpole => NULL()
    END TYPE semi_empirical_mpole_p_type
 
 ! **************************************************************************************************
@@ -52,9 +52,9 @@ MODULE semi_empirical_mpole_types
 !> \author Teodoro Laino [tlaino] - 08.2008 Zurich University
 ! **************************************************************************************************
    TYPE nddo_mpole_type
-      REAL(KIND=dp), DIMENSION(:), POINTER     :: charge, efield0
-      REAL(KIND=dp), DIMENSION(:, :), POINTER   :: dipole, efield1, efield2
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER :: quadrupole
+      REAL(KIND=dp), DIMENSION(:), POINTER     :: charge => NULL(), efield0 => NULL()
+      REAL(KIND=dp), DIMENSION(:, :), POINTER   :: dipole => NULL(), efield1 => NULL(), efield2 => NULL()
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER :: quadrupole => NULL()
    END TYPE nddo_mpole_type
 
    PUBLIC :: semi_empirical_mpole_type, &

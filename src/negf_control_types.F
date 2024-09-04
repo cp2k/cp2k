@@ -51,18 +51,18 @@ MODULE negf_control_types
       TYPE(negf_allocatable_ivector), ALLOCATABLE, &
          DIMENSION(:)                                    :: atomlist_cell
       !> index of the sub_force_env which should be used for bulk calculation
-      INTEGER                                            :: force_env_index
+      INTEGER                                            :: force_env_index = -1
       !> contact Fermi level needs to be computed prior NEGF run
-      LOGICAL                                            :: compute_fermi_level
+      LOGICAL                                            :: compute_fermi_level = .FALSE.
       !> when computing contact Fermi level, use the energy given in 'fermi_level' (instead of HOMO)
       !> (instead of the HOMO energy) as a starting point
-      LOGICAL                                            :: refine_fermi_level
+      LOGICAL                                            :: refine_fermi_level = .FALSE.
       !> Fermi level
-      REAL(kind=dp)                                      :: fermi_level
+      REAL(kind=dp)                                      :: fermi_level = -1.0_dp
       !> temperature [in a.u.]
-      REAL(kind=dp)                                      :: temperature
+      REAL(kind=dp)                                      :: temperature = -1.0_dp
       !> applied electric potential
-      REAL(kind=dp)                                      :: v_external
+      REAL(kind=dp)                                      :: v_external = 0.0_dp
    END TYPE negf_control_contact_type
 
 ! **************************************************************************************************
@@ -79,43 +79,43 @@ MODULE negf_control_types
       !> screening regions of all the contacts
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atomlist_S_screening
       !> do not keep contact self-energy matrices
-      LOGICAL                                            :: disable_cache
+      LOGICAL                                            :: disable_cache = .FALSE.
       !> convergence criteria for adaptive integration methods
-      REAL(kind=dp)                                      :: conv_density
+      REAL(kind=dp)                                      :: conv_density = -1.0_dp
       !> convergence criteria for iterative Lopez-Sancho algorithm
-      REAL(kind=dp)                                      :: conv_green
+      REAL(kind=dp)                                      :: conv_green = -1.0_dp
       !> convergence criteria for self-consistent iterations
-      REAL(kind=dp)                                      :: conv_scf
+      REAL(kind=dp)                                      :: conv_scf = -1.0_dp
       !> accuracy in mapping atoms between different force environments
-      REAL(kind=dp)                                      :: eps_geometry
+      REAL(kind=dp)                                      :: eps_geometry = -1.0_dp
       !> applied bias [in a.u.]
-      REAL(kind=dp)                                      :: v_bias
+      REAL(kind=dp)                                      :: v_bias = -1.0_dp
       !> integration lower bound [in a.u.]
-      REAL(kind=dp)                                      :: energy_lbound
+      REAL(kind=dp)                                      :: energy_lbound = -1.0_dp
       !> infinitesimal offset along the imaginary axis [in a.u.]
-      REAL(kind=dp)                                      :: eta
+      REAL(kind=dp)                                      :: eta = -1.0_dp
       !> initial guess to determine the actual Fermi level of bulk contacts [in a.u.]
-      REAL(kind=dp)                                      :: homo_lumo_gap
+      REAL(kind=dp)                                      :: homo_lumo_gap = -1.0_dp
       !> number of residuals (poles of the Fermi function)
-      INTEGER                                            :: delta_npoles
+      INTEGER                                            :: delta_npoles = -1
       !> offset along the x-axis away from the poles of the Fermi function [in units of kT]
-      INTEGER                                            :: gamma_kT
+      INTEGER                                            :: gamma_kT = -1
       !> integration method
-      INTEGER                                            :: integr_method
+      INTEGER                                            :: integr_method = -1
       !> minimal number of grid points along the closed contour
-      INTEGER                                            :: integr_min_points
+      INTEGER                                            :: integr_min_points = -1
       !> maximal number of grid points along the closed contour
-      INTEGER                                            :: integr_max_points
+      INTEGER                                            :: integr_max_points = -1
       !> maximal number of SCF iterations
-      INTEGER                                            :: max_scf
+      INTEGER                                            :: max_scf = -1
       !> minimal number of MPI processes to be used to compute Green's function per energy point
-      INTEGER                                            :: nprocs
+      INTEGER                                            :: nprocs = -1
       !> shift in Hartree potential [in a.u.]
-      REAL(kind=dp)                                      :: v_shift
+      REAL(kind=dp)                                      :: v_shift = -1.0_dp
       !> initial offset to determine the correct shift in Hartree potential [in a.u.]
-      REAL(kind=dp)                                      :: v_shift_offset
+      REAL(kind=dp)                                      :: v_shift_offset = -1.0_dp
       !> maximal number of iteration to determine the shift in Hartree potential
-      INTEGER                                            :: v_shift_maxiters
+      INTEGER                                            :: v_shift_maxiters = -1
    END TYPE negf_control_type
 
    PRIVATE :: read_negf_atomlist

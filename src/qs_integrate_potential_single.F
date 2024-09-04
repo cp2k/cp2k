@@ -38,7 +38,7 @@ MODULE qs_integrate_potential_single
    USE cell_types,                      ONLY: cell_type,&
                                               pbc
    USE cp_control_types,                ONLY: dft_control_type
-   USE dbcsr_api,                       ONLY: dbcsr_get_block_p,&
+   USE cp_dbcsr_api,                    ONLY: dbcsr_get_block_p,&
                                               dbcsr_type
    USE external_potential_types,        ONLY: get_potential,&
                                               gth_potential_type
@@ -54,7 +54,7 @@ MODULE qs_integrate_potential_single
    USE particle_types,                  ONLY: particle_type
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_type
-   USE pw_types,                        ONLY: pw_type
+   USE pw_types,                        ONLY: pw_r3d_rs_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_force_types,                  ONLY: qs_force_type
@@ -95,7 +95,7 @@ CONTAINS
 !> \param qs_env ...
 ! **************************************************************************************************
    SUBROUTINE integrate_ppl_rspace(rho_rspace, qs_env)
-      TYPE(pw_type), INTENT(IN)                          :: rho_rspace
+      TYPE(pw_r3d_rs_type), INTENT(IN)                   :: rho_rspace
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
       CHARACTER(len=*), PARAMETER :: routineN = 'integrate_ppl_rspace'
@@ -280,7 +280,7 @@ CONTAINS
 !> \param qs_env ...
 ! **************************************************************************************************
    SUBROUTINE integrate_rho_nlcc(rho_rspace, qs_env)
-      TYPE(pw_type), INTENT(IN)                          :: rho_rspace
+      TYPE(pw_r3d_rs_type), INTENT(IN)                   :: rho_rspace
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
       CHARACTER(len=*), PARAMETER :: routineN = 'integrate_rho_nlcc'
@@ -480,7 +480,7 @@ CONTAINS
 !> \param atecc ...
 ! **************************************************************************************************
    SUBROUTINE integrate_v_core_rspace(v_rspace, qs_env, atecc)
-      TYPE(pw_type), INTENT(IN)                          :: v_rspace
+      TYPE(pw_r3d_rs_type), INTENT(IN)                   :: v_rspace
       TYPE(qs_environment_type), POINTER                 :: qs_env
       REAL(KIND=dp), DIMENSION(:), OPTIONAL              :: atecc
 
@@ -642,7 +642,7 @@ CONTAINS
 !> \param atecc ...
 ! **************************************************************************************************
    SUBROUTINE integrate_v_gaussian_rspace(v_rspace, qs_env, alpha, ccore, atecc)
-      TYPE(pw_type), INTENT(IN)                          :: v_rspace
+      TYPE(pw_r3d_rs_type), INTENT(IN)                   :: v_rspace
       TYPE(qs_environment_type), POINTER                 :: qs_env
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: alpha, ccore
       REAL(KIND=dp), DIMENSION(:)                        :: atecc
@@ -760,7 +760,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE integrate_v_rspace_one_center(v_rspace, qs_env, int_res, &
                                             calculate_forces, basis_type, atomlist)
-      TYPE(pw_type), INTENT(IN)                          :: v_rspace
+      TYPE(pw_r3d_rs_type), INTENT(IN)                   :: v_rspace
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(lri_kind_type), DIMENSION(:), POINTER         :: int_res
       LOGICAL, INTENT(IN)                                :: calculate_forces
@@ -828,8 +828,8 @@ CONTAINS
       eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
 
       offset = 0
-      my_pos = v_rspace%pw_grid%para%my_pos
-      group_size = v_rspace%pw_grid%para%group_size
+      my_pos = v_rspace%pw_grid%para%group%mepos
+      group_size = v_rspace%pw_grid%para%group%num_pe
 
       DO ikind = 1, nkind
 
@@ -970,7 +970,7 @@ CONTAINS
 !> \author JGH
 ! **************************************************************************************************
    SUBROUTINE integrate_v_rspace_diagonal(v_rspace, ksmat, pmat, qs_env, calculate_forces, basis_type)
-      TYPE(pw_type), INTENT(IN)                          :: v_rspace
+      TYPE(pw_r3d_rs_type), INTENT(IN)                   :: v_rspace
       TYPE(dbcsr_type), INTENT(INOUT)                    :: ksmat, pmat
       TYPE(qs_environment_type), POINTER                 :: qs_env
       LOGICAL, INTENT(IN)                                :: calculate_forces
@@ -1029,8 +1029,8 @@ CONTAINS
       use_virial = virial%pv_availability .AND. (.NOT. virial%pv_numer)
 
       offset = 0
-      my_pos = v_rspace%pw_grid%para%my_pos
-      group_size = v_rspace%pw_grid%para%group_size
+      my_pos = v_rspace%pw_grid%para%group%mepos
+      group_size = v_rspace%pw_grid%para%group%num_pe
 
       DO ikind = 1, nkind
 

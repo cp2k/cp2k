@@ -21,11 +21,8 @@ MODULE dct
                                               mp_request_type,&
                                               mp_waitall
    USE pw_grid_types,                   ONLY: pw_grid_type
-   USE pw_grids,                        ONLY: pw_grid_create,&
-                                              pw_grid_setup
-   USE pw_types,                        ONLY: REALDATA3D,&
-                                              REALSPACE,&
-                                              pw_type
+   USE pw_grids,                        ONLY: pw_grid_create
+   USE pw_types,                        ONLY: pw_r3d_rs_type
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -47,7 +44,7 @@ MODULE dct
 
    TYPE dct_msg_type
       PRIVATE
-      REAL(dp), DIMENSION(:, :, :), POINTER :: msg => NULL()
+      REAL(dp), DIMENSION(:, :, :), ALLOCATABLE :: msg
    END TYPE dct_msg_type
 
    PUBLIC dct_type, &
@@ -216,7 +213,6 @@ CONTAINS
                               dests_shrink, srcs_shrink)
       CALL expansion_bounds(pw_grid, neumann_directions, srcs_expand, flipg_stat, &
                             bounds_shftd, bounds_local_shftd, recv_msgs_bnds, bounds_new, bounds_local_new)
-      CALL pw_grid_create(dct_pw_grid, pw_grid%para%rs_group, local=.FALSE.)
 
       hmat2 = 0.0_dp
       hmat2(1, 1) = scfac(1)*cell_hmat(1, 1)
@@ -232,11 +228,11 @@ CONTAINS
          blocked = 0
       END IF
 
-      CALL pw_grid_setup(hmat2, dct_pw_grid, &
-                         bounds=bounds_new, &
-                         rs_dims=pw_grid%para%rs_dims, &
-                         blocked=blocked, &
-                         bounds_local=bounds_local_new)
+      CALL pw_grid_create(dct_pw_grid, pw_grid%para%group, hmat2, &
+                          bounds=bounds_new, &
+                          rs_dims=pw_grid%para%group%num_pe_cart, &
+                          blocked=blocked, &
+                          bounds_local=bounds_local_new)
 
       DEALLOCATE (flipg_stat, dests_expand, srcs_expand, dests_shrink, recv_msgs_bnds)
 
@@ -246,7 +242,7 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Finds the process ids for mpi_isend destiations and mpi_irecv sources
-!>   for expanding and shrinking a pw_type data
+!>   for expanding and shrinking a pw_r3d_rs_type data
 !> \param pw_grid the original plane wave grid
 !> \param neumann_directions directions in which dct should be performed
 !> \param dests_expand list of the destination processes (pw_expand)
@@ -324,12 +320,12 @@ CONTAINS
 ! rs_dim1 = 3 -->  src_pos1 = [1  2  3]
 ! rs_dim2 = 4 -->  src_pos2 = [1  2   3  4]
 
-      rs_group = pw_grid%para%rs_group
-      rs_mpo = pw_grid%para%rs_mpo
-      group_size = pw_grid%para%group_size
-      rs_dims = pw_grid%para%rs_dims
+      rs_group = pw_grid%para%group
+      rs_mpo = pw_grid%para%group%mepos
+      group_size = pw_grid%para%group%num_pe
+      rs_dims = pw_grid%para%group%num_pe_cart
 
-      rs_pos = pw_grid%para%rs_pos
+      rs_pos = pw_grid%para%group%mepos_cart
       rs_dim1 = rs_dims(1); rs_dim2 = rs_dims(2)
 
 ! prepare srcs_coord
@@ -438,7 +434,7 @@ CONTAINS
 
       DO k = 1, maxn_sendrecv
 ! convert srcs_coord to pid
-         CALL pw_grid%para%rs_group%rank_cart(ABS(srcs_coord(:, k)) - 1, srcs_expand(k))
+         CALL pw_grid%para%group%rank_cart(ABS(srcs_coord(:, k)) - 1, srcs_expand(k))
 ! find out the flipping status
          IF ((srcs_coord(1, k) .GT. 0) .AND. (srcs_coord(2, k) .GT. 0)) THEN
             flipg_stat(k) = NOT_FLIPPED
@@ -497,7 +493,7 @@ CONTAINS
    END SUBROUTINE set_dests_srcs_pid
 
 ! **************************************************************************************************
-!> \brief expands a pw_type data to an evenly symmetric pw_type data that is 8 times
+!> \brief expands a pw_r3d_rs_type data to an evenly symmetric pw_r3d_rs_type data that is 8 times
 !>   larger than the original one:
 !>   the even symmetry for a 1D sequence of length n is defined as:
 !>      1 2 3 ... n-2 n-1 n --> 1 2 3 ... n-2 n-1 n n-1 n-2 ... 3 2
@@ -522,7 +518,8 @@ CONTAINS
       INTEGER, DIMENSION(:, :, :), INTENT(IN), POINTER   :: recv_msgs_bnds
       INTEGER, DIMENSION(:), INTENT(IN), POINTER         :: dests_expand, srcs_expand, flipg_stat
       INTEGER, DIMENSION(2, 3), INTENT(IN)               :: bounds_shftd
-      TYPE(pw_type), INTENT(IN)                          :: pw_in, pw_expanded
+      TYPE(pw_r3d_rs_type), INTENT(IN)                   :: pw_in
+      TYPE(pw_r3d_rs_type), INTENT(INOUT)                :: pw_expanded
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'pw_expand'
 
@@ -532,8 +529,8 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: dest_hist, src_hist
       INTEGER, ALLOCATABLE, DIMENSION(:, :, :)           :: pcs_bnds
       INTEGER, DIMENSION(2, 3)                           :: bounds_local_new
-      REAL(dp), DIMENSION(:, :, :), POINTER              :: catd, catd_flipdbf, cr3d_xpndd, send_msg
-      TYPE(dct_msg_type), DIMENSION(:), POINTER          :: pcs, recv_msgs
+      REAL(dp), ALLOCATABLE, DIMENSION(:, :, :)          :: catd, catd_flipdbf, cr3d_xpndd
+      TYPE(dct_msg_type), ALLOCATABLE, DIMENSION(:)      :: pcs, recv_msgs
       TYPE(mp_comm_type)                                 :: rs_group
       TYPE(mp_request_type), ALLOCATABLE, DIMENSION(:)   :: recv_reqs, send_reqs
       TYPE(pw_grid_type), POINTER                        :: pw_grid
@@ -541,9 +538,9 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       pw_grid => pw_in%pw_grid
-      rs_group = pw_grid%para%rs_group
-      rs_mpo = pw_grid%para%my_pos
-      group_size = pw_grid%para%group_size
+      rs_group = pw_grid%para%group
+      rs_mpo = pw_grid%para%group%mepos
+      group_size = pw_grid%para%group%num_pe
 
       bounds_local_new = pw_expanded%pw_grid%bounds_local
 
@@ -560,13 +557,10 @@ CONTAINS
       ALLOCATE (dest_hist(maxn_sendrecv), src_hist(maxn_sendrecv))
       ALLOCATE (pcs_bnds(2, 3, maxn_sendrecv))
 
-      NULLIFY (pcs, recv_msgs)
       ALLOCATE (pcs(maxn_sendrecv), recv_msgs(maxn_sendrecv))
 
       send_reqs = mp_request_null
       recv_reqs = mp_request_null
-
-      send_msg => pw_in%cr3d
 
       src_hist = -1 ! keeps the history of sources
       dest_hist = -1 ! keeps the history of destinations
@@ -574,7 +568,7 @@ CONTAINS
       DO i = 1, maxn_sendrecv
 ! no need to send to myself or to the destination that I have already sent to
          IF ((dests_expand(i) .NE. rs_mpo) .AND. .NOT. ANY(dest_hist .EQ. dests_expand(i))) THEN
-            CALL rs_group%isend(send_msg, dests_expand(i), send_reqs(i))
+            CALL rs_group%isend(pw_in%array, dests_expand(i), send_reqs(i))
          END IF
          dest_hist(i) = dests_expand(i)
       END DO
@@ -589,7 +583,7 @@ CONTAINS
 ! no need to receive from myself
          IF (srcs_expand(i) .EQ. rs_mpo) THEN
             ALLOCATE (recv_msgs(i)%msg(lb1:ub1, lb2:ub2, lb3:ub3))
-            recv_msgs(i)%msg = send_msg
+            recv_msgs(i)%msg(:, :, :) = pw_in%array
 ! if I have already received data from the source, just use the one from the last time
          ELSE IF (ANY(src_hist .EQ. srcs_expand(i))) THEN
             loc = MINLOC(ABS(src_hist - srcs_expand(i)), 1)
@@ -600,7 +594,7 @@ CONTAINS
             lb3_loc = recv_msgs_bnds(1, 3, loc)
             ub3_loc = recv_msgs_bnds(2, 3, loc)
             ALLOCATE (recv_msgs(i)%msg(lb1_loc:ub1_loc, lb2_loc:ub2_loc, lb3_loc:ub3_loc))
-            recv_msgs(i)%msg = recv_msgs(loc)%msg
+            recv_msgs(i)%msg(:, :, :) = recv_msgs(loc)%msg
          ELSE
             ALLOCATE (recv_msgs(i)%msg(lb1:ub1, lb2:ub2, lb3:ub3))
             CALL rs_group%irecv(recv_msgs(i)%msg, srcs_expand(i), recv_reqs(i))
@@ -622,7 +616,7 @@ CONTAINS
             lb3 = recv_msgs_bnds(1, 3, i)
             ub3 = recv_msgs_bnds(2, 3, i)
             ALLOCATE (pcs(i)%msg(lb1:ub1, lb2:ub2, lb3:ub3))
-            pcs(i)%msg = recv_msgs(i)%msg
+            pcs(i)%msg(:, :, :) = recv_msgs(i)%msg
          CASE (UD_FLIPPED)
             CALL flipud(recv_msgs(i)%msg, pcs(i)%msg, bounds_shftd)
          CASE (LR_FLIPPED)
@@ -674,7 +668,7 @@ CONTAINS
          cr3d_xpndd(:, :, :) = catd
       END SELECT
 
-      pw_expanded%cr3d = cr3d_xpndd
+      pw_expanded%array = cr3d_xpndd
 
       DO i = 1, maxn_sendrecv
          DEALLOCATE (pcs(i)%msg)
@@ -688,7 +682,7 @@ CONTAINS
    END SUBROUTINE pw_expand
 
 ! **************************************************************************************************
-!> \brief shrinks an evenly symmetric pw_type data to a pw_type data that is 8
+!> \brief shrinks an evenly symmetric pw_r3d_rs_type data to a pw_r3d_rs_type data that is 8
 !>        times smaller (the reverse procedure of pw_expand).
 !>
 !> \param neumann_directions directions in which dct should be performed
@@ -708,30 +702,27 @@ CONTAINS
       INTEGER, DIMENSION(:), INTENT(IN), POINTER         :: dests_shrink
       INTEGER, INTENT(INOUT)                             :: srcs_shrink
       INTEGER, DIMENSION(2, 3), INTENT(IN)               :: bounds_local_shftd
-      TYPE(pw_type), INTENT(IN)                          :: pw_in, pw_shrinked
+      TYPE(pw_r3d_rs_type), INTENT(IN)                   :: pw_in
+      TYPE(pw_r3d_rs_type), INTENT(INOUT)                :: pw_shrinked
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'pw_shrink'
 
-      INTEGER :: group_size, handle, i, in_space, in_use, lb1_orig, lb1_xpnd, lb2_orig, lb2_xpnd, &
-         lb3_orig, lb3_xpnd, maxn_sendrecv, rs_mpo, send_lb1, send_lb2, send_lb3, send_ub1, &
-         send_ub2, send_ub3, tag, ub1_orig, ub1_xpnd, ub2_orig, ub2_xpnd, ub3_orig, ub3_xpnd
+      INTEGER :: group_size, handle, i, lb1_orig, lb1_xpnd, lb2_orig, lb2_xpnd, lb3_orig, &
+         lb3_xpnd, maxn_sendrecv, rs_mpo, send_lb1, send_lb2, send_lb3, send_ub1, send_ub2, &
+         send_ub3, tag, ub1_orig, ub1_xpnd, ub2_orig, ub2_xpnd, ub3_orig, ub3_xpnd
       INTEGER, ALLOCATABLE, DIMENSION(:, :, :)           :: bounds_local_all
       INTEGER, DIMENSION(2, 3)                           :: bounds_local_xpnd
-      REAL(dp), DIMENSION(:, :, :), POINTER              :: cr3d, send_crmsg
+      REAL(dp), ALLOCATABLE, DIMENSION(:, :, :)          :: cr3d, send_crmsg
       TYPE(mp_comm_type)                                 :: rs_group
       TYPE(pw_grid_type), POINTER                        :: pw_grid_orig
 
       CALL timeset(routineN, handle)
 
       pw_grid_orig => pw_shrinked%pw_grid
-      rs_group = pw_grid_orig%para%rs_group
-      rs_mpo = pw_grid_orig%para%my_pos
-      group_size = pw_grid_orig%para%group_size
+      rs_group = pw_grid_orig%para%group
+      rs_mpo = pw_grid_orig%para%group%mepos
+      group_size = pw_grid_orig%para%group%num_pe
       bounds_local_xpnd = pw_in%pw_grid%bounds_local
-      in_space = pw_in%in_space
-      in_use = pw_in%in_use
-      CPASSERT(in_space == REALSPACE)
-      CPASSERT(in_use == REALDATA3D)
       tag = 1
 
       SELECT CASE (neumann_directions)
@@ -744,7 +735,6 @@ CONTAINS
       END SELECT
 
 ! cosine transform is a real transform. The cosine transform of a 3D data must be real and 3D.
-      NULLIFY (cr3d)
       lb1_xpnd = bounds_local_xpnd(1, 1)
       ub1_xpnd = bounds_local_xpnd(2, 1)
       lb2_xpnd = bounds_local_xpnd(1, 2)
@@ -752,7 +742,7 @@ CONTAINS
       lb3_xpnd = bounds_local_xpnd(1, 3)
       ub3_xpnd = bounds_local_xpnd(2, 3)
       ALLOCATE (cr3d(lb1_xpnd:ub1_xpnd, lb2_xpnd:ub2_xpnd, lb3_xpnd:ub3_xpnd))
-      cr3d = pw_in%cr3d
+      cr3d(:, :, :) = pw_in%array
 
 ! let all the nodes know about each others shifted local bounds
       ALLOCATE (bounds_local_all(2, 3, group_size))
@@ -769,7 +759,7 @@ CONTAINS
             send_ub3 = bounds_local_all(2, 3, dests_shrink(i) + 1)
 
             ALLOCATE (send_crmsg(send_lb1:send_ub1, send_lb2:send_ub2, send_lb3:send_ub3))
-            send_crmsg = cr3d(send_lb1:send_ub1, send_lb2:send_ub2, send_lb3:send_ub3)
+            send_crmsg(:, :, :) = cr3d(send_lb1:send_ub1, send_lb2:send_ub2, send_lb3:send_ub3)
             CALL rs_group%send(send_crmsg, dests_shrink(i), tag)
             DEALLOCATE (send_crmsg)
          END IF
@@ -784,11 +774,11 @@ CONTAINS
 
 ! no need to receive from myself
       IF (srcs_shrink .EQ. rs_mpo) THEN
-         pw_shrinked%cr3d = cr3d(lb1_orig:ub1_orig, lb2_orig:ub2_orig, lb3_orig:ub3_orig)
+         pw_shrinked%array = cr3d(lb1_orig:ub1_orig, lb2_orig:ub2_orig, lb3_orig:ub3_orig)
       ELSE IF (srcs_shrink .EQ. -1) THEN
 ! the source is invalid ... do nothing
       ELSE
-         CALL rs_group%recv(pw_shrinked%cr3d, srcs_shrink, tag)
+         CALL rs_group%recv(pw_shrinked%array, srcs_shrink, tag)
       END IF
 
       DEALLOCATE (bounds_local_all)
@@ -809,8 +799,10 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE flipud(cr3d_in, cr3d_out, bounds)
 
-      REAL(dp), DIMENSION(:, :, :), INTENT(IN), POINTER  :: cr3d_in
-      REAL(dp), DIMENSION(:, :, :), INTENT(OUT), POINTER :: cr3d_out
+      REAL(dp), ALLOCATABLE, DIMENSION(:, :, :), &
+         INTENT(IN)                                      :: cr3d_in
+      REAL(dp), ALLOCATABLE, DIMENSION(:, :, :), &
+         INTENT(INOUT)                                   :: cr3d_out
       INTEGER, DIMENSION(2, 3), INTENT(IN)               :: bounds
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'flipud'
@@ -863,8 +855,10 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE fliplr(cr3d_in, cr3d_out, bounds)
 
-      REAL(dp), DIMENSION(:, :, :), INTENT(IN), POINTER  :: cr3d_in
-      REAL(dp), DIMENSION(:, :, :), INTENT(OUT), POINTER :: cr3d_out
+      REAL(dp), ALLOCATABLE, DIMENSION(:, :, :), &
+         INTENT(IN)                                      :: cr3d_in
+      REAL(dp), ALLOCATABLE, DIMENSION(:, :, :), &
+         INTENT(INOUT)                                   :: cr3d_out
       INTEGER, DIMENSION(2, 3), INTENT(IN)               :: bounds
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'fliplr'
@@ -917,8 +911,10 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE flipbf(cr3d_in, cr3d_out, bounds)
 
-      REAL(dp), DIMENSION(:, :, :), INTENT(IN), POINTER  :: cr3d_in
-      REAL(dp), DIMENSION(:, :, :), INTENT(OUT), POINTER :: cr3d_out
+      REAL(dp), ALLOCATABLE, DIMENSION(:, :, :), &
+         INTENT(IN)                                      :: cr3d_in
+      REAL(dp), ALLOCATABLE, DIMENSION(:, :, :), &
+         INTENT(INOUT)                                   :: cr3d_out
       INTEGER, DIMENSION(2, 3), INTENT(IN)               :: bounds
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'flipbf'
@@ -971,8 +967,10 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE rot180(cr3d_in, cr3d_out, bounds)
 
-      REAL(dp), DIMENSION(:, :, :), INTENT(IN), POINTER  :: cr3d_in
-      REAL(dp), DIMENSION(:, :, :), INTENT(OUT), POINTER :: cr3d_out
+      REAL(dp), ALLOCATABLE, DIMENSION(:, :, :), &
+         INTENT(IN)                                      :: cr3d_in
+      REAL(dp), ALLOCATABLE, DIMENSION(:, :, :), &
+         INTENT(INOUT)                                   :: cr3d_out
       INTEGER, DIMENSION(2, 3), INTENT(IN)               :: bounds
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'rot180'
@@ -1056,9 +1054,9 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      rs_group = pw_grid%para%rs_group
-      rs_mpo = pw_grid%para%my_pos
-      group_size = pw_grid%para%group_size
+      rs_group = pw_grid%para%group
+      rs_mpo = pw_grid%para%group%mepos
+      group_size = pw_grid%para%group%num_pe
       bounds = pw_grid%bounds
       bounds_local = pw_grid%bounds_local
 

@@ -51,18 +51,18 @@ CONTAINS
 !> \brief allocates and initializes a derivative type
 !> \param derivative the object to create
 !> \param desc the derivative description
-!> \param cr3d_ptr the data array (the ownership of it passes to the
+!> \param r3d_ptr the data array (the ownership of it passes to the
 !>                      derivative type), the array is not zeroed
 ! **************************************************************************************************
-   SUBROUTINE xc_derivative_create(derivative, desc, cr3d_ptr)
+   SUBROUTINE xc_derivative_create(derivative, desc, r3d_ptr)
 
       TYPE(xc_derivative_type)                           :: derivative
       INTEGER, DIMENSION(:), INTENT(in)                  :: desc
       REAL(kind=dp), CONTIGUOUS, DIMENSION(:, :, :), &
-         POINTER                                         :: cr3d_ptr
+         POINTER                                         :: r3d_ptr
 
       CALL create_split_desc(desc, derivative%split_desc)
-      derivative%deriv_data => cr3d_ptr
+      derivative%deriv_data => r3d_ptr
 
    END SUBROUTINE xc_derivative_create
 

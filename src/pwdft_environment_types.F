@@ -54,6 +54,8 @@ MODULE pwdft_environment_types
 ! **************************************************************************************************
    TYPE pwdft_energy_type
       REAL(KIND=dp)                                    :: etotal = 0.0_dp
+      REAL(KIND=dp)                                    :: entropy = 0.0_dp
+      REAL(KIND=dp)                                    :: band_gap = -1.0_dp
    END TYPE pwdft_energy_type
 
 ! **************************************************************************************************
@@ -88,7 +90,7 @@ MODULE pwdft_environment_types
 CONTAINS
 
 ! **************************************************************************************************
-!> \brief Releases the given pwdft environment (see doc/ReferenceCounting.html)
+!> \brief Releases the given pwdft environment
 !> \param pwdft_env The pwdft environment to release
 !> \par History
 !>      07.2018 initial create

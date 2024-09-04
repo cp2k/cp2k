@@ -55,53 +55,54 @@ MODULE semi_empirical_types
 !> \brief Semi-empirical type
 ! **************************************************************************************************
    TYPE semi_empirical_type
-      INTEGER                                :: typ
-      INTEGER                                :: nr
-      INTEGER                                :: core_size, atm_int_size
-      CHARACTER(LEN=default_string_length)   :: name
-      LOGICAL                                :: defined, dorb, extended_basis_set
-      LOGICAL                                :: p_orbitals_on_h
-      INTEGER                                :: z
-      REAL(KIND=dp)                          :: zeff
-      INTEGER                                :: natorb
-      REAL(KIND=dp), DIMENSION(:), POINTER :: beta
-      REAL(KIND=dp), DIMENSION(:), POINTER :: sto_exponents
-      REAL(KIND=dp), DIMENSION(:), POINTER :: zn
-      TYPE(sto_basis_set_type), POINTER      :: basis
-      INTEGER                                :: ngauss
-      REAL(KIND=dp)                        :: eheat
-      REAL(KIND=dp)                        :: uss, upp, udd, uff
-      REAL(KIND=dp)                        :: alp
-      REAL(KIND=dp)                        :: eisol
-      REAL(KIND=dp)                        :: ass, asp, app, de, acoul
-      REAL(KIND=dp)                        :: gss, gsp, gpp, gp2
-      REAL(KIND=dp)                        :: gsd, gpd, gdd
-      REAL(KIND=dp)                        :: hsp
-      REAL(KIND=dp)                        :: dd, qq, am, ad, aq
-      REAL(KIND=dp), DIMENSION(2)           :: pre, d
-      REAL(KIND=dp), DIMENSION(4)           :: fn1, fn2, fn3
-      REAL(KIND=dp), DIMENSION(4, 4)         :: bfn1, bfn2, bfn3
-      REAL(KIND=dp)                        :: f0dd, f2dd, f4dd, f0sd, f0pd, f2pd, &
-                                              g1pd, g2sd, g3pd
-      REAL(KIND=dp), DIMENSION(9)          :: ko
-      REAL(KIND=dp), DIMENSION(6)          :: cs
-      REAL(KIND=dp), DIMENSION(52)         :: onec2el
+      INTEGER                                :: typ = -1
+      INTEGER                                :: nr = -1
+      INTEGER                                :: core_size = -1, atm_int_size = -1
+      CHARACTER(LEN=default_string_length)   :: name = ""
+      LOGICAL                                :: defined = .FALSE., dorb = .FALSE., extended_basis_set = .FALSE.
+      LOGICAL                                :: p_orbitals_on_h = .FALSE.
+      INTEGER                                :: z = -1
+      REAL(KIND=dp)                          :: zeff = -1.0_dp
+      INTEGER                                :: natorb = -1
+      REAL(KIND=dp), DIMENSION(:), POINTER :: beta => NULL()
+      REAL(KIND=dp), DIMENSION(:), POINTER :: sto_exponents => NULL()
+      REAL(KIND=dp), DIMENSION(:), POINTER :: zn => NULL()
+      TYPE(sto_basis_set_type), POINTER      :: basis => NULL()
+      INTEGER                                :: ngauss = -1
+      REAL(KIND=dp)                        :: eheat = -1.0_dp
+      REAL(KIND=dp)                        :: uss = -1.0_dp, upp = -1.0_dp, udd = -1.0_dp, uff = -1.0_dp
+      REAL(KIND=dp)                        :: alp = -1.0_dp
+      REAL(KIND=dp)                        :: eisol = -1.0_dp
+      REAL(KIND=dp)                        :: ass = -1.0_dp, asp = -1.0_dp, app = -1.0_dp, de = -1.0_dp, acoul = -1.0_dp
+      REAL(KIND=dp)                        :: gss = -1.0_dp, gsp = -1.0_dp, gpp = -1.0_dp, gp2 = -1.0_dp
+      REAL(KIND=dp)                        :: gsd = -1.0_dp, gpd = -1.0_dp, gdd = -1.0_dp
+      REAL(KIND=dp)                        :: hsp = -1.0_dp
+      REAL(KIND=dp)                        :: dd = -1.0_dp, qq = -1.0_dp, am = -1.0_dp, ad = -1.0_dp, aq = -1.0_dp
+      REAL(KIND=dp), DIMENSION(2)           :: pre = -1.0_dp, d = -1.0_dp
+      REAL(KIND=dp), DIMENSION(4)           :: fn1 = -1.0_dp, fn2 = -1.0_dp, fn3 = -1.0_dp
+      REAL(KIND=dp), DIMENSION(4, 4)         :: bfn1 = -1.0_dp, bfn2 = -1.0_dp, bfn3 = -1.0_dp
+      REAL(KIND=dp)                        :: f0dd = -1.0_dp, f2dd = -1.0_dp, f4dd = -1.0_dp, &
+                                              f0sd = -1.0_dp, f0pd = -1.0_dp, f2pd = -1.0_dp, &
+                                              g1pd = -1.0_dp, g2sd = -1.0_dp, g3pd = -1.0_dp
+      REAL(KIND=dp), DIMENSION(9)          :: ko = -1.0_dp
+      REAL(KIND=dp), DIMENSION(6)          :: cs = -1.0_dp
+      REAL(KIND=dp), DIMENSION(52)         :: onec2el = -1.0_dp
       ! Specific for PM6 & PM6-FM
-      REAL(KIND=dp), DIMENSION(0:115)      :: xab
-      REAL(KIND=dp), DIMENSION(0:115)      :: aab
-      REAL(KIND=dp)                        :: a, b, c, rho
+      REAL(KIND=dp), DIMENSION(0:115)      :: xab = -1.0_dp
+      REAL(KIND=dp), DIMENSION(0:115)      :: aab = -1.0_dp
+      REAL(KIND=dp)                        :: a = -1.0_dp, b = -1.0_dp, c = -1.0_dp, rho = -1.0_dp
       ! One center - two electron integrals
       REAL(KIND=dp), DIMENSION(:, :), &
-         POINTER                           :: w
+         POINTER                           :: w => NULL()
       TYPE(semi_empirical_mpole_p_type), &
-         POINTER, DIMENSION(:)             :: w_mpole
+         POINTER, DIMENSION(:)             :: w_mpole => NULL()
       ! 1/R^3 residual integral part
       TYPE(semi_empirical_expns3_p_type), &
-         POINTER, DIMENSION(:)             :: expns3_int
+         POINTER, DIMENSION(:)             :: expns3_int => NULL()
    END TYPE semi_empirical_type
 
    TYPE semi_empirical_p_type
-      TYPE(semi_empirical_type), POINTER    :: se_param
+      TYPE(semi_empirical_type), POINTER    :: se_param => NULL()
    END TYPE semi_empirical_p_type
 
 ! **************************************************************************************************
@@ -110,17 +111,17 @@ MODULE semi_empirical_types
 ! **************************************************************************************************
    TYPE rotmat_type
       ! Value of Rotation Matrices
-      REAL(KIND=dp), DIMENSION(3, 3)      :: sp
-      REAL(KIND=dp), DIMENSION(5, 5)      :: sd
-      REAL(KIND=dp), DIMENSION(6, 3, 3)      :: pp
-      REAL(KIND=dp), DIMENSION(15, 5, 3)      :: pd
-      REAL(KIND=dp), DIMENSION(15, 5, 5)      :: dd
+      REAL(KIND=dp), DIMENSION(3, 3)      :: sp = -1.0_dp
+      REAL(KIND=dp), DIMENSION(5, 5)      :: sd = -1.0_dp
+      REAL(KIND=dp), DIMENSION(6, 3, 3)      :: pp = -1.0_dp
+      REAL(KIND=dp), DIMENSION(15, 5, 3)      :: pd = -1.0_dp
+      REAL(KIND=dp), DIMENSION(15, 5, 5)      :: dd = -1.0_dp
       ! Derivatives of Rotation Matrices
-      REAL(KIND=dp), DIMENSION(3, 3, 3)   :: sp_d
-      REAL(KIND=dp), DIMENSION(3, 5, 5)   :: sd_d
-      REAL(KIND=dp), DIMENSION(3, 6, 3, 3)   :: pp_d
-      REAL(KIND=dp), DIMENSION(3, 15, 5, 3)   :: pd_d
-      REAL(KIND=dp), DIMENSION(3, 15, 5, 5)   :: dd_d
+      REAL(KIND=dp), DIMENSION(3, 3, 3)   :: sp_d = -1.0_dp
+      REAL(KIND=dp), DIMENSION(3, 5, 5)   :: sd_d = -1.0_dp
+      REAL(KIND=dp), DIMENSION(3, 6, 3, 3)   :: pp_d = -1.0_dp
+      REAL(KIND=dp), DIMENSION(3, 15, 5, 3)   :: pd_d = -1.0_dp
+      REAL(KIND=dp), DIMENSION(3, 15, 5, 5)   :: dd_d = -1.0_dp
    END TYPE rotmat_type
 
 ! **************************************************************************************************
@@ -128,19 +129,19 @@ MODULE semi_empirical_types
 !> \author Teodoro Laino [tlaino]  - 12.2008
 ! **************************************************************************************************
    TYPE ewald_gks_type
-      REAL(KIND=dp)                            :: alpha
-      TYPE(dg_type), POINTER                   :: dg
-      TYPE(pw_pool_type), POINTER              :: pw_pool
+      REAL(KIND=dp)                            :: alpha = -1.0_dp
+      TYPE(dg_type), POINTER                   :: dg => NULL()
+      TYPE(pw_pool_type), POINTER              :: pw_pool => NULL()
    END TYPE ewald_gks_type
 
    TYPE se_int_control_type
-      LOGICAL                                  :: shortrange
-      LOGICAL                                  :: do_ewald_r3
-      LOGICAL                                  :: do_ewald_gks
-      LOGICAL                                  :: pc_coulomb_int
-      INTEGER                                  :: integral_screening
-      INTEGER                                  :: max_multipole
-      TYPE(ewald_gks_type)                     :: ewald_gks
+      LOGICAL                                  :: shortrange = .FALSE.
+      LOGICAL                                  :: do_ewald_r3 = .FALSE.
+      LOGICAL                                  :: do_ewald_gks = .FALSE.
+      LOGICAL                                  :: pc_coulomb_int = .FALSE.
+      INTEGER                                  :: integral_screening = -1
+      INTEGER                                  :: max_multipole = -1
+      TYPE(ewald_gks_type)                     :: ewald_gks = ewald_gks_type()
    END TYPE se_int_control_type
 
 ! **************************************************************************************************
@@ -148,19 +149,19 @@ MODULE semi_empirical_types
 !>        for screened integrals
 ! **************************************************************************************************
    TYPE se_int_screen_type
-      REAL(KIND=dp)                            :: ft, dft
+      REAL(KIND=dp)                            :: ft = -1.0_dp, dft = -1.0_dp
    END TYPE se_int_screen_type
 
 ! **************************************************************************************************
 !> \brief Taper type use in semi-empirical calculations
 ! **************************************************************************************************
    TYPE se_taper_type
-      TYPE(taper_type), POINTER             :: taper
-      TYPE(taper_type), POINTER             :: taper_cou
-      TYPE(taper_type), POINTER             :: taper_exc
-      TYPE(taper_type), POINTER             :: taper_lrc
+      TYPE(taper_type), POINTER             :: taper => NULL()
+      TYPE(taper_type), POINTER             :: taper_cou => NULL()
+      TYPE(taper_type), POINTER             :: taper_exc => NULL()
+      TYPE(taper_type), POINTER             :: taper_lrc => NULL()
       ! This taper is for KDSO-D integrals
-      TYPE(taper_type), POINTER             :: taper_add
+      TYPE(taper_type), POINTER             :: taper_add => NULL()
    END TYPE se_taper_type
 
    PUBLIC :: semi_empirical_type, &

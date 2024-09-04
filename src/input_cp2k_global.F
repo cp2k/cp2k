@@ -640,14 +640,14 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="NROW_BLOCKS", &
                           description="Defines the number of rows per scalapack block in "// &
                           "the creation of block cyclic dense matrices ", &
-                          default_i_val=32)
+                          default_i_val=64)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="NCOL_BLOCKS", &
                           description="Defines the number of columns per scalapack block in "// &
                           "the creation of vlock cyclic dense matrices ", &
-                          default_i_val=32)
+                          default_i_val=64)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

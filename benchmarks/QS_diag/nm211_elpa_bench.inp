@@ -42,10 +42,10 @@
     TYPE MINIMIZATION
     &BFGS
       #     TRUST_RADIUS 0.05
-@if ${HESSIAN} == 1
+      @IF ${HESSIAN} == 1
       RESTART_HESSIAN
       RESTART_FILE_NAME ${WRKDIR}/${RESFILE}-BFGS.Hessian
-@endif
+      @ENDIF
     &END BFGS
   &END GEO_OPT
   &PRINT
@@ -129,7 +129,7 @@
         XC_SMOOTH_RHO NN50
       &END XC_GRID
     &END XC
-@if ${WANNIER} == 1
+    @IF ${WANNIER} == 1
     &LOCALIZE
       EPS_LOCALIZATION 1.0E-4
       EPS_OCCUPATION 1.E-4
@@ -146,9 +146,9 @@
         &END WANNIER_SPREADS
       &END PRINT
     &END LOCALIZE
-@endif
+    @ENDIF
     &PRINT
-@if ${CUBE} == 1
+      @IF ${CUBE} == 1
       &MULLIKEN
         FILENAME =${PROJECT}.mulliken
       &END MULLIKEN
@@ -167,14 +167,14 @@
           QS_SCF 0
         &END EACH
       &END ELF_CUBE
-@endif
-@if ${STM} == 1
+      @ENDIF
+      @IF ${STM} == 1
       &STM
         BIAS [eV] -2.0 -1.0 1.0 2.0
         TH_TORB S
       &END STM
-@endif
-@if ${PDOS} ==1
+      @ENDIF
+      @IF ${PDOS} ==1
       &PDOS
         COMPONENTS
         NLUMO 2500
@@ -195,7 +195,7 @@
           LIST 9 17 57
         &END LDOS
       &END PDOS
-@endif
+      @ENDIF
     &END PRINT
   &END DFT
   &PRINT
@@ -239,7 +239,7 @@
   &END SUBSYS
 &END FORCE_EVAL
 
-@if ${RESTART} == 1
+@IF ${RESTART} == 1
 &EXT_RESTART
   RESTART_BAND T
   RESTART_COUNTERS T
@@ -247,4 +247,4 @@
   RESTART_POS T
 &END EXT_RESTART
 
-@endif
+@ENDIF

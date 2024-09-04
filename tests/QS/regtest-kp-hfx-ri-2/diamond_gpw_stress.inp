@@ -44,6 +44,10 @@
           NGROUPS 2
           RI_METRIC IDENTITY
         &END RI
+        &SCREENING
+          EPS_SCHWARZ 1.0E-10
+          EPS_SCHWARZ_FORCES 1.0E-6
+        &END SCREENING
       &END HF
       &XC_FUNCTIONAL
         &PBE

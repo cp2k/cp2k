@@ -15,6 +15,6 @@
 
 &FORCE_EVAL
   METHOD QS
-@include dft-common-params.inc
-@include subsys.inc
+  @INCLUDE dft-common-params.inc
+  @INCLUDE subsys.inc
 &END FORCE_EVAL

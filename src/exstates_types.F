@@ -12,15 +12,15 @@
 !> \author JGH
 ! **************************************************************************************************
 MODULE exstates_types
+   USE cp_dbcsr_api,                    ONLY: dbcsr_p_type
    USE cp_dbcsr_operations,             ONLY: dbcsr_deallocate_matrix_set
    USE cp_fm_types,                     ONLY: cp_fm_release,&
                                               cp_fm_type
-   USE dbcsr_api,                       ONLY: dbcsr_p_type
    USE input_constants,                 ONLY: xc_kernel_method_best
    USE input_section_types,             ONLY: section_vals_type,&
                                               section_vals_val_get
    USE kinds,                           ONLY: dp
-   USE pw_types,                        ONLY: pw_type
+   USE pw_types,                        ONLY: pw_r3d_rs_type
    USE qs_local_rho_types,              ONLY: local_rho_set_release,&
                                               local_rho_type
 #include "./base/base_uses.f90"
@@ -38,11 +38,11 @@ MODULE exstates_types
 ! *****************************************************************************
 
    TYPE wfn_history_type
-      INTEGER                                            :: state
-      REAL(KIND=dp)                                      :: evalue
+      INTEGER                                            :: state = -1
+      REAL(KIND=dp)                                      :: evalue = 0.0_dp
       TYPE(cp_fm_type), POINTER, DIMENSION(:)            :: evect => NULL()
       TYPE(cp_fm_type), POINTER, DIMENSION(:)            :: cpmos => NULL()
-      REAL(KIND=dp)                                      :: xsval, gsval, gsmin
+      REAL(KIND=dp)                                      :: xsval = 0.0_dp, gsval = 0.0_dp, gsmin = 0.0_dp
    END TYPE wfn_history_type
 
 ! *****************************************************************************
@@ -52,11 +52,11 @@ MODULE exstates_types
 !> \author JGH
 ! *****************************************************************************
    TYPE excited_energy_type
-      INTEGER                                            :: state
-      REAL(KIND=dp)                                      :: evalue
-      INTEGER                                            :: xc_kernel_method
+      INTEGER                                            :: state = -1
+      REAL(KIND=dp)                                      :: evalue = 0.0_dp
+      INTEGER                                            :: xc_kernel_method = -1
       REAL(KIND=dp)                                      :: eps_delta_rho = 1.E-02_dp
-      INTEGER                                            :: diff_order
+      INTEGER                                            :: diff_order = -1
       LOGICAL                                            :: debug_forces = .FALSE.
       TYPE(cp_fm_type), POINTER, DIMENSION(:)            :: evect => NULL()
       TYPE(cp_fm_type), POINTER, DIMENSION(:)            :: cpmos => NULL()
@@ -68,13 +68,13 @@ MODULE exstates_types
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_px1_asymm => NULL()
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_px1_admm_asymm => NULL()
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_wx1 => NULL()
-      TYPE(pw_type)                                      :: vh_rspace
-      TYPE(pw_type), DIMENSION(:), POINTER               :: vxc_rspace => NULL()
-      TYPE(pw_type), DIMENSION(:), POINTER               :: vtau_rspace => NULL()
-      TYPE(pw_type), DIMENSION(:), POINTER               :: vadmm_rspace => NULL()
+      TYPE(pw_r3d_rs_type)                               :: vh_rspace = pw_r3d_rs_type()
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: vxc_rspace => NULL()
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: vtau_rspace => NULL()
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: vadmm_rspace => NULL()
       TYPE(local_rho_type), POINTER                      :: local_rho_set => NULL()
       TYPE(local_rho_type), POINTER                      :: local_rho_set_admm => NULL()
-      TYPE(wfn_history_type)                             :: wfn_history
+      TYPE(wfn_history_type)                             :: wfn_history = wfn_history_type()
    END TYPE excited_energy_type
 
 CONTAINS

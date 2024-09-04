@@ -46,16 +46,15 @@ MODULE orbital_transformation_matrices
 
    TYPE(orbtramat_type), DIMENSION(:), POINTER :: orbtramat => NULL()
 
+   TYPE orbrotmat_type
+      REAL(KIND=dp), DIMENSION(:, :), POINTER :: mat => NULL()
+   END TYPE orbrotmat_type
+
    INTEGER, SAVE :: current_maxl = -1
 
-   ! Public variables
-
    PUBLIC :: orbtramat
-
-   ! Public subroutines
-
-   PUBLIC :: deallocate_spherical_harmonics, &
-             init_spherical_harmonics
+   PUBLIC :: orbrotmat_type, calculate_rotmat, release_rotmat
+   PUBLIC :: deallocate_spherical_harmonics, init_spherical_harmonics
 
 CONTAINS
 
@@ -306,6 +305,272 @@ CONTAINS
       END IF
 
    END SUBROUTINE init_spherical_harmonics
+
+! **************************************************************************************************
+!> \brief   Calculate rotation matrices for spherical harmonics up to value l
+!>          Joseph Ivanic and Klaus Ruedenberg
+!>          Rotation Matrices for Real Spherical Harmonics. Direct Determination by Recursion
+!>          J. Phys. Chem. 1996, 100, 6342-6347
+!> \param orbrotmat ...
+!> \param rotmat ...
+!> \param lval ...
+! **************************************************************************************************
+   SUBROUTINE calculate_rotmat(orbrotmat, rotmat, lval)
+      TYPE(orbrotmat_type), DIMENSION(:), POINTER        :: orbrotmat
+      REAL(KIND=dp), DIMENSION(3, 3)                     :: rotmat
+      INTEGER, INTENT(IN)                                :: lval
+
+      INTEGER                                            :: l, m1, m2, ns
+      REAL(KIND=dp)                                      :: s3, u, uf, v, vf, w, wf
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: r
+      REAL(KIND=dp), DIMENSION(-1:1, -1:1)               :: r1
+      REAL(KIND=dp), DIMENSION(-2:2, -2:2)               :: r2
+      REAL(KIND=dp), DIMENSION(3, 3)                     :: t
+
+      CALL release_rotmat(orbrotmat)
+
+      ALLOCATE (orbrotmat(0:lval))
+      DO l = 0, lval
+         ns = nso(l)
+         ALLOCATE (orbrotmat(l)%mat(ns, ns))
+      END DO
+
+      IF (lval >= 0) THEN
+         orbrotmat(0)%mat = 1.0_dp
+      END IF
+      IF (lval >= 1) THEN
+         t(1, 1:3) = rotmat(2, 1:3)
+         t(2, 1:3) = rotmat(3, 1:3)
+         t(3, 1:3) = rotmat(1, 1:3)
+         r1(-1:1, -1) = t(1:3, 2)
+         r1(-1:1, 0) = t(1:3, 3)
+         r1(-1:1, 1) = t(1:3, 1)
+         orbrotmat(1)%mat(1:3, 1:3) = r1(-1:1, -1:1)
+      END IF
+      IF (lval >= 2) THEN
+         s3 = SQRT(3.0_dp)
+         ! Table 4
+         r2(0, 0) = (3.0_dp*r1(0, 0)**2 - 1.0_dp)*0.5_dp
+         r2(0, 1) = s3*r1(0, 1)*r1(0, 0)
+         r2(0, -1) = s3*r1(0, -1)*r1(0, 0)
+         r2(0, -2) = s3*(r1(0, 1)**2 - r1(0, -1)**2)*0.5_dp
+         r2(0, -2) = s3*r1(0, 1)*r1(0, -1)
+         !
+         r2(1, 0) = s3*r1(1, 0)*r1(0, 0)
+         r2(1, 1) = r1(1, 1)*r1(0, 0) + r1(1, 0)*r1(0, 1)
+         r2(1, -1) = r1(1, -1)*r1(0, 0) + r1(1, 0)*r1(0, -1)
+         r2(1, 2) = r1(1, 1)*r1(0, 1) - r1(1, -1)*r1(0, -1)
+         r2(1, -2) = r1(1, 1)*r1(0, -1) + r1(1, -1)*r1(0, 1)
+         !
+         r2(-1, 0) = s3*r1(-1, 0)*r1(0, 0)
+         r2(-1, 1) = r1(-1, 1)*r1(0, 0) + r1(-1, 0)*r1(0, 1)
+         r2(-1, -1) = r1(-1, -1)*r1(0, 0) + r1(-1, 0)*r1(0, -1)
+         r2(-1, 2) = r1(-1, 1)*r1(0, 1) - r1(-1, -1)*r1(0, -1)
+         r2(-1, -2) = r1(-1, 1)*r1(0, -1) + r1(-1, -1)*r1(0, 1)
+         !
+         r2(2, 0) = s3*(r1(1, 0)**2 - r1(-1, 0)**2)*0.5_dp
+         r2(2, 1) = r1(1, 1)*r1(1, 0) - r1(-1, 1)*r1(-1, 0)
+         r2(2, -1) = r1(1, -1)*r1(1, 0) - r1(-1, -1)*r1(-1, 0)
+         r2(2, 2) = (r1(1, 1)**2 - r1(1, -1)**2 - r1(-1, 1)**2 + r1(-1, -1)**2)*0.5_dp
+         r2(2, -2) = r1(1, 1)*r1(1, -1) - r1(-1, 1)*r1(-1, -1)
+         !
+         r2(-2, 0) = s3*r1(1, 0)*r1(-1, 0)
+         r2(2, 1) = r1(1, 1)*r1(-1, 0) + r1(1, 0)*r1(-1, 1)
+         r2(2, -1) = r1(1, -1)*r1(-1, 0) + r1(1, 0)*r1(-1, -1)
+         r2(2, 2) = r1(1, 1)*r1(-1, 1) - r1(1, -1)*r1(-1, -1)
+         r2(2, -2) = r1(1, 1)*r1(-1, -1) + r1(1, -1)*r1(-1, 1)
+         !
+         orbrotmat(2)%mat(1:5, 1:5) = r2(-2:2, -2:2)
+      END IF
+      IF (lval >= 3) THEN
+         ! General recursion
+         ALLOCATE (r(0:lval, -lval:lval, -lval:lval))
+         r = 0.0_dp
+         r(0, 0, 0) = 1.0_dp
+         r(1, -1:1, -1:1) = r1(-1:1, -1:1)
+         r(2, -2:2, -2:2) = r2(-2:2, -2:2)
+         DO l = 3, lval
+            DO m1 = -l, l
+               DO m2 = -l, l
+                  u = u_func(l, m1, m2)
+                  v = v_func(l, m1, m2)
+                  w = w_func(l, m1, m2)
+                  CALL r_recursion(l, m1, m2, r1, r, lval, uf, vf, wf)
+                  r(l, m1, m2) = u*uf + v*vf + w*wf
+               END DO
+            END DO
+         END DO
+         DO l = 3, lval
+            ns = nso(l)
+            orbrotmat(l)%mat(1:ns, 1:ns) = r(l, -l:l, -l:l)
+         END DO
+         DEALLOCATE (r)
+      END IF
+
+   END SUBROUTINE calculate_rotmat
+
+! **************************************************************************************************
+!> \brief ...
+!> \param l ...
+!> \param ma ...
+!> \param mb ...
+!> \return ...
+! **************************************************************************************************
+   FUNCTION u_func(l, ma, mb) RESULT(u)
+      INTEGER                                            :: l, ma, mb
+      REAL(KIND=dp)                                      :: u
+
+      IF (ABS(mb) == l) THEN
+         u = REAL((l + ma)*(l - ma), KIND=dp)/REAL(2*l*(2*l - 1), KIND=dp)
+         u = SQRT(u)
+      ELSE IF (ABS(mb) < l) THEN
+         u = REAL((l + ma)*(l - ma), KIND=dp)/REAL((l + mb)*(l - mb), KIND=dp)
+         u = SQRT(u)
+      ELSE
+         CPABORT("Illegal m value")
+      END IF
+   END FUNCTION u_func
+
+! **************************************************************************************************
+!> \brief ...
+!> \param l ...
+!> \param ma ...
+!> \param mb ...
+!> \return ...
+! **************************************************************************************************
+   FUNCTION v_func(l, ma, mb) RESULT(v)
+      INTEGER                                            :: l, ma, mb
+      REAL(KIND=dp)                                      :: v
+
+      INTEGER                                            :: a1, a2, dm0
+
+      dm0 = 0
+      IF (ma == 0) dm0 = 1
+      IF (ABS(mb) == l) THEN
+         a1 = (1 + dm0)*(l + ABS(ma) - 1)*(l + ABS(ma))
+         a2 = 2*l*(2*l - 1)
+      ELSE IF (ABS(mb) < l) THEN
+         a1 = (1 + dm0)*(l + ABS(ma) - 1)*(l + ABS(ma))
+         a2 = (l + mb)*(l - mb)
+      ELSE
+         CPABORT("Illegal m value")
+      END IF
+      v = 0.5_dp*SQRT(REAL(a1, KIND=dp)/REAL(a2, KIND=dp))*REAL(1 - 2*dm0, KIND=dp)
+   END FUNCTION v_func
+
+! **************************************************************************************************
+!> \brief ...
+!> \param l ...
+!> \param ma ...
+!> \param mb ...
+!> \return ...
+! **************************************************************************************************
+   FUNCTION w_func(l, ma, mb) RESULT(w)
+      INTEGER                                            :: l, ma, mb
+      REAL(KIND=dp)                                      :: w
+
+      INTEGER                                            :: a1, a2, dm0
+
+      dm0 = 0
+      IF (ma == 0) dm0 = 1
+      IF (ABS(mb) == l) THEN
+         a1 = (l - ABS(ma) - 1)*(l - ABS(ma))
+         a2 = 2*l*(2*l - 1)
+      ELSE IF (ABS(mb) < l) THEN
+         a1 = (l - ABS(ma) - 1)*(l - ABS(ma))
+         a2 = (l + mb)*(l - mb)
+      ELSE
+         CPABORT("Illegal m value")
+      END IF
+      w = -0.5_dp*SQRT(REAL(a1, KIND=dp)/REAL(a2, KIND=dp))*REAL(1 - dm0, KIND=dp)
+   END FUNCTION w_func
+
+! **************************************************************************************************
+!> \brief ...
+!> \param i ...
+!> \param l ...
+!> \param mu ...
+!> \param m ...
+!> \param r1 ...
+!> \param r ...
+!> \param lr ...
+!> \return ...
+! **************************************************************************************************
+   FUNCTION p_func(i, l, mu, m, r1, r, lr) RESULT(p)
+      INTEGER                                            :: i, l, mu, m
+      REAL(KIND=dp), DIMENSION(-1:1, -1:1)               :: r1
+      INTEGER                                            :: lr
+      REAL(KIND=dp), DIMENSION(0:lr, -lr:lr, -lr:lr)     :: r
+      REAL(KIND=dp)                                      :: p
+
+      IF (m == l) THEN
+         p = r1(i, 1)*r(l - 1, mu, m) - r1(i, -1)*r(l - 1, mu, -m)
+      ELSE IF (m == -l) THEN
+         p = r1(i, 1)*r(l - 1, mu, m) + r1(i, -1)*r(l - 1, mu, -m)
+      ELSE IF (ABS(m) < l) THEN
+         p = r1(i, 0)*r(l - 1, mu, m)
+      ELSE
+         CPABORT("Illegal m value")
+      END IF
+   END FUNCTION p_func
+
+! **************************************************************************************************
+!> \brief ...
+!> \param l ...
+!> \param ma ...
+!> \param mb ...
+!> \param r1 ...
+!> \param r ...
+!> \param lr ...
+!> \param u ...
+!> \param v ...
+!> \param w ...
+! **************************************************************************************************
+   SUBROUTINE r_recursion(l, ma, mb, r1, r, lr, u, v, w)
+      INTEGER                                            :: l, ma, mb
+      REAL(KIND=dp), DIMENSION(-1:1, -1:1)               :: r1
+      INTEGER                                            :: lr
+      REAL(KIND=dp), DIMENSION(0:lr, -lr:lr, -lr:lr)     :: r
+      REAL(KIND=dp)                                      :: u, v, w
+
+      REAL(KIND=dp)                                      :: dd
+
+      IF (ma == 0) THEN
+         u = p_func(0, l, 0, mb, r1, r, lr)
+         v = p_func(1, l, 1, mb, r1, r, lr) + p_func(-1, l, -1, mb, r1, r, lr)
+         w = 0.0_dp
+      ELSE IF (ma > 0) THEN
+         dd = 1.0_dp
+         IF (ma == 1) dd = 1.0_dp
+         u = p_func(0, l, ma, mb, r1, r, lr)
+         v = p_func(1, l, ma - 1, mb, r1, r, lr)*SQRT(1.0_dp + dd) - p_func(-1, l, -ma + 1, mb, r1, r, lr)*(1.0_dp - dd)
+         w = p_func(1, l, ma + 1, mb, r1, r, lr) + p_func(-1, l, -1 - ma, mb, r1, r, lr)
+      ELSE IF (ma < 0) THEN
+         dd = 1.0_dp
+         IF (ma == -1) dd = 1.0_dp
+         u = p_func(0, l, ma, mb, r1, r, lr)
+         v = p_func(1, l, ma + 1, mb, r1, r, lr)*(1.0_dp - dd) + p_func(-1, l, -ma - 1, mb, r1, r, lr)*SQRT(1.0_dp + dd)
+         w = p_func(1, l, ma - 1, mb, r1, r, lr) - p_func(-1, l, -ma + 1, mb, r1, r, lr)
+      END IF
+   END SUBROUTINE
+
+! **************************************************************************************************
+!> \brief   Release rotation matrices
+!> \param orbrotmat ...
+! **************************************************************************************************
+   SUBROUTINE release_rotmat(orbrotmat)
+      TYPE(orbrotmat_type), DIMENSION(:), POINTER        :: orbrotmat
+
+      INTEGER                                            :: i
+
+      IF (ASSOCIATED(orbrotmat)) THEN
+         DO i = LBOUND(orbrotmat, 1), UBOUND(orbrotmat, 1)
+            IF (ASSOCIATED(orbrotmat(i)%mat)) DEALLOCATE (orbrotmat(i)%mat)
+         END DO
+         DEALLOCATE (orbrotmat)
+      END IF
+
+   END SUBROUTINE release_rotmat
 
 ! **************************************************************************************************
 !> \brief   Print a matrix to the logical unit "lunit".

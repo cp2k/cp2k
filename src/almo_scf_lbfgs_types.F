@@ -13,16 +13,16 @@
 ! **************************************************************************************************
 MODULE almo_scf_lbfgs_types
    !USE cp_external_control,             ONLY: external_control
-   USE cp_log_handling,                 ONLY: cp_get_default_logger,&
-                                              cp_logger_get_default_unit_nr
-   !USE cp_log_handling,                 ONLY: cp_to_string
-   USE dbcsr_api,                       ONLY: dbcsr_add,&
+   USE cp_dbcsr_api,                    ONLY: dbcsr_add,&
                                               dbcsr_copy,&
                                               dbcsr_create,&
                                               dbcsr_dot,&
                                               dbcsr_release,&
                                               dbcsr_scale,&
                                               dbcsr_type
+   USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                              cp_logger_get_default_unit_nr
+   !USE cp_log_handling,                 ONLY: cp_to_string
    USE kinds,                           ONLY: dp
 #include "./base/base_uses.f90"
 
@@ -317,7 +317,7 @@ CONTAINS
          END DO ! iterm, forst loop from recent to oldest
 
          !RZK-warning: unclear whether q should be multiplied by minus one
-         CALL dbcsr_scale(q, -1.0)
+         CALL dbcsr_scale(q, -1.0_dp)
          CALL dbcsr_copy(direction(ispin), q)
 
          CALL dbcsr_release(q)

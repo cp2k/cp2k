@@ -117,6 +117,16 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="REF_ADD_LUMO", &
+                          description="If the reference MOs include more empty states that are not propagated, "// &
+                         "using this keyword it is possible to read them as well and thus compute the corresponding projection. ", &
+                          usage="REF_ADD_LUMO 10", &
+                          default_i_val=0, &
+                          n_var=1, type_of_var=integer_t, repeats=.FALSE.)
+
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       CALL keyword_create(keyword, __LOCATION__, name="SUM_ON_ALL_REF", &
                           description="Set to .TRUE. in order to sum all the projections done "// &
                           "over the required MO_REF_INDEX for each TD MOs. "// &

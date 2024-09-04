@@ -42,6 +42,10 @@ MODULE force_env_types
                                               section_vals_retain,&
                                               section_vals_type,&
                                               section_vals_val_get
+   USE ipi_environment_types,           ONLY: ipi_env_get,&
+                                              ipi_env_release,&
+                                              ipi_environment_type
+   USE ipi_server,                      ONLY: shutdown_server
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_para_env_release,&
                                               mp_para_env_type
@@ -84,9 +88,10 @@ MODULE force_env_types
                                  use_mixed_force = 506, &
                                  use_embed = 507, &
                                  use_pwdft_force = 508, &
-                                 use_nnp_force = 509
+                                 use_nnp_force = 509, &
+                                 use_ipi = 510
 
-   CHARACTER(LEN=10), DIMENSION(501:509), PARAMETER, PUBLIC :: &
+   CHARACTER(LEN=10), DIMENSION(501:510), PARAMETER, PUBLIC :: &
       use_prog_name = (/ &
       "FIST  ", &
       "QS    ", &
@@ -96,7 +101,8 @@ MODULE force_env_types
       "MIXED ", &
       "EMBED ", &
       "SIRIUS", &
-      "NNP   "/)
+      "NNP   ", &
+      "IPI   "/)
 
    PUBLIC :: force_env_type, &
              force_env_p_type
@@ -153,6 +159,7 @@ MODULE force_env_types
       TYPE(mixed_environment_type), POINTER            :: mixed_env => NULL()
       TYPE(nnp_type), POINTER                          :: nnp_env => NULL()
       TYPE(embed_env_type), POINTER                    :: embed_env => NULL()
+      TYPE(ipi_environment_type), POINTER              :: ipi_env => NULL()
       TYPE(section_vals_type), POINTER                 :: force_env_section => NULL()
       TYPE(section_vals_type), POINTER                 :: root_section => NULL()
    END TYPE force_env_type
@@ -253,6 +260,10 @@ CONTAINS
             CASE (use_embed)
                CALL embed_env_release(force_env%embed_env)
                DEALLOCATE (force_env%embed_env)
+            CASE (use_ipi)
+               CALL shutdown_server(force_env%ipi_env)
+               CALL ipi_env_release(force_env%ipi_env)
+               DEALLOCATE (force_env%ipi_env)
             END SELECT
             CALL globenv_release(force_env%globenv)
             CALL mp_para_env_release(force_env%para_env)
@@ -264,6 +275,7 @@ CONTAINS
             CPASSERT(.NOT. ASSOCIATED(force_env%mixed_env))
             CPASSERT(.NOT. ASSOCIATED(force_env%nnp_env))
             CPASSERT(.NOT. ASSOCIATED(force_env%embed_env))
+            CPASSERT(.NOT. ASSOCIATED(force_env%ipi_env))
             IF (ASSOCIATED(force_env%meta_env)) THEN
                CALL meta_env_release(force_env%meta_env)
                DEALLOCATE (force_env%meta_env)
@@ -317,6 +329,7 @@ CONTAINS
 !> \param mixed_env ...
 !> \param nnp_env ...
 !> \param embed_env ...
+!> \param ipi_env ...
 !> \par History
 !>      04.2003 created [fawzi]
 !> \author fawzi
@@ -325,7 +338,7 @@ CONTAINS
                                       meta_env, fp_env, subsys, para_env, potential_energy, additional_potential, &
                                       kinetic_energy, harmonic_shell, kinetic_shell, cell, sub_force_env, &
                                       qmmm_env, qmmmx_env, eip_env, pwdft_env, globenv, input, force_env_section, &
-                                      method_name_id, root_section, mixed_env, nnp_env, embed_env)
+                                      method_name_id, root_section, mixed_env, nnp_env, embed_env, ipi_env)
       TYPE(force_env_type), INTENT(IN)                   :: force_env
       INTEGER, INTENT(out), OPTIONAL                     :: in_use
       TYPE(fist_environment_type), OPTIONAL, POINTER     :: fist_env
@@ -351,6 +364,7 @@ CONTAINS
       TYPE(mixed_environment_type), OPTIONAL, POINTER    :: mixed_env
       TYPE(nnp_type), OPTIONAL, POINTER                  :: nnp_env
       TYPE(embed_env_type), OPTIONAL, POINTER            :: embed_env
+      TYPE(ipi_environment_type), OPTIONAL, POINTER      :: ipi_env
 
       REAL(KIND=dp)                                      :: eip_kinetic_energy, eip_potential_energy
       TYPE(cp_subsys_type), POINTER                      :: subsys_tmp
@@ -369,6 +383,7 @@ CONTAINS
          CPASSERT(.NOT. PRESENT(fist_env))
          CPASSERT(.NOT. PRESENT(eip_env))
          CPASSERT(.NOT. PRESENT(pwdft_env))
+         CPASSERT(.NOT. PRESENT(ipi_env))
          CALL get_qs_env(force_env%qs_env, &
                          energy=qs_energy, &
                          input=input, &
@@ -389,6 +404,7 @@ CONTAINS
          CPASSERT(ASSOCIATED(force_env%eip_env))
          CPASSERT(.NOT. PRESENT(qs_env))
          CPASSERT(.NOT. PRESENT(fist_env))
+         CPASSERT(.NOT. PRESENT(ipi_env))
          CALL eip_env_get(force_env%eip_env, &
                           eip_potential_energy=eip_potential_energy, &
                           eip_kinetic_energy=eip_kinetic_energy, &
@@ -402,6 +418,7 @@ CONTAINS
          CPASSERT(ASSOCIATED(force_env%pwdft_env))
          CPASSERT(.NOT. PRESENT(qs_env))
          CPASSERT(.NOT. PRESENT(fist_env))
+         CPASSERT(.NOT. PRESENT(ipi_env))
          CALL pwdft_env_get(force_env%pwdft_env, energy=pwdft_energy)
          CALL pwdft_env_get(force_env%pwdft_env, cp_subsys=subsys)
          IF (PRESENT(potential_energy)) potential_energy = pwdft_energy%etotal
@@ -433,10 +450,15 @@ CONTAINS
                             subsys=subsys)
       CASE (use_nnp_force)
          CPASSERT(ASSOCIATED(force_env%nnp_env))
+         CPASSERT(.NOT. PRESENT(ipi_env))
          CALL nnp_env_get(force_env%nnp_env, &
                           nnp_potential_energy=potential_energy, &
                           subsys=subsys)
          CPASSERT(.NOT. PRESENT(kinetic_energy))
+      CASE (use_ipi)
+         CALL ipi_env_get(force_env%ipi_env, &
+                          ipi_energy=potential_energy, &
+                          subsys=subsys)
       CASE DEFAULT
          CPABORT("unknown in_use flag value ")
       END SELECT
@@ -458,6 +480,9 @@ CONTAINS
       END IF
       IF (PRESENT(nnp_env)) THEN
          nnp_env => force_env%nnp_env
+      END IF
+      IF (PRESENT(ipi_env)) THEN
+         ipi_env => force_env%ipi_env
       END IF
       IF (PRESENT(para_env)) para_env => force_env%para_env
       ! adjust the total energy for the metadynamics
@@ -495,6 +520,7 @@ CONTAINS
       IF (PRESENT(qmmmx_env)) qmmmx_env => force_env%qmmmx_env
       IF (PRESENT(mixed_env)) mixed_env => force_env%mixed_env
       IF (PRESENT(embed_env)) embed_env => force_env%embed_env
+      IF (PRESENT(ipi_env)) ipi_env => force_env%ipi_env
       IF (PRESENT(globenv)) globenv => force_env%globenv
       IF (PRESENT(root_section)) root_section => force_env%root_section
 

@@ -168,22 +168,25 @@ void benchmark_multiply(const int M, const int N, const int K, const int m,
   const double expected = (int64_t)M * (int64_t)m * (int64_t)N * (int64_t)n *
                           (int64_t)K * (int64_t)K * (int64_t)k * (int64_t)k;
   const double checksum = dbm_checksum(matrix_c);
-  if (checksum != expected) {
-    printf("ERROR: Expected checksum %f but got %f.\n", expected, checksum);
-    exit(1);
-  }
 
   dbm_release(matrix_a);
   dbm_release(matrix_b);
   dbm_release(matrix_c);
 
-  dbm_mpi_sum_int64(&flop, 1, comm);
   if (dbm_mpi_comm_rank(comm) == 0) {
-    const double duration = time_end_multiply - time_start_multiply;
-    printf("%5i x %5i x %5i  with  %3i x %3i x %3i blocks: %6.3f s =>  %6.1f "
-           "GFLOP/s\n",
-           M, N, K, m, n, k, duration, 1e-9 * flop / duration);
-    fflush(stdout);
+    printf("%5i x %5i x %5i  with  %3i x %3i x %3i blocks: ", M, N, K, m, n, k);
+  }
+  if (checksum == expected) {
+    dbm_mpi_sum_int64(&flop, 1, comm);
+    if (dbm_mpi_comm_rank(comm) == 0) {
+      const double duration = time_end_multiply - time_start_multiply;
+      printf("%6.3f s =>  %6.1f GFLOP/s\n", duration, 1e-9 * flop / duration);
+      fflush(stdout);
+    }
+  } else {
+    printf("ERROR\n");
+    fprintf(stderr, "Expected checksum %f but got %f.\n", expected, checksum);
+    exit(1);
   }
 }
 
@@ -192,6 +195,7 @@ void benchmark_multiply(const int M, const int N, const int K, const int m,
  * \author Ole Schuett
  ******************************************************************************/
 int main(int argc, char *argv[]) {
+  int result = EXIT_SUCCESS;
   dbm_mpi_init(&argc, &argv);
   dbm_library_init();
 
@@ -227,34 +231,75 @@ int main(int argc, char *argv[]) {
     fflush(stdout);
   }
 
-  benchmark_multiply(16384, 128, 128, 4, 4, 4, comm);
-  benchmark_multiply(128, 16384, 128, 4, 4, 4, comm);
-  benchmark_multiply(128, 128, 16384, 4, 4, 4, comm);
-  benchmark_multiply(645, 645, 645, 4, 4, 4, comm);
-  if (my_rank == 0)
-    printf("\n");
+  if (1 >= argc) {
+    benchmark_multiply(16384, 128, 128, 4, 4, 4, comm);
+    benchmark_multiply(128, 16384, 128, 4, 4, 4, comm);
+    benchmark_multiply(128, 128, 16384, 4, 4, 4, comm);
+    benchmark_multiply(645, 645, 645, 4, 4, 4, comm);
+    if (my_rank == 0)
+      printf("\n");
 
-  benchmark_multiply(60, 500, 500, 128, 4, 4, comm);
-  benchmark_multiply(500, 60, 500, 4, 128, 4, comm);
-  benchmark_multiply(500, 500, 60, 4, 4, 128, comm);
-  if (my_rank == 0)
-    printf("\n");
+    benchmark_multiply(60, 500, 500, 128, 4, 4, comm);
+    benchmark_multiply(500, 60, 500, 4, 128, 4, comm);
+    benchmark_multiply(500, 500, 60, 4, 4, 128, comm);
+    if (my_rank == 0)
+      printf("\n");
 
-  benchmark_multiply(500, 60, 60, 4, 128, 128, comm);
-  benchmark_multiply(60, 500, 60, 128, 4, 128, comm);
-  benchmark_multiply(60, 60, 500, 128, 128, 4, comm);
-  if (my_rank == 0)
-    printf("\n");
+    benchmark_multiply(500, 60, 60, 4, 128, 128, comm);
+    benchmark_multiply(60, 500, 60, 128, 4, 128, comm);
+    benchmark_multiply(60, 60, 500, 128, 128, 4, comm);
+    if (my_rank == 0)
+      printf("\n");
 
-  benchmark_multiply(350, 350, 350, 23, 23, 23, comm);
-  benchmark_multiply(250, 250, 250, 32, 32, 32, comm);
-  benchmark_multiply(60, 60, 60, 128, 128, 128, comm);
+    benchmark_multiply(350, 350, 350, 23, 23, 23, comm);
+    benchmark_multiply(250, 250, 250, 32, 32, 32, comm);
+    benchmark_multiply(60, 60, 60, 128, 128, 128, comm);
+  } else { /* read triplet(s) from file or one triplet from command line */
+    FILE *const file = fopen(argv[1], "r"); /* try 1st arg as filename */
+    char buffer[1024];
+    const char delims[] = "x,;:|/\t ";
+    int mnk[] = {0, 0, 0}, i = 1, j = 0;
+    while (i < argc &&
+           (NULL == file || NULL != fgets(buffer, sizeof(buffer), file))) {
+      const char *arg = strtok(NULL != file ? buffer : argv[i], delims);
+      for (; NULL != arg && j < 3; arg = strtok(NULL, delims), ++j) {
+        mnk[j] = atoi(arg);
+      }
+      if (NULL != file) {
+        j = 0;
+      } else if (++i < argc) {
+        continue;
+      }
+      if (0 < mnk[0]) { /* valid MxNxK? */
+        const int extra = (NULL == arg ? 0 : atoi(arg));
+        int nm, nn, nk;
+        if (0 < extra) {
+          nn = nk = 1;
+          nm = extra;
+        } else { /* default */
+          nm = nn = nk = 128;
+        }
+        benchmark_multiply(nm, nn, nk, mnk[0], 0 < mnk[1] ? mnk[1] : mnk[0],
+                           0 < mnk[2] ? mnk[2] : mnk[0], comm);
+        mnk[0] = mnk[1] = mnk[2] = 0;
+      } else {
+        fprintf(stderr, "ERROR: invalid argument(s)\n");
+        result = EXIT_FAILURE;
+        i = argc;
+      }
+    }
+    if (NULL != file) {
+      fclose(file);
+    }
+  }
 
-  dbm_library_print_stats(dbm_mpi_comm_c2f(comm), &print_func, my_rank);
+  if (EXIT_SUCCESS == result) {
+    dbm_library_print_stats(dbm_mpi_comm_c2f(comm), &print_func, my_rank);
+  }
   dbm_library_finalize();
   dbm_mpi_comm_free(&comm);
   dbm_mpi_finalize();
-  return 0;
+  return result;
 }
 
 // EOF

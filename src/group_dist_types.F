@@ -255,9 +255,9 @@ CONTAINS
    PURE SUBROUTINE release_group_dist_d1(this)
       TYPE(group_dist_d1_type), INTENT(INOUT)            :: this
 
-      DEALLOCATE (this%starts)
-      DEALLOCATE (this%ends)
-      DEALLOCATE (this%sizes)
+      IF (ALLOCATED(this%starts)) DEALLOCATE (this%starts)
+      IF (ALLOCATED(this%ends)) DEALLOCATE (this%ends)
+      IF (ALLOCATED(this%sizes)) DEALLOCATE (this%sizes)
 
    END SUBROUTINE release_group_dist_d1
 

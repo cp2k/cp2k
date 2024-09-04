@@ -16,14 +16,18 @@
 ! **************************************************************************************************
 MODULE rpa_main
    USE bibliography,                    ONLY: &
-        Bates2013, DelBen2013, DelBen2015, Ren2011, Ren2013, Wilhelm2016a, Wilhelm2016b, &
-        Wilhelm2017, Wilhelm2018, cite_reference
-   USE bse,                             ONLY: do_subspace_iterations,&
-                                              mult_B_with_W_and_fill_local_3c_arrays
+        Bates2013, DelBen2013, DelBen2015, Freeman1977, Gruneis2009, Ren2011, Ren2013, &
+        Wilhelm2016a, Wilhelm2016b, Wilhelm2017, Wilhelm2018, cite_reference
+   USE bse_main,                        ONLY: start_bse_calculation
    USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
                                               cp_blacs_env_release,&
                                               cp_blacs_env_type
    USE cp_cfm_types,                    ONLY: cp_cfm_type
+   USE cp_dbcsr_api,                    ONLY: dbcsr_add,&
+                                              dbcsr_clear,&
+                                              dbcsr_get_info,&
+                                              dbcsr_p_type,&
+                                              dbcsr_type
    USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
@@ -33,12 +37,6 @@ MODULE rpa_main
                                               cp_fm_set_all,&
                                               cp_fm_to_fm,&
                                               cp_fm_type
-   USE dbcsr_api,                       ONLY: dbcsr_add,&
-                                              dbcsr_clear,&
-                                              dbcsr_get_info,&
-                                              dbcsr_p_type,&
-                                              dbcsr_release,&
-                                              dbcsr_type
    USE dbt_api,                         ONLY: dbt_type
    USE dgemm_counter_types,             ONLY: dgemm_counter_init,&
                                               dgemm_counter_type,&
@@ -50,7 +48,10 @@ MODULE rpa_main
                                               release_group_dist
    USE hfx_types,                       ONLY: block_ind_type,&
                                               hfx_compression_type
-   USE input_constants,                 ONLY: wfc_mm_style_gemm
+   USE input_constants,                 ONLY: rpa_exchange_axk,&
+                                              rpa_exchange_none,&
+                                              rpa_exchange_sosex,&
+                                              wfc_mm_style_gemm
    USE kinds,                           ONLY: dp,&
                                               int_8
    USE kpoint_types,                    ONLY: kpoint_type
@@ -72,7 +73,8 @@ MODULE rpa_main
                                               two_dim_real_array
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
-   USE rpa_axk,                         ONLY: compute_axk_ener
+   USE rpa_exchange,                    ONLY: rpa_exchange_needed_mem,&
+                                              rpa_exchange_work_type
    USE rpa_grad,                        ONLY: rpa_grad_copy_Q,&
                                               rpa_grad_create,&
                                               rpa_grad_finalize,&
@@ -150,6 +152,7 @@ CONTAINS
 !> \param dimen_RI_red ...
 !> \param gw_corr_lev_occ ...
 !> \param gw_corr_lev_virt ...
+!> \param bse_lev_virt ...
 !> \param unit_nr ...
 !> \param do_ri_sos_laplace_mp2 ...
 !> \param my_do_gw ...
@@ -174,9 +177,9 @@ CONTAINS
                                 mo_coeff, fm_matrix_PQ, fm_matrix_L_kpoints, fm_matrix_Minv_L_kpoints, &
                                 fm_matrix_Minv, fm_matrix_Minv_Vtrunc_Minv, kpoints, &
                                 Eigenval, nmo, homo, dimen_RI, dimen_RI_red, gw_corr_lev_occ, gw_corr_lev_virt, &
+                                bse_lev_virt, &
                                 unit_nr, do_ri_sos_laplace_mp2, my_do_gw, do_im_time, do_bse, matrix_s, &
-                                mat_munu, mat_P_global, &
-                                t_3c_M, t_3c_O, t_3c_O_compressed, t_3c_O_ind, &
+                                mat_munu, mat_P_global, t_3c_M, t_3c_O, t_3c_O_compressed, t_3c_O_ind, &
                                 starts_array_mc, ends_array_mc, &
                                 starts_array_mc_block, ends_array_mc_block, calc_forces)
 
@@ -206,7 +209,7 @@ CONTAINS
       INTEGER, DIMENSION(:), INTENT(IN)                  :: homo
       INTEGER, INTENT(IN)                                :: dimen_RI, dimen_RI_red
       INTEGER, DIMENSION(:), INTENT(IN)                  :: gw_corr_lev_occ, gw_corr_lev_virt
-      INTEGER, INTENT(IN)                                :: unit_nr
+      INTEGER, INTENT(IN)                                :: bse_lev_virt, unit_nr
       LOGICAL, INTENT(IN)                                :: do_ri_sos_laplace_mp2, my_do_gw, &
                                                             do_im_time, do_bse
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
@@ -254,8 +257,11 @@ CONTAINS
       CALL cite_reference(DelBen2013)
       CALL cite_reference(DelBen2015)
 
-      IF (mp2_env%ri_rpa%do_ri_axk) THEN
+      IF (mp2_env%ri_rpa%exchange_correction == rpa_exchange_axk) THEN
          CALL cite_reference(Bates2013)
+      ELSE IF (mp2_env%ri_rpa%exchange_correction == rpa_exchange_sosex) THEN
+         CALL cite_reference(Freeman1977)
+         CALL cite_reference(Gruneis2009)
       END IF
       IF (mp2_env%ri_rpa%do_rse) THEN
          CALL cite_reference(Ren2011)
@@ -367,6 +373,7 @@ CONTAINS
          mem_per_repl = mem_per_repl + 2.0_dp*mem_for_QK
 
          IF (calc_forces) CALL rpa_grad_needed_mem(homo, virtual, dimen_RI_red, mem_per_rank, mem_per_repl, do_ri_sos_laplace_mp2)
+         CALL rpa_exchange_needed_mem(mp2_env, homo, virtual, dimen_RI_red, para_env, mem_per_rank, mem_per_repl)
 
          mem_min = mem_per_repl/para_env%num_pe + mem_per_rank
 
@@ -513,7 +520,8 @@ CONTAINS
          CALL timeset(routineN//"_reorder_bse1", handle3)
 
          dimen_homo_square = homo(1)**2
-
+         ! We do not implement an explicit bse_lev_occ different to homo here, because the small number of occupied levels
+         ! does not critically influence the memory
          CALL calculate_BIb_C_2D(BIb_C_2D_bse_ij(1)%array, BIb_C_bse_ij, para_env_sub, dimen_homo_square, &
                                  homo(1), homo(1), gd_B_occ_bse, &
                                  my_ij_comb_bse_size, my_ij_comb_bse_start, my_ij_comb_bse_end, my_group_L_size)
@@ -525,10 +533,10 @@ CONTAINS
 
          CALL timeset(routineN//"_reorder_bse2", handle3)
 
-         dimen_virt_square = virtual(1)**2
+         dimen_virt_square = bse_lev_virt**2
 
          CALL calculate_BIb_C_2D(BIb_C_2D_bse_ab(1)%array, BIb_C_bse_ab, para_env_sub, dimen_virt_square, &
-                                 virtual(1), virtual(1), gd_B_virt_bse, &
+                                 bse_lev_virt, bse_lev_virt, gd_B_virt_bse, &
                                  my_ab_comb_bse_size, my_ab_comb_bse_start, my_ab_comb_bse_end, my_group_L_size)
 
          DEALLOCATE (BIb_C_bse_ab)
@@ -585,7 +593,6 @@ CONTAINS
 
       ! for Bethe-Salpeter, we need other matrix fm_mat_S
       IF (do_bse) THEN
-
          CALL create_integ_mat(BIb_C_2D_bse_ij, para_env, para_env_sub, color_sub, ngroup, integ_group_size, &
                                dimen_RI_red, [dimen_homo_square], color_rpa_group, &
                                mp2_env%block_size_row, mp2_env%block_size_col, unit_nr, &
@@ -617,11 +624,11 @@ CONTAINS
                        fm_matrix_PQ, fm_mat_S, fm_mat_Q_gemm, fm_mat_Q, fm_mat_S_gw, fm_mat_R_gw(1), &
                        fm_mat_S_ij_bse(1), fm_mat_S_ab_bse(1), &
                        my_do_gw, do_bse, gw_corr_lev_occ, gw_corr_lev_virt, &
+                       bse_lev_virt, &
                        do_minimax_quad, &
                        do_im_time, mo_coeff, &
                        fm_matrix_L_kpoints, fm_matrix_Minv_L_kpoints, &
-                       fm_matrix_Minv, fm_matrix_Minv_Vtrunc_Minv, &
-                       mat_munu, mat_P_global, &
+                       fm_matrix_Minv, fm_matrix_Minv_Vtrunc_Minv, mat_munu, mat_P_global, &
                        t_3c_M, t_3c_O, t_3c_O_compressed, t_3c_O_ind, &
                        starts_array_mc, ends_array_mc, &
                        starts_array_mc_block, ends_array_mc_block, &
@@ -646,13 +653,6 @@ CONTAINS
       IF (do_bse) THEN
          CALL cp_fm_release(fm_mat_S_ij_bse(1))
          CALL cp_fm_release(fm_mat_S_ab_bse(1))
-      END IF
-
-      IF (mp2_env%ri_rpa%do_ri_axk) THEN
-         CALL dbcsr_release(mp2_env%ri_rpa%mo_coeff_o)
-         DEALLOCATE (mp2_env%ri_rpa%mo_coeff_o)
-         CALL dbcsr_release(mp2_env%ri_rpa%mo_coeff_v)
-         DEALLOCATE (mp2_env%ri_rpa%mo_coeff_v)
       END IF
 
       CALL timestop(handle)
@@ -860,7 +860,7 @@ CONTAINS
          ELSE
             grid_2D = 1
          END IF
-         CALL cp_blacs_env_create(blacs_env=blacs_env, para_env=para_env_RPA, grid_2d=grid_2d)
+         CALL cp_blacs_env_create(blacs_env=blacs_env, para_env=para_env_RPA, grid_2d=grid_2D)
 
          IF (unit_nr > 0 .AND. .NOT. my_do_im_time) THEN
             WRITE (UNIT=unit_nr, FMT="(T3,A,T75,i6)") &
@@ -1011,6 +1011,7 @@ CONTAINS
 !> \param do_bse ...
 !> \param gw_corr_lev_occ ...
 !> \param gw_corr_lev_virt ...
+!> \param bse_lev_virt ...
 !> \param do_minimax_quad ...
 !> \param do_im_time ...
 !> \param mo_coeff ...
@@ -1042,10 +1043,10 @@ CONTAINS
                           fm_matrix_PQ, fm_mat_S, fm_mat_Q_gemm, fm_mat_Q, fm_mat_S_gw, fm_mat_R_gw, &
                           fm_mat_S_ij_bse, fm_mat_S_ab_bse, &
                           my_do_gw, do_bse, gw_corr_lev_occ, gw_corr_lev_virt, &
+                          bse_lev_virt, &
                           do_minimax_quad, do_im_time, mo_coeff, &
                           fm_matrix_L_kpoints, fm_matrix_Minv_L_kpoints, &
-                          fm_matrix_Minv, fm_matrix_Minv_Vtrunc_Minv, &
-                          mat_munu, mat_P_global, &
+                          fm_matrix_Minv, fm_matrix_Minv_Vtrunc_Minv, mat_munu, mat_P_global, &
                           t_3c_M, t_3c_O, t_3c_O_compressed, t_3c_O_ind, &
                           starts_array_mc, ends_array_mc, &
                           starts_array_mc_block, ends_array_mc_block, &
@@ -1066,12 +1067,13 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: num_integ_points, num_integ_group, &
                                                             color_rpa_group
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_matrix_PQ
-      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: fm_mat_S, fm_mat_Q_gemm, fm_mat_Q, &
-                                                            fm_mat_S_gw
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(INOUT)      :: fm_mat_S
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: fm_mat_Q_gemm, fm_mat_Q, fm_mat_S_gw
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_R_gw, fm_mat_S_ij_bse, &
                                                             fm_mat_S_ab_bse
       LOGICAL, INTENT(IN)                                :: my_do_gw, do_bse
       INTEGER, DIMENSION(:), INTENT(IN)                  :: gw_corr_lev_occ, gw_corr_lev_virt
+      INTEGER, INTENT(IN)                                :: bse_lev_virt
       LOGICAL, INTENT(IN)                                :: do_minimax_quad, do_im_time
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: mo_coeff
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :)     :: fm_matrix_L_kpoints, &
@@ -1102,9 +1104,9 @@ CONTAINS
       COMPLEX(KIND=dp), ALLOCATABLE, &
          DIMENSION(:, :, :, :)                           :: vec_Sigma_c_gw
       INTEGER :: count_ev_sc_GW, cut_memory, group_size_P, gw_corr_lev_tot, handle, handle3, i, &
-         ikp_local, ispin, iter_evGW, iter_sc_GW0, j, jquad, max_iter_bse, min_bsize, mm_style, &
-         nkp, nkp_self_energy, nmo, nspins, num_3c_repl, num_cells_dm, num_fit_points, &
-         num_Z_vectors, Pspin, Qspin, size_P
+         ikp_local, ispin, iter_evGW, iter_sc_GW0, j, jquad, min_bsize, mm_style, nkp, &
+         nkp_self_energy, nmo, nspins, num_3c_repl, num_cells_dm, num_fit_points, Pspin, Qspin, &
+         size_P
       INTEGER(int_8)                                     :: dbcsr_nflop
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: index_to_cell_3c
       INTEGER, ALLOCATABLE, DIMENSION(:, :, :)           :: cell_to_index_3c
@@ -1114,19 +1116,19 @@ CONTAINS
          do_periodic, do_print, do_ri_Sigma_x, exit_ev_gw, first_cycle, &
          first_cycle_periodic_correction, my_open_shell, print_ic_values
       LOGICAL, ALLOCATABLE, DIMENSION(:, :, :, :, :)     :: has_mat_P_blocks
-      REAL(KIND=dp) :: a_scaling, alpha, dbcsr_time, e_axk, e_axk_corr, eps_filter, &
-         eps_filter_im_time, eps_min_trans, ext_scaling, fermi_level_offset, &
-         fermi_level_offset_input, my_flop_rate, omega, omega_max_fit, omega_old, tau, tau_old
+      REAL(KIND=dp) :: a_scaling, alpha, dbcsr_time, e_exchange, e_exchange_corr, eps_filter, &
+         eps_filter_im_time, ext_scaling, fermi_level_offset, fermi_level_offset_input, &
+         my_flop_rate, omega, omega_max_fit, omega_old, tau, tau_old
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: delta_corr, e_fermi, tau_tj, tau_wj, tj, &
                                                             trace_Qomega, vec_omega_fit_gw, wj, &
                                                             wkp_W
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: vec_W_gw, weights_cos_tf_t_to_w, &
                                                             weights_cos_tf_w_to_t, &
                                                             weights_sin_tf_t_to_w
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :) :: B_abQ_bse_local, B_bar_iaQ_bse_local, &
-         B_bar_ijQ_bse_local, B_iaQ_bse_local, Eigenval_last, Eigenval_scf, vec_Sigma_x_gw
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: Eigenval_last, Eigenval_scf, &
+                                                            vec_Sigma_x_gw
       TYPE(cp_cfm_type)                                  :: cfm_mat_Q
-      TYPE(cp_fm_type) :: fm_mat_Q_static_bse, fm_mat_Q_static_bse_gemm, fm_mat_RI_global_work, &
+      TYPE(cp_fm_type) :: fm_mat_Q_static_bse_gemm, fm_mat_RI_global_work, fm_mat_S_ia_bse, &
          fm_mat_work, fm_mo_coeff_occ_scaled, fm_mo_coeff_virt_scaled, fm_scaled_dm_occ_tau, &
          fm_scaled_dm_virt_tau
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: fm_mat_S_gw_work, fm_mat_W, &
@@ -1149,6 +1151,7 @@ CONTAINS
       TYPE(hfx_compression_type), ALLOCATABLE, &
          DIMENSION(:)                                    :: t_3c_O_mo_compressed
       TYPE(im_time_force_type)                           :: force_data
+      TYPE(rpa_exchange_work_type)                       :: exchange_work
       TYPE(rpa_grad_type)                                :: rpa_grad
       TYPE(two_dim_int_array), ALLOCATABLE, DIMENSION(:) :: t_3c_O_mo_ind
 
@@ -1311,17 +1314,9 @@ CONTAINS
 
          IF (do_bse) THEN
 
-            num_Z_vectors = mp2_env%ri_g0w0%num_z_vectors
-            eps_min_trans = mp2_env%ri_g0w0%eps_min_trans
-            max_iter_bse = mp2_env%ri_g0w0%max_iter_bse
-
             CALL cp_fm_create(fm_mat_Q_static_bse_gemm, fm_mat_Q_gemm(1)%matrix_struct)
             CALL cp_fm_to_fm(fm_mat_Q_gemm(1), fm_mat_Q_static_bse_gemm)
             CALL cp_fm_set_all(fm_mat_Q_static_bse_gemm, 0.0_dp)
-
-            CALL cp_fm_create(fm_mat_Q_static_bse, fm_mat_Q(1)%matrix_struct)
-            CALL cp_fm_to_fm(fm_mat_Q_gemm(1), fm_mat_Q_static_bse)
-            CALL cp_fm_set_all(fm_mat_Q_static_bse, 0.0_dp)
 
          END IF
 
@@ -1331,8 +1326,12 @@ CONTAINS
                                                                    fm_mat_S, homo, virtual, mp2_env, Eigenval(:, 1, :), &
                                                                    unit_nr, do_ri_sos_laplace_mp2)
 
+      IF (.NOT. do_im_time .AND. .NOT. do_ri_sos_laplace_mp2) &
+         CALL exchange_work%create(qs_env, para_env_sub, mat_munu, dimen_RI_red, &
+                                   fm_mat_S, fm_mat_Q(1), fm_mat_Q_gemm(1), homo, virtual)
+
       Erpa = 0.0_dp
-      IF (mp2_env%ri_rpa%do_ri_axk) e_axk = 0.0_dp
+      IF (mp2_env%ri_rpa%exchange_correction /= rpa_exchange_none) e_exchange = 0.0_dp
       first_cycle = .TRUE.
       omega_old = 0.0_dp
       CALL dgemm_counter_init(dgemm_counter, unit_nr, mp2_env%ri_rpa%print_dgemm_info)
@@ -1472,36 +1471,49 @@ CONTAINS
                   END IF
                END IF
 
-               CALL calc_mat_Q(fm_mat_S(1), do_ri_sos_laplace_mp2, first_cycle, iter_sc_GW0, virtual(1), &
-                               Eigenval(:, 1, 1), Eigenval_scf(:, 1, 1), &
-                               homo(1), omega, omega_old, jquad, mm_style, dimen_RI_red, dimen_ia(1), alpha, fm_mat_Q(1), &
-                               fm_mat_Q_gemm(1), do_bse, fm_mat_Q_static_bse_gemm, dgemm_counter)
+               IF (iter_sc_GW0 > 1) THEN
+               DO ispin = 1, nspins
+                  CALL calc_mat_Q(fm_mat_S(ispin), do_ri_sos_laplace_mp2, first_cycle, virtual(ispin), &
+                                  Eigenval_scf(:, 1, ispin), homo(ispin), omega, omega_old, jquad, mm_style, &
+                                  dimen_RI_red, dimen_ia(ispin), alpha, fm_mat_Q(ispin), &
+                                  fm_mat_Q_gemm(ispin), do_bse, fm_mat_Q_static_bse_gemm, dgemm_counter, &
+                                  num_integ_points, count_ev_sc_GW)
+               END DO
 
-               IF (my_open_shell) THEN
-                  CALL calc_mat_Q(fm_mat_S(2), do_ri_sos_laplace_mp2, first_cycle, iter_sc_GW0, virtual(2), &
-                                  Eigenval(:, 1, 2), Eigenval_scf(:, 1, 2), &
-                                  homo(2), omega, omega_old, jquad, mm_style, &
-                                  dimen_RI_red, dimen_ia(2), alpha, fm_mat_Q(2), fm_mat_Q_gemm(2), do_bse, &
-                                  fm_mat_Q_static_bse_gemm, dgemm_counter)
+               ! For SOS-MP2 we need both matrices separately
+               IF (.NOT. do_ri_sos_laplace_mp2) THEN
+               DO ispin = 2, nspins
+                  CALL cp_fm_scale_and_add(alpha=1.0_dp, matrix_a=fm_mat_Q(1), beta=1.0_dp, matrix_b=fm_mat_Q(ispin))
+               END DO
+               END IF
+               ELSE
+               DO ispin = 1, nspins
+                  CALL calc_mat_Q(fm_mat_S(ispin), do_ri_sos_laplace_mp2, first_cycle, virtual(ispin), &
+                                  Eigenval(:, 1, ispin), homo(ispin), omega, omega_old, jquad, mm_style, &
+                                  dimen_RI_red, dimen_ia(ispin), alpha, fm_mat_Q(ispin), &
+                                  fm_mat_Q_gemm(ispin), do_bse, fm_mat_Q_static_bse_gemm, dgemm_counter, &
+                                  num_integ_points, count_ev_sc_GW)
+               END DO
 
-                  ! For SOS-MP2 we need both matrices separately
-                  IF (.NOT. do_ri_sos_laplace_mp2) THEN
-                     CALL cp_fm_scale_and_add(alpha=1.0_dp, matrix_a=fm_mat_Q(1), beta=1.0_dp, matrix_b=fm_mat_Q(2))
-                  END IF
+               ! For SOS-MP2 we need both matrices separately
+               IF (.NOT. do_ri_sos_laplace_mp2) THEN
+               DO ispin = 2, nspins
+                  CALL cp_fm_scale_and_add(alpha=1.0_dp, matrix_a=fm_mat_Q(1), beta=1.0_dp, matrix_b=fm_mat_Q(ispin))
+               END DO
+               END IF
 
-               END IF ! open shell
+               END IF
 
             END IF ! im time
 
-            ! Calculate AXK energy correction
-            IF (mp2_env%ri_rpa%do_ri_axk) THEN
-               CALL compute_axk_ener(qs_env, fm_mat_Q(1), fm_mat_Q_gemm(1), dimen_RI_red, dimen_ia(1), para_env_sub, &
-                                     para_env_RPA, Eigenval(:, 1, 1), fm_mat_S(1), homo(1), virtual(1), omega, &
-                                     mp2_env, mat_munu, unit_nr, e_axk_corr)
+            ! Calculate RPA exchange energy correction
+            IF (mp2_env%ri_rpa%exchange_correction /= rpa_exchange_none) THEN
+               e_exchange_corr = 0.0_dp
+               CALL exchange_work%compute(fm_mat_Q(1), Eigenval(:, 1, :), fm_mat_S, omega, e_exchange_corr, mp2_env)
 
-               ! Evaluate the final AXK energy correction
-               e_axk = e_axk + e_axk_corr*wj(jquad)
-            END IF ! do_ri_axk
+               ! Evaluate the final exchange energy correction
+               e_exchange = e_exchange + e_exchange_corr*wj(jquad)
+            END IF
 
             IF (do_ri_sos_laplace_mp2) THEN
                CALL SOS_MP2_postprocessing(fm_mat_Q, Erpa, tau_wj(jquad))
@@ -1512,7 +1524,7 @@ CONTAINS
             ELSE
                IF (calc_forces .AND. .NOT. do_im_time) CALL rpa_grad_copy_Q(fm_mat_Q(1), rpa_grad)
 
-               CALL Q_trace_and_add_unit_matrix(dimen_RI_red, trace_Qomega, fm_mat_Q(1), para_env_RPA)
+               CALL Q_trace_and_add_unit_matrix(dimen_RI_red, trace_Qomega, fm_mat_Q(1))
 
                IF (do_kpoints_cubic_RPA .OR. do_kpoints_from_Gamma) THEN
                   CALL invert_eps_compute_W_and_Erpa_kp(dimen_RI, num_integ_points, jquad, nkp, count_ev_sc_GW, para_env, &
@@ -1552,10 +1564,10 @@ CONTAINS
                ELSE
                   CALL compute_GW_self_energy(vec_Sigma_c_gw, dimen_nm_gw, dimen_RI_red, gw_corr_lev_occ, &
                                               gw_corr_lev_virt, homo, jquad, nmo, num_fit_points, &
-                                              do_bse, do_im_time, do_periodic, first_cycle_periodic_correction, &
+                                              do_im_time, do_periodic, first_cycle_periodic_correction, &
                                               fermi_level_offset, &
                                               omega, Eigenval(:, 1, :), delta_corr, vec_omega_fit_gw, vec_W_gw, wj, &
-                                              fm_mat_Q(1), fm_mat_Q_static_bse, fm_mat_R_gw, fm_mat_S_gw, &
+                                              fm_mat_Q(1), fm_mat_R_gw, fm_mat_S_gw, &
                                               fm_mat_S_gw_work, mo_coeff(1), para_env, &
                                               para_env_RPA, matrix_berry_im_mo_mo, matrix_berry_re_mo_mo, &
                                               kpoints, qs_env, mp2_env)
@@ -1574,11 +1586,11 @@ CONTAINS
             IF (do_minimax_quad) Erpa = Erpa/2.0_dp
          END IF
 
-         IF (mp2_env%ri_rpa%do_ri_axk) THEN
-            CALL para_env%sum(E_axk)
-            E_axk = E_axk/(pi*2.0_dp)
-            IF (do_minimax_quad) E_axk = E_axk/2.0_dp
-            mp2_env%ri_rpa%ener_axk = E_axk
+         IF (mp2_env%ri_rpa%exchange_correction /= rpa_exchange_none) THEN
+            CALL para_env%sum(E_exchange)
+            E_exchange = E_exchange/(pi*2.0_dp)
+            IF (do_minimax_quad) E_exchange = E_exchange/2.0_dp
+            mp2_env%ri_rpa%ener_exchange = E_exchange
          END IF
 
          IF (calc_forces .AND. do_ri_sos_laplace_mp2 .AND. do_im_time) THEN
@@ -1712,16 +1724,34 @@ CONTAINS
 
       ! postprocessing after GW for Bethe-Salpeter
       IF (do_bse) THEN
-         CALL mult_B_with_W_and_fill_local_3c_arrays(fm_mat_S_ij_bse, fm_mat_S_ab_bse, fm_mat_S(1), fm_mat_Q_static_bse, &
-                                                     fm_mat_Q_static_bse_gemm, &
-                                                     B_bar_ijQ_bse_local, B_abQ_bse_local, B_bar_iaQ_bse_local, &
-                                                     B_iaQ_bse_local, dimen_RI_red, homo(1), virtual(1), dimen_ia(1), &
-                                                     gd_array, color_sub, para_env)
-
-         CALL do_subspace_iterations(B_bar_ijQ_bse_local, B_abQ_bse_local, B_bar_iaQ_bse_local, &
-                                     B_iaQ_bse_local, homo(1), virtual(1), num_Z_vectors, &
-                                     max_iter_bse, eps_min_trans, Eigenval(:, 1, 1), para_env)
-
+         ! Check used GW flavor; in Case of evGW we use W0 for BSE
+         ! Use environment variable, since local iter_evGW is overwritten if evGW0 is invoked
+         IF (mp2_env%ri_g0w0%iter_evGW > 1) THEN
+            IF (unit_nr > 0) THEN
+               CALL cp_warn(__LOCATION__, &
+                            "BSE@evGW applies W0, i.e. screening with DFT energies! "// &
+                            "Use BSE@evGW0 to avoid this warning!")
+            END IF
+         END IF
+         ! Create a copy of fm_mat_S for usage in BSE
+         CALL cp_fm_create(fm_mat_S_ia_bse, fm_mat_S(1)%matrix_struct)
+         CALL cp_fm_to_fm(fm_mat_S(1), fm_mat_S_ia_bse)
+         ! Remove energy/frequency factor from 3c-Integral for BSE
+         IF (iter_sc_gw0 == 1) THEN
+            CALL remove_scaling_factor_rpa(fm_mat_S_ia_bse, virtual(1), &
+                                           Eigenval_last(:, 1, 1), homo(1), omega)
+         ELSE
+            CALL remove_scaling_factor_rpa(fm_mat_S_ia_bse, virtual(1), &
+                                           Eigenval_scf(:, 1, 1), homo(1), omega)
+         END IF
+         ! Main routine for all BSE postprocessing
+         CALL start_bse_calculation(fm_mat_S_ia_bse, fm_mat_S_ij_bse, fm_mat_S_ab_bse, &
+                                    fm_mat_Q_static_bse_gemm, &
+                                    Eigenval, Eigenval_scf, &
+                                    homo, virtual, dimen_RI, dimen_RI_red, bse_lev_virt, &
+                                    gd_array, color_sub, mp2_env, qs_env, mo_coeff, unit_nr)
+         ! Release BSE-copy of fm_mat_S
+         CALL cp_fm_release(fm_mat_S_ia_bse)
       END IF
 
       IF (my_do_gw) THEN
@@ -1754,6 +1784,8 @@ CONTAINS
          END IF
 
       END IF
+
+      IF (.NOT. do_im_time .AND. .NOT. do_ri_sos_laplace_mp2) CALL exchange_work%release()
 
       IF (.NOT. do_ri_sos_laplace_mp2) THEN
          DEALLOCATE (tj)

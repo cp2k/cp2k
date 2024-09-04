@@ -57,7 +57,7 @@
       ABC 53.841801 53.841801 53.841801
     &END CELL
     &COORD
-@INCLUDE 'amorph.xyz'
+      @INCLUDE 'amorph.xyz'
     &END COORD
     &KIND Ti
       BASIS_SET DZVP-MOLOPT-SR-GTH

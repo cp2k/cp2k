@@ -27,8 +27,8 @@ MODULE mm_mapping_library
 
 ! **************************************************************************************************
    TYPE ff_map_type
-      CHARACTER(LEN=default_string_length), DIMENSION(:), POINTER :: kind
-      CHARACTER(LEN=default_string_length), DIMENSION(:), POINTER :: element
+      CHARACTER(LEN=default_string_length), DIMENSION(:), POINTER :: kind => NULL()
+      CHARACTER(LEN=default_string_length), DIMENSION(:), POINTER :: element => NULL()
    END TYPE ff_map_type
 
    TYPE(ff_map_type), POINTER, PUBLIC :: amber_map, &

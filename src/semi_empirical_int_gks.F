@@ -580,7 +580,7 @@ CONTAINS
       pw_pool => se_int_control%ewald_gks%pw_pool
       dg => se_int_control%ewald_gks%dg
       CALL dg_get(dg, dg_rho0=dg_rho0)
-      rho0 => dg_rho0%density%cr3d
+      rho0 => dg_rho0%density%array
       pw_grid => pw_pool%pw_grid
       bds => pw_grid%bounds
 
@@ -797,7 +797,7 @@ CONTAINS
       pw_pool => se_int_control%ewald_gks%pw_pool
       dg => se_int_control%ewald_gks%dg
       CALL dg_get(dg, dg_rho0=dg_rho0)
-      rho0 => dg_rho0%density%cr3d
+      rho0 => dg_rho0%density%array
       pw_grid => pw_pool%pw_grid
       bds => pw_grid%bounds
 
@@ -1165,7 +1165,7 @@ CONTAINS
       pw_pool => se_int_control%ewald_gks%pw_pool
       dg => se_int_control%ewald_gks%dg
       CALL dg_get(dg, dg_rho0=dg_rho0)
-      rho0 => dg_rho0%density%cr3d
+      rho0 => dg_rho0%density%array
       pw_grid => pw_pool%pw_grid
       bds => pw_grid%bounds
 

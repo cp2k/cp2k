@@ -25,6 +25,6 @@
 
 &FORCE_EVAL
   METHOD QS
-@include dft-common-params-twoconstraints.inc
-@include subsys.inc
+  @INCLUDE dft-common-params-twoconstraints.inc
+  @INCLUDE subsys.inc
 &END FORCE_EVAL

@@ -26,6 +26,8 @@ MODULE library_tests
    USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
                                               cp_blacs_env_release,&
                                               cp_blacs_env_type
+   USE cp_dbcsr_api,                    ONLY: dbcsr_reset_randmat_seed,&
+                                              dbcsr_run_tests
    USE cp_eri_mme_interface,            ONLY: cp_eri_mme_perf_acc_test
    USE cp_files,                        ONLY: close_file,&
                                               open_file
@@ -48,8 +50,6 @@ MODULE library_tests
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                               cp_print_key_unit_nr
    USE cp_realspace_grid_init,          ONLY: init_input_type
-   USE dbcsr_api,                       ONLY: dbcsr_reset_randmat_seed,&
-                                              dbcsr_run_tests
    USE dbm_tests,                       ONLY: dbm_run_tests
    USE fft_tools,                       ONLY: BWFFT,&
                                               FFT_RADIX_CLOSEST,&
@@ -84,16 +84,12 @@ MODULE library_tests
                                               HALFSPACE,&
                                               pw_grid_type
    USE pw_grids,                        ONLY: pw_grid_create,&
-                                              pw_grid_release,&
-                                              pw_grid_setup
+                                              pw_grid_release
    USE pw_methods,                      ONLY: pw_transfer,&
                                               pw_zero
-   USE pw_types,                        ONLY: COMPLEXDATA1D,&
-                                              COMPLEXDATA3D,&
-                                              REALDATA3D,&
-                                              REALSPACE,&
-                                              RECIPROCALSPACE,&
-                                              pw_type
+   USE pw_types,                        ONLY: pw_c1d_gs_type,&
+                                              pw_c3d_rs_type,&
+                                              pw_r3d_rs_type
    USE realspace_grid_types,            ONLY: &
         realspace_grid_desc_type, realspace_grid_input_type, realspace_grid_type, rs_grid_create, &
         rs_grid_create_descriptor, rs_grid_print, rs_grid_release, rs_grid_release_descriptor, &
@@ -600,7 +596,7 @@ CONTAINS
          END SELECT
          n = 4
          zz = 0.0_dp
-         CALL fft3d(1, n, zz, status=stat)
+         CALL fft3d(FWFFT, n, zz, status=stat)
          IF (stat == 0) THEN
             DO it = 1, 3
                radix_in = ndate(it)
@@ -622,7 +618,7 @@ CONTAINS
                tstart = m_walltime()
                DO j = 1, ntim
                   CALL fft3d(FWFFT, n, ca)
-                  CALL fft3d(BWFFT, n, ca, SCALE=scale)
+                  CALL fft3d(BWFFT, n, ca)
                END DO
                tend = m_walltime()
                t = tend - tstart + threshold
@@ -713,7 +709,7 @@ CONTAINS
       REAL(KIND=dp)                                      :: tend, tstart
       TYPE(cell_type), POINTER                           :: box
       TYPE(pw_grid_type), POINTER                        :: grid
-      TYPE(pw_type)                                      :: ca
+      TYPE(pw_r3d_rs_type)                               :: ca
       TYPE(realspace_grid_desc_type), POINTER            :: rs_desc
       TYPE(realspace_grid_input_type)                    :: input_settings
       TYPE(realspace_grid_type)                          :: rs_grid
@@ -738,11 +734,10 @@ CONTAINS
       NULLIFY (grid)
       CALL section_vals_val_get(rs_pw_transfer_section, "GRID", i_vals=i_vals)
       np = i_vals
-      CALL pw_grid_create(grid, para_env)
-      CALL pw_grid_setup(box%hmat, grid, grid_span=FULLSPACE, npts=np, fft_usage=.TRUE., iounit=iw)
+      CALL pw_grid_create(grid, para_env, box%hmat, grid_span=FULLSPACE, npts=np, fft_usage=.TRUE., iounit=iw)
       no = grid%npts
 
-      CALL ca%create(grid, REALDATA3D, REALSPACE)
+      CALL ca%create(grid)
       CALL pw_zero(ca)
 
       ! .. rs input setting type
@@ -830,8 +825,9 @@ CONTAINS
                                                             t_min, tend, tstart
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: t_end, t_start
       TYPE(cell_type), POINTER                           :: box
+      TYPE(pw_c1d_gs_type)                               :: ca, cc
+      TYPE(pw_c3d_rs_type)                               :: cb
       TYPE(pw_grid_type), POINTER                        :: grid
-      TYPE(pw_type)                                      :: ca, cb, cc
 
 !..set fft lib
 
@@ -896,8 +892,6 @@ CONTAINS
 
             distribution_layout = layouts(:, i_layout)
 
-            CALL pw_grid_create(grid, para_env)
-
             CALL section_vals_val_get(pw_transfer_section, "PW_GRID", i_rep_section=i_rep, i_val=itmp)
 
             ! from cp_control_utils
@@ -929,27 +923,27 @@ CONTAINS
             END IF
 
             ! actual setup
-            CALL pw_grid_setup(box%hmat, grid, grid_span=grid_span, odd=odd, spherical=spherical, &
-                               blocked=blocked_id, npts=np, fft_usage=.TRUE., &
-                               rs_dims=distribution_layout, iounit=iw)
+            CALL pw_grid_create(grid, para_env, box%hmat, grid_span=grid_span, odd=odd, spherical=spherical, &
+                                blocked=blocked_id, npts=np, fft_usage=.TRUE., &
+                                rs_dims=distribution_layout, iounit=iw)
 
             IF (iw > 0) CALL m_flush(iw)
 
             ! note that the number of grid points might be different from what the user requested (fft-able needed)
             no = grid%npts
 
-            CALL ca%create(grid, COMPLEXDATA1D, RECIPROCALSPACE)
-            CALL cb%create(grid, COMPLEXDATA3D, REALSPACE)
-            CALL cc%create(grid, COMPLEXDATA1D, RECIPROCALSPACE)
+            CALL ca%create(grid)
+            CALL cb%create(grid)
+            CALL cc%create(grid)
 
             ! initialize data
             CALL pw_zero(ca)
             CALL pw_zero(cb)
             CALL pw_zero(cc)
-            nn = SIZE(ca%cc)
+            nn = SIZE(ca%array)
             DO ig = 1, nn
                gsq = grid%gsq(ig)
-               ca%cc(ig) = EXP(-gsq)
+               ca%array(ig) = EXP(-gsq)
             END DO
 
             flops = PRODUCT(no)*30.0_dp*LOG(REAL(MAXVAL(no), KIND=dp))
@@ -970,9 +964,9 @@ CONTAINS
                perf = 0.0_dp
             END IF
 
-            em = MAXVAL(ABS(ca%cc(:) - cc%cc(:)))
+            em = MAXVAL(ABS(ca%array(:) - cc%array(:)))
             CALL para_env%max(em)
-            et = SUM(ABS(ca%cc(:) - cc%cc(:)))
+            et = SUM(ABS(ca%array(:) - cc%array(:)))
             CALL para_env%sum(et)
             t_min = MINVAL(t_end - t_start)
             t_max = MAXVAL(t_end - t_start)

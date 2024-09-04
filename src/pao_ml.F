@@ -15,7 +15,7 @@ MODULE pao_ml
    USE basis_set_types,                 ONLY: gto_basis_set_type
    USE cell_methods,                    ONLY: cell_create
    USE cell_types,                      ONLY: cell_type
-   USE dbcsr_api,                       ONLY: dbcsr_iterator_blocks_left,&
+   USE cp_dbcsr_api,                    ONLY: dbcsr_iterator_blocks_left,&
                                               dbcsr_iterator_next_block,&
                                               dbcsr_iterator_start,&
                                               dbcsr_iterator_stop,&

@@ -1,0 +1,45 @@
+    # TIP3P flexible water
+    # M. W. Mahoney and W. L. Jorgensen, J. Chem. Phys. 112, 8910 (2000)
+    # https://doi.org/10.1063/1.481505
+    &FORCEFIELD
+      &BEND
+        ATOMS HW OW HW
+        K [kcalmol*rad^-2] 110.0
+        KIND harmonic
+        THETA0 [deg] 104.52
+      &END BEND
+      &BOND
+        ATOMS OW HW
+        K [kcalmol*Angstrom^-2] 900.0
+        KIND harmonic
+        R0 [Angstrom] 0.9572
+      &END BOND
+      &CHARGE
+        ATOM OW
+        CHARGE -0.834
+      &END CHARGE
+      &CHARGE
+        ATOM HW
+        CHARGE +0.417
+      &END CHARGE
+      &NONBONDED
+        &LENNARD-JONES
+          ATOMS HW HW
+          EPSILON [kcalmol] 0.0
+          SIGMA [Angstrom] 1.0
+          RCUT [Angstrom] 12.0
+        &END LENNARD-JONES
+        &LENNARD-JONES
+          ATOMS OW HW
+          EPSILON [kcalmol] 0.0
+          SIGMA [Angstrom] 1.0
+          RCUT [Angstrom] 12.0
+        &END LENNARD-JONES
+        &LENNARD-JONES
+          ATOMS OW OW
+          EPSILON [kcalmol] 0.1521
+          SIGMA [Angstrom] 3.15061
+          RCUT [Angstrom] 12.0
+        &END LENNARD-JONES
+      &END NONBONDED
+    &END FORCEFIELD

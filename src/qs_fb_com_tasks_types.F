@@ -7,7 +7,7 @@
 
 MODULE qs_fb_com_tasks_types
 
-   USE dbcsr_api,                       ONLY: dbcsr_get_block_p,&
+   USE cp_dbcsr_api,                    ONLY: dbcsr_get_block_p,&
                                               dbcsr_get_info,&
                                               dbcsr_put_block,&
                                               dbcsr_type
@@ -96,10 +96,10 @@ MODULE qs_fb_com_tasks_types
 ! **********************************************************************
    TYPE fb_com_tasks_data
       ! use pure integer arrays to facilitate easier MPI coms
-      INTEGER(KIND=int_8), DIMENSION(:, :), POINTER :: tasks
-      INTEGER :: task_dim
-      INTEGER :: ntasks
-      INTEGER :: nencode
+      INTEGER(KIND=int_8), DIMENSION(:, :), POINTER :: tasks => NULL()
+      INTEGER :: task_dim = -1
+      INTEGER :: ntasks = -1
+      INTEGER :: nencode = -1
    END TYPE fb_com_tasks_data
 
 !**********************************************************************
@@ -107,7 +107,7 @@ MODULE qs_fb_com_tasks_types
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 !**********************************************************************
    TYPE fb_com_tasks_obj
-      TYPE(fb_com_tasks_data), POINTER, PRIVATE :: obj
+      TYPE(fb_com_tasks_data), POINTER, PRIVATE :: obj => NULL()
    END TYPE fb_com_tasks_obj
 
 ! **********************************************************************
@@ -126,9 +126,9 @@ MODULE qs_fb_com_tasks_types
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! **********************************************************************
    TYPE fb_com_atom_pairs_data
-      INTEGER(KIND=int_8), DIMENSION(:), POINTER :: pairs
-      INTEGER :: npairs
-      INTEGER :: natoms_encode
+      INTEGER(KIND=int_8), DIMENSION(:), POINTER :: pairs => NULL()
+      INTEGER :: npairs = -1
+      INTEGER :: natoms_encode = -1
    END TYPE fb_com_atom_pairs_data
 
 ! **********************************************************************
@@ -136,7 +136,7 @@ MODULE qs_fb_com_tasks_types
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! **********************************************************************
    TYPE fb_com_atom_pairs_obj
-      TYPE(fb_com_atom_pairs_data), POINTER, PRIVATE :: obj
+      TYPE(fb_com_atom_pairs_data), POINTER, PRIVATE :: obj => NULL()
    END TYPE fb_com_atom_pairs_obj
 
 CONTAINS

@@ -30,6 +30,8 @@ MODULE manybody_potential
                                               allegro_energy_store_force_virial,&
                                               destroy_allegro_arrays,&
                                               setup_allegro_arrays
+   USE manybody_deepmd,                 ONLY: deepmd_add_force_virial,&
+                                              deepmd_energy_store_force_virial
    USE manybody_eam,                    ONLY: get_force_eam
    USE manybody_gal,                    ONLY: destroy_gal_arrays,&
                                               gal_energy,&
@@ -57,8 +59,8 @@ MODULE manybody_potential
                                               tersoff_forces
    USE message_passing,                 ONLY: mp_para_env_type
    USE pair_potential_types,            ONLY: &
-        allegro_pot_type, allegro_type, ea_type, eam_pot_type, gal21_pot_type, gal21_type, &
-        gal_pot_type, gal_type, nequip_pot_type, nequip_type, pair_potential_pp_type, &
+        allegro_pot_type, allegro_type, deepmd_type, ea_type, eam_pot_type, gal21_pot_type, &
+        gal21_type, gal_pot_type, gal_type, nequip_pot_type, nequip_type, pair_potential_pp_type, &
         pair_potential_single_type, quip_type, siepmann_pot_type, siepmann_type, tersoff_pot_type, &
         tersoff_type
    USE particle_types,                  ONLY: particle_type
@@ -84,12 +86,13 @@ CONTAINS
 !> \param pot_manybody ...
 !> \param para_env ...
 !> \param mm_section ...
+!> \param use_virial ...
 !> \par History
 !>      tlaino [2007] - New algorithm for tersoff potential
 !> \author CJM, I-Feng W. Kuo, Teodoro Laino
 ! **************************************************************************************************
    SUBROUTINE energy_manybody(fist_nonbond_env, atomic_kind_set, local_particles, &
-                              particle_set, cell, pot_manybody, para_env, mm_section)
+                              particle_set, cell, pot_manybody, para_env, mm_section, use_virial)
 
       TYPE(fist_nonbond_env_type), POINTER               :: fist_nonbond_env
       TYPE(atomic_kind_type), POINTER                    :: atomic_kind_set(:)
@@ -99,6 +102,7 @@ CONTAINS
       REAL(dp), INTENT(INOUT)                            :: pot_manybody
       TYPE(mp_para_env_type), OPTIONAL, POINTER          :: para_env
       TYPE(section_vals_type), POINTER                   :: mm_section
+      LOGICAL, INTENT(IN)                                :: use_virial
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'energy_manybody'
 
@@ -107,12 +111,12 @@ CONTAINS
          nloc_size, npairs, nparticle, nparticle_local, nr_h3O, nr_o, nr_oh, nunique
       INTEGER, DIMENSION(:), POINTER                     :: glob_loc_list_a, unique_list_a, work_list
       INTEGER, DIMENSION(:, :), POINTER                  :: glob_loc_list, list, sort_list
-      LOGICAL                                            :: any_allegro, any_gal, any_gal21, &
-                                                            any_nequip, any_quip, any_siepmann, &
-                                                            any_tersoff
-      REAL(KIND=dp)                                      :: drij, embed, pot_allegro, pot_loc, &
-                                                            pot_nequip, pot_quip, qr, rab2_max, &
-                                                            rij(3)
+      LOGICAL                                            :: any_allegro, any_deepmd, any_gal, &
+                                                            any_gal21, any_nequip, any_quip, &
+                                                            any_siepmann, any_tersoff
+      REAL(KIND=dp)                                      :: drij, embed, pot_allegro, pot_deepmd, &
+                                                            pot_loc, pot_nequip, pot_quip, qr, &
+                                                            rab2_max, rij(3)
       REAL(KIND=dp), DIMENSION(3)                        :: cell_v, cvi
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: glob_cell_v
       REAL(KIND=dp), POINTER                             :: fembed(:)
@@ -138,6 +142,7 @@ CONTAINS
       any_quip = .FALSE.
       any_nequip = .FALSE.
       any_allegro = .FALSE.
+      any_deepmd = .FALSE.
       CALL timeset(routineN, handle)
       CALL fist_nonbond_env_get(fist_nonbond_env, r_last_update_pbc=r_last_update_pbc, &
                                 potparm=potparm, eam_data=eam_data)
@@ -183,6 +188,7 @@ CONTAINS
             any_quip = any_quip .OR. ANY(pot%type == quip_type)
             any_nequip = any_nequip .OR. ANY(pot%type == nequip_type)
             any_allegro = any_allegro .OR. ANY(pot%type == allegro_type)
+            any_deepmd = any_deepmd .OR. ANY(pot%type == deepmd_type)
             any_siepmann = any_siepmann .OR. ANY(pot%type == siepmann_type)
             any_gal = any_gal .OR. ANY(pot%type == gal_type)
             any_gal21 = any_gal21 .OR. ANY(pot%type == gal21_type)
@@ -201,7 +207,7 @@ CONTAINS
          CALL setup_nequip_arrays(nonbonded, potparm, glob_loc_list, glob_cell_v, glob_loc_list_a, cell)
          CALL nequip_energy_store_force_virial(nonbonded, particle_set, cell, atomic_kind_set, potparm, &
                                                nequip, glob_loc_list_a, r_last_update_pbc, pot_nequip, &
-                                               fist_nonbond_env, para_env)
+                                               fist_nonbond_env, para_env, use_virial)
          pot_manybody = pot_manybody + pot_nequip
          CALL destroy_nequip_arrays(glob_loc_list, glob_cell_v, glob_loc_list_a)
       END IF
@@ -212,10 +218,17 @@ CONTAINS
                                    unique_list_a, cell)
          CALL allegro_energy_store_force_virial(nonbonded, particle_set, cell, atomic_kind_set, potparm, &
                                                 allegro, glob_loc_list_a, r_last_update_pbc, pot_allegro, &
-                                                fist_nonbond_env, unique_list_a)
+                                                fist_nonbond_env, unique_list_a, para_env, use_virial)
          pot_manybody = pot_manybody + pot_allegro
          CALL destroy_allegro_arrays(glob_loc_list, glob_cell_v, glob_loc_list_a, unique_list_a)
       END IF
+      ! DEEPMD
+      IF (any_deepmd) THEN
+         CALL deepmd_energy_store_force_virial(particle_set, cell, atomic_kind_set, potparm, &
+                                               fist_nonbond_env, pot_deepmd, para_env)
+         pot_manybody = pot_manybody + pot_deepmd
+      END IF
+
       ! TERSOFF
       IF (any_tersoff) THEN
          NULLIFY (glob_loc_list, glob_cell_v, glob_loc_list_a)
@@ -576,9 +589,9 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: eam_kinds_index
       INTEGER, DIMENSION(:), POINTER                     :: glob_loc_list_a, work_list
       INTEGER, DIMENSION(:, :), POINTER                  :: glob_loc_list, list, sort_list
-      LOGICAL                                            :: any_allegro, any_gal, any_gal21, &
-                                                            any_nequip, any_quip, any_siepmann, &
-                                                            any_tersoff
+      LOGICAL                                            :: any_allegro, any_deepmd, any_gal, &
+                                                            any_gal21, any_nequip, any_quip, &
+                                                            any_siepmann, any_tersoff
       REAL(KIND=dp) :: f_eam, fac, fr(3), ptens11, ptens12, ptens13, ptens21, ptens22, ptens23, &
          ptens31, ptens32, ptens33, rab(3), rab2, rab2_max, rtmp(3)
       REAL(KIND=dp), DIMENSION(3)                        :: cell_v, cvi
@@ -600,6 +613,7 @@ CONTAINS
       any_nequip = .FALSE.
       any_allegro = .FALSE.
       any_siepmann = .FALSE.
+      any_deepmd = .FALSE.
       any_gal = .FALSE.
       any_gal21 = .FALSE.
       CALL timeset(routineN, handle)
@@ -631,6 +645,14 @@ CONTAINS
             END DO
          END DO
       END DO
+      DO ikind = 1, nkinds
+         DO jkind = ikind, nkinds
+            any_deepmd = any_deepmd .OR. ANY(potparm%pot(ikind, jkind)%pot%type == deepmd_type)
+         END DO
+      END DO
+      ! DEEPMD
+      IF (any_deepmd) &
+         CALL deepmd_add_force_virial(fist_nonbond_env, f_nonbond, pv_nonbond, use_virial)
 
       ! QUIP
       IF (use_virial) &
@@ -654,6 +676,7 @@ CONTAINS
             cell_v = MATMUL(cell%hmat, cvi)
             any_tersoff = any_tersoff .OR. ANY(pot%type == tersoff_type)
             any_siepmann = any_siepmann .OR. ANY(pot%type == siepmann_type)
+            any_deepmd = any_deepmd .OR. ANY(pot%type == deepmd_type)
             any_gal = any_gal .OR. ANY(pot%type == gal_type)
             any_gal21 = any_gal21 .OR. ANY(pot%type == gal21_type)
             any_nequip = any_nequip .OR. ANY(pot%type == nequip_type)

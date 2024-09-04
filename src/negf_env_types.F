@@ -13,18 +13,18 @@ MODULE negf_env_types
                                               real_to_scaled
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_control_types,                ONLY: dft_control_type
+   USE cp_dbcsr_api,                    ONLY: dbcsr_copy,&
+                                              dbcsr_deallocate_matrix,&
+                                              dbcsr_init_p,&
+                                              dbcsr_p_type,&
+                                              dbcsr_set,&
+                                              dbcsr_type
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_release,&
                                               cp_fm_type
-   USE dbcsr_api,                       ONLY: dbcsr_copy,&
-                                              dbcsr_deallocate_matrix,&
-                                              dbcsr_init_p,&
-                                              dbcsr_p_type,&
-                                              dbcsr_set,&
-                                              dbcsr_type
    USE force_env_types,                 ONLY: force_env_get,&
                                               force_env_p_type,&
                                               force_env_type,&
@@ -54,9 +54,7 @@ MODULE negf_env_types
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_type
    USE pw_pool_types,                   ONLY: pw_pool_type
-   USE pw_types,                        ONLY: REALDATA3D,&
-                                              REALSPACE,&
-                                              pw_type
+   USE pw_types,                        ONLY: pw_r3d_rs_type
    USE qs_density_mixing_types,         ONLY: mixing_storage_create,&
                                               mixing_storage_release,&
                                               mixing_storage_type
@@ -87,11 +85,11 @@ MODULE negf_env_types
 !> \author Sergey Chulkov
 ! **************************************************************************************************
    TYPE negf_env_contact_type
-      REAL(kind=dp), DIMENSION(3)                        :: direction_vector, origin
-      REAL(kind=dp), DIMENSION(3)                        :: direction_vector_bias, origin_bias
+      REAL(kind=dp), DIMENSION(3)                        :: direction_vector = -1.0_dp, origin = -1.0_dp
+      REAL(kind=dp), DIMENSION(3)                        :: direction_vector_bias = -1.0_dp, origin_bias = -1.0_dp
       !> an axis towards the secondary contact unit cell which coincides with the transport direction
       !> 0 (undefined), 1 (+x), 2 (+y), 3 (+z), -1 (-x), -2 (-y), -3 (-z)
-      INTEGER                                            :: direction_axis
+      INTEGER                                            :: direction_axis = -1
       !> atoms belonging to a primary contact unit cell
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atomlist_cell0
       !> atoms belonging to a secondary contact unit cell (will be removed one day ...)
@@ -100,7 +98,7 @@ MODULE negf_env_types
       TYPE(negf_atom_map_type), ALLOCATABLE, &
          DIMENSION(:)                                    :: atom_map_cell0, atom_map_cell1
       !> energy of the HOMO
-      REAL(kind=dp)                                      :: homo_energy
+      REAL(kind=dp)                                      :: homo_energy = -1.0_dp
       !> diagonal (h_00) and off-diagonal (h_01) blocks of the contact Kohn-Sham matrix ([number_of_spins]).
       !> The matrix h_01 is of the shape [nao_cell0 x nao_cell1]
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)      :: h_00, h_01
@@ -129,9 +127,9 @@ MODULE negf_env_types
       !> overlap matrix of the scattering region -- contact interface for every contact ([ncontacts])
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)       :: s_sc
       !> structure needed for density mixing
-      TYPE(mixing_storage_type), POINTER                  :: mixing_storage
+      TYPE(mixing_storage_type), POINTER                  :: mixing_storage => NULL()
       !> density mixing method
-      INTEGER                                             :: mixing_method
+      INTEGER                                             :: mixing_method = -1
    END TYPE negf_env_type
 
 ! **************************************************************************************************
@@ -176,7 +174,7 @@ CONTAINS
       TYPE(force_env_p_type), DIMENSION(:), POINTER      :: sub_force_env
       TYPE(negf_atom_map_contact_type), ALLOCATABLE, &
          DIMENSION(:)                                    :: map_contact
-      TYPE(pw_type), POINTER                             :: v_hartree_rspace
+      TYPE(pw_r3d_rs_type), POINTER                      :: v_hartree_rspace
       TYPE(qs_environment_type), POINTER                 :: qs_env, qs_env_contact
       TYPE(qs_subsys_type), POINTER                      :: subsys, subsys_contact
 
@@ -716,7 +714,7 @@ CONTAINS
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_type), POINTER                        :: pw_pool
-      TYPE(pw_type)                                      :: v_hartree
+      TYPE(pw_r3d_rs_type)                               :: v_hartree
       TYPE(qs_subsys_type), POINTER                      :: subsys
 
       CALL timeset(routineN, handle)
@@ -795,7 +793,7 @@ CONTAINS
          CALL dbcsr_copy(matrix_b=hmat%matrix, matrix_a=matrix_s_kp(1, 1)%matrix)
          CALL dbcsr_set(hmat%matrix, 0.0_dp)
 
-         CALL pw_pool%create_pw(v_hartree, use_data=REALDATA3D, in_space=REALSPACE)
+         CALL pw_pool%create_pw(v_hartree)
          CALL negf_env_init_v_hartree(v_hartree, negf_env%contacts, negf_control%contacts)
 
          CALL integrate_v_rspace(v_rspace=v_hartree, hmat=hmat, qs_env=qs_env, &
@@ -843,7 +841,7 @@ CONTAINS
 !> \author Sergey Chulkov
 ! **************************************************************************************************
    SUBROUTINE negf_env_init_v_hartree(v_hartree, contact_env, contact_control)
-      TYPE(pw_type), INTENT(IN)                          :: v_hartree
+      TYPE(pw_r3d_rs_type), INTENT(IN)                   :: v_hartree
       TYPE(negf_env_contact_type), DIMENSION(:), &
          INTENT(in)                                      :: contact_env
       TYPE(negf_control_contact_type), DIMENSION(:), &
@@ -915,7 +913,7 @@ CONTAINS
                   END DO
                END IF
 
-               v_hartree%cr3d(ix, iy, iz) = pot*dvol
+               v_hartree%array(ix, iy, iz) = pot*dvol
             END DO
          END DO
       END DO

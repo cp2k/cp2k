@@ -11,6 +11,10 @@ MODULE qs_tddfpt2_types
    USE atomic_kind_types,               ONLY: atomic_kind_type
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_control_types,                ONLY: dft_control_type
+   USE cp_dbcsr_api,                    ONLY: &
+        dbcsr_complete_redistribute, dbcsr_create, dbcsr_deallocate_matrix, &
+        dbcsr_distribution_type, dbcsr_get_info, dbcsr_init_p, dbcsr_p_type, dbcsr_release_p, &
+        dbcsr_type, dbcsr_type_antisymmetric
    USE cp_dbcsr_operations,             ONLY: cp_dbcsr_sm_fm_multiply,&
                                               dbcsr_allocate_matrix_set,&
                                               dbcsr_deallocate_matrix_set
@@ -25,10 +29,6 @@ MODULE qs_tddfpt2_types
    USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_release,&
                                               cp_fm_type
-   USE dbcsr_api,                       ONLY: &
-        dbcsr_complete_redistribute, dbcsr_create, dbcsr_deallocate_matrix, &
-        dbcsr_distribution_type, dbcsr_get_info, dbcsr_init_p, dbcsr_p_type, dbcsr_release_p, &
-        dbcsr_type, dbcsr_type_antisymmetric
    USE ewald_environment_types,         ONLY: ewald_env_release,&
                                               ewald_environment_type
    USE ewald_pw_types,                  ONLY: ewald_pw_release,&
@@ -42,11 +42,8 @@ MODULE qs_tddfpt2_types
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE pw_env_types,                    ONLY: pw_env_get
    USE pw_pool_types,                   ONLY: pw_pool_type
-   USE pw_types,                        ONLY: COMPLEXDATA1D,&
-                                              REALDATA3D,&
-                                              REALSPACE,&
-                                              RECIPROCALSPACE,&
-                                              pw_type
+   USE pw_types,                        ONLY: pw_c1d_gs_type,&
+                                              pw_r3d_rs_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_kind_types,                   ONLY: qs_kind_type
@@ -79,6 +76,7 @@ MODULE qs_tddfpt2_types
 
    PUBLIC :: tddfpt_ground_state_mos, tddfpt_work_matrices
    PUBLIC :: tddfpt_create_work_matrices, stda_create_work_matrices, tddfpt_release_work_matrices
+   PUBLIC :: hfxsr_create_work_matrices
 
 ! **************************************************************************************************
 !> \brief Ground state molecular orbitals.
@@ -87,13 +85,13 @@ MODULE qs_tddfpt2_types
 ! **************************************************************************************************
    TYPE tddfpt_ground_state_mos
       !> occupied MOs stored in a matrix form [nao x nmo_occ]
-      TYPE(cp_fm_type), POINTER                          :: mos_occ
+      TYPE(cp_fm_type), POINTER                          :: mos_occ => NULL()
       !> virtual MOs stored in a matrix form [nao x nmo_virt]
-      TYPE(cp_fm_type), POINTER                          :: mos_virt
+      TYPE(cp_fm_type), POINTER                          :: mos_virt => NULL()
       !> negated occupied orbital energy matrix [nmo_occ x nmo_occ]: - mos_occ^T * KS * mos_occ .
       !> Allocated when orbital energy correction is in use, otherwise it is just a diagonal
       !> matrix with 'evals_occ' on its diagonal
-      TYPE(cp_fm_type), POINTER                          :: evals_occ_matrix
+      TYPE(cp_fm_type), POINTER                          :: evals_occ_matrix => NULL()
       !> (non-corrected) occupied orbital energies
       REAL(kind=dp), ALLOCATABLE, DIMENSION(:)           :: evals_occ
       !> (non-corrected) virtual orbital energies
@@ -117,9 +115,9 @@ MODULE qs_tddfpt2_types
       !> used mainly to dynamically expand the list of trial vectors
       TYPE(cp_fm_pool_p_type), ALLOCATABLE, DIMENSION(:) :: fm_pool_ao_mo_occ
       !> S * mos_occ(spin)
-      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)      :: S_C0
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: S_C0
       !> S * \rho_0(spin)
-      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)      :: S_C0_C0T
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: S_C0_C0T
       !
       ! *** dense matrices distributed across parallel (sub)groups ***
       !
@@ -128,76 +126,80 @@ MODULE qs_tddfpt2_types
       !> is typically much smaller than the total number of Krylov's vectors. Allocated only if
       !> the number of parallel groups > 1, otherwise we use the original globally distributed vectors.
       !> evects_sub(spin, state) == null() means that the trial vector is assigned to a different (sub)group
-      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :)   :: evects_sub
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :)     :: evects_sub
       !> action of TDDFPT operator on trial vectors distributed across parallel (sub)groups
-      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :)   :: Aop_evects_sub
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :)     :: Aop_evects_sub
       !> electron density expressed in terms of atomic orbitals using primary basis set
-      TYPE(cp_fm_type), POINTER                          :: rho_ao_orb_fm_sub
+      TYPE(cp_fm_type), POINTER                          :: rho_ao_orb_fm_sub => NULL()
       !
       ! NOTE: we do not need the next 2 matrices in case of a sparse matrix 'tddfpt_subgroup_env_type%admm_A'
       !
       !> electron density expressed in terms of atomic orbitals using auxiliary basis set;
       !> can be seen as a group-specific version of the matrix 'admm_type%work_aux_aux'
-      TYPE(cp_fm_type), POINTER                          :: rho_ao_aux_fit_fm_sub
+      TYPE(cp_fm_type), POINTER                          :: rho_ao_aux_fit_fm_sub => NULL()
       !> group-specific version of the matrix 'admm_type%work_aux_orb' with shape [nao_aux x nao]
-      TYPE(cp_fm_type), POINTER                          :: wfm_aux_orb_sub
+      TYPE(cp_fm_type), POINTER                          :: wfm_aux_orb_sub => NULL()
       !
       ! *** sparse matrices distributed across parallel (sub)groups ***
       !
       !> sparse matrix with shape [nao x nao] distributed across subgroups;
       !> Aop_evects_sub(spin,:) = A_ia_munu_sub(spin) * mos_occ(spin)
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: A_ia_munu_sub
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: A_ia_munu_sub => NULL()
       !
       ! *** structures to store electron densities distributed across parallel (sub)groups ***
       !
       !> electron density in terms of primary basis set
-      TYPE(qs_rho_type), POINTER                         :: rho_orb_struct_sub
+      TYPE(qs_rho_type), POINTER                         :: rho_orb_struct_sub => NULL()
       !> electron density for XC in GAPW_XC
-      TYPE(qs_rho_type), POINTER                         :: rho_xc_struct_sub
+      TYPE(qs_rho_type), POINTER                         :: rho_xc_struct_sub => NULL()
       !> electron density in terms of auxiliary basis set
-      TYPE(qs_rho_type), POINTER                         :: rho_aux_fit_struct_sub
+      TYPE(qs_rho_type), POINTER                         :: rho_aux_fit_struct_sub => NULL()
       !> group-specific copy of a Coulomb/xc-potential on a real-space grid
-      TYPE(pw_type), DIMENSION(:), POINTER             :: A_ia_rspace_sub
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER             :: A_ia_rspace_sub => NULL()
       !> group-specific copy of a reciprocal-space grid
-      TYPE(pw_type), DIMENSION(:), POINTER             :: wpw_gspace_sub
+      TYPE(pw_c1d_gs_type), DIMENSION(:), POINTER             :: wpw_gspace_sub => NULL()
       !> group-specific copy of a real-space grid
-      TYPE(pw_type), DIMENSION(:), POINTER             :: wpw_rspace_sub
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER             :: wpw_rspace_sub => NULL()
       !> group-specific copy of a real-space grid for the kinetic energy density
-      TYPE(pw_type), DIMENSION(:), POINTER             :: wpw_tau_rspace_sub
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER             :: wpw_tau_rspace_sub => NULL()
       !
       ! *** real space pw grid to hold fxc kernel <> A_ia_rspace_sub ***
       !
-      TYPE(pw_type), DIMENSION(:), POINTER             :: fxc_rspace_sub
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER             :: fxc_rspace_sub => NULL()
       !
       ! *** globally distributed matrices required to compute exact exchange terms ***
       !
       !> globally distributed version of the matrix 'rho_ao_orb_fm_sub' to store the electron density
-      TYPE(cp_fm_type), POINTER                          :: hfx_fm_ao_ao
+      TYPE(cp_fm_type), POINTER                          :: hfx_fm_ao_ao => NULL()
       !> sparse matrix to store the electron density in terms of auxiliary (ADMM calculation)
       !> or primary (regular calculation) basis set
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: hfx_rho_ao_symm, hfx_rho_ao_asymm
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: hfx_rho_ao_symm => NULL(), hfx_rho_ao_asymm => NULL()
       !> exact exchange expressed in terms of auxiliary or primary basis set
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: hfx_hmat_symm, hfx_hmat_asymm
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: hfx_hmat_symm => NULL(), hfx_hmat_asymm => NULL()
+      !> SR exact exchage matrices
+      TYPE(cp_fm_type), POINTER                          :: hfxsr_fm_ao_ao => NULL()
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: hfxsr_rho_ao_symm => NULL(), hfxsr_rho_ao_asymm => NULL()
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: hfxsr_hmat_symm => NULL(), hfxsr_hmat_asymm => NULL()
       !
       ! *** matrices required for sTDA kernel, all matrices are within subgroups
       !
       ! Short-range gamma exchange matrix
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: gamma_exchange
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: gamma_exchange => NULL()
       !Lowdin MO coefficients: NAO*NOCC
-      TYPE(cp_fm_type), DIMENSION(:), POINTER          :: ctransformed
+      TYPE(cp_fm_type), DIMENSION(:), POINTER            :: ctransformed => NULL()
       !S^1/2
-      TYPE(dbcsr_type), POINTER                          :: shalf
+      TYPE(dbcsr_type), POINTER                          :: shalf => NULL()
       !Eigenvalues/eigenvectors of the overlap matrix, used in sTDA forces (Lowdin derivatives)
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: S_eigenvalues
-      TYPE(cp_fm_type), POINTER                          :: S_eigenvectors
-      TYPE(cp_fm_type), POINTER                          :: slambda
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: S_eigenvalues => NULL()
+      TYPE(cp_fm_type), POINTER                          :: S_eigenvectors => NULL()
+      TYPE(cp_fm_type), POINTER                          :: slambda => NULL()
       !Ewald environments
-      TYPE(ewald_environment_type), POINTER              :: ewald_env
-      TYPE(ewald_pw_type), POINTER                       :: ewald_pw
+      TYPE(ewald_environment_type), POINTER              :: ewald_env => NULL()
+      TYPE(ewald_pw_type), POINTER                       :: ewald_pw => NULL()
       !> GAPW local atomic grids
-      TYPE(hartree_local_type), POINTER                  :: hartree_local
-      TYPE(local_rho_type), POINTER                      :: local_rho_set
-      TYPE(local_rho_type), POINTER                      :: local_rho_set_admm
+      TYPE(hartree_local_type), POINTER                  :: hartree_local => NULL()
+      TYPE(local_rho_type), POINTER                      :: local_rho_set => NULL()
+      TYPE(local_rho_type), POINTER                      :: local_rho_set_admm => NULL()
    END TYPE tddfpt_work_matrices
 
 CONTAINS
@@ -210,19 +212,20 @@ CONTAINS
 !> \param do_hfx         flag that requested to allocate work matrices required for computation
 !>                       of exact-exchange terms
 !> \param do_admm ...
+!> \param do_hfxlr ...
 !> \param do_exck ...
 !> \param qs_env         Quickstep environment
 !> \param sub_env        parallel group environment
 !> \par History
 !>    * 02.2017 created [Sergey Chulkov]
 ! **************************************************************************************************
-   SUBROUTINE tddfpt_create_work_matrices(work_matrices, gs_mos, nstates, do_hfx, do_admm, do_exck, &
-                                          qs_env, sub_env)
+   SUBROUTINE tddfpt_create_work_matrices(work_matrices, gs_mos, nstates, do_hfx, do_admm, &
+                                          do_hfxlr, do_exck, qs_env, sub_env)
       TYPE(tddfpt_work_matrices), INTENT(out)            :: work_matrices
       TYPE(tddfpt_ground_state_mos), DIMENSION(:), &
          INTENT(in)                                      :: gs_mos
       INTEGER, INTENT(in)                                :: nstates
-      LOGICAL, INTENT(in)                                :: do_hfx, do_admm, do_exck
+      LOGICAL, INTENT(in)                                :: do_hfx, do_admm, do_hfxlr, do_exck
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(tddfpt_subgroup_env_type), INTENT(in)         :: sub_env
 
@@ -259,9 +262,12 @@ CONTAINS
       NULLIFY (work_matrices%S_eigenvectors)
       NULLIFY (work_matrices%slambda)
 
+      ! GAPW
       NULLIFY (work_matrices%hartree_local)
       NULLIFY (work_matrices%local_rho_set)
       NULLIFY (work_matrices%local_rho_set_admm)
+
+      ! EXCK
       NULLIFY (work_matrices%rho_xc_struct_sub)
 
       nspins = SIZE(gs_mos)
@@ -412,15 +418,10 @@ CONTAINS
       ALLOCATE (work_matrices%wpw_gspace_sub(nspins), work_matrices%wpw_rspace_sub(nspins), &
                 work_matrices%wpw_tau_rspace_sub(nspins))
       DO ispin = 1, nspins
-         CALL auxbas_pw_pool%create_pw(work_matrices%A_ia_rspace_sub(ispin), &
-                                       use_data=REALDATA3D, in_space=REALSPACE)
-
-         CALL auxbas_pw_pool%create_pw(work_matrices%wpw_gspace_sub(ispin), &
-                                       use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
-         CALL auxbas_pw_pool%create_pw(work_matrices%wpw_rspace_sub(ispin), &
-                                       use_data=REALDATA3D, in_space=REALSPACE)
-         CALL auxbas_pw_pool%create_pw(work_matrices%wpw_tau_rspace_sub(ispin), &
-                                       use_data=REALDATA3D, in_space=REALSPACE)
+         CALL auxbas_pw_pool%create_pw(work_matrices%A_ia_rspace_sub(ispin))
+         CALL auxbas_pw_pool%create_pw(work_matrices%wpw_gspace_sub(ispin))
+         CALL auxbas_pw_pool%create_pw(work_matrices%wpw_rspace_sub(ispin))
+         CALL auxbas_pw_pool%create_pw(work_matrices%wpw_tau_rspace_sub(ispin))
       END DO
 
       ! fxc kernel potential real space grid
@@ -428,8 +429,7 @@ CONTAINS
          ! we need spins: aa, ab, bb
          ALLOCATE (work_matrices%fxc_rspace_sub(3))
          DO ispin = 1, 3
-            CALL auxbas_pw_pool%create_pw(work_matrices%fxc_rspace_sub(ispin), &
-                                          use_data=REALDATA3D, in_space=REALSPACE)
+            CALL auxbas_pw_pool%create_pw(work_matrices%fxc_rspace_sub(ispin))
          END DO
       ELSE
          NULLIFY (work_matrices%fxc_rspace_sub)
@@ -512,9 +512,113 @@ CONTAINS
          END DO
       END IF
 
+      ! matrices needed to do HFX short range calllculations
+      NULLIFY (work_matrices%hfxsr_fm_ao_ao, work_matrices%hfxsr_rho_ao_symm, work_matrices%hfxsr_hmat_symm, &
+               work_matrices%hfxsr_rho_ao_asymm, work_matrices%hfxsr_hmat_asymm)
+      ! matrices needed to do HFX long range calllculations
+      IF (do_hfxlr) THEN
+         DO ispin = 1, nspins
+            CALL cp_fm_struct_create(fm_struct_evects(ispin)%struct, nrow_global=nao, &
+                                     ncol_global=nmo_occ(ispin), context=sub_env%blacs_env)
+         END DO
+         CALL dbcsr_init_p(work_matrices%shalf)
+         CALL dbcsr_create(work_matrices%shalf, template=matrix_s(1)%matrix)
+         ALLOCATE (work_matrices%ctransformed(nspins))
+         DO ispin = 1, nspins
+            CALL cp_fm_create(work_matrices%ctransformed(ispin), fm_struct_evects(ispin)%struct)
+         END DO
+         ! forces
+         ALLOCATE (work_matrices%S_eigenvalues(nao))
+         NULLIFY (fm_struct)
+         CALL cp_fm_struct_create(fm_struct, nrow_global=nao, ncol_global=nao, context=blacs_env)
+         ALLOCATE (work_matrices%S_eigenvectors, work_matrices%slambda)
+         CALL cp_fm_create(work_matrices%S_eigenvectors, fm_struct)
+         CALL cp_fm_create(work_matrices%slambda, fm_struct)
+         !
+         CALL cp_fm_struct_release(fm_struct)
+         DO ispin = 1, nspins
+            CALL cp_fm_struct_release(fm_struct_evects(ispin)%struct)
+         END DO
+      END IF
+
       CALL timestop(handle)
 
    END SUBROUTINE tddfpt_create_work_matrices
+
+! **************************************************************************************************
+!> \brief Allocate work matrices for hfxsr
+!> \param work_matrices  work matrices (allocated on exit)
+!> \param qs_env ...
+!> \param admm_env ...
+! **************************************************************************************************
+   SUBROUTINE hfxsr_create_work_matrices(work_matrices, qs_env, admm_env)
+      TYPE(tddfpt_work_matrices), INTENT(inout)          :: work_matrices
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(admm_type), POINTER                           :: admm_env
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'hfxsr_create_work_matrices'
+
+      INTEGER                                            :: handle, ispin, nao, nao_aux, nspins
+      TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
+      TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
+      TYPE(dbcsr_distribution_type), POINTER             :: dbcsr_dist
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s, matrix_s_aux_fit
+      TYPE(dbcsr_type), POINTER                          :: dbcsr_template_hfx
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
+         POINTER                                         :: sab_hfx
+
+      CALL timeset(routineN, handle)
+
+      ! matrices needed to do HFX short range calllculations
+      NULLIFY (work_matrices%hfxsr_fm_ao_ao, work_matrices%hfxsr_rho_ao_symm, work_matrices%hfxsr_hmat_symm, &
+               work_matrices%hfxsr_rho_ao_asymm, work_matrices%hfxsr_hmat_asymm)
+
+      CALL get_qs_env(qs_env, dft_control=dft_control, matrix_s=matrix_s, &
+                      blacs_env=blacs_env, dbcsr_dist=dbcsr_dist)
+      nspins = dft_control%nspins
+      CALL dbcsr_get_info(matrix_s(1)%matrix, nfullrows_total=nao)
+      CALL get_admm_env(admm_env, matrix_s_aux_fit=matrix_s_aux_fit)
+      dbcsr_template_hfx => matrix_s_aux_fit(1)%matrix
+      CALL dbcsr_get_info(dbcsr_template_hfx, nfullrows_total=nao_aux)
+
+      CALL cp_fm_struct_create(fm_struct, nrow_global=nao, ncol_global=nao, context=blacs_env)
+      ALLOCATE (work_matrices%hfxsr_fm_ao_ao)
+      CALL cp_fm_create(work_matrices%hfxsr_fm_ao_ao, fm_struct)
+      CALL cp_fm_struct_release(fm_struct)
+
+      CALL get_admm_env(admm_env, sab_aux_fit=sab_hfx)
+      CALL dbcsr_allocate_matrix_set(work_matrices%hfxsr_rho_ao_symm, nspins)
+      CALL dbcsr_allocate_matrix_set(work_matrices%hfxsr_rho_ao_asymm, nspins)
+      DO ispin = 1, nspins
+         CALL dbcsr_init_p(work_matrices%hfxsr_rho_ao_symm(ispin)%matrix)
+         CALL tddfpt_dbcsr_create_by_dist(work_matrices%hfxsr_rho_ao_symm(ispin)%matrix, &
+                                          template=dbcsr_template_hfx, dbcsr_dist=dbcsr_dist, sab=sab_hfx)
+
+         CALL dbcsr_init_p(work_matrices%hfxsr_rho_ao_asymm(ispin)%matrix)
+         CALL dbcsr_create(work_matrices%hfxsr_rho_ao_asymm(ispin)%matrix, matrix_type=dbcsr_type_antisymmetric, &
+                           template=work_matrices%hfxsr_rho_ao_symm(ispin)%matrix)
+         CALL dbcsr_complete_redistribute(work_matrices%hfxsr_rho_ao_symm(ispin)%matrix, &
+                                          work_matrices%hfxsr_rho_ao_asymm(ispin)%matrix)
+      END DO
+
+      CALL dbcsr_allocate_matrix_set(work_matrices%hfxsr_hmat_symm, nspins)
+      CALL dbcsr_allocate_matrix_set(work_matrices%hfxsr_hmat_asymm, nspins)
+      DO ispin = 1, nspins
+         CALL dbcsr_init_p(work_matrices%hfxsr_hmat_symm(ispin)%matrix)
+         CALL tddfpt_dbcsr_create_by_dist(work_matrices%hfxsr_hmat_symm(ispin)%matrix, &
+                                          template=dbcsr_template_hfx, dbcsr_dist=dbcsr_dist, sab=sab_hfx)
+
+         CALL dbcsr_init_p(work_matrices%hfxsr_hmat_asymm(ispin)%matrix)
+         CALL dbcsr_create(work_matrices%hfxsr_hmat_asymm(ispin)%matrix, matrix_type=dbcsr_type_antisymmetric, &
+                           template=work_matrices%hfxsr_hmat_symm(ispin)%matrix)
+         CALL dbcsr_complete_redistribute(work_matrices%hfxsr_hmat_symm(ispin)%matrix, &
+                                          work_matrices%hfxsr_hmat_asymm(ispin)%matrix)
+      END DO
+
+      CALL timestop(handle)
+
+   END SUBROUTINE hfxsr_create_work_matrices
 
 ! **************************************************************************************************
 !> \brief Allocate work matrices for sTDA kernel
@@ -631,6 +735,8 @@ CONTAINS
       NULLIFY (work_matrices%rho_orb_struct_sub)
       NULLIFY (work_matrices%hfx_fm_ao_ao, work_matrices%hfx_rho_ao_symm, work_matrices%hfx_hmat_symm, &
                work_matrices%hfx_rho_ao_asymm, work_matrices%hfx_hmat_asymm)
+      NULLIFY (work_matrices%hfxsr_fm_ao_ao, work_matrices%hfxsr_rho_ao_symm, work_matrices%hfxsr_hmat_symm, &
+               work_matrices%hfxsr_rho_ao_asymm, work_matrices%hfxsr_hmat_asymm)
       NULLIFY (work_matrices%A_ia_rspace_sub, work_matrices%wpw_gspace_sub, &
                work_matrices%wpw_rspace_sub)
       NULLIFY (work_matrices%fxc_rspace_sub)
@@ -698,6 +804,40 @@ CONTAINS
       IF (ASSOCIATED(work_matrices%hfx_fm_ao_ao)) THEN
          CALL cp_fm_release(work_matrices%hfx_fm_ao_ao)
          DEALLOCATE (work_matrices%hfx_fm_ao_ao)
+      END IF
+
+      ! HFXSR-related matrices
+      IF (ASSOCIATED(work_matrices%hfxsr_hmat_symm)) THEN
+         DO ispin = SIZE(work_matrices%hfxsr_hmat_symm), 1, -1
+            CALL dbcsr_deallocate_matrix(work_matrices%hfxsr_hmat_symm(ispin)%matrix)
+         END DO
+         DEALLOCATE (work_matrices%hfxsr_hmat_symm)
+      END IF
+
+      IF (ASSOCIATED(work_matrices%hfxsr_hmat_asymm)) THEN
+         DO ispin = SIZE(work_matrices%hfxsr_hmat_asymm), 1, -1
+            CALL dbcsr_deallocate_matrix(work_matrices%hfxsr_hmat_asymm(ispin)%matrix)
+         END DO
+         DEALLOCATE (work_matrices%hfxsr_hmat_asymm)
+      END IF
+
+      IF (ASSOCIATED(work_matrices%hfxsr_rho_ao_symm)) THEN
+         DO ispin = SIZE(work_matrices%hfxsr_rho_ao_symm), 1, -1
+            CALL dbcsr_deallocate_matrix(work_matrices%hfxsr_rho_ao_symm(ispin)%matrix)
+         END DO
+         DEALLOCATE (work_matrices%hfxsr_rho_ao_symm)
+      END IF
+
+      IF (ASSOCIATED(work_matrices%hfxsr_rho_ao_asymm)) THEN
+         DO ispin = SIZE(work_matrices%hfxsr_rho_ao_asymm), 1, -1
+            CALL dbcsr_deallocate_matrix(work_matrices%hfxsr_rho_ao_asymm(ispin)%matrix)
+         END DO
+         DEALLOCATE (work_matrices%hfxsr_rho_ao_asymm)
+      END IF
+
+      IF (ASSOCIATED(work_matrices%hfxsr_fm_ao_ao)) THEN
+         CALL cp_fm_release(work_matrices%hfxsr_fm_ao_ao)
+         DEALLOCATE (work_matrices%hfxsr_fm_ao_ao)
       END IF
 
       ! real-space and reciprocal-space grids

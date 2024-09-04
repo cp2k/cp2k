@@ -208,11 +208,17 @@ CONTAINS
          END DO
 !$OMP END DO
       END DO
-!$OMP END PARALLEL
 
+!$OMP DO
       DO iproc = 0, numnodes - 1
          DEALLOCATE (buffer_recv(iproc)%blocks, buffer_recv(iproc)%data)
       END DO
+!$OMP END DO
+!$OMP END PARALLEL
+
+      DEALLOCATE (nblks_recv_total, ndata_recv_total)
+      DEALLOCATE (nblks_send_total, ndata_send_total)
+      DEALLOCATE (buffer_send, buffer_recv)
 
       IF (move_prv) CALL dbt_clear(tensor_in)
 

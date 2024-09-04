@@ -33,12 +33,10 @@ MODULE pw_gpu
         release_fft_scratch, x_to_yz, xz_to_yz, yz_to_x, yz_to_xz
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: z_zero
-   USE message_passing,                 ONLY: mp_cart_type,&
-                                              mp_comm_type
+   USE message_passing,                 ONLY: mp_cart_type
    USE pw_grid_types,                   ONLY: FULLSPACE
-   USE pw_types,                        ONLY: REALSPACE,&
-                                              RECIPROCALSPACE,&
-                                              pw_type
+   USE pw_types,                        ONLY: pw_c1d_gs_type,&
+                                              pw_r3d_rs_type
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -98,13 +96,11 @@ CONTAINS
 !> \brief perform an fft followed by a gather on the gpu
 !> \param pw1 ...
 !> \param pw2 ...
-!> \param scale ...
 !> \author Benjamin G Levine
 ! **************************************************************************************************
-   SUBROUTINE pw_gpu_r3dc1d_3d(pw1, pw2, scale)
-      TYPE(pw_type), INTENT(IN)                          :: pw1
-      TYPE(pw_type), INTENT(INOUT)                       :: pw2
-      REAL(KIND=dp), INTENT(IN)                          :: scale
+   SUBROUTINE pw_gpu_r3dc1d_3d(pw1, pw2)
+      TYPE(pw_r3d_rs_type), INTENT(IN)                   :: pw1
+      TYPE(pw_c1d_gs_type), INTENT(INOUT)                :: pw2
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_gpu_r3dc1d_3d'
 
@@ -112,6 +108,7 @@ CONTAINS
       INTEGER                                            :: handle, l1, l2, l3, ngpts
       INTEGER, DIMENSION(:), POINTER                     :: npts
       INTEGER, POINTER                                   :: ptr_ghatmap
+      REAL(KIND=dp)                                      :: scale
       REAL(KIND=dp), POINTER                             :: ptr_pwin
       INTERFACE
          SUBROUTINE pw_gpu_cfffg_c(din, zout, ghatmap, npts, ngpts, scale) BIND(C, name="pw_gpu_cfffg")
@@ -128,15 +125,17 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
+      scale = 1.0_dp/REAL(pw1%pw_grid%ngpts, KIND=dp)
+
       ngpts = SIZE(pw2%pw_grid%gsq)
-      l1 = LBOUND(pw1%cr3d, 1)
-      l2 = LBOUND(pw1%cr3d, 2)
-      l3 = LBOUND(pw1%cr3d, 3)
+      l1 = LBOUND(pw1%array, 1)
+      l2 = LBOUND(pw1%array, 2)
+      l3 = LBOUND(pw1%array, 3)
       npts => pw1%pw_grid%npts
 
       ! pointers to data arrays
-      ptr_pwin => pw1%cr3d(l1, l2, l3)
-      ptr_pwout => pw2%cc(1)
+      ptr_pwin => pw1%array(l1, l2, l3)
+      ptr_pwout => pw2%array(1)
 
       ! pointer to map array
       ptr_ghatmap => pw2%pw_grid%g_hatmap(1, 1)
@@ -145,11 +144,8 @@ CONTAINS
 #if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_PW)
       CALL pw_gpu_cfffg_c(c_loc(ptr_pwin), c_loc(ptr_pwout), c_loc(ptr_ghatmap), npts, ngpts, scale)
 #else
-      MARK_USED(scale)
       CPABORT("Compiled without pw offloading.")
 #endif
-
-      pw2%in_space = RECIPROCALSPACE
 
       CALL timestop(handle)
    END SUBROUTINE pw_gpu_r3dc1d_3d
@@ -158,13 +154,11 @@ CONTAINS
 !> \brief perform an scatter followed by a fft on the gpu
 !> \param pw1 ...
 !> \param pw2 ...
-!> \param scale ...
 !> \author Benjamin G Levine
 ! **************************************************************************************************
-   SUBROUTINE pw_gpu_c1dr3d_3d(pw1, pw2, scale)
-      TYPE(pw_type), INTENT(IN)                          :: pw1
-      TYPE(pw_type), INTENT(INOUT)                       :: pw2
-      REAL(KIND=dp), INTENT(IN)                          :: scale
+   SUBROUTINE pw_gpu_c1dr3d_3d(pw1, pw2)
+      TYPE(pw_c1d_gs_type), INTENT(IN)                   :: pw1
+      TYPE(pw_r3d_rs_type), INTENT(INOUT)                :: pw2
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_gpu_c1dr3d_3d'
 
@@ -172,6 +166,7 @@ CONTAINS
       INTEGER                                            :: handle, l1, l2, l3, ngpts, nmaps
       INTEGER, DIMENSION(:), POINTER                     :: npts
       INTEGER, POINTER                                   :: ptr_ghatmap
+      REAL(KIND=dp)                                      :: scale
       REAL(KIND=dp), POINTER                             :: ptr_pwout
       INTERFACE
          SUBROUTINE pw_gpu_sfffc_c(zin, dout, ghatmap, npts, ngpts, nmaps, scale) BIND(C, name="pw_gpu_sfffc")
@@ -187,15 +182,17 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
+      scale = 1.0_dp
+
       ngpts = SIZE(pw1%pw_grid%gsq)
-      l1 = LBOUND(pw2%cr3d, 1)
-      l2 = LBOUND(pw2%cr3d, 2)
-      l3 = LBOUND(pw2%cr3d, 3)
+      l1 = LBOUND(pw2%array, 1)
+      l2 = LBOUND(pw2%array, 2)
+      l3 = LBOUND(pw2%array, 3)
       npts => pw1%pw_grid%npts
 
       ! pointers to data arrays
-      ptr_pwin => pw1%cc(1)
-      ptr_pwout => pw2%cr3d(l1, l2, l3)
+      ptr_pwin => pw1%array(1)
+      ptr_pwout => pw2%array(l1, l2, l3)
 
       ! pointer to map array
       nmaps = SIZE(pw1%pw_grid%g_hatmap, 2)
@@ -205,11 +202,8 @@ CONTAINS
 #if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_PW)
       CALL pw_gpu_sfffc_c(c_loc(ptr_pwin), c_loc(ptr_pwout), c_loc(ptr_ghatmap), npts, ngpts, nmaps, scale)
 #else
-      MARK_USED(scale)
       CPABORT("Compiled without pw offloading")
 #endif
-
-      pw2%in_space = REALSPACE
 
       CALL timestop(handle)
    END SUBROUTINE pw_gpu_c1dr3d_3d
@@ -218,31 +212,30 @@ CONTAINS
 !> \brief perform an parallel fft followed by a gather on the gpu
 !> \param pw1 ...
 !> \param pw2 ...
-!> \param scale ...
 !> \author Andreas Gloess
 ! **************************************************************************************************
-   SUBROUTINE pw_gpu_r3dc1d_3d_ps(pw1, pw2, scale)
-      TYPE(pw_type), INTENT(IN)                          :: pw1
-      TYPE(pw_type), INTENT(INOUT)                       :: pw2
-      REAL(KIND=dp), INTENT(IN)                          :: scale
+   SUBROUTINE pw_gpu_r3dc1d_3d_ps(pw1, pw2)
+      TYPE(pw_r3d_rs_type), INTENT(IN)                   :: pw1
+      TYPE(pw_c1d_gs_type), INTENT(INOUT)                :: pw2
 
       CHARACTER(len=*), PARAMETER :: routineN = 'pw_gpu_r3dc1d_3d_ps'
 
       COMPLEX(KIND=dp), DIMENSION(:, :), POINTER         :: grays, pbuf, qbuf, rbuf, sbuf
       COMPLEX(KIND=dp), DIMENSION(:, :, :), POINTER      :: tbuf
       INTEGER                                            :: g_pos, handle, lg, lmax, mg, mmax, mx2, &
-                                                            mz2, n1, n2, ngpts, nmax, numtask, &
-                                                            numtask_g, numtask_r, rp
+                                                            mz2, n1, n2, ngpts, nmax, numtask, rp
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: p2p
       INTEGER, DIMENSION(2)                              :: r_dim, r_pos
       INTEGER, DIMENSION(:), POINTER                     :: n, nloc, nyzray
       INTEGER, DIMENSION(:, :, :, :), POINTER            :: bo
+      REAL(KIND=dp)                                      :: scale
       TYPE(fft_scratch_sizes)                            :: fft_scratch_size
       TYPE(fft_scratch_type), POINTER                    :: fft_scratch
       TYPE(mp_cart_type)                                 :: rs_group
-      TYPE(mp_comm_type)                                 :: gs_group
 
       CALL timeset(routineN, handle)
+
+      scale = 1.0_dp/REAL(pw1%pw_grid%ngpts, KIND=dp)
 
       ! dimensions
       n => pw1%pw_grid%npts
@@ -252,20 +245,14 @@ CONTAINS
 
       !..transform
       IF (pw1%pw_grid%para%ray_distribution) THEN
-         gs_group = pw1%pw_grid%para%group
-         rs_group = pw1%pw_grid%para%rs_group
+         rs_group = pw1%pw_grid%para%group
          nyzray => pw1%pw_grid%para%nyzray
          bo => pw1%pw_grid%para%bo
 
-         numtask_g = gs_group%num_pe
-         g_pos = gs_group%mepos
-         numtask_r = rs_group%num_pe
+         g_pos = rs_group%mepos
+         numtask = rs_group%num_pe
          r_dim = rs_group%num_pe_cart
          r_pos = rs_group%mepos_cart
-         IF (numtask_g /= numtask_r) THEN
-            CPABORT("Real space and G space groups are different.")
-         END IF
-         numtask = numtask_r
 
          lg = SIZE(grays, 1)
          mg = SIZE(grays, 2)
@@ -274,7 +261,7 @@ CONTAINS
 
          ALLOCATE (p2p(0:numtask - 1))
 
-         CALL gs_group%rank_compare(rs_group, p2p)
+         CALL rs_group%rank_compare(rs_group, p2p)
 
          rp = p2p(g_pos)
          mx2 = bo(2, 1, rp, 2) - bo(1, 1, rp, 2) + 1
@@ -303,7 +290,6 @@ CONTAINS
          fft_scratch_size%nmax = nmax
          fft_scratch_size%nmray = MAXVAL(nyzray)
          fft_scratch_size%nyzray = nyzray(g_pos)
-         fft_scratch_size%gs_group = gs_group
          fft_scratch_size%rs_group = rs_group
          fft_scratch_size%g_pos = g_pos
          fft_scratch_size%r_pos = r_pos
@@ -364,7 +350,7 @@ CONTAINS
             CALL pw_gpu_cff(pw1, tbuf)
 
             ! Exchange data ( transpose of matrix ) and sort
-            CALL yz_to_x(tbuf, gs_group, g_pos, p2p, pw1%pw_grid%para%yzp, nyzray, &
+            CALL yz_to_x(tbuf, rs_group, g_pos, p2p, pw1%pw_grid%para%yzp, nyzray, &
                          bo(:, :, :, 2), sbuf, fft_scratch)
 
             ! FFT along x
@@ -379,11 +365,7 @@ CONTAINS
 !--------------------------------------------------------------------------
       ELSE
          CPABORT("Not implemented (no ray_distr.) in: pw_gpu_r3dc1d_3d_ps.")
-         !CALL fft3d ( dir, n, pwin, grays, pw1%pw_grid%para%rs_group, &
-         !     pw1%pw_grid%para%bo, scale = scale, debug=test )
       END IF
-
-      pw2%in_space = RECIPROCALSPACE
 
       CALL timestop(handle)
    END SUBROUTINE pw_gpu_r3dc1d_3d_ps
@@ -392,31 +374,30 @@ CONTAINS
 !> \brief perform an parallel scatter followed by a fft on the gpu
 !> \param pw1 ...
 !> \param pw2 ...
-!> \param scale ...
 !> \author Andreas Gloess
 ! **************************************************************************************************
-   SUBROUTINE pw_gpu_c1dr3d_3d_ps(pw1, pw2, scale)
-      TYPE(pw_type), INTENT(IN)                          :: pw1
-      TYPE(pw_type), INTENT(INOUT)                       :: pw2
-      REAL(KIND=dp), INTENT(IN)                          :: scale
+   SUBROUTINE pw_gpu_c1dr3d_3d_ps(pw1, pw2)
+      TYPE(pw_c1d_gs_type), INTENT(IN)                   :: pw1
+      TYPE(pw_r3d_rs_type), INTENT(INOUT)                :: pw2
 
       CHARACTER(len=*), PARAMETER :: routineN = 'pw_gpu_c1dr3d_3d_ps'
 
       COMPLEX(KIND=dp), DIMENSION(:, :), POINTER         :: grays, pbuf, qbuf, rbuf, sbuf
       COMPLEX(KIND=dp), DIMENSION(:, :, :), POINTER      :: tbuf
       INTEGER                                            :: g_pos, handle, lg, lmax, mg, mmax, mx2, &
-                                                            mz2, n1, n2, ngpts, nmax, numtask, &
-                                                            numtask_g, numtask_r, rp
+                                                            mz2, n1, n2, ngpts, nmax, numtask, rp
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: p2p
       INTEGER, DIMENSION(2)                              :: r_dim, r_pos
       INTEGER, DIMENSION(:), POINTER                     :: n, nloc, nyzray
       INTEGER, DIMENSION(:, :, :, :), POINTER            :: bo
+      REAL(KIND=dp)                                      :: scale
       TYPE(fft_scratch_sizes)                            :: fft_scratch_size
       TYPE(fft_scratch_type), POINTER                    :: fft_scratch
       TYPE(mp_cart_type)                                 :: rs_group
-      TYPE(mp_comm_type)                                 :: gs_group
 
       CALL timeset(routineN, handle)
+
+      scale = 1.0_dp
 
       ! dimensions
       n => pw1%pw_grid%npts
@@ -426,20 +407,14 @@ CONTAINS
 
       !..transform
       IF (pw1%pw_grid%para%ray_distribution) THEN
-         gs_group = pw1%pw_grid%para%group
-         rs_group = pw1%pw_grid%para%rs_group
+         rs_group = pw1%pw_grid%para%group
          nyzray => pw1%pw_grid%para%nyzray
          bo => pw1%pw_grid%para%bo
 
-         numtask_g = gs_group%num_pe
-         g_pos = gs_group%mepos
-         numtask_r = rs_group%num_pe
+         g_pos = rs_group%mepos
+         numtask = rs_group%num_pe
          r_dim = rs_group%num_pe_cart
          r_pos = rs_group%mepos_cart
-         IF (numtask_g /= numtask_r) THEN
-            CPABORT("Real space and G space groups are different.")
-         END IF
-         numtask = numtask_r
 
          lg = SIZE(grays, 1)
          mg = SIZE(grays, 2)
@@ -448,7 +423,7 @@ CONTAINS
 
          ALLOCATE (p2p(0:numtask - 1))
 
-         CALL gs_group%rank_compare(rs_group, p2p)
+         CALL rs_group%rank_compare(rs_group, p2p)
 
          rp = p2p(g_pos)
          mx2 = bo(2, 1, rp, 2) - bo(1, 1, rp, 2) + 1
@@ -477,7 +452,6 @@ CONTAINS
          fft_scratch_size%nmax = nmax
          fft_scratch_size%nmray = MAXVAL(nyzray)
          fft_scratch_size%nyzray = nyzray(g_pos)
-         fft_scratch_size%gs_group = gs_group
          fft_scratch_size%rs_group = rs_group
          fft_scratch_size%g_pos = g_pos
          fft_scratch_size%r_pos = r_pos
@@ -542,7 +516,7 @@ CONTAINS
 
             ! Exchange data ( transpose of matrix ) and sort
             IF (pw1%pw_grid%grid_span /= FULLSPACE) tbuf = z_zero
-            CALL x_to_yz(sbuf, gs_group, g_pos, p2p, pw1%pw_grid%para%yzp, nyzray, &
+            CALL x_to_yz(sbuf, rs_group, g_pos, p2p, pw1%pw_grid%para%yzp, nyzray, &
                          bo(:, :, :, 2), tbuf, fft_scratch)
 
             ! FFT along y and z
@@ -557,11 +531,7 @@ CONTAINS
 !--------------------------------------------------------------------------
       ELSE
          CPABORT("Not implemented (no ray_distr.) in: pw_gpu_c1dr3d_3d_ps.")
-         !CALL fft3d ( dir, n, pwin, grays, pw1%pw_grid%para%rs_group, &
-         !     pw1%pw_grid%para%bo, scale = scale, debug=test )
       END IF
-
-      pw2%in_space = REALSPACE
 
       CALL timestop(handle)
    END SUBROUTINE pw_gpu_c1dr3d_3d_ps
@@ -573,7 +543,7 @@ CONTAINS
 !> \author Andreas Gloess
 ! **************************************************************************************************
    SUBROUTINE pw_gpu_cff(pw1, pwbuf)
-      TYPE(pw_type), INTENT(IN)                          :: pw1
+      TYPE(pw_r3d_rs_type), INTENT(IN)                   :: pw1
       COMPLEX(KIND=dp), DIMENSION(:, :, :), &
          INTENT(INOUT), TARGET                           :: pwbuf
 
@@ -596,12 +566,12 @@ CONTAINS
 
       ! dimensions
       npts => pw1%pw_grid%npts_local
-      l1 = LBOUND(pw1%cr3d, 1)
-      l2 = LBOUND(pw1%cr3d, 2)
-      l3 = LBOUND(pw1%cr3d, 3)
+      l1 = LBOUND(pw1%array, 1)
+      l2 = LBOUND(pw1%array, 2)
+      l3 = LBOUND(pw1%array, 3)
 
       ! pointers to data arrays
-      ptr_pwin => pw1%cr3d(l1, l2, l3)
+      ptr_pwin => pw1%array(l1, l2, l3)
       ptr_pwout => pwbuf(1, 1, 1)
 
       ! invoke the combined transformation
@@ -623,7 +593,7 @@ CONTAINS
    SUBROUTINE pw_gpu_ffc(pwbuf, pw2)
       COMPLEX(KIND=dp), DIMENSION(:, :, :), INTENT(IN), &
          TARGET                                          :: pwbuf
-      TYPE(pw_type), INTENT(IN)                          :: pw2
+      TYPE(pw_r3d_rs_type), INTENT(IN)                   :: pw2
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_gpu_ffc'
 
@@ -644,13 +614,13 @@ CONTAINS
 
       ! dimensions
       npts => pw2%pw_grid%npts_local
-      l1 = LBOUND(pw2%cr3d, 1)
-      l2 = LBOUND(pw2%cr3d, 2)
-      l3 = LBOUND(pw2%cr3d, 3)
+      l1 = LBOUND(pw2%array, 1)
+      l2 = LBOUND(pw2%array, 2)
+      l3 = LBOUND(pw2%array, 3)
 
       ! pointers to data arrays
       ptr_pwin => pwbuf(1, 1, 1)
-      ptr_pwout => pw2%cr3d(l1, l2, l3)
+      ptr_pwout => pw2%array(l1, l2, l3)
 
       ! invoke the combined transformation
 #if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_PW)
@@ -669,7 +639,7 @@ CONTAINS
 !> \author Andreas Gloess
 ! **************************************************************************************************
    SUBROUTINE pw_gpu_cf(pw1, pwbuf)
-      TYPE(pw_type), INTENT(IN)                          :: pw1
+      TYPE(pw_r3d_rs_type), INTENT(IN)                   :: pw1
       COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(INOUT), &
          TARGET                                          :: pwbuf
 
@@ -692,12 +662,12 @@ CONTAINS
 
       ! dimensions
       npts => pw1%pw_grid%npts_local
-      l1 = LBOUND(pw1%cr3d, 1)
-      l2 = LBOUND(pw1%cr3d, 2)
-      l3 = LBOUND(pw1%cr3d, 3)
+      l1 = LBOUND(pw1%array, 1)
+      l2 = LBOUND(pw1%array, 2)
+      l3 = LBOUND(pw1%array, 3)
 
       ! pointers to data arrays
-      ptr_pwin => pw1%cr3d(l1, l2, l3)
+      ptr_pwin => pw1%array(l1, l2, l3)
       ptr_pwout => pwbuf(1, 1)
 
       ! invoke the combined transformation
@@ -718,7 +688,7 @@ CONTAINS
    SUBROUTINE pw_gpu_fc(pwbuf, pw2)
       COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(IN), &
          TARGET                                          :: pwbuf
-      TYPE(pw_type), INTENT(IN)                          :: pw2
+      TYPE(pw_r3d_rs_type), INTENT(IN)                   :: pw2
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_gpu_fc'
 
@@ -738,13 +708,13 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       npts => pw2%pw_grid%npts_local
-      l1 = LBOUND(pw2%cr3d, 1)
-      l2 = LBOUND(pw2%cr3d, 2)
-      l3 = LBOUND(pw2%cr3d, 3)
+      l1 = LBOUND(pw2%array, 1)
+      l2 = LBOUND(pw2%array, 2)
+      l3 = LBOUND(pw2%array, 3)
 
       ! pointers to data arrays
       ptr_pwin => pwbuf(1, 1)
-      ptr_pwout => pw2%cr3d(l1, l2, l3)
+      ptr_pwout => pw2%array(l1, l2, l3)
 
       ! invoke the combined transformation
 #if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_PW)
@@ -813,7 +783,7 @@ CONTAINS
    SUBROUTINE pw_gpu_fg(pwbuf, pw2, scale)
       COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(IN), &
          TARGET                                          :: pwbuf
-      TYPE(pw_type), INTENT(IN)                          :: pw2
+      TYPE(pw_c1d_gs_type), INTENT(IN)                   :: pw2
       REAL(KIND=dp), INTENT(IN)                          :: scale
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_gpu_fg'
@@ -846,7 +816,7 @@ CONTAINS
 
          ! pointers to data arrays
          ptr_pwin => pwbuf(1, 1)
-         ptr_pwout => pw2%cc(1)
+         ptr_pwout => pw2%array(1)
 
          ! pointer to map array
          ptr_ghatmap => pw2%pw_grid%g_hatmap(1, 1)
@@ -871,7 +841,7 @@ CONTAINS
 !> \author Andreas Gloess
 ! **************************************************************************************************
    SUBROUTINE pw_gpu_sf(pw1, pwbuf, scale)
-      TYPE(pw_type), INTENT(IN)                          :: pw1
+      TYPE(pw_c1d_gs_type), INTENT(IN)                   :: pw1
       COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(INOUT), &
          TARGET                                          :: pwbuf
       REAL(KIND=dp), INTENT(IN)                          :: scale
@@ -905,7 +875,7 @@ CONTAINS
          mmax = MAX(mg, 1)
 
          ! pointers to data arrays
-         ptr_pwin => pw1%cc(1)
+         ptr_pwin => pw1%array(1)
          ptr_pwout => pwbuf(1, 1)
 
          ! pointer to map array

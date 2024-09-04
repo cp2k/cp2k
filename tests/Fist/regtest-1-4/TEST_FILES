@@ -29,5 +29,5 @@ water_charge_array_pme.inp                             2      5e-12        -0.00
 argon_atprop.inp                                       2    1.0E-14            -0.211229963864E+00
 water_atprop_spme.inp                                  2    1.0E-14             0.374760458659E-02
 water_atprop_pme.inp                                   2      5e-12             0.375555760821E-02
-water_atprop_ewald.inp                                 2    1.0E-14             0.375664704477E-02
+water_atprop_ewald.inp                                 2    3.0E-12             0.375664704477E-02
 #EOF

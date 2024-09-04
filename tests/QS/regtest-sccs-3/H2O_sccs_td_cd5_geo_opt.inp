@@ -86,12 +86,12 @@
       DIELECTRIC_CONSTANT 78.36
       EPS_SCCS 1.0E-3
       GAMMA [mN/m] 0.0
-@IF ${OT}
+      @IF ${OT}
       EPS_SCF 0.0
-@ENDIF
-@IF ${TD}
+      @ENDIF
+      @IF ${TD}
       EPS_SCF 0.0
-@ENDIF
+      @ENDIF
       MAX_ITER 100
       METHOD Andreussi
       # METHOD Fattebert-Gygi
@@ -106,15 +106,15 @@
       &END FATTEBERT-GYGI
     &END SCCS
     &SCF
-@IF ${TD}
+      @IF ${TD}
       EPS_SCF 1.0E-3
       MAX_SCF 300
       SCF_GUESS restart
       &MIXING on
         ALPHA 0.2
       &END MIXING
-@ENDIF
-@IF ${OT}
+      @ENDIF
+      @IF ${OT}
       EPS_SCF 1.0E-4
       MAX_SCF 31
       SCF_GUESS restart
@@ -126,7 +126,7 @@
         EPS_SCF 1.0E-4
         MAX_SCF 50
       &END OUTER_SCF
-@ENDIF
+      @ENDIF
       &PRINT
         &RESTART
           BACKUP_COPIES 0

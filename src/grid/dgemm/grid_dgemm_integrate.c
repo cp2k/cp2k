@@ -223,7 +223,7 @@ void extract_cube_within_spherical_cutoff_generic(
 
           const int sizex = upper_corner[2] - lower_corner[2];
 
-          //#pragma omp simd linear(dst, src) simdlen(8)
+          // #pragma omp simd linear(dst, src) simdlen(8)
           GRID_PRAGMA_SIMD((dst, src), 8)
           for (int x = 0; x < sizex; x++) {
             dst[x] = src[x];
@@ -1075,7 +1075,7 @@ void grid_dgemm_integrate_task_list(
   if (ctx->scratch == NULL)
     ctx->scratch = malloc(hab_blocks->size * max_threads);
 
-  //#pragma omp parallel for
+  // #pragma omp parallel for
   for (int level = 0; level < ctx->nlevels; level++) {
     const _layout *layout = &ctx->layouts[level];
     set_grid_parameters(&ctx->grid[level], ctx->orthorhombic,

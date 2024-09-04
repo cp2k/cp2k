@@ -23,7 +23,7 @@ MODULE hartree_local_types
 
 ! **************************************************************************************************
    TYPE ecoul_1center_type
-      TYPE(rho_atom_coeff), POINTER   :: Vh1_h, Vh1_s
+      TYPE(rho_atom_coeff), POINTER   :: Vh1_h => NULL(), Vh1_s => NULL()
       REAL(dp)                        :: ecoul_1_h = 0.0_dp, &
                                          ecoul_1_s = 0.0_dp, &
                                          ecoul_1_z = 0.0_dp, &
@@ -33,7 +33,7 @@ MODULE hartree_local_types
 ! **************************************************************************************************
    TYPE hartree_local_type
       TYPE(ecoul_1center_type), &
-         DIMENSION(:), POINTER   :: ecoul_1c
+         DIMENSION(:), POINTER   :: ecoul_1c => NULL()
    END TYPE hartree_local_type
 
 ! *** Public subroutines ***

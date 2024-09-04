@@ -9,6 +9,9 @@ MODULE qs_tddfpt2_fhxc
    USE admm_types,                      ONLY: admm_type
    USE cp_control_types,                ONLY: dft_control_type,&
                                               stda_control_type
+   USE cp_dbcsr_api,                    ONLY: &
+        dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, dbcsr_get_info, &
+        dbcsr_p_type, dbcsr_release, dbcsr_set, dbcsr_type, dbcsr_type_symmetric
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
    USE cp_dbcsr_operations,             ONLY: copy_fm_to_dbcsr,&
                                               cp_dbcsr_plus_fm_fm_t,&
@@ -17,9 +20,6 @@ MODULE qs_tddfpt2_fhxc
                                               cp_fm_get_info,&
                                               cp_fm_release,&
                                               cp_fm_type
-   USE dbcsr_api,                       ONLY: &
-        dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, dbcsr_get_info, &
-        dbcsr_p_type, dbcsr_release, dbcsr_set, dbcsr_type, dbcsr_type_symmetric
    USE input_constants,                 ONLY: do_admm_aux_exch_func_none
    USE kinds,                           ONLY: default_string_length,&
                                               dp
@@ -31,9 +31,8 @@ MODULE qs_tddfpt2_fhxc
                                               pw_scale,&
                                               pw_zero
    USE pw_pool_types,                   ONLY: pw_pool_type
-   USE pw_types,                        ONLY: REALDATA3D,&
-                                              REALSPACE,&
-                                              pw_type
+   USE pw_types,                        ONLY: pw_c1d_gs_type,&
+                                              pw_r3d_rs_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_gapw_densities,               ONLY: prepare_gapw_den
@@ -120,10 +119,10 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(lri_kind_type), DIMENSION(:), POINTER         :: lri_v_int
       TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(pw_c1d_gs_type), DIMENSION(:), POINTER        :: rho_ia_g, rho_ia_g_aux_fit
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type), ALLOCATABLE, DIMENSION(:)           :: V_rspace_sub
-      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_ia_g, rho_ia_g_aux_fit, rho_ia_r, &
-                                                            rho_ia_r_aux_fit
+      TYPE(pw_r3d_rs_type), ALLOCATABLE, DIMENSION(:)    :: V_rspace_sub
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: rho_ia_r, rho_ia_r_aux_fit
       TYPE(rho_atom_type), DIMENSION(:), POINTER         :: rho1_atom_set, rho_atom_set
       TYPE(task_list_type), POINTER                      :: task_list
 
@@ -293,8 +292,7 @@ CONTAINS
                   CALL pw_env_get(sub_env%pw_env, auxbas_pw_pool=auxbas_pw_pool)
                   ALLOCATE (V_rspace_sub(nspins))
                   DO ispin = 1, nspins
-                     CALL auxbas_pw_pool%create_pw(V_rspace_sub(ispin), &
-                                                   use_data=REALDATA3D, in_space=REALSPACE)
+                     CALL auxbas_pw_pool%create_pw(V_rspace_sub(ispin))
                      CALL pw_zero(V_rspace_sub(ispin))
                   END DO
 

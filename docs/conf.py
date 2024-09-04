@@ -13,7 +13,13 @@ author = "CP2K Developers"
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
 
-extensions = ["myst_parser", "sphinx_rtd_theme", "sphinx.ext.mathjax"]
+extensions = [
+    "myst_parser",
+    "sphinx_rtd_theme",
+    "sphinx.ext.mathjax",
+    "sphinx.ext.intersphinx",
+    "sphinxcontrib.youtube",
+]
 
 myst_enable_extensions = [
     "attrs_inline",
@@ -45,6 +51,12 @@ html_context = {
     "github_repo": "cp2k",
     "github_version": "master",
     "conf_py_path": "/docs/",
+}
+
+# https://sphinx-rtd-theme.readthedocs.io/en/stable/configuring.html
+
+html_theme_options = {
+    "collapse_navigation": False,
 }
 
 # EOF

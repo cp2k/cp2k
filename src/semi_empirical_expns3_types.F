@@ -22,9 +22,9 @@ MODULE semi_empirical_expns3_types
 !> \author Teodoro Laino [tlaino] - 12.2008
 ! **************************************************************************************************
    TYPE semi_empirical_expns3_type
-      REAL(KIND=dp)                                  :: core_core
-      REAL(KIND=dp), DIMENSION(9)                    :: e1b, e2a
-      REAL(KIND=dp), DIMENSION(81)                   :: w
+      REAL(KIND=dp)                                  :: core_core = -1.0_dp
+      REAL(KIND=dp), DIMENSION(9)                    :: e1b = -1.0_dp, e2a = -1.0_dp
+      REAL(KIND=dp), DIMENSION(81)                   :: w = -1.0_dp
    END TYPE semi_empirical_expns3_type
 
 ! **************************************************************************************************
@@ -32,7 +32,7 @@ MODULE semi_empirical_expns3_types
 !> \author Teodoro Laino [tlaino] - 12.2008
 ! **************************************************************************************************
    TYPE semi_empirical_expns3_p_type
-      TYPE(semi_empirical_expns3_type), POINTER      :: expns3
+      TYPE(semi_empirical_expns3_type), POINTER      :: expns3 => NULL()
    END TYPE semi_empirical_expns3_p_type
 
    ! *** Global parameters ***

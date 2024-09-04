@@ -27,7 +27,7 @@ MODULE qs_active_space_methods
    USE cp_dbcsr_operations, ONLY: cp_dbcsr_plus_fm_fm_t, &
                                   cp_dbcsr_sm_fm_multiply, &
                                   dbcsr_allocate_matrix_set, &
-                                  cp_dbcsr_m_by_n_from_template
+                                  cp_dbcsr_m_by_n_from_template, copy_dbcsr_to_fm
    USE cp_files, ONLY: close_file, &
                        file_exists, &
                        open_file
@@ -45,15 +45,15 @@ MODULE qs_active_space_methods
       debug_print_level, high_print_level, low_print_level, medium_print_level, &
       silent_print_level
    USE cp_realspace_grid_cube, ONLY: cp_pw_to_cube
-   USE dbcsr_api, ONLY: &
+   USE cp_dbcsr_api, ONLY: &
       dbcsr_copy, dbcsr_csr_create, dbcsr_csr_type, dbcsr_p_type, dbcsr_type, dbcsr_release, &
       dbcsr_type_no_symmetry, dbcsr_create, dbcsr_set, dbcsr_multiply, dbcsr_iterator_next_block, &
       dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_blocks_left, &
-      dbcsr_iterator_type, dbcsr_type_symmetric, dbcsr_get_occupation
+      dbcsr_iterator_type, dbcsr_type_symmetric, dbcsr_get_occupation, dbcsr_get_info
    USE group_dist_types, ONLY: get_group_dist, release_group_dist, group_dist_d1_type
    USE input_constants, ONLY: &
       casci_canonical, dmft_model, eri_method_full_gpw, eri_method_gpw_ht, eri_operator_coulomb, &
-      eri_operator_erf, eri_operator_erfc, eri_operator_gaussian, eri_operator_yukawa, hf_model, &
+      eri_operator_trunc, eri_operator_erf, eri_operator_erfc, eri_operator_gaussian, eri_operator_yukawa, hf_model, &
       manual_selection, mao_projection, no_solver, qiskit_solver, rsdft_model, wannier_projection
    USE input_section_types, ONLY: section_vals_get, &
                                   section_vals_get_subs_vals, &
@@ -96,11 +96,9 @@ MODULE qs_active_space_methods
                                pw_poisson_type
    USE pw_pool_types, ONLY: &
       pw_pool_type
-   USE pw_types, ONLY: COMPLEXDATA1D, &
-                       REALDATA3D, &
-                       REALSPACE, &
-                       RECIPROCALSPACE, &
-                       pw_type
+   USE pw_types, ONLY: &
+      pw_c1d_gs_type, &
+      pw_r3d_rs_type
    USE qcschema, ONLY: qcschema_env_create, &
                        qcschema_env_release, &
                        qcschema_to_hdf5, &
@@ -163,7 +161,7 @@ MODULE qs_active_space_methods
    PUBLIC :: active_space_main
 
    TYPE, EXTENDS(eri_type_eri_element_func) :: eri_fcidump_print
-      INTEGER :: unit_nr, bra_start, ket_start
+      INTEGER :: unit_nr = -1, bra_start = -1, ket_start = -1
    CONTAINS
       PROCEDURE :: func => eri_fcidump_print_func
    END TYPE
@@ -865,6 +863,9 @@ CONTAINS
          CASE (eri_operator_gaussian)
             WRITE (iw, '(T3,A,T41,A)') "ERI operator", "Gaussian attenuated <EXP(-a*R^2)/R>"
             WRITE (iw, '(T3,A,T66,F14.3)') "ERI operator parameter", eri_op_param
+         CASE (eri_operator_trunc)
+            WRITE (iw, '(T3,A,T53,A)') "ERI operator", "Truncated Coulomb <H(a-R)/R>"
+            WRITE (iw, '(T3,A,T66,F14.3)') "ERI operator parameter", eri_op_param
          CASE DEFAULT
             CPABORT("Unknown ERI operator")
          END SELECT
@@ -1197,38 +1198,40 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'calculate_eri_gpw'
 
-      INTEGER :: blk, col, col_offset, col_size, color, handle, i1, i2, i3, i4, i_multigrid, &
-         icount2, intcount, irange(2), irange_sub(2), isp, isp1, isp2, ispin, iwa1, iwa12, iwa2, &
-         iwb1, iwb12, iwb2, iwbs, iwbt, iwfn, n_multigrid, nmm, nmo, nmo1, nmo2, nspins, &
-         number_of_subgroups, nx, r, row, row_offset, row_size, s, stored_integrals
+      INTEGER :: col_local, color, handle, i1, i2, i3, i4, i_multigrid, icount2, intcount, &
+         irange(2), irange_sub(2), isp, isp1, isp2, ispin, iwa1, iwa12, iwa2, iwb1, iwb12, iwb2, &
+         iwbs, iwbt, iwfn, n_multigrid, ncol_global, ncol_local, nmm, nmo, nmo1, nmo2, &
+         nrow_global, nrow_local, nspins, number_of_subgroups, nx, row_local, stored_integrals
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: eri_index
+      INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
       LOGICAL                                            :: print1, print2, &
                                                             skip_load_balance_distributed
       REAL(KIND=dp)                                      :: dvol, erint, pair_int, &
                                                             progression_factor, rc, rsize
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eri
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: data_block
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env, blacs_env_sub
+      TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: fm_matrix_pq_rnu, fm_matrix_pq_rs, &
+                                                            fm_mo_coeff_as
       TYPE(cp_fm_type), POINTER                          :: mo_coeff, mo_coeff1, mo_coeff2
-      TYPE(dbcsr_iterator_type)                          :: iter
       TYPE(dbcsr_p_type)                                 :: mat_munu
-      TYPE(dbcsr_p_type), ALLOCATABLE, DIMENSION(:)      :: mo_coeff_as
-      TYPE(dbcsr_type), ALLOCATABLE, DIMENSION(:)        :: matrix_pq_rnu, matrix_pq_rs
+      TYPE(dbcsr_type), ALLOCATABLE, DIMENSION(:)        :: matrix_pq_rnu, mo_coeff_as
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mp_comm_type)                                 :: mp_group
       TYPE(mp_para_env_type), POINTER                    :: para_env, para_env_sub
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_orb_sub
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(pw_c1d_gs_type)                               :: pot_g, rho_g
       TYPE(pw_env_type), POINTER                         :: pw_env_sub
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type)                                      :: pot_g, rho_g, rho_r, wfn_r
-      TYPE(pw_type), ALLOCATABLE, DIMENSION(:, :), &
-         TARGET                                          :: wfn_a
-      TYPE(pw_type), POINTER                             :: wfn1, wfn2, wfn3, wfn4
+      TYPE(pw_r3d_rs_type)                               :: rho_r, wfn_r
+      TYPE(pw_r3d_rs_type), ALLOCATABLE, &
+         DIMENSION(:, :), TARGET                         :: wfn_a
+      TYPE(pw_r3d_rs_type), POINTER                      :: wfn1, wfn2, wfn3, wfn4
       TYPE(qs_control_type), POINTER                     :: qs_control, qs_control_old
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
@@ -1377,7 +1380,8 @@ CONTAINS
          ! Create sparse matrices carrying the matrix products, Code borrowed from the MP2 GPW method
          ! Create equal distributions for them (no sparsity present)
          ! We use the routines from mp2 suggesting that one may replicate the grids later for better performance
-         ALLOCATE (mo_coeff_as(nspins), matrix_pq_rnu(nspins), matrix_pq_rs(nspins))
+         ALLOCATE (mo_coeff_as(nspins), matrix_pq_rnu(nspins), &
+                   fm_matrix_pq_rnu(nspins), fm_mo_coeff_as(nspins), fm_matrix_pq_rs(nspins))
          DO ispin = 1, nspins
             BLOCK
                REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE :: C
@@ -1386,27 +1390,39 @@ CONTAINS
                CALL get_mo_set(mos(ispin), mo_coeff=mo_coeff)
                CALL grep_rows_in_subgroups(para_env, para_env_sub, mo_coeff, gd_array, C)
 
-               CALL build_dbcsr_from_rows(para_env_sub, mo_coeff_as(ispin)%matrix, &
+               CALL build_dbcsr_from_rows(para_env_sub, mo_coeff_as(ispin), &
                                           C(:, MINVAL(orbitals(:, ispin)):MAXVAL(orbitals(:, ispin))), &
                                           mat_munu%matrix, gd_array, eri_env%eri_gpw%eps_filter)
                CALL release_group_dist(gd_array)
                DEALLOCATE (C)
             END BLOCK
 
-            CALL dbcsr_create(matrix_pq_rnu(ispin), template=mo_coeff_as(ispin)%matrix)
-            CALL cp_dbcsr_m_by_n_from_template(matrix_pq_rs(ispin), template=mo_coeff_as(ispin)%matrix, &
-                                               m=SIZE(orbitals, 1), n=SIZE(orbitals, 1), &
-                                               sym=dbcsr_type_no_symmetry)
-
+            CALL dbcsr_create(matrix_pq_rnu(ispin), template=mo_coeff_as(ispin))
             CALL dbcsr_set(matrix_pq_rnu(ispin), 0.0_dp)
-            CALL dbcsr_set(matrix_pq_rs(ispin), 0.0_dp)
+
+            CALL dbcsr_get_info(matrix_pq_rnu(ispin), nfullrows_total=nrow_global, nfullcols_total=ncol_global)
+
+            NULLIFY (fm_struct)
+            CALL cp_fm_struct_create(fm_struct, context=blacs_env, para_env=para_env_sub, &
+                                     nrow_global=nrow_global, ncol_global=ncol_global)
+            CALL cp_fm_create(fm_matrix_pq_rnu(ispin), fm_struct)
+            CALL cp_fm_create(fm_mo_coeff_as(ispin), fm_struct)
+            CALL cp_fm_struct_release(fm_struct)
+
+            CALL copy_dbcsr_to_fm(mo_coeff_as(ispin), fm_mo_coeff_as(ispin))
+
+            NULLIFY (fm_struct)
+            CALL cp_fm_struct_create(fm_struct, context=blacs_env, para_env=para_env_sub, &
+                                     nrow_global=ncol_global, ncol_global=ncol_global)
+            CALL cp_fm_create(fm_matrix_pq_rs(ispin), fm_struct)
+            CALL cp_fm_struct_release(fm_struct)
          END DO
 
          ! Copy the active space of the MOs into DBCSR matrices
       END IF
 
-      CALL auxbas_pw_pool%create_pw(wfn_r, use_data=REALDATA3D, in_space=REALSPACE)
-      CALL auxbas_pw_pool%create_pw(rho_g, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+      CALL auxbas_pw_pool%create_pw(wfn_r)
+      CALL auxbas_pw_pool%create_pw(rho_g)
       CALL get_qs_env(qs_env, qs_kind_set=qs_kind_set, cell=cell, &
                       particle_set=particle_set, atomic_kind_set=atomic_kind_set)
 
@@ -1417,7 +1433,7 @@ CONTAINS
          DO ispin = 1, nspins
             CALL get_mo_set(mo_set=mos(ispin), nmo=nx)
             nmo = MAX(nmo, nx)
-            rsize = REAL(SIZE(wfn_r%cr3d), KIND=dp)*nx
+            rsize = REAL(SIZE(wfn_r%array), KIND=dp)*nx
          END DO
          IF (print1 .AND. iw > 0) THEN
             rsize = rsize*8._dp/1000000._dp
@@ -1428,9 +1444,7 @@ CONTAINS
             CALL get_mo_set(mo_set=mos(ispin), mo_coeff=mo_coeff, nmo=nmo)
             DO i1 = 1, SIZE(orbitals, 1)
                iwfn = orbitals(i1, ispin)
-               CALL auxbas_pw_pool%create_pw(wfn_a(iwfn, ispin), &
-                                             use_data=REALDATA3D, &
-                                             in_space=REALSPACE)
+               CALL auxbas_pw_pool%create_pw(wfn_a(iwfn, ispin))
                CALL calculate_wavefunction(mo_coeff, iwfn, wfn_a(iwfn, ispin), rho_g, atomic_kind_set, &
                                            qs_kind_set, cell, dft_control, particle_set, pw_env_sub)
                IF (print2 .AND. iw > 0) THEN
@@ -1441,26 +1455,18 @@ CONTAINS
       ELSE
          ! Even if we do not store all WFNs, we still need containers for the functions to store
          ALLOCATE (wfn1, wfn2)
-         CALL auxbas_pw_pool%create_pw(wfn1, &
-                                       use_data=REALDATA3D, &
-                                       in_space=REALSPACE)
-         CALL auxbas_pw_pool%create_pw(wfn2, &
-                                       use_data=REALDATA3D, &
-                                       in_space=REALSPACE)
+         CALL auxbas_pw_pool%create_pw(wfn1)
+         CALL auxbas_pw_pool%create_pw(wfn2)
          IF (eri_env%method /= eri_method_gpw_ht) THEN
             ALLOCATE (wfn3, wfn4)
-            CALL auxbas_pw_pool%create_pw(wfn3, &
-                                          use_data=REALDATA3D, &
-                                          in_space=REALSPACE)
-            CALL auxbas_pw_pool%create_pw(wfn4, &
-                                          use_data=REALDATA3D, &
-                                          in_space=REALSPACE)
+            CALL auxbas_pw_pool%create_pw(wfn3)
+            CALL auxbas_pw_pool%create_pw(wfn4)
          END IF
       END IF
 
       ! get some of the grids ready
-      CALL auxbas_pw_pool%create_pw(rho_r, use_data=REALDATA3D, in_space=REALSPACE)
-      CALL auxbas_pw_pool%create_pw(pot_g, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+      CALL auxbas_pw_pool%create_pw(rho_r)
+      CALL auxbas_pw_pool%create_pw(pot_g)
 
       ! run the FFT once, to set up buffers and to take into account the memory
       CALL pw_zero(rho_r)
@@ -1530,26 +1536,31 @@ CONTAINS
                                              calculate_forces=.FALSE., compute_tau=.FALSE., gapw=.FALSE., &
                                              pw_env_external=pw_env_sub, task_list_external=task_list_sub)
 
-                     CALL dbcsr_multiply("N", "N", 1.0_dp, mat_munu%matrix, mo_coeff_as(isp2)%matrix, &
+                     CALL dbcsr_multiply("N", "N", 1.0_dp, mat_munu%matrix, mo_coeff_as(isp2), &
                                          0.0_dp, matrix_pq_rnu(isp2), filter_eps=eri_env%eri_gpw%eps_filter)
-                     CALL dbcsr_multiply("T", "N", 0.5_dp, matrix_pq_rnu(isp2), mo_coeff_as(isp2)%matrix, &
-                                         0.0_dp, matrix_pq_rs(isp2), filter_eps=eri_env%eri_gpw%eps_filter)
-                     CALL dbcsr_multiply("T", "N", 0.5_dp, mo_coeff_as(isp2)%matrix, matrix_pq_rnu(isp2), &
-                                         1.0_dp, matrix_pq_rs(isp2), filter_eps=eri_env%eri_gpw%eps_filter)
+                     CALL copy_dbcsr_to_fm(matrix_pq_rnu(isp2), fm_matrix_pq_rnu(isp2))
+
+                     CALL cp_fm_get_info(fm_matrix_pq_rnu(isp2), ncol_global=ncol_global, nrow_global=nrow_global)
+
+                     CALL parallel_gemm("T", "N", ncol_global, ncol_global, nrow_global, 0.5_dp, &
+                                        fm_matrix_pq_rnu(isp2), fm_mo_coeff_as(isp2), &
+                                        0.0_dp, fm_matrix_pq_rs(isp2))
+                     CALL parallel_gemm("T", "N", ncol_global, ncol_global, nrow_global, 0.5_dp, &
+                                        fm_mo_coeff_as(isp2), fm_matrix_pq_rnu(isp2), &
+                                        1.0_dp, fm_matrix_pq_rs(isp2))
+
+                     CALL cp_fm_get_info(fm_matrix_pq_rs(isp2), ncol_local=ncol_local, nrow_local=nrow_local, &
+                                         col_indices=col_indices, row_indices=row_indices)
 
                      icount2 = 0
-                     CALL dbcsr_iterator_start(iter, matrix_pq_rs(isp2))
-                     DO WHILE (dbcsr_iterator_blocks_left(iter))
-                        CALL dbcsr_iterator_next_block(iter, row, col, data_block, blk, &
-                                                       row_size=row_size, col_size=col_size, &
-                                                       row_offset=row_offset, col_offset=col_offset)
-                        DO s = 1, col_size
-                        DO r = 1, row_size
-                           iwb1 = orbitals(row_offset - 1 + r, isp2)
-                           iwb2 = orbitals(col_offset - 1 + s, isp2)
+                     DO col_local = 1, ncol_local
+                        iwb2 = orbitals(col_indices(col_local), isp2)
+                        DO row_local = 1, nrow_local
+                           iwb1 = orbitals(row_indices(row_local), isp2)
+
                            IF (iwb1 <= iwb2) THEN
                               iwb12 = csr_idx_to_combined(iwb1, iwb2, nmo2)
-                              erint = data_block(r, s)
+                              erint = fm_matrix_pq_rs(isp2)%local_data(row_local, col_local)
                               IF (ABS(erint) > eri_env%eps_integral .AND. (iwa12 <= iwb12 .OR. isp1 /= isp2)) THEN
                                  icount2 = icount2 + 1
                                  eri(icount2) = erint
@@ -1557,9 +1568,7 @@ CONTAINS
                               END IF
                            END IF
                         END DO
-                        END DO
                      END DO
-                     CALL dbcsr_iterator_stop(iter)
                      stored_integrals = stored_integrals + icount2
                      !
                      isp = (isp1 - 1)*isp2 + (isp2 - isp1 + 1)
@@ -1669,12 +1678,14 @@ CONTAINS
 
       IF (eri_env%method == eri_method_gpw_ht) THEN
          DO ispin = 1, nspins
-            CALL dbcsr_release(mo_coeff_as(ispin)%matrix)
-            DEALLOCATE (mo_coeff_as(ispin)%matrix)
+            CALL dbcsr_release(mo_coeff_as(ispin))
             CALL dbcsr_release(matrix_pq_rnu(ispin))
-            CALL dbcsr_release(matrix_pq_rs(ispin))
+            CALL cp_fm_release(fm_mo_coeff_as(ispin))
+            CALL cp_fm_release(fm_matrix_pq_rnu(ispin))
+            CALL cp_fm_release(fm_matrix_pq_rs(ispin))
          END DO
-         DEALLOCATE (mo_coeff_as, matrix_pq_rnu, matrix_pq_rs)
+         DEALLOCATE (mo_coeff_as, matrix_pq_rnu, &
+                     fm_mo_coeff_as, fm_matrix_pq_rnu, fm_matrix_pq_rs)
          CALL deallocate_task_list(task_list_sub)
          CALL dbcsr_release(mat_munu%matrix)
          DEALLOCATE (mat_munu%matrix)
@@ -1715,32 +1726,44 @@ CONTAINS
             CASE (eri_operator_coulomb)
                DO ig = grid%first_gne0, grid%ngpts_cut_local
                   g2 = grid%gsq(ig)
-                  gf%cc(ig) = fourpi/g2
+                  gf%array(ig) = fourpi/g2
                END DO
-               IF (grid%have_g0) gf%cc(1) = 0.0_dp
+               IF (grid%have_g0) gf%array(1) = 0.0_dp
             CASE (eri_operator_yukawa)
                a = eri_env%operator_parameter**2
                DO ig = grid%first_gne0, grid%ngpts_cut_local
                   g2 = grid%gsq(ig)
-                  gf%cc(ig) = fourpi/(a + g2)
+                  gf%array(ig) = fourpi/(a + g2)
                END DO
-               IF (grid%have_g0) gf%cc(1) = fourpi/a
+               IF (grid%have_g0) gf%array(1) = fourpi/a
             CASE (eri_operator_erf)
                a = eri_env%operator_parameter**2
                DO ig = grid%first_gne0, grid%ngpts_cut_local
                   g2 = grid%gsq(ig)
                   ga = -0.25_dp*g2/a
-                  gf%cc(ig) = fourpi/g2*EXP(ga)
+                  gf%array(ig) = fourpi/g2*EXP(ga)
                END DO
-               IF (grid%have_g0) gf%cc(1) = 0.0_dp
+               IF (grid%have_g0) gf%array(1) = 0.0_dp
             CASE (eri_operator_erfc)
                a = eri_env%operator_parameter**2
                DO ig = grid%first_gne0, grid%ngpts_cut_local
                   g2 = grid%gsq(ig)
                   ga = -0.25_dp*g2/a
-                  gf%cc(ig) = fourpi/g2*(1._dp - EXP(ga))
+                  gf%array(ig) = fourpi/g2*(1._dp - EXP(ga))
                END DO
-               IF (grid%have_g0) gf%cc(1) = 0.25_dp*fourpi/a
+               IF (grid%have_g0) gf%array(1) = 0.25_dp*fourpi/a
+            CASE (eri_operator_trunc)
+               a = eri_env%operator_parameter
+               DO ig = grid%first_gne0, grid%ngpts_cut_local
+                  g2 = grid%gsq(ig)
+                  ga = SQRT(g2)*a
+                  IF (ga >= 0.005_dp) THEN
+                     gf%array(ig) = fourpi/g2*(1.0_dp - COS(ga))
+                  ELSE
+                     gf%array(ig) = fourpi/g2*ga**2/2.0_dp*(1.0_dp - ga**2/12.0_dp)
+                  END IF
+               END DO
+               IF (grid%have_g0) gf%array(1) = 0.0_dp
             CASE (eri_operator_gaussian)
                CPABORT("")
             CASE DEFAULT
@@ -1756,9 +1779,9 @@ CONTAINS
                   g2 = grid%gsq(ig)
                   gg = SQRT(g2)
                   g3d = fourpi/g2
-                  gf%cc(ig) = g3d*(1.0_dp - COS(rlength*gg))
+                  gf%array(ig) = g3d*(1.0_dp - COS(rlength*gg))
                END DO
-               IF (grid%have_g0) gf%cc(1) = 0.5_dp*fourpi*rlength*rlength
+               IF (grid%have_g0) gf%array(1) = 0.5_dp*fourpi*rlength*rlength
             CASE (eri_operator_yukawa)
                rlength = green%radius
                a = eri_env%operator_parameter
@@ -1768,9 +1791,9 @@ CONTAINS
                   gg = SQRT(g2)
                   g3d = fourpi/(a*a + g2)
                   rg = rlength*gg
-                  gf%cc(ig) = g3d*(1.0_dp - ea*(COS(rg) + a/gg*SIN(rg)))
+                  gf%array(ig) = g3d*(1.0_dp - ea*(COS(rg) + a/gg*SIN(rg)))
                END DO
-               IF (grid%have_g0) gf%cc(1) = fourpi/(a*a)*(1.0_dp - ea*(1._dp + a*rlength))
+               IF (grid%have_g0) gf%array(1) = fourpi/(a*a)*(1.0_dp - ea*(1._dp + a*rlength))
             CASE (eri_operator_erf)
                rlength = green%radius
                a = eri_env%operator_parameter**2
@@ -1778,9 +1801,9 @@ CONTAINS
                   g2 = grid%gsq(ig)
                   gg = SQRT(g2)
                   ga = -0.25_dp*g2/a
-                  gf%cc(ig) = fourpi/g2*EXP(ga)*(1.0_dp - COS(rlength*gg))
+                  gf%array(ig) = fourpi/g2*EXP(ga)*(1.0_dp - COS(rlength*gg))
                END DO
-               IF (grid%have_g0) gf%cc(1) = 0.5_dp*fourpi*rlength*rlength
+               IF (grid%have_g0) gf%array(1) = 0.5_dp*fourpi*rlength*rlength
             CASE (eri_operator_erfc)
                rlength = green%radius
                a = eri_env%operator_parameter**2
@@ -1788,9 +1811,21 @@ CONTAINS
                   g2 = grid%gsq(ig)
                   gg = SQRT(g2)
                   ga = -0.25_dp*g2/a
-                  gf%cc(ig) = fourpi/g2*(1._dp - EXP(ga))*(1.0_dp - COS(rlength*gg))
+                  gf%array(ig) = fourpi/g2*(1._dp - EXP(ga))*(1.0_dp - COS(rlength*gg))
                END DO
-               IF (grid%have_g0) gf%cc(1) = 0._dp
+               IF (grid%have_g0) gf%array(1) = 0._dp
+            CASE (eri_operator_trunc)
+               a = eri_env%operator_parameter
+               DO ig = grid%first_gne0, grid%ngpts_cut_local
+                  g2 = grid%gsq(ig)
+                  ga = SQRT(g2)*a
+                  IF (ga >= 0.005_dp) THEN
+                     gf%array(ig) = fourpi/g2*(1.0_dp - COS(ga))
+                  ELSE
+                     gf%array(ig) = fourpi/g2*ga**2/2.0_dp*(1.0_dp - ga**2/12.0_dp)
+                  END IF
+               END DO
+               IF (grid%have_g0) gf%array(1) = 0.0_dp
             CASE (eri_operator_gaussian)
                CPABORT("")
             CASE DEFAULT
@@ -1873,9 +1908,10 @@ CONTAINS
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(particle_list_type), POINTER                  :: particles
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(pw_c1d_gs_type)                               :: wf_g
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type)                                      :: wf_g, wf_r
+      TYPE(pw_r3d_rs_type)                               :: wf_r
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_subsys_type), POINTER                      :: subsys
       TYPE(section_vals_type), POINTER                   :: dft_section, scf_input
@@ -1906,8 +1942,8 @@ CONTAINS
       CALL qs_subsys_get(subsys, particles=particles)
       !
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
-      CALL auxbas_pw_pool%create_pw(wf_r, use_data=REALDATA3D, in_space=REALSPACE)
-      CALL auxbas_pw_pool%create_pw(wf_g, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+      CALL auxbas_pw_pool%create_pw(wf_r)
+      CALL auxbas_pw_pool%create_pw(wf_g)
       !
       dft_section => section_vals_get_subs_vals(scf_input, "DFT")
       !

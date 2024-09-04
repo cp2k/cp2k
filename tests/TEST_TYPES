@@ -1,11 +1,11 @@
-108
+114
 Total energy:!3
 MD| Potential energy!5
 Total energy \[eV\]:!4
 Ideal and single determinant!8
 BSSE-free interaction energy:!5
 Average Energy !4
-Total Energy               =!4
+OPT| Total energy \[hartree\]!5
 VIB|Frequency !3
 PINT| Total energy = !5
 BAND TOTAL ENERGY \[au\] !6
@@ -23,7 +23,7 @@ VIB| !3
 PW exchange energy!5
 Total Spread!5
 DFT+U energy:!3
-Local Curvature            =!4
+OPT| Local curvature!4
 Total electronic charge (G-space):!6
 Total electronic charge (R-space):!5
 Total spin density (R-space)           :!6
@@ -76,14 +76,14 @@ Diabatic electronic coupling (wfn !7
 Charge transfer energy!6
 Diabatic electronic coupling (Lowdin!6
 Ground state energy!4
-GW HOMO-LUMO gap (eV)!5
+G0W0 HOMO-LUMO gap (eV)!5
 Beta GW HOMO-LUMO gap (eV)!6
 IC HOMO-LUMO gap (eV)!5
 HOMO SCF Cycle:     4!9
 DEBUG| Sum of differences:!5
 1\[\ \ \ 1\]\ -\ 2\[\ \ \ 1\]!7
 Ionization potential of the excited atom:!7
-( SIRIUS ) !9
+Total FORCE_EVAL ( SIRIUS ) energy!9
 DIPOLE : CheckSum  =!5
 POLAR : CheckSum  =!5
 XAS excitation energy (eV): !7
@@ -107,6 +107,12 @@ TDDFT+SOC !5
 G0W0 direct band gap !6
 SCF+SOC direct band gap !6
 G0W0+SOC direct band gap !6
+BSE|                1       Singlet          -TDA- !5
+BSE|                1       Singlet         -ABBA- !5
+HOMO-LUMO gap in evGW0 iteration  3 (eV)!8
+HOMO-LUMO gap in evGW iteration  3 (eV)!8
+BSE|             1     -TDA- !7
+BSE|             1     -ABBA- !7
 #
 # these are the tests the can be selected for regtesting.
 # do regtest will grep for test_grep (first column) and look if the numeric value

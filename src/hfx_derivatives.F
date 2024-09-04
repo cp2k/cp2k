@@ -27,9 +27,9 @@ MODULE hfx_derivatives
                                  cp_print_key_should_output, &
                                  cp_print_key_unit_nr
    USE message_passing, ONLY: mp_para_env_type
-   USE dbcsr_api, ONLY: dbcsr_get_matrix_type, &
-                        dbcsr_p_type, &
-                        dbcsr_type_antisymmetric
+   USE cp_dbcsr_api, ONLY: dbcsr_get_matrix_type, &
+                           dbcsr_p_type, &
+                           dbcsr_type_antisymmetric
    USE gamma, ONLY: init_md_ftable
    USE hfx_communication, ONLY: get_full_density
    USE hfx_compression_methods, ONLY: hfx_add_mult_cache_elements, &
@@ -425,6 +425,9 @@ CONTAINS
          log10_eps_schwarz = LOG10(eps_schwarz)
       END IF
       screen_pmat_forces = screening_parameter%do_p_screening_forces
+      ! don't do density screening in case of response forces
+      IF (with_resp_density) screen_pmat_forces = .FALSE.
+
       eps_storage = eps_schwarz*memory_parameter%eps_storage_scaling
 
       counter = 0_int_8

@@ -15,6 +15,9 @@
 MODULE ec_methods
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_control_types,                ONLY: dft_control_type
+   USE cp_dbcsr_api,                    ONLY: dbcsr_init_p,&
+                                              dbcsr_type,&
+                                              dbcsr_type_no_symmetry
    USE cp_dbcsr_operations,             ONLY: cp_dbcsr_m_by_n_from_row_template
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
@@ -22,16 +25,14 @@ MODULE ec_methods
    USE cp_fm_types,                     ONLY: cp_fm_get_info,&
                                               cp_fm_type
    USE cp_log_handling,                 ONLY: cp_to_string
-   USE dbcsr_api,                       ONLY: dbcsr_init_p,&
-                                              dbcsr_type,&
-                                              dbcsr_type_no_symmetry
    USE input_section_types,             ONLY: section_vals_type
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_para_env_type
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_type
    USE pw_pool_types,                   ONLY: pw_pool_type
-   USE pw_types,                        ONLY: pw_type
+   USE pw_types,                        ONLY: pw_c1d_gs_type,&
+                                              pw_r3d_rs_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type,&
                                               set_qs_env
@@ -86,9 +87,14 @@ CONTAINS
    SUBROUTINE create_kernel(qs_env, vxc, vxc_tau, rho, rho1_r, rho1_g, tau1_r, xc_section, compute_virial, virial_xc)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(pw_type), DIMENSION(:), POINTER               :: vxc, vxc_tau
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: vxc, vxc_tau
       TYPE(qs_rho_type), INTENT(IN), POINTER             :: rho
-      TYPE(pw_type), DIMENSION(:), INTENT(IN), POINTER   :: rho1_r, rho1_g, tau1_r
+      TYPE(pw_r3d_rs_type), DIMENSION(:), INTENT(IN), &
+         POINTER                                         :: rho1_r
+      TYPE(pw_c1d_gs_type), DIMENSION(:), INTENT(IN), &
+         POINTER                                         :: rho1_g
+      TYPE(pw_r3d_rs_type), DIMENSION(:), INTENT(IN), &
+         POINTER                                         :: tau1_r
       TYPE(section_vals_type), INTENT(IN), POINTER       :: xc_section
       LOGICAL, INTENT(IN), OPTIONAL                      :: compute_virial
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(INOUT), &
@@ -99,7 +105,7 @@ CONTAINS
       INTEGER                                            :: handle
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_r, tau_r
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: rho_r, tau_r
       TYPE(xc_derivative_set_type)                       :: deriv_set
       TYPE(xc_rho_set_type)                              :: rho_set
 

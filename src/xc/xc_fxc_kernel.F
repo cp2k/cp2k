@@ -18,11 +18,8 @@ MODULE xc_fxc_kernel
                                               pw_scale,&
                                               pw_zero
    USE pw_pool_types,                   ONLY: pw_pool_type
-   USE pw_types,                        ONLY: COMPLEXDATA1D,&
-                                              REALDATA3D,&
-                                              REALSPACE,&
-                                              RECIPROCALSPACE,&
-                                              pw_type
+   USE pw_types,                        ONLY: pw_c1d_gs_type,&
+                                              pw_r3d_rs_type
    USE xc_b97_fxc,                      ONLY: b97_fcc_eval,&
                                               b97_fxc_eval
    USE xc_input_constants,              ONLY: xc_deriv_pw
@@ -57,7 +54,9 @@ CONTAINS
 !> \author JGH
 ! **************************************************************************************************
    SUBROUTINE calc_fxc_kernel(fxc_rspace, rho_r, rho_g, tau_r, xc_kernel, triplet, pw_pool)
-      TYPE(pw_type), DIMENSION(:)                        :: fxc_rspace, rho_r, rho_g, tau_r
+      TYPE(pw_r3d_rs_type), DIMENSION(:)                 :: fxc_rspace, rho_r
+      TYPE(pw_c1d_gs_type), DIMENSION(:)                 :: rho_g
+      TYPE(pw_r3d_rs_type), DIMENSION(:)                 :: tau_r
       TYPE(section_vals_type), POINTER                   :: xc_kernel
       LOGICAL, INTENT(IN)                                :: triplet
       TYPE(pw_pool_type), POINTER                        :: pw_pool
@@ -72,9 +71,10 @@ CONTAINS
       REAL(KIND=dp)                                      :: scalec, scalex
       REAL(KIND=dp), DIMENSION(3)                        :: ccaa, ccab, cxaa, g_ab
       REAL(KIND=dp), DIMENSION(:), POINTER               :: rvals
-      TYPE(pw_type)                                      :: fxa, fxb, norm_drhoa, norm_drhob, rhoa, &
-                                                            rhob, rhog, tmpg
-      TYPE(pw_type), DIMENSION(3)                        :: drhoa
+      TYPE(pw_c1d_gs_type)                               :: rhog, tmpg
+      TYPE(pw_r3d_rs_type)                               :: fxa, fxb, norm_drhoa, norm_drhob, rhoa, &
+                                                            rhob
+      TYPE(pw_r3d_rs_type), DIMENSION(3)                 :: drhoa
       TYPE(xc_rho_cflags_type)                           :: needs
 
       CPASSERT(ASSOCIATED(xc_kernel))
@@ -95,8 +95,8 @@ CONTAINS
       CALL xc_rho_cflags_setall(needs, .FALSE.)
       CALL fxc_kernel_info(fxc_name, needs, lsd)
 
-      CALL pw_pool%create_pw(rhoa, use_data=REALDATA3D, in_space=REALSPACE)
-      CALL pw_pool%create_pw(rhob, use_data=REALDATA3D, in_space=REALSPACE)
+      CALL pw_pool%create_pw(rhoa)
+      CALL pw_pool%create_pw(rhob)
       IF (lsd) THEN
          CALL pw_copy(rho_r(1), rhoa)
          CALL pw_copy(rho_r(2), rhob)
@@ -112,12 +112,12 @@ CONTAINS
       IF (needs%norm_drho) THEN
          ! deriv rho
          DO idir = 1, 3
-            CALL pw_pool%create_pw(drhoa(idir), use_data=REALDATA3D, in_space=REALSPACE)
+            CALL pw_pool%create_pw(drhoa(idir))
          END DO
-         CALL pw_pool%create_pw(norm_drhoa, use_data=REALDATA3D, in_space=REALSPACE)
-         CALL pw_pool%create_pw(norm_drhob, use_data=REALDATA3D, in_space=REALSPACE)
-         CALL pw_pool%create_pw(rhog, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
-         CALL pw_pool%create_pw(tmpg, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+         CALL pw_pool%create_pw(norm_drhoa)
+         CALL pw_pool%create_pw(norm_drhob)
+         CALL pw_pool%create_pw(rhog)
+         CALL pw_pool%create_pw(tmpg)
          IF (lsd) THEN
             CALL pw_copy(rho_g(1), rhog)
          ELSE IF (triplet) THEN
@@ -132,9 +132,9 @@ CONTAINS
          DO k = bo(1, 3), bo(2, 3)
             DO j = bo(1, 2), bo(2, 2)
                DO i = bo(1, 1), bo(2, 1)
-                  norm_drhoa%cr3d(i, j, k) = SQRT(drhoa(1)%cr3d(i, j, k)**2 + &
-                                                  drhoa(2)%cr3d(i, j, k)**2 + &
-                                                  drhoa(3)%cr3d(i, j, k)**2)
+                  norm_drhoa%array(i, j, k) = SQRT(drhoa(1)%array(i, j, k)**2 + &
+                                                   drhoa(2)%array(i, j, k)**2 + &
+                                                   drhoa(3)%array(i, j, k)**2)
                END DO
             END DO
          END DO
@@ -146,14 +146,14 @@ CONTAINS
             DO k = bo(1, 3), bo(2, 3)
                DO j = bo(1, 2), bo(2, 2)
                   DO i = bo(1, 1), bo(2, 1)
-                     norm_drhob%cr3d(i, j, k) = SQRT(drhoa(1)%cr3d(i, j, k)**2 + &
-                                                     drhoa(2)%cr3d(i, j, k)**2 + &
-                                                     drhoa(3)%cr3d(i, j, k)**2)
+                     norm_drhob%array(i, j, k) = SQRT(drhoa(1)%array(i, j, k)**2 + &
+                                                      drhoa(2)%array(i, j, k)**2 + &
+                                                      drhoa(3)%array(i, j, k)**2)
                   END DO
                END DO
             END DO
          ELSE
-            norm_drhob%cr3d(:, :, :) = norm_drhoa%cr3d(:, :, :)
+            norm_drhob%array(:, :, :) = norm_drhoa%array(:, :, :)
          END IF
          CALL pw_pool%give_back_pw(rhog)
          CALL pw_pool%give_back_pw(tmpg)
@@ -203,8 +203,8 @@ CONTAINS
          CALL b97_fxc_eval(rhob, norm_drhob, fxc_rspace(3), g_ab(3), ccaa, eps_rho)
          CALL b97_fcc_eval(rhoa, rhob, norm_drhoa, norm_drhob, fxc_rspace(2), g_ab(2), ccab, eps_rho)
          ! exchange
-         CALL pw_pool%create_pw(fxa, use_data=REALDATA3D, in_space=REALSPACE)
-         CALL pw_pool%create_pw(fxb, use_data=REALDATA3D, in_space=REALSPACE)
+         CALL pw_pool%create_pw(fxa)
+         CALL pw_pool%create_pw(fxb)
          CALL pw_zero(fxa)
          CALL pw_zero(fxb)
          CALL xalpha_fxc_eval(rhoa, rhob, fxa, fxb, scalex, eps_rho)

@@ -3,21 +3,22 @@
 # CP2K Darwin arch file for a parallel arm64 binary
 # (https://www.cp2k.org/howto:compile_on_macos)
 #
-# Tested with: GNU 13.2.0, OpenMPI 4.1.5,,
-#              ScaLAPACK 2.2.1, OpenBLAS 0.3.25,
-#              FFTW 3.3.10, HDF5 1.14.2,
+# Tested with: GNU 14.2.0, OpenMPI 5.0.5,,
+#              ScaLAPACK 2.2.1, OpenBLAS 0.3.27,
+#              FFTW 3.3.10, HDF5 1.14.3,
 #              LIBINT 2.6.0, LIBXC 6.2.2,
-#              SPGLIB 1.16.2, PLUMED 2.9.0,
+#              SPGLIB 2.3.1, PLUMED 2.9.0,
 #              LIBVORI 220621, GSL 2.7.1,
-#              COSMA 2.6.6, SIRIUS 7.4.3,
-#              LIBGRPP 20231215
-# on an Apple M1 (macOS 14.2 Sonoma))
+#              COSMA 2.6.6, SIRIUS 7.5.2,
+#              LIBGRPP 20231225, DFTD4 3.6.0,
+#              SPFFT 1.1.0, SPLA 1.6.1
+# on an Apple M1 (macOS 14.6.1 Sonoma)
 #
 # Usage: Source this arch file and then run make as instructed.
-#        Ensure the links in /usr/local/bin to the lastest gcc version
+#        Ensure the links in /opt/homebrew/bin to the gcc version
 #        and "brew unlink openmpi" (or mpich) if installed.
 #
-# Last update: 19.12.2023
+# Last update: 30.08.2024
 #
 # \
    if [[ "${0}" == "${BASH_SOURCE}" ]]; then \
@@ -27,6 +28,7 @@
    fi; \
    this_file=${BASH_SOURCE##*/}; \
    cd tools/toolchain; \
+   rm -rf build; \
    [[ -z "${mpi_implementation}" ]] && mpi_implementation="openmpi"; \
    [[ -z "${target_cpu}" ]] && target_cpu="native"; \
    if $(command -v brew >/dev/null 2>&1); then \
@@ -58,10 +60,10 @@
    echo "Check the output above for error messages and consistency!"; \
    echo; \
    echo "If everything is OK, you can build a CP2K production binary with"; \
-   echo "   make -j ARCH=${this_file%.*} VERSION=${this_file##*.}"; \
+   echo "   make -j ARCH=${this_file%.*} VERSION=${this_file##*.} TARGET_CPU=${target_cpu}"; \
    echo; \
    echo "Alternatively, you can add further checks, e.g. for regression testing, with"; \
-   echo "   make -j ARCH=${this_file%.*} VERSION=${this_file##*.} DO_CHECKS=yes"; \
+   echo "   make -j ARCH=${this_file%.*} VERSION=${this_file##*.} TARGET_CPU=${target_cpu} DO_CHECKS=yes"; \
    echo; \
    echo "Run always the following command before using the CP2K binary"; \
    echo "   source ${PWD}/tools/toolchain/install/setup"; \
@@ -71,14 +73,20 @@
 # Set options
 DO_CHECKS      := no
 TARGET_CPU     := native
+GNU_VER        := $(shell gcc -dumpfullversion)
 USE_COSMA      := 2.6.6
-USE_LIBGRPP    := 20231215
+USE_DFTD4      := 3.6.0
+USE_LIBGRPP    := 20231225
 USE_LIBINT     := 2.6.0
 USE_LIBVORI    := 220621
 USE_PLUMED     := 2.9.0
 USE_SCALAPACK  := 2.2.1
-USE_SIRIUS     := 7.4.3
-USE_SPGLIB     := 1.16.2
+USE_SIRIUS     := 7.5.2
+USE_SPFFT      := 1.1.0
+USE_SPGLIB     := 2.3.1
+USE_SPLA       := 1.6.1
+# Only needed for SIRIUS
+LIBVDWXC_VER   := 0.4.0
 
 LMAX           := 5
 MAX_CONTR      := 4
@@ -91,8 +99,8 @@ AR             := ar -r -s
 CFLAGS         := -O2 -fopenmp -fopenmp-simd -ftree-vectorize -funroll-loops -g -mtune=$(TARGET_CPU)
 
 DFLAGS         := -D__parallel
-DFLAGS         += -D__SCALAPACK
 DFLAGS         += -D__ACCELERATE
+DFLAGS         += -D__MPI_F08
 DFLAGS         += -D__HAS_IEEE_EXCEPTIONS
 DFLAGS         += -D__MAX_CONTR=$(strip $(MAX_CONTR))
 DFLAGS         += -D__NO_STATM_ACCESS
@@ -146,6 +154,15 @@ CFLAGS         += -I$(LIBXC_HOME)/include
 DFLAGS         += -D__LIBXC
 LIBS           += -Wl,-rpath,$(LIBXC_HOME)/lib -L$(LIBXC_HOME)/lib -lxcf03 -lxc
 
+ifneq ($(USE_DFTD4),)
+   USE_DFTD4      := $(strip $(USE_DFTD4))
+   DFTD4_INC      := $(INSTALL_PATH)/dftd4-$(USE_DFTD4)/include
+   DFTD4_LIB      := $(INSTALL_PATH)/dftd4-$(USE_DFTD4)/lib
+   CFLAGS         += -I$(DFTD4_INC)/dftd4/GNU-$(GNU_VER)
+   DFLAGS         += -D__DFTD4
+   LIBS           += -L$(DFTD4_LIB) -ldftd4 -lmstore -lmulticharge -lmctc-lib
+endif
+
 ifneq ($(USE_LIBGRPP),)
    USE_LIBGRPP    := $(strip $(USE_LIBGRPP))
    LIBGRPP_INC    := $(INSTALL_PATH)/libgrpp-main-$(USE_LIBGRPP)/include
@@ -176,40 +193,43 @@ ifneq ($(USE_SPGLIB),)
 endif
 
 ifneq ($(USE_SIRIUS),)
-   LIBVDWXC_VER   := 0.4.0
-   SPFFT_VER      := 1.0.6
-   SPLA_VER       := 1.5.5
    USE_SIRIUS     := $(strip $(USE_SIRIUS))
    LIBVDWXC_VER   := $(strip $(LIBVDWXC_VER))
    LIBVDWXC_INC   := $(INSTALL_PATH)/libvdwxc-$(LIBVDWXC_VER)/include
    LIBVDWXC_LIB   := $(INSTALL_PATH)/libvdwxc-$(LIBVDWXC_VER)/lib
-   SPFFT_VER      := $(strip $(SPFFT_VER))
-   SPFFT_INC      := $(INSTALL_PATH)/SpFFT-$(SPFFT_VER)/include
-   SPFFT_LIB      := $(INSTALL_PATH)/SpFFT-$(SPFFT_VER)/lib
-   SPLA_VER       := $(strip $(SPLA_VER))
-   SPLA_INC       := $(INSTALL_PATH)/SpLA-$(SPLA_VER)/include/spla
-   SPLA_LIB       := $(INSTALL_PATH)/SpLA-$(SPLA_VER)/lib
    SIRIUS_INC     := $(INSTALL_PATH)/sirius-$(USE_SIRIUS)/include
    SIRIUS_LIB     := $(INSTALL_PATH)/sirius-$(USE_SIRIUS)/lib
    CFLAGS         += -I$(LIBVDWXC_INC)
-   CFLAGS         += -I$(SPFFT_INC)
-   CFLAGS         += -I$(SPLA_INC)
    CFLAGS         += -I$(SIRIUS_INC)
    DFLAGS         += -D__LIBVDWXC
-   DFLAGS         += -D__SPFFT
-   DFLAGS         += -D__SPLA
    DFLAGS         += -D__SIRIUS
    LIBS           += $(SIRIUS_LIB)/libsirius.a
-   LIBS           += $(SPLA_LIB)/libspla.a
-   LIBS           += $(SPFFT_LIB)/libspfft.a
    LIBS           += $(LIBVDWXC_LIB)/libvdwxc.a
+endif
+
+ifneq ($(USE_SPFFT),)
+   USE_SPFFT      := $(strip $(USE_SPFFT))
+   SPFFT_INC      := $(INSTALL_PATH)/SpFFT-$(USE_SPFFT)/include
+   SPFFT_LIB      := $(INSTALL_PATH)/SpFFT-$(USE_SPFFT)/lib
+   CFLAGS         += -I$(SPFFT_INC)
+   DFLAGS         += -D__SPFFT
+   LIBS           += $(SPFFT_LIB)/libspfft.a
+endif
+
+ifneq ($(USE_SPLA),)
+   USE_SPLA       := $(strip $(USE_SPLA))
+   SPLA_INC       := $(INSTALL_PATH)/SpLA-$(USE_SPLA)/include/spla
+   SPLA_LIB       := $(INSTALL_PATH)/SpLA-$(USE_SPLA)/lib
+   CFLAGS         += -I$(SPLA_INC)
+   DFLAGS         += -D__SPLA
+   LIBS           += $(SPLA_LIB)/libspla.a
 endif
 
 HDF5_HOME      := $(shell brew --prefix hdf5)
 CFLAGS         += -I$(HDF5_HOME)/include
 DFLAGS         += -D__HDF5
 LIBS           += $(HDF5_HOME)/lib/libhdf5_fortran.a
-LIBS           += $(HDF5_HOME)/lib/libhdf5_hl.a
+LIBS           += $(HDF5_HOME)/lib/libhdf5_f90cstub.a
 LIBS           += $(HDF5_HOME)/lib/libhdf5.a
 LIBS           += $(shell brew --prefix libaec)/lib/libsz.a
 
@@ -253,7 +273,7 @@ FCFLAGS        += -ffree-line-length-none
 FCFLAGS        += -fno-omit-frame-pointer
 FCFLAGS        += -std=f2008
 
-LDFLAGS        += $(FCFLAGS)
+LDFLAGS        += $(FCFLAGS) -ld_classic
 
 LIBS           += -lz -ldl -lstdc++
 

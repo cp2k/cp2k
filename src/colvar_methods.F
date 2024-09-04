@@ -1410,7 +1410,7 @@ CONTAINS
       CALL section_vals_val_get(section, "OXYGENS", n_rep_val=n_var)
       ndim = 0
       DO k = 1, n_var
-         CALL section_vals_val_get(section, "OXYGENS", i_vals=iatms)
+         CALL section_vals_val_get(section, "OXYGENS", i_rep_val=k, i_vals=iatms)
          CALL reallocate(i_oxygens, 1, ndim + SIZE(iatms))
          i_oxygens(ndim + 1:ndim + SIZE(iatms)) = iatms
          ndim = ndim + SIZE(iatms)
@@ -1420,7 +1420,7 @@ CONTAINS
       CALL section_vals_val_get(section, "HYDROGENS", n_rep_val=n_var)
       ndim = 0
       DO k = 1, n_var
-         CALL section_vals_val_get(section, "HYDROGENS", i_vals=iatms)
+         CALL section_vals_val_get(section, "HYDROGENS", i_rep_val=k, i_vals=iatms)
          CALL reallocate(i_hydrogens, 1, ndim + SIZE(iatms))
          i_hydrogens(ndim + 1:ndim + SIZE(iatms)) = iatms
          ndim = ndim + SIZE(iatms)
@@ -1487,7 +1487,7 @@ CONTAINS
       CALL section_vals_val_get(section, "OXYGENS_WATER", n_rep_val=n_var)
       ndim = 0
       DO k = 1, n_var
-         CALL section_vals_val_get(section, "OXYGENS_WATER", i_vals=iatms)
+         CALL section_vals_val_get(section, "OXYGENS_WATER", i_rep_val=k, i_vals=iatms)
          CALL reallocate(i_oxygens_water, 1, ndim + SIZE(iatms))
          i_oxygens_water(ndim + 1:ndim + SIZE(iatms)) = iatms
          ndim = ndim + SIZE(iatms)
@@ -1497,7 +1497,7 @@ CONTAINS
       CALL section_vals_val_get(section, "OXYGENS_ACID", n_rep_val=n_var)
       ndim = 0
       DO k = 1, n_var
-         CALL section_vals_val_get(section, "OXYGENS_ACID", i_vals=iatms)
+         CALL section_vals_val_get(section, "OXYGENS_ACID", i_rep_val=k, i_vals=iatms)
          CALL reallocate(i_oxygens_acid, 1, ndim + SIZE(iatms))
          i_oxygens_acid(ndim + 1:ndim + SIZE(iatms)) = iatms
          ndim = ndim + SIZE(iatms)
@@ -1507,7 +1507,7 @@ CONTAINS
       CALL section_vals_val_get(section, "HYDROGENS", n_rep_val=n_var)
       ndim = 0
       DO k = 1, n_var
-         CALL section_vals_val_get(section, "HYDROGENS", i_vals=iatms)
+         CALL section_vals_val_get(section, "HYDROGENS", i_rep_val=k, i_vals=iatms)
          CALL reallocate(i_hydrogens, 1, ndim + SIZE(iatms))
          i_hydrogens(ndim + 1:ndim + SIZE(iatms)) = iatms
          ndim = ndim + SIZE(iatms)
@@ -3899,7 +3899,8 @@ CONTAINS
       fcut = num_cut*invden_cut
 
       !Final distance acid - hydronium
-      fbrace = rion_num/rion_den/2.0_dp
+!      fbrace = rion_num/rion_den/2.0_dp
+      fbrace = rion_num/rion_den/n_oxygens_acid
       rion = fcut*fbrace
       colvar%ss = rion
 
@@ -3922,14 +3923,18 @@ CONTAINS
       DO kk = 1, n_oxygens_acid
          DO ii = 1, n_oxygens_water
             colvar%dsdr(1:3, offsetO + kk) = colvar%dsdr(1:3, offsetO + kk) &
-                                             + fcut*ddist_rik(1:3, ii, kk)*expfac(ii)/rion_den/2.0_dp
+                                             + fcut*ddist_rik(1:3, ii, kk)*expfac(ii)/rion_den/n_oxygens_acid
+!                                             + fcut*ddist_rik(1:3, ii, kk)*expfac(ii)/rion_den/2.0_dp
             colvar%dsdr(1:3, ii) = colvar%dsdr(1:3, ii) &
-                                   - fcut*ddist_rik(1:3, ii, kk)*expfac(ii)/rion_den/2.0_dp
+                                   - fcut*ddist_rik(1:3, ii, kk)*expfac(ii)/rion_den/n_oxygens_acid
+!                                   - fcut*ddist_rik(1:3, ii, kk)*expfac(ii)/rion_den/2.0_dp
             DO jj = 1, n_hydrogens
                colvar%dsdr(1:3, ii) = colvar%dsdr(1:3, ii) &
-                                      + fcut*dexpfac_rik(ii, kk)*dnwoh(1:3, jj, ii)/rion_den/2.0_dp
+                                      + fcut*dexpfac_rik(ii, kk)*dnwoh(1:3, jj, ii)/rion_den/n_oxygens_acid
+!                                      + fcut*dexpfac_rik(ii, kk)*dnwoh(1:3, jj, ii)/rion_den/2.0_dp
                colvar%dsdr(1:3, offsetH + jj) = colvar%dsdr(1:3, offsetH + jj) &
-                                                - fcut*dexpfac_rik(ii, kk)*dnwoh(1:3, jj, ii)/rion_den/2.0_dp
+                                                - fcut*dexpfac_rik(ii, kk)*dnwoh(1:3, jj, ii)/rion_den/n_oxygens_acid
+!                                                - fcut*dexpfac_rik(ii, kk)*dnwoh(1:3, jj, ii)/rion_den/2.0_dp
             END DO
          END DO
       END DO

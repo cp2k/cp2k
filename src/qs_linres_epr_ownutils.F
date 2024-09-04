@@ -15,13 +15,13 @@ MODULE qs_linres_epr_ownutils
                                               get_atomic_kind
    USE cell_types,                      ONLY: cell_type
    USE cp_control_types,                ONLY: dft_control_type
+   USE cp_dbcsr_api,                    ONLY: dbcsr_p_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_p_file,&
                                               cp_print_key_finished_output,&
                                               cp_print_key_should_output,&
                                               cp_print_key_unit_nr
-   USE dbcsr_api,                       ONLY: dbcsr_p_type
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type,&
                                               section_vals_val_get
@@ -47,11 +47,8 @@ MODULE qs_linres_epr_ownutils
                                               pw_spline_precond_set_kind,&
                                               pw_spline_precond_type,&
                                               spl3_pbc
-   USE pw_types,                        ONLY: COMPLEXDATA1D,&
-                                              REALDATA3D,&
-                                              REALSPACE,&
-                                              RECIPROCALSPACE,&
-                                              pw_type
+   USE pw_types,                        ONLY: pw_c1d_gs_type,&
+                                              pw_r3d_rs_type
    USE qs_core_energies,                ONLY: calculate_ptrace
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
@@ -307,10 +304,10 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_spline_precond_type)                       :: precond
-      TYPE(pw_type), ALLOCATABLE, DIMENSION(:, :)        :: vks_pw_spline
-      TYPE(pw_type), DIMENSION(:), POINTER               :: jrho2_r, jrho3_r, nrho1_r, nrho2_r, &
+      TYPE(pw_r3d_rs_type), ALLOCATABLE, DIMENSION(:, :) :: vks_pw_spline
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: jrho2_r, jrho3_r, nrho1_r, nrho2_r, &
                                                             nrho3_r
+      TYPE(pw_spline_precond_type)                       :: precond
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_rho_p_type), DIMENSION(:), POINTER         :: jrho1_set
       TYPE(qs_rho_p_type), DIMENSION(:, :), POINTER      :: nablavks_set
@@ -382,8 +379,7 @@ CONTAINS
 
          DO ispin = 1, nspins
             DO idir1 = 1, 3
-               CALL auxbas_pw_pool%create_pw(vks_pw_spline(idir1, ispin), &
-                                             use_data=REALDATA3D, in_space=REALSPACE)
+               CALL auxbas_pw_pool%create_pw(vks_pw_spline(idir1, ispin))
                ! calculate spline coefficients
                CALL pw_spline_precond_create(precond, precond_kind=aint_precond, &
                                              pool=auxbas_pw_pool, pbc=.TRUE., transpose=.FALSE.)
@@ -569,9 +565,9 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
+      TYPE(pw_r3d_rs_type), ALLOCATABLE, DIMENSION(:, :) :: bind_pw_spline
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: brho1_r, rho_r
       TYPE(pw_spline_precond_type)                       :: precond
-      TYPE(pw_type), ALLOCATABLE, DIMENSION(:, :)        :: bind_pw_spline
-      TYPE(pw_type), DIMENSION(:), POINTER               :: brho1_r, rho_r
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_rho_p_type), DIMENSION(:, :), POINTER      :: bind_set
       TYPE(qs_rho_type), POINTER                         :: rho
@@ -651,8 +647,7 @@ CONTAINS
          CALL section_vals_val_get(interp_section, "eps_x", r_val=eps_x)
 
          DO idir1 = 1, 3
-            CALL auxbas_pw_pool%create_pw(bind_pw_spline(idir1, iB), &
-                                          use_data=REALDATA3D, in_space=REALSPACE)
+            CALL auxbas_pw_pool%create_pw(bind_pw_spline(idir1, iB))
             ! calculate spline coefficients
             CALL pw_spline_precond_create(precond, precond_kind=aint_precond, &
                                           pool=auxbas_pw_pool, pbc=.TRUE., transpose=.FALSE.)
@@ -778,12 +773,14 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: cell
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(pw_c1d_gs_type)                               :: pw_gspace_work
+      TYPE(pw_c1d_gs_type), ALLOCATABLE, DIMENSION(:, :) :: shift_pw_gspace
+      TYPE(pw_c1d_gs_type), DIMENSION(:), POINTER        :: jrho1_g
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type)                                      :: pw_gspace_work, shift_pw_rspace
-      TYPE(pw_type), ALLOCATABLE, DIMENSION(:, :)        :: shift_pw_gspace
-      TYPE(pw_type), DIMENSION(:), POINTER               :: epr_rho_r, jrho1_g
+      TYPE(pw_r3d_rs_type)                               :: shift_pw_rspace
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: epr_rho_r
       TYPE(realspace_grid_desc_type), POINTER            :: auxbas_rs_desc
 
       CALL timeset(routineN, handle)
@@ -811,18 +808,13 @@ CONTAINS
       ALLOCATE (shift_pw_gspace(3, nspins))
       DO ispin = 1, nspins
          DO idir = 1, 3
-            CALL auxbas_pw_pool%create_pw(shift_pw_gspace(idir, ispin), &
-                                          use_data=COMPLEXDATA1D, &
-                                          in_space=RECIPROCALSPACE)
+            CALL auxbas_pw_pool%create_pw(shift_pw_gspace(idir, ispin))
             CALL pw_zero(shift_pw_gspace(idir, ispin))
          END DO
       END DO
-      CALL auxbas_pw_pool%create_pw(shift_pw_rspace, &
-                                    use_data=REALDATA3D, in_space=REALSPACE)
+      CALL auxbas_pw_pool%create_pw(shift_pw_rspace)
       CALL pw_zero(shift_pw_rspace)
-      CALL auxbas_pw_pool%create_pw(pw_gspace_work, &
-                                    use_data=COMPLEXDATA1D, &
-                                    in_space=RECIPROCALSPACE)
+      CALL auxbas_pw_pool%create_pw(pw_gspace_work)
       CALL pw_zero(pw_gspace_work)
       !
       CALL set_vecp(iB, iiB, iiiB)

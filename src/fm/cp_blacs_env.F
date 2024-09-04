@@ -161,14 +161,6 @@ CONTAINS
 #endif
 
 #ifdef __parallel
-#ifndef __SCALAPACK
-      CALL cp_abort(__LOCATION__, &
-                    "to USE the blacs environment "// &
-                    "you need the blacs/scalapack library : recompile with -D__SCALAPACK (and link scalapack and blacs) ")
-#endif
-#endif
-
-#ifdef __SCALAPACK
       ! get the number of cpus for this blacs grid
       nprow = 1
       npcol = 1

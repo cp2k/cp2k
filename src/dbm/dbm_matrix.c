@@ -15,7 +15,6 @@
 
 #include "dbm_hyperparams.h"
 #include "dbm_matrix.h"
-#include "dbm_mpi.h"
 
 /*******************************************************************************
  * \brief Creates a new matrix.
@@ -143,14 +142,14 @@ void dbm_redistribute(const dbm_matrix_t *matrix, dbm_matrix_t *redist) {
   // Compute displacements and allocate data buffers.
   int send_displ[nranks + 1], recv_displ[nranks + 1];
   send_displ[0] = recv_displ[0] = 0;
-  for (int irank = 1; irank < nranks + 1; irank++) {
+  for (int irank = 1; irank <= nranks; irank++) {
     send_displ[irank] = send_displ[irank - 1] + send_count[irank - 1];
     recv_displ[irank] = recv_displ[irank - 1] + recv_count[irank - 1];
   }
   const int total_send_count = send_displ[nranks];
   const int total_recv_count = recv_displ[nranks];
-  double *data_send = malloc(total_send_count * sizeof(double));
-  double *data_recv = malloc(total_recv_count * sizeof(double));
+  double *data_send = dbm_mpi_alloc_mem(total_send_count * sizeof(double));
+  double *data_recv = dbm_mpi_alloc_mem(total_recv_count * sizeof(double));
 
   // 2nd pass: Fill send_data.
   int send_data_positions[nranks];
@@ -178,7 +177,7 @@ void dbm_redistribute(const dbm_matrix_t *matrix, dbm_matrix_t *redist) {
   // 2nd communication: Exchange data.
   dbm_mpi_alltoallv_double(data_send, send_count, send_displ, data_recv,
                            recv_count, recv_displ, comm);
-  free(data_send);
+  dbm_mpi_free_mem(data_send);
 
   // 3rd pass: Unpack data.
   dbm_clear(redist);
@@ -195,7 +194,7 @@ void dbm_redistribute(const dbm_matrix_t *matrix, dbm_matrix_t *redist) {
     recv_data_pos += 2 + block_size;
   }
   assert(recv_data_pos == total_recv_count);
-  free(data_recv);
+  dbm_mpi_free_mem(data_recv);
 }
 
 /*******************************************************************************
@@ -279,6 +278,7 @@ void dbm_filter(dbm_matrix_t *matrix, const double eps) {
   if (eps == 0.0) {
     return;
   }
+  const double eps2 = eps * eps;
 
 #pragma omp parallel for schedule(dynamic)
   for (int ishard = 0; ishard < dbm_get_num_shards(matrix); ishard++) {
@@ -294,12 +294,12 @@ void dbm_filter(dbm_matrix_t *matrix, const double eps) {
       const int row_size = matrix->row_sizes[old_blk.row];
       const int col_size = matrix->col_sizes[old_blk.col];
       const int block_size = row_size * col_size;
-      double norm = 0.0; // Compute norm as double, but compare as float.
+      double norm = 0.0;
       for (int i = 0; i < block_size; i++) {
         norm += old_blk_data[i] * old_blk_data[i];
       }
       // For historic reasons zero-sized blocks are never filtered.
-      if (sqrt((float)norm) < eps && block_size > 0) {
+      if (block_size > 0 && norm < eps2) {
         continue; // filter the block
       }
       // Re-create block.

@@ -8,15 +8,13 @@
 
    #:def ewalds_multipole_sr_macro(mode, damping=False, store_energy=False, store_forces=False)
       ! Compute the Short Range constribution according the task
-      IF (debug_this_module) THEN
-         f = HUGE(0.0_dp)
-         tij = HUGE(0.0_dp)
-         tij_a = HUGE(0.0_dp)
-         tij_ab = HUGE(0.0_dp)
-         tij_abc = HUGE(0.0_dp)
-         tij_abcd = HUGE(0.0_dp)
-         tij_abcde = HUGE(0.0_dp)
-      END IF
+      f = HUGE(0.0_dp)
+      tij = HUGE(0.0_dp)
+      tij_a = HUGE(0.0_dp)
+      tij_ab = HUGE(0.0_dp)
+      tij_abc = HUGE(0.0_dp)
+      tij_abcd = HUGE(0.0_dp)
+      tij_abcde = HUGE(0.0_dp)
       r = SQRT(rab2)
       irab2 = 1.0_dp/rab2
       ir = 1.0_dp/r

@@ -32,6 +32,12 @@ MODULE rpa_gw
                                               cp_cfm_type,&
                                               cp_fm_to_cfm
    USE cp_control_types,                ONLY: dft_control_type
+   USE cp_dbcsr_api,                    ONLY: &
+        dbcsr_add_on_diag, dbcsr_copy, dbcsr_create, dbcsr_desymmetrize, dbcsr_filter, &
+        dbcsr_get_info, dbcsr_init_p, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
+        dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, &
+        dbcsr_p_type, dbcsr_release, dbcsr_release_p, dbcsr_scale, dbcsr_set, dbcsr_type, &
+        dbcsr_type_antisymmetric, dbcsr_type_no_symmetry
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               copy_fm_to_dbcsr,&
@@ -56,12 +62,6 @@ MODULE rpa_gw
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                               cp_print_key_unit_nr
    USE cp_realspace_grid_cube,          ONLY: cp_pw_to_cube
-   USE dbcsr_api,                       ONLY: &
-        dbcsr_add_on_diag, dbcsr_copy, dbcsr_create, dbcsr_desymmetrize, dbcsr_filter, &
-        dbcsr_get_info, dbcsr_init_p, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
-        dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, &
-        dbcsr_p_type, dbcsr_release, dbcsr_release_p, dbcsr_scale, dbcsr_set, dbcsr_type, &
-        dbcsr_type_antisymmetric, dbcsr_type_no_symmetry
    USE dbt_api,                         ONLY: &
         dbt_batched_contract_finalize, dbt_batched_contract_init, dbt_clear, dbt_contract, &
         dbt_copy, dbt_copy_matrix_to_tensor, dbt_copy_tensor_to_matrix, dbt_create, dbt_destroy, &
@@ -111,11 +111,8 @@ MODULE rpa_gw
                                               pw_scale,&
                                               pw_zero
    USE pw_pool_types,                   ONLY: pw_pool_type
-   USE pw_types,                        ONLY: COMPLEXDATA1D,&
-                                              REALDATA3D,&
-                                              REALSPACE,&
-                                              RECIPROCALSPACE,&
-                                              pw_type
+   USE pw_types,                        ONLY: pw_c1d_gs_type,&
+                                              pw_r3d_rs_type
    USE qs_band_structure,               ONLY: calculate_kp_orbitals
    USE qs_collocate_density,            ONLY: calculate_rho_elec
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -776,7 +773,6 @@ CONTAINS
 !> \param jquad ...
 !> \param nmo ...
 !> \param num_fit_points ...
-!> \param do_bse ...
 !> \param do_im_time ...
 !> \param do_periodic ...
 !> \param first_cycle_periodic_correction ...
@@ -788,7 +784,6 @@ CONTAINS
 !> \param vec_W_gw ...
 !> \param wj ...
 !> \param fm_mat_Q ...
-!> \param fm_mat_Q_static_bse ...
 !> \param fm_mat_R_gw ...
 !> \param fm_mat_S_gw ...
 !> \param fm_mat_S_gw_work ...
@@ -803,10 +798,10 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE compute_GW_self_energy(vec_Sigma_c_gw, dimen_nm_gw, dimen_RI, gw_corr_lev_occ, &
                                      gw_corr_lev_virt, homo, jquad, nmo, num_fit_points, &
-                                     do_bse, do_im_time, do_periodic, first_cycle_periodic_correction, &
-                                     fermi_level_offset, &
+                                     do_im_time, do_periodic, &
+                                     first_cycle_periodic_correction, fermi_level_offset, &
                                      omega, Eigenval, delta_corr, vec_omega_fit_gw, vec_W_gw, wj, &
-                                     fm_mat_Q, fm_mat_Q_static_bse, fm_mat_R_gw, fm_mat_S_gw, &
+                                     fm_mat_Q, fm_mat_R_gw, fm_mat_S_gw, &
                                      fm_mat_S_gw_work, mo_coeff, para_env, &
                                      para_env_RPA, matrix_berry_im_mo_mo, matrix_berry_re_mo_mo, &
                                      kpoints, qs_env, mp2_env)
@@ -816,7 +811,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: dimen_nm_gw, dimen_RI
       INTEGER, DIMENSION(:), INTENT(IN)                  :: gw_corr_lev_occ, gw_corr_lev_virt, homo
       INTEGER, INTENT(IN)                                :: jquad, nmo, num_fit_points
-      LOGICAL, INTENT(IN)                                :: do_bse, do_im_time, do_periodic
+      LOGICAL, INTENT(IN)                                :: do_im_time, do_periodic
       LOGICAL, INTENT(INOUT) :: first_cycle_periodic_correction
       REAL(KIND=dp), INTENT(INOUT)                       :: fermi_level_offset, omega
       REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: Eigenval
@@ -828,8 +823,7 @@ CONTAINS
          INTENT(INOUT)                                   :: vec_W_gw
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
          INTENT(IN)                                      :: wj
-      TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_Q, fm_mat_Q_static_bse, &
-                                                            fm_mat_R_gw
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_Q, fm_mat_R_gw
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: fm_mat_S_gw, fm_mat_S_gw_work
       TYPE(cp_fm_type), INTENT(IN)                       :: mo_coeff
       TYPE(mp_para_env_type), POINTER                    :: para_env, para_env_RPA
@@ -860,10 +854,6 @@ CONTAINS
          CALL cp_fm_cholesky_invert(fm_mat_Q)
          ! symmetrize the result, fm_mat_R_gw is only temporary work matrix
          CALL cp_fm_upper_to_full(fm_mat_Q, fm_mat_R_gw)
-
-         IF (do_bse .AND. jquad == 1) THEN
-            CALL cp_fm_to_fm(fm_mat_Q, fm_mat_Q_static_bse)
-         END IF
 
          ! periodic correction for GW (paper Phys. Rev. B 95, 235123 (2017))
          IF (do_periodic) THEN
@@ -897,8 +887,10 @@ CONTAINS
 
          DO ispin = 1, nspins
             CALL compute_GW_self_energy_deep(vec_Sigma_c_gw(:, :, :, ispin), dimen_nm_gw, dimen_RI, &
-                                             gw_corr_lev_occ(ispin), homo(ispin), jquad, nmo, &
-                                           num_fit_points, do_periodic, fermi_level_offset, omega, Eigenval(:, ispin), delta_corr, &
+                                             gw_corr_lev_occ(ispin), gw_corr_lev_virt(ispin), &
+                                             homo(ispin), jquad, nmo, &
+                                             num_fit_points, do_periodic, fermi_level_offset, omega, &
+                                             Eigenval(:, ispin), delta_corr, &
                                              vec_omega_fit_gw, vec_W_gw(:, ispin), wj, fm_mat_Q, &
                                              fm_mat_S_gw(ispin), fm_mat_S_gw_work(ispin))
          END DO
@@ -1037,6 +1029,7 @@ CONTAINS
 !> \param dimen_nm_gw ...
 !> \param dimen_RI ...
 !> \param gw_corr_lev_occ ...
+!> \param gw_corr_lev_virt ...
 !> \param homo ...
 !> \param jquad ...
 !> \param nmo ...
@@ -1053,14 +1046,18 @@ CONTAINS
 !> \param fm_mat_S_gw ...
 !> \param fm_mat_S_gw_work ...
 ! **************************************************************************************************
-  SUBROUTINE compute_GW_self_energy_deep(vec_Sigma_c_gw, dimen_nm_gw, dimen_RI, gw_corr_lev_occ, homo, jquad, nmo, num_fit_points, &
-                                         do_periodic, fermi_level_offset, omega, Eigenval, delta_corr, vec_omega_fit_gw, vec_W_gw, &
+   SUBROUTINE compute_GW_self_energy_deep(vec_Sigma_c_gw, dimen_nm_gw, dimen_RI, &
+                                          gw_corr_lev_occ, gw_corr_lev_virt, &
+                                          homo, jquad, nmo, num_fit_points, &
+                                          do_periodic, fermi_level_offset, omega, Eigenval, &
+                                          delta_corr, vec_omega_fit_gw, vec_W_gw, &
                                           wj, fm_mat_Q, fm_mat_S_gw, fm_mat_S_gw_work)
 
       COMPLEX(KIND=dp), DIMENSION(:, :, :), &
          INTENT(INOUT)                                   :: vec_Sigma_c_gw
       INTEGER, INTENT(IN)                                :: dimen_nm_gw, dimen_RI, gw_corr_lev_occ, &
-                                                            homo, jquad, nmo, num_fit_points
+                                                            gw_corr_lev_virt, homo, jquad, nmo, &
+                                                            num_fit_points
       LOGICAL, INTENT(IN)                                :: do_periodic
       REAL(KIND=dp), INTENT(IN)                          :: fermi_level_offset
       REAL(KIND=dp), INTENT(INOUT)                       :: omega
@@ -1119,9 +1116,9 @@ CONTAINS
             ! set the Fermi energy for occ orbitals slightly above the HOMO and
             ! for virt orbitals slightly below the LUMO
             IF (n_global <= homo) THEN
-               e_fermi = Eigenval(homo) + fermi_level_offset
+               e_fermi = MAXVAL(Eigenval(homo - gw_corr_lev_occ + 1:homo)) + fermi_level_offset
             ELSE
-               e_fermi = Eigenval(homo + 1) - fermi_level_offset
+               e_fermi = MINVAL(Eigenval(homo + 1:homo + gw_corr_lev_virt)) - fermi_level_offset
             END IF
 
             ! add here the periodic correction
@@ -1420,7 +1417,7 @@ CONTAINS
                                                   z_value(:, ikp, 1), m_value(:, ikp, 1), vec_Sigma_c_gw(:, :, ikp, 1), &
                                                   mp2_env%ri_g0w0%vec_Sigma_x_minus_vxc_gw(:, 1, ikp), &
                                                   Eigenval(:, ikp, 1), Eigenval_scf(:, ikp, 1), n_level_gw, &
-                                                  gw_corr_lev_occ(1), num_poles, &
+                                                  gw_corr_lev_occ(1), gw_corr_lev_virt(1), num_poles, &
                                                   num_fit_points, crossing_search, homo(1), stop_crit, &
                                                   fermi_level_offset, do_im_time)
 
@@ -1428,14 +1425,15 @@ CONTAINS
                   CALL continuation_pade(vec_gw_energ(:, ikp, 1), vec_omega_fit_gw, &
                                          z_value(:, ikp, 1), m_value(:, ikp, 1), vec_Sigma_c_gw(:, :, ikp, 1), &
                                          mp2_env%ri_g0w0%vec_Sigma_x_minus_vxc_gw(:, 1, ikp), &
-                                         Eigenval(:, ikp, 1), Eigenval_scf(:, ikp, 1), n_level_gw, &
-                                         gw_corr_lev_occ(1), mp2_env%ri_g0w0%nparam_pade, &
+                                         Eigenval(:, ikp, 1), Eigenval_scf(:, ikp, 1), &
+                                         mp2_env%ri_g0w0%do_hedin_shift, n_level_gw, &
+                                         gw_corr_lev_occ(1), gw_corr_lev_virt(1), mp2_env%ri_g0w0%nparam_pade, &
                                          num_fit_points, crossing_search, homo(1), fermi_level_offset, &
                                          do_im_time, mp2_env%ri_g0w0%print_self_energy, count_ev_sc_GW, &
                                          vec_gw_dos, dos_lower_bound, dos_precision, ndos, &
                                          mp2_env%ri_g0w0%min_level_self_energy, &
-                                         mp2_env%ri_g0w0%max_level_self_energy, mp2_env%ri_g0w0%dos_eta)
-
+                                         mp2_env%ri_g0w0%max_level_self_energy, mp2_env%ri_g0w0%dos_eta, &
+                                         mp2_env%ri_g0w0%dos_min, mp2_env%ri_g0w0%dos_max)
                CASE DEFAULT
                   CPABORT("Only two-model and Pade approximation are implemented.")
                END SELECT
@@ -1448,21 +1446,23 @@ CONTAINS
                         z_value(:, ikp, 2), m_value(:, ikp, 2), vec_Sigma_c_gw(:, :, ikp, 2), &
                         mp2_env%ri_g0w0%vec_Sigma_x_minus_vxc_gw(:, 2, ikp), &
                         Eigenval(:, ikp, 2), Eigenval_scf(:, ikp, 2), n_level_gw, &
-                        gw_corr_lev_occ(2), num_poles, &
+                        gw_corr_lev_occ(2), gw_corr_lev_virt(2), num_poles, &
                         num_fit_points, crossing_search, homo(2), stop_crit, &
                         fermi_level_offset, do_im_time)
                   CASE (gw_pade_approx)
                      CALL continuation_pade(vec_gw_energ(:, ikp, 2), vec_omega_fit_gw, &
                                             z_value(:, ikp, 2), m_value(:, ikp, 2), vec_Sigma_c_gw(:, :, ikp, 2), &
                                             mp2_env%ri_g0w0%vec_Sigma_x_minus_vxc_gw(:, 2, ikp), &
-                                            Eigenval(:, ikp, 2), Eigenval_scf(:, ikp, 2), n_level_gw, &
-                                            gw_corr_lev_occ(2), mp2_env%ri_g0w0%nparam_pade, &
+                                            Eigenval(:, ikp, 2), Eigenval_scf(:, ikp, 2), &
+                                            mp2_env%ri_g0w0%do_hedin_shift, n_level_gw, &
+                                            gw_corr_lev_occ(2), gw_corr_lev_virt(2), mp2_env%ri_g0w0%nparam_pade, &
                                             num_fit_points, crossing_search, homo(2), &
                                             fermi_level_offset, do_im_time, &
                                             mp2_env%ri_g0w0%print_self_energy, count_ev_sc_GW, &
                                             vec_gw_dos, dos_lower_bound, dos_precision, ndos, &
                                             mp2_env%ri_g0w0%min_level_self_energy, &
-                                            mp2_env%ri_g0w0%max_level_self_energy, mp2_env%ri_g0w0%dos_eta)
+                                            mp2_env%ri_g0w0%max_level_self_energy, mp2_env%ri_g0w0%dos_eta, &
+                                            mp2_env%ri_g0w0%dos_min, mp2_env%ri_g0w0%dos_max)
                   CASE DEFAULT
                      CPABORT("Only two-pole model and Pade approximation are implemented.")
                   END SELECT
@@ -2205,10 +2205,10 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'print_local_bandgap'
 
       INTEGER                                            :: handle, i_E
+      TYPE(pw_c1d_gs_type)                               :: rho_g_dummy
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type)                                      :: E_CBM_rspace, E_gap_rspace, &
-                                                            E_VBM_rspace, rho_g_dummy
-      TYPE(pw_type), ALLOCATABLE, DIMENSION(:)           :: LDOS
+      TYPE(pw_r3d_rs_type)                               :: E_CBM_rspace, E_gap_rspace, E_VBM_rspace
+      TYPE(pw_r3d_rs_type), ALLOCATABLE, DIMENSION(:)    :: LDOS
 
       CALL timeset(routineN, handle)
 
@@ -2246,9 +2246,9 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE calculate_E_gap_rspace(E_gap_rspace, E_VBM_rspace, E_CBM_rspace, rho_g_dummy, &
                                      LDOS, qs_env, Eigenval, gw_corr_lev_occ, gw_corr_lev_virt, homo, dft_gw_char)
-      TYPE(pw_type)                                      :: E_gap_rspace, E_VBM_rspace, &
-                                                            E_CBM_rspace, rho_g_dummy
-      TYPE(pw_type), ALLOCATABLE, DIMENSION(:)           :: LDOS
+      TYPE(pw_r3d_rs_type)                               :: E_gap_rspace, E_VBM_rspace, E_CBM_rspace
+      TYPE(pw_c1d_gs_type)                               :: rho_g_dummy
+      TYPE(pw_r3d_rs_type), ALLOCATABLE, DIMENSION(:)    :: LDOS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: Eigenval
       INTEGER                                            :: gw_corr_lev_occ, gw_corr_lev_virt, homo
@@ -2382,12 +2382,12 @@ CONTAINS
 
       END DO
 
-      n_x_start = LBOUND(LDOS(1)%cr3d, 1)
-      n_x_end = UBOUND(LDOS(1)%cr3d, 1)
-      n_y_start = LBOUND(LDOS(1)%cr3d, 2)
-      n_y_end = UBOUND(LDOS(1)%cr3d, 2)
-      n_z_start = LBOUND(LDOS(1)%cr3d, 3)
-      n_z_end = UBOUND(LDOS(1)%cr3d, 3)
+      n_x_start = LBOUND(LDOS(1)%array, 1)
+      n_x_end = UBOUND(LDOS(1)%array, 1)
+      n_y_start = LBOUND(LDOS(1)%array, 2)
+      n_y_end = UBOUND(LDOS(1)%array, 2)
+      n_z_start = LBOUND(LDOS(1)%array, 3)
+      n_z_end = UBOUND(LDOS(1)%array, 3)
 
       CALL pw_zero(E_VBM_rspace)
       CALL pw_zero(E_CBM_rspace)
@@ -2398,28 +2398,28 @@ CONTAINS
                ! compute average occ and virt LDOS
                avg_LDOS_occ = 0.0_dp
                DO i_E = 1, n_E_occ
-                  avg_LDOS_occ = avg_LDOS_occ + LDOS(i_E)%cr3d(i_x, i_y, i_z)
+                  avg_LDOS_occ = avg_LDOS_occ + LDOS(i_E)%array(i_x, i_y, i_z)
                END DO
                avg_LDOS_occ = avg_LDOS_occ/REAL(n_E_occ, KIND=dp)
 
                avg_LDOS_virt = 0.0_dp
                DO i_E = n_E_occ + 1, n_E
-                  avg_LDOS_virt = avg_LDOS_virt + LDOS(i_E)%cr3d(i_x, i_y, i_z)
+                  avg_LDOS_virt = avg_LDOS_virt + LDOS(i_E)%array(i_x, i_y, i_z)
                END DO
                avg_LDOS_virt = avg_LDOS_virt/REAL(n_E - n_E_occ, KIND=dp)
 
                ! compute local valence band maximum (VBM)
                DO i_E = n_E_occ, 1, -1
-                  IF (LDOS(i_E)%cr3d(i_x, i_y, i_z) > mp2_env%ri_g0w0%ldos_thresh_print_loc_bandgap*avg_LDOS_occ) THEN
-                     E_VBM_rspace%cr3d(i_x, i_y, i_z) = E_array(i_E)
+                  IF (LDOS(i_E)%array(i_x, i_y, i_z) > mp2_env%ri_g0w0%ldos_thresh_print_loc_bandgap*avg_LDOS_occ) THEN
+                     E_VBM_rspace%array(i_x, i_y, i_z) = E_array(i_E)
                      EXIT
                   END IF
                END DO
 
                ! compute local valence band maximum (VBM)
                DO i_E = n_E_occ + 1, n_E
-                  IF (LDOS(i_E)%cr3d(i_x, i_y, i_z) > mp2_env%ri_g0w0%ldos_thresh_print_loc_bandgap*avg_LDOS_virt) THEN
-                     E_CBM_rspace%cr3d(i_x, i_y, i_z) = E_array(i_E)
+                  IF (LDOS(i_E)%array(i_x, i_y, i_z) > mp2_env%ri_g0w0%ldos_thresh_print_loc_bandgap*avg_LDOS_virt) THEN
+                     E_CBM_rspace%array(i_x, i_y, i_z) = E_array(i_E)
                      EXIT
                   END IF
                END DO
@@ -2464,7 +2464,7 @@ CONTAINS
 !> \param mp2_env ...
 ! **************************************************************************************************
    SUBROUTINE print_file(pw_print, middle_name, gw_section, particles, mp2_env)
-      TYPE(pw_type)                                      :: pw_print
+      TYPE(pw_r3d_rs_type)                               :: pw_print
       CHARACTER(len=*)                                   :: middle_name
       TYPE(section_vals_type), POINTER                   :: gw_section
       TYPE(particle_list_type), POINTER                  :: particles
@@ -2503,9 +2503,9 @@ CONTAINS
 !> \param qs_env ...
 ! **************************************************************************************************
    SUBROUTINE create_real_space_grids(E_gap_rspace, E_VBM_rspace, E_CBM_rspace, rho_g_dummy, LDOS, auxbas_pw_pool, qs_env)
-      TYPE(pw_type)                                      :: E_gap_rspace, E_VBM_rspace, &
-                                                            E_CBM_rspace, rho_g_dummy
-      TYPE(pw_type), ALLOCATABLE, DIMENSION(:)           :: LDOS
+      TYPE(pw_r3d_rs_type)                               :: E_gap_rspace, E_VBM_rspace, E_CBM_rspace
+      TYPE(pw_c1d_gs_type)                               :: rho_g_dummy
+      TYPE(pw_r3d_rs_type), ALLOCATABLE, DIMENSION(:)    :: LDOS
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
@@ -2521,10 +2521,10 @@ CONTAINS
 
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
 
-      CALL auxbas_pw_pool%create_pw(E_gap_rspace, use_data=REALDATA3D, in_space=REALSPACE)
-      CALL auxbas_pw_pool%create_pw(E_VBM_rspace, use_data=REALDATA3D, in_space=REALSPACE)
-      CALL auxbas_pw_pool%create_pw(E_CBM_rspace, use_data=REALDATA3D, in_space=REALSPACE)
-      CALL auxbas_pw_pool%create_pw(rho_g_dummy, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+      CALL auxbas_pw_pool%create_pw(E_gap_rspace)
+      CALL auxbas_pw_pool%create_pw(E_VBM_rspace)
+      CALL auxbas_pw_pool%create_pw(E_CBM_rspace)
+      CALL auxbas_pw_pool%create_pw(rho_g_dummy)
 
       n_E = INT(mp2_env%ri_g0w0%energy_window_print_loc_bandgap/ &
                 mp2_env%ri_g0w0%energy_spacing_print_loc_bandgap)
@@ -2532,7 +2532,7 @@ CONTAINS
       ALLOCATE (LDOS(n_E))
 
       DO i_E = 1, n_E
-         CALL auxbas_pw_pool%create_pw(LDOS(i_E), use_data=REALDATA3D, in_space=REALSPACE)
+         CALL auxbas_pw_pool%create_pw(LDOS(i_E))
       END DO
 
       CALL timestop(handle)
@@ -3854,6 +3854,7 @@ CONTAINS
 !> \param Eigenval_scf ...
 !> \param n_level_gw ...
 !> \param gw_corr_lev_occ ...
+!> \param gw_corr_lev_vir ...
 !> \param num_poles ...
 !> \param num_fit_points ...
 !> \param crossing_search ...
@@ -3864,7 +3865,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE fit_and_continuation_2pole(vec_gw_energ, vec_omega_fit_gw, &
                                          z_value, m_value, vec_Sigma_c_gw, vec_Sigma_x_minus_vxc_gw, &
-                                         Eigenval, Eigenval_scf, n_level_gw, gw_corr_lev_occ, num_poles, &
+                                         Eigenval, Eigenval_scf, n_level_gw, &
+                                         gw_corr_lev_occ, gw_corr_lev_vir, num_poles, &
                                          num_fit_points, crossing_search, homo, stop_crit, &
                                          fermi_level_offset, do_gw_im_time)
 
@@ -3873,7 +3875,8 @@ CONTAINS
       COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(IN)      :: vec_Sigma_c_gw
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: vec_Sigma_x_minus_vxc_gw, Eigenval, &
                                                             Eigenval_scf
-      INTEGER, INTENT(IN)                                :: n_level_gw, gw_corr_lev_occ, num_poles, &
+      INTEGER, INTENT(IN)                                :: n_level_gw, gw_corr_lev_occ, &
+                                                            gw_corr_lev_vir, num_poles, &
                                                             num_fit_points, crossing_search, homo
       REAL(KIND=dp), INTENT(IN)                          :: stop_crit, fermi_level_offset
       LOGICAL, INTENT(IN)                                :: do_gw_im_time
@@ -4118,9 +4121,9 @@ CONTAINS
          ! in case of O(N^4) GW, we have the Fermi level differently for occ and virt states, see
          ! Fig. 1 in JCTC 12, 3623-3635 (2016)
          IF (n_level_gw <= gw_corr_lev_occ) THEN
-            e_fermi = Eigenval(homo) + fermi_level_offset
+            e_fermi = MAXVAL(Eigenval(homo - gw_corr_lev_occ + 1:homo)) + fermi_level_offset
          ELSE
-            e_fermi = Eigenval(homo + 1) - fermi_level_offset
+            e_fermi = MINVAL(Eigenval(homo + 1:homo + gw_corr_lev_vir)) - fermi_level_offset
          END IF
       END IF
 
@@ -4267,8 +4270,10 @@ CONTAINS
 !> \param vec_Sigma_x_minus_vxc_gw ...
 !> \param Eigenval quasiparticle energy during ev self-consistent GW
 !> \param Eigenval_scf KS/HF eigenvalue
+!> \param do_hedin_shift ...
 !> \param n_level_gw ...
 !> \param gw_corr_lev_occ ...
+!> \param gw_corr_lev_vir ...
 !> \param nparam_pade number of pade parameters
 !> \param num_fit_points number of fit points for Sigma_c(iomega)
 !> \param crossing_search type ofr cross search to find quasiparticle energies
@@ -4284,14 +4289,19 @@ CONTAINS
 !> \param min_level_self_energy ...
 !> \param max_level_self_energy ...
 !> \param dos_eta ...
+!> \param dos_min ...
+!> \param dos_max ...
+!> \param e_fermi_ext ...
 ! **************************************************************************************************
    SUBROUTINE continuation_pade(vec_gw_energ, vec_omega_fit_gw, &
                                 z_value, m_value, vec_Sigma_c_gw, vec_Sigma_x_minus_vxc_gw, &
-                                Eigenval, Eigenval_scf, n_level_gw, gw_corr_lev_occ, nparam_pade, &
-                                num_fit_points, crossing_search, homo, &
+                                Eigenval, Eigenval_scf, do_hedin_shift, n_level_gw, &
+                                gw_corr_lev_occ, gw_corr_lev_vir, &
+                                nparam_pade, num_fit_points, crossing_search, homo, &
                                 fermi_level_offset, do_gw_im_time, print_self_energy, count_ev_sc_GW, &
                                 vec_gw_dos, dos_lower_bound, dos_precision, ndos, &
-                                min_level_self_energy, max_level_self_energy, dos_eta)
+                                min_level_self_energy, max_level_self_energy, &
+                                dos_eta, dos_min, dos_max, e_fermi_ext)
 
       ! Optional arguments for spectral function
       REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: vec_gw_energ
@@ -4300,9 +4310,10 @@ CONTAINS
       COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(IN)      :: vec_Sigma_c_gw
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: vec_Sigma_x_minus_vxc_gw, Eigenval, &
                                                             Eigenval_scf
+      LOGICAL, INTENT(IN)                                :: do_hedin_shift
       INTEGER, INTENT(IN)                                :: n_level_gw, gw_corr_lev_occ, &
-                                                            nparam_pade, num_fit_points, &
-                                                            crossing_search, homo
+                                                            gw_corr_lev_vir, nparam_pade, &
+                                                            num_fit_points, crossing_search, homo
       REAL(KIND=dp), INTENT(IN)                          :: fermi_level_offset
       LOGICAL, INTENT(IN)                                :: do_gw_im_time, print_self_energy
       INTEGER, INTENT(IN)                                :: count_ev_sc_GW
@@ -4311,6 +4322,8 @@ CONTAINS
       INTEGER, INTENT(IN), OPTIONAL                      :: ndos, min_level_self_energy, &
                                                             max_level_self_energy
       REAL(KIND=dp), OPTIONAL                            :: dos_eta
+      INTEGER, INTENT(IN), OPTIONAL                      :: dos_min, dos_max
+      REAL(KIND=dp), OPTIONAL                            :: e_fermi_ext
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'continuation_pade'
 
@@ -4321,8 +4334,9 @@ CONTAINS
                                                             Sigma_c_gw_reorder
       INTEGER                                            :: handle, i_omega, idos, iunit, jquad, &
                                                             n_level_gw_ref, num_omega
-      REAL(KIND=dp)                                      :: e_fermi, energy_val, level_energ_GW, &
-                                                            omega, omega_dos, omega_dos_pade_eval, &
+      REAL(KIND=dp)                                      :: e_fermi, energy_val, hedin_shift, &
+                                                            level_energ_GW_start, omega, &
+                                                            omega_dos, omega_dos_pade_eval, &
                                                             sign_occ_virt
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: vec_omega_fit_gw_sign, &
                                                             vec_omega_fit_gw_sign_reorder, &
@@ -4343,18 +4357,20 @@ CONTAINS
       END DO
 
       IF (do_gw_im_time) THEN
-         ! for cubic-scaling GW, we have one Green's function for occ and virt states with the Fermi level
-         ! in the middle of homo and lumo
+         ! for cubic-scaling GW, we have one Green's function for occ and virt states
+         ! with the Fermi level in the middle of homo and lumo
          e_fermi = 0.5_dp*(Eigenval(homo) + Eigenval(homo + 1))
       ELSE
          ! in case of O(N^4) GW, we have the Fermi level differently for occ and virt states, see
          ! Fig. 1 in JCTC 12, 3623-3635 (2016)
          IF (n_level_gw <= gw_corr_lev_occ) THEN
-            e_fermi = Eigenval(homo) + fermi_level_offset
+            e_fermi = MAXVAL(Eigenval(homo - gw_corr_lev_occ + 1:homo)) + fermi_level_offset
          ELSE
-            e_fermi = Eigenval(homo + 1) - fermi_level_offset
+            e_fermi = MINVAL(Eigenval(homo + 1:homo + gw_corr_lev_vir)) - fermi_level_offset
          END IF
       END IF
+
+      IF (PRESENT(e_fermi_ext)) e_fermi = e_fermi_ext
 
       n_level_gw_ref = n_level_gw + homo - gw_corr_lev_occ
 
@@ -4389,17 +4405,22 @@ CONTAINS
                                      coeff_pade, sigma_c_pade)
          CALL get_z_and_m_value_pade(energy_val, nparam_pade, omega_points_pade, &
                                      coeff_pade, z_value(n_level_gw), m_value(n_level_gw))
-         level_energ_GW = (Eigenval_scf(n_level_gw_ref) - &
-                           m_value(n_level_gw)*Eigenval(n_level_gw_ref) + &
-                           REAL(sigma_c_pade) + &
-                           vec_Sigma_x_minus_vxc_gw(n_level_gw_ref))* &
-                          z_value(n_level_gw)
+         level_energ_GW_start = (Eigenval_scf(n_level_gw_ref) - &
+                                 m_value(n_level_gw)*Eigenval(n_level_gw_ref) + &
+                                 REAL(sigma_c_pade) + &
+                                 vec_Sigma_x_minus_vxc_gw(n_level_gw_ref))* &
+                                z_value(n_level_gw)
+
+         ! calculate Hedin shift; the last line is for evGW0 and evGW
+         hedin_shift = 0.0_dp
+         IF (do_hedin_shift) hedin_shift = REAL(sigma_c_pade) + &
+                                           vec_Sigma_x_minus_vxc_gw(n_level_gw_ref) &
+                                           - Eigenval(n_level_gw_ref) + Eigenval_scf(n_level_gw_ref)
       END IF
 
-      iunit = cp_logger_get_default_unit_nr()
-
       IF (PRESENT(min_level_self_energy) .AND. PRESENT(max_level_self_energy)) THEN
-         IF (n_level_gw_ref >= min_level_self_energy .AND. n_level_gw_ref <= max_level_self_energy) THEN
+         IF (n_level_gw_ref >= min_level_self_energy .AND. &
+             n_level_gw_ref <= max_level_self_energy) THEN
             ALLOCATE (vec_sigma_real(ndos))
             ALLOCATE (vec_sigma_imag(ndos))
             WRITE (string_level, "(I4)") n_level_gw_ref
@@ -4414,6 +4435,9 @@ CONTAINS
 
       IF (PRESENT(ndos)) THEN
       IF (ndos /= 0) THEN
+         ! Hedin shift not implemented
+         CPASSERT(.NOT. do_hedin_shift)
+         iunit = cp_logger_get_default_unit_nr()
          DO idos = 1, ndos
             omega_dos = dos_lower_bound + REAL(idos - 1, KIND=dp)*dos_precision
             omega_dos_pade_eval = omega_dos - e_fermi
@@ -4428,49 +4452,55 @@ CONTAINS
 
             END IF
 
-            vec_gw_dos(idos) = vec_gw_dos(idos) + &
-                               (ABS(AIMAG(sigma_c_pade)) + dos_eta) &
-                               /( &
-                               (omega_dos - Eigenval(n_level_gw_ref) - &
-                                (REAL(sigma_c_pade) + vec_Sigma_x_minus_vxc_gw(n_level_gw_ref)) &
-                                )**2 &
-                               + (ABS(AIMAG(sigma_c_pade)) + dos_eta)**2 &
-                               )
+            IF (n_level_gw_ref >= dos_min .AND. &
+                (n_level_gw_ref <= dos_max .OR. dos_max == 0)) THEN
+               vec_gw_dos(idos) = vec_gw_dos(idos) + &
+                                  (ABS(AIMAG(sigma_c_pade)) + dos_eta) &
+                                  /( &
+                                  (omega_dos - Eigenval_scf(n_level_gw_ref) - &
+                                   (REAL(sigma_c_pade) + vec_Sigma_x_minus_vxc_gw(n_level_gw_ref)) &
+                                   )**2 &
+                                  + (ABS(AIMAG(sigma_c_pade)) + dos_eta)**2 &
+                                  )
+            END IF
 
          END DO
       END IF
       END IF
 
       IF (PRESENT(min_level_self_energy) .AND. PRESENT(max_level_self_energy)) THEN
-      IF (n_level_gw_ref >= min_level_self_energy .AND. &
-          n_level_gw_ref <= max_level_self_energy .AND. iunit > 0) THEN
+         iunit = cp_logger_get_default_unit_nr()
+         IF (n_level_gw_ref >= min_level_self_energy .AND. &
+             n_level_gw_ref <= max_level_self_energy .AND. iunit > 0) THEN
 
-         CALL open_file('self_energy_re_'//TRIM(string_level)//'.dat', unit_number=iunit, &
-                        file_status="UNKNOWN", file_action="WRITE")
-         DO idos = 1, ndos
-            omega_dos = dos_lower_bound + REAL(idos - 1, KIND=dp)*dos_precision
-            WRITE (iunit, '(F17.10, F17.10)') omega_dos*evolt, vec_sigma_real(idos)*evolt
-         END DO
+            CALL open_file('self_energy_re_'//TRIM(string_level)//'.dat', unit_number=iunit, &
+                           file_status="UNKNOWN", file_action="WRITE")
+            DO idos = 1, ndos
+               omega_dos = dos_lower_bound + REAL(idos - 1, KIND=dp)*dos_precision
+               WRITE (iunit, '(F17.10, F17.10)') omega_dos*evolt, vec_sigma_real(idos)*evolt
+            END DO
 
-         CALL close_file(iunit)
+            CALL close_file(iunit)
 
-         CALL open_file('self_energy_im_'//TRIM(string_level)//'.dat', unit_number=iunit, &
-                        file_status="UNKNOWN", file_action="WRITE")
-         DO idos = 1, ndos
-            omega_dos = dos_lower_bound + REAL(idos - 1, KIND=dp)*dos_precision
-            WRITE (iunit, '(F17.10, F17.10)') omega_dos*evolt, vec_sigma_imag(idos)*evolt
-         END DO
+            CALL open_file('self_energy_im_'//TRIM(string_level)//'.dat', unit_number=iunit, &
+                           file_status="UNKNOWN", file_action="WRITE")
+            DO idos = 1, ndos
+               omega_dos = dos_lower_bound + REAL(idos - 1, KIND=dp)*dos_precision
+               WRITE (iunit, '(F17.10, F17.10)') omega_dos*evolt, vec_sigma_imag(idos)*evolt
+            END DO
 
-         CALL close_file(iunit)
+            CALL close_file(iunit)
 
-         DEALLOCATE (vec_sigma_real)
-         DEALLOCATE (vec_sigma_imag)
-      END IF
+            DEALLOCATE (vec_sigma_real)
+            DEALLOCATE (vec_sigma_imag)
+         END IF
       END IF
 
       !*** perform crossing search
       SELECT CASE (crossing_search)
       CASE (ri_rpa_g0w0_crossing_z_shot)
+         ! Hedin shift not implemented
+         CPASSERT(.NOT. do_hedin_shift)
          energy_val = Eigenval(n_level_gw_ref) - e_fermi
          CALL evaluate_pade_function(energy_val, nparam_pade, omega_points_pade, &
                                      coeff_pade, sigma_c_pade)
@@ -4483,7 +4513,7 @@ CONTAINS
          CALL get_sigma_c_bisection_pade(vec_gw_energ(n_level_gw), Eigenval_scf(n_level_gw_ref), &
                                          vec_Sigma_x_minus_vxc_gw(n_level_gw_ref), e_fermi, &
                                          nparam_pade, omega_points_pade, coeff_pade, &
-                                         n_level_gw_ref, start_val=level_energ_GW)
+                                         level_energ_GW_start, hedin_shift)
          z_value(n_level_gw) = 1.0_dp
          m_value(n_level_gw) = 0.0_dp
 
@@ -4491,7 +4521,7 @@ CONTAINS
          CALL get_sigma_c_newton_pade(vec_gw_energ(n_level_gw), Eigenval_scf(n_level_gw_ref), &
                                       vec_Sigma_x_minus_vxc_gw(n_level_gw_ref), e_fermi, &
                                       nparam_pade, omega_points_pade, coeff_pade, &
-                                      n_level_gw_ref, start_val=level_energ_GW)
+                                      level_energ_GW_start, hedin_shift)
          z_value(n_level_gw) = 1.0_dp
          m_value(n_level_gw) = 0.0_dp
 
@@ -4531,6 +4561,7 @@ CONTAINS
 
          END IF
 
+         iunit = cp_logger_get_default_unit_nr()
          CALL open_file(TRIM(filename), unit_number=iunit, file_status="UNKNOWN", file_action="WRITE")
 
          num_omega = 10000
@@ -4722,41 +4753,33 @@ CONTAINS
 !> \param nparam_pade number of pade parameters
 !> \param omega_points_pade selection of frequency points of Sigma_c(iomega)
 !> \param coeff_pade pade coefficients
-!> \param n_level_gw_ref ...
 !> \param start_val start value for the quasiparticle iteration
+!> \param hedin_shift ...
 ! **************************************************************************************************
    SUBROUTINE get_sigma_c_bisection_pade(gw_energ, Eigenval_scf, Sigma_x_minus_vxc_gw, e_fermi, &
-                                         nparam_pade, omega_points_pade, coeff_pade, n_level_gw_ref, start_val)
+                                         nparam_pade, omega_points_pade, coeff_pade, start_val, &
+                                         hedin_shift)
 
       REAL(KIND=dp), INTENT(OUT)                         :: gw_energ
       REAL(KIND=dp), INTENT(IN)                          :: Eigenval_scf, Sigma_x_minus_vxc_gw, &
                                                             e_fermi
       INTEGER, INTENT(IN)                                :: nparam_pade
       COMPLEX(KIND=dp), DIMENSION(:), INTENT(IN)         :: omega_points_pade, coeff_pade
-      INTEGER, INTENT(IN)                                :: n_level_gw_ref
-      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: start_val
+      REAL(KIND=dp), INTENT(IN)                          :: start_val, hedin_shift
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'get_sigma_c_bisection_pade'
 
-      CHARACTER(LEN=512)                                 :: error_msg
-      CHARACTER(LEN=64)                                  :: n_level_gw_ref_char
       COMPLEX(KIND=dp)                                   :: sigma_c
       INTEGER                                            :: handle, icount
-      REAL(KIND=dp)                                      :: delta, energy_val, my_start_val, &
-                                                            qp_energy, qp_energy_old, threshold
+      REAL(KIND=dp)                                      :: delta, energy_val, qp_energy, &
+                                                            qp_energy_old, threshold
 
       CALL timeset(routineN, handle)
 
       threshold = 1.0E-7_dp
 
-      IF (PRESENT(start_val)) THEN
-         my_start_val = start_val
-      ELSE
-         my_start_val = Eigenval_scf
-      END IF
-
-      qp_energy = my_start_val
-      qp_energy_old = my_start_val
+      qp_energy = start_val
+      qp_energy_old = start_val
       delta = 1.0E-3_dp
 
       icount = 0
@@ -4764,18 +4787,13 @@ CONTAINS
          icount = icount + 1
          qp_energy = qp_energy_old + 0.5_dp*delta
          qp_energy_old = qp_energy
-         energy_val = qp_energy - e_fermi
+         energy_val = qp_energy - e_fermi - hedin_shift
          CALL evaluate_pade_function(energy_val, nparam_pade, omega_points_pade, &
                                      coeff_pade, sigma_c)
          qp_energy = Eigenval_scf + REAL(sigma_c) + Sigma_x_minus_vxc_gw
          delta = qp_energy - qp_energy_old
-         IF (icount > 500) THEN
-            WRITE (n_level_gw_ref_char, '(I10)') n_level_gw_ref
-            WRITE (error_msg, '(A,A,A)') " Self-consistent quasi-particle solution of "// &
-               "MO ", TRIM(n_level_gw_ref_char), " has not been found."
-            CPWARN(error_msg)
-            EXIT
-         END IF
+         ! Self-consistent quasi-particle solution has not been found
+         IF (icount > 500) EXIT
       END DO
 
       gw_energ = REAL(sigma_c)
@@ -4793,48 +4811,39 @@ CONTAINS
 !> \param nparam_pade number of pade parameters
 !> \param omega_points_pade selection of frequency points of Sigma_c(iomega)
 !> \param coeff_pade pade coefficients
-!> \param n_level_gw_ref ...
 !> \param start_val start value for the quasiparticle iteration
+!> \param hedin_shift ...
 ! **************************************************************************************************
    SUBROUTINE get_sigma_c_newton_pade(gw_energ, Eigenval_scf, Sigma_x_minus_vxc_gw, e_fermi, &
-                                      nparam_pade, omega_points_pade, coeff_pade, n_level_gw_ref, start_val)
+                                      nparam_pade, omega_points_pade, coeff_pade, start_val, &
+                                      hedin_shift)
 
       REAL(KIND=dp), INTENT(OUT)                         :: gw_energ
       REAL(KIND=dp), INTENT(IN)                          :: Eigenval_scf, Sigma_x_minus_vxc_gw, &
                                                             e_fermi
       INTEGER, INTENT(IN)                                :: nparam_pade
       COMPLEX(KIND=dp), DIMENSION(:), INTENT(IN)         :: omega_points_pade, coeff_pade
-      INTEGER, INTENT(IN)                                :: n_level_gw_ref
-      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: start_val
+      REAL(KIND=dp), INTENT(IN)                          :: start_val, hedin_shift
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'get_sigma_c_newton_pade'
 
-      CHARACTER(LEN=512)                                 :: error_msg
-      CHARACTER(LEN=64)                                  :: n_level_gw_ref_char
       COMPLEX(KIND=dp)                                   :: sigma_c
       INTEGER                                            :: handle, icount
-      REAL(KIND=dp)                                      :: delta, energy_val, m_value, &
-                                                            my_start_val, qp_energy, &
+      REAL(KIND=dp)                                      :: delta, energy_val, m_value, qp_energy, &
                                                             qp_energy_old, threshold
 
       CALL timeset(routineN, handle)
 
       threshold = 1.0E-7_dp
 
-      IF (PRESENT(start_val)) THEN
-         my_start_val = start_val
-      ELSE
-         my_start_val = Eigenval_scf
-      END IF
-
-      qp_energy = my_start_val
-      qp_energy_old = my_start_val
+      qp_energy = start_val
+      qp_energy_old = start_val
       delta = 1.0E-3_dp
 
       icount = 0
       DO WHILE (ABS(delta) > threshold)
          icount = icount + 1
-         energy_val = qp_energy - e_fermi
+         energy_val = qp_energy - e_fermi - hedin_shift
          CALL evaluate_pade_function(energy_val, nparam_pade, omega_points_pade, &
                                      coeff_pade, sigma_c)
          !get m_value --> derivative of function
@@ -4844,13 +4853,8 @@ CONTAINS
          qp_energy = qp_energy - (Eigenval_scf + Sigma_x_minus_vxc_gw + REAL(sigma_c) - qp_energy)/ &
                      (m_value - 1.0_dp)
          delta = qp_energy - qp_energy_old
-         IF (icount > 500) THEN
-            WRITE (n_level_gw_ref_char, '(I10)') n_level_gw_ref
-            WRITE (error_msg, '(A,A,A)') " Self-consistent quasi-particle solution of "// &
-               "MO ", TRIM(n_level_gw_ref_char), " has not been found."
-            CPWARN(error_msg)
-            EXIT
-         END IF
+         ! Self-consistent quasi-particle solution has not been found
+         IF (icount > 500) EXIT
       END DO
 
       gw_energ = REAL(sigma_c)
@@ -5082,15 +5086,25 @@ CONTAINS
                WRITE (unit_nr, '(T3,A,F42.4)') 'GW direct gap at current kpoint (eV)', E_GAP_GW*evolt
             ELSE IF (do_alpha) THEN
                WRITE (unit_nr, '(T3,A)') ' '
-               WRITE (unit_nr, '(T3,A,F36.4)') 'Alpha GW direct gap at current kpoint (eV)', E_GAP_GW*evolt
+               WRITE (unit_nr, '(T3,A,F36.4)') 'Alpha GW direct gap at current kpoint (eV)', &
+                  E_GAP_GW*evolt
             ELSE IF (do_beta) THEN
                WRITE (unit_nr, '(T3,A)') ' '
-               WRITE (unit_nr, '(T3,A,F37.4)') 'Beta GW direct gap at current kpoint (eV)', E_GAP_GW*evolt
+               WRITE (unit_nr, '(T3,A,F37.4)') 'Beta GW direct gap at current kpoint (eV)', &
+                  E_GAP_GW*evolt
             END IF
          ELSE
             IF (do_closed_shell) THEN
                WRITE (unit_nr, '(T3,A)') ' '
-               WRITE (unit_nr, '(T3,A,F57.4)') 'GW HOMO-LUMO gap (eV)', E_GAP_GW*evolt
+               IF (count_ev_sc_GW > 1) THEN
+                  WRITE (unit_nr, '(T3,A,I3,A,F39.4)') 'HOMO-LUMO gap in evGW iteration', &
+                     count_ev_sc_GW, ' (eV)', E_GAP_GW*evolt
+               ELSE IF (count_sc_GW0 > 1) THEN
+                  WRITE (unit_nr, '(T3,A,I3,A,F38.4)') 'HOMO-LUMO gap in evGW0 iteration', &
+                     count_sc_GW0, ' (eV)', E_GAP_GW*evolt
+               ELSE
+                  WRITE (unit_nr, '(T3,A,F55.4)') 'G0W0 HOMO-LUMO gap (eV)', E_GAP_GW*evolt
+               END IF
             ELSE IF (do_alpha) THEN
                WRITE (unit_nr, '(T3,A)') ' '
                WRITE (unit_nr, '(T3,A,F51.4)') 'Alpha GW HOMO-LUMO gap (eV)', E_GAP_GW*evolt

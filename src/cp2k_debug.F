@@ -455,17 +455,17 @@ CONTAINS
                      dd = dipole_moment(k) - dipole_numer(k)
                      IF (ABS(dipole_moment(k)) > eps_no_error_check) THEN
                         derr = 100._dp*dd/dipole_moment(k)
-                        WRITE (UNIT=iw, FMT="(T13,A1,T21,F16.8,T38,F16.8,T56,G12.3,T72,F9.3)") &
-                           ACHAR(119 + k), dipole_numer(k), dipole_moment(k), dd, derr
+                        WRITE (UNIT=iw, FMT="(T2,A,T13,A1,T21,F16.8,T38,F16.8,T56,G12.3,T72,F9.3)") &
+                           "DEBUG|", ACHAR(119 + k), dipole_numer(k), dipole_moment(k), dd, derr
                      ELSE
                         derr = 0.0_dp
-                        WRITE (UNIT=iw, FMT="(T13,A1,T21,F16.8,T38,F16.8,T56,G12.3)") &
-                           ACHAR(119 + k), dipole_numer(k), dipole_moment(k), dd
+                        WRITE (UNIT=iw, FMT="(T2,A,T13,A1,T21,F16.8,T38,F16.8,T56,G12.3)") &
+                           "DEBUG|", ACHAR(119 + k), dipole_numer(k), dipole_moment(k), dd
                      END IF
                      err(k) = derr
                   ELSE
-                     WRITE (UNIT=iw, FMT="(T13,A1,T21,A16,T38,F16.8)") &
-                        ACHAR(119 + k), "         skipped", dipole_moment(k)
+                     WRITE (UNIT=iw, FMT="(T2,A,T13,A1,T21,A16,T38,F16.8)") &
+                        "DEBUG|", ACHAR(119 + k), "         skipped", dipole_moment(k)
                   END IF
                END DO
                WRITE (UNIT=iw, FMT="((T2,A))") &
@@ -530,11 +530,11 @@ CONTAINS
                      dd = polar_analytic(k, j) - polar_numeric(k, j)
                      IF (ABS(polar_analytic(k, j)) > eps_no_error_check) THEN
                         derr = 100._dp*dd/polar_analytic(k, j)
-                        WRITE (UNIT=iw, FMT="(T12,A1,A1,T21,F16.8,T38,F16.8,T56,G12.3,T72,F9.3)") &
-                           ACHAR(119 + k), ACHAR(119 + j), polar_numeric(k, j), polar_analytic(k, j), dd, derr
+                        WRITE (UNIT=iw, FMT="(T2,A,T12,A1,A1,T21,F16.8,T38,F16.8,T56,G12.3,T72,F9.3)") &
+                           "DEBUG|", ACHAR(119 + k), ACHAR(119 + j), polar_numeric(k, j), polar_analytic(k, j), dd, derr
                      ELSE
-                        WRITE (UNIT=iw, FMT="(T12,A1,A1,T21,F16.8,T38,F16.8,T56,G12.3)") &
-                           ACHAR(119 + k), ACHAR(119 + j), polar_numeric(k, j), polar_analytic(k, j), dd
+                        WRITE (UNIT=iw, FMT="(T2,A,T12,A1,A1,T21,F16.8,T38,F16.8,T56,G12.3)") &
+                           "DEBUG|", ACHAR(119 + k), ACHAR(119 + j), polar_numeric(k, j), polar_analytic(k, j), dd
                      END IF
                   END DO
                END DO

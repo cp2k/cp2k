@@ -15,7 +15,7 @@
 MODULE lri_ks_methods
    USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                               get_atomic_kind_set
-   USE dbcsr_api,                       ONLY: dbcsr_add,&
+   USE cp_dbcsr_api,                    ONLY: dbcsr_add,&
                                               dbcsr_add_block_node,&
                                               dbcsr_finalize,&
                                               dbcsr_get_block_p,&

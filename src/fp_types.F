@@ -37,21 +37,21 @@ MODULE fp_types
    TYPE fp_type
 
       ! input related objects
-      LOGICAL                        :: use_fp
+      LOGICAL                        :: use_fp = .FALSE.
 
-      INTEGER                        :: central_atom
-      INTEGER, DIMENSION(:), POINTER :: inner_atoms, outer_atoms
-      REAL(KIND=dp)                  :: inner_radius, outer_radius
-      REAL(KIND=dp)                  :: strength, smooth_width
-      LOGICAL                        :: bias
-      REAL(KIND=dp)                  :: temperature
-      TYPE(section_vals_type), POINTER   :: print_section
+      INTEGER                        :: central_atom = -1
+      INTEGER, DIMENSION(:), POINTER :: inner_atoms => NULL(), outer_atoms => NULL()
+      REAL(KIND=dp)                  :: inner_radius = 0.0_dp, outer_radius = 0.0_dp
+      REAL(KIND=dp)                  :: strength = 0.0_dp, smooth_width = 0.0_dp
+      LOGICAL                        :: bias = .FALSE.
+      REAL(KIND=dp)                  :: temperature = 0.0_dp
+      TYPE(section_vals_type), POINTER   :: print_section => NULL()
 
       ! computed during runs
-      INTEGER                        :: i1, i2, o1, o2
-      REAL(KIND=dp)                  :: ri1, ri2, ro1, ro2
-      REAL(KIND=dp)                  :: weight, comb_weight, bias_weight
-      REAL(KIND=dp)                  :: energy, bias_energy, restraint_energy
+      INTEGER                        :: i1 = -1, i2 = -1, o1 = -1, o2 = -1
+      REAL(KIND=dp)                  :: ri1 = 0.0_dp, ri2 = 0.0_dp, ro1 = 0.0_dp, ro2 = 0.0_dp
+      REAL(KIND=dp)                  :: weight = 0.0_dp, comb_weight = 0.0_dp, bias_weight = 0.0_dp
+      REAL(KIND=dp)                  :: energy = 0.0_dp, bias_energy = 0.0_dp, restraint_energy = 0.0_dp
    END TYPE fp_type
 
 CONTAINS
