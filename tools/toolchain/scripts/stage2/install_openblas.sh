@@ -64,7 +64,7 @@ case "${with_openblas}" in
       if [ "0" = "${BUILD_DYNAMIC}" ]; then
         TARGET=$(tr '[:lower:]' '[:upper:]' <<< "${OPENBLAS_LIBCORE}")
         echo "Installing OpenBLAS library for target ${TARGET}"
-        make -j $(get_nprocs) \
+        if ! make -j $(get_nprocs) \
           TARGET=${TARGET} \
           MAKE_NB_JOBS=0 \
           NUM_THREADS=128 \
@@ -73,8 +73,10 @@ case "${with_openblas}" in
           CC="${CC}" \
           FC="${FC}" \
           PREFIX="${pkg_install_dir}" \
-          > make.${OPENBLAS_LIBCORE}.log 2>&1 || tail -n ${LOG_LINES} make.${OPENBLAS_LIBCORE}.log
-        BUILD_DYNAMIC=$?
+          > make.${OPENBLAS_LIBCORE}.log 2>&1; then
+          tail -n ${LOG_LINES} make.${OPENBLAS_LIBCORE}.log
+          BUILD_DYNAMIC=1
+        fi
       fi
       if [ "0" != "${BUILD_DYNAMIC}" ]; then
         echo "Installing OpenBLAS library for dynamic target"
