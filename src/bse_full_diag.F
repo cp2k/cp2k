@@ -15,9 +15,9 @@ MODULE bse_full_diag
 
    USE bse_util,                        ONLY: comp_eigvec_coeff_BSE,&
                                               compute_absorption_spectrum,&
-                                              filter_eigvec_contrib,&
                                               fm_general_add_bse,&
-                                              get_oscillator_strengths
+                                              get_oscillator_strengths,&
+                                              print_transition_probabilities
    USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
                                               cp_blacs_env_release,&
                                               cp_blacs_env_type
@@ -593,10 +593,9 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'success_message'
 
       CHARACTER(LEN=10)                                  :: info_approximation, multiplet
-      INTEGER                                            :: handle, i_exc, k, num_entries
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: idx_homo, idx_virt
+      INTEGER                                            :: handle, i_exc
       REAL(KIND=dp)                                      :: alpha
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigvec_entries, oscill_str
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: oscill_str
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: dipole_exc
 
       CALL timeset(routineN, handle)
@@ -709,34 +708,42 @@ CONTAINS
       !prints single particle transitions
       IF (unit_nr > 0) THEN
          WRITE (unit_nr, '(T2,A4)') 'BSE|'
-
-         WRITE (unit_nr, '(T2,A4,T7,A70)') &
-            'BSE|', "Excitations are built up by the following single-particle transitions,"
-         WRITE (unit_nr, '(T2,A4,T7,A42,F5.2,A2)') &
-            'BSE|', "neglecting contributions where |X_ia^n| < ", mp2_env%ri_g0w0%eps_x, " :"
+         WRITE (unit_nr, '(T2,A4,T7,A61)') &
+            'BSE|', "Single-particle transitions are built up by (de-)excitations,"
+         WRITE (unit_nr, '(T2,A4,T7,A18)') &
+            'BSE|', "which we denote by"
+         WRITE (unit_nr, '(T2,A4)') 'BSE|'
+         WRITE (unit_nr, '(T2,A4,T20,A2,T30,A40)') &
+            'BSE|', "=>", "for excitations, i.e. entries of X_ia^n,"
+         WRITE (unit_nr, '(T2,A4,T20,A2,T30,A42)') &
+            'BSE|', "<=", "for deexcitations, i.e. entries of Y_ia^n."
+         WRITE (unit_nr, '(T2,A4)') &
+            'BSE|'
+         WRITE (unit_nr, '(T2,A4,T7,A73)') &
+            'BSE|', "The following single-particle transitions have significant contributions,"
+         WRITE (unit_nr, '(T2,A4,T7,A16,F5.3,A15,F5.3,A16)') &
+            'BSE|', "i.e. |X_ia^n| < ", mp2_env%ri_g0w0%eps_x, " or |Y_ia^n| < ", &
+            mp2_env%ri_g0w0%eps_x, ", respectively :"
 
          WRITE (unit_nr, '(T2,A4,T15,A27,I5,A13,I5,A3)') 'BSE|', '-- Quick reminder: HOMO i =', &
             homo_irred, ' and LUMO a =', homo_irred + 1, " --"
          WRITE (unit_nr, '(T2,A4)') 'BSE|'
-         WRITE (unit_nr, '(T2,A4,T7,A12,T25,A1,T27,A2,T34,A1,T54,A8,T71,A10)') &
-            "BSE|", "Excitation n", "i", "=>", "a", 'TDA/ABBA', "|X_ia^n|"
+         WRITE (unit_nr, '(T2,A4,T7,A12,T30,A1,T32,A5,T42,A1,T49,A8,T64,A17)') &
+            "BSE|", "Excitation n", "i", "=>/<=", "a", 'TDA/ABBA', "|X_ia^n|/|Y_ia^n|"
       END IF
       DO i_exc = 1, MIN(homo*virtual, mp2_env%ri_g0w0%num_print_exc)
-         !Iterate through eigenvector and print values above threshold
-         CALL filter_eigvec_contrib(fm_eigvec_X, idx_homo, idx_virt, eigvec_entries, &
-                                    i_exc, virtual, num_entries, mp2_env)
          IF (unit_nr > 0) THEN
             WRITE (unit_nr, '(T2,A4)') 'BSE|'
-            DO k = 1, num_entries
-               WRITE (unit_nr, '(T2,A4,T14,I5,T21,I5,T27,A2,T30,I5,T56,A6,T65,F16.4)') &
-                  "BSE|", i_exc, homo_irred - homo + idx_homo(k), "=>", &
-                  homo_irred + idx_virt(k), info_approximation, ABS(eigvec_entries(k))
-            END DO
          END IF
-
-         DEALLOCATE (idx_homo)
-         DEALLOCATE (idx_virt)
-         DEALLOCATE (eigvec_entries)
+         !Iterate through eigenvector and print values above threshold
+         CALL print_transition_probabilities(fm_eigvec_X, "=>", info_approximation, &
+                                             i_exc, virtual, homo, homo_irred, &
+                                             unit_nr, mp2_env)
+         IF (PRESENT(fm_eigvec_Y)) THEN
+            CALL print_transition_probabilities(fm_eigvec_Y, "<=", info_approximation, &
+                                                i_exc, virtual, homo, homo_irred, &
+                                                unit_nr, mp2_env)
+         END IF
       END DO
       ! Compute BSE dipoles and oscillator strengths
       CALL get_oscillator_strengths(fm_eigvec_X, Exc_ens, &

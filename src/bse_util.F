@@ -23,7 +23,8 @@ MODULE bse_util
                                               dbcsr_deallocate_matrix_set
    USE cp_files,                        ONLY: close_file,&
                                               open_file
-   USE cp_fm_basic_linalg,              ONLY: cp_fm_upper_to_full
+   USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add,&
+                                              cp_fm_upper_to_full
    USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose,&
                                               cp_fm_cholesky_invert
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
@@ -68,7 +69,8 @@ MODULE bse_util
    PUBLIC :: mult_B_with_W, fm_general_add_bse, truncate_fm, fm_write_thresh, print_BSE_start_flag, &
              deallocate_matrices_bse, comp_eigvec_coeff_BSE, sort_excitations, &
              estimate_BSE_resources, filter_eigvec_contrib, truncate_BSE_matrices, &
-             get_oscillator_strengths, compute_absorption_spectrum, determine_cutoff_indices
+             get_oscillator_strengths, compute_absorption_spectrum, determine_cutoff_indices, &
+             print_transition_probabilities
 
 CONTAINS
 
@@ -1515,7 +1517,7 @@ CONTAINS
       CALL cp_fm_set_all(fm_eigvec_XYsum, 0.0_dp)
       CALL cp_fm_to_fm(fm_eigvec_X, fm_eigvec_XYsum)
       IF (PRESENT(fm_eigvec_Y)) THEN
-         CALL cp_fm_to_fm(fm_eigvec_Y, fm_eigvec_XYsum)
+         CALL cp_fm_scale_and_add(1.0_dp, fm_eigvec_XYsum, 1.0_dp, fm_eigvec_Y)
       END IF
       DO idir = 1, 3
          CALL parallel_gemm('N', 'N', 1, homo_red*virtual_red, homo_red*virtual_red, SQRT(2.0_dp), &
@@ -1750,7 +1752,7 @@ CONTAINS
          IF (unit_nr_file > 0) THEN
             CALL open_file(file_name_spectrum, unit_number=unit_nr_file, &
                            file_status="UNKNOWN", file_action="WRITE")
-            WRITE (unit_nr_file, '(A62,A6)') "# Absorption spectrum from Bethe Salpeter equation for method ", &
+            WRITE (unit_nr_file, '(A75,A6)') "# Imaginary part of polarizability from Bethe Salpeter equation for method ", &
                TRIM(ADJUSTL(info_approximation))
             DO i = 1, num_steps
                WRITE (unit_nr_file, '(F17.10, F17.10)') abs_spectrum(i, 1)*evolt, abs_spectrum(i, 2)
@@ -1775,6 +1777,57 @@ CONTAINS
          WRITE (unit_nr, '(T2,A4)') 'BSE|'
       END IF
 
+      CALL timestop(handle)
+
+   END SUBROUTINE
+
+   ! **************************************************************************************************
+   ! **************************************************************************************************
+! **************************************************************************************************
+!> \brief ...
+!> \param fm_eigvec ...
+!> \param direction_excitation ...
+!> \param info_approximation ...
+!> \param i_exc ...
+!> \param virtual ...
+!> \param homo ...
+!> \param homo_irred ...
+!> \param unit_nr ...
+!> \param mp2_env ...
+! **************************************************************************************************
+   SUBROUTINE print_transition_probabilities(fm_eigvec, direction_excitation, info_approximation, &
+                                             i_exc, virtual, homo, homo_irred, &
+                                             unit_nr, mp2_env)
+
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_eigvec
+      CHARACTER(LEN=2), INTENT(IN)                       :: direction_excitation
+      CHARACTER(LEN=10), INTENT(IN)                      :: info_approximation
+      INTEGER                                            :: i_exc, virtual, homo, homo_irred
+      INTEGER, INTENT(IN)                                :: unit_nr
+      TYPE(mp2_type), INTENT(INOUT)                      :: mp2_env
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'print_transition_probabilities'
+
+      INTEGER                                            :: handle, k, num_entries
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: idx_homo, idx_virt
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigvec_entries
+
+      CALL timeset(routineN, handle)
+
+      CALL filter_eigvec_contrib(fm_eigvec, idx_homo, idx_virt, eigvec_entries, &
+                                 i_exc, virtual, num_entries, mp2_env)
+      ! direction_excitation can be either => (means excitation; from fm_eigvec_X)
+      ! or <= (means deexcitation; from fm_eigvec_Y)
+      IF (unit_nr > 0) THEN
+         DO k = 1, num_entries
+            WRITE (unit_nr, '(T2,A4,T14,I5,T26,I5,T35,A2,T38,I5,T51,A6,T65,F16.4)') &
+               "BSE|", i_exc, homo_irred - homo + idx_homo(k), direction_excitation, &
+               homo_irred + idx_virt(k), info_approximation, ABS(eigvec_entries(k))
+         END DO
+      END IF
+      DEALLOCATE (idx_homo)
+      DEALLOCATE (idx_virt)
+      DEALLOCATE (eigvec_entries)
       CALL timestop(handle)
 
    END SUBROUTINE
