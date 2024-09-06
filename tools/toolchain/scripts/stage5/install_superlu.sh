@@ -78,8 +78,11 @@ case "$with_superlu" in
 esac
 if [ "$with_superlu" != "__DONTUSE__" ]; then
   SUPERLU_LIBS="-lsuperlu_dist"
+  cat << EOF > "${BUILDDIR}/setup_superlu"
+export SUPERLU_VER="${superlu_ver}"
+EOF
   if [ "$with_superlu" != "__SYSTEM__" ]; then
-    cat << EOF > "${BUILDDIR}/setup_superlu"
+    cat << EOF >> "${BUILDDIR}/setup_superlu"
 prepend_path LD_LIBRARY_PATH "$pkg_install_dir/lib"
 prepend_path LD_RUN_PATH "$pkg_install_dir/lib"
 prepend_path LIBRARY_PATH "$pkg_install_dir/lib"
@@ -90,7 +93,6 @@ EOF
     cat "${BUILDDIR}/setup_superlu" >> $SETUPFILE
   fi
   cat << EOF >> "${BUILDDIR}/setup_superlu"
-export SUPERLU_VER="${superlu_ver}"
 export SUPERLU_CFLAGS="${SUPERLU_CFLAGS}"
 export SUPERLU_LDFLAGS="${SUPERLU_LDFLAGS}"
 export SUPERLU_LIBS="${SUPERLU_LIBS}"
