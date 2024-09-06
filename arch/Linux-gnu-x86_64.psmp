@@ -298,9 +298,10 @@ ifneq ($(USE_LIBXSMM),)
    CFLAGS         += -I$(LIBXSMM_INC)
    DFLAGS         += -D__LIBXSMM
    ifeq ($(SHARED), yes)
-      LIBS           += -Wl,-rpath=$(LIBXSMM_LIB) -L$(LIBXSMM_LIB) -lxsmmf -lxsmm
+      LIBS           += -Wl,-rpath=$(LIBXSMM_LIB) -L$(LIBXSMM_LIB) -lxsmmf -lxsmmext -lxsmm
    else
       LIBS           += $(LIBXSMM_LIB)/libxsmmf.a
+      LIBS           += $(LIBXSMM_LIB)/libxsmmext.a
       LIBS           += $(LIBXSMM_LIB)/libxsmm.a
    endif
 endif
