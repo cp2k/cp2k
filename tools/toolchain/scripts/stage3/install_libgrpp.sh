@@ -79,8 +79,11 @@ case "${with_libgrpp}" in
 esac
 if [ "$with_libgrpp" != "__DONTUSE__" ]; then
   LIBGRPP_LIBS="-llibgrpp"
+  cat << EOF > "${BUILDDIR}/setup_libgrpp"
+export LIBGRPP_VER="${libgrpp_ver}"
+EOF
   if [ "$with_libgrpp" != "__SYSTEM__" ]; then
-    cat << EOF > "${BUILDDIR}/setup_libgrpp"
+    cat << EOF >> "${BUILDDIR}/setup_libgrpp"
 prepend_path LD_LIBRARY_PATH "$pkg_install_dir/lib"
 prepend_path LD_RUN_PATH "$pkg_install_dir/lib"
 prepend_path LIBRARY_PATH "$pkg_install_dir/lib"
@@ -91,7 +94,6 @@ EOF
     cat "${BUILDDIR}/setup_libgrpp" >> $SETUPFILE
   fi
   cat << EOF >> "${BUILDDIR}/setup_libgrpp"
-export LIBGRPP_VER="${libgrpp_ver}"
 export LIBGRPP_CFLAGS="${LIBGRPP_CFLAGS}"
 export LIBGRPP_LDFLAGS="${LIBGRPP_LDFLAGS}"
 export LIBGRPP_LIBS="${LIBGRPP_LIBS}"

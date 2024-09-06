@@ -111,8 +111,11 @@ case "$with_pexsi" in
 esac
 if [ "$with_pexsi" != "__DONTUSE__" ]; then
   PEXSI_LIBS="-lpexsi"
+  cat << EOF > "${BUILDDIR}/setup_pexsi"
+export PEXSI_VER="${pexsi_ver}"
+EOF
   if [ "$with_pexsi" != "__SYSTEM__" ]; then
-    cat << EOF > "${BUILDDIR}/setup_pexsi"
+    cat << EOF >> "${BUILDDIR}/setup_pexsi"
 prepend_path LD_LIBRARY_PATH "$pkg_install_dir/lib"
 prepend_path LD_RUN_PATH "$pkg_install_dir/lib"
 prepend_path LIBRARY_PATH "$pkg_install_dir/lib"
@@ -123,7 +126,6 @@ EOF
     cat "${BUILDDIR}/setup_pexsi" >> $SETUPFILE
   fi
   cat << EOF >> "${BUILDDIR}/setup_pexsi"
-export PEXSI_VER="${pexsi_ver}"
 export PEXSI_CFLAGS="${PEXSI_CFLAGS}"
 export PEXSI_LDFLAGS="${PEXSI_LDFLAGS}"
 export PEXSI_LIBS="${PEXSI_LIBS}"

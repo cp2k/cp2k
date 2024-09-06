@@ -71,8 +71,11 @@ case "$with_libxc" in
 esac
 if [ "$with_libxc" != "__DONTUSE__" ]; then
   LIBXC_LIBS="-lxcf03 -lxc"
+  cat << EOF > "${BUILDDIR}/setup_libxc"
+export LIBXC_VER="${libxc_ver}"
+EOF
   if [ "$with_libxc" != "__SYSTEM__" ]; then
-    cat << EOF > "${BUILDDIR}/setup_libxc"
+    cat << EOF >> "${BUILDDIR}/setup_libxc"
 prepend_path LD_LIBRARY_PATH "$pkg_install_dir/lib"
 prepend_path LD_RUN_PATH "$pkg_install_dir/lib"
 prepend_path LIBRARY_PATH "$pkg_install_dir/lib"
@@ -83,7 +86,6 @@ EOF
     cat "${BUILDDIR}/setup_libxc" >> $SETUPFILE
   fi
   cat << EOF >> "${BUILDDIR}/setup_libxc"
-export LIBXC_VER="${libxc_ver}"
 export LIBXC_CFLAGS="${LIBXC_CFLAGS}"
 export LIBXC_LDFLAGS="${LIBXC_LDFLAGS}"
 export LIBXC_LIBS="${LIBXC_LIBS}"

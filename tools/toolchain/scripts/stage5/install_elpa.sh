@@ -169,6 +169,7 @@ esac
 if [ "$with_elpa" != "__DONTUSE__" ]; then
   ELPA_LIBS="-lelpa${elpa_dir_openmp}"
   cat << EOF > "${BUILDDIR}/setup_elpa"
+export ELPA_VER="${elpa_ver}"
 prepend_path CPATH "$elpa_include"
 EOF
   if [ "$with_elpa" != "__SYSTEM__" ]; then
@@ -184,7 +185,6 @@ EOF
   fi
   cat "${BUILDDIR}/setup_elpa" >> $SETUPFILE
   cat << EOF >> "${BUILDDIR}/setup_elpa"
-export ELPA_VER="${elpa_ver}"
 export ELPA_CFLAGS="${ELPA_CFLAGS}"
 export ELPA_LDFLAGS="${ELPA_LDFLAGS}"
 export ELPA_LIBS="${ELPA_LIBS}"
