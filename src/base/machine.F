@@ -28,10 +28,9 @@ MODULE machine
                     dp, &
                     int_8
 #if defined(__LIBXSMM)
-   USE libxsmm, ONLY: libxsmm_timer_tick, &
-                      libxsmm_timer_duration, &
-                      libxsmm_get_target_archid, &
-                      LIBXSMM_X86_SSE4
+   USE libxsmm, ONLY: libxsmm_timer_tick, libxsmm_timer_duration, libxsmm_get_target_archid, &
+                      LIBXSMM_X86_SSE4, LIBXSMM_X86_AVX, LIBXSMM_X86_AVX2, LIBXSMM_X86_AVX512_SKX, LIBXSMM_X86_ALLFEAT, &
+                      LIBXSMM_AARCH64_V81, LIBXSMM_AARCH64_SVE128, LIBXSMM_AARCH64_ALLFEAT, LIBXSMM_TARGET_ARCH_GENERIC
 #endif
 
    IMPLICIT NONE
@@ -54,16 +53,21 @@ MODULE machine
    ! MACHINE_ARM_SOME <= m_cpuid() and MACHINE_ARM >= m_cpuid().
    INTEGER, PUBLIC, PARAMETER :: &
       MACHINE_CPU_GENERIC = CP_MACHINE_CPU_GENERIC, &
+      !
       MACHINE_X86_SSE4 = CP_MACHINE_X86_SSE4, &
       MACHINE_X86_AVX = CP_MACHINE_X86_AVX, &
       MACHINE_X86_AVX2 = CP_MACHINE_X86_AVX2, &
       MACHINE_X86_AVX512 = CP_MACHINE_X86_AVX512, &
-      MACHINE_X86 = MACHINE_X86_AVX512 ! marks end of range
-   ! other arch to be added as needed e.g.,
-   !MACHINE_ARM_SOME    = 2000
-   !MACHINE_ARM_ELSE    = 2001
-   !MACHINE_ARM = MACHINE_ARM_ELSE
-   !MACHINE_PWR_????    = 3000
+      MACHINE_X86 = MACHINE_X86_AVX512, &
+      !
+      MACHINE_ARM_ARCH64 = CP_MACHINE_ARM_ARCH64, &
+      MACHINE_ARM_SVE128 = CP_MACHINE_ARM_SVE128, &
+      MACHINE_ARM_SVE256 = CP_MACHINE_ARM_SVE256, &
+      MACHINE_ARM_SVE512 = CP_MACHINE_ARM_SVE512, &
+      MACHINE_ARM = MACHINE_ARM_SVE512, &
+      !
+      ! other archs to be added as needed
+      MACHINE_CPU_UNKNOWN = CP_MACHINE_UNKNOWN ! marks end of range
 
    PRIVATE
 
@@ -164,13 +168,31 @@ CONTAINS
 !> \return cpuid according to MACHINE_* integer-parameter.
 !> \par History
 !>      04.2019 created [Hans Pabst]
+!>      09.2024 update+arm [Hans Pabst]
 ! **************************************************************************************************
    PURE FUNCTION m_cpuid() RESULT(cpuid)
       INTEGER :: cpuid
 #if defined(__LIBXSMM)
       cpuid = libxsmm_get_target_archid()
-      cpuid = MERGE(MIN(MACHINE_X86_SSE4 + cpuid - LIBXSMM_X86_SSE4, MACHINE_X86), &
-                    MACHINE_CPU_GENERIC, LIBXSMM_X86_SSE4 .LE. cpuid)
+      IF (LIBXSMM_X86_SSE4 <= cpuid .AND. cpuid < LIBXSMM_X86_AVX) THEN
+         cpuid = MACHINE_X86_SSE4
+      ELSE IF (LIBXSMM_X86_AVX <= cpuid .AND. cpuid < LIBXSMM_X86_AVX2) THEN
+         cpuid = MACHINE_X86_AVX
+      ELSE IF (LIBXSMM_X86_AVX2 <= cpuid .AND. cpuid < LIBXSMM_X86_AVX512_SKX) THEN
+         cpuid = MACHINE_X86_AVX2
+      ELSE IF (LIBXSMM_X86_AVX512_SKX <= cpuid .AND. cpuid <= LIBXSMM_X86_ALLFEAT) THEN
+         cpuid = MACHINE_X86_AVX512
+      ELSE IF (LIBXSMM_AARCH64_V81 <= cpuid .AND. cpuid < LIBXSMM_AARCH64_SVE128) THEN
+         cpuid = MACHINE_ARM_ARCH64
+      ELSE IF (LIBXSMM_AARCH64_SVE128 <= cpuid .AND. cpuid < 2401) THEN ! LIBXSMM_AARCH64_SVE512
+         cpuid = MACHINE_ARM_SVE256
+      ELSE IF (2401 <= cpuid .AND. cpuid <= LIBXSMM_AARCH64_ALLFEAT) THEN
+         cpuid = MACHINE_ARM_SVE512
+      ELSE IF (LIBXSMM_TARGET_ARCH_GENERIC <= cpuid .AND. cpuid <= LIBXSMM_AARCH64_ALLFEAT) THEN
+         cpuid = MACHINE_CPU_GENERIC
+      ELSE
+         cpuid = MACHINE_CPU_UNKNOWN
+      END IF
 #else
       cpuid = m_cpuid_static()
 #endif
@@ -182,14 +204,17 @@ CONTAINS
 !> \return name or short name.
 !> \par History
 !>      06.2019 created [Hans Pabst]
+!>      09.2024 update+arm [Hans Pabst]
 ! **************************************************************************************************
    FUNCTION m_cpuid_name(cpuid)
       INTEGER                                            :: cpuid
       CHARACTER(len=default_string_length), POINTER      :: m_cpuid_name
 
-      CHARACTER(len=default_string_length), SAVE, TARGET :: name_generic = "generic", &
-         name_unknown = "unknown", name_x86_avx = "x86_avx", name_x86_avx2 = "x86_avx2", &
-         name_x86_avx512 = "x86_avx512", name_x86_sse4 = "x86_sse4"
+      CHARACTER(len=default_string_length), SAVE, TARGET :: name_arm_arch64 = "arm_arch64", &
+         name_arm_sve128 = "arm_sve128", name_arm_sve256 = "arm_sve256", &
+         name_arm_sve512 = "arm_sve512", name_generic = "generic", name_unknown = "unknown", &
+         name_x86_avx = "x86_avx", name_x86_avx2 = "x86_avx2", name_x86_avx512 = "x86_avx512", &
+         name_x86_sse4 = "x86_sse4"
 
       SELECT CASE (cpuid)
       CASE (MACHINE_CPU_GENERIC)
@@ -202,6 +227,14 @@ CONTAINS
          m_cpuid_name => name_x86_avx2
       CASE (MACHINE_X86_AVX512)
          m_cpuid_name => name_x86_avx512
+      CASE (MACHINE_ARM_ARCH64)
+         m_cpuid_name => name_arm_arch64
+      CASE (MACHINE_ARM_SVE128)
+         m_cpuid_name => name_arm_sve128
+      CASE (MACHINE_ARM_SVE256)
+         m_cpuid_name => name_arm_sve256
+      CASE (MACHINE_ARM_SVE512)
+         m_cpuid_name => name_arm_sve512
       CASE DEFAULT
          m_cpuid_name => name_unknown
       END SELECT
@@ -665,3 +698,4 @@ CONTAINS
    END SUBROUTINE m_get_omp_stacksize
 
 END MODULE machine
+

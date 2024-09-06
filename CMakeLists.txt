@@ -123,8 +123,7 @@ option(
   CP2K_USE_DLAF
   "Use DLA-Future for Cholesky decompositions and the solution of eigenvalue problems"
   OFF)
-option(CP2K_USE_LIBXSMM "Use libxsmm for small gemms (supports x86 platforms)"
-       OFF)
+option(CP2K_USE_LIBXSMM "Use libxsmm for small gemms" OFF)
 # option(CP2K_USE_LIBGRPP "Use libgrpp" OFF)
 option(BUILD_SHARED_LIBS "Build cp2k shared library" ON)
 option(

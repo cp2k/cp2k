@@ -18,8 +18,11 @@ T = TypeVar("T")
 CP2K_DIR = pathlib.Path(__file__).resolve().parents[2]
 
 FLAG_EXCEPTIONS = (
-    r"\$\{.*\}\$",
-    r"__.*__",
+    r"\$\{..*\}\$",
+    r"__..*__",
+    r"_M_..*",
+    r"__ARM_ARCH",
+    r"__ARM_FEATURE_..*",
     r"CUDA_VERSION",
     r"DBM_LIBXSMM_PREFETCH",
     r"DBM_VALIDATE_AGAINST_DBCSR",

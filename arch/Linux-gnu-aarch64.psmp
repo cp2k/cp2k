@@ -28,7 +28,7 @@
    rm -rf build; \
    [[ -z "${mpi_implementation}" ]] && mpi_implementation="mpich"; \
    [[ -z "${target_cpu}" ]] && target_cpu="native"; \
-   ./install_cp2k_toolchain.sh --install-all -j${maxtasks} --no-arch-files --target-cpu=${target_cpu} --with-gcc --with-${mpi_implementation} --with-libxsmm=no; \
+   ./install_cp2k_toolchain.sh --install-all -j${maxtasks} --no-arch-files --target-cpu=${target_cpu} --with-gcc --with-${mpi_implementation}; \
    source ./install/setup; \
    cd ../..; \
    echo; \
