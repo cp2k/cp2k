@@ -15,7 +15,7 @@
 # Usage: Source this arch file and then run make as instructed.
 #        A full toolchain installation is performed as default.
 #
-# Last update: 30.08.2024
+# Last update: 06.09.2024
 #
 # \
    if [[ "${0}" == "${BASH_SOURCE}" ]]; then \
@@ -64,7 +64,7 @@ USE_LIBINT     := 2.6.0
 USE_LIBPEXSI   := 1.2.0
 USE_LIBVORI    := 220621
 USE_LIBXC      := 6.2.2
-#USE_LIBXSMM    := 1.17
+USE_LIBXSMM    := 3edfb7100cec3322bac9ae4eafea3b3838654ced
 USE_OPENBLAS   := 0.3.28
 USE_PLUMED     := 2.9.0
 USE_QUIP       := 0.9.10
