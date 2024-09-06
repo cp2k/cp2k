@@ -13,7 +13,7 @@
 # Usage: Source this arch file and then run make as instructed.
 #        Replace or adapt the "module load" commands below if needed.
 #
-# Last update: 04.08.2024
+# Last update: 06.09.2024
 #
 # \
    if [[ "${0}" == "${BASH_SOURCE}" ]]; then \
@@ -60,7 +60,7 @@ USE_LIBPEXSI   := 1.2.0
 #USE_LIBTORCH   := 1.12.1
 USE_LIBVORI    := 220621
 USE_LIBXC      := 6.2.2
-#USE_LIBXSMM    := 1.17
+USE_LIBXSMM    := 3edfb7100cec3322bac9ae4eafea3b3838654ced
 USE_PLUMED     := 2.9.0
 USE_QUIP       := 0.9.10
 USE_SIRIUS     := 7.5.2
