@@ -33,8 +33,7 @@ MODULE qs_nonscf
                                               qs_environment_type,&
                                               set_qs_env
    USE qs_ks_methods,                   ONLY: qs_ks_update_qs_env
-   USE qs_ks_types,                     ONLY: get_ks_env,&
-                                              qs_ks_did_change,&
+   USE qs_ks_types,                     ONLY: qs_ks_did_change,&
                                               qs_ks_env_type
    USE qs_mo_types,                     ONLY: mo_set_type
    USE qs_rho_types,                    ONLY: qs_rho_get,&
@@ -49,8 +48,6 @@ MODULE qs_nonscf
    USE qs_scf_types,                    ONLY: qs_scf_env_type
    USE qs_wf_history_methods,           ONLY: wfi_update
    USE scf_control_types,               ONLY: scf_control_type
-   USE task_list_methods,               ONLY: generate_qs_task_list
-   USE task_list_types,                 ONLY: task_list_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -142,7 +139,6 @@ CONTAINS
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(section_vals_type), POINTER                   :: dft_section, input, scf_section
-      TYPE(task_list_type), POINTER                      :: task_list
 
       CALL timeset(routineN, handle)
 
@@ -196,9 +192,6 @@ CONTAINS
          END DO
       END DO
 
-      CALL get_ks_env(ks_env, task_list=task_list)
-      CALL generate_qs_task_list(ks_env, task_list, reorder_rs_grid_ranks=.TRUE., &
-                                 skip_load_balance_distributed=dft_control%qs_control%skip_load_balance_distributed)
       CALL qs_ks_did_change(ks_env, rho_changed=.TRUE., potential_changed=.TRUE.)
 
       ! band energy : Tr(PH)

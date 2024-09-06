@@ -396,6 +396,7 @@ CONTAINS
 
       DO ispin = 1, nspin
          vector = 0.0_dp
+         integral = 0.0_dp
          DO ikind = 1, nkind
             nlocal = local_particles%n_el(ikind)
             DO ilocal = 1, nlocal
@@ -643,7 +644,7 @@ CONTAINS
          CALL auxbas_pw_pool%create_pw(rhoh_g(ispin))
       END DO
       CALL auxbas_pw_pool%create_pw(rhoh_tot_gspace)
-      CALL pw_zero(rhoh_tot_gspace)
+      CALL pw_copy(rho_core, rhoh_tot_gspace)
       DO ispin = 1, nspins
          CALL calculate_rho_elec(ks_env=ks_env, matrix_p=rhoh_ao(ispin)%matrix, &
                                  rho=rhoh_r(ispin), rho_gspace=rhoh_g(ispin))
@@ -687,9 +688,11 @@ CONTAINS
                          rho=rho, rho1_r=rhoh_r, rho1_g=rhoh_g, tau1_r=tauh_r, &
                          xc_section=xc_section)
       CPASSERT(.NOT. ASSOCIATED(ftau))
+
       DO ispin = 1, nspins
          CALL pw_copy(vhout_rspace, fhxc_rspace(ispin))
          IF (ASSOCIATED(fxc)) THEN
+            CALL pw_scale(fxc(ispin), fxc(ispin)%pw_grid%dvol)
             CALL pw_axpy(fxc(ispin), fhxc_rspace(ispin))
          END IF
       END DO

@@ -1273,9 +1273,6 @@ CONTAINS
                                 zet=zeta)
          ra(:) = pbc(particle_set(iatom)%r, cell)
 
-         hab = 0._dp
-         pab(:, 1) = 0._dp
-
          force_a(:) = 0._dp
          force_b(:) = 0._dp
          my_virial_a(:, :) = 0._dp
@@ -1285,6 +1282,9 @@ CONTAINS
 
             ncoa = npgfa(iset)*ncoset(la_max(iset))
             sgfa = first_sgfa(1, iset)
+
+            hab = 0._dp
+            pab = 0._dp
 
             DO i = 1, nsgfa(iset)
                work(i, 1) = f_coef(offset + i)
@@ -1297,7 +1297,7 @@ CONTAINS
 
             DO ipgf = 1, npgfa(iset)
 
-               na1 = (ipgf - 1)*ncoset(la_max(iset)) + 1
+               na1 = (ipgf - 1)*ncoset(la_max(iset))
 
                igrid_level = gaussian_gridlevel(gridlevel_info, zeta(ipgf, iset))
                rs_grid => rs_v(igrid_level)
