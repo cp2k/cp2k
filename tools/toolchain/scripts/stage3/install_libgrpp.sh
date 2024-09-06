@@ -91,6 +91,7 @@ EOF
     cat "${BUILDDIR}/setup_libgrpp" >> $SETUPFILE
   fi
   cat << EOF >> "${BUILDDIR}/setup_libgrpp"
+export LIBGRPP_VER="${libgrpp_ver}"
 export LIBGRPP_CFLAGS="${LIBGRPP_CFLAGS}"
 export LIBGRPP_LDFLAGS="${LIBGRPP_LDFLAGS}"
 export LIBGRPP_LIBS="${LIBGRPP_LIBS}"

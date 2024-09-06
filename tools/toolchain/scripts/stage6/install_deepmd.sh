@@ -80,6 +80,7 @@ EOF
   fi
 
   cat << EOF >> "${BUILDDIR}/setup_deepmd"
+export DEEPMD_VER="${deepmd_ver}"
 export DEEPMD_DFLAGS="${DEEPMD_DFLAGS}"
 export DEEPMD_CFLAGS="${DEEPMD_CFLAGS}"
 export DEEPMD_LDFLAGS="${DEEPMD_LDFLAGS}"

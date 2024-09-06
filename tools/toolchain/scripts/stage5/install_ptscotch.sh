@@ -100,13 +100,14 @@ EOF
     cat "${BUILDDIR}/setup_ptscotch" >> $SETUPFILE
   fi
   cat << EOF >> "${BUILDDIR}/setup_ptscotch"
+export SCOTCH_VER="${scotch_ver}"
 export SCOTCH_CFLAGS="${SCOTCH_CFLAGS}"
 export SCOTCH_LDFLAGS="${SCOTCH_LDFLAGS}"
 export SCOTCH_LIBS="${SCOTCH_LIBS}"
 export CP_CFLAGS="\${CP_CFLAGS} IF_MPI(${SCOTCH_CFLAGS}|)"
 export CP_LDFLAGS="\${CP_LDFLAGS} IF_MPI(${SCOTCH_LDFLAGS}|)"
 export CP_LIBS="IF_MPI(${SCOTCH_LIBS}|) \${CP_LIBS}"
-export PTSCOTCH_ROOT="$pkg_install_dir"
+export PTSCOTCH_ROOT="${pkg_install_dir}"
 EOF
 fi
 

@@ -2,13 +2,7 @@
 #
 # CP2K (Intel/MKL x86_64) arch file for Linux clusters
 #
-# Tested with: Intel oneAPI Toolkit 2024.2.1, Intel MPI, Intel MKL,
-#              LIBINT 2.6.0, LIBXC 6.2.2, ELPA 2024.03.001,
-#              PLUMED 2.9.0, SPGLIB 2.3.1, LIBVORI 220621,
-#              GSL 2.7, COSMA 2.6.6, HDF5 1.14.2, SIRIUS 7.5.2,
-#              LIBGRPP 20231225, SPFFT 1.1.0, SPLA 1.6.1,
-#              DFTD4 3.6.0
-# on the Merlin cluster (PSI)
+# Tested with: Intel oneAPI Toolkit 2024.2.1 (MPI, MKL)
 #
 # Usage: Source this arch file and then run make as instructed.
 #        A full toolchain installation is performed as default.
@@ -57,28 +51,25 @@
 DO_CHECKS      := no
 SHARED         := no
 TARGET_CPU     := native
-USE_COSMA      := 2.6.6
-USE_DFTD4      := 3.6.0
-USE_ELPA       := 2024.03.001
-USE_HDF5       := 1.14.2
-USE_LIBGRPP    := 20231225
-USE_LIBINT     := 2.6.0
-USE_LIBPEXSI   := 1.2.0
-#USE_LIBTORCH   := 1.12.1
-USE_LIBVORI    := 220621
-USE_LIBXC      := 6.2.2
-USE_LIBXSMM    := 3edfb7100cec3322bac9ae4eafea3b3838654ced
-USE_PLUMED     := 2.9.0
-USE_SIRIUS     := 7.5.2
-USE_SPFFT      := 1.1.0
-USE_SPGLIB     := 2.3.1
-USE_SPLA       := 1.6.1
-# Only needed for SIRIUS
-LIBVDWXC_VER   := 0.4.0
-# Only needed for LIBPEXSI
-SCOTCH_VER     := 6.0.0
-SUPERLU_VER    := 6.1.0
 WITH_IFX       := no
+
+# Retrieve package versions
+USE_COSMA      := $(COSMA_VER)
+USE_DFTD4      := $(DFTD4_VER)
+USE_ELPA       := $(ELPA_VER)
+USE_HDF5       := $(HDF5_VER)
+USE_LIBGRPP    := $(LIBGRPP_VER)
+USE_LIBINT     := $(LIBINT_VER)
+USE_LIBTORCH   := $(LIBTORCH_VER)
+USE_LIBVORI    := $(LIBVORI_VER)
+USE_LIBXC      := $(LIBXC_VER)
+USE_LIBXSMM    := $(LIBXSMM_VER)
+USE_PEXSI      := $(PEXSI_VER)
+USE_PLUMED     := $(PLUMED_VER)
+USE_SIRIUS     := $(SIRIUS_VER)
+USE_SPFFT      := $(SPFFT_VER)
+USE_SPGLIB     := $(SPGLIB_VER)
+USE_SPLA       := $(SPLA_VER)
 
 LMAX           := 5
 MAX_CONTR      := 4
@@ -128,7 +119,7 @@ ifneq ($(USE_PLUMED),)
    USE_PLUMED     := $(strip $(USE_PLUMED))
    PLUMED_LIB     := $(INSTALL_PATH)/plumed-$(USE_PLUMED)/lib
    DFLAGS         += -D__PLUMED2
-   USE_GSL        := 2.7
+   USE_GSL        := $(GSL_VER)
    ifeq ($(SHARED), yes)
       LIBS           += -Wl,-rpath=$(PLUMED_LIB) -L$(PLUMED_LIB) -lplumed -lplumedKernel
    else
@@ -149,19 +140,17 @@ ifneq ($(USE_ELPA),)
    endif
 endif
 
-ifneq ($(USE_LIBPEXSI),)
-   USE_LIBPEXSI   := $(strip $(USE_LIBPEXSI))
-   SCOTCH_VER     := $(strip $(SCOTCH_VER))
-   SUPERLU_VER    := $(strip $(SUPERLU_VER))
-   LIBPEXSI_INC   := $(INSTALL_PATH)/pexsi-$(USE_LIBPEXSI)/include
-   LIBPEXSI_LIB   := $(INSTALL_PATH)/pexsi-$(USE_LIBPEXSI)/lib
+ifneq ($(USE_PEXSI),)
+   USE_PEXSI      := $(strip $(USE_PEXSI))
+   PEXSI_INC      := $(INSTALL_PATH)/pexsi-$(USE_PEXSI)/include
+   PEXSI_LIB      := $(INSTALL_PATH)/pexsi-$(USE_PEXSI)/lib
    SCOTCH_INC     := $(INSTALL_PATH)/scotch-$(SCOTCH_VER)/include
    SCOTCH_LIB     := $(INSTALL_PATH)/scotch-$(SCOTCH_VER)/lib
    SUPERLU_INC    := $(INSTALL_PATH)/superlu_dist-$(SUPERLU_VER)/include
    SUPERLU_LIB    := $(INSTALL_PATH)/superlu_dist-$(SUPERLU_VER)/lib
-   CFLAGS         += -I$(LIBPEXSI_INC) -I$(SCOTCH_INC) -I$(SUPERLU_INC)
+   CFLAGS         += -I$(PEXSI_INC) -I$(SCOTCH_INC) -I$(SUPERLU_INC)
    DFLAGS         += -D__LIBPEXSI
-   LIBS           += $(LIBPEXSI_LIB)/libpexsi.a
+   LIBS           += $(PEXSI_LIB)/libpexsi.a
    LIBS           += $(SUPERLU_LIB)/libsuperlu_dist.a
    LIBS           += $(SCOTCH_LIB)/libptscotchparmetis.a
    LIBS           += $(SCOTCH_LIB)/libptscotch.a
@@ -264,7 +253,7 @@ endif
 
 ifneq ($(USE_SIRIUS),)
    USE_SIRIUS     := $(strip $(USE_SIRIUS))
-   LIBVDWXC_VER   := $(strip $(LIBVDWXC_VER))
+   USE_GSL        := $(GSL_VER)
    LIBVDWXC_INC   := $(INSTALL_PATH)/libvdwxc-$(LIBVDWXC_VER)/include
    LIBVDWXC_LIB   := $(INSTALL_PATH)/libvdwxc-$(LIBVDWXC_VER)/lib
    SIRIUS_INC     := $(INSTALL_PATH)/sirius-$(USE_SIRIUS)/include
@@ -397,7 +386,7 @@ FCFLAGS        += -free
 LDFLAGS        += $(FCFLAGS)
 LDFLAGS_C      := -nofor-main
 
-LIBS           += -lz -ldl -lstdc++
+LIBS           += -lz -lstdc++
 
 # Required due to memory leak that occurs if high optimisations are used
 mp2_optimize_ri_basis.o: mp2_optimize_ri_basis.F

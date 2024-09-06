@@ -262,6 +262,7 @@ prepend_path CMAKE_PREFIX_PATH "$pkg_install_dir"
 EOF
   fi
   cat << EOF >> "${BUILDDIR}/setup_cosma"
+export COSMA_VER="${cosma_ver}"
 export COSMA_CFLAGS="${COSMA_CFLAGS}"
 export COSMA_LDFLAGS="${COSMA_LDFLAGS}"
 export COSMA_CUDA_LDFLAGS="${COSMA_CUDA_LDFLAGS}"
@@ -273,7 +274,6 @@ export COSMA_LIBS="${COSMA_LIBS}"
 export COSMA_ROOT="$pkg_install_dir"
 export COSMA_INCLUDE_DIR="$pkg_install_dir/include"
 export PKG_CONFIG_PATH="$PKG_CONFIG_PATH:${COSMA_LIBDIR}/pkgconfig"
-export COSMA_VERSION=${cosma_ver}
 export CP_LIBS="IF_MPI(${COSMA_LIBS}|) \${CP_LIBS}"
 EOF
   cat "${BUILDDIR}/setup_cosma" >> $SETUPFILE

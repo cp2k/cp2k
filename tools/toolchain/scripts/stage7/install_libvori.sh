@@ -91,8 +91,8 @@ prepend_path CMAKE_PREFIX_PATH "$pkg_install_dir"
 EOF
   fi
   cat << EOF >> "${BUILDDIR}/setup_libvori"
+export LIBVORI_VER="${libvori_ver}"
 export LIBVORI_ROOT="${pkg_install_dir}"
-export LIBVORI_VERSION=${libvori_ver}
 export LIBVORI_LDFLAGS="${LIBVORI_LDFLAGS}"
 export LIBVORI_LIBRARY="-lvori"
 export CP_DFLAGS="\${CP_DFLAGS} -D__LIBVORI"

@@ -128,6 +128,7 @@ EOF
     cat "${BUILDDIR}/setup_libint" >> $SETUPFILE
   fi
   cat << EOF >> "${BUILDDIR}/setup_libint"
+export LIBINT_VER="${libint_ver}"
 export LIBINT_CFLAGS="${LIBINT_CFLAGS}"
 export LIBINT_LDFLAGS="${LIBINT_LDFLAGS}"
 export LIBINT_LIBS="${LIBINT_LIBS}"

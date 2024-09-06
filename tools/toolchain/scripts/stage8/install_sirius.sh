@@ -125,7 +125,7 @@ case "$with_sirius" in
       #     if [ -s "$ELPA_ROOT" ] ; then
       #         export PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$ELPA_ROOT/lib/pkgconfig:$ELPA_ROOT/lib64/pkgconfig
       #     fi
-      #     EXTRA_CMAKE_FLAGS="-DUSE_ELPA=ON -DELPA_INCLUDE_DIR=${ELPA_ROOT}/include/elpa-${ELPA_VERSION} ${EXTRA_CMAKE_FLAGS}"
+      #     EXTRA_CMAKE_FLAGS="-DUSE_ELPA=ON -DELPA_INCLUDE_DIR=${ELPA_ROOT}/include/elpa-${ELPA_VER} ${EXTRA_CMAKE_FLAGS}"
       # fi
 
       if [ -n "${SCALAPACK_LIBS}" ]; then
@@ -263,17 +263,20 @@ if [ "$with_sirius" != "__DONTUSE__" ]; then
   SIRIUS_CUDA_LDFLAGS="-L'${pkg_install_dir}/lib/cuda' -Wl,-rpath,'${pkg_install_dir}/lib/cuda'"
   SIRIUS_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath,'${pkg_install_dir}/lib'"
   SIRIUS_CFLAGS="-I'${pkg_install_dir}/include'"
+  cat << EOF > "${BUILDDIR}/setup_sirius"
+export SIRIUS_VER="${sirius_ver}"
+EOF
   if [ "$with_sirius" != "__SYSTEM__" ]; then
-    cat << EOF > "${BUILDDIR}/setup_sirius"
-prepend_path LD_LIBRARY_PATH "$pkg_install_dir/lib"
-prepend_path LD_LIBRARY_PATH "$pkg_install_dir/lib/cuda"
-prepend_path LD_RUN_PATH "$pkg_install_dir/lib"
-prepend_path LD_RUN_PATH "$pkg_install_dir/lib/cuda"
-prepend_path LIBRARY_PATH "$pkg_install_dir/lib"
-prepend_path LIBRARY_PATH "$pkg_install_dir/lib/cuda"
-prepend_path CPATH "$pkg_install_dir/include"
-prepend_path PKG_CONFIG_PATH "$pkg_install_dir/lib/pkgconfig"
-prepend_path CMAKE_PREFIX_PATH "$pkg_install_dir"
+    cat << EOF >> "${BUILDDIR}/setup_sirius"
+prepend_path LD_LIBRARY_PATH "${pkg_install_dir}/lib"
+prepend_path LD_LIBRARY_PATH "${pkg_install_dir}/lib/cuda"
+prepend_path LD_RUN_PATH "${pkg_install_dir}/lib"
+prepend_path LD_RUN_PATH "${pkg_install_dir}/lib/cuda"
+prepend_path LIBRARY_PATH "${pkg_install_dir}/lib"
+prepend_path LIBRARY_PATH "${pkg_install_dir}/lib/cuda"
+prepend_path CPATH "${pkg_install_dir}/include"
+prepend_path PKG_CONFIG_PATH "${pkg_install_dir}/lib/pkgconfig"
+prepend_path CMAKE_PREFIX_PATH "${pkg_install_dir}"
 EOF
     cat "${BUILDDIR}/setup_sirius" >> $SETUPFILE
   fi
@@ -288,7 +291,6 @@ export CP_CFLAGS="\${CP_CFLAGS} IF_MPI("\${SIRIUS_CFLAGS}"|)"
 export CP_LDFLAGS="\${CP_LDFLAGS} IF_MPI(IF_CUDA("\${SIRIUS_CUDA_LDFLAGS}"|"\${SIRIUS_LDFLAGS}")|)"
 export CP_LIBS="IF_MPI("\${SIRIUS_LIBS}"|) \${CP_LIBS}"
 EOF
-
   cat << EOF >> ${INSTALLDIR}/lsan.supp
 # leaks related to SIRIUS
 leak:cublasXtDeviceSelect

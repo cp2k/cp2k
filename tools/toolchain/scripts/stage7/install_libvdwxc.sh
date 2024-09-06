@@ -110,15 +110,16 @@ prepend_path CMAKE_PREFIX_PATH "$pkg_install_dir"
 EOF
   fi
   cat << EOF >> "${BUILDDIR}/setup_libvdwxc"
-export LIBVDWXC_CFLAGS="-I$pkg_install_dir/include ${LIBVDWXC_CFLAGS}"
+export LIBVDWXC_VER="${libvdwxc_ver}"
+export LIBVDWXC_CFLAGS="-I${pkg_install_dir}/include ${LIBVDWXC_CFLAGS}"
 export LIBVDWXC_LDFLAGS="${LIBVDWXC_LDFLAGS}"
 export LIBVDWXC_LIBS="${LIBVDWXC_LIBS}"
 export CP_DFLAGS="\${CP_DFLAGS} IF_MPI(-D__LIBVDWXC|)"
 export CP_CFLAGS="\${CP_CFLAGS} IF_MPI(${LIBVDWXC_CFLAGS}|)"
 export CP_LDFLAGS="\${CP_LDFLAGS} IF_MPI(${LIBVDWXC_LDFLAGS}|)"
 export CP_LIBS="IF_MPI(${LIBVDWXC_LIBS}|) \${CP_LIBS}"
-export PKG_CONFIG_PATH="$pkg_install_dir/lib/pkgconfig:$PKG_CONFIG_PATH"
-export VDWXC_ROOT="$pkg_install_dir"
+export PKG_CONFIG_PATH="${pkg_install_dir}/lib/pkgconfig:${PKG_CONFIG_PATH}"
+export VDWXC_ROOT="${pkg_install_dir}"
 EOF
   cat "${BUILDDIR}/setup_libvdwxc" >> $SETUPFILE
 fi

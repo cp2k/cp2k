@@ -173,6 +173,7 @@ prepend_path CMAKE_PREFIX_PATH "$pkg_install_dir"
 EOF
   fi
   cat << EOF >> "${BUILDDIR}/setup_quip"
+export QUIP_VER="${quip_ver}"
 export QUIP_CFLAGS="${QUIP_CFLAGS}"
 export QUIP_LDFLAGS="${QUIP_LDFLAGS}"
 export QUIP_LIBS="${QUIP_LIBS}"

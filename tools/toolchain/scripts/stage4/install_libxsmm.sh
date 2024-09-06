@@ -114,6 +114,7 @@ EOF
     cat "${BUILDDIR}/setup_libxsmm" >> $SETUPFILE
   fi
   cat << EOF >> "${BUILDDIR}/setup_libxsmm"
+export LIBXSMM_VER="${libxsmm_ver}"
 export LIBXSMM_CFLAGS="${LIBXSMM_CFLAGS}"
 export LIBXSMM_LDFLAGS="${LIBXSMM_LDFLAGS}"
 export LIBXSMM_LIBS="${LIBXSMM_LIBS}"
