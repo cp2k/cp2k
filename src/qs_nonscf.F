@@ -195,6 +195,7 @@ CONTAINS
             CALL dbcsr_copy(rho_ao_kp(ispin, img)%matrix, scf_env%p_mix_new(ispin, img)%matrix)
          END DO
       END DO
+
       CALL get_ks_env(ks_env, task_list=task_list)
       CALL generate_qs_task_list(ks_env, task_list, reorder_rs_grid_ranks=.TRUE., &
                                  skip_load_balance_distributed=dft_control%qs_control%skip_load_balance_distributed)
