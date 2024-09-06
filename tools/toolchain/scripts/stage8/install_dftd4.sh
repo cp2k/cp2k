@@ -93,6 +93,10 @@ if [ "$with_dftd4" != "__DONTUSE__" ]; then
   DFTD4_DFLAGS="-D__DFTD4"
   DFTD4_LIBS="-ldftd4 -lmstore -lmulticharge -lmctc-lib"
 
+  cat << EOF > "${BUILDDIR}/setup_dftd4"
+export DFTD4_VER="${dftd4_ver}"
+EOF
+
   if [ "$with_dftd4" != "__SYSTEM__" ]; then
     DFTD4_LOC=$(find ${pkg_install_dir}/include -name "multicharge.mod")
     DFTD4_MCHARGE=${DFTD4_LOC%/*}
@@ -109,13 +113,13 @@ if [ "$with_dftd4" != "__DONTUSE__" ]; then
     DFTD4_CFLAGS="-I'${pkg_install_dir}/include' -I'${DFTD4_DFTD4}' -I'${DFTD4_MCTC}'"
     DFTD4_LDFLAGS="-L'${DFTD4_LIBDIR}' -Wl,-rpath,'${DFTD4_LIBDIR}'"
 
-    cat << EOF > "${BUILDDIR}/setup_dftd4"
+    cat << EOF >> "${BUILDDIR}/setup_dftd4"
 prepend_path LD_LIBRARY_PATH "${DFTD4_LIBDIR}"
 prepend_path LD_RUN_PATH "${DFTD4_LIBDIR}"
 prepend_path LIBRARY_PATH "${DFTD4_LIBDIR}"
 prepend_path CPATH "$pkg_install_dir/include"
 prepend_path PKG_CONFIG_PATH "${DFTD4_LIBDIR}/pkgconfig"
-prepend_path CMAKE_PREFIX_PATH "$pkg_install_dir"
+prepend_path CMAKE_PREFIX_PATH "${pkg_install_dir}"
 EOF
   fi
 

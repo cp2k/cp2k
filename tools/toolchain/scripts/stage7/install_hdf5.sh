@@ -101,6 +101,7 @@ EOF
     fi
   fi
   cat << EOF >> "${BUILDDIR}/setup_hdf5"
+export HDF5_VER="${hdf5_ver}"
 export HDF5_CFLAGS="${HDF5_CFLAGS}"
 export HDF5_LDFLAGS="${HDF5_LDFLAGS}"
 export CP_DFLAGS="\${CP_DFLAGS} -D__HDF5"

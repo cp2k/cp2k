@@ -184,6 +184,7 @@ EOF
   fi
   cat "${BUILDDIR}/setup_elpa" >> $SETUPFILE
   cat << EOF >> "${BUILDDIR}/setup_elpa"
+export ELPA_VER="${elpa_ver}"
 export ELPA_CFLAGS="${ELPA_CFLAGS}"
 export ELPA_LDFLAGS="${ELPA_LDFLAGS}"
 export ELPA_LIBS="${ELPA_LIBS}"
@@ -191,8 +192,7 @@ export CP_DFLAGS="\${CP_DFLAGS} IF_MPI(-D__ELPA IF_CUDA(-D__ELPA_NVIDIA_GPU|)|)"
 export CP_CFLAGS="\${CP_CFLAGS} IF_MPI(${ELPA_CFLAGS}|)"
 export CP_LDFLAGS="\${CP_LDFLAGS} IF_MPI(${ELPA_LDFLAGS}|)"
 export CP_LIBS="IF_MPI(${ELPA_LIBS}|) \${CP_LIBS}"
-export ELPA_ROOT="$pkg_install_dir"
-export ELPA_VERSION="${elpa_ver}"
+export ELPA_ROOT="${pkg_install_dir}"
 EOF
 
 fi

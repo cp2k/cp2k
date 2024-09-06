@@ -123,6 +123,7 @@ EOF
     cat "${BUILDDIR}/setup_pexsi" >> $SETUPFILE
   fi
   cat << EOF >> "${BUILDDIR}/setup_pexsi"
+export PEXSI_VER="${pexsi_ver}"
 export PEXSI_CFLAGS="${PEXSI_CFLAGS}"
 export PEXSI_LDFLAGS="${PEXSI_LDFLAGS}"
 export PEXSI_LIBS="${PEXSI_LIBS}"

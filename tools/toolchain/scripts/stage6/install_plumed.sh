@@ -109,12 +109,13 @@ EOF
   fi
 
   cat << EOF >> "${BUILDDIR}/setup_plumed"
+export PLUMED_VER="${plumed_ver}"
 export PLUMED_LDFLAGS="${PLUMED_LDFLAGS}"
 export PLUMED_LIBS="${PLUMED_LIBS}"
 export CP_DFLAGS="\${CP_DFLAGS} IF_MPI(-D__PLUMED2|)"
 export CP_LDFLAGS="\${CP_LDFLAGS} IF_MPI(${PLUMED_LDFLAGS}|)"
 export CP_LIBS="IF_MPI(${PLUMED_LIBS}|) \${CP_LIBS}"
-export PLUMED_ROOT=${pkg_install_dir}
+export PLUMED_ROOT="${pkg_install_dir}"
 EOF
 fi
 

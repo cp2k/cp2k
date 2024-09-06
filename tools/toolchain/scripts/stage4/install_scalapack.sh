@@ -96,6 +96,7 @@ EOF
     cat "${BUILDDIR}/setup_scalapack" >> $SETUPFILE
   fi
   cat << EOF >> "${BUILDDIR}/setup_scalapack"
+export SCALAPACK_VER="${scalapack_ver}"
 export SCALAPACK_LDFLAGS="${SCALAPACK_LDFLAGS}"
 export SCALAPACK_LIBS="${SCALAPACK_LIBS}"
 export SCALAPACK_ROOT="${pkg_install_dir}"

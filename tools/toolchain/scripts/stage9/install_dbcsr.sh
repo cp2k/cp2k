@@ -133,6 +133,7 @@ EOF
   cat "${BUILDDIR}/setup_dbcsr" >> $SETUPFILE
 fi
 cat << EOF >> "${BUILDDIR}/setup_dbcsr"
+export DBCSR_VER="${DBCSR_ver}"
 export DBCSR_CFLAGS="${DBCSR_CFLAGS}"
 export DBCSR_LDFLAGS="IF_CUDA(${DBCSR_CUDA_LDFLAGS}|IF_HIP(${DBCSR_HIP_LDFLAGS}|${DBCSR_LDFLAGS}))"
 export DBCSR_LIBS="${DBCSR_LIBS}"

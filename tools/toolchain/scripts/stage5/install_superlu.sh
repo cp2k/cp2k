@@ -90,6 +90,7 @@ EOF
     cat "${BUILDDIR}/setup_superlu" >> $SETUPFILE
   fi
   cat << EOF >> "${BUILDDIR}/setup_superlu"
+export SUPERLU_VER="${superlu_ver}"
 export SUPERLU_CFLAGS="${SUPERLU_CFLAGS}"
 export SUPERLU_LDFLAGS="${SUPERLU_LDFLAGS}"
 export SUPERLU_LIBS="${SUPERLU_LIBS}"
