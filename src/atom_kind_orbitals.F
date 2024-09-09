@@ -472,25 +472,27 @@ CONTAINS
 !> \param qs_kind ...
 !> \param ngto ...
 !> \param iunit ...
+!> \param optbasis ... Default=T, if basis should be optimized, if not basis is given in input (density)
 !> \param allelectron ...
 !> \param confine ...
 ! **************************************************************************************************
-   SUBROUTINE calculate_atomic_density(density, atomic_kind, qs_kind, ngto, iunit, allelectron, confine)
+   SUBROUTINE calculate_atomic_density(density, atomic_kind, qs_kind, ngto, iunit, &
+                                       optbasis, allelectron, confine)
       REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: density
       TYPE(atomic_kind_type), POINTER                    :: atomic_kind
       TYPE(qs_kind_type), POINTER                        :: qs_kind
       INTEGER, INTENT(IN)                                :: ngto
       INTEGER, INTENT(IN), OPTIONAL                      :: iunit
-      LOGICAL, INTENT(IN), OPTIONAL                      :: allelectron, confine
+      LOGICAL, INTENT(IN), OPTIONAL                      :: optbasis, allelectron, confine
 
       INTEGER, PARAMETER                                 :: num_gto = 40
 
-      INTEGER                                            :: i, ii, k, l, ll, m, mb, mo, ngp, nn, nr, &
-                                                            quadtype, relativistic, z
+      INTEGER                                            :: i, ii, iw, k, l, ll, m, mb, mo, ngp, nn, &
+                                                            nr, quadtype, relativistic, z
       INTEGER, DIMENSION(0:lmat)                         :: starti
       INTEGER, DIMENSION(0:lmat, 10)                     :: ncalc, ncore, nelem
       INTEGER, DIMENSION(:), POINTER                     :: econf
-      LOGICAL                                            :: ecp_semi_local
+      LOGICAL                                            :: do_basopt, ecp_semi_local
       REAL(KIND=dp)                                      :: al, aval, cc, cval, ear, rk, xx, zeff
       REAL(KIND=dp), DIMENSION(num_gto+2)                :: results
       TYPE(all_potential_type), POINTER                  :: all_potential
@@ -513,11 +515,22 @@ CONTAINS
                        gth_potential=gth_potential, &
                        sgp_potential=sgp_potential)
 
+      IF (PRESENT(iunit)) THEN
+         iw = iunit
+      ELSE
+         iw = -1
+      END IF
+
       IF (PRESENT(allelectron)) THEN
          IF (allelectron) THEN
             NULLIFY (gth_potential)
             zeff = z
          END IF
+      END IF
+
+      do_basopt = .TRUE.
+      IF (PRESENT(optbasis)) THEN
+         do_basopt = optbasis
       END IF
 
       CPASSERT(ngto <= num_gto)
@@ -715,20 +728,20 @@ CONTAINS
       CALL create_atom_orbs(orbitals, mb, mo)
       CALL set_atom(atom, orbitals=orbitals)
 
-      IF (PRESENT(iunit)) THEN
-         CALL calculate_atom(atom, iunit)
-         CALL atom_fit_density(atom, ngto, 0, iunit, results=results)
-      ELSE
-         CALL calculate_atom(atom, -1)
-         CALL atom_fit_density(atom, ngto, 0, -1, results=results)
-      END IF
+      CALL calculate_atom(atom, iw)
 
-      xx = results(1)
-      cc = results(2)
-      DO i = 1, ngto
-         density(i, 1) = xx*cc**i
-         density(i, 2) = results(2 + i)
-      END DO
+      IF (do_basopt) THEN
+         CALL atom_fit_density(atom, ngto, 0, iw, results=results)
+         xx = results(1)
+         cc = results(2)
+         DO i = 1, ngto
+            density(i, 1) = xx*cc**i
+            density(i, 2) = results(2 + i)
+         END DO
+      ELSE
+         CALL atom_fit_density(atom, ngto, 0, iw, agto=density(:, 1), results=results)
+         density(1:ngto, 2) = results(1:ngto)
+      END IF
 
       ! clean up
       CALL atom_int_release(integrals)

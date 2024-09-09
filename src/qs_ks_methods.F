@@ -99,6 +99,8 @@ MODULE qs_ks_methods
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_gapw_densities,               ONLY: prepare_gapw_den
+   USE qs_harris_types,                 ONLY: harris_type
+   USE qs_harris_utils,                 ONLY: harris_set_potentials
    USE qs_integrate_potential,          ONLY: integrate_ppl_rspace,&
                                               integrate_rho_nlcc,&
                                               integrate_v_core_rspace
@@ -195,6 +197,7 @@ CONTAINS
                                                             matrix_h_im, matrix_s, my_rho, rho_ao
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(ecoul_1center_type), DIMENSION(:), POINTER    :: ecoul_1c
+      TYPE(harris_type), POINTER                         :: harris_env
       TYPE(local_rho_type), POINTER                      :: local_rho_set
       TYPE(lri_density_type), POINTER                    :: lri_density
       TYPE(lri_environment_type), POINTER                :: lri_env
@@ -584,6 +587,12 @@ CONTAINS
             END IF
          END IF
 
+      END IF
+
+      ! set hartree and xc potentials for use in Harris method
+      IF (qs_env%harris_method) THEN
+         CALL get_qs_env(qs_env, harris_env=harris_env)
+         CALL harris_set_potentials(harris_env, v_hartree_rspace, v_rspace_new)
       END IF
 
       NULLIFY (rho_struct)

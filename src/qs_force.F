@@ -360,7 +360,11 @@ CONTAINS
                                   t3=dummy_real)
             END IF
          END IF
-      ELSEIF (.NOT. perform_ec) THEN
+      ELSEIF (perform_ec) THEN
+         ! energy correction forces postponed
+      ELSEIF (qs_env%harris_method) THEN
+         ! Harris method forces already done in harris_energy_correction
+      ELSE
          ! Compute grid-based forces
          CALL qs_ks_update_qs_env(qs_env, calculate_forces=.TRUE.)
       END IF

@@ -47,6 +47,7 @@ MODULE atom_fit
                                               evolt
    USE powell,                          ONLY: opt_state_type,&
                                               powell_optimize
+   USE qs_grid_atom,                    ONLY: grid_atom_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -69,24 +70,27 @@ CONTAINS
 !> \param num_gto         number of Gaussian basis functions
 !> \param norder ...
 !> \param iunit           output file unit
+!> \param agto            Gaussian exponents
 !> \param powell_section  POWELL input section
 !> \param results         (output) array of num_gto+2 real numbers in the following format:
 !>                starting exponent, factor of geometrical series, expansion coefficients(1:num_gto)
 ! **************************************************************************************************
-   SUBROUTINE atom_fit_density(atom, num_gto, norder, iunit, powell_section, results)
+   SUBROUTINE atom_fit_density(atom, num_gto, norder, iunit, agto, powell_section, results)
       TYPE(atom_type), POINTER                           :: atom
       INTEGER, INTENT(IN)                                :: num_gto, norder, iunit
+      REAL(KIND=dp), DIMENSION(:), OPTIONAL              :: agto
       TYPE(section_vals_type), OPTIONAL, POINTER         :: powell_section
       REAL(KIND=dp), DIMENSION(:), OPTIONAL              :: results
 
-      INTEGER                                            :: n10
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: co
+      INTEGER                                            :: i, n10
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: co, pe
       REAL(KIND=dp), DIMENSION(2)                        :: x
       TYPE(opgrid_type), POINTER                         :: density
       TYPE(opt_state_type)                               :: ostate
 
-      ALLOCATE (co(num_gto))
+      ALLOCATE (co(num_gto), pe(num_gto))
       co = 0._dp
+      pe = 0._dp
       NULLIFY (density)
       CALL create_opgrid(density, atom%basis%grid)
       CALL atom_denmat(atom%orbitals%pmat, atom%orbitals%wfn, atom%basis%nbas, atom%state%occupation, &
@@ -98,52 +102,60 @@ CONTAINS
          density%op = density%op*atom%basis%grid%rad**norder
       END IF
 
-      ostate%nf = 0
-      ostate%nvar = 2
-      x(1) = 0.10_dp !starting point of geometric series
-      x(2) = 2.00_dp !factor of series
-      IF (PRESENT(powell_section)) THEN
-         CALL section_vals_val_get(powell_section, "ACCURACY", r_val=ostate%rhoend)
-         CALL section_vals_val_get(powell_section, "STEP_SIZE", r_val=ostate%rhobeg)
-         CALL section_vals_val_get(powell_section, "MAX_FUN", i_val=ostate%maxfun)
+      IF (PRESENT(agto)) THEN
+         CPASSERT(num_gto <= SIZE(agto))
+         pe(1:num_gto) = agto(1:num_gto)
       ELSE
-         ostate%rhoend = 1.e-8_dp
-         ostate%rhobeg = 5.e-2_dp
-         ostate%maxfun = 1000
-      END IF
-      ostate%iprint = 1
-      ostate%unit = iunit
-
-      ostate%state = 0
-      IF (iunit > 0) THEN
-         WRITE (iunit, '(/," POWELL| Start optimization procedure")')
-      END IF
-      n10 = ostate%maxfun/10
-
-      DO
-
-         IF (ostate%state == 2) THEN
-            CALL density_fit(density, atom, num_gto, x(1), x(2), co, ostate%f)
+         ostate%nf = 0
+         ostate%nvar = 2
+         x(1) = 0.10_dp !starting point of geometric series
+         x(2) = 2.00_dp !factor of series
+         IF (PRESENT(powell_section)) THEN
+            CALL section_vals_val_get(powell_section, "ACCURACY", r_val=ostate%rhoend)
+            CALL section_vals_val_get(powell_section, "STEP_SIZE", r_val=ostate%rhobeg)
+            CALL section_vals_val_get(powell_section, "MAX_FUN", i_val=ostate%maxfun)
+         ELSE
+            ostate%rhoend = 1.e-8_dp
+            ostate%rhobeg = 5.e-2_dp
+            ostate%maxfun = 1000
          END IF
+         ostate%iprint = 1
+         ostate%unit = iunit
 
-         IF (ostate%state == -1) EXIT
+         ostate%state = 0
+         IF (iunit > 0) THEN
+            WRITE (iunit, '(/," POWELL| Start optimization procedure")')
+         END IF
+         n10 = ostate%maxfun/10
 
+         DO
+
+            IF (ostate%state == 2) THEN
+               pe(1:num_gto) = [(x(1)*x(2)**i, i=1, num_gto)]
+               CALL density_fit(density%op, density%grid, num_gto, pe, co, ostate%f)
+            END IF
+
+            IF (ostate%state == -1) EXIT
+
+            CALL powell_optimize(ostate%nvar, x, ostate)
+
+            IF (MOD(ostate%nf, n10) == 0 .AND. iunit > 0) THEN
+               WRITE (iunit, '(" POWELL| Reached",i4,"% of maximal function calls")') &
+                  INT(REAL(ostate%nf, dp)/REAL(ostate%maxfun, dp)*100._dp)
+            END IF
+
+         END DO
+
+         ostate%state = 8
          CALL powell_optimize(ostate%nvar, x, ostate)
+         pe(1:num_gto) = [(x(1)*x(2)**i, i=1, num_gto)]
+      END IF
 
-         IF (MOD(ostate%nf, n10) == 0 .AND. iunit > 0) THEN
-            WRITE (iunit, '(" POWELL| Reached",i4,"% of maximal function calls")') &
-               INT(REAL(ostate%nf, dp)/REAL(ostate%maxfun, dp)*100._dp)
-         END IF
-
-      END DO
-
-      ostate%state = 8
-      CALL powell_optimize(ostate%nvar, x, ostate)
-      CALL density_fit(density, atom, num_gto, x(1), x(2), co, ostate%f)
+      CALL density_fit(density%op, density%grid, num_gto, pe, co, ostate%f)
 
       CALL release_opgrid(density)
 
-      IF (iunit > 0) THEN
+      IF (iunit > 0 .AND. .NOT. PRESENT(agto)) THEN
          WRITE (iunit, '(" POWELL| Number of function evaluations",T71,I10)') ostate%nf
          WRITE (iunit, '(" POWELL| Final value of function",T61,G20.10)') ostate%fopt
          WRITE (iunit, '(" Optimized representation of density using a Geometrical Gaussian basis")')
@@ -154,13 +166,18 @@ CONTAINS
       END IF
 
       IF (PRESENT(results)) THEN
-         CPASSERT(SIZE(results) >= num_gto + 2)
-         results(1) = x(1)
-         results(2) = x(2)
-         results(3:2 + num_gto) = co(1:num_gto)
+         IF (PRESENT(agto)) THEN
+            CPASSERT(SIZE(results) >= num_gto)
+            results(1:num_gto) = co(1:num_gto)
+         ELSE
+            CPASSERT(SIZE(results) >= num_gto + 2)
+            results(1) = x(1)
+            results(2) = x(2)
+            results(3:2 + num_gto) = co(1:num_gto)
+         END IF
       END IF
 
-      DEALLOCATE (co)
+      DEALLOCATE (co, pe)
 
    END SUBROUTINE atom_fit_density
 ! **************************************************************************************************
@@ -1286,50 +1303,46 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Low level routine to fit an atomic electron density.
 !> \param density  electron density on an atomic radial grid 'atom%basis%grid'
-!> \param atom     information about the atomic kind
-!>                 (only 'atom%basis%grid' is accessed, why not to pass it instead?)
+!> \param grid     information about the atomic grid
 !> \param n        number of Gaussian basis functions
-!> \param aval     exponent of the first Gaussian basis function in the series
-!> \param cval     factor of geometrical series
+!> \param pe       exponents of Gaussian basis functions
 !> \param co       computed expansion coefficients
 !> \param aerr     error in fitted density \f[\sqrt{\sum_{i}^{nr} (density_fitted(i)-density(i))^2 }\f]
 ! **************************************************************************************************
-   SUBROUTINE density_fit(density, atom, n, aval, cval, co, aerr)
-      TYPE(opgrid_type), POINTER                         :: density
-      TYPE(atom_type), POINTER                           :: atom
+   SUBROUTINE density_fit(density, grid, n, pe, co, aerr)
+      REAL(dp), DIMENSION(:), INTENT(IN)                 :: density
+      TYPE(grid_atom_type)                               :: grid
       INTEGER, INTENT(IN)                                :: n
-      REAL(dp), INTENT(IN)                               :: aval, cval
+      REAL(dp), DIMENSION(:), INTENT(IN)                 :: pe
       REAL(dp), DIMENSION(:), INTENT(INOUT)              :: co
       REAL(dp), INTENT(OUT)                              :: aerr
 
       INTEGER                                            :: i, info, ip, iq, k, nr
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: ipiv
       REAL(dp)                                           :: a, rk, zval
-      REAL(dp), ALLOCATABLE, DIMENSION(:)                :: den, pe, uval
+      REAL(dp), ALLOCATABLE, DIMENSION(:)                :: den, uval
       REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: bf, smat, tval
 
-      ALLOCATE (pe(n))
-      nr = atom%basis%grid%nr
+      nr = grid%nr
       ALLOCATE (bf(nr, n), den(nr))
       bf = 0._dp
 
       DO i = 1, n
-         pe(i) = aval*cval**i
          a = pe(i)
          DO k = 1, nr
-            rk = atom%basis%grid%rad(k)
+            rk = grid%rad(k)
             bf(k, i) = EXP(-a*rk**2)
          END DO
       END DO
 
       ! total charge
-      zval = integrate_grid(density%op, atom%basis%grid)
+      zval = integrate_grid(density, grid)
 
       ! allocate vectors and matrices for overlaps
       ALLOCATE (tval(n + 1, 1), uval(n), smat(n + 1, n + 1))
       DO i = 1, n
          uval(i) = (pi/pe(i))**1.5_dp
-         tval(i, 1) = integrate_grid(density%op, bf(:, i), atom%basis%grid)
+         tval(i, 1) = integrate_grid(density, bf(:, i), grid)
       END DO
       tval(n + 1, 1) = zval
 
@@ -1354,10 +1367,10 @@ CONTAINS
          den(:) = den(:) + co(i)*bf(:, i)
       END DO
       den(:) = den(:)*fourpi
-      den(:) = (den(:) - density%op(:))**2
-      aerr = SQRT(integrate_grid(den, atom%basis%grid))
+      den(:) = (den(:) - density(:))**2
+      aerr = SQRT(integrate_grid(den, grid))
 
-      DEALLOCATE (pe, bf, den)
+      DEALLOCATE (bf, den)
 
       DEALLOCATE (tval, uval, smat)
 

@@ -73,6 +73,8 @@ MODULE qs_scf_initialization
                                               fb_env_write_info
    USE qs_fb_env_types,                 ONLY: fb_env_create,&
                                               fb_env_has_data
+   USE qs_harris_types,                 ONLY: harris_type
+   USE qs_harris_utils,                 ONLY: harris_density_update
    USE qs_initial_guess,                ONLY: calculate_first_density_matrix
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               qs_kind_type,&
@@ -1045,10 +1047,11 @@ CONTAINS
 
       INTEGER                                            :: extrapolation_method_nr, handle, ispin, &
                                                             nmo, output_unit
-      LOGICAL                                            :: orthogonal_wf
+      LOGICAL                                            :: do_harris, orthogonal_wf
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(harris_type), POINTER                         :: harris_env
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(qs_rho_type), POINTER                         :: rho
@@ -1065,6 +1068,8 @@ CONTAINS
                       mos=mos, &
                       dft_control=dft_control, &
                       para_env=para_env)
+
+      do_harris = qs_env%harris_method
 
       extrapolation_method_nr = wfi_use_guess_method_nr
       IF (ASSOCIATED(qs_env%wf_history)) THEN
@@ -1084,22 +1089,30 @@ CONTAINS
             END DO
          END IF
       END IF
-      output_unit = cp_print_key_unit_nr(logger, scf_section, "PRINT%PROGRAM_RUN_INFO", &
-                                         extension=".scfLog")
-      IF (output_unit > 0) THEN
-         WRITE (UNIT=output_unit, FMT="(/,T2,A,I0)") &
-            "Extrapolation method: "// &
-            TRIM(wfi_get_method_label(extrapolation_method_nr))
-         IF (extrapolation_method_nr == wfi_ps_method_nr) THEN
-            WRITE (UNIT=output_unit, FMT="(T2,A,I0,A)") &
-               "Extrapolation order:  ", &
-               MAX((MIN(qs_env%wf_history%memory_depth, qs_env%wf_history%snapshot_count) - 1), 0)
+
+      IF (.NOT. do_harris) THEN
+         output_unit = cp_print_key_unit_nr(logger, scf_section, "PRINT%PROGRAM_RUN_INFO", &
+                                            extension=".scfLog")
+         IF (output_unit > 0) THEN
+            WRITE (UNIT=output_unit, FMT="(/,T2,A,I0)") &
+               "Extrapolation method: "// &
+               TRIM(wfi_get_method_label(extrapolation_method_nr))
+            IF (extrapolation_method_nr == wfi_ps_method_nr) THEN
+               WRITE (UNIT=output_unit, FMT="(T2,A,I0,A)") &
+                  "Extrapolation order:  ", &
+                  MAX((MIN(qs_env%wf_history%memory_depth, qs_env%wf_history%snapshot_count) - 1), 0)
+            END IF
          END IF
+         CALL cp_print_key_finished_output(output_unit, logger, scf_section, &
+                                           "PRINT%PROGRAM_RUN_INFO")
       END IF
 
-      CALL cp_print_key_finished_output(output_unit, logger, scf_section, &
-                                        "PRINT%PROGRAM_RUN_INFO")
-      IF (extrapolation_method_nr == wfi_use_guess_method_nr) THEN
+      IF (do_harris) THEN
+         CALL get_qs_env(qs_env, harris_env=harris_env)
+         CALL harris_density_update(qs_env, harris_env)
+         CALL qs_rho_update_rho(rho, qs_env=qs_env)
+         CALL qs_ks_did_change(qs_env%ks_env, rho_changed=.TRUE.)
+      ELSE IF (extrapolation_method_nr == wfi_use_guess_method_nr) THEN
          CALL calculate_first_density_matrix(scf_env=scf_env, qs_env=qs_env)
          CALL qs_rho_update_rho(rho, qs_env=qs_env)
          CALL qs_ks_did_change(qs_env%ks_env, rho_changed=.TRUE.)

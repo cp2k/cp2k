@@ -58,6 +58,7 @@ MODULE qs_energy_types
                        sccs_sol = 0.0_dp, & ! SCCS solvation free energy
                        ktS = 0.0_dp, & ! electronic entropic contribution
                        efermi = 0.0_dp, & ! Fermi energy
+                       band = 0.0_dp, & ! Band energy (Tr PH)
                        dftb3 = 0.0_dp, & ! DFTB 3rd order correction
                        nonscf_correction = 0.0_dp, & ! e.g. Harris correction
                        mp2 = 0.0_dp, &

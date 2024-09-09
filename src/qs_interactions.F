@@ -101,8 +101,8 @@ CONTAINS
       TYPE(gth_potential_type), POINTER                  :: gth_potential
       TYPE(gto_basis_set_type), POINTER :: aux_basis_set, aux_fit_basis_set, aux_gw_basis, &
          aux_opt_basis_set, gapw_1c_basis, harris_basis, lri_basis, mao_basis, min_basis_set, &
-         orb_basis_set, p_lri_basis, ri_aux_basis_set, ri_basis, ri_xas_basis, soft_basis, &
-         tda_k_basis
+         orb_basis_set, p_lri_basis, rhoin_basis, ri_aux_basis_set, ri_basis, ri_xas_basis, &
+         soft_basis, tda_k_basis
       TYPE(paw_proj_set_type), POINTER                   :: paw_proj_set
       TYPE(sgp_potential_type), POINTER                  :: sgp_potential
 
@@ -136,6 +136,7 @@ CONTAINS
          CALL get_qs_kind(qs_kind_set(ikind), basis_set=soft_basis, basis_type="ORB_SOFT")
          CALL get_qs_kind(qs_kind_set(ikind), basis_set=gapw_1c_basis, basis_type="GAPW_1C")
          CALL get_qs_kind(qs_kind_set(ikind), basis_set=tda_k_basis, basis_type="TDA_HFX")
+         CALL get_qs_kind(qs_kind_set(ikind), basis_set=rhoin_basis, basis_type="RHOIN")
          CALL get_qs_kind(qs_kind_set(ikind), &
                           paw_proj_set=paw_proj_set, &
                           paw_atom=paw_atom, &
@@ -379,6 +380,11 @@ CONTAINS
          END IF
          IF (ASSOCIATED(p_lri_basis)) THEN
             CALL init_interaction_radii_orb_basis(p_lri_basis, qs_control%eps_pgf_orb)
+         END IF
+
+         ! Calculate the density input basis function radii
+         IF (ASSOCIATED(rhoin_basis)) THEN
+            CALL init_interaction_radii_orb_basis(rhoin_basis, qs_control%eps_pgf_orb)
          END IF
 
          ! Calculate the paw projector basis function radii

@@ -31,6 +31,7 @@ MODULE qs_energy
    USE qs_environment_methods,          ONLY: qs_env_rebuild_pw_env
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
+   USE qs_harris_utils,                 ONLY: harris_energy_correction
    USE qs_ks_methods,                   ONLY: qs_ks_update_qs_env
    USE qs_matrix_w,                     ONLY: qs_energies_compute_matrix_w
    USE qs_nonscf,                       ONLY: nonscf
@@ -131,6 +132,11 @@ CONTAINS
                CALL qs_energies_compute_matrix_w(qs_env, my_calc_forces)
             END IF
 
+         END IF
+
+         ! Check for energy correction
+         IF (qs_env%harris_method) THEN
+            CALL harris_energy_correction(qs_env, my_calc_forces)
          END IF
 
          ! Do active space calculation

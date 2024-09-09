@@ -246,6 +246,7 @@ list(
   input_cp2k_colvar.F
   input_cp2k_constraints.F
   input_cp2k_dft.F
+  input_cp2k_harris.F
   input_cp2k_print_dft.F
   input_cp2k_scf.F
   input_cp2k_as.F
@@ -575,6 +576,8 @@ list(
   qs_gcp_utils.F
   qs_grid_atom.F
   qs_gspace_mixing.F
+  qs_harris_types.F
+  qs_harris_utils.F
   qs_harmonics_atom.F
   qs_hash_table_functions.F
   qs_initial_guess.F

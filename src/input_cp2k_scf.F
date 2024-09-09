@@ -215,7 +215,7 @@ CONTAINS
                        "Extrapolated from previous RESTART files.", &
                        "Use same guess as MOPAC for semi-empirical methods or a simple diagonal density matrix for other methods", &
                        "Generate a sparse wavefunction using the atomic code (for OT based methods)", &
-                       "Skip initial guess (only for NON-SCC DFTB)."), &
+                       "Skip initial guess (only for non-self consistent methods)."), &
          enum_i_vals=(/atomic_guess, restart_guess, random_guess, core_guess, &
                        history_guess, mopac_guess, sparse_guess, no_guess/))
       CALL section_add_keyword(section, keyword)

@@ -45,6 +45,8 @@ MODULE qs_rho_methods
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type,&
                                               set_qs_env
+   USE qs_harris_types,                 ONLY: harris_type
+   USE qs_harris_utils,                 ONLY: calculate_harris_density
    USE qs_kind_types,                   ONLY: qs_kind_type
    USE qs_ks_types,                     ONLY: get_ks_env,&
                                               qs_ks_env_type
@@ -386,6 +388,7 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_ao
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rho_ao_kp
       TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(harris_type), POINTER                         :: harris_env
       TYPE(kpoint_type), POINTER                         :: kpoints
       TYPE(lri_density_type), POINTER                    :: lri_density
       TYPE(lri_environment_type), POINTER                :: lri_env
@@ -397,8 +400,13 @@ CONTAINS
                       para_env=para_env)
       IF (PRESENT(para_env_external)) para_env => para_env_external
 
-      IF (dft_control%qs_control%semi_empirical .OR. &
-          dft_control%qs_control%dftb .OR. dft_control%qs_control%xtb) THEN
+      IF (qs_env%harris_method) THEN
+         CALL get_qs_env(qs_env, harris_env=harris_env)
+         CALL calculate_harris_density(qs_env, harris_env%rhoin, rho_struct)
+         CALL qs_rho_set(rho_struct, rho_r_valid=.TRUE., rho_g_valid=.TRUE.)
+
+      ELSEIF (dft_control%qs_control%semi_empirical .OR. &
+              dft_control%qs_control%dftb .OR. dft_control%qs_control%xtb) THEN
 
          CALL qs_rho_set(rho_struct, rho_r_valid=.FALSE., rho_g_valid=.FALSE.)
 

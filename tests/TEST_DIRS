@@ -346,6 +346,7 @@ QS/regtest-linearscaling
 QS/regtest-spgr                                             spglib
 Fist/regtest-field
 QS/regtest-iao
+QS/regtest-harris
 TAMC/regtest
 QS/regtest-fftw-wisdom                                      fftw3
 FE/regtest-2

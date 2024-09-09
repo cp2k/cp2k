@@ -23,8 +23,10 @@ MODULE qs_nonscf
                                               section_vals_type
    USE kinds,                           ONLY: dp
    USE kpoint_types,                    ONLY: kpoint_type
-   USE machine,                         ONLY: m_walltime
+   USE machine,                         ONLY: m_flush,&
+                                              m_walltime
    USE message_passing,                 ONLY: mp_para_env_type
+   USE qs_charges_types,                ONLY: qs_charges_type
    USE qs_core_energies,                ONLY: calculate_ptrace
    USE qs_energy_types,                 ONLY: qs_energy_type
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -41,7 +43,6 @@ MODULE qs_nonscf
    USE qs_scf_loop_utils,               ONLY: qs_scf_new_mos,&
                                               qs_scf_new_mos_kp
    USE qs_scf_output,                   ONLY: qs_scf_loop_print,&
-                                              qs_scf_print_summary,&
                                               qs_scf_write_mos
    USE qs_scf_post_scf,                 ONLY: qs_scf_compute_properties
    USE qs_scf_types,                    ONLY: qs_scf_env_type
@@ -125,11 +126,11 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'do_nonscf'
 
-      INTEGER                                            :: handle, img, ispin, output_unit
+      INTEGER                                            :: handle, img, iounit, ispin
       LOGICAL                                            :: diis_step, do_kpoints
-      REAL(KIND=dp)                                      :: pc_ener, qmmm_el, t1, t2
+      REAL(KIND=dp)                                      :: pc_ener, qmmm_el, t1, t2, tdiag
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrixkp_ks, rho_ao_kp
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_h, matrixkp_ks, rho_ao_kp
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(kpoint_type), POINTER                         :: kpoints
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
@@ -144,7 +145,7 @@ CONTAINS
       t1 = m_walltime()
 
       logger => cp_get_default_logger()
-      output_unit = cp_logger_get_default_io_unit(logger)
+      iounit = cp_logger_get_default_io_unit(logger)
 
       CALL get_qs_env(qs_env=qs_env, &
                       energy=energy, &
@@ -190,10 +191,17 @@ CONTAINS
             CALL dbcsr_copy(rho_ao_kp(ispin, img)%matrix, scf_env%p_mix_new(ispin, img)%matrix)
          END DO
       END DO
+
       CALL qs_ks_did_change(ks_env, rho_changed=.TRUE., potential_changed=.TRUE.)
 
-      ! core energy : Tr(PH)
+      ! band energy : Tr(PH)
       CALL get_qs_env(qs_env, matrix_ks_kp=matrixkp_ks)
+      CALL calculate_ptrace(matrixkp_ks, rho_ao_kp, energy%band, dft_control%nspins)
+      ! core energy : Tr(Ph)
+      energy%total = energy%total - energy%core
+      CALL get_qs_env(qs_env, matrix_h_kp=matrix_h)
+      CALL calculate_ptrace(matrix_h, rho_ao_kp, energy%core, dft_control%nspins)
+
       IF (qs_env%qmmm) THEN
          ! Compute QM/MM Energy
          CPASSERT(SIZE(matrixkp_ks, 2) == 1)
@@ -207,22 +215,137 @@ CONTAINS
       ELSE
          energy%qmmm_el = 0.0_dp
       END IF
-      energy%total = energy%total - energy%core
-      CALL calculate_ptrace(matrixkp_ks, rho_ao_kp, energy%core, dft_control%nspins)
-      energy%total = energy%total + energy%core + energy%qmmm_el
 
       t2 = m_walltime()
+      tdiag = t2 - t1
 
-      IF (output_unit > 0) THEN
-         WRITE (UNIT=output_unit, &
-                FMT="(T2,A,T40,A,F10.2,T61,F20.10)") &
-            "Diagonalization", "Time:", t2 - t1, energy%total
-      END IF
-
-      CALL qs_scf_print_summary(output_unit, qs_env)
+      CALL qs_nonscf_print_summary(qs_env, tdiag, iounit)
 
       CALL timestop(handle)
 
    END SUBROUTINE do_nonscf
+
+! **************************************************************************************************
+!> \brief writes a summary of information after diagonalization
+!> \param qs_env ...
+!> \param tdiag ...
+!> \param iounit ...
+! **************************************************************************************************
+   SUBROUTINE qs_nonscf_print_summary(qs_env, tdiag, iounit)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      REAL(KIND=dp), INTENT(IN)                          :: tdiag
+      INTEGER, INTENT(IN)                                :: iounit
+
+      INTEGER                                            :: nelectron_total
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: tot_rho_r
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(qs_charges_type), POINTER                     :: qs_charges
+      TYPE(qs_energy_type), POINTER                      :: energy
+      TYPE(qs_rho_type), POINTER                         :: rho
+      TYPE(qs_scf_env_type), POINTER                     :: scf_env
+
+      IF (iounit > 0) THEN
+         CALL get_qs_env(qs_env=qs_env, energy=energy, dft_control=dft_control)
+         IF (qs_env%harris_method) THEN
+            CPASSERT(.NOT. dft_control%qs_control%gapw)
+            CPASSERT(.NOT. dft_control%qs_control%gapw_xc)
+
+            CALL get_qs_env(qs_env=qs_env, rho=rho, scf_env=scf_env, qs_charges=qs_charges)
+            nelectron_total = scf_env%nelectron
+            CALL qs_rho_get(rho, tot_rho_r=tot_rho_r)
+            WRITE (UNIT=iounit, FMT="(/,(T3,A,T41,2F20.10))") &
+               "Electronic density on regular grids: ", &
+               SUM(tot_rho_r), &
+               SUM(tot_rho_r) + nelectron_total, &
+               "Core density on regular grids:", &
+               qs_charges%total_rho_core_rspace, &
+               qs_charges%total_rho_core_rspace - REAL(nelectron_total + dft_control%charge, dp)
+            WRITE (UNIT=iounit, FMT="(T3,A,T41,F20.10)") &
+               "Total charge density on r-space grids:     ", &
+               SUM(tot_rho_r) + &
+               qs_charges%total_rho_core_rspace, &
+               "Total charge density g-space grids:     ", &
+               qs_charges%total_rho_gspace
+
+            WRITE (UNIT=iounit, FMT="(/,T2,A,T40,A,F10.2,T61,F20.10)") &
+               "Diagonalization", "Time:", tdiag, energy%band
+
+            WRITE (UNIT=iounit, FMT="((T3,A,T56,F25.14))") &
+               "Core Hamiltonian energy:                       ", energy%core, &
+               "Overlap energy of the core charge distribution:", energy%core_overlap, &
+               "Self energy of the core charge distribution:   ", energy%core_self, &
+               "Hartree energy:                                ", energy%hartree, &
+               "Exchange-correlation energy:                   ", energy%exc
+            IF (energy%dispersion /= 0.0_dp) &
+               WRITE (UNIT=iounit, FMT="(T3,A,T56,F25.14)") &
+               "Dispersion energy:                             ", energy%dispersion
+            IF (energy%gcp /= 0.0_dp) &
+               WRITE (UNIT=iounit, FMT="(T3,A,T56,F25.14)") &
+               "gCP energy:                                    ", energy%gcp
+            IF (energy%efield /= 0.0_dp) &
+               WRITE (UNIT=iounit, FMT="(T3,A,T56,F25.14)") &
+               "Electric field interaction energy:          ", energy%efield
+
+         ELSEIF (dft_control%qs_control%semi_empirical) THEN
+            CPABORT("NONSCF not available")
+         ELSEIF (dft_control%qs_control%dftb) THEN
+            CPASSERT(energy%dftb3 == 0.0_dp)
+            energy%total = energy%total + energy%band + energy%qmmm_el
+            WRITE (UNIT=iounit, FMT="(/,T2,A,T40,A,F10.2,T61,F20.10)") &
+               "Diagonalization", "Time:", tdiag, energy%total
+            WRITE (UNIT=iounit, FMT="((T3,A,T56,F25.14))") &
+               "Core Hamiltonian energy:                       ", energy%core, &
+               "Repulsive potential energy:                    ", energy%repulsive, &
+               "Dispersion energy:                             ", energy%dispersion
+            IF (energy%efield /= 0.0_dp) &
+               WRITE (UNIT=iounit, FMT="(T3,A,T56,F25.14)") &
+               "Electric field interaction energy:          ", energy%efield
+         ELSEIF (dft_control%qs_control%xtb) THEN
+            energy%total = energy%total + energy%band + energy%qmmm_el
+            WRITE (UNIT=iounit, FMT="(/,T2,A,T40,A,F10.2,T61,F20.10)") &
+               "Diagonalization", "Time:", tdiag, energy%total
+            WRITE (UNIT=iounit, FMT="((T3,A,T56,F25.14))") &
+               "Core Hamiltonian energy:                       ", energy%core, &
+               "Repulsive potential energy:                    ", energy%repulsive, &
+               "Electronic energy:                             ", energy%hartree, &
+               "Dispersion energy:                             ", energy%dispersion
+            IF (dft_control%qs_control%xtb_control%xb_interaction) &
+               WRITE (UNIT=iounit, FMT="(T3,A,T56,F25.14)") &
+               "Correction for halogen bonding:                ", energy%xtb_xb_inter
+            IF (dft_control%qs_control%xtb_control%do_nonbonded) &
+               WRITE (UNIT=iounit, FMT="(T3,A,T56,F25.14)") &
+               "Correction for nonbonded interactions:         ", energy%xtb_nonbonded
+            IF (energy%efield /= 0.0_dp) &
+               WRITE (UNIT=iounit, FMT="(T3,A,T56,F25.14)") &
+               "Electric field interaction energy:          ", energy%efield
+         ELSE
+            CPABORT("NONSCF not available")
+         END IF
+         IF (dft_control%smear) THEN
+            WRITE (UNIT=iounit, FMT="((T3,A,T56,F25.14))") &
+               "Electronic entropic energy:", energy%kTS
+            WRITE (UNIT=iounit, FMT="((T3,A,T56,F25.14))") &
+               "Fermi energy:", energy%efermi
+         END IF
+         IF (energy%qmmm_el /= 0.0_dp) THEN
+            WRITE (UNIT=iounit, FMT="(T3,A,T56,F25.14)") &
+               "QM/MM Electrostatic energy:                    ", energy%qmmm_el
+            IF (qs_env%qmmm_env_qm%image_charge) THEN
+               WRITE (UNIT=iounit, FMT="(T3,A,T56,F25.14)") &
+                  "QM/MM image charge energy:                ", energy%image_charge
+            END IF
+         END IF
+
+         IF (dft_control%qs_control%semi_empirical) THEN
+            CPABORT("NONSCF not available")
+         ELSEIF (dft_control%qs_control%dftb .OR. dft_control%qs_control%xtb) THEN
+            WRITE (UNIT=iounit, FMT="(/,(T3,A,T56,F25.14))") &
+               "Total energy:                                  ", energy%total
+         END IF
+
+         CALL m_flush(iounit)
+      END IF
+
+   END SUBROUTINE qs_nonscf_print_summary
 
 END MODULE qs_nonscf

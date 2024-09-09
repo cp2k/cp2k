@@ -1145,6 +1145,11 @@ MODULE input_constants
 
    INTEGER, PARAMETER, PUBLIC               :: kg_cholesky = 3001
 
+   ! Harris method
+   INTEGER, PARAMETER, PUBLIC               :: hfun_harris = 1
+   INTEGER, PARAMETER, PUBLIC               :: hden_atomic = 10
+   INTEGER, PARAMETER, PUBLIC               :: horb_default = 100
+
    ! non-scf energy corrections
    INTEGER, PARAMETER, PUBLIC               :: ec_functional_harris = 2001, &
                                                ec_functional_dc = 2002
