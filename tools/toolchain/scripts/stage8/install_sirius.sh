@@ -168,7 +168,7 @@ case "$with_sirius" in
         > cmake.log 2>&1 || tail -n ${LOG_LINES} cmake.log
 
       make -j $(get_nprocs) -C src >> make.log 2>&1 || tail -n ${LOG_LINES} make.log
-      make install >> make.log 2?&1 || tail -n ${LOG_LINES} make.log
+      make install >> make.log 2>&1 || tail -n ${LOG_LINES} make.log
       cd ..
 
       # now do we have cuda as well
@@ -194,12 +194,12 @@ case "$with_sirius" in
           ${EXTRA_CMAKE_FLAGS} .. \
           >> cmake.log 2>&1 || tail -n ${LOG_LINES} cmake.log
         make -j $(get_nprocs) -C src >> make.log 2>&1 || tail -n ${LOG_LINES} make.log
-	make install >> make.log 2?&1 || tail -n ${LOG_LINES} make.log
+        make install >> make.log 2>&1 || tail -n ${LOG_LINES} make.log
         SIRIUS_CUDA_LDFLAGS="-L'${pkg_install_dir}/cuda/lib' -Wl,-rpath,'${pkg_install_dir}/cuda/lib'"
         cd ..
       fi
-      SIRIUS_CFLAGS="-I'${pkg_install_dir}/cuda/include'"
-      SIRIUS_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath,'${pkg_install_dir}/cuda/lib'"
+      SIRIUS_CFLAGS="-I'${pkg_install_dir}/include'"
+      SIRIUS_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath,'${pkg_install_dir}/lib"
       write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage8/$(basename ${SCRIPT_NAME})"
     fi
     ;;
