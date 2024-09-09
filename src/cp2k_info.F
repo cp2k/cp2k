@@ -38,7 +38,7 @@ MODULE cp2k_info
 #endif
 
    !!! Keep version in sync with CMakeLists.txt !!!
-   CHARACTER(LEN=*), PARAMETER :: cp2k_version = "CP2K version 2024.2 (Development Version)"
+   CHARACTER(LEN=*), PARAMETER :: cp2k_version = "CP2K version 2024.3 (Development Version)"
    CHARACTER(LEN=*), PARAMETER :: cp2k_year = "2024"
    CHARACTER(LEN=*), PARAMETER :: cp2k_home = "https://www.cp2k.org/"
 
