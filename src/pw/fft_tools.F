@@ -136,6 +136,7 @@ MODULE fft_tools
    PRIVATE
    PUBLIC :: init_fft, fft3d, finalize_fft
    PUBLIC :: fft_alloc, fft_dealloc
+   PUBLIC :: init_fft_scratch_pool
    PUBLIC :: fft_radix_operations, fft_fw1d
    PUBLIC :: FWFFT, BWFFT
    PUBLIC :: FFT_RADIX_CLOSEST, FFT_RADIX_NEXT
@@ -2948,6 +2949,7 @@ CONTAINS
             CASE DEFAULT
                CPABORT("")
             CASE (100) ! fft3d_pb: full cube distribution
+               CPASSERT(PRESENT(fft_sizes))
                mx1 = fft_sizes%mx1
                my1 = fft_sizes%my1
                mx2 = fft_sizes%mx2
@@ -3006,6 +3008,7 @@ CONTAINS
                                         fft_scratch_new%fft_scratch%a2buf, fft_scratch_new%fft_scratch%a1buf, fft_plan_style)
 
             CASE (101) ! fft3d_pb: full cube distribution (dim 1)
+               CPASSERT(PRESENT(fft_sizes))
                mx1 = fft_sizes%mx1
                my1 = fft_sizes%my1
                mz1 = fft_sizes%mz1
@@ -3043,6 +3046,7 @@ CONTAINS
                                         fft_scratch_new%fft_scratch%a3buf, fft_scratch_new%fft_scratch%a1buf, fft_plan_style)
 
             CASE (200) ! fft3d_ps: plane distribution
+               CPASSERT(PRESENT(fft_sizes))
                nx = fft_sizes%nx
                ny = fft_sizes%ny
                nz = fft_sizes%nz
@@ -3092,6 +3096,7 @@ CONTAINS
                                         fft_scratch_new%fft_scratch%r1buf, fft_scratch_new%fft_scratch%tbuf, fft_plan_style)
 
             CASE (300) ! fft3d_ps: block distribution
+               CPASSERT(PRESENT(fft_sizes))
                mx1 = fft_sizes%mx1
                mx2 = fft_sizes%mx2
                my1 = fft_sizes%my1
