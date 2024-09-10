@@ -144,7 +144,7 @@ MODULE qs_ks_types
 
       ! hartree is supposed to contain the hartree potential (for cube output)
       ! ugly to keep it always around only for a cube output...
-      TYPE(pw_r3d_rs_type), POINTER                                :: v_hartree_rspace => Null()
+      TYPE(pw_r3d_rs_type), POINTER                         :: v_hartree_rspace => Null()
 
       TYPE(kpoint_transitional_type)                        :: matrix_ks, &
                                                                matrix_s, &
@@ -156,18 +156,18 @@ MODULE qs_ks_types
                                                                matrix_ks_im, &
                                                                matrix_h_im
 
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_p_mp2 => Null(), &
-                                                            matrix_p_mp2_admm => Null()
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER             :: matrix_p_mp2 => Null(), &
+                                                               matrix_p_mp2_admm => Null()
 
       TYPE(qs_rho_type), POINTER                            :: rho => Null(), &
                                                                rho_xc => Null()
 
-      TYPE(pw_r3d_rs_type), POINTER                              :: vppl => Null(), &
-                                                                    rho_nlcc => Null()
-      TYPE(pw_c1d_gs_type), POINTER ::                                                  rho_nlcc_g => Null()
+      TYPE(pw_r3d_rs_type), POINTER                         :: vppl => Null(), &
+                                                               rho_nlcc => Null()
+      TYPE(pw_c1d_gs_type), POINTER                         :: rho_nlcc_g => Null()
 
-      TYPE(pw_c1d_gs_type), POINTER :: rho_core => NULL()
-      TYPE(pw_r3d_rs_type), POINTER ::                            vee => NULL()
+      TYPE(pw_c1d_gs_type), POINTER                         :: rho_core => NULL()
+      TYPE(pw_r3d_rs_type), POINTER                         :: vee => NULL()
 
       INTEGER                                               :: neighbor_list_id = -1
       TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER :: sab_orb => Null(), &
@@ -197,7 +197,7 @@ MODULE qs_ks_types
       TYPE(kpoint_type), POINTER                            :: kpoints => Null()
       TYPE(qs_subsys_type), POINTER                         :: subsys => Null()
       TYPE(dft_control_type), POINTER                       :: dft_control => Null()
-      TYPE(dbcsr_distribution_type), POINTER                 :: dbcsr_dist => Null()
+      TYPE(dbcsr_distribution_type), POINTER                :: dbcsr_dist => Null()
       TYPE(distribution_2d_type), POINTER                   :: distribution_2d => Null()
       TYPE(pw_env_type), POINTER                            :: pw_env => Null()
       TYPE(mp_para_env_type), POINTER                       :: para_env => Null()
