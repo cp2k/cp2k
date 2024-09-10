@@ -70,7 +70,7 @@ MODULE xtb_matrices
    USE particle_types,                  ONLY: particle_type
    USE qs_charge_mixing,                ONLY: charge_mixing
    USE qs_condnum,                      ONLY: overlap_condnum
-   USE qs_dispersion_pairpot,           ONLY: d3_cnumber,&
+   USE qs_dispersion_cnum,              ONLY: d3_cnumber,&
                                               dcnum_distribute,&
                                               dcnum_type
    USE qs_dispersion_types,             ONLY: qs_dispersion_type

@@ -531,10 +531,13 @@ list(
   qs_diis.F
   qs_diis_types.F
   qs_dispersion_nonloc.F
+  qs_dispersion_d2.F
+  qs_dispersion_d3.F
   qs_dispersion_d4.F
   qs_dispersion_pairpot.F
   qs_dispersion_types.F
   qs_dispersion_utils.F
+  qs_dispersion_cnum.F
   qs_dos.F
   qs_efield_berry.F
   qs_efield_local.F
