@@ -334,7 +334,7 @@ CONTAINS
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(qs_dispersion_type), POINTER                  :: dispersion_env
-      REAL(KIND=dp), INTENT(OUT)                         :: energy
+      REAL(KIND=dp), INTENT(INOUT)                       :: energy
       LOGICAL, INTENT(IN)                                :: calculate_forces
       REAL(KIND=dp), DIMENSION(:), OPTIONAL              :: atevdw
 
@@ -345,7 +345,7 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, kind_of
       LOGICAL                                            :: atenergy, atex, atstress, debugall, &
                                                             use_virial
-      REAL(KIND=dp)                                      :: elrc6, elrc8, elrc9, evdw, gnorm
+      REAL(KIND=dp)                                      :: evdw, gnorm
       REAL(KIND=dp), DIMENSION(3)                        :: fdij
       REAL(KIND=dp), DIMENSION(3, 3)                     :: dvirial, pv_loc, pv_virial_thread
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: atstr
@@ -460,7 +460,6 @@ CONTAINS
 
       ! set dispersion energy
       CALL para_env%sum(evdw)
-      evdw = evdw + (elrc6 + elrc8 + elrc9)
       energy = evdw
       IF (unit_nr > 0) THEN
          WRITE (unit_nr, *) " Total vdW energy [au]     :", evdw
