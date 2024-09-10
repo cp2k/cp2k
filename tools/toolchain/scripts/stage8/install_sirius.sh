@@ -198,7 +198,7 @@ case "$with_sirius" in
         SIRIUS_CUDA_LDFLAGS="-L'${pkg_install_dir}/cuda/lib' -Wl,-rpath,'${pkg_install_dir}/cuda/lib'"
         cd ..
       fi
-      SIRIUS_CFLAGS="-I'${pkg_install_dir}/include'"
+      SIRIUS_CFLAGS="-I'${pkg_install_dir}/include/sirius'"
       SIRIUS_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath,'${pkg_install_dir}/lib"
       write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage8/$(basename ${SCRIPT_NAME})"
     fi
@@ -258,7 +258,7 @@ if [ "$with_sirius" != "__DONTUSE__" ]; then
   SIRIUS_LIBS="-lsirius IF_CUDA(-lcusolver|)"
   SIRIUS_CUDA_LDFLAGS="-L'${pkg_install_dir}/cuda/lib' -Wl,-rpath,'${pkg_install_dir}/cuda/lib'"
   SIRIUS_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath,'${pkg_install_dir}/lib'"
-  SIRIUS_CFLAGS="-I'${pkg_install_dir}/include'"
+  SIRIUS_CFLAGS="-I'${pkg_install_dir}/include/sirius'"
   cat << EOF > "${BUILDDIR}/setup_sirius"
 export SIRIUS_VER="${sirius_ver}"
 EOF
@@ -270,15 +270,15 @@ prepend_path LD_RUN_PATH "${pkg_install_dir}/lib"
 prepend_path LD_RUN_PATH "${pkg_install_dir}/cuda/lib"
 prepend_path LIBRARY_PATH "${pkg_install_dir}/lib"
 prepend_path LIBRARY_PATH "${pkg_install_dir}/cuda/lib"
-prepend_path CPATH "${pkg_install_dir}/include"
+prepend_path CPATH "${pkg_install_dir}/include/sirius"
 prepend_path PKG_CONFIG_PATH "${pkg_install_dir}/lib/pkgconfig"
 prepend_path CMAKE_PREFIX_PATH "${pkg_install_dir}"
 EOF
     cat "${BUILDDIR}/setup_sirius" >> $SETUPFILE
   fi
   cat << EOF >> "${BUILDDIR}/setup_sirius"
-export SIRIUS_CFLAGS="IF_CUDA(-I${pkg_install_dir}/cuda/include|-I${pkg_install_dir}/include)"
-export SIRIUS_FFLAGS="IF_CUDA(-I${pkg_install_dir}/cuda/include|-I${pkg_install_dir}/include)"
+export SIRIUS_CFLAGS="IF_CUDA(-I${pkg_install_dir}/cuda/include/sirius|-I${pkg_install_dir}/include/sirius)"
+export SIRIUS_FFLAGS="IF_CUDA(-I${pkg_install_dir}/cuda/include/sirius|-I${pkg_install_dir}/include/sirius)"
 export SIRIUS_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath,'${pkg_install_dir}/lib'"
 export SIRIUS_CUDA_LDFLAGS="-L'${pkg_install_dir}/cuda/lib' -Wl,-rpath,'${pkg_install_dir}/cuda/lib'"
 export SIRIUS_LIBS="${SIRIUS_LIBS}"
