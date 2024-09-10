@@ -134,7 +134,7 @@ MODULE rt_gwbse_types
 !> \param dft_control DFT control parameters
 !> \param ham_effective Real and imaginary part of the effective Hamiltonian used to propagate
 !>                      the density matrix
-!> \param ham_single_particle Single particle Hamiltonian, taken from G0W0/DFT TODO : Only real?
+!> \param ham_reference Reference Hamiltonian, which does not change in the propagation = DFT+G0W0 - initial Hartree - initial COHSEX
 !> \param ham_workspace Workspace matrices for use with the Hamiltonian propagation - storage of
 !>                      exponential propagators etc.
 !> \param rho Density matrix at the current time step
@@ -154,24 +154,20 @@ MODULE rt_gwbse_types
 !> \param exp_eigvals Exponentiated eigenvalues (exact diagonalisation)
 !> \param v_dbcsr Sparse matrix with bare Coulomb in RI basis
 !> \param w_dbcsr Sparse matrix with correlation part of dressed Coulomb in RI basis (without bare Coulomb)
-!> \param hartree_dbt Tensor for hartree
 !> \param screened_dbt Tensor for screened Coulomb interaction
 !> \param sigma_dbt Tensor for self-energy
 !> \param greens_dbt Tensor for greens function/density matrix
-!> \param t_two_plus_one Tensor for hartree
-!> \param t_one_plus_one Tensor for hartree
 !> \param t_3c_w Tensor containing 3c integrals
 !> \param t_3c_work_RI__AO_AO Tensor sigma contraction
 !> \param t_3c_work_RI_AO__AO Tensor sigma contraction
 !> \param t_3c_work2_RI_AO__AO Tensor sigma contraction
 !> \param sigma_SEX Screened exchange self-energy
 !> \param sigma_COH Coulomb hole self-energy
-!> \param hartree_orig Original Hartree matrix
 !> \param hartree_curr Current Hartree matrix
 !> \param orders Parameter for exponential calculation (Taylor exp.)
 !> \param etrs_max_iter Maximum number of ETRS iterations
 !> \param hartree_method Which method to use for hartree_calculation
-!> \param ham_single_particle_type Which Hamiltonian to use as single particle basis
+!> \param ham_reference_type Which Hamiltonian to use as single particle basis
 !> \param mat_exp_method Which method to use for matrix exponentiation
 !> \param unit_nr Number of output unit
 !> \param int_3c_array Array containing the local 3c integrals
@@ -197,8 +193,10 @@ MODULE rt_gwbse_types
 
       ! Different indices signify different spins
       TYPE(cp_cfm_p_type), DIMENSION(:), POINTER                :: ham_effective
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER                 :: ham_single_particle
+      TYPE(cp_cfm_p_type), DIMENSION(:), POINTER                :: ham_reference
       TYPE(cp_cfm_p_type), DIMENSION(:), POINTER                :: ham_workspace
+      TYPE(cp_cfm_p_type), DIMENSION(:), POINTER                :: sigma_SEX
+      TYPE(cp_fm_p_type), DIMENSION(:), POINTER                 :: sigma_COH, hartree_curr
 
       TYPE(cp_cfm_p_type), DIMENSION(:), POINTER                :: rho,&
                                                                    rho_new,&
@@ -207,8 +205,7 @@ MODULE rt_gwbse_types
                                                                    rho_orig
       TYPE(cp_fm_p_type)                                        :: S_inv_fm,&
                                                                    S_fm
-      TYPE(dbcsr_type), POINTER                                 :: S_inv,&
-                                                                   rho_dbcsr
+      TYPE(dbcsr_type), POINTER                                 :: rho_dbcsr
       ! TODO : Check how much is actually needed and whether it is not better to separate names
       ! Indices only correspond to different workspaces
       TYPE(cp_cfm_p_type), DIMENSION(:), POINTER                :: rho_workspace
@@ -221,23 +218,18 @@ MODULE rt_gwbse_types
       TYPE(dbcsr_p_type)                                        :: v_dbcsr,&
                                                                    w_dbcsr
       ! TODO : Spins, k-points
-      TYPE(dbt_type), POINTER                                   :: hartree_dbt,&
-                                                                   screened_dbt,&
+      TYPE(dbt_type), POINTER                                   :: screened_dbt,&
                                                                    sigma_dbt,&
                                                                    greens_dbt,&
-                                                                   t_two_plus_one,&
-                                                                   t_one_plus_one,&
                                                                    t_3c_w,&
                                                                    t_3c_work_RI__AO_AO,&
                                                                    t_3c_work_RI_AO__AO,&
                                                                    t_3c_work2_RI_AO__AO
       ! These matrices are always real
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER                 :: sigma_SEX, sigma_COH
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER                 :: hartree_orig, hartree_curr
       INTEGER, DIMENSION(:,:), POINTER                          :: orders
       INTEGER                                                   :: etrs_max_iter
       INTEGER                                                   :: hartree_method
-      INTEGER                                                   :: ham_single_particle_type
+      INTEGER                                                   :: ham_reference_type
       INTEGER                                                   :: mat_exp_method
       INTEGER                                                   :: unit_nr 
       REAL(kind=dp), DIMENSION(:,:,:), POINTER                  :: int_3c_array
@@ -261,14 +253,12 @@ CONTAINS
       TYPE(post_scf_bandstructure_type), POINTER                :: bs_env
       TYPE(rt_prop_type), POINTER                               :: rtp
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER                 :: moments_dbcsr_p
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER                 :: matrix_s,&
-                                                                   rho_dbcsr
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER                 :: matrix_s
       TYPE(mo_set_type), DIMENSION(:), POINTER                  :: mos
       INTEGER                                                   :: i, re, im
       REAL(kind=dp), DIMENSION(:), POINTER                      :: custom_ref_point,&
                                                                    occupations
       REAL(kind=dp), DIMENSION(3)                               :: rpoint
-      ! TYPE(cp_fm_type)                                          :: S_inv_fm
       TYPE(section_vals_type), POINTER                          :: input, bs_sec, md_sec
       ! Extract the other types first
 
@@ -311,7 +301,7 @@ CONTAINS
       CALL section_vals_val_get(input, "DFT%REAL_TIME_PROPAGATION%HARTREE_METHOD",&
                                 i_val=gwbse_env%hartree_method)
       CALL section_vals_val_get(input, "DFT%REAL_TIME_PROPAGATION%GWBSE_HAMILTONIAN",&
-                                i_val=gwbse_env%ham_single_particle_type)
+                                i_val=gwbse_env%ham_reference_type)
       CALL section_vals_val_get(input, "DFT%REAL_TIME_PROPAGATION%MAX_ITER",&
                                 i_val=gwbse_env%etrs_max_iter)
       CALL section_vals_val_get(input, "DFT%REAL_TIME_PROPAGATION%MAT_EXP",&
@@ -322,7 +312,7 @@ CONTAINS
       ! Allocate and determine the expansion orders, based on arguments used in TDDFT
       ! TODO : Last two arguments are indicating that we are using Taylor expansion and not doing ion motion
       ALLOCATE(gwbse_env%orders(2, gwbse_env%n_spin))
-      IF (gwbse_env%ham_single_particle_type == rtp_gwbse_ham_g0w0) THEN
+      IF (gwbse_env%ham_reference_type == rtp_gwbse_ham_g0w0) THEN
          @:SPIN_DO(i, re, im, gwbse_env%n_spin)
             CALL get_nsquare_norder(2.0_dp*MAX(ABS(MAXVAL(bs_env%eigenval_G0W0(:,bs_env%nkp_only_DOS,i))),&
                                     ABS(MINVAL(bs_env%eigenval_G0W0(:,bs_env%nkp_only_DOS,i)))),&
@@ -387,6 +377,7 @@ CONTAINS
       ! Now can deallocate dbcsr matrices
       DO i=1,3
          CALL dbcsr_release(moments_dbcsr_p(i)%matrix)
+         DEALLOCATE(moments_dbcsr_p(i)%matrix)
       END DO
       DEALLOCATE(moments_dbcsr_p)
 
@@ -467,33 +458,33 @@ CONTAINS
          CALL cp_cfm_set_all(gwbse_env%ham_workspace(i)%matrix, CMPLX(0.0, 0.0, kind=dp))
       END DO
       ! Now onto the Hamiltonian itself
-      ALLOCATE(gwbse_env%ham_single_particle(gwbse_env%n_spin))
+      ALLOCATE(gwbse_env%ham_reference(gwbse_env%n_spin))
       DO i=1,gwbse_env%n_spin
-         ALLOCATE(gwbse_env%ham_single_particle(i)%matrix)
-         IF ( gwbse_env%ham_single_particle_type == rtp_gwbse_ham_g0w0 ) THEN
+         ALLOCATE(gwbse_env%ham_reference(i)%matrix)
+         IF ( gwbse_env%ham_reference_type == rtp_gwbse_ham_g0w0 ) THEN
             ! G0W0 Hamiltonian
-            CALL cp_fm_create(gwbse_env%ham_single_particle(i)%matrix, bs_env%fm_ks_Gamma(i)%matrix_struct)
-            CALL cp_fm_to_cfm(msourcer=bs_env%fm_mo_coeff_Gamma(i), mtarget=gwbse_env%ham_workspace(1)%matrix)
-            ! TODO : Checked that Gamma point is the zero k-point
+            CALL cp_cfm_create(gwbse_env%ham_reference(i)%matrix, bs_env%fm_ks_Gamma(i)%matrix_struct)
+            CALL cp_fm_to_fm(bs_env%fm_mo_coeff_Gamma(i), gwbse_env%real_workspace(1)%matrix)
+            ! TODO : Check that Gamma point is the zero k-point
             ! C * Lambda
-            CALL cp_cfm_column_scale(gwbse_env%ham_workspace(1)%matrix, CMPLX(bs_env%eigenval_G0W0(:,1,i), 0.0, kind=dp))
+            CALL cp_fm_column_scale(gwbse_env%real_workspace(1)%matrix, bs_env%eigenval_G0W0(:,1,i))
             ! C * Lambda * C^T
-            CALL multiply_cfm_fm("N", "T", gwbse_env%n_ao, gwbse_env%n_ao, gwbse_env%n_ao,&
-                               1.0_dp, gwbse_env%ham_workspace(1)%matrix, bs_env%fm_mo_coeff_Gamma(i),&
-                               0.0_dp, gwbse_env%rho_workspace(1)%matrix)
+            CALL parallel_gemm("N", "T", gwbse_env%n_ao, gwbse_env%n_ao, gwbse_env%n_ao,&
+                               1.0_dp, gwbse_env%real_workspace(1)%matrix, bs_env%fm_mo_coeff_Gamma(i),&
+                               0.0_dp, gwbse_env%real_workspace(2)%matrix)
             ! S * C * Lambda * C^T
-            CALL multiply_fm_cfm("N", "N", gwbse_env%n_ao, gwbse_env%n_ao, gwbse_env%n_ao,&
-                               1.0_dp, gwbse_env%S_fm%matrix, gwbse_env%rho_workspace(1)%matrix,&
-                               0.0_dp, gwbse_env%ham_workspace(1)%matrix)
+            CALL parallel_gemm("N", "N", gwbse_env%n_ao, gwbse_env%n_ao, gwbse_env%n_ao,&
+                               1.0_dp, gwbse_env%S_fm%matrix, gwbse_env%real_workspace(2)%matrix,&
+                               0.0_dp, gwbse_env%real_workspace(1)%matrix)
             ! S * C * Lambda * C^T * S = H
-            CALL multiply_cfm_fm("N", "N", gwbse_env%n_ao, gwbse_env%n_ao, gwbse_env%n_ao,&
-                               1.0_dp, gwbse_env%ham_workspace(1)%matrix, gwbse_env%S_fm%matrix,&
-                               0.0_dp, gwbse_env%rho_workspace(1)%matrix)
-            CALL cp_cfm_to_fm(msource=gwbse_env%rho_workspace(1)%matrix, mtargetr=gwbse_env%ham_single_particle(i)%matrix)
+            CALL parallel_gemm("N", "N", gwbse_env%n_ao, gwbse_env%n_ao, gwbse_env%n_ao,&
+                               1.0_dp, gwbse_env%real_workspace(1)%matrix, gwbse_env%S_fm%matrix,&
+                               0.0_dp, gwbse_env%real_workspace(2)%matrix)
+            CALL cp_fm_to_cfm(msourcer=gwbse_env%real_workspace(2)%matrix, mtarget=gwbse_env%ham_reference(i)%matrix)
          ELSE
             ! KS Hamiltonian
-            CALL cp_fm_create(gwbse_env%ham_single_particle(i)%matrix, bs_env%fm_ks_Gamma(i)%matrix_struct)
-            CALL cp_fm_to_fm(bs_env%fm_ks_Gamma(i), gwbse_env%ham_single_particle(i)%matrix)
+            CALL cp_cfm_create(gwbse_env%ham_reference(i)%matrix, bs_env%fm_ks_Gamma(i)%matrix_struct)
+            CALL cp_fm_to_cfm(msourcer=bs_env%fm_ks_Gamma(i), mtarget=gwbse_env%ham_reference(i)%matrix)
          END IF
       END DO
 
@@ -531,29 +522,19 @@ CONTAINS
       ALLOCATE(gwbse_env%exp_eigvals(gwbse_env%n_ao))
       gwbse_env%exp_eigvals(:) = (0.0_dp, 0.0_dp)
 
-      ! Self-energy components
-      ALLOCATE(gwbse_env%hartree_dbt)
-
       ! Allocate self-energy parts and dynamic Hartree potential
-      ! TODO : Hartree probably has spin independent form
-      ALLOCATE(gwbse_env%hartree_orig(gwbse_env%n_spin))
       ALLOCATE(gwbse_env%hartree_curr(gwbse_env%n_spin))
       ALLOCATE(gwbse_env%sigma_SEX(gwbse_env%n_spin))
       ALLOCATE(gwbse_env%sigma_COH(gwbse_env%n_spin))
       DO i=1,gwbse_env%n_spin
-         ALLOCATE(gwbse_env%hartree_orig(i)%matrix)
          ALLOCATE(gwbse_env%hartree_curr(i)%matrix)
          ALLOCATE(gwbse_env%sigma_SEX(i)%matrix)
          ALLOCATE(gwbse_env%sigma_COH(i)%matrix)
          CALL cp_fm_create(gwbse_env%sigma_COH(i)%matrix, bs_env%fm_ks_Gamma(1)%matrix_struct)
-         CALL cp_fm_create(gwbse_env%sigma_SEX(i)%matrix, bs_env%fm_ks_Gamma(1)%matrix_struct)
-         PRINT *, "Size after create", gwbse_env%sigma_SEX(i)%matrix%matrix_struct%nrow_global,&
-                        gwbse_env%sigma_SEX(i)%matrix%matrix_struct%ncol_global
-         CALL cp_fm_create(gwbse_env%hartree_orig(i)%matrix, bs_env%fm_ks_Gamma(1)%matrix_struct)
+         CALL cp_cfm_create(gwbse_env%sigma_SEX(i)%matrix, bs_env%fm_ks_Gamma(1)%matrix_struct)
          CALL cp_fm_create(gwbse_env%hartree_curr(i)%matrix, bs_env%fm_ks_Gamma(1)%matrix_struct)
          CALL cp_fm_set_all(gwbse_env%sigma_COH(i)%matrix, 0.0_dp)
-         CALL cp_fm_set_all(gwbse_env%sigma_SEX(i)%matrix, 0.0_dp)
-         CALL cp_fm_set_all(gwbse_env%hartree_orig(i)%matrix, 0.0_dp)
+         CALL cp_cfm_set_all(gwbse_env%sigma_SEX(i)%matrix, CMPLX(0.0, 0.0, kind=dp))
          CALL cp_fm_set_all(gwbse_env%hartree_curr(i)%matrix, 0.0_dp)
       END DO
 
@@ -562,7 +543,6 @@ CONTAINS
 
       ! Depending on the chosen methods, allocate extra workspace
       IF ( gwbse_env%hartree_method == rtp_gwbse_hartree_dbt ) THEN
-         ! CALL create_hartree_dbt_workspace(gwbse_env, qs_env)
          CALL create_hartree_ri_workspace(gwbse_env, qs_env)
       ELSEIF ( gwbse_env%hartree_method == rtp_gwbse_hartree_pw) THEN
          ! CALL create_hartree_pw_workspace(gwbse_env, qs_env)
@@ -607,14 +587,13 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                               :: routineN = "release_gwbse_env"
       INTEGER                                                   :: i
 
-      CALL cp_cfm_release_pp1(gwbse_env%rho)
       CALL cp_cfm_release_pp1(gwbse_env%ham_effective)
       CALL cp_cfm_release_pp1(gwbse_env%ham_workspace)
       CALL cp_fm_release(gwbse_env%sigma_COH)
-      CALL cp_fm_release(gwbse_env%sigma_SEX)
-      CALL cp_fm_release(gwbse_env%hartree_orig)
+      CALL cp_cfm_release_pp1(gwbse_env%sigma_SEX)
       CALL cp_fm_release(gwbse_env%hartree_curr)
-      CALL cp_fm_release(gwbse_env%ham_single_particle)
+      CALL cp_cfm_release_pp1(gwbse_env%ham_reference)
+      CALL cp_cfm_release_pp1(gwbse_env%rho)
       CALL cp_cfm_release_pp1(gwbse_env%rho_workspace)
       CALL cp_cfm_release_pp1(gwbse_env%rho_new)
       CALL cp_cfm_release_pp1(gwbse_env%rho_new_last)
@@ -639,7 +618,6 @@ CONTAINS
       CALL dbcsr_release(gwbse_env%v_dbcsr%matrix)
       DEALLOCATE(gwbse_env%v_dbcsr%matrix)
 
-      NULLIFY(gwbse_env%S_inv)
       DEALLOCATE(gwbse_env%orders)
 
       CALL release_sigma_workspace(gwbse_env)
@@ -739,7 +717,7 @@ CONTAINS
       ! CALL cp_fm_scale_and_add(0.5_dp, W_fm, 0.5_dp, bs_env%fm_W_MIC_freq_zero)
       CALL dbcsr_create(gwbse_env%w_dbcsr%matrix, name="W", template=bs_env%mat_RI_RI%matrix)
       ! CALL copy_fm_to_dbcsr(W_fm, gwbse_env%w_dbcsr%matrix)
-      IF (gwbse_env%ham_single_particle_type == rtp_gwbse_ham_g0w0) THEN
+      IF (gwbse_env%ham_reference_type == rtp_gwbse_ham_g0w0) THEN
          CALL copy_fm_to_dbcsr(bs_env%fm_W_MIC_freq_zero, gwbse_env%w_dbcsr%matrix)
       ELSE
          ! Assume only Hartree available - this is added latero
