@@ -156,7 +156,7 @@ conditions in a Γ-only approach and with full *k*-point sampling is work in pro
 ### 3.1 Input file
 
 In this section, we provide a minimal example of a BSE calculation on H<sub>2</sub>. For the
-calculation you need the input file BSE_H2.inp and the aug-cc-DZVP basis
+calculation you need the input file BSE_H2.inp and the aug-cc-pVDZ basis
 ([Download](https://github.com/cp2k/cp2k-examples/tree/master/bethe-salpeter/H2)).
 
 Please copy both files into your working directory and run CP2K by
