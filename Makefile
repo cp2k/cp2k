@@ -253,11 +253,11 @@ $(EXEDIR)/cp2k_shell.$(ONEVERSION): $(EXEDIR)/cp2k.$(ONEVERSION)
 	cd $(EXEDIR); ln -sf cp2k.$(ONEVERSION) cp2k_shell.$(ONEVERSION)
 
 test:
-	@$(CP2KHOME)/tests/do_regtest.py $(EXEDIR) $(ONEVERSION) $(TESTOPTS)
+	@$(CP2KHOME)/tests/do_regtest.py --workbasedir $(TSTDIR) $(EXEDIR) $(ONEVERSION) $(TESTOPTS)
 
 testbg:
 	@echo "testing: $(ONEVERSION) : full log in $(TSTDIR)/regtest.log "
-	@$(CP2KHOME)/tests/do_regtest.py $(EXEDIR) $(ONEVERSION) $(TESTOPTS) > $(TSTDIR)/regtest.log 2>&1
+	@$(CP2KHOME)/tests/do_regtest.py --workbasedir $(TSTDIR) $(EXEDIR) $(ONEVERSION) $(TESTOPTS) > $(TSTDIR)/regtest.log 2>&1
 	@grep -e "Summary:" -e "Status:" $(TSTDIR)/regtest.log
 
 endif
@@ -331,7 +331,7 @@ realclean: extclean clean execlean
 OTHER_HELP += "realclean : Remove all files for given ARCH and VERSION"
 
 testclean:
-	rm -rf $(foreach v, $(VERSION), $(MAINTSTDIR)/$(ARCH)/$(v)/TEST-*)
+	rm -rf $(foreach v, $(VERSION), $(MAINTSTDIR)/$(ARCH)/$(v)/TEST-* $(MAINTSTDIR)/$(ARCH)/$(v)/regtest.log)
 OTHER_HELP += "testclean : Remove all TEST-* files for given ARCH and VERSION"
 
 #
