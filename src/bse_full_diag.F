@@ -753,20 +753,20 @@ CONTAINS
                                     fm_eigvec_Y)
       IF (unit_nr > 0) THEN
          WRITE (unit_nr, '(T2,A4)') 'BSE|'
-         WRITE (unit_nr, '(T2,A4,T7,A63)') &
-            'BSE|', "Dipoles d_r^n and oscillator strength f^n of excitation level n"
-         WRITE (unit_nr, '(T2,A4,T7,A17)') &
-            'BSE|', "are obtained from"
+         WRITE (unit_nr, '(T2,A4,T7,A60)') &
+            'BSE|', "Transition moments d_r^n (with r∈(x,y,z), in atomic units)"
+         WRITE (unit_nr, '(T2,A4,T7,A67)') &
+            'BSE|', "and oscillator strength f^n of excitation level n are obtained from"
          WRITE (unit_nr, '(T2,A4)') 'BSE|'
          IF (flag_TDA) THEN
-            WRITE (unit_nr, '(T2,A4,T12,A51)') &
-               'BSE|', "d_r^n = sqrt(2) sum_ia < ψ_i | µ | ψ_a >  X_ia^n"
+            WRITE (unit_nr, '(T2,A4,T10,A52)') &
+               'BSE|', "d_r^n = sqrt(2) sum_ia < ψ_i | r | ψ_a >  X_ia^n"
          ELSE
-            WRITE (unit_nr, '(T2,A4,T12,A63)') &
-               'BSE|', "d_r^n = sqrt(2) sum_ia < ψ_i | µ | ψ_a > ( X_ia^n + Y_ia^n )"
+            WRITE (unit_nr, '(T2,A4,T10,A64)') &
+               'BSE|', "d_r^n = sqrt(2) sum_ia < ψ_i | r | ψ_a > ( X_ia^n + Y_ia^n )"
          END IF
          WRITE (unit_nr, '(T2,A4)') 'BSE|'
-         WRITE (unit_nr, '(T2,A4,T20,A44)') &
+         WRITE (unit_nr, '(T2,A4,T14,A44)') &
             'BSE|', "f^n = 2/3 * Ω^n sum_r∈(x,y,z) ( d_r^n )^2"
          WRITE (unit_nr, '(T2,A4)') 'BSE|'
          WRITE (unit_nr, '(T2,A4,T7,A19)') &
@@ -776,8 +776,8 @@ CONTAINS
             'BSE|', "ψ_i:", "occupied molecular orbitals,"
          WRITE (unit_nr, '(T2,A4,T7,A5,T15,A28)') &
             'BSE|', "ψ_a:", "empty molecular orbitals and"
-         WRITE (unit_nr, '(T2,A4,T7,A3,T15,A16)') &
-            'BSE|', "µ:", "dipole operator."
+         WRITE (unit_nr, '(T2,A4,T9,A2,T14,A18)') &
+            'BSE|', "r:", "position operator."
          WRITE (unit_nr, '(T2,A4)') 'BSE|'
          WRITE (unit_nr, '(T2,A4,T7,A28)') &
             'BSE|', "prelim Ref.: Eqs. (23), (24)"
@@ -785,8 +785,8 @@ CONTAINS
             'BSE|', "in J. Chem. Phys. 152, 044105 (2020); https://doi.org/10.1063/1.5123290"
          WRITE (unit_nr, '(T2,A4)') 'BSE|'
          WRITE (unit_nr, '(T2,A4)') 'BSE|'
-         WRITE (unit_nr, '(T2,A4,T8,A12,T22,A8,T35,A8,T45,A8,T55,A8,T65,A16)') 'BSE|', &
-            'Excitation n', "TDA/ABBA", "Dipole X", "Dipole Y", "Dipole Z", 'Osc. strength'
+         WRITE (unit_nr, '(T2,A4,T8,A12,T22,A8,T38,A5,T48,A5,T58,A5,T65,A16)') 'BSE|', &
+            'Excitation n', "TDA/ABBA", "d_x^n", "d_y^n", "d_z^n", 'Osc. strength'
          DO i_exc = 1, MIN(homo*virtual, mp2_env%ri_g0w0%num_print_exc)
             WRITE (unit_nr, '(T2,A4,T8,I12,T24,A6,T35,F8.3,T45,F8.3,T55,F8.3,T65,F16.3)') &
                'BSE|', i_exc, info_approximation, dipole_exc(1, 1, i_exc), dipole_exc(2, 1, i_exc), &

@@ -1403,7 +1403,7 @@ CONTAINS
    END SUBROUTINE truncate_BSE_matrices
 
 ! **************************************************************************************************
-!> \brief Compute and return BSE dipoles d_r^n = sqrt(2) sum_ia < ψ_i | µ | ψ_a > ( X_ia^n + Y_ia^n )
+!> \brief Compute and return BSE dipoles d_r^n = sqrt(2) sum_ia < ψ_i | r | ψ_a > ( X_ia^n + Y_ia^n )
 !>    and oscillator strengths f^n = 2/3 * Ω^n sum_r∈(x,y,z) ( d_r^n )^2
 !>    Prelim Ref.: Eqs. (23), (24)
 !>    in J. Chem. Phys. 152, 044105 (2020); https://doi.org/10.1063/1.5123290
@@ -1555,7 +1555,7 @@ CONTAINS
    END SUBROUTINE get_oscillator_strengths
 
 ! **************************************************************************************************
-!> \brief Computes and returns dipole in MO basis, i.e. < ψ_i | µ | ψ_a >
+!> \brief Computes and returns dipole in MO basis, i.e. < ψ_i | r | ψ_a >
 !> \param fm_dipole_per_dir Dipoles in MO basis with blacs environment from DFT
 !> \param qs_env ...
 !> \param mo_coeff mo_coeff in layout nao x nao from mp2, i.e. all occ and virt indices in both axes
