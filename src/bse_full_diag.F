@@ -745,62 +745,75 @@ CONTAINS
                                                 unit_nr, mp2_env)
          END IF
       END DO
-      ! Compute BSE dipoles and oscillator strengths
-      CALL get_oscillator_strengths(fm_eigvec_X, Exc_ens, &
-                                    dipole_exc, oscill_str, &
-                                    mp2_env, qs_env, mo_coeff, &
-                                    homo, virtual, unit_nr, &
-                                    fm_eigvec_Y)
-      IF (unit_nr > 0) THEN
-         WRITE (unit_nr, '(T2,A4)') 'BSE|'
-         WRITE (unit_nr, '(T2,A4,T7,A60)') &
-            'BSE|', "Transition moments d_r^n (with r∈(x,y,z), in atomic units)"
-         WRITE (unit_nr, '(T2,A4,T7,A67)') &
-            'BSE|', "and oscillator strength f^n of excitation level n are obtained from"
-         WRITE (unit_nr, '(T2,A4)') 'BSE|'
-         IF (flag_TDA) THEN
-            WRITE (unit_nr, '(T2,A4,T10,A52)') &
-               'BSE|', "d_r^n = sqrt(2) sum_ia < ψ_i | r | ψ_a >  X_ia^n"
-         ELSE
-            WRITE (unit_nr, '(T2,A4,T10,A64)') &
-               'BSE|', "d_r^n = sqrt(2) sum_ia < ψ_i | r | ψ_a > ( X_ia^n + Y_ia^n )"
+      ! Discriminate between singlet and triplet, since triplet state can't couple to light
+      ! and therefore calculations of dipoles etc are not necessary
+      IF (mp2_env%ri_g0w0%bse_spin_config == 0) THEN
+         ! Compute BSE dipoles and oscillator strengths
+         CALL get_oscillator_strengths(fm_eigvec_X, Exc_ens, &
+                                       dipole_exc, oscill_str, &
+                                       mp2_env, qs_env, mo_coeff, &
+                                       homo, virtual, unit_nr, &
+                                       fm_eigvec_Y)
+         IF (unit_nr > 0) THEN
+            WRITE (unit_nr, '(T2,A4)') 'BSE|'
+            WRITE (unit_nr, '(T2,A4,T7,A60)') &
+               'BSE|', "Transition moments d_r^n (with r∈(x,y,z), in atomic units)"
+            WRITE (unit_nr, '(T2,A4,T7,A67)') &
+               'BSE|', "and oscillator strength f^n of excitation level n are obtained from"
+            WRITE (unit_nr, '(T2,A4)') 'BSE|'
+            IF (flag_TDA) THEN
+               WRITE (unit_nr, '(T2,A4,T10,A52)') &
+                  'BSE|', "d_r^n = sqrt(2) sum_ia < ψ_i | r | ψ_a >  X_ia^n"
+            ELSE
+               WRITE (unit_nr, '(T2,A4,T10,A64)') &
+                  'BSE|', "d_r^n = sqrt(2) sum_ia < ψ_i | r | ψ_a > ( X_ia^n + Y_ia^n )"
+            END IF
+            WRITE (unit_nr, '(T2,A4)') 'BSE|'
+            WRITE (unit_nr, '(T2,A4,T14,A44)') &
+               'BSE|', "f^n = 2/3 * Ω^n sum_r∈(x,y,z) ( d_r^n )^2"
+            WRITE (unit_nr, '(T2,A4)') 'BSE|'
+            WRITE (unit_nr, '(T2,A4,T7,A19)') &
+               'BSE|', "where we introduced"
+            WRITE (unit_nr, '(T2,A4)') 'BSE|'
+            WRITE (unit_nr, '(T2,A4,T7,A5,T15,A28)') &
+               'BSE|', "ψ_i:", "occupied molecular orbitals,"
+            WRITE (unit_nr, '(T2,A4,T7,A5,T15,A28)') &
+               'BSE|', "ψ_a:", "empty molecular orbitals and"
+            WRITE (unit_nr, '(T2,A4,T9,A2,T14,A18)') &
+               'BSE|', "r:", "position operator."
+            WRITE (unit_nr, '(T2,A4)') 'BSE|'
+            WRITE (unit_nr, '(T2,A4,T7,A28)') &
+               'BSE|', "prelim Ref.: Eqs. (23), (24)"
+            WRITE (unit_nr, '(T2,A4,T7,A71)') &
+               'BSE|', "in J. Chem. Phys. 152, 044105 (2020); https://doi.org/10.1063/1.5123290"
+            WRITE (unit_nr, '(T2,A4)') 'BSE|'
+            WRITE (unit_nr, '(T2,A4)') 'BSE|'
+            WRITE (unit_nr, '(T2,A4,T8,A12,T22,A8,T38,A5,T48,A5,T58,A5,T65,A16)') 'BSE|', &
+               'Excitation n', "TDA/ABBA", "d_x^n", "d_y^n", "d_z^n", 'Osc. strength'
+            DO i_exc = 1, MIN(homo*virtual, mp2_env%ri_g0w0%num_print_exc)
+               WRITE (unit_nr, '(T2,A4,T8,I12,T24,A6,T35,F8.3,T45,F8.3,T55,F8.3,T65,F16.3)') &
+                  'BSE|', i_exc, info_approximation, dipole_exc(1, 1, i_exc), dipole_exc(2, 1, i_exc), &
+                  dipole_exc(3, 1, i_exc), oscill_str(i_exc)
+            END DO
+            WRITE (unit_nr, '(T2,A4)') 'BSE|'
          END IF
-         WRITE (unit_nr, '(T2,A4)') 'BSE|'
-         WRITE (unit_nr, '(T2,A4,T14,A44)') &
-            'BSE|', "f^n = 2/3 * Ω^n sum_r∈(x,y,z) ( d_r^n )^2"
-         WRITE (unit_nr, '(T2,A4)') 'BSE|'
-         WRITE (unit_nr, '(T2,A4,T7,A19)') &
-            'BSE|', "where we introduced"
-         WRITE (unit_nr, '(T2,A4)') 'BSE|'
-         WRITE (unit_nr, '(T2,A4,T7,A5,T15,A28)') &
-            'BSE|', "ψ_i:", "occupied molecular orbitals,"
-         WRITE (unit_nr, '(T2,A4,T7,A5,T15,A28)') &
-            'BSE|', "ψ_a:", "empty molecular orbitals and"
-         WRITE (unit_nr, '(T2,A4,T9,A2,T14,A18)') &
-            'BSE|', "r:", "position operator."
-         WRITE (unit_nr, '(T2,A4)') 'BSE|'
-         WRITE (unit_nr, '(T2,A4,T7,A28)') &
-            'BSE|', "prelim Ref.: Eqs. (23), (24)"
-         WRITE (unit_nr, '(T2,A4,T7,A71)') &
-            'BSE|', "in J. Chem. Phys. 152, 044105 (2020); https://doi.org/10.1063/1.5123290"
-         WRITE (unit_nr, '(T2,A4)') 'BSE|'
-         WRITE (unit_nr, '(T2,A4)') 'BSE|'
-         WRITE (unit_nr, '(T2,A4,T8,A12,T22,A8,T38,A5,T48,A5,T58,A5,T65,A16)') 'BSE|', &
-            'Excitation n', "TDA/ABBA", "d_x^n", "d_y^n", "d_z^n", 'Osc. strength'
-         DO i_exc = 1, MIN(homo*virtual, mp2_env%ri_g0w0%num_print_exc)
-            WRITE (unit_nr, '(T2,A4,T8,I12,T24,A6,T35,F8.3,T45,F8.3,T55,F8.3,T65,F16.3)') &
-               'BSE|', i_exc, info_approximation, dipole_exc(1, 1, i_exc), dipole_exc(2, 1, i_exc), &
-               dipole_exc(3, 1, i_exc), oscill_str(i_exc)
-         END DO
-         WRITE (unit_nr, '(T2,A4)') 'BSE|'
+
+         ! Compute and print the absorption spectrum to external file
+         IF (mp2_env%ri_g0w0%bse_print_spectrum) THEN
+            CALL compute_absorption_spectrum(oscill_str, Exc_ens, &
+                                             info_approximation, unit_nr, mp2_env)
+         END IF
+         DEALLOCATE (oscill_str, dipole_exc)
+      ELSE
+         IF (unit_nr > 0) THEN
+            WRITE (unit_nr, '(T2,A4)') 'BSE|'
+            WRITE (unit_nr, '(T2,A4)') 'BSE|'
+            CALL cp_warn(__LOCATION__, &
+                           "Requested triplet excitation cannot couple to light. "// &
+                           "Skipping calculation of dipoles, oscillator strengths, and spectrum.")
+         END IF
       END IF
 
-      ! Compute and print the absorption spectrum to external file
-      IF (mp2_env%ri_g0w0%bse_print_spectrum) THEN
-         CALL compute_absorption_spectrum(oscill_str, Exc_ens, &
-                                          info_approximation, unit_nr, mp2_env)
-      END IF
-      DEALLOCATE (oscill_str, dipole_exc)
       IF (unit_nr > 0) THEN
          WRITE (unit_nr, '(T2,A4)') 'BSE|'
          WRITE (unit_nr, '(T2,A4)') 'BSE|'
