@@ -215,7 +215,6 @@ CONTAINS
                                                             idempotence_dev, a_metric_1, a_metric_2,&
                                                             intensity
       REAL(kind=dp), DIMENSION(3)                        :: kvec
-      REAL(kind=dp), DIMENSION(:), POINTER               :: gon_eigvals
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(rtp_control_type), POINTER                    :: rtp_control
 
@@ -318,43 +317,9 @@ CONTAINS
                ! Sets real part to zero
                CALL cp_fm_to_cfm(msourcei=gwbse_env%real_workspace(2)%matrix, mtarget=gwbse_env%ham_effective(j)%matrix)
             ELSE IF (gwbse_env%mat_exp_method == do_exact) THEN
-               NULLIFY(gon_eigvals)
-               ALLOCATE(gon_eigvals(gwbse_env%n_ao))
-               CALL cp_fm_to_fm(gwbse_env%S_fm%matrix, gwbse_env%real_workspace(2)%matrix)
-               CALL cp_fm_geeig(gwbse_env%real_workspace(1)%matrix, gwbse_env%real_workspace(2)%matrix,&
-                       gwbse_env%real_workspace(3)%matrix, gwbse_env%real_eigvals, gwbse_env%real_workspace(4)%matrix)
-               ! Determine the exponential eigenvalues
-               ! Start with real part
-               gon_eigvals(:) = COS(intensity * gwbse_env%real_eigvals(:))
-               ! Scale the real eigenvectors
-               CALL cp_fm_to_fm(gwbse_env%real_workspace(3)%matrix, gwbse_env%real_workspace(2)%matrix)
-               ! C * Lambda
-               CALL cp_fm_column_scale(gwbse_env%real_workspace(2)%matrix, gon_eigvals)
-               ! C * Lambda * C^T
-               CALL parallel_gemm("N", "T", gwbse_env%n_ao, gwbse_env%n_ao, gwbse_env%n_ao,&
-                                  1.0_dp, gwbse_env%real_workspace(2)%matrix, gwbse_env%real_workspace(3)%matrix,&
-                                  0.0_dp, gwbse_env%real_workspace(4)%matrix)
-               ! C * Lambda * C^T * S
-               CALL parallel_gemm("N", "N", gwbse_env%n_ao, gwbse_env%n_ao, gwbse_env%n_ao,&
-                                  1.0_dp, gwbse_env%real_workspace(4)%matrix, gwbse_env%S_fm%matrix,&
-                                  0.0_dp, gwbse_env%real_workspace(1)%matrix)
-               ! Continue for the imaginary part
-               gon_eigvals(:) = SIN(intensity * gwbse_env%real_eigvals(:))
-               CALL cp_fm_to_fm(gwbse_env%real_workspace(3)%matrix, gwbse_env%real_workspace(2)%matrix)
-               ! C * Lambda
-               CALL cp_fm_column_scale(gwbse_env%real_workspace(2)%matrix, gon_eigvals)
-               ! C * Lambda * C^T
-               CALL parallel_gemm("N", "T", gwbse_env%n_ao, gwbse_env%n_ao, gwbse_env%n_ao,&
-                                  1.0_dp, gwbse_env%real_workspace(2)%matrix, gwbse_env%real_workspace(3)%matrix,&
-                                  0.0_dp, gwbse_env%real_workspace(4)%matrix)
-               ! C * Lambda * C^T * S
-               CALL parallel_gemm("N", "N", gwbse_env%n_ao, gwbse_env%n_ao, gwbse_env%n_ao,&
-                                  1.0_dp, gwbse_env%real_workspace(4)%matrix, gwbse_env%S_fm%matrix,&
-                                  0.0_dp, gwbse_env%real_workspace(2)%matrix)
-               ! Copy everything to the complex hamiltonian
-               CALL cp_fm_to_cfm(gwbse_env%real_workspace(1)%matrix, gwbse_env%real_workspace(2)%matrix,&
-                                 gwbse_env%ham_effective(j)%matrix)
-               DEALLOCATE(gon_eigvals)
+               CALL cp_fm_to_cfm(msourcer=gwbse_env%real_workspace(1)%matrix, mtarget=gwbse_env%ham_workspace(j)%matrix)
+               CALL cp_cfm_gexp(gwbse_env%ham_workspace(j)%matrix, gwbse_env%S_cfm%matrix,gwbse_env%ham_effective(j)%matrix,&
+                                CMPLX(0.0, intensity, kind=dp), gwbse_env%rho_workspace)
             END IF
          END DO
          IF (gwbse_env%mat_exp_method == do_bch) THEN
@@ -577,26 +542,8 @@ CONTAINS
                CALL cp_cfm_to_cfm(gwbse_env%rho_workspace(1)%matrix, gwbse_env%ham_workspace(j)%matrix)
             END IF
          ELSE IF (gwbse_env%mat_exp_method == do_exact) THEN
-            ! In exact exponentiation, we solve the generalized eigenvalue problem by transforming to complex matrices
-            ! Solve the generalized eigenvalue problem, with fm overlap (also complex)
-            ! Call the diagonalisation routine
-            ! cp_cfm_geeig is done in place - all matrices are overwritten
-            CALL cp_fm_to_cfm(msourcer=gwbse_env%S_fm%matrix, mtarget=gwbse_env%rho_workspace(1)%matrix)
-            CALL cp_cfm_geeig(gwbse_env%ham_effective(j)%matrix, gwbse_env%rho_workspace(1)%matrix,&
-                              gwbse_env%rho_workspace(2)%matrix, gwbse_env%real_eigvals,&
-                              gwbse_env%rho_workspace(3)%matrix)
-            ! With these eigenvalues determined, construct the exponential
-            gwbse_env%exp_eigvals(:) = EXP(gwbse_env%real_eigvals(:) * CMPLX(0.0, -gwbse_env%sim_dt/2, kind=dp))
-            ! Now, get the exponential
-            CALL cp_cfm_to_cfm(gwbse_env%rho_workspace(2)%matrix, gwbse_env%rho_workspace(3)%matrix)
-            CALL cp_cfm_column_scale(gwbse_env%rho_workspace(3)%matrix, gwbse_env%exp_eigvals)
-            CALL parallel_gemm("N", "C", gwbse_env%n_ao, gwbse_env%n_ao, gwbse_env%n_ao,&
-                               CMPLX(1.0_dp, 0.0_dp, kind=dp), gwbse_env%rho_workspace(3)%matrix,&
-                               gwbse_env%rho_workspace(2)%matrix,&
-                               CMPLX(0.0_dp, 0.0_dp, kind=dp), gwbse_env%rho_workspace(1)%matrix)
-            CALL multiply_cfm_fm("N", "N", gwbse_env%n_ao, gwbse_env%n_ao, gwbse_env%n_ao,&
-                                 1.0_dp, gwbse_env%rho_workspace(1)%matrix, gwbse_env%S_fm%matrix,&
-                                 0.0_dp, gwbse_env%ham_workspace(j)%matrix)
+            CALL cp_cfm_gexp(gwbse_env%ham_effective(j)%matrix, gwbse_env%S_cfm%matrix, gwbse_env%ham_workspace(j)%matrix,&
+                             CMPLX(0.0, -gwbse_env%sim_dt/2, kind=dp), gwbse_env%rho_workspace)
          ELSE
             CPABORT("Only BCH and Taylor matrix exponentiation implemented")
          END IF
@@ -1258,4 +1205,87 @@ END SUBROUTINE get_sigma_real
 
       CALL timestop(handle)
    END SUBROUTINE get_hartree_local
+   SUBROUTINE cp_cfm_gexp(amatrix, bmatrix, exponential, eig_scale_opt, work_opt)
+      ! TODO : Do interface for real matrices
+      TYPE(cp_cfm_type), INTENT(IN)                      :: amatrix
+      TYPE(cp_cfm_type), INTENT(IN)                      :: bmatrix
+      TYPE(cp_cfm_type)                                  :: exponential
+      COMPLEX(kind=dp), INTENT(IN), OPTIONAL             :: eig_scale_opt
+      TYPE(cp_cfm_p_type), DIMENSION(:), OPTIONAL        :: work_opt
+      CHARACTER(len=*), PARAMETER                        :: routineN="cp_cfm_exp"
+      COMPLEX(kind=dp)                                   :: eig_scale
+      REAL(kind=dp), DIMENSION(:), ALLOCATABLE           :: eigenvalues
+      COMPLEX(kind=dp), DIMENSION(:), ALLOCATABLE        :: expvalues
+      TYPE(cp_cfm_p_type), DIMENSION(:), POINTER         :: work
+      LOGICAL                                            :: deallocate_work
+      INTEGER                                            :: nrow,i
+
+      ! Argument parsing and sanity checks
+      IF (PRESENT(eig_scale_opt)) THEN
+         eig_scale = eig_scale_opt
+      ELSE
+         eig_scale = CMPLX(1.0, 0.0, kind=dp)
+      END IF
+
+      NULLIFY(work)
+      ALLOCATE(work(4))
+      IF (PRESENT(work_opt) .AND. SIZE(work_opt) >= 4) THEN
+         deallocate_work = .FALSE.
+         DO i=1,4
+            work(i)%matrix => work_opt(i)%matrix
+         END DO
+      ELSE
+         deallocate_work = .TRUE.
+         ! Allocate the work storage on the fly
+         DO i=1,4
+            NULLIFY(work(i)%matrix)
+            ALLOCATE(work(i)%matrix)
+            CALL cp_cfm_create(work(i)%matrix, amatrix%matrix_struct)
+         END DO
+      END IF
+
+      nrow = amatrix%matrix_struct%nrow_global
+
+      ALLOCATE(eigenvalues(nrow))
+      ALLOCATE(expvalues(nrow))
+
+      ! Do not change the amatrix and bmatrix - need to copy them first
+      CALL cp_cfm_to_cfm(amatrix, work(1)%matrix)
+      CALL cp_cfm_to_cfm(bmatrix, work(2)%matrix)
+
+      ! Solve the generalized eigenvalue equation
+      CALL cp_cfm_geeig(work(1)%matrix, work(2)%matrix, work(3)%matrix, eigenvalues, work(4)%matrix)
+
+      ! Scale and exponentiate the eigenvalues
+      ! TODO : Check threading/vectorization
+      expvalues(:) = EXP(eigenvalues(:) * eig_scale)
+
+      ! Copy eigenvectors to column scale them
+      CALL cp_cfm_to_cfm(work(3)%matrix, work(1)%matrix)
+      ! C * exp(eig)
+      CALL cp_cfm_column_scale(work(1)%matrix, expvalues)
+
+      ! Carry out the remaining operations
+      ! C * exp(eig) * C^H
+      CALL parallel_gemm("N", "C", nrow, nrow, nrow,&
+                         CMPLX(1.0, 0.0, kind=dp), work(1)%matrix, work(3)%matrix,&
+                         CMPLX(0.0, 0.0, kind=dp), work(2)%matrix)
+      CALL cp_cfm_to_cfm(bmatrix, work(3)%matrix)
+      ! C * exp(eig) * C^H * S
+      CALL parallel_gemm("N", "N", nrow, nrow, nrow,&
+                         CMPLX(1.0, 0.0, kind=dp), work(2)%matrix, work(3)%matrix,&
+                         CMPLX(0.0, 0.0, kind=dp), exponential)
+
+      ! Deallocate work storage if necessary
+      IF (deallocate_work) THEN
+         DO i=1,4
+            CALL cp_cfm_release(work(i)%matrix)
+            DEALLOCATE(work(i)%matrix)
+         END DO
+      END IF
+      DEALLOCATE(work)
+
+      DEALLOCATE(eigenvalues)
+      DEALLOCATE(expvalues)
+   END SUBROUTINE cp_cfm_gexp
 END MODULE rt_gwbse

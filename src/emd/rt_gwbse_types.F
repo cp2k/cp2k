@@ -205,6 +205,8 @@ MODULE rt_gwbse_types
                                                                    rho_orig
       TYPE(cp_fm_p_type)                                        :: S_inv_fm,&
                                                                    S_fm
+      ! Many routines require overlap in the complex format
+      TYPE(cp_cfm_p_type)                                       :: S_cfm
       TYPE(dbcsr_type), POINTER                                 :: rho_dbcsr
       ! TODO : Check how much is actually needed and whether it is not better to separate names
       ! Indices only correspond to different workspaces
@@ -383,14 +385,7 @@ CONTAINS
 
       ! Allocate space for density propagation and other operations
       NULLIFY(gwbse_env%rho_workspace)
-      SELECT CASE (gwbse_env%mat_exp_method)
-         CASE (do_exact)
-            ALLOCATE(gwbse_env%rho_workspace(3))
-         CASE (do_bch)
-            ALLOCATE(gwbse_env%rho_workspace(4))
-         CASE DEFAULT
-            CPABORT("Only exact and BCH matrix propagation implemented in rt-GWBSE")
-      END SELECT
+      ALLOCATE(gwbse_env%rho_workspace(4))
       DO i=1,SIZE(gwbse_env%rho_workspace)
          ALLOCATE(gwbse_env%rho_workspace(i)%matrix)
          CALL cp_cfm_create(gwbse_env%rho_workspace(i)%matrix, bs_env%fm_ks_Gamma(1)%matrix_struct)
@@ -447,6 +442,10 @@ CONTAINS
       ALLOCATE(gwbse_env%S_inv_fm%matrix)
       CALL cp_fm_create(gwbse_env%S_inv_fm%matrix, bs_env%fm_s_Gamma%matrix_struct)
       CALL cp_fm_invert(gwbse_env%S_fm%matrix, gwbse_env%S_inv_fm%matrix)
+      NULLIFY(gwbse_env%S_cfm%matrix)
+      ALLOCATE(gwbse_env%S_cfm%matrix)
+      CALL cp_cfm_create(gwbse_env%S_cfm%matrix, bs_env%fm_s_Gamma%matrix_struct)
+      CALL cp_fm_to_cfm(msourcer=gwbse_env%S_fm%matrix, mtarget=gwbse_env%S_cfm%matrix)
 
       ! Create the single particle hamiltonian
       ! Allocate workspace first
@@ -604,6 +603,8 @@ CONTAINS
       DEALLOCATE(gwbse_env%S_inv_fm%matrix)
       CALL cp_fm_release(gwbse_env%S_fm%matrix)
       DEALLOCATE(gwbse_env%S_fm%matrix)
+      CALL cp_cfm_release(gwbse_env%S_cfm%matrix)
+      DEALLOCATE(gwbse_env%S_cfm%matrix)
 
       DO i=1,3
          CALL cp_fm_release(gwbse_env%moments(i)%matrix)
