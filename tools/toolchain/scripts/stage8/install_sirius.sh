@@ -161,7 +161,7 @@ case "$with_sirius" in
         -DCMAKE_Fortran_COMPILER="${MPIFC}" \
         -DCMAKE_VERBOSE_MAKEFILE=ON \
         -DBUILD_SHARED_LIBS=OFF \
-	-DCMAKE_POSITION_INDEPENDENT_CODE=ON \
+        -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
         -DSIRIUS_USE_PUGIXML=ON \
         -DSIRIUS_USE_MEMORY_POOL=OFF \
         -DSIRIUS_USE_ELPA=OFF \
@@ -188,7 +188,7 @@ case "$with_sirius" in
           -DGPU_MODEL=P100 \
           -DSIRIUS_USE_MEMORY_POOL=OFF \
           -DBUILD_SHARED_LIBS=OFF \
-	  -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
+          -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
           -DSIRIUS_USE_PUGIXML=ON \
           -DCMAKE_CXX_COMPILER="${MPICXX}" \
           -DCMAKE_C_COMPILER="${MPICC}" \
@@ -245,8 +245,10 @@ case "$with_sirius" in
     require_env SPLA_LDFLAGS
     require_env SPLA_LIBS
     check_lib -lsirius "sirius"
+    check_lib -lsirius_cxx "sirius_cxx"
     add_include_from_paths SIRIUS_CFLAGS "sirius*" $INCLUDE_PATHS
     add_lib_from_paths SIRIUS_LDFLAGS "libsirius.*" $LIB_PATHS
+    add_lib_from_paths SIRIUS_LDFLAGS "libsirius_cxx.*" $LIB_PATHS
     ;;
   *)
     echo "==================== Linking SIRIUS_Dist to user paths ===================="
@@ -257,7 +259,7 @@ case "$with_sirius" in
     ;;
 esac
 if [ "$with_sirius" != "__DONTUSE__" ]; then
-  SIRIUS_LIBS="-lsirius IF_CUDA(-lcusolver|)"
+  SIRIUS_LIBS="-lsirius -lsirius_cxx IF_CUDA(-lcusolver|)"
   SIRIUS_CUDA_LDFLAGS="-L'${pkg_install_dir}/cuda/lib' -Wl,-rpath,'${pkg_install_dir}/cuda/lib'"
   SIRIUS_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath,'${pkg_install_dir}/lib'"
   SIRIUS_CFLAGS="-I'${pkg_install_dir}/include/sirius'"

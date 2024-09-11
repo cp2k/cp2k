@@ -45,10 +45,10 @@ case "${with_spla}" in
         -DCMAKE_VERBOSE_MAKEFILE=ON \
         -DCMAKE_BUILD_TYPE="RelWithDebInfo" \
         -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
-	-DSPLA_FORTRAN=ON \
+        -DSPLA_FORTRAN=ON \
         -DSPLA_INSTALL=ON \
         -DSPLA_STATIC=ON \
-	.. \
+        .. \
         > cmake.log 2>&1 || tail -n ${LOG_LINES} cmake.log
       make -j $(get_nprocs) > make.log 2>&1 || tail -n ${LOG_LINES} make.log
       make -j $(get_nprocs) install > install.log 2>&1 || tail -n ${LOG_LINES} install.log
@@ -64,7 +64,7 @@ case "${with_spla}" in
           -DCMAKE_VERBOSE_MAKEFILE=ON \
           -DCMAKE_BUILD_TYPE="RelWithDebInfo" \
           -DSPLA_FORTRAN=ON \
-	  -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
+          -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
           -DSPLA_INSTALL=ON \
           -DSPLA_STATIC=ON \
           -DSPLA_GPU_BACKEND=CUDA \
@@ -91,7 +91,7 @@ case "${with_spla}" in
               -DSPLA_FORTRAN=ON \
               -DSPLA_INSTALL=ON \
               -DSPLA_STATIC=ON \
-	      -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
+              -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
               -DSPLA_GPU_BACKEND=CUDA \
               .. \
               > cmake.log 2>&1 || tail -n ${LOG_LINES} cmake.log
@@ -112,7 +112,7 @@ case "${with_spla}" in
               -DSPLA_FORTRAN=ON \
               -DSPLA_INSTALL=ON \
               -DSPLA_STATIC=ON \
-	      -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
+              -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
               -DSPLA_GPU_BACKEND=ROCM \
               .. \
               > cmake.log 2>&1 || tail -n ${LOG_LINES} cmake.log
