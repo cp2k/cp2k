@@ -7,7 +7,7 @@
 # Usage: Source this arch file and then run make as instructed.
 #        Replace or adapt the "module load" commands below if needed.
 #
-# Last update: 06.09.2024
+# Last update: 12.09.2024
 #
 # \
    if [[ "${0}" == "${BASH_SOURCE}" ]]; then \
@@ -234,20 +234,24 @@ endif
 
 ifneq ($(USE_SIRIUS),)
    USE_SIRIUS     := $(strip $(USE_SIRIUS))
-   USE_GSL        := $(GSL_VER)
+   USE_GSL        := ${GSL_VER}
    LIBVDWXC_INC   := $(INSTALL_PATH)/libvdwxc-$(LIBVDWXC_VER)/include
    LIBVDWXC_LIB   := $(INSTALL_PATH)/libvdwxc-$(LIBVDWXC_VER)/lib
-   SIRIUS_INC     := $(INSTALL_PATH)/sirius-$(USE_SIRIUS)/include
+   PUGIXML_LIB    := $(INSTALL_PATH)/pugixml-$(PUGIXML_VER)/lib
+   SIRIUS_INC     := $(INSTALL_PATH)/sirius-$(USE_SIRIUS)/include/sirius
    SIRIUS_LIB     := $(INSTALL_PATH)/sirius-$(USE_SIRIUS)/lib
    CFLAGS         += -I$(LIBVDWXC_INC)
    CFLAGS         += -I$(SIRIUS_INC)
    DFLAGS         += -D__LIBVDWXC
    DFLAGS         += -D__SIRIUS
    ifeq ($(SHARED), yes)
-      LIBS           += -Wl,-rpath=$(SIRIUS_LIB) -L$(SIRIUS_LIB) -lsirius
+      LIBS           += -Wl,-rpath=$(SIRIUS_LIB) -L$(SIRIUS_LIB) -lsirius -lsirius_cxx
+      LIBS           += -Wl,-rpath=$(PUGIXML_LIB) -L$(PUGIXML_LIB) -lpugixml
       LIBS           += -Wl,-rpath=$(LIBVDWXC_LIB) -L$(LIBVDWXC_LIB) -lvdwxc
    else
       LIBS           += $(SIRIUS_LIB)/libsirius.a
+      LIBS           += $(SIRIUS_LIB)/libsirius_cxx.a
+      LIBS           += $(PUGIXML_LIB)/libpugixml.a
       LIBS           += $(LIBVDWXC_LIB)/libvdwxc.a
    endif
 endif

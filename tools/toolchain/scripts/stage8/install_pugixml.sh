@@ -76,14 +76,17 @@ case "${with_sirius}" in
 esac
 if [ "$with_pugixml" != "__DONTUSE__" ]; then
   PUGIXML_LIBS="-lpugixml"
+  cat << EOF > "${BUILDDIR}/setup_pugixml"
+export PUGIXML_VER="${pugixml_ver}"
+EOF
   if [ "$with_pugixml" != "__SYSTEM__" ]; then
-    cat << EOF > "${BUILDDIR}/setup_pugixml"
-prepend_path LD_LIBRARY_PATH "$pkg_install_dir/lib"
-prepend_path LD_RUN_PATH "$pkg_install_dir/lib"
-prepend_path LIBRARY_PATH "$pkg_install_dir/lib"
+    cat << EOF >> "${BUILDDIR}/setup_pugixml"
+prepend_path LD_LIBRARY_PATH "${pkg_install_dir}/lib"
+prepend_path LD_RUN_PATH "${pkg_install_dir}/lib"
+prepend_path LIBRARY_PATH "${pkg_install_dir}/lib"
 export PUGIXML_LIBS="-lpugixml"
 export PUGIXML_ROOT="${pkg_install_dir}"
-prepend_path CMAKE_PREFIX_PATH "$pkg_install_dir"
+prepend_path CMAKE_PREFIX_PATH "${pkg_install_dir}"
 EOF
   fi
   cat << EOF >> "${BUILDDIR}/setup_pugixml"
