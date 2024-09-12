@@ -159,6 +159,7 @@ MODULE rt_gwbse
                                               use_rt_restart
    USE rt_gwbse_types,                  ONLY: gwbse_env_type,&
                                               create_gwbse_env,&
+                                              initialize_gwbse_env,&
                                               release_gwbse_env,&
                                               multiply_cfm_fm,&
                                               multiply_fm_cfm
@@ -202,7 +203,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(force_env_type), POINTER                      :: force_env
       CHARACTER(len=*), PARAMETER                        :: routineN = 'run_propagation_gw'
-      TYPE(gwbse_env_type)                               :: gwbse_env
+      TYPE(gwbse_env_type), POINTER                      :: gwbse_env
       TYPE(rt_prop_type), POINTER                        :: rtp
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
       TYPE(cell_type), POINTER                           :: cell
@@ -219,11 +220,16 @@ CONTAINS
       TYPE(rtp_control_type), POINTER                    :: rtp_control
 
       CALL timeset(routineN, handle)
+
       ! Run the initial SCF calculation / read restart information
       CALL force_env_calc_energy_force(force_env, calc_force=.FALSE., &
                                        consistent_energies=.FALSE.)
-      ! ********************** ALLOCATIONS **********************
+
+      ! Allocate all persistant storage
       CALL create_gwbse_env(gwbse_env, qs_env, force_env)
+
+      ! Initialize non-trivial values
+      CALL initialize_gwbse_env(gwbse_env, qs_env)
       ! Restart input
       CALL get_qs_env(qs_env, bs_env=bs_env, rtp=rtp, cell=cell, input=input, dft_control=dft_control)
       rtp_control => dft_control%rtp_control
