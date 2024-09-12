@@ -215,11 +215,8 @@ CONTAINS
       INTEGER                                            :: i,j,k, handle
       LOGICAL                                            :: converged
       REAL(kind=dp)                                      :: metric, enum_re, enum_im,&
-                                                            idempotence_dev, a_metric_1, a_metric_2,&
-                                                            intensity
-      REAL(kind=dp), DIMENSION(3)                        :: kvec
+                                                            idempotence_dev, a_metric_1, a_metric_2
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(rtp_control_type), POINTER                    :: rtp_control
 
       CALL timeset(routineN, handle)
 
@@ -234,11 +231,10 @@ CONTAINS
       CALL initialize_gwbse_env(gwbse_env, qs_env)
 
       CALL get_qs_env(qs_env, bs_env=bs_env, rtp=rtp, cell=cell, input=input, dft_control=dft_control)
-      ! TODO : Can this be removed?
-      rtp_control => dft_control%rtp_control
       ! TODO : Print a nicer header
       IF (gwbse_env%unit_nr > 0) WRITE(gwbse_env%unit_nr, *) "=== Starting time-dependent adiabatic GW real time propagation ==="
 
+      ! TODO : Handle these within gwbse_env
       ! Setup the files
       rtp_section => section_vals_get_subs_vals(input, "DFT%REAL_TIME_PROPAGATION")
       output_section => section_vals_get_subs_vals(rtp_section, "PRINT%FIELD")
@@ -247,56 +243,8 @@ CONTAINS
       IF (.NOT. gwbse_env%restart_extracted) CALL output_moments(gwbse_env, gwbse_env%rho, output_section)
 
       ! Do not apply the delta kick if we are doing a restart calculation
-      IF (rtp_control%apply_delta_pulse .AND. (.NOT. gwbse_env%restart_extracted)) THEN
-         ! Extra minus for the propagation of density
-         intensity = -rtp_control%delta_pulse_scale
-         metric = 0.0_dp
-         ! TODO : Decide whether the following formulation employed by TDDFT code is not reasonable
-         ! TODO : Output intensity multiplied by factors relevant for the output
-         ! kvec(:) = cell%h_inv(1, :)*rtp_control%delta_pulse_direction(1) + &
-         !           cell%h_inv(2, :)*rtp_control%delta_pulse_direction(2) + &
-         !           cell%h_inv(3, :)*rtp_control%delta_pulse_direction(3)
-         ! kvec = kvec*twopi*rtp_control%delta_pulse_scale
-         kvec(:) = rtp_control%delta_pulse_direction(:)
-         DO j=1,gwbse_env%n_spin
-            ! So far no spin dependence, but can be added by different structure of delta pulse
-            CALL cp_fm_set_all(gwbse_env%real_workspace(1)%matrix, 0.0_dp)
-            DO k=1,3
-               CALL cp_fm_scale_and_add(1.0_dp, gwbse_env%real_workspace(1)%matrix,&
-                       kvec(k), gwbse_env%moments(k)%matrix)
-            END DO
-            ! enforce hermiticity of the effective Hamiltonian - apply to components instead?
-            CALL cp_fm_transpose(gwbse_env%real_workspace(1)%matrix, gwbse_env%real_workspace(2)%matrix)
-            CALL cp_fm_scale_and_add(0.5_dp, gwbse_env%real_workspace(1)%matrix,&
-                                     0.5_dp, gwbse_env%real_workspace(2)%matrix)
-            IF (gwbse_env%mat_exp_method == do_bch) THEN
-               ! Multiply by the S_inv matrix - in the classic ordering
-               CALL parallel_gemm("N", "N", gwbse_env%n_ao, gwbse_env%n_ao, gwbse_env%n_ao,&
-                                  intensity, gwbse_env%S_inv_fm%matrix, gwbse_env%real_workspace(1)%matrix,&
-                                  0.0_dp, gwbse_env%real_workspace(2)%matrix)
-               ! Sets real part to zero
-               CALL cp_fm_to_cfm(msourcei=gwbse_env%real_workspace(2)%matrix, mtarget=gwbse_env%ham_effective(j)%matrix)
-            ELSE IF (gwbse_env%mat_exp_method == do_exact) THEN
-               CALL cp_fm_to_cfm(msourcer=gwbse_env%real_workspace(1)%matrix, mtarget=gwbse_env%ham_workspace(j)%matrix)
-               CALL cp_cfm_gexp(gwbse_env%ham_workspace(j)%matrix, gwbse_env%S_cfm%matrix,gwbse_env%ham_effective(j)%matrix,&
-                                CMPLX(0.0, intensity, kind=dp), gwbse_env%rho_workspace)
-            END IF
-         END DO
-         IF (gwbse_env%mat_exp_method == do_bch) THEN
-            CALL bch_propagate(gwbse_env%ham_effective, gwbse_env%rho, gwbse_env%rho_new, gwbse_env%rho_workspace,&
-                    threshold_opt=gwbse_env%exp_accuracy)
-         ELSE IF (gwbse_env%mat_exp_method == do_exact) THEN
-            ! Exponential is constructed - apply it to the density matrix
-            CALL propagate_density(gwbse_env, gwbse_env%ham_effective, gwbse_env%rho, gwbse_env%rho_new)
-         ELSE
-            CPABORT("Only exact and BCH exponential schemes adopted for delta kick")
-         END IF
-         metric = rho_metric(gwbse_env%rho_new, gwbse_env%rho, gwbse_env%n_spin)
-         IF (gwbse_env%unit_nr > 0) WRITE(gwbse_env%unit_nr, *) "Metric difference after delta kick", metric
-         ! Copy the new density to the old density
-         DO j=1,gwbse_env%n_spin
-            CALL cp_cfm_to_cfm(gwbse_env%rho_new(j)%matrix, gwbse_env%rho(j)%matrix)
-         END DO
+      IF (gwbse_env%dft_control%rtp_control%apply_delta_pulse .AND. (.NOT. gwbse_env%restart_extracted)) THEN
+         CALL apply_delta_pulse(gwbse_env)
       END IF
 
       ! ********************** Start the time loop **********************
@@ -577,6 +525,65 @@ CONTAINS
       ! ****** END COHSEX REFERENCE CALCULATION
    END SUBROUTINE initialize_gwbse_env
 
+! **************************************************************************************************
+!> \brief Custom reimplementation of the delta pulse routines
+!> \param gwbse_env GW-BSE environment
+!> \author Stepan Marek (09.24)
+! **************************************************************************************************
+   SUBROUTINE apply_delta_pulse(gwbse_env)
+      TYPE(gwbse_env_type), POINTER                :: gwbse_env
+      CHARACTER(len=*), PARAMETER                  :: routineN="apply_delta_pulse"
+      REAL(kind=dp)                                :: intensity, metric
+      REAL(kind=dp), DIMENSION(3)                  :: kvec
+      INTEGER                                      :: i,k
+      ! Extra minus for the propagation of density
+      intensity = -gwbse_env%dft_control%rtp_control%delta_pulse_scale
+      metric = 0.0_dp
+      ! TODO : Decide whether the following formulation employed by TDDFT code is not reasonable
+      ! TODO : Output intensity multiplied by factors relevant for the output
+      ! TODO : Print out the correct division factor for the moments to determine polarizability
+      !         - take care of fs <-> a.u. units
+      ! kvec(:) = cell%h_inv(1, :)*rtp_control%delta_pulse_direction(1) + &
+      !           cell%h_inv(2, :)*rtp_control%delta_pulse_direction(2) + &
+      !           cell%h_inv(3, :)*rtp_control%delta_pulse_direction(3)
+      ! kvec = kvec*twopi*rtp_control%delta_pulse_scale
+      kvec(:) = gwbse_env%dft_control%rtp_control%delta_pulse_direction(:)
+      ! So far no spin dependence, but can be added by different structure of delta pulse
+      CALL cp_fm_set_all(gwbse_env%real_workspace(1)%matrix, 0.0_dp)
+      DO k=1,3
+         CALL cp_fm_scale_and_add(1.0_dp, gwbse_env%real_workspace(1)%matrix,&
+                 kvec(k), gwbse_env%moments(k)%matrix)
+      END DO
+      ! enforce hermiticity of the effective Hamiltonian - apply to components instead?
+      CALL cp_fm_transpose(gwbse_env%real_workspace(1)%matrix, gwbse_env%real_workspace(2)%matrix)
+      CALL cp_fm_scale_and_add(0.5_dp, gwbse_env%real_workspace(1)%matrix,&
+                               0.5_dp, gwbse_env%real_workspace(2)%matrix)
+      ! Prepare the exponential/exponent for propagation
+      IF (gwbse_env%mat_exp_method == do_bch) THEN
+         ! Multiply by the S_inv matrix - in the classic ordering
+         CALL parallel_gemm("N", "N", gwbse_env%n_ao, gwbse_env%n_ao, gwbse_env%n_ao,&
+                            intensity, gwbse_env%S_inv_fm%matrix, gwbse_env%real_workspace(1)%matrix,&
+                            0.0_dp, gwbse_env%real_workspace(2)%matrix)
+         DO i=1,gwbse_env%n_spin
+            ! Sets real part to zero
+            CALL cp_fm_to_cfm(msourcei=gwbse_env%real_workspace(2)%matrix, mtarget=gwbse_env%ham_effective(i)%matrix)
+         END DO
+      ELSE IF (gwbse_env%mat_exp_method == do_exact) THEN
+         DO i=1,gwbse_env%n_spin
+            CALL cp_fm_to_cfm(msourcer=gwbse_env%real_workspace(1)%matrix, mtarget=gwbse_env%ham_workspace(i)%matrix)
+            CALL cp_cfm_gexp(gwbse_env%ham_workspace(i)%matrix, gwbse_env%S_cfm%matrix,gwbse_env%ham_effective(i)%matrix,&
+                             CMPLX(0.0, intensity, kind=dp), gwbse_env%rho_workspace)
+         END DO
+      END IF
+      ! Propagate the density by the effect of the delta pulse
+      CALL propagate_density(gwbse_env, gwbse_env%ham_effective, gwbse_env%rho, gwbse_env%rho_new)
+      metric = rho_metric(gwbse_env%rho_new, gwbse_env%rho, gwbse_env%n_spin)
+      IF (gwbse_env%unit_nr > 0) WRITE(gwbse_env%unit_nr, *) "Metric difference after delta kick", metric
+      ! Copy the new density to the old density
+      DO i=1,gwbse_env%n_spin
+         CALL cp_cfm_to_cfm(gwbse_env%rho_new(i)%matrix, gwbse_env%rho(i)%matrix)
+      END DO
+   END SUBROUTINE apply_delta_pulse
 ! **************************************************************************************************
 !> \brief Determines the metric for the density matrix, used for convergence criterion
 !> \param rho_new Array of new density matrices (one for each spin index)
@@ -867,7 +874,7 @@ CONTAINS
       INTEGER                                            :: j, handle
 
       CALL timeset(routineN, handle)
-      IF (gwbse_env%mat_exp_method == do_taylor .OR. gwbse_env%mat_exp_method == do_exact) THEN
+      IF (gwbse_env%mat_exp_method == do_exact) THEN
          ! For these methods, exponential is explicitly constructed
          DO j=1,gwbse_env%n_spin
             ! rho * (exp^dagger)
@@ -884,7 +891,7 @@ CONTAINS
          CALL bch_propagate(exponential, rho_old, rho_new, gwbse_env%rho_workspace, threshold_opt=gwbse_env%exp_accuracy,&
                             max_iter_opt=gwbse_env%etrs_max_iter)
       ELSE
-         CPABORT("Only BCH, exact and Taylor matrix exponentiation implemented.")
+         CPABORT("Only BCH and exact matrix exponentiation implemented.")
       END IF
 
       CALL timestop(handle)
