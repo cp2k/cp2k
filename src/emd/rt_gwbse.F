@@ -206,17 +206,12 @@ CONTAINS
       TYPE(force_env_type), POINTER                      :: force_env
       CHARACTER(len=*), PARAMETER                        :: routineN = 'run_propagation_gw'
       TYPE(gwbse_env_type), POINTER                      :: gwbse_env
-      TYPE(rt_prop_type), POINTER                        :: rtp
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
-      TYPE(cell_type), POINTER                           :: cell
-      TYPE(section_vals_type), POINTER                   :: input, rtp_section,&
-                                                            output_section
       ! TODO : Maybe complex?
       INTEGER                                            :: i,j,k, handle
       LOGICAL                                            :: converged
       REAL(kind=dp)                                      :: metric, enum_re, enum_im,&
                                                             idempotence_dev, a_metric_1, a_metric_2
-      TYPE(dft_control_type), POINTER                    :: dft_control
 
       CALL timeset(routineN, handle)
 
@@ -230,17 +225,17 @@ CONTAINS
       ! Initialize non-trivial values
       CALL initialize_gwbse_env(gwbse_env, qs_env)
 
-      CALL get_qs_env(qs_env, bs_env=bs_env, rtp=rtp, cell=cell, input=input, dft_control=dft_control)
+      ! Get values used in the routine
+      CALL get_qs_env(qs_env, bs_env=bs_env)
+
       ! TODO : Print a nicer header
       IF (gwbse_env%unit_nr > 0) WRITE(gwbse_env%unit_nr, *) "=== Starting time-dependent adiabatic GW real time propagation ==="
 
-      ! TODO : Handle these within gwbse_env
-      ! Setup the files
-      rtp_section => section_vals_get_subs_vals(input, "DFT%REAL_TIME_PROPAGATION")
-      output_section => section_vals_get_subs_vals(rtp_section, "PRINT%FIELD")
+      ! Setup the time based on the starting step
+      ! TODO : Handle change of dt between restart runs?
       gwbse_env%sim_time = REAL(gwbse_env%sim_start, dp)*gwbse_env%sim_dt
       ! Output 0 time moments
-      IF (.NOT. gwbse_env%restart_extracted) CALL output_moments(gwbse_env, gwbse_env%rho, output_section)
+      IF (.NOT. gwbse_env%restart_extracted) CALL output_moments(gwbse_env, gwbse_env%rho)
 
       ! Do not apply the delta kick if we are doing a restart calculation
       IF (gwbse_env%dft_control%rtp_control%apply_delta_pulse .AND. (.NOT. gwbse_env%restart_extracted)) THEN
@@ -270,16 +265,15 @@ CONTAINS
          ! Update the effective Hamiltonian
          CALL update_effective_ham(gwbse_env, qs_env, gwbse_env%rho)
          ! Print the updated field
-         output_section => section_vals_get_subs_vals(rtp_section, "PRINT%FIELD")
-         CALL output_field(gwbse_env, output_section)
+         CALL output_field(gwbse_env)
          ! Convert the effective hamiltonian into the exponential
          ! TODO : Store the result more explicitly - explicit dependence on input/output matrices
          CALL ham_to_exp(gwbse_env)
          ! Propagate the density to mid-point
          CALL propagate_density(gwbse_env, gwbse_env%ham_workspace, gwbse_env%rho, gwbse_env%rho_M)
-         CALL get_electron_number(gwbse_env, gwbse_env%rho_M, enum_re, enum_im)
-         IF (gwbse_env%unit_nr > 0) WRITE (gwbse_env%unit_nr, *) "Electron number RHO_M re : ", enum_re,&
-                                                                 "Electron number RHO_M im : ", enum_im
+         ! CALL get_electron_number(gwbse_env, gwbse_env%rho_M, enum_re, enum_im)
+         ! IF (gwbse_env%unit_nr > 0) WRITE (gwbse_env%unit_nr, *) "Electron number RHO_M re : ", enum_re,&
+         !                                                         "Electron number RHO_M im : ", enum_im
          ! In initial iteration, copy rho_M to rho_new_last
          DO j=1,gwbse_env%n_spin
             CALL cp_cfm_to_cfm(gwbse_env%rho_M(j)%matrix, gwbse_env%rho_new_last(j)%matrix)
@@ -309,6 +303,7 @@ CONTAINS
                END DO
             END IF
          END DO
+         ! TODO : Revise the outputs and format them properly
          CALL get_electron_number(gwbse_env, gwbse_env%rho_new, enum_re, enum_im)
          CALL get_idempotence_deviation(gwbse_env, gwbse_env%rho_new, idempotence_dev)
          DO j=1,gwbse_env%n_spin
@@ -327,18 +322,16 @@ CONTAINS
          DO j=1,gwbse_env%n_spin
             CALL cp_cfm_to_cfm(gwbse_env%rho_new(j)%matrix, gwbse_env%rho(j)%matrix)
          END DO
-         ! TODO : k-points
-         output_section => section_vals_get_subs_vals(rtp_section, "PRINT%DENSITY_MATRIX")
-         CALL output_mos_contravariant(gwbse_env, gwbse_env%rho, bs_env%fm_mo_coeff_Gamma, output_section)
-         output_section => section_vals_get_subs_vals(rtp_section, "PRINT%MOMENTS")
-         CALL output_moments(gwbse_env, gwbse_env%rho, output_section)
+         CALL output_mos_contravariant(gwbse_env, gwbse_env%rho, bs_env%fm_mo_coeff_Gamma, gwbse_env%rho_section)
+         CALL output_moments(gwbse_env, gwbse_env%rho)
          ! Output restart files, so that the restart starts at the following time index
          CALL output_restart(gwbse_env, gwbse_env%rho, i+1)
       END DO
       ! ********************** End the time loop **********************
 
-      ! ********************** DEALLOCATIONS **********************
+      ! Deallocate everything
       CALL release_gwbse_env(gwbse_env)
+      ! TODO : Could this be moved to release_gwbse_env?
       ! Deallocate the neighbour list that is not deallocated in gw anymore
       IF (ASSOCIATED(bs_env%nl_3c%ij_list)) CALL neighbor_list_3c_destroy(bs_env%nl_3c)
 

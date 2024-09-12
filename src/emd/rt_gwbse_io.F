@@ -165,9 +165,8 @@ CONTAINS
 !> \param gwbse_env Entry point - gwbse environment
 !> \param rtp_section RTP input section
 ! **************************************************************************************************
-   SUBROUTINE output_field(gwbse_env, print_key_section)
+   SUBROUTINE output_field(gwbse_env)
       TYPE(gwbse_env_type)                               :: gwbse_env
-      TYPE(section_vals_type) , POINTER                  :: print_key_section
       CHARACTER(len=*), PARAMETER                        :: routineN="output_field"
       TYPE(cp_logger_type), POINTER                      :: logger
       INTEGER                                            :: field_unit
@@ -175,13 +174,13 @@ CONTAINS
       ! Get logger
       logger => cp_get_default_logger()
       ! Get file descriptor
-      field_unit = cp_print_key_unit_nr(logger, print_key_section, extension=".dat")
+      field_unit = cp_print_key_unit_nr(logger, gwbse_env%field_section, extension=".dat")
       ! If the file descriptor is non-zero, output field
       IF (field_unit /= -1) THEN
          WRITE(field_unit, '(E20.8E3,E20.8E3,E20.8E3,E20.8E3)') gwbse_env%sim_time*femtoseconds,&
                gwbse_env%field(1), gwbse_env%field(2), gwbse_env%field(3)
       END IF
-      CALL cp_print_key_finished_output(field_unit, logger, print_key_section)
+      CALL cp_print_key_finished_output(field_unit, logger, gwbse_env%field_section)
       
    END SUBROUTINE
 
@@ -192,10 +191,9 @@ CONTAINS
 !> \param rho Density matrix in AO basis
 !> \param rtp_section RTP section of the input parameters, where moments destination may be present
 ! **************************************************************************************************
-   SUBROUTINE output_moments(gwbse_env, rho, print_key_section)
+   SUBROUTINE output_moments(gwbse_env, rho)
       TYPE(gwbse_env_type)                               :: gwbse_env
       TYPE(cp_cfm_p_type), DIMENSION(:)                  :: rho
-      TYPE(section_vals_type), POINTER                   :: print_key_section
       CHARACTER(len=*), PARAMETER                        :: routineN = "output_moments"
       TYPE(cp_logger_type), POINTER                      :: logger
       INTEGER                                            :: i,j, moments_unit_re, moments_unit_im
@@ -209,8 +207,8 @@ CONTAINS
       file_labels(4) = "_SPIN_B_IM.dat"
       logger => cp_get_default_logger()
       DO j=1,gwbse_env%n_spin
-         moments_unit_re = cp_print_key_unit_nr(logger, print_key_section, extension=file_labels(2*j-1))
-         moments_unit_im = cp_print_key_unit_nr(logger, print_key_section, extension=file_labels(2*j))
+         moments_unit_re = cp_print_key_unit_nr(logger, gwbse_env%moments_section, extension=file_labels(2*j-1))
+         moments_unit_im = cp_print_key_unit_nr(logger, gwbse_env%moments_section, extension=file_labels(2*j))
          ! If, for any reason, the file unit is not provided, skip to next cycle immediately
          ! TODO : Either centralize or let user define the output format
          ! TODO : Let user define the output units
@@ -240,8 +238,8 @@ CONTAINS
          IF(moments_unit_im > 0) WRITE(moments_unit_im, '(D16.8,D16.8,D16.8,D16.8)') gwbse_env%sim_time*femtoseconds, moments(1),&
              moments(2), moments(3)
          ! Close the files
-         CALL cp_print_key_finished_output(moments_unit_re, logger, print_key_section)
-         CALL cp_print_key_finished_output(moments_unit_im, logger, print_key_section)
+         CALL cp_print_key_finished_output(moments_unit_re, logger, gwbse_env%moments_section)
+         CALL cp_print_key_finished_output(moments_unit_im, logger, gwbse_env%moments_section)
       END DO
    END SUBROUTINE
 ! **************************************************************************************************

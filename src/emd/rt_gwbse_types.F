@@ -191,8 +191,12 @@ MODULE rt_gwbse_types
                                                                    exp_accuracy
       TYPE(dft_control_type), POINTER                           :: dft_control
       ! Stores data needed for reading/writing to the restart files
-      TYPE(section_vals_type), POINTER                          :: restart_section
+      TYPE(section_vals_type), POINTER                          :: restart_section,&
+                                                                   field_section,&
+                                                                   rho_section,&
+                                                                   moments_section
       LOGICAL                                                   :: restart_extracted
+
 
       ! Different indices signify different spins
       TYPE(cp_cfm_p_type), DIMENSION(:), POINTER                :: ham_effective
@@ -320,6 +324,9 @@ CONTAINS
       ! Get the restart section
       gwbse_env%restart_section => section_vals_get_subs_vals(input, "DFT%REAL_TIME_PROPAGATION%PRINT%RESTART")
       gwbse_env%restart_extracted = .FALSE.
+      gwbse_env%field_section => section_vals_get_subs_vals(input, "DFT%REAL_TIME_PROPAGATION%PRINT%FIELD")
+      gwbse_env%moments_section => section_vals_get_subs_vals(input, "DFT%REAL_TIME_PROPAGATION%PRINT%MOMENTS")
+      gwbse_env%rho_section => section_vals_get_subs_vals(input, "DFT%REAL_TIME_PROPAGATION%PRINT%DENSITY_MATRIX")
 
       ! Allocate moments matrices
       DO k=1,3
