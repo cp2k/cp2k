@@ -26,7 +26,6 @@ MODULE qs_environment
    USE basis_set_types,                 ONLY: basis_sort_zet,&
                                               create_primitive_basis_set,&
                                               deallocate_gto_basis_set,&
-                                              get_gto_basis_set,&
                                               gto_basis_set_type
    USE bibliography,                    ONLY: Iannuzzi2006,&
                                               Iannuzzi2007,&
@@ -646,7 +645,7 @@ CONTAINS
       TYPE(se_taper_type), POINTER                       :: se_taper
       TYPE(section_vals_type), POINTER :: dft_section, et_coupling_section, et_ddapc_section, &
          ewald_section, harris_section, lri_section, mp2_section, nl_section, poisson_section, &
-         pp_section, print_section, qs_section, se_section, tddfpt_section, xc_section, xtb_section
+         pp_section, print_section, qs_section, se_section, tddfpt_section, xc_section
       TYPE(semi_empirical_control_type), POINTER         :: se_control
       TYPE(semi_empirical_si_type), POINTER              :: se_store_int_env
       TYPE(xtb_control_type), POINTER                    :: xtb_control

@@ -175,9 +175,9 @@ CONTAINS
       IF (dft_control%apply_period_efield .OR. dft_control%apply_efield .OR. &
           dft_control%apply_efield_field) THEN
          ALLOCATE (efr(natom))
-         efr = 0.0_dp
+         efr(1:natom) = 0.0_dp
          CALL eeq_efield_pot(qs_env, efr)
-         chia = chia + efr
+         chia(1:natom) = chia(1:natom) + efr(1:natom)
       END IF
 
       do_ewald = xtb_control%do_ewald
@@ -190,13 +190,13 @@ CONTAINS
                          ewald_env=ewald_env, ewald_pw=ewald_pw)
          CALL eeq_solver(charges, lambda, eeq_energy, &
                          particle_set, kind_of, cell, chia, gam, gab, &
-                         para_env, blacs_env, &
+                         para_env, blacs_env, dft_control, &
                          totalcharge=totalcharge, ewald=do_ewald, sparse=do_sparse, &
                          ewald_env=ewald_env, ewald_pw=ewald_pw, iounit=iunit)
       ELSE
          CALL eeq_solver(charges, lambda, eeq_energy, &
                          particle_set, kind_of, cell, chia, gam, gab, &
-                         para_env, blacs_env, &
+                         para_env, blacs_env, dft_control, &
                          totalcharge=totalcharge, iounit=iunit)
       END IF
 
@@ -319,13 +319,13 @@ CONTAINS
                          ewald_env=ewald_env, ewald_pw=ewald_pw)
          CALL eeq_solver(qlag, qlam, elag, &
                          particle_set, kind_of, cell, -dcharges, gam, gab, &
-                         para_env, blacs_env, &
+                         para_env, blacs_env, dft_control, &
                          ewald=do_ewald, sparse=do_sparse, &
                          ewald_env=ewald_env, ewald_pw=ewald_pw, iounit=iunit)
       ELSE
          CALL eeq_solver(qlag, qlam, elag, &
                          particle_set, kind_of, cell, -dcharges, gam, gab, &
-                         para_env, blacs_env, iounit=iunit)
+                         para_env, blacs_env, dft_control, iounit=iunit)
       END IF
 
       enshift_type = xtb_control%enshift_type

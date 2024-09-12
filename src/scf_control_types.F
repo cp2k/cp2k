@@ -187,7 +187,6 @@ CONTAINS
       scf_control%use_ot = .FALSE.
       scf_control%ignore_convergence_failure = .FALSE.
       scf_control%force_scf_calculation = .FALSE.
-      scf_control%non_selfconsistent = .FALSE.
       scf_control%do_outer_scf_reortho = .TRUE.
       scf_control%max_diis = 4
       scf_control%eps_diis = 0.1_dp

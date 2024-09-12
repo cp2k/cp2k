@@ -334,9 +334,9 @@ CONTAINS
       IF (dft_control%apply_period_efield .OR. dft_control%apply_efield .OR. &
           dft_control%apply_efield_field) THEN
          ALLOCATE (efr(natom))
-         efr = 0.0_dp
+         efr(1:natom) = 0.0_dp
          CALL eeq_efield_pot(qs_env, efr)
-         chia = chia + efr
+         chia(1:natom) = chia(1:natom) + efr(1:natom)
          DEALLOCATE (efr)
       END IF
 
@@ -359,7 +359,7 @@ CONTAINS
          !
          CALL eeq_solver(charges, lambda, eeq_energy, &
                          particle_set, kind_of, cell, chia, gam, gab, &
-                         para_env, blacs_env, &
+                         para_env, blacs_env, dft_control, &
                          totalcharge=totalcharge, ewald=do_ewald, sparse=do_sparse, &
                          ewald_env=ewald_env, ewald_pw=ewald_pw, iounit=iunit)
          !
@@ -368,7 +368,7 @@ CONTAINS
       ELSE
          CALL eeq_solver(charges, lambda, eeq_energy, &
                          particle_set, kind_of, cell, chia, gam, gab, &
-                         para_env, blacs_env, &
+                         para_env, blacs_env, dft_control, &
                          totalcharge=totalcharge, iounit=iunit)
       END IF
 
@@ -463,6 +463,7 @@ CONTAINS
 !> \param gab ...
 !> \param para_env ...
 !> \param blacs_env ...
+!> \param dft_control ...
 !> \param totalcharge ...
 !> \param ewald ...
 !> \param sparse ...
@@ -471,7 +472,7 @@ CONTAINS
 !> \param iounit ...
 ! **************************************************************************************************
    SUBROUTINE eeq_solver(charges, lambda, eeq_energy, particle_set, kind_of, cell, &
-                         chia, gam, gab, para_env, blacs_env, &
+                         chia, gam, gab, para_env, blacs_env, dft_control, &
                          totalcharge, ewald, sparse, ewald_env, ewald_pw, iounit)
 
       REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: charges
@@ -483,6 +484,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: gab
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
+      TYPE(dft_control_type), POINTER                    :: dft_control
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: totalcharge
       LOGICAL, INTENT(IN), OPTIONAL                      :: ewald, sparse
       TYPE(ewald_environment_type), OPTIONAL, POINTER    :: ewald_env
@@ -498,10 +500,11 @@ CONTAINS
                                                             nrvloc, ns
       INTEGER, DIMENSION(3)                              :: cvec, ncell, periodic
       INTEGER, DIMENSION(:), POINTER                     :: cind, cvind, rind, rvind
-      LOGICAL                                            :: do_ewald, do_sparse
-      REAL(KIND=dp)                                      :: ad, alk, alpha, betak, deth, dr, grc, &
-                                                            grc1, grc2, papk, qtot, rcut, rdl, &
-                                                            res, rmax, rzk, rzkm, rzkp, xr
+      LOGICAL                                            :: do_ewald, do_frcg, do_sparse
+      REAL(KIND=dp)                                      :: ad, alk, alpha, betak, deth, dr, ffk, &
+                                                            ffk1, grc, grc1, grc2, papk, qtot, &
+                                                            rcut, rdl, res, rmax, rzk, rzkm, rzkp, &
+                                                            xr
       REAL(KIND=dp), DIMENSION(3)                        :: ri, rij, rijl, rj
       REAL(KIND=dp), DIMENSION(3, 3)                     :: hmat
       REAL(KIND=dp), DIMENSION(:), POINTER               :: av0, pv0, rv0, xv0, zv0
@@ -533,6 +536,13 @@ CONTAINS
       IF (do_ewald) THEN
          CPASSERT(PRESENT(ewald_env))
          CPASSERT(PRESENT(ewald_pw))
+         ! optimizer
+         IF (dft_control%apply_period_efield .AND. dft_control%period_efield%displacement_field) THEN
+            do_frcg = .TRUE.
+         ELSE
+            do_frcg = .FALSE.
+         END IF
+         !
          CALL get_cell(cell=cell, deth=deth)
          CALL ewald_env_get(ewald_env, alpha=alpha, rcut=rcut, ewald_type=ewald_type)
          ad = 2.0_dp*alpha*oorootpi
@@ -607,7 +617,8 @@ CONTAINS
          CALL cp_fm_matvec(mmat, -chia, xv0)
          grc = (SUM(xv0) - qtot)/REAL(natom, KIND=dp)
          xv0 = xv0 - grc
-         CALL apply_potential(eeq_mat, ewald_env, ewald_pw, cell, particle_set, xv0, rv0)
+         CALL apply_potential(eeq_mat, ewald_env, ewald_pw, dft_control, &
+                              cell, particle_set, xv0, rv0)
          rv0 = -(chia + rv0)
          grc = SUM(rv0)/REAL(natom, KIND=dp)
          rv0 = rv0 - grc
@@ -615,43 +626,76 @@ CONTAINS
          IF (iunit > 0) THEN
             WRITE (iunit, '(A)', advance='NO') " EEQ| "
          END IF
-         ! PCG
-         CALL cp_fm_matvec(mmat, rv0, zv0)
-         grc = SUM(zv0)/REAL(natom, KIND=dp)
-         zv0 = zv0 - grc
-         pv0 = zv0
-         DO i = 1, natom
-            rzk = DOT_PRODUCT(rv0, zv0)
-            CALL apply_potential(eeq_mat, ewald_env, ewald_pw, cell, particle_set, pv0, av0)
-            grc = SUM(av0)/REAL(natom, KIND=dp)
-            av0 = av0 - grc
-            papk = DOT_PRODUCT(pv0, av0)
-            alk = rzk/papk
-            xv0 = xv0 + alk*pv0
-            rv0 = rv0 - alk*av0
-            rzkm = DOT_PRODUCT(rv0, zv0)
-            res = SQRT(DOT_PRODUCT(rv0, rv0))
-            !
-            CALL apply_potential(eeq_mat, ewald_env, ewald_pw, cell, particle_set, xv0, zv0)
-            IF (iunit > 0) THEN
-               rdl = MAX(-LOG10(res), 0.0_dp)
-               WRITE (iunit, '(I1)', advance='NO') MIN(NINT(rdl), 9)
-               IF (MOD(i, 75) == 0) THEN
-                  WRITE (iunit, *)
-                  WRITE (iunit, '(A)', advance='NO') " EEQ| "
+         !
+         IF (do_frcg) THEN
+            ! Fletcher-Reeves nonlinear CG
+            alk = 0.50_dp
+            pv0 = rv0
+            ffk = DOT_PRODUCT(rv0, rv0)
+            DO i = 1, 10*natom
+               xv0 = xv0 + alk*pv0
+               CALL apply_potential(eeq_mat, ewald_env, ewald_pw, dft_control, &
+                                    cell, particle_set, xv0, rv0)
+               rv0 = rv0 + chia
+               grc = SUM(rv0)/REAL(natom, KIND=dp)
+               rv0 = rv0 - grc
+               ffk1 = DOT_PRODUCT(rv0, rv0)
+               IF (iunit > 0) THEN
+                  res = SQRT(ffk1)
+                  rdl = MAX(-LOG10(res), 0.0_dp)
+                  WRITE (iunit, '(I1)', advance='NO') MIN(NINT(rdl), 9)
+                  IF (MOD(i, 75) == 0) THEN
+                     WRITE (iunit, *)
+                     WRITE (iunit, '(A)', advance='NO') " EEQ| "
+                  END IF
                END IF
-            END IF
-            IF (res < eps_pcg) EXIT
+               IF (res < eps_pcg) EXIT
+               betak = ffk1/ffk
+               pv0 = -rv0 + betak*pv0
+               ffk = ffk1
+            END DO
+         ELSE
+            ! Standard linear PCG
             CALL cp_fm_matvec(mmat, rv0, zv0)
             grc = SUM(zv0)/REAL(natom, KIND=dp)
             zv0 = zv0 - grc
-            rzkp = DOT_PRODUCT(rv0, zv0)
-            betak = rzkp/rzk - rzkm/rzk
-            pv0 = zv0 + betak*pv0
-         END DO
+            pv0 = zv0
+            DO i = 1, natom + 1
+               rzk = DOT_PRODUCT(rv0, zv0)
+               CALL apply_potential(eeq_mat, ewald_env, ewald_pw, dft_control, &
+                                    cell, particle_set, pv0, av0)
+               grc = SUM(av0)/REAL(natom, KIND=dp)
+               av0 = av0 - grc
+               papk = DOT_PRODUCT(pv0, av0)
+               alk = rzk/papk
+               xv0 = xv0 + alk*pv0
+               rv0 = rv0 - alk*av0
+               rzkm = DOT_PRODUCT(rv0, zv0)
+               res = SQRT(DOT_PRODUCT(rv0, rv0))
+               !
+               CALL apply_potential(eeq_mat, ewald_env, ewald_pw, dft_control, &
+                                    cell, particle_set, xv0, zv0)
+               IF (iunit > 0) THEN
+                  rdl = MAX(-LOG10(res), 0.0_dp)
+                  WRITE (iunit, '(I1)', advance='NO') MIN(NINT(rdl), 9)
+                  IF (MOD(i, 75) == 0) THEN
+                     WRITE (iunit, *)
+                     WRITE (iunit, '(A)', advance='NO') " EEQ| "
+                  END IF
+               END IF
+               IF (res < eps_pcg) EXIT
+               CALL cp_fm_matvec(mmat, rv0, zv0)
+               grc = SUM(zv0)/REAL(natom, KIND=dp)
+               zv0 = zv0 - grc
+               rzkp = DOT_PRODUCT(rv0, zv0)
+               betak = rzkp/rzk - rzkm/rzk
+               pv0 = zv0 + betak*pv0
+            END DO
+         END IF
          !
          charges = xv0
-         CALL apply_potential(eeq_mat, ewald_env, ewald_pw, cell, particle_set, xv0, rv0)
+         CALL apply_potential(eeq_mat, ewald_env, ewald_pw, dft_control, &
+                              cell, particle_set, xv0, rv0)
          rv0 = -(chia + rv0)
          lambda = SUM(rv0)/REAL(natom, KIND=dp)
          rv0 = rv0 - lambda
@@ -763,15 +807,18 @@ CONTAINS
 !> \param fm_mat ...
 !> \param ewald_env ...
 !> \param ewald_pw ...
+!> \param dft_control ...
 !> \param cell ...
 !> \param particle_set ...
 !> \param charges ...
 !> \param potential ...
 ! **************************************************************************************************
-   SUBROUTINE apply_potential(fm_mat, ewald_env, ewald_pw, cell, particle_set, charges, potential)
+   SUBROUTINE apply_potential(fm_mat, ewald_env, ewald_pw, dft_control, &
+                              cell, particle_set, charges, potential)
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat
       TYPE(ewald_environment_type), POINTER              :: ewald_env
       TYPE(ewald_pw_type), POINTER                       :: ewald_pw
+      TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(cell_type), POINTER                           :: cell
       TYPE(particle_type), DIMENSION(:), INTENT(IN)      :: particle_set
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: charges
@@ -784,6 +831,9 @@ CONTAINS
       CALL spme_potential(ewald_env, ewald_pw, cell, particle_set, charges, particle_set, potential)
       CALL para_env%sum(potential)
       CALL cp_fm_matvec(fm_mat, charges, potential, alpha=1.0_dp, beta=1.0_dp)
+      IF (dft_control%apply_period_efield .AND. dft_control%period_efield%displacement_field) THEN
+         CALL eeq_dfield_pot(charges, dft_control, particle_set, cell, potential)
+      END IF
 
    END SUBROUTINE apply_potential
 
@@ -802,8 +852,9 @@ CONTAINS
       COMPLEX(KIND=dp), DIMENSION(3)                     :: zi
       INTEGER                                            :: ia, idir, natom
       LOGICAL                                            :: dfield
-      REAL(KIND=dp)                                      :: kr, q
-      REAL(KIND=dp), DIMENSION(3)                        :: fieldpol, fpolvec, kvec, qi, ria
+      REAL(KIND=dp)                                      :: kr, omega, q
+      REAL(KIND=dp), DIMENSION(3)                        :: ci, dfilter, fieldpol, fpolvec, kvec, &
+                                                            qi, ria
       REAL(KIND=dp), DIMENSION(3, 3)                     :: hmat
       TYPE(cell_type), POINTER                           :: cell
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -838,7 +889,17 @@ CONTAINS
          END DO
          qi = AIMAG(LOG(zi))
          IF (dfield) THEN
-            CPABORT("dfield")
+            dfilter(1:3) = dft_control%period_efield%d_filter(1:3)
+            omega = cell%deth
+            ci = MATMUL(hmat, qi)/omega
+            ef_energy = 0.0_dp
+            DO idir = 1, 3
+               ef_energy = ef_energy + dfilter(idir)*(fieldpol(idir) - 2._dp*twopi*ci(idir))**2
+            END DO
+            ef_energy = -0.25_dp*omega/twopi*ef_energy
+!deb
+            WRITE (6, *) "DField energy  ", ef_energy
+!deb
          ELSE
             ef_energy = -SUM(fpolvec(:)*qi(:))
          END IF
@@ -885,7 +946,6 @@ CONTAINS
 
       IF (dft_control%apply_period_efield) THEN
          dfield = dft_control%period_efield%displacement_field
-         CPASSERT(.NOT. dfield)
 
          fieldpol = dft_control%period_efield%polarisation
          fieldpol = fieldpol/SQRT(DOT_PRODUCT(fieldpol, fieldpol))
@@ -896,16 +956,21 @@ CONTAINS
                             + fieldpol(3)*hmat(3, idir)
          END DO
 
-         efr = 0.0_dp
-         DO ia = 1, natom
-            ria = particle_set(ia)%r
-            ria = pbc(ria, cell)
-            DO idir = 1, 3
-               kvec(:) = twopi*cell%h_inv(idir, :)
-               kr = SUM(kvec(:)*ria(:))
-               efr(ia) = efr(ia) - kr*fpolvec(idir)
+         IF (dfield) THEN
+            ! dE/dq depends on q, postpone calculation
+            efr = 0.0_dp
+         ELSE
+            efr = 0.0_dp
+            DO ia = 1, natom
+               ria = particle_set(ia)%r
+               ria = pbc(ria, cell)
+               DO idir = 1, 3
+                  kvec(:) = twopi*cell%h_inv(idir, :)
+                  kr = SUM(kvec(:)*ria(:))
+                  efr(ia) = efr(ia) - kr*fpolvec(idir)
+               END DO
             END DO
-         END DO
+         END IF
 
       ELSE IF (dft_control%apply_efield) THEN
 
@@ -923,6 +988,60 @@ CONTAINS
       END IF
 
    END SUBROUTINE eeq_efield_pot
+
+! **************************************************************************************************
+!> \brief ...
+!> \param charges ...
+!> \param dft_control ...
+!> \param particle_set ...
+!> \param cell ...
+!> \param efr ...
+! **************************************************************************************************
+   SUBROUTINE eeq_dfield_pot(charges, dft_control, particle_set, cell, efr)
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: charges
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(particle_type), DIMENSION(:), INTENT(IN)      :: particle_set
+      TYPE(cell_type), POINTER                           :: cell
+      REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: efr
+
+      COMPLEX(KIND=dp)                                   :: zdeta
+      COMPLEX(KIND=dp), DIMENSION(3)                     :: zi
+      INTEGER                                            :: ia, idir, natom
+      REAL(KIND=dp)                                      :: kr, omega, q
+      REAL(KIND=dp), DIMENSION(3)                        :: ci, dfilter, fieldpol, kvec, qi, ria
+      REAL(KIND=dp), DIMENSION(3, 3)                     :: hmat
+
+      natom = SIZE(particle_set)
+
+      dfilter(1:3) = dft_control%period_efield%d_filter(1:3)
+      fieldpol = dft_control%period_efield%polarisation
+      fieldpol = fieldpol/SQRT(DOT_PRODUCT(fieldpol, fieldpol))
+      fieldpol = -fieldpol*dft_control%period_efield%strength
+      hmat = cell%hmat(:, :)/twopi
+      omega = cell%deth
+      !
+      zi(:) = CMPLX(1._dp, 0._dp, dp)
+      DO ia = 1, natom
+         q = charges(ia)
+         ria = particle_set(ia)%r
+         ria = pbc(ria, cell)
+         DO idir = 1, 3
+            kvec(:) = twopi*cell%h_inv(idir, :)
+            kr = SUM(kvec(:)*ria(:))
+            zdeta = CMPLX(COS(kr), SIN(kr), KIND=dp)**q
+            zi(idir) = zi(idir)*zdeta
+         END DO
+      END DO
+      qi = AIMAG(LOG(zi))
+      ci = MATMUL(hmat, qi)/omega
+      ci = dfilter*(fieldpol - 2._dp*twopi*ci)
+      DO ia = 1, natom
+         ria = particle_set(ia)%r
+         ria = pbc(ria, cell)
+         efr(ia) = efr(ia) - SUM(ci*ria)
+      END DO
+
+   END SUBROUTINE eeq_dfield_pot
 
 ! **************************************************************************************************
 !> \brief ...

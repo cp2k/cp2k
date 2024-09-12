@@ -14,10 +14,11 @@
 &FORCE_EVAL
   METHOD Quickstep
   &DFT
-    &EFIELD
-      INTENSITY 0.01
+    &PERIODIC_EFIELD
+      DISPLACEMENT_FIELD T
+      INTENSITY 0.0
       POLARISATION 5 2 1
-    &END EFIELD
+    &END PERIODIC_EFIELD
     &QS
       EPS_DEFAULT 1.E-14
       METHOD xTB
@@ -32,8 +33,7 @@
   &END DFT
   &SUBSYS
     &CELL
-      ABC 10.0 10.0 10.0
-      PERIODIC NONE
+      ABC 5.0 5.0 5.0
     &END CELL
     &COORD
       O     0.051368    0.000000    0.000000
