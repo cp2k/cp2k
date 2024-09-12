@@ -250,15 +250,15 @@ CONTAINS
 !> \param rho Density matrix in AO basis
 !> \param time_index Time index to be written into the info file
 ! **************************************************************************************************
-   SUBROUTINE output_restart(restart_section, rho, time_index, workspace_opt)
-      TYPE(section_vals_type), POINTER                   :: restart_section
+   SUBROUTINE output_restart(gwbse_env, rho, time_index)
+      TYPE(gwbse_env_type), POINTER                      :: gwbse_env
       TYPE(cp_cfm_p_type), DIMENSION(:), POINTER         :: rho
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER,OPTIONAL :: workspace_opt
+      INTEGER                                            :: time_index
       CHARACTER(len=*), PARAMETER                        :: routineN="output_restart"
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: workspace
       CHARACTER(len=17), DIMENSION(4)                    :: file_labels
       TYPE(cp_logger_type), POINTER                      :: logger
-      INTEGER                                            :: rho_unit_nr, j, n_spin, time_index
+      INTEGER                                            :: rho_unit_nr, i 
 
       ! Default labels distinguishing up to two spin species and real/imaginary parts
       file_labels(1) = "_SPIN_A_RE.matrix"
@@ -267,42 +267,27 @@ CONTAINS
       file_labels(4) = "_SPIN_B_IM.matrix"
 
       logger => cp_get_default_logger()
-      n_spin = SIZE(rho)
 
-      ! Setup the real and imaginary matrix parts
-      IF (PRESENT(workspace_opt)) THEN
-         workspace => workspace_opt
-      ELSE
-         NULLIFY(workspace)
-         ALLOCATE(workspace(2))
-         CALL cp_fm_create(workspace(1)%matrix, rho(1)%matrix%matrix_struct)
-         CALL cp_fm_create(workspace(2)%matrix, rho(1)%matrix%matrix_struct)
-      ENDIF
+      workspace => gwbse_env%real_workspace
 
-      DO j=1,n_spin
-         CALL cp_cfm_to_fm(rho(j)%matrix, workspace(1)%matrix, workspace(2)%matrix)
+      DO i=1,gwbse_env%n_spin
+         CALL cp_cfm_to_fm(rho(i)%matrix, workspace(1)%matrix, workspace(2)%matrix)
          ! Real part
-         rho_unit_nr = cp_print_key_unit_nr(logger, restart_section, extension=file_labels(2*j-1),&
+         rho_unit_nr = cp_print_key_unit_nr(logger, gwbse_env%restart_section, extension=file_labels(2*i-1),&
                                             file_form="UNFORMATTED", file_position="REWIND")
          CALL cp_fm_write_unformatted(workspace(1)%matrix, rho_unit_nr)
-         CALL cp_print_key_finished_output(rho_unit_nr, logger, restart_section)
+         CALL cp_print_key_finished_output(rho_unit_nr, logger, gwbse_env%restart_section)
          ! Imag part
-         rho_unit_nr = cp_print_key_unit_nr(logger, restart_section, extension=file_labels(2*j),&
+         rho_unit_nr = cp_print_key_unit_nr(logger, gwbse_env%restart_section, extension=file_labels(2*i),&
                                             file_form="UNFORMATTED", file_position="REWIND")
          CALL cp_fm_write_unformatted(workspace(2)%matrix, rho_unit_nr)
-         CALL cp_print_key_finished_output(rho_unit_nr, logger, restart_section)
+         CALL cp_print_key_finished_output(rho_unit_nr, logger, gwbse_env%restart_section)
          ! Info
-         rho_unit_nr = cp_print_key_unit_nr(logger, restart_section, extension=".info",&
+         rho_unit_nr = cp_print_key_unit_nr(logger, gwbse_env%restart_section, extension=".info",&
                                             file_form="UNFORMATTED", file_position="REWIND")
          IF (rho_unit_nr > 0) WRITE(rho_unit_nr) time_index
-         CALL cp_print_key_finished_output(rho_unit_nr, logger, restart_section)
+         CALL cp_print_key_finished_output(rho_unit_nr, logger, gwbse_env%restart_section)
       END DO
-
-      IF (.NOT. PRESENT(workspace_opt)) THEN
-         CALL cp_fm_release(workspace(1)%matrix)
-         CALL cp_fm_release(workspace(2)%matrix)
-         DEALLOCATE(workspace)
-      END IF
    END SUBROUTINE output_restart
 ! **************************************************************************************************
 !> \brief Reads the density matrix from restart files and updates the starting time
@@ -310,27 +295,26 @@ CONTAINS
 !> \param rho Density matrix in AO basis
 !> \param time_index Time index to be written into the info file
 ! **************************************************************************************************
-   SUBROUTINE read_restart(gwbse_env, restart_section, run_restart)
-      TYPE(gwbse_env_type)                               :: gwbse_env
-      TYPE(section_vals_type), POINTER                   :: restart_section
-      LOGICAL                                            :: run_restart
+   SUBROUTINE read_restart(gwbse_env)
+      TYPE(gwbse_env_type), POINTER                      :: gwbse_env
       CHARACTER(len=*), PARAMETER                        :: routineN="read_restart"
       TYPE(cp_logger_type), POINTER                      :: logger
       CHARACTER(len=default_path_length)                 :: save_name, save_name_2
       INTEGER                                            :: rho_unit_nr, j
       CHARACTER(len=17), DIMENSION(4)                    :: file_labels
 
-      run_restart = .FALSE.
+      ! This allows the delta kick and output of moment at time 0 in all cases
+      ! except the case when both imaginary and real parts of the density are read
+      gwbse_env%restart_extracted = .FALSE.
       logger => cp_get_default_logger()
       ! Start by probing/loading info file
-      save_name = cp_print_key_generate_filename(logger, restart_section, extension=".info", my_local=.FALSE.)
+      save_name = cp_print_key_generate_filename(logger, gwbse_env%restart_section, extension=".info", my_local=.FALSE.)
       IF (file_exists(save_name)) THEN
          CALL open_file(save_name, file_status="OLD", file_form="UNFORMATTED", file_action="READ",&
                         unit_number=rho_unit_nr)
          ! TODO : Some error catching and handling
          READ(rho_unit_nr) gwbse_env%sim_start
          CALL close_file(rho_unit_nr)
-         run_restart = .TRUE.
          IF (gwbse_env%unit_nr > 0) WRITE(gwbse_env%unit_nr, *) "Starting from timestep ", gwbse_env%sim_start,&
                  ", delta kick NOT applied"
       ELSE
@@ -343,8 +327,8 @@ CONTAINS
       file_labels(3) = "_SPIN_B_RE.matrix"
       file_labels(4) = "_SPIN_B_IM.matrix"
       DO j=1,gwbse_env%n_spin
-         save_name = cp_print_key_generate_filename(logger, restart_section, extension=file_labels(2*j-1), my_local=.FALSE.)
-         save_name_2 = cp_print_key_generate_filename(logger, restart_section, extension=file_labels(2*j), my_local=.FALSE.)
+         save_name = cp_print_key_generate_filename(logger, gwbse_env%restart_section, extension=file_labels(2*j-1), my_local=.FALSE.)
+         save_name_2 = cp_print_key_generate_filename(logger, gwbse_env%restart_section, extension=file_labels(2*j), my_local=.FALSE.)
          IF (file_exists(save_name) .AND. file_exists(save_name_2)) THEN
             CALL open_file(save_name, file_status="OLD", file_form="UNFORMATTED", file_action="READ",&
                            unit_number=rho_unit_nr)
@@ -356,6 +340,7 @@ CONTAINS
             CALL close_file(rho_unit_nr)
             CALL cp_fm_to_cfm(gwbse_env%real_workspace(1)%matrix, gwbse_env%real_workspace(2)%matrix,&
                               gwbse_env%rho(j)%matrix)
+            gwbse_env%restart_extracted = .TRUE.
          ELSE
             ! TODO : Spin dependent warning - for some spins, SCF may be used while for others restart is used
             CPWARN("Restart required but some restart density matrices not found - starting from SCF density.")

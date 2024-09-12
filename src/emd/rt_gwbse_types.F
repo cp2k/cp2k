@@ -111,7 +111,6 @@ MODULE rt_gwbse_types
    
    PUBLIC :: gwbse_env_type,&
              create_gwbse_env,&
-             initialize_gwbse_env,&
              release_gwbse_env,&
              multiply_cfm_fm,&
              multiply_fm_cfm
@@ -191,6 +190,9 @@ MODULE rt_gwbse_types
                                                                    etrs_threshold,&
                                                                    exp_accuracy
       TYPE(dft_control_type), POINTER                           :: dft_control
+      ! Stores data needed for reading/writing to the restart files
+      TYPE(section_vals_type), POINTER                          :: restart_section
+      LOGICAL                                                   :: restart_extracted
 
       ! Different indices signify different spins
       TYPE(cp_cfm_p_type), DIMENSION(:), POINTER                :: ham_effective
@@ -314,9 +316,10 @@ CONTAINS
       ! TODO : Last two arguments are indicating that we are using Taylor expansion and not doing ion motion
       ! Sim start index and total number of steps as well
       CALL section_vals_val_get(md_sec, "STEP_START_VAL", i_val=gwbse_env%sim_start)
-      ! gwbse_env%sim_start = rtp%i_start
       CALL section_vals_val_get(md_sec, "STEPS", i_val=gwbse_env%sim_nsteps)
-      ! gwbse_env%sim_nsteps = rtp%nsteps
+      ! Get the restart section
+      gwbse_env%restart_section => section_vals_get_subs_vals(input, "DFT%REAL_TIME_PROPAGATION%PRINT%RESTART")
+      gwbse_env%restart_extracted = .FALSE.
 
       ! Allocate moments matrices
       DO k=1,3
@@ -444,129 +447,6 @@ CONTAINS
       CALL create_hartree_ri_workspace(gwbse_env, qs_env)
       
    END SUBROUTINE
-
-   SUBROUTINE initialize_gwbse_env(gwbse_env, qs_env)
-      TYPE(gwbse_env_type), POINTER                :: gwbse_env
-      TYPE(qs_environment_type), POINTER           :: qs_env
-      CHARACTER(len=*), PARAMETER                  :: routineN="initialize_gwbse_env"
-      TYPE(post_scf_bandstructure_type), POINTER   :: bs_env
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER    :: moments_dbcsr_p
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER    :: matrix_s
-      REAL(kind=dp), DIMENSION(:), POINTER         :: custom_ref_point,&
-                                                      occupations
-      REAL(kind=dp), DIMENSION(3)                  :: rpoint
-      INTEGER                                      :: i,k
-
-      ! Get pointers to parameters from qs_env
-      CALL get_qs_env(qs_env, bs_env=bs_env, matrix_s=matrix_s)
-
-      ! ****** START MOMENTS OPERATOR CALCULATION
-      ! Construct moments from dbcsr
-      NULLIFY(moments_dbcsr_p)
-      ALLOCATE(moments_dbcsr_p(3))
-      DO k=1,3
-         ! Make sure the pointer is empty
-         NULLIFY(moments_dbcsr_p(k)%matrix)
-         ! Allocate a new matrix that the pointer points to
-         ALLOCATE(moments_dbcsr_p(k)%matrix)
-         ! Create the matrix storage - matrix copies the structure of overlap matrix
-         ! TODO : Do a proper matrix create?
-         ! CALL dbcsr_create(moments_dbcsr_p(i)%matrix, name="moments", template=matrix_s(1)%matrix)
-         CALL dbcsr_copy(moments_dbcsr_p(k)%matrix, matrix_s(1)%matrix)
-      END DO
-      ! Run the moment calculation
-      ! TODO : Read custom reference point from input
-      ! TODO : Maybe use the moments section that is present in DFT?
-      NULLIFY(custom_ref_point)
-      ALLOCATE(custom_ref_point(3), source=0.0_dp)
-      rpoint(:) = 0.0_dp
-      CALL get_reference_point(rpoint, qs_env=qs_env, reference=use_mom_ref_coac, ref_point=custom_ref_point)
-      CALL build_local_moment_matrix(qs_env, moments_dbcsr_p, 1, rpoint)
-      ! Copy to full matrix
-      DO k=1,3
-         ! Again, matrices are created from overlap template
-         CALL copy_dbcsr_to_fm(moments_dbcsr_p(k)%matrix, gwbse_env%moments(k)%matrix)
-      END DO
-      ! Now, repeat without reference point to get the moments for field
-      CALL get_reference_point(rpoint, qs_env=qs_env, reference=use_mom_ref_zero, ref_point=custom_ref_point)
-      DEALLOCATE(custom_ref_point)
-      CALL build_local_moment_matrix(qs_env, moments_dbcsr_p, 1, rpoint)
-      DO k=1,3
-         CALL copy_dbcsr_to_fm(moments_dbcsr_p(k)%matrix, gwbse_env%moments_field(k)%matrix)
-      END DO
-
-      ! Now can deallocate dbcsr matrices
-      DO k=1,3
-         CALL dbcsr_release(moments_dbcsr_p(k)%matrix)
-         DEALLOCATE(moments_dbcsr_p(k)%matrix)
-      END DO
-      DEALLOCATE(moments_dbcsr_p)
-      ! ****** END MOMENTS OPERATOR CALCULATION
-
-      ! ****** START INITIAL DENSITY MATRIX CALCULATION
-      ! TODO : Handle cases, when initial method uses density only? Do such cases exist?
-      ! Get the rho from fm_MOS
-      ! Uses real orbitals only - no kpoints
-      ALLOCATE(occupations(gwbse_env%n_ao))
-      ! Iterate over both spins
-      DO i=1,gwbse_env%n_spin
-         occupations(:) = 0.0_dp
-         occupations(1:gwbse_env%n_occ(i)) = 1.0_dp
-         ! Create real part
-         CALL cp_fm_to_fm(bs_env%fm_mo_coeff_Gamma(i), gwbse_env%real_workspace(1)%matrix)
-         CALL cp_fm_column_scale(gwbse_env%real_workspace(1)%matrix, occupations)
-         CALL parallel_gemm("N", "T", gwbse_env%n_ao, gwbse_env%n_ao, gwbse_env%n_ao,&
-                            1.0_dp, gwbse_env%real_workspace(1)%matrix, bs_env%fm_mo_coeff_Gamma(i),&
-                            0.0_dp, gwbse_env%real_workspace(2)%matrix)
-         ! Sets imaginary part to zero
-         CALL cp_fm_to_cfm(msourcer=gwbse_env%real_workspace(2)%matrix, mtarget=gwbse_env%rho(i)%matrix)
-         ! Save the reference value for the case of delta kick
-         CALL cp_cfm_to_cfm(gwbse_env%rho(i)%matrix, gwbse_env%rho_orig(i)%matrix)
-      END DO
-      DEALLOCATE(occupations)
-      ! ****** END INITIAL DENSITY MATRIX CALCULATION
-
-      ! ****** START OVERLAP + INVERSE OVERLAP CALCULATION
-      ! TODO : Are different overlaps for different spins reasonable for us?
-      CALL copy_dbcsr_to_fm(matrix_s(1)%matrix, gwbse_env%S_fm%matrix)
-      CALL cp_fm_to_cfm(msourcer=gwbse_env%S_fm%matrix, mtarget=gwbse_env%S_cfm%matrix)
-      CALL cp_fm_invert(gwbse_env%S_fm%matrix, gwbse_env%S_inv_fm%matrix)
-      ! ****** END OVERLAP + INVERSE OVERLAP CALCULATION
-
-      ! ****** START SINGLE PARTICLE HAMILTONIAN CALCULATION
-      DO i=1,gwbse_env%n_spin
-         IF ( gwbse_env%ham_reference_type == rtp_gwbse_ham_g0w0 ) THEN
-            ! G0W0 Hamiltonian
-            CALL cp_fm_to_fm(bs_env%fm_mo_coeff_Gamma(i), gwbse_env%real_workspace(1)%matrix)
-            ! TODO : Check that Gamma point is the zero k-point
-            ! C * Lambda
-            CALL cp_fm_column_scale(gwbse_env%real_workspace(1)%matrix, bs_env%eigenval_G0W0(:,1,i))
-            ! C * Lambda * C^T
-            CALL parallel_gemm("N", "T", gwbse_env%n_ao, gwbse_env%n_ao, gwbse_env%n_ao,&
-                               1.0_dp, gwbse_env%real_workspace(1)%matrix, bs_env%fm_mo_coeff_Gamma(i),&
-                               0.0_dp, gwbse_env%real_workspace(2)%matrix)
-            ! S * C * Lambda * C^T
-            CALL parallel_gemm("N", "N", gwbse_env%n_ao, gwbse_env%n_ao, gwbse_env%n_ao,&
-                               1.0_dp, gwbse_env%S_fm%matrix, gwbse_env%real_workspace(2)%matrix,&
-                               0.0_dp, gwbse_env%real_workspace(1)%matrix)
-            ! S * C * Lambda * C^T * S = H
-            CALL parallel_gemm("N", "N", gwbse_env%n_ao, gwbse_env%n_ao, gwbse_env%n_ao,&
-                               1.0_dp, gwbse_env%real_workspace(1)%matrix, gwbse_env%S_fm%matrix,&
-                               0.0_dp, gwbse_env%real_workspace(2)%matrix)
-            CALL cp_fm_to_cfm(msourcer=gwbse_env%real_workspace(2)%matrix, mtarget=gwbse_env%ham_reference(i)%matrix)
-         ELSE
-            ! KS Hamiltonian
-            CALL cp_fm_to_cfm(msourcer=bs_env%fm_ks_Gamma(i), mtarget=gwbse_env%ham_reference(i)%matrix)
-         END IF
-      END DO
-      ! ****** END SINGLE PARTICLE HAMILTONIAN CALCULATION
-      ! In a non-HF calculation, copy the actual correlation part of the interaction
-      IF (gwbse_env%ham_reference_type == rtp_gwbse_ham_g0w0) THEN
-         CALL copy_fm_to_dbcsr(bs_env%fm_W_MIC_freq_zero, gwbse_env%w_dbcsr%matrix)
-      END IF
-      ! In HF case, this just leads to zeros in the dbt
-      CALL dbt_copy_matrix_to_tensor(gwbse_env%w_dbcsr%matrix, gwbse_env%screened_dbt)
-   END SUBROUTINE initialize_gwbse_env
 
 ! **************************************************************************************************
 !> \brief Simple reimplementation of cp_fm_release_pp1 for complex matrices
@@ -727,7 +607,6 @@ CONTAINS
       NULLIFY(gwbse_env%w_dbcsr%matrix)
       ALLOCATE(gwbse_env%w_dbcsr%matrix)
       CALL dbcsr_create(gwbse_env%w_dbcsr%matrix, name="W", template=bs_env%mat_RI_RI%matrix)
-      CALL dbcsr_set(gwbse_env%w_dbcsr%matrix, 0.0_dp)
       CALL dbt_create(gwbse_env%w_dbcsr%matrix, gwbse_env%screened_dbt)
       ! sigma_dbt
       NULLIFY(gwbse_env%sigma_dbt)
