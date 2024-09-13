@@ -28,9 +28,18 @@ MODULE machine
                     dp, &
                     int_8
 #if defined(__LIBXSMM)
+#include "libxsmm_version.h"
+#if !defined(__LIBXSMM2) && (1 < __LIBXSMM || (1170000 < \
+   (LIBXSMM_CONFIG_VERSION_MAJOR*1000000 + LIBXSMM_CONFIG_VERSION_MINOR*10000 + LIBXSMM_CONFIG_VERSION_UPDATE*100 + LIBXSMM_CONFIG_VERSION_PATCH)))
+#define __LIBXSMM2
+#endif
    USE libxsmm, ONLY: libxsmm_timer_tick, libxsmm_timer_duration, libxsmm_get_target_archid, &
-                      LIBXSMM_X86_SSE4, LIBXSMM_X86_AVX, LIBXSMM_X86_AVX2, LIBXSMM_X86_AVX512_SKX, LIBXSMM_X86_ALLFEAT, &
-                      LIBXSMM_AARCH64_V81, LIBXSMM_AARCH64_SVE128, LIBXSMM_AARCH64_ALLFEAT, LIBXSMM_TARGET_ARCH_GENERIC
+                      LIBXSMM_TARGET_ARCH_GENERIC, LIBXSMM_X86_SSE4, LIBXSMM_X86_AVX, LIBXSMM_X86_AVX2, &
+#if defined(__LIBXSMM2)
+                      LIBXSMM_X86_AVX512_SKX, LIBXSMM_AARCH64_V81, LIBXSMM_AARCH64_SVE128
+#else
+   LIBXSMM_X86_AVX512_SKX => LIBXSMM_X86_AVX512_CORE
+#endif
 #endif
 
    IMPLICIT NONE
@@ -180,15 +189,17 @@ CONTAINS
          cpuid = MACHINE_X86_AVX
       ELSE IF (LIBXSMM_X86_AVX2 <= cpuid .AND. cpuid < LIBXSMM_X86_AVX512_SKX) THEN
          cpuid = MACHINE_X86_AVX2
-      ELSE IF (LIBXSMM_X86_AVX512_SKX <= cpuid .AND. cpuid <= LIBXSMM_X86_ALLFEAT) THEN
+      ELSE IF (LIBXSMM_X86_AVX512_SKX <= cpuid .AND. cpuid <= 1999) THEN
          cpuid = MACHINE_X86_AVX512
+#if defined(__LIBXSMM2)
       ELSE IF (LIBXSMM_AARCH64_V81 <= cpuid .AND. cpuid < LIBXSMM_AARCH64_SVE128) THEN
          cpuid = MACHINE_ARM_ARCH64
       ELSE IF (LIBXSMM_AARCH64_SVE128 <= cpuid .AND. cpuid < 2401) THEN ! LIBXSMM_AARCH64_SVE512
          cpuid = MACHINE_ARM_SVE256
-      ELSE IF (2401 <= cpuid .AND. cpuid <= LIBXSMM_AARCH64_ALLFEAT) THEN
+      ELSE IF (2401 <= cpuid .AND. cpuid <= 2999) THEN
          cpuid = MACHINE_ARM_SVE512
-      ELSE IF (LIBXSMM_TARGET_ARCH_GENERIC <= cpuid .AND. cpuid <= LIBXSMM_AARCH64_ALLFEAT) THEN
+#endif
+      ELSE IF (LIBXSMM_TARGET_ARCH_GENERIC <= cpuid .AND. cpuid <= 2999) THEN
          cpuid = MACHINE_CPU_GENERIC
       ELSE
          cpuid = MACHINE_CPU_UNKNOWN
@@ -211,10 +222,15 @@ CONTAINS
       CHARACTER(len=default_string_length), POINTER      :: m_cpuid_name
 
       CHARACTER(len=default_string_length), SAVE, TARGET :: name_arm_arch64 = "arm_arch64", &
-         name_arm_sve128 = "arm_sve128", name_arm_sve256 = "arm_sve256", &
-         name_arm_sve512 = "arm_sve512", name_generic = "generic", name_unknown = "unknown", &
-         name_x86_avx = "x86_avx", name_x86_avx2 = "x86_avx2", name_x86_avx512 = "x86_avx512", &
-         name_x86_sse4 = "x86_sse4"
+                                                            name_arm_sve128 = "arm_sve128", &
+                                                            name_arm_sve256 = "arm_sve256", &
+                                                            name_arm_sve512 = "arm_sve512", &
+                                                            name_generic = "generic", &
+                                                            name_unknown = "unknown", &
+                                                            name_x86_avx = "x86_avx", &
+                                                            name_x86_avx2 = "x86_avx2", &
+                                                            name_x86_avx512 = "x86_avx512", &
+                                                            name_x86_sse4 = "x86_sse4"
 
       SELECT CASE (cpuid)
       CASE (MACHINE_CPU_GENERIC)
@@ -480,10 +496,10 @@ CONTAINS
 !> \return ...
 ! **************************************************************************************************
       INTEGER(int_8) FUNCTION get_field_value_in_bytes(field)
-      CHARACTER(LEN=*)                                   :: field
+         CHARACTER(LEN=*)                                   :: field
 
-      INTEGER                                            :: start
-      INTEGER(KIND=int_8)                                :: value
+         INTEGER                                            :: start
+         INTEGER(KIND=int_8)                                :: value
 
          get_field_value_in_bytes = 0
          start = INDEX(meminfo, field)
@@ -698,4 +714,3 @@ CONTAINS
    END SUBROUTINE m_get_omp_stacksize
 
 END MODULE machine
-
