@@ -38,9 +38,9 @@ MODULE rt_propagator_init
                                               do_cn,&
                                               do_em,&
                                               do_etrs,&
+                                              do_exact,&
                                               do_pade,&
-                                              do_taylor,&
-                                              do_exact
+                                              do_taylor
    USE iterate_matrix,                  ONLY: matrix_sqrt_Newton_Schulz
    USE kinds,                           ONLY: dp
    USE matrix_exp,                      ONLY: get_nsquare_norder

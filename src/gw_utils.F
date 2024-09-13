@@ -28,15 +28,9 @@ MODULE gw_utils
                                               cp_cfm_to_fm,&
                                               cp_cfm_type
    USE cp_control_types,                ONLY: dft_control_type
-   USE cp_dbcsr_api,                    ONLY: dbcsr_create,&
-                                              dbcsr_distribution_release,&
-                                              dbcsr_distribution_type,&
-                                              dbcsr_p_type,&
-                                              dbcsr_release,&
-                                              dbcsr_set,&
-                                              dbcsr_type,&
-                                              dbcsr_type_symmetric,&
-                                              dbcsr_type_no_symmetry
+   USE cp_dbcsr_api,                    ONLY: &
+        dbcsr_create, dbcsr_distribution_release, dbcsr_distribution_type, dbcsr_p_type, &
+        dbcsr_release, dbcsr_set, dbcsr_type, dbcsr_type_no_symmetry, dbcsr_type_symmetric
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               copy_fm_to_dbcsr,&
                                               cp_dbcsr_dist2d_to_dist,&
@@ -67,12 +61,12 @@ MODULE gw_utils
    USE input_constants,                 ONLY: do_potential_truncated,&
                                               large_cell_Gamma,&
                                               ri_rpa_g0w0_crossing_newton,&
+                                              rtp_method_gwbse,&
                                               small_cell_full_kp,&
-                                              xc_none,&
-                                              rtp_method_gwbse
-   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+                                              xc_none
+   USE input_section_types,             ONLY: section_vals_get,&
+                                              section_vals_get_subs_vals,&
                                               section_vals_type,&
-                                              section_vals_get,&
                                               section_vals_val_get,&
                                               section_vals_val_set
    USE kinds,                           ONLY: default_string_length,&
@@ -252,7 +246,7 @@ CONTAINS
       !    deallocated in bs_env_release
 
       IF (ASSOCIATED(bs_env%nl_3c%ij_list) .AND. (bs_env%rtp_method == rtp_method_gwbse)) THEN
-         IF (bs_env%unit_nr > 0) WRITE(bs_env%unit_nr, *) "Retaining nl_3c for GWBSE"
+         IF (bs_env%unit_nr > 0) WRITE (bs_env%unit_nr, *) "Retaining nl_3c for GWBSE"
       ELSE
          CALL neighbor_list_3c_destroy(bs_env%nl_3c)
       END IF
@@ -1602,14 +1596,14 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'compute_V_xc'
 
       INTEGER                                            :: handle, img, ispin, myfun, nimages
-      REAL(KIND=dp)                                      :: energy_ex, energy_exc, energy_total,&
+      LOGICAL                                            :: hf_present
+      REAL(KIND=dp)                                      :: energy_ex, energy_exc, energy_total, &
                                                             myfraction
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: mat_ks_without_v_xc
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_ks_kp
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(qs_energy_type), POINTER                      :: energy
-      TYPE(section_vals_type), POINTER                   :: input, xc_section, hf_section
-      LOGICAL                                            :: hf_present
+      TYPE(section_vals_type), POINTER                   :: hf_section, input, xc_section
 
       CALL timeset(routineN, handle)
 
@@ -1649,8 +1643,8 @@ CONTAINS
          DO ispin = 1, bs_env%n_spin
             ALLOCATE (mat_ks_without_v_xc(ispin)%matrix)
             IF (hf_present) THEN
-               CALL dbcsr_create(mat_ks_without_v_xc(ispin)%matrix, template=bs_env%mat_ao_ao%matrix,&
-                       matrix_type=dbcsr_type_symmetric)
+               CALL dbcsr_create(mat_ks_without_v_xc(ispin)%matrix, template=bs_env%mat_ao_ao%matrix, &
+                                 matrix_type=dbcsr_type_symmetric)
             ELSE
                CALL dbcsr_create(mat_ks_without_v_xc(ispin)%matrix, template=bs_env%mat_ao_ao%matrix)
             END IF
@@ -1821,7 +1815,7 @@ CONTAINS
       END IF
 
       bs_env%imag_time_points(:) = points_and_weights(1:num_time_freq_points)/(2.0_dp*E_min)
-      bs_env%imag_time_weights_freq_zero(:) = points_and_weights(num_time_freq_points+1:)/(E_min)
+      bs_env%imag_time_weights_freq_zero(:) = points_and_weights(num_time_freq_points + 1:)/(E_min)
 
       DEALLOCATE (points_and_weights)
 

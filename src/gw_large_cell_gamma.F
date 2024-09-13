@@ -40,7 +40,7 @@ MODULE gw_large_cell_gamma
    USE cp_fm_diag,                      ONLY: cp_fm_power
    USE cp_fm_types,                     ONLY: &
         cp_fm_create, cp_fm_get_diag, cp_fm_get_info, cp_fm_read_unformatted, cp_fm_release, &
-        cp_fm_set_all, cp_fm_to_fm, cp_fm_type, cp_fm_write_unformatted, cp_fm_write_formatted
+        cp_fm_set_all, cp_fm_to_fm, cp_fm_type, cp_fm_write_unformatted
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_p_file,&
@@ -57,8 +57,7 @@ MODULE gw_large_cell_gamma
    USE gw_utils,                        ONLY: analyt_conti_and_print,&
                                               de_init_bs_env,&
                                               time_to_freq
-   USE input_constants,                 ONLY: ri_rpa_g0w0_crossing_newton,&
-                                              rtp_method_gwbse
+   USE input_constants,                 ONLY: rtp_method_gwbse
    USE input_section_types,             ONLY: section_vals_type
    USE kinds,                           ONLY: default_string_length,&
                                               dp,&
@@ -91,7 +90,7 @@ MODULE gw_large_cell_gamma
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'gw_large_cell_gamma'
 
-   PUBLIC :: gw_calc_large_cell_Gamma,&
+   PUBLIC :: gw_calc_large_cell_Gamma, &
              compute_3c_integrals
 
 CONTAINS
@@ -999,6 +998,7 @@ CONTAINS
       REAL(KIND=dp)                                      :: t1
       TYPE(cp_cfm_type)                                  :: cfm_M_inv_V_sqrt_ikp, cfm_V_sqrt_ikp
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :)     :: fm_V_kp
+
       ! ! DEBUG : Printing W for all frequencies
       ! TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: dummy_array
 
@@ -1038,7 +1038,7 @@ CONTAINS
                CALL Fourier_transform_w_to_t(bs_env, fm_W_MIC_time, bs_env%fm_W_MIC_freq, j_w)
 
                ! ! DEBUG : print the W_MIC matrices for all frequencies
-               ! PRINT *, "Frequency index", j_w, "Frequency", bs_env%imag_freq_points(j_w) 
+               ! PRINT *, "Frequency index", j_w, "Frequency", bs_env%imag_freq_points(j_w)
                ! ALLOCATE(dummy_array(1))
                ! dummy_array(1) = bs_env%fm_W_MIC_freq
                ! CALL multiply_fm_W_MIC_time_with_Minv_Gamma(bs_env, qs_env, dummy_array)
@@ -1092,9 +1092,9 @@ CONTAINS
          ! Sum over all times
          DO i_t = 1, bs_env%num_time_freq_points
             ! Add the relevant structure with correct weight
-            CALL cp_fm_scale_and_add(1.0_dp, bs_env%fm_W_MIC_freq_zero,&
+            CALL cp_fm_scale_and_add(1.0_dp, bs_env%fm_W_MIC_freq_zero, &
                                      bs_env%imag_time_weights_freq_zero(i_t), fm_W_MIC_time(i_t))
-         END DO 
+         END DO
          ! Done, save to file
          CALL fm_write(bs_env%fm_W_MIC_freq_zero, 0, "W_freq_rtp", qs_env)
       END IF

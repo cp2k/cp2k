@@ -38,21 +38,20 @@ MODULE input_cp2k_dft
         do_admm_charge_constrained_projection, do_admm_exch_scaling_merlot, &
         do_admm_exch_scaling_none, do_admm_purify_cauchy, do_admm_purify_cauchy_subspace, &
         do_admm_purify_mcweeny, do_admm_purify_mo_diag, do_admm_purify_mo_no_diag, &
-        do_admm_purify_none, do_admm_purify_none_dm, do_arnoldi, do_bch, do_exact, do_cn, do_em, do_etrs, &
-        do_pade, do_taylor, ehrenfest, gaussian, kg_color_dsatur, kg_color_greedy, &
+        do_admm_purify_none, do_admm_purify_none_dm, do_arnoldi, do_bch, do_cn, do_em, do_etrs, &
+        do_exact, do_pade, do_taylor, ehrenfest, gaussian, kg_color_dsatur, kg_color_greedy, &
         kg_tnadd_atomic, kg_tnadd_embed, kg_tnadd_embed_ri, kg_tnadd_none, no_admm_type, &
         no_excitations, numerical, oe_gllb, oe_lb, oe_none, oe_saop, oe_sic, plus_u_lowdin, &
         plus_u_mulliken, plus_u_mulliken_charges, real_time_propagation, rel_dkh, rel_none, &
         rel_pot_erfc, rel_pot_full, rel_sczora_mp, rel_trans_atom, rel_trans_full, &
-        rel_trans_molecule, rel_zora, rel_zora_full, rel_zora_mp, sccs_andreussi, &
-        sccs_derivative_cd3, sccs_derivative_cd5, sccs_derivative_cd7, sccs_derivative_fft, &
-        sccs_fattebert_gygi, sic_ad, sic_eo, sic_list_all, sic_list_unpaired, sic_mauri_spz, &
-        sic_mauri_us, sic_none, slater, tddfpt_davidson, tddfpt_excitations, tddfpt_lanczos, &
-        tddfpt_singlet, tddfpt_triplet, use_mom_ref_coac, use_mom_ref_com, use_mom_ref_user, &
-        use_mom_ref_zero, use_restart_wfn, use_rt_restart, use_scf_wfn, weight_type_mass, &
-        weight_type_unit, &
-        rtp_method_tddft, rtp_method_gwbse, rtp_gwbse_ham_ks, rtp_gwbse_ham_g0w0,&
-        rtp_gwbse_hartree_dbt, rtp_gwbse_hartree_pw
+        rel_trans_molecule, rel_zora, rel_zora_full, rel_zora_mp, rtp_gwbse_ham_g0w0, &
+        rtp_gwbse_ham_ks, rtp_gwbse_hartree_dbt, rtp_gwbse_hartree_pw, rtp_method_gwbse, &
+        rtp_method_tddft, sccs_andreussi, sccs_derivative_cd3, sccs_derivative_cd5, &
+        sccs_derivative_cd7, sccs_derivative_fft, sccs_fattebert_gygi, sic_ad, sic_eo, &
+        sic_list_all, sic_list_unpaired, sic_mauri_spz, sic_mauri_us, sic_none, slater, &
+        tddfpt_davidson, tddfpt_excitations, tddfpt_lanczos, tddfpt_singlet, tddfpt_triplet, &
+        use_mom_ref_coac, use_mom_ref_com, use_mom_ref_user, use_mom_ref_zero, use_restart_wfn, &
+        use_rt_restart, use_scf_wfn, weight_type_mass, weight_type_unit
    USE input_cp2k_almo,                 ONLY: create_almo_scf_section
    USE input_cp2k_as,                   ONLY: create_active_space_section
    USE input_cp2k_ec,                   ONLY: create_ec_section
@@ -1640,8 +1639,8 @@ CONTAINS
                                         "uses arnoldi subspace algorithm to compute exp(H)*MO directly, can't be used in "// &
                                         "combination with Crank Nicholson or density propagation", &
                                         "Uses a Baker-Campbell-Hausdorff expansion to propagate the density matrix,"// &
-                                        " only works for density propagation",&
-                                        "Uses diagonalisation of the exponent matrices to determine the "//&
+                                        " only works for density propagation", &
+                                        "Uses diagonalisation of the exponent matrices to determine the "// &
                                         "matrix exponential exactly. Only implemented for GWBSE."))
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -1678,10 +1677,10 @@ CONTAINS
                           "By default, use the TDDFT method. Can also choose GWBSE method, which propagates the lesser "// &
                           "Green's function instead of density matrix/molecular orbitals.", &
                           usage="RTP_METHOD GWBSE", &
-                          default_i_val=rtp_method_tddft,&
-                          enum_c_vals=s2a("TDDFT", "GWBSE"),&
-                          enum_i_vals=(/rtp_method_tddft, rtp_method_gwbse/),&
-                          enum_desc=s2a("Use TDDFT for density matrix/MO propagation.",&
+                          default_i_val=rtp_method_tddft, &
+                          enum_c_vals=s2a("TDDFT", "GWBSE"), &
+                          enum_i_vals=(/rtp_method_tddft, rtp_method_gwbse/), &
+                          enum_desc=s2a("Use TDDFT for density matrix/MO propagation.", &
                                         "Use GWBSE for Green's function propagation"))
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -1689,12 +1688,12 @@ CONTAINS
       ! Marek : Development option - run GWBSE starting from the KS Hamiltonian
       CALL keyword_create(keyword, __LOCATION__, name="GWBSE_HAMILTONIAN", &
                           description="Which Hamiltonian to use as the single-particle Hamiltonian"// &
-                                      " in the Green's propagator.",&
+                          " in the Green's propagator.", &
                           usage="GWBSE_HAMILTONIAN G0W0", &
-                          default_i_val=rtp_gwbse_ham_g0w0,&
-                          enum_c_vals=s2a("KS", "G0W0"),&
-                          enum_i_vals=(/rtp_gwbse_ham_ks, rtp_gwbse_ham_g0w0/),&
-                          enum_desc=s2a("Use Kohn-Sham Hamiltonian for Green's propagation.",&
+                          default_i_val=rtp_gwbse_ham_g0w0, &
+                          enum_c_vals=s2a("KS", "G0W0"), &
+                          enum_i_vals=(/rtp_gwbse_ham_ks, rtp_gwbse_ham_g0w0/), &
+                          enum_desc=s2a("Use Kohn-Sham Hamiltonian for Green's propagation.", &
                                         "Use G0W0 Hamiltonian for Green's function propagation"))
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -1702,12 +1701,12 @@ CONTAINS
       ! Marek : Which method to use for Hartree term evaluation
       CALL keyword_create(keyword, __LOCATION__, name="HARTREE_METHOD", &
                           description="Which method to use for Hartree term evaluation"// &
-                                      " in the GWBSE method for RTP.",&
+                          " in the GWBSE method for RTP.", &
                           usage="HARTREE_METHOD DBT", &
-                          default_i_val=rtp_gwbse_hartree_dbt,&
-                          enum_c_vals=s2a("DBT", "PW"),&
-                          enum_i_vals=(/rtp_gwbse_hartree_dbt, rtp_gwbse_hartree_pw/),&
-                          enum_desc=s2a("Use sparse tensor representation of Hartree term.",&
+                          default_i_val=rtp_gwbse_hartree_dbt, &
+                          enum_c_vals=s2a("DBT", "PW"), &
+                          enum_i_vals=(/rtp_gwbse_hartree_dbt, rtp_gwbse_hartree_pw/), &
+                          enum_desc=s2a("Use sparse tensor representation of Hartree term.", &
                                         "Use plane wave representation of Hartree term."))
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -1969,7 +1968,7 @@ CONTAINS
 
       CALL section_add_subsection(print_section, print_key)
       CALL section_release(print_key)
-      
+
       ! Marek : Add print option for ASCII density files - DEVELPMENT ONLY?
       CALL cp_print_key_section_create(print_key, __LOCATION__, "DENSITY_MATRIX", &
                                        description="Prints the density matrix at iterations in clear text to a file", &
@@ -1982,7 +1981,7 @@ CONTAINS
       ! Marek : Moments ASCII print
       CALL cp_print_key_section_create(print_key, __LOCATION__, "MOMENTS", &
                                        description="Prints the time-dependent electronic moments at"// &
-                                                   "iterations in clear text to a file.", &
+                                       "iterations in clear text to a file.", &
                                        print_level=high_print_level, common_iter_levels=0, &
                                        each_iter_names=s2a("MD"), &
                                        each_iter_values=(/1/), &

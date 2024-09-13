@@ -14,8 +14,8 @@
 #:mute
 
    #:def SPIN_DO(i, re, im, nspin)
-   DO ${i}$=1,${nspin}$
-      ${re}$ = 2*${i}$ - 1
+      DO ${i}$ = 1, ${nspin}$
+      ${re}$ = 2*${i}$-1
       ${im}$ = 2*${i}$
    #:enddef
 

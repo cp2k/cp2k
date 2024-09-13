@@ -1009,7 +1009,8 @@ CONTAINS
       LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: orb_present
       REAL(dp), ALLOCATABLE, DIMENSION(:)                :: orb_radius
       REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: pair_radius
-      REAL(KIND=dp)                                      :: subcells
+      REAL(KIND=dp)                                      :: eps_gvg_rspace_old, eps_pgf_orb_old, &
+                                                            eps_rho_rspace_old, subcells
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
       TYPE(dbcsr_distribution_type), POINTER             :: dbcsr_dist_sub
@@ -1025,9 +1026,6 @@ CONTAINS
          POINTER                                         :: my_sab_orb_sub
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
-      REAL(KIND=dp)                                      :: eps_pgf_orb_old
-      REAL(KIND=dp)                                      :: eps_rho_rspace_old
-      REAL(KIND=dp)                                      :: eps_gvg_rspace_old
 
       CALL timeset(routineN, handle)
 
