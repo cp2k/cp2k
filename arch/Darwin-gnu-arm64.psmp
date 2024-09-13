@@ -9,7 +9,7 @@
 #        Ensure the links in /opt/homebrew/bin to the gcc version
 #        and "brew unlink openmpi" (or mpich) if installed.
 #
-# Last update: 12.09.2024
+# Last update: 13.09.2024
 #
 # \
    if [[ "${0}" == "${BASH_SOURCE}" ]]; then \
@@ -43,7 +43,7 @@
    ./install_cp2k_toolchain.sh --install-all -j${maxtasks} --no-arch-files --target-cpu=${target_cpu} \
       --with-cmake=$(brew --prefix cmake) --with-elpa=no --with-fftw=$(brew --prefix fftw) --with-gcc=system \
       --with-gsl=$(brew --prefix gsl) --with-hdf5=$(brew --prefix hdf5) --with-libxc=$(brew --prefix libxc) \
-      --with-libxsmm=no --with-openblas=$(brew --prefix openblas) --with-${mpi_implementation} \
+      --with-openblas=$(brew --prefix openblas) --with-${mpi_implementation} \
       --with-pexsi=no --with-quip=no; \
    source ./install/setup; \
    cd ../..; \
@@ -181,6 +181,17 @@ ifneq ($(USE_SPGLIB),)
    CFLAGS         += -I$(SPGLIB_INC)
    DFLAGS         += -D__SPGLIB
    LIBS           += $(SPGLIB_LIB)/libsymspg.a
+endif
+
+ifneq ($(USE_LIBXSMM),)
+   USE_LIBXSMM    := $(strip $(USE_LIBXSMM))
+   LIBXSMM_INC    := $(INSTALL_PATH)/libxsmm-$(USE_LIBXSMM)/include
+   LIBXSMM_LIB    := $(INSTALL_PATH)/libxsmm-$(USE_LIBXSMM)/lib
+   CFLAGS         += -I$(LIBXSMM_INC)
+   DFLAGS         += -D__LIBXSMM
+   LIBS           += $(LIBXSMM_LIB)/libxsmmf.a
+   LIBS           += $(LIBXSMM_LIB)/libxsmmext.a
+   LIBS           += $(LIBXSMM_LIB)/libxsmm.a
 endif
 
 ifneq ($(USE_SIRIUS),)

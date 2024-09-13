@@ -8,7 +8,7 @@
 # Usage: Source this arch file and then run make as instructed.
 #        Ensure the links in /opt/homebrew/bin to the gcc version.
 #
-# Last update: 06.09.2024
+# Last update: 13.09.2024
 #
 # \
    if [[ "${0}" == "${BASH_SOURCE}" ]]; then \
@@ -37,7 +37,7 @@
    fi; \
    ./install_cp2k_toolchain.sh -j${maxtasks} --mpi-mode=no --no-arch-files --target-cpu=${target_cpu} \
       --with-cmake=$(brew --prefix cmake) --with-fftw=$(brew --prefix fftw) --with-gcc=system \
-      --with-libxc=$(brew --prefix libxc) --with-libxsmm=no --with-openblas=$(brew --prefix openblas); \
+      --with-libxc=$(brew --prefix libxc) --with-openblas=$(brew --prefix openblas); \
    source ./install/setup; \
    cd ../..; \
    echo; \
@@ -159,6 +159,17 @@ ifneq ($(USE_SPGLIB),)
    CFLAGS         += -I$(SPGLIB_INC)
    DFLAGS         += -D__SPGLIB
    LIBS           += $(SPGLIB_LIB)/libsymspg.a
+endif
+
+ifneq ($(USE_LIBXSMM),)
+   USE_LIBXSMM    := $(strip $(USE_LIBXSMM))
+   LIBXSMM_INC    := $(INSTALL_PATH)/libxsmm-$(USE_LIBXSMM)/include
+   LIBXSMM_LIB    := $(INSTALL_PATH)/libxsmm-$(USE_LIBXSMM)/lib
+   CFLAGS         += -I$(LIBXSMM_INC)
+   DFLAGS         += -D__LIBXSMM
+   LIBS           += $(LIBXSMM_LIB)/libxsmmf.a
+   LIBS           += $(LIBXSMM_LIB)/libxsmmext.a
+   LIBS           += $(LIBXSMM_LIB)/libxsmm.a
 endif
 
 FFTW_HOME      := $(shell brew --prefix fftw)

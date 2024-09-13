@@ -175,10 +175,11 @@ required.
 
 ### 2h. LIBXSMM (optional, improved performance for matrix multiplication)
 
-- A library for matrix operations and deep learning primitives: <https://github.com/hfp/libxsmm/>.
+- A library for matrix operations and deep learning primitives:
+  <https://github.com/libxsmm/libxsmm/>.
 - Add `-D__LIBXSMM` to enable it, with suitable include and library paths, e.g.,
   `FCFLAGS += -I${LIBXSMM_DIR}/include -D__LIBXSMM` and
-  `LIBS += -L${LIBXSMM_DIR}/lib -lxsmmf -lxsmm -ldl`
+  `LIBS += -L${LIBXSMM_DIR}/lib -lxsmmf -lxsmmext -lxsmm -ldl`
 - LIBSMM is not used if LIBXSMM is enabled.
 
 ### 2i. CUDA (optional, improved performance on GPU systems)
