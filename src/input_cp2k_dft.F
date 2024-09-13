@@ -1980,7 +1980,7 @@ CONTAINS
       CALL section_release(print_key)
       ! Marek : Moments ASCII print
       CALL cp_print_key_section_create(print_key, __LOCATION__, "MOMENTS", &
-                                       description="Prints the time-dependent electronic moments at"// &
+                                       description="Prints the time-dependent electronic moments at "// &
                                        "iterations in clear text to a file.", &
                                        print_level=high_print_level, common_iter_levels=0, &
                                        each_iter_names=s2a("MD"), &
