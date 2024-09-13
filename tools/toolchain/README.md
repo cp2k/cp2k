@@ -108,7 +108,7 @@ proprietary software packages, like e.g. MKL, these have to be installed separat
 | libvori   | LGPL-3                                                                             | Yes                                                                              |
 | libvdwxc  | [GPL](https://gitlab.com/libvdwxc/libvdwxc/blob/master/LICENSE)                    | Yes                                                                              |
 | libxc     | [MPL](https://gitlab.com/libxc/libxc/blob/master/COPYING)                          | Yes                                                                              |
-| libxsmm   | [BSD 3-Clause](https://github.com/hfp/libxsmm/blob/master/LICENSE.md)              | Yes                                                                              |
+| libxsmm   | [BSD 3-Clause](https://github.com/libxsmm/libxsmm/blob/master/LICENSE.md)          | Yes                                                                              |
 | mpich     | [MPICH](https://github.com/pmodels/mpich/blob/master/COPYRIGHT)                    | [Yes](https://enterprise.dejacode.com/licenses/public/mpich/#license-conditions) |
 | openblas  | [BSD 3-Clause](https://github.com/xianyi/OpenBLAS/blob/develop/LICENSE)            | Yes                                                                              |
 | openmpi   | [BSD 3-Clause](https://github.com/open-mpi/ompi/blob/master/LICENSE)               | Yes                                                                              |
