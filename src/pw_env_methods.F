@@ -194,12 +194,6 @@ CONTAINS
                                                             poisson_section, print_section, &
                                                             rs_grid_section, xc_section
 
-      ! a very small safety factor might be needed for roundoff issues
-      ! e.g. radius being computed here as 12.998 (13) and 13.002 (14) during the collocation
-      ! the latter can happen due to the lower precision in the computation of the radius in collocate
-      ! parallel cost of rs_pw_transfer goes as safety_factor**3 so it is worthwhile keeping it tight
-      ! Edit: Safety Factor was unused
-
       CALL timeset(routineN, handle)
 
       !
