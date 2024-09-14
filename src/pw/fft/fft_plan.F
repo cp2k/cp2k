@@ -57,9 +57,6 @@ MODULE fft_plan
                                          fftw_plan_ny_r_bw = C_NULL_PTR, &
                                          fftw_plan_nz_r_bw = C_NULL_PTR
 
-      TYPE(C_PTR) :: spfft_transform = C_NULL_PTR
-      TYPE(C_PTR), DIMENSION(:), POINTER :: spfft_transform_multi => NULL()
-
    END TYPE fft_plan_type
 
 END MODULE fft_plan
