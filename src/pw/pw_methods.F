@@ -28,7 +28,7 @@ MODULE pw_methods
                               cp_to_string
    USE fft_tools, ONLY: BWFFT, &
                         FWFFT, &
-                        fft3d
+                        fft3d, fft_scatter, fft_gather
    USE kahan_sum, ONLY: accurate_dot_product, &
                         accurate_sum
    USE kinds, ONLY: dp
@@ -163,32 +163,6 @@ MODULE pw_methods
       #:endfor
    END INTERFACE
 
-   INTERFACE pw_gather
-      #:for kind in pw_kinds
-         #:if kind[1]=="1"
-            MODULE PROCEDURE pw_gather_p_${kind}$
-         #:endif
-      #:endfor
-      #:for kind, kind2 in pw_kinds2
-         #:if kind[1]=="1" and kind2[1]=="3"
-            MODULE PROCEDURE pw_gather_s_${kind}$_${kind2}$
-         #:endif
-      #:endfor
-   END INTERFACE
-
-   INTERFACE pw_scatter
-      #:for kind in pw_kinds
-         #:if kind[1]=="1"
-            MODULE PROCEDURE pw_scatter_p_${kind}$
-         #:endif
-      #:endfor
-      #:for kind, kind2 in pw_kinds2
-         #:if kind[1]=="1" and kind2[1]=="3"
-            MODULE PROCEDURE pw_scatter_s_${kind}$_${kind2}$
-         #:endif
-      #:endfor
-   END INTERFACE
-
    INTERFACE pw_copy_to_array
       #:for space in pw_spaces
          #:for kind, kind2 in pw_kinds2_sameD
@@ -207,10 +181,6 @@ MODULE pw_methods
 
    INTERFACE pw_transfer
       #:for kind, kind2 in pw_kinds2
-         #:if kind[1]=="1" and kind2[1]=="3"
-            MODULE PROCEDURE pw_gather_s_${kind}$_${kind2}$_2
-            MODULE PROCEDURE pw_scatter_s_${kind}$_${kind2}$_2
-         #:endif
          #:for space in pw_spaces
             #:if kind[1]==kind2[1]
                MODULE PROCEDURE pw_copy_${kind}$_${kind2}$_${space}$
@@ -400,156 +370,6 @@ CONTAINS
 
          END SUBROUTINE pw_set_value_${kind}$_${space}$
       #:endfor
-
-      #:if kind[1]=="1"
-! **************************************************************************************************
-!> \brief ...
-!> \param pw ...
-!> \param c ...
-!> \param scale ...
-! **************************************************************************************************
-         SUBROUTINE pw_gather_p_${kind}$ (pw, c, scale)
-
-            TYPE(pw_${kind}$_gs_type), INTENT(INOUT)                       :: pw
-            COMPLEX(KIND=dp), DIMENSION(:, :), CONTIGUOUS, INTENT(IN)      :: c
-            REAL(KIND=dp), INTENT(IN), OPTIONAL                :: scale
-
-            CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_gather_p'
-
-            INTEGER                                            :: gpt, handle, l, m, mn, n
-
-            CALL timeset(routineN, handle)
-
-            IF (pw%pw_grid%para%mode /= PW_MODE_DISTRIBUTED) THEN
-               CPABORT("This grid type is not distributed")
-            END IF
-
-            ASSOCIATE (mapl => pw%pw_grid%mapl%pos, mapm => pw%pw_grid%mapm%pos, mapn => pw%pw_grid%mapn%pos, &
-                       ngpts => SIZE(pw%pw_grid%gsq), ghat => pw%pw_grid%g_hat, yzq => pw%pw_grid%para%yzq)
-
-               IF (PRESENT(scale)) THEN
-!$OMP PARALLEL DO DEFAULT(NONE) &
-!$OMP             PRIVATE(l, m, mn, n) &
-!$OMP             SHARED(c, pw, scale)
-                  DO gpt = 1, ngpts
-                     l = mapl(ghat(1, gpt)) + 1
-                     m = mapm(ghat(2, gpt)) + 1
-                     n = mapn(ghat(3, gpt)) + 1
-                     mn = yzq(m, n)
-                     pw%array(gpt) = scale*${type2type("c(l, mn)", "c3d", kind)}$
-                  END DO
-!$OMP END PARALLEL DO
-               ELSE
-!$OMP PARALLEL DO DEFAULT(NONE) &
-!$OMP             PRIVATE(l, m, mn, n) &
-!$OMP             SHARED(c, pw)
-                  DO gpt = 1, ngpts
-                     l = mapl(ghat(1, gpt)) + 1
-                     m = mapm(ghat(2, gpt)) + 1
-                     n = mapn(ghat(3, gpt)) + 1
-                     mn = yzq(m, n)
-                     pw%array(gpt) = ${type2type("c(l, mn)", "c3d", kind)}$
-                  END DO
-!$OMP END PARALLEL DO
-               END IF
-
-            END ASSOCIATE
-
-            CALL timestop(handle)
-
-         END SUBROUTINE pw_gather_p_${kind}$
-
-! **************************************************************************************************
-!> \brief ...
-!> \param pw ...
-!> \param c ...
-!> \param scale ...
-! **************************************************************************************************
-         SUBROUTINE pw_scatter_p_${kind}$ (pw, c, scale)
-            TYPE(pw_${kind}$_gs_type), INTENT(IN)                          :: pw
-            COMPLEX(KIND=dp), DIMENSION(:, :), CONTIGUOUS, INTENT(INOUT)   :: c
-            REAL(KIND=dp), INTENT(IN), OPTIONAL                :: scale
-
-            CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_scatter_p'
-
-            INTEGER                                            :: gpt, handle, l, m, mn, n
-
-            CALL timeset(routineN, handle)
-
-            IF (pw%pw_grid%para%mode /= PW_MODE_DISTRIBUTED) THEN
-               CPABORT("This grid type is not distributed")
-            END IF
-
-            ASSOCIATE (mapl => pw%pw_grid%mapl%pos, mapm => pw%pw_grid%mapm%pos, mapn => pw%pw_grid%mapn%pos, &
-                       ghat => pw%pw_grid%g_hat, yzq => pw%pw_grid%para%yzq, ngpts => SIZE(pw%pw_grid%gsq))
-
-               IF (.NOT. PRESENT(scale)) c = z_zero
-
-               IF (PRESENT(scale)) THEN
-!$OMP PARALLEL DO DEFAULT(NONE) &
-!$OMP             PRIVATE(l, m, mn, n) &
-!$OMP             SHARED(c, pw, scale)
-                  DO gpt = 1, ngpts
-                     l = mapl(ghat(1, gpt)) + 1
-                     m = mapm(ghat(2, gpt)) + 1
-                     n = mapn(ghat(3, gpt)) + 1
-                     mn = yzq(m, n)
-                     c(l, mn) = ${type2type("scale*pw%array(gpt)", kind, "c3d")}$
-                  END DO
-!$OMP END PARALLEL DO
-               ELSE
-!$OMP PARALLEL DO DEFAULT(NONE) &
-!$OMP             PRIVATE(l, m, mn, n) &
-!$OMP             SHARED(c, pw)
-                  DO gpt = 1, ngpts
-                     l = mapl(ghat(1, gpt)) + 1
-                     m = mapm(ghat(2, gpt)) + 1
-                     n = mapn(ghat(3, gpt)) + 1
-                     mn = yzq(m, n)
-                     c(l, mn) = ${type2type("pw%array(gpt)", kind, "c3d")}$
-                  END DO
-!$OMP END PARALLEL DO
-               END IF
-
-            END ASSOCIATE
-
-            IF (pw%pw_grid%grid_span == HALFSPACE) THEN
-
-               ASSOCIATE (mapm => pw%pw_grid%mapm%neg, mapn => pw%pw_grid%mapn%neg, mapl => pw%pw_grid%mapl%neg, &
-                          ghat => pw%pw_grid%g_hat, ngpts => SIZE(pw%pw_grid%gsq), yzq => pw%pw_grid%para%yzq)
-
-                  IF (PRESENT(scale)) THEN
-!$OMP PARALLEL DO DEFAULT(NONE) &
-!$OMP             PRIVATE(l, m, mn, n) &
-!$OMP             SHARED(c, pw, scale)
-                     DO gpt = 1, ngpts
-                        l = mapl(ghat(1, gpt)) + 1
-                        m = mapm(ghat(2, gpt)) + 1
-                        n = mapn(ghat(3, gpt)) + 1
-                        mn = yzq(m, n)
-                        c(l, mn) = scale*#{if kind[0]=="c"}#CONJG#{endif}#(${type2type("pw%array(gpt)", kind, "c3d")}$)
-                     END DO
-!$OMP END PARALLEL DO
-                  ELSE
-!$OMP PARALLEL DO DEFAULT(NONE) &
-!$OMP             PRIVATE(l, m, mn, n) &
-!$OMP             SHARED(c, pw)
-                     DO gpt = 1, ngpts
-                        l = mapl(ghat(1, gpt)) + 1
-                        m = mapm(ghat(2, gpt)) + 1
-                        n = mapn(ghat(3, gpt)) + 1
-                        mn = yzq(m, n)
-                        c(l, mn) = #{if kind[0]=="c"}#CONJG#{endif}#(${type2type("pw%array(gpt)", kind, "c3d")}$)
-                     END DO
-!$OMP END PARALLEL DO
-                  END IF
-               END ASSOCIATE
-            END IF
-
-            CALL timestop(handle)
-
-         END SUBROUTINE pw_scatter_p_${kind}$
-      #:endif
    #:endfor
 
    #:for kind, type, kind2, type2 in pw_list2_sameD
@@ -1243,7 +1063,7 @@ CONTAINS
                                           CALL fft3d(FWFFT, n, c_in, c_out, debug=test)
                                           ! gather results
                                           IF (test .AND. out_unit > 0) WRITE (out_unit, '(A)') "  PW_GATHER : 3d -> 1d "
-                                          CALL pw_gather_s_${kind2}$_c3d(pw2, c_out)
+                                          CALL fft_gather(pw2%array, c_out, pw2%pw_grid)
                                           DEALLOCATE (c_out)
                                        #:elif kind=="r3d" and kind2=="c1d"
 #if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_PW)
@@ -1267,7 +1087,7 @@ CONTAINS
 #if defined (__PW_FPGA)
                                           END IF
 #endif
-                                          CALL pw_gather_s_${kind2}$_c3d(pw2, c_out)
+                                          CALL fft_gather(pw2%array, c_out, pw2%pw_grid)
                                           DEALLOCATE (c_out)
 #endif
                                        #:endif
@@ -1279,7 +1099,7 @@ CONTAINS
                                        #:elif kind=="c1d" and kind2=="c3d"
                                           c_out => pw2%array
                                           IF (test .AND. out_unit > 0) WRITE (out_unit, '(A)') "  PW_SCATTER : 3d -> 1d "
-                                          CALL pw_scatter_s_${kind}$_c3d(pw1, c_out)
+                                          CALL fft_scatter(pw1%array, c_out, pw1%pw_grid)
                                           CALL fft3d(BWFFT, n, c_out, debug=test)
                                        #:elif kind=="c1d" and kind2=="r3d"
 #if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_PW)
@@ -1289,7 +1109,7 @@ CONTAINS
                                           ! check if bitstream for the fft size is present
                                           ! if not, perform fft3d in CPU
                                           IF (test .AND. out_unit > 0) WRITE (out_unit, '(A)') "  PW_SCATTER : 3d -> 1d "
-                                          CALL pw_scatter_s_${kind}$_c3d(pw1, c_out)
+                                          CALL fft_scatter(pw1%array, c_out, pw1%pw_grid)
 #if defined (__PW_FPGA)
                                           IF (pw_fpga_init_bitstream(n) == 1) THEN
                                              ! transform using FPGA
@@ -1356,7 +1176,7 @@ CONTAINS
                                           !..prepare output
                                           IF (test .AND. out_unit > 0) &
                                              WRITE (out_unit, '(A)') "  PW_GATHER : 2d -> 1d "
-                                          CALL pw_gather_p_${kind2}$ (pw2, grays)
+                                          CALL fft_gather(pw2%array, grays, pw2%pw_grid)
                                        #:elif kind=="r3d" and kind2=="c1d"
 #if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_PW)
                                           ! (no ray dist. is not efficient in CUDA)
@@ -1382,7 +1202,7 @@ CONTAINS
                                              !..prepare output
                                              IF (test .AND. out_unit > 0) &
                                                 WRITE (out_unit, '(A)') "  PW_GATHER : 2d -> 1d "
-                                             CALL pw_gather_p_${kind2}$ (pw2, grays)
+                                             CALL fft_gather(pw2%array, grays, pw2%pw_grid)
                                              DEALLOCATE (c_in)
 
 #if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_PW)
@@ -1395,7 +1215,7 @@ CONTAINS
                                           IF (test .AND. out_unit > 0) &
                                              WRITE (out_unit, '(A)') "  PW_SCATTER : 2d -> 1d "
                                           grays = z_zero
-                                          CALL pw_scatter_p_${kind}$ (pw1, grays)
+                                          CALL fft_scatter(pw1%array, grays, pw1%pw_grid)
                                           c_in => pw2%array
                                           !..transform
                                           IF (pw1%pw_grid%para%ray_distribution) THEN
@@ -1419,7 +1239,7 @@ CONTAINS
                                              IF (test .AND. out_unit > 0) &
                                                 WRITE (out_unit, '(A)') "  PW_SCATTER : 2d -> 1d "
                                              grays = z_zero
-                                             CALL pw_scatter_p_${kind}$ (pw1, grays)
+                                             CALL fft_scatter(pw1%array, grays, pw1%pw_grid)
                                              nloc = pw2%pw_grid%npts_local
                                              ALLOCATE (c_in(nloc(1), nloc(2), nloc(3)))
                                              !..transform
@@ -1454,179 +1274,6 @@ CONTAINS
                            #:endif
                         #:endfor
                      #:endfor
-
-                     #:if kind[1]=='1' and kind2[1]=='3'
-
-! **************************************************************************************************
-!> \brief Gathers the pw vector from a 3d data field
-!> \param pw ...
-!> \param c ...
-!> \param scale ...
-!> \par History
-!>      none
-!> \author JGH
-! **************************************************************************************************
-                        SUBROUTINE pw_gather_s_${kind}$_${kind2}$_2(pw1, pw2, scale)
-
-                           TYPE(pw_${kind2}$_gs_type), INTENT(IN)                       :: pw1
-                           TYPE(pw_${kind}$_gs_type), INTENT(INOUT)   :: pw2
-                           REAL(KIND=dp), INTENT(IN), OPTIONAL                :: scale
-
-                           CALL pw_gather_s_${kind}$_${kind2}$ (pw2, pw1%array, scale)
-
-                        END SUBROUTINE pw_gather_s_${kind}$_${kind2}$_2
-
-! **************************************************************************************************
-!> \brief Gathers the pw vector from a 3d data field
-!> \param pw ...
-!> \param c ...
-!> \param scale ...
-!> \par History
-!>      none
-!> \author JGH
-! **************************************************************************************************
-                        SUBROUTINE pw_gather_s_${kind}$_${kind2}$ (pw, c, scale)
-
-                           TYPE(pw_${kind}$_gs_type), INTENT(INOUT)                       :: pw
-                           ${type2}$, CONTIGUOUS, INTENT(IN)   :: c
-                           REAL(KIND=dp), INTENT(IN), OPTIONAL                :: scale
-
-                           CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_gather_s'
-
-                           INTEGER                                            :: gpt, handle, l, m, n
-
-                           CALL timeset(routineN, handle)
-
-                           ASSOCIATE (mapl => pw%pw_grid%mapl%pos, mapm => pw%pw_grid%mapm%pos, mapn => pw%pw_grid%mapn%pos, &
-                                      ngpts => SIZE(pw%pw_grid%gsq), ghat => pw%pw_grid%g_hat)
-
-                              IF (PRESENT(scale)) THEN
-!$OMP PARALLEL DO PRIVATE(gpt, l, m, n) DEFAULT(NONE) SHARED(c, pw, scale)
-                                 DO gpt = 1, ngpts
-                                    l = mapl(ghat(1, gpt)) + 1
-                                    m = mapm(ghat(2, gpt)) + 1
-                                    n = mapn(ghat(3, gpt)) + 1
-                                    pw%array(gpt) = scale*${type2type("c(l, m, n)", kind2, kind)}$
-                                 END DO
-!$OMP END PARALLEL DO
-                              ELSE
-!$OMP PARALLEL DO PRIVATE(gpt, l, m, n) DEFAULT(NONE) SHARED(c, pw)
-                                 DO gpt = 1, ngpts
-                                    l = mapl(ghat(1, gpt)) + 1
-                                    m = mapm(ghat(2, gpt)) + 1
-                                    n = mapn(ghat(3, gpt)) + 1
-                                    pw%array(gpt) = ${type2type("c(l, m, n)", kind2, kind)}$
-                                 END DO
-!$OMP END PARALLEL DO
-                              END IF
-
-                           END ASSOCIATE
-
-                           CALL timestop(handle)
-
-                        END SUBROUTINE pw_gather_s_${kind}$_${kind2}$
-
-! **************************************************************************************************
-!> \brief Scatters a pw vector to a 3d data field
-!> \param pw ...
-!> \param c ...
-!> \param scale ...
-!> \par History
-!>      none
-!> \author JGH
-! **************************************************************************************************
-                        SUBROUTINE pw_scatter_s_${kind}$_${kind2}$_2(pw1, pw2, scale)
-
-                           TYPE(pw_${kind}$_gs_type), INTENT(IN)                 :: pw1
-                           TYPE(pw_${kind2}$_gs_type), INTENT(INOUT)               :: pw2
-                           REAL(KIND=dp), INTENT(IN), OPTIONAL                :: scale
-
-                           CALL pw_scatter_s_${kind}$_${kind2}$ (pw1, pw2%array, scale)
-
-                        END SUBROUTINE pw_scatter_s_${kind}$_${kind2}$_2
-
-! **************************************************************************************************
-!> \brief Scatters a pw vector to a 3d data field
-!> \param pw ...
-!> \param c ...
-!> \param scale ...
-!> \par History
-!>      none
-!> \author JGH
-! **************************************************************************************************
-                        SUBROUTINE pw_scatter_s_${kind}$_${kind2}$ (pw, c, scale)
-
-                           TYPE(pw_${kind}$_gs_type), INTENT(IN)                 :: pw
-                           ${type2}$, CONTIGUOUS, INTENT(INOUT)               :: c
-                           REAL(KIND=dp), INTENT(IN), OPTIONAL                :: scale
-
-                           CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_scatter_s'
-
-                           INTEGER                                            :: gpt, handle, l, m, n
-
-                           CALL timeset(routineN, handle)
-
-                           ASSOCIATE (mapl => pw%pw_grid%mapl%pos, mapm => pw%pw_grid%mapm%pos, mapn => pw%pw_grid%mapn%pos, &
-                                      ghat => pw%pw_grid%g_hat, ngpts => SIZE(pw%pw_grid%gsq))
-
-                              ! should only zero the unused bits (but the zero is needed)
-                              IF (.NOT. PRESENT(scale)) c = 0.0_dp
-
-                              IF (PRESENT(scale)) THEN
-!$OMP PARALLEL DO PRIVATE(gpt, l, m, n) DEFAULT(NONE) SHARED(c, pw, scale)
-                                 DO gpt = 1, ngpts
-                                    l = mapl(ghat(1, gpt)) + 1
-                                    m = mapm(ghat(2, gpt)) + 1
-                                    n = mapn(ghat(3, gpt)) + 1
-                                    c(l, m, n) = scale*${type2type("pw%array(gpt)", kind, kind2)}$
-                                 END DO
-!$OMP END PARALLEL DO
-                              ELSE
-!$OMP PARALLEL DO PRIVATE(gpt, l, m, n) DEFAULT(NONE) SHARED(c, pw)
-                                 DO gpt = 1, ngpts
-                                    l = mapl(ghat(1, gpt)) + 1
-                                    m = mapm(ghat(2, gpt)) + 1
-                                    n = mapn(ghat(3, gpt)) + 1
-                                    c(l, m, n) = ${type2type("pw%array(gpt)", kind, kind2)}$
-                                 END DO
-!$OMP END PARALLEL DO
-                              END IF
-
-                           END ASSOCIATE
-
-                           IF (pw%pw_grid%grid_span == HALFSPACE) THEN
-
-                              ASSOCIATE (mapl => pw%pw_grid%mapl%neg, mapm => pw%pw_grid%mapm%neg, mapn => pw%pw_grid%mapn%neg, &
-                                         ghat => pw%pw_grid%g_hat, ngpts => SIZE(pw%pw_grid%gsq))
-
-                                 IF (PRESENT(scale)) THEN
-!$OMP PARALLEL DO PRIVATE(gpt, l, m, n) DEFAULT(NONE) SHARED(c, pw, scale)
-                                    DO gpt = 1, ngpts
-                                       l = mapl(ghat(1, gpt)) + 1
-                                       m = mapm(ghat(2, gpt)) + 1
-                                       n = mapn(ghat(3, gpt)) + 1
-                                       c(l, m, n) = scale*#{if kind[0]=="c" and kind2[0]=="c"}#CONJG#{endif}#(${type2type("pw%array(gpt)", kind, kind2)}$)
-                                    END DO
-!$OMP END PARALLEL DO
-                                 ELSE
-!$OMP PARALLEL DO PRIVATE(gpt, l, m, n) DEFAULT(NONE) SHARED(c, pw)
-                                    DO gpt = 1, ngpts
-                                       l = mapl(ghat(1, gpt)) + 1
-                                       m = mapm(ghat(2, gpt)) + 1
-                                       n = mapn(ghat(3, gpt)) + 1
-                                       c(l, m, n) = #{if kind[0]=="c" and kind2[0]=="c"}#CONJG#{endif}#(${type2type("pw%array(gpt)", kind, kind2)}$)
-                                    END DO
-!$OMP END PARALLEL DO
-                                 END IF
-
-                              END ASSOCIATE
-
-                           END IF
-
-                           CALL timestop(handle)
-
-                        END SUBROUTINE pw_scatter_s_${kind}$_${kind2}$
-                     #:endif
                   #:endfor
 
 ! **************************************************************************************************
