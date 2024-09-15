@@ -155,7 +155,7 @@ MODULE fft_tools
    PUBLIC :: fft_arbitrary_lengths_available
 
    INTERFACE fft3d
-      MODULE PROCEDURE fft3d_s, fft3d_ps, fft3d_pb
+      MODULE PROCEDURE fft3d_s, fft3d_s_r3_c3, fft3d_s_c3_r3, fft3d_ps, fft3d_pb
    END INTERFACE
 
 ! **************************************************************************************************
@@ -336,6 +336,76 @@ CONTAINS
 
       CALL timestop(handle)
    END SUBROUTINE fft_fw1d
+
+! **************************************************************************************************
+!> \brief Calls the 3D-FFT function from the initialized library
+!> \param fsign ...
+!> \param n ...
+!> \param zin ...
+!> \param zout ...
+!> \param status ...
+!> \param debug ...
+!> \par History
+!>      none
+!> \author JGH
+! **************************************************************************************************
+   SUBROUTINE fft3d_s_c3_r3(fsign, n, zin, zout, status, debug)
+
+      INTEGER, INTENT(IN)                                :: fsign
+      INTEGER, DIMENSION(:), INTENT(INOUT)               :: n
+      COMPLEX(KIND=dp), DIMENSION(n(1), n(2), n(3)), &
+         INTENT(INOUT)                                   :: zin
+      REAL(KIND=dp), DIMENSION(n(1), n(2), n(3)), &
+         INTENT(INOUT), TARGET                           :: zout
+      INTEGER, INTENT(OUT), OPTIONAL                     :: status
+      LOGICAL, INTENT(IN), OPTIONAL                      :: debug
+
+      COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)  :: zout_complex
+
+      ALLOCATE (zout_complex(n(1), n(2), n(3)))
+
+      CALL fft3d_s(fsign, n, zin, zout_complex, status, debug)
+
+      zout(:, :, :) = REAL(zout_complex, KIND=dp)
+
+      DEALLOCATE (zout_complex)
+
+   END SUBROUTINE fft3d_s_c3_r3
+
+! **************************************************************************************************
+!> \brief Calls the 3D-FFT function from the initialized library
+!> \param fsign ...
+!> \param n ...
+!> \param zin ...
+!> \param zout ...
+!> \param status ...
+!> \param debug ...
+!> \par History
+!>      none
+!> \author JGH
+! **************************************************************************************************
+   SUBROUTINE fft3d_s_r3_c3(fsign, n, zin, zout, status, debug)
+
+      INTEGER, INTENT(IN)                                :: fsign
+      INTEGER, DIMENSION(:), INTENT(INOUT)               :: n
+      REAL(KIND=dp), DIMENSION(n(1), n(2), n(3)), &
+         INTENT(INOUT)                                   :: zin
+      COMPLEX(KIND=dp), DIMENSION(n(1), n(2), n(3)), &
+         INTENT(INOUT), OPTIONAL, TARGET                 :: zout
+      INTEGER, INTENT(OUT), OPTIONAL                     :: status
+      LOGICAL, INTENT(IN), OPTIONAL                      :: debug
+
+      COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)  :: zin_complex
+
+      ALLOCATE (zin_complex(n(1), n(2), n(3)))
+
+      zin_complex(:, :, :) = CMPLX(zin, KIND=dp)
+
+      CALL fft3d_s(fsign, n, zin_complex, zout, status, debug)
+
+      DEALLOCATE (zin_complex)
+
+   END SUBROUTINE fft3d_s_r3_c3
 
 ! **************************************************************************************************
 !> \brief Calls the 3D-FFT function from the initialized library
