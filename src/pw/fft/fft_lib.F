@@ -35,13 +35,16 @@ MODULE fft_lib
    LOGICAL, SAVE :: use_fftsg_sizes = .TRUE.
    INTEGER, SAVE :: fft_type = 0
 
+   INTEGER, PARAMETER, PRIVATE :: do_fft_sg = 1
+   INTEGER, PARAMETER, PRIVATE :: do_fft_fftw3 = 3
+
 CONTAINS
 ! **************************************************************************************************
 !> \brief ...
 !> \return ...
 ! **************************************************************************************************
    LOGICAL FUNCTION fft_arbitrary_lengths_available()
-      fft_arbitrary_lengths_available = (fft_type == 3) .OR. (fft_type == 4)
+      fft_arbitrary_lengths_available = (fft_type == do_fft_fftw3)
    END FUNCTION fft_arbitrary_lengths_available
 
 ! **************************************************************************************************
@@ -60,13 +63,11 @@ CONTAINS
 
       SELECT CASE (fftlib)
       CASE DEFAULT
-         CPABORT("Unknown FFT library: "//fftlib)
+         CPABORT("Unknown FFT library")
       CASE ("FFTSG")
-         flib = 1
+         flib = do_fft_sg
       CASE ("FFTW3")
-         flib = 3
-      CASE ("SPFFT")
-         flib = 4
+         flib = do_fft_fftw3
       END SELECT
 
    END FUNCTION fft_library
@@ -89,10 +90,10 @@ CONTAINS
 
       SELECT CASE (fft_type)
       CASE DEFAULT
-         CPABORT("fft_do_init")
-      CASE (1)
+         CPABORT("Unknown FFT library")
+      CASE (do_fft_sg)
          CALL fftsg_do_init()
-      CASE (3, 4)
+      CASE (do_fft_fftw3)
          CALL fftw3_do_init(wisdom_file, plan_style)
       END SELECT
 
@@ -109,10 +110,10 @@ CONTAINS
 
       SELECT CASE (fft_type)
       CASE DEFAULT
-         CPABORT("fft_do_cleanup")
-      CASE (1)
+         CPABORT("Unknown FFT library")
+      CASE (do_fft_sg)
          CALL fftsg_do_cleanup()
-      CASE (3, 4)
+      CASE (do_fft_fftw3)
          CALL fftw3_do_cleanup(wisdom_file, ionode)
       END SELECT
 
@@ -132,10 +133,10 @@ CONTAINS
       ELSE
          SELECT CASE (fft_type)
          CASE DEFAULT
-            CPABORT("fft_get_lengths")
-         CASE (1)
+            CPABORT("Unknown FFT library")
+         CASE (do_fft_sg)
             CALL fftsg_get_lengths(DATA, max_length)
-         CASE (3, 4)
+         CASE (do_fft_fftw3)
             CALL fftw3_get_lengths(DATA, max_length)
          END SELECT
       END IF
@@ -165,9 +166,13 @@ CONTAINS
 !$    plan%need_alt_plan = .FALSE.
 
       ! Planning only needed for FFTW3
-      IF (fft_type == 3) THEN
+      IF (fft_type == do_fft_fftw3) THEN
          CALL fftw3_create_plan_3d(plan, zin, zout)
          plan%valid = .TRUE.
+      ELSE IF (fft_type == do_fft_sg) THEN
+         ! Nothing to set up
+      ELSE
+         CPABORT("Unknown FFT library")
       END IF
 
    END SUBROUTINE fft_create_plan_3d
@@ -206,14 +211,16 @@ CONTAINS
 
       IF ((n1 > 0) .AND. (m > 0) .AND. (n2 > 0)) THEN
          ! Planning only needed for FFTW3
-         IF (fft_type .EQ. 3) THEN
+         IF (fft_type .EQ. do_fft_fftw3) THEN
             CALL fftw3_create_plan_1d(plan(1), zin, zout)
             CALL fftw3_create_plan_1d(plan(2), zin, zout)
             plan(1)%valid = .TRUE.
             plan(2)%valid = .TRUE.
-         ELSE
+         ELSE IF (fft_type == do_fft_sg) THEN
             plan(1)%valid = .FALSE.
             plan(2)%valid = .FALSE.
+         ELSE
+            CPABORT("Unknown FFT library")
          END IF
       ELSE
          plan(1)%valid = .FALSE.
@@ -245,10 +252,10 @@ CONTAINS
       IF (plan%n_3d(1)*plan%n_3d(2)*plan%n_3d(3) > 0) THEN
          SELECT CASE (fft_type)
          CASE DEFAULT
-            CPABORT("fft_3d")
-         CASE (1)
+            CPABORT("Unknown FFT library")
+         CASE (do_fft_sg)
             CALL fftsg_3d(plan%fft_in_place, fsign, scale, plan%n_3d, zin, zout)
-         CASE (3)
+         CASE (do_fft_fftw3)
             CALL fftw3_3d(plan, fsign, scale, zin, zout, stat)
          END SELECT
       END IF
@@ -284,11 +291,13 @@ CONTAINS
 !$    plan%need_alt_plan = .FALSE.
 
       ! Planning only needed for FFTW3
-      IF (fft_type .EQ. 3 .AND. (n*m .NE. 0)) THEN
+      IF (fft_type .EQ. do_fft_fftw3 .AND. (n*m .NE. 0)) THEN
          CALL fftw3_create_plan_1d(plan, zin, zout)
          plan%valid = .TRUE.
-      ELSE
+      ELSE IF (fft_type == do_fft_sg) THEN
          plan%valid = .FALSE.
+      ELSE
+         CPABORT("Unknown FFT library")
       END IF
 
    END SUBROUTINE fft_create_plan_1d
@@ -303,7 +312,7 @@ CONTAINS
 ! Planning only needed for FFTW3
 
       IF (plan%valid) THEN
-         IF (fft_type == 3) THEN
+         IF (fft_type == do_fft_fftw3) THEN
             CALL fftw3_destroy_plan(plan)
             plan%valid = .FALSE.
          END IF
@@ -337,11 +346,11 @@ CONTAINS
       IF (plan(1)%n*plan(1)%m > 0 .AND. plan(2)%n*plan(2)%m > 0) THEN
          SELECT CASE (fft_type)
          CASE DEFAULT
-            CPABORT("fft_2d")
-         CASE (1)
+            CPABORT("Unknown FFT library")
+         CASE (do_fft_sg)
             CALL fftsg_2d(fsign, plan(1)%trans, scale, plan(1)%n_3d, zin, zintermed, zout)
             stat = fsign
-         CASE (3)
+         CASE (do_fft_fftw3)
             IF (fsign == FWFFT) THEN
                CALL fftw3_1d(plan(1), fsign, zin, zintermed, scale, stat)
                CALL fftw3_1d(plan(2), fsign, zintermed, zout, 1.0_dp, stat2)
@@ -382,10 +391,10 @@ CONTAINS
       IF (plan%n*plan%m > 0) THEN
          SELECT CASE (fft_type)
          CASE DEFAULT
-            CPABORT("fft_1d")
-         CASE (1)
+            CPABORT("Unknown FFT library")
+         CASE (do_fft_sg)
             CALL fftsg_1d(fsign, plan%trans, plan%n, plan%m, zin, zout, scale)
-         CASE (3)
+         CASE (do_fft_fftw3)
             CALL fftw3_1d(plan, fsign, zin, zout, scale, stat)
          END SELECT
       END IF
