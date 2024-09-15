@@ -26,27 +26,32 @@
 !> \author JGH
 ! **************************************************************************************************
 MODULE fft_tools
-   USE ISO_C_BINDING,                   ONLY: C_F_POINTER,&
-                                              C_LOC,&
-                                              C_PTR,&
-                                              C_SIZE_T
-   USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
-   USE fft_lib,                         ONLY: &
-        BWFFT, FWFFT, fft_1d, fft_2d, fft_3d, fft_alloc, fft_arbitrary_lengths_available, &
-        fft_create_plan_1d, fft_create_plan_2d, fft_create_plan_3d, fft_dealloc, fft_destroy_plan, &
-        fft_do_cleanup, fft_do_init, fft_get_lengths
-   USE fft_plan,                        ONLY: fft_plan_type
-   USE kinds,                           ONLY: dp,&
-                                              dp_size,&
-                                              sp
-   USE mathconstants,                   ONLY: z_zero
-   USE message_passing,                 ONLY: mp_cart_type,&
-                                              mp_comm_null,&
-                                              mp_comm_type,&
-                                              mp_request_type,&
-                                              mp_waitall
-   USE offload_api,                     ONLY: offload_free_pinned_mem,&
-                                              offload_malloc_pinned_mem
+   #:include "pw_types.fypp"
+   USE ISO_C_BINDING, ONLY: C_F_POINTER, &
+                            C_LOC, &
+                            C_PTR, &
+                            C_SIZE_T
+   USE cp_log_handling, ONLY: cp_logger_get_default_io_unit
+   USE fft_lib, ONLY: &
+      BWFFT, FWFFT, fft_1d, fft_2d, fft_3d, fft_alloc, fft_arbitrary_lengths_available, &
+      fft_create_plan_1d, fft_create_plan_2d, fft_create_plan_3d, fft_dealloc, fft_destroy_plan, &
+      fft_do_cleanup, fft_do_init, fft_get_lengths
+   USE fft_plan, ONLY: fft_plan_type
+   USE kinds, ONLY: dp, &
+                    dp_size, &
+                    sp
+   USE mathconstants, ONLY: z_zero
+   USE message_passing, ONLY: mp_cart_type, &
+                              mp_comm_null, &
+                              mp_comm_type, &
+                              mp_request_type, &
+                              mp_waitall
+   USE offload_api, ONLY: offload_free_pinned_mem, &
+                          offload_malloc_pinned_mem
+   USE pw_grid_types, ONLY: HALFSPACE, &
+                            PW_MODE_DISTRIBUTED, &
+                            PW_MODE_LOCAL, &
+                            pw_grid_type
 
 !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads
 
@@ -137,6 +142,7 @@ MODULE fft_tools
    PUBLIC :: FFT_RADIX_CLOSEST, FFT_RADIX_NEXT
    PUBLIC :: FFT_RADIX_NEXT_ODD
    PUBLIC :: FWFFT, BWFFT
+   PUBLIC :: fft_scatter, fft_gather
 
    INTEGER, PARAMETER :: FFT_RADIX_CLOSEST = 493, FFT_RADIX_NEXT = 494
    INTEGER, PARAMETER :: FFT_RADIX_ALLOWED = 495, FFT_RADIX_DISALLOWED = 496
@@ -156,6 +162,32 @@ MODULE fft_tools
 
    INTERFACE fft3d
       MODULE PROCEDURE fft3d_s, fft3d_s_r3_c3, fft3d_s_c3_r3, fft3d_ps, fft3d_pb
+   END INTERFACE
+
+   INTERFACE fft_gather
+      #:for kind in pw_kinds
+         #:if kind[1]=="1"
+            MODULE PROCEDURE fft_gather_p_${kind}$
+         #:endif
+      #:endfor
+      #:for kind, kind2 in pw_kinds2
+         #:if kind[1]=="1" and kind2[1]=="3"
+            MODULE PROCEDURE fft_gather_s_${kind}$_${kind2}$
+         #:endif
+      #:endfor
+   END INTERFACE
+
+   INTERFACE fft_scatter
+      #:for kind in pw_kinds
+         #:if kind[1]=="1"
+            MODULE PROCEDURE fft_scatter_p_${kind}$
+         #:endif
+      #:endfor
+      #:for kind, kind2 in pw_kinds2
+         #:if kind[1]=="1" and kind2[1]=="3"
+            MODULE PROCEDURE fft_scatter_s_${kind}$_${kind2}$
+         #:endif
+      #:endfor
    END INTERFACE
 
 ! **************************************************************************************************
@@ -562,7 +594,7 @@ CONTAINS
       COMPLEX(KIND=dp), CONTIGUOUS, DIMENSION(:, :, :), &
          POINTER                                         :: tbuf
       INTEGER :: g_pos, handle, lg, lmax, mcx2, mcz1, mcz2, mg, mmax, mx1, mx2, my1, mz2, n1, n2, &
-         nmax, numtask, nx, ny, nz, output_unit, r_dim(2), r_pos(2), rp, sign, stat
+                 nmax, numtask, nx, ny, nz, output_unit, r_dim(2), r_pos(2), rp, sign, stat
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: p2p
       LOGICAL                                            :: test
       REAL(KIND=dp)                                      :: norm, sum_data
@@ -3363,5 +3395,298 @@ CONTAINS
       equal = equal .AND. fft_size_1%rs_group == fft_size_2%rs_group
 
    END SUBROUTINE is_equal
+
+   #:for kind, type in pw_list
+      #:if kind[1]=="1"
+! **************************************************************************************************
+!> \brief ...
+!> \param pw ...
+!> \param c ...
+!> \param scale ...
+! **************************************************************************************************
+         SUBROUTINE fft_gather_p_${kind}$ (cout, cin, pw_grid, scale)
+
+            ${type}$, CONTIGUOUS, INTENT(INOUT)                       :: cout
+            COMPLEX(KIND=dp), DIMENSION(:, :), CONTIGUOUS, INTENT(IN)      :: cin
+            TYPE(pw_grid_type), INTENT(IN) :: pw_grid
+            REAL(KIND=dp), INTENT(IN), OPTIONAL                :: scale
+
+            CHARACTER(len=*), PARAMETER                        :: routineN = 'fft_gather_p'
+
+            INTEGER                                            :: gpt, handle, l, m, mn, n
+
+            CALL timeset(routineN, handle)
+
+            IF (pw_grid%para%mode /= PW_MODE_DISTRIBUTED) THEN
+               CPABORT("This grid type is not distributed")
+            END IF
+
+            ASSOCIATE (mapl => pw_grid%mapl%pos, mapm => pw_grid%mapm%pos, mapn => pw_grid%mapn%pos, &
+                       ngpts => SIZE(pw_grid%gsq), ghat => pw_grid%g_hat, yzq => pw_grid%para%yzq)
+
+               IF (PRESENT(scale)) THEN
+!$OMP PARALLEL DO DEFAULT(NONE) &
+!$OMP             PRIVATE(l, m, mn, n) &
+!$OMP             SHARED(cin, cout, scale)
+                  DO gpt = 1, ngpts
+                     l = mapl(ghat(1, gpt)) + 1
+                     m = mapm(ghat(2, gpt)) + 1
+                     n = mapn(ghat(3, gpt)) + 1
+                     mn = yzq(m, n)
+                     cout(gpt) = scale*${type2type("cin(l, mn)", "c3d", kind)}$
+                  END DO
+!$OMP END PARALLEL DO
+               ELSE
+!$OMP PARALLEL DO DEFAULT(NONE) &
+!$OMP             PRIVATE(l, m, mn, n) &
+!$OMP             SHARED(cin, cout)
+                  DO gpt = 1, ngpts
+                     l = mapl(ghat(1, gpt)) + 1
+                     m = mapm(ghat(2, gpt)) + 1
+                     n = mapn(ghat(3, gpt)) + 1
+                     mn = yzq(m, n)
+                     cout(gpt) = ${type2type("cin(l, mn)", "c3d", kind)}$
+                  END DO
+!$OMP END PARALLEL DO
+               END IF
+
+            END ASSOCIATE
+
+            CALL timestop(handle)
+
+         END SUBROUTINE fft_gather_p_${kind}$
+
+! **************************************************************************************************
+!> \brief ...
+!> \param pw ...
+!> \param c ...
+!> \param scale ...
+! **************************************************************************************************
+         SUBROUTINE fft_scatter_p_${kind}$ (cin, cout, pw_grid, scale)
+            ${type}$, CONTIGUOUS, INTENT(IN)                          :: cin
+            COMPLEX(KIND=dp), DIMENSION(:, :), CONTIGUOUS, INTENT(INOUT)   :: cout
+            TYPE(pw_grid_type), INTENT(IN) :: pw_grid
+            REAL(KIND=dp), INTENT(IN), OPTIONAL                :: scale
+
+            CHARACTER(len=*), PARAMETER                        :: routineN = 'fft_scatter_p'
+
+            INTEGER                                            :: gpt, handle, l, m, mn, n
+
+            CALL timeset(routineN, handle)
+
+            IF (pw_grid%para%mode /= PW_MODE_DISTRIBUTED) THEN
+               CPABORT("This grid type is not distributed")
+            END IF
+
+            ASSOCIATE (mapl => pw_grid%mapl%pos, mapm => pw_grid%mapm%pos, mapn => pw_grid%mapn%pos, &
+                       ghat => pw_grid%g_hat, yzq => pw_grid%para%yzq, ngpts => SIZE(pw_grid%gsq))
+
+               IF (.NOT. PRESENT(scale)) cout = z_zero
+
+               IF (PRESENT(scale)) THEN
+!$OMP PARALLEL DO DEFAULT(NONE) &
+!$OMP             PRIVATE(l, m, mn, n) &
+!$OMP             SHARED(cin, cout, scale)
+                  DO gpt = 1, ngpts
+                     l = mapl(ghat(1, gpt)) + 1
+                     m = mapm(ghat(2, gpt)) + 1
+                     n = mapn(ghat(3, gpt)) + 1
+                     mn = yzq(m, n)
+                     cout(l, mn) = ${type2type("scale*cin(gpt)", kind, "c3d")}$
+                  END DO
+!$OMP END PARALLEL DO
+               ELSE
+!$OMP PARALLEL DO DEFAULT(NONE) &
+!$OMP             PRIVATE(l, m, mn, n) &
+!$OMP             SHARED(cin, cout)
+                  DO gpt = 1, ngpts
+                     l = mapl(ghat(1, gpt)) + 1
+                     m = mapm(ghat(2, gpt)) + 1
+                     n = mapn(ghat(3, gpt)) + 1
+                     mn = yzq(m, n)
+                     cout(l, mn) = ${type2type("cin(gpt)", kind, "c3d")}$
+                  END DO
+!$OMP END PARALLEL DO
+               END IF
+
+            END ASSOCIATE
+
+            IF (pw_grid%grid_span == HALFSPACE) THEN
+
+               ASSOCIATE (mapm => pw_grid%mapm%neg, mapn => pw_grid%mapn%neg, mapl => pw_grid%mapl%neg, &
+                          ghat => pw_grid%g_hat, ngpts => SIZE(pw_grid%gsq), yzq => pw_grid%para%yzq)
+
+                  IF (PRESENT(scale)) THEN
+!$OMP PARALLEL DO DEFAULT(NONE) &
+!$OMP             PRIVATE(l, m, mn, n) &
+!$OMP             SHARED(cin, cout, scale)
+                     DO gpt = 1, ngpts
+                        l = mapl(ghat(1, gpt)) + 1
+                        m = mapm(ghat(2, gpt)) + 1
+                        n = mapn(ghat(3, gpt)) + 1
+                        mn = yzq(m, n)
+                        cout(l, mn) = scale*#{if kind[0]=="c"}#CONJG#{endif}#(${type2type("cin(gpt)", kind, "c3d")}$)
+                     END DO
+!$OMP END PARALLEL DO
+                  ELSE
+!$OMP PARALLEL DO DEFAULT(NONE) &
+!$OMP             PRIVATE(l, m, mn, n) &
+!$OMP             SHARED(cin, cout)
+                     DO gpt = 1, ngpts
+                        l = mapl(ghat(1, gpt)) + 1
+                        m = mapm(ghat(2, gpt)) + 1
+                        n = mapn(ghat(3, gpt)) + 1
+                        mn = yzq(m, n)
+                        cout(l, mn) = #{if kind[0]=="c"}#CONJG#{endif}#(${type2type("cin(gpt)", kind, "c3d")}$)
+                     END DO
+!$OMP END PARALLEL DO
+                  END IF
+               END ASSOCIATE
+            END IF
+
+            CALL timestop(handle)
+
+         END SUBROUTINE fft_scatter_p_${kind}$
+      #:endif
+   #:endfor
+
+   #:for kind, type, kind2, type2 in pw_list2
+      #:if kind[1]=='1' and kind2[1]=='3'
+
+! **************************************************************************************************
+!> \brief Gathers the pw vector from a 3d data field
+!> \param pw ...
+!> \param c ...
+!> \param scale ...
+!> \par History
+!>      none
+!> \author JGH
+! **************************************************************************************************
+         SUBROUTINE fft_gather_s_${kind}$_${kind2}$ (cout, cin, pw_grid, scale)
+
+            ${type}$, CONTIGUOUS, INTENT(INOUT)                       :: cout
+            ${type2}$, CONTIGUOUS, INTENT(IN)   :: cin
+            TYPE(pw_grid_type), INTENT(IN) :: pw_grid
+            REAL(KIND=dp), INTENT(IN), OPTIONAL                :: scale
+
+            CHARACTER(len=*), PARAMETER                        :: routineN = 'fft_gather_s'
+
+            INTEGER                                            :: gpt, handle, l, m, n
+
+            CALL timeset(routineN, handle)
+
+            ASSOCIATE (mapl => pw_grid%mapl%pos, mapm => pw_grid%mapm%pos, mapn => pw_grid%mapn%pos, &
+                       ngpts => SIZE(pw_grid%gsq), ghat => pw_grid%g_hat)
+
+               IF (PRESENT(scale)) THEN
+!$OMP PARALLEL DO PRIVATE(gpt, l, m, n) DEFAULT(NONE) SHARED(cin, cout, scale)
+                  DO gpt = 1, ngpts
+                     l = mapl(ghat(1, gpt)) + 1
+                     m = mapm(ghat(2, gpt)) + 1
+                     n = mapn(ghat(3, gpt)) + 1
+                     cout(gpt) = scale*${type2type("cin(l, m, n)", kind2, kind)}$
+                  END DO
+!$OMP END PARALLEL DO
+               ELSE
+!$OMP PARALLEL DO PRIVATE(gpt, l, m, n) DEFAULT(NONE) SHARED(cin, cout)
+                  DO gpt = 1, ngpts
+                     l = mapl(ghat(1, gpt)) + 1
+                     m = mapm(ghat(2, gpt)) + 1
+                     n = mapn(ghat(3, gpt)) + 1
+                     cout(gpt) = ${type2type("cin(l, m, n)", kind2, kind)}$
+                  END DO
+!$OMP END PARALLEL DO
+               END IF
+
+            END ASSOCIATE
+
+            CALL timestop(handle)
+
+         END SUBROUTINE fft_gather_s_${kind}$_${kind2}$
+
+! **************************************************************************************************
+!> \brief Scatters a pw vector to a 3d data field
+!> \param pw ...
+!> \param c ...
+!> \param scale ...
+!> \par History
+!>      none
+!> \author JGH
+! **************************************************************************************************
+         SUBROUTINE fft_scatter_s_${kind}$_${kind2}$ (cin, cout, pw_grid, scale)
+
+            ${type}$, CONTIGUOUS, INTENT(IN)                 :: cin
+            ${type2}$, CONTIGUOUS, INTENT(INOUT)               :: cout
+            TYPE(pw_grid_type), INTENT(IN) :: pw_grid
+            REAL(KIND=dp), INTENT(IN), OPTIONAL                :: scale
+
+            CHARACTER(len=*), PARAMETER                        :: routineN = 'fft_scatter_s'
+
+            INTEGER                                            :: gpt, handle, l, m, n
+
+            CALL timeset(routineN, handle)
+
+            ASSOCIATE (mapl => pw_grid%mapl%pos, mapm => pw_grid%mapm%pos, mapn => pw_grid%mapn%pos, &
+                       ghat => pw_grid%g_hat, ngpts => SIZE(pw_grid%gsq))
+
+               ! should only zero the unused bits (but the zero is needed)
+               IF (.NOT. PRESENT(scale)) cout = 0.0_dp
+
+               IF (PRESENT(scale)) THEN
+!$OMP PARALLEL DO PRIVATE(gpt, l, m, n) DEFAULT(NONE) SHARED(cin, cout, scale)
+                  DO gpt = 1, ngpts
+                     l = mapl(ghat(1, gpt)) + 1
+                     m = mapm(ghat(2, gpt)) + 1
+                     n = mapn(ghat(3, gpt)) + 1
+                     cout(l, m, n) = scale*${type2type("cin(gpt)", kind, kind2)}$
+                  END DO
+!$OMP END PARALLEL DO
+               ELSE
+!$OMP PARALLEL DO PRIVATE(gpt, l, m, n) DEFAULT(NONE) SHARED(cin, cout)
+                  DO gpt = 1, ngpts
+                     l = mapl(ghat(1, gpt)) + 1
+                     m = mapm(ghat(2, gpt)) + 1
+                     n = mapn(ghat(3, gpt)) + 1
+                     cout(l, m, n) = ${type2type("cin(gpt)", kind, kind2)}$
+                  END DO
+!$OMP END PARALLEL DO
+               END IF
+
+            END ASSOCIATE
+
+            IF (pw_grid%grid_span == HALFSPACE) THEN
+
+               ASSOCIATE (mapl => pw_grid%mapl%neg, mapm => pw_grid%mapm%neg, mapn => pw_grid%mapn%neg, &
+                          ghat => pw_grid%g_hat, ngpts => SIZE(pw_grid%gsq))
+
+                  IF (PRESENT(scale)) THEN
+!$OMP PARALLEL DO PRIVATE(gpt, l, m, n) DEFAULT(NONE) SHARED(cin, cout, scale)
+                     DO gpt = 1, ngpts
+                        l = mapl(ghat(1, gpt)) + 1
+                        m = mapm(ghat(2, gpt)) + 1
+                        n = mapn(ghat(3, gpt)) + 1
+                        cout(l, m, n) = scale*#{if kind[0]=="c" and kind2[0]=="c"}#CONJG#{endif}#(${type2type("cin(gpt)", kind, kind2)}$)
+                     END DO
+!$OMP END PARALLEL DO
+                  ELSE
+!$OMP PARALLEL DO PRIVATE(gpt, l, m, n) DEFAULT(NONE) SHARED(cin, cout)
+                     DO gpt = 1, ngpts
+                        l = mapl(ghat(1, gpt)) + 1
+                        m = mapm(ghat(2, gpt)) + 1
+                        n = mapn(ghat(3, gpt)) + 1
+                        cout(l, m, n) = #{if kind[0]=="c" and kind2[0]=="c"}#CONJG#{endif}#(${type2type("cin(gpt)", kind, kind2)}$)
+                     END DO
+!$OMP END PARALLEL DO
+                  END IF
+
+               END ASSOCIATE
+
+            END IF
+
+            CALL timestop(handle)
+
+         END SUBROUTINE fft_scatter_s_${kind}$_${kind2}$
+      #:endif
+   #:endfor
 
 END MODULE fft_tools
