@@ -1233,13 +1233,9 @@ CONTAINS
 
                                     #:if space=="rs"
                                        #:if kind==kind2=="c3d"
-                                          c_in => pw1%array
-                                          c_out => pw2%array
-                                          CALL fft3d(FWFFT, n, c_in, c_out, debug=test)
+                                          CALL fft3d(FWFFT, n, pw1%array, pw2%array, debug=test)
                                        #:elif kind=="r3d" and kind2=="c3d"
-                                          pw2%array = CMPLX(pw1%array, 0.0_dp, KIND=dp)
-                                          c_out => pw2%array
-                                          CALL fft3d(FWFFT, n, c_out, debug=test)
+                                          CALL fft3d(FWFFT, n, pw1%array, debug=test)
                                        #:elif kind=="c3d" and kind2=="c1d"
                                           c_in => pw1%array
                                           ALLOCATE (c_out(n(1), n(2), n(3)))
@@ -1277,17 +1273,9 @@ CONTAINS
                                        #:endif
                                     #:else
                                        #:if kind=="c3d" and kind2=="c3d"
-                                          c_in => pw1%array
-                                          c_out => pw2%array
-                                          CALL fft3d(BWFFT, n, c_in, c_out, debug=test)
+                                          CALL fft3d(BWFFT, n, pw1%array, pw2%array, debug=test)
                                        #:elif kind=="c3d" and kind2=="r3d"
-                                          c_in => pw1%array
-                                          ALLOCATE (c_out(n(1), n(2), n(3)))
-                                          CALL fft3d(BWFFT, n, c_in, c_out, debug=test)
-                                          ! use real part only
-                                          IF (test .AND. out_unit > 0) WRITE (out_unit, '(A)') "  REAL part "
-                                          pw2%array = REAL(c_out, KIND=dp)
-                                          DEALLOCATE (c_out)
+                                          CALL fft3d(FWFFT, n, pw1%array, pw2%array, debug=test)
                                        #:elif kind=="c1d" and kind2=="c3d"
                                           c_out => pw2%array
                                           IF (test .AND. out_unit > 0) WRITE (out_unit, '(A)') "  PW_SCATTER : 3d -> 1d "
