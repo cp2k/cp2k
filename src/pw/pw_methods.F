@@ -67,7 +67,6 @@ MODULE pw_methods
    PUBLIC :: pw_integral_ab, pw_integral_a2b
    PUBLIC :: pw_dr2_gg, pw_integrate_function
    PUBLIC :: pw_set, pw_truncated
-   PUBLIC :: pw_scatter, pw_gather
    PUBLIC :: pw_copy_to_array, pw_copy_from_array
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pw_methods'
@@ -1253,11 +1252,12 @@ CONTAINS
                                        #:elif kind=="r3d" and kind2=="c1d"
 #if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_PW)
                                           CALL pw_gpu_r3dc1d_3d(pw1, pw2)
-#elif defined (__PW_FPGA)
+#else
                                           ALLOCATE (c_out(n(1), n(2), n(3)))
                                           ! check if bitstream for the fft size is present
                                           ! if not, perform fft3d in CPU
                                           CALL pw_copy_to_array(pw1, c_out)
+#if defined (__PW_FPGA)
                                           IF (pw_fpga_init_bitstream(n) == 1) THEN
 #if (__PW_FPGA_SP && __PW_FPGA)
                                              CALL pw_fpga_r3dc1d_3d_sp(n, c_out)
@@ -1266,15 +1266,11 @@ CONTAINS
 #endif
                                              CALL zdscal(n(1)*n(2)*n(3), 1.0_dp/pw1%pw_grid%ngpts, c_out, 1)
                                           ELSE
+#endif
                                              CALL fft3d(FWFFT, n, c_out, debug=test)
+#if defined (__PW_FPGA)
                                           END IF
-                                          CALL pw_gather_s_${kind2}$_c3d(pw2, c_out)
-                                          DEALLOCATE (c_out)
-#else
-                                          ALLOCATE (c_out(n(1), n(2), n(3)))
-                                          c_out = 0.0_dp
-                                          CALL pw_copy_to_array(pw1, c_out)
-                                          CALL fft3d(FWFFT, n, c_out, debug=test)
+#endif
                                           CALL pw_gather_s_${kind2}$_c3d(pw2, c_out)
                                           DEALLOCATE (c_out)
 #endif
@@ -1300,12 +1296,13 @@ CONTAINS
                                        #:elif kind=="c1d" and kind2=="r3d"
 #if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_PW)
                                           CALL pw_gpu_c1dr3d_3d(pw1, pw2)
-#elif defined (__PW_FPGA)
+#else
                                           ALLOCATE (c_out(n(1), n(2), n(3)))
                                           ! check if bitstream for the fft size is present
                                           ! if not, perform fft3d in CPU
                                           IF (test .AND. out_unit > 0) WRITE (out_unit, '(A)') "  PW_SCATTER : 3d -> 1d "
                                           CALL pw_scatter_s_${kind}$_c3d(pw1, c_out)
+#if defined (__PW_FPGA)
                                           IF (pw_fpga_init_bitstream(n) == 1) THEN
                                              ! transform using FPGA
 #if (__PW_FPGA_SP && __PW_FPGA)
@@ -1315,19 +1312,12 @@ CONTAINS
 #endif
                                              CALL zdscal(n(1)*n(2)*n(3), 1.0_dp, c_out, 1)
                                           ELSE
+#endif
                                              ! transform
                                              CALL fft3d(BWFFT, n, c_out, debug=test)
+#if defined (__PW_FPGA)
                                           END IF
-                                          ! use real part only
-                                          IF (test .AND. out_unit > 0) WRITE (out_unit, '(A)') "  REAL part "
-                                          CALL pw_copy_from_array(pw2, c_out)
-                                          DEALLOCATE (c_out)
-#else
-                                          ALLOCATE (c_out(n(1), n(2), n(3)))
-                                          IF (test .AND. out_unit > 0) WRITE (out_unit, '(A)') "  PW_SCATTER : 3d -> 1d "
-                                          CALL pw_scatter_s_${kind}$_c3d(pw1, c_out)
-                                          ! transform
-                                          CALL fft3d(BWFFT, n, c_out, debug=test)
+#endif
                                           ! use real part only
                                           IF (test .AND. out_unit > 0) WRITE (out_unit, '(A)') "  REAL part "
                                           CALL pw_copy_from_array(pw2, c_out)
