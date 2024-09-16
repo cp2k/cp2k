@@ -166,6 +166,9 @@ MODULE rt_gwbse
                              multiply_cfm_fm, &
                              multiply_fm_cfm
    USE rt_gwbse_io, ONLY: output_moments, &
+                          read_moments, &
+                          output_moments_ft, &
+                          output_polarizability, &
                           output_field, &
                           output_mos_contravariant, &
                           read_restart, &
@@ -198,8 +201,9 @@ MODULE rt_gwbse
 CONTAINS
 
 ! **************************************************************************************************
-!> \brief Runs the electron-only real time adiabatic GW (TD Bethe-Salpeter) propagation
-!> \param qs_env Quickstep environment data, entry point of the calculation
+!> \brief Runs the electron-only real time GW (TD Bethe-Salpeter) propagation
+!> \param qs_env Quickstep environment data, containing the config from input files
+!> \param force_env Force environment data, entry point of the calculation
 ! **************************************************************************************************
    SUBROUTINE run_propagation_gw(qs_env, force_env)
       TYPE(qs_environment_type), POINTER                 :: qs_env
@@ -207,7 +211,6 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'run_propagation_gw'
       TYPE(gwbse_env_type), POINTER                      :: gwbse_env
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
-      ! TODO : Maybe complex?
       INTEGER                                            :: i, j, k, handle
       LOGICAL                                            :: converged
       REAL(kind=dp)                                      :: metric, enum_re, enum_im, &
@@ -215,17 +218,20 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      ! Run the initial SCF calculation / read restart information
-      CALL force_env_calc_energy_force(force_env, calc_force=.FALSE., &
-                                       consistent_energies=.FALSE.)
+      ! Run the initial SCF calculation / read SCF restart information
+      CALL force_env_calc_energy_force(force_env, calc_force=.FALSE., consistent_energies=.FALSE.)
 
       ! Allocate all persistant storage
+      ! TODO : Note about reading input from qs_env
+      ! TODO : better name for the whole environment? => rt_bse for file, rtbse_env (consistent naming real-time BSE)
       CALL create_gwbse_env(gwbse_env, qs_env, force_env)
 
       ! Initialize non-trivial values
+      ! TODO : Comment specifics
       CALL initialize_gwbse_env(gwbse_env, qs_env)
 
-      ! Get values used in the routine
+      ! Get environments used in this routine
+      ! TODO : Remove dependence on bs_env => move parameters to gwbse_env
       CALL get_qs_env(qs_env, bs_env=bs_env)
 
       ! TODO : Print a nicer header
@@ -234,8 +240,12 @@ CONTAINS
       ! Setup the time based on the starting step
       ! TODO : Handle change of dt between restart runs?
       gwbse_env%sim_time = REAL(gwbse_env%sim_start, dp)*gwbse_env%sim_dt
-      ! Output 0 time moments
-      IF (.NOT. gwbse_env%restart_extracted) CALL output_moments(gwbse_env, gwbse_env%rho)
+      ! Output 0 time moments and field
+      ! TODO : Redo to moments extracted
+      IF (.NOT. gwbse_env%restart_extracted) THEN
+         CALL output_field(gwbse_env)
+         CALL output_moments(gwbse_env, gwbse_env%rho)
+      END IF
 
       ! Do not apply the delta kick if we are doing a restart calculation
       IF (gwbse_env%dft_control%rtp_control%apply_delta_pulse .AND. (.NOT. gwbse_env%restart_extracted)) THEN
@@ -255,41 +265,37 @@ CONTAINS
          ! used to calculate the new Hamiltonian at (t+dt), which is then used to get the new propagator, and so on
          ! until the density matrix does not change within certain limit
          ! Pseudocode of the algorithm
-         !      rho_M = exp(-i H[rho(t)] S_inv dt/2) rho(t) exp(i S_inv H[rho(t)] dt/2)
+         !      rho_M = exp(-i S^(-1) H[rho(t)] dt/2) rho(t) exp(i H[rho(t)] S^(-1) dt/2)
          !      rho(t+dt, 0) = rho_M
-         !      for j in 0,max_self_iter
-         !              rho(t+dt,j+1) = exp(- i H[rho(t+dt,j)] S_inv dt/2) rho_M exp(i S_inv H [rho(t+dt,j)] dt/2)
-         !              if ||rho(t+dt,j+1) - rho(t+dt,j)|| < epsilon
+         !      for j in 1,max_self_iter
+         !              rho(t+dt,j) = exp(- i S^(-1) H[rho(t+dt,j-1)] dt/2) rho_M exp(i H [rho(t+dt,j-1)] S^(-1) dt/2)
+         !              if ||rho(t+dt,j) - rho(t+dt,j-1)|| < epsilon
          !                      break
          ! *************** Determine rho_M ***************
          ! Update the effective Hamiltonian
+         !  - sets the correct external field, updates Hartree and COHSEX terms to current density
          CALL update_effective_ham(gwbse_env, qs_env, gwbse_env%rho)
-         ! Print the updated field
-         CALL output_field(gwbse_env)
          ! Convert the effective hamiltonian into the exponential
          ! TODO : Store the result more explicitly - explicit dependence on input/output matrices
          CALL ham_to_exp(gwbse_env)
          ! Propagate the density to mid-point
          CALL propagate_density(gwbse_env, gwbse_env%ham_workspace, gwbse_env%rho, gwbse_env%rho_M)
-         ! CALL get_electron_number(gwbse_env, gwbse_env%rho_M, enum_re, enum_im)
-         ! IF (gwbse_env%unit_nr > 0) WRITE (gwbse_env%unit_nr, *) "Electron number RHO_M re : ", enum_re,&
-         !                                                         "Electron number RHO_M im : ", enum_im
-         ! In initial iteration, copy rho_M to rho_new_last
+         ! In initial iteration, copy rho_M to rho_new_last - that is our initial guess
          DO j = 1, gwbse_env%n_spin
             CALL cp_cfm_to_cfm(gwbse_env%rho_M(j)%matrix, gwbse_env%rho_new_last(j)%matrix)
          END DO
          ! *********** Start the self-consistent loop ************************
+         ! The guess Hamiltonian uses the guess density and field from the next timestep
          gwbse_env%sim_time = REAL(i + 1, dp)*gwbse_env%sim_dt
          gwbse_env%sim_step = i + 1
          converged = .FALSE.
          DO k = 1, gwbse_env%etrs_max_iter
             CALL update_effective_ham(gwbse_env, qs_env, gwbse_env%rho_new_last)
             CALL ham_to_exp(gwbse_env)
-            CALL cp_cfm_to_fm(msource=gwbse_env%ham_workspace(1)%matrix, mtargetr=gwbse_env%real_workspace(1)%matrix, &
-                              mtargeti=gwbse_env%real_workspace(2)%matrix)
             CALL propagate_density(gwbse_env, gwbse_env%ham_workspace, gwbse_env%rho_M, gwbse_env%rho_new)
             ! *** Self-consistency check ***
             metric = rho_metric(gwbse_env%rho_new, gwbse_env%rho_new_last, gwbse_env%n_spin)
+            ! TODO : Better output - structure and option to silence it
             IF (gwbse_env%unit_nr > 0) WRITE (gwbse_env%unit_nr, *) "Self-consistent iteration : ", k, &
                "convergence metric : ", metric
             IF (metric < gwbse_env%etrs_threshold) THEN
@@ -303,7 +309,6 @@ CONTAINS
                END DO
             END IF
          END DO
-         ! TODO : Revise the outputs and format them properly
          CALL get_electron_number(gwbse_env, gwbse_env%rho_new, enum_re, enum_im)
          CALL get_idempotence_deviation(gwbse_env, gwbse_env%rho_new, idempotence_dev)
          DO j = 1, gwbse_env%n_spin
@@ -312,6 +317,7 @@ CONTAINS
             CALL antiherm_metric(real_fm=gwbse_env%hartree_curr(j), workspace=gwbse_env%rho_workspace, metric=a_metric_2)
          END DO
          ! TODO : Move to io
+         ! TODO : Allow for conditional warning
          IF (gwbse_env%unit_nr > 0) WRITE (gwbse_env%unit_nr, *) "Sim step : ", gwbse_env%sim_step, "Convergence : ", metric, &
             "Threshold : ", gwbse_env%etrs_threshold, &
             "Electron number", enum_re, enum_im, "SC iterations : ", k, &
@@ -322,12 +328,20 @@ CONTAINS
          DO j = 1, gwbse_env%n_spin
             CALL cp_cfm_to_cfm(gwbse_env%rho_new(j)%matrix, gwbse_env%rho(j)%matrix)
          END DO
+         ! Print the updated field
+         CALL output_field(gwbse_env)
+         ! If needed, print out the density matrix in MO basis
          CALL output_mos_contravariant(gwbse_env, gwbse_env%rho, bs_env%fm_mo_coeff_Gamma, gwbse_env%rho_section)
+         ! Also handles outputting to memory
          CALL output_moments(gwbse_env, gwbse_env%rho)
          ! Output restart files, so that the restart starts at the following time index
          CALL output_restart(gwbse_env, gwbse_env%rho, i + 1)
       END DO
       ! ********************** End the time loop **********************
+
+      ! Carry out the FT
+      CALL output_moments_ft(gwbse_env)
+      CALL output_polarizability(gwbse_env)
 
       ! Deallocate everything
       CALL release_gwbse_env(gwbse_env)
@@ -369,13 +383,14 @@ CONTAINS
          ! Allocate a new matrix that the pointer points to
          ALLOCATE (moments_dbcsr_p(k)%matrix)
          ! Create the matrix storage - matrix copies the structure of overlap matrix
-         ! TODO : Do a proper matrix create?
+         ! Ideally, a proper matrix creation as below should be done, but does not work? - Use copy instead
          ! CALL dbcsr_create(moments_dbcsr_p(i)%matrix, name="moments", template=matrix_s(1)%matrix)
          CALL dbcsr_copy(moments_dbcsr_p(k)%matrix, matrix_s(1)%matrix)
       END DO
       ! Run the moment calculation
       ! TODO : Read custom reference point from input
-      ! TODO : Maybe use the moments section that is present in DFT?
+      ! TODO : Maybe use the moments section that is present in DFT? - Probably not necessary - convert ref_point to optional -
+      ! check for presence to prevent memory errors
       NULLIFY (custom_ref_point)
       ALLOCATE (custom_ref_point(3), source=0.0_dp)
       rpoint(:) = 0.0_dp
@@ -403,7 +418,6 @@ CONTAINS
       ! ****** END MOMENTS OPERATOR CALCULATION
 
       ! ****** START INITIAL DENSITY MATRIX CALCULATION
-      ! TODO : Handle cases, when initial method uses density only? Do such cases exist?
       ! Get the rho from fm_MOS
       ! Uses real orbitals only - no kpoints
       ALLOCATE (occupations(gwbse_env%n_ao))
@@ -428,9 +442,12 @@ CONTAINS
          CALL read_restart(gwbse_env)
       END IF
       ! ****** END INITIAL DENSITY MATRIX CALCULATION
+      ! ****** START MOMENTS TRACE LOAD
+      ! The moments are only loaded if the consistent save files exist
+      CALL read_moments(gwbse_env)
+      ! ****** END MOMENTS TRACE LOAD
 
       ! ****** START OVERLAP + INVERSE OVERLAP CALCULATION
-      ! TODO : Are different overlaps for different spins reasonable for us?
       CALL copy_dbcsr_to_fm(matrix_s(1)%matrix, gwbse_env%S_fm%matrix)
       CALL cp_fm_to_cfm(msourcer=gwbse_env%S_fm%matrix, mtarget=gwbse_env%S_cfm%matrix)
       CALL cp_fm_invert(gwbse_env%S_fm%matrix, gwbse_env%S_inv_fm%matrix)
@@ -441,7 +458,7 @@ CONTAINS
          IF (gwbse_env%ham_reference_type == rtp_gwbse_ham_g0w0) THEN
             ! G0W0 Hamiltonian
             CALL cp_fm_to_fm(bs_env%fm_mo_coeff_Gamma(i), gwbse_env%real_workspace(1)%matrix)
-            ! TODO : Check that Gamma point is the zero k-point
+            ! NOTE : Gamma point is not always the zero k-point
             ! C * Lambda
             CALL cp_fm_column_scale(gwbse_env%real_workspace(1)%matrix, bs_env%eigenval_G0W0(:, 1, i))
             ! C * Lambda * C^T
@@ -496,13 +513,15 @@ CONTAINS
          ! Subtract the v_xc from COH part of the self-energy, as V_xc is also not updated during the timestepping
          DO i = 1, gwbse_env%n_spin
             ! TODO : Allow no COH calculation for static screening
-            CALL get_sigma(gwbse_env, qs_env, gwbse_env%sigma_COH(i), -0.5_dp, gwbse_env%S_inv_fm)
+            CALL get_sigma(gwbse_env, gwbse_env%sigma_COH(i), -0.5_dp, gwbse_env%S_inv_fm)
             ! Copy and subtract from the complex reference hamiltonian
             CALL cp_fm_to_cfm(msourcer=gwbse_env%sigma_COH(i)%matrix, mtarget=gwbse_env%ham_workspace(1)%matrix)
             CALL cp_cfm_scale_and_add(CMPLX(1.0, 0.0, kind=dp), gwbse_env%ham_reference(i)%matrix, &
                                       CMPLX(-1.0, 0.0, kind=dp), gwbse_env%ham_workspace(1)%matrix)
+            ! Calculate exchange part - TODO : should this be applied for different spins? - TEST with O2 HF propagation?
+            ! TODO : Only due to same spin densities
             ! Uses rho_orig - same as rho for initial run but different for continued run
-            CALL get_sigma(gwbse_env, qs_env, gwbse_env%sigma_SEX(i), -1.0_dp, gwbse_env%rho_orig(i))
+            CALL get_sigma(gwbse_env, gwbse_env%sigma_SEX(i), -1.0_dp, gwbse_env%rho_orig(i))
             ! Subtract from the complex reference Hamiltonian
             CALL cp_cfm_scale_and_add(CMPLX(1.0, 0.0, kind=dp), gwbse_env%ham_reference(i)%matrix, &
                                       CMPLX(-1.0, 0.0, kind=dp), gwbse_env%sigma_SEX(i)%matrix)
@@ -510,7 +529,7 @@ CONTAINS
       ELSE
          ! KS Hamiltonian - use time-dependent Fock exchange
          DO i = 1, gwbse_env%n_spin
-            CALL get_sigma(gwbse_env, qs_env, gwbse_env%sigma_SEX(i), -1.0_dp, gwbse_env%rho_orig(i))
+            CALL get_sigma(gwbse_env, gwbse_env%sigma_SEX(i), -1.0_dp, gwbse_env%rho_orig(i))
             CALL cp_cfm_scale_and_add(CMPLX(1.0, 0.0, kind=dp), gwbse_env%ham_reference(i)%matrix, &
                                       CMPLX(-1.0, 0.0, kind=dp), gwbse_env%sigma_SEX(i)%matrix)
          END DO
@@ -532,14 +551,10 @@ CONTAINS
       ! Extra minus for the propagation of density
       intensity = -gwbse_env%dft_control%rtp_control%delta_pulse_scale
       metric = 0.0_dp
-      ! TODO : Decide whether the following formulation employed by TDDFT code is not reasonable
-      ! TODO : Output intensity multiplied by factors relevant for the output
       ! TODO : Print out the correct division factor for the moments to determine polarizability
       !         - take care of fs <-> a.u. units
-      ! kvec(:) = cell%h_inv(1, :)*rtp_control%delta_pulse_direction(1) + &
-      !           cell%h_inv(2, :)*rtp_control%delta_pulse_direction(2) + &
-      !           cell%h_inv(3, :)*rtp_control%delta_pulse_direction(3)
-      ! kvec = kvec*twopi*rtp_control%delta_pulse_scale
+      !         - for RT, allow for custom units of the field strength instead of field intensity - [V/m] type - maybe to a
+      !         different pull request
       kvec(:) = gwbse_env%dft_control%rtp_control%delta_pulse_direction(:)
       ! So far no spin dependence, but can be added by different structure of delta pulse
       CALL cp_fm_set_all(gwbse_env%real_workspace(1)%matrix, 0.0_dp)
@@ -582,8 +597,8 @@ CONTAINS
 !> \param rho_new Array of new density matrices (one for each spin index)
 !> \param rho_old Array of old density matrices (one for each spin index)
 !> \param nspin Number of spin indices
+!> \param workspace_opt Optionally provide external workspace to save some allocation time
 ! **************************************************************************************************
-! TODO : Provide workspace by outside body
    FUNCTION rho_metric(rho_new, rho_old, nspin, workspace_opt) RESULT(metric)
       TYPE(cp_cfm_p_type), DIMENSION(:), INTENT(IN)      :: rho_new, &
                                                             rho_old
@@ -691,7 +706,8 @@ CONTAINS
       END SUBROUTINE
 ! **************************************************************************************************
 !> \brief Updates the effective Hamiltonian, given a density matrix rho
-!> \param tdaggw_env Entry point of the calculation - contains current state of variables
+!> \param gwbse_env Entry point of the calculation - contains current state of variables
+!> \param qs_env QS env
 !> \param rho Real and imaginary parts ( + spin) of the density at current time
 ! **************************************************************************************************
       SUBROUTINE update_effective_ham(gwbse_env, qs_env, rho)
@@ -699,13 +715,11 @@ CONTAINS
          TYPE(qs_environment_type), POINTER                 :: qs_env
          TYPE(cp_cfm_p_type), DIMENSION(:)                  :: rho
          CHARACTER(len=*), PARAMETER                        :: routineN = "update_effective_ham"
-         TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
          INTEGER                                            :: k, j, nspin, handle
 
          CALL timeset(routineN, handle)
          ! Shorthand
          nspin = gwbse_env%n_spin
-         CALL get_qs_env(qs_env, bs_env=bs_env)
          ! Reset the effective Hamiltonian to KS Hamiltonian + G0W0 - reference COHSEX - reference Hartree
          DO j = 1, nspin
             ! Sets the imaginary part to zero
@@ -731,14 +745,14 @@ CONTAINS
             END DO
             IF (gwbse_env%ham_reference_type == rtp_gwbse_ham_g0w0) THEN
                ! Add the COH part - so far static but can be dynamic in principle throught the W updates
-               CALL get_sigma(gwbse_env, qs_env, gwbse_env%sigma_COH(j), -0.5_dp, gwbse_env%S_inv_fm)
+               CALL get_sigma(gwbse_env, gwbse_env%sigma_COH(j), -0.5_dp, gwbse_env%S_inv_fm)
                CALL cp_fm_to_cfm(msourcer=gwbse_env%sigma_COH(j)%matrix, mtarget=gwbse_env%ham_workspace(1)%matrix)
                CALL cp_cfm_scale_and_add(CMPLX(1.0, 0.0, kind=dp), gwbse_env%ham_effective(j)%matrix, &
                                          CMPLX(1.0, 0.0, kind=dp), gwbse_env%ham_workspace(1)%matrix)
             END IF
             ! Calculate the (S)EX part - based on provided rho
             ! iGW = - rho W
-            CALL get_sigma(gwbse_env, qs_env, gwbse_env%sigma_SEX(j), -1.0_dp, rho(j))
+            CALL get_sigma(gwbse_env, gwbse_env%sigma_SEX(j), -1.0_dp, rho(j))
             CALL cp_cfm_scale_and_add(CMPLX(1.0, 0.0, kind=dp), gwbse_env%ham_effective(j)%matrix, &
                                       CMPLX(1.0, 0.0, kind=dp), gwbse_env%sigma_SEX(j)%matrix)
             ! Calculate Hartree potential
@@ -763,7 +777,6 @@ CONTAINS
          CALL timestop(handle)
       END SUBROUTINE update_effective_ham
 
-      ! TODO : Integrate into the main workflow, but also into the Delta kick formalism
 ! **************************************************************************************************
 !> \brief Does the BCH iterative determination of the exponential
 !> \param propagator_matrix Matrix X which is to be exponentiated
@@ -819,7 +832,7 @@ CONTAINS
          END DO
 
          ! Start the BCH iterations
-         ! TODO : Spin mixing terms?
+         ! So far, no spin mixing terms
          DO k = 1, max_iter
             prefactor = 1.0_dp/REAL(k, kind=dp)
             DO i = 1, n_spin
@@ -843,8 +856,8 @@ CONTAINS
                END DO
             END IF
          END DO
-         ! TODO : An informative message, maybe about number of terms and convergence
          IF (.NOT. converged) THEN
+            ! TODO : Write to string and cpabort, or pass the unit number or environment
             PRINT *, "BCH Metric", metric, "BCH Threshold", threshold
             CPABORT("BCH did not converge")
          END IF
@@ -880,7 +893,7 @@ CONTAINS
                                   CMPLX(0.0, 0.0, kind=dp), rho_new(j)%matrix)
             END DO
          ELSE IF (gwbse_env%mat_exp_method == do_bch) THEN
-            ! TODO : Specific option for BCH max iter?
+            ! Same number of iterations as ETRS
             CALL bch_propagate(exponential, rho_old, rho_new, gwbse_env%rho_workspace, threshold_opt=gwbse_env%exp_accuracy, &
                                max_iter_opt=gwbse_env%etrs_max_iter)
          ELSE
@@ -953,7 +966,7 @@ CONTAINS
             ! rho * S * rho
             CALL parallel_gemm("N", "N", gwbse_env%n_ao, gwbse_env%n_ao, gwbse_env%n_ao, &
                                CMPLX(1.0, 0.0, kind=dp), rho(j)%matrix, gwbse_env%rho_workspace(2)%matrix, &
-                               CMPLX(1.0, 0.0, kind=dp), gwbse_env%rho_workspace(3)%matrix)
+                               CMPLX(0.0, 0.0, kind=dp), gwbse_env%rho_workspace(3)%matrix)
             ! Tr (S * rho * S * rho)
             CALL cp_cfm_trace(gwbse_env%rho_workspace(1)%matrix, gwbse_env%rho_workspace(3)%matrix, buffer_2)
             deviation_metric = deviation_metric + REAL(ABS(buffer_2)*ABS(buffer_2))
@@ -965,15 +978,13 @@ CONTAINS
 !> \brief Calculates the self-energy by contraction of screened potential, for complex density
 !> \note Can be used for both the Coulomb hole part and screened exchange part
 !> \param gwbse_env Quickstep environment data, entry point of the calculation
-!> \param qs_env Quickstep environment data, entry point of the calculation
 !> \param sigma_cfm Pointer to the self-energy full matrix, which is overwritten by this routine
 !> \param greens_cfm Pointer to the Green's function matrix, which is used as input data
 !> \author Stepan Marek
 !> \date 09.2024
 ! **************************************************************************************************
-      SUBROUTINE get_sigma_complex(gwbse_env, qs_env, sigma_cfm, prefactor_opt, greens_cfm)
+      SUBROUTINE get_sigma_complex(gwbse_env, sigma_cfm, prefactor_opt, greens_cfm)
          TYPE(gwbse_env_type)                               :: gwbse_env
-         TYPE(qs_environment_type), POINTER                 :: qs_env
          TYPE(cp_cfm_p_type)                                :: sigma_cfm ! resulting self energy
          REAL(kind=dp), INTENT(IN), OPTIONAL                :: prefactor_opt
          TYPE(cp_cfm_p_type), INTENT(IN)                    :: greens_cfm ! matrix to contract with RI_W
@@ -985,11 +996,11 @@ CONTAINS
          ! Carry out the sigma part twice
          ! Real part
          CALL cp_cfm_to_fm(msource=greens_cfm%matrix, mtargetr=gwbse_env%real_workspace(1)%matrix)
-         CALL get_sigma(gwbse_env, qs_env, gwbse_env%real_workspace(2), prefactor, gwbse_env%real_workspace(1))
+         CALL get_sigma(gwbse_env, gwbse_env%real_workspace(2), prefactor, gwbse_env%real_workspace(1))
          CALL cp_fm_to_cfm(msourcer=gwbse_env%real_workspace(2)%matrix, mtarget=gwbse_env%ham_workspace(1)%matrix)
          ! Imaginary part
          CALL cp_cfm_to_fm(msource=greens_cfm%matrix, mtargeti=gwbse_env%real_workspace(1)%matrix)
-         CALL get_sigma(gwbse_env, qs_env, gwbse_env%real_workspace(2), prefactor, gwbse_env%real_workspace(1))
+         CALL get_sigma(gwbse_env, gwbse_env%real_workspace(2), prefactor, gwbse_env%real_workspace(1))
          CALL cp_fm_to_cfm(msourcei=gwbse_env%real_workspace(2)%matrix, mtarget=sigma_cfm%matrix)
          ! Add the real part
          CALL cp_cfm_scale_and_add(CMPLX(1.0, 0.0, kind=dp), sigma_cfm%matrix, &
@@ -1000,30 +1011,25 @@ CONTAINS
 !> \brief Calculates the self-energy by contraction of screened potential, for complex density
 !> \note Can be used for both the Coulomb hole part and screened exchange part
 !> \param gwbse_env Quickstep environment data, entry point of the calculation
-!> \param qs_env Quickstep environment data, entry point of the calculation
 !> \param sigma_fm Pointer to the self-energy full matrix, which is overwritten by this routine
 !> \param greens_fm Pointer to the Green's function matrix, which is used as input data
 !> \author Stepan Marek
 !> \date 09.2024
 ! **************************************************************************************************
-      SUBROUTINE get_sigma_real(gwbse_env, qs_env, sigma_fm, prefactor_opt, greens_fm)
+      SUBROUTINE get_sigma_real(gwbse_env, sigma_fm, prefactor_opt, greens_fm)
          TYPE(gwbse_env_type)                               :: gwbse_env
-         TYPE(qs_environment_type), POINTER                 :: qs_env
          TYPE(cp_fm_p_type)                                 :: sigma_fm ! resulting self energy
          REAL(kind=dp), INTENT(IN), OPTIONAL                :: prefactor_opt
          TYPE(cp_fm_p_type), INTENT(IN)                     :: greens_fm ! matrix to contract with RI_W
          REAL(kind=dp)                                      :: prefactor
-         TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
 
          prefactor = 1.0_dp
          IF (PRESENT(prefactor_opt)) prefactor = prefactor_opt
 
-         CALL get_qs_env(qs_env, bs_env=bs_env)
-
          ! Carry out the sigma part twice
          ! Convert to dbcsr
          CALL copy_fm_to_dbcsr(greens_fm%matrix, gwbse_env%rho_dbcsr)
-         CALL get_sigma(gwbse_env, qs_env, sigma_fm, prefactor, gwbse_env%rho_dbcsr)
+         CALL get_sigma(gwbse_env, sigma_fm, prefactor, gwbse_env%rho_dbcsr)
 
       END SUBROUTINE get_sigma_real
 ! **************************************************************************************************
@@ -1035,22 +1041,17 @@ CONTAINS
 !> \author Stepan Marek
 !> \date 01.2024
 ! **************************************************************************************************
-      SUBROUTINE get_sigma_dbcsr(gwbse_env, qs_env, sigma_fm, prefactor_opt, greens_dbcsr)
+      SUBROUTINE get_sigma_dbcsr(gwbse_env, sigma_fm, prefactor_opt, greens_dbcsr)
          TYPE(gwbse_env_type)                               :: gwbse_env
-         TYPE(qs_environment_type), POINTER                 :: qs_env
          TYPE(cp_fm_p_type)                                 :: sigma_fm ! resulting self energy
          REAL(kind=dp), INTENT(IN), OPTIONAL                :: prefactor_opt
          TYPE(dbcsr_type), POINTER                          :: greens_dbcsr
          CHARACTER(len=*), PARAMETER                        :: routineN = 'get_sigma'
          REAL(kind=dp)                                      :: prefactor
          TYPE(dbcsr_type)                                   :: sigma_dbcsr
-         TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
          INTEGER                                            :: handle
 
          CALL timeset(routineN, handle)
-
-         CALL get_qs_env(qs_env, &
-                         bs_env=bs_env)
 
          IF (PRESENT(prefactor_opt)) THEN
             prefactor = prefactor_opt
@@ -1095,7 +1096,7 @@ CONTAINS
                            contract_2=[1, 2], notcontract_2=[3], map_2=[2])!,&
          !filter_eps=bs_env%eps_filter)
          ! Finally, convert the COH tensor to matrix and then to fm matrix
-         CALL dbcsr_create(sigma_dbcsr, name="sigma", template=bs_env%mat_ao_ao%matrix)
+         CALL dbcsr_create(sigma_dbcsr, name="sigma", template=gwbse_env%rho_dbcsr)
          CALL dbt_copy_tensor_to_matrix(gwbse_env%sigma_dbt, sigma_dbcsr)
          CALL copy_dbcsr_to_fm(sigma_dbcsr, sigma_fm%matrix)
          CALL dbcsr_release(sigma_dbcsr)
@@ -1133,7 +1134,6 @@ CONTAINS
          CALL get_qs_env(qs_env, bs_env=bs_env)
 
          ! Allocate for bare Hartree term
-         ! TODO : k-points
          ALLOCATE (V_dbcsr_a(1))
          ALLOCATE (metric_dbcsr(1))
          CALL dbcsr_create(V_dbcsr_a(1), name="Hartree_dbcsr", template=bs_env%mat_RI_RI%matrix)
@@ -1222,7 +1222,7 @@ CONTAINS
          REAL(kind=dp), DIMENSION(:, :, :), POINTER           :: int_3c
          TYPE(dbcsr_type)                                   :: v_dbcsr_ao
 
-         ! Very ineffective first implementation - calculate all 3cs an all ranks
+         ! No memory optimisation so far - calculate all 3cs an all ranks
          ! Importantly - dbcsr blocks are ordered by atoms - i.e. ethene with 6 atoms will have 6x6 block structure
          ! Number of basis states on each basis set is known is post_scf_bandstructure env
          ! TODO : Only calculate integrals which are needed for a given rank, which are given by structure
@@ -1343,6 +1343,19 @@ CONTAINS
 
          CALL timestop(handle)
       END SUBROUTINE get_hartree_local
+! **************************************************************************************************
+!> \brief Calculates the exponential of a matrix in a generalized eigenvalue problem. Specifically,
+!>        it assumes we have a Hermitian matrix A in the eigenvalue problem AX = BXE, where B is some overlap
+!>        matrix and E is a diagonal matrix of real eigenvalues. Then, it calculates
+!>        exp(B^(-1) A) = X exp(E) X^C B
+!> \param amatrix Matrix to exponentiate
+!> \param bmatrix Overlap matrix
+!> \param exponential Exponential exp(B^(-1) A) is stored here after the routine is finished
+!> \param eig_scale_opt Optionally scale eigenvalues by a complex number before exponentiating them
+!> \param work_opt Optionally provide workspace (of size at least 4) that is used in the calculation
+!> \author Stepan Marek
+!> \date 09.2024
+! **************************************************************************************************
       SUBROUTINE cp_cfm_gexp(amatrix, bmatrix, exponential, eig_scale_opt, work_opt)
          ! TODO : Do interface for real matrices
          TYPE(cp_cfm_type), INTENT(IN)                      :: amatrix
@@ -1400,18 +1413,17 @@ CONTAINS
 
          ! Copy eigenvectors to column scale them
          CALL cp_cfm_to_cfm(work(3)%matrix, work(1)%matrix)
-         ! C * exp(eig)
+         ! X * exp(E)
          CALL cp_cfm_column_scale(work(1)%matrix, expvalues)
 
          ! Carry out the remaining operations
-         ! C * exp(eig) * C^H
+         ! X * exp(E) * X^C
          CALL parallel_gemm("N", "C", nrow, nrow, nrow, &
                             CMPLX(1.0, 0.0, kind=dp), work(1)%matrix, work(3)%matrix, &
                             CMPLX(0.0, 0.0, kind=dp), work(2)%matrix)
-         CALL cp_cfm_to_cfm(bmatrix, work(3)%matrix)
-         ! C * exp(eig) * C^H * S
+         ! X * exp(E) * X^C * B
          CALL parallel_gemm("N", "N", nrow, nrow, nrow, &
-                            CMPLX(1.0, 0.0, kind=dp), work(2)%matrix, work(3)%matrix, &
+                            CMPLX(1.0, 0.0, kind=dp), work(2)%matrix, bmatrix, &
                             CMPLX(0.0, 0.0, kind=dp), exponential)
 
          ! Deallocate work storage if necessary

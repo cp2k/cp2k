@@ -1903,7 +1903,8 @@ CONTAINS
       CALL cp_print_key_section_create(print_key, __LOCATION__, "RESTART", &
                                        description="Controls the dumping of the MO restart file during rtp. "// &
                                        "By default keeps a short history of three restarts. "// &
-                                       "See also RESTART_HISTORY. In density propagation this controls the printing of P.", &
+                                       "See also RESTART_HISTORY. In density propagation this controls the printing of "// &
+                                       "density matrix.", &
                                        print_level=low_print_level, common_iter_levels=3, &
                                        each_iter_names=s2a("MD"), each_iter_values=(/20/), &
                                        add_last=add_last_numeric, filename="RESTART")
@@ -1986,6 +1987,50 @@ CONTAINS
                                        each_iter_names=s2a("MD"), &
                                        each_iter_values=(/1/), &
                                        filename="MOMENTS")
+      CALL section_add_subsection(print_section, print_key)
+      CALL section_release(print_key)
+      ! Marek : Fourier transform of MOMENTS ASCII print
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "MOMENTS_FT", &
+                                       description="Prints the calculated Fourier transform of "// &
+                                       "time-dependent moments. For calculations with real time pulse (not delta kick) "// &
+                                       "can be supplied with starting time.", &
+                                       print_level=medium_print_level, common_iter_levels=0, &
+                                       each_iter_names=s2a("MD"), &
+                                       each_iter_values=(/1/), &
+                                       filename="MOMENTS_FT")
+      CALL keyword_create(keyword, __LOCATION__, "DAMPING", &
+                          description="Sets the exponential damping of the time trace before carrying out Fourier transform. "// &
+                          "For negative values (the default), calculates the damping at the run time so that the last point "// &
+                          "in the time trace is reduced by factor e^(-4). Uses atomic units of inverse time.", &
+                          type_of_var=real_t, &
+                          default_r_val=-1.0_dp)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, "START_TIME", &
+                          description="The starting time from which damping is applied and from which on the trace is "// &
+                          "considered for the Fourier transform. Useful for real-time pulse - one can specify the center of the pulse "// &
+                          "as the starting point.", &
+                          type_of_var=real_t, &
+                          default_r_val=0.0_dp)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+      CALL section_add_subsection(print_section, print_key)
+      CALL section_release(print_key)
+      ! Marek : Chosen element of (Fourier transformed) polarizability tensor (energy dependent) - text format
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "POLARIZABILITY", &
+                                       description="Prints the chosen element of the energy dependent polarizability tensor "// &
+                                       "to a specified file. The tensor is calculated as ratio of Fourier transform of the dipole "// &
+                                       "moment trace and Fourier transform of the applied field (for delta kick, constant"// &
+                                       "real field is applied.", &
+                                       print_level=medium_print_level, common_iter_levels=0, &
+                                       each_iter_names=s2a("MD"), &
+                                       each_iter_values=(/1/), &
+                                       filename="POLARIZABILITY")
+      CALL keyword_create(keyword, __LOCATION__, "ELEMENT", &
+                          description="Specifies the element of polarizability which is to be printed out (indexing starts at 1).", &
+                          type_of_var=integer_t, default_i_vals=(/1,1/), n_var=2, usage="ELEMENT 1 1")
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
       CALL section_add_subsection(print_section, print_key)
       CALL section_release(print_key)
 

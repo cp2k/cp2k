@@ -95,6 +95,7 @@ MODULE rt_gwbse_types
                               do_bch, &
                               do_exact
    USE physcon, ONLY: angstrom
+   USE mathconstants, ONLY: z_zero
    USE input_section_types, ONLY: section_vals_type, &
                                   section_vals_val_get, &
                                   section_vals_get_subs_vals
@@ -114,6 +115,14 @@ MODULE rt_gwbse_types
              release_gwbse_env, &
              multiply_cfm_fm, &
              multiply_fm_cfm
+
+   ! Created so that we can have an array of pointers to arrays
+   TYPE series_real_type
+      REAL(kind=dp), DIMENSION(:), POINTER                      :: series 
+   END TYPE series_real_type
+   TYPE series_complex_type
+      COMPLEX(kind=dp), DIMENSION(:), POINTER                   :: series 
+   END TYPE series_complex_type
 
 ! **************************************************************************************************
 !> \param n_spin Number of spin channels that are present
@@ -184,16 +193,24 @@ MODULE rt_gwbse_types
                                                                    moments_field
       INTEGER                                                   :: sim_step, &
                                                                    sim_start, &
+      ! Needed for continuation runs for loading of previous moments trace
+                                                                   sim_start_orig, &
                                                                    sim_nsteps
       REAL(kind=dp)                                             :: sim_time, &
                                                                    sim_dt, &
                                                                    etrs_threshold, &
-                                                                   exp_accuracy
+                                                                   exp_accuracy, &
+                                                                   ft_damping, &
+                                                                   ft_start
+      ! Which element of polarizability to print out
+      INTEGER, DIMENSION(2)                                     :: pol_element
       TYPE(dft_control_type), POINTER                           :: dft_control
       ! Stores data needed for reading/writing to the restart files
       TYPE(section_vals_type), POINTER                          :: restart_section, &
                                                                    field_section, &
                                                                    rho_section, &
+                                                                   ft_section, &
+                                                                   pol_section, &
                                                                    moments_section
       LOGICAL                                                   :: restart_extracted
 
@@ -222,6 +239,10 @@ MODULE rt_gwbse_types
       ! Workspace required for exact matrix exponentiation
       REAL(kind=dp), DIMENSION(:), POINTER                      :: real_eigvals
       COMPLEX(kind=dp), DIMENSION(:), POINTER                   :: exp_eigvals
+      ! Workspace for saving the values for FT - TODO : Make complex and for all directions
+      TYPE(series_complex_type), DIMENSION(3)                   :: moments_trace
+      TYPE(series_real_type)                                    :: time_trace
+      TYPE(series_real_type), DIMENSION(3)                      :: field_trace
       ! Workspace required for hartree_pw
       TYPE(dbcsr_p_type)                                        :: v_dbcsr, &
                                                                    w_dbcsr
@@ -243,6 +264,7 @@ MODULE rt_gwbse_types
 
    END TYPE gwbse_env_type
 
+
 CONTAINS
 
 ! **************************************************************************************************
@@ -254,7 +276,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE create_gwbse_env(gwbse_env, qs_env, force_env)
       TYPE(gwbse_env_type), POINTER                             :: gwbse_env
-      TYPE(qs_environment_type), POINTER                         :: qs_env
+      TYPE(qs_environment_type), POINTER                        :: qs_env
       TYPE(force_env_type), POINTER                             :: force_env
       CHARACTER(len=*), PARAMETER                               :: routineN = "create_gwbse_env"
       TYPE(post_scf_bandstructure_type), POINTER                :: bs_env
@@ -263,6 +285,7 @@ CONTAINS
       TYPE(mo_set_type), DIMENSION(:), POINTER                  :: mos
       INTEGER                                                   :: i, k
       TYPE(section_vals_type), POINTER                          :: input, bs_sec, md_sec
+      INTEGER, DIMENSION(:), POINTER                            :: pol_tmp
 
       ! Allocate the storage for the gwbse environment
       NULLIFY (gwbse_env)
@@ -276,7 +299,6 @@ CONTAINS
                       dft_control=gwbse_env%dft_control, &
                       input=input)
       bs_sec => section_vals_get_subs_vals(input, "PROPERTIES%BANDSTRUCTURE")
-      ! TODO : Ability to run without the GW code?
       IF (.NOT. ASSOCIATED(bs_env)) THEN
          CPABORT("Cannot run RT-aGW without running GW calculation (PROPERTIES) before")
       END IF
@@ -319,13 +341,31 @@ CONTAINS
       ! TODO : Last two arguments are indicating that we are using Taylor expansion and not doing ion motion
       ! Sim start index and total number of steps as well
       CALL section_vals_val_get(md_sec, "STEP_START_VAL", i_val=gwbse_env%sim_start)
+      ! Copy this value to sim_start_orig for continuation runs
+      gwbse_env%sim_start_orig = gwbse_env%sim_start
       CALL section_vals_val_get(md_sec, "STEPS", i_val=gwbse_env%sim_nsteps)
+      ! Get the values for the FT
+      CALL section_vals_val_get(input, "DFT%REAL_TIME_PROPAGATION%PRINT%MOMENTS_FT%DAMPING", &
+                                r_val=gwbse_env%ft_damping)
+      CALL section_vals_val_get(input, "DFT%REAL_TIME_PROPAGATION%PRINT%MOMENTS_FT%START_TIME", &
+                                r_val=gwbse_env%ft_start)
+      CALL section_vals_val_get(input, "DFT%REAL_TIME_PROPAGATION%PRINT%POLARIZABILITY%ELEMENT", &
+                                i_vals=pol_tmp)
+      IF (SIZE(pol_tmp) < 2) CPABORT("Less than two elements provided for polarizability")
+      gwbse_env%pol_element(:) = pol_tmp(:)
+      ! Do basic sanity checks for pol_element
+      DO k=1,2
+         IF (gwbse_env%pol_element(k) > 3 .OR. gwbse_env%pol_element(k) < 1) &
+            CPABORT("Polarisation tensor element not 1,2 or 3 in at least one index")
+      END DO
       ! Get the restart section
       gwbse_env%restart_section => section_vals_get_subs_vals(input, "DFT%REAL_TIME_PROPAGATION%PRINT%RESTART")
       gwbse_env%restart_extracted = .FALSE.
       gwbse_env%field_section => section_vals_get_subs_vals(input, "DFT%REAL_TIME_PROPAGATION%PRINT%FIELD")
       gwbse_env%moments_section => section_vals_get_subs_vals(input, "DFT%REAL_TIME_PROPAGATION%PRINT%MOMENTS")
       gwbse_env%rho_section => section_vals_get_subs_vals(input, "DFT%REAL_TIME_PROPAGATION%PRINT%DENSITY_MATRIX")
+      gwbse_env%ft_section => section_vals_get_subs_vals(input, "DFT%REAL_TIME_PROPAGATION%PRINT%MOMENTS_FT")
+      gwbse_env%pol_section => section_vals_get_subs_vals(input, "DFT%REAL_TIME_PROPAGATION%PRINT%POLARIZABILITY")
 
       ! Allocate moments matrices
       DO k = 1, 3
@@ -430,6 +470,16 @@ CONTAINS
       ALLOCATE (gwbse_env%exp_eigvals(gwbse_env%n_ao))
       gwbse_env%exp_eigvals(:) = CMPLX(0.0, 0.0, kind=dp)
 
+      ! Workspace for FT - includes (in principle) the zeroth step and the extra last step
+      DO i = 1, 3
+         NULLIFY (gwbse_env%moments_trace(i)%series)
+         ALLOCATE (gwbse_env%moments_trace(i)%series(gwbse_env%sim_nsteps+2), source=z_zero)
+         NULLIFY (gwbse_env%field_trace(i)%series)
+         ALLOCATE (gwbse_env%field_trace(i)%series(gwbse_env%sim_nsteps+2), source=0.0_dp)
+      END DO
+      NULLIFY (gwbse_env%time_trace%series)
+      ALLOCATE (gwbse_env%time_trace%series(gwbse_env%sim_nsteps+2), source=0.0_dp)
+
       ! Allocate self-energy parts and dynamic Hartree potential
       ALLOCATE (gwbse_env%hartree_curr(gwbse_env%n_spin))
       ALLOCATE (gwbse_env%sigma_SEX(gwbse_env%n_spin))
@@ -520,6 +570,11 @@ CONTAINS
 
       DEALLOCATE (gwbse_env%real_eigvals)
       DEALLOCATE (gwbse_env%exp_eigvals)
+      DO i = 1, 3
+         DEALLOCATE (gwbse_env%moments_trace(i)%series)
+         DEALLOCATE (gwbse_env%field_trace(i)%series)
+      END DO
+      DEALLOCATE (gwbse_env%time_trace%series)
 
       ! Deallocate the storage for the environment itself
       DEALLOCATE (gwbse_env)
@@ -609,7 +664,6 @@ CONTAINS
       NULLIFY (gwbse_env%screened_dbt)
       ALLOCATE (gwbse_env%screened_dbt)
       ! Populate screened_dbt from gw run
-      ! TODO : Avoid without G0W0 run?
       NULLIFY (gwbse_env%w_dbcsr%matrix)
       ALLOCATE (gwbse_env%w_dbcsr%matrix)
       CALL dbcsr_create(gwbse_env%w_dbcsr%matrix, name="W", template=bs_env%mat_RI_RI%matrix)
@@ -668,7 +722,7 @@ CONTAINS
       CHARACTER(len=1)                                   :: trans_r, trans_c
       INTEGER                                            :: na, nb, nc
       ! accept real numbers
-      ! TODO : complex number support via interface?
+      ! TODO : Just use complex numbers and import z_one, z_zero etc.
       REAL(kind=dp)                                      :: alpha, beta
       TYPE(cp_fm_type)                                   :: matrix_r
       TYPE(cp_cfm_type)                                  :: matrix_c, res
