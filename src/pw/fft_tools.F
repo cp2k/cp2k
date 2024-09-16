@@ -415,7 +415,7 @@ CONTAINS
 
       IF (pw_grid%para%mode == PW_MODE_LOCAL) THEN
 #if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_PW)
-         CALL pw_gpu_cfffg(zin, zout, pw_grid)
+         CALL pw_gpu_cfffg(zin, zout, pw_grid%g_hatmap)
 #else
          ALLOCATE (c_out(n(1), n(2), n(3)))
          ! check if bitstream for the fft size is present
@@ -574,7 +574,7 @@ CONTAINS
 
       IF (pw_grid%para%mode == PW_MODE_LOCAL) THEN
 #if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_PW)
-         CALL pw_gpu_sfffc(zin, zout, pw_grid)
+         CALL pw_gpu_sfffc(zin, zout, pw_grid%g_hatmap)
 #else
          ALLOCATE (c_out(n(1), n(2), n(3)))
          ! check if bitstream for the fft size is present
@@ -868,7 +868,7 @@ CONTAINS
             sbuf => fft_scratch%p5buf
 
             ! FFT along z
-            CALL pw_gpu_cf(zin, qbuf, pw_grid)
+            CALL pw_gpu_cf(zin, qbuf)
 
             ! Exchange data ( transpose of matrix )
             CALL cube_transpose_2(qbuf, bo(:, :, :, 1), bo(:, :, :, 2), rbuf, fft_scratch)
@@ -884,7 +884,7 @@ CONTAINS
                           bo(:, :, :, 2), sbuf, fft_scratch)
 
             ! FFT along x
-            CALL pw_gpu_fg(sbuf, zout, scale, pw_grid)
+            CALL pw_gpu_fg(sbuf, zout, scale, n, pw_grid%g_hatmap, pw_grid%grays)
 
             CALL release_fft_scratch(fft_scratch)
 
@@ -902,14 +902,14 @@ CONTAINS
             sbuf => fft_scratch%r1buf
 
             ! FFT along y and z
-            CALL pw_gpu_cff(zin, tbuf, pw_grid)
+            CALL pw_gpu_cff(zin, tbuf)
 
             ! Exchange data ( transpose of matrix ) and sort
             CALL yz_to_x(tbuf, rs_group, g_pos, p2p, pw_grid%para%yzp, nyzray, &
                          bo(:, :, :, 2), sbuf, fft_scratch)
 
             ! FFT along x
-            CALL pw_gpu_fg(sbuf, zout, scale, pw_grid)
+            CALL pw_gpu_fg(sbuf, zout, scale, n, pw_grid%g_hatmap, pw_grid%grays)
 
             CALL release_fft_scratch(fft_scratch)
 
@@ -1027,7 +1027,7 @@ CONTAINS
             sbuf => fft_scratch%p2buf
 
             ! FFT along x
-            CALL pw_gpu_sf(zin, pbuf, scale, pw_grid)
+            CALL pw_gpu_sf(zin, pbuf, scale, n, pw_grid%g_hatmap, pw_grid%grays)
 
             ! Exchange data ( transpose of matrix ) and sort
             IF (pw_grid%grid_span /= FULLSPACE) qbuf = z_zero
@@ -1046,7 +1046,7 @@ CONTAINS
             CALL cube_transpose_1(rbuf, bo(:, :, :, 2), bo(:, :, :, 1), sbuf, fft_scratch)
 
             ! FFT along z
-            CALL pw_gpu_fc(sbuf, zout, pw_grid)
+            CALL pw_gpu_fc(sbuf, zout)
 
             CALL release_fft_scratch(fft_scratch)
 
@@ -1064,7 +1064,7 @@ CONTAINS
             tbuf => fft_scratch%tbuf
 
             ! FFT along x
-            CALL pw_gpu_sf(zin, sbuf, scale, pw_grid)
+            CALL pw_gpu_sf(zin, sbuf, scale, n, pw_grid%g_hatmap, pw_grid%grays)
 
             ! Exchange data ( transpose of matrix ) and sort
             IF (pw_grid%grid_span /= FULLSPACE) tbuf = z_zero
@@ -1072,7 +1072,7 @@ CONTAINS
                          bo(:, :, :, 2), tbuf, fft_scratch)
 
             ! FFT along y and z
-            CALL pw_gpu_ffc(tbuf, zout, pw_grid)
+            CALL pw_gpu_ffc(tbuf, zout)
 
             CALL release_fft_scratch(fft_scratch)
 
