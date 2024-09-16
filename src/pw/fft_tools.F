@@ -51,7 +51,14 @@ MODULE fft_tools
    USE pw_grid_types, ONLY: HALFSPACE, &
                             PW_MODE_DISTRIBUTED, &
                             PW_MODE_LOCAL, &
-                            pw_grid_type
+                            pw_grid_type, FULLSPACE
+   USE pw_fpga, ONLY: pw_fpga_c1dr3d_3d_dp, &
+                      pw_fpga_c1dr3d_3d_sp, &
+                      pw_fpga_init_bitstream, &
+                      pw_fpga_r3dc1d_3d_dp, &
+                      pw_fpga_r3dc1d_3d_sp
+   USE pw_gpu, ONLY: pw_gpu_sf, pw_gpu_f, pw_gpu_fc, pw_gpu_ffc, pw_gpu_cf, pw_gpu_cff, pw_gpu_fg, &
+                     pw_gpu_cfffg, pw_gpu_sfffc
 
 !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads
 
@@ -161,7 +168,8 @@ MODULE fft_tools
    PUBLIC :: fft_arbitrary_lengths_available
 
    INTERFACE fft3d
-      MODULE PROCEDURE fft3d_s, fft3d_s_r3_c3, fft3d_s_c3_r3, fft3d_ps, fft3d_pb
+      MODULE PROCEDURE fft3d_s, fft3d_s_r3_c3, fft3d_s_c3_r3, fft3d_r3_c1, fft3d_s_c3_c1, fft3d_c1_r3, fft3d_s_c1_c3
+      MODULE PROCEDURE fft3d_ps, fft3d_pb
    END INTERFACE
 
    INTERFACE fft_gather
@@ -381,13 +389,332 @@ CONTAINS
 !>      none
 !> \author JGH
 ! **************************************************************************************************
+   SUBROUTINE fft3d_r3_c1(fsign, n, zin, zout, pw_grid, status, debug)
+
+      INTEGER, INTENT(IN)                                :: fsign
+      INTEGER, DIMENSION(:), INTENT(INOUT)               :: n
+      REAL(KIND=dp), DIMENSION(:, :, :), TARGET, &
+         INTENT(INOUT)                                   :: zin
+      COMPLEX(KIND=dp), DIMENSION(:), TARGET, INTENT(INOUT)      :: zout
+      TYPE(pw_grid_type), TARGET, INTENT(IN) :: pw_grid
+      INTEGER, INTENT(OUT), OPTIONAL                     :: status
+      LOGICAL, INTENT(IN), OPTIONAL                      :: debug
+
+#if !defined(__OFFLOAD) || defined(__NO_OFFLOAD_PW)
+      COMPLEX(KIND=dp), DIMENSION(:, :, :), ALLOCATABLE, TARGET :: c_out
+#endif
+      COMPLEX(KIND=dp), DIMENSION(:, :, :), ALLOCATABLE, TARGET :: c_in
+      COMPLEX(KIND=dp), DIMENSION(:, :), CONTIGUOUS, POINTER         :: grays
+      INTEGER :: out_unit, nloc(3)
+      LOGICAL :: test
+
+      test = .FALSE.
+      IF (PRESENT(debug)) test = debug
+
+      out_unit = cp_logger_get_default_io_unit()
+
+      IF (pw_grid%para%mode == PW_MODE_LOCAL) THEN
+#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_PW)
+         CALL pw_gpu_cfffg(zin, zout, pw_grid)
+#else
+         ALLOCATE (c_out(n(1), n(2), n(3)))
+         ! check if bitstream for the fft size is present
+         ! if not, perform fft3d in CPU
+         c_out(:, :, :) = CMPLX(zin, 0.0_dp, KIND=dp)
+#if defined (__PW_FPGA)
+         IF (pw_fpga_init_bitstream(n) == 1) THEN
+#if (__PW_FPGA_SP && __PW_FPGA)
+            CALL pw_fpga_r3dc1d_3d_sp(n, c_out)
+#else
+            CALL pw_fpga_r3dc1d_3d_dp(n, c_out)
+#endif
+            CALL zdscal(n(1)*n(2)*n(3), 1.0_dp/pw_grid%ngpts, c_out, 1)
+         ELSE
+#endif
+            CALL fft3d_s(fsign, n, c_out, status=status, debug=test)
+#if defined (__PW_FPGA)
+         END IF
+#endif
+         CALL fft_gather(zout, c_out, pw_grid)
+         DEALLOCATE (c_out)
+#endif
+      ELSE
+#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_PW)
+         ! (no ray dist. is not efficient in CUDA)
+         use_pw_gpu = pw_grid%para%ray_distribution
+         IF (use_pw_gpu) THEN
+            CALL pw_gpu_r3dc1d_3d_ps(zin, zout, pw_grid)
+         ELSE
+#endif
+!..   prepare input
+            nloc = pw_grid%npts_local
+            ALLOCATE (c_in(nloc(1), nloc(2), nloc(3)))
+            c_in(:, :, :) = CMPLX(zin, KIND=dp)
+            grays => pw_grid%grays
+            grays = z_zero
+            !..transform
+            IF (pw_grid%para%ray_distribution) THEN
+               CALL fft3d_ps(fsign, n, c_in, grays, rs_group=pw_grid%para%group, &
+                             yzp=pw_grid%para%yzp, nyzray=pw_grid%para%nyzray, &
+                             bo=pw_grid%para%bo, debug=test)
+            ELSE
+               CALL fft3d_pb(fsign, n, c_in, grays, pw_grid%para%group, &
+                             pw_grid%para%bo, debug=test)
+            END IF
+            !..prepare output
+            IF (test .AND. out_unit > 0) &
+               WRITE (out_unit, '(A)') "  PW_GATHER : 2d -> 1d "
+            CALL fft_gather(zout, grays, pw_grid)
+            DEALLOCATE (c_in)
+
+#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_PW)
+         END IF
+#endif
+      END IF
+
+   END SUBROUTINE fft3d_r3_c1
+
+! **************************************************************************************************
+!> \brief Calls the 3D-FFT function from the initialized library
+!> \param fsign ...
+!> \param n ...
+!> \param zin ...
+!> \param zout ...
+!> \param status ...
+!> \param debug ...
+!> \par History
+!>      none
+!> \author JGH
+! **************************************************************************************************
+   SUBROUTINE fft3d_s_c3_c1(fsign, n, zin, zout, pw_grid, status, debug)
+
+      INTEGER, INTENT(IN)                                :: fsign
+      INTEGER, DIMENSION(:), INTENT(INOUT)               :: n
+      COMPLEX(KIND=dp), DIMENSION(:, :, :), &
+         INTENT(INOUT)                                   :: zin
+      COMPLEX(KIND=dp), DIMENSION(:), INTENT(INOUT)      :: zout
+      TYPE(pw_grid_type), INTENT(IN) :: pw_grid
+      INTEGER, INTENT(OUT), OPTIONAL                     :: status
+      LOGICAL, INTENT(IN), OPTIONAL                      :: debug
+
+      INTEGER :: out_unit
+      COMPLEX(KIND=dp), DIMENSION(:, :, :), ALLOCATABLE :: c_out
+      COMPLEX(KIND=dp), DIMENSION(:, :), CONTIGUOUS, POINTER      :: grays
+      LOGICAL :: test
+
+      test = .FALSE.
+      IF (PRESENT(debug)) test = debug
+
+      out_unit = cp_logger_get_default_io_unit()
+
+      IF (pw_grid%para%mode == PW_MODE_LOCAL) THEN
+         ALLOCATE (c_out(n(1), n(2), n(3)))
+         ! transform
+         CALL fft3d_s(fsign, n, zin, c_out, status=status, debug=test)
+         ! gather results
+         IF (test .AND. out_unit > 0) WRITE (out_unit, '(A)') "  PW_GATHER : 3d -> 1d "
+         CALL fft_gather(zout, c_out, pw_grid)
+         DEALLOCATE (c_out)
+      ELSE
+         !..prepare input
+         grays => pw_grid%grays
+         grays = z_zero
+         !..transform
+         IF (pw_grid%para%ray_distribution) THEN
+            CALL fft3d_ps(fsign, n, zin, grays, pw_grid%para%group, &
+                          pw_grid%para%yzp, pw_grid%para%nyzray, &
+                          pw_grid%para%bo, status, debug=test)
+         ELSE
+            CALL fft3d_pb(fsign, n, zin, grays, pw_grid%para%group, &
+                          pw_grid%para%bo, status, test)
+         END IF
+         !..prepare output
+         IF (test .AND. out_unit > 0) &
+            WRITE (out_unit, '(A)') "  PW_GATHER : 2d -> 1d "
+         CALL fft_gather(zout, grays, pw_grid)
+      END IF
+
+   END SUBROUTINE fft3d_s_c3_c1
+
+! **************************************************************************************************
+!> \brief Calls the 3D-FFT function from the initialized library
+!> \param fsign ...
+!> \param n ...
+!> \param zin ...
+!> \param zout ...
+!> \param status ...
+!> \param debug ...
+!> \par History
+!>      none
+!> \author JGH
+! **************************************************************************************************
+   SUBROUTINE fft3d_c1_r3(fsign, n, zin, zout, pw_grid, status, debug)
+
+      INTEGER, INTENT(IN)                                :: fsign
+      INTEGER, DIMENSION(:), INTENT(INOUT)               :: n
+      COMPLEX(KIND=dp), DIMENSION(:), TARGET, &
+         INTENT(IN)                                   :: zin
+      REAL(KIND=dp), DIMENSION(:, :, :), TARGET, INTENT(INOUT)      :: zout
+      TYPE(pw_grid_type), TARGET, INTENT(IN) :: pw_grid
+      INTEGER, INTENT(OUT), OPTIONAL                     :: status
+      LOGICAL, INTENT(IN), OPTIONAL                      :: debug
+
+#if !defined(__OFFLOAD) || defined(__NO_OFFLOAD_PW)
+      COMPLEX(KIND=dp), DIMENSION(:, :, :), ALLOCATABLE, TARGET :: c_out
+#endif
+      COMPLEX(KIND=dp), DIMENSION(:, :, :), ALLOCATABLE, TARGET :: c_in
+      COMPLEX(KIND=dp), DIMENSION(:, :), CONTIGUOUS, POINTER         :: grays
+      INTEGER :: out_unit, nloc(3)
+      LOGICAL :: test
+
+      test = .FALSE.
+      IF (PRESENT(debug)) test = debug
+
+      out_unit = cp_logger_get_default_io_unit()
+
+      IF (pw_grid%para%mode == PW_MODE_LOCAL) THEN
+#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_PW)
+         CALL pw_gpu_sfffc(zin, zout, pw_grid)
+#else
+         ALLOCATE (c_out(n(1), n(2), n(3)))
+         ! check if bitstream for the fft size is present
+         ! if not, perform fft3d in CPU
+         IF (test .AND. out_unit > 0) WRITE (out_unit, '(A)') "  PW_SCATTER : 3d -> 1d "
+         CALL fft_scatter(zin, c_out, pw_grid)
+#if defined (__PW_FPGA)
+         IF (pw_fpga_init_bitstream(n) == 1) THEN
+            ! transform using FPGA
+#if (__PW_FPGA_SP && __PW_FPGA)
+            CALL pw_fpga_c1dr3d_3d_sp(n, c_out)
+#else
+            CALL pw_fpga_c1dr3d_3d_dp(n, c_out)
+#endif
+            CALL zdscal(n(1)*n(2)*n(3), 1.0_dp, c_out, 1)
+         ELSE
+#endif
+            ! transform
+            CALL fft3d_s(fsign, n, c_out, status=status, debug=test)
+#if defined (__PW_FPGA)
+         END IF
+#endif
+         ! use real part only
+         IF (test .AND. out_unit > 0) WRITE (out_unit, '(A)') "  REAL part "
+         zout(:, :, :) = REAL(c_out, KIND=dp)
+         DEALLOCATE (c_out)
+#endif
+      ELSE
+#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_PW)
+         ! (no ray dist. is not efficient in CUDA)
+         use_pw_gpu = pw_grid%para%ray_distribution
+         IF (use_pw_gpu) THEN
+            CALL pw_gpu_c1dr3d_3d_ps(zin, zout, pw_grid)
+         ELSE
+#endif
+!..   prepare input
+            IF (test .AND. out_unit > 0) &
+               WRITE (out_unit, '(A)') "  PW_SCATTER : 2d -> 1d "
+            grays => pw_grid%grays
+            grays = z_zero
+            CALL fft_scatter(zin, grays, pw_grid)
+            nloc = pw_grid%npts_local
+            ALLOCATE (c_in(nloc(1), nloc(2), nloc(3)))
+            !..transform
+            IF (pw_grid%para%ray_distribution) THEN
+               CALL fft3d_ps(fsign, n, c_in, grays, rs_group=pw_grid%para%group, &
+                             yzp=pw_grid%para%yzp, nyzray=pw_grid%para%nyzray, &
+                             bo=pw_grid%para%bo, debug=test)
+            ELSE
+               CALL fft3d_pb(fsign, n, c_in, grays, pw_grid%para%group, &
+                             pw_grid%para%bo, debug=test)
+            END IF
+            !..prepare output
+            IF (test .AND. out_unit > 0) &
+               WRITE (out_unit, '(A)') "  Real part "
+            zout(:, :, :) = REAL(c_in, KIND=dp)
+            DEALLOCATE (c_in)
+#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_PW)
+         END IF
+#endif
+      END IF
+
+   END SUBROUTINE fft3d_c1_r3
+
+! **************************************************************************************************
+!> \brief Calls the 3D-FFT function from the initialized library
+!> \param fsign ...
+!> \param n ...
+!> \param zin ...
+!> \param zout ...
+!> \param status ...
+!> \param debug ...
+!> \par History
+!>      none
+!> \author JGH
+! **************************************************************************************************
+   SUBROUTINE fft3d_s_c1_c3(fsign, n, zin, zout, pw_grid, status, debug)
+
+      INTEGER, INTENT(IN)                                :: fsign
+      INTEGER, DIMENSION(:), INTENT(INOUT)               :: n
+      COMPLEX(KIND=dp), DIMENSION(:), &
+         INTENT(IN)                                   :: zin
+      COMPLEX(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)      :: zout
+      TYPE(pw_grid_type), INTENT(IN) :: pw_grid
+      INTEGER, INTENT(OUT), OPTIONAL                     :: status
+      LOGICAL, INTENT(IN), OPTIONAL                      :: debug
+
+      COMPLEX(KIND=dp), DIMENSION(:, :), CONTIGUOUS, POINTER      :: grays
+      INTEGER :: out_unit
+      LOGICAL :: test
+
+      test = .FALSE.
+      IF (PRESENT(debug)) test = debug
+
+      out_unit = cp_logger_get_default_io_unit()
+
+      IF (pw_grid%para%mode == PW_MODE_LOCAL) THEN
+         IF (test .AND. out_unit > 0) WRITE (out_unit, '(A)') "  PW_SCATTER : 3d -> 1d "
+         CALL fft_scatter(zin, zout, pw_grid)
+         CALL fft3d_s(fsign, n, zout, status=status, debug=test)
+      ELSE
+         grays => pw_grid%grays
+         !..prepare input
+         IF (test .AND. out_unit > 0) &
+            WRITE (out_unit, '(A)') "  PW_SCATTER : 2d -> 1d "
+         grays = z_zero
+         CALL fft_scatter(zin, grays, pw_grid)
+         !..transform
+         IF (pw_grid%para%ray_distribution) THEN
+            CALL fft3d_ps(fsign, n, zout, grays, pw_grid%para%group, &
+                          pw_grid%para%yzp, pw_grid%para%nyzray, &
+                          pw_grid%para%bo, status, test)
+         ELSE
+            CALL fft3d_pb(fsign, n, zout, grays, pw_grid%para%group, &
+                          pw_grid%para%bo, status, debug=test)
+         END IF
+         !..prepare output (nothing to do)
+      END IF
+
+   END SUBROUTINE fft3d_s_c1_c3
+
+! **************************************************************************************************
+!> \brief Calls the 3D-FFT function from the initialized library
+!> \param fsign ...
+!> \param n ...
+!> \param zin ...
+!> \param zout ...
+!> \param status ...
+!> \param debug ...
+!> \par History
+!>      none
+!> \author JGH
+! **************************************************************************************************
    SUBROUTINE fft3d_s_c3_r3(fsign, n, zin, zout, status, debug)
 
       INTEGER, INTENT(IN)                                :: fsign
       INTEGER, DIMENSION(:), INTENT(INOUT)               :: n
-      COMPLEX(KIND=dp), DIMENSION(n(1), n(2), n(3)), &
+      COMPLEX(KIND=dp), DIMENSION(:, :, :), &
          INTENT(INOUT)                                   :: zin
-      REAL(KIND=dp), DIMENSION(n(1), n(2), n(3)), &
+      REAL(KIND=dp), DIMENSION(:, :, :), &
          INTENT(INOUT), TARGET                           :: zout
       INTEGER, INTENT(OUT), OPTIONAL                     :: status
       LOGICAL, INTENT(IN), OPTIONAL                      :: debug
@@ -420,10 +747,10 @@ CONTAINS
 
       INTEGER, INTENT(IN)                                :: fsign
       INTEGER, DIMENSION(:), INTENT(INOUT)               :: n
-      REAL(KIND=dp), DIMENSION(n(1), n(2), n(3)), &
+      REAL(KIND=dp), DIMENSION(:, :, :), &
          INTENT(INOUT)                                   :: zin
-      COMPLEX(KIND=dp), DIMENSION(n(1), n(2), n(3)), &
-         INTENT(INOUT), OPTIONAL, TARGET                 :: zout
+      COMPLEX(KIND=dp), DIMENSION(:, :, :), &
+         INTENT(INOUT), TARGET                 :: zout
       INTEGER, INTENT(OUT), OPTIONAL                     :: status
       LOGICAL, INTENT(IN), OPTIONAL                      :: debug
 
@@ -438,6 +765,328 @@ CONTAINS
       DEALLOCATE (zin_complex)
 
    END SUBROUTINE fft3d_s_r3_c3
+
+! **************************************************************************************************
+!> \brief perform an parallel fft followed by a gather on the gpu
+!> \param pw1 ...
+!> \param pw2 ...
+!> \author Andreas Gloess
+! **************************************************************************************************
+   SUBROUTINE pw_gpu_r3dc1d_3d_ps(zin, zout, pw_grid)
+      REAL(KIND=dp), DIMENSION(:, :, :), TARGET, INTENT(IN)                   :: zin
+      COMPLEX(KIND=dp), DIMENSION(:), TARGET, INTENT(INOUT)                :: zout
+      TYPE(pw_grid_type), TARGET, INTENT(IN) :: pw_grid
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'pw_gpu_r3dc1d_3d_ps'
+
+      COMPLEX(KIND=dp), DIMENSION(:, :), POINTER         :: grays, pbuf, qbuf, rbuf, sbuf
+      COMPLEX(KIND=dp), DIMENSION(:, :, :), POINTER      :: tbuf
+      INTEGER                                            :: g_pos, handle, lg, lmax, mg, mmax, mx2, &
+                                                            mz2, n1, n2, ngpts, nmax, numtask, rp
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: p2p
+      INTEGER, DIMENSION(2)                              :: r_dim, r_pos
+      INTEGER, DIMENSION(:), POINTER                     :: n, nloc, nyzray
+      INTEGER, DIMENSION(:, :, :, :), POINTER            :: bo
+      REAL(KIND=dp)                                      :: scale
+      TYPE(fft_scratch_sizes)                            :: fft_scratch_size
+      TYPE(fft_scratch_type), POINTER                    :: fft_scratch
+      TYPE(mp_cart_type)                                 :: rs_group
+
+      CALL timeset(routineN, handle)
+
+      scale = 1.0_dp/REAL(pw_grid%ngpts, KIND=dp)
+
+      ! dimensions
+      n => pw_grid%npts
+      nloc => pw_grid%npts_local
+      grays => pw_grid%grays
+      ngpts = nloc(1)*nloc(2)*nloc(3)
+
+      !..transform
+      IF (pw_grid%para%ray_distribution) THEN
+         rs_group = pw_grid%para%group
+         nyzray => pw_grid%para%nyzray
+         bo => pw_grid%para%bo
+
+         g_pos = rs_group%mepos
+         numtask = rs_group%num_pe
+         r_dim = rs_group%num_pe_cart
+         r_pos = rs_group%mepos_cart
+
+         lg = SIZE(grays, 1)
+         mg = SIZE(grays, 2)
+         mmax = MAX(mg, 1)
+         lmax = MAX(lg, (ngpts/mmax + 1))
+
+         ALLOCATE (p2p(0:numtask - 1))
+
+         CALL rs_group%rank_compare(rs_group, p2p)
+
+         rp = p2p(g_pos)
+         mx2 = bo(2, 1, rp, 2) - bo(1, 1, rp, 2) + 1
+         mz2 = bo(2, 3, rp, 2) - bo(1, 3, rp, 2) + 1
+         n1 = MAXVAL(bo(2, 1, :, 1) - bo(1, 1, :, 1) + 1)
+         n2 = MAXVAL(bo(2, 2, :, 1) - bo(1, 2, :, 1) + 1)
+         nmax = MAX((2*n2)/numtask, 2)*mx2*mz2
+         nmax = MAX(nmax, n1*MAXVAL(nyzray))
+
+         fft_scratch_size%nx = nloc(1)
+         fft_scratch_size%ny = nloc(2)
+         fft_scratch_size%nz = nloc(3)
+         fft_scratch_size%lmax = lmax
+         fft_scratch_size%mmax = mmax
+         fft_scratch_size%mx1 = bo(2, 1, rp, 1) - bo(1, 1, rp, 1) + 1
+         fft_scratch_size%mx2 = mx2
+         fft_scratch_size%my1 = bo(2, 2, rp, 1) - bo(1, 2, rp, 1) + 1
+         fft_scratch_size%mz2 = mz2
+         fft_scratch_size%lg = lg
+         fft_scratch_size%mg = mg
+         fft_scratch_size%nbx = MAXVAL(bo(2, 1, :, 2))
+         fft_scratch_size%nbz = MAXVAL(bo(2, 3, :, 2))
+         fft_scratch_size%mcz1 = MAXVAL(bo(2, 3, :, 1) - bo(1, 3, :, 1) + 1)
+         fft_scratch_size%mcx2 = MAXVAL(bo(2, 1, :, 2) - bo(1, 1, :, 2) + 1)
+         fft_scratch_size%mcz2 = MAXVAL(bo(2, 3, :, 2) - bo(1, 3, :, 2) + 1)
+         fft_scratch_size%nmax = nmax
+         fft_scratch_size%nmray = MAXVAL(nyzray)
+         fft_scratch_size%nyzray = nyzray(g_pos)
+         fft_scratch_size%rs_group = rs_group
+
+         IF (r_dim(2) > 1) THEN
+            !
+            ! real space is distributed over x and y coordinate
+            ! we have two stages of communication
+            !
+            IF (r_dim(1) == 1) &
+               CPABORT("This processor distribution is not supported.")
+
+            CALL get_fft_scratch(fft_scratch, tf_type=300, n=n, fft_sizes=fft_scratch_size)
+
+            ! assign buffers
+            qbuf => fft_scratch%p2buf
+            rbuf => fft_scratch%p3buf
+            pbuf => fft_scratch%p4buf
+            sbuf => fft_scratch%p5buf
+
+            ! FFT along z
+            CALL pw_gpu_cf(zin, qbuf, pw_grid)
+
+            ! Exchange data ( transpose of matrix )
+            CALL cube_transpose_2(qbuf, bo(:, :, :, 1), bo(:, :, :, 2), rbuf, fft_scratch)
+
+            ! FFT along y
+            ! use the inbuild fft-lib
+            ! CALL fft_1d(fft_scratch%fft_plan(2), rbuf, pbuf, 1.0_dp, stat)
+            ! or cufft (works faster, but is only faster if plans are stored)
+            CALL pw_gpu_f(rbuf, pbuf, +1, n(2), mx2*mz2)
+
+            ! Exchange data ( transpose of matrix ) and sort
+            CALL xz_to_yz(pbuf, rs_group, r_dim, g_pos, p2p, pw_grid%para%yzp, nyzray, &
+                          bo(:, :, :, 2), sbuf, fft_scratch)
+
+            ! FFT along x
+            CALL pw_gpu_fg(sbuf, zout, scale, pw_grid)
+
+            CALL release_fft_scratch(fft_scratch)
+
+         ELSE
+            !
+            ! real space is only distributed over x coordinate
+            ! we have one stage of communication, after the transform of
+            ! direction x
+            !
+
+            CALL get_fft_scratch(fft_scratch, tf_type=200, n=n, fft_sizes=fft_scratch_size)
+
+            ! assign buffers
+            tbuf => fft_scratch%tbuf
+            sbuf => fft_scratch%r1buf
+
+            ! FFT along y and z
+            CALL pw_gpu_cff(zin, tbuf, pw_grid)
+
+            ! Exchange data ( transpose of matrix ) and sort
+            CALL yz_to_x(tbuf, rs_group, g_pos, p2p, pw_grid%para%yzp, nyzray, &
+                         bo(:, :, :, 2), sbuf, fft_scratch)
+
+            ! FFT along x
+            CALL pw_gpu_fg(sbuf, zout, scale, pw_grid)
+
+            CALL release_fft_scratch(fft_scratch)
+
+         END IF
+
+         DEALLOCATE (p2p)
+
+!--------------------------------------------------------------------------
+      ELSE
+         CPABORT("Not implemented (no ray_distr.) in: pw_gpu_r3dc1d_3d_ps.")
+      END IF
+
+      CALL timestop(handle)
+   END SUBROUTINE pw_gpu_r3dc1d_3d_ps
+
+! **************************************************************************************************
+!> \brief perform an parallel scatter followed by a fft on the gpu
+!> \param pw1 ...
+!> \param pw2 ...
+!> \author Andreas Gloess
+! **************************************************************************************************
+   SUBROUTINE pw_gpu_c1dr3d_3d_ps(zin, zout, pw_grid)
+      COMPLEX(KIND=dp), DIMENSION(:), TARGET, INTENT(IN)                   :: zin
+      REAL(KIND=dp), DIMENSION(:, :, :), TARGET, INTENT(INOUT)                :: zout
+      TYPE(pw_grid_type), TARGET, INTENT(IN)             :: pw_grid
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'pw_gpu_c1dr3d_3d_ps'
+
+      COMPLEX(KIND=dp), DIMENSION(:, :), POINTER         :: grays, pbuf, qbuf, rbuf, sbuf
+      COMPLEX(KIND=dp), DIMENSION(:, :, :), POINTER      :: tbuf
+      INTEGER                                            :: g_pos, handle, lg, lmax, mg, mmax, mx2, &
+                                                            mz2, n1, n2, ngpts, nmax, numtask, rp
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: p2p
+      INTEGER, DIMENSION(2)                              :: r_dim, r_pos
+      INTEGER, DIMENSION(:), POINTER                     :: n, nloc, nyzray
+      INTEGER, DIMENSION(:, :, :, :), POINTER            :: bo
+      REAL(KIND=dp)                                      :: scale
+      TYPE(fft_scratch_sizes)                            :: fft_scratch_size
+      TYPE(fft_scratch_type), POINTER                    :: fft_scratch
+      TYPE(mp_cart_type)                                 :: rs_group
+
+      CALL timeset(routineN, handle)
+
+      scale = 1.0_dp
+
+      ! dimensions
+      n => pw_grid%npts
+      nloc => pw_grid%npts_local
+      grays => pw_grid%grays
+      ngpts = nloc(1)*nloc(2)*nloc(3)
+
+      !..transform
+      IF (pw_grid%para%ray_distribution) THEN
+         rs_group = pw_grid%para%group
+         nyzray => pw_grid%para%nyzray
+         bo => pw_grid%para%bo
+
+         g_pos = rs_group%mepos
+         numtask = rs_group%num_pe
+         r_dim = rs_group%num_pe_cart
+         r_pos = rs_group%mepos_cart
+
+         lg = SIZE(grays, 1)
+         mg = SIZE(grays, 2)
+         mmax = MAX(mg, 1)
+         lmax = MAX(lg, (ngpts/mmax + 1))
+
+         ALLOCATE (p2p(0:numtask - 1))
+
+         CALL rs_group%rank_compare(rs_group, p2p)
+
+         rp = p2p(g_pos)
+         mx2 = bo(2, 1, rp, 2) - bo(1, 1, rp, 2) + 1
+         mz2 = bo(2, 3, rp, 2) - bo(1, 3, rp, 2) + 1
+         n1 = MAXVAL(bo(2, 1, :, 1) - bo(1, 1, :, 1) + 1)
+         n2 = MAXVAL(bo(2, 2, :, 1) - bo(1, 2, :, 1) + 1)
+         nmax = MAX((2*n2)/numtask, 2)*mx2*mz2
+         nmax = MAX(nmax, n1*MAXVAL(nyzray))
+
+         fft_scratch_size%nx = nloc(1)
+         fft_scratch_size%ny = nloc(2)
+         fft_scratch_size%nz = nloc(3)
+         fft_scratch_size%lmax = lmax
+         fft_scratch_size%mmax = mmax
+         fft_scratch_size%mx1 = bo(2, 1, rp, 1) - bo(1, 1, rp, 1) + 1
+         fft_scratch_size%mx2 = mx2
+         fft_scratch_size%my1 = bo(2, 2, rp, 1) - bo(1, 2, rp, 1) + 1
+         fft_scratch_size%mz2 = mz2
+         fft_scratch_size%lg = lg
+         fft_scratch_size%mg = mg
+         fft_scratch_size%nbx = MAXVAL(bo(2, 1, :, 2))
+         fft_scratch_size%nbz = MAXVAL(bo(2, 3, :, 2))
+         fft_scratch_size%mcz1 = MAXVAL(bo(2, 3, :, 1) - bo(1, 3, :, 1) + 1)
+         fft_scratch_size%mcx2 = MAXVAL(bo(2, 1, :, 2) - bo(1, 1, :, 2) + 1)
+         fft_scratch_size%mcz2 = MAXVAL(bo(2, 3, :, 2) - bo(1, 3, :, 2) + 1)
+         fft_scratch_size%nmax = nmax
+         fft_scratch_size%nmray = MAXVAL(nyzray)
+         fft_scratch_size%nyzray = nyzray(g_pos)
+         fft_scratch_size%rs_group = rs_group
+
+         IF (r_dim(2) > 1) THEN
+            !
+            ! real space is distributed over x and y coordinate
+            ! we have two stages of communication
+            !
+            IF (r_dim(1) == 1) &
+               CPABORT("This processor distribution is not supported.")
+
+            CALL get_fft_scratch(fft_scratch, tf_type=300, n=n, fft_sizes=fft_scratch_size)
+
+            ! assign buffers
+            pbuf => fft_scratch%p7buf
+            qbuf => fft_scratch%p4buf
+            rbuf => fft_scratch%p3buf
+            sbuf => fft_scratch%p2buf
+
+            ! FFT along x
+            CALL pw_gpu_sf(zin, pbuf, scale, pw_grid)
+
+            ! Exchange data ( transpose of matrix ) and sort
+            IF (pw_grid%grid_span /= FULLSPACE) qbuf = z_zero
+            CALL yz_to_xz(pbuf, rs_group, r_dim, g_pos, p2p, pw_grid%para%yzp, nyzray, &
+                          bo(:, :, :, 2), qbuf, fft_scratch)
+
+            ! FFT along y
+            ! use the inbuild fft-lib
+            ! CALL fft_1d(fft_scratch%fft_plan(5), qbuf, rbuf, 1.0_dp, stat)
+            ! or cufft (works faster, but is only faster if plans are stored)
+            CALL pw_gpu_f(qbuf, rbuf, -1, n(2), mx2*mz2)
+
+            ! Exchange data ( transpose of matrix )
+            IF (pw_grid%grid_span /= FULLSPACE) sbuf = z_zero
+
+            CALL cube_transpose_1(rbuf, bo(:, :, :, 2), bo(:, :, :, 1), sbuf, fft_scratch)
+
+            ! FFT along z
+            CALL pw_gpu_fc(sbuf, zout, pw_grid)
+
+            CALL release_fft_scratch(fft_scratch)
+
+         ELSE
+            !
+            ! real space is only distributed over x coordinate
+            ! we have one stage of communication, after the transform of
+            ! direction x
+            !
+
+            CALL get_fft_scratch(fft_scratch, tf_type=200, n=n, fft_sizes=fft_scratch_size)
+
+            ! assign buffers
+            sbuf => fft_scratch%r1buf
+            tbuf => fft_scratch%tbuf
+
+            ! FFT along x
+            CALL pw_gpu_sf(zin, sbuf, scale, pw_grid)
+
+            ! Exchange data ( transpose of matrix ) and sort
+            IF (pw_grid%grid_span /= FULLSPACE) tbuf = z_zero
+            CALL x_to_yz(sbuf, rs_group, g_pos, p2p, pw_grid%para%yzp, nyzray, &
+                         bo(:, :, :, 2), tbuf, fft_scratch)
+
+            ! FFT along y and z
+            CALL pw_gpu_ffc(tbuf, zout, pw_grid)
+
+            CALL release_fft_scratch(fft_scratch)
+
+         END IF
+
+         DEALLOCATE (p2p)
+
+!--------------------------------------------------------------------------
+      ELSE
+         CPABORT("Not implemented (no ray_distr.) in: pw_gpu_c1dr3d_3d_ps.")
+      END IF
+
+      CALL timestop(handle)
+   END SUBROUTINE pw_gpu_c1dr3d_3d_ps
 
 ! **************************************************************************************************
 !> \brief Calls the 3D-FFT function from the initialized library

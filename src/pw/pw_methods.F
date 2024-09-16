@@ -35,15 +35,6 @@ MODULE pw_methods
    USE machine, ONLY: m_memory
    USE mathconstants, ONLY: z_zero
    USE pw_copy_all, ONLY: pw_copy_match
-   USE pw_fpga, ONLY: pw_fpga_c1dr3d_3d_dp, &
-                      pw_fpga_c1dr3d_3d_sp, &
-                      pw_fpga_init_bitstream, &
-                      pw_fpga_r3dc1d_3d_dp, &
-                      pw_fpga_r3dc1d_3d_sp
-   USE pw_gpu, ONLY: pw_gpu_c1dr3d_3d, &
-                     pw_gpu_c1dr3d_3d_ps, &
-                     pw_gpu_r3dc1d_3d, &
-                     pw_gpu_r3dc1d_3d_ps
    USE pw_grid_types, ONLY: HALFSPACE, &
                             PW_MODE_DISTRIBUTED, &
                             PW_MODE_LOCAL, &
@@ -993,16 +984,7 @@ CONTAINS
 
                                  CHARACTER(len=*), PARAMETER                        :: routineN = 'fft_wrap_pw1pw2'
 
-                                 COMPLEX(KIND=dp), DIMENSION(:, :), CONTIGUOUS, POINTER         :: grays
-                                 COMPLEX(KIND=dp), DIMENSION(:, :, :), CONTIGUOUS, POINTER      :: c_in, c_out
-                                 INTEGER                                            ::  handle, handle2, my_pos, nrays, &
-                                                                                       out_unit
-                                 #:if (space=="rs" and kind=="r3d" and kind2=="c1d") or (space=="gs" and kind=="c1d" and kind2=="r3d")
-                                    INTEGER, DIMENSION(3)                              :: nloc
-#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_PW)
-                                    LOGICAL                                            :: use_pw_gpu
-#endif
-                                 #:endif
+                                 INTEGER                                            ::  handle, handle2, out_unit
                                  INTEGER, DIMENSION(:), POINTER                     :: n
                                  LOGICAL                                            :: test
 
@@ -1010,9 +992,6 @@ CONTAINS
                                  out_unit = cp_logger_get_default_io_unit()
                                  CALL timeset(routineN//"_"//TRIM(ADJUSTL(cp_to_string( &
                                                                           CEILING(pw1%pw_grid%cutoff/10)*10))), handle)
-
-                                 NULLIFY (c_in)
-                                 NULLIFY (c_out)
 
                                  IF (PRESENT(debug)) THEN
                                     test = debug
@@ -1052,85 +1031,16 @@ CONTAINS
                                     END IF
 
                                     #:if space=="rs"
-                                       #:if kind==kind2=="c3d"
+                                       #:if kind[1]==kind2[1]
                                           CALL fft3d(FWFFT, n, pw1%array, pw2%array, debug=test)
-                                       #:elif kind=="r3d" and kind2=="c3d"
-                                          CALL fft3d(FWFFT, n, pw1%array, debug=test)
-                                       #:elif kind=="c3d" and kind2=="c1d"
-                                          c_in => pw1%array
-                                          ALLOCATE (c_out(n(1), n(2), n(3)))
-                                          ! transform
-                                          CALL fft3d(FWFFT, n, c_in, c_out, debug=test)
-                                          ! gather results
-                                          IF (test .AND. out_unit > 0) WRITE (out_unit, '(A)') "  PW_GATHER : 3d -> 1d "
-                                          CALL fft_gather(pw2%array, c_out, pw2%pw_grid)
-                                          DEALLOCATE (c_out)
-                                       #:elif kind=="r3d" and kind2=="c1d"
-#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_PW)
-                                          CALL pw_gpu_r3dc1d_3d(pw1, pw2)
-#else
-                                          ALLOCATE (c_out(n(1), n(2), n(3)))
-                                          ! check if bitstream for the fft size is present
-                                          ! if not, perform fft3d in CPU
-                                          CALL pw_copy_to_array(pw1, c_out)
-#if defined (__PW_FPGA)
-                                          IF (pw_fpga_init_bitstream(n) == 1) THEN
-#if (__PW_FPGA_SP && __PW_FPGA)
-                                             CALL pw_fpga_r3dc1d_3d_sp(n, c_out)
-#else
-                                             CALL pw_fpga_r3dc1d_3d_dp(n, c_out)
-#endif
-                                             CALL zdscal(n(1)*n(2)*n(3), 1.0_dp/pw1%pw_grid%ngpts, c_out, 1)
-                                          ELSE
-#endif
-                                             CALL fft3d(FWFFT, n, c_out, debug=test)
-#if defined (__PW_FPGA)
-                                          END IF
-#endif
-                                          CALL fft_gather(pw2%array, c_out, pw2%pw_grid)
-                                          DEALLOCATE (c_out)
-#endif
+                                       #:elif kind[1]!=kind2[1]
+                                          CALL fft3d(FWFFT, n, pw1%array, pw2%array, pw2%pw_grid, debug=test)
                                        #:endif
                                     #:else
-                                       #:if kind=="c3d" and kind2=="c3d"
+                                       #:if kind[1]==kind2[1]
                                           CALL fft3d(BWFFT, n, pw1%array, pw2%array, debug=test)
-                                       #:elif kind=="c3d" and kind2=="r3d"
-                                          CALL fft3d(FWFFT, n, pw1%array, pw2%array, debug=test)
-                                       #:elif kind=="c1d" and kind2=="c3d"
-                                          c_out => pw2%array
-                                          IF (test .AND. out_unit > 0) WRITE (out_unit, '(A)') "  PW_SCATTER : 3d -> 1d "
-                                          CALL fft_scatter(pw1%array, c_out, pw1%pw_grid)
-                                          CALL fft3d(BWFFT, n, c_out, debug=test)
-                                       #:elif kind=="c1d" and kind2=="r3d"
-#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_PW)
-                                          CALL pw_gpu_c1dr3d_3d(pw1, pw2)
-#else
-                                          ALLOCATE (c_out(n(1), n(2), n(3)))
-                                          ! check if bitstream for the fft size is present
-                                          ! if not, perform fft3d in CPU
-                                          IF (test .AND. out_unit > 0) WRITE (out_unit, '(A)') "  PW_SCATTER : 3d -> 1d "
-                                          CALL fft_scatter(pw1%array, c_out, pw1%pw_grid)
-#if defined (__PW_FPGA)
-                                          IF (pw_fpga_init_bitstream(n) == 1) THEN
-                                             ! transform using FPGA
-#if (__PW_FPGA_SP && __PW_FPGA)
-                                             CALL pw_fpga_c1dr3d_3d_sp(n, c_out)
-#else
-                                             CALL pw_fpga_c1dr3d_3d_dp(n, c_out)
-#endif
-                                             CALL zdscal(n(1)*n(2)*n(3), 1.0_dp, c_out, 1)
-                                          ELSE
-#endif
-                                             ! transform
-                                             CALL fft3d(BWFFT, n, c_out, debug=test)
-#if defined (__PW_FPGA)
-                                          END IF
-#endif
-                                          ! use real part only
-                                          IF (test .AND. out_unit > 0) WRITE (out_unit, '(A)') "  REAL part "
-                                          CALL pw_copy_from_array(pw2, c_out)
-                                          DEALLOCATE (c_out)
-#endif
+                                       #:elif kind[1]!=kind2[1]
+                                          CALL fft3d(BWFFT, n, pw1%array, pw2%array, pw1%pw_grid, debug=test)
                                        #:endif
                                     #:endif
 
@@ -1155,110 +1065,17 @@ CONTAINS
                                        #:endif
                                     END IF
 
-                                    my_pos = pw1%pw_grid%para%group%mepos
-                                    nrays = pw1%pw_grid%para%nyzray(my_pos)
-                                    grays => pw1%pw_grid%grays
-
                                     #:if space=="rs"
                                        #:if kind=="c3d" and kind2=="c1d"
-                                          !..prepare input
-                                          c_in => pw1%array
-                                          grays = z_zero
-                                          !..transform
-                                          IF (pw1%pw_grid%para%ray_distribution) THEN
-                                             CALL fft3d(FWFFT, n, c_in, grays, pw1%pw_grid%para%group, &
-                                                        pw1%pw_grid%para%yzp, pw1%pw_grid%para%nyzray, &
-                                                        pw1%pw_grid%para%bo, debug=test)
-                                          ELSE
-                                             CALL fft3d(FWFFT, n, c_in, grays, pw1%pw_grid%para%group, &
-                                                        pw1%pw_grid%para%bo, debug=test)
-                                          END IF
-                                          !..prepare output
-                                          IF (test .AND. out_unit > 0) &
-                                             WRITE (out_unit, '(A)') "  PW_GATHER : 2d -> 1d "
-                                          CALL fft_gather(pw2%array, grays, pw2%pw_grid)
+                                          CALL fft3d(FWFFT, n, pw1%array, pw2%array, pw2%pw_grid, debug=test)
                                        #:elif kind=="r3d" and kind2=="c1d"
-#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_PW)
-                                          ! (no ray dist. is not efficient in CUDA)
-                                          use_pw_gpu = pw1%pw_grid%para%ray_distribution
-                                          IF (use_pw_gpu) THEN
-                                             CALL pw_gpu_r3dc1d_3d_ps(pw1, pw2)
-                                          ELSE
-#endif
-!..   prepare input
-                                             nloc = pw1%pw_grid%npts_local
-                                             ALLOCATE (c_in(nloc(1), nloc(2), nloc(3)))
-                                             CALL pw_copy_to_array(pw1, c_in)
-                                             grays = z_zero
-                                             !..transform
-                                             IF (pw1%pw_grid%para%ray_distribution) THEN
-                                                CALL fft3d(FWFFT, n, c_in, grays, pw1%pw_grid%para%group, &
-                                                           pw1%pw_grid%para%yzp, pw1%pw_grid%para%nyzray, &
-                                                           pw1%pw_grid%para%bo, debug=test)
-                                             ELSE
-                                                CALL fft3d(FWFFT, n, c_in, grays, pw1%pw_grid%para%group, &
-                                                           pw1%pw_grid%para%bo, debug=test)
-                                             END IF
-                                             !..prepare output
-                                             IF (test .AND. out_unit > 0) &
-                                                WRITE (out_unit, '(A)') "  PW_GATHER : 2d -> 1d "
-                                             CALL fft_gather(pw2%array, grays, pw2%pw_grid)
-                                             DEALLOCATE (c_in)
-
-#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_PW)
-                                          END IF
-#endif
+                                          CALL fft3d(FWFFT, n, pw1%array, pw2%array, pw2%pw_grid, debug=test)
                                        #:endif
                                     #:else
                                        #:if kind=="c1d" and kind2=="c3d"
-                                          !..prepare input
-                                          IF (test .AND. out_unit > 0) &
-                                             WRITE (out_unit, '(A)') "  PW_SCATTER : 2d -> 1d "
-                                          grays = z_zero
-                                          CALL fft_scatter(pw1%array, grays, pw1%pw_grid)
-                                          c_in => pw2%array
-                                          !..transform
-                                          IF (pw1%pw_grid%para%ray_distribution) THEN
-                                             CALL fft3d(BWFFT, n, c_in, grays, pw1%pw_grid%para%group, &
-                                                        pw1%pw_grid%para%yzp, pw1%pw_grid%para%nyzray, &
-                                                        pw1%pw_grid%para%bo, debug=test)
-                                          ELSE
-                                             CALL fft3d(BWFFT, n, c_in, grays, pw1%pw_grid%para%group, &
-                                                        pw1%pw_grid%para%bo, debug=test)
-                                          END IF
-                                          !..prepare output (nothing to do)
+                                          CALL fft3d(BWFFT, n, pw1%array, pw2%array, pw1%pw_grid, debug=test)
                                        #:elif kind=="c1d" and kind2=="r3d"
-#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_PW)
-                                          ! (no ray dist. is not efficient in CUDA)
-                                          use_pw_gpu = pw1%pw_grid%para%ray_distribution
-                                          IF (use_pw_gpu) THEN
-                                             CALL pw_gpu_c1dr3d_3d_ps(pw1, pw2)
-                                          ELSE
-#endif
-!..   prepare input
-                                             IF (test .AND. out_unit > 0) &
-                                                WRITE (out_unit, '(A)') "  PW_SCATTER : 2d -> 1d "
-                                             grays = z_zero
-                                             CALL fft_scatter(pw1%array, grays, pw1%pw_grid)
-                                             nloc = pw2%pw_grid%npts_local
-                                             ALLOCATE (c_in(nloc(1), nloc(2), nloc(3)))
-                                             !..transform
-                                             IF (pw1%pw_grid%para%ray_distribution) THEN
-                                                CALL fft3d(BWFFT, n, c_in, grays, pw1%pw_grid%para%group, &
-                                                           pw1%pw_grid%para%yzp, pw1%pw_grid%para%nyzray, &
-                                                           pw1%pw_grid%para%bo, debug=test)
-                                             ELSE
-                                                CALL fft3d(BWFFT, n, c_in, grays, pw1%pw_grid%para%group, &
-                                                           pw1%pw_grid%para%bo, debug=test)
-                                             END IF
-                                             !..prepare output
-                                             IF (test .AND. out_unit > 0) &
-                                                WRITE (out_unit, '(A)') "  Real part "
-                                             CALL pw_copy_from_array(pw2, c_in)
-                                             DEALLOCATE (c_in)
-#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_PW)
-                                          END IF
-#endif
+                                          CALL fft3d(BWFFT, n, pw1%array, pw2%array, pw1%pw_grid, debug=test)
                                        #:endif
                                     #:endif
                                  END IF
