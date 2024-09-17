@@ -3,12 +3,12 @@
 # CP2K Darwin arch file for a serial arm64 binary
 # (https://www.cp2k.org/howto:compile_on_macos)
 #
-# Tested with: GNU 14.2.0 on an Apple M1 (macOS 14.6.1 Sonoma)
+# Tested with: GNU 14.2.0 on an Apple M1 (macOS 15.0 Sequoia)
 #
 # Usage: Source this arch file and then run make as instructed.
 #        Ensure the links in /opt/homebrew/bin to the gcc version.
 #
-# Last update: 13.09.2024
+# Last update: 17.09.2024
 #
 # \
    if [[ "${0}" == "${BASH_SOURCE}" ]]; then \
@@ -26,6 +26,7 @@
       brew install fftw; \
       brew install gcc; \
       brew install libxc; \
+      brew install ninja; \
       brew install openblas; \
       brew install pkg-config; \
       brew install wget; \
@@ -37,7 +38,8 @@
    fi; \
    ./install_cp2k_toolchain.sh -j${maxtasks} --mpi-mode=no --no-arch-files --target-cpu=${target_cpu} \
       --with-cmake=$(brew --prefix cmake) --with-fftw=$(brew --prefix fftw) --with-gcc=system \
-      --with-libxc=$(brew --prefix libxc) --with-openblas=$(brew --prefix openblas); \
+      --with-libxc=$(brew --prefix libxc) --with-ninja=$(brew --prefix ninja) \
+      --with-openblas=$(brew --prefix openblas); --with-libxsmm=no \
    source ./install/setup; \
    cd ../..; \
    echo; \
