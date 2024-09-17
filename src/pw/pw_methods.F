@@ -854,12 +854,11 @@ CONTAINS
                         #:elif kind=="r3d" and kind2=="r3d"
                            integral_value = SUM(pw1%array*pw2%array)
                         #:elif kind[0]=="r"
-                           integral_value = SUM(pw1%array*REAL(pw2%array, KIND=dp)) !? complex bit
+                           integral_value = SUM(pw1%array*REAL(pw2%array, KIND=dp))
                         #:elif kind2[0]=="r"
-                           integral_value = SUM(REAL(pw1%array, KIND=dp)*pw2%array) !? complex bit
+                           integral_value = SUM(REAL(pw1%array, KIND=dp)*pw2%array)
                         #:else
-                           integral_value = SUM(REAL(CONJG(pw1%array) &
-                                                     *pw2%array, KIND=dp)) !? complex bit
+                           integral_value = SUM(REAL(CONJG(pw1%array)*pw2%array, KIND=dp))
                         #:endif
 
                      ELSE
@@ -868,12 +867,12 @@ CONTAINS
                         #:if kind[0]=="r" and kind2[0]=="r"
                            integral_value = accurate_dot_product(pw1%array, pw2%array)
                         #:elif kind[0]=="r"
-                           integral_value = accurate_sum(pw1%array*REAL(pw2%array, KIND=dp)) !? complex bit
+                           integral_value = accurate_sum(pw1%array*REAL(pw2%array, KIND=dp))
                         #:elif kind2[0]=="r"
-                           integral_value = accurate_sum(REAL(pw1%array, KIND=dp)*pw2%array) !? complex bit
+                           integral_value = accurate_sum(REAL(pw1%array, KIND=dp)*pw2%array)
                         #:else
                            integral_value = accurate_sum(REAL(CONJG(pw1%array) &
-                                                              *pw2%array, KIND=dp)) !? complex bit
+                                                              *pw2%array, KIND=dp))
                         #:endif
 
                      END IF
@@ -891,78 +890,76 @@ CONTAINS
                      #:if kind[1]=="1"
                         IF (pw1%pw_grid%grid_span == HALFSPACE) THEN
                            integral_value = 2.0_dp*integral_value
-                           IF (pw1%pw_grid%have_g0) integral_value = integral_value - &
                            #:if kind[0]=="c"
-                                                                     REAL(CONJG(pw1%array(1))*pw2%array(1), KIND=dp)
-                              #:elif kind2[0]=="r"
-                              pw1%array(1)*pw2%array(1)
-                              #:else
-                              pw1%array(1)*REAL(pw2%array(1), KIND=dp)
-                              #:endif
-                           END IF
-                        #:endif
+                          IF (pw1%pw_grid%have_g0) integral_value = integral_value - REAL(CONJG(pw1%array(1))*pw2%array(1), KIND=dp)
+                           #:elif kind2[0]=="r"
+                              IF (pw1%pw_grid%have_g0) integral_value = integral_value - pw1%array(1)*pw2%array(1)
+                           #:else
+                              IF (pw1%pw_grid%have_g0) integral_value = integral_value - pw1%array(1)*REAL(pw2%array(1), KIND=dp)
+                           #:endif
+                        END IF
+                     #:endif
 
-                        IF (.NOT. my_local_only .AND. pw1%pw_grid%para%mode == PW_MODE_DISTRIBUTED) &
-                           CALL pw1%pw_grid%para%group%sum(integral_value)
+                     IF (.NOT. my_local_only .AND. pw1%pw_grid%para%mode == PW_MODE_DISTRIBUTED) &
+                        CALL pw1%pw_grid%para%group%sum(integral_value)
 
-                        CALL timestop(handle)
+                     CALL timestop(handle)
 
-                     END FUNCTION pw_integral_ab_${kind}$_${kind2}$_${space}$
-                     #:endfor
+                  END FUNCTION pw_integral_ab_${kind}$_${kind2}$_${space}$
+                  #:endfor
 
-                     #:if kind[1]=="1"
+                  #:if kind[1]=="1"
 ! **************************************************************************************************
 !> \brief ...
 !> \param pw1 ...
 !> \param pw2 ...
 !> \return ...
 ! **************************************************************************************************
-                        FUNCTION pw_integral_a2b_${kind}$_${kind2}$ (pw1, pw2) RESULT(integral_value)
+                     FUNCTION pw_integral_a2b_${kind}$_${kind2}$ (pw1, pw2) RESULT(integral_value)
 
-                           TYPE(pw_${kind}$_gs_type), INTENT(IN)                          :: pw1
-                           TYPE(pw_${kind2}$_gs_type), INTENT(IN) :: pw2
-                           REAL(KIND=dp)                                      :: integral_value
+                        TYPE(pw_${kind}$_gs_type), INTENT(IN)                          :: pw1
+                        TYPE(pw_${kind2}$_gs_type), INTENT(IN) :: pw2
+                        REAL(KIND=dp)                                      :: integral_value
 
-                           CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_integral_a2b'
+                        CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_integral_a2b'
 
-                           INTEGER                                            :: handle
+                        INTEGER                                            :: handle
 
-                           CALL timeset(routineN, handle)
+                        CALL timeset(routineN, handle)
 
-                           IF (.NOT. ASSOCIATED(pw1%pw_grid, pw2%pw_grid)) THEN
-                              CPABORT("Grids incompatible")
-                           END IF
+                        IF (.NOT. ASSOCIATED(pw1%pw_grid, pw2%pw_grid)) THEN
+                           CPABORT("Grids incompatible")
+                        END IF
 
-                           #:if kind[0]=="c"
-                              #:if kind2[0]=="c"
-                                 integral_value = accurate_sum(REAL(CONJG(pw1%array)*pw2%array, KIND=dp)*pw1%pw_grid%gsq)
-                              #:else
-                                 integral_value = accurate_sum(REAL(CONJG(pw1%array), KIND=dp)*pw2%array*pw1%pw_grid%gsq)
-                              #:endif
-                           #:elif kind2[0]=="c"
-                              integral_value = accurate_sum(pw1%array*REAL(pw2%array, KIND=dp)*pw1%pw_grid%gsq)
+                        #:if kind[0]=="c"
+                           #:if kind2[0]=="c"
+                              integral_value = accurate_sum(REAL(CONJG(pw1%array)*pw2%array, KIND=dp)*pw1%pw_grid%gsq)
                            #:else
-                              integral_value = accurate_sum(pw1%array*pw2%array*pw1%pw_grid%gsq)
+                              integral_value = accurate_sum(REAL(CONJG(pw1%array), KIND=dp)*pw2%array*pw1%pw_grid%gsq)
                            #:endif
-                           IF (pw1%pw_grid%grid_span == HALFSPACE) THEN
-                              integral_value = 2.0_dp*integral_value
-                           END IF
+                        #:elif kind2[0]=="c"
+                           integral_value = accurate_sum(pw1%array*REAL(pw2%array, KIND=dp)*pw1%pw_grid%gsq)
+                        #:else
+                           integral_value = accurate_sum(pw1%array*pw2%array*pw1%pw_grid%gsq)
+                        #:endif
+                        IF (pw1%pw_grid%grid_span == HALFSPACE) THEN
+                           integral_value = 2.0_dp*integral_value
+                        END IF
 
-                           integral_value = integral_value*pw1%pw_grid%vol
+                        integral_value = integral_value*pw1%pw_grid%vol
 
-                           IF (pw1%pw_grid%para%mode == PW_MODE_DISTRIBUTED) &
-                              CALL pw1%pw_grid%para%group%sum(integral_value)
-                           CALL timestop(handle)
+                        IF (pw1%pw_grid%para%mode == PW_MODE_DISTRIBUTED) &
+                           CALL pw1%pw_grid%para%group%sum(integral_value)
+                        CALL timestop(handle)
 
-                        END FUNCTION pw_integral_a2b_${kind}$_${kind2}$
-                     #:endif
-                  #:endfor
+                     END FUNCTION pw_integral_a2b_${kind}$_${kind2}$
+                  #:endif
+               #:endfor
 
-                  #:for kind, type, kind2, type2 in pw_list2
-                     #:for space in pw_spaces
-                        #:for space2 in pw_spaces
+               #:for kind, type, kind2, type2 in pw_list2
+                  #:for space, space2 in [pw_spaces, pw_spaces[::-1]]
 
-                           #:if space != space2 and ((space=="rs" and kind[1]=="3" and kind2[0]=="c") or (space=="gs" and kind2[1]=="3" and kind[0]=="c"))
+                     #:if ((space=="rs" and kind[1]=="3" and kind2[0]=="c") or (space=="gs" and kind2[1]=="3" and kind[0]=="c"))
 ! **************************************************************************************************
 !> \brief Generic function for 3d FFT of a coefficient_type or pw_r3d_rs_type
 !> \param pw1 ...
@@ -976,122 +973,117 @@ CONTAINS
 !> \note
 !>       fft_wrap_pw1pw2
 ! **************************************************************************************************
-                              SUBROUTINE fft_wrap_pw1pw2_${kind}$_${kind2}$_${space}$_${space2}$ (pw1, pw2, debug)
+                        SUBROUTINE fft_wrap_pw1pw2_${kind}$_${kind2}$_${space}$_${space2}$ (pw1, pw2, debug)
 
-                                 TYPE(pw_${kind}$_${space}$_type), INTENT(IN)                  :: pw1
-                                 TYPE(pw_${kind2}$_${space2}$_type), INTENT(INOUT)               :: pw2
-                                 LOGICAL, INTENT(IN), OPTIONAL                      :: debug
+                           TYPE(pw_${kind}$_${space}$_type), INTENT(IN)                  :: pw1
+                           TYPE(pw_${kind2}$_${space2}$_type), INTENT(INOUT)               :: pw2
+                           LOGICAL, INTENT(IN), OPTIONAL                      :: debug
 
-                                 CHARACTER(len=*), PARAMETER                        :: routineN = 'fft_wrap_pw1pw2'
+                           CHARACTER(len=*), PARAMETER                        :: routineN = 'fft_wrap_pw1pw2'
 
-                                 INTEGER                                            ::  handle, handle2, out_unit
-                                 INTEGER, DIMENSION(:), POINTER                     :: n
-                                 LOGICAL                                            :: test
+                           INTEGER                                            ::  handle, handle2, out_unit
+                           INTEGER, DIMENSION(:), POINTER                     :: n
+                           LOGICAL                                            :: test
 
-                                 CALL timeset(routineN, handle2)
-                                 out_unit = cp_logger_get_default_io_unit()
-                                 CALL timeset(routineN//"_"//TRIM(ADJUSTL(cp_to_string( &
-                                                                          CEILING(pw1%pw_grid%cutoff/10)*10))), handle)
+                           CALL timeset(routineN, handle2)
+                           out_unit = cp_logger_get_default_io_unit()
+                           CALL timeset(routineN//"_"//TRIM(ADJUSTL(cp_to_string( &
+                                                                    CEILING(pw1%pw_grid%cutoff/10)*10))), handle)
 
-                                 IF (PRESENT(debug)) THEN
-                                    test = debug
-                                 ELSE
-                                    test = .FALSE.
-                                 END IF
+                           IF (PRESENT(debug)) THEN
+                              test = debug
+                           ELSE
+                              test = .FALSE.
+                           END IF
 
-                                 !..check if grids are compatible
-                                 IF (.NOT. ASSOCIATED(pw1%pw_grid, pw2%pw_grid)) THEN
-                                    IF (pw1%pw_grid%dvol /= pw2%pw_grid%dvol) THEN
-                                       CPABORT("PW grids not compatible")
-                                    END IF
-                                    IF (pw1%pw_grid%para%group /= pw2%pw_grid%para%group) THEN
-                                       CPABORT("PW grids have not compatible MPI groups")
-                                    END IF
-                                 END IF
+                           !..check if grids are compatible
+                           IF (.NOT. ASSOCIATED(pw1%pw_grid, pw2%pw_grid)) THEN
+                              IF (pw1%pw_grid%dvol /= pw2%pw_grid%dvol) THEN
+                                 CPABORT("PW grids not compatible")
+                              END IF
+                              IF (pw1%pw_grid%para%group /= pw2%pw_grid%para%group) THEN
+                                 CPABORT("PW grids have not compatible MPI groups")
+                              END IF
+                           END IF
 
-                                 n => pw1%pw_grid%npts
+                           n => pw1%pw_grid%npts
 
-                                 IF (pw1%pw_grid%para%mode == PW_MODE_LOCAL) THEN
+                           IF (pw1%pw_grid%para%mode == PW_MODE_LOCAL) THEN
 
-                                    !
-                                    !..replicated data, use local FFT
-                                    !
+                              !
+                              !..replicated data, use local FFT
+                              !
 
-                                    IF (test .AND. out_unit > 0) THEN
-                                       WRITE (out_unit, '(A)') " FFT Protocol "
-                                       #:if space=="rs"
-                                          WRITE (out_unit, '(A,T76,A)') "  Transform direction ", "FWFFT"
-                                          WRITE (out_unit, '(A,T72,A)') "  in space ", "REALSPACE"
-                                          WRITE (out_unit, '(A,T72,A)') "  out space ", "REALSPACE"
-                                       #:else
-                                          WRITE (out_unit, '(A,T76,A)') "  Transform direction ", "BWFFT"
-                                          WRITE (out_unit, '(A,T66,A)') "  in space ", "RECIPROCALSPACE"
-                                          WRITE (out_unit, '(A,T66,A)') "  out space ", "RECIPROCALSPACE"
-                                       #:endif
-                                    END IF
+                              IF (test .AND. out_unit > 0) THEN
+                                 WRITE (out_unit, '(A)') " FFT Protocol "
+                                 #:if space=="rs"
+                                    WRITE (out_unit, '(A,T76,A)') "  Transform direction ", "FWFFT"
+                                    WRITE (out_unit, '(A,T72,A)') "  in space ", "REALSPACE"
+                                    WRITE (out_unit, '(A,T72,A)') "  out space ", "REALSPACE"
+                                 #:else
+                                    WRITE (out_unit, '(A,T76,A)') "  Transform direction ", "BWFFT"
+                                    WRITE (out_unit, '(A,T66,A)') "  in space ", "RECIPROCALSPACE"
+                                    WRITE (out_unit, '(A,T66,A)') "  out space ", "RECIPROCALSPACE"
+                                 #:endif
+                              END IF
 
-                                    #:if space=="rs"
-                                       #:if kind[1]==kind2[1]
-                                          CALL fft3d(FWFFT, n, pw1%array, pw2%array, debug=test)
-                                       #:elif kind[1]!=kind2[1]
-                                          CALL fft3d(FWFFT, n, pw1%array, pw2%array, pw2%pw_grid, debug=test)
-                                       #:endif
-                                    #:else
-                                       #:if kind[1]==kind2[1]
-                                          CALL fft3d(BWFFT, n, pw1%array, pw2%array, debug=test)
-                                       #:elif kind[1]!=kind2[1]
-                                          CALL fft3d(BWFFT, n, pw1%array, pw2%array, pw1%pw_grid, debug=test)
-                                       #:endif
-                                    #:endif
+                              #:if space=="rs"
+                                 #:if kind[1]==kind2[1]=="3"
+                                    CALL fft3d(FWFFT, n, pw1%array, pw2%array, debug=test)
+                                 #:elif kind[1]!=kind2[1]
+                                    CALL fft3d(FWFFT, n, pw1%array, pw2%array, pw2%pw_grid, debug=test)
+                                 #:endif
+                              #:else
+                                 #:if kind[1]==kind2[1]=="3"
+                                    CALL fft3d(BWFFT, n, pw1%array, pw2%array, debug=test)
+                                 #:elif kind[1]!=kind2[1]
+                                    CALL fft3d(BWFFT, n, pw1%array, pw2%array, pw1%pw_grid, debug=test)
+                                 #:endif
+                              #:endif
 
-                                    IF (test .AND. out_unit > 0) WRITE (out_unit, '(A)') " End of FFT Protocol "
+                              IF (test .AND. out_unit > 0) WRITE (out_unit, '(A)') " End of FFT Protocol "
 
-                                 ELSE
+                           ELSE
 
-                                    !
-                                    !..parallel FFT
-                                    !
+                              !
+                              !..parallel FFT
+                              !
 
-                                    IF (test .AND. out_unit > 0) THEN
-                                       WRITE (out_unit, '(A)') " FFT Protocol "
-                                       #:if space=="rs"
-                                          WRITE (out_unit, '(A,T76,A)') "  Transform direction ", "FWFFT"
-                                          WRITE (out_unit, '(A,T72,A)') "  in space ", "REALSPACE"
-                                          WRITE (out_unit, '(A,T72,A)') "  out space ", "REALSPACE"
-                                       #:else
-                                          WRITE (out_unit, '(A,T76,A)') "  Transform direction ", "BWFFT"
-                                          WRITE (out_unit, '(A,T66,A)') "  in space ", "RECIPROCALSPACE"
-                                          WRITE (out_unit, '(A,T66,A)') "  out space ", "RECIPROCALSPACE"
-                                       #:endif
-                                    END IF
+                              IF (test .AND. out_unit > 0) THEN
+                                 WRITE (out_unit, '(A)') " FFT Protocol "
+                                 #:if space=="rs"
+                                    WRITE (out_unit, '(A,T76,A)') "  Transform direction ", "FWFFT"
+                                    WRITE (out_unit, '(A,T72,A)') "  in space ", "REALSPACE"
+                                    WRITE (out_unit, '(A,T72,A)') "  out space ", "REALSPACE"
+                                 #:else
+                                    WRITE (out_unit, '(A,T76,A)') "  Transform direction ", "BWFFT"
+                                    WRITE (out_unit, '(A,T66,A)') "  in space ", "RECIPROCALSPACE"
+                                    WRITE (out_unit, '(A,T66,A)') "  out space ", "RECIPROCALSPACE"
+                                 #:endif
+                              END IF
 
-                                    #:if space=="rs"
-                                       #:if kind=="c3d" and kind2=="c1d"
-                                          CALL fft3d(FWFFT, n, pw1%array, pw2%array, pw2%pw_grid, debug=test)
-                                       #:elif kind=="r3d" and kind2=="c1d"
-                                          CALL fft3d(FWFFT, n, pw1%array, pw2%array, pw2%pw_grid, debug=test)
-                                       #:endif
-                                    #:else
-                                       #:if kind=="c1d" and kind2=="c3d"
-                                          CALL fft3d(BWFFT, n, pw1%array, pw2%array, pw1%pw_grid, debug=test)
-                                       #:elif kind=="c1d" and kind2=="r3d"
-                                          CALL fft3d(BWFFT, n, pw1%array, pw2%array, pw1%pw_grid, debug=test)
-                                       #:endif
-                                    #:endif
-                                 END IF
+                              #:if space=="rs"
+                                 #:if kind[1]=="3" and kind2=="c1d"
+                                    CALL fft3d(FWFFT, n, pw1%array, pw2%array, pw2%pw_grid, debug=test)
+                                 #:endif
+                              #:else
+                                 #:if kind=="c1d" and kind2[1]=="3"
+                                    CALL fft3d(BWFFT, n, pw1%array, pw2%array, pw1%pw_grid, debug=test)
+                                 #:endif
+                              #:endif
+                           END IF
 
-                                 IF (test .AND. out_unit > 0) THEN
-                                    WRITE (out_unit, '(A)') " End of FFT Protocol "
-                                 END IF
+                           IF (test .AND. out_unit > 0) THEN
+                              WRITE (out_unit, '(A)') " End of FFT Protocol "
+                           END IF
 
-                                 CALL timestop(handle)
-                                 CALL timestop(handle2)
+                           CALL timestop(handle)
+                           CALL timestop(handle2)
 
-                              END SUBROUTINE fft_wrap_pw1pw2_${kind}$_${kind2}$_${space}$_${space2}$
-                           #:endif
-                        #:endfor
-                     #:endfor
+                        END SUBROUTINE fft_wrap_pw1pw2_${kind}$_${kind2}$_${space}$_${space2}$
+                     #:endif
                   #:endfor
+               #:endfor
 
 ! **************************************************************************************************
 !> \brief Multiply all data points with a Gaussian damping factor
@@ -1106,29 +1098,29 @@ CONTAINS
 !> \note
 !>      Performs a Gaussian damping
 ! **************************************************************************************************
-                  SUBROUTINE pw_gauss_damp(pw, omega)
+               SUBROUTINE pw_gauss_damp(pw, omega)
 
-                     TYPE(pw_c1d_gs_type), INTENT(INOUT)                       :: pw
-                     REAL(KIND=dp), INTENT(IN)                          :: omega
+                  TYPE(pw_c1d_gs_type), INTENT(INOUT)                       :: pw
+                  REAL(KIND=dp), INTENT(IN)                          :: omega
 
-                     CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_gauss_damp'
+                  CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_gauss_damp'
 
-                     INTEGER                                            :: handle
-                     REAL(KIND=dp)                                      :: omega_2
+                  INTEGER                                            :: handle
+                  REAL(KIND=dp)                                      :: omega_2
 
-                     CALL timeset(routineN, handle)
-                     CPASSERT(omega >= 0)
+                  CALL timeset(routineN, handle)
+                  CPASSERT(omega >= 0)
 
-                     omega_2 = omega*omega
-                     omega_2 = 0.25_dp/omega_2
+                  omega_2 = omega*omega
+                  omega_2 = 0.25_dp/omega_2
 
 !$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw,omega_2)
-                     pw%array = pw%array*EXP(-pw%pw_grid%gsq*omega_2)
+                  pw%array = pw%array*EXP(-pw%pw_grid%gsq*omega_2)
 !$OMP END PARALLEL WORKSHARE
 
-                     CALL timestop(handle)
+                  CALL timestop(handle)
 
-                  END SUBROUTINE pw_gauss_damp
+               END SUBROUTINE pw_gauss_damp
 
 ! **************************************************************************************************
 !> \brief Multiply all data points with the logarithmic derivative of a Gaussian
@@ -1137,28 +1129,28 @@ CONTAINS
 !> \note
 !>      Performs a Gaussian damping
 ! **************************************************************************************************
-                  SUBROUTINE pw_log_deriv_gauss(pw, omega)
+               SUBROUTINE pw_log_deriv_gauss(pw, omega)
 
-                     TYPE(pw_c1d_gs_type), INTENT(IN)                          :: pw
-                     REAL(KIND=dp), INTENT(IN)                          :: omega
+                  TYPE(pw_c1d_gs_type), INTENT(IN)                          :: pw
+                  REAL(KIND=dp), INTENT(IN)                          :: omega
 
-                     CHARACTER(len=*), PARAMETER :: routineN = 'pw_log_deriv_gauss'
+                  CHARACTER(len=*), PARAMETER :: routineN = 'pw_log_deriv_gauss'
 
-                     INTEGER                                            :: handle
-                     REAL(KIND=dp)                                      :: omega_2
+                  INTEGER                                            :: handle
+                  REAL(KIND=dp)                                      :: omega_2
 
-                     CALL timeset(routineN, handle)
-                     CPASSERT(omega >= 0)
+                  CALL timeset(routineN, handle)
+                  CPASSERT(omega >= 0)
 
-                     omega_2 = omega*omega
-                     omega_2 = 0.25_dp/omega_2
+                  omega_2 = omega*omega
+                  omega_2 = 0.25_dp/omega_2
 
 !$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw,omega_2)
-                     pw%array = pw%array*(1.0_dp + omega_2*pw%pw_grid%gsq)
+                  pw%array = pw%array*(1.0_dp + omega_2*pw%pw_grid%gsq)
 !$OMP END PARALLEL WORKSHARE
 
-                     CALL timestop(handle)
-                  END SUBROUTINE pw_log_deriv_gauss
+                  CALL timestop(handle)
+               END SUBROUTINE pw_log_deriv_gauss
 
 ! **************************************************************************************************
 !> \brief Multiply all data points with a Gaussian damping factor
@@ -1173,37 +1165,37 @@ CONTAINS
 !> \note
 !>      Performs a Gaussian damping
 ! **************************************************************************************************
-                  SUBROUTINE pw_compl_gauss_damp(pw, omega)
+               SUBROUTINE pw_compl_gauss_damp(pw, omega)
 
-                     TYPE(pw_c1d_gs_type), INTENT(INOUT)                       :: pw
-                     REAL(KIND=dp), INTENT(IN)                          :: omega
+                  TYPE(pw_c1d_gs_type), INTENT(INOUT)                       :: pw
+                  REAL(KIND=dp), INTENT(IN)                          :: omega
 
-                     CHARACTER(len=*), PARAMETER :: routineN = 'pw_compl_gauss_damp'
+                  CHARACTER(len=*), PARAMETER :: routineN = 'pw_compl_gauss_damp'
 
-                     INTEGER                                            :: cnt, handle, i
-                     REAL(KIND=dp)                                      :: omega_2, tmp
+                  INTEGER                                            :: cnt, handle, i
+                  REAL(KIND=dp)                                      :: omega_2, tmp
 
-                     CALL timeset(routineN, handle)
+                  CALL timeset(routineN, handle)
 
-                     omega_2 = omega*omega
-                     omega_2 = 0.25_dp/omega_2
+                  omega_2 = omega*omega
+                  omega_2 = 0.25_dp/omega_2
 
-                     cnt = SIZE(pw%array)
+                  cnt = SIZE(pw%array)
 
 !$OMP PARALLEL DO PRIVATE(i, tmp) DEFAULT(NONE) SHARED(cnt, pw,omega_2)
-                     DO i = 1, cnt
-                        tmp = -omega_2*pw%pw_grid%gsq(i)
-                        IF (ABS(tmp) > 1.0E-5_dp) THEN
-                           pw%array(i) = pw%array(i)*(1.0_dp - EXP(tmp))
-                        ELSE
-                           pw%array(i) = pw%array(i)*(tmp + 0.5_dp*tmp*(tmp + (1.0_dp/3.0_dp)*tmp**2))
-                        END IF
-                     END DO
+                  DO i = 1, cnt
+                     tmp = -omega_2*pw%pw_grid%gsq(i)
+                     IF (ABS(tmp) > 1.0E-5_dp) THEN
+                        pw%array(i) = pw%array(i)*(1.0_dp - EXP(tmp))
+                     ELSE
+                        pw%array(i) = pw%array(i)*(tmp + 0.5_dp*tmp*(tmp + (1.0_dp/3.0_dp)*tmp**2))
+                     END IF
+                  END DO
 !$OMP END PARALLEL DO
 
-                     CALL timestop(handle)
+                  CALL timestop(handle)
 
-                  END SUBROUTINE pw_compl_gauss_damp
+               END SUBROUTINE pw_compl_gauss_damp
 
 ! **************************************************************************************************
 !> \brief Multiply all data points with the logarithmic derivative of the complementary Gaussian damping factor
@@ -1211,37 +1203,37 @@ CONTAINS
 !> \param omega ...
 !> \note
 ! **************************************************************************************************
-                  SUBROUTINE pw_log_deriv_compl_gauss(pw, omega)
+               SUBROUTINE pw_log_deriv_compl_gauss(pw, omega)
 
-                     TYPE(pw_c1d_gs_type), INTENT(IN)                          :: pw
-                     REAL(KIND=dp), INTENT(IN)                          :: omega
+                  TYPE(pw_c1d_gs_type), INTENT(IN)                          :: pw
+                  REAL(KIND=dp), INTENT(IN)                          :: omega
 
-                     CHARACTER(len=*), PARAMETER :: routineN = 'pw_log_deriv_compl_gauss'
+                  CHARACTER(len=*), PARAMETER :: routineN = 'pw_log_deriv_compl_gauss'
 
-                     INTEGER                                            :: handle, i
-                     REAL(KIND=dp)                                      :: omega_2, tmp
+                  INTEGER                                            :: handle, i
+                  REAL(KIND=dp)                                      :: omega_2, tmp
 
-                     CALL timeset(routineN, handle)
+                  CALL timeset(routineN, handle)
 
-                     omega_2 = omega*omega
-                     omega_2 = 0.25_dp/omega_2
+                  omega_2 = omega*omega
+                  omega_2 = 0.25_dp/omega_2
 
 !$OMP PARALLEL DO DEFAULT(NONE) PRIVATE(i,tmp) &
 !$OMP             SHARED(pw,omega_2)
-                     DO i = 1, SIZE(pw%array)
-                        tmp = omega_2*pw%pw_grid%gsq(i)
-                        ! For too small arguments, use the Taylor polynomial to prevent division by zero
-                        IF (ABS(tmp) >= 0.003_dp) THEN
-                           pw%array(i) = pw%array(i)*(1.0_dp - tmp*EXP(-tmp)/(1.0_dp - EXP(-tmp)))
-                        ELSE
-                           pw%array(i) = pw%array(i)*(0.5_dp*tmp - tmp**2/12.0_dp)
-                        END IF
-                     END DO
+                  DO i = 1, SIZE(pw%array)
+                     tmp = omega_2*pw%pw_grid%gsq(i)
+                     ! For too small arguments, use the Taylor polynomial to prevent division by zero
+                     IF (ABS(tmp) >= 0.003_dp) THEN
+                        pw%array(i) = pw%array(i)*(1.0_dp - tmp*EXP(-tmp)/(1.0_dp - EXP(-tmp)))
+                     ELSE
+                        pw%array(i) = pw%array(i)*(0.5_dp*tmp - tmp**2/12.0_dp)
+                     END IF
+                  END DO
 !$OMP END PARALLEL DO
 
-                     CALL timestop(handle)
+                  CALL timestop(handle)
 
-                  END SUBROUTINE pw_log_deriv_compl_gauss
+               END SUBROUTINE pw_log_deriv_compl_gauss
 
 ! **************************************************************************************************
 !> \brief Multiply all data points with a Gaussian damping factor and mixes it with the original function
@@ -1258,28 +1250,28 @@ CONTAINS
 !> \note
 !>      Performs a Gaussian damping
 ! **************************************************************************************************
-                  SUBROUTINE pw_gauss_damp_mix(pw, omega, scale_coul, scale_long)
+               SUBROUTINE pw_gauss_damp_mix(pw, omega, scale_coul, scale_long)
 
-                     TYPE(pw_c1d_gs_type), INTENT(INOUT)                       :: pw
-                     REAL(KIND=dp), INTENT(IN)                          :: omega, scale_coul, scale_long
+                  TYPE(pw_c1d_gs_type), INTENT(INOUT)                       :: pw
+                  REAL(KIND=dp), INTENT(IN)                          :: omega, scale_coul, scale_long
 
-                     CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_gauss_damp_mix'
+                  CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_gauss_damp_mix'
 
-                     INTEGER                                            :: handle
-                     REAL(KIND=dp)                                      :: omega_2
+                  INTEGER                                            :: handle
+                  REAL(KIND=dp)                                      :: omega_2
 
-                     CALL timeset(routineN, handle)
+                  CALL timeset(routineN, handle)
 
-                     omega_2 = omega*omega
-                     omega_2 = 0.25_dp/omega_2
+                  omega_2 = omega*omega
+                  omega_2 = 0.25_dp/omega_2
 
 !$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw, omega_2, scale_coul, scale_long)
-                     pw%array = pw%array*(scale_coul + scale_long*EXP(-pw%pw_grid%gsq*omega_2))
+                  pw%array = pw%array*(scale_coul + scale_long*EXP(-pw%pw_grid%gsq*omega_2))
 !$OMP END PARALLEL WORKSHARE
 
-                     CALL timestop(handle)
+                  CALL timestop(handle)
 
-                  END SUBROUTINE pw_gauss_damp_mix
+               END SUBROUTINE pw_gauss_damp_mix
 
 ! **************************************************************************************************
 !> \brief Multiply all data points with the logarithmic derivative of the mixed longrange/Coulomb potential
@@ -1290,32 +1282,32 @@ CONTAINS
 !> \param scale_long ...
 !> \note
 ! **************************************************************************************************
-                  SUBROUTINE pw_log_deriv_mix_cl(pw, omega, scale_coul, scale_long)
+               SUBROUTINE pw_log_deriv_mix_cl(pw, omega, scale_coul, scale_long)
 
-                     TYPE(pw_c1d_gs_type), INTENT(IN)                          :: pw
-                     REAL(KIND=dp), INTENT(IN)                          :: omega, scale_coul, scale_long
+                  TYPE(pw_c1d_gs_type), INTENT(IN)                          :: pw
+                  REAL(KIND=dp), INTENT(IN)                          :: omega, scale_coul, scale_long
 
-                     CHARACTER(len=*), PARAMETER :: routineN = 'pw_log_deriv_mix_cl'
+                  CHARACTER(len=*), PARAMETER :: routineN = 'pw_log_deriv_mix_cl'
 
-                     INTEGER                                            :: handle, i
-                     REAL(KIND=dp)                                      :: omega_2, tmp
+                  INTEGER                                            :: handle, i
+                  REAL(KIND=dp)                                      :: omega_2, tmp
 
-                     CALL timeset(routineN, handle)
+                  CALL timeset(routineN, handle)
 
-                     omega_2 = omega*omega
-                     omega_2 = 0.25_dp/omega_2
+                  omega_2 = omega*omega
+                  omega_2 = 0.25_dp/omega_2
 
 !$OMP PARALLEL DO DEFAULT(NONE) PRIVATE(i,tmp) &
 !$OMP             SHARED(pw,omega_2,scale_long,scale_coul)
-                     DO i = 1, SIZE(pw%array)
-                        tmp = omega_2*pw%pw_grid%gsq(i)
-                        pw%array(i) = pw%array(i)*(1.0_dp + scale_long*tmp*EXP(-tmp)/(scale_coul + scale_long*EXP(-tmp)))
-                     END DO
+                  DO i = 1, SIZE(pw%array)
+                     tmp = omega_2*pw%pw_grid%gsq(i)
+                     pw%array(i) = pw%array(i)*(1.0_dp + scale_long*tmp*EXP(-tmp)/(scale_coul + scale_long*EXP(-tmp)))
+                  END DO
 !$OMP END PARALLEL DO
 
-                     CALL timestop(handle)
+                  CALL timestop(handle)
 
-                  END SUBROUTINE pw_log_deriv_mix_cl
+               END SUBROUTINE pw_log_deriv_mix_cl
 
 ! **************************************************************************************************
 !> \brief Multiply all data points with a complementary cosine
@@ -1330,33 +1322,33 @@ CONTAINS
 !> \note
 !>      Multiplies by complementary cosine
 ! **************************************************************************************************
-                  SUBROUTINE pw_truncated(pw, rcutoff)
+               SUBROUTINE pw_truncated(pw, rcutoff)
 
-                     TYPE(pw_c1d_gs_type), INTENT(INOUT)                       :: pw
-                     REAL(KIND=dp), INTENT(IN)                          :: rcutoff
+                  TYPE(pw_c1d_gs_type), INTENT(INOUT)                       :: pw
+                  REAL(KIND=dp), INTENT(IN)                          :: rcutoff
 
-                     CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_truncated'
+                  CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_truncated'
 
-                     INTEGER                                            :: handle, i
-                     REAL(KIND=dp)                                      :: tmp
+                  INTEGER                                            :: handle, i
+                  REAL(KIND=dp)                                      :: tmp
 
-                     CALL timeset(routineN, handle)
-                     CPASSERT(rcutoff >= 0)
+                  CALL timeset(routineN, handle)
+                  CPASSERT(rcutoff >= 0)
 
 !$OMP PARALLEL DO PRIVATE(i,tmp) DEFAULT(NONE) SHARED(pw, rcutoff)
-                     DO i = 1, SIZE(pw%array)
-                        tmp = SQRT(pw%pw_grid%gsq(i))*rcutoff
-                        IF (tmp >= 0.005_dp) THEN
-                           pw%array(i) = pw%array(i)*(1.0_dp - COS(tmp))
-                        ELSE
-                           pw%array(i) = pw%array(i)*tmp**2/2.0_dp*(1.0 - tmp**2/12.0_dp)
-                        END IF
-                     END DO
+                  DO i = 1, SIZE(pw%array)
+                     tmp = SQRT(pw%pw_grid%gsq(i))*rcutoff
+                     IF (tmp >= 0.005_dp) THEN
+                        pw%array(i) = pw%array(i)*(1.0_dp - COS(tmp))
+                     ELSE
+                        pw%array(i) = pw%array(i)*tmp**2/2.0_dp*(1.0 - tmp**2/12.0_dp)
+                     END IF
+                  END DO
 !$OMP END PARALLEL DO
 
-                     CALL timestop(handle)
+                  CALL timestop(handle)
 
-                  END SUBROUTINE pw_truncated
+               END SUBROUTINE pw_truncated
 
 ! **************************************************************************************************
 !> \brief Multiply all data points with the logarithmic derivative of the complementary cosine
@@ -1365,36 +1357,36 @@ CONTAINS
 !> \param rcutoff ...
 !> \note
 ! **************************************************************************************************
-                  SUBROUTINE pw_log_deriv_trunc(pw, rcutoff)
+               SUBROUTINE pw_log_deriv_trunc(pw, rcutoff)
 
-                     TYPE(pw_c1d_gs_type), INTENT(IN)                          :: pw
-                     REAL(KIND=dp), INTENT(IN)                          :: rcutoff
+                  TYPE(pw_c1d_gs_type), INTENT(IN)                          :: pw
+                  REAL(KIND=dp), INTENT(IN)                          :: rcutoff
 
-                     CHARACTER(len=*), PARAMETER :: routineN = 'pw_log_deriv_trunc'
+                  CHARACTER(len=*), PARAMETER :: routineN = 'pw_log_deriv_trunc'
 
-                     INTEGER                                            :: handle, i
-                     REAL(KIND=dp)                                      :: rchalf, tmp
+                  INTEGER                                            :: handle, i
+                  REAL(KIND=dp)                                      :: rchalf, tmp
 
-                     CALL timeset(routineN, handle)
-                     CPASSERT(rcutoff >= 0)
+                  CALL timeset(routineN, handle)
+                  CPASSERT(rcutoff >= 0)
 
-                     rchalf = 0.5_dp*rcutoff
+                  rchalf = 0.5_dp*rcutoff
 !$OMP PARALLEL DO DEFAULT(NONE) PRIVATE(i,tmp) &
 !$OMP             SHARED(pw,rchalf)
-                     DO i = 1, SIZE(pw%array)
-                        tmp = rchalf*SQRT(pw%pw_grid%gsq(i))
-                        ! For too small arguments, use the Taylor polynomial to prevent division by zero
-                        IF (ABS(tmp) >= 0.0001_dp) THEN
-                           pw%array(i) = pw%array(i)*(1.0_dp - tmp/TAN(tmp))
-                        ELSE
-                           pw%array(i) = pw%array(i)*tmp**2*(1.0_dp + tmp**2/15.0_dp)/3.0_dp
-                        END IF
-                     END DO
+                  DO i = 1, SIZE(pw%array)
+                     tmp = rchalf*SQRT(pw%pw_grid%gsq(i))
+                     ! For too small arguments, use the Taylor polynomial to prevent division by zero
+                     IF (ABS(tmp) >= 0.0001_dp) THEN
+                        pw%array(i) = pw%array(i)*(1.0_dp - tmp/TAN(tmp))
+                     ELSE
+                        pw%array(i) = pw%array(i)*tmp**2*(1.0_dp + tmp**2/15.0_dp)/3.0_dp
+                     END IF
+                  END DO
 !$OMP END PARALLEL DO
 
-                     CALL timestop(handle)
+                  CALL timestop(handle)
 
-                  END SUBROUTINE pw_log_deriv_trunc
+               END SUBROUTINE pw_log_deriv_trunc
 
 ! **************************************************************************************************
 !> \brief Calculate the derivative of a plane wave vector
@@ -1406,65 +1398,65 @@ CONTAINS
 !> \note
 !>      Calculate the derivative dx^n(1) dy^n(2) dz^n(3) PW
 ! **************************************************************************************************
-                  SUBROUTINE pw_derive(pw, n)
+               SUBROUTINE pw_derive(pw, n)
 
-                     TYPE(pw_c1d_gs_type), INTENT(INOUT)                       :: pw
-                     INTEGER, DIMENSION(3), INTENT(IN)                  :: n
+                  TYPE(pw_c1d_gs_type), INTENT(INOUT)                       :: pw
+                  INTEGER, DIMENSION(3), INTENT(IN)                  :: n
 
-                     CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_derive'
+                  CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_derive'
 
-                     COMPLEX(KIND=dp)                                   :: im
-                     INTEGER                                            :: handle, m
+                  COMPLEX(KIND=dp)                                   :: im
+                  INTEGER                                            :: handle, m
 
-                     CALL timeset(routineN, handle)
+                  CALL timeset(routineN, handle)
 
-                     IF (ANY(n < 0)) &
-                        CPABORT("Nonnegative exponents are not supported!")
+                  IF (ANY(n < 0)) &
+                     CPABORT("Nonnegative exponents are not supported!")
 
-                     m = SUM(n)
-                     im = CMPLX(0.0_dp, 1.0_dp, KIND=dp)**m
+                  m = SUM(n)
+                  im = CMPLX(0.0_dp, 1.0_dp, KIND=dp)**m
 
-                     IF (n(1) == 1) THEN
+                  IF (n(1) == 1) THEN
 !$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw)
-                        pw%array(:) = pw%array(:)*pw%pw_grid%g(1, :)
+                     pw%array(:) = pw%array(:)*pw%pw_grid%g(1, :)
 !$OMP END PARALLEL WORKSHARE
-                     ELSE IF (n(1) > 1) THEN
+                  ELSE IF (n(1) > 1) THEN
 !$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(n, pw)
-                        pw%array(:) = pw%array(:)*(pw%pw_grid%g(1, :)**n(1))
+                     pw%array(:) = pw%array(:)*(pw%pw_grid%g(1, :)**n(1))
 !$OMP END PARALLEL WORKSHARE
-                     END IF
+                  END IF
 
-                     IF (n(2) == 1) THEN
+                  IF (n(2) == 1) THEN
 !$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw)
-                        pw%array(:) = pw%array(:)*pw%pw_grid%g(2, :)
+                     pw%array(:) = pw%array(:)*pw%pw_grid%g(2, :)
 !$OMP END PARALLEL WORKSHARE
-                     ELSE IF (n(2) > 1) THEN
+                  ELSE IF (n(2) > 1) THEN
 !$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(n, pw)
-                        pw%array(:) = pw%array(:)*(pw%pw_grid%g(2, :)**n(2))
+                     pw%array(:) = pw%array(:)*(pw%pw_grid%g(2, :)**n(2))
 !$OMP END PARALLEL WORKSHARE
-                     END IF
+                  END IF
 
-                     IF (n(3) == 1) THEN
+                  IF (n(3) == 1) THEN
 !$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw)
-                        pw%array(:) = pw%array(:)*pw%pw_grid%g(3, :)
+                     pw%array(:) = pw%array(:)*pw%pw_grid%g(3, :)
 !$OMP END PARALLEL WORKSHARE
-                     ELSE IF (n(3) > 1) THEN
+                  ELSE IF (n(3) > 1) THEN
 !$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(n, pw)
-                        pw%array(:) = pw%array(:)*(pw%pw_grid%g(3, :)**n(3))
+                     pw%array(:) = pw%array(:)*(pw%pw_grid%g(3, :)**n(3))
 !$OMP END PARALLEL WORKSHARE
-                     END IF
+                  END IF
 
-                     ! im can take the values 1, -1, i, -i
-                     ! skip this if im == 1
-                     IF (ABS(REAL(im, KIND=dp) - 1.0_dp) > 1.0E-10_dp) THEN
+                  ! im can take the values 1, -1, i, -i
+                  ! skip this if im == 1
+                  IF (ABS(REAL(im, KIND=dp) - 1.0_dp) > 1.0E-10_dp) THEN
 !$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(im, pw)
-                        pw%array(:) = im*pw%array(:)
+                     pw%array(:) = im*pw%array(:)
 !$OMP END PARALLEL WORKSHARE
-                     END IF
+                  END IF
 
-                     CALL timestop(handle)
+                  CALL timestop(handle)
 
-                  END SUBROUTINE pw_derive
+               END SUBROUTINE pw_derive
 
 ! **************************************************************************************************
 !> \brief Calculate the Laplacian of a plane wave vector
@@ -1475,23 +1467,23 @@ CONTAINS
 !> \note
 !>      Calculate the derivative DELTA PW
 ! **************************************************************************************************
-                  SUBROUTINE pw_laplace(pw)
+               SUBROUTINE pw_laplace(pw)
 
-                     TYPE(pw_c1d_gs_type), INTENT(INOUT)                       :: pw
+                  TYPE(pw_c1d_gs_type), INTENT(INOUT)                       :: pw
 
-                     CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_laplace'
+                  CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_laplace'
 
-                     INTEGER                                            :: handle
+                  INTEGER                                            :: handle
 
-                     CALL timeset(routineN, handle)
+                  CALL timeset(routineN, handle)
 
 !$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw)
-                     pw%array(:) = -pw%array(:)*pw%pw_grid%gsq(:)
+                  pw%array(:) = -pw%array(:)*pw%pw_grid%gsq(:)
 !$OMP END PARALLEL WORKSHARE
 
-                     CALL timestop(handle)
+                  CALL timestop(handle)
 
-                  END SUBROUTINE pw_laplace
+               END SUBROUTINE pw_laplace
 
 ! **************************************************************************************************
 !> \brief Calculate the tensorial 2nd derivative of a plane wave vector
@@ -1504,40 +1496,40 @@ CONTAINS
 !> \author JGH (05-May-2006)
 !> \note
 ! **************************************************************************************************
-                  SUBROUTINE pw_dr2(pw, pwdr2, i, j)
+               SUBROUTINE pw_dr2(pw, pwdr2, i, j)
 
-                     TYPE(pw_c1d_gs_type), INTENT(INOUT)                       :: pw, pwdr2
-                     INTEGER, INTENT(IN)                                :: i, j
+                  TYPE(pw_c1d_gs_type), INTENT(INOUT)                       :: pw, pwdr2
+                  INTEGER, INTENT(IN)                                :: i, j
 
-                     CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_dr2'
+                  CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_dr2'
 
-                     INTEGER                                            :: cnt, handle, ig
-                     REAL(KIND=dp)                                      :: gg, o3
+                  INTEGER                                            :: cnt, handle, ig
+                  REAL(KIND=dp)                                      :: gg, o3
 
-                     CALL timeset(routineN, handle)
+                  CALL timeset(routineN, handle)
 
-                     o3 = 1.0_dp/3.0_dp
+                  o3 = 1.0_dp/3.0_dp
 
-                     cnt = SIZE(pw%array)
+                  cnt = SIZE(pw%array)
 
-                     IF (i == j) THEN
+                  IF (i == j) THEN
 !$OMP PARALLEL DO DEFAULT(NONE) PRIVATE(ig,gg) SHARED(cnt, i, o3, pw, pwdr2)
-                        DO ig = 1, cnt
-                           gg = pw%pw_grid%g(i, ig)**2 - o3*pw%pw_grid%gsq(ig)
-                           pwdr2%array(ig) = gg*pw%array(ig)
-                        END DO
+                     DO ig = 1, cnt
+                        gg = pw%pw_grid%g(i, ig)**2 - o3*pw%pw_grid%gsq(ig)
+                        pwdr2%array(ig) = gg*pw%array(ig)
+                     END DO
 !$OMP END PARALLEL DO
-                     ELSE
+                  ELSE
 !$OMP PARALLEL DO PRIVATE (ig) DEFAULT(NONE) SHARED(cnt, i, j, pw, pwdr2)
-                        DO ig = 1, cnt
-                           pwdr2%array(ig) = pw%array(ig)*(pw%pw_grid%g(i, ig)*pw%pw_grid%g(j, ig))
-                        END DO
+                     DO ig = 1, cnt
+                        pwdr2%array(ig) = pw%array(ig)*(pw%pw_grid%g(i, ig)*pw%pw_grid%g(j, ig))
+                     END DO
 !$OMP END PARALLEL DO
-                     END IF
+                  END IF
 
-                     CALL timestop(handle)
+                  CALL timestop(handle)
 
-                  END SUBROUTINE pw_dr2
+               END SUBROUTINE pw_dr2
 
 ! **************************************************************************************************
 !> \brief Calculate the tensorial 2nd derivative of a plane wave vector
@@ -1552,42 +1544,42 @@ CONTAINS
 !> \note
 !>      Adapted from pw_dr2
 ! **************************************************************************************************
-                  SUBROUTINE pw_dr2_gg(pw, pwdr2_gg, i, j)
+               SUBROUTINE pw_dr2_gg(pw, pwdr2_gg, i, j)
 
-                     TYPE(pw_c1d_gs_type), INTENT(INOUT)                       :: pw, pwdr2_gg
-                     INTEGER, INTENT(IN)                                :: i, j
+                  TYPE(pw_c1d_gs_type), INTENT(INOUT)                       :: pw, pwdr2_gg
+                  INTEGER, INTENT(IN)                                :: i, j
 
-                     INTEGER                                            :: cnt, handle, ig
-                     REAL(KIND=dp)                                      :: gg, o3
-                     CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_dr2_gg'
+                  INTEGER                                            :: cnt, handle, ig
+                  REAL(KIND=dp)                                      :: gg, o3
+                  CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_dr2_gg'
 
-                     CALL timeset(routineN, handle)
+                  CALL timeset(routineN, handle)
 
-                     o3 = 1.0_dp/3.0_dp
+                  o3 = 1.0_dp/3.0_dp
 
-                     cnt = SIZE(pw%array)
+                  cnt = SIZE(pw%array)
 
-                     IF (i == j) THEN
+                  IF (i == j) THEN
 !$OMP PARALLEL DO PRIVATE (ig) DEFAULT(NONE) PRIVATE(gg) SHARED(cnt, i, o3, pw, pwdr2_gg)
-                        DO ig = pw%pw_grid%first_gne0, cnt
-                           gg = pw%pw_grid%g(i, ig)**2 - o3*pw%pw_grid%gsq(ig)
-                           pwdr2_gg%array(ig) = gg*pw%array(ig)/pw%pw_grid%gsq(ig)
-                        END DO
+                     DO ig = pw%pw_grid%first_gne0, cnt
+                        gg = pw%pw_grid%g(i, ig)**2 - o3*pw%pw_grid%gsq(ig)
+                        pwdr2_gg%array(ig) = gg*pw%array(ig)/pw%pw_grid%gsq(ig)
+                     END DO
 !$OMP END PARALLEL DO
-                     ELSE
+                  ELSE
 !$OMP PARALLEL DO PRIVATE (ig) DEFAULT(NONE) SHARED(cnt, i, j, pw, pwdr2_gg)
-                        DO ig = pw%pw_grid%first_gne0, cnt
-                           pwdr2_gg%array(ig) = pw%array(ig)*(pw%pw_grid%g(i, ig)*pw%pw_grid%g(j, ig)) &
-                                                /pw%pw_grid%gsq(ig)
-                        END DO
+                     DO ig = pw%pw_grid%first_gne0, cnt
+                        pwdr2_gg%array(ig) = pw%array(ig)*(pw%pw_grid%g(i, ig)*pw%pw_grid%g(j, ig)) &
+                                             /pw%pw_grid%gsq(ig)
+                     END DO
 !$OMP END PARALLEL DO
-                     END IF
+                  END IF
 
-                     IF (pw%pw_grid%have_g0) pwdr2_gg%array(1) = 0.0_dp
+                  IF (pw%pw_grid%have_g0) pwdr2_gg%array(1) = 0.0_dp
 
-                     CALL timestop(handle)
+                  CALL timestop(handle)
 
-                  END SUBROUTINE pw_dr2_gg
+               END SUBROUTINE pw_dr2_gg
 
 ! **************************************************************************************************
 !> \brief Multiplies a G-space function with a smoothing factor of the form
@@ -1600,31 +1592,31 @@ CONTAINS
 !> \author JGH (09-June-2006)
 !> \note
 ! **************************************************************************************************
-                  SUBROUTINE pw_smoothing(pw, ecut, sigma)
+               SUBROUTINE pw_smoothing(pw, ecut, sigma)
 
-                     TYPE(pw_c1d_gs_type), INTENT(INOUT)                       :: pw
-                     REAL(KIND=dp), INTENT(IN)                          :: ecut, sigma
+                  TYPE(pw_c1d_gs_type), INTENT(INOUT)                       :: pw
+                  REAL(KIND=dp), INTENT(IN)                          :: ecut, sigma
 
-                     CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_smoothing'
+                  CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_smoothing'
 
-                     INTEGER                                            :: cnt, handle, ig
-                     REAL(KIND=dp)                                      :: arg, f
+                  INTEGER                                            :: cnt, handle, ig
+                  REAL(KIND=dp)                                      :: arg, f
 
-                     CALL timeset(routineN, handle)
+                  CALL timeset(routineN, handle)
 
-                     cnt = SIZE(pw%array)
+                  cnt = SIZE(pw%array)
 
 !$OMP PARALLEL DO DEFAULT(NONE) PRIVATE(ig, arg, f) SHARED(cnt, ecut, pw, sigma)
-                     DO ig = 1, cnt
-                        arg = (ecut - pw%pw_grid%gsq(ig))/sigma
-                        f = EXP(arg)/(1 + EXP(arg))
-                        pw%array(ig) = f*pw%array(ig)
-                     END DO
+                  DO ig = 1, cnt
+                     arg = (ecut - pw%pw_grid%gsq(ig))/sigma
+                     f = EXP(arg)/(1 + EXP(arg))
+                     pw%array(ig) = f*pw%array(ig)
+                  END DO
 !$OMP END PARALLEL DO
 
-                     CALL timestop(handle)
+                  CALL timestop(handle)
 
-                  END SUBROUTINE pw_smoothing
+               END SUBROUTINE pw_smoothing
 
 ! **************************************************************************************************
 !> \brief ...
@@ -1632,22 +1624,22 @@ CONTAINS
 !> \param gridb ...
 !> \return ...
 ! **************************************************************************************************
-                  ELEMENTAL FUNCTION pw_compatible(grida, gridb) RESULT(compat)
+               ELEMENTAL FUNCTION pw_compatible(grida, gridb) RESULT(compat)
 
-                     TYPE(pw_grid_type), INTENT(IN)                     :: grida, gridb
-                     LOGICAL                                            :: compat
+                  TYPE(pw_grid_type), INTENT(IN)                     :: grida, gridb
+                  LOGICAL                                            :: compat
 
-                     compat = .FALSE.
+                  compat = .FALSE.
 
-                     IF (grida%id_nr == gridb%id_nr) THEN
-                        compat = .TRUE.
-                     ELSE IF (grida%reference == gridb%id_nr) THEN
-                        compat = .TRUE.
-                     ELSE IF (gridb%reference == grida%id_nr) THEN
-                        compat = .TRUE.
-                     END IF
+                  IF (grida%id_nr == gridb%id_nr) THEN
+                     compat = .TRUE.
+                  ELSE IF (grida%reference == gridb%id_nr) THEN
+                     compat = .TRUE.
+                  ELSE IF (gridb%reference == grida%id_nr) THEN
+                     compat = .TRUE.
+                  END IF
 
-                  END FUNCTION pw_compatible
+               END FUNCTION pw_compatible
 
 ! **************************************************************************************************
 !> \brief Calculate the structure factor for point r
@@ -1658,29 +1650,29 @@ CONTAINS
 !> \author JGH (05-May-2006)
 !> \note
 ! **************************************************************************************************
-                  SUBROUTINE pw_structure_factor(sf, r)
+               SUBROUTINE pw_structure_factor(sf, r)
 
-                     TYPE(pw_c1d_gs_type), INTENT(INOUT)                       :: sf
-                     REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: r
+                  TYPE(pw_c1d_gs_type), INTENT(INOUT)                       :: sf
+                  REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: r
 
-                     CHARACTER(len=*), PARAMETER :: routineN = 'pw_structure_factor'
+                  CHARACTER(len=*), PARAMETER :: routineN = 'pw_structure_factor'
 
-                     INTEGER                                            :: cnt, handle, ig
-                     REAL(KIND=dp)                                      :: arg
+                  INTEGER                                            :: cnt, handle, ig
+                  REAL(KIND=dp)                                      :: arg
 
-                     CALL timeset(routineN, handle)
+                  CALL timeset(routineN, handle)
 
-                     cnt = SIZE(sf%array)
+                  cnt = SIZE(sf%array)
 
 !$OMP PARALLEL DO PRIVATE (ig, arg) DEFAULT(NONE) SHARED(cnt, r, sf)
-                     DO ig = 1, cnt
-                        arg = DOT_PRODUCT(sf%pw_grid%g(:, ig), r)
-                        sf%array(ig) = CMPLX(COS(arg), -SIN(arg), KIND=dp)
-                     END DO
+                  DO ig = 1, cnt
+                     arg = DOT_PRODUCT(sf%pw_grid%g(:, ig), r)
+                     sf%array(ig) = CMPLX(COS(arg), -SIN(arg), KIND=dp)
+                  END DO
 !$OMP END PARALLEL DO
 
-                     CALL timestop(handle)
+                  CALL timestop(handle)
 
-                  END SUBROUTINE pw_structure_factor
+               END SUBROUTINE pw_structure_factor
 
-                  END MODULE pw_methods
+               END MODULE pw_methods
