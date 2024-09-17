@@ -56,6 +56,8 @@ case "${with_ninja}" in
     ;;
   *)
     echo "==================== Linking Ninja to user paths ===================="
+    pkg_install_dir="${with_ninja}"
+    check_dir "${with_ninja}/bin"
     ;;
 esac
 if [ "${with_ninja}" != "__DONTUSE__" ]; then

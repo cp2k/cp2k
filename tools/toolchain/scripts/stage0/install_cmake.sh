@@ -57,7 +57,7 @@ case "${with_cmake}" in
     ;;
   *)
     echo "==================== Linking CMake to user paths ===================="
-    pkg_install_dir="$with_cmake"
+    pkg_install_dir="${with_cmake}"
     check_dir "${with_cmake}/bin"
     ;;
 esac
