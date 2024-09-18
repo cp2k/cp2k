@@ -44,7 +44,7 @@ MODULE xtb_potentials
                                               pair_potential_single_type
    USE pair_potential_util,             ONLY: ener_pot
    USE particle_types,                  ONLY: particle_type
-   USE qs_dispersion_pairpot,           ONLY: dcnum_type
+   USE qs_dispersion_cnum,              ONLY: dcnum_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_force_types,                  ONLY: qs_force_type

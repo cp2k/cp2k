@@ -37,7 +37,7 @@ MODULE xtb_hab_force
    USE message_passing,                 ONLY: mp_para_env_type
    USE orbital_pointers,                ONLY: ncoset
    USE particle_types,                  ONLY: particle_type
-   USE qs_dispersion_pairpot,           ONLY: cnumber_init,&
+   USE qs_dispersion_cnum,              ONLY: cnumber_init,&
                                               cnumber_release,&
                                               dcnum_type
    USE qs_environment_types,            ONLY: get_qs_env,&

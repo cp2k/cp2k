@@ -52,7 +52,7 @@ MODULE eeq_method
    USE particle_types,                  ONLY: particle_type
    USE physcon,                         ONLY: bohr
    USE pw_poisson_types,                ONLY: do_ewald_spme
-   USE qs_dispersion_pairpot,           ONLY: cnumber_init,&
+   USE qs_dispersion_cnum,              ONLY: cnumber_init,&
                                               cnumber_release,&
                                               dcnum_type
    USE qs_dispersion_types,             ONLY: qs_dispersion_release,&

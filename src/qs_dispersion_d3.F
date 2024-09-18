@@ -30,10 +30,6 @@ MODULE qs_dispersion_d3
    USE molecule_types,                  ONLY: molecule_type
    USE particle_types,                  ONLY: particle_type
    USE physcon,                         ONLY: kcalmol
-   USE qs_dispersion_cnum,              ONLY: d3_cnumber,&
-                                              dcnum_distribute,&
-                                              dcnum_type,&
-                                              exclude_d3_kind_pair
    USE qs_dispersion_types,             ONLY: dftd3_pp,&
                                               qs_atom_dispersion_type,&
                                               qs_dispersion_type
@@ -43,6 +39,10 @@ MODULE qs_dispersion_d3
    USE qs_force_types,                  ONLY: qs_force_type
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               qs_kind_type
+   USE qs_dispersion_cnum,              ONLY: d3_cnumber,&
+                                              dcnum_distribute,&
+                                              dcnum_type,&
+                                              exclude_d3_kind_pair
    USE qs_neighbor_list_types,          ONLY: get_iterator_info,&
                                               neighbor_list_iterate,&
                                               neighbor_list_iterator_create,&
@@ -94,7 +94,7 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: atom_list
       LOGICAL :: atenergy, atex, atstress, debugall, domol, exclude_pair, floating_a, floating_b, &
          floating_c, ghost_a, ghost_b, ghost_c, is000, use_virial
-      LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: dodisp, floating, ghost
+      LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: dodisp, exclude
       REAL(KIND=dp) :: a1, a2, alp6, alp8, ang, c6, c8, c9, cc6ab, cc6bc, cc6ca, cnum, dc6a, dc6b, &
          dc8a, dc8b, dcc6aba, dcc6abb, dcc6bcb, dcc6bcc, dcc6caa, dcc6cac, de6, de8, de91, de921, &
          de922, dea, dfdab6, dfdab8, dfdabc, dr, drk, e6, e6tot, e8, e8tot, e9, e9tot, elrc6, &
@@ -160,13 +160,12 @@ CONTAINS
       use_virial = virial%pv_availability .AND. (.NOT. virial%pv_numer)
       pv_virial_thread(:, :) = 0._dp
 
-      ALLOCATE (dodisp(nkind), ghost(nkind), floating(nkind), atomnumber(nkind), c6d2(nkind), radd2(nkind))
+      ALLOCATE (dodisp(nkind), exclude(nkind), atomnumber(nkind), c6d2(nkind), radd2(nkind))
       DO ikind = 1, nkind
          CALL get_atomic_kind(atomic_kind_set(ikind), z=za)
          CALL get_qs_kind(qs_kind_set(ikind), dispersion=disp_a, ghost=ghost_a, floating=floating_a)
          dodisp(ikind) = disp_a%defined
-         ghost(ikind) = ghost_a
-         floating(ikind) = floating_a
+         exclude(ikind) = ghost_a .OR. floating_a
          atomnumber(ikind) = za
          c6d2(ikind) = disp_a%c6
          radd2(ikind) = disp_a%vdw_radii
@@ -260,8 +259,8 @@ CONTAINS
          ALLOCATE (dcnum(1))
       END IF
 
-      CALL d3_cnumber(qs_env, dispersion_env, cnumbers, dcnum, ghost, floating, atomnumber, &
-                      calculate_forces, debugall)
+      CALL d3_cnumber(qs_env, dispersion_env, cnumbers, dcnum, exclude, atomnumber, &
+                      calculate_forces, 1)
 
       CALL para_env%sum(cnumbers)
       ! for parallel runs we have to update dcnum on all processors
@@ -346,7 +345,7 @@ CONTAINS
       DO WHILE (neighbor_list_iterate(nl_iterator, mepos=mepos) == 0)
          CALL get_iterator_info(nl_iterator, mepos=mepos, ikind=ikind, jkind=jkind, iatom=iatom, jatom=jatom, r=rij)
 
-         IF (ghost(ikind) .OR. ghost(jkind) .OR. floating(ikind) .OR. floating(jkind)) CYCLE
+         IF (exclude(ikind) .OR. exclude(jkind)) CYCLE
 
          IF (.NOT. (dodisp(ikind) .AND. dodisp(jkind))) CYCLE
 
@@ -529,7 +528,7 @@ CONTAINS
                            rc0 = MATMUL(cell%hmat, cell_c)
                            DO katom = kstart, natom
                               kkind = kind_of(katom)
-                              IF (ghost(kkind) .OR. floating(kkind) .OR. .NOT. dodisp(kkind)) CYCLE
+                              IF (exclude(kkind) .OR. .NOT. dodisp(kkind)) CYCLE
                               rc(:) = rcpbc(:, katom) + rc0(:)
                               r2bc = SUM((rb - rc)**2)
                               IF (r2bc >= rc2) CYCLE
@@ -870,7 +869,7 @@ CONTAINS
          END IF
       END IF
 
-      DEALLOCATE (dodisp, ghost, floating, atomnumber, rcpbc, radd2, c6d2)
+      DEALLOCATE (dodisp, exclude, atomnumber, rcpbc, radd2, c6d2)
 
       IF (domol) THEN
          DEALLOCATE (atom2mol)

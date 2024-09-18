@@ -33,7 +33,7 @@ MODULE xtb_eeq
    USE mathconstants,                   ONLY: oorootpi
    USE message_passing,                 ONLY: mp_para_env_type
    USE particle_types,                  ONLY: particle_type
-   USE qs_dispersion_pairpot,           ONLY: dcnum_type
+   USE qs_dispersion_cnum,              ONLY: dcnum_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_force_types,                  ONLY: qs_force_type

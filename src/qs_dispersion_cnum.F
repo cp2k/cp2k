@@ -16,6 +16,7 @@ MODULE qs_dispersion_cnum
    USE message_passing,                 ONLY: mp_para_env_type
    USE particle_types,                  ONLY: particle_type
    USE physcon,                         ONLY: bohr
+   USE mathconstants,                   ONLY: oorootpi
    USE qs_dispersion_types,             ONLY: qs_dispersion_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
@@ -25,6 +26,8 @@ MODULE qs_dispersion_cnum
                                               neighbor_list_iterator_p_type,&
                                               neighbor_list_iterator_release,&
                                               neighbor_list_set_p_type
+   USE qs_kind_types,                   ONLY: get_qs_kind,&
+                                              qs_kind_type
 
 !$ USE OMP_LIB, ONLY: omp_get_max_threads, &
 !$                    omp_get_thread_num, &
@@ -50,6 +53,7 @@ MODULE qs_dispersion_cnum
    END TYPE dcnum_type
 
    PUBLIC :: d3_cnumber, dcnum_type, dcnum_distribute
+   PUBLIC :: cnumber_init, cnumber_release
 
 ! **************************************************************************************************
 
@@ -1017,22 +1021,22 @@ CONTAINS
 !> \param dispersion_env ...
 !> \param cnumbers ...
 !> \param dcnum ...
-!> \param ghost ...
-!> \param floating ...
+!> \param exclude ...
 !> \param atomnumber ...
-!> \param calculate_forces ...
-!> \param debugall ...
+!> \param derivatives ...
+!> \param cnfun ...
 ! **************************************************************************************************
-   SUBROUTINE d3_cnumber(qs_env, dispersion_env, cnumbers, dcnum, ghost, floating, atomnumber, &
-                         calculate_forces, debugall)
+   SUBROUTINE d3_cnumber(qs_env, dispersion_env, cnumbers, dcnum, exclude, atomnumber, &
+                         derivatives, cnfun)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(qs_dispersion_type), POINTER                  :: dispersion_env
       REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: cnumbers
       TYPE(dcnum_type), DIMENSION(:), INTENT(INOUT)      :: dcnum
-      LOGICAL, DIMENSION(:), INTENT(IN)                  :: ghost, floating
+      LOGICAL, DIMENSION(:), INTENT(IN)                  :: exclude
       INTEGER, DIMENSION(:), INTENT(IN)                  :: atomnumber
-      LOGICAL, INTENT(IN)                                :: calculate_forces, debugall
+      LOGICAL, INTENT(IN)                                :: derivatives
+      INTEGER, INTENT(IN)                                :: cnfun
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'd3_cnumber'
 
@@ -1066,9 +1070,9 @@ CONTAINS
 
 !$OMP PARALLEL DEFAULT( NONE )                                        &
 !$OMP           SHARED( locks, number_of_locks, nl_iterator           &
-!$OMP                 , ghost, floating, atomnumber, eps_cn           &
-!$OMP                 , dispersion_env, calculate_forces, debugall    &
-!$OMP                 , dcnum, cnumbers                               &
+!$OMP                 , exclude, atomnumber, eps_cn                   &
+!$OMP                 , dispersion_env, derivatives                   &
+!$OMP                 , dcnum, cnumbers, cnfun                        &
 !$OMP                 )                                               &
 !$OMP          PRIVATE( mepos                                         &
 !$OMP                 , ikind, jkind, iatom, jatom, rij, rcc          &
@@ -1091,7 +1095,7 @@ CONTAINS
       DO WHILE (neighbor_list_iterate(nl_iterator, mepos=mepos) == 0)
 
          CALL get_iterator_info(nl_iterator, mepos=mepos, ikind=ikind, jkind=jkind, iatom=iatom, jatom=jatom, r=rij)
-         IF (ghost(ikind) .OR. ghost(jkind) .OR. floating(ikind) .OR. floating(jkind)) CYCLE
+         IF (exclude(ikind) .OR. exclude(jkind)) CYCLE
          IF (dispersion_env%nd3_exclude_pair > 0) THEN
             CALL exclude_d3_kind_pair(dispersion_env%d3_exclude_pair, ikind, jkind, exclude=exclude_pair)
             IF (exclude_pair) CYCLE
@@ -1103,7 +1107,13 @@ CONTAINS
             zb = atomnumber(jkind)
             rcova = dispersion_env%rcov(za)
             rcovb = dispersion_env%rcov(zb)
-            CALL cnparam_d3(rcc, rcova, rcovb, dispersion_env%k1, cnab, dcnab)
+            IF (cnfun == 1) THEN
+               CALL cnparam_d3(rcc, rcova, rcovb, dispersion_env%k1, cnab, dcnab)
+            ELSEIF (cnfun == 2) THEN
+               CALL modcn_d3(rcc, rcova, rcovb, cnab, dcnab)
+            ELSE
+               CPABORT("cnfun in d3_cnumber")
+            END IF
             IF (cnab > eps_cn) THEN
 !$OMP ATOMIC
                cnumbers(iatom) = cnumbers(iatom) + cnab
@@ -1112,7 +1122,7 @@ CONTAINS
                   cnumbers(jatom) = cnumbers(jatom) + cnab
                END IF
             END IF
-            IF (calculate_forces .OR. debugall .AND. cnab > eps_cn) THEN
+            IF (derivatives .AND. cnab > eps_cn) THEN
 !$             CALL omp_set_lock(locks(iatom))
                dcnum(iatom)%neighbors = dcnum(iatom)%neighbors + 1
                ni = dcnum(iatom)%neighbors
@@ -1163,6 +1173,31 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
+!> \param rab ...
+!> \param rcova ...
+!> \param rcovb ...
+!> \param cnab ...
+!> \param dcnab ...
+! **************************************************************************************************
+   SUBROUTINE modcn_d3(rab, rcova, rcovb, cnab, dcnab)
+
+      REAL(KIND=dp), INTENT(IN)                          :: rab, rcova, rcovb
+      REAL(KIND=dp), INTENT(OUT)                         :: cnab, dcnab
+
+      REAL(KIND=dp)                                      :: ee, k1, rco, rr
+
+      ! covalent distance in Bohr
+      rco = rcova + rcovb
+      rr = rab/rco
+      k1 = 7.5_dp
+      ee = ERF(-k1*(rr - 1.0_dp))
+      cnab = 0.5_dp*(1.0_dp + ee)
+      dcnab = -k1*oorootpi/rco*EXP(-k1*k1*(rr - 1.0_dp)**2)
+
+   END SUBROUTINE modcn_d3
+
+! **************************************************************************************************
+!> \brief ...
 !> \param exclude_list List of kind pairs to exclude
 !> \param za first kind
 !> \param zb second kind
@@ -1202,5 +1237,93 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE exclude_d3_kind_pair
+
+! **************************************************************************************************
+!> \brief ...
+!> \param qs_env ...
+!> \param cnumbers ...
+!> \param dcnum ...
+!> \param ftype ...
+!> \param derivatives ...
+! **************************************************************************************************
+   SUBROUTINE cnumber_init(qs_env, cnumbers, dcnum, ftype, derivatives)
+
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: cnumbers
+      TYPE(dcnum_type), ALLOCATABLE, DIMENSION(:)        :: dcnum
+      INTEGER, INTENT(IN)                                :: ftype
+      LOGICAL, INTENT(IN)                                :: derivatives
+
+      INTEGER                                            :: iatom, ikind, natom, nkind, za
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atomnumber
+      LOGICAL                                            :: floating_a, ghost_a
+      LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: exclude
+      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(qs_dispersion_type), POINTER                  :: dispersion_env
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+
+      CALL get_qs_env(qs_env=qs_env, qs_kind_set=qs_kind_set, &
+                      dispersion_env=dispersion_env, &
+                      para_env=para_env, &
+                      nkind=nkind, natom=natom)
+
+      ALLOCATE (cnumbers(natom))
+      cnumbers = 0._dp
+      IF (derivatives) THEN
+         ALLOCATE (dcnum(natom))
+         dcnum(:)%neighbors = 0
+         DO iatom = 1, natom
+            ALLOCATE (dcnum(iatom)%nlist(10), dcnum(iatom)%dvals(10), dcnum(iatom)%rik(3, 10))
+         END DO
+      ELSE
+         ALLOCATE (dcnum(1))
+      END IF
+
+      ALLOCATE (exclude(nkind), atomnumber(nkind))
+      DO ikind = 1, nkind
+         CALL get_qs_kind(qs_kind_set(ikind), zatom=za, ghost=ghost_a, floating=floating_a)
+         exclude(ikind) = ghost_a .OR. floating_a
+         atomnumber(ikind) = za
+      END DO
+
+      CALL d3_cnumber(qs_env, dispersion_env, cnumbers, dcnum, exclude, atomnumber, &
+                      derivatives, ftype)
+
+      CALL para_env%sum(cnumbers)
+      IF (derivatives) THEN
+         CALL dcnum_distribute(dcnum, para_env)
+      END IF
+
+      DEALLOCATE (exclude, atomnumber)
+
+   END SUBROUTINE cnumber_init
+
+! **************************************************************************************************
+!> \brief ...
+!> \param cnumbers ...
+!> \param dcnum ...
+!> \param derivatives ...
+! **************************************************************************************************
+   SUBROUTINE cnumber_release(cnumbers, dcnum, derivatives)
+
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: cnumbers
+      TYPE(dcnum_type), ALLOCATABLE, DIMENSION(:)        :: dcnum
+      LOGICAL, INTENT(IN)                                :: derivatives
+
+      INTEGER                                            :: iatom, natom
+
+      ! deallocate coordination numbers
+      IF (ALLOCATED(cnumbers)) DEALLOCATE (cnumbers)
+      IF (ALLOCATED(dcnum)) THEN
+         IF (derivatives) THEN
+            natom = SIZE(dcnum)
+            DO iatom = 1, natom
+               DEALLOCATE (dcnum(iatom)%nlist, dcnum(iatom)%dvals, dcnum(iatom)%rik)
+            END DO
+         END IF
+         DEALLOCATE (dcnum)
+      END IF
+
+   END SUBROUTINE cnumber_release
 
 END MODULE qs_dispersion_cnum
