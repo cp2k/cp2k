@@ -596,7 +596,7 @@ CONTAINS
       INTEGER                                            :: handle, i_exc
       REAL(KIND=dp)                                      :: alpha
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: oscill_str
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: dipole_exc
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: dipole_exc, polarizability_residues
 
       CALL timeset(routineN, handle)
 
@@ -750,7 +750,7 @@ CONTAINS
       IF (mp2_env%ri_g0w0%bse_spin_config == 0) THEN
          ! Compute BSE dipoles and oscillator strengths
          CALL get_oscillator_strengths(fm_eigvec_X, Exc_ens, &
-                                       dipole_exc, oscill_str, &
+                                       dipole_exc, oscill_str, polarizability_residues, &
                                        mp2_env, qs_env, mo_coeff, &
                                        homo, virtual, unit_nr, &
                                        fm_eigvec_Y)
@@ -800,17 +800,17 @@ CONTAINS
 
          ! Compute and print the absorption spectrum to external file
          IF (mp2_env%ri_g0w0%bse_print_spectrum) THEN
-            CALL compute_absorption_spectrum(oscill_str, Exc_ens, &
+            CALL compute_absorption_spectrum(oscill_str, polarizability_residues, Exc_ens, &
                                              info_approximation, unit_nr, mp2_env)
          END IF
-         DEALLOCATE (oscill_str, dipole_exc)
+         DEALLOCATE (oscill_str, dipole_exc, polarizability_residues)
       ELSE
          IF (unit_nr > 0) THEN
             WRITE (unit_nr, '(T2,A4)') 'BSE|'
             WRITE (unit_nr, '(T2,A4)') 'BSE|'
             CALL cp_warn(__LOCATION__, &
-                           "Requested triplet excitation cannot couple to light. "// &
-                           "Skipping calculation of dipoles, oscillator strengths, and spectrum.")
+                         "Requested triplet excitation cannot couple to light. "// &
+                         "Skipping calculation of dipoles, oscillator strengths, and spectrum.")
          END IF
       END IF
 

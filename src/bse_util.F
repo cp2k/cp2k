@@ -1411,6 +1411,8 @@ CONTAINS
 !> \param Exc_ens ...
 !> \param dipole_exc BSE dipole vectors in real space per excitation level
 !> \param oscill_str Oscillator strength per excitation level
+!> \param polarizability_residues Residues of polarizability ("tensorial oscillator strength")
+!>          per excitation level
 !> \param mp2_env ...
 !> \param qs_env ...
 !> \param mo_coeff ...
@@ -1420,7 +1422,7 @@ CONTAINS
 !> \param fm_eigvec_Y ...
 ! **************************************************************************************************
    SUBROUTINE get_oscillator_strengths(fm_eigvec_X, Exc_ens, &
-                                       dipole_exc, oscill_str, &
+                                       dipole_exc, oscill_str, polarizability_residues, &
                                        mp2_env, qs_env, mo_coeff, &
                                        homo_red, virtual_red, unit_nr, &
                                        fm_eigvec_Y)
@@ -1432,6 +1434,8 @@ CONTAINS
          INTENT(OUT)                                     :: dipole_exc
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
          INTENT(OUT)                                     :: oscill_str
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
+         INTENT(OUT)                                     :: polarizability_residues
       TYPE(mp2_type), INTENT(IN)                         :: mp2_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: mo_coeff
@@ -1440,7 +1444,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'get_oscillator_strengths'
 
-      INTEGER                                            :: handle, idir, n, n_occ, n_virt, nao
+      INTEGER                                            :: handle, idir, jdir, n, n_occ, n_virt, nao
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_dipole_exc, fm_struct_dipoles, &
                                                             fm_struct_dipoles_reordered, &
                                                             fm_struct_dipoles_trunc
@@ -1527,6 +1531,7 @@ CONTAINS
       ! Get oscillator strengths themselves
       ALLOCATE (oscill_str(homo_red*virtual_red))
       ALLOCATE (dipole_exc(3, 1, homo_red*virtual_red))
+      ALLOCATE (polarizability_residues(3, 3, homo_red*virtual_red))
       dipole_exc(:, :, :) = 0.0_dp
 
       ! Sum over all directions
@@ -1535,6 +1540,11 @@ CONTAINS
       END DO
 
       DO n = 1, homo_red*virtual_red
+         DO idir = 1, 3
+            DO jdir = 1, 3
+               polarizability_residues(idir, jdir, n) = 2.0_dp*Exc_ens(n)*dipole_exc(idir, 1, n)*dipole_exc(jdir, 1, n)
+            END DO
+         END DO
          oscill_str(n) = 2.0_dp/3.0_dp*Exc_ens(n)*SUM(ABS(dipole_exc(:, :, n))**2)
       END DO
 
@@ -1691,25 +1701,31 @@ CONTAINS
 !>    Prelim Ref.: C. Ullrich, Time-Dependent Density-Functional Theory: Concepts and Applications
 !>    (Oxford University Press, Oxford, 2012), Eq. 7.51
 !> \param oscill_str ...
+!> \param polarizability_residues ...
 !> \param Exc_ens ...
 !> \param info_approximation ...
 !> \param unit_nr ...
 !> \param mp2_env ...
 ! **************************************************************************************************
-   SUBROUTINE compute_absorption_spectrum(oscill_str, Exc_ens, &
+   SUBROUTINE compute_absorption_spectrum(oscill_str, polarizability_residues, Exc_ens, &
                                           info_approximation, unit_nr, mp2_env)
 
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
-         INTENT(IN)                                      :: oscill_str, Exc_ens
+         INTENT(IN)                                      :: oscill_str
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
+         INTENT(IN)                                      :: polarizability_residues
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
+         INTENT(IN)                                      :: Exc_ens
       CHARACTER(LEN=10)                                  :: info_approximation
       INTEGER, INTENT(IN)                                :: unit_nr
       TYPE(mp2_type), INTENT(INOUT)                      :: mp2_env
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_absorption_spectrum'
 
-      CHARACTER(LEN=10)                                  :: eta_str
-      CHARACTER(LEN=28)                                  :: file_name_spectrum
-      INTEGER                                            :: handle, i, j, k, num_steps, unit_nr_file
+      CHARACTER(LEN=10)                                  :: eta_str, width_eta_format_str
+      CHARACTER(LEN=30)                                  :: file_name_spectrum
+      INTEGER                                            :: handle, i, idir, j, jdir, k, num_steps, &
+                                                            unit_nr_file, width_eta
       REAL(KIND=dp)                                      :: eta, freq_end, freq_start, freq_step, &
                                                             omega
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: abs_spectrum
@@ -1727,10 +1743,17 @@ CONTAINS
 
       DO k = 1, SIZE(eta_list)
          eta = eta_list(k)
-         ! Convert to str
-         WRITE (eta_str, '(F6.3)') eta
+
+         ! Some magic to get a nice formatting of the eta value in filenames
+         width_eta = MAX(1, INT(LOG10(eta)) + 1) + 4
+         WRITE (width_eta_format_str, "(A2,I0,A3)") '(F', width_eta, '.3)'
+         WRITE (eta_str, width_eta_format_str) eta*evolt
+         ! Filename itself
          file_name_spectrum = 'BSE'//TRIM(ADJUSTL(info_approximation))//'eta='//TRIM(eta_str)//'.spectrum'
-         ALLOCATE (abs_spectrum(num_steps, 2))
+
+         ! First column is frequency in eV, second column is imaginary part of the trace of the polarizability
+         ! The following 9 columns are the entries of the polarizability tensor
+         ALLOCATE (abs_spectrum(num_steps, 11))
          abs_spectrum(:, :) = 0.0_dp
 
          ! Calculate the imaginary part of the mean dipole polarizability α_{avg}(ω)
@@ -1745,6 +1768,13 @@ CONTAINS
             DO j = 1, SIZE(oscill_str)
                abs_spectrum(i, 2) = abs_spectrum(i, 2) - oscill_str(j)* &
                                     AIMAG(1/((omega + CMPLX(0.0, eta, kind=dp))**2 - Exc_ens(j)**2))
+               DO idir = 1, 3
+                  DO jdir = 1, 3
+                     abs_spectrum(i, 2 + (idir - 1)*3 + jdir) = abs_spectrum(i, 2 + (idir - 1)*3 + jdir) &
+                                                                - polarizability_residues(idir, jdir, j)* &
+                                                                AIMAG(1/((omega + CMPLX(0.0, eta, kind=dp))**2 - Exc_ens(j)**2))
+                  END DO
+               END DO
             END DO
          END DO
          ! Print it to file
@@ -1754,8 +1784,11 @@ CONTAINS
                            file_status="UNKNOWN", file_action="WRITE")
             WRITE (unit_nr_file, '(A75,A6)') "# Imaginary part of polarizability from Bethe Salpeter equation for method ", &
                TRIM(ADJUSTL(info_approximation))
+            WRITE (unit_nr_file, '(A20,1X,10(2X,A20,1X))') "#  Frequency (eV)", "Im{α_{avg}(ω)}", "Im{α_xx(ω)}", &
+               "Im{α_xy(ω)}", "Im{α_xz(ω)}", "Im{α_yx(ω)}", "Im{α_yy(ω)}", "Im{α_yz(ω)}", "Im{α_zx(ω)}", &
+               "Im{α_zy(ω)}", "Im{α_zz(ω)}"
             DO i = 1, num_steps
-               WRITE (unit_nr_file, '(F17.10, F17.10)') abs_spectrum(i, 1)*evolt, abs_spectrum(i, 2)
+               WRITE (unit_nr_file, '(11(F20.8,1X))') abs_spectrum(i, 1)*evolt, abs_spectrum(i, 2:11)
             END DO
             CALL close_file(unit_nr_file)
          END IF
