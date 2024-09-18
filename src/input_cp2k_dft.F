@@ -44,8 +44,8 @@ MODULE input_cp2k_dft
         no_excitations, numerical, oe_gllb, oe_lb, oe_none, oe_saop, oe_sic, plus_u_lowdin, &
         plus_u_mulliken, plus_u_mulliken_charges, real_time_propagation, rel_dkh, rel_none, &
         rel_pot_erfc, rel_pot_full, rel_sczora_mp, rel_trans_atom, rel_trans_full, &
-        rel_trans_molecule, rel_zora, rel_zora_full, rel_zora_mp, rtp_gwbse_ham_g0w0, &
-        rtp_gwbse_ham_ks, rtp_gwbse_hartree_dbt, rtp_gwbse_hartree_pw, rtp_method_gwbse, &
+        rel_trans_molecule, rel_zora, rel_zora_full, rel_zora_mp, rtp_bse_ham_g0w0, &
+        rtp_bse_ham_ks, rtp_method_bse, &
         rtp_method_tddft, sccs_andreussi, sccs_derivative_cd3, sccs_derivative_cd5, &
         sccs_derivative_cd7, sccs_derivative_fft, sccs_fattebert_gygi, sic_ad, sic_eo, &
         sic_list_all, sic_list_unpaired, sic_mauri_spz, sic_mauri_us, sic_none, slater, &
@@ -1674,40 +1674,27 @@ CONTAINS
       ! Marek : Controlling flow to GWBSE
       CALL keyword_create(keyword, __LOCATION__, name="RTP_METHOD", &
                           description="Which method is used for the time propagation of electronic structure. "// &
-                          "By default, use the TDDFT method. Can also choose GWBSE method, which propagates the lesser "// &
+                          "By default, use the TDDFT method. Can also choose RT-BSE method, which propagates the lesser "// &
                           "Green's function instead of density matrix/molecular orbitals.", &
-                          usage="RTP_METHOD GWBSE", &
+                          usage="RTP_METHOD RTBSE", &
                           default_i_val=rtp_method_tddft, &
-                          enum_c_vals=s2a("TDDFT", "GWBSE"), &
-                          enum_i_vals=(/rtp_method_tddft, rtp_method_gwbse/), &
+                          enum_c_vals=s2a("TDDFT", "RTBSE"), &
+                          enum_i_vals=(/rtp_method_tddft, rtp_method_bse/), &
                           enum_desc=s2a("Use TDDFT for density matrix/MO propagation.", &
-                                        "Use GWBSE for Green's function propagation"))
+                                        "Use RT-BSE for Green's function propagation"))
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       ! Marek : Development option - run GWBSE starting from the KS Hamiltonian
-      CALL keyword_create(keyword, __LOCATION__, name="GWBSE_HAMILTONIAN", &
+      CALL keyword_create(keyword, __LOCATION__, name="RTBSE_HAMILTONIAN", &
                           description="Which Hamiltonian to use as the single-particle Hamiltonian"// &
                           " in the Green's propagator.", &
-                          usage="GWBSE_HAMILTONIAN G0W0", &
-                          default_i_val=rtp_gwbse_ham_g0w0, &
+                          usage="RTBSE_HAMILTONIAN G0W0", &
+                          default_i_val=rtp_bse_ham_g0w0, &
                           enum_c_vals=s2a("KS", "G0W0"), &
-                          enum_i_vals=(/rtp_gwbse_ham_ks, rtp_gwbse_ham_g0w0/), &
+                          enum_i_vals=(/rtp_bse_ham_ks, rtp_bse_ham_g0w0/), &
                           enum_desc=s2a("Use Kohn-Sham Hamiltonian for Green's propagation.", &
                                         "Use G0W0 Hamiltonian for Green's function propagation"))
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      ! Marek : Which method to use for Hartree term evaluation
-      CALL keyword_create(keyword, __LOCATION__, name="HARTREE_METHOD", &
-                          description="Which method to use for Hartree term evaluation"// &
-                          " in the GWBSE method for RTP.", &
-                          usage="HARTREE_METHOD DBT", &
-                          default_i_val=rtp_gwbse_hartree_dbt, &
-                          enum_c_vals=s2a("DBT", "PW"), &
-                          enum_i_vals=(/rtp_gwbse_hartree_dbt, rtp_gwbse_hartree_pw/), &
-                          enum_desc=s2a("Use sparse tensor representation of Hartree term.", &
-                                        "Use plane wave representation of Hartree term."))
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

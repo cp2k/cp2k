@@ -57,7 +57,7 @@ MODULE gw_large_cell_gamma
    USE gw_utils,                        ONLY: analyt_conti_and_print,&
                                               de_init_bs_env,&
                                               time_to_freq
-   USE input_constants,                 ONLY: rtp_method_gwbse
+   USE input_constants,                 ONLY: rtp_method_bse
    USE input_section_types,             ONLY: section_vals_type
    USE kinds,                           ONLY: default_string_length,&
                                               dp,&
@@ -963,7 +963,7 @@ CONTAINS
 
       ! Marek : Reading of the W(w=0) potential for RTP
       ! TODO : is the condition bs_env%all_W_exist sufficient for reading?
-      IF (bs_env%rtp_method == rtp_method_gwbse) THEN
+      IF (bs_env%rtp_method == rtp_method_bse) THEN
          CALL cp_fm_create(bs_env%fm_W_MIC_freq_zero, bs_env%fm_W_MIC_freq%matrix_struct)
          t1 = m_walltime()
          CALL fm_read(bs_env%fm_W_MIC_freq_zero, bs_env, "W_freq_rtp", 0)
@@ -1082,7 +1082,7 @@ CONTAINS
       ! TODO : Should this be activeted here or somewhere else? Maybe directly in the main (gw) routine?
       ! TODO : Add activation dependent on the rt_propagation
       ! Create the matrix TODO: Add release statement in some well understood place - at destruction of bs_env?
-      IF (bs_env%rtp_method == rtp_method_gwbse) THEN
+      IF (bs_env%rtp_method == rtp_method_bse) THEN
          ! ! DEBUG : Print weights for smallest frequency point and for zero frequency
          ! PRINT *, "Weights smallest", bs_env%weights_cos_t_to_w(1,:)
          ! PRINT *, "Weights zero", bs_env%imag_time_weights_freq_zero(:)
