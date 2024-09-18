@@ -43,6 +43,10 @@ MODULE qs_dispersion_types
       LOGICAL                                :: verbose = .FALSE. !extended output
       CHARACTER(LEN=default_string_length)  :: parameter_file_name = ""
       CHARACTER(LEN=default_string_length)  :: kernel_file_name = ""
+      !charges
+      LOGICAL                                :: ext_charges = .FALSE.
+      REAL(KIND=dp), DIMENSION(:), POINTER    :: charges => NULL() !charges for D4
+      REAL(KIND=dp), DIMENSION(:), POINTER    :: dcharges => NULL() !derivatives of D4 energy wrt charges
       !DFT-D3 global parameters
       INTEGER                                :: max_elem = -1 !elements parametrized
       INTEGER                                :: maxc = -1 !max coordination number references per element
@@ -51,6 +55,7 @@ MODULE qs_dispersion_types
       REAL(KIND=dp)                          :: s6 = -1.0_dp, s8 = -1.0_dp, sr6 = -1.0_dp !scaling parameters
       REAL(KIND=dp)                          :: a1 = -1.0_dp, a2 = -1.0_dp !BJ scaling parameters
       REAL(KIND=dp)                          :: eps_cn = -1.0_dp
+      LOGICAL                                :: d4_reference_code = .FALSE. !Use D4 calculation from ext. library
       LOGICAL                                :: doabc = .FALSE. !neglect C9 terms
       LOGICAL                                :: c9cnst = .FALSE. !use constant c9 terms
       LOGICAL                                :: lrc = .FALSE. !calculate a long range correction
@@ -173,6 +178,13 @@ CONTAINS
          ! neighborlists
          CALL release_neighbor_list_sets(dispersion_env%sab_vdw)
          CALL release_neighbor_list_sets(dispersion_env%sab_cn)
+         ! charges
+         IF (ASSOCIATED(dispersion_env%charges)) THEN
+            DEALLOCATE (dispersion_env%charges)
+         END IF
+         IF (ASSOCIATED(dispersion_env%dcharges)) THEN
+            DEALLOCATE (dispersion_env%dcharges)
+         END IF
 
          DEALLOCATE (dispersion_env)
 

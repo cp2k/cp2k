@@ -993,6 +993,12 @@ CONTAINS
                           type_of_var=char_t)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="D4_REFERENCE_CODE", &
+                          description="Calculate D4 energy using external library.", &
+                          usage="D4_REFERENCE_CODE", default_l_val=.TRUE., &
+                          lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="SCALING", &
                           description="XC Functional dependent scaling parameter, if set to zero CP2K attempts"// &
                           " to guess the xc functional that is in use and sets the associated scaling parameter.", &
