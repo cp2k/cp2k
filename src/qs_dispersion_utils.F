@@ -43,6 +43,7 @@ MODULE qs_dispersion_utils
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_dispersion_utils'
 
    PUBLIC :: qs_dispersion_env_set, qs_write_dispersion
+   PUBLIC :: cellhash
 
 ! **************************************************************************************************
 CONTAINS
@@ -156,12 +157,23 @@ CONTAINS
          END IF
          IF (dispersion_env%pp_type == vdw_pairpot_dftd4) THEN
             CALL section_vals_val_get(pp_section, "REFERENCE_FUNCTIONAL", explicit=exfun)
-            CPASSERT(exfun)
+            IF (.NOT. exfun) THEN
+               CPABORT("D4 vdW functional needs specification of REFERENCE_FUNCTIONAL")
+            END IF
+            CALL section_vals_val_get(pp_section, "D4_REFERENCE_CODE", &
+                                      l_val=dispersion_env%d4_reference_code)
             CALL section_vals_val_get(vdw_section, "PAIR_POTENTIAL%REFERENCE_FUNCTIONAL", &
                                       c_val=dispersion_env%ref_functional)
             CALL section_vals_val_get(pp_section, "D4_CUTOFF", r_val=dispersion_env%rc_d4)
             CALL section_vals_val_get(pp_section, "D4_CN_CUTOFF", r_val=dispersion_env%rc_cn)
             CALL section_vals_val_get(pp_section, "FACTOR_S9_TERM", r_val=dispersion_env%s9)
+            !C9 term default=T for D4
+            CALL section_vals_val_get(pp_section, "CALCULATE_C9_TERM", explicit=exfun)
+            IF (exfun) THEN
+               CALL section_vals_val_get(pp_section, "CALCULATE_C9_TERM", l_val=dispersion_env%doabc)
+            ELSE
+               dispersion_env%doabc = .TRUE.
+            END IF
          END IF
          CALL section_vals_val_get(pp_section, "R_CUTOFF", r_val=dispersion_env%rc_disp)
          CALL section_vals_val_get(pp_section, "PARAMETER_FILE_NAME", &
@@ -1146,6 +1158,40 @@ CONTAINS
 
    END SUBROUTINE qs_scaling_dftd3bj
 
+! **************************************************************************************************
+!> \brief ...
+!> \param cell ...
+!> \param ncell ...
+!> \return ...
+! **************************************************************************************************
+   FUNCTION cellhash(cell, ncell) RESULT(hash)
+      INTEGER, DIMENSION(3), INTENT(IN)                  :: cell, ncell
+      INTEGER                                            :: hash
+
+      INTEGER                                            :: ix, iy, iz, nx, ny, nz
+
+      CPASSERT(ALL(ABS(cell) <= ncell))
+
+      ix = cell(1)
+      IF (ix /= 0) THEN
+         ix = 2*ABS(ix) - (1 + SIGN(1, ix))/2
+      END IF
+      iy = cell(2)
+      IF (iy /= 0) THEN
+         iy = 2*ABS(iy) - (1 + SIGN(1, iy))/2
+      END IF
+      iz = cell(3)
+      IF (iz /= 0) THEN
+         iz = 2*ABS(iz) - (1 + SIGN(1, iz))/2
+      END IF
+
+      nx = 2*ncell(1) + 1
+      ny = 2*ncell(2) + 1
+      nz = 2*ncell(3) + 1
+
+      hash = ix*ny*nz + iy*nz + iz + 1
+
+   END FUNCTION cellhash
 ! **************************************************************************************************
 
 END MODULE qs_dispersion_utils

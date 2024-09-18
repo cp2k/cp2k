@@ -37,6 +37,7 @@ MODULE qs_dispersion_d3
    USE qs_dispersion_types,             ONLY: dftd3_pp,&
                                               qs_atom_dispersion_type,&
                                               qs_dispersion_type
+   USE qs_dispersion_utils,             ONLY: cellhash
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_force_types,                  ONLY: qs_force_type
@@ -878,41 +879,6 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE calculate_dispersion_d3_pairpot
-
-! **************************************************************************************************
-!> \brief ...
-!> \param cell ...
-!> \param ncell ...
-!> \return ...
-! **************************************************************************************************
-   FUNCTION cellhash(cell, ncell) RESULT(hash)
-      INTEGER, DIMENSION(3), INTENT(IN)                  :: cell, ncell
-      INTEGER                                            :: hash
-
-      INTEGER                                            :: ix, iy, iz, nx, ny, nz
-
-      CPASSERT(ALL(ABS(cell) <= ncell))
-
-      ix = cell(1)
-      IF (ix /= 0) THEN
-         ix = 2*ABS(ix) - (1 + SIGN(1, ix))/2
-      END IF
-      iy = cell(2)
-      IF (iy /= 0) THEN
-         iy = 2*ABS(iy) - (1 + SIGN(1, iy))/2
-      END IF
-      iz = cell(3)
-      IF (iz /= 0) THEN
-         iz = 2*ABS(iz) - (1 + SIGN(1, iz))/2
-      END IF
-
-      nx = 2*ncell(1) + 1
-      ny = 2*ncell(2) + 1
-      nz = 2*ncell(3) + 1
-
-      hash = ix*ny*nz + iy*nz + iz + 1
-
-   END FUNCTION cellhash
 
 ! **************************************************************************************************
 !> \brief ...

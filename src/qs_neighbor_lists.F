@@ -49,7 +49,7 @@ MODULE qs_neighbor_lists
    USE input_constants,                 ONLY: &
         dispersion_uff, do_method_lrigpw, do_method_rigpw, do_potential_id, do_potential_short, &
         do_potential_truncated, do_se_IS_slater, vdw_pairpot_dftd3, vdw_pairpot_dftd3bj, &
-        xc_vdw_fun_pairpot
+        vdw_pairpot_dftd4, xc_vdw_fun_pairpot
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&
@@ -854,7 +854,11 @@ CONTAINS
       sab_vdw => dispersion_env%sab_vdw
       sab_cn => dispersion_env%sab_cn
       IF (dispersion_env%type == xc_vdw_fun_pairpot .OR. xtb) THEN
-         c_radius(:) = dispersion_env%rc_disp
+         IF (dispersion_env%pp_type == vdw_pairpot_dftd4) THEN
+            c_radius(:) = dispersion_env%rc_d4
+         ELSE
+            c_radius(:) = dispersion_env%rc_disp
+         END IF
          default_present = .TRUE. !include all atoms in vdW (even without basis)
          CALL pair_radius_setup(default_present, default_present, c_radius, c_radius, pair_radius)
          CALL build_neighbor_lists(sab_vdw, particle_set, atom2d, cell, pair_radius, &

@@ -43,7 +43,6 @@ MODULE qs_dispersion_pairpot
    USE kinds,                           ONLY: default_string_length,&
                                               dp
    USE message_passing,                 ONLY: mp_para_env_type
-   USE particle_types,                  ONLY: particle_type
    USE physcon,                         ONLY: bohr,&
                                               kcalmol,&
                                               kjmol
@@ -354,7 +353,6 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(mp_para_env_type), POINTER                    :: para_env
-      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
       TYPE(virial_type), POINTER                         :: virial
 
@@ -440,22 +438,17 @@ CONTAINS
          IF (atstress) THEN
             CPABORT("Atomic stress with DFTD4 not implemented")
          END IF
-         CALL get_qs_env(qs_env=qs_env, particle_set=particle_set, atomic_kind_set=atomic_kind_set, &
-                         cell=cell, force=force, para_env=para_env)
-         use_virial = virial%pv_availability .AND. (.NOT. virial%pv_numer)
-         IF (calculate_forces .OR. debugall) THEN
-            IF (use_virial) THEN
-               CALL calculate_dispersion_d4_pairpot(dispersion_env, particle_set, cell, para_env, &
-                                                    evdw, force=force, atom_of_kind=atom_of_kind, &
-                                                    virial=pv_virial_thread)
-               virial%pv_virial = virial%pv_virial + pv_virial_thread
-            ELSE
-               CALL calculate_dispersion_d4_pairpot(dispersion_env, particle_set, cell, para_env, &
-                                                    evdw, force=force, atom_of_kind=atom_of_kind)
-            END IF
-         ELSE
-            CALL calculate_dispersion_d4_pairpot(dispersion_env, particle_set, cell, para_env, evdw)
+         IF (dispersion_env%lrc) THEN
+            CPABORT("Long range correction with DFTD4 not implemented")
          END IF
+         IF (dispersion_env%srb) THEN
+            CPABORT("Short range bond correction with DFTD4 not implemented")
+         END IF
+         IF (dispersion_env%domol) THEN
+            CPABORT("Molecular approximation with DFTD4 not implemented")
+         END IF
+         !
+         CALL calculate_dispersion_d4_pairpot(qs_env, dispersion_env, evdw, calculate_forces, unit_nr)
       END IF
 
       ! set dispersion energy
