@@ -163,6 +163,7 @@ MODULE rt_bse
                              multiply_fm_cfm
    USE rt_bse_io, ONLY: output_moments, &
                           read_moments, &
+                          read_field, &
                           output_moments_ft, &
                           output_polarizability, &
                           output_field, &
@@ -206,7 +207,6 @@ CONTAINS
       TYPE(force_env_type), POINTER                      :: force_env
       CHARACTER(len=*), PARAMETER                        :: routineN = 'run_propagation_gw'
       TYPE(rtbse_env_type), POINTER                      :: rtbse_env
-      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
       INTEGER                                            :: i, j, k, handle
       LOGICAL                                            :: converged
       REAL(kind=dp)                                      :: metric, enum_re, enum_im, &
@@ -218,17 +218,18 @@ CONTAINS
       CALL force_env_calc_energy_force(force_env, calc_force=.FALSE., consistent_energies=.FALSE.)
 
       ! Allocate all persistant storage and read input that does not need further processing
-      ! TODO : is the dependence on qs_env required in the rest of the code?
-      ! TODO : better name for the whole environment? => rt_bse for file, rtbse_env (consistent naming real-time BSE)
       CALL create_rtbse_env(rtbse_env, qs_env, force_env)
 
       ! Initialize non-trivial values
-      ! TODO : Comment specifics
-      CALL initialize_rtbse_env(rtbse_env, qs_env)
-
-      ! Get environments used in this routine
-      ! TODO : Remove dependence on bs_env => move parameters to rtbse_env
-      CALL get_qs_env(qs_env, bs_env=bs_env)
+      !  - calculates the moment operators
+      !  - populates the initial density matrix
+      !     - reads the restart density if requested
+      !  - reads the field and moment trace from previous runs
+      !  - populates overlap and inverse overlap matrices
+      !  - calculates/populates the G0W0/KS Hamiltonian, respectively
+      !  - calculates the Hartree reference potential
+      !  - calculates the COHSEX reference self-energy
+      CALL initialize_rtbse_env(rtbse_env)
 
       ! TODO : Print a nicer header
       IF (rtbse_env%unit_nr > 0) WRITE (rtbse_env%unit_nr, *) "=== Starting real-time BSE propagation ==="
@@ -270,7 +271,7 @@ CONTAINS
          ! *************** Determine rho_M ***************
          ! Update the effective Hamiltonian
          !  - sets the correct external field, updates Hartree and COHSEX terms to current density
-         CALL update_effective_ham(rtbse_env, qs_env, rtbse_env%rho)
+         CALL update_effective_ham(rtbse_env, rtbse_env%rho)
          ! Convert the effective hamiltonian into the exponential
          ! TODO : Store the result more explicitly - explicit dependence on input/output matrices
          CALL ham_to_exp(rtbse_env)
@@ -286,7 +287,7 @@ CONTAINS
          rtbse_env%sim_step = i + 1
          converged = .FALSE.
          DO k = 1, rtbse_env%etrs_max_iter
-            CALL update_effective_ham(rtbse_env, qs_env, rtbse_env%rho_new_last)
+            CALL update_effective_ham(rtbse_env, rtbse_env%rho_new_last)
             CALL ham_to_exp(rtbse_env)
             CALL propagate_density(rtbse_env, rtbse_env%ham_workspace, rtbse_env%rho_M, rtbse_env%rho_new)
             ! *** Self-consistency check ***
@@ -327,7 +328,7 @@ CONTAINS
          ! Print the updated field
          CALL output_field(rtbse_env)
          ! If needed, print out the density matrix in MO basis
-         CALL output_mos_contravariant(rtbse_env, rtbse_env%rho, bs_env%fm_mo_coeff_Gamma, rtbse_env%rho_section)
+         CALL output_mos_contravariant(rtbse_env, rtbse_env%rho, rtbse_env%rho_section)
          ! Also handles outputting to memory
          CALL output_moments(rtbse_env, rtbse_env%rho)
          ! Output restart files, so that the restart starts at the following time index
@@ -341,9 +342,6 @@ CONTAINS
 
       ! Deallocate everything
       CALL release_rtbse_env(rtbse_env)
-      ! TODO : Could this be moved to release_rtbse_env?
-      ! Deallocate the neighbour list that is not deallocated in gw anymore
-      IF (ASSOCIATED(bs_env%nl_3c%ij_list)) CALL neighbor_list_3c_destroy(bs_env%nl_3c)
 
       CALL timestop(handle)
    END SUBROUTINE run_propagation_bse
@@ -354,9 +352,8 @@ CONTAINS
 !> \param qs_env Quickstep environment (needed for reference to previous calculations)
 !> \author Stepan Marek (09.24)
 ! **************************************************************************************************
-   SUBROUTINE initialize_rtbse_env(rtbse_env, qs_env)
+   SUBROUTINE initialize_rtbse_env(rtbse_env)
       TYPE(rtbse_env_type), POINTER                :: rtbse_env
-      TYPE(qs_environment_type), POINTER           :: qs_env
       CHARACTER(len=*), PARAMETER                  :: routineN = "initialize_rtbse_env"
       TYPE(post_scf_bandstructure_type), POINTER   :: bs_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER    :: moments_dbcsr_p
@@ -367,7 +364,7 @@ CONTAINS
       INTEGER                                      :: i, k
 
       ! Get pointers to parameters from qs_env
-      CALL get_qs_env(qs_env, bs_env=bs_env, matrix_s=matrix_s)
+      CALL get_qs_env(rtbse_env%qs_env, bs_env=bs_env, matrix_s=matrix_s)
 
       ! ****** START MOMENTS OPERATOR CALCULATION
       ! Construct moments from dbcsr
@@ -390,17 +387,17 @@ CONTAINS
       NULLIFY (custom_ref_point)
       ALLOCATE (custom_ref_point(3), source=0.0_dp)
       rpoint(:) = 0.0_dp
-      CALL get_reference_point(rpoint, qs_env=qs_env, reference=use_mom_ref_coac, ref_point=custom_ref_point)
-      CALL build_local_moment_matrix(qs_env, moments_dbcsr_p, 1, rpoint)
+      CALL get_reference_point(rpoint, qs_env=rtbse_env%qs_env, reference=use_mom_ref_coac, ref_point=custom_ref_point)
+      CALL build_local_moment_matrix(rtbse_env%qs_env, moments_dbcsr_p, 1, rpoint)
       ! Copy to full matrix
       DO k = 1, 3
          ! Again, matrices are created from overlap template
          CALL copy_dbcsr_to_fm(moments_dbcsr_p(k)%matrix, rtbse_env%moments(k)%matrix)
       END DO
       ! Now, repeat without reference point to get the moments for field
-      CALL get_reference_point(rpoint, qs_env=qs_env, reference=use_mom_ref_zero, ref_point=custom_ref_point)
+      CALL get_reference_point(rpoint, qs_env=rtbse_env%qs_env, reference=use_mom_ref_zero, ref_point=custom_ref_point)
       DEALLOCATE (custom_ref_point)
-      CALL build_local_moment_matrix(qs_env, moments_dbcsr_p, 1, rpoint)
+      CALL build_local_moment_matrix(rtbse_env%qs_env, moments_dbcsr_p, 1, rpoint)
       DO k = 1, 3
          CALL copy_dbcsr_to_fm(moments_dbcsr_p(k)%matrix, rtbse_env%moments_field(k)%matrix)
       END DO
@@ -443,6 +440,11 @@ CONTAINS
       CALL read_moments(rtbse_env)
       ! ****** END MOMENTS TRACE LOAD
 
+      ! ****** START FIELD TRACE LOAD
+      ! The moments are only loaded if the consistent save files exist
+      CALL read_field(rtbse_env)
+      ! ****** END FIELD TRACE LOAD
+
       ! ****** START OVERLAP + INVERSE OVERLAP CALCULATION
       CALL copy_dbcsr_to_fm(matrix_s(1)%matrix, rtbse_env%S_fm%matrix)
       CALL cp_fm_to_cfm(msourcer=rtbse_env%S_fm%matrix, mtarget=rtbse_env%S_cfm%matrix)
@@ -479,7 +481,7 @@ CONTAINS
 
       ! ****** START HARTREE POTENTIAL REFERENCE CALCULATION
       ! Calculate Coulomb RI elements, necessary for Hartree calculation
-      CALL init_hartree(qs_env, rtbse_env%v_dbcsr%matrix)
+      CALL init_hartree(rtbse_env, rtbse_env%v_dbcsr%matrix)
       IF (rtbse_env%ham_reference_type == rtp_bse_ham_g0w0) THEN
          ! In a non-HF calculation, copy the actual correlation part of the interaction
          CALL copy_fm_to_dbcsr(bs_env%fm_W_MIC_freq_zero, rtbse_env%w_dbcsr%matrix)
@@ -493,7 +495,7 @@ CONTAINS
       ! Calculate the original Hartree potential
       ! Uses rho_orig - same as rho for initial run but different for continued run
       DO i = 1, rtbse_env%n_spin
-         CALL get_hartree_local(qs_env, rtbse_env, rtbse_env%rho_orig(i)%matrix, rtbse_env%hartree_curr(i)%matrix)
+         CALL get_hartree_local(rtbse_env, rtbse_env%rho_orig(i)%matrix, rtbse_env%hartree_curr(i)%matrix)
          ! Scaling by spin degeneracy
          CALL cp_fm_scale(rtbse_env%spin_degeneracy, rtbse_env%hartree_curr(i)%matrix)
          ! Subtract the reference from the reference Hamiltonian
@@ -706,9 +708,8 @@ CONTAINS
 !> \param qs_env QS env
 !> \param rho Real and imaginary parts ( + spin) of the density at current time
 ! **************************************************************************************************
-      SUBROUTINE update_effective_ham(rtbse_env, qs_env, rho)
+      SUBROUTINE update_effective_ham(rtbse_env, rho)
          TYPE(rtbse_env_type)                               :: rtbse_env
-         TYPE(qs_environment_type), POINTER                 :: qs_env
          TYPE(cp_cfm_p_type), DIMENSION(:)                  :: rho
          CHARACTER(len=*), PARAMETER                        :: routineN = "update_effective_ham"
          INTEGER                                            :: k, j, nspin, handle
@@ -749,7 +750,7 @@ CONTAINS
                                       CMPLX(1.0, 0.0, kind=dp), rtbse_env%sigma_SEX(j)%matrix)
             ! Calculate Hartree potential
             ! Hartree potential is scaled by number of electrons in each MO - spin degeneracy
-            CALL get_hartree_local(qs_env, rtbse_env, rho(j)%matrix, &
+            CALL get_hartree_local(rtbse_env, rho(j)%matrix, &
                                    rtbse_env%hartree_curr(j)%matrix)
             CALL cp_fm_to_cfm(msourcer=rtbse_env%hartree_curr(j)%matrix, mtarget=rtbse_env%ham_workspace(1)%matrix)
             CALL cp_cfm_scale_and_add(CMPLX(1.0, 0.0, kind=dp), rtbse_env%ham_effective(j)%matrix, &
@@ -1102,8 +1103,8 @@ CONTAINS
 !> \author Stepan Marek
 !> \date 01.2024
 ! **************************************************************************************************
-      SUBROUTINE init_hartree(qs_env, v_dbcsr)
-         TYPE(qs_environment_type), POINTER, INTENT(IN)     :: qs_env
+      SUBROUTINE init_hartree(rtbse_env, v_dbcsr)
+         TYPE(rtbse_env_type), POINTER, INTENT(IN)          :: rtbse_env
          TYPE(dbcsr_type), POINTER                          :: v_dbcsr
          CHARACTER(len=*), PARAMETER                        :: routineN = "init_hartree"
          TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
@@ -1118,7 +1119,7 @@ CONTAINS
          TYPE(neighbor_list_set_p_type), DIMENSION(:), &
             POINTER                                         :: nl_2c
 
-         CALL get_qs_env(qs_env, bs_env=bs_env)
+         bs_env => rtbse_env%bs_env
 
          ! Allocate for bare Hartree term
          ALLOCATE (V_dbcsr_a(1))
@@ -1129,17 +1130,17 @@ CONTAINS
          ! Calculate full coulomb RI basis elements - V _ (PQ) matrix
          NULLIFY (nl_2c)
          CALL build_2c_neighbor_lists(nl_2c, bs_env%basis_set_RI, bs_env%basis_set_RI, &
-                                      coulomb_op, "Coulomb_neighbor_2c_list", qs_env, &
+                                      coulomb_op, "Coulomb_neighbor_2c_list", rtbse_env%qs_env, &
                                       sym_ij=.FALSE., molecular=.TRUE.)
-         CALL build_2c_integrals(V_dbcsr_a, bs_env%eps_filter, qs_env, nl_2c, &
+         CALL build_2c_integrals(V_dbcsr_a, bs_env%eps_filter, rtbse_env%qs_env, nl_2c, &
                                  bs_env%basis_set_RI, bs_env%basis_set_RI, coulomb_op, &
                                  do_kpoints=.FALSE., regularization_RI=bs_env%regularization_RI)
          ! Calculate the RI metric elements
          ! nl_2c is automatically rewritten (even reallocated) in this routine
          CALL build_2c_neighbor_lists(nl_2c, bs_env%basis_set_RI, bs_env%basis_set_RI, &
-                                      bs_env%ri_metric, "Metric_neighbor_2c_list", qs_env, &
+                                      bs_env%ri_metric, "Metric_neighbor_2c_list", rtbse_env%qs_env, &
                                       sym_ij=.FALSE., molecular=.TRUE.)
-         CALL build_2c_integrals(metric_dbcsr, bs_env%eps_filter, qs_env, nl_2c, &
+         CALL build_2c_integrals(metric_dbcsr, bs_env%eps_filter, rtbse_env%qs_env, nl_2c, &
                                  bs_env%basis_set_RI, bs_env%basis_set_RI, bs_env%ri_metric, &
                                  do_kpoints=.FALSE., regularization_RI=bs_env%regularization_RI)
          ! nl_2c no longer needed
@@ -1192,8 +1193,7 @@ CONTAINS
 !> \author Stepan Marek
 !> \date 02.2024
 ! **************************************************************************************************
-      SUBROUTINE get_hartree_local(qs_env, rtbse_env, rho_ao, v_ao)
-         TYPE(qs_environment_type), POINTER                 :: qs_env
+      SUBROUTINE get_hartree_local(rtbse_env, rho_ao, v_ao)
          TYPE(rtbse_env_type)                               :: rtbse_env
          TYPE(cp_cfm_type), INTENT(IN), POINTER             :: rho_ao
          TYPE(cp_fm_type), INTENT(OUT), POINTER             :: v_ao
@@ -1217,7 +1217,7 @@ CONTAINS
 
          CALL timeset(routineN, handle)
          ! Get the relevant environments
-         CALL get_qs_env(qs_env, bs_env=bs_env, para_env=para_env)
+         CALL get_qs_env(rtbse_env%qs_env, bs_env=bs_env, para_env=para_env)
          n_RI = rtbse_env%n_RI
          int_3c => rtbse_env%int_3c_array
 

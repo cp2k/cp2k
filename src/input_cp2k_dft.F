@@ -1973,7 +1973,7 @@ CONTAINS
                                        print_level=high_print_level, common_iter_levels=0, &
                                        each_iter_names=s2a("MD"), &
                                        each_iter_values=(/1/), &
-                                       filename="MOMENTS")
+                                       filename="__STD_OUT__")
       CALL section_add_subsection(print_section, print_key)
       CALL section_release(print_key)
       ! Marek : Fourier transform of MOMENTS ASCII print

@@ -75,6 +75,7 @@ MODULE rt_bse_types
    USE matrix_exp, ONLY: get_nsquare_norder
    USE gw_integrals, ONLY: build_3c_integral_block
    USE gw_large_cell_Gamma, ONLY: compute_3c_integrals
+   USE qs_tensors, ONLY: neighbor_list_3c_destroy
 !    USE gw_utils,                        ONLY: create_and_init_bs_env_for_gw,&
 !                                               setup_AO_and_RI_basis_set,&
 !                                               get_RI_basis_and_basis_function_indices,&
@@ -202,6 +203,9 @@ MODULE rt_bse_types
       ! Which element of polarizability to print out
       INTEGER, DIMENSION(2)                                     :: pol_element
       TYPE(dft_control_type), POINTER                           :: dft_control
+      ! DEBUG : Trying keeping the reference to previous environments inside this one
+      TYPE(qs_environment_type), POINTER                        :: qs_env
+      TYPE(post_scf_bandstructure_type), POINTER                :: bs_env
       ! Stores data needed for reading/writing to the restart files
       TYPE(section_vals_type), POINTER                          :: restart_section, &
                                                                    field_section, &
@@ -360,6 +364,9 @@ CONTAINS
       rtbse_env%rho_section => section_vals_get_subs_vals(input, "DFT%REAL_TIME_PROPAGATION%PRINT%DENSITY_MATRIX")
       rtbse_env%ft_section => section_vals_get_subs_vals(input, "DFT%REAL_TIME_PROPAGATION%PRINT%MOMENTS_FT")
       rtbse_env%pol_section => section_vals_get_subs_vals(input, "DFT%REAL_TIME_PROPAGATION%PRINT%POLARIZABILITY")
+      ! DEBUG : References to previous environments
+      rtbse_env%qs_env => qs_env
+      rtbse_env%bs_env => bs_env
 
       ! Allocate moments matrices
       DO k = 1, 3
@@ -570,6 +577,8 @@ CONTAINS
       END DO
       DEALLOCATE (rtbse_env%time_trace%series)
 
+      ! Deallocate the neighbour list that is not deallocated in gw anymore
+      IF (ASSOCIATED(rtbse_env%bs_env%nl_3c%ij_list)) CALL neighbor_list_3c_destroy(rtbse_env%bs_env%nl_3c)
       ! Deallocate the storage for the environment itself
       DEALLOCATE (rtbse_env)
       ! Nullify to make sure it is not used again

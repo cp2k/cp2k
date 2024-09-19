@@ -71,13 +71,11 @@ CONTAINS
 !>        operator, i.e. density matrix
 !> \param rtbse_env Entry point - gwbse environment
 !> \param rho Density matrix in AO basis
-!> \param mos Spin dependent molecular orbitals
 !> \param rtp_section RTP input section
 ! **************************************************************************************************
-   SUBROUTINE output_mos_contravariant(rtbse_env, rho, mos, print_key_section)
+   SUBROUTINE output_mos_contravariant(rtbse_env, rho, print_key_section)
       TYPE(rtbse_env_type)                               :: rtbse_env
       TYPE(cp_cfm_p_type), DIMENSION(:)                  :: rho
-      TYPE(cp_fm_type), DIMENSION(:)                     :: mos
       TYPE(section_vals_type), POINTER                   :: print_key_section
       CHARACTER(len=*), PARAMETER                        :: routineN = "output_mos_rho"
       TYPE(cp_logger_type), POINTER                      :: logger
@@ -100,7 +98,7 @@ CONTAINS
                               0.0_dp, rtbse_env%rho_workspace(1)%matrix)
          ! C^T * S * rho
          CALL multiply_fm_cfm("T", "N", rtbse_env%n_ao, rtbse_env%n_ao, rtbse_env%n_ao, &
-                              1.0_dp, mos(j), rtbse_env%rho_workspace(1)%matrix, &
+                              1.0_dp, rtbse_env%bs_env%fm_mo_coeff_Gamma(j), rtbse_env%rho_workspace(1)%matrix, &
                               0.0_dp, rtbse_env%rho_workspace(2)%matrix)
          ! C^T * S * rho * S
          CALL multiply_cfm_fm("N", "N", rtbse_env%n_ao, rtbse_env%n_ao, rtbse_env%n_ao, &
@@ -108,7 +106,7 @@ CONTAINS
                               0.0_dp, rtbse_env%rho_workspace(1)%matrix)
          ! C^T * S * rho * S * C
          CALL multiply_cfm_fm("N", "N", rtbse_env%n_ao, rtbse_env%n_ao, rtbse_env%n_ao, &
-                              1.0_dp, rtbse_env%rho_workspace(1)%matrix, mos(j), &
+                              1.0_dp, rtbse_env%rho_workspace(1)%matrix, rtbse_env%bs_env%fm_mo_coeff_Gamma(j), &
                               0.0_dp, rtbse_env%rho_workspace(2)%matrix)
          ! Print real and imaginary parts separately
          CALL cp_cfm_to_fm(rtbse_env%rho_workspace(2)%matrix, &
@@ -124,13 +122,11 @@ CONTAINS
 !>        i.e. the Hamiltonian matrix
 !> \param rtbse_env Entry point - gwbse environment
 !> \param cohsex cohsex matrix in AO basis, covariant representation
-!> \param mos Spin dependent molecular orbitals
 !> \param rtp_section RTP input section
 ! **************************************************************************************************
-   SUBROUTINE output_mos_covariant(rtbse_env, ham, mos, print_key_section)
+   SUBROUTINE output_mos_covariant(rtbse_env, ham, print_key_section)
       TYPE(rtbse_env_type)                               :: rtbse_env
       TYPE(cp_cfm_p_type), DIMENSION(:)                  :: ham
-      TYPE(cp_fm_type), DIMENSION(:)                     :: mos
       TYPE(section_vals_type), POINTER                   :: print_key_section
       CHARACTER(len=*), PARAMETER                        :: routineN = "output_mos_cohsex"
       TYPE(cp_logger_type), POINTER                      :: logger
@@ -147,11 +143,11 @@ CONTAINS
          rho_unit_im = cp_print_key_unit_nr(logger, print_key_section, extension=file_labels(2*j))
          ! C^T * cohsex
          CALL multiply_fm_cfm("T", "N", rtbse_env%n_ao, rtbse_env%n_ao, rtbse_env%n_ao, &
-                              1.0_dp, mos(j), ham(j)%matrix, &
+                              1.0_dp, rtbse_env%bs_env%fm_mo_coeff_Gamma(j), ham(j)%matrix, &
                               0.0_dp, rtbse_env%rho_workspace(1)%matrix)
          ! C^T * cohsex * C
          CALL multiply_cfm_fm("N", "N", rtbse_env%n_ao, rtbse_env%n_ao, rtbse_env%n_ao, &
-                              1.0_dp, rtbse_env%rho_workspace(1)%matrix, mos(j), &
+                              1.0_dp, rtbse_env%rho_workspace(1)%matrix, rtbse_env%bs_env%fm_mo_coeff_Gamma(j), &
                               0.0_dp, rtbse_env%rho_workspace(2)%matrix)
          ! Print real and imaginary parts separately
          CALL cp_cfm_to_fm(rtbse_env%rho_workspace(2)%matrix, &
@@ -214,7 +210,7 @@ CONTAINS
                         unit_number=field_unit)
          DO k=rtbse_env%sim_start_orig,rtbse_env%sim_start
             n = k - rtbse_env%sim_start_orig + 1
-            WRITE (field_unit, '(E20.8E3,E20.8E3,E20.8E3,E20.8E3)') rtbse_env%time_trace%series(n), &
+            READ (field_unit, '(E20.8E3,E20.8E3,E20.8E3,E20.8E3)') rtbse_env%time_trace%series(n), &
                rtbse_env%field_trace(1)%series(n), rtbse_env%field_trace(2)%series(n), rtbse_env%field_trace(3)%series(n)
             ! Set the time units back to atomic units
             rtbse_env%time_trace%series(n) = rtbse_env%time_trace%series(n) / femtoseconds
@@ -263,8 +259,16 @@ CONTAINS
             moments(i) = -moments(i)*rtbse_env%spin_degeneracy
          END DO
          ! Output to the file
-         IF (moments_unit_re > 0) WRITE (moments_unit_re, '(E20.8E3,E20.8E3,E20.8E3,E20.8E3)') rtbse_env%sim_time*femtoseconds, &
-            moments(1), moments(2), moments(3)
+         IF (moments_unit_re > 0) THEN
+            ! If outputting to standard output, also prepend identifying 'MOMENTS_TRACE|' string
+            IF (rtbse_env%unit_nr == moments_unit_re) THEN
+               WRITE (moments_unit_re, '(A17,E20.8E3,E20.8E3,E20.8E3,E20.8E3)') &
+                  "MOMENTS_TRACE_RE|", rtbse_env%sim_time*femtoseconds, moments(1), moments(2), moments(3)
+            ELSE
+               WRITE (moments_unit_re, '(E20.8E3,E20.8E3,E20.8E3,E20.8E3)') &
+                  rtbse_env%sim_time*femtoseconds, moments(1), moments(2), moments(3)
+            END IF
+         END IF
          ! Save to memory for FT - real part
          n = rtbse_env%sim_step - rtbse_env%sim_start_orig + 1
          DO i = 1, 3
@@ -280,8 +284,16 @@ CONTAINS
             moments(i) = -moments(i)*rtbse_env%spin_degeneracy
          END DO
          ! Output to the file
-         IF (moments_unit_im > 0) WRITE (moments_unit_im, '(E20.8E3,E20.8E3,E20.8E3,E20.8E3)') rtbse_env%sim_time*femtoseconds, &
-            moments(1), moments(2), moments(3)
+         IF (moments_unit_im > 0) THEN
+            ! If outputting to standard output, also prepend identifying 'MOMENTS_TRACE|' string
+            IF (rtbse_env%unit_nr == moments_unit_im) THEN
+               WRITE (moments_unit_im, '(A17,E20.8E3,E20.8E3,E20.8E3,E20.8E3)') &
+                  "MOMENTS_TRACE_IM|", rtbse_env%sim_time*femtoseconds, moments(1), moments(2), moments(3)
+            ELSE
+               WRITE (moments_unit_im, '(E20.8E3,E20.8E3,E20.8E3,E20.8E3)') &
+                  rtbse_env%sim_time*femtoseconds, moments(1), moments(2), moments(3)
+            END IF
+         END IF
          ! Save to memory for FT - imag part
          DO i = 1, 3
             rtbse_env%moments_trace(i)%series(n) = rtbse_env%moments_trace(i)%series(n) + CMPLX(0.0, moments(i), kind=dp)
@@ -496,12 +508,14 @@ CONTAINS
       ! Now, write these to file
       ft_unit = cp_print_key_unit_nr(logger, rtbse_env%ft_section, extension=".dat", &
                                          file_form="FORMATTED", file_position="REWIND")
-      DO i=1, n
-         WRITE (ft_unit, '(E20.8E3,E20.8E3,E20.8E3,E20.8E3,E20.8E3,E20.8E3,E20.8E3)') &
-                 omega_series(i), ft_full_series(1,i), ft_full_series(2,i), &
-                 ft_full_series(3,i), ft_full_series(4,i), &
-                 ft_full_series(5,i), ft_full_series(6,i)
-      END DO
+      IF (ft_unit > 0) THEN
+         DO i=1, n
+            WRITE (ft_unit, '(E20.8E3,E20.8E3,E20.8E3,E20.8E3,E20.8E3,E20.8E3,E20.8E3)') &
+                    omega_series(i), ft_full_series(1,i), ft_full_series(2,i), &
+                    ft_full_series(3,i), ft_full_series(4,i), &
+                    ft_full_series(5,i), ft_full_series(6,i)
+         END DO
+      END IF
       CALL cp_print_key_finished_output(ft_unit, logger, rtbse_env%ft_section)
       DEALLOCATE (omega_series)
       DEALLOCATE (ft_full_series)
@@ -577,11 +591,14 @@ CONTAINS
       ! TODO : Change to custom file
       pol_unit = cp_print_key_unit_nr(logger, rtbse_env%pol_section, extension=".dat", &
                                          file_form="FORMATTED", file_position="REWIND")
-      WRITE (pol_unit, '(A1,A19,A20,A20,A20)') "#", "omega [a.u.]", "Energy [eV]", "Real polarizability", "Imag polarizability"
-      DO i=1, n
-         WRITE (pol_unit, '(E20.8E3,E20.8E3,E20.8E3,E20.8E3)') &
-                 omega_series(i), value_series(i), REAL(polarizability_series(i)), AIMAG(polarizability_series(i))
-      END DO
+      IF (pol_unit > 0) THEN
+         WRITE (pol_unit, '(A1,A19,A20,A20,A20)') &
+            "#", "omega [a.u.]", "Energy [eV]", "Real polarizability", "Imag polarizability"
+         DO i=1, n
+            WRITE (pol_unit, '(E20.8E3,E20.8E3,E20.8E3,E20.8E3)') &
+                    omega_series(i), value_series(i), REAL(polarizability_series(i)), AIMAG(polarizability_series(i))
+         END DO
+      END IF
       CALL cp_print_key_finished_output(pol_unit, logger, rtbse_env%ft_section)
 
       DEALLOCATE (value_series)
