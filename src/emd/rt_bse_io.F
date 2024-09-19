@@ -487,7 +487,6 @@ CONTAINS
       ALLOCATE (value_series(n), source=0.0_dp)
       ALLOCATE (ft_full_series(6,n))
       ! Carry out for each direction independently and real and imaginary parts also independently
-      ! TODO : Finite pulse
       DO i = 1, 3
          ! Real part of the value first 
          value_series(:) = REAL(rtbse_env%moments_trace(i)%series(:))
@@ -574,9 +573,10 @@ CONTAINS
          field_series(:) = CMPLX(rtbse_env%dft_control%rtp_control%delta_pulse_scale, 0.0, kind=dp)
       ELSE
          ! Calculate the transform of the field as well and divide by it
+         ! The field FT is not damped - assume field is localised in time
          ! The field is strictly real
          CALL ft_slow(rtbse_env%time_trace%series, rtbse_env%field_trace(rtbse_env%pol_element(2))%series, omega_series, ft_real_series, ft_imag_series, &
-                      rtbse_env%ft_damping, rtbse_env%ft_start)
+                      0.0_dp, rtbse_env%ft_start)
          field_series(:) = CMPLX(ft_real_series(:), ft_imag_series(:), kind=dp)
       END IF
       ! Divide to get the polarizability series
@@ -586,6 +586,12 @@ CONTAINS
       ! Change units to eV for energy
       ! use value_series for energy and moment_series for polarizability
       value_series(:) = omega_series(:) * 27.211386
+      ! TODO : Print Field FT in case of problems
+      ! PRINT *, "=== Field FT"
+      ! DO i=1,n
+      !    PRINT '(E20.8E3,E20.8E3,E20.8E3)', value_series(i), REAL(field_series(i)), AIMAG(field_series(i))
+      ! END DO
+      ! PRINT *, "=== Field FT"
       ! TODO : Use the physcon for conversion
       ! Print out the polarizability to a file
       ! TODO : Change to custom file
@@ -625,7 +631,8 @@ CONTAINS
 ! **************************************************************************************************
    ! So far only for defined one dimensional series
    ! TODO : Maybe simple instead of slow
-   SUBROUTINE ft_slow(time_series, value_series, omega_series, result_series, iresult_series, damping_opt, t0_opt)
+   SUBROUTINE ft_slow(time_series, value_series, omega_series, result_series, iresult_series, &
+                   damping_opt, t0_opt)
       REAL(kind=dp), DIMENSION(:), POINTER               :: time_series
       REAL(kind=dp), DIMENSION(:), POINTER               :: value_series
       REAL(kind=dp), DIMENSION(:), POINTER               :: omega_series
@@ -634,7 +641,7 @@ CONTAINS
       REAL(kind=dp), OPTIONAL                            :: damping_opt
       REAL(kind=dp), OPTIONAL                            :: t0_opt
       CHARACTER(len=*), PARAMETER                        :: routineN="ft_slow"
-      INTEGER                                            :: M, N, i, j, t0_i
+      INTEGER                                            :: N, i, j, t0_i, j_wrap
       REAL(kind=dp)                                      :: t0, delta_t, delta_omega, damping
 
       N = SIZE(time_series)
@@ -643,6 +650,7 @@ CONTAINS
       t0_i = 1
       IF (PRESENT(t0_opt)) THEN
          ! Determine the index at which we start applying the damping
+         ! Also the index around which we fold around
          DO i=1,N
             ! Increase until we break or reach the end of the time series
             t0_i = i
@@ -656,30 +664,25 @@ CONTAINS
 
       ! Default damping so that at the end of the time series, divide value by e^-4
       damping = 4.0_dp / (time_series(N) - time_series(t0_i))
-      ! damping = 0.02_dp
       IF (PRESENT(damping_opt)) THEN
          IF (damping_opt >= 0.0_dp) damping = damping_opt
       END IF
 
       ! Construct the grid
-      ! Number of points that we actually integrate over
-      M = N - t0_i + 1
-      ! Time differential
-      delta_t = (time_series(N) - time_series(t0_i)) / REAL(M, kind=dp)
-      ! Frequency differential
-      delta_omega = twopi / (time_series(N) - time_series(t0_i))
-      ! TODO : Some parallelism/vectorisation? But this will never be a bottle neck of the program
-      ! TODO : Maybe change and allow for different sizes in the timestep? Or is that not a relevant case?
-      DO i = 1, M
-         ! Initialise the integral
+      ! Assume series equidistant
+      delta_t = time_series(2) - time_series(1)
+      delta_omega = twopi / (time_series(N) - time_series(1))
+      DO i = 1, N
          result_series(i) = 0.0_dp
          iresult_series(i) = 0.0_dp
          omega_series(i) = delta_omega * (i-1)
-         DO j = 1, M
-            result_series(i) = result_series(i) + COS(twopi * (i-1) * (j-1)/ M) * EXP(- damping * delta_t * (j-1)) * value_series(j + t0_i - 1)
-            iresult_series(i) = iresult_series(i) + SIN(twopi * (i-1) * (j-1)/ M) * EXP(- damping * delta_t * (j-1)) * value_series(j + t0_i - 1)
+         DO j = 1, N
+            j_wrap = MODULO(j + t0_i - 2, N) + 1
+            result_series(i) = result_series(i) + COS(twopi * (i-1) * (j-1)/ N) * EXP(- damping * delta_t * (j-1)) * value_series(j_wrap)
+            iresult_series(i) = iresult_series(i) + SIN(twopi * (i-1) * (j-1)/ N) * EXP(- damping * delta_t * (j-1)) * value_series(j_wrap)
          END DO
       END DO
+      delta_omega = twopi / (time_series(N) - time_series(1))
       result_series(:) = delta_t * result_series(:)
       iresult_series(:) = delta_t * iresult_series(:)
 

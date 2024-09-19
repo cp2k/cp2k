@@ -347,6 +347,7 @@ CONTAINS
                                 r_val=rtbse_env%ft_damping)
       CALL section_vals_val_get(input, "DFT%REAL_TIME_PROPAGATION%PRINT%MOMENTS_FT%START_TIME", &
                                 r_val=rtbse_env%ft_start)
+      ! TODO : Units for starting time and damping - so far give atomic units
       CALL section_vals_val_get(input, "DFT%REAL_TIME_PROPAGATION%PRINT%POLARIZABILITY%ELEMENT", &
                                 i_vals=pol_tmp)
       IF (SIZE(pol_tmp) < 2) CPABORT("Less than two elements provided for polarizability")
