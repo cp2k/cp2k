@@ -47,6 +47,7 @@ MODULE qs_dispersion_pairpot
                                               kcalmol,&
                                               kjmol
    USE qs_dispersion_cnum,              ONLY: setcn,&
+                                              setrcov,&
                                               setr0ab
    USE qs_dispersion_d2,                ONLY: calculate_dispersion_d2_pairpot,&
                                               dftd2_param
@@ -314,6 +315,18 @@ CONTAINS
                disp%defined = .TRUE.
                CALL set_qs_kind(qs_kind_set(ikind), dispersion=disp)
             END DO
+            ! maybe needed in cnumber calculations
+            max_elem = 94
+            maxc = 5
+            dispersion_env%max_elem = max_elem
+            dispersion_env%maxc = maxc
+            ALLOCATE (dispersion_env%maxci(max_elem))
+            ALLOCATE (dispersion_env%rcov(max_elem))
+            ALLOCATE (dispersion_env%cn(max_elem))
+            ! the default covalent radii
+            CALL setrcov(dispersion_env%rcov)
+            ! the default coordination numbers
+            CALL setcn(dispersion_env%cn)
          END SELECT
       END SELECT
 

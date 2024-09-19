@@ -48,9 +48,11 @@ MODULE xtb_matrices
    USE orbital_pointers,                ONLY: ncoset
    USE particle_types,                  ONLY: particle_type
    USE qs_condnum,                      ONLY: overlap_condnum
-   USE qs_dispersion_cnum,              ONLY: dcnum_type, cnumber_init, cnumber_release
-   USE qs_dispersion_types,             ONLY: qs_dispersion_type
+   USE qs_dispersion_cnum,              ONLY: cnumber_init,&
+                                              cnumber_release,&
+                                              dcnum_type
    USE qs_dispersion_pairpot,           ONLY: calculate_dispersion_pairpot
+   USE qs_dispersion_types,             ONLY: qs_dispersion_type
    USE qs_energy_types,                 ONLY: qs_energy_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type

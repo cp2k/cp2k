@@ -144,14 +144,25 @@ CONTAINS
       CALL new_d4_model(disp, mol)
       CALL get_rational_damping(dispersion_env%ref_functional, param, s9=dispersion_env%s9)
 
-      SELECT TYPE (param)
-      TYPE is (rational_damping_param)
-         dispersion_env%s6 = param%s6
-         dispersion_env%s8 = param%s8
-         dispersion_env%a1 = param%a1
-         dispersion_env%a2 = param%a2
-         dispersion_env%alp = param%alp
-      END SELECT
+      IF(dispersion_env%ref_functional == "none") THEN
+         SELECT TYPE (param)
+         TYPE is (rational_damping_param)
+            param%s6 = dispersion_env%s6
+            param%s8 = dispersion_env%s8
+            param%a1 = dispersion_env%a1
+            param%a2 = dispersion_env%a2
+            param%alp = dispersion_env%alp
+         END SELECT
+      ELSE
+         SELECT TYPE (param)
+         TYPE is (rational_damping_param)
+            dispersion_env%s6 = param%s6
+            dispersion_env%s8 = param%s8
+            dispersion_env%a1 = param%a1
+            dispersion_env%a2 = param%a2
+            dispersion_env%alp = param%alp
+         END SELECT
+      END IF
 
       ! Coordination number cutoff
       cutoff%cn = dispersion_env%rc_cn

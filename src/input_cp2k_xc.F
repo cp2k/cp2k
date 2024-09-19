@@ -999,7 +999,8 @@ CONTAINS
                           lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
-      CALL keyword_create(keyword, __LOCATION__, name="SCALING", &
+      CALL keyword_create(keyword, __LOCATION__, name="D2_SCALING", &
+                          variants=["SCALING"], &
                           description="XC Functional dependent scaling parameter, if set to zero CP2K attempts"// &
                           " to guess the xc functional that is in use and sets the associated scaling parameter.", &
                           usage="SCALING 0.2", default_r_val=0._dp)
@@ -1028,6 +1029,14 @@ CONTAINS
                           " if set to zero CP2K attempts"// &
                           " to guess the xc functional from REFERENCE_FUNCTIONAL and sets the associated scaling parameter.", &
                           usage="D3BJ_SCALING 1.0 1.0 1.0 1.0", n_var=4, &
+                          default_r_vals=(/0.0_dp, 0.0_dp, 0.0_dp, 0.0_dp/))
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="D4_SCALING", &
+                          description="XC Functional dependent scaling parameters (s6,a1,s8,a2) for the DFT-D4 method,"// &
+                          " if set to zero CP2K attempts"// &
+                          " to guess the xc functional from REFERENCE_FUNCTIONAL and sets the associated scaling parameter.", &
+                          usage="D4_SCALING 1.0 1.0 1.0 1.0", n_var=4, &
                           default_r_vals=(/0.0_dp, 0.0_dp, 0.0_dp, 0.0_dp/))
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)

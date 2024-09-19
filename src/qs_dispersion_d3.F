@@ -30,6 +30,10 @@ MODULE qs_dispersion_d3
    USE molecule_types,                  ONLY: molecule_type
    USE particle_types,                  ONLY: particle_type
    USE physcon,                         ONLY: kcalmol
+   USE qs_dispersion_cnum,              ONLY: d3_cnumber,&
+                                              dcnum_distribute,&
+                                              dcnum_type,&
+                                              exclude_d3_kind_pair
    USE qs_dispersion_types,             ONLY: dftd3_pp,&
                                               qs_atom_dispersion_type,&
                                               qs_dispersion_type
@@ -39,10 +43,6 @@ MODULE qs_dispersion_d3
    USE qs_force_types,                  ONLY: qs_force_type
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               qs_kind_type
-   USE qs_dispersion_cnum,              ONLY: d3_cnumber,&
-                                              dcnum_distribute,&
-                                              dcnum_type,&
-                                              exclude_d3_kind_pair
    USE qs_neighbor_list_types,          ONLY: get_iterator_info,&
                                               neighbor_list_iterate,&
                                               neighbor_list_iterator_create,&

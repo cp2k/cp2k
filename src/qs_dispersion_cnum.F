@@ -12,22 +12,22 @@
 MODULE qs_dispersion_cnum
 
    USE kinds,                           ONLY: dp
+   USE mathconstants,                   ONLY: oorootpi
    USE memory_utilities,                ONLY: reallocate
    USE message_passing,                 ONLY: mp_para_env_type
    USE particle_types,                  ONLY: particle_type
    USE physcon,                         ONLY: bohr
-   USE mathconstants,                   ONLY: oorootpi
    USE qs_dispersion_types,             ONLY: qs_dispersion_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
+   USE qs_kind_types,                   ONLY: get_qs_kind,&
+                                              qs_kind_type
    USE qs_neighbor_list_types,          ONLY: get_iterator_info,&
                                               neighbor_list_iterate,&
                                               neighbor_list_iterator_create,&
                                               neighbor_list_iterator_p_type,&
                                               neighbor_list_iterator_release,&
                                               neighbor_list_set_p_type
-   USE qs_kind_types,                   ONLY: get_qs_kind,&
-                                              qs_kind_type
 
 !$ USE OMP_LIB, ONLY: omp_get_max_threads, &
 !$                    omp_get_thread_num, &
@@ -43,7 +43,7 @@ MODULE qs_dispersion_cnum
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_dispersion_cnum'
 
-   PUBLIC :: exclude_d3_kind_pair, setcn, setr0ab
+   PUBLIC :: exclude_d3_kind_pair, setcn, setr0ab, setrcov
 
    TYPE dcnum_type
       INTEGER                                :: neighbors = -1
@@ -883,6 +883,31 @@ CONTAINS
                    /)
 
    END SUBROUTINE setr0ab
+
+! **************************************************************************************************
+!> \brief ...
+!> \param rcov ...
+! **************************************************************************************************
+   SUBROUTINE setrcov(rcov)
+      ! set cut-off radii
+      REAL(KIND=dp), DIMENSION(:)                        :: rcov
+
+      ! covalent radii (taken from Pyykko and Atsumi, Chem. Eur. J. 15, 2009, 188-197)
+      ! values for metals decreased by 10 %
+      rcov(1:94) = (/ &
+                   0.32, 0.46, 1.20, 0.94, 0.77, 0.75, 0.71, 0.63, 0.64, 0.67 &
+                   , 1.40, 1.25, 1.13, 1.04, 1.10, 1.02, 0.99, 0.96, 1.76, 1.54 &
+                   , 1.33, 1.22, 1.21, 1.10, 1.07, 1.04, 1.00, 0.99, 1.01, 1.09 &
+                   , 1.12, 1.09, 1.15, 1.10, 1.14, 1.17, 1.89, 1.67, 1.47, 1.39 &
+                   , 1.32, 1.24, 1.15, 1.13, 1.13, 1.08, 1.15, 1.23, 1.28, 1.26 &
+                   , 1.26, 1.23, 1.32, 1.31, 2.09, 1.76, 1.62, 1.47, 1.58, 1.57 &
+                   , 1.56, 1.55, 1.51, 1.52, 1.51, 1.50, 1.49, 1.49, 1.48, 1.53 &
+                   , 1.46, 1.37, 1.31, 1.23, 1.18, 1.16, 1.11, 1.12, 1.13, 1.32 &
+                   , 1.30, 1.30, 1.36, 1.31, 1.38, 1.42, 2.01, 1.81, 1.67, 1.58 &
+                   , 1.52, 1.53, 1.54, 1.55 &
+                   /)
+
+   END SUBROUTINE setrcov
 
 ! **************************************************************************************************
 !> \brief ...
