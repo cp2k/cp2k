@@ -47,8 +47,8 @@ MODULE qs_dispersion_pairpot
                                               kcalmol,&
                                               kjmol
    USE qs_dispersion_cnum,              ONLY: setcn,&
-                                              setrcov,&
-                                              setr0ab
+                                              setr0ab,&
+                                              setrcov
    USE qs_dispersion_d2,                ONLY: calculate_dispersion_d2_pairpot,&
                                               dftd2_param
    USE qs_dispersion_d3,                ONLY: calculate_dispersion_d3_pairpot,&

@@ -144,7 +144,7 @@ CONTAINS
       CALL new_d4_model(disp, mol)
       CALL get_rational_damping(dispersion_env%ref_functional, param, s9=dispersion_env%s9)
 
-      IF(dispersion_env%ref_functional == "none") THEN
+      IF (dispersion_env%ref_functional == "none") THEN
          SELECT TYPE (param)
          TYPE is (rational_damping_param)
             param%s6 = dispersion_env%s6
