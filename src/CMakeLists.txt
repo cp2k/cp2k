@@ -804,6 +804,7 @@ list(
   taper_types.F
   task_list_methods.F
   task_list_types.F
+  tblite_interface.F
   tip_scan_methods.F
   tip_scan_types.F
   topology_amber.F
@@ -1685,6 +1686,8 @@ add_library(cp2k_link_libs INTERFACE)
 target_link_libraries(
   cp2k_link_libs
   INTERFACE
+    $<$<BOOL:${CP2K_USE_TBLITE}>:mctc-lib::mctc-lib>
+    $<$<BOOL:${CP2K_USE_TBLITE}>:cp2k::tblite::tblite>
     $<$<BOOL:${CP2K_USE_DFTD4}>:dftd4::dftd4>
     $<$<BOOL:${CP2K_USE_DEEPMD}>:DeePMD::deepmd
     DeePMD::deepmd_c>
@@ -1743,6 +1746,7 @@ target_compile_definitions(
     $<$<BOOL:${CP2K_USE_VORI}>:__LIBVORI>
     $<$<BOOL:${CP2K_USE_SPGLIB}>:__SPGLIB>
     $<$<BOOL:${CP2K_USE_LIBSMEAGOL}>:__SMEAGOL>
+    $<$<BOOL:${CP2K_USE_TBLITE}>:__TBLITE>
     $<$<BOOL:${CP2K_USE_DFTD4}>:__DFTD4>
     $<$<BOOL:${CP2K_USE_DEEPMD}>:__DEEPMD>
     $<$<BOOL:${CP2K_USE_ACE}>:__ACE>

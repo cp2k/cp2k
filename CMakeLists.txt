@@ -703,6 +703,11 @@ if(CP2K_USE_ACE)
   list(APPEND CP2K_ACE_LINK_LIBRARIES ${LIB_PATH})
 endif()
 
+if(CP2K_USE_TBLITE)
+  find_package(tblite REQUIRED)
+  find_package(mctc-lib REQUIRED)
+endif()
+
 # SIRIUS
 if(CP2K_USE_SIRIUS)
   find_package(sirius 7.7.0 REQUIRED)
@@ -930,6 +935,14 @@ if(CP2K_USE_LIBSMEAGOL)
           "   - libraries: ${CP2K_LIBSMEAGOL_LINK_LIBRARIES}\n\n")
 endif()
 
+if(CP2K_USE_TBLITE)
+  message(
+    " - TBLITE :\n" "   - version             :  ${CP2K_TBLITE_VERSION}\n"
+    "   - include directories :  ${CP2K_TBLITE_INCLUDE_DIRS}\n"
+    "   - link libraries      :  ${CP2K_TBLITE_LINK_LIBRARIES}\n\n")
+
+endif()
+
 if(CP2K_USE_SIRIUS)
   message(" - SIRIUS\n"
           "   - include directories: ${CP2K_SIRIUS_INCLUDE_DIRS}\n"
@@ -1001,6 +1014,10 @@ endif()
 
 if(NOT CP2K_USE_ACE)
   message("   - ACE (libpace)")
+endif()
+
+if(NOT CP2K_USE_TBLITE)
+  message("   - TBLITE")
 endif()
 
 if(NOT CP2K_USE_SIRIUS)
