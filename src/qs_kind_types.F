@@ -373,6 +373,7 @@ CONTAINS
 !> \param dftb_parameter ...
 !> \param xtb_parameter ...
 !> \param dftb3_param ...
+!> \param zatom ...
 !> \param zeff ...
 !> \param elec_conf ...
 !> \param mao ...
@@ -435,7 +436,7 @@ CONTAINS
                           basis_set, basis_type, ncgf, nsgf, &
                           all_potential, tnadd_potential, gth_potential, sgp_potential, upf_potential, &
                           se_parameter, dftb_parameter, xtb_parameter, &
-                          dftb3_param, zeff, elec_conf, mao, lmax_dftb, &
+                          dftb3_param, zatom, zeff, elec_conf, mao, lmax_dftb, &
                           alpha_core_charge, ccore_charge, core_charge, core_charge_radius, &
                           paw_proj_set, paw_atom, hard_radius, hard0_radius, max_rad_local, &
                           covalent_radius, vdw_radius, &
@@ -461,7 +462,9 @@ CONTAINS
       TYPE(semi_empirical_type), OPTIONAL, POINTER       :: se_parameter
       TYPE(qs_dftb_atom_type), OPTIONAL, POINTER         :: dftb_parameter
       TYPE(xtb_atom_type), OPTIONAL, POINTER             :: xtb_parameter
-      REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: dftb3_param, zeff
+      REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: dftb3_param
+      INTEGER, INTENT(OUT), OPTIONAL                     :: zatom
+      REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: zeff
       INTEGER, DIMENSION(:), OPTIONAL, POINTER           :: elec_conf
       INTEGER, INTENT(OUT), OPTIONAL                     :: mao, lmax_dftb
       REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: alpha_core_charge, ccore_charge, &
@@ -506,6 +509,7 @@ CONTAINS
 
       CHARACTER(LEN=default_string_length)               :: my_basis_type
       INTEGER                                            :: l
+      LOGICAL                                            :: found
       TYPE(gto_basis_set_type), POINTER                  :: tmp_basis_set
 
       ! Retrieve basis set from the kind container
@@ -619,6 +623,12 @@ CONTAINS
          ELSE
             core_charge = 0.0_dp
          END IF
+      END IF
+
+      IF (PRESENT(zatom)) THEN
+         ! Retrieve information on element
+         CALL get_ptable_info(qs_kind%element_symbol, ielement=zatom, found=found)
+         CPASSERT(found)
       END IF
 
       IF (PRESENT(zeff)) THEN
