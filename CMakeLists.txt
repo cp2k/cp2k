@@ -678,6 +678,7 @@ if(CP2K_USE_SPLA)
 endif()
 
 if(CP2K_USE_DFTD4)
+  find_package(mctc-lib REQUIRED)
   find_package(dftd4 REQUIRED)
   get_target_property(CP2K_DFTD4_LINK_LIBRARIES dftd4::dftd4
                       INTERFACE_LINK_LIBRARIES)
@@ -705,7 +706,6 @@ endif()
 
 if(CP2K_USE_TBLITE)
   find_package(tblite REQUIRED)
-  find_package(mctc-lib REQUIRED)
 endif()
 
 # SIRIUS
@@ -916,6 +916,11 @@ if(CP2K_USE_DFTD4)
     " - DFTD4\n"
     "   - include directories: ${CP2K_DFTD4_INCLUDE_DIR}\n"
     "   - libraries: ${CP2K_DFTD4_LINK_LIBRARIES};${CP2K_DFTD4_LIB_LINK_LIBRARIES}\n\n"
+    " - DFTD4 :\n" "   - version     :  ${DFTD4_VERSION}\n"
+    "   - include directories :  ${DFTD4_INCLUDE_DIRS}\n"
+    "   - libraries           :  ${DFTD4_LINK_LIBRARIES}\n"
+    "   - mctc include dir.   :  ${MCTC-LIB_INCLUDE_DIRS}\n"
+    "   - mctc libraries      :  ${MCTC-LIB_LINK_LIBRARIES}\n\n"
   )
 endif()
 
