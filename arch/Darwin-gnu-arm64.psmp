@@ -9,7 +9,7 @@
 #        Ensure the links in /opt/homebrew/bin to the gcc version
 #        and "brew unlink openmpi" (or mpich) if installed.
 #
-# Last update: 17.09.2024
+# Last update: 20.09.2024
 #
 # \
    if [[ "${0}" == "${BASH_SOURCE}" ]]; then \
@@ -45,7 +45,7 @@
       --with-cmake=$(brew --prefix cmake) --with-elpa=no --with-fftw=$(brew --prefix fftw) --with-gcc=system \
       --with-gsl=$(brew --prefix gsl) --with-hdf5=$(brew --prefix hdf5) --with-libxc=$(brew --prefix libxc) \
       --with-ninja=$(brew --prefix ninja) --with-openblas=$(brew --prefix openblas) --with-${mpi_implementation} \
-      --with-libxsmm=no --with-pexsi=no --with-quip=no; \
+      --with-pexsi=no --with-quip=no; \
    source ./install/setup; \
    cd ../..; \
    echo; \
