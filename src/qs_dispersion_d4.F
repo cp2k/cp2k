@@ -88,7 +88,7 @@ CONTAINS
 
       INTEGER                                            :: atoma, handle, i, iatom, ikind, mref, &
                                                             natom
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, kind_of
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, atomtype, kind_of
       INTEGER, DIMENSION(3)                              :: periodic
       LOGICAL                                            :: grad, use_virial
       LOGICAL, DIMENSION(3)                              :: lperiod
@@ -99,6 +99,7 @@ CONTAINS
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(virial_type), POINTER                         :: virial
 
       CLASS(damping_param), ALLOCATABLE                  :: param
@@ -124,9 +125,12 @@ CONTAINS
 
       !get information about particles
       natom = SIZE(particle_set)
-      ALLOCATE (xyz(3, natom))
+      ALLOCATE (xyz(3, natom), atomtype(natom))
+      CALL get_qs_env(qs_env=qs_env, qs_kind_set=qs_kind_set)
       DO iatom = 1, natom
          xyz(:, iatom) = particle_set(iatom)%r(:)
+         ikind = kind_of(iatom)
+         CALL get_qs_kind(qs_kind_set(ikind), zatom=atomtype(iatom))
       END DO
 
       !get information about cell / lattice
@@ -136,7 +140,7 @@ CONTAINS
       lperiod(3) = periodic(3) == 1
 
       !prepare for the call to the dispersion function
-      CALL new(mol, kind_of, xyz, lattice=cell%hmat, periodic=lperiod)
+      CALL new(mol, atomtype, xyz, lattice=cell%hmat, periodic=lperiod)
       CALL new_d4_model(disp, mol)
       CALL get_rational_damping(dispersion_env%ref_functional, param, s9=dispersion_env%s9)
 
@@ -284,7 +288,7 @@ CONTAINS
 
       END IF
 
-      DEALLOCATE (xyz)
+      DEALLOCATE (xyz, atomtype)
 
       CALL timestop(handle)
 
