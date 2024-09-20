@@ -12,10 +12,10 @@ include(cp2k_utils)
 cp2k_set_default_paths(TBLITE "tblite")
 
 if(PKG_CONFIG_FOUND)
-	pkg_check_modules(CP2K_TBLITE QUIET IMPORTED_TARGET GLOBAL tblite)
+  pkg_check_modules(CP2K_TBLITE QUIET IMPORTED_TARGET GLOBAL tblite)
 endif()
 
-if(NOT ${CP2K_TBLITE_FOUND})
+if(NOT CP2K_TBLITE_FOUND)
   cp2k_find_libraries(TBLITE tblite)
 endif()
 
