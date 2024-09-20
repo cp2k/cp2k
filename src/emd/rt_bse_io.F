@@ -47,7 +47,8 @@ MODULE rt_bse_io
                               rtp_bse_ham_g0w0, &
                               rtp_bse_ham_ks, &
                               use_rt_restart
-   USE physcon, ONLY: femtoseconds
+   USE physcon, ONLY: femtoseconds, &
+                      evolt
    USE mathconstants, ONLY: twopi
 
 #include "../base/base_uses.f90"
@@ -118,6 +119,8 @@ CONTAINS
       WRITE (rtbse_env%unit_nr, '(A18,L62)') ' Apply delta pulse', &
              rtbse_env%dft_control%rtp_control%apply_delta_pulse
 
+      WRITE (rtbse_env%unit_nr, '(A)') ''
+
    END SUBROUTINE
 
 ! **************************************************************************************************
@@ -172,7 +175,7 @@ CONTAINS
       IF (logger%iter_info%print_level > low_print_level .AND. rtbse_env%unit_nr > 0) THEN
          WRITE (rtbse_env%unit_nr, '(A23,A20,A20,A17)') " RTBSE| Simulation step", "Convergence", &
                 "Electron number", "ETRS Iterations"
-         WRITE (rtbse_env%unit_nr, '(A7,I15,E20.8E3,E20.8E3,I17)') ' RTBSE|', step, convergence, &
+         WRITE (rtbse_env%unit_nr, '(A7,I16,E20.8E3,E20.8E3,I17)') ' RTBSE|', step, convergence, &
                 electron_num_re, etrs_num
       END IF
       
@@ -377,11 +380,12 @@ CONTAINS
          IF (moments_unit_re > 0) THEN
             ! If outputting to standard output, also prepend identifying 'MOMENTS_TRACE|' string
             IF (rtbse_env%unit_nr == moments_unit_re) THEN
-               WRITE (moments_unit_re, '(A17,E20.8E3,E20.8E3,E20.8E3,E20.8E3)') &
-                  "MOMENTS_TRACE_RE|", rtbse_env%sim_time*femtoseconds, moments(1), moments(2), moments(3)
+               WRITE (moments_unit_re, '(A18,E20.8E3,E20.8E3,E20.8E3,E20.8E3)') &
+                  " MOMENTS_TRACE_RE|", rtbse_env%sim_time*femtoseconds, moments(1), moments(2), moments(3)
             ELSE
                WRITE (moments_unit_re, '(E20.8E3,E20.8E3,E20.8E3,E20.8E3)') &
                   rtbse_env%sim_time*femtoseconds, moments(1), moments(2), moments(3)
+               CALL cp_print_key_finished_output(moments_unit_re, logger, rtbse_env%moments_section)
             END IF
          END IF
          ! Save to memory for FT - real part
@@ -389,7 +393,6 @@ CONTAINS
          DO i = 1, 3
             rtbse_env%moments_trace(i)%series(n) = CMPLX(moments(i), 0.0, kind=dp)
          END DO
-         CALL cp_print_key_finished_output(moments_unit_re, logger, rtbse_env%moments_section)
          ! Same for imaginary part
          CALL cp_cfm_to_fm(msource=rho(j)%matrix, mtargeti=rtbse_env%real_workspace(2)%matrix)
          DO i = 1, 3
@@ -402,19 +405,19 @@ CONTAINS
          IF (moments_unit_im > 0) THEN
             ! If outputting to standard output, also prepend identifying 'MOMENTS_TRACE|' string
             IF (rtbse_env%unit_nr == moments_unit_im) THEN
-               WRITE (moments_unit_im, '(A17,E20.8E3,E20.8E3,E20.8E3,E20.8E3)') &
-                  "MOMENTS_TRACE_IM|", rtbse_env%sim_time*femtoseconds, moments(1), moments(2), moments(3)
+               WRITE (moments_unit_im, '(A18,E20.8E3,E20.8E3,E20.8E3,E20.8E3)') &
+                  " MOMENTS_TRACE_IM|", rtbse_env%sim_time*femtoseconds, moments(1), moments(2), moments(3)
             ELSE
                WRITE (moments_unit_im, '(E20.8E3,E20.8E3,E20.8E3,E20.8E3)') &
                   rtbse_env%sim_time*femtoseconds, moments(1), moments(2), moments(3)
+               ! Close the files
+               CALL cp_print_key_finished_output(moments_unit_im, logger, rtbse_env%moments_section)
             END IF
          END IF
          ! Save to memory for FT - imag part
          DO i = 1, 3
             rtbse_env%moments_trace(i)%series(n) = rtbse_env%moments_trace(i)%series(n) + CMPLX(0.0, moments(i), kind=dp)
          END DO
-         ! Close the files
-         CALL cp_print_key_finished_output(moments_unit_im, logger, rtbse_env%moments_section)
       END DO
    END SUBROUTINE
 ! **************************************************************************************************
@@ -642,7 +645,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE output_polarizability(rtbse_env)
       TYPE(rtbse_env_type), POINTER                      :: rtbse_env
-      CHARACTER(len=*), PARAMETER                        :: routineN = "output_moments_ft"
+      CHARACTER(len=*), PARAMETER                        :: routineN = "output_polarizability"
       TYPE(cp_logger_type), POINTER                      :: logger
       REAL(kind=dp), DIMENSION(:), POINTER               :: omega_series, &
                                                             ft_real_series, &
@@ -700,27 +703,35 @@ CONTAINS
 
       ! Change units to eV for energy
       ! use value_series for energy and moment_series for polarizability
-      value_series(:) = omega_series(:) * 27.211386
-      ! TODO : Print Field FT in case of problems
+      ! TODO : Use the physcon for conversion?
+      value_series(:) = omega_series(:) * evolt
+      ! Use below for printing of field FT in case of problems
       ! PRINT *, "=== Field FT"
       ! DO i=1,n
       !    PRINT '(E20.8E3,E20.8E3,E20.8E3)', value_series(i), REAL(field_series(i)), AIMAG(field_series(i))
       ! END DO
       ! PRINT *, "=== Field FT"
-      ! TODO : Use the physcon for conversion
       ! Print out the polarizability to a file
-      ! TODO : Change to custom file
       pol_unit = cp_print_key_unit_nr(logger, rtbse_env%pol_section, extension=".dat", &
                                          file_form="FORMATTED", file_position="REWIND")
       IF (pol_unit > 0) THEN
-         WRITE (pol_unit, '(A1,A19,A20,A20,A20)') &
-            "#", "omega [a.u.]", "Energy [eV]", "Real polarizability", "Imag polarizability"
-         DO i=1, n
-            WRITE (pol_unit, '(E20.8E3,E20.8E3,E20.8E3,E20.8E3)') &
-                    omega_series(i), value_series(i), REAL(polarizability_series(i)), AIMAG(polarizability_series(i))
-         END DO
+         IF (pol_unit == rtbse_env%unit_nr) THEN
+            WRITE (pol_unit, '(A16,A20,A22,A22)') &
+               " POLARIZABILITY|", "Energy [eV]", "Real polarizability", "Imag polarizability"
+            DO i=1, n
+               WRITE (pol_unit, '(A16,E20.8E3,E22.8E3,E22.8E3)') &
+                       " POLARIZABILITY|", value_series(i), REAL(polarizability_series(i)), AIMAG(polarizability_series(i))
+            END DO
+         ELSE
+            WRITE (pol_unit, '(A1,A19,A20,A20,A20)') &
+               "#", "omega [a.u.]", "Energy [eV]", "Real polarizability", "Imag polarizability"
+            DO i=1, n
+               WRITE (pol_unit, '(E20.8E3,E20.8E3,E20.8E3,E20.8E3)') &
+                       omega_series(i), value_series(i), REAL(polarizability_series(i)), AIMAG(polarizability_series(i))
+            END DO
+            CALL cp_print_key_finished_output(pol_unit, logger, rtbse_env%ft_section)
+         END IF
       END IF
-      CALL cp_print_key_finished_output(pol_unit, logger, rtbse_env%ft_section)
 
       DEALLOCATE (value_series)
 

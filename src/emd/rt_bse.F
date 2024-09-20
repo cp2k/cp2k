@@ -546,6 +546,9 @@ CONTAINS
       REAL(kind=dp)                                :: intensity, metric
       REAL(kind=dp), DIMENSION(3)                  :: kvec
       INTEGER                                      :: i, k
+
+      ! Report application
+      IF (rtbse_env%unit_nr > 0) WRITE (rtbse_env%unit_nr, '(A27)') ' RTBSE| Applying delta kick'
       ! Extra minus for the propagation of density
       intensity = -rtbse_env%dft_control%rtp_control%delta_pulse_scale
       metric = 0.0_dp
@@ -584,7 +587,7 @@ CONTAINS
       ! Propagate the density by the effect of the delta pulse
       CALL propagate_density(rtbse_env, rtbse_env%ham_effective, rtbse_env%rho, rtbse_env%rho_new)
       metric = rho_metric(rtbse_env%rho_new, rtbse_env%rho, rtbse_env%n_spin)
-      IF (rtbse_env%unit_nr > 0) WRITE (rtbse_env%unit_nr, *) "Metric difference after delta kick", metric
+      IF (rtbse_env%unit_nr > 0) WRITE (rtbse_env%unit_nr, ('(A42,E38.8E3)')) " RTBSE| Metric difference after delta kick", metric
       ! Copy the new density to the old density
       DO i = 1, rtbse_env%n_spin
          CALL cp_cfm_to_cfm(rtbse_env%rho_new(i)%matrix, rtbse_env%rho(i)%matrix)
