@@ -454,7 +454,7 @@ CONTAINS
 
       CALL keyword_create( &
          keyword, __LOCATION__, name="CUBE_EVAL_RANGE", &
-         description="only write cubes if the eigenvalues of the corresponding molecular states lie in the given interval. "// &
+         description="only write cubes if the energies of the corresponding molecular states lie in the given interval. "// &
          "Default is all states.", &
          usage="CUBE_EVAL_RANGE -1.0 1.0", unit_str="hartree", n_var=2, type_of_var=real_t)
       CALL section_add_keyword(print_key, keyword)
@@ -499,12 +499,12 @@ CONTAINS
       CPASSERT(.NOT. ASSOCIATED(print_key))
       NULLIFY (print_key2, keyword)
       CALL cp_print_key_section_create(print_key, __LOCATION__, "WANNIER_STATES", &
-                                       description="Controls printing of molecular states ", &
+                                       description="Controls printing of Wannier states ", &
                                        print_level=high_print_level, filename=" ")
 
       CALL keyword_create( &
          keyword, __LOCATION__, name="CUBE_EVAL_RANGE", &
-         description="only write cubes if the eigenvalues of the corresponding molecular states lie in the given interval. "// &
+         description="only write cubes if the energies of the corresponding molecular states lie in the given interval. "// &
          "Default is all states.", &
          usage="CUBE_EVAL_RANGE -1.0 1.0", unit_str="hartree", n_var=2, type_of_var=real_t)
       CALL section_add_keyword(print_key, keyword)
@@ -519,6 +519,12 @@ CONTAINS
                           "First integer specifies the molecule, second integer specifies the state.", &
                           usage="MARK_STATES integer integer", &
                           n_var=2, default_i_vals=(/-1, -1/), type_of_var=integer_t, repeats=.TRUE.)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="CARTESIAN", &
+                          description="Print the Wannier states in the Cartesian basis instead of the default spherical basis.", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
 
