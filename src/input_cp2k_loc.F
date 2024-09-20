@@ -523,8 +523,8 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="CARTESIAN", &
-           description="Print the Wannier states in the Cartesian basis instead of the default spherical basis.", &
-           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+                          description="Print the Wannier states in the Cartesian basis instead of the default spherical basis.", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
 

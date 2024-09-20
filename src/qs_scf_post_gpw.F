@@ -425,7 +425,6 @@ CONTAINS
          p_loc_lumo = .FALSE.
       END IF
 
-
       ! Control for STM
       stm_section => section_vals_get_subs_vals(input, "DFT%PRINT%STM")
       CALL section_vals_get(stm_section, explicit=do_stm)
