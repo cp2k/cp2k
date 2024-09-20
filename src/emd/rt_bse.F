@@ -169,7 +169,11 @@ MODULE rt_bse
                           output_field, &
                           output_mos_contravariant, &
                           read_restart, &
-                          output_restart
+                          output_restart, &
+                          print_timestep_info, &
+                          print_etrs_info_header, &
+                          print_etrs_info, &
+                          print_rtbse_header_info
    USE qs_ks_types, ONLY: qs_ks_env_type
    USE qs_integrate_potential_product, ONLY: integrate_v_rspace
    USE qs_collocate_density, ONLY: calculate_rho_elec
@@ -220,6 +224,8 @@ CONTAINS
       ! Allocate all persistant storage and read input that does not need further processing
       CALL create_rtbse_env(rtbse_env, qs_env, force_env)
 
+      IF (rtbse_env%unit_nr > 0) CALL print_rtbse_header_info(rtbse_env)
+
       ! Initialize non-trivial values
       !  - calculates the moment operators
       !  - populates the initial density matrix
@@ -229,10 +235,8 @@ CONTAINS
       !  - calculates/populates the G0W0/KS Hamiltonian, respectively
       !  - calculates the Hartree reference potential
       !  - calculates the COHSEX reference self-energy
+      !  - prints some info about loaded files into the output
       CALL initialize_rtbse_env(rtbse_env)
-
-      ! TODO : Print a nicer header
-      IF (rtbse_env%unit_nr > 0) WRITE (rtbse_env%unit_nr, *) "=== Starting real-time BSE propagation ==="
 
       ! Setup the time based on the starting step
       ! TODO : Handle change of dt between restart runs?
@@ -286,15 +290,16 @@ CONTAINS
          rtbse_env%sim_time = REAL(i + 1, dp)*rtbse_env%sim_dt
          rtbse_env%sim_step = i + 1
          converged = .FALSE.
+         ! Prints the grid for etrs info dumping - only for log level > medium
+         CALL print_etrs_info_header(rtbse_env)
          DO k = 1, rtbse_env%etrs_max_iter
             CALL update_effective_ham(rtbse_env, rtbse_env%rho_new_last)
             CALL ham_to_exp(rtbse_env)
             CALL propagate_density(rtbse_env, rtbse_env%ham_workspace, rtbse_env%rho_M, rtbse_env%rho_new)
             ! *** Self-consistency check ***
             metric = rho_metric(rtbse_env%rho_new, rtbse_env%rho_new_last, rtbse_env%n_spin)
-            ! TODO : Better output - structure and option to silence it
-            IF (rtbse_env%unit_nr > 0) WRITE (rtbse_env%unit_nr, *) "Self-consistent iteration : ", k, &
-               "convergence metric : ", metric
+            ! ETRS info - only for log level > medium
+            CALL print_etrs_info(rtbse_env, k, metric)
             IF (metric < rtbse_env%etrs_threshold) THEN
                converged = .TRUE.
                EXIT
@@ -306,21 +311,16 @@ CONTAINS
                END DO
             END IF
          END DO
+         ! Not all of these are used, but they are all good metrics to check the convergence in problematic cases
          CALL get_electron_number(rtbse_env, rtbse_env%rho_new, enum_re, enum_im)
-         CALL get_idempotence_deviation(rtbse_env, rtbse_env%rho_new, idempotence_dev)
-         DO j = 1, rtbse_env%n_spin
-            CALL cp_cfm_to_fm(rtbse_env%sigma_SEX(j)%matrix, rtbse_env%real_workspace(1)%matrix, rtbse_env%real_workspace(2)%matrix)
-            CALL antiherm_metric(real_fm=rtbse_env%real_workspace(1), imag_fm=rtbse_env%real_workspace(2), workspace=rtbse_env%rho_workspace, metric=a_metric_1)
-            CALL antiherm_metric(real_fm=rtbse_env%hartree_curr(j), workspace=rtbse_env%rho_workspace, metric=a_metric_2)
-         END DO
-         ! TODO : Move to io
          ! TODO : Allow for conditional warning
-         IF (rtbse_env%unit_nr > 0) WRITE (rtbse_env%unit_nr, *) "Sim step : ", rtbse_env%sim_step, "Convergence : ", metric, &
-            "Threshold : ", rtbse_env%etrs_threshold, &
-            "Electron number", enum_re, enum_im, "SC iterations : ", k, &
-            "Idempotence deviation : ", idempotence_dev, &
-            "Antiherm. metric Sigma : ", a_metric_1, &
-            "Antiherm. metric Hartree : ", a_metric_2
+         CALL get_idempotence_deviation(rtbse_env, rtbse_env%rho_new, idempotence_dev)
+         ! DO j = 1, rtbse_env%n_spin
+         !    CALL cp_cfm_to_fm(rtbse_env%sigma_SEX(j)%matrix, rtbse_env%real_workspace(1)%matrix, rtbse_env%real_workspace(2)%matrix)
+         !    CALL antiherm_metric(real_fm=rtbse_env%real_workspace(1), imag_fm=rtbse_env%real_workspace(2), workspace=rtbse_env%rho_workspace, metric=a_metric_1)
+         !    CALL antiherm_metric(real_fm=rtbse_env%hartree_curr(j), workspace=rtbse_env%rho_workspace, metric=a_metric_2)
+         ! END DO
+         CALL print_timestep_info(rtbse_env, i, metric, enum_re, k)
          CPASSERT(converged)
          DO j = 1, rtbse_env%n_spin
             CALL cp_cfm_to_cfm(rtbse_env%rho_new(j)%matrix, rtbse_env%rho(j)%matrix)
@@ -558,7 +558,7 @@ CONTAINS
       CALL cp_fm_set_all(rtbse_env%real_workspace(1)%matrix, 0.0_dp)
       DO k = 1, 3
          CALL cp_fm_scale_and_add(1.0_dp, rtbse_env%real_workspace(1)%matrix, &
-                                  kvec(k), rtbse_env%moments(k)%matrix)
+                                  kvec(k), rtbse_env%moments_field(k)%matrix)
       END DO
       ! enforce hermiticity of the effective Hamiltonian - apply to components instead?
       CALL cp_fm_transpose(rtbse_env%real_workspace(1)%matrix, rtbse_env%real_workspace(2)%matrix)

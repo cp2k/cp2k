@@ -32,7 +32,9 @@ MODULE rt_bse_io
                               cp_get_default_logger
    USE cp_output_handling, ONLY: cp_print_key_unit_nr, &
                                  cp_print_key_finished_output, &
-                                 cp_print_key_generate_filename
+                                 cp_print_key_generate_filename, &
+                                 low_print_level, &
+                                 medium_print_level
    USE input_section_types, ONLY: section_vals_type
    USE rt_bse_types, ONLY: rtbse_env_type, &
                              multiply_cfm_fm, &
@@ -40,6 +42,11 @@ MODULE rt_bse_io
    USE cp_files, ONLY: open_file, &
                        file_exists, &
                        close_file
+   USE input_constants, ONLY: do_exact, &
+                              do_bch, &
+                              rtp_bse_ham_g0w0, &
+                              rtp_bse_ham_ks, &
+                              use_rt_restart
    USE physcon, ONLY: femtoseconds
    USE mathconstants, ONLY: twopi
 
@@ -62,9 +69,114 @@ MODULE rt_bse_io
              output_mos_contravariant, &
              output_mos_covariant, &
              output_restart, &
-             read_restart
+             read_restart, &
+             print_etrs_info_header, &
+             print_etrs_info, &
+             print_timestep_info, &
+             print_rtbse_header_info
 
 CONTAINS
+
+! **************************************************************************************************
+!> \brief Writes the header and basic info to the standard output
+!> \param rtbse_env Entry point - rtbse environment
+! **************************************************************************************************
+   SUBROUTINE print_rtbse_header_info(rtbse_env)
+      TYPE(rtbse_env_type)                               :: rtbse_env
+      CHARACTER(len=*), PARAMETER                        :: routineN="print_rtbse_header"
+
+      WRITE (rtbse_env%unit_nr, *) ''
+      WRITE (rtbse_env%unit_nr,'(A)') ' /-----------------------------------------------'// &
+              '------------------------------\'
+      WRITE (rtbse_env%unit_nr,'(A)') ' |                                               '// &
+              '                              |'
+      WRITE (rtbse_env%unit_nr,'(A)') ' |                    Real Time Bethe-Salpeter Propagation'// &
+              '                     |'
+      WRITE (rtbse_env%unit_nr,'(A)') ' |                                               '// &
+              '                              |'
+      WRITE (rtbse_env%unit_nr,'(A)') ' \-----------------------------------------------'// &
+              '------------------------------/'
+      WRITE (rtbse_env%unit_nr, *) ''
+
+      ! Methods used
+      WRITE (rtbse_env%unit_nr, '(A19)', advance="no") ' Exponential method'
+      SELECT CASE (rtbse_env%mat_exp_method)
+         CASE (do_bch)
+            WRITE (rtbse_env%unit_nr, '(A61)') 'BCH'
+         CASE (do_exact)
+            WRITE (rtbse_env%unit_nr, '(A61)') 'EXACT'
+      END SELECT
+
+      WRITE (rtbse_env%unit_nr, '(A22)', advance="no") ' Reference Hamiltonian'
+      SELECT CASE (rtbse_env%ham_reference_type)
+         CASE (rtp_bse_ham_g0w0)
+            WRITE (rtbse_env%unit_nr, '(A58)') 'G0W0'
+         CASE (rtp_bse_ham_ks)
+            WRITE (rtbse_env%unit_nr, '(A58)') 'Kohn-Sham'
+      END SELECT
+
+      WRITE (rtbse_env%unit_nr, '(A18,L62)') ' Apply delta pulse', &
+             rtbse_env%dft_control%rtp_control%apply_delta_pulse
+
+   END SUBROUTINE
+
+! **************************************************************************************************
+!> \brief Writes the update after single etrs iteration - only for log level > medium
+!> \param rtbse_env Entry point - rtbse environment
+! **************************************************************************************************
+   SUBROUTINE print_etrs_info(rtbse_env, step, metric)
+      TYPE(rtbse_env_type)                               :: rtbse_env
+      INTEGER                                            :: step
+      REAL(kind=dp)                                      :: metric
+      CHARACTER(len=*), PARAMETER                        :: routineN="print_etrs_info"
+      TYPE(cp_logger_type), POINTER                      :: logger
+
+      logger => cp_get_default_logger()
+
+      IF (logger%iter_info%print_level > medium_print_level .AND. rtbse_env%unit_nr > 0) THEN
+         WRITE (rtbse_env%unit_nr, '(A7,I5, E20.8E3)') ' RTBSE|', step, metric
+      END IF
+      
+   END SUBROUTINE
+! **************************************************************************************************
+!> \brief Writes the header for the etrs iteration updates - only for log level > medium
+!> \param rtbse_env Entry point - rtbse environment
+! **************************************************************************************************
+   SUBROUTINE print_etrs_info_header(rtbse_env)
+      TYPE(rtbse_env_type)                               :: rtbse_env
+      CHARACTER(len=*), PARAMETER                        :: routineN="print_etrs_info_header"
+      TYPE(cp_logger_type), POINTER                      :: logger
+
+      logger => cp_get_default_logger()
+
+      IF (logger%iter_info%print_level > medium_print_level .AND. rtbse_env%unit_nr > 0) THEN
+         WRITE (rtbse_env%unit_nr, '(A13, A20)') ' RTBSE| Iter.', 'Convergence'
+      END IF
+      
+   END SUBROUTINE
+! **************************************************************************************************
+!> \brief Writes the header for the etrs iteration updates - only for log level > medium
+!> \param rtbse_env Entry point - rtbse environment
+! **************************************************************************************************
+   SUBROUTINE print_timestep_info(rtbse_env, step, convergence, electron_num_re, etrs_num)
+      TYPE(rtbse_env_type)                               :: rtbse_env
+      INTEGER                                            :: step
+      REAL(kind=dp)                                      :: convergence
+      REAL(kind=dp)                                      :: electron_num_re
+      INTEGER                                            :: etrs_num
+      CHARACTER(len=*), PARAMETER                        :: routineN="print_timestep_info"
+      TYPE(cp_logger_type), POINTER                      :: logger
+
+      logger => cp_get_default_logger()
+
+      IF (logger%iter_info%print_level > low_print_level .AND. rtbse_env%unit_nr > 0) THEN
+         WRITE (rtbse_env%unit_nr, '(A23,A20,A20,A17)') " RTBSE| Simulation step", "Convergence", &
+                "Electron number", "ETRS Iterations"
+         WRITE (rtbse_env%unit_nr, '(A7,I15,E20.8E3,E20.8E3,I17)') ' RTBSE|', step, convergence, &
+                electron_num_re, etrs_num
+      END IF
+      
+   END SUBROUTINE
 
 ! **************************************************************************************************
 !> \brief Outputs the matrix in MO basis for matrix coefficients corresponding to contravariant
@@ -216,6 +328,9 @@ CONTAINS
             rtbse_env%time_trace%series(n) = rtbse_env%time_trace%series(n) / femtoseconds
          END DO
          CALL close_file(field_unit)
+      ELSE IF (.NOT. rtbse_env%dft_control%rtp_control%apply_delta_pulse .AND. &
+               rtbse_env%dft_control%rtp_control%initial_wfn == use_rt_restart) THEN
+         CPWARN("Restart with RT field required but no field file found - field trace before the starting time will be set to zero.")
       END IF
    END SUBROUTINE read_field
 
@@ -373,7 +488,7 @@ CONTAINS
          ! TODO : Some error catching and handling
          READ (rho_unit_nr) rtbse_env%sim_start
          CALL close_file(rho_unit_nr)
-         IF (rtbse_env%unit_nr > 0) WRITE (rtbse_env%unit_nr, *) "Starting from timestep ", rtbse_env%sim_start, &
+         IF (rtbse_env%unit_nr > 0) WRITE (rtbse_env%unit_nr, '(A31,I25,A24)') " RTBSE| Starting from timestep ", rtbse_env%sim_start, &
             ", delta kick NOT applied"
       ELSE
          CPWARN("Restart required but no info file found - starting from sim_step given in input")
@@ -436,8 +551,6 @@ CONTAINS
                            unit_number=moments_unit_re)
             CALL open_file(save_name_2, file_status="OLD", file_form="FORMATTED", file_action="READ", &
                            unit_number=moments_unit_im)
-            IF (rtbse_env%unit_nr > 0) WRITE(rtbse_env%unit_nr, *) "Expecting following number of time steps : ", &
-                    rtbse_env%sim_start - rtbse_env%sim_start_orig + 1
             ! Extra time step for the initial one
             DO k=rtbse_env%sim_start_orig,rtbse_env%sim_start
                ! Determine the absolute time step - offset in memory
@@ -454,6 +567,8 @@ CONTAINS
             rtbse_env%time_trace%series(:) = rtbse_env%time_trace%series(:) / femtoseconds
             CALL close_file(moments_unit_re)
             CALL close_file(moments_unit_im)
+         ELSE IF (rtbse_env%dft_control%rtp_control%initial_wfn == use_rt_restart) THEN
+            CPWARN("Restart required but previous moments not found - moments trace at times before starting index will be set to zero.")
          END IF
       END DO
    END SUBROUTINE read_moments

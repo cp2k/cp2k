@@ -334,7 +334,6 @@ CONTAINS
                                 i_val=rtbse_env%mat_exp_method)
       ! Output unit number, recovered from the post_scf_bandstructure_type
       rtbse_env%unit_nr = bs_env%unit_nr
-      ! IF (rtbse_env%unit_nr > 0) WRITE (rtbse_env%unit_nr, *) "exp_method", rtbse_env%mat_exp_method
       ! Allocate and determine the expansion orders, based on arguments used in TDDFT
       ! TODO : Last two arguments are indicating that we are using Taylor expansion and not doing ion motion
       ! Sim start index and total number of steps as well
