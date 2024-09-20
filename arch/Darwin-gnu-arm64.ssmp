@@ -8,7 +8,7 @@
 # Usage: Source this arch file and then run make as instructed.
 #        Ensure the links in /opt/homebrew/bin to the gcc version.
 #
-# Last update: 17.09.2024
+# Last update: 20.09.2024
 #
 # \
    if [[ "${0}" == "${BASH_SOURCE}" ]]; then \
@@ -39,7 +39,7 @@
    ./install_cp2k_toolchain.sh -j${maxtasks} --mpi-mode=no --no-arch-files --target-cpu=${target_cpu} \
       --with-cmake=$(brew --prefix cmake) --with-fftw=$(brew --prefix fftw) --with-gcc=system \
       --with-libxc=$(brew --prefix libxc) --with-ninja=$(brew --prefix ninja) \
-      --with-openblas=$(brew --prefix openblas); --with-libxsmm=no \
+      --with-openblas=$(brew --prefix openblas); \
    source ./install/setup; \
    cd ../..; \
    echo; \
