@@ -10,8 +10,7 @@
 !> \author Alin M Elena
 ! **************************************************************************************************
 MODULE wannier_states
-   USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                              get_atomic_kind,&
+   USE atomic_kind_types,               ONLY: atomic_kind_type, get_atomic_kind,&
                                               get_atomic_kind_set
    USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                               gto_basis_set_type
@@ -26,7 +25,8 @@ MODULE wannier_states
                                               cp_fm_get_submatrix,&
                                               cp_fm_release,&
                                               cp_fm_to_fm,&
-                                              cp_fm_type
+                                              cp_fm_type, &
+                                              cp_fm_get_submatrix
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_io_unit,&
                                               cp_logger_type
@@ -39,22 +39,20 @@ MODULE wannier_states
    USE kinds,                           ONLY: default_string_length,&
                                               dp
    USE message_passing,                 ONLY: mp_para_env_type
-   USE orbital_pointers,                ONLY: indco,&
-                                              nco,&
-                                              nso
-   USE orbital_symbols,                 ONLY: cgf_symbol,&
-                                              sgf_symbol
+   USE orbital_pointers,                ONLY: indco, nco, nso
+   USE orbital_symbols,                 ONLY: cgf_symbol, sgf_symbol
    USE orbital_transformation_matrices, ONLY: orbtramat
+   USE qs_dftb_types,                   ONLY: qs_dftb_atom_type
+   USE qs_kind_types,                   ONLY: get_qs_kind,&
+                                              get_qs_kind_set
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE particle_types,                  ONLY: particle_type
-   USE qs_dftb_types,                   ONLY: qs_dftb_atom_type
    USE qs_dftb_utils,                   ONLY: get_dftb_atom_param
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
-   USE qs_kind_types,                   ONLY: get_qs_kind,&
-                                              get_qs_kind_set,&
-                                              qs_kind_type
+   USE qs_kind_types,                   ONLY: qs_kind_type
    USE wannier_states_types,            ONLY: wannier_centres_type
+
 !!!! this ones are needed to mapping
 #include "./base/base_uses.f90"
 
@@ -96,21 +94,20 @@ CONTAINS
       TYPE(wannier_centres_type), INTENT(INOUT)          :: WannierCentres
       INTEGER, INTENT(IN)                                :: ns
       INTEGER, INTENT(IN), POINTER                       :: states(:)
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'construct_wannier_states'
-
+      
+      CHARACTER(LEN=40)                                  :: fmtstr1, fmtstr2, fmtstr3
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'construct_wannier_states'
+      CHARACTER(LEN=6), DIMENSION(:), POINTER            :: bsgf_symbol
       CHARACTER(default_string_length)                   :: unit_str
       CHARACTER(LEN=12)                                  :: symbol
       CHARACTER(LEN=12), DIMENSION(:), POINTER           :: bcgf_symbol
       CHARACTER(LEN=2)                                   :: element_symbol
-      CHARACTER(LEN=40)                                  :: fmtstr1, fmtstr2, fmtstr3
-      CHARACTER(LEN=6), DIMENSION(:), POINTER            :: bsgf_symbol
-      INTEGER :: after = 6, before = 4, from, handle, i, iatom, icgf, ico, icol, ikind, iproc, &
+      INTEGER :: after, before, from, handle, i, iatom, icgf, ico, icol, ikind, iproc, &
          irow, iset, isgf, ishell, iso, jcol, left, lmax, lshell, natom, ncgf, ncol, ncol_global, &
-         nproc, nrow_global, nset, nsgf, nstates(2), output_unit, right, to, unit_mat
+         nrow_global, nset, nsgf, nstates(2), output_unit, right, to, unit_mat
       INTEGER, DIMENSION(:), POINTER                     :: nshell
       INTEGER, DIMENSION(:, :), POINTER                  :: l
-      LOGICAL                                            :: ionode, print_cartesian
+      LOGICAL                                            :: print_cartesian
       REAL(KIND=dp)                                      :: unit_conv
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: cmatrix, smatrix
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
@@ -124,6 +121,7 @@ CONTAINS
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(section_vals_type), POINTER                   :: print_key
 
+
 !-----------------------------------------------------------------------
 !-----------------------------------------------------------------------
 
@@ -134,13 +132,11 @@ CONTAINS
                       atomic_kind_set=atomic_kind_set, &
                       qs_kind_set=qs_kind_set, &
                       particle_set=particle_set)
-
-      nproc = para_env%num_pe
-
+      
       logger => cp_get_default_logger()
-      ionode = logger%para_env%is_source()
 
       output_unit = cp_logger_get_default_io_unit(logger)
+
       CALL cp_fm_get_info(mo_localized, &
                           ncol_global=ncol_global, &
                           nrow_global=nrow_global)
@@ -155,7 +151,6 @@ CONTAINS
       unit_conv = cp_unit_from_cp2k(1.0_dp, TRIM(unit_str))
 
       print_key => section_vals_get_subs_vals(loc_print_section, "WANNIER_STATES")
-
       CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=nrow_global, &
                                ncol_global=1, &
                                para_env=mo_localized%matrix_struct%para_env, &
@@ -190,9 +185,9 @@ CONTAINS
          CALL cp_fm_get_element(d, 1, 1, WannierCentres%WannierHamDiag(i))
          !               if (iproc==para_env%mepos) WRITE(unit_mat,'(f16.8,2x)', advance='no')WannierCentres%WannierHamDiag(i)
          IF (unit_mat > 0) WRITE (unit_mat, '(i0,1x,4(f16.8,2x))') states(i), &
-            WannierCentres%centres(1:3, states(i))*unit_conv, WannierCentres%WannierHamDiag(states(i))
+              WannierCentres%centres(1:3, states(i))*unit_conv, WannierCentres%WannierHamDiag(states(i))
       END DO
-
+      
       IF (unit_mat > 0) WRITE (unit_mat, *)
 
       IF (output_unit > 0) THEN
@@ -208,26 +203,25 @@ CONTAINS
       CALL cp_fm_release(c)
       CALL cp_fm_release(d)
 
-      ! Print the states in AO basis
+      ! Print the states in AO basis 
       CALL section_vals_val_get(print_key, "CARTESIAN", l_val=print_cartesian)
-
+      
+      ALLOCATE (smatrix(nrow_global, ncol_global))
+      CALL cp_fm_get_submatrix(mo_localized, smatrix(1:nrow_global, 1:ncol_global))
+      
       IF (unit_mat > 0) THEN
-
+         
          NULLIFY (nshell)
          NULLIFY (bsgf_symbol)
          NULLIFY (l)
          NULLIFY (bsgf_symbol)
 
-         ALLOCATE (smatrix(nrow_global, ncol_global))
-         CALL cp_fm_get_submatrix(mo_localized, smatrix(1:nrow_global, 1:ncol_global))
-
-         IF (.NOT. ionode) THEN
-            DEALLOCATE (smatrix)
-         END IF
-
          CALL get_atomic_kind_set(atomic_kind_set, natom=natom)
          CALL get_qs_kind_set(qs_kind_set, ncgf=ncgf, nsgf=nsgf)
 
+         ! Print header, define column widths and string templates
+         after = 6
+         before = 4
          ncol = INT(56/(before + after + 3))
 
          fmtstr1 = "(T2,A,21X,  (  X,I5,  X))"
@@ -245,22 +239,22 @@ CONTAINS
          WRITE (UNIT=fmtstr1(11:12), FMT="(I2)") ncol
          WRITE (UNIT=fmtstr1(14:15), FMT="(I2)") left
          WRITE (UNIT=fmtstr1(21:22), FMT="(I2)") right
-
+         
          WRITE (UNIT=fmtstr2(10:11), FMT="(I2)") ncol
          WRITE (UNIT=fmtstr2(17:18), FMT="(I2)") before + after + 2
          WRITE (UNIT=fmtstr2(20:21), FMT="(I2)") after
-
+         
          WRITE (UNIT=fmtstr3(27:28), FMT="(I2)") ncol
          WRITE (UNIT=fmtstr3(34:35), FMT="(I2)") before + after + 2
          WRITE (UNIT=fmtstr3(37:38), FMT="(I2)") after
-
+         
          ! get MO coefficients in terms of contracted cartesian functions
          IF (print_cartesian) THEN
 
             ALLOCATE (cmatrix(ncgf, ncgf))
             cmatrix = 0.0_dp
 
-            ! Transform spherical MOs to Cartesian MOs
+            ! Transform spherical to Cartesian AO basis
             icgf = 1
             isgf = 1
             DO iatom = 1, natom
@@ -415,20 +409,22 @@ CONTAINS
 
          END DO ! icol
 
-         WRITE (UNIT=unit_mat, FMT="(T2,A)") "MO|"
+         WRITE (UNIT=unit_mat, FMT="(T2,A)") "WS|"
 
-         DEALLOCATE (smatrix)
          IF (print_cartesian) THEN
             DEALLOCATE (cmatrix)
          END IF
 
       END IF ! output Wannier states in AO
-
+      DEALLOCATE (smatrix)
+      
       CALL cp_print_key_finished_output(unit_mat, logger, loc_print_section, &
                                         "WANNIER_STATES")
 
       CALL timestop(handle)
-   END SUBROUTINE construct_wannier_states
-
-END MODULE wannier_states
-
+    END SUBROUTINE construct_wannier_states
+    
+  END MODULE wannier_states
+  
+  
+  
