@@ -105,12 +105,12 @@ CONTAINS
       CHARACTER(LEN=2)                                   :: element_symbol
       CHARACTER(LEN=40)                                  :: fmtstr1, fmtstr2, fmtstr3
       CHARACTER(LEN=6), DIMENSION(:), POINTER            :: bsgf_symbol
-      INTEGER :: after = 6, before = 4, from, handle, i, iatom, icgf, ico, icol, ikind, iproc, &
-         irow, iset, isgf, ishell, iso, jcol, left, lmax, lshell, natom, ncgf, ncol, ncol_global, &
-         nproc, nrow_global, nset, nsgf, nstates(2), output_unit, right, to, unit_mat
+      INTEGER :: after, before, from, handle, i, iatom, icgf, ico, icol, ikind, iproc, irow, iset, &
+         isgf, ishell, iso, jcol, left, lmax, lshell, natom, ncgf, ncol, ncol_global, nrow_global, &
+         nset, nsgf, nstates(2), output_unit, right, to, unit_mat
       INTEGER, DIMENSION(:), POINTER                     :: nshell
       INTEGER, DIMENSION(:, :), POINTER                  :: l
-      LOGICAL                                            :: ionode, print_cartesian
+      LOGICAL                                            :: print_cartesian
       REAL(KIND=dp)                                      :: unit_conv
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: cmatrix, smatrix
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
@@ -135,12 +135,10 @@ CONTAINS
                       qs_kind_set=qs_kind_set, &
                       particle_set=particle_set)
 
-      nproc = para_env%num_pe
-
       logger => cp_get_default_logger()
-      ionode = logger%para_env%is_source()
 
       output_unit = cp_logger_get_default_io_unit(logger)
+
       CALL cp_fm_get_info(mo_localized, &
                           ncol_global=ncol_global, &
                           nrow_global=nrow_global)
@@ -155,7 +153,6 @@ CONTAINS
       unit_conv = cp_unit_from_cp2k(1.0_dp, TRIM(unit_str))
 
       print_key => section_vals_get_subs_vals(loc_print_section, "WANNIER_STATES")
-
       CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=nrow_global, &
                                ncol_global=1, &
                                para_env=mo_localized%matrix_struct%para_env, &
@@ -211,6 +208,9 @@ CONTAINS
       ! Print the states in AO basis
       CALL section_vals_val_get(print_key, "CARTESIAN", l_val=print_cartesian)
 
+      ALLOCATE (smatrix(nrow_global, ncol_global))
+      CALL cp_fm_get_submatrix(mo_localized, smatrix(1:nrow_global, 1:ncol_global))
+
       IF (unit_mat > 0) THEN
 
          NULLIFY (nshell)
@@ -218,16 +218,12 @@ CONTAINS
          NULLIFY (l)
          NULLIFY (bsgf_symbol)
 
-         ALLOCATE (smatrix(nrow_global, ncol_global))
-         CALL cp_fm_get_submatrix(mo_localized, smatrix(1:nrow_global, 1:ncol_global))
-
-         IF (.NOT. ionode) THEN
-            DEALLOCATE (smatrix)
-         END IF
-
          CALL get_atomic_kind_set(atomic_kind_set, natom=natom)
          CALL get_qs_kind_set(qs_kind_set, ncgf=ncgf, nsgf=nsgf)
 
+         ! Print header, define column widths and string templates
+         after = 6
+         before = 4
          ncol = INT(56/(before + after + 3))
 
          fmtstr1 = "(T2,A,21X,  (  X,I5,  X))"
@@ -260,7 +256,7 @@ CONTAINS
             ALLOCATE (cmatrix(ncgf, ncgf))
             cmatrix = 0.0_dp
 
-            ! Transform spherical MOs to Cartesian MOs
+            ! Transform spherical to Cartesian AO basis
             icgf = 1
             isgf = 1
             DO iatom = 1, natom
@@ -415,14 +411,14 @@ CONTAINS
 
          END DO ! icol
 
-         WRITE (UNIT=unit_mat, FMT="(T2,A)") "MO|"
+         WRITE (UNIT=unit_mat, FMT="(T2,A)") "WS|"
 
-         DEALLOCATE (smatrix)
          IF (print_cartesian) THEN
             DEALLOCATE (cmatrix)
          END IF
 
       END IF ! output Wannier states in AO
+      DEALLOCATE (smatrix)
 
       CALL cp_print_key_finished_output(unit_mat, logger, loc_print_section, &
                                         "WANNIER_STATES")
