@@ -80,18 +80,16 @@ MODULE qs_linres_module
                                               nmr_env_init
    USE qs_linres_op,                    ONLY: current_operators,&
                                               issc_operators,&
-                                              polar_operators
+                                              polar_operators,&
+                                              polar_operators_local,&
+                                              polar_operators_local_wannier
    USE qs_linres_polar_utils,           ONLY: polar_env_init,&
                                               polar_polar,&
                                               polar_print,&
                                               polar_response
-   USE qs_linres_types,                 ONLY: current_env_type,&
-                                              dcdr_env_type,&
-                                              epr_env_type,&
-                                              issc_env_type,&
-                                              linres_control_type,&
-                                              nmr_env_type,&
-                                              vcd_env_type
+   USE qs_linres_types,                 ONLY: &
+        current_env_type, dcdr_env_type, epr_env_type, get_polar_env, issc_env_type, &
+        linres_control_type, nmr_env_type, polar_env_type, vcd_env_type
    USE qs_mfp,                          ONLY: mfp_aat,&
                                               mfp_build_operator_gauge_dependent,&
                                               mfp_build_operator_gauge_independent,&
@@ -122,7 +120,6 @@ MODULE qs_linres_module
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_linres_module'
 
 CONTAINS
-
 ! *****************************************************************************
 !> \brief Calculates the derivatives of the MO coefficients dC/dV^lambda_beta
 !>         wrt to nuclear velocities. The derivative is indexed by `beta`, the
@@ -231,31 +228,72 @@ CONTAINS
 
       INTEGER                                            :: beta, latom
       TYPE(dcdr_env_type)                                :: dcdr_env
+      TYPE(polar_env_type), POINTER                      :: polar_env
 
       CALL cite_reference(Ditler2021)
       CALL dcdr_env_init(dcdr_env, qs_env)
-      DO latom = 1, SIZE(dcdr_env%list_of_atoms)
-         dcdr_env%lambda = dcdr_env%list_of_atoms(latom)
-         CALL prepare_per_atom(dcdr_env, qs_env)
 
-         DO beta = 1, 3                   ! in every direction
-            dcdr_env%beta = beta
-            dcdr_env%deltaR(dcdr_env%beta, dcdr_env%lambda) = 1._dp
+      IF (.NOT. dcdr_env%z_matrix_method) THEN
 
-            CALL dcdr_build_op_dR(dcdr_env, qs_env)
-            CALL dcdr_response_dR(dcdr_env, p_env, qs_env)
+         DO latom = 1, SIZE(dcdr_env%list_of_atoms)
+            dcdr_env%lambda = dcdr_env%list_of_atoms(latom)
+            CALL prepare_per_atom(dcdr_env, qs_env)
 
-            IF (.NOT. dcdr_env%localized_psi0) THEN
-               CALL apt_dR(qs_env, dcdr_env)
-            ELSE IF (dcdr_env%localized_psi0) THEN
-               CALL apt_dR_localization(qs_env, dcdr_env)
-            END IF
+            DO beta = 1, 3                   ! in every direction
+               dcdr_env%beta = beta
+               dcdr_env%deltaR(dcdr_env%beta, dcdr_env%lambda) = 1._dp
 
-         END DO !beta
+               CALL dcdr_build_op_dR(dcdr_env, qs_env)
+               CALL dcdr_response_dR(dcdr_env, p_env, qs_env)
 
-         dcdr_env%apt_total_dcdr(:, :, dcdr_env%lambda) = &
-            dcdr_env%apt_el_dcdr(:, :, dcdr_env%lambda) + dcdr_env%apt_nuc_dcdr(:, :, dcdr_env%lambda)
-      END DO !lambda
+               IF (.NOT. dcdr_env%localized_psi0) THEN
+                  CALL apt_dR(qs_env, dcdr_env)
+               ELSE IF (dcdr_env%localized_psi0) THEN
+                  CALL apt_dR_localization(qs_env, dcdr_env)
+               END IF
+
+            END DO !beta
+
+            dcdr_env%apt_total_dcdr(:, :, dcdr_env%lambda) = &
+               dcdr_env%apt_el_dcdr(:, :, dcdr_env%lambda) + dcdr_env%apt_nuc_dcdr(:, :, dcdr_env%lambda)
+         END DO !lambda
+
+      ELSE
+
+         CALL polar_env_init(qs_env)
+         CALL get_qs_env(qs_env=qs_env, polar_env=polar_env)
+         CALL get_polar_env(polar_env=polar_env)
+
+         IF (.NOT. dcdr_env%localized_psi0) THEN
+            CALL polar_operators_local(qs_env)
+         ELSE
+            CALL polar_operators_local_wannier(qs_env, dcdr_env)
+         END IF
+
+         polar_env%do_periodic = .FALSE.
+         CALL polar_response(p_env, qs_env)
+
+         DO latom = 1, SIZE(dcdr_env%list_of_atoms)
+            dcdr_env%lambda = dcdr_env%list_of_atoms(latom)
+            CALL prepare_per_atom(dcdr_env, qs_env)
+
+            DO beta = 1, 3                   ! in every direction
+               dcdr_env%beta = beta
+               dcdr_env%deltaR(dcdr_env%beta, dcdr_env%lambda) = 1._dp
+
+               CALL dcdr_build_op_dR(dcdr_env, qs_env)
+               IF (.NOT. dcdr_env%localized_psi0) THEN
+                  CALL apt_dR(qs_env, dcdr_env)
+               ELSE
+                  CALL apt_dR_localization(qs_env, dcdr_env)
+               END IF
+            END DO !beta
+
+            dcdr_env%apt_total_dcdr(:, :, dcdr_env%lambda) = &
+               dcdr_env%apt_el_dcdr(:, :, dcdr_env%lambda) + dcdr_env%apt_nuc_dcdr(:, :, dcdr_env%lambda)
+         END DO !lambda
+
+      END IF
 
       CALL dcdr_print(dcdr_env, qs_env)
       CALL dcdr_env_cleanup(qs_env, dcdr_env)

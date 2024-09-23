@@ -277,6 +277,8 @@ MODULE qs_linres_types
       TYPE(cp_fm_type), DIMENSION(:), POINTER          :: dCR_prime => NULL()
       TYPE(cp_fm_type), DIMENSION(:), POINTER          :: op_dR => NULL()
       TYPE(cp_fm_type), DIMENSION(:), POINTER          :: chc => NULL()
+      TYPE(cp_fm_type), DIMENSION(:), POINTER          :: ch1c => NULL()
+      TYPE(cp_fm_type), DIMENSION(:, :), POINTER          :: matrix_m_alpha => NULL()
       CHARACTER(LEN=30)                                :: orb_center_name = ""
       TYPE(cp_2d_i_p_type), DIMENSION(:), POINTER      :: center_list => NULL()
       TYPE(cp_2d_r_p_type), DIMENSION(:), POINTER      :: centers_set => NULL()
@@ -287,6 +289,7 @@ MODULE qs_linres_types
       LOGICAL                                          :: localized_psi0 = .FALSE.
       INTEGER, POINTER                                 :: list_of_atoms(:) => NULL()
       LOGICAL                                          :: distributed_origin = .FALSE.
+      LOGICAL                                          :: z_matrix_method = .FALSE.
       TYPE(cp_fm_struct_type), POINTER                 :: aoao_fm_struct => NULL()
       TYPE(cp_fm_struct_type), POINTER                 :: homohomo_fm_struct => NULL()
       TYPE(cp_fm_struct_p_type), DIMENSION(:), POINTER :: momo_fm_struct => NULL()
