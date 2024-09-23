@@ -104,6 +104,8 @@ defining the $\vec{e}$ vector and [DELTA_PULSE_SCALE](#CP2K_INPUT.FORCE_EVAL.DFT
 setting the $I$ scale of the delta pulse (in atomic units). Note that the definition of
 the vector is different from the definition used in the TDDFT method.
 
+The actual value of $I \vec{e}$ is printed out in atomic units.
+
 ### Printing observables
 
 The code is so far optimised for printing the polarizability elements, which are linked

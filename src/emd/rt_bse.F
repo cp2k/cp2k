@@ -548,7 +548,7 @@ CONTAINS
       INTEGER                                      :: i, k
 
       ! Report application
-      IF (rtbse_env%unit_nr > 0) WRITE (rtbse_env%unit_nr, '(A27)') ' RTBSE| Applying delta kick'
+      IF (rtbse_env%unit_nr > 0) WRITE (rtbse_env%unit_nr, '(A27)') ' RTBSE| Applying delta pulse'
       ! Extra minus for the propagation of density
       intensity = -rtbse_env%dft_control%rtp_control%delta_pulse_scale
       metric = 0.0_dp
@@ -557,13 +557,15 @@ CONTAINS
       !         - for RT, allow for custom units of the field strength instead of field intensity - [V/m] type - maybe to a
       !         different pull request
       kvec(:) = rtbse_env%dft_control%rtp_control%delta_pulse_direction(:)
+      IF (rtbse_env%unit_nr > 0) WRITE(rtbse_env%unit_nr, '(A38,E14.4E3,E14.4E3,E14.4E3)') &
+              " RTBSE| Delta pulse elements (a.u.) : ", intensity * kvec(:)
       ! So far no spin dependence, but can be added by different structure of delta pulse
       CALL cp_fm_set_all(rtbse_env%real_workspace(1)%matrix, 0.0_dp)
       DO k = 1, 3
          CALL cp_fm_scale_and_add(1.0_dp, rtbse_env%real_workspace(1)%matrix, &
                                   kvec(k), rtbse_env%moments_field(k)%matrix)
       END DO
-      ! enforce hermiticity of the effective Hamiltonian - apply to components instead?
+      ! enforce hermiticity of the effective Hamiltonian
       CALL cp_fm_transpose(rtbse_env%real_workspace(1)%matrix, rtbse_env%real_workspace(2)%matrix)
       CALL cp_fm_scale_and_add(0.5_dp, rtbse_env%real_workspace(1)%matrix, &
                                0.5_dp, rtbse_env%real_workspace(2)%matrix)
