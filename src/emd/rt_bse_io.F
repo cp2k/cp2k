@@ -333,7 +333,7 @@ CONTAINS
          CALL close_file(field_unit)
       ELSE IF (.NOT. rtbse_env%dft_control%rtp_control%apply_delta_pulse .AND. &
                rtbse_env%dft_control%rtp_control%initial_wfn == use_rt_restart) THEN
-         CPWARN("Restart with RT field required but no field file found - field trace before the starting time will be set to zero.")
+         CPWARN("Restart without RT field file - unknown field trace set to zero.")
       END IF
    END SUBROUTINE read_field
 
@@ -491,8 +491,8 @@ CONTAINS
          ! TODO : Some error catching and handling
          READ (rho_unit_nr) rtbse_env%sim_start
          CALL close_file(rho_unit_nr)
-         IF (rtbse_env%unit_nr > 0) WRITE (rtbse_env%unit_nr, '(A31,I25,A24)') " RTBSE| Starting from timestep ", rtbse_env%sim_start, &
-            ", delta kick NOT applied"
+         IF (rtbse_env%unit_nr > 0) WRITE (rtbse_env%unit_nr, '(A31,I25,A24)') " RTBSE| Starting from timestep ", &
+                 rtbse_env%sim_start, ", delta kick NOT applied"
       ELSE
          CPWARN("Restart required but no info file found - starting from sim_step given in input")
       END IF
@@ -503,8 +503,10 @@ CONTAINS
       file_labels(3) = "_SPIN_B_RE.matrix"
       file_labels(4) = "_SPIN_B_IM.matrix"
       DO j = 1, rtbse_env%n_spin
-       save_name = cp_print_key_generate_filename(logger, rtbse_env%restart_section, extension=file_labels(2*j - 1), my_local=.FALSE.)
-       save_name_2 = cp_print_key_generate_filename(logger, rtbse_env%restart_section, extension=file_labels(2*j), my_local=.FALSE.)
+       save_name = cp_print_key_generate_filename(logger, rtbse_env%restart_section, &
+               extension=file_labels(2*j - 1), my_local=.FALSE.)
+       save_name_2 = cp_print_key_generate_filename(logger, rtbse_env%restart_section, &
+               extension=file_labels(2*j), my_local=.FALSE.)
        IF (file_exists(save_name) .AND. file_exists(save_name_2)) THEN
             CALL open_file(save_name, file_status="OLD", file_form="UNFORMATTED", file_action="READ", &
                            unit_number=rho_unit_nr)
@@ -519,7 +521,7 @@ CONTAINS
             rtbse_env%restart_extracted = .TRUE.
          ELSE
             ! TODO : Spin dependent warning - for some spins, SCF may be used while for others restart is used
-            CPWARN("Restart required but some restart density matrices not found - starting from SCF density.")
+            CPWARN("Restart without some restart matrices - starting from SCF density.")
          END IF
       END DO
    END SUBROUTINE read_restart
@@ -547,8 +549,10 @@ CONTAINS
       file_labels(3) = "_SPIN_B_RE.dat"
       file_labels(4) = "_SPIN_B_IM.dat"
       DO j=1,rtbse_env%n_spin
-         save_name = cp_print_key_generate_filename(logger, rtbse_env%moments_section, extension=file_labels(2*j - 1), my_local=.FALSE.)
-         save_name_2 = cp_print_key_generate_filename(logger, rtbse_env%moments_section, extension=file_labels(2*j), my_local=.FALSE.)
+         save_name = cp_print_key_generate_filename(logger, rtbse_env%moments_section, &
+                 extension=file_labels(2*j - 1), my_local=.FALSE.)
+         save_name_2 = cp_print_key_generate_filename(logger, rtbse_env%moments_section, &
+                 extension=file_labels(2*j), my_local=.FALSE.)
          IF (file_exists(save_name) .AND. file_exists(save_name_2)) THEN
             CALL open_file(save_name, file_status="OLD", file_form="FORMATTED", file_action="READ", &
                            unit_number=moments_unit_re)
@@ -571,7 +575,7 @@ CONTAINS
             CALL close_file(moments_unit_re)
             CALL close_file(moments_unit_im)
          ELSE IF (rtbse_env%dft_control%rtp_control%initial_wfn == use_rt_restart) THEN
-            CPWARN("Restart required but previous moments not found - moments trace at times before starting index will be set to zero.")
+            CPWARN("Restart without previous moments - unknown moments trace set to zero.")
          END IF
       END DO
    END SUBROUTINE read_moments
@@ -693,8 +697,8 @@ CONTAINS
          ! Calculate the transform of the field as well and divide by it
          ! The field FT is not damped - assume field is localised in time
          ! The field is strictly real
-         CALL ft_slow(rtbse_env%time_trace%series, rtbse_env%field_trace(rtbse_env%pol_element(2))%series, omega_series, ft_real_series, ft_imag_series, &
-                      0.0_dp, rtbse_env%ft_start)
+         CALL ft_slow(rtbse_env%time_trace%series, rtbse_env%field_trace(rtbse_env%pol_element(2))%series, &
+                 omega_series, ft_real_series, ft_imag_series, 0.0_dp, rtbse_env%ft_start)
          field_series(:) = CMPLX(ft_real_series(:), ft_imag_series(:), kind=dp)
       END IF
       ! Divide to get the polarizability series
@@ -804,8 +808,10 @@ CONTAINS
          omega_series(i) = delta_omega * (i-1)
          DO j = 1, N
             j_wrap = MODULO(j + t0_i - 2, N) + 1
-            result_series(i) = result_series(i) + COS(twopi * (i-1) * (j-1)/ N) * EXP(- damping * delta_t * (j-1)) * value_series(j_wrap)
-            iresult_series(i) = iresult_series(i) + SIN(twopi * (i-1) * (j-1)/ N) * EXP(- damping * delta_t * (j-1)) * value_series(j_wrap)
+            result_series(i) = result_series(i) + COS(twopi * (i-1) * (j-1)/ N) * &
+                    EXP(- damping * delta_t * (j-1)) * value_series(j_wrap)
+            iresult_series(i) = iresult_series(i) + SIN(twopi * (i-1) * (j-1)/ N) * &
+                    EXP(- damping * delta_t * (j-1)) * value_series(j_wrap)
          END DO
       END DO
       delta_omega = twopi / (time_series(N) - time_series(1))

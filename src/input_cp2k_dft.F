@@ -1995,8 +1995,8 @@ CONTAINS
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, "START_TIME", &
                           description="The starting time from which damping is applied and from which on the trace is "// &
-                          "considered for the Fourier transform. Useful for real-time pulse - one can specify the center of the pulse "// &
-                          "as the starting point.", &
+                          "considered for the Fourier transform. Useful for real-time pulse - "// &
+                          "one can specify the center of the pulse as the starting point.", &
                           type_of_var=real_t, &
                           default_r_val=0.0_dp)
       CALL section_add_keyword(print_key, keyword)
@@ -2006,15 +2006,17 @@ CONTAINS
       ! Marek : Chosen element of (Fourier transformed) polarizability tensor (energy dependent) - text format
       CALL cp_print_key_section_create(print_key, __LOCATION__, "POLARIZABILITY", &
                                        description="Prints the chosen element of the energy dependent polarizability tensor "// &
-                                       "to a specified file. The tensor is calculated as ratio of Fourier transform of the dipole "// &
-                                       "moment trace and Fourier transform of the applied field (for delta kick, constant"// &
-                                       "real field is applied.", &
+                                       "to a specified file. The tensor is calculated as ratio of "// &
+                                       "Fourier transform of the dipole "// &
+                                       "moment trace and Fourier transform of the applied field "// &
+                                       "(for delta kick, constant real field is applied.", &
                                        print_level=medium_print_level, common_iter_levels=0, &
                                        each_iter_names=s2a("MD"), &
                                        each_iter_values=(/1/), &
                                        filename="POLARIZABILITY")
       CALL keyword_create(keyword, __LOCATION__, "ELEMENT", &
-                          description="Specifies the element of polarizability which is to be printed out (indexing starts at 1).", &
+                          description="Specifies the element of polarizability which is to be printed out "// &
+                          "(indexing starts at 1).", &
                           type_of_var=integer_t, default_i_vals=(/1,1/), n_var=2, usage="ELEMENT 1 1")
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
