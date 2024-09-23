@@ -732,6 +732,8 @@ CONTAINS
       END IF
 
       DEALLOCATE (value_series)
+      DEALLOCATE (ft_real_series)
+      DEALLOCATE (ft_imag_series)
 
       DEALLOCATE (field_series)
       DEALLOCATE (moment_series)
