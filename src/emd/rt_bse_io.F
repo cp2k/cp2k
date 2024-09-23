@@ -680,7 +680,8 @@ CONTAINS
          ! The field is strictly real
          CALL ft_simple(rtbse_env%time_trace%series, rtbse_env%field_trace(rtbse_env%pol_element(2))%series, &
                         omega_series, ft_real_series, ft_imag_series, 0.0_dp, rtbse_env%ft_start)
-         field_series(:) = CMPLX(ft_real_series(:), ft_imag_series(:), kind=dp)
+         ! Regularization for the case when ft_series becomes identically zero - TODO : Set in config
+         field_series(:) = CMPLX(ft_real_series(:), ft_imag_series(:)+1.0e-20, kind=dp)
       END IF
       ! Divide to get the polarizability series
       ! Real part
