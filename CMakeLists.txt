@@ -942,10 +942,12 @@ endif()
 
 if(CP2K_USE_TBLITE)
   message(
-    " - TBLITE :\n" "   - version             :  ${CP2K_TBLITE_VERSION}\n"
+    " - TBLITE :\n" 
+    "   - version             :  ${CP2K_TBLITE_VERSION}\n"
     "   - include directories :  ${CP2K_TBLITE_INCLUDE_DIRS}\n"
-    "   - link libraries      :  ${CP2K_TBLITE_LINK_LIBRARIES}\n\n")
-
+    "   - tblite libraries    :  ${CP2K_TBLITE_LINK_LIBRARIES}\n"
+    "   - dftd3 libraries     :  ${CP2K_DFTD3_LINK_LIBRARIES}\n"
+    "   - toml-f libraries    :  ${CP2K_TOML_LINK_LIBRARIES}\n\n")
 endif()
 
 if(CP2K_USE_SIRIUS)
