@@ -275,7 +275,6 @@ CONTAINS
       TYPE(rtbse_env_type), POINTER                             :: rtbse_env
       TYPE(qs_environment_type), POINTER                        :: qs_env
       TYPE(force_env_type), POINTER                             :: force_env
-      CHARACTER(len=*), PARAMETER                               :: routineN = "create_rtbse_env"
       TYPE(post_scf_bandstructure_type), POINTER                :: bs_env
       TYPE(rt_prop_type), POINTER                               :: rtp
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER                 :: matrix_s
@@ -524,7 +523,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE release_rtbse_env(rtbse_env)
       TYPE(rtbse_env_type), POINTER                             :: rtbse_env
-      CHARACTER(len=*), PARAMETER                               :: routineN = "release_rtbse_env"
       INTEGER                                                   :: i
 
       CALL cp_cfm_release_pp1(rtbse_env%ham_effective)
@@ -587,7 +585,6 @@ CONTAINS
    SUBROUTINE create_hartree_ri_workspace(rtbse_env, qs_env)
       TYPE(rtbse_env_type)                              :: rtbse_env
       TYPE(qs_environment_type), POINTER                :: qs_env
-      CHARACTER(len=*), PARAMETER                       :: routineN = "create_hartree_ri_workspace"
       TYPE(post_scf_bandstructure_type), POINTER        :: bs_env
       REAL(kind=dp)                                     :: size_mb
 
@@ -614,7 +611,6 @@ CONTAINS
    END SUBROUTINE create_hartree_ri_workspace
    SUBROUTINE release_hartree_ri_workspace(rtbse_env)
       TYPE(rtbse_env_type)                              :: rtbse_env
-      CHARACTER(len=*), PARAMETER                       :: routineN = "release_hartree_ri_workspace"
 
       DEALLOCATE (rtbse_env%int_3c_array)
 
@@ -635,7 +631,6 @@ CONTAINS
    SUBROUTINE create_sigma_workspace(rtbse_env, qs_env)
       TYPE(rtbse_env_type)                               :: rtbse_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      CHARACTER(len=*), PARAMETER                        :: routineN = "create_sigma_workspace"
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
 
       CALL get_qs_env(qs_env, bs_env=bs_env)
@@ -679,7 +674,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE release_sigma_workspace(rtbse_env)
       TYPE(rtbse_env_type)                               :: rtbse_env
-      CHARACTER(len=*), PARAMETER                        :: routineN = "release_sigma_workspace"
 
       IF (ASSOCIATED(rtbse_env%t_3c_w)) THEN
          CALL dbt_destroy(rtbse_env%t_3c_w)
@@ -720,7 +714,6 @@ CONTAINS
       REAL(kind=dp)                                      :: alpha, beta
       TYPE(cp_fm_type)                                   :: matrix_r
       TYPE(cp_cfm_type)                                  :: matrix_c, res
-      CHARACTER(len=*), PARAMETER                        :: routineN = "multiply_fm_cfm"
       TYPE(cp_fm_type)                                   :: work_re, work_im, res_re, res_im
       REAL(kind=dp)                                      :: i_unit
       CHARACTER(len=1)                                   :: trans_cr
@@ -763,7 +756,6 @@ CONTAINS
       REAL(kind=dp)                                      :: alpha, beta
       TYPE(cp_cfm_type)                                  :: matrix_c, res
       TYPE(cp_fm_type)                                   :: matrix_r
-      CHARACTER(len=*), PARAMETER                        :: routineN = "multiply_fm_cfm"
       TYPE(cp_fm_type)                                   :: work_re, work_im, res_re, res_im
       REAL(kind=dp)                                      :: i_unit
       CHARACTER(len=1)                                   :: trans_cr

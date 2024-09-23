@@ -360,7 +360,9 @@ CONTAINS
       REAL(kind=dp), DIMENSION(:), POINTER         :: custom_ref_point, &
                                                       occupations
       REAL(kind=dp), DIMENSION(3)                  :: rpoint
-      INTEGER                                      :: i, k
+      INTEGER                                      :: i, k, handle
+
+      CALL timeset(routineN, handle)
 
       ! Get pointers to parameters from qs_env
       CALL get_qs_env(rtbse_env%qs_env, bs_env=bs_env, matrix_s=matrix_s)
@@ -530,6 +532,8 @@ CONTAINS
          END DO
       END IF
       ! ****** END COHSEX REFERENCE CALCULATION
+
+      CALL timestop(handle)
    END SUBROUTINE initialize_rtbse_env
 
 ! **************************************************************************************************
@@ -542,7 +546,9 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                  :: routineN = "apply_delta_pulse"
       REAL(kind=dp)                                :: intensity, metric
       REAL(kind=dp), DIMENSION(3)                  :: kvec
-      INTEGER                                      :: i, k
+      INTEGER                                      :: i, k, handle
+
+      CALL timeset(routineN, handle)
 
       ! Report application
       IF (rtbse_env%unit_nr > 0) WRITE (rtbse_env%unit_nr, '(A27)') ' RTBSE| Applying delta pulse'
@@ -587,6 +593,8 @@ CONTAINS
       DO i = 1, rtbse_env%n_spin
          CALL cp_cfm_to_cfm(rtbse_env%rho_new(i)%matrix, rtbse_env%rho(i)%matrix)
       END DO
+
+      CALL timestop(handle)
    END SUBROUTINE apply_delta_pulse
 ! **************************************************************************************************
 !> \brief Determines the metric for the density matrix, used for convergence criterion
@@ -600,7 +608,6 @@ CONTAINS
                                                             rho_old
       INTEGER, INTENT(IN)                                :: nspin
       TYPE(cp_cfm_type), POINTER, OPTIONAL               :: workspace_opt
-      CHARACTER(len=*), PARAMETER                        :: routineN = "rho_metric"
       TYPE(cp_cfm_type)                                  :: workspace
       REAL(kind=dp)                                      :: metric
       REAL(kind=dp), DIMENSION(:), ALLOCATABLE           :: partial_metric
@@ -897,7 +904,6 @@ CONTAINS
          TYPE(rtbse_env_type)                               :: rtbse_env
          TYPE(cp_cfm_p_type), DIMENSION(:)                  :: rho
          REAL(kind=dp), INTENT(OUT)                         :: electron_n_re, electron_n_im
-         CHARACTER(len=*), PARAMETER                        :: routineN = "get_electron_number"
          COMPLEX(kind=dp)                                   :: electron_n_buffer
          INTEGER                                            :: j
 
@@ -925,7 +931,6 @@ CONTAINS
          TYPE(rtbse_env_type)                              :: rtbse_env
          TYPE(cp_cfm_p_type), DIMENSION(:)                  :: rho
          REAL(kind=dp), INTENT(OUT)                        :: deviation_metric
-         CHARACTER(len=*), PARAMETER                       :: routineN = "get_idempotence_deviation"
          COMPLEX(kind=dp)                                  :: buffer_1, buffer_2
          REAL(kind=dp)                                     :: buffer_dev
          INTEGER                                           :: j
@@ -1098,7 +1103,6 @@ CONTAINS
       SUBROUTINE init_hartree(rtbse_env, v_dbcsr)
          TYPE(rtbse_env_type), POINTER, INTENT(IN)          :: rtbse_env
          TYPE(dbcsr_type), POINTER                          :: v_dbcsr
-         CHARACTER(len=*), PARAMETER                        :: routineN = "init_hartree"
          TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
          TYPE(libint_potential_type)                        :: coulomb_op
          TYPE(cp_fm_type)                                   :: V_fm
@@ -1335,13 +1339,15 @@ CONTAINS
          TYPE(cp_cfm_type)                                  :: exponential
          COMPLEX(kind=dp), INTENT(IN), OPTIONAL             :: eig_scale_opt
          TYPE(cp_cfm_p_type), DIMENSION(:), OPTIONAL        :: work_opt
-         CHARACTER(len=*), PARAMETER                        :: routineN = "cp_cfm_exp"
+         CHARACTER(len=*), PARAMETER                        :: routineN = "cp_cfm_gexp"
          COMPLEX(kind=dp)                                   :: eig_scale
          REAL(kind=dp), DIMENSION(:), ALLOCATABLE           :: eigenvalues
          COMPLEX(kind=dp), DIMENSION(:), ALLOCATABLE        :: expvalues
          TYPE(cp_cfm_p_type), DIMENSION(:), POINTER         :: work
          LOGICAL                                            :: deallocate_work
-         INTEGER                                            :: nrow, i
+         INTEGER                                            :: nrow, i, handle
+
+         CALL timeset(routineN, handle)
 
          ! Argument parsing and sanity checks
          IF (PRESENT(eig_scale_opt)) THEN
@@ -1408,5 +1414,7 @@ CONTAINS
 
          DEALLOCATE (eigenvalues)
          DEALLOCATE (expvalues)
+
+         CALL timestop(handle)
       END SUBROUTINE cp_cfm_gexp
    END MODULE rt_bse

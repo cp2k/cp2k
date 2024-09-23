@@ -84,7 +84,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE print_rtbse_header_info(rtbse_env)
       TYPE(rtbse_env_type)                               :: rtbse_env
-      CHARACTER(len=*), PARAMETER                        :: routineN = "print_rtbse_header"
 
       WRITE (rtbse_env%unit_nr, *) ''
       WRITE (rtbse_env%unit_nr, '(A)') ' /-----------------------------------------------'// &
@@ -131,7 +130,6 @@ CONTAINS
       TYPE(rtbse_env_type)                               :: rtbse_env
       INTEGER                                            :: step
       REAL(kind=dp)                                      :: metric
-      CHARACTER(len=*), PARAMETER                        :: routineN = "print_etrs_info"
       TYPE(cp_logger_type), POINTER                      :: logger
 
       logger => cp_get_default_logger()
@@ -147,7 +145,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE print_etrs_info_header(rtbse_env)
       TYPE(rtbse_env_type)                               :: rtbse_env
-      CHARACTER(len=*), PARAMETER                        :: routineN = "print_etrs_info_header"
       TYPE(cp_logger_type), POINTER                      :: logger
 
       logger => cp_get_default_logger()
@@ -167,7 +164,6 @@ CONTAINS
       REAL(kind=dp)                                      :: convergence
       REAL(kind=dp)                                      :: electron_num_re
       INTEGER                                            :: etrs_num
-      CHARACTER(len=*), PARAMETER                        :: routineN = "print_timestep_info"
       TYPE(cp_logger_type), POINTER                      :: logger
 
       logger => cp_get_default_logger()
@@ -192,7 +188,6 @@ CONTAINS
       TYPE(rtbse_env_type)                               :: rtbse_env
       TYPE(cp_cfm_p_type), DIMENSION(:)                  :: rho
       TYPE(section_vals_type), POINTER                   :: print_key_section
-      CHARACTER(len=*), PARAMETER                        :: routineN = "output_mos_rho"
       TYPE(cp_logger_type), POINTER                      :: logger
       INTEGER                                            :: j, rho_unit_re, rho_unit_im
       CHARACTER(len=14), DIMENSION(4)                    :: file_labels
@@ -243,7 +238,6 @@ CONTAINS
       TYPE(rtbse_env_type)                               :: rtbse_env
       TYPE(cp_cfm_p_type), DIMENSION(:)                  :: ham
       TYPE(section_vals_type), POINTER                   :: print_key_section
-      CHARACTER(len=*), PARAMETER                        :: routineN = "output_mos_cohsex"
       TYPE(cp_logger_type), POINTER                      :: logger
       INTEGER                                            :: j, rho_unit_re, rho_unit_im
       CHARACTER(len=21), DIMENSION(4)                    :: file_labels
@@ -280,7 +274,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE output_field(rtbse_env)
       TYPE(rtbse_env_type)                               :: rtbse_env
-      CHARACTER(len=*), PARAMETER                        :: routineN = "output_field"
       TYPE(cp_logger_type), POINTER                      :: logger
       INTEGER                                            :: field_unit, n, i
 
@@ -311,7 +304,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE read_field(rtbse_env)
       TYPE(rtbse_env_type)                               :: rtbse_env
-      CHARACTER(len=*), PARAMETER                        :: routineN = "read_field"
       TYPE(cp_logger_type), POINTER                      :: logger
       CHARACTER(len=default_path_length)                 :: save_name
       INTEGER                                            :: k, n, field_unit
@@ -347,7 +339,6 @@ CONTAINS
    SUBROUTINE output_moments(rtbse_env, rho)
       TYPE(rtbse_env_type)                               :: rtbse_env
       TYPE(cp_cfm_p_type), DIMENSION(:)                  :: rho
-      CHARACTER(len=*), PARAMETER                        :: routineN = "output_moments"
       TYPE(cp_logger_type), POINTER                      :: logger
       INTEGER                                            :: i, j, n, moments_unit_re, moments_unit_im
       CHARACTER(len=14), DIMENSION(4)                    :: file_labels
@@ -427,7 +418,6 @@ CONTAINS
       TYPE(rtbse_env_type), POINTER                      :: rtbse_env
       TYPE(cp_cfm_p_type), DIMENSION(:), POINTER         :: rho
       INTEGER                                            :: time_index
-      CHARACTER(len=*), PARAMETER                        :: routineN = "output_restart"
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: workspace
       CHARACTER(len=17), DIMENSION(4)                    :: file_labels
       TYPE(cp_logger_type), POINTER                      :: logger
@@ -470,7 +460,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE read_restart(rtbse_env)
       TYPE(rtbse_env_type), POINTER                      :: rtbse_env
-      CHARACTER(len=*), PARAMETER                        :: routineN = "read_restart"
       TYPE(cp_logger_type), POINTER                      :: logger
       CHARACTER(len=default_path_length)                 :: save_name, save_name_2
       INTEGER                                            :: rho_unit_nr, j
@@ -527,7 +516,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE read_moments(rtbse_env)
       TYPE(rtbse_env_type), POINTER                      :: rtbse_env
-      CHARACTER(len=*), PARAMETER                        :: routineN = "read_moments"
       TYPE(cp_logger_type), POINTER                      :: logger
       CHARACTER(len=default_path_length)                 :: save_name, save_name_2
       INTEGER                                            :: i, j, k, moments_unit_re, moments_unit_im, n
@@ -580,7 +568,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE output_moments_ft(rtbse_env)
       TYPE(rtbse_env_type), POINTER                      :: rtbse_env
-      CHARACTER(len=*), PARAMETER                        :: routineN = "output_moments_ft"
       TYPE(cp_logger_type), POINTER                      :: logger
       REAL(kind=dp), DIMENSION(:), POINTER               :: omega_series, &
                                                             ft_real_series, &
@@ -644,7 +631,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE output_polarizability(rtbse_env)
       TYPE(rtbse_env_type), POINTER                      :: rtbse_env
-      CHARACTER(len=*), PARAMETER                        :: routineN = "output_polarizability"
       TYPE(cp_logger_type), POINTER                      :: logger
       REAL(kind=dp), DIMENSION(:), POINTER               :: omega_series, &
                                                             ft_real_series, &
@@ -766,8 +752,10 @@ CONTAINS
       REAL(kind=dp), OPTIONAL                            :: damping_opt
       REAL(kind=dp), OPTIONAL                            :: t0_opt
       CHARACTER(len=*), PARAMETER                        :: routineN = "ft_simple"
-      INTEGER                                            :: N, i, j, t0_i, j_wrap
+      INTEGER                                            :: N, i, j, t0_i, j_wrap, handle
       REAL(kind=dp)                                      :: t0, delta_t, delta_omega, damping
+
+      CALL timeset(routineN, handle)
 
       N = SIZE(time_series)
 
@@ -811,6 +799,8 @@ CONTAINS
       delta_omega = twopi/(time_series(N) - time_series(1))
       result_series(:) = delta_t*result_series(:)
       iresult_series(:) = delta_t*iresult_series(:)
+
+      CALL timestop(handle)
 
    END SUBROUTINE
 END MODULE rt_bse_io
