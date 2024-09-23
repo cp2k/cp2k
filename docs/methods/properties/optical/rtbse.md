@@ -12,7 +12,7 @@ $$ \frac{\mathrm{d} \hat{\rho}}{\mathrm{d} t} = -i [\hat{H}(t), \hat{\rho}(t)] $
 This equation is solved by steps
 
 $$ \hat{\rho} (t + \Delta t) = \mathrm{e} ^ {- i \hat{H} (t+\Delta t) \Delta t/2} \mathrm{e} ^ {-i \hat{H}(t) \Delta t/2}
-\hat{\rho (t)} \mathrm{e} ^ {i \hat{H}(t) \Delta t/2} \mathrm{e} ^ {i \hat{H} (t + \Delta t) \Delta t/2}$$
+\hat{\rho} (t) \mathrm{e} ^ {i \hat{H}(t) \Delta t/2} \mathrm{e} ^ {i \hat{H} (t + \Delta t) \Delta t/2}$$
 
 which is called the _enforced time reversal scheme_\[[Castro2004](https://doi.org/10.1063/1.1774980)\].
 The effective Hamiltonian is given as
@@ -57,5 +57,107 @@ One can easily verify that for real FT of the applied field, this leads Lorentzi
 at the frequencies of the oscillations of the moments present in the imaginary part of the
 corresponding polarizability element.
 
+## Running the Propagation
+
+To run the RTBSE propagation, include the [REAL_TIME_PROPAGATION](#CP2K_INPUT.FORCE_EVAL.DFT.REAL_TIME_PROPAGATION)
+section in the input file and set the [RTP_METHOD](#CP2K_INPUT.FORCE_EVAL.DFT.REAL_TIME_PROPAGATION.RTP_METHOD)
+to `RTBSE` - otherwise, the standard TDDFT propagation is employed.
+
+### ETRS Precision
+
+The precision of the self-consistency in the ETRS loop is controlled by the [EPS_ITER](#CP2K_INPUT.FORCE_EVAL.DFT.REAL_TIME_PROPAGATION.EPS_ITER)
+keyword. Smaller threshold (larger precision) lead to more stable propagation, but might require
+smaller timestep/more self-consistent iterations.
+
+[MAX_ITER](#CP2K_INPUT.FORCE_EVAL.DFT.REAL_TIME_PROPAGATION.MAX_ITER) keyword is used to determine
+the maximum number of self-consistent iterations for a single time step before the cycle
+is broken and non-convergence is reported.
+
+### Exponential Method
+
+The method used for the exponentiation of the Hamiltonian is set in the
+[MAT_EXP](#CP2K_INPUT.FORCE_EVAL.DFT.REAL_TIME_PROPAGATION.MAT_EXP) keyword, with the
+following methods implemented for both TDDFT and RTBSE
+
+ - `BCH` - calculates the effect of matrix exponential by series of commutators using
+           Baker-Campbell-Hausdorff expansion
+
+and the following methods implemented only for RTBSE
+
+ - `EXACT` - Diagonalizes the instantaneous Hamiltonian to determine the exponential exactly
+
+For inexact methods, a threshold for the cutoff of exponential series is provided by the
+[EXP_ACCURACY](#CP2K_INPUT.FORCE_EVAL.DFT.REAL_TIME_PROPAGATION.EXP_ACCURACY) keyword. For these,
+the [MAX_ITER](#CP2K_INPUT.FORCE_EVAL.DFT.REAL_TIME_PROPAGATION.MAX_ITER) keyword also sets
+the maximum number of iterations before the program is stopped and non-convergence is reported.
+
 Use [RTP_METHOD](#CP2K_INPUT.FORCE_EVAL.DFT.REAL_TIME_PROPAGATION.RTP_METHOD) to start the
 calculation by setting it to TDAGW.
+
+### Excitation Method
+
+The real time pulse can be specified in the [EFIELD](#CP2K_INPUT.FORCE_EVAL.DFT.EFIELD) section.
+
+If delta pulse is required instead, use [APPLY_DELTA_PULSE](#CP2K_INPUT.FORCE_EVAL.DFT.REAL_TIME_PROPAGATION.APPLY_DELTA_PULSE)
+with [DELTA_PULSE_DIRECTION](#CP2K_INPUT.FORCE_EVAL.DFT.REAL_TIME_PROPAGATION.DELTA_PULSE_DIRECTION) used for
+defining the $\vec{e}$ vector and [DELTA_PULSE_SCALE](#CP2K_INPUT.FORCE_EVAL.DFT.REAL_TIME_PROPAGATION.DELTA_PULSE_SCALE)
+setting the $I$ scale of the delta pulse (in atomic units). Note that the definition of
+the vector is different from the definition used in the TDDFT method.
+
+### Printing observables
+
+The code is so far optimised for printing the polarizability elements, which are linked
+to the absorption spectrum. The printing of all available properties is controlled in
+the [PRINT](#CP2K_INPUT.FORCE_EVAL.DFT.REAL_TIME_PROPAGATION.PRINT) section - the ones
+relevant for RTBSE propagation are listed here
+
+ - [DENSITY_MATRIX](#CP2K_INPUT.FORCE_EVAL.DFT.REAL_TIME_PROPAGATION.PRINT.DENSITY_MATRIX) - 
+   Prints the elements of the density matrix in the MO basis into a file at every timestep
+ - [FIELD](#CP2K_INPUT.FORCE_EVAL.DFT.REAL_TIME_PROPAGATION.PRINT.FIELD) - Prints the
+   elements of the electric field applied at every time step
+ - [MOMENTS](#CP2K_INPUT.FORCE_EVAL.DFT.REAL_TIME_PROPAGATION.PRINT.MOMENTS) - Prints the
+   electric dipole moment elements reported at every time step
+ - [MOMENTS_FT](#CP2K_INPUT.FORCE_EVAL.DFT.REAL_TIME_PROPAGATION.PRINT.MOMENTS_FT) - 
+   Prints the Fourier transform of the dipole moment elements time series
+ - [POLARIZABILITY](#CP2K_INPUT.FORCE_EVAL.DFT.REAL_TIME_PROPAGATION.PRINT.POLARIZABILITY) -
+   Prints an element of the Fourier transform of polarizability.
+ - [RESTART](#CP2K_INPUT.FORCE_EVAL.DFT.REAL_TIME_PROPAGATION.PRINT.RESTART) - Controls
+   the name of the restart file
+
+When [RESTART](#CP2K_INPUT.FORCE_EVAL.DFT.REAL_TIME_PROPAGATION.PRINT.RESTART),
+[MOMENTS](#CP2K_INPUT.FORCE_EVAL.DFT.REAL_TIME_PROPAGATION.PRINT.MOMENTS) and
+[FIELD](#CP2K_INPUT.FORCE_EVAL.DFT.REAL_TIME_PROPAGATION.PRINT.FIELD) are saved
+into files, one can continue running the calculation in the same directory for longer
+time without rerunning the already calculated time steps. Note that total
+length of the propagation time controls the energy/frequency precision, while
+timestep size controls the energy/frequency range.
+
+### Example Input
+
+A typical input file which runs the RTBSE propagation will have the
+[REAL_TIME_PROPAGATION](#CP2K_INPUT.FORCE_EVAL.DFT.REAL_TIME_PROPAGATION) section
+similar to this one
+
+```
+&REAL_TIME_PROPAGATION
+	RTP_METHOD RTBSE
+    ! ETRS self-consistent threshold
+	EPS_ITER 1.0E-8
+	MAT_EXP BCH
+	EXP_ACCURACY 1.0E-12
+	INITIAL_WFN RT_RESTART
+	APPLY_DELTA_PULSE
+	DELTA_PULSE_SCALE 0.01
+	DELTA_PULSE_DIRECTION 1 0 0
+	&PRINT
+        ! No need to print the field for delta pulse
+		&MOMENTS
+            FILENAME MOMENTS
+		&END MOMENTS
+        &POLARIZABILITY
+            FILENAME POLARIZABILITY
+        &END POLARIZABILITY
+	&END PRINT
+&END REAL_TIME_PROPAGATION
+```
+
