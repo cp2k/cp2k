@@ -232,7 +232,6 @@ MODULE rt_bse_types
       ! Many routines require overlap in the complex format
       TYPE(cp_cfm_p_type)                                       :: S_cfm
       TYPE(dbcsr_type), POINTER                                 :: rho_dbcsr
-      ! TODO : Check how much is actually needed and whether it is not better to separate names
       ! Indices only correspond to different workspaces
       TYPE(cp_cfm_p_type), DIMENSION(:), POINTER                :: rho_workspace
       ! Many methods use real and imaginary parts separately - prevent unnecessary reallocation
@@ -240,14 +239,13 @@ MODULE rt_bse_types
       ! Workspace required for exact matrix exponentiation
       REAL(kind=dp), DIMENSION(:), POINTER                      :: real_eigvals
       COMPLEX(kind=dp), DIMENSION(:), POINTER                   :: exp_eigvals
-      ! Workspace for saving the values for FT - TODO : Make complex and for all directions
+      ! Workspace for saving the values for FT
       TYPE(series_complex_type), DIMENSION(3)                   :: moments_trace
       TYPE(series_real_type)                                    :: time_trace
       TYPE(series_real_type), DIMENSION(3)                      :: field_trace
       ! Workspace required for hartree_pw
       TYPE(dbcsr_p_type)                                        :: v_dbcsr, &
                                                                    w_dbcsr
-      ! TODO : Spins, k-points
       TYPE(dbt_type), POINTER                                   :: screened_dbt, &
                                                                    sigma_dbt, &
                                                                    greens_dbt, &
@@ -323,7 +321,6 @@ CONTAINS
       ! rtbse_env%sim_dt = rtp%dt
       ! Threshold for etrs is taken from the eps_energy from RT propagation
       rtbse_env%etrs_threshold = rtbse_env%dft_control%rtp_control%eps_ener
-      ! TODO : Check whether dft_control can be dropped from rtbse_env
       rtbse_env%exp_accuracy = rtbse_env%dft_control%rtp_control%eps_exp
       ! Recover custom options
       CALL section_vals_val_get(input, "DFT%REAL_TIME_PROPAGATION%RTBSE_HAMILTONIAN", &
@@ -334,8 +331,6 @@ CONTAINS
                                 i_val=rtbse_env%mat_exp_method)
       ! Output unit number, recovered from the post_scf_bandstructure_type
       rtbse_env%unit_nr = bs_env%unit_nr
-      ! Allocate and determine the expansion orders, based on arguments used in TDDFT
-      ! TODO : Last two arguments are indicating that we are using Taylor expansion and not doing ion motion
       ! Sim start index and total number of steps as well
       CALL section_vals_val_get(md_sec, "STEP_START_VAL", i_val=rtbse_env%sim_start)
       ! Copy this value to sim_start_orig for continuation runs
@@ -413,7 +408,6 @@ CONTAINS
       END DO
       ! Create the inverse overlap matrix, for use in density propagation
       ! Start by creating the actual overlap matrix
-      ! TODO : Handle different spins and k-points
       NULLIFY (rtbse_env%S_fm%matrix)
       ALLOCATE (rtbse_env%S_fm%matrix)
       CALL cp_fm_create(rtbse_env%S_fm%matrix, bs_env%fm_s_Gamma%matrix_struct)
@@ -562,8 +556,6 @@ CONTAINS
          DEALLOCATE (rtbse_env%moments_field(i)%matrix)
          NULLIFY (rtbse_env%moments_field(i)%matrix)
       END DO
-
-      ! TODO : Decide on where and when to release this
 
       CALL release_sigma_workspace(rtbse_env)
 
@@ -751,7 +743,6 @@ CONTAINS
          trans_cr = "N"
       END SELECT
       ! Actual multiplication
-      ! TODO : Correct character for trans_c
       CALL parallel_gemm(trans_r, trans_cr, na, nb, nc, &
                          alpha, matrix_r, work_re, beta, res_re)
       CALL parallel_gemm(trans_r, trans_cr, na, nb, nc, &
@@ -795,7 +786,6 @@ CONTAINS
          trans_cr = "N"
       END SELECT
       ! Actual multiplication
-      ! TODO : Correct character for trans_c
       CALL parallel_gemm(trans_cr, trans_r, na, nb, nc, &
                          alpha, work_re, matrix_r, beta, res_re)
       CALL parallel_gemm(trans_cr, trans_r, na, nb, nc, &

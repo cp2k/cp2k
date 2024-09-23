@@ -363,9 +363,6 @@ CONTAINS
          moments_unit_re = cp_print_key_unit_nr(logger, rtbse_env%moments_section, extension=file_labels(2*j - 1))
          moments_unit_im = cp_print_key_unit_nr(logger, rtbse_env%moments_section, extension=file_labels(2*j))
          ! If, for any reason, the file unit is not provided, skip to next cycle immediately
-         ! TODO : Either centralize or let user define the output format
-         ! TODO : Let user define the output units
-         ! TODO : Handle case of complex molecular orbital matrix?
          ! TODO : Specify output units in config
          ! Need to transpose due to the definition of trace function
          CALL cp_cfm_to_fm(msource=rho(j)%matrix, mtargetr=rtbse_env%real_workspace(2)%matrix)
@@ -488,7 +485,6 @@ CONTAINS
       IF (file_exists(save_name)) THEN
          CALL open_file(save_name, file_status="OLD", file_form="UNFORMATTED", file_action="READ", &
                         unit_number=rho_unit_nr)
-         ! TODO : Some error catching and handling
          READ (rho_unit_nr) rtbse_env%sim_start
          CALL close_file(rho_unit_nr)
          IF (rtbse_env%unit_nr > 0) WRITE (rtbse_env%unit_nr, '(A31,I25,A24)') " RTBSE| Starting from timestep ", &
@@ -520,7 +516,6 @@ CONTAINS
                               rtbse_env%rho(j)%matrix)
             rtbse_env%restart_extracted = .TRUE.
          ELSE
-            ! TODO : Spin dependent warning - for some spins, SCF may be used while for others restart is used
             CPWARN("Restart without some restart matrices - starting from SCF density.")
          END IF
       END DO
@@ -612,13 +607,13 @@ CONTAINS
       DO i = 1, 3
          ! Real part of the value first 
          value_series(:) = REAL(rtbse_env%moments_trace(i)%series(:))
-         CALL ft_slow(rtbse_env%time_trace%series, value_series, omega_series, ft_real_series, ft_imag_series, &
+         CALL ft_simple(rtbse_env%time_trace%series, value_series, omega_series, ft_real_series, ft_imag_series, &
                  rtbse_env%ft_damping, rtbse_env%ft_start)
          ft_full_series(2*i-1, :) = ft_real_series(:)
          ft_full_series(2*i, :) = ft_imag_series(:)
          ! Now imaginary part
          value_series(:) = AIMAG(rtbse_env%moments_trace(i)%series(:))
-         CALL ft_slow(rtbse_env%time_trace%series, value_series, omega_series, ft_real_series, ft_imag_series, &
+         CALL ft_simple(rtbse_env%time_trace%series, value_series, omega_series, ft_real_series, ft_imag_series, &
                  rtbse_env%ft_damping, rtbse_env%ft_start)
          ft_full_series(2*i-1, :) = ft_full_series(2*i-1,:) - ft_imag_series
          ft_full_series(2*i, :) = ft_full_series(2*i, :) + ft_real_series
@@ -680,12 +675,12 @@ CONTAINS
       ! The moment ft
       ! Real part
       value_series(:) = REAL(rtbse_env%moments_trace(rtbse_env%pol_element(1))%series(:))
-      CALL ft_slow(rtbse_env%time_trace%series, value_series, omega_series, ft_real_series, ft_imag_series, &
+      CALL ft_simple(rtbse_env%time_trace%series, value_series, omega_series, ft_real_series, ft_imag_series, &
                    rtbse_env%ft_damping, rtbse_env%ft_start)
       moment_series(:) = CMPLX(ft_real_series(:), ft_imag_series(:), kind=dp)
       ! Imaginary part
       value_series(:) = AIMAG(rtbse_env%moments_trace(rtbse_env%pol_element(1))%series(:))
-      CALL ft_slow(rtbse_env%time_trace%series, value_series, omega_series, ft_real_series, ft_imag_series, &
+      CALL ft_simple(rtbse_env%time_trace%series, value_series, omega_series, ft_real_series, ft_imag_series, &
                    rtbse_env%ft_damping, rtbse_env%ft_start)
       moment_series(:) = moment_series(:) + CMPLX(-ft_imag_series(:), ft_real_series(:), kind=dp)
 
@@ -697,7 +692,7 @@ CONTAINS
          ! Calculate the transform of the field as well and divide by it
          ! The field FT is not damped - assume field is localised in time
          ! The field is strictly real
-         CALL ft_slow(rtbse_env%time_trace%series, rtbse_env%field_trace(rtbse_env%pol_element(2))%series, &
+         CALL ft_simple(rtbse_env%time_trace%series, rtbse_env%field_trace(rtbse_env%pol_element(2))%series, &
                  omega_series, ft_real_series, ft_imag_series, 0.0_dp, rtbse_env%ft_start)
          field_series(:) = CMPLX(ft_real_series(:), ft_imag_series(:), kind=dp)
       END IF
@@ -707,7 +702,6 @@ CONTAINS
 
       ! Change units to eV for energy
       ! use value_series for energy and moment_series for polarizability
-      ! TODO : Use the physcon for conversion?
       value_series(:) = omega_series(:) * evolt
       ! Use below for printing of field FT in case of problems
       ! PRINT *, "=== Field FT"
@@ -760,8 +754,7 @@ CONTAINS
 !> \date 09.2024
 ! **************************************************************************************************
    ! So far only for defined one dimensional series
-   ! TODO : Maybe simple instead of slow
-   SUBROUTINE ft_slow(time_series, value_series, omega_series, result_series, iresult_series, &
+   SUBROUTINE ft_simple(time_series, value_series, omega_series, result_series, iresult_series, &
                    damping_opt, t0_opt)
       REAL(kind=dp), DIMENSION(:), POINTER               :: time_series
       REAL(kind=dp), DIMENSION(:), POINTER               :: value_series
@@ -770,12 +763,11 @@ CONTAINS
       REAL(kind=dp), DIMENSION(:), POINTER               :: iresult_series
       REAL(kind=dp), OPTIONAL                            :: damping_opt
       REAL(kind=dp), OPTIONAL                            :: t0_opt
-      CHARACTER(len=*), PARAMETER                        :: routineN="ft_slow"
+      CHARACTER(len=*), PARAMETER                        :: routineN="ft_simple"
       INTEGER                                            :: N, i, j, t0_i, j_wrap
       REAL(kind=dp)                                      :: t0, delta_t, delta_omega, damping
 
       N = SIZE(time_series)
-      ! TODO : Some sanity checks?
 
       t0_i = 1
       IF (PRESENT(t0_opt)) THEN

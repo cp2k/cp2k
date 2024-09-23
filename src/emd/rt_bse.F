@@ -209,12 +209,12 @@ CONTAINS
    SUBROUTINE run_propagation_bse(qs_env, force_env)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(force_env_type), POINTER                      :: force_env
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'run_propagation_gw'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'run_propagation_bse'
       TYPE(rtbse_env_type), POINTER                      :: rtbse_env
       INTEGER                                            :: i, j, k, handle
       LOGICAL                                            :: converged
       REAL(kind=dp)                                      :: metric, enum_re, enum_im, &
-                                                            idempotence_dev, a_metric_1, a_metric_2
+                                                            idempotence_dev! , a_metric_1, a_metric_2
 
       CALL timeset(routineN, handle)
 
@@ -239,10 +239,9 @@ CONTAINS
       CALL initialize_rtbse_env(rtbse_env)
 
       ! Setup the time based on the starting step
-      ! TODO : Handle change of dt between restart runs?
+      ! Assumes identical dt between two runs
       rtbse_env%sim_time = REAL(rtbse_env%sim_start, dp)*rtbse_env%sim_dt
       ! Output 0 time moments and field
-      ! TODO : Redo to moments extracted
       IF (.NOT. rtbse_env%restart_extracted) THEN
          CALL output_field(rtbse_env)
          CALL output_moments(rtbse_env, rtbse_env%rho)
@@ -381,8 +380,6 @@ CONTAINS
          CALL dbcsr_copy(moments_dbcsr_p(k)%matrix, matrix_s(1)%matrix)
       END DO
       ! Run the moment calculation
-      ! TODO : Read custom reference point from input
-      ! TODO : Maybe use the moments section that is present in DFT? - Probably not necessary - convert ref_point to optional -
       ! check for presence to prevent memory errors
       NULLIFY (custom_ref_point)
       ALLOCATE (custom_ref_point(3), source=0.0_dp)
@@ -517,7 +514,7 @@ CONTAINS
             CALL cp_cfm_scale_and_add(CMPLX(1.0, 0.0, kind=dp), rtbse_env%ham_reference(i)%matrix, &
                                       CMPLX(-1.0, 0.0, kind=dp), rtbse_env%ham_workspace(1)%matrix)
             ! Calculate exchange part - TODO : should this be applied for different spins? - TEST with O2 HF propagation?
-            ! TODO : Only due to same spin densities
+            ! So far only closed shell tested
             ! Uses rho_orig - same as rho for initial run but different for continued run
             CALL get_sigma(rtbse_env, rtbse_env%sigma_SEX(i), -1.0_dp, rtbse_env%rho_orig(i))
             ! Subtract from the complex reference Hamiltonian
@@ -552,10 +549,6 @@ CONTAINS
       ! Extra minus for the propagation of density
       intensity = -rtbse_env%dft_control%rtp_control%delta_pulse_scale
       metric = 0.0_dp
-      ! TODO : Print out the correct division factor for the moments to determine polarizability
-      !         - take care of fs <-> a.u. units
-      !         - for RT, allow for custom units of the field strength instead of field intensity - [V/m] type - maybe to a
-      !         different pull request
       kvec(:) = rtbse_env%dft_control%rtp_control%delta_pulse_direction(:)
       IF (rtbse_env%unit_nr > 0) WRITE(rtbse_env%unit_nr, '(A38,E14.4E3,E14.4E3,E14.4E3)') &
               " RTBSE| Delta pulse elements (a.u.) : ", intensity * kvec(:)
@@ -680,7 +673,7 @@ CONTAINS
       INTEGER                                            :: j, handle
       CALL timeset(routineN, handle)
       DO, j = 1, rtbse_env%n_spin
-      IF (rtbse_env%mat_exp_method == do_taylor .OR. rtbse_env%mat_exp_method == do_bch) THEN
+      IF (rtbse_env%mat_exp_method == do_bch) THEN
          ! In Taylor and BCH, we first evaluate the entire exponent and then evaluate exponential in series
          ! In order to produce correct result, need to remultiply by inverse overlap matrix
          CALL multiply_fm_cfm("N", "N", rtbse_env%n_ao, rtbse_env%n_ao, rtbse_env%n_ao, &
@@ -690,13 +683,8 @@ CONTAINS
          ! The evolution of density matrix is derived from the right multiplying term
          ! Imaginary part of the exponent = -real part of the matrix
          CALL cp_cfm_scale(CMPLX(0.0, -rtbse_env%sim_dt/2, kind=dp), rtbse_env%rho_workspace(1)%matrix)
-         ! TODO : Understand which input options set the orders
-         IF (rtbse_env%mat_exp_method == do_taylor) THEN
-            CPABORT("Taylor exponentiaton no longer supported")
-         ELSE
-            ! In BCH, exponential is not calculated explicitly, but the propagation is solved in series
-            CALL cp_cfm_to_cfm(rtbse_env%rho_workspace(1)%matrix, rtbse_env%ham_workspace(j)%matrix)
-         END IF
+         ! In BCH, exponential is not calculated explicitly, but the propagation is solved in series
+         CALL cp_cfm_to_cfm(rtbse_env%rho_workspace(1)%matrix, rtbse_env%ham_workspace(j)%matrix)
       ELSE IF (rtbse_env%mat_exp_method == do_exact) THEN
          CALL cp_cfm_gexp(rtbse_env%ham_effective(j)%matrix, rtbse_env%S_cfm%matrix, rtbse_env%ham_workspace(j)%matrix, &
                           CMPLX(0.0, -rtbse_env%sim_dt/2, kind=dp), rtbse_env%rho_workspace)
@@ -760,7 +748,7 @@ CONTAINS
             CALL cp_fm_to_cfm(msourcer=rtbse_env%hartree_curr(j)%matrix, mtarget=rtbse_env%ham_workspace(1)%matrix)
             CALL cp_cfm_scale_and_add(CMPLX(1.0, 0.0, kind=dp), rtbse_env%ham_effective(j)%matrix, &
                                       CMPLX(rtbse_env%spin_degeneracy, 0.0, kind=dp), rtbse_env%ham_workspace(1)%matrix)
-            ! TODO - enforce hermiticity of the effective Hamiltonian - apply to components instead?
+            ! Enforce hermiticity of the effective Hamiltonian
             ! Important components without forced Hermiticity - moments matrix, sigma matrices, Hartree matrix
             ! single particle Ham
             CALL cp_cfm_transpose(rtbse_env%ham_effective(j)%matrix, 'C', rtbse_env%ham_workspace(1)%matrix)
@@ -796,6 +784,7 @@ CONTAINS
          INTEGER                                           :: max_iter, i, n_spin, n_ao, k, &
                                                               w_stride, handle
          LOGICAL                                           :: converged
+         CHARACTER(len=77)                                 :: error
 
          CALL timeset(routineN, handle)
 
@@ -850,9 +839,9 @@ CONTAINS
             END IF
          END DO
          IF (.NOT. converged) THEN
-            ! TODO : Write to string and cpabort, or pass the unit number or environment
-            PRINT *, "BCH Metric", metric, "BCH Threshold", threshold
-            CPABORT("BCH did not converge")
+            WRITE (error, '(A35,E13.4E3,A16,E13.4E3)') "BCH did not converge, BCH Metric : ", &
+                    metric, "BCH Threshold : ", threshold
+            CPABORT(error)
          END IF
 
          CALL timestop(handle)
@@ -944,7 +933,6 @@ CONTAINS
          deviation_metric = 0.0_dp
          buffer_dev = 0.0_dp
          ! First, determine Tr(S * rho_re) + i Tr (S * rho_im)
-         ! TODO : Handle better operations where real and complex matrix trace are present
          CALL cp_fm_to_cfm(msourcer=rtbse_env%S_fm%matrix, mtarget=rtbse_env%rho_workspace(1)%matrix)
          DO j = 1, rtbse_env%n_spin
             CALL cp_cfm_trace(rtbse_env%rho_workspace(1)%matrix, rho(j)%matrix, buffer_1)
@@ -1057,7 +1045,6 @@ CONTAINS
          ! The summation is carried out by dbt library - dbt_contract in dbt_api
          ! The building of the tensors might be a bit hard, because it requires a lot of parallel information
          ! Probably just use the tensors already present in bs_env? They seem to be mostly work tensors
-         ! TODO : Starting with unbounded integrals, then probably need to reduce to a subset
          ! Create by template
          CALL dbt_contract(alpha=1.0_dp, &
                            tensor_1=rtbse_env%screened_dbt, &
@@ -1071,7 +1058,7 @@ CONTAINS
          ! Next step is to convert the greens full matrix to dbcsr matrix
          CALL dbt_copy_matrix_to_tensor(greens_dbcsr, rtbse_env%greens_dbt)
          ! Then contract it
-         ! no scaling applied - this has to be applied externally TODO : Is this a good approach?
+         ! no scaling applied - this has to be applied externally
          CALL dbt_contract(alpha=1.0_dp, &
                            tensor_1=rtbse_env%t_3c_work_RI_AO__AO, &
                            tensor_2=rtbse_env%greens_dbt, &
@@ -1093,7 +1080,7 @@ CONTAINS
          CALL dbt_copy_tensor_to_matrix(rtbse_env%sigma_dbt, sigma_dbcsr)
          CALL copy_dbcsr_to_fm(sigma_dbcsr, sigma_fm%matrix)
          CALL dbcsr_release(sigma_dbcsr)
-         ! Clear workspaces - saves memory? - TODO : Decide, whether 3c integrals can be stored or not
+         ! Clear workspaces - saves memory?
          CALL dbt_clear(rtbse_env%t_3c_work_RI_AO__AO)
          CALL dbt_clear(rtbse_env%t_3c_work2_RI_AO__AO)
          CALL dbt_clear(rtbse_env%sigma_dbt)
@@ -1150,8 +1137,6 @@ CONTAINS
                                  do_kpoints=.FALSE., regularization_RI=bs_env%regularization_RI)
          ! nl_2c no longer needed
          CALL release_neighbor_list_sets(nl_2c)
-         ! TODO : Spins and k-points
-         ! TODO : Better inverse without conversion?
          CALL cp_fm_create(metric_fm, bs_env%fm_RI_RI%matrix_struct)
          CALL cp_fm_set_all(metric_fm, 0.0_dp)
          CALL cp_fm_create(metric_inv_fm, bs_env%fm_RI_RI%matrix_struct)
@@ -1169,7 +1154,6 @@ CONTAINS
                             1.0_dp, metric_inv_fm, work_fm, 0.0_dp, V_fm)
          ! Now, create the tensor from the matrix
          ! First, convert full matrix to dbcsr
-         ! TODO : No k-points so far
          CALL dbcsr_clear(V_dbcsr_a(1))
          CALL copy_fm_to_dbcsr(V_fm, V_dbcsr_a(1))
          CALL dbcsr_create(v_dbcsr, "Hartree ri", V_dbcsr_a(1))
@@ -1180,7 +1164,6 @@ CONTAINS
          CALL dbcsr_release(metric_dbcsr(1))
          DEALLOCATE (V_dbcsr_a)
          DEALLOCATE (metric_dbcsr)
-         ! TODO : No k-points so far
          CALL cp_fm_release(V_fm)
          ! CALL cp_fm_release(metric_fm(1,1))
          CALL cp_fm_release(metric_fm)
@@ -1217,8 +1200,6 @@ CONTAINS
          ! No memory optimisation so far - calculate all 3cs an all ranks
          ! Importantly - dbcsr blocks are ordered by atoms - i.e. ethene with 6 atoms will have 6x6 block structure
          ! Number of basis states on each basis set is known is post_scf_bandstructure env
-         ! TODO : Only calculate integrals which are needed for a given rank, which are given by structure
-         !        of the density matrix
 
          CALL timeset(routineN, handle)
          ! Get the relevant environments
@@ -1270,7 +1251,6 @@ CONTAINS
          ! Now, each rank has contributions from D_jk within its scope
          ! Need to sum over different ranks to get the total vector on all ranks
          CALL para_env%sum(Qvector)
-         ! TODO : Maybe search for matrix_vector multiply/trace scale for the V^PQ B_Q operation
          ! Once this is done, Pvector is current on all ranks
          ! Continue with V_PQ summation
          nblocks = dbcsr_get_num_blocks(rtbse_env%v_dbcsr%matrix)
@@ -1400,7 +1380,6 @@ CONTAINS
          CALL cp_cfm_geeig(work(1)%matrix, work(2)%matrix, work(3)%matrix, eigenvalues, work(4)%matrix)
 
          ! Scale and exponentiate the eigenvalues
-         ! TODO : Check threading/vectorization
          expvalues(:) = EXP(eigenvalues(:)*eig_scale)
 
          ! Copy eigenvectors to column scale them
