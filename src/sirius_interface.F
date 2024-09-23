@@ -131,7 +131,7 @@ CONTAINS
       CHARACTER(len=default_string_length)               :: label
       INTEGER                                            :: i, iatom, ibeta, ifun, ikind, iwf, j, l, &
                                                             n, natom, nbeta, nkind, nmesh, &
-                                                            num_mag_dims, sirius_mpi_comm, vdw_func, nu, lu
+                                                            num_mag_dims, sirius_mpi_comm, vdw_func, nu, lu, output_unit
       INTEGER, DIMENSION(:), POINTER                     :: mpi_grid_dims
       INTEGER(KIND=C_INT), DIMENSION(3)                  :: k_grid, k_shift
       INTEGER, DIMENSION(:), POINTER                     :: kk
@@ -166,6 +166,7 @@ CONTAINS
 
       CPASSERT(ASSOCIATED(pwdft_env))
 
+      output_unit = cp_logger_get_default_io_unit()
       ! create context of simulation
       CALL pwdft_env_get(pwdft_env, para_env=para_env)
       sirius_mpi_comm = para_env%get_handle()
@@ -175,6 +176,8 @@ CONTAINS
 
       CALL pwdft_env_get(pwdft_env=pwdft_env, pwdft_input=pwdft_section, xc_input=xc_section)
 
+      CALL section_vals_val_get(pwdft_section, "ignore_convergence_failure", &
+                                l_val=pwdft_env%ignore_convergence_failure)
       ! cp2k should *have* a function that return all xc_functionals. Doing
       ! manually is prone to errors
 
@@ -675,21 +678,38 @@ CONTAINS
          POINTER                                         :: pwdft_env
       LOGICAL, INTENT(IN)                                :: calculate_forces, calculate_stress_tensor
 
-      INTEGER                                            :: n1, n2
-      LOGICAL                                            :: do_print
+      INTEGER                                            :: iw, n1, n2
+      LOGICAL                                            :: do_print, gs_converged
       REAL(KIND=C_DOUBLE)                                :: etotal
       REAL(KIND=C_DOUBLE), ALLOCATABLE, DIMENSION(:, :)  :: cforces
       REAL(KIND=C_DOUBLE), DIMENSION(3, 3)               :: cstress
       REAL(KIND=dp), DIMENSION(3, 3)                     :: stress
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: forces
+      TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(pwdft_energy_type), POINTER                   :: energy
       TYPE(section_vals_type), POINTER                   :: print_section, pwdft_input
       TYPE(sirius_ground_state_handler)                  :: gs_handler
 
       CPASSERT(ASSOCIATED(pwdft_env))
 
+      NULLIFY (logger)
+      logger => cp_get_default_logger()
+      iw = cp_logger_get_default_io_unit(logger)
+
       CALL pwdft_env_get(pwdft_env=pwdft_env, gs_handler=gs_handler)
-      CALL sirius_find_ground_state(gs_handler)
+      CALL sirius_find_ground_state(gs_handler, converged=gs_converged)
+
+      IF (gs_converged) THEN
+         IF (iw > 0) WRITE (iw, '(A)') "CP2K/SIRIUS: ground state is converged"
+      ELSE
+         IF (pwdft_env%ignore_convergence_failure) THEN
+            IF (iw > 0) WRITE (iw, '(A)') "CP2K/SIRIUS Warning: ground state is not converged"
+         ELSE
+            CPABORT("CP2K/SIRIUS (ground state): SIRIUS did not converge.")
+         END IF
+      END IF
+      IF (iw > 0) CALL m_flush(iw)
+
       CALL pwdft_env_get(pwdft_env=pwdft_env, energy=energy)
       etotal = 0.0_C_DOUBLE
 
@@ -736,7 +756,6 @@ CONTAINS
       IF (do_print) THEN
          CALL cp_sirius_print_results(pwdft_env, print_section)
       END IF
-
    END SUBROUTINE cp_sirius_energy_force
 
 !***************************************************************************************************
