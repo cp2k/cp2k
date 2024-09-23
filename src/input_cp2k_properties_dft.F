@@ -401,6 +401,13 @@ CONTAINS
          CALL section_add_keyword(section, keyword)
          CALL keyword_release(keyword)
 
+         CALL keyword_create(keyword, __LOCATION__, name="Z_MATRIX_METHOD", &
+                             description="Use Z_matrix method to solve the response equation", &
+                             usage="Z_MATRIX_METHOD T", &
+                             default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+         CALL section_add_keyword(section, keyword)
+         CALL keyword_release(keyword)
+
          NULLIFY (subsection)
          CALL section_create(subsection, __LOCATION__, name="PRINT", &
                              description="print results of the magnetic dipole moment calculation", &

@@ -3,10 +3,12 @@
 # e.g. 0 means do not compare anything, running is enough
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
-h2o_apt.inp             96     1e-06     -0.879586
-h2o_apt_uks.inp         96     1e-06     -0.879582
-h2o_apt_loc.inp         96     1e-06     -0.879586
-h2o_apt_pbc.inp         96     1e-06     -0.938707
-h2o_apt_pbc_loc.inp     96     1e-06     -0.938770
-h2o_aat.inp             100    1e-06     -0.857427
+h2o_apt.inp               96     1e-06     -0.879586
+h2o_apt_z-matrix.inp      96     1e-06     -0.882548
+h2o_apt_uks.inp           96     1e-06     -0.879582
+h2o_apt_uks_z-matrix.inp  96     1e-06     -0.882544
+h2o_apt_loc.inp           96     1e-06     -0.879586
+h2o_apt_pbc.inp           96     1e-06     -0.938707
+h2o_apt_pbc_loc.inp       96     1e-06     -0.938770
+h2o_aat.inp               100    1e-06     -0.857427
 #EOF

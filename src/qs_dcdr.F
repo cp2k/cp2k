@@ -60,7 +60,9 @@ MODULE qs_dcdr
                                               qs_kind_type
    USE qs_linres_methods,               ONLY: linres_solver
    USE qs_linres_types,                 ONLY: dcdr_env_type,&
-                                              linres_control_type
+                                              get_polar_env,&
+                                              linres_control_type,&
+                                              polar_env_type
    USE qs_mo_types,                     ONLY: get_mo_set,&
                                               mo_set_type
    USE qs_moments,                      ONLY: build_local_moment_matrix,&
@@ -183,7 +185,10 @@ CONTAINS
 !> \brief Build the operator for the position perturbation
 !> \param dcdr_env ...
 !> \param qs_env ...
-!> \authors SL, ED
+!> \authors Sandra Luber
+!>          Edward Ditler
+!>          Ravi Kumar
+!>          Rangsiman Ketkaew
 ! **************************************************************************************************
    SUBROUTINE dcdr_build_op_dR(dcdr_env, qs_env)
 
@@ -241,6 +246,11 @@ CONTAINS
 
          ! SL multiply by -1 for response solver (H-S<H> C + dR_coupled= - (op_dR)
          CALL cp_fm_scale(-1.0_dp, dcdr_env%op_dR(ispin))
+
+         IF (dcdr_env%z_matrix_method) THEN
+            CALL cp_fm_to_fm(dcdr_env%op_dR(ispin), dcdr_env%matrix_m_alpha(dcdr_env%beta, ispin))
+         END IF
+
       END DO
 
       CALL dbcsr_deallocate_matrix_set(opdr_sym)
@@ -357,7 +367,10 @@ CONTAINS
 !> \brief Calculate atomic polar tensor
 !> \param qs_env ...
 !> \param dcdr_env ...
-!> \author Edward Ditler
+!> \authors Sandra Luber
+!>          Edward Ditler
+!>          Ravi Kumar
+!>          Rangsiman Ketkaew
 ! **************************************************************************************************
    SUBROUTINE apt_dR(qs_env, dcdr_env)
       TYPE(qs_environment_type), POINTER                 :: qs_env
@@ -368,11 +381,14 @@ CONTAINS
       INTEGER                                            :: alpha, handle, ikind, ispin, nao, nmo
       LOGICAL                                            :: ghost
       REAL(dp)                                           :: apt_basis_derivative, &
-                                                            apt_coeff_derivative, charge, f_spin
+                                                            apt_coeff_derivative, charge, f_spin, &
+                                                            temp1, temp2
       REAL(dp), DIMENSION(:, :, :), POINTER              :: apt_el, apt_nuc
       TYPE(cp_fm_type)                                   :: overlap1_MO, tmp_fm_like_mos
+      TYPE(cp_fm_type), DIMENSION(:, :), POINTER         :: dBerry_psi0, psi1_dBerry
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(polar_env_type), POINTER                      :: polar_env
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
 
       apt_basis_derivative = 0._dp
@@ -414,20 +430,48 @@ CONTAINS
          CALL cp_fm_release(overlap1_MO)
 
          DO alpha = 1, 3
-            ! FIRST CONTRIBUTION: dCR * moments * mo
-            CALL cp_fm_set_all(tmp_fm_like_mos, 0._dp)
-            CALL dbcsr_desymmetrize(dcdr_env%matrix_s1(1)%matrix, dcdr_env%matrix_nosym_temp(1)%matrix)
-            CALL dbcsr_desymmetrize(dcdr_env%moments(alpha)%matrix, dcdr_env%matrix_nosym_temp(2)%matrix)
-            CALL dbcsr_add(dcdr_env%matrix_nosym_temp(1)%matrix, dcdr_env%matrix_nosym_temp(2)%matrix, &
-                           -dcdr_env%ref_point(alpha), 1._dp)
+            IF (.NOT. dcdr_env%z_matrix_method) THEN
 
-            CALL cp_dbcsr_sm_fm_multiply(dcdr_env%matrix_nosym_temp(1)%matrix, dcdr_env%dCR_prime(ispin), &
-                                         tmp_fm_like_mos, ncol=nmo)
-            CALL cp_fm_trace(mo_coeff, tmp_fm_like_mos, apt_coeff_derivative)
+               ! FIRST CONTRIBUTION: dCR * moments * mo
+               CALL cp_fm_set_all(tmp_fm_like_mos, 0._dp)
+               CALL dbcsr_desymmetrize(dcdr_env%matrix_s1(1)%matrix, dcdr_env%matrix_nosym_temp(1)%matrix)
+               CALL dbcsr_desymmetrize(dcdr_env%moments(alpha)%matrix, dcdr_env%matrix_nosym_temp(2)%matrix)
+               CALL dbcsr_add(dcdr_env%matrix_nosym_temp(1)%matrix, dcdr_env%matrix_nosym_temp(2)%matrix, &
+                              -dcdr_env%ref_point(alpha), 1._dp)
 
-            apt_coeff_derivative = (-2._dp)*f_spin*apt_coeff_derivative
-            apt_el(dcdr_env%beta, alpha, dcdr_env%lambda) &
-               = apt_el(dcdr_env%beta, alpha, dcdr_env%lambda) + apt_coeff_derivative
+               CALL cp_dbcsr_sm_fm_multiply(dcdr_env%matrix_nosym_temp(1)%matrix, dcdr_env%dCR_prime(ispin), &
+                                            tmp_fm_like_mos, ncol=nmo)
+               CALL cp_fm_trace(mo_coeff, tmp_fm_like_mos, apt_coeff_derivative)
+
+               apt_coeff_derivative = (-2._dp)*f_spin*apt_coeff_derivative
+               apt_el(dcdr_env%beta, alpha, dcdr_env%lambda) &
+                  = apt_el(dcdr_env%beta, alpha, dcdr_env%lambda) + apt_coeff_derivative
+            ELSE
+               CALL get_qs_env(qs_env=qs_env, polar_env=polar_env)
+               CALL get_polar_env(polar_env=polar_env, psi1_dBerry=psi1_dBerry, &
+                                  dBerry_psi0=dBerry_psi0)
+
+               ! Note that here dcdr_env%dCR_prime contains only occ-occ block contribution,
+               ! dcdr_env%dCR(ispin) is zero because we didn't run response calculation for dcdR.
+
+               CALL cp_fm_trace(dBerry_psi0(alpha, ispin), &
+                                dcdr_env%dCR_prime(ispin), &
+                                temp1)
+
+               CALL cp_fm_trace(dcdr_env%matrix_m_alpha(dcdr_env%beta, ispin), &
+                                psi1_dBerry(alpha, ispin), &
+                                temp2)
+
+               apt_coeff_derivative = temp1 - temp2
+
+               ! !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+               !  - apt_coeff_derivative , here the trace is negative to compensate the
+               !                          -ve sign in APTs= - 2 Z. M_alpha
+
+               apt_coeff_derivative = (-2._dp)*f_spin*apt_coeff_derivative
+               apt_el(dcdr_env%beta, alpha, dcdr_env%lambda) &
+                  = apt_el(dcdr_env%beta, alpha, dcdr_env%lambda) + apt_coeff_derivative
+            END IF
 
             ! SECOND CONTRIBUTION: We assemble all combinations of r_i, d(chi)/d(idir)
             ! difdip contains derivatives with respect to atom dcdr_env%lambda
@@ -442,6 +486,7 @@ CONTAINS
             apt_basis_derivative = -f_spin*apt_basis_derivative
             apt_el(dcdr_env%beta, alpha, dcdr_env%lambda) = &
                apt_el(dcdr_env%beta, alpha, dcdr_env%lambda) + apt_basis_derivative
+
          END DO ! alpha
 
          CALL cp_fm_release(tmp_fm_like_mos)
@@ -466,7 +511,9 @@ CONTAINS
 !> \brief Calculate atomic polar tensor using the localized dipole operator
 !> \param qs_env ...
 !> \param dcdr_env ...
-!> \author Edward Ditler
+!> \authors Edward Ditler
+!>          Ravi Kumar
+!>          Rangsiman Ketkaew
 ! **************************************************************************************************
    SUBROUTINE apt_dR_localization(qs_env, dcdr_env)
       TYPE(qs_environment_type), POINTER                 :: qs_env
@@ -485,16 +532,19 @@ CONTAINS
                                                             apt_coeff_derivative, charge, f_spin, &
                                                             smallest_r, this_factor, tmp_aptcontr, &
                                                             tmp_r
-      REAL(dp), ALLOCATABLE, DIMENSION(:)                :: diagonal_elements
+      REAL(dp), ALLOCATABLE, DIMENSION(:)                :: diagonal_elements, diagonal_elements2
       REAL(dp), DIMENSION(3)                             :: distance, r_shifted
       REAL(dp), DIMENSION(:, :, :), POINTER              :: apt_el, apt_nuc
       REAL(dp), DIMENSION(:, :, :, :), POINTER           :: apt_center, apt_subset
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_2d_r_p_type), DIMENSION(:), POINTER        :: centers_set
+      TYPE(cp_fm_type), DIMENSION(:, :), POINTER         :: dBerry_psi0, psi1_dBerry
       TYPE(cp_fm_type), POINTER                          :: mo_coeff, overlap1_MO, tmp_fm, &
-                                                            tmp_fm_like_mos, tmp_fm_momo
+                                                            tmp_fm_like_mos, tmp_fm_momo, &
+                                                            tmp_fm_momo2
       TYPE(molecule_type), DIMENSION(:), POINTER         :: molecule_set
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(polar_env_type), POINTER                      :: polar_env
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
 
       CALL timeset(routineN, handle)
@@ -581,30 +631,53 @@ CONTAINS
          CALL cp_fm_release(overlap1_MO)
 
          ALLOCATE (diagonal_elements(nmo))
+         ALLOCATE (diagonal_elements2(nmo))
 
          ! Allocate temporary matrices
          ALLOCATE (tmp_fm)
          ALLOCATE (tmp_fm_momo)
+         ALLOCATE (tmp_fm_momo2)
          CALL cp_fm_create(tmp_fm, dcdr_env%likemos_fm_struct(ispin)%struct)
          CALL cp_fm_create(tmp_fm_momo, dcdr_env%momo_fm_struct(ispin)%struct)
+         CALL cp_fm_create(tmp_fm_momo2, dcdr_env%momo_fm_struct(ispin)%struct)
 
          ! FIRST CONTRIBUTION: dCR * moments * mo
          this_factor = -2._dp*f_spin
          DO alpha = 1, 3
-            DO icenter = 1, dcdr_env%nbr_center(ispin)
-               CALL dbcsr_set(dcdr_env%moments(alpha)%matrix, 0.0_dp)
-               CALL build_local_moment_matrix(qs_env, dcdr_env%moments, 1, &
-                                              ref_point=centers_set(ispin)%array(1:3, icenter))
-               CALL multiply_localization(ao_matrix=dcdr_env%moments(alpha)%matrix, &
-                                          mo_coeff=dcdr_env%dCR_prime(ispin), work=tmp_fm, nmo=nmo, &
-                                          icenter=icenter, &
-                                          res=tmp_fm_like_mos)
-            END DO
+            IF (.NOT. dcdr_env%z_matrix_method) THEN
 
-            CALL parallel_gemm("T", "N", nmo, nmo, nao, &
-                               1.0_dp, mo_coeff, tmp_fm_like_mos, &
-                               0.0_dp, tmp_fm_momo)
-            CALL cp_fm_get_diag(tmp_fm_momo, diagonal_elements)
+               DO icenter = 1, dcdr_env%nbr_center(ispin)
+                  CALL dbcsr_set(dcdr_env%moments(alpha)%matrix, 0.0_dp)
+                  CALL build_local_moment_matrix(qs_env, dcdr_env%moments, 1, &
+                                                 ref_point=centers_set(ispin)%array(1:3, icenter))
+                  CALL multiply_localization(ao_matrix=dcdr_env%moments(alpha)%matrix, &
+                                             mo_coeff=dcdr_env%dCR_prime(ispin), work=tmp_fm, nmo=nmo, &
+                                             icenter=icenter, &
+                                             res=tmp_fm_like_mos)
+               END DO
+
+               CALL parallel_gemm("T", "N", nmo, nmo, nao, &
+                                  1.0_dp, mo_coeff, tmp_fm_like_mos, &
+                                  0.0_dp, tmp_fm_momo)
+               CALL cp_fm_get_diag(tmp_fm_momo, diagonal_elements)
+
+            ELSE
+               CALL get_qs_env(qs_env=qs_env, polar_env=polar_env)
+               CALL get_polar_env(polar_env=polar_env, psi1_dBerry=psi1_dBerry, &
+                                  dBerry_psi0=dBerry_psi0)
+
+               CALL parallel_gemm("T", "N", nmo, nmo, nao, &
+                                  1.0_dp, dcdr_env%dCR_prime(ispin), dBerry_psi0(alpha, ispin), &
+                                  0.0_dp, tmp_fm_momo)
+               CALL cp_fm_get_diag(tmp_fm_momo, diagonal_elements)
+
+               CALL parallel_gemm("T", "N", nmo, nmo, nao, &
+                                  1.0_dp, dcdr_env%matrix_m_alpha(dcdr_env%beta, ispin), &
+                                  psi1_dBerry(alpha, ispin), 0.0_dp, tmp_fm_momo2)
+               CALL cp_fm_get_diag(tmp_fm_momo2, diagonal_elements2)
+
+               diagonal_elements(:) = diagonal_elements(:) - diagonal_elements2(:)
+            END IF
 
             DO icenter = 1, dcdr_env%nbr_center(ispin)
                map_atom = mapping_wannier_atom(icenter, ispin)
@@ -667,14 +740,17 @@ CONTAINS
 
          END DO  ! alpha
          DEALLOCATE (diagonal_elements)
+         DEALLOCATE (diagonal_elements2)
 
          CALL cp_fm_release(tmp_fm)
          CALL cp_fm_release(tmp_fm_like_mos)
          CALL cp_fm_release(tmp_fm_momo)
+         CALL cp_fm_release(tmp_fm_momo2)
          DEALLOCATE (overlap1_MO)
          DEALLOCATE (tmp_fm)
          DEALLOCATE (tmp_fm_like_mos)
          DEALLOCATE (tmp_fm_momo)
+         DEALLOCATE (tmp_fm_momo2)
       END DO !ispin
 
       ! Finally the nuclear contribution: nuclear charge * Kronecker_delta_{dcdr_env%beta,i}
@@ -695,3 +771,4 @@ CONTAINS
    END SUBROUTINE apt_dR_localization
 
 END MODULE qs_dcdr
+
