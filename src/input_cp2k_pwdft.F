@@ -72,6 +72,7 @@ CONTAINS
    SUBROUTINE create_pwdft_section(section)
       TYPE(section_type), POINTER                        :: section
 
+      TYPE(keyword_type), POINTER                        :: keyword
       TYPE(section_type), POINTER                        :: subsection
 
 !     ------------------------------------------------------------------------
@@ -85,6 +86,18 @@ CONTAINS
                           "pseudo-potentials and full-potentials, spin-orbit coupling, collinear and "// &
                           "non collinear magnetism, Hubbard correction, all exchange functionals "// &
                           "supported by libxc and Van der Waals corrections (libvdwxc).")
+
+      NULLIFY (keyword)
+      CALL keyword_create(keyword, __LOCATION__, &
+                          name='ignore_convergence_failure', &
+                          description="when set to true, calculation will continue irrespectively "// &
+                          "of the convergence status of SIRIUS", &
+                          type_of_var=logical_t, &
+                          repeats=.FALSE., &
+                          default_l_val=.FALSE., &
+                          lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
 
       NULLIFY (subsection)
       CALL create_sirius_section(subsection, 'control')
