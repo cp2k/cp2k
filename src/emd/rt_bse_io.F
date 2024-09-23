@@ -37,8 +37,8 @@ MODULE rt_bse_io
                                  medium_print_level
    USE input_section_types, ONLY: section_vals_type
    USE rt_bse_types, ONLY: rtbse_env_type, &
-                             multiply_cfm_fm, &
-                             multiply_fm_cfm
+                           multiply_cfm_fm, &
+                           multiply_fm_cfm
    USE cp_files, ONLY: open_file, &
                        file_exists, &
                        close_file
@@ -84,40 +84,40 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE print_rtbse_header_info(rtbse_env)
       TYPE(rtbse_env_type)                               :: rtbse_env
-      CHARACTER(len=*), PARAMETER                        :: routineN="print_rtbse_header"
+      CHARACTER(len=*), PARAMETER                        :: routineN = "print_rtbse_header"
 
       WRITE (rtbse_env%unit_nr, *) ''
-      WRITE (rtbse_env%unit_nr,'(A)') ' /-----------------------------------------------'// &
-              '------------------------------\'
-      WRITE (rtbse_env%unit_nr,'(A)') ' |                                               '// &
-              '                              |'
-      WRITE (rtbse_env%unit_nr,'(A)') ' |                    Real Time Bethe-Salpeter Propagation'// &
-              '                     |'
-      WRITE (rtbse_env%unit_nr,'(A)') ' |                                               '// &
-              '                              |'
-      WRITE (rtbse_env%unit_nr,'(A)') ' \-----------------------------------------------'// &
-              '------------------------------/'
+      WRITE (rtbse_env%unit_nr, '(A)') ' /-----------------------------------------------'// &
+         '------------------------------\'
+      WRITE (rtbse_env%unit_nr, '(A)') ' |                                               '// &
+         '                              |'
+      WRITE (rtbse_env%unit_nr, '(A)') ' |                    Real Time Bethe-Salpeter Propagation'// &
+         '                     |'
+      WRITE (rtbse_env%unit_nr, '(A)') ' |                                               '// &
+         '                              |'
+      WRITE (rtbse_env%unit_nr, '(A)') ' \-----------------------------------------------'// &
+         '------------------------------/'
       WRITE (rtbse_env%unit_nr, *) ''
 
       ! Methods used
       WRITE (rtbse_env%unit_nr, '(A19)', advance="no") ' Exponential method'
       SELECT CASE (rtbse_env%mat_exp_method)
-         CASE (do_bch)
-            WRITE (rtbse_env%unit_nr, '(A61)') 'BCH'
-         CASE (do_exact)
-            WRITE (rtbse_env%unit_nr, '(A61)') 'EXACT'
+      CASE (do_bch)
+         WRITE (rtbse_env%unit_nr, '(A61)') 'BCH'
+      CASE (do_exact)
+         WRITE (rtbse_env%unit_nr, '(A61)') 'EXACT'
       END SELECT
 
       WRITE (rtbse_env%unit_nr, '(A22)', advance="no") ' Reference Hamiltonian'
       SELECT CASE (rtbse_env%ham_reference_type)
-         CASE (rtp_bse_ham_g0w0)
-            WRITE (rtbse_env%unit_nr, '(A58)') 'G0W0'
-         CASE (rtp_bse_ham_ks)
-            WRITE (rtbse_env%unit_nr, '(A58)') 'Kohn-Sham'
+      CASE (rtp_bse_ham_g0w0)
+         WRITE (rtbse_env%unit_nr, '(A58)') 'G0W0'
+      CASE (rtp_bse_ham_ks)
+         WRITE (rtbse_env%unit_nr, '(A58)') 'Kohn-Sham'
       END SELECT
 
       WRITE (rtbse_env%unit_nr, '(A18,L62)') ' Apply delta pulse', &
-             rtbse_env%dft_control%rtp_control%apply_delta_pulse
+         rtbse_env%dft_control%rtp_control%apply_delta_pulse
 
       WRITE (rtbse_env%unit_nr, '(A)') ''
 
@@ -131,7 +131,7 @@ CONTAINS
       TYPE(rtbse_env_type)                               :: rtbse_env
       INTEGER                                            :: step
       REAL(kind=dp)                                      :: metric
-      CHARACTER(len=*), PARAMETER                        :: routineN="print_etrs_info"
+      CHARACTER(len=*), PARAMETER                        :: routineN = "print_etrs_info"
       TYPE(cp_logger_type), POINTER                      :: logger
 
       logger => cp_get_default_logger()
@@ -139,7 +139,7 @@ CONTAINS
       IF (logger%iter_info%print_level > medium_print_level .AND. rtbse_env%unit_nr > 0) THEN
          WRITE (rtbse_env%unit_nr, '(A7,I5, E20.8E3)') ' RTBSE|', step, metric
       END IF
-      
+
    END SUBROUTINE
 ! **************************************************************************************************
 !> \brief Writes the header for the etrs iteration updates - only for log level > medium
@@ -147,7 +147,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE print_etrs_info_header(rtbse_env)
       TYPE(rtbse_env_type)                               :: rtbse_env
-      CHARACTER(len=*), PARAMETER                        :: routineN="print_etrs_info_header"
+      CHARACTER(len=*), PARAMETER                        :: routineN = "print_etrs_info_header"
       TYPE(cp_logger_type), POINTER                      :: logger
 
       logger => cp_get_default_logger()
@@ -155,7 +155,7 @@ CONTAINS
       IF (logger%iter_info%print_level > medium_print_level .AND. rtbse_env%unit_nr > 0) THEN
          WRITE (rtbse_env%unit_nr, '(A13, A20)') ' RTBSE| Iter.', 'Convergence'
       END IF
-      
+
    END SUBROUTINE
 ! **************************************************************************************************
 !> \brief Writes the header for the etrs iteration updates - only for log level > medium
@@ -167,18 +167,18 @@ CONTAINS
       REAL(kind=dp)                                      :: convergence
       REAL(kind=dp)                                      :: electron_num_re
       INTEGER                                            :: etrs_num
-      CHARACTER(len=*), PARAMETER                        :: routineN="print_timestep_info"
+      CHARACTER(len=*), PARAMETER                        :: routineN = "print_timestep_info"
       TYPE(cp_logger_type), POINTER                      :: logger
 
       logger => cp_get_default_logger()
 
       IF (logger%iter_info%print_level > low_print_level .AND. rtbse_env%unit_nr > 0) THEN
          WRITE (rtbse_env%unit_nr, '(A23,A20,A20,A17)') " RTBSE| Simulation step", "Convergence", &
-                "Electron number", "ETRS Iterations"
+            "Electron number", "ETRS Iterations"
          WRITE (rtbse_env%unit_nr, '(A7,I16,E20.8E3,E20.8E3,I17)') ' RTBSE|', step, convergence, &
-                electron_num_re, etrs_num
+            electron_num_re, etrs_num
       END IF
-      
+
    END SUBROUTINE
 
 ! **************************************************************************************************
@@ -297,7 +297,7 @@ CONTAINS
       ! Write the output to memory for FT
       ! Need the absolute index
       n = rtbse_env%sim_step - rtbse_env%sim_start_orig + 1
-      DO i=1, 3
+      DO i = 1, 3
          rtbse_env%field_trace(i)%series(n) = rtbse_env%field(i)
       END DO
       rtbse_env%time_trace%series(n) = rtbse_env%sim_time
@@ -323,12 +323,12 @@ CONTAINS
       IF (file_exists(save_name)) THEN
          CALL open_file(save_name, file_status="OLD", file_form="FORMATTED", file_action="READ", &
                         unit_number=field_unit)
-         DO k=rtbse_env%sim_start_orig,rtbse_env%sim_start
+         DO k = rtbse_env%sim_start_orig, rtbse_env%sim_start
             n = k - rtbse_env%sim_start_orig + 1
             READ (field_unit, '(E20.8E3,E20.8E3,E20.8E3,E20.8E3)') rtbse_env%time_trace%series(n), &
                rtbse_env%field_trace(1)%series(n), rtbse_env%field_trace(2)%series(n), rtbse_env%field_trace(3)%series(n)
             ! Set the time units back to atomic units
-            rtbse_env%time_trace%series(n) = rtbse_env%time_trace%series(n) / femtoseconds
+            rtbse_env%time_trace%series(n) = rtbse_env%time_trace%series(n)/femtoseconds
          END DO
          CALL close_file(field_unit)
       ELSE IF (.NOT. rtbse_env%dft_control%rtp_control%apply_delta_pulse .AND. &
@@ -488,7 +488,7 @@ CONTAINS
          READ (rho_unit_nr) rtbse_env%sim_start
          CALL close_file(rho_unit_nr)
          IF (rtbse_env%unit_nr > 0) WRITE (rtbse_env%unit_nr, '(A31,I25,A24)') " RTBSE| Starting from timestep ", &
-                 rtbse_env%sim_start, ", delta kick NOT applied"
+            rtbse_env%sim_start, ", delta kick NOT applied"
       ELSE
          CPWARN("Restart required but no info file found - starting from sim_step given in input")
       END IF
@@ -499,11 +499,11 @@ CONTAINS
       file_labels(3) = "_SPIN_B_RE.matrix"
       file_labels(4) = "_SPIN_B_IM.matrix"
       DO j = 1, rtbse_env%n_spin
-       save_name = cp_print_key_generate_filename(logger, rtbse_env%restart_section, &
-               extension=file_labels(2*j - 1), my_local=.FALSE.)
-       save_name_2 = cp_print_key_generate_filename(logger, rtbse_env%restart_section, &
-               extension=file_labels(2*j), my_local=.FALSE.)
-       IF (file_exists(save_name) .AND. file_exists(save_name_2)) THEN
+         save_name = cp_print_key_generate_filename(logger, rtbse_env%restart_section, &
+                                                    extension=file_labels(2*j - 1), my_local=.FALSE.)
+         save_name_2 = cp_print_key_generate_filename(logger, rtbse_env%restart_section, &
+                                                      extension=file_labels(2*j), my_local=.FALSE.)
+         IF (file_exists(save_name) .AND. file_exists(save_name_2)) THEN
             CALL open_file(save_name, file_status="OLD", file_form="UNFORMATTED", file_action="READ", &
                            unit_number=rho_unit_nr)
             CALL cp_fm_read_unformatted(rtbse_env%real_workspace(1)%matrix, rho_unit_nr)
@@ -543,30 +543,30 @@ CONTAINS
       file_labels(2) = "_SPIN_A_IM.dat"
       file_labels(3) = "_SPIN_B_RE.dat"
       file_labels(4) = "_SPIN_B_IM.dat"
-      DO j=1,rtbse_env%n_spin
+      DO j = 1, rtbse_env%n_spin
          save_name = cp_print_key_generate_filename(logger, rtbse_env%moments_section, &
-                 extension=file_labels(2*j - 1), my_local=.FALSE.)
+                                                    extension=file_labels(2*j - 1), my_local=.FALSE.)
          save_name_2 = cp_print_key_generate_filename(logger, rtbse_env%moments_section, &
-                 extension=file_labels(2*j), my_local=.FALSE.)
+                                                      extension=file_labels(2*j), my_local=.FALSE.)
          IF (file_exists(save_name) .AND. file_exists(save_name_2)) THEN
             CALL open_file(save_name, file_status="OLD", file_form="FORMATTED", file_action="READ", &
                            unit_number=moments_unit_re)
             CALL open_file(save_name_2, file_status="OLD", file_form="FORMATTED", file_action="READ", &
                            unit_number=moments_unit_im)
             ! Extra time step for the initial one
-            DO k=rtbse_env%sim_start_orig,rtbse_env%sim_start
+            DO k = rtbse_env%sim_start_orig, rtbse_env%sim_start
                ! Determine the absolute time step - offset in memory
                n = k - rtbse_env%sim_start_orig + 1
                READ (moments_unit_re, '(E20.8E3,E20.8E3,E20.8E3,E20.8E3)') timestamp, &
-                     moments_re(1), moments_re(2), moments_re(3)
+                  moments_re(1), moments_re(2), moments_re(3)
                READ (moments_unit_im, '(E20.8E3,E20.8E3,E20.8E3,E20.8E3)') timestamp, &
-                     moments_im(1), moments_im(2), moments_im(3)
+                  moments_im(1), moments_im(2), moments_im(3)
                DO i = 1, 3
-                  rtbse_env%moments_trace(i)%series(n) =CMPLX(moments_re(i), moments_im(i), kind=dp)
+                  rtbse_env%moments_trace(i)%series(n) = CMPLX(moments_re(i), moments_im(i), kind=dp)
                END DO
             END DO
             ! Change back to atomic units in the trace
-            rtbse_env%time_trace%series(:) = rtbse_env%time_trace%series(:) / femtoseconds
+            rtbse_env%time_trace%series(:) = rtbse_env%time_trace%series(:)/femtoseconds
             CALL close_file(moments_unit_re)
             CALL close_file(moments_unit_im)
          ELSE IF (rtbse_env%dft_control%rtp_control%initial_wfn == use_rt_restart) THEN
@@ -588,12 +588,12 @@ CONTAINS
                                                             value_series
       ! Stores the data in ready for output format
       !  - first dimension is 6 - 1 - real part along x, 2 - imag part along x, 3 - real part along y, ...
-      REAL(kind=dp), DIMENSION(:,:), ALLOCATABLE         :: ft_full_series
+      REAL(kind=dp), DIMENSION(:, :), ALLOCATABLE         :: ft_full_series
       INTEGER                                            :: i, n, ft_unit
 
       logger => cp_get_default_logger()
 
-      n = rtbse_env%sim_nsteps+2
+      n = rtbse_env%sim_nsteps + 2
       NULLIFY (omega_series)
       ALLOCATE (omega_series(n), source=0.0_dp)
       NULLIFY (ft_real_series)
@@ -602,20 +602,20 @@ CONTAINS
       ALLOCATE (ft_imag_series(n), source=0.0_dp)
       NULLIFY (value_series)
       ALLOCATE (value_series(n), source=0.0_dp)
-      ALLOCATE (ft_full_series(6,n))
+      ALLOCATE (ft_full_series(6, n))
       ! Carry out for each direction independently and real and imaginary parts also independently
       DO i = 1, 3
-         ! Real part of the value first 
+         ! Real part of the value first
          value_series(:) = REAL(rtbse_env%moments_trace(i)%series(:))
          CALL ft_simple(rtbse_env%time_trace%series, value_series, omega_series, ft_real_series, ft_imag_series, &
-                 rtbse_env%ft_damping, rtbse_env%ft_start)
-         ft_full_series(2*i-1, :) = ft_real_series(:)
+                        rtbse_env%ft_damping, rtbse_env%ft_start)
+         ft_full_series(2*i - 1, :) = ft_real_series(:)
          ft_full_series(2*i, :) = ft_imag_series(:)
          ! Now imaginary part
          value_series(:) = AIMAG(rtbse_env%moments_trace(i)%series(:))
          CALL ft_simple(rtbse_env%time_trace%series, value_series, omega_series, ft_real_series, ft_imag_series, &
-                 rtbse_env%ft_damping, rtbse_env%ft_start)
-         ft_full_series(2*i-1, :) = ft_full_series(2*i-1,:) - ft_imag_series
+                        rtbse_env%ft_damping, rtbse_env%ft_start)
+         ft_full_series(2*i - 1, :) = ft_full_series(2*i - 1, :) - ft_imag_series
          ft_full_series(2*i, :) = ft_full_series(2*i, :) + ft_real_series
       END DO
       DEALLOCATE (ft_real_series)
@@ -623,13 +623,13 @@ CONTAINS
       DEALLOCATE (value_series)
       ! Now, write these to file
       ft_unit = cp_print_key_unit_nr(logger, rtbse_env%ft_section, extension=".dat", &
-                                         file_form="FORMATTED", file_position="REWIND")
+                                     file_form="FORMATTED", file_position="REWIND")
       IF (ft_unit > 0) THEN
-         DO i=1, n
+         DO i = 1, n
             WRITE (ft_unit, '(E20.8E3,E20.8E3,E20.8E3,E20.8E3,E20.8E3,E20.8E3,E20.8E3)') &
-                    omega_series(i), ft_full_series(1,i), ft_full_series(2,i), &
-                    ft_full_series(3,i), ft_full_series(4,i), &
-                    ft_full_series(5,i), ft_full_series(6,i)
+               omega_series(i), ft_full_series(1, i), ft_full_series(2, i), &
+               ft_full_series(3, i), ft_full_series(4, i), &
+               ft_full_series(5, i), ft_full_series(6, i)
          END DO
       END IF
       CALL cp_print_key_finished_output(ft_unit, logger, rtbse_env%ft_section)
@@ -658,7 +658,7 @@ CONTAINS
 
       logger => cp_get_default_logger()
 
-      n = rtbse_env%sim_nsteps+2
+      n = rtbse_env%sim_nsteps + 2
       ! All allocations together, although could save some memory, if required by consequent deallocations
       NULLIFY (omega_series)
       ALLOCATE (omega_series(n), source=0.0_dp)
@@ -676,12 +676,12 @@ CONTAINS
       ! Real part
       value_series(:) = REAL(rtbse_env%moments_trace(rtbse_env%pol_element(1))%series(:))
       CALL ft_simple(rtbse_env%time_trace%series, value_series, omega_series, ft_real_series, ft_imag_series, &
-                   rtbse_env%ft_damping, rtbse_env%ft_start)
+                     rtbse_env%ft_damping, rtbse_env%ft_start)
       moment_series(:) = CMPLX(ft_real_series(:), ft_imag_series(:), kind=dp)
       ! Imaginary part
       value_series(:) = AIMAG(rtbse_env%moments_trace(rtbse_env%pol_element(1))%series(:))
       CALL ft_simple(rtbse_env%time_trace%series, value_series, omega_series, ft_real_series, ft_imag_series, &
-                   rtbse_env%ft_damping, rtbse_env%ft_start)
+                     rtbse_env%ft_damping, rtbse_env%ft_start)
       moment_series(:) = moment_series(:) + CMPLX(-ft_imag_series(:), ft_real_series(:), kind=dp)
 
       ! Calculate the field transform - store it in ft_real_series
@@ -693,16 +693,16 @@ CONTAINS
          ! The field FT is not damped - assume field is localised in time
          ! The field is strictly real
          CALL ft_simple(rtbse_env%time_trace%series, rtbse_env%field_trace(rtbse_env%pol_element(2))%series, &
-                 omega_series, ft_real_series, ft_imag_series, 0.0_dp, rtbse_env%ft_start)
+                        omega_series, ft_real_series, ft_imag_series, 0.0_dp, rtbse_env%ft_start)
          field_series(:) = CMPLX(ft_real_series(:), ft_imag_series(:), kind=dp)
       END IF
       ! Divide to get the polarizability series
       ! Real part
-      polarizability_series(:) = moment_series(:) / field_series(:)
+      polarizability_series(:) = moment_series(:)/field_series(:)
 
       ! Change units to eV for energy
       ! use value_series for energy and moment_series for polarizability
-      value_series(:) = omega_series(:) * evolt
+      value_series(:) = omega_series(:)*evolt
       ! Use below for printing of field FT in case of problems
       ! PRINT *, "=== Field FT"
       ! DO i=1,n
@@ -711,21 +711,21 @@ CONTAINS
       ! PRINT *, "=== Field FT"
       ! Print out the polarizability to a file
       pol_unit = cp_print_key_unit_nr(logger, rtbse_env%pol_section, extension=".dat", &
-                                         file_form="FORMATTED", file_position="REWIND")
+                                      file_form="FORMATTED", file_position="REWIND")
       IF (pol_unit > 0) THEN
          IF (pol_unit == rtbse_env%unit_nr) THEN
             WRITE (pol_unit, '(A16,A20,A22,A22)') &
                " POLARIZABILITY|", "Energy [eV]", "Real polarizability", "Imag polarizability"
-            DO i=1, n
+            DO i = 1, n
                WRITE (pol_unit, '(A16,E20.8E3,E22.8E3,E22.8E3)') &
-                       " POLARIZABILITY|", value_series(i), REAL(polarizability_series(i)), AIMAG(polarizability_series(i))
+                  " POLARIZABILITY|", value_series(i), REAL(polarizability_series(i)), AIMAG(polarizability_series(i))
             END DO
          ELSE
             WRITE (pol_unit, '(A1,A19,A20,A20,A20)') &
                "#", "omega [a.u.]", "Energy [eV]", "Real polarizability", "Imag polarizability"
-            DO i=1, n
+            DO i = 1, n
                WRITE (pol_unit, '(E20.8E3,E20.8E3,E20.8E3,E20.8E3)') &
-                       omega_series(i), value_series(i), REAL(polarizability_series(i)), AIMAG(polarizability_series(i))
+                  omega_series(i), value_series(i), REAL(polarizability_series(i)), AIMAG(polarizability_series(i))
             END DO
             CALL cp_print_key_finished_output(pol_unit, logger, rtbse_env%ft_section)
          END IF
@@ -757,7 +757,7 @@ CONTAINS
 ! **************************************************************************************************
    ! So far only for defined one dimensional series
    SUBROUTINE ft_simple(time_series, value_series, omega_series, result_series, iresult_series, &
-                   damping_opt, t0_opt)
+                        damping_opt, t0_opt)
       REAL(kind=dp), DIMENSION(:), POINTER               :: time_series
       REAL(kind=dp), DIMENSION(:), POINTER               :: value_series
       REAL(kind=dp), DIMENSION(:), POINTER               :: omega_series
@@ -765,7 +765,7 @@ CONTAINS
       REAL(kind=dp), DIMENSION(:), POINTER               :: iresult_series
       REAL(kind=dp), OPTIONAL                            :: damping_opt
       REAL(kind=dp), OPTIONAL                            :: t0_opt
-      CHARACTER(len=*), PARAMETER                        :: routineN="ft_simple"
+      CHARACTER(len=*), PARAMETER                        :: routineN = "ft_simple"
       INTEGER                                            :: N, i, j, t0_i, j_wrap
       REAL(kind=dp)                                      :: t0, delta_t, delta_omega, damping
 
@@ -775,7 +775,7 @@ CONTAINS
       IF (PRESENT(t0_opt)) THEN
          ! Determine the index at which we start applying the damping
          ! Also the index around which we fold around
-         DO i=1,N
+         DO i = 1, N
             ! Increase until we break or reach the end of the time series
             t0_i = i
             IF (time_series(i) >= t0_opt) THEN
@@ -787,7 +787,7 @@ CONTAINS
       t0 = time_series(t0_i)
 
       ! Default damping so that at the end of the time series, divide value by e^-4
-      damping = 4.0_dp / (time_series(N) - time_series(t0_i))
+      damping = 4.0_dp/(time_series(N) - time_series(t0_i))
       IF (PRESENT(damping_opt)) THEN
          IF (damping_opt >= 0.0_dp) damping = damping_opt
       END IF
@@ -795,22 +795,22 @@ CONTAINS
       ! Construct the grid
       ! Assume series equidistant
       delta_t = time_series(2) - time_series(1)
-      delta_omega = twopi / (time_series(N) - time_series(1))
+      delta_omega = twopi/(time_series(N) - time_series(1))
       DO i = 1, N
          result_series(i) = 0.0_dp
          iresult_series(i) = 0.0_dp
-         omega_series(i) = delta_omega * (i-1)
+         omega_series(i) = delta_omega*(i - 1)
          DO j = 1, N
             j_wrap = MODULO(j + t0_i - 2, N) + 1
-            result_series(i) = result_series(i) + COS(twopi * (i-1) * (j-1)/ N) * &
-                    EXP(- damping * delta_t * (j-1)) * value_series(j_wrap)
-            iresult_series(i) = iresult_series(i) + SIN(twopi * (i-1) * (j-1)/ N) * &
-                    EXP(- damping * delta_t * (j-1)) * value_series(j_wrap)
+            result_series(i) = result_series(i) + COS(twopi*(i - 1)*(j - 1)/N)* &
+                               EXP(-damping*delta_t*(j - 1))*value_series(j_wrap)
+            iresult_series(i) = iresult_series(i) + SIN(twopi*(i - 1)*(j - 1)/N)* &
+                                EXP(-damping*delta_t*(j - 1))*value_series(j_wrap)
          END DO
       END DO
-      delta_omega = twopi / (time_series(N) - time_series(1))
-      result_series(:) = delta_t * result_series(:)
-      iresult_series(:) = delta_t * iresult_series(:)
+      delta_omega = twopi/(time_series(N) - time_series(1))
+      result_series(:) = delta_t*result_series(:)
+      iresult_series(:) = delta_t*iresult_series(:)
 
    END SUBROUTINE
 END MODULE rt_bse_io

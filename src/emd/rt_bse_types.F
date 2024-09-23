@@ -117,10 +117,10 @@ MODULE rt_bse_types
 
    ! Created so that we can have an array of pointers to arrays
    TYPE series_real_type
-      REAL(kind=dp), DIMENSION(:), POINTER                      :: series 
+      REAL(kind=dp), DIMENSION(:), POINTER                      :: series
    END TYPE series_real_type
    TYPE series_complex_type
-      COMPLEX(kind=dp), DIMENSION(:), POINTER                   :: series 
+      COMPLEX(kind=dp), DIMENSION(:), POINTER                   :: series
    END TYPE series_complex_type
 
 ! **************************************************************************************************
@@ -191,7 +191,7 @@ MODULE rt_bse_types
                                                                    moments_field
       INTEGER                                                   :: sim_step, &
                                                                    sim_start, &
-      ! Needed for continuation runs for loading of previous moments trace
+                                                                   ! Needed for continuation runs for loading of previous moments trace
                                                                    sim_start_orig, &
                                                                    sim_nsteps
       REAL(kind=dp)                                             :: sim_time, &
@@ -261,7 +261,6 @@ MODULE rt_bse_types
       REAL(kind=dp), DIMENSION(:, :, :), POINTER                  :: int_3c_array
 
    END TYPE rtbse_env_type
-
 
 CONTAINS
 
@@ -347,7 +346,7 @@ CONTAINS
       IF (SIZE(pol_tmp) < 2) CPABORT("Less than two elements provided for polarizability")
       rtbse_env%pol_element(:) = pol_tmp(:)
       ! Do basic sanity checks for pol_element
-      DO k=1,2
+      DO k = 1, 2
          IF (rtbse_env%pol_element(k) > 3 .OR. rtbse_env%pol_element(k) < 1) &
             CPABORT("Polarisation tensor element not 1,2 or 3 in at least one index")
       END DO
@@ -468,12 +467,12 @@ CONTAINS
       ! Workspace for FT - includes (in principle) the zeroth step and the extra last step
       DO i = 1, 3
          NULLIFY (rtbse_env%moments_trace(i)%series)
-         ALLOCATE (rtbse_env%moments_trace(i)%series(rtbse_env%sim_nsteps+2), source=z_zero)
+         ALLOCATE (rtbse_env%moments_trace(i)%series(rtbse_env%sim_nsteps + 2), source=z_zero)
          NULLIFY (rtbse_env%field_trace(i)%series)
-         ALLOCATE (rtbse_env%field_trace(i)%series(rtbse_env%sim_nsteps+2), source=0.0_dp)
+         ALLOCATE (rtbse_env%field_trace(i)%series(rtbse_env%sim_nsteps + 2), source=0.0_dp)
       END DO
       NULLIFY (rtbse_env%time_trace%series)
-      ALLOCATE (rtbse_env%time_trace%series(rtbse_env%sim_nsteps+2), source=0.0_dp)
+      ALLOCATE (rtbse_env%time_trace%series(rtbse_env%sim_nsteps + 2), source=0.0_dp)
 
       ! Allocate self-energy parts and dynamic Hartree potential
       ALLOCATE (rtbse_env%hartree_curr(rtbse_env%n_spin))

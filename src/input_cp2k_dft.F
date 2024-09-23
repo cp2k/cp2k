@@ -45,13 +45,12 @@ MODULE input_cp2k_dft
         plus_u_mulliken, plus_u_mulliken_charges, real_time_propagation, rel_dkh, rel_none, &
         rel_pot_erfc, rel_pot_full, rel_sczora_mp, rel_trans_atom, rel_trans_full, &
         rel_trans_molecule, rel_zora, rel_zora_full, rel_zora_mp, rtp_bse_ham_g0w0, &
-        rtp_bse_ham_ks, rtp_method_bse, &
-        rtp_method_tddft, sccs_andreussi, sccs_derivative_cd3, sccs_derivative_cd5, &
-        sccs_derivative_cd7, sccs_derivative_fft, sccs_fattebert_gygi, sic_ad, sic_eo, &
-        sic_list_all, sic_list_unpaired, sic_mauri_spz, sic_mauri_us, sic_none, slater, &
-        tddfpt_davidson, tddfpt_excitations, tddfpt_lanczos, tddfpt_singlet, tddfpt_triplet, &
-        use_mom_ref_coac, use_mom_ref_com, use_mom_ref_user, use_mom_ref_zero, use_restart_wfn, &
-        use_rt_restart, use_scf_wfn, weight_type_mass, weight_type_unit
+        rtp_bse_ham_ks, rtp_method_bse, rtp_method_tddft, sccs_andreussi, sccs_derivative_cd3, &
+        sccs_derivative_cd5, sccs_derivative_cd7, sccs_derivative_fft, sccs_fattebert_gygi, &
+        sic_ad, sic_eo, sic_list_all, sic_list_unpaired, sic_mauri_spz, sic_mauri_us, sic_none, &
+        slater, tddfpt_davidson, tddfpt_excitations, tddfpt_lanczos, tddfpt_singlet, &
+        tddfpt_triplet, use_mom_ref_coac, use_mom_ref_com, use_mom_ref_user, use_mom_ref_zero, &
+        use_restart_wfn, use_rt_restart, use_scf_wfn, weight_type_mass, weight_type_unit
    USE input_cp2k_almo,                 ONLY: create_almo_scf_section
    USE input_cp2k_as,                   ONLY: create_active_space_section
    USE input_cp2k_ec,                   ONLY: create_ec_section
@@ -2017,7 +2016,7 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, "ELEMENT", &
                           description="Specifies the element of polarizability which is to be printed out "// &
                           "(indexing starts at 1).", &
-                          type_of_var=integer_t, default_i_vals=(/1,1/), n_var=2, usage="ELEMENT 1 1")
+                          type_of_var=integer_t, default_i_vals=(/1, 1/), n_var=2, usage="ELEMENT 1 1")
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
       CALL section_add_subsection(print_section, print_key)

@@ -157,23 +157,23 @@ MODULE rt_bse
                               do_exact, &
                               use_rt_restart
    USE rt_bse_types, ONLY: rtbse_env_type, &
-                             create_rtbse_env, &
-                             release_rtbse_env, &
-                             multiply_cfm_fm, &
-                             multiply_fm_cfm
+                           create_rtbse_env, &
+                           release_rtbse_env, &
+                           multiply_cfm_fm, &
+                           multiply_fm_cfm
    USE rt_bse_io, ONLY: output_moments, &
-                          read_moments, &
-                          read_field, &
-                          output_moments_ft, &
-                          output_polarizability, &
-                          output_field, &
-                          output_mos_contravariant, &
-                          read_restart, &
-                          output_restart, &
-                          print_timestep_info, &
-                          print_etrs_info_header, &
-                          print_etrs_info, &
-                          print_rtbse_header_info
+                        read_moments, &
+                        read_field, &
+                        output_moments_ft, &
+                        output_polarizability, &
+                        output_field, &
+                        output_mos_contravariant, &
+                        read_restart, &
+                        output_restart, &
+                        print_timestep_info, &
+                        print_etrs_info_header, &
+                        print_etrs_info, &
+                        print_rtbse_header_info
    USE qs_ks_types, ONLY: qs_ks_env_type
    USE qs_integrate_potential_product, ONLY: integrate_v_rspace
    USE qs_collocate_density, ONLY: calculate_rho_elec
@@ -550,8 +550,8 @@ CONTAINS
       intensity = -rtbse_env%dft_control%rtp_control%delta_pulse_scale
       metric = 0.0_dp
       kvec(:) = rtbse_env%dft_control%rtp_control%delta_pulse_direction(:)
-      IF (rtbse_env%unit_nr > 0) WRITE(rtbse_env%unit_nr, '(A38,E14.4E3,E14.4E3,E14.4E3)') &
-              " RTBSE| Delta pulse elements (a.u.) : ", intensity * kvec(:)
+      IF (rtbse_env%unit_nr > 0) WRITE (rtbse_env%unit_nr, '(A38,E14.4E3,E14.4E3,E14.4E3)') &
+         " RTBSE| Delta pulse elements (a.u.) : ", intensity*kvec(:)
       ! So far no spin dependence, but can be added by different structure of delta pulse
       CALL cp_fm_set_all(rtbse_env%real_workspace(1)%matrix, 0.0_dp)
       DO k = 1, 3
@@ -840,7 +840,7 @@ CONTAINS
          END DO
          IF (.NOT. converged) THEN
             WRITE (error, '(A35,E13.4E3,A16,E13.4E3)') "BCH did not converge, BCH Metric : ", &
-                    metric, "BCH Threshold : ", threshold
+               metric, "BCH Threshold : ", threshold
             CPABORT(error)
          END IF
 
