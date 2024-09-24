@@ -13,8 +13,8 @@ cp2k_set_default_paths(TBLITE "tblite")
 
 if(PKG_CONFIG_FOUND)
   pkg_check_modules(CP2K_TBLITE QUIET IMPORTED_TARGET GLOBAL tblite)
-  pkg_check_modules(CP2K_DFTD3  QUIET IMPORTED_TARGET GLOBAL s-dftd3)
-  pkg_check_modules(CP2K_TOML   QUIET IMPORTED_TARGET GLOBAL toml-f)
+  pkg_check_modules(CP2K_DFTD3 QUIET IMPORTED_TARGET GLOBAL s-dftd3)
+  pkg_check_modules(CP2K_TOML QUIET IMPORTED_TARGET GLOBAL toml-f)
 endif()
 
 if(NOT CP2K_TBLITE_FOUND)
@@ -36,26 +36,28 @@ endif()
 
 if(CP2K_TBLITE_INCLUDE_DIRS)
   if(CP2K_DFTD3_INCLUDE_DIRS)
-    find_package_handle_standard_args(tblite DEFAULT_MSG 
-        CP2K_TBLITE_INCLUDE_DIRS CP2K_DFTD3_INCLUDE_DIRS
-        CP2K_TBLITE_LINK_LIBRARIES CP2K_DFTD3_LINK_LIBRARIES
-        CP2K_TOML_LINK_LIBRARIES)
+    find_package_handle_standard_args(
+      tblite
+      DEFAULT_MSG
+      CP2K_TBLITE_INCLUDE_DIRS
+      CP2K_DFTD3_INCLUDE_DIRS
+      CP2K_TBLITE_LINK_LIBRARIES
+      CP2K_DFTD3_LINK_LIBRARIES
+      CP2K_TOML_LINK_LIBRARIES)
   else()
-    find_package_handle_standard_args(tblite DEFAULT_MSG 
-        CP2K_TBLITE_INCLUDE_DIRS
-        CP2K_TBLITE_LINK_LIBRARIES CP2K_DFTD3_LINK_LIBRARIES
-        CP2K_TOML_LINK_LIBRARIES)
+    find_package_handle_standard_args(
+      tblite DEFAULT_MSG CP2K_TBLITE_INCLUDE_DIRS CP2K_TBLITE_LINK_LIBRARIES
+      CP2K_DFTD3_LINK_LIBRARIES CP2K_TOML_LINK_LIBRARIES)
   endif()
 else()
   if(CP2K_DFTD3_INCLUDE_DIRS)
-    find_package_handle_standard_args(tblite DEFAULT_MSG 
-        CP2K_DFTD3_INCLUDE_DIRS
-        CP2K_TBLITE_LINK_LIBRARIES CP2K_DFTD3_LINK_LIBRARIES
-        CP2K_TOML_LINK_LIBRARIES)
+    find_package_handle_standard_args(
+      tblite DEFAULT_MSG CP2K_DFTD3_INCLUDE_DIRS CP2K_TBLITE_LINK_LIBRARIES
+      CP2K_DFTD3_LINK_LIBRARIES CP2K_TOML_LINK_LIBRARIES)
   else()
-    find_package_handle_standard_args(tblite DEFAULT_MSG 
-        CP2K_TBLITE_LINK_LIBRARIES CP2K_DFTD3_LINK_LIBRARIES
-        CP2K_TOML_LINK_LIBRARIES)
+    find_package_handle_standard_args(
+      tblite DEFAULT_MSG CP2K_TBLITE_LINK_LIBRARIES CP2K_DFTD3_LINK_LIBRARIES
+      CP2K_TOML_LINK_LIBRARIES)
   endif()
 endif()
 
@@ -69,25 +71,29 @@ if(CP2K_TBLITE_FOUND)
       add_library(cp2k::tblite::toml-f INTERFACE IMPORTED)
     endif()
   endif()
-  
-  set_target_properties(
-     cp2k::tblite::tblite PROPERTIES INTERFACE_LINK_LIBRARIES "${CP2K_TBLITE_LINK_LIBRARIES}")
-  set_target_properties(
-     cp2k::tblite::s-dftd3 PROPERTIES INTERFACE_LINK_LIBRARIES "${CP2K_DFTD3_LINK_LIBRARIES}")
-    set_target_properties(
-     cp2k::tblite::toml-f PROPERTIES INTERFACE_LINK_LIBRARIES "${CP2K_TOML_LINK_LIBRARIES}")
 
-    if(CP2K_TBLITE_INCLUDE_DIRS)
-      set_target_properties(
-        cp2k::tblite::tblite PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${CP2K_TBLITE_INCLUDE_DIRS}" )
-    endif()
-    if(CP2K_TBLITE_INCLUDE_DIRS)
-      set_target_properties(
-        cp2k::tblite::s-dftd3 PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${CP2K_DFTD3_INCLUDE_DIRS}" )
-    endif()             
+  set_target_properties(
+    cp2k::tblite::tblite PROPERTIES INTERFACE_LINK_LIBRARIES
+                                    "${CP2K_TBLITE_LINK_LIBRARIES}")
+  set_target_properties(
+    cp2k::tblite::s-dftd3 PROPERTIES INTERFACE_LINK_LIBRARIES
+                                     "${CP2K_DFTD3_LINK_LIBRARIES}")
+  set_target_properties(
+    cp2k::tblite::toml-f PROPERTIES INTERFACE_LINK_LIBRARIES
+                                    "${CP2K_TOML_LINK_LIBRARIES}")
+
+  if(CP2K_TBLITE_INCLUDE_DIRS)
+    set_target_properties(
+      cp2k::tblite::tblite PROPERTIES INTERFACE_INCLUDE_DIRECTORIES
+                                      "${CP2K_TBLITE_INCLUDE_DIRS}")
+  endif()
+  if(CP2K_TBLITE_INCLUDE_DIRS)
+    set_target_properties(
+      cp2k::tblite::s-dftd3 PROPERTIES INTERFACE_INCLUDE_DIRECTORIES
+                                       "${CP2K_DFTD3_INCLUDE_DIRS}")
+  endif()
 endif()
 
-mark_as_advanced(CP2K_TOML_LINK_LIBRARIES
-                 CP2K_DFTD3_INCLUDE_DIRS  CP2K_DFTD3_LINK_LIBRARIES
-                 CP2K_TBLITE_INCLUDE_DIRS CP2K_TBLITE_LINK_LIBRARIES
-                 CP2K_TBLITE_FOUND)
+mark_as_advanced(
+  CP2K_TOML_LINK_LIBRARIES CP2K_DFTD3_INCLUDE_DIRS CP2K_DFTD3_LINK_LIBRARIES
+  CP2K_TBLITE_INCLUDE_DIRS CP2K_TBLITE_LINK_LIBRARIES CP2K_TBLITE_FOUND)

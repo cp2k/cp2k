@@ -12,7 +12,7 @@ include(cp2k_utils)
 cp2k_set_default_paths(MCTC-LIB "mctc-lib")
 
 if(PKG_CONFIG_FOUND)
-	pkg_check_modules(MCTC-LIB QUIET IMPORTED_TARGET GLOBAL mctc-lib)
+  pkg_check_modules(MCTC-LIB QUIET IMPORTED_TARGET GLOBAL mctc-lib)
 endif()
 
 if(NOT MCTC-LIB_FOUND)
@@ -37,5 +37,4 @@ if(MCTC-LIB_FOUND)
                INTERFACE_LINK_LIBRARIES "${MCTC-LIB_LINK_LIBRARIES}")
 endif()
 
-mark_as_advanced(MCTC-LIB_LINK_LIBRARIES MCTC-LIB_INCLUDE_DIRS
-                 MCTC-LIB_FOUND)
+mark_as_advanced(MCTC-LIB_LINK_LIBRARIES MCTC-LIB_INCLUDE_DIRS MCTC-LIB_FOUND)
