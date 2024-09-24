@@ -1009,8 +1009,7 @@ CONTAINS
       LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: orb_present
       REAL(dp), ALLOCATABLE, DIMENSION(:)                :: orb_radius
       REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: pair_radius
-      REAL(KIND=dp)                                      :: eps_gvg_rspace_old, eps_pgf_orb_old, &
-                                                            eps_rho_rspace_old, subcells
+      REAL(KIND=dp)                                      :: subcells
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
       TYPE(dbcsr_distribution_type), POINTER             :: dbcsr_dist_sub
@@ -1072,10 +1071,6 @@ CONTAINS
             CPWARN("WFC_GPW%EPS_GRID has been set to QS%EPS_PGF_ORB")
          END IF
       END IF
-
-      eps_pgf_orb_old = dft_control%qs_control%eps_pgf_orb
-      eps_rho_rspace_old = dft_control%qs_control%eps_rho_rspace
-      eps_gvg_rspace_old = dft_control%qs_control%eps_gvg_rspace
 
       ! hack hack hack XXXXXXXXXXXXXXX ... to be fixed
       dft_control%qs_control%eps_pgf_orb = eps_grid
@@ -1225,10 +1220,6 @@ CONTAINS
          END IF
 
       END IF
-
-      dft_control%qs_control%eps_pgf_orb = eps_pgf_orb_old
-      dft_control%qs_control%eps_rho_rspace = eps_rho_rspace_old
-      dft_control%qs_control%eps_gvg_rspace = eps_gvg_rspace_old
 
       DEALLOCATE (row_blk_sizes)
 
