@@ -356,7 +356,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'linres_calculation_low'
 
-      INTEGER                                            :: handle, iounit, every_n_step
+      INTEGER                                            :: every_n_step, handle, iounit
       LOGICAL                                            :: dcdr_present, epr_present, issc_present, &
                                                             lr_calculation, nmr_present, &
                                                             polar_present, vcd_present
