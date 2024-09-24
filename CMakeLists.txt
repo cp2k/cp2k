@@ -942,7 +942,7 @@ endif()
 
 if(CP2K_USE_TBLITE)
   message(
-    " - TBLITE :\n" 
+    " - TBLITE :\n"
     "   - version             :  ${CP2K_TBLITE_VERSION}\n"
     "   - include directories :  ${CP2K_TBLITE_INCLUDE_DIRS}\n"
     "   - tblite libraries    :  ${CP2K_TBLITE_LINK_LIBRARIES}\n"

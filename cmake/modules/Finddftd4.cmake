@@ -12,23 +12,22 @@ include(cp2k_utils)
 cp2k_set_default_paths(DFTD4 "dftd4")
 
 if(PKG_CONFIG_FOUND)
-	pkg_check_modules(DFTD4 QUIET IMPORTED_TARGET GLOBAL dftd4)
+  pkg_check_modules(DFTD4 QUIET IMPORTED_TARGET GLOBAL dftd4)
 endif()
 
 if(NOT DFTD4_FOUND)
-	cp2k_find_libraries(DFTD4 dftd4)
+  cp2k_find_libraries(DFTD4 dftd4)
 endif()
 
 if(NOT DFTD4_INCLUDE_DIRS)
-	cp2k_include_dirs(DFTD4 "dftd4.h")
+  cp2k_include_dirs(DFTD4 "dftd4.h")
 endif()
 
 if(DFTD4_INCLUDE_DIRS)
-	find_package_handle_standard_args(dftd4 DEFAULT_MSG DFTD4_INCLUDE_DIRS
-		DFTD4_LINK_LIBRARIES)
+  find_package_handle_standard_args(dftd4 DEFAULT_MSG DFTD4_INCLUDE_DIRS
+                                    DFTD4_LINK_LIBRARIES)
 else()
-  find_package_handle_standard_args(dftd4 DEFAULT_MSG
-	  DFTD4_LINK_LIBRARIES)
+  find_package_handle_standard_args(dftd4 DEFAULT_MSG DFTD4_LINK_LIBRARIES)
 endif()
 
 if(DFTD4_FOUND)
@@ -38,8 +37,7 @@ if(DFTD4_FOUND)
   set_target_properties(
     dftd4::dftd4
     PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${DFTD4_INCLUDE_DIRS}"
-    INTERFACE_LINK_LIBRARIES "${DFTD4_LINK_LIBRARIES}")
+               INTERFACE_LINK_LIBRARIES "${DFTD4_LINK_LIBRARIES}")
 endif()
 
-mark_as_advanced(DFTD4_LINK_LIBRARIES DFTD4_INCLUDE_DIRS
-	DFTD4_FOUND)
+mark_as_advanced(DFTD4_LINK_LIBRARIES DFTD4_INCLUDE_DIRS DFTD4_FOUND)

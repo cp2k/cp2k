@@ -18,6 +18,7 @@ MODULE tblite_interface
    USE tblite_xtb_gfn1, ONLY: new_gfn1_calculator
    USE tblite_xtb_gfn2, ONLY: new_gfn2_calculator
    USE tblite_xtb_ipea1, ONLY: new_ipea1_calculator
+   USE tblite_container, ONLY: container_cache
 #endif
 
    USE qs_environment_types, ONLY: get_qs_env, &
@@ -39,10 +40,16 @@ MODULE tblite_interface
    PUBLIC :: tb_init_geometry, tb_type
 
    TYPE tb_type
+      REAL(KIND=dp), ALLOCATABLE                         :: e_hal(:)
+      REAL(KIND=dp), ALLOCATABLE                         :: e_rep(:)
+      REAL(KIND=dp), ALLOCATABLE                         :: e_disp(:)
+      REAL(KIND=dp), ALLOCATABLE                         :: grad(:, :)
+      REAL(KIND=dp), ALLOCATABLE                         :: sigma(:, :)
 
 #if defined(__TBLITE)
       TYPE(structure_type)                               :: mol
       TYPE(xtb_calculator)                               :: calc
+      TYPE(container_cache)                              :: dcache
 #endif
 
    END TYPE tb_type
@@ -85,6 +92,9 @@ CONTAINS
       DO iatom = 1, natom
          xyz(:, iatom) = particle_set(iatom)%r(:)
          CALL get_atomic_kind(particle_set(iatom)%atomic_kind, kind_number=ikind)
+         IF (ikind < 1 .OR. ikind > 85) THEN
+            CPABORT("only elements 1-85 are supported by tblite")
+         END IF
          el_num(iatom) = ikind
       END DO
 
@@ -96,6 +106,9 @@ CONTAINS
 
       !prepare for the call to the dispersion function
       CALL new(tb%mol, el_num, xyz, lattice=cell%hmat, periodic=lperiod)
+
+      !allocate quantities later required
+      ALLOCATE (tb%e_hal(natom), tb%e_rep(natom), tb%e_disp(natom))
 
       DEALLOCATE (el_num, xyz)
 
@@ -117,9 +130,9 @@ CONTAINS
       TYPE(tb_type), POINTER                             :: tb
       INTEGER                                            :: typ
 
-      TYPE(error_type), allocatable                      :: error
-
 #if defined(__TBLITE)
+      TYPE(error_type), ALLOCATABLE                      :: error
+
       SELECT CASE (typ)
       CASE default
          CPABORT("Unknown xtb type")
@@ -131,12 +144,102 @@ CONTAINS
          CALL new_ipea1_calculator(tb%calc, tb%mol, error)
       END SELECT
 
-
 #else
       CPABORT("Build without TBLITE")
 #endif
 
    END SUBROUTINE tb_set_calculator
+
+! **************************************************************************************************
+!> \brief ...
+!> \param tb ...
+! **************************************************************************************************
+   SUBROUTINE tb_init_ham(tb)
+
+      TYPE(tb_type), POINTER                             :: tb
+
+      INTEGER                                            :: icase
+#if defined(__TBLITE)
+      TYPE(container_cache)                              :: hcache, rcache
+
+      tb%e_hal = 0.0_dp
+      tb%e_rep = 0.0_dp
+      tb%e_hal = 0.0_dp
+      icase = 0
+      IF (ALLOCATED(tb%grad)) THEN
+         tb%grad = 0.0_dp
+         IF (ALLOCATED(tb%sigma)) THEN
+            tb%sigma = 0.0_dp
+            icase = 2
+         ELSE
+            icase = 1
+         END IF
+      END IF
+
+      IF (ALLOCATED(tb%calc%halogen)) THEN
+         CALL tb%calc%halogen%update(tb%mol, hcache)
+         SELECT CASE (icase)
+         CASE (0)
+            CALL tb%calc%halogen%get_engrad(tb%mol, hcache, tb%e_hal)
+         CASE (1)
+            CALL tb%calc%halogen%get_engrad(tb%mol, hcache, tb%e_hal, tb%grad)
+         CASE (2)
+            CALL tb%calc%halogen%get_engrad(tb%mol, hcache, tb%e_hal, &
+            & tb%grad, tb%sigma)
+         END SELECT
+      END IF
+
+      IF (ALLOCATED(tb%calc%repulsion)) THEN
+         CALL tb%calc%repulsion%update(tb%mol, rcache)
+         SELECT CASE (icase)
+         CASE (0)
+            CALL tb%calc%repulsion%get_engrad(tb%mol, rcache, tb%e_rep)
+         CASE (1)
+            CALL tb%calc%repulsion%get_engrad(tb%mol, rcache, tb%e_rep, tb%grad)
+         CASE (2)
+            CALL tb%calc%repulsion%get_engrad(tb%mol, rcache, tb%e_rep, &
+            & tb%grad, tb%sigma)
+         END SELECT
+      END IF
+
+      IF (ALLOCATED(tb%calc%dispersion)) THEN
+         CALL tb%calc%dispersion%update(tb%mol, tb%dcache)
+         SELECT CASE (icase)
+         CASE (0)
+            CALL tb%calc%dispersion%get_engrad(tb%mol, tb%dcache, tb%e_disp)
+         CASE (1)
+            CALL tb%calc%dispersion%get_engrad(tb%mol, tb%dcache, tb%e_disp, tb%grad)
+         CASE (2)
+            CALL tb%calc%dispersion%get_engrad(tb%mol, tb%dcache, tb%e_disp, &
+            & tb%grad, tb%sigma)
+         END SELECT
+      END IF
+
+#else
+      CPABORT("Build without TBLITE")
+#endif
+
+   END SUBROUTINE tb_init_ham
+
+! **************************************************************************************************
+!> \brief ...
+!> \param tb ...
+!> \param energies ...
+! **************************************************************************************************
+   SUBROUTINE get_energy(tb, energies)
+
+      TYPE(tb_type), POINTER                             :: tb
+      REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: energies
+
+#if defined(__TBLITE)
+
+      energies(:) = tb%e_hal + tb%e_rep + tb%e_disp
+
+#else
+      CPABORT("Build without TBLITE")
+#endif
+
+   END SUBROUTINE get_energy
 
 END MODULE tblite_interface
 
