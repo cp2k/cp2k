@@ -317,8 +317,10 @@ CONTAINS
             CALL get_idempotence_deviation(rtbse_env, rtbse_env%rho_new, idempotence_dev)
             DO j = 1, rtbse_env%n_spin
                CALL cp_cfm_to_fm(rtbse_env%sigma_SEX(j), rtbse_env%real_workspace(1), rtbse_env%real_workspace(2))
-               CALL antiherm_metric(real_fm=rtbse_env%real_workspace(1), imag_fm=rtbse_env%real_workspace(2), workspace=rtbse_env%rho_workspace, metric=a_metric_1)
-               CALL antiherm_metric(real_fm=rtbse_env%hartree_curr(j), workspace=rtbse_env%rho_workspace, metric=a_metric_2)
+               CALL antiherm_metric(real_fm=rtbse_env%real_workspace(1), imag_fm=rtbse_env%real_workspace(2), &
+                                    workspace=rtbse_env%rho_workspace, metric=a_metric_1)
+               CALL antiherm_metric(real_fm=rtbse_env%hartree_curr(j), &
+                                    workspace=rtbse_env%rho_workspace, metric=a_metric_2)
             END DO
          END IF
          CALL print_timestep_info(rtbse_env, i, metric, enum_re, k)
