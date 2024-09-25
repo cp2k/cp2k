@@ -999,9 +999,6 @@ CONTAINS
       TYPE(cp_cfm_type)                                  :: cfm_M_inv_V_sqrt_ikp, cfm_V_sqrt_ikp
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :)     :: fm_V_kp
 
-      ! ! DEBUG : Printing W for all frequencies
-      ! TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: dummy_array
-
       CALL timeset(routineN, handle)
 
       CALL create_fm_W_MIC_time(bs_env, fm_W_MIC_time)
@@ -1036,14 +1033,6 @@ CONTAINS
 
                ! Fourier trafo from W_PQ^MIC(iω_j) to W_PQ^MIC(iτ)
                CALL Fourier_transform_w_to_t(bs_env, fm_W_MIC_time, bs_env%fm_W_MIC_freq, j_w)
-
-               ! ! DEBUG : print the W_MIC matrices for all frequencies
-               ! PRINT *, "Frequency index", j_w, "Frequency", bs_env%imag_freq_points(j_w)
-               ! ALLOCATE(dummy_array(1))
-               ! dummy_array(1) = bs_env%fm_W_MIC_freq
-               ! CALL multiply_fm_W_MIC_time_with_Minv_Gamma(bs_env, qs_env, dummy_array)
-               ! CALL cp_fm_write_formatted(dummy_array(1), 6)
-               ! DEALLOCATE(dummy_array)
 
             END DO ! ω_j
 
@@ -1080,12 +1069,8 @@ CONTAINS
 
       ! Marek : Fourier transform W^MIC(itau) back to get it at a specific im.frequency point - iomega = 0
       ! TODO : Should this be activeted here or somewhere else? Maybe directly in the main (gw) routine?
-      ! TODO : Add activation dependent on the rt_propagation
       ! Create the matrix TODO: Add release statement in some well understood place - at destruction of bs_env?
       IF (bs_env%rtp_method == rtp_method_bse) THEN
-         ! ! DEBUG : Print weights for smallest frequency point and for zero frequency
-         ! PRINT *, "Weights smallest", bs_env%weights_cos_t_to_w(1,:)
-         ! PRINT *, "Weights zero", bs_env%imag_time_weights_freq_zero(:)
          CALL cp_fm_create(bs_env%fm_W_MIC_freq_zero, bs_env%fm_W_MIC_freq%matrix_struct)
          ! Set to zero
          CALL cp_fm_set_all(bs_env%fm_W_MIC_freq_zero, 0.0_dp)

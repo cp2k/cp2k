@@ -186,7 +186,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE output_mos_contravariant(rtbse_env, rho, print_key_section)
       TYPE(rtbse_env_type)                               :: rtbse_env
-      TYPE(cp_cfm_p_type), DIMENSION(:)                  :: rho
+      TYPE(cp_cfm_type), DIMENSION(:), POINTER           :: rho
       TYPE(section_vals_type), POINTER                   :: print_key_section
       TYPE(cp_logger_type), POINTER                      :: logger
       INTEGER                                            :: j, rho_unit_re, rho_unit_im
@@ -204,25 +204,25 @@ CONTAINS
          ! Transform the density matrix into molecular orbitals basis and print it out
          ! S * rho
          CALL multiply_fm_cfm("N", "N", rtbse_env%n_ao, rtbse_env%n_ao, rtbse_env%n_ao, &
-                              1.0_dp, rtbse_env%S_fm%matrix, rho(j)%matrix, &
-                              0.0_dp, rtbse_env%rho_workspace(1)%matrix)
+                              1.0_dp, rtbse_env%S_fm, rho(j), &
+                              0.0_dp, rtbse_env%rho_workspace(1))
          ! C^T * S * rho
          CALL multiply_fm_cfm("T", "N", rtbse_env%n_ao, rtbse_env%n_ao, rtbse_env%n_ao, &
-                              1.0_dp, rtbse_env%bs_env%fm_mo_coeff_Gamma(j), rtbse_env%rho_workspace(1)%matrix, &
-                              0.0_dp, rtbse_env%rho_workspace(2)%matrix)
+                              1.0_dp, rtbse_env%bs_env%fm_mo_coeff_Gamma(j), rtbse_env%rho_workspace(1), &
+                              0.0_dp, rtbse_env%rho_workspace(2))
          ! C^T * S * rho * S
          CALL multiply_cfm_fm("N", "N", rtbse_env%n_ao, rtbse_env%n_ao, rtbse_env%n_ao, &
-                              1.0_dp, rtbse_env%rho_workspace(2)%matrix, rtbse_env%S_fm%matrix, &
-                              0.0_dp, rtbse_env%rho_workspace(1)%matrix)
+                              1.0_dp, rtbse_env%rho_workspace(2), rtbse_env%S_fm, &
+                              0.0_dp, rtbse_env%rho_workspace(1))
          ! C^T * S * rho * S * C
          CALL multiply_cfm_fm("N", "N", rtbse_env%n_ao, rtbse_env%n_ao, rtbse_env%n_ao, &
-                              1.0_dp, rtbse_env%rho_workspace(1)%matrix, rtbse_env%bs_env%fm_mo_coeff_Gamma(j), &
-                              0.0_dp, rtbse_env%rho_workspace(2)%matrix)
+                              1.0_dp, rtbse_env%rho_workspace(1), rtbse_env%bs_env%fm_mo_coeff_Gamma(j), &
+                              0.0_dp, rtbse_env%rho_workspace(2))
          ! Print real and imaginary parts separately
-         CALL cp_cfm_to_fm(rtbse_env%rho_workspace(2)%matrix, &
-                           rtbse_env%real_workspace(1)%matrix, rtbse_env%real_workspace(2)%matrix)
-         CALL cp_fm_write_formatted(rtbse_env%real_workspace(1)%matrix, rho_unit_re)
-         CALL cp_fm_write_formatted(rtbse_env%real_workspace(2)%matrix, rho_unit_im)
+         CALL cp_cfm_to_fm(rtbse_env%rho_workspace(2), &
+                           rtbse_env%real_workspace(1), rtbse_env%real_workspace(2))
+         CALL cp_fm_write_formatted(rtbse_env%real_workspace(1), rho_unit_re)
+         CALL cp_fm_write_formatted(rtbse_env%real_workspace(2), rho_unit_im)
          CALL cp_print_key_finished_output(rho_unit_re, logger, print_key_section)
          CALL cp_print_key_finished_output(rho_unit_im, logger, print_key_section)
       END DO
@@ -236,7 +236,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE output_mos_covariant(rtbse_env, ham, print_key_section)
       TYPE(rtbse_env_type)                               :: rtbse_env
-      TYPE(cp_cfm_p_type), DIMENSION(:)                  :: ham
+      TYPE(cp_cfm_type), DIMENSION(:), POINTER           :: ham
       TYPE(section_vals_type), POINTER                   :: print_key_section
       TYPE(cp_logger_type), POINTER                      :: logger
       INTEGER                                            :: j, rho_unit_re, rho_unit_im
@@ -252,17 +252,17 @@ CONTAINS
          rho_unit_im = cp_print_key_unit_nr(logger, print_key_section, extension=file_labels(2*j))
          ! C^T * cohsex
          CALL multiply_fm_cfm("T", "N", rtbse_env%n_ao, rtbse_env%n_ao, rtbse_env%n_ao, &
-                              1.0_dp, rtbse_env%bs_env%fm_mo_coeff_Gamma(j), ham(j)%matrix, &
-                              0.0_dp, rtbse_env%rho_workspace(1)%matrix)
+                              1.0_dp, rtbse_env%bs_env%fm_mo_coeff_Gamma(j), ham(j), &
+                              0.0_dp, rtbse_env%rho_workspace(1))
          ! C^T * cohsex * C
          CALL multiply_cfm_fm("N", "N", rtbse_env%n_ao, rtbse_env%n_ao, rtbse_env%n_ao, &
-                              1.0_dp, rtbse_env%rho_workspace(1)%matrix, rtbse_env%bs_env%fm_mo_coeff_Gamma(j), &
-                              0.0_dp, rtbse_env%rho_workspace(2)%matrix)
+                              1.0_dp, rtbse_env%rho_workspace(1), rtbse_env%bs_env%fm_mo_coeff_Gamma(j), &
+                              0.0_dp, rtbse_env%rho_workspace(2))
          ! Print real and imaginary parts separately
-         CALL cp_cfm_to_fm(rtbse_env%rho_workspace(2)%matrix, &
-                           rtbse_env%real_workspace(1)%matrix, rtbse_env%real_workspace(2)%matrix)
-         CALL cp_fm_write_formatted(rtbse_env%real_workspace(1)%matrix, rho_unit_re)
-         CALL cp_fm_write_formatted(rtbse_env%real_workspace(2)%matrix, rho_unit_im)
+         CALL cp_cfm_to_fm(rtbse_env%rho_workspace(2), &
+                           rtbse_env%real_workspace(1), rtbse_env%real_workspace(2))
+         CALL cp_fm_write_formatted(rtbse_env%real_workspace(1), rho_unit_re)
+         CALL cp_fm_write_formatted(rtbse_env%real_workspace(2), rho_unit_im)
          CALL cp_print_key_finished_output(rho_unit_re, logger, print_key_section)
          CALL cp_print_key_finished_output(rho_unit_im, logger, print_key_section)
       END DO
@@ -338,7 +338,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE output_moments(rtbse_env, rho)
       TYPE(rtbse_env_type)                               :: rtbse_env
-      TYPE(cp_cfm_p_type), DIMENSION(:)                  :: rho
+      TYPE(cp_cfm_type), DIMENSION(:), POINTER           :: rho
       TYPE(cp_logger_type), POINTER                      :: logger
       INTEGER                                            :: i, j, n, moments_unit_re, moments_unit_im
       CHARACTER(len=14), DIMENSION(4)                    :: file_labels
@@ -356,11 +356,11 @@ CONTAINS
          ! If, for any reason, the file unit is not provided, skip to next cycle immediately
          ! TODO : Specify output units in config
          ! Need to transpose due to the definition of trace function
-         CALL cp_cfm_to_fm(msource=rho(j)%matrix, mtargetr=rtbse_env%real_workspace(2)%matrix)
+         CALL cp_cfm_to_fm(msource=rho(j), mtargetr=rtbse_env%real_workspace(2))
          DO i = 1, 3
             ! Moments should be symmetric, test without transopose?
-            CALL cp_fm_transpose(rtbse_env%moments(i)%matrix, rtbse_env%real_workspace(1)%matrix)
-            CALL cp_fm_trace(rtbse_env%real_workspace(1)%matrix, rtbse_env%real_workspace(2)%matrix, moments(i))
+            CALL cp_fm_transpose(rtbse_env%moments(i), rtbse_env%real_workspace(1))
+            CALL cp_fm_trace(rtbse_env%real_workspace(1), rtbse_env%real_workspace(2), moments(i))
             ! Scale by spin degeneracy and electron charge
             moments(i) = -moments(i)*rtbse_env%spin_degeneracy
          END DO
@@ -382,10 +382,10 @@ CONTAINS
             rtbse_env%moments_trace(i)%series(n) = CMPLX(moments(i), 0.0, kind=dp)
          END DO
          ! Same for imaginary part
-         CALL cp_cfm_to_fm(msource=rho(j)%matrix, mtargeti=rtbse_env%real_workspace(2)%matrix)
+         CALL cp_cfm_to_fm(msource=rho(j), mtargeti=rtbse_env%real_workspace(2))
          DO i = 1, 3
-            CALL cp_fm_transpose(rtbse_env%moments(i)%matrix, rtbse_env%real_workspace(1)%matrix)
-            CALL cp_fm_trace(rtbse_env%real_workspace(1)%matrix, rtbse_env%real_workspace(2)%matrix, moments(i))
+            CALL cp_fm_transpose(rtbse_env%moments(i), rtbse_env%real_workspace(1))
+            CALL cp_fm_trace(rtbse_env%real_workspace(1), rtbse_env%real_workspace(2), moments(i))
             ! Scale by spin degeneracy and electron charge
             moments(i) = -moments(i)*rtbse_env%spin_degeneracy
          END DO
@@ -416,9 +416,9 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE output_restart(rtbse_env, rho, time_index)
       TYPE(rtbse_env_type), POINTER                      :: rtbse_env
-      TYPE(cp_cfm_p_type), DIMENSION(:), POINTER         :: rho
+      TYPE(cp_cfm_type), DIMENSION(:), POINTER           :: rho
       INTEGER                                            :: time_index
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: workspace
+      TYPE(cp_fm_type), DIMENSION(:), POINTER            :: workspace
       CHARACTER(len=17), DIMENSION(4)                    :: file_labels
       TYPE(cp_logger_type), POINTER                      :: logger
       INTEGER                                            :: rho_unit_nr, i
@@ -434,16 +434,16 @@ CONTAINS
       workspace => rtbse_env%real_workspace
 
       DO i = 1, rtbse_env%n_spin
-         CALL cp_cfm_to_fm(rho(i)%matrix, workspace(1)%matrix, workspace(2)%matrix)
+         CALL cp_cfm_to_fm(rho(i), workspace(1), workspace(2))
          ! Real part
          rho_unit_nr = cp_print_key_unit_nr(logger, rtbse_env%restart_section, extension=file_labels(2*i - 1), &
                                             file_form="UNFORMATTED", file_position="REWIND")
-         CALL cp_fm_write_unformatted(workspace(1)%matrix, rho_unit_nr)
+         CALL cp_fm_write_unformatted(workspace(1), rho_unit_nr)
          CALL cp_print_key_finished_output(rho_unit_nr, logger, rtbse_env%restart_section)
          ! Imag part
          rho_unit_nr = cp_print_key_unit_nr(logger, rtbse_env%restart_section, extension=file_labels(2*i), &
                                             file_form="UNFORMATTED", file_position="REWIND")
-         CALL cp_fm_write_unformatted(workspace(2)%matrix, rho_unit_nr)
+         CALL cp_fm_write_unformatted(workspace(2), rho_unit_nr)
          CALL cp_print_key_finished_output(rho_unit_nr, logger, rtbse_env%restart_section)
          ! Info
          rho_unit_nr = cp_print_key_unit_nr(logger, rtbse_env%restart_section, extension=".info", &
@@ -495,14 +495,14 @@ CONTAINS
          IF (file_exists(save_name) .AND. file_exists(save_name_2)) THEN
             CALL open_file(save_name, file_status="OLD", file_form="UNFORMATTED", file_action="READ", &
                            unit_number=rho_unit_nr)
-            CALL cp_fm_read_unformatted(rtbse_env%real_workspace(1)%matrix, rho_unit_nr)
+            CALL cp_fm_read_unformatted(rtbse_env%real_workspace(1), rho_unit_nr)
             CALL close_file(rho_unit_nr)
             CALL open_file(save_name_2, file_status="OLD", file_form="UNFORMATTED", file_action="READ", &
                            unit_number=rho_unit_nr)
-            CALL cp_fm_read_unformatted(rtbse_env%real_workspace(2)%matrix, rho_unit_nr)
+            CALL cp_fm_read_unformatted(rtbse_env%real_workspace(2), rho_unit_nr)
             CALL close_file(rho_unit_nr)
-            CALL cp_fm_to_cfm(rtbse_env%real_workspace(1)%matrix, rtbse_env%real_workspace(2)%matrix, &
-                              rtbse_env%rho(j)%matrix)
+            CALL cp_fm_to_cfm(rtbse_env%real_workspace(1), rtbse_env%real_workspace(2), &
+                              rtbse_env%rho(j))
             rtbse_env%restart_extracted = .TRUE.
          ELSE
             CPWARN("Restart without some restart matrices - starting from SCF density.")
@@ -632,7 +632,7 @@ CONTAINS
    SUBROUTINE output_polarizability(rtbse_env)
       TYPE(rtbse_env_type), POINTER                      :: rtbse_env
       TYPE(cp_logger_type), POINTER                      :: logger
-      REAL(kind=dp), DIMENSION(:), POINTER               :: omega_series, &
+      REAL(kind=dp), DIMENSION(:), ALLOCATABLE           :: omega_series, &
                                                             ft_real_series, &
                                                             ft_imag_series, &
                                                             value_series
@@ -646,13 +646,9 @@ CONTAINS
 
       n = rtbse_env%sim_nsteps + 2
       ! All allocations together, although could save some memory, if required by consequent deallocations
-      NULLIFY (omega_series)
       ALLOCATE (omega_series(n), source=0.0_dp)
-      NULLIFY (ft_real_series)
       ALLOCATE (ft_real_series(n), source=0.0_dp)
-      NULLIFY (ft_imag_series)
       ALLOCATE (ft_imag_series(n), source=0.0_dp)
-      NULLIFY (value_series)
       ALLOCATE (value_series(n), source=0.0_dp)
       ALLOCATE (moment_series(n), source=CMPLX(0.0, 0.0, kind=dp))
       ALLOCATE (field_series(n), source=CMPLX(0.0, 0.0, kind=dp))
@@ -745,11 +741,11 @@ CONTAINS
    ! So far only for defined one dimensional series
    SUBROUTINE ft_simple(time_series, value_series, omega_series, result_series, iresult_series, &
                         damping_opt, t0_opt)
-      REAL(kind=dp), DIMENSION(:), POINTER               :: time_series
-      REAL(kind=dp), DIMENSION(:), POINTER               :: value_series
-      REAL(kind=dp), DIMENSION(:), POINTER               :: omega_series
-      REAL(kind=dp), DIMENSION(:), POINTER               :: result_series
-      REAL(kind=dp), DIMENSION(:), POINTER               :: iresult_series
+      REAL(kind=dp), DIMENSION(:)                        :: time_series
+      REAL(kind=dp), DIMENSION(:)                        :: value_series
+      REAL(kind=dp), DIMENSION(:)                        :: omega_series
+      REAL(kind=dp), DIMENSION(:)                        :: result_series
+      REAL(kind=dp), DIMENSION(:)                        :: iresult_series
       REAL(kind=dp), OPTIONAL                            :: damping_opt
       REAL(kind=dp), OPTIONAL                            :: t0_opt
       CHARACTER(len=*), PARAMETER                        :: routineN = "ft_simple"

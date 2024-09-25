@@ -117,10 +117,10 @@ MODULE rt_bse_types
 
    ! Created so that we can have an array of pointers to arrays
    TYPE series_real_type
-      REAL(kind=dp), DIMENSION(:), POINTER                      :: series
+      REAL(kind=dp), DIMENSION(:), POINTER                      :: series => NULL()
    END TYPE series_real_type
    TYPE series_complex_type
-      COMPLEX(kind=dp), DIMENSION(:), POINTER                   :: series
+      COMPLEX(kind=dp), DIMENSION(:), POINTER                   :: series => NULL()
    END TYPE series_complex_type
 
 ! **************************************************************************************************
@@ -181,72 +181,73 @@ MODULE rt_bse_types
 !> \author Stepan Marek (01.24)
 ! **************************************************************************************************
    TYPE rtbse_env_type
-      INTEGER                                                   :: n_spin, &
-                                                                   n_ao, &
-                                                                   n_RI
-      INTEGER, DIMENSION(2)                                     :: n_occ
-      REAL(kind=dp)                                             :: spin_degeneracy
-      REAL(kind=dp), DIMENSION(3)                               :: field
-      TYPE(cp_fm_p_type), DIMENSION(3)                          :: moments, &
-                                                                   moments_field
-      INTEGER                                                   :: sim_step, &
-                                                                   sim_start, &
+      INTEGER                                                   :: n_spin = 1, &
+                                                                   n_ao = -1, &
+                                                                   n_RI = -1
+      INTEGER, DIMENSION(2)                                     :: n_occ = -1
+      REAL(kind=dp)                                             :: spin_degeneracy = 2
+      REAL(kind=dp), DIMENSION(3)                               :: field = 0.0_dp
+      TYPE(cp_fm_type), DIMENSION(:), POINTER                   :: moments => NULL(), &
+                                                                   moments_field => NULL()
+      INTEGER                                                   :: sim_step = 0, &
+                                                                   sim_start = 0, &
                                                                    ! Needed for continuation runs for loading of previous moments trace
-                                                                   sim_start_orig, &
-                                                                   sim_nsteps
-      REAL(kind=dp)                                             :: sim_time, &
-                                                                   sim_dt, &
-                                                                   etrs_threshold, &
-                                                                   exp_accuracy, &
-                                                                   ft_damping, &
-                                                                   ft_start
+                                                                   sim_start_orig = 0, &
+                                                                   sim_nsteps = -1
+      REAL(kind=dp)                                             :: sim_time = 0.0_dp, &
+                                                                   sim_dt = 0.1_dp, &
+                                                                   etrs_threshold = 1.0e-7_dp, &
+                                                                   exp_accuracy = 1.0e-10_dp, &
+                                                                   ft_damping = 0.0_dp, &
+                                                                   ft_start = 0.0_dp
       ! Which element of polarizability to print out
-      INTEGER, DIMENSION(2)                                     :: pol_element
-      TYPE(dft_control_type), POINTER                           :: dft_control
+      INTEGER, DIMENSION(2)                                     :: pol_element = [1, 1]
+      TYPE(dft_control_type), POINTER                           :: dft_control => NULL()
       ! DEBUG : Trying keeping the reference to previous environments inside this one
-      TYPE(qs_environment_type), POINTER                        :: qs_env
-      TYPE(post_scf_bandstructure_type), POINTER                :: bs_env
+      TYPE(qs_environment_type), POINTER                        :: qs_env => NULL()
+      TYPE(post_scf_bandstructure_type), POINTER                :: bs_env => NULL()
       ! Stores data needed for reading/writing to the restart files
-      TYPE(section_vals_type), POINTER                          :: restart_section, &
-                                                                   field_section, &
-                                                                   rho_section, &
-                                                                   ft_section, &
-                                                                   pol_section, &
-                                                                   moments_section
-      LOGICAL                                                   :: restart_extracted
+      TYPE(section_vals_type), POINTER                          :: restart_section => NULL(), &
+                                                                   field_section => NULL(), &
+                                                                   rho_section => NULL(), &
+                                                                   ft_section => NULL(), &
+                                                                   pol_section => NULL(), &
+                                                                   moments_section => NULL()
+      LOGICAL                                                   :: restart_extracted = .FALSE.
 
       ! Different indices signify different spins
-      TYPE(cp_cfm_p_type), DIMENSION(:), POINTER                :: ham_effective
-      TYPE(cp_cfm_p_type), DIMENSION(:), POINTER                :: ham_reference
-      TYPE(cp_cfm_p_type), DIMENSION(:), POINTER                :: ham_workspace
-      TYPE(cp_cfm_p_type), DIMENSION(:), POINTER                :: sigma_SEX
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER                 :: sigma_COH, hartree_curr
+      TYPE(cp_cfm_type), DIMENSION(:), POINTER                  :: ham_effective => NULL()
+      TYPE(cp_cfm_type), DIMENSION(:), POINTER                  :: ham_reference => NULL()
+      TYPE(cp_cfm_type), DIMENSION(:), POINTER                  :: ham_workspace => NULL()
+      TYPE(cp_cfm_type), DIMENSION(:), POINTER                  :: sigma_SEX => NULL()
+      TYPE(cp_fm_type), DIMENSION(:), POINTER                   :: sigma_COH => NULL(), &
+                                                                   hartree_curr => NULL()
 
-      TYPE(cp_cfm_p_type), DIMENSION(:), POINTER                :: rho, &
-                                                                   rho_new, &
-                                                                   rho_new_last, &
-                                                                   rho_M, &
-                                                                   rho_orig
-      TYPE(cp_fm_p_type)                                        :: S_inv_fm, &
+      TYPE(cp_cfm_type), DIMENSION(:), POINTER                  :: rho => NULL(), &
+                                                                   rho_new => NULL(), &
+                                                                   rho_new_last => NULL(), &
+                                                                   rho_M => NULL(), &
+                                                                   rho_orig => NULL()
+      TYPE(cp_fm_type)                                          :: S_inv_fm, &
                                                                    S_fm
       ! Many routines require overlap in the complex format
-      TYPE(cp_cfm_p_type)                                       :: S_cfm
-      TYPE(dbcsr_type), POINTER                                 :: rho_dbcsr
+      TYPE(cp_cfm_type)                                         :: S_cfm
+      TYPE(dbcsr_type)                                          :: rho_dbcsr
       ! Indices only correspond to different workspaces
-      TYPE(cp_cfm_p_type), DIMENSION(:), POINTER                :: rho_workspace
+      TYPE(cp_cfm_type), DIMENSION(:), POINTER                  :: rho_workspace => NULL()
       ! Many methods use real and imaginary parts separately - prevent unnecessary reallocation
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER                 :: real_workspace
+      TYPE(cp_fm_type), DIMENSION(:), POINTER                   :: real_workspace => NULL()
       ! Workspace required for exact matrix exponentiation
-      REAL(kind=dp), DIMENSION(:), POINTER                      :: real_eigvals
-      COMPLEX(kind=dp), DIMENSION(:), POINTER                   :: exp_eigvals
+      REAL(kind=dp), DIMENSION(:), POINTER                      :: real_eigvals => NULL()
+      COMPLEX(kind=dp), DIMENSION(:), POINTER                   :: exp_eigvals => NULL()
       ! Workspace for saving the values for FT
       TYPE(series_complex_type), DIMENSION(3)                   :: moments_trace
       TYPE(series_real_type)                                    :: time_trace
       TYPE(series_real_type), DIMENSION(3)                      :: field_trace
       ! Workspace required for hartree_pw
-      TYPE(dbcsr_p_type)                                        :: v_dbcsr, &
+      TYPE(dbcsr_type)                                          :: v_dbcsr, &
                                                                    w_dbcsr
-      TYPE(dbt_type), POINTER                                   :: screened_dbt, &
+      TYPE(dbt_type)                                            :: screened_dbt, &
                                                                    sigma_dbt, &
                                                                    greens_dbt, &
                                                                    t_3c_w, &
@@ -254,11 +255,11 @@ MODULE rt_bse_types
                                                                    t_3c_work_RI_AO__AO, &
                                                                    t_3c_work2_RI_AO__AO
       ! These matrices are always real
-      INTEGER                                                   :: etrs_max_iter
-      INTEGER                                                   :: ham_reference_type
-      INTEGER                                                   :: mat_exp_method
-      INTEGER                                                   :: unit_nr
-      REAL(kind=dp), DIMENSION(:, :, :), POINTER                  :: int_3c_array
+      INTEGER                                                   :: etrs_max_iter = 10
+      INTEGER                                                   :: ham_reference_type = 2
+      INTEGER                                                   :: mat_exp_method = 4
+      INTEGER                                                   :: unit_nr = -1
+      REAL(kind=dp), DIMENSION(:, :, :), POINTER                :: int_3c_array => NULL()
 
    END TYPE rtbse_env_type
 
@@ -362,24 +363,23 @@ CONTAINS
       rtbse_env%bs_env => bs_env
 
       ! Allocate moments matrices
+      NULLIFY (rtbse_env%moments)
+      ALLOCATE (rtbse_env%moments(3))
+      NULLIFY (rtbse_env%moments_field)
+      ALLOCATE (rtbse_env%moments_field(3))
       DO k = 1, 3
          ! Matrices are created from overlap template
          ! Values are initialized in initialize_rtbse_env
-         NULLIFY (rtbse_env%moments(k)%matrix)
-         ALLOCATE (rtbse_env%moments(k)%matrix)
-         CALL cp_fm_create(rtbse_env%moments(k)%matrix, bs_env%fm_s_Gamma%matrix_struct)
-         NULLIFY (rtbse_env%moments_field(k)%matrix)
-         ALLOCATE (rtbse_env%moments_field(k)%matrix)
-         CALL cp_fm_create(rtbse_env%moments_field(k)%matrix, bs_env%fm_s_Gamma%matrix_struct)
+         CALL cp_fm_create(rtbse_env%moments(k), bs_env%fm_s_Gamma%matrix_struct)
+         CALL cp_fm_create(rtbse_env%moments_field(k), bs_env%fm_s_Gamma%matrix_struct)
       END DO
 
       ! Allocate space for density propagation and other operations
       NULLIFY (rtbse_env%rho_workspace)
       ALLOCATE (rtbse_env%rho_workspace(4))
       DO i = 1, SIZE(rtbse_env%rho_workspace)
-         ALLOCATE (rtbse_env%rho_workspace(i)%matrix)
-         CALL cp_cfm_create(rtbse_env%rho_workspace(i)%matrix, bs_env%fm_ks_Gamma(1)%matrix_struct)
-         CALL cp_cfm_set_all(rtbse_env%rho_workspace(i)%matrix, CMPLX(0.0, 0.0, kind=dp))
+         CALL cp_cfm_create(rtbse_env%rho_workspace(i), bs_env%fm_ks_Gamma(1)%matrix_struct)
+         CALL cp_cfm_set_all(rtbse_env%rho_workspace(i), CMPLX(0.0, 0.0, kind=dp))
       END DO
       ! Allocate real workspace
       NULLIFY (rtbse_env%real_workspace)
@@ -392,67 +392,59 @@ CONTAINS
          CPABORT("Only exact and BCH matrix propagation implemented in RT-BSE")
       END SELECT
       DO i = 1, SIZE(rtbse_env%real_workspace)
-         NULLIFY (rtbse_env%real_workspace(i)%matrix)
-         ALLOCATE (rtbse_env%real_workspace(i)%matrix)
-         CALL cp_fm_create(rtbse_env%real_workspace(i)%matrix, bs_env%fm_ks_Gamma(1)%matrix_struct)
-         CALL cp_fm_set_all(rtbse_env%real_workspace(i)%matrix, 0.0_dp)
+         CALL cp_fm_create(rtbse_env%real_workspace(i), bs_env%fm_ks_Gamma(1)%matrix_struct)
+         CALL cp_fm_set_all(rtbse_env%real_workspace(i), 0.0_dp)
       END DO
       ! Allocate density matrix
+      NULLIFY (rtbse_env%rho)
       ALLOCATE (rtbse_env%rho(rtbse_env%n_spin))
       DO i = 1, rtbse_env%n_spin
-         NULLIFY (rtbse_env%rho(i)%matrix)
-         ALLOCATE (rtbse_env%rho(i)%matrix)
-         CALL cp_cfm_create(rtbse_env%rho(i)%matrix, matrix_struct=bs_env%fm_s_Gamma%matrix_struct)
+         CALL cp_cfm_create(rtbse_env%rho(i), matrix_struct=bs_env%fm_s_Gamma%matrix_struct)
       END DO
       ! Create the inverse overlap matrix, for use in density propagation
       ! Start by creating the actual overlap matrix
-      NULLIFY (rtbse_env%S_fm%matrix)
-      ALLOCATE (rtbse_env%S_fm%matrix)
-      CALL cp_fm_create(rtbse_env%S_fm%matrix, bs_env%fm_s_Gamma%matrix_struct)
-      NULLIFY (rtbse_env%S_inv_fm%matrix)
-      ALLOCATE (rtbse_env%S_inv_fm%matrix)
-      CALL cp_fm_create(rtbse_env%S_inv_fm%matrix, bs_env%fm_s_Gamma%matrix_struct)
-      NULLIFY (rtbse_env%S_cfm%matrix)
-      ALLOCATE (rtbse_env%S_cfm%matrix)
-      CALL cp_cfm_create(rtbse_env%S_cfm%matrix, bs_env%fm_s_Gamma%matrix_struct)
+      CALL cp_fm_create(rtbse_env%S_fm, bs_env%fm_s_Gamma%matrix_struct)
+      CALL cp_fm_create(rtbse_env%S_inv_fm, bs_env%fm_s_Gamma%matrix_struct)
+      CALL cp_cfm_create(rtbse_env%S_cfm, bs_env%fm_s_Gamma%matrix_struct)
 
       ! Create the single particle hamiltonian
       ! Allocate workspace
       NULLIFY (rtbse_env%ham_workspace)
       ALLOCATE (rtbse_env%ham_workspace(rtbse_env%n_spin))
       DO i = 1, rtbse_env%n_spin
-         ALLOCATE (rtbse_env%ham_workspace(i)%matrix)
-         CALL cp_cfm_create(rtbse_env%ham_workspace(i)%matrix, bs_env%fm_ks_Gamma(1)%matrix_struct)
-         CALL cp_cfm_set_all(rtbse_env%ham_workspace(i)%matrix, CMPLX(0.0, 0.0, kind=dp))
+         ALLOCATE (rtbse_env%ham_workspace(i))
+         CALL cp_cfm_create(rtbse_env%ham_workspace(i), bs_env%fm_ks_Gamma(1)%matrix_struct)
+         CALL cp_cfm_set_all(rtbse_env%ham_workspace(i), CMPLX(0.0, 0.0, kind=dp))
       END DO
       ! Now onto the Hamiltonian itself
+      NULLIFY (rtbse_env%ham_reference)
       ALLOCATE (rtbse_env%ham_reference(rtbse_env%n_spin))
       DO i = 1, rtbse_env%n_spin
-         ALLOCATE (rtbse_env%ham_reference(i)%matrix)
-         CALL cp_cfm_create(rtbse_env%ham_reference(i)%matrix, bs_env%fm_ks_Gamma(i)%matrix_struct)
+         ALLOCATE (rtbse_env%ham_reference(i))
+         CALL cp_cfm_create(rtbse_env%ham_reference(i), bs_env%fm_ks_Gamma(i)%matrix_struct)
       END DO
 
       ! Create the matrices and workspaces for ETRS propagation
+      NULLIFY (rtbse_env%ham_effective)
+      NULLIFY (rtbse_env%rho_new)
+      NULLIFY (rtbse_env%rho_new_last)
+      NULLIFY (rtbse_env%rho_M)
+      NULLIFY (rtbse_env%rho_orig)
       ALLOCATE (rtbse_env%ham_effective(rtbse_env%n_spin))
       ALLOCATE (rtbse_env%rho_new(rtbse_env%n_spin))
       ALLOCATE (rtbse_env%rho_new_last(rtbse_env%n_spin))
       ALLOCATE (rtbse_env%rho_M(rtbse_env%n_spin))
       ALLOCATE (rtbse_env%rho_orig(rtbse_env%n_spin))
       DO i = 1, rtbse_env%n_spin
-         ALLOCATE (rtbse_env%ham_effective(i)%matrix)
-         CALL cp_cfm_create(rtbse_env%ham_effective(i)%matrix, bs_env%fm_ks_Gamma(1)%matrix_struct)
-         CALL cp_cfm_set_all(rtbse_env%ham_effective(i)%matrix, CMPLX(0.0, 0.0, kind=dp))
-         ALLOCATE (rtbse_env%rho_new(i)%matrix)
-         CALL cp_cfm_create(rtbse_env%rho_new(i)%matrix, bs_env%fm_ks_Gamma(1)%matrix_struct)
-         CALL cp_cfm_set_all(rtbse_env%rho_new(i)%matrix, CMPLX(0.0, 0.0, kind=dp))
-         ALLOCATE (rtbse_env%rho_new_last(i)%matrix)
-         CALL cp_cfm_create(rtbse_env%rho_new_last(i)%matrix, bs_env%fm_ks_Gamma(1)%matrix_struct)
-         CALL cp_cfm_set_all(rtbse_env%rho_new_last(i)%matrix, CMPLX(0.0, 0.0, kind=dp))
-         ALLOCATE (rtbse_env%rho_M(i)%matrix)
-         CALL cp_cfm_create(rtbse_env%rho_M(i)%matrix, bs_env%fm_ks_Gamma(1)%matrix_struct)
-         CALL cp_cfm_set_all(rtbse_env%rho_M(i)%matrix, CMPLX(0.0, 0.0, kind=dp))
-         ALLOCATE (rtbse_env%rho_orig(i)%matrix)
-         CALL cp_cfm_create(rtbse_env%rho_orig(i)%matrix, bs_env%fm_ks_Gamma(1)%matrix_struct)
+         CALL cp_cfm_create(rtbse_env%ham_effective(i), bs_env%fm_ks_Gamma(1)%matrix_struct)
+         CALL cp_cfm_set_all(rtbse_env%ham_effective(i), CMPLX(0.0, 0.0, kind=dp))
+         CALL cp_cfm_create(rtbse_env%rho_new(i), bs_env%fm_ks_Gamma(1)%matrix_struct)
+         CALL cp_cfm_set_all(rtbse_env%rho_new(i), CMPLX(0.0, 0.0, kind=dp))
+         CALL cp_cfm_create(rtbse_env%rho_new_last(i), bs_env%fm_ks_Gamma(1)%matrix_struct)
+         CALL cp_cfm_set_all(rtbse_env%rho_new_last(i), CMPLX(0.0, 0.0, kind=dp))
+         CALL cp_cfm_create(rtbse_env%rho_M(i), bs_env%fm_ks_Gamma(1)%matrix_struct)
+         CALL cp_cfm_set_all(rtbse_env%rho_M(i), CMPLX(0.0, 0.0, kind=dp))
+         CALL cp_cfm_create(rtbse_env%rho_orig(i), bs_env%fm_ks_Gamma(1)%matrix_struct)
       END DO
 
       ! Fields for exact diagonalisation
@@ -474,19 +466,19 @@ CONTAINS
       ALLOCATE (rtbse_env%time_trace%series(rtbse_env%sim_nsteps + 2), source=0.0_dp)
 
       ! Allocate self-energy parts and dynamic Hartree potential
+      NULLIFY (rtbse_env%hartree_curr)
+      NULLIFY (rtbse_env%sigma_SEX)
+      NULLIFY (rtbse_env%sigma_COH)
       ALLOCATE (rtbse_env%hartree_curr(rtbse_env%n_spin))
       ALLOCATE (rtbse_env%sigma_SEX(rtbse_env%n_spin))
       ALLOCATE (rtbse_env%sigma_COH(rtbse_env%n_spin))
       DO i = 1, rtbse_env%n_spin
-         ALLOCATE (rtbse_env%hartree_curr(i)%matrix)
-         ALLOCATE (rtbse_env%sigma_SEX(i)%matrix)
-         ALLOCATE (rtbse_env%sigma_COH(i)%matrix)
-         CALL cp_fm_create(rtbse_env%sigma_COH(i)%matrix, bs_env%fm_ks_Gamma(1)%matrix_struct)
-         CALL cp_cfm_create(rtbse_env%sigma_SEX(i)%matrix, bs_env%fm_ks_Gamma(1)%matrix_struct)
-         CALL cp_fm_create(rtbse_env%hartree_curr(i)%matrix, bs_env%fm_ks_Gamma(1)%matrix_struct)
-         CALL cp_fm_set_all(rtbse_env%sigma_COH(i)%matrix, 0.0_dp)
-         CALL cp_cfm_set_all(rtbse_env%sigma_SEX(i)%matrix, CMPLX(0.0, 0.0, kind=dp))
-         CALL cp_fm_set_all(rtbse_env%hartree_curr(i)%matrix, 0.0_dp)
+         CALL cp_fm_create(rtbse_env%sigma_COH(i), bs_env%fm_ks_Gamma(1)%matrix_struct)
+         CALL cp_cfm_create(rtbse_env%sigma_SEX(i), bs_env%fm_ks_Gamma(1)%matrix_struct)
+         CALL cp_fm_create(rtbse_env%hartree_curr(i), bs_env%fm_ks_Gamma(1)%matrix_struct)
+         CALL cp_fm_set_all(rtbse_env%sigma_COH(i), 0.0_dp)
+         CALL cp_cfm_set_all(rtbse_env%sigma_SEX(i), CMPLX(0.0, 0.0, kind=dp))
+         CALL cp_fm_set_all(rtbse_env%hartree_curr(i), 0.0_dp)
       END DO
 
       ! Allocate workspaces for get_sigma
@@ -504,12 +496,11 @@ CONTAINS
 !> \date 02.2024
 ! **************************************************************************************************
    SUBROUTINE cp_cfm_release_pp1(matrices)
-      TYPE(cp_cfm_p_type), DIMENSION(:), POINTER                :: matrices
+      TYPE(cp_cfm_type), DIMENSION(:), POINTER                  :: matrices
       INTEGER                                                   :: i
 
       DO i = 1, SIZE(matrices)
-         CALL cp_cfm_release(matrices(i)%matrix)
-         DEALLOCATE (matrices(i)%matrix)
+         CALL cp_cfm_release(matrices(i))
       END DO
       DEALLOCATE (matrices)
       NULLIFY (matrices)
@@ -538,21 +529,16 @@ CONTAINS
       CALL cp_cfm_release_pp1(rtbse_env%rho_M)
       CALL cp_cfm_release_pp1(rtbse_env%rho_orig)
       CALL cp_fm_release(rtbse_env%real_workspace)
-      CALL cp_fm_release(rtbse_env%S_inv_fm%matrix)
-      DEALLOCATE (rtbse_env%S_inv_fm%matrix)
-      CALL cp_fm_release(rtbse_env%S_fm%matrix)
-      DEALLOCATE (rtbse_env%S_fm%matrix)
-      CALL cp_cfm_release(rtbse_env%S_cfm%matrix)
-      DEALLOCATE (rtbse_env%S_cfm%matrix)
+      CALL cp_fm_release(rtbse_env%S_inv_fm)
+      CALL cp_fm_release(rtbse_env%S_fm)
+      CALL cp_cfm_release(rtbse_env%S_cfm)
 
-      DO i = 1, 3
-         CALL cp_fm_release(rtbse_env%moments(i)%matrix)
-         DEALLOCATE (rtbse_env%moments(i)%matrix)
-         NULLIFY (rtbse_env%moments(i)%matrix)
-         CALL cp_fm_release(rtbse_env%moments_field(i)%matrix)
-         DEALLOCATE (rtbse_env%moments_field(i)%matrix)
-         NULLIFY (rtbse_env%moments_field(i)%matrix)
-      END DO
+      ! DO i = 1, 3
+      !    CALL cp_fm_release(rtbse_env%moments(i)%matrix)
+      !    CALL cp_fm_release(rtbse_env%moments_field(i)%matrix)
+      ! END DO
+      CALL cp_fm_release(rtbse_env%moments)
+      CALL cp_fm_release(rtbse_env%moments_field)
 
       CALL release_sigma_workspace(rtbse_env)
 
@@ -590,16 +576,13 @@ CONTAINS
 
       CALL get_qs_env(qs_env, bs_env=bs_env)
 
-      NULLIFY (rtbse_env%rho_dbcsr)
-      ALLOCATE (rtbse_env%rho_dbcsr)
       CALL dbcsr_create(rtbse_env%rho_dbcsr, name="Sparse density", template=bs_env%mat_ao_ao%matrix)
 
-      NULLIFY (rtbse_env%v_dbcsr%matrix)
-      ALLOCATE (rtbse_env%v_dbcsr%matrix)
+      ! v_dbcsr is created in init_hartree
 
       ! TODO : Implement option/decision to not precompute all the 3c integrals
       size_mb = REAL(rtbse_env%n_ao*rtbse_env%n_ao*rtbse_env%n_RI*STORAGE_SIZE(size_mb))/(1024_dp*1024_dp)
-      IF (rtbse_env%unit_nr > 0) WRITE (rtbse_env%unit_nr, *) "Approximate size of int_3c in MB", size_mb
+      IF (rtbse_env%unit_nr > 0) WRITE (rtbse_env%unit_nr, *) " RTBSE| Approximate size of int_3c in MB", size_mb
 
       ALLOCATE (rtbse_env%int_3c_array(rtbse_env%n_ao, rtbse_env%n_ao, rtbse_env%n_RI))
       CALL build_3c_integral_block(rtbse_env%int_3c_array, qs_env, potential_parameter=bs_env%ri_metric, &
@@ -609,16 +592,20 @@ CONTAINS
                                    k_bf_start_from_atom=bs_env%i_ao_start_from_atom, &
                                    i_bf_start_from_atom=bs_env%i_RI_start_from_atom)
    END SUBROUTINE create_hartree_ri_workspace
+! **************************************************************************************************
+!> \brief Releases the workspace for the Hartree RI method
+!> \param rtbse_env RT-BSE Environment, containing specific RI Hartree storage
+!> \author Stepan Marek
+!> \date 09.2024
+! **************************************************************************************************
    SUBROUTINE release_hartree_ri_workspace(rtbse_env)
       TYPE(rtbse_env_type)                              :: rtbse_env
 
       DEALLOCATE (rtbse_env%int_3c_array)
 
       CALL dbcsr_release(rtbse_env%rho_dbcsr)
-      DEALLOCATE (rtbse_env%rho_dbcsr)
 
-      CALL dbcsr_release(rtbse_env%v_dbcsr%matrix)
-      DEALLOCATE (rtbse_env%v_dbcsr%matrix)
+      CALL dbcsr_release(rtbse_env%v_dbcsr)
 
    END SUBROUTINE release_hartree_ri_workspace
 ! **************************************************************************************************
@@ -636,34 +623,20 @@ CONTAINS
       CALL get_qs_env(qs_env, bs_env=bs_env)
 
       ! t_3c_w
-      NULLIFY (rtbse_env%t_3c_w)
-      ALLOCATE (rtbse_env%t_3c_w)
       CALL dbt_create(bs_env%t_RI__AO_AO, rtbse_env%t_3c_w)
       ! TODO : Provide option/decision whether to store the 3c integrals precomputed
       CALL compute_3c_integrals(qs_env, bs_env, rtbse_env%t_3c_w)
       ! t_3c_work_RI_AO__AO
-      NULLIFY (rtbse_env%t_3c_work_RI_AO__AO)
-      ALLOCATE (rtbse_env%t_3c_work_RI_AO__AO)
       CALL dbt_create(bs_env%t_RI_AO__AO, rtbse_env%t_3c_work_RI_AO__AO)
       ! t_3c_work2_RI_AO__AO
-      NULLIFY (rtbse_env%t_3c_work2_RI_AO__AO)
-      ALLOCATE (rtbse_env%t_3c_work2_RI_AO__AO)
       CALL dbt_create(bs_env%t_RI_AO__AO, rtbse_env%t_3c_work2_RI_AO__AO)
       ! t_W
-      NULLIFY (rtbse_env%screened_dbt)
-      ALLOCATE (rtbse_env%screened_dbt)
       ! Populate screened_dbt from gw run
-      NULLIFY (rtbse_env%w_dbcsr%matrix)
-      ALLOCATE (rtbse_env%w_dbcsr%matrix)
-      CALL dbcsr_create(rtbse_env%w_dbcsr%matrix, name="W", template=bs_env%mat_RI_RI%matrix)
-      CALL dbt_create(rtbse_env%w_dbcsr%matrix, rtbse_env%screened_dbt)
+      CALL dbcsr_create(rtbse_env%w_dbcsr, name="W", template=bs_env%mat_RI_RI%matrix)
+      CALL dbt_create(rtbse_env%w_dbcsr, rtbse_env%screened_dbt)
       ! sigma_dbt
-      NULLIFY (rtbse_env%sigma_dbt)
-      ALLOCATE (rtbse_env%sigma_dbt)
       CALL dbt_create(bs_env%mat_ao_ao%matrix, rtbse_env%sigma_dbt)
       ! greens_dbt
-      NULLIFY (rtbse_env%greens_dbt)
-      ALLOCATE (rtbse_env%greens_dbt)
       CALL dbt_create(bs_env%mat_ao_ao%matrix, rtbse_env%greens_dbt)
    END SUBROUTINE
 ! **************************************************************************************************
@@ -675,35 +648,21 @@ CONTAINS
    SUBROUTINE release_sigma_workspace(rtbse_env)
       TYPE(rtbse_env_type)                               :: rtbse_env
 
-      IF (ASSOCIATED(rtbse_env%t_3c_w)) THEN
-         CALL dbt_destroy(rtbse_env%t_3c_w)
-         DEALLOCATE (rtbse_env%t_3c_w)
-      END IF
-      IF (ASSOCIATED(rtbse_env%t_3c_work_RI_AO__AO)) THEN
-         CALL dbt_destroy(rtbse_env%t_3c_work_RI_AO__AO)
-         DEALLOCATE (rtbse_env%t_3c_work_RI_AO__AO)
-      END IF
-      IF (ASSOCIATED(rtbse_env%t_3c_work2_RI_AO__AO)) THEN
-         CALL dbt_destroy(rtbse_env%t_3c_work2_RI_AO__AO)
-         DEALLOCATE (rtbse_env%t_3c_work2_RI_AO__AO)
-      END IF
-      IF (ASSOCIATED(rtbse_env%screened_dbt)) THEN
-         CALL dbt_destroy(rtbse_env%screened_dbt)
-         DEALLOCATE (rtbse_env%screened_dbt)
-      END IF
-      IF (ASSOCIATED(rtbse_env%sigma_dbt)) THEN
-         CALL dbt_destroy(rtbse_env%sigma_dbt)
-         DEALLOCATE (rtbse_env%sigma_dbt)
-      END IF
-      IF (ASSOCIATED(rtbse_env%greens_dbt)) THEN
-         CALL dbt_destroy(rtbse_env%greens_dbt)
-         DEALLOCATE (rtbse_env%greens_dbt)
-      END IF
-      IF (ASSOCIATED(rtbse_env%w_dbcsr%matrix)) THEN
-         CALL dbcsr_release(rtbse_env%w_dbcsr%matrix)
-         DEALLOCATE (rtbse_env%w_dbcsr%matrix)
-      END IF
+      CALL dbt_destroy(rtbse_env%t_3c_w)
+      CALL dbt_destroy(rtbse_env%t_3c_work_RI_AO__AO)
+      CALL dbt_destroy(rtbse_env%t_3c_work2_RI_AO__AO)
+      CALL dbt_destroy(rtbse_env%screened_dbt)
+      CALL dbt_destroy(rtbse_env%sigma_dbt)
+      CALL dbt_destroy(rtbse_env%greens_dbt)
+      CALL dbcsr_release(rtbse_env%w_dbcsr)
    END SUBROUTINE
+! **************************************************************************************************
+!> \brief Multiplies real matrix by a complex matrix from the right
+!> \note So far only converts the real matrix to complex one, potentially doubling the work
+!> \param rtbse_env
+!> \author Stepan Marek
+!> \date 09.2024
+! **************************************************************************************************
    SUBROUTINE multiply_fm_cfm(trans_r, trans_c, na, nb, nc, &
                               alpha, matrix_r, matrix_c, beta, res)
       ! Transposition
@@ -746,6 +705,13 @@ CONTAINS
       CALL cp_fm_release(res_im)
 
    END SUBROUTINE multiply_fm_cfm
+! **************************************************************************************************
+!> \brief Multiplies complex matrix by a real matrix from the right
+!> \note So far only converts the real matrix to complex one, potentially doubling the work
+!> \param rtbse_env
+!> \author Stepan Marek
+!> \date 09.2024
+! **************************************************************************************************
    SUBROUTINE multiply_cfm_fm(trans_c, trans_r, na, nb, nc, &
                               alpha, matrix_c, matrix_r, beta, res)
       ! Transposition

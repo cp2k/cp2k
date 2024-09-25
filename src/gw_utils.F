@@ -246,7 +246,7 @@ CONTAINS
       !    deallocated in bs_env_release
 
       IF (ASSOCIATED(bs_env%nl_3c%ij_list) .AND. (bs_env%rtp_method == rtp_method_bse)) THEN
-         IF (bs_env%unit_nr > 0) WRITE (bs_env%unit_nr, *) "Retaining nl_3c for GWBSE"
+         IF (bs_env%unit_nr > 0) WRITE (bs_env%unit_nr, *) "Retaining nl_3c for RTBSE"
       ELSE
          CALL neighbor_list_3c_destroy(bs_env%nl_3c)
       END IF
