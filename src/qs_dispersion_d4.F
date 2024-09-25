@@ -36,7 +36,7 @@ MODULE qs_dispersion_d4
    USE qs_dispersion_types, ONLY: qs_dispersion_type
    USE qs_dispersion_utils, ONLY: cellhash
    USE message_passing, ONLY: mp_para_env_type
-#
+
 #if defined(__DFTD4)
 !&<
    USE dftd4,                           ONLY: d4_model, &
