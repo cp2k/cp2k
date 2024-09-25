@@ -846,7 +846,6 @@ CONTAINS
       CALL dgemm_counter_start(dgemm_counter)
       SELECT CASE (mm_style)
       CASE (wfc_mm_style_gemm)
-         !WRITE(*,*)" this is used"
          ! waste-fully computes the full symmetrix matrix, but maybe faster than cp_fm_syrk for optimized cp_fm_gemm !!!
          CALL parallel_gemm(transa="N", transb="T", m=dimen_RI, n=dimen_RI, k=dimen_ia, alpha=alpha, &
                             matrix_a=fm_mat_S, matrix_b=fm_mat_S, beta=0.0_dp, &
