@@ -739,6 +739,7 @@ list(
   rpa_gw_sigma_x.F
   rpa_im_time.F
   rpa_main.F
+  rpa_sigma_functional.F
   rpa_rse.F
   rpa_im_time_force_types.F
   rpa_im_time_force_methods.F
