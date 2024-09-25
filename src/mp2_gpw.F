@@ -389,7 +389,6 @@ CONTAINS
          ! RI-GPW integrals (same stuff for both RPA and MP2)
          IF (nspins == 2) THEN
             ! open shell case (RI) here the (ia|K) integrals are computed for both the alpha and beta components
-            WRITE (*, *) 'CALCULATING integrals'
             CALL mp2_ri_gpw_compute_in( &
                BIb_C, BIb_C_gw, BIb_C_bse_ij, BIb_C_bse_ab, gd_array, gd_B_virtual, dimen_RI, dimen_RI_red, qs_env, &
                para_env, para_env_sub, color_sub, cell, particle_set, &
@@ -407,7 +406,6 @@ CONTAINS
                gd_B_occ_bse, gd_B_virt_bse)
          ELSE
             ! closed shell case (RI)
-            WRITE (*, *) 'CALCULATING integrals'
             CALL mp2_ri_gpw_compute_in(BIb_C, BIb_C_gw, BIb_C_bse_ij, BIb_C_bse_ab, gd_array, gd_B_virtual, &
                                        dimen_RI, dimen_RI_red, qs_env, para_env, para_env_sub, &
                                        color_sub, cell, particle_set, &
