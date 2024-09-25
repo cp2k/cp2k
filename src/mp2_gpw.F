@@ -301,7 +301,8 @@ CONTAINS
          CALL m_flush(unit_nr)
       END IF
 
-      IF (.NOT. mp2_env%ri_g0w0%print_local_bandgap) THEN
+      ! MG: Disable logger layer for BSE, misses some key information to print cube files properly
+      IF (.NOT. (mp2_env%ri_g0w0%print_local_bandgap .OR. mp2_env%ri_g0w0%do_bse)) THEN
          ! a logger
          NULLIFY (logger_sub)
          CALL cp_logger_create(logger_sub, para_env=para_env_sub, &
@@ -639,7 +640,7 @@ CONTAINS
 
       CALL cp_blacs_env_release(blacs_env_sub)
 
-      IF (.NOT. mp2_env%ri_g0w0%print_local_bandgap) THEN
+      IF (.NOT. (mp2_env%ri_g0w0%print_local_bandgap .OR. mp2_env%ri_g0w0%do_bse)) THEN
          CALL cp_rm_default_logger()
          CALL cp_logger_release(logger_sub)
       END IF

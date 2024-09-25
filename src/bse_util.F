@@ -11,7 +11,10 @@
 !>      11.2023 created [Maximilian Graml]
 ! **************************************************************************************************
 MODULE bse_util
+   USE atomic_kind_types,               ONLY: atomic_kind_type
+   USE cell_types,                      ONLY: cell_type
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
+   USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_api,                    ONLY: dbcsr_create,&
                                               dbcsr_init_p,&
                                               dbcsr_p_type,&
@@ -27,20 +30,25 @@ MODULE bse_util
                                               cp_fm_upper_to_full
    USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose,&
                                               cp_fm_cholesky_invert
+   USE cp_fm_diag,                      ONLY: cp_fm_svd
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: cp_fm_create,&
-                                              cp_fm_get_info,&
-                                              cp_fm_get_submatrix,&
-                                              cp_fm_release,&
-                                              cp_fm_set_all,&
-                                              cp_fm_to_fm,&
-                                              cp_fm_to_fm_submat_general,&
-                                              cp_fm_type
-   USE cp_log_handling,                 ONLY: cp_logger_get_default_unit_nr
+   USE cp_fm_types,                     ONLY: &
+        cp_fm_create, cp_fm_get_info, cp_fm_get_submatrix, cp_fm_release, cp_fm_set_all, &
+        cp_fm_to_fm, cp_fm_to_fm_submat, cp_fm_to_fm_submat_general, cp_fm_type
+   USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                              cp_logger_get_default_unit_nr,&
+                                              cp_logger_type
+   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
+                                              cp_print_key_unit_nr
+   USE cp_realspace_grid_cube,          ONLY: cp_pw_to_cube
    USE input_constants,                 ONLY: use_mom_ref_coac
-   USE kinds,                           ONLY: dp,&
+   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+                                              section_vals_type,&
+                                              section_vals_val_get
+   USE kinds,                           ONLY: default_path_length,&
+                                              dp,&
                                               int_8
    USE message_passing,                 ONLY: mp_para_env_type,&
                                               mp_request_type
@@ -48,13 +56,28 @@ MODULE bse_util
    USE mp2_types,                       ONLY: integ_mat_buffer_type,&
                                               mp2_type
    USE parallel_gemm_api,               ONLY: parallel_gemm
+   USE particle_list_types,             ONLY: particle_list_type
+   USE particle_types,                  ONLY: particle_type
    USE physcon,                         ONLY: evolt
+   USE pw_env_types,                    ONLY: pw_env_get,&
+                                              pw_env_type
+   USE pw_pool_types,                   ONLY: pw_pool_p_type,&
+                                              pw_pool_type
+   USE pw_types,                        ONLY: pw_c1d_gs_type,&
+                                              pw_r3d_rs_type
+   USE qs_collocate_density,            ONLY: calculate_wavefunction
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
-   USE qs_mo_types,                     ONLY: get_mo_set,&
+   USE qs_kind_types,                   ONLY: qs_kind_type
+   USE qs_mo_types,                     ONLY: allocate_mo_set,&
+                                              deallocate_mo_set,&
+                                              get_mo_set,&
+                                              init_mo_set,&
                                               mo_set_type
    USE qs_moments,                      ONLY: build_local_moment_matrix
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
+   USE qs_subsys_types,                 ONLY: qs_subsys_get,&
+                                              qs_subsys_type
    USE rpa_communication,               ONLY: communicate_buffer
    USE util,                            ONLY: sort,&
                                               sort_unique
@@ -70,7 +93,7 @@ MODULE bse_util
              deallocate_matrices_bse, comp_eigvec_coeff_BSE, sort_excitations, &
              estimate_BSE_resources, filter_eigvec_contrib, truncate_BSE_matrices, &
              get_oscillator_strengths, compute_absorption_spectrum, determine_cutoff_indices, &
-             print_transition_probabilities
+             print_transition_probabilities, calculate_NTOs
 
 CONTAINS
 
@@ -158,7 +181,7 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Adds and reorders full matrices with a combined index structure, e.g. adding W_ij,ab
-!> to A_ia, which needs MPI communication.
+!> to A_ia, jb which needs MPI communication.
 !> \param fm_out ...
 !> \param fm_in ...
 !> \param beta ...
@@ -173,7 +196,8 @@ CONTAINS
    SUBROUTINE fm_general_add_bse(fm_out, fm_in, beta, nrow_secidx_in, ncol_secidx_in, &
                                  nrow_secidx_out, ncol_secidx_out, unit_nr, reordering, mp2_env)
 
-      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_out, fm_in
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_out
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_in
       REAL(kind=dp)                                      :: beta
       INTEGER, INTENT(IN)                                :: nrow_secidx_in, ncol_secidx_in, &
                                                             nrow_secidx_out, ncol_secidx_out
@@ -1486,7 +1510,7 @@ CONTAINS
       ! Include excitonic amplitudes in dipoles, i.e. obtain "BSE dipoles":
       ! \vec{D}_n = sqrt(2) * sum_{i,a} \vec{D}_ai (X_{ai}^{(n)} + Y_{ai}^{(n)})
 
-      ! Reorder dipoles in order to execute the sum ovver i and a by parallel gemm
+      ! Reorder dipoles in order to execute the sum over i and a by parallel gemm
       DO idir = 1, 3
          CALL cp_fm_create(fm_dipoles_per_dir_trunc(idir), matrix_struct=fm_struct_dipoles_trunc, &
                            name="dipoles_mo_trunc")
@@ -1784,7 +1808,7 @@ CONTAINS
                            file_status="UNKNOWN", file_action="WRITE")
             WRITE (unit_nr_file, '(A75,A6)') "# Imaginary part of polarizability from Bethe Salpeter equation for method ", &
                TRIM(ADJUSTL(info_approximation))
-            WRITE (unit_nr_file, '(A20,1X,10(2X,A20,1X))') "#  Frequency (eV)", "Im{α_{avg}(ω)}", "Im{α_xx(ω)}", &
+            WRITE (unit_nr_file, '(A20,1X,10(2X,A20,1X))') "#     Frequency (eV)", "Im{α_{avg}(ω)}", "Im{α_xx(ω)}", &
                "Im{α_xy(ω)}", "Im{α_xz(ω)}", "Im{α_yx(ω)}", "Im{α_yy(ω)}", "Im{α_yz(ω)}", "Im{α_zx(ω)}", &
                "Im{α_zy(ω)}", "Im{α_zz(ω)}"
             DO i = 1, num_steps
@@ -1814,8 +1838,6 @@ CONTAINS
 
    END SUBROUTINE
 
-   ! **************************************************************************************************
-   ! **************************************************************************************************
 ! **************************************************************************************************
 !> \brief ...
 !> \param fm_eigvec ...
@@ -1864,4 +1886,373 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE
+
+! **************************************************************************************************
+!> \brief ...
+!> \param fm_X ...
+!> \param fm_Y ...
+!> \param mo_coeff ...
+!> \param homo ...
+!> \param virtual ...
+!> \param info_approximation ...
+!> \param qs_env ...
+!> \param unit_nr ...
+!> \param mp2_env ...
+! **************************************************************************************************
+   SUBROUTINE calculate_NTOs(fm_X, fm_Y, &
+                             mo_coeff, homo, virtual, &
+                             info_approximation, &
+                             qs_env, unit_nr, mp2_env)
+
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_X
+      TYPE(cp_fm_type), INTENT(IN), OPTIONAL             :: fm_Y
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: mo_coeff
+      INTEGER, INTENT(IN)                                :: homo, virtual
+      CHARACTER(LEN=10)                                  :: info_approximation
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      INTEGER, INTENT(IN)                                :: unit_nr
+      TYPE(mp2_type), INTENT(INOUT)                      :: mp2_env
+
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'calculate_NTOs'
+
+      CHARACTER(LEN=20), DIMENSION(2)                    :: nto_name
+      INTEGER                                            :: handle, i, i_nto, n_exc, n_nto, nao
+      INTEGER, DIMENSION(:), POINTER                     :: stride
+      LOGICAL                                            :: append_cube, cube_file
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: eigval_svd
+      TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_m, fm_struct_mo_coeff, &
+                                                            fm_struct_nto_holes, &
+                                                            fm_struct_nto_particles, &
+                                                            fm_struct_nto_set
+      TYPE(cp_fm_type) :: fm_eigvl, fm_eigvr_t, fm_m, fm_mo_coeff, fm_nto_coeff_holes, &
+         fm_nto_coeff_particles, fm_nto_set, fm_X_ia, fm_Y_ai
+      TYPE(mo_set_type), ALLOCATABLE, DIMENSION(:)       :: nto_set
+      TYPE(section_vals_type), POINTER                   :: bse_section, input, nto_section
+
+      CALL timeset(routineN, handle)
+      CALL get_qs_env(qs_env=qs_env, &
+                      input=input)
+      bse_section => section_vals_get_subs_vals(input, "DFT%XC%WF_CORRELATION%RI_RPA%GW%BSE")
+      ! MG to do: Cutoffs
+      nao = homo + virtual
+      ! M will have a block structure and is quadratic in homo+virtual, i.e.
+      !                          occ   virt
+      !                       |   0    X_i,a |  occ  = homo
+      !     M        =        | Y_a,i    0   |  virt = virtual
+      !
+      ! X and Y are here not the eigenvectors X_ia,n - instead we fix n and reshape the combined ia index
+      ! Notice the index structure of the lower block, i.e. X is transposed
+      CALL cp_fm_struct_create(fm_struct_m, &
+                               fm_X%matrix_struct%para_env, fm_X%matrix_struct%context, &
+                               homo + virtual, homo + virtual)
+      CALL cp_fm_struct_create(fm_struct_mo_coeff, &
+                               fm_X%matrix_struct%para_env, fm_X%matrix_struct%context, &
+                               nao, nao)
+      CALL cp_fm_struct_create(fm_struct_nto_holes, &
+                               fm_X%matrix_struct%para_env, fm_X%matrix_struct%context, &
+                               nao, nao)
+      CALL cp_fm_struct_create(fm_struct_nto_particles, &
+                               fm_X%matrix_struct%para_env, fm_X%matrix_struct%context, &
+                               nao, nao)
+
+      CALL cp_fm_create(fm_mo_coeff, matrix_struct=fm_struct_mo_coeff, &
+                        name="mo_coeff")
+      CALL cp_fm_to_fm_submat_general(mo_coeff(1), fm_mo_coeff, &
+                                      nao, nao, &
+                                      1, 1, &
+                                      1, 1, &
+                                      mo_coeff(1)%matrix_struct%context)
+
+      DO n_exc = 1, homo*virtual
+         CALL cp_fm_create(fm_m, matrix_struct=fm_struct_m, &
+                           name="single_part_trans_dm")
+         CALL cp_fm_set_all(fm_m, 0.0_dp)
+
+         CALL cp_fm_create(fm_nto_coeff_holes, matrix_struct=fm_struct_nto_holes, &
+                           name="nto_coeffs_holes")
+         CALL cp_fm_set_all(fm_nto_coeff_holes, 0.0_dp)
+
+         CALL cp_fm_create(fm_nto_coeff_particles, matrix_struct=fm_struct_nto_particles, &
+                           name="nto_coeffs_particles")
+         CALL cp_fm_set_all(fm_nto_coeff_particles, 0.0_dp)
+
+         ! Reshuffle from X_ia,n_exc to X_i,a
+         CALL reshuffle_eigvec(fm_X, fm_X_ia, homo, virtual, n_exc, &
+                               .FALSE., unit_nr, mp2_env)
+
+         ! Copy X to upper block in M, i.e. starting from column homo+1
+         CALL cp_fm_to_fm_submat(fm_X_ia, fm_m, &
+                                 homo, virtual, &
+                                 1, 1, &
+                                 1, homo + 1)
+         CALL cp_fm_release(fm_X_ia)
+         ! Copy Y if present
+         IF (PRESENT(fm_Y)) THEN
+            ! Reshuffle from Y_ia,n_exc to Y_a,i
+            CALL reshuffle_eigvec(fm_Y, fm_Y_ai, homo, virtual, n_exc, &
+                                  .TRUE., unit_nr, mp2_env)
+
+            ! Copy Y^T to lower block in M, i.e. starting from row homo+1
+            CALL cp_fm_to_fm_submat(fm_Y_ai, fm_m, &
+                                    virtual, homo, &
+                                    1, 1, &
+                                    homo + 1, 1)
+
+            CALL cp_fm_release(fm_Y_ai)
+
+         END IF
+
+         ! Now we compute the SVD of M_{occ+virt,occ+virt}, which yields
+         ! M = U * Lambda * V^T
+         CALL cp_fm_svd(fm_m, fm_eigvl, fm_eigvr_t, eigval_svd)
+
+         ! Create NTO coefficients for later print to grid via TDDFT routine
+
+         ! MG to do: Take care of cutoff
+         ! Apply U = fm_eigvl to MO coeffs, which yields hole states
+         CALL parallel_gemm("N", "N", nao, nao, nao, 1.0_dp, fm_mo_coeff, fm_eigvl, 0.0_dp, &
+                            fm_nto_coeff_holes)
+
+         ! Apply V^T = fm_eigvr_t to MO coeffs, which yields particle states
+         CALL parallel_gemm("N", "T", nao, nao, nao, 1.0_dp, fm_mo_coeff, fm_eigvr_t, 0.0_dp, &
+                            fm_nto_coeff_particles)
+
+         !Release intermediary work matrices
+         CALL cp_fm_release(fm_m)
+         CALL cp_fm_release(fm_eigvl)
+         CALL cp_fm_release(fm_eigvr_t)
+
+         ! Transfer NTO coefficients to sets
+         nto_name(1) = 'Hole_coord'
+         nto_name(2) = 'Particle_coord'
+         ALLOCATE (nto_set(2))
+         ! Extract number of significant NTOs
+         n_nto = 0
+         DO i_nto = 1, nao
+            IF (eigval_svd(i_nto) > mp2_env%ri_g0w0%eps_nto_eigval) THEN
+               n_nto = n_nto + 1
+            ELSE
+               ! Since svd orders in descending order, we can exit the loop if smaller
+               EXIT
+            END IF
+         END DO
+
+         CALL cp_fm_struct_create(fm_struct_nto_set, template_fmstruct=fm_struct_nto_holes, &
+                                  ncol_global=n_nto)
+         CALL cp_fm_create(fm_nto_set, fm_struct_nto_set)
+         DO i = 1, 2
+            CALL allocate_mo_set(nto_set(i), nao, n_nto, 0, 0.0_dp, 2.0_dp, 0.0_dp)
+            CALL init_mo_set(nto_set(i), fm_ref=fm_nto_set, name=nto_name(i))
+         END DO
+         CALL cp_fm_release(fm_nto_set)
+         CALL cp_fm_struct_release(fm_struct_nto_set)
+
+         ! Fill NTO sets
+         CALL cp_fm_to_fm(fm_nto_coeff_holes, nto_set(1)%mo_coeff, ncol=n_nto)
+         CALL cp_fm_to_fm(fm_nto_coeff_particles, nto_set(2)%mo_coeff, ncol=n_nto)
+
+         ! Cube and Molden files
+         nto_section => section_vals_get_subs_vals(bse_section, "NTO_ANALYSIS")
+         CALL section_vals_val_get(nto_section, "CUBE_FILES", l_val=cube_file)
+         CALL section_vals_val_get(nto_section, "STRIDE", i_vals=stride)
+         CALL section_vals_val_get(nto_section, "APPEND", l_val=append_cube)
+         IF (cube_file) THEN
+            CALL print_bse_nto_cubes(qs_env, nto_set, n_exc, info_approximation, &
+                                     stride, append_cube, nto_section)
+         END IF
+         ! CALL get_qs_env(qs_env, qs_kind_set=qs_kind_set, particle_set=particle_set)
+         ! molden_section => section_vals_get_subs_vals(print_section, "MOS_MOLDEN")
+         ! CALL write_mos_molden(nto_set, qs_kind_set, particle_set, molden_section)
+
+         CALL cp_fm_release(fm_nto_coeff_holes)
+         CALL cp_fm_release(fm_nto_coeff_particles)
+         DEALLOCATE (eigval_svd)
+         DO i = 1, 2
+            CALL deallocate_mo_set(nto_set(i))
+         END DO
+         DEALLOCATE (nto_set)
+         PRINT *, "Finished loop of index", n_exc
+      END DO
+      CALL cp_fm_release(fm_mo_coeff)
+      CALL cp_fm_struct_release(fm_struct_m)
+      CALL cp_fm_struct_release(fm_struct_nto_holes)
+      CALL cp_fm_struct_release(fm_struct_nto_particles)
+
+      PRINT *, "Leaving calculate_NTOs"
+      CALL timestop(handle)
+
+   END SUBROUTINE calculate_NTOs
+
+! **************************************************************************************************
+!> \brief ...
+!> \param fm_eigvec ...
+!> \param fm_eigvec_reshuffled ...
+!> \param homo ...
+!> \param virtual ...
+!> \param n_exc ...
+!> \param do_transpose ...
+!> \param unit_nr ...
+!> \param mp2_env ...
+! **************************************************************************************************
+   SUBROUTINE reshuffle_eigvec(fm_eigvec, fm_eigvec_reshuffled, homo, virtual, n_exc, do_transpose, &
+                               unit_nr, mp2_env)
+
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_eigvec
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_eigvec_reshuffled
+      INTEGER, INTENT(IN)                                :: homo, virtual, n_exc
+      LOGICAL, INTENT(IN)                                :: do_transpose
+      INTEGER, INTENT(IN)                                :: unit_nr
+      TYPE(mp2_type), INTENT(INOUT)                      :: mp2_env
+
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'reshuffle_eigvec'
+
+      INTEGER                                            :: handle, my_m_col, my_n_row
+      INTEGER, DIMENSION(4)                              :: reordering
+      TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_eigvec_col, &
+                                                            fm_struct_eigvec_reshuffled
+      TYPE(cp_fm_type)                                   :: fm_eigvec_col
+
+      CALL timeset(routineN, handle)
+
+      ! Define reordering:
+      ! (ia,11) to (a1,i1) for transposition of X
+      ! (ia,11) to (i1,a1) for Y
+      IF (do_transpose) THEN
+         reordering = (/2, 3, 1, 4/)
+         my_n_row = virtual
+         my_m_col = homo
+      ELSE
+         reordering = (/1, 3, 2, 4/)
+         my_n_row = homo
+         my_m_col = virtual
+      END IF
+
+      CALL cp_fm_struct_create(fm_struct_eigvec_col, &
+                               fm_eigvec%matrix_struct%para_env, fm_eigvec%matrix_struct%context, &
+                               homo*virtual, 1)
+      CALL cp_fm_struct_create(fm_struct_eigvec_reshuffled, &
+                               fm_eigvec%matrix_struct%para_env, fm_eigvec%matrix_struct%context, &
+                               my_n_row, my_m_col)
+
+      ! Resort indices
+      CALL cp_fm_create(fm_eigvec_col, fm_struct_eigvec_col, name="BSE_column_vector")
+      CALL cp_fm_set_all(fm_eigvec_col, 0.0_dp)
+      CALL cp_fm_create(fm_eigvec_reshuffled, fm_struct_eigvec_reshuffled, name="BSE_reshuffled_eigenvector")
+      CALL cp_fm_set_all(fm_eigvec_reshuffled, 0.0_dp)
+      ! Fill matrix
+      CALL cp_fm_to_fm_submat(fm_eigvec, fm_eigvec_col, &
+                              homo*virtual, 1, &
+                              1, n_exc, &
+                              1, 1)
+      ! Reshuffle
+      CALL fm_general_add_bse(fm_eigvec_reshuffled, fm_eigvec_col, 1.0_dp, &
+                              virtual, 1, &
+                              1, 1, &
+                              unit_nr, reordering, mp2_env)
+
+      CALL cp_fm_release(fm_eigvec_col)
+      CALL cp_fm_struct_release(fm_struct_eigvec_col)
+      CALL cp_fm_struct_release(fm_struct_eigvec_reshuffled)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE reshuffle_eigvec
+
+! **************************************************************************************************
+!> \brief Borrowed from the tddfpt module with slight adaptions
+!> \param qs_env ...
+!> \param mos ...
+!> \param istate ...
+!> \param info_approximation ...
+!> \param stride ...
+!> \param append_cube ...
+!> \param print_section ...
+! **************************************************************************************************
+   SUBROUTINE print_bse_nto_cubes(qs_env, mos, istate, info_approximation, &
+                                  stride, append_cube, print_section)
+
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(mo_set_type), DIMENSION(:), INTENT(IN)        :: mos
+      INTEGER, INTENT(IN)                                :: istate
+      CHARACTER(LEN=10)                                  :: info_approximation
+      INTEGER, DIMENSION(:), POINTER                     :: stride
+      LOGICAL, INTENT(IN)                                :: append_cube
+      TYPE(section_vals_type), POINTER                   :: print_section
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'print_bse_nto_cubes'
+
+      CHARACTER(LEN=default_path_length)                 :: filename, info_approx_trunc, &
+                                                            my_pos_cube, title
+      INTEGER                                            :: handle, i, iset, nmo, unit_nr_cube
+      LOGICAL                                            :: mpi_io
+      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      TYPE(cell_type), POINTER                           :: cell
+      TYPE(cp_fm_type), POINTER                          :: mo_coeff
+      TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(particle_list_type), POINTER                  :: particles
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(pw_c1d_gs_type)                               :: wf_g
+      TYPE(pw_env_type), POINTER                         :: pw_env
+      TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
+      TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
+      TYPE(pw_r3d_rs_type)                               :: wf_r
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+      TYPE(qs_subsys_type), POINTER                      :: subsys
+
+      logger => cp_get_default_logger()
+      CALL timeset(routineN, handle)
+
+      CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, pw_env=pw_env)
+      CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, pw_pools=pw_pools)
+      CALL auxbas_pw_pool%create_pw(wf_r)
+      CALL auxbas_pw_pool%create_pw(wf_g)
+
+      CALL get_qs_env(qs_env, subsys=subsys)
+      CALL qs_subsys_get(subsys, particles=particles)
+
+      my_pos_cube = "REWIND"
+      IF (append_cube) THEN
+         my_pos_cube = "APPEND"
+      END IF
+
+      CALL get_qs_env(qs_env=qs_env, &
+                      atomic_kind_set=atomic_kind_set, &
+                      qs_kind_set=qs_kind_set, &
+                      cell=cell, &
+                      particle_set=particle_set)
+
+      DO iset = 1, 2
+         CALL get_mo_set(mo_set=mos(iset), mo_coeff=mo_coeff, nmo=nmo)
+         DO i = 1, nmo
+            CALL calculate_wavefunction(mo_coeff, i, wf_r, wf_g, atomic_kind_set, qs_kind_set, &
+                                        cell, dft_control, particle_set, pw_env)
+            IF (iset == 1) THEN
+               WRITE (filename, '(A6,I3.3,A5,I2.2,a11)') "_NEXC_", istate, "_NTO_", i, "_Hole_State"
+            ELSEIF (iset == 2) THEN
+               WRITE (filename, '(A6,I3.3,A5,I2.2,a15)') "_NEXC_", istate, "_NTO_", i, "_Particle_State"
+            END IF
+            info_approx_trunc = TRIM(ADJUSTL(info_approximation))
+            info_approx_trunc = info_approx_trunc(2:LEN_TRIM(info_approx_trunc) - 1)
+            filename = TRIM(info_approx_trunc)//TRIM(filename)
+            mpi_io = .TRUE.
+            unit_nr_cube = cp_print_key_unit_nr(logger, print_section, '', extension=".cube", &
+                                                middle_name=TRIM(filename), file_position=my_pos_cube, &
+                                                log_filename=.FALSE., ignore_should_output=.TRUE., mpi_io=mpi_io)
+            IF (iset == 1) THEN
+               WRITE (title, *) "Natural Transition Orbital Hole State", i
+            ELSEIF (iset == 2) THEN
+               WRITE (title, *) "Natural Transition Orbital Particle State", i
+            END IF
+            CALL cp_pw_to_cube(wf_r, unit_nr_cube, title, particles=particles, stride=stride, mpi_io=mpi_io)
+            CALL cp_print_key_finished_output(unit_nr_cube, logger, print_section, '', &
+                                              ignore_should_output=.TRUE., mpi_io=mpi_io)
+         END DO
+      END DO
+
+      CALL auxbas_pw_pool%give_back_pw(wf_g)
+      CALL auxbas_pw_pool%give_back_pw(wf_r)
+
+      CALL timestop(handle)
+   END SUBROUTINE print_bse_nto_cubes
 END MODULE

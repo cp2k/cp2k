@@ -41,7 +41,23 @@ MODULE cp_fm_diag
    USE cp_fm_types, ONLY: cp_fm_get_info, &
                           cp_fm_set_element, &
                           cp_fm_to_fm, &
+                          cp_fm_type, &
+                          cp_fm_create, &
+                          cp_fm_get_info, &
+                          cp_fm_release, &
+                          cp_fm_set_all, &
+                          cp_fm_to_fm, &
+                          cp_fm_to_fm_submat, &
                           cp_fm_type
+   USE cp_fm_struct, ONLY: cp_fm_struct_equivalent, &
+                           cp_fm_struct_create, &
+                           cp_fm_struct_release, &
+                           cp_fm_struct_type
+   USE cp_log_handling, ONLY: cp_logger_get_default_unit_nr, &
+                              cp_get_default_logger, &
+                              cp_logger_get_default_io_unit, &
+                              cp_logger_type, &
+                              cp_to_string
    USE cp_log_handling, ONLY: cp_get_default_logger, &
                               cp_logger_get_default_unit_nr, &
                               cp_logger_get_unit_nr, &
@@ -104,6 +120,7 @@ MODULE cp_fm_diag
              cp_fm_power, &
              cp_fm_syevd, &
              cp_fm_syevx, &
+             cp_fm_svd, &
              cp_fm_geeig, &
              cp_fm_geeig_canon, &
              diag_init, &
@@ -881,6 +898,85 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE cp_fm_syevx
+
+! **************************************************************************************************
+!> \brief decomposes a quadratic matrix into its singular value decomposition
+!> \param matrix_a ...
+!> \param matrix_eigvl ...
+!> \param matrix_eigvr_t ...
+!> \param eigval ...
+!> \author Maximilian Graml
+! **************************************************************************************************
+   SUBROUTINE cp_fm_svd(matrix_a, matrix_eigvl, matrix_eigvr_t, eigval)
+
+      TYPE(cp_fm_type), INTENT(IN)              :: matrix_a
+      TYPE(cp_fm_type), INTENT(OUT)             :: matrix_eigvl, matrix_eigvr_t
+      REAL(KIND=dp), DIMENSION(:), POINTER, &
+         INTENT(OUT)                         :: eigval
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_fm_svd'
+
+      INTEGER                                  :: handle, n, m
+      REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a
+      TYPE(cp_fm_type)                :: matrix_lu
+
+#if defined(__parallel)
+      INTEGER                                  :: info, lwork
+      INTEGER, DIMENSION(9)                    :: desca, descu, descvt
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: work
+#endif
+      CALL timeset(routineN, handle)
+
+      CALL cp_fm_create(matrix=matrix_lu, &
+                        matrix_struct=matrix_a%matrix_struct, &
+                        name="A_lu"//TRIM(ADJUSTL(cp_to_string(1)))//"MATRIX")
+      CALL cp_fm_to_fm(matrix_a, matrix_lu)
+
+      a => matrix_lu%local_data
+      m = matrix_lu%matrix_struct%nrow_global
+      n = matrix_lu%matrix_struct%ncol_global
+      ! Assert that incoming matrix is quadratic
+      CPASSERT(m == n)
+#if defined(__parallel)
+      CALL cp_fm_create(matrix=matrix_eigvl, &
+                        matrix_struct=matrix_a%matrix_struct, &
+                        name="LEFT_SINGULAR_MATRIX")
+      CALL cp_fm_set_all(matrix_eigvl, alpha=0.0_dp)
+      CALL cp_fm_create(matrix=matrix_eigvr_t, &
+                        matrix_struct=matrix_a%matrix_struct, &
+                        name="RIGHT_SINGULAR_MATRIX")
+      CALL cp_fm_set_all(matrix_eigvr_t, alpha=0.0_dp)
+      ALLOCATE (eigval(m))
+      eigval(:) = 0.0_dp
+      desca(:) = matrix_lu%matrix_struct%descriptor(:)
+      descu(:) = matrix_eigvl%matrix_struct%descriptor(:)
+      descvt(:) = matrix_eigvr_t%matrix_struct%descriptor(:)
+      ALLOCATE (work(1))
+      ! Workspace query
+      lwork = -1
+      CALL pdgesvd('V', 'V', m, m, matrix_lu%local_data, 1, 1, desca, eigval, matrix_eigvl%local_data, &
+                   1, 1, descu, matrix_eigvr_t%local_data, 1, 1, descvt, work, lwork, info)
+      IF (info /= 0) &
+         CPABORT("Singular value decomposition of matrix failed.")
+      lwork = INT(work(1))
+      DEALLOCATE (work)
+      ALLOCATE (work(lwork))
+      ! SVD
+      CALL pdgesvd('V', 'V', m, m, matrix_lu%local_data, 1, 1, desca, eigval, matrix_eigvl%local_data, &
+                   1, 1, descu, matrix_eigvr_t%local_data, 1, 1, descvt, work, lwork, info)
+      DEALLOCATE (work)
+      IF (info /= 0) &
+         CPABORT("Singular value decomposition of matrix failed.")
+      ! Release work matrices
+      CALL cp_fm_release(matrix_lu)
+
+#else
+      ! MG to do
+      CALL cp_abort(__LOCATION__, &
+         "NYI. Singular value decomposition not available without SCALAPACK.")
+#endif
+      CALL timestop(handle)
+   END SUBROUTINE cp_fm_svd
 
 ! **************************************************************************************************
 !> \brief ...

@@ -239,6 +239,7 @@ MODULE mp2_types
       REAL(KIND=dp)                                      :: eps_res = 0.0_dp, &
                                                             eps_exc_en = 0.0_dp, &
                                                             eps_x = 0.0_dp, &
+                                                            eps_nto_eigval = 0.0_dp, &
                                                             bse_cutoff_occ = 0.0_dp, &
                                                             bse_cutoff_empty = 0.0_dp, &
                                                             z_space_energy_cutoff = 0.0_dp

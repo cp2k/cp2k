@@ -13,7 +13,8 @@
 ! **************************************************************************************************
 MODULE bse_full_diag
 
-   USE bse_util,                        ONLY: comp_eigvec_coeff_BSE,&
+   USE bse_util,                        ONLY: calculate_NTOs,&
+                                              comp_eigvec_coeff_BSE,&
                                               compute_absorption_spectrum,&
                                               fm_general_add_bse,&
                                               get_oscillator_strengths,&
@@ -35,12 +36,16 @@ MODULE bse_full_diag
                                               cp_fm_type
    USE input_constants,                 ONLY: bse_singlet,&
                                               bse_triplet
+   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+                                              section_vals_type,&
+                                              section_vals_val_get
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_para_env_type
    USE mp2_types,                       ONLY: mp2_type
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE physcon,                         ONLY: evolt
-   USE qs_environment_types,            ONLY: qs_environment_type
+   USE qs_environment_types,            ONLY: get_qs_env,&
+                                              qs_environment_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -594,9 +599,11 @@ CONTAINS
 
       CHARACTER(LEN=10)                                  :: info_approximation, multiplet
       INTEGER                                            :: handle, i_exc
+      LOGICAL                                            :: cube_file
       REAL(KIND=dp)                                      :: alpha
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: oscill_str
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: dipole_exc, polarizability_residues
+      TYPE(section_vals_type), POINTER                   :: input, nto_section
 
       CALL timeset(routineN, handle)
 
@@ -803,7 +810,7 @@ CONTAINS
             CALL compute_absorption_spectrum(oscill_str, polarizability_residues, Exc_ens, &
                                              info_approximation, unit_nr, mp2_env)
          END IF
-         DEALLOCATE (oscill_str, dipole_exc, polarizability_residues)
+
       ELSE
          IF (unit_nr > 0) THEN
             WRITE (unit_nr, '(T2,A4)') 'BSE|'
@@ -814,6 +821,22 @@ CONTAINS
          END IF
       END IF
 
+      ! Compute and print excitation wavefunctions
+      CALL get_qs_env(qs_env=qs_env, &
+                      input=input)
+      nto_section => section_vals_get_subs_vals(input, "DFT%XC%WF_CORRELATION%RI_RPA%GW%BSE%NTO_ANALYSIS")
+      CALL section_vals_val_get(nto_section, "CUBE_FILES", l_val=cube_file)
+      IF (cube_file) THEN
+         IF (mp2_env%ri_g0w0%bse_cutoff_occ > 0 .OR. mp2_env%ri_g0w0%bse_cutoff_empty > 0) THEN
+            CPABORT("Cutoffs NYI for NTOs")
+         END IF
+         CALL calculate_NTOs(fm_eigvec_X, fm_eigvec_Y, &
+                             mo_coeff, homo, virtual, &
+                             info_approximation, &
+                             qs_env, unit_nr, mp2_env)
+      END IF
+
+      DEALLOCATE (oscill_str, dipole_exc, polarizability_residues)
       IF (unit_nr > 0) THEN
          WRITE (unit_nr, '(T2,A4)') 'BSE|'
          WRITE (unit_nr, '(T2,A4)') 'BSE|'
