@@ -228,11 +228,11 @@ MODULE rt_bse_types
                                                                    rho_new_last => NULL(), &
                                                                    rho_M => NULL(), &
                                                                    rho_orig => NULL()
-      TYPE(cp_fm_type)                                          :: S_inv_fm, &
-                                                                   S_fm
+      TYPE(cp_fm_type)                                          :: S_inv_fm = cp_fm_type(), &
+                                                                   S_fm = cp_fm_type()
       ! Many routines require overlap in the complex format
-      TYPE(cp_cfm_type)                                         :: S_cfm
-      TYPE(dbcsr_type)                                          :: rho_dbcsr
+      TYPE(cp_cfm_type)                                         :: S_cfm = cp_cfm_type()
+      TYPE(dbcsr_type)                                          :: rho_dbcsr = dbcsr_type()
       ! Indices only correspond to different workspaces
       TYPE(cp_cfm_type), DIMENSION(:), POINTER                  :: rho_workspace => NULL()
       ! Many methods use real and imaginary parts separately - prevent unnecessary reallocation
@@ -241,19 +241,19 @@ MODULE rt_bse_types
       REAL(kind=dp), DIMENSION(:), POINTER                      :: real_eigvals => NULL()
       COMPLEX(kind=dp), DIMENSION(:), POINTER                   :: exp_eigvals => NULL()
       ! Workspace for saving the values for FT
-      TYPE(series_complex_type), DIMENSION(3)                   :: moments_trace
-      TYPE(series_real_type)                                    :: time_trace
-      TYPE(series_real_type), DIMENSION(3)                      :: field_trace
+      TYPE(series_complex_type), DIMENSION(3)                   :: moments_trace = series_complex_type()
+      TYPE(series_real_type)                                    :: time_trace = series_real_type()
+      TYPE(series_real_type), DIMENSION(3)                      :: field_trace = series_real_type()
       ! Workspace required for hartree_pw
-      TYPE(dbcsr_type)                                          :: v_dbcsr, &
-                                                                   w_dbcsr
-      TYPE(dbt_type)                                            :: screened_dbt, &
-                                                                   sigma_dbt, &
-                                                                   greens_dbt, &
-                                                                   t_3c_w, &
-                                                                   t_3c_work_RI__AO_AO, &
-                                                                   t_3c_work_RI_AO__AO, &
-                                                                   t_3c_work2_RI_AO__AO
+      TYPE(dbcsr_type)                                          :: v_dbcsr = dbcsr_type(), &
+                                                                   w_dbcsr = dbcsr_type()
+      TYPE(dbt_type)                                            :: screened_dbt = dbt_type(), &
+                                                                   sigma_dbt = dbt_type(), &
+                                                                   greens_dbt = dbt_type(), &
+                                                                   t_3c_w = dbt_type(), &
+                                                                   t_3c_work_RI__AO_AO = dbt_type(), &
+                                                                   t_3c_work_RI_AO__AO = dbt_type(), &
+                                                                   t_3c_work2_RI_AO__AO = dbt_type()
       ! These matrices are always real
       INTEGER                                                   :: etrs_max_iter = 10
       INTEGER                                                   :: ham_reference_type = 2
@@ -412,7 +412,6 @@ CONTAINS
       NULLIFY (rtbse_env%ham_workspace)
       ALLOCATE (rtbse_env%ham_workspace(rtbse_env%n_spin))
       DO i = 1, rtbse_env%n_spin
-         ALLOCATE (rtbse_env%ham_workspace(i))
          CALL cp_cfm_create(rtbse_env%ham_workspace(i), bs_env%fm_ks_Gamma(1)%matrix_struct)
          CALL cp_cfm_set_all(rtbse_env%ham_workspace(i), CMPLX(0.0, 0.0, kind=dp))
       END DO
@@ -495,7 +494,7 @@ CONTAINS
 !> \author Stepan Marek
 !> \date 02.2024
 ! **************************************************************************************************
-   SUBROUTINE cp_cfm_release_pp1(matrices)
+   SUBROUTINE cp_cfm_release_pa1(matrices)
       TYPE(cp_cfm_type), DIMENSION(:), POINTER                  :: matrices
       INTEGER                                                   :: i
 
@@ -504,7 +503,7 @@ CONTAINS
       END DO
       DEALLOCATE (matrices)
       NULLIFY (matrices)
-   END SUBROUTINE cp_cfm_release_pp1
+   END SUBROUTINE cp_cfm_release_pa1
 
 ! **************************************************************************************************
 !> \brief Releases the environment allocated structures
@@ -516,18 +515,18 @@ CONTAINS
       TYPE(rtbse_env_type), POINTER                             :: rtbse_env
       INTEGER                                                   :: i
 
-      CALL cp_cfm_release_pp1(rtbse_env%ham_effective)
-      CALL cp_cfm_release_pp1(rtbse_env%ham_workspace)
+      CALL cp_cfm_release_pa1(rtbse_env%ham_effective)
+      CALL cp_cfm_release_pa1(rtbse_env%ham_workspace)
       CALL cp_fm_release(rtbse_env%sigma_COH)
-      CALL cp_cfm_release_pp1(rtbse_env%sigma_SEX)
+      CALL cp_cfm_release_pa1(rtbse_env%sigma_SEX)
       CALL cp_fm_release(rtbse_env%hartree_curr)
-      CALL cp_cfm_release_pp1(rtbse_env%ham_reference)
-      CALL cp_cfm_release_pp1(rtbse_env%rho)
-      CALL cp_cfm_release_pp1(rtbse_env%rho_workspace)
-      CALL cp_cfm_release_pp1(rtbse_env%rho_new)
-      CALL cp_cfm_release_pp1(rtbse_env%rho_new_last)
-      CALL cp_cfm_release_pp1(rtbse_env%rho_M)
-      CALL cp_cfm_release_pp1(rtbse_env%rho_orig)
+      CALL cp_cfm_release_pa1(rtbse_env%ham_reference)
+      CALL cp_cfm_release_pa1(rtbse_env%rho)
+      CALL cp_cfm_release_pa1(rtbse_env%rho_workspace)
+      CALL cp_cfm_release_pa1(rtbse_env%rho_new)
+      CALL cp_cfm_release_pa1(rtbse_env%rho_new_last)
+      CALL cp_cfm_release_pa1(rtbse_env%rho_M)
+      CALL cp_cfm_release_pa1(rtbse_env%rho_orig)
       CALL cp_fm_release(rtbse_env%real_workspace)
       CALL cp_fm_release(rtbse_env%S_inv_fm)
       CALL cp_fm_release(rtbse_env%S_fm)
