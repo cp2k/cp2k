@@ -419,7 +419,6 @@ CONTAINS
       NULLIFY (rtbse_env%ham_reference)
       ALLOCATE (rtbse_env%ham_reference(rtbse_env%n_spin))
       DO i = 1, rtbse_env%n_spin
-         ALLOCATE (rtbse_env%ham_reference(i))
          CALL cp_cfm_create(rtbse_env%ham_reference(i), bs_env%fm_ks_Gamma(i)%matrix_struct)
       END DO
 
