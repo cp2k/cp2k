@@ -1,4 +1,4 @@
-114
+118
 Total energy:!3
 MD| Potential energy!5
 Total energy \[eV\]:!4
@@ -113,6 +113,10 @@ HOMO-LUMO gap in evGW0 iteration  3 (eV)!8
 HOMO-LUMO gap in evGW iteration  3 (eV)!8
 BSE|             1     -TDA- !7
 BSE|             1    -ABBA- !7
+MOMENTS_TRACE_RE|     0.10000000E+000!3
+MOMENTS_TRACE_IM|     0.10000000E+000!3
+MOMENTS_TRACE_RE|     0.20000000E+000!3
+POLARIZABILITY|     0.28663041E+002!4
 #
 # these are the tests the can be selected for regtesting.
 # do regtest will grep for test_grep (first column) and look if the numeric value

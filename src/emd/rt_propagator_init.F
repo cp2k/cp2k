@@ -38,6 +38,7 @@ MODULE rt_propagator_init
                                               do_cn,&
                                               do_em,&
                                               do_etrs,&
+                                              do_exact,&
                                               do_pade,&
                                               do_taylor
    USE iterate_matrix,                  ONLY: matrix_sqrt_Newton_Schulz
@@ -160,7 +161,7 @@ CONTAINS
             DO imat = 1, SIZE(mos_new)
                CALL cp_fm_to_fm(mos_new(imat), mos_next(imat))
             END DO
-         ELSEIF (rtp_control%mat_exp == do_bch) THEN
+         ELSEIF (rtp_control%mat_exp == do_bch .OR. rtp_control%mat_exp == do_exact) THEN
          ELSE
             IF (rtp%linear_scaling) THEN
                CALL compute_exponential_sparse(exp_H_new, propagator_matrix, rtp_control, rtp)

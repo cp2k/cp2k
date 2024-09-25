@@ -124,20 +124,21 @@ MODULE post_scf_bandstructure_types
       INTEGER, DIMENSION(3)                        :: periodic = -1
       REAL(KIND=dp), DIMENSION(3, 3)               :: hmat = -1.0_dp
 
-      ! imaginary time and imaginary frequency grids
-      INTEGER                                      :: num_time_freq_points = -1, &
-                                                      num_freq_points_fit = -1
-      REAL(KIND=dp), DIMENSION(:), ALLOCATABLE     :: imag_time_points, &
-                                                      imag_freq_points, &
-                                                      imag_freq_points_fit
-      REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE  :: weights_cos_t_to_w, &
-                                                      weights_cos_w_to_t, &
-                                                      weights_sin_t_to_w
-      INTEGER                                      :: nparam_pade = -1, &
-                                                      num_points_per_magnitude = -1
-      REAL(KIND=dp)                                :: freq_max_fit = -1.0_dp, &
-                                                      regularization_minimax = -1.0_dp, &
-                                                      stabilize_exp = -1.0_dp
+      ! imaginary time and frequency grids
+      INTEGER                                         :: num_time_freq_points = -1, &
+                                                         num_freq_points_fit = -1
+      REAL(KIND=dp), DIMENSION(:), ALLOCATABLE        :: imag_time_points, &
+                                                         imag_time_weights_freq_zero, &
+                                                         imag_freq_points, &
+                                                         imag_freq_points_fit
+      REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE     :: weights_cos_t_to_w, &
+                                                         weights_cos_w_to_t, &
+                                                         weights_sin_t_to_w
+      INTEGER                                         :: nparam_pade = -1, &
+                                                         num_points_per_magnitude = -1
+      REAL(KIND=dp)                                   :: freq_max_fit = -1.0_dp, &
+                                                         regularization_minimax = -1.0_dp, &
+                                                         stabilize_exp = -1.0_dp
 
       ! filter threshold for matrix-tensor operations
       REAL(KIND=dp)                                :: eps_filter = -1.0_dp, &
@@ -161,7 +162,9 @@ MODULE post_scf_bandstructure_types
                                                       fm_chi_Gamma_freq, &
                                                       fm_W_MIC_freq, &
                                                       fm_W_MIC_freq_1_extra, &
-                                                      fm_W_MIC_freq_1_no_extra
+                                                      fm_W_MIC_freq_1_no_extra, &
+                                                      fm_W_MIC_freq_zero, &
+                                                      fm_h_G0W0_Gamma
       TYPE(cp_cfm_type)                            :: cfm_work_mo, &
                                                       cfm_work_mo_2
 
@@ -209,6 +212,8 @@ MODULE post_scf_bandstructure_types
                                                       atoms_j_t_group
       LOGICAL, DIMENSION(:, :), ALLOCATABLE        :: skip_Sigma_occ, &
                                                       skip_Sigma_vir
+      ! Marek : rtp_method
+      INTEGER                                      :: rtp_method
 
       ! check-arrays and names for restarting
       LOGICAL, DIMENSION(:), ALLOCATABLE           :: read_chi, &
@@ -317,6 +322,7 @@ CONTAINS
       IF (ALLOCATED(bs_env%l_RI)) DEALLOCATE (bs_env%l_RI)
       IF (ALLOCATED(bs_env%xkp_special)) DEALLOCATE (bs_env%xkp_special)
       IF (ALLOCATED(bs_env%imag_time_points)) DEALLOCATE (bs_env%imag_time_points)
+      IF (ALLOCATED(bs_env%imag_time_weights_freq_zero)) DEALLOCATE (bs_env%imag_time_weights_freq_zero)
       IF (ALLOCATED(bs_env%imag_freq_points)) DEALLOCATE (bs_env%imag_freq_points)
       IF (ALLOCATED(bs_env%eigenval_scf_Gamma)) DEALLOCATE (bs_env%eigenval_scf_Gamma)
       IF (ALLOCATED(bs_env%eigenval_scf)) DEALLOCATE (bs_env%eigenval_scf)
@@ -363,6 +369,8 @@ CONTAINS
       CALL cp_fm_release(bs_env%fm_RI_RI)
       CALL cp_fm_release(bs_env%fm_chi_Gamma_freq)
       CALL cp_fm_release(bs_env%fm_W_MIC_freq)
+      ! TODO : Test whether IF (rtp_method == rtp_method_gw) is needed
+      CALL cp_fm_release(bs_env%fm_W_MIC_freq_zero)
       CALL cp_fm_release(bs_env%fm_W_MIC_freq_1_extra)
       CALL cp_fm_release(bs_env%fm_W_MIC_freq_1_no_extra)
       CALL cp_cfm_release(bs_env%cfm_work_mo)

@@ -39,18 +39,18 @@ MODULE input_cp2k_dft
         do_admm_exch_scaling_none, do_admm_purify_cauchy, do_admm_purify_cauchy_subspace, &
         do_admm_purify_mcweeny, do_admm_purify_mo_diag, do_admm_purify_mo_no_diag, &
         do_admm_purify_none, do_admm_purify_none_dm, do_arnoldi, do_bch, do_cn, do_em, do_etrs, &
-        do_pade, do_taylor, ehrenfest, gaussian, kg_color_dsatur, kg_color_greedy, &
+        do_exact, do_pade, do_taylor, ehrenfest, gaussian, kg_color_dsatur, kg_color_greedy, &
         kg_tnadd_atomic, kg_tnadd_embed, kg_tnadd_embed_ri, kg_tnadd_none, no_admm_type, &
         no_excitations, numerical, oe_gllb, oe_lb, oe_none, oe_saop, oe_sic, plus_u_lowdin, &
         plus_u_mulliken, plus_u_mulliken_charges, real_time_propagation, rel_dkh, rel_none, &
         rel_pot_erfc, rel_pot_full, rel_sczora_mp, rel_trans_atom, rel_trans_full, &
-        rel_trans_molecule, rel_zora, rel_zora_full, rel_zora_mp, sccs_andreussi, &
-        sccs_derivative_cd3, sccs_derivative_cd5, sccs_derivative_cd7, sccs_derivative_fft, &
-        sccs_fattebert_gygi, sic_ad, sic_eo, sic_list_all, sic_list_unpaired, sic_mauri_spz, &
-        sic_mauri_us, sic_none, slater, tddfpt_davidson, tddfpt_excitations, tddfpt_lanczos, &
-        tddfpt_singlet, tddfpt_triplet, use_mom_ref_coac, use_mom_ref_com, use_mom_ref_user, &
-        use_mom_ref_zero, use_restart_wfn, use_rt_restart, use_scf_wfn, weight_type_mass, &
-        weight_type_unit
+        rel_trans_molecule, rel_zora, rel_zora_full, rel_zora_mp, rtp_bse_ham_g0w0, &
+        rtp_bse_ham_ks, rtp_method_bse, rtp_method_tddft, sccs_andreussi, sccs_derivative_cd3, &
+        sccs_derivative_cd5, sccs_derivative_cd7, sccs_derivative_fft, sccs_fattebert_gygi, &
+        sic_ad, sic_eo, sic_list_all, sic_list_unpaired, sic_mauri_spz, sic_mauri_us, sic_none, &
+        slater, tddfpt_davidson, tddfpt_excitations, tddfpt_lanczos, tddfpt_singlet, &
+        tddfpt_triplet, use_mom_ref_coac, use_mom_ref_com, use_mom_ref_user, use_mom_ref_zero, &
+        use_restart_wfn, use_rt_restart, use_scf_wfn, weight_type_mass, weight_type_unit
    USE input_cp2k_almo,                 ONLY: create_almo_scf_section
    USE input_cp2k_as,                   ONLY: create_active_space_section
    USE input_cp2k_ec,                   ONLY: create_ec_section
@@ -1630,15 +1630,17 @@ CONTAINS
                           " in the propagator. It is recommended to use BCH when employing density_propagation "// &
                           "and ARNOLDI otherwise.", &
                           usage="MAT_EXP TAYLOR", default_i_val=do_arnoldi, &
-                          enum_c_vals=s2a("TAYLOR", "PADE", "ARNOLDI", "BCH"), &
-                          enum_i_vals=(/do_taylor, do_pade, do_arnoldi, do_bch/), &
+                          enum_c_vals=s2a("TAYLOR", "PADE", "ARNOLDI", "BCH", "EXACT"), &
+                          enum_i_vals=(/do_taylor, do_pade, do_arnoldi, do_bch, do_exact/), &
                           enum_desc=s2a("exponential is evaluated using scaling and squaring in combination"// &
                                         " with a taylor expansion of the exponential.", &
                                         "uses scaling and squaring together with the pade approximation", &
                                         "uses arnoldi subspace algorithm to compute exp(H)*MO directly, can't be used in "// &
                                         "combination with Crank Nicholson or density propagation", &
                                         "Uses a Baker-Campbell-Hausdorff expansion to propagate the density matrix,"// &
-                                        " only works for density propagation"))
+                                        " only works for density propagation", &
+                                        "Uses diagonalisation of the exponent matrices to determine the "// &
+                                        "matrix exponential exactly. Only implemented for GWBSE."))
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -1665,6 +1667,33 @@ CONTAINS
                           "is an upper bound for the needed one.", &
                           usage="EXP_ACCURACY 1.0E-6", &
                           default_r_val=1.0E-9_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      ! Marek : Controlling flow to GWBSE
+      CALL keyword_create(keyword, __LOCATION__, name="RTP_METHOD", &
+                          description="Which method is used for the time propagation of electronic structure. "// &
+                          "By default, use the TDDFT method. Can also choose RT-BSE method, which propagates the lesser "// &
+                          "Green's function instead of density matrix/molecular orbitals.", &
+                          usage="RTP_METHOD RTBSE", &
+                          default_i_val=rtp_method_tddft, &
+                          enum_c_vals=s2a("TDDFT", "RTBSE"), &
+                          enum_i_vals=(/rtp_method_tddft, rtp_method_bse/), &
+                          enum_desc=s2a("Use TDDFT for density matrix/MO propagation.", &
+                                        "Use RT-BSE for Green's function propagation"))
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      ! Marek : Development option - run GWBSE starting from the KS Hamiltonian
+      CALL keyword_create(keyword, __LOCATION__, name="RTBSE_HAMILTONIAN", &
+                          description="Which Hamiltonian to use as the single-particle Hamiltonian"// &
+                          " in the Green's propagator.", &
+                          usage="RTBSE_HAMILTONIAN G0W0", &
+                          default_i_val=rtp_bse_ham_g0w0, &
+                          enum_c_vals=s2a("KS", "G0W0"), &
+                          enum_i_vals=(/rtp_bse_ham_ks, rtp_bse_ham_g0w0/), &
+                          enum_desc=s2a("Use Kohn-Sham Hamiltonian for Green's propagation.", &
+                                        "Use G0W0 Hamiltonian for Green's function propagation"))
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -1860,7 +1889,8 @@ CONTAINS
       CALL cp_print_key_section_create(print_key, __LOCATION__, "RESTART", &
                                        description="Controls the dumping of the MO restart file during rtp. "// &
                                        "By default keeps a short history of three restarts. "// &
-                                       "See also RESTART_HISTORY. In density propagation this controls the printing of P.", &
+                                       "See also RESTART_HISTORY. In density propagation this controls the printing of "// &
+                                       "density matrix.", &
                                        print_level=low_print_level, common_iter_levels=3, &
                                        each_iter_names=s2a("MD"), each_iter_values=(/20/), &
                                        add_last=add_last_numeric, filename="RESTART")
@@ -1923,6 +1953,72 @@ CONTAINS
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
 
+      CALL section_add_subsection(print_section, print_key)
+      CALL section_release(print_key)
+
+      ! Marek : Add print option for ASCII density files - DEVELPMENT ONLY?
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "DENSITY_MATRIX", &
+                                       description="Prints the density matrix at iterations in clear text to a file", &
+                                       print_level=high_print_level, common_iter_levels=0, &
+                                       each_iter_names=s2a("MD"), &
+                                       each_iter_values=(/1/), &
+                                       filename="rho")
+      CALL section_add_subsection(print_section, print_key)
+      CALL section_release(print_key)
+      ! Marek : Moments ASCII print
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "MOMENTS", &
+                                       description="Prints the time-dependent electronic moments at "// &
+                                       "iterations in clear text to a file.", &
+                                       print_level=high_print_level, common_iter_levels=0, &
+                                       each_iter_names=s2a("MD"), &
+                                       each_iter_values=(/1/), &
+                                       filename="__STD_OUT__")
+      CALL section_add_subsection(print_section, print_key)
+      CALL section_release(print_key)
+      ! Marek : Fourier transform of MOMENTS ASCII print
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "MOMENTS_FT", &
+                                       description="Prints the calculated Fourier transform of "// &
+                                       "time-dependent moments. For calculations with real time pulse (not delta kick) "// &
+                                       "can be supplied with starting time.", &
+                                       print_level=medium_print_level, common_iter_levels=0, &
+                                       each_iter_names=s2a("MD"), &
+                                       each_iter_values=(/1/), &
+                                       filename="MOMENTS_FT")
+      CALL keyword_create(keyword, __LOCATION__, "DAMPING", &
+                          description="Sets the exponential damping of the time trace before carrying out Fourier transform. "// &
+                          "For negative values (the default), calculates the damping at the run time so that the last point "// &
+                          "in the time trace is reduced by factor e^(-4). Uses atomic units of inverse time.", &
+                          type_of_var=real_t, &
+                          default_r_val=-1.0_dp)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, "START_TIME", &
+                          description="The starting time from which damping is applied and from which on the trace is "// &
+                          "considered for the Fourier transform. Useful for real-time pulse - "// &
+                          "one can specify the center of the pulse as the starting point.", &
+                          type_of_var=real_t, &
+                          default_r_val=0.0_dp)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+      CALL section_add_subsection(print_section, print_key)
+      CALL section_release(print_key)
+      ! Marek : Chosen element of (Fourier transformed) polarizability tensor (energy dependent) - text format
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "POLARIZABILITY", &
+                                       description="Prints the chosen element of the energy dependent polarizability tensor "// &
+                                       "to a specified file. The tensor is calculated as ratio of "// &
+                                       "Fourier transform of the dipole "// &
+                                       "moment trace and Fourier transform of the applied field "// &
+                                       "(for delta kick, constant real field is applied.", &
+                                       print_level=medium_print_level, common_iter_levels=0, &
+                                       each_iter_names=s2a("MD"), &
+                                       each_iter_values=(/1/), &
+                                       filename="POLARIZABILITY")
+      CALL keyword_create(keyword, __LOCATION__, "ELEMENT", &
+                          description="Specifies the element of polarizability which is to be printed out "// &
+                          "(indexing starts at 1).", &
+                          type_of_var=integer_t, default_i_vals=(/1, 1/), n_var=2, usage="ELEMENT 1 1")
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
       CALL section_add_subsection(print_section, print_key)
       CALL section_release(print_key)
 

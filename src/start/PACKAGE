@@ -16,5 +16,6 @@
         "../swarm",
         "../motion",
         "../motion/mc",
+        "../emd",
     ],
 }

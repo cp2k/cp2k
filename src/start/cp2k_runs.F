@@ -80,7 +80,7 @@ MODULE cp2k_runs
         do_sirius, do_swarm, do_tamc, do_test, do_tree_mc, do_tree_mc_ana, driver_run, ehrenfest, &
         electronic_spectra_run, energy_force_run, energy_run, geo_opt_run, linear_response_run, &
         mol_dyn_run, mon_car_run, negf_run, none_run, pint_run, real_time_propagation, &
-        tree_mc_run, vib_anal
+        rtp_method_bse, tree_mc_run, vib_anal
    USE input_cp2k,                      ONLY: create_cp2k_root_section
    USE input_cp2k_check,                ONLY: check_cp2k_input
    USE input_cp2k_global,               ONLY: create_global_section
@@ -127,6 +127,7 @@ MODULE cp2k_runs
    USE qs_linres_module,                ONLY: linres_calculation
    USE qs_tddfpt_module,                ONLY: tddfpt_calculation
    USE reference_manager,               ONLY: export_references_as_xml
+   USE rt_bse,                          ONLY: run_propagation_bse
    USE rt_propagation,                  ONLY: rt_prop_setup
    USE sirius_interface,                ONLY: cp_sirius_finalize,&
                                               cp_sirius_init
@@ -383,7 +384,14 @@ CONTAINS
             CPABORT("Real time propagation needs METHOD QS. ")
          CALL get_qs_env(force_env%qs_env, dft_control=dft_control)
          dft_control%rtp_control%fixed_ions = .TRUE.
-         CALL rt_prop_setup(force_env)
+         SELECT CASE (dft_control%rtp_control%rtp_method)
+         CASE (rtp_method_bse)
+            ! Run the TD-BSE method
+            CALL run_propagation_bse(force_env%qs_env, force_env)
+         CASE default
+            ! Run the TDDFT method
+            CALL rt_prop_setup(force_env)
+         END SELECT
       CASE (ehrenfest)
          IF (method_name_id /= do_qs) &
             CPABORT("Ehrenfest dynamics needs METHOD QS ")

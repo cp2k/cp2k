@@ -1,0 +1,22 @@
+#!-------------------------------------------------------------------------------------------------!
+#!   CP2K: A general program to perform molecular dynamics simulations                             !
+#!   Copyright 2000-2024 CP2K developers group <https://cp2k.org>                                  !
+#!                                                                                                 !
+#!   SPDX-License-Identifier: GPL-2.0-or-later                                                     !
+#!-------------------------------------------------------------------------------------------------!
+
+#! **************************************************************************************************
+#!> \brief Macros for propagation via RT-BSE method
+#!> \note  Contains the SPIN_DO construct
+#!> \author Stepan Marek (12.23)
+#! **************************************************************************************************
+
+#:mute
+
+   #:def SPIN_DO(i, re, im, nspin)
+      DO ${i}$ = 1, ${nspin}$
+      ${re}$ = 2*${i}$-1
+      ${im}$ = 2*${i}$
+   #:enddef
+
+#:endmute

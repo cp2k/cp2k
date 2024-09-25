@@ -920,7 +920,8 @@ MODULE input_constants
    INTEGER, PARAMETER, PUBLIC               :: do_taylor = 1, &
                                                do_pade = 2, &
                                                do_arnoldi = 3, &
-                                               do_bch = 4
+                                               do_bch = 4, &
+                                               do_exact = 5
 
    INTEGER, PARAMETER, PUBLIC               :: do_etrs = 1, &
                                                do_cn = 2, &
@@ -934,6 +935,12 @@ MODULE input_constants
                                                gaussian_env = 2, &
                                                ramp_env = 3, &
                                                custom_env = 4
+
+   INTEGER, PARAMETER, PUBLIC               :: rtp_method_tddft = 1, &
+                                               rtp_method_bse = 2
+
+   INTEGER, PARAMETER, PUBLIC               :: rtp_bse_ham_ks = 1, &
+                                               rtp_bse_ham_g0w0 = 2
 
    ! type of reference for RTP%PRINT%PROJECTION_MO
    INTEGER, PARAMETER, PUBLIC               :: proj_mo_ref_scf = 1, &

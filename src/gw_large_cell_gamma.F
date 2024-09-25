@@ -57,6 +57,7 @@ MODULE gw_large_cell_gamma
    USE gw_utils,                        ONLY: analyt_conti_and_print,&
                                               de_init_bs_env,&
                                               time_to_freq
+   USE input_constants,                 ONLY: rtp_method_bse
    USE input_section_types,             ONLY: section_vals_type
    USE kinds,                           ONLY: default_string_length,&
                                               dp,&
@@ -89,7 +90,8 @@ MODULE gw_large_cell_gamma
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'gw_large_cell_gamma'
 
-   PUBLIC :: gw_calc_large_cell_Gamma
+   PUBLIC :: gw_calc_large_cell_Gamma, &
+             compute_3c_integrals
 
 CONTAINS
 
@@ -959,6 +961,19 @@ CONTAINS
 
       IF (bs_env%unit_nr > 0) WRITE (bs_env%unit_nr, '(A)') ' '
 
+      ! Marek : Reading of the W(w=0) potential for RTP
+      ! TODO : is the condition bs_env%all_W_exist sufficient for reading?
+      IF (bs_env%rtp_method == rtp_method_bse) THEN
+         CALL cp_fm_create(bs_env%fm_W_MIC_freq_zero, bs_env%fm_W_MIC_freq%matrix_struct)
+         t1 = m_walltime()
+         CALL fm_read(bs_env%fm_W_MIC_freq_zero, bs_env, "W_freq_rtp", 0)
+         IF (bs_env%unit_nr > 0) THEN
+            WRITE (bs_env%unit_nr, '(T2,A,I5,A,I3,A,F7.1,A)') &
+               'Read W^MIC(w=0) from file for frequency point  ', 1, ' /', 1, &
+               ',    Execution time', m_walltime() - t1, ' s'
+         END IF
+      END IF
+
       CALL timestop(handle)
 
    END SUBROUTINE read_W_MIC_time
@@ -1051,6 +1066,23 @@ CONTAINS
       CALL cp_cfm_release(cfm_M_inv_V_sqrt_ikp)
       CALL cp_cfm_release(cfm_V_sqrt_ikp)
       CALL dbcsr_deallocate_matrix_set(mat_chi_Gamma_tau)
+
+      ! Marek : Fourier transform W^MIC(itau) back to get it at a specific im.frequency point - iomega = 0
+      ! TODO : Should this be activeted here or somewhere else? Maybe directly in the main (gw) routine?
+      ! Create the matrix TODO: Add release statement in some well understood place - at destruction of bs_env?
+      IF (bs_env%rtp_method == rtp_method_bse) THEN
+         CALL cp_fm_create(bs_env%fm_W_MIC_freq_zero, bs_env%fm_W_MIC_freq%matrix_struct)
+         ! Set to zero
+         CALL cp_fm_set_all(bs_env%fm_W_MIC_freq_zero, 0.0_dp)
+         ! Sum over all times
+         DO i_t = 1, bs_env%num_time_freq_points
+            ! Add the relevant structure with correct weight
+            CALL cp_fm_scale_and_add(1.0_dp, bs_env%fm_W_MIC_freq_zero, &
+                                     bs_env%imag_time_weights_freq_zero(i_t), fm_W_MIC_time(i_t))
+         END DO
+         ! Done, save to file
+         CALL fm_write(bs_env%fm_W_MIC_freq_zero, 0, "W_freq_rtp", qs_env)
+      END IF
 
       IF (bs_env%unit_nr > 0) WRITE (bs_env%unit_nr, '(A)') ' '
 
