@@ -605,7 +605,7 @@ CONTAINS
 ! **************************************************************************************************
    FUNCTION rho_metric(rho_new, rho_old, nspin, workspace_opt) RESULT(metric)
       TYPE(cp_cfm_type), DIMENSION(:), POINTER, INTENT(IN):: rho_new, &
-                                                            rho_old
+                                                             rho_old
       INTEGER, INTENT(IN)                                :: nspin
       TYPE(cp_cfm_type), POINTER, OPTIONAL               :: workspace_opt
       TYPE(cp_cfm_type)                                  :: workspace
