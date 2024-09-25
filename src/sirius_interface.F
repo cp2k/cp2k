@@ -44,6 +44,7 @@ MODULE sirius_interface
                                               section_vals_val_get
    USE kinds,                           ONLY: default_string_length,&
                                               dp
+   USE machine,                         ONLY: m_flush
    USE mathconstants,                   ONLY: fourpi,&
                                               gamma1
    USE message_passing,                 ONLY: mp_para_env_type
