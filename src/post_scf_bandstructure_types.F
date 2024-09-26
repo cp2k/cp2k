@@ -21,8 +21,8 @@ MODULE post_scf_bandstructure_types
                                               cp_fm_type
    USE dbt_api,                         ONLY: dbt_destroy,&
                                               dbt_type
-   USE input_constants,                 ONLY: small_cell_full_kp, &
-                                              rtp_method_bse
+   USE input_constants,                 ONLY: rtp_method_bse,&
+                                              small_cell_full_kp
    USE kinds,                           ONLY: default_string_length,&
                                               dp
    USE kpoint_types,                    ONLY: kpoint_release,&

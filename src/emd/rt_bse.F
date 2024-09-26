@@ -943,7 +943,7 @@ CONTAINS
       CALL cp_fm_to_cfm(msourcer=rtbse_env%S_fm, mtarget=rtbse_env%rho_workspace(1))
       DO j = 1, rtbse_env%n_spin
          CALL cp_cfm_trace(rtbse_env%rho_workspace(1), rho(j), buffer_1)
-         buffer_dev = buffer_dev + REAL(ABS(buffer_1)*ABS(buffer_1))
+         buffer_dev = buffer_dev + REAL(ABS(buffer_1)*ABS(buffer_1), kind=dp)
       END DO
       ! Now, determine Tr(S * rho_re * S * rho_re) - Tr(S * rho_im * S * rho_im) + 2i Tr(S * rho_re * S * rho_im)
       DO j = 1, rtbse_env%n_spin
