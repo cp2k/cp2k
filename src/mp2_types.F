@@ -335,7 +335,7 @@ MODULE mp2_types
       TYPE(ri_mp2_type)                                  :: ri_mp2 = ri_mp2_type()
       TYPE(ri_rpa_type)                                  :: ri_rpa = ri_rpa_type()
       ! There is a bug with some older compilers preventing requiring an explicit initialization of allocatable components
-#if __GNUC__ < 9 || (__GNUC__ == 9 && __GNUC_MINOR__ < 5)
+#if defined(FTN_NO_DEFAULT_INIT)
       TYPE(ri_rpa_im_time_type)                          :: ri_rpa_im_time = ri_rpa_im_time_type(Eigenval_Gamma=NULL(), &
                                                                                                  wkp_V=NULL(), &
                                                                                                  starts_array_mc_RI=NULL(), &

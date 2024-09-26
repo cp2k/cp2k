@@ -79,7 +79,7 @@ MODULE cp_eri_mme_interface
    TYPE cp_eri_mme_param
       TYPE(cp_logger_type), POINTER                      :: logger => NULL()
       ! There is a bug with some older compilers preventing a default initialization of  derived types with allocatable components
-#if __GNUC__ < 9 || (__GNUC__ == 9 && __GNUC_MINOR__ < 5)
+#if defined(FTN_NO_DEFAULT_INIT)
       TYPE(eri_mme_param)                                :: par = eri_mme_param(minimax_grid=NULL())
 #else
       TYPE(eri_mme_param)                                :: par = eri_mme_param()

@@ -93,7 +93,7 @@ MODULE dm_ls_scf_types
       REAL(KIND=dp), DIMENSION(2) ::  homo_spin = 0.0_dp
       REAL(KIND=dp), DIMENSION(2) ::  lumo_spin = 0.0_dp
 
-#if defined(__GNUC__) && defined(__GNUC_MINOR__) && (CPVERSION(9, 5) > CPVERSION(__GNUC__, __GNUC_MINOR__))
+#if defined(FTN_NO_DEFAULT_INIT)
       TYPE(ls_mat_history_type) :: scf_history = ls_mat_history_type(matrix=null())
 #else
       TYPE(ls_mat_history_type) :: scf_history = ls_mat_history_type()
@@ -138,7 +138,7 @@ MODULE dm_ls_scf_types
 
       LOGICAL  :: report_all_sparsities = .FALSE., perform_mu_scan = .FALSE., use_s_sqrt = .FALSE.
 
-#if defined(__GNUC__) && defined(__GNUC_MINOR__) && (CPVERSION(9, 5) > CPVERSION(__GNUC__, __GNUC_MINOR__))
+#if defined(FTN_NO_DEFAULT_INIT)
       TYPE(ls_mstruct_type) :: ls_mstruct = ls_mstruct_type(atom_to_molecule=NULL())
       TYPE(ls_scf_curvy_type) :: curvy_data = ls_scf_curvy_type(matrix_dp=null(), matrix_p=null(), &
                                                                 matrix_psave=null(), matrix_bch=null())
