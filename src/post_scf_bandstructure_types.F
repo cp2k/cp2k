@@ -179,11 +179,19 @@ MODULE post_scf_bandstructure_types
                                                       mat_RI_RI_tensor = dbcsr_p_type()
 
       ! tensors for sparse matrix-tensor operations
+#if defined(__GNUC__) && defined(__GNUC_MINOR__) && CPVERSION(9, 5) > CPVERSION(__GNUC__, __GNUC_MINOR__)
       TYPE(dbt_type)                               :: t_G, &
                                                       t_chi, &
                                                       t_W, &
                                                       t_RI_AO__AO, &
                                                       t_RI__AO_AO
+#else
+      TYPE(dbt_type)                               :: t_G = dbt_type(), &
+                                                      t_chi = dbt_type(), &
+                                                      t_W = dbt_type(), &
+                                                      t_RI_AO__AO = dbt_type(), &
+                                                      t_RI__AO_AO = dbt_type()
+#endif
 
       ! parameters and data for parallelization
       INTEGER                                      :: group_size_tensor = -1, &

@@ -247,6 +247,7 @@ MODULE rt_bse_types
       ! Workspace required for hartree_pw
       TYPE(dbcsr_type)                                          :: v_dbcsr = dbcsr_type(), &
                                                                    w_dbcsr = dbcsr_type()
+#if defined(__GNUC__) && defined(__GNUC_MINOR__) && CPVERSION(9, 5) > CPVERSION(__GNUC__, __GNUC_MINOR__)
       TYPE(dbt_type)                                            :: screened_dbt, &
                                                                    sigma_dbt, &
                                                                    greens_dbt, &
@@ -254,6 +255,15 @@ MODULE rt_bse_types
                                                                    t_3c_work_RI__AO_AO, &
                                                                    t_3c_work_RI_AO__AO, &
                                                                    t_3c_work2_RI_AO__AO
+#else
+      TYPE(dbt_type)                                            :: screened_dbt = dbt_type(), &
+                                                                   sigma_dbt = dbt_type(), &
+                                                                   greens_dbt = dbt_type(), &
+                                                                   t_3c_w = dbt_type(), &
+                                                                   t_3c_work_RI__AO_AO = dbt_type(), &
+                                                                   t_3c_work_RI_AO__AO = dbt_type(), &
+                                                                   t_3c_work2_RI_AO__AO = dbt_type()
+#endif
       ! These matrices are always real
       INTEGER                                                   :: etrs_max_iter = 10
       INTEGER                                                   :: ham_reference_type = 2
