@@ -265,7 +265,6 @@ CONTAINS
       CALL get_cell(cell=cell, periodic=periodic)
 
       IF (do_im_time) THEN
-
          IF (mp2_env%ri_metric%potential_type == ri_default) THEN
             IF (SUM(periodic) == 1 .OR. SUM(periodic) == 3) THEN
                mp2_env%ri_metric%potential_type = do_potential_id

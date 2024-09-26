@@ -55,7 +55,8 @@ MODULE mp2
                                               do_eri_mme,&
                                               rpa_exchange_axk,&
                                               rpa_exchange_none,&
-                                              rpa_exchange_sosex
+                                              rpa_exchange_sosex,&
+                                              sigma_none
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type
@@ -606,7 +607,6 @@ CONTAINS
          ! go with ri_rpa_gpw
          CALL mp2_gpw_main(qs_env, mp2_env, Emp2, Emp2_Cou, Emp2_EX, Emp2_S, Emp2_T, &
                            mos_mp2, para_env, unit_nr, calc_forces, calc_ex, do_ri_rpa=.TRUE.)
-
          ! Scale energy contributions
          Emp2 = Emp2*mp2_env%ri_rpa%scale_rpa
          mp2_env%ri_rpa%ener_exchange = mp2_env%ri_rpa%ener_exchange*mp2_env%ri_rpa%scale_rpa
@@ -665,6 +665,10 @@ CONTAINS
          IF (.NOT. update_xc_energy) Emp2 = 0.0_dp
 
          IF (unit_nr > 0 .AND. update_xc_energy) WRITE (unit_nr, '(T3,A,T56,F25.14)') 'RI-RPA energy  =   ', Emp2
+         IF (unit_nr > 0 .AND. mp2_env%ri_rpa%sigma_param /= sigma_none) THEN
+            WRITE (unit_nr, '(T3,A,T56,F25.14)') 'Sigma corr. to RI-RPA energy  =   ', &
+               mp2_env%ri_rpa%e_sigma_corr
+         END IF
          IF (mp2_env%ri_rpa%exchange_correction == rpa_exchange_axk) THEN
             IF (unit_nr > 0) WRITE (unit_nr, '(T3,A,T56,F25.14)') 'RI-RPA-AXK energy=', mp2_env%ri_rpa%ener_exchange
          ELSE IF (mp2_env%ri_rpa%exchange_correction == rpa_exchange_sosex) THEN
@@ -686,6 +690,10 @@ CONTAINS
       END IF
       IF (mp2_env%ri_rpa%do_rse) THEN
          Emp2 = Emp2 + mp2_env%ri_rpa%rse_corr
+      END IF
+      IF (mp2_env%ri_rpa%sigma_param /= sigma_none) THEN
+         !WRITE (unit_nr, '(T3,A,T56,F25.14)') 'Sigma corr. to RI-RPA energy  =   ',&
+         Emp2 = Emp2 + mp2_env%ri_rpa%e_sigma_corr
       END IF
       energy%mp2 = Emp2
       energy%total = energy%total + Emp2

@@ -1319,5 +1319,11 @@ MODULE input_constants
    INTEGER, PARAMETER, PUBLIC               :: bse_iter_en_cond = 0, &
                                                bse_iter_res_cond = 1, &
                                                bse_iter_both_cond = 2
+   ! SIGMA_functional parameters selection
+   INTEGER, PARAMETER, PUBLIC               :: sigma_none = 0, &
+                                               sigma_PBE_S2 = 1, &
+                                               sigma_PBE0_S1 = 2, &
+                                               sigma_PBE0_S2 = 3, &
+                                               sigma_PBE_S1 = 4
 
 END MODULE input_constants

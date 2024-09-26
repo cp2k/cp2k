@@ -51,6 +51,7 @@ MODULE rpa_main
    USE input_constants,                 ONLY: rpa_exchange_axk,&
                                               rpa_exchange_none,&
                                               rpa_exchange_sosex,&
+                                              sigma_none,&
                                               wfc_mm_style_gemm
    USE kinds,                           ONLY: dp,&
                                               int_8
@@ -101,6 +102,10 @@ MODULE rpa_main
                                               keep_initial_quad
    USE rpa_im_time_force_types,         ONLY: im_time_force_release,&
                                               im_time_force_type
+   USE rpa_sigma_functional,            ONLY: finalize_rpa_sigma,&
+                                              rpa_sigma_create,&
+                                              rpa_sigma_matrix_spectral,&
+                                              rpa_sigma_type
    USE rpa_util,                        ONLY: Q_trace_and_add_unit_matrix,&
                                               alloc_im_time,&
                                               calc_mat_Q,&
@@ -323,7 +328,6 @@ CONTAINS
       ELSE
          num_integ_points = mp2_env%ri_rpa%rpa_num_quad_points
          input_num_integ_groups = mp2_env%ri_rpa%rpa_num_integ_groups
-
          IF (my_do_gw .AND. do_minimax_quad) THEN
             IF (num_integ_points > 34) THEN
                IF (unit_nr > 0) &
@@ -478,6 +482,7 @@ CONTAINS
       ! not necessary for imaginary time
 
       ALLOCATE (BIb_C_2D(nspins))
+
       IF (.NOT. do_im_time) THEN
 
          ! reorder the local data in such a way to help the next stage of matrix creation
@@ -1153,12 +1158,14 @@ CONTAINS
       TYPE(im_time_force_type)                           :: force_data
       TYPE(rpa_exchange_work_type)                       :: exchange_work
       TYPE(rpa_grad_type)                                :: rpa_grad
+      TYPE(rpa_sigma_type)                               :: rpa_sigma
       TYPE(two_dim_int_array), ALLOCATABLE, DIMENSION(:) :: t_3c_O_mo_ind
 
       CALL timeset(routineN, handle)
 
       nspins = SIZE(homo)
       nmo = homo(1) + virtual(1)
+
       my_open_shell = (nspins == 2)
 
       do_gw_im_time = my_do_gw .AND. do_im_time
@@ -1255,7 +1262,6 @@ CONTAINS
          END IF
 
       END IF
-
       IF (do_ic_model) THEN
          ! image charge model only implemented for cubic scaling GW
          CPASSERT(do_gw_im_time)
@@ -1272,7 +1278,6 @@ CONTAINS
                                do_kpoints_cubic_RPA, e_fermi(1), tj, wj, &
                                weights_cos_tf_t_to_w, weights_cos_tf_w_to_t, weights_sin_tf_t_to_w, &
                                qs_env%mp2_env%ri_g0w0%regularization_minimax)
-
          !For sos_laplace_mp2 and low-scaling RPA, potentially need to store/retrieve the initial weights
          IF (qs_env%mp2_env%ri_rpa_im_time%keep_quad) THEN
             CALL keep_initial_quad(tj, wj, tau_tj, tau_wj, weights_cos_tf_t_to_w, &
@@ -1298,7 +1303,6 @@ CONTAINS
       ELSE
          alpha = 4.0_dp
       END IF
-
       IF (my_do_gw) THEN
          CALL allocate_matrices_gw(vec_Sigma_c_gw, color_rpa_group, dimen_nm_gw, &
                                    gw_corr_lev_occ, gw_corr_lev_virt, homo, &
@@ -1325,11 +1329,10 @@ CONTAINS
       IF (calc_forces .AND. .NOT. do_im_time) CALL rpa_grad_create(rpa_grad, fm_mat_Q(1), &
                                                                    fm_mat_S, homo, virtual, mp2_env, Eigenval(:, 1, :), &
                                                                    unit_nr, do_ri_sos_laplace_mp2)
-
+!doubtful
       IF (.NOT. do_im_time .AND. .NOT. do_ri_sos_laplace_mp2) &
          CALL exchange_work%create(qs_env, para_env_sub, mat_munu, dimen_RI_red, &
                                    fm_mat_S, fm_mat_Q(1), fm_mat_Q_gemm(1), homo, virtual)
-
       Erpa = 0.0_dp
       IF (mp2_env%ri_rpa%exchange_correction /= rpa_exchange_none) e_exchange = 0.0_dp
       first_cycle = .TRUE.
@@ -1337,7 +1340,6 @@ CONTAINS
       CALL dgemm_counter_init(dgemm_counter, unit_nr, mp2_env%ri_rpa%print_dgemm_info)
 
       DO count_ev_sc_GW = 1, iter_evGW
-
          dbcsr_time = 0.0_dp
          dbcsr_nflop = 0
 
@@ -1351,7 +1353,7 @@ CONTAINS
          END IF
 
          ! calculate Q_PQ(it)
-         IF (do_im_time) THEN
+         IF (do_im_time) THEN ! not using Imaginary time
 
             IF (.NOT. do_kpoints_cubic_RPA) THEN
                DO ispin = 1, nspins
@@ -1424,8 +1426,11 @@ CONTAINS
 
          END IF ! do im time
 
-         DO jquad = 1, num_integ_points
+         IF (mp2_env%ri_rpa%sigma_param /= sigma_none) THEN
+            CALL rpa_sigma_create(rpa_sigma, mp2_env%ri_rpa%sigma_param, fm_mat_Q(1), unit_nr, para_env)
+         END IF
 
+         DO jquad = 1, num_integ_points
             IF (MODULO(jquad, num_integ_group) /= color_rpa_group) CYCLE
 
             CALL timeset(routineN//"_RPA_matrix_operations", handle3)
@@ -1453,7 +1458,6 @@ CONTAINS
                END IF
 
             ELSE
-
                IF (unit_nr > 0) WRITE (UNIT=unit_nr, FMT="(T3, A, 1X, I3, 1X, A, 1X, I3)") &
                   "INTEG_INFO| Started with Integration point", jquad, "of", num_integ_points
 
@@ -1515,7 +1519,13 @@ CONTAINS
                e_exchange = e_exchange + e_exchange_corr*wj(jquad)
             END IF
 
+            ! for developing Sigma functional  closed and open shell are taken cared for
+            IF (mp2_env%ri_rpa%sigma_param /= sigma_none) THEN
+               CALL rpa_sigma_matrix_spectral(rpa_sigma, fm_mat_Q(1), wj(jquad), para_env_RPA)
+            END IF
+
             IF (do_ri_sos_laplace_mp2) THEN
+
                CALL SOS_MP2_postprocessing(fm_mat_Q, Erpa, tau_wj(jquad))
 
                IF (calc_forces .AND. .NOT. do_im_time) CALL rpa_grad_matrix_operations(mp2_env, rpa_grad, do_ri_sos_laplace_mp2, &
@@ -1579,9 +1589,15 @@ CONTAINS
 
          END DO ! jquad
 
+         IF (mp2_env%ri_rpa%sigma_param /= sigma_none) THEN
+            CALL finalize_rpa_sigma(rpa_sigma, unit_nr, mp2_env%ri_rpa%e_sigma_corr, para_env, do_minimax_quad)
+            IF (do_minimax_quad) mp2_env%ri_rpa%e_sigma_corr = mp2_env%ri_rpa%e_sigma_corr/2.0_dp
+            CALL para_env%sum(mp2_env%ri_rpa%e_sigma_corr)
+         END IF
+
          CALL para_env%sum(Erpa)
 
-         IF (.NOT. do_ri_sos_laplace_mp2) THEN
+         IF (.NOT. (do_ri_sos_laplace_mp2)) THEN
             Erpa = Erpa/(pi*2.0_dp)
             IF (do_minimax_quad) Erpa = Erpa/2.0_dp
          END IF

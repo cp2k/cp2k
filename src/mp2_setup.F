@@ -100,6 +100,10 @@ CONTAINS
       END IF
 
       CALL section_vals_val_get(mp2_section, "RI_RPA%_SECTION_PARAMETERS_", l_val=do_rpa)
+
+      !CALL section_vals_val_get(mp2_section, "RI_RPA%SIGMA_FUNCTIONAL",l_val=mp2_env%ri_rpa%do_sigma)
+      CALL section_vals_val_get(mp2_section, "RI_RPA%SIGMA_FUNCTIONAL", i_val=mp2_env%ri_rpa%sigma_param)
+
       IF (do_rpa) THEN
          CALL check_method(mp2_env%method)
          mp2_env%method = ri_rpa_method_gpw
@@ -120,6 +124,7 @@ CONTAINS
                                 l_val=mp2_env%ri_rpa%use_hfx_implementation)
 
       CALL section_vals_val_get(mp2_section, "RI_RPA%RSE", l_val=mp2_env%ri_rpa%do_rse)
+
       CALL section_vals_val_get(mp2_section, "RI_RPA%PRINT_DGEMM_INFO", l_val=mp2_env%ri_rpa%print_dgemm_info)
 
       NULLIFY (gw_section)

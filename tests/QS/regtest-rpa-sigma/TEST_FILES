@@ -1,0 +1,7 @@
+RPA_SIGMA_H2O_clenshaw.inp                          11      1e-09                            -17.192268141449258
+RPA_SIGMA_H2O_minimax.inp                           11      1e-09                            -17.189840389922761
+RPA_SIGMA_H_minimax.inp                             11      1e-09                             -0.515037791729464
+RPA_SIGMA_H_clenshaw.inp                            11      1e-09                             -0.515090906944438
+RPA_SIGMA_H2O_minimax_NUM_INTEG_GROUPS.inp          11      1e-09                             -17.189840389922765
+#EOF
+

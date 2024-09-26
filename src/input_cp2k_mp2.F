@@ -37,7 +37,8 @@ MODULE input_cp2k_mp2
       ot_precond_s_inverse, ri_default, ri_rpa_g0w0_crossing_bisection, &
       ri_rpa_g0w0_crossing_newton, ri_rpa_g0w0_crossing_z_shot, soc_lda, soc_none, soc_pbe, &
       wfc_mm_style_gemm, wfc_mm_style_syrk, z_solver_cg, z_solver_pople, z_solver_richardson, &
-      z_solver_sd, rpa_exchange_none, rpa_exchange_axk, rpa_exchange_sosex, G0W0, evGW0, evGW
+      z_solver_sd, rpa_exchange_none, rpa_exchange_axk, rpa_exchange_sosex, G0W0, evGW0, evGW, &
+      sigma_none, sigma_PBE0_S1, sigma_PBE0_S2, sigma_PBE_S1, sigma_PBE_S2
    USE input_cp2k_hfx, ONLY: create_hfx_section
    USE input_cp2k_kpoints, ONLY: create_kpoint_set_section
    USE input_keyword_types, ONLY: keyword_create, &
@@ -516,6 +517,23 @@ CONTAINS
                           description="Putting the &RI_RPA section activates RI-RPA calculation.", &
                           usage="&RI_RPA .TRUE.", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create( &
+         keyword, __LOCATION__, &
+         name="SIGMA_FUNCTIONAL", &
+         description="Determine parametrization for sigma-functional", &
+         usage="SIGMA_FUNCTIONAL PBE_S2", &
+         enum_c_vals=s2a("NONE", "PBE0_S1", "PBE0_S2", "PBE_S1", "PBE_S2"), &
+         enum_i_vals=(/sigma_none, sigma_PBE0_S1, sigma_PBE0_S2, sigma_PBE_S1, sigma_PBE_S2/), &
+         enum_desc=s2a("No sigma functional calculation", &
+                       "use parameters based on PBE0 with S1 set.", &
+                       "use parameters based on PBE0 with S2 set.", &
+                       "use parameters based on PBE with S1 set.", &
+                       "use parameters based on PBE with S2 set." &
+                       ), &
+         default_i_val=sigma_none)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
