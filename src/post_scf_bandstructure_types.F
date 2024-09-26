@@ -21,7 +21,8 @@ MODULE post_scf_bandstructure_types
                                               cp_fm_type
    USE dbt_api,                         ONLY: dbt_destroy,&
                                               dbt_type
-   USE input_constants,                 ONLY: small_cell_full_kp
+   USE input_constants,                 ONLY: rtp_method_bse,&
+                                              small_cell_full_kp
    USE kinds,                           ONLY: default_string_length,&
                                               dp
    USE kpoint_types,                    ONLY: kpoint_release,&
@@ -70,10 +71,10 @@ MODULE post_scf_bandstructure_types
                                                          eigenval_scGW0
       REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE     :: eigenval_scf_soc, &
                                                          eigenval_G0W0_soc
-      TYPE(band_edges_type), DIMENSION(2)             :: band_edges_scf_Gamma
-      TYPE(band_edges_type)                           :: band_edges_scf, &
-                                                         band_edges_G0W0, &
-                                                         band_edges_HF
+      TYPE(band_edges_type), DIMENSION(2)             :: band_edges_scf_Gamma = band_edges_type()
+      TYPE(band_edges_type)                           :: band_edges_scf = band_edges_type(), &
+                                                         band_edges_G0W0 = band_edges_type(), &
+                                                         band_edges_HF = band_edges_type()
 
       ! parameters that influence the GW flavor
       LOGICAL                                         :: do_hedin_shift = .FALSE.
@@ -151,38 +152,46 @@ MODULE post_scf_bandstructure_types
                                                       regularization_RI = -1.0_dp
 
       ! global full cfm_1d used in GW
-      TYPE(cp_fm_type)                             :: fm_s_Gamma, &
-                                                      fm_Gocc, &
-                                                      fm_Gvir
-      TYPE(cp_fm_type), DIMENSION(2)               :: fm_ks_Gamma, &
-                                                      fm_V_xc_Gamma, &
-                                                      fm_mo_coeff_Gamma
-      TYPE(cp_fm_type), DIMENSION(4)               :: fm_work_mo
-      TYPE(cp_fm_type)                             :: fm_RI_RI, &
-                                                      fm_chi_Gamma_freq, &
-                                                      fm_W_MIC_freq, &
-                                                      fm_W_MIC_freq_1_extra, &
-                                                      fm_W_MIC_freq_1_no_extra, &
-                                                      fm_W_MIC_freq_zero, &
-                                                      fm_h_G0W0_Gamma
-      TYPE(cp_cfm_type)                            :: cfm_work_mo, &
-                                                      cfm_work_mo_2
+      TYPE(cp_fm_type)                             :: fm_s_Gamma = cp_fm_type(), &
+                                                      fm_Gocc = cp_fm_type(), &
+                                                      fm_Gvir = cp_fm_type()
+      TYPE(cp_fm_type), DIMENSION(2)               :: fm_ks_Gamma = cp_fm_type(), &
+                                                      fm_V_xc_Gamma = cp_fm_type(), &
+                                                      fm_mo_coeff_Gamma = cp_fm_type()
+      TYPE(cp_fm_type), DIMENSION(4)               :: fm_work_mo = cp_fm_type()
+      TYPE(cp_fm_type)                             :: fm_RI_RI = cp_fm_type(), &
+                                                      fm_chi_Gamma_freq = cp_fm_type(), &
+                                                      fm_W_MIC_freq = cp_fm_type(), &
+                                                      fm_W_MIC_freq_1_extra = cp_fm_type(), &
+                                                      fm_W_MIC_freq_1_no_extra = cp_fm_type(), &
+                                                      fm_W_MIC_freq_zero = cp_fm_type(), &
+                                                      fm_h_G0W0_Gamma = cp_fm_type()
+      TYPE(cp_cfm_type)                            :: cfm_work_mo = cp_cfm_type(), &
+                                                      cfm_work_mo_2 = cp_cfm_type()
 
       ! global dbcsr cfm_1d used in GW
-      TYPE(dbcsr_p_type)                           :: mat_ao_ao, &
-                                                      mat_RI_RI
+      TYPE(dbcsr_p_type)                           :: mat_ao_ao = dbcsr_p_type(), &
+                                                      mat_RI_RI = dbcsr_p_type()
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER    :: mat_chi_Gamma_tau => NULL()
 
       ! local dbcsr cfm_1d used in GW (local in tensor group)
-      TYPE(dbcsr_p_type)                           :: mat_ao_ao_tensor, &
-                                                      mat_RI_RI_tensor
+      TYPE(dbcsr_p_type)                           :: mat_ao_ao_tensor = dbcsr_p_type(), &
+                                                      mat_RI_RI_tensor = dbcsr_p_type()
 
       ! tensors for sparse matrix-tensor operations
+#if defined(__GNUC__) && defined(__GNUC_MINOR__) && CPVERSION(9, 5) > CPVERSION(__GNUC__, __GNUC_MINOR__)
       TYPE(dbt_type)                               :: t_G, &
                                                       t_chi, &
                                                       t_W, &
                                                       t_RI_AO__AO, &
                                                       t_RI__AO_AO
+#else
+      TYPE(dbt_type)                               :: t_G = dbt_type(), &
+                                                      t_chi = dbt_type(), &
+                                                      t_W = dbt_type(), &
+                                                      t_RI_AO__AO = dbt_type(), &
+                                                      t_RI__AO_AO = dbt_type()
+#endif
 
       ! parameters and data for parallelization
       INTEGER                                      :: group_size_tensor = -1, &
@@ -213,7 +222,7 @@ MODULE post_scf_bandstructure_types
       LOGICAL, DIMENSION(:, :), ALLOCATABLE        :: skip_Sigma_occ, &
                                                       skip_Sigma_vir
       ! Marek : rtp_method
-      INTEGER                                      :: rtp_method
+      INTEGER                                      :: rtp_method = rtp_method_bse
 
       ! check-arrays and names for restarting
       LOGICAL, DIMENSION(:), ALLOCATABLE           :: read_chi, &
@@ -235,19 +244,19 @@ MODULE post_scf_bandstructure_types
                                                       basis_set_RI
       INTEGER, DIMENSION(:), ALLOCATABLE           :: sizes_AO, &
                                                       sizes_RI
-      TYPE(neighbor_list_3c_type)                  :: nl_3c
-      TYPE(libint_potential_type)                  :: ri_metric, &
-                                                      trunc_coulomb
+      TYPE(neighbor_list_3c_type)                  :: nl_3c = neighbor_list_3c_type()
+      TYPE(libint_potential_type)                  :: ri_metric = libint_potential_type(), &
+                                                      trunc_coulomb = libint_potential_type()
 
       ! parameters for SOC calculation
       REAL(KIND=dp)                                :: energy_window_soc = -1.0_dp
       ! sizes: mat_V_SOC_xyz: xyz, img
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER :: mat_V_SOC_xyz => NULL()
-      TYPE(cp_fm_type), DIMENSION(3)               :: fm_V_SOC_xyz_mo
+      TYPE(cp_fm_type), DIMENSION(3)               :: fm_V_SOC_xyz_mo = cp_fm_type()
       ! small-cell GW: dimension = number of kpoints; large-cell GW: Gamma-point, dimension = 1
       TYPE(cp_cfm_type), DIMENSION(:), ALLOCATABLE :: cfm_SOC_spinor_ao
-      TYPE(band_edges_type)                        :: band_edges_scf_SOC, &
-                                                      band_edges_G0W0_SOC
+      TYPE(band_edges_type)                        :: band_edges_scf_SOC = band_edges_type(), &
+                                                      band_edges_G0W0_SOC = band_edges_type()
 
       ! parameters for DOS and PDOS calculation
       REAL(KIND=dp)                                :: energy_window_DOS = -1.0_dp, &

@@ -74,32 +74,10 @@ MODULE rt_bse
                       omp_get_num_threads, &
                       omp_set_num_threads, &
                       omp_get_max_threads
-   USE dbt_api, ONLY: dbt_create, &
-                      dbt_clear, &
+   USE dbt_api, ONLY: dbt_clear, &
                       dbt_contract, &
                       dbt_copy_matrix_to_tensor, &
-                      dbt_copy_tensor_to_matrix, &
-                      dbt_copy, &
-                      dbt_destroy, &
-                      dbt_type, &
-                      dbt_pgrid_type, &
-                      dbt_pgrid_create, &
-                      dbt_pgrid_destroy, &
-                      dbt_mp_environ_pgrid, &
-                      dbt_default_distvec, &
-                      dbt_distribution_type, &
-                      dbt_distribution_new, &
-                      dbt_distribution_destroy, &
-                      dbt_iterator_type, &
-                      dbt_iterator_start, &
-                      dbt_iterator_stop, &
-                      dbt_iterator_blocks_left, &
-                      dbt_iterator_next_block, &
-                      dbt_put_block, &
-                      dbt_get_block, &
-                      dbt_reserve_blocks, &
-                      dbt_get_num_blocks, &
-                      dbt_get_info
+                      dbt_copy_tensor_to_matrix
    USE libint_2c_3c, ONLY: libint_potential_type
    USE mp2_ri_2c, ONLY: RI_2c_integral_mat
    USE qs_tensors, ONLY: neighbor_list_3c_destroy, &
@@ -943,7 +921,7 @@ CONTAINS
       CALL cp_fm_to_cfm(msourcer=rtbse_env%S_fm, mtarget=rtbse_env%rho_workspace(1))
       DO j = 1, rtbse_env%n_spin
          CALL cp_cfm_trace(rtbse_env%rho_workspace(1), rho(j), buffer_1)
-         buffer_dev = buffer_dev + REAL(ABS(buffer_1)*ABS(buffer_1))
+         buffer_dev = buffer_dev + REAL(ABS(buffer_1)*ABS(buffer_1), kind=dp)
       END DO
       ! Now, determine Tr(S * rho_re * S * rho_re) - Tr(S * rho_im * S * rho_im) + 2i Tr(S * rho_re * S * rho_im)
       DO j = 1, rtbse_env%n_spin
@@ -957,7 +935,7 @@ CONTAINS
                             CMPLX(0.0, 0.0, kind=dp), rtbse_env%rho_workspace(3))
          ! Tr (S * rho * S * rho)
          CALL cp_cfm_trace(rtbse_env%rho_workspace(1), rtbse_env%rho_workspace(3), buffer_2)
-         deviation_metric = deviation_metric + REAL(ABS(buffer_2)*ABS(buffer_2))
+         deviation_metric = deviation_metric + REAL(ABS(buffer_2)*ABS(buffer_2), kind=dp)
       END DO
       deviation_metric = SQRT(deviation_metric) - SQRT(buffer_dev)
    END SUBROUTINE get_idempotence_deviation
