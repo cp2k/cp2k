@@ -731,7 +731,7 @@ CONTAINS
 
       INTEGER                                            :: i
 
-      IF (sigma <= 0.0_dp) STOP 'intervalnum: sigma should be positive'
+      IF (sigma <= 0.0_dp) CPABORT('intervalnum: sigma should be positive')
 
       inum = -1
       IF (sigma > x_coord(n)) inum = n
@@ -739,7 +739,7 @@ CONTAINS
          IF ((sigma > x_coord(i)) .AND. (sigma <= x_coord(i + 1))) inum = i
       END DO
 
-      IF (inum == -1) STOP 'interval: something was wrong'
+      IF (inum == -1) CPABORT('interval: something was wrong')
 
    END FUNCTION intervalnum
 

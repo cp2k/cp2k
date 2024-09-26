@@ -74,32 +74,10 @@ MODULE rt_bse
                       omp_get_num_threads, &
                       omp_set_num_threads, &
                       omp_get_max_threads
-   USE dbt_api, ONLY: dbt_create, &
-                      dbt_clear, &
+   USE dbt_api, ONLY: dbt_clear, &
                       dbt_contract, &
                       dbt_copy_matrix_to_tensor, &
-                      dbt_copy_tensor_to_matrix, &
-                      dbt_copy, &
-                      dbt_destroy, &
-                      dbt_type, &
-                      dbt_pgrid_type, &
-                      dbt_pgrid_create, &
-                      dbt_pgrid_destroy, &
-                      dbt_mp_environ_pgrid, &
-                      dbt_default_distvec, &
-                      dbt_distribution_type, &
-                      dbt_distribution_new, &
-                      dbt_distribution_destroy, &
-                      dbt_iterator_type, &
-                      dbt_iterator_start, &
-                      dbt_iterator_stop, &
-                      dbt_iterator_blocks_left, &
-                      dbt_iterator_next_block, &
-                      dbt_put_block, &
-                      dbt_get_block, &
-                      dbt_reserve_blocks, &
-                      dbt_get_num_blocks, &
-                      dbt_get_info
+                      dbt_copy_tensor_to_matrix
    USE libint_2c_3c, ONLY: libint_potential_type
    USE mp2_ri_2c, ONLY: RI_2c_integral_mat
    USE qs_tensors, ONLY: neighbor_list_3c_destroy, &

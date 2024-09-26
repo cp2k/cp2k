@@ -247,13 +247,13 @@ MODULE rt_bse_types
       ! Workspace required for hartree_pw
       TYPE(dbcsr_type)                                          :: v_dbcsr = dbcsr_type(), &
                                                                    w_dbcsr = dbcsr_type()
-      TYPE(dbt_type)                                            :: screened_dbt = dbt_type(), &
-                                                                   sigma_dbt = dbt_type(), &
-                                                                   greens_dbt = dbt_type(), &
-                                                                   t_3c_w = dbt_type(), &
-                                                                   t_3c_work_RI__AO_AO = dbt_type(), &
-                                                                   t_3c_work_RI_AO__AO = dbt_type(), &
-                                                                   t_3c_work2_RI_AO__AO = dbt_type()
+      TYPE(dbt_type)                                            :: screened_dbt, &
+                                                                   sigma_dbt, &
+                                                                   greens_dbt, &
+                                                                   t_3c_w, &
+                                                                   t_3c_work_RI__AO_AO, &
+                                                                   t_3c_work_RI_AO__AO, &
+                                                                   t_3c_work2_RI_AO__AO
       ! These matrices are always real
       INTEGER                                                   :: etrs_max_iter = 10
       INTEGER                                                   :: ham_reference_type = 2
