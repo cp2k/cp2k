@@ -179,7 +179,7 @@ MODULE post_scf_bandstructure_types
                                                       mat_RI_RI_tensor = dbcsr_p_type()
 
       ! tensors for sparse matrix-tensor operations
-#if defined(__GNUC__) && defined(__GNUC_MINOR__) && CPVERSION(9, 5) > CPVERSION(__GNUC__, __GNUC_MINOR__)
+#if defined(FTN_NO_DEFAULT_INIT)
       TYPE(dbt_type)                               :: t_G, &
                                                       t_chi, &
                                                       t_W, &

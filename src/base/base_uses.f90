@@ -48,10 +48,22 @@
 #define CPVERSION3(MAJOR, MINOR, UPDATE) (CPVERSION2(MAJOR, MINOR) + (UPDATE))
 #define CPVERSION CPVERSION2
 
+! Usage: CPVERSION_CHECK(9, 5, >, __GNUC__, __GNUC_MINOR__)
+! On top of CPVERSION macro, test if MAJOR_TEST and MINOR_TEST are defined.
+! Perform actual comparison according to COMP argument.
+#define CPVERSION_CHECK(MAJOR_BASE, MINOR_BASE, COMP, MAJOR_TEST, MINOR_TEST) ( \
+  (defined(MAJOR_TEST) && defined(MINOR_TEST)) && \
+  (CPVERSION2(MAJOR_BASE, MINOR_BASE) COMP CPVERSION2(MAJOR_TEST, MINOR_TEST)))
+
+! Avoid to default initialize type-components (default c'tor)
+#if CPVERSION_CHECK(9, 5, >, __GNUC__, __GNUC_MINOR__) || defined(__INTEL_COMPILER) || defined(__INTEL_LLVM_COMPILER)
+#define FTN_NO_DEFAULT_INIT
+#endif
+
 ! gfortran before 8.3 complains about internal symbols not being specified in
 ! any data clause when using DEFAULT(NONE) and OOP procedures are called from
 ! within the parallel region.
-#if __GNUC__ < 8 || (__GNUC__ == 8 && (__GNUC_MINOR__ < 3))
+#if CPVERSION_CHECK(8, 3, >, __GNUC__, __GNUC_MINOR__)
 #define OMP_DEFAULT_NONE_WITH_OOP SHARED
 #else
 #define OMP_DEFAULT_NONE_WITH_OOP NONE

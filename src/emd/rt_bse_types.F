@@ -247,7 +247,7 @@ MODULE rt_bse_types
       ! Workspace required for hartree_pw
       TYPE(dbcsr_type)                                          :: v_dbcsr = dbcsr_type(), &
                                                                    w_dbcsr = dbcsr_type()
-#if defined(__GNUC__) && defined(__GNUC_MINOR__) && CPVERSION(9, 5) > CPVERSION(__GNUC__, __GNUC_MINOR__)
+#if defined(FTN_NO_DEFAULT_INIT)
       TYPE(dbt_type)                                            :: screened_dbt, &
                                                                    sigma_dbt, &
                                                                    greens_dbt, &
