@@ -957,7 +957,7 @@ CONTAINS
                             CMPLX(0.0, 0.0, kind=dp), rtbse_env%rho_workspace(3))
          ! Tr (S * rho * S * rho)
          CALL cp_cfm_trace(rtbse_env%rho_workspace(1), rtbse_env%rho_workspace(3), buffer_2)
-         deviation_metric = deviation_metric + REAL(ABS(buffer_2)*ABS(buffer_2))
+         deviation_metric = deviation_metric + REAL(ABS(buffer_2)*ABS(buffer_2), kind=dp)
       END DO
       deviation_metric = SQRT(deviation_metric) - SQRT(buffer_dev)
    END SUBROUTINE get_idempotence_deviation
