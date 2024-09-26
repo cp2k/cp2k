@@ -19,6 +19,12 @@ MODULE tblite_interface
    USE tblite_xtb_gfn2, ONLY: new_gfn2_calculator
    USE tblite_xtb_ipea1, ONLY: new_ipea1_calculator
    USE tblite_container, ONLY: container_cache
+   USE tblite_wavefunction_type, ONLY: wavefunction_type, new_wavefunction
+   USE tblite_scf_info, ONLY: scf_info, atom_resolved, shell_resolved, orbital_resolved, &
+      & not_used
+   USE tblite_scf_potential, ONLY: potential_type, new_potential
+   USE tblite_xtb_h0, ONLY: get_selfenergy, get_hamiltonian, get_occupation, &
+      & get_hamiltonian_gradient, tb_hamiltonian
 #endif
 
    USE qs_environment_types, ONLY: get_qs_env, &
@@ -27,29 +33,39 @@ MODULE tblite_interface
    USE particle_types, ONLY: particle_type
    USE kinds, ONLY: dp
    USE atomic_kind_types, ONLY: get_atomic_kind
+   USE input_constants, ONLY: gfn1xtb, gfn2xtb, ipea1xtb
 
 #include "./base/base_uses.f90"
    IMPLICIT NONE
 
    PRIVATE
 
-   INTEGER, PARAMETER                  :: gfn1xtb = 1, gfn2xtb = 2, ipea1xtb = 3
-
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'tblite_interface'
 
-   PUBLIC :: tb_init_geometry, tb_type
+   PUBLIC :: tb_type, tb_init_geometry, tb_init_ham, tb_init_wf
+   PUBLIC :: tb_set_calculator
 
    TYPE tb_type
+      REAL(KIND=dp), DIMENSION(3, 3)                     :: sigma
       REAL(KIND=dp), ALLOCATABLE                         :: e_hal(:)
       REAL(KIND=dp), ALLOCATABLE                         :: e_rep(:)
       REAL(KIND=dp), ALLOCATABLE                         :: e_disp(:)
+      REAL(KIND=dp), ALLOCATABLE                         :: e_scd(:)
+      REAL(KIND=dp), ALLOCATABLE                         :: e_es(:)
+      REAL(KIND=dp), ALLOCATABLE                         :: selfenergy(:)
+      REAL(KIND=dp), ALLOCATABLE                         :: cn(:)
+
       REAL(KIND=dp), ALLOCATABLE                         :: grad(:, :)
-      REAL(KIND=dp), ALLOCATABLE                         :: sigma(:, :)
+      REAL(KIND=dp), ALLOCATABLE                         :: dsedcn(:)
+      REAL(KIND=dp), ALLOCATABLE                         :: dcndr(:, :, :)
+      REAL(KIND=dp), ALLOCATABLE                         :: dcndL(:, :, :)
 
 #if defined(__TBLITE)
       TYPE(structure_type)                               :: mol
       TYPE(xtb_calculator)                               :: calc
-      TYPE(container_cache)                              :: dcache
+      TYPE(container_cache)                              :: dcache, cache
+      TYPE(wavefunction_type)                            :: wfn
+      TYPE(potential_type)                               :: pot
 #endif
 
    END TYPE tb_type
@@ -107,9 +123,6 @@ CONTAINS
       !prepare for the call to the dispersion function
       CALL new(tb%mol, el_num, xyz, lattice=cell%hmat, periodic=lperiod)
 
-      !allocate quantities later required
-      ALLOCATE (tb%e_hal(natom), tb%e_rep(natom), tb%e_disp(natom))
-
       DEALLOCATE (el_num, xyz)
 
       CALL timestop(handle)
@@ -119,6 +132,53 @@ CONTAINS
 #endif
 
    END SUBROUTINE tb_init_geometry
+
+   ! **************************************************************************************************
+!> \brief ...
+!> \param tb ...
+!> \param do_grad ...
+! **************************************************************************************************
+   SUBROUTINE tb_init_wf(tb, do_grad)
+
+      TYPE(tb_type), POINTER                             :: tb
+      LOGICAL, INTENT(in)                                :: do_grad
+
+      REAL(KIND=dp), PARAMETER                           :: K2Eh = 3.16681156346E-06
+      INTEGER                                            :: nSpin = 1 !number of spin channels
+
+#if defined(__TBLITE)
+      TYPE(scf_info)                                     :: info
+
+      info = tb%calc%variable_info()
+      IF (info%charge > shell_resolved) CPABORT("tblite: no support for orbital resolved charge")
+      IF (info%dipole > atom_resolved) CPABORT("tblite: no support for shell resolved dipole moment")
+      IF (info%quadrupole > atom_resolved) CPABORT("tblite: no support shell resolved quadrup[ole moment")
+
+      CALL new_wavefunction(tb%wfn, tb%mol%nat, tb%calc%bas%nsh, tb%calc%bas%nao, nSpin, 0.0_dp*K2Eh)
+
+      CALL new_potential(tb%pot, tb%mol, tb%calc%bas, tb%wfn%nspin)
+
+      !allocate quantities later required
+      ALLOCATE (tb%e_hal(tb%mol%nat), tb%e_rep(tb%mol%nat), tb%e_disp(tb%mol%nat))
+      ALLOCATE (tb%e_scd(tb%mol%nat), tb%e_es(tb%mol%nat))
+      ALLOCATE (tb%selfenergy(tb%calc%bas%nsh))
+
+      IF (ALLOCATED(tb%calc%ncoord)) ALLOCATE (tb%cn(tb%mol%nat))
+
+      IF (do_grad) ALLOCATE (tb%grad(3, tb%mol%nat))
+
+      IF (ALLOCATED(tb%grad)) THEN
+         IF (ALLOCATED(tb%calc%ncoord)) THEN
+            ALLOCATE (tb%dcndr(3, tb%mol%nat, tb%mol%nat), tb%dcndL(3, 3, tb%mol%nat))
+         END IF
+         ALLOCATE (tb%dsedcn(tb%calc%bas%nsh))
+      END IF
+
+#else
+      CPABORT("Build without TBLITE")
+#endif
+
+   END SUBROUTINE tb_init_wf
 
 ! **************************************************************************************************
 !> \brief ...
@@ -158,61 +218,64 @@ CONTAINS
 
       TYPE(tb_type), POINTER                             :: tb
 
-      INTEGER                                            :: icase
 #if defined(__TBLITE)
       TYPE(container_cache)                              :: hcache, rcache
 
       tb%e_hal = 0.0_dp
       tb%e_rep = 0.0_dp
       tb%e_hal = 0.0_dp
-      icase = 0
       IF (ALLOCATED(tb%grad)) THEN
          tb%grad = 0.0_dp
-         IF (ALLOCATED(tb%sigma)) THEN
-            tb%sigma = 0.0_dp
-            icase = 2
-         ELSE
-            icase = 1
-         END IF
+         tb%sigma = 0.0_dp
       END IF
 
       IF (ALLOCATED(tb%calc%halogen)) THEN
          CALL tb%calc%halogen%update(tb%mol, hcache)
-         SELECT CASE (icase)
-         CASE (0)
-            CALL tb%calc%halogen%get_engrad(tb%mol, hcache, tb%e_hal)
-         CASE (1)
-            CALL tb%calc%halogen%get_engrad(tb%mol, hcache, tb%e_hal, tb%grad)
-         CASE (2)
+         IF (ALLOCATED(tb%grad)) THEN
             CALL tb%calc%halogen%get_engrad(tb%mol, hcache, tb%e_hal, &
             & tb%grad, tb%sigma)
-         END SELECT
+         ELSE
+            CALL tb%calc%halogen%get_engrad(tb%mol, hcache, tb%e_hal)
+         END IF
       END IF
 
       IF (ALLOCATED(tb%calc%repulsion)) THEN
          CALL tb%calc%repulsion%update(tb%mol, rcache)
-         SELECT CASE (icase)
-         CASE (0)
-            CALL tb%calc%repulsion%get_engrad(tb%mol, rcache, tb%e_rep)
-         CASE (1)
-            CALL tb%calc%repulsion%get_engrad(tb%mol, rcache, tb%e_rep, tb%grad)
-         CASE (2)
+         IF (ALLOCATED(tb%grad)) THEN
             CALL tb%calc%repulsion%get_engrad(tb%mol, rcache, tb%e_rep, &
             & tb%grad, tb%sigma)
-         END SELECT
+         ELSE
+            CALL tb%calc%repulsion%get_engrad(tb%mol, rcache, tb%e_rep)
+         END IF
       END IF
 
       IF (ALLOCATED(tb%calc%dispersion)) THEN
          CALL tb%calc%dispersion%update(tb%mol, tb%dcache)
-         SELECT CASE (icase)
-         CASE (0)
-            CALL tb%calc%dispersion%get_engrad(tb%mol, tb%dcache, tb%e_disp)
-         CASE (1)
-            CALL tb%calc%dispersion%get_engrad(tb%mol, tb%dcache, tb%e_disp, tb%grad)
-         CASE (2)
+         IF (ALLOCATED(tb%grad)) THEN
             CALL tb%calc%dispersion%get_engrad(tb%mol, tb%dcache, tb%e_disp, &
             & tb%grad, tb%sigma)
-         END SELECT
+         ELSE
+            CALL tb%calc%dispersion%get_engrad(tb%mol, tb%dcache, tb%e_disp)
+         END IF
+      END IF
+
+      CALL new_potential(tb%pot, tb%mol, tb%calc%bas, tb%wfn%nspin)
+      IF (ALLOCATED(tb%calc%coulomb)) THEN
+         CALL tb%calc%coulomb%update(tb%mol, tb%cache)
+      END IF
+
+      IF (ALLOCATED(tb%grad)) THEN
+         IF (ALLOCATED(tb%calc%ncoord)) THEN
+            CALL tb%calc%ncoord%get_cn(tb%mol, tb%cn, tb%dcndr, tb%dcndL)
+         END IF
+         CALL get_selfenergy(tb%calc%h0, tb%mol%id, tb%calc%bas%ish_at, &
+         &  tb%calc%bas%nsh_id, cn=tb%cn, selfenergy=tb%selfenergy, dsedcn=tb%dsedcn)
+      ELSE
+         IF (ALLOCATED(tb%calc%ncoord)) THEN
+            CALL tb%calc%ncoord%get_cn(tb%mol, tb%cn)
+         END IF
+         CALL get_selfenergy(tb%calc%h0, tb%mol%id, tb%calc%bas%ish_at, &
+         &  tb%calc%bas%nsh_id, cn=tb%cn, selfenergy=tb%selfenergy, dsedcn=tb%dsedcn)
       END IF
 
 #else
@@ -233,13 +296,29 @@ CONTAINS
 
 #if defined(__TBLITE)
 
-      energies(:) = tb%e_hal + tb%e_rep + tb%e_disp
+      energies(:) = tb%e_hal + tb%e_rep + tb%e_disp + tb%e_scd + tb%e_es
 
 #else
       CPABORT("Build without TBLITE")
 #endif
 
    END SUBROUTINE get_energy
+
+! **************************************************************************************************
+!> \brief ...
+!> \param tb ...
+! **************************************************************************************************
+   SUBROUTINE set_basis(tb)
+
+      TYPE(tb_type), POINTER                             :: tb
+
+#if defined(__TBLITE)
+
+#else
+      CPABORT("Build without TBLITE")
+#endif
+
+   END SUBROUTINE set_basis
 
 END MODULE tblite_interface
 

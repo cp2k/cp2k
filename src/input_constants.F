@@ -1337,6 +1337,10 @@ MODULE input_constants
                                                sigma_PBE0_S1 = 2, &
                                                sigma_PBE0_S2 = 3, &
                                                sigma_PBE_S1 = 4
+   ! tblite method selection
+   INTEGER, PARAMETER, PUBLIC               :: gfn1xtb = 1, &
+                                               gfn2xtb = 2, &
+                                               ipea1xtb = 3
 
    ! SMEAGOL interface
    INTEGER, PARAMETER, PUBLIC               :: smeagol_bulklead_leftright = 1, &
