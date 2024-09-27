@@ -4064,13 +4064,13 @@ CONTAINS
             END IF
 
             ASSOCIATE (mapl => pw_grid%mapl%pos, mapm => pw_grid%mapm%pos, mapn => pw_grid%mapn%pos, &
-                       ngpts => SIZE(pw_grid%gsq), ghat => pw_grid%g_hat, yzq => pw_grid%para%yzq)
+                       ghat => pw_grid%g_hat, yzq => pw_grid%para%yzq)
 
                IF (PRESENT(scale)) THEN
 !$OMP PARALLEL DO DEFAULT(NONE) &
 !$OMP             PRIVATE(l, m, mn, n) &
 !$OMP             SHARED(cin, cout, scale)
-                  DO gpt = 1, ngpts
+                  DO gpt = 1, SIZE(cout)
                      l = mapl(ghat(1, gpt)) + 1
                      m = mapm(ghat(2, gpt)) + 1
                      n = mapn(ghat(3, gpt)) + 1
@@ -4082,7 +4082,7 @@ CONTAINS
 !$OMP PARALLEL DO DEFAULT(NONE) &
 !$OMP             PRIVATE(l, m, mn, n) &
 !$OMP             SHARED(cin, cout)
-                  DO gpt = 1, ngpts
+                  DO gpt = 1, SIZE(cout)
                      l = mapl(ghat(1, gpt)) + 1
                      m = mapm(ghat(2, gpt)) + 1
                      n = mapn(ghat(3, gpt)) + 1
@@ -4121,7 +4121,7 @@ CONTAINS
             END IF
 
             ASSOCIATE (mapl => pw_grid%mapl%pos, mapm => pw_grid%mapm%pos, mapn => pw_grid%mapn%pos, &
-                       ghat => pw_grid%g_hat, yzq => pw_grid%para%yzq, ngpts => SIZE(pw_grid%gsq))
+                       ghat => pw_grid%g_hat, yzq => pw_grid%para%yzq)
 
                IF (.NOT. PRESENT(scale)) cout = z_zero
 
@@ -4129,7 +4129,7 @@ CONTAINS
 !$OMP PARALLEL DO DEFAULT(NONE) &
 !$OMP             PRIVATE(l, m, mn, n) &
 !$OMP             SHARED(cin, cout, scale)
-                  DO gpt = 1, ngpts
+                  DO gpt = 1, SIZE(cin)
                      l = mapl(ghat(1, gpt)) + 1
                      m = mapm(ghat(2, gpt)) + 1
                      n = mapn(ghat(3, gpt)) + 1
@@ -4141,7 +4141,7 @@ CONTAINS
 !$OMP PARALLEL DO DEFAULT(NONE) &
 !$OMP             PRIVATE(l, m, mn, n) &
 !$OMP             SHARED(cin, cout)
-                  DO gpt = 1, ngpts
+                  DO gpt = 1, SIZE(cin)
                      l = mapl(ghat(1, gpt)) + 1
                      m = mapm(ghat(2, gpt)) + 1
                      n = mapn(ghat(3, gpt)) + 1
@@ -4156,13 +4156,13 @@ CONTAINS
             IF (pw_grid%grid_span == HALFSPACE) THEN
 
                ASSOCIATE (mapm => pw_grid%mapm%neg, mapn => pw_grid%mapn%neg, mapl => pw_grid%mapl%neg, &
-                          ghat => pw_grid%g_hat, ngpts => SIZE(pw_grid%gsq), yzq => pw_grid%para%yzq)
+                          ghat => pw_grid%g_hat, yzq => pw_grid%para%yzq)
 
                   IF (PRESENT(scale)) THEN
 !$OMP PARALLEL DO DEFAULT(NONE) &
 !$OMP             PRIVATE(l, m, mn, n) &
 !$OMP             SHARED(cin, cout, scale)
-                     DO gpt = 1, ngpts
+                     DO gpt = 1, SIZE(cin)
                         l = mapl(ghat(1, gpt)) + 1
                         m = mapm(ghat(2, gpt)) + 1
                         n = mapn(ghat(3, gpt)) + 1
@@ -4174,7 +4174,7 @@ CONTAINS
 !$OMP PARALLEL DO DEFAULT(NONE) &
 !$OMP             PRIVATE(l, m, mn, n) &
 !$OMP             SHARED(cin, cout)
-                     DO gpt = 1, ngpts
+                     DO gpt = 1, SIZE(cin)
                         l = mapl(ghat(1, gpt)) + 1
                         m = mapm(ghat(2, gpt)) + 1
                         n = mapn(ghat(3, gpt)) + 1
@@ -4218,11 +4218,11 @@ CONTAINS
             CALL timeset(routineN, handle)
 
             ASSOCIATE (mapl => pw_grid%mapl%pos, mapm => pw_grid%mapm%pos, mapn => pw_grid%mapn%pos, &
-                       ngpts => SIZE(pw_grid%gsq), ghat => pw_grid%g_hat)
+                       ghat => pw_grid%g_hat)
 
                IF (PRESENT(scale)) THEN
 !$OMP PARALLEL DO PRIVATE(gpt, l, m, n) DEFAULT(NONE) SHARED(cin, cout, scale)
-                  DO gpt = 1, ngpts
+                  DO gpt = 1, SIZE(cout)
                      l = mapl(ghat(1, gpt)) + 1
                      m = mapm(ghat(2, gpt)) + 1
                      n = mapn(ghat(3, gpt)) + 1
@@ -4231,7 +4231,7 @@ CONTAINS
 !$OMP END PARALLEL DO
                ELSE
 !$OMP PARALLEL DO PRIVATE(gpt, l, m, n) DEFAULT(NONE) SHARED(cin, cout)
-                  DO gpt = 1, ngpts
+                  DO gpt = 1, SIZE(cout)
                      l = mapl(ghat(1, gpt)) + 1
                      m = mapm(ghat(2, gpt)) + 1
                      n = mapn(ghat(3, gpt)) + 1
@@ -4269,14 +4269,14 @@ CONTAINS
             CALL timeset(routineN, handle)
 
             ASSOCIATE (mapl => pw_grid%mapl%pos, mapm => pw_grid%mapm%pos, mapn => pw_grid%mapn%pos, &
-                       ghat => pw_grid%g_hat, ngpts => SIZE(pw_grid%gsq))
+                       ghat => pw_grid%g_hat)
 
                ! should only zero the unused bits (but the zero is needed)
                IF (.NOT. PRESENT(scale)) cout = 0.0_dp
 
                IF (PRESENT(scale)) THEN
 !$OMP PARALLEL DO PRIVATE(gpt, l, m, n) DEFAULT(NONE) SHARED(cin, cout, scale)
-                  DO gpt = 1, ngpts
+                  DO gpt = 1, SIZE(cin)
                      l = mapl(ghat(1, gpt)) + 1
                      m = mapm(ghat(2, gpt)) + 1
                      n = mapn(ghat(3, gpt)) + 1
@@ -4285,7 +4285,7 @@ CONTAINS
 !$OMP END PARALLEL DO
                ELSE
 !$OMP PARALLEL DO PRIVATE(gpt, l, m, n) DEFAULT(NONE) SHARED(cin, cout)
-                  DO gpt = 1, ngpts
+                  DO gpt = 1, SIZE(cin)
                      l = mapl(ghat(1, gpt)) + 1
                      m = mapm(ghat(2, gpt)) + 1
                      n = mapn(ghat(3, gpt)) + 1
@@ -4299,11 +4299,11 @@ CONTAINS
             IF (pw_grid%grid_span == HALFSPACE) THEN
 
                ASSOCIATE (mapl => pw_grid%mapl%neg, mapm => pw_grid%mapm%neg, mapn => pw_grid%mapn%neg, &
-                          ghat => pw_grid%g_hat, ngpts => SIZE(pw_grid%gsq))
+                          ghat => pw_grid%g_hat)
 
                   IF (PRESENT(scale)) THEN
 !$OMP PARALLEL DO PRIVATE(gpt, l, m, n) DEFAULT(NONE) SHARED(cin, cout, scale)
-                     DO gpt = 1, ngpts
+                     DO gpt = 1, SIZE(cin)
                         l = mapl(ghat(1, gpt)) + 1
                         m = mapm(ghat(2, gpt)) + 1
                         n = mapn(ghat(3, gpt)) + 1
@@ -4312,7 +4312,7 @@ CONTAINS
 !$OMP END PARALLEL DO
                   ELSE
 !$OMP PARALLEL DO PRIVATE(gpt, l, m, n) DEFAULT(NONE) SHARED(cin, cout)
-                     DO gpt = 1, ngpts
+                     DO gpt = 1, SIZE(cin)
                         l = mapl(ghat(1, gpt)) + 1
                         m = mapm(ghat(2, gpt)) + 1
                         n = mapn(ghat(3, gpt)) + 1
