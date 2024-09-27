@@ -200,15 +200,15 @@ async def main() -> None:
     if cfg.flag_slow:
         print("\n" + "-" * 15 + "--------------- Slow Tests ---------------" + "-" * 15)
         slow_test_threshold = 2 * percentile(timings, 0.95)
-        maybe_slow = [r for r in all_results if r.duration > slow_test_threshold]
-        suppressions = cfg.slow_suppressions
+        outliers = [r for r in all_results if r.duration > slow_test_threshold]
+        maybe_slow = [r for r in outliers if r.fullname not in cfg.slow_suppressions]
+        num_suppressed = len(outliers) - len(maybe_slow)
         slow_reruns: List[str] = []
-        for batch in {r.batch for r in maybe_slow if r.fullname not in suppressions}:
+        for batch in {r.batch for r in maybe_slow}:
             print(f"Re-running {batch.name} to avoid false positives.")
             res = (await run_batch(batch, cfg)).results
             slow_reruns += [r.fullname for r in res if r.duration > slow_test_threshold]
         slow_tests = [r for r in maybe_slow if r.fullname in slow_reruns]
-        num_suppressed = len([r for r in maybe_slow if r.fullname in suppressions])
         print(f"Duration threshold (2x 95th %ile): {slow_test_threshold:.2f} sec")
         print(f"Found {len(slow_tests)} slow tests ({num_suppressed} suppressed):")
         for r in slow_tests:
