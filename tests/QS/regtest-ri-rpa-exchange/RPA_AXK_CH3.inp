@@ -49,7 +49,7 @@
           &END WFC_GPW
         &END INTEGRALS
         &RI_RPA
-          MINIMAX
+          QUADRATURE_RULE MINIMAX
           # 6-8 are sufficient
           RPA_NUM_QUAD_POINTS 1
           &EXCHANGE_CORRECTION AXK
