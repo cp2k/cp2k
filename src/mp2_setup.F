@@ -18,7 +18,12 @@ MODULE mp2_setup
    USE cp_output_handling,              ONLY: cp_p_file,&
                                               cp_print_key_finished_output,&
                                               cp_print_key_should_output,&
-                                              cp_print_key_unit_nr
+                                              cp_print_key_unit_nr, &       
+                                              debug_print_level, &
+                                             high_print_level, &
+                                             low_print_level, &
+                                             medium_print_level, &
+                                             silent_print_level
    USE cp_parser_methods,               ONLY: read_float_object
    USE input_constants,                 ONLY: &
         do_eri_mme, do_potential_short, evGW, evGW0, mp2_method_direct, mp2_method_gpw, &
@@ -67,7 +72,7 @@ CONTAINS
          DIMENSION(:), POINTER                           :: string_pointer
       CHARACTER(LEN=max_line_length)                     :: error_message
       INTEGER                                            :: gw_sc, handle, i, i_special_kp, ival, &
-                                                            unit_nr
+                                                            unit_nr, print_level_NTO_analysis
       INTEGER, DIMENSION(:), POINTER                     :: tmplist
       LOGICAL                                            :: do_mp2, do_opt_ri_basis, do_ri_mp2, &
                                                             do_ri_sos_mp2, do_rpa
@@ -235,6 +240,15 @@ CONTAINS
                                 r_val=mp2_env%ri_g0w0%bse_spectrum_freq_end)
       CALL section_vals_val_get(bse_section, "BSE_SPECTRUM%ETA_LIST", &
                                 r_vals=mp2_env%ri_g0w0%bse_eta_spectrum_list)
+      CALL section_vals_val_get(bse_section, "NTO_ANALYSIS%_SECTION_PARAMETERS_", &
+                                i_val=print_level_NTO_analysis)
+      ! All other print levels besides "off" should trigger the analysis
+      ! cf. input/cp_output_handling.F:cp_print_key_section_create
+      IF (print_level_NTO_analysis /= debug_print_level + 1) THEN
+         mp2_env%ri_g0w0%do_nto_analysis = .TRUE.
+      ELSE
+         mp2_env%ri_g0w0%do_nto_analysis = .FALSE.
+      END IF
       CALL section_vals_val_get(bse_section, "NTO_ANALYSIS%EPS_NTO_EIGVAL", &
                                 r_val=mp2_env%ri_g0w0%eps_nto_eigval)
 

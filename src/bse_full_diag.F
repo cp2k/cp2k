@@ -36,9 +36,6 @@ MODULE bse_full_diag
                                               cp_fm_type
    USE input_constants,                 ONLY: bse_singlet,&
                                               bse_triplet
-   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
-                                              section_vals_type,&
-                                              section_vals_val_get
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_para_env_type
    USE mp2_types,                       ONLY: mp2_type
@@ -599,11 +596,9 @@ CONTAINS
 
       CHARACTER(LEN=10)                                  :: info_approximation, multiplet
       INTEGER                                            :: handle, i_exc
-      LOGICAL                                            :: cube_file
       REAL(KIND=dp)                                      :: alpha
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: oscill_str
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: dipole_exc, polarizability_residues
-      TYPE(section_vals_type), POINTER                   :: input, nto_section
 
       CALL timeset(routineN, handle)
 
@@ -822,13 +817,12 @@ CONTAINS
       END IF
 
       ! Compute and print excitation wavefunctions
-      CALL get_qs_env(qs_env=qs_env, &
-                      input=input)
-      nto_section => section_vals_get_subs_vals(input, "DFT%XC%WF_CORRELATION%RI_RPA%GW%BSE%NTO_ANALYSIS")
-      CALL section_vals_val_get(nto_section, "CUBE_FILES", l_val=cube_file)
-      IF (cube_file) THEN
-         IF (mp2_env%ri_g0w0%bse_cutoff_occ > 0 .OR. mp2_env%ri_g0w0%bse_cutoff_empty > 0) THEN
-            CPABORT("Cutoffs NYI for NTOs")
+      IF (mp2_env%ri_g0w0%do_NTO_analysis) THEN
+         IF (unit_nr > 0) THEN
+            WRITE (unit_nr, '(T2,A4)') 'BSE|'
+            WRITE (unit_nr, '(T2,A4,T7,A47)') &
+               'BSE|', "Calculating Natural Transition Orbitals (NTOs)."
+            WRITE (unit_nr, '(T2,A4)') 'BSE|'
          END IF
          CALL calculate_NTOs(fm_eigvec_X, fm_eigvec_Y, &
                              mo_coeff, homo, virtual, &

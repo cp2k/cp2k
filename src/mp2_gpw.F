@@ -302,11 +302,12 @@ CONTAINS
       END IF
 
       ! MG: Disable logger layer for BSE, misses some key information to print cube files properly
-      IF (.NOT. (mp2_env%ri_g0w0%print_local_bandgap .OR. mp2_env%ri_g0w0%do_bse)) THEN
+      IF (.NOT. (mp2_env%ri_g0w0%print_local_bandgap .OR. mp2_env%ri_g0w0%do_NTO_analysis)) THEN
          ! a logger
          NULLIFY (logger_sub)
          CALL cp_logger_create(logger_sub, para_env=para_env_sub, &
-                               default_global_unit_nr=local_unit_nr, close_global_unit_on_dealloc=.FALSE.)
+                               default_global_unit_nr=local_unit_nr, &
+                               close_global_unit_on_dealloc=.FALSE.)
          CALL cp_logger_set(logger_sub, local_filename="MP2_localLog")
          ! set to a custom print level (we could also have a different print level for para_env%source)
          logger_sub%iter_info%print_level = mp2_env%mp2_gpw%print_level
@@ -640,7 +641,7 @@ CONTAINS
 
       CALL cp_blacs_env_release(blacs_env_sub)
 
-      IF (.NOT. (mp2_env%ri_g0w0%print_local_bandgap .OR. mp2_env%ri_g0w0%do_bse)) THEN
+      IF (.NOT. (mp2_env%ri_g0w0%print_local_bandgap .OR. mp2_env%ri_g0w0%do_NTO_analysis)) THEN
          CALL cp_rm_default_logger()
          CALL cp_logger_release(logger_sub)
       END IF

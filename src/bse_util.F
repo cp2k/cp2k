@@ -1916,10 +1916,13 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'calculate_NTOs'
 
       CHARACTER(LEN=20), DIMENSION(2)                    :: nto_name
-      INTEGER                                            :: handle, i, i_nto, n_exc, n_nto, nao
+      INTEGER                                            :: handle, i, i_nto, n_exc, n_nto, &
+                                                            nao_trunc, nao_full, &
+                                                            homo_irred
       INTEGER, DIMENSION(:), POINTER                     :: stride
       LOGICAL                                            :: append_cube, cube_file
       REAL(KIND=dp), DIMENSION(:), POINTER               :: eigval_svd
+      REAL(KIND=dp), DIMENSION(:), ALLOCATABLE           :: eigval_svd_squ
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_m, fm_struct_mo_coeff, &
                                                             fm_struct_nto_holes, &
                                                             fm_struct_nto_particles, &
@@ -1934,7 +1937,10 @@ CONTAINS
                       input=input)
       bse_section => section_vals_get_subs_vals(input, "DFT%XC%WF_CORRELATION%RI_RPA%GW%BSE")
       ! MG to do: Cutoffs
-      nao = homo + virtual
+      nao_full = qs_env%mos(1)%nao
+      nao_trunc = homo + virtual
+      ! This is not influenced by the BSE cutoff
+      homo_irred = qs_env%mos(1)%homo 
       ! M will have a block structure and is quadratic in homo+virtual, i.e.
       !                          occ   virt
       !                       |   0    X_i,a |  occ  = homo
@@ -1944,26 +1950,33 @@ CONTAINS
       ! Notice the index structure of the lower block, i.e. X is transposed
       CALL cp_fm_struct_create(fm_struct_m, &
                                fm_X%matrix_struct%para_env, fm_X%matrix_struct%context, &
-                               homo + virtual, homo + virtual)
+                               nao_trunc, nao_trunc)
       CALL cp_fm_struct_create(fm_struct_mo_coeff, &
                                fm_X%matrix_struct%para_env, fm_X%matrix_struct%context, &
-                               nao, nao)
+                               nao_full, nao_trunc)
       CALL cp_fm_struct_create(fm_struct_nto_holes, &
                                fm_X%matrix_struct%para_env, fm_X%matrix_struct%context, &
-                               nao, nao)
+                               nao_full, nao_trunc)
       CALL cp_fm_struct_create(fm_struct_nto_particles, &
                                fm_X%matrix_struct%para_env, fm_X%matrix_struct%context, &
-                               nao, nao)
+                               nao_full, nao_trunc)
 
       CALL cp_fm_create(fm_mo_coeff, matrix_struct=fm_struct_mo_coeff, &
                         name="mo_coeff")
+      ! Here, we take care of possible cutoffs
+      ! Simply truncating the matrix causes problems with the print function
+      ! Therefore, we keep the dimension, but set the coefficients of truncated indices to 0
       CALL cp_fm_to_fm_submat_general(mo_coeff(1), fm_mo_coeff, &
-                                      nao, nao, &
-                                      1, 1, &
+                                      nao_full, nao_trunc, &
+                                      1, homo_irred - homo + 1, &
                                       1, 1, &
                                       mo_coeff(1)%matrix_struct%context)
 
-      DO n_exc = 1, homo*virtual
+      DO n_exc = 1, MIN(homo*virtual, mp2_env%ri_g0w0%num_print_exc)
+         IF (unit_nr > 0) THEN
+            WRITE (unit_nr, '(T2,A4,T7,A28,I5)') &
+               'BSE|', "Calculating NTOs of n_exc = ", n_exc
+         END IF
          CALL cp_fm_create(fm_m, matrix_struct=fm_struct_m, &
                            name="single_part_trans_dm")
          CALL cp_fm_set_all(fm_m, 0.0_dp)
@@ -2006,15 +2019,23 @@ CONTAINS
          ! M = U * Lambda * V^T
          CALL cp_fm_svd(fm_m, fm_eigvl, fm_eigvr_t, eigval_svd)
 
-         ! Create NTO coefficients for later print to grid via TDDFT routine
+         ! Rescale singular values as done in Martin2003 (10.1063/1.1558471)
+         ALLOCATE(eigval_svd_squ(nao_trunc))
+         eigval_svd_squ(:) = eigval_svd(:)**2
+         ! In case of TDA, the sum should be 1
+         IF (.NOT. PRESENT(fm_Y)) THEN
+            IF (ABS(SUM(eigval_svd_squ)-1) >= 1e-5) THEN
+               CPWARN("Sum of NTO coefficients deviates from 1!")
+            END IF
+         END IF
 
-         ! MG to do: Take care of cutoff
+         ! Create NTO coefficients for later print to grid via TDDFT routine
          ! Apply U = fm_eigvl to MO coeffs, which yields hole states
-         CALL parallel_gemm("N", "N", nao, nao, nao, 1.0_dp, fm_mo_coeff, fm_eigvl, 0.0_dp, &
+         CALL parallel_gemm("N", "N", nao_full, nao_trunc, nao_trunc, 1.0_dp, fm_mo_coeff, fm_eigvl, 0.0_dp, &
                             fm_nto_coeff_holes)
 
          ! Apply V^T = fm_eigvr_t to MO coeffs, which yields particle states
-         CALL parallel_gemm("N", "T", nao, nao, nao, 1.0_dp, fm_mo_coeff, fm_eigvr_t, 0.0_dp, &
+         CALL parallel_gemm("N", "T", nao_full, nao_trunc, nao_trunc, 1.0_dp, fm_mo_coeff, fm_eigvr_t, 0.0_dp, &
                             fm_nto_coeff_particles)
 
          !Release intermediary work matrices
@@ -2022,26 +2043,36 @@ CONTAINS
          CALL cp_fm_release(fm_eigvl)
          CALL cp_fm_release(fm_eigvr_t)
 
+
          ! Transfer NTO coefficients to sets
          nto_name(1) = 'Hole_coord'
          nto_name(2) = 'Particle_coord'
          ALLOCATE (nto_set(2))
          ! Extract number of significant NTOs
          n_nto = 0
-         DO i_nto = 1, nao
-            IF (eigval_svd(i_nto) > mp2_env%ri_g0w0%eps_nto_eigval) THEN
+         DO i_nto = 1, nao_trunc
+            IF (eigval_svd_squ(i_nto) > mp2_env%ri_g0w0%eps_nto_eigval) THEN
                n_nto = n_nto + 1
             ELSE
                ! Since svd orders in descending order, we can exit the loop if smaller
                EXIT
             END IF
          END DO
+         ! MG to do: Add some printing
+         IF (unit_nr > 0) THEN
+            WRITE (unit_nr, '(T2,A4,T7,A24,I3,A6)') &
+               'BSE|', "with contributions from ", n_nto, " NTOs:"
+            DO i_nto = 1, n_nto
+               WRITE (unit_nr, '(T2,A4,T7,I3,A13,F10.3)') &
+                  'BSE|', i_nto, " contributes ", eigval_svd_squ(i_nto)
+            END DO
+         END IF
 
          CALL cp_fm_struct_create(fm_struct_nto_set, template_fmstruct=fm_struct_nto_holes, &
                                   ncol_global=n_nto)
          CALL cp_fm_create(fm_nto_set, fm_struct_nto_set)
          DO i = 1, 2
-            CALL allocate_mo_set(nto_set(i), nao, n_nto, 0, 0.0_dp, 2.0_dp, 0.0_dp)
+            CALL allocate_mo_set(nto_set(i), nao_trunc, n_nto, 0, 0.0_dp, 2.0_dp, 0.0_dp)
             CALL init_mo_set(nto_set(i), fm_ref=fm_nto_set, name=nto_name(i))
          END DO
          CALL cp_fm_release(fm_nto_set)
@@ -2067,18 +2098,17 @@ CONTAINS
          CALL cp_fm_release(fm_nto_coeff_holes)
          CALL cp_fm_release(fm_nto_coeff_particles)
          DEALLOCATE (eigval_svd)
+         DEALLOCATE(eigval_svd_squ)
          DO i = 1, 2
             CALL deallocate_mo_set(nto_set(i))
          END DO
          DEALLOCATE (nto_set)
-         PRINT *, "Finished loop of index", n_exc
       END DO
       CALL cp_fm_release(fm_mo_coeff)
       CALL cp_fm_struct_release(fm_struct_m)
       CALL cp_fm_struct_release(fm_struct_nto_holes)
       CALL cp_fm_struct_release(fm_struct_nto_particles)
 
-      PRINT *, "Leaving calculate_NTOs"
       CALL timestop(handle)
 
    END SUBROUTINE calculate_NTOs

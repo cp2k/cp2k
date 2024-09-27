@@ -1403,16 +1403,13 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
-      NULLIFY (subsection)
-      CALL create_exc_cubes_section(subsection)
-      CALL section_add_subsection(section, subsection)
-      CALL section_release(subsection)
-
       NULLIFY (print_key)
       CALL cp_print_key_section_create(print_key, __LOCATION__, name="NTO_ANALYSIS", &
                                        description="Perform a natural transition orbital analysis.", &
-                                       print_level=medium_print_level, &
-                                       filename="BSE-NTO_ANALYSIS")
+                                       print_level=debug_print_level+1, &  ! Corresponds to "off" as default behavior
+                                       filename="BSE-NTO_ANALYSIS")        ! All other print levels will trigger the analysis
+                                                               ! cf. input/cp_output_handling.F:cp_print_key_section_create
+
       CALL keyword_create(keyword, __LOCATION__, name="EPS_NTO_EIGVAL", &
                           description="Threshold for considered NTO eigenvalues", &
                           usage="EPS_NTO_EIGVAL 0.01", &
@@ -1430,7 +1427,7 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="CUBE_FILES", &
                           description="Print NTOs on Cube Files", &
                           usage="CUBE_FILES {logical}", repeats=.FALSE., n_var=1, &
-                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE., type_of_var=logical_t)
+                          default_l_val=.TRUE., lone_keyword_l_val=.TRUE., type_of_var=logical_t)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="STRIDE", &
@@ -1451,59 +1448,6 @@ CONTAINS
 
    END SUBROUTINE
 
-! **************************************************************************************************
-!> \brief Creates input section for wavefunction dump to cube files
-!> \param print_key ...
-! **************************************************************************************************
-   SUBROUTINE create_exc_cubes_section(section)
-      TYPE(section_type), POINTER                        :: section
-
-      TYPE(keyword_type), POINTER                        :: keyword
-
-      NULLIFY (keyword)
-
-      CALL cp_print_key_section_create(section, __LOCATION__, "EXC_CUBES", &
-                                       description="Controls the printing of the exc wavefunctions as cube files.", &
-                                       print_level=high_print_level, filename="")
-      CALL keyword_create(keyword, __LOCATION__, name="stride", &
-                          description="The stride (X,Y,Z) used to write the cube file "// &
-                          "(larger values result in smaller cube files). You can provide 3 numbers (for X,Y,Z) or"// &
-                          " 1 number valid for all components.", &
-                          usage="STRIDE 2 2 2", n_var=-1, default_i_vals=(/2, 2, 2/), type_of_var=integer_t)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="write_cube", &
-                          description="If the MO cube file should be written. If false, the eigenvalues are still computed."// &
-                          " Can also be useful in combination with STM calculations", &
-                          default_l_val=.TRUE., lone_keyword_l_val=.TRUE.)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="nlumo", &
-                          description="If the printkey is activated controls the number of lumos"// &
-                          " that are printed and dumped as a cube (-1=all)", &
-                          default_i_val=0)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-      CALL keyword_create( &
-         keyword, __LOCATION__, name="nhomo", &
-         description="If the printkey is activated controls the number of homos that dumped as a cube (-1=all),"// &
-         " eigenvalues are always all dumped", &
-         default_i_val=1)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create( &
-         keyword, __LOCATION__, name="homo_list", &
-         description="If the printkey is activated controls the index of homos dumped as a cube,"// &
-         " eigenvalues are always all dumped. It overrides nhomo.", &
-         usage="HOMO_LIST {integer}  {integer} ..  {integer} ", type_of_var=integer_t, &
-         n_var=-1, repeats=.TRUE.)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-   END SUBROUTINE create_exc_cubes_section
 
    SUBROUTINE create_bse_spectrum_section(section)
       TYPE(section_type), POINTER                        :: section

@@ -244,6 +244,7 @@ MODULE mp2_types
                                                             bse_cutoff_empty = 0.0_dp, &
                                                             z_space_energy_cutoff = 0.0_dp
       LOGICAL                                            :: do_bse = .FALSE., &
+                                                            do_NTO_analysis = .FALSE., &
                                                             bse_debug_print = .FALSE., &
                                                             do_ic_model = .FALSE., &
                                                             print_ic_values = .FALSE.
