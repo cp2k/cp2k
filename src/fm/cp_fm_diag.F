@@ -973,7 +973,7 @@ CONTAINS
 #else
       ! MG to do
       CALL cp_abort(__LOCATION__, &
-         "NYI. Singular value decomposition not available without SCALAPACK.")
+                    "NYI. Singular value decomposition not available without SCALAPACK.")
 #endif
       CALL timestop(handle)
    END SUBROUTINE cp_fm_svd

@@ -1298,8 +1298,8 @@ CONTAINS
          E_CBM_SCF, E_CBM_SCF_beta, E_VBM_GW, E_VBM_GW_beta, E_VBM_SCF, E_VBM_SCF_beta, stop_crit
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: vec_gw_dos
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: m_value, vec_gw_energ, z_value
-      TYPE(kpoint_type), POINTER                         :: kpoints_Sigma
       TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(kpoint_type), POINTER                         :: kpoints_Sigma
 
       CALL timeset(routineN, handle)
 

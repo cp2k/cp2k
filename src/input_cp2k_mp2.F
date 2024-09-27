@@ -1291,7 +1291,7 @@ CONTAINS
       TYPE(section_type), POINTER                        :: section
 
       TYPE(keyword_type), POINTER                        :: keyword
-      TYPE(section_type), POINTER                        :: subsection, print_key
+      TYPE(section_type), POINTER                        :: subsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, __LOCATION__, name="BSE", &
@@ -1403,33 +1403,72 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
-      NULLIFY (print_key)
+      NULLIFY (subsection)
+      CALL create_bse_nto_section(subsection)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+
+   END SUBROUTINE
+
+   SUBROUTINE create_bse_nto_section(print_key)
+      TYPE(section_type), POINTER                        :: print_key
+
+      TYPE(keyword_type), POINTER                        :: keyword
+
+      CPASSERT(.NOT. ASSOCIATED(print_key))
+
       CALL cp_print_key_section_create(print_key, __LOCATION__, name="NTO_ANALYSIS", &
                                        description="Perform a natural transition orbital analysis.", &
-                                       print_level=debug_print_level+1, &  ! Corresponds to "off" as default behavior
+                                       print_level=debug_print_level + 1, &  ! Corresponds to "off" as default behavior
                                        filename="BSE-NTO_ANALYSIS")        ! All other print levels will trigger the analysis
-                                                               ! cf. input/cp_output_handling.F:cp_print_key_section_create
+      ! cf. input/cp_output_handling.F:cp_print_key_section_create
 
+      NULLIFY (keyword)
       CALL keyword_create(keyword, __LOCATION__, name="EPS_NTO_EIGVAL", &
-                          description="Threshold for considered NTO eigenvalues", &
+                          description="Threshold for considered NTO eigenvalues.", &
                           usage="EPS_NTO_EIGVAL 0.01", &
                           n_var=1, &
                           type_of_var=real_t, &
                           default_r_val=0.01_dp)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="EPS_OSC_STR", &
+                          description="Threshold of oscillator strengths for an excitation level. "// &
+                          "In case, the excitation level has a smaller oscillator strength, the corresponding "// &
+                          "NTOs are not printed.", &
+                          usage="EPS_OSC_STR 0.01", &
+                          n_var=1, &
+                          type_of_var=real_t, &
+                          default_r_val=-1.0_dp)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="NUM_PRINT_EXC_NTOS", &
+                          description="Number of excitation level for which NTOs are printed. "// &
+                          "By default, this is set to NUM_PRINT_EXC. Must be smaller or equal to "// &
+                          "NUM_PRINT_EXC.", &
+                          usage="NUM_PRINT_EXC_NTOS 5", &
+                          n_var=1, &
+                          type_of_var=integer_t, &
+                          default_i_val=-1)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+
       CALL keyword_create(keyword, __LOCATION__, name="STATE_LIST", &
                           description="Specifies a list of states for the NTO calculations.", &
                           usage="STATE_LIST {integer} {integer} .. {integer}", &
                           n_var=-1, type_of_var=integer_t)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
+
       CALL keyword_create(keyword, __LOCATION__, name="CUBE_FILES", &
                           description="Print NTOs on Cube Files", &
                           usage="CUBE_FILES {logical}", repeats=.FALSE., n_var=1, &
                           default_l_val=.TRUE., lone_keyword_l_val=.TRUE., type_of_var=logical_t)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
+
       CALL keyword_create(keyword, __LOCATION__, name="STRIDE", &
                           description="The stride (X,Y,Z) used to write the cube file "// &
                           "(larger values result in smaller cube files). Provide 3 numbers (for X,Y,Z) or"// &
@@ -1437,17 +1476,14 @@ CONTAINS
                           usage="STRIDE 2 2 2", n_var=-1, default_i_vals=(/2, 2, 2/), type_of_var=integer_t)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
+
       CALL keyword_create(keyword, __LOCATION__, name="APPEND", &
                           description="append the cube files when they already exist", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
 
-      CALL section_add_subsection(section, print_key)
-      CALL section_release(print_key)
-
-   END SUBROUTINE
-
+   END SUBROUTINE create_bse_nto_section
 
    SUBROUTINE create_bse_spectrum_section(section)
       TYPE(section_type), POINTER                        :: section

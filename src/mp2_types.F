@@ -231,6 +231,7 @@ MODULE mp2_types
                                                             flag_tda = 0, &
                                                             num_exc_en = 0, &
                                                             num_print_exc = 0, &
+                                                            num_print_exc_ntos = 0, &
                                                             num_add_start_z_space = 0, &
                                                             fac_max_z_space = 0, &
                                                             num_new_t = 0, &
@@ -240,6 +241,7 @@ MODULE mp2_types
                                                             eps_exc_en = 0.0_dp, &
                                                             eps_x = 0.0_dp, &
                                                             eps_nto_eigval = 0.0_dp, &
+                                                            eps_nto_osc_str = 0.0_dp, &
                                                             bse_cutoff_occ = 0.0_dp, &
                                                             bse_cutoff_empty = 0.0_dp, &
                                                             z_space_energy_cutoff = 0.0_dp

@@ -18,12 +18,8 @@ MODULE mp2_setup
    USE cp_output_handling,              ONLY: cp_p_file,&
                                               cp_print_key_finished_output,&
                                               cp_print_key_should_output,&
-                                              cp_print_key_unit_nr, &       
-                                              debug_print_level, &
-                                             high_print_level, &
-                                             low_print_level, &
-                                             medium_print_level, &
-                                             silent_print_level
+                                              cp_print_key_unit_nr,&
+                                              debug_print_level
    USE cp_parser_methods,               ONLY: read_float_object
    USE input_constants,                 ONLY: &
         do_eri_mme, do_potential_short, evGW, evGW0, mp2_method_direct, mp2_method_gpw, &
@@ -72,7 +68,7 @@ CONTAINS
          DIMENSION(:), POINTER                           :: string_pointer
       CHARACTER(LEN=max_line_length)                     :: error_message
       INTEGER                                            :: gw_sc, handle, i, i_special_kp, ival, &
-                                                            unit_nr, print_level_NTO_analysis
+                                                            print_level_NTO_analysis, unit_nr
       INTEGER, DIMENSION(:), POINTER                     :: tmplist
       LOGICAL                                            :: do_mp2, do_opt_ri_basis, do_ri_mp2, &
                                                             do_ri_sos_mp2, do_rpa
@@ -251,6 +247,10 @@ CONTAINS
       END IF
       CALL section_vals_val_get(bse_section, "NTO_ANALYSIS%EPS_NTO_EIGVAL", &
                                 r_val=mp2_env%ri_g0w0%eps_nto_eigval)
+      CALL section_vals_val_get(bse_section, "NTO_ANALYSIS%EPS_OSC_STR", &
+                                r_val=mp2_env%ri_g0w0%eps_nto_osc_str)
+      CALL section_vals_val_get(bse_section, "NTO_ANALYSIS%NUM_PRINT_EXC_NTOS", &
+                                i_val=mp2_env%ri_g0w0%num_print_exc_ntos)
 
       CALL section_vals_val_get(mp2_section, "RI_RPA%GW%IMAGE_CHARGE_MODEL", &
                                 l_val=mp2_env%ri_g0w0%do_ic_model)

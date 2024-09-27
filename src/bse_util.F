@@ -1895,6 +1895,7 @@ CONTAINS
 !> \param homo ...
 !> \param virtual ...
 !> \param info_approximation ...
+!> \param oscill_str ...
 !> \param qs_env ...
 !> \param unit_nr ...
 !> \param mp2_env ...
@@ -1902,6 +1903,7 @@ CONTAINS
    SUBROUTINE calculate_NTOs(fm_X, fm_Y, &
                              mo_coeff, homo, virtual, &
                              info_approximation, &
+                             oscill_str, &
                              qs_env, unit_nr, mp2_env)
 
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_X
@@ -1909,6 +1911,7 @@ CONTAINS
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: mo_coeff
       INTEGER, INTENT(IN)                                :: homo, virtual
       CHARACTER(LEN=10)                                  :: info_approximation
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: oscill_str
       TYPE(qs_environment_type), POINTER                 :: qs_env
       INTEGER, INTENT(IN)                                :: unit_nr
       TYPE(mp2_type), INTENT(INOUT)                      :: mp2_env
@@ -1916,13 +1919,12 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'calculate_NTOs'
 
       CHARACTER(LEN=20), DIMENSION(2)                    :: nto_name
-      INTEGER                                            :: handle, i, i_nto, n_exc, n_nto, &
-                                                            nao_trunc, nao_full, &
-                                                            homo_irred
+      INTEGER                                            :: handle, homo_irred, i, i_nto, n_exc, &
+                                                            n_nto, nao_full, nao_trunc
       INTEGER, DIMENSION(:), POINTER                     :: stride
       LOGICAL                                            :: append_cube, cube_file
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigval_svd_squ
       REAL(KIND=dp), DIMENSION(:), POINTER               :: eigval_svd
-      REAL(KIND=dp), DIMENSION(:), ALLOCATABLE           :: eigval_svd_squ
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_m, fm_struct_mo_coeff, &
                                                             fm_struct_nto_holes, &
                                                             fm_struct_nto_particles, &
@@ -1940,7 +1942,7 @@ CONTAINS
       nao_full = qs_env%mos(1)%nao
       nao_trunc = homo + virtual
       ! This is not influenced by the BSE cutoff
-      homo_irred = qs_env%mos(1)%homo 
+      homo_irred = qs_env%mos(1)%homo
       ! M will have a block structure and is quadratic in homo+virtual, i.e.
       !                          occ   virt
       !                       |   0    X_i,a |  occ  = homo
@@ -1972,7 +1974,37 @@ CONTAINS
                                       1, 1, &
                                       mo_coeff(1)%matrix_struct%context)
 
-      DO n_exc = 1, MIN(homo*virtual, mp2_env%ri_g0w0%num_print_exc)
+      ! Print some information about the NTOs
+      IF (unit_nr > 0) THEN
+         WRITE (unit_nr, '(T2,A4)') 'BSE|'
+         WRITE (unit_nr, '(T2,A4,T7,A62)') 'BSE|', "The Natural Transition Orbitals (NTOs) are calculated with the"
+         WRITE (unit_nr, '(T2,A4,T7,A19)') 'BSE|', "following settings:"
+         WRITE (unit_nr, '(T2,A4,T7,A21,T71,I10)') 'BSE|', 'Number of excitations', &
+            mp2_env%ri_g0w0%num_print_exc_ntos
+         WRITE (unit_nr, '(T2,A4)') 'BSE|'
+         IF (mp2_env%ri_g0w0%eps_nto_osc_str > 0.0_dp) THEN
+            WRITE (unit_nr, '(T2,A4,T7,A33,T71,F10.3)') 'BSE|', 'Threshold for oscillator strength', &
+               mp2_env%ri_g0w0%eps_nto_osc_str
+         ELSE
+            WRITE (unit_nr, '(T2,A4,T7,A33,T71,A10)') 'BSE|', 'Threshold for oscillator strength', &
+               ADJUSTL("---")
+         END IF
+         WRITE (unit_nr, '(T2,A4,T7,A29,T71,F10.3)') 'BSE|', 'Threshold for NTO eigenvalues', &
+            mp2_env%ri_g0w0%eps_nto_eigval
+         WRITE (unit_nr, '(T2,A4)') 'BSE|'
+      END IF
+      DO n_exc = 1, MIN(homo*virtual, mp2_env%ri_g0w0%num_print_exc_ntos)
+         ! Takes care of unallocated oscill_str array in case of Triplet
+         IF (mp2_env%ri_g0w0%eps_nto_osc_str > 0.0_dp) THEN
+            ! Check actual values
+            IF (oscill_str(n_exc) < mp2_env%ri_g0w0%eps_nto_osc_str) THEN
+               IF (unit_nr > 0) THEN
+                  WRITE (unit_nr, '(T2,A4,T7,A25,I5,A33)') &
+                     'BSE|', "Skipping NTOs of n_exc = ", n_exc, " due to small oscillator strength"
+               END IF
+               CYCLE
+            END IF
+         END IF
          IF (unit_nr > 0) THEN
             WRITE (unit_nr, '(T2,A4,T7,A28,I5)') &
                'BSE|', "Calculating NTOs of n_exc = ", n_exc
@@ -2020,11 +2052,11 @@ CONTAINS
          CALL cp_fm_svd(fm_m, fm_eigvl, fm_eigvr_t, eigval_svd)
 
          ! Rescale singular values as done in Martin2003 (10.1063/1.1558471)
-         ALLOCATE(eigval_svd_squ(nao_trunc))
+         ALLOCATE (eigval_svd_squ(nao_trunc))
          eigval_svd_squ(:) = eigval_svd(:)**2
          ! In case of TDA, the sum should be 1
          IF (.NOT. PRESENT(fm_Y)) THEN
-            IF (ABS(SUM(eigval_svd_squ)-1) >= 1e-5) THEN
+            IF (ABS(SUM(eigval_svd_squ) - 1) >= 1e-5) THEN
                CPWARN("Sum of NTO coefficients deviates from 1!")
             END IF
          END IF
@@ -2043,7 +2075,6 @@ CONTAINS
          CALL cp_fm_release(fm_eigvl)
          CALL cp_fm_release(fm_eigvr_t)
 
-
          ! Transfer NTO coefficients to sets
          nto_name(1) = 'Hole_coord'
          nto_name(2) = 'Particle_coord'
@@ -2058,7 +2089,7 @@ CONTAINS
                EXIT
             END IF
          END DO
-         ! MG to do: Add some printing
+
          IF (unit_nr > 0) THEN
             WRITE (unit_nr, '(T2,A4,T7,A24,I3,A6)') &
                'BSE|', "with contributions from ", n_nto, " NTOs:"
@@ -2098,7 +2129,7 @@ CONTAINS
          CALL cp_fm_release(fm_nto_coeff_holes)
          CALL cp_fm_release(fm_nto_coeff_particles)
          DEALLOCATE (eigval_svd)
-         DEALLOCATE(eigval_svd_squ)
+         DEALLOCATE (eigval_svd_squ)
          DO i = 1, 2
             CALL deallocate_mo_set(nto_set(i))
          END DO

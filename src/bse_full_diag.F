@@ -41,8 +41,7 @@ MODULE bse_full_diag
    USE mp2_types,                       ONLY: mp2_type
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE physcon,                         ONLY: evolt
-   USE qs_environment_types,            ONLY: get_qs_env,&
-                                              qs_environment_type
+   USE qs_environment_types,            ONLY: qs_environment_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -827,10 +826,13 @@ CONTAINS
          CALL calculate_NTOs(fm_eigvec_X, fm_eigvec_Y, &
                              mo_coeff, homo, virtual, &
                              info_approximation, &
+                             oscill_str, &
                              qs_env, unit_nr, mp2_env)
       END IF
 
-      DEALLOCATE (oscill_str, dipole_exc, polarizability_residues)
+      IF (mp2_env%ri_g0w0%bse_spin_config == 0) THEN
+         DEALLOCATE (oscill_str, dipole_exc, polarizability_residues)
+      END IF
       IF (unit_nr > 0) THEN
          WRITE (unit_nr, '(T2,A4)') 'BSE|'
          WRITE (unit_nr, '(T2,A4)') 'BSE|'
