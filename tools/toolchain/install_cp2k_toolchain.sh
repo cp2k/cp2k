@@ -331,7 +331,11 @@ if (command -v mpiexec > /dev/null 2>&1); then
     export MPI_MODE="mpich"
     with_mpich="__SYSTEM__"
   elif (mpiexec --version 2>&1 | grep -s -q "OpenRTE"); then
-    echo "MPI is detected and it appears to be OpenMPI"
+    echo "MPI is detected and it appears to be OpenMPI 4 (or older)"
+    export MPI_MODE="openmpi"
+    with_openmpi="__SYSTEM__"
+  elif (mpiexec --version 2>&1 | grep -s -q "Open MPI"); then
+    echo "MPI is detected and it appears to be OpenMPI 5"
     export MPI_MODE="openmpi"
     with_openmpi="__SYSTEM__"
   elif (mpiexec --version 2>&1 | grep -s -q "Intel"); then
