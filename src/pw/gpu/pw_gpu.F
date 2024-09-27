@@ -30,7 +30,7 @@ MODULE pw_gpu
                                               C_PTR
    USE kinds,                           ONLY: dp,&
                                               int_8
-#include "../base/base_uses.f90"
+#include "../../base/base_uses.f90"
 
    IMPLICIT NONE
 

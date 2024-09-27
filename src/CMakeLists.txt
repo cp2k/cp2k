@@ -1193,7 +1193,7 @@ list(
   pw/pw_fpga.F
   pw/pw_grid_info.F
   pw/pw_grids.F
-  pw/pw_gpu.F
+  pw/gpu/pw_gpu.F
   pw/pw_grid_types.F
   pw/pw_methods.F
   pw/pw_poisson_methods.F
@@ -1206,7 +1206,7 @@ list(
   pw/rs_methods.F)
 
 if(CP2K_USE_PW_GPU)
-  list(APPEND CP2K_SRCS_F pw/pw_gpu.F)
+  list(APPEND CP2K_SRCS_F pw/gpu/pw_gpu.F)
 endif()
 
 list(

@@ -56,6 +56,8 @@ MODULE f77_interface
                                               cp2k_init,&
                                               cp2k_read,&
                                               cp2k_setup
+   USE fft_tools,                       ONLY: pw_gpu_finalize,&
+                                              pw_gpu_init
    USE fist_main,                       ONLY: fist_create_force_env
    USE force_env_methods,               ONLY: force_env_calc_energy_force,&
                                               force_env_create
@@ -119,8 +121,6 @@ MODULE f77_interface
                                               offload_init,&
                                               offload_set_chosen_device
    USE periodic_table,                  ONLY: init_periodic_table
-   USE pw_gpu,                          ONLY: pw_gpu_finalize,&
-                                              pw_gpu_init
    USE pwdft_environment,               ONLY: pwdft_init
    USE pwdft_environment_types,         ONLY: pwdft_env_create,&
                                               pwdft_environment_type
