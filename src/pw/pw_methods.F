@@ -28,7 +28,7 @@ MODULE pw_methods
                               cp_to_string
    USE fft_tools, ONLY: BWFFT, &
                         FWFFT, &
-                        fft3d, fft_scatter, fft_gather
+                        fft3d
    USE kahan_sum, ONLY: accurate_dot_product, &
                         accurate_sum
    USE kinds, ONLY: dp

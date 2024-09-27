@@ -58,7 +58,7 @@ MODULE fft_tools
                       pw_fpga_r3dc1d_3d_dp, &
                       pw_fpga_r3dc1d_3d_sp
    USE pw_gpu, ONLY: pw_gpu_sf, pw_gpu_f, pw_gpu_fc, pw_gpu_ffc, pw_gpu_cf, pw_gpu_cff, pw_gpu_fg, &
-                     pw_gpu_cfffg, pw_gpu_sfffc
+                     pw_gpu_cfffg, pw_gpu_sfffc, pw_gpu_init, pw_gpu_finalize
 
 !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads
 
@@ -149,7 +149,7 @@ MODULE fft_tools
    PUBLIC :: FFT_RADIX_CLOSEST, FFT_RADIX_NEXT
    PUBLIC :: FFT_RADIX_NEXT_ODD
    PUBLIC :: FWFFT, BWFFT
-   PUBLIC :: fft_scatter, fft_gather
+   PUBLIC :: pw_gpu_init, pw_gpu_finalize
 
    INTEGER, PARAMETER :: FFT_RADIX_CLOSEST = 493, FFT_RADIX_NEXT = 494
    INTEGER, PARAMETER :: FFT_RADIX_ALLOWED = 495, FFT_RADIX_DISALLOWED = 496
@@ -159,13 +159,6 @@ MODULE fft_tools
 
    ! these saved variables are FFT globals
    LOGICAL, SAVE :: alltoall_sgl = .FALSE.
-
-   ! these are only needed for pw_gpu (-D__OFFLOAD)
-   PUBLIC :: get_fft_scratch, release_fft_scratch
-   PUBLIC :: cube_transpose_1, cube_transpose_2
-   PUBLIC :: yz_to_x, x_to_yz, xz_to_yz, yz_to_xz
-   PUBLIC :: fft_scratch_sizes, fft_scratch_type
-   PUBLIC :: fft_arbitrary_lengths_available
 
    INTERFACE fft3d
       MODULE PROCEDURE fft3d_s, fft3d_s_r3_c3, fft3d_s_c3_r3, fft3d_r3_c1, fft3d_s_c3_c1, fft3d_c1_r3, fft3d_s_c1_c3

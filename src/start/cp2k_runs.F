@@ -65,6 +65,8 @@ MODULE cp2k_runs
                                               init_farming_env,&
                                               job_finished,&
                                               job_running
+   USE fft_tools,                       ONLY: pw_gpu_finalize,&
+                                              pw_gpu_init
    USE force_env_methods,               ONLY: force_env_calc_energy_force
    USE force_env_types,                 ONLY: force_env_get,&
                                               force_env_type
@@ -121,8 +123,6 @@ MODULE cp2k_runs
    USE pint_methods,                    ONLY: do_pint_run
    USE pw_fpga,                         ONLY: pw_fpga_finalize,&
                                               pw_fpga_init
-   USE pw_gpu,                          ONLY: pw_gpu_finalize,&
-                                              pw_gpu_init
    USE qs_environment_types,            ONLY: get_qs_env
    USE qs_linres_module,                ONLY: linres_calculation
    USE qs_tddfpt_module,                ONLY: tddfpt_calculation
