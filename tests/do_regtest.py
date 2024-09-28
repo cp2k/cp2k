@@ -2,7 +2,7 @@
 
 # author: Ole Schuett
 
-from asyncio import Semaphore
+from asyncio import Semaphore, Task
 from asyncio.subprocess import DEVNULL, PIPE, STDOUT, Process
 from datetime import datetime
 from pathlib import Path
@@ -145,7 +145,7 @@ async def main() -> None:
         batches.append(batch)
 
     # Create async tasks.
-    tasks = []
+    tasks: List[Task[BatchResult]] = []
     num_restrictdirs = num_skipdirs = 0
     for batch in batches:
         if not batch.requirements_satisfied(flags, cfg.mpiranks):
@@ -199,17 +199,19 @@ async def main() -> None:
 
     if cfg.flag_slow:
         print("\n" + "-" * 15 + "--------------- Slow Tests ---------------" + "-" * 15)
-        slow_test_threshold = 2 * percentile(timings, 0.95)
-        outliers = [r for r in all_results if r.duration > slow_test_threshold]
+        threshold = 2 * percentile(timings, 0.95)
+        outliers = [r for r in all_results if r.duration > threshold]
         maybe_slow = [r for r in outliers if r.fullname not in cfg.slow_suppressions]
         num_suppressed = len(outliers) - len(maybe_slow)
+        rerun_tasks: List[Task[BatchResult]] = []
+        for b in {r.batch for r in maybe_slow}:
+            print(f"Re-running {b.name} to avoid false positives.")
+            rerun_tasks.append(asyncio.get_event_loop().create_task(run_batch(b, cfg)))
         slow_reruns: List[str] = []
-        for batch in {r.batch for r in maybe_slow}:
-            print(f"Re-running {batch.name} to avoid false positives.")
-            res = (await run_batch(batch, cfg)).results
-            slow_reruns += [r.fullname for r in res if r.duration > slow_test_threshold]
+        for t in await asyncio.gather(*rerun_tasks):
+            slow_reruns += [r.fullname for r in t.results if r.duration > threshold]
         slow_tests = [r for r in maybe_slow if r.fullname in slow_reruns]
-        print(f"Duration threshold (2x 95th %ile): {slow_test_threshold:.2f} sec")
+        print(f"Duration threshold (2x 95th %ile): {threshold:.2f} sec")
         print(f"Found {len(slow_tests)} slow tests ({num_suppressed} suppressed):")
         for r in slow_tests:
             print(f"    {r.fullname :<80s} ( {r.duration:6.2f} sec)")
