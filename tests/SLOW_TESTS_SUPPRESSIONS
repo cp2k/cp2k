@@ -29,6 +29,8 @@ QS/regtest-hfx-block/H2-block-06.inp
 QS/regtest-hfx-ri/Ne-hybrid-periodic-shortrange.inp
 QS/regtest-hfx-ri/CH-hfx-ri-rho.inp
 QS/regtest-hfx-ri/CH3-hfx-converged.inp
+QS/regtest-hfx-ri-2/H2O-pbe0-stress-truncated.inp
+QS/regtest-kp-hfx-ri-2/hBN_gapw_ovlp.inp
 QS/regtest-kp-2/Ar_1.inp
 QS/regtest-kp-2/cc1.inp
 QS/regtest-kp-2/cc2.inp
