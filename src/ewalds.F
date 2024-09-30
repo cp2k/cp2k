@@ -181,9 +181,9 @@ CONTAINS
       ! looping over the positive g-vectors
       DO gpt = 1, pw_grid%ngpts_cut_local
 
-         lp = pw_grid%mapl%pos(pw_grid%g_hat(1, gpt))
-         mp = pw_grid%mapm%pos(pw_grid%g_hat(2, gpt))
-         np = pw_grid%mapn%pos(pw_grid%g_hat(3, gpt))
+         lp = pw_grid%map(1, 1)%idx(pw_grid%g_hat(1, gpt))
+         mp = pw_grid%map(2, 1)%idx(pw_grid%g_hat(2, gpt))
+         np = pw_grid%map(3, 1)%idx(pw_grid%g_hat(3, gpt))
 
          lp = lp + bds(1, 1)
          mp = mp + bds(1, 2)
@@ -204,9 +204,9 @@ CONTAINS
       ! looping over the positive g-vectors
       DO gpt = 1, pw_grid%ngpts_cut_local
          ! computing the potential energy
-         lp = pw_grid%mapl%pos(pw_grid%g_hat(1, gpt))
-         mp = pw_grid%mapm%pos(pw_grid%g_hat(2, gpt))
-         np = pw_grid%mapn%pos(pw_grid%g_hat(3, gpt))
+         lp = pw_grid%map(1, 1)%idx(pw_grid%g_hat(1, gpt))
+         mp = pw_grid%map(2, 1)%idx(pw_grid%g_hat(2, gpt))
+         np = pw_grid%map(3, 1)%idx(pw_grid%g_hat(3, gpt))
 
          lp = lp + bds(1, 1)
          mp = mp + bds(1, 2)

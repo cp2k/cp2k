@@ -29,7 +29,7 @@ MODULE pw_grid_types
    ! maps to positive and negative g-vectors
 ! **************************************************************************************************
    TYPE map_pn
-      INTEGER, DIMENSION(:), ALLOCATABLE :: pos, neg
+      INTEGER, DIMENSION(:), ALLOCATABLE :: idx
    END TYPE map_pn
 
 ! info on parallelisation
@@ -64,7 +64,7 @@ MODULE pw_grid_types
       LOGICAL :: orthorhombic = .TRUE. ! cell symmetry
       REAL(KIND=dp) :: dvol = 0.0_dp, vol = 0.0_dp ! volume element, volume
       REAL(KIND=dp) :: cutoff = 0.0_dp ! cutoff in a.u.
-      TYPE(map_pn) :: mapl = map_pn(), mapm = map_pn(), mapn = map_pn() ! mapping 1D => 3D
+      TYPE(map_pn), DIMENSION(3, 2) :: map = map_pn() ! mapping 1D => 3D (first index), positive (1) and negative (2) indices (second index)
       TYPE(pw_para_type) :: para = pw_para_type() ! information on parallelisation
       REAL(KIND=dp), DIMENSION(:, :), POINTER, CONTIGUOUS :: g => NULL() ! grid point vectors
       REAL(KIND=dp), DIMENSION(:), POINTER, CONTIGUOUS :: gsq => NULL() ! squared vector lengths

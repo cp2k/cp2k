@@ -448,9 +448,9 @@ CONTAINS
 
       ! mapping of map_x( g_hat(i,j)) to g_hatmap
       ! the second index is for switching from gather(1) to scatter(2)
-      ASSOCIATE (g_hat => pw_grid%g_hat, g_hatmap => pw_grid%g_hatmap, pmapl => pw_grid%mapl%pos, &
-                 pmapm => pw_grid%mapm%pos, pmapn => pw_grid%mapn%pos, nmapl => pw_grid%mapl%neg, &
-                 nmapm => pw_grid%mapm%neg, nmapn => pw_grid%mapn%neg, ngpts => SIZE(pw_grid%gsq), &
+      ASSOCIATE (g_hat => pw_grid%g_hat, g_hatmap => pw_grid%g_hatmap, pmapl => pw_grid%map(1, 1)%idx, &
+                 pmapm => pw_grid%map(2, 1)%idx, pmapn => pw_grid%map(3, 1)%idx, nmapl => pw_grid%map(1, 2)%idx, &
+                 nmapm => pw_grid%map(2, 2)%idx, nmapn => pw_grid%map(3, 2)%idx, ngpts => SIZE(pw_grid%gsq), &
                  npts => pw_grid%npts, yzq => pw_grid%para%yzq)
          ! initialize map array to minus one, to guarantee memory
          ! range checking errors in CUDA part (just to be sure)
@@ -1595,7 +1595,7 @@ CONTAINS
       END DO
 
       CALL pw_grid_set_maps(pw_grid%grid_span, pw_grid%g_hat, &
-                            pw_grid%mapl, pw_grid%mapm, pw_grid%mapn, pw_grid%npts)
+                            pw_grid%map, pw_grid%npts)
 
       CALL timestop(handle)
 
@@ -1605,9 +1605,7 @@ CONTAINS
 !> \brief Setup maps from 1d to 3d space
 !> \param grid_span ...
 !> \param g_hat ...
-!> \param mapl ...
-!> \param mapm ...
-!> \param mapn ...
+!> \param map ...
 !> \param npts ...
 !> \par History
 !>      JGH (21-12-2000) : Size of g_hat locally determined
@@ -1616,11 +1614,11 @@ CONTAINS
 !> \note
 !>      Maps are to full 3D space (not distributed)
 ! **************************************************************************************************
-   SUBROUTINE pw_grid_set_maps(grid_span, g_hat, mapl, mapm, mapn, npts)
+   SUBROUTINE pw_grid_set_maps(grid_span, g_hat, map, npts)
 
       INTEGER, INTENT(IN)                                :: grid_span
       INTEGER, DIMENSION(:, :), INTENT(IN)               :: g_hat
-      TYPE(map_pn), INTENT(INOUT)                        :: mapl, mapm, mapn
+      TYPE(map_pn), DIMENSION(3, 2), INTENT(INOUT)          :: map
       INTEGER, DIMENSION(:), INTENT(IN)                  :: npts
 
       INTEGER                                            :: gpt, l, m, n, ng
@@ -1632,19 +1630,19 @@ CONTAINS
          m = g_hat(2, gpt)
          n = g_hat(3, gpt)
          IF (l < 0) THEN
-            mapl%pos(l) = l + npts(1)
+            map(1, 1)%idx(l) = l + npts(1)
          ELSE
-            mapl%pos(l) = l
+            map(1, 1)%idx(l) = l
          END IF
          IF (m < 0) THEN
-            mapm%pos(m) = m + npts(2)
+            map(2, 1)%idx(m) = m + npts(2)
          ELSE
-            mapm%pos(m) = m
+            map(2, 1)%idx(m) = m
          END IF
          IF (n < 0) THEN
-            mapn%pos(n) = n + npts(3)
+            map(3, 1)%idx(n) = n + npts(3)
          ELSE
-            mapn%pos(n) = n
+            map(3, 1)%idx(n) = n
          END IF
 
          ! Generating the maps to the full 3-d space
@@ -1652,19 +1650,19 @@ CONTAINS
          IF (grid_span == HALFSPACE) THEN
 
             IF (l <= 0) THEN
-               mapl%neg(l) = -l
+               map(1, 2)%idx(l) = -l
             ELSE
-               mapl%neg(l) = npts(1) - l
+               map(1, 2)%idx(l) = npts(1) - l
             END IF
             IF (m <= 0) THEN
-               mapm%neg(m) = -m
+               map(2, 2)%idx(m) = -m
             ELSE
-               mapm%neg(m) = npts(2) - m
+               map(2, 2)%idx(m) = npts(2) - m
             END IF
             IF (n <= 0) THEN
-               mapn%neg(n) = -n
+               map(3, 2)%idx(n) = -n
             ELSE
-               mapn%neg(n) = npts(3) - n
+               map(3, 2)%idx(n) = npts(3) - n
             END IF
 
          END IF
@@ -1727,12 +1725,14 @@ CONTAINS
                                  pw_grid%para%nyzray(pw_grid%para%group%mepos)))
       END IF
 
-      ALLOCATE (pw_grid%mapl%pos(bounds(1, 1):bounds(2, 1)))
-      ALLOCATE (pw_grid%mapl%neg(bounds(1, 1):bounds(2, 1)))
-      ALLOCATE (pw_grid%mapm%pos(bounds(1, 2):bounds(2, 2)))
-      ALLOCATE (pw_grid%mapm%neg(bounds(1, 2):bounds(2, 2)))
-      ALLOCATE (pw_grid%mapn%pos(bounds(1, 3):bounds(2, 3)))
-      ALLOCATE (pw_grid%mapn%neg(bounds(1, 3):bounds(2, 3)))
+      ALLOCATE (pw_grid%map(1, 1)%idx(bounds(1, 1):bounds(2, 1)))
+      ALLOCATE (pw_grid%map(2, 1)%idx(bounds(1, 2):bounds(2, 2)))
+      ALLOCATE (pw_grid%map(3, 1)%idx(bounds(1, 3):bounds(2, 3)))
+      IF (pw_grid%grid_span == HALFSPACE) THEN
+      ALLOCATE (pw_grid%map(1, 2)%idx(bounds(1, 1):bounds(2, 1)))
+      ALLOCATE (pw_grid%map(2, 2)%idx(bounds(1, 2):bounds(2, 2)))
+      ALLOCATE (pw_grid%map(3, 2)%idx(bounds(1, 3):bounds(2, 3)))
+      END IF
 
       CALL timestop(handle)
 
@@ -2040,8 +2040,8 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      ASSOCIATE (ny => pw_grid%npts(2), nz => pw_grid%npts(3), posm => pw_grid%mapm%pos, posn => pw_grid%mapn%pos, &
-                 negm => pw_grid%mapm%neg, negn => pw_grid%mapn%neg)
+      ASSOCIATE (ny => pw_grid%npts(2), nz => pw_grid%npts(3), posm => pw_grid%map(2, 1)%idx, posn => pw_grid%map(3, 1)%idx, &
+                 negm => pw_grid%map(2, 2)%idx, negn => pw_grid%map(3, 2)%idx)
 
          yz = 0
          pw_grid%para%yzp = 0
@@ -2196,23 +2196,23 @@ CONTAINS
             IF (ASSOCIATED(pw_grid%grays)) THEN
                DEALLOCATE (pw_grid%grays)
             END IF
-            IF (ALLOCATED(pw_grid%mapl%pos)) THEN
-               DEALLOCATE (pw_grid%mapl%pos)
+            IF (ALLOCATED(pw_grid%map(1, 1)%idx)) THEN
+               DEALLOCATE (pw_grid%map(1, 1)%idx)
             END IF
-            IF (ALLOCATED(pw_grid%mapm%pos)) THEN
-               DEALLOCATE (pw_grid%mapm%pos)
+            IF (ALLOCATED(pw_grid%map(2, 1)%idx)) THEN
+               DEALLOCATE (pw_grid%map(2, 1)%idx)
             END IF
-            IF (ALLOCATED(pw_grid%mapn%pos)) THEN
-               DEALLOCATE (pw_grid%mapn%pos)
+            IF (ALLOCATED(pw_grid%map(3, 1)%idx)) THEN
+               DEALLOCATE (pw_grid%map(3, 1)%idx)
             END IF
-            IF (ALLOCATED(pw_grid%mapl%neg)) THEN
-               DEALLOCATE (pw_grid%mapl%neg)
+            IF (ALLOCATED(pw_grid%map(1, 2)%idx)) THEN
+               DEALLOCATE (pw_grid%map(1, 2)%idx)
             END IF
-            IF (ALLOCATED(pw_grid%mapm%neg)) THEN
-               DEALLOCATE (pw_grid%mapm%neg)
+            IF (ALLOCATED(pw_grid%map(2, 2)%idx)) THEN
+               DEALLOCATE (pw_grid%map(2, 2)%idx)
             END IF
-            IF (ALLOCATED(pw_grid%mapn%neg)) THEN
-               DEALLOCATE (pw_grid%mapn%neg)
+            IF (ALLOCATED(pw_grid%map(3, 2)%idx)) THEN
+               DEALLOCATE (pw_grid%map(3, 2)%idx)
             END IF
             IF (ALLOCATED(pw_grid%para%bo)) THEN
                DEALLOCATE (pw_grid%para%bo)
