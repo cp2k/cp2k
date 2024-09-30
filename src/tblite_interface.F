@@ -34,6 +34,8 @@ MODULE tblite_interface
    USE kinds, ONLY: dp
    USE atomic_kind_types, ONLY: get_atomic_kind
    USE input_constants, ONLY: gfn1xtb, gfn2xtb, ipea1xtb
+   USE basis_set_types, ONLY: gto_basis_set_type
+   USE tblite_types, ONLY: tblite_type, deallocate_tblite_type
 
 #include "./base/base_uses.f90"
    IMPLICIT NONE
@@ -42,33 +44,8 @@ MODULE tblite_interface
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'tblite_interface'
 
-   PUBLIC :: tb_type, tb_init_geometry, tb_init_ham, tb_init_wf
+   PUBLIC :: tb_init_geometry, tb_init_ham, tb_init_wf
    PUBLIC :: tb_set_calculator
-
-   TYPE tb_type
-      REAL(KIND=dp), DIMENSION(3, 3)                     :: sigma
-      REAL(KIND=dp), ALLOCATABLE                         :: e_hal(:)
-      REAL(KIND=dp), ALLOCATABLE                         :: e_rep(:)
-      REAL(KIND=dp), ALLOCATABLE                         :: e_disp(:)
-      REAL(KIND=dp), ALLOCATABLE                         :: e_scd(:)
-      REAL(KIND=dp), ALLOCATABLE                         :: e_es(:)
-      REAL(KIND=dp), ALLOCATABLE                         :: selfenergy(:)
-      REAL(KIND=dp), ALLOCATABLE                         :: cn(:)
-
-      REAL(KIND=dp), ALLOCATABLE                         :: grad(:, :)
-      REAL(KIND=dp), ALLOCATABLE                         :: dsedcn(:)
-      REAL(KIND=dp), ALLOCATABLE                         :: dcndr(:, :, :)
-      REAL(KIND=dp), ALLOCATABLE                         :: dcndL(:, :, :)
-
-#if defined(__TBLITE)
-      TYPE(structure_type)                               :: mol
-      TYPE(xtb_calculator)                               :: calc
-      TYPE(container_cache)                              :: dcache, cache
-      TYPE(wavefunction_type)                            :: wfn
-      TYPE(potential_type)                               :: pot
-#endif
-
-   END TYPE tb_type
 
 CONTAINS
 
@@ -80,7 +57,7 @@ CONTAINS
    SUBROUTINE tb_init_geometry(qs_env, tb)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(tb_type), POINTER                             :: tb
+      TYPE(tblite_type), POINTER                         :: tb
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'tblite_init_geometry'
 
@@ -140,7 +117,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE tb_init_wf(tb, do_grad)
 
-      TYPE(tb_type), POINTER                             :: tb
+      TYPE(tblite_type), POINTER                         :: tb
       LOGICAL, INTENT(in)                                :: do_grad
 
       REAL(KIND=dp), PARAMETER                           :: K2Eh = 3.16681156346E-06
@@ -187,7 +164,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE tb_set_calculator(tb, typ)
 
-      TYPE(tb_type), POINTER                             :: tb
+      TYPE(tblite_type), POINTER                         :: tb
       INTEGER                                            :: typ
 
 #if defined(__TBLITE)
@@ -216,7 +193,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE tb_init_ham(tb)
 
-      TYPE(tb_type), POINTER                             :: tb
+      TYPE(tblite_type), POINTER                         :: tb
 
 #if defined(__TBLITE)
       TYPE(container_cache)                              :: hcache, rcache
@@ -291,7 +268,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE get_energy(tb, energies)
 
-      TYPE(tb_type), POINTER                             :: tb
+      TYPE(tblite_type), POINTER                         :: tb
       REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: energies
 
 #if defined(__TBLITE)
@@ -307,10 +284,31 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief ...
 !> \param tb ...
+!> \param ham ...
 ! **************************************************************************************************
-   SUBROUTINE set_basis(tb)
+   SUBROUTINE tb_get_hamiltonian(tb, ham)
 
-      TYPE(tb_type), POINTER                             :: tb
+      TYPE(tblite_type), POINTER                         :: tb
+      REAL(KIND=dp), INTENT(OUT)                         :: ham(:)
+
+#if defined(__TBLITE)
+      ham = 0.0_dp
+
+#else
+      CPABORT("Build without TBLITE")
+#endif
+
+   END SUBROUTINE tb_get_hamiltonian
+
+! **************************************************************************************************
+!> \brief ...
+!> \param tb ...
+!> \param gto_basis_set ...
+! **************************************************************************************************
+   SUBROUTINE set_basis(tb, gto_basis_set)
+
+      TYPE(tblite_type), POINTER                         :: tb
+      TYPE(gto_basis_set_type), POINTER                  :: gto_basis_set
 
 #if defined(__TBLITE)
 
