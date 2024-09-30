@@ -226,12 +226,12 @@ CONTAINS
       DO gpt = 1, pw_grid%ngpts_cut_local
          ASSOCIATE (ghat => pw_grid%g_hat(:, gpt))
 
-            lp = pw_grid%map(1, 1)%idx(ghat(1))
-            ln = pw_grid%map(1, 2)%idx(ghat(1))
-            mp = pw_grid%map(2, 1)%idx(ghat(2))
-            mn = pw_grid%map(2, 2)%idx(ghat(2))
-            np = pw_grid%map(3, 1)%idx(ghat(3))
-            nn = pw_grid%map(3, 2)%idx(ghat(3))
+            lp = pw_grid%map(1, 1)%array(ghat(1))
+            ln = pw_grid%map(1, 2)%array(ghat(1))
+            mp = pw_grid%map(2, 1)%array(ghat(2))
+            mn = pw_grid%map(2, 2)%array(ghat(2))
+            np = pw_grid%map(3, 1)%array(ghat(3))
+            nn = pw_grid%map(3, 2)%array(ghat(3))
 
             e_gsq = EXP(-const*pw_grid%gsq(gpt))/pw_grid%vol
 

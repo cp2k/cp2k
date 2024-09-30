@@ -51,7 +51,8 @@ MODULE fft_tools
    USE pw_grid_types, ONLY: HALFSPACE, &
                             PW_MODE_DISTRIBUTED, &
                             PW_MODE_LOCAL, &
-                            pw_grid_type, FULLSPACE, map_pn
+                            pw_grid_type, FULLSPACE
+                            USE cp_array_utils, ONLY: cp_1d_i_a_type
    USE pw_fpga, ONLY: pw_fpga_c1dr3d_3d_dp, &
                       pw_fpga_c1dr3d_3d_sp, &
                       pw_fpga_init_bitstream, &
@@ -4050,7 +4051,7 @@ CONTAINS
 
             ${type}$, CONTIGUOUS, INTENT(INOUT)                       :: cout
             COMPLEX(KIND=dp), DIMENSION(:, :), CONTIGUOUS, INTENT(IN)      :: cin
-            TYPE(map_pn), DIMENSION(3, 2), INTENT(IN)          :: map
+            TYPE(cp_1d_i_a_type), DIMENSION(3, 2), INTENT(IN)          :: map
       INTEGER, DIMENSION(:, :), INTENT(IN) :: ghat
       INTEGER, DIMENSION(:, :), INTENT(IN) :: yzq
             REAL(KIND=dp), INTENT(IN), OPTIONAL                :: scale
@@ -4061,7 +4062,7 @@ CONTAINS
 
             CALL timeset(routineN, handle)
 
-            ASSOCIATE (mapl => map(1, 1)%idx, mapm => map(2, 1)%idx, mapn => map(3, 1)%idx)
+            ASSOCIATE (mapl => map(1, 1)%array, mapm => map(2, 1)%array, mapn => map(3, 1)%array)
 
                IF (PRESENT(scale)) THEN
 !$OMP PARALLEL DO DEFAULT(NONE) &
@@ -4102,7 +4103,7 @@ CONTAINS
          SUBROUTINE fft_scatter_p_${kind}$ (cin, cout, map, ghat, yzq, scale)
             ${type}$, CONTIGUOUS, INTENT(IN)                          :: cin
             COMPLEX(KIND=dp), DIMENSION(:, :), CONTIGUOUS, INTENT(INOUT)   :: cout
-            TYPE(map_pn), DIMENSION(3, 2), INTENT(IN)          :: map
+            TYPE(cp_1d_i_a_type), DIMENSION(3, 2), INTENT(IN)          :: map
       INTEGER, DIMENSION(:, :), INTENT(IN) :: ghat
       INTEGER, DIMENSION(:, :), INTENT(IN) :: yzq
             REAL(KIND=dp), INTENT(IN), OPTIONAL                :: scale
@@ -4115,7 +4116,7 @@ CONTAINS
 
                IF (.NOT. PRESENT(scale)) cout = z_zero
 
-            ASSOCIATE (mapl => map(1, 1)%idx, mapm => map(2, 1)%idx, mapn => map(3, 1)%idx)
+            ASSOCIATE (mapl => map(1, 1)%array, mapm => map(2, 1)%array, mapn => map(3, 1)%array)
 
                IF (PRESENT(scale)) THEN
 !$OMP PARALLEL DO DEFAULT(NONE) &
@@ -4143,9 +4144,9 @@ CONTAINS
 
             END ASSOCIATE
 
-            IF (ALLOCATED(map(1, 2)%idx) .AND. ALLOCATED(map(2, 2)%idx) .AND. ALLOCATED(map(3, 2)%idx)) THEN
+            IF (ALLOCATED(map(1, 2)%array) .AND. ALLOCATED(map(2, 2)%array) .AND. ALLOCATED(map(3, 2)%array)) THEN
 
-               ASSOCIATE (mapm => map(2, 2)%idx, mapn => map(3, 2)%idx, mapl => map(1, 2)%idx)
+               ASSOCIATE (mapm => map(2, 2)%array, mapn => map(3, 2)%array, mapl => map(1, 2)%array)
 
                   IF (PRESENT(scale)) THEN
 !$OMP PARALLEL DO DEFAULT(NONE) &
@@ -4195,7 +4196,7 @@ CONTAINS
 
             ${type}$, CONTIGUOUS, INTENT(INOUT)                       :: cout
             ${type2}$, CONTIGUOUS, INTENT(IN)   :: cin
-            TYPE(map_pn), DIMENSION(3, 2), INTENT(IN)          :: map
+            TYPE(cp_1d_i_a_type), DIMENSION(3, 2), INTENT(IN)          :: map
       INTEGER, DIMENSION(:, :), INTENT(IN) :: ghat
             REAL(KIND=dp), INTENT(IN), OPTIONAL                :: scale
 
@@ -4205,7 +4206,7 @@ CONTAINS
 
             CALL timeset(routineN, handle)
 
-            ASSOCIATE (mapl => map(1, 1)%idx, mapm => map(2, 1)%idx, mapn => map(3, 1)%idx)
+            ASSOCIATE (mapl => map(1, 1)%array, mapm => map(2, 1)%array, mapn => map(3, 1)%array)
 
                IF (PRESENT(scale)) THEN
 !$OMP PARALLEL DO PRIVATE(gpt, l, m, n) DEFAULT(NONE) SHARED(cin, cout, scale, ghat)
@@ -4246,7 +4247,7 @@ CONTAINS
 
             ${type}$, CONTIGUOUS, INTENT(IN)                 :: cin
             ${type2}$, CONTIGUOUS, INTENT(INOUT)               :: cout
-            TYPE(map_pn), DIMENSION(3, 2), INTENT(IN)          :: map
+            TYPE(cp_1d_i_a_type), DIMENSION(3, 2), INTENT(IN)          :: map
       INTEGER, DIMENSION(:, :), INTENT(IN) :: ghat
             REAL(KIND=dp), INTENT(IN), OPTIONAL                :: scale
 
@@ -4259,7 +4260,7 @@ CONTAINS
                ! should only zero the unused bits (but the zero is needed)
                IF (.NOT. PRESENT(scale)) cout = 0.0_dp
 
-            ASSOCIATE (mapl => map(1, 1)%idx, mapm => map(2, 1)%idx, mapn => map(3, 1)%idx)
+            ASSOCIATE (mapl => map(1, 1)%array, mapm => map(2, 1)%array, mapn => map(3, 1)%array)
 
                IF (PRESENT(scale)) THEN
 !$OMP PARALLEL DO PRIVATE(gpt, l, m, n) DEFAULT(NONE) SHARED(cin, cout, scale, ghat)
@@ -4283,8 +4284,8 @@ CONTAINS
 
             END ASSOCIATE
 
-            IF (ALLOCATED(map(1, 2)%idx) .AND. ALLOCATED(map(2, 2)%idx) .AND. ALLOCATED(map(3, 2)%idx)) THEN
-               ASSOCIATE (mapl => map(1, 2)%idx, mapm => map(2, 2)%idx, mapn => map(3, 2)%idx)
+            IF (ALLOCATED(map(1, 2)%array) .AND. ALLOCATED(map(2, 2)%array) .AND. ALLOCATED(map(3, 2)%array)) THEN
+               ASSOCIATE (mapl => map(1, 2)%array, mapm => map(2, 2)%array, mapn => map(3, 2)%array)
 
                   IF (PRESENT(scale)) THEN
 !$OMP PARALLEL DO PRIVATE(gpt, l, m, n) DEFAULT(NONE) SHARED(cin, cout, scale, ghat)
