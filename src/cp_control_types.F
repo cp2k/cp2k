@@ -140,9 +140,11 @@ MODULE cp_control_types
       INTEGER                              :: gfn_type = 1
       !
       LOGICAL                              :: do_ewald = .FALSE.
+      LOGICAL                              :: do_tblite = .FALSE.
       !
       INTEGER                              :: sto_ng = 0
       INTEGER                              :: h_sto_ng = 0
+      INTEGER                              :: tblite_method = 0
       !
       INTEGER                              :: vdw_type = -1
       CHARACTER(LEN=default_path_length)   :: parameter_file_path = ""

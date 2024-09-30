@@ -808,9 +808,9 @@ CONTAINS
       REAL(dp)                                           :: tmp, tmpsqrt, value
       REAL(dp), POINTER                                  :: scal(:)
       TYPE(section_vals_type), POINTER :: cdft_control_section, ddapc_restraint_section, &
-         dftb_parameter, dftb_section, eeq_section, genpot_section, lri_optbas_section, &
-         mull_section, nonbonded_section, s2_restraint_section, se_section, xtb_parameter, &
-         xtb_section
+         dftb_parameter, dftb_section, eeq_section, genpot_section, lri_optbas_section, mull_section, &
+         nonbonded_section, s2_restraint_section, se_section, xtb_parameter, xtb_section, &
+         xtb_tblite
 
       CALL timeset(routineN, handle)
 
@@ -832,6 +832,7 @@ CONTAINS
       cdft_control_section => section_vals_get_subs_vals(qs_section, "CDFT")
       nonbonded_section => section_vals_get_subs_vals(xtb_section, "NONBONDED")
       genpot_section => section_vals_get_subs_vals(nonbonded_section, "GENPOT")
+      xtb_tblite => section_vals_get_subs_vals(xtb_section, "TBLITE")
 
       ! Setup all defaults values and overwrite input parameters
       ! EPS_DEFAULT should set the target accuracy in the total energy (~per electron) or a closely related value
@@ -1588,6 +1589,12 @@ CONTAINS
 
       ! Optimize LRI basis set
       CALL section_vals_get(lri_optbas_section, explicit=qs_control%lri_optbas)
+
+      ! Use instead the tblite
+      CALL section_vals_val_get(xtb_tblite, "_SECTION_PARAMETERS_", &
+                                l_val=qs_control%xtb_control%do_tblite)
+      CALL section_vals_val_get(xtb_tblite, "METHOD", &
+                                i_val=qs_control%xtb_control%tblite_method)
 
       CALL timestop(handle)
    END SUBROUTINE read_qs_section

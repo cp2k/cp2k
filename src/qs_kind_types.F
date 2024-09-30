@@ -104,6 +104,7 @@ MODULE qs_kind_types
                                               se_param_set_default
    USE soft_basis_set,                  ONLY: create_soft_basis
    USE string_utilities,                ONLY: uppercase
+   USE tblite_types,                    ONLY: tblite_type, deallocate_tblite_type
    USE xtb_parameters,                  ONLY: xtb_set_kab
    USE xtb_types,                       ONLY: deallocate_xtb_atom_param,&
                                               get_xtb_atom_param,&
@@ -179,6 +180,7 @@ MODULE qs_kind_types
       TYPE(semi_empirical_type), POINTER     :: se_parameter => Null()
       TYPE(qs_dftb_atom_type), POINTER       :: dftb_parameter => Null()
       TYPE(xtb_atom_type), POINTER           :: xtb_parameter => Null()
+      TYPE(tblite_type), POINTER             :: tb_tblite => Null()
       !
       TYPE(atom_upfpot_type), POINTER        :: upf_potential => Null()
       !
@@ -296,6 +298,9 @@ CONTAINS
             IF (ASSOCIATED(qs_kind_set(ikind)%xtb_parameter)) THEN
                CALL deallocate_xtb_atom_param(qs_kind_set(ikind)%xtb_parameter)
             END IF
+            IF (ASSOCIATED(qs_kind_set(ikind)%tb_tblite)) THEN
+               CALL deallocate_tblite_type(qs_kind_set(ikind)%tb_tblite)
+            END IF
             IF (ASSOCIATED(qs_kind_set(ikind)%paw_proj_set)) THEN
                CALL deallocate_paw_proj_set(qs_kind_set(ikind)%paw_proj_set)
             END IF
@@ -373,6 +378,7 @@ CONTAINS
 !> \param se_parameter ...
 !> \param dftb_parameter ...
 !> \param xtb_parameter ...
+!> \param tb_tblite ...
 !> \param dftb3_param ...
 !> \param zatom ...
 !> \param zeff ...
@@ -437,7 +443,7 @@ CONTAINS
    SUBROUTINE get_qs_kind(qs_kind, &
                           basis_set, basis_type, ncgf, nsgf, &
                           all_potential, tnadd_potential, gth_potential, sgp_potential, upf_potential, &
-                          se_parameter, dftb_parameter, xtb_parameter, &
+                          se_parameter, dftb_parameter, xtb_parameter, tb_tblite, &
                           dftb3_param, zatom, zeff, elec_conf, mao, lmax_dftb, &
                           alpha_core_charge, ccore_charge, core_charge, core_charge_radius, &
                           paw_proj_set, paw_atom, hard_radius, hard0_radius, max_rad_local, &
@@ -467,6 +473,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: dftb3_param
       INTEGER, INTENT(OUT), OPTIONAL                     :: zatom
       REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: zeff
+      TYPE(tblite_type), OPTIONAL, POINTER               :: tb_tblite
       INTEGER, DIMENSION(:), OPTIONAL, POINTER           :: elec_conf
       INTEGER, INTENT(OUT), OPTIONAL                     :: mao, lmax_dftb
       REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: alpha_core_charge, ccore_charge, &
@@ -561,7 +568,7 @@ CONTAINS
       IF (PRESENT(se_parameter)) se_parameter => qs_kind%se_parameter
       IF (PRESENT(dftb_parameter)) dftb_parameter => qs_kind%dftb_parameter
       IF (PRESENT(xtb_parameter)) xtb_parameter => qs_kind%xtb_parameter
-
+      IF (PRESENT(tb_tblite)) tb_tblite => qs_kind%tb_tblite
       IF (PRESENT(element_symbol)) element_symbol = qs_kind%element_symbol
       IF (PRESENT(name)) name = qs_kind%name
       IF (PRESENT(dftb3_param)) dftb3_param = qs_kind%dudq_dftb3
@@ -2705,6 +2712,7 @@ CONTAINS
       LOGICAL                                            :: defined
       TYPE(qs_dftb_atom_type), POINTER                   :: dftb_parameter
       TYPE(semi_empirical_type), POINTER                 :: se_parameter
+      TYPE(tblite_type), POINTER                         :: tb_tblite
       TYPE(xtb_atom_type), POINTER                       :: xtb_parameter
 
       IF (dft_control%qs_control%semi_empirical) THEN
@@ -2720,10 +2728,15 @@ CONTAINS
          CPASSERT(defined)
          CALL write_dftb_atom_param(dftb_parameter, subsys_section)
       ELSE IF (dft_control%qs_control%xtb) THEN
-         CALL get_qs_kind(qs_kind, xtb_parameter=xtb_parameter)
-         CPASSERT(ASSOCIATED(xtb_parameter))
-         gfn_type = dft_control%qs_control%xtb_control%gfn_type
-         CALL write_xtb_atom_param(xtb_parameter, gfn_type, subsys_section)
+         IF (dft_control%qs_control%xtb_control%do_tblite) THEN
+            CALL get_qs_kind(qs_kind, tb_tblite=tb_tblite)
+            CPASSERT(ASSOCIATED(tb_tblite))
+         ELSE
+            CALL get_qs_kind(qs_kind, xtb_parameter=xtb_parameter)
+            CPASSERT(ASSOCIATED(xtb_parameter))
+            gfn_type = dft_control%qs_control%xtb_control%gfn_type
+            CALL write_xtb_atom_param(xtb_parameter, gfn_type, subsys_section)
+         END IF
       END IF
 
    END SUBROUTINE check_qs_kind
@@ -2829,13 +2842,14 @@ CONTAINS
 !> \param reltmat ...
 !> \param dftb_parameter ...
 !> \param xtb_parameter ...
+!> \param tb_tblite ...
 !> \param elec_conf ...
 !> \param pao_basis_size ...
 ! **************************************************************************************************
    SUBROUTINE set_qs_kind(qs_kind, paw_atom, ghost, floating, hard_radius, hard0_radius, &
                           covalent_radius, vdw_radius, lmax_rho0, zeff, &
                           no_optimize, dispersion, u_minus_j, reltmat, &
-                          dftb_parameter, xtb_parameter, &
+                          dftb_parameter, xtb_parameter, tb_tblite, &
                           elec_conf, pao_basis_size)
 
       TYPE(qs_kind_type), INTENT(INOUT)                  :: qs_kind
@@ -2850,11 +2864,13 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), OPTIONAL, POINTER  :: reltmat
       TYPE(qs_dftb_atom_type), OPTIONAL, POINTER         :: dftb_parameter
       TYPE(xtb_atom_type), OPTIONAL, POINTER             :: xtb_parameter
+      TYPE(tblite_type), OPTIONAL, POINTER               :: tb_tblite
       INTEGER, DIMENSION(:), INTENT(IN), OPTIONAL        :: elec_conf
       INTEGER, INTENT(IN), OPTIONAL                      :: pao_basis_size
 
       IF (PRESENT(dftb_parameter)) qs_kind%dftb_parameter => dftb_parameter
       IF (PRESENT(xtb_parameter)) qs_kind%xtb_parameter => xtb_parameter
+      IF (PRESENT(tb_tblite)) qs_kind%tb_tblite => tb_tblite
       IF (PRESENT(elec_conf)) THEN
          IF (ASSOCIATED(qs_kind%elec_conf)) THEN
             DEALLOCATE (qs_kind%elec_conf)
