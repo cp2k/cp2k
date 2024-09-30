@@ -15,22 +15,17 @@ MODULE pw_grid_types
    USE kinds,                           ONLY: dp,&
                                               int_8
    USE message_passing,                 ONLY: mp_cart_type
+   USE cp_array_utils, ONLY            : cp_1d_i_a_type
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
 
    PRIVATE
-   PUBLIC :: pw_grid_type, map_pn
+   PUBLIC :: pw_grid_type
 
    ! (only for reciprocal grid:) fill in half or full space
    INTEGER, PARAMETER, PUBLIC :: HALFSPACE = 211, FULLSPACE = 212
    INTEGER, PARAMETER, PUBLIC :: PW_MODE_LOCAL = 0, PW_MODE_DISTRIBUTED = 1
-
-   ! maps to positive and negative g-vectors
-! **************************************************************************************************
-   TYPE map_pn
-      INTEGER, DIMENSION(:), ALLOCATABLE :: idx
-   END TYPE map_pn
 
 ! info on parallelisation
    ! contains only significant information if mode == PW_MODE_DISTRIBUTED
@@ -64,7 +59,7 @@ MODULE pw_grid_types
       LOGICAL :: orthorhombic = .TRUE. ! cell symmetry
       REAL(KIND=dp) :: dvol = 0.0_dp, vol = 0.0_dp ! volume element, volume
       REAL(KIND=dp) :: cutoff = 0.0_dp ! cutoff in a.u.
-      TYPE(map_pn), DIMENSION(3, 2) :: map = map_pn() ! mapping 1D => 3D (first index), positive (1) and negative (2) indices (second index)
+      TYPE(cp_1d_i_a_type), DIMENSION(3, 2) :: map = cp_1d_i_a_type() ! mapping 1D => 3D (first index), positive (1) and negative (2) indices (second index)
       TYPE(pw_para_type) :: para = pw_para_type() ! information on parallelisation
       REAL(KIND=dp), DIMENSION(:, :), POINTER, CONTIGUOUS :: g => NULL() ! grid point vectors
       REAL(KIND=dp), DIMENSION(:), POINTER, CONTIGUOUS :: gsq => NULL() ! squared vector lengths

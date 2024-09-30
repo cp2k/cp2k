@@ -36,6 +36,9 @@ MODULE cp_array_utils
                 cp_1d_${nametype}$_cp_type, &
                 cp_2d_${nametype}$_cp_type, &
                 cp_3d_${nametype}$_cp_type, &
+                cp_1d_${nametype}$_a_type, &
+                cp_2d_${nametype}$_a_type, &
+                cp_3d_${nametype}$_a_type, &
                 cp_1d_${nametype}$_guarantee_size, &
                 cp_1d_${nametype}$_write, &
                 cp_2d_${nametype}$_write, &
@@ -116,6 +119,36 @@ MODULE cp_array_utils
       type cp_3d_${nametype1}$_cp_type
          ${type1}$, dimension(:, :, :), contiguous, pointer :: array => NULL()
       end type cp_3d_${nametype1}$_cp_type
+
+! **************************************************************************************************
+!> \brief represent an allocatable 1d array
+!> \par History
+!>      02.2003 created [fawzi]
+!> \author fawzi
+! **************************************************************************************************
+      type cp_1d_${nametype1}$_a_type
+         ${type1}$, dimension(:), allocatable :: array
+      end type cp_1d_${nametype1}$_a_type
+
+! **************************************************************************************************
+!> \brief represent an allocatable 2d array
+!> \par History
+!>      02.2003 created [fawzi]
+!> \author fawzi
+! **************************************************************************************************
+      type cp_2d_${nametype1}$_a_type
+         ${type1}$, dimension(:, :), allocatable :: array
+      end type cp_2d_${nametype1}$_a_type
+
+! **************************************************************************************************
+!> \brief represent an allocatable 3d array
+!> \par History
+!>      02.2003 created [fawzi]
+!> \author fawzi
+! **************************************************************************************************
+      type cp_3d_${nametype1}$_a_type
+         ${type1}$, dimension(:, :, :), allocatable :: array
+      end type cp_3d_${nametype1}$_a_type
 
    #:endfor
 
