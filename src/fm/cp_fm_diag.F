@@ -933,12 +933,13 @@ CONTAINS
                         matrix_struct=matrix_a%matrix_struct, &
                         name="A_lu"//TRIM(ADJUSTL(cp_to_string(1)))//"MATRIX")
       CALL cp_fm_to_fm(matrix_a, matrix_lu)
-
       a => matrix_lu%local_data
       m = matrix_lu%matrix_struct%nrow_global
       n = matrix_lu%matrix_struct%ncol_global
       ! Assert that incoming matrix is quadratic
       CPASSERT(m == n)
+
+      ! Initialize matrices and arrays to store left/right eigenvectors and singular values
       CALL cp_fm_create(matrix=matrix_eigvl, &
                         matrix_struct=matrix_a%matrix_struct, &
                         name="LEFT_SINGULAR_MATRIX")
@@ -947,15 +948,21 @@ CONTAINS
                         matrix_struct=matrix_a%matrix_struct, &
                         name="RIGHT_SINGULAR_MATRIX")
       CALL cp_fm_set_all(matrix_eigvr_t, alpha=0.0_dp)
-#if defined(__parallel)
+
       ALLOCATE (eigval(m))
       eigval(:) = 0.0_dp
+
+      ! Prepare for workspace queries
+      lwork = -1
+      ALLOCATE (work(1))
+      work(:) = 0.0_dp
+#if defined(__parallel)
+      ! To do: That might need a redistribution check as in cp_fm_syevd
       desca(:) = matrix_lu%matrix_struct%descriptor(:)
       descu(:) = matrix_eigvl%matrix_struct%descriptor(:)
       descvt(:) = matrix_eigvr_t%matrix_struct%descriptor(:)
-      ALLOCATE (work(1))
+
       ! Workspace query
-      lwork = -1
       CALL pdgesvd('V', 'V', m, m, matrix_lu%local_data, 1, 1, desca, eigval, matrix_eigvl%local_data, &
                    1, 1, descu, matrix_eigvr_t%local_data, 1, 1, descvt, work, lwork, myinfo)
 
@@ -984,19 +991,7 @@ CONTAINS
          END IF
       END IF
 #else
-      ! Retrieve the optimal work array sizes first
-      lwork = -1
-      a => matrix_lu%local_data
-      m = matrix_lu%matrix_struct%nrow_global
-      n = matrix_lu%matrix_struct%ncol_global
-      ! Assert that incoming matrix is quadratic
-      CPASSERT(m == n)
-      ALLOCATE (eigval(m))
-      eigval(:) = 0.0_dp
-
-      ALLOCATE (work(1))
-      work(:) = 0.0_dp
-
+      ! Workspace query
       CALL dgesvd('S', 'S', m, m, matrix_lu%local_data, m, eigval, matrix_eigvl%local_data, &
                   m, matrix_eigvr_t%local_data, m, work, lwork, myinfo)
 
@@ -1009,7 +1004,7 @@ CONTAINS
          END IF
       END IF
 
-      ! Reallocate work arrays and perform diagonalisation
+      ! SVD
       lwork = INT(work(1))
       DEALLOCATE (work)
       ALLOCATE (work(lwork))
@@ -1027,10 +1022,9 @@ CONTAINS
          END IF
       END IF
 
-      DEALLOCATE (work)
 #endif
-
-      ! Release work matrices
+      ! Release intermediary matrices
+      DEALLOCATE (work)
       CALL cp_fm_release(matrix_lu)
       CALL timestop(handle)
    END SUBROUTINE cp_fm_svd
