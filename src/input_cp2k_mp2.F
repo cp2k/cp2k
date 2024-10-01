@@ -1456,7 +1456,8 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="STATE_LIST", &
-                          description="Specifies a list of states for the NTO calculations.", &
+                          description="Specifies a list of excitation levels for which NTOs are printed. "// &
+                          "Overrides NUM_PRINT_EXC_NTOS.", &
                           usage="STATE_LIST {integer} {integer} .. {integer}", &
                           n_var=-1, type_of_var=integer_t)
       CALL section_add_keyword(print_key, keyword)

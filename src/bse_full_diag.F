@@ -816,7 +816,7 @@ CONTAINS
       END IF
 
       ! Compute and print excitation wavefunctions
-      IF (mp2_env%ri_g0w0%do_NTO_analysis) THEN
+      IF (mp2_env%ri_g0w0%do_nto_analysis) THEN
          IF (unit_nr > 0) THEN
             WRITE (unit_nr, '(T2,A4)') 'BSE|'
             WRITE (unit_nr, '(T2,A4,T7,A47)') &

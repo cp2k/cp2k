@@ -93,7 +93,7 @@ MODULE bse_util
              deallocate_matrices_bse, comp_eigvec_coeff_BSE, sort_excitations, &
              estimate_BSE_resources, filter_eigvec_contrib, truncate_BSE_matrices, &
              get_oscillator_strengths, compute_absorption_spectrum, determine_cutoff_indices, &
-             print_transition_probabilities, calculate_NTOs
+             print_transition_probabilities, calculate_NTOs, adapt_BSE_input_params
 
 CONTAINS
 
@@ -850,13 +850,15 @@ CONTAINS
 !> \param fm_mat_S_ij_trunc ...
 !> \param fm_mat_S_ab_trunc ...
 !> \param fm_mat_Q_static_bse_gemm ...
+!> \param mp2_env ...
 ! **************************************************************************************************
    SUBROUTINE deallocate_matrices_bse(fm_mat_S_bar_ia_bse, fm_mat_S_bar_ij_bse, &
                                       fm_mat_S_trunc, fm_mat_S_ij_trunc, fm_mat_S_ab_trunc, &
-                                      fm_mat_Q_static_bse_gemm)
+                                      fm_mat_Q_static_bse_gemm, mp2_env)
 
       TYPE(cp_fm_type), INTENT(INOUT) :: fm_mat_S_bar_ia_bse, fm_mat_S_bar_ij_bse, fm_mat_S_trunc, &
          fm_mat_S_ij_trunc, fm_mat_S_ab_trunc, fm_mat_Q_static_bse_gemm
+      TYPE(mp2_type)                                     :: mp2_env
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_matrices_bse'
 
@@ -870,6 +872,9 @@ CONTAINS
       CALL cp_fm_release(fm_mat_S_ij_trunc)
       CALL cp_fm_release(fm_mat_S_ab_trunc)
       CALL cp_fm_release(fm_mat_Q_static_bse_gemm)
+      IF (mp2_env%ri_g0w0%do_nto_analysis) THEN
+         DEALLOCATE (mp2_env%ri_g0w0%bse_nto_state_list_final)
+      END IF
 
       CALL timestop(handle)
 
@@ -1919,7 +1924,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'calculate_NTOs'
 
       CHARACTER(LEN=20), DIMENSION(2)                    :: nto_name
-      INTEGER                                            :: handle, homo_irred, i, i_nto, n_exc, &
+      INTEGER                                            :: handle, homo_irred, i, i_nto, j, n_exc, &
                                                             n_nto, nao_full, nao_trunc
       INTEGER, DIMENSION(:), POINTER                     :: stride
       LOGICAL                                            :: append_cube, cube_file
@@ -1938,7 +1943,7 @@ CONTAINS
       CALL get_qs_env(qs_env=qs_env, &
                       input=input)
       bse_section => section_vals_get_subs_vals(input, "DFT%XC%WF_CORRELATION%RI_RPA%GW%BSE")
-      ! MG to do: Cutoffs
+
       nao_full = qs_env%mos(1)%nao
       nao_trunc = homo + virtual
       ! This is not influenced by the BSE cutoff
@@ -2000,7 +2005,9 @@ CONTAINS
          WRITE (unit_nr, '(T2,A4,T8,A12,T22,A8,T35,A12,T55,A26)') 'BSE|', &
             'Excitation n', "TDA/ABBA", "Index of NTO", 'Contribution to excitation'
       END IF
-      DO n_exc = 1, MIN(homo*virtual, mp2_env%ri_g0w0%num_print_exc_ntos)
+
+      DO j = 1, mp2_env%ri_g0w0%num_print_exc_ntos
+         n_exc = mp2_env%ri_g0w0%bse_nto_state_list_final(j)
          ! Takes care of unallocated oscill_str array in case of Triplet
          IF (mp2_env%ri_g0w0%eps_nto_osc_str > 0.0_dp) THEN
             ! Check actual values
@@ -2118,7 +2125,7 @@ CONTAINS
          CALL cp_fm_to_fm(fm_nto_coeff_holes, nto_set(1)%mo_coeff, ncol=n_nto)
          CALL cp_fm_to_fm(fm_nto_coeff_particles, nto_set(2)%mo_coeff, ncol=n_nto)
 
-         ! Cube and Molden files
+         ! Cube files
          nto_section => section_vals_get_subs_vals(bse_section, "NTO_ANALYSIS")
          CALL section_vals_val_get(nto_section, "CUBE_FILES", l_val=cube_file)
          CALL section_vals_val_get(nto_section, "STRIDE", i_vals=stride)
@@ -2319,4 +2326,108 @@ CONTAINS
 
       CALL timestop(handle)
    END SUBROUTINE print_bse_nto_cubes
+
+! **************************************************************************************************
+!> \brief Borrowed from the tddfpt module with slight adaptions
+!> \param homo ...
+!> \param virtual ...
+!> \param unit_nr ...
+!> \param mp2_env ...
+! **************************************************************************************************
+   SUBROUTINE adapt_BSE_input_params(homo, virtual, unit_nr, mp2_env)
+
+      INTEGER, INTENT(IN)                                :: homo, virtual, unit_nr
+      TYPE(mp2_type)                                     :: mp2_env
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'adapt_BSE_input_params'
+
+      INTEGER                                            :: handle, i, j, n, &
+                                                            num_state_list_exceptions
+
+      CALL timeset(routineN, handle)
+
+      ! Handle negative NUM_PRINT_EXC
+      IF (mp2_env%ri_g0w0%num_print_exc < 0) THEN
+         mp2_env%ri_g0w0%num_print_exc = homo*virtual
+         IF (unit_nr > 0) THEN
+            CALL cp_warn(__LOCATION__, &
+                         "Keyword NUM_PRINT_EXC is either negative or too large. "// &
+                         "Printing all computed excitations.")
+         END IF
+      END IF
+
+      ! Default to NUM_PRINT_EXC if too large or negative,
+      ! but only if NTOs are called - would be confusing for the user otherwise
+      ! Prepare and adapt user inputs for NTO analysis
+      ! Logic: Explicit state list overrides NUM_PRINT_EXC_NTOS
+      !        If only NUM_PRINT_EXC_NTOS is given, we write the array 1,...,NUM_PRINT_EXC_NTOS to
+      !        bse_nto_state_list
+      IF (mp2_env%ri_g0w0%do_nto_analysis) THEN
+         IF (mp2_env%ri_g0w0%explicit_nto_list) THEN
+            IF (mp2_env%ri_g0w0%num_print_exc_ntos > 0) THEN
+               IF (unit_nr > 0) THEN
+                  CALL cp_warn(__LOCATION__, &
+                               "Keywords NUM_PRINT_EXC_NTOS and STATE_LIST are both given in input. "// &
+                               "Overriding NUM_PRINT_EXC_NTOS.")
+               END IF
+            END IF
+            ! Check if all states are within the range
+            ! Count them and initialize new array afterwards
+            num_state_list_exceptions = 0
+            DO i = 1, SIZE(mp2_env%ri_g0w0%bse_nto_state_list)
+               IF (mp2_env%ri_g0w0%bse_nto_state_list(i) < 1 .OR. &
+                   mp2_env%ri_g0w0%bse_nto_state_list(i) > mp2_env%ri_g0w0%num_print_exc) THEN
+                  num_state_list_exceptions = num_state_list_exceptions + 1
+               END IF
+            END DO
+            IF (num_state_list_exceptions > 0) THEN
+               n = SIZE(mp2_env%ri_g0w0%bse_nto_state_list) - num_state_list_exceptions
+               IF (unit_nr > 0) THEN
+                  CALL cp_warn(__LOCATION__, &
+                               "STATE_LIST contains indices outside the range of included excitation levels. "// &
+                               "Ignoring these states.")
+               END IF
+               ALLOCATE (mp2_env%ri_g0w0%bse_nto_state_list_final(n))
+               mp2_env%ri_g0w0%bse_nto_state_list_final(:) = 0
+               i = 1
+               DO j = 1, SIZE(mp2_env%ri_g0w0%bse_nto_state_list)
+                  IF (mp2_env%ri_g0w0%bse_nto_state_list(j) >= 1 .AND. &
+                      mp2_env%ri_g0w0%bse_nto_state_list(j) <= mp2_env%ri_g0w0%num_print_exc) THEN
+                     mp2_env%ri_g0w0%bse_nto_state_list_final(i) = mp2_env%ri_g0w0%bse_nto_state_list(j)
+                     i = i + 1
+                  END IF
+               END DO
+            END IF
+
+            mp2_env%ri_g0w0%num_print_exc_ntos = SIZE(mp2_env%ri_g0w0%bse_nto_state_list_final)
+         ELSE
+            IF (mp2_env%ri_g0w0%num_print_exc_ntos > mp2_env%ri_g0w0%num_print_exc .OR. &
+                mp2_env%ri_g0w0%num_print_exc_ntos < 0) THEN
+               ! IF (unit_nr > 0) THEN
+               !    CALL cp_warn(__LOCATION__, &
+               !                   "Keyword NUM_PRINT_EXC_NTOS is either negative or too large. "// &
+               !                   "Setting to NUM_PRINT_EXC.")
+               ! END IF
+               mp2_env%ri_g0w0%num_print_exc_ntos = mp2_env%ri_g0w0%num_print_exc
+            END IF
+            ALLOCATE (mp2_env%ri_g0w0%bse_nto_state_list_final(mp2_env%ri_g0w0%num_print_exc_ntos))
+            DO i = 1, mp2_env%ri_g0w0%num_print_exc_ntos
+               mp2_env%ri_g0w0%bse_nto_state_list_final(i) = i
+            END DO
+         END IF
+      END IF
+
+      ! Takes care of triplet states, when oscillator strengths are 0
+      IF (mp2_env%ri_g0w0%bse_spin_config /= 0 .AND. &
+          mp2_env%ri_g0w0%eps_nto_osc_str > 0) THEN
+         IF (unit_nr > 0) THEN
+            CALL cp_warn(__LOCATION__, &
+                         "Cannot apply EPS_OSC_STR for Triplet excitations. "// &
+                         "Resetting EPS_OSC_STR to default.")
+         END IF
+         mp2_env%ri_g0w0%eps_nto_osc_str = -1.0_dp
+      END IF
+
+      CALL timestop(handle)
+   END SUBROUTINE adapt_BSE_input_params
 END MODULE

@@ -231,7 +231,6 @@ MODULE mp2_types
                                                             flag_tda = 0, &
                                                             num_exc_en = 0, &
                                                             num_print_exc = 0, &
-                                                            num_print_exc_ntos = 0, &
                                                             num_add_start_z_space = 0, &
                                                             fac_max_z_space = 0, &
                                                             num_new_t = 0, &
@@ -240,13 +239,10 @@ MODULE mp2_types
       REAL(KIND=dp)                                      :: eps_res = 0.0_dp, &
                                                             eps_exc_en = 0.0_dp, &
                                                             eps_x = 0.0_dp, &
-                                                            eps_nto_eigval = 0.0_dp, &
-                                                            eps_nto_osc_str = 0.0_dp, &
                                                             bse_cutoff_occ = 0.0_dp, &
                                                             bse_cutoff_empty = 0.0_dp, &
                                                             z_space_energy_cutoff = 0.0_dp
       LOGICAL                                            :: do_bse = .FALSE., &
-                                                            do_NTO_analysis = .FALSE., &
                                                             bse_debug_print = .FALSE., &
                                                             do_ic_model = .FALSE., &
                                                             print_ic_values = .FALSE.
@@ -280,6 +276,15 @@ MODULE mp2_types
                                                             bse_spectrum_freq_end = 0.0_dp
       LOGICAL                                            :: bse_print_spectrum = .FALSE.
       REAL(KIND=dp), DIMENSION(:), POINTER               :: bse_eta_spectrum_list => NULL()
+
+      !BSE NTO prints
+      LOGICAL                                            :: do_nto_analysis = .FALSE., &
+                                                            explicit_nto_list = .FALSE.
+      REAL(KIND=dp)                                      :: eps_nto_eigval = 0.0_dp, &
+                                                            eps_nto_osc_str = 0.0_dp
+      INTEGER                                            :: num_print_exc_ntos = 0
+      INTEGER, DIMENSION(:), POINTER                     :: bse_nto_state_list => NULL()
+      INTEGER, DIMENSION(:), ALLOCATABLE                 :: bse_nto_state_list_final
 
       !GW_DOS
       REAL(KIND=dp)                                      :: dos_upper = 0.0_dp, &
@@ -352,7 +357,8 @@ MODULE mp2_types
       TYPE(ri_g0w0_type)                                 :: ri_g0w0 = ri_g0w0_type(vec_Sigma_x_minus_vxc_gw=NULL(), &
                                                                                    xkp_special_kp=NULL(), &
                                                                                    matrix_sigma_x_minus_vxc=NULL(), &
-                                                                                   matrix_ks=NULL())
+                                                                                   matrix_ks=NULL(), &
+                                                                                   bse_nto_state_list_final=NULL())
       TYPE(ri_basis_opt)                                 :: ri_opt_param = ri_basis_opt(RI_nset_per_l=NULL())
       TYPE(grad_util)                                    :: ri_grad = grad_util(operator_half=NULL(), &
                                                                                 PQ_half=NULL(), &

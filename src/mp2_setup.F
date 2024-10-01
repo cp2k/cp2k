@@ -251,6 +251,12 @@ CONTAINS
                                 r_val=mp2_env%ri_g0w0%eps_nto_osc_str)
       CALL section_vals_val_get(bse_section, "NTO_ANALYSIS%NUM_PRINT_EXC_NTOS", &
                                 i_val=mp2_env%ri_g0w0%num_print_exc_ntos)
+      CALL section_vals_val_get(bse_section, "NTO_ANALYSIS%STATE_LIST", &
+                                EXPLICIT=mp2_env%ri_g0w0%explicit_nto_list)
+      IF (mp2_env%ri_g0w0%explicit_nto_list) THEN
+         CALL section_vals_val_get(bse_section, "NTO_ANALYSIS%STATE_LIST", &
+                                   i_vals=mp2_env%ri_g0w0%bse_nto_state_list)
+      END IF
 
       CALL section_vals_val_get(mp2_section, "RI_RPA%GW%IMAGE_CHARGE_MODEL", &
                                 l_val=mp2_env%ri_g0w0%do_ic_model)

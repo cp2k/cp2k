@@ -20,7 +20,8 @@ MODULE bse_main
                                               diagonalize_C
    USE bse_iterative,                   ONLY: do_subspace_iterations,&
                                               fill_local_3c_arrays
-   USE bse_util,                        ONLY: deallocate_matrices_bse,&
+   USE bse_util,                        ONLY: adapt_BSE_input_params,&
+                                              deallocate_matrices_bse,&
                                               estimate_BSE_resources,&
                                               mult_B_with_W,&
                                               print_BSE_start_flag,&
@@ -168,40 +169,7 @@ CONTAINS
                                    gd_array, color_sub, para_env)
       END IF
 
-      ! Handle negative NUM_PRINT_EXC
-      IF (mp2_env%ri_g0w0%num_print_exc < 0) THEN
-         mp2_env%ri_g0w0%num_print_exc = homo_red*virtual_red
-         IF (unit_nr > 0) THEN
-            CALL cp_warn(__LOCATION__, &
-                         "Keyword NUM_PRINT_EXC is either negative or too large. "// &
-                         "Printing all computed excitations.")
-         END IF
-      END IF
-
-      ! Default to NUM_PRINT_EXC if too large or negative,
-      ! but only if NTOs are called - would be confusing for the user otherwise
-      IF (mp2_env%ri_g0w0%do_NTO_analysis) THEN
-         IF (mp2_env%ri_g0w0%num_print_exc_ntos > mp2_env%ri_g0w0%num_print_exc .OR. &
-             mp2_env%ri_g0w0%num_print_exc_ntos < 0) THEN
-            IF (unit_nr > 0) THEN
-               CALL cp_warn(__LOCATION__, &
-                            "Keyword NUM_PRINT_EXC_NTOs is either negative or too large. "// &
-                            "Setting to NUM_PRINT_EXC.")
-            END IF
-            mp2_env%ri_g0w0%num_print_exc_ntos = mp2_env%ri_g0w0%num_print_exc
-         END IF
-      END IF
-
-      ! Takes care of triplet states, when oscillator strengths are 0
-      IF (mp2_env%ri_g0w0%bse_spin_config /= 0 .AND. &
-          mp2_env%ri_g0w0%eps_nto_osc_str > 0) THEN
-         IF (unit_nr > 0) THEN
-            CALL cp_warn(__LOCATION__, &
-                         "Cannot apply EPS_OSC_STR for Triplet excitations. "// &
-                         "Resetting EPS_OSC_STR to default.")
-         END IF
-         mp2_env%ri_g0w0%eps_nto_osc_str = -1.0_dp
-      END IF
+      CALL adapt_BSE_input_params(homo_red, virtual_red, unit_nr, mp2_env)
 
       IF (my_do_fulldiag) THEN
          ! Quick estimate of memory consumption and runtime of diagonalizations
@@ -255,7 +223,7 @@ CONTAINS
 
       CALL deallocate_matrices_bse(fm_mat_S_bar_ia_bse, fm_mat_S_bar_ij_bse, &
                                    fm_mat_S_ia_trunc, fm_mat_S_ij_trunc, fm_mat_S_ab_trunc, &
-                                   fm_mat_Q_static_bse_gemm)
+                                   fm_mat_Q_static_bse_gemm, mp2_env)
       DEALLOCATE (Eigenval_reduced)
       IF (my_do_iterat_diag) THEN
          ! Contains untested Block-Davidson algorithm
