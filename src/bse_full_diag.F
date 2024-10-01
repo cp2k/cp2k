@@ -101,12 +101,12 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      IF (unit_nr > 0 .AND. mp2_env%ri_g0w0%bse_debug_print) THEN
+      IF (unit_nr > 0 .AND. mp2_env%bse%bse_debug_print) THEN
          WRITE (unit_nr, '(T2,A10,T13,A10)') 'BSE|DEBUG|', 'Creating A'
       END IF
 
       !Determines factor of exchange term, depending on requested spin configuration (cf. input_constants.F)
-      SELECT CASE (mp2_env%ri_g0w0%bse_spin_config)
+      SELECT CASE (mp2_env%bse%bse_spin_config)
       CASE (bse_singlet)
          alpha = 2.0_dp
       CASE (bse_triplet)
@@ -139,7 +139,7 @@ CONTAINS
                          matrix_a=fm_mat_S_ia_bse, matrix_b=fm_mat_S_ia_bse, beta=0.0_dp, &
                          matrix_c=fm_A)
 
-      IF (unit_nr > 0 .AND. mp2_env%ri_g0w0%bse_debug_print) THEN
+      IF (unit_nr > 0 .AND. mp2_env%bse%bse_debug_print) THEN
          WRITE (unit_nr, '(T2,A10,T13,A16)') 'BSE|DEBUG|', 'Allocated A_iajb'
       END IF
 
@@ -148,7 +148,7 @@ CONTAINS
                          matrix_a=fm_mat_S_bar_ij_bse, matrix_b=fm_mat_S_ab_bse, beta=0.0_dp, &
                          matrix_c=fm_W)
 
-      IF (unit_nr > 0 .AND. mp2_env%ri_g0w0%bse_debug_print) THEN
+      IF (unit_nr > 0 .AND. mp2_env%bse%bse_debug_print) THEN
          WRITE (unit_nr, '(T2,A10,T13,A16)') 'BSE|DEBUG|', 'Allocated W_ijab'
       END IF
 
@@ -228,12 +228,12 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      IF (unit_nr > 0 .AND. mp2_env%ri_g0w0%bse_debug_print) THEN
+      IF (unit_nr > 0 .AND. mp2_env%bse%bse_debug_print) THEN
          WRITE (unit_nr, '(T2,A10,T13,A10)') 'BSE|DEBUG|', 'Creating B'
       END IF
 
       ! Determines factor of exchange term, depending on requested spin configuration (cf. input_constants.F)
-      SELECT CASE (mp2_env%ri_g0w0%bse_spin_config)
+      SELECT CASE (mp2_env%bse%bse_spin_config)
       CASE (bse_singlet)
          alpha = 2.0_dp
       CASE (bse_triplet)
@@ -248,7 +248,7 @@ CONTAINS
       CALL cp_fm_create(fm_W, fm_struct_v, name="fm_W_ibaj")
       CALL cp_fm_set_all(fm_W, 0.0_dp)
 
-      IF (unit_nr > 0 .AND. mp2_env%ri_g0w0%bse_debug_print) THEN
+      IF (unit_nr > 0 .AND. mp2_env%bse%bse_debug_print) THEN
          WRITE (unit_nr, '(T2,A10,T13,A16)') 'BSE|DEBUG|', 'Allocated B_iajb'
       END IF
       ! v_ia,jb = \sum_P B^P_ia B^P_jb
@@ -336,7 +336,7 @@ CONTAINS
 
       CALL cp_fm_create(fm_work_product, fm_A%matrix_struct)
 
-      IF (unit_nr > 0 .AND. mp2_env%ri_g0w0%bse_debug_print) THEN
+      IF (unit_nr > 0 .AND. mp2_env%bse%bse_debug_print) THEN
          WRITE (unit_nr, '(T2,A10,T13,A19)') 'BSE|DEBUG|', 'Created work arrays'
       END IF
 
@@ -386,7 +386,7 @@ CONTAINS
                          fm_C)
       CALL cp_fm_release(fm_work_product)
 
-      IF (unit_nr > 0 .AND. mp2_env%ri_g0w0%bse_debug_print) THEN
+      IF (unit_nr > 0 .AND. mp2_env%bse%bse_debug_print) THEN
          WRITE (unit_nr, '(T2,A10,T13,A36)') 'BSE|DEBUG|', 'Filled C=(A-B)^0.5 (A+B) (A-B)^0.5'
       END IF
 
@@ -602,7 +602,7 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       !Prepare variables for printing
-      IF (mp2_env%ri_g0w0%bse_spin_config == 0) THEN
+      IF (mp2_env%bse%bse_spin_config == 0) THEN
          multiplet = "Singlet"
          alpha = 2.0_dp
       ELSE
@@ -701,7 +701,7 @@ CONTAINS
       END IF
       !prints actual energies values
       IF (unit_nr > 0) THEN
-         DO i_exc = 1, MIN(homo*virtual, mp2_env%ri_g0w0%num_print_exc)
+         DO i_exc = 1, MIN(homo*virtual, mp2_env%bse%num_print_exc)
             WRITE (unit_nr, '(T2,A4,T7,I16,T30,A7,T46,A6,T59,F22.4)') &
                'BSE|', i_exc, multiplet, info_approximation, Exc_ens(i_exc)*evolt
          END DO
@@ -723,8 +723,8 @@ CONTAINS
          WRITE (unit_nr, '(T2,A4,T7,A73)') &
             'BSE|', "The following single-particle transitions have significant contributions,"
          WRITE (unit_nr, '(T2,A4,T7,A16,F5.3,A15,F5.3,A16)') &
-            'BSE|', "i.e. |X_ia^n| < ", mp2_env%ri_g0w0%eps_x, " or |Y_ia^n| < ", &
-            mp2_env%ri_g0w0%eps_x, ", respectively :"
+            'BSE|', "i.e. |X_ia^n| < ", mp2_env%bse%eps_x, " or |Y_ia^n| < ", &
+            mp2_env%bse%eps_x, ", respectively :"
 
          WRITE (unit_nr, '(T2,A4,T15,A27,I5,A13,I5,A3)') 'BSE|', '-- Quick reminder: HOMO i =', &
             homo_irred, ' and LUMO a =', homo_irred + 1, " --"
@@ -732,7 +732,7 @@ CONTAINS
          WRITE (unit_nr, '(T2,A4,T7,A12,T30,A1,T32,A5,T42,A1,T49,A8,T64,A17)') &
             "BSE|", "Excitation n", "i", "=>/<=", "a", 'TDA/ABBA', "|X_ia^n|/|Y_ia^n|"
       END IF
-      DO i_exc = 1, MIN(homo*virtual, mp2_env%ri_g0w0%num_print_exc)
+      DO i_exc = 1, MIN(homo*virtual, mp2_env%bse%num_print_exc)
          IF (unit_nr > 0) THEN
             WRITE (unit_nr, '(T2,A4)') 'BSE|'
          END IF
@@ -748,7 +748,7 @@ CONTAINS
       END DO
       ! Discriminate between singlet and triplet, since triplet state can't couple to light
       ! and therefore calculations of dipoles etc are not necessary
-      IF (mp2_env%ri_g0w0%bse_spin_config == 0) THEN
+      IF (mp2_env%bse%bse_spin_config == 0) THEN
          ! Compute BSE dipoles and oscillator strengths
          CALL get_oscillator_strengths(fm_eigvec_X, Exc_ens, &
                                        dipole_exc, oscill_str, polarizability_residues, &
@@ -791,7 +791,7 @@ CONTAINS
             WRITE (unit_nr, '(T2,A4)') 'BSE|'
             WRITE (unit_nr, '(T2,A4,T8,A12,T22,A8,T38,A5,T48,A5,T58,A5,T65,A16)') 'BSE|', &
                'Excitation n', "TDA/ABBA", "d_x^n", "d_y^n", "d_z^n", 'Osc. strength'
-            DO i_exc = 1, MIN(homo*virtual, mp2_env%ri_g0w0%num_print_exc)
+            DO i_exc = 1, MIN(homo*virtual, mp2_env%bse%num_print_exc)
                WRITE (unit_nr, '(T2,A4,T8,I12,T24,A6,T35,F8.3,T45,F8.3,T55,F8.3,T65,F16.3)') &
                   'BSE|', i_exc, info_approximation, dipole_exc(1, 1, i_exc), dipole_exc(2, 1, i_exc), &
                   dipole_exc(3, 1, i_exc), oscill_str(i_exc)
@@ -800,7 +800,7 @@ CONTAINS
          END IF
 
          ! Compute and print the absorption spectrum to external file
-         IF (mp2_env%ri_g0w0%bse_print_spectrum) THEN
+         IF (mp2_env%bse%bse_print_spectrum) THEN
             CALL compute_absorption_spectrum(oscill_str, polarizability_residues, Exc_ens, &
                                              info_approximation, unit_nr, mp2_env)
          END IF
@@ -816,7 +816,7 @@ CONTAINS
       END IF
 
       ! Compute and print excitation wavefunctions
-      IF (mp2_env%ri_g0w0%do_nto_analysis) THEN
+      IF (mp2_env%bse%do_nto_analysis) THEN
          IF (unit_nr > 0) THEN
             WRITE (unit_nr, '(T2,A4)') 'BSE|'
             WRITE (unit_nr, '(T2,A4,T7,A47)') &
@@ -830,7 +830,7 @@ CONTAINS
                              qs_env, unit_nr, mp2_env)
       END IF
 
-      IF (mp2_env%ri_g0w0%bse_spin_config == 0) THEN
+      IF (mp2_env%bse%bse_spin_config == 0) THEN
          DEALLOCATE (oscill_str, dipole_exc, polarizability_residues)
       END IF
       IF (unit_nr > 0) THEN

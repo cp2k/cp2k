@@ -89,15 +89,15 @@ CONTAINS
       num_res_unconverged = -1
       num_exact_en_unconverged = -1
 
-      bse_davidson_abort_cond = mp2_env%ri_g0w0%davidson_abort_cond
-      num_exc_en = mp2_env%ri_g0w0%num_exc_en
-      num_add_start_z_space = mp2_env%ri_g0w0%num_add_start_z_space
-      fac_max_z_space = mp2_env%ri_g0w0%fac_max_z_space
-      num_new_t = mp2_env%ri_g0w0%num_new_t
-      num_davidson_iter = mp2_env%ri_g0w0%num_davidson_iter
-      eps_res = mp2_env%ri_g0w0%eps_res
-      eps_exc_en = mp2_env%ri_g0w0%eps_exc_en
-      z_space_energy_cutoff = mp2_env%ri_g0w0%z_space_energy_cutoff
+      bse_davidson_abort_cond = mp2_env%bse%davidson_abort_cond
+      num_exc_en = mp2_env%bse%num_exc_en
+      num_add_start_z_space = mp2_env%bse%num_add_start_z_space
+      fac_max_z_space = mp2_env%bse%fac_max_z_space
+      num_new_t = mp2_env%bse%num_new_t
+      num_davidson_iter = mp2_env%bse%num_davidson_iter
+      eps_res = mp2_env%bse%eps_res
+      eps_exc_en = mp2_env%bse%eps_exc_en
+      z_space_energy_cutoff = mp2_env%bse%z_space_energy_cutoff
 
       num_Z_vectors_init = num_exc_en + num_add_start_z_space
 

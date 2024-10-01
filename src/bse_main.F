@@ -117,7 +117,7 @@ CONTAINS
       my_do_tda = .FALSE.
       my_do_abba = .FALSE.
       !Method: Iterative or full diagonalization
-      SELECT CASE (mp2_env%ri_g0w0%bse_diag_method)
+      SELECT CASE (mp2_env%bse%bse_diag_method)
       CASE (bse_iterdiag)
          my_do_iterat_diag = .TRUE.
          !MG: Basics of the Davidson solver are implemented, but not rigorously checked.
@@ -126,7 +126,7 @@ CONTAINS
          my_do_fulldiag = .TRUE.
       END SELECT
       !Approximation: TDA and/or full ABBA matrix
-      SELECT CASE (mp2_env%ri_g0w0%flag_tda)
+      SELECT CASE (mp2_env%bse%flag_tda)
       CASE (bse_tda)
          my_do_tda = .TRUE.
       CASE (bse_abba)
@@ -141,7 +141,7 @@ CONTAINS
       ! Link BSE debug flag against debug print level
       logger => cp_get_default_logger()
       IF (logger%iter_info%print_level == debug_print_level) THEN
-         mp2_env%ri_g0w0%bse_debug_print = .TRUE.
+         mp2_env%bse%bse_debug_print = .TRUE.
       END IF
 
       CALL fm_mat_S_ia_bse%matrix_struct%para_env%sync()
@@ -228,7 +228,7 @@ CONTAINS
       IF (my_do_iterat_diag) THEN
          ! Contains untested Block-Davidson algorithm
          CALL do_subspace_iterations(B_bar_ijQ_bse_local, B_abQ_bse_local, B_bar_iaQ_bse_local, &
-                                     B_iaQ_bse_local, homo(1), virtual(1), mp2_env%ri_g0w0%bse_spin_config, unit_nr, &
+                                     B_iaQ_bse_local, homo(1), virtual(1), mp2_env%bse%bse_spin_config, unit_nr, &
                                      Eigenval(:, 1, 1), para_env, mp2_env)
          ! Deallocate local 3c-B-matrices
          DEALLOCATE (B_bar_ijQ_bse_local, B_abQ_bse_local, B_bar_iaQ_bse_local, B_iaQ_bse_local)

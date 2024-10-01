@@ -251,7 +251,7 @@ CONTAINS
                           nrow_block=nrow_block_in, &
                           ncol_block=ncol_block_in)
 
-      IF (unit_nr > 0 .AND. mp2_env%ri_g0w0%bse_debug_print) THEN
+      IF (unit_nr > 0 .AND. mp2_env%bse%bse_debug_print) THEN
          WRITE (unit_nr, '(T2,A10,T13,A14,A10,T71,I10)') 'BSE|DEBUG|', 'Row number of ', fm_out%name, &
             fm_out%matrix_struct%nrow_global
          WRITE (unit_nr, '(T2,A10,T13,A17,A10,T71,I10)') 'BSE|DEBUG|', 'Column number of ', fm_out%name, &
@@ -295,7 +295,7 @@ CONTAINS
       CALL timestop(handle2)
 
       CALL timeset(routineN//"_2_comm_entry_nums", handle2)
-      IF (unit_nr > 0 .AND. mp2_env%ri_g0w0%bse_debug_print) THEN
+      IF (unit_nr > 0 .AND. mp2_env%bse%bse_debug_print) THEN
          WRITE (unit_nr, '(T2,A10,T13,A27)') 'BSE|DEBUG|', 'Communicating entry numbers'
       END IF
 
@@ -304,7 +304,7 @@ CONTAINS
       CALL timestop(handle2)
 
       CALL timeset(routineN//"_3_alloc_buffer", handle2)
-      IF (unit_nr > 0 .AND. mp2_env%ri_g0w0%bse_debug_print) THEN
+      IF (unit_nr > 0 .AND. mp2_env%bse%bse_debug_print) THEN
          WRITE (unit_nr, '(T2,A10,T13,A18)') 'BSE|DEBUG|', 'Allocating buffers'
       END IF
 
@@ -344,7 +344,7 @@ CONTAINS
       CALL timestop(handle2)
 
       CALL timeset(routineN//"_4_buf_from_fmin_"//fm_out%name, handle2)
-      IF (unit_nr > 0 .AND. mp2_env%ri_g0w0%bse_debug_print) THEN
+      IF (unit_nr > 0 .AND. mp2_env%bse%bse_debug_print) THEN
          WRITE (unit_nr, '(T2,A10,T13,A18,A10,A13)') 'BSE|DEBUG|', 'Writing data from ', fm_in%name, ' into buffers'
       END IF
 
@@ -382,7 +382,7 @@ CONTAINS
       CALL timestop(handle2)
 
       CALL timeset(routineN//"_5_comm_buffer", handle2)
-      IF (unit_nr > 0 .AND. mp2_env%ri_g0w0%bse_debug_print) THEN
+      IF (unit_nr > 0 .AND. mp2_env%bse%bse_debug_print) THEN
          WRITE (unit_nr, '(T2,A10,T13,A21)') 'BSE|DEBUG|', 'Communicating buffers'
       END IF
 
@@ -393,7 +393,7 @@ CONTAINS
       CALL timestop(handle2)
 
       CALL timeset(routineN//"_6_buffer_to_fmout"//fm_out%name, handle2)
-      IF (unit_nr > 0 .AND. mp2_env%ri_g0w0%bse_debug_print) THEN
+      IF (unit_nr > 0 .AND. mp2_env%bse%bse_debug_print) THEN
          WRITE (unit_nr, '(T2,A10,T13,A24,A10)') 'BSE|DEBUG|', 'Writing from buffers to ', fm_out%name
       END IF
 
@@ -416,7 +416,7 @@ CONTAINS
       CALL timestop(handle2)
 
       CALL timeset(routineN//"_7_cleanup", handle2)
-      IF (unit_nr > 0 .AND. mp2_env%ri_g0w0%bse_debug_print) THEN
+      IF (unit_nr > 0 .AND. mp2_env%bse%bse_debug_print) THEN
          WRITE (unit_nr, '(T2,A10,T13,A41)') 'BSE|DEBUG|', 'Starting cleanup of communication buffers'
       END IF
 
@@ -517,7 +517,7 @@ CONTAINS
                           nrow_block=nrow_block_in, &
                           ncol_block=ncol_block_in)
 
-      IF (unit_nr > 0 .AND. mp2_env%ri_g0w0%bse_debug_print) THEN
+      IF (unit_nr > 0 .AND. mp2_env%bse%bse_debug_print) THEN
          WRITE (unit_nr, '(T2,A10,T13,A14,A10,T71,I10)') 'BSE|DEBUG|', 'Row number of ', fm_out%name, &
             fm_out%matrix_struct%nrow_global
          WRITE (unit_nr, '(T2,A10,T13,A17,A10,T71,I10)') 'BSE|DEBUG|', 'Column number of ', fm_out%name, &
@@ -575,7 +575,7 @@ CONTAINS
       CALL timestop(handle2)
 
       CALL timeset(routineN//"_2_comm_entry_nums", handle2)
-      IF (unit_nr > 0 .AND. mp2_env%ri_g0w0%bse_debug_print) THEN
+      IF (unit_nr > 0 .AND. mp2_env%bse%bse_debug_print) THEN
          WRITE (unit_nr, '(T2,A10,T13,A27)') 'BSE|DEBUG|', 'Communicating entry numbers'
       END IF
 
@@ -584,7 +584,7 @@ CONTAINS
       CALL timestop(handle2)
 
       CALL timeset(routineN//"_3_alloc_buffer", handle2)
-      IF (unit_nr > 0 .AND. mp2_env%ri_g0w0%bse_debug_print) THEN
+      IF (unit_nr > 0 .AND. mp2_env%bse%bse_debug_print) THEN
          WRITE (unit_nr, '(T2,A10,T13,A18)') 'BSE|DEBUG|', 'Allocating buffers'
       END IF
 
@@ -624,7 +624,7 @@ CONTAINS
       CALL timestop(handle2)
 
       CALL timeset(routineN//"_4_buf_from_fmin_"//fm_out%name, handle2)
-      IF (unit_nr > 0 .AND. mp2_env%ri_g0w0%bse_debug_print) THEN
+      IF (unit_nr > 0 .AND. mp2_env%bse%bse_debug_print) THEN
          WRITE (unit_nr, '(T2,A10,T13,A18,A10,A13)') 'BSE|DEBUG|', 'Writing data from ', fm_in%name, ' into buffers'
       END IF
 
@@ -680,7 +680,7 @@ CONTAINS
       CALL timestop(handle2)
 
       CALL timeset(routineN//"_5_comm_buffer", handle2)
-      IF (unit_nr > 0 .AND. mp2_env%ri_g0w0%bse_debug_print) THEN
+      IF (unit_nr > 0 .AND. mp2_env%bse%bse_debug_print) THEN
          WRITE (unit_nr, '(T2,A10,T13,A21)') 'BSE|DEBUG|', 'Communicating buffers'
       END IF
 
@@ -691,7 +691,7 @@ CONTAINS
       CALL timestop(handle2)
 
       CALL timeset(routineN//"_6_buffer_to_fmout"//fm_out%name, handle2)
-      IF (unit_nr > 0 .AND. mp2_env%ri_g0w0%bse_debug_print) THEN
+      IF (unit_nr > 0 .AND. mp2_env%bse%bse_debug_print) THEN
          WRITE (unit_nr, '(T2,A10,T13,A24,A10)') 'BSE|DEBUG|', 'Writing from buffers to ', fm_out%name
       END IF
 
@@ -714,7 +714,7 @@ CONTAINS
       CALL timestop(handle2)
 
       CALL timeset(routineN//"_7_cleanup", handle2)
-      IF (unit_nr > 0 .AND. mp2_env%ri_g0w0%bse_debug_print) THEN
+      IF (unit_nr > 0 .AND. mp2_env%bse%bse_debug_print) THEN
          WRITE (unit_nr, '(T2,A10,T13,A41)') 'BSE|DEBUG|', 'Starting cleanup of communication buffers'
       END IF
 
@@ -872,8 +872,8 @@ CONTAINS
       CALL cp_fm_release(fm_mat_S_ij_trunc)
       CALL cp_fm_release(fm_mat_S_ab_trunc)
       CALL cp_fm_release(fm_mat_Q_static_bse_gemm)
-      IF (mp2_env%ri_g0w0%do_nto_analysis) THEN
-         DEALLOCATE (mp2_env%ri_g0w0%bse_nto_state_list_final)
+      IF (mp2_env%bse%do_nto_analysis) THEN
+         DEALLOCATE (mp2_env%bse%bse_nto_state_list_final)
       END IF
 
       CALL timestop(handle)
@@ -1137,7 +1137,7 @@ CONTAINS
          DO ii = 1, nrow_local
             eigvec_idx = row_indices(ii)
             eigvec_entry = fm_eigvec%local_data(ii, jj)/SQRT(2.0_dp)
-            IF (ABS(eigvec_entry) > mp2_env%ri_g0w0%eps_x) THEN
+            IF (ABS(eigvec_entry) > mp2_env%bse%eps_x) THEN
                num_entries_to_comm(para_env%mepos) = num_entries_to_comm(para_env%mepos) + 1
             END IF
          END DO
@@ -1166,7 +1166,7 @@ CONTAINS
          DO ii = 1, nrow_local
             eigvec_idx = row_indices(ii)
             eigvec_entry = fm_eigvec%local_data(ii, jj)/SQRT(2.0_dp)
-            IF (ABS(eigvec_entry) > mp2_env%ri_g0w0%eps_x) THEN
+            IF (ABS(eigvec_entry) > mp2_env%bse%eps_x) THEN
                buffer_entries(para_env%mepos)%indx(kk, 1) = (eigvec_idx - 1)/virtual + 1
                buffer_entries(para_env%mepos)%indx(kk, 2) = MOD(eigvec_idx - 1, virtual) + 1
                buffer_entries(para_env%mepos)%msg(kk) = eigvec_entry
@@ -1245,16 +1245,16 @@ CONTAINS
 
       CALL timeset(routineN, handle)
       ! Determine index in homo and virtual for truncation
-      ! Uses indices of outermost orbitals within energy range (-mp2_env%ri_g0w0%bse_cutoff_occ,mp2_env%ri_g0w0%bse_cutoff_empty)
-      IF (mp2_env%ri_g0w0%bse_cutoff_occ > 0 .OR. mp2_env%ri_g0w0%bse_cutoff_empty > 0) THEN
-         IF (-mp2_env%ri_g0w0%bse_cutoff_occ .LT. Eigenval(1) - Eigenval(homo) &
-             .OR. mp2_env%ri_g0w0%bse_cutoff_occ < 0) THEN
+      ! Uses indices of outermost orbitals within energy range (-mp2_env%bse%bse_cutoff_occ,mp2_env%bse%bse_cutoff_empty)
+      IF (mp2_env%bse%bse_cutoff_occ > 0 .OR. mp2_env%bse%bse_cutoff_empty > 0) THEN
+         IF (-mp2_env%bse%bse_cutoff_occ .LT. Eigenval(1) - Eigenval(homo) &
+             .OR. mp2_env%bse%bse_cutoff_occ < 0) THEN
             homo_red = homo
             homo_incl = 1
          ELSE
             homo_incl = 1
             DO i_homo = 1, homo
-               IF (Eigenval(i_homo) - Eigenval(homo) .GT. -mp2_env%ri_g0w0%bse_cutoff_occ) THEN
+               IF (Eigenval(i_homo) - Eigenval(homo) .GT. -mp2_env%bse%bse_cutoff_occ) THEN
                   homo_incl = i_homo
                   EXIT
                END IF
@@ -1262,14 +1262,14 @@ CONTAINS
             homo_red = homo - homo_incl + 1
          END IF
 
-         IF (mp2_env%ri_g0w0%bse_cutoff_empty .GT. Eigenval(homo + virtual) - Eigenval(homo + 1) &
-             .OR. mp2_env%ri_g0w0%bse_cutoff_empty < 0) THEN
+         IF (mp2_env%bse%bse_cutoff_empty .GT. Eigenval(homo + virtual) - Eigenval(homo + 1) &
+             .OR. mp2_env%bse%bse_cutoff_empty < 0) THEN
             virt_red = virtual
             virt_incl = virtual
          ELSE
             virt_incl = homo + 1
             DO j_virt = 1, virtual
-               IF (Eigenval(homo + j_virt) - Eigenval(homo + 1) .GT. mp2_env%ri_g0w0%bse_cutoff_empty) THEN
+               IF (Eigenval(homo + j_virt) - Eigenval(homo + 1) .GT. mp2_env%bse%bse_cutoff_empty) THEN
                   virt_incl = j_virt - 1
                   EXIT
                END IF
@@ -1336,7 +1336,7 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       ! Determine index in homo and virtual for truncation
-      ! Uses indices of outermost orbitals within energy range (-mp2_env%ri_g0w0%bse_cutoff_occ,mp2_env%ri_g0w0%bse_cutoff_empty)
+      ! Uses indices of outermost orbitals within energy range (-mp2_env%bse%bse_cutoff_occ,mp2_env%bse%bse_cutoff_empty)
 
       CALL determine_cutoff_indices(Eigenval_scf, &
                                     homo, virtual, &
@@ -1345,15 +1345,15 @@ CONTAINS
                                     mp2_env)
 
       IF (unit_nr > 0) THEN
-         IF (mp2_env%ri_g0w0%bse_cutoff_occ > 0) THEN
+         IF (mp2_env%bse%bse_cutoff_occ > 0) THEN
             WRITE (unit_nr, '(T2,A4,T7,A29,T71,F10.3)') 'BSE|', 'Cutoff occupied orbitals [eV]', &
-               mp2_env%ri_g0w0%bse_cutoff_occ*evolt
+               mp2_env%bse%bse_cutoff_occ*evolt
          ELSE
             WRITE (unit_nr, '(T2,A4,T7,A37)') 'BSE|', 'No cutoff given for occupied orbitals'
          END IF
-         IF (mp2_env%ri_g0w0%bse_cutoff_empty > 0) THEN
+         IF (mp2_env%bse%bse_cutoff_empty > 0) THEN
             WRITE (unit_nr, '(T2,A4,T7,A26,T71,F10.3)') 'BSE|', 'Cutoff empty orbitals [eV]', &
-               mp2_env%ri_g0w0%bse_cutoff_empty*evolt
+               mp2_env%bse%bse_cutoff_empty*evolt
          ELSE
             WRITE (unit_nr, '(T2,A4,T7,A34)') 'BSE|', 'No cutoff given for empty orbitals'
          END IF
@@ -1391,7 +1391,7 @@ CONTAINS
       CALL cp_fm_create(fm_mat_S_ab_trunc, fm_struct_ab, "fm_S_ab_trunc")
 
       !Copy parts of original matrices to truncated ones
-      IF (mp2_env%ri_g0w0%bse_cutoff_occ > 0 .OR. mp2_env%ri_g0w0%bse_cutoff_empty > 0) THEN
+      IF (mp2_env%bse%bse_cutoff_occ > 0 .OR. mp2_env%bse%bse_cutoff_empty > 0) THEN
          !Truncate eigenvals
          ALLOCATE (Eigenval_reduced(homo_red + virt_red))
          Eigenval_reduced(:) = Eigenval(homo_incl:homo + virt_incl)
@@ -1762,10 +1762,10 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      freq_step = mp2_env%ri_g0w0%bse_spectrum_freq_step_size
-      freq_start = mp2_env%ri_g0w0%bse_spectrum_freq_start
-      freq_end = mp2_env%ri_g0w0%bse_spectrum_freq_end
-      eta_list => mp2_env%ri_g0w0%bse_eta_spectrum_list
+      freq_step = mp2_env%bse%bse_spectrum_freq_step_size
+      freq_start = mp2_env%bse%bse_spectrum_freq_start
+      freq_end = mp2_env%bse%bse_spectrum_freq_end
+      eta_list => mp2_env%bse%bse_eta_spectrum_list
 
       ! Calculate number of steps to fit given frequency range
       num_steps = NINT((freq_end - freq_start)/freq_step) + 1
@@ -1985,17 +1985,17 @@ CONTAINS
          WRITE (unit_nr, '(T2,A4,T7,A62)') 'BSE|', "The Natural Transition Orbitals (NTOs) are calculated with the"
          WRITE (unit_nr, '(T2,A4,T7,A19)') 'BSE|', "following settings:"
          WRITE (unit_nr, '(T2,A4,T7,A21,T71,I10)') 'BSE|', 'Number of excitations', &
-            mp2_env%ri_g0w0%num_print_exc_ntos
+            mp2_env%bse%num_print_exc_ntos
          WRITE (unit_nr, '(T2,A4)') 'BSE|'
-         IF (mp2_env%ri_g0w0%eps_nto_osc_str > 0.0_dp) THEN
+         IF (mp2_env%bse%eps_nto_osc_str > 0.0_dp) THEN
             WRITE (unit_nr, '(T2,A4,T7,A33,T71,F10.3)') 'BSE|', 'Threshold for oscillator strength', &
-               mp2_env%ri_g0w0%eps_nto_osc_str
+               mp2_env%bse%eps_nto_osc_str
          ELSE
             WRITE (unit_nr, '(T2,A4,T7,A33,T71,A10)') 'BSE|', 'Threshold for oscillator strength', &
                ADJUSTL("---")
          END IF
          WRITE (unit_nr, '(T2,A4,T7,A29,T71,F10.3)') 'BSE|', 'Threshold for NTO eigenvalues', &
-            mp2_env%ri_g0w0%eps_nto_eigval
+            mp2_env%bse%eps_nto_eigval
          WRITE (unit_nr, '(T2,A4)') 'BSE|'
       END IF
 
@@ -2006,12 +2006,12 @@ CONTAINS
             'Excitation n', "TDA/ABBA", "Index of NTO", 'Contribution to excitation'
       END IF
 
-      DO j = 1, mp2_env%ri_g0w0%num_print_exc_ntos
-         n_exc = mp2_env%ri_g0w0%bse_nto_state_list_final(j)
+      DO j = 1, mp2_env%bse%num_print_exc_ntos
+         n_exc = mp2_env%bse%bse_nto_state_list_final(j)
          ! Takes care of unallocated oscill_str array in case of Triplet
-         IF (mp2_env%ri_g0w0%eps_nto_osc_str > 0.0_dp) THEN
+         IF (mp2_env%bse%eps_nto_osc_str > 0.0_dp) THEN
             ! Check actual values
-            IF (oscill_str(n_exc) < mp2_env%ri_g0w0%eps_nto_osc_str) THEN
+            IF (oscill_str(n_exc) < mp2_env%bse%eps_nto_osc_str) THEN
                ! Print skipped levels to table
                IF (unit_nr > 0) THEN
                   WRITE (unit_nr, '(T2,A4)') 'BSE|'
@@ -2095,7 +2095,7 @@ CONTAINS
          ! Extract number of significant NTOs
          n_nto = 0
          DO i_nto = 1, nao_trunc
-            IF (eigval_svd_squ(i_nto) > mp2_env%ri_g0w0%eps_nto_eigval) THEN
+            IF (eigval_svd_squ(i_nto) > mp2_env%bse%eps_nto_eigval) THEN
                n_nto = n_nto + 1
             ELSE
                ! Since svd orders in descending order, we can exit the loop if smaller
@@ -2347,8 +2347,8 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       ! Handle negative NUM_PRINT_EXC
-      IF (mp2_env%ri_g0w0%num_print_exc < 0) THEN
-         mp2_env%ri_g0w0%num_print_exc = homo*virtual
+      IF (mp2_env%bse%num_print_exc < 0) THEN
+         mp2_env%bse%num_print_exc = homo*virtual
          IF (unit_nr > 0) THEN
             CALL cp_warn(__LOCATION__, &
                          "Keyword NUM_PRINT_EXC is either negative or too large. "// &
@@ -2362,9 +2362,9 @@ CONTAINS
       ! Logic: Explicit state list overrides NUM_PRINT_EXC_NTOS
       !        If only NUM_PRINT_EXC_NTOS is given, we write the array 1,...,NUM_PRINT_EXC_NTOS to
       !        bse_nto_state_list
-      IF (mp2_env%ri_g0w0%do_nto_analysis) THEN
-         IF (mp2_env%ri_g0w0%explicit_nto_list) THEN
-            IF (mp2_env%ri_g0w0%num_print_exc_ntos > 0) THEN
+      IF (mp2_env%bse%do_nto_analysis) THEN
+         IF (mp2_env%bse%explicit_nto_list) THEN
+            IF (mp2_env%bse%num_print_exc_ntos > 0) THEN
                IF (unit_nr > 0) THEN
                   CALL cp_warn(__LOCATION__, &
                                "Keywords NUM_PRINT_EXC_NTOS and STATE_LIST are both given in input. "// &
@@ -2374,58 +2374,58 @@ CONTAINS
             ! Check if all states are within the range
             ! Count them and initialize new array afterwards
             num_state_list_exceptions = 0
-            DO i = 1, SIZE(mp2_env%ri_g0w0%bse_nto_state_list)
-               IF (mp2_env%ri_g0w0%bse_nto_state_list(i) < 1 .OR. &
-                   mp2_env%ri_g0w0%bse_nto_state_list(i) > mp2_env%ri_g0w0%num_print_exc) THEN
+            DO i = 1, SIZE(mp2_env%bse%bse_nto_state_list)
+               IF (mp2_env%bse%bse_nto_state_list(i) < 1 .OR. &
+                   mp2_env%bse%bse_nto_state_list(i) > mp2_env%bse%num_print_exc) THEN
                   num_state_list_exceptions = num_state_list_exceptions + 1
                END IF
             END DO
             IF (num_state_list_exceptions > 0) THEN
-               n = SIZE(mp2_env%ri_g0w0%bse_nto_state_list) - num_state_list_exceptions
+               n = SIZE(mp2_env%bse%bse_nto_state_list) - num_state_list_exceptions
                IF (unit_nr > 0) THEN
                   CALL cp_warn(__LOCATION__, &
                                "STATE_LIST contains indices outside the range of included excitation levels. "// &
                                "Ignoring these states.")
                END IF
-               ALLOCATE (mp2_env%ri_g0w0%bse_nto_state_list_final(n))
-               mp2_env%ri_g0w0%bse_nto_state_list_final(:) = 0
+               ALLOCATE (mp2_env%bse%bse_nto_state_list_final(n))
+               mp2_env%bse%bse_nto_state_list_final(:) = 0
                i = 1
-               DO j = 1, SIZE(mp2_env%ri_g0w0%bse_nto_state_list)
-                  IF (mp2_env%ri_g0w0%bse_nto_state_list(j) >= 1 .AND. &
-                      mp2_env%ri_g0w0%bse_nto_state_list(j) <= mp2_env%ri_g0w0%num_print_exc) THEN
-                     mp2_env%ri_g0w0%bse_nto_state_list_final(i) = mp2_env%ri_g0w0%bse_nto_state_list(j)
+               DO j = 1, SIZE(mp2_env%bse%bse_nto_state_list)
+                  IF (mp2_env%bse%bse_nto_state_list(j) >= 1 .AND. &
+                      mp2_env%bse%bse_nto_state_list(j) <= mp2_env%bse%num_print_exc) THEN
+                     mp2_env%bse%bse_nto_state_list_final(i) = mp2_env%bse%bse_nto_state_list(j)
                      i = i + 1
                   END IF
                END DO
             END IF
 
-            mp2_env%ri_g0w0%num_print_exc_ntos = SIZE(mp2_env%ri_g0w0%bse_nto_state_list_final)
+            mp2_env%bse%num_print_exc_ntos = SIZE(mp2_env%bse%bse_nto_state_list_final)
          ELSE
-            IF (mp2_env%ri_g0w0%num_print_exc_ntos > mp2_env%ri_g0w0%num_print_exc .OR. &
-                mp2_env%ri_g0w0%num_print_exc_ntos < 0) THEN
+            IF (mp2_env%bse%num_print_exc_ntos > mp2_env%bse%num_print_exc .OR. &
+                mp2_env%bse%num_print_exc_ntos < 0) THEN
                ! IF (unit_nr > 0) THEN
                !    CALL cp_warn(__LOCATION__, &
                !                   "Keyword NUM_PRINT_EXC_NTOS is either negative or too large. "// &
                !                   "Setting to NUM_PRINT_EXC.")
                ! END IF
-               mp2_env%ri_g0w0%num_print_exc_ntos = mp2_env%ri_g0w0%num_print_exc
+               mp2_env%bse%num_print_exc_ntos = mp2_env%bse%num_print_exc
             END IF
-            ALLOCATE (mp2_env%ri_g0w0%bse_nto_state_list_final(mp2_env%ri_g0w0%num_print_exc_ntos))
-            DO i = 1, mp2_env%ri_g0w0%num_print_exc_ntos
-               mp2_env%ri_g0w0%bse_nto_state_list_final(i) = i
+            ALLOCATE (mp2_env%bse%bse_nto_state_list_final(mp2_env%bse%num_print_exc_ntos))
+            DO i = 1, mp2_env%bse%num_print_exc_ntos
+               mp2_env%bse%bse_nto_state_list_final(i) = i
             END DO
          END IF
       END IF
 
       ! Takes care of triplet states, when oscillator strengths are 0
-      IF (mp2_env%ri_g0w0%bse_spin_config /= 0 .AND. &
-          mp2_env%ri_g0w0%eps_nto_osc_str > 0) THEN
+      IF (mp2_env%bse%bse_spin_config /= 0 .AND. &
+          mp2_env%bse%eps_nto_osc_str > 0) THEN
          IF (unit_nr > 0) THEN
             CALL cp_warn(__LOCATION__, &
                          "Cannot apply EPS_OSC_STR for Triplet excitations. "// &
                          "Resetting EPS_OSC_STR to default.")
          END IF
-         mp2_env%ri_g0w0%eps_nto_osc_str = -1.0_dp
+         mp2_env%bse%eps_nto_osc_str = -1.0_dp
       END IF
 
       CALL timestop(handle)
