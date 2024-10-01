@@ -905,25 +905,27 @@ CONTAINS
 !> \param matrix_eigvl ...
 !> \param matrix_eigvr_t ...
 !> \param eigval ...
+!> \param info ...
 !> \author Maximilian Graml
 ! **************************************************************************************************
-   SUBROUTINE cp_fm_svd(matrix_a, matrix_eigvl, matrix_eigvr_t, eigval)
+   SUBROUTINE cp_fm_svd(matrix_a, matrix_eigvl, matrix_eigvr_t, eigval, info)
 
       TYPE(cp_fm_type), INTENT(IN)              :: matrix_a
       TYPE(cp_fm_type), INTENT(OUT)             :: matrix_eigvl, matrix_eigvr_t
       REAL(KIND=dp), DIMENSION(:), POINTER, &
          INTENT(OUT)                         :: eigval
+      INTEGER, INTENT(OUT), OPTIONAL           :: info
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_fm_svd'
 
-      INTEGER                                  :: handle, n, m
+      CHARACTER(LEN=2*default_string_length)   :: message
+      INTEGER                                  :: handle, n, m, myinfo, lwork
       REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a
       TYPE(cp_fm_type)                :: matrix_lu
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: work
 
 #if defined(__parallel)
-      INTEGER                                  :: info, lwork
       INTEGER, DIMENSION(9)                    :: desca, descu, descvt
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: work
 #endif
       CALL timeset(routineN, handle)
 
@@ -937,7 +939,6 @@ CONTAINS
       n = matrix_lu%matrix_struct%ncol_global
       ! Assert that incoming matrix is quadratic
       CPASSERT(m == n)
-#if defined(__parallel)
       CALL cp_fm_create(matrix=matrix_eigvl, &
                         matrix_struct=matrix_a%matrix_struct, &
                         name="LEFT_SINGULAR_MATRIX")
@@ -946,6 +947,7 @@ CONTAINS
                         matrix_struct=matrix_a%matrix_struct, &
                         name="RIGHT_SINGULAR_MATRIX")
       CALL cp_fm_set_all(matrix_eigvr_t, alpha=0.0_dp)
+#if defined(__parallel)
       ALLOCATE (eigval(m))
       eigval(:) = 0.0_dp
       desca(:) = matrix_lu%matrix_struct%descriptor(:)
@@ -955,26 +957,81 @@ CONTAINS
       ! Workspace query
       lwork = -1
       CALL pdgesvd('V', 'V', m, m, matrix_lu%local_data, 1, 1, desca, eigval, matrix_eigvl%local_data, &
-                   1, 1, descu, matrix_eigvr_t%local_data, 1, 1, descvt, work, lwork, info)
-      IF (info /= 0) &
-         CPABORT("Singular value decomposition of matrix failed.")
+                   1, 1, descu, matrix_eigvr_t%local_data, 1, 1, descvt, work, lwork, myinfo)
+
+      IF (matrix_lu%matrix_struct%para_env%is_source() .AND. (myinfo /= 0)) THEN
+         WRITE (message, "(A,I0,A)") "ERROR in PDGESVD: Work space query failed (INFO = ", myinfo, ")"
+         IF (PRESENT(info)) THEN
+            CPWARN(TRIM(message))
+         ELSE
+            CPABORT(TRIM(message))
+         END IF
+      END IF
+
       lwork = INT(work(1))
       DEALLOCATE (work)
       ALLOCATE (work(lwork))
       ! SVD
       CALL pdgesvd('V', 'V', m, m, matrix_lu%local_data, 1, 1, desca, eigval, matrix_eigvl%local_data, &
-                   1, 1, descu, matrix_eigvr_t%local_data, 1, 1, descvt, work, lwork, info)
+                   1, 1, descu, matrix_eigvr_t%local_data, 1, 1, descvt, work, lwork, myinfo)
+
+      IF (matrix_lu%matrix_struct%para_env%is_source() .AND. (myinfo /= 0)) THEN
+         WRITE (message, "(A,I0,A)") "ERROR in PDGESVD: Matrix diagonalization failed (INFO = ", myinfo, ")"
+         IF (PRESENT(info)) THEN
+            CPWARN(TRIM(message))
+         ELSE
+            CPABORT(TRIM(message))
+         END IF
+      END IF
+#else
+      ! Retrieve the optimal work array sizes first
+      lwork = -1
+      a => matrix_lu%local_data
+      m = matrix_lu%matrix_struct%nrow_global
+      n = matrix_lu%matrix_struct%ncol_global
+      ! Assert that incoming matrix is quadratic
+      CPASSERT(m == n)
+      ALLOCATE (eigval(m))
+      eigval(:) = 0.0_dp
+
+      ALLOCATE (work(1))
+      work(:) = 0.0_dp
+
+      CALL dgesvd('S', 'S', m, m, matrix_lu%local_data, m, eigval, matrix_eigvl%local_data, &
+                  m, matrix_eigvr_t%local_data, m, work, lwork, myinfo)
+
+      IF (myinfo /= 0) THEN
+         WRITE (message, "(A,I0,A)") "ERROR in DSYEVD: Work space query failed (INFO = ", myinfo, ")"
+         IF (PRESENT(info)) THEN
+            CPWARN(TRIM(message))
+         ELSE
+            CPABORT(TRIM(message))
+         END IF
+      END IF
+
+      ! Reallocate work arrays and perform diagonalisation
+      lwork = INT(work(1))
       DEALLOCATE (work)
-      IF (info /= 0) &
-         CPABORT("Singular value decomposition of matrix failed.")
+      ALLOCATE (work(lwork))
+      work(:) = 0.0_dp
+
+      CALL dgesvd('S', 'S', m, m, matrix_lu%local_data, m, eigval, matrix_eigvl%local_data, &
+                  m, matrix_eigvr_t%local_data, m, work, lwork, myinfo)
+
+      IF (myinfo /= 0) THEN
+         WRITE (message, "(A,I0,A)") "ERROR in DSYEVD: Matrix diagonalization failed (INFO = ", myinfo, ")"
+         IF (PRESENT(info)) THEN
+            CPWARN(TRIM(message))
+         ELSE
+            CPABORT(TRIM(message))
+         END IF
+      END IF
+
+      DEALLOCATE (work)
+#endif
+
       ! Release work matrices
       CALL cp_fm_release(matrix_lu)
-
-#else
-      ! MG to do
-      CALL cp_abort(__LOCATION__, &
-                    "NYI. Singular value decomposition not available without SCALAPACK.")
-#endif
       CALL timestop(handle)
    END SUBROUTINE cp_fm_svd
 

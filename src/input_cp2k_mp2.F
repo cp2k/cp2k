@@ -1112,7 +1112,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="LOWER_BOUND", &
                           description="Lower bound for GW-DOS in eV.", &
-                          usage="GW_DOS_LOWER_BOUND -20.0", &
+                          usage="LOWER_BOUND -20.0", &
                           default_r_val=cp_unit_to_cp2k(value=-20.0_dp, unit_str="eV"), &
                           unit_str="eV")
       CALL section_add_keyword(gw_dos_section, keyword)
@@ -1120,7 +1120,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="UPPER_BOUND", &
                           description="Upper bound for GW-DOS in eV.", &
-                          usage="GW_DOS_UPPER_BOUND 5.0", &
+                          usage="UPPER_BOUND 5.0", &
                           default_r_val=cp_unit_to_cp2k(value=0.0_dp, unit_str="eV"), &
                           unit_str="eV")
       CALL section_add_keyword(gw_dos_section, keyword)
@@ -1128,7 +1128,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="STEP", &
                           description="Difference of two consecutive energy levels for GW-DOS.", &
-                          usage="GW_DOS_PRECISION 0.1", &
+                          usage="STEP 0.1", &
                           default_r_val=cp_unit_to_cp2k(value=0.0_dp, unit_str="eV"), &
                           unit_str="eV")
       CALL section_add_keyword(gw_dos_section, keyword)
@@ -1136,14 +1136,14 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="MIN_LEVEL_SPECTRAL", &
                           description="Lowest energy level to print the self energy to files.", &
-                          usage="MIN_LEVEL_SELF_ENERGY 3", &
+                          usage="MIN_LEVEL_SPECTRAL 3", &
                           default_i_val=1)
       CALL section_add_keyword(gw_dos_section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="MAX_LEVEL_SPECTRAL", &
                           description="Highest energy level to print the self energy to files.", &
-                          usage="MAX_LEVEL_SELF_ENERGY 6", &
+                          usage="MAX_LEVEL_SPECTRAL 6", &
                           default_i_val=0)
       CALL section_add_keyword(gw_dos_section, keyword)
       CALL keyword_release(keyword)

@@ -1993,22 +1993,28 @@ CONTAINS
             mp2_env%ri_g0w0%eps_nto_eigval
          WRITE (unit_nr, '(T2,A4)') 'BSE|'
       END IF
+
+      ! Write the header of NTO info table
+      IF (unit_nr > 0) THEN
+         WRITE (unit_nr, '(T2,A4)') 'BSE|'
+         WRITE (unit_nr, '(T2,A4,T8,A12,T22,A8,T35,A12,T55,A26)') 'BSE|', &
+            'Excitation n', "TDA/ABBA", "Index of NTO", 'Contribution to excitation'
+      END IF
       DO n_exc = 1, MIN(homo*virtual, mp2_env%ri_g0w0%num_print_exc_ntos)
          ! Takes care of unallocated oscill_str array in case of Triplet
          IF (mp2_env%ri_g0w0%eps_nto_osc_str > 0.0_dp) THEN
             ! Check actual values
             IF (oscill_str(n_exc) < mp2_env%ri_g0w0%eps_nto_osc_str) THEN
+               ! Print skipped levels to table
                IF (unit_nr > 0) THEN
-                  WRITE (unit_nr, '(T2,A4,T7,A25,I5,A33)') &
-                     'BSE|', "Skipping NTOs of n_exc = ", n_exc, " due to small oscillator strength"
+                  WRITE (unit_nr, '(T2,A4)') 'BSE|'
+                  WRITE (unit_nr, '(T2,A4,T8,I12,T24,A6,T42,A39)') 'BSE|', &
+                     n_exc, info_approximation, "Skipped (Oscillator strength too small)"
                END IF
                CYCLE
             END IF
          END IF
-         IF (unit_nr > 0) THEN
-            WRITE (unit_nr, '(T2,A4,T7,A28,I5)') &
-               'BSE|', "Calculating NTOs of n_exc = ", n_exc
-         END IF
+
          CALL cp_fm_create(fm_m, matrix_struct=fm_struct_m, &
                            name="single_part_trans_dm")
          CALL cp_fm_set_all(fm_m, 0.0_dp)
@@ -2091,11 +2097,10 @@ CONTAINS
          END DO
 
          IF (unit_nr > 0) THEN
-            WRITE (unit_nr, '(T2,A4,T7,A24,I3,A6)') &
-               'BSE|', "with contributions from ", n_nto, " NTOs:"
+            WRITE (unit_nr, '(T2,A4)') 'BSE|'
             DO i_nto = 1, n_nto
-               WRITE (unit_nr, '(T2,A4,T7,I3,A13,F10.3)') &
-                  'BSE|', i_nto, " contributes ", eigval_svd_squ(i_nto)
+               WRITE (unit_nr, '(T2,A4,T8,I12,T24,A6,T41,I6,T71,F10.5)') 'BSE|', &
+                  n_exc, info_approximation, i_nto, eigval_svd_squ(i_nto)
             END DO
          END IF
 
@@ -2122,9 +2127,6 @@ CONTAINS
             CALL print_bse_nto_cubes(qs_env, nto_set, n_exc, info_approximation, &
                                      stride, append_cube, nto_section)
          END IF
-         ! CALL get_qs_env(qs_env, qs_kind_set=qs_kind_set, particle_set=particle_set)
-         ! molden_section => section_vals_get_subs_vals(print_section, "MOS_MOLDEN")
-         ! CALL write_mos_molden(nto_set, qs_kind_set, particle_set, molden_section)
 
          CALL cp_fm_release(fm_nto_coeff_holes)
          CALL cp_fm_release(fm_nto_coeff_particles)
@@ -2135,6 +2137,7 @@ CONTAINS
          END DO
          DEALLOCATE (nto_set)
       END DO
+
       CALL cp_fm_release(fm_mo_coeff)
       CALL cp_fm_struct_release(fm_struct_m)
       CALL cp_fm_struct_release(fm_struct_nto_holes)

@@ -178,15 +178,18 @@ CONTAINS
          END IF
       END IF
 
-      ! Default to NUM_PRINT_EXC if too large or negative
-      IF (mp2_env%ri_g0w0%num_print_exc_ntos > mp2_env%ri_g0w0%num_print_exc .OR. &
-          mp2_env%ri_g0w0%num_print_exc_ntos < 0) THEN
-         IF (unit_nr > 0) THEN
-            CALL cp_warn(__LOCATION__, &
-                         "Keyword NUM_PRINT_EXC_NTOs is either negative or too large. "// &
-                         "Setting to NUM_PRINT_EXC.")
+      ! Default to NUM_PRINT_EXC if too large or negative,
+      ! but only if NTOs are called - would be confusing for the user otherwise
+      IF (mp2_env%ri_g0w0%do_NTO_analysis) THEN
+         IF (mp2_env%ri_g0w0%num_print_exc_ntos > mp2_env%ri_g0w0%num_print_exc .OR. &
+             mp2_env%ri_g0w0%num_print_exc_ntos < 0) THEN
+            IF (unit_nr > 0) THEN
+               CALL cp_warn(__LOCATION__, &
+                            "Keyword NUM_PRINT_EXC_NTOs is either negative or too large. "// &
+                            "Setting to NUM_PRINT_EXC.")
+            END IF
+            mp2_env%ri_g0w0%num_print_exc_ntos = mp2_env%ri_g0w0%num_print_exc
          END IF
-         mp2_env%ri_g0w0%num_print_exc_ntos = mp2_env%ri_g0w0%num_print_exc
       END IF
 
       ! Takes care of triplet states, when oscillator strengths are 0
