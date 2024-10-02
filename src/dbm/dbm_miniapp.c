@@ -50,6 +50,7 @@ static dbm_matrix_t *create_some_matrix(const int nrows, const int ncols,
   // Create distribution.
   int *row_dist = malloc(nrows * sizeof(int));
   int *col_dist = malloc(ncols * sizeof(int));
+  assert(row_dist != NULL && col_dist != NULL);
   for (int i = 0; i < nrows; i++) {
     row_dist[i] = i % cart_dims[0];
   }
@@ -65,6 +66,7 @@ static dbm_matrix_t *create_some_matrix(const int nrows, const int ncols,
   // Create matrix.
   int *row_sizes = malloc(nrows * sizeof(int));
   int *col_sizes = malloc(ncols * sizeof(int));
+  assert(row_sizes != NULL && col_sizes != NULL);
   for (int i = 0; i < nrows; i++) {
     row_sizes[i] = row_size;
   }
@@ -103,6 +105,7 @@ static void reserve_all_blocks(dbm_matrix_t *matrix) {
     }
     int *reserve_row = malloc(nblocks * sizeof(int));
     int *reserve_col = malloc(nblocks * sizeof(int));
+    assert(reserve_row != NULL && reserve_col != NULL);
     int iblock = 0;
 #pragma omp for collapse(2)
     for (int row = 0; row < nrows; row++) {

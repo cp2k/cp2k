@@ -114,6 +114,7 @@ static void create_pack_plans(const bool trans_matrix, const bool trans_dist,
 #pragma omp for
     for (int ipack = 0; ipack < npacks; ipack++) {
       plans_per_pack[ipack] = malloc(nblks_per_pack[ipack] * sizeof(plan_t));
+      assert(plans_per_pack[ipack] != NULL);
     }
 
     // 2nd pass: Plan where to send each block.
@@ -272,6 +273,7 @@ static void postprocess_received_blocks(
   memset(nblocks_per_shard, 0, nshards * sizeof(int));
   dbm_pack_block_t *blocks_tmp =
       malloc(nblocks_recv * sizeof(dbm_pack_block_t));
+  assert(blocks_tmp != NULL);
 
 #pragma omp parallel
   {
@@ -346,6 +348,7 @@ static dbm_packed_matrix_t pack_matrix(const bool trans_matrix,
   packed.dist_ticks = dist_ticks;
   packed.nsend_packs = nsend_packs;
   packed.send_packs = malloc(nsend_packs * sizeof(dbm_pack_t));
+  assert(packed.send_packs != NULL);
 
   // Plan all packs.
   plan_t *plans_per_pack[nsend_packs];
@@ -524,6 +527,7 @@ dbm_comm_iterator_t *dbm_comm_iterator_start(const bool transa,
                                              const dbm_matrix_t *matrix_c) {
 
   dbm_comm_iterator_t *iter = malloc(sizeof(dbm_comm_iterator_t));
+  assert(iter != NULL);
   iter->dist = matrix_c->dist;
 
   // During each communication tick we'll fetch a pack_a and pack_b.

@@ -115,6 +115,7 @@ static void *internal_mempool_malloc(const size_t size, const bool on_device) {
     // If no chunk was found, allocate a new one.
     if (chunk == NULL) {
       chunk = malloc(sizeof(dbm_memchunk_t));
+      assert(chunk != NULL);
       chunk->on_device = on_device;
       chunk->size = 0;
       chunk->mem = NULL;

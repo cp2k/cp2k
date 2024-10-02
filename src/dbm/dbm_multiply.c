@@ -47,6 +47,7 @@ static float *compute_rows_max_eps(const bool trans, const dbm_matrix_t *matrix,
   const int nrows = (trans) ? matrix->ncols : matrix->nrows;
   int *nblocks_per_row = calloc(nrows, sizeof(int));
   float *row_max_eps = malloc(nrows * sizeof(float));
+  assert(row_max_eps != NULL);
 
 #pragma omp parallel
   {
