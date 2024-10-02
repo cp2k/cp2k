@@ -34,7 +34,7 @@ MODULE tblite_interface
    USE kinds, ONLY: dp
    USE atomic_kind_types, ONLY: get_atomic_kind
    USE input_constants, ONLY: gfn1xtb, gfn2xtb, ipea1xtb
-   USE basis_set_types, ONLY: gto_basis_set_type
+   USE basis_set_types, ONLY: gto_basis_set_type, allocate_gto_basis_set
    USE tblite_types, ONLY: tblite_type, deallocate_tblite_type
 
 #include "./base/base_uses.f90"
@@ -45,7 +45,7 @@ MODULE tblite_interface
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'tblite_interface'
 
    PUBLIC :: tb_init_geometry, tb_init_ham, tb_init_wf
-   PUBLIC :: tb_set_calculator
+   PUBLIC :: tb_set_calculator, tb_get_basis
 
 CONTAINS
 
@@ -304,11 +304,15 @@ CONTAINS
 !> \brief ...
 !> \param tb ...
 !> \param gto_basis_set ...
+!> \param element_symbol ...
 ! **************************************************************************************************
-   SUBROUTINE set_basis(tb, gto_basis_set)
+   SUBROUTINE tb_get_basis(tb, gto_basis_set, element_symbol)
 
       TYPE(tblite_type), POINTER                         :: tb
       TYPE(gto_basis_set_type), POINTER                  :: gto_basis_set
+      CHARACTER(len=2)                                   :: element_symbol
+      
+      CALL allocate_gto_basis_set(gto_basis_set)
 
 #if defined(__TBLITE)
 
@@ -316,7 +320,7 @@ CONTAINS
       CPABORT("Build without TBLITE")
 #endif
 
-   END SUBROUTINE set_basis
+   END SUBROUTINE tb_get_basis
 
 END MODULE tblite_interface
 

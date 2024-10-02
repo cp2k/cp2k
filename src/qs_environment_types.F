@@ -154,6 +154,8 @@ MODULE qs_environment_types
    USE semi_empirical_types,            ONLY: se_taper_release,&
                                               se_taper_type
    USE task_list_types,                 ONLY: task_list_type
+   USE tblite_types,                    ONLY: deallocate_tblite_type,&
+                                              tblite_type
    USE transport_env_types,             ONLY: transport_env_release,&
                                               transport_env_type
    USE virial_types,                    ONLY: virial_type
@@ -315,6 +317,8 @@ MODULE qs_environment_types
       REAL(KIND=dp)                                         :: total_zeff_corr = -1.0_dp, surface_dipole_moment = -1.0_dp
       LOGICAL                                               :: surface_dipole_switch_off = .FALSE.
       TYPE(mo_set_type), DIMENSION(:), POINTER              :: mos_last_converged => NULL()
+      ! tblite
+      TYPE(tblite_type), POINTER                            :: tb_tblite => Null()
    END TYPE qs_environment_type
 
 CONTAINS
@@ -479,6 +483,7 @@ CONTAINS
 !> \param mos_last_converged ... [SGh]
 !> \param eeq ...
 !> \param rhs ...
+!> \param tb_tblite ...
 !> \date    23.01.2002
 !> \author  MK
 !> \version 1.0
@@ -497,8 +502,7 @@ CONTAINS
                          vppl, rho_core, rho_nlcc, rho_nlcc_g, ks_env, ks_qmmm_env, wf_history, scf_env, local_particles, &
                          local_molecules, distribution_2d, dbcsr_dist, molecule_kind_set, &
                          molecule_set, subsys, cp_subsys, oce, local_rho_set, rho_atom_set, &
-                         task_list, &
-                         task_list_soft, &
+                         task_list, task_list_soft, &
                          rho0_atom_set, rho0_mpole, rhoz_set, ecoul_1c, &
                          rho0_s_rs, rho0_s_gs, do_kpoints, has_unit_metric, requires_mo_derivs, mo_derivs, &
                          mo_loc_history, nkind, natom, nelectron_total, nelectron_spin, efield, &
@@ -510,7 +514,7 @@ CONTAINS
                          WannierCentres, atprop, ls_scf_env, do_transport, transport_env, v_hartree_rspace, &
                          s_mstruct_changed, rho_changed, potential_changed, forces_up_to_date, mscfg_env, almo_scf_env, &
                          gradient_history, variable_history, embed_pot, spin_embed_pot, polar_env, mos_last_converged, &
-                         eeq, rhs)
+                         eeq, rhs, tb_tblite)
       TYPE(qs_environment_type), INTENT(IN)              :: qs_env
       TYPE(atomic_kind_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: atomic_kind_set
@@ -644,6 +648,7 @@ CONTAINS
       TYPE(polar_env_type), OPTIONAL, POINTER            :: polar_env
       TYPE(mo_set_type), DIMENSION(:), OPTIONAL, POINTER :: mos_last_converged
       REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: eeq, rhs
+      TYPE(tblite_type), OPTIONAL, POINTER               :: tb_tblite
 
       TYPE(rho0_mpole_type), POINTER                     :: rho0_m
 
@@ -837,6 +842,8 @@ CONTAINS
                       nelectron_total=nelectron_total, &
                       nelectron_spin=nelectron_spin)
 
+      IF (PRESENT(tb_tblite)) tb_tblite => qs_env%tb_tblite
+
    END SUBROUTINE get_qs_env
 
 ! **************************************************************************************************
@@ -955,6 +962,8 @@ CONTAINS
 
       IF (.NOT. ASSOCIATED(qs_env%molecular_scf_guess_env)) ALLOCATE (qs_env%molecular_scf_guess_env)
 
+      NULLIFY (qs_env%tb_tblite)
+
    END SUBROUTINE init_qs_env
 
 ! **************************************************************************************************
@@ -1032,6 +1041,7 @@ CONTAINS
 !> \param mos_last_converged ... [SGh]
 !> \param eeq ...
 !> \param rhs ...
+!> \param tb_tblite ...
 !> \date    23.01.2002
 !> \author  MK
 !> \version 1.0
@@ -1051,7 +1061,7 @@ CONTAINS
                          do_transport, transport_env, lri_env, lri_density, exstate_env, ec_env, dispersion_env, &
                          harris_env, gcp_env, mp2_env, bs_env, kg_env, force, &
                          kpoints, WannierCentres, almo_scf_env, gradient_history, variable_history, embed_pot, &
-                         spin_embed_pot, polar_env, mos_last_converged, eeq, rhs)
+                         spin_embed_pot, polar_env, mos_last_converged, eeq, rhs, tb_tblite)
 
       TYPE(qs_environment_type), INTENT(INOUT)           :: qs_env
       TYPE(cell_type), OPTIONAL, POINTER                 :: super_cell
@@ -1128,6 +1138,7 @@ CONTAINS
       TYPE(polar_env_type), OPTIONAL, POINTER            :: polar_env
       TYPE(mo_set_type), DIMENSION(:), OPTIONAL, POINTER :: mos_last_converged
       REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: eeq, rhs
+      TYPE(tblite_type), OPTIONAL, POINTER               :: tb_tblite
 
       TYPE(qs_subsys_type), POINTER                      :: subsys
 
@@ -1361,6 +1372,8 @@ CONTAINS
          CALL get_qs_env(qs_env, subsys=subsys)
          CALL qs_subsys_set(subsys, force=force)
       END IF
+
+      IF (PRESENT(tb_tblite)) qs_env%tb_tblite => tb_tblite
 
    END SUBROUTINE set_qs_env
 
@@ -1831,6 +1844,10 @@ CONTAINS
       IF (ASSOCIATED(qs_env%eeq)) DEALLOCATE (qs_env%eeq)
       ! Resp charges
       IF (ASSOCIATED(qs_env%rhs)) DEALLOCATE (qs_env%rhs)
+
+      IF (ASSOCIATED(qs_env%tb_tblite)) THEN
+         CALL deallocate_tblite_type(qs_env%tb_tblite)
+      END IF
 
    END SUBROUTINE qs_env_part_release
 
