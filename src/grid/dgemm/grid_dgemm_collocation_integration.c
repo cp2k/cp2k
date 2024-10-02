@@ -5,6 +5,7 @@
 /*  SPDX-License-Identifier: BSD-3-Clause                                     */
 /*----------------------------------------------------------------------------*/
 
+#include <assert.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -21,10 +22,7 @@ struct collocation_integration_ *collocate_create_handle(void) {
   struct collocation_integration_ *handle = NULL;
   handle = (struct collocation_integration_ *)malloc(
       sizeof(struct collocation_integration_));
-
-  if (handle == NULL) {
-    abort();
-  }
+  assert(handle != NULL);
   memset(handle, 0, sizeof(struct collocation_integration_));
 
   handle->alpha.alloc_size_ = 8192;
@@ -39,6 +37,7 @@ struct collocation_integration_ *collocate_create_handle(void) {
   handle->pol_alloc_size = realloc_tensor(&handle->pol);
 
   handle->scratch = malloc(32768 * sizeof(double));
+  assert(handle->scratch != NULL);
   handle->scratch_alloc_size = 32768;
   handle->T_alloc_size = 8192;
   handle->W_alloc_size = 2048;
@@ -46,11 +45,14 @@ struct collocation_integration_ *collocate_create_handle(void) {
   handle->blockDim[1] = 5;
   handle->blockDim[2] = 5;
   handle->device_id = (int *)malloc(sizeof(double) * 12);
+  assert(handle->device_id != NULL);
   handle->number_of_devices = 1;
 
   /* to suppress when we remove the spherical cutoff */
   handle->map = (int **)malloc(3 * sizeof(int *));
+  assert(handle->map != NULL);
   handle->map[0] = (int *)malloc(sizeof(int) * 512 * 3);
+  assert(handle->map[0] != NULL);
   handle->map[1] = handle->map[0] + 512;
   handle->map[2] = handle->map[1] + 512;
   handle->cmax = 512 * 3;
@@ -105,8 +107,7 @@ void initialize_W_and_T(collocation_integration *const handler,
     if (handler->scratch)
       free(handler->scratch);
     handler->scratch = malloc(sizeof(double) * handler->scratch_alloc_size);
-    if (handler->scratch == NULL)
-      abort();
+    assert(handler->scratch != NULL);
   }
 }
 
@@ -135,8 +136,7 @@ void initialize_W_and_T_integrate(collocation_integration *const handler,
     if (handler->scratch)
       free(handler->scratch);
     handler->scratch = malloc(sizeof(double) * handler->scratch_alloc_size);
-    if (handler->scratch == NULL)
-      abort();
+    assert(handler->scratch != NULL);
   }
 }
 

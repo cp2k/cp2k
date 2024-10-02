@@ -201,6 +201,7 @@ void grid_cpu_collocate_pgf_product(
   if (DUMP_TASKS) {
     const size_t sizeof_grid = sizeof(double) * npts_local_total;
     grid_before = malloc(sizeof_grid);
+    assert(grid_before != NULL);
     memcpy(grid_before, grid, sizeof_grid);
     memset(grid, 0, sizeof_grid);
   }

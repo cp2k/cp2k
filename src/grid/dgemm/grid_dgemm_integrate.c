@@ -1074,6 +1074,7 @@ void grid_dgemm_integrate_task_list(
 
   if (ctx->scratch == NULL)
     ctx->scratch = malloc(hab_blocks->size * max_threads);
+  assert(ctx->scratch != NULL);
 
   // #pragma omp parallel for
   for (int level = 0; level < ctx->nlevels; level++) {

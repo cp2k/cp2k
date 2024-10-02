@@ -71,6 +71,7 @@ static void rebuild_cache_entry(const int max_imr, const double drmin,
 
   // Compute required storage size.
   entry->offsets = malloc(max_imr * sizeof(int));
+  assert(entry->offsets != NULL);
   int nbounds_total = 0;
   for (int imr = 1; imr <= max_imr; imr++) {
     const double radius = imr * drmin;
@@ -81,6 +82,7 @@ static void rebuild_cache_entry(const int max_imr, const double drmin,
 
   // Allocate and fill storage.
   entry->storage = malloc(nbounds_total * sizeof(int));
+  assert(entry->storage != NULL);
   for (int imr = 1; imr <= max_imr; imr++) {
     const double radius = imr * drmin;
     const int offset = entry->offsets[imr - 1];
@@ -102,7 +104,7 @@ void grid_sphere_cache_lookup(const double radius, const double dh[3][3],
 
   // Find or create cache entry for given grid.
   const double dr0 = dh[0][0], dr1 = dh[1][1], dr2 = dh[2][2];
-  grid_sphere_cache_entry *entry = 0;
+  grid_sphere_cache_entry *entry = NULL;
   bool found = false;
 
   // Fast path: check prev match.
@@ -131,6 +133,7 @@ void grid_sphere_cache_lookup(const double radius, const double dh[3][3],
     grid_sphere_cache_entry *old_entries = cache->entries;
     const size_t entry_size = sizeof(grid_sphere_cache_entry);
     cache->entries = malloc(cache->size * entry_size);
+    assert(cache->entries != NULL);
     memcpy(cache->entries, old_entries, (cache->size - 1) * entry_size);
     free(old_entries);
     cache->prev_match = cache->size - 1;

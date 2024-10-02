@@ -5,6 +5,7 @@
 /*  SPDX-License-Identifier: BSD-3-Clause                                     */
 /*----------------------------------------------------------------------------*/
 
+#include <assert.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -24,6 +25,7 @@ void grid_create_basis_set(const int nset, const int nsgf, const int maxco,
                            grid_basis_set **basis_set_out) {
 
   grid_basis_set *basis_set = malloc(sizeof(grid_basis_set));
+  assert(basis_set != NULL);
 
   basis_set->nset = nset;
   basis_set->nsgf = nsgf;
@@ -32,20 +34,27 @@ void grid_create_basis_set(const int nset, const int nsgf, const int maxco,
 
   size_t size = nset * sizeof(int);
   basis_set->lmin = malloc(size);
+  assert(basis_set->lmin != NULL);
   memcpy(basis_set->lmin, lmin, size);
   basis_set->lmax = malloc(size);
+  assert(basis_set->lmax != NULL);
   memcpy(basis_set->lmax, lmax, size);
   basis_set->npgf = malloc(size);
+  assert(basis_set->npgf != NULL);
   memcpy(basis_set->npgf, npgf, size);
   basis_set->nsgf_set = malloc(size);
+  assert(basis_set->nsgf_set != NULL);
   memcpy(basis_set->nsgf_set, nsgf_set, size);
   basis_set->first_sgf = malloc(size);
+  assert(basis_set->first_sgf != NULL);
   memcpy(basis_set->first_sgf, first_sgf, size);
   size = nsgf * maxco * sizeof(double);
   basis_set->sphi = malloc(size);
+  assert(basis_set->sphi != NULL);
   memcpy(basis_set->sphi, sphi, size);
   size = nset * maxpgf * sizeof(double);
   basis_set->zet = malloc(size);
+  assert(basis_set->zet != NULL);
   memcpy(basis_set->zet, zet, size);
 
   *basis_set_out = basis_set;
