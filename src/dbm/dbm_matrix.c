@@ -34,6 +34,7 @@ void dbm_create(dbm_matrix_t **matrix_out, dbm_distribution_t *dist,
 
   size_t size = (strlen(name) + 1) * sizeof(char);
   matrix->name = malloc(size);
+  assert(matrix->name != NULL);
   memcpy(matrix->name, name, size);
 
   matrix->nrows = nrows;
@@ -41,13 +42,16 @@ void dbm_create(dbm_matrix_t **matrix_out, dbm_distribution_t *dist,
 
   size = nrows * sizeof(int);
   matrix->row_sizes = malloc(size);
+  assert(matrix->row_sizes != NULL);
   memcpy(matrix->row_sizes, row_sizes, size);
 
   size = ncols * sizeof(int);
   matrix->col_sizes = malloc(size);
+  assert(matrix->col_sizes != NULL);
   memcpy(matrix->col_sizes, col_sizes, size);
 
   matrix->shards = malloc(dbm_get_num_shards(matrix) * sizeof(dbm_shard_t));
+  assert(matrix->shards != NULL);
 #pragma omp parallel for
   for (int ishard = 0; ishard < dbm_get_num_shards(matrix); ishard++) {
     dbm_shard_init(&matrix->shards[ishard]);
@@ -427,6 +431,7 @@ void dbm_iterator_start(dbm_iterator_t **iter_out, const dbm_matrix_t *matrix) {
   assert(omp_get_num_threads() == omp_get_max_threads() &&
          "Please call dbm_iterator_start within an OpenMP parallel region.");
   dbm_iterator_t *iter = malloc(sizeof(dbm_iterator_t));
+  assert(iter != NULL);
   iter->matrix = matrix;
   iter->next_block = 0;
   iter->next_shard = omp_get_thread_num();

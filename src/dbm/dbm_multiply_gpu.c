@@ -38,6 +38,7 @@ void dbm_multiply_gpu_start(const int max_batch_size, const int nshards,
 
   // Allocate and upload shards of result matrix C.
   ctx->shards_c_dev = malloc(nshards * sizeof(dbm_shard_gpu_t));
+  assert(ctx->shards_c_dev != NULL);
   for (int i = 0; i < nshards; i++) {
     const dbm_shard_t *shard_c_host = &ctx->shards_c_host[i];
     dbm_shard_gpu_t *shard_c_dev = &ctx->shards_c_dev[i];
