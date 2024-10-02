@@ -92,6 +92,7 @@ void update_atoms_position(const int natoms,
           realloc(data->atom_positions, 3 * natoms * sizeof(double));
     }
   }
+  assert(data->atom_positions != NULL);
 
   data->natoms = natoms;
 
@@ -119,6 +120,7 @@ void update_atoms_kinds(const int natoms, const int *atoms_kinds,
       data->atom_kinds = realloc(data->atom_kinds, natoms * sizeof(int));
     }
   }
+  assert(data->atom_kinds != NULL);
   // data->natoms is initialized before calling this function
   if (data->natoms)
     memcpy(data->atom_kinds, atoms_kinds, sizeof(int) * natoms);
@@ -142,6 +144,7 @@ void update_block_offsets(const int nblocks, const int *const block_offsets,
       data->block_offsets = realloc(data->block_offsets, sizeof(int) * nblocks);
     }
   }
+  assert(data->block_offsets != NULL);
 
   data->nblocks = nblocks;
   data->nblocks_total = imax(data->nblocks_total, nblocks);
@@ -159,6 +162,7 @@ void update_basis_set(const int nkinds, const grid_basis_set **const basis_sets,
           realloc(data->basis_sets, nkinds * sizeof(grid_basis_set *));
     }
   }
+  assert(data->basis_sets != NULL);
   data->nkinds = nkinds;
   data->nkinds_total = imax(data->nkinds_total, nkinds);
   memcpy(data->basis_sets, basis_sets, nkinds * sizeof(grid_basis_set *));
@@ -193,9 +197,11 @@ void update_task_lists(const int nlevels, const int ntasks,
     if (ctx->nlevels_total < nlevels) {
       /* save the address of the full task list. NULL when completly empty */
       ctx->tasks = realloc(ctx->tasks, nlevels * sizeof(_task *));
+      assert(ctx->tasks != NULL);
     }
     if (ctx->ntasks_total < ntasks) {
       ctx->tasks[0] = realloc(ctx->tasks[0], ntasks * sizeof(_task));
+      assert(ctx->tasks[0] != NULL);
     }
   }
 
@@ -344,6 +350,7 @@ void update_grid(const int nlevels, grid_context *ctx) {
       ctx->grid = realloc(ctx->grid, sizeof(tensor) * nlevels);
     }
   }
+  assert(ctx->grid != NULL);
 
   ctx->nlevels_total = imax(ctx->nlevels_total, nlevels);
   ctx->nlevels = nlevels;
@@ -447,10 +454,12 @@ void initialize_grid_context_on_gpu(void *ptr, const int number_of_devices,
 
   ctx->number_of_devices = number_of_devices;
   ctx->queue_length = 8192;
-  if (ctx->device_id == NULL)
+  if (ctx->device_id == NULL) {
     ctx->device_id = malloc(sizeof(int) * number_of_devices);
-  else
+  } else {
     ctx->device_id = realloc(ctx->device_id, sizeof(int) * number_of_devices);
+  }
+  assert(ctx->device_id != NULL);
 
   memcpy(ctx->device_id, device_id, sizeof(int) * number_of_devices);
 }

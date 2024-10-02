@@ -60,6 +60,7 @@ void grid_cpu_create_task_list(
   }
 
   grid_cpu_task_list *task_list = malloc(sizeof(grid_cpu_task_list));
+  assert(task_list != NULL);
 
   task_list->orthorhombic = orthorhombic;
   task_list->ntasks = ntasks;
@@ -70,22 +71,27 @@ void grid_cpu_create_task_list(
 
   size_t size = nblocks * sizeof(int);
   task_list->block_offsets = malloc(size);
+  assert(task_list->block_offsets != NULL);
   memcpy(task_list->block_offsets, block_offsets, size);
 
   size = 3 * natoms * sizeof(double);
   task_list->atom_positions = malloc(size);
+  assert(task_list->atom_positions != NULL);
   memcpy(task_list->atom_positions, atom_positions, size);
 
   size = natoms * sizeof(int);
   task_list->atom_kinds = malloc(size);
+  assert(task_list->atom_kinds != NULL);
   memcpy(task_list->atom_kinds, atom_kinds, size);
 
   size = nkinds * sizeof(grid_basis_set *);
   task_list->basis_sets = malloc(size);
+  assert(task_list->basis_sets != NULL);
   memcpy(task_list->basis_sets, basis_sets, size);
 
   size = ntasks * sizeof(grid_cpu_task);
   task_list->tasks = malloc(size);
+  assert(task_list->tasks != NULL);
   for (int i = 0; i < ntasks; i++) {
     task_list->tasks[i].level = level_list[i];
     task_list->tasks[i].iatom = iatom_list[i];
@@ -105,6 +111,7 @@ void grid_cpu_create_task_list(
   // Store grid layouts.
   size = nlevels * sizeof(grid_cpu_layout);
   task_list->layouts = malloc(size);
+  assert(task_list->layouts != NULL);
   for (int level = 0; level < nlevels; level++) {
     for (int i = 0; i < 3; i++) {
       task_list->layouts[level].npts_global[i] = npts_global[level][i];
@@ -124,7 +131,9 @@ void grid_cpu_create_task_list(
   // Find first and last task for each level and block.
   size = nlevels * nblocks * sizeof(int);
   task_list->first_level_block_task = malloc(size);
+  assert(task_list->first_level_block_task != NULL);
   task_list->last_level_block_task = malloc(size);
+  assert(task_list->last_level_block_task != NULL);
   for (int i = 0; i < nlevels * nblocks; i++) {
     task_list->first_level_block_task[i] = 0;
     task_list->last_level_block_task[i] = -1; // last < first means no tasks
@@ -148,9 +157,11 @@ void grid_cpu_create_task_list(
   // Initialize thread-local storage.
   size = omp_get_max_threads() * sizeof(double *);
   task_list->threadlocals = malloc(size);
+  assert(task_list->threadlocals != NULL);
   memset(task_list->threadlocals, 0, size);
   size = omp_get_max_threads() * sizeof(size_t);
   task_list->threadlocal_sizes = malloc(size);
+  assert(task_list->threadlocal_sizes != NULL);
   memset(task_list->threadlocal_sizes, 0, size);
 
   *task_list_out = task_list;
@@ -272,6 +283,7 @@ static void collocate_one_grid_level(
         free(task_list->threadlocals[ithread]);
       }
       task_list->threadlocals[ithread] = malloc(grid_size);
+      assert(task_list->threadlocals[ithread] != NULL);
       task_list->threadlocal_sizes[ithread] = grid_size;
     }
 
