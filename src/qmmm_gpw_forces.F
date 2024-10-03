@@ -34,8 +34,7 @@ MODULE qmmm_gpw_forces
                                               section_vals_val_get
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_comm_type,&
-                                              mp_para_env_type,&
-                                              mp_request_type
+                                              mp_para_env_type
    USE mm_collocate_potential,          ONLY: collocate_gf_rspace_NoPBC,&
                                               integrate_gf_rspace_NoPBC
    USE particle_types,                  ONLY: particle_type
@@ -415,13 +414,12 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_forces_with_gaussian'
 
       INTEGER                                            :: handle, i, igrid, j, k, kind_interp, me, &
-                                                            ngrids, stat
+                                                            ngrids, tag
       INTEGER, DIMENSION(3)                              :: glb, gub, lb, ub
       INTEGER, DIMENSION(:), POINTER                     :: pos_of_x
       LOGICAL                                            :: shells
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: tmp
       TYPE(mp_comm_type)                                 :: group
-      TYPE(mp_request_type)                              :: request
       TYPE(pw_r3d_rs_type), ALLOCATABLE, DIMENSION(:)    :: grids
 
 ! Statements
@@ -463,6 +461,7 @@ CONTAINS
       me = grids(auxbas_grid)%pw_grid%para%group%mepos
       glb = rho%pw_grid%bounds(1, :)
       gub = rho%pw_grid%bounds(2, :)
+      tag = 112
       IF ((pos_of_x(glb(1)) .EQ. me) .AND. (pos_of_x(gub(1)) .EQ. me)) THEN
          DO k = lb(3), ub(3)
             DO j = lb(2), ub(2)
@@ -476,21 +475,13 @@ CONTAINS
          grids(auxbas_grid)%array(ub(1) + 1, ub(2) + 1, ub(3) + 1) = rho%array(lb(1), lb(2), lb(3))
       ELSE IF (pos_of_x(glb(1)) .EQ. me) THEN
          ALLOCATE (tmp(rho%pw_grid%bounds_local(1, 2):rho%pw_grid%bounds_local(2, 2), &
-                       rho%pw_grid%bounds_local(1, 3):rho%pw_grid%bounds_local(2, 3)), &
-                   stat=stat)
-         CPASSERT(stat == 0)
+                       rho%pw_grid%bounds_local(1, 3):rho%pw_grid%bounds_local(2, 3)))
          tmp = rho%array(lb(1), :, :)
-         CALL group%isend(msgin=tmp, dest=pos_of_x(rho%pw_grid%bounds(2, 1)), &
-                          request=request, tag=112)
-         CALL request%wait()
+         CALL group%send(tmp, pos_of_x(rho%pw_grid%bounds(2, 1)), tag)
       ELSE IF (pos_of_x(gub(1)) .EQ. me) THEN
          ALLOCATE (tmp(rho%pw_grid%bounds_local(1, 2):rho%pw_grid%bounds_local(2, 2), &
-                       rho%pw_grid%bounds_local(1, 3):rho%pw_grid%bounds_local(2, 3)), &
-                   stat=stat)
-         CPASSERT(stat == 0)
-         CALL group%irecv(msgout=tmp, source=pos_of_x(rho%pw_grid%bounds(1, 1)), &
-                          request=request, tag=112)
-         CALL request%wait()
+                       rho%pw_grid%bounds_local(1, 3):rho%pw_grid%bounds_local(2, 3)))
+         CALL group%recv(tmp, pos_of_x(rho%pw_grid%bounds(1, 1)), tag)
 
          DO k = lb(3), ub(3)
             DO j = lb(2), ub(2)
