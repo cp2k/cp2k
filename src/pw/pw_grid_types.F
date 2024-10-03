@@ -12,10 +12,10 @@
 ! **************************************************************************************************
 MODULE pw_grid_types
 
+   USE cp_array_utils,                  ONLY: cp_1d_i_a_type
    USE kinds,                           ONLY: dp,&
                                               int_8
    USE message_passing,                 ONLY: mp_cart_type
-   USE cp_array_utils, ONLY            : cp_1d_i_a_type
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE

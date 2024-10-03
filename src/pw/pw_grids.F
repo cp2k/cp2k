@@ -38,6 +38,7 @@ MODULE pw_grids
                                               C_LOC,&
                                               C_PTR,&
                                               C_SIZE_T
+   USE cp_array_utils,                  ONLY: cp_1d_i_a_type
    USE kinds,                           ONLY: dp,&
                                               int_8,&
                                               int_size
@@ -60,7 +61,6 @@ MODULE pw_grids
                                               pw_grid_type
    USE util,                            ONLY: get_limit,&
                                               sort
-                                              USE cp_array_utils, ONLY: cp_1d_i_a_type
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -1618,7 +1618,8 @@ CONTAINS
 
       INTEGER, INTENT(IN)                                :: grid_span
       INTEGER, DIMENSION(:, :), INTENT(IN)               :: g_hat
-      TYPE(cp_1d_i_a_type), DIMENSION(3, 2), INTENT(INOUT)          :: map
+      TYPE(cp_1d_i_a_type), DIMENSION(3, 2), &
+         INTENT(INOUT)                                   :: map
       INTEGER, DIMENSION(:), INTENT(IN)                  :: npts
 
       INTEGER                                            :: gpt, l, m, n, ng
@@ -1729,9 +1730,9 @@ CONTAINS
       ALLOCATE (pw_grid%map(2, 1)%array(bounds(1, 2):bounds(2, 2)))
       ALLOCATE (pw_grid%map(3, 1)%array(bounds(1, 3):bounds(2, 3)))
       IF (pw_grid%grid_span == HALFSPACE) THEN
-      ALLOCATE (pw_grid%map(1, 2)%array(bounds(1, 1):bounds(2, 1)))
-      ALLOCATE (pw_grid%map(2, 2)%array(bounds(1, 2):bounds(2, 2)))
-      ALLOCATE (pw_grid%map(3, 2)%array(bounds(1, 3):bounds(2, 3)))
+         ALLOCATE (pw_grid%map(1, 2)%array(bounds(1, 1):bounds(2, 1)))
+         ALLOCATE (pw_grid%map(2, 2)%array(bounds(1, 2):bounds(2, 2)))
+         ALLOCATE (pw_grid%map(3, 2)%array(bounds(1, 3):bounds(2, 3)))
       END IF
 
       CALL timestop(handle)
