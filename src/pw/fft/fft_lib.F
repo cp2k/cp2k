@@ -7,22 +7,22 @@
 MODULE fft_lib
    #:include "../pw_types.fypp"
 
-   USE fft_kinds,                       ONLY: dp
-   USE fft_plan,                        ONLY: BWFFT,&
-                                              FWFFT,&
-                                              fft_plan_type
+   USE fft_kinds, ONLY: dp
+   USE fft_plan, ONLY: BWFFT, &
+                       FWFFT, &
+                       fft_plan_type
    USE mathconstants, ONLY: z_zero
-   USE fftsg_lib,                       ONLY: fftsg_1d,&
-                                              fftsg_2d,&
-                                              fftsg_3d,&
-                                              fftsg_do_cleanup,&
-                                              fftsg_do_init,&
-                                              fftsg_get_lengths
-   USE fftw3_lib,                       ONLY: &
-        fft_alloc => fftw_alloc, fft_dealloc => fftw_dealloc, fftw3_1d, fftw3_3d, &
-        fftw3_create_plan_1d, fftw3_create_plan_3d, fftw3_destroy_plan, fftw3_do_cleanup, &
-        fftw3_do_init, fftw3_get_lengths
-        USE cp_array_utils, ONLY: cp_1d_i_a_type
+   USE fftsg_lib, ONLY: fftsg_1d, &
+                        fftsg_2d, &
+                        fftsg_3d, &
+                        fftsg_do_cleanup, &
+                        fftsg_do_init, &
+                        fftsg_get_lengths
+   USE fftw3_lib, ONLY: &
+      fft_alloc => fftw_alloc, fft_dealloc => fftw_dealloc, fftw3_1d, fftw3_3d, &
+      fftw3_create_plan_1d, fftw3_create_plan_3d, fftw3_destroy_plan, fftw3_do_cleanup, &
+      fftw3_do_init, fftw3_get_lengths
+   USE cp_array_utils, ONLY: cp_1d_i_a_type
 #include "../../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -272,8 +272,8 @@ CONTAINS
       TYPE(fft_plan_type), INTENT(IN)                    :: plan
       INTEGER, INTENT(IN)                                :: fsign
       REAL(KIND=dp), INTENT(IN)                          :: scale
-      COMPLEX(KIND=dp), DIMENSION(plan%n_3d(1), plan%&
-         n_3d(2), plan%n_3d(3)), INTENT(INOUT)           :: zin
+      COMPLEX(KIND=dp), DIMENSION(plan%n_3d(1), plan% &
+                                  n_3d(2), plan%n_3d(3)), INTENT(INOUT)           :: zin
       COMPLEX(KIND=dp), DIMENSION(:, :, :), &
          INTENT(INOUT)                                   :: zout
       INTEGER, INTENT(OUT)                               :: stat
@@ -436,7 +436,6 @@ CONTAINS
       END IF
 
    END SUBROUTINE fft_1d
-   
 
    #:for kind, type in pw_list
       #:if kind[1]=="1"
@@ -451,8 +450,8 @@ CONTAINS
             ${type}$, CONTIGUOUS, INTENT(INOUT)                       :: cout
             COMPLEX(KIND=dp), DIMENSION(:, :), CONTIGUOUS, INTENT(IN)      :: cin
             TYPE(cp_1d_i_a_type), DIMENSION(3, 2), INTENT(IN)          :: map
-      INTEGER, DIMENSION(:, :), INTENT(IN) :: ghat
-      INTEGER, DIMENSION(:, :), INTENT(IN) :: yzq
+            INTEGER, DIMENSION(:, :), INTENT(IN) :: ghat
+            INTEGER, DIMENSION(:, :), INTENT(IN) :: yzq
             REAL(KIND=dp), INTENT(IN), OPTIONAL                :: scale
 
             CHARACTER(len=*), PARAMETER                        :: routineN = 'fft_gather_p'
@@ -513,7 +512,7 @@ CONTAINS
 
             CALL timeset(routineN, handle)
 
-               IF (.NOT. PRESENT(scale)) cout = z_zero
+            IF (.NOT. PRESENT(scale)) cout = z_zero
 
             ASSOCIATE (mapl => map(1, 1)%array, mapm => map(2, 1)%array, mapn => map(3, 1)%array)
 
@@ -596,7 +595,7 @@ CONTAINS
             ${type}$, CONTIGUOUS, INTENT(INOUT)                       :: cout
             ${type2}$, CONTIGUOUS, INTENT(IN)   :: cin
             TYPE(cp_1d_i_a_type), DIMENSION(3, 2), INTENT(IN)          :: map
-      INTEGER, DIMENSION(:, :), INTENT(IN) :: ghat
+            INTEGER, DIMENSION(:, :), INTENT(IN) :: ghat
             REAL(KIND=dp), INTENT(IN), OPTIONAL                :: scale
 
             CHARACTER(len=*), PARAMETER                        :: routineN = 'fft_gather_s'
@@ -647,7 +646,7 @@ CONTAINS
             ${type}$, CONTIGUOUS, INTENT(IN)                 :: cin
             ${type2}$, CONTIGUOUS, INTENT(INOUT)               :: cout
             TYPE(cp_1d_i_a_type), DIMENSION(3, 2), INTENT(IN)          :: map
-      INTEGER, DIMENSION(:, :), INTENT(IN) :: ghat
+            INTEGER, DIMENSION(:, :), INTENT(IN) :: ghat
             REAL(KIND=dp), INTENT(IN), OPTIONAL                :: scale
 
             CHARACTER(len=*), PARAMETER                        :: routineN = 'fft_scatter_s'
@@ -656,8 +655,8 @@ CONTAINS
 
             CALL timeset(routineN, handle)
 
-               ! should only zero the unused bits (but the zero is needed)
-               IF (.NOT. PRESENT(scale)) cout = 0.0_dp
+            ! should only zero the unused bits (but the zero is needed)
+            IF (.NOT. PRESENT(scale)) cout = 0.0_dp
 
             ASSOCIATE (mapl => map(1, 1)%array, mapm => map(2, 1)%array, mapn => map(3, 1)%array)
 

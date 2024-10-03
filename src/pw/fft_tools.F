@@ -26,39 +26,38 @@
 !> \author JGH
 ! **************************************************************************************************
 MODULE fft_tools
-   USE ISO_C_BINDING, ONLY: C_F_POINTER, &
-                            C_LOC, &
-                            C_PTR, &
-                            C_SIZE_T
-   USE cp_log_handling, ONLY: cp_logger_get_default_io_unit
-   USE fft_lib, ONLY: &
-      BWFFT, FWFFT, fft_1d, fft_2d, fft_3d, fft_alloc, fft_arbitrary_lengths_available, &
-      fft_create_plan_1d, fft_create_plan_2d, fft_create_plan_3d, fft_dealloc, fft_destroy_plan, &
-      fft_do_cleanup, fft_do_init, fft_get_lengths, fft_scatter, fft_gather
-   USE fft_plan, ONLY: fft_plan_type
-   USE kinds, ONLY: dp, &
-                    dp_size, &
-                    sp
-   USE mathconstants, ONLY: z_zero
-   USE message_passing, ONLY: mp_cart_type, &
-                              mp_comm_null, &
-                              mp_comm_type, &
-                              mp_request_type, &
-                              mp_waitall
-   USE offload_api, ONLY: offload_free_pinned_mem, &
-                          offload_malloc_pinned_mem
-   USE pw_grid_types, ONLY: HALFSPACE, &
-                            PW_MODE_DISTRIBUTED, &
-                            PW_MODE_LOCAL, &
-                            pw_grid_type, FULLSPACE
-                            USE cp_array_utils, ONLY: cp_1d_i_a_type
-   USE pw_fpga, ONLY: pw_fpga_c1dr3d_3d_dp, &
-                      pw_fpga_c1dr3d_3d_sp, &
-                      pw_fpga_init_bitstream, &
-                      pw_fpga_r3dc1d_3d_dp, &
-                      pw_fpga_r3dc1d_3d_sp
-   USE pw_gpu, ONLY: pw_gpu_sf, pw_gpu_f, pw_gpu_fc, pw_gpu_ffc, pw_gpu_cf, pw_gpu_cff, pw_gpu_fg, &
-                     pw_gpu_cfffg, pw_gpu_sfffc, pw_gpu_init, pw_gpu_finalize
+   USE ISO_C_BINDING,                   ONLY: C_F_POINTER,&
+                                              C_LOC,&
+                                              C_PTR,&
+                                              C_SIZE_T
+   USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
+   USE fft_lib,                         ONLY: &
+        BWFFT, FWFFT, fft_1d, fft_2d, fft_3d, fft_alloc, fft_arbitrary_lengths_available, &
+        fft_create_plan_1d, fft_create_plan_2d, fft_create_plan_3d, fft_dealloc, fft_destroy_plan, &
+        fft_do_cleanup, fft_do_init, fft_gather, fft_get_lengths, fft_scatter
+   USE fft_plan,                        ONLY: fft_plan_type
+   USE kinds,                           ONLY: dp,&
+                                              dp_size,&
+                                              sp
+   USE mathconstants,                   ONLY: z_zero
+   USE message_passing,                 ONLY: mp_cart_type,&
+                                              mp_comm_null,&
+                                              mp_comm_type,&
+                                              mp_request_type,&
+                                              mp_waitall
+   USE offload_api,                     ONLY: offload_free_pinned_mem,&
+                                              offload_malloc_pinned_mem
+   USE pw_fpga,                         ONLY: pw_fpga_c1dr3d_3d_dp,&
+                                              pw_fpga_c1dr3d_3d_sp,&
+                                              pw_fpga_init_bitstream,&
+                                              pw_fpga_r3dc1d_3d_dp,&
+                                              pw_fpga_r3dc1d_3d_sp
+   USE pw_gpu,                          ONLY: &
+        pw_gpu_cf, pw_gpu_cff, pw_gpu_cfffg, pw_gpu_f, pw_gpu_fc, pw_gpu_ffc, pw_gpu_fg, &
+        pw_gpu_finalize, pw_gpu_init, pw_gpu_sf, pw_gpu_sfffc
+   USE pw_grid_types,                   ONLY: FULLSPACE,&
+                                              PW_MODE_LOCAL,&
+                                              pw_grid_type
 
 !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads
 
@@ -350,6 +349,7 @@ CONTAINS
 !> \param n ...
 !> \param zin ...
 !> \param zout ...
+!> \param pw_grid ...
 !> \param status ...
 !> \param debug ...
 !> \par History
@@ -447,6 +447,7 @@ CONTAINS
 !> \param n ...
 !> \param zin ...
 !> \param zout ...
+!> \param pw_grid ...
 !> \param status ...
 !> \param debug ...
 !> \par History
@@ -460,14 +461,15 @@ CONTAINS
       COMPLEX(KIND=dp), DIMENSION(:, :, :), &
          INTENT(INOUT)                                   :: zin
       COMPLEX(KIND=dp), DIMENSION(:), INTENT(INOUT)      :: zout
-      TYPE(pw_grid_type), INTENT(IN) :: pw_grid
+      TYPE(pw_grid_type), INTENT(IN)                     :: pw_grid
       INTEGER, INTENT(OUT), OPTIONAL                     :: status
       LOGICAL, INTENT(IN), OPTIONAL                      :: debug
 
-      INTEGER :: out_unit
-      COMPLEX(KIND=dp), DIMENSION(:, :, :), ALLOCATABLE :: c_out
-      COMPLEX(KIND=dp), DIMENSION(:, :), CONTIGUOUS, POINTER      :: grays
-      LOGICAL :: test
+      COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)  :: c_out
+      COMPLEX(KIND=dp), CONTIGUOUS, DIMENSION(:, :), &
+         POINTER                                         :: grays
+      INTEGER                                            :: out_unit
+      LOGICAL                                            :: test
 
       test = .FALSE.
       IF (PRESENT(debug)) test = debug
@@ -509,6 +511,7 @@ CONTAINS
 !> \param n ...
 !> \param zin ...
 !> \param zout ...
+!> \param pw_grid ...
 !> \param status ...
 !> \param debug ...
 !> \par History
@@ -612,6 +615,7 @@ CONTAINS
 !> \param n ...
 !> \param zin ...
 !> \param zout ...
+!> \param pw_grid ...
 !> \param status ...
 !> \param debug ...
 !> \par History
@@ -622,16 +626,17 @@ CONTAINS
 
       INTEGER, INTENT(IN)                                :: fsign
       INTEGER, DIMENSION(:), INTENT(INOUT)               :: n
-      COMPLEX(KIND=dp), DIMENSION(:), &
-         INTENT(IN)                                   :: zin
-      COMPLEX(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)      :: zout
-      TYPE(pw_grid_type), INTENT(IN) :: pw_grid
+      COMPLEX(KIND=dp), DIMENSION(:), INTENT(IN)         :: zin
+      COMPLEX(KIND=dp), DIMENSION(:, :, :), &
+         INTENT(INOUT)                                   :: zout
+      TYPE(pw_grid_type), INTENT(IN)                     :: pw_grid
       INTEGER, INTENT(OUT), OPTIONAL                     :: status
       LOGICAL, INTENT(IN), OPTIONAL                      :: debug
 
-      COMPLEX(KIND=dp), DIMENSION(:, :), CONTIGUOUS, POINTER      :: grays
-      INTEGER :: out_unit
-      LOGICAL :: test
+      COMPLEX(KIND=dp), CONTIGUOUS, DIMENSION(:, :), &
+         POINTER                                         :: grays
+      INTEGER                                            :: out_unit
+      LOGICAL                                            :: test
 
       test = .FALSE.
       IF (PRESENT(debug)) test = debug
@@ -681,8 +686,8 @@ CONTAINS
       INTEGER, DIMENSION(:), INTENT(INOUT)               :: n
       COMPLEX(KIND=dp), DIMENSION(:, :, :), &
          INTENT(INOUT)                                   :: zin
-      REAL(KIND=dp), DIMENSION(:, :, :), &
-         INTENT(INOUT), TARGET                           :: zout
+      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT), &
+         TARGET                                          :: zout
       INTEGER, INTENT(OUT), OPTIONAL                     :: status
       LOGICAL, INTENT(IN), OPTIONAL                      :: debug
 
@@ -714,10 +719,9 @@ CONTAINS
 
       INTEGER, INTENT(IN)                                :: fsign
       INTEGER, DIMENSION(:), INTENT(INOUT)               :: n
-      REAL(KIND=dp), DIMENSION(:, :, :), &
-         INTENT(INOUT)                                   :: zin
+      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: zin
       COMPLEX(KIND=dp), DIMENSION(:, :, :), &
-         INTENT(INOUT), TARGET                 :: zout
+         INTENT(INOUT), TARGET                           :: zout
       INTEGER, INTENT(OUT), OPTIONAL                     :: status
       LOGICAL, INTENT(IN), OPTIONAL                      :: debug
 
@@ -735,14 +739,17 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief perform an parallel fft followed by a gather on the gpu
-!> \param pw1 ...
-!> \param pw2 ...
+!> \param zin ...
+!> \param zout ...
+!> \param pw_grid ...
 !> \author Andreas Gloess
 ! **************************************************************************************************
    SUBROUTINE pw_gpu_r3dc1d_3d_ps(zin, zout, pw_grid)
-      REAL(KIND=dp), DIMENSION(:, :, :), TARGET, INTENT(IN)                   :: zin
-      COMPLEX(KIND=dp), DIMENSION(:), TARGET, INTENT(INOUT)                :: zout
-      TYPE(pw_grid_type), TARGET, INTENT(IN) :: pw_grid
+      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN), &
+         TARGET                                          :: zin
+      COMPLEX(KIND=dp), DIMENSION(:), INTENT(INOUT), &
+         TARGET                                          :: zout
+      TYPE(pw_grid_type), INTENT(IN), TARGET             :: pw_grid
 
       CHARACTER(len=*), PARAMETER :: routineN = 'pw_gpu_r3dc1d_3d_ps'
 
@@ -894,14 +901,16 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief perform an parallel scatter followed by a fft on the gpu
-!> \param pw1 ...
-!> \param pw2 ...
+!> \param zin ...
+!> \param zout ...
+!> \param pw_grid ...
 !> \author Andreas Gloess
 ! **************************************************************************************************
    SUBROUTINE pw_gpu_c1dr3d_3d_ps(zin, zout, pw_grid)
-      COMPLEX(KIND=dp), DIMENSION(:), TARGET, INTENT(IN)                   :: zin
-      REAL(KIND=dp), DIMENSION(:, :, :), TARGET, INTENT(INOUT)                :: zout
-      TYPE(pw_grid_type), TARGET, INTENT(IN)             :: pw_grid
+      COMPLEX(KIND=dp), DIMENSION(:), INTENT(IN), TARGET :: zin
+      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT), &
+         TARGET                                          :: zout
+      TYPE(pw_grid_type), INTENT(IN), TARGET             :: pw_grid
 
       CHARACTER(len=*), PARAMETER :: routineN = 'pw_gpu_c1dr3d_3d_ps'
 
@@ -1210,7 +1219,7 @@ CONTAINS
       COMPLEX(KIND=dp), CONTIGUOUS, DIMENSION(:, :, :), &
          POINTER                                         :: tbuf
       INTEGER :: g_pos, handle, lg, lmax, mcx2, mcz1, mcz2, mg, mmax, mx1, mx2, my1, mz2, n1, n2, &
-                 nmax, numtask, nx, ny, nz, output_unit, r_dim(2), r_pos(2), rp, sign, stat
+         nmax, numtask, nx, ny, nz, output_unit, r_dim(2), r_pos(2), rp, sign, stat
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: p2p
       LOGICAL                                            :: test
       REAL(KIND=dp)                                      :: norm, sum_data
