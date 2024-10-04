@@ -35,6 +35,7 @@ MODULE trexio_utils
    USE kinds, ONLY: default_path_length, dp
    USE kpoint_types, ONLY: kpoint_type, kpoint_env_p_type, &
                            get_kpoint_info, get_kpoint_env
+   USE mathconstants, ONLY: fourpi
    USE message_passing, ONLY: mp_para_env_type
    USE orbital_pointers, ONLY: nco, nso
    USE orbital_transformation_matrices, ONLY: orbtramat
@@ -112,7 +113,7 @@ CONTAINS
       LOGICAL                                            :: explicit, do_kpoints, ecp_semi_local, &
                                                             ecp_local, sgp_potential_present, ionode, &
                                                             use_real_wfn, save_cartesian
-      REAL(KIND=dp)                                      :: e_nn, zeff
+      REAL(KIND=dp)                                      :: e_nn, zeff, racah_normalization
       TYPE(cell_type), POINTER                           :: cell => Null()
       TYPE(cp_logger_type), POINTER                      :: logger => Null()
       TYPE(dft_control_type), POINTER                    :: dft_control => Null()
@@ -360,6 +361,8 @@ CONTAINS
       ALLOCATE (exponents(prim_num))      ! ...primitive exponents
       ALLOCATE (coefficients(prim_num))   ! ...contraction coefficients
 
+      CALL section_vals_val_get(trexio_section, "CARTESIAN", l_val=save_cartesian)
+
       ishell = 0
       ipgf = 0
       DO iatom = 1, natoms
@@ -393,7 +396,14 @@ CONTAINS
                exponents(ipgf + 1:ipgf + npgf(iset)) = zetas(1:npgf(iset), iset)
 
                ! coefficients array
-               coefficients(ipgf + 1:ipgf + npgf(iset)) = gcc(1:npgf(iset), ishell_loc, iset)
+               IF (save_cartesian) THEN
+                  coefficients(ipgf + 1:ipgf + npgf(iset)) = gcc(1:npgf(iset), ishell_loc, iset)
+               ELSE
+                  ! the prefactor is needed to transform from solid to spherical harmonics
+                  ! this is called Racah normalization
+                  racah_normalization = SQRT(fourpi/(2 * shell_ang_mom(ishell) + 1))
+                  coefficients(ipgf + 1:ipgf + npgf(iset)) = gcc(1:npgf(iset), ishell_loc, iset)*racah_normalization
+               END IF
 
                ipgf = ipgf + npgf(iset)
             END DO
@@ -412,7 +422,6 @@ CONTAINS
 
          ! Normalization factors are shoved in the AO group
          ALLOCATE (shell_factor(shell_num))  ! 1-to-1 map bw shells and normalization factors
-         shell_factor(:) = 1.0_dp
          rc = trexio_write_basis_shell_factor(f, shell_factor)
          CALL trexio_error(rc)
          DEALLOCATE (shell_factor)
@@ -679,6 +688,9 @@ CONTAINS
                   !            orbtramat(lshell)%s2c, nso(lshell), &
                   !            0.0_dp, diag_nsgf(1,1), nso(lshell))
 
+                  ! the prefactor is needed to transform from solid to spherical harmonics
+                  ! this is called Racah normalization
+                  ! racah_normalization = SQRT(fourpi/(2 * shell_ang_mom(ishell) + 1))
                   DO i = 1, nso(lshell)
                      ao_normalization(igf + i) = diag_nsgf(i,i)
                   END DO
