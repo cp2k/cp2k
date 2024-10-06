@@ -144,7 +144,7 @@
 
 &MOTION
   &MD
-    STEPS 2
+    STEPS 1
     TIMESTEP 0.6
   &END MD
 &END MOTION
