@@ -39,6 +39,8 @@ QS/regtest-loc_powf/run.inp
 QS/regtest-ls-rtp/Ar_mixed_aa_planar-rtp-osc-field.inp
 QS/regtest-pao-2/H2O_pao_rotinv.inp
 QS/regtest-pod/furane-pbe-4A.inp
+QS/regtest-ps-implicit-1-3/Ar_mixed_aa_planar.inp
+QS/regtest-ps-implicit-1-3/Ar_mixed_planar.inp
 QS/regtest-ps-implicit-1-3/Ar_mixed_aa_planar-osc-field.inp
 QS/regtest-ps-implicit-2-1/H2O_periodic.inp
 QS/regtest-ps-implicit-2-1/H2plus2_implicit_md.inp
