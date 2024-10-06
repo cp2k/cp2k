@@ -25,8 +25,8 @@
       SCHEME MONKHORST-PACK 3 3 3
     &END KPOINTS
     &MGRID
-      CUTOFF 200
-      REL_CUTOFF 40
+      CUTOFF 150
+      REL_CUTOFF 30
     &END MGRID
     &QS
       EPS_PGF_ORB 1.0E-5
@@ -35,7 +35,7 @@
     &END QS
     &SCF
       IGNORE_CONVERGENCE_FAILURE
-      MAX_SCF 2
+      MAX_SCF 1
       SCF_GUESS ATOMIC
     &END SCF
     &XC
