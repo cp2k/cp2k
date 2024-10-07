@@ -705,6 +705,8 @@ if(CP2K_USE_ACE)
 endif()
 
 if(CP2K_USE_TBLITE)
+  find_package(toml-f REQUIRED)
+  find_package(s-dftd3 REQUIRED)
   find_package(tblite REQUIRED)
 endif()
 
@@ -943,11 +945,13 @@ endif()
 if(CP2K_USE_TBLITE)
   message(
     " - TBLITE :\n"
-    "   - version             :  ${CP2K_TBLITE_VERSION}\n"
-    "   - include directories :  ${CP2K_TBLITE_INCLUDE_DIRS}\n"
-    "   - tblite libraries    :  ${CP2K_TBLITE_LINK_LIBRARIES}\n"
-    "   - dftd3 libraries     :  ${CP2K_DFTD3_LINK_LIBRARIES}\n"
-    "   - toml-f libraries    :  ${CP2K_TOML_LINK_LIBRARIES}\n\n")
+    "   - version             :  ${TBLITE_VERSION}\n"
+    "   - include directories :  ${TBLITE_INCLUDE_DIRS}\n"
+    "   - tblite libraries    :  ${TBLITE_LINK_LIBRARIES}\n"
+    "   - s-dftd3 include     :  ${S-DFTD3_INCLUDE_DIRS}\n"
+    "   - s- dftd3 libraries  :  ${S-DFTD3_LINK_LIBRARIES}\n"
+    "   - toml-f include      :  ${TOML-F_INCLUDE_DIRS}\n"
+    "   - toml-f libraries    :  ${TOML-F_LINK_LIBRARIES}\n\n")
 endif()
 
 if(CP2K_USE_SIRIUS)
