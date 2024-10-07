@@ -713,7 +713,7 @@ CONTAINS
                                                             lbz, lo(2), m, n, np, ns, nx, ny, nz, &
                                                             rsd(2)
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: pemap
-      INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: yz_index
+      INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: yz_index, yz_to_proc
       INTEGER, ALLOCATABLE, DIMENSION(:, :, :)           :: axis_dist_all
       INTEGER, DIMENSION(2)                              :: my_rs_dims
       INTEGER, DIMENSION(2, 3)                           :: axis_dist
@@ -905,6 +905,7 @@ CONTAINS
 
          ALLOCATE (pw_grid%para%nyzray(0:np - 1))
 
+         ALLOCATE (yz_to_proc(ny, nz))
          ALLOCATE (pw_grid%para%yzq(ny, nz))
 
          IF (pw_grid%spherical .OR. pw_grid%grid_span == HALFSPACE &
@@ -912,15 +913,17 @@ CONTAINS
 
             pw_grid%para%ray_distribution = .TRUE.
 
-            pw_grid%para%yzq = -1
+            yz_to_proc = -1
             IF (PRESENT(ref_grid)) THEN
                ! tag all vectors from the reference grid
-               CALL pre_tag(pw_grid, yz_mask, ref_grid)
+               CALL pre_tag(pw_grid, yz_mask, yz_to_proc, ref_grid)
             END IF
 
             ! Round Robin distribution
             ! Processors 0 .. NP-1, NP-1 .. 0  get the largest remaining batch
             ! of g vectors in turn
+
+            ! yzq maps (y,z) to the processor
 
             i1 = SIZE(yz_mask, 1)
             i2 = SIZE(yz_mask, 2)
@@ -938,11 +941,11 @@ CONTAINS
                IF (ip == pw_grid%para%group%mepos) THEN
                   pw_grid%ngpts_cut_local = pw_grid%ngpts_cut_local + gmax
                END IF
-               pw_grid%para%yzq(lo(1), lo(2)) = ip
+               yz_to_proc(lo(1), lo(2)) = ip
                IF (pw_grid%grid_span == HALFSPACE) THEN
                   m = -lo(1) - 2*lby + 2
                   n = -lo(2) - 2*lbz + 2
-                  pw_grid%para%yzq(m, n) = ip
+                  yz_to_proc(m, n) = ip
                   yz_mask(m, n) = 0
                END IF
             END DO
@@ -953,7 +956,7 @@ CONTAINS
             pw_grid%para%nyzray = 0
             DO i = 1, nz
                DO j = 1, ny
-                  ip = pw_grid%para%yzq(j, i)
+                  ip = yz_to_proc(j, i)
                   IF (ip >= 0) pw_grid%para%nyzray(ip) = &
                      pw_grid%para%nyzray(ip) + 1
                END DO
@@ -964,10 +967,11 @@ CONTAINS
             ALLOCATE (pw_grid%para%yzp(2, ns, 0:np - 1))
 
             ! Fill mapping array, recalculate nyzray for convenience
+            ! yzq maps now (y,z) to the ray position
             pw_grid%para%nyzray = 0
             DO i = 1, nz
                DO j = 1, ny
-                  ip = pw_grid%para%yzq(j, i)
+                  ip = yz_to_proc(j, i)
                   IF (ip >= 0) THEN
                      pw_grid%para%nyzray(ip) = &
                         pw_grid%para%nyzray(ip) + 1
@@ -1057,6 +1061,8 @@ CONTAINS
 
          END IF
 
+         DEALLOCATE (yz_to_proc)
+
       END IF
 
       ! pos_of_x(i) tells on which cpu pw%array(i,:,:) is located
@@ -1080,14 +1086,15 @@ CONTAINS
 !> \brief ...
 !> \param pw_grid ...
 !> \param yz_mask ...
+!> \param yz_to_proc ...
 !> \param ref_grid ...
 !> \par History
 !>      - Fix mapping bug for pw_grid eqv to ref_grid (21.11.2019, MK)
 ! **************************************************************************************************
-   SUBROUTINE pre_tag(pw_grid, yz_mask, ref_grid)
+   SUBROUTINE pre_tag(pw_grid, yz_mask, yz_to_proc, ref_grid)
 
       TYPE(pw_grid_type), INTENT(INOUT)                  :: pw_grid
-      INTEGER, DIMENSION(:, :), INTENT(INOUT)            :: yz_mask
+      INTEGER, DIMENSION(:, :), INTENT(INOUT)            :: yz_mask, yz_to_proc
       TYPE(pw_grid_type), INTENT(IN)                     :: ref_grid
 
       INTEGER                                            :: gmax, ig, ip, lby, lbz, my, mz, ny, nz, &
@@ -1127,13 +1134,13 @@ CONTAINS
                IF (gmax == 0) CYCLE
                yz_mask(y, z) = 0
                yz_mask(yp, zp) = 0
-               pw_grid%para%yzq(y, z) = ip
-               pw_grid%para%yzq(yp, zp) = ip
+               yz_to_proc(y, z) = ip
+               yz_to_proc(yp, zp) = ip
             ELSE
                gmax = yz_mask(y, z)
                IF (gmax == 0) CYCLE
                yz_mask(y, z) = 0
-               pw_grid%para%yzq(y, z) = ip
+               yz_to_proc(y, z) = ip
             END IF
             IF (ip == pw_grid%para%group%mepos) THEN
                pw_grid%ngpts_cut_local = pw_grid%ngpts_cut_local + gmax
@@ -2099,16 +2106,14 @@ CONTAINS
             IF (ALLOCATED(pw_grid%para%bo)) THEN
                DEALLOCATE (pw_grid%para%bo)
             END IF
-            IF (pw_grid%para%mode == PW_MODE_DISTRIBUTED) THEN
-               IF (ALLOCATED(pw_grid%para%yzp)) THEN
-                  DEALLOCATE (pw_grid%para%yzp)
-               END IF
-               IF (ALLOCATED(pw_grid%para%yzq)) THEN
-                  DEALLOCATE (pw_grid%para%yzq)
-               END IF
-               IF (ALLOCATED(pw_grid%para%nyzray)) THEN
-                  DEALLOCATE (pw_grid%para%nyzray)
-               END IF
+            IF (ALLOCATED(pw_grid%para%yzp)) THEN
+               DEALLOCATE (pw_grid%para%yzp)
+            END IF
+            IF (ALLOCATED(pw_grid%para%yzq)) THEN
+               DEALLOCATE (pw_grid%para%yzq)
+            END IF
+            IF (ALLOCATED(pw_grid%para%nyzray)) THEN
+               DEALLOCATE (pw_grid%para%nyzray)
             END IF
             ! also release groups
             CALL pw_grid%para%group%free()
