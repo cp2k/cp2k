@@ -2147,28 +2147,37 @@ CONTAINS
       END IF
 
       nx = bo(2, 1, mpr) - bo(1, 1, mpr) + 1
+      IF (alltoall_sgl) THEN
 !$OMP PARALLEL DO DEFAULT(NONE) COLLAPSE(2) &
 !$OMP             PRIVATE(ixx,ir,iy,iz,ix) &
 !$OMP             SHARED(np,nray,nx,alltoall_sgl,yzp,tt,rr,tb)
-      DO ip = 0, np - 1
-         DO ix = 1, nx
-            ixx = nray(ip)*(ix - 1)
-            IF (alltoall_sgl) THEN
+         DO ip = 0, np - 1
+            DO ix = 1, nx
+               ixx = nray(ip)*(ix - 1)
                DO ir = 1, nray(ip)
                   iy = yzp(1, ir, ip)
                   iz = yzp(2, ir, ip)
                   tb(iy, iz, ix) = tt(ir + ixx, ip)
                END DO
-            ELSE
+            END DO
+         END DO
+!$OMP END PARALLEL DO
+      ELSE
+!$OMP PARALLEL DO DEFAULT(NONE) COLLAPSE(2) &
+!$OMP             PRIVATE(ixx,ir,iy,iz,ix) &
+!$OMP             SHARED(np,nray,nx,alltoall_sgl,yzp,tt,rr,tb)
+         DO ip = 0, np - 1
+            DO ix = 1, nx
+               ixx = nray(ip)*(ix - 1)
                DO ir = 1, nray(ip)
                   iy = yzp(1, ir, ip)
                   iz = yzp(2, ir, ip)
                   tb(iy, iz, ix) = rr(ir + ixx, ip)
                END DO
-            END IF
+            END DO
          END DO
-      END DO
 !$OMP END PARALLEL DO
+      END IF
 
       CALL timestop(handle)
 
@@ -2234,28 +2243,37 @@ CONTAINS
       END IF
 
       nx = bo(2, 1, mpr) - bo(1, 1, mpr) + 1
+      IF (alltoall_sgl) THEN
 !$OMP PARALLEL DO DEFAULT(NONE) COLLAPSE(2) &
 !$OMP             PRIVATE(ip, ixx, ir, iy, iz, ix) &
 !$OMP             SHARED(np,nray,nx,alltoall_sgl,yzp,tb,tt,rr)
-      DO ip = 0, np - 1
-         DO ix = 1, nx
-            ixx = nray(ip)*(ix - 1)
-            IF (alltoall_sgl) THEN
+         DO ip = 0, np - 1
+            DO ix = 1, nx
+               ixx = nray(ip)*(ix - 1)
                DO ir = 1, nray(ip)
                   iy = yzp(1, ir, ip)
                   iz = yzp(2, ir, ip)
                   tt(ir + ixx, ip) = CMPLX(tb(iy, iz, ix), KIND=sp)
                END DO
-            ELSE
+            END DO
+         END DO
+!$OMP END PARALLEL DO
+      ELSE
+!$OMP PARALLEL DO DEFAULT(NONE) COLLAPSE(2) &
+!$OMP             PRIVATE(ip, ixx, ir, iy, iz, ix) &
+!$OMP             SHARED(np,nray,nx,alltoall_sgl,yzp,tb,tt,rr)
+         DO ip = 0, np - 1
+            DO ix = 1, nx
+               ixx = nray(ip)*(ix - 1)
                DO ir = 1, nray(ip)
                   iy = yzp(1, ir, ip)
                   iz = yzp(2, ir, ip)
                   rr(ir + ixx, ip) = tb(iy, iz, ix)
                END DO
-            END IF
+            END DO
          END DO
-      END DO
 !$OMP END PARALLEL DO
+      END IF
       nm = MAXVAL(nray(0:np - 1))
       nr = nray(my_pos)
 !$OMP PARALLEL DO DEFAULT(NONE), &
@@ -2422,38 +2440,53 @@ CONTAINS
       END IF
 
 ! Do the actual packing
+      IF (alltoall_sgl) THEN
 !$OMP PARALLEL DO DEFAULT(NONE), &
 !$OMP             PRIVATE(ipl,jj,nx,ir,jx,jy,jz),&
 !$OMP             SHARED(np,p2p,pzcoord,bo,nray,yzp,zcor),&
-!$OMP             SHARED(yzbuf,sb,scount,sdispl,my_pos),&
-!$OMP             SHARED(yzbuf_sgl,alltoall_sgl)
-      DO ip = 0, np - 1
-         IF (scount(ip) == 0) CYCLE
-         ipl = p2p(ip)
-         jj = 0
-         nx = bo(2, 1, ipl) - bo(1, 1, ipl) + 1
-         DO ir = 1, nray(my_pos)
-            jz = yzp(2, ir, my_pos)
-            IF (zcor(jz) == pzcoord(ipl)) THEN
-               jj = jj + 1
-               jy = yzp(1, ir, my_pos)
-               IF (alltoall_sgl) THEN
+!$OMP             SHARED(yzbuf_sgl,sb,scount,sdispl,my_pos)
+         DO ip = 0, np - 1
+            IF (scount(ip) == 0) CYCLE
+            ipl = p2p(ip)
+            jj = 0
+            nx = bo(2, 1, ipl) - bo(1, 1, ipl) + 1
+            DO ir = 1, nray(my_pos)
+               jz = yzp(2, ir, my_pos)
+               IF (zcor(jz) == pzcoord(ipl)) THEN
+                  jj = jj + 1
+                  jy = yzp(1, ir, my_pos)
                   DO jx = 0, nx - 1
                      yzbuf_sgl(sdispl(ip) + jj + jx*scount(ip)/nx) = CMPLX(sb(ir, jx + bo(1, 1, ipl)), KIND=sp)
                   END DO
-               ELSE
+               END IF
+            END DO
+         END DO
+!$OMP END PARALLEL DO
+
+         CALL group%alltoall(yzbuf_sgl, scount, sdispl, xzbuf_sgl, rcount, rdispl)
+      ELSE
+!$OMP PARALLEL DO DEFAULT(NONE), &
+!$OMP             PRIVATE(ipl,jj,nx,ir,jx,jy,jz),&
+!$OMP             SHARED(np,p2p,pzcoord,bo,nray,yzp,zcor),&
+!$OMP             SHARED(yzbuf,sb,scount,sdispl,my_pos)
+         DO ip = 0, np - 1
+            IF (scount(ip) == 0) CYCLE
+            ipl = p2p(ip)
+            jj = 0
+            nx = bo(2, 1, ipl) - bo(1, 1, ipl) + 1
+            DO ir = 1, nray(my_pos)
+               jz = yzp(2, ir, my_pos)
+               IF (zcor(jz) == pzcoord(ipl)) THEN
+                  jj = jj + 1
+                  jy = yzp(1, ir, my_pos)
                   DO jx = 0, nx - 1
                      yzbuf(sdispl(ip) + jj + jx*scount(ip)/nx) = sb(ir, jx + bo(1, 1, ipl))
                   END DO
                END IF
-            END IF
+            END DO
          END DO
-      END DO
 !$OMP END PARALLEL DO
 
-      IF (alltoall_sgl) THEN
-         CALL group%alltoall(yzbuf_sgl, scount, sdispl, xzbuf_sgl, rcount, rdispl)
-      ELSE
          IF (fft_scratch%rsratio < ratio_sparse_alltoall) THEN
             CALL sparse_alltoall(yzbuf, scount, sdispl, xzbuf, rcount, rdispl, group)
          ELSE
@@ -2465,36 +2498,51 @@ CONTAINS
       myz = fft_scratch%sizes%rs_group%mepos_cart(2)
       nz = bo(2, 3, rs_pos) - bo(1, 3, rs_pos) + 1
 
+      IF (alltoall_sgl) THEN
 !$OMP PARALLEL DO DEFAULT(NONE), &
 !$OMP             PRIVATE(ipr,jj,ir,jx,jy,jz),&
 !$OMP             SHARED(tb,np,p2p,bo,rs_pos,nray),&
-!$OMP             SHARED(yzp,alltoall_sgl,zcor,myz),&
-!$OMP             SHARED(xzbuf,xzbuf_sgl,nz,rdispl)
-      DO ip = 0, np - 1
-         ipr = p2p(ip)
-         jj = 0
-         DO jx = 0, bo(2, 1, rs_pos) - bo(1, 1, rs_pos)
-            DO ir = 1, nray(ip)
-               jz = yzp(2, ir, ip)
-               IF (alltoall_sgl) THEN
+!$OMP             SHARED(yzp,zcor,myz),&
+!$OMP             SHARED(xzbuf_sgl,nz,rdispl)
+         DO ip = 0, np - 1
+            ipr = p2p(ip)
+            jj = 0
+            DO jx = 0, bo(2, 1, rs_pos) - bo(1, 1, rs_pos)
+               DO ir = 1, nray(ip)
+                  jz = yzp(2, ir, ip)
                   IF (zcor(jz) == myz) THEN
                      jj = jj + 1
                      jy = yzp(1, ir, ip)
                      jz = jz - bo(1, 3, rs_pos) + 1
                      tb(jy, jz + jx*nz) = xzbuf_sgl(jj + rdispl(ipr))
                   END IF
-               ELSE
+               END DO
+            END DO
+         END DO
+!$OMP END PARALLEL DO
+      ELSE
+!$OMP PARALLEL DO DEFAULT(NONE), &
+!$OMP             PRIVATE(ipr,jj,ir,jx,jy,jz),&
+!$OMP             SHARED(tb,np,p2p,bo,rs_pos,nray),&
+!$OMP             SHARED(yzp,zcor,myz),&
+!$OMP             SHARED(xzbuf,nz,rdispl)
+         DO ip = 0, np - 1
+            ipr = p2p(ip)
+            jj = 0
+            DO jx = 0, bo(2, 1, rs_pos) - bo(1, 1, rs_pos)
+               DO ir = 1, nray(ip)
+                  jz = yzp(2, ir, ip)
                   IF (zcor(jz) == myz) THEN
                      jj = jj + 1
                      jy = yzp(1, ir, ip)
                      jz = jz - bo(1, 3, rs_pos) + 1
                      tb(jy, jz + jx*nz) = xzbuf(jj + rdispl(ipr))
                   END IF
-               END IF
+               END DO
             END DO
          END DO
-      END DO
 !$OMP END PARALLEL DO
+      END IF
 
       CALL timestop(handle)
 
@@ -2626,74 +2674,99 @@ CONTAINS
       nz = bo(2, 3, mp) - bo(1, 3, mp) + 1
       nx = bo(2, 1, mp) - bo(1, 1, mp) + 1
 
+      IF (alltoall_sgl) THEN
 !$OMP PARALLEL DO DEFAULT(NONE), &
 !$OMP             PRIVATE(jj,ipl,ir,jx,jy,jz,ixx),&
 !$OMP             SHARED(np,p2p,nray,yzp,zcor,myz,bo,mp),&
-!$OMP             SHARED(alltoall_sgl,nx,scount,sdispl),&
-!$OMP             SHARED(xzbuf,xzbuf_sgl,sb,nz)
-      DO ip = 0, np - 1
-         jj = 0
-         ipl = p2p(ip)
-         DO ir = 1, nray(ip)
-            jz = yzp(2, ir, ip)
-            IF (zcor(jz) == myz) THEN
-               jj = jj + 1
-               jy = yzp(1, ir, ip)
-               jz = yzp(2, ir, ip) - bo(1, 3, mp) + 1
-               IF (alltoall_sgl) THEN
+!$OMP             SHARED(nx,scount,sdispl,xzbuf_sgl,sb,nz)
+         DO ip = 0, np - 1
+            jj = 0
+            ipl = p2p(ip)
+            DO ir = 1, nray(ip)
+               jz = yzp(2, ir, ip)
+               IF (zcor(jz) == myz) THEN
+                  jj = jj + 1
+                  jy = yzp(1, ir, ip)
+                  jz = yzp(2, ir, ip) - bo(1, 3, mp) + 1
                   DO jx = 0, nx - 1
                      ixx = jj + jx*scount(ipl)/nx
                      xzbuf_sgl(ixx + sdispl(ipl)) = CMPLX(sb(jy, jz + jx*nz), KIND=sp)
                   END DO
-               ELSE
+               END IF
+            END DO
+         END DO
+!$OMP END PARALLEL DO
+         CALL group%alltoall(xzbuf_sgl, scount, sdispl, yzbuf_sgl, rcount, rdispl)
+!$OMP PARALLEL DO DEFAULT(NONE), &
+!$OMP             PRIVATE(ipl,jj,nx,ir,jx,jy,jz),&
+!$OMP             SHARED(p2p,pzcoord,bo,nray,my_pos,yzp),&
+!$OMP             SHARED(rcount,rdispl,tb,zcor,yzbuf_sgl,np)
+         DO ip = 0, np - 1
+            IF (rcount(ip) == 0) CYCLE
+            ipl = p2p(ip)
+            jj = 0
+            nx = bo(2, 1, ipl) - bo(1, 1, ipl) + 1
+            DO ir = 1, nray(my_pos)
+               jz = yzp(2, ir, my_pos)
+               IF (zcor(jz) == pzcoord(ipl)) THEN
+                  jj = jj + 1
+                  jy = yzp(1, ir, my_pos)
+                  DO jx = 0, nx - 1
+                     tb(ir, jx + bo(1, 1, ipl)) = yzbuf_sgl(rdispl(ip) + jj + jx*rcount(ip)/nx)
+                  END DO
+               END IF
+            END DO
+         END DO
+!$OMP END PARALLEL DO
+      ELSE
+!$OMP PARALLEL DO DEFAULT(NONE), &
+!$OMP             PRIVATE(jj,ipl,ir,jx,jy,jz,ixx),&
+!$OMP             SHARED(np,p2p,nray,yzp,zcor,myz,bo,mp),&
+!$OMP             SHARED(nx,scount,sdispl,xzbuf,sb,nz)
+         DO ip = 0, np - 1
+            jj = 0
+            ipl = p2p(ip)
+            DO ir = 1, nray(ip)
+               jz = yzp(2, ir, ip)
+               IF (zcor(jz) == myz) THEN
+                  jj = jj + 1
+                  jy = yzp(1, ir, ip)
+                  jz = yzp(2, ir, ip) - bo(1, 3, mp) + 1
                   DO jx = 0, nx - 1
                      ixx = jj + jx*scount(ipl)/nx
                      xzbuf(ixx + sdispl(ipl)) = sb(jy, jz + jx*nz)
                   END DO
                END IF
-            END IF
+            END DO
          END DO
-      END DO
 !$OMP END PARALLEL DO
-
-      IF (alltoall_sgl) THEN
-         CALL group%alltoall(xzbuf_sgl, scount, sdispl, yzbuf_sgl, rcount, rdispl)
-      ELSE
          IF (fft_scratch%rsratio < ratio_sparse_alltoall) THEN
             CALL sparse_alltoall(xzbuf, scount, sdispl, yzbuf, rcount, rdispl, group)
          ELSE
             CALL group%alltoall(xzbuf, scount, sdispl, yzbuf, rcount, rdispl)
          END IF
-      END IF
-
 !$OMP PARALLEL DO DEFAULT(NONE), &
 !$OMP             PRIVATE(ipl,jj,nx,ir,jx,jy,jz),&
 !$OMP             SHARED(p2p,pzcoord,bo,nray,my_pos,yzp),&
-!$OMP             SHARED(rcount,rdispl,tb,yzbuf,zcor),&
-!$OMP             SHARED(yzbuf_sgl,alltoall_sgl,np)
-      DO ip = 0, np - 1
-         IF (rcount(ip) == 0) CYCLE
-         ipl = p2p(ip)
-         jj = 0
-         nx = bo(2, 1, ipl) - bo(1, 1, ipl) + 1
-         DO ir = 1, nray(my_pos)
-            jz = yzp(2, ir, my_pos)
-            IF (zcor(jz) == pzcoord(ipl)) THEN
-               jj = jj + 1
-               jy = yzp(1, ir, my_pos)
-               IF (alltoall_sgl) THEN
-                  DO jx = 0, nx - 1
-                     tb(ir, jx + bo(1, 1, ipl)) = yzbuf_sgl(rdispl(ip) + jj + jx*rcount(ip)/nx)
-                  END DO
-               ELSE
+!$OMP             SHARED(rcount,rdispl,tb,yzbuf,zcor,np)
+         DO ip = 0, np - 1
+            IF (rcount(ip) == 0) CYCLE
+            ipl = p2p(ip)
+            jj = 0
+            nx = bo(2, 1, ipl) - bo(1, 1, ipl) + 1
+            DO ir = 1, nray(my_pos)
+               jz = yzp(2, ir, my_pos)
+               IF (zcor(jz) == pzcoord(ipl)) THEN
+                  jj = jj + 1
+                  jy = yzp(1, ir, my_pos)
                   DO jx = 0, nx - 1
                      tb(ir, jx + bo(1, 1, ipl)) = yzbuf(rdispl(ip) + jj + jx*rcount(ip)/nx)
                   END DO
                END IF
-            END IF
+            END DO
          END DO
-      END DO
 !$OMP END PARALLEL DO
+      END IF
 
       CALL timestop(handle)
 
