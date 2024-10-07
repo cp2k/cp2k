@@ -30,6 +30,7 @@ MODULE fft_tools
                                               C_LOC,&
                                               C_PTR,&
                                               C_SIZE_T
+   USE cp_array_utils,                  ONLY: cp_1d_i_a_type
    USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
    USE fft_lib,                         ONLY: &
         BWFFT, FWFFT, fft_1d, fft_2d, fft_3d, fft_alloc, fft_arbitrary_lengths_available, &
@@ -92,6 +93,8 @@ MODULE fft_tools
       ! to be used in cube_transpose_* routines
       TYPE(mp_cart_type), DIMENSION(2)     :: cart_sub_comm = mp_cart_type()
       INTEGER, DIMENSION(2)                :: dim = -1, pos = -1
+      ! to be used on GPU
+      INTEGER, DIMENSION(:, :), POINTER, CONTIGUOUS :: g_hatmap => NULL() ! mapped grid point indices (Miller) [CUDA]
       ! to be used in fft3d_ps : block distribution
       COMPLEX(KIND=dp), DIMENSION(:, :), CONTIGUOUS, POINTER &
          :: p1buf => NULL(), p2buf => NULL(), p3buf => NULL(), p4buf => NULL(), &
@@ -369,6 +372,8 @@ CONTAINS
 
 #if !defined(__OFFLOAD) || defined(__NO_OFFLOAD_PW)
       COMPLEX(KIND=dp), DIMENSION(:, :, :), ALLOCATABLE, TARGET :: c_out
+#else
+      TYPE(fft_scratch_type), POINTER                    :: fft_scratch
 #endif
       COMPLEX(KIND=dp), DIMENSION(:, :, :), ALLOCATABLE, TARGET :: c_in
       COMPLEX(KIND=dp), DIMENSION(:, :), CONTIGUOUS, POINTER         :: grays
@@ -382,7 +387,9 @@ CONTAINS
 
       IF (pw_grid%para%mode == PW_MODE_LOCAL) THEN
 #if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_PW)
-         CALL pw_gpu_cfffg(zin, zout, pw_grid%g_hatmap)
+         CALL get_fft_scratch(fft_scratch, tf_type=400, n=n, ng_local=SIZE(zout), g_hat=pw_grid%g_hat, &
+                              map=pw_grid%map, yzq=pw_grid%para%yzq)
+         CALL pw_gpu_cfffg(zin, zout, fft_scratch%g_hatmap)
 #else
          ALLOCATE (c_out(n(1), n(2), n(3)))
          ! check if bitstream for the fft size is present
@@ -531,6 +538,8 @@ CONTAINS
 
 #if !defined(__OFFLOAD) || defined(__NO_OFFLOAD_PW)
       COMPLEX(KIND=dp), DIMENSION(:, :, :), ALLOCATABLE, TARGET :: c_out
+#else
+      TYPE(fft_scratch_type), POINTER                    :: fft_scratch
 #endif
       COMPLEX(KIND=dp), DIMENSION(:, :, :), ALLOCATABLE, TARGET :: c_in
       COMPLEX(KIND=dp), DIMENSION(:, :), CONTIGUOUS, POINTER         :: grays
@@ -544,7 +553,9 @@ CONTAINS
 
       IF (pw_grid%para%mode == PW_MODE_LOCAL) THEN
 #if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_PW)
-         CALL pw_gpu_sfffc(zin, zout, pw_grid%g_hatmap)
+         CALL get_fft_scratch(fft_scratch, tf_type=400, n=n, ng_local=SIZE(zin), g_hat=pw_grid%g_hat, &
+                              map=pw_grid%map, yzq=pw_grid%para%yzq)
+         CALL pw_gpu_sfffc(zin, zout, fft_scratch%g_hatmap)
 #else
          ALLOCATE (c_out(n(1), n(2), n(3)))
          ! check if bitstream for the fft size is present
@@ -833,7 +844,8 @@ CONTAINS
             IF (r_dim(1) == 1) &
                CPABORT("This processor distribution is not supported.")
 
-            CALL get_fft_scratch(fft_scratch, tf_type=300, n=n, fft_sizes=fft_scratch_size)
+            CALL get_fft_scratch(fft_scratch, tf_type=300, n=n, ng_local=SIZE(zout), g_hat=pw_grid%g_hat, &
+                                 map=pw_grid%map, fft_sizes=fft_scratch_size)
 
             ! assign buffers
             qbuf => fft_scratch%p2buf
@@ -858,7 +870,7 @@ CONTAINS
                           bo(:, :, :, 2), sbuf, fft_scratch)
 
             ! FFT along x
-            CALL pw_gpu_fg(sbuf, zout, scale, n, pw_grid%g_hatmap, pw_grid%grays)
+            CALL pw_gpu_fg(sbuf, zout, scale, n, fft_scratch%g_hatmap, pw_grid%grays)
 
             CALL release_fft_scratch(fft_scratch)
 
@@ -869,7 +881,8 @@ CONTAINS
             ! direction x
             !
 
-            CALL get_fft_scratch(fft_scratch, tf_type=200, n=n, fft_sizes=fft_scratch_size)
+            CALL get_fft_scratch(fft_scratch, tf_type=200, n=n, ng_local=SIZE(zout), g_hat=pw_grid%g_hat, &
+                                 map=pw_grid%map, fft_sizes=fft_scratch_size)
 
             ! assign buffers
             tbuf => fft_scratch%tbuf
@@ -883,7 +896,7 @@ CONTAINS
                          bo(:, :, :, 2), sbuf, fft_scratch)
 
             ! FFT along x
-            CALL pw_gpu_fg(sbuf, zout, scale, n, pw_grid%g_hatmap, pw_grid%grays)
+            CALL pw_gpu_fg(sbuf, zout, scale, n, fft_scratch%g_hatmap, pw_grid%grays)
 
             CALL release_fft_scratch(fft_scratch)
 
@@ -994,7 +1007,8 @@ CONTAINS
             IF (r_dim(1) == 1) &
                CPABORT("This processor distribution is not supported.")
 
-            CALL get_fft_scratch(fft_scratch, tf_type=300, n=n, fft_sizes=fft_scratch_size)
+            CALL get_fft_scratch(fft_scratch, tf_type=300, n=n, ng_local=SIZE(zin), g_hat=pw_grid%g_hat, &
+                                 map=pw_grid%map, fft_sizes=fft_scratch_size)
 
             ! assign buffers
             pbuf => fft_scratch%p7buf
@@ -1003,7 +1017,7 @@ CONTAINS
             sbuf => fft_scratch%p2buf
 
             ! FFT along x
-            CALL pw_gpu_sf(zin, pbuf, scale, n, pw_grid%g_hatmap, pw_grid%grays)
+            CALL pw_gpu_sf(zin, pbuf, scale, n, fft_scratch%g_hatmap, pw_grid%grays)
 
             ! Exchange data ( transpose of matrix ) and sort
             IF (pw_grid%grid_span /= FULLSPACE) qbuf = z_zero
@@ -1033,14 +1047,15 @@ CONTAINS
             ! direction x
             !
 
-            CALL get_fft_scratch(fft_scratch, tf_type=200, n=n, fft_sizes=fft_scratch_size)
+            CALL get_fft_scratch(fft_scratch, tf_type=200, n=n, ng_local=SIZE(zin), g_hat=pw_grid%g_hat, &
+                                 map=pw_grid%map, fft_sizes=fft_scratch_size)
 
             ! assign buffers
             sbuf => fft_scratch%r1buf
             tbuf => fft_scratch%tbuf
 
             ! FFT along x
-            CALL pw_gpu_sf(zin, sbuf, scale, n, pw_grid%g_hatmap, pw_grid%grays)
+            CALL pw_gpu_sf(zin, sbuf, scale, n, fft_scratch%g_hatmap, pw_grid%grays)
 
             ! Exchange data ( transpose of matrix ) and sort
             IF (pw_grid%grid_span /= FULLSPACE) tbuf = z_zero
@@ -3288,6 +3303,15 @@ CONTAINS
 #endif
 
       ! deallocate structures
+      IF (ASSOCIATED(fft_scratch%g_hatmap)) THEN
+#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_PW)
+         dummy_ptr => fft_scratch%g_hatmap(1, 1)
+         stat = offload_free_pinned_mem(c_loc(dummy_ptr))
+         CPASSERT(stat == 0)
+#else
+         DEALLOCATE (fft_scratch%g_hatmap)
+#endif
+      END IF
       IF (ASSOCIATED(fft_scratch%p1buf)) THEN
          CALL fft_dealloc(fft_scratch%p1buf)
       END IF
@@ -3530,12 +3554,20 @@ CONTAINS
 !> \param fft_scratch ...
 !> \param tf_type ...
 !> \param n ...
+!> \param ng_local ...
+!> \param g_hat ...
+!> \param map ...
+!> \param yzq ...
 !> \param fft_sizes ...
 ! **************************************************************************************************
-   SUBROUTINE get_fft_scratch(fft_scratch, tf_type, n, fft_sizes)
+   SUBROUTINE get_fft_scratch(fft_scratch, tf_type, n, ng_local, g_hat, map, yzq, fft_sizes)
       TYPE(fft_scratch_type), POINTER          :: fft_scratch
       INTEGER, INTENT(IN)                      :: tf_type
       INTEGER, DIMENSION(3), INTENT(IN)        :: n
+      INTEGER, INTENT(IN), OPTIONAL :: ng_local
+      INTEGER, DIMENSION(:, :), CONTIGUOUS, INTENT(IN), OPTIONAL :: g_hat
+      TYPE(cp_1d_i_a_type), DIMENSION(3, 2), INTENT(IN), OPTIONAL :: map
+      INTEGER, DIMENSION(:, :), CONTIGUOUS, INTENT(IN), OPTIONAL :: yzq
       TYPE(fft_scratch_sizes), INTENT(IN), &
          OPTIONAL                               :: fft_sizes
 
@@ -3555,12 +3587,18 @@ CONTAINS
                                                   fft_scratch_last, &
                                                   fft_scratch_new
 #if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_PW)
-      INTEGER                   :: ierr
+      INTEGER                   :: ierr, nmaps, stat
       INTEGER(KIND=C_SIZE_T)    :: length
       TYPE(C_PTR)               :: cptr_r1buf, cptr_tbuf, &
-                                   cptr_p2buf, cptr_p3buf, cptr_p4buf, cptr_p5buf, cptr_p7buf
+                                   cptr_p2buf, cptr_p3buf, cptr_p4buf, cptr_p5buf, cptr_p7buf, cptr_g_hatmap
 #endif
       CALL timeset(routineN, handle)
+
+      ! Prevent compiler warnings on CPU
+      MARK_USED(ng_local)
+      MARK_USED(map)
+      MARK_USED(yzq)
+      MARK_USED(g_hat)
 
       ! this is the place to check that the scratch_pool does not grow without limits
       ! before we add a new scratch check the size of the pool and release some of the list if needed
@@ -3732,6 +3770,19 @@ CONTAINS
                CALL fft_alloc(fft_scratch_new%fft_scratch%r1buf, [mmax, lmax])
                CALL fft_alloc(fft_scratch_new%fft_scratch%tbuf, [ny, nz, nx])
 #endif
+#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_PW)
+               IF (.NOT. PRESENT(map) .OR. .NOT. PRESENT(yzq), .OR. .NOT. PRESENT(g_hat) .OR. .NOT. (ng_local)) &
+                  CPABORT("Some input data is missing!")
+               nmaps = 1
+               IF (ALLOCATED(map(1, 2)) .AND. ALLOCATED(map(2, 2)) .AND. ALLOCATED(map(3, 2))) nmaps = 2
+               CALL offload_activate_chosen_device()
+
+               length = INT(int_size*MAX(ng_local, 1)*MAX(nmaps, 1), KIND=C_SIZE_T)
+               stat = offload_malloc_pinned_mem(cptr_g_hatmap, length)
+               CPASSERT(stat == 0)
+               CALL c_f_pointer(cptr_g_hatmap, fft_scratch_new%fft_scratch%g_hatmap, (/MAX(ng_local, 1), MAX(nmaps, 1)/))
+               CALL create_ghatmap(g_hatmap, g_hat, map, n, yzq, .TRUE.)
+#endif
                fft_scratch_new%fft_scratch%group = fft_sizes%rs_group
                nm = nmray*mx2
                IF (alltoall_sgl) THEN
@@ -3794,6 +3845,19 @@ CONTAINS
                CALL fft_alloc(fft_scratch_new%fft_scratch%p5buf, [nyzray, n(1)])
                CALL fft_alloc(fft_scratch_new%fft_scratch%p7buf, [mg, lg])
 #endif
+#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_PW)
+               IF (.NOT. PRESENT(map) .OR. .NOT. PRESENT(yzq), .OR. .NOT. PRESENT(g_hat) .OR. .NOT. (ng_local)) &
+                  CPABORT("Some input data is missing!")
+               nmaps = 1
+               IF (ALLOCATED(map(1, 2)) .AND. ALLOCATED(map(2, 2)) .AND. ALLOCATED(map(3, 2))) nmaps = 2
+               CALL offload_activate_chosen_device()
+
+               length = INT(int_size*MAX(ng_local, 1)*MAX(nmaps, 1), KIND=C_SIZE_T)
+               stat = offload_malloc_pinned_mem(cptr_g_hatmap, length)
+               CPASSERT(stat == 0)
+               CALL c_f_pointer(cptr_g_hatmap, fft_scratch_new%fft_scratch%g_hatmap, (/MAX(ng_local, 1), MAX(nmaps, 1)/))
+               CALL create_ghatmap(g_hatmap, g_hat, map, n, yzq, .TRUE.)
+#endif
                IF (alltoall_sgl) THEN
                   ALLOCATE (fft_scratch_new%fft_scratch%yzbuf_sgl(mg*lg))
                   ALLOCATE (fft_scratch_new%fft_scratch%xzbuf_sgl(n(2)*mx2*mz2))
@@ -3855,6 +3919,19 @@ CONTAINS
                CALL fft_dealloc(complex_array_2d)
 
             CASE (400) ! serial FFT
+#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_PW)
+               IF (.NOT. PRESENT(map) .OR. .NOT. PRESENT(yzq), .OR. .NOT. PRESENT(g_hat) .OR. .NOT. (ng_local)) &
+                  CPABORT("Some input data is missing!")
+               nmaps = 1
+               IF (ALLOCATED(map(1, 2)) .AND. ALLOCATED(map(2, 2)) .AND. ALLOCATED(map(3, 2))) nmaps = 2
+               CALL offload_activate_chosen_device()
+
+               length = INT(int_size*MAX(ng_local, 1)*MAX(nmaps, 1), KIND=C_SIZE_T)
+               stat = offload_malloc_pinned_mem(cptr_g_hatmap, length)
+               CPASSERT(stat == 0)
+               CALL c_f_pointer(cptr_g_hatmap, fft_scratch_new%fft_scratch%g_hatmap, (/MAX(ng_local, 1), MAX(nmaps, 1)/))
+               CALL create_ghatmap(g_hatmap, g_hat, map, n, yzq, .FALSE.)
+#endif
                CALL fft_alloc(complex_array_3d_1, n)
                CALL fft_alloc(complex_array_3d_2, n)
 
@@ -3918,6 +3995,89 @@ CONTAINS
       END IF
 
    END SUBROUTINE release_fft_scratch
+
+#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_PW)
+! **************************************************************************************************
+!> \brief sets up a combined index for CUDA gather and scatter
+!> \param g_hatmap ...
+!> \param g_hat ...
+!> \param map ...
+!> \param npts ...
+!> \param yzq ...
+!> \param is_distributed ...
+!> \author Gloess Andreas (xx-Dec-2012)
+! **************************************************************************************************
+   SUBROUTINE create_ghatmap(g_hatmap, g_hat, map, npts, yzq, is_distributed)
+
+      INTEGER, CONTIGUOUS, DIMENSION(:, :), &
+         INTENT(INOUT)                                   :: g_hatmap
+      INTEGER, CONTIGUOUS, DIMENSION(:, :), INTENT(IN)   :: g_hat
+      TYPE(cp_1d_i_a_type), DIMENSION(3, 2), INTENT(IN)  :: map
+      INTEGER, DIMENSION(3), INTENT(IN)                  :: npts
+      INTEGER, DIMENSION(npts(2), npts(3)), INTENT(IN)   :: yzq
+      LOGICAL, INTENT(IN)                                :: is_distributed
+
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'create_ghatmap'
+
+      INTEGER                                            :: gpt, handle, l, m, mn, n
+
+      CALL timeset(routineN, handle)
+
+      ! mapping of map_x( g_hat(i,j)) to g_hatmap
+      ! the second index is for switching from gather(1) to scatter(2)
+      ASSOCIATE (pmapl => map(1, 1)%array, pmapm => map(2, 1)%array, pmapn => map(3, 1)%array, &
+                 nmapl => map(1, 2)%array, nmapm => map(2, 2)%array, nmapn => map(3, 2)%array, &
+                 ngpts => SIZE(g_hat, 2))
+         ! initialize map array to minus one, to guarantee memory
+         ! range checking errors in CUDA part (just to be sure)
+         g_hatmap(:, :) = -1
+         IF (.NOT. is_distributed) THEN
+            DO gpt = 1, ngpts
+               l = pmapl(g_hat(1, gpt))
+               m = pmapm(g_hat(2, gpt))
+               n = pmapn(g_hat(3, gpt))
+               !ATTENTION: C-mapping [start-index=0] !!!!
+               !ATTENTION: potential integer overflow !!!!
+               g_hatmap(gpt, 1) = l + npts(1)*(m + npts(2)*n)
+            END DO
+            IF (pw_grid%grid_span == HALFSPACE) THEN
+               DO gpt = 1, ngpts
+                  l = nmapl(g_hat(1, gpt))
+                  m = nmapm(g_hat(2, gpt))
+                  n = nmapn(g_hat(3, gpt))
+                  !ATTENTION: C-mapping [start-index=0] !!!!
+                  !ATTENTION: potential integer overflow !!!!
+                  g_hatmap(gpt, 2) = l + npts(1)*(m + npts(2)*n)
+               END DO
+            END IF
+         ELSE
+            DO gpt = 1, ngpts
+               l = pmapl(g_hat(1, gpt))
+               m = pmapm(g_hat(2, gpt)) + 1
+               n = pmapn(g_hat(3, gpt)) + 1
+               !ATTENTION: C-mapping [start-index=0] !!!!
+               !ATTENTION: potential integer overflow !!!!
+               mn = yzq(m, n) - 1
+               g_hatmap(gpt, 1) = l + npts(1)*mn
+            END DO
+            IF (pw_grid%grid_span == HALFSPACE) THEN
+               DO gpt = 1, ngpts
+                  l = nmapl(g_hat(1, gpt))
+                  m = nmapm(g_hat(2, gpt)) + 1
+                  n = nmapn(g_hat(3, gpt)) + 1
+                  !ATTENTION: C-mapping [start-index=0] !!!!
+                  !ATTENTION: potential integer overflow !!!!
+                  mn = yzq(m, n) - 1
+                  g_hatmap(gpt, 2) = l + npts(1)*mn
+               END DO
+            END IF
+         END IF
+      END ASSOCIATE
+
+      CALL timestop(handle)
+
+   END SUBROUTINE create_ghatmap
+#endif
 
 ! **************************************************************************************************
 !> \brief ...

@@ -34,23 +34,15 @@
 !>      CJM
 ! **************************************************************************************************
 MODULE pw_grids
-   USE ISO_C_BINDING,                   ONLY: C_F_POINTER,&
-                                              C_LOC,&
-                                              C_PTR,&
-                                              C_SIZE_T
    USE cp_array_utils,                  ONLY: cp_1d_i_a_type
    USE kinds,                           ONLY: dp,&
-                                              int_8,&
-                                              int_size
+                                              int_8
    USE mathconstants,                   ONLY: twopi
    USE mathlib,                         ONLY: det_3x3,&
                                               inv_3x3
    USE message_passing,                 ONLY: mp_comm_self,&
                                               mp_comm_type,&
                                               mp_dims_create
-   USE offload_api,                     ONLY: offload_activate_chosen_device,&
-                                              offload_free_pinned_mem,&
-                                              offload_malloc_pinned_mem
    USE pw_grid_info,                    ONLY: pw_find_cutoff,&
                                               pw_grid_bounds_from_n,&
                                               pw_grid_init_setup
@@ -116,7 +108,6 @@ CONTAINS
       pw_grid%ref_count = 1
       NULLIFY (pw_grid%g)
       NULLIFY (pw_grid%gsq)
-      NULLIFY (pw_grid%g_hatmap)
       NULLIFY (pw_grid%gidx)
       NULLIFY (pw_grid%grays)
 
@@ -321,7 +312,6 @@ CONTAINS
       pw_grid%ref_count = 1
       NULLIFY (pw_grid%g)
       NULLIFY (pw_grid%gsq)
-      NULLIFY (pw_grid%g_hatmap)
       NULLIFY (pw_grid%gidx)
       NULLIFY (pw_grid%grays)
 
@@ -419,89 +409,9 @@ CONTAINS
       CALL pw_grid_setup_internal(cell_hmat, cell_h_inv, cell_deth, pw_grid, mp_comm, bounds_local=bounds_local, &
                                   blocked=blocked, ref_grid=ref_grid, rs_dims=rs_dims, iounit=iounit)
 
-#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_PW)
-      CALL pw_grid_create_ghatmap(pw_grid)
-#endif
-
       CALL timestop(handle)
 
    END SUBROUTINE pw_grid_create_extended
-
-#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_PW)
-! **************************************************************************************************
-!> \brief sets up a combined index for CUDA gather and scatter
-!> \param pw_grid ...
-!> \author Gloess Andreas (xx-Dec-2012)
-! **************************************************************************************************
-   SUBROUTINE pw_grid_create_ghatmap(pw_grid)
-
-      TYPE(pw_grid_type), INTENT(INOUT)                  :: pw_grid
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'pw_grid_create_ghatmap'
-
-      INTEGER                                            :: gpt, handle, l, m, mn, n
-
-      CALL timeset(routineN, handle)
-
-      ! some checks
-      CPASSERT(pw_grid%ref_count > 0)
-
-      ! mapping of map_x( g_hat(i,j)) to g_hatmap
-      ! the second index is for switching from gather(1) to scatter(2)
-      ASSOCIATE (g_hat => pw_grid%g_hat, g_hatmap => pw_grid%g_hatmap, pmapl => pw_grid%map(1, 1)%array, &
-                 pmapm => pw_grid%map(2, 1)%array, pmapn => pw_grid%map(3, 1)%array, nmapl => pw_grid%map(1, 2)%array, &
-                 nmapm => pw_grid%map(2, 2)%array, nmapn => pw_grid%map(3, 2)%array, ngpts => SIZE(pw_grid%gsq), &
-                 npts => pw_grid%npts, yzq => pw_grid%para%yzq)
-         ! initialize map array to minus one, to guarantee memory
-         ! range checking errors in CUDA part (just to be sure)
-         g_hatmap(:, :) = -1
-         IF (pw_grid%para%mode /= PW_MODE_DISTRIBUTED) THEN
-            DO gpt = 1, ngpts
-               l = pmapl(g_hat(1, gpt))
-               m = pmapm(g_hat(2, gpt))
-               n = pmapn(g_hat(3, gpt))
-               !ATTENTION: C-mapping [start-index=0] !!!!
-               !ATTENTION: potential integer overflow !!!!
-               g_hatmap(gpt, 1) = l + npts(1)*(m + npts(2)*n)
-            END DO
-            IF (pw_grid%grid_span == HALFSPACE) THEN
-               DO gpt = 1, ngpts
-                  l = nmapl(g_hat(1, gpt))
-                  m = nmapm(g_hat(2, gpt))
-                  n = nmapn(g_hat(3, gpt))
-                  !ATTENTION: C-mapping [start-index=0] !!!!
-                  !ATTENTION: potential integer overflow !!!!
-                  g_hatmap(gpt, 2) = l + npts(1)*(m + npts(2)*n)
-               END DO
-            END IF
-         ELSE
-            DO gpt = 1, ngpts
-               l = pmapl(g_hat(1, gpt))
-               m = pmapm(g_hat(2, gpt)) + 1
-               n = pmapn(g_hat(3, gpt)) + 1
-               !ATTENTION: C-mapping [start-index=0] !!!!
-               !ATTENTION: potential integer overflow !!!!
-               mn = yzq(m, n) - 1
-               g_hatmap(gpt, 1) = l + npts(1)*mn
-            END DO
-            IF (pw_grid%grid_span == HALFSPACE) THEN
-               DO gpt = 1, ngpts
-                  l = nmapl(g_hat(1, gpt))
-                  m = nmapm(g_hat(2, gpt)) + 1
-                  n = nmapn(g_hat(3, gpt)) + 1
-                  !ATTENTION: C-mapping [start-index=0] !!!!
-                  !ATTENTION: potential integer overflow !!!!
-                  mn = yzq(m, n) - 1
-                  g_hatmap(gpt, 2) = l + npts(1)*mn
-               END DO
-            END IF
-         END IF
-      END ASSOCIATE
-
-      CALL timestop(handle)
-
-   END SUBROUTINE pw_grid_create_ghatmap
-#endif
 
 ! **************************************************************************************************
 !> \brief sets up a pw_grid, needs valid bounds as input, it is up to you to
@@ -1687,39 +1597,19 @@ CONTAINS
    SUBROUTINE pw_grid_allocate(pw_grid, ng, bounds)
 
       ! Argument
-      TYPE(pw_grid_type), INTENT(INOUT)        :: pw_grid
-      INTEGER, INTENT(IN)                      :: ng
-      INTEGER, DIMENSION(:, :), INTENT(IN)     :: bounds
+      TYPE(pw_grid_type), INTENT(INOUT)                  :: pw_grid
+      INTEGER, INTENT(IN)                                :: ng
+      INTEGER, DIMENSION(:, :), INTENT(IN)               :: bounds
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pw_grid_allocate'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_grid_allocate'
 
-      INTEGER                                    :: nmaps
-#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_PW)
-      INTEGER(KIND=C_SIZE_T)                     :: length
-      TYPE(C_PTR)                                :: cptr_g_hatmap
-      INTEGER                                    :: stat
-#endif
-
-      INTEGER                                  :: handle
+      INTEGER                                            :: handle
 
       CALL timeset(routineN, handle)
 
       ALLOCATE (pw_grid%g(3, ng))
       ALLOCATE (pw_grid%gsq(ng))
       ALLOCATE (pw_grid%g_hat(3, ng))
-
-      nmaps = 1
-      IF (pw_grid%grid_span == HALFSPACE) nmaps = 2
-#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_PW)
-      CALL offload_activate_chosen_device()
-
-      length = INT(int_size*MAX(ng, 1)*MAX(nmaps, 1), KIND=C_SIZE_T)
-      stat = offload_malloc_pinned_mem(cptr_g_hatmap, length)
-      CPASSERT(stat == 0)
-      CALL c_f_pointer(cptr_g_hatmap, pw_grid%g_hatmap, (/MAX(ng, 1), MAX(nmaps, 1)/))
-#else
-      ALLOCATE (pw_grid%g_hatmap(1, 1))
-#endif
 
       IF (pw_grid%para%mode == PW_MODE_DISTRIBUTED) THEN
          ALLOCATE (pw_grid%grays(pw_grid%npts(1), &
@@ -2184,15 +2074,6 @@ CONTAINS
             END IF
             IF (ALLOCATED(pw_grid%g_hat)) THEN
                DEALLOCATE (pw_grid%g_hat)
-            END IF
-            IF (ASSOCIATED(pw_grid%g_hatmap)) THEN
-#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_PW)
-               dummy_ptr => pw_grid%g_hatmap(1, 1)
-               stat = offload_free_pinned_mem(c_loc(dummy_ptr))
-               CPASSERT(stat == 0)
-#else
-               DEALLOCATE (pw_grid%g_hatmap)
-#endif
             END IF
             IF (ASSOCIATED(pw_grid%grays)) THEN
                DEALLOCATE (pw_grid%grays)
