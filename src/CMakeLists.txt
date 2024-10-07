@@ -1691,9 +1691,9 @@ target_link_libraries(
     $<$<BOOL:${CP2K_USE_DFTD4}>:dftd4::dftd4>
     $<$<BOOL:${CP2K_USE_DEEPMD}>:DeePMD::deepmd
     DeePMD::deepmd_c>
-    $<$<BOOL:${CP2K_USE_TBLITE}>:cp2k::tblite::tblite>
-    $<$<BOOL:${CP2K_USE_TBLITE}>:cp2k::tblite::s-dftd3>
-    $<$<BOOL:${CP2K_USE_TBLITE}>:cp2k::tblite::toml-f>
+    $<$<BOOL:${CP2K_USE_TBLITE}>:toml-f::toml-f>
+    $<$<BOOL:${CP2K_USE_TBLITE}>:s-dftd3::s-dftd3>
+    $<$<BOOL:${CP2K_USE_TBLITE}>:tblite::tblite>
     $<$<BOOL:${CP2K_USE_SIRIUS}>:sirius::sirius>
     $<$<BOOL:${CP2K_USE_VORI}>:cp2k::VORI::vori>
     $<$<BOOL:${CP2K_USE_SPGLIB}>:Spglib::symspg>
