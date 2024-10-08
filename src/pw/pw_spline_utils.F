@@ -24,7 +24,8 @@ MODULE pw_spline_utils
    USE mathconstants,                   ONLY: twopi
    USE message_passing,                 ONLY: mp_comm_congruent
    USE pw_grid_types,                   ONLY: FULLSPACE,&
-                                              PW_MODE_LOCAL
+                                              PW_MODE_LOCAL,&
+                                              pw_grid_type
    USE pw_methods,                      ONLY: pw_axpy,&
                                               pw_copy,&
                                               pw_integral_ab,&
@@ -633,13 +634,13 @@ CONTAINS
 !> \note
 !>      uses 2 read streams and 1 write stream
 ! **************************************************************************************************
-   SUBROUTINE pw_compose_stripe(weights, in_val, in_val_first, in_val_last, &
-                                out_val, n_el)
+   PURE SUBROUTINE pw_compose_stripe(weights, in_val, in_val_first, in_val_last, &
+                                     out_val, n_el)
       REAL(kind=dp), DIMENSION(0:2), INTENT(in)          :: weights
       REAL(kind=dp), DIMENSION(:), INTENT(in)            :: in_val
       REAL(kind=dp), INTENT(in)                          :: in_val_first, in_val_last
       REAL(kind=dp), DIMENSION(:), INTENT(inout)         :: out_val
-      INTEGER                                            :: n_el
+      INTEGER, INTENT(IN)                                :: n_el
 
       INTEGER                                            :: i
       REAL(kind=dp)                                      :: v0, v1, v2
@@ -728,22 +729,18 @@ CONTAINS
 !> \param weights a 3x3x3 array with the linear operator
 !> \param in_val the argument for the linear operator
 !> \param out_val place where the value of the linear oprator should be added
-!> \param pw_in pw to be able to get the needed meta data about in_val and
-!>        out_val
-!> \param bo boundaries of in_val and out_val
+!> \param pw_grid ...
 !> \author fawzi
 ! **************************************************************************************************
-   SUBROUTINE pw_nn_compose_r_work(weights, in_val, out_val, pw_in, bo)
+   SUBROUTINE pw_nn_compose_r_work(weights, in_val, out_val, pw_grid)
       REAL(kind=dp), DIMENSION(0:2, 0:2, 0:2)            :: weights
-      INTEGER, DIMENSION(2, 3)                           :: bo
-      TYPE(pw_r3d_rs_type), INTENT(IN)                   :: pw_in
-      REAL(kind=dp), DIMENSION(bo(1, 1):bo(2, 1), bo(1, &
-         2):bo(2, 2), bo(1, 3):bo(2, 3)), INTENT(inout)  :: out_val
-      REAL(kind=dp), DIMENSION(bo(1, 1):bo(2, 1), bo(1, &
-         2):bo(2, 2), bo(1, 3):bo(2, 3)), INTENT(in)     :: in_val
+      REAL(kind=dp), DIMENSION(0:, 0:, 0:), INTENT(in)   :: in_val
+      REAL(kind=dp), DIMENSION(0:, 0:, 0:), &
+         INTENT(inout)                                   :: out_val
+      TYPE(pw_grid_type), INTENT(IN)                     :: pw_grid
 
       INTEGER                                            :: i, j, jw, k, kw, myj, myk
-      INTEGER, DIMENSION(2, 3)                           :: gbo
+      INTEGER, DIMENSION(2, 3)                           :: bo, gbo
       INTEGER, DIMENSION(3)                              :: s
       LOGICAL                                            :: has_boundary, yderiv, zderiv
       REAL(kind=dp)                                      :: in_val_f, in_val_l
@@ -751,28 +748,28 @@ CONTAINS
 
       zderiv = ALL(weights(:, :, 1) == 0.0_dp)
       yderiv = ALL(weights(:, 1, :) == 0.0_dp)
-      bo = pw_in%pw_grid%bounds_local
-      gbo = pw_in%pw_grid%bounds
+      bo = pw_grid%bounds_local
+      gbo = pw_grid%bounds
       DO i = 1, 3
          s(i) = bo(2, i) - bo(1, i) + 1
       END DO
       IF (ANY(s < 1)) RETURN
-      has_boundary = ANY(pw_in%pw_grid%bounds_local(:, 1) /= &
-                         pw_in%pw_grid%bounds(:, 1))
+      has_boundary = ANY(pw_grid%bounds_local(:, 1) /= &
+                         pw_grid%bounds(:, 1))
       IF (has_boundary) THEN
-         ALLOCATE (l_boundary(bo(1, 2):bo(2, 2), bo(1, 3):bo(2, 3)), &
-                   u_boundary(bo(1, 2):bo(2, 2), bo(1, 3):bo(2, 3)), &
-                   tmp(bo(1, 2):bo(2, 2), bo(1, 3):bo(2, 3)))
-         tmp(:, :) = pw_in%array(bo(2, 1), :, :)
-         CALL pw_in%pw_grid%para%group%sendrecv(tmp, pw_in%pw_grid%para%pos_of_x( &
-                                                gbo(1, 1) + MODULO(bo(2, 1) + 1 - gbo(1, 1), gbo(2, 1) - gbo(1, 1) + 1)), &
-                                                l_boundary, pw_in%pw_grid%para%pos_of_x( &
-                                                gbo(1, 1) + MODULO(bo(1, 1) - 1 - gbo(1, 1), gbo(2, 1) - gbo(1, 1) + 1)))
-         tmp(:, :) = pw_in%array(bo(1, 1), :, :)
-         CALL pw_in%pw_grid%para%group%sendrecv(tmp, pw_in%pw_grid%para%pos_of_x( &
-                                                gbo(1, 1) + MODULO(bo(1, 1) - 1 - gbo(1, 1), gbo(2, 1) - gbo(1, 1) + 1)), &
-                                                u_boundary, pw_in%pw_grid%para%pos_of_x( &
-                                                gbo(1, 1) + MODULO(bo(2, 1) + 1 - gbo(1, 1), gbo(2, 1) - gbo(1, 1) + 1)))
+         ALLOCATE (l_boundary(0:s(2) - 1, 0:s(3) - 1), &
+                   u_boundary(0:s(2) - 1, 0:s(3) - 1), &
+                   tmp(0:s(2) - 1, 0:s(3) - 1))
+         tmp(:, :) = in_val(s(1) - 1, :, :)
+         CALL pw_grid%para%group%sendrecv(tmp, pw_grid%para%pos_of_x( &
+                                          gbo(1, 1) + MODULO(bo(2, 1) + 1 - gbo(1, 1), gbo(2, 1) - gbo(1, 1) + 1)), &
+                                          l_boundary, pw_grid%para%pos_of_x( &
+                                          gbo(1, 1) + MODULO(bo(1, 1) - 1 - gbo(1, 1), gbo(2, 1) - gbo(1, 1) + 1)))
+         tmp(:, :) = in_val(0, :, :)
+         CALL pw_grid%para%group%sendrecv(tmp, pw_grid%para%pos_of_x( &
+                                          gbo(1, 1) + MODULO(bo(1, 1) - 1 - gbo(1, 1), gbo(2, 1) - gbo(1, 1) + 1)), &
+                                          u_boundary, pw_grid%para%pos_of_x( &
+                                          gbo(1, 1) + MODULO(bo(2, 1) + 1 - gbo(1, 1), gbo(2, 1) - gbo(1, 1) + 1)))
          DEALLOCATE (tmp)
       END IF
 
@@ -781,23 +778,23 @@ CONTAINS
 !$OMP       u_boundary,weights,has_boundary)
       DO k = 0, s(3) - 1
          DO kw = 0, 2
-            myk = bo(1, 3) + MODULO(k + kw - 1, s(3))
+            myk = MODULO(k + kw - 1, s(3))
             IF (zderiv .AND. kw == 1) CYCLE
             DO j = 0, s(2) - 1
                DO jw = 0, 2
-                  myj = bo(1, 2) + MODULO(j + jw - 1, s(2))
+                  myj = MODULO(j + jw - 1, s(2))
                   IF (yderiv .AND. jw == 1) CYCLE
                   IF (has_boundary) THEN
                      in_val_f = l_boundary(myj, myk)
                      in_val_l = u_boundary(myj, myk)
                   ELSE
-                     in_val_f = in_val(bo(2, 1), myj, myk)
-                     in_val_l = in_val(bo(1, 1), myj, myk)
+                     in_val_f = in_val(s(1) - 1, myj, myk)
+                     in_val_l = in_val(0, myj, myk)
                   END IF
                   CALL pw_compose_stripe(weights=weights(:, jw, kw), &
                                          in_val=in_val(:, myj, myk), &
                                          in_val_first=in_val_f, in_val_last=in_val_l, &
-                                         out_val=out_val(:, bo(1, 2) + j, bo(1, 3) + k), n_el=s(1))
+                                         out_val=out_val(:, j, k), n_el=s(1))
                END DO
             END DO
          END DO
@@ -829,7 +826,7 @@ CONTAINS
          CPABORT("wrong pw distribution")
       END IF
       CALL pw_nn_compose_r_work(weights=weights, in_val=pw_in%array, &
-                                out_val=pw_out%array, pw_in=pw_in, bo=pw_in%pw_grid%bounds_local)
+                                out_val=pw_out%array, pw_grid=pw_in%pw_grid)
       CALL timestop(handle)
    END SUBROUTINE pw_nn_compose_r
 
@@ -2589,7 +2586,8 @@ CONTAINS
                                coeffs=preconditioner%coeffs)
          ELSE
             CALL pw_nn_compose_r_no_pbc(weights_1d=preconditioner%coeffs_1d, &
-                                        pw_in=in_v, pw_out=out_v, sharpen=preconditioner%sharpen, &
+                                        in_val=in_v%array, out_val=out_v%array, &
+                                        pw_grid=in_v%pw_grid, sharpen=preconditioner%sharpen, &
                                         normalize=preconditioner%normalize, &
                                         transpose=preconditioner%transpose)
          END IF
@@ -2600,7 +2598,8 @@ CONTAINS
                                coeffs=preconditioner%coeffs)
          ELSE
             CALL pw_nn_compose_r_no_pbc(weights_1d=preconditioner%coeffs_1d, &
-                                        pw_in=in_v, pw_out=out_v, sharpen=preconditioner%sharpen, &
+                                        in_val=in_v%array, out_val=out_v%array, &
+                                        pw_grid=in_v%pw_grid, sharpen=preconditioner%sharpen, &
                                         normalize=preconditioner%normalize, smooth_boundary=.TRUE., &
                                         transpose=preconditioner%transpose)
          END IF
@@ -2726,18 +2725,22 @@ CONTAINS
 !>         weights_1d(abs(l)+1)*weights_1d(abs(m)+1)*weights_1d(abs(n)+1),
 !>         l=-1..1,m=-1..1,n=-1..1)
 !> \param weights_1d ...
-!> \param pw_in ...
-!> \param pw_out ...
+!> \param in_val ...
+!> \param out_val ...
+!> \param pw_grid ...
 !> \param sharpen ...
 !> \param normalize ...
 !> \param transpose ...
 !> \param smooth_boundary ...
 !> \author fawzi
 ! **************************************************************************************************
-   SUBROUTINE pw_nn_compose_r_no_pbc(weights_1d, pw_in, pw_out, &
+   SUBROUTINE pw_nn_compose_r_no_pbc(weights_1d, in_val, out_val, pw_grid, &
                                      sharpen, normalize, transpose, smooth_boundary)
       REAL(kind=dp), DIMENSION(-1:1)                     :: weights_1d
-      TYPE(pw_r3d_rs_type), INTENT(IN)                   :: pw_in, pw_out
+      REAL(kind=dp), DIMENSION(0:, 0:, 0:), INTENT(IN)   :: in_val
+      REAL(kind=dp), DIMENSION(0:, 0:, 0:), &
+         INTENT(INOUT)                                   :: out_val
+      TYPE(pw_grid_type), INTENT(IN)                     :: pw_grid
       LOGICAL, INTENT(in), OPTIONAL                      :: sharpen, normalize, transpose, &
                                                             smooth_boundary
 
@@ -2751,12 +2754,9 @@ CONTAINS
       REAL(kind=dp)                                      :: in_val_f, in_val_l, in_val_tmp, w_j, w_k
       REAL(kind=dp), DIMENSION(-1:1)                     :: w
       REAL(kind=dp), DIMENSION(:, :), POINTER            :: l_boundary, tmp, u_boundary
-      REAL(kind=dp), DIMENSION(:, :, :), POINTER         :: in_val, out_val
 
-      bo = pw_in%pw_grid%bounds_local
-      gbo = pw_in%pw_grid%bounds
-      in_val => pw_in%array
-      out_val => pw_out%array
+      bo = pw_grid%bounds_local
+      gbo = pw_grid%bounds
       my_sharpen = .FALSE.
       IF (PRESENT(sharpen)) my_sharpen = sharpen
       my_normalize = .FALSE.
@@ -2771,52 +2771,52 @@ CONTAINS
          s(i) = bo(2, i) - bo(1, i) + 1
       END DO
       IF (ANY(s < 1)) RETURN
-      is_split = ANY(pw_in%pw_grid%bounds_local(:, 1) /= &
-                     pw_in%pw_grid%bounds(:, 1))
+      is_split = ANY(pw_grid%bounds_local(:, 1) /= &
+                     pw_grid%bounds(:, 1))
       has_l_boundary = (gbo(1, 1) == bo(1, 1))
       has_u_boundary = (gbo(2, 1) == bo(2, 1))
       IF (is_split) THEN
-         ALLOCATE (l_boundary(bo(1, 2):bo(2, 2), bo(1, 3):bo(2, 3)), &
-                   u_boundary(bo(1, 2):bo(2, 2), bo(1, 3):bo(2, 3)), &
-                   tmp(bo(1, 2):bo(2, 2), bo(1, 3):bo(2, 3)))
-         tmp(:, :) = pw_in%array(bo(2, 1), :, :)
-         CALL pw_in%pw_grid%para%group%sendrecv(tmp, pw_in%pw_grid%para%pos_of_x( &
-                                                gbo(1, 1) + MODULO(bo(2, 1) + 1 - gbo(1, 1), gbo(2, 1) - gbo(1, 1) + 1)), &
-                                                l_boundary, pw_in%pw_grid%para%pos_of_x( &
-                                                gbo(1, 1) + MODULO(bo(1, 1) - 1 - gbo(1, 1), gbo(2, 1) - gbo(1, 1) + 1)))
-         tmp(:, :) = pw_in%array(bo(1, 1), :, :)
-         CALL pw_in%pw_grid%para%group%sendrecv(tmp, pw_in%pw_grid%para%pos_of_x( &
-                                                gbo(1, 1) + MODULO(bo(1, 1) - 1 - gbo(1, 1), gbo(2, 1) - gbo(1, 1) + 1)), &
-                                                u_boundary, pw_in%pw_grid%para%pos_of_x( &
-                                                gbo(1, 1) + MODULO(bo(2, 1) + 1 - gbo(1, 1), gbo(2, 1) - gbo(1, 1) + 1)))
+         ALLOCATE (l_boundary(0:s(2) - 1, 0:s(3) - 1), &
+                   u_boundary(0:s(2) - 1, 0:s(3) - 1), &
+                   tmp(0:s(2) - 1, 0:s(3) - 1))
+         tmp(:, :) = in_val(s(1) - 1, :, :)
+         CALL pw_grid%para%group%sendrecv(tmp, pw_grid%para%pos_of_x( &
+                                          gbo(1, 1) + MODULO(bo(2, 1) + 1 - gbo(1, 1), gbo(2, 1) - gbo(1, 1) + 1)), &
+                                          l_boundary, pw_grid%para%pos_of_x( &
+                                          gbo(1, 1) + MODULO(bo(1, 1) - 1 - gbo(1, 1), gbo(2, 1) - gbo(1, 1) + 1)))
+         tmp(:, :) = in_val(0, :, :)
+         CALL pw_grid%para%group%sendrecv(tmp, pw_grid%para%pos_of_x( &
+                                          gbo(1, 1) + MODULO(bo(1, 1) - 1 - gbo(1, 1), gbo(2, 1) - gbo(1, 1) + 1)), &
+                                          u_boundary, pw_grid%para%pos_of_x( &
+                                          gbo(1, 1) + MODULO(bo(2, 1) + 1 - gbo(1, 1), gbo(2, 1) - gbo(1, 1) + 1)))
          DEALLOCATE (tmp)
       END IF
 
       n_els = s(1)
       IF (has_l_boundary) THEN
          n_els = n_els - 1
-         first_index = bo(1, 1) + 1
+         first_index = 1
       ELSE
-         first_index = bo(1, 1)
+         first_index = 0
       END IF
       IF (has_u_boundary) THEN
          n_els = n_els - 1
-         last_index = bo(2, 1) - 1
+         last_index = s(1) - 2
       ELSE
-         last_index = bo(2, 1)
+         last_index = s(1) - 1
       END IF
 !$OMP PARALLEL DO DEFAULT(NONE) &
 !$OMP PRIVATE(k, kw, myk, j, jw, myj, in_val_f, in_val_l, w_k, w_j, in_val_tmp, w) &
 !$OMP SHARED(bo, in_val, out_val, s, l_boundary, u_boundary, weights_1d, is_split, &
 !$OMP        my_transpose, gbo, my_smooth_boundary, has_l_boundary, has_u_boundary, &
 !$OMP        my_sharpen, last_index, first_index, my_normalize, n_els)
-      DO k = bo(1, 3), bo(2, 3)
+      DO k = 0, s(3) - 1
          DO kw = -1, 1
             myk = k + kw
             IF (my_transpose) THEN
-               IF (k >= gbo(2, 3) - 1 .OR. k <= gbo(1, 3) + 1) THEN
-                  IF (k == gbo(2, 3) .OR. k == gbo(1, 3)) THEN
-                     IF (myk < gbo(2, 3) .AND. myk > gbo(1, 3)) THEN
+               IF (k >= gbo(2, 3) - bo(1, 3) - 1 .OR. k <= gbo(1, 3) - bo(1, 3) + 1) THEN
+                  IF (k == gbo(2, 3) - bo(1, 3) .OR. k == gbo(1, 3) - bo(1, 3)) THEN
+                     IF (myk < gbo(2, 3) - bo(1, 3) .AND. myk > gbo(1, 3) - bo(1, 3)) THEN
                         w_k = weights_1d(kw)
                         IF (my_smooth_boundary) THEN
                            w_k = weights_1d(kw)/weights_1d(0)
@@ -2827,20 +2827,20 @@ CONTAINS
                         CYCLE
                      END IF
                   ELSE
-                     IF (myk == gbo(2, 3) .OR. myk == gbo(1, 3)) CYCLE
+                     IF (myk == gbo(2, 3) - bo(1, 3) .OR. myk == gbo(1, 3) - bo(1, 3)) CYCLE
                      w_k = weights_1d(kw)
                   END IF
                ELSE
                   w_k = weights_1d(kw)
                END IF
             ELSE
-               IF (k >= gbo(2, 3) - 1 .OR. k <= gbo(1, 3) + 1) THEN
-                  IF (k == gbo(2, 3) .OR. k == gbo(1, 3)) THEN
+               IF (k >= gbo(2, 3) - bo(1, 3) - 1 .OR. k <= gbo(1, 3) - bo(1, 3) + 1) THEN
+                  IF (k == gbo(2, 3) - bo(1, 3) .OR. k == gbo(1, 3) - bo(1, 3)) THEN
                      IF (kw /= 0) CYCLE
                      w_k = 1._dp
                   ELSE
-                     IF (my_smooth_boundary .AND. ((k == gbo(1, 3) + 1 .AND. myk == gbo(1, 3)) .OR. &
-                                                   (k == gbo(2, 3) - 1 .AND. myk == gbo(2, 3)))) THEN
+                     IF (my_smooth_boundary .AND. ((k == gbo(1, 3) - bo(1, 3) + 1 .AND. myk == gbo(1, 3) - bo(1, 3)) .OR. &
+                                                   (k == gbo(2, 3) - bo(1, 3) - 1 .AND. myk == gbo(2, 3) - bo(1, 3)))) THEN
                         w_k = weights_1d(kw)/weights_1d(0)
                      ELSE
                         w_k = weights_1d(kw)
@@ -2850,15 +2850,15 @@ CONTAINS
                   w_k = weights_1d(kw)
                END IF
             END IF
-            DO j = bo(1, 2), bo(2, 2)
+            DO j = 0, s(2) - 1
                DO jw = -1, 1
                   myj = j + jw
-                  IF (j < gbo(2, 2) - 1 .AND. j > gbo(1, 2) + 1) THEN
+                  IF (j < gbo(2, 2) - bo(1, 2) - 1 .AND. j > gbo(1, 2) - bo(1, 2) + 1) THEN
                      w_j = w_k*weights_1d(jw)
                   ELSE
                      IF (my_transpose) THEN
-                        IF (j == gbo(2, 2) .OR. j == gbo(1, 2)) THEN
-                           IF (myj < gbo(2, 2) .AND. myj > gbo(1, 2)) THEN
+                        IF (j == gbo(2, 2) - bo(1, 2) .OR. j == gbo(1, 2) - bo(1, 2)) THEN
+                           IF (myj < gbo(2, 2) - bo(1, 2) .AND. myj > gbo(1, 2) - bo(1, 2)) THEN
                               w_j = weights_1d(jw)*w_k
                               IF (my_smooth_boundary) THEN
                                  w_j = weights_1d(jw)/weights_1d(0)*w_k
@@ -2869,15 +2869,15 @@ CONTAINS
                               CYCLE
                            END IF
                         ELSE
-                           IF (myj == gbo(2, 2) .OR. myj == gbo(1, 2)) CYCLE
+                           IF (myj == gbo(2, 2) - bo(1, 2) .OR. myj == gbo(1, 2) - bo(1, 2)) CYCLE
                            w_j = w_k*weights_1d(jw)
                         END IF
                      ELSE
-                        IF (j == gbo(2, 2) .OR. j == gbo(1, 2)) THEN
+                        IF (j == gbo(2, 2) - bo(1, 2) .OR. j == gbo(1, 2) - bo(1, 2)) THEN
                            IF (jw /= 0) CYCLE
                            w_j = w_k
-                        ELSE IF (my_smooth_boundary .AND. ((j == gbo(1, 2) + 1 .AND. myj == gbo(1, 2)) .OR. &
-                                                           (j == gbo(2, 2) - 1 .AND. myj == gbo(2, 2)))) THEN
+                        ELSE IF (my_smooth_boundary .AND. ((j == gbo(1, 2) - bo(1, 2) + 1 .AND. myj == gbo(1, 2) - bo(1, 2)) .OR. &
+                                                           (j == gbo(2, 2) - bo(1, 2) - 1 .AND. myj == gbo(2, 2) - bo(1, 2)))) THEN
                            w_j = w_k*weights_1d(jw)/weights_1d(0)
                         ELSE
                            w_j = w_k*weights_1d(jw)
@@ -2891,52 +2891,52 @@ CONTAINS
                            CPASSERT(.NOT. has_u_boundary)
                            in_val_tmp = u_boundary(myj, myk)
                         ELSE
-                           in_val_tmp = in_val(bo(1, 1) + 1, myj, myk)
+                           in_val_tmp = in_val(1, myj, myk)
                         END IF
                         IF (my_sharpen) THEN
                            IF (kw == 0 .AND. jw == 0) THEN
                               IF (my_normalize) THEN
-                                 out_val(bo(1, 1), j, k) = out_val(bo(1, 1), j, k) + &
-                                                           (2.0_dp - w_j)*in_val(bo(1, 1), myj, myk) - &
-                                                           in_val_tmp*weights_1d(1)*w_j
+                                 out_val(0, j, k) = out_val(0, j, k) + &
+                                                    (2.0_dp - w_j)*in_val(0, myj, myk) - &
+                                                    in_val_tmp*weights_1d(1)*w_j
                               ELSE
-                                 out_val(bo(1, 1), j, k) = out_val(bo(1, 1), j, k) + &
-                                                           in_val(bo(1, 1), myj, myk)*w_j - &
-                                                           in_val_tmp*weights_1d(1)*w_j
+                                 out_val(0, j, k) = out_val(0, j, k) + &
+                                                    in_val(0, myj, myk)*w_j - &
+                                                    in_val_tmp*weights_1d(1)*w_j
                               END IF
                            ELSE
-                              out_val(bo(1, 1), j, k) = out_val(bo(1, 1), j, k) - &
-                                                        in_val(bo(1, 1), myj, myk)*w_j - &
-                                                        in_val_tmp*weights_1d(1)*w_j
+                              out_val(0, j, k) = out_val(0, j, k) - &
+                                                 in_val(0, myj, myk)*w_j - &
+                                                 in_val_tmp*weights_1d(1)*w_j
                            END IF
                         ELSE IF (my_smooth_boundary) THEN
-                           out_val(bo(1, 1), j, k) = out_val(bo(1, 1), j, k) + &
-                                                     w_j*(in_val(bo(1, 1), myj, myk) + &
-                                                          in_val_tmp*weights_1d(1)/weights_1d(0))
+                           out_val(0, j, k) = out_val(0, j, k) + &
+                                              w_j*(in_val(0, myj, myk) + &
+                                                   in_val_tmp*weights_1d(1)/weights_1d(0))
                         ELSE
-                           out_val(bo(1, 1), j, k) = out_val(bo(1, 1), j, k) + &
-                                                     w_j*(in_val(bo(1, 1), myj, myk) + &
-                                                          in_val_tmp*weights_1d(1))
+                           out_val(0, j, k) = out_val(0, j, k) + &
+                                              w_j*(in_val(0, myj, myk) + &
+                                                   in_val_tmp*weights_1d(1))
                         END IF
                         in_val_f = 0.0_dp
                      ELSE
-                        in_val_f = in_val(bo(1, 1), myj, myk)
+                        in_val_f = in_val(0, myj, myk)
                         IF (my_sharpen) THEN
                            IF (kw == 0 .AND. jw == 0) THEN
                               IF (my_normalize) THEN
-                                 out_val(bo(1, 1), j, k) = out_val(bo(1, 1), j, k) + &
-                                                           (2.0_dp - w_j)*in_val_f
+                                 out_val(0, j, k) = out_val(0, j, k) + &
+                                                    (2.0_dp - w_j)*in_val_f
                               ELSE
-                                 out_val(bo(1, 1), j, k) = out_val(bo(1, 1), j, k) + &
-                                                           in_val_f*w_j
+                                 out_val(0, j, k) = out_val(0, j, k) + &
+                                                    in_val_f*w_j
                               END IF
                            ELSE
-                              out_val(bo(1, 1), j, k) = out_val(bo(1, 1), j, k) - &
-                                                        in_val_f*w_j
+                              out_val(0, j, k) = out_val(0, j, k) - &
+                                                 in_val_f*w_j
                            END IF
                         ELSE
-                           out_val(bo(1, 1), j, k) = out_val(bo(1, 1), j, k) + &
-                                                     in_val_f*w_j
+                           out_val(0, j, k) = out_val(0, j, k) + &
+                                              in_val_f*w_j
                         END IF
                      END IF
                   ELSE
@@ -2944,54 +2944,54 @@ CONTAINS
                   END IF
                   IF (has_u_boundary) THEN
                      IF (my_transpose) THEN
-                        in_val_l = in_val(bo(2, 1), myj, myk)
+                        in_val_l = in_val(s(1) - 1, myj, myk)
                         IF (s(1) == 1) THEN
                            CPASSERT(.NOT. has_l_boundary)
                            in_val_tmp = l_boundary(myj, myk)
                         ELSE
-                           in_val_tmp = in_val(bo(2, 1) - 1, myj, myk)
+                           in_val_tmp = in_val(s(1) - 2, myj, myk)
                         END IF
                         IF (my_sharpen) THEN
                            IF (kw == 0 .AND. jw == 0) THEN
                               IF (my_normalize) THEN
-                                 out_val(bo(2, 1), j, k) = out_val(bo(2, 1), j, k) + &
+                                 out_val(s(1) - 1, j, k) = out_val(s(1) - 1, j, k) + &
                                                            in_val_l*(2._dp - w_j) - &
                                                            in_val_tmp*weights_1d(1)*w_j
                               ELSE
-                                 out_val(bo(2, 1), j, k) = out_val(bo(2, 1), j, k) + &
+                                 out_val(s(1) - 1, j, k) = out_val(s(1) - 1, j, k) + &
                                                            in_val_l*w_j - &
                                                            in_val_tmp*weights_1d(1)*w_j
                               END IF
                            ELSE
-                              out_val(bo(2, 1), j, k) = out_val(bo(2, 1), j, k) - &
+                              out_val(s(1) - 1, j, k) = out_val(s(1) - 1, j, k) - &
                                                         w_j*in_val_l - &
                                                         in_val_tmp*weights_1d(1)*w_j
                            END IF
                         ELSE IF (my_smooth_boundary) THEN
-                           out_val(bo(2, 1), j, k) = out_val(bo(2, 1), j, k) + &
+                           out_val(s(1) - 1, j, k) = out_val(s(1) - 1, j, k) + &
                                                      w_j*(in_val_l + in_val_tmp*weights_1d(1)/weights_1d(0))
                         ELSE
-                           out_val(bo(2, 1), j, k) = out_val(bo(2, 1), j, k) + &
+                           out_val(s(1) - 1, j, k) = out_val(s(1) - 1, j, k) + &
                                                      w_j*(in_val_l + in_val_tmp*weights_1d(1))
                         END IF
                         in_val_l = 0._dp
                      ELSE
-                        in_val_l = in_val(bo(2, 1), myj, myk)
+                        in_val_l = in_val(s(1) - 1, myj, myk)
                         IF (my_sharpen) THEN
                            IF (kw == 0 .AND. jw == 0) THEN
                               IF (my_normalize) THEN
-                                 out_val(bo(2, 1), j, k) = out_val(bo(2, 1), j, k) + &
+                                 out_val(s(1) - 1, j, k) = out_val(s(1) - 1, j, k) + &
                                                            in_val_l*(2._dp - w_j)
                               ELSE
-                                 out_val(bo(2, 1), j, k) = out_val(bo(2, 1), j, k) + &
+                                 out_val(s(1) - 1, j, k) = out_val(s(1) - 1, j, k) + &
                                                            in_val_l*w_j
                               END IF
                            ELSE
-                              out_val(bo(2, 1), j, k) = out_val(bo(2, 1), j, k) - &
+                              out_val(s(1) - 1, j, k) = out_val(s(1) - 1, j, k) - &
                                                         w_j*in_val_l
                            END IF
                         ELSE
-                           out_val(bo(2, 1), j, k) = out_val(bo(2, 1), j, k) + &
+                           out_val(s(1) - 1, j, k) = out_val(s(1) - 1, j, k) + &
                                                      w_j*in_val_l
                         END IF
                      END IF
@@ -3022,13 +3022,13 @@ CONTAINS
                         IF (gbo(1, 1) + 1 >= bo(1, 1) .AND. &
                             gbo(1, 1) + 1 <= bo(2, 1) .AND. gbo(2, 1) - gbo(1, 1) > 2) THEN
                            IF (gbo(1, 1) >= bo(1, 1)) THEN
-                              out_val(gbo(1, 1) + 1, j, k) = out_val(gbo(1, 1) + 1, j, k) + &
-                                                             in_val(gbo(1, 1), myj, myk)*w_j*weights_1d(-1)* &
-                                                             (1._dp/weights_1d(0) - 1._dp)
+                              out_val(gbo(1, 1) - bo(1, 1) + 1, j, k) = out_val(gbo(1, 1) - bo(1, 1) + 1, j, k) + &
+                                                                        in_val(gbo(1, 1) - bo(1, 1), myj, myk)*w_j*weights_1d(-1)* &
+                                                                        (1._dp/weights_1d(0) - 1._dp)
                            ELSE
-                              out_val(gbo(1, 1) + 1, j, k) = out_val(gbo(1, 1) + 1, j, k) + &
-                                                             l_boundary(myj, myk)*w_j*weights_1d(-1)* &
-                                                             (1._dp/weights_1d(0) - 1._dp)
+                              out_val(gbo(1, 1) - bo(1, 1) + 1, j, k) = out_val(gbo(1, 1) - bo(1, 1) + 1, j, k) + &
+                                                                        l_boundary(myj, myk)*w_j*weights_1d(-1)* &
+                                                                        (1._dp/weights_1d(0) - 1._dp)
                            END IF
                         END IF
                      END IF
@@ -3037,23 +3037,17 @@ CONTAINS
                                             in_val_first=in_val_f, in_val_last=in_val_l, &
                                             out_val=out_val(first_index:last_index, j, k), &
                                             n_el=n_els)
-!FM                   call pw_compose_stripe2(weights=w,&
-!FM                        in_val=in_val,&
-!FM                        in_val_first=in_val_f,in_val_last=in_val_l,&
-!FM                        out_val=out_val,&
-!FM                        first_val=first_index,last_val=last_index,&
-!FM                        myj=myj,myk=myk,j=j,k=k)
                      IF (my_smooth_boundary .AND. (.NOT. my_transpose)) THEN
                         IF (gbo(2, 1) - 1 >= bo(1, 1) .AND. &
                             gbo(2, 1) - 1 <= bo(2, 1) .AND. gbo(2, 1) - gbo(1, 1) > 2) THEN
                            IF (gbo(2, 1) <= bo(2, 1)) THEN
-                              out_val(gbo(2, 1) - 1, j, k) = out_val(gbo(2, 1) - 1, j, k) + &
-                                                             in_val(gbo(2, 1), myj, myk)*w_j*weights_1d(1)* &
-                                                             (1._dp/weights_1d(0) - 1._dp)
+                              out_val(gbo(2, 1) - bo(1, 1) - 1, j, k) = out_val(gbo(2, 1) - bo(1, 1) - 1, j, k) + &
+                                                                        in_val(gbo(2, 1) - bo(1, 1), myj, myk)*w_j*weights_1d(1)* &
+                                                                        (1._dp/weights_1d(0) - 1._dp)
                            ELSE
-                              out_val(gbo(2, 1) - 1, j, k) = out_val(gbo(2, 1) - 1, j, k) + &
-                                                             u_boundary(myj, myk)*w_j*weights_1d(1)* &
-                                                             (1._dp/weights_1d(0) - 1._dp)
+                              out_val(gbo(2, 1) - bo(1, 1) - 1, j, k) = out_val(gbo(2, 1) - bo(1, 1) - 1, j, k) + &
+                                                                        u_boundary(myj, myk)*w_j*weights_1d(1)* &
+                                                                        (1._dp/weights_1d(0) - 1._dp)
                            END IF
                         END IF
                      END IF
@@ -3080,8 +3074,8 @@ CONTAINS
       TYPE(pw_r3d_rs_type), INTENT(INOUT)                :: pw_out
 
       CALL pw_zero(pw_out)
-      CALL pw_nn_compose_r_no_pbc(weights_1d=spl3_1d_coeffs0, pw_in=pw_in, &
-                                  pw_out=pw_out, sharpen=.FALSE., normalize=.FALSE.)
+      CALL pw_nn_compose_r_no_pbc(weights_1d=spl3_1d_coeffs0, in_val=pw_in%array, &
+                                  out_val=pw_out%array, pw_grid=pw_in%pw_grid, sharpen=.FALSE., normalize=.FALSE.)
 
    END SUBROUTINE spl3_nopbc
 
@@ -3096,8 +3090,9 @@ CONTAINS
       TYPE(pw_r3d_rs_type), INTENT(INOUT)                :: pw_out
 
       CALL pw_zero(pw_out)
-      CALL pw_nn_compose_r_no_pbc(weights_1d=spl3_1d_coeffs0, pw_in=pw_in, &
-                                  pw_out=pw_out, sharpen=.FALSE., normalize=.FALSE., transpose=.TRUE.)
+      CALL pw_nn_compose_r_no_pbc(weights_1d=spl3_1d_coeffs0, in_val=pw_in%array, &
+                                  out_val=pw_out%array, pw_grid=pw_in%pw_grid, &
+                                  sharpen=.FALSE., normalize=.FALSE., transpose=.TRUE.)
 
    END SUBROUTINE spl3_nopbct
 
