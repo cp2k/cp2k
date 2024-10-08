@@ -32,13 +32,13 @@ endif()
 
 if(S-DFTD3_FOUND)
   if(NOT TARGET s-dftd3::s-dftd3)
-    add_library(s-dftd3::s-dftd3 INTERFACE IMPORTED)
+    add_library(s-dftd3::s-dftd3 INTERFACE IMPORTED GLOBAL)
   endif()
   get_filename_component(S-DFTD3_LINK_LIB "${S-DFTD3_LINK_LIBRARIES}" PATH)
   set_target_properties(
     s-dftd3::s-dftd3
     PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${S-DFTD3_INCLUDE_DIRS}"
-               INTERFACE_LINK_LIBRARIES "${S-DFTD3_LINK_LIBRARIES}")
+               INTERFACE_LINK_LIBRARIES "${S-DFTD3_LINK_LIBRARIES}" )
 endif()
 
-mark_as_advanced(S-DFTD3_LINK_LIBRARIES S-DFTD3_INCLUDE_DIRS S-DFTD3_FOUND)
+mark_as_advanced(S-DFTD3_LINK_LIB S-DFTD3_LINK_LIBRARIES S-DFTD3_INCLUDE_DIRS S-DFTD3_FOUND)

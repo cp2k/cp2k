@@ -708,6 +708,13 @@ if(CP2K_USE_TBLITE)
   find_package(toml-f REQUIRED)
   find_package(s-dftd3 REQUIRED)
   find_package(tblite REQUIRED)
+  target_link_libraries(
+  tblite::tblite
+  INTERFACE
+    mctc-lib::mctc-lib
+    dftd4::dftd4
+    toml-f::toml-f
+    s-dftd3::s-dftd3 )
 endif()
 
 # SIRIUS
