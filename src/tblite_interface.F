@@ -82,7 +82,7 @@ CONTAINS
       natom = SIZE(particle_set)
       ALLOCATE (xyz(3, natom))
       ALLOCATE (tb%el_num(natom))
-      tb%el_num=-9
+      tb%el_num = -9
       DO iatom = 1, natom
          xyz(:, iatom) = particle_set(iatom)%r(:)
          CALL get_atomic_kind(particle_set(iatom)%atomic_kind, kind_number=ikind)
@@ -90,7 +90,7 @@ CONTAINS
             CPABORT("only elements 1-85 are supported by tblite")
          END IF
          tb%el_num(iatom) = ikind
-         write(*,*) "++++++ iatom:", iatom, "ikind:", ikind
+         WRITE (*, *) "++++++ iatom:", iatom, "ikind:", ikind
       END DO
 
       !get information about cell / lattice
@@ -313,30 +313,30 @@ CONTAINS
       TYPE(tblite_type), POINTER                         :: tb
       TYPE(gto_basis_set_type), POINTER                  :: gto_basis_set
       CHARACTER(len=2)                                   :: element_symbol
-      
-      INTEGER                                            :: i_atom, id_atom, ikind, iset
-      INTEGER                                            :: nset, ng, ishell, istart, ipgf, ang
-      
+
+      INTEGER                                            :: ang, i_atom, id_atom, ikind, ipgf, iset, &
+                                                            ishell, istart, ng, nset
+
       CALL allocate_gto_basis_set(gto_basis_set)
 
 #if defined(__TBLITE)
-      
+
       !identifying element in the bas data
       CALL symbol_to_number(ikind, element_symbol)
-      do i_atom = 1, tb%mol%nat
-           id_atom = tb%mol%id(i_atom)
-           IF (id_atom==ikind) EXIT
-      end do
-      
+      DO i_atom = 1, tb%mol%nat
+         id_atom = tb%mol%id(i_atom)
+         IF (id_atom == ikind) EXIT
+      END DO
+
       !writing data
-      nset=tb%calc%bas%nsh_at(i_atom)
-      istart=tb%calc%bas%ish_at(i_atom)
-      ng=0
-      do ishell = istart, istart+nset-1
-        ng=MAX(ng,tb%calc%bas%cgto(ishell, id_atom)%nprim)
-      end do
-      
-      gto_basis_set%nshell=nset
+      nset = tb%calc%bas%nsh_at(i_atom)
+      istart = tb%calc%bas%ish_at(i_atom)
+      ng = 0
+      DO ishell = istart, istart + nset - 1
+         ng = MAX(ng, tb%calc%bas%cgto(ishell, id_atom)%nprim)
+      END DO
+
+      gto_basis_set%nshell = nset
       CALL reallocate(gto_basis_set%lmax, 1, nset)
       CALL reallocate(gto_basis_set%lmin, 1, nset)
       CALL reallocate(gto_basis_set%npgf, 1, nset)
@@ -345,10 +345,10 @@ CONTAINS
       CALL reallocate(gto_basis_set%l, 1, 1, 1, nset)
       CALL reallocate(gto_basis_set%zet, 1, ng, 1, nset)
       CALL reallocate(gto_basis_set%gcc, 1, ng, 1, 1, 1, nset)
-      
+
       DO iset = 1, nset
-         ng=tb%calc%bas%cgto(istart+iset, id_atom)%nprim
-         ang=tb%calc%bas%cgto(istart+iset, id_atom)%ang
+         ng = tb%calc%bas%cgto(istart + iset, id_atom)%nprim
+         ang = tb%calc%bas%cgto(istart + iset, id_atom)%ang
          gto_basis_set%lmax(iset) = ang
          gto_basis_set%lmin(iset) = ang
          gto_basis_set%npgf(iset) = ng
@@ -356,11 +356,10 @@ CONTAINS
          gto_basis_set%n(1, iset) = ang + 1
          gto_basis_set%l(1, iset) = ang
          DO ipgf = 1, ng
-            gto_basis_set%gcc(ipgf, 1, iset) = tb%calc%bas%cgto(istart+iset, id_atom)%coeff(ipgf) 
-            gto_basis_set%zet(ipgf, iset) =1.0_dp/(4.0_dp*tb%calc%bas%cgto(istart+iset, id_atom)%alpha(ipgf))
+            gto_basis_set%gcc(ipgf, 1, iset) = tb%calc%bas%cgto(istart + iset, id_atom)%coeff(ipgf)
+            gto_basis_set%zet(ipgf, iset) = 1.0_dp/(4.0_dp*tb%calc%bas%cgto(istart + iset, id_atom)%alpha(ipgf))
          END DO
       END DO
-      
 
 #else
       CPABORT("Build without TBLITE")

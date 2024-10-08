@@ -136,7 +136,6 @@ option(CP2K_USE_GRPP "Enable GRPP support" ${CP2K_USE_EVERYTHING})
 option(CP2K_USE_TREXIO "Enable TREXIO support" ${CP2K_USE_EVERYTHING})
 option(CP2K_USE_HDF5 "Enable HDF5 support" ${CP2K_USE_EVERYTHING})
 option(CP2K_USE_GREENX "Enable GreenX support" ${CP2K_USE_EVERYTHING})
-
 option(CP2K_USE_STATIC_BLAS "Link against static version of BLAS/LAPACK" OFF)
 option(BUILD_SHARED_LIBS "Build CP2K shared library" ON)
 option(
@@ -697,12 +696,8 @@ if(CP2K_USE_TBLITE)
   find_package(s-dftd3 REQUIRED)
   find_package(tblite REQUIRED)
   target_link_libraries(
-  tblite::tblite
-  INTERFACE
-    mctc-lib::mctc-lib
-    dftd4::dftd4
-    toml-f::toml-f
-    s-dftd3::s-dftd3 )
+    tblite::tblite INTERFACE mctc-lib::mctc-lib dftd4::dftd4 toml-f::toml-f
+                             s-dftd3::s-dftd3)
 endif()
 
 # SIRIUS

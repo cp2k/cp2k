@@ -28,7 +28,7 @@ endif()
 
 if(TOML-F_FOUND)
   if(NOT TARGET toml-f::toml-f)
-    add_library(toml-f::toml-f INTERFACE IMPORTED GLOBAL )
+    add_library(toml-f::toml-f INTERFACE IMPORTED GLOBAL)
   endif()
   get_filename_component(TOML-F_LINK_LIB "${TOML-F_LINK_LIBRARIES}" PATH)
   set_target_properties(
@@ -37,4 +37,5 @@ if(TOML-F_FOUND)
                INTERFACE_LINK_LIBRARIES "${TOML-F_LINK_LIBRARIES}")
 endif()
 
-mark_as_advanced(TOML-F_LINK_LIB TOML-F_LINK_LIBRARIES TOML-F_INCLUDE_DIRS TOML-F_FOUND)
+mark_as_advanced(TOML-F_LINK_LIB TOML-F_LINK_LIBRARIES TOML-F_INCLUDE_DIRS
+                 TOML-F_FOUND)
