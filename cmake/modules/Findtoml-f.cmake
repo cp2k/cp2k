@@ -28,7 +28,7 @@ endif()
 
 if(TOML-F_FOUND)
   if(NOT TARGET toml-f::toml-f)
-    add_library(toml-f::toml-f INTERFACE IMPORTED)
+    add_library(toml-f::toml-f INTERFACE IMPORTED GLOBAL )
   endif()
   get_filename_component(TOML-F_LINK_LIB "${TOML-F_LINK_LIBRARIES}" PATH)
   set_target_properties(
