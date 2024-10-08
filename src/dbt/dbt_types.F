@@ -775,17 +775,6 @@ CONTAINS
             dist%refcount = 1
             CALL timestop(handle)
 
-         CONTAINS
-            PURE FUNCTION array_eq_i(arr1, arr2)
-               INTEGER, INTENT(IN), DIMENSION(:) :: arr1
-               INTEGER, INTENT(IN), DIMENSION(:) :: arr2
-               LOGICAL                           :: array_eq_i
-
-               array_eq_i = .FALSE.
-               IF (SIZE(arr1) .EQ. SIZE(arr2)) array_eq_i = ALL(arr1 == arr2)
-
-            END FUNCTION
-
          END SUBROUTINE
 
 ! **************************************************************************************************
