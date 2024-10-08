@@ -14,13 +14,16 @@ MODULE dbt_tas_util
    USE util, ONLY: sort
 
 #include "../../base/base_uses.f90"
+#if defined(__LIBXSMM)
+#include "libxsmm_version.h"
+#endif
 
-! #if TO_VERSION(1, 11) <= TO_VERSION(LIBXSMM_CONFIG_VERSION_MAJOR, LIBXSMM_CONFIG_VERSION_MINOR)
-!    USE libxsmm, ONLY: libxsmm_diff
-! #  define PURE_ARRAY_EQ
-! #else
+#if CPVERSION_CHECK(1, 11, <=, LIBXSMM_CONFIG_VERSION_MAJOR, LIBXSMM_CONFIG_VERSION_MINOR)
+   USE libxsmm, ONLY: libxsmm_diff
+#  define PURE_ARRAY_EQ
+#else
 #  define PURE_ARRAY_EQ PURE
-! #endif
+#endif
 
    IMPLICIT NONE
    PRIVATE
@@ -82,12 +85,12 @@ CONTAINS
       INTEGER, DIMENSION(:), INTENT(IN)                  :: arr1, arr2
       LOGICAL                                            :: array_eq_i
 
-! #if TO_VERSION(1, 11) <= TO_VERSION(LIBXSMM_CONFIG_VERSION_MAJOR, LIBXSMM_CONFIG_VERSION_MINOR)
-!       array_eq_i = .NOT. libxsmm_diff(arr1, arr2)
-! #else
+#if CPVERSION_CHECK(1, 11, <=, LIBXSMM_CONFIG_VERSION_MAJOR, LIBXSMM_CONFIG_VERSION_MINOR)
+      array_eq_i = .NOT. libxsmm_diff(arr1, arr2)
+#else
       array_eq_i = .FALSE.
       IF (SIZE(arr1) .EQ. SIZE(arr2)) array_eq_i = ALL(arr1 == arr2)
-! #endif
+#endif
    END FUNCTION
 
 ! **************************************************************************************************
@@ -101,12 +104,12 @@ CONTAINS
       INTEGER(KIND=int_8), DIMENSION(:), INTENT(IN)      :: arr1, arr2
       LOGICAL                                            :: array_eq_i8
 
-! #if TO_VERSION(1, 11) <= TO_VERSION(LIBXSMM_CONFIG_VERSION_MAJOR, LIBXSMM_CONFIG_VERSION_MINOR)
-!       array_eq_i8 = .NOT. libxsmm_diff(arr1, arr2)
-! #else
+#if CPVERSION_CHECK(1, 11, <=, LIBXSMM_CONFIG_VERSION_MAJOR, LIBXSMM_CONFIG_VERSION_MINOR)
+      array_eq_i8 = .NOT. libxsmm_diff(arr1, arr2)
+#else
       array_eq_i8 = .FALSE.
       IF (SIZE(arr1) .EQ. SIZE(arr2)) array_eq_i8 = ALL(arr1 == arr2)
-! #endif
+#endif
    END FUNCTION
 
 END MODULE
