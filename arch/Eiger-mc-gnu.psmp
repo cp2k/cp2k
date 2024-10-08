@@ -7,7 +7,7 @@
 # Usage: Source this arch file and then run make as instructed.
 #        Replace or adapt the "module load" commands below if needed.
 #
-# Last update: 12.09.2024
+# Last update: 08.10.2024
 #
 # \
    if [[ "${0}" == "${BASH_SOURCE}" ]]; then \
@@ -18,9 +18,11 @@
    this_file=${BASH_SOURCE##*/}; \
    cd tools/toolchain; \
    rm -rf build; \
+   module purge; \
    module load cray; \
-   module load cpeGNU; \
+   module swap PrgEnv-cray PrgEnv-gnu; \
    module load cray-fftw; \
+   module load cray-python; \
    module list; \
    export CRAY_LIBSCI_PREFIX_DIR=${CRAY_PE_LIBSCI_PREFIX_DIR}; \
    export CPATH=${CPATH}:${CRAY_PE_LIBSCI_PREFIX_DIR}/include; \
