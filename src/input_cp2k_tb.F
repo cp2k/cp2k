@@ -584,9 +584,12 @@ CONTAINS
 
       TYPE(keyword_type), POINTER                        :: keyword
 
+      CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, __LOCATION__, name="TBLITE", &
                           description="Section used to specify options for an xTB computation using tblite.", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
+
+      NULLIFY (keyword)
       CALL keyword_create(keyword, __LOCATION__, name="_SECTION_PARAMETERS_", &
                           description="activates the exuction via tblite", &
                           lone_keyword_l_val=.TRUE., default_l_val=.FALSE.)
