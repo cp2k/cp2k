@@ -636,16 +636,13 @@ CONTAINS
    SUBROUTINE pw_compose_stripe(weights, in_val, in_val_first, in_val_last, &
                                 out_val, n_el)
       REAL(kind=dp), DIMENSION(0:2), INTENT(in)          :: weights
-      REAL(kind=dp), DIMENSION(*), INTENT(in)            :: in_val
+      REAL(kind=dp), DIMENSION(:), INTENT(in)            :: in_val
       REAL(kind=dp), INTENT(in)                          :: in_val_first, in_val_last
-      REAL(kind=dp), DIMENSION(*), INTENT(inout)         :: out_val
+      REAL(kind=dp), DIMENSION(:), INTENT(inout)         :: out_val
       INTEGER                                            :: n_el
 
       INTEGER                                            :: i
       REAL(kind=dp)                                      :: v0, v1, v2
-
-!1:n_el), &
-!1:n_el), &
 
       IF (n_el < 1) RETURN
       v0 = in_val_first
@@ -1406,7 +1403,6 @@ CONTAINS
                   END IF
 
                   IF (fine_bo(2, 1) - fine_bo(1, 1) < 7 .OR. safe_calc) THEN
-!                      CALL timeset(routineN//"_safe",handle2)
                      DO i = coarse_bo(1, 1), coarse_bo(2, 1)
                         DO ii = -3, 3
                            IF (pbc .AND. .NOT. is_split) THEN
@@ -1452,9 +1448,7 @@ CONTAINS
                               wi*coarse_coeffs(i, j, k)
                         END DO
                      END DO
-!                      CALL timestop(handle2)
                   ELSE
-!                      CALL timeset(routineN//"_core1",handle2)
                      ww0 = wj*w_0
                      ww1 = wj*w_1
                      IF (pbc .AND. .NOT. is_split) THEN
@@ -1503,8 +1497,6 @@ CONTAINS
                      ELSE
                         CPASSERT(fi + 1 == fine_bo(1, 1))
                      END IF
-!                      CALL timestop(handle2)
-!                      CALL timeset(routineN//"_core",handle2)
                      DO i = coarse_bo(1, 1) + 3, FLOOR((fine_bo(2, 1) - f_shift(1))/2.) - 3, 4
                         v3 = coarse_coeffs(i, j, k)
                         fi = fi + 1
@@ -1543,8 +1535,6 @@ CONTAINS
                                                   (ww0(1)*v0 + ww0(2)*v1 + &
                                                    ww0(3)*v2)
                      END DO
-!                      CALL timestop(handle2)
-!                      CALL timeset(routineN//"_clean",handle2)
                      rest_b = MODULO(FLOOR((fine_bo(2, 1) - f_shift(1))/2.) - coarse_bo(1, 1) - 3 + 1, 4)
                      IF (rest_b > 0) THEN
                         i = FLOOR((fine_bo(2, 1) - f_shift(1))/2.) - rest_b + 1
@@ -1719,7 +1709,6 @@ CONTAINS
                      END IF
                      CPASSERT(fi == fine_bo(2, 1))
                   END IF
-!                   CALL timestop(handle2)
                END DO
             END DO
          END DO
@@ -2479,9 +2468,9 @@ CONTAINS
 
       preconditioner%kind = no_precond
       preconditioner%pool => pool
+      CALL pool%retain()
       preconditioner%pbc = pbc
       preconditioner%transpose = transpose
-      CALL pool%retain()
       CALL pw_spline_precond_set_kind(preconditioner, precond_kind)
    END SUBROUTINE pw_spline_precond_create
 
@@ -2489,23 +2478,17 @@ CONTAINS
 !> \brief switches the types of precoditioner to use
 !> \param preconditioner the preconditioner to be changed
 !> \param precond_kind the new kind of preconditioner to use
-!> \param pbc ...
-!> \param transpose ...
 !> \author fawzi
 ! **************************************************************************************************
-   SUBROUTINE pw_spline_precond_set_kind(preconditioner, precond_kind, pbc, &
-                                         transpose)
+   SUBROUTINE pw_spline_precond_set_kind(preconditioner, precond_kind)
       TYPE(pw_spline_precond_type), INTENT(INOUT)        :: preconditioner
       INTEGER, INTENT(in)                                :: precond_kind
-      LOGICAL, INTENT(in), OPTIONAL                      :: pbc, transpose
 
       LOGICAL                                            :: do_3d_coeff
       REAL(kind=dp)                                      :: s
 
-      IF (PRESENT(transpose)) preconditioner%transpose = transpose
       do_3d_coeff = .FALSE.
       preconditioner%kind = precond_kind
-      IF (PRESENT(pbc)) preconditioner%pbc = pbc
       SELECT CASE (precond_kind)
       CASE (no_precond)
       CASE (precond_spl3_aint2)
@@ -2680,7 +2663,6 @@ CONTAINS
       CALL pool%create_pw(p)
       CALL pool%create_pw(Ap)
 
-      !CALL cp_add_iter_level(logger%iter_info,level_name="SPLINE_FIND_COEFFS")
       ext_do: DO iiter = 1, max_iter, 10
          CALL pw_zero(r)
          CALL linOp(pw_in=coeffs, pw_out=r)
@@ -2730,7 +2712,6 @@ CONTAINS
 
          END DO
       END DO ext_do
-      !CALL cp_rm_iter_level(logger%iter_info,level_name="SPLINE_FIND_COEFFS")
 
       CALL pool%give_back_pw(r)
       CALL pool%give_back_pw(z)
