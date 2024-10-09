@@ -617,6 +617,23 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
+      CALL section_create(subsection, __LOCATION__, name="TREXIO", &
+                          description="Write a TREXIO file to disk.", &
+                          n_keywords=1, n_subsections=0, repeats=.FALSE.)
+      CALL keyword_create(keyword, __LOCATION__, name="FILENAME", &
+                          description="Body of Filename for the trexio file.", &
+                          usage="FILENAME {name}", default_c_val="TREXIO", &
+                          type_of_var=char_t)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="CARTESIAN", &
+                          description="Store the MOs in the Cartesian basis instead of the default spherical basis.", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+
       CALL section_create(subsection, __LOCATION__, name="GAPW", &
                           description="Controls the printing of some gapw related information (debug).", &
                           n_keywords=0, n_subsections=1, repeats=.FALSE.)
