@@ -683,7 +683,6 @@ CONTAINS
       IF (PRESENT(just_gradients)) my_just_gradients = just_gradients
       IF (my_just_gradients) THEN
          cdft_control%in_memory = .TRUE.
-         cdft_control%atomic_charges = .FALSE.
          hirshfeld_control%print_density = .FALSE.
       END IF
 
@@ -756,8 +755,8 @@ CONTAINS
          CALL pw_set(cdft_control%group(igroup)%hw_rho_total_constraint, 1.0_dp)
 
          IF (igroup == 1) THEN
-            CALL auxbas_pw_pool%create_pw(cdft_control%group(igroup)%hw_rho_total)
-            CALL pw_set(cdft_control%group(igroup)%hw_rho_total, 1.0_dp)
+            CALL auxbas_pw_pool%create_pw(cdft_control%group(1)%hw_rho_total)
+            CALL pw_set(cdft_control%group(1)%hw_rho_total, 1.0_dp)
 
             IF (hirshfeld_control%print_density) THEN
                DO iatom = 1, cdft_control%natoms
@@ -825,7 +824,6 @@ CONTAINS
                                                        zetp=alpha, eps=hirshfeld_control%atomic_cutoff, &
                                                        pab=pab, o1=0, o2=0, &  ! without map_consistent
                                                        prefactor=1.0_dp, cutoff=0.0_dp)
-                     ! IF (para_env%is_source()) PRINT *, "radius", radius
                   END IF
 
                   IF (igroup == 1) THEN
@@ -880,7 +878,7 @@ CONTAINS
          DEALLOCATE (pab)
 
          IF (igroup == 1) THEN
-            CALL transfer_rs2pw(rs_rho_all, cdft_control%group(igroup)%hw_rho_total)
+            CALL transfer_rs2pw(rs_rho_all, cdft_control%group(1)%hw_rho_total)
          END IF
 
          CALL transfer_rs2pw(rs_rho_constr, cdft_control%group(igroup)%hw_rho_total_constraint)
@@ -898,7 +896,7 @@ CONTAINS
                CALL transfer_rs2pw(rs_single_charge(i), cdft_control%group(igroup)%hw_rho_atomic_charge(i))
                CALL hfun_scale(cdft_control%charge(i)%array, &
                                cdft_control%group(igroup)%hw_rho_atomic_charge(i)%array, &
-                               cdft_control%group(igroup)%hw_rho_total%array, divide=.TRUE., &
+                               cdft_control%group(1)%hw_rho_total%array, divide=.TRUE., &
                                small=hirshfeld_control%eps_cutoff)
             END DO
          END IF
@@ -1080,6 +1078,15 @@ CONTAINS
       IF (cdft_control%in_memory) THEN
 
          DO igroup = 1, SIZE(cdft_control%group)
+
+            ! Coefficients
+            coefficients(:) = 0.0_dp
+            is_constraint = .FALSE.
+            DO i = 1, SIZE(cdft_control%group(igroup)%atoms)
+               coefficients(cdft_control%group(igroup)%atoms(i)) = cdft_control%group(igroup)%coeff(i)
+               is_constraint(cdft_control%group(igroup)%atoms(i)) = .TRUE.
+            END DO
+
             DO k = lb_pw(3), ub_pw(3)
                DO j = lb_pw(2), ub_pw(2)
                   DO i = lb_pw(1), ub_pw(1)
@@ -1087,11 +1094,11 @@ CONTAINS
 
                      ra(:) = particle_set(iatom)%r
 
-                     IF (cdft_control%group(igroup)%hw_rho_total%array(i, j, k) > hirshfeld_control%eps_cutoff) THEN
+                     IF (cdft_control%group(1)%hw_rho_total%array(i, j, k) > hirshfeld_control%eps_cutoff) THEN
 
                         exp_eval = (coefficients(iatom) - &
                                     cdft_control%group(igroup)%weight%array(i, j, k))/ &
-                                   cdft_control%group(igroup)%hw_rho_total%array(i, j, k)
+                                   cdft_control%group(1)%hw_rho_total%array(i, j, k)
 
                         r2 = (/i*dr_pw(1), j*dr_pw(2), k*dr_pw(3)/) + origin
                         r_pbc = pbc(ra, r2, cell)
@@ -1116,11 +1123,8 @@ CONTAINS
                   END DO
                END DO
             END DO
-
-            IF (igroup == 1) THEN
-               CALL auxbas_pw_pool%give_back_pw(cdft_control%group(1)%hw_rho_total)
-            END IF
          END DO
+         CALL auxbas_pw_pool%give_back_pw(cdft_control%group(1)%hw_rho_total)
       END IF
 
       CALL rs_grid_release(rs_rho_all)
