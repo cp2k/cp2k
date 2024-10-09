@@ -7,8 +7,8 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")/.." && pwd -P)"
 
-trexio_ver="2.4.2"
-trexio_sha256="074c7cf18ea7a8a1d5e29bde4a773d4fb80081c4eb52e2dc4299e6075b704c93"
+trexio_ver="2.5.0"
+trexio_sha256="7bf7e0021467530b4946fb3f6ee39f393e2f4bd65a6f4debaec774120c29e4ee"
 
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
@@ -46,7 +46,7 @@ case "$with_trexio" in
         echo "Currently trexio is not available from cp2k.org"
         echo "You can clone the repo and build it yourself:"
         echo "git clone https://github.com/TREX-CoE/trexio.git trexio-${trexio_ver}"
-        echo "and compile it according to the instructions av ailable on github"
+        echo "and compile it according to the instructions available on github"
         exit 1
       fi
 
