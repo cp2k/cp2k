@@ -250,14 +250,14 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: work_list
       INTEGER, DIMENSION(:, :), POINTER                  :: list, sort_list
       LOGICAL, ALLOCATABLE                               :: use_atom(:)
-      REAL(kind=dp)                                      :: drij, lattice(3, 3), rab2_max, rij(3)
-      REAL(kind=dp), ALLOCATABLE, DIMENSION(:, :)        :: edge_cell_shifts, new_edge_cell_shifts, &
-                                                            pos
+      REAL(kind=dp)                                      :: drij, rab2_max, rij(3)
+      REAL(kind=dp), ALLOCATABLE, DIMENSION(:, :)        :: edge_cell_shifts, lattice, &
+                                                            new_edge_cell_shifts, pos
       REAL(kind=dp), DIMENSION(3)                        :: cell_v, cvi
       REAL(kind=dp), DIMENSION(:, :), POINTER            :: atomic_energy, forces, virial
       REAL(kind=dp), DIMENSION(:, :, :), POINTER         :: virial3d
-      REAL(kind=sp)                                      :: lattice_sp(3, 3)
-      REAL(kind=sp), ALLOCATABLE, DIMENSION(:, :)        :: new_edge_cell_shifts_sp, pos_sp
+      REAL(kind=sp), ALLOCATABLE, DIMENSION(:, :)        :: lattice_sp, new_edge_cell_shifts_sp, &
+                                                            pos_sp
       REAL(kind=sp), DIMENSION(:, :), POINTER            :: atomic_energy_sp, forces_sp
       TYPE(allegro_data_type), POINTER                   :: allegro_data
       TYPE(neighbor_kind_pairs_type), POINTER            :: neighbor_kind_pair
@@ -401,8 +401,9 @@ CONTAINS
 
       t_edge_index(:, :) = TRANSPOSE(temp_edge_index)
       DEALLOCATE (temp_edge_index, edge_index)
-      lattice = cell%hmat/pot%set(1)%allegro%unit_cell_val
-      lattice_sp = REAL(lattice, kind=sp)
+      ALLOCATE (lattice(3, 3), lattice_sp(3, 3))
+      lattice(:, :) = cell%hmat/pot%set(1)%allegro%unit_cell_val
+      lattice_sp(:, :) = REAL(lattice, kind=sp)
       iat_use = 0
       ALLOCATE (pos(3, n_atoms_use), atom_types(n_atoms_use))
       DO iat = 1, n_atoms_use

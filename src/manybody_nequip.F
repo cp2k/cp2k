@@ -229,15 +229,14 @@ CONTAINS
                                                             edge_count_cell, work_list
       INTEGER, DIMENSION(:, :), POINTER                  :: list, sort_list
       LOGICAL, ALLOCATABLE                               :: use_atom(:)
-      REAL(kind=dp)                                      :: drij, lattice(3, 3), rab2_max, rij(3)
-      REAL(kind=dp), ALLOCATABLE, DIMENSION(:, :)        :: edge_cell_shifts, pos, &
+      REAL(kind=dp)                                      :: drij, rab2_max, rij(3)
+      REAL(kind=dp), ALLOCATABLE, DIMENSION(:, :)        :: edge_cell_shifts, lattice, pos, &
                                                             temp_edge_cell_shifts
       REAL(kind=dp), DIMENSION(3)                        :: cell_v, cvi
       REAL(kind=dp), DIMENSION(:, :), POINTER            :: atomic_energy, forces, total_energy, &
                                                             virial
       REAL(kind=dp), DIMENSION(:, :, :), POINTER         :: virial3d
-      REAL(kind=sp)                                      :: lattice_sp(3, 3)
-      REAL(kind=sp), ALLOCATABLE, DIMENSION(:, :)        :: edge_cell_shifts_sp, pos_sp
+      REAL(kind=sp), ALLOCATABLE, DIMENSION(:, :)        :: edge_cell_shifts_sp, lattice_sp, pos_sp
       REAL(kind=sp), DIMENSION(:, :), POINTER            :: atomic_energy_sp, forces_sp, &
                                                             total_energy_sp
       TYPE(neighbor_kind_pairs_type), POINTER            :: neighbor_kind_pair
@@ -403,8 +402,9 @@ CONTAINS
       t_edge_index(:, :) = TRANSPOSE(edge_index)
       DEALLOCATE (temp_edge_index, temp_edge_cell_shifts, edge_index)
 
-      lattice = cell%hmat/nequip%unit_cell_val
-      lattice_sp = REAL(lattice, kind=sp)
+      ALLOCATE (lattice(3, 3), lattice_sp(3, 3))
+      lattice(:, :) = cell%hmat/nequip%unit_cell_val
+      lattice_sp(:, :) = REAL(lattice, kind=sp)
 
       iat_use = 0
       ALLOCATE (pos(3, n_atoms_use), atom_types(n_atoms_use))

@@ -69,13 +69,14 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Inserts array into Torch dictionary. The passed array has to outlive the dictionary!
+!>        The source must be an ALLOCATABLE to prevent passing a temporary array.
 !> \author Ole Schuett
 ! **************************************************************************************************
          SUBROUTINE torch_dict_insert_${typename}$_${ndims}$d(dict, key, source)
             TYPE(torch_dict_type), INTENT(INOUT)               :: dict
             CHARACTER(len=*), INTENT(IN)                       :: key
             #:set arraydims = ", ".join(":" for i in range(ndims))
-            ${type_f}$, CONTIGUOUS, DIMENSION(${arraydims}$), INTENT(IN)  :: source
+            ${type_f}$, DIMENSION(${arraydims}$), ALLOCATABLE, INTENT(IN)  :: source
 
 #if defined(__LIBTORCH)
             INTEGER(kind=int_8), DIMENSION(${ndims}$)          :: sizes_c
