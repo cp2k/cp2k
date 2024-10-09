@@ -422,6 +422,7 @@ CONTAINS
 
          ! Normalization factors are shoved in the AO group
          ALLOCATE (shell_factor(shell_num))  ! 1-to-1 map bw shells and normalization factors
+         shell_factor(:) = 1.0_dp
          rc = trexio_write_basis_shell_factor(f, shell_factor)
          CALL trexio_error(rc)
          DEALLOCATE (shell_factor)
