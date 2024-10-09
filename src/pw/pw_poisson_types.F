@@ -20,8 +20,6 @@
 !> \author fawzi
 ! **************************************************************************************************
 MODULE pw_poisson_types
-   USE bessel_lib,                      ONLY: bessk0,&
-                                              bessk1
    USE dielectric_types,                ONLY: dielectric_parameters
    USE dirichlet_bc_types,              ONLY: dirichlet_bc_parameters
    USE kinds,                           ONLY: dp
@@ -346,8 +344,8 @@ CONTAINS
                j0g = BESSEL_J0(rlength*gxy)
                j1g = BESSEL_J1(rlength*gxy)
                IF (gz > 0) THEN
-                  k0g = bessk0(rlength*gz)
-                  k1g = bessk1(rlength*gz)
+                  k0g = bessel_y0(rlength*gz)
+                  k1g = bessel_y1(rlength*gz)
                ELSE
                   k0g = 0
                   k1g = 0
