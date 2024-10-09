@@ -7,7 +7,7 @@
 # Usage: Source this arch file and then run make as instructed.
 #        Replace or adapt the "module load" commands below if needed.
 #
-# Last update: 12.09.2024
+# Last update: 08.10.2024
 #
 # \
    if [[ "${0}" == "${BASH_SOURCE}" ]]; then \
@@ -18,9 +18,11 @@
    this_file=${BASH_SOURCE##*/}; \
    cd tools/toolchain; \
    rm -rf build; \
+   module purge; \
    module load cray; \
-   module load cpeIntel; \
+   module swap PrgEnv-cray PrgEnv-intel; \
    module load cray-fftw; \
+   module load cray-python; \
    module list; \
    [[ -z "${TARGET_CPU}" ]] && export TARGET_CPU="core-avx2"; \
    ./install_cp2k_toolchain.sh -j32 --enable-cray --no-arch-files --target-cpu=${TARGET_CPU} --with-dftd4 --with-elpa --with-fftw --with-libtorch=no --with-libxsmm --with-intel --with-mkl --with-libtorch=no --with-libvdwxc --with-pexsi --with-plumed --with-quip=no; \
