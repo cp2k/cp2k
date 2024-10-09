@@ -723,28 +723,33 @@ CONTAINS
    END SUBROUTINE pw_compose_stripe
 
 ! **************************************************************************************************
-!> \brief private routine that computes pw_nn_compose_r (it seems that without
-!>      passing arrays in this way either some compiler do a copyin/out (xlf)
-!>      or by inlining suboptimal code is produced (nag))
+!> \brief applies a nearest neighbor linear operator to grid data
 !> \param weights a 3x3x3 array with the linear operator
 !> \param in_val the argument for the linear operator
 !> \param out_val place where the value of the linear oprator should be added
 !> \param pw_grid ...
 !> \author fawzi
 ! **************************************************************************************************
-   SUBROUTINE pw_nn_compose_r_work(weights, in_val, out_val, pw_grid)
+   SUBROUTINE pw_nn_compose_r(weights, in_val, out_val, pw_grid)
       REAL(kind=dp), DIMENSION(0:2, 0:2, 0:2)            :: weights
       REAL(kind=dp), DIMENSION(0:, 0:, 0:), INTENT(in)   :: in_val
       REAL(kind=dp), DIMENSION(0:, 0:, 0:), &
          INTENT(inout)                                   :: out_val
       TYPE(pw_grid_type), INTENT(IN)                     :: pw_grid
 
-      INTEGER                                            :: i, j, jw, k, kw, myj, myk
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_nn_compose_r'
+
+      INTEGER                                            :: handle, i, j, jw, k, kw, myj, myk
       INTEGER, DIMENSION(2, 3)                           :: bo, gbo
       INTEGER, DIMENSION(3)                              :: s
       LOGICAL                                            :: has_boundary, yderiv, zderiv
       REAL(kind=dp)                                      :: in_val_f, in_val_l
       REAL(kind=dp), DIMENSION(:, :), POINTER            :: l_boundary, tmp, u_boundary
+
+      CALL timeset(routineN, handle)
+      IF (.NOT. ALL(pw_grid%bounds_local(:, 2:3) == pw_grid%bounds(:, 2:3))) THEN
+         CPABORT("wrong pw distribution")
+      END IF
 
       zderiv = ALL(weights(:, :, 1) == 0.0_dp)
       yderiv = ALL(weights(:, 1, :) == 0.0_dp)
@@ -802,31 +807,6 @@ CONTAINS
       IF (has_boundary) THEN
          DEALLOCATE (l_boundary, u_boundary)
       END IF
-   END SUBROUTINE pw_nn_compose_r_work
-
-! **************************************************************************************************
-!> \brief applies a nearest neighbor linear operator to a pw in real space
-!> \param weights a 3x3x3 array with the linear operator
-!> \param pw_in the argument for the linear operator
-!> \param pw_out place where the value of the linear oprator should be added
-!> \author fawzi
-!> \note
-!>      has specialized versions for derivative operator (with central values==0)
-! **************************************************************************************************
-   SUBROUTINE pw_nn_compose_r(weights, pw_in, pw_out)
-      REAL(kind=dp), DIMENSION(0:2, 0:2, 0:2)            :: weights
-      TYPE(pw_r3d_rs_type), INTENT(IN)                   :: pw_in, pw_out
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_nn_compose_r'
-
-      INTEGER                                            :: handle
-
-      CALL timeset(routineN, handle)
-      IF (.NOT. ALL(pw_in%pw_grid%bounds_local(:, 2:3) == pw_in%pw_grid%bounds(:, 2:3))) THEN
-         CPABORT("wrong pw distribution")
-      END IF
-      CALL pw_nn_compose_r_work(weights=weights, in_val=pw_in%array, &
-                                out_val=pw_out%array, pw_grid=pw_in%pw_grid)
       CALL timestop(handle)
    END SUBROUTINE pw_nn_compose_r
 
@@ -861,7 +841,7 @@ CONTAINS
          END DO
       END DO
 
-      CALL pw_nn_compose_r(weights=weights, pw_in=pw_in, pw_out=pw_out)
+      CALL pw_nn_compose_r(weights=weights, in_val=pw_in%array, out_val=pw_out%array, pw_grid=pw_in%pw_grid)
    END SUBROUTINE pw_nn_smear_r
 
 ! **************************************************************************************************
@@ -919,7 +899,7 @@ CONTAINS
          END DO
       END DO
 
-      CALL pw_nn_compose_r(weights=weights, pw_in=pw_in, pw_out=pw_out)
+      CALL pw_nn_compose_r(weights=weights, in_val=pw_in%array, out_val=pw_out%array, pw_grid=pw_in%pw_grid)
    END SUBROUTINE pw_nn_deriv_r
 
 ! **************************************************************************************************
