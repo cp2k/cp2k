@@ -1759,6 +1759,7 @@ CONTAINS
                                                             omega
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: abs_spectrum
       REAL(KIND=dp), DIMENSION(:), POINTER               :: eta_list
+      TYPE(cp_logger_type), POINTER                      :: logger
 
       CALL timeset(routineN, handle)
 
@@ -1806,8 +1807,15 @@ CONTAINS
                END DO
             END DO
          END DO
+
          ! Print it to file
-         unit_nr_file = cp_logger_get_default_unit_nr()
+         logger => cp_get_default_logger()
+         IF (logger%para_env%is_source()) THEN
+            unit_nr_file = cp_logger_get_default_unit_nr()
+         ELSE
+            unit_nr_file = -1
+         END IF
+
          IF (unit_nr_file > 0) THEN
             CALL open_file(file_name_spectrum, unit_number=unit_nr_file, &
                            file_status="UNKNOWN", file_action="WRITE")
