@@ -1,5 +1,7 @@
 #!/bin/bash -e
 
+# shellcheck disable=all
+
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")/.." && pwd -P)"
 
@@ -55,7 +57,7 @@ prepend_path CMAKE_PREFIX_PATH "$pkg_install_dir"
 EOF
     cat "${BUILDDIR}/setup_libsmeagol" >> $SETUPFILE
   fi
-# libsmeagol depends on an MPI library. In its current state libsmeagol cannot be linked with a non-MPI code.
+  # libsmeagol depends on an MPI library. In its current state libsmeagol cannot be linked with a non-MPI code.
   cat << EOF >> "${BUILDDIR}/setup_libsmeagol"
 export LIBSMEAGOL_CFLAGS="${LIBSMEAGOL_CFLAGS}"
 export LIBSMEAGOL_LDFLAGS="${LIBSMEAGOL_LDFLAGS}"
@@ -73,4 +75,3 @@ write_toolchain_env "${INSTALLDIR}"
 
 cd "${ROOTDIR}"
 report_timing "libsmeagol"
-
