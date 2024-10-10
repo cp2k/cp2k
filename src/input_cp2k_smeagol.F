@@ -12,6 +12,7 @@
 !> \author Clotilde Cucinotta
 ! **************************************************************************************************
 MODULE input_cp2k_smeagol
+   USE bibliography,                    ONLY: Ahart2024
    USE cp_output_handling,              ONLY: add_last_numeric, &
                                               cp_print_key_section_create, &
                                               debug_print_level, &
@@ -66,12 +67,12 @@ CONTAINS
       TYPE(section_type), POINTER                        :: subsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      ! Cite SMEAGOL paper: ,citations=(/smeagol/)
       ! +5 -- explicitly defined keywords (_SECTION_PARAMETERS_, PROJECT_NAME, BulkLead, EnergyGridType, TypeOfIntegral)
       CALL section_create(section, __LOCATION__, name="SMEAGOL", &
                           description="Parameters for NEGF/SMEAGOL simulation.", &
                           n_keywords=${len(reademtr_local_lnames)+len(reademtr_negfmod_lnames)+len(reademtr_negfcoop_lnames)+len(reademtr_local_inames)+len(reademtr_negfmod_inames)+len(reademtr_negfcoop_inames)+len(reademtr_local_rnames)+len(reademtr_negfmod_rnames)+len(reademtr_local_pnames)+len(reademtr_negfmod_rydberg_pnames)+len(reademtr_negfmod_pnames)+len(readoptsnegf_negfmod_lnames)+len(readoptsnegf_negfmod_inames)+len(readoptsnegf_negfmod_rnames)+len(readoptsnegf_negfmod_explicit_pnames)+len(readoptsnegf_bfield_rydberg_pnames)+len(emtoptions_negfmod_lnames)+len(emtoptions_negfmod_inames)+len(emtoptions_local_inames)+len(emtoptions_local_explicit_inames)+len(emtoptions_negfmod_explicit_inames)+len(emtoptions_sigma_inames)+len(emtoptions_negfmod_rnames)+len(emtoptions_negfmod_explicit_rnames)+len(emtoptions_negfmod_rydberg_pnames)+len(smeagol_interface_local_pnames)+9}$, &
-                          n_subsections=1, repeats=.FALSE.)
+                          n_subsections=1, repeats=.FALSE., &
+                          citations=(/Ahart2024/))
 
       NULLIFY (keyword)
 

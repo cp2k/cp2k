@@ -3,8 +3,6 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")/.." && pwd -P)"
 
-libsmeagol_ver="1.2"
-libsmeagol_sha256="aaf7f2238182413d55b6ad819e02b90c95db7b9f7f9c22433085ce73b5f835bd"
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
 source "${SCRIPT_DIR}"/signal_trap.sh
@@ -57,14 +55,15 @@ prepend_path CMAKE_PREFIX_PATH "$pkg_install_dir"
 EOF
     cat "${BUILDDIR}/setup_libsmeagol" >> $SETUPFILE
   fi
+# libsmeagol depends on an MPI library. In its current state libsmeagol cannot be linked with a non-MPI code.
   cat << EOF >> "${BUILDDIR}/setup_libsmeagol"
 export LIBSMEAGOL_CFLAGS="${LIBSMEAGOL_CFLAGS}"
 export LIBSMEAGOL_LDFLAGS="${LIBSMEAGOL_LDFLAGS}"
 export LIBSMEAGOL_LIBS="${LIBSMEAGOL_LIBS}"
-export CP_DFLAGS="\${CP_DFLAGS} -D__SMEAGOL"
-export CP_CFLAGS="\${CP_CFLAGS} ${LIBSMEAGOL_CFLAGS}"
-export CP_LDFLAGS="\${CP_LDFLAGS} ${LIBSMEAGOL_LDFLAGS}"
-export CP_LIBS="${LIBSMEAGOL_LIBS} \${CP_LIBS}"
+export CP_DFLAGS="\${CP_DFLAGS} IF_MPI(-D__SMEAGOL|)"
+export CP_CFLAGS="\${CP_CFLAGS} IF_MPI(${LIBSMEAGOL_CFLAGS}|)"
+export CP_LDFLAGS="\${CP_LDFLAGS} IF_MPI(${LIBSMEAGOL_LDFLAGS}|)"
+export CP_LIBS="IF_MPI(${LIBSMEAGOL_LIBS}|) \${CP_LIBS}"
 export LIBSMEAGOL_ROOT="$pkg_install_dir"
 EOF
 fi
@@ -74,3 +73,4 @@ write_toolchain_env "${INSTALLDIR}"
 
 cd "${ROOTDIR}"
 report_timing "libsmeagol"
+

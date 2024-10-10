@@ -16,7 +16,7 @@ MODULE smeagol_matrix_utils
    USE cell_types,                      ONLY: cell_type,&
                                               real_to_scaled,&
                                               scaled_to_real
-   USE dbcsr_api,                       ONLY: dbcsr_get_block_p,&
+   USE cp_dbcsr_api,                    ONLY: dbcsr_get_block_p,&
                                               dbcsr_get_info,&
                                               dbcsr_p_type,&
                                               dbcsr_set
