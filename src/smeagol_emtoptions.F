@@ -15,7 +15,7 @@ MODULE smeagol_emtoptions
    #:include 'input_cp2k_smeagol.fypp'
    USE cell_types,                      ONLY: cell_type, &
                                               scaled_to_real
-   USE dbcsr_api,                       ONLY: dbcsr_get_info, &
+   USE cp_dbcsr_api,                    ONLY: dbcsr_get_info, &
                                               dbcsr_type
 #if defined(__SMEAGOL)
    USE global_meshvar,                  ONLY: smeagolglobal_orbital_BS => orbital_BS
