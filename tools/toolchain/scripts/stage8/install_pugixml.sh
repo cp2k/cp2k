@@ -19,7 +19,7 @@ source "${INSTALLDIR}"/toolchain.env
 ! [ -d "${BUILDDIR}" ] && mkdir -p "${BUILDDIR}"
 cd "${BUILDDIR}"
 
-case "${with_sirius}" in
+case "${with_pugixml}" in
   __INSTALL__)
     echo "==================== Installing pugixml ===================="
     pkg_install_dir="${INSTALLDIR}/pugixml-${pugixml_ver}"
@@ -62,7 +62,7 @@ case "${with_sirius}" in
     ;;
   *)
     echo "==================== Linking pugixml to user paths ===================="
-    pkg_install_dir="$with_pugixml"
+    pkg_install_dir="${with_pugixml}"
 
     # use the lib64 directory if present (multi-abi distros may link lib/ to lib32/ instead)
     PUGIXML_LIBDIR="${pkg_install_dir}/lib"
@@ -74,12 +74,12 @@ case "${with_sirius}" in
     PUGIXML_LDFLAGS="-L'${PUGIXML_LIBDIR}' -Wl,-rpath,'${PUGIXML_LIBDIR}'"
     ;;
 esac
-if [ "$with_pugixml" != "__DONTUSE__" ]; then
+if [ "${with_pugixml}" != "__DONTUSE__" ]; then
   PUGIXML_LIBS="-lpugixml"
   cat << EOF > "${BUILDDIR}/setup_pugixml"
 export PUGIXML_VER="${pugixml_ver}"
 EOF
-  if [ "$with_pugixml" != "__SYSTEM__" ]; then
+  if [ "${with_pugixml}" != "__SYSTEM__" ]; then
     cat << EOF >> "${BUILDDIR}/setup_pugixml"
 prepend_path LD_LIBRARY_PATH "${pkg_install_dir}/lib"
 prepend_path LD_RUN_PATH "${pkg_install_dir}/lib"
