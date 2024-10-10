@@ -13,16 +13,16 @@
 ! **************************************************************************************************
 
 MODULE smeagol_control_types
-   USE input_constants,                 ONLY: smeagol_runtype_emtransport
-   USE input_section_types,             ONLY: section_vals_get, &
-                                              section_vals_get_subs_vals, &
-                                              section_vals_type, &
-                                              section_vals_val_get
-   USE kinds,                           ONLY: default_string_length, &
-                                              dp
-   USE cp_units,                        ONLY: cp_unit_from_cp2k
-   USE string_utilities,                ONLY: integer_to_string
-   USE util,                            ONLY: sort
+   USE input_constants, ONLY: smeagol_runtype_emtransport
+   USE input_section_types, ONLY: section_vals_get, &
+                                  section_vals_get_subs_vals, &
+                                  section_vals_type, &
+                                  section_vals_val_get
+   USE kinds, ONLY: default_string_length, &
+                    dp
+   USE cp_units, ONLY: cp_unit_from_cp2k
+   USE string_utilities, ONLY: integer_to_string
+   USE util, ONLY: sort
 #include "./base/base_uses.f90"
    #:include 'input_cp2k_smeagol.fypp'
 

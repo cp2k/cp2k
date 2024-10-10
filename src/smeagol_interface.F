@@ -12,71 +12,71 @@
 !> \author Clotilde Cucinotta
 ! **************************************************************************************************
 MODULE smeagol_interface
-   USE bibliography,                    ONLY: Bailey2006,&
-                                              cite_reference
-   USE cell_types,                      ONLY: cell_type,&
-                                              real_to_scaled,&
-                                              scaled_to_real
-   USE cp_control_types,                ONLY: dft_control_type
-   USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set
-   USE cp_files,                        ONLY: close_file,&
-                                              open_file
-   USE cp_log_handling,                 ONLY: cp_get_default_logger,&
-                                              cp_logger_get_default_io_unit,&
-                                              cp_logger_type
-   USE cp_output_handling,              ONLY: cp_get_iter_level_by_name,&
-                                              cp_get_iter_nr
-   USE cp_dbcsr_api,                    ONLY: dbcsr_copy,&
-                                              dbcsr_p_type,&
-                                              dbcsr_set
-   USE input_constants,                 ONLY: smeagol_bulklead_left,&
-                                              smeagol_bulklead_leftright,&
-                                              smeagol_bulklead_right,&
-                                              smeagol_runtype_bulktransport,&
-                                              smeagol_runtype_emtransport
-   USE kahan_sum,                       ONLY: accurate_dot_product,&
-                                              accurate_sum
-   USE kinds,                           ONLY: dp,&
-                                              int_8
-   USE kpoint_types,                    ONLY: get_kpoint_info,&
-                                              kpoint_type
-   USE message_passing,                 ONLY: mp_para_env_type
+   USE bibliography, ONLY: Bailey2006, &
+                           cite_reference
+   USE cell_types, ONLY: cell_type, &
+                         real_to_scaled, &
+                         scaled_to_real
+   USE cp_control_types, ONLY: dft_control_type
+   USE cp_dbcsr_operations, ONLY: dbcsr_allocate_matrix_set
+   USE cp_files, ONLY: close_file, &
+                       open_file
+   USE cp_log_handling, ONLY: cp_get_default_logger, &
+                              cp_logger_get_default_io_unit, &
+                              cp_logger_type
+   USE cp_output_handling, ONLY: cp_get_iter_level_by_name, &
+                                 cp_get_iter_nr
+   USE cp_dbcsr_api, ONLY: dbcsr_copy, &
+                           dbcsr_p_type, &
+                           dbcsr_set
+   USE input_constants, ONLY: smeagol_bulklead_left, &
+                              smeagol_bulklead_leftright, &
+                              smeagol_bulklead_right, &
+                              smeagol_runtype_bulktransport, &
+                              smeagol_runtype_emtransport
+   USE kahan_sum, ONLY: accurate_dot_product, &
+                        accurate_sum
+   USE kinds, ONLY: dp, &
+                    int_8
+   USE kpoint_types, ONLY: get_kpoint_info, &
+                           kpoint_type
+   USE message_passing, ONLY: mp_para_env_type
 #if defined(__SMEAGOL)
-   USE mmpi_negf,                       ONLY: create_communicators_negf,&
-                                              destroy_communicators_negf
-   USE mnegf_interface,                 ONLY: negf_interface
-   USE negfmod,                         ONLY: smeagolglobal_em_nas => em_nas,&
-                                              smeagolglobal_em_nau => em_nau,&
-                                              smeagolglobal_em_nso => em_nso,&
-                                              smeagolglobal_em_nuo => em_nuo,&
-                                              smeagolglobal_negfon => negfon
+   USE mmpi_negf, ONLY: create_communicators_negf, &
+                        destroy_communicators_negf
+   USE mnegf_interface, ONLY: negf_interface
+   USE negfmod, ONLY: smeagolglobal_em_nas => em_nas, &
+                      smeagolglobal_em_nau => em_nau, &
+                      smeagolglobal_em_nso => em_nso, &
+                      smeagolglobal_em_nuo => em_nuo, &
+                      smeagolglobal_negfon => negfon
 #endif
-   USE physcon,                         ONLY: bohr,&
-                                              evolt
-   USE pw_grid_types,                   ONLY: pw_grid_type
-   USE pw_types,                        ONLY: pw_r3d_rs_type
-   USE qs_energy_matrix_w,              ONLY: qs_energies_compute_w
-   USE qs_energy_types,                 ONLY: qs_energy_type
-   USE qs_environment_types,            ONLY: get_qs_env,&
-                                              qs_environment_type
-   USE qs_ks_types,                     ONLY: qs_ks_env_type,&
-                                              set_ks_env
-   USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
-   USE qs_rho_types,                    ONLY: qs_rho_get,&
-                                              qs_rho_type
-   USE qs_subsys_types,                 ONLY: qs_subsys_get,&
-                                              qs_subsys_type
-   USE scf_control_types,               ONLY: scf_control_type
-   USE smeagol_control_types,           ONLY: smeagol_control_type
-   USE smeagol_emtoptions,              ONLY: ReadOptionsNEGF_DFT,&
-                                              emtrans_deallocate_global_arrays,&
-                                              emtrans_options,&
-                                              reademtr
-   USE smeagol_matrix_utils,            ONLY: convert_dbcsr_to_distributed_siesta,&
-                                              convert_distributed_siesta_to_dbcsr,&
-                                              siesta_distrib_csc_struct_type,&
-                                              siesta_struct_create,&
-                                              siesta_struct_release
+   USE physcon, ONLY: bohr, &
+                      evolt
+   USE pw_grid_types, ONLY: pw_grid_type
+   USE pw_types, ONLY: pw_r3d_rs_type
+   USE qs_energy_matrix_w, ONLY: qs_energies_compute_w
+   USE qs_energy_types, ONLY: qs_energy_type
+   USE qs_environment_types, ONLY: get_qs_env, &
+                                   qs_environment_type
+   USE qs_ks_types, ONLY: qs_ks_env_type, &
+                          set_ks_env
+   USE qs_neighbor_list_types, ONLY: neighbor_list_set_p_type
+   USE qs_rho_types, ONLY: qs_rho_get, &
+                           qs_rho_type
+   USE qs_subsys_types, ONLY: qs_subsys_get, &
+                              qs_subsys_type
+   USE scf_control_types, ONLY: scf_control_type
+   USE smeagol_control_types, ONLY: smeagol_control_type
+   USE smeagol_emtoptions, ONLY: ReadOptionsNEGF_DFT, &
+                                 emtrans_deallocate_global_arrays, &
+                                 emtrans_options, &
+                                 reademtr
+   USE smeagol_matrix_utils, ONLY: convert_dbcsr_to_distributed_siesta, &
+                                   convert_distributed_siesta_to_dbcsr, &
+                                   siesta_distrib_csc_struct_type, &
+                                   siesta_struct_create, &
+                                   siesta_struct_release
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
