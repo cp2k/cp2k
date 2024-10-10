@@ -842,6 +842,8 @@ if [ "${with_sirius}" = "__INSTALL__" ]; then
   [ "${with_libvdwxc}" = "__DONTUSE__" ] && with_libvdwxc="__INSTALL__"
   [ "${with_cosma}" = "__DONTUSE__" ] && with_cosma="__INSTALL__"
   [ "${with_pugixml}" = "__DONTUSE__" ] && with_pugixml="__INSTALL__"
+elif [ "${with_sirius}" = "__DONTUSE__" ]; then
+  with_pugixml="__DONTUSE__"
 fi
 
 if [ "${with_plumed}" = "__INSTALL__" ]; then
