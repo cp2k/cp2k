@@ -2,15 +2,15 @@
 
 Instead of solving the Casida equation in the linear response regime, an explicit time-integration
 of the equation of motion of electrons can be carried out to determine the excitation frequencies.
-In the real-time Bethe-Salpeter propagation (RTBSE) method, the equation of motion is the
-von Neumann equation for the single particle density matrix $\hat{\rho}$ with an effective
-Hamiltonian $\hat{H}$
+In the real-time Bethe-Salpeter propagation (RTBSE) method, the equation of motion is the von
+Neumann equation for the single particle density matrix $\hat{\rho}$ with an effective Hamiltonian
+$\hat{H}$
 
 $$ \frac{\mathrm{d} \hat{\rho}}{\mathrm{d} t} = -\mathrm{i} [\hat{H}(t), \hat{\rho}(t)] $$
 
 The accuracy of such method is mainly determined by the choice of interaction model in the effective
-Hamiltonian. Instead of using TDDFT functionals, the COHSEX approximation to the self-energy
-is employed to calculate the time dependent behaviour of the density matrix
+Hamiltonian. Instead of using TDDFT functionals, the COHSEX approximation to the self-energy is
+employed to calculate the time dependent behaviour of the density matrix
 \[[Attaccalite2011](http://dx.doi.org/10.1103/PhysRevB.84.245110)\]. This requires a previous
 determination of the screened Coulomb potential, done via the bandstructure
 [GW](#CP2K_INPUT.FORCE_EVAL.PROPERTIES.BANDSTRUCTURE.GW) calculation.
@@ -48,8 +48,9 @@ matrix
 
 $$ \mu_i(t) = \mathrm{Tr} (\hat{\rho}(t) (\hat{x}_i - x_{i,\mathrm{CC}})) \: ,
 $$
-where $x_{i,\mathrm{CC}}$ are the coordinates of center of molecular charge and $\hat{x}_i$ is
-the position operator.
+
+where $x_{i,\mathrm{CC}}$ are the coordinates of center of molecular charge and $\hat{x}_i$ is the
+position operator.
 
 The electric polarizability (which is related to the photon absorption spectrum) is then determined
 as
@@ -76,14 +77,15 @@ To run the RTBSE propagation, include the
 and set the [RTP_METHOD](#CP2K_INPUT.FORCE_EVAL.DFT.REAL_TIME_PROPAGATION.RTP_METHOD) to `RTBSE` -
 otherwise, the standard TDDFT propagation is employed.
 
-Furthermore, the [TIMESTEP](#CP2K_INPUT.MOTION.MD.TIMESTEP) and [STEPS](#CP2K_INPUT.MOTION.MD.STEPS) influence the
-size of each timestep and the total time of propagation. From the properties of the Fourier transform,
-one can determine that smaller [TIMESTEP](#CP2K_INPUT.MOTION.MD.TIMESTEP) increases the maximum energy $\omega$
-that is captured by the transform, while larger total propagation time (influenced by [STEPS](#CP2K_INPUT.MOTION.MD.STEPS))
-leads to a better energy resolution (smaller $\Delta \omega$).
+Furthermore, the [TIMESTEP](#CP2K_INPUT.MOTION.MD.TIMESTEP) and [STEPS](#CP2K_INPUT.MOTION.MD.STEPS)
+influence the size of each timestep and the total time of propagation. From the properties of the
+Fourier transform, one can determine that smaller [TIMESTEP](#CP2K_INPUT.MOTION.MD.TIMESTEP)
+increases the maximum energy $\omega$ that is captured by the transform, while larger total
+propagation time (influenced by [STEPS](#CP2K_INPUT.MOTION.MD.STEPS)) leads to a better energy
+resolution (smaller $\Delta \omega$).
 
-For gas phase/isotropic calculation of polarizability, one needs to run 3 calculations
-to determine the trace of the polarizability tensor.
+For gas phase/isotropic calculation of polarizability, one needs to run 3 calculations to determine
+the trace of the polarizability tensor.
 
 ### ETRS Precision
 
@@ -96,9 +98,10 @@ self-consistent iterations.
 the maximum number of self-consistent iterations for a single time step before the cycle is broken
 and non-convergence is reported.
 
-If the propagation is converging poorly (>50 ETRS iterations), smaller [TIMESTEP](#CP2K_INPUT.MOTION.MD.TIMESTEP)
-may stabilize the propagation. A typical setup prints a status after each successful
-ETRS iteration, similar to the following
+If the propagation is converging poorly (>50 ETRS iterations), smaller
+[TIMESTEP](#CP2K_INPUT.MOTION.MD.TIMESTEP) may stabilize the propagation. A typical setup prints a
+status after each successful ETRS iteration, similar to the following
+
 ```
  RTBSE| Simulation step         Convergence     Electron number  ETRS Iterations
  RTBSE|               0     0.55891101E-008     0.16000000E+002                5
@@ -142,15 +145,18 @@ $I$ scale of the delta pulse (in atomic units). Note that the definition of the 
 from the definition used in the TDDFT method.
 
 The actual value of $I \vec{e}$ is printed out in atomic units, as well as the absolute value of the
-maximum element difference between the density matrix before and after
-the application of the delta pulse - so called metric difference after delta kick.
+maximum element difference between the density matrix before and after the application of the delta
+pulse - so called metric difference after delta kick.
+
 ```
  RTBSE| Applying delta puls
  RTBSE| Delta pulse elements (a.u.) :   -0.1000E-003  -0.0000E+000  -0.0000E+000
  RTBSE| Metric difference after delta kick                       0.61399576E-004
 ```
-If this metric difference is approaching 1.0, the ETRS cycle might have trouble converging -
-we recommend reducing the [DELTA_PULSE_SCALE](#CP2K_INPUT.FORCE_EVAL.DFT.REAL_TIME_PROPAGATION.DELTA_PULSE_SCALE).
+
+If this metric difference is approaching 1.0, the ETRS cycle might have trouble converging - we
+recommend reducing the
+[DELTA_PULSE_SCALE](#CP2K_INPUT.FORCE_EVAL.DFT.REAL_TIME_PROPAGATION.DELTA_PULSE_SCALE).
 
 ### Printing observables
 
@@ -215,4 +221,5 @@ one
 &END REAL_TIME_PROPAGATION
 ```
 
-A complete example input file is available in the [cp2k-examples](https://github.com/cp2k/cp2k-examples) repository.
+A complete example input file is available in the
+[cp2k-examples](https://github.com/cp2k/cp2k-examples) repository.
