@@ -674,7 +674,7 @@ CONTAINS
                   !    WRITE(*,*) ""
                   ! END IF
 
-                  temp = MATMUL(orbtramat(lshell)%c2s, diag_ncgf)
+                  temp(:,:) = MATMUL(orbtramat(lshell)%c2s, diag_ncgf)
 
                   ! IF (ionode) THEN
                   !    DO i = 1, nso(lshell)
@@ -683,7 +683,7 @@ CONTAINS
                   !    WRITE(*,*) ""
                   ! END IF
 
-                  diag_nsgf = MATMUL(temp, TRANSPOSE(orbtramat(lshell)%s2c))
+                  diag_nsgf(:,:) = MATMUL(temp, TRANSPOSE(orbtramat(lshell)%s2c))
                   ! CALL dgemm("N", "T", nso(lshell), nso(lshell), nco(lshell), &
                   !            1.0_dp, temp(1,1), nso(lshell), &
                   !            orbtramat(lshell)%s2c, nso(lshell), &
