@@ -26,7 +26,7 @@ MODULE smeagol_interface
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_get_iter_level_by_name,&
                                               cp_get_iter_nr
-   USE dbcsr_api,                       ONLY: dbcsr_copy,&
+   USE cp_dbcsr_api,                    ONLY: dbcsr_copy,&
                                               dbcsr_p_type,&
                                               dbcsr_set
    USE input_constants,                 ONLY: smeagol_bulklead_left,&
