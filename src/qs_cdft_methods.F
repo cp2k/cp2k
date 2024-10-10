@@ -755,8 +755,8 @@ CONTAINS
          CALL pw_set(cdft_control%group(igroup)%hw_rho_total_constraint, 1.0_dp)
 
          IF (igroup == 1) THEN
-            CALL auxbas_pw_pool%create_pw(cdft_control%group(1)%hw_rho_total)
-            CALL pw_set(cdft_control%group(1)%hw_rho_total, 1.0_dp)
+            CALL auxbas_pw_pool%create_pw(cdft_control%hw_rho_total)
+            CALL pw_set(cdft_control%hw_rho_total, 1.0_dp)
 
             IF (hirshfeld_control%print_density) THEN
                DO iatom = 1, cdft_control%natoms
@@ -878,7 +878,7 @@ CONTAINS
          DEALLOCATE (pab)
 
          IF (igroup == 1) THEN
-            CALL transfer_rs2pw(rs_rho_all, cdft_control%group(1)%hw_rho_total)
+            CALL transfer_rs2pw(rs_rho_all, cdft_control%hw_rho_total)
          END IF
 
          CALL transfer_rs2pw(rs_rho_constr, cdft_control%group(igroup)%hw_rho_total_constraint)
@@ -887,7 +887,7 @@ CONTAINS
          ! Calculate weight function
          CALL hfun_scale(cdft_control%group(igroup)%weight%array, &
                          cdft_control%group(igroup)%hw_rho_total_constraint%array, &
-                         cdft_control%group(1)%hw_rho_total%array, divide=.TRUE., &
+                         cdft_control%hw_rho_total%array, divide=.TRUE., &
                          small=hirshfeld_control%eps_cutoff)
 
          ! Calculate charges
@@ -896,7 +896,7 @@ CONTAINS
                CALL transfer_rs2pw(rs_single_charge(i), cdft_control%group(igroup)%hw_rho_atomic_charge(i))
                CALL hfun_scale(cdft_control%charge(i)%array, &
                                cdft_control%group(igroup)%hw_rho_atomic_charge(i)%array, &
-                               cdft_control%group(1)%hw_rho_total%array, divide=.TRUE., &
+                               cdft_control%hw_rho_total%array, divide=.TRUE., &
                                small=hirshfeld_control%eps_cutoff)
             END DO
          END IF
@@ -916,7 +916,7 @@ CONTAINS
          CALL auxbas_pw_pool%give_back_pw(cdft_control%group(igroup)%hw_rho_total_constraint)
 
          IF (.NOT. cdft_control%in_memory .AND. igroup == 1) THEN
-            CALL auxbas_pw_pool%give_back_pw(cdft_control%group(1)%hw_rho_total)
+            CALL auxbas_pw_pool%give_back_pw(cdft_control%hw_rho_total)
          END IF
 
          IF (hirshfeld_control%print_density .AND. igroup == 1) THEN
@@ -1094,11 +1094,11 @@ CONTAINS
 
                      ra(:) = particle_set(iatom)%r
 
-                     IF (cdft_control%group(1)%hw_rho_total%array(i, j, k) > hirshfeld_control%eps_cutoff) THEN
+                     IF (cdft_control%hw_rho_total%array(i, j, k) > hirshfeld_control%eps_cutoff) THEN
 
                         exp_eval = (coefficients(iatom) - &
                                     cdft_control%group(igroup)%weight%array(i, j, k))/ &
-                                   cdft_control%group(1)%hw_rho_total%array(i, j, k)
+                                   cdft_control%hw_rho_total%array(i, j, k)
 
                         r2 = (/i*dr_pw(1), j*dr_pw(2), k*dr_pw(3)/) + origin
                         r_pbc = pbc(ra, r2, cell)
@@ -1124,7 +1124,7 @@ CONTAINS
                END DO
             END DO
          END DO
-         CALL auxbas_pw_pool%give_back_pw(cdft_control%group(1)%hw_rho_total)
+         CALL auxbas_pw_pool%give_back_pw(cdft_control%hw_rho_total)
       END IF
 
       CALL rs_grid_release(rs_rho_all)
