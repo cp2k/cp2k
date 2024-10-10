@@ -214,7 +214,6 @@ MODULE qs_cdft_types
       TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER             :: hw_rho_atomic_dr => NULL()
       TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER             :: hw_rho_atomic_charge => NULL()
       TYPE(pw_r3d_rs_type)             :: hw_rho_total_constraint = pw_r3d_rs_type()
-      TYPE(pw_r3d_rs_type)          :: hw_rho_total = pw_r3d_rs_type()
    END TYPE cdft_group_type
 
    TYPE cdft_control_type
@@ -256,6 +255,7 @@ MODULE qs_cdft_types
       TYPE(pw_r3d_rs_type), POINTER, &
          DIMENSION(:, :)                   :: fragments => NULL()
       TYPE(qs_outer_scf_type)              :: constraint = qs_outer_scf_type()
+      TYPE(pw_r3d_rs_type)                 :: hw_rho_total = pw_r3d_rs_type()
    END TYPE cdft_control_type
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_cdft_types'
