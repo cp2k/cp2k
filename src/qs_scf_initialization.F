@@ -47,7 +47,8 @@ MODULE qs_scf_initialization
         broy_mix, cholesky_dbcsr, cholesky_inverse, cholesky_off, diag_block_davidson, &
         diag_block_krylov, diag_filter_matrix, diag_ot, diag_standard, direct_p_mix, kerker_mix, &
         multisec_mix, no_mix, ot2cdft, outer_scf_none, plus_u_lowdin, pulay_mix, &
-        smeagol_runtype_emtransport, wfi_frozen_method_nr, wfi_ps_method_nr, wfi_use_guess_method_nr
+        smeagol_runtype_emtransport, wfi_frozen_method_nr, wfi_ps_method_nr, &
+        wfi_use_guess_method_nr
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type,&
                                               section_vals_val_get

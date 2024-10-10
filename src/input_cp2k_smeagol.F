@@ -12,39 +12,39 @@
 !> \author Clotilde Cucinotta
 ! **************************************************************************************************
 MODULE input_cp2k_smeagol
-   USE bibliography,                    ONLY: Ahart2024
-   USE cp_output_handling,              ONLY: add_last_numeric, &
-                                              cp_print_key_section_create, &
-                                              debug_print_level, &
-                                              high_print_level, &
-                                              low_print_level, &
-                                              medium_print_level, &
-                                              silent_print_level
-   USE cp_units,                        ONLY: cp_unit_to_cp2k
-   USE input_constants,                 ONLY: smeagol_bulklead_left, &
-                                              smeagol_bulklead_leftright, &
-                                              smeagol_bulklead_right, &
-                                              smeagol_gridmethod_adaptive, &
-                                              smeagol_gridmethod_traditional, &
-                                              smeagol_integraltype_gauss_chebyshev, &
-                                              smeagol_integraltype_gauss_legendre, &
-                                              smeagol_runtype_bulktransport, &
-                                              smeagol_runtype_emtransport
-   USE input_keyword_types,             ONLY: keyword_create, &
-                                              keyword_release, &
-                                              keyword_type
-   USE input_section_types,             ONLY: section_add_keyword, &
-                                              section_add_subsection, &
-                                              section_create, &
-                                              section_release, &
-                                              section_type
-   USE input_val_types,                 ONLY: char_t, &
-                                              integer_t, &
-                                              logical_t, &
-                                              real_t
-   USE kinds,                           ONLY: dp
-   USE physcon,                         ONLY: kelvin
-   USE string_utilities,                ONLY: s2a
+   USE bibliography, ONLY: Ahart2024
+   USE cp_output_handling, ONLY: add_last_numeric, &
+                                 cp_print_key_section_create, &
+                                 debug_print_level, &
+                                 high_print_level, &
+                                 low_print_level, &
+                                 medium_print_level, &
+                                 silent_print_level
+   USE cp_units, ONLY: cp_unit_to_cp2k
+   USE input_constants, ONLY: smeagol_bulklead_left, &
+                              smeagol_bulklead_leftright, &
+                              smeagol_bulklead_right, &
+                              smeagol_gridmethod_adaptive, &
+                              smeagol_gridmethod_traditional, &
+                              smeagol_integraltype_gauss_chebyshev, &
+                              smeagol_integraltype_gauss_legendre, &
+                              smeagol_runtype_bulktransport, &
+                              smeagol_runtype_emtransport
+   USE input_keyword_types, ONLY: keyword_create, &
+                                  keyword_release, &
+                                  keyword_type
+   USE input_section_types, ONLY: section_add_keyword, &
+                                  section_add_subsection, &
+                                  section_create, &
+                                  section_release, &
+                                  section_type
+   USE input_val_types, ONLY: char_t, &
+                              integer_t, &
+                              logical_t, &
+                              real_t
+   USE kinds, ONLY: dp
+   USE physcon, ONLY: kelvin
+   USE string_utilities, ONLY: s2a
 #include "./base/base_uses.f90"
    #:include 'input_cp2k_smeagol.fypp'
    IMPLICIT NONE
@@ -143,7 +143,7 @@ CONTAINS
                           enum_c_vals=s2a("BulkTransport", "EMTransport"), &
                           enum_desc=s2a( &
                           "Save Kohn-Sham and density matrices of semi-infinite leads.", &
-                          "Run transport calculation for the extended molecule."),&
+                          "Run transport calculation for the extended molecule."), &
                           enum_i_vals=(/smeagol_runtype_bulktransport, smeagol_runtype_emtransport/))
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)

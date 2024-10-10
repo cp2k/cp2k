@@ -13,37 +13,37 @@
 !> \author Clotilde Cucinotta
 ! **************************************************************************************************
 MODULE smeagol_matrix_utils
-   USE cell_types,                      ONLY: cell_type,&
-                                              real_to_scaled,&
-                                              scaled_to_real
-   USE cp_dbcsr_api,                    ONLY: dbcsr_get_block_p,&
-                                              dbcsr_get_info,&
-                                              dbcsr_p_type,&
-                                              dbcsr_set
-   USE kinds,                           ONLY: dp,&
-                                              dp_size,&
-                                              int_8
-   USE message_passing,                 ONLY: mp_para_env_type,&
-                                              mp_request_type,&
-                                              mp_waitall
-   USE negf_matrix_utils,               ONLY: get_index_by_cell
+   USE cell_types, ONLY: cell_type, &
+                         real_to_scaled, &
+                         scaled_to_real
+   USE cp_dbcsr_api, ONLY: dbcsr_get_block_p, &
+                           dbcsr_get_info, &
+                           dbcsr_p_type, &
+                           dbcsr_set
+   USE kinds, ONLY: dp, &
+                    dp_size, &
+                    int_8
+   USE message_passing, ONLY: mp_para_env_type, &
+                              mp_request_type, &
+                              mp_waitall
+   USE negf_matrix_utils, ONLY: get_index_by_cell
 #if defined(__SMEAGOL)
-   USE parallel,                        ONLY: GetNodeOrbs,&
-                                              GlobalToLocalOrb,&
-                                              LocalToGlobalOrb,&
-                                              WhichNodeOrb
+   USE parallel, ONLY: GetNodeOrbs, &
+                       GlobalToLocalOrb, &
+                       LocalToGlobalOrb, &
+                       WhichNodeOrb
 #endif
-   USE particle_types,                  ONLY: particle_type
-   USE qs_neighbor_list_types,          ONLY: get_iterator_info,&
-                                              get_neighbor_list_set_p,&
-                                              neighbor_list_iterate,&
-                                              neighbor_list_iterator_create,&
-                                              neighbor_list_iterator_p_type,&
-                                              neighbor_list_iterator_release,&
-                                              neighbor_list_set_p_type
-   USE qs_subsys_types,                 ONLY: qs_subsys_get,&
-                                              qs_subsys_type
-   USE util,                            ONLY: sort
+   USE particle_types, ONLY: particle_type
+   USE qs_neighbor_list_types, ONLY: get_iterator_info, &
+                                     get_neighbor_list_set_p, &
+                                     neighbor_list_iterate, &
+                                     neighbor_list_iterator_create, &
+                                     neighbor_list_iterator_p_type, &
+                                     neighbor_list_iterator_release, &
+                                     neighbor_list_set_p_type
+   USE qs_subsys_types, ONLY: qs_subsys_get, &
+                              qs_subsys_type
+   USE util, ONLY: sort
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -261,7 +261,7 @@ CONTAINS
          CALL GetNodeOrbs(nrows_total, para_env%mepos, para_env%num_pe, nrows_local)
 #else
          CALL cp_abort(__LOCATION__, &
-                      "CP2K was compiled with no SMEAGOL support.")
+                       "CP2K was compiled with no SMEAGOL support.")
 #endif
       ELSE
          IF (is_root_rank) THEN
@@ -1614,8 +1614,8 @@ CONTAINS
 #if defined(__SMEAGOL)
                   CALL GlobalToLocalOrb(irow_local + first_row_minus_one, mepos, nprocs, irow_proc)
 #else
-                     CALL cp_abort(__LOCATION__, &
-                                   "CP2K was compiled with no SMEAGOL support.")
+                  CALL cp_abort(__LOCATION__, &
+                                "CP2K was compiled with no SMEAGOL support.")
 #endif
                ELSE
                   IF (is_root_rank) THEN
