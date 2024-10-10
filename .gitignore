@@ -255,6 +255,7 @@ docs/bibliography.md
 docs/cp2k_input.xml
 docs/references.html
 docs/units.html
+docs/units.md
 
 # PyBuilder
 .pybuilder/
