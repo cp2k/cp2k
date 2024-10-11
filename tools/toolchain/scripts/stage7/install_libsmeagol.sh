@@ -22,8 +22,11 @@ cd "${BUILDDIR}"
 case "$with_libsmeagol" in
   __INSTALL__)
     echo "==================== Installing SMEAGOL ===================="
-    echo "__INSTALL__ is not supported; please manually install libsmeagol"
-    echo "and rerun the toolchain using --with-libsmeagol=<path> option"
+    echo "--with-libsmeagol=install is not supported yet. Please manually install"
+    echo "libsmeagol and rerun the toolchain by using --with-libsmeagol=<path> option."
+    echo
+    echo "The library can be downloaded by contacting Dr. Clotilde Cucinotta at"
+    echo "cucinotta@imperial.ac.uk or Prof. Stefano Sanvito at sanvitos@tcd.ie."
     exit 1
     ;;
 

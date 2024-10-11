@@ -329,8 +329,8 @@ with_libvori="__INSTALL__"
 with_libtorch="__DONTUSE__"
 with_ninja="__DONTUSE__"
 with_dftd4="__DONTUSE__"
+with_libsmeagol="__DONTUSE__"
 
-with_smeagol="__DONTUSE__"
 # for MPI, we try to detect system MPI variant
 if (command -v mpiexec > /dev/null 2>&1); then
   # check if we are dealing with openmpi, mpich or intelmpi
@@ -433,7 +433,7 @@ while [ $# -ge 1 ]; do
       for ii in ${package_list}; do
         if [ "${ii}" != "intel" ] &&
           [ "${ii}" != "intelmpi" ] &&
-          [ "${ii}" != "amd" ]; then
+          [ "${ii}" != "amd" ] && [ "${ii}" != "libsmeagol" ]; then
           eval with_${ii}="__INSTALL__"
         fi
       done
