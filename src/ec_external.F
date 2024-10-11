@@ -134,6 +134,8 @@ CONTAINS
          CALL cp_fm_struct_release(fm_struct)
       END DO
 
+      CALL cp_fm_release(ec_env%mo_occ)
+      CALL cp_fm_release(ec_env%cpmos)
       IF (ec_env%debug_external) THEN
          !
          ec_env%mo_occ => mo_ref
@@ -148,8 +150,8 @@ CONTAINS
                                             cpmos(ispin), nocc, &
                                             alpha=focc, beta=0.0_dp)
             END DO
-            ec_env%cpmos => cpmos
          END IF
+         ec_env%cpmos => cpmos
       ELSE
          ! get external information
 !deb     CALL ec_ext_interface(qs_env, ec_env%ex, mo_ref, cpmos, calculate_forces, unit_nr)
@@ -766,6 +768,7 @@ CONTAINS
          CALL parallel_gemm("T", "N", nocc, nocc, nao, 1.0_dp, mo_occ(ispin), cpmos(ispin), 0.0_dp, chcmat)
          CALL parallel_gemm("N", "N", nao, nocc, nocc, 1.0_dp, mo_occ(ispin), chcmat, 0.0_dp, rcvec)
          CALL cp_dbcsr_plus_fm_fm_t(matrix_r, matrix_v=rcvec, matrix_g=mo_occ(ispin), ncol=nocc, alpha=focc)
+         CALL cp_fm_struct_release(mat_struct)
          CALL cp_fm_release(rcvec)
          CALL cp_fm_release(chcmat)
       END DO
