@@ -327,8 +327,8 @@ with_libvori="__INSTALL__"
 with_libtorch="__DONTUSE__"
 with_ninja="__DONTUSE__"
 with_dftd4="__DONTUSE__"
+with_libsmeagol="__DONTUSE__"
 
-with_smeagol="__DONTUSE__"
 # for MPI, we try to detect system MPI variant
 if (command -v mpiexec > /dev/null 2>&1); then
   # check if we are dealing with openmpi, mpich or intelmpi
@@ -427,7 +427,7 @@ while [ $# -ge 1 ]; do
     --install-all)
       # set all package to the default installation status
       for ii in ${package_list}; do
-        if [ "${ii}" != "intel" ] && [ "${ii}" != "intelmpi" ]; then
+        if [ "${ii}" != "intel" ] && [ "${ii}" != "intelmpi" ] && [ "${ii}" != "libsmeagol" ]; then
           eval with_${ii}="__INSTALL__"
         fi
       done
