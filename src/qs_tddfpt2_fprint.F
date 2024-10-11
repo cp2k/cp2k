@@ -54,7 +54,7 @@ MODULE qs_tddfpt2_fprint
    USE qs_ks_methods,                   ONLY: qs_ks_build_kohn_sham_matrix
    USE qs_ks_types,                     ONLY: qs_ks_env_type,&
                                               set_ks_env
-   USE qs_matrix_w,                     ONLY: qs_energies_compute_matrix_w
+   USE qs_matrix_w,                     ONLY: compute_matrix_w
    USE qs_p_env_types,                  ONLY: p_env_release,&
                                               qs_p_env_type
    USE qs_scf,                          ONLY: scf
@@ -323,7 +323,7 @@ CONTAINS
       CALL qs_env_rebuild_pw_env(qs_env)
       CALL qs_energies_init(qs_env, .TRUE.)
       CALL scf(qs_env)
-      CALL qs_energies_compute_matrix_w(qs_env, .TRUE.)
+      CALL compute_matrix_w(qs_env, .TRUE.)
 
       NULLIFY (para_env)
       CALL get_qs_env(qs_env, para_env=para_env)

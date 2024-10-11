@@ -43,13 +43,13 @@ MODULE qs_local_properties
                                               pw_r3d_rs_type
    USE qs_collocate_density,            ONLY: calculate_rho_elec
    USE qs_core_energies,                ONLY: calculate_ptrace
-   USE qs_energy_matrix_w,              ONLY: qs_energies_compute_w
    USE qs_energy_types,                 ONLY: qs_energy_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_ks_methods,                   ONLY: calc_rho_tot_gspace
    USE qs_ks_types,                     ONLY: qs_ks_env_type,&
                                               set_ks_env
+   USE qs_matrix_w,                     ONLY: compute_matrix_w
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
    USE qs_vxc,                          ONLY: qs_xc_density
@@ -145,7 +145,7 @@ CONTAINS
          CALL set_ks_env(ks_env, matrix_w_kp=matrix_w)
       END IF
       ! band structure energy density
-      CALL qs_energies_compute_w(qs_env, .TRUE.)
+      CALL compute_matrix_w(qs_env, .TRUE.)
       CALL get_qs_env(qs_env, ks_env=ks_env, matrix_w_kp=matrix_w)
       CALL auxbas_pw_pool%create_pw(edens_r)
       CALL auxbas_pw_pool%create_pw(edens_g)

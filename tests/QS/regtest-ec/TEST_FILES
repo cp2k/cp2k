@@ -61,4 +61,7 @@ N2_ec-hfx.inp                                         11      1e-10             
 N2_ec-hfx-admm.inp                                    11      1e-10                 -19.8434174923
 #
 harris.inp                                             0
+#
+EXT1.inp                                               0
+EXT2.inp                                             119      1e-08                     1.12631842
 #EOF

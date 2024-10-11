@@ -117,7 +117,6 @@ MODULE rpa_im_time_force_methods
    USE qs_collocate_density,            ONLY: calculate_rho_elec,&
                                               collocate_function
    USE qs_density_matrices,             ONLY: calculate_whz_matrix
-   USE qs_energy_matrix_w,              ONLY: qs_energies_compute_w
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type,&
                                               set_qs_env
@@ -133,6 +132,7 @@ MODULE rpa_im_time_force_methods
    USE qs_ks_reference,                 ONLY: ks_ref_potential
    USE qs_ks_types,                     ONLY: set_ks_env
    USE qs_linres_types,                 ONLY: linres_control_type
+   USE qs_matrix_w,                     ONLY: compute_matrix_w
    USE qs_mo_types,                     ONLY: get_mo_set,&
                                               mo_set_type
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type,&
@@ -3775,7 +3775,7 @@ CONTAINS
 
       !Add to it the SCF W matrix, except if EXX (because taken care of by HF response)
       IF (.NOT. do_exx) THEN
-         CALL qs_energies_compute_w(qs_env, calc_forces=.TRUE.)
+         CALL compute_matrix_w(qs_env, calc_forces=.TRUE.)
          CALL get_qs_env(qs_env, matrix_w=matrix_w)
          CALL dbcsr_add(p_env%w1(1)%matrix, matrix_w(1)%matrix, 1.0_dp, 1.0_dp)
          IF (nspins == 2) CALL dbcsr_add(p_env%w1(1)%matrix, matrix_w(2)%matrix, 1.0_dp, 1.0_dp)

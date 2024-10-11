@@ -33,7 +33,7 @@ MODULE qs_energy
                                               qs_environment_type
    USE qs_harris_utils,                 ONLY: harris_energy_correction
    USE qs_ks_methods,                   ONLY: qs_ks_update_qs_env
-   USE qs_matrix_w,                     ONLY: qs_energies_compute_matrix_w
+   USE qs_matrix_w,                     ONLY: compute_matrix_w
    USE qs_nonscf,                       ONLY: nonscf
    USE qs_scf,                          ONLY: scf
    USE scf_control_types,               ONLY: scf_control_type
@@ -129,7 +129,7 @@ CONTAINS
 
             IF (.NOT. ASSOCIATED(qs_env%mp2_env)) THEN
                ! if calculate forces, time to compute the w matrix
-               CALL qs_energies_compute_matrix_w(qs_env, my_calc_forces)
+               CALL compute_matrix_w(qs_env, my_calc_forces)
             END IF
 
          END IF

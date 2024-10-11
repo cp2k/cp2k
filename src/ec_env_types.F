@@ -14,6 +14,8 @@
 MODULE ec_env_types
    USE cp_dbcsr_api,                    ONLY: dbcsr_p_type
    USE cp_dbcsr_operations,             ONLY: dbcsr_deallocate_matrix_set
+   USE cp_fm_types,                     ONLY: cp_fm_release,&
+                                              cp_fm_type
    USE dm_ls_scf_types,                 ONLY: ls_scf_env_type,&
                                               ls_scf_release
    USE hfx_types,                       ONLY: hfx_release,&
@@ -66,6 +68,7 @@ MODULE ec_env_types
       ! debug
       LOGICAL                                          :: debug_forces = .FALSE.
       LOGICAL                                          :: debug_stress = .FALSE.
+      LOGICAL                                          :: debug_external = .FALSE.
       ! basis set
       CHARACTER(len=20)                                :: basis = ""
       LOGICAL                                          :: mao = .FALSE.
@@ -101,6 +104,9 @@ MODULE ec_env_types
                                                           matrix_w => Null()
       ! reduce basis
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER        :: mao_coef => Null()
+      ! external energy calclulation
+      TYPE(cp_fm_type), DIMENSION(:), POINTER          :: mo_occ => NULL()
+      TYPE(cp_fm_type), DIMENSION(:), POINTER          :: cpmos => NULL()
       ! CP equations
       TYPE(qs_p_env_type), POINTER                     :: p_env => Null()
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER        :: matrix_hz => Null(), matrix_wz => Null(), &
@@ -205,6 +211,9 @@ CONTAINS
 
          IF (ASSOCIATED(ec_env%xc_section_aux)) CALL section_vals_release(ec_env%xc_section_aux)
          IF (ASSOCIATED(ec_env%xc_section_primary)) CALL section_vals_release(ec_env%xc_section_primary)
+
+         CALL cp_fm_release(ec_env%mo_occ)
+         CALL cp_fm_release(ec_env%cpmos)
 
          DEALLOCATE (ec_env)
 

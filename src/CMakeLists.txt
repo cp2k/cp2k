@@ -134,6 +134,7 @@ list(
   ec_efield_local.F
   ec_environment.F
   ec_env_types.F
+  ec_external.F
   ec_methods.F
   ec_orth_solver.F
   ed_analysis.F
@@ -546,7 +547,6 @@ list(
   qs_elf_methods.F
   qs_energy.F
   qs_energy_init.F
-  qs_energy_matrix_w.F
   qs_energy_types.F
   qs_energy_utils.F
   qs_energy_window.F
