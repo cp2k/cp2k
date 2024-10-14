@@ -56,7 +56,7 @@ MODULE smeagol_interface
                       evolt
    USE pw_grid_types, ONLY: pw_grid_type
    USE pw_types, ONLY: pw_r3d_rs_type
-   USE qs_energy_matrix_w, ONLY: qs_energies_compute_w
+   USE qs_matrix_w, ONLY: compute_matrix_w
    USE qs_energy_types, ONLY: qs_energy_type
    USE qs_environment_types, ONLY: get_qs_env, &
                                    qs_environment_type
@@ -198,7 +198,7 @@ CONTAINS
             CALL set_ks_env(ks_env, matrix_w_kp=matrix_w_kp)
          END IF
       END IF
-      CALL qs_energies_compute_w(qs_env, calc_forces=.TRUE.)
+      CALL compute_matrix_w(qs_env, calc_forces=.TRUE.)
 
       ! obtain the sparsity pattern of the overlap matrix
       DO img = 1, nimages
