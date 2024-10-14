@@ -675,7 +675,7 @@ CONTAINS
          ! The field FT is not damped - assume field is localised in time
          ! The field is strictly real
          CALL ft_simple(rtbse_env%time_trace%series, rtbse_env%field_trace(rtbse_env%pol_element(2))%series, &
-                        omega_series, ft_real_series, ft_imag_series, 0.0_dp, rtbse_env%ft_start)
+                        omega_series, ft_real_series, ft_imag_series, 0.0_dp, rtbse_env%ft_start, .FALSE.)
          ! Regularization for the case when ft_series becomes identically zero - TODO : Set in config
          field_series(:) = CMPLX(ft_real_series(:), ft_imag_series(:) + 1.0e-20, kind=dp)
       END IF
@@ -740,7 +740,7 @@ CONTAINS
 ! **************************************************************************************************
    ! So far only for defined one dimensional series
    SUBROUTINE ft_simple(time_series, value_series, omega_series, result_series, iresult_series, &
-                        damping_opt, t0_opt)
+                        damping_opt, t0_opt, subtract_initial_opt)
       REAL(kind=dp), DIMENSION(:)                        :: time_series
       REAL(kind=dp), DIMENSION(:)                        :: value_series
       REAL(kind=dp), DIMENSION(:)                        :: omega_series
@@ -748,9 +748,12 @@ CONTAINS
       REAL(kind=dp), DIMENSION(:)                        :: iresult_series
       REAL(kind=dp), OPTIONAL                            :: damping_opt
       REAL(kind=dp), OPTIONAL                            :: t0_opt
+      LOGICAL, OPTIONAL                                  :: subtract_initial_opt
       CHARACTER(len=*), PARAMETER                        :: routineN = "ft_simple"
       INTEGER                                            :: N, i, j, t0_i, j_wrap, handle
-      REAL(kind=dp)                                      :: t0, delta_t, delta_omega, damping
+      REAL(kind=dp)                                      :: t0, delta_t, delta_omega, damping, &
+                                                            value_subtract
+      LOGICAL                                            :: subtract_initial
 
       CALL timeset(routineN, handle)
 
@@ -777,10 +780,19 @@ CONTAINS
          IF (damping_opt >= 0.0_dp) damping = damping_opt
       END IF
 
+      IF (PRESENT(subtract_initial_opt)) THEN
+         subtract_initial = subtract_initial_opt
+      ELSE
+         subtract_initial = .TRUE.
+      END IF
+
       ! Construct the grid
       ! Assume series equidistant
       delta_t = time_series(2) - time_series(1)
       delta_omega = twopi/(time_series(N) - time_series(1))
+      ! Subtract initial value, if requested (default is to subtract the value)
+      value_subtract = 0.0_dp
+      IF (subtract_initial) value_subtract = value_series(t0_i)
       DO i = 1, N
          result_series(i) = 0.0_dp
          iresult_series(i) = 0.0_dp
@@ -788,9 +800,9 @@ CONTAINS
          DO j = 1, N
             j_wrap = MODULO(j + t0_i - 2, N) + 1
             result_series(i) = result_series(i) + COS(twopi*(i - 1)*(j - 1)/N)* &
-                               EXP(-damping*delta_t*(j - 1))*value_series(j_wrap)
+                               EXP(-damping*delta_t*(j - 1))*(value_series(j_wrap) - value_subtract)
             iresult_series(i) = iresult_series(i) + SIN(twopi*(i - 1)*(j - 1)/N)* &
-                                EXP(-damping*delta_t*(j - 1))*value_series(j_wrap)
+                                EXP(-damping*delta_t*(j - 1))*(value_series(j_wrap) - value_subtract)
          END DO
       END DO
       delta_omega = twopi/(time_series(N) - time_series(1))
