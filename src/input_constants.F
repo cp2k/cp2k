@@ -1159,7 +1159,8 @@ MODULE input_constants
 
    ! non-scf energy corrections
    INTEGER, PARAMETER, PUBLIC               :: ec_functional_harris = 2001, &
-                                               ec_functional_dc = 2002
+                                               ec_functional_dc = 2002, &
+                                               ec_functional_ext = 2003
 
    ! Energy correction solver
    INTEGER, PARAMETER, PUBLIC               :: ec_diagonalization = 1001, &

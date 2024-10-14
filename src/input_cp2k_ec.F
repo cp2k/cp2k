@@ -20,13 +20,14 @@ MODULE input_cp2k_ec
                                               high_print_level
    USE input_constants,                 ONLY: &
         bqb_opt_exhaustive, bqb_opt_normal, bqb_opt_off, bqb_opt_patient, bqb_opt_quick, &
-        ec_diagonalization, ec_functional_dc, ec_functional_harris, ec_ls_solver, ec_matrix_sign, &
-        ec_matrix_tc2, ec_matrix_trs4, ec_mo_solver, ec_ot_atomic, ec_ot_diag, ec_ot_gs, &
-        kg_cholesky, ls_cluster_atomic, ls_cluster_molecular, ls_s_inversion_hotelling, &
-        ls_s_inversion_sign_sqrt, ls_s_preconditioner_atomic, ls_s_preconditioner_molecular, &
-        ls_s_preconditioner_none, ls_s_sqrt_ns, ls_s_sqrt_proot, ls_scf_sign_ns, &
-        ls_scf_sign_proot, ot_precond_full_all, ot_precond_full_kinetic, ot_precond_full_single, &
-        ot_precond_full_single_inverse, ot_precond_none, ot_precond_s_inverse, precond_mlp
+        ec_diagonalization, ec_functional_dc, ec_functional_ext, ec_functional_harris, &
+        ec_ls_solver, ec_matrix_sign, ec_matrix_tc2, ec_matrix_trs4, ec_mo_solver, ec_ot_atomic, &
+        ec_ot_diag, ec_ot_gs, kg_cholesky, ls_cluster_atomic, ls_cluster_molecular, &
+        ls_s_inversion_hotelling, ls_s_inversion_sign_sqrt, ls_s_preconditioner_atomic, &
+        ls_s_preconditioner_molecular, ls_s_preconditioner_none, ls_s_sqrt_ns, ls_s_sqrt_proot, &
+        ls_scf_sign_ns, ls_scf_sign_proot, ot_precond_full_all, ot_precond_full_kinetic, &
+        ot_precond_full_single, ot_precond_full_single_inverse, ot_precond_none, &
+        ot_precond_s_inverse, precond_mlp
    USE input_cp2k_mm,                   ONLY: create_dipoles_section
    USE input_cp2k_voronoi,              ONLY: create_print_voronoi_section
    USE input_cp2k_xc,                   ONLY: create_xc_section
@@ -101,10 +102,11 @@ CONTAINS
                           description="Functional used in energy correction", &
                           usage="ENERGY_FUNCTIONAL HARRIS", &
                           default_i_val=ec_functional_harris, &
-                          enum_c_vals=s2a("HARRIS", "DCDFT"), &
+                          enum_c_vals=s2a("HARRIS", "DCDFT", "EXTERNAL"), &
                           enum_desc=s2a("Harris functional", &
-                                        "Density-corrected DFT"), &
-                          enum_i_vals=(/ec_functional_harris, ec_functional_dc/))
+                                        "Density-corrected DFT", &
+                                        "External calculated energy"), &
+                          enum_i_vals=(/ec_functional_harris, ec_functional_dc, ec_functional_ext/))
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -126,6 +128,11 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="DEBUG_STRESS", &
                           description="Additional output to debug energy correction forces.", &
                           usage="DEBUG_STRESS T", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="DEBUG_EXTERNAL_METHOD", &
+                          description="Uses an internal pseudo-energy to test EXTERNAL energy method.", &
+                          usage="DEBUG_EXTERNAL_METHOD T", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

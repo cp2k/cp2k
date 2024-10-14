@@ -12,6 +12,7 @@
 !>       09.2019 Moved from KG to Kohn-Sham
 !>       08.2022 Add Density-Corrected DFT methods
 !>       04.2023 Add hybrid functionals for DC-DFT
+!>       10.2024 Add external energy method
 !> \author JGH
 ! **************************************************************************************************
 MODULE energy_corrections
@@ -80,6 +81,7 @@ MODULE energy_corrections
    USE ec_efield_local,                 ONLY: ec_efield_integrals,&
                                               ec_efield_local_operator
    USE ec_env_types,                    ONLY: energy_correction_type
+   USE ec_external,                     ONLY: ec_ext_energy
    USE ec_methods,                      ONLY: create_kernel,&
                                               ec_mos_init
    USE external_potential_types,        ONLY: get_potential,&
@@ -88,9 +90,10 @@ MODULE energy_corrections
    USE hfx_exx,                         ONLY: add_exx_to_rhs,&
                                               calculate_exx
    USE input_constants,                 ONLY: &
-        ec_diagonalization, ec_functional_dc, ec_functional_harris, ec_matrix_sign, ec_matrix_tc2, &
-        ec_matrix_trs4, ec_ot_atomic, ec_ot_diag, ec_ot_gs, ot_precond_full_single_inverse, &
-        ot_precond_solver_default, vdw_pairpot_dftd3, vdw_pairpot_dftd3bj, xc_vdw_fun_pairpot
+        ec_diagonalization, ec_functional_dc, ec_functional_ext, ec_functional_harris, &
+        ec_matrix_sign, ec_matrix_tc2, ec_matrix_trs4, ec_ot_atomic, ec_ot_diag, ec_ot_gs, &
+        ot_precond_full_single_inverse, ot_precond_solver_default, vdw_pairpot_dftd3, &
+        vdw_pairpot_dftd3bj, xc_vdw_fun_pairpot
    USE input_section_types,             ONLY: section_get_ival,&
                                               section_get_lval,&
                                               section_vals_get,&
@@ -200,6 +203,7 @@ CONTAINS
 !> \brief Energy Correction to a Kohn-Sham simulation
 !>        Available energy corrections: (1) Harris energy functional
 !>                                      (2) Density-corrected DFT
+!>                                      (3) Energy from external source
 !>
 !> \param qs_env ...
 !> \param ec_init ...
@@ -370,6 +374,10 @@ CONTAINS
             ! Calculate Hartree and XC related energies here
             CALL ec_build_ks_matrix(qs_env, ec_env)
 
+         CASE (ec_functional_ext)
+
+            CALL ec_ext_energy(qs_env, ec_env, calculate_forces=.FALSE.)
+
          CASE DEFAULT
             CPABORT("unknown energy correction")
          END SELECT
@@ -408,6 +416,10 @@ CONTAINS
                                                  ec_env%matrix_w)
             CALL ec_dc_build_ks_matrix_force(qs_env, ec_env)
 
+         CASE (ec_functional_ext)
+
+            CALL ec_ext_energy(qs_env, ec_env, calculate_forces=.TRUE.)
+
          CASE DEFAULT
             CPABORT("unknown energy correction")
          END SELECT
@@ -445,11 +457,18 @@ CONTAINS
          CALL ec_properties(qs_env, ec_env)
 
          ! Deallocate Harris density and response density on grid
-         DO ispin = 1, nspins
-            CALL auxbas_pw_pool%give_back_pw(ec_env%rhoout_r(ispin))
-            CALL auxbas_pw_pool%give_back_pw(ec_env%rhoz_r(ispin))
-         END DO
-         DEALLOCATE (ec_env%rhoout_r, ec_env%rhoz_r)
+         IF (ASSOCIATED(ec_env%rhoout_r)) THEN
+            DO ispin = 1, nspins
+               CALL auxbas_pw_pool%give_back_pw(ec_env%rhoout_r(ispin))
+            END DO
+            DEALLOCATE (ec_env%rhoout_r)
+         END IF
+         IF (ASSOCIATED(ec_env%rhoz_r)) THEN
+            DO ispin = 1, nspins
+               CALL auxbas_pw_pool%give_back_pw(ec_env%rhoz_r(ispin))
+            END DO
+            DEALLOCATE (ec_env%rhoz_r)
+         END IF
 
          ! Deallocate matrices
          IF (ASSOCIATED(ec_env%matrix_ks)) CALL dbcsr_deallocate_matrix_set(ec_env%matrix_ks)
@@ -2734,7 +2753,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      nspins = SIZE(ec_env%matrix_ks, 1)
+      nspins = SIZE(ec_env%matrix_p, 1)
       DO ispin = 1, nspins
          CALL dbcsr_dot(ec_env%matrix_p(ispin, 1)%matrix, ec_env%matrix_s(1, 1)%matrix, trace)
          IF (unit_nr > 0) WRITE (unit_nr, '(T3,A,T65,F16.10)') 'Tr[PS] ', trace
@@ -2780,6 +2799,13 @@ CONTAINS
             WRITE (unit_nr, '(T3,A,T56,F25.15)') "Ex       ", ec_env%ex
             WRITE (unit_nr, '(T3,A,T56,F25.15)') "Exc_aux_fit", ec_env%exc_aux_fit
             WRITE (unit_nr, '(T3,A,T56,F25.15)') "Edisp    ", ec_env%edispersion
+            WRITE (unit_nr, '(T3,A,T56,F25.15)') "Etotal Energy Functional   ", ec_env%etotal
+         END IF
+
+      CASE (ec_functional_ext)
+
+         ec_env%etotal = ec_env%ex
+         IF (unit_nr > 0) THEN
             WRITE (unit_nr, '(T3,A,T56,F25.15)') "Etotal Energy Functional   ", ec_env%etotal
          END IF
 

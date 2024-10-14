@@ -351,31 +351,39 @@ CONTAINS
          ! CPKS vector cpmos - RHS of response equation as Ax + b = 0 (sign of b)
          ! Sign is changed in linres_solver!
          ! Projector Q applied in linres_solver!
-         CALL get_qs_env(qs_env, mos=mos)
-         ALLOCATE (cpmos(nspins), mo_occ(nspins))
-         DO ispin = 1, nspins
-            CALL get_mo_set(mo_set=mos(ispin), mo_coeff=mo_coeff, homo=nocc)
-            NULLIFY (fm_struct)
-            CALL cp_fm_struct_create(fm_struct, ncol_global=nocc, &
-                                     template_fmstruct=mo_coeff%matrix_struct)
-            CALL cp_fm_create(cpmos(ispin), fm_struct)
-            CALL cp_fm_set_all(cpmos(ispin), 0.0_dp)
-            CALL cp_fm_create(mo_occ(ispin), fm_struct)
-            CALL cp_fm_to_fm(mo_coeff, mo_occ(ispin), nocc)
-            CALL cp_fm_struct_release(fm_struct)
-         END DO
+         IF (ASSOCIATED(ec_env%cpmos)) THEN
 
-         focc = 2.0_dp
-         IF (nspins == 1) focc = 4.0_dp
-         DO ispin = 1, nspins
-            CALL get_mo_set(mo_set=mos(ispin), mo_coeff=mo_coeff, homo=nocc)
-            CALL cp_dbcsr_sm_fm_multiply(ec_env%matrix_hz(ispin)%matrix, mo_occ(ispin), &
-                                         cpmos(ispin), nocc, &
-                                         alpha=focc, beta=0.0_dp)
-         END DO
-         CALL cp_fm_release(mo_occ)
+            CALL response_equation_new(qs_env, p_env, ec_env%cpmos, unit_nr)
 
-         CALL response_equation_new(qs_env, p_env, cpmos, unit_nr)
+         ELSE
+            CALL get_qs_env(qs_env, mos=mos)
+            ALLOCATE (cpmos(nspins), mo_occ(nspins))
+            DO ispin = 1, nspins
+               CALL get_mo_set(mo_set=mos(ispin), mo_coeff=mo_coeff, homo=nocc)
+               NULLIFY (fm_struct)
+               CALL cp_fm_struct_create(fm_struct, ncol_global=nocc, &
+                                        template_fmstruct=mo_coeff%matrix_struct)
+               CALL cp_fm_create(cpmos(ispin), fm_struct)
+               CALL cp_fm_set_all(cpmos(ispin), 0.0_dp)
+               CALL cp_fm_create(mo_occ(ispin), fm_struct)
+               CALL cp_fm_to_fm(mo_coeff, mo_occ(ispin), nocc)
+               CALL cp_fm_struct_release(fm_struct)
+            END DO
+
+            focc = 2.0_dp
+            IF (nspins == 1) focc = 4.0_dp
+            DO ispin = 1, nspins
+               CALL get_mo_set(mo_set=mos(ispin), mo_coeff=mo_coeff, homo=nocc)
+               CALL cp_dbcsr_sm_fm_multiply(ec_env%matrix_hz(ispin)%matrix, mo_occ(ispin), &
+                                            cpmos(ispin), nocc, &
+                                            alpha=focc, beta=0.0_dp)
+            END DO
+            CALL cp_fm_release(mo_occ)
+
+            CALL response_equation_new(qs_env, p_env, cpmos, unit_nr)
+
+            CALL cp_fm_release(cpmos)
+         END IF
 
          ! Get the response density matrix,
          ! and energy-weighted response density matrix
@@ -383,7 +391,6 @@ CONTAINS
             CALL dbcsr_copy(ec_env%matrix_z(ispin)%matrix, p_env%p1(ispin)%matrix)
             CALL dbcsr_copy(ec_env%matrix_wz(ispin)%matrix, p_env%w1(ispin)%matrix)
          END DO
-         CALL cp_fm_release(cpmos)
 
       CASE (ec_ls_solver)
 

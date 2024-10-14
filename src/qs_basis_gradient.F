@@ -29,7 +29,6 @@ MODULE qs_basis_gradient
    USE particle_types,                  ONLY: particle_type
    USE qs_core_hamiltonian,             ONLY: build_core_hamiltonian_matrix
    USE qs_density_matrices,             ONLY: calculate_density_matrix
-   USE qs_energy_matrix_w,              ONLY: qs_energies_compute_w
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_force_types,                  ONLY: allocate_qs_force,&
@@ -44,6 +43,7 @@ MODULE qs_basis_gradient
    USE qs_ks_types,                     ONLY: get_ks_env,&
                                               qs_ks_env_type,&
                                               set_ks_env
+   USE qs_matrix_w,                     ONLY: compute_matrix_w
    USE qs_mixing_utils,                 ONLY: mixing_allocate
    USE qs_mo_methods,                   ONLY: make_basis_sm
    USE qs_mo_types,                     ONLY: get_mo_set,&
@@ -160,7 +160,7 @@ CONTAINS
          END IF
       END IF
       ! time to compute the w matrix
-      CALL qs_energies_compute_w(qs_env, .TRUE.)
+      CALL compute_matrix_w(qs_env, .TRUE.)
 
       ! core hamiltonian forces
       CALL build_core_hamiltonian_matrix(qs_env=qs_env, calculate_forces=.TRUE.)
