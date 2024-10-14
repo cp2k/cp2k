@@ -12,7 +12,8 @@
 !> \author Clotilde Cucinotta
 ! **************************************************************************************************
 MODULE smeagol_interface
-   USE bibliography, ONLY: Bailey2006, &
+   USE bibliography, ONLY: Ahart2024, &
+                           Bailey2006, &
                            cite_reference
    USE cell_types, ONLY: cell_type, &
                          real_to_scaled, &
@@ -83,7 +84,6 @@ MODULE smeagol_interface
    PRIVATE
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'smeagol_interface'
-   !LOGICAL, PARAMETER, PRIVATE          :: debug_this_module = .TRUE.
 
    PUBLIC :: run_smeagol_bulktrans, run_smeagol_emtrans
    PUBLIC :: smeagol_shift_v_hartree
@@ -670,6 +670,7 @@ CONTAINS
 
       NULLIFY (kpoints, matrix_s_kp, matrix_ks_kp, matrix_w_kp, para_env, sab_nl, scf_control, subsys)
 #if defined(__SMEAGOL)
+      CALL cite_reference(Ahart2024)
       CALL cite_reference(Bailey2006)
 
       CPASSERT(ASSOCIATED(smeagol_control%aux))
