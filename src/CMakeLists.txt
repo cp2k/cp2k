@@ -286,6 +286,7 @@ list(
   input_cp2k_restarts_util.F
   input_cp2k_rsgrid.F
   input_cp2k_subsys.F
+  input_cp2k_smeagol.F
   input_cp2k_tb.F
   input_cp2k_thermostats.F
   input_cp2k_transport.F
@@ -777,6 +778,10 @@ list(
   semi_empirical_utils.F
   simpar_types.F
   sirius_interface.F
+  smeagol_control_types.F
+  smeagol_emtoptions.F
+  smeagol_interface.F
+  smeagol_matrix_utils.F
   spglib_f08.F
   splines_methods.F
   splines_types.F

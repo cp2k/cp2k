@@ -1,0 +1,4 @@
+# Regression tests for CP2K/SMEAGOL interface. These tests require libsmeagol library
+au-1x1x4-bulk.inp                                      120    3e-06            396.000000
+au-h2-au-1x1x1-1V-forces.inp                           72     5e-02              0.121820  
+#EOF

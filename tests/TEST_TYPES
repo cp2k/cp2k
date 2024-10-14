@@ -1,4 +1,4 @@
-119
+120
 Total energy:!3
 MD| Potential energy!5
 Total energy \[eV\]:!4
@@ -118,6 +118,7 @@ MOMENTS_TRACE_IM|     0.10000000E+000!3
 MOMENTS_TRACE_RE|     0.20000000E+000!3
 POLARIZABILITY|     0.32436607E+002!4
 DEBUG:: Total Force !6
+SMEAGOL| Number of electrons: !5
 #
 # these are the tests the can be selected for regtesting.
 # do regtest will grep for test_grep (first column) and look if the numeric value

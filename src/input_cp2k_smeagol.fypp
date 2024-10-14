@@ -1,0 +1,324 @@
+#!-------------------------------------------------------------------------------------------------!
+#!   CP2K: A general program to perform molecular dynamics simulations                             !
+#!   Copyright 2000-2024 CP2K developers group <https://cp2k.org>                                  !
+#!                                                                                                 !
+#!   SPDX-License-Identifier: GPL-2.0-or-later                                                     !
+#!-------------------------------------------------------------------------------------------------!
+#:mute
+   #:set HARTREE_TO_AU_E = '1.0_dp'
+   #:set RYDBERG_TO_AU_E = '0.5_dp'
+
+# reademtr()
+# control variables declared as dummy arguments
+# unimplemented : skiplast
+   #:set reademtr_local_lnames = [ &
+      'TrCoeff', 'skiplast', 'CalcIETS']
+   #:set reademtr_local_lkeywords = [ &
+      'TrCoefficients', 'SkipLastIter', 'CalcIETS']
+   #:set reademtr_local_lvals = [ &
+      '.false.', '.false.', '.false.']
+   #:set reademtr_local_llist = list(zip(reademtr_local_lnames, reademtr_local_lkeywords, reademtr_local_lvals))
+
+# input options declares as global variables in 'negfmod' SMEAGOL's module
+   #:set reademtr_negfmod_lnames = ['dsigmade', 'calcmpsh']
+   #:set reademtr_negfmod_lkeywords = ['Sigma.DSigmaDE', 'CalcMPSH']
+   #:set reademtr_negfmod_lvals = ['.false.', '.false.']
+   #:set reademtr_negfmod_llist = list(zip(reademtr_negfmod_lnames, reademtr_negfmod_lkeywords, reademtr_negfmod_lvals))
+
+# input options declares as global variables in 'negfcoop' SMEAGOL's module
+   #:set reademtr_negfcoop_lnames = ['COOPCalculate']
+   #:set reademtr_negfcoop_lkeywords = ['EM.COOPCalculate']
+   #:set reademtr_negfcoop_lvals = ['.false.']
+   #:set reademtr_negfcoop_llist = list(zip(reademtr_negfcoop_lnames, reademtr_negfcoop_lkeywords, reademtr_negfcoop_lvals))
+
+   #:set reademtr_local_inames = [ &
+      'NEnergR', 'NEnergIC', 'NEnergIL', 'NPoles', &
+      'SpinCL', 'AtmLVCte', 'AtmRVCte', 'NSlices', &
+      'nlinmix', 'tmdskip', 'tmdsampling']
+   #:set reademtr_local_ikeywords = [ &
+      'NEnergReal', 'NenergImCircle', 'NenergImLine', 'NPoles', &
+      'SpinConfLeads', 'AtomLeftVcte', 'AtomRightVcte', 'NSlices', &
+      'NumberLinearMix', 'MD.TRCSkip', 'MD.TRCSampling']
+   #:set reademtr_local_ivals = [ &
+      288, 32, 16, 16, &
+      0, 1, -1, 1, &
+      1, 0, 1]
+   #:set reademtr_local_ilist = list(zip(reademtr_local_inames, reademtr_local_ikeywords, reademtr_local_ivals))
+
+# input options declares as global variables in 'negfmod' SMEAGOL's module
+   #:set reademtr_negfmod_inames = ['NeneT', &
+      'rmoinit', 'rmolast', 'rorbinit', 'rorblast']
+   #:set reademtr_negfmod_ikeywords = ['NTransmPoints', &
+      'MPSHAtomFirst', 'MPSHAtomLast', 'MPSHOrbFirst', 'MPSHOrbLast']
+   #:set reademtr_negfmod_ivals = [100, &
+      1, 1, 1, 1]
+   #:set reademtr_negfmod_ilist = list(zip(reademtr_negfmod_inames, reademtr_negfmod_ikeywords, reademtr_negfmod_ivals))
+
+# input options declares as global variables in 'negfcoop' SMEAGOL's module
+   #:set reademtr_negfcoop_inames = ['COOPNumberOfBonds']
+   #:set reademtr_negfcoop_ikeywords = ['EM.COOPNumberOfBonds']
+   #:set reademtr_negfcoop_ivals = [0]
+   #:set reademtr_negfcoop_ilist = list(zip(reademtr_negfcoop_inames, reademtr_negfcoop_ikeywords, reademtr_negfcoop_ivals))
+
+   #:set reademtr_local_rnames = ['Delta']
+   #:set reademtr_local_rkeywords = ['Delta']
+   #:set reademtr_local_rvals = ['1.0e-10_dp']
+   #:set reademtr_local_rlist = list(zip(reademtr_local_rnames, reademtr_local_rkeywords, reademtr_local_rvals))
+
+   #:set reademtr_negfmod_rnames = ['maxkappa']
+   #:set reademtr_negfmod_rkeywords = ['CB.MaxKappa']
+   #:set reademtr_negfmod_rvals = ['0.0_dp']
+   #:set reademtr_negfmod_rlist = list(zip(reademtr_negfmod_rnames, reademtr_negfmod_rkeywords, reademtr_negfmod_rvals))
+
+# reademtr() physical-valued keywords
+   #:set reademtr_local_pnames = [ &
+      'VBias', 'EnergLB', 'minL']
+   #:set reademtr_local_pkeywords = [ &
+      'VBias', 'EnergLowestBound', 'ZLeftVcte']
+   #:set reademtr_local_pvals = [ &
+      '0.0_dp*'+RYDBERG_TO_AU_E, '-7.0_dp*'+RYDBERG_TO_AU_E, '0.0_dp']
+   #:set reademtr_local_punits = [ &
+      'Ry', 'Ry', 'Bohr']
+   #:set reademtr_local_plist = list(zip(reademtr_local_pnames, reademtr_local_pkeywords, reademtr_local_pvals, reademtr_local_punits))
+
+   #:set reademtr_local_explicit_pnames = ['maxR']
+   #:set reademtr_local_explicit_pkeywords = ['ZRightVcte']
+   #:set reademtr_local_explicit_pvals = ['0.0_dp']
+   #:set reademtr_local_explicit_punits = ['Bohr']
+   #:set reademtr_local_explicit_plist = list(zip(reademtr_local_explicit_pnames, reademtr_local_explicit_pkeywords, reademtr_local_explicit_pvals, reademtr_local_explicit_punits))
+
+#energy-related keywords that are expected to be in Rydberg atomic units
+   #:set reademtr_negfmod_rydberg_pnames = [ &
+      'TEnergI', 'TEnergF', 'vgate']
+   #:set reademtr_negfmod_rydberg_pkeywords = [ &
+      'InitTransmRange', 'FinalTransmRange', 'VGate']
+# default values should be set in au_e, which -- in case of CP2K -- is an alias for Hartree
+   #:set reademtr_negfmod_rydberg_pvals = [ &
+      '-0.3675_dp*'+RYDBERG_TO_AU_E, '-0.3675_dp*'+RYDBERG_TO_AU_E, '0.0_dp*'+RYDBERG_TO_AU_E]
+   #:set reademtr_negfmod_rydberg_punits = [ &
+      'Ry', 'Ry', 'Ry']
+   #:set reademtr_negfmod_rydberg_plist = list(zip(reademtr_negfmod_rydberg_pnames, reademtr_negfmod_rydberg_pkeywords, reademtr_negfmod_rydberg_pvals, reademtr_negfmod_rydberg_punits))
+
+#other physical-valued keywords
+   #:set reademtr_negfmod_pnames = [ &
+      'zgater', 'zgatel', 'alphag']
+   #:set reademtr_negfmod_pkeywords = [ &
+      'ZVGateR', 'ZVGateL', 'ZBroadeningG']
+   #:set reademtr_negfmod_pvals = [ &
+      '0.0_dp', '0.0_dp', '1.0_dp']
+   #:set reademtr_negfmod_punits = [ &
+      'Bohr', 'Bohr', 'Bohr']
+   #:set reademtr_negfmod_plist = list(zip(reademtr_negfmod_pnames, reademtr_negfmod_pkeywords, reademtr_negfmod_pvals, reademtr_negfmod_punits))
+
+# ReadOptionsNEGF_DFT()
+
+   #:set readoptsnegf_negfmod_lnames = [ &
+      'timereversal', 'TRCAddVCDFT', 'AddVgCompensatingIsolatedLocalCharges', &
+      'Add_Rho_Gate', 'debug_gate', 'empdoskso', 'emtimings']
+   #:set readoptsnegf_negfmod_lkeywords = [ &
+      'EM.TimeReversal', 'EM.TRCAddVCDFT', 'EM.AddVgIsolatedLocalCharges', &
+      'EM.AddRhoGate', 'EM.DebugRhoGate', 'EMPDOSKSO', 'EM.Timings']
+# The default value for 'EM.TimeReversal' == 'TimeReversal' == .TRUE.
+# We set it to .FALSE. as .TRUE. requires modified Hamiltonian and density matrices
+   #:set readoptsnegf_negfmod_lvals = [ &
+      '.false.', '.false.', '.true.', &
+      '.false.', '.false.', '.false.', '.false.']
+   #:set readoptsnegf_negfmod_llist = list(zip(readoptsnegf_negfmod_lnames, readoptsnegf_negfmod_lkeywords, readoptsnegf_negfmod_lvals))
+
+   #:set readoptsnegf_negfmod_inames = ['ik_select']
+   #:set readoptsnegf_negfmod_ikeywords = ['Ik_Select']
+   #:set readoptsnegf_negfmod_ivals = [0]
+   #:set readoptsnegf_negfmod_ilist = list(zip(readoptsnegf_negfmod_inames, readoptsnegf_negfmod_ikeywords, readoptsnegf_negfmod_ivals))
+
+   #:set readoptsnegf_negfmod_rnames = ['Q_gate']
+   #:set readoptsnegf_negfmod_rkeywords = ['EM.NetRhoGateCharge']
+   #:set readoptsnegf_negfmod_rvals = ['0.0_dp']
+   #:set readoptsnegf_negfmod_rlist = list(zip(readoptsnegf_negfmod_rnames, readoptsnegf_negfmod_rkeywords, readoptsnegf_negfmod_rvals))
+
+   #:set readoptsnegf_negfmod_explicit_pnames = [ &
+      'RGlxmin', 'RGlxmax', 'RGlymin', &
+      'RGlymax', 'RGlzmin', 'RGlzmax']
+   #:set readoptsnegf_negfmod_explicit_pkeywords = [ &
+      'EM.RhoGateLxMin', 'EM.RhoGateLxMax', 'EM.RhoGateLyMin', &
+      'EM.RhoGateLyMax', 'EM.RhoGateLzMin', 'EM.RhoGateLzMax']
+   #:set readoptsnegf_negfmod_explicit_pvals = [ &
+      '0.0_dp', '0.0_dp', '0.0_dp', &
+      '0.0_dp', '0.0_dp', '0.0_dp']
+   #:set readoptsnegf_negfmod_explicit_punits = [ &
+      'Bohr', 'Bohr', 'Bohr', &
+      'Bohr', 'Bohr', 'Bohr']
+   #:set readoptsnegf_negfmod_explicit_plist = list(zip(readoptsnegf_negfmod_explicit_pnames, readoptsnegf_negfmod_explicit_pkeywords, readoptsnegf_negfmod_explicit_pvals, readoptsnegf_negfmod_explicit_punits))
+
+   #:set readoptsnegf_bfield_rydberg_pnames = ['ZeemanBx', 'ZeemanBy', 'ZeemanBz']
+   #:set readoptsnegf_bfield_rydberg_pkeywords = ['ZeemanTermBx', 'ZeemanTermBy', 'ZeemanTermBz']
+   #:set readoptsnegf_bfield_rydberg_pvals = ['0.0_dp*'+RYDBERG_TO_AU_E, '0.0_dp*'+RYDBERG_TO_AU_E, '0.0_dp*'+RYDBERG_TO_AU_E]
+   #:set readoptsnegf_bfield_rydberg_punits = ['Ry', 'Ry', 'Ry']
+   #:set readoptsnegf_bfield_rydberg_plist = list(zip(readoptsnegf_bfield_rydberg_pnames, readoptsnegf_bfield_rydberg_pkeywords, readoptsnegf_bfield_rydberg_pvals, readoptsnegf_bfield_rydberg_punits))
+
+# emtrans_options()
+
+# boolean
+# emldos2Default ('EM.LDOS2', .false.) was removed, as there is no such global variable.
+   #:set emtoptions_negfmod_lnames = [ &
+      'pdosgs', 'skipright', 'sigmatodisk', 'bs_add', &
+      'bs_writetrc', 'writetk', 'setene', 'overwritehs', &
+      'transmembed', 'writeevsigma', 'skiptransm', 'deauto', &
+      'geterrsigma', 'getsigma', 'trcef', &
+      'RhoSetZeroIfHZero', 'm_usehinv', 'm_usevinv', 'm_callsvd', &
+      'm_complexbands', 'm_dosleads', 'leadsdos', 'leadspdos', &
+      'emldos', 'emldos2', 'curr_distKEne', 'curr_distK', &
+      'curr_dist', 'curr_distTRC', 'em_NonSCF', 'TransmissionRL', &
+      'emSTTk', 'GetT0S', 'TransmissionChannels', 'TransmissionChannelsWFS', &
+      'TransmissionMatrix', 'TransmissionMatrixWFS', 'TransmissionMatrixPDOS', 'EM_EndCode1', &
+      'TransmOverk', 'emdos', 'empdos', 'empdosk', &
+      'WriteIkTrcK', 'cbspart', 'evec', &
+      'negfon', 'outinfo', 'WriteNk', 'Set_RhoBoundary_Leads', &
+      'Set_RhoBoundaryOverlap_Leads', 'Set_HBoundary_Leads', 'Set_HLR_Zero', 'SkipNonEquilibriumRho', &
+      'SkipEquilibriumRho', 'ComputeImpurityGfMatsubara', 'PrintImpurityGfMatsubara', 'CallImpuritySolver']
+   #:set emtoptions_negfmod_lkeywords = [ &
+      'Sigma.PDOS', 'Sigma.SkipRight', 'Sigma.WriteToDisk', 'BS.Add', &
+      'BS.WriteTransmission', 'Current.WriteTransmission', 'SetEnergyRange', 'Sigma.OverwriteHS', &
+      'TransmissionEmbed', 'Sigma.WriteEV', 'Sigma.SkipTransmission', 'TRCDEAuto', &
+      'Sigma.CheckAccuracy', 'Sigma.Write', 'TRCScaleEf', &
+      'EM.SetRhoZeroIfHZero', 'Sigma.InvertH1', 'Sigma.InvertV', 'Sigma.CSVD', &
+      'Sigma.ComplexBands', 'Sigma.DOSVV', 'TRC.LeadsDOS', 'TRC.LeadsPDOS', &
+      'EM.LDOS3', 'EM.LDOS', 'EM.CurrentDensityK_Ene', 'EM.CurrentDensityK', &
+      'EM.CurrentDensity', 'EM.CurrentDensityTRC', 'EM.NonSelfConsistentRun', 'EM.TransmissionRL', &
+      'EM.SpinTorqueK', 'EM.TRCSpinComponents', 'EM.TRCChannels', 'EM.TRCChannelsWFS', &
+      'EM.TMatrix', 'EM.TMatrixWFS', 'EM.TMatrixPDOS', 'EM.EndCode1', &
+      'TransmissionOverK', 'TRC.EMDOS', 'TRC.EMPDOS', 'TRC.EMPDOSK', &
+      'TRC.TrcOverKWriteIk', 'CBS.SubSystem', 'CBS.PrintWaveFunction', &
+      'EM.OrderN', 'EM.OutputInfo', 'EM.WriteNk', 'EM.SetRhoBoundaryFromLeads', &
+      'EM.SetRhoBoundaryOverlapFromLeads', 'EM.SetHBoundaryFromLeads', 'EM.SetHLRZero', 'EM.SkipNonEquilibriumRho', &
+      'EM.SkipEquilibriumRho', 'EM.ComputeImpurityGfMatsubara', 'EM.PrintImpurityGfMatsubara', 'EM.CallImpuritySolver']
+   #:set emtoptions_negfmod_lvals = [ &
+      '.false.', '.false.', '.false.', '.false.', &
+      '.false.', '.false.', '.false.', '.true.', &
+      '.true.', '.false.', '.false.', '.false.', &
+      '.false.', '.false.', '.true.', &
+      '.false.', '.false.', '.false.', '.false.', &
+      '.false.', '.false.', '.false.', '.false.', &
+      '.false.', '.false.', '.false.', '.false.', &
+      '.false.', '.false.', '.false.', '.false.', &
+      '.false.', '.false.', '.false.', '.false.', &
+      '.false.', '.false.', '.false.', '.false.', &
+      '.false.', '.false.', '.false.', '.false.', &
+      '.false.', '.false.', '.false.', &
+      '.false.', '.false.', '.false.', '.true.', &
+      '.true.', '.true.', '.true.', '.false.', &
+      '.false.', '.false.', '.false.', '.false.']
+   #:set emtoptions_negfmod_llist = list(zip(emtoptions_negfmod_lnames, emtoptions_negfmod_lkeywords, emtoptions_negfmod_lvals))
+
+   #:set emtoptions_negfmod_inames = ['ik_select']
+   #:set emtoptions_negfmod_ikeywords = ['Ik_Select']
+   #:set emtoptions_negfmod_ivals = [0]
+   #:set emtoptions_negfmod_ilist = list(zip(emtoptions_negfmod_inames, emtoptions_negfmod_ikeywords, emtoptions_negfmod_ivals))
+
+   #:set emtoptions_local_inames = [ &
+      'nprocs_inverse', 'Sigma_Nx', 'Sigma_Ny']
+   #:set emtoptions_local_ikeywords = [ &
+      'EM.NProcessorsInverse', 'Sigma.Nx', 'Sigma.Ny']
+   #:set emtoptions_local_ivals = [ &
+      1, 1, 1]
+   #:set emtoptions_local_ilist = list(zip(emtoptions_local_inames, emtoptions_local_ikeywords, emtoptions_local_ivals))
+
+   #:set emtoptions_local_explicit_inames = [ &
+      'nprocs_hs', 'Sigma_NxLeft', 'Sigma_NyLeft', 'Sigma_NxRight', 'Sigma_NyRight']
+   #:set emtoptions_local_explicit_ikeywords = [ &
+      'EM.NProcessorsDistributeMatrices', 'Sigma.NxLeft', 'Sigma.NyLeft', 'Sigma.NxRight', 'Sigma.NyRight']
+   #:set emtoptions_local_explicit_ivals = [ &
+      1, 1, 1, 1, 1]
+   #:set emtoptions_local_explicit_ilist = list(zip(emtoptions_local_explicit_inames, emtoptions_local_explicit_ikeywords, emtoptions_local_explicit_ivals))
+
+   #:set emtoptions_negfmod_inames = [ &
+      'maxdepth', 'ndivisions', 'storesigma', 'bs_method', &
+      'bs_nmid', 'NRunSigmaMax', 'bsrun', 'bsskip', &
+      'bseskip', 'bssc', 'inversion_solver', 'onekp', &
+      'nbss', 'nSplit', 'TransmissionChannelsWFSSkipEne', 'TransmissionChannelsWFSSkipKP', &
+      'TransmissionMatrixPDOSNWrite', 'TransmissionMatrixiSetPhase', 'MinChannelIndex', 'MaxChannelIndex', &
+      'N_Replace_L', 'N_Replace_R', 'curr_nb1', 'curr_nb2', &
+      'NParallelK']
+   #:set emtoptions_negfmod_ikeywords = [ &
+      'AM.MaxDepth', 'AM.NumberDivisions', 'SIGMA.Save', 'BS.Method', &
+      'BS.MiddleOrbital', 'Sigma.NRerunSigmaMax', 'BS.TypeOfRun', 'BS.Skip', &
+      'BS.ESkip', 'BS.SetOccupation', 'EM.InverseSolver', 'EM.OneKP', &
+      'BS.Subsystems', 'EM.TRCSpinComponentsOribalSplit', 'EM.TRCChannelsWFS_SkipEne', 'EM.TRCChannelsWFS_SkipKP', &
+      'EM.TMatrixPDOSNWrite', 'EM.TMatrixSetPhaseIndex', 'EM.TRCMinChannelIndex', 'EM.TRCMaxChannelIndex', &
+      'EM.NSetHBoundaryFromLeadsL', 'EM.NSetHBoundaryFromLeadsR', 'EM.CurrentFluxOrbital1', 'EM.CurrentFluxOrbital2', &
+      'EM.ParallelOverKNum']
+   #:set emtoptions_negfmod_ivals = [ &
+      15, 9, 0, 0, &
+      0, 3, 0, 1, &
+      1, 1, 1, 0, &
+      2, 0, 100, 100, &
+      20, -1, 1, 0, &
+      1, 1, -1, -1, &
+      1]
+   #:set emtoptions_negfmod_ilist = list(zip(emtoptions_negfmod_inames, emtoptions_negfmod_ikeywords, emtoptions_negfmod_ivals))
+
+   #:set emtoptions_negfmod_explicit_inames = ['GetRhoSingleLead']
+   #:set emtoptions_negfmod_explicit_ikeywords = ['EM.LDOSLeadsProjection']
+   #:set emtoptions_negfmod_explicit_ivals = [0]
+   #:set emtoptions_negfmod_explicit_ilist = list(zip(emtoptions_negfmod_explicit_inames, emtoptions_negfmod_explicit_ikeywords, emtoptions_negfmod_explicit_ivals))
+
+   #:set emtoptions_sigma_inames = ['sigma_method']
+   #:set emtoptions_sigma_ikeywords = ['Sigma.Method']
+   #:set emtoptions_sigma_ivals = [1]
+   #:set emtoptions_sigma_ilist = list(zip(emtoptions_sigma_inames, emtoptions_sigma_ikeywords, emtoptions_sigma_ivals))
+
+   #:set emtoptions_negfmod_rnames = [ &
+      'bs_tol', 'bs_min ', 'HSTol ', 'deltaimag ', &
+      'deltaini ', 'deltatode ', 'critam ', 'setemin ', &
+      'setemax ', 'tolab ', 'weightrho ', &
+      'ThetaLeadsL ', 'PhiLeadsL ', &
+      'ThetaLeadsR ', 'PhiLeadsR ', &
+      'deltaimagtrc ', 'm_tolki ', 'm_svdtolmax ', 'm_svdtolmin ', &
+      'm_dsigmamax ', 'm_rnoise ', 'm_skipsvd ', 'm_svdtolzi ', &
+      'SigmaWideBand ', 'emSTTkScale ', 'nlSetZeroRatio ', 'nrSetZeroRatio ', &
+      'curr_fl_L ', 'curr_fr_L ', 'curr_fl_R ', 'curr_fr_R ']
+   #:set emtoptions_negfmod_rkeywords = [ &
+      'BS.Tolerance', 'BS.Minimum', 'EM.HSTol', 'Sigma.EImag', &
+      'AM.DeltaInit', 'AM.DeltaToDe', 'AM.Criterium', 'SetEmin', &
+      'SetEmax', 'Sigma.Tolab', 'EM.WeightRho', &
+      'EM.RotateSpinLeadsLeft.Theta', 'EM.RotateSpinLeadsLeft.Phi', &
+      'EM.RotateSpinLeadsRight.Theta', 'EM.RotateSpinLeadsRight.Phi', &
+      'DeltaTransmission', 'Sigma.Dkimag', 'Sigma.DSVDMax', 'Sigma.DSVDMin', &
+      'Sigma.DMax', 'Sigma.RNoise', 'Sigma.SkipSVD', 'Sigma.SVDTolZero', &
+      'Sigma.WideBandImag', 'EM.SpinTorqueKScale', 'EM.SetHLRZeroRatioLeft', 'EM.SetHLRZeroRatioRight', &
+      'EM.CurrentFluxFL_L', 'EM.CurrentFluxFR_L', 'EM.CurrentFluxFL_R', 'EM.CurrentFluxFR_R']
+   #:set emtoptions_negfmod_rvals = [ &
+      '1.0e-05_dp', '0.0_dp', '1.0e-10_dp', '0.0_dp', &
+      '1.0e-03_dp', '1.5_dp', '2.0_dp', '-1.0_dp', &
+      '1.0_dp', '1.0e-06_dp', '0.5_dp', &
+      '0.0_dp', '0.0_dp', &
+      '0.0_dp', '0.0_dp', &
+      '0.0_dp', '1.0e-06_dp', '5.0e-12_dp', '1.0e-15_dp', &
+      '1.0e-05_dp', '1.0_dp', '1.0e+03_dp', '1.0e-08_dp', &
+      '0.0_dp', '1.0_dp', '1.0_dp', '1.0_dp', &
+      '1.0_dp', '0.0_dp', '0.0_dp', '1.0_dp']
+   #:set emtoptions_negfmod_rlist = list(zip(emtoptions_negfmod_rnames, emtoptions_negfmod_rkeywords, emtoptions_negfmod_rvals))
+
+   #:set emtoptions_negfmod_explicit_rnames = ['deltamin']
+   #:set emtoptions_negfmod_explicit_rkeywords = ['BS.Delta']
+   #:set emtoptions_negfmod_explicit_rvals = ['0.0_dp']
+   #:set emtoptions_negfmod_explicit_rlist = list(zip(emtoptions_negfmod_explicit_rnames, emtoptions_negfmod_explicit_rkeywords, emtoptions_negfmod_explicit_rvals))
+
+   #:set emtoptions_negfmod_rydberg_pnames = ['tolsigma', 'trcde']
+   #:set emtoptions_negfmod_rydberg_pkeywords = ['Sigma.WarnInOutput', 'TRCDE']
+   #:set emtoptions_negfmod_rydberg_pvals = ['1.0e-05_dp*'+RYDBERG_TO_AU_E, '0.0_dp*'+RYDBERG_TO_AU_E]
+   #:set emtoptions_negfmod_rydberg_punits = ['Ry', 'Ry']
+   #:set emtoptions_negfmod_rydberg_plist = list(zip(emtoptions_negfmod_rydberg_pnames, emtoptions_negfmod_rydberg_pkeywords, emtoptions_negfmod_rydberg_pvals, emtoptions_negfmod_rydberg_punits))
+
+   #:set smeagol_interface_local_pnames = ['HartreeLeadsLeft', 'HartreeLeadsRight']
+   #:set smeagol_interface_local_pkeywords = ['HartreeLeadsLeft', 'HartreeLeadsRight']
+   #:set smeagol_interface_local_pvals = ['0.0_dp', '0.0_dp']
+   #:set smeagol_interface_local_punits = ['Bohr', 'Bohr']
+   #:set smeagol_interface_local_plist = list(zip(smeagol_interface_local_pnames, smeagol_interface_local_pkeywords, smeagol_interface_local_pvals, smeagol_interface_local_punits))
+
+   #:set smeagol_interface_local_explicit_pnames = ['HartreeLeadsBottom']
+   #:set smeagol_interface_local_explicit_pkeywords = ['HartreeLeadsBottom']
+   #:set smeagol_interface_local_explicit_pvals = ['0.0_dp*'+RYDBERG_TO_AU_E]
+   #:set smeagol_interface_local_explicit_punits = ['Ry']
+   #:set smeagol_interface_local_explicit_plist = list(zip(smeagol_interface_local_explicit_pnames, smeagol_interface_local_explicit_pkeywords, smeagol_interface_local_explicit_pvals, smeagol_interface_local_explicit_punits))
+
+#:endmute
