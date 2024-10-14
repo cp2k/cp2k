@@ -67,10 +67,12 @@ CONTAINS
       TYPE(section_type), POINTER                        :: subsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      ! +5 -- explicitly defined keywords (_SECTION_PARAMETERS_, PROJECT_NAME, BulkLead, EnergyGridType, TypeOfIntegral)
+      ! +11 -- explicitly defined keywords
+      !       _SECTION_PARAMETERS_, BS.SubSystemsDelta, AM.AtomListBS, TEMPERATURE, PROJECT_NAME, RUN_TYPE, REGRESSION_TEST,
+      !        BulkLead, NIMAGES_IJ, EnergyGridType, TypeOfIntegral
       CALL section_create(section, __LOCATION__, name="SMEAGOL", &
                           description="Parameters for NEGF/SMEAGOL simulation.", &
-                          n_keywords=${len(reademtr_local_lnames)+len(reademtr_negfmod_lnames)+len(reademtr_negfcoop_lnames)+len(reademtr_local_inames)+len(reademtr_negfmod_inames)+len(reademtr_negfcoop_inames)+len(reademtr_local_rnames)+len(reademtr_negfmod_rnames)+len(reademtr_local_pnames)+len(reademtr_negfmod_rydberg_pnames)+len(reademtr_negfmod_pnames)+len(readoptsnegf_negfmod_lnames)+len(readoptsnegf_negfmod_inames)+len(readoptsnegf_negfmod_rnames)+len(readoptsnegf_negfmod_explicit_pnames)+len(readoptsnegf_bfield_rydberg_pnames)+len(emtoptions_negfmod_lnames)+len(emtoptions_negfmod_inames)+len(emtoptions_local_inames)+len(emtoptions_local_explicit_inames)+len(emtoptions_negfmod_explicit_inames)+len(emtoptions_sigma_inames)+len(emtoptions_negfmod_rnames)+len(emtoptions_negfmod_explicit_rnames)+len(emtoptions_negfmod_rydberg_pnames)+len(smeagol_interface_local_pnames)+9}$, &
+                          n_keywords=${len(reademtr_local_lnames)+len(reademtr_negfmod_lnames)+len(reademtr_negfcoop_lnames)+len(reademtr_local_inames)+len(reademtr_negfmod_inames)+len(reademtr_negfcoop_inames)+len(reademtr_local_rnames)+len(reademtr_negfmod_rnames)+len(reademtr_local_pnames)+len(reademtr_negfmod_rydberg_pnames)+len(reademtr_negfmod_pnames)+len(readoptsnegf_negfmod_lnames)+len(readoptsnegf_negfmod_inames)+len(readoptsnegf_negfmod_rnames)+len(readoptsnegf_negfmod_explicit_pnames)+len(readoptsnegf_bfield_rydberg_pnames)+len(emtoptions_negfmod_lnames)+len(emtoptions_negfmod_inames)+len(emtoptions_local_inames)+len(emtoptions_local_explicit_inames)+len(emtoptions_negfmod_explicit_inames)+len(emtoptions_sigma_inames)+len(emtoptions_negfmod_rnames)+len(emtoptions_negfmod_explicit_rnames)+len(emtoptions_negfmod_rydberg_pnames)+len(smeagol_interface_local_pnames)+11}$, &
                           n_subsections=1, repeats=.FALSE., &
                           citations=(/Ahart2024/))
 
@@ -150,7 +152,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="REGRESSION_TEST", &
                           description="Enables regression test mode. "// &
-                          "Kohn-Sham and density matrices of semi-infinite leads is not written down.", &
+                          "Kohn-Sham and density matrices of semi-infinite leads are not written down.", &
                           n_var=1, type_of_var=logical_t, default_l_val=.FALSE., &
                           lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)

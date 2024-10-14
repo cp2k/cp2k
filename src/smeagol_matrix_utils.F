@@ -50,7 +50,7 @@ MODULE smeagol_matrix_utils
    PRIVATE
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'smeagol_matrix_utils'
-   LOGICAL, PARAMETER, PRIVATE          :: debug_this_module = .TRUE.
+   LOGICAL, PARAMETER, PRIVATE          :: debug_this_module = .FALSE.
 
    INTEGER, PARAMETER, PRIVATE          :: neighbor_list_iatom_index = 1
    INTEGER, PARAMETER, PRIVATE          :: neighbor_list_jatom_index = 2
@@ -88,12 +88,12 @@ MODULE smeagol_matrix_utils
       !> Distribute the elements across MPI processes if gather_root < 0.
       !> The matrix elements should be located on I/O process in case of bulk transport,
       !> and should be distributed in case of SMEAGOL calculation.
-      INTEGER                                            :: gather_root
+      INTEGER                                            :: gather_root = 0
       !> Based of full (.FALSE.) or upper-triangular (.TRUE.) DBCSR matrix.
       !> It is used in CPASSERTs to allow access to lower-triangular matrix elements of non-symmetric DBCSR matrices
       !> In case there is no bugs in this module, these CPASSERTs should newer trigger.
       !> Therefore the 'symmetric' variable alongside with relevant CPASSERT calls are excessive and can be removed.
-      LOGICAL                                            :: symmetric
+      LOGICAL                                            :: symmetric = .TRUE.
       !> number of neighbour list nodes for each MPI process (0:num_pe-1).
       !> If do_merge == .TRUE., nodes for different cell images along k cell vector are merged into one node
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: nnodes_per_proc
@@ -116,9 +116,9 @@ MODULE smeagol_matrix_utils
       !> (0:num_pe-1, 1:nelements_dbcsr_dim2)
       INTEGER(kind=int_8), ALLOCATABLE, DIMENSION(:, :)   :: nelements_per_proc
 
-      !> number of non-zero matrix elements local to this MPI rank. Ideally it should be declared as INTEGER(kind=int_8)
-      INTEGER(kind=int_8)                                :: n_nonzero_elements
-      INTEGER                                            :: nrows, ncols
+      !> number of non-zero matrix elements local to this MPI rank.
+      INTEGER(kind=int_8)                                :: n_nonzero_elements = 0_int_8
+      INTEGER                                            :: nrows = 0, ncols = 0
       !> Number of non-zero matrix elements (columns) on each row
       !> n_nonzero_cols(1:nrows); same as 'numh' in SMEAGOL code.
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: n_nonzero_cols
@@ -448,7 +448,7 @@ CONTAINS
       TYPE(mp_request_type), ALLOCATABLE, DIMENSION(:)   :: requests
 
       CALL timeset(routineN, handle)
-      IF (debug_this_module) matrix_siesta(:) = 0.0_dp
+      matrix_siesta(:) = 0.0_dp
 
       mepos = para_env%mepos
       nprocs = para_env%num_pe

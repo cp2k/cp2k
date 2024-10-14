@@ -13,14 +13,19 @@
 ! **************************************************************************************************
 
 MODULE smeagol_control_types
-   USE input_constants, ONLY: smeagol_runtype_emtransport
+   USE cp_units, ONLY: cp_unit_from_cp2k
+   USE input_constants, ONLY: smeagol_bulklead_leftright, &
+                              smeagol_gridmethod_traditional, &
+                              smeagol_integraltype_gauss_legendre, &
+                              smeagol_runtype_bulktransport, &
+                              smeagol_runtype_emtransport
    USE input_section_types, ONLY: section_vals_get, &
                                   section_vals_get_subs_vals, &
                                   section_vals_type, &
                                   section_vals_val_get
    USE kinds, ONLY: default_string_length, &
                     dp
-   USE cp_units, ONLY: cp_unit_from_cp2k
+   USE physcon, ONLY: kelvin
    USE string_utilities, ONLY: integer_to_string
    USE util, ONLY: sort
 #include "./base/base_uses.f90"
@@ -30,7 +35,6 @@ MODULE smeagol_control_types
    PRIVATE
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'smeagol_control_types'
-   LOGICAL, PARAMETER, PRIVATE          :: debug_this_module = .TRUE.
 
    PUBLIC :: smeagol_control_type
    PUBLIC :: smeagol_control_create, smeagol_control_release, read_smeagol_control
@@ -39,40 +43,35 @@ MODULE smeagol_control_types
 !> \brief SMEAGOL-related input parameters
 ! **************************************************************************************************
    TYPE smeagol_control_type
-      LOGICAL                                            :: smeagol_enabled
+      LOGICAL                                            :: smeagol_enabled = .FALSE.
 
       !> type of calculation
-      INTEGER                                            :: run_type
+      INTEGER                                            :: run_type = smeagol_runtype_bulktransport
 
       !> regression test mode
-      LOGICAL                                            :: do_regtest
+      LOGICAL                                            :: do_regtest = .FALSE.
 
       !> current-induced forces. It is set automatically based on GLOBAL/run_type
-      LOGICAL                                            :: emforces
-
-      !> save Kohn-Sham and density matrices of semi-infinite leads
-      !LOGICAL                                            :: BulkTransport
-      !> run actual transport calculation for the extended molecule
-      !LOGICAL                                            :: EMTransport
+      LOGICAL                                            :: emforces = .FALSE.
 
       !> scale factor to convert from CP2K (Hartree) to SMEAGOL (Rydberg) default energy unit
-      REAL(kind=dp)                                      :: to_smeagol_energy_units
+      REAL(kind=dp)                                      :: to_smeagol_energy_units = 2.0_dp
 
       !> number of cell images along i and j cell vectors
-      INTEGER, DIMENSION(2)                              :: n_cell_images
+      INTEGER, DIMENSION(2)                              :: n_cell_images = (/1, 1/)
 
       !> what lead (bulk transport calculation)
-      INTEGER                                            :: lead_label
+      INTEGER                                            :: lead_label = smeagol_bulklead_leftright
 
       !> The length of the SMEAGOL project name is limited by 20 characters (hardcoded in SMEAGOL)
-      CHARACTER(len=20)                                  :: project_name
+      CHARACTER(len=20)                                  :: project_name = "PROJECT_NAME"
 
-      TYPE(smeagol_aux_control_type), POINTER            :: aux
+      TYPE(smeagol_aux_control_type), POINTER            :: aux => NULL()
 
    END TYPE smeagol_control_type
 
 ! **************************************************************************************************
-!> \brief SMEAGOL-related auxiliary input parameters. They remains unallocated if
+!> \brief SMEAGOL-related auxiliary input parameters. They remain unallocated when
 !>        SMEAGOL support is disabled.
 ! **************************************************************************************************
    TYPE smeagol_aux_control_type
@@ -82,9 +81,9 @@ MODULE smeagol_control_types
       !> index of MD or GEO_OPT iteration level.
       !> 0 if there is neither MD nor GEO_OPT iteration level (e.g. single-point energy calculation).
       !> -1 if it is not initialised by run_smeagol_emtrans() subroutine
-      INTEGER                                            :: md_iter_level
+      INTEGER                                            :: md_iter_level = -1
       !> The starting step value for MD / GEO_OPT iterations. The default value 0 can be overrited via STEP_START_VAL input keyword.
-      INTEGER                                            :: md_first_step
+      INTEGER                                            :: md_first_step = 0
 
       !> BS.SubSystemsDelta(1:BS.Subsystems)
       REAL(kind=dp), ALLOCATABLE, DIMENSION(:)           :: deltabss_bs
@@ -93,147 +92,147 @@ MODULE smeagol_control_types
       !>
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atomlist_bs
 
-      REAL(kind=dp)                                      :: temperature
+      REAL(kind=dp)                                      :: temperature = 300.0_dp/kelvin
 
       ! reademtr()
       #:for name1, keyword1, val1 in reademtr_local_llist
-         LOGICAL                                            :: ${name1}$
+         LOGICAL                                            :: ${name1}$ = ${val1}$
       #:endfor
 
       #:for name1, keyword1, val1, unit1 in reademtr_local_explicit_plist
-         LOGICAL                                            :: isexplicit_${name1}$
+         LOGICAL                                            :: isexplicit_${name1}$ = .FALSE.
       #:endfor
 
       #:for name1, keyword1, val1 in reademtr_negfmod_llist
-         LOGICAL                                            :: ${name1}$
+         LOGICAL                                            :: ${name1}$ = ${val1}$
       #:endfor
 
       #:for name1, keyword1, val1 in reademtr_negfcoop_llist
-         LOGICAL                                            :: ${name1}$
+         LOGICAL                                            :: ${name1}$ = ${val1}$
       #:endfor
 
       #:for name1, keyword1, val1 in reademtr_local_ilist
-         INTEGER                                            :: ${name1}$
+         INTEGER                                            :: ${name1}$ = ${val1}$
       #:endfor
 
       #:for name1, keyword1, val1 in reademtr_negfmod_ilist
-         INTEGER                                            :: ${name1}$
+         INTEGER                                            :: ${name1}$ = ${val1}$
       #:endfor
 
       #:for name1, keyword1, val1 in reademtr_negfcoop_ilist
-         INTEGER                                            :: ${name1}$
+         INTEGER                                            :: ${name1}$ = ${val1}$
       #:endfor
 
       #:for name1, keyword1, val1 in reademtr_local_rlist
-         REAL(kind=dp)                                      :: ${name1}$
+         REAL(kind=dp)                                      :: ${name1}$ = ${val1}$
       #:endfor
 
       #:for name1, keyword1, val1 in reademtr_negfmod_rlist
-         REAL(kind=dp)                                      :: ${name1}$
+         REAL(kind=dp)                                      :: ${name1}$ = ${val1}$
       #:endfor
 
       #:for name1, keyword1, val1, unit1 in reademtr_local_plist
-         REAL(kind=dp)                                      :: ${name1}$
+         REAL(kind=dp)                                      :: ${name1}$ = ${val1}$
       #:endfor
 
       #:for name1, keyword1, val1, unit1 in reademtr_local_explicit_plist
-         REAL(kind=dp)                                      :: ${name1}$
+         REAL(kind=dp)                                      :: ${name1}$ = ${val1}$
       #:endfor
 
       #:for name1, keyword1, val1, unit1 in reademtr_negfmod_rydberg_plist
-         REAL(kind=dp)                                      :: ${name1}$
+         REAL(kind=dp)                                      :: ${name1}$ = ${val1}$
       #:endfor
 
       #:for name1, keyword1, val1, unit1 in reademtr_negfmod_plist
-         REAL(kind=dp)                                      :: ${name1}$
+         REAL(kind=dp)                                      :: ${name1}$ = ${val1}$
       #:endfor
 
       ! ReadOptionsNEGF_DFT()
       #:for name1, keyword1, val1 in readoptsnegf_negfmod_llist
-         LOGICAL                                            :: ${name1}$
+         LOGICAL                                            :: ${name1}$ = ${val1}$
       #:endfor
 
       #:for name1, keyword1, val1, unit1 in readoptsnegf_negfmod_explicit_plist
-         LOGICAL                                            :: isexplicit_${name1}$
+         LOGICAL                                            :: isexplicit_${name1}$ = .FALSE.
       #:endfor
 
       #:for name1, keyword1, val1 in readoptsnegf_negfmod_ilist
-         INTEGER                                            :: ${name1}$
+         INTEGER                                            :: ${name1}$ = ${val1}$
       #:endfor
 
       #:for name1, keyword1, val1 in readoptsnegf_negfmod_rlist
-         REAL(kind=dp)                                      :: ${name1}$
+         REAL(kind=dp)                                      :: ${name1}$ = ${val1}$
       #:endfor
 
       #:for name1, keyword1, val1, unit1 in readoptsnegf_negfmod_explicit_plist
-         REAL(kind=dp)                                      :: ${name1}$
+         REAL(kind=dp)                                      :: ${name1}$ = ${val1}$
       #:endfor
 
       #:for name1, keyword1, val1, unit1 in readoptsnegf_bfield_rydberg_plist
-         REAL(kind=dp)                                      :: ${name1}$
+         REAL(kind=dp)                                      :: ${name1}$ = ${val1}$
       #:endfor
 
       ! emtrans_options()
-      INTEGER                                            :: gridmethod
-      INTEGER                                            :: integraltype
+      INTEGER                                            :: gridmethod = smeagol_gridmethod_traditional
+      INTEGER                                            :: integraltype = smeagol_integraltype_gauss_legendre
 
       #:for name1, keyword1, val1 in emtoptions_negfmod_llist
-         LOGICAL                                            :: ${name1}$
+         LOGICAL                                            :: ${name1}$ = ${val1}$
       #:endfor
 
       #:for name1, keyword1, val1, unit1 in emtoptions_local_explicit_ilist
-         LOGICAL                                            :: isexplicit_${name1}$
+         LOGICAL                                            :: isexplicit_${name1}$ = .FALSE.
       #:endfor
 
       #:for name1, keyword1, val1, unit1 in emtoptions_negfmod_explicit_ilist
-         LOGICAL                                            :: isexplicit_${name1}$
+         LOGICAL                                            :: isexplicit_${name1}$ = .FALSE.
       #:endfor
 
       #:for name1, keyword1, val1, unit1 in emtoptions_negfmod_explicit_rlist
-         LOGICAL                                            :: isexplicit_${name1}$
+         LOGICAL                                            :: isexplicit_${name1}$ = .FALSE.
       #:endfor
 
       #:for name1, keyword1, val1 in emtoptions_local_ilist
-         INTEGER                                            :: ${name1}$
+         INTEGER                                            :: ${name1}$ = ${val1}$
       #:endfor
 
       #:for name1, keyword1, val1 in emtoptions_local_explicit_ilist
-         INTEGER                                            :: ${name1}$
+         INTEGER                                            :: ${name1}$ = ${val1}$
       #:endfor
 
       #:for name1, keyword1, val1 in emtoptions_negfmod_ilist
-         INTEGER                                            :: ${name1}$
+         INTEGER                                            :: ${name1}$ = ${val1}$
       #:endfor
 
       #:for name1, keyword1, val1 in emtoptions_negfmod_explicit_ilist
-         INTEGER                                            :: ${name1}$
+         INTEGER                                            :: ${name1}$ = ${val1}$
       #:endfor
 
       #:for name1, keyword1, val1 in emtoptions_sigma_ilist
-         INTEGER                                            :: ${name1}$
+         INTEGER                                            :: ${name1}$ = ${val1}$
       #:endfor
 
       #:for name1, keyword1, val1 in emtoptions_negfmod_rlist
-         REAL(kind=dp)                                      :: ${name1}$
+         REAL(kind=dp)                                      :: ${name1}$ = ${val1}$
       #:endfor
 
       #:for name1, keyword1, val1 in emtoptions_negfmod_explicit_rlist
-         REAL(kind=dp)                                      :: ${name1}$
+         REAL(kind=dp)                                      :: ${name1}$ = ${val1}$
       #:endfor
 
       #:for name1, keyword1, val1, unit1 in emtoptions_negfmod_rydberg_plist
-         REAL(kind=dp)                                      :: ${name1}$
+         REAL(kind=dp)                                      :: ${name1}$ = ${val1}$
       #:endfor
 
       ! interface options
       #:for name1, keyword1, val1, unit1 in smeagol_interface_local_plist
-         REAL(kind=dp)                                      :: ${name1}$
+         REAL(kind=dp)                                      :: ${name1}$ = ${val1}$
       #:endfor
       #:for name1, keyword1, val1, unit1 in smeagol_interface_local_explicit_plist
-         REAL(kind=dp)                                      :: ${name1}$
+         REAL(kind=dp)                                      :: ${name1}$ = ${val1}$
       #:endfor
       #:for name1, keyword1, val1, unit1 in smeagol_interface_local_explicit_plist
-         LOGICAL                                            :: isexplicit_${name1}$
+         LOGICAL                                            :: isexplicit_${name1}$ = .FALSE.
       #:endfor
 
    END TYPE smeagol_aux_control_type

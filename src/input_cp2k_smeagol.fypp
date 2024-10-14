@@ -159,8 +159,6 @@
 
 # boolean
 # emldos2Default ('EM.LDOS2', .false.) was removed, as there is no such global variable.
-#   In fact it is only used to initialise 'emldos2' variable:
-#   emldos2 ('EM.LDOS') = emldos2Default
    #:set emtoptions_negfmod_lnames = [ &
       'pdosgs', 'skipright', 'sigmatodisk', 'bs_add', &
       'bs_writetrc', 'writetk', 'setene', 'overwritehs', &
@@ -216,12 +214,6 @@
    #:set emtoptions_negfmod_ivals = [0]
    #:set emtoptions_negfmod_ilist = list(zip(emtoptions_negfmod_inames, emtoptions_negfmod_ikeywords, emtoptions_negfmod_ivals))
 
-# EnergyGrid.F90:145 'traditional': ERealGrid%GridType == 0, 'adaptivegrid': ERealGrid%GridType == 1
-#    call read_NEGF_string(gridmethod,'EnergyGridType', 'Traditional',mynode)
-
-# negfk_subs.F90:227 'gauss-legendre', 'gauss-chebyshev'
-#    call read_NEGF_string(integraltype ,'TypeOfIntegral' ,'gauss-legendre', mynode)
-
    #:set emtoptions_local_inames = [ &
       'nprocs_inverse', 'Sigma_Nx', 'Sigma_Ny']
    #:set emtoptions_local_ikeywords = [ &
@@ -231,14 +223,11 @@
    #:set emtoptions_local_ilist = list(zip(emtoptions_local_inames, emtoptions_local_ikeywords, emtoptions_local_ivals))
 
    #:set emtoptions_local_explicit_inames = [ &
-      'nprocs_hs', &
-      'Sigma_NxLeft', 'Sigma_NyLeft', 'Sigma_NxRight', 'Sigma_NyRight']
+      'nprocs_hs', 'Sigma_NxLeft', 'Sigma_NyLeft', 'Sigma_NxRight', 'Sigma_NyRight']
    #:set emtoptions_local_explicit_ikeywords = [ &
-      'EM.NProcessorsDistributeMatrices', &
-      'Sigma.NxLeft', 'Sigma.NyLeft', 'Sigma.NxRight', 'Sigma.NyRight']
+      'EM.NProcessorsDistributeMatrices', 'Sigma.NxLeft', 'Sigma.NyLeft', 'Sigma.NxRight', 'Sigma.NyRight']
    #:set emtoptions_local_explicit_ivals = [ &
-      1, &
-      1, 1, 1, 1]
+      1, 1, 1, 1, 1]
    #:set emtoptions_local_explicit_ilist = list(zip(emtoptions_local_explicit_inames, emtoptions_local_explicit_ikeywords, emtoptions_local_explicit_ivals))
 
    #:set emtoptions_negfmod_inames = [ &
