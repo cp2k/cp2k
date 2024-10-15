@@ -43,6 +43,14 @@ if [ "${with_intel}" != "__DONTUSE__" ]; then
   fi
   OPT_FLAGS="-O2 -funroll-loops"
   LDFLAGS_C="-nofor-main"
+elif [ "${with_amd}" != "__DONTUSE__" ]; then
+  if [ "${TARGET_CPU}" = "generic" ]; then
+    BASEFLAGS="-fopenmp -g -mtune=${TARGET_CPU}"
+  else
+    BASEFLAGS="-fopenmp -g -march=${TARGET_CPU} -mtune=${TARGET_CPU}"
+  fi
+  OPT_FLAGS="-O3"
+  LDFLAGS_C=""
 else
   if [ "${TARGET_CPU}" = "generic" ]; then
     BASEFLAGS="-fno-omit-frame-pointer -fopenmp -g -mtune=${TARGET_CPU} IF_ASAN(-fsanitize=address|)"
@@ -128,9 +136,7 @@ fi
 
 # TODO: Remove -Wno-vla-parameter after upgrade to gcc 11.3.
 # https://gcc.gnu.org/bugzilla//show_bug.cgi?id=101289
-if [ "${with_intel}" == "__DONTUSE__" ]; then
-  CFLAGS="$G_CFLAGS -std=c11 -Wall -Wextra -Werror -Wno-vla-parameter -Wno-deprecated-declarations \$(DFLAGS)"
-else
+if [ "${with_intel}" != "__DONTUSE__" ]; then
   if [ "${with_ifx}" == "no" ]; then
     CC_arch+=" IF_MPI(-cc=${I_MPI_CC}|)"
     CXX_arch+=" IF_MPI(-cxx=${I_MPI_CXX}|)"
@@ -143,6 +149,10 @@ else
   # Suppress warnings and add include path to omp_lib.mod explicitly.
   # No clue why the Intel oneAPI setup script does not include that path (bug?)
   FCFLAGS="${FCFLAGS} -diag-disable=10448 -I/opt/intel/oneapi/2024.1/opt/compiler/include/intel64"
+elif [ "${with_amd}" != "__DONTUSE__" ]; then
+  CFLAGS="$G_CFLAGS -std=c11 -Wall -Wextra \$(DFLAGS)"
+else
+  CFLAGS="$G_CFLAGS -std=c11 -Wall -Wextra -Werror -Wno-vla-parameter -Wno-deprecated-declarations \$(DFLAGS)"
 fi
 
 # Linker flags
