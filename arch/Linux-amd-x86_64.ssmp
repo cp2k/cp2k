@@ -163,10 +163,10 @@ endif
 CFLAGS         += $(DFLAGS) $(CFLAGS_DEBUG)
 
 FCFLAGS        := $(CFLAGS) $(FCFLAGS_DEBUG) $(WFLAGS)
-FCFLAGS        += -ffree-form
+#FCFLAGS        += -ffree-form
 FCFLAGS        += -std=f2008
 
-LDFLAGS        += $(FCFLAGS)
+LDFLAGS        += $(FCFLAGS) -fno-fortran-main
 
 LIBS           += -Wl,--whole-archive -lpthread -ldl -Wl,--no-whole-archive -lstdc++
 
