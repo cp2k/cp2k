@@ -588,8 +588,10 @@ CONTAINS
       ! v_dbcsr is created in init_hartree
 
       ! TODO : Implement option/decision to not precompute all the 3c integrals
-      size_mb = REAL(rtbse_env%n_ao*rtbse_env%n_ao*rtbse_env%n_RI*STORAGE_SIZE(size_mb))/(1024_dp*1024_dp)
-      IF (rtbse_env%unit_nr > 0) WRITE (rtbse_env%unit_nr, *) " RTBSE| Approximate size of int_3c in MB", size_mb
+      size_mb = REAL(rtbse_env%n_ao, kind=dp) * REAL(rtbse_env%n_ao, kind=dp) * REAL(rtbse_env%n_RI, kind=dp) * &
+              REAL(STORAGE_SIZE(size_mb), kind=dp) / 8.0_dp / 1024.0_dp / 1024.0_dp
+      IF ( rtbse_env%unit_nr > 0 ) WRITE(rtbse_env%unit_nr, '(A44,E32.2E3,A4)') &
+              " RTBSE| Approximate size of the 3c integrals", size_mb, " MiB"
 
       ALLOCATE (rtbse_env%int_3c_array(rtbse_env%n_ao, rtbse_env%n_ao, rtbse_env%n_RI))
       CALL build_3c_integral_block(rtbse_env%int_3c_array, qs_env, potential_parameter=bs_env%ri_metric, &
