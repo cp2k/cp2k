@@ -36,7 +36,7 @@ MODULE tblite_interface
    USE atomic_kind_types, ONLY: get_atomic_kind
    USE input_constants, ONLY: gfn1xtb, gfn2xtb, ipea1xtb
    USE basis_set_types, ONLY: gto_basis_set_type, allocate_gto_basis_set
-   USE tblite_types, ONLY: tblite_type, deallocate_tblite_type
+   USE tblite_types, ONLY: tblite_type, deallocate_tblite_type, allocate_tblite_type
    USE memory_utilities, ONLY: reallocate
 
 #include "./base/base_uses.f90"
@@ -81,6 +81,7 @@ CONTAINS
       !get information about particles
       natom = SIZE(particle_set)
       ALLOCATE (xyz(3, natom))
+      CALL allocate_tblite_type(tb)
       ALLOCATE (tb%el_num(natom))
       tb%el_num = -9
       DO iatom = 1, natom

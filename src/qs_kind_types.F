@@ -104,6 +104,7 @@ MODULE qs_kind_types
                                               se_param_set_default
    USE soft_basis_set,                  ONLY: create_soft_basis
    USE string_utilities,                ONLY: uppercase
+   USE tblite_types,                    ONLY: tblite_type
    USE xtb_parameters,                  ONLY: xtb_set_kab
    USE xtb_types,                       ONLY: deallocate_xtb_atom_param,&
                                               get_xtb_atom_param,&
@@ -373,6 +374,7 @@ CONTAINS
 !> \param se_parameter ...
 !> \param dftb_parameter ...
 !> \param xtb_parameter ...
+!> \param tb_tblite ...
 !> \param dftb3_param ...
 !> \param zatom ...
 !> \param zeff ...
@@ -464,10 +466,10 @@ CONTAINS
       TYPE(semi_empirical_type), OPTIONAL, POINTER       :: se_parameter
       TYPE(qs_dftb_atom_type), OPTIONAL, POINTER         :: dftb_parameter
       TYPE(xtb_atom_type), OPTIONAL, POINTER             :: xtb_parameter
+      TYPE(tblite_type), OPTIONAL, POINTER               :: tb_tblite
       REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: dftb3_param
       INTEGER, INTENT(OUT), OPTIONAL                     :: zatom
       REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: zeff
-      TYPE(tblite_type), OPTIONAL, POINTER               :: tb_tblite
       INTEGER, DIMENSION(:), OPTIONAL, POINTER           :: elec_conf
       INTEGER, INTENT(OUT), OPTIONAL                     :: mao, lmax_dftb
       REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: alpha_core_charge, ccore_charge, &
