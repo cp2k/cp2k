@@ -953,6 +953,7 @@ CONTAINS
       eigval(:) = 0.0_dp
 
       ! Prepare for workspace queries
+      myinfo = 0
       lwork = -1
       ALLOCATE (work(1))
       work(:) = 0.0_dp
@@ -1026,6 +1027,9 @@ CONTAINS
       ! Release intermediary matrices
       DEALLOCATE (work)
       CALL cp_fm_release(matrix_lu)
+      
+      IF (PRESENT(info)) info = myinfo
+
       CALL timestop(handle)
    END SUBROUTINE cp_fm_svd
 

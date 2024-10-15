@@ -1933,7 +1933,7 @@ CONTAINS
 
       CHARACTER(LEN=20), DIMENSION(2)                    :: nto_name
       INTEGER                                            :: handle, homo_irred, i, i_nto, j, n_exc, &
-                                                            n_nto, nao_full, nao_trunc
+                                                            n_nto, nao_full, nao_trunc, info_svd
       INTEGER, DIMENSION(:), POINTER                     :: stride
       LOGICAL                                            :: append_cube, cube_file
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigval_svd_squ
@@ -2070,87 +2070,104 @@ CONTAINS
 
          ! Now we compute the SVD of M_{occ+virt,occ+virt}, which yields
          ! M = U * Lambda * V^T
-         CALL cp_fm_svd(fm_m, fm_eigvl, fm_eigvr_t, eigval_svd)
-
-         ! Rescale singular values as done in Martin2003 (10.1063/1.1558471)
-         ALLOCATE (eigval_svd_squ(nao_trunc))
-         eigval_svd_squ(:) = eigval_svd(:)**2
-         ! In case of TDA, the sum should be 1
-         IF (.NOT. PRESENT(fm_Y)) THEN
-            IF (ABS(SUM(eigval_svd_squ) - 1) >= 1e-5) THEN
-               CPWARN("Sum of NTO coefficients deviates from 1!")
+         info_svd = 0
+         CALL cp_fm_svd(fm_m, fm_eigvl, fm_eigvr_t, eigval_svd, info_svd)
+         IF (info_svd /= 0) THEN
+            IF (unit_nr > 0) THEN
+               CALL cp_warn(__LOCATION__, &
+                           "SVD for computation of NTOs not successful. "// &
+                           "Skipping print of NTOs.")
+               IF (info_svd > 0) THEN
+                  CALL cp_warn(__LOCATION__, &
+                              "PDGESVD detected heterogeneity. "// &
+                              "Decreasing number of MPI ranks might solve this issue.")
+               END IF
             END IF
-         END IF
-
-         ! Create NTO coefficients for later print to grid via TDDFT routine
-         ! Apply U = fm_eigvl to MO coeffs, which yields hole states
-         CALL parallel_gemm("N", "N", nao_full, nao_trunc, nao_trunc, 1.0_dp, fm_mo_coeff, fm_eigvl, 0.0_dp, &
-                            fm_nto_coeff_holes)
-
-         ! Apply V^T = fm_eigvr_t to MO coeffs, which yields particle states
-         CALL parallel_gemm("N", "T", nao_full, nao_trunc, nao_trunc, 1.0_dp, fm_mo_coeff, fm_eigvr_t, 0.0_dp, &
-                            fm_nto_coeff_particles)
-
-         !Release intermediary work matrices
-         CALL cp_fm_release(fm_m)
-         CALL cp_fm_release(fm_eigvl)
-         CALL cp_fm_release(fm_eigvr_t)
-
-         ! Transfer NTO coefficients to sets
-         nto_name(1) = 'Hole_coord'
-         nto_name(2) = 'Particle_coord'
-         ALLOCATE (nto_set(2))
-         ! Extract number of significant NTOs
-         n_nto = 0
-         DO i_nto = 1, nao_trunc
-            IF (eigval_svd_squ(i_nto) > mp2_env%bse%eps_nto_eigval) THEN
-               n_nto = n_nto + 1
-            ELSE
-               ! Since svd orders in descending order, we can exit the loop if smaller
-               EXIT
+            ! Release matrices to avoid memory leaks
+            CALL cp_fm_release(fm_m)
+            CALL cp_fm_release(fm_nto_coeff_holes)
+            CALL cp_fm_release(fm_nto_coeff_particles)
+         ELSE
+            ! Rescale singular values as done in Martin2003 (10.1063/1.1558471)
+            ALLOCATE (eigval_svd_squ(nao_trunc))
+            eigval_svd_squ(:) = eigval_svd(:)**2
+            ! In case of TDA, the sum should be 1
+            IF (.NOT. PRESENT(fm_Y)) THEN
+               IF (ABS(SUM(eigval_svd_squ) - 1) >= 1e-5) THEN
+                  CPWARN("Sum of NTO coefficients deviates from 1!")
+               END IF
             END IF
-         END DO
 
-         IF (unit_nr > 0) THEN
-            WRITE (unit_nr, '(T2,A4)') 'BSE|'
-            DO i_nto = 1, n_nto
-               WRITE (unit_nr, '(T2,A4,T8,I12,T24,A6,T41,I6,T71,F10.5)') 'BSE|', &
-                  n_exc, info_approximation, i_nto, eigval_svd_squ(i_nto)
+            ! Create NTO coefficients for later print to grid via TDDFT routine
+            ! Apply U = fm_eigvl to MO coeffs, which yields hole states
+            CALL parallel_gemm("N", "N", nao_full, nao_trunc, nao_trunc, 1.0_dp, fm_mo_coeff, fm_eigvl, 0.0_dp, &
+                              fm_nto_coeff_holes)
+
+            ! Apply V^T = fm_eigvr_t to MO coeffs, which yields particle states
+            CALL parallel_gemm("N", "T", nao_full, nao_trunc, nao_trunc, 1.0_dp, fm_mo_coeff, fm_eigvr_t, 0.0_dp, &
+                              fm_nto_coeff_particles)
+
+            !Release intermediary work matrices
+            CALL cp_fm_release(fm_m)
+            CALL cp_fm_release(fm_eigvl)
+            CALL cp_fm_release(fm_eigvr_t)
+
+            ! Transfer NTO coefficients to sets
+            nto_name(1) = 'Hole_coord'
+            nto_name(2) = 'Particle_coord'
+            ALLOCATE (nto_set(2))
+            ! Extract number of significant NTOs
+            n_nto = 0
+            DO i_nto = 1, nao_trunc
+               IF (eigval_svd_squ(i_nto) > mp2_env%bse%eps_nto_eigval) THEN
+                  n_nto = n_nto + 1
+               ELSE
+                  ! Since svd orders in descending order, we can exit the loop if smaller
+                  EXIT
+               END IF
             END DO
+
+            IF (unit_nr > 0) THEN
+               WRITE (unit_nr, '(T2,A4)') 'BSE|'
+               DO i_nto = 1, n_nto
+                  WRITE (unit_nr, '(T2,A4,T8,I12,T24,A6,T41,I6,T71,F10.5)') 'BSE|', &
+                     n_exc, info_approximation, i_nto, eigval_svd_squ(i_nto)
+               END DO
+            END IF
+
+            CALL cp_fm_struct_create(fm_struct_nto_set, template_fmstruct=fm_struct_nto_holes, &
+                                    ncol_global=n_nto)
+            CALL cp_fm_create(fm_nto_set, fm_struct_nto_set)
+            DO i = 1, 2
+               CALL allocate_mo_set(nto_set(i), nao_trunc, n_nto, 0, 0.0_dp, 2.0_dp, 0.0_dp)
+               CALL init_mo_set(nto_set(i), fm_ref=fm_nto_set, name=nto_name(i))
+            END DO
+            CALL cp_fm_release(fm_nto_set)
+            CALL cp_fm_struct_release(fm_struct_nto_set)
+
+            ! Fill NTO sets
+            CALL cp_fm_to_fm(fm_nto_coeff_holes, nto_set(1)%mo_coeff, ncol=n_nto)
+            CALL cp_fm_to_fm(fm_nto_coeff_particles, nto_set(2)%mo_coeff, ncol=n_nto)
+
+            ! Cube files
+            nto_section => section_vals_get_subs_vals(bse_section, "NTO_ANALYSIS")
+            CALL section_vals_val_get(nto_section, "CUBE_FILES", l_val=cube_file)
+            CALL section_vals_val_get(nto_section, "STRIDE", i_vals=stride)
+            CALL section_vals_val_get(nto_section, "APPEND", l_val=append_cube)
+            IF (cube_file) THEN
+               CALL print_bse_nto_cubes(qs_env, nto_set, n_exc, info_approximation, &
+                                       stride, append_cube, nto_section)
+            END IF
+
+            CALL cp_fm_release(fm_nto_coeff_holes)
+            CALL cp_fm_release(fm_nto_coeff_particles)
+            DEALLOCATE (eigval_svd)
+            DEALLOCATE (eigval_svd_squ)
+            DO i = 1, 2
+               CALL deallocate_mo_set(nto_set(i))
+            END DO
+            DEALLOCATE (nto_set)
          END IF
-
-         CALL cp_fm_struct_create(fm_struct_nto_set, template_fmstruct=fm_struct_nto_holes, &
-                                  ncol_global=n_nto)
-         CALL cp_fm_create(fm_nto_set, fm_struct_nto_set)
-         DO i = 1, 2
-            CALL allocate_mo_set(nto_set(i), nao_trunc, n_nto, 0, 0.0_dp, 2.0_dp, 0.0_dp)
-            CALL init_mo_set(nto_set(i), fm_ref=fm_nto_set, name=nto_name(i))
-         END DO
-         CALL cp_fm_release(fm_nto_set)
-         CALL cp_fm_struct_release(fm_struct_nto_set)
-
-         ! Fill NTO sets
-         CALL cp_fm_to_fm(fm_nto_coeff_holes, nto_set(1)%mo_coeff, ncol=n_nto)
-         CALL cp_fm_to_fm(fm_nto_coeff_particles, nto_set(2)%mo_coeff, ncol=n_nto)
-
-         ! Cube files
-         nto_section => section_vals_get_subs_vals(bse_section, "NTO_ANALYSIS")
-         CALL section_vals_val_get(nto_section, "CUBE_FILES", l_val=cube_file)
-         CALL section_vals_val_get(nto_section, "STRIDE", i_vals=stride)
-         CALL section_vals_val_get(nto_section, "APPEND", l_val=append_cube)
-         IF (cube_file) THEN
-            CALL print_bse_nto_cubes(qs_env, nto_set, n_exc, info_approximation, &
-                                     stride, append_cube, nto_section)
-         END IF
-
-         CALL cp_fm_release(fm_nto_coeff_holes)
-         CALL cp_fm_release(fm_nto_coeff_particles)
-         DEALLOCATE (eigval_svd)
-         DEALLOCATE (eigval_svd_squ)
-         DO i = 1, 2
-            CALL deallocate_mo_set(nto_set(i))
-         END DO
-         DEALLOCATE (nto_set)
       END DO
 
       CALL cp_fm_release(fm_mo_coeff)
@@ -2411,11 +2428,6 @@ CONTAINS
          ELSE
             IF (mp2_env%bse%num_print_exc_ntos > mp2_env%bse%num_print_exc .OR. &
                 mp2_env%bse%num_print_exc_ntos < 0) THEN
-               ! IF (unit_nr > 0) THEN
-               !    CALL cp_warn(__LOCATION__, &
-               !                   "Keyword NUM_PRINT_EXC_NTOS is either negative or too large. "// &
-               !                   "Setting to NUM_PRINT_EXC.")
-               ! END IF
                mp2_env%bse%num_print_exc_ntos = mp2_env%bse%num_print_exc
             END IF
             ALLOCATE (mp2_env%bse%bse_nto_state_list_final(mp2_env%bse%num_print_exc_ntos))
