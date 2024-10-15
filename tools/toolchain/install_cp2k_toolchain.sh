@@ -428,7 +428,9 @@ while [ $# -ge 1 ]; do
     --install-all)
       # set all package to the default installation status
       for ii in ${package_list}; do
-        if [ "${ii}" != "intel" ] && [ "${ii}" != "intelmpi" ]; then
+        if [ "${ii}" != "intel" ] &&
+          [ "${ii}" != "intelmpi" ] &&
+          [ "${ii}" != "amd" ]; then
           eval with_${ii}="__INSTALL__"
         fi
       done
@@ -709,11 +711,11 @@ export ENABLE_CRAY="${enable_cray}"
 # ------------------------------------------------------------------------
 # Compiler conflicts
 if [ "${with_intel}" != "__DONTUSE__" ] && [ "${with_gcc}" = "__INSTALL__" ]; then
-  echo "You have chosen to use the Intel compiler, therefore the installation of the GCC compiler will be skipped."
+  echo "You have chosen to use the Intel compiler, therefore the installation of the GNU compiler will be skipped."
   with_gcc="__SYSTEM__"
 fi
 if [ "${with_amd}" != "__DONTUSE__" ] && [ "${with_gcc}" = "__INSTALL__" ]; then
-  echo "You have chosen to use the AMD compiler, therefore the installation of the GCC compiler will be skipped."
+  echo "You have chosen to use the AMD compiler, therefore the installation of the GNU compiler will be skipped."
   with_gcc="__SYSTEM__"
 fi
 if [ "${with_amd}" != "__DONTUSE__" ] && [ "${with_intel}" != "__DONTUSE__" ]; then
@@ -753,7 +755,7 @@ if [ "${MPI_MODE}" = "no" ]; then
 else
   # if gcc is installed, then mpi needs to be installed too
   if [ "${with_gcc}" = "__INSTALL__" ]; then
-    echo "You have chosen to install the GCC compiler, therefore MPI libraries have to be installed too"
+    echo "You have chosen to install the GNU compiler, therefore MPI libraries have to be installed too"
     case ${MPI_MODE} in
       mpich)
         with_mpich="__INSTALL__"
