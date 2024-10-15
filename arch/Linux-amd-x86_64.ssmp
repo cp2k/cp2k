@@ -36,7 +36,7 @@ TARGET_CPU     := native
 
 # Retrieve package versions
 AMD_VER        := $(shell clang -dumpversion)
-USE_DFTD4      := $(DFTD4_VER)
+#USE_DFTD4      := $(DFTD4_VER)
 USE_FFTW       := $(FFTW_VER)
 USE_LIBGRPP    := $(LIBGRPP_VER)
 USE_LIBINT     := $(LIBINT_VER)
