@@ -28,9 +28,10 @@ MODULE tblite_types
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'tblite_types'
 
-   PUBLIC :: tblite_type, deallocate_tblite_type
+   PUBLIC :: tblite_type, deallocate_tblite_type, allocate_tblite_type
 
    TYPE tblite_type
+
       INTEGER, ALLOCATABLE                               :: el_num(:)
 
       REAL(KIND=dp), DIMENSION(3, 3)                     :: sigma
@@ -63,29 +64,43 @@ CONTAINS
 !> \brief ...
 !> \param tb_tblite ...
 ! **************************************************************************************************
+   SUBROUTINE allocate_tblite_type(tb_tblite)
+
+      TYPE(tblite_type), POINTER                         :: tb_tblite
+
+      CALL deallocate_tblite_type(tb_tblite)
+
+      ALLOCATE (tb_tblite)
+
+   END SUBROUTINE allocate_tblite_type
+
+! **************************************************************************************************
+!> \brief ...
+!> \param tb_tblite ...
+! **************************************************************************************************
    SUBROUTINE deallocate_tblite_type(tb_tblite)
 
       TYPE(tblite_type), POINTER                         :: tb_tblite
 
-      IF (ALLOCATED(tb_tblite%el_num)) DEALLOCATE (tb_tblite%el_num)
+      IF (ASSOCIATED(tb_tblite)) THEN
+         IF (ALLOCATED(tb_tblite%el_num)) DEALLOCATE (tb_tblite%el_num)
 
-      IF (ALLOCATED(tb_tblite%e_hal)) DEALLOCATE (tb_tblite%e_hal)
-      IF (ALLOCATED(tb_tblite%e_rep)) DEALLOCATE (tb_tblite%e_rep)
-      IF (ALLOCATED(tb_tblite%e_disp)) DEALLOCATE (tb_tblite%e_disp)
-      IF (ALLOCATED(tb_tblite%e_scd)) DEALLOCATE (tb_tblite%e_scd)
-      IF (ALLOCATED(tb_tblite%e_es)) DEALLOCATE (tb_tblite%e_es)
-      IF (ALLOCATED(tb_tblite%selfenergy)) DEALLOCATE (tb_tblite%selfenergy)
-      IF (ALLOCATED(tb_tblite%cn)) DEALLOCATE (tb_tblite%cn)
+         IF (ALLOCATED(tb_tblite%e_hal)) DEALLOCATE (tb_tblite%e_hal)
+         IF (ALLOCATED(tb_tblite%e_rep)) DEALLOCATE (tb_tblite%e_rep)
+         IF (ALLOCATED(tb_tblite%e_disp)) DEALLOCATE (tb_tblite%e_disp)
+         IF (ALLOCATED(tb_tblite%e_scd)) DEALLOCATE (tb_tblite%e_scd)
+         IF (ALLOCATED(tb_tblite%e_es)) DEALLOCATE (tb_tblite%e_es)
+         IF (ALLOCATED(tb_tblite%selfenergy)) DEALLOCATE (tb_tblite%selfenergy)
+         IF (ALLOCATED(tb_tblite%cn)) DEALLOCATE (tb_tblite%cn)
 
-      IF (ALLOCATED(tb_tblite%grad)) DEALLOCATE (tb_tblite%grad)
-      IF (ALLOCATED(tb_tblite%dsedcn)) DEALLOCATE (tb_tblite%dsedcn)
-      IF (ALLOCATED(tb_tblite%dcndr)) DEALLOCATE (tb_tblite%dcndr)
-      IF (ALLOCATED(tb_tblite%dcndL)) DEALLOCATE (tb_tblite%dcndL)
+         IF (ALLOCATED(tb_tblite%grad)) DEALLOCATE (tb_tblite%grad)
+         IF (ALLOCATED(tb_tblite%dsedcn)) DEALLOCATE (tb_tblite%dsedcn)
+         IF (ALLOCATED(tb_tblite%dcndr)) DEALLOCATE (tb_tblite%dcndr)
+         IF (ALLOCATED(tb_tblite%dcndL)) DEALLOCATE (tb_tblite%dcndL)
 
-      CPASSERT(ASSOCIATED(tb_tblite))
-      DEALLOCATE (tb_tblite)
+         DEALLOCATE (tb_tblite)
+      END IF
 
    END SUBROUTINE deallocate_tblite_type
 
 END MODULE tblite_types
-

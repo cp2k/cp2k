@@ -207,6 +207,7 @@ MODULE qs_environment
    USE tblite_interface,                ONLY: tb_get_basis,&
                                               tb_init_geometry,&
                                               tb_init_ham,&
+                                              tb_init_wf,&
                                               tb_set_calculator
    USE transport,                       ONLY: transport_env_create
    USE xtb_parameters,                  ONLY: init_xtb_basis,&
@@ -782,6 +783,8 @@ CONTAINS
             CALL tb_init_geometry(qs_env, qs_env%tb_tblite)
             ! select tblite method
             CALL tb_set_calculator(qs_env%tb_tblite, xtb_control%tblite_method)
+            !set up wave function
+            CALL tb_init_wf(qs_env%tb_tblite, .FALSE.)
             ! intitalisation for hamiltonian
             CALL tb_init_ham(qs_env%tb_tblite)
             !get basis set
