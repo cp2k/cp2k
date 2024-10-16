@@ -1496,11 +1496,12 @@ CONTAINS
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, __LOCATION__, name="BSE_SPECTRUM", &
                           description="Parameters influencing the output of the optical absorption spectrum, i.e. "// &
-                          "the dynamical dipole polarizability tensor $\alpha_{\mu,\mu'}(\omega)$ ($\mu,\mu'\in\{x,y,z\}$), obtained "//&
-                          "from a BSE calculation, which is defined as $ \alpha_{\mu,\mu'}(\omega) "// &
-                          "= \sum_n \frac{2 E^{(n)} d^{(n)}_{\mu} d^{(n)}_{\mu'}}{(\omega+i\eta)^2-\left(\Omega^{(n)}\right)^2} $. "// &
-                          "The printed file will contain the specified frequency range $\omega$ and the "//&
-                          "corresponding imaginary part of the average $\bar{\alpha}(\omega)=\frac{1}{3}\mathrm{Tr} "//&
+                          "the dynamical dipole polarizability tensor $\alpha_{\mu,\mu'}(\omega)$ "// &
+                          "($\mu,\mu'\in\{x,y,z\}$), obtained from a BSE calculation, which is defined as "// &
+                          "$ \alpha_{\mu,\mu'}(\omega) = \sum_n \frac{2 E^{(n)} d^{(n)}_{\mu} d^{(n)}_{\mu'}} "// &
+                          "{(\omega+i\eta)^2-\left(\Omega^{(n)}\right)^2} $. "// &
+                          "The printed file will contain the specified frequency range $\omega$ and the "// &
+                          "corresponding imaginary part of the average $\bar{\alpha}(\omega)=\frac{1}{3}\mathrm{Tr} "// &
                           "\left[ \alpha_{\mu,\mu'}(\omega)\right]$ as well as of the elements of $\alpha_{\mu,\mu'}(\omega)$.", &
                           n_keywords=9, n_subsections=0, repeats=.FALSE.)
 

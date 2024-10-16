@@ -1932,8 +1932,8 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'calculate_NTOs'
 
       CHARACTER(LEN=20), DIMENSION(2)                    :: nto_name
-      INTEGER                                            :: handle, homo_irred, i, i_nto, j, n_exc, &
-                                                            n_nto, nao_full, nao_trunc, info_svd
+      INTEGER                                            :: handle, homo_irred, i, i_nto, info_svd, &
+                                                            j, n_exc, n_nto, nao_full, nao_trunc
       INTEGER, DIMENSION(:), POINTER                     :: stride
       LOGICAL                                            :: append_cube, cube_file
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigval_svd_squ
@@ -2075,12 +2075,12 @@ CONTAINS
          IF (info_svd /= 0) THEN
             IF (unit_nr > 0) THEN
                CALL cp_warn(__LOCATION__, &
-                           "SVD for computation of NTOs not successful. "// &
-                           "Skipping print of NTOs.")
+                            "SVD for computation of NTOs not successful. "// &
+                            "Skipping print of NTOs.")
                IF (info_svd > 0) THEN
                   CALL cp_warn(__LOCATION__, &
-                              "PDGESVD detected heterogeneity. "// &
-                              "Decreasing number of MPI ranks might solve this issue.")
+                               "PDGESVD detected heterogeneity. "// &
+                               "Decreasing number of MPI ranks might solve this issue.")
                END IF
             END IF
             ! Release matrices to avoid memory leaks
@@ -2101,11 +2101,11 @@ CONTAINS
             ! Create NTO coefficients for later print to grid via TDDFT routine
             ! Apply U = fm_eigvl to MO coeffs, which yields hole states
             CALL parallel_gemm("N", "N", nao_full, nao_trunc, nao_trunc, 1.0_dp, fm_mo_coeff, fm_eigvl, 0.0_dp, &
-                              fm_nto_coeff_holes)
+                               fm_nto_coeff_holes)
 
             ! Apply V^T = fm_eigvr_t to MO coeffs, which yields particle states
             CALL parallel_gemm("N", "T", nao_full, nao_trunc, nao_trunc, 1.0_dp, fm_mo_coeff, fm_eigvr_t, 0.0_dp, &
-                              fm_nto_coeff_particles)
+                               fm_nto_coeff_particles)
 
             !Release intermediary work matrices
             CALL cp_fm_release(fm_m)
@@ -2136,7 +2136,7 @@ CONTAINS
             END IF
 
             CALL cp_fm_struct_create(fm_struct_nto_set, template_fmstruct=fm_struct_nto_holes, &
-                                    ncol_global=n_nto)
+                                     ncol_global=n_nto)
             CALL cp_fm_create(fm_nto_set, fm_struct_nto_set)
             DO i = 1, 2
                CALL allocate_mo_set(nto_set(i), nao_trunc, n_nto, 0, 0.0_dp, 2.0_dp, 0.0_dp)
@@ -2156,7 +2156,7 @@ CONTAINS
             CALL section_vals_val_get(nto_section, "APPEND", l_val=append_cube)
             IF (cube_file) THEN
                CALL print_bse_nto_cubes(qs_env, nto_set, n_exc, info_approximation, &
-                                       stride, append_cube, nto_section)
+                                        stride, append_cube, nto_section)
             END IF
 
             CALL cp_fm_release(fm_nto_coeff_holes)

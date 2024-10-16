@@ -790,10 +790,10 @@ CONTAINS
             WRITE (unit_nr, '(T2,A4)') 'BSE|'
             IF (flag_TDA) THEN
                WRITE (unit_nr, '(T2,A4,T7,A55)') 'BSE|', &
-               'Optical properties from solving the BSE within the TDA:'
+                  'Optical properties from solving the BSE within the TDA:'
             ELSE
                WRITE (unit_nr, '(T2,A4,T7,A56)') 'BSE|', &
-               'Optical properties from solving the BSE without the TDA:'
+                  'Optical properties from solving the BSE without the TDA:'
             END IF
             WRITE (unit_nr, '(T2,A4)') 'BSE|'
             WRITE (unit_nr, '(T2,A4,T8,A12,T22,A8,T38,A5,T48,A5,T58,A5,T65,A16)') 'BSE|', &
