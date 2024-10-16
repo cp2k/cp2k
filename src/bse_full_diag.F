@@ -723,7 +723,7 @@ CONTAINS
          WRITE (unit_nr, '(T2,A4,T7,A73)') &
             'BSE|', "The following single-particle transitions have significant contributions,"
          WRITE (unit_nr, '(T2,A4,T7,A16,F5.3,A15,F5.3,A16)') &
-            'BSE|', "i.e. |X_ia^n| < ", mp2_env%bse%eps_x, " or |Y_ia^n| < ", &
+            'BSE|', "i.e. |X_ia^n| > ", mp2_env%bse%eps_x, " or |Y_ia^n| > ", &
             mp2_env%bse%eps_x, ", respectively :"
 
          WRITE (unit_nr, '(T2,A4,T15,A27,I5,A13,I5,A3)') 'BSE|', '-- Quick reminder: HOMO i =', &
@@ -788,6 +788,13 @@ CONTAINS
             WRITE (unit_nr, '(T2,A4,T7,A71)') &
                'BSE|', "in J. Chem. Phys. 152, 044105 (2020); https://doi.org/10.1063/1.5123290"
             WRITE (unit_nr, '(T2,A4)') 'BSE|'
+            IF (flag_TDA) THEN
+               WRITE (unit_nr, '(T2,A4,T7,A55)') 'BSE|', &
+               'Optical properties from solving the BSE within the TDA:'
+            ELSE
+               WRITE (unit_nr, '(T2,A4,T7,A56)') 'BSE|', &
+               'Optical properties from solving the BSE without the TDA:'
+            END IF
             WRITE (unit_nr, '(T2,A4)') 'BSE|'
             WRITE (unit_nr, '(T2,A4,T8,A12,T22,A8,T38,A5,T48,A5,T58,A5,T65,A16)') 'BSE|', &
                'Excitation n', "TDA/ABBA", "d_x^n", "d_y^n", "d_z^n", 'Osc. strength'
@@ -811,7 +818,8 @@ CONTAINS
             WRITE (unit_nr, '(T2,A4)') 'BSE|'
             CALL cp_warn(__LOCATION__, &
                          "Requested triplet excitation cannot couple to light. "// &
-                         "Skipping calculation of dipoles, oscillator strengths, and spectrum.")
+                         "Skipping calculation of transition moments, "// &
+                         "oscillator strengths, and spectrum.")
          END IF
       END IF
 

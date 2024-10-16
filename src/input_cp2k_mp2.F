@@ -1301,7 +1301,8 @@ CONTAINS
                           "$\left( \begin{array}{cc}\mathbf{X}^{(n)}\\\mathbf{Y}^{(n)}\end{array} \right) = "// &
                           "\Omega^{(n)}\left(\begin{array}{cc}1&0\\0&-1\end{array}\right)$ "// &
                           "$\left(\begin{array}{cc}\mathbf{X}^{(n)}\\\mathbf{Y}^{(n)}\end{array}\right)$ "// &
-                          "enables of electronic excitation energies $\Omega^{(n)}$. The BSE can be solved by diagonalizing "// &
+                          "enables the computation of electronic excitation energies $\Omega^{(n)}$ as well "// &
+                          "as optical properties. The BSE can be solved by diagonalizing "// &
                           "the full ABBA-matrix or by setting B=0, i.e. within the Tamm-Dancoff approximation (TDA). "// &
                          "Preliminary reference: Eq. (35) in PRB 92, 045209 (2015); http://dx.doi.org/10.1103/PhysRevB.92.045209", &
                           n_keywords=8, n_subsections=3, repeats=.FALSE.)
@@ -1379,7 +1380,8 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="NUM_PRINT_EXC", &
-                          description="Number of printed excitation energies. Does not affect computation time.", &
+                          description="Number of printed excitation levels with respective "// &
+                          "energies and oscillator strengths. Does not affect computation time.", &
                           usage="NUM_PRINT_EXC 25", &
                           default_i_val=25)
       CALL section_add_keyword(section, keyword)
@@ -1493,21 +1495,26 @@ CONTAINS
 
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, __LOCATION__, name="BSE_SPECTRUM", &
-                          description="Parameters influencing the output of the optical spectrum "// &
-                          "obtained from a BSE calculation.", &
+                          description="Parameters influencing the output of the optical absorption spectrum, i.e. "// &
+                          "the dynamical dipole polarizability tensor $\alpha_{\mu,\mu'}(\omega)$ ($\mu,\mu'\in\{x,y,z\}$), obtained "//&
+                          "from a BSE calculation, which is defined as $ \alpha_{\mu,\mu'}(\omega) "// &
+                          "= \sum_n \frac{2 E^{(n)} d^{(n)}_{\mu} d^{(n)}_{\mu'}}{(\omega+i\eta)^2-\left(\Omega^{(n)}\right)^2} $. "// &
+                          "The printed file will contain the specified frequency range $\omega$ and the "//&
+                          "corresponding imaginary part of the average $\bar{\alpha}(\omega)=\frac{1}{3}\mathrm{Tr} "//&
+                          "\left[ \alpha_{\mu,\mu'}(\omega)\right]$ as well as of the elements of $\alpha_{\mu,\mu'}(\omega)$.", &
                           n_keywords=9, n_subsections=0, repeats=.FALSE.)
 
       NULLIFY (keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="_SECTION_PARAMETERS_", &
-                          description="Activates printing of optical spectrum after a BSE calculation.", &
+                          description="Activates printing of optical absorption spectrum from the BSE calculation.", &
                           usage="&BSE .TRUE.", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="FREQUENCY_STEP_SIZE", &
-                          description="Step size of frequencies for the optical spectrum.", &
+                          description="Step size of frequencies for the optical absorption spectrum.", &
                           usage="FREQUENCY_STEP_SIZE 0.1", unit_str="eV", &
                           type_of_var=real_t, &
                           default_r_val=cp_unit_to_cp2k(value=0.1_dp, unit_str="eV"))
@@ -1515,14 +1522,14 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="FREQUENCY_STARTING_POINT", &
-                          description="First frequency to print in the optical spectrum.", &
+                          description="First frequency to print in the optical absorption spectrum.", &
                           usage="FREQUENCY_STARTING_POINT 0", unit_str="eV", &
                           type_of_var=real_t, default_r_val=0.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="FREQUENCY_END_POINT", &
-                          description="Last frequency to print in the optical spectrum.", &
+                          description="Last frequency to print in the optical absorption spectrum.", &
                           usage="FREQUENCY_END_POINT 0", unit_str="eV", &
                           type_of_var=real_t, &
                           default_r_val=cp_unit_to_cp2k(value=100.0_dp, unit_str="eV"))
@@ -1530,7 +1537,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="ETA_LIST", &
-                          description="List of broadening of the peaks in the optical spectrum.", &
+                          description="List of broadening of the peaks in the optical absorption spectrum.", &
                           usage="ETA_LIST 0.01 ...", unit_str="eV", &
                           default_r_vals=(/cp_unit_to_cp2k(value=0.01_dp, unit_str="eV")/), &
                           type_of_var=real_t, n_var=-1)
