@@ -43,6 +43,14 @@ if [ "${with_intel}" != "__DONTUSE__" ]; then
   fi
   OPT_FLAGS="-O2 -funroll-loops"
   LDFLAGS_C="-nofor-main"
+elif [ "${with_amd}" != "__DONTUSE__" ]; then
+  if [ "${TARGET_CPU}" = "generic" ]; then
+    BASEFLAGS="-fPIC -fopenmp -g -mtune=${TARGET_CPU}"
+  else
+    BASEFLAGS="-fPIC -fopenmp -g -march=${TARGET_CPU} -mtune=${TARGET_CPU}"
+  fi
+  OPT_FLAGS="-O2 -mllvm -enable-newgvn=true"
+  LDFLAGS_C="-fno-fortran-main"
 else
   if [ "${TARGET_CPU}" = "generic" ]; then
     BASEFLAGS="-fno-omit-frame-pointer -fopenmp -g -mtune=${TARGET_CPU} IF_ASAN(-fsanitize=address|)"
@@ -56,12 +64,12 @@ fi
 NOOPT_FLAGS="-O1"
 
 # those flags that do not influence code generation are used always, the others if debug
-if [ "${with_intel}" != "__DONTUSE__" ]; then
-  FCDEB_FLAGS=""
-  FCDEB_FLAGS_DEBUG=""
-else
+if [ "${with_intel}" == "__DONTUSE__" ] && [ "${with_amd}" == "__DONTUSE__" ]; then
   FCDEB_FLAGS="-fbacktrace -ffree-form -fimplicit-none -std=f2008"
   FCDEB_FLAGS_DEBUG="-fsanitize=leak -fcheck=all,no-array-temps -ffpe-trap=invalid,zero,overflow -finit-derived -finit-real=snan -finit-integer=-42 -Werror=realloc-lhs -finline-matmul-limit=0"
+else
+  FCDEB_FLAGS=""
+  FCDEB_FLAGS_DEBUG=""
 fi
 
 # code coverage generation flags
@@ -86,7 +94,7 @@ IEEE_EXCEPTIONS_DFLAGS="-D__HAS_IEEE_EXCEPTIONS"
 
 # check all of the above flags, filter out incompatible flags for the
 # current version of gcc in use
-if [ "${with_intel}" == "__DONTUSE__" ]; then
+if [ "${with_intel}" == "__DONTUSE__" ] && [ "${with_amd}" == "__DONTUSE__" ]; then
   OPT_FLAGS=$(allowed_gfortran_flags $OPT_FLAGS)
   NOOPT_FLAGS=$(allowed_gfortran_flags $NOOPT_FLAGS)
   FCDEB_FLAGS=$(allowed_gfortran_flags $FCDEB_FLAGS)
@@ -117,7 +125,7 @@ G_CFLAGS="$BASEFLAGS"
 G_CFLAGS="$G_CFLAGS IF_COVERAGE($COVERAGE_FLAGS|IF_DEBUG($NOOPT_FLAGS|$OPT_FLAGS))"
 G_CFLAGS="$G_CFLAGS IF_DEBUG(|$PROFOPT_FLAGS)"
 G_CFLAGS="$G_CFLAGS $CP_CFLAGS"
-if [ "${with_intel}" == "__DONTUSE__" ]; then
+if [ "${with_intel}" == "__DONTUSE__" ] && [ "${with_amd}" == "__DONTUSE__" ]; then
   # FCFLAGS, for gfortran
   FCFLAGS="$G_CFLAGS \$(FCDEBFLAGS) \$(WFLAGS) \$(DFLAGS)"
   FCFLAGS+=" IF_MPI($(allowed_gfortran_flags "-fallow-argument-mismatch")|)"
@@ -128,9 +136,7 @@ fi
 
 # TODO: Remove -Wno-vla-parameter after upgrade to gcc 11.3.
 # https://gcc.gnu.org/bugzilla//show_bug.cgi?id=101289
-if [ "${with_intel}" == "__DONTUSE__" ]; then
-  CFLAGS="$G_CFLAGS -std=c11 -Wall -Wextra -Werror -Wno-vla-parameter -Wno-deprecated-declarations \$(DFLAGS)"
-else
+if [ "${with_intel}" != "__DONTUSE__" ]; then
   if [ "${with_ifx}" == "no" ]; then
     CC_arch+=" IF_MPI(-cc=${I_MPI_CC}|)"
     CXX_arch+=" IF_MPI(-cxx=${I_MPI_CXX}|)"
@@ -143,6 +149,10 @@ else
   # Suppress warnings and add include path to omp_lib.mod explicitly.
   # No clue why the Intel oneAPI setup script does not include that path (bug?)
   FCFLAGS="${FCFLAGS} -diag-disable=10448 -I/opt/intel/oneapi/2024.1/opt/compiler/include/intel64"
+elif [ "${with_amd}" != "__DONTUSE__" ]; then
+  CFLAGS="$G_CFLAGS -std=c11 -Wall \$(DFLAGS)"
+else
+  CFLAGS="$G_CFLAGS -std=c11 -Wall -Wextra -Werror -Wno-vla-parameter -Wno-deprecated-declarations \$(DFLAGS)"
 fi
 
 # Linker flags
@@ -155,7 +165,7 @@ LDFLAGS="IF_STATIC(${STATIC_FLAGS}|) \$(FCFLAGS) ${CP_LDFLAGS}"
 # add standard libs
 LIBS="${CP_LIBS} -lstdc++"
 
-if [ "${with_intel}" == "__DONTUSE__" ]; then
+if [ "${with_intel}" == "__DONTUSE__" ] && [ "${with_amd}" == "__DONTUSE__" ]; then
   CXXFLAGS+=" --std=c++14 \$(DFLAGS) -Wno-deprecated-declarations"
 else
   CXXFLAGS+=" --std=c++14 \$(DFLAGS)"
@@ -410,7 +420,7 @@ EOF
 
 rm -f ${INSTALLDIR}/arch/local*
 # normal production arch files
-if [ "${with_intel}" != "__DONTUSE__" ]; then
+if [ "${with_intel}" != "__DONTUSE__" ] || [ "${with_amd}" != "__DONTUSE__" ]; then
   gen_arch_file "local.ssmp"
   gen_arch_file "local.sdbg" DEBUG
 else
@@ -423,7 +433,7 @@ fi
 arch_vers="ssmp sdbg"
 
 if [ "$MPI_MODE" != no ]; then
-  if [ "${with_intel}" != "__DONTUSE__" ]; then
+  if [ "${with_intel}" != "__DONTUSE__" ] || [ "${with_amd}" != "__DONTUSE__" ]; then
     gen_arch_file "local.psmp" MPI
     gen_arch_file "local.pdbg" MPI DEBUG
   else
