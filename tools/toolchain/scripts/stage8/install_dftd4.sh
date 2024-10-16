@@ -56,7 +56,6 @@ case "$with_dftd4" in
       CMAKE_PREFIX_PATH="${CMAKE_PREFIX_PATH}:${OPENBLAS_ROOT}" cmake \
         -B . -G Ninja \
         -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}" \
-        -DCMAKE_CXX_COMPILER="${MPICXX}" \
         -DCMAKE_C_COMPILER="${MPICC}" \
         -DCMAKE_Fortran_COMPILER="${MPIFC}" \
         -DCMAKE_VERBOSE_MAKEFILE=ON \
