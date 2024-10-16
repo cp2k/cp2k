@@ -134,7 +134,7 @@ MODULE basis_set_types
              create_gto_from_sto_basis, &
              deallocate_sto_basis_set, &
              set_sto_basis_set, &
-             srules
+             srules, process_gto_basis
 
    ! Public data types
    PUBLIC :: gto_basis_set_p_type, &
@@ -2285,13 +2285,9 @@ CONTAINS
       INTEGER, PARAMETER                                 :: maxng = 6
 
       CHARACTER(LEN=default_string_length)               :: name, sng
-      INTEGER                                            :: i1, i2, ico, ipgf, iset, jset, l, &
-                                                            lshell, m, maxco, maxl, ncgf, ng, ngs, &
-                                                            np, nset, nsgf, nshell
-      INTEGER, DIMENSION(0:10)                           :: mxf
+      INTEGER                                            :: ipgf, iset, maxl, ng, nset, nshell
       INTEGER, DIMENSION(:), POINTER                     :: lq, nq
       LOGICAL                                            :: do_ortho
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: gal, zal, zll
       REAL(KIND=dp), DIMENSION(:), POINTER               :: zet
       REAL(KIND=dp), DIMENSION(maxng)                    :: gcc, zetg
 
@@ -2337,6 +2333,35 @@ CONTAINS
          END DO
       END DO
 
+      CALL process_gto_basis(gto_basis_set, do_ortho, nset, maxl)
+
+   END SUBROUTINE create_gto_from_sto_basis
+
+! **************************************************************************************************
+!> \brief ...
+!> \param gto_basis_set ...
+!> \param do_ortho ...
+!> \param nset ...
+!> \param ng ...
+!> \param maxl ...
+! **************************************************************************************************
+   SUBROUTINE process_gto_basis(gto_basis_set, do_ortho, nset, maxl)
+
+      TYPE(gto_basis_set_type), POINTER                  :: gto_basis_set
+      LOGICAL, INTENT(IN), OPTIONAL                      :: do_ortho
+      INTEGER, INTENT(IN)                                :: nset, maxl
+
+      INTEGER                                            :: i1, i2, ico, iset, jset, l, lshell, m, &
+                                                            maxco, ncgf, ngs, np, nsgf, ng
+      INTEGER, DIMENSION(0:10)                           :: mxf
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: gal, zal, zll
+      
+      ng = gto_basis_set%npgf(1)
+      DO iset = 1, nset
+        IF ((ng /= gto_basis_set%npgf(iset)).and.do_ortho) &
+               CPABORT("different number of primitves")
+      END DO
+      
       IF (do_ortho) THEN
          mxf = 0
          DO iset = 1, nset
@@ -2457,7 +2482,7 @@ CONTAINS
 
       gto_basis_set%norm_type = -1
 
-   END SUBROUTINE create_gto_from_sto_basis
+   END SUBROUTINE process_gto_basis
 
 ! **************************************************************************************************
 !> \brief ...
