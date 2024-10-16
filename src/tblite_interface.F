@@ -32,12 +32,14 @@ MODULE tblite_interface
                                    qs_environment_type
    USE cell_types, ONLY: cell_type, get_cell
    USE particle_types, ONLY: particle_type
-   USE kinds, ONLY: dp
+   USE kinds, ONLY: dp, default_string_length
    USE atomic_kind_types, ONLY: get_atomic_kind
    USE input_constants, ONLY: gfn1xtb, gfn2xtb, ipea1xtb
-   USE basis_set_types, ONLY: gto_basis_set_type, allocate_gto_basis_set
+   USE basis_set_types, ONLY: gto_basis_set_type, allocate_gto_basis_set, write_gto_basis_set, process_gto_basis
    USE tblite_types, ONLY: tblite_type, deallocate_tblite_type, allocate_tblite_type
    USE memory_utilities, ONLY: reallocate
+   USE qs_kind_types, ONLY: get_qs_kind, qs_kind_type
+   USE string_utilities, ONLY: integer_to_string
 
 #include "./base/base_uses.f90"
    IMPLICIT NONE
@@ -65,6 +67,7 @@ CONTAINS
 
       TYPE(cell_type), POINTER                           :: cell
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       INTEGER                                            :: iatom, natom
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: xyz
       INTEGER                                            :: handle, ikind
@@ -76,7 +79,7 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       !get info from environment vaiarable
-      CALL get_qs_env(qs_env=qs_env, particle_set=particle_set, cell=cell)
+      CALL get_qs_env(qs_env=qs_env, particle_set=particle_set, cell=cell, qs_kind_set=qs_kind_set)
 
       !get information about particles
       natom = SIZE(particle_set)
@@ -87,11 +90,10 @@ CONTAINS
       DO iatom = 1, natom
          xyz(:, iatom) = particle_set(iatom)%r(:)
          CALL get_atomic_kind(particle_set(iatom)%atomic_kind, kind_number=ikind)
-         IF (ikind < 1 .OR. ikind > 85) THEN
+         CALL get_qs_kind(qs_kind_set(ikind), zatom=tb%el_num(iatom))
+         IF (tb%el_num(iatom) < 1 .OR. tb%el_num(iatom) > 85) THEN
             CPABORT("only elements 1-85 are supported by tblite")
          END IF
-         tb%el_num(iatom) = ikind
-         WRITE (*, *) "++++++ iatom:", iatom, "ikind:", ikind
       END DO
 
       !get information about cell / lattice
@@ -315,52 +317,66 @@ CONTAINS
       TYPE(gto_basis_set_type), POINTER                  :: gto_basis_set
       CHARACTER(len=2)                                   :: element_symbol
 
-      INTEGER                                            :: ang, i_atom, id_atom, ikind, ipgf, iset, &
-                                                            ishell, istart, ng, nset
+      CHARACTER(LEN=default_string_length)               :: sng
+      INTEGER                                            :: ang, i_type, id_atom, ipgf, ishell, &
+                                                            maxl, mprim, nset, nshell
+      LOGICAL                                            :: do_ortho
 
       CALL allocate_gto_basis_set(gto_basis_set)
 
 #if defined(__TBLITE)
 
       !identifying element in the bas data
-      CALL symbol_to_number(ikind, element_symbol)
-      DO i_atom = 1, tb%mol%nat
-         id_atom = tb%mol%id(i_atom)
-         IF (id_atom == ikind) EXIT
+      CALL symbol_to_number(i_type, element_symbol)
+      WRITE (*, *) "element: ", i_type, element_symbol
+      DO id_atom = 1, tb%mol%nat
+         IF (i_type == tb%el_num(id_atom)) EXIT
       END DO
 
-      !writing data
-      nset = tb%calc%bas%nsh_at(i_atom)
-      istart = tb%calc%bas%ish_at(i_atom)
-      ng = 0
-      DO ishell = istart, istart + nset - 1
-         ng = MAX(ng, tb%calc%bas%cgto(ishell, id_atom)%nprim)
+      !getting size information
+      nset = tb%calc%bas%nsh_at(id_atom)
+      nshell = 1
+      mprim = 0
+      DO ishell = 1, nset
+         mprim = MAX(mprim, tb%calc%bas%cgto(ishell, id_atom)%nprim)
       END DO
 
-      gto_basis_set%nshell = nset
+      WRITE (*, *) 'nset, mprim', nset, mprim
+      flush (6)
+
+      !write basis set information
+      CALL integer_to_string(mprim, sng)
+      gto_basis_set%name = element_symbol//"_STO-"//TRIM(sng)//"G"
+      gto_basis_set%nset = nset
       CALL reallocate(gto_basis_set%lmax, 1, nset)
       CALL reallocate(gto_basis_set%lmin, 1, nset)
       CALL reallocate(gto_basis_set%npgf, 1, nset)
       CALL reallocate(gto_basis_set%nshell, 1, nset)
       CALL reallocate(gto_basis_set%n, 1, 1, 1, nset)
       CALL reallocate(gto_basis_set%l, 1, 1, 1, nset)
-      CALL reallocate(gto_basis_set%zet, 1, ng, 1, nset)
-      CALL reallocate(gto_basis_set%gcc, 1, ng, 1, 1, 1, nset)
+      CALL reallocate(gto_basis_set%zet, 1, mprim, 1, nset)
+      CALL reallocate(gto_basis_set%gcc, 1, mprim, 1, 1, 1, nset)
 
-      DO iset = 1, nset
-         ng = tb%calc%bas%cgto(istart + iset, id_atom)%nprim
-         ang = tb%calc%bas%cgto(istart + iset, id_atom)%ang
-         gto_basis_set%lmax(iset) = ang
-         gto_basis_set%lmin(iset) = ang
-         gto_basis_set%npgf(iset) = ng
-         gto_basis_set%nshell(iset) = 1
-         gto_basis_set%n(1, iset) = ang + 1
-         gto_basis_set%l(1, iset) = ang
-         DO ipgf = 1, ng
-            gto_basis_set%gcc(ipgf, 1, iset) = tb%calc%bas%cgto(istart + iset, id_atom)%coeff(ipgf)
-            gto_basis_set%zet(ipgf, iset) = 1.0_dp/(4.0_dp*tb%calc%bas%cgto(istart + iset, id_atom)%alpha(ipgf))
+      maxl = 0
+      DO ishell = 1, nset
+         ang = tb%calc%bas%cgto(ishell, id_atom)%ang
+         maxl = MAX(ang, maxl)
+         gto_basis_set%lmax(ishell) = ang
+         gto_basis_set%lmin(ishell) = ang
+         gto_basis_set%npgf(ishell) = tb%calc%bas%cgto(ishell, id_atom)%nprim
+         gto_basis_set%nshell(ishell) = nshell
+         gto_basis_set%n(1, ishell) = ang + 1
+         gto_basis_set%l(1, ishell) = ang
+         DO ipgf = 1, gto_basis_set%npgf(ishell)
+            gto_basis_set%gcc(ipgf, 1, ishell) = tb%calc%bas%cgto(ishell, id_atom)%coeff(ipgf)
+            gto_basis_set%zet(ipgf, ishell) = tb%calc%bas%cgto(ishell, id_atom)%alpha(ipgf)
          END DO
       END DO
+
+      do_ortho = .FALSE.
+      CALL process_gto_basis(gto_basis_set, do_ortho, nset, maxl)
+
+      CALL write_gto_basis_set(gto_basis_set, 6)
 
 #else
       CPABORT("Build without TBLITE")
