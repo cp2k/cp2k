@@ -45,12 +45,12 @@ if [ "${with_intel}" != "__DONTUSE__" ]; then
   LDFLAGS_C="-nofor-main"
 elif [ "${with_amd}" != "__DONTUSE__" ]; then
   if [ "${TARGET_CPU}" = "generic" ]; then
-    BASEFLAGS="-fopenmp -g -mtune=${TARGET_CPU}"
+    BASEFLAGS="-fPIC -fopenmp -g -mtune=${TARGET_CPU}"
   else
-    BASEFLAGS="-fopenmp -g -march=${TARGET_CPU} -mtune=${TARGET_CPU}"
+    BASEFLAGS="-fPIC -fopenmp -g -march=${TARGET_CPU} -mtune=${TARGET_CPU}"
   fi
-  OPT_FLAGS="-O2"
-  LDFLAGS_C=""
+  OPT_FLAGS="-O2 -mllvm -enable-newgvn=true"
+  LDFLAGS_C="-fno-fortran-main"
 else
   if [ "${TARGET_CPU}" = "generic" ]; then
     BASEFLAGS="-fno-omit-frame-pointer -fopenmp -g -mtune=${TARGET_CPU} IF_ASAN(-fsanitize=address|)"

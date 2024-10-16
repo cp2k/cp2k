@@ -56,10 +56,11 @@ LD             := flang
 AR             := ar -r
 
 ifeq ($(TARGET_CPU), generic)
-   CFLAGS         := -O2 -fopenmp -g -mtune=$(TARGET_CPU)
+   CFLAGS         := -O2 -fPIC -fopenmp -g -mtune=$(TARGET_CPU)
 else
-   CFLAGS         := -O2 -fopenmp -g -march=$(TARGET_CPU) -mtune=$(TARGET_CPU)
+   CFLAGS         := -O2 -fPIC -fopenmp -g -march=$(TARGET_CPU) -mtune=$(TARGET_CPU)
 endif
+CFLAGS         += -mllvm -enable-newgvn=true
 
 DFLAGS         += -D__MAX_CONTR=$(strip $(MAX_CONTR))
 
@@ -163,10 +164,11 @@ endif
 CFLAGS         += $(DFLAGS) $(CFLAGS_DEBUG)
 
 FCFLAGS        := $(CFLAGS) $(FCFLAGS_DEBUG) $(WFLAGS)
-#FCFLAGS        += -ffree-form
-FCFLAGS        += -std=f2008
+FCFLAGS        += -ffree-form
+FCFLAGS        += -Mbackslash
 
-LDFLAGS        += $(FCFLAGS) -fno-fortran-main
+LDFLAGS        += $(FCFLAGS)
+LDFLAGS_C      := -fno-fortran-main
 
 LIBS           += -Wl,--whole-archive -lpthread -ldl -Wl,--no-whole-archive -lstdc++
 
