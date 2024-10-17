@@ -498,7 +498,7 @@ CONTAINS
       CALL cp_fm_release(fm_mat_eigvec_transform_diff)
       CALL cp_fm_release(fm_mat_eigvec_transform_sum)
 
-      CALL success_message(Exc_ens, fm_eigvec_X, mp2_env, qs_env, mo_coeff, &
+      CALL postprocess_bse(Exc_ens, fm_eigvec_X, mp2_env, qs_env, mo_coeff, &
                            homo, virtual, homo_irred, unit_nr, &
                            .FALSE., fm_eigvec_Y)
 
@@ -554,7 +554,7 @@ CONTAINS
 
       CALL choose_eigv_solver(fm_A, fm_eigvec, Exc_ens, diag_info)
       CPASSERT(diag_info == 0)
-      CALL success_message(Exc_ens, fm_eigvec, mp2_env, qs_env, mo_coeff, &
+      CALL postprocess_bse(Exc_ens, fm_eigvec, mp2_env, qs_env, mo_coeff, &
                            homo, virtual, homo_irred, unit_nr, .TRUE.)
 
       CALL cp_fm_release(fm_eigvec)
@@ -578,7 +578,7 @@ CONTAINS
 !> \param flag_TDA ...
 !> \param fm_eigvec_Y ...
 ! **************************************************************************************************
-   SUBROUTINE success_message(Exc_ens, fm_eigvec_X, mp2_env, qs_env, mo_coeff, &
+   SUBROUTINE postprocess_bse(Exc_ens, fm_eigvec_X, mp2_env, qs_env, mo_coeff, &
                               homo, virtual, homo_irred, unit_nr, &
                               flag_TDA, fm_eigvec_Y)
 
@@ -591,7 +591,7 @@ CONTAINS
       LOGICAL, OPTIONAL                                  :: flag_TDA
       TYPE(cp_fm_type), INTENT(IN), OPTIONAL             :: fm_eigvec_Y
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'success_message'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'postprocess_bse'
 
       CHARACTER(LEN=10)                                  :: info_approximation, multiplet
       INTEGER                                            :: handle, i_exc
@@ -848,6 +848,6 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE success_message
+   END SUBROUTINE postprocess_bse
 
 END MODULE bse_full_diag

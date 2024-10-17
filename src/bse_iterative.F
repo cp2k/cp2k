@@ -244,7 +244,7 @@ CONTAINS
          END IF
 
          IF (davidson_converged == 1) THEN
-            CALL success_message(Subspace_full_eigenval, num_new_t, eps_res, num_res_unconverged, &
+            CALL postprocess_bse(Subspace_full_eigenval, num_new_t, eps_res, num_res_unconverged, &
                                  bse_spin_config, unit_nr, num_exc_en, num_Z_vectors_init, &
                                  num_davidson_iter, i_iter, num_Z_vectors, num_max_z_space, max_res_norm, &
                                  max_en_diff, num_en_unconverged, bse_davidson_abort_cond_string, &
@@ -469,7 +469,7 @@ CONTAINS
 !> \param success_abort_string ...
 !> \param z_space_energy_cutoff ...
 ! **************************************************************************************************
-   SUBROUTINE success_message(Subspace_full_eigenval, num_new_t, eps_res, num_res_unconverged, &
+   SUBROUTINE postprocess_bse(Subspace_full_eigenval, num_new_t, eps_res, num_res_unconverged, &
                               bse_spin_config, unit_nr, num_exc_en, num_Z_vectors_init, &
                               num_davidson_iter, i_iter, num_Z_vectors, num_max_z_space, max_res_norm, &
                               max_en_diff, num_en_unconverged, bse_davidson_abort_cond_string, &
@@ -487,7 +487,7 @@ CONTAINS
       CHARACTER(LEN=10)                                  :: success_abort_string
       REAL(KIND=dp)                                      :: z_space_energy_cutoff
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'success_message'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'postprocess_bse'
 
       CHARACTER(LEN=10)                                  :: multiplet
       INTEGER                                            :: handle, i

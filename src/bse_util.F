@@ -1474,13 +1474,13 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'get_oscillator_strengths'
 
       INTEGER                                            :: handle, idir, jdir, n, n_occ, n_virt, nao
-      TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_dipole_exc, fm_struct_dipoles, &
+      TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_dipole_exc, &
                                                             fm_struct_dipoles_reordered, &
                                                             fm_struct_dipoles_trunc
       TYPE(cp_fm_type)                                   :: fm_eigvec_XYsum
       TYPE(cp_fm_type), DIMENSION(3)                     :: fm_dipole_exc, fm_dipole_per_dir, &
                                                             fm_dipole_per_dir_reordered, &
-                                                            fm_dipoles_per_dir_trunc
+                                                            fm_dipole_per_dir_trunc
 
       CALL timeset(routineN, handle)
 
@@ -1490,12 +1490,7 @@ CONTAINS
       ! takes care of ADDED_MOS, which would overwrite nmo, if invoked
       n_occ = qs_env%mos(1)%homo
       n_virt = nao - n_occ
-      ! Original fm_struct_dipoles is invoked with a different blacs env to ensure correct
-      ! multiplication in get_dipoles_mo using cp_dbcsr_sm_fm_multiply
-      ! We use general copy afterwards, such that fm_dipoles_per_dir_trunc is already
-      ! back to BSE blacs envs
-      CALL cp_fm_struct_create(fm_struct_dipoles, mo_coeff(1)%matrix_struct%para_env, &
-                               mo_coeff(1)%matrix_struct%context, n_virt, n_occ)
+
       CALL cp_fm_struct_create(fm_struct_dipoles_trunc, fm_eigvec_X%matrix_struct%para_env, &
                                fm_eigvec_X%matrix_struct%context, virtual_red, homo_red)
       CALL cp_fm_struct_create(fm_struct_dipoles_reordered, fm_eigvec_X%matrix_struct%para_env, &
@@ -1505,34 +1500,27 @@ CONTAINS
 
       DO idir = 1, 3
          !Create final dipole matrix
-         CALL cp_fm_create(fm_dipole_per_dir(idir), matrix_struct=fm_struct_dipoles, name="dipoles_mo")
-         CALL cp_fm_set_all(fm_dipole_per_dir(idir), 0.0_dp)
+         ! CALL cp_fm_create(fm_dipole_per_dir(idir), matrix_struct=fm_struct_dipoles, name="dipoles_mo")
+         ! CALL cp_fm_set_all(fm_dipole_per_dir(idir), 0.0_dp)
+
+         CALL cp_fm_create(fm_dipole_per_dir_trunc(idir), matrix_struct=fm_struct_dipoles_trunc, &
+                           name="dipoles_mo_trunc")
+         CALL cp_fm_set_all(fm_dipole_per_dir_trunc(idir), 0.0_dp)
       END DO
 
       ! Obtain dipoles in MO basis with index structure n_virt x n_occ: \vec{D}_ai = <a|\vec{r}|i>
-      CALL get_dipoles_mo(fm_dipole_per_dir, qs_env, mo_coeff)
+      CALL get_dipoles_mo(fm_dipole_per_dir_trunc, qs_env, mo_coeff, &
+                          homo_red, virtual_red)
 
       ! Include excitonic amplitudes in dipoles, i.e. obtain "BSE dipoles":
       ! \vec{D}_n = sqrt(2) * sum_{i,a} \vec{D}_ai (X_{ai}^{(n)} + Y_{ai}^{(n)})
 
       ! Reorder dipoles in order to execute the sum over i and a by parallel gemm
       DO idir = 1, 3
-         CALL cp_fm_create(fm_dipoles_per_dir_trunc(idir), matrix_struct=fm_struct_dipoles_trunc, &
-                           name="dipoles_mo_trunc")
-
-         CALL cp_fm_to_fm_submat_general(fm_dipole_per_dir(idir), &
-                                         fm_dipoles_per_dir_trunc(idir), &
-                                         virtual_red, &
-                                         homo_red, &
-                                         1, &
-                                         n_occ - homo_red + 1, &
-                                         1, &
-                                         1, &
-                                         fm_struct_dipoles_trunc%context)
          CALL cp_fm_create(fm_dipole_per_dir_reordered(idir), matrix_struct=fm_struct_dipoles_reordered, &
                            name="dipoles_mo_reordered")
          CALL cp_fm_set_all(fm_dipole_per_dir_reordered(idir), 0.0_dp)
-         CALL fm_general_add_bse(fm_dipole_per_dir_reordered(idir), fm_dipoles_per_dir_trunc(idir), 1.0_dp, &
+         CALL fm_general_add_bse(fm_dipole_per_dir_reordered(idir), fm_dipole_per_dir_trunc(idir), 1.0_dp, &
                                  1, 1, &
                                  1, virtual_red, &
                                  unit_nr, (/2, 4, 3, 1/), mp2_env)
@@ -1577,15 +1565,13 @@ CONTAINS
          oscill_str(n) = 2.0_dp/3.0_dp*Exc_ens(n)*SUM(ABS(dipole_exc(:, :, n))**2)
       END DO
 
-      CALL cp_fm_struct_release(fm_struct_dipoles)
       CALL cp_fm_struct_release(fm_struct_dipoles_reordered)
       CALL cp_fm_struct_release(fm_struct_dipole_exc)
       CALL cp_fm_struct_release(fm_struct_dipoles_trunc)
       DO idir = 1, 3
          CALL cp_fm_release(fm_dipole_per_dir_reordered(idir))
          CALL cp_fm_release(fm_dipole_exc(idir))
-         CALL cp_fm_release(fm_dipoles_per_dir_trunc(idir))
-         CALL cp_fm_release(fm_dipole_per_dir(idir))
+         CALL cp_fm_release(fm_dipole_per_dir_trunc(idir))
       END DO
       CALL cp_fm_release(fm_eigvec_XYsum)
 
@@ -1595,26 +1581,28 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Computes and returns dipole in MO basis, i.e. < ψ_i | r | ψ_a >
-!> \param fm_dipole_per_dir Dipoles in MO basis with blacs environment from DFT
+!> \param fm_dipole_per_dir_trunc Dipoles in x/y/z direction with truncated BSE indices i and a
 !> \param qs_env ...
 !> \param mo_coeff mo_coeff in layout nao x nao from mp2, i.e. all occ and virt indices in both axes
+!> \param homo_red ...
+!> \param virtual_red ...
 ! **************************************************************************************************
-   SUBROUTINE get_dipoles_mo(fm_dipole_per_dir, qs_env, mo_coeff)
+   SUBROUTINE get_dipoles_mo(fm_dipole_per_dir_trunc, qs_env, mo_coeff, &
+                             homo_red, virtual_red)
 
-      TYPE(cp_fm_type), DIMENSION(3), INTENT(INOUT)      :: fm_dipole_per_dir
+      TYPE(cp_fm_type), DIMENSION(3), INTENT(INOUT)      :: fm_dipole_per_dir_trunc
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: mo_coeff
+      INTEGER, INTENT(IN)                                :: homo_red, virtual_red
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'get_dipoles_mo'
 
       INTEGER                                            :: handle, idir, n_occ, n_virt, nao
       REAL(dp), ALLOCATABLE, DIMENSION(:)                :: rpoint
       REAL(KIND=dp), DIMENSION(:), POINTER               :: ref_point
-      TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_coeff_occ, &
-                                                            fm_struct_coeff_virt, &
-                                                            fm_struct_dipoles_ao, fm_struct_nao_nao
-      TYPE(cp_fm_type)                                   :: fm_coeff_occ, fm_coeff_virt, &
-                                                            fm_dip_intermed
+      TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_dipoles_ao, fm_struct_nao_nao
+      TYPE(cp_fm_type)                                   :: fm_dip_intermed
+      TYPE(cp_fm_type), DIMENSION(3)                     :: fm_dipole_per_dir
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_r, matrix_s
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
@@ -1657,66 +1645,52 @@ CONTAINS
       n_virt = nao - n_occ
 
       ! At the end, we need four different layouts of matrices in this multiplication:
-      ! D = dipoles
-      ! Final result: D = C_{mu a}        <\mu|\vec{r}|\nu>        C_{\nu i}              EQ.I
+      ! D_pq = full dipole matrix for occupied and unoccupied
+      ! Final result:D_pq= C_{mu p}        <\mu|\vec{r}|\nu>        C_{\nu q}              EQ.I
       !                   \_______/         \___________/          \______/
-      !               fm_coeff_virt            matrix_r          fm_coeff_occ
+      !                    fm_coeff            matrix_r              fm_coeff
       !                    (EQ.Ia)             (EQ.Ib)              (EQ.Ia)
       ! Intermediate work matrices:
-      ! fm_dip_intermed =                 <\mu|\vec{r}|\nu>        C_{\nu i}              EQ.II
+      ! fm_dip_intermed =                 <\mu|\vec{r}|\nu>        C_{\nu q}              EQ.II
+      ! At the very end, we copy the dipoles corresponding to truncated BSE indices in i and a
       CALL cp_fm_struct_create(fm_struct_nao_nao, &
                                fm_struct_dipoles_ao%para_env, fm_struct_dipoles_ao%context, &
                                nao, nao)
-      CALL cp_fm_struct_create(fm_struct_coeff_virt, fm_struct_dipoles_ao%para_env, fm_struct_dipoles_ao%context, &
-                               nao, n_virt)
-      CALL cp_fm_struct_create(fm_struct_coeff_occ, fm_struct_dipoles_ao%para_env, fm_struct_dipoles_ao%context, &
-                               nao, n_occ)
-
-      ! Split between unoccupied and occupied MO coefficients
-      ! First, the unoccupied coefficients "C_\mu a"
-      CALL cp_fm_create(fm_coeff_virt, matrix_struct=fm_struct_coeff_virt, name="mo_coeff_virt")
-      CALL cp_fm_set_all(fm_coeff_virt, 0.0_dp)
-      ! Coefficients from Diagonalization of the KS matrix, starting from the first unoccupied index, i.e. n_occ+1
-      ! We are writing between different contexts here, so we need submat_general
-      CALL cp_fm_to_fm_submat_general(mo_coeff(1), fm_coeff_virt, &
-                                      nao, n_virt, &
-                                      1, n_occ + 1, &
-                                      1, 1, &
-                                      mo_coeff(1)%matrix_struct%context)
-
-      ! Now occupied ones "C_\mu i"
-      CALL cp_fm_create(fm_coeff_occ, matrix_struct=fm_struct_coeff_occ, name="mo_coeff_occ")
-      CALL cp_fm_set_all(fm_coeff_occ, 0.0_dp)
-
-      ! Coefficients from Diagonalization of the KS matrix, starting from the first occupied index
-      CALL cp_fm_to_fm_submat_general(mo_coeff(1), fm_coeff_occ, &
-                                      nao, n_occ, &
-                                      1, 1, &
-                                      1, 1, &
-                                      mo_coeff(1)%matrix_struct%context)
 
       ! Need another temporary matrix to store intermediate result from right multiplication
       ! D = C_{mu a}        <\mu|\vec{r}|\nu>        C_{\nu i}
-      CALL cp_fm_create(fm_dip_intermed, matrix_struct=fm_struct_coeff_occ, name="dip_intermed")
+      CALL cp_fm_create(fm_dip_intermed, matrix_struct=fm_struct_nao_nao, name="dip_intermed")
       CALL cp_fm_set_all(fm_dip_intermed, 0.0_dp)
 
       DO idir = 1, 3
+         ! Create the full dipole matrix per direction
+         CALL cp_fm_create(fm_dipole_per_dir(idir), matrix_struct=fm_struct_nao_nao, name="dipoles_mo")
+         CALL cp_fm_set_all(fm_dipole_per_dir(idir), 0.0_dp)
          ! Fill final (MO) dipole matrix
          ! Specifying beta=1.0_dp would sum up all directions
-         CALL cp_dbcsr_sm_fm_multiply(matrix_r(idir)%matrix, fm_coeff_occ, &
-                                      fm_dip_intermed, ncol=n_occ)
+         CALL cp_dbcsr_sm_fm_multiply(matrix_r(idir)%matrix, mo_coeff(1), &
+                                      fm_dip_intermed, ncol=nao)
          ! Now obtain the dipoles by the final multiplication;
          ! We do that inside the loop to obtain dipoles per axis for print
-         CALL parallel_gemm('T', 'N', n_virt, n_occ, nao, 1.0_dp, fm_coeff_virt, fm_dip_intermed, 0.0_dp, fm_dipole_per_dir(idir))
+         CALL parallel_gemm('T', 'N', nao, nao, nao, 1.0_dp, mo_coeff(1), fm_dip_intermed, 0.0_dp, fm_dipole_per_dir(idir))
+         ! Truncate full matrix to the BSE indices
+         CALL cp_fm_to_fm_submat_general(fm_dipole_per_dir(idir), &
+                                         fm_dipole_per_dir_trunc(idir), &
+                                         virtual_red, &
+                                         homo_red, &
+                                         n_occ + 1, &
+                                         n_occ - homo_red + 1, &
+                                         1, &
+                                         1, &
+                                         fm_dipole_per_dir(idir)%matrix_struct%context)
       END DO
 
       !Release matrices and structs
       NULLIFY (fm_struct_dipoles_ao)
       CALL cp_fm_struct_release(fm_struct_nao_nao)
-      CALL cp_fm_struct_release(fm_struct_coeff_virt)
-      CALL cp_fm_struct_release(fm_struct_coeff_occ)
-      CALL cp_fm_release(fm_coeff_virt)
-      CALL cp_fm_release(fm_coeff_occ)
+      DO idir = 1, 3
+         CALL cp_fm_release(fm_dipole_per_dir(idir))
+      END DO
       CALL cp_fm_release(fm_dip_intermed)
       CALL dbcsr_deallocate_matrix_set(matrix_r)
 
