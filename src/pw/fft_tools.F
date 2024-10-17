@@ -23,6 +23,7 @@
 !>      IAB (13-Feb-2009): Extended plan caching to serial 3D FFT (fft3d_s)
 !>      IAB (09-Oct-2009): Added OpenMP directives to parallel 3D FFT
 !>                         (c) The Numerical Algorithms Group (NAG) Ltd, 2008-2009 on behalf of the HECToR project
+!>      HFP (17-Oct-2024): Thread-safety insurance (CPASSERT), and OMP ATOMIC (tick_fft_pool)
 !> \author JGH
 ! **************************************************************************************************
 MODULE fft_tools
@@ -47,7 +48,7 @@ MODULE fft_tools
    USE offload_api,                     ONLY: offload_free_pinned_mem,&
                                               offload_malloc_pinned_mem
 
-!$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads
+!$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num, omp_in_parallel
 
 #include "../base/base_uses.f90"
 
@@ -99,11 +100,11 @@ MODULE fft_tools
          :: a1buf => NULL(), a2buf => NULL(), a3buf => NULL(), &
             a4buf => NULL(), a5buf => NULL(), a6buf => NULL()
       ! to be used in communication routines
-      INTEGER, DIMENSION(:), CONTIGUOUS, POINTER       :: scount => NULL(), rcount => NULL(), sdispl => NULL(), rdispl => NULL()
-      INTEGER, DIMENSION(:, :), CONTIGUOUS, POINTER     :: pgcube => NULL()
-      INTEGER, DIMENSION(:), CONTIGUOUS, POINTER       :: xzcount => NULL(), yzcount => NULL(), xzdispl => NULL(), yzdispl => NULL()
-      INTEGER                              :: in = 0, mip = -1
-      REAL(KIND=dp)                        :: rsratio = 1.0_dp
+      INTEGER, DIMENSION(:), CONTIGUOUS, POINTER    :: scount => NULL(), rcount => NULL(), sdispl => NULL(), rdispl => NULL()
+      INTEGER, DIMENSION(:, :), CONTIGUOUS, POINTER :: pgcube => NULL()
+      INTEGER, DIMENSION(:), CONTIGUOUS, POINTER    :: xzcount => NULL(), yzcount => NULL(), xzdispl => NULL(), yzdispl => NULL()
+      INTEGER                                       :: in = 0, mip = -1
+      REAL(KIND=dp)                                 :: rsratio = 1.0_dp
       COMPLEX(KIND=dp), DIMENSION(:), POINTER, CONTIGUOUS &
          :: xzbuf => NULL(), yzbuf => NULL()
       COMPLEX(KIND=sp), DIMENSION(:), POINTER, CONTIGUOUS &
@@ -113,11 +114,11 @@ MODULE fft_tools
             rbuf5 => NULL(), rbuf6 => NULL(), rr => NULL()
       COMPLEX(KIND=sp), DIMENSION(:, :), POINTER, CONTIGUOUS &
          :: ss => NULL(), tt => NULL()
-      INTEGER, DIMENSION(:, :), POINTER, CONTIGUOUS     :: pgrid => NULL()
-      INTEGER, DIMENSION(:), POINTER, CONTIGUOUS       :: xcor => NULL(), zcor => NULL(), pzcoord => NULL()
-      TYPE(fft_scratch_sizes)              :: sizes = fft_scratch_sizes()
-      TYPE(fft_plan_type), DIMENSION(6)   :: fft_plan = fft_plan_type()
-      INTEGER                              :: last_tick = -1
+      INTEGER, DIMENSION(:, :), POINTER, CONTIGUOUS :: pgrid => NULL()
+      INTEGER, DIMENSION(:), POINTER, CONTIGUOUS    :: xcor => NULL(), zcor => NULL(), pzcoord => NULL()
+      TYPE(fft_scratch_sizes)                       :: sizes = fft_scratch_sizes()
+      TYPE(fft_plan_type), DIMENSION(6)             :: fft_plan = fft_plan_type()
+      INTEGER                                       :: last_tick = -1
    END TYPE fft_scratch_type
 
    TYPE fft_scratch_pool_type
@@ -125,12 +126,12 @@ MODULE fft_tools
       TYPE(fft_scratch_pool_type), POINTER  :: fft_scratch_next => NULL()
    END TYPE fft_scratch_pool_type
 
-   INTEGER, SAVE                           :: init_fft_pool = 0
+   INTEGER, SAVE                              :: init_fft_pool = 0
    ! the clock for fft pool. Allows to identify the least recently used scratch
-   INTEGER, SAVE                           :: tick_fft_pool = 0
+   INTEGER, SAVE                              :: tick_fft_pool = 0
    ! limit the number of scratch pools to fft_pool_scratch_limit.
-   INTEGER, SAVE                           :: fft_pool_scratch_limit = 15
-   TYPE(fft_scratch_pool_type), POINTER, SAVE:: fft_scratch_first
+   INTEGER, SAVE                              :: fft_pool_scratch_limit = 15
+   TYPE(fft_scratch_pool_type), POINTER, SAVE :: fft_scratch_first
    ! END of types for the pool of scratch data needed in FFT routines
 
    PRIVATE
@@ -200,8 +201,7 @@ CONTAINS
       CALL fft_do_init(fft_type, wisdom_file)
 
       ! setup the FFT scratch pool, if one is associated, clear first
-      CALL release_fft_scratch_pool()
-      CALL init_fft_scratch_pool()
+      CALL init_fft_scratch_pool() ! CALLs release_fft_scratch_pool()
 
    END SUBROUTINE init_fft
 
@@ -214,7 +214,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE finalize_fft(para_env, wisdom_file)
       CLASS(mp_comm_type)                    :: para_env
-      CHARACTER(LEN=*), INTENT(IN)                       :: wisdom_file
+      CHARACTER(LEN=*), INTENT(IN)           :: wisdom_file
 
 ! release the FFT scratch pool
 
@@ -1341,7 +1341,7 @@ CONTAINS
 
       ELSE
 
-         CPABORT("This partition not implemented.")
+         CPABORT("Partition not implemented.")
 
       END IF
 
@@ -1373,7 +1373,7 @@ CONTAINS
       COMPLEX(KIND=dp), CONTIGUOUS, DIMENSION(:, :), &
          INTENT(IN)                                      :: sb
 
-      CLASS(mp_comm_type), INTENT(IN)                     :: group
+      CLASS(mp_comm_type), INTENT(IN)                    :: group
       INTEGER, INTENT(IN)                                :: my_pos
       INTEGER, CONTIGUOUS, DIMENSION(0:), INTENT(IN)     :: p2p
       INTEGER, CONTIGUOUS, DIMENSION(:, :, 0:), &
@@ -1489,7 +1489,7 @@ CONTAINS
       COMPLEX(KIND=dp), CONTIGUOUS, DIMENSION(:, :, :), &
          INTENT(IN)                                      :: tb
 
-      CLASS(mp_comm_type), INTENT(IN)                     :: group
+      CLASS(mp_comm_type), INTENT(IN)                    :: group
       INTEGER, INTENT(IN)                                :: my_pos
       INTEGER, CONTIGUOUS, DIMENSION(0:), INTENT(IN)     :: p2p
       INTEGER, CONTIGUOUS, DIMENSION(:, :, 0:), &
@@ -1606,7 +1606,7 @@ CONTAINS
       COMPLEX(KIND=dp), CONTIGUOUS, DIMENSION(:, :), &
          INTENT(IN)                                      :: sb
 
-      CLASS(mp_comm_type), INTENT(IN)                     :: group
+      CLASS(mp_comm_type), INTENT(IN)                    :: group
       INTEGER, DIMENSION(2), INTENT(IN)                  :: dims
       INTEGER, INTENT(IN)                                :: my_pos
       INTEGER, CONTIGUOUS, DIMENSION(0:), INTENT(IN)                 :: p2p
@@ -1614,7 +1614,7 @@ CONTAINS
       INTEGER, CONTIGUOUS, DIMENSION(0:), INTENT(IN)                 :: nray
       INTEGER, CONTIGUOUS, DIMENSION(:, :, 0:), INTENT(IN)           :: bo
       COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(INOUT), CONTIGUOUS   :: tb
-      TYPE(fft_scratch_type), INTENT(INOUT)                 :: fft_scratch
+      TYPE(fft_scratch_type), INTENT(INOUT)              :: fft_scratch
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'yz_to_xz'
 
@@ -1816,7 +1816,7 @@ CONTAINS
       COMPLEX(KIND=dp), CONTIGUOUS, DIMENSION(:, :), &
          INTENT(IN)                                      :: sb
 
-      CLASS(mp_comm_type), INTENT(IN)                     :: group
+      CLASS(mp_comm_type), INTENT(IN)                    :: group
       INTEGER, DIMENSION(2), INTENT(IN)                  :: dims
       INTEGER, INTENT(IN)                                :: my_pos
       INTEGER, CONTIGUOUS, DIMENSION(0:), INTENT(IN)                 :: p2p
@@ -2397,10 +2397,10 @@ CONTAINS
       COMPLEX(KIND=dp), CONTIGUOUS, DIMENSION(:, :), &
          INTENT(IN)                                      :: cin
 
-      CLASS(mp_comm_type), INTENT(IN)                     :: group
+      CLASS(mp_comm_type), INTENT(IN)                    :: group
       INTEGER, CONTIGUOUS, DIMENSION(:, :, 0:), INTENT(IN)           :: boin, boout
       COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(OUT), CONTIGUOUS     :: sout
-      TYPE(fft_scratch_type), INTENT(IN)                :: fft_scratch
+      TYPE(fft_scratch_type), INTENT(IN)                 :: fft_scratch
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'cube_transpose_5'
 
@@ -2492,7 +2492,7 @@ CONTAINS
       COMPLEX(KIND=dp), CONTIGUOUS, DIMENSION(:, :), &
          INTENT(IN)                                      :: cin
 
-      CLASS(mp_comm_type), INTENT(IN)                     :: group
+      CLASS(mp_comm_type), INTENT(IN)                    :: group
       INTEGER, CONTIGUOUS, DIMENSION(:, :, 0:), INTENT(IN)           :: boin, boout
       COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(OUT), CONTIGUOUS     :: sout
       TYPE(fft_scratch_type), INTENT(IN)                 :: fft_scratch
@@ -2769,8 +2769,9 @@ CONTAINS
 !> \brief ...
 ! **************************************************************************************************
    SUBROUTINE release_fft_scratch_pool()
-
       TYPE(fft_scratch_pool_type), POINTER               :: fft_scratch, fft_scratch_current
+
+!$    CPASSERT(.NOT. omp_in_parallel() .OR. 0 == omp_get_thread_num())
 
       IF (init_fft_pool == 0) NULLIFY (fft_scratch_first)
 
@@ -2869,7 +2870,7 @@ CONTAINS
       INTEGER, INTENT(IN)                      :: tf_type
       INTEGER, DIMENSION(:), INTENT(IN)        :: n
       TYPE(fft_scratch_sizes), INTENT(IN), &
-         OPTIONAL                               :: fft_sizes
+         OPTIONAL                              :: fft_sizes
 
       CHARACTER(len=*), PARAMETER :: routineN = 'get_fft_scratch'
 
@@ -2895,6 +2896,7 @@ CONTAINS
       CALL resize_fft_scratch_pool()
 
       ! get the required scratch
+!$OMP ATOMIC
       tick_fft_pool = tick_fft_pool + 1
       fft_scratch_current => fft_scratch_first
       DO
@@ -2947,7 +2949,7 @@ CONTAINS
 
             SELECT CASE (tf_type)
             CASE DEFAULT
-               CPABORT("")
+               CPABORT("Invalid scratch type.")
             CASE (100) ! fft3d_pb: full cube distribution
                CPASSERT(PRESENT(fft_sizes))
                mx1 = fft_sizes%mx1
@@ -3236,6 +3238,7 @@ CONTAINS
          END IF
       END DO
 
+!$OMP ATOMIC READ
       fft_scratch%last_tick = tick_fft_pool
 
       CALL timestop(handle)
@@ -3266,7 +3269,7 @@ CONTAINS
             fft_scratch_current => fft_scratch_current%fft_scratch_next
          ELSE
             ! We cannot find the scratch type in this pool
-            CPABORT("")
+            CPABORT("Invalid scratch type.")
             EXIT
          END IF
       END DO
@@ -3289,7 +3292,7 @@ CONTAINS
       COMPLEX(KIND=dp), DIMENSION(:), POINTER            :: rq
       INTEGER, DIMENSION(:), POINTER                     :: rcount, rdispl
 
-      CLASS(mp_comm_type), INTENT(IN)                     :: group
+      CLASS(mp_comm_type), INTENT(IN)                    :: group
 
       COMPLEX(KIND=dp), DIMENSION(:), POINTER            :: msgin, msgout
       INTEGER                                            :: ip, n, nr, ns, pos
@@ -3317,7 +3320,7 @@ CONTAINS
          ns = ns + 1
       END DO
       IF (rcount(pos) /= 0) THEN
-         IF (rcount(pos) /= scount(pos)) CPABORT("")
+         IF (rcount(pos) /= scount(pos)) CPABORT("Invalid count.")
          rq(rdispl(pos) + 1:rdispl(pos) + rcount(pos)) = rs(sdispl(pos) + 1:sdispl(pos) + scount(pos))
       END IF
       CALL mp_waitall(sreq(0:ns - 1))
