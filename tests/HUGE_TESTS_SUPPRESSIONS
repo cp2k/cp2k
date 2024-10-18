@@ -178,4 +178,8 @@ Fist/regtest-7-2/UO2-2x2x2-binary_restart-npt-nve-cs-2.inp
 # Test produced 5.83 MiB of output.
 QS/regtest-fftw-wisdom/test_wisdom_import.inp
 
+# Tests produced 296 MiB of temporary files (density, overlap, and Kohn-Sham matrices for both leads).
+QS/regtest-smeagol-2/au-1x1x4-bulk.inp
+QS/regtest-smeagol-2/au-h2-au-1x1x1-1V-forces.inp
+
 #EOF

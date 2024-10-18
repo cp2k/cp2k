@@ -236,6 +236,8 @@ The --with-PKG options follow the rules:
                           Default = install
   --with-libtorch         Enable libtorch the machine learning framework needed for NequIP and Allegro
                           Default = no
+  --with-libsmeagol       Enable interface to SMEAGOL NEGF library
+                          Default = no
   --with-dftd4            Enable the DFTD4 package by Grimme
                           This package requires cmake, ninja
                           Default = install
@@ -276,7 +278,7 @@ mpi_list="mpich openmpi intelmpi"
 math_list="mkl acml openblas"
 lib_list="fftw libint libxc libgrpp libxsmm cosma scalapack elpa cusolvermp plumed \
           spfft spla ptscotch superlu pexsi quip gsl spglib hdf5 libvdwxc sirius
-          libvori libtorch deepmd dftd4 pugixml"
+          libvori libtorch deepmd dftd4 pugixml libsmeagol"
 package_list="${tool_list} ${mpi_list} ${math_list} ${lib_list}"
 # ------------------------------------------------------------------------
 
@@ -327,6 +329,7 @@ with_libvori="__INSTALL__"
 with_libtorch="__DONTUSE__"
 with_ninja="__DONTUSE__"
 with_dftd4="__DONTUSE__"
+with_libsmeagol="__DONTUSE__"
 
 # for MPI, we try to detect system MPI variant
 if (command -v mpiexec > /dev/null 2>&1); then
@@ -430,7 +433,7 @@ while [ $# -ge 1 ]; do
       for ii in ${package_list}; do
         if [ "${ii}" != "intel" ] &&
           [ "${ii}" != "intelmpi" ] &&
-          [ "${ii}" != "amd" ]; then
+          [ "${ii}" != "amd" ] && [ "${ii}" != "libsmeagol" ]; then
           eval with_${ii}="__INSTALL__"
         fi
       done
@@ -682,6 +685,9 @@ while [ $# -ge 1 ]; do
       ;;
     --with-dftd4*)
       with_dftd4=$(read_with "${1}")
+      ;;
+    --with-libsmeagol*)
+      with_libsmeagol=$(read_with "${1}")
       ;;
     --help*)
       show_help
