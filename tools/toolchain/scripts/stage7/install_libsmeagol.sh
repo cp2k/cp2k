@@ -25,8 +25,9 @@ case "$with_libsmeagol" in
     echo "--with-libsmeagol=install is not supported yet. Please manually install"
     echo "libsmeagol and rerun the toolchain by using --with-libsmeagol=<path> option."
     echo
-    echo "The library can be downloaded by contacting Dr. Clotilde Cucinotta at"
-    echo "cucinotta@imperial.ac.uk or Prof. Stefano Sanvito at sanvitos@tcd.ie."
+    echo "The library can be downloaded from"
+    echo "https://github.com/StefanoSanvitoGroup/libsmeagol"
+    echo
     exit 1
     ;;
 

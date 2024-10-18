@@ -483,8 +483,8 @@ DeePMD-kit - Deep Potential Molecular Dynamics. Support for DeePMD-kit can be en
 ### 2y. libsmeagol (optional, electron transport calculation with current-induced forces)
 
 - libsmeagol is an external library to compute electron transport properties using Non-Equilibrium
-  Green Functions (NEGF) method. The library can be downloaded by contacting Dr. Clotilde Cucinotta
-  at cucinotta@imperial.ac.uk or Prof. Stefano Sanvito at sanvitos@tcd.ie.
+  Green Functions (NEGF) method. The library can be downloaded from
+  <https://github.com/StefanoSanvitoGroup/libsmeagol>.
 - libsmeagol depends on an MPI library and can only be linked with MPI parallel CP2K binaries.
 - During the installation, the directories `$(LIBSMEAGOL_DIR)/lib` and `$(LIBGRPP_DIR)/obj` are
   created.
