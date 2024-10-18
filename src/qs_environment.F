@@ -1413,6 +1413,7 @@ CONTAINS
             dispersion_env%ref_functional = "none"
             CALL qs_dispersion_pairpot_init(atomic_kind_set, qs_kind_set, &
                                             dispersion_env, para_env=para_env)
+            dispersion_env%cnfun = 2
          CASE DEFAULT
             CPABORT("vdw type")
          END SELECT

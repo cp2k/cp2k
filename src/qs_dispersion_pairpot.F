@@ -25,6 +25,7 @@ MODULE qs_dispersion_pairpot
                                               grimme2011
    USE cell_types,                      ONLY: cell_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                              cp_logger_get_default_io_unit,&
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                               cp_print_key_unit_nr
@@ -46,7 +47,9 @@ MODULE qs_dispersion_pairpot
    USE physcon,                         ONLY: bohr,&
                                               kcalmol,&
                                               kjmol
-   USE qs_dispersion_cnum,              ONLY: setcn,&
+   USE qs_dispersion_cnum,              ONLY: get_cn_radius,&
+                                              setcn,&
+                                              seten,&
                                               setr0ab,&
                                               setrcov
    USE qs_dispersion_d2,                ONLY: calculate_dispersion_d2_pairpot,&
@@ -203,6 +206,7 @@ CONTAINS
             ALLOCATE (dispersion_env%c6ab(max_elem, max_elem, maxc, maxc, 3))
             ALLOCATE (dispersion_env%r0ab(max_elem, max_elem))
             ALLOCATE (dispersion_env%rcov(max_elem))
+            ALLOCATE (dispersion_env%eneg(max_elem))
             ALLOCATE (dispersion_env%r2r4(max_elem))
             ALLOCATE (dispersion_env%cn(max_elem))
 
@@ -210,6 +214,8 @@ CONTAINS
             filename = dispersion_env%parameter_file_name
             CALL dftd3_c6_param(dispersion_env%c6ab, dispersion_env%maxci, filename, para_env)
             CALL setr0ab(dispersion_env%r0ab, dispersion_env%rcov, dispersion_env%r2r4)
+            ! Electronegativity
+            CALL seten(dispersion_env%eneg)
             ! the default coordination numbers
             CALL setcn(dispersion_env%cn)
             ! scale r4/r2 values of the atoms by sqrt(Z)
@@ -322,11 +328,23 @@ CONTAINS
             dispersion_env%maxc = maxc
             ALLOCATE (dispersion_env%maxci(max_elem))
             ALLOCATE (dispersion_env%rcov(max_elem))
+            ALLOCATE (dispersion_env%eneg(max_elem))
             ALLOCATE (dispersion_env%cn(max_elem))
             ! the default covalent radii
             CALL setrcov(dispersion_env%rcov)
             ! the default coordination numbers
             CALL setcn(dispersion_env%cn)
+            ! Electronegativity
+            CALL seten(dispersion_env%eneg)
+            ! parameters
+            dispersion_env%k1 = 16.0_dp
+            dispersion_env%k2 = 4._dp/3._dp
+            dispersion_env%k3 = -4._dp
+            dispersion_env%rcov = dispersion_env%k2*dispersion_env%rcov*bohr
+            dispersion_env%alp = 14._dp
+            !
+            dispersion_env%cnfun = 3
+            dispersion_env%rc_cn = get_cn_radius(dispersion_env)
          END SELECT
       END SELECT
 
@@ -352,7 +370,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_dispersion_pairpot'
 
-      INTEGER                                            :: atom_a, handle, iatom, ikind, natom, &
+      INTEGER                                            :: atom_a, handle, iatom, ikind, iw, natom, &
                                                             nkind, unit_nr
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, kind_of
       LOGICAL                                            :: atenergy, atex, atstress, debugall, &
@@ -461,7 +479,10 @@ CONTAINS
             CPABORT("Molecular approximation with DFTD4 not implemented")
          END IF
          !
-         CALL calculate_dispersion_d4_pairpot(qs_env, dispersion_env, evdw, calculate_forces, unit_nr)
+         iw = -1
+         IF (dispersion_env%verbose) iw = cp_logger_get_default_io_unit(logger)
+         !
+         CALL calculate_dispersion_d4_pairpot(qs_env, dispersion_env, evdw, calculate_forces, iw)
       END IF
 
       ! set dispersion energy

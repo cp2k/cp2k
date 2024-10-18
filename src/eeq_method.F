@@ -13,6 +13,7 @@ MODULE eeq_method
    USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                               get_atomic_kind,&
                                               get_atomic_kind_set
+   USE atprop_types,                    ONLY: atprop_type
    USE cell_types,                      ONLY: cell_type,&
                                               get_cell,&
                                               pbc,&
@@ -33,6 +34,7 @@ MODULE eeq_method
    USE cp_log_handling,                 ONLY: cp_logger_get_default_unit_nr
    USE distribution_1d_types,           ONLY: distribution_1d_type
    USE distribution_2d_types,           ONLY: distribution_2d_type
+   USE eeq_data,                        ONLY: get_eeq_data
    USE ewald_environment_types,         ONLY: ewald_env_create,&
                                               ewald_env_get,&
                                               ewald_env_release,&
@@ -62,13 +64,21 @@ MODULE eeq_method
    USE qs_force_types,                  ONLY: qs_force_type
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               qs_kind_type
-   USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
+   USE qs_neighbor_list_types,          ONLY: get_iterator_info,&
+                                              neighbor_list_iterate,&
+                                              neighbor_list_iterator_create,&
+                                              neighbor_list_iterator_p_type,&
+                                              neighbor_list_iterator_release,&
+                                              neighbor_list_set_p_type,&
+                                              release_neighbor_list_sets
    USE qs_neighbor_lists,               ONLY: atom2d_build,&
                                               atom2d_cleanup,&
                                               build_neighbor_lists,&
                                               local_atoms_type,&
                                               pair_radius_setup
-   USE spme,                            ONLY: spme_potential
+   USE spme,                            ONLY: spme_forces,&
+                                              spme_potential,&
+                                              spme_virial
    USE virial_methods,                  ONLY: virial_pair_force
    USE virial_types,                    ONLY: virial_type
 #include "./base/base_uses.f90"
@@ -79,92 +89,7 @@ MODULE eeq_method
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'eeq_method'
 
-   ! ==========================================================================
-   ! 2019-2020 Sebastian Ehlert : EEQ gfn0-xTB parameters
    INTEGER, PARAMETER                                    :: maxElem = 86
-   ! COULOMB DATA
-   !> Electronegativity for the EEQ model
-   REAL(KIND=dp), PARAMETER :: eeqChi(1:maxElem) = [&
-      & 1.2500000_dp, 1.2912463_dp, 0.8540050_dp, 1.1723939_dp, 1.1094487_dp, &
-      & 1.3860275_dp, 1.5341534_dp, 1.5378836_dp, 1.5890750_dp, 1.2893646_dp, &
-      & 0.7891208_dp, 0.9983021_dp, 0.9620847_dp, 1.0441134_dp, 1.4789559_dp, &
-      & 1.3926377_dp, 1.4749100_dp, 1.2250415_dp, 0.8162292_dp, 1.1252036_dp, &
-      & 0.9641451_dp, 0.8810155_dp, 0.9741986_dp, 1.1029038_dp, 1.0076949_dp, &
-      & 0.7744353_dp, 0.7554040_dp, 1.0182630_dp, 1.0316167_dp, 1.6317474_dp, &
-      & 1.1186739_dp, 1.0345958_dp, 1.3090772_dp, 1.4119283_dp, 1.4500674_dp, &
-      & 1.1746889_dp, 0.6686200_dp, 1.0744648_dp, 0.9107813_dp, 0.7876056_dp, &
-      & 1.0039889_dp, 0.9225265_dp, 0.9035515_dp, 1.0332301_dp, 1.0293975_dp, &
-      & 1.0549549_dp, 1.2356867_dp, 1.2793315_dp, 1.1145650_dp, 1.1214927_dp, &
-      & 1.2123167_dp, 1.4003158_dp, 1.4255511_dp, 1.1640198_dp, 0.4685133_dp, &
-      & 1.0687873_dp, 0.9335398_dp, 1.0573550_dp, 1.0532043_dp, 1.0490537_dp, &
-      & 1.0449031_dp, 1.0407524_dp, 1.0366018_dp, 1.0324512_dp, 1.0283005_dp, &
-      & 1.0241499_dp, 1.0199992_dp, 1.0158486_dp, 1.0116980_dp, 1.0075473_dp, &
-      & 1.0033967_dp, 0.8612827_dp, 1.0422031_dp, 0.7633168_dp, 0.6019707_dp, &
-      & 0.7499393_dp, 0.9511744_dp, 0.9357472_dp, 1.3555382_dp, 1.2006726_dp, &
-      & 1.2092025_dp, 1.1736669_dp, 1.1936584_dp, 1.3045488_dp, 1.1964604_dp, &
-      & 1.2653792_dp]
-   !> Chemical hardness for the EEQ model
-   REAL(KIND=dp), PARAMETER :: eeqGam(1:maxElem) = [&
-      &-0.3023159_dp, 0.7743046_dp, 0.5303164_dp, 0.2176474_dp, 0.1956176_dp, &
-      & 0.0308461_dp, 0.0559522_dp, 0.0581228_dp, 0.1574017_dp, 0.6825784_dp, &
-      & 0.3922376_dp, 0.5581866_dp, 0.3017510_dp, 0.1039137_dp, 0.2124917_dp, &
-      & 0.0580720_dp, 0.2537467_dp, 0.5780354_dp, 0.3920658_dp, -0.0024897_dp, &
-      &-0.0061520_dp, 0.1663252_dp, 0.1051751_dp, 0.0009900_dp, 0.0976543_dp, &
-      & 0.0612028_dp, 0.0561526_dp, 0.0899774_dp, 0.1313171_dp, 0.5728071_dp, &
-      & 0.1741615_dp, 0.2671888_dp, 0.2351989_dp, 0.0718104_dp, 0.3458143_dp, &
-      & 0.8203265_dp, 0.4287770_dp, 0.2667067_dp, 0.0873658_dp, 0.0599431_dp, &
-      & 0.1581972_dp, 0.1716374_dp, 0.2721649_dp, 0.2817608_dp, 0.1391572_dp, &
-      & 0.1175925_dp, 0.2316104_dp, 0.2256303_dp, 0.1230459_dp, 0.0141941_dp, &
-      & 0.0188612_dp, 0.0230207_dp, 0.3644113_dp, 0.1668461_dp, 0.5167533_dp, &
-      & 0.1979578_dp, 0.0345176_dp, 0.0240233_dp, 0.0246333_dp, 0.0252433_dp, &
-      & 0.0258532_dp, 0.0264632_dp, 0.0270732_dp, 0.0276832_dp, 0.0282931_dp, &
-      & 0.0289031_dp, 0.0295131_dp, 0.0301230_dp, 0.0307330_dp, 0.0313430_dp, &
-      & 0.0319529_dp, 0.0262881_dp, 0.1715396_dp, 0.1803633_dp, 0.3631824_dp, &
-      & 0.3010980_dp, 0.1100299_dp, 0.0277514_dp, 0.0554975_dp, 0.7723231_dp, &
-      & 0.1287718_dp, 0.1034598_dp, 0.0114935_dp, 0.0160842_dp, 0.3369611_dp, &
-      & 0.1844179_dp]
-
-   !> Coordination number dependence of the EN in the EEQ model
-   REAL(KIND=dp), PARAMETER :: eeqkCN(1:maxElem) = [&
-      & 0.0248762_dp, 0.1342276_dp, 0.0103048_dp, -0.0352374_dp, -0.0980031_dp, &
-      & 0.0643920_dp, 0.1053273_dp, 0.1394809_dp, 0.1276675_dp, -0.1081936_dp, &
-      &-0.0008132_dp, -0.0279860_dp, -0.0521436_dp, -0.0257206_dp, 0.1651461_dp, &
-      & 0.0914418_dp, 0.1213634_dp, -0.0636298_dp, -0.0045838_dp, 0.0007509_dp, &
-      &-0.0307730_dp, -0.0286150_dp, -0.0341465_dp, -0.0419655_dp, -0.0088536_dp, &
-      &-0.1001069_dp, -0.1190502_dp, -0.0726233_dp, -0.0219233_dp, 0.0641913_dp, &
-      &-0.0103130_dp, 0.0262628_dp, 0.0222202_dp, 0.0709954_dp, 0.0422244_dp, &
-      &-0.0308245_dp, 0.0086249_dp, -0.0237146_dp, -0.0721798_dp, -0.0848810_dp, &
-      &-0.0402828_dp, -0.0372396_dp, -0.0027043_dp, 0.0525839_dp, 0.0051192_dp, &
-      & 0.0188401_dp, 0.0103998_dp, 0.0000549_dp, 0.0087717_dp, -0.0237228_dp, &
-      & 0.0169656_dp, 0.0924186_dp, 0.0352884_dp, -0.0091444_dp, 0.0192916_dp, &
-      &-0.0154483_dp, -0.0736833_dp, -0.0064191_dp, -0.0093012_dp, -0.0121833_dp, &
-      &-0.0150654_dp, -0.0179475_dp, -0.0208296_dp, -0.0237117_dp, -0.0265938_dp, &
-      &-0.0294759_dp, -0.0323580_dp, -0.0352400_dp, -0.0381221_dp, -0.0410042_dp, &
-      &-0.0438863_dp, -0.0894776_dp, -0.0333583_dp, -0.0154963_dp, -0.0121092_dp, &
-      &-0.0744239_dp, 0.0050138_dp, -0.0153757_dp, -0.0029221_dp, 0.0239125_dp, &
-      & 0.0183012_dp, -0.0238011_dp, -0.0268025_dp, 0.0136505_dp, -0.0132199_dp, &
-      &-0.0439890_dp]
-   !> Charge width in the EEQ model
-   REAL(KIND=dp), PARAMETER :: eeqAlp(1:maxElem) = [&
-      & 0.7490227_dp, 0.4196569_dp, 1.4256190_dp, 2.0698743_dp, 1.7358798_dp, &
-      & 1.8288757_dp, 1.9346081_dp, 1.6974795_dp, 0.8169179_dp, 0.6138441_dp, &
-      & 1.7294046_dp, 1.7925036_dp, 1.2156739_dp, 1.5314457_dp, 1.3730859_dp, &
-      & 1.7936326_dp, 2.4255996_dp, 1.5891656_dp, 2.1829647_dp, 1.4177623_dp, &
-      & 1.5181399_dp, 1.9919805_dp, 1.7171675_dp, 2.0655063_dp, 1.3318009_dp, &
-      & 1.3660068_dp, 1.5694128_dp, 1.2762644_dp, 1.0039549_dp, 0.7338863_dp, &
-      & 3.2596250_dp, 1.7530299_dp, 1.5281792_dp, 2.1837813_dp, 2.1642027_dp, &
-      & 2.7280594_dp, 0.7838049_dp, 1.4274742_dp, 1.8023947_dp, 1.6093288_dp, &
-      & 1.3834349_dp, 1.1740977_dp, 1.5768259_dp, 1.3205263_dp, 1.4259466_dp, &
-      & 1.1499748_dp, 0.7013009_dp, 1.2374416_dp, 1.3799991_dp, 1.8528424_dp, &
-      & 1.8497568_dp, 2.0159294_dp, 1.2903708_dp, 2.0199161_dp, 0.9530522_dp, &
-      & 1.5015025_dp, 2.1917012_dp, 1.9134370_dp, 1.9897910_dp, 2.0661450_dp, &
-      & 2.1424991_dp, 2.2188531_dp, 2.2952071_dp, 2.3715611_dp, 2.4479151_dp, &
-      & 2.5242691_dp, 2.6006231_dp, 2.6769771_dp, 2.7533312_dp, 2.8296852_dp, &
-      & 2.9060392_dp, 1.6423047_dp, 1.3567622_dp, 1.8966648_dp, 0.8253100_dp, &
-      & 0.7412219_dp, 1.0350883_dp, 0.9692278_dp, 1.0048087_dp, 2.3138674_dp, &
-      & 2.8055966_dp, 3.0968677_dp, 1.6597596_dp, 3.2191575_dp, 1.5388148_dp, &
-      & 2.1222013_dp]
-
    ! covalent radii (taken from Pyykko and Atsumi, Chem. Eur. J. 15, 2009, 188-197)
    ! values for metals decreased by 10 %
    REAL(KIND=dp), PARAMETER :: rcov(1:maxElem) = [&
@@ -180,8 +105,8 @@ MODULE eeq_method
       & 1.31_dp, 1.23_dp, 1.18_dp, 1.16_dp, 1.11_dp, 1.12_dp, 1.13_dp, 1.32_dp, &
       & 1.30_dp, 1.30_dp, 1.36_dp, 1.31_dp, 1.38_dp, 1.42_dp]
 
-   PUBLIC :: eeq_solver, eeq_print, eeq_charges, eeq_efield_energy, eeq_efield_pot, &
-             eeq_efield_force_loc, eeq_efield_force_periodic
+   PUBLIC :: eeq_solver, eeq_print, eeq_charges, eeq_forces, &
+             eeq_efield_energy, eeq_efield_pot, eeq_efield_force_loc, eeq_efield_force_periodic
 
 CONTAINS
 
@@ -207,16 +132,18 @@ CONTAINS
       CALL get_qs_env(qs_env, natom=natom, particle_set=particle_set)
       ALLOCATE (charges(natom))
       CALL get_qs_env(qs_env, cell=cell)
-      enshift_type = 2
-      IF (ALL(cell%perd == 0)) enshift_type = 1
-      CALL eeq_charges(qs_env, charges, enshift_type)
+      ! enforce en shift method 1 (original/molecular)
+      ! method 2 from paper on PBC seems not to work
+      enshift_type = 1
+      !IF (ALL(cell%perd == 0)) enshift_type = 1
+      CALL eeq_charges(qs_env, charges, 2, enshift_type)
 
       IF (iounit > 0) THEN
 
          IF (enshift_type == 1) THEN
-            WRITE (UNIT=iounit, FMT="(/,T2,A)") "EEQ Charges (Standard Parametrization (Molecules))"
+            WRITE (UNIT=iounit, FMT="(/,T2,A)") "EEQ Charges (Parametrization 2019 (Molecules))"
          ELSE IF (enshift_type == 2) THEN
-            WRITE (UNIT=iounit, FMT="(/,T2,A)") "EEQ Charges (Standard Parametrization (Crystals))"
+            WRITE (UNIT=iounit, FMT="(/,T2,A)") "EEQ Charges (Parametrization 2019 (Crystals))"
          ELSE
             CPABORT("Unknown enshift_type")
          END IF
@@ -241,13 +168,14 @@ CONTAINS
 !> \brief ...
 !> \param qs_env ...
 !> \param charges ...
+!> \param eeq_model ...
 !> \param enshift_type ...
 ! **************************************************************************************************
-   SUBROUTINE eeq_charges(qs_env, charges, enshift_type)
+   SUBROUTINE eeq_charges(qs_env, charges, eeq_model, enshift_type)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: charges
-      INTEGER, INTENT(IN)                                :: enshift_type
+      INTEGER, INTENT(IN)                                :: eeq_model, enshift_type
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'eeq_charges'
 
@@ -289,7 +217,7 @@ CONTAINS
 
       totalcharge = dft_control%charge
 
-      CALL get_cnumbers(qs_env, cnumbers)
+      CALL get_cnumbers(qs_env, cnumbers, dcnum, .FALSE.)
 
       ! gamma[a,b]
       ALLOCATE (gab(nkind, nkind), gam(nkind))
@@ -297,11 +225,10 @@ CONTAINS
       gam = 0.0_dp
       DO ikind = 1, nkind
          CALL get_qs_kind(qs_kind_set(ikind), zatom=za)
-         ala = eeqAlp(za)
-         gam(ikind) = eeqGam(za)
+         CALL get_eeq_data(za, eeq_model, eta=gam(ikind), rad=ala)
          DO jkind = 1, nkind
             CALL get_qs_kind(qs_kind_set(jkind), zatom=zb)
-            alb = eeqAlp(zb)
+            CALL get_eeq_data(zb, eeq_model, rad=alb)
             !
             gab(ikind, jkind) = SQRT(1._dp/(ala*ala + alb*alb))
             !
@@ -316,11 +243,10 @@ CONTAINS
       DO iatom = 1, natom
          ikind = kind_of(iatom)
          CALL get_qs_kind(qs_kind_set(ikind), zatom=za)
-         xi = eeqChi(za)
-         kappa = eeqkCN(za)
+         CALL get_eeq_data(za, eeq_model, chi=xi, kcn=kappa)
          !
          IF (enshift_type == 1) THEN
-            scn = SQRT(cnumbers(iatom)) + 1.0e-14_dp
+            scn = cnumbers(iatom)/SQRT(cnumbers(iatom) + 1.0e-14_dp)
          ELSE IF (enshift_type == 2) THEN
             scn = LOG(esg/(esg - cnumbers(iatom)))
          ELSE
@@ -365,6 +291,7 @@ CONTAINS
          !
          CALL ewald_env_release(ewald_env)
          CALL ewald_pw_release(ewald_pw)
+         DEALLOCATE (ewald_env, ewald_pw)
       ELSE
          CALL eeq_solver(charges, lambda, eeq_energy, &
                          particle_set, kind_of, cell, chia, gam, gab, &
@@ -381,12 +308,353 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief ...
 !> \param qs_env ...
-!> \param cnumbers ...
+!> \param charges ...
+!> \param dcharges ...
+!> \param gradient ...
+!> \param stress ...
+!> \param eeq_model ...
+!> \param enshift_type ...
+!> \param response_only ...
 ! **************************************************************************************************
-   SUBROUTINE get_cnumbers(qs_env, cnumbers)
+   SUBROUTINE eeq_forces(qs_env, charges, dcharges, gradient, stress, &
+                         eeq_model, enshift_type, response_only)
+
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: charges, dcharges
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: gradient
+      REAL(KIND=dp), DIMENSION(3, 3), INTENT(INOUT)      :: stress
+      INTEGER, INTENT(IN)                                :: eeq_model, enshift_type
+      LOGICAL, INTENT(IN)                                :: response_only
+
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'eeq_forces'
+
+      INTEGER                                            :: handle, i, ia, iatom, ikind, iunit, &
+                                                            jatom, jkind, katom, natom, nkind, za, &
+                                                            zb
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: kind_of
+      INTEGER, DIMENSION(3)                              :: periodic
+      LOGICAL                                            :: do_ewald, do_sparse, use_virial
+      LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: default_present
+      REAL(KIND=dp)                                      :: ala, alb, alpha, cn, ctot, dr, dr2, drk, &
+                                                            elag, esg, gam2, gama, grc, kappa, &
+                                                            qlam, qq, qq1, qq2, rcut, scn, sgamma, &
+                                                            subcells, totalcharge, xi
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: c_radius, chrgx, cnumbers, dchia, gam, &
+                                                            qlag
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: epforce, gab, pair_radius
+      REAL(KIND=dp), DIMENSION(3)                        :: fdik, ri, rij, rik, rj
+      REAL(KIND=dp), DIMENSION(3, 3)                     :: pvir
+      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      TYPE(atprop_type), POINTER                         :: atprop
+      TYPE(cell_type), POINTER                           :: cell, cell_ref
+      TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
+      TYPE(dcnum_type), ALLOCATABLE, DIMENSION(:)        :: dcnum
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(distribution_1d_type), POINTER                :: distribution_1d, local_particles
+      TYPE(distribution_2d_type), POINTER                :: distribution_2d
+      TYPE(ewald_environment_type), POINTER              :: ewald_env
+      TYPE(ewald_pw_type), POINTER                       :: ewald_pw
+      TYPE(local_atoms_type), ALLOCATABLE, DIMENSION(:)  :: atom2d
+      TYPE(molecule_type), DIMENSION(:), POINTER         :: molecule_set
+      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(neighbor_list_iterator_p_type), &
+         DIMENSION(:), POINTER                           :: nl_iterator
+      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
+         POINTER                                         :: sab_ew => NULL()
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+      TYPE(section_vals_type), POINTER                   :: ewald_section, poisson_section, &
+                                                            print_section
+      TYPE(virial_type), POINTER                         :: virial
+
+      CALL timeset(routineN, handle)
+
+      iunit = cp_logger_get_default_unit_nr()
+
+      CALL get_qs_env(qs_env, &
+                      qs_kind_set=qs_kind_set, &
+                      atomic_kind_set=atomic_kind_set, &
+                      particle_set=particle_set, &
+                      para_env=para_env, &
+                      blacs_env=blacs_env, &
+                      cell=cell, &
+                      force=force, &
+                      virial=virial, &
+                      atprop=atprop, &
+                      dft_control=dft_control)
+      CALL get_qs_env(qs_env, nkind=nkind, natom=natom)
+      use_virial = virial%pv_availability .AND. (.NOT. virial%pv_numer)
+
+      CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, kind_of=kind_of)
+
+      totalcharge = dft_control%charge
+
+      CALL get_cnumbers(qs_env, cnumbers, dcnum, .TRUE.)
+
+      ! gamma[a,b]
+      ALLOCATE (gab(nkind, nkind), gam(nkind))
+      gab = 0.0_dp
+      gam = 0.0_dp
+      DO ikind = 1, nkind
+         CALL get_qs_kind(qs_kind_set(ikind), zatom=za)
+         CALL get_eeq_data(za, eeq_model, eta=gam(ikind), rad=ala)
+         DO jkind = 1, nkind
+            CALL get_qs_kind(qs_kind_set(jkind), zatom=zb)
+            CALL get_eeq_data(zb, eeq_model, rad=alb)
+            !
+            gab(ikind, jkind) = SQRT(1._dp/(ala*ala + alb*alb))
+            !
+         END DO
+      END DO
+
+      ALLOCATE (qlag(natom))
+
+      CALL get_cell(cell, periodic=periodic)
+      do_ewald = .NOT. ALL(periodic == 0)
+      do_sparse = .FALSE.
+      IF (do_ewald) THEN
+         ALLOCATE (ewald_env)
+         CALL ewald_env_create(ewald_env, para_env)
+         poisson_section => section_vals_get_subs_vals(qs_env%input, "DFT%POISSON")
+         CALL ewald_env_set(ewald_env, poisson_section=poisson_section)
+         ewald_section => section_vals_get_subs_vals(poisson_section, "EWALD")
+         print_section => section_vals_get_subs_vals(qs_env%input, "PRINT%GRID_INFORMATION")
+         CALL get_qs_env(qs_env, cell_ref=cell_ref)
+         CALL read_ewald_section_tb(ewald_env, ewald_section, cell_ref%hmat)
+         ALLOCATE (ewald_pw)
+         CALL ewald_pw_create(ewald_pw, ewald_env, cell, cell_ref, print_section=print_section)
+         !
+         CALL eeq_solver(qlag, qlam, elag, &
+                         particle_set, kind_of, cell, -dcharges, gam, gab, &
+                         para_env, blacs_env, dft_control, &
+                         ewald=do_ewald, sparse=do_sparse, &
+                         ewald_env=ewald_env, ewald_pw=ewald_pw, iounit=iunit)
+      ELSE
+         CALL eeq_solver(qlag, qlam, elag, &
+                         particle_set, kind_of, cell, -dcharges, gam, gab, &
+                         para_env, blacs_env, dft_control, iounit=iunit)
+      END IF
+
+      sgamma = 8.0_dp ! see D4 for periodic systems paper
+      esg = 1.0_dp + EXP(sgamma)
+      ALLOCATE (chrgx(natom), dchia(natom))
+      DO iatom = 1, natom
+         ikind = kind_of(iatom)
+         CALL get_qs_kind(qs_kind_set(ikind), zatom=za)
+         CALL get_eeq_data(za, eeq_model, chi=xi, kcn=kappa)
+         !
+         IF (response_only) THEN
+            ctot = -0.5_dp*qlag(iatom)
+         ELSE
+            ctot = 0.5_dp*(charges(iatom) - qlag(iatom))
+         END IF
+         IF (enshift_type == 1) THEN
+            scn = SQRT(cnumbers(iatom)) + 1.0e-14_dp
+            dchia(iatom) = -ctot*kappa/scn
+         ELSE IF (enshift_type == 2) THEN
+            cn = cnumbers(iatom)
+            scn = 1.0_dp/(esg - cn)
+            dchia(iatom) = -ctot*kappa*scn
+         ELSE
+            CPABORT("Unknown enshift_type")
+         END IF
+      END DO
+
+      ! Efield
+      IF (dft_control%apply_period_efield) THEN
+         CALL eeq_efield_force_periodic(qs_env, charges, qlag)
+      ELSE IF (dft_control%apply_efield) THEN
+         CALL eeq_efield_force_loc(qs_env, charges, qlag)
+      ELSE IF (dft_control%apply_efield_field) THEN
+         CPABORT("apply field")
+      END IF
+
+      ! Forces from q*X
+      CALL get_qs_env(qs_env=qs_env, local_particles=local_particles)
+      DO ikind = 1, nkind
+         DO ia = 1, local_particles%n_el(ikind)
+            iatom = local_particles%list(ikind)%array(ia)
+            DO i = 1, dcnum(iatom)%neighbors
+               katom = dcnum(iatom)%nlist(i)
+               rik = dcnum(iatom)%rik(:, i)
+               drk = SQRT(SUM(rik(:)**2))
+               IF (drk > 1.e-3_dp) THEN
+                  fdik(:) = dchia(iatom)*dcnum(iatom)%dvals(i)*rik(:)/drk
+                  gradient(:, iatom) = gradient(:, iatom) - fdik(:)
+                  gradient(:, katom) = gradient(:, katom) + fdik(:)
+                  IF (use_virial) THEN
+                     CALL virial_pair_force(stress, -1._dp, fdik, rik)
+                     IF (atprop%stress) THEN
+                        CALL virial_pair_force(atprop%atstress(:, :, iatom), -0.5_dp, fdik, rik)
+                        CALL virial_pair_force(atprop%atstress(:, :, katom), -0.5_dp, fdik, rik)
+                     END IF
+                  END IF
+               END IF
+            END DO
+         END DO
+      END DO
+
+      ! Forces from (0.5*q+l)*dA/dR*q
+      IF (do_ewald) THEN
+
+         ! Build the neighbor lists for the CN
+         CALL get_qs_env(qs_env, &
+                         distribution_2d=distribution_2d, &
+                         local_particles=distribution_1d, &
+                         molecule_set=molecule_set)
+         subcells = 2.0_dp
+         CALL ewald_env_get(ewald_env, alpha=alpha, rcut=rcut)
+         rcut = 2.0_dp*rcut
+         NULLIFY (sab_ew)
+         ALLOCATE (c_radius(nkind), default_present(nkind), pair_radius(nkind, nkind))
+         c_radius(:) = rcut
+         default_present = .TRUE.
+         ALLOCATE (atom2d(nkind))
+         CALL atom2d_build(atom2d, distribution_1d, distribution_2d, atomic_kind_set, &
+                           molecule_set, .FALSE., particle_set=particle_set)
+         CALL pair_radius_setup(default_present, default_present, c_radius, c_radius, pair_radius)
+         CALL build_neighbor_lists(sab_ew, particle_set, atom2d, cell, pair_radius, &
+                                   subcells=subcells, operator_type="PP", nlname="sab_ew")
+         DEALLOCATE (c_radius, pair_radius, default_present)
+         CALL atom2d_cleanup(atom2d)
+         !
+         CALL neighbor_list_iterator_create(nl_iterator, sab_ew)
+         DO WHILE (neighbor_list_iterate(nl_iterator) == 0)
+            CALL get_iterator_info(nl_iterator, ikind=ikind, jkind=jkind, &
+                                   iatom=iatom, jatom=jatom, r=rij)
+            !
+            dr2 = SUM(rij**2)
+            dr = SQRT(dr2)
+            IF (dr > rcut .OR. dr < 1.E-6_dp) CYCLE
+            IF (response_only) THEN
+               qq = -qlag(iatom)*charges(jatom)
+            ELSE
+               qq = (0.5_dp*charges(iatom) - qlag(iatom))*charges(jatom)
+            END IF
+            gama = gab(ikind, jkind)
+            gam2 = gama*gama
+            grc = 2._dp*gama*EXP(-gam2*dr2)*oorootpi/dr - erf(gama*dr)/dr2 &
+                  - 2._dp*alpha*EXP(-alpha**2*dr2)*oorootpi/dr + erf(alpha*dr)/dr2
+            IF (response_only) THEN
+               qq1 = -qlag(iatom)*charges(jatom)
+               qq2 = -qlag(jatom)*charges(iatom)
+            ELSE
+               qq1 = (0.5_dp*charges(iatom) - qlag(iatom))*charges(jatom)
+               qq2 = (0.5_dp*charges(jatom) - qlag(jatom))*charges(iatom)
+            END IF
+            fdik(:) = -qq1*grc*rij(:)/dr
+            gradient(:, iatom) = gradient(:, iatom) + fdik(:)
+            gradient(:, jatom) = gradient(:, jatom) - fdik(:)
+            IF (use_virial) THEN
+               CALL virial_pair_force(stress, 1._dp, fdik, rij)
+               IF (atprop%stress) THEN
+                  CALL virial_pair_force(atprop%atstress(:, :, iatom), -0.5_dp, fdik, rij)
+                  CALL virial_pair_force(atprop%atstress(:, :, jatom), -0.5_dp, fdik, rij)
+               END IF
+            END IF
+            fdik(:) = qq2*grc*rij(:)/dr
+            gradient(:, iatom) = gradient(:, iatom) - fdik(:)
+            gradient(:, jatom) = gradient(:, jatom) + fdik(:)
+            IF (use_virial) THEN
+               CALL virial_pair_force(stress, -1._dp, fdik, rij)
+               IF (atprop%stress) THEN
+                  CALL virial_pair_force(atprop%atstress(:, :, iatom), 0.5_dp, fdik, rij)
+                  CALL virial_pair_force(atprop%atstress(:, :, jatom), 0.5_dp, fdik, rij)
+               END IF
+            END IF
+         END DO
+         CALL neighbor_list_iterator_release(nl_iterator)
+         !
+         CALL release_neighbor_list_sets(sab_ew)
+      ELSE
+         DO ikind = 1, nkind
+            DO ia = 1, local_particles%n_el(ikind)
+               iatom = local_particles%list(ikind)%array(ia)
+               ri(1:3) = particle_set(iatom)%r(1:3)
+               DO jatom = 1, natom
+                  IF (iatom == jatom) CYCLE
+                  jkind = kind_of(jatom)
+                  IF (response_only) THEN
+                     qq = -qlag(iatom)*charges(jatom)
+                  ELSE
+                     qq = (0.5_dp*charges(iatom) - qlag(iatom))*charges(jatom)
+                  END IF
+                  rj(1:3) = particle_set(jatom)%r(1:3)
+                  rij(1:3) = ri(1:3) - rj(1:3)
+                  rij = pbc(rij, cell)
+                  dr2 = SUM(rij**2)
+                  dr = SQRT(dr2)
+                  gama = gab(ikind, jkind)
+                  gam2 = gama*gama
+                  grc = 2._dp*gama*EXP(-gam2*dr2)*oorootpi/dr - erf(gama*dr)/dr2
+                  fdik(:) = qq*grc*rij(:)/dr
+                  gradient(:, iatom) = gradient(:, iatom) + fdik(:)
+                  gradient(:, jatom) = gradient(:, jatom) - fdik(:)
+               END DO
+            END DO
+         END DO
+      END IF
+
+      ! Forces from Ewald potential: (q+l)*A*q
+      IF (do_ewald) THEN
+         ALLOCATE (epforce(3, natom))
+         epforce = 0.0_dp
+         IF (response_only) THEN
+            dchia(1:natom) = qlag(1:natom)
+         ELSE
+            dchia(1:natom) = -charges(1:natom) + qlag(1:natom)
+         END IF
+         chrgx(1:natom) = charges(1:natom)
+         CALL spme_forces(ewald_env, ewald_pw, cell, particle_set, chrgx, &
+                          particle_set, dchia, epforce)
+         dchia(1:natom) = charges(1:natom)
+         chrgx(1:natom) = qlag(1:natom)
+         CALL spme_forces(ewald_env, ewald_pw, cell, particle_set, chrgx, &
+                          particle_set, dchia, epforce)
+         gradient(1:3, 1:natom) = gradient(1:3, 1:natom) + epforce(1:3, 1:natom)
+         DEALLOCATE (epforce)
+
+         ! virial
+         IF (use_virial) THEN
+            IF (response_only) THEN
+               chrgx(1:natom) = -qlag(1:natom)
+            ELSE
+               chrgx(1:natom) = charges(1:natom) - qlag(1:natom)
+            END IF
+            CALL spme_virial(ewald_env, ewald_pw, particle_set, cell, chrgx, pvir)
+            stress = stress + pvir
+            chrgx(1:natom) = qlag(1:natom)
+            CALL spme_virial(ewald_env, ewald_pw, particle_set, cell, chrgx, pvir)
+            stress = stress - pvir
+         END IF
+         !
+         CALL ewald_env_release(ewald_env)
+         CALL ewald_pw_release(ewald_pw)
+         DEALLOCATE (ewald_env, ewald_pw)
+      END IF
+
+      CALL cnumber_release(cnumbers, dcnum, .TRUE.)
+
+      DEALLOCATE (gab, gam, qlag, chrgx, dchia)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE eeq_forces
+
+! **************************************************************************************************
+!> \brief ...
+!> \param qs_env ...
+!> \param cnumbers ...
+!> \param dcnum ...
+!> \param calculate_forces ...
+! **************************************************************************************************
+   SUBROUTINE get_cnumbers(qs_env, cnumbers, dcnum, calculate_forces)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: cnumbers
+      TYPE(dcnum_type), ALLOCATABLE, DIMENSION(:)        :: dcnum
+      LOGICAL, INTENT(IN)                                :: calculate_forces
 
       INTEGER                                            :: ikind, natom, nkind, za
       LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: default_present
@@ -395,7 +663,6 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: pair_radius
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(dcnum_type), ALLOCATABLE, DIMENSION(:)        :: dcnum
       TYPE(distribution_1d_type), POINTER                :: distribution_1d
       TYPE(distribution_2d_type), POINTER                :: distribution_2d
       TYPE(local_atoms_type), ALLOCATABLE, DIMENSION(:)  :: atom2d
@@ -424,6 +691,7 @@ CONTAINS
       disp%max_elem = maxElem
       ALLOCATE (disp%rcov(maxElem))
       disp%rcov(1:maxElem) = bohr*disp%k2*rcov(1:maxElem)
+      subcells = 2.0_dp
       ! Build the neighbor lists for the CN
       NULLIFY (sab_cn)
       ALLOCATE (c_radius(nkind), default_present(nkind), pair_radius(nkind, nkind))
@@ -444,7 +712,7 @@ CONTAINS
       CALL atom2d_cleanup(atom2d)
 
       ! Calculate coordination numbers
-      CALL cnumber_init(qs_env, cnumbers, dcnum, 2, .FALSE.)
+      CALL cnumber_init(qs_env, cnumbers, dcnum, 2, calculate_forces)
 
       CALL qs_dispersion_release(disp)
 
@@ -492,24 +760,13 @@ CONTAINS
       INTEGER, INTENT(IN), OPTIONAL                      :: iounit
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'eeq_solver'
-      REAL(KIND=dp), PARAMETER                           :: eps_pcg = 1.E-7_dp
+      LOGICAL, PARAMETER                                 :: do_direct = .TRUE.
 
-      INTEGER                                            :: ewald_type, handle, i, ia, iac, iar, ic, &
-                                                            ikind, ir, iunit, ix, iy, iz, jkind, &
-                                                            natom, ncloc, ncvloc, nkind, nrloc, &
-                                                            nrvloc, ns
-      INTEGER, DIMENSION(3)                              :: cvec, ncell, periodic
-      INTEGER, DIMENSION(:), POINTER                     :: cind, cvind, rind, rvind
-      LOGICAL                                            :: do_ewald, do_frcg, do_sparse
-      REAL(KIND=dp)                                      :: ad, alk, alpha, betak, deth, dr, ffk, &
-                                                            ffk1, grc, grc1, grc2, papk, qtot, &
-                                                            rcut, rdl, res, rmax, rzk, rzkm, rzkp, &
-                                                            xr
-      REAL(KIND=dp), DIMENSION(3)                        :: ri, rij, rijl, rj
-      REAL(KIND=dp), DIMENSION(3, 3)                     :: hmat
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: av0, pv0, rv0, xv0, zv0
-      TYPE(cp_fm_struct_type), POINTER                   :: mat_struct, vec_struct
-      TYPE(cp_fm_type)                                   :: eeq_mat, mmat, pmat, rhs_vec
+      INTEGER                                            :: handle, iunit, natom, nkind, ns
+      LOGICAL                                            :: do_ewald, do_sparse
+      REAL(KIND=dp)                                      :: qtot
+      TYPE(cp_fm_struct_type), POINTER                   :: mat_struct
+      TYPE(cp_fm_type)                                   :: eeq_mat
 
       CALL timeset(routineN, handle)
 
@@ -532,271 +789,37 @@ CONTAINS
       !
       natom = SIZE(particle_set)
       nkind = SIZE(gam)
+      ns = natom + 1
+      IF (do_ewald .AND. .NOT. do_direct) ns = natom
+      CALL cp_fm_struct_create(mat_struct, context=blacs_env, para_env=para_env, &
+                               nrow_global=ns, ncol_global=ns)
+      CALL cp_fm_create(eeq_mat, mat_struct)
+      CALL cp_fm_set_all(eeq_mat, 0.0_dp, 0.0_dp)
       !
       IF (do_ewald) THEN
          CPASSERT(PRESENT(ewald_env))
          CPASSERT(PRESENT(ewald_pw))
-         ! optimizer
-         IF (dft_control%apply_period_efield .AND. dft_control%period_efield%displacement_field) THEN
-            do_frcg = .TRUE.
+         IF (do_direct) THEN
+            IF (dft_control%apply_period_efield .AND. dft_control%period_efield%displacement_field) THEN
+               CPABORT("NYA")
+            ELSE
+               CALL fpbc_solver(charges, lambda, eeq_energy, eeq_mat, particle_set, &
+                                kind_of, cell, chia, gam, gab, totalcharge, ewald_env, ewald_pw, iounit)
+            END IF
          ELSE
-            do_frcg = .FALSE.
-         END IF
-         !
-         CALL get_cell(cell=cell, deth=deth)
-         CALL ewald_env_get(ewald_env, alpha=alpha, rcut=rcut, ewald_type=ewald_type)
-         ad = 2.0_dp*alpha*oorootpi
-         IF (ewald_type /= do_ewald_spme) THEN
-            CALL cp_abort(__LOCATION__, "Only SPME Ewald method available with EEQ.")
-         END IF
-         ! check alpha for MIC
-         !
-         rmax = 2.0_dp*rcut
-         ! max cells used
-         CALL get_cell(cell, h=hmat, periodic=periodic)
-         ncell(1) = CEILING(rmax/plane_distance(1, 0, 0, cell))
-         ncell(2) = CEILING(rmax/plane_distance(0, 1, 0, cell))
-         ncell(3) = CEILING(rmax/plane_distance(0, 0, 1, cell))
-         IF (periodic(1) == 0) ncell(1) = 0
-         IF (periodic(2) == 0) ncell(2) = 0
-         IF (periodic(3) == 0) ncell(3) = 0
-         !
-         ns = natom
-         CALL cp_fm_struct_create(mat_struct, context=blacs_env, para_env=para_env, &
-                                  nrow_global=ns, ncol_global=ns)
-         CALL cp_fm_create(eeq_mat, mat_struct)
-         CALL cp_fm_set_all(eeq_mat, 0.0_dp, 0.0_dp)
-         CALL cp_fm_create(pmat, mat_struct)
-         CALL cp_fm_set_all(pmat, 0.0_dp, 0.0_dp)
-         CALL cp_fm_create(mmat, mat_struct)
-         CALL cp_fm_set_all(mmat, 0.0_dp, 0.0_dp)
-         CALL cp_fm_get_info(eeq_mat, nrow_local=nrloc, ncol_local=ncloc, &
-                             row_indices=rind, col_indices=cind)
-         ! response matrix
-         DO ir = 1, nrloc
-            iar = rind(ir)
-            ikind = kind_of(iar)
-            ri(1:3) = particle_set(iar)%r(1:3)
-            DO ic = 1, ncloc
-               iac = cind(ic)
-               jkind = kind_of(iac)
-               rj(1:3) = particle_set(iac)%r(1:3)
-               rij(1:3) = ri(1:3) - rj(1:3)
-               rij = pbc(rij, cell)
-               DO ix = -ncell(1), ncell(1)
-                  DO iy = -ncell(2), ncell(2)
-                     DO iz = -ncell(3), ncell(3)
-                        cvec = [ix, iy, iz]
-                        rijl = rij + MATMUL(hmat, cvec)
-                        dr = SQRT(SUM(rijl**2))
-                        IF (dr > rmax) CYCLE
-                        IF (iar == iac) THEN
-                           grc2 = gam(ikind) + 2.0_dp*gab(ikind, ikind)*oorootpi
-                           grc1 = grc2 - ad
-                        ELSE
-                           grc1 = erf(gab(ikind, jkind)*dr)/dr - erf(alpha*dr)/dr
-                           IF (dr < rmax) THEN
-                              grc2 = erf(gab(ikind, jkind)*dr)/dr
-                           ELSE
-                              grc2 = 0.0_dp
-                           END IF
-                        END IF
-                        eeq_mat%local_data(ir, ic) = eeq_mat%local_data(ir, ic) + grc1
-                        pmat%local_data(ir, ic) = pmat%local_data(ir, ic) + grc2
-                     END DO
-                  END DO
-               END DO
-            END DO
-         END DO
-         !
-         ! preconditioner invers
-         CALL cp_fm_invert(pmat, mmat)
-         !
-         ALLOCATE (av0(natom), xv0(natom), rv0(natom), pv0(natom), zv0(natom))
-         ! Initial guess
-         CALL cp_fm_matvec(mmat, -chia, xv0)
-         grc = (SUM(xv0) - qtot)/REAL(natom, KIND=dp)
-         xv0 = xv0 - grc
-         CALL apply_potential(eeq_mat, ewald_env, ewald_pw, dft_control, &
-                              cell, particle_set, xv0, rv0)
-         rv0 = -(chia + rv0)
-         grc = SUM(rv0)/REAL(natom, KIND=dp)
-         rv0 = rv0 - grc
-         res = SQRT(SUM(rv0*rv0))
-         IF (iunit > 0) THEN
-            WRITE (iunit, '(A)', advance='NO') " EEQ| "
-         END IF
-         !
-         IF (do_frcg) THEN
-            ! Fletcher-Reeves nonlinear CG
-            alk = 0.50_dp
-            pv0 = rv0
-            ffk = DOT_PRODUCT(rv0, rv0)
-            DO i = 1, 10*natom
-               xv0 = xv0 + alk*pv0
-               CALL apply_potential(eeq_mat, ewald_env, ewald_pw, dft_control, &
-                                    cell, particle_set, xv0, rv0)
-               rv0 = rv0 + chia
-               grc = SUM(rv0)/REAL(natom, KIND=dp)
-               rv0 = rv0 - grc
-               ffk1 = DOT_PRODUCT(rv0, rv0)
-               IF (iunit > 0) THEN
-                  res = SQRT(ffk1)
-                  rdl = MAX(-LOG10(res), 0.0_dp)
-                  WRITE (iunit, '(I1)', advance='NO') MIN(NINT(rdl), 9)
-                  IF (MOD(i, 75) == 0) THEN
-                     WRITE (iunit, *)
-                     WRITE (iunit, '(A)', advance='NO') " EEQ| "
-                  END IF
-               END IF
-               IF (res < eps_pcg) EXIT
-               betak = ffk1/ffk
-               pv0 = -rv0 + betak*pv0
-               ffk = ffk1
-            END DO
-         ELSE
-            ! Standard linear PCG
-            CALL cp_fm_matvec(mmat, rv0, zv0)
-            grc = SUM(zv0)/REAL(natom, KIND=dp)
-            zv0 = zv0 - grc
-            pv0 = zv0
-            DO i = 1, natom + 1
-               rzk = DOT_PRODUCT(rv0, zv0)
-               CALL apply_potential(eeq_mat, ewald_env, ewald_pw, dft_control, &
-                                    cell, particle_set, pv0, av0)
-               grc = SUM(av0)/REAL(natom, KIND=dp)
-               av0 = av0 - grc
-               papk = DOT_PRODUCT(pv0, av0)
-               alk = rzk/papk
-               xv0 = xv0 + alk*pv0
-               rv0 = rv0 - alk*av0
-               rzkm = DOT_PRODUCT(rv0, zv0)
-               res = SQRT(DOT_PRODUCT(rv0, rv0))
-               !
-               CALL apply_potential(eeq_mat, ewald_env, ewald_pw, dft_control, &
-                                    cell, particle_set, xv0, zv0)
-               IF (iunit > 0) THEN
-                  rdl = MAX(-LOG10(res), 0.0_dp)
-                  WRITE (iunit, '(I1)', advance='NO') MIN(NINT(rdl), 9)
-                  IF (MOD(i, 75) == 0) THEN
-                     WRITE (iunit, *)
-                     WRITE (iunit, '(A)', advance='NO') " EEQ| "
-                  END IF
-               END IF
-               IF (res < eps_pcg) EXIT
-               CALL cp_fm_matvec(mmat, rv0, zv0)
-               grc = SUM(zv0)/REAL(natom, KIND=dp)
-               zv0 = zv0 - grc
-               rzkp = DOT_PRODUCT(rv0, zv0)
-               betak = rzkp/rzk - rzkm/rzk
-               pv0 = zv0 + betak*pv0
-            END DO
-         END IF
-         !
-         charges = xv0
-         CALL apply_potential(eeq_mat, ewald_env, ewald_pw, dft_control, &
-                              cell, particle_set, xv0, rv0)
-         rv0 = -(chia + rv0)
-         lambda = SUM(rv0)/REAL(natom, KIND=dp)
-         rv0 = rv0 - lambda
-         res = SQRT(SUM(rv0*rv0))
-         IF (iunit > 0) WRITE (iunit, *)
-         IF (res > eps_pcg) THEN
-            IF (iunit > 0) THEN
-               WRITE (iunit, '(A,T61,E20.6)') " EEQ| WARNING PCG did not converge", res
+            IF (dft_control%apply_period_efield .AND. dft_control%period_efield%displacement_field) THEN
+               CPABORT("NYA")
+            ELSE
+               CALL pbc_solver(charges, lambda, eeq_energy, eeq_mat, particle_set, dft_control, &
+                               kind_of, cell, chia, gam, gab, totalcharge, ewald_env, ewald_pw, iounit)
             END IF
          END IF
-         !
-         DEALLOCATE (av0, xv0, rv0, pv0, zv0)
-         !
       ELSE
-         ns = natom + 1
-         CALL cp_fm_struct_create(mat_struct, context=blacs_env, para_env=para_env, &
-                                  nrow_global=ns, ncol_global=ns)
-         CALL cp_fm_create(eeq_mat, mat_struct)
-         CALL cp_fm_get_info(eeq_mat, nrow_local=nrloc, ncol_local=ncloc, &
-                             row_indices=rind, col_indices=cind)
-         CALL cp_fm_struct_create(vec_struct, context=blacs_env, para_env=para_env, &
-                                  nrow_global=ns, ncol_global=1)
-         CALL cp_fm_create(rhs_vec, vec_struct)
-         CALL cp_fm_get_info(rhs_vec, nrow_local=nrvloc, ncol_local=ncvloc, &
-                             row_indices=rvind, col_indices=cvind)
-         !
-         ! set up matrix
-         CALL cp_fm_set_all(eeq_mat, 1.0_dp, 0.0_dp)
-         CALL cp_fm_set_all(rhs_vec, 0.0_dp)
-         DO ir = 1, nrloc
-            iar = rind(ir)
-            ikind = kind_of(iar)
-            IF (iar > natom) CYCLE
-            ri(1:3) = particle_set(iar)%r(1:3)
-            DO ic = 1, ncloc
-               iac = cind(ic)
-               jkind = kind_of(iac)
-               IF (iac > natom) CYCLE
-               rj(1:3) = particle_set(iac)%r(1:3)
-               IF (iar == iac) THEN
-                  grc = gam(ikind) + 2.0_dp*gab(ikind, ikind)*oorootpi
-               ELSE
-                  rij(1:3) = ri(1:3) - rj(1:3)
-                  rij = pbc(rij, cell)
-                  dr = SQRT(SUM(rij**2))
-                  grc = erf(gab(ikind, jkind)*dr)/dr
-               END IF
-               eeq_mat%local_data(ir, ic) = grc
-            END DO
-         END DO
-         ! set up rhs vector
-         DO ir = 1, nrvloc
-            iar = rvind(ir)
-            DO ic = 1, ncvloc
-               iac = cvind(ic)
-               ia = MAX(iar, iac)
-               IF (ia > natom) THEN
-                  xr = qtot
-               ELSE
-                  xr = -chia(ia)
-               END IF
-               rhs_vec%local_data(ir, ic) = xr
-            END DO
-         END DO
-         !
-         CALL cp_fm_solve(eeq_mat, rhs_vec)
-         !
-         charges = 0.0_dp
-         lambda = 0.0_dp
-         DO ir = 1, nrvloc
-            iar = rvind(ir)
-            DO ic = 1, ncvloc
-               iac = cvind(ic)
-               ia = MAX(iar, iac)
-               IF (ia <= natom) THEN
-                  xr = rhs_vec%local_data(ir, ic)
-                  charges(ia) = xr
-               ELSE
-                  lambda = rhs_vec%local_data(ir, ic)
-               END IF
-            END DO
-         END DO
-         CALL para_env%sum(lambda)
-         CALL para_env%sum(charges)
-         !
+         CALL mi_solver(charges, lambda, eeq_energy, eeq_mat, particle_set, kind_of, &
+                        cell, chia, gam, gab, totalcharge)
       END IF
-      !
-      ! energy:   0.5*(q^T.X - lambda*totalcharge)
-      eeq_energy = 0.5*SUM(charges(1:natom)*chia(1:natom)) - 0.5_dp*lambda*qtot
-
-      IF (do_ewald) THEN
-         CALL cp_fm_struct_release(mat_struct)
-         CALL cp_fm_release(eeq_mat)
-         CALL cp_fm_release(pmat)
-         CALL cp_fm_release(mmat)
-      ELSE
-         CALL cp_fm_struct_release(mat_struct)
-         CALL cp_fm_struct_release(vec_struct)
-         CALL cp_fm_release(eeq_mat)
-         CALL cp_fm_release(rhs_vec)
-      END IF
+      CALL cp_fm_struct_release(mat_struct)
+      CALL cp_fm_release(eeq_mat)
 
       CALL timestop(handle)
 
@@ -804,21 +827,547 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
-!> \param fm_mat ...
+!> \param charges ...
+!> \param lambda ...
+!> \param eeq_energy ...
+!> \param eeq_mat ...
+!> \param particle_set ...
+!> \param kind_of ...
+!> \param cell ...
+!> \param chia ...
+!> \param gam ...
+!> \param gab ...
+!> \param totalcharge ...
+! **************************************************************************************************
+   SUBROUTINE mi_solver(charges, lambda, eeq_energy, eeq_mat, particle_set, kind_of, cell, &
+                        chia, gam, gab, totalcharge)
+
+      REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: charges
+      REAL(KIND=dp), INTENT(INOUT)                       :: lambda, eeq_energy
+      TYPE(cp_fm_type)                                   :: eeq_mat
+      TYPE(particle_type), DIMENSION(:), INTENT(IN)      :: particle_set
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: kind_of
+      TYPE(cell_type), POINTER                           :: cell
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: chia, gam
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: gab
+      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: totalcharge
+
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'mi_solver'
+
+      INTEGER                                            :: handle, ia, iac, iar, ic, ikind, ir, &
+                                                            jkind, natom, ncloc, ncvloc, nkind, &
+                                                            nrloc, nrvloc, ns
+      INTEGER, DIMENSION(:), POINTER                     :: cind, cvind, rind, rvind
+      REAL(KIND=dp)                                      :: dr, grc, qtot, xr
+      REAL(KIND=dp), DIMENSION(3)                        :: ri, rij, rj
+      TYPE(cp_fm_struct_type), POINTER                   :: mat_struct, vec_struct
+      TYPE(cp_fm_type)                                   :: rhs_vec
+      TYPE(mp_para_env_type), POINTER                    :: para_env
+
+      CALL timeset(routineN, handle)
+
+      qtot = 0.0_dp
+      IF (PRESENT(totalcharge)) qtot = totalcharge
+      !
+      natom = SIZE(particle_set)
+      nkind = SIZE(gam)
+      !
+      ns = natom + 1
+      CALL cp_fm_get_info(eeq_mat, matrix_struct=mat_struct, para_env=para_env)
+      CALL cp_fm_get_info(eeq_mat, nrow_local=nrloc, ncol_local=ncloc, &
+                          row_indices=rind, col_indices=cind)
+      CALL cp_fm_struct_create(vec_struct, template_fmstruct=mat_struct, &
+                               nrow_global=ns, ncol_global=1)
+      CALL cp_fm_create(rhs_vec, vec_struct)
+      CALL cp_fm_get_info(rhs_vec, nrow_local=nrvloc, ncol_local=ncvloc, &
+                          row_indices=rvind, col_indices=cvind)
+      !
+      ! set up matrix
+      CALL cp_fm_set_all(eeq_mat, 1.0_dp, 0.0_dp)
+      CALL cp_fm_set_all(rhs_vec, 0.0_dp)
+      DO ir = 1, nrloc
+         iar = rind(ir)
+         IF (iar > natom) CYCLE
+         ikind = kind_of(iar)
+         ri(1:3) = particle_set(iar)%r(1:3)
+         DO ic = 1, ncloc
+            iac = cind(ic)
+            IF (iac > natom) CYCLE
+            jkind = kind_of(iac)
+            rj(1:3) = particle_set(iac)%r(1:3)
+            IF (iar == iac) THEN
+               grc = gam(ikind) + 2.0_dp*gab(ikind, ikind)*oorootpi
+            ELSE
+               rij(1:3) = ri(1:3) - rj(1:3)
+               rij = pbc(rij, cell)
+               dr = SQRT(SUM(rij**2))
+               grc = erf(gab(ikind, jkind)*dr)/dr
+            END IF
+            eeq_mat%local_data(ir, ic) = grc
+         END DO
+      END DO
+      ! set up rhs vector
+      DO ir = 1, nrvloc
+         iar = rvind(ir)
+         DO ic = 1, ncvloc
+            iac = cvind(ic)
+            ia = MAX(iar, iac)
+            IF (ia > natom) THEN
+               xr = qtot
+            ELSE
+               xr = -chia(ia)
+            END IF
+            rhs_vec%local_data(ir, ic) = xr
+         END DO
+      END DO
+      !
+      CALL cp_fm_solve(eeq_mat, rhs_vec)
+      !
+      charges = 0.0_dp
+      lambda = 0.0_dp
+      DO ir = 1, nrvloc
+         iar = rvind(ir)
+         DO ic = 1, ncvloc
+            iac = cvind(ic)
+            ia = MAX(iar, iac)
+            IF (ia <= natom) THEN
+               xr = rhs_vec%local_data(ir, ic)
+               charges(ia) = xr
+            ELSE
+               lambda = rhs_vec%local_data(ir, ic)
+            END IF
+         END DO
+      END DO
+      CALL para_env%sum(lambda)
+      CALL para_env%sum(charges)
+      !
+      ! energy:   0.5*(q^T.X - lambda*totalcharge)
+      eeq_energy = 0.5*SUM(charges(1:natom)*chia(1:natom)) - 0.5_dp*lambda*qtot
+
+      CALL cp_fm_struct_release(vec_struct)
+      CALL cp_fm_release(rhs_vec)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE mi_solver
+
+! **************************************************************************************************
+!> \brief ...
+!> \param charges ...
+!> \param lambda ...
+!> \param eeq_energy ...
+!> \param eeq_mat ...
+!> \param particle_set ...
+!> \param dft_control ...
+!> \param kind_of ...
+!> \param cell ...
+!> \param chia ...
+!> \param gam ...
+!> \param gab ...
+!> \param totalcharge ...
 !> \param ewald_env ...
 !> \param ewald_pw ...
-!> \param dft_control ...
+!> \param iounit ...
+! **************************************************************************************************
+   SUBROUTINE pbc_solver(charges, lambda, eeq_energy, eeq_mat, particle_set, dft_control, &
+                         kind_of, cell, chia, gam, gab, totalcharge, ewald_env, ewald_pw, iounit)
+
+      REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: charges
+      REAL(KIND=dp), INTENT(INOUT)                       :: lambda, eeq_energy
+      TYPE(cp_fm_type)                                   :: eeq_mat
+      TYPE(particle_type), DIMENSION(:), INTENT(IN)      :: particle_set
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: kind_of
+      TYPE(cell_type), POINTER                           :: cell
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: chia, gam
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: gab
+      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: totalcharge
+      TYPE(ewald_environment_type), POINTER              :: ewald_env
+      TYPE(ewald_pw_type), POINTER                       :: ewald_pw
+      INTEGER, INTENT(IN), OPTIONAL                      :: iounit
+
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'pbc_solver'
+      REAL(KIND=dp), PARAMETER                           :: eps_pcg = 1.E-7_dp
+
+      INTEGER                                            :: ewald_type, handle, iac, iar, ic, ikind, &
+                                                            ir, iunit, iv, ix, iy, iz, jkind, &
+                                                            natom, ncloc, nkind, nrloc
+      INTEGER, DIMENSION(3)                              :: cvec, ncell, periodic
+      INTEGER, DIMENSION(:), POINTER                     :: cind, rind
+      REAL(KIND=dp)                                      :: ad, alpha, deth, dr, eeqn, grc1, grc2, &
+                                                            qtot, rcut, res, rmax
+      REAL(KIND=dp), DIMENSION(3)                        :: ri, rij, rijl, rj
+      REAL(KIND=dp), DIMENSION(3, 3)                     :: hmat
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: rv0, xv0
+      TYPE(cp_fm_struct_type), POINTER                   :: mat_struct
+      TYPE(cp_fm_type)                                   :: mmat, pmat
+      TYPE(mp_para_env_type), POINTER                    :: para_env
+
+      CALL timeset(routineN, handle)
+
+      qtot = 0.0_dp
+      IF (PRESENT(totalcharge)) qtot = totalcharge
+
+      iunit = -1
+      IF (PRESENT(iounit)) iunit = iounit
+
+      natom = SIZE(particle_set)
+      nkind = SIZE(gam)
+      !
+      CALL get_cell(cell=cell, deth=deth)
+      CALL ewald_env_get(ewald_env, alpha=alpha, rcut=rcut, ewald_type=ewald_type)
+      ad = 2.0_dp*alpha*oorootpi
+      IF (ewald_type /= do_ewald_spme) THEN
+         CALL cp_abort(__LOCATION__, "Only SPME Ewald method available with EEQ.")
+      END IF
+      !
+      rmax = 2.0_dp*rcut
+      ! max cells used
+      CALL get_cell(cell, h=hmat, periodic=periodic)
+      ncell(1) = CEILING(rmax/plane_distance(1, 0, 0, cell))
+      ncell(2) = CEILING(rmax/plane_distance(0, 1, 0, cell))
+      ncell(3) = CEILING(rmax/plane_distance(0, 0, 1, cell))
+      IF (periodic(1) == 0) ncell(1) = 0
+      IF (periodic(2) == 0) ncell(2) = 0
+      IF (periodic(3) == 0) ncell(3) = 0
+      !
+      CALL cp_fm_get_info(eeq_mat, matrix_struct=mat_struct, para_env=para_env)
+      CALL cp_fm_set_all(eeq_mat, 0.0_dp, 0.0_dp)
+      CALL cp_fm_create(pmat, mat_struct)
+      CALL cp_fm_set_all(pmat, 0.0_dp, 0.0_dp)
+      CALL cp_fm_create(mmat, mat_struct)
+      CALL cp_fm_set_all(mmat, 0.0_dp, 0.0_dp)
+      CALL cp_fm_get_info(eeq_mat, nrow_local=nrloc, ncol_local=ncloc, &
+                          row_indices=rind, col_indices=cind)
+      ! response matrix
+      DO ir = 1, nrloc
+         iar = rind(ir)
+         ikind = kind_of(iar)
+         ri(1:3) = particle_set(iar)%r(1:3)
+         DO ic = 1, ncloc
+            iac = cind(ic)
+            jkind = kind_of(iac)
+            rj(1:3) = particle_set(iac)%r(1:3)
+            rij(1:3) = ri(1:3) - rj(1:3)
+            rij = pbc(rij, cell)
+            DO ix = -ncell(1), ncell(1)
+               DO iy = -ncell(2), ncell(2)
+                  DO iz = -ncell(3), ncell(3)
+                     cvec = [ix, iy, iz]
+                     rijl = rij + MATMUL(hmat, cvec)
+                     dr = SQRT(SUM(rijl**2))
+                     IF (dr > rmax) CYCLE
+                     IF (iar == iac) THEN
+                        grc2 = gam(ikind) + 2.0_dp*gab(ikind, ikind)*oorootpi
+                        grc1 = grc2 - ad
+                     ELSE
+                        grc1 = erf(gab(ikind, jkind)*dr)/dr - erf(alpha*dr)/dr
+                        grc2 = erf(gab(ikind, jkind)*dr)/dr
+                     END IF
+                     eeq_mat%local_data(ir, ic) = eeq_mat%local_data(ir, ic) + grc1
+                     pmat%local_data(ir, ic) = pmat%local_data(ir, ic) + grc2
+                  END DO
+               END DO
+            END DO
+         END DO
+      END DO
+      !
+      ! preconditioner invers
+      CALL cp_fm_invert(pmat, mmat)
+      !
+      ALLOCATE (xv0(natom), rv0(natom))
+      ! initial guess
+      xv0(1:natom) = charges(1:natom)
+      CALL get_energy_gradient(eeqn, eeq_mat, ewald_env, ewald_pw, dft_control, &
+                               cell, particle_set, xv0, lambda, chia, rv0)
+      res = SQRT(SUM(rv0*rv0))
+      DO iv = 1, 20
+         IF (iunit > 0) THEN
+            WRITE (iunit, *) " EEQ| ", eeqn, lambda, res
+         END IF
+         xv0(1:natom) = xv0(1:natom) - 0.1_dp*rv0(1:natom)
+         CALL cp_fm_matvec(mmat, rv0, xv0, alpha=-0.1_dp, beta=1.0_dp)
+         CALL get_energy_gradient(eeqn, eeq_mat, ewald_env, ewald_pw, dft_control, &
+                                  cell, particle_set, xv0, lambda, chia, rv0)
+         res = SQRT(SUM(rv0*rv0))
+         IF (res < eps_pcg) EXIT
+      END DO
+
+!        ! DIIS optimizer
+!        mdiis = 5
+!        ALLOCATE(xvec(ns,mdiis),fvec(ns,mdiis),bvec(ns))
+!        xvec = 0.0_dp; fvec=0.0_dp
+!        ALLOCATE(vmat(mdiis,mdiis),dmat(mdiis+1,mdiis+1),dvec(mdiis+1))
+!        dmat = 0.0_dp; dvec = 0.0_dp
+!        ndiis = 1
+!        now = 1
+!        ALLOCATE (av0(ns), xv0(ns), rv0(ns), pv0(ns), yv0(ns))
+!        CALL get_gradient(eeq_mat, ewald_env, ewald_pw, dft_control, &
+!                           cell, particle_set, xv0, bvec, rv0)
+!        CALL cp_fm_matvec(mmat, rv0, yv0, alpha=-1.0_dp, beta=0.0_dp)
+!        !
+!        IF (iunit > 0) THEN
+!           WRITE (iunit, '(A)', advance='NO') " EEQ| "
+!        END IF
+!        DO iv=1,50
+!           res = SQRT(SUM(yv0*yv0))
+!           IF (iunit > 0) THEN
+!              rdl = MAX(-LOG10(res), 0.0_dp)
+!              WRITE (iunit, '(I1)', advance='NO') MIN(NINT(rdl), 9)
+!              IF (MOD(i, 75) == 0) THEN
+!                 WRITE (iunit, *)
+!                 WRITE (iunit, '(A)', advance='NO') " EEQ| "
+!              END IF
+!           END IF
+!           IF (res < eps_pcg) EXIT
+!           !
+!           now = MOD(iv-1,mdiis) + 1
+!           ndiis = MIN(iv,mdiis)
+!           xvec(1:ns,now) = xv0(1:ns)
+!           fvec(1:ns,now) = yv0(1:ns)
+!           DO i=1,ndiis
+!              vmat(now,i) = SUM(fvec(:,now)*fvec(:,i))
+!              vmat(i,now) = vmat(now,i)
+!           END DO
+!           IF(ndiis == 1) THEN
+!              xv0(1:ns) = xv0(1:ns) - 0.25*yv0(1:ns)
+!           ELSE
+!              dvec = 0.0_dp
+!              dvec(ndiis+1) = 1.0_dp
+!              dmat(1:ndiis,1:ndiis) = vmat(1:ndiis,1:ndiis)
+!              dmat(ndiis+1,1:ndiis) = 1.0_dp
+!              dmat(1:ndiis,ndiis+1) = 1.0_dp
+!              dmat(ndiis+1,ndiis+1) = 0.0_dp
+!              CALL invmat(dmat(1:ndiis+1,1:ndiis+1),info)
+!              dvec(1:ndiis+1) = MATMUL(dmat(1:ndiis+1,1:ndiis+1),dvec(1:ndiis+1))
+!              xv0(1:ns) = MATMUL(xvec(1:ns,1:ndiis),dvec(1:ndiis))
+!           END IF
+!           !
+!           CALL get_gradient(eeq_mat, ewald_env, ewald_pw, dft_control, &
+!                              cell, particle_set, xv0, bvec, rv0)
+!           CALL cp_fm_matvec(mmat, rv0, yv0, alpha=-1.0_dp, beta=0.0_dp)
+!        END DO
+!        charges(1:natom) = xv0(1:natom)
+!        lambda = xv0(ns)
+!        !
+!        DEALLOCATE(xvec,fvec,bvec)
+!        DEALLOCATE(vmat,dmat,dvec)
+!     !
+!     DEALLOCATE (av0, xv0, rv0, pv0, yv0)
+      DEALLOCATE (xv0, rv0)
+      !
+      ! energy:   0.5*(q^T.X - lambda*totalcharge)
+      eeq_energy = 0.5*SUM(charges(1:natom)*chia(1:natom)) - 0.5_dp*lambda*qtot
+
+      CALL cp_fm_release(pmat)
+      CALL cp_fm_release(mmat)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE pbc_solver
+
+! **************************************************************************************************
+!> \brief ...
+!> \param charges ...
+!> \param lambda ...
+!> \param eeq_energy ...
+!> \param eeq_mat ...
+!> \param particle_set ...
+!> \param kind_of ...
+!> \param cell ...
+!> \param chia ...
+!> \param gam ...
+!> \param gab ...
+!> \param totalcharge ...
+!> \param ewald_env ...
+!> \param ewald_pw ...
+!> \param iounit ...
+! **************************************************************************************************
+   SUBROUTINE fpbc_solver(charges, lambda, eeq_energy, eeq_mat, particle_set, &
+                          kind_of, cell, chia, gam, gab, totalcharge, ewald_env, ewald_pw, iounit)
+
+      REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: charges
+      REAL(KIND=dp), INTENT(INOUT)                       :: lambda, eeq_energy
+      TYPE(cp_fm_type)                                   :: eeq_mat
+      TYPE(particle_type), DIMENSION(:), INTENT(IN)      :: particle_set
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: kind_of
+      TYPE(cell_type), POINTER                           :: cell
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: chia, gam
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: gab
+      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: totalcharge
+      TYPE(ewald_environment_type), POINTER              :: ewald_env
+      TYPE(ewald_pw_type), POINTER                       :: ewald_pw
+      INTEGER, INTENT(IN), OPTIONAL                      :: iounit
+
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'fpbc_solver'
+
+      INTEGER                                            :: ewald_type, handle, ia, iac, iar, ic, &
+                                                            ikind, ir, iunit, ix, iy, iz, jkind, &
+                                                            natom, ncloc, ncvloc, nkind, nrloc, &
+                                                            nrvloc, ns
+      INTEGER, DIMENSION(3)                              :: cvec, ncell, periodic
+      INTEGER, DIMENSION(:), POINTER                     :: cind, cvind, rind, rvind
+      REAL(KIND=dp)                                      :: ad, alpha, deth, dr, grc1, qtot, rcut, &
+                                                            rmax, xr
+      REAL(KIND=dp), DIMENSION(3)                        :: ri, rij, rijl, rj
+      REAL(KIND=dp), DIMENSION(3, 3)                     :: hmat
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: pval, xval
+      TYPE(cp_fm_struct_type), POINTER                   :: mat_struct, vec_struct
+      TYPE(cp_fm_type)                                   :: rhs_vec
+      TYPE(mp_para_env_type), POINTER                    :: para_env
+
+      CALL timeset(routineN, handle)
+
+      qtot = 0.0_dp
+      IF (PRESENT(totalcharge)) qtot = totalcharge
+
+      iunit = -1
+      IF (PRESENT(iounit)) iunit = iounit
+
+      natom = SIZE(particle_set)
+      nkind = SIZE(gam)
+      ns = natom + 1
+      !
+      CALL get_cell(cell=cell, deth=deth)
+      CALL ewald_env_get(ewald_env, alpha=alpha, rcut=rcut, ewald_type=ewald_type)
+      ad = 2.0_dp*alpha*oorootpi
+      IF (ewald_type /= do_ewald_spme) THEN
+         CALL cp_abort(__LOCATION__, "Only SPME Ewald method available with EEQ.")
+      END IF
+      !
+      rmax = 2.0_dp*rcut
+      ! max cells used
+      CALL get_cell(cell, h=hmat, periodic=periodic)
+      ncell(1) = CEILING(rmax/plane_distance(1, 0, 0, cell))
+      ncell(2) = CEILING(rmax/plane_distance(0, 1, 0, cell))
+      ncell(3) = CEILING(rmax/plane_distance(0, 0, 1, cell))
+      IF (periodic(1) == 0) ncell(1) = 0
+      IF (periodic(2) == 0) ncell(2) = 0
+      IF (periodic(3) == 0) ncell(3) = 0
+      !
+      CALL cp_fm_get_info(eeq_mat, matrix_struct=mat_struct, para_env=para_env)
+      CALL cp_fm_set_all(eeq_mat, 0.0_dp, 0.0_dp)
+      CALL cp_fm_get_info(eeq_mat, nrow_local=nrloc, ncol_local=ncloc, &
+                          row_indices=rind, col_indices=cind)
+      CALL cp_fm_struct_create(vec_struct, template_fmstruct=mat_struct, &
+                               nrow_global=ns, ncol_global=1)
+      CALL cp_fm_create(rhs_vec, vec_struct)
+      CALL cp_fm_get_info(rhs_vec, nrow_local=nrvloc, ncol_local=ncvloc, &
+                          row_indices=rvind, col_indices=cvind)
+      ! response matrix
+      DO ir = 1, nrloc
+         iar = rind(ir)
+         IF (iar <= natom) THEN
+            ikind = kind_of(iar)
+            ri(1:3) = particle_set(iar)%r(1:3)
+         END IF
+         DO ic = 1, ncloc
+            iac = cind(ic)
+            IF (iac > natom .AND. iar > natom) THEN
+               eeq_mat%local_data(ir, ic) = 0.0_dp
+               CYCLE
+            ELSE IF ((iac > natom) .OR. (iar > natom)) THEN
+               eeq_mat%local_data(ir, ic) = 1.0_dp
+               CYCLE
+            END IF
+            jkind = kind_of(iac)
+            rj(1:3) = particle_set(iac)%r(1:3)
+            rij(1:3) = ri(1:3) - rj(1:3)
+            rij = pbc(rij, cell)
+            DO ix = -ncell(1), ncell(1)
+               DO iy = -ncell(2), ncell(2)
+                  DO iz = -ncell(3), ncell(3)
+                     cvec = [ix, iy, iz]
+                     rijl = rij + MATMUL(hmat, cvec)
+                     dr = SQRT(SUM(rijl**2))
+                     IF (dr > rmax) CYCLE
+                     IF (iar == iac .AND. dr < 0.0001_dp) THEN
+                        grc1 = gam(ikind) + 2.0_dp*gab(ikind, ikind)*oorootpi - ad
+                     ELSE
+                        grc1 = erf(gab(ikind, jkind)*dr)/dr - erf(alpha*dr)/dr
+                     END IF
+                     eeq_mat%local_data(ir, ic) = eeq_mat%local_data(ir, ic) + grc1
+                  END DO
+               END DO
+            END DO
+         END DO
+      END DO
+      !
+      ALLOCATE (xval(natom), pval(natom))
+      DO ia = 1, natom
+         xval = 0.0_dp
+         xval(ia) = 1.0_dp
+         CALL apply_potential(ewald_env, ewald_pw, cell, particle_set, xval, pval)
+         !
+         DO ir = 1, nrloc
+            iar = rind(ir)
+            IF (iar /= ia) CYCLE
+            DO ic = 1, ncloc
+               iac = cind(ic)
+               IF (iac > natom) CYCLE
+               eeq_mat%local_data(ir, ic) = eeq_mat%local_data(ir, ic) + pval(iac)
+            END DO
+         END DO
+      END DO
+      DEALLOCATE (xval, pval)
+      !
+      ! set up rhs vector
+      DO ir = 1, nrvloc
+         iar = rvind(ir)
+         DO ic = 1, ncvloc
+            iac = cvind(ic)
+            ia = MAX(iar, iac)
+            IF (ia > natom) THEN
+               xr = qtot
+            ELSE
+               xr = -chia(ia)
+            END IF
+            rhs_vec%local_data(ir, ic) = xr
+         END DO
+      END DO
+      !
+      CALL cp_fm_solve(eeq_mat, rhs_vec)
+      !
+      charges = 0.0_dp
+      lambda = 0.0_dp
+      DO ir = 1, nrvloc
+         iar = rvind(ir)
+         DO ic = 1, ncvloc
+            iac = cvind(ic)
+            ia = MAX(iar, iac)
+            IF (ia <= natom) THEN
+               xr = rhs_vec%local_data(ir, ic)
+               charges(ia) = xr
+            ELSE
+               lambda = rhs_vec%local_data(ir, ic)
+            END IF
+         END DO
+      END DO
+      CALL para_env%sum(lambda)
+      CALL para_env%sum(charges)
+      !
+      ! energy:   0.5*(q^T.X - lambda*totalcharge)
+      eeq_energy = 0.5*SUM(charges(1:natom)*chia(1:natom)) - 0.5_dp*lambda*qtot
+
+      CALL cp_fm_struct_release(vec_struct)
+      CALL cp_fm_release(rhs_vec)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE fpbc_solver
+
+! **************************************************************************************************
+!> \brief ...
+!> \param ewald_env ...
+!> \param ewald_pw ...
 !> \param cell ...
 !> \param particle_set ...
 !> \param charges ...
 !> \param potential ...
 ! **************************************************************************************************
-   SUBROUTINE apply_potential(fm_mat, ewald_env, ewald_pw, dft_control, &
-                              cell, particle_set, charges, potential)
-      TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat
+   SUBROUTINE apply_potential(ewald_env, ewald_pw, cell, particle_set, charges, potential)
       TYPE(ewald_environment_type), POINTER              :: ewald_env
       TYPE(ewald_pw_type), POINTER                       :: ewald_pw
-      TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(cell_type), POINTER                           :: cell
       TYPE(particle_type), DIMENSION(:), INTENT(IN)      :: particle_set
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: charges
@@ -828,14 +1377,59 @@ CONTAINS
 
       CALL ewald_env_get(ewald_env, para_env=para_env)
       potential = 0.0_dp
-      CALL spme_potential(ewald_env, ewald_pw, cell, particle_set, charges, particle_set, potential)
+      CALL spme_potential(ewald_env, ewald_pw, cell, particle_set, charges, &
+                          particle_set, potential)
+      CALL para_env%sum(potential)
+
+   END SUBROUTINE apply_potential
+
+! **************************************************************************************************
+!> \brief ...
+!> \param eeqn ...
+!> \param fm_mat ...
+!> \param ewald_env ...
+!> \param ewald_pw ...
+!> \param dft_control ...
+!> \param cell ...
+!> \param particle_set ...
+!> \param charges ...
+!> \param lambda ...
+!> \param rhs ...
+!> \param potential ...
+! **************************************************************************************************
+   SUBROUTINE get_energy_gradient(eeqn, fm_mat, ewald_env, ewald_pw, dft_control, &
+                                  cell, particle_set, charges, lambda, rhs, potential)
+      REAL(KIND=dp), INTENT(INOUT)                       :: eeqn
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat
+      TYPE(ewald_environment_type), POINTER              :: ewald_env
+      TYPE(ewald_pw_type), POINTER                       :: ewald_pw
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(cell_type), POINTER                           :: cell
+      TYPE(particle_type), DIMENSION(:), INTENT(IN)      :: particle_set
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: charges
+      REAL(KIND=dp), INTENT(INOUT)                       :: lambda
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: rhs
+      REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: potential
+
+      INTEGER                                            :: na
+      TYPE(mp_para_env_type), POINTER                    :: para_env
+
+      na = SIZE(charges)
+      CALL ewald_env_get(ewald_env, para_env=para_env)
+      potential = 0.0_dp
+      CALL spme_potential(ewald_env, ewald_pw, cell, particle_set, charges(1:na), &
+                          particle_set, potential(1:na))
       CALL para_env%sum(potential)
       CALL cp_fm_matvec(fm_mat, charges, potential, alpha=1.0_dp, beta=1.0_dp)
       IF (dft_control%apply_period_efield .AND. dft_control%period_efield%displacement_field) THEN
-         CALL eeq_dfield_pot(charges, dft_control, particle_set, cell, potential)
+         CALL eeq_dfield_pot(charges(1:na), dft_control, particle_set, cell, potential(1:na))
       END IF
+      eeqn = 0.5_dp*SUM(charges*potential) + SUM(charges*rhs)
+      potential(1:na) = potential(1:na) + rhs(1:na)
+      lambda = -SUM(potential(1:na))/REAL(na, KIND=dp)
+      potential(1:na) = potential(1:na) + lambda
 
-   END SUBROUTINE apply_potential
+   END SUBROUTINE get_energy_gradient
 
 ! **************************************************************************************************
 !> \brief ...
@@ -897,9 +1491,6 @@ CONTAINS
                ef_energy = ef_energy + dfilter(idir)*(fieldpol(idir) - 2._dp*twopi*ci(idir))**2
             END DO
             ef_energy = -0.25_dp*omega/twopi*ef_energy
-!deb
-            WRITE (6, *) "DField energy  ", ef_energy
-!deb
          ELSE
             ef_energy = -SUM(fpolvec(:)*qi(:))
          END IF

@@ -131,6 +131,8 @@ list(
   dm_ls_scf_types.F
   domain_submatrix_methods.F
   domain_submatrix_types.F
+  eeq_data.F
+  eeq_model.F
   ec_efield_local.F
   ec_environment.F
   ec_env_types.F

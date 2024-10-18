@@ -944,6 +944,7 @@ CONTAINS
                           description="Information on the pair potential to calculate dispersion", &
                           n_keywords=5, n_subsections=0, repeats=.TRUE.)
       CALL keyword_create(keyword, __LOCATION__, name="R_CUTOFF", &
+                          variants=s2a("D3_CUTOFF", "D4_3B_CUTOFF"), &
                           description="Range of potential. The cutoff will be 2 times this value. "// &
                           "In the case of D4 it will be used for the 3-body term", &
                           usage="R_CUTOFF 20.0", default_r_val=20.0_dp, &
@@ -953,13 +954,13 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="D4_CUTOFF", &
                           description="Range of potential. The cutoff will be 2 times this value. "// &
                           "Only used for the 2-body term of D4", &
-                          usage="D4_CUTOFF 30.0", default_r_val=30.0_dp, &
+                          usage="D4_CUTOFF 30.0", default_r_val=20.0_dp, &
                           unit_str="angstrom")
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="D4_CN_CUTOFF", &
                           description="Coordination number cutoff for D4", &
-                          usage="D4_CN_CUTOFF 30.0", default_r_val=30.0_dp, &
+                          usage="D4_CN_CUTOFF 30.0", default_r_val=10.0_dp, &
                           unit_str="angstrom")
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
@@ -1006,9 +1007,10 @@ CONTAINS
                           usage="SCALING 0.2", default_r_val=0._dp)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
-      CALL keyword_create(keyword, __LOCATION__, name="EXP_PRE", &
+      CALL keyword_create(keyword, __LOCATION__, name="D2_EXP_PRE", &
+                          variants=["EXP_PRE"], &
                           description="Prefactor in exponential damping factor (DFT-D2 potential)", &
-                          usage="EXP_PRE 20.", default_r_val=20._dp)
+                          usage="D2_EXP_PRE 20.", default_r_val=20._dp)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="EPS_CN", &

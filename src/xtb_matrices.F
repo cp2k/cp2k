@@ -40,6 +40,7 @@ MODULE xtb_matrices
                                               cp_print_key_finished_output,&
                                               cp_print_key_should_output,&
                                               cp_print_key_unit_nr
+   USE input_constants,                 ONLY: vdw_pairpot_dftd4
    USE input_section_types,             ONLY: section_vals_val_get
    USE kinds,                           ONLY: dp
    USE kpoint_types,                    ONLY: get_kpoint_info,&
@@ -289,12 +290,23 @@ CONTAINS
       energy%eeq = eeq_energy
       energy%efield = ef_energy
 
-!deb vdW
       CALL get_qs_env(qs_env=qs_env, dispersion_env=dispersion_env)
+      ! prepare charges (needed for D4)
+      IF (dispersion_env%pp_type == vdw_pairpot_dftd4) THEN
+         dispersion_env%ext_charges = .TRUE.
+         IF (.NOT. ASSOCIATED(dispersion_env%charges)) ALLOCATE (dispersion_env%charges(natom))
+         dispersion_env%charges = charges
+         IF (calculate_forces) THEN
+            IF (.NOT. ASSOCIATED(dispersion_env%dcharges)) ALLOCATE (dispersion_env%dcharges(natom))
+         END IF
+      END IF
       CALL calculate_dispersion_pairpot(qs_env, dispersion_env, &
                                         energy%dispersion, calculate_forces)
-      ! for D4: update dcharges
-!deb vdW
+      IF (calculate_forces) THEN
+         IF (dispersion_env%pp_type == vdw_pairpot_dftd4 .AND. dispersion_env%ext_charges) THEN
+            dcharges(1:natom) = dcharges(1:natom) + dispersion_env%dcharges(1:natom)
+         END IF
+      END IF
 
       ! Calculate Huckel parameters
       CALL gfn0_huckel(qs_env, cnumbers, charges, huckel, dhuckel, dqhuckel, calculate_forces)

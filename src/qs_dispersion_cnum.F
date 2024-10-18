@@ -43,7 +43,7 @@ MODULE qs_dispersion_cnum
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_dispersion_cnum'
 
-   PUBLIC :: exclude_d3_kind_pair, setcn, setr0ab, setrcov
+   PUBLIC :: exclude_d3_kind_pair, setcn, setr0ab, setrcov, seten
 
    TYPE dcnum_type
       INTEGER                                :: neighbors = -1
@@ -53,7 +53,7 @@ MODULE qs_dispersion_cnum
    END TYPE dcnum_type
 
    PUBLIC :: d3_cnumber, dcnum_type, dcnum_distribute
-   PUBLIC :: cnumber_init, cnumber_release
+   PUBLIC :: cnumber_init, cnumber_release, get_cn_radius
 
 ! **************************************************************************************************
 
@@ -938,31 +938,62 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
+!> \param enout ...
+! **************************************************************************************************
+   SUBROUTINE seten(enout)
+      ! Element Pauling Electronegativity
+      REAL(KIND=dp), DIMENSION(:)                        :: enout
+
+      INTEGER                                            :: n
+      REAL(KIND=dp), DIMENSION(104)                      :: en
+
+      en(1:104) = [2.20_dp, 3.00_dp, & ! 2
+                   0.98_dp, 1.57_dp, 2.04_dp, 2.55_dp, 3.04_dp, 3.44_dp, 3.98_dp, 4.50_dp, & ! 10
+                   0.93_dp, 1.31_dp, 1.61_dp, 1.90_dp, 2.19_dp, 2.58_dp, 3.16_dp, 3.50_dp, & ! 18
+                   0.82_dp, 1.00_dp, 1.36_dp, 1.54_dp, 1.63_dp, 1.66_dp, 1.55_dp, 1.83_dp, &
+                   1.88_dp, 1.91_dp, 1.90_dp, 1.65_dp, 1.81_dp, 2.01_dp, 2.18_dp, 2.55_dp, 2.96_dp, 3.00_dp, & ! 36
+                   0.82_dp, 0.95_dp, 1.22_dp, 1.33_dp, 1.60_dp, 2.16_dp, 1.90_dp, 2.20_dp, &
+                   2.28_dp, 2.20_dp, 1.93_dp, 1.69_dp, 1.78_dp, 1.96_dp, 2.05_dp, 2.10_dp, 2.66_dp, 2.60_dp, & ! 54
+                   0.79_dp, 0.89_dp, 1.10_dp, &
+                   1.12_dp, 1.13_dp, 1.14_dp, 1.15_dp, 1.17_dp, 1.18_dp, 1.20_dp, 1.21_dp, &
+                   1.22_dp, 1.23_dp, 1.24_dp, 1.25_dp, 1.26_dp, 1.27_dp, & ! Lanthanides
+                   1.30_dp, 1.50_dp, 2.36_dp, 1.90_dp, 2.20_dp, 2.20_dp, 2.28_dp, 2.54_dp, &
+                   2.00_dp, 2.04_dp, 2.33_dp, 2.02_dp, 2.00_dp, 2.20_dp, 2.20_dp, & ! 86
+                   0.70_dp, 0.89_dp, 1.10_dp, &
+                   1.30_dp, 1.50_dp, 1.38_dp, 1.36_dp, 1.28_dp, 1.30_dp, 1.30_dp, 1.30_dp, &
+                   1.30_dp, 1.30_dp, 1.30_dp, 1.30_dp, 1.30_dp, 1.50_dp, & !  Actinides
+                   1.50_dp]
+
+      enout = 0._dp
+      n = MIN(SIZE(en), SIZE(enout))
+      enout(1:n) = en(1:n)
+
+   END SUBROUTINE seten
+
+! **************************************************************************************************
+!> \brief ...
 !> \param rab ...
-!> \param rcova ...
-!> \param rcovb ...
+!> \param rcovab ...
 !> \param k1 ...
 !> \param cnab ...
 !> \param dcnab ...
 ! **************************************************************************************************
-   SUBROUTINE cnparam_d3(rab, rcova, rcovb, k1, cnab, dcnab)
+   SUBROUTINE cnparam_d3(rab, rcovab, k1, cnab, dcnab)
 
-      REAL(KIND=dp), INTENT(IN)                          :: rab, rcova, rcovb, k1
+      REAL(KIND=dp), INTENT(IN)                          :: rab, rcovab, k1
       REAL(KIND=dp), INTENT(OUT)                         :: cnab, dcnab
 
-      REAL(KIND=dp)                                      :: dfz, ee, fz, rco, rr
+      REAL(KIND=dp)                                      :: dfz, ee, fz, rr
 
-! covalent distance in Bohr
-
-      rco = rcova + rcovb
-      rr = rco/rab
+      ! covalent distance in Bohr
+      rr = rcovab/rab
       ! counting function exponential has a better long-range behavior
       ! than MHGs inverse damping
       ! factor k2 already included into rcov
       ee = EXP(-k1*(rr - 1.0_dp))
       ! force the function to zero using a second step function
-      fz = 0.5_dp*(1.0_dp - TANH(rab - 2.0_dp*rco))
-      dfz = 0.5_dp*((TANH(rab - 2.0_dp*rco))**2 - 1.0_dp)
+      fz = 0.5_dp*(1.0_dp - TANH(rab - 2.0_dp*rcovab))
+      dfz = 0.5_dp*((TANH(rab - 2.0_dp*rcovab))**2 - 1.0_dp)
       cnab = 1.0_dp/(1.0_dp + ee)*fz
       dcnab = -cnab*cnab*k1*rr/rab*ee + 1.0_dp/(1.0_dp + ee)*dfz
 
@@ -983,8 +1014,7 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: dvals
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: rik
 
-! we only have to do something if this is a parallel run
-
+      ! we only have to do something if this is a parallel run
       IF (para_env%num_pe > 1) THEN
          natom = SIZE(dcnum)
          !pack my dcnum data
@@ -1042,6 +1072,38 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
+!> \param dispersion_env ...
+!> \return ...
+! **************************************************************************************************
+   FUNCTION get_cn_radius(dispersion_env) RESULT(rcut)
+      TYPE(qs_dispersion_type), POINTER                  :: dispersion_env
+      REAL(KIND=dp)                                      :: rcut
+
+      INTEGER                                            :: i
+      REAL(KIND=dp)                                      :: cnab, cnfun, dcnab, den, rcov
+
+      cnfun = dispersion_env%cnfun
+      rcut = 0.0_dp
+      rcov = 1.5_dp*MAXVAL(dispersion_env%rcov)
+      DO i = 1, 250
+         rcut = rcut + 0.1_dp
+         IF (cnfun == 1) THEN
+            CALL cnparam_d3(rcut, rcov, dispersion_env%k1, cnab, dcnab)
+         ELSEIF (cnfun == 2) THEN
+            CALL modcn_d3(rcut, rcov, cnab, dcnab)
+         ELSEIF (cnfun == 3) THEN
+            den = 0.0_dp
+            CALL cn_d4per(rcut, rcov, den, cnab, dcnab)
+         ELSE
+            CPABORT("cnfun in get_cn_radius")
+         END IF
+         IF (cnab < 10._dp*dispersion_env%eps_cn) EXIT
+      END DO
+
+   END FUNCTION get_cn_radius
+
+! **************************************************************************************************
+!> \brief ...
 !> \param qs_env ...
 !> \param dispersion_env ...
 !> \param cnumbers ...
@@ -1068,7 +1130,7 @@ CONTAINS
       INTEGER                                            :: handle, iatom, ikind, jatom, jkind, &
                                                             mepos, natom, ni, nj, num_pe, za, zb
       LOGICAL                                            :: exclude_pair
-      REAL(KIND=dp)                                      :: cnab, dcnab, eps_cn, rcc, rcova, rcovb
+      REAL(KIND=dp)                                      :: cnab, dcnab, den, eps_cn, rcc, rcovab
       REAL(KIND=dp), DIMENSION(3)                        :: rij
       TYPE(neighbor_list_iterator_p_type), &
          DIMENSION(:), POINTER                           :: nl_iterator
@@ -1101,7 +1163,7 @@ CONTAINS
 !$OMP                 )                                               &
 !$OMP          PRIVATE( mepos                                         &
 !$OMP                 , ikind, jkind, iatom, jatom, rij, rcc          &
-!$OMP                 , za, zb, rcova, rcovb, cnab, dcnab             &
+!$OMP                 , za, zb, rcovab, cnab, dcnab, den              &
 !$OMP                 , ni, nj, exclude_pair                          &
 !$OMP                 )
 
@@ -1130,12 +1192,14 @@ CONTAINS
          IF (rcc > 1.e-6_dp) THEN
             za = atomnumber(ikind)
             zb = atomnumber(jkind)
-            rcova = dispersion_env%rcov(za)
-            rcovb = dispersion_env%rcov(zb)
+            rcovab = dispersion_env%rcov(za) + dispersion_env%rcov(zb)
             IF (cnfun == 1) THEN
-               CALL cnparam_d3(rcc, rcova, rcovb, dispersion_env%k1, cnab, dcnab)
+               CALL cnparam_d3(rcc, rcovab, dispersion_env%k1, cnab, dcnab)
             ELSEIF (cnfun == 2) THEN
-               CALL modcn_d3(rcc, rcova, rcovb, cnab, dcnab)
+               CALL modcn_d3(rcc, rcovab, cnab, dcnab)
+            ELSEIF (cnfun == 3) THEN
+               den = ABS(dispersion_env%eneg(za) - dispersion_env%eneg(zb))
+               CALL cn_d4per(rcc, rcovab, den, cnab, dcnab)
             ELSE
                CPABORT("cnfun in d3_cnumber")
             END IF
@@ -1199,27 +1263,51 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief ...
 !> \param rab ...
-!> \param rcova ...
-!> \param rcovb ...
+!> \param rcovab ...
 !> \param cnab ...
 !> \param dcnab ...
 ! **************************************************************************************************
-   SUBROUTINE modcn_d3(rab, rcova, rcovb, cnab, dcnab)
+   SUBROUTINE modcn_d3(rab, rcovab, cnab, dcnab)
 
-      REAL(KIND=dp), INTENT(IN)                          :: rab, rcova, rcovb
+      REAL(KIND=dp), INTENT(IN)                          :: rab, rcovab
       REAL(KIND=dp), INTENT(OUT)                         :: cnab, dcnab
 
-      REAL(KIND=dp)                                      :: ee, k1, rco, rr
+      REAL(KIND=dp)                                      :: ee, k1, rr
 
-      ! covalent distance in Bohr
-      rco = rcova + rcovb
-      rr = rab/rco
+      rr = rab/rcovab
       k1 = 7.5_dp
       ee = ERF(-k1*(rr - 1.0_dp))
       cnab = 0.5_dp*(1.0_dp + ee)
-      dcnab = -k1*oorootpi/rco*EXP(-k1*k1*(rr - 1.0_dp)**2)
+      dcnab = -k1*oorootpi/rcovab*EXP(-k1*k1*(rr - 1.0_dp)**2)
 
    END SUBROUTINE modcn_d3
+
+! **************************************************************************************************
+!> \brief ...
+!> \param rab ...
+!> \param rcovab ...
+!> \param den ...
+!> \param cnab ...
+!> \param dcnab ...
+! **************************************************************************************************
+   SUBROUTINE cn_d4per(rab, rcovab, den, cnab, dcnab)
+
+      REAL(KIND=dp), INTENT(IN)                          :: rab, rcovab, den
+      REAL(KIND=dp), INTENT(OUT)                         :: cnab, dcnab
+
+      REAL(KIND=dp), PARAMETER                           :: k0 = 7.5_dp, k1 = 4.10451_dp, &
+                                                            k2 = 19.08857_dp, k3 = 2*11.28174_dp**2
+
+      REAL(KIND=dp)                                      :: dee, dij, ee, rr
+
+      rr = rab/rcovab
+      dij = k1*EXP(-((den + k2)**2)/k3)
+      ee = ERF(-k0*(rr - 1.0_dp))
+      cnab = 0.5_dp*dij*(1.0_dp + ee)
+      dee = -2.0_dp*k0/rcovab*oorootpi*EXP(-k0*k0*(rr - 1.0_dp)**2)
+      dcnab = 0.5_dp*dij*dee
+
+   END SUBROUTINE cn_d4per
 
 ! **************************************************************************************************
 !> \brief ...
@@ -1291,6 +1379,8 @@ CONTAINS
                       dispersion_env=dispersion_env, &
                       para_env=para_env, &
                       nkind=nkind, natom=natom)
+
+      CALL cnumber_release(cnumbers, dcnum, derivatives)
 
       ALLOCATE (cnumbers(natom))
       cnumbers = 0._dp

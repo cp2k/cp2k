@@ -48,8 +48,7 @@ MODULE qs_neighbor_lists
                                               sgp_potential_type
    USE input_constants,                 ONLY: &
         dispersion_uff, do_method_lrigpw, do_method_rigpw, do_potential_id, do_potential_short, &
-        do_potential_truncated, do_se_IS_slater, vdw_pairpot_dftd3, vdw_pairpot_dftd3bj, &
-        vdw_pairpot_dftd4, xc_vdw_fun_pairpot
+        do_potential_truncated, do_se_IS_slater, vdw_pairpot_dftd4, xc_vdw_fun_pairpot
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&
@@ -873,19 +872,16 @@ CONTAINS
                                    subcells=subcells, operator_type="PP", nlname="sab_vdw")
          dispersion_env%sab_vdw => sab_vdw
 
-         IF (xtb .OR. dispersion_env%pp_type == vdw_pairpot_dftd3 .OR. &
-             dispersion_env%pp_type == vdw_pairpot_dftd3bj) THEN
-            ! Build the neighbor lists for coordination numbers as needed by the DFT-D3 method
-            ! This is also needed for the xTB Hamiltonian
-            DO ikind = 1, nkind
-               CALL get_atomic_kind(atomic_kind_set(ikind), z=zat)
-               c_radius(ikind) = 4._dp*ptable(zat)%covalent_radius*bohr
-            END DO
-            CALL pair_radius_setup(default_present, default_present, c_radius, c_radius, pair_radius)
-            CALL build_neighbor_lists(sab_cn, particle_set, atom2d, cell, pair_radius, &
-                                      subcells=subcells, operator_type="PP", nlname="sab_cn")
-            dispersion_env%sab_cn => sab_cn
-         END IF
+         ! Build the neighbor lists for coordination numbers as needed by the DFT-D3/D4 method
+         ! This is also needed for the xTB Hamiltonian
+         DO ikind = 1, nkind
+            CALL get_atomic_kind(atomic_kind_set(ikind), z=zat)
+            c_radius(ikind) = 4._dp*ptable(zat)%covalent_radius*bohr
+         END DO
+         CALL pair_radius_setup(default_present, default_present, c_radius, c_radius, pair_radius)
+         CALL build_neighbor_lists(sab_cn, particle_set, atom2d, cell, pair_radius, &
+                                   subcells=subcells, operator_type="PP", nlname="sab_cn")
+         dispersion_env%sab_cn => sab_cn
       END IF
 
       ! Build the neighbor lists for the gCP pair potential

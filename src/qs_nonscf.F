@@ -304,14 +304,13 @@ CONTAINS
             energy%total = energy%total + energy%band + energy%qmmm_el
             WRITE (UNIT=iounit, FMT="(/,T2,A,T40,A,F10.2,T61,F20.10)") &
                "Diagonalization", "Time:", tdiag, energy%total
+            CPASSERT(dft_control%qs_control%xtb_control%gfn_type == 0)
             WRITE (UNIT=iounit, FMT="((T3,A,T56,F25.14))") &
                "Core Hamiltonian energy:                       ", energy%core, &
                "Repulsive potential energy:                    ", energy%repulsive, &
-               "Electronic energy:                             ", energy%hartree, &
+               "SRB Correction energy:                         ", energy%srb, &
+               "Charge equilibration energy:                   ", energy%eeq, &
                "Dispersion energy:                             ", energy%dispersion
-            IF (dft_control%qs_control%xtb_control%xb_interaction) &
-               WRITE (UNIT=iounit, FMT="(T3,A,T56,F25.14)") &
-               "Correction for halogen bonding:                ", energy%xtb_xb_inter
             IF (dft_control%qs_control%xtb_control%do_nonbonded) &
                WRITE (UNIT=iounit, FMT="(T3,A,T56,F25.14)") &
                "Correction for nonbonded interactions:         ", energy%xtb_nonbonded
@@ -336,12 +335,8 @@ CONTAINS
             END IF
          END IF
 
-         IF (dft_control%qs_control%semi_empirical) THEN
-            CPABORT("NONSCF not available")
-         ELSEIF (dft_control%qs_control%dftb .OR. dft_control%qs_control%xtb) THEN
-            WRITE (UNIT=iounit, FMT="(/,(T3,A,T56,F25.14))") &
-               "Total energy:                                  ", energy%total
-         END IF
+         WRITE (UNIT=iounit, FMT="(/,(T3,A,T56,F25.14))") &
+            "Total energy:                                  ", energy%total
 
          CALL m_flush(iounit)
       END IF

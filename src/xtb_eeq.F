@@ -339,7 +339,7 @@ CONTAINS
       DO iatom = 1, natom
          ikind = kind_of(iatom)
          CALL get_qs_kind(qs_kind_set(ikind), xtb_parameter=xtb_atom_a)
-         CALL get_xtb_atom_param(xtb_atom_a, xi=xi, kappa0=kappa, eta=gama)
+         CALL get_xtb_atom_param(xtb_atom_a, xi=xi, kappa0=kappa)
          !
          ctot = 0.5_dp*(charges(iatom) - qlag(iatom))
          IF (enshift_type == 1) THEN

@@ -389,7 +389,7 @@ CONTAINS
             END IF
             ALLOCATE (echarge(natom))
             echarge = 0.0_dp
-            CALL eeq_charges(qs_env, echarge, enshift_type)
+            CALL eeq_charges(qs_env, echarge, 1, enshift_type)
             CALL tb_dipole(qs_env, moments_section, unit_nr, echarge)
             DEALLOCATE (echarge)
          ELSE
