@@ -24,6 +24,7 @@ MODULE realspace_grid_types
    USE machine,                         ONLY: m_memory
    USE mathlib,                         ONLY: det_3x3
    USE message_passing,                 ONLY: mp_comm_null,&
+                                              mp_comm_self,&
                                               mp_comm_type,&
                                               mp_request_null,&
                                               mp_request_type,&
@@ -247,7 +248,7 @@ CONTAINS
          END IF
          desc%parallel = .FALSE.
          desc%distributed = .FALSE.
-         desc%group = mp_comm_null
+         desc%group = mp_comm_self
          desc%group_size = 1
          desc%group_dim = 1
          desc%group_coor = 0
