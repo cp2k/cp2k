@@ -72,7 +72,6 @@ CONTAINS
       !        BulkLead, NIMAGES_IJ, EnergyGridType, TypeOfIntegral
       CALL section_create(section, __LOCATION__, name="SMEAGOL", &
                           description="Parameters for NEGF/SMEAGOL simulation.", &
-                          n_keywords=${len(reademtr_local_lnames)+len(reademtr_negfmod_lnames)+len(reademtr_negfcoop_lnames)+len(reademtr_local_inames)+len(reademtr_negfmod_inames)+len(reademtr_negfcoop_inames)+len(reademtr_local_rnames)+len(reademtr_negfmod_rnames)+len(reademtr_local_pnames)+len(reademtr_negfmod_rydberg_pnames)+len(reademtr_negfmod_pnames)+len(readoptsnegf_negfmod_lnames)+len(readoptsnegf_negfmod_inames)+len(readoptsnegf_negfmod_rnames)+len(readoptsnegf_negfmod_explicit_pnames)+len(readoptsnegf_bfield_rydberg_pnames)+len(emtoptions_negfmod_lnames)+len(emtoptions_negfmod_inames)+len(emtoptions_local_inames)+len(emtoptions_local_explicit_inames)+len(emtoptions_negfmod_explicit_inames)+len(emtoptions_sigma_inames)+len(emtoptions_negfmod_rnames)+len(emtoptions_negfmod_explicit_rnames)+len(emtoptions_negfmod_rydberg_pnames)+len(smeagol_interface_local_pnames)+11}$, &
                           n_subsections=1, repeats=.FALSE., &
                           citations=(/Ahart2024/))
 
