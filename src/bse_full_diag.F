@@ -13,12 +13,15 @@
 ! **************************************************************************************************
 MODULE bse_full_diag
 
+   USE bse_print,                       ONLY: print_excitation_energies,&
+                                              print_optical_properties,&
+                                              print_output_header,&
+                                              print_transition_amplitudes
    USE bse_util,                        ONLY: calculate_NTOs,&
                                               comp_eigvec_coeff_BSE,&
-                                              compute_absorption_spectrum,&
                                               fm_general_add_bse,&
-                                              get_oscillator_strengths,&
-                                              print_transition_probabilities
+                                              get_dipoles_mo,&
+                                              get_oscillator_strengths
    USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
                                               cp_blacs_env_release,&
                                               cp_blacs_env_type
@@ -40,7 +43,6 @@ MODULE bse_full_diag
    USE message_passing,                 ONLY: mp_para_env_type
    USE mp2_types,                       ONLY: mp2_type
    USE parallel_gemm_api,               ONLY: parallel_gemm
-   USE physcon,                         ONLY: evolt
    USE qs_environment_types,            ONLY: qs_environment_type
 #include "./base/base_uses.f90"
 
@@ -594,10 +596,11 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'postprocess_bse'
 
       CHARACTER(LEN=10)                                  :: info_approximation, multiplet
-      INTEGER                                            :: handle, i_exc
+      INTEGER                                            :: handle, idir
       REAL(KIND=dp)                                      :: alpha
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: oscill_str
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: dipole_exc, polarizability_residues
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: polarizability_residues, trans_mom_bse
+      TYPE(cp_fm_type), DIMENSION(3)                     :: fm_dipole_ai_trunc
 
       CALL timeset(routineN, handle)
 
@@ -618,210 +621,36 @@ CONTAINS
          info_approximation = "-ABBA-"
       END IF
 
-      !Get information about eigenvector
+      ! Compute BSE dipoles and oscillator strengths - Keep in memory for later usage
+      ! Need dipoles also for spatial expectation values, which a well-defined also for triplets
 
-      IF (unit_nr > 0) THEN
-         WRITE (unit_nr, '(T2,A4)') 'BSE|'
-         WRITE (unit_nr, '(T2,A4)') 'BSE|'
-         IF (flag_TDA) THEN
-            WRITE (unit_nr, '(T2,A4,T7,A74)') 'BSE|', '**************************************************************************'
-            WRITE (unit_nr, '(T2,A4,T7,A74)') 'BSE|', '*   Bethe Salpeter equation (BSE) with Tamm Dancoff approximation (TDA)  *'
-            WRITE (unit_nr, '(T2,A4,T7,A74)') 'BSE|', '**************************************************************************'
-            WRITE (unit_nr, '(T2,A4)') 'BSE|'
-            WRITE (unit_nr, '(T2,A4,T7,A48,A23)') 'BSE|', 'The excitations are calculated by diagonalizing ', &
-               'the BSE within the TDA:'
-            WRITE (unit_nr, '(T2,A4)') 'BSE|'
-            WRITE (unit_nr, '(T2,A4,T29,A16)') 'BSE|', 'A X^n = Ω^n X^n'
-            WRITE (unit_nr, '(T2,A4)') 'BSE|'
-            WRITE (unit_nr, '(T2,A4,T7,A23)') 'BSE|', 'i.e. in index notation:'
-            WRITE (unit_nr, '(T2,A4)') 'BSE|'
-            WRITE (unit_nr, '(T2,A4,T7,A41)') 'BSE|', 'sum_jb ( A_ia,jb   X_jb^n ) = Ω^n X_ia^n'
-            WRITE (unit_nr, '(T2,A4)') 'BSE|'
-            WRITE (unit_nr, '(T2,A4,T7,A30)') 'BSE|', 'prelim Ref.: Eq. (36) with B=0'
-            WRITE (unit_nr, '(T2,A4,T7,A71)') 'BSE|', 'in PRB 92,045209 (2015); http://dx.doi.org/10.1103/PhysRevB.92.045209 .'
-         ELSE
-            WRITE (unit_nr, '(T2,A4,T7,A74)') 'BSE|', '**************************************************************************'
-            WRITE (unit_nr, '(T2,A4,T7,A74)') 'BSE|', '*      Full ("ABBA") Bethe Salpeter equation (BSE) (i.e. without TDA)    *'
-            WRITE (unit_nr, '(T2,A4,T7,A74)') 'BSE|', '**************************************************************************'
-            WRITE (unit_nr, '(T2,A4)') 'BSE|'
-            WRITE (unit_nr, '(T2,A4,T7,A48,A24)') 'BSE|', 'The excitations are calculated by diagonalizing ', &
-               'the BSE without the TDA:'
-            WRITE (unit_nr, '(T2,A4)') 'BSE|'
-            WRITE (unit_nr, '(T2,A4,T22,A30)') 'BSE|', '|A B| |X^n|       |1  0| |X^n|'
-            WRITE (unit_nr, '(T2,A4,T22,A31)') 'BSE|', '|B A| |Y^n| = Ω^n |0 -1| |Y^n|'
-            WRITE (unit_nr, '(T2,A4)') 'BSE|'
-            WRITE (unit_nr, '(T2,A4,T7,A23)') 'BSE|', 'i.e. in index notation:'
-            WRITE (unit_nr, '(T2,A4)') 'BSE|'
-            WRITE (unit_nr, '(T2,A4,T7,A62)') 'BSE|', '  sum_jb ( A_ia,jb   X_jb^n + B_ia,jb   Y_jb^n ) = Ω^n X_ia^n'
-            WRITE (unit_nr, '(T2,A4,T7,A62)') 'BSE|', '- sum_jb ( B_ia,jb   X_jb^n + A_ia,jb   Y_jb^n ) = Ω^n Y_ia^n'
-         END IF
-         WRITE (unit_nr, '(T2,A4)') 'BSE|'
-         WRITE (unit_nr, '(T2,A4)') 'BSE|'
-         WRITE (unit_nr, '(T2,A4,T7,A4,T18,A42,T70,A1,I4,A1,I4,A1)') 'BSE|', 'i,j:', &
-            'occupied molecular orbitals, i.e. state in', '[', homo_irred - homo + 1, ',', homo_irred, ']'
-         WRITE (unit_nr, '(T2,A4,T7,A4,T18,A44,T70,A1,I4,A1,I4,A1)') 'BSE|', 'a,b:', &
-            'unoccupied molecular orbitals, i.e. state in', '[', homo_irred + 1, ',', homo_irred + virtual, ']'
-         WRITE (unit_nr, '(T2,A4,T7,A2,T18,A16)') 'BSE|', 'n:', 'Excitation index'
-         WRITE (unit_nr, '(T2,A4)') 'BSE|'
-         WRITE (unit_nr, '(T2,A4,T7,A58)') 'BSE|', 'A_ia,jb = (ε_a-ε_i) δ_ij δ_ab + α * v_ia,jb - W_ij,ab'
-         IF (.NOT. flag_TDA) THEN
-            WRITE (unit_nr, '(T2,A4,T7,A32)') 'BSE|', 'B_ia,jb = α * v_ia,jb - W_ib,aj'
-            WRITE (unit_nr, '(T2,A4)') 'BSE|'
-            WRITE (unit_nr, '(T2,A4,T7,A35)') 'BSE|', 'prelim Ref.: Eqs. (24-27),(30),(35)'
-            WRITE (unit_nr, '(T2,A4,T7,A71)') 'BSE|', 'in PRB 92,045209 (2015); http://dx.doi.org/10.1103/PhysRevB.92.045209 .'
-         END IF
-         IF (.NOT. flag_TDA) THEN
-            WRITE (unit_nr, '(T2,A4)') 'BSE|'
-            WRITE (unit_nr, '(T2,A4,T7,A74)') 'BSE|', 'The BSE is solved for Ω^n and X_ia^n as a hermitian problem, e.g. Eq.(42)'
-            WRITE (unit_nr, '(T2,A4,T7,A71)') 'BSE|', 'in PRB 92,045209 (2015); http://dx.doi.org/10.1103/PhysRevB.92.045209 .'
-            ! WRITE (unit_nr, '(T2,A4,T7,A69)') 'BSE|', 'C_ia,jb = sum_kc,ld ((A-B)^0.5)_ia,kc (A+B)_kc,ld ((A-B)^0.5)_ld,jb'
-            ! WRITE (unit_nr, '(T2,A4)') 'BSE|'
-            ! WRITE (unit_nr, '(T2,A4,T7,A58)') 'BSE|', '(X+Y)_ia,n = sum_jb,m  ((A-B)^0.5)ia,jb Z_jb,m (Ω_m)^-0.5'
-            ! WRITE (unit_nr, '(T2,A4,T7,A58)') 'BSE|', '(X-Y)_ia,n = sum_jb,m  ((A-B)^-0.5)ia,jb Z_jb,m (Ω_m)^0.5'
-         END IF
-         WRITE (unit_nr, '(T2,A4)') 'BSE|'
-         WRITE (unit_nr, '(T2,A4,T7,A7,T19,A23)') 'BSE|', 'ε_...:', 'GW quasiparticle energy'
-         WRITE (unit_nr, '(T2,A4,T7,A7,T19,A15)') 'BSE|', 'δ_...:', 'Kronecker delta'
-         WRITE (unit_nr, '(T2,A4,T7,A3,T19,A21)') 'BSE|', 'α:', 'spin-dependent factor (Singlet/Triplet)'
-         WRITE (unit_nr, '(T2,A4,T7,A6,T18,A34)') 'BSE|', 'v_...:', 'Electron-hole exchange interaction'
-         WRITE (unit_nr, '(T2,A4,T7,A6,T18,A27)') 'BSE|', 'W_...:', 'Screened direct interaction'
-         WRITE (unit_nr, '(T2,A4)') 'BSE|'
-         WRITE (unit_nr, '(T2,A4)') 'BSE|'
-         WRITE (unit_nr, '(T2,A4,T7,A47,A7,A9,F3.1)') 'BSE|', &
-            'The spin-dependent factor is for the requested ', multiplet, " is α = ", alpha
-         WRITE (unit_nr, '(T2,A4)') 'BSE|'
-         IF (flag_TDA) THEN
-            WRITE (unit_nr, '(T2,A4,T7,A56)') 'BSE|', 'Excitation energies from solving the BSE within the TDA:'
-         ELSE
-            WRITE (unit_nr, '(T2,A4,T7,A57)') 'BSE|', 'Excitation energies from solving the BSE without the TDA:'
-         END IF
-         WRITE (unit_nr, '(T2,A4)') 'BSE|'
-         WRITE (unit_nr, '(T2,A4,T11,A12,T26,A11,T44,A8,T55,A27)') 'BSE|', &
-            'Excitation n', "Spin Config", 'TDA/ABBA', 'Excitation energy Ω^n (eV)'
-      END IF
-      !prints actual energies values
-      IF (unit_nr > 0) THEN
-         DO i_exc = 1, MIN(homo*virtual, mp2_env%bse%num_print_exc)
-            WRITE (unit_nr, '(T2,A4,T7,I16,T30,A7,T46,A6,T59,F22.4)') &
-               'BSE|', i_exc, multiplet, info_approximation, Exc_ens(i_exc)*evolt
-         END DO
-      END IF
-      !prints single particle transitions
-      IF (unit_nr > 0) THEN
-         WRITE (unit_nr, '(T2,A4)') 'BSE|'
-         WRITE (unit_nr, '(T2,A4,T7,A61)') &
-            'BSE|', "Single-particle transitions are built up by (de-)excitations,"
-         WRITE (unit_nr, '(T2,A4,T7,A18)') &
-            'BSE|', "which we denote by"
-         WRITE (unit_nr, '(T2,A4)') 'BSE|'
-         WRITE (unit_nr, '(T2,A4,T20,A2,T30,A40)') &
-            'BSE|', "=>", "for excitations, i.e. entries of X_ia^n,"
-         WRITE (unit_nr, '(T2,A4,T20,A2,T30,A42)') &
-            'BSE|', "<=", "for deexcitations, i.e. entries of Y_ia^n."
-         WRITE (unit_nr, '(T2,A4)') &
-            'BSE|'
-         WRITE (unit_nr, '(T2,A4,T7,A73)') &
-            'BSE|', "The following single-particle transitions have significant contributions,"
-         WRITE (unit_nr, '(T2,A4,T7,A16,F5.3,A15,F5.3,A16)') &
-            'BSE|', "i.e. |X_ia^n| > ", mp2_env%bse%eps_x, " or |Y_ia^n| > ", &
-            mp2_env%bse%eps_x, ", respectively :"
+      ! Obtain dipoles in MO basis with index structure n_virt x n_occ: \vec{D}_ai = <a|\vec{r}|i>
+      CALL get_dipoles_mo(fm_dipole_ai_trunc, qs_env, mo_coeff, &
+                          homo, virtual, fm_eigvec_X%matrix_struct%context)
 
-         WRITE (unit_nr, '(T2,A4,T15,A27,I5,A13,I5,A3)') 'BSE|', '-- Quick reminder: HOMO i =', &
-            homo_irred, ' and LUMO a =', homo_irred + 1, " --"
-         WRITE (unit_nr, '(T2,A4)') 'BSE|'
-         WRITE (unit_nr, '(T2,A4,T7,A12,T30,A1,T32,A5,T42,A1,T49,A8,T64,A17)') &
-            "BSE|", "Excitation n", "i", "=>/<=", "a", 'TDA/ABBA', "|X_ia^n|/|Y_ia^n|"
-      END IF
-      DO i_exc = 1, MIN(homo*virtual, mp2_env%bse%num_print_exc)
-         IF (unit_nr > 0) THEN
-            WRITE (unit_nr, '(T2,A4)') 'BSE|'
-         END IF
-         !Iterate through eigenvector and print values above threshold
-         CALL print_transition_probabilities(fm_eigvec_X, "=>", info_approximation, &
-                                             i_exc, virtual, homo, homo_irred, &
-                                             unit_nr, mp2_env)
-         IF (PRESENT(fm_eigvec_Y)) THEN
-            CALL print_transition_probabilities(fm_eigvec_Y, "<=", info_approximation, &
-                                                i_exc, virtual, homo, homo_irred, &
-                                                unit_nr, mp2_env)
-         END IF
-      END DO
-      ! Discriminate between singlet and triplet, since triplet state can't couple to light
-      ! and therefore calculations of dipoles etc are not necessary
       IF (mp2_env%bse%bse_spin_config == 0) THEN
-         ! Compute BSE dipoles and oscillator strengths
-         CALL get_oscillator_strengths(fm_eigvec_X, Exc_ens, &
-                                       dipole_exc, oscill_str, polarizability_residues, &
-                                       mp2_env, qs_env, mo_coeff, &
-                                       homo, virtual, unit_nr, &
+         CALL get_oscillator_strengths(fm_eigvec_X, Exc_ens, fm_dipole_ai_trunc, &
+                                       trans_mom_bse, oscill_str, polarizability_residues, &
+                                       mp2_env, homo, virtual, unit_nr, &
                                        fm_eigvec_Y)
-         IF (unit_nr > 0) THEN
-            WRITE (unit_nr, '(T2,A4)') 'BSE|'
-            WRITE (unit_nr, '(T2,A4,T7,A60)') &
-               'BSE|', "Transition moments d_r^n (with r∈(x,y,z), in atomic units)"
-            WRITE (unit_nr, '(T2,A4,T7,A67)') &
-               'BSE|', "and oscillator strength f^n of excitation level n are obtained from"
-            WRITE (unit_nr, '(T2,A4)') 'BSE|'
-            IF (flag_TDA) THEN
-               WRITE (unit_nr, '(T2,A4,T10,A52)') &
-                  'BSE|', "d_r^n = sqrt(2) sum_ia < ψ_i | r | ψ_a >  X_ia^n"
-            ELSE
-               WRITE (unit_nr, '(T2,A4,T10,A64)') &
-                  'BSE|', "d_r^n = sqrt(2) sum_ia < ψ_i | r | ψ_a > ( X_ia^n + Y_ia^n )"
-            END IF
-            WRITE (unit_nr, '(T2,A4)') 'BSE|'
-            WRITE (unit_nr, '(T2,A4,T14,A44)') &
-               'BSE|', "f^n = 2/3 * Ω^n sum_r∈(x,y,z) ( d_r^n )^2"
-            WRITE (unit_nr, '(T2,A4)') 'BSE|'
-            WRITE (unit_nr, '(T2,A4,T7,A19)') &
-               'BSE|', "where we introduced"
-            WRITE (unit_nr, '(T2,A4)') 'BSE|'
-            WRITE (unit_nr, '(T2,A4,T7,A5,T15,A28)') &
-               'BSE|', "ψ_i:", "occupied molecular orbitals,"
-            WRITE (unit_nr, '(T2,A4,T7,A5,T15,A28)') &
-               'BSE|', "ψ_a:", "empty molecular orbitals and"
-            WRITE (unit_nr, '(T2,A4,T9,A2,T14,A18)') &
-               'BSE|', "r:", "position operator."
-            WRITE (unit_nr, '(T2,A4)') 'BSE|'
-            WRITE (unit_nr, '(T2,A4,T7,A28)') &
-               'BSE|', "prelim Ref.: Eqs. (23), (24)"
-            WRITE (unit_nr, '(T2,A4,T7,A71)') &
-               'BSE|', "in J. Chem. Phys. 152, 044105 (2020); https://doi.org/10.1063/1.5123290"
-            WRITE (unit_nr, '(T2,A4)') 'BSE|'
-            IF (flag_TDA) THEN
-               WRITE (unit_nr, '(T2,A4,T7,A55)') 'BSE|', &
-                  'Optical properties from solving the BSE within the TDA:'
-            ELSE
-               WRITE (unit_nr, '(T2,A4,T7,A56)') 'BSE|', &
-                  'Optical properties from solving the BSE without the TDA:'
-            END IF
-            WRITE (unit_nr, '(T2,A4)') 'BSE|'
-            WRITE (unit_nr, '(T2,A4,T8,A12,T22,A8,T38,A5,T48,A5,T58,A5,T65,A16)') 'BSE|', &
-               'Excitation n', "TDA/ABBA", "d_x^n", "d_y^n", "d_z^n", 'Osc. strength'
-            DO i_exc = 1, MIN(homo*virtual, mp2_env%bse%num_print_exc)
-               WRITE (unit_nr, '(T2,A4,T8,I12,T24,A6,T35,F8.3,T45,F8.3,T55,F8.3,T65,F16.3)') &
-                  'BSE|', i_exc, info_approximation, dipole_exc(1, 1, i_exc), dipole_exc(2, 1, i_exc), &
-                  dipole_exc(3, 1, i_exc), oscill_str(i_exc)
-            END DO
-            WRITE (unit_nr, '(T2,A4)') 'BSE|'
-         END IF
-
-         ! Compute and print the absorption spectrum to external file
-         IF (mp2_env%bse%bse_print_spectrum) THEN
-            CALL compute_absorption_spectrum(oscill_str, polarizability_residues, Exc_ens, &
-                                             info_approximation, unit_nr, mp2_env)
-         END IF
-
-      ELSE
-         IF (unit_nr > 0) THEN
-            WRITE (unit_nr, '(T2,A4)') 'BSE|'
-            WRITE (unit_nr, '(T2,A4)') 'BSE|'
-            CALL cp_warn(__LOCATION__, &
-                         "Requested triplet excitation cannot couple to light. "// &
-                         "Skipping calculation of transition moments, "// &
-                         "oscillator strengths, and spectrum.")
-         END IF
       END IF
+
+      ! Prints basic definitions used in BSE calculation
+      CALL print_output_header(homo, virtual, homo_irred, flag_TDA, &
+                               multiplet, alpha, unit_nr)
+
+      ! Prints excitation energies up to user-specified number
+      CALL print_excitation_energies(Exc_ens, homo, virtual, flag_TDA, multiplet, &
+                                     info_approximation, mp2_env, unit_nr)
+
+      ! Print single particle transition amplitudes, i.e. components of eigenvectors X and Y
+      CALL print_transition_amplitudes(fm_eigvec_X, homo, virtual, homo_irred, &
+                                       info_approximation, mp2_env, unit_nr, fm_eigvec_Y)
+
+      ! Prints optical properties, if state is a singlet
+      CALL print_optical_properties(Exc_ens, oscill_str, trans_mom_bse, polarizability_residues, &
+                                    homo, virtual, flag_TDA, &
+                                    info_approximation, mp2_env, unit_nr)
 
       ! Compute and print excitation wavefunctions
       IF (mp2_env%bse%do_nto_analysis) THEN
@@ -838,8 +667,11 @@ CONTAINS
                              qs_env, unit_nr, mp2_env)
       END IF
 
+      DO idir = 1, 3
+         CALL cp_fm_release(fm_dipole_ai_trunc(idir))
+      END DO
       IF (mp2_env%bse%bse_spin_config == 0) THEN
-         DEALLOCATE (oscill_str, dipole_exc, polarizability_residues)
+         DEALLOCATE (oscill_str, trans_mom_bse, polarizability_residues)
       END IF
       IF (unit_nr > 0) THEN
          WRITE (unit_nr, '(T2,A4)') 'BSE|'

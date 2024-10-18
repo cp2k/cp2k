@@ -20,11 +20,11 @@ MODULE bse_main
                                               diagonalize_C
    USE bse_iterative,                   ONLY: do_subspace_iterations,&
                                               fill_local_3c_arrays
+   USE bse_print,                       ONLY: print_BSE_start_flag
    USE bse_util,                        ONLY: adapt_BSE_input_params,&
                                               deallocate_matrices_bse,&
                                               estimate_BSE_resources,&
                                               mult_B_with_W,&
-                                              print_BSE_start_flag,&
                                               truncate_BSE_matrices
    USE cp_fm_types,                     ONLY: cp_fm_release,&
                                               cp_fm_type
