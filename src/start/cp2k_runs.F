@@ -18,7 +18,8 @@ MODULE cp2k_runs
                                               cp2k_version,&
                                               cp2k_year
    USE cp_control_types,                ONLY: dft_control_type
-   USE cp_dbcsr_api,                    ONLY: dbcsr_init_lib,&
+   USE cp_dbcsr_api,                    ONLY: dbcsr_finalize_lib,&
+                                              dbcsr_init_lib,&
                                               dbcsr_print_config,&
                                               dbcsr_print_statistics
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_config
@@ -111,6 +112,8 @@ MODULE cp2k_runs
                                               loop_over_molecules
    USE neb_methods,                     ONLY: neb
    USE negf_methods,                    ONLY: do_negf
+   USE offload_api,                     ONLY: offload_get_chosen_device,&
+                                              offload_get_device_count
    USE optimize_basis,                  ONLY: run_optimize_basis
    USE optimize_input,                  ONLY: run_optimize_input
    USE pint_methods,                    ONLY: do_pint_run
@@ -187,8 +190,16 @@ CONTAINS
       ALLOCATE (para_env)
       para_env = mpi_comm
 
-      ! DBCSR is already initialized, below only io_unit is updated (farming)
+#if defined(__DBCSR_ACC)
+      IF (offload_get_device_count() > 0) THEN
+         CALL dbcsr_init_lib(mpi_comm%get_handle(), io_unit=output_unit, &
+                             accdrv_active_device_id=offload_get_chosen_device())
+      ELSE
+         CALL dbcsr_init_lib(mpi_comm%get_handle(), io_unit=output_unit)
+      END IF
+#else
       CALL dbcsr_init_lib(mpi_comm%get_handle(), io_unit=output_unit)
+#endif
 
       NULLIFY (globenv, force_env)
 
@@ -251,7 +262,18 @@ CONTAINS
       CASE (do_swarm)
          CALL run_swarm(input_declaration, root_section, para_env, globenv, input_file_name)
       CASE (do_farming) ! TODO: refactor cp2k's startup code
+         CALL dbcsr_finalize_lib()
          CALL farming_run(input_declaration, root_section, para_env, initial_variables)
+#if defined(__DBCSR_ACC)
+         IF (offload_get_device_count() > 0) THEN
+            CALL dbcsr_init_lib(mpi_comm%get_handle(), io_unit=output_unit, &
+                                accdrv_active_device_id=offload_get_chosen_device())
+         ELSE
+            CALL dbcsr_init_lib(mpi_comm%get_handle(), io_unit=output_unit)
+         END IF
+#else
+         CALL dbcsr_init_lib(mpi_comm%get_handle(), io_unit=output_unit)
+#endif
       CASE (do_opt_basis)
          CALL run_optimize_basis(input_declaration, root_section, para_env)
          globenv%run_type_id = none_run
@@ -410,6 +432,8 @@ CONTAINS
          CALL section_vals_release(root_section)
          CALL globenv_release(globenv)
       END IF
+
+      CALL dbcsr_finalize_lib()
 
       CALL mp_para_env_release(para_env)
 
