@@ -18,13 +18,10 @@ MODULE cp2k_runs
                                               cp2k_version,&
                                               cp2k_year
    USE cp_control_types,                ONLY: dft_control_type
-   USE cp_dbcsr_api,                    ONLY: dbcsr_finalize_lib,&
-                                              dbcsr_init_lib,&
+   USE cp_dbcsr_api,                    ONLY: dbcsr_init_lib,&
                                               dbcsr_print_config,&
                                               dbcsr_print_statistics
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_config
-   USE cp_dlaf_utils_api,               ONLY: cp_dlaf_finalize,&
-                                              cp_dlaf_initialize
    USE cp_files,                        ONLY: close_file,&
                                               open_file
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
@@ -114,23 +111,15 @@ MODULE cp2k_runs
                                               loop_over_molecules
    USE neb_methods,                     ONLY: neb
    USE negf_methods,                    ONLY: do_negf
-   USE offload_api,                     ONLY: offload_get_chosen_device,&
-                                              offload_get_device_count
    USE optimize_basis,                  ONLY: run_optimize_basis
    USE optimize_input,                  ONLY: run_optimize_input
    USE pint_methods,                    ONLY: do_pint_run
-   USE pw_fpga,                         ONLY: pw_fpga_finalize,&
-                                              pw_fpga_init
-   USE pw_gpu,                          ONLY: pw_gpu_finalize,&
-                                              pw_gpu_init
    USE qs_environment_types,            ONLY: get_qs_env
    USE qs_linres_module,                ONLY: linres_calculation
    USE qs_tddfpt_module,                ONLY: tddfpt_calculation
    USE reference_manager,               ONLY: export_references_as_xml
    USE rt_bse,                          ONLY: run_propagation_bse
    USE rt_propagation,                  ONLY: rt_prop_setup
-   USE sirius_interface,                ONLY: cp_sirius_finalize,&
-                                              cp_sirius_init
    USE swarm,                           ONLY: run_swarm
    USE tamc_run,                        ONLY: qs_tamc
    USE tmc_setup,                       ONLY: do_analyze_files,&
@@ -198,21 +187,8 @@ CONTAINS
       ALLOCATE (para_env)
       para_env = mpi_comm
 
-#if defined(__DBCSR_ACC)
-      IF (offload_get_device_count() > 0) THEN
-         CALL dbcsr_init_lib(mpi_comm%get_handle(), io_unit=output_unit, &
-                             accdrv_active_device_id=offload_get_chosen_device())
-      ELSE
-         CALL dbcsr_init_lib(mpi_comm%get_handle(), io_unit=output_unit)
-      END IF
-#else
+      ! DBCSR is already initialized, below only io_unit is updated (farming)
       CALL dbcsr_init_lib(mpi_comm%get_handle(), io_unit=output_unit)
-#endif
-
-      CALL pw_gpu_init()
-      CALL pw_fpga_init()
-
-      CALL cp_dlaf_initialize()
 
       NULLIFY (globenv, force_env)
 
@@ -274,37 +250,12 @@ CONTAINS
          CALL run_optimize_input(input_declaration, root_section, para_env)
       CASE (do_swarm)
          CALL run_swarm(input_declaration, root_section, para_env, globenv, input_file_name)
-      CASE (do_farming)
-         ! Hack: DBCSR should be uninitialized when entering farming.
-         ! But, we don't want to change the public f77_interface.
-         ! TODO: refactor cp2k's startup code
-         CALL dbcsr_finalize_lib()
-         IF (method_name_id == do_sirius) CALL cp_sirius_finalize()
-
-         CALL cp_dlaf_finalize()
-
-         CALL pw_gpu_finalize()
-         CALL pw_fpga_finalize()
+      CASE (do_farming) ! TODO: refactor cp2k's startup code
          CALL farming_run(input_declaration, root_section, para_env, initial_variables)
-#if defined(__DBCSR_ACC)
-         IF (offload_get_device_count() > 0) THEN
-            CALL dbcsr_init_lib(mpi_comm%get_handle(), io_unit=output_unit, &
-                                accdrv_active_device_id=offload_get_chosen_device())
-         ELSE
-            CALL dbcsr_init_lib(mpi_comm%get_handle(), io_unit=output_unit)
-         END IF
-#else
-         CALL dbcsr_init_lib(mpi_comm%get_handle(), io_unit=output_unit)
-#endif
-
-         CALL pw_gpu_init()
-         CALL pw_fpga_init()
-         IF (method_name_id == do_sirius) CALL cp_sirius_init()
       CASE (do_opt_basis)
          CALL run_optimize_basis(input_declaration, root_section, para_env)
          globenv%run_type_id = none_run
       CASE (do_cp2k)
-         IF (method_name_id == do_sirius) CALL cp_sirius_init()
          CALL create_force_env(new_env_id, &
                                input_declaration=input_declaration, &
                                input_path=input_file_name, &
@@ -427,15 +378,7 @@ CONTAINS
       !sample peak memory
       CALL m_memory()
 
-      IF (method_name_id == do_sirius) CALL cp_sirius_finalize()
-
-      CALL pw_gpu_finalize()
-      CALL pw_fpga_finalize()
-
-      CALL cp_dlaf_finalize()
-
       CALL dbcsr_print_statistics()
-
       CALL dbm_library_print_stats(mpi_comm=mpi_comm, output_unit=output_unit)
       CALL grid_library_print_stats(mpi_comm=mpi_comm, output_unit=output_unit)
 
@@ -467,8 +410,6 @@ CONTAINS
          CALL section_vals_release(root_section)
          CALL globenv_release(globenv)
       END IF
-
-      CALL dbcsr_finalize_lib()
 
       CALL mp_para_env_release(para_env)
 
