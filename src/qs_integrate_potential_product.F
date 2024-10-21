@@ -46,6 +46,7 @@ MODULE qs_integrate_potential_product
    USE cp_dbcsr_operations,             ONLY: dbcsr_deallocate_matrix_set
    USE gaussian_gridlevels,             ONLY: gridlevel_info_type
    USE grid_api,                        ONLY: grid_integrate_task_list,&
+                                              grid_multigrid_type,&
                                               integrate_pgf_product
    USE kinds,                           ONLY: default_string_length,&
                                               dp
@@ -607,6 +608,7 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: cell
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: deltap, dhmat
       TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(grid_multigrid_type)                          :: multigrid
       TYPE(gridlevel_info_type), POINTER                 :: gridlevel_info
       TYPE(mp_comm_type)                                 :: group
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
@@ -682,7 +684,7 @@ CONTAINS
       IF (PRESENT(force_adm)) admm_scal_fac = force_adm
 
       CPASSERT(ASSOCIATED(pw_env))
-      CALL pw_env_get(pw_env, rs_grids=rs_v)
+      CALL pw_env_get(pw_env, rs_grids=rs_v, multigrid=multigrid)
 
       ! get mpi group from rs_v
       group = rs_v(1)%desc%group
@@ -742,6 +744,7 @@ CONTAINS
                                     calculate_virial=calculate_virial, &
                                     pab_blocks=task_list%pab_buffer, &
                                     rs_grids=rs_v, &
+                                    multigrid=multigrid, &
                                     hab_blocks=task_list%hab_buffer, &
                                     forces=forces_array, &
                                     virial=virial_matrix)

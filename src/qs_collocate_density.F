@@ -63,7 +63,7 @@ MODULE qs_collocate_density
       GRID_FUNC_DAB_Y, GRID_FUNC_DAB_Z, GRID_FUNC_DABpADB_X, GRID_FUNC_DABpADB_Y, &
       GRID_FUNC_DABpADB_Z, GRID_FUNC_DADB, GRID_FUNC_DX, GRID_FUNC_DXDX, GRID_FUNC_DXDY, &
       GRID_FUNC_DY, GRID_FUNC_DYDY, GRID_FUNC_DYDZ, GRID_FUNC_DZ, GRID_FUNC_DZDX, &
-      GRID_FUNC_DZDZ, collocate_pgf_product, grid_collocate_task_list
+      GRID_FUNC_DZDZ, collocate_pgf_product, grid_collocate_task_list, grid_multigrid_type
    USE input_constants, ONLY: &
       orb_dx2, orb_dxy, orb_dy2, orb_dyz, orb_dz2, orb_dzx, orb_px, orb_py, orb_pz, orb_s
    USE kinds, ONLY: default_string_length, &
@@ -1500,6 +1500,7 @@ CONTAINS
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(realspace_grid_type), DIMENSION(:), POINTER   :: rs_rho
       TYPE(task_list_type), POINTER                      :: task_list
+      TYPE(grid_multigrid_type) :: multigrid
 
       CALL timeset(routineN, handle)
 
@@ -1579,7 +1580,7 @@ CONTAINS
       CPASSERT(ASSOCIATED(pw_env))
 
       ! Get grids.
-      CALL pw_env_get(pw_env, rs_grids=rs_rho)
+      CALL pw_env_get(pw_env, rs_grids=rs_rho, multigrid=multigrid)
       nlevels = SIZE(rs_rho)
       group = rs_rho(1)%desc%group
 
@@ -1615,7 +1616,7 @@ CONTAINS
       CALL grid_collocate_task_list(task_list=task_list%grid_task_list, &
                                     ga_gb_function=ga_gb_function, &
                                     pab_blocks=task_list%pab_buffer, &
-                                    rs_grids=rs_rho)
+                                    rs_grids=rs_rho, multigrid=multigrid)
 
       ! Merge realspace multi-grids into single planewave grid.
       CALL density_rs2pw(pw_env, rs_rho, rho, rho_gspace)

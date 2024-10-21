@@ -190,42 +190,45 @@ void grid_free_task_list(grid_task_list *task_list) {
  * \author Ole Schuett
  ******************************************************************************/
 void grid_collocate_task_list(const grid_task_list *task_list,
-                              const enum grid_func func, const int nlevels,
-                              const int npts_local[nlevels][3],
+                              const enum grid_func func,
+                              const grid_multigrid *multigrid,
                               const offload_buffer *pab_blocks,
-                              offload_buffer *grids[nlevels]) {
+                              offload_buffer *grids[multigrid->nlevels]) {
 
   // Bounds check.
-  assert(task_list->nlevels == nlevels);
-  for (int ilevel = 0; ilevel < nlevels; ilevel++) {
-    assert(task_list->npts_local[ilevel][0] == npts_local[ilevel][0]);
-    assert(task_list->npts_local[ilevel][1] == npts_local[ilevel][1]);
-    assert(task_list->npts_local[ilevel][2] == npts_local[ilevel][2]);
+  assert(task_list->nlevels == multigrid->nlevels);
+  for (int ilevel = 0; ilevel < multigrid->nlevels; ilevel++) {
+    assert(task_list->npts_local[ilevel][0] ==
+           multigrid->npts_local[ilevel][0]);
+    assert(task_list->npts_local[ilevel][1] ==
+           multigrid->npts_local[ilevel][1]);
+    assert(task_list->npts_local[ilevel][2] ==
+           multigrid->npts_local[ilevel][2]);
   }
 
   switch (task_list->backend) {
   case GRID_BACKEND_REF:
-    grid_ref_collocate_task_list(task_list->ref, func, nlevels, pab_blocks,
-                                 grids);
+    grid_ref_collocate_task_list(task_list->ref, func, multigrid->nlevels,
+                                 pab_blocks, grids);
     break;
   case GRID_BACKEND_CPU:
-    grid_cpu_collocate_task_list(task_list->cpu, func, nlevels, pab_blocks,
-                                 grids);
+    grid_cpu_collocate_task_list(task_list->cpu, func, multigrid->nlevels,
+                                 pab_blocks, grids);
     break;
   case GRID_BACKEND_DGEMM:
-    grid_dgemm_collocate_task_list(task_list->dgemm, func, nlevels, pab_blocks,
-                                   grids);
+    grid_dgemm_collocate_task_list(task_list->dgemm, func, multigrid->nlevels,
+                                   pab_blocks, grids);
     break;
 #if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_GRID)
   case GRID_BACKEND_GPU:
-    grid_gpu_collocate_task_list(task_list->gpu, func, nlevels, pab_blocks,
-                                 grids);
+    grid_gpu_collocate_task_list(task_list->gpu, func, multigrid->nlevels,
+                                 pab_blocks, grids);
     break;
 #endif
 #if defined(__OFFLOAD_HIP) && !defined(__NO_OFFLOAD_GRID)
   case GRID_BACKEND_HIP:
-    grid_hip_collocate_task_list(task_list->hip, func, nlevels, pab_blocks,
-                                 grids);
+    grid_hip_collocate_task_list(task_list->hip, func, multigrid->nlevels,
+                                 pab_blocks, grids);
     break;
 #endif
   default:
@@ -237,27 +240,29 @@ void grid_collocate_task_list(const grid_task_list *task_list,
   // Perform validation if enabled.
   if (grid_library_get_config().validate) {
     // Allocate space for reference results.
-    offload_buffer *grids_ref[nlevels];
-    for (int level = 0; level < nlevels; level++) {
-      const int npts_local_total =
-          npts_local[level][0] * npts_local[level][1] * npts_local[level][2];
+    offload_buffer *grids_ref[multigrid->nlevels];
+    for (int level = 0; level < multigrid->nlevels; level++) {
+      const int npts_local_total = multigrid->npts_local[level][0] *
+                                   multigrid->npts_local[level][1] *
+                                   multigrid->npts_local[level][2];
       grids_ref[level] = NULL;
       offload_create_buffer(npts_local_total, &grids_ref[level]);
     }
 
     // Call reference implementation.
-    grid_ref_collocate_task_list(task_list->ref, func, nlevels, pab_blocks,
-                                 grids_ref);
+    grid_ref_collocate_task_list(task_list->ref, func, multigrid->nlevels,
+                                 pab_blocks, grids_ref);
 
     // Compare results.
     const double tolerance = 1e-12;
     double max_rel_diff = 0.0;
-    for (int level = 0; level < nlevels; level++) {
-      for (int i = 0; i < npts_local[level][0]; i++) {
-        for (int j = 0; j < npts_local[level][1]; j++) {
-          for (int k = 0; k < npts_local[level][2]; k++) {
-            const int idx = k * npts_local[level][1] * npts_local[level][0] +
-                            j * npts_local[level][0] + i;
+    for (int level = 0; level < multigrid->nlevels; level++) {
+      for (int i = 0; i < multigrid->npts_local[level][0]; i++) {
+        for (int j = 0; j < multigrid->npts_local[level][1]; j++) {
+          for (int k = 0; k < multigrid->npts_local[level][2]; k++) {
+            const int idx = k * multigrid->npts_local[level][1] *
+                                multigrid->npts_local[level][0] +
+                            j * multigrid->npts_local[level][0] + i;
             const double ref_value = grids_ref[level]->host_buffer[idx];
             const double test_value = grids[level]->host_buffer[idx];
             const double diff = fabs(test_value - ref_value);
@@ -286,18 +291,23 @@ void grid_collocate_task_list(const grid_task_list *task_list,
  *        See grid_task_list.h for details.
  * \author Ole Schuett
  ******************************************************************************/
-void grid_integrate_task_list(
-    const grid_task_list *task_list, const bool compute_tau, const int natoms,
-    const int nlevels, const int npts_local[nlevels][3],
-    const offload_buffer *pab_blocks, const offload_buffer *grids[nlevels],
-    offload_buffer *hab_blocks, double forces[natoms][3], double virial[3][3]) {
+void grid_integrate_task_list(const grid_task_list *task_list,
+                              const bool compute_tau, const int natoms,
+                              const grid_multigrid *multigrid,
+                              const offload_buffer *pab_blocks,
+                              const offload_buffer *grids[multigrid->nlevels],
+                              offload_buffer *hab_blocks,
+                              double forces[natoms][3], double virial[3][3]) {
 
   // Bounds check.
-  assert(task_list->nlevels == nlevels);
-  for (int ilevel = 0; ilevel < nlevels; ilevel++) {
-    assert(task_list->npts_local[ilevel][0] == npts_local[ilevel][0]);
-    assert(task_list->npts_local[ilevel][1] == npts_local[ilevel][1]);
-    assert(task_list->npts_local[ilevel][2] == npts_local[ilevel][2]);
+  assert(task_list->nlevels == multigrid->nlevels);
+  for (int ilevel = 0; ilevel < multigrid->nlevels; ilevel++) {
+    assert(task_list->npts_local[ilevel][0] ==
+           multigrid->npts_local[ilevel][0]);
+    assert(task_list->npts_local[ilevel][1] ==
+           multigrid->npts_local[ilevel][1]);
+    assert(task_list->npts_local[ilevel][2] ==
+           multigrid->npts_local[ilevel][2]);
   }
 
   assert(forces == NULL || pab_blocks != NULL);
@@ -306,29 +316,32 @@ void grid_integrate_task_list(
   switch (task_list->backend) {
 #if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_GRID)
   case GRID_BACKEND_GPU:
-    grid_gpu_integrate_task_list(task_list->gpu, compute_tau, natoms, nlevels,
-                                 pab_blocks, grids, hab_blocks, forces, virial);
+    grid_gpu_integrate_task_list(task_list->gpu, compute_tau, natoms,
+                                 multigrid->nlevels, pab_blocks, grids,
+                                 hab_blocks, forces, virial);
     break;
 #endif
 #if defined(__OFFLOAD_HIP) && !defined(__NO_OFFLOAD_GRID)
   case GRID_BACKEND_HIP:
-    grid_hip_integrate_task_list(task_list->hip, compute_tau, nlevels,
-                                 pab_blocks, grids, hab_blocks, &forces[0][0],
-                                 &virial[0][0]);
+    grid_hip_integrate_task_list(task_list->hip, compute_tau,
+                                 multigrid->nlevels, pab_blocks, grids,
+                                 hab_blocks, &forces[0][0], &virial[0][0]);
     break;
 #endif
   case GRID_BACKEND_DGEMM:
     grid_dgemm_integrate_task_list(task_list->dgemm, compute_tau, natoms,
-                                   nlevels, pab_blocks, grids, hab_blocks,
-                                   forces, virial);
+                                   multigrid->nlevels, pab_blocks, grids,
+                                   hab_blocks, forces, virial);
     break;
   case GRID_BACKEND_CPU:
-    grid_cpu_integrate_task_list(task_list->cpu, compute_tau, natoms, nlevels,
-                                 pab_blocks, grids, hab_blocks, forces, virial);
+    grid_cpu_integrate_task_list(task_list->cpu, compute_tau, natoms,
+                                 multigrid->nlevels, pab_blocks, grids,
+                                 hab_blocks, forces, virial);
     break;
   case GRID_BACKEND_REF:
-    grid_ref_integrate_task_list(task_list->ref, compute_tau, natoms, nlevels,
-                                 pab_blocks, grids, hab_blocks, forces, virial);
+    grid_ref_integrate_task_list(task_list->ref, compute_tau, natoms,
+                                 multigrid->nlevels, pab_blocks, grids,
+                                 hab_blocks, forces, virial);
     break;
   default:
     printf("Error: Unknown grid backend: %i.\n", task_list->backend);
@@ -345,10 +358,10 @@ void grid_integrate_task_list(
     double forces_ref[natoms][3], virial_ref[3][3];
 
     // Call reference implementation.
-    grid_ref_integrate_task_list(task_list->ref, compute_tau, natoms, nlevels,
-                                 pab_blocks, grids, hab_blocks_ref,
-                                 (forces != NULL) ? forces_ref : NULL,
-                                 (virial != NULL) ? virial_ref : NULL);
+    grid_ref_integrate_task_list(
+        task_list->ref, compute_tau, natoms, multigrid->nlevels, pab_blocks,
+        grids, hab_blocks_ref, (forces != NULL) ? forces_ref : NULL,
+        (virial != NULL) ? virial_ref : NULL);
 
     // Compare hab.
     const double hab_tolerance = 1e-12;

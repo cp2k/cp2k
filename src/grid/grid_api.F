@@ -1039,29 +1039,28 @@ CONTAINS
 !> \param ga_gb_function ...
 !> \param pab_blocks ...
 !> \param rs_grids ...
+!> \param multigrid ...
 !> \author Ole Schuett
 ! **************************************************************************************************
-   SUBROUTINE grid_collocate_task_list(task_list, ga_gb_function, pab_blocks, rs_grids)
+   SUBROUTINE grid_collocate_task_list(task_list, ga_gb_function, pab_blocks, rs_grids, multigrid)
       TYPE(grid_task_list_type), INTENT(IN)              :: task_list
       INTEGER, INTENT(IN)                                :: ga_gb_function
       TYPE(offload_buffer_type), INTENT(IN)              :: pab_blocks
       TYPE(realspace_grid_type), DIMENSION(:), &
          INTENT(IN)                                      :: rs_grids
+      TYPE(grid_multigrid_type), INTENT(IN)              :: multigrid
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'grid_collocate_task_list'
 
       INTEGER                                            :: handle, ilevel, nlevels
-      INTEGER, ALLOCATABLE, DIMENSION(:, :), TARGET      :: npts_local
       TYPE(C_PTR), ALLOCATABLE, DIMENSION(:), TARGET     :: grids_c
       INTERFACE
-         SUBROUTINE grid_collocate_task_list_c(task_list, func, nlevels, &
-                                               npts_local, pab_blocks, grids) &
+         SUBROUTINE grid_collocate_task_list_c(task_list, func, multigrid, pab_blocks, grids) &
             BIND(C, name="grid_collocate_task_list")
             IMPORT :: C_PTR, C_INT, C_BOOL
             TYPE(C_PTR), VALUE                        :: task_list
             INTEGER(KIND=C_INT), VALUE                :: func
-            INTEGER(KIND=C_INT), VALUE                :: nlevels
-            TYPE(C_PTR), VALUE                        :: npts_local
+            TYPE(C_PTR), VALUE                        :: multigrid
             TYPE(C_PTR), VALUE                        :: pab_blocks
             TYPE(C_PTR), VALUE                        :: grids
          END SUBROUTINE grid_collocate_task_list_c
@@ -1073,26 +1072,23 @@ CONTAINS
       CPASSERT(nlevels > 0)
 
       ALLOCATE (grids_c(nlevels))
-      ALLOCATE (npts_local(3, nlevels))
       DO ilevel = 1, nlevels
          ASSOCIATE (rsgrid => rs_grids(ilevel))
-            npts_local(:, ilevel) = rsgrid%ub_local - rsgrid%lb_local + 1
             grids_c(ilevel) = rsgrid%buffer%c_ptr
          END ASSOCIATE
       END DO
 
 #if __GNUC__ >= 9
-      CPASSERT(IS_CONTIGUOUS(npts_local))
       CPASSERT(IS_CONTIGUOUS(grids_c))
 #endif
 
       CPASSERT(C_ASSOCIATED(task_list%c_ptr))
+      CPASSERT(C_ASSOCIATED(multigrid%c_ptr))
       CPASSERT(C_ASSOCIATED(pab_blocks%c_ptr))
 
       CALL grid_collocate_task_list_c(task_list=task_list%c_ptr, &
                                       func=ga_gb_function, &
-                                      nlevels=nlevels, &
-                                      npts_local=C_LOC(npts_local(1, 1)), &
+                                      multigrid=multigrid%c_ptr, &
                                       pab_blocks=pab_blocks%c_ptr, &
                                       grids=C_LOC(grids_c(1)))
 
@@ -1107,19 +1103,21 @@ CONTAINS
 !> \param calculate_virial ...
 !> \param pab_blocks ...
 !> \param rs_grids ...
+!> \param multigrid ...
 !> \param hab_blocks ...
 !> \param forces ...
 !> \param virial ...
 !> \author Ole Schuett
 ! **************************************************************************************************
    SUBROUTINE grid_integrate_task_list(task_list, compute_tau, calculate_forces, calculate_virial, &
-                                       pab_blocks, rs_grids, hab_blocks, forces, virial)
+                                       pab_blocks, rs_grids, multigrid, hab_blocks, forces, virial)
       TYPE(grid_task_list_type), INTENT(IN)              :: task_list
       LOGICAL, INTENT(IN)                                :: compute_tau, calculate_forces, &
                                                             calculate_virial
       TYPE(offload_buffer_type), INTENT(IN)              :: pab_blocks
       TYPE(realspace_grid_type), DIMENSION(:), &
          INTENT(IN)                                      :: rs_grids
+      TYPE(grid_multigrid_type), INTENT(IN)              :: multigrid
       TYPE(offload_buffer_type), INTENT(INOUT)           :: hab_blocks
       REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT), &
          TARGET                                          :: forces
@@ -1129,20 +1127,17 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'grid_integrate_task_list'
 
       INTEGER                                            :: handle, ilevel, nlevels
-      INTEGER, ALLOCATABLE, DIMENSION(:, :), TARGET      :: npts_local
       TYPE(C_PTR)                                        :: forces_c, virial_c
       TYPE(C_PTR), ALLOCATABLE, DIMENSION(:), TARGET     :: grids_c
       INTERFACE
-         SUBROUTINE grid_integrate_task_list_c(task_list, compute_tau, natoms, &
-                                               nlevels, npts_local, &
+         SUBROUTINE grid_integrate_task_list_c(task_list, compute_tau, natoms, multigrid, &
                                                pab_blocks, grids, hab_blocks, forces, virial) &
             BIND(C, name="grid_integrate_task_list")
             IMPORT :: C_PTR, C_INT, C_BOOL
             TYPE(C_PTR), VALUE                        :: task_list
             LOGICAL(KIND=C_BOOL), VALUE               :: compute_tau
             INTEGER(KIND=C_INT), VALUE                :: natoms
-            INTEGER(KIND=C_INT), VALUE                :: nlevels
-            TYPE(C_PTR), VALUE                        :: npts_local
+            TYPE(C_PTR), VALUE                        :: multigrid
             TYPE(C_PTR), VALUE                        :: pab_blocks
             TYPE(C_PTR), VALUE                        :: grids
             TYPE(C_PTR), VALUE                        :: hab_blocks
@@ -1157,10 +1152,8 @@ CONTAINS
       CPASSERT(nlevels > 0)
 
       ALLOCATE (grids_c(nlevels))
-      ALLOCATE (npts_local(3, nlevels))
       DO ilevel = 1, nlevels
          ASSOCIATE (rsgrid => rs_grids(ilevel))
-            npts_local(:, ilevel) = rsgrid%ub_local - rsgrid%lb_local + 1
             grids_c(ilevel) = rsgrid%buffer%c_ptr
          END ASSOCIATE
       END DO
@@ -1178,7 +1171,6 @@ CONTAINS
       END IF
 
 #if __GNUC__ >= 9
-      CPASSERT(IS_CONTIGUOUS(npts_local))
       CPASSERT(IS_CONTIGUOUS(grids_c))
       CPASSERT(IS_CONTIGUOUS(forces))
       CPASSERT(IS_CONTIGUOUS(virial))
@@ -1186,6 +1178,7 @@ CONTAINS
 
       CPASSERT(SIZE(forces, 1) == 3)
       CPASSERT(C_ASSOCIATED(task_list%c_ptr))
+      CPASSERT(C_ASSOCIATED(multigrid%c_ptr))
       CPASSERT(C_ASSOCIATED(hab_blocks%c_ptr))
       CPASSERT(C_ASSOCIATED(pab_blocks%c_ptr) .OR. .NOT. calculate_forces)
       CPASSERT(C_ASSOCIATED(pab_blocks%c_ptr) .OR. .NOT. calculate_virial)
@@ -1193,8 +1186,7 @@ CONTAINS
       CALL grid_integrate_task_list_c(task_list=task_list%c_ptr, &
                                       compute_tau=LOGICAL(compute_tau, C_BOOL), &
                                       natoms=SIZE(forces, 2), &
-                                      nlevels=nlevels, &
-                                      npts_local=C_LOC(npts_local(1, 1)), &
+                                      multigrid=multigrid%c_ptr, &
                                       pab_blocks=pab_blocks%c_ptr, &
                                       grids=C_LOC(grids_c(1)), &
                                       hab_blocks=hab_blocks%c_ptr, &

@@ -94,33 +94,31 @@ void grid_free_task_list(grid_task_list *task_list);
  *
  * \param task_list       Task list to collocate.
  * \param func            Function to be collocated, see grid_prepare_pab.h
- * \param nlevels         Number of grid levels.
+ * \param multigrid       The multigrid object.
  *
  *      The remaining params are given for each grid level:
  *
- * \param npts_local      Number of local grid points in each direction.
  * \param pab_blocks      Buffer that contains the density matrix blocks.
  * \param grids           The output grid array to collocate into.
  *
  * \author Ole Schuett
  ******************************************************************************/
 void grid_collocate_task_list(const grid_task_list *task_list,
-                              const enum grid_func func, const int nlevels,
-                              const int npts_local[nlevels][3],
+                              const enum grid_func func,
+                              const grid_multigrid *multigrid,
                               const offload_buffer *pab_blocks,
-                              offload_buffer *grids[nlevels]);
+                              offload_buffer *grids[multigrid->nlevels]);
 
 /*******************************************************************************
  * \brief Integrate all tasks of in given list from given grids.
  *
- * \param task_list        Task list to collocate.
- * \param compute_tau      When true then <nabla a| V | nabla b> is computed.
- * \param natoms           Number of atoms.
- * \param nlevels          Number of grid levels.
+ * \param task_list       Task list to collocate.
+ * \param compute_tau     When true then <nabla a| V | nabla b> is computed.
+ * \param natoms          Number of atoms.
+ * \param multigrid       The multigrids object
  *
  *      The remaining params are given for each grid level:
  *
- * \param npts_local      Number of local grid points in each direction.
  * \param grids           Grid array to integrate from.
  *
  * \param pab_blocks      Optional density blocks, needed for forces and virial.
@@ -131,11 +129,13 @@ void grid_collocate_task_list(const grid_task_list *task_list,
  *
  * \author Ole Schuett
  ******************************************************************************/
-void grid_integrate_task_list(
-    const grid_task_list *task_list, const bool compute_tau, const int natoms,
-    const int nlevels, const int npts_local[nlevels][3],
-    const offload_buffer *pab_blocks, const offload_buffer *grids[nlevels],
-    offload_buffer *hab_blocks, double forces[natoms][3], double virial[3][3]);
+void grid_integrate_task_list(const grid_task_list *task_list,
+                              const bool compute_tau, const int natoms,
+                              const grid_multigrid *multigrid,
+                              const offload_buffer *pab_blocks,
+                              const offload_buffer *grids[multigrid->nlevels],
+                              offload_buffer *hab_blocks,
+                              double forces[natoms][3], double virial[3][3]);
 
 #endif
 

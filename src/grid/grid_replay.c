@@ -356,19 +356,17 @@ bool grid_replay(const char *filename, const int cycles, const bool collocate,
       }
     }
     start_time = omp_get_wtime();
-    const int nlevels = 1;
     const int natoms = 2;
     if (collocate) {
       // collocate
       offload_buffer *grids[1] = {grid_test};
-      grid_collocate_task_list(task_list, func, nlevels,
-                               (const int(*)[3])npts_local, pab_blocks, grids);
+      grid_collocate_task_list(task_list, func, multigrid, pab_blocks, grids);
     } else {
       // integrate
       const offload_buffer *grids[1] = {grid_ref};
-      grid_integrate_task_list(task_list, compute_tau, natoms, nlevels,
-                               (const int(*)[3])npts_local, pab_blocks, grids,
-                               hab_blocks, forces_test, virial_test);
+      grid_integrate_task_list(task_list, compute_tau, natoms, multigrid,
+                               pab_blocks, grids, hab_blocks, forces_test,
+                               virial_test);
       for (int i = 0; i < n2; i++) {
         for (int j = 0; j < n1; j++) {
           hab_test[i][j] = hab_blocks->host_buffer[i * n1 + j];
