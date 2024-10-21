@@ -18,6 +18,7 @@
 
 #include "../offload/offload_buffer.h"
 #include "common/grid_common.h"
+#include "common/grid_mpi.h"
 #include "grid_replay.h"
 
 #include "cpu/grid_cpu_collocate.h"
@@ -280,7 +281,7 @@ bool grid_replay(const char *filename, const int cycles, const bool collocate,
       orthorhombic, nlevels, (const int(*)[3])npts_global,
       (const int(*)[3])npts_local, (const int(*)[3])shift_local,
       (const int(*)[3])border_width, (const double(*)[3][3])dh,
-      (const double(*)[3][3])dh_inv, &multigrid);
+      (const double(*)[3][3])dh_inv, grid_mpi_comm_world, &multigrid);
 
   const double radius = parse_double("radius", fp);
   const int o1 = parse_int("o1", fp);

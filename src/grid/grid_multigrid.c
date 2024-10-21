@@ -5,12 +5,12 @@
 /*  SPDX-License-Identifier: BSD-3-Clause                                     */
 /*----------------------------------------------------------------------------*/
 
+#include "grid_multigrid.h"
+
 #include <assert.h>
 #include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
-
-#include "grid_multigrid.h"
 
 /*******************************************************************************
  * \brief Allocates a multigrid which is passed to task list-based and
@@ -29,14 +29,40 @@
  *
  * \author Frederick Stein
  ******************************************************************************/
-void grid_create_multigrid(const bool orthorhombic, const int nlevels,
-                           const int npts_global[nlevels][3],
-                           const int npts_local[nlevels][3],
-                           const int shift_local[nlevels][3],
-                           const int border_width[nlevels][3],
-                           const double dh[nlevels][3][3],
-                           const double dh_inv[nlevels][3][3],
-                           grid_multigrid **multigrid_out) {
+void grid_create_multigrid_f(
+    const bool orthorhombic, const int nlevels,
+    const int npts_global[nlevels][3], const int npts_local[nlevels][3],
+    const int shift_local[nlevels][3], const int border_width[nlevels][3],
+    const double dh[nlevels][3][3], const double dh_inv[nlevels][3][3],
+    const grid_mpi_fint fortran_comm, grid_multigrid **multigrid_out) {
+  grid_create_multigrid(orthorhombic, nlevels, npts_global, npts_local,
+                        shift_local, border_width, dh, dh_inv,
+                        grid_mpi_comm_f2c(fortran_comm), multigrid_out);
+}
+
+/*******************************************************************************
+ * \brief Allocates a multigrid which is passed to task list-based and
+ *pgf_product-based routines.
+ *
+ * \param orthorhombic     Whether simulation box is orthorhombic.
+ * \param nlevels          Number of grid levels.
+ * \param npts_global     Number of global grid points in each direction.
+ * \param npts_local      Number of local grid points in each direction.
+ * \param shift_local     Number of points local grid is shifted wrt global grid
+ * \param border_width    Width of halo region in grid points in each direction.
+ * \param dh              Incremental grid matrix.
+ * \param dh_inv          Inverse incremental grid matrix.
+ *
+ * \param multigrid        Handle to the created multigrid.
+ *
+ * \author Frederick Stein
+ ******************************************************************************/
+void grid_create_multigrid(
+    const bool orthorhombic, const int nlevels,
+    const int npts_global[nlevels][3], const int npts_local[nlevels][3],
+    const int shift_local[nlevels][3], const int border_width[nlevels][3],
+    const double dh[nlevels][3][3], const double dh_inv[nlevels][3][3],
+    const grid_mpi_comm comm, grid_multigrid **multigrid_out) {
   grid_multigrid *multigrid = NULL;
 
   assert(multigrid_out != NULL);
@@ -59,6 +85,8 @@ void grid_create_multigrid(const bool orthorhombic, const int nlevels,
       multigrid->dh_inv =
           realloc(multigrid->dh_inv, num_double * sizeof(double));
     }
+    // Always free the old communicator
+    grid_mpi_comm_free(&multigrid->comm);
   } else {
     multigrid = calloc(1, sizeof(grid_multigrid));
     multigrid->npts_global = calloc(num_int, sizeof(int));
@@ -77,6 +105,7 @@ void grid_create_multigrid(const bool orthorhombic, const int nlevels,
   memcpy(multigrid->border_width, border_width, num_int * sizeof(int));
   memcpy(multigrid->dh, dh, num_double * sizeof(double));
   memcpy(multigrid->dh_inv, dh_inv, num_double * sizeof(double));
+  grid_mpi_comm_dup(comm, &multigrid->comm);
 
   *multigrid_out = multigrid;
 }
@@ -99,6 +128,7 @@ void grid_free_multigrid(grid_multigrid *multigrid) {
       free(multigrid->dh);
     if (multigrid->dh_inv)
       free(multigrid->dh_inv);
+    grid_mpi_comm_free(&multigrid->comm);
     free(multigrid);
   }
 }

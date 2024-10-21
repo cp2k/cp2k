@@ -986,8 +986,8 @@ CONTAINS
          SUBROUTINE grid_create_multigrid_c(orthorhombic, nlevels, &
                                             npts_global, npts_local, shift_local, &
                                             border_width, dh, dh_inv, &
-                                            multigrid) &
-            BIND(C, name="grid_create_multigrid")
+                                            comm, multigrid) &
+            BIND(C, name="grid_create_multigrid_f")
             IMPORT :: C_PTR, C_INT, C_BOOL
             LOGICAL(KIND=C_BOOL), VALUE               :: orthorhombic
             INTEGER(KIND=C_INT), VALUE                :: nlevels
@@ -997,6 +997,7 @@ CONTAINS
             TYPE(C_PTR), VALUE                        :: border_width
             TYPE(C_PTR), VALUE                        :: dh
             TYPE(C_PTR), VALUE                        :: dh_inv
+            INTEGER(C_INT), VALUE                     :: comm
             TYPE(C_PTR)                               :: multigrid
          END SUBROUTINE grid_create_multigrid_c
       END INTERFACE
@@ -1041,6 +1042,7 @@ CONTAINS
                                    border_width=C_LOC(border_width(1, 1)), &
                                    dh=C_LOC(dh(1, 1, 1)), &
                                    dh_inv=C_LOC(dh_inv(1, 1, 1)), &
+                                   comm=rs_grids(1)%desc%group%get_handle(), &
                                    multigrid=multigrid%c_ptr)
 
       CPASSERT(C_ASSOCIATED(multigrid%c_ptr))
