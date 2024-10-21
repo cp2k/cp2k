@@ -88,7 +88,7 @@ MODULE bibliography
                             Caldeweyher2017, Caldeweyher2019, Caldeweyher2020, Freeman1977, Gruneis2009, &
                             Stein2022, Stein2024, &
                             Blase2018, Blase2020, Bruneval2015, Golze2019, Gui2018, Jacquemin2017, Liu2020, &
-                            Sander2015, Schreiber2008, vanSetten2015, Setyawan2010
+                            Sander2015, Schreiber2008, vanSetten2015, Setyawan2010, Ahart2024
 
 CONTAINS
 
@@ -1876,6 +1876,13 @@ CONTAINS
                          title="High-throughput electronic band structure calculations: Challenges and tools", &
                          source="Comput. Mater. Sci.", volume="49", pages="299-312", &
                          year=2010, doi="10.1016/j.commatsci.2010.05.010")
+
+      CALL add_reference(key=Ahart2024, &
+                         authors=s2a("C. Ahart", "S. Chulkov", "C. Cucinotta"), &
+                         title="Enabling Ab Initio Molecular Dynamics under Bias: The CP2K+SMEAGOL Interface "// &
+                         "for Integrating Density Functional Theory and Non-Equilibrium Green Functions", &
+                         source="J. Chem. Theory Comput.", volume="20", pages="6772-6780", &
+                         year=2024, doi="10.1021/acs.jctc.4c00371")
 
    END SUBROUTINE add_all_references
 

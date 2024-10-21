@@ -47,7 +47,8 @@ MODULE qs_scf_initialization
         broy_mix, cholesky_dbcsr, cholesky_inverse, cholesky_off, diag_block_davidson, &
         diag_block_krylov, diag_filter_matrix, diag_ot, diag_standard, direct_p_mix, kerker_mix, &
         multisec_mix, no_mix, ot2cdft, outer_scf_none, plus_u_lowdin, pulay_mix, &
-        wfi_frozen_method_nr, wfi_ps_method_nr, wfi_use_guess_method_nr
+        smeagol_runtype_emtransport, wfi_frozen_method_nr, wfi_ps_method_nr, &
+        wfi_use_guess_method_nr
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type,&
                                               section_vals_val_get
@@ -103,7 +104,8 @@ MODULE qs_scf_initialization
    USE qs_scf_types,                    ONLY: &
         block_davidson_diag_method_nr, block_krylov_diag_method_nr, diag_subspace_env_create, &
         filter_matrix_diag_method_nr, general_diag_method_nr, krylov_space_create, &
-        ot_diag_method_nr, ot_method_nr, qs_scf_env_type, scf_env_create, special_diag_method_nr
+        ot_diag_method_nr, ot_method_nr, qs_scf_env_type, scf_env_create, smeagol_method_nr, &
+        special_diag_method_nr
    USE qs_wf_history_methods,           ONLY: reorthogonalize_vectors,&
                                               wfi_extrapolate,&
                                               wfi_get_method_label,&
@@ -749,6 +751,20 @@ CONTAINS
       need_coeff_b = .FALSE.
       scf_env%needs_ortho = .FALSE.
 
+      IF (dft_control%smeagol_control%smeagol_enabled .AND. &
+          dft_control%smeagol_control%run_type == smeagol_runtype_emtransport) THEN
+         scf_env%method = smeagol_method_nr
+         scf_env%skip_diis = .TRUE.
+         scf_control%use_diag = .FALSE.
+
+         IF (.NOT. do_kpoints) &
+            CPABORT("SMEAGOL requires kpoint calculations")
+
+         IF (scf_control%use_ot) THEN
+            CPWARN("OT is irrelevant to NEGF method")
+         END IF
+      END IF
+
       IF (scf_control%use_diag) THEN
          ! sanity check whether combinations are allowed
          IF (dft_control%restricted) &
@@ -833,7 +849,7 @@ CONTAINS
             CPABORT("nspin must be 2 for restricted (ROKS)")
          IF (do_kpoints) &
             CPABORT("OT not possible with kpoint calculations")
-      ELSE
+      ELSEIF (scf_env%method /= smeagol_method_nr) THEN
          CPABORT("OT or DIAGONALIZATION have to be set")
       END IF
       DO ispin = 1, dft_control%nspins

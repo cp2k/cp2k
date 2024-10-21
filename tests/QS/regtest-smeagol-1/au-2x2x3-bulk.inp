@@ -1,0 +1,104 @@
+&GLOBAL
+  PRINT_LEVEL low
+  PROJECT au-2x2x3-bulk
+  RUN_TYPE energy
+  #EXTENDED_FFT_LENGTHS .true.
+&END GLOBAL
+
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT
+    BASIS_SET_FILE_NAME BASIS_MOLOPT
+    POTENTIAL_FILE_NAME GTH_POTENTIALS
+    &KPOINTS
+      EPS_GEO 1.e-8
+      FULL_GRID ON
+      PARALLEL_GROUP_SIZE 0
+      SCHEME MONKHORST-PACK 2 2 3
+      SYMMETRY OFF
+      VERBOSE T
+    &END KPOINTS
+    &MGRID
+      CUTOFF 200
+    &END MGRID
+    &POISSON
+      PERIODIC xyz
+    &END POISSON
+    &SCF
+      ADDED_MOS 100
+      EPS_SCF 1e-5
+      MAX_SCF 20
+      SCF_GUESS atomic
+      &MIXING
+        ALPHA 0.3
+        METHOD broyden_mixing
+        NBUFFER 8
+      &END MIXING
+      &PRINT
+        &RESTART off
+        &END RESTART
+      &END PRINT
+      &SMEAR
+        ELECTRONIC_TEMPERATURE [K] 293
+        METHOD fermi_dirac
+      &END SMEAR
+    &END SCF
+    &SMEAGOL
+      BULKLEAD LR
+      PROJECT_NAME au_capacitor_bulk
+      # In actual calculation please comment the following keyword,
+      # increase CUTOFF and the number of k-points,
+      # as well as tighten EPS_SCF convergence criteria
+      REGRESSION_TEST .true.
+      RUN_TYPE BulkTransport
+    &END SMEAGOL
+    &XC
+      &XC_FUNCTIONAL pade
+      &END XC_FUNCTIONAL
+    &END XC
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 8.336 8.336 8.336
+      PERIODIC xyz
+    &END CELL
+    &COORD
+      Au 0.000 0.000 0.000
+      Au 0.000 4.168 0.000
+      Au 2.084 2.084 0.000
+      Au 2.084 6.252 0.000
+      Au 4.168 0.000 0.000
+      Au 4.168 4.168 0.000
+      Au 6.252 2.084 0.000
+      Au 6.252 6.252 0.000
+      Au 0.000 2.084 2.084
+      Au 0.000 6.252 2.084
+      Au 2.084 0.000 2.084
+      Au 2.084 4.168 2.084
+      Au 4.168 2.084 2.084
+      Au 4.168 6.252 2.084
+      Au 6.252 0.000 2.084
+      Au 6.252 4.168 2.084
+      Au 0.000 0.000 4.168
+      Au 0.000 4.168 4.168
+      Au 2.084 2.084 4.168
+      Au 2.084 6.252 4.168
+      Au 4.168 0.000 4.168
+      Au 4.168 4.168 4.168
+      Au 6.252 2.084 4.168
+      Au 6.252 6.252 4.168
+      Au 0.000 2.084 6.252
+      Au 0.000 6.252 6.252
+      Au 2.084 0.000 6.252
+      Au 2.084 4.168 6.252
+      Au 4.168 2.084 6.252
+      Au 4.168 6.252 6.252
+      Au 6.252 0.000 6.252
+      Au 6.252 4.168 6.252
+    &END COORD
+    &KIND Au
+      BASIS_SET SZV-MOLOPT-SR-GTH
+      POTENTIAL GTH-PADE-q11
+    &END KIND
+  &END SUBSYS
+&END FORCE_EVAL

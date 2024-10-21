@@ -1,0 +1,4 @@
+# Regression tests for CP2K/SMEAGOL interface. These tests do not require libsmeagol library
+# Check the correctness of DBCSR -> SMEAGOL matrix conversion routines
+au-2x2x3-bulk.inp                                      120    2e-06            351.999999
+#EOF

@@ -271,6 +271,10 @@ CONTAINS
       flags = TRIM(flags)//" offload_unified_memory"
 #endif
 
+#if defined(__SMEAGOL)
+      flags = TRIM(flags)//" libsmeagol"
+#endif
+
    END FUNCTION cp2k_flags
 
 ! **************************************************************************************************
