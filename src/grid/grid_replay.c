@@ -22,6 +22,7 @@
 
 #include "cpu/grid_cpu_collocate.h"
 #include "cpu/grid_cpu_integrate.h"
+#include "grid_multigrid.h"
 #include "grid_task_list.h"
 
 /*******************************************************************************
@@ -258,6 +259,7 @@ bool grid_replay(const char *filename, const int cycles, const bool collocate,
   const double zeta = parse_double("zeta", fp);
   const double zetb = parse_double("zetb", fp);
   const double rscale = parse_double("rscale", fp);
+  const int nlevels = 1;
 
   double dh_mutable[3][3], dh_inv_mutable[3][3], ra[3], rab[3];
   parse_double3x3("dh", fp, dh_mutable);
@@ -272,6 +274,9 @@ bool grid_replay(const char *filename, const int cycles, const bool collocate,
   parse_int3("npts_local", fp, npts_local);
   parse_int3("shift_local", fp, shift_local);
   parse_int3("border_width", fp, border_width);
+
+  grid_multigrid *multigrid = NULL;
+  grid_create_multigrid(orthorhombic, nlevels, &multigrid);
 
   const double radius = parse_double("radius", fp);
   const int o1 = parse_int("o1", fp);
@@ -478,6 +483,8 @@ bool grid_replay(const char *filename, const int cycles, const bool collocate,
          filename, collocate ? "Collocate" : "Integrate",
          batch ? "Batched" : "PGF-CPU", (float)cycles, max_value, max_rel_diff,
          end_time - start_time);
+
+  grid_free_multigrid(multigrid);
 
   offload_free_buffer(grid_ref);
   offload_free_buffer(grid_test);

@@ -47,6 +47,7 @@ MODULE pw_env_methods
    USE gaussian_gridlevels,             ONLY: destroy_gaussian_gridlevel,&
                                               gaussian_gridlevel,&
                                               init_gaussian_gridlevel
+   USE grid_api,                        ONLY: grid_create_multigrid
    USE input_constants,                 ONLY: do_method_gapw,&
                                               do_method_gapw_xc,&
                                               do_method_gpw,&
@@ -589,6 +590,7 @@ CONTAINS
 
          CALL rs_grid_create(rs_grids(igrid_level), rs_descs(igrid_level)%rs_desc)
       END DO
+      CALL grid_create_multigrid(rs_grids, pw_env%multigrid)
       pw_env%rs_descs => rs_descs
       pw_env%rs_grids => rs_grids
 

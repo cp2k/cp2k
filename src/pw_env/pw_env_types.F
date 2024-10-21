@@ -16,6 +16,8 @@ MODULE pw_env_types
                                               destroy_cube_info
    USE gaussian_gridlevels,             ONLY: destroy_gaussian_gridlevel,&
                                               gridlevel_info_type
+   USE grid_api,                        ONLY: grid_free_multigrid,&
+                                              grid_multigrid_type
    USE input_section_types,             ONLY: section_vals_type
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_para_env_type
@@ -77,6 +79,7 @@ MODULE pw_env_types
          DIMENSION(:), POINTER                    :: rs_descs => NULL()
       TYPE(realspace_grid_type), &
          DIMENSION(:), POINTER                    :: rs_grids => NULL()
+      TYPE(grid_multigrid_type) :: multigrid = grid_multigrid_type()
       TYPE(gridlevel_info_type), POINTER          :: gridlevel_info => NULL()
       TYPE(cube_info_type), DIMENSION(:), POINTER :: cube_info => NULL()
       TYPE(pw_poisson_type), POINTER              :: poisson_env => NULL()
@@ -99,6 +102,7 @@ CONTAINS
 !> \param auxbas_rs_grid ...
 !> \param rs_descs ...
 !> \param rs_grids ...
+!> \param multigrid ...
 !> \param xc_pw_pool ...
 !> \param vdw_pw_pool ...
 !> \param poisson_env ...
@@ -108,7 +112,7 @@ CONTAINS
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
    SUBROUTINE pw_env_get(pw_env, pw_pools, cube_info, gridlevel_info, &
-                         auxbas_pw_pool, auxbas_grid, auxbas_rs_desc, auxbas_rs_grid, rs_descs, rs_grids, &
+                         auxbas_pw_pool, auxbas_grid, auxbas_rs_desc, auxbas_rs_grid, rs_descs, rs_grids, multigrid, &
                          xc_pw_pool, vdw_pw_pool, poisson_env, interp_section)
       TYPE(pw_env_type), INTENT(IN)                      :: pw_env
       TYPE(pw_pool_p_type), DIMENSION(:), OPTIONAL, &
@@ -124,6 +128,7 @@ CONTAINS
          OPTIONAL, POINTER                               :: rs_descs
       TYPE(realspace_grid_type), DIMENSION(:), &
          OPTIONAL, POINTER                               :: rs_grids
+      TYPE(grid_multigrid_type), INTENT(OUT), OPTIONAL   :: multigrid
       TYPE(pw_pool_type), OPTIONAL, POINTER              :: xc_pw_pool, vdw_pw_pool
       TYPE(pw_poisson_type), OPTIONAL, POINTER           :: poisson_env
       TYPE(section_vals_type), OPTIONAL, POINTER         :: interp_section
@@ -143,6 +148,7 @@ CONTAINS
       IF (PRESENT(auxbas_rs_grid)) THEN
          auxbas_rs_grid => pw_env%rs_grids(pw_env%auxbas_grid)
       END IF
+      IF (PRESENT(multigrid)) multigrid = pw_env%multigrid
       IF (PRESENT(auxbas_grid)) auxbas_grid = pw_env%auxbas_grid
       IF (PRESENT(xc_pw_pool)) xc_pw_pool => pw_env%xc_pw_pool
       IF (PRESENT(vdw_pw_pool)) vdw_pw_pool => pw_env%vdw_pw_pool
@@ -211,6 +217,7 @@ CONTAINS
                END DO
                DEALLOCATE (pw_env%rs_grids)
             END IF
+            CALL grid_free_multigrid(pw_env%multigrid)
             DEALLOCATE (pw_env)
          END IF
       END IF

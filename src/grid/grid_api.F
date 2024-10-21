@@ -76,6 +76,7 @@ MODULE grid_api
    PUBLIC :: grid_basis_set_type, grid_create_basis_set, grid_free_basis_set
    PUBLIC :: grid_task_list_type, grid_create_task_list, grid_free_task_list
    PUBLIC :: grid_collocate_task_list, grid_integrate_task_list
+   PUBLIC :: grid_multigrid_type, grid_create_multigrid, grid_free_multigrid
 
    TYPE grid_basis_set_type
       PRIVATE
@@ -86,6 +87,11 @@ MODULE grid_api
       PRIVATE
       TYPE(C_PTR) :: c_ptr = C_NULL_PTR
    END TYPE grid_task_list_type
+
+   TYPE grid_multigrid_type
+      PRIVATE
+      TYPE(C_PTR) :: c_ptr = C_NULL_PTR
+   END TYPE grid_multigrid_type
 
 CONTAINS
 
@@ -955,6 +961,122 @@ CONTAINS
 
       CALL timestop(handle)
    END SUBROUTINE grid_free_task_list
+
+! **************************************************************************************************
+!> \brief Allocates a multigrid which can be passed to grid_*_task_list and *_pgf_product.
+!> \param rs_grids ...
+!> \param multigrid ...
+!> \author Frederick Stein
+! **************************************************************************************************
+   SUBROUTINE grid_create_multigrid(rs_grids, multigrid)
+
+      TYPE(realspace_grid_type), DIMENSION(:), &
+         INTENT(IN)                                      :: rs_grids
+      TYPE(grid_multigrid_type), INTENT(INOUT)           :: multigrid
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'grid_create_multigrid'
+
+      INTEGER                                            :: handle, ilevel, nlevels
+      INTEGER, ALLOCATABLE, DIMENSION(:, :), TARGET      :: border_width, npts_global, npts_local, &
+                                                            shift_local
+      LOGICAL(KIND=C_BOOL)                               :: orthorhombic
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
+         TARGET                                          :: dh, dh_inv
+      INTERFACE
+         SUBROUTINE grid_create_multigrid_c(orthorhombic, nlevels, &
+                                            !npts_global, npts_local, shift_local, &
+                                            !border_width, dh, dh_inv, &
+                                            multigrid) &
+            BIND(C, name="grid_create_multigrid")
+            IMPORT :: C_PTR, C_INT, C_BOOL
+            LOGICAL(KIND=C_BOOL), VALUE               :: orthorhombic
+            INTEGER(KIND=C_INT), VALUE                :: nlevels
+            !TYPE(C_PTR), VALUE                        :: npts_global
+            !TYPE(C_PTR), VALUE                        :: npts_local
+            !TYPE(C_PTR), VALUE                        :: shift_local
+            !TYPE(C_PTR), VALUE                        :: border_width
+            !TYPE(C_PTR), VALUE                        :: dh
+            !TYPE(C_PTR), VALUE                        :: dh_inv
+            TYPE(C_PTR)                               :: multigrid
+         END SUBROUTINE grid_create_multigrid_c
+      END INTERFACE
+
+      CALL timeset(routineN, handle)
+
+      nlevels = SIZE(rs_grids)
+      CPASSERT(nlevels > 0)
+      orthorhombic = LOGICAL(rs_grids(1)%desc%orthorhombic, C_BOOL)
+
+      ALLOCATE (npts_global(3, nlevels), npts_local(3, nlevels))
+      ALLOCATE (shift_local(3, nlevels), border_width(3, nlevels))
+      ALLOCATE (dh(3, 3, nlevels), dh_inv(3, 3, nlevels))
+      DO ilevel = 1, nlevels
+         ASSOCIATE (rsgrid => rs_grids(ilevel))
+            CALL get_rsgrid_properties(rsgrid=rsgrid, &
+                                       npts_global=npts_global(:, ilevel), &
+                                       npts_local=npts_local(:, ilevel), &
+                                       shift_local=shift_local(:, ilevel), &
+                                       border_width=border_width(:, ilevel))
+            CPASSERT(rsgrid%desc%orthorhombic .EQV. orthorhombic)  ! should be the same for all levels
+            dh(:, :, ilevel) = rsgrid%desc%dh(:, :)
+            dh_inv(:, :, ilevel) = rsgrid%desc%dh_inv(:, :)
+         END ASSOCIATE
+      END DO
+
+#if __GNUC__ >= 9
+      CPASSERT(IS_CONTIGUOUS(npts_global))
+      CPASSERT(IS_CONTIGUOUS(npts_local))
+      CPASSERT(IS_CONTIGUOUS(shift_local))
+      CPASSERT(IS_CONTIGUOUS(border_width))
+      CPASSERT(IS_CONTIGUOUS(dh))
+      CPASSERT(IS_CONTIGUOUS(dh_inv))
+#endif
+
+      !If task_list%c_ptr is already allocated, then its memory will be reused or freed.
+      CALL grid_create_multigrid_c(orthorhombic=orthorhombic, &
+                                   nlevels=nlevels, &
+                                   !npts_global=C_LOC(npts_global(1, 1)), &
+                                   !npts_local=C_LOC(npts_local(1, 1)), &
+                                   !shift_local=C_LOC(shift_local(1, 1)), &
+                                   !border_width=C_LOC(border_width(1, 1)), &
+                                   !dh=C_LOC(dh(1, 1, 1)), &
+                                   !dh_inv=C_LOC(dh_inv(1, 1, 1)), &
+                                   multigrid=multigrid%c_ptr)
+
+      CPASSERT(C_ASSOCIATED(multigrid%c_ptr))
+
+      CALL timestop(handle)
+   END SUBROUTINE grid_create_multigrid
+
+! **************************************************************************************************
+!> \brief Deallocates given task list, basis_sets have to be freed separately.
+!> \param multigrid ...
+!> \author Frederick Stein
+! **************************************************************************************************
+   SUBROUTINE grid_free_multigrid(multigrid)
+      TYPE(grid_multigrid_type), INTENT(INOUT)           :: multigrid
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'grid_free_multigrid'
+
+      INTEGER                                            :: handle
+      INTERFACE
+         SUBROUTINE grid_free_multigrid_c(multigrid) &
+            BIND(C, name="grid_free_multigrid")
+            IMPORT :: C_PTR
+            TYPE(C_PTR), VALUE                        :: multigrid
+         END SUBROUTINE grid_free_multigrid_c
+      END INTERFACE
+
+      CALL timeset(routineN, handle)
+
+      IF (C_ASSOCIATED(multigrid%c_ptr)) THEN
+         CALL grid_free_multigrid_c(multigrid%c_ptr)
+      END IF
+
+      multigrid%c_ptr = C_NULL_PTR
+
+      CALL timestop(handle)
+   END SUBROUTINE grid_free_multigrid
 
 ! **************************************************************************************************
 !> \brief Collocate all tasks of in given list onto given grids.
