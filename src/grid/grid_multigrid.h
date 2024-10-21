@@ -16,6 +16,12 @@
 typedef struct {
   bool orthorhombic;
   int nlevels;
+  int (*npts_global)[3];
+  int (*npts_local)[3];
+  int (*shift_local)[3];
+  int (*border_width)[3];
+  double (*dh)[3][3];
+  double (*dh_inv)[3][3];
   // more backends to be added here
 } grid_multigrid;
 
@@ -36,13 +42,14 @@ typedef struct {
  *
  * \author Frederick Stein
  ******************************************************************************/
-void grid_create_multigrid(
-    const bool orthorhombic, const int nlevels,
-    // const int npts_global[nlevels][3],
-    // const int npts_local[nlevels][3], const int shift_local[nlevels][3],
-    // const int border_width[nlevels][3], const double dh[nlevels][3][3],
-    // const double dh_inv[nlevels][3][3],
-    grid_multigrid **multigrid_out);
+void grid_create_multigrid(const bool orthorhombic, const int nlevels,
+                           const int npts_global[nlevels][3],
+                           const int npts_local[nlevels][3],
+                           const int shift_local[nlevels][3],
+                           const int border_width[nlevels][3],
+                           const double dh[nlevels][3][3],
+                           const double dh_inv[nlevels][3][3],
+                           grid_multigrid **multigrid_out);
 
 /*******************************************************************************
  * \brief Deallocates given multigrid.

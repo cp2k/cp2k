@@ -8,6 +8,7 @@
 #include <assert.h>
 #include <stddef.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "grid_multigrid.h"
 
@@ -28,25 +29,54 @@
  *
  * \author Frederick Stein
  ******************************************************************************/
-void grid_create_multigrid(
-    const bool orthorhombic, const int nlevels,
-    // const int npts_global[nlevels][3],
-    // const int npts_local[nlevels][3], const int shift_local[nlevels][3],
-    // const int border_width[nlevels][3], const double dh[nlevels][3][3],
-    // const double dh_inv[nlevels][3][3],
-    grid_multigrid **multigrid_out) {
+void grid_create_multigrid(const bool orthorhombic, const int nlevels,
+                           const int npts_global[nlevels][3],
+                           const int npts_local[nlevels][3],
+                           const int shift_local[nlevels][3],
+                           const int border_width[nlevels][3],
+                           const double dh[nlevels][3][3],
+                           const double dh_inv[nlevels][3][3],
+                           grid_multigrid **multigrid_out) {
   grid_multigrid *multigrid = NULL;
 
   assert(multigrid_out != NULL);
 
+  const int num_int = 3 * nlevels;
+  const int num_double = 9 * nlevels;
+
   if (*multigrid_out != NULL) {
     multigrid = *multigrid_out;
+    if (nlevels != multigrid->nlevels) {
+      multigrid->npts_global =
+          realloc(multigrid->npts_global, num_int * sizeof(int));
+      multigrid->npts_local =
+          realloc(multigrid->npts_local, num_int * sizeof(int));
+      multigrid->shift_local =
+          realloc(multigrid->shift_local, num_int * sizeof(int));
+      multigrid->border_width =
+          realloc(multigrid->border_width, num_int * sizeof(int));
+      multigrid->dh = realloc(multigrid->dh, num_double * sizeof(double));
+      multigrid->dh_inv =
+          realloc(multigrid->dh_inv, num_double * sizeof(double));
+    }
   } else {
     multigrid = calloc(1, sizeof(grid_multigrid));
+    multigrid->npts_global = calloc(num_int, sizeof(int));
+    multigrid->npts_local = calloc(num_int, sizeof(int));
+    multigrid->shift_local = calloc(num_int, sizeof(int));
+    multigrid->border_width = calloc(num_int, sizeof(int));
+    multigrid->dh = calloc(num_double, sizeof(double));
+    multigrid->dh_inv = calloc(num_double, sizeof(double));
   }
 
   multigrid->nlevels = nlevels;
   multigrid->orthorhombic = orthorhombic;
+  memcpy(multigrid->npts_global, npts_global, num_int * sizeof(int));
+  memcpy(multigrid->npts_local, npts_local, num_int * sizeof(int));
+  memcpy(multigrid->shift_local, shift_local, num_int * sizeof(int));
+  memcpy(multigrid->border_width, border_width, num_int * sizeof(int));
+  memcpy(multigrid->dh, dh, num_double * sizeof(double));
+  memcpy(multigrid->dh_inv, dh_inv, num_double * sizeof(double));
 
   *multigrid_out = multigrid;
 }
@@ -57,6 +87,18 @@ void grid_create_multigrid(
  ******************************************************************************/
 void grid_free_multigrid(grid_multigrid *multigrid) {
   if (multigrid != NULL) {
+    if (multigrid->npts_global)
+      free(multigrid->npts_global);
+    if (multigrid->npts_local)
+      free(multigrid->npts_local);
+    if (multigrid->shift_local)
+      free(multigrid->shift_local);
+    if (multigrid->border_width)
+      free(multigrid->border_width);
+    if (multigrid->dh)
+      free(multigrid->dh);
+    if (multigrid->dh_inv)
+      free(multigrid->dh_inv);
     free(multigrid);
   }
 }

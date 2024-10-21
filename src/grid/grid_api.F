@@ -984,19 +984,19 @@ CONTAINS
          TARGET                                          :: dh, dh_inv
       INTERFACE
          SUBROUTINE grid_create_multigrid_c(orthorhombic, nlevels, &
-                                            !npts_global, npts_local, shift_local, &
-                                            !border_width, dh, dh_inv, &
+                                            npts_global, npts_local, shift_local, &
+                                            border_width, dh, dh_inv, &
                                             multigrid) &
             BIND(C, name="grid_create_multigrid")
             IMPORT :: C_PTR, C_INT, C_BOOL
             LOGICAL(KIND=C_BOOL), VALUE               :: orthorhombic
             INTEGER(KIND=C_INT), VALUE                :: nlevels
-            !TYPE(C_PTR), VALUE                        :: npts_global
-            !TYPE(C_PTR), VALUE                        :: npts_local
-            !TYPE(C_PTR), VALUE                        :: shift_local
-            !TYPE(C_PTR), VALUE                        :: border_width
-            !TYPE(C_PTR), VALUE                        :: dh
-            !TYPE(C_PTR), VALUE                        :: dh_inv
+            TYPE(C_PTR), VALUE                        :: npts_global
+            TYPE(C_PTR), VALUE                        :: npts_local
+            TYPE(C_PTR), VALUE                        :: shift_local
+            TYPE(C_PTR), VALUE                        :: border_width
+            TYPE(C_PTR), VALUE                        :: dh
+            TYPE(C_PTR), VALUE                        :: dh_inv
             TYPE(C_PTR)                               :: multigrid
          END SUBROUTINE grid_create_multigrid_c
       END INTERFACE
@@ -1035,12 +1035,12 @@ CONTAINS
       !If task_list%c_ptr is already allocated, then its memory will be reused or freed.
       CALL grid_create_multigrid_c(orthorhombic=orthorhombic, &
                                    nlevels=nlevels, &
-                                   !npts_global=C_LOC(npts_global(1, 1)), &
-                                   !npts_local=C_LOC(npts_local(1, 1)), &
-                                   !shift_local=C_LOC(shift_local(1, 1)), &
-                                   !border_width=C_LOC(border_width(1, 1)), &
-                                   !dh=C_LOC(dh(1, 1, 1)), &
-                                   !dh_inv=C_LOC(dh_inv(1, 1, 1)), &
+                                   npts_global=C_LOC(npts_global(1, 1)), &
+                                   npts_local=C_LOC(npts_local(1, 1)), &
+                                   shift_local=C_LOC(shift_local(1, 1)), &
+                                   border_width=C_LOC(border_width(1, 1)), &
+                                   dh=C_LOC(dh(1, 1, 1)), &
+                                   dh_inv=C_LOC(dh_inv(1, 1, 1)), &
                                    multigrid=multigrid%c_ptr)
 
       CPASSERT(C_ASSOCIATED(multigrid%c_ptr))

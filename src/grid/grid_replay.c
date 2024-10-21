@@ -276,7 +276,11 @@ bool grid_replay(const char *filename, const int cycles, const bool collocate,
   parse_int3("border_width", fp, border_width);
 
   grid_multigrid *multigrid = NULL;
-  grid_create_multigrid(orthorhombic, nlevels, &multigrid);
+  grid_create_multigrid(
+      orthorhombic, nlevels, (const int(*)[3])npts_global,
+      (const int(*)[3])npts_local, (const int(*)[3])shift_local,
+      (const int(*)[3])border_width, (const double(*)[3][3])dh,
+      (const double(*)[3][3])dh_inv, &multigrid);
 
   const double radius = parse_double("radius", fp);
   const int o1 = parse_int("o1", fp);
