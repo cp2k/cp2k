@@ -580,6 +580,22 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                :: qs_env
       TYPE(post_scf_bandstructure_type), POINTER        :: bs_env
       REAL(kind=dp)                                     :: size_mb
+      INTEGER                                           :: nblkrows_local, &
+                                                           nblkcols_local, &
+                                                           i_blk_local, &
+                                                           j_blk_local, &
+                                                           nrows_local, &
+                                                           ncols_local, &
+                                                           col_local_offset, &
+                                                           row_local_offset, &
+                                                           start_col_index, &
+                                                           end_col_index, &
+                                                           start_row_index, &
+                                                           end_row_index
+      INTEGER, DIMENSION(:), POINTER                    :: local_blk_rows, &
+                                                           local_blk_cols, &
+                                                           row_blk_size, &
+                                                           col_blk_size
 
       CALL get_qs_env(qs_env, bs_env=bs_env)
 
@@ -593,13 +609,56 @@ CONTAINS
       IF ( rtbse_env%unit_nr > 0 ) WRITE(rtbse_env%unit_nr, '(A44,E32.2E3,A4)') &
               " RTBSE| Approximate size of the 3c integrals", size_mb, " MiB"
 
-      ALLOCATE (rtbse_env%int_3c_array(rtbse_env%n_ao, rtbse_env%n_ao, rtbse_env%n_RI))
-      CALL build_3c_integral_block(rtbse_env%int_3c_array, qs_env, potential_parameter=bs_env%ri_metric, &
-                                   basis_j=bs_env%basis_set_AO, basis_k=bs_env%basis_set_AO, &
-                                   basis_i=bs_env%basis_set_RI, &
-                                   j_bf_start_from_atom=bs_env%i_ao_start_from_atom, &
-                                   k_bf_start_from_atom=bs_env%i_ao_start_from_atom, &
-                                   i_bf_start_from_atom=bs_env%i_RI_start_from_atom)
+      ! Get the number of block rows and columns
+      CALL dbcsr_get_info(rtbse_env%rho_dbcsr, nblkrows_local=nblkrows_local, nblkcols_local=nblkcols_local)
+      ! Get the global indices of local rows and columns
+      CALL dbcsr_get_info(rtbse_env%rho_dbcsr, local_rows=local_blk_rows, local_cols=local_blk_cols)
+      ! Get the sizes of all blocks
+      CALL dbcsr_get_info(rtbse_env%rho_dbcsr, row_blk_size=row_blk_size, col_blk_size=col_blk_size)
+
+      ! Get the total required local rows and cols
+      nrows_local = 0
+      DO i_blk_local=1,nblkrows_local
+         nrows_local = nrows_local + row_blk_size(local_blk_rows(i_blk_local))
+      END DO
+      ncols_local = 0
+      DO j_blk_local=1,nblkcols_local
+         ncols_local = ncols_local + col_blk_size(local_blk_cols(j_blk_local))
+      END DO
+
+      ! Allocate the appropriate storage
+      ALLOCATE(rtbse_env%int_3c_array(nrows_local, ncols_local, rtbse_env%n_RI))
+
+      ! Fill the storage with appropriate values, block by block
+      row_local_offset = 1
+      DO i_blk_local=1,nblkrows_local
+         col_local_offset = 1
+         DO j_blk_local=1,nblkcols_local
+            start_row_index = row_local_offset
+            end_row_index = start_row_index + row_blk_size(local_blk_rows(i_blk_local)) - 1
+            start_col_index = col_local_offset
+            end_col_index = start_col_index + col_blk_size(local_blk_cols(j_blk_local)) - 1
+            CALL build_3c_integral_block(rtbse_env%int_3c_array(start_row_index:end_row_index,&
+                                                                start_col_index:end_col_index,&
+                                                                1:rtbse_env%n_RI), &
+                                         qs_env, potential_parameter=bs_env%ri_metric, &
+                                         basis_j=bs_env%basis_set_AO, basis_k=bs_env%basis_set_AO, &
+                                         basis_i=bs_env%basis_set_RI, &
+                                         atom_j=local_blk_rows(i_blk_local), &
+                                         atom_k=local_blk_cols(j_blk_local), &
+                                         i_bf_start_from_atom=bs_env%i_RI_start_from_atom)
+            col_local_offset = col_local_offset + col_blk_size(local_blk_cols(j_blk_local))
+         END DO
+         row_local_offset = row_local_offset + row_blk_size(local_blk_rows(i_blk_local))
+      END DO
+
+      ! ALLOCATE (rtbse_env%int_3c_array(rtbse_env%n_ao, rtbse_env%n_ao, rtbse_env%n_RI))
+      ! CALL build_3c_integral_block(rtbse_env%int_3c_array, qs_env, potential_parameter=bs_env%ri_metric, &
+      !                              basis_j=bs_env%basis_set_AO, basis_k=bs_env%basis_set_AO, &
+      !                              basis_i=bs_env%basis_set_RI, &
+      !                              j_bf_start_from_atom=bs_env%i_ao_start_from_atom, &
+      !                              k_bf_start_from_atom=bs_env%i_ao_start_from_atom, &
+      !                              i_bf_start_from_atom=bs_env%i_RI_start_from_atom)
    END SUBROUTINE create_hartree_ri_workspace
 ! **************************************************************************************************
 !> \brief Releases the workspace for the Hartree RI method

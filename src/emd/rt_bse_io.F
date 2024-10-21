@@ -658,12 +658,12 @@ CONTAINS
       ! Real part
       value_series(:) = REAL(rtbse_env%moments_trace(rtbse_env%pol_element(1))%series(:))
       CALL ft_simple(rtbse_env%time_trace%series, value_series, omega_series, ft_real_series, ft_imag_series, &
-                     rtbse_env%ft_damping, rtbse_env%ft_start)
+                     rtbse_env%ft_damping, rtbse_env%ft_start, .TRUE.)
       moment_series(:) = CMPLX(ft_real_series(:), ft_imag_series(:), kind=dp)
       ! Imaginary part
       value_series(:) = AIMAG(rtbse_env%moments_trace(rtbse_env%pol_element(1))%series(:))
       CALL ft_simple(rtbse_env%time_trace%series, value_series, omega_series, ft_real_series, ft_imag_series, &
-                     rtbse_env%ft_damping, rtbse_env%ft_start)
+                     rtbse_env%ft_damping, rtbse_env%ft_start, .TRUE.)
       moment_series(:) = moment_series(:) + CMPLX(-ft_imag_series(:), ft_real_series(:), kind=dp)
 
       ! Calculate the field transform - store it in ft_real_series

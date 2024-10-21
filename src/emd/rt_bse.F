@@ -1179,6 +1179,13 @@ CONTAINS
       REAL(kind=dp), DIMENSION(:, :), POINTER            :: block_matrix
       REAL(kind=dp), DIMENSION(:, :, :), POINTER         :: int_3c
       TYPE(dbcsr_type)                                   :: v_dbcsr_ao
+      INTEGER                                            :: nblkrows_local, nblkcols_local, j_blk, k_blk, j_offset, k_offset
+      INTEGER, DIMENSION(:), POINTER                     :: local_blk_rows, local_blk_cols
+      LOGICAL                                            :: found
+
+      MARK_USED(i_n_RI)
+      MARK_USED(ri_offset)
+      MARK_USED(ind_i)
 
       ! No memory optimisation so far - calculate all 3cs an all ranks
       ! Importantly - dbcsr blocks are ordered by atoms - i.e. ethene with 6 atoms will have 6x6 block structure
@@ -1199,38 +1206,67 @@ CONTAINS
       ! Only the real part of the density matrix contributes
       CALL cp_cfm_to_fm(msource=rho_ao, mtargetr=rtbse_env%real_workspace(1))
       CALL copy_fm_to_dbcsr(rtbse_env%real_workspace(1), rtbse_env%rho_dbcsr)
-      nblocks = dbcsr_get_num_blocks(rtbse_env%rho_dbcsr)
-      CALL dbcsr_iterator_start(iterator_matrix, rtbse_env%rho_dbcsr)
-      DO n = 1, nblocks
-         CALL dbcsr_iterator_next_block(iterator_matrix, ind_1, ind_2, block_matrix, &
-                                        row_offset=row_offset, col_offset=col_offset, row_size=row_size, col_size=col_size)
-         ! Now we have a block corresponding to a single atom pair
-         j_n_AO = bs_env%sizes_AO(ind_1)
-         k_n_AO = bs_env%sizes_AO(ind_2)
-         ! For each atom pair, we need to get contributions from all RI atoms
-         ! The allocations are as follows
-         ! Now, get the relevant 3c integrals
-         ri_offset = 0
-         DO ind_i = 1, bs_env%n_atom
-            i_n_RI = bs_env%sizes_RI(ind_i)
+      j_offset = 0
+      CALL dbcsr_get_info(rtbse_env%rho_dbcsr, nblkrows_local=nblkrows_local, nblkcols_local=nblkcols_local,&
+              local_rows=local_blk_rows, local_cols=local_blk_cols)
+      DO j_blk=1, nblkrows_local
+         k_offset = 0
+         DO k_blk=1, nblkcols_local
+            ! Check whether we can retrieve the rho block
+            ! TODO : Handle transposed case?
+            CALL dbcsr_get_block_p(rtbse_env%rho_dbcsr, local_blk_rows(j_blk), local_blk_cols(k_blk), &
+                                   block=block_matrix, found=found, row_size=row_size, col_size=col_size)
+            ! If the block is not found, then the density matrix here has below threshold values
+            IF ( .NOT. found ) CYCLE
+            ! With the block retrieved, add its contributions to the Q-vector
             !$OMP PARALLEL DO DEFAULT(none) PRIVATE(i,j,k) &
-            !$OMP SHARED(Qvector, int_3c, block_matrix,i_n_RI,j_n_AO,k_n_AO, ri_offset, ind_1, ind_2, ind_i, bs_env)
-            DO i = 1, i_n_RI
-               DO j = 1, j_n_AO
-                  DO k = 1, k_n_AO
-                     ! Different OMP threads write to different places in memory - should be safe from data race
-                     Qvector(ri_offset + i) = Qvector(ri_offset + i) + int_3c(j + bs_env%i_ao_start_from_atom(ind_1) - 1, &
-                                                                              k + bs_env%i_ao_start_from_atom(ind_2) - 1, &
-                                                                              i + bs_env%i_RI_start_from_atom(ind_i) - 1) &
-                                              *block_matrix(j, k)
+            !$OMP SHARED(n_RI, row_size, col_size, Qvector, int_3c, j_offset, k_offset, block_matrix)
+            DO i=1,n_RI
+               DO j=1,row_size
+                  DO k=1,col_size
+                     Qvector(i) = Qvector(i) + int_3c(j_offset + j, k_offset + k, i) * block_matrix(j, k)
                   END DO
                END DO
             END DO
             !$OMP END PARALLEL DO
-            ri_offset = ri_offset + i_n_RI
+            ! Increment k-offset - setup for the next block
+            k_offset = k_offset + col_size
          END DO
+         ! Increments the j-offset - row_size is carried over from the last iteration
+         j_offset = j_offset + row_size
       END DO
-      CALL dbcsr_iterator_stop(iterator_matrix)
+      ! nblocks = dbcsr_get_num_blocks(rtbse_env%rho_dbcsr)
+      ! CALL dbcsr_iterator_start(iterator_matrix, rtbse_env%rho_dbcsr)
+      ! DO n = 1, nblocks
+      !    CALL dbcsr_iterator_next_block(iterator_matrix, ind_1, ind_2, block_matrix, &
+      !                                   row_offset=row_offset, col_offset=col_offset, row_size=row_size, col_size=col_size)
+      !    ! Now we have a block corresponding to a single atom pair
+      !    j_n_AO = bs_env%sizes_AO(ind_1)
+      !    k_n_AO = bs_env%sizes_AO(ind_2)
+      !    ! For each atom pair, we need to get contributions from all RI atoms
+      !    ! The allocations are as follows
+      !    ! Now, get the relevant 3c integrals
+      !    ri_offset = 0
+      !    DO ind_i = 1, bs_env%n_atom
+      !       i_n_RI = bs_env%sizes_RI(ind_i)
+      !       !$OMP PARALLEL DO DEFAULT(none) PRIVATE(i,j,k) &
+      !       !$OMP SHARED(Qvector, int_3c, block_matrix,i_n_RI,j_n_AO,k_n_AO, ri_offset, ind_1, ind_2, ind_i, bs_env)
+      !       DO i = 1, i_n_RI
+      !          DO j = 1, j_n_AO
+      !             DO k = 1, k_n_AO
+      !                ! Different OMP threads write to different places in memory - should be safe from data race
+      !                Qvector(ri_offset + i) = Qvector(ri_offset + i) + int_3c(j + bs_env%i_ao_start_from_atom(ind_1) - 1, &
+      !                                                                         k + bs_env%i_ao_start_from_atom(ind_2) - 1, &
+      !                                                                         i + bs_env%i_RI_start_from_atom(ind_i) - 1) &
+      !                                         *block_matrix(j, k)
+      !             END DO
+      !          END DO
+      !       END DO
+      !       !$OMP END PARALLEL DO
+      !       ri_offset = ri_offset + i_n_RI
+      !    END DO
+      ! END DO
+      ! CALL dbcsr_iterator_stop(iterator_matrix)
       ! Now, each rank has contributions from D_jk within its scope
       ! Need to sum over different ranks to get the total vector on all ranks
       CALL para_env%sum(Qvector)
@@ -1259,37 +1295,71 @@ CONTAINS
       ! Again, make sure that the P vector is present on all ranks
       CALL para_env%sum(Pvector)
       ! Now, for the final trick, iterate over local blocks of v_dbcsr_ao to get the Hartree as dbcsr, then convert to fm
+      ! TODO : Initiate v_dbcsr_ao in the hartree_ri_workspace routines
       CALL dbcsr_create(v_dbcsr_ao, "Hartree ao", rtbse_env%rho_dbcsr)
-      CALL copy_fm_to_dbcsr(v_ao, v_dbcsr_ao)
-      nblocks = dbcsr_get_num_blocks(v_dbcsr_ao)
-      CALL dbcsr_iterator_start(iterator_matrix, v_dbcsr_ao)
-      DO n = 1, nblocks
-         CALL dbcsr_iterator_next_block(iterator_matrix, ind_1, ind_2, block_matrix, &
-                                        row_offset=row_offset, col_offset=col_offset)
-         j_n_AO = bs_env%sizes_AO(ind_1)
-         k_n_AO = bs_env%sizes_AO(ind_2)
-         ri_offset = 0
-         block_matrix(:, :) = 0.0_dp
-         DO ind_i = 1, bs_env%n_atom
-            i_n_RI = bs_env%sizes_RI(ind_i)
-            ! TODO : In principle, can parallelize over both directions here
+      j_offset = 0
+      DO j_blk=1, nblkrows_local
+         k_offset = 0
+         DO k_blk=1, nblkcols_local
+            ! Check whether we can retrieve the rho block
+            ! TODO : Handle transposed case?
+            CALL dbcsr_get_block_p(v_dbcsr_ao, local_blk_rows(j_blk), local_blk_cols(k_blk), &
+                                   block=block_matrix, found=found, row_size=row_size, col_size=col_size)
+            ! If the block is not found, reserve it
+            IF ( .NOT. found ) THEN
+               ! Reservations
+               CALL dbcsr_reserve_blocks(v_dbcsr_ao, local_blk_rows(j_blk:j_blk), local_blk_cols(k_blk:k_blk))
+               ! Rerun the getter to get the new block
+               CALL dbcsr_get_block_p(v_dbcsr_ao, local_blk_rows(j_blk), local_blk_cols(k_blk), &
+                                      block=block_matrix, found=found, row_size=row_size, col_size=col_size)
+            END IF
+            ! With the block retrieved, contract with the P vector 
             !$OMP PARALLEL DO DEFAULT(none) PRIVATE(i,j,k) &
-            !$OMP SHARED(block_matrix, Pvector, int_3c, i_n_RI, j_n_AO, k_n_AO, ri_offset, ind_1, ind_2, ind_i, bs_env)
-            DO j = 1, j_n_AO
-               DO k = 1, k_n_AO
-                  ! Add all the summed up values
-                  DO i = 1, i_n_RI
-                     block_matrix(j, k) = block_matrix(j, k) + int_3c(j + bs_env%i_ao_start_from_atom(ind_1) - 1, &
-                                                                      k + bs_env%i_ao_start_from_atom(ind_2) - 1, &
-                                                                  i + bs_env%i_RI_start_from_atom(ind_i) - 1)*Pvector(i + ri_offset)
+            !$OMP SHARED(row_size, col_size, n_RI, block_matrix, Pvector, int_3c, j_offset, k_offset)
+            DO j=1,row_size
+               DO k=1,col_size
+                  DO i=1,n_RI
+                     block_matrix(j, k) = block_matrix(j, k) + Pvector(i) * int_3c(j_offset + j, k_offset + k, i)
                   END DO
                END DO
             END DO
             !$OMP END PARALLEL DO
-            ri_offset = ri_offset + i_n_RI
+            ! Increment k-offset - setup for the next block
+            k_offset = k_offset + col_size
          END DO
+         ! Increments the j-offset - row_size is carried over from the last iteration
+         j_offset = j_offset + row_size
       END DO
-      CALL dbcsr_iterator_stop(iterator_matrix)
+      ! CALL copy_fm_to_dbcsr(v_ao, v_dbcsr_ao)
+      ! nblocks = dbcsr_get_num_blocks(v_dbcsr_ao)
+      ! CALL dbcsr_iterator_start(iterator_matrix, v_dbcsr_ao)
+      ! DO n = 1, nblocks
+      !    CALL dbcsr_iterator_next_block(iterator_matrix, ind_1, ind_2, block_matrix, &
+      !                                   row_offset=row_offset, col_offset=col_offset)
+      !    j_n_AO = bs_env%sizes_AO(ind_1)
+      !    k_n_AO = bs_env%sizes_AO(ind_2)
+      !    ri_offset = 0
+      !    block_matrix(:, :) = 0.0_dp
+      !    DO ind_i = 1, bs_env%n_atom
+      !       i_n_RI = bs_env%sizes_RI(ind_i)
+      !       ! TODO : In principle, can parallelize over both directions here
+      !       !$OMP PARALLEL DO DEFAULT(none) PRIVATE(i,j,k) &
+      !       !$OMP SHARED(block_matrix, Pvector, int_3c, i_n_RI, j_n_AO, k_n_AO, ri_offset, ind_1, ind_2, ind_i, bs_env)
+      !       DO j = 1, j_n_AO
+      !          DO k = 1, k_n_AO
+      !             ! Add all the summed up values
+      !             DO i = 1, i_n_RI
+      !                block_matrix(j, k) = block_matrix(j, k) + int_3c(j + bs_env%i_ao_start_from_atom(ind_1) - 1, &
+      !                                                                 k + bs_env%i_ao_start_from_atom(ind_2) - 1, &
+      !                                                             i + bs_env%i_RI_start_from_atom(ind_i) - 1)*Pvector(i + ri_offset)
+      !             END DO
+      !          END DO
+      !       END DO
+      !       !$OMP END PARALLEL DO
+      !       ri_offset = ri_offset + i_n_RI
+      !    END DO
+      ! END DO
+      ! CALL dbcsr_iterator_stop(iterator_matrix)
       ! Since P vector was present on all the ranks, v_dbcsr_ao has the complete Hartree result
       CALL copy_dbcsr_to_fm(v_dbcsr_ao, v_ao)
       CALL dbcsr_release(v_dbcsr_ao)
