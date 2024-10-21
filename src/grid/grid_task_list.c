@@ -23,19 +23,16 @@
  * \author Ole Schuett
  ******************************************************************************/
 void grid_create_task_list(
-    const bool orthorhombic, const int ntasks, const int nlevels,
-    const int natoms, const int nkinds, const int nblocks,
-    const int block_offsets[nblocks], const double atom_positions[natoms][3],
-    const int atom_kinds[natoms], const grid_basis_set *basis_sets[nkinds],
-    const int level_list[ntasks], const int iatom_list[ntasks],
-    const int jatom_list[ntasks], const int iset_list[ntasks],
-    const int jset_list[ntasks], const int ipgf_list[ntasks],
-    const int jpgf_list[ntasks], const int border_mask_list[ntasks],
-    const int block_num_list[ntasks], const double radius_list[ntasks],
-    const double rab_list[ntasks][3], const int npts_global[nlevels][3],
-    const int npts_local[nlevels][3], const int shift_local[nlevels][3],
-    const int border_width[nlevels][3], const double dh[nlevels][3][3],
-    const double dh_inv[nlevels][3][3], grid_task_list **task_list_out) {
+    const grid_multigrid *multigrid, const int ntasks, const int natoms,
+    const int nkinds, const int nblocks, const int block_offsets[nblocks],
+    const double atom_positions[natoms][3], const int atom_kinds[natoms],
+    const grid_basis_set *basis_sets[nkinds], const int level_list[ntasks],
+    const int iatom_list[ntasks], const int jatom_list[ntasks],
+    const int iset_list[ntasks], const int jset_list[ntasks],
+    const int ipgf_list[ntasks], const int jpgf_list[ntasks],
+    const int border_mask_list[ntasks], const int block_num_list[ntasks],
+    const double radius_list[ntasks], const double rab_list[ntasks][3],
+    grid_task_list **task_list_out) {
 
   const grid_library_config config = grid_library_get_config();
 
@@ -66,19 +63,21 @@ void grid_create_task_list(
   }
 
   // Store npts_local for bounds checking and validation.
-  task_list->nlevels = nlevels;
-  size_t size = nlevels * 3 * sizeof(int);
+  task_list->nlevels = multigrid->nlevels;
+  size_t size = multigrid->nlevels * 3 * sizeof(int);
   task_list->npts_local = malloc(size);
   assert(task_list->npts_local != NULL);
-  memcpy(task_list->npts_local, npts_local, size);
+  memcpy(task_list->npts_local, multigrid->npts_local, size);
 
   // Always create reference backend because it might be needed for validation.
   grid_ref_create_task_list(
-      orthorhombic, ntasks, nlevels, natoms, nkinds, nblocks, block_offsets,
-      atom_positions, atom_kinds, basis_sets, level_list, iatom_list,
-      jatom_list, iset_list, jset_list, ipgf_list, jpgf_list, border_mask_list,
-      block_num_list, radius_list, rab_list, npts_global, npts_local,
-      shift_local, border_width, dh, dh_inv, &task_list->ref);
+      multigrid->orthorhombic, ntasks, multigrid->nlevels, natoms, nkinds,
+      nblocks, block_offsets, atom_positions, atom_kinds, basis_sets,
+      level_list, iatom_list, jatom_list, iset_list, jset_list, ipgf_list,
+      jpgf_list, border_mask_list, block_num_list, radius_list, rab_list,
+      multigrid->npts_global, multigrid->npts_local, multigrid->shift_local,
+      multigrid->border_width, multigrid->dh, multigrid->dh_inv,
+      &task_list->ref);
 
   // Create other backend, if selected.
   switch (task_list->backend) {
@@ -86,29 +85,35 @@ void grid_create_task_list(
     break; // was already created above
   case GRID_BACKEND_CPU:
     grid_cpu_create_task_list(
-        orthorhombic, ntasks, nlevels, natoms, nkinds, nblocks, block_offsets,
-        atom_positions, atom_kinds, basis_sets, level_list, iatom_list,
-        jatom_list, iset_list, jset_list, ipgf_list, jpgf_list,
-        border_mask_list, block_num_list, radius_list, rab_list, npts_global,
-        npts_local, shift_local, border_width, dh, dh_inv, &task_list->cpu);
+        multigrid->orthorhombic, ntasks, multigrid->nlevels, natoms, nkinds,
+        nblocks, block_offsets, atom_positions, atom_kinds, basis_sets,
+        level_list, iatom_list, jatom_list, iset_list, jset_list, ipgf_list,
+        jpgf_list, border_mask_list, block_num_list, radius_list, rab_list,
+        multigrid->npts_global, multigrid->npts_local, multigrid->shift_local,
+        multigrid->border_width, multigrid->dh, multigrid->dh_inv,
+        &task_list->cpu);
     break;
   case GRID_BACKEND_DGEMM:
     grid_dgemm_create_task_list(
-        orthorhombic, ntasks, nlevels, natoms, nkinds, nblocks, block_offsets,
-        atom_positions, atom_kinds, basis_sets, level_list, iatom_list,
-        jatom_list, iset_list, jset_list, ipgf_list, jpgf_list,
-        border_mask_list, block_num_list, radius_list, rab_list, npts_global,
-        npts_local, shift_local, border_width, dh, dh_inv, &task_list->dgemm);
+        multigrid->orthorhombic, ntasks, multigrid->nlevels, natoms, nkinds,
+        nblocks, block_offsets, atom_positions, atom_kinds, basis_sets,
+        level_list, iatom_list, jatom_list, iset_list, jset_list, ipgf_list,
+        jpgf_list, border_mask_list, block_num_list, radius_list, rab_list,
+        multigrid->npts_global, multigrid->npts_local, multigrid->shift_local,
+        multigrid->border_width, multigrid->dh, multigrid->dh_inv,
+        &task_list->dgemm);
     break;
 
   case GRID_BACKEND_GPU:
 #if (defined(__OFFLOAD) && !defined(__NO_OFFLOAD_GRID))
     grid_gpu_create_task_list(
-        orthorhombic, ntasks, nlevels, natoms, nkinds, nblocks, block_offsets,
-        atom_positions, atom_kinds, basis_sets, level_list, iatom_list,
-        jatom_list, iset_list, jset_list, ipgf_list, jpgf_list,
-        border_mask_list, block_num_list, radius_list, rab_list, npts_global,
-        npts_local, shift_local, border_width, dh, dh_inv, &task_list->gpu);
+        multigrid->orthorhombic, ntasks, multigrid->nlevels, natoms, nkinds,
+        nblocks, block_offsets, atom_positions, atom_kinds, basis_sets,
+        level_list, iatom_list, jatom_list, iset_list, jset_list, ipgf_list,
+        jpgf_list, border_mask_list, block_num_list, radius_list, rab_list,
+        multigrid->npts_global, multigrid->npts_local, multigrid->shift_local,
+        multigrid->border_width, multigrid->dh, multigrid->dh_inv,
+        &task_list->gpu);
 #else
     fprintf(stderr,
             "Error: The GPU grid backend is not available. "
@@ -120,12 +125,14 @@ void grid_create_task_list(
   case GRID_BACKEND_HIP:
 #if defined(__OFFLOAD_HIP) && !defined(__NO_OFFLOAD_GRID)
     grid_hip_create_task_list(
-        orthorhombic, ntasks, nlevels, natoms, nkinds, nblocks, block_offsets,
-        &atom_positions[0][0], atom_kinds, basis_sets, level_list, iatom_list,
-        jatom_list, iset_list, jset_list, ipgf_list, jpgf_list,
-        border_mask_list, block_num_list, radius_list, &rab_list[0][0],
-        &npts_global[0][0], &npts_local[0][0], &shift_local[0][0],
-        &border_width[0][0], &dh[0][0][0], &dh_inv[0][0][0], &task_list->hip);
+        multigrid->orthorhombic, ntasks, multigrid->nlevels, natoms, nkinds,
+        nblocks, block_offsets, &atom_positions[0][0], atom_kinds, basis_sets,
+        level_list, iatom_list, jatom_list, iset_list, jset_list, ipgf_list,
+        jpgf_list, border_mask_list, block_num_list, radius_list,
+        &rab_list[0][0], &multigrid->npts_global[0][0],
+        &multigrid->npts_local[0][0], &multigrid->shift_local[0][0],
+        &multigrid->border_width[0][0], &multigrid->dh[0][0][0],
+        &multigrid->dh_inv[0][0][0], &task_list->hip);
 #else
     fprintf(stderr, "Error: The HIP grid backend is not available. "
                     "Please re-compile with -D__OFFLOAD_HIP");

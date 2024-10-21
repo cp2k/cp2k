@@ -719,7 +719,7 @@ CONTAINS
 !> \param block_num_list ...
 !> \param radius_list ...
 !> \param rab_list ...
-!> \param rs_grids ...
+!> \param multigrid ...
 !> \param task_list ...
 !> \author Ole Schuett
 ! **************************************************************************************************
@@ -728,7 +728,7 @@ CONTAINS
                                     level_list, iatom_list, jatom_list, &
                                     iset_list, jset_list, ipgf_list, jpgf_list, &
                                     border_mask_list, block_num_list, &
-                                    radius_list, rab_list, rs_grids, task_list)
+                                    radius_list, rab_list, multigrid, task_list)
 
       INTEGER, INTENT(IN)                                :: ntasks, natoms, nkinds, nblocks
       INTEGER, DIMENSION(:), INTENT(IN), TARGET          :: block_offsets
@@ -742,37 +742,27 @@ CONTAINS
                                                             block_num_list
       REAL(KIND=dp), DIMENSION(:), INTENT(IN), TARGET    :: radius_list
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN), TARGET :: rab_list
-      TYPE(realspace_grid_type), DIMENSION(:), &
-         INTENT(IN)                                      :: rs_grids
+      TYPE(grid_multigrid_type), INTENT(IN)              :: multigrid
       TYPE(grid_task_list_type), INTENT(INOUT)           :: task_list
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'grid_create_task_list'
 
-      INTEGER                                            :: handle, ikind, ilevel, nlevels
-      INTEGER, ALLOCATABLE, DIMENSION(:, :), TARGET      :: border_width, npts_global, npts_local, &
-                                                            shift_local
-      LOGICAL(KIND=C_BOOL)                               :: orthorhombic
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
-         TARGET                                          :: dh, dh_inv
+      INTEGER                                            :: handle, ikind
       TYPE(C_PTR) :: block_num_list_c, block_offsets_c, border_mask_list_c, iatom_list_c, &
          ipgf_list_c, iset_list_c, jatom_list_c, jpgf_list_c, jset_list_c, level_list_c, &
          rab_list_c, radius_list_c
       TYPE(C_PTR), ALLOCATABLE, DIMENSION(:), TARGET     :: basis_sets_c
       INTERFACE
-         SUBROUTINE grid_create_task_list_c(orthorhombic, &
-                                            ntasks, nlevels, natoms, nkinds, nblocks, &
+         SUBROUTINE grid_create_task_list_c(multigrid, ntasks, natoms, nkinds, nblocks, &
                                             block_offsets, atom_positions, atom_kinds, basis_sets, &
                                             level_list, iatom_list, jatom_list, &
                                             iset_list, jset_list, ipgf_list, jpgf_list, &
                                             border_mask_list, block_num_list, &
-                                            radius_list, rab_list, &
-                                            npts_global, npts_local, shift_local, &
-                                            border_width, dh, dh_inv, task_list) &
+                                            radius_list, rab_list, task_list) &
             BIND(C, name="grid_create_task_list")
             IMPORT :: C_PTR, C_INT, C_BOOL
-            LOGICAL(KIND=C_BOOL), VALUE               :: orthorhombic
+            TYPE(C_PTR), VALUE                        :: multigrid
             INTEGER(KIND=C_INT), VALUE                :: ntasks
-            INTEGER(KIND=C_INT), VALUE                :: nlevels
             INTEGER(KIND=C_INT), VALUE                :: natoms
             INTEGER(KIND=C_INT), VALUE                :: nkinds
             INTEGER(KIND=C_INT), VALUE                :: nblocks
@@ -791,12 +781,6 @@ CONTAINS
             TYPE(C_PTR), VALUE                        :: block_num_list
             TYPE(C_PTR), VALUE                        :: radius_list
             TYPE(C_PTR), VALUE                        :: rab_list
-            TYPE(C_PTR), VALUE                        :: npts_global
-            TYPE(C_PTR), VALUE                        :: npts_local
-            TYPE(C_PTR), VALUE                        :: shift_local
-            TYPE(C_PTR), VALUE                        :: border_width
-            TYPE(C_PTR), VALUE                        :: dh
-            TYPE(C_PTR), VALUE                        :: dh_inv
             TYPE(C_PTR)                               :: task_list
          END SUBROUTINE grid_create_task_list_c
       END INTERFACE
@@ -824,26 +808,6 @@ CONTAINS
          basis_sets_c(ikind) = basis_sets(ikind)%c_ptr
       END DO
 
-      nlevels = SIZE(rs_grids)
-      CPASSERT(nlevels > 0)
-      orthorhombic = LOGICAL(rs_grids(1)%desc%orthorhombic, C_BOOL)
-
-      ALLOCATE (npts_global(3, nlevels), npts_local(3, nlevels))
-      ALLOCATE (shift_local(3, nlevels), border_width(3, nlevels))
-      ALLOCATE (dh(3, 3, nlevels), dh_inv(3, 3, nlevels))
-      DO ilevel = 1, nlevels
-         ASSOCIATE (rsgrid => rs_grids(ilevel))
-            CALL get_rsgrid_properties(rsgrid=rsgrid, &
-                                       npts_global=npts_global(:, ilevel), &
-                                       npts_local=npts_local(:, ilevel), &
-                                       shift_local=shift_local(:, ilevel), &
-                                       border_width=border_width(:, ilevel))
-            CPASSERT(rsgrid%desc%orthorhombic .EQV. orthorhombic)  ! should be the same for all levels
-            dh(:, :, ilevel) = rsgrid%desc%dh(:, :)
-            dh_inv(:, :, ilevel) = rsgrid%desc%dh_inv(:, :)
-         END ASSOCIATE
-      END DO
-
 #if __GNUC__ >= 9
       CPASSERT(IS_CONTIGUOUS(block_offsets))
       CPASSERT(IS_CONTIGUOUS(atom_positions))
@@ -860,13 +824,9 @@ CONTAINS
       CPASSERT(IS_CONTIGUOUS(block_num_list))
       CPASSERT(IS_CONTIGUOUS(radius_list))
       CPASSERT(IS_CONTIGUOUS(rab_list))
-      CPASSERT(IS_CONTIGUOUS(npts_global))
-      CPASSERT(IS_CONTIGUOUS(npts_local))
-      CPASSERT(IS_CONTIGUOUS(shift_local))
-      CPASSERT(IS_CONTIGUOUS(border_width))
-      CPASSERT(IS_CONTIGUOUS(dh))
-      CPASSERT(IS_CONTIGUOUS(dh_inv))
 #endif
+
+      CPASSERT(C_ASSOCIATED(multigrid%c_ptr))
 
       IF (ntasks > 0) THEN
          block_offsets_c = C_LOC(block_offsets(1))
@@ -898,9 +858,8 @@ CONTAINS
       END IF
 
       !If task_list%c_ptr is already allocated, then its memory will be reused or freed.
-      CALL grid_create_task_list_c(orthorhombic=orthorhombic, &
+      CALL grid_create_task_list_c(multigrid=multigrid%c_ptr, &
                                    ntasks=ntasks, &
-                                   nlevels=nlevels, &
                                    natoms=natoms, &
                                    nkinds=nkinds, &
                                    nblocks=nblocks, &
@@ -919,12 +878,6 @@ CONTAINS
                                    block_num_list=block_num_list_c, &
                                    radius_list=radius_list_c, &
                                    rab_list=rab_list_c, &
-                                   npts_global=C_LOC(npts_global(1, 1)), &
-                                   npts_local=C_LOC(npts_local(1, 1)), &
-                                   shift_local=C_LOC(shift_local(1, 1)), &
-                                   border_width=C_LOC(border_width(1, 1)), &
-                                   dh=C_LOC(dh(1, 1, 1)), &
-                                   dh_inv=C_LOC(dh_inv(1, 1, 1)), &
                                    task_list=task_list%c_ptr)
 
       CPASSERT(C_ASSOCIATED(task_list%c_ptr))

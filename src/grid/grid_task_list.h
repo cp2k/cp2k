@@ -16,6 +16,7 @@
 #include "cpu/grid_cpu_task_list.h"
 #include "dgemm/grid_dgemm_task_list.h"
 #include "gpu/grid_gpu_task_list.h"
+#include "grid_multigrid.h"
 #include "hip/grid_hip_task_list.h"
 #include "ref/grid_ref_task_list.h"
 
@@ -42,9 +43,8 @@ typedef struct {
 /*******************************************************************************
  * \brief Allocates a task list which can be passed to grid_collocate_task_list.
  *
- * \param orthorhombic     Whether simulation box is orthorhombic.
+ * \param multigrid        Information on multigrids.
  * \param ntasks           Number of tasks, ie. length of the task list.
- * \param nlevels          Number of grid levels.
  * \param natoms           Number of atoms.
  * \param nkinds           Number of atomic kinds.
  * \param nblocks          Number of local matrix blocks.
@@ -67,33 +67,21 @@ typedef struct {
  * \param radius_list      Radius where Gaussian becomes smaller than threshold.
  * \param rab_list         Vector between atoms, encodes the virtual image.
  *
- *      The following params are given for each grid level:
- *
- * \param npts_global     Number of global grid points in each direction.
- * \param npts_local      Number of local grid points in each direction.
- * \param shift_local     Number of points local grid is shifted wrt global grid
- * \param border_width    Width of halo region in grid points in each direction.
- * \param dh              Incremental grid matrix.
- * \param dh_inv          Inverse incremental grid matrix.
- *
  * \param task_list        Handle to the created task list.
  *
  * \author Ole Schuett
  ******************************************************************************/
 void grid_create_task_list(
-    const bool orthorhombic, const int ntasks, const int nlevels,
-    const int natoms, const int nkinds, const int nblocks,
-    const int block_offsets[nblocks], const double atom_positions[natoms][3],
-    const int atom_kinds[natoms], const grid_basis_set *basis_sets[nkinds],
-    const int level_list[ntasks], const int iatom_list[ntasks],
-    const int jatom_list[ntasks], const int iset_list[ntasks],
-    const int jset_list[ntasks], const int ipgf_list[ntasks],
-    const int jpgf_list[ntasks], const int border_mask_list[ntasks],
-    const int block_num_list[ntasks], const double radius_list[ntasks],
-    const double rab_list[ntasks][3], const int npts_global[nlevels][3],
-    const int npts_local[nlevels][3], const int shift_local[nlevels][3],
-    const int border_width[nlevels][3], const double dh[nlevels][3][3],
-    const double dh_inv[nlevels][3][3], grid_task_list **task_list);
+    const grid_multigrid *multigrid, const int ntasks, const int natoms,
+    const int nkinds, const int nblocks, const int block_offsets[nblocks],
+    const double atom_positions[natoms][3], const int atom_kinds[natoms],
+    const grid_basis_set *basis_sets[nkinds], const int level_list[ntasks],
+    const int iatom_list[ntasks], const int jatom_list[ntasks],
+    const int iset_list[ntasks], const int jset_list[ntasks],
+    const int ipgf_list[ntasks], const int jpgf_list[ntasks],
+    const int border_mask_list[ntasks], const int block_num_list[ntasks],
+    const double radius_list[ntasks], const double rab_list[ntasks][3],
+    grid_task_list **task_list);
 
 /*******************************************************************************
  * \brief Deallocates given task list, basis_sets have to be freed separately.

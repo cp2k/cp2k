@@ -35,6 +35,7 @@ MODULE task_list_methods
                            dbcsr_work_create
    USE gaussian_gridlevels, ONLY: gaussian_gridlevel, &
                                   gridlevel_info_type
+   USE grid_api, ONLY: grid_multigrid_type, grid_create_multigrid
    USE kinds, ONLY: default_string_length, &
                     dp, &
                     int_8
@@ -162,6 +163,7 @@ CONTAINS
          POINTER                                         :: rs_descs
       TYPE(realspace_grid_type), DIMENSION(:), POINTER :: rs_grids
       TYPE(task_type), DIMENSION(:), POINTER             :: tasks
+      TYPE(grid_multigrid_type) :: multigrid
 
       CALL timeset(routineN, handle)
 
@@ -190,7 +192,7 @@ CONTAINS
 
       CALL get_ks_env(ks_env, pw_env=pw_env)
       IF (PRESENT(pw_env_external)) pw_env => pw_env_external
-      CALL pw_env_get(pw_env, rs_descs=rs_descs, rs_grids=rs_grids)
+      CALL pw_env_get(pw_env, rs_descs=rs_descs, rs_grids=rs_grids, multigrid=multigrid)
 
       ! *** assign from pw_env
       gridlevel_info => pw_env%gridlevel_info
@@ -341,6 +343,8 @@ CONTAINS
                CALL rs_grid_create(rs_grids(i), rs_descs(i)%rs_desc)
             END IF
          END DO
+         ! There is no need to update multigrid in pw_env because buffers will be reused
+         CALL grid_create_multigrid(rs_grids, multigrid)
       END IF
 
       CALL create_grid_task_list(task_list=task_list, &
@@ -348,7 +352,7 @@ CONTAINS
                                  particle_set=particle_set, &
                                  cell=cell, &
                                  basis_type=my_basis_type, &
-                                 rs_grids=rs_grids)
+                                 multigrid=multigrid)
 
       ! Now we have the final list of tasks, setup the task_list with the
       ! data needed for the loops in integrate_v/calculate_rho
@@ -513,13 +517,13 @@ CONTAINS
 !> \brief Sends the task list data to the grid API.
 !> \author Ole Schuett
 ! **************************************************************************************************
-   SUBROUTINE create_grid_task_list(task_list, qs_kind_set, particle_set, cell, basis_type, rs_grids)
+   SUBROUTINE create_grid_task_list(task_list, qs_kind_set, particle_set, cell, basis_type, multigrid)
       TYPE(task_list_type), POINTER                      :: task_list
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(cell_type), POINTER                           :: cell
       CHARACTER(LEN=default_string_length)               :: basis_type
-      TYPE(realspace_grid_type), DIMENSION(:), POINTER :: rs_grids
+      TYPE(grid_multigrid_type), INTENT(IN) :: multigrid
 
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis_set
       INTEGER                                            :: nset, natoms, nkinds, ntasks, &
@@ -618,7 +622,7 @@ CONTAINS
                                  block_num_list=block_num_list, &
                                  radius_list=radius_list, &
                                  rab_list=rab_list, &
-                                 rs_grids=rs_grids, &
+                                 multigrid=multigrid, &
                                  task_list=task_list%grid_task_list)
 
       CALL offload_create_buffer(task_list%buffer_size_recv, task_list%pab_buffer)
