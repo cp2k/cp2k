@@ -279,7 +279,7 @@ CONTAINS
          ewald_section => section_vals_get_subs_vals(poisson_section, "EWALD")
          print_section => section_vals_get_subs_vals(qs_env%input, "PRINT%GRID_INFORMATION")
          CALL get_qs_env(qs_env, cell_ref=cell_ref)
-         CALL read_ewald_section_tb(ewald_env, ewald_section, cell_ref%hmat)
+         CALL read_ewald_section_tb(ewald_env, ewald_section, cell_ref%hmat, silent=.TRUE.)
          ALLOCATE (ewald_pw)
          CALL ewald_pw_create(ewald_pw, ewald_env, cell, cell_ref, print_section=print_section)
          !
@@ -339,11 +339,11 @@ CONTAINS
                                                             elag, esg, gam2, gama, grc, kappa, &
                                                             qlam, qq, qq1, qq2, rcut, scn, sgamma, &
                                                             subcells, totalcharge, xi
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: c_radius, chrgx, cnumbers, dchia, gam, &
-                                                            qlag
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: c_radius, cnumbers, gam, qlag
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: epforce, gab, pair_radius
       REAL(KIND=dp), DIMENSION(3)                        :: fdik, ri, rij, rik, rj
       REAL(KIND=dp), DIMENSION(3, 3)                     :: pvir
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: chrgx, dchia
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(atprop_type), POINTER                         :: atprop
       TYPE(cell_type), POINTER                           :: cell, cell_ref
@@ -421,7 +421,7 @@ CONTAINS
          ewald_section => section_vals_get_subs_vals(poisson_section, "EWALD")
          print_section => section_vals_get_subs_vals(qs_env%input, "PRINT%GRID_INFORMATION")
          CALL get_qs_env(qs_env, cell_ref=cell_ref)
-         CALL read_ewald_section_tb(ewald_env, ewald_section, cell_ref%hmat)
+         CALL read_ewald_section_tb(ewald_env, ewald_section, cell_ref%hmat, silent=.TRUE.)
          ALLOCATE (ewald_pw)
          CALL ewald_pw_create(ewald_pw, ewald_env, cell, cell_ref, print_section=print_section)
          !
@@ -617,16 +617,17 @@ CONTAINS
 
          ! virial
          IF (use_virial) THEN
-            IF (response_only) THEN
-               chrgx(1:natom) = -qlag(1:natom)
-            ELSE
-               chrgx(1:natom) = charges(1:natom) - qlag(1:natom)
-            END IF
+            chrgx(1:natom) = charges(1:natom) - qlag(1:natom)
             CALL spme_virial(ewald_env, ewald_pw, particle_set, cell, chrgx, pvir)
             stress = stress + pvir
             chrgx(1:natom) = qlag(1:natom)
             CALL spme_virial(ewald_env, ewald_pw, particle_set, cell, chrgx, pvir)
             stress = stress - pvir
+            IF (response_only) THEN
+               chrgx(1:natom) = charges(1:natom)
+               CALL spme_virial(ewald_env, ewald_pw, particle_set, cell, chrgx, pvir)
+               stress = stress - pvir
+            END IF
          END IF
          !
          CALL ewald_env_release(ewald_env)
@@ -1370,7 +1371,7 @@ CONTAINS
       TYPE(ewald_pw_type), POINTER                       :: ewald_pw
       TYPE(cell_type), POINTER                           :: cell
       TYPE(particle_type), DIMENSION(:), INTENT(IN)      :: particle_set
-      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: charges
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN), POINTER   :: charges
       REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: potential
 
       TYPE(mp_para_env_type), POINTER                    :: para_env
@@ -1406,7 +1407,7 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(cell_type), POINTER                           :: cell
       TYPE(particle_type), DIMENSION(:), INTENT(IN)      :: particle_set
-      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: charges
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN), POINTER   :: charges
       REAL(KIND=dp), INTENT(INOUT)                       :: lambda
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: rhs
       REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: potential

@@ -90,13 +90,12 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: iw
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_dispersion_d4_pairpot'
-      LOGICAL, PARAMETER                                 :: debug = .TRUE.
 
       INTEGER                                            :: atoma, cnfun, enshift, handle, iatom, &
                                                             ikind, mref, natom
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, atomtype, kind_of
       INTEGER, DIMENSION(3)                              :: periodic
-      LOGICAL                                            :: grad, use_virial
+      LOGICAL                                            :: debug, grad, use_virial
       LOGICAL, DIMENSION(3)                              :: lperiod
       REAL(KIND=dp)                                      :: ed2, ed3, ev1, ev2, ev3, ev4, pd2, pd3, &
                                                             ta, tb, tc, td, te, ts
@@ -121,6 +120,8 @@ CONTAINS
       TYPE(realspace_cutoff)                             :: cutoff
 
       CALL timeset(routineN, handle)
+
+      debug = dispersion_env%d4_debug
 
       CALL get_qs_env(qs_env=qs_env, particle_set=particle_set, atomic_kind_set=atomic_kind_set, &
                       cell=cell, force=force, virial=virial, para_env=para_env)
@@ -349,6 +350,10 @@ CONTAINS
             CALL dispersion_3b(qs_env, dispersion_env, cutoff%disp3, disp%r4r2, &
                                gwvec, gwdcn, gwdq, disp%c6, disp%ref, &
                                energies3, dEdcn, dEdq, grad, ga, sigma)
+!deb        CALL get_lattice_points(mol%periodic, mol%lattice, cutoff%disp3, lattr)
+!           CALL dispersion_3bn(qs_env, dispersion_env, lattr, cutoff%disp3, disp%r4r2, &
+!                              gwvec, gwdcn, gwdq, disp%c6, disp%ref, &
+!                              energies3, dEdcn, dEdq, grad, ga, sigma)
             IF (grad) THEN
                gradient(1:3, 1:natom) = gradient(1:3, 1:natom) + ga(1:3, 1:natom)
                stress = stress + sigma
@@ -453,6 +458,100 @@ CONTAINS
    END SUBROUTINE calculate_dispersion_d4_pairpot
 
 ! **************************************************************************************************
+!> \brief ...
+!> \param param ...
+!> \param disp ...
+!> \param mol ...
+!> \param cutoff ...
+!> \param grad ...
+!> \param doabc ...
+!> \param enerd2 ...
+!> \param enerd3 ...
+!> \param cnd ...
+!> \param qd ...
+!> \param dEdcn ...
+!> \param dEdq ...
+!> \param gradient ...
+!> \param stress ...
+! **************************************************************************************************
+   SUBROUTINE refd4_debug(param, disp, mol, cutoff, grad, doabc, &
+                          enerd2, enerd3, cnd, qd, dEdcn, dEdq, gradient, stress)
+      CLASS(damping_param)                               :: param
+      TYPE(d4_model)                                     :: disp
+      TYPE(structure_type)                               :: mol
+      TYPE(realspace_cutoff)                             :: cutoff
+      LOGICAL, INTENT(IN)                                :: grad, doabc
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: enerd2, enerd3, cnd, qd, dEdcn, dEdq
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: gradient
+      REAL(KIND=dp), DIMENSION(3, 3, 4)                  :: stress
+
+      INTEGER                                            :: mref, natom, i
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: q, qq
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: lattr, gwdcn, gwdq, gwvec, &
+                                                            c6, dc6dcn, dc6dq
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: cndr, cndL, qdr, qdL
+
+      mref = MAXVAL(disp%ref)
+      natom = mol%nat
+
+      ! Coordination numbers
+      ALLOCATE (cnd(natom))
+      IF (grad) ALLOCATE (cndr(3, natom, natom), cndL(3, 3, natom))
+      CALL get_lattice_points(mol%periodic, mol%lattice, cutoff%cn, lattr)
+      CALL get_coordination_number(mol, lattr, cutoff%cn, disp%rcov, disp%en, &
+                                   cnd, cndr, cndL)
+      ! EEQ charges
+      ALLOCATE (qd(natom))
+      IF (grad) ALLOCATE (qdr(3, natom, natom), qdL(3, 3, natom))
+      CALL get_charges(mol, qd, qdr, qdL)
+      ! C6 interpolation
+      ALLOCATE (gwvec(mref, natom))
+      IF (grad) ALLOCATE (gwdcn(mref, natom), gwdq(mref, natom))
+      CALL disp%weight_references(mol, cnd, qd, gwvec, gwdcn, gwdq)
+      ALLOCATE (c6(natom, natom))
+      IF (grad) ALLOCATE (dc6dcn(natom, natom), dc6dq(natom, natom))
+      CALL disp%get_atomic_c6(mol, gwvec, gwdcn, gwdq, c6, dc6dcn, dc6dq)
+      CALL get_lattice_points(mol%periodic, mol%lattice, cutoff%disp2, lattr)
+      !
+      IF (grad) THEN
+         ALLOCATE (gradient(3, natom, 4))
+         gradient = 0.0_dp
+         stress = 0.0_dp
+      END IF
+      !
+      ALLOCATE (enerd2(natom))
+      enerd2(:) = 0.0_dp
+      IF (grad) ALLOCATE (dEdcn(natom), dEdq(natom))
+      dEdcn(:) = 0.0_dp; dEdq(:) = 0.0_dp
+      CALL param%get_dispersion2(mol, lattr, cutoff%disp2, disp%r4r2, c6, dc6dcn, dc6dq, &
+                                 enerd2, dEdcn, dEdq, gradient(:, :, 1), stress(:, :, 1))
+      !
+      IF (grad) THEN
+         DO i = 1, 3
+            gradient(i, :, 2) = MATMUL(qdr(i, :, :), dEdq(:))
+            stress(i, :, 2) = MATMUL(qdL(i, :, :), dEdq(:))
+         END DO
+      END IF
+      !
+      IF (doabc) THEN
+         ALLOCATE (q(natom), qq(natom))
+         q(:) = 0.0_dp; qq(:) = 0.0_dp
+         ALLOCATE (enerd3(natom))
+         enerd3(:) = 0.0_dp
+         CALL disp%weight_references(mol, cnd, q, gwvec, gwdcn, gwdq)
+         CALL disp%get_atomic_c6(mol, gwvec, gwdcn, gwdq, c6, dc6dcn, dc6dq)
+         CALL get_lattice_points(mol%periodic, mol%lattice, cutoff%disp3, lattr)
+         CALL param%get_dispersion3(mol, lattr, cutoff%disp3, disp%r4r2, c6, dc6dcn, dc6dq, &
+                                    enerd3, dEdcn, qq, gradient(:, :, 3), stress(:, :, 3))
+      END IF
+      IF (grad) THEN
+         DO i = 1, 3
+            gradient(i, :, 4) = MATMUL(cndr(i, :, :), dEdcn(:))
+            stress(i, :, 4) = MATMUL(cndL(i, :, :), dEdcn(:))
+         END DO
+      END IF
+
+   END SUBROUTINE refd4_debug
 
 #else
 
@@ -952,104 +1051,6 @@ CONTAINS
       END DO
 
    END SUBROUTINE get_c6derivs
-
-! **************************************************************************************************
-
-! **************************************************************************************************
-!> \brief ...
-!> \param param ...
-!> \param disp ...
-!> \param mol ...
-!> \param cutoff ...
-!> \param grad ...
-!> \param doabc ...
-!> \param enerd2 ...
-!> \param enerd3 ...
-!> \param cnd ...
-!> \param qd ...
-!> \param dEdcn ...
-!> \param dEdq ...
-!> \param gradient ...
-!> \param stress ...
-! **************************************************************************************************
-   SUBROUTINE refd4_debug(param, disp, mol, cutoff, grad, doabc, &
-                          enerd2, enerd3, cnd, qd, dEdcn, dEdq, gradient, stress)
-      CLASS(damping_param)                               :: param
-      TYPE(d4_model)                                     :: disp
-      TYPE(structure_type)                               :: mol
-      TYPE(realspace_cutoff)                             :: cutoff
-      LOGICAL, INTENT(IN)                                :: grad, doabc
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: enerd2, enerd3, cnd, qd, dEdcn, dEdq
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: gradient
-      REAL(KIND=dp), DIMENSION(3, 3, 4)                  :: stress
-
-      INTEGER                                            :: mref, natom, i
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: q, qq
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: lattr, gwdcn, gwdq, gwvec, &
-                                                            c6, dc6dcn, dc6dq
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: cndr, cndL, qdr, qdL
-
-      mref = MAXVAL(disp%ref)
-      natom = mol%nat
-
-      ! Coordination numbers
-      ALLOCATE (cnd(natom))
-      IF (grad) ALLOCATE (cndr(3, natom, natom), cndL(3, 3, natom))
-      CALL get_lattice_points(mol%periodic, mol%lattice, cutoff%cn, lattr)
-      CALL get_coordination_number(mol, lattr, cutoff%cn, disp%rcov, disp%en, &
-                                   cnd, cndr, cndL)
-      ! EEQ charges
-      ALLOCATE (qd(natom))
-      IF (grad) ALLOCATE (qdr(3, natom, natom), qdL(3, 3, natom))
-      CALL get_charges(mol, qd, qdr, qdL)
-      ! C6 interpolation
-      ALLOCATE (gwvec(mref, natom))
-      IF (grad) ALLOCATE (gwdcn(mref, natom), gwdq(mref, natom))
-      CALL disp%weight_references(mol, cnd, qd, gwvec, gwdcn, gwdq)
-      ALLOCATE (c6(natom, natom))
-      IF (grad) ALLOCATE (dc6dcn(natom, natom), dc6dq(natom, natom))
-      CALL disp%get_atomic_c6(mol, gwvec, gwdcn, gwdq, c6, dc6dcn, dc6dq)
-      CALL get_lattice_points(mol%periodic, mol%lattice, cutoff%disp2, lattr)
-      !
-      IF (grad) THEN
-         ALLOCATE (gradient(3, natom, 4))
-         gradient = 0.0_dp
-         stress = 0.0_dp
-      END IF
-      !
-      ALLOCATE (enerd2(natom))
-      enerd2(:) = 0.0_dp
-      IF (grad) ALLOCATE (dEdcn(natom), dEdq(natom))
-      dEdcn(:) = 0.0_dp; dEdq(:) = 0.0_dp
-      CALL param%get_dispersion2(mol, lattr, cutoff%disp2, disp%r4r2, c6, dc6dcn, dc6dq, &
-                                 enerd2, dEdcn, dEdq, gradient(:, :, 1), stress(:, :, 1))
-      !
-      IF (grad) THEN
-         DO i = 1, 3
-            gradient(i, :, 2) = MATMUL(qdr(i, :, :), dEdq(:))
-            stress(i, :, 2) = MATMUL(qdL(i, :, :), dEdq(:))
-         END DO
-      END IF
-      !
-      IF (doabc) THEN
-         ALLOCATE (q(natom), qq(natom))
-         q(:) = 0.0_dp; qq(:) = 0.0_dp
-         ALLOCATE (enerd3(natom))
-         enerd3(:) = 0.0_dp
-         CALL disp%weight_references(mol, cnd, q, gwvec, gwdcn, gwdq)
-         CALL disp%get_atomic_c6(mol, gwvec, gwdcn, gwdq, c6, dc6dcn, dc6dq)
-         CALL get_lattice_points(mol%periodic, mol%lattice, cutoff%disp3, lattr)
-         CALL param%get_dispersion3(mol, lattr, cutoff%disp3, disp%r4r2, c6, dc6dcn, dc6dq, &
-                                    enerd3, dEdcn, qq, gradient(:, :, 3), stress(:, :, 3))
-      END IF
-      IF (grad) THEN
-         DO i = 1, 3
-            gradient(i, :, 4) = MATMUL(cndr(i, :, :), dEdcn(:))
-            stress(i, :, 4) = MATMUL(cndL(i, :, :), dEdcn(:))
-         END DO
-      END IF
-
-   END SUBROUTINE refd4_debug
 
 ! **************************************************************************************************
 !> \brief ...

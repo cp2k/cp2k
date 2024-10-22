@@ -1000,6 +1000,12 @@ CONTAINS
                           lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="D4_DEBUG", &
+                          description="Debug output for D4 method using reference code.", &
+                          usage="D4_DEBUG", default_l_val=.FALSE., &
+                          lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="D2_SCALING", &
                           variants=["SCALING"], &
                           description="XC Functional dependent scaling parameter, if set to zero CP2K attempts"// &

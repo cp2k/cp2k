@@ -179,6 +179,7 @@ CONTAINS
             CALL section_vals_val_get(pp_section, "EPS_CN", r_val=dispersion_env%eps_cn)
             CALL section_vals_val_get(pp_section, "D4_REFERENCE_CODE", &
                                       l_val=dispersion_env%d4_reference_code)
+            CALL section_vals_val_get(pp_section, "D4_DEBUG", l_val=dispersion_env%d4_debug)
             CALL section_vals_val_get(pp_section, "D4_CUTOFF", r_val=dispersion_env%rc_d4)
             CALL section_vals_val_get(pp_section, "D4_CN_CUTOFF", r_val=dispersion_env%rc_cn)
             CALL section_vals_val_get(pp_section, "FACTOR_S9_TERM", r_val=dispersion_env%s9)

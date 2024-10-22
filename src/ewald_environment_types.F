@@ -380,20 +380,24 @@ CONTAINS
 !> \param ewald_env the pointer to the ewald_env
 !> \param ewald_section ...
 !> \param hmat ...
+!> \param silent ...
 !> \author JGH
 ! **************************************************************************************************
-   SUBROUTINE read_ewald_section_tb(ewald_env, ewald_section, hmat)
+   SUBROUTINE read_ewald_section_tb(ewald_env, ewald_section, hmat, silent)
       TYPE(ewald_environment_type), INTENT(INOUT)        :: ewald_env
       TYPE(section_vals_type), POINTER                   :: ewald_section
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(IN)         :: hmat
+      LOGICAL, INTENT(IN), OPTIONAL                      :: silent
 
       INTEGER                                            :: i, iw, n(3)
       INTEGER, DIMENSION(:), POINTER                     :: gmax_read
-      LOGICAL                                            :: explicit
+      LOGICAL                                            :: do_print, explicit
       REAL(KIND=dp)                                      :: alat, cutoff, dummy
       TYPE(cp_logger_type), POINTER                      :: logger
 
       logger => cp_get_default_logger()
+      do_print = .TRUE.
+      IF (PRESENT(silent)) do_print = .NOT. silent
 
       ewald_env%do_multipoles = .FALSE.
       ewald_env%do_ipol = 0
@@ -455,7 +459,7 @@ CONTAINS
 
       iw = cp_print_key_unit_nr(logger, ewald_section, "PRINT%PROGRAM_RUN_INFO", &
                                 extension=".log")
-      IF (iw > 0) THEN
+      IF (iw > 0 .AND. do_print) THEN
          WRITE (iw, '(/,T2,"EWALD| ",A,T67,A14 )') 'Summation is done by:', ADJUSTR("SPME")
          dummy = cp_unit_from_cp2k(ewald_env%alpha, "angstrom^-1")
          WRITE (iw, '( T2,"EWALD| ",A,A18,A,T71,F10.4 )') &
