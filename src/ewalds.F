@@ -114,8 +114,8 @@ CONTAINS
 
       CALL timeset(routineN, handle)
       CALL cite_reference(Ewald1921)
-      use_charge_array = PRESENT(charges)
-      IF (use_charge_array) use_charge_array = ASSOCIATED(charges)
+      use_charge_array = .FALSE.
+      IF (PRESENT(charges)) use_charge_array = ASSOCIATED(charges)
       atenergy = PRESENT(e_coulomb)
       IF (atenergy) atenergy = ASSOCIATED(e_coulomb)
       IF (atenergy) e_coulomb = 0._dp
@@ -333,7 +333,7 @@ CONTAINS
             atomic_kind => atomic_kind_set(iparticle_kind)
             CALL get_atomic_kind(atomic_kind=atomic_kind, mm_radius=mm_radius)
             IF (mm_radius > 0.0_dp) THEN
-               CPABORT("Array of charges not implemented for mm_radius>0.0 !!")
+               CPABORT("Array of charges not implemented for mm_radius > 0.0")
             END IF
          END DO
       ELSE
