@@ -550,9 +550,9 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'hirshfeld_integration'
 
-      INTEGER                                            :: atom_a, handle, iatom, iex, ikind, &
-                                                            ithread, j, natom, npme, nthread, &
-                                                            numexp
+      INTEGER                                            :: atom_a, auxbas_grid, handle, iatom, iex, &
+                                                            ikind, ithread, j, natom, npme, &
+                                                            nthread, numexp
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: cores
       INTEGER, DIMENSION(:), POINTER                     :: atom_list
       LOGICAL                                            :: do_force
@@ -562,6 +562,7 @@ CONTAINS
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
       TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(grid_multigrid_type)                          :: multigrid
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(pw_env_type), POINTER                         :: pw_env
@@ -577,7 +578,7 @@ CONTAINS
       NULLIFY (pw_env, auxbas_rs_desc)
       CALL get_qs_env(qs_env=qs_env, pw_env=pw_env)
       CALL pw_env_get(pw_env=pw_env, auxbas_rs_desc=auxbas_rs_desc, &
-                      auxbas_rs_grid=rs_v)
+                      auxbas_rs_grid=rs_v, multigrid=multigrid, auxbas_grid=auxbas_grid)
       CALL transfer_pw2rs(rs_v, rfun)
 
       CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set, cell=cell, &
@@ -631,7 +632,7 @@ CONTAINS
 
                CALL integrate_pgf_product(0, alpha, 0, &
                                           0, 0.0_dp, 0, ra, (/0.0_dp, 0.0_dp, 0.0_dp/), &
-                                          rs_v, hab, pab=pab, o1=0, o2=0, &
+                                          rs_v, multigrid, auxbas_grid, hab, pab=pab, o1=0, o2=0, &
                                           radius=radius, calculate_forces=do_force, &
                                           force_a=force_a, force_b=force_b, use_virial=.FALSE., &
                                           use_subpatch=.TRUE., subpatch_pattern=0)

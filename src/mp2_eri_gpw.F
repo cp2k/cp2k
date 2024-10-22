@@ -20,6 +20,7 @@ MODULE mp2_eri_gpw
    USE cp_dbcsr_api,                    ONLY: dbcsr_p_type,&
                                               dbcsr_set
    USE gaussian_gridlevels,             ONLY: gaussian_gridlevel
+   USE grid_api,                        ONLY: grid_multigrid_type
    USE input_constants,                 ONLY: do_potential_coulomb,&
                                               do_potential_id,&
                                               do_potential_long,&
@@ -191,6 +192,7 @@ CONTAINS
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
       TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(grid_multigrid_type)                          :: multigrid
       TYPE(gto_basis_set_type), POINTER                  :: basis_set_a
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(pw_c1d_gs_type)                               :: pot_g, rho_g
@@ -228,7 +230,7 @@ CONTAINS
 
          NULLIFY (rs_v)
          NULLIFY (rs_descs)
-         CALL pw_env_get(pw_env_sub, rs_descs=rs_descs, rs_grids=rs_v)
+         CALL pw_env_get(pw_env_sub, rs_descs=rs_descs, rs_grids=rs_v, multigrid=multigrid)
          CALL potential_pw2rs(rs_v, rho_r, pw_env_sub)
 
          CALL timestop(handle2)
@@ -251,7 +253,7 @@ CONTAINS
 
          ! integrate the little bastards
          !$OMP PARALLEL DO DEFAULT(NONE) &
-         !$OMP SHARED(natom, particle_set, cell, pw_env_sub, rs_v, offset_2d, &
+         !$OMP SHARED(natom, particle_set, cell, pw_env_sub, rs_v, multigrid, offset_2d, &
          !$OMP        qs_kind_set, ncoset, para_env_sub, dft_control, i_counter, &
          !$OMP        kind_of, l_local_col) &
          !$OMP PRIVATE(iatom, ikind, basis_set_a, first_sgfa, la_max, la_min, npgfa, &
@@ -309,6 +311,7 @@ CONTAINS
                         lb_max=0, zetb=0.0_dp, lb_min=0, &
                         ra=ra, rab=(/0.0_dp, 0.0_dp, 0.0_dp/), &
                         rsgrid=rs_v(igrid_level), &
+                        multigrid=multigrid, ilevel=igrid_level, &
                         hab=I_tmp2, &
                         o1=na1 - 1, &
                         o2=0, &
@@ -559,6 +562,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3, 3)                     :: my_virial_a, my_virial_b
       REAL(KIND=dp), DIMENSION(:), POINTER               :: set_radius_a
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: I_tmp2, pab, rpgfa, sphi_a, zeta
+      TYPE(grid_multigrid_type)                          :: multigrid
       TYPE(gto_basis_set_type), POINTER                  :: basis_set_a
       TYPE(realspace_grid_desc_p_type), DIMENSION(:), &
          POINTER                                         :: rs_descs
@@ -586,7 +590,7 @@ CONTAINS
       ! integrate potential with auxiliary basis function derivatives
       NULLIFY (rs_v)
       NULLIFY (rs_descs)
-      CALL pw_env_get(pw_env_sub, rs_descs=rs_descs, rs_grids=rs_v)
+      CALL pw_env_get(pw_env_sub, rs_descs=rs_descs, rs_grids=rs_v, multigrid=multigrid)
       CALL potential_pw2rs(rs_v, rho_r, pw_env_sub)
 
       offset = 0
@@ -669,6 +673,7 @@ CONTAINS
                                              lb_max=0, zetb=zeta(ipgf, iset)/2.0_dp, lb_min=0, &
                                              ra=ra, rab=(/0.0_dp, 0.0_dp, 0.0_dp/), &
                                              rsgrid=rs_v(igrid_level), &
+                                             multigrid=multigrid, ilevel=igrid_level, &
                                              hab=I_tmp2, &
                                              pab=pab, &
                                              o1=na1 - 1, &
@@ -825,6 +830,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3, 3)                     :: my_virial_a, my_virial_b
       REAL(KIND=dp), DIMENSION(:), POINTER               :: set_radius_a
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: I_tmp2, pab, rpgfa, sphi_a, zeta
+      TYPE(grid_multigrid_type)                          :: multigrid
       TYPE(gto_basis_set_type), POINTER                  :: basis_set_a
       TYPE(realspace_grid_desc_p_type), DIMENSION(:), &
          POINTER                                         :: rs_descs
@@ -834,7 +840,7 @@ CONTAINS
 
       NULLIFY (rs_v)
       NULLIFY (rs_descs)
-      CALL pw_env_get(pw_env_sub, rs_descs=rs_descs, rs_grids=rs_v)
+      CALL pw_env_get(pw_env_sub, rs_descs=rs_descs, rs_grids=rs_v, multigrid=multigrid)
       CALL potential_pw2rs(rs_v, pot_r, pw_env_sub)
 
       offset = 0
@@ -903,6 +909,7 @@ CONTAINS
                                              lb_max=0, zetb=zeta(ipgf, iset)/2.0_dp, lb_min=0, &
                                              ra=ra, rab=(/0.0_dp, 0.0_dp, 0.0_dp/), &
                                              rsgrid=rs_v(igrid_level), &
+                                             multigrid=multigrid, ilevel=igrid_level, &
                                              hab=I_tmp2, &
                                              pab=pab, &
                                              o1=na1 - 1, &

@@ -28,6 +28,7 @@ MODULE qmmm_image_charge
                                               cp_print_key_should_output,&
                                               cp_print_key_unit_nr
    USE eri_mme_integrate,               ONLY: eri_mme_2c_integrate
+   USE grid_api,                        ONLY: grid_multigrid_type
    USE input_constants,                 ONLY: calc_always,&
                                               calc_once,&
                                               calc_once_done,&
@@ -342,14 +343,15 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'integrate_potential_ga_rspace'
 
-      INTEGER                                            :: atom_a, atom_b, atom_ref, handle, iatom, &
-                                                            j, k, natom, npme
+      INTEGER                                            :: atom_a, atom_b, atom_ref, auxbas_grid, &
+                                                            handle, iatom, j, k, natom, npme
       INTEGER, DIMENSION(:), POINTER                     :: cores
       REAL(KIND=dp)                                      :: eps_rho_rspace, radius
       REAL(KIND=dp), DIMENSION(3)                        :: ra
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: hab
       TYPE(cell_type), POINTER                           :: cell
       TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(grid_multigrid_type)                          :: multigrid
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(realspace_grid_desc_type), POINTER            :: auxbas_rs_desc
@@ -363,7 +365,7 @@ CONTAINS
 
       CALL get_qs_env(qs_env=qs_env, pw_env=pw_env)
       CALL pw_env_get(pw_env=pw_env, auxbas_rs_desc=auxbas_rs_desc, &
-                      auxbas_rs_grid=rs_v)
+                      auxbas_rs_grid=rs_v, multigrid=multigrid, auxbas_grid=auxbas_grid)
       CALL transfer_pw2rs(rs_v, potential)
 
       CALL get_qs_env(qs_env=qs_env, &
@@ -421,7 +423,7 @@ CONTAINS
 
          CALL integrate_pgf_product(0, qmmm_env%image_charge_pot%eta, 0, &
                                     0, 0.0_dp, 0, ra, (/0.0_dp, 0.0_dp, 0.0_dp/), &
-                                    rs_v, hab, o1=0, o2=0, &
+                                    rs_v, multigrid, auxbas_grid, hab, o1=0, o2=0, &
                                     radius=radius, calculate_forces=.FALSE., &
                                     use_subpatch=.TRUE., subpatch_pattern=0)
 
@@ -458,7 +460,8 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'integrate_potential_devga_rspace'
 
-      INTEGER                                            :: atom_a, handle, iatom, j, natom, npme
+      INTEGER                                            :: atom_a, auxbas_grid, handle, iatom, j, &
+                                                            natom, npme
       INTEGER, DIMENSION(:), POINTER                     :: cores
       LOGICAL                                            :: use_virial
       REAL(KIND=dp)                                      :: eps_rho_rspace, radius
@@ -466,6 +469,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: hab, pab
       TYPE(cell_type), POINTER                           :: cell
       TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(grid_multigrid_type)                          :: multigrid
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(realspace_grid_desc_type), POINTER            :: auxbas_rs_desc
@@ -483,7 +487,7 @@ CONTAINS
 
       CALL get_qs_env(qs_env=qs_env, pw_env=pw_env)
       CALL pw_env_get(pw_env=pw_env, auxbas_rs_desc=auxbas_rs_desc, &
-                      auxbas_rs_grid=rs_v)
+                      auxbas_rs_grid=rs_v, multigrid=multigrid, auxbas_grid=auxbas_grid)
       CALL transfer_pw2rs(rs_v, potential)
 
       CALL get_qs_env(qs_env=qs_env, &
@@ -543,7 +547,7 @@ CONTAINS
 
          CALL integrate_pgf_product(0, qmmm_env%image_charge_pot%eta, 0, &
                                     0, 0.0_dp, 0, ra, (/0.0_dp, 0.0_dp, 0.0_dp/), &
-                                    rs_v, hab, pab, o1=0, o2=0, &
+                                    rs_v, multigrid, auxbas_grid, hab, pab, o1=0, o2=0, &
                                     radius=radius, calculate_forces=.TRUE., &
                                     force_a=force_a, force_b=force_b, use_subpatch=.TRUE., &
                                     subpatch_pattern=0)

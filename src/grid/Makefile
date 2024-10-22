@@ -14,7 +14,11 @@ ALL_OBJECTS := ../offload/offload_buffer.o \
         ../offload/offload_library.o \
         grid_replay.o \
         grid_task_list.o \
+        grid_collocate.o \
+        grid_integrate.o \
+        grid_multigrid.o \
         common/grid_library.o \
+        common/grid_mpi.o \
         common/grid_basis_set.o \
         common/grid_sphere_cache.o \
         ref/grid_ref_task_list.o \

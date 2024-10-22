@@ -232,6 +232,8 @@ CONTAINS
 !> \param ra ...
 !> \param rab ...
 !> \param rsgrid ...
+!> \param multigrid ...
+!> \param ilevel ...
 !> \param hab ...
 !> \param pab ...
 !> \param o1 ...
@@ -253,6 +255,7 @@ CONTAINS
    SUBROUTINE integrate_pgf_product(la_max, zeta, la_min, &
                                     lb_max, zetb, lb_min, &
                                     ra, rab, rsgrid, &
+                                    multigrid, ilevel, &
                                     hab, pab, o1, o2, &
                                     radius, &
                                     calculate_forces, force_a, force_b, &
@@ -267,6 +270,8 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: lb_min
       REAL(KIND=dp), DIMENSION(3), INTENT(IN), TARGET    :: ra, rab
       TYPE(realspace_grid_type), INTENT(IN)              :: rsgrid
+      TYPE(grid_multigrid_type), INTENT(IN)              :: multigrid
+      INTEGER, INTENT(IN)                                :: ilevel
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: hab
       REAL(KIND=dp), DIMENSION(:, :), OPTIONAL, POINTER  :: pab
       INTEGER, INTENT(IN)                                :: o1, o2
@@ -284,26 +289,24 @@ CONTAINS
       INTEGER, INTENT(IN), OPTIONAL                      :: subpatch_pattern
 
       INTEGER                                            :: border_mask
-      INTEGER, DIMENSION(3), TARGET                      :: border_width, npts_global, npts_local, &
-                                                            shift_local
       LOGICAL                                            :: my_use_virial
-      LOGICAL(KIND=C_BOOL)                               :: my_compute_tau, orthorhombic
+      LOGICAL(KIND=C_BOOL)                               :: my_compute_tau
       REAL(KIND=dp), DIMENSION(3, 2), TARGET             :: forces
       REAL(KIND=dp), DIMENSION(3, 3, 2), TARGET          :: virials
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: grid
       TYPE(C_PTR)                                        :: a_hdab_cptr, forces_cptr, hadb_cptr, &
                                                             hdab_cptr, pab_cptr, virials_cptr
       INTERFACE
-         SUBROUTINE grid_cpu_integrate_pgf_product_c(orthorhombic, compute_tau, &
-                                                     border_mask, &
-                                                     la_max, la_min, lb_max, lb_min, &
-                                                     zeta, zetb, dh, dh_inv, ra, rab, &
-                                                     npts_global, npts_local, shift_local, border_width, &
-                                                     radius, o1, o2, n1, n2, grid, hab, pab, &
-                                                     forces, virials, hdab, hadb, a_hdab) &
-            BIND(C, name="grid_cpu_integrate_pgf_product")
+         SUBROUTINE grid_integrate_pgf_product_c(multigrid, ilevel, compute_tau, &
+                                                 border_mask, &
+                                                 la_max, la_min, lb_max, lb_min, &
+                                                 zeta, zetb, ra, rab, &
+                                                 radius, o1, o2, n1, n2, grid, hab, pab, &
+                                                 forces, virials, hdab, hadb, a_hdab) &
+            BIND(C, name="grid_integrate_pgf_product")
             IMPORT :: C_PTR, C_INT, C_DOUBLE, C_BOOL
-            LOGICAL(KIND=C_BOOL), VALUE               :: orthorhombic
+            TYPE(C_PTR), VALUE :: multigrid
+            INTEGER(KIND=C_INT), VALUE :: ilevel
             LOGICAL(KIND=C_BOOL), VALUE               :: compute_tau
             INTEGER(KIND=C_INT), VALUE                :: border_mask
             INTEGER(KIND=C_INT), VALUE                :: la_max
@@ -312,14 +315,8 @@ CONTAINS
             INTEGER(KIND=C_INT), VALUE                :: lb_min
             REAL(KIND=C_DOUBLE), VALUE                :: zeta
             REAL(KIND=C_DOUBLE), VALUE                :: zetb
-            TYPE(C_PTR), VALUE                        :: dh
-            TYPE(C_PTR), VALUE                        :: dh_inv
             TYPE(C_PTR), VALUE                        :: ra
             TYPE(C_PTR), VALUE                        :: rab
-            TYPE(C_PTR), VALUE                        :: npts_global
-            TYPE(C_PTR), VALUE                        :: npts_local
-            TYPE(C_PTR), VALUE                        :: shift_local
-            TYPE(C_PTR), VALUE                        :: border_width
             REAL(KIND=C_DOUBLE), VALUE                :: radius
             INTEGER(KIND=C_INT), VALUE                :: o1
             INTEGER(KIND=C_INT), VALUE                :: o2
@@ -333,7 +330,7 @@ CONTAINS
             TYPE(C_PTR), VALUE                        :: hdab
             TYPE(C_PTR), VALUE                        :: hadb
             TYPE(C_PTR), VALUE                        :: a_hdab
-         END SUBROUTINE grid_cpu_integrate_pgf_product_c
+         END SUBROUTINE grid_integrate_pgf_product_c
       END INTERFACE
 
       IF (radius == 0.0_dp) THEN
@@ -396,24 +393,11 @@ CONTAINS
          a_hdab_cptr = C_NULL_PTR
       END IF
 
-      orthorhombic = LOGICAL(rsgrid%desc%orthorhombic, C_BOOL)
-
-      CALL get_rsgrid_properties(rsgrid, npts_global=npts_global, &
-                                 npts_local=npts_local, &
-                                 shift_local=shift_local, &
-                                 border_width=border_width)
-
       grid(1:, 1:, 1:) => rsgrid%r(:, :, :) ! pointer assignment
 
 #if __GNUC__ >= 9
-      CPASSERT(IS_CONTIGUOUS(rsgrid%desc%dh))
-      CPASSERT(IS_CONTIGUOUS(rsgrid%desc%dh_inv))
       CPASSERT(IS_CONTIGUOUS(ra))
       CPASSERT(IS_CONTIGUOUS(rab))
-      CPASSERT(IS_CONTIGUOUS(npts_global))
-      CPASSERT(IS_CONTIGUOUS(npts_local))
-      CPASSERT(IS_CONTIGUOUS(shift_local))
-      CPASSERT(IS_CONTIGUOUS(border_width))
       CPASSERT(IS_CONTIGUOUS(grid))
       CPASSERT(IS_CONTIGUOUS(hab))
       CPASSERT(IS_CONTIGUOUS(forces))
@@ -429,36 +413,33 @@ CONTAINS
       END IF
 #endif
 
-      CALL grid_cpu_integrate_pgf_product_c(orthorhombic=orthorhombic, &
-                                            compute_tau=my_compute_tau, &
-                                            border_mask=border_mask, &
-                                            la_max=la_max, &
-                                            la_min=la_min, &
-                                            lb_max=lb_max, &
-                                            lb_min=lb_min, &
-                                            zeta=zeta, &
-                                            zetb=zetb, &
-                                            dh=C_LOC(rsgrid%desc%dh(1, 1)), &
-                                            dh_inv=C_LOC(rsgrid%desc%dh_inv(1, 1)), &
-                                            ra=C_LOC(ra(1)), &
-                                            rab=C_LOC(rab(1)), &
-                                            npts_global=C_LOC(npts_global(1)), &
-                                            npts_local=C_LOC(npts_local(1)), &
-                                            shift_local=C_LOC(shift_local(1)), &
-                                            border_width=C_LOC(border_width(1)), &
-                                            radius=radius, &
-                                            o1=o1, &
-                                            o2=o2, &
-                                            n1=SIZE(hab, 1), &
-                                            n2=SIZE(hab, 2), &
-                                            grid=C_LOC(grid(1, 1, 1)), &
-                                            hab=C_LOC(hab(1, 1)), &
-                                            pab=pab_cptr, &
-                                            forces=forces_cptr, &
-                                            virials=virials_cptr, &
-                                            hdab=hdab_cptr, &
-                                            hadb=hadb_cptr, &
-                                            a_hdab=a_hdab_cptr)
+      CPASSERT(C_ASSOCIATED(multigrid%c_ptr))
+
+      CALL grid_integrate_pgf_product_c(multigrid=multigrid%c_ptr, &
+                                        ilevel=ilevel, &
+                                        compute_tau=my_compute_tau, &
+                                        border_mask=border_mask, &
+                                        la_max=la_max, &
+                                        la_min=la_min, &
+                                        lb_max=lb_max, &
+                                        lb_min=lb_min, &
+                                        zeta=zeta, &
+                                        zetb=zetb, &
+                                        ra=C_LOC(ra(1)), &
+                                        rab=C_LOC(rab(1)), &
+                                        radius=radius, &
+                                        o1=o1, &
+                                        o2=o2, &
+                                        n1=SIZE(hab, 1), &
+                                        n2=SIZE(hab, 2), &
+                                        grid=C_LOC(grid(1, 1, 1)), &
+                                        hab=C_LOC(hab(1, 1)), &
+                                        pab=pab_cptr, &
+                                        forces=forces_cptr, &
+                                        virials=virials_cptr, &
+                                        hdab=hdab_cptr, &
+                                        hadb=hadb_cptr, &
+                                        a_hdab=a_hdab_cptr)
 
       IF (PRESENT(force_a) .AND. C_ASSOCIATED(forces_cptr)) &
          force_a = force_a + forces(:, 1)
