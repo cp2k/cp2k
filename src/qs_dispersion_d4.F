@@ -101,7 +101,8 @@ CONTAINS
                                                             ta, tb, tc, td, te, ts
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: cn, cnd, dEdcn, dEdq, edcn, edq, enerd2, &
                                                             enerd3, energies, energies3, q, qd
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: ga, gradient, gwdcn, gwdq, gwvec, xyz
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: ga, gradient, gwdcn, gwdq, gwvec, tvec, &
+                                                            xyz
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: gdeb
       REAL(KIND=dp), DIMENSION(3, 3)                     :: sigma, stress
       REAL(KIND=dp), DIMENSION(3, 3, 4)                  :: sdeb
@@ -347,13 +348,10 @@ CONTAINS
                ga(:, :) = 0.0_dp
                sigma = 0.0_dp
             END IF
-            CALL dispersion_3b(qs_env, dispersion_env, cutoff%disp3, disp%r4r2, &
+            CALL get_lattice_points(mol%periodic, mol%lattice, cutoff%disp3, tvec)
+            CALL dispersion_3b(qs_env, dispersion_env, tvec, cutoff%disp3, disp%r4r2, &
                                gwvec, gwdcn, gwdq, disp%c6, disp%ref, &
                                energies3, dEdcn, dEdq, grad, ga, sigma)
-!deb        CALL get_lattice_points(mol%periodic, mol%lattice, cutoff%disp3, lattr)
-!           CALL dispersion_3bn(qs_env, dispersion_env, lattr, cutoff%disp3, disp%r4r2, &
-!                              gwvec, gwdcn, gwdq, disp%c6, disp%ref, &
-!                              energies3, dEdcn, dEdq, grad, ga, sigma)
             IF (grad) THEN
                gradient(1:3, 1:natom) = gradient(1:3, 1:natom) + ga(1:3, 1:natom)
                stress = stress + sigma
@@ -686,6 +684,7 @@ CONTAINS
 !> \brief ...
 !> \param qs_env ...
 !> \param dispersion_env ...
+!> \param tvec ...
 !> \param cutoff ...
 !> \param r4r2 ...
 !> \param gwvec ...
@@ -700,12 +699,13 @@ CONTAINS
 !> \param gradient ...
 !> \param stress ...
 ! **************************************************************************************************
-   SUBROUTINE dispersion_3b(qs_env, dispersion_env, cutoff, r4r2, &
+   SUBROUTINE dispersion_3b(qs_env, dispersion_env, tvec, cutoff, r4r2, &
                             gwvec, gwdcn, gwdq, c6ref, mrefs, &
                             energies, dEdcn, dEdq, &
                             calculate_forces, gradient, stress)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(qs_dispersion_type), POINTER                  :: dispersion_env
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: tvec
       REAL(KIND=dp), INTENT(IN)                          :: cutoff
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: r4r2
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: gwvec, gwdcn, gwdq
@@ -715,19 +715,19 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: calculate_forces
       REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: gradient, stress
 
-      INTEGER                                            :: hashb, hashc, iatom, icx, icy, icz, &
-                                                            ikind, jatom, jkind, katom, kkind, &
-                                                            kstart, mepos, natom, num_pe
+      INTEGER                                            :: iatom, ikind, jatom, jkind, katom, &
+                                                            kkind, ktr, mepos, natom, num_pe
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: kind_of
-      INTEGER, DIMENSION(3)                              :: cell_b, cell_c, ncell, periodic
-      LOGICAL                                            :: is000
-      REAL(KINd=dp) :: a1, a2, alp, ang, c6ij, c6ik, c6jk, c9, cutoff2, dang, dE, dfdmp, fac, &
-         fac0, fdmp, pcut, r0, r0ij, r0ik, r0jk, r1, r2, r2ij, r2ik, r2jk, r3, r5, rr, s6, s8, s9
+      INTEGER, DIMENSION(3)                              :: cell_b
+      REAL(KINd=dp)                                      :: a1, a2, alp, ang, c6ij, c6ik, c6jk, c9, &
+                                                            cutoff2, dang, dE, dfdmp, fac, fdmp, &
+                                                            r0, r0ij, r0ik, r0jk, r1, r2, r2ij, &
+                                                            r2ik, r2jk, r3, r5, rr, s6, s8, s9
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: rcpbc
       REAL(KINd=dp), DIMENSION(2)                        :: dc6dcnij, dc6dcnik, dc6dcnjk, dc6dqij, &
                                                             dc6dqik, dc6dqjk
-      REAL(KINd=dp), DIMENSION(3)                        :: dGij, dGik, dGjk, ra, rb, rb0, rc, rc0, &
-                                                            rij, sab_max, vij, vik, vjk
+      REAL(KINd=dp), DIMENSION(3)                        :: dGij, dGik, dGjk, ra, rb, rb0, rij, vij, &
+                                                            vik, vjk
       REAL(KINd=dp), DIMENSION(3, 3)                     :: dS
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
@@ -754,12 +754,6 @@ CONTAINS
       alp = dispersion_env%alp
 
       cutoff2 = cutoff**2
-      pcut = 1.00_dp*cutoff
-      CALL get_cell(cell=cell, periodic=periodic)
-      sab_max(1) = pcut/plane_distance(1, 0, 0, cell)
-      sab_max(2) = pcut/plane_distance(0, 1, 0, cell)
-      sab_max(3) = pcut/plane_distance(0, 0, 1, cell)
-      ncell(:) = (INT(sab_max(:)) + 1)*periodic(:)
 
       sab_vdw => dispersion_env%sab_vdw
 
@@ -780,136 +774,100 @@ CONTAINS
          r0ij = a1*SQRT(3._dp*r4r2(jkind)*r4r2(ikind)) + a2
          IF (r2ij <= cutoff2 .AND. r2ij > EPSILON(1._dp)) THEN
             CALL get_iterator_info(nl_iterator, cell=cell_b)
-            hashb = cellhash(cell_b, ncell)
-            is000 = (ALL(cell_b == 0))
             rb0(:) = MATMUL(cell%hmat, cell_b)
             ra(:) = rcpbc(:, iatom)
             rb(:) = rcpbc(:, jatom) + rb0
-            DO icx = -ncell(1), ncell(1)
-               DO icy = -ncell(2), ncell(2)
-                  DO icz = -ncell(3), ncell(3)
-                     cell_c(1) = icx
-                     cell_c(2) = icy
-                     cell_c(3) = icz
-                     hashc = cellhash(cell_c, ncell)
-                     IF (is000 .AND. (ALL(cell_c == 0))) THEN
-                        ! CASE 1: all atoms in (000), use only ordered triples
-                        kstart = MAX(jatom + 1, iatom + 1)
-                        fac0 = 1.0_dp
-                     ELSE IF (is000) THEN
-                        ! CASE 2: AB in (000), C in other cell
-                        !         This case covers also all instances with BC in same
-                        !         cell not (000)
-                        kstart = 1
-                        fac0 = 1.0_dp
-                     ELSE
-                        ! These are case 2 again, cycle
-                        IF (hashc == hashb) CYCLE
-                        IF (ALL(cell_c == 0)) CYCLE
-                        ! CASE 3: A in (000) and B and C in different cells
-                        kstart = 1
-                        fac0 = 1.0_dp/3.0_dp
-                     END IF
-                     !
-                     rc0 = MATMUL(cell%hmat, cell_c)
-                     !
-                     DO katom = kstart, natom
-                        kkind = kind_of(katom)
-                        IF (calculate_forces) THEN
-                           CALL get_c6derivs(c6ik, dc6dcnik, dc6dqik, katom, iatom, kkind, ikind, &
-                                             gwvec, gwdcn, gwdq, c6ref, mrefs)
-                           CALL get_c6derivs(c6jk, dc6dcnjk, dc6dqjk, katom, jatom, kkind, jkind, &
-                                             gwvec, gwdcn, gwdq, c6ref, mrefs)
-                        ELSE
-                           CALL get_c6value(c6ik, katom, iatom, kkind, ikind, gwvec, c6ref, mrefs)
-                           CALL get_c6value(c6jk, katom, jatom, kkind, jkind, gwvec, c6ref, mrefs)
-                        END IF
+            vij(:) = rb(:) - ra(:)
 
-                        c9 = -s9*SQRT(ABS(c6ij*c6ik*c6jk))
-                        r0ik = a1*SQRT(3._dp*r4r2(kkind)*r4r2(ikind)) + a2
-                        r0jk = a1*SQRT(3._dp*r4r2(kkind)*r4r2(jkind)) + a2
-                        r0 = r0ij*r0ik*r0jk
-                        rc(:) = rcpbc(:, katom) + rc0(:)
-                        r2jk = SUM((rb - rc)**2)
-                        IF (r2jk >= cutoff2 .OR. r2jk < EPSILON(1._dp)) CYCLE
-                        r2ik = SUM((rc - ra)**2)
-                        IF (r2ik >= cutoff2 .OR. r2ik < EPSILON(1._dp)) CYCLE
-                        r2 = r2ij*r2jk*r2ik
-                        r1 = SQRT(r2)
-                        r3 = r2*r1
-                        r5 = r3*r2
-                        fdmp = 1.0_dp/(1.0_dp + 6.0_dp*(r0/r1)**(alp/3.0_dp))
-                        ang = 0.375_dp*(r2ij + r2jk - r2ik)*(r2ij - r2jk + r2ik)* &
-                              (-r2ij + r2jk + r2ik)/r5 + 1.0_dp/r3
+            DO katom = 1, MIN(iatom, jatom)
+               kkind = kind_of(katom)
+               IF (calculate_forces) THEN
+                  CALL get_c6derivs(c6ik, dc6dcnik, dc6dqik, katom, iatom, kkind, ikind, &
+                                    gwvec, gwdcn, gwdq, c6ref, mrefs)
+                  CALL get_c6derivs(c6jk, dc6dcnjk, dc6dqjk, katom, jatom, kkind, jkind, &
+                                    gwvec, gwdcn, gwdq, c6ref, mrefs)
+               ELSE
+                  CALL get_c6value(c6ik, katom, iatom, kkind, ikind, gwvec, c6ref, mrefs)
+                  CALL get_c6value(c6jk, katom, jatom, kkind, jkind, gwvec, c6ref, mrefs)
+               END IF
+               c9 = -s9*SQRT(ABS(c6ij*c6ik*c6jk))
+               r0ik = a1*SQRT(3._dp*r4r2(kkind)*r4r2(ikind)) + a2
+               r0jk = a1*SQRT(3._dp*r4r2(kkind)*r4r2(jkind)) + a2
+               r0 = r0ij*r0ik*r0jk
+               fac = triple_scale(iatom, jatom, katom)
+               DO ktr = 1, SIZE(tvec, 2)
+                  vik(:) = rcpbc(:, katom) + tvec(:, ktr) - rcpbc(:, iatom)
+                  r2ik = vik(1)*vik(1) + vik(2)*vik(2) + vik(3)*vik(3)
+                  IF (r2ik > cutoff2 .OR. r2ik < EPSILON(1.0_dp)) CYCLE
+                  vjk(:) = rcpbc(:, katom) + tvec(:, ktr) - rb(:)
+                  r2jk = vjk(1)*vjk(1) + vjk(2)*vjk(2) + vjk(3)*vjk(3)
+                  IF (r2jk > cutoff2 .OR. r2jk < EPSILON(1.0_dp)) CYCLE
+                  r2 = r2ij*r2ik*r2jk
+                  r1 = SQRT(r2)
+                  r3 = r2*r1
+                  r5 = r3*r2
 
-                        ! avoid double counting!
-                        fac = 1._dp
-                        IF (iatom == jatom .OR. iatom == katom .OR. jatom == katom) fac = 0.5_dp
-                        IF (iatom == jatom .AND. iatom == katom) fac = 1._dp/3._dp
-                        fac = fac*fac0
+                  fdmp = 1.0_dp/(1.0_dp + 6.0_dp*(r0/r1)**(alp/3.0_dp))
+                  ang = 0.375_dp*(r2ij + r2jk - r2ik)*(r2ij - r2jk + r2ik)* &
+                        (-r2ij + r2jk + r2ik)/r5 + 1.0_dp/r3
 
-                        rr = ang*fdmp
-                        dE = rr*c9*fac
-                        energies(iatom) = energies(iatom) - dE/3._dp
-                        energies(jatom) = energies(jatom) - dE/3._dp
-                        energies(katom) = energies(katom) - dE/3._dp
+                  rr = ang*fdmp
+                  dE = rr*c9*fac
+                  energies(iatom) = energies(iatom) - dE/3._dp
+                  energies(jatom) = energies(jatom) - dE/3._dp
+                  energies(katom) = energies(katom) - dE/3._dp
 
-                        IF (calculate_forces) THEN
-                           vij = rb - ra
-                           vjk = rc - rb
-                           vik = rc - ra
+                  IF (calculate_forces) THEN
 
-                           dfdmp = -2.0_dp*alp*(r0/r1)**(alp/3.0_dp)*fdmp**2
+                     dfdmp = -2.0_dp*alp*(r0/r1)**(alp/3.0_dp)*fdmp**2
 
-                           ! d/drij
-                           dang = -0.375_dp*(r2ij**3 + r2ij**2*(r2jk + r2ik) &
-                                             + r2ij*(3.0_dp*r2jk**2 + 2.0_dp*r2jk*r2ik &
-                                                     + 3.0_dp*r2ik**2) &
-                                             - 5.0_dp*(r2jk - r2ik)**2*(r2jk + r2ik))/r5
-                           dGij(:) = c9*(-dang*fdmp + ang*dfdmp)/r2ij*vij
+                     ! d/drij
+                     dang = -0.375_dp*(r2ij**3 + r2ij**2*(r2jk + r2ik) &
+                                       + r2ij*(3.0_dp*r2jk**2 + 2.0_dp*r2jk*r2ik &
+                                               + 3.0_dp*r2ik**2) &
+                                       - 5.0_dp*(r2jk - r2ik)**2*(r2jk + r2ik))/r5
+                     dGij(:) = c9*(-dang*fdmp + ang*dfdmp)/r2ij*vij
 
-                           ! d/drik
-                           dang = -0.375_dp*(r2ik**3 + r2ik**2*(r2jk + r2ij) &
-                                             + r2ik*(3.0_dp*r2jk**2 + 2.0_dp*r2jk*r2ij &
-                                                     + 3.0_dp*r2ij**2) &
-                                             - 5.0_dp*(r2jk - r2ij)**2*(r2jk + r2ij))/r5
-                           dGik(:) = c9*(-dang*fdmp + ang*dfdmp)/r2ik*vik
+                     ! d/drik
+                     dang = -0.375_dp*(r2ik**3 + r2ik**2*(r2jk + r2ij) &
+                                       + r2ik*(3.0_dp*r2jk**2 + 2.0_dp*r2jk*r2ij &
+                                               + 3.0_dp*r2ij**2) &
+                                       - 5.0_dp*(r2jk - r2ij)**2*(r2jk + r2ij))/r5
+                     dGik(:) = c9*(-dang*fdmp + ang*dfdmp)/r2ik*vik
 
-                           ! d/drjk
-                           dang = -0.375_dp*(r2jk**3 + r2jk**2*(r2ik + r2ij) &
-                                             + r2jk*(3.0_dp*r2ik**2 + 2.0_dp*r2ik*r2ij &
-                                                     + 3.0_dp*r2ij**2) &
-                                             - 5.0_dp*(r2ik - r2ij)**2*(r2ik + r2ij))/r5
-                           dGjk(:) = c9*(-dang*fdmp + ang*dfdmp)/r2jk*vjk
+                     ! d/drjk
+                     dang = -0.375_dp*(r2jk**3 + r2jk**2*(r2ik + r2ij) &
+                                       + r2jk*(3.0_dp*r2ik**2 + 2.0_dp*r2ik*r2ij &
+                                               + 3.0_dp*r2ij**2) &
+                                       - 5.0_dp*(r2ik - r2ij)**2*(r2ik + r2ij))/r5
+                     dGjk(:) = c9*(-dang*fdmp + ang*dfdmp)/r2jk*vjk
 
-                           gradient(:, iatom) = gradient(:, iatom) - dGij - dGik
-                           gradient(:, jatom) = gradient(:, jatom) + dGij - dGjk
-                           gradient(:, katom) = gradient(:, katom) + dGik + dGjk
+                     gradient(:, iatom) = gradient(:, iatom) - dGij - dGik
+                     gradient(:, jatom) = gradient(:, jatom) + dGij - dGjk
+                     gradient(:, katom) = gradient(:, katom) + dGik + dGjk
 
-                           dS(:, :) = SPREAD(dGij, 1, 3)*SPREAD(vij, 2, 3) &
-                                      + SPREAD(dGik, 1, 3)*SPREAD(vik, 2, 3) &
-                                      + SPREAD(dGjk, 1, 3)*SPREAD(vjk, 2, 3)
+                     dS(:, :) = SPREAD(dGij, 1, 3)*SPREAD(vij, 2, 3) &
+                                + SPREAD(dGik, 1, 3)*SPREAD(vik, 2, 3) &
+                                + SPREAD(dGjk, 1, 3)*SPREAD(vjk, 2, 3)
 
-                           stress(:, :) = stress + dS*fac
+                     stress(:, :) = stress + dS*fac
 
-                           dEdcn(iatom) = dEdcn(iatom) - dE*0.5_dp &
-                                          *(dc6dcnij(1)/c6ij + dc6dcnik(2)/c6ik)
-                           dEdcn(jatom) = dEdcn(jatom) - dE*0.5_dp &
-                                          *(dc6dcnij(2)/c6ij + dc6dcnjk(2)/c6jk)
-                           dEdcn(katom) = dEdcn(katom) - dE*0.5_dp &
-                                          *(dc6dcnik(1)/c6ik + dc6dcnjk(1)/c6jk)
+                     dEdcn(iatom) = dEdcn(iatom) - dE*0.5_dp &
+                                    *(dc6dcnij(1)/c6ij + dc6dcnik(2)/c6ik)
+                     dEdcn(jatom) = dEdcn(jatom) - dE*0.5_dp &
+                                    *(dc6dcnij(2)/c6ij + dc6dcnjk(2)/c6jk)
+                     dEdcn(katom) = dEdcn(katom) - dE*0.5_dp &
+                                    *(dc6dcnik(1)/c6ik + dc6dcnjk(1)/c6jk)
 
-                           dEdq(iatom) = dEdq(iatom) - dE*0.5_dp &
-                                         *(dc6dqij(1)/c6ij + dc6dqik(2)/c6ik)
-                           dEdq(jatom) = dEdq(jatom) - dE*0.5_dp &
-                                         *(dc6dqij(2)/c6ij + dc6dqjk(2)/c6jk)
-                           dEdq(katom) = dEdq(katom) - dE*0.5_dp &
-                                         *(dc6dqik(1)/c6ik + dc6dqjk(1)/c6jk)
+                     dEdq(iatom) = dEdq(iatom) - dE*0.5_dp &
+                                   *(dc6dqij(1)/c6ij + dc6dqik(2)/c6ik)
+                     dEdq(jatom) = dEdq(jatom) - dE*0.5_dp &
+                                   *(dc6dqij(2)/c6ij + dc6dqjk(2)/c6jk)
+                     dEdq(katom) = dEdq(katom) - dE*0.5_dp &
+                                   *(dc6dqik(1)/c6ik + dc6dqjk(1)/c6jk)
 
-                        END IF
+                  END IF
 
-                     END DO
-                  END DO
                END DO
             END DO
          END IF
@@ -920,6 +878,37 @@ CONTAINS
       DEALLOCATE (rcpbc)
 
    END SUBROUTINE dispersion_3b
+
+! **************************************************************************************************
+!> \brief ...
+!> \param ii ...
+!> \param jj ...
+!> \param kk ...
+!> \return ...
+! **************************************************************************************************
+   FUNCTION triple_scale(ii, jj, kk) RESULT(triple)
+      INTEGER, INTENT(IN)                                :: ii, jj, kk
+      REAL(KIND=dp)                                      :: triple
+
+      IF (ii == jj) THEN
+         IF (ii == kk) THEN
+            ! ii'i" -> 1/6
+            triple = 1.0_dp/6.0_dp
+         ELSE
+            ! ii'j -> 1/2
+            triple = 0.5_dp
+         END IF
+      ELSE
+         IF (ii /= kk .AND. jj /= kk) THEN
+            ! ijk -> 1 (full)
+            triple = 1.0_dp
+         ELSE
+            ! ijj' and iji' -> 1/2
+            triple = 0.5_dp
+         END IF
+      END IF
+
+   END FUNCTION triple_scale
 
 ! **************************************************************************************************
 !> \brief ...
