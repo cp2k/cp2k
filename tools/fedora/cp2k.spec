@@ -50,6 +50,7 @@ BuildRequires: fftw-devel
 %if %{with libxsmm}
 BuildRequires: libxsmm-devel >= 1.8.1-3
 %endif
+# needs at least libxc 5.1.0 but works fine with later releases
 BuildRequires: libxc-devel >= 5.1.0
 BuildRequires: spglib-devel
 # Test dependencies
@@ -154,8 +155,6 @@ rm -r exts/dbcsr
 
 # $MPI_SUFFIX will be evaluated in the loops below, set by mpi modules
 %global _vpath_builddir %{_vendor}-%{_target_os}-build${MPI_SUFFIX:-_serial}
-# We are running the module load/unload manually until there is a macro-like way to expand this
-. /etc/profile.d/modules.sh
 
 
 %build

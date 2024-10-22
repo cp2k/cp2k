@@ -1,6 +1,7 @@
 summary: Run regression tests
 framework: beakerlib
-test: ./do_regtest.sh
+path: /
+test: ./tools/fedora/tests/do_regtest.sh
 # TODO: Reduce the tests duration
 duration: 2h
 environment+:
