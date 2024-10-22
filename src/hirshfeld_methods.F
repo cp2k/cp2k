@@ -25,6 +25,7 @@ MODULE hirshfeld_methods
    USE cp_units,                        ONLY: cp_unit_to_cp2k
    USE grid_api,                        ONLY: GRID_FUNC_AB,&
                                               collocate_pgf_product,&
+                                              grid_multigrid_type,&
                                               integrate_pgf_product
    USE hirshfeld_types,                 ONLY: get_hirshfeld_info,&
                                               hirshfeld_type,&
@@ -433,9 +434,9 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'calculate_hirshfeld_normalization'
 
-      INTEGER                                            :: atom_a, handle, iatom, iex, ikind, &
-                                                            ithread, j, natom, npme, nthread, &
-                                                            numexp, subpatch_pattern
+      INTEGER                                            :: atom_a, auxbas_grid, handle, iatom, iex, &
+                                                            ikind, ithread, j, natom, npme, &
+                                                            nthread, numexp, subpatch_pattern
       INTEGER, DIMENSION(:), POINTER                     :: atom_list, cores
       REAL(KIND=dp)                                      :: alpha, coef, eps_rho_rspace, radius
       REAL(KIND=dp), DIMENSION(3)                        :: ra
@@ -443,6 +444,7 @@ CONTAINS
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
       TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(grid_multigrid_type)                          :: multigrid
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
@@ -454,7 +456,7 @@ CONTAINS
 
       CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set, cell=cell, &
                       dft_control=dft_control, particle_set=particle_set, pw_env=pw_env)
-      CALL pw_env_get(pw_env, auxbas_rs_desc=auxbas_rs_desc, auxbas_rs_grid=rs_rho, &
+      CALL pw_env_get(pw_env, auxbas_rs_desc=auxbas_rs_desc, auxbas_rs_grid=rs_rho, multigrid=multigrid, auxbas_grid=auxbas_grid, &
                       auxbas_pw_pool=auxbas_pw_pool)
       ! be careful in parallel nsmax is chosen with multigrid in mind!
       CALL rs_grid_zero(rs_rho)
@@ -503,6 +505,7 @@ CONTAINS
                ! la_max==0 so set lmax_global to 0
                CALL collocate_pgf_product(0, alpha, 0, 0, 0.0_dp, 0, ra, &
                                           (/0.0_dp, 0.0_dp, 0.0_dp/), 1.0_dp, pab, 0, 0, rs_rho, &
+                                          multigrid, auxbas_grid, &
                                           radius=radius, ga_gb_function=GRID_FUNC_AB, &
                                           use_subpatch=.TRUE., subpatch_pattern=subpatch_pattern)
             END DO

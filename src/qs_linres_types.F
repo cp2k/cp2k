@@ -22,6 +22,7 @@ MODULE qs_linres_types
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_release,&
                                               cp_fm_type
+   USE grid_api,                        ONLY: grid_multigrid_type
    USE kinds,                           ONLY: dp
    USE qs_grid_atom,                    ONLY: grid_atom_type
    USE qs_harmonics_atom,               ONLY: harmonics_atom_type
@@ -127,7 +128,9 @@ MODULE qs_linres_types
       TYPE(jrho_atom_type), DIMENSION(:), POINTER         :: jrho1_atom_set => NULL()
       TYPE(qs_rho_p_type), DIMENSION(:), POINTER          :: jrho1_set => NULL()
       TYPE(realspace_grid_type), DIMENSION(:), POINTER    :: rs_buf => NULL()
+      TYPE(grid_multigrid_type)                           :: multigrid_buf = grid_multigrid_type()
       TYPE(realspace_grid_type), DIMENSION(:, :), POINTER :: rs_gauge => NULL()
+      TYPE(grid_multigrid_type), DIMENSION(:), POINTER    :: multigrid_gauge => NULL()
       TYPE(cp_fm_type), DIMENSION(:), POINTER             :: psi0_order => NULL()
    END TYPE current_env_type
 
@@ -416,6 +419,7 @@ CONTAINS
 !> \param chi_tensor_loc ...
 !> \param gauge_atom_radius ...
 !> \param rs_gauge ...
+!> \param multigrid_gauge ...
 !> \param use_old_gauge_atom ...
 !> \param chi_pbc ...
 !> \param psi0_order ...
@@ -424,7 +428,7 @@ CONTAINS
                               nstates, gauge, list_cubes, statetrueindex, gauge_name, basisfun_center, &
                               nbr_center, center_list, centers_set, psi1_p, psi1_rxp, psi1_D, p_psi0, &
                               rxp_psi0, jrho1_atom_set, jrho1_set, chi_tensor, &
-                              chi_tensor_loc, gauge_atom_radius, rs_gauge, use_old_gauge_atom, &
+                              chi_tensor_loc, gauge_atom_radius, rs_gauge, multigrid_gauge, use_old_gauge_atom, &
                               chi_pbc, psi0_order)
 
       TYPE(current_env_type), OPTIONAL                   :: current_env
@@ -452,6 +456,8 @@ CONTAINS
                                                             gauge_atom_radius
       TYPE(realspace_grid_type), DIMENSION(:, :), &
          OPTIONAL, POINTER                               :: rs_gauge
+      TYPE(grid_multigrid_type), DIMENSION(:), &
+         OPTIONAL, POINTER                               :: multigrid_gauge
       LOGICAL, OPTIONAL                                  :: use_old_gauge_atom, chi_pbc
       TYPE(cp_fm_type), DIMENSION(:), OPTIONAL, POINTER  :: psi0_order
 
@@ -478,6 +484,7 @@ CONTAINS
       IF (PRESENT(jrho1_atom_set)) jrho1_atom_set => current_env%jrho1_atom_set
       IF (PRESENT(jrho1_set)) jrho1_set => current_env%jrho1_set
       IF (PRESENT(rs_gauge)) rs_gauge => current_env%rs_gauge
+      IF (PRESENT(multigrid_gauge)) multigrid_gauge => current_env%multigrid_gauge
       IF (PRESENT(psi0_order)) psi0_order => current_env%psi0_order
       IF (PRESENT(chi_pbc)) chi_pbc = current_env%chi_pbc
       IF (PRESENT(gauge_atom_radius)) gauge_atom_radius = current_env%gauge_atom_radius

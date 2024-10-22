@@ -54,7 +54,8 @@ MODULE mixed_cdft_methods
                                               use_qmmmx,&
                                               use_qs_force
    USE grid_api,                        ONLY: GRID_FUNC_AB,&
-                                              collocate_pgf_product
+                                              collocate_pgf_product,&
+                                              grid_multigrid_type
    USE hirshfeld_methods,               ONLY: create_shape_function
    USE hirshfeld_types,                 ONLY: hirshfeld_type
    USE input_constants,                 ONLY: &
@@ -2281,9 +2282,9 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'mixed_becke_constraint_init'
 
       CHARACTER(len=2)                                   :: element_symbol
-      INTEGER :: atom_a, bounds(2), handle, i, iatom, iex, iforce_eval, ikind, iounit, ithread, j, &
-         jatom, katom, my_work, my_work_size, natom, nforce_eval, nkind, np(3), npme, nthread, &
-         numexp, offset_dlb, unit_nr
+      INTEGER :: atom_a, auxbas_grid, bounds(2), handle, i, iatom, iex, iforce_eval, ikind, &
+         iounit, ithread, j, jatom, katom, my_work, my_work_size, natom, nforce_eval, nkind, &
+         np(3), npme, nthread, numexp, offset_dlb, unit_nr
       INTEGER, DIMENSION(2, 3)                           :: bo, bo_conf
       INTEGER, DIMENSION(:), POINTER                     :: atom_list, cores, stride
       LOGICAL                                            :: build, mpi_io
@@ -2298,6 +2299,7 @@ CONTAINS
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_subsys_type), POINTER                      :: subsys_mix
       TYPE(force_env_type), POINTER                      :: force_env_qs
+      TYPE(grid_multigrid_type)                          :: multigrid
       TYPE(hirshfeld_type), POINTER                      :: cavity_env
       TYPE(particle_list_type), POINTER                  :: particles
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
@@ -2518,7 +2520,7 @@ CONTAINS
                DEALLOCATE (radii_list)
          END IF
          NULLIFY (rs_cavity)
-         CALL pw_env_get(pw_env=mixed_cdft%pw_env, auxbas_rs_grid=rs_cavity, &
+         CALL pw_env_get(pw_env=mixed_cdft%pw_env, auxbas_rs_grid=rs_cavity, multigrid=multigrid, auxbas_grid=auxbas_grid, &
                          auxbas_pw_pool=auxbas_pw_pool)
          ! be careful in parallel nsmax is chosen with multigrid in mind!
          CALL rs_grid_zero(rs_cavity)
@@ -2566,6 +2568,7 @@ CONTAINS
                      CALL collocate_pgf_product(0, alpha, 0, 0, 0.0_dp, 0, ra, &
                                                 (/0.0_dp, 0.0_dp, 0.0_dp/), 1.0_dp, pab, 0, 0, &
                                                 rs_cavity, &
+                                                multigrid, auxbas_grid, &
                                                 radius=radius, ga_gb_function=GRID_FUNC_AB, &
                                                 use_subpatch=.TRUE., &
                                                 subpatch_pattern=0)

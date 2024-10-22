@@ -61,7 +61,7 @@ MODULE qs_linres_current
         GRID_FUNC_ARDBmDARB_XX, GRID_FUNC_ARDBmDARB_XY, GRID_FUNC_ARDBmDARB_XZ, &
         GRID_FUNC_ARDBmDARB_YX, GRID_FUNC_ARDBmDARB_YY, GRID_FUNC_ARDBmDARB_YZ, &
         GRID_FUNC_ARDBmDARB_ZX, GRID_FUNC_ARDBmDARB_ZY, GRID_FUNC_ARDBmDARB_ZZ, &
-        collocate_pgf_product
+        collocate_pgf_product, grid_create_multigrid, grid_free_multigrid, grid_multigrid_type
    USE input_constants,                 ONLY: current_gauge_atom
    USE input_section_types,             ONLY: section_get_ivals,&
                                               section_get_lval,&
@@ -616,6 +616,8 @@ CONTAINS
                                                             deltajp_d
       TYPE(dbcsr_type), POINTER                          :: mat_a, mat_b, mat_c, mat_d
       TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(grid_multigrid_type)                          :: multigrid, multigrid_current
+      TYPE(grid_multigrid_type), DIMENSION(:), POINTER   :: multigrid_gauge
       TYPE(gridlevel_info_type), POINTER                 :: gridlevel_info
       TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: basis_set_list
       TYPE(gto_basis_set_type), POINTER                  :: basis_set_a, basis_set_b, orb_basis_set
@@ -671,7 +673,7 @@ CONTAINS
                       para_env=para_env, &
                       pw_env=pw_env)
 
-      IF (do_igaim) CALL get_current_env(current_env=current_env, rs_gauge=rs_gauge)
+      IF (do_igaim) CALL get_current_env(current_env=current_env, rs_gauge=rs_gauge, multigrid_gauge=multigrid_gauge)
 
       ! Component of appearing in the vector product rxp, iiB and iiiB
       CALL set_vecp(iB, iiB, iiiB)
@@ -692,7 +694,7 @@ CONTAINS
       CPASSERT(ASSOCIATED(sab_orb))
       ! *** set up the pw multi-grids
       CPASSERT(ASSOCIATED(pw_env))
-      CALL pw_env_get(pw_env, rs_descs=rs_descs, rs_grids=rs_rho)
+      CALL pw_env_get(pw_env, rs_descs=rs_descs, rs_grids=rs_rho, multigrid=multigrid)
 
       distributed_rs_grids = .FALSE.
       DO igrid_level = 1, gridlevel_info%ngrid_levels
@@ -894,6 +896,8 @@ CONTAINS
          CALL rs_grid_create(rs_current(igrid_level), rs_descs(igrid_level)%rs_desc)
          CALL rs_grid_zero(rs_current(igrid_level))
       END DO
+      CALL grid_create_multigrid(rs_current, multigrid_current)
+      CALL grid_create_multigrid(rs_rho, multigrid)
 
       !
       ! we need to build the gauge here
@@ -1142,6 +1146,7 @@ CONTAINS
                                     la_min(iset), lb_max(jset), zetb(jpgf, jset), lb_min(jset), &
                                     ra, rab, scale, jpab_a, na1 - 1, nb1 - 1, &
                                     rs_current(igrid_level), &
+                                    multigrid_current, igrid_level, &
                                     radius=radius, ga_gb_function=adbmdab_func)
          IF (do_igaim) THEN
             ! here the decontracted mat_jb_{ab} is multiplied by
@@ -1151,6 +1156,7 @@ CONTAINS
                                           la_min(iset), lb_max(jset), zetb(jpgf, jset), lb_min(jset), &
                                           ra, rab, scale2, jpab_d, na1 - 1, nb1 - 1, &
                                           rs_rho(igrid_level), &
+                                          multigrid, igrid_level, &
                                           radius=radius, ga_gb_function=GRID_FUNC_AB)
             END IF !rm
             ! here the decontracted mat_jp_rii{ab} is multiplied by
@@ -1163,7 +1169,8 @@ CONTAINS
                                        ra, rab, scale, jpab_b, na1 - 1, nb1 - 1, &
                                        radius=radius, &
                                        ga_gb_function=adbmdab_func, &
-                                       rsgrid=current_env%rs_buf(igrid_level))
+                                       rsgrid=current_env%rs_buf(igrid_level), &
+                                       multigrid=current_env%multigrid_buf, ilevel=igrid_level)
             CALL collocate_gauge_ortho(rsgrid=current_env%rs_buf(igrid_level), &
                                        rsbuf=rs_current(igrid_level), &
                                        rsgauge=rs_gauge(iiiB, igrid_level), &
@@ -1181,7 +1188,8 @@ CONTAINS
                                        ra, rab, scale, jpab_c, na1 - 1, nb1 - 1, &
                                        radius=radius, &
                                        ga_gb_function=adbmdab_func, &
-                                       rsgrid=current_env%rs_buf(igrid_level))
+                                       rsgrid=current_env%rs_buf(igrid_level), &
+                                       multigrid=current_env%multigrid_buf, ilevel=igrid_level)
             CALL collocate_gauge_ortho(rsgrid=current_env%rs_buf(igrid_level), &
                                        rsbuf=rs_current(igrid_level), &
                                        rsgauge=rs_gauge(iiB, igrid_level), &
@@ -1197,6 +1205,7 @@ CONTAINS
                                        la_min(iset), lb_max(jset), zetb(jpgf, jset), lb_min(jset), &
                                        ra, rab, scale, jpab_b, na1 - 1, nb1 - 1, &
                                        rs_current(igrid_level), &
+                                       multigrid_current, igrid_level, &
                                        radius=radius, &
                                        ga_gb_function=encode_ardbmdarb_func(idir=idir, ir=iiiB))
             ! here the decontracted mat_jp_riii{ab} is multiplied by
@@ -1207,6 +1216,7 @@ CONTAINS
                                        la_min(iset), lb_max(jset), zetb(jpgf, jset), lb_min(jset), &
                                        ra, rab, scale, jpab_c, na1 - 1, nb1 - 1, &
                                        rs_current(igrid_level), &
+                                       multigrid_current, igrid_level, &
                                        radius=radius, &
                                        ga_gb_function=encode_ardbmdarb_func(idir=idir, ir=iiB))
          END IF
@@ -1248,6 +1258,7 @@ CONTAINS
 
       ! Free the array of grids (grids themselves are released in density_rs2pw)
       DEALLOCATE (rs_current)
+      CALL grid_free_multigrid(multigrid_current)
 
       CALL timestop(handle)
 
@@ -1499,6 +1510,7 @@ CONTAINS
          DO igrid_level = 1, pw_env%gridlevel_info%ngrid_levels
             CALL rs_grid_create(current_env%rs_buf(igrid_level), rs_descs(igrid_level)%rs_desc)
          END DO
+         CALL grid_create_multigrid(current_env%rs_buf, current_env%multigrid_buf)
          !
          DEALLOCATE (box_ptr, box_data)
          CALL deallocate_box(box)
