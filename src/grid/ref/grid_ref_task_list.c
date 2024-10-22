@@ -40,19 +40,16 @@ static int compare_tasks(const void *a, const void *b) {
  * \author Ole Schuett
  ******************************************************************************/
 void grid_ref_create_task_list(
-    const bool orthorhombic, const int ntasks, const int nlevels,
-    const int natoms, const int nkinds, const int nblocks,
-    const int block_offsets[nblocks], const double atom_positions[natoms][3],
-    const int atom_kinds[natoms], const grid_basis_set *basis_sets[nkinds],
-    const int level_list[ntasks], const int iatom_list[ntasks],
-    const int jatom_list[ntasks], const int iset_list[ntasks],
-    const int jset_list[ntasks], const int ipgf_list[ntasks],
-    const int jpgf_list[ntasks], const int border_mask_list[ntasks],
-    const int block_num_list[ntasks], const double radius_list[ntasks],
-    const double rab_list[ntasks][3], const int npts_global[nlevels][3],
-    const int npts_local[nlevels][3], const int shift_local[nlevels][3],
-    const int border_width[nlevels][3], const double dh[nlevels][3][3],
-    const double dh_inv[nlevels][3][3], grid_ref_task_list **task_list_out) {
+    const grid_ref_multigrid *multigrid, const int ntasks, const int natoms,
+    const int nkinds, const int nblocks, const int block_offsets[nblocks],
+    const double atom_positions[natoms][3], const int atom_kinds[natoms],
+    const grid_basis_set *basis_sets[nkinds], const int level_list[ntasks],
+    const int iatom_list[ntasks], const int jatom_list[ntasks],
+    const int iset_list[ntasks], const int jset_list[ntasks],
+    const int ipgf_list[ntasks], const int jpgf_list[ntasks],
+    const int border_mask_list[ntasks], const int block_num_list[ntasks],
+    const double radius_list[ntasks], const double rab_list[ntasks][3],
+    grid_ref_task_list **task_list_out) {
 
   if (*task_list_out != NULL) {
     // This is actually an opportunity to reuse some buffers.
@@ -62,9 +59,9 @@ void grid_ref_create_task_list(
   grid_ref_task_list *task_list = malloc(sizeof(grid_ref_task_list));
   assert(task_list != NULL);
 
-  task_list->orthorhombic = orthorhombic;
+  task_list->orthorhombic = multigrid->orthorhombic;
   task_list->ntasks = ntasks;
-  task_list->nlevels = nlevels;
+  task_list->nlevels = multigrid->nlevels;
   task_list->natoms = natoms;
   task_list->nkinds = nkinds;
   task_list->nblocks = nblocks;
@@ -109,18 +106,24 @@ void grid_ref_create_task_list(
   }
 
   // Store grid layouts.
-  size = nlevels * sizeof(grid_ref_layout);
+  size = multigrid->nlevels * sizeof(grid_ref_layout);
   task_list->layouts = malloc(size);
   assert(task_list->layouts != NULL);
-  for (int level = 0; level < nlevels; level++) {
+  for (int level = 0; level < multigrid->nlevels; level++) {
     for (int i = 0; i < 3; i++) {
-      task_list->layouts[level].npts_global[i] = npts_global[level][i];
-      task_list->layouts[level].npts_local[i] = npts_local[level][i];
-      task_list->layouts[level].shift_local[i] = shift_local[level][i];
-      task_list->layouts[level].border_width[i] = border_width[level][i];
+      task_list->layouts[level].npts_global[i] =
+          multigrid->singlegrids[level]->npts_global[i];
+      task_list->layouts[level].npts_local[i] =
+          multigrid->singlegrids[level]->npts_local[i];
+      task_list->layouts[level].shift_local[i] =
+          multigrid->singlegrids[level]->shift_local[i];
+      task_list->layouts[level].border_width[i] =
+          multigrid->singlegrids[level]->border_width[i];
       for (int j = 0; j < 3; j++) {
-        task_list->layouts[level].dh[i][j] = dh[level][i][j];
-        task_list->layouts[level].dh_inv[i][j] = dh_inv[level][i][j];
+        task_list->layouts[level].dh[i][j] =
+            multigrid->singlegrids[level]->dh[i][j];
+        task_list->layouts[level].dh_inv[i][j] =
+            multigrid->singlegrids[level]->dh_inv[i][j];
       }
     }
   }
@@ -129,12 +132,12 @@ void grid_ref_create_task_list(
   qsort(task_list->tasks, ntasks, sizeof(grid_ref_task), &compare_tasks);
 
   // Find first and last task for each level and block.
-  size = nlevels * nblocks * sizeof(int);
+  size = multigrid->nlevels * nblocks * sizeof(int);
   task_list->first_level_block_task = malloc(size);
   assert(task_list->first_level_block_task != NULL);
   task_list->last_level_block_task = malloc(size);
   assert(task_list->last_level_block_task != NULL);
-  for (int i = 0; i < nlevels * nblocks; i++) {
+  for (int i = 0; i < multigrid->nlevels * nblocks; i++) {
     task_list->first_level_block_task[i] = 0;
     task_list->last_level_block_task[i] = -1; // last < first means no tasks
   }

@@ -71,13 +71,10 @@ void grid_create_task_list(
 
   // Always create reference backend because it might be needed for validation.
   grid_ref_create_task_list(
-      multigrid->orthorhombic, ntasks, multigrid->nlevels, natoms, nkinds,
-      nblocks, block_offsets, atom_positions, atom_kinds, basis_sets,
-      level_list, iatom_list, jatom_list, iset_list, jset_list, ipgf_list,
-      jpgf_list, border_mask_list, block_num_list, radius_list, rab_list,
-      multigrid->npts_global, multigrid->npts_local, multigrid->shift_local,
-      multigrid->border_width, multigrid->dh, multigrid->dh_inv,
-      &task_list->ref);
+      multigrid->ref, ntasks, natoms, nkinds, nblocks, block_offsets,
+      atom_positions, atom_kinds, basis_sets, level_list, iatom_list,
+      jatom_list, iset_list, jset_list, ipgf_list, jpgf_list, border_mask_list,
+      block_num_list, radius_list, rab_list, &task_list->ref);
 
   // Create other backend, if selected.
   switch (task_list->backend) {
