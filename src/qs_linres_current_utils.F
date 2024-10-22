@@ -54,6 +54,7 @@ MODULE qs_linres_current_utils
                                               cp_print_key_finished_output,&
                                               cp_print_key_should_output,&
                                               cp_print_key_unit_nr
+   USE grid_api,                        ONLY: grid_free_multigrid
    USE input_constants,                 ONLY: current_gauge_atom,&
                                               current_gauge_r,&
                                               current_gauge_r_and_step_func,&
@@ -1398,6 +1399,7 @@ CONTAINS
          END DO
          DEALLOCATE (current_env%rs_buf)
       END IF
+      CALL grid_free_multigrid(current_env%multigrid_buf)
 
    END SUBROUTINE current_env_cleanup
 

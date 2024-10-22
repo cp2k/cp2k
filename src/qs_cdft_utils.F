@@ -31,7 +31,8 @@ MODULE qs_cdft_utils
    USE cp_realspace_grid_cube,          ONLY: cp_pw_to_cube
    USE cp_units,                        ONLY: cp_unit_from_cp2k
    USE grid_api,                        ONLY: GRID_FUNC_AB,&
-                                              collocate_pgf_product
+                                              collocate_pgf_product,&
+                                              grid_multigrid_type
    USE hirshfeld_methods,               ONLY: create_shape_function
    USE hirshfeld_types,                 ONLY: create_hirshfeld_type,&
                                               hirshfeld_type,&
@@ -99,8 +100,8 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'becke_constraint_init'
 
       CHARACTER(len=2)                                   :: element_symbol
-      INTEGER :: atom_a, bounds(2), handle, i, iatom, iex, igroup, ikind, ip, ithread, iw, j, &
-         jatom, katom, natom, nkind, npme, nthread, numexp, unit_nr
+      INTEGER :: atom_a, auxbas_grid, bounds(2), handle, i, iatom, iex, igroup, ikind, ip, &
+         ithread, iw, j, jatom, katom, natom, nkind, npme, nthread, numexp, unit_nr
       INTEGER, DIMENSION(2, 3)                           :: bo
       INTEGER, DIMENSION(:), POINTER                     :: atom_list, cores, stride
       LOGICAL                                            :: build, in_memory, mpi_io
@@ -117,6 +118,7 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(grid_multigrid_type)                          :: multigrid
       TYPE(hirshfeld_type), POINTER                      :: cavity_env
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(particle_list_type), POINTER                  :: particles
@@ -334,7 +336,7 @@ CONTAINS
          END IF
          ! Form cavity by summing isolated Gaussian densities over constraint atoms
          NULLIFY (rs_cavity)
-         CALL pw_env_get(pw_env, auxbas_rs_grid=rs_cavity, auxbas_pw_pool=auxbas_pw_pool)
+      CALL pw_env_get(pw_env, auxbas_rs_grid=rs_cavity, auxbas_pw_pool=auxbas_pw_pool, multigrid=multigrid, auxbas_grid=auxbas_grid)
          CALL rs_grid_zero(rs_cavity)
          ALLOCATE (pab(1, 1))
          nthread = 1
@@ -379,7 +381,7 @@ CONTAINS
 
                      CALL collocate_pgf_product(0, alpha, 0, 0, 0.0_dp, 0, ra, &
                                                 (/0.0_dp, 0.0_dp, 0.0_dp/), 1.0_dp, &
-                                                pab, 0, 0, rs_cavity, &
+                                                pab, 0, 0, rs_cavity, multigrid, auxbas_grid, &
                                                 radius=radius, ga_gb_function=GRID_FUNC_AB, &
                                                 use_subpatch=.TRUE., subpatch_pattern=0)
                   END IF

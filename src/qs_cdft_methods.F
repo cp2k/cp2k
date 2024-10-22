@@ -25,7 +25,10 @@ MODULE qs_cdft_methods
                                               cp_print_key_unit_nr
    USE cp_realspace_grid_cube,          ONLY: cp_cube_to_pw
    USE grid_api,                        ONLY: GRID_FUNC_AB,&
-                                              collocate_pgf_product
+                                              collocate_pgf_product,&
+                                              grid_create_multigrid,&
+                                              grid_free_multigrid,&
+                                              grid_multigrid_type
    USE hirshfeld_types,                 ONLY: hirshfeld_type
    USE input_constants,                 ONLY: cdft_alpha_constraint,&
                                               cdft_beta_constraint,&
@@ -641,6 +644,11 @@ CONTAINS
       TYPE(cdft_control_type), POINTER                   :: cdft_control
       TYPE(cell_type), POINTER                           :: cell
       TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(grid_multigrid_type)                          :: multigrid_all, multigrid_constr
+      TYPE(grid_multigrid_type), ALLOCATABLE, &
+         DIMENSION(:)                                    :: multigrid_single, &
+                                                            multigrid_single_charge, &
+                                                            multigrid_single_dr
       TYPE(hirshfeld_constraint_type), POINTER           :: hirshfeld_control
       TYPE(hirshfeld_type), POINTER                      :: hirshfeld_env
       TYPE(mp_para_env_type), POINTER                    :: para_env
@@ -707,6 +715,7 @@ CONTAINS
                       auxbas_pw_pool=auxbas_pw_pool)
       CALL rs_grid_create(rs_rho_all, auxbas_rs_desc)
       CALL rs_grid_zero(rs_rho_all)
+      CALL grid_create_multigrid([rs_rho_all], multigrid_all)
 
       dr_rs(1) = rs_rho_all%desc%dh(1, 1)
       dr_rs(2) = rs_rho_all%desc%dh(2, 2)
@@ -737,14 +746,17 @@ CONTAINS
          ! rs_rho_constr: Sum of isolated Gaussian densities over constraint atoms in this constraint group
          CALL rs_grid_create(rs_rho_constr, auxbas_rs_desc)
          CALL rs_grid_zero(rs_rho_constr)
+         CALL grid_create_multigrid([rs_rho_constr], multigrid_constr)
 
          ! rs_single: Gaussian density over single atoms when required
          IF (hirshfeld_control%print_density .AND. igroup == 1) THEN
             ALLOCATE (cdft_control%group(igroup)%hw_rho_atomic(cdft_control%natoms))
             ALLOCATE (rs_single(cdft_control%natoms))
+            ALLOCATE (multigrid_single(cdft_control%natoms))
             DO i = 1, cdft_control%natoms
                CALL rs_grid_create(rs_single(i), auxbas_rs_desc)
                CALL rs_grid_zero(rs_single(i))
+               CALL grid_create_multigrid([rs_single(i)], multigrid_single(i))
             END DO
          END IF
 
@@ -769,6 +781,7 @@ CONTAINS
          IF (cdft_control%atomic_charges .AND. igroup == 1) THEN
             ALLOCATE (cdft_control%group(igroup)%hw_rho_atomic_charge(cdft_control%natoms))
             ALLOCATE (rs_single_charge(cdft_control%natoms))
+            ALLOCATE (multigrid_single_charge(cdft_control%natoms))
             ALLOCATE (compute_charge(natom))
             compute_charge = .FALSE.
 
@@ -776,6 +789,7 @@ CONTAINS
                CALL rs_grid_create(rs_single_charge(i), auxbas_rs_desc)
                CALL rs_grid_zero(rs_single_charge(i))
                compute_charge(cdft_control%atoms(i)) = .TRUE.
+               CALL grid_create_multigrid([rs_single_charge(i)], multigrid_single_charge(i))
             END DO
 
             DO iatom = 1, cdft_control%natoms
@@ -829,7 +843,7 @@ CONTAINS
                   IF (igroup == 1) THEN
                      CALL collocate_pgf_product(0, alpha, 0, 0, 0.0_dp, 0, ra, &
                                                 (/0.0_dp, 0.0_dp, 0.0_dp/), 1.0_dp, pab, 0, 0, &
-                                                rs_rho_all, radius=radius, &
+                                                rs_rho_all, multigrid_all, 1, radius=radius, &
                                                 ga_gb_function=GRID_FUNC_AB, use_subpatch=.TRUE., &
                                                 subpatch_pattern=subpatch_pattern)
                   END IF
@@ -838,6 +852,7 @@ CONTAINS
                      CALL collocate_pgf_product(0, alpha, 0, 0, 0.0_dp, 0, ra, &
                                                 (/0.0_dp, 0.0_dp, 0.0_dp/), coefficients(atom_a), &
                                                 pab, 0, 0, rs_rho_constr, &
+                                                multigrid_constr, 1, &
                                                 radius=radius, &
                                                 ga_gb_function=GRID_FUNC_AB, use_subpatch=.TRUE., &
                                                 subpatch_pattern=subpatch_pattern)
@@ -851,7 +866,7 @@ CONTAINS
                      CPASSERT(iatom <= cdft_control%natoms)
                      CALL collocate_pgf_product(0, alpha, 0, 0, 0.0_dp, 0, ra, &
                                                 (/0.0_dp, 0.0_dp, 0.0_dp/), 1.0_dp, pab, 0, 0, &
-                                                rs_single(iatom), radius=radius, &
+                                                rs_single(iatom), multigrid_single(iatom), 1, radius=radius, &
                                                 ga_gb_function=GRID_FUNC_AB, use_subpatch=.TRUE., &
                                                 subpatch_pattern=subpatch_pattern)
                      END IF
@@ -865,7 +880,7 @@ CONTAINS
                         CPASSERT(iatom <= cdft_control%natoms)
                         CALL collocate_pgf_product(0, alpha, 0, 0, 0.0_dp, 0, ra, &
                                                    (/0.0_dp, 0.0_dp, 0.0_dp/), 1.0_dp, pab, 0, 0, &
-                                                   rs_single_charge(iatom), radius=radius, &
+                                                   rs_single_charge(iatom), multigrid_single_charge(iatom), 1, radius=radius, &
                                                    ga_gb_function=GRID_FUNC_AB, use_subpatch=.TRUE., &
                                                    subpatch_pattern=subpatch_pattern)
                      END IF
@@ -883,6 +898,7 @@ CONTAINS
 
          CALL transfer_rs2pw(rs_rho_constr, cdft_control%group(igroup)%hw_rho_total_constraint)
          CALL rs_grid_release(rs_rho_constr)
+         CALL grid_free_multigrid(multigrid_constr)
 
          ! Calculate weight function
          CALL hfun_scale(cdft_control%group(igroup)%weight%array, &
@@ -923,17 +939,21 @@ CONTAINS
             DO i = 1, cdft_control%natoms
                CALL rs_grid_release(rs_single(i))
                CALL auxbas_pw_pool%give_back_pw(cdft_control%group(igroup)%hw_rho_atomic(i))
+               CALL grid_free_multigrid(multigrid_single(i))
             END DO
             DEALLOCATE (rs_single)
+            DEALLOCATE (multigrid_single)
             DEALLOCATE (cdft_control%group(igroup)%hw_rho_atomic)
          END IF
 
          IF (cdft_control%atomic_charges .AND. igroup == 1) THEN
             DO i = 1, cdft_control%natoms
                CALL rs_grid_release(rs_single_charge(i))
+               CALL grid_free_multigrid(multigrid_single_charge(i))
                CALL auxbas_pw_pool%give_back_pw(cdft_control%group(igroup)%hw_rho_atomic_charge(i))
             END DO
             DEALLOCATE (rs_single_charge)
+            DEALLOCATE (multigrid_single_charge)
             DEALLOCATE (compute_charge)
             DEALLOCATE (cdft_control%group(igroup)%hw_rho_atomic_charge)
          END IF
@@ -963,6 +983,7 @@ CONTAINS
 
                ALLOCATE (pw_single_dr(num_species))
                ALLOCATE (rs_single_dr(num_species))
+               ALLOCATE (multigrid_single_dr(num_species))
 
                DO i = 1, num_species
                   CALL auxbas_pw_pool%create_pw(pw_single_dr(i))
@@ -992,6 +1013,7 @@ CONTAINS
                   DO i = num_species_small(k), num_species_small(k + 1)
                      CALL rs_grid_create(rs_single_dr(i), auxbas_rs_desc)
                      CALL rs_grid_zero(rs_single_dr(i))
+                     CALL grid_create_multigrid([rs_single_dr(i)], multigrid_single_dr(i))
                   END DO
                   DO iex = 1, numexp
 
@@ -1034,6 +1056,7 @@ CONTAINS
                         CALL collocate_pgf_product(0, alpha, 0, 0, 0.0_dp, 0, ra, &
                                                    (/0.0_dp, 0.0_dp, 0.0_dp/), prefactor, &
                                                    pab, 0, 0, rs_single_dr(iatom + (num_species_small(k) - 1)), &
+                                                   multigrid_single_dr(iatom + (num_species_small(k) - 1)), 1, &
                                                    radius=radius, &
                                                    ga_gb_function=GRID_FUNC_AB, use_subpatch=.TRUE., &
                                                    subpatch_pattern=subpatch_pattern)
@@ -1044,6 +1067,7 @@ CONTAINS
                   DO iatom = num_species_small(k), num_species_small(k + 1)
                      CALL transfer_rs2pw(rs_single_dr(iatom), pw_single_dr(iatom))
                      CALL rs_grid_release(rs_single_dr(iatom))
+                     CALL grid_free_multigrid(multigrid_single_dr(iatom))
                   END DO
 
                   DEALLOCATE (cores)
@@ -1056,6 +1080,7 @@ CONTAINS
                END DO
 
                DEALLOCATE (rs_single_dr)
+               DEALLOCATE (multigrid_single_dr)
                DEALLOCATE (num_species_small)
                DEALLOCATE (pw_single_dr)
             END DO
@@ -1128,6 +1153,7 @@ CONTAINS
       END IF
 
       CALL rs_grid_release(rs_rho_all)
+      CALL grid_free_multigrid(multigrid_all)
 
       IF (ALLOCATED(coefficients)) DEALLOCATE (coefficients)
       IF (ALLOCATED(is_constraint)) DEALLOCATE (is_constraint)

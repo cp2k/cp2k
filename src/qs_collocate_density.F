@@ -160,7 +160,7 @@ CONTAINS
 
       INTEGER                                            :: atom_a, handle, iatom, iexp_nlcc, ikind, &
                                                             ithread, j, n, natom, nc, nexp_nlcc, &
-                                                            ni, npme, nthread, subpatch_pattern
+                                                            ni, npme, nthread, subpatch_pattern, auxbas_grid
       INTEGER, DIMENSION(:), POINTER                     :: atom_list, cores, nct_nlcc
       LOGICAL                                            :: nlcc
       REAL(KIND=dp)                                      :: alpha, eps_rho_rspace, radius
@@ -176,6 +176,7 @@ CONTAINS
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(realspace_grid_type), POINTER                 :: rs_rho
+      TYPE(grid_multigrid_type) :: multigrid
 
       CALL timeset(routineN, handle)
 
@@ -189,7 +190,7 @@ CONTAINS
                       dft_control=dft_control, &
                       particle_set=particle_set, &
                       pw_env=pw_env)
-      CALL pw_env_get(pw_env, auxbas_rs_grid=rs_rho, &
+      CALL pw_env_get(pw_env, auxbas_rs_grid=rs_rho, multigrid=multigrid, auxbas_grid=auxbas_grid, &
                       auxbas_pw_pool=auxbas_pw_pool)
       ! be careful in parallel nsmax is chosen with multigrid in mind!
       CALL rs_grid_zero(rs_rho)
@@ -304,6 +305,7 @@ CONTAINS
 
                CALL collocate_pgf_product(ni, 1/(2*alpha**2), 0, 0, 0.0_dp, 0, ra, &
                                           (/0.0_dp, 0.0_dp, 0.0_dp/), 1.0_dp, pab, 0, 0, rs_rho, &
+                                          multigrid, auxbas_grid, &
                                           ga_gb_function=GRID_FUNC_AB, radius=radius, &
                                           use_subpatch=.TRUE., subpatch_pattern=subpatch_pattern)
 
@@ -354,6 +356,8 @@ CONTAINS
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(realspace_grid_type), POINTER                 :: rs_rho
+      TYPE(grid_multigrid_type) :: multigrid
+      INTEGER :: auxbas_grid
 
       CALL timeset(routineN, handle)
 
@@ -367,7 +371,7 @@ CONTAINS
                       dft_control=dft_control, &
                       particle_set=particle_set, &
                       pw_env=pw_env)
-      CALL pw_env_get(pw_env, auxbas_rs_grid=rs_rho, &
+      CALL pw_env_get(pw_env, auxbas_rs_grid=rs_rho, multigrid=multigrid, auxbas_grid=auxbas_grid, &
                       auxbas_pw_pool=auxbas_pw_pool)
       ! be careful in parallel nsmax is chosen with multigrid in mind!
       CALL rs_grid_zero(rs_rho)
@@ -478,6 +482,7 @@ CONTAINS
 
                CALL collocate_pgf_product(ni, alpha, 0, 0, 0.0_dp, 0, ra, &
                                           (/0.0_dp, 0.0_dp, 0.0_dp/), 1.0_dp, pab, 0, 0, rs_rho, &
+                                          multigrid, auxbas_grid, &
                                           radius=radius, ga_gb_function=GRID_FUNC_AB, &
                                           use_subpatch=.TRUE., subpatch_pattern=subpatch_pattern)
 
@@ -552,6 +557,7 @@ CONTAINS
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(realspace_grid_type), DIMENSION(:), POINTER   :: rs_rho
       TYPE(realspace_grid_type), POINTER                 :: rs_grid
+      TYPE(grid_multigrid_type) :: multigrid
 
       NULLIFY (aci, atomic_kind_set, qs_kind_set, atom_list, cell, &
                dft_control, first_sgfa, gridlevel_info, la_max, &
@@ -576,7 +582,7 @@ CONTAINS
 
       ! *** set up the pw multi-grids *** !
       CPASSERT(ASSOCIATED(pw_env))
-      CALL pw_env_get(pw_env=pw_env, rs_grids=rs_rho, pw_pools=pw_pools)
+      CALL pw_env_get(pw_env=pw_env, rs_grids=rs_rho, multigrid=multigrid, pw_pools=pw_pools)
 
       CALL pw_pools_create_pws(pw_pools, mgrid_rspace)
 
@@ -657,6 +663,7 @@ CONTAINS
                                                    scale=1._dp, &
                                                    pab=pab, o1=na1, o2=0, &
                                                    rsgrid=rs_grid, &
+                                                   multigrid=multigrid, ilevel=igrid_level, &
                                                    radius=radius, &
                                                    ga_gb_function=GRID_FUNC_AB)
                      END IF
@@ -742,7 +749,7 @@ CONTAINS
                                     la_max(iset), zeta(ipgf, iset), la_min(iset), &
                                     la_max(jset), zeta(jpgf, jset), la_min(jset), &
                                     ra, (/0.0_dp, 0.0_dp, 0.0_dp/), 1.0_dp, pab, na1, nb1, &
-                                    rs_grid, &
+                                    rs_grid, multigrid, igrid_level, &
                                     radius=radius, ga_gb_function=GRID_FUNC_AB)
                               END IF
                            END DO
@@ -820,6 +827,8 @@ CONTAINS
          TYPE(pw_r3d_rs_type)                                      :: rhoc_r
          TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
          TYPE(realspace_grid_type), POINTER                 :: rs_rho
+         TYPE(grid_multigrid_type) :: multigrid
+         INTEGER :: auxbas_grid
 
          CALL timeset(routineN, handle)
          NULLIFY (cell, dft_control, pab, atomic_kind_set, qs_kind_set, particle_set, &
@@ -839,7 +848,7 @@ CONTAINS
                          dft_control=dft_control, &
                          particle_set=particle_set, &
                          pw_env=pw_env)
-         CALL pw_env_get(pw_env, auxbas_rs_grid=rs_rho, &
+         CALL pw_env_get(pw_env, auxbas_rs_grid=rs_rho, multigrid=multigrid, auxbas_grid=auxbas_grid, &
                          auxbas_pw_pool=auxbas_pw_pool)
          ! be careful in parallel nsmax is chosen with multigrid in mind!
          CALL rs_grid_zero(rs_rho)
@@ -895,6 +904,7 @@ CONTAINS
 
                   CALL collocate_pgf_product(0, alpha, 0, 0, 0.0_dp, 0, ra, &
                                              (/0.0_dp, 0.0_dp, 0.0_dp/), -1.0_dp, pab, 0, 0, rs_rho, &
+                                             multigrid, auxbas_grid, &
                                              radius=radius, ga_gb_function=GRID_FUNC_AB, &
                                              use_subpatch=.TRUE., subpatch_pattern=subpatch_pattern)
 
@@ -956,6 +966,8 @@ CONTAINS
       TYPE(pw_r3d_rs_type)                                      :: rhoc_r
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(realspace_grid_type), POINTER                 :: rs_rho
+      TYPE(grid_multigrid_type) :: multigrid
+      INTEGER :: auxbas_grid
 
       CALL timeset(routineN, handle)
       NULLIFY (cell, dft_control, pab, atomic_kind_set, qs_kind_set, particle_set, &
@@ -969,7 +981,7 @@ CONTAINS
                       dft_control=dft_control, &
                       particle_set=particle_set, &
                       pw_env=pw_env)
-      CALL pw_env_get(pw_env, auxbas_rs_grid=rs_rho, &
+      CALL pw_env_get(pw_env, auxbas_rs_grid=rs_rho, multigrid=multigrid, auxbas_grid=auxbas_grid, &
                       auxbas_pw_pool=auxbas_pw_pool)
       ! be careful in parallel nsmax is chosen with multigrid in mind!
       CALL rs_grid_zero(rs_rho)
@@ -1030,6 +1042,7 @@ CONTAINS
 
                CALL collocate_pgf_product(0, alpha, 0, 0, 0.0_dp, 0, ra, &
                                           (/0.0_dp, 0.0_dp, 0.0_dp/), -1.0_dp, pab, 0, 0, rs_rho, &
+                                          multigrid, auxbas_grid, &
                                           radius=radius, ga_gb_function=dabqadb_func, &
                                           use_subpatch=.TRUE., subpatch_pattern=subpatch_pattern)
 
@@ -1083,6 +1096,8 @@ CONTAINS
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(pw_r3d_rs_type)                                      :: rhoc_r
       TYPE(realspace_grid_type), POINTER                 :: rs_rho
+      TYPE(grid_multigrid_type) :: multigrid
+      INTEGER :: auxbas_grid
 
       CALL timeset(routineN, handle)
       NULLIFY (cell, dft_control, pab, pw_env, rs_rho, auxbas_pw_pool)
@@ -1093,7 +1108,7 @@ CONTAINS
                       cell=cell, &
                       dft_control=dft_control, &
                       pw_env=pw_env)
-      CALL pw_env_get(pw_env, auxbas_rs_grid=rs_rho, &
+      CALL pw_env_get(pw_env, auxbas_rs_grid=rs_rho, multigrid=multigrid, auxbas_grid=auxbas_grid, &
                       auxbas_pw_pool=auxbas_pw_pool)
       CALL rs_grid_zero(rs_rho)
 
@@ -1125,6 +1140,7 @@ CONTAINS
 
          CALL collocate_pgf_product(0, qs_env%qmmm_env_qm%image_charge_pot%eta, &
                                     0, 0, 0.0_dp, 0, ra, (/0.0_dp, 0.0_dp, 0.0_dp/), 1.0_dp, pab, 0, 0, rs_rho, &
+                                    multigrid, auxbas_grid, &
                                     radius=radius, ga_gb_function=GRID_FUNC_AB, &
                                     use_subpatch=.TRUE., subpatch_pattern=subpatch_pattern)
       END IF
@@ -1175,6 +1191,8 @@ CONTAINS
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(pw_r3d_rs_type)                                      :: rhoc_r
       TYPE(realspace_grid_type), POINTER                 :: rs_rho
+      TYPE(grid_multigrid_type) :: multigrid
+      INTEGER :: auxbas_grid
 
       CALL timeset(routineN, handle)
 
@@ -1186,7 +1204,7 @@ CONTAINS
                       cell=cell, &
                       dft_control=dft_control, &
                       pw_env=pw_env)
-      CALL pw_env_get(pw_env, auxbas_rs_grid=rs_rho, &
+      CALL pw_env_get(pw_env, auxbas_rs_grid=rs_rho, multigrid=multigrid, auxbas_grid=auxbas_grid, &
                       auxbas_pw_pool=auxbas_pw_pool)
       CALL rs_grid_zero(rs_rho)
 
@@ -1228,6 +1246,7 @@ CONTAINS
             CALL collocate_pgf_product( &
                0, qs_env%qmmm_env_qm%image_charge_pot%eta, &
                0, 0, 0.0_dp, 0, ra, (/0.0_dp, 0.0_dp, 0.0_dp/), coeff(iatom), pab, 0, 0, rs_rho, &
+               multigrid, auxbas_grid, &
                radius=radius, ga_gb_function=GRID_FUNC_AB, &
                use_subpatch=.TRUE., subpatch_pattern=subpatch_pattern)
          END DO
@@ -1280,6 +1299,8 @@ CONTAINS
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(pw_r3d_rs_type)                                      :: rhoc_r
       TYPE(realspace_grid_type), POINTER                 :: rs_rho
+      TYPE(grid_multigrid_type) :: multigrid
+      INTEGER :: auxbas_grid
 
       CALL timeset(routineN, handle)
       NULLIFY (cell, dft_control, pab, pw_env, rs_rho, auxbas_pw_pool, &
@@ -1292,7 +1313,7 @@ CONTAINS
                       dft_control=dft_control, &
                       particle_set=particle_set, &
                       pw_env=pw_env)
-      CALL pw_env_get(pw_env, auxbas_rs_grid=rs_rho, &
+      CALL pw_env_get(pw_env, auxbas_rs_grid=rs_rho, multigrid=multigrid, auxbas_grid=auxbas_grid, &
                       auxbas_pw_pool=auxbas_pw_pool)
       CALL rs_grid_zero(rs_rho)
 
@@ -1322,6 +1343,7 @@ CONTAINS
 
          CALL collocate_pgf_product(0, eta, 0, 0, 0.0_dp, 0, ra, &
                                     (/0.0_dp, 0.0_dp, 0.0_dp/), 1.0_dp, pab, 0, 0, rs_rho, &
+                                    multigrid, auxbas_grid, &
                                     radius=radius, ga_gb_function=GRID_FUNC_AB, &
                                     use_subpatch=.TRUE., subpatch_pattern=subpatch_pattern)
       END IF
@@ -1375,6 +1397,8 @@ CONTAINS
          TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
          TYPE(pw_r3d_rs_type)                                      :: rhoc_r
          TYPE(realspace_grid_type), POINTER                 :: rs_rho
+         TYPE(grid_multigrid_type) :: multigrid
+         INTEGER :: auxbas_grid
 
          CALL timeset(routineN, handle)
 
@@ -1388,7 +1412,7 @@ CONTAINS
                          dft_control=dft_control, &
                          particle_set=particle_set, &
                          pw_env=pw_env)
-         CALL pw_env_get(pw_env, auxbas_rs_grid=rs_rho, &
+         CALL pw_env_get(pw_env, auxbas_rs_grid=rs_rho, multigrid=multigrid, auxbas_grid=auxbas_grid, &
                          auxbas_pw_pool=auxbas_pw_pool)
          CALL rs_grid_zero(rs_rho)
 
@@ -1426,6 +1450,7 @@ CONTAINS
                CALL collocate_pgf_product( &
                   0, eta, &
                   0, 0, 0.0_dp, 0, ra, (/0.0_dp, 0.0_dp, 0.0_dp/), coeff(iatom), pab, 0, 0, rs_rho, &
+                  multigrid, auxbas_grid, &
                   radius=radius, ga_gb_function=GRID_FUNC_AB, &
                   use_subpatch=.TRUE., subpatch_pattern=subpatch_pattern)
             END DO
@@ -1684,6 +1709,7 @@ CONTAINS
       TYPE(realspace_grid_type), DIMENSION(:), POINTER   :: rs_rho
       TYPE(task_list_type), POINTER                      :: task_list, task_list_soft
       TYPE(task_type), DIMENSION(:), POINTER             :: tasks
+      TYPE(grid_multigrid_type) :: multigrid
 
       CALL timeset(routineN, handle)
 
@@ -1752,7 +1778,7 @@ CONTAINS
 
       ! *** set up the rs multi-grids
       CPASSERT(ASSOCIATED(pw_env))
-      CALL pw_env_get(pw_env, rs_descs=rs_descs, rs_grids=rs_rho)
+      CALL pw_env_get(pw_env, rs_descs=rs_descs, rs_grids=rs_rho, multigrid=multigrid)
       DO igrid_level = 1, gridlevel_info%ngrid_levels
          distributed_rs_grids = rs_rho(igrid_level)%desc%distributed
       END DO
@@ -1975,6 +2001,7 @@ CONTAINS
                   lb_max(jset), zetb(jpgf, jset), lb_min(jset), &
                   ra, rab, scale, pab, na1 - 1, nb1 - 1, &
                   rs_rho(igrid_level), &
+                  multigrid, igrid_level, &
                   radius=radius, ga_gb_function=dabqadb_func, &
                   use_subpatch=use_subpatch, subpatch_pattern=tasks(itask)%subpatch_pattern)
             ELSE
@@ -1984,6 +2011,7 @@ CONTAINS
                   la_max(iset), zeta(ipgf, iset), la_min(iset), &
                   rb, rab_inv, scale, pab, nb1 - 1, na1 - 1, &
                   rs_rho(igrid_level), &
+                  multigrid, igrid_level, &
                   radius=radius, ga_gb_function=dabqadb_func, &
                   use_subpatch=use_subpatch, subpatch_pattern=tasks(itask)%subpatch_pattern)
             END IF
@@ -2070,6 +2098,7 @@ CONTAINS
       TYPE(realspace_grid_type), DIMENSION(:), POINTER   :: rs_rho
       TYPE(task_list_type), POINTER                      :: task_list, task_list_soft
       TYPE(task_type), DIMENSION(:), POINTER             :: tasks
+      TYPE(grid_multigrid_type) :: multigrid
 
       CALL timeset(routineN, handle)
 
@@ -2137,7 +2166,7 @@ CONTAINS
 
       ! *** set up the rs multi-grids
       CPASSERT(ASSOCIATED(pw_env))
-      CALL pw_env_get(pw_env, rs_descs=rs_descs, rs_grids=rs_rho)
+      CALL pw_env_get(pw_env, rs_descs=rs_descs, rs_grids=rs_rho, multigrid=multigrid)
       DO igrid_level = 1, gridlevel_info%ngrid_levels
          distributed_rs_grids = rs_rho(igrid_level)%desc%distributed
       END DO
@@ -2359,6 +2388,7 @@ CONTAINS
                lb_max(jset), zetb(jpgf, jset), lb_min(jset), &
                ra, rab, scale, pab, na1 - 1, nb1 - 1, &
                rsgrid=rs_rho(igrid_level), &
+               multigrid=multigrid, ilevel=igrid_level, &
                ga_gb_function=dabqadb_func, radius=radius, &
                use_subpatch=use_subpatch, &
                subpatch_pattern=tasks(itask)%subpatch_pattern)
@@ -2368,6 +2398,7 @@ CONTAINS
                lb_max(jset), zetb(jpgf, jset), lb_min(jset), &
                ra, rab, scale, pab, na1 - 1, nb1 - 1, &
                rsgrid=rs_rho(igrid_level), &
+               multigrid=multigrid, ilevel=igrid_level, &
                ga_gb_function=dabqadb_func + 3, radius=radius, &
                use_subpatch=use_subpatch, &
                subpatch_pattern=tasks(itask)%subpatch_pattern)
@@ -2379,6 +2410,7 @@ CONTAINS
                la_max(iset), zeta(ipgf, iset), la_min(iset), &
                rb, rab_inv, scale, pab, nb1 - 1, na1 - 1, &
                rs_rho(igrid_level), &
+               multigrid, igrid_level, &
                ga_gb_function=dabqadb_func, radius=radius, &
                use_subpatch=use_subpatch, &
                subpatch_pattern=tasks(itask)%subpatch_pattern)
@@ -2388,6 +2420,7 @@ CONTAINS
                la_max(iset), zeta(ipgf, iset), la_min(iset), &
                rb, rab_inv, scale, pab, nb1 - 1, na1 - 1, &
                rs_rho(igrid_level), &
+               multigrid, igrid_level, &
                ga_gb_function=dabqadb_func + 3, radius=radius, &
                use_subpatch=use_subpatch, &
                subpatch_pattern=tasks(itask)%subpatch_pattern)
@@ -2465,6 +2498,7 @@ CONTAINS
       TYPE(pw_c1d_gs_type), ALLOCATABLE, DIMENSION(:) :: mgrid_gspace
       TYPE(pw_r3d_rs_type), ALLOCATABLE, DIMENSION(:)           ::  mgrid_rspace
       TYPE(realspace_grid_type), DIMENSION(:), POINTER   :: rs_rho
+      TYPE(grid_multigrid_type) :: multigrid
 
       IF (PRESENT(basis_type)) THEN
          my_basis_type = basis_type
@@ -2479,7 +2513,7 @@ CONTAINS
 
       ! *** set up the pw multi-grids
       CPASSERT(ASSOCIATED(pw_env))
-      CALL pw_env_get(pw_env, rs_grids=rs_rho, pw_pools=pw_pools, &
+      CALL pw_env_get(pw_env, rs_grids=rs_rho, pw_pools=pw_pools, multigrid=multigrid, &
                       gridlevel_info=gridlevel_info)
 
       CALL pw_pools_create_pws(pw_pools, mgrid_gspace)
@@ -2558,6 +2592,7 @@ CONTAINS
                                                 0, 0.0_dp, 0, &
                                                 ra, (/0.0_dp, 0.0_dp, 0.0_dp/), &
                                                 scale, pab, na1 - 1, 0, rs_rho(igrid_level), &
+                                                multigrid, igrid_level, &
                                                 radius=radius, ga_gb_function=GRID_FUNC_AB)
                   END IF
 
@@ -2708,6 +2743,7 @@ CONTAINS
       TYPE(pw_c1d_gs_type), ALLOCATABLE, DIMENSION(:)    :: mgrid_gspace
       TYPE(pw_r3d_rs_type), ALLOCATABLE, DIMENSION(:)    :: mgrid_rspace
       TYPE(realspace_grid_type), DIMENSION(:), POINTER   :: rs_rho
+      TYPE(grid_multigrid_type) :: multigrid
 
       CALL timeset(routineN, handle)
 
@@ -2722,7 +2758,7 @@ CONTAINS
 
       ! *** set up the pw multi-grids
       CPASSERT(ASSOCIATED(pw_env))
-      CALL pw_env_get(pw_env, rs_grids=rs_rho, pw_pools=pw_pools, &
+      CALL pw_env_get(pw_env, rs_grids=rs_rho, pw_pools=pw_pools, multigrid=multigrid, &
                       gridlevel_info=gridlevel_info)
 
       CALL pw_pools_create_pws(pw_pools, mgrid_gspace)
@@ -2796,6 +2832,7 @@ CONTAINS
                                              0, 0.0_dp, 0, &
                                              ra, (/0.0_dp, 0.0_dp, 0.0_dp/), &
                                              scale, pab, na1 - 1, 0, rs_rho(igrid_level), &
+                                             multigrid, igrid_level, &
                                              radius=radius, ga_gb_function=GRID_FUNC_AB)
                END IF
 

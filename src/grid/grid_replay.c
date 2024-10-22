@@ -21,8 +21,8 @@
 #include "common/grid_mpi.h"
 #include "grid_replay.h"
 
-#include "cpu/grid_cpu_collocate.h"
 #include "cpu/grid_cpu_integrate.h"
+#include "grid_collocate.h"
 #include "grid_multigrid.h"
 #include "grid_task_list.h"
 
@@ -385,11 +385,10 @@ bool grid_replay(const char *filename, const int cycles, const bool collocate,
       // collocate
       memset(grid_test->host_buffer, 0, npts_local_total * sizeof(double));
       for (int i = 0; i < cycles; i++) {
-        grid_cpu_collocate_pgf_product(
-            orthorhombic, border_mask, func, la_max, la_min, lb_max, lb_min,
-            zeta, zetb, rscale, dh, dh_inv, ra, rab, npts_global, npts_local,
-            shift_local, border_width, radius, o1, o2, n1, n2, pab,
-            grid_test->host_buffer);
+        grid_collocate_pgf_product(multigrid, 1, border_mask, func, la_max,
+                                   la_min, lb_max, lb_min, zeta, zetb, rscale,
+                                   ra, rab, radius, o1, o2, n1, n2, pab,
+                                   grid_test->host_buffer);
       }
     } else {
       // integrate

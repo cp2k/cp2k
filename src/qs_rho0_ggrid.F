@@ -15,7 +15,8 @@ MODULE qs_rho0_ggrid
    USE cp_control_types,                ONLY: dft_control_type
    USE gaussian_gridlevels,             ONLY: gaussian_gridlevel
    USE grid_api,                        ONLY: GRID_FUNC_AB,&
-                                              collocate_pgf_product
+                                              collocate_pgf_product,&
+                                              grid_multigrid_type
    USE kinds,                           ONLY: dp
    USE memory_utilities,                ONLY: reallocate
    USE message_passing,                 ONLY: mp_para_env_type
@@ -105,6 +106,7 @@ CONTAINS
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
       TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(grid_multigrid_type)                          :: multigrid
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(pw_c1d_gs_type)                               :: coeff_gspace
@@ -135,7 +137,7 @@ CONTAINS
       eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
 
       NULLIFY (descs, pw_pools)
-      CALL pw_env_get(pw_env=pw_env, rs_descs=descs, rs_grids=grids, pw_pools=pw_pools)
+     CALL pw_env_get(pw_env=pw_env, rs_descs=descs, rs_grids=grids, pw_pools=pw_pools, multigrid=multigrid, auxbas_grid=auxbas_grid)
       auxbas_grid = pw_env%auxbas_grid
 
       NULLIFY (rho0_s_gs, rho0_s_rs)
@@ -210,7 +212,7 @@ CONTAINS
             CALL collocate_pgf_product( &
                l0_ikind, zet0, 0, 0, 0.0_dp, 0, &
                ra, (/0.0_dp, 0.0_dp, 0.0_dp/), 1.0_dp, pab, 0, 0, &
-               rs_grid, ga_gb_function=GRID_FUNC_AB, radius=rpgf0, &
+               rs_grid, multigrid, igrid, ga_gb_function=GRID_FUNC_AB, radius=rpgf0, &
                use_subpatch=.TRUE., subpatch_pattern=0)
 
          END DO ! j
