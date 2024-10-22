@@ -5,7 +5,7 @@
 /*  SPDX-License-Identifier: BSD-3-Clause                                     */
 /*----------------------------------------------------------------------------*/
 
-#include "grid_multigrid.h"
+#include "grid_ref_multigrid.h"
 
 #include <assert.h>
 #include <stddef.h>
@@ -14,7 +14,7 @@
 
 /*******************************************************************************
  * \brief Allocates a multigrid which is passed to task list-based and
- *pgf_product-based routines.
+ *        pgf_product-based routines.
  *
  * \param orthorhombic     Whether simulation box is orthorhombic.
  * \param nlevels          Number of grid levels.
@@ -29,15 +29,44 @@
  *
  * \author Frederick Stein
  ******************************************************************************/
-void grid_create_multigrid_f(
-    const bool orthorhombic, const int nlevels,
-    const int npts_global[nlevels][3], const int npts_local[nlevels][3],
-    const int shift_local[nlevels][3], const int border_width[nlevels][3],
-    const double dh[nlevels][3][3], const double dh_inv[nlevels][3][3],
-    const grid_mpi_fint fortran_comm, grid_multigrid **multigrid_out) {
-  grid_create_multigrid(orthorhombic, nlevels, npts_global, npts_local,
-                        shift_local, border_width, dh, dh_inv,
-                        grid_mpi_comm_f2c(fortran_comm), multigrid_out);
+void grid_ref_create_singlegrid(
+    const bool orthorhombic, const int npts_global[3], const int npts_local[3],
+    const int shift_local[3], const int border_width[3], const double dh[3][3],
+    const double dh_inv[3][3], const grid_mpi_comm comm,
+    grid_ref_singlegrid **singlegrid_out) {
+  grid_ref_singlegrid *singlegrid = NULL;
+
+  assert(singlegrid_out != NULL);
+
+  if (*singlegrid_out != NULL) {
+    singlegrid = *singlegrid_out;
+    // Always free the old communicator
+    grid_mpi_comm_free(&singlegrid->comm);
+  } else {
+    singlegrid = calloc(1, sizeof(grid_ref_singlegrid));
+  }
+
+  singlegrid->orthorhombic = orthorhombic;
+  memcpy(singlegrid->npts_global, npts_global, 3 * sizeof(int));
+  memcpy(singlegrid->npts_local, npts_local, 3 * sizeof(int));
+  memcpy(singlegrid->shift_local, shift_local, 3 * sizeof(int));
+  memcpy(singlegrid->border_width, border_width, 3 * sizeof(int));
+  memcpy(singlegrid->dh, dh, 9 * sizeof(double));
+  memcpy(singlegrid->dh_inv, dh_inv, 9 * sizeof(double));
+  grid_mpi_comm_dup(comm, &singlegrid->comm);
+
+  *singlegrid_out = singlegrid;
+}
+
+/*******************************************************************************
+ * \brief Deallocates given singlegrid.
+ * \author Frederick Stein
+ ******************************************************************************/
+void grid_ref_free_singlegrid(grid_ref_singlegrid *singlegrid) {
+  if (singlegrid != NULL) {
+    grid_mpi_comm_free(&singlegrid->comm);
+    free(singlegrid);
+  }
 }
 
 /*******************************************************************************
@@ -57,59 +86,38 @@ void grid_create_multigrid_f(
  *
  * \author Frederick Stein
  ******************************************************************************/
-void grid_create_multigrid(
+void grid_ref_create_multigrid(
     const bool orthorhombic, const int nlevels,
     const int npts_global[nlevels][3], const int npts_local[nlevels][3],
     const int shift_local[nlevels][3], const int border_width[nlevels][3],
     const double dh[nlevels][3][3], const double dh_inv[nlevels][3][3],
-    const grid_mpi_comm comm, grid_multigrid **multigrid_out) {
-  grid_multigrid *multigrid = NULL;
+    const grid_mpi_comm comm, grid_ref_multigrid **multigrid_out) {
+  grid_ref_multigrid *multigrid = NULL;
 
   assert(multigrid_out != NULL);
-
-  const int num_int = 3 * nlevels;
-  const int num_double = 9 * nlevels;
 
   if (*multigrid_out != NULL) {
     multigrid = *multigrid_out;
     if (nlevels != multigrid->nlevels) {
-      multigrid->npts_global =
-          realloc(multigrid->npts_global, num_int * sizeof(int));
-      multigrid->npts_local =
-          realloc(multigrid->npts_local, num_int * sizeof(int));
-      multigrid->shift_local =
-          realloc(multigrid->shift_local, num_int * sizeof(int));
-      multigrid->border_width =
-          realloc(multigrid->border_width, num_int * sizeof(int));
-      multigrid->dh = realloc(multigrid->dh, num_double * sizeof(double));
-      multigrid->dh_inv =
-          realloc(multigrid->dh_inv, num_double * sizeof(double));
+      multigrid->singlegrids = realloc(multigrid->singlegrids,
+                                       nlevels * sizeof(grid_ref_singlegrid *));
     }
-    // Always free the old communicator
-    grid_mpi_comm_free(&multigrid->comm);
   } else {
-    multigrid = calloc(1, sizeof(grid_multigrid));
-    multigrid->npts_global = calloc(num_int, sizeof(int));
-    multigrid->npts_local = calloc(num_int, sizeof(int));
-    multigrid->shift_local = calloc(num_int, sizeof(int));
-    multigrid->border_width = calloc(num_int, sizeof(int));
-    multigrid->dh = calloc(num_double, sizeof(double));
-    multigrid->dh_inv = calloc(num_double, sizeof(double));
+    multigrid = calloc(1, sizeof(grid_ref_multigrid));
+    multigrid->singlegrids = calloc(nlevels, sizeof(grid_ref_singlegrid *));
   }
 
   multigrid->nlevels = nlevels;
   multigrid->orthorhombic = orthorhombic;
-  memcpy(multigrid->npts_global, npts_global, num_int * sizeof(int));
-  memcpy(multigrid->npts_local, npts_local, num_int * sizeof(int));
-  memcpy(multigrid->shift_local, shift_local, num_int * sizeof(int));
-  memcpy(multigrid->border_width, border_width, num_int * sizeof(int));
-  memcpy(multigrid->dh, dh, num_double * sizeof(double));
-  memcpy(multigrid->dh_inv, dh_inv, num_double * sizeof(double));
-  grid_mpi_comm_dup(comm, &multigrid->comm);
 
-  grid_ref_create_multigrid(orthorhombic, nlevels, npts_global, npts_local,
-                            shift_local, border_width, dh, dh_inv, comm,
-                            &(multigrid->ref));
+  for (int grid = 0; grid < nlevels; grid++) {
+    grid_ref_create_singlegrid(orthorhombic, &npts_global[grid][0],
+                               &npts_local[grid][0], &shift_local[grid][0],
+                               &border_width[grid][0],
+                               (const double(*)[3])(&dh[grid][0][0]),
+                               (const double(*)[3])(&dh_inv[grid][0][0]), comm,
+                               &(multigrid->singlegrids[grid]));
+  }
 
   *multigrid_out = multigrid;
 }
@@ -118,22 +126,12 @@ void grid_create_multigrid(
  * \brief Deallocates given multigrid.
  * \author Frederick Stein
  ******************************************************************************/
-void grid_free_multigrid(grid_multigrid *multigrid) {
+void grid_ref_free_multigrid(grid_ref_multigrid *multigrid) {
   if (multigrid != NULL) {
-    if (multigrid->npts_global)
-      free(multigrid->npts_global);
-    if (multigrid->npts_local)
-      free(multigrid->npts_local);
-    if (multigrid->shift_local)
-      free(multigrid->shift_local);
-    if (multigrid->border_width)
-      free(multigrid->border_width);
-    if (multigrid->dh)
-      free(multigrid->dh);
-    if (multigrid->dh_inv)
-      free(multigrid->dh_inv);
-    grid_mpi_comm_free(&multigrid->comm);
-    grid_ref_free_multigrid(multigrid->ref);
+    for (int grid = 0; grid < multigrid->nlevels; grid++) {
+      grid_ref_free_singlegrid(multigrid->singlegrids[grid]);
+    }
+    free(multigrid->singlegrids);
     free(multigrid);
   }
 }

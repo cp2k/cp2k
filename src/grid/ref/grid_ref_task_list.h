@@ -12,6 +12,7 @@
 #include "../../offload/offload_buffer.h"
 #include "../common/grid_basis_set.h"
 #include "../common/grid_constants.h"
+#include "grid_ref_multigrid.h"
 
 /*******************************************************************************
  * \brief Internal representation of a task.
@@ -74,19 +75,16 @@ typedef struct {
  * \author Ole Schuett
  ******************************************************************************/
 void grid_ref_create_task_list(
-    const bool orthorhombic, const int ntasks, const int nlevels,
-    const int natoms, const int nkinds, const int nblocks,
-    const int block_offsets[nblocks], const double atom_positions[natoms][3],
-    const int atom_kinds[natoms], const grid_basis_set *basis_sets[nkinds],
-    const int level_list[ntasks], const int iatom_list[ntasks],
-    const int jatom_list[ntasks], const int iset_list[ntasks],
-    const int jset_list[ntasks], const int ipgf_list[ntasks],
-    const int jpgf_list[ntasks], const int border_mask_list[ntasks],
-    const int block_num_list[ntasks], const double radius_list[ntasks],
-    const double rab_list[ntasks][3], const int npts_global[nlevels][3],
-    const int npts_local[nlevels][3], const int shift_local[nlevels][3],
-    const int border_width[nlevels][3], const double dh[nlevels][3][3],
-    const double dh_inv[nlevels][3][3], grid_ref_task_list **task_list);
+    const grid_ref_multigrid *multigrid, const int ntasks, const int natoms,
+    const int nkinds, const int nblocks, const int block_offsets[nblocks],
+    const double atom_positions[natoms][3], const int atom_kinds[natoms],
+    const grid_basis_set *basis_sets[nkinds], const int level_list[ntasks],
+    const int iatom_list[ntasks], const int jatom_list[ntasks],
+    const int iset_list[ntasks], const int jset_list[ntasks],
+    const int ipgf_list[ntasks], const int jpgf_list[ntasks],
+    const int border_mask_list[ntasks], const int block_num_list[ntasks],
+    const double radius_list[ntasks], const double rab_list[ntasks][3],
+    grid_ref_task_list **task_list);
 
 /*******************************************************************************
  * \brief Deallocates given task list, basis_sets have to be freed separately.
