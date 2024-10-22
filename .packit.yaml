@@ -20,7 +20,6 @@ test_command:
   default_identifier: smoke
 
 targets:
-  # TODO: Match F40 release
   - fedora-development-x86_64
   - fedora-development-aarch64
   - fedora-latest-x86_64
@@ -36,7 +35,6 @@ jobs:
     trigger: commit
     branch: master
     project: nightly
-    update_release: true
   - &tests
     job: tests
     trigger: commit
