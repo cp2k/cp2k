@@ -16,6 +16,8 @@ MODULE qs_rho0_ggrid
    USE gaussian_gridlevels,             ONLY: gaussian_gridlevel
    USE grid_api,                        ONLY: GRID_FUNC_AB,&
                                               collocate_pgf_product,&
+                                              grid_create_multigrid,&
+                                              grid_free_multigrid,&
                                               grid_multigrid_type
    USE kinds,                           ONLY: dp
    USE memory_utilities,                ONLY: reallocate
@@ -344,6 +346,7 @@ CONTAINS
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
       TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(grid_multigrid_type)                          :: multigrid
       TYPE(gto_basis_set_type), POINTER                  :: basis_1c_set
       TYPE(harmonics_atom_type), POINTER                 :: harmonics
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
@@ -459,6 +462,7 @@ CONTAINS
       ! Setup the rs grid at level igrid
       CALL rs_grid_create(rs_v, rs_desc)
       CALL rs_grid_zero(rs_v)
+      CALL grid_create_multigrid([rs_v], multigrid)
       CALL transfer_pw2rs(rs_v, coeff_rspace)
 
       CALL pw_pool%give_back_pw(coeff_rspace)
@@ -545,6 +549,7 @@ CONTAINS
                CALL integrate_pgf_product( &
                   l0_ikind, zet0, 0, 0, 0.0_dp, 0, &
                   ra, (/0.0_dp, 0.0_dp, 0.0_dp/), rs_v, &
+                  multigrid, 1, &
                   hab, pab, o1=0, o2=0, &
                   radius=rpgf0, &
                   calculate_forces=calculate_forces, &
@@ -671,6 +676,7 @@ CONTAINS
       END DO ! ikind
 
       CALL rs_grid_release(rs_v)
+      CALL grid_free_multigrid(multigrid)
 
       DEALLOCATE (hab, hdab, hab_sph, hdab_sph, pab, a_hdab, a_hdab_sph)
 

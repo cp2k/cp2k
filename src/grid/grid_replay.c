@@ -21,8 +21,8 @@
 #include "common/grid_mpi.h"
 #include "grid_replay.h"
 
-#include "cpu/grid_cpu_integrate.h"
 #include "grid_collocate.h"
+#include "grid_integrate.h"
 #include "grid_multigrid.h"
 #include "grid_task_list.h"
 
@@ -396,12 +396,11 @@ bool grid_replay(const char *filename, const int cycles, const bool collocate,
       memset(forces_test, 0, 2 * 3 * sizeof(double));
       double virials_test[2][3][3] = {0};
       for (int i = 0; i < cycles; i++) {
-        grid_cpu_integrate_pgf_product(
-            orthorhombic, compute_tau, border_mask, la_max, la_min, lb_max,
-            lb_min, zeta, zetb, dh, dh_inv, ra, rab, npts_global, npts_local,
-            shift_local, border_width, radius, o1, o2, n1, n2,
-            grid_ref->host_buffer, hab_test, pab, forces_test, virials_test,
-            NULL, NULL, NULL);
+        grid_integrate_pgf_product(multigrid, 1, compute_tau, border_mask,
+                                   la_max, la_min, lb_max, lb_min, zeta, zetb,
+                                   ra, rab, radius, o1, o2, n1, n2,
+                                   grid_ref->host_buffer, hab_test, pab,
+                                   forces_test, virials_test, NULL, NULL, NULL);
       }
       for (int i = 0; i < 3; i++) {
         for (int j = 0; j < 3; j++) {

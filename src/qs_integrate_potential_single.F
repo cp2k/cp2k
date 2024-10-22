@@ -45,7 +45,8 @@ MODULE qs_integrate_potential_single
                                               gth_potential_type
    USE gaussian_gridlevels,             ONLY: gaussian_gridlevel,&
                                               gridlevel_info_type
-   USE grid_api,                        ONLY: integrate_pgf_product
+   USE grid_api,                        ONLY: grid_multigrid_type,&
+                                              integrate_pgf_product
    USE kinds,                           ONLY: dp
    USE lri_environment_types,           ONLY: lri_kind_type
    USE memory_utilities,                ONLY: reallocate
@@ -103,8 +104,9 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'integrate_ppl_rspace'
 
-      INTEGER                                            :: atom_a, handle, iatom, ikind, j, lppl, &
-                                                            n, natom_of_kind, ni, npme
+      INTEGER                                            :: atom_a, auxbas_grid, handle, iatom, &
+                                                            ikind, j, lppl, n, natom_of_kind, ni, &
+                                                            npme
       INTEGER, DIMENSION(:), POINTER                     :: atom_list, cores
       LOGICAL                                            :: use_virial
       REAL(KIND=dp)                                      :: alpha, eps_rho_rspace, radius
@@ -115,6 +117,7 @@ CONTAINS
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
       TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(grid_multigrid_type)                          :: multigrid
       TYPE(gth_potential_type), POINTER                  :: gth_potential
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(pw_env_type), POINTER                         :: pw_env
@@ -128,7 +131,7 @@ CONTAINS
       NULLIFY (pw_env, cores)
 
       CALL get_qs_env(qs_env=qs_env, pw_env=pw_env)
-      CALL pw_env_get(pw_env=pw_env, auxbas_rs_grid=rs_v)
+      CALL pw_env_get(pw_env=pw_env, auxbas_rs_grid=rs_v, multigrid=multigrid, auxbas_grid=auxbas_grid)
 
       CALL transfer_pw2rs(rs_v, rho_rspace)
 
@@ -251,7 +254,7 @@ CONTAINS
 
             CALL integrate_pgf_product(ni, alpha, 0, &
                                        0, 0.0_dp, 0, ra, (/0.0_dp, 0.0_dp, 0.0_dp/), &
-                                       rs_v, hab, pab=pab, o1=0, o2=0, &
+                                       rs_v, multigrid, auxbas_grid, hab, pab=pab, o1=0, o2=0, &
                                        radius=radius, &
                                        calculate_forces=.TRUE., force_a=force_a, &
                                        force_b=force_b, use_virial=use_virial, my_virial_a=my_virial_a, &
@@ -288,9 +291,9 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'integrate_rho_nlcc'
 
-      INTEGER                                            :: atom_a, handle, iatom, iexp_nlcc, ikind, &
-                                                            ithread, j, n, natom, nc, nexp_nlcc, &
-                                                            ni, npme, nthread
+      INTEGER                                            :: atom_a, auxbas_grid, handle, iatom, &
+                                                            iexp_nlcc, ikind, ithread, j, n, &
+                                                            natom, nc, nexp_nlcc, ni, npme, nthread
       INTEGER, DIMENSION(:), POINTER                     :: atom_list, cores, nct_nlcc
       LOGICAL                                            :: nlcc, use_virial
       REAL(KIND=dp)                                      :: alpha, eps_rho_rspace, radius
@@ -301,6 +304,7 @@ CONTAINS
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
       TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(grid_multigrid_type)                          :: multigrid
       TYPE(gth_potential_type), POINTER                  :: gth_potential
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(pw_env_type), POINTER                         :: pw_env
@@ -314,7 +318,7 @@ CONTAINS
       NULLIFY (pw_env, cores)
 
       CALL get_qs_env(qs_env=qs_env, pw_env=pw_env)
-      CALL pw_env_get(pw_env=pw_env, auxbas_rs_grid=rs_v)
+      CALL pw_env_get(pw_env=pw_env, auxbas_rs_grid=rs_v, multigrid=multigrid, auxbas_grid=auxbas_grid)
 
       CALL transfer_pw2rs(rs_v, rho_rspace)
 
@@ -448,7 +452,7 @@ CONTAINS
 
                CALL integrate_pgf_product(ni, 1/(2*alpha**2), 0, &
                                           0, 0.0_dp, 0, ra, (/0.0_dp, 0.0_dp, 0.0_dp/), &
-                                          rs_v, hab, pab=pab, o1=0, o2=0, &
+                                          rs_v, multigrid, auxbas_grid, hab, pab=pab, o1=0, o2=0, &
                                           radius=radius, &
                                           calculate_forces=.TRUE., force_a=force_a, &
                                           force_b=force_b, use_virial=use_virial, my_virial_a=my_virial_a, &
@@ -489,8 +493,8 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'integrate_v_core_rspace'
 
-      INTEGER                                            :: atom_a, handle, iatom, ikind, j, natom, &
-                                                            natom_of_kind, npme
+      INTEGER                                            :: atom_a, auxbas_grid, handle, iatom, &
+                                                            ikind, j, natom, natom_of_kind, npme
       INTEGER, DIMENSION(:), POINTER                     :: atom_list, cores
       LOGICAL                                            :: paw_atom, skip_fcore, use_virial
       REAL(KIND=dp)                                      :: alpha_core_charge, ccore_charge, &
@@ -502,6 +506,7 @@ CONTAINS
       TYPE(atprop_type), POINTER                         :: atprop
       TYPE(cell_type), POINTER                           :: cell
       TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(grid_multigrid_type)                          :: multigrid
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
@@ -527,7 +532,7 @@ CONTAINS
          ALLOCATE (pab(1, 1))
 
          CALL get_qs_env(qs_env=qs_env, pw_env=pw_env)
-         CALL pw_env_get(pw_env=pw_env, auxbas_rs_grid=rs_v)
+         CALL pw_env_get(pw_env=pw_env, auxbas_rs_grid=rs_v, multigrid=multigrid, auxbas_grid=auxbas_grid)
 
          CALL transfer_pw2rs(rs_v, v_rspace)
 
@@ -604,7 +609,7 @@ CONTAINS
 
                CALL integrate_pgf_product(0, alpha_core_charge, 0, &
                                           0, 0.0_dp, 0, ra, (/0.0_dp, 0.0_dp, 0.0_dp/), &
-                                          rs_v, hab, pab=pab, o1=0, o2=0, &
+                                          rs_v, multigrid, auxbas_grid, hab, pab=pab, o1=0, o2=0, &
                                           radius=radius, &
                                           calculate_forces=.TRUE., force_a=force_a, &
                                           force_b=force_b, use_virial=use_virial, my_virial_a=my_virial_a, &
@@ -652,8 +657,8 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'integrate_v_gaussian_rspace'
 
-      INTEGER                                            :: atom_a, handle, iatom, ikind, j, natom, &
-                                                            natom_of_kind, npme
+      INTEGER                                            :: atom_a, auxbas_grid, handle, iatom, &
+                                                            ikind, j, natom, natom_of_kind, npme
       INTEGER, DIMENSION(:), POINTER                     :: atom_list, cores
       REAL(KIND=dp)                                      :: alpha_core_charge, eps_rho_rspace, radius
       REAL(KIND=dp), DIMENSION(3)                        :: ra
@@ -661,6 +666,7 @@ CONTAINS
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
       TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(grid_multigrid_type)                          :: multigrid
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
@@ -679,7 +685,7 @@ CONTAINS
       ALLOCATE (pab(1, 1))
 
       CALL get_qs_env(qs_env=qs_env, pw_env=pw_env)
-      CALL pw_env_get(pw_env=pw_env, auxbas_rs_grid=rs_v)
+      CALL pw_env_get(pw_env=pw_env, auxbas_rs_grid=rs_v, multigrid=multigrid, auxbas_grid=auxbas_grid)
 
       CALL transfer_pw2rs(rs_v, v_rspace)
 
@@ -736,7 +742,7 @@ CONTAINS
 
             CALL integrate_pgf_product(0, alpha_core_charge, 0, &
                                        0, 0.0_dp, 0, ra, (/0.0_dp, 0.0_dp, 0.0_dp/), &
-                                       rs_v, hab, pab=pab, o1=0, o2=0, &
+                                       rs_v, multigrid, auxbas_grid, hab, pab=pab, o1=0, o2=0, &
                                        radius=radius, calculate_forces=.FALSE., &
                                        use_subpatch=.TRUE., subpatch_pattern=0)
             atecc(atom_a) = atecc(atom_a) + 0.5_dp*hab(1, 1)*pab(1, 1)
@@ -788,6 +794,7 @@ CONTAINS
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
       TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(grid_multigrid_type)                          :: multigrid
       TYPE(gridlevel_info_type), POINTER                 :: gridlevel_info
       TYPE(gto_basis_set_type), POINTER                  :: lri_basis_set
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
@@ -807,7 +814,7 @@ CONTAINS
 
       CALL get_qs_env(qs_env=qs_env, pw_env=pw_env)
 
-      CALL pw_env_get(pw_env, rs_grids=rs_v)
+      CALL pw_env_get(pw_env, rs_grids=rs_v, multigrid=multigrid)
       DO i = 1, SIZE(rs_v)
          CALL rs_grid_zero(rs_v(i))
       END DO
@@ -916,6 +923,7 @@ CONTAINS
                                                       lb_max=0, zetb=0.0_dp, lb_min=0, &
                                                       ra=ra, rab=(/0.0_dp, 0.0_dp, 0.0_dp/), &
                                                       rsgrid=rs_grid, &
+                                                      multigrid=multigrid, ilevel=igrid_level, &
                                                       hab=hab, o1=na1, o2=0, radius=radius, &
                                                       calculate_forces=calculate_forces)
                         ELSE
@@ -924,6 +932,7 @@ CONTAINS
                                                       lb_max=0, zetb=0.0_dp, lb_min=0, &
                                                       ra=ra, rab=(/0.0_dp, 0.0_dp, 0.0_dp/), &
                                                       rsgrid=rs_grid, &
+                                                      multigrid=multigrid, ilevel=igrid_level, &
                                                       hab=hab, pab=pab, o1=na1, o2=0, radius=radius, &
                                                       calculate_forces=calculate_forces, &
                                                       force_a=force_a, force_b=force_b, &
@@ -998,6 +1007,7 @@ CONTAINS
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
       TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(grid_multigrid_type)                          :: multigrid
       TYPE(gridlevel_info_type), POINTER                 :: gridlevel_info
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis_set
       TYPE(mp_para_env_type), POINTER                    :: para_env
@@ -1012,7 +1022,7 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       CALL get_qs_env(qs_env=qs_env, pw_env=pw_env)
-      CALL pw_env_get(pw_env, rs_grids=rs_v)
+      CALL pw_env_get(pw_env, rs_grids=rs_v, multigrid=multigrid)
       CALL potential_pw2rs(rs_v, v_rspace, pw_env)
 
       gridlevel_info => pw_env%gridlevel_info
@@ -1123,6 +1133,7 @@ CONTAINS
                                     la_max(jset), zeta(jpgf, jset), la_min(jset), &
                                     ra=ra, rab=(/0.0_dp, 0.0_dp, 0.0_dp/), &
                                     rsgrid=rs_v(igrid_level), &
+                                    multigrid=multigrid, ilevel=igrid_level, &
                                     hab=hab, pab=pab, o1=na1, o2=nb1, &
                                     radius=radius, &
                                     calculate_forces=.TRUE., &
@@ -1134,6 +1145,7 @@ CONTAINS
                                     la_max(jset), zeta(jpgf, jset), la_min(jset), &
                                     ra=ra, rab=(/0.0_dp, 0.0_dp, 0.0_dp/), &
                                     rsgrid=rs_v(igrid_level), &
+                                    multigrid=multigrid, ilevel=igrid_level, &
                                     hab=hab, o1=na1, o2=nb1, &
                                     radius=radius, &
                                     calculate_forces=.FALSE.)
@@ -1212,6 +1224,7 @@ CONTAINS
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
       TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(grid_multigrid_type)                          :: multigrid
       TYPE(gridlevel_info_type), POINTER                 :: gridlevel_info
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis_set
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
@@ -1227,7 +1240,7 @@ CONTAINS
       CALL get_qs_env(qs_env=qs_env, pw_env=pw_env)
       gridlevel_info => pw_env%gridlevel_info
 
-      CALL pw_env_get(pw_env, rs_grids=rs_v)
+      CALL pw_env_get(pw_env, rs_grids=rs_v, multigrid=multigrid)
       CALL potential_pw2rs(rs_v, v_rspace, pw_env)
 
       CALL get_qs_env(qs_env=qs_env, &
@@ -1314,6 +1327,7 @@ CONTAINS
                                                 lb_max=0, zetb=0.0_dp, lb_min=0, &
                                                 ra=ra, rab=(/0.0_dp, 0.0_dp, 0.0_dp/), &
                                                 rsgrid=rs_grid, &
+                                                multigrid=multigrid, ilevel=igrid_level, &
                                                 hab=hab, pab=pab, o1=na1, o2=0, radius=radius, &
                                                 calculate_forces=.TRUE., &
                                                 force_a=force_a, force_b=force_b, &
@@ -1325,6 +1339,7 @@ CONTAINS
                                                 lb_max=0, zetb=0.0_dp, lb_min=0, &
                                                 ra=ra, rab=(/0.0_dp, 0.0_dp, 0.0_dp/), &
                                                 rsgrid=rs_grid, &
+                                                multigrid=multigrid, ilevel=igrid_level, &
                                                 hab=hab, o1=na1, o2=0, radius=radius, &
                                                 calculate_forces=.FALSE.)
                   END IF

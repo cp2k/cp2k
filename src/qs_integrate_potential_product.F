@@ -141,6 +141,7 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: cell
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: deltap
       TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(grid_multigrid_type)                          :: multigrid
       TYPE(gridlevel_info_type), POINTER                 :: gridlevel_info
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis_set
       TYPE(mp_comm_type)                                 :: group
@@ -183,7 +184,7 @@ CONTAINS
 
       ! *** set up the rs multi-grids
       CPASSERT(ASSOCIATED(pw_env))
-      CALL pw_env_get(pw_env, rs_descs=rs_descs, rs_grids=rs_rho)
+      CALL pw_env_get(pw_env, rs_descs=rs_descs, rs_grids=rs_rho, multigrid=multigrid)
       DO igrid_level = 1, gridlevel_info%ngrid_levels
          distributed_grids = rs_rho(igrid_level)%desc%distributed
       END DO
@@ -238,7 +239,7 @@ CONTAINS
 !$OMP PARALLEL DEFAULT(NONE), &
 !$OMP SHARED(workt,habt,hdabt,hadbt,pabt,tasks,particle_set,natom,maxset), &
 !$OMP SHARED(maxpgf,matrix_vhxc_dbasis,deltap), &
-!$OMP SHARED(pab_required,ncoset,rs_rho,my_compute_tau), &
+!$OMP SHARED(pab_required,ncoset,rs_rho,multigrid,my_compute_tau), &
 !$OMP SHARED(eps_rho_rspace,force,cell), &
 !$OMP SHARED(gridlevel_info,task_list,block_touched,nthread,qs_kind_set), &
 !$OMP SHARED(nimages,lambda, dh_duplicated), &
@@ -423,6 +424,7 @@ CONTAINS
                   la_max(iset), zeta(ipgf, iset), la_min(iset), &
                   lb_max(jset), zetb(jpgf, jset), lb_min(jset), &
                   ra, rab, rs_rho(igrid_level), &
+                  multigrid, ilevel, &
                   hab, o1=na1 - 1, o2=nb1 - 1, &
                   radius=radius, &
                   calculate_forces=.TRUE., &
@@ -434,6 +436,7 @@ CONTAINS
                   la_max(iset), zeta(ipgf, iset), la_min(iset), &
                   lb_max(jset), zetb(jpgf, jset), lb_min(jset), &
                   ra, rab, rs_rho(igrid_level), &
+                  multigrid, ilevel, &
                   hab, o1=na1 - 1, o2=nb1 - 1, &
                   radius=radius, &
                   calculate_forces=.TRUE., &
@@ -447,6 +450,7 @@ CONTAINS
                   lb_max(jset), zetb(jpgf, jset), lb_min(jset), &
                   la_max(iset), zeta(ipgf, iset), la_min(iset), &
                   rb, rab_inv, rs_rho(igrid_level), &
+                  multigrid, ilevel, &
                   hab, o1=nb1 - 1, o2=na1 - 1, &
                   radius=radius, &
                   calculate_forces=.TRUE., &
@@ -459,6 +463,7 @@ CONTAINS
                   lb_max(jset), zetb(jpgf, jset), lb_min(jset), &
                   la_max(iset), zeta(ipgf, iset), la_min(iset), &
                   rb, rab_inv, rs_rho(igrid_level), &
+                  multigrid, ilevel, &
                   hab, o1=nb1 - 1, o2=na1 - 1, &
                   radius=radius, &
                   calculate_forces=.TRUE., &

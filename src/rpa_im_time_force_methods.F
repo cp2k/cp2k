@@ -60,6 +60,7 @@ MODULE rpa_im_time_force_methods
    USE distribution_2d_types,           ONLY: distribution_2d_type
    USE ec_methods,                      ONLY: create_kernel
    USE gaussian_gridlevels,             ONLY: gaussian_gridlevel
+   USE grid_api,                        ONLY: grid_multigrid_type
    USE hfx_admm_utils,                  ONLY: tddft_hfx_matrix
    USE hfx_derivatives,                 ONLY: derivatives_four_center
    USE hfx_exx,                         ONLY: add_exx_to_rhs
@@ -2705,6 +2706,7 @@ CONTAINS
       TYPE(dbcsr_distribution_type)                      :: dbcsr_dist
       TYPE(dbcsr_type)                                   :: tmp_G_PQ
       TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(grid_multigrid_type)                          :: multigrid
       TYPE(gto_basis_set_p_type), ALLOCATABLE, &
          DIMENSION(:), TARGET                            :: basis_set_ri_aux
       TYPE(gto_basis_set_type), POINTER                  :: basis_set_a
@@ -2867,7 +2869,7 @@ CONTAINS
             END IF
 
             NULLIFY (rs_v)
-            CALL pw_env_get(pw_env_ext, rs_grids=rs_v)
+            CALL pw_env_get(pw_env_ext, rs_grids=rs_v, multigrid=multigrid)
             CALL potential_pw2rs(rs_v, rho_r, pw_env_ext)
 
             DO iatom = 1, natom
@@ -2935,6 +2937,7 @@ CONTAINS
                            lb_max=0, zetb=0.0_dp, lb_min=0, &
                            ra=ra, rab=(/0.0_dp, 0.0_dp, 0.0_dp/), &
                            rsgrid=rs_v(igrid_level), &
+                           multigrid=multigrid, ilevel=igrid_level, &
                            hab=h_tmp, pab=pab, &
                            o1=o1, &
                            o2=0, &

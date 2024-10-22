@@ -29,6 +29,7 @@ MODULE qs_vcd_ao
                                               gth_potential_type,&
                                               sgp_potential_type
    USE gaussian_gridlevels,             ONLY: gridlevel_info_type
+   USE grid_api,                        ONLY: grid_multigrid_type
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type
    USE kinds,                           ONLY: default_string_length,&
@@ -1116,6 +1117,7 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: cell
       TYPE(dbcsr_distribution_type)                      :: dist
       TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(grid_multigrid_type)                          :: multigrid
       TYPE(gridlevel_info_type), POINTER                 :: gridlevel_info
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis_set
       TYPE(mp_comm_type)                                 :: group
@@ -1165,7 +1167,7 @@ CONTAINS
       atom_pair_recv => task_list%atom_pair_recv
 
       CPASSERT(ASSOCIATED(pw_env))
-      CALL pw_env_get(pw_env, rs_grids=rs_v)
+      CALL pw_env_get(pw_env, rs_grids=rs_v, multigrid=multigrid)
 
       ! get mpi group from rs_v
       group = rs_v(1)%desc%group
@@ -1372,6 +1374,7 @@ CONTAINS
                   la_max(iset) + 1, zeta(ipgf, iset), la_min(iset), &
                   lb_max(jset) + 1, zetb(jpgf, jset), lb_min(jset), &
                   ra, rab, rs_v(igrid_level), &
+                  multigrid, igrid_level, &
                   hab, o1=na1 - 1, o2=nb1 - 1, &
                   radius=radius, &
                   calculate_forces=.FALSE.)
@@ -1381,6 +1384,7 @@ CONTAINS
                   lb_max(jset) + 1, zetb(jpgf, jset), lb_min(jset), &
                   la_max(iset) + 1, zeta(ipgf, iset), la_min(iset), &
                   rb, rab_inv, rs_v(igrid_level), &
+                  multigrid, igrid_level, &
                   hab, o1=nb1 - 1, o2=na1 - 1, &
                   radius=radius, &
                   calculate_forces=.FALSE.)
