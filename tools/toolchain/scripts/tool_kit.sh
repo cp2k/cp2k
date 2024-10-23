@@ -609,8 +609,11 @@ checksum() {
   local __shasum_command='sha256sum'
   # check if we have sha256sum command, Mac OS X does not have
   # sha256sum, but has an equivalent with shasum -a 256
-  command -v "$__shasum_command" > /dev/null 2>&1 ||
+  if command -v "$__shasum_command" > /dev/null 2>&1 && ! ${__shasum_command} --version 2>&1 | grep -q 'Darwin'; then
+    __shasum_command='sha256sum'
+  else
     __shasum_command="shasum -a 256"
+  fi
   if echo "$__sha256  $__filename" | ${__shasum_command} --check; then
     echo "Checksum of $__filename Ok"
   else
@@ -651,8 +654,11 @@ verify_checksums() {
 
   # check if we have sha256sum command, Mac OS X does not have
   # sha256sum, but has an equivalent with shasum -a 256
-  command -v "$__shasum_command" > /dev/null 2>&1 ||
+  if command -v "$__shasum_command" > /dev/null 2>&1 && ! ${__shasum_command} --version 2>&1 | grep -q 'Darwin'; then
+    __shasum_command='sha256sum'
+  else
     __shasum_command="shasum -a 256"
+  fi
 
   ${__shasum_command} --check "${__checksum_file}" > /dev/null 2>&1
 }
@@ -665,8 +671,11 @@ write_checksums() {
 
   # check if we have sha256sum command, Mac OS X does not have
   # sha256sum, but has an equivalent with shasum -a 256
-  command -v "$__shasum_command" > /dev/null 2>&1 ||
+  if command -v "$__shasum_command" > /dev/null 2>&1 && ! ${__shasum_command} --version 2>&1 | grep -q 'Darwin'; then
+    __shasum_command='sha256sum'
+  else
     __shasum_command="shasum -a 256"
+  fi
 
   ${__shasum_command} "${VERSION_FILE}" "$@" > "${__checksum_file}"
 }
