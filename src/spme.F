@@ -34,9 +34,7 @@ MODULE spme
                                               set_list
    USE pw_grid_types,                   ONLY: pw_grid_type
    USE pw_grids,                        ONLY: get_pw_grid_info
-   USE pw_methods,                      ONLY: pw_copy,&
-                                              pw_derive,&
-                                              pw_integral_a2b,&
+   USE pw_methods,                      ONLY: pw_integral_a2b,&
                                               pw_multiply_with,&
                                               pw_transfer
    USE pw_poisson_methods,              ONLY: pw_poisson_rebuild,&
@@ -111,12 +109,12 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'spme_evaluate'
 
-      INTEGER                                            :: handle, i, ig, ipart, j, n, ncore, &
-                                                            npart, nshell, o_spline, p1, p1_shell
+      INTEGER                                            :: handle, i, ipart, j, n, ncore, npart, &
+                                                            nshell, o_spline, p1, p1_shell
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: center, core_center, shell_center
-      INTEGER, DIMENSION(3)                              :: nd, npts
+      INTEGER, DIMENSION(3)                              :: npts
       LOGICAL                                            :: do_shell
-      REAL(KIND=dp)                                      :: alpha, dvols, fat1, ffa, ffb
+      REAL(KIND=dp)                                      :: alpha, dvols, fat1, ffa
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: core_delta, delta, shell_delta
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: rhos
       REAL(KIND=dp), DIMENSION(3)                        :: fat
@@ -241,8 +239,8 @@ CONTAINS
                             h_stress)
       !---------- END OF ELECTROSTATIC CALCULATION --------
 
-      ! Atomic Energy and Stress
-      IF (atprop%energy .OR. atprop%stress) THEN
+      ! Atomic Energy
+      IF (atprop%energy) THEN
          ALLOCATE (rpot)
          CALL rs_grid_create(rpot, rs_desc)
          CALL rs_grid_set_box(grid_spme, rs=rpot)
@@ -262,11 +260,6 @@ CONTAINS
             CALL dg_sum_patch_force_1d(rpot, rhos, center(:, p1), fat1)
             IF (atprop%energy) THEN
                atprop%atener(p1) = atprop%atener(p1) + 0.5_dp*fat1*dvols
-            END IF
-            IF (atprop%stress) THEN
-               atprop%atstress(1, 1, p1) = atprop%atstress(1, 1, p1) + 0.5_dp*fat1*dvols
-               atprop%atstress(2, 2, p1) = atprop%atstress(2, 2, p1) + 0.5_dp*fat1*dvols
-               atprop%atstress(3, 3, p1) = atprop%atstress(3, 3, p1) + 0.5_dp*fat1*dvols
             END IF
          END DO
          ! Core-shell model
@@ -294,40 +287,6 @@ CONTAINS
                IF (atprop%energy) THEN
                   atprop%atener(p1) = atprop%atener(p1) + 0.5_dp*fat1*dvols
                END IF
-            END DO
-         END IF
-         IF (atprop%stress) THEN
-            ffa = (0.5_dp/alpha)**2
-            ffb = 1.0_dp/fourpi
-            DO i = 1, 3
-               DO ig = grid_spme%first_gne0, grid_spme%ngpts_cut_local
-                  phi_g%array(ig) = ffb*dphi_g(i)%array(ig)*(ffa*grid_spme%gsq(ig) + 1.0_dp)
-                  phi_g%array(ig) = phi_g%array(ig)*poisson_env%green_fft%influence_fn%array(ig)
-               END DO
-               IF (grid_spme%have_g0) phi_g%array(1) = 0.0_dp
-               DO j = 1, i
-                  nd = 0
-                  nd(j) = 1
-                  CALL pw_copy(phi_g, rhob_g)
-                  CALL pw_derive(rhob_g, nd)
-                  CALL pw_multiply_with(rhob_g, green%p3m_charge)
-                  CALL pw_transfer(rhob_g, rhob_r)
-                  CALL transfer_pw2rs(rpot, rhob_r)
-
-                  ipart = 0
-                  DO
-                     CALL set_list(particle_set, npart, center, p1, rden, ipart)
-                     IF (p1 == 0) EXIT
-                     ! calculate function on small boxes
-                     CALL get_patch(particle_set, delta, green, p1, rhos, &
-                                    is_core=.FALSE., is_shell=.FALSE., unit_charge=.FALSE., charges=charges)
-                     ! integrate box and potential
-                     CALL dg_sum_patch_force_1d(rpot, rhos, center(:, p1), fat1)
-                     atprop%atstress(i, j, p1) = atprop%atstress(i, j, p1) + fat1*dvols
-                     IF (i /= j) atprop%atstress(j, i, p1) = atprop%atstress(j, i, p1) + fat1*dvols
-                  END DO
-
-               END DO
             END DO
          END IF
          CALL rs_grid_release(rpot)

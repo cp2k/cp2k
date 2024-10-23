@@ -373,12 +373,10 @@ CONTAINS
       INTEGER                                            :: atom_a, handle, iatom, ikind, iw, natom, &
                                                             nkind, unit_nr
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, kind_of
-      LOGICAL                                            :: atenergy, atex, atstress, debugall, &
-                                                            use_virial
+      LOGICAL                                            :: atenergy, atex, debugall, use_virial
       REAL(KIND=dp)                                      :: evdw, gnorm
       REAL(KIND=dp), DIMENSION(3)                        :: fdij
       REAL(KIND=dp), DIMENSION(3, 3)                     :: dvirial, pv_loc, pv_virial_thread
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: atstr
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(atprop_type), POINTER                         :: atprop
       TYPE(cell_type), POINTER                           :: cell
@@ -415,8 +413,6 @@ CONTAINS
 
       ! atomic energy and stress arrays
       atenergy = atprop%energy
-      atstress = atprop%stress
-      atstr => atprop%atstress
       ! external atomic energy
       atex = .FALSE.
       IF (PRESENT(atevdw)) THEN
@@ -465,9 +461,6 @@ CONTAINS
          END IF
          IF (atex) THEN
             CPABORT("Atomic energy with DFTD4 not implemented")
-         END IF
-         IF (atstress) THEN
-            CPABORT("Atomic stress with DFTD4 not implemented")
          END IF
          IF (dispersion_env%lrc) THEN
             CPABORT("Long range correction with DFTD4 not implemented")

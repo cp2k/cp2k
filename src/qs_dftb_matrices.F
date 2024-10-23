@@ -108,8 +108,8 @@ CONTAINS
       INTEGER, DIMENSION(3)                              :: cell
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
       LOGICAL                                            :: defined, found, omit_headers, use_virial
-      REAL(KIND=dp)                                      :: ddr, dgrd, dr, erep, erepij, f0, f1, &
-                                                            foab, fow, s_cut, urep_cut
+      REAL(KIND=dp)                                      :: ddr, dgrd, dr, erep, erepij, f0, foab, &
+                                                            fow, s_cut, urep_cut
       REAL(KIND=dp), DIMENSION(0:3)                      :: eta_a, eta_b, skself
       REAL(KIND=dp), DIMENSION(10)                       :: urep
       REAL(KIND=dp), DIMENSION(2)                        :: surr
@@ -366,13 +366,6 @@ CONTAINS
                      IF (iatom == jatom) f0 = 0.5_dp*f0
                      CALL virial_pair_force(virial%pv_virial, -f0, force_ab, rij)
                      CALL virial_pair_force(virial%pv_virial, -f0, force_w, rij)
-                     IF (atprop%stress) THEN
-                        f1 = 0.5_dp*f0
-                        CALL virial_pair_force(atprop%atstress(:, :, iatom), -f1, force_ab, rij)
-                        CALL virial_pair_force(atprop%atstress(:, :, iatom), -f1, force_w, rij)
-                        CALL virial_pair_force(atprop%atstress(:, :, jatom), -f1, force_ab, rij)
-                        CALL virial_pair_force(atprop%atstress(:, :, jatom), -f1, force_w, rij)
-                     END IF
                   END IF
                   DEALLOCATE (dfblock, dsblock)
                END IF
@@ -412,10 +405,6 @@ CONTAINS
                   f0 = -1.0_dp
                   IF (iatom == jatom) f0 = -0.5_dp
                   CALL virial_pair_force(virial%pv_virial, f0, force_rr, rij)
-                  IF (atprop%stress) THEN
-                     CALL virial_pair_force(atprop%atstress(:, :, iatom), f0*0.5_dp, force_rr, rij)
-                     CALL virial_pair_force(atprop%atstress(:, :, jatom), f0*0.5_dp, force_rr, rij)
-                  END IF
                END IF
             END IF
          END IF

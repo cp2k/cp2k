@@ -138,7 +138,6 @@
   &PROPERTIES
     &ATOMIC
       ENERGY on
-      PRESSURE off
     &END ATOMIC
   &END PROPERTIES
   &SUBSYS

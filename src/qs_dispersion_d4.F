@@ -954,10 +954,6 @@ CONTAINS
                gradient(:, iatom) = gradient(:, iatom) + fdik(:)
                IF (use_virial) THEN
                   CALL virial_pair_force(stress, -1._dp, fdik, rik)
-                  IF (atprop%stress) THEN
-                     CALL virial_pair_force(atprop%atstress(:, :, iatom), -0.5_dp, fdik, rik)
-                     CALL virial_pair_force(atprop%atstress(:, :, katom), -0.5_dp, fdik, rik)
-                  END IF
                END IF
             END DO
          END DO

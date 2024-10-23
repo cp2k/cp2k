@@ -449,10 +449,6 @@ CONTAINS
             IF (use_virial .AND. dr > 1.e-3_dp) THEN
                IF (iatom == jatom) f1 = 1.0_dp
                CALL virial_pair_force(virial%pv_virial, -f1, force_ab, rij)
-               IF (atprop%stress) THEN
-                  CALL virial_pair_force(atprop%atstress(:, :, iatom), -0.5_dp*f1, force_ab, rij)
-                  CALL virial_pair_force(atprop%atstress(:, :, jatom), -0.5_dp*f1, force_ab, rij)
-               END IF
             END IF
          END IF
          ! update S matrix
@@ -573,10 +569,6 @@ CONTAINS
                   IF (use_virial) THEN
                      fdik = fdika + fdikb
                      CALL virial_pair_force(virial%pv_virial, -1._dp, fdik, rik)
-                     IF (atprop%stress) THEN
-                        CALL virial_pair_force(atprop%atstress(:, :, iatom), -0.5_dp, fdik, rik)
-                        CALL virial_pair_force(atprop%atstress(:, :, katom), -0.5_dp, fdik, rik)
-                     END IF
                   END IF
                END IF
             END DO
@@ -594,10 +586,6 @@ CONTAINS
                   force(kkind)%all_potential(:, atom_c) = force(kkind)%all_potential(:, atom_c) + fdik(:)
                   IF (use_virial) THEN
                      CALL virial_pair_force(virial%pv_virial, -1._dp, fdik, rik)
-                     IF (atprop%stress) THEN
-                        CALL virial_pair_force(atprop%atstress(:, :, iatom), -0.5_dp, fdik, rik)
-                        CALL virial_pair_force(atprop%atstress(:, :, katom), -0.5_dp, fdik, rik)
-                     END IF
                   END IF
                END IF
             END DO
@@ -657,10 +645,6 @@ CONTAINS
                f1 = 1.0_dp
                IF (iatom == jatom) f1 = 0.5_dp
                CALL virial_pair_force(virial%pv_virial, -f1, force_ab, rij)
-               IF (atprop%stress) THEN
-                  CALL virial_pair_force(atprop%atstress(:, :, iatom), -0.5_dp*f1, force_ab, rij)
-                  CALL virial_pair_force(atprop%atstress(:, :, jatom), -0.5_dp*f1, force_ab, rij)
-               END IF
             END IF
          END IF
 
@@ -1043,10 +1027,6 @@ CONTAINS
             IF (use_virial .AND. dr > 1.e-3_dp) THEN
                IF (iatom == jatom) f1 = 1.0_dp
                CALL virial_pair_force(virial%pv_virial, -f1, force_ab, rij)
-               IF (atprop%stress) THEN
-                  CALL virial_pair_force(atprop%atstress(:, :, iatom), -0.5_dp*f1, force_ab, rij)
-                  CALL virial_pair_force(atprop%atstress(:, :, jatom), -0.5_dp*f1, force_ab, rij)
-               END IF
             END IF
          END IF
          ! update S matrix
@@ -1158,10 +1138,6 @@ CONTAINS
                   IF (use_virial) THEN
                      fdik = fdika + fdikb
                      CALL virial_pair_force(virial%pv_virial, -1._dp, fdik, rik)
-                     IF (atprop%stress) THEN
-                        CALL virial_pair_force(atprop%atstress(:, :, iatom), -0.5_dp, fdik, rik)
-                        CALL virial_pair_force(atprop%atstress(:, :, katom), -0.5_dp, fdik, rik)
-                     END IF
                   END IF
                END IF
             END DO
@@ -1179,10 +1155,6 @@ CONTAINS
                   force(kkind)%all_potential(:, atom_c) = force(kkind)%all_potential(:, atom_c) + fdik(:)
                   IF (use_virial) THEN
                      CALL virial_pair_force(virial%pv_virial, -1._dp, fdik, rik)
-                     IF (atprop%stress) THEN
-                        CALL virial_pair_force(atprop%atstress(:, :, jatom), -0.5_dp, fdik, rik)
-                        CALL virial_pair_force(atprop%atstress(:, :, katom), -0.5_dp, fdik, rik)
-                     END IF
                   END IF
                END IF
             END DO
@@ -1242,10 +1214,6 @@ CONTAINS
                f1 = 1.0_dp
                IF (iatom == jatom) f1 = 0.5_dp
                CALL virial_pair_force(virial%pv_virial, -f1, force_ab, rij)
-               IF (atprop%stress) THEN
-                  CALL virial_pair_force(atprop%atstress(:, :, iatom), -0.5_dp*f1, force_ab, rij)
-                  CALL virial_pair_force(atprop%atstress(:, :, jatom), -0.5_dp*f1, force_ab, rij)
-               END IF
             END IF
          END IF
 

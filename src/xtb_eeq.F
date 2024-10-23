@@ -382,10 +382,6 @@ CONTAINS
                   force(kkind)%rho_elec(:, atom_c) = force(kkind)%rho_elec(:, atom_c) + fdik(:)
                   IF (use_virial) THEN
                      CALL virial_pair_force(virial%pv_virial, -1._dp, fdik, rik)
-                     IF (atprop%stress) THEN
-                        CALL virial_pair_force(atprop%atstress(:, :, iatom), -0.5_dp, fdik, rik)
-                        CALL virial_pair_force(atprop%atstress(:, :, katom), -0.5_dp, fdik, rik)
-                     END IF
                   END IF
                END IF
             END DO
@@ -419,20 +415,12 @@ CONTAINS
             force(jkind)%rho_elec(:, atom_b) = force(jkind)%rho_elec(:, atom_b) - fdik(:)
             IF (use_virial) THEN
                CALL virial_pair_force(virial%pv_virial, 1._dp, fdik, rij)
-               IF (atprop%stress) THEN
-                  CALL virial_pair_force(atprop%atstress(:, :, iatom), -0.5_dp, fdik, rij)
-                  CALL virial_pair_force(atprop%atstress(:, :, jatom), -0.5_dp, fdik, rij)
-               END IF
             END IF
             fdik(:) = qq2*grc*rij(:)/dr
             force(ikind)%rho_elec(:, atom_a) = force(ikind)%rho_elec(:, atom_a) - fdik(:)
             force(jkind)%rho_elec(:, atom_b) = force(jkind)%rho_elec(:, atom_b) + fdik(:)
             IF (use_virial) THEN
                CALL virial_pair_force(virial%pv_virial, -1._dp, fdik, rij)
-               IF (atprop%stress) THEN
-                  CALL virial_pair_force(atprop%atstress(:, :, iatom), 0.5_dp, fdik, rij)
-                  CALL virial_pair_force(atprop%atstress(:, :, jatom), 0.5_dp, fdik, rij)
-               END IF
             END IF
          END DO
          CALL neighbor_list_iterator_release(nl_iterator)

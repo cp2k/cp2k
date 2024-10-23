@@ -60,16 +60,6 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="PRESSURE", &
-                          description="Calculate atomic pressure tensors ", &
-                          usage="PRESSURE {logical}", &
-                          repeats=.FALSE., &
-                          n_var=1, &
-                          default_l_val=.FALSE., &
-                          lone_keyword_l_val=.TRUE.)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
    END SUBROUTINE create_atprop_section
 
 END MODULE input_cp2k_atprop

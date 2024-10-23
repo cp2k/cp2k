@@ -37,9 +37,7 @@ MODULE pme
    USE pme_tools,                       ONLY: get_center,&
                                               set_list
    USE pw_grid_types,                   ONLY: pw_grid_type
-   USE pw_methods,                      ONLY: pw_copy,&
-                                              pw_derive,&
-                                              pw_integral_a2b,&
+   USE pw_methods,                      ONLY: pw_integral_a2b,&
                                               pw_transfer
    USE pw_poisson_methods,              ONLY: pw_poisson_solve
    USE pw_poisson_types,                ONLY: pw_poisson_type
@@ -112,16 +110,15 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'pme_evaluate'
 
-      INTEGER                                            :: handle, i, ig, ipart, j, nd(3), npart, &
-                                                            nshell, p1, p2
+      INTEGER                                            :: handle, i, ipart, j, npart, nshell, p1, &
+                                                            p2
       LOGICAL                                            :: is1_core, is2_core
-      REAL(KIND=dp)                                      :: alpha, dvols, fat1, ffa, ffb
+      REAL(KIND=dp)                                      :: alpha, dvols, fat1, ffa
       REAL(KIND=dp), DIMENSION(3)                        :: fat
       REAL(KIND=dp), DIMENSION(3, 3)                     :: f_stress, h_stress
       TYPE(dg_rho0_type), POINTER                        :: dg_rho0
       TYPE(dg_type), POINTER                             :: dg
       TYPE(mp_comm_type)                                 :: group
-      TYPE(pw_c1d_gs_type)                               :: phi_g, rhob_g
       TYPE(pw_c1d_gs_type), DIMENSION(3)                 :: dphi_g
       TYPE(pw_grid_type), POINTER                        :: grid_b, grid_s
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
@@ -251,7 +248,7 @@ CONTAINS
       CALL pw_poisson_solve(poisson_env, rhob_r, vg_coulomb, phi_r, dphi_g, h_stress)
 
       ! atomic energies
-      IF (atprop%energy .OR. atprop%stress) THEN
+      IF (atprop%energy) THEN
          dvols = rhos1%pw_grid%dvol
          ALLOCATE (rpot)
          CALL rs_grid_create(rpot, rs_desc)
@@ -269,65 +266,13 @@ CONTAINS
             IF (atprop%energy) THEN
                atprop%atener(p1) = atprop%atener(p1) + 0.5_dp*fat1*dvols
             END IF
-            IF (atprop%stress) THEN
-               atprop%atstress(1, 1, p1) = atprop%atstress(1, 1, p1) + 0.5_dp*fat1*dvols
-               atprop%atstress(2, 2, p1) = atprop%atstress(2, 2, p1) + 0.5_dp*fat1*dvols
-               atprop%atstress(3, 3, p1) = atprop%atstress(3, 3, p1) + 0.5_dp*fat1*dvols
-            END IF
             IF (p2 /= 0) THEN
                CALL dg_sum_patch_force_1d(rpot, rhos2, exp_igr%centre(:, p2), fat1)
                IF (atprop%energy) THEN
                   atprop%atener(p2) = atprop%atener(p2) + 0.5_dp*fat1*dvols
                END IF
-               IF (atprop%stress) THEN
-                  atprop%atstress(1, 1, p2) = atprop%atstress(1, 1, p2) + 0.5_dp*fat1*dvols
-                  atprop%atstress(2, 2, p2) = atprop%atstress(2, 2, p2) + 0.5_dp*fat1*dvols
-                  atprop%atstress(3, 3, p2) = atprop%atstress(3, 3, p2) + 0.5_dp*fat1*dvols
-               END IF
             END IF
          END DO
-         IF (atprop%stress) THEN
-            CALL pw_big_pool%create_pw(phi_g)
-            CALL pw_big_pool%create_pw(rhob_g)
-            ffa = (0.5_dp/dg_rho0%zet(1))**2
-            ffb = 1.0_dp/fourpi
-            DO i = 1, 3
-               DO ig = grid_b%first_gne0, grid_b%ngpts_cut_local
-                  phi_g%array(ig) = ffb*dphi_g(i)%array(ig)*(ffa*grid_b%gsq(ig) + 1.0_dp)
-                  phi_g%array(ig) = phi_g%array(ig)*poisson_env%green_fft%influence_fn%array(ig)
-               END DO
-               IF (grid_b%have_g0) phi_g%array(1) = 0.0_dp
-               DO j = 1, i
-                  CALL pw_copy(phi_g, rhob_g)
-                  nd = 0
-                  nd(j) = 1
-                  CALL pw_derive(rhob_g, nd)
-                  CALL pw_transfer(rhob_g, rhob_r)
-                  CALL transfer_pw2rs(rpot, rhob_r)
-
-                  ipart = 0
-                  DO
-                     CALL set_list(particle_set, npart, exp_igr%centre, p1, rden, ipart, exp_igr%core_centre)
-                     CALL set_list(particle_set, npart, exp_igr%centre, p2, rden, ipart, exp_igr%core_centre)
-                     IF (p1 == 0 .AND. p2 == 0) EXIT
-                     ! integrate box and potential
-                     CALL get_patch(dg, particle_set, exp_igr, box, p1, p2, grid_b, grid_s, &
-                                    rhos1, rhos2, charges=charges)
-                     ! add boxes to real space grid (big box)
-                     CALL dg_sum_patch_force_1d(rpot, rhos1, exp_igr%centre(:, p1), fat1)
-                     atprop%atstress(i, j, p1) = atprop%atstress(i, j, p1) + fat1*dvols
-                     IF (i /= j) atprop%atstress(j, i, p1) = atprop%atstress(j, i, p1) + fat1*dvols
-                     IF (p2 /= 0) THEN
-                        CALL dg_sum_patch_force_1d(rpot, rhos2, exp_igr%centre(:, p2), fat1)
-                        atprop%atstress(i, j, p2) = atprop%atstress(i, j, p2) + fat1*dvols
-                        IF (i /= j) atprop%atstress(j, i, p2) = atprop%atstress(j, i, p2) + fat1*dvols
-                     END IF
-                  END DO
-               END DO
-            END DO
-            CALL pw_big_pool%give_back_pw(phi_g)
-            CALL pw_big_pool%give_back_pw(rhob_g)
-         END IF
          CALL rs_grid_release(rpot)
          DEALLOCATE (rpot)
       END IF

@@ -106,7 +106,7 @@ CONTAINS
 
       INTEGER                                            :: stress_tensor
       INTEGER, DIMENSION(:), POINTER                     :: seed_vals
-      LOGICAL                                            :: atomic_energy, atomic_stress, &
+      LOGICAL                                            :: atomic_energy, &
                                                             my_use_motion_section, &
                                                             pv_availability, pv_diagonal, &
                                                             pv_numerical
@@ -208,12 +208,6 @@ CONTAINS
       CALL atprop_create(subsys%atprop)
       CALL section_vals_val_get(my_force_env_section, "PROPERTIES%ATOMIC%ENERGY", l_val=atomic_energy)
       subsys%atprop%energy = atomic_energy
-      CALL section_vals_val_get(my_force_env_section, "PROPERTIES%ATOMIC%PRESSURE", l_val=atomic_stress)
-      IF (atomic_stress) THEN
-         CPASSERT(pv_availability)
-         CPASSERT(.NOT. pv_numerical)
-      END IF
-      subsys%atprop%stress = atomic_stress
 
       CALL cp_result_create(subsys%results)
    END SUBROUTINE cp_subsys_create

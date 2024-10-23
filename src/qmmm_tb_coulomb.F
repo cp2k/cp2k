@@ -191,7 +191,7 @@ CONTAINS
          CPABORT("PME not implemented in DFTB")
       CASE (do_ewald_spme)
          CALL tb_spme_evaluate(ewald_env, ewald_pw, particle_set, mm_cell, &
-                               gmcharge, mcharge, calculate_forces, virial, use_virial, atprop)
+                               gmcharge, mcharge, calculate_forces, virial, use_virial)
       END SELECT
       !
       CALL para_env%sum(gmcharge(:, 1))

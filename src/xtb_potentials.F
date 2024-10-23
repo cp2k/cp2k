@@ -178,10 +178,6 @@ CONTAINS
                   f1 = 1.0_dp
                   IF (iatom == jatom) f1 = 0.5_dp
                   CALL virial_pair_force(virial%pv_virial, -f1, force_rr, rij)
-                  IF (atprop%stress) THEN
-                     CALL virial_pair_force(atprop%atstress(:, :, iatom), -0.5_dp*f1, force_rr, rij)
-                     CALL virial_pair_force(atprop%atstress(:, :, jatom), -0.5_dp*f1, force_rr, rij)
-                  END IF
                END IF
             END IF
          END IF
@@ -302,10 +298,6 @@ CONTAINS
                   f1 = 1.0_dp
                   IF (iatom == jatom) f1 = 0.5_dp
                   CALL virial_pair_force(virial%pv_virial, -f1, force_rr, rij)
-                  IF (atprop%stress) THEN
-                     CALL virial_pair_force(atprop%atstress(:, :, iatom), -0.5_dp*f1, force_rr, rij)
-                     CALL virial_pair_force(atprop%atstress(:, :, jatom), -0.5_dp*f1, force_rr, rij)
-                  END IF
                END IF
                ! coordination number derivatives
                ! iatom
@@ -323,10 +315,6 @@ CONTAINS
                      IF (use_virial) THEN
                         fdik = fdika + fdikb
                         CALL virial_pair_force(virial%pv_virial, -1._dp, fdik, rik)
-                        IF (atprop%stress) THEN
-                           CALL virial_pair_force(atprop%atstress(:, :, iatom), -0.5_dp, fdik, rik)
-                           CALL virial_pair_force(atprop%atstress(:, :, katom), -0.5_dp, fdik, rik)
-                        END IF
                      END IF
                   END IF
                END DO
@@ -344,10 +332,6 @@ CONTAINS
                      force(kkind)%repulsive(:, atom_c) = force(kkind)%repulsive(:, atom_c) + fdik(:)
                      IF (use_virial) THEN
                         CALL virial_pair_force(virial%pv_virial, -1._dp, fdik, rik)
-                        IF (atprop%stress) THEN
-                           CALL virial_pair_force(atprop%atstress(:, :, iatom), -0.5_dp, fdik, rik)
-                           CALL virial_pair_force(atprop%atstress(:, :, katom), -0.5_dp, fdik, rik)
-                        END IF
                      END IF
                   END IF
                END DO
@@ -748,10 +732,6 @@ CONTAINS
 
                IF (use_virial) THEN
                   CALL virial_pair_force(virial%pv_virial, -1._dp, fij, rij)
-                  IF (atprop%stress) THEN
-                     CALL virial_pair_force(atprop%atstress(:, :, iatom), -0.5_dp, fij, rij)
-                     CALL virial_pair_force(atprop%atstress(:, :, jatom), -0.5_dp, fij, rij)
-                  END IF
                END IF
 
             END IF
@@ -945,10 +925,6 @@ CONTAINS
             force(jkind)%repulsive(:, atom_b) = force(jkind)%repulsive(:, atom_b) + fij(:)
             IF (use_virial) THEN
                CALL virial_pair_force(virial%pv_virial, -1._dp, fij, rij)
-               IF (atprop%stress) THEN
-                  CALL virial_pair_force(atprop%atstress(:, :, iatom), -0.5_dp, fij, rij)
-                  CALL virial_pair_force(atprop%atstress(:, :, jatom), -0.5_dp, fij, rij)
-               END IF
             END IF
             !
             fij(1:3) = 0.0_dp
@@ -968,14 +944,6 @@ CONTAINS
                CALL virial_pair_force(virial%pv_virial, -1._dp, fij, rij)
                CALL virial_pair_force(virial%pv_virial, -1._dp, fia, ria)
                CALL virial_pair_force(virial%pv_virial, -1._dp, fja, rja)
-               IF (atprop%stress) THEN
-                  CALL virial_pair_force(atprop%atstress(:, :, iatom), -0.5_dp, fij, rij)
-                  CALL virial_pair_force(atprop%atstress(:, :, jatom), -0.5_dp, fij, rij)
-                  CALL virial_pair_force(atprop%atstress(:, :, iatom), -0.5_dp, fia, ria)
-                  CALL virial_pair_force(atprop%atstress(:, :, katom), -0.5_dp, fia, ria)
-                  CALL virial_pair_force(atprop%atstress(:, :, jatom), -0.5_dp, fja, rja)
-                  CALL virial_pair_force(atprop%atstress(:, :, katom), -0.5_dp, fja, rja)
-               END IF
             END IF
          END IF
       END DO

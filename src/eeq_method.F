@@ -485,10 +485,6 @@ CONTAINS
                   gradient(:, katom) = gradient(:, katom) + fdik(:)
                   IF (use_virial) THEN
                      CALL virial_pair_force(stress, -1._dp, fdik, rik)
-                     IF (atprop%stress) THEN
-                        CALL virial_pair_force(atprop%atstress(:, :, iatom), -0.5_dp, fdik, rik)
-                        CALL virial_pair_force(atprop%atstress(:, :, katom), -0.5_dp, fdik, rik)
-                     END IF
                   END IF
                END IF
             END DO
@@ -548,20 +544,12 @@ CONTAINS
             gradient(:, jatom) = gradient(:, jatom) - fdik(:)
             IF (use_virial) THEN
                CALL virial_pair_force(stress, 1._dp, fdik, rij)
-               IF (atprop%stress) THEN
-                  CALL virial_pair_force(atprop%atstress(:, :, iatom), -0.5_dp, fdik, rij)
-                  CALL virial_pair_force(atprop%atstress(:, :, jatom), -0.5_dp, fdik, rij)
-               END IF
             END IF
             fdik(:) = qq2*grc*rij(:)/dr
             gradient(:, iatom) = gradient(:, iatom) - fdik(:)
             gradient(:, jatom) = gradient(:, jatom) + fdik(:)
             IF (use_virial) THEN
                CALL virial_pair_force(stress, -1._dp, fdik, rij)
-               IF (atprop%stress) THEN
-                  CALL virial_pair_force(atprop%atstress(:, :, iatom), 0.5_dp, fdik, rij)
-                  CALL virial_pair_force(atprop%atstress(:, :, jatom), 0.5_dp, fdik, rij)
-               END IF
             END IF
          END DO
          CALL neighbor_list_iterator_release(nl_iterator)

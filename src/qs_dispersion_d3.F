@@ -92,7 +92,7 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, atomnumber, kind_of
       INTEGER, DIMENSION(3)                              :: cell_b, cell_c, ncell, periodic
       INTEGER, DIMENSION(:), POINTER                     :: atom_list
-      LOGICAL :: atenergy, atex, atstress, debugall, domol, exclude_pair, floating_a, floating_b, &
+      LOGICAL :: atenergy, atex, debugall, domol, exclude_pair, floating_a, floating_b, &
          floating_c, ghost_a, ghost_b, ghost_c, is000, use_virial
       LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: dodisp, exclude
       REAL(KIND=dp) :: a1, a2, alp6, alp8, ang, c6, c8, c9, cc6ab, cc6bc, cc6ca, cnum, dc6a, dc6b, &
@@ -108,7 +108,6 @@ CONTAINS
                                                             rc0, rca, rij, rik, sab_max
       REAL(KIND=dp), DIMENSION(3, 3)                     :: pv_virial_thread
       REAL(KIND=dp), DIMENSION(:), POINTER               :: atener
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: atstr
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(atprop_type), POINTER                         :: atprop
       TYPE(cell_type), POINTER                           :: cell
@@ -142,8 +141,6 @@ CONTAINS
          CALL atprop_array_init(atprop%atevdw, natom)
          atener => atprop%atevdw
       END IF
-      atstress = atprop%stress
-      atstr => atprop%atstress
       ! external atomic energy
       atex = .FALSE.
       IF (PRESENT(atevdw)) THEN
@@ -437,10 +434,6 @@ CONTAINS
                   IF (use_virial) THEN
                      CALL virial_pair_force(pv_virial_thread, -1._dp, fdij, rij)
                   END IF
-                  IF (atstress) THEN
-                     CALL virial_pair_force(atstr(:, :, iatom), -0.5_dp, fdij, rij)
-                     CALL virial_pair_force(atstr(:, :, jatom), -0.5_dp, fdij, rij)
-                  END IF
                   ! forces from the r-dependence of the coordination numbers
                   IF (idmp == 1) THEN
                      ! zero
@@ -469,10 +462,6 @@ CONTAINS
                      IF (use_virial) THEN
                         CALL virial_pair_force(pv_virial_thread, -1._dp, fdik, rik)
                      END IF
-                     IF (atstress) THEN
-                        CALL virial_pair_force(atstr(:, :, iatom), -0.5_dp, fdik, rik)
-                        CALL virial_pair_force(atstr(:, :, katom), -0.5_dp, fdik, rik)
-                     END IF
                   END DO
                   DO i = 1, dcnum(jatom)%neighbors
                      katom = dcnum(jatom)%nlist(i)
@@ -485,10 +474,6 @@ CONTAINS
                      force(kkind)%dispersion(:, atom_c) = force(kkind)%dispersion(:, atom_c) + fdik(:)
                      IF (use_virial) THEN
                         CALL virial_pair_force(pv_virial_thread, -1._dp, fdik, rik)
-                     END IF
-                     IF (atstress) THEN
-                        CALL virial_pair_force(atstr(:, :, jatom), -0.5_dp, fdik, rik)
-                        CALL virial_pair_force(atstr(:, :, katom), -0.5_dp, fdik, rik)
                      END IF
                   END DO
                END IF
@@ -606,10 +591,6 @@ CONTAINS
                                     IF (use_virial) THEN
                                        CALL virial_pair_force(pv_virial_thread, -1._dp, fdij, rab)
                                     END IF
-                                    IF (atstress) THEN
-                                       CALL virial_pair_force(atstr(:, :, iatom), -0.5_dp, fdij, rab)
-                                       CALL virial_pair_force(atstr(:, :, jatom), -0.5_dp, fdij, rab)
-                                    END IF
                                     fdij(:) = de91*rbc(:)/r2bc
                                     fdij(:) = fdij(:) + dea*s1*s2*s3*rbc(:)/r2bc
                                     fdij(:) = fdij(:) - dea*(s2*s3 - s1*s3 + s1*s2)*rbc(:)
@@ -618,10 +599,6 @@ CONTAINS
                                     IF (use_virial) THEN
                                        CALL virial_pair_force(pv_virial_thread, -1._dp, fdij, rbc)
                                     END IF
-                                    IF (atstress) THEN
-                                       CALL virial_pair_force(atstr(:, :, jatom), -0.5_dp, fdij, rbc)
-                                       CALL virial_pair_force(atstr(:, :, katom), -0.5_dp, fdij, rbc)
-                                    END IF
                                     fdij(:) = de91*rca(:)/r2ca
                                     fdij(:) = fdij(:) + dea*s1*s2*s3*rca(:)/r2ca
                                     fdij(:) = fdij(:) - dea*(-s2*s3 + s1*s3 + s1*s2)*rca(:)
@@ -629,10 +606,6 @@ CONTAINS
                                     force(ikind)%dispersion(:, atom_a) = force(ikind)%dispersion(:, atom_a) + fdij(:)
                                     IF (use_virial) THEN
                                        CALL virial_pair_force(pv_virial_thread, -1._dp, fdij, rca)
-                                    END IF
-                                    IF (atstress) THEN
-                                       CALL virial_pair_force(atstr(:, :, iatom), -0.5_dp, fdij, rca)
-                                       CALL virial_pair_force(atstr(:, :, katom), -0.5_dp, fdij, rca)
                                     END IF
 
                                     IF (.NOT. dispersion_env%c9cnst) THEN
