@@ -175,6 +175,10 @@ CONTAINS
       INTEGER                                            :: f_env_handle, grid_backend, ierr, &
                                                             iter_level, method_name_id, &
                                                             new_env_id, prog_name_id, run_type_id
+#if defined(__DBCSR_ACC)
+      INTEGER, TARGET                                    :: offload_chosen_device
+#endif
+      INTEGER, POINTER                                   :: active_device_id
       INTEGER(KIND=int_8)                                :: m_memory_max_mpi
       LOGICAL                                            :: echo_input, grid_apply_cutoff, &
                                                             grid_validate, I_was_ionode
@@ -186,20 +190,18 @@ CONTAINS
       TYPE(global_environment_type), POINTER             :: globenv
       TYPE(section_vals_type), POINTER                   :: glob_section, input_file, root_section
 
-      NULLIFY (para_env, f_env, dft_control)
+      NULLIFY (para_env, f_env, dft_control, active_device_id)
       ALLOCATE (para_env)
       para_env = mpi_comm
 
 #if defined(__DBCSR_ACC)
       IF (offload_get_device_count() > 0) THEN
-         CALL dbcsr_init_lib(mpi_comm%get_handle(), io_unit=output_unit, &
-                             accdrv_active_device_id=offload_get_chosen_device())
-      ELSE
-         CALL dbcsr_init_lib(mpi_comm%get_handle(), io_unit=output_unit)
+         offload_chosen_device = offload_get_chosen_device()
+         active_device_id => offload_chosen_device
       END IF
-#else
-      CALL dbcsr_init_lib(mpi_comm%get_handle(), io_unit=output_unit)
 #endif
+      CALL dbcsr_init_lib(mpi_comm%get_handle(), io_unit=output_unit, &
+                          accdrv_active_device_id=active_device_id)
 
       NULLIFY (globenv, force_env)
 
@@ -264,16 +266,8 @@ CONTAINS
       CASE (do_farming) ! TODO: refactor cp2k's startup code
          CALL dbcsr_finalize_lib()
          CALL farming_run(input_declaration, root_section, para_env, initial_variables)
-#if defined(__DBCSR_ACC)
-         IF (offload_get_device_count() > 0) THEN
-            CALL dbcsr_init_lib(mpi_comm%get_handle(), io_unit=output_unit, &
-                                accdrv_active_device_id=offload_get_chosen_device())
-         ELSE
-            CALL dbcsr_init_lib(mpi_comm%get_handle(), io_unit=output_unit)
-         END IF
-#else
-         CALL dbcsr_init_lib(mpi_comm%get_handle(), io_unit=output_unit)
-#endif
+         CALL dbcsr_init_lib(mpi_comm%get_handle(), io_unit=output_unit, &
+                             accdrv_active_device_id=active_device_id)
       CASE (do_opt_basis)
          CALL run_optimize_basis(input_declaration, root_section, para_env)
          globenv%run_type_id = none_run
