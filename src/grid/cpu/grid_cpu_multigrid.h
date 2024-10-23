@@ -4,53 +4,50 @@
 /*                                                                            */
 /*  SPDX-License-Identifier: BSD-3-Clause                                     */
 /*----------------------------------------------------------------------------*/
-#ifndef GRID_MULTIGRID_H
-#define GRID_MULTIGRID_H
+#ifndef GRID_CPU_MULTIGRID_H
+#define GRID_CPU_MULTIGRID_H
 
-#include "common/grid_mpi.h"
-#include "cpu/grid_cpu_multigrid.h"
-#include "ref/grid_ref_multigrid.h"
+#include "../common/grid_mpi.h"
 
 #include <stdbool.h>
 
 /*******************************************************************************
- * \brief Internal representation of a multigrid, abstracting various backends.
+ * \brief Internal representation of a grid layout.
+ * \author Ole Schuett
+ ******************************************************************************/
+typedef struct {
+  bool orthorhombic;
+  int npts_global[3];
+  int npts_local[3];
+  int shift_local[3];
+  int border_width[3];
+  double dh[3][3];
+  double dh_inv[3][3];
+} grid_cpu_layout;
+
+/*******************************************************************************
+ * \brief Internal representation of a single grid.
  * \author Frederick Stein
  ******************************************************************************/
 typedef struct {
-  int backend;
-  bool orthorhombic;
-  int nlevels;
-  int (*npts_global)[3];
-  int (*npts_local)[3];
-  int (*shift_local)[3];
-  int (*border_width)[3];
-  double (*dh)[3][3];
-  double (*dh_inv)[3][3];
+  grid_cpu_layout layout;
   grid_mpi_comm comm;
-  grid_ref_multigrid *ref;
-  grid_cpu_multigrid *cpu;
   // more backends to be added here
-} grid_multigrid;
+} grid_cpu_singlegrid;
 
 /*******************************************************************************
- * \brief Wrapper araound grid_create_multigrid to deal with calls from Fortran.
- *        Compare grid_create_multigrid for information on the other arguments.
- *
- * \param fortran_comm     The integer Fortran handle
- *
+ * \brief Internal representation of a multigrid.
  * \author Frederick Stein
  ******************************************************************************/
-void grid_create_multigrid_f(
-    const bool orthorhombic, const int nlevels,
-    const int npts_global[nlevels][3], const int npts_local[nlevels][3],
-    const int shift_local[nlevels][3], const int border_width[nlevels][3],
-    const double dh[nlevels][3][3], const double dh_inv[nlevels][3][3],
-    const grid_mpi_fint fortran_comm, grid_multigrid **multigrid_out);
+typedef struct {
+  bool orthorhombic;
+  int nlevels;
+  grid_cpu_singlegrid **singlegrids;
+  // more backends to be added here
+} grid_cpu_multigrid;
 
 /*******************************************************************************
- * \brief Allocates a multigrid which is passed to task list-based and
- *        pgf_product-based routines.
+ * \brief Allocates a multigrid which is passed to the low-level backends.
  *
  * \param orthorhombic     Whether simulation box is orthorhombic.
  * \param nlevels          Number of grid levels.
@@ -68,18 +65,18 @@ void grid_create_multigrid_f(
  *
  * \author Frederick Stein
  ******************************************************************************/
-void grid_create_multigrid(
+void grid_cpu_create_multigrid(
     const bool orthorhombic, const int nlevels,
     const int npts_global[nlevels][3], const int npts_local[nlevels][3],
     const int shift_local[nlevels][3], const int border_width[nlevels][3],
     const double dh[nlevels][3][3], const double dh_inv[nlevels][3][3],
-    const grid_mpi_comm comm, grid_multigrid **multigrid_out);
+    const grid_mpi_comm comm, grid_cpu_multigrid **multigrid_out);
 
 /*******************************************************************************
  * \brief Deallocates given multigrid.
  * \author Frederick Stein
  ******************************************************************************/
-void grid_free_multigrid(grid_multigrid *multigrid);
+void grid_cpu_free_multigrid(grid_cpu_multigrid *multigrid);
 
 #endif
 
