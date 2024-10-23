@@ -12,8 +12,8 @@
 #include <stdbool.h>
 
 /*******************************************************************************
- * \brief Internal representation of a single grid.
- * \author Frederick Stein
+ * \brief Internal representation of a grid layout.
+ * \author Ole Schuett
  ******************************************************************************/
 typedef struct {
   bool orthorhombic;
@@ -23,6 +23,14 @@ typedef struct {
   int border_width[3];
   double dh[3][3];
   double dh_inv[3][3];
+} grid_ref_layout;
+
+/*******************************************************************************
+ * \brief Internal representation of a single grid.
+ * \author Frederick Stein
+ ******************************************************************************/
+typedef struct {
+  grid_ref_layout layout;
   grid_mpi_comm comm;
   // more backends to be added here
 } grid_ref_singlegrid;

@@ -110,22 +110,8 @@ void grid_ref_create_task_list(
   task_list->layouts = malloc(size);
   assert(task_list->layouts != NULL);
   for (int level = 0; level < multigrid->nlevels; level++) {
-    for (int i = 0; i < 3; i++) {
-      task_list->layouts[level].npts_global[i] =
-          multigrid->singlegrids[level]->npts_global[i];
-      task_list->layouts[level].npts_local[i] =
-          multigrid->singlegrids[level]->npts_local[i];
-      task_list->layouts[level].shift_local[i] =
-          multigrid->singlegrids[level]->shift_local[i];
-      task_list->layouts[level].border_width[i] =
-          multigrid->singlegrids[level]->border_width[i];
-      for (int j = 0; j < 3; j++) {
-        task_list->layouts[level].dh[i][j] =
-            multigrid->singlegrids[level]->dh[i][j];
-        task_list->layouts[level].dh_inv[i][j] =
-            multigrid->singlegrids[level]->dh_inv[i][j];
-      }
-    }
+    memcpy(&task_list->layouts[level], &multigrid->singlegrids[level]->layout,
+           sizeof(grid_ref_layout));
   }
 
   // Sort tasks by level, block_num, iset, and jset.
@@ -409,17 +395,20 @@ static void collocate_one_grid_level(
  * \author Ole Schuett
  ******************************************************************************/
 void grid_ref_collocate_task_list(const grid_ref_task_list *task_list,
-                                  const enum grid_func func, const int nlevels,
+                                  const enum grid_func func,
+                                  const grid_ref_multigrid *multigrid,
                                   const offload_buffer *pab_blocks,
-                                  offload_buffer *grids[nlevels]) {
+                                  offload_buffer *grids[multigrid->nlevels]) {
 
-  assert(task_list->nlevels == nlevels);
+  assert(task_list->nlevels == multigrid->nlevels);
 
   for (int level = 0; level < task_list->nlevels; level++) {
     const int idx = level * task_list->nblocks;
     const int *first_block_task = &task_list->first_level_block_task[idx];
     const int *last_block_task = &task_list->last_level_block_task[idx];
     const grid_ref_layout *layout = &task_list->layouts[level];
+    assert(memcmp(layout, &multigrid->singlegrids[level]->layout,
+                  sizeof(grid_ref_layout)) == 0);
     collocate_one_grid_level(
         task_list, first_block_task, last_block_task, func, layout->npts_global,
         layout->npts_local, layout->shift_local, layout->border_width,
@@ -625,11 +614,12 @@ static void integrate_one_grid_level(
  ******************************************************************************/
 void grid_ref_integrate_task_list(
     const grid_ref_task_list *task_list, const bool compute_tau,
-    const int natoms, const int nlevels, const offload_buffer *pab_blocks,
-    const offload_buffer *grids[nlevels], offload_buffer *hab_blocks,
+    const int natoms, const grid_ref_multigrid *multigrid,
+    const offload_buffer *pab_blocks,
+    const offload_buffer *grids[multigrid->nlevels], offload_buffer *hab_blocks,
     double forces[natoms][3], double virial[3][3]) {
 
-  assert(task_list->nlevels == nlevels);
+  assert(task_list->nlevels == multigrid->nlevels);
   assert(task_list->natoms == natoms);
 
   // Zero result arrays.
@@ -646,6 +636,8 @@ void grid_ref_integrate_task_list(
     const int *first_block_task = &task_list->first_level_block_task[idx];
     const int *last_block_task = &task_list->last_level_block_task[idx];
     const grid_ref_layout *layout = &task_list->layouts[level];
+    assert(memcmp(layout, &multigrid->singlegrids[level]->layout,
+                  sizeof(grid_ref_layout)) == 0);
     integrate_one_grid_level(
         task_list, first_block_task, last_block_task, compute_tau, natoms,
         layout->npts_global, layout->npts_local, layout->shift_local,

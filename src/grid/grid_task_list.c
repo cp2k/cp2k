@@ -205,7 +205,7 @@ void grid_collocate_task_list(const grid_task_list *task_list,
 
   switch (task_list->backend) {
   case GRID_BACKEND_REF:
-    grid_ref_collocate_task_list(task_list->ref, func, multigrid->nlevels,
+    grid_ref_collocate_task_list(task_list->ref, func, multigrid->ref,
                                  pab_blocks, grids);
     break;
   case GRID_BACKEND_CPU:
@@ -247,7 +247,7 @@ void grid_collocate_task_list(const grid_task_list *task_list,
     }
 
     // Call reference implementation.
-    grid_ref_collocate_task_list(task_list->ref, func, multigrid->nlevels,
+    grid_ref_collocate_task_list(task_list->ref, func, multigrid->ref,
                                  pab_blocks, grids_ref);
 
     // Compare results.
@@ -337,8 +337,8 @@ void grid_integrate_task_list(const grid_task_list *task_list,
     break;
   case GRID_BACKEND_REF:
     grid_ref_integrate_task_list(task_list->ref, compute_tau, natoms,
-                                 multigrid->nlevels, pab_blocks, grids,
-                                 hab_blocks, forces, virial);
+                                 multigrid->ref, pab_blocks, grids, hab_blocks,
+                                 forces, virial);
     break;
   default:
     printf("Error: Unknown grid backend: %i.\n", task_list->backend);
@@ -356,8 +356,8 @@ void grid_integrate_task_list(const grid_task_list *task_list,
 
     // Call reference implementation.
     grid_ref_integrate_task_list(
-        task_list->ref, compute_tau, natoms, multigrid->nlevels, pab_blocks,
-        grids, hab_blocks_ref, (forces != NULL) ? forces_ref : NULL,
+        task_list->ref, compute_tau, natoms, multigrid->ref, pab_blocks, grids,
+        hab_blocks_ref, (forces != NULL) ? forces_ref : NULL,
         (virial != NULL) ? virial_ref : NULL);
 
     // Compare hab.
