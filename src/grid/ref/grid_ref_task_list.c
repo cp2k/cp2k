@@ -466,10 +466,11 @@ static inline void store_hab(const grid_basis_set *ibasis,
 static void integrate_one_grid_level(
     const grid_ref_task_list *task_list, const int *first_block_task,
     const int *last_block_task, const bool compute_tau, const int natoms,
-    const int npts_global[3], const int npts_local[3], const int shift_local[3],
-    const int border_width[3], const double dh[3][3], const double dh_inv[3][3],
     const offload_buffer *pab_blocks, const offload_buffer *grid,
     offload_buffer *hab_blocks, double forces[natoms][3], double virial[3][3]) {
+
+  const int level = task_list->tasks[first_block_task[0]].level;
+  const grid_ref_layout *layout = &task_list->layouts[level];
 
 // Using default(shared) because with GCC 9 the behavior around const changed:
 // https://www.gnu.org/software/gcc/gcc-9/porting_to.html
@@ -543,7 +544,7 @@ static void integrate_one_grid_level(
         }
 
         grid_ref_integrate_pgf_product(
-            /*orthorhombic=*/task_list->orthorhombic,
+            /*orthorhombic=*/layout,
             /*compute_tau=*/compute_tau,
             /*border_mask=*/task->border_mask,
             /*la_max=*/ibasis->lmax[iset],
@@ -552,14 +553,8 @@ static void integrate_one_grid_level(
             /*lb_min=*/jbasis->lmin[jset],
             /*zeta=*/zeta,
             /*zetb=*/zetb,
-            /*dh=*/dh,
-            /*dh_inv=*/dh_inv,
             /*ra=*/&task_list->atom_positions[3 * iatom],
             /*rab=*/task->rab,
-            /*npts_global=*/npts_global,
-            /*npts_local=*/npts_local,
-            /*shift_local=*/shift_local,
-            /*border_width=*/border_width,
             /*radius=*/task->radius,
             /*o1=*/ipgf * ncoseta,
             /*o2=*/jpgf * ncosetb,
@@ -621,6 +616,11 @@ void grid_ref_integrate_task_list(
 
   assert(task_list->nlevels == multigrid->nlevels);
   assert(task_list->natoms == natoms);
+  for (int level = 0; level < task_list->nlevels; level++) {
+    const grid_ref_layout *layout = &task_list->layouts[level];
+    assert(memcmp(layout, &multigrid->singlegrids[level]->layout,
+                  sizeof(grid_ref_layout)) == 0);
+  }
 
   // Zero result arrays.
   memset(hab_blocks->host_buffer, 0, hab_blocks->size);
@@ -635,14 +635,9 @@ void grid_ref_integrate_task_list(
     const int idx = level * task_list->nblocks;
     const int *first_block_task = &task_list->first_level_block_task[idx];
     const int *last_block_task = &task_list->last_level_block_task[idx];
-    const grid_ref_layout *layout = &task_list->layouts[level];
-    assert(memcmp(layout, &multigrid->singlegrids[level]->layout,
-                  sizeof(grid_ref_layout)) == 0);
-    integrate_one_grid_level(
-        task_list, first_block_task, last_block_task, compute_tau, natoms,
-        layout->npts_global, layout->npts_local, layout->shift_local,
-        layout->border_width, layout->dh, layout->dh_inv, pab_blocks,
-        grids[level], hab_blocks, forces, virial);
+    integrate_one_grid_level(task_list, first_block_task, last_block_task,
+                             compute_tau, natoms, pab_blocks, grids[level],
+                             hab_blocks, forces, virial);
   }
 }
 
