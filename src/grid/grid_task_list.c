@@ -81,14 +81,12 @@ void grid_create_task_list(
   case GRID_BACKEND_REF:
     break; // was already created above
   case GRID_BACKEND_CPU:
-    grid_cpu_create_task_list(
-        multigrid->orthorhombic, ntasks, multigrid->nlevels, natoms, nkinds,
-        nblocks, block_offsets, atom_positions, atom_kinds, basis_sets,
-        level_list, iatom_list, jatom_list, iset_list, jset_list, ipgf_list,
-        jpgf_list, border_mask_list, block_num_list, radius_list, rab_list,
-        multigrid->npts_global, multigrid->npts_local, multigrid->shift_local,
-        multigrid->border_width, multigrid->dh, multigrid->dh_inv,
-        &task_list->cpu);
+    grid_cpu_create_task_list(multigrid->cpu, ntasks, natoms, nkinds, nblocks,
+                              block_offsets, atom_positions, atom_kinds,
+                              basis_sets, level_list, iatom_list, jatom_list,
+                              iset_list, jset_list, ipgf_list, jpgf_list,
+                              border_mask_list, block_num_list, radius_list,
+                              rab_list, &task_list->cpu);
     break;
   case GRID_BACKEND_DGEMM:
     grid_dgemm_create_task_list(
@@ -209,7 +207,7 @@ void grid_collocate_task_list(const grid_task_list *task_list,
                                  pab_blocks, grids);
     break;
   case GRID_BACKEND_CPU:
-    grid_cpu_collocate_task_list(task_list->cpu, func, multigrid->nlevels,
+    grid_cpu_collocate_task_list(task_list->cpu, func, multigrid->cpu,
                                  pab_blocks, grids);
     break;
   case GRID_BACKEND_DGEMM:
@@ -332,8 +330,8 @@ void grid_integrate_task_list(const grid_task_list *task_list,
     break;
   case GRID_BACKEND_CPU:
     grid_cpu_integrate_task_list(task_list->cpu, compute_tau, natoms,
-                                 multigrid->nlevels, pab_blocks, grids,
-                                 hab_blocks, forces, virial);
+                                 multigrid->cpu, pab_blocks, grids, hab_blocks,
+                                 forces, virial);
     break;
   case GRID_BACKEND_REF:
     grid_ref_integrate_task_list(task_list->ref, compute_tau, natoms,

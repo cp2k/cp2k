@@ -6,6 +6,7 @@
 /*----------------------------------------------------------------------------*/
 
 #include "grid_multigrid.h"
+#include "common/grid_library.h"
 
 #include <assert.h>
 #include <stddef.h>
@@ -63,6 +64,9 @@ void grid_create_multigrid(
     const int shift_local[nlevels][3], const int border_width[nlevels][3],
     const double dh[nlevels][3][3], const double dh_inv[nlevels][3][3],
     const grid_mpi_comm comm, grid_multigrid **multigrid_out) {
+
+  const grid_library_config config = grid_library_get_config();
+
   grid_multigrid *multigrid = NULL;
 
   assert(multigrid_out != NULL);
@@ -95,6 +99,19 @@ void grid_create_multigrid(
     multigrid->border_width = calloc(num_int, sizeof(int));
     multigrid->dh = calloc(num_double, sizeof(double));
     multigrid->dh_inv = calloc(num_double, sizeof(double));
+
+    // Resolve AUTO to a concrete backend.
+    if (config.backend == GRID_BACKEND_AUTO) {
+#if defined(__OFFLOAD_HIP) && !defined(__NO_OFFLOAD_GRID)
+      multigrid->backend = GRID_BACKEND_HIP;
+#elif defined(__OFFLOAD) && !defined(__NO_OFFLOAD_GRID)
+      multigrid->backend = GRID_BACKEND_GPU;
+#else
+      multigrid->backend = GRID_BACKEND_CPU;
+#endif
+    } else {
+      multigrid->backend = config.backend;
+    }
   }
 
   multigrid->nlevels = nlevels;
@@ -110,6 +127,16 @@ void grid_create_multigrid(
   grid_ref_create_multigrid(orthorhombic, nlevels, npts_global, npts_local,
                             shift_local, border_width, dh, dh_inv, comm,
                             &(multigrid->ref));
+
+  switch (multigrid->backend) {
+  case GRID_BACKEND_REF:
+    break;
+  case GRID_BACKEND_CPU:
+    grid_cpu_create_multigrid(orthorhombic, nlevels, npts_global, npts_local,
+                              shift_local, border_width, dh, dh_inv, comm,
+                              &(multigrid->cpu));
+    break;
+  }
 
   *multigrid_out = multigrid;
 }
@@ -134,6 +161,7 @@ void grid_free_multigrid(grid_multigrid *multigrid) {
       free(multigrid->dh_inv);
     grid_mpi_comm_free(&multigrid->comm);
     grid_ref_free_multigrid(multigrid->ref);
+    grid_cpu_free_multigrid(multigrid->cpu);
     free(multigrid);
   }
 }
