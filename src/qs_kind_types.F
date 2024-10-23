@@ -219,6 +219,7 @@ MODULE qs_kind_types
       TYPE(qs_atom_dispersion_type), POINTER :: dispersion => Null()
       REAL(KIND=dp), DIMENSION(:, :), POINTER :: reltmat => Null()
       INTEGER                                :: pao_basis_size = -1
+      CHARACTER(LEN=default_path_length)     :: pao_model_file = ""
       TYPE(pao_potential_type), DIMENSION(:), POINTER :: pao_potentials => Null()
       TYPE(pao_descriptor_type), DIMENSION(:), POINTER :: pao_descriptors => Null()
    END TYPE qs_kind_type
@@ -428,6 +429,7 @@ CONTAINS
 !> \param name ...
 !> \param element_symbol ...
 !> \param pao_basis_size ...
+!> \param pao_model_file ...
 !> \param pao_potentials ...
 !> \param pao_descriptors ...
 !> \param nelec ...
@@ -448,7 +450,7 @@ CONTAINS
                           bs_occupation, magnetization, no_optimize, addel, laddel, naddel, orbitals, &
                           max_scf, eps_scf, smear, u_ramping, u_minus_j_target, eps_u_ramping, &
                           init_u_ramping_each_scf, reltmat, ghost, floating, name, element_symbol, &
-                          pao_basis_size, pao_potentials, pao_descriptors, nelec)
+                          pao_basis_size, pao_model_file, pao_potentials, pao_descriptors, nelec)
 
       TYPE(qs_kind_type)                                 :: qs_kind
       TYPE(gto_basis_set_type), OPTIONAL, POINTER        :: basis_set
@@ -501,6 +503,8 @@ CONTAINS
          INTENT(OUT), OPTIONAL                           :: name
       CHARACTER(LEN=2), INTENT(OUT), OPTIONAL            :: element_symbol
       INTEGER, INTENT(OUT), OPTIONAL                     :: pao_basis_size
+      CHARACTER(LEN=default_path_length), INTENT(OUT), &
+         OPTIONAL                                        :: pao_model_file
       TYPE(pao_potential_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: pao_potentials
       TYPE(pao_descriptor_type), DIMENSION(:), &
@@ -822,6 +826,7 @@ CONTAINS
       IF (PRESENT(lmax_dftb)) lmax_dftb = qs_kind%lmax_dftb
 
       IF (PRESENT(pao_basis_size)) pao_basis_size = qs_kind%pao_basis_size
+      IF (PRESENT(pao_model_file)) pao_model_file = qs_kind%pao_model_file
       IF (PRESENT(pao_potentials)) pao_potentials => qs_kind%pao_potentials
       IF (PRESENT(pao_descriptors)) pao_descriptors => qs_kind%pao_descriptors
    END SUBROUTINE get_qs_kind
@@ -1675,9 +1680,15 @@ CONTAINS
             END IF
          END DO
 
-         ! parse PAO_BASIS_SIZE
+         ! parse PAO keywords
          CALL section_vals_val_get(kind_section, keyword_name="PAO_BASIS_SIZE", i_rep_section=k_rep, &
                                    i_val=qs_kind%pao_basis_size)
+         CALL section_vals_val_get(kind_section, keyword_name="PAO_MODEL_FILE", i_rep_section=k_rep, &
+                                   explicit=explicit)
+         IF (explicit) THEN
+            CALL section_vals_val_get(kind_section, keyword_name="PAO_MODEL_FILE", i_rep_section=k_rep, &
+                                      c_val=qs_kind%pao_model_file)
+         END IF
 
          ! parse PAO_POTENTIAL sections
          pao_pot_section => section_vals_get_subs_vals(kind_section, "PAO_POTENTIAL", i_rep_section=k_rep)

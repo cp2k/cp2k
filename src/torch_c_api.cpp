@@ -147,12 +147,10 @@ void torch_c_dict_release(torch_c_dict_t *dict) { delete (dict); }
  * \author Ole Schuett
  ******************************************************************************/
 void torch_c_model_load(torch_c_model_t **model_out, const char *filename) {
-
+  assert(*model_out == NULL);
   torch::jit::Module *model = new torch::jit::Module();
   *model = torch::jit::load(filename, get_device());
-  model->eval();
-
-  assert(*model_out == NULL);
+  model->eval(); // Set to evaluation mode to disable gradients, drop-out, etc.
   *model_out = model;
 }
 
@@ -165,7 +163,6 @@ void torch_c_model_eval(torch_c_model_t *model, const torch_c_dict_t *inputs,
                         torch_c_dict_t *outputs) {
 
   auto untyped_output = model->forward({*inputs}).toGenericDict();
-
   outputs->clear();
   for (const auto &entry : untyped_output) {
     outputs->insert(entry.key().toStringView(), entry.value().toTensor());
@@ -221,6 +218,61 @@ void torch_c_allow_tf32(const bool allow_tf32) {
 void torch_c_model_freeze(torch_c_model_t *model) {
 
   *model = torch::jit::freeze(*model);
+}
+
+/*******************************************************************************
+ * \brief Retrieves an int64 attribute. Must be called before model freeze.
+ * \author Ole Schuett
+ ******************************************************************************/
+void torch_c_model_get_attr_int64(const torch_c_model_t *model, const char *key,
+                                  int64_t *dest) {
+  *dest = model->attr(key).toInt();
+}
+
+/*******************************************************************************
+ * \brief Retrieves a double attribute. Must be called before model freeze.
+ * \author Ole Schuett
+ ******************************************************************************/
+void torch_c_model_get_attr_double(const torch_c_model_t *model,
+                                   const char *key, double *dest) {
+  *dest = model->attr(key).toDouble();
+}
+
+/*******************************************************************************
+ * \brief Retrieves a string attribute. Must be called before model freeze.
+ * \author Ole Schuett
+ ******************************************************************************/
+void torch_c_model_get_attr_string(const torch_c_model_t *model,
+                                   const char *key, char *dest) {
+  const std::string &str = model->attr(key).toStringRef();
+  assert(str.size() < 80); // default_string_length
+  for (int i = 0; i < str.size(); i++) {
+    dest[i] = str[i];
+  }
+}
+
+/*******************************************************************************
+ * \brief Retrieves a list attribute's size. Must be called before model freeze.
+ * \author Ole Schuett
+ ******************************************************************************/
+void torch_c_model_get_attr_list_size(const torch_c_model_t *model,
+                                      const char *key, int *size) {
+  *size = model->attr(key).toList().size();
+}
+
+/*******************************************************************************
+ * \brief Retrieves a single item from a string list attribute.
+ * \author Ole Schuett
+ ******************************************************************************/
+void torch_c_model_get_attr_strlist(const torch_c_model_t *model,
+                                    const char *key, const int index,
+                                    char *dest) {
+  const auto list = model->attr(key).toList();
+  const std::string &str = list[index].toStringRef();
+  assert(str.size() < 80); // default_string_length
+  for (int i = 0; i < str.size(); i++) {
+    dest[i] = str[i];
+  }
 }
 
 #ifdef __cplusplus

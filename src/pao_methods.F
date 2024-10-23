@@ -44,6 +44,7 @@ MODULE pao_methods
                                               diamat_all
    USE message_passing,                 ONLY: mp_para_env_type
    USE pao_ml,                          ONLY: pao_ml_forces
+   USE pao_model,                       ONLY: pao_model_load
    USE pao_param,                       ONLY: pao_calc_AB,&
                                               pao_param_count
    USE pao_types,                       ONLY: pao_env_type
@@ -94,6 +95,7 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'pao_init_kinds'
 
+      CHARACTER(LEN=default_path_length)                 :: pao_model_file
       INTEGER                                            :: handle, i, ikind, pao_basis_size
       TYPE(gto_basis_set_type), POINTER                  :: basis_set
       TYPE(pao_descriptor_type), DIMENSION(:), POINTER   :: pao_descriptors
@@ -107,6 +109,7 @@ CONTAINS
          CALL get_qs_kind(qs_kind_set(ikind), &
                           basis_set=basis_set, &
                           pao_basis_size=pao_basis_size, &
+                          pao_model_file=pao_model_file, &
                           pao_potentials=pao_potentials, &
                           pao_descriptors=pao_descriptors)
 
@@ -123,6 +126,14 @@ CONTAINS
             pao_descriptors(i)%beta_radius = exp_radius(0, pao_descriptors(i)%beta, pao%eps_pgf, 1.0_dp)
             pao_descriptors(i)%screening_radius = exp_radius(0, pao_descriptors(i)%screening, pao%eps_pgf, 1.0_dp)
          END DO
+
+         ! Load torch model.
+         IF (LEN_TRIM(pao_model_file) > 0) THEN
+            IF (.NOT. ALLOCATED(pao%models)) &
+               ALLOCATE (pao%models(SIZE(qs_kind_set)))
+            CALL pao_model_load(pao, qs_env, ikind, pao_model_file, pao%models(ikind))
+         END IF
+
       END DO
       CALL timestop(handle)
    END SUBROUTINE pao_init_kinds
@@ -986,6 +997,9 @@ CONTAINS
 
       IF (SIZE(pao%ml_training_set) > 0) &
          CALL pao_ml_forces(pao, qs_env, pao%matrix_G, forces)
+
+      IF (ALLOCATED(pao%models)) &
+         CPABORT("PAO forces for PyTorch models are not yet implemented.")
 
       CALL para_env%sum(forces)
       DO iatom = 1, natoms

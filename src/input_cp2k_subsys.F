@@ -1333,6 +1333,11 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="PAO_MODEL_FILE", type_of_var=lchar_t, &
+                          description="The filename of the PyTorch model for predicting PAO basis sets.")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       NULLIFY (subsection)
       CALL create_pao_potential_section(subsection)
       CALL section_add_subsection(section, subsection)
