@@ -106,8 +106,7 @@ CONTAINS
 
       INTEGER                                            :: stress_tensor
       INTEGER, DIMENSION(:), POINTER                     :: seed_vals
-      LOGICAL                                            :: atomic_energy, &
-                                                            my_use_motion_section, &
+      LOGICAL                                            :: atomic_energy, my_use_motion_section, &
                                                             pv_availability, pv_diagonal, &
                                                             pv_numerical
       TYPE(atomic_kind_list_type), POINTER               :: atomic_kinds

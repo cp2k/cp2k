@@ -484,7 +484,7 @@ CONTAINS
                   gradient(:, iatom) = gradient(:, iatom) - fdik(:)
                   gradient(:, katom) = gradient(:, katom) + fdik(:)
                   IF (use_virial) THEN
-                     CALL virial_pair_force(stress, -1._dp, fdik, rik)
+                     CALL virial_pair_force(stress, 1._dp, fdik, rik)
                   END IF
                END IF
             END DO
@@ -543,13 +543,13 @@ CONTAINS
             gradient(:, iatom) = gradient(:, iatom) + fdik(:)
             gradient(:, jatom) = gradient(:, jatom) - fdik(:)
             IF (use_virial) THEN
-               CALL virial_pair_force(stress, 1._dp, fdik, rij)
+               CALL virial_pair_force(stress, -1._dp, fdik, rij)
             END IF
             fdik(:) = qq2*grc*rij(:)/dr
             gradient(:, iatom) = gradient(:, iatom) - fdik(:)
             gradient(:, jatom) = gradient(:, jatom) + fdik(:)
             IF (use_virial) THEN
-               CALL virial_pair_force(stress, -1._dp, fdik, rij)
+               CALL virial_pair_force(stress, 1._dp, fdik, rij)
             END IF
          END DO
          CALL neighbor_list_iterator_release(nl_iterator)
@@ -607,14 +607,14 @@ CONTAINS
          IF (use_virial) THEN
             chrgx(1:natom) = charges(1:natom) - qlag(1:natom)
             CALL spme_virial(ewald_env, ewald_pw, particle_set, cell, chrgx, pvir)
-            stress = stress + pvir
+            stress = stress - pvir
             chrgx(1:natom) = qlag(1:natom)
             CALL spme_virial(ewald_env, ewald_pw, particle_set, cell, chrgx, pvir)
-            stress = stress - pvir
+            stress = stress + pvir
             IF (response_only) THEN
                chrgx(1:natom) = charges(1:natom)
                CALL spme_virial(ewald_env, ewald_pw, particle_set, cell, chrgx, pvir)
-               stress = stress - pvir
+               stress = stress + pvir
             END IF
          END IF
          !

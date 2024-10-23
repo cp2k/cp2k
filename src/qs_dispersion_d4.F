@@ -13,7 +13,6 @@ MODULE qs_dispersion_d4
    USE atomic_kind_types, ONLY: atomic_kind_type, &
                                 get_atomic_kind, &
                                 get_atomic_kind_set
-   USE atprop_types, ONLY: atprop_type
    USE distribution_1d_types, ONLY: distribution_1d_type
    USE eeq_method, ONLY: eeq_charges, eeq_forces
    USE machine, ONLY: m_flush, &
@@ -932,7 +931,6 @@ CONTAINS
       LOGICAL                                            :: use_virial
       REAL(KIND=dp)                                      :: drk
       REAL(KIND=dp), DIMENSION(3)                        :: fdik, rik
-      TYPE(atprop_type), POINTER                         :: atprop
       TYPE(distribution_1d_type), POINTER                :: local_particles
       TYPE(virial_type), POINTER                         :: virial
 
@@ -940,7 +938,7 @@ CONTAINS
 
       CALL get_qs_env(qs_env, nkind=nkind, natom=natom, &
                       local_particles=local_particles, &
-                      virial=virial, atprop=atprop)
+                      virial=virial)
       use_virial = virial%pv_availability .AND. (.NOT. virial%pv_numer)
 
       DO ikind = 1, nkind
@@ -953,7 +951,7 @@ CONTAINS
                fdik(:) = -(dEdcn(iatom) + dEdcn(katom))*dcnum(iatom)%dvals(i)*rik(:)/drk
                gradient(:, iatom) = gradient(:, iatom) + fdik(:)
                IF (use_virial) THEN
-                  CALL virial_pair_force(stress, -1._dp, fdik, rik)
+                  CALL virial_pair_force(stress, -0.5_dp, fdik, rik)
                END IF
             END DO
          END DO
