@@ -14,7 +14,8 @@ MODULE qs_dispersion_pairpot
    USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                               get_atomic_kind,&
                                               get_atomic_kind_set
-   USE atprop_types,                    ONLY: atprop_type
+   USE atprop_types,                    ONLY: atprop_array_init,&
+                                              atprop_type
    USE bibliography,                    ONLY: Caldeweyher2017,&
                                               Caldeweyher2019,&
                                               Caldeweyher2020,&
@@ -375,6 +376,7 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, kind_of
       LOGICAL                                            :: atenergy, atex, debugall, use_virial
       REAL(KIND=dp)                                      :: evdw, gnorm
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: atomic_energy
       REAL(KIND=dp), DIMENSION(3)                        :: fdij
       REAL(KIND=dp), DIMENSION(3, 3)                     :: dvirial, pv_loc, pv_virial_thread
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
@@ -456,12 +458,6 @@ CONTAINS
          CALL calculate_dispersion_d3_pairpot(qs_env, dispersion_env, evdw, calculate_forces, &
                                               unit_nr, atevdw)
       ELSEIF (dispersion_env%pp_type == vdw_pairpot_dftd4) THEN
-         IF (atenergy) THEN
-            CPABORT("Atomic energy with DFTD4 not implemented")
-         END IF
-         IF (atex) THEN
-            CPABORT("Atomic energy with DFTD4 not implemented")
-         END IF
          IF (dispersion_env%lrc) THEN
             CPABORT("Long range correction with DFTD4 not implemented")
          END IF
@@ -475,7 +471,24 @@ CONTAINS
          iw = -1
          IF (dispersion_env%verbose) iw = cp_logger_get_default_io_unit(logger)
          !
-         CALL calculate_dispersion_d4_pairpot(qs_env, dispersion_env, evdw, calculate_forces, iw)
+         IF (atenergy .OR. atex) THEN
+            ALLOCATE (atomic_energy(natom))
+            CALL calculate_dispersion_d4_pairpot(qs_env, dispersion_env, evdw, calculate_forces, &
+                                                 iw, atomic_energy)
+         ELSE
+            CALL calculate_dispersion_d4_pairpot(qs_env, dispersion_env, evdw, calculate_forces, iw)
+         END IF
+         !
+         IF (atex) THEN
+            atevdw(1:natom) = atomic_energy(1:natom)
+         END IF
+         IF (atenergy) THEN
+            CALL atprop_array_init(atprop%atevdw, natom)
+            atprop%atevdw(1:natom) = atomic_energy(1:natom)
+         END IF
+         IF (atenergy .OR. atex) THEN
+            DEALLOCATE (atomic_energy)
+         END IF
       END IF
 
       ! set dispersion energy
