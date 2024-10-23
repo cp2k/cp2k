@@ -33,19 +33,6 @@ typedef struct {
 } grid_ref_task;
 
 /*******************************************************************************
- * \brief Internal representation of a grid layout.
- * \author Ole Schuett
- ******************************************************************************/
-typedef struct {
-  int npts_global[3];
-  int npts_local[3];
-  int shift_local[3];
-  int border_width[3];
-  double dh[3][3];
-  double dh_inv[3][3];
-} grid_ref_layout;
-
-/*******************************************************************************
  * \brief Internal representation of a task list.
  * \author Ole Schuett
  ******************************************************************************/
@@ -98,9 +85,10 @@ void grid_ref_free_task_list(grid_ref_task_list *task_list);
  * \author Ole Schuett
  ******************************************************************************/
 void grid_ref_collocate_task_list(const grid_ref_task_list *task_list,
-                                  const enum grid_func func, const int nlevels,
+                                  const enum grid_func func,
+                                  const grid_ref_multigrid *multigrid,
                                   const offload_buffer *pab_blocks,
-                                  offload_buffer *grids[nlevels]);
+                                  offload_buffer *grids[multigrid->nlevels]);
 
 /*******************************************************************************
  * \brief Integrate all tasks of in given list from given grids.
@@ -109,8 +97,9 @@ void grid_ref_collocate_task_list(const grid_ref_task_list *task_list,
  ******************************************************************************/
 void grid_ref_integrate_task_list(
     const grid_ref_task_list *task_list, const bool compute_tau,
-    const int natoms, const int nlevels, const offload_buffer *pab_blocks,
-    const offload_buffer *grids[nlevels], offload_buffer *hab_blocks,
+    const int natoms, const grid_ref_multigrid *multigrid,
+    const offload_buffer *pab_blocks,
+    const offload_buffer *grids[multigrid->nlevels], offload_buffer *hab_blocks,
     double forces[natoms][3], double virial[3][3]);
 
 #endif

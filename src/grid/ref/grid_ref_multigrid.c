@@ -46,13 +46,13 @@ void grid_ref_create_singlegrid(
     singlegrid = calloc(1, sizeof(grid_ref_singlegrid));
   }
 
-  singlegrid->orthorhombic = orthorhombic;
-  memcpy(singlegrid->npts_global, npts_global, 3 * sizeof(int));
-  memcpy(singlegrid->npts_local, npts_local, 3 * sizeof(int));
-  memcpy(singlegrid->shift_local, shift_local, 3 * sizeof(int));
-  memcpy(singlegrid->border_width, border_width, 3 * sizeof(int));
-  memcpy(singlegrid->dh, dh, 9 * sizeof(double));
-  memcpy(singlegrid->dh_inv, dh_inv, 9 * sizeof(double));
+  singlegrid->layout.orthorhombic = orthorhombic;
+  memcpy(singlegrid->layout.npts_global, npts_global, 3 * sizeof(int));
+  memcpy(singlegrid->layout.npts_local, npts_local, 3 * sizeof(int));
+  memcpy(singlegrid->layout.shift_local, shift_local, 3 * sizeof(int));
+  memcpy(singlegrid->layout.border_width, border_width, 3 * sizeof(int));
+  memcpy(singlegrid->layout.dh, dh, 9 * sizeof(double));
+  memcpy(singlegrid->layout.dh_inv, dh_inv, 9 * sizeof(double));
   grid_mpi_comm_dup(comm, &singlegrid->comm);
 
   *singlegrid_out = singlegrid;
