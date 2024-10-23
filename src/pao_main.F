@@ -43,6 +43,7 @@ MODULE pao_main
         pao_print_atom_info, pao_store_P, pao_test_convergence
    USE pao_ml,                          ONLY: pao_ml_init,&
                                               pao_ml_predict
+   USE pao_model,                       ONLY: pao_model_predict
    USE pao_optimizer,                   ONLY: pao_opt_finalize,&
                                               pao_opt_init,&
                                               pao_opt_new_dir
@@ -146,12 +147,16 @@ CONTAINS
             CALL pao_read_restart(pao, qs_env)
          ELSE IF (SIZE(pao%ml_training_set) > 0) THEN
             CALL pao_ml_predict(pao, qs_env)
+         ELSE IF (ALLOCATED(pao%models)) THEN
+            CALL pao_model_predict(pao, qs_env)
          ELSE
             CALL pao_param_initial_guess(pao, qs_env)
          END IF
          pao%matrix_X_ready = .TRUE.
       ELSE IF (SIZE(pao%ml_training_set) > 0) THEN
          CALL pao_ml_predict(pao, qs_env)
+      ELSE IF (ALLOCATED(pao%models)) THEN
+         CALL pao_model_predict(pao, qs_env)
       ELSE
          IF (pao%iw > 0) WRITE (pao%iw, *) "PAO| reusing matrix_X from previous optimization"
       END IF

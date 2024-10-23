@@ -110,6 +110,7 @@ QS/regtest-ri-rpa                                           libint
 QS/regtest-dcdft-hfx                                        libint libxc
 QS/regtest-dft-vdw-corr-2                                   libxc libint
 QS/regtest-pao-4
+QS/regtest-pao-5                                            libtorch
 Fist/regtest-3
 MC/regtest
 QS/regtest-gw                                               libint

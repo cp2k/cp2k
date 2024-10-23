@@ -441,6 +441,7 @@ list(
   pao_ml.F
   pao_ml_gaussprocess.F
   pao_ml_neuralnet.F
+  pao_model.F
   pao_optimizer.F
   pao_param_exp.F
   pao_param.F

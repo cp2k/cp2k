@@ -18,6 +18,8 @@ MODULE pao_types
                                               default_string_length,&
                                               dp
    USE linesearch,                      ONLY: linesearch_type
+   USE torch_api,                       ONLY: torch_model_release,&
+                                              torch_model_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -26,7 +28,7 @@ MODULE pao_types
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pao_types'
 
-   PUBLIC :: pao_env_type, training_matrix_type, pao_finalize
+   PUBLIC :: pao_env_type, training_matrix_type, pao_model_type, pao_finalize
 
    TYPE filename_type
       CHARACTER(LEN=default_path_length) :: fn = ""
@@ -49,6 +51,22 @@ MODULE pao_types
       REAL(dp), DIMENSION(:, :, :), ALLOCATABLE :: NN ! Neural Network
       REAL(dp), DIMENSION(:, :), ALLOCATABLE    :: GP ! Gaussian Process
    END TYPE training_matrix_type
+
+! **************************************************************************************************
+!> \brief PAO-ML model for a single atomic kind.
+! **************************************************************************************************
+   TYPE pao_model_type
+      TYPE(torch_model_type)                    :: torch_model
+      INTEGER                                   :: version = -1
+      CHARACTER(LEN=default_string_length)      :: kind_name = ""
+      INTEGER                                   :: atomic_number = -1
+      CHARACTER(LEN=default_string_length)      :: prim_basis_name = ""
+      INTEGER                                   :: prim_basis_size = -1
+      INTEGER                                   :: pao_basis_size = -1
+      INTEGER                                   :: num_neighbors = -1
+      REAL(dp)                                  :: cutoff = 0.0_dp
+      INTEGER, DIMENSION(:), ALLOCATABLE        :: feature_kinds
+   END TYPE pao_model_type
 
 ! **************************************************************************************************
 !> \brief The PAO environment type
@@ -201,6 +219,9 @@ MODULE pao_types
       TYPE(training_matrix_type), ALLOCATABLE, &
          DIMENSION(:)                  :: ml_training_matrices
 
+      TYPE(pao_model_type), ALLOCATABLE, &
+         DIMENSION(:)                  :: models
+
       TYPE(dbcsr_distribution_type)     :: diag_distribution
    END TYPE
 
@@ -215,7 +236,7 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'pao_finalize'
 
-      INTEGER                                            :: handle
+      INTEGER                                            :: handle, i
 
       CALL timeset(routineN, handle)
 
@@ -230,6 +251,15 @@ CONTAINS
       DEALLOCATE (pao%ml_training_set)
       IF (ALLOCATED(pao%ml_training_matrices)) &
          DEALLOCATE (pao%ml_training_matrices)
+
+      IF (ALLOCATED(pao%models)) THEN
+         DO i = 1, SIZE(pao%models)
+            IF (pao%models(i)%version > 0) THEN
+               CALL torch_model_release(pao%models(i)%torch_model)
+            END IF
+         END DO
+         DEALLOCATE (pao%models)
+      END IF
 
       CALL dbcsr_distribution_release(pao%diag_distribution)
 
