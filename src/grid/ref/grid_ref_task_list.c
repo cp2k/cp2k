@@ -244,12 +244,12 @@ static void load_pab(const grid_basis_set *ibasis, const grid_basis_set *jbasis,
  * \brief Collocate a range of tasks which are destined for the same grid level.
  * \author Ole Schuett
  ******************************************************************************/
-static void collocate_one_grid_level(
-    const grid_ref_task_list *task_list, const int *first_block_task,
-    const int *last_block_task, const enum grid_func func,
-    const int npts_global[3], const int npts_local[3], const int shift_local[3],
-    const int border_width[3], const double dh[3][3], const double dh_inv[3][3],
-    const double *pab_blocks, offload_buffer *grid) {
+static void collocate_one_grid_level(const grid_ref_task_list *task_list,
+                                     const int *first_block_task,
+                                     const int *last_block_task,
+                                     const enum grid_func func,
+                                     const double *pab_blocks,
+                                     offload_buffer *grid) {
 
 // Using default(shared) because with GCC 9 the behavior around const changed:
 // https://www.gnu.org/software/gcc/gcc-9/porting_to.html
@@ -265,6 +265,10 @@ static void collocate_one_grid_level(
     double pab[task_list->maxco * task_list->maxco];
 
     // Ensure that grid can fit into thread-local storage, reallocate if needed.
+    const int level = task_list->tasks[first_block_task[0]].level;
+    int npts_local[3];
+    memcpy(&npts_local[0], &task_list->layouts[level].npts_local[0],
+           3 * sizeof(int));
     const int npts_local_total = npts_local[0] * npts_local[1] * npts_local[2];
     const size_t grid_size = npts_local_total * sizeof(double);
     if (task_list->threadlocal_sizes[ithread] < grid_size) {
@@ -311,6 +315,8 @@ static void collocate_one_grid_level(
         const double *block = &pab_blocks[block_offset];
         const bool transpose = (iatom <= jatom);
 
+        assert(level == task->level);
+
         // Load subblock from buffer and decontract into Cartesian sublock pab.
         // The previous pab can be reused when only ipgf or jpgf has changed.
         if (block_offset != old_offset || iset != old_iset ||
@@ -322,7 +328,7 @@ static void collocate_one_grid_level(
         }
 
         grid_ref_collocate_pgf_product(
-            /*orthorhombic=*/task_list->orthorhombic,
+            /*layout=*/&task_list->layouts[level],
             /*border_mask=*/task->border_mask,
             /*func=*/func,
             /*la_max=*/ibasis->lmax[iset],
@@ -332,14 +338,8 @@ static void collocate_one_grid_level(
             /*zeta=*/zeta,
             /*zetb=*/zetb,
             /*rscale=*/(iatom == jatom) ? 1 : 2,
-            /*dh=*/dh,
-            /*dh_inv=*/dh_inv,
             /*ra=*/&task_list->atom_positions[3 * iatom],
             /*rab=*/task->rab,
-            /*npts_global=*/npts_global,
-            /*npts_local=*/npts_local,
-            /*shift_local=*/shift_local,
-            /*border_width=*/border_width,
             /*radius=*/task->radius,
             /*o1=*/ipgf * ncoseta,
             /*o2=*/jpgf * ncosetb,
@@ -401,18 +401,18 @@ void grid_ref_collocate_task_list(const grid_ref_task_list *task_list,
                                   offload_buffer *grids[multigrid->nlevels]) {
 
   assert(task_list->nlevels == multigrid->nlevels);
+  for (int level = 0; level < task_list->nlevels; level++) {
+    const grid_ref_layout *layout = &task_list->layouts[level];
+    assert(memcmp(layout, &multigrid->singlegrids[level]->layout,
+                  sizeof(grid_ref_layout)) == 0);
+  }
 
   for (int level = 0; level < task_list->nlevels; level++) {
     const int idx = level * task_list->nblocks;
     const int *first_block_task = &task_list->first_level_block_task[idx];
     const int *last_block_task = &task_list->last_level_block_task[idx];
-    const grid_ref_layout *layout = &task_list->layouts[level];
-    assert(memcmp(layout, &multigrid->singlegrids[level]->layout,
-                  sizeof(grid_ref_layout)) == 0);
-    collocate_one_grid_level(
-        task_list, first_block_task, last_block_task, func, layout->npts_global,
-        layout->npts_local, layout->shift_local, layout->border_width,
-        layout->dh, layout->dh_inv, pab_blocks->host_buffer, grids[level]);
+    collocate_one_grid_level(task_list, first_block_task, last_block_task, func,
+                             pab_blocks->host_buffer, grids[level]);
   }
 }
 
