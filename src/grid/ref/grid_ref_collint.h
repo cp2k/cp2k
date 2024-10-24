@@ -14,6 +14,7 @@
 
 #include "../common/grid_common.h"
 #include "../common/grid_library.h"
+#include "grid_ref_multigrid.h"
 
 #if (GRID_DO_COLLOCATE)
 #define GRID_CONST_WHEN_COLLOCATE const
@@ -797,25 +798,25 @@ general_cxyz_to_grid(const int border_mask, const int lp, const double zetp,
  * \brief Collocates coefficients C_xyz onto the grid.
  * \author Ole Schuett
  ******************************************************************************/
-static inline void
-cxyz_to_grid(const bool orthorhombic, const int border_mask, const int lp,
-             const double zetp, const double dh[3][3],
-             const double dh_inv[3][3], const double rp[3],
-             const int npts_global[3], const int npts_local[3],
-             const int shift_local[3], const int border_width[3],
-             const double radius, GRID_CONST_WHEN_COLLOCATE double *cxyz,
-             GRID_CONST_WHEN_INTEGRATE double *grid) {
+static inline void cxyz_to_grid(const grid_ref_layout *layout,
+                                const int border_mask, const int lp,
+                                const double zetp, const double rp[3],
+                                const double radius,
+                                GRID_CONST_WHEN_COLLOCATE double *cxyz,
+                                GRID_CONST_WHEN_INTEGRATE double *grid) {
 
   enum grid_library_kernel k;
-  if (orthorhombic && border_mask == 0) {
+  if (layout->orthorhombic && border_mask == 0) {
     k = (GRID_DO_COLLOCATE) ? GRID_COLLOCATE_ORTHO : GRID_INTEGRATE_ORTHO;
-    ortho_cxyz_to_grid(lp, zetp, dh, dh_inv, rp, npts_global, npts_local,
-                       shift_local, radius, cxyz, grid);
+    ortho_cxyz_to_grid(lp, zetp, layout->dh, layout->dh_inv, rp,
+                       layout->npts_global, layout->npts_local,
+                       layout->shift_local, radius, cxyz, grid);
   } else {
     k = (GRID_DO_COLLOCATE) ? GRID_COLLOCATE_GENERAL : GRID_INTEGRATE_GENERAL;
-    general_cxyz_to_grid(border_mask, lp, zetp, dh, dh_inv, rp, npts_global,
-                         npts_local, shift_local, border_width, radius, cxyz,
-                         grid);
+    general_cxyz_to_grid(border_mask, lp, zetp, layout->dh, layout->dh_inv, rp,
+                         layout->npts_global, layout->npts_local,
+                         layout->shift_local, layout->border_width, radius,
+                         cxyz, grid);
   }
   grid_library_counter_add(lp, GRID_BACKEND_REF, k, 1);
 }
@@ -915,21 +916,18 @@ static inline void cab_to_cxyz(const int la_max, const int la_min,
  * \author Ole Schuett
  ******************************************************************************/
 static inline void
-cab_to_grid(const bool orthorhombic, const int border_mask, const int la_max,
-            const int la_min, const int lb_max, const int lb_min,
-            const double zeta, const double zetb, const double rscale,
-            const double dh[3][3], const double dh_inv[3][3],
-            const double ra[3], const double rab[3], const int npts_global[3],
-            const int npts_local[3], const int shift_local[3],
-            const int border_width[3], const double radius,
-            GRID_CONST_WHEN_COLLOCATE double *cab,
+cab_to_grid(const grid_ref_layout *layout, const int border_mask,
+            const int la_max, const int la_min, const int lb_max,
+            const int lb_min, const double zeta, const double zetb,
+            const double rscale, const double ra[3], const double rab[3],
+            const double radius, GRID_CONST_WHEN_COLLOCATE double *cab,
             GRID_CONST_WHEN_INTEGRATE double *grid) {
 
   // Check if radius is too small to be mapped onto grid of given resolution.
   double dh_max = 0.0;
   for (int i = 0; i < 3; i++) {
     for (int j = 0; j < 3; j++) {
-      dh_max = fmax(dh_max, fabs(dh[i][j]));
+      dh_max = fmax(dh_max, fabs(layout->dh[i][j]));
     }
   }
   if (2.0 * radius < dh_max) {
@@ -954,12 +952,10 @@ cab_to_grid(const bool orthorhombic, const int border_mask, const int la_max,
 #if (GRID_DO_COLLOCATE)
   // collocate
   cab_to_cxyz(la_max, la_min, lb_max, lb_min, prefactor, ra, rb, rp, cab, cxyz);
-  cxyz_to_grid(orthorhombic, border_mask, lp, zetp, dh, dh_inv, rp, npts_global,
-               npts_local, shift_local, border_width, radius, cxyz, grid);
+  cxyz_to_grid(layout, border_mask, lp, zetp, rp, radius, cxyz, grid);
 #else
   // integrate
-  cxyz_to_grid(orthorhombic, border_mask, lp, zetp, dh, dh_inv, rp, npts_global,
-               npts_local, shift_local, border_width, radius, cxyz, grid);
+  cxyz_to_grid(layout, border_mask, lp, zetp, rp, radius, cxyz, grid);
   cab_to_cxyz(la_max, la_min, lb_max, lb_min, prefactor, ra, rb, rp, cab, cxyz);
 #endif
 }

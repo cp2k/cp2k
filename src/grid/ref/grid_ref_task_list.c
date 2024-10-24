@@ -244,12 +244,13 @@ static void load_pab(const grid_basis_set *ibasis, const grid_basis_set *jbasis,
  * \brief Collocate a range of tasks which are destined for the same grid level.
  * \author Ole Schuett
  ******************************************************************************/
-static void collocate_one_grid_level(
-    const grid_ref_task_list *task_list, const int *first_block_task,
-    const int *last_block_task, const enum grid_func func,
-    const int npts_global[3], const int npts_local[3], const int shift_local[3],
-    const int border_width[3], const double dh[3][3], const double dh_inv[3][3],
-    const double *pab_blocks, offload_buffer *grid) {
+static void collocate_one_grid_level(const grid_ref_task_list *task_list,
+                                     const int *first_block_task,
+                                     const int *last_block_task,
+                                     const enum grid_func func,
+                                     const grid_ref_layout *layout,
+                                     const double *pab_blocks,
+                                     offload_buffer *grid) {
 
 // Using default(shared) because with GCC 9 the behavior around const changed:
 // https://www.gnu.org/software/gcc/gcc-9/porting_to.html
@@ -265,7 +266,8 @@ static void collocate_one_grid_level(
     double pab[task_list->maxco * task_list->maxco];
 
     // Ensure that grid can fit into thread-local storage, reallocate if needed.
-    const int npts_local_total = npts_local[0] * npts_local[1] * npts_local[2];
+    const int npts_local_total =
+        layout->npts_local[0] * layout->npts_local[1] * layout->npts_local[2];
     const size_t grid_size = npts_local_total * sizeof(double);
     if (task_list->threadlocal_sizes[ithread] < grid_size) {
       if (task_list->threadlocals[ithread] != NULL) {
@@ -321,8 +323,9 @@ static void collocate_one_grid_level(
           load_pab(ibasis, jbasis, iset, jset, transpose, block, pab);
         }
 
+        assert(task_list->orthorhombic == layout->orthorhombic);
         grid_ref_collocate_pgf_product(
-            /*orthorhombic=*/task_list->orthorhombic,
+            /*layout=*/layout,
             /*border_mask=*/task->border_mask,
             /*func=*/func,
             /*la_max=*/ibasis->lmax[iset],
@@ -332,14 +335,8 @@ static void collocate_one_grid_level(
             /*zeta=*/zeta,
             /*zetb=*/zetb,
             /*rscale=*/(iatom == jatom) ? 1 : 2,
-            /*dh=*/dh,
-            /*dh_inv=*/dh_inv,
             /*ra=*/&task_list->atom_positions[3 * iatom],
             /*rab=*/task->rab,
-            /*npts_global=*/npts_global,
-            /*npts_local=*/npts_local,
-            /*shift_local=*/shift_local,
-            /*border_width=*/border_width,
             /*radius=*/task->radius,
             /*o1=*/ipgf * ncoseta,
             /*o2=*/jpgf * ncosetb,
@@ -409,10 +406,8 @@ void grid_ref_collocate_task_list(const grid_ref_task_list *task_list,
     const grid_ref_layout *layout = &task_list->layouts[level];
     assert(memcmp(layout, &multigrid->singlegrids[level]->layout,
                   sizeof(grid_ref_layout)) == 0);
-    collocate_one_grid_level(
-        task_list, first_block_task, last_block_task, func, layout->npts_global,
-        layout->npts_local, layout->shift_local, layout->border_width,
-        layout->dh, layout->dh_inv, pab_blocks->host_buffer, grids[level]);
+    collocate_one_grid_level(task_list, first_block_task, last_block_task, func,
+                             layout, pab_blocks->host_buffer, grids[level]);
   }
 }
 
@@ -466,10 +461,9 @@ static inline void store_hab(const grid_basis_set *ibasis,
 static void integrate_one_grid_level(
     const grid_ref_task_list *task_list, const int *first_block_task,
     const int *last_block_task, const bool compute_tau, const int natoms,
-    const int npts_global[3], const int npts_local[3], const int shift_local[3],
-    const int border_width[3], const double dh[3][3], const double dh_inv[3][3],
-    const offload_buffer *pab_blocks, const offload_buffer *grid,
-    offload_buffer *hab_blocks, double forces[natoms][3], double virial[3][3]) {
+    const grid_ref_layout *layout, const offload_buffer *pab_blocks,
+    const offload_buffer *grid, offload_buffer *hab_blocks,
+    double forces[natoms][3], double virial[3][3]) {
 
 // Using default(shared) because with GCC 9 the behavior around const changed:
 // https://www.gnu.org/software/gcc/gcc-9/porting_to.html
@@ -543,7 +537,7 @@ static void integrate_one_grid_level(
         }
 
         grid_ref_integrate_pgf_product(
-            /*orthorhombic=*/task_list->orthorhombic,
+            /*layout=*/layout,
             /*compute_tau=*/compute_tau,
             /*border_mask=*/task->border_mask,
             /*la_max=*/ibasis->lmax[iset],
@@ -552,14 +546,8 @@ static void integrate_one_grid_level(
             /*lb_min=*/jbasis->lmin[jset],
             /*zeta=*/zeta,
             /*zetb=*/zetb,
-            /*dh=*/dh,
-            /*dh_inv=*/dh_inv,
             /*ra=*/&task_list->atom_positions[3 * iatom],
             /*rab=*/task->rab,
-            /*npts_global=*/npts_global,
-            /*npts_local=*/npts_local,
-            /*shift_local=*/shift_local,
-            /*border_width=*/border_width,
             /*radius=*/task->radius,
             /*o1=*/ipgf * ncoseta,
             /*o2=*/jpgf * ncosetb,
@@ -638,11 +626,9 @@ void grid_ref_integrate_task_list(
     const grid_ref_layout *layout = &task_list->layouts[level];
     assert(memcmp(layout, &multigrid->singlegrids[level]->layout,
                   sizeof(grid_ref_layout)) == 0);
-    integrate_one_grid_level(
-        task_list, first_block_task, last_block_task, compute_tau, natoms,
-        layout->npts_global, layout->npts_local, layout->shift_local,
-        layout->border_width, layout->dh, layout->dh_inv, pab_blocks,
-        grids[level], hab_blocks, forces, virial);
+    integrate_one_grid_level(task_list, first_block_task, last_block_task,
+                             compute_tau, natoms, layout, pab_blocks,
+                             grids[level], hab_blocks, forces, virial);
   }
 }
 
