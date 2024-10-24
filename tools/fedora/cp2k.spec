@@ -151,7 +151,7 @@ rm tools/build_utils/fypp
 rm -r exts/dbcsr
 
 # Fix test files
-%{__python3} %{_rpmconfigdir}/redhat/pathfix.py -i "%{__python3} -Es" -p $(find . -type f -name *.py)
+%{python3} %{_rpmconfigdir}/redhat/pathfix.py -i "%{python3} -Es" -p $(find . -type f -name *.py)
 
 # $MPI_SUFFIX will be evaluated in the loops below, set by mpi modules
 %global _vpath_builddir %{_vendor}-%{_target_os}-build${MPI_SUFFIX:-_serial}
