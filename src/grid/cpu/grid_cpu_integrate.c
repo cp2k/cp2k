@@ -69,10 +69,9 @@ void grid_cpu_integrate_pgf_product(
   const cab_store cab_obj = {.data = cab, .m1 = m1};
 
   const double rscale = 1.0; // TODO: remove rscale from cab_to_grid
-  cab_to_grid(layout->orthorhombic, border_mask, la_max_local, la_min_local,
-              lb_max_local, lb_min_local, zeta, zetb, rscale, layout->dh,
-              layout->dh_inv, ra, rab, layout->npts_global, layout->npts_local,
-              layout->shift_local, layout->border_width, radius, cab, grid);
+  cab_to_grid_layout(layout, border_mask, la_max_local, la_min_local,
+                     lb_max_local, lb_min_local, zeta, zetb, rscale, ra, rab,
+                     radius, cab, grid);
 
   //  cab contains all the information needed to find the elements of hab
   //  and optionally of derivatives of these elements
