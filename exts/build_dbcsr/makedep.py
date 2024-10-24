@@ -318,7 +318,7 @@ def collect_include_deps(parsed_files, fn, src_dir):
             incs.append(fn_inc)
             incs += collect_include_deps(parsed_files, fn_inc, src_dir)
 
-    return list(set(incs))
+    return sorted(set(incs))
 
 
 # ============================================================================
@@ -336,7 +336,7 @@ def collect_use_deps(parsed_files, fn, src_dir):
         if fn_inc in parsed_files.keys():
             uses += collect_use_deps(parsed_files, fn_inc, src_dir)
 
-    return list(set(uses))
+    return sorted(set(uses))
 
 
 # ============================================================================
