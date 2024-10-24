@@ -46,6 +46,7 @@ KEEPALIVE_SKIP_DIRS = [
 # ======================================================================================
 async def main() -> None:
     parser = argparse.ArgumentParser(description="Runs CP2K regression test suite.")
+    parser.add_argument("--mpi", action="store_false")
     parser.add_argument("--mpiranks", type=int, default=2)
     parser.add_argument("--ompthreads", type=int)
     parser.add_argument("--maxtasks", type=int, default=os.cpu_count())
@@ -69,7 +70,7 @@ async def main() -> None:
     parser.add_argument("--skip_unittests", action="store_true")
     parser.add_argument("--skip_regtests", action="store_true")
     parser.add_argument("binary_dir", type=Path)
-    parser.add_argument("version")
+    parser.add_argument("version", default=None)
     cfg = Config(parser.parse_args())
 
     print("*************************** Testing started ****************************")
@@ -246,7 +247,7 @@ async def main() -> None:
 class Config:
     def __init__(self, args: argparse.Namespace):
         self.timeout = args.timeout
-        self.use_mpi = args.version.startswith("p")
+        self.use_mpi = args.mpi or args.version.startswith("p")
         default_ompthreads = 2 if "smp" in args.version else 1
         self.ompthreads = args.ompthreads if args.ompthreads else default_ompthreads
         self.mpiranks = args.mpiranks if self.use_mpi else 1
@@ -306,11 +307,12 @@ class Config:
             env["CUDA_VISIBLE_DEVICES"] = ",".join(visible_gpu_devices)
             env["HIP_VISIBLE_DEVICES"] = ",".join(visible_gpu_devices)
         env["OMP_NUM_THREADS"] = str(self.ompthreads)
-        exe_path = Path(f"{exe_stem}.{self.version}")
+        exe_name = f"{exe_stem}.{self.version}" if self.version else exe_stem
+        exe_path = Path(exe_name)
         if exe_path.is_absolute():
             cmd = [str(exe_path)]
         else:
-            cmd = [str(self.binary_dir / f"{exe_stem}.{self.version}")]
+            cmd = [str(self.binary_dir / exe_name)]
         if self.valgrind:
             cmd = ["valgrind", "--error-exitcode=42", "--exit-on-first-error=yes"] + cmd
         if self.use_mpi:

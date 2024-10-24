@@ -20,11 +20,8 @@ test_command:
   default_identifier: smoke
 
 targets:
-  # TODO: Match F40 release
-  - fedora-development-x86_64
-  - fedora-development-aarch64
-  - fedora-latest-x86_64
-  - fedora-latest-aarch64
+  - fedora-all-x86_64
+  - fedora-all-aarch64
 
 jobs:
   - &copr_build
@@ -36,7 +33,6 @@ jobs:
     trigger: commit
     branch: master
     project: nightly
-    update_release: true
   - &tests
     job: tests
     trigger: commit
@@ -44,6 +40,9 @@ jobs:
   - job: copr_build
     trigger: pull_request
     manual_trigger: true
+    # Debug try to use dbcsr-2.7.0
+    additional_repos:
+      - copr://lecris/dbcsr-2.7
   - <<: *tests
     identifier: smoke
     trigger: pull_request

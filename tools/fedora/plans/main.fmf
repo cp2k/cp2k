@@ -4,3 +4,4 @@ adjust:
   discover:
     how: fmf
     dist-git-source: true
+    dist-git-install-builddeps: true

@@ -50,6 +50,7 @@ BuildRequires: fftw-devel
 %if %{with libxsmm}
 BuildRequires: libxsmm-devel >= 1.8.1-3
 %endif
+# needs at least libxc 5.1.0 but works fine with later releases
 BuildRequires: libxc-devel >= 5.1.0
 BuildRequires: spglib-devel
 # Test dependencies
@@ -150,12 +151,10 @@ rm tools/build_utils/fypp
 rm -r exts/dbcsr
 
 # Fix test files
-%{__python3} %{_rpmconfigdir}/redhat/pathfix.py -i "%{__python3} -Es" -p $(find . -type f -name *.py)
+%{python3} %{_rpmconfigdir}/redhat/pathfix.py -i "%{python3} -Es" -p $(find . -type f -name *.py)
 
 # $MPI_SUFFIX will be evaluated in the loops below, set by mpi modules
 %global _vpath_builddir %{_vendor}-%{_target_os}-build${MPI_SUFFIX:-_serial}
-# We are running the module load/unload manually until there is a macro-like way to expand this
-. /etc/profile.d/modules.sh
 
 
 %build
@@ -230,22 +229,21 @@ for mpi in '' mpich %{?with_openmpi:openmpi} ; do
     libdir=${MPI_LIB}
     # Note, final position arguments are also here
     test_mpi_args=(
+      "--mpi"
       "--mpiranks 2"
-      "local_${mpi}"
-      "psmp"
+      "%{buildroot}${bindir}/cp2k.ssmp"
     )
   else
     bindir=%{_bindir}
     libdir=%{_libdir}
     test_mpi_args=(
-      "local"
-      "ssmp"
+      "%{buildroot}${bindir}/cp2k.psmp"
     )
   fi
   # Run packaged do_regtest.sh with appropriate buildroot runpaths
   env PATH=%{buildroot}${bindir}:${PATH} \
     LD_LIBRARY_PATH=%{buildroot}${libdir} \
-    tests/do_regtest.py %{buildroot}${bindir} ${test_mpi_args[@]}
+    tests/do_regtest.py ${test_mpi_args[@]}
   [ -n "$mpi" ] && module unload mpi/${mpi}-%{_arch}
 done
 
