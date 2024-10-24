@@ -17,13 +17,11 @@
  * \author Ole Schuett
  ******************************************************************************/
 void grid_ref_collocate_pgf_product(
-    const bool orthorhombic, const int border_mask, const enum grid_func func,
-    const int la_max, const int la_min, const int lb_max, const int lb_min,
-    const double zeta, const double zetb, const double rscale,
-    const double dh[3][3], const double dh_inv[3][3], const double ra[3],
-    const double rab[3], const int npts_global[3], const int npts_local[3],
-    const int shift_local[3], const int border_width[3], const double radius,
-    const int o1, const int o2, const int n1, const int n2,
+    const grid_ref_layout *layout, const int border_mask,
+    const enum grid_func func, const int la_max, const int la_min,
+    const int lb_max, const int lb_min, const double zeta, const double zetb,
+    const double rscale, const double ra[3], const double rab[3],
+    const double radius, const int o1, const int o2, const int n1, const int n2,
     const double pab[n2][n1], double *grid) {
 
   int la_min_diff, la_max_diff, lb_min_diff, lb_max_diff;
@@ -43,9 +41,8 @@ void grid_ref_collocate_pgf_product(
 
   grid_ref_prepare_pab(func, o1, o2, la_max, la_min, lb_max, lb_min, zeta, zetb,
                        n1, n2, pab, n1_cab, n2_cab, (double(*)[n1_cab])cab);
-  cab_to_grid(orthorhombic, border_mask, la_max_cab, la_min_cab, lb_max_cab,
-              lb_min_cab, zeta, zetb, rscale, dh, dh_inv, ra, rab, npts_global,
-              npts_local, shift_local, border_width, radius, cab, grid);
+  cab_to_grid(layout, border_mask, la_max_cab, la_min_cab, lb_max_cab,
+              lb_min_cab, zeta, zetb, rscale, ra, rab, radius, cab, grid);
 }
 
 // EOF

@@ -8,6 +8,7 @@
 #define GRID_REF_COLLOCATE_H
 
 #include "../common/grid_constants.h"
+#include "grid_ref_multigrid.h"
 #include <stdbool.h>
 
 /*******************************************************************************
@@ -15,7 +16,7 @@
  *        with a position, Gaussian exponent, and a range of angular momentum.
  *        This function then collocates all combinations of spherical harmonics.
  *
- * \param orthorhombic  Whether simulation box is orthorhombic.
+ * \param layout        Info on grid layout.
  * \param border_mask   Bit-pattern determining which border regions to exclude.
  *                      Zero means no masking, ie. all regions are included.
  *                      See also rs_find_node() in task_list_methods.F.
@@ -24,16 +25,8 @@
  * \param l{a,b}_min    Lowest angular momentum to collocate for give atom.
  * \param zet_{a,b}     Gaussian's exponent of given atom.
  * \param rscale        Prefactor to take density matrix symmetry into account.
- * \param dh            Incremental grid matrix.
- *                      Grid point i,j,k corresponds to real-space vector:
- *                      r = i*dh[0,:] + j*dh[1,:] + k*dh[2,:]
- * \param dh_inv        Inverse incremental grid matrix.
  * \param ra            Position of atom a.
  * \param rab           Vector difference between position of atom a and atom b.
- * \param npts_global   Number of global grid points in each direction.
- * \param npts_local    Number of local grid points in each direction.
- * \param shift_local   Number of points local grid is shifted wrt global grid.
- * \param border_width  Width of halo region in grid points in each direction.
  * \param lmax          Global maximum angular moment.
  * \param radius        Radius where Gaussian becomes smaller than threshold eps
  * \param o{1,2}        Offsets. Subblock for collocation starts at pab[o2][o1].
@@ -45,13 +38,11 @@
  * \author Ole Schuett
  ******************************************************************************/
 void grid_ref_collocate_pgf_product(
-    const bool orthorhombic, const int border_mask, const enum grid_func func,
-    const int la_max, const int la_min, const int lb_max, const int lb_min,
-    const double zeta, const double zetb, const double rscale,
-    const double dh[3][3], const double dh_inv[3][3], const double ra[3],
-    const double rab[3], const int npts_global[3], const int npts_local[3],
-    const int shift_local[3], const int border_width[3], const double radius,
-    const int o1, const int o2, const int n1, const int n2,
+    const grid_ref_layout *layout, const int border_mask,
+    const enum grid_func func, const int la_max, const int la_min,
+    const int lb_max, const int lb_min, const double zeta, const double zetb,
+    const double rscale, const double ra[3], const double rab[3],
+    const double radius, const int o1, const int o2, const int n1, const int n2,
     const double pab[n2][n1], double *grid);
 
 #endif
