@@ -20,15 +20,9 @@ void grid_collocate_pgf_product(
     const double radius, const int o1, const int o2, const int n1, const int n2,
     const double pab[n2][n1], double *grid) {
 
-  grid_cpu_collocate_pgf_product(multigrid->orthorhombic, border_mask, func,
-                                 la_max, la_min, lb_max, lb_min, zeta, zetb,
-                                 rscale, *(multigrid->dh + (ilevel - 1)),
-                                 *(multigrid->dh_inv + (ilevel - 1)), ra, rab,
-                                 *(multigrid->npts_global + (ilevel - 1)),
-                                 *(multigrid->npts_local + (ilevel - 1)),
-                                 *(multigrid->shift_local + (ilevel - 1)),
-                                 *(multigrid->border_width + (ilevel - 1)),
-                                 radius, o1, o2, n1, n2, pab, grid);
+  grid_cpu_collocate_pgf_product_multigrid(
+      multigrid->cpu, ilevel, border_mask, func, la_max, la_min, lb_max, lb_min,
+      zeta, zetb, rscale, ra, rab, radius, o1, o2, n1, n2, pab, grid);
 }
 
 // EOF
