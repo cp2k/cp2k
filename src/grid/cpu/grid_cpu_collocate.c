@@ -171,10 +171,9 @@ collocate_internal(const grid_cpu_layout *layout, const int border_mask,
 
   grid_cpu_prepare_pab(func, o1, o2, la_max, la_min, lb_max, lb_min, zeta, zetb,
                        n1, n2, pab, n1_cab, n2_cab, (double(*)[n1_cab])cab);
-  cab_to_grid(layout->orthorhombic, border_mask, la_max_cab, la_min_cab,
-              lb_max_cab, lb_min_cab, zeta, zetb, rscale, layout->dh,
-              layout->dh_inv, ra, rab, layout->npts_global, layout->npts_local,
-              layout->shift_local, layout->border_width, radius, cab, grid);
+  cab_to_grid_layout(layout, border_mask, la_max_cab, la_min_cab, lb_max_cab,
+                     lb_min_cab, zeta, zetb, rscale, ra, rab, radius, cab,
+                     grid);
 }
 
 /*******************************************************************************
