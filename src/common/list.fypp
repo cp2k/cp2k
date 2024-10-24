@@ -16,7 +16,7 @@
 
    #:def uselist(list_in)
       #!    comma-separated list of unique entries of list_in
-      $:    ", ".join(list(set(list_in)))
+      $:    ", ".join(sorted(set(list_in)))
    #:enddef
 
    #:def uselist_listmethods(t)
