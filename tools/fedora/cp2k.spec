@@ -230,14 +230,12 @@ for mpi in '' mpich %{?with_openmpi:openmpi} ; do
     # Note, final position arguments are also here
     test_mpi_args=(
       "--mpiranks 2"
-      "local_${mpi}"
       "psmp"
     )
   else
     bindir=%{_bindir}
     libdir=%{_libdir}
     test_mpi_args=(
-      "local"
       "ssmp"
     )
   fi

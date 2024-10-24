@@ -306,11 +306,8 @@ class Config:
             env["CUDA_VISIBLE_DEVICES"] = ",".join(visible_gpu_devices)
             env["HIP_VISIBLE_DEVICES"] = ",".join(visible_gpu_devices)
         env["OMP_NUM_THREADS"] = str(self.ompthreads)
-        exe_path = Path(f"{exe_stem}.{self.version}")
-        if exe_path.is_absolute():
-            cmd = [str(exe_path)]
-        else:
-            cmd = [str(self.binary_dir / f"{exe_stem}.{self.version}")]
+        exe_name = f"{exe_stem}.{self.version}"
+        cmd = [str(self.binary_dir / exe_name)]
         if self.valgrind:
             cmd = ["valgrind", "--error-exitcode=42", "--exit-on-first-error=yes"] + cmd
         if self.use_mpi:
