@@ -8,6 +8,7 @@
 #define GRID_CPU_COLLOCATE_H
 
 #include "../common/grid_constants.h"
+#include "grid_cpu_multigrid.h"
 #include <stdbool.h>
 
 /*******************************************************************************
@@ -45,14 +46,26 @@
  * \author Ole Schuett
  ******************************************************************************/
 void grid_cpu_collocate_pgf_product(
-    const bool orthorhombic, const int border_mask, const enum grid_func func,
-    const int la_max, const int la_min, const int lb_max, const int lb_min,
-    const double zeta, const double zetb, const double rscale,
-    const double dh[3][3], const double dh_inv[3][3], const double ra[3],
-    const double rab[3], const int npts_global[3], const int npts_local[3],
-    const int shift_local[3], const int border_width[3], const double radius,
-    const int o1, const int o2, const int n1, const int n2,
+    const grid_cpu_layout *layout, const int border_mask,
+    const enum grid_func func, const int la_max, const int la_min,
+    const int lb_max, const int lb_min, const double zeta, const double zetb,
+    const double rscale, const double ra[3], const double rab[3],
+    const double radius, const int o1, const int o2, const int n1, const int n2,
     const double pab[n2][n1], double *grid);
+
+static inline void grid_cpu_collocate_pgf_product_multigrid(
+    const grid_cpu_multigrid *multigrid, const int ilevel,
+    const int border_mask, const enum grid_func func, const int la_max,
+    const int la_min, const int lb_max, const int lb_min, const double zeta,
+    const double zetb, const double rscale, const double ra[3],
+    const double rab[3], const double radius, const int o1, const int o2,
+    const int n1, const int n2, const double pab[n2][n1], double *grid) {
+
+  grid_cpu_collocate_pgf_product(&multigrid->singlegrids[ilevel - 1]->layout,
+                                 border_mask, func, la_max, la_min, lb_max,
+                                 lb_min, zeta, zetb, rscale, ra, rab, radius,
+                                 o1, o2, n1, n2, pab, grid);
+}
 
 #endif
 

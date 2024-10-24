@@ -42,12 +42,10 @@ static inline double cab_get(const cab_store *cab, const orbital a,
  * \author Ole Schuett
  ******************************************************************************/
 void grid_cpu_integrate_pgf_product(
-    const bool orthorhombic, const bool compute_tau, const int border_mask,
-    const int la_max, const int la_min, const int lb_max, const int lb_min,
-    const double zeta, const double zetb, const double dh[3][3],
-    const double dh_inv[3][3], const double ra[3], const double rab[3],
-    const int npts_global[3], const int npts_local[3], const int shift_local[3],
-    const int border_width[3], const double radius, const int o1, const int o2,
+    const grid_cpu_layout *layout, const bool compute_tau,
+    const int border_mask, const int la_max, const int la_min, const int lb_max,
+    const int lb_min, const double zeta, const double zetb, const double ra[3],
+    const double rab[3], const double radius, const int o1, const int o2,
     const int n1, const int n2, const double *grid, double hab[n2][n1],
     const double pab[n2][n1], double forces[2][3], double virials[2][3][3],
     double hdab[n2][n1][3], double hadb[n2][n1][3],
@@ -71,10 +69,10 @@ void grid_cpu_integrate_pgf_product(
   const cab_store cab_obj = {.data = cab, .m1 = m1};
 
   const double rscale = 1.0; // TODO: remove rscale from cab_to_grid
-  cab_to_grid(orthorhombic, border_mask, la_max_local, la_min_local,
-              lb_max_local, lb_min_local, zeta, zetb, rscale, dh, dh_inv, ra,
-              rab, npts_global, npts_local, shift_local, border_width, radius,
-              cab, grid);
+  cab_to_grid(layout->orthorhombic, border_mask, la_max_local, la_min_local,
+              lb_max_local, lb_min_local, zeta, zetb, rscale, layout->dh,
+              layout->dh_inv, ra, rab, layout->npts_global, layout->npts_local,
+              layout->shift_local, layout->border_width, radius, cab, grid);
 
   //  cab contains all the information needed to find the elements of hab
   //  and optionally of derivatives of these elements

@@ -29,16 +29,10 @@ void grid_integrate_pgf_product(
           multigrid->nlevels);
   assert(multigrid->cpu->singlegrids != NULL);
   assert(multigrid->cpu->singlegrids[ilevel - 1] != NULL);
-  grid_cpu_integrate_pgf_product(
-      multigrid->cpu->singlegrids[ilevel - 1]->layout.orthorhombic, compute_tau,
-      border_mask, la_max, la_min, lb_max, lb_min, zeta, zetb,
-      multigrid->cpu->singlegrids[ilevel - 1]->layout.dh,
-      multigrid->cpu->singlegrids[ilevel - 1]->layout.dh_inv, ra, rab,
-      multigrid->cpu->singlegrids[ilevel - 1]->layout.npts_global,
-      multigrid->cpu->singlegrids[ilevel - 1]->layout.npts_local,
-      multigrid->cpu->singlegrids[ilevel - 1]->layout.shift_local,
-      multigrid->cpu->singlegrids[ilevel - 1]->layout.border_width, radius, o1,
-      o2, n1, n2, grid, hab, pab, forces, virials, hdab, hadb, a_hdab);
+  grid_cpu_integrate_pgf_product_multigrid(
+      multigrid->cpu, ilevel, compute_tau, border_mask, la_max, la_min, lb_max,
+      lb_min, zeta, zetb, ra, rab, radius, o1, o2, n1, n2, grid, hab, pab,
+      forces, virials, hdab, hadb, a_hdab);
 }
 
 // EOF

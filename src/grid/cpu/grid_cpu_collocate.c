@@ -25,15 +25,14 @@
  *        See grid_replay.h for details.
  * \author Ole Schuett
  ******************************************************************************/
-static void write_task_file(
-    const bool orthorhombic, const int border_mask, const enum grid_func func,
-    const int la_max, const int la_min, const int lb_max, const int lb_min,
-    const double zeta, const double zetb, const double rscale,
-    const double dh[3][3], const double dh_inv[3][3], const double ra[3],
-    const double rab[3], const int npts_global[3], const int npts_local[3],
-    const int shift_local[3], const int border_width[3], const double radius,
-    const int o1, const int o2, const int n1, const int n2,
-    const double pab[n2][n1], const double *grid) {
+static void
+write_task_file(const grid_cpu_layout *layout, const int border_mask,
+                const enum grid_func func, const int la_max, const int la_min,
+                const int lb_max, const int lb_min, const double zeta,
+                const double zetb, const double rscale, const double ra[3],
+                const double rab[3], const double radius, const int o1,
+                const int o2, const int n1, const int n2,
+                const double pab[n2][n1], const double *grid) {
 
   static int counter = 1;
   int my_number;
@@ -47,7 +46,7 @@ static void write_task_file(
   const int D = DBL_DECIMAL_DIG;
   FILE *fp = fopen(filename, "w+");
   fprintf(fp, "#Grid task v10\n");
-  fprintf(fp, "orthorhombic %i\n", orthorhombic);
+  fprintf(fp, "orthorhombic %i\n", layout->orthorhombic);
   fprintf(fp, "border_mask %i\n", border_mask);
   fprintf(fp, "func %i\n", func);
   fprintf(fp, "la_max %i\n", la_max);
@@ -58,21 +57,21 @@ static void write_task_file(
   fprintf(fp, "zetb %.*e\n", D, zetb);
   fprintf(fp, "rscale %.*e\n", D, rscale);
   for (int i = 0; i < 3; i++)
-    fprintf(fp, "dh %i %.*e %.*e %.*e\n", i, D, dh[i][0], D, dh[i][1], D,
-            dh[i][2]);
+    fprintf(fp, "dh %i %.*e %.*e %.*e\n", i, D, layout->dh[i][0], D,
+            layout->dh[i][1], D, layout->dh[i][2]);
   for (int i = 0; i < 3; i++)
-    fprintf(fp, "dh_inv %i %.*e %.*e %.*e\n", i, D, dh_inv[i][0], D,
-            dh_inv[i][1], D, dh_inv[i][2]);
+    fprintf(fp, "dh_inv %i %.*e %.*e %.*e\n", i, D, layout->dh_inv[i][0], D,
+            layout->dh_inv[i][1], D, layout->dh_inv[i][2]);
   fprintf(fp, "ra %.*e %.*e %.*e\n", D, ra[0], D, ra[1], D, ra[2]);
   fprintf(fp, "rab %.*e %.*e %.*e\n", D, rab[0], D, rab[1], D, rab[2]);
-  fprintf(fp, "npts_global %i %i %i\n", npts_global[0], npts_global[1],
-          npts_global[2]);
-  fprintf(fp, "npts_local %i %i %i\n", npts_local[0], npts_local[1],
-          npts_local[2]);
-  fprintf(fp, "shift_local %i %i %i\n", shift_local[0], shift_local[1],
-          shift_local[2]);
-  fprintf(fp, "border_width %i %i %i\n", border_width[0], border_width[1],
-          border_width[2]);
+  fprintf(fp, "npts_global %i %i %i\n", layout->npts_global[0],
+          layout->npts_global[1], layout->npts_global[2]);
+  fprintf(fp, "npts_local %i %i %i\n", layout->npts_local[0],
+          layout->npts_local[1], layout->npts_local[2]);
+  fprintf(fp, "shift_local %i %i %i\n", layout->shift_local[0],
+          layout->shift_local[1], layout->shift_local[2]);
+  fprintf(fp, "border_width %i %i %i\n", layout->border_width[0],
+          layout->border_width[1], layout->border_width[2]);
   fprintf(fp, "radius %.*e\n", D, radius);
   fprintf(fp, "o1 %i\n", o1);
   fprintf(fp, "o2 %i\n", o2);
@@ -85,7 +84,8 @@ static void write_task_file(
     }
   }
 
-  const int npts_local_total = npts_local[0] * npts_local[1] * npts_local[2];
+  const int npts_local_total =
+      layout->npts_local[0] * layout->npts_local[1] * layout->npts_local[2];
 
   int ngrid_nonzero = 0;
   for (int i = 0; i < npts_local_total; i++) {
@@ -95,11 +95,12 @@ static void write_task_file(
   }
   fprintf(fp, "ngrid_nonzero %i\n", ngrid_nonzero);
 
-  for (int k = 0; k < npts_local[2]; k++) {
-    for (int j = 0; j < npts_local[1]; j++) {
-      for (int i = 0; i < npts_local[0]; i++) {
+  for (int k = 0; k < layout->npts_local[2]; k++) {
+    for (int j = 0; j < layout->npts_local[1]; j++) {
+      for (int i = 0; i < layout->npts_local[0]; i++) {
         const double val =
-            grid[k * npts_local[1] * npts_local[0] + j * npts_local[0] + i];
+            grid[k * layout->npts_local[1] * layout->npts_local[0] +
+                 j * layout->npts_local[0] + i];
         if (val != 0.0) {
           fprintf(fp, "grid %i %i %i %.*e\n", i, j, k, D, val);
         }
@@ -114,11 +115,10 @@ static void write_task_file(
 
   const bool compute_tau = (func == GRID_FUNC_DADB);
 
-  grid_cpu_integrate_pgf_product(orthorhombic, compute_tau, border_mask, la_max,
-                                 la_min, lb_max, lb_min, zeta, zetb, dh, dh_inv,
-                                 ra, rab, npts_global, npts_local, shift_local,
-                                 border_width, radius, o1, o2, n1, n2, grid,
-                                 hab, pab, forces, virials, NULL, NULL, NULL);
+  grid_cpu_integrate_pgf_product(layout, compute_tau, border_mask, la_max,
+                                 la_min, lb_max, lb_min, zeta, zetb, ra, rab,
+                                 radius, o1, o2, n1, n2, grid, hab, pab, forces,
+                                 virials, NULL, NULL, NULL);
 
   for (int i = o2; i < ncoset(lb_max) + o2; i++) {
     for (int j = o1; j < ncoset(la_max) + o1; j++) {
@@ -145,15 +145,14 @@ static void write_task_file(
  *        See grid_cpu_collocate.h for details.
  * \author Ole Schuett
  ******************************************************************************/
-static void collocate_internal(
-    const bool orthorhombic, const int border_mask, const enum grid_func func,
-    const int la_max, const int la_min, const int lb_max, const int lb_min,
-    const double zeta, const double zetb, const double rscale,
-    const double dh[3][3], const double dh_inv[3][3], const double ra[3],
-    const double rab[3], const int npts_global[3], const int npts_local[3],
-    const int shift_local[3], const int border_width[3], const double radius,
-    const int o1, const int o2, const int n1, const int n2,
-    const double pab[n2][n1], double *grid) {
+static void
+collocate_internal(const grid_cpu_layout *layout, const int border_mask,
+                   const enum grid_func func, const int la_max,
+                   const int la_min, const int lb_max, const int lb_min,
+                   const double zeta, const double zetb, const double rscale,
+                   const double ra[3], const double rab[3], const double radius,
+                   const int o1, const int o2, const int n1, const int n2,
+                   const double pab[n2][n1], double *grid) {
 
   int la_min_diff, la_max_diff, lb_min_diff, lb_max_diff;
   grid_cpu_prepare_get_ldiffs(func, &la_min_diff, &la_max_diff, &lb_min_diff,
@@ -172,9 +171,10 @@ static void collocate_internal(
 
   grid_cpu_prepare_pab(func, o1, o2, la_max, la_min, lb_max, lb_min, zeta, zetb,
                        n1, n2, pab, n1_cab, n2_cab, (double(*)[n1_cab])cab);
-  cab_to_grid(orthorhombic, border_mask, la_max_cab, la_min_cab, lb_max_cab,
-              lb_min_cab, zeta, zetb, rscale, dh, dh_inv, ra, rab, npts_global,
-              npts_local, shift_local, border_width, radius, cab, grid);
+  cab_to_grid(layout->orthorhombic, border_mask, la_max_cab, la_min_cab,
+              lb_max_cab, lb_min_cab, zeta, zetb, rscale, layout->dh,
+              layout->dh_inv, ra, rab, layout->npts_global, layout->npts_local,
+              layout->shift_local, layout->border_width, radius, cab, grid);
 }
 
 /*******************************************************************************
@@ -183,20 +183,19 @@ static void collocate_internal(
  * \author Ole Schuett
  ******************************************************************************/
 void grid_cpu_collocate_pgf_product(
-    const bool orthorhombic, const int border_mask, const enum grid_func func,
-    const int la_max, const int la_min, const int lb_max, const int lb_min,
-    const double zeta, const double zetb, const double rscale,
-    const double dh[3][3], const double dh_inv[3][3], const double ra[3],
-    const double rab[3], const int npts_global[3], const int npts_local[3],
-    const int shift_local[3], const int border_width[3], const double radius,
-    const int o1, const int o2, const int n1, const int n2,
+    const grid_cpu_layout *layout, const int border_mask,
+    const enum grid_func func, const int la_max, const int la_min,
+    const int lb_max, const int lb_min, const double zeta, const double zetb,
+    const double rscale, const double ra[3], const double rab[3],
+    const double radius, const int o1, const int o2, const int n1, const int n2,
     const double pab[n2][n1], double *grid) {
 
   // Set this to true to write each task to a file.
   const bool DUMP_TASKS = false;
 
   double *grid_before = NULL;
-  const size_t npts_local_total = npts_local[0] * npts_local[1] * npts_local[2];
+  const size_t npts_local_total =
+      layout->npts_local[0] * layout->npts_local[1] * layout->npts_local[2];
 
   if (DUMP_TASKS) {
     const size_t sizeof_grid = sizeof(double) * npts_local_total;
@@ -206,16 +205,14 @@ void grid_cpu_collocate_pgf_product(
     memset(grid, 0, sizeof_grid);
   }
 
-  collocate_internal(orthorhombic, border_mask, func, la_max, la_min, lb_max,
-                     lb_min, zeta, zetb, rscale, dh, dh_inv, ra, rab,
-                     npts_global, npts_local, shift_local, border_width, radius,
-                     o1, o2, n1, n2, pab, grid);
+  collocate_internal(layout, border_mask, func, la_max, la_min, lb_max, lb_min,
+                     zeta, zetb, rscale, ra, rab, radius, o1, o2, n1, n2, pab,
+                     grid);
 
   if (DUMP_TASKS) {
-    write_task_file(orthorhombic, border_mask, func, la_max, la_min, lb_max,
-                    lb_min, zeta, zetb, rscale, dh, dh_inv, ra, rab,
-                    npts_global, npts_local, shift_local, border_width, radius,
-                    o1, o2, n1, n2, pab, grid);
+    write_task_file(layout, border_mask, func, la_max, la_min, lb_max, lb_min,
+                    zeta, zetb, rscale, ra, rab, radius, o1, o2, n1, n2, pab,
+                    grid);
 
     for (size_t i = 0; i < npts_local_total; i++) {
       grid[i] += grid_before[i];
