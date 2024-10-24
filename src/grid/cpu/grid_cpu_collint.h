@@ -19,6 +19,7 @@
 #include "../common/grid_common.h"
 #include "../common/grid_library.h"
 #include "../common/grid_sphere_cache.h"
+#include "grid_cpu_multigrid.h"
 
 #define GRID_MAX_LP_OPTIMIZED 9
 
@@ -1182,6 +1183,20 @@ cab_to_grid(const bool orthorhombic, const int border_mask, const int la_max,
                npts_local, shift_local, border_width, radius, cxyz, grid);
   cab_to_cxyz(la_max, la_min, lb_max, lb_min, prefactor, ra, rb, rp, cab, cxyz);
 #endif
+}
+
+static inline void
+cab_to_grid_layout(const grid_cpu_layout *layout, const int border_mask,
+                   const int la_max, const int la_min, const int lb_max,
+                   const int lb_min, const double zeta, const double zetb,
+                   const double rscale, const double ra[3], const double rab[3],
+                   const double radius, GRID_CONST_WHEN_COLLOCATE double *cab,
+                   GRID_CONST_WHEN_INTEGRATE double *grid) {
+
+  cab_to_grid(layout->orthorhombic, border_mask, la_max, la_min, lb_max, lb_min,
+              zeta, zetb, rscale, layout->dh, layout->dh_inv, ra, rab,
+              layout->npts_global, layout->npts_local, layout->shift_local,
+              layout->border_width, radius, cab, grid);
 }
 
 // EOF
