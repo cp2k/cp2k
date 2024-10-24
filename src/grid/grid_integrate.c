@@ -8,6 +8,9 @@
 #include "grid_integrate.h"
 #include "cpu/grid_cpu_integrate.h"
 
+#include <assert.h>
+#include <stdio.h>
+
 /*******************************************************************************
  * \brief Integrates a single task. Thin wrapper to prevent circular
  *dependencies. \author Frederick Stein
@@ -21,15 +24,21 @@ void grid_integrate_pgf_product(
     const double pab[n2][n1], double forces[2][3], double virials[2][3][3],
     double hdab[n2][n1][3], double hadb[n2][n1][3],
     double a_hdab[n2][n1][3][3]) {
+
+  fprintf(stderr, "DEBUG grid_integrate_pgf_product %i %i", ilevel,
+          multigrid->nlevels);
+  assert(multigrid->cpu->singlegrids != NULL);
+  assert(multigrid->cpu->singlegrids[ilevel - 1] != NULL);
   grid_cpu_integrate_pgf_product(
-      multigrid->orthorhombic, compute_tau, border_mask, la_max, la_min, lb_max,
-      lb_min, zeta, zetb, *(multigrid->dh + (ilevel - 1)),
-      *(multigrid->dh_inv + (ilevel - 1)), ra, rab,
-      *(multigrid->npts_global + (ilevel - 1)),
-      *(multigrid->npts_local + (ilevel - 1)),
-      *(multigrid->shift_local + (ilevel - 1)),
-      *(multigrid->border_width + (ilevel - 1)), radius, o1, o2, n1, n2, grid,
-      hab, pab, forces, virials, hdab, hadb, a_hdab);
+      multigrid->cpu->singlegrids[ilevel - 1]->layout.orthorhombic, compute_tau,
+      border_mask, la_max, la_min, lb_max, lb_min, zeta, zetb,
+      multigrid->cpu->singlegrids[ilevel - 1]->layout.dh,
+      multigrid->cpu->singlegrids[ilevel - 1]->layout.dh_inv, ra, rab,
+      multigrid->cpu->singlegrids[ilevel - 1]->layout.npts_global,
+      multigrid->cpu->singlegrids[ilevel - 1]->layout.npts_local,
+      multigrid->cpu->singlegrids[ilevel - 1]->layout.shift_local,
+      multigrid->cpu->singlegrids[ilevel - 1]->layout.border_width, radius, o1,
+      o2, n1, n2, grid, hab, pab, forces, virials, hdab, hadb, a_hdab);
 }
 
 // EOF

@@ -128,13 +128,15 @@ void grid_create_multigrid(
                             shift_local, border_width, dh, dh_inv, comm,
                             &(multigrid->ref));
 
+  // We need it for collocation/integration of pgf_products
+  grid_cpu_create_multigrid(orthorhombic, nlevels, npts_global, npts_local,
+                            shift_local, border_width, dh, dh_inv, comm,
+                            &(multigrid->cpu));
+
   switch (multigrid->backend) {
   case GRID_BACKEND_REF:
     break;
   case GRID_BACKEND_CPU:
-    grid_cpu_create_multigrid(orthorhombic, nlevels, npts_global, npts_local,
-                              shift_local, border_width, dh, dh_inv, comm,
-                              &(multigrid->cpu));
     break;
   }
 
