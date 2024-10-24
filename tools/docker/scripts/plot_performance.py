@@ -22,7 +22,7 @@ def main():
         plots.append(sys.argv[3 * i + 2])
         timings.append(parse_timings(sys.argv[3 * i + 3]))
 
-    routines = list(set([r for t in timings for r in list(t.keys())[:6]]))
+    routines = list(set(r for t in timings for r in list(t.keys())[:6]))
     routines.remove("total")
     routines.sort(reverse=True, key=lambda r: timings[0].get(r, 0.0))
 
