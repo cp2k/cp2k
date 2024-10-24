@@ -1062,7 +1062,7 @@ CONTAINS
                         #:elif kind2[0]=="r"
                            integral_value = accurate_sum(REAL(pw1%array, KIND=dp)*pw2%array) !? complex bit
                         #:else
-                           integral_value = accurate_sum(pw1%array%re*pw2%array%re + pw1%array%im*pw2%array%im) !? complex bit
+                           integral_value = accurate_sum(REAL(CONJG(pw1%array)*pw2%array, KIND=dp))
                         #:endif
 
                      END IF
@@ -1687,7 +1687,7 @@ CONTAINS
 !$OMP PARALLEL DO DEFAULT(NONE) PRIVATE(i,tmp) SHARED(pw,omega_2)
                      DO i = 1, SIZE(pw%array)
                         tmp = EXP(-pw%pw_grid%gsq(i)*omega_2)
-                        pw%array(i) = CMPLX(pw%array(i)%re*tmp, pw%array(i)%im*tmp, KIND=dp)
+                        pw%array(i) = pw%array(i)*tmp
                      END DO
 !$OMP END PARALLEL DO
 
@@ -1721,7 +1721,7 @@ CONTAINS
 !$OMP PARALLEL DO DEFAULT(NONE) PRIVATE(i,tmp) SHARED(pw,omega_2)
                      DO i = 1, SIZE(pw%array)
                         tmp = 1.0_dp + omega_2*pw%pw_grid%gsq(i)
-                        pw%array(i) = CMPLX(pw%array(i)%re*tmp, pw%array(i)%im*tmp, KIND=dp)
+                        pw%array(i) = pw%array(i)*tmp
                      END DO
 !$OMP END PARALLEL DO
 
@@ -1766,7 +1766,7 @@ CONTAINS
                         ELSE
                            tmp2 = tmp + 0.5_dp*tmp*(tmp + (1.0_dp/3.0_dp)*tmp**2)
                         END IF
-                        pw%array(i) = CMPLX(pw%array(i)%re*tmp2, pw%array(i)%im*tmp2, KIND=dp)
+                        pw%array(i) = pw%array(i)*tmp2
                      END DO
 !$OMP END PARALLEL DO
 
@@ -1805,7 +1805,7 @@ CONTAINS
                         ELSE
                            tmp2 = 0.5_dp*tmp - tmp**2/12.0_dp
                         END IF
-                        pw%array(i) = CMPLX(pw%array(i)%re*tmp2, pw%array(i)%im*tmp2, KIND=dp)
+                        pw%array(i) = pw%array(i)*tmp2
                      END DO
 !$OMP END PARALLEL DO
 
@@ -1846,7 +1846,7 @@ CONTAINS
 !$OMP PARALLEL DO DEFAULT(NONE) SHARED(pw, omega_2, scale_coul, scale_long) PRIVATE(i,tmp)
                      DO i = 1, SIZE(pw%array)
                         tmp = scale_coul + scale_long*EXP(-pw%pw_grid%gsq(i)*omega_2)
-                        pw%array(i) = CMPLX(pw%array(i)%re*tmp, pw%array(i)%im*tmp, KIND=dp)
+                        pw%array(i) = pw%array(i)*tmp
                      END DO
 !$OMP END PARALLEL DO
 
@@ -1883,7 +1883,7 @@ CONTAINS
                      DO i = 1, SIZE(pw%array)
                         tmp = omega_2*pw%pw_grid%gsq(i)
                         tmp2 = 1.0_dp + scale_long*tmp*EXP(-tmp)/(scale_coul + scale_long*EXP(-tmp))
-                        pw%array(i) = CMPLX(pw%array(i)%re*tmp2, pw%array(i)%im*tmp2, KIND=dp)
+                        pw%array(i) = pw%array(i)*tmp2
                      END DO
 !$OMP END PARALLEL DO
 
@@ -1925,7 +1925,7 @@ CONTAINS
                         ELSE
                            tmp2 = tmp**2/2.0_dp*(1.0 - tmp**2/12.0_dp)
                         END IF
-                        pw%array(i) = CMPLX(pw%array(i)%re*tmp2, pw%array(i)%im*tmp2, KIND=dp)
+                        pw%array(i) = pw%array(i)*tmp2
                      END DO
 !$OMP END PARALLEL DO
 
@@ -1964,7 +1964,7 @@ CONTAINS
                         ELSE
                            tmp2 = tmp**2*(1.0_dp + tmp**2/15.0_dp)/3.0_dp
                         END IF
-                        pw%array(i) = CMPLX(pw%array(i)%re*tmp2, pw%array(i)%im*tmp2, KIND=dp)
+                        pw%array(i) = pw%array(i)*tmp2
                      END DO
 !$OMP END PARALLEL DO
 
@@ -2004,15 +2004,13 @@ CONTAINS
                         IF (n(idir) == 1) THEN
 !$OMP PARALLEL DO DEFAULT(NONE) SHARED(pw,idir) PRIVATE(idx)
                            DO idx = 1, SIZE(pw%array)
-                              pw%array(idx) = CMPLX(pw%array(idx)%re*pw%pw_grid%g(idir, idx), &
-                                                    pw%array(idx)%im*pw%pw_grid%g(idir, idx), KIND=dp)
+                              pw%array(idx) = pw%array(idx)*pw%pw_grid%g(idir, idx)
                            END DO
 !$OMP END PARALLEL DO
                         ELSE IF (n(idir) > 1) THEN
 !$OMP PARALLEL DO DEFAULT(NONE) SHARED(n, pw,idir) PRIVATE(idx)
                            DO idx = 1, SIZE(pw%array)
-                              pw%array(idx) = CMPLX(pw%array(idx)%re*pw%pw_grid%g(idir, idx)**n(idir), &
-                                                    pw%array(idx)%im*pw%pw_grid%g(idir, idx)**n(idir), KIND=dp)
+                              pw%array(idx) = pw%array(idx)*pw%pw_grid%g(idir, idx)**n(idir)
                            END DO
 !$OMP END PARALLEL DO
                         END IF
@@ -2050,7 +2048,7 @@ CONTAINS
                      CALL timeset(routineN, handle)
 
 !$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw)
-                     pw%array(:) = -CMPLX(pw%array(:)%re*pw%pw_grid%gsq(:), pw%array(:)%im*pw%pw_grid%gsq(:), KIND=dp)
+                     pw%array(:) = -pw%array(:)*pw%pw_grid%gsq(:)
 !$OMP END PARALLEL WORKSHARE
 
                      CALL timestop(handle)
@@ -2088,14 +2086,13 @@ CONTAINS
 !$OMP PARALLEL DO DEFAULT(NONE) PRIVATE(ig,gg) SHARED(cnt, i, o3, pw, pwdr2)
                         DO ig = 1, cnt
                            gg = pw%pw_grid%g(i, ig)**2 - o3*pw%pw_grid%gsq(ig)
-                           pwdr2%array(ig) = CMPLX(gg*pw%array(ig)%re, gg*pw%array(ig)%im, KIND=dp)
+                           pwdr2%array(ig) = gg*pw%array(ig)
                         END DO
 !$OMP END PARALLEL DO
                      ELSE
 !$OMP PARALLEL DO PRIVATE (ig) DEFAULT(NONE) SHARED(cnt, i, j, pw, pwdr2)
                         DO ig = 1, cnt
-                           pwdr2%array(ig) = CMPLX(pw%array(ig)%re*(pw%pw_grid%g(i, ig)*pw%pw_grid%g(j, ig)), &
-                                                   pw%array(ig)%im*(pw%pw_grid%g(i, ig)*pw%pw_grid%g(j, ig)), KIND=dp)
+                           pwdr2%array(ig) = pw%array(ig)*(pw%pw_grid%g(i, ig)*pw%pw_grid%g(j, ig))
                         END DO
 !$OMP END PARALLEL DO
                      END IF
@@ -2136,17 +2133,14 @@ CONTAINS
 !$OMP PARALLEL DO PRIVATE (ig) DEFAULT(NONE) PRIVATE(gg) SHARED(cnt, i, o3, pw, pwdr2_gg)
                         DO ig = pw%pw_grid%first_gne0, cnt
                            gg = pw%pw_grid%g(i, ig)**2 - o3*pw%pw_grid%gsq(ig)
-                           pwdr2_gg%array(ig) = CMPLX(gg/pw%pw_grid%gsq(ig)*pw%array(ig)%re, &
-                                                      gg/pw%pw_grid%gsq(ig)*pw%array(ig)%im, KIND=dp)
+                           pwdr2_gg%array(ig) = gg/pw%pw_grid%gsq(ig)*pw%array(ig)
                         END DO
 !$OMP END PARALLEL DO
                      ELSE
 !$OMP PARALLEL DO PRIVATE (ig) DEFAULT(NONE) SHARED(cnt, i, j, pw, pwdr2_gg)
                         DO ig = pw%pw_grid%first_gne0, cnt
-                           pwdr2_gg%array(ig) = CMPLX(pw%array(ig)%re*((pw%pw_grid%g(i, ig)*pw%pw_grid%g(j, ig)) &
-                                                                       /pw%pw_grid%gsq(ig)), &
-                                                      pw%array(ig)%im*((pw%pw_grid%g(i, ig)*pw%pw_grid%g(j, ig)) &
-                                                                       /pw%pw_grid%gsq(ig)), KIND=dp)
+                           pwdr2_gg%array(ig) = pw%array(ig)*((pw%pw_grid%g(i, ig)*pw%pw_grid%g(j, ig)) &
+                                                              /pw%pw_grid%gsq(ig))
                         END DO
 !$OMP END PARALLEL DO
                      END IF
@@ -2186,7 +2180,7 @@ CONTAINS
                      DO ig = 1, cnt
                         arg = (ecut - pw%pw_grid%gsq(ig))/sigma
                         f = EXP(arg)/(1 + EXP(arg))
-                        pw%array(ig) = CMPLX(f*pw%array(ig)%re, f*pw%array(ig)%im, KIND=dp)
+                        pw%array(ig) = f*pw%array(ig)
                      END DO
 !$OMP END PARALLEL DO
 
