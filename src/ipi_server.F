@@ -90,6 +90,8 @@ CONTAINS
       CHARACTER(len=default_path_length)       :: c_hostname, drv_hostname
       INTEGER                                  :: drv_port, handle, i_drv_unix, &
                                                   output_unit, socket, comm_socket
+      CHARACTER(len=msglength)                 :: msgbuffer
+      CHARACTER(len=msglength), PARAMETER      :: initmsg = "INIT"
       LOGICAL                                  :: drv_unix, ionode
 
       CALL timeset(routineN, handle)
@@ -121,6 +123,17 @@ CONTAINS
          CALL close_socket(socket)
          CALL remove_socket_file(c_hostname)
          CALL ipi_env_set(ipi_env=ipi_env, sockfd=comm_socket)
+      END IF
+
+      ! Check if the client needs initialization
+      ! We only send a meaningless message since we have no general way of
+      ! knowing what the client is expecting
+      CALL ask_status(comm_socket, msgbuffer)
+      IF (TRIM(msgbuffer) == "NEEDINIT") THEN
+         CALL writebuffer(comm_socket, initmsg, msglength)
+         CALL writebuffer(comm_socket, 1) ! Bead index - just send 1
+         CALL writebuffer(comm_socket, 12) ! Bits in the following message
+         CALL writebuffer(comm_socket, "Initializing", 12)
       END IF
 
 #endif
