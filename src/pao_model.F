@@ -33,9 +33,14 @@ MODULE pao_model
                                               qs_environment_type
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               qs_kind_type
-   USE torch_api,                       ONLY: &
-        torch_dict_create, torch_dict_get, torch_dict_insert, torch_dict_release, torch_dict_type, &
-        torch_model_eval, torch_model_freeze, torch_model_get_attr, torch_model_load
+   USE torch_api,                       ONLY: torch_dict_create,&
+                                              torch_dict_get,&
+                                              torch_dict_insert,&
+                                              torch_dict_release,&
+                                              torch_dict_type,&
+                                              torch_model_eval,&
+                                              torch_model_get_attr,&
+                                              torch_model_load
    USE util,                            ONLY: sort
 #include "./base/base_uses.f90"
 
@@ -90,7 +95,9 @@ CONTAINS
       CALL torch_model_get_attr(model%torch_model, "feature_kind_names", feature_kind_names)
 
       ! Freeze model after all attributes have been read.
-      CALL torch_model_freeze(model%torch_model)
+      ! TODO Re-enable once the memory leaks of torch::jit::freeze() are fixed.
+      ! https://github.com/pytorch/pytorch/issues/96726
+      ! CALL torch_model_freeze(model%torch_model)
 
       ! For each feature kind name lookup its corresponding atomic kind number.
       ALLOCATE (model%feature_kinds(SIZE(feature_kind_names)))
