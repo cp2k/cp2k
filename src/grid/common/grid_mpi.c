@@ -55,4 +55,13 @@ void grid_mpi_comm_free(grid_mpi_comm *comm) {
 #endif
 }
 
+void grid_mpi_barrier(const grid_mpi_comm comm) {
+#if defined(__parallel)
+  CHECK(MPI_Barrier(comm));
+#else
+  // Nothing to do in the serial case
+  (void)comm;
+#endif
+}
+
 // EOF

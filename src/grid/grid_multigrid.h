@@ -48,6 +48,32 @@ void grid_create_multigrid_f(
     const double dh[nlevels][3][3], const double dh_inv[nlevels][3][3],
     const grid_mpi_fint fortran_comm, grid_multigrid **multigrid_out);
 
+bool grid_get_multigrid_orthorhombic(const grid_multigrid *multigrid);
+
+int grid_get_multigrid_nlevels(const grid_multigrid *multigrid);
+
+void grid_get_multigrid_npts_global(const grid_multigrid *multigrid,
+                                    int *nlevel, int **npts_global);
+
+void grid_get_multigrid_npts_local(const grid_multigrid *multigrid, int *nlevel,
+                                   int **npts_local);
+
+void grid_get_multigrid_shift_local(const grid_multigrid *multigrid,
+                                    int *nlevel, int **shift_local);
+
+void grid_get_multigrid_border_width(const grid_multigrid *multigrid,
+                                     int *nlevel, int **border_width);
+
+void grid_get_multigrid_dh(const grid_multigrid *multigrid, int *nlevel,
+                           double **dh);
+
+void grid_get_multigrid_dh_inv(const grid_multigrid *multigrid, int *nlevel,
+                               double **dh_inv);
+
+grid_mpi_fint grid_get_multigrid_fortran_comm(const grid_multigrid *multigrid);
+
+grid_mpi_comm grid_get_multigrid_comm(const grid_multigrid *multigrid);
+
 /*******************************************************************************
  * \brief Allocates a multigrid which is passed to task list-based and
  *        pgf_product-based routines.

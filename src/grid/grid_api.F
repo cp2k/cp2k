@@ -11,8 +11,8 @@
 ! **************************************************************************************************
 MODULE grid_api
    USE ISO_C_BINDING,                   ONLY: &
-        C_ASSOCIATED, C_BOOL, C_CHAR, C_DOUBLE, C_FUNLOC, C_FUNPTR, C_INT, C_LOC, C_LONG, &
-        C_NULL_PTR, C_PTR
+        C_ASSOCIATED, C_BOOL, C_CHAR, C_DOUBLE, C_FUNLOC, C_FUNPTR, C_F_POINTER, C_INT, C_LOC, &
+        C_LONG, C_NULL_PTR, C_PTR
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_comm_type
    USE offload_api,                     ONLY: offload_buffer_type
@@ -893,6 +893,7 @@ CONTAINS
       LOGICAL(KIND=C_BOOL)                               :: orthorhombic
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
          TARGET                                          :: dh, dh_inv
+      TYPE(mp_comm_type)                                 :: comm
       INTERFACE
          SUBROUTINE grid_create_multigrid_c(orthorhombic, nlevels, &
                                             npts_global, npts_local, shift_local, &
@@ -958,8 +959,291 @@ CONTAINS
 
       CPASSERT(C_ASSOCIATED(multigrid%c_ptr))
 
+      CPASSERT(orthorhombic .EQV. grid_get_multigrid_orthorhombic(multigrid))
+      CPASSERT(nlevels == grid_get_multigrid_nlevels(multigrid))
+      comm = grid_get_multigrid_comm(multigrid)
+      WRITE (*, *) "Communicators: ", rs_grids(1)%desc%group%get_handle(), comm%get_handle()
+      CPASSERT(ALL(npts_global == grid_get_multigrid_npts_global(multigrid)))
+      CPASSERT(ALL(npts_local == grid_get_multigrid_npts_local(multigrid)))
+      CPASSERT(ALL(shift_local == grid_get_multigrid_shift_local(multigrid)))
+      CPASSERT(ALL(border_width == grid_get_multigrid_borderwidth(multigrid)))
+      CPASSERT(ALL(dh == grid_get_multigrid_dh(multigrid)))
+      CPASSERT(ALL(dh_inv == grid_get_multigrid_dh_inv(multigrid)))
+
       CALL timestop(handle)
    END SUBROUTINE grid_create_multigrid
+
+! **************************************************************************************************
+!> \brief Returns whether a multigrid is orthorhombic.
+!> \param multigrid ...
+!> \return ...
+!> \author Frederick Stein
+! **************************************************************************************************
+   FUNCTION grid_get_multigrid_orthorhombic(multigrid) RESULT(orthorhombic)
+
+      TYPE(grid_multigrid_type), INTENT(IN)              :: multigrid
+      LOGICAL                                            :: orthorhombic
+
+      INTERFACE
+         FUNCTION grid_get_multigrid_orthorhombic_c(multigrid) &
+            BIND(C, name="grid_get_multigrid_orthorhombic")
+            IMPORT :: C_PTR, C_BOOL
+            TYPE(C_PTR), VALUE                        :: multigrid
+            LOGICAL(C_BOOL)                           :: grid_get_multigrid_orthorhombic_c
+         END FUNCTION grid_get_multigrid_orthorhombic_c
+      END INTERFACE
+
+      CPASSERT(C_ASSOCIATED(multigrid%c_ptr))
+
+      orthorhombic = grid_get_multigrid_orthorhombic_c(multigrid%c_ptr)
+
+   END FUNCTION grid_get_multigrid_orthorhombic
+
+! **************************************************************************************************
+!> \brief Returns the number of grid levels of a multrid.
+!> \param multigrid ...
+!> \return ...
+!> \author Frederick Stein
+! **************************************************************************************************
+   FUNCTION grid_get_multigrid_nlevels(multigrid) RESULT(nlevels)
+
+      TYPE(grid_multigrid_type), INTENT(IN)              :: multigrid
+      INTEGER                                            :: nlevels
+
+      INTERFACE
+         FUNCTION grid_get_multigrid_nlevels_c(multigrid) &
+            BIND(C, name="grid_get_multigrid_nlevels")
+            IMPORT :: C_PTR, C_INT
+            TYPE(C_PTR), VALUE                        :: multigrid
+            INTEGER(C_INT)                            :: grid_get_multigrid_nlevels_c
+         END FUNCTION grid_get_multigrid_nlevels_c
+      END INTERFACE
+
+      CPASSERT(C_ASSOCIATED(multigrid%c_ptr))
+
+      nlevels = grid_get_multigrid_nlevels_c(multigrid%c_ptr)
+
+   END FUNCTION grid_get_multigrid_nlevels
+
+! **************************************************************************************************
+!> \brief Returns the communicator of the multigrid.
+!> \param multigrid ...
+!> \return ...
+!> \author Frederick Stein
+! **************************************************************************************************
+   FUNCTION grid_get_multigrid_comm(multigrid) RESULT(comm)
+
+      TYPE(grid_multigrid_type), INTENT(IN)              :: multigrid
+      TYPE(mp_comm_type)                                 :: comm
+
+      INTERFACE
+         FUNCTION grid_get_multigrid_comm_c(multigrid) &
+            BIND(C, name="grid_get_multigrid_fortran_comm")
+            IMPORT :: C_PTR, C_INT
+            TYPE(C_PTR), VALUE                     :: multigrid
+            INTEGER(C_INT)                         :: grid_get_multigrid_comm_c
+         END FUNCTION grid_get_multigrid_comm_c
+      END INTERFACE
+
+      CPASSERT(C_ASSOCIATED(multigrid%c_ptr))
+
+      CALL comm%set_handle(grid_get_multigrid_comm_c(multigrid%c_ptr))
+
+   END FUNCTION grid_get_multigrid_comm
+
+! **************************************************************************************************
+!> \brief Returns the respective info on the multigrid.
+!> \param multigrid ...
+!> \return ...
+!> \author Frederick Stein
+! **************************************************************************************************
+   FUNCTION grid_get_multigrid_npts_global(multigrid) RESULT(res)
+
+      TYPE(grid_multigrid_type), INTENT(IN)              :: multigrid
+      INTEGER, CONTIGUOUS, DIMENSION(:, :), POINTER      :: res
+
+      INTEGER(C_INT)                                     :: nlevels
+      TYPE(C_PTR)                                        :: res_c
+      INTERFACE
+         SUBROUTINE grid_get_multigrid_npts_global_c(multigrid, nlevels, npts_global) &
+            BIND(C, name="grid_get_multigrid_npts_global")
+            IMPORT :: C_PTR, C_INT
+            TYPE(C_PTR), VALUE                        :: multigrid
+            INTEGER(C_INT)                            :: nlevels
+            TYPE(C_PTR)                               :: npts_global
+         END SUBROUTINE grid_get_multigrid_npts_global_c
+      END INTERFACE
+
+      CPASSERT(C_ASSOCIATED(multigrid%c_ptr))
+
+      res_c = C_NULL_PTR
+
+      CALL grid_get_multigrid_npts_global_c(multigrid%c_ptr, nlevels, res_c)
+      CALL C_F_POINTER(res_c, res, shape=[3, nlevels])
+
+   END FUNCTION grid_get_multigrid_npts_global
+
+! **************************************************************************************************
+!> \brief Returns the respective info on the multigrid.
+!> \param multigrid ...
+!> \return ...
+!> \author Frederick Stein
+! **************************************************************************************************
+   FUNCTION grid_get_multigrid_npts_local(multigrid) RESULT(res)
+
+      TYPE(grid_multigrid_type), INTENT(IN)              :: multigrid
+      INTEGER, CONTIGUOUS, DIMENSION(:, :), POINTER      :: res
+
+      INTEGER(C_INT)                                     :: nlevels
+      TYPE(C_PTR)                                        :: res_c
+      INTERFACE
+         SUBROUTINE grid_get_multigrid_npts_local_c(multigrid, nlevels, npts_local) &
+            BIND(C, name="grid_get_multigrid_npts_local")
+            IMPORT :: C_PTR, C_INT
+            TYPE(C_PTR), VALUE                        :: multigrid
+            INTEGER(C_INT)                            :: nlevels
+            TYPE(C_PTR)                               :: npts_local
+         END SUBROUTINE grid_get_multigrid_npts_local_c
+      END INTERFACE
+
+      CPASSERT(C_ASSOCIATED(multigrid%c_ptr))
+
+      res_c = C_NULL_PTR
+
+      CALL grid_get_multigrid_npts_local_c(multigrid%c_ptr, nlevels, res_c)
+      CALL C_F_POINTER(res_c, res, shape=[3, nlevels])
+
+   END FUNCTION grid_get_multigrid_npts_local
+
+! **************************************************************************************************
+!> \brief Returns the respective info on the multigrid.
+!> \param multigrid ...
+!> \return ...
+!> \author Frederick Stein
+! **************************************************************************************************
+   FUNCTION grid_get_multigrid_shift_local(multigrid) RESULT(res)
+
+      TYPE(grid_multigrid_type), INTENT(IN)              :: multigrid
+      INTEGER, CONTIGUOUS, DIMENSION(:, :), POINTER      :: res
+
+      INTEGER(C_INT)                                     :: nlevels
+      TYPE(C_PTR)                                        :: res_c
+      INTERFACE
+         SUBROUTINE grid_get_multigrid_shift_local_c(multigrid, nlevels, shift_local) &
+            BIND(C, name="grid_get_multigrid_shift_local")
+            IMPORT :: C_PTR, C_INT
+            TYPE(C_PTR), VALUE                        :: multigrid
+            INTEGER(C_INT)                            :: nlevels
+            TYPE(C_PTR)                               :: shift_local
+         END SUBROUTINE grid_get_multigrid_shift_local_c
+      END INTERFACE
+
+      CPASSERT(C_ASSOCIATED(multigrid%c_ptr))
+
+      res_c = C_NULL_PTR
+
+      CALL grid_get_multigrid_shift_local_c(multigrid%c_ptr, nlevels, res_c)
+      CALL C_F_POINTER(res_c, res, shape=[3, nlevels])
+
+   END FUNCTION grid_get_multigrid_shift_local
+
+! **************************************************************************************************
+!> \brief Returns the respective info on the multigrid.
+!> \param multigrid ...
+!> \return ...
+!> \author Frederick Stein
+! **************************************************************************************************
+   FUNCTION grid_get_multigrid_borderwidth(multigrid) RESULT(res)
+
+      TYPE(grid_multigrid_type), INTENT(IN)              :: multigrid
+      INTEGER, CONTIGUOUS, DIMENSION(:, :), POINTER      :: res
+
+      INTEGER(C_INT)                                     :: nlevels
+      TYPE(C_PTR)                                        :: res_c
+      INTERFACE
+         SUBROUTINE grid_get_multigrid_borderwidth_c(multigrid, nlevels, borderwidth) &
+            BIND(C, name="grid_get_multigrid_border_width")
+            IMPORT :: C_PTR, C_INT
+            TYPE(C_PTR), VALUE                        :: multigrid
+            INTEGER(C_INT)                            :: nlevels
+            TYPE(C_PTR)                               :: borderwidth
+         END SUBROUTINE grid_get_multigrid_borderwidth_c
+      END INTERFACE
+
+      CPASSERT(C_ASSOCIATED(multigrid%c_ptr))
+
+      res_c = C_NULL_PTR
+
+      CALL grid_get_multigrid_borderwidth_c(multigrid%c_ptr, nlevels, res_c)
+      CALL C_F_POINTER(res_c, res, shape=[3, nlevels])
+
+   END FUNCTION grid_get_multigrid_borderwidth
+
+! **************************************************************************************************
+!> \brief Returns the respective info on the multigrid.
+!> \param multigrid ...
+!> \return ...
+!> \author Frederick Stein
+! **************************************************************************************************
+   FUNCTION grid_get_multigrid_dh(multigrid) RESULT(res)
+
+      TYPE(grid_multigrid_type), INTENT(IN)              :: multigrid
+      REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :, :), &
+         POINTER                                         :: res
+
+      INTEGER(C_INT)                                     :: nlevels
+      TYPE(C_PTR)                                        :: res_c
+      INTERFACE
+         SUBROUTINE grid_get_multigrid_dh_c(multigrid, nlevels, dh) &
+            BIND(C, name="grid_get_multigrid_dh")
+            IMPORT :: C_PTR, C_INT
+            TYPE(C_PTR), VALUE                        :: multigrid
+            INTEGER(C_INT)                            :: nlevels
+            TYPE(C_PTR)                               :: dh
+         END SUBROUTINE grid_get_multigrid_dh_c
+      END INTERFACE
+
+      CPASSERT(C_ASSOCIATED(multigrid%c_ptr))
+
+      res_c = C_NULL_PTR
+
+      CALL grid_get_multigrid_dh_c(multigrid%c_ptr, nlevels, res_c)
+      CALL C_F_POINTER(res_c, res, shape=[3, 3, nlevels])
+
+   END FUNCTION grid_get_multigrid_dh
+
+! **************************************************************************************************
+!> \brief Returns the respective info on the multigrid.
+!> \param multigrid ...
+!> \return ...
+!> \author Frederick Stein
+! **************************************************************************************************
+   FUNCTION grid_get_multigrid_dh_inv(multigrid) RESULT(res)
+
+      TYPE(grid_multigrid_type), INTENT(IN)              :: multigrid
+      REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :, :), &
+         POINTER                                         :: res
+
+      INTEGER(C_INT)                                     :: nlevels
+      TYPE(C_PTR)                                        :: res_c
+      INTERFACE
+         SUBROUTINE grid_get_multigrid_dh_inv_c(multigrid, nlevels, dh_inv) &
+            BIND(C, name="grid_get_multigrid_dh_inv")
+            IMPORT :: C_PTR, C_INT
+            TYPE(C_PTR), VALUE                        :: multigrid
+            INTEGER(C_INT)                            :: nlevels
+            TYPE(C_PTR)                               :: dh_inv
+         END SUBROUTINE grid_get_multigrid_dh_inv_c
+      END INTERFACE
+
+      CPASSERT(C_ASSOCIATED(multigrid%c_ptr))
+
+      res_c = C_NULL_PTR
+
+      CALL grid_get_multigrid_dh_inv_c(multigrid%c_ptr, nlevels, res_c)
+      CALL C_F_POINTER(res_c, res, shape=[3, 3, nlevels])
+
+   END FUNCTION grid_get_multigrid_dh_inv
 
 ! **************************************************************************************************
 !> \brief Deallocates given task list, basis_sets have to be freed separately.
@@ -1010,7 +1294,8 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'grid_collocate_task_list'
 
-      INTEGER                                            :: handle, ilevel, nlevels
+      INTEGER                                            :: handle, ilevel, nlevels, &
+                                                            nlevels_multigrid
       TYPE(C_PTR), ALLOCATABLE, DIMENSION(:), TARGET     :: grids_c
       INTERFACE
          SUBROUTINE grid_collocate_task_list_c(task_list, func, multigrid, pab_blocks, grids) &
@@ -1028,6 +1313,9 @@ CONTAINS
 
       nlevels = SIZE(rs_grids)
       CPASSERT(nlevels > 0)
+
+      nlevels_multigrid = grid_get_multigrid_nlevels(multigrid)
+      CPASSERT(nlevels == nlevels_multigrid)
 
       ALLOCATE (grids_c(nlevels))
       DO ilevel = 1, nlevels
@@ -1084,7 +1372,8 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'grid_integrate_task_list'
 
-      INTEGER                                            :: handle, ilevel, nlevels
+      INTEGER                                            :: handle, ilevel, nlevels, &
+                                                            nlevels_multigrid
       TYPE(C_PTR)                                        :: forces_c, virial_c
       TYPE(C_PTR), ALLOCATABLE, DIMENSION(:), TARGET     :: grids_c
       INTERFACE
@@ -1108,6 +1397,9 @@ CONTAINS
 
       nlevels = SIZE(rs_grids)
       CPASSERT(nlevels > 0)
+
+      nlevels_multigrid = grid_get_multigrid_nlevels(multigrid)
+      CPASSERT(nlevels == nlevels_multigrid)
 
       ALLOCATE (grids_c(nlevels))
       DO ilevel = 1, nlevels
