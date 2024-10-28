@@ -1103,6 +1103,8 @@ CONTAINS
          ! Compute the normalization factors of the contracted Gaussian-type
          ! functions
          CALL init_norm_cgf_orb(gto_basis_set)
+      CASE (3)
+         CALL init_norm_cgf_orb(gto_basis_set)
       CASE DEFAULT
          CPABORT("Normalization method not specified")
       END SELECT
@@ -2342,7 +2344,6 @@ CONTAINS
 !> \param gto_basis_set ...
 !> \param do_ortho ...
 !> \param nset ...
-!> \param ng ...
 !> \param maxl ...
 ! **************************************************************************************************
    SUBROUTINE process_gto_basis(gto_basis_set, do_ortho, nset, maxl)
@@ -2352,16 +2353,16 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: nset, maxl
 
       INTEGER                                            :: i1, i2, ico, iset, jset, l, lshell, m, &
-                                                            maxco, ncgf, ngs, np, nsgf, ng
+                                                            maxco, ncgf, ng, ngs, np, nsgf
       INTEGER, DIMENSION(0:10)                           :: mxf
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: gal, zal, zll
-      
+
       ng = gto_basis_set%npgf(1)
       DO iset = 1, nset
-        IF ((ng /= gto_basis_set%npgf(iset)).and.do_ortho) &
-               CPABORT("different number of primitves")
+         IF ((ng /= gto_basis_set%npgf(iset)) .AND. do_ortho) &
+            CPABORT("different number of primitves")
       END DO
-      
+
       IF (do_ortho) THEN
          mxf = 0
          DO iset = 1, nset

@@ -214,7 +214,8 @@ MODULE qs_environment
                                               xtb_parameters_init,&
                                               xtb_parameters_set
    USE xtb_potentials,                  ONLY: xtb_pp_radius
-   USE xtb_types,                       ONLY: allocate_xtb_atom_param
+   USE xtb_types,                       ONLY: allocate_xtb_atom_param,&
+                                              set_xtb_atom_param
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -604,6 +605,7 @@ CONTAINS
          maxlppl, maxlppnl, method_id, multiplicity, my_ival, n_ao, n_mo_add, natom, nelectron, &
          ngauss, nkind, output_unit, sort_basis, tnadd_method
       INTEGER, DIMENSION(2)                              :: n_mo, nelectron_spin
+      INTEGER, DIMENSION(5)                              :: occ
       LOGICAL :: all_potential_present, be_silent, do_kpoints, do_ri_hfx, do_ri_mp2, do_ri_rpa, &
          do_ri_sos_mp2, do_rpa_ri_exx, do_wfc_im_time, e1terms, has_unit_metric, lribas, &
          mp2_present, orb_gradient
@@ -790,10 +792,21 @@ CONTAINS
             !get basis set
             DO ikind = 1, nkind
                qs_kind => qs_kind_set(ikind)
+               ! Setup proper xTB parameters
+               CPASSERT(.NOT. ASSOCIATED(qs_kind%xtb_parameter))
+               CALL allocate_xtb_atom_param(qs_kind%xtb_parameter)
+               ! Set default parameters
                CALL get_qs_kind(qs_kind, element_symbol=element_symbol)
+
                NULLIFY (tmp_basis_set)
-               CALL tb_get_basis(qs_env%tb_tblite, tmp_basis_set, element_symbol)
+               CALL tb_get_basis(qs_env%tb_tblite, tmp_basis_set, element_symbol, qs_kind%xtb_parameter%rcut, occ)
                CALL add_basis_set_to_container(qs_kind%basis_sets, tmp_basis_set, "ORB")
+               CALL set_xtb_atom_param(qs_kind%xtb_parameter, occupation=occ)
+
+               !setting the potential for the computation
+               zeff_correction = 0.0_dp
+               CALL init_potential(qs_kind%all_potential, itype="BARE", &
+                                   zeff=REAL(SUM(occ), dp), zeff_correction=zeff_correction)
             END DO
          ELSE
             !   *** Read xTB parameter file ***
@@ -1106,20 +1119,27 @@ CONTAINS
       CALL init_interaction_radii(dft_control%qs_control, qs_kind_set)
       !
       IF (dft_control%qs_control%method_id == do_method_xtb) THEN
-         ! cutoff radius
-         DO ikind = 1, nkind
-            qs_kind => qs_kind_set(ikind)
-            IF (qs_kind%xtb_parameter%defined) THEN
-               CALL get_qs_kind(qs_kind, basis_set=tmp_basis_set)
-               rcut = xtb_control%coulomb_sr_cut
-               fxx = 2.0_dp*xtb_control%coulomb_sr_eps*qs_kind%xtb_parameter%eta**2
-               fxx = 0.80_dp*(1.0_dp/fxx)**0.3333_dp
-               rcut = MIN(rcut, xtb_control%coulomb_sr_cut)
-               qs_kind%xtb_parameter%rcut = MIN(rcut, fxx)
-            ELSE
-               qs_kind%xtb_parameter%rcut = 0.0_dp
-            END IF
-         END DO
+         IF (.NOT. dft_control%qs_control%xtb_control%do_tblite) THEN
+            ! cutoff radius
+            DO ikind = 1, nkind
+               qs_kind => qs_kind_set(ikind)
+               IF (qs_kind%xtb_parameter%defined) THEN
+                  CALL get_qs_kind(qs_kind, basis_set=tmp_basis_set)
+                  IF (xtb_control%old_coulomb_damping) THEN
+                     CALL get_gto_basis_set(tmp_basis_set, kind_radius=rcut)
+                     qs_kind%xtb_parameter%rcut = rcut
+                  ELSE
+                     rcut = xtb_control%coulomb_sr_cut
+                     fxx = 2.0_dp*xtb_control%coulomb_sr_eps*qs_kind%xtb_parameter%eta**2
+                     fxx = 0.80_dp*(1.0_dp/fxx)**0.3333_dp
+                     rcut = MIN(rcut, xtb_control%coulomb_sr_cut)
+                     qs_kind%xtb_parameter%rcut = MIN(rcut, fxx)
+                  END IF
+               ELSE
+                  qs_kind%xtb_parameter%rcut = 0.0_dp
+               END IF
+            END DO
+         END IF
       END IF
 
       IF (.NOT. be_silent) THEN
