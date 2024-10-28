@@ -246,13 +246,12 @@ CONTAINS
 
             CALL timeset(routineN, handle)
 
-            ! This OMP clause causes an internal compiler error (ICE) with ifx (<=2024.2.1)
-#if defined(__INTEL_LLVM_COMPILER)
-            pw%array = ${type2type("0.0_dp", "r3d", kind)}$
-#else
+#if !defined(__INTEL_LLVM_COMPILER) || (20250000 <= __INTEL_LLVM_COMPILER)
 !$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw)
             pw%array = ${type2type("0.0_dp", "r3d", kind)}$
 !$OMP END PARALLEL WORKSHARE
+#else
+            pw%array = ${type2type("0.0_dp", "r3d", kind)}$
 #endif
 
             CALL timestop(handle)
@@ -953,6 +952,7 @@ CONTAINS
                      IF (.NOT. ASSOCIATED(pw_out%pw_grid, pw1%pw_grid) .OR. .NOT. ASSOCIATED(pw_out%pw_grid, pw2%pw_grid)) &
                         CPABORT("pw_multiply not implemented for non-identical grids!")
 
+#if !defined(__INTEL_LLVM_COMPILER) || (20250000 <= __INTEL_LLVM_COMPILER)
                      IF (my_alpha == 1.0_dp) THEN
 !$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw_out, pw1, pw2)
                         pw_out%array = pw_out%array + pw1%array*${type2type("pw2%array", kind2, kind)}$
@@ -962,6 +962,13 @@ CONTAINS
                         pw_out%array = pw_out%array + my_alpha*pw1%array*${type2type("pw2%array", kind2, kind)}$
 !$OMP END PARALLEL WORKSHARE
                      END IF
+#else
+                     IF (my_alpha == 1.0_dp) THEN
+                        pw_out%array = pw_out%array + pw1%array*${type2type("pw2%array", kind2, kind)}$
+                     ELSE
+                        pw_out%array = pw_out%array + my_alpha*pw1%array*${type2type("pw2%array", kind2, kind)}$
+                     END IF
+#endif
 
                      CALL timestop(handle)
 
