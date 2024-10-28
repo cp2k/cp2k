@@ -101,7 +101,6 @@ void grid_create_multigrid_f(
   grid_create_multigrid(orthorhombic, nlevels, npts_global, npts_local,
                         shift_local, border_width, dh, dh_inv,
                         grid_mpi_comm_f2c(fortran_comm), multigrid_out);
-  // assert(fortran_comm == grid_mpi_comm_c2f((*multigrid_out)->comm));
 }
 
 /*******************************************************************************
@@ -151,6 +150,23 @@ void grid_create_multigrid(
       multigrid->dh = realloc(multigrid->dh, num_double * sizeof(double));
       multigrid->dh_inv =
           realloc(multigrid->dh_inv, num_double * sizeof(double));
+
+      for (int level = 0; level < multigrid->nlevels; level++) {
+        free(multigrid->grids[level]);
+      }
+      multigrid->grids = realloc(multigrid->grids, nlevels * sizeof(double *));
+      for (int level = 0; level < nlevels; level++) {
+        multigrid->grids[level] =
+            malloc(npts_local[level][0] * npts_local[level][1] *
+                   npts_local[level][2] * sizeof(double));
+      }
+    } else {
+      for (int level = 0; level < nlevels; level++) {
+        multigrid->grids[level] =
+            realloc(multigrid->grids[level],
+                    npts_local[level][0] * npts_local[level][1] *
+                        npts_local[level][2] * sizeof(double));
+      }
     }
     // Always free the old communicator
     grid_mpi_comm_free(&multigrid->comm);
@@ -162,6 +178,7 @@ void grid_create_multigrid(
     multigrid->border_width = calloc(num_int, sizeof(int));
     multigrid->dh = calloc(num_double, sizeof(double));
     multigrid->dh_inv = calloc(num_double, sizeof(double));
+    multigrid->grids = calloc(nlevels, sizeof(double *));
 
     // Resolve AUTO to a concrete backend.
     if (config.backend == GRID_BACKEND_AUTO) {
@@ -174,6 +191,11 @@ void grid_create_multigrid(
 #endif
     } else {
       multigrid->backend = config.backend;
+    }
+    for (int level = 0; level < nlevels; level++) {
+      multigrid->grids[level] =
+          malloc(npts_local[level][0] * npts_local[level][1] *
+                 npts_local[level][2] * sizeof(double));
     }
   }
 
@@ -203,6 +225,12 @@ void grid_create_multigrid(
     break;
   }
 
+  for (int level = 0; level < nlevels; level++) {
+    memset(multigrid->grids[level], 0,
+           npts_local[level][0] * npts_local[level][1] * npts_local[level][2] *
+               sizeof(double));
+  }
+
   *multigrid_out = multigrid;
 
   grid_mpi_barrier(multigrid->comm);
@@ -214,18 +242,24 @@ void grid_create_multigrid(
  ******************************************************************************/
 void grid_free_multigrid(grid_multigrid *multigrid) {
   if (multigrid != NULL) {
-    if (multigrid->npts_global)
+    if (multigrid->npts_global != NULL)
       free(multigrid->npts_global);
-    if (multigrid->npts_local)
+    if (multigrid->npts_local != NULL)
       free(multigrid->npts_local);
-    if (multigrid->shift_local)
+    if (multigrid->shift_local != NULL)
       free(multigrid->shift_local);
-    if (multigrid->border_width)
+    if (multigrid->border_width != NULL)
       free(multigrid->border_width);
-    if (multigrid->dh)
+    if (multigrid->dh != NULL)
       free(multigrid->dh);
-    if (multigrid->dh_inv)
+    if (multigrid->dh_inv != NULL)
       free(multigrid->dh_inv);
+    if (multigrid->grids != NULL) {
+      for (int level = 0; level < multigrid->nlevels; level++) {
+        free(multigrid->grids[level]);
+      }
+      free(multigrid->grids);
+    }
     grid_mpi_comm_free(&multigrid->comm);
     grid_ref_free_multigrid(multigrid->ref);
     grid_cpu_free_multigrid(multigrid->cpu);

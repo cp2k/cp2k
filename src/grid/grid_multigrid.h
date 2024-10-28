@@ -27,6 +27,7 @@ typedef struct {
   int (*border_width)[3];
   double (*dh)[3][3];
   double (*dh_inv)[3][3];
+  double **grids;
   grid_mpi_comm comm;
   grid_ref_multigrid *ref;
   grid_cpu_multigrid *cpu;

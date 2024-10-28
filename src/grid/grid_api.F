@@ -893,7 +893,6 @@ CONTAINS
       LOGICAL(KIND=C_BOOL)                               :: orthorhombic
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
          TARGET                                          :: dh, dh_inv
-      TYPE(mp_comm_type)                                 :: comm
       INTERFACE
          SUBROUTINE grid_create_multigrid_c(orthorhombic, nlevels, &
                                             npts_global, npts_local, shift_local, &
@@ -961,8 +960,6 @@ CONTAINS
 
       CPASSERT(orthorhombic .EQV. grid_get_multigrid_orthorhombic(multigrid))
       CPASSERT(nlevels == grid_get_multigrid_nlevels(multigrid))
-      comm = grid_get_multigrid_comm(multigrid)
-      WRITE (*, *) "Communicators: ", rs_grids(1)%desc%group%get_handle(), comm%get_handle()
       CPASSERT(ALL(npts_global == grid_get_multigrid_npts_global(multigrid)))
       CPASSERT(ALL(npts_local == grid_get_multigrid_npts_local(multigrid)))
       CPASSERT(ALL(shift_local == grid_get_multigrid_shift_local(multigrid)))
