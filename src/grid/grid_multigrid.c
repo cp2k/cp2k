@@ -13,6 +13,68 @@
 #include <stdlib.h>
 #include <string.h>
 
+bool grid_get_multigrid_orthorhombic(const grid_multigrid *multigrid) {
+  assert(multigrid != NULL);
+  return multigrid->orthorhombic;
+}
+
+int grid_get_multigrid_nlevels(const grid_multigrid *multigrid) {
+  assert(multigrid != NULL);
+  return multigrid->nlevels;
+}
+
+void grid_get_multigrid_npts_global(const grid_multigrid *multigrid,
+                                    int *nlevels, int **npts_global) {
+  assert(multigrid != NULL);
+  *nlevels = multigrid->nlevels;
+  *npts_global = (int *)multigrid->npts_global;
+}
+
+void grid_get_multigrid_npts_local(const grid_multigrid *multigrid,
+                                   int *nlevels, int **npts_local) {
+  assert(multigrid != NULL);
+  *nlevels = multigrid->nlevels;
+  *npts_local = (int *)multigrid->npts_local;
+}
+
+void grid_get_multigrid_shift_local(const grid_multigrid *multigrid,
+                                    int *nlevels, int **shift_local) {
+  assert(multigrid != NULL);
+  *nlevels = multigrid->nlevels;
+  *shift_local = (int *)multigrid->shift_local;
+}
+
+void grid_get_multigrid_border_width(const grid_multigrid *multigrid,
+                                     int *nlevels, int **border_width) {
+  assert(multigrid != NULL);
+  *nlevels = multigrid->nlevels;
+  *border_width = (int *)multigrid->border_width;
+}
+
+void grid_get_multigrid_dh(const grid_multigrid *multigrid, int *nlevels,
+                           double **dh) {
+  assert(multigrid != NULL);
+  *nlevels = multigrid->nlevels;
+  *dh = (double *)multigrid->dh;
+}
+
+void grid_get_multigrid_dh_inv(const grid_multigrid *multigrid, int *nlevels,
+                               double **dh_inv) {
+  assert(multigrid != NULL);
+  *nlevels = multigrid->nlevels;
+  *dh_inv = (double *)multigrid->dh_inv;
+}
+
+grid_mpi_fint grid_get_multigrid_fortran_comm(const grid_multigrid *multigrid) {
+  assert(multigrid != NULL);
+  return grid_mpi_comm_c2f(multigrid->comm);
+}
+
+grid_mpi_comm grid_get_multigrid_comm(const grid_multigrid *multigrid) {
+  assert(multigrid != NULL);
+  return multigrid->comm;
+}
+
 /*******************************************************************************
  * \brief Allocates a multigrid which is passed to task list-based and
  *pgf_product-based routines.
@@ -39,6 +101,7 @@ void grid_create_multigrid_f(
   grid_create_multigrid(orthorhombic, nlevels, npts_global, npts_local,
                         shift_local, border_width, dh, dh_inv,
                         grid_mpi_comm_f2c(fortran_comm), multigrid_out);
+  // assert(fortran_comm == grid_mpi_comm_c2f((*multigrid_out)->comm));
 }
 
 /*******************************************************************************
@@ -141,6 +204,8 @@ void grid_create_multigrid(
   }
 
   *multigrid_out = multigrid;
+
+  grid_mpi_barrier(multigrid->comm);
 }
 
 /*******************************************************************************

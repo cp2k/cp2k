@@ -31,6 +31,8 @@ void grid_mpi_comm_dup(const grid_mpi_comm old_comm, grid_mpi_comm *new_comm);
 
 void grid_mpi_comm_free(grid_mpi_comm *comm);
 
+void grid_mpi_barrier(const grid_mpi_comm comm);
+
 #endif
 
 // EOF
