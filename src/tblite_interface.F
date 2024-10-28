@@ -26,6 +26,7 @@ MODULE tblite_interface
    USE tblite_scf_potential, ONLY: potential_type, new_potential
    USE tblite_xtb_h0, ONLY: get_selfenergy, get_hamiltonian, get_occupation, &
       & get_hamiltonian_gradient, tb_hamiltonian
+   USE tblite_basis_type, ONLY: get_cutoff
 #endif
 
    USE qs_environment_types, ONLY: get_qs_env, &
@@ -310,16 +311,20 @@ CONTAINS
 !> \param tb ...
 !> \param gto_basis_set ...
 !> \param element_symbol ...
+!> \param r_cutoff ...
+!> \param occ ...
 ! **************************************************************************************************
-   SUBROUTINE tb_get_basis(tb, gto_basis_set, element_symbol)
+   SUBROUTINE tb_get_basis(tb, gto_basis_set, element_symbol, r_cutoff, occ)
 
       TYPE(tblite_type), POINTER                         :: tb
       TYPE(gto_basis_set_type), POINTER                  :: gto_basis_set
-      CHARACTER(len=2)                                   :: element_symbol
+      CHARACTER(len=2), INTENT(IN)                       :: element_symbol
+      REAL(dp), INTENT(out)                              :: r_cutoff
+      INTEGER, DIMENSION(5), INTENT(out)                 :: occ
 
       CHARACTER(LEN=default_string_length)               :: sng
-      INTEGER                                            :: ang, i_type, id_atom, ipgf, ishell, &
-                                                            maxl, mprim, nset, nshell
+      INTEGER                                            :: ang, i_type, id_atom, iId, ipgf, iSH, &
+                                                            ishell, maxl, mprim, nset, nshell
       LOGICAL                                            :: do_ortho
 
       CALL allocate_gto_basis_set(gto_basis_set)
@@ -340,9 +345,6 @@ CONTAINS
       DO ishell = 1, nset
          mprim = MAX(mprim, tb%calc%bas%cgto(ishell, id_atom)%nprim)
       END DO
-
-      WRITE (*, *) 'nset, mprim', nset, mprim
-      flush (6)
 
       !write basis set information
       CALL integer_to_string(mprim, sng)
@@ -376,7 +378,18 @@ CONTAINS
       do_ortho = .FALSE.
       CALL process_gto_basis(gto_basis_set, do_ortho, nset, maxl)
 
-      CALL write_gto_basis_set(gto_basis_set, 6)
+      !getting cutoff
+      r_cutoff = get_cutoff(tb%calc%bas)
+
+      !getting occupation
+      occ = 0
+      iId = tb%mol%id(id_atom)
+      DO iSh = 1, MIN(tb%calc%bas%nsh_at(id_atom), 5)
+         occ(iSh) = NINT(tb%calc%h0%refocc(iSh, iId))
+      END DO
+
+      !set normalization process
+      gto_basis_set%norm_type = 3
 
 #else
       CPABORT("Build without TBLITE")

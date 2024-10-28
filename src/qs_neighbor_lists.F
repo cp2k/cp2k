@@ -824,7 +824,8 @@ CONTAINS
                                    "/SAB_XB", "sab_xb", "XB bonding")
 
          ! nonbonded interactions list
-         IF (dft_control%qs_control%xtb_control%do_nonbonded) THEN
+         IF (dft_control%qs_control%xtb_control%do_nonbonded &
+             .AND. (.NOT. dft_control%qs_control%xtb_control%do_tblite)) THEN
             ngp = SIZE(dft_control%qs_control%xtb_control%nonbonded%pot)
             ALLOCATE (nonbond1_atom(nkind), nonbond2_atom(nkind))
             nonbond1_atom = .FALSE.
