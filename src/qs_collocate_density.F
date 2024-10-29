@@ -63,7 +63,8 @@ MODULE qs_collocate_density
       GRID_FUNC_DAB_Y, GRID_FUNC_DAB_Z, GRID_FUNC_DABpADB_X, GRID_FUNC_DABpADB_Y, &
       GRID_FUNC_DABpADB_Z, GRID_FUNC_DADB, GRID_FUNC_DX, GRID_FUNC_DXDX, GRID_FUNC_DXDY, &
       GRID_FUNC_DY, GRID_FUNC_DYDY, GRID_FUNC_DYDZ, GRID_FUNC_DZ, GRID_FUNC_DZDX, &
-      GRID_FUNC_DZDZ, collocate_pgf_product, grid_collocate_task_list, grid_multigrid_type
+      GRID_FUNC_DZDZ, collocate_pgf_product, grid_collocate_task_list, grid_multigrid_type, &
+      grid_copy_to_multigrid, grid_copy_from_multigrid
    USE input_constants, ONLY: &
       orb_dx2, orb_dxy, orb_dy2, orb_dyz, orb_dz2, orb_dzx, orb_px, orb_py, orb_pz, orb_s
    USE kinds, ONLY: default_string_length, &
@@ -1615,6 +1616,8 @@ CONTAINS
          any_distributed = any_distributed .OR. rs_rho(ilevel)%desc%distributed
       END DO
 
+      CALL grid_copy_to_multigrid(multigrid, rs_rho)
+
       ! Gather all matrix images in a single array.
       CALL get_ks_env(ks_env, dft_control=dft_control)
       nimages = dft_control%nimages
@@ -1641,7 +1644,9 @@ CONTAINS
       CALL grid_collocate_task_list(task_list=task_list%grid_task_list, &
                                     ga_gb_function=ga_gb_function, &
                                     pab_blocks=task_list%pab_buffer, &
-                                    rs_grids=rs_rho, multigrid=multigrid)
+                                    multigrid=multigrid)
+
+      CALL grid_copy_from_multigrid(multigrid, rs_rho)
 
       ! Merge realspace multi-grids into single planewave grid.
       CALL density_rs2pw(pw_env, rs_rho, rho, rho_gspace)
