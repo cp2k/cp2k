@@ -7,6 +7,7 @@
 #ifndef GRID_MULTIGRID_H
 #define GRID_MULTIGRID_H
 
+#include "../offload/offload_buffer.h"
 #include "common/grid_mpi.h"
 #include "cpu/grid_cpu_multigrid.h"
 #include "ref/grid_ref_multigrid.h"
@@ -27,7 +28,7 @@ typedef struct {
   int (*border_width)[3];
   double (*dh)[3][3];
   double (*dh_inv)[3][3];
-  double **grids;
+  offload_buffer **grids;
   grid_mpi_comm comm;
   grid_ref_multigrid *ref;
   grid_cpu_multigrid *cpu;

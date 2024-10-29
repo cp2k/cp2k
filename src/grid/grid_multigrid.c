@@ -152,20 +152,13 @@ void grid_create_multigrid(
           realloc(multigrid->dh_inv, num_double * sizeof(double));
 
       for (int level = 0; level < multigrid->nlevels; level++) {
-        free(multigrid->grids[level]);
+        offload_free_buffer(multigrid->grids[level]);
       }
-      multigrid->grids = realloc(multigrid->grids, nlevels * sizeof(double *));
-      for (int level = 0; level < nlevels; level++) {
-        multigrid->grids[level] =
-            malloc(npts_local[level][0] * npts_local[level][1] *
-                   npts_local[level][2] * sizeof(double));
-      }
-    } else {
-      for (int level = 0; level < nlevels; level++) {
-        multigrid->grids[level] =
-            realloc(multigrid->grids[level],
-                    npts_local[level][0] * npts_local[level][1] *
-                        npts_local[level][2] * sizeof(double));
+      multigrid->grids =
+          realloc(multigrid->grids, nlevels * sizeof(offload_buffer *));
+      if (nlevels > multigrid->nlevels) {
+        memset(multigrid->grids[multigrid->nlevels], 0,
+               (nlevels - multigrid->nlevels) * sizeof(offload_buffer *));
       }
     }
     // Always free the old communicator
@@ -178,7 +171,7 @@ void grid_create_multigrid(
     multigrid->border_width = calloc(num_int, sizeof(int));
     multigrid->dh = calloc(num_double, sizeof(double));
     multigrid->dh_inv = calloc(num_double, sizeof(double));
-    multigrid->grids = calloc(nlevels, sizeof(double *));
+    multigrid->grids = calloc(nlevels, sizeof(offload_buffer *));
 
     // Resolve AUTO to a concrete backend.
     if (config.backend == GRID_BACKEND_AUTO) {
@@ -192,11 +185,12 @@ void grid_create_multigrid(
     } else {
       multigrid->backend = config.backend;
     }
-    for (int level = 0; level < nlevels; level++) {
-      multigrid->grids[level] =
-          malloc(npts_local[level][0] * npts_local[level][1] *
-                 npts_local[level][2] * sizeof(double));
-    }
+  }
+
+  for (int level = 0; level < nlevels; level++) {
+    offload_create_buffer(npts_local[level][0] * npts_local[level][1] *
+                              npts_local[level][2],
+                          &multigrid->grids[level]);
   }
 
   multigrid->nlevels = nlevels;
@@ -226,7 +220,7 @@ void grid_create_multigrid(
   }
 
   for (int level = 0; level < nlevels; level++) {
-    memset(multigrid->grids[level], 0,
+    memset(offload_get_buffer_host_pointer(multigrid->grids[level]), 0,
            npts_local[level][0] * npts_local[level][1] * npts_local[level][2] *
                sizeof(double));
   }
@@ -256,7 +250,7 @@ void grid_free_multigrid(grid_multigrid *multigrid) {
       free(multigrid->dh_inv);
     if (multigrid->grids != NULL) {
       for (int level = 0; level < multigrid->nlevels; level++) {
-        free(multigrid->grids[level]);
+        offload_free_buffer(multigrid->grids[level]);
       }
       free(multigrid->grids);
     }

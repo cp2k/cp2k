@@ -308,6 +308,14 @@ void grid_integrate_task_list(const grid_task_list *task_list,
   assert(forces == NULL || pab_blocks != NULL);
   assert(virial == NULL || pab_blocks != NULL);
 
+  for (int level = 0; level < multigrid->nlevels; level++) {
+    memcpy(offload_get_buffer_host_pointer(multigrid->grids[level]),
+           offload_get_buffer_host_pointer((offload_buffer *)grids[level]),
+           sizeof(double) * multigrid->npts_local[level][0] *
+               multigrid->npts_local[level][1] *
+               multigrid->npts_local[level][2]);
+  }
+
   switch (task_list->backend) {
 #if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_GRID)
   case GRID_BACKEND_GPU:
