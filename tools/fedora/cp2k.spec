@@ -218,7 +218,6 @@ export CP2K_DATA_DIR=%{buildroot}%{_datadir}/cp2k/data
 export PRTE_MCA_rmaps_default_mapping_policy=:oversubscribe
 test_common_args=(
   "--skip_regtests"
-  "--maxtasks 4"  # Hard-coding maxtasks to avoid hanging. oversubscription should not matter
   "--ompthreads 2"
 )
 for mpi in '' mpich %{?with_openmpi:openmpi} ; do
@@ -244,7 +243,7 @@ for mpi in '' mpich %{?with_openmpi:openmpi} ; do
   # so the binary folder should point to the build directory
   env PATH=%{buildroot}${bindir}:${PATH} \
     LD_LIBRARY_PATH=%{buildroot}${libdir} \
-    tests/do_regtest.py %{_vpath_builddir}/bin ${test_mpi_args[@]}
+    tests/do_regtest.py ${test_common_args[@]} %{_vpath_builddir}/bin ${test_mpi_args[@]}
   [ -n "$mpi" ] && module unload mpi/${mpi}-%{_arch}
 done
 
