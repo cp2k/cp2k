@@ -201,35 +201,51 @@ void grid_collocate_task_list(const grid_task_list *task_list,
            multigrid->npts_local[ilevel][2]);
   }
 
+  for (int level = 0; level < multigrid->nlevels; level++) {
+    memcpy(offload_get_buffer_host_pointer(multigrid->grids[level]),
+           offload_get_buffer_host_pointer((offload_buffer *)grids[level]),
+           sizeof(double) * multigrid->npts_local[level][0] *
+               multigrid->npts_local[level][1] *
+               multigrid->npts_local[level][2]);
+  }
+
   switch (task_list->backend) {
   case GRID_BACKEND_REF:
     grid_ref_collocate_task_list(task_list->ref, func, multigrid->ref,
-                                 pab_blocks, grids);
+                                 pab_blocks, multigrid->grids);
     break;
   case GRID_BACKEND_CPU:
     grid_cpu_collocate_task_list(task_list->cpu, func, multigrid->cpu,
-                                 pab_blocks, grids);
+                                 pab_blocks, multigrid->grids);
     break;
   case GRID_BACKEND_DGEMM:
     grid_dgemm_collocate_task_list(task_list->dgemm, func, multigrid->nlevels,
-                                   pab_blocks, grids);
+                                   pab_blocks, multigrid->grids);
     break;
 #if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_GRID)
   case GRID_BACKEND_GPU:
     grid_gpu_collocate_task_list(task_list->gpu, func, multigrid->nlevels,
-                                 pab_blocks, grids);
+                                 pab_blocks, multigrid->grids);
     break;
 #endif
 #if defined(__OFFLOAD_HIP) && !defined(__NO_OFFLOAD_GRID)
   case GRID_BACKEND_HIP:
     grid_hip_collocate_task_list(task_list->hip, func, multigrid->nlevels,
-                                 pab_blocks, grids);
+                                 pab_blocks, multigrid->grids);
     break;
 #endif
   default:
     printf("Error: Unknown grid backend: %i.\n", task_list->backend);
     abort();
     break;
+  }
+
+  for (int level = 0; level < multigrid->nlevels; level++) {
+    memcpy(offload_get_buffer_host_pointer((offload_buffer *)grids[level]),
+           offload_get_buffer_host_pointer(multigrid->grids[level]),
+           sizeof(double) * multigrid->npts_local[level][0] *
+               multigrid->npts_local[level][1] *
+               multigrid->npts_local[level][2]);
   }
 
   // Perform validation if enabled.
