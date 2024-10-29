@@ -360,12 +360,15 @@ bool grid_replay(const char *filename, const int cycles, const bool collocate,
     if (collocate) {
       // collocate
       offload_buffer *grids[1] = {grid_test};
-      grid_collocate_task_list(task_list, func, multigrid, pab_blocks, grids);
+      grid_copy_to_multigrid(multigrid, (const offload_buffer **)grids);
+      grid_collocate_task_list(task_list, func, multigrid, pab_blocks);
+      grid_copy_from_multigrid(multigrid, grids);
     } else {
       // integrate
       const offload_buffer *grids[1] = {grid_ref};
+      grid_copy_to_multigrid(multigrid, grids);
       grid_integrate_task_list(task_list, compute_tau, natoms, multigrid,
-                               pab_blocks, grids, hab_blocks, forces_test,
+                               pab_blocks, hab_blocks, forces_test,
                                virial_test);
       for (int i = 0; i < n2; i++) {
         for (int j = 0; j < n1; j++) {

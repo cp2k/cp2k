@@ -76,6 +76,24 @@ grid_mpi_fint grid_get_multigrid_fortran_comm(const grid_multigrid *multigrid);
 
 grid_mpi_comm grid_get_multigrid_comm(const grid_multigrid *multigrid);
 
+void grid_copy_to_multigrid(grid_multigrid *multigrid,
+                            const offload_buffer **grids);
+
+void grid_copy_from_multigrid(const grid_multigrid *multigrid,
+                              offload_buffer **grids);
+
+void grid_copy_to_multigrid_single(grid_multigrid *multigrid,
+                                   const double *grid, const int level);
+
+void grid_copy_from_multigrid_single(const grid_multigrid *multigrid,
+                                     double *grid, const int level);
+
+void grid_copy_to_multigrid_single_f(grid_multigrid *multigrid,
+                                     const double *grid, const int level);
+
+void grid_copy_from_multigrid_single_f(const grid_multigrid *multigrid,
+                                       double *grid, const int level);
+
 /*******************************************************************************
  * \brief Allocates a multigrid which is passed to task list-based and
  *        pgf_product-based routines.
