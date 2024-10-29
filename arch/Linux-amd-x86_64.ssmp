@@ -6,7 +6,7 @@
 #
 # Usage: Source this arch file and then run make as instructed.
 #
-# Last update: 16.10.2024
+# Last update: 28.10.2024
 #
 # \
    if [[ "${0}" == "${BASH_SOURCE}" ]]; then \
@@ -18,7 +18,7 @@
    cd tools/toolchain; \
    rm -rf build; \
    [[ -z "${target_cpu}" ]] && target_cpu="native"; \
-   ./install_cp2k_toolchain.sh -j${maxtasks} --mpi-mode=no --no-arch-files --target-cpu=${target_cpu} --with-amd --with-dftd4=no --with-libxsmm=no; \
+   ./install_cp2k_toolchain.sh -j${maxtasks} --mpi-mode=no --no-arch-files --target-cpu=${target_cpu} --with-amd --with-dftd4=no --with-libxsmm; \
    source ./install/setup; \
    cd ../..; \
    echo; \
