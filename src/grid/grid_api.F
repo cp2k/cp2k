@@ -1243,6 +1243,140 @@ CONTAINS
    END FUNCTION grid_get_multigrid_dh_inv
 
 ! **************************************************************************************************
+!> \brief Returns the respective info on the multigrid.
+!> \param multigrid ...
+!> \param grids ...
+!> \return ...
+!> \author Frederick Stein
+! **************************************************************************************************
+   SUBROUTINE grid_copy_to_multigrid(multigrid, grids)
+
+      TYPE(grid_multigrid_type), INTENT(IN)              :: multigrid
+      TYPE(realspace_grid_type), DIMENSION(:), &
+         INTENT(IN)                                      :: grids
+
+      INTEGER                                            :: ilevel
+      TYPE(C_PTR), ALLOCATABLE, DIMENSION(:), TARGET     :: grids_c
+      INTERFACE
+         SUBROUTINE grid_copy_to_multigrid_c(multigrid, grids) &
+            BIND(C, name="grid_copy_to_multigrid")
+            IMPORT :: C_PTR, C_INT
+            TYPE(C_PTR), VALUE                        :: multigrid
+            TYPE(C_PTR), VALUE                        :: grids
+         END SUBROUTINE grid_copy_to_multigrid_c
+      END INTERFACE
+
+      CPASSERT(C_ASSOCIATED(multigrid%c_ptr))
+      CPASSERT(SIZE(grids) == grid_get_multigrid_nlevels(multigrid))
+
+      ALLOCATE (grids_c(SIZE(grids)))
+      DO ilevel = 1, SIZE(grids)
+         grids_c(ilevel) = grids(ilevel)%buffer%c_ptr
+      END DO
+
+      CALL grid_copy_to_multigrid_c(multigrid%c_ptr, C_LOC(grids_c))
+
+   END SUBROUTINE grid_copy_to_multigrid
+
+! **************************************************************************************************
+!> \brief Returns the respective info on the multigrid.
+!> \param multigrid ...
+!> \param grids ...
+!> \return ...
+!> \author Frederick Stein
+! **************************************************************************************************
+   SUBROUTINE grid_copy_from_multigrid(multigrid, grids)
+
+      TYPE(grid_multigrid_type), INTENT(IN)              :: multigrid
+      TYPE(realspace_grid_type), DIMENSION(:), &
+         INTENT(IN)                                      :: grids
+
+      INTEGER                                            :: ilevel
+      TYPE(C_PTR), ALLOCATABLE, DIMENSION(:), TARGET     :: grids_c
+      INTERFACE
+         SUBROUTINE grid_copy_from_multigrid_c(multigrid, grids) &
+            BIND(C, name="grid_copy_from_multigrid")
+            IMPORT :: C_PTR, C_INT
+            TYPE(C_PTR), VALUE                        :: multigrid
+            TYPE(C_PTR), VALUE                        :: grids
+         END SUBROUTINE grid_copy_from_multigrid_c
+      END INTERFACE
+
+      CPASSERT(C_ASSOCIATED(multigrid%c_ptr))
+      CPASSERT(SIZE(grids) == grid_get_multigrid_nlevels(multigrid))
+
+      ALLOCATE (grids_c(SIZE(grids)))
+      DO ilevel = 1, SIZE(grids)
+         grids_c(ilevel) = grids(ilevel)%buffer%c_ptr
+      END DO
+
+      CALL grid_copy_from_multigrid_c(multigrid%c_ptr, C_LOC(grids_c))
+
+   END SUBROUTINE grid_copy_from_multigrid
+
+! **************************************************************************************************
+!> \brief Returns the respective info on the multigrid.
+!> \param multigrid ...
+!> \param grid ...
+!> \param ilevel ...
+!> \return ...
+!> \author Frederick Stein
+! **************************************************************************************************
+   SUBROUTINE grid_copy_to_multigrid_single(multigrid, grid, ilevel)
+
+      TYPE(grid_multigrid_type), INTENT(IN)              :: multigrid
+      TYPE(realspace_grid_type), INTENT(IN)              :: grid
+      INTEGER, INTENT(IN)                                :: ilevel
+
+      INTERFACE
+         SUBROUTINE grid_copy_to_multigrid_single_c(multigrid, grid, ilevel) &
+            BIND(C, name="grid_copy_to_multigrid_single_f")
+            IMPORT :: C_PTR, C_INT
+            TYPE(C_PTR), VALUE                        :: multigrid
+            TYPE(C_PTR), VALUE                        :: grid
+            INTEGER(C_INT), VALUE                     :: ilevel
+         END SUBROUTINE grid_copy_to_multigrid_single_c
+      END INTERFACE
+
+      CPASSERT(C_ASSOCIATED(multigrid%c_ptr))
+      CPASSERT(ilevel <= grid_get_multigrid_nlevels(multigrid))
+
+      CALL grid_copy_to_multigrid_single_c(multigrid%c_ptr, C_LOC(grid%buffer%host_buffer(1)), ilevel)
+
+   END SUBROUTINE grid_copy_to_multigrid_single
+
+! **************************************************************************************************
+!> \brief Returns the respective info on the multigrid.
+!> \param multigrid ...
+!> \param grid ...
+!> \param ilevel ...
+!> \return ...
+!> \author Frederick Stein
+! **************************************************************************************************
+   SUBROUTINE grid_copy_from_multigrid_single(multigrid, grid, ilevel)
+
+      TYPE(grid_multigrid_type), INTENT(IN)              :: multigrid
+      TYPE(realspace_grid_type), INTENT(INOUT)           :: grid
+      INTEGER                                            :: ilevel
+
+      INTERFACE
+         SUBROUTINE grid_copy_from_multigrid_single_c(multigrid, grid, ilevel) &
+            BIND(C, name="grid_copy_from_multigrid_single_f")
+            IMPORT :: C_PTR, C_INT
+            TYPE(C_PTR), VALUE                        :: multigrid
+            TYPE(C_PTR), VALUE                        :: grid
+            INTEGER(C_INT), VALUE                     :: ilevel
+         END SUBROUTINE grid_copy_from_multigrid_single_c
+      END INTERFACE
+
+      CPASSERT(C_ASSOCIATED(multigrid%c_ptr))
+      CPASSERT(ilevel <= grid_get_multigrid_nlevels(multigrid))
+
+      CALL grid_copy_from_multigrid_single_c(multigrid%c_ptr, C_LOC(grid%buffer%host_buffer(1)), ilevel)
+
+   END SUBROUTINE grid_copy_from_multigrid_single
+
+! **************************************************************************************************
 !> \brief Deallocates given task list, basis_sets have to be freed separately.
 !> \param multigrid ...
 !> \author Frederick Stein
@@ -1291,35 +1425,22 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'grid_collocate_task_list'
 
-      INTEGER                                            :: handle, ilevel, nlevels, &
-                                                            nlevels_multigrid
+      INTEGER                                            :: handle
       TYPE(C_PTR), ALLOCATABLE, DIMENSION(:), TARGET     :: grids_c
       INTERFACE
-         SUBROUTINE grid_collocate_task_list_c(task_list, func, multigrid, pab_blocks, grids) &
+         SUBROUTINE grid_collocate_task_list_c(task_list, func, multigrid, pab_blocks) &
             BIND(C, name="grid_collocate_task_list")
             IMPORT :: C_PTR, C_INT, C_BOOL
             TYPE(C_PTR), VALUE                        :: task_list
             INTEGER(KIND=C_INT), VALUE                :: func
             TYPE(C_PTR), VALUE                        :: multigrid
             TYPE(C_PTR), VALUE                        :: pab_blocks
-            TYPE(C_PTR), VALUE                        :: grids
          END SUBROUTINE grid_collocate_task_list_c
       END INTERFACE
 
       CALL timeset(routineN, handle)
 
-      nlevels = SIZE(rs_grids)
-      CPASSERT(nlevels > 0)
-
-      nlevels_multigrid = grid_get_multigrid_nlevels(multigrid)
-      CPASSERT(nlevels == nlevels_multigrid)
-
-      ALLOCATE (grids_c(nlevels))
-      DO ilevel = 1, nlevels
-         ASSOCIATE (rsgrid => rs_grids(ilevel))
-            grids_c(ilevel) = rsgrid%buffer%c_ptr
-         END ASSOCIATE
-      END DO
+      CALL grid_copy_to_multigrid(multigrid, rs_grids)
 
 #if __GNUC__ >= 9
       CPASSERT(IS_CONTIGUOUS(grids_c))
@@ -1332,8 +1453,9 @@ CONTAINS
       CALL grid_collocate_task_list_c(task_list=task_list%c_ptr, &
                                       func=ga_gb_function, &
                                       multigrid=multigrid%c_ptr, &
-                                      pab_blocks=pab_blocks%c_ptr, &
-                                      grids=C_LOC(grids_c(1)))
+                                      pab_blocks=pab_blocks%c_ptr)
+
+      CALL grid_copy_from_multigrid(multigrid, rs_grids)
 
       CALL timestop(handle)
    END SUBROUTINE grid_collocate_task_list
@@ -1369,13 +1491,12 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'grid_integrate_task_list'
 
-      INTEGER                                            :: handle, ilevel, nlevels, &
-                                                            nlevels_multigrid
+      INTEGER                                            :: handle
       TYPE(C_PTR)                                        :: forces_c, virial_c
       TYPE(C_PTR), ALLOCATABLE, DIMENSION(:), TARGET     :: grids_c
       INTERFACE
          SUBROUTINE grid_integrate_task_list_c(task_list, compute_tau, natoms, multigrid, &
-                                               pab_blocks, grids, hab_blocks, forces, virial) &
+                                               pab_blocks, hab_blocks, forces, virial) &
             BIND(C, name="grid_integrate_task_list")
             IMPORT :: C_PTR, C_INT, C_BOOL
             TYPE(C_PTR), VALUE                        :: task_list
@@ -1383,7 +1504,6 @@ CONTAINS
             INTEGER(KIND=C_INT), VALUE                :: natoms
             TYPE(C_PTR), VALUE                        :: multigrid
             TYPE(C_PTR), VALUE                        :: pab_blocks
-            TYPE(C_PTR), VALUE                        :: grids
             TYPE(C_PTR), VALUE                        :: hab_blocks
             TYPE(C_PTR), VALUE                        :: forces
             TYPE(C_PTR), VALUE                        :: virial
@@ -1392,18 +1512,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      nlevels = SIZE(rs_grids)
-      CPASSERT(nlevels > 0)
-
-      nlevels_multigrid = grid_get_multigrid_nlevels(multigrid)
-      CPASSERT(nlevels == nlevels_multigrid)
-
-      ALLOCATE (grids_c(nlevels))
-      DO ilevel = 1, nlevels
-         ASSOCIATE (rsgrid => rs_grids(ilevel))
-            grids_c(ilevel) = rsgrid%buffer%c_ptr
-         END ASSOCIATE
-      END DO
+      CALL grid_copy_to_multigrid(multigrid, rs_grids)
 
       IF (calculate_forces) THEN
          forces_c = C_LOC(forces(1, 1))
@@ -1435,7 +1544,6 @@ CONTAINS
                                       natoms=SIZE(forces, 2), &
                                       multigrid=multigrid%c_ptr, &
                                       pab_blocks=pab_blocks%c_ptr, &
-                                      grids=C_LOC(grids_c(1)), &
                                       hab_blocks=hab_blocks%c_ptr, &
                                       forces=forces_c, &
                                       virial=virial_c)

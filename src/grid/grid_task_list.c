@@ -187,8 +187,7 @@ void grid_free_task_list(grid_task_list *task_list) {
 void grid_collocate_task_list(const grid_task_list *task_list,
                               const enum grid_func func,
                               const grid_multigrid *multigrid,
-                              const offload_buffer *pab_blocks,
-                              offload_buffer *grids[multigrid->nlevels]) {
+                              const offload_buffer *pab_blocks) {
 
   // Bounds check.
   assert(task_list->nlevels == multigrid->nlevels);
@@ -199,14 +198,6 @@ void grid_collocate_task_list(const grid_task_list *task_list,
            multigrid->npts_local[ilevel][1]);
     assert(task_list->npts_local[ilevel][2] ==
            multigrid->npts_local[ilevel][2]);
-  }
-
-  for (int level = 0; level < multigrid->nlevels; level++) {
-    memcpy(offload_get_buffer_host_pointer(multigrid->grids[level]),
-           offload_get_buffer_host_pointer((offload_buffer *)grids[level]),
-           sizeof(double) * multigrid->npts_local[level][0] *
-               multigrid->npts_local[level][1] *
-               multigrid->npts_local[level][2]);
   }
 
   switch (task_list->backend) {
@@ -240,14 +231,6 @@ void grid_collocate_task_list(const grid_task_list *task_list,
     break;
   }
 
-  for (int level = 0; level < multigrid->nlevels; level++) {
-    memcpy(offload_get_buffer_host_pointer((offload_buffer *)grids[level]),
-           offload_get_buffer_host_pointer(multigrid->grids[level]),
-           sizeof(double) * multigrid->npts_local[level][0] *
-               multigrid->npts_local[level][1] *
-               multigrid->npts_local[level][2]);
-  }
-
   // Perform validation if enabled.
   if (grid_library_get_config().validate) {
     // Allocate space for reference results.
@@ -275,7 +258,7 @@ void grid_collocate_task_list(const grid_task_list *task_list,
                                 multigrid->npts_local[level][0] +
                             j * multigrid->npts_local[level][0] + i;
             const double ref_value = grids_ref[level]->host_buffer[idx];
-            const double test_value = grids[level]->host_buffer[idx];
+            const double test_value = multigrid->grids[level]->host_buffer[idx];
             const double diff = fabs(test_value - ref_value);
             const double rel_diff = diff / fmax(1.0, fabs(ref_value));
             max_rel_diff = fmax(max_rel_diff, rel_diff);
@@ -306,7 +289,6 @@ void grid_integrate_task_list(const grid_task_list *task_list,
                               const bool compute_tau, const int natoms,
                               const grid_multigrid *multigrid,
                               const offload_buffer *pab_blocks,
-                              const offload_buffer *grids[multigrid->nlevels],
                               offload_buffer *hab_blocks,
                               double forces[natoms][3], double virial[3][3]) {
 
@@ -323,14 +305,6 @@ void grid_integrate_task_list(const grid_task_list *task_list,
 
   assert(forces == NULL || pab_blocks != NULL);
   assert(virial == NULL || pab_blocks != NULL);
-
-  for (int level = 0; level < multigrid->nlevels; level++) {
-    memcpy(offload_get_buffer_host_pointer(multigrid->grids[level]),
-           offload_get_buffer_host_pointer((offload_buffer *)grids[level]),
-           sizeof(double) * multigrid->npts_local[level][0] *
-               multigrid->npts_local[level][1] *
-               multigrid->npts_local[level][2]);
-  }
 
   switch (task_list->backend) {
 #if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_GRID)
