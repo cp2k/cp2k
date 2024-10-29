@@ -319,32 +319,33 @@ void grid_integrate_task_list(const grid_task_list *task_list,
   switch (task_list->backend) {
 #if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_GRID)
   case GRID_BACKEND_GPU:
-    grid_gpu_integrate_task_list(task_list->gpu, compute_tau, natoms,
-                                 multigrid->nlevels, pab_blocks, grids,
-                                 hab_blocks, forces, virial);
+    grid_gpu_integrate_task_list(
+        task_list->gpu, compute_tau, natoms, multigrid->nlevels, pab_blocks,
+        (const offload_buffer **)multigrid->grids, hab_blocks, forces, virial);
     break;
 #endif
 #if defined(__OFFLOAD_HIP) && !defined(__NO_OFFLOAD_GRID)
   case GRID_BACKEND_HIP:
     grid_hip_integrate_task_list(task_list->hip, compute_tau,
-                                 multigrid->nlevels, pab_blocks, grids,
+                                 multigrid->nlevels, pab_blocks,
+                                 (const offload_buffer **)multigrid->grids,
                                  hab_blocks, &forces[0][0], &virial[0][0]);
     break;
 #endif
   case GRID_BACKEND_DGEMM:
-    grid_dgemm_integrate_task_list(task_list->dgemm, compute_tau, natoms,
-                                   multigrid->nlevels, pab_blocks, grids,
-                                   hab_blocks, forces, virial);
+    grid_dgemm_integrate_task_list(
+        task_list->dgemm, compute_tau, natoms, multigrid->nlevels, pab_blocks,
+        (const offload_buffer **)multigrid->grids, hab_blocks, forces, virial);
     break;
   case GRID_BACKEND_CPU:
-    grid_cpu_integrate_task_list(task_list->cpu, compute_tau, natoms,
-                                 multigrid->cpu, pab_blocks, grids, hab_blocks,
-                                 forces, virial);
+    grid_cpu_integrate_task_list(
+        task_list->cpu, compute_tau, natoms, multigrid->cpu, pab_blocks,
+        (const offload_buffer **)multigrid->grids, hab_blocks, forces, virial);
     break;
   case GRID_BACKEND_REF:
-    grid_ref_integrate_task_list(task_list->ref, compute_tau, natoms,
-                                 multigrid->ref, pab_blocks, grids, hab_blocks,
-                                 forces, virial);
+    grid_ref_integrate_task_list(
+        task_list->ref, compute_tau, natoms, multigrid->ref, pab_blocks,
+        (const offload_buffer **)multigrid->grids, hab_blocks, forces, virial);
     break;
   default:
     printf("Error: Unknown grid backend: %i.\n", task_list->backend);
@@ -362,8 +363,9 @@ void grid_integrate_task_list(const grid_task_list *task_list,
 
     // Call reference implementation.
     grid_ref_integrate_task_list(
-        task_list->ref, compute_tau, natoms, multigrid->ref, pab_blocks, grids,
-        hab_blocks_ref, (forces != NULL) ? forces_ref : NULL,
+        task_list->ref, compute_tau, natoms, multigrid->ref, pab_blocks,
+        (const offload_buffer **)multigrid->grids, hab_blocks_ref,
+        (forces != NULL) ? forces_ref : NULL,
         (virial != NULL) ? virial_ref : NULL);
 
     // Compare hab.
