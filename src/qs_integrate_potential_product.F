@@ -45,7 +45,8 @@ MODULE qs_integrate_potential_product
                                               dbcsr_type
    USE cp_dbcsr_operations,             ONLY: dbcsr_deallocate_matrix_set
    USE gaussian_gridlevels,             ONLY: gridlevel_info_type
-   USE grid_api,                        ONLY: grid_integrate_task_list,&
+   USE grid_api,                        ONLY: grid_copy_to_multigrid,&
+                                              grid_integrate_task_list,&
                                               grid_multigrid_type,&
                                               integrate_pgf_product
    USE kinds,                           ONLY: default_string_length,&
@@ -720,6 +721,8 @@ CONTAINS
          END IF
       END DO
 
+      CALL grid_copy_to_multigrid(multigrid, rs_v)
+
       ALLOCATE (forces_array(3, natoms))
 
       IF (pab_required) THEN
@@ -748,7 +751,6 @@ CONTAINS
                                     calculate_forces=calculate_forces, &
                                     calculate_virial=calculate_virial, &
                                     pab_blocks=task_list%pab_buffer, &
-                                    rs_grids=rs_v, &
                                     multigrid=multigrid, &
                                     hab_blocks=task_list%hab_buffer, &
                                     forces=forces_array, &

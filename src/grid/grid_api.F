@@ -77,6 +77,8 @@ MODULE grid_api
    PUBLIC :: grid_task_list_type, grid_create_task_list, grid_free_task_list
    PUBLIC :: grid_collocate_task_list, grid_integrate_task_list
    PUBLIC :: grid_multigrid_type, grid_create_multigrid, grid_free_multigrid
+   PUBLIC :: grid_copy_from_multigrid, grid_copy_to_multigrid
+   PUBLIC :: grid_copy_from_multigrid_single, grid_copy_to_multigrid_single
 
    TYPE grid_basis_set_type
       PRIVATE
@@ -1411,16 +1413,13 @@ CONTAINS
 !> \param task_list ...
 !> \param ga_gb_function ...
 !> \param pab_blocks ...
-!> \param rs_grids ...
 !> \param multigrid ...
 !> \author Ole Schuett
 ! **************************************************************************************************
-   SUBROUTINE grid_collocate_task_list(task_list, ga_gb_function, pab_blocks, rs_grids, multigrid)
+   SUBROUTINE grid_collocate_task_list(task_list, ga_gb_function, pab_blocks, multigrid)
       TYPE(grid_task_list_type), INTENT(IN)              :: task_list
       INTEGER, INTENT(IN)                                :: ga_gb_function
       TYPE(offload_buffer_type), INTENT(IN)              :: pab_blocks
-      TYPE(realspace_grid_type), DIMENSION(:), &
-         INTENT(IN)                                      :: rs_grids
       TYPE(grid_multigrid_type), INTENT(IN)              :: multigrid
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'grid_collocate_task_list'
@@ -1440,8 +1439,6 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      CALL grid_copy_to_multigrid(multigrid, rs_grids)
-
 #if __GNUC__ >= 9
       CPASSERT(IS_CONTIGUOUS(grids_c))
 #endif
@@ -1455,8 +1452,6 @@ CONTAINS
                                       multigrid=multigrid%c_ptr, &
                                       pab_blocks=pab_blocks%c_ptr)
 
-      CALL grid_copy_from_multigrid(multigrid, rs_grids)
-
       CALL timestop(handle)
    END SUBROUTINE grid_collocate_task_list
 
@@ -1467,7 +1462,6 @@ CONTAINS
 !> \param calculate_forces ...
 !> \param calculate_virial ...
 !> \param pab_blocks ...
-!> \param rs_grids ...
 !> \param multigrid ...
 !> \param hab_blocks ...
 !> \param forces ...
@@ -1475,13 +1469,11 @@ CONTAINS
 !> \author Ole Schuett
 ! **************************************************************************************************
    SUBROUTINE grid_integrate_task_list(task_list, compute_tau, calculate_forces, calculate_virial, &
-                                       pab_blocks, rs_grids, multigrid, hab_blocks, forces, virial)
+                                       pab_blocks, multigrid, hab_blocks, forces, virial)
       TYPE(grid_task_list_type), INTENT(IN)              :: task_list
       LOGICAL, INTENT(IN)                                :: compute_tau, calculate_forces, &
                                                             calculate_virial
       TYPE(offload_buffer_type), INTENT(IN)              :: pab_blocks
-      TYPE(realspace_grid_type), DIMENSION(:), &
-         INTENT(IN)                                      :: rs_grids
       TYPE(grid_multigrid_type), INTENT(IN)              :: multigrid
       TYPE(offload_buffer_type), INTENT(INOUT)           :: hab_blocks
       REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT), &
@@ -1511,8 +1503,6 @@ CONTAINS
       END INTERFACE
 
       CALL timeset(routineN, handle)
-
-      CALL grid_copy_to_multigrid(multigrid, rs_grids)
 
       IF (calculate_forces) THEN
          forces_c = C_LOC(forces(1, 1))
