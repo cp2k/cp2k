@@ -240,9 +240,11 @@ for mpi in '' mpich %{?with_openmpi:openmpi} ; do
     )
   fi
   # Run packaged do_regtest.sh with appropriate buildroot runpaths
+  # Note: Running unittests only in the spec file which are not packaged,
+  # so the binary folder should point to the build directory
   env PATH=%{buildroot}${bindir}:${PATH} \
     LD_LIBRARY_PATH=%{buildroot}${libdir} \
-    tests/do_regtest.py %{buildroot}${bindir} ${test_mpi_args[@]}
+    tests/do_regtest.py %{_vpath_builddir}/bin ${test_mpi_args[@]}
   [ -n "$mpi" ] && module unload mpi/${mpi}-%{_arch}
 done
 
