@@ -185,10 +185,10 @@ CONTAINS
       ! Three-body interaction cutoff
       cutoff%disp3 = dispersion_env%rc_disp*2._dp
       IF (cutoff%disp3 > cutoff%disp2) THEN
-         CPABORT("D4: Three-body cutoff should be smaller thantwo-body cutoff")
+         CPABORT("D4: Three-body cutoff should be smaller than two-body cutoff")
       END IF
 
-      IF (calculate_forces .OR. use_virial .OR. dispersion_env%verbose) THEN
+      IF (calculate_forces .OR. use_virial) THEN
          grad = .TRUE.
       ELSE
          grad = .FALSE.
@@ -276,7 +276,6 @@ CONTAINS
             WRITE (iw, '(A,T71,F10.6)') " DEBUG D4| Charge differences (max)", MAXVAL(ABS(q - qd))
             WRITE (iw, '(A,T71,F10.6)') " DEBUG D4| Charge differences (ave)", SUM(ABS(q - qd))/natom
          END IF
-
          ! Weights for C6 calculation
          ALLOCATE (gwvec(mref, natom))
          IF (grad) ALLOCATE (gwdcn(mref, natom), gwdq(mref, natom))
@@ -348,9 +347,9 @@ CONTAINS
             q(:) = 0.0_dp
             ! i.e. dc6dq = dEdq = 0
             CALL disp%weight_references(mol, cn, q, gwvec, gwdcn, gwdq)
-            gwdq = 0.0_dp
             !
             IF (grad) THEN
+               gwdq = 0.0_dp
                ga(:, :) = 0.0_dp
                sigma = 0.0_dp
             END IF
@@ -528,8 +527,10 @@ CONTAINS
       !
       ALLOCATE (enerd2(natom))
       enerd2(:) = 0.0_dp
-      IF (grad) ALLOCATE (dEdcn(natom), dEdq(natom))
-      dEdcn(:) = 0.0_dp; dEdq(:) = 0.0_dp
+      IF (grad) THEN
+         ALLOCATE (dEdcn(natom), dEdq(natom))
+         dEdcn(:) = 0.0_dp; dEdq(:) = 0.0_dp
+      END IF
       CALL param%get_dispersion2(mol, lattr, cutoff%disp2, disp%r4r2, c6, dc6dcn, dc6dq, &
                                  enerd2, dEdcn, dEdq, gradient(:, :, 1), stress(:, :, 1))
       !
@@ -621,7 +622,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: gradient, stress
 
       INTEGER                                            :: iatom, ikind, jatom, jkind, mepos, num_pe
-      REAL(KINd=dp)                                      :: a1, a2, c6ij, d6, d8, dE, dr, dr2, &
+      REAL(KINd=dp)                                      :: a1, a2, c6ij, cutoff2, d6, d8, dE, dr2, &
                                                             edisp, fac, gdisp, r0ij, rrij, s6, s8, &
                                                             t6, t8
       REAL(KINd=dp), DIMENSION(2)                        :: dcdcn, dcdq
@@ -636,6 +637,7 @@ CONTAINS
       a2 = dispersion_env%a2
       s6 = dispersion_env%s6
       s8 = dispersion_env%s8
+      cutoff2 = cutoff*cutoff
 
       sab_vdw => dispersion_env%sab_vdw
 
@@ -648,8 +650,7 @@ CONTAINS
                                 iatom=iatom, jatom=jatom, r=rij)
          ! vdW potential
          dr2 = SUM(rij(:)**2)
-         dr = SQRT(dr2)
-         IF (dr <= cutoff .AND. dr > 0.001_dp) THEN
+         IF (dr2 <= cutoff2 .AND. dr2 > 0.0000001_dp) THEN
             rrij = 3._dp*r4r2(ikind)*r4r2(jkind)
             r0ij = a1*SQRT(rrij) + a2
             IF (calculate_forces) THEN
@@ -676,11 +677,11 @@ CONTAINS
                gradient(:, iatom) = gradient(:, iatom) - dG
                gradient(:, jatom) = gradient(:, jatom) + dG
                dS(:, :) = SPREAD(dG, 1, 3)*SPREAD(rij, 2, 3)
+               stress(:, :) = stress(:, :) + dS(:, :)
                dEdcn(iatom) = dEdcn(iatom) - dcdcn(1)*edisp
                dEdq(iatom) = dEdq(iatom) - dcdq(1)*edisp
                dEdcn(jatom) = dEdcn(jatom) - dcdcn(2)*edisp
                dEdq(jatom) = dEdq(jatom) - dcdq(2)*edisp
-               stress(:, :) = stress + dS
             END IF
          END IF
       END DO
@@ -993,8 +994,8 @@ CONTAINS
       REAL(KIND=dp)                                      :: refc6
 
       c6ij = 0.0_dp
-      DO iref = 1, mrefs(ik)
-         DO jref = 1, mrefs(jk)
+      DO jref = 1, mrefs(jk)
+         DO iref = 1, mrefs(ik)
             refc6 = c6ref(iref, jref, ik, jk)
             c6ij = c6ij + gwvec(iref, ia)*gwvec(jref, ja)*refc6
          END DO
@@ -1032,8 +1033,8 @@ CONTAINS
       c6ij = 0.0_dp
       dc6dcn = 0.0_dp
       dc6dq = 0.0_dp
-      DO iref = 1, mrefs(ik)
-         DO jref = 1, mrefs(jk)
+      DO jref = 1, mrefs(jk)
+         DO iref = 1, mrefs(ik)
             refc6 = c6ref(iref, jref, ik, jk)
             c6ij = c6ij + gwvec(iref, ia)*gwvec(jref, ja)*refc6
             dc6dcn(1) = dc6dcn(1) + gwdcn(iref, ia)*gwvec(jref, ja)*refc6
