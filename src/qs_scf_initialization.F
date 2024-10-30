@@ -757,12 +757,10 @@ CONTAINS
          scf_env%skip_diis = .TRUE.
          scf_control%use_diag = .FALSE.
 
-         IF (.NOT. do_kpoints) &
+         IF (.NOT. do_kpoints) THEN
             CPABORT("SMEAGOL requires kpoint calculations")
-
-         IF (scf_control%use_ot) THEN
-            CPWARN("OT is irrelevant to NEGF method")
          END IF
+         CPWARN_IF(scf_control%use_ot, "OT is irrelevant to NEGF method")
       END IF
 
       IF (scf_control%use_diag) THEN

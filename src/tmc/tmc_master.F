@@ -833,7 +833,7 @@ CONTAINS
                WRITE (tmc_env%m_env%io_unit, *) &
                   "Time: ", INT(m_walltime() - run_time_start), "of", &
                   INT(tmc_env%m_env%walltime - walltime_delay - walltime_offset), &
-                  "sec needed. "
+                  "sec needed."
                CALL m_memory(mem)
                WRITE (tmc_env%m_env%io_unit, *) &
                   "Memory used: ", INT(mem/(1024*1024), KIND=KIND(0)), "MiBytes"

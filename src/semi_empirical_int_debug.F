@@ -588,7 +588,7 @@ SUBROUTINE check_dcorecore_ana(sepi, sepj, rijv, itype, se_int_control, se_taper
    IF (PRESENT(enuc)) THEN
       CALL corecore_num(sepi, sepj, rijv, enuc_num, itype, se_int_control, se_taper)
       IF (.NOT. check_value(enuc, enuc_num, delta, 0.001_dp)) THEN
-         WRITE (*, *) "ERROR for CORE-CORE energy value (numerical different from analytical)!!"
+         WRITE (*, *) "ERROR for CORE-CORE energy value (numerical different from analytical)!"
          CPABORT("")
       END IF
    END IF

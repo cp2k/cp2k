@@ -69,7 +69,7 @@ CONTAINS
          IF (ANY(iwork /= multiple_unit_cell)) &
             CALL cp_abort(__LOCATION__, "SUBSYS%TOPOLOGY%MULTIPLE_UNIT_CELL and "// &
                           "SUBSYS%CELL%MULTIPLE_UNIT_CELL have been "// &
-                          "setup to two different values!! Correct this error!!")
+                          "setup to two different values!! Correct this error!")
          cell => topology%cell_muc
          natoms = topology%natoms*PRODUCT(multiple_unit_cell)
 

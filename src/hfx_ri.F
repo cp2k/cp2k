@@ -718,7 +718,7 @@ CONTAINS
                                max_iter=ri_data%max_iter_lanczos, converged=converged)
 
          IF (.NOT. converged) THEN
-            CPWARN("Condition number estimate of (P|Q) (HFX potential) is not reliable (not converged).")
+            CPWARN("Not converged: unreliable condition number estimate of (P|Q) matrix (HFX potential).")
          END IF
 
          IF (ri_data%unit_nr > 0) THEN
@@ -737,7 +737,7 @@ CONTAINS
                                   max_iter=ri_data%max_iter_lanczos, converged=converged)
 
             IF (.NOT. converged) THEN
-               CPWARN("Condition number estimate of (P|Q) matrix (RI metric) is not reliable (not converged).")
+               CPWARN("Not converged: unreliable condition number estimate of (P|Q) matrix (RI metric).")
             END IF
 
             IF (ri_data%unit_nr > 0) THEN

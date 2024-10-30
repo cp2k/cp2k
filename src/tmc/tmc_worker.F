@@ -566,7 +566,7 @@ CONTAINS
       IF (DEBUG .GE. 5) &
          WRITE (tmc_env%w_env%io_unit, *) "worker ", &
          tmc_env%tmc_comp_set%para_env_sub_group%mepos, "of group ", &
-         tmc_env%tmc_comp_set%group_nr, "stops working!!!!!!!!!!!!!!!!!!"
+         tmc_env%tmc_comp_set%group_nr, "stops working!"
 
       IF (PRESENT(ana_list)) THEN
          DO itmp = 1, tmc_env%params%nr_temp

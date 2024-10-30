@@ -368,8 +368,9 @@ CONTAINS
       ! -- spiltting communicator
       ALLOCATE (tmc_env%tmc_comp_set%para_env_m_ana)
       CALL tmc_env%tmc_comp_set%para_env_m_ana%from_split(para_env, para_env%mepos, 0)
-      IF (para_env%num_pe .NE. 1) &
+      IF (para_env%num_pe .NE. 1) THEN
          CPWARN("just one out of "//cp_to_string(para_env%num_pe)//"cores is used ")
+      END IF
       ! distribute work to availuble cores
       IF (para_env%mepos .EQ. 0) THEN
          !TODO get the correct usage of creating and handling the logger...
@@ -830,13 +831,15 @@ CONTAINS
          success = .FALSE.
       ELSE
          ! check if there are enougth cores available
-         IF (tmc_comp_set%group_ener_size*tmc_comp_set%group_ener_nr .GT. (para_env%num_pe - 1)) &
+         IF (tmc_comp_set%group_ener_size*tmc_comp_set%group_ener_nr .GT. (para_env%num_pe - 1)) THEN
             CPWARN("The selected energy group size is too huge. ")
+         END IF
          IF (flag) THEN
             tmc_comp_set%group_ener_nr = INT((para_env%num_pe - 1)/ &
                                              REAL(tmc_comp_set%group_ener_size, KIND=dp))
-            IF (tmc_comp_set%group_ener_nr .LT. 1) &
+            IF (tmc_comp_set%group_ener_nr .LT. 1) THEN
                CPWARN("The selected energy group size is too huge. ")
+            END IF
             IF (flag) success = .FALSE.
          END IF
 
@@ -856,8 +859,9 @@ CONTAINS
          total_used = tmc_comp_set%group_ener_size*tmc_comp_set%group_ener_nr + &
                       tmc_comp_set%group_cc_size*tmc_comp_set%group_cc_nr + &
                       tmc_comp_set%ana_on_the_fly
-         IF (para_env%num_pe - 1 .GT. total_used) &
+         IF (para_env%num_pe - 1 .GT. total_used) THEN
             CPWARN(" mpi ranks are unused, but can be used for analysis.")
+         END IF
 
          ! determine the master node
          IF (para_env%mepos == para_env%num_pe - 1) THEN

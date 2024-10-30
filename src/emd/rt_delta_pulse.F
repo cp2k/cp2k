@@ -107,7 +107,7 @@ CONTAINS
 
       CHARACTER(LEN=3), DIMENSION(3)                     :: rlab
       INTEGER                                            :: i, output_unit
-      LOGICAL                                            :: my_apply_pulse, periodic_cell
+      LOGICAL                                            :: my_apply_pulse, periodic
       REAL(KIND=dp), DIMENSION(3)                        :: kvec
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_fm_type), DIMENSION(:), POINTER            :: mos_new, mos_old
@@ -129,7 +129,7 @@ CONTAINS
       output_unit = cp_print_key_unit_nr(logger, rtp_section, "PRINT%PROGRAM_RUN_INFO", &
                                          extension=".scfLog")
       rlab = [CHARACTER(LEN=3) :: "X", "Y", "Z"]
-      periodic_cell = ANY(cell%perd > 0)
+      periodic = ANY(cell%perd > 0) ! periodic cell
       my_apply_pulse = .TRUE.
       CALL get_qs_env(qs_env, mos=mos)
 
@@ -171,9 +171,7 @@ CONTAINS
                END IF
                CALL apply_delta_pulse_electric_periodic(qs_env, mos_old, mos_new, -kvec)
             ELSE
-               IF (periodic_cell) THEN
-                  CPWARN("This application of the delta pulse is not compatible with PBC!")
-               END IF
+               CPWARN_IF(periodic, "This application of the delta pulse is not compatible with PBC!")
                IF (output_unit > 0) THEN
                   WRITE (UNIT=output_unit, FMT="(/,(T3,A,T40))") &
                      "An Electric Delta Kick within the length gauge is applied before running RTP.  "// &
@@ -184,9 +182,7 @@ CONTAINS
                CALL apply_delta_pulse_electric(qs_env, mos_old, mos_new, -kvec)
             END IF
          ELSE IF (rtp_control%apply_delta_pulse_mag) THEN
-            IF (periodic_cell) THEN
-               CPWARN("This application of the delta pulse is not compatible with PBC!")
-            END IF
+            CPWARN_IF(periodic, "This application of the delta pulse is not compatible with PBC!")
             ! The prefactor (strength of the magnetic field, should be divided by 2c)
             IF (output_unit > 0) THEN
                WRITE (UNIT=output_unit, FMT="(/,(T3,A,T40))") &
@@ -224,7 +220,7 @@ CONTAINS
                                                             ncol_local, nmo, nrow_local, nvirt, &
                                                             reference
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
-      LOGICAL                                            :: com_nl, len_rep, periodic_cell
+      LOGICAL                                            :: com_nl, len_rep, periodic
       REAL(KIND=dp)                                      :: eps_ppnl, factor
       REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :), &
          POINTER                                         :: local_data
@@ -248,7 +244,7 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       NULLIFY (cell, mos, rtp, matrix_s, matrix_ks, input, dft_control, particle_set, fm_struct)
-      ! we need the overlap and ks matrix for a full diagionalization
+      ! we need the overlap and ks matrix for a full diagonalization
       CALL get_qs_env(qs_env, &
                       cell=cell, &
                       mos=mos, &
@@ -260,7 +256,7 @@ CONTAINS
                       particle_set=particle_set)
 
       rtp_control => dft_control%rtp_control
-      periodic_cell = ANY(cell%perd > 0)
+      periodic = ANY(cell%perd > 0) ! periodic cell
 
       ! relevant input parameters
       com_nl = section_get_lval(section_vals=input, keyword_name="DFT%REAL_TIME_PROPAGATION%COM_NL")
@@ -291,9 +287,7 @@ CONTAINS
       ! calculate dipole moment matrix if required, NOT for periodic boundary conditions!
       IF (len_rep) THEN
          CALL cite_reference(Mattiat2022)
-         IF (periodic_cell) THEN
-            CPWARN("This application of the delta pulse is not compatible with PBC!")
-         END IF
+         CPWARN_IF(periodic, "This application of the delta pulse is not compatible with PBC!")
          ! get reference point
          reference = section_get_ival(section_vals=input, &
                                       keyword_name="DFT%PRINT%MOMENTS%REFERENCE")

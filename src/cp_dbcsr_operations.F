@@ -1196,8 +1196,9 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-      IF (MOD(nbins*nimages, multiplicity) .NE. 0) &
+      IF (MOD(nbins*nimages, multiplicity) .NE. 0) THEN
          CPWARN("mulitplicity is not divisor of new process grid coordinate")
+      END IF
       old_nbins = (nbins*nimages)/multiplicity
       ALLOCATE (bin_multiplier(0:old_nbins - 1))
       bin_multiplier(:) = 0

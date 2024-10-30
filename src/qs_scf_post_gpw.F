@@ -468,9 +468,7 @@ CONTAINS
       END IF
       ! Makes the MOs eigenstates, computes eigenvalues, write cubes
       IF (do_kpoints) THEN
-         IF (do_mo_cubes) THEN
-            CPWARN("Print MO cubes not implemented for k-point calculations")
-         END IF
+         CPWARN_IF(do_mo_cubes, "Print MO cubes not implemented for k-point calculations")
       ELSE
          CALL get_qs_env(qs_env, &
                          mos=mos, &
@@ -506,7 +504,7 @@ CONTAINS
       !  - Possibly gets molecular states
       IF (p_loc_homo) THEN
          IF (do_kpoints) THEN
-            CPWARN("Localization not implemented for k-point calculations!!")
+            CPWARN("Localization not implemented for k-point calculations!")
          ELSEIF (dft_control%restricted &
                  .AND. (section_get_ival(localize_section, "METHOD") .NE. do_loc_none) &
                  .AND. (section_get_ival(localize_section, "METHOD") .NE. do_loc_jacobi)) THEN
@@ -669,7 +667,7 @@ CONTAINS
 
       IF (p_loc_mixed) THEN
          IF (do_kpoints) THEN
-            CPWARN("Localization not implemented for k-point calculations!!")
+            CPWARN("Localization not implemented for k-point calculations!")
          ELSEIF (dft_control%restricted) THEN
             IF (output_unit > 0) WRITE (output_unit, *) &
                " Unclear how we define MOs / localization in the restricted case... skipping"
@@ -1531,8 +1529,7 @@ CONTAINS
 
          ELSE
             ! not implemented
-            CPWARN("ELF not implemented for GAPW calculations!!")
-
+            CPWARN("ELF not implemented for GAPW calculations!")
          END IF
 
       END IF ! print key

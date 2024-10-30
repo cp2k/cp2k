@@ -828,7 +828,7 @@ CONTAINS
       END IF
 
       IF (.NOT. converged .AND. .NOT. optimizer%early_stopping_on) THEN
-         CPABORT("SCF for ALMOs on overlapping domains not converged! ")
+         CPABORT("SCF for ALMOs on overlapping domains not converged!")
       END IF
 
       DO ispin = 1, nspin
@@ -1371,7 +1371,7 @@ CONTAINS
             DO ispin = 1, nspins
 
                IF (just_started .AND. almo_mathematica) THEN
-                  IF (ispin .GT. 1) CPWARN("Mathematica files will be overwritten")
+                  CPWARN_IF(ispin .GT. 1, "Mathematica files will be overwritten")
                   CALL print_mathematica_matrix(almo_scf_env%matrix_s(1), "matrixS.dat")
                   CALL print_mathematica_matrix(almo_scf_env%matrix_ks(ispin), "matrixF.dat")
                   CALL print_mathematica_matrix(matrix_t_out(ispin), "matrixT.dat")
@@ -1902,7 +1902,7 @@ CONTAINS
 
       DO ispin = 1, nspins
          IF (converged .AND. almo_mathematica) THEN
-            IF (ispin .GT. 1) CPWARN("Mathematica files will be overwritten")
+            CPWARN_IF(ispin .GT. 1, "Mathematica files will be overwritten")
             CALL print_mathematica_matrix(matrix_t_out(ispin), "matrixTf.dat")
          END IF
       END DO ! ispin

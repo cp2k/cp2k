@@ -113,8 +113,7 @@ CONTAINS
 
       is_large = ABS(MAXVAL(all_occ) - 1.0_dp) > smear%eps_fermi_dirac
       ! this is not a real problem, but the temperature might be a bit large
-      IF (is_large) &
-         CPWARN("Fermi-Dirac smearing includes the first MO")
+      CPWARN_IF(is_large, "Fermi-Dirac smearing includes the first MO")
 
       is_large = ABS(MINVAL(all_occ)) > smear%eps_fermi_dirac
       IF (is_large) &
@@ -124,8 +123,7 @@ CONTAINS
 
       ! check that the total electron count is accurate
       is_large = (ABS(all_nelec - accurate_sum(all_occ(:))) > smear%eps_fermi_dirac*all_nelec)
-      IF (is_large) &
-         CPWARN("Total number of electrons is not accurate")
+      CPWARN_IF(is_large, "Total number of electrons is not accurate")
 
       DO i = 1, all_nmo
          IF (all_index(i) <= nmo_a) THEN
@@ -577,8 +575,7 @@ CONTAINS
             END DO
             is_large = ABS(MAXVAL(mo_set%occupation_numbers) - mo_set%maxocc) > smear%eps_fermi_dirac
             ! this is not a real problem, but the temperature might be a bit large
-            IF (is_large) &
-               CPWARN("Fermi-Dirac smearing includes the first MO")
+            CPWARN_IF(is_large, "Fermi-Dirac smearing includes the first MO")
 
             ! Find the highest (fractional) occupied MO which will be now the HOMO
             DO imo = nmo, mo_set%lfomo, -1
@@ -595,8 +592,7 @@ CONTAINS
 
             ! check that the total electron count is accurate
             is_large = (ABS(nelec - accurate_sum(mo_set%occupation_numbers(:))) > smear%eps_fermi_dirac*nelec)
-            IF (is_large) &
-               CPWARN("Total number of electrons is not accurate")
+            CPWARN_IF(is_large, "Total number of electrons is not accurate")
 
          CASE (smear_energy_window)
             ! not implemented
@@ -604,8 +600,9 @@ CONTAINS
 
             ! Define the energy window for the eigenvalues
             e1 = mo_set%eigenvalues(mo_set%homo) - 0.5_dp*smear%window_size
-            IF (e1 <= mo_set%eigenvalues(1)) &
+            IF (e1 <= mo_set%eigenvalues(1)) THEN
                CPWARN("Energy window for smearing includes the first MO")
+            END IF
 
             e2 = mo_set%eigenvalues(mo_set%homo) + 0.5_dp*smear%window_size
             IF (e2 >= mo_set%eigenvalues(nmo)) &

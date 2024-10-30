@@ -164,7 +164,7 @@ CONTAINS
             IF (detected_link) THEN
                IF (iw > 0) WRITE (iw, fmt='(A)', ADVANCE="NO") " QM/MM link detected..."
                IF (.NOT. qmmm_env%qmmm_link) THEN
-                  IF (iw > 0) WRITE (iw, fmt='(A)') " Missing LINK section in input file!!"
+                  IF (iw > 0) WRITE (iw, fmt='(A)') " Missing LINK section in input file!"
                   WRITE (output_unit, '(T2,"QMMM_CONNECTIVITY|",A)') &
                      " ERROR in the QM/MM connectivity. A QM/MM LINK was detected but", &
                      " no LINK section was provided in the Input file!", &

@@ -2078,11 +2078,6 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       last_iter = iter - 1
-      IF (last_iter .EQ. 1) THEN
-         msg = " iteration. "
-      ELSE
-         msg = " iterations."
-      END IF
 
       IF (outp_unit .GT. 0) THEN
          IF (last_iter .EQ. max_iter) THEN
@@ -2090,6 +2085,11 @@ CONTAINS
                "POISSON| No convergence achieved within the maximum number of iterations."
          END IF
          IF (last_iter .LT. max_iter) THEN
+            IF (last_iter .EQ. 1) THEN
+               msg = " iteration."
+            ELSE
+               msg = " iterations."
+            END IF
             WRITE (outp_unit, '(T3,A,I0,A)') &
                "POISSON| Poisson solver converged in ", last_iter, msg
          END IF

@@ -340,7 +340,7 @@ CONTAINS
          CALL create_kp_from_gamma(qs_env, qs_env_kp)
       END IF
       IF (iw > 0) THEN
-         WRITE (unit=iw, FMT="(/,T2,A)") "Start K-Point Calculation ... "
+         WRITE (unit=iw, FMT="(/,T2,A)") "Start K-Point Calculation ..."
       END IF
       CALL get_qs_env(qs_env=qs_env_kp, para_env=para_env, blacs_env=blacs_env)
       CALL kpoint_env_initialize(kpoint, para_env, blacs_env)

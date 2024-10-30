@@ -168,9 +168,9 @@ CONTAINS
       !ENDIF
       !
       ! check that the psi0 are localized and you have all the centers
-      IF (.NOT. linres_control%localized_psi0) &
-         CPWARN(' To get NMR parameters within PBC you need localized zero order orbitals ')
-
+      IF (.NOT. linres_control%localized_psi0) THEN
+         CPWARN("To get NMR parameters within PBC you need localized zero order orbitals")
+      END IF
       gapw = dft_control%qs_control%gapw
       nspins = dft_control%nspins
       natom = SIZE(particle_set, 1)

@@ -369,7 +369,7 @@ CONTAINS
       ELSE
          CALL get_qs_env(qs_env=qs_env, matrix_s_kp=matrixkp_s)
          CPASSERT(ASSOCIATED(matrixkp_s))
-         IF (SIZE(matrixkp_s, 2) > 1) CPWARN("not implemented for k-points.")
+         CPWARN_IF(SIZE(matrixkp_s, 2) > 1, "not implemented for k-points.")
          sm_s => matrixkp_s(1, 1)%matrix
       END IF
       sm_h => work%shalf

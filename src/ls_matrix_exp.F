@@ -409,8 +409,7 @@ CONTAINS
       CALL dbcsr_filter(density_re, filter_eps)
       CALL dbcsr_filter(density_im, filter_eps)
 
-      IF (.NOT. convergence) &
-         CPWARN("BCH method did not converge")
+      CPWARN_IF(.NOT. convergence, "BCH method did not converge")
 
       CALL dbcsr_deallocate_matrix(tmp)
       CALL dbcsr_deallocate_matrix(tmp2)
@@ -499,8 +498,7 @@ CONTAINS
       CALL dbcsr_filter(density_re, filter_eps)
       CALL dbcsr_filter(density_im, filter_eps)
 
-      IF (.NOT. convergence) &
-         CPWARN("BCH method did not converge ")
+      CPWARN_IF(.NOT. convergence, "BCH method did not converge")
 
       CALL dbcsr_deallocate_matrix(tmp)
       CALL dbcsr_deallocate_matrix(tmp2)

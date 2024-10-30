@@ -308,8 +308,9 @@ CONTAINS
          ALLOCATE (Gmatrix_i(n_tot, n_tot))
          Gmatrix(:, :) = MATMUL(TRANSPOSE(Bmatrix), Bmatrix)
          CALL invert_matrix(Gmatrix, Gmatrix_i, inv_error)
-         IF (ABS(inv_error) > 1.0E-8_dp) &
+         IF (ABS(inv_error) > 1.0E-8_dp) THEN
             CPWARN("Error in inverting the Gmatrix larger than 1.0E-8!")
+         END IF
          Amatrix = MATMUL(Gmatrix_i, TRANSPOSE(Bmatrix))
          DEALLOCATE (Gmatrix_i)
          DEALLOCATE (Gmatrix)

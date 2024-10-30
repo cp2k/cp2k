@@ -190,8 +190,9 @@ CONTAINS
       CALL para_env%bcast(positions)
       CALL para_env%bcast(ml_range)
 
-      IF (ml_range(1) /= 1 .OR. ml_range(2) /= natoms) &
+      IF (ml_range(1) /= 1 .OR. ml_range(2) /= natoms) THEN
          CPWARN("Skipping some atoms for PAO-ML training.")
+      END IF
 
       ! create cell from read-in h-matrix
       CALL cell_create(cell, hmat)

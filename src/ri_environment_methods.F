@@ -331,9 +331,7 @@ CONTAINS
          vect(:) = vect(:) - vecr(:)
          rerror = MAXVAL(ABS(vect(:)))
          DEALLOCATE (vect)
-         IF (rerror > threshold) THEN
-            CPWARN("RI solver: CG did not converge properly")
-         END IF
+         CPWARN_IF(rerror > threshold, "RI solver: CG did not converge properly")
       END IF
 
       CALL timestop(handle)

@@ -301,9 +301,7 @@ CONTAINS
             nelec_b = nelec - nelec_a
             !! Initializing an occupation-rescaling trick if smearing is on
             IF (almo_scf_env%smear) THEN
-               IF (multip .GT. 1) THEN
-                  CPWARN("BEWARE: Non singlet state detected, treating it as closed-shell")
-               END IF
+               CPWARN_IF(multip .GT. 1, "BEWARE: Non singlet state detected, treating it as closed-shell")
                !! Save real number of electrons of each spin, as it is required for Fermi-dirac smearing
                !! BEWARE : Non singlet states are allowed but treated as closed-shell
                almo_scf_env%real_ne_of_domain(idomain, :) = REAL(nelec, KIND=dp)/2.0_dp

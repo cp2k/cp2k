@@ -207,8 +207,7 @@ CONTAINS
       END IF
 
       IF (my_end) THEN
-         IF (j /= natom) &
-            CPWARN("No VELOCITY or BOX information found in CRD file. ")
+         CPWARN_IF(j /= natom, "No VELOCITY or BOX information found in CRD file.")
       ELSE
          ! Velocities
          CALL reallocate(velocity, 1, 3, 1, natom)
@@ -256,8 +255,7 @@ CONTAINS
          DEALLOCATE (velocity)
       END IF
       IF (my_end) THEN
-         IF (j /= natom) &
-            CPWARN("BOX information missing in CRD file. ")
+         CPWARN_IF(j /= natom, "BOX information missing in CRD file.")
       ELSE
          IF (j /= natom) &
             CALL cp_warn(__LOCATION__, &

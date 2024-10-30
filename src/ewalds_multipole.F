@@ -194,7 +194,7 @@ CONTAINS
             CALL debug_ewald_multipoles_fields2(ewald_env, ewald_pw, nonbond_env, &
                                                 cell, particle_set, local_particles, radii, charges, dipoles, &
                                                 quadrupoles, task, iw)
-            CPABORT("Debug Multipole Requested:  POT+EFIELDS+GRAD to give the correct energy!!")
+            CPABORT("Debug Multipole Requested:  POT+EFIELDS+GRAD to give the correct energy!")
          END IF
       END IF
 

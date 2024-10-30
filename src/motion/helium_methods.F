@@ -777,7 +777,7 @@ CONTAINS
                      nnp_section => section_vals_get_subs_vals(helium_section, "NNP")
                      CALL section_vals_get(nnp_section, explicit=explicit)
                      msg_str = "NNP section not explicitly stated. Using default file names."
-                     IF (.NOT. explicit) CPWARN(msg_str)
+                     CPWARN_IF(.NOT. explicit, msg_str)
                   END IF
                   ALLOCATE (helium_env(k)%helium%nnp)
                   CALL cp_logger_create(tmplogger, para_env=helium_env(k)%comm, template_logger=logger)
