@@ -76,7 +76,7 @@ CONTAINS
       CALL force_env_get(force_env, subsys=subsys)
       CALL update_force_mixing_labels(subsys, qmmm_section, labels_changed=labels_changed)
       IF (.NOT. labels_changed) RETURN
-      CPWARN("Adaptive force-mixing labels changed, rebuilding QM/MM calculations! ")
+      CPWARN("Adaptive force-mixing labels changed, rebuilding QM/MM calculations!")
 
       CALL update_force_eval(force_env, root_section, .FALSE.)
 

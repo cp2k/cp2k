@@ -1217,9 +1217,9 @@ CONTAINS
             WRITE (iw, '( A,T71,G10.5)') ' COLVARS| DX', &
                colvar%combine_cvs_param%dx
          CASE (reaction_path_colvar_id)
-            CPWARN("Description header for REACTION_PATH COLVAR missing!!")
+            CPWARN("Description header for REACTION_PATH COLVAR missing!")
          CASE (distance_from_path_colvar_id)
-            CPWARN("Description header for REACTION_PATH COLVAR missing!!")
+            CPWARN("Description header for REACTION_PATH COLVAR missing!")
          CASE (hydronium_shell_colvar_id)
             WRITE (iw, '( A,T71,I10)') ' COLVARS| POH', colvar%hydronium_shell_param%poh
             WRITE (iw, '( A,T71,I10)') ' COLVARS| QOH', colvar%hydronium_shell_param%qoh
@@ -1268,7 +1268,7 @@ CONTAINS
             WRITE (iw, '( A,T71,F10.5)') ' COLVARS| NC', colvar%acid_hyd_shell_param%nc
             WRITE (iw, '( A,T71,F10.5)') ' COLVARS| LAMBDA', colvar%acid_hyd_shell_param%lambda
          CASE (rmsd_colvar_id)
-            CPWARN("Description header for RMSD COLVAR missing!!")
+            CPWARN("Description header for RMSD COLVAR missing!")
          CASE (xyz_diag_colvar_id)
             NULLIFY (section, keyword, enum)
             CALL create_colvar_xyz_d_section(section)

@@ -1364,7 +1364,7 @@ CONTAINS
                   is_ok = cp_sll_val_next(list, val)
                   IF (.NOT. is_ok) &
                      CALL cp_abort(__LOCATION__, &
-                                   "Error reading the Potential from input file!!")
+                                   "Error reading the Potential from input file!")
                   CALL val_get(val, c_val=line_att)
                   READ (line_att, *) elec_conf(l)
                   CALL remove_word(line_att)
@@ -1404,7 +1404,7 @@ CONTAINS
                   is_ok = cp_sll_val_next(list, val)
                   IF (.NOT. is_ok) &
                      CALL cp_abort(__LOCATION__, &
-                                   "Error reading the Potential from input file!!")
+                                   "Error reading the Potential from input file!")
                   CALL val_get(val, c_val=line_att)
                   READ (line_att, *) r
                ELSE
@@ -1550,7 +1550,7 @@ CONTAINS
                   is_ok = cp_sll_val_next(list, val)
                   IF (.NOT. is_ok) &
                      CALL cp_abort(__LOCATION__, &
-                                   "Error reading the Potential from input file!!")
+                                   "Error reading the Potential from input file!")
                   CALL val_get(val, c_val=line_att)
                   READ (line_att, *) ngau, npol
                   CALL remove_word(line_att)
@@ -1572,7 +1572,7 @@ CONTAINS
                      is_ok = cp_sll_val_next(list, val)
                      IF (.NOT. is_ok) &
                         CALL cp_abort(__LOCATION__, &
-                                      "Error reading the Potential from input file!!")
+                                      "Error reading the Potential from input file!")
                      CALL val_get(val, c_val=line_att)
                      READ (line_att, *) alpha(igau), (cval(igau, ipol), ipol=1, npol)
                   ELSE

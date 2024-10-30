@@ -264,7 +264,7 @@ CONTAINS
          DO i = 1, topology%natoms
             IF (kind_of(i) == 0) THEN
                WRITE (*, *) i, kind_of(i)
-               WRITE (*, *) "Two molecules have been defined as identical molecules but atoms mismatch charges!!"
+               WRITE (*, *) "Two molecules have been defined as identical molecules but atoms mismatch charges!"
             END IF
          END DO
          CPABORT("")

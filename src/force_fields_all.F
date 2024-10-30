@@ -1859,7 +1859,7 @@ CONTAINS
 
       ! Not implemented for core-shell
       IF (ASSOCIATED(inp_info%shell_list)) THEN
-         CPABORT("Array of charges not implemented for CORE-SHELL model!!")
+         CPABORT("Array of charges not implemented for CORE-SHELL model!")
       END IF
 
       ! Allocate array to particle_set size
@@ -3293,8 +3293,9 @@ CONTAINS
          item = TRIM(item)//" , "//TRIM(name_atm_d)
       END IF
       item = TRIM(item)//" )"
-      IF (found) &
-         CPWARN("Multiple "//TRIM(tag_label)//" declarations: "//TRIM(item)//" overwriting! ")
+      IF (found) THEN
+         CPWARN("Multiple "//TRIM(tag_label)//" declarations: "//TRIM(item)//" overwriting!")
+      END IF
 
    END SUBROUTINE issue_duplications
 

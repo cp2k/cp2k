@@ -946,8 +946,7 @@ CONTAINS
          IF (convergence) EXIT
 
       END DO
-      IF (.NOT. convergence) &
-         CPWARN("ARNOLDI method did not converge")
+      CPWARN_IF(.NOT. convergence, "ARNOLDI method did not converge")
       !deallocate all work matrices
 
       CALL cp_fm_release(V_mats)

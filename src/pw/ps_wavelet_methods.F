@@ -234,9 +234,9 @@ CONTAINS
       END IF
 
       CALL pw_grid%para%group%max(should_warn)
-      IF (should_warn > 0 .AND. iproc == 0) &
+      IF (should_warn > 0 .AND. iproc == 0) THEN
          CPWARN("Density non-zero on the edges of the unit cell: wrong results in WAVELET solver")
-
+      END IF
       DO i = 0, pw_grid%para%group%num_pe_cart(1) - 1
          DO j = 0, pw_grid%para%group%num_pe_cart(2) - 1
             cart_pos = (/i, j/)

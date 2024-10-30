@@ -2371,7 +2371,6 @@ CONTAINS
             END DO
             IF (total_number_of_cells < SIZE(x_data%neighbor_cells)) THEN
                IF (i_thread == 1) THEN
-
                   WRITE (char_nshells, '(I3)') SIZE(x_data%neighbor_cells)
                   WRITE (error_msg, '(A,A,A)') "Periodic Hartree Fock calculation requested with use "// &
                      "of a truncated potential. The number of shells to be considered "// &

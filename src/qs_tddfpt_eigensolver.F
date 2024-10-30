@@ -232,7 +232,7 @@ CONTAINS
       IF (max_krylovspace_dim <= max_kv) THEN
          max_kv = max_krylovspace_dim
          IF (output_unit > 0) THEN
-            WRITE (output_unit, *) "  Setting the maximum number of krylov vectors to ", max_kv, "!!"
+            WRITE (output_unit, *) "  Setting the maximum number of krylov vectors to ", max_kv, "!"
          END IF
       END IF
 

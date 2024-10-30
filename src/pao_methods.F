@@ -466,7 +466,7 @@ CONTAINS
 
       IF (pao%istep > 1) THEN
          IF (pao%iw > 0) WRITE (pao%iw, *) "PAO| energy improvement:", energy_diff
-         ! IF(energy_diff>0.0_dp) CPWARN("PAO| energy increased")
+         ! CPWARN_IF(energy_diff>0.0_dp, "PAO| energy increased")
 
          ! print one-liner
          IF (pao%iw > 0) WRITE (pao%iw, '(A,I6,11X,F20.9,1X,E10.3,1X,E10.3,1X,F9.3)') &

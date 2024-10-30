@@ -67,7 +67,7 @@ CONTAINS
       nshells = SUM(basis_set%nshell)
       npots = SIZE(pao_potentials)
 
-      IF (npots == 0) CPWARN("Found no PAO_POTENTIAL section")
+      CPWARN_IF(npots == 0, "Found no PAO_POTENTIAL section")
 
       ! fill shell_l
       ALLOCATE (shell_l(nshells))

@@ -1567,8 +1567,9 @@ CONTAINS
          ELSE
             n_mo_add = scf_control%added_mos(1)
          END IF
-         IF (n_mo_add > n_ao - n_mo(2)) &
+         IF (n_mo_add > n_ao - n_mo(2)) THEN
             CPWARN("More ADDED_MOs requested for beta spin than available.")
+         END IF
          scf_control%added_mos(2) = MIN(n_mo_add, n_ao - n_mo(2))
          n_mo(2) = n_mo(2) + scf_control%added_mos(2)
       END IF
@@ -1635,9 +1636,9 @@ CONTAINS
 
       ! Compatibility checks for ROKS
       IF (dft_control%roks .AND. (.NOT. scf_control%use_ot)) THEN
-         IF (scf_control%roks_scheme == general_roks) &
+         IF (scf_control%roks_scheme == general_roks) THEN
             CPWARN("General ROKS scheme is not yet tested!")
-
+         END IF
          IF (scf_control%smear%do_smear) THEN
             CALL cp_abort(__LOCATION__, &
                           "The options ROKS and SMEAR are not compatible. "// &

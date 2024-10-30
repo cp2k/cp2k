@@ -393,9 +393,8 @@ CONTAINS
             CPASSERT(.NOT. PRESENT(last_f))
             CPASSERT(.NOT. PRESENT(actual_projected_gradient))
          END IF
-      ELSE
-         IF (PRESENT(lower_bound) .OR. PRESENT(upper_bound) .OR. PRESENT(kind_of_bound)) &
-            CPWARN("asked undefined types")
+      ELSE IF (PRESENT(lower_bound) .OR. PRESENT(upper_bound) .OR. PRESENT(kind_of_bound)) THEN
+         CPWARN("asked undefined types")
       END IF
 
    END SUBROUTINE cp_opt_gopt_get

@@ -1562,7 +1562,7 @@ CONTAINS
       NULLIFY (gcc, l, lmax, lmin, n, npgf, nshell, zet)
       ! Read the basis set information
       is_ok = cp_sll_val_next(list, val)
-      IF (.NOT. is_ok) CPABORT("Error reading the Basis set from input file!!")
+      IF (.NOT. is_ok) CPABORT("Error reading the Basis set from input file!")
       CALL val_get(val, c_val=line_att)
       READ (line_att, *) nset
 
@@ -1578,7 +1578,7 @@ CONTAINS
 
       DO iset = 1, nset
          is_ok = cp_sll_val_next(list, val)
-         IF (.NOT. is_ok) CPABORT("Error reading the Basis set from input file!!")
+         IF (.NOT. is_ok) CPABORT("Error reading the Basis set from input file!")
          CALL val_get(val, c_val=line_att)
          READ (line_att, *) n(1, iset)
          CALL remove_word(line_att)
@@ -1612,10 +1612,10 @@ CONTAINS
             END DO
          END DO
          IF (LEN_TRIM(line_att) /= 0) &
-            CPABORT("Error reading the Basis from input file!!")
+            CPABORT("Error reading the Basis from input file!")
          DO ipgf = 1, npgf(iset)
             is_ok = cp_sll_val_next(list, val)
-            IF (.NOT. is_ok) CPABORT("Error reading the Basis set from input file!!")
+            IF (.NOT. is_ok) CPABORT("Error reading the Basis set from input file!")
             CALL val_get(val, c_val=line_att)
             READ (line_att, *) zet(ipgf, iset), (gcc(ipgf, ishell, iset), ishell=1, nshell(iset))
          END DO

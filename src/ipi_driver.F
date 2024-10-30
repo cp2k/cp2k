@@ -261,7 +261,7 @@ CONTAINS
             END IF
             hasdata = .FALSE.
          ELSE
-            IF (output_unit > 0) WRITE (output_unit, *) " @DRIVER MODE:  Socket disconnected, time to exit. "
+            IF (output_unit > 0) WRITE (output_unit, *) " @DRIVER MODE:  Socket disconnected, time to exit."
             EXIT
          END IF
       END DO driver_loop

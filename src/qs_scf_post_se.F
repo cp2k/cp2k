@@ -169,14 +169,14 @@ CONTAINS
       print_key => section_vals_get_subs_vals(section_vals=input, &
                                               subsection_name="DFT%PRINT%XRAY_DIFFRACTION_SPECTRUM")
       IF (BTEST(cp_print_key_should_output(logger%iter_info, print_key), cp_p_file)) THEN
-         CPWARN("XRAY_DIFFRACTION_SPECTRUM  not implemented for Semi-Empirical calculations!!")
+         CPWARN("XRAY_DIFFRACTION_SPECTRUM not implemented for Semi-Empirical calculations!")
       END IF
 
       ! Calculation of Electric Field Gradients
       print_key => section_vals_get_subs_vals(section_vals=input, &
                                               subsection_name="DFT%PRINT%ELECTRIC_FIELD_GRADIENT")
       IF (BTEST(cp_print_key_should_output(logger%iter_info, print_key), cp_p_file)) THEN
-         CPWARN("ELECTRIC_FIELD_GRADIENT not implemented for Semi-Empirical calculations!!")
+         CPWARN("ELECTRIC_FIELD_GRADIENT not implemented for Semi-Empirical calculations!")
       END IF
 
       ! Calculation of EPR Hyperfine Coupling Tensors
@@ -184,7 +184,7 @@ CONTAINS
                                               subsection_name="DFT%PRINT%HYPERFINE_COUPLING_TENSOR")
       IF (BTEST(cp_print_key_should_output(logger%iter_info, print_key), &
                 cp_p_file)) THEN
-         CPWARN("HYPERFINE_COUPLING_TENSOR  not implemented for Semi-Empirical calculations!!")
+         CPWARN("HYPERFINE_COUPLING_TENSOR not implemented for Semi-Empirical calculations!")
       END IF
 
       CALL timestop(handle)
@@ -634,43 +634,43 @@ CONTAINS
       dft_section => section_vals_get_subs_vals(input, "DFT")
       IF (BTEST(cp_print_key_should_output(logger%iter_info, dft_section, "PRINT%PDOS") &
                 , cp_p_file)) THEN
-         CPWARN("PDOS not implemented for Semi-Empirical calculations!!")
+         CPWARN("PDOS not implemented for Semi-Empirical calculations!")
       END IF
 
       ! Print the total density (electronic + core charge)
       IF (BTEST(cp_print_key_should_output(logger%iter_info, input, &
                                            "DFT%PRINT%TOT_DENSITY_CUBE"), cp_p_file)) THEN
-         CPWARN("TOT_DENSITY_CUBE  not implemented for Semi-Empirical calculations!!")
+         CPWARN("TOT_DENSITY_CUBE  not implemented for Semi-Empirical calculations!")
       END IF
 
       ! Write cube file with electron density
       IF (BTEST(cp_print_key_should_output(logger%iter_info, input, &
                                            "DFT%PRINT%E_DENSITY_CUBE"), cp_p_file)) THEN
-         CPWARN("E_DENSITY_CUBE not implemented for Semi-Empirical calculations!!")
+         CPWARN("E_DENSITY_CUBE not implemented for Semi-Empirical calculations!")
       END IF ! print key
 
       ! Write cube file with EFIELD
       IF (BTEST(cp_print_key_should_output(logger%iter_info, input, &
                                            "DFT%PRINT%EFIELD_CUBE"), cp_p_file)) THEN
-         CPWARN("EFIELD_CUBE not implemented for Semi-Empirical calculations!!")
+         CPWARN("EFIELD_CUBE not implemented for Semi-Empirical calculations!")
       END IF ! print key
 
       ! Write cube file with ELF
       IF (BTEST(cp_print_key_should_output(logger%iter_info, input, &
                                            "DFT%PRINT%ELF_CUBE"), cp_p_file)) THEN
-         CPWARN("ELF function not implemented for Semi-Empirical calculations!!")
+         CPWARN("ELF function not implemented for Semi-Empirical calculations!")
       END IF ! print key
 
       ! Print the hartree potential
       IF (BTEST(cp_print_key_should_output(logger%iter_info, input, &
                                            "DFT%PRINT%V_HARTREE_CUBE"), cp_p_file)) THEN
-         CPWARN("V_HARTREE_CUBE not implemented for Semi-Empirical calculations!!")
+         CPWARN("V_HARTREE_CUBE not implemented for Semi-Empirical calculations!")
       END IF
 
       ! Print the XC potential
       IF (BTEST(cp_print_key_should_output(logger%iter_info, input, &
                                            "DFT%PRINT%V_XC_CUBE"), cp_p_file)) THEN
-         CPWARN("V_XC_CUBE not available for Semi-Empirical calculations!!")
+         CPWARN("V_XC_CUBE not available for Semi-Empirical calculations!")
       END IF
 
       ! Write the density matrix

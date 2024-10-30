@@ -533,8 +533,9 @@ CONTAINS
          CALL section_vals_val_set(hfx_section, "KP_NGROUPS", i_val=ngroups)
       END IF
       IF ((MOD(ngroups, natom) .NE. 0) .AND. (MOD(natom, ngroups) .NE. 0) .AND. geometry_did_change) THEN
-         IF (ngroups > 1) &
+         IF (ngroups > 1) THEN
             CPWARN("Better load balancing is reached if NGROUPS is a multiple/divisor of the number of atoms")
+         END IF
       END IF
       group_size = para_env%num_pe/ngroups
       igroup = para_env%mepos/group_size

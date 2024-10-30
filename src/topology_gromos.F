@@ -213,7 +213,7 @@ CONTAINS
             CALL parser_get_object(parser, atom_info%atm_mass(index_now))
             CALL parser_get_object(parser, atom_info%atm_charge(index_now))
             CALL parser_get_object(parser, itemp)
-            IF (iw > 0) WRITE (iw, *) "GTOP_INFO| PUT SOLUTEATOM INFO HERE!!!!"
+            IF (iw > 0) WRITE (iw, *) "GTOP_INFO| PUT SOLUTEATOM INFO HERE!"
             CALL parser_get_object(parser, ntype)
             DO i = 1, 50
                ii(i) = -1
@@ -299,7 +299,7 @@ CONTAINS
             CALL parser_get_object(parser, conn_info%bond_b(offset + itype))
             CALL parser_get_object(parser, itemp)
             conn_info%bond_type(offset + itype) = itemp
-            IF (iw > 0) WRITE (iw, *) "GTOP_INFO| PUT BONDH INFO HERE!!!!"
+            IF (iw > 0) WRITE (iw, *) "GTOP_INFO| PUT BONDH INFO HERE!"
          END DO
          conn_info%bond_a(offset + 1:offset + ntype) = conn_info%bond_a(offset + 1:offset + ntype) + natom_prev
          conn_info%bond_b(offset + 1:offset + ntype) = conn_info%bond_b(offset + 1:offset + ntype) + natom_prev
@@ -322,7 +322,7 @@ CONTAINS
             CALL parser_get_object(parser, conn_info%bond_b(offset + itype))
             CALL parser_get_object(parser, itemp)
             conn_info%bond_type(offset + itype) = itemp
-            IF (iw > 0) WRITE (iw, *) "GTOP_INFO| PUT BOND INFO HERE!!!!"
+            IF (iw > 0) WRITE (iw, *) "GTOP_INFO| PUT BOND INFO HERE!"
          END DO
          conn_info%bond_a(offset + 1:offset + ntype) = conn_info%bond_a(offset + 1:offset + ntype) + natom_prev
          conn_info%bond_b(offset + 1:offset + ntype) = conn_info%bond_b(offset + 1:offset + ntype) + natom_prev
@@ -347,7 +347,7 @@ CONTAINS
             CALL parser_get_object(parser, conn_info%theta_c(offset + itype))
             CALL parser_get_object(parser, itemp)
             conn_info%theta_type(offset + itype) = itemp
-            IF (iw > 0) WRITE (iw, *) "GTOP_INFO| PUT BONDANGLEH INFO HERE!!!!"
+            IF (iw > 0) WRITE (iw, *) "GTOP_INFO| PUT BONDANGLEH INFO HERE!"
          END DO
          conn_info%theta_a(offset + 1:offset + ntype) = conn_info%theta_a(offset + 1:offset + ntype) + natom_prev
          conn_info%theta_b(offset + 1:offset + ntype) = conn_info%theta_b(offset + 1:offset + ntype) + natom_prev
@@ -373,7 +373,7 @@ CONTAINS
             CALL parser_get_object(parser, conn_info%theta_c(offset + itype))
             CALL parser_get_object(parser, itemp)
             conn_info%theta_type(offset + itype) = itemp
-            IF (iw > 0) WRITE (iw, *) "GTOP_INFO| PUT BONDANGLE INFO HERE!!!!"
+            IF (iw > 0) WRITE (iw, *) "GTOP_INFO| PUT BONDANGLE INFO HERE!"
          END DO
          conn_info%theta_a(offset + 1:offset + ntype) = conn_info%theta_a(offset + 1:offset + ntype) + natom_prev
          conn_info%theta_b(offset + 1:offset + ntype) = conn_info%theta_b(offset + 1:offset + ntype) + natom_prev
@@ -401,7 +401,7 @@ CONTAINS
             CALL parser_get_object(parser, conn_info%impr_d(offset + itype))
             CALL parser_get_object(parser, itemp)
             conn_info%impr_type(offset + itype) = itemp
-            IF (iw > 0) WRITE (iw, *) "GTOP_INFO| PUT IMPDIHEDRALH INFO HERE!!!!"
+            IF (iw > 0) WRITE (iw, *) "GTOP_INFO| PUT IMPDIHEDRALH INFO HERE!"
          END DO
          conn_info%impr_a(offset + 1:offset + ntype) = conn_info%impr_a(offset + 1:offset + ntype) + natom_prev
          conn_info%impr_b(offset + 1:offset + ntype) = conn_info%impr_b(offset + 1:offset + ntype) + natom_prev
@@ -430,7 +430,7 @@ CONTAINS
             CALL parser_get_object(parser, conn_info%impr_d(offset + itype))
             CALL parser_get_object(parser, itemp)
             conn_info%impr_type(offset + itype) = itemp
-            IF (iw > 0) WRITE (iw, *) "GTOP_INFO| PUT IMPDIHEDRAL INFO HERE!!!!"
+            IF (iw > 0) WRITE (iw, *) "GTOP_INFO| PUT IMPDIHEDRAL INFO HERE!"
          END DO
          conn_info%impr_a(offset + 1:offset + ntype) = conn_info%impr_a(offset + 1:offset + ntype) + natom_prev
          conn_info%impr_b(offset + 1:offset + ntype) = conn_info%impr_b(offset + 1:offset + ntype) + natom_prev
@@ -459,7 +459,7 @@ CONTAINS
             CALL parser_get_object(parser, conn_info%phi_d(offset + itype))
             CALL parser_get_object(parser, itemp)
             conn_info%phi_type(offset + itype) = itemp
-            IF (iw > 0) WRITE (iw, *) "GTOP_INFO| PUT DIHEDRALH INFO HERE!!!!"
+            IF (iw > 0) WRITE (iw, *) "GTOP_INFO| PUT DIHEDRALH INFO HERE!"
          END DO
          conn_info%phi_a(offset + 1:offset + ntype) = conn_info%phi_a(offset + 1:offset + ntype) + natom_prev
          conn_info%phi_b(offset + 1:offset + ntype) = conn_info%phi_b(offset + 1:offset + ntype) + natom_prev
@@ -488,7 +488,7 @@ CONTAINS
             CALL parser_get_object(parser, conn_info%phi_d(offset + itype))
             CALL parser_get_object(parser, itemp)
             conn_info%phi_type(offset + itype) = itemp
-            IF (iw > 0) WRITE (iw, *) "GTOP_INFO| PUT DIHEDRAL INFO HERE!!!!"
+            IF (iw > 0) WRITE (iw, *) "GTOP_INFO| PUT DIHEDRAL INFO HERE!"
          END DO
          conn_info%phi_a(offset + 1:offset + ntype) = conn_info%phi_a(offset + 1:offset + ntype) + natom_prev
          conn_info%phi_b(offset + 1:offset + ntype) = conn_info%phi_b(offset + 1:offset + ntype) + natom_prev
@@ -518,7 +518,7 @@ CONTAINS
             CALL parser_get_object(parser, na(iatom))
             CALL parser_get_object(parser, am(iatom))
             CALL parser_get_object(parser, ac(iatom))
-            IF (iw > 0) WRITE (iw, *) "GTOP_INFO| PUT SOLVENTATOM INFO HERE!!!!"
+            IF (iw > 0) WRITE (iw, *) "GTOP_INFO| PUT SOLVENTATOM INFO HERE!"
          END DO
       END IF
       label = TRIM(avail_section(21))
@@ -722,7 +722,7 @@ CONTAINS
             atom_info%r(1, natom) = cp_unit_to_cp2k(atom_info%r(1, natom), "nm")
             atom_info%r(2, natom) = cp_unit_to_cp2k(atom_info%r(2, natom), "nm")
             atom_info%r(3, natom) = cp_unit_to_cp2k(atom_info%r(3, natom), "nm")
-            IF (iw > 0) WRITE (iw, *) "G96_INFO| PUT POSITION INFO HERE!!!!"
+            IF (iw > 0) WRITE (iw, *) "G96_INFO| PUT POSITION INFO HERE!"
             CALL parser_get_next_line(parser, 1)
             CALL parser_get_object(parser, string, string_length=default_string_length)
          END DO
@@ -752,7 +752,7 @@ CONTAINS
                velocity(1, natom) = cp_unit_to_cp2k(velocity(1, natom), "nm*ps^-1")
                velocity(2, natom) = cp_unit_to_cp2k(velocity(2, natom), "nm*ps^-1")
                velocity(3, natom) = cp_unit_to_cp2k(velocity(3, natom), "nm*ps^-1")
-               IF (iw > 0) WRITE (iw, *) "G96_INFO| PUT VELOCITY INFO HERE!!!!"
+               IF (iw > 0) WRITE (iw, *) "G96_INFO| PUT VELOCITY INFO HERE!"
                CALL parser_get_next_line(parser, 1)
                CALL parser_get_object(parser, string, string_length=default_string_length)
             END DO

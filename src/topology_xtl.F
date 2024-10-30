@@ -247,8 +247,7 @@ CONTAINS
       ! Check for SYM MAT
       CALL parser_search_string(parser, "SYM MAT", ignore_case=.FALSE., found=found, &
                                 begin_line=.FALSE., search_from_begin_of_file=.TRUE.)
-      IF (.NOT. found) &
-         CPWARN("The field SYM MAT was not found in XTL file! ")
+      CPWARN_IF(.NOT. found, "The field SYM MAT was not found in XTL file! ")
       IF (iw > 0) WRITE (iw, '(A,I0)') " XTL_INFO| Number of atoms before applying symmetry operations :: ", natom
       IF (iw > 0) WRITE (iw, '(A10,1X,3F12.6)') (TRIM(id2str(atom_info%id_atmname(ii))), atom_info%r(1:3, ii), ii=1, natom)
       IF (found) THEN
