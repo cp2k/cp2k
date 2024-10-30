@@ -55,6 +55,8 @@ MODULE mixed_cdft_methods
                                               use_qs_force
    USE grid_api,                        ONLY: GRID_FUNC_AB,&
                                               collocate_pgf_product,&
+                                              grid_copy_from_multigrid_single,&
+                                              grid_copy_to_multigrid_single,&
                                               grid_multigrid_type
    USE hirshfeld_methods,               ONLY: create_shape_function
    USE hirshfeld_types,                 ONLY: hirshfeld_type
@@ -2524,6 +2526,7 @@ CONTAINS
                          auxbas_pw_pool=auxbas_pw_pool)
          ! be careful in parallel nsmax is chosen with multigrid in mind!
          CALL rs_grid_zero(rs_cavity)
+         CALL grid_copy_to_multigrid_single(multigrid, rs_cavity, auxbas_grid)
          ALLOCATE (pab(1, 1))
          nthread = 1
          ithread = 0
@@ -2567,7 +2570,6 @@ CONTAINS
 
                      CALL collocate_pgf_product(0, alpha, 0, 0, 0.0_dp, 0, ra, &
                                                 (/0.0_dp, 0.0_dp, 0.0_dp/), 1.0_dp, pab, 0, 0, &
-                                                rs_cavity, &
                                                 multigrid, auxbas_grid, &
                                                 radius=radius, ga_gb_function=GRID_FUNC_AB, &
                                                 use_subpatch=.TRUE., &
@@ -2579,6 +2581,7 @@ CONTAINS
          END DO
          DEALLOCATE (pab)
          CALL auxbas_pw_pool%create_pw(cdft_control%becke_control%cavity)
+         CALL grid_copy_from_multigrid_single(multigrid, rs_cavity, auxbas_grid)
          CALL transfer_rs2pw(rs_cavity, cdft_control%becke_control%cavity)
          CALL hfun_zero(cdft_control%becke_control%cavity%array, &
                         cdft_control%becke_control%eps_cavity, &

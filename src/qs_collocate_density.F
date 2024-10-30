@@ -64,7 +64,7 @@ MODULE qs_collocate_density
       GRID_FUNC_DABpADB_Z, GRID_FUNC_DADB, GRID_FUNC_DX, GRID_FUNC_DXDX, GRID_FUNC_DXDY, &
       GRID_FUNC_DY, GRID_FUNC_DYDY, GRID_FUNC_DYDZ, GRID_FUNC_DZ, GRID_FUNC_DZDX, &
       GRID_FUNC_DZDZ, collocate_pgf_product, grid_collocate_task_list, grid_multigrid_type, &
-      grid_copy_to_multigrid, grid_copy_from_multigrid
+      grid_copy_to_multigrid, grid_copy_from_multigrid, grid_copy_from_multigrid_single, grid_copy_to_multigrid_single
    USE input_constants, ONLY: &
       orb_dx2, orb_dxy, orb_dy2, orb_dyz, orb_dz2, orb_dzx, orb_px, orb_py, orb_pz, orb_s
    USE kinds, ONLY: default_string_length, &
@@ -195,6 +195,7 @@ CONTAINS
                       auxbas_pw_pool=auxbas_pw_pool)
       ! be careful in parallel nsmax is chosen with multigrid in mind!
       CALL rs_grid_zero(rs_rho)
+      CALL grid_copy_to_multigrid_single(multigrid, rs_rho, auxbas_grid)
 
       eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
 
@@ -305,7 +306,7 @@ CONTAINS
                                                  prefactor=1.0_dp, cutoff=0.0_dp)
 
                CALL collocate_pgf_product(ni, 1/(2*alpha**2), 0, 0, 0.0_dp, 0, ra, &
-                                          (/0.0_dp, 0.0_dp, 0.0_dp/), 1.0_dp, pab, 0, 0, rs_rho, &
+                                          (/0.0_dp, 0.0_dp, 0.0_dp/), 1.0_dp, pab, 0, 0, &
                                           multigrid, auxbas_grid, &
                                           ga_gb_function=GRID_FUNC_AB, radius=radius, &
                                           use_subpatch=.TRUE., subpatch_pattern=subpatch_pattern)
@@ -322,6 +323,7 @@ CONTAINS
          DEALLOCATE (cores)
       END IF
 
+      CALL grid_copy_from_multigrid_single(multigrid, rs_rho, auxbas_grid)
       CALL transfer_rs2pw(rs_rho, rho_nlcc)
 
       CALL timestop(handle)
@@ -376,6 +378,7 @@ CONTAINS
                       auxbas_pw_pool=auxbas_pw_pool)
       ! be careful in parallel nsmax is chosen with multigrid in mind!
       CALL rs_grid_zero(rs_rho)
+      CALL grid_copy_to_multigrid_single(multigrid, rs_rho, auxbas_grid)
 
       eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
 
@@ -482,7 +485,7 @@ CONTAINS
                                                  prefactor=1.0_dp, cutoff=0.0_dp)
 
                CALL collocate_pgf_product(ni, alpha, 0, 0, 0.0_dp, 0, ra, &
-                                          (/0.0_dp, 0.0_dp, 0.0_dp/), 1.0_dp, pab, 0, 0, rs_rho, &
+                                          (/0.0_dp, 0.0_dp, 0.0_dp/), 1.0_dp, pab, 0, 0, &
                                           multigrid, auxbas_grid, &
                                           radius=radius, ga_gb_function=GRID_FUNC_AB, &
                                           use_subpatch=.TRUE., subpatch_pattern=subpatch_pattern)
@@ -498,6 +501,7 @@ CONTAINS
          DEALLOCATE (cores)
       END IF
 
+      CALL grid_copy_from_multigrid_single(multigrid, rs_rho, auxbas_grid)
       CALL transfer_rs2pw(rs_rho, vppl)
 
       CALL timestop(handle)
@@ -593,6 +597,7 @@ CONTAINS
       DO igrid_level = 1, gridlevel_info%ngrid_levels
          CALL rs_grid_zero(rs_rho(igrid_level))
       END DO
+      CALL grid_copy_to_multigrid(multigrid, rs_rho)
 
       !take maxco from the LRI basis set!
       CALL get_qs_kind_set(qs_kind_set=qs_kind_set, &
@@ -663,7 +668,6 @@ CONTAINS
                                                    ra=ra, rab=(/0.0_dp, 0.0_dp, 0.0_dp/), &
                                                    scale=1._dp, &
                                                    pab=pab, o1=na1, o2=0, &
-                                                   rsgrid=rs_grid, &
                                                    multigrid=multigrid, ilevel=igrid_level, &
                                                    radius=radius, &
                                                    ga_gb_function=GRID_FUNC_AB)
@@ -750,7 +754,7 @@ CONTAINS
                                     la_max(iset), zeta(ipgf, iset), la_min(iset), &
                                     la_max(jset), zeta(jpgf, jset), la_min(jset), &
                                     ra, (/0.0_dp, 0.0_dp, 0.0_dp/), 1.0_dp, pab, na1, nb1, &
-                                    rs_grid, multigrid, igrid_level, &
+                                    multigrid, igrid_level, &
                                     radius=radius, ga_gb_function=GRID_FUNC_AB)
                               END IF
                            END DO
@@ -767,6 +771,8 @@ CONTAINS
 
       CALL pw_zero(lri_rho_g)
       CALL pw_zero(lri_rho_r)
+
+      CALL grid_copy_from_multigrid(multigrid, rs_rho)
 
       DO igrid_level = 1, gridlevel_info%ngrid_levels
          CALL pw_zero(mgrid_rspace(igrid_level))
@@ -853,6 +859,7 @@ CONTAINS
                          auxbas_pw_pool=auxbas_pw_pool)
          ! be careful in parallel nsmax is chosen with multigrid in mind!
          CALL rs_grid_zero(rs_rho)
+         CALL grid_copy_to_multigrid_single(multigrid, rs_rho, auxbas_grid)
 
          eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
 
@@ -904,7 +911,7 @@ CONTAINS
                                                     prefactor=-1.0_dp, cutoff=0.0_dp)
 
                   CALL collocate_pgf_product(0, alpha, 0, 0, 0.0_dp, 0, ra, &
-                                             (/0.0_dp, 0.0_dp, 0.0_dp/), -1.0_dp, pab, 0, 0, rs_rho, &
+                                             (/0.0_dp, 0.0_dp, 0.0_dp/), -1.0_dp, pab, 0, 0, &
                                              multigrid, auxbas_grid, &
                                              radius=radius, ga_gb_function=GRID_FUNC_AB, &
                                              use_subpatch=.TRUE., subpatch_pattern=subpatch_pattern)
@@ -921,6 +928,7 @@ CONTAINS
 
          CALL auxbas_pw_pool%create_pw(rhoc_r)
 
+         CALL grid_copy_from_multigrid_single(multigrid, rs_rho, auxbas_grid)
          CALL transfer_rs2pw(rs_rho, rhoc_r)
 
          total_rho = pw_integrate_function(rhoc_r, isign=-1)
@@ -986,6 +994,7 @@ CONTAINS
                       auxbas_pw_pool=auxbas_pw_pool)
       ! be careful in parallel nsmax is chosen with multigrid in mind!
       CALL rs_grid_zero(rs_rho)
+      CALL grid_copy_to_multigrid_single(multigrid, rs_rho, auxbas_grid)
 
       eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
 
@@ -1042,7 +1051,7 @@ CONTAINS
                                                  prefactor=-1.0_dp, cutoff=0.0_dp)
 
                CALL collocate_pgf_product(0, alpha, 0, 0, 0.0_dp, 0, ra, &
-                                          (/0.0_dp, 0.0_dp, 0.0_dp/), -1.0_dp, pab, 0, 0, rs_rho, &
+                                          (/0.0_dp, 0.0_dp, 0.0_dp/), -1.0_dp, pab, 0, 0, &
                                           multigrid, auxbas_grid, &
                                           radius=radius, ga_gb_function=dabqadb_func, &
                                           use_subpatch=.TRUE., subpatch_pattern=subpatch_pattern)
@@ -1059,6 +1068,7 @@ CONTAINS
 
       CALL auxbas_pw_pool%create_pw(rhoc_r)
 
+      CALL grid_copy_from_multigrid_single(multigrid, rs_rho, auxbas_grid)
       CALL transfer_rs2pw(rs_rho, rhoc_r)
 
       CALL pw_transfer(rhoc_r, drho_core)
@@ -1112,6 +1122,7 @@ CONTAINS
       CALL pw_env_get(pw_env, auxbas_rs_grid=rs_rho, multigrid=multigrid, auxbas_grid=auxbas_grid, &
                       auxbas_pw_pool=auxbas_pw_pool)
       CALL rs_grid_zero(rs_rho)
+      CALL grid_copy_to_multigrid_single(multigrid, rs_rho, auxbas_grid)
 
       eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
       pab(1, 1) = 1.0_dp
@@ -1140,7 +1151,7 @@ CONTAINS
                                            prefactor=1.0_dp, cutoff=0.0_dp)
 
          CALL collocate_pgf_product(0, qs_env%qmmm_env_qm%image_charge_pot%eta, &
-                                    0, 0, 0.0_dp, 0, ra, (/0.0_dp, 0.0_dp, 0.0_dp/), 1.0_dp, pab, 0, 0, rs_rho, &
+                                    0, 0, 0.0_dp, 0, ra, (/0.0_dp, 0.0_dp, 0.0_dp/), 1.0_dp, pab, 0, 0, &
                                     multigrid, auxbas_grid, &
                                     radius=radius, ga_gb_function=GRID_FUNC_AB, &
                                     use_subpatch=.TRUE., subpatch_pattern=subpatch_pattern)
@@ -1150,6 +1161,7 @@ CONTAINS
 
       CALL auxbas_pw_pool%create_pw(rhoc_r)
 
+      CALL grid_copy_from_multigrid_single(multigrid, rs_rho, auxbas_grid)
       CALL transfer_rs2pw(rs_rho, rhoc_r)
 
       CALL pw_transfer(rhoc_r, rho_gb)
@@ -1208,6 +1220,7 @@ CONTAINS
       CALL pw_env_get(pw_env, auxbas_rs_grid=rs_rho, multigrid=multigrid, auxbas_grid=auxbas_grid, &
                       auxbas_pw_pool=auxbas_pw_pool)
       CALL rs_grid_zero(rs_rho)
+      CALL grid_copy_to_multigrid_single(multigrid, rs_rho, auxbas_grid)
 
       eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
       pab(1, 1) = 1.0_dp
@@ -1246,7 +1259,7 @@ CONTAINS
 
             CALL collocate_pgf_product( &
                0, qs_env%qmmm_env_qm%image_charge_pot%eta, &
-               0, 0, 0.0_dp, 0, ra, (/0.0_dp, 0.0_dp, 0.0_dp/), coeff(iatom), pab, 0, 0, rs_rho, &
+               0, 0, 0.0_dp, 0, ra, (/0.0_dp, 0.0_dp, 0.0_dp/), coeff(iatom), pab, 0, 0, &
                multigrid, auxbas_grid, &
                radius=radius, ga_gb_function=GRID_FUNC_AB, &
                use_subpatch=.TRUE., subpatch_pattern=subpatch_pattern)
@@ -1257,6 +1270,7 @@ CONTAINS
 
       CALL auxbas_pw_pool%create_pw(rhoc_r)
 
+      CALL grid_copy_from_multigrid_single(multigrid, rs_rho, auxbas_grid)
       CALL transfer_rs2pw(rs_rho, rhoc_r)
 
       IF (PRESENT(total_rho_metal)) &
@@ -1317,6 +1331,7 @@ CONTAINS
       CALL pw_env_get(pw_env, auxbas_rs_grid=rs_rho, multigrid=multigrid, auxbas_grid=auxbas_grid, &
                       auxbas_pw_pool=auxbas_pw_pool)
       CALL rs_grid_zero(rs_rho)
+      CALL grid_copy_to_multigrid_single(multigrid, rs_rho, auxbas_grid)
 
       eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
       pab(1, 1) = 1.0_dp
@@ -1343,7 +1358,7 @@ CONTAINS
                                            prefactor=1.0_dp, cutoff=0.0_dp)
 
          CALL collocate_pgf_product(0, eta, 0, 0, 0.0_dp, 0, ra, &
-                                    (/0.0_dp, 0.0_dp, 0.0_dp/), 1.0_dp, pab, 0, 0, rs_rho, &
+                                    (/0.0_dp, 0.0_dp, 0.0_dp/), 1.0_dp, pab, 0, 0, &
                                     multigrid, auxbas_grid, &
                                     radius=radius, ga_gb_function=GRID_FUNC_AB, &
                                     use_subpatch=.TRUE., subpatch_pattern=subpatch_pattern)
@@ -1353,6 +1368,7 @@ CONTAINS
 
       CALL auxbas_pw_pool%create_pw(rhoc_r)
 
+      CALL grid_copy_from_multigrid_single(multigrid, rs_rho, auxbas_grid)
       CALL transfer_rs2pw(rs_rho, rhoc_r)
 
       CALL pw_transfer(rhoc_r, rho_gb)
@@ -1416,6 +1432,7 @@ CONTAINS
          CALL pw_env_get(pw_env, auxbas_rs_grid=rs_rho, multigrid=multigrid, auxbas_grid=auxbas_grid, &
                          auxbas_pw_pool=auxbas_pw_pool)
          CALL rs_grid_zero(rs_rho)
+         CALL grid_copy_to_multigrid_single(multigrid, rs_rho, auxbas_grid)
 
          eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
          pab(1, 1) = 1.0_dp
@@ -1450,7 +1467,7 @@ CONTAINS
 
                CALL collocate_pgf_product( &
                   0, eta, &
-                  0, 0, 0.0_dp, 0, ra, (/0.0_dp, 0.0_dp, 0.0_dp/), coeff(iatom), pab, 0, 0, rs_rho, &
+                  0, 0, 0.0_dp, 0, ra, (/0.0_dp, 0.0_dp, 0.0_dp/), coeff(iatom), pab, 0, 0, &
                   multigrid, auxbas_grid, &
                   radius=radius, ga_gb_function=GRID_FUNC_AB, &
                   use_subpatch=.TRUE., subpatch_pattern=subpatch_pattern)
@@ -1461,6 +1478,7 @@ CONTAINS
 
          CALL auxbas_pw_pool%create_pw(rhoc_r)
 
+         CALL grid_copy_from_multigrid_single(multigrid, rs_rho, auxbas_grid)
          CALL transfer_rs2pw(rs_rho, rhoc_r)
 
          CALL pw_transfer(rhoc_r, rho_resp)
@@ -1835,6 +1853,7 @@ CONTAINS
          DO igrid_level = 1, gridlevel_info%ngrid_levels
             CALL rs_grid_zero(rs_rho(igrid_level))
          END DO
+         CALL grid_copy_to_multigrid(multigrid, rs_rho)
 
          iatom_old = -1; jatom_old = -1; iset_old = -1; jset_old = -1
          ikind_old = -1; jkind_old = -1; img_old = -1
@@ -2005,7 +2024,6 @@ CONTAINS
                   la_max(iset), zeta(ipgf, iset), la_min(iset), &
                   lb_max(jset), zetb(jpgf, jset), lb_min(jset), &
                   ra, rab, scale, pab, na1 - 1, nb1 - 1, &
-                  rs_rho(igrid_level), &
                   multigrid, igrid_level, &
                   radius=radius, ga_gb_function=dabqadb_func, &
                   use_subpatch=use_subpatch, subpatch_pattern=tasks(itask)%subpatch_pattern)
@@ -2015,7 +2033,6 @@ CONTAINS
                   lb_max(jset), zetb(jpgf, jset), lb_min(jset), &
                   la_max(iset), zeta(ipgf, iset), la_min(iset), &
                   rb, rab_inv, scale, pab, nb1 - 1, na1 - 1, &
-                  rs_rho(igrid_level), &
                   multigrid, igrid_level, &
                   radius=radius, ga_gb_function=dabqadb_func, &
                   use_subpatch=use_subpatch, subpatch_pattern=tasks(itask)%subpatch_pattern)
@@ -2023,6 +2040,7 @@ CONTAINS
 
          END DO loop_tasks
 
+         CALL grid_copy_from_multigrid(multigrid, rs_rho)
          CALL density_rs2pw(pw_env, rs_rho, drho(idir), drho_gspace(idir))
 
       END DO loop_xyz
@@ -2221,6 +2239,7 @@ CONTAINS
       DO igrid_level = 1, gridlevel_info%ngrid_levels
          CALL rs_grid_zero(rs_rho(igrid_level))
       END DO
+      CALL grid_copy_to_multigrid(multigrid, rs_rho)
 
       iatom_old = -1; jatom_old = -1; iset_old = -1; jset_old = -1
       ikind_old = -1; jkind_old = -1; img_old = -1
@@ -2392,7 +2411,6 @@ CONTAINS
                la_max(iset), zeta(ipgf, iset), la_min(iset), &
                lb_max(jset), zetb(jpgf, jset), lb_min(jset), &
                ra, rab, scale, pab, na1 - 1, nb1 - 1, &
-               rsgrid=rs_rho(igrid_level), &
                multigrid=multigrid, ilevel=igrid_level, &
                ga_gb_function=dabqadb_func, radius=radius, &
                use_subpatch=use_subpatch, &
@@ -2402,7 +2420,6 @@ CONTAINS
                la_max(iset), zeta(ipgf, iset), la_min(iset), &
                lb_max(jset), zetb(jpgf, jset), lb_min(jset), &
                ra, rab, scale, pab, na1 - 1, nb1 - 1, &
-               rsgrid=rs_rho(igrid_level), &
                multigrid=multigrid, ilevel=igrid_level, &
                ga_gb_function=dabqadb_func + 3, radius=radius, &
                use_subpatch=use_subpatch, &
@@ -2414,7 +2431,6 @@ CONTAINS
                lb_max(jset), zetb(jpgf, jset), lb_min(jset), &
                la_max(iset), zeta(ipgf, iset), la_min(iset), &
                rb, rab_inv, scale, pab, nb1 - 1, na1 - 1, &
-               rs_rho(igrid_level), &
                multigrid, igrid_level, &
                ga_gb_function=dabqadb_func, radius=radius, &
                use_subpatch=use_subpatch, &
@@ -2424,7 +2440,6 @@ CONTAINS
                lb_max(jset), zetb(jpgf, jset), lb_min(jset), &
                la_max(iset), zeta(ipgf, iset), la_min(iset), &
                rb, rab_inv, scale, pab, nb1 - 1, na1 - 1, &
-               rs_rho(igrid_level), &
                multigrid, igrid_level, &
                ga_gb_function=dabqadb_func + 3, radius=radius, &
                use_subpatch=use_subpatch, &
@@ -2433,6 +2448,7 @@ CONTAINS
 
       END DO loop_tasks
 
+      CALL grid_copy_from_multigrid(multigrid, rs_rho)
       CALL density_rs2pw(pw_env, rs_rho, drho, drho_gspace)
 
       !   *** Release work storage ***
@@ -2528,6 +2544,7 @@ CONTAINS
       DO igrid_level = 1, gridlevel_info%ngrid_levels
          CALL rs_grid_zero(rs_rho(igrid_level))
       END DO
+      CALL grid_copy_to_multigrid(multigrid, rs_rho)
 
       eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
 !   *** Allocate work storage ***
@@ -2596,7 +2613,7 @@ CONTAINS
                      CALL collocate_pgf_product(la_max(iset), zeta(ipgf, iset), la_min(iset), &
                                                 0, 0.0_dp, 0, &
                                                 ra, (/0.0_dp, 0.0_dp, 0.0_dp/), &
-                                                scale, pab, na1 - 1, 0, rs_rho(igrid_level), &
+                                                scale, pab, na1 - 1, 0, &
                                                 multigrid, igrid_level, &
                                                 radius=radius, ga_gb_function=GRID_FUNC_AB)
                   END IF
@@ -2611,6 +2628,7 @@ CONTAINS
 
       END DO
 
+      CALL grid_copy_from_multigrid(multigrid, rs_rho)
       DO igrid_level = 1, gridlevel_info%ngrid_levels
          CALL transfer_rs2pw(rs_rho(igrid_level), &
                              mgrid_rspace(igrid_level))
@@ -2773,6 +2791,7 @@ CONTAINS
       DO igrid_level = 1, gridlevel_info%ngrid_levels
          CALL rs_grid_zero(rs_rho(igrid_level))
       END DO
+      CALL grid_copy_to_multigrid(multigrid, rs_rho)
 
       !   *** Allocate work storage ***
       CALL get_atomic_kind_set(atomic_kind_set, natom=natom)
@@ -2836,7 +2855,7 @@ CONTAINS
                   CALL collocate_pgf_product(la_max(iset), zeta(ipgf, iset), la_min(iset), &
                                              0, 0.0_dp, 0, &
                                              ra, (/0.0_dp, 0.0_dp, 0.0_dp/), &
-                                             scale, pab, na1 - 1, 0, rs_rho(igrid_level), &
+                                             scale, pab, na1 - 1, 0, &
                                              multigrid, igrid_level, &
                                              radius=radius, ga_gb_function=GRID_FUNC_AB)
                END IF
@@ -2849,6 +2868,7 @@ CONTAINS
 
       END DO
 
+      CALL grid_copy_from_multigrid(multigrid, rs_rho)
       DO igrid_level = 1, gridlevel_info%ngrid_levels
          CALL transfer_rs2pw(rs_rho(igrid_level), &
                              mgrid_rspace(igrid_level))

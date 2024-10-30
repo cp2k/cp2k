@@ -18,11 +18,12 @@ void grid_collocate_pgf_product(
     const int lb_max, const int lb_min, const double zeta, const double zetb,
     const double rscale, const double ra[3], const double rab[3],
     const double radius, const int o1, const int o2, const int n1, const int n2,
-    const double pab[n2][n1], double *grid) {
+    const double pab[n2][n1]) {
 
   grid_cpu_collocate_pgf_product_multigrid(
       multigrid->cpu, ilevel, border_mask, func, la_max, la_min, lb_max, lb_min,
-      zeta, zetb, rscale, ra, rab, radius, o1, o2, n1, n2, pab, grid);
+      zeta, zetb, rscale, ra, rab, radius, o1, o2, n1, n2, pab,
+      offload_get_buffer_host_pointer(multigrid->grids[ilevel - 1]));
 }
 
 // EOF
