@@ -16,6 +16,8 @@ MODULE qs_rho0_ggrid
    USE gaussian_gridlevels,             ONLY: gaussian_gridlevel
    USE grid_api,                        ONLY: GRID_FUNC_AB,&
                                               collocate_pgf_product,&
+                                              grid_copy_from_multigrid_single,&
+                                              grid_copy_to_multigrid_single,&
                                               grid_create_multigrid,&
                                               grid_free_multigrid,&
                                               grid_multigrid_type
@@ -139,7 +141,8 @@ CONTAINS
       eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
 
       NULLIFY (descs, pw_pools)
-     CALL pw_env_get(pw_env=pw_env, rs_descs=descs, rs_grids=grids, pw_pools=pw_pools, multigrid=multigrid, auxbas_grid=auxbas_grid)
+      CALL pw_env_get(pw_env=pw_env, rs_descs=descs, rs_grids=grids, pw_pools=pw_pools, &
+                      multigrid=multigrid, auxbas_grid=auxbas_grid)
       auxbas_grid = pw_env%auxbas_grid
 
       NULLIFY (rho0_s_gs, rho0_s_rs)
@@ -162,6 +165,7 @@ CONTAINS
          CALL pw_pool%create_pw(coeff_gspace)
       END IF
       CALL rs_grid_zero(rs_grid)
+      CALL grid_copy_to_multigrid_single(multigrid, rs_grid, igrid)
 
       nch_max = ncoset(lmax0)
 
@@ -214,7 +218,7 @@ CONTAINS
             CALL collocate_pgf_product( &
                l0_ikind, zet0, 0, 0, 0.0_dp, 0, &
                ra, (/0.0_dp, 0.0_dp, 0.0_dp/), 1.0_dp, pab, 0, 0, &
-               rs_grid, multigrid, igrid, ga_gb_function=GRID_FUNC_AB, radius=rpgf0, &
+               multigrid, igrid, ga_gb_function=GRID_FUNC_AB, radius=rpgf0, &
                use_subpatch=.TRUE., subpatch_pattern=0)
 
          END DO ! j
@@ -226,6 +230,8 @@ CONTAINS
       END IF
 
       DEALLOCATE (pab)
+
+      CALL grid_copy_from_multigrid_single(multigrid, rs_grid, igrid)
 
       IF (igrid /= auxbas_grid) THEN
          CALL transfer_rs2pw(rs_grid, coeff_rspace)

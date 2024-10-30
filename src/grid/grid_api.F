@@ -111,7 +111,6 @@ CONTAINS
 !> \param pab ...
 !> \param o1 ...
 !> \param o2 ...
-!> \param rsgrid ...
 !> \param multigrid ...
 !> \param ilevel ...
 !> \param ga_gb_function ...
@@ -123,7 +122,7 @@ CONTAINS
    SUBROUTINE collocate_pgf_product(la_max, zeta, la_min, &
                                     lb_max, zetb, lb_min, &
                                     ra, rab, scale, pab, o1, o2, &
-                                    rsgrid, multigrid, ilevel, &
+                                    multigrid, ilevel, &
                                     ga_gb_function, radius, &
                                     use_subpatch, subpatch_pattern)
 
@@ -136,7 +135,6 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: scale
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: pab
       INTEGER, INTENT(IN)                                :: o1, o2
-      TYPE(realspace_grid_type)                          :: rsgrid
       TYPE(grid_multigrid_type), INTENT(IN)              :: multigrid
       INTEGER, INTENT(IN)                                :: ilevel, ga_gb_function
       REAL(KIND=dp), INTENT(IN)                          :: radius
@@ -144,13 +142,11 @@ CONTAINS
       INTEGER, INTENT(IN), OPTIONAL                      :: subpatch_pattern
 
       INTEGER                                            :: border_mask
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: grid
       INTERFACE
          SUBROUTINE grid_collocate_pgf_product_c(multigrid, ilevel, border_mask, func, &
                                                  la_max, la_min, lb_max, lb_min, &
                                                  zeta, zetb, rscale, ra, rab, &
-                                                 radius, o1, o2, n1, n2, pab, &
-                                                 grid) &
+                                                 radius, o1, o2, n1, n2, pab) &
             BIND(C, name="grid_collocate_pgf_product")
             IMPORT :: C_PTR, C_INT, C_DOUBLE, C_BOOL
             TYPE(C_PTR), VALUE                        :: multigrid
@@ -172,7 +168,6 @@ CONTAINS
             INTEGER(KIND=C_INT), VALUE                :: n1
             INTEGER(KIND=C_INT), VALUE                :: n2
             TYPE(C_PTR), VALUE                        :: pab
-            TYPE(C_PTR), VALUE                        :: grid
          END SUBROUTINE grid_collocate_pgf_product_c
       END INTERFACE
 
@@ -187,13 +182,10 @@ CONTAINS
       CPASSERT(LBOUND(pab, 1) == 1)
       CPASSERT(LBOUND(pab, 2) == 1)
 
-      grid(1:, 1:, 1:) => rsgrid%r(:, :, :)  ! pointer assignment
-
 #if __GNUC__ >= 9
       CPASSERT(IS_CONTIGUOUS(ra))
       CPASSERT(IS_CONTIGUOUS(rab))
       CPASSERT(IS_CONTIGUOUS(pab))
-      CPASSERT(IS_CONTIGUOUS(grid))
 #endif
 
       CPASSERT(C_ASSOCIATED(multigrid%c_ptr))
@@ -218,8 +210,7 @@ CONTAINS
                                         o2=o2, &
                                         n1=SIZE(pab, 1), &
                                         n2=SIZE(pab, 2), &
-                                        pab=C_LOC(pab(1, 1)), &
-                                        grid=C_LOC(grid(1, 1, 1)))
+                                        pab=C_LOC(pab(1, 1)))
 
    END SUBROUTINE collocate_pgf_product
 
@@ -1258,6 +1249,7 @@ CONTAINS
          INTENT(IN)                                      :: grids
 
       INTEGER                                            :: ilevel
+      INTEGER, CONTIGUOUS, DIMENSION(:, :), POINTER      :: npts_local
       TYPE(C_PTR), ALLOCATABLE, DIMENSION(:), TARGET     :: grids_c
       INTERFACE
          SUBROUTINE grid_copy_to_multigrid_c(multigrid, grids) &
@@ -1272,7 +1264,10 @@ CONTAINS
       CPASSERT(SIZE(grids) == grid_get_multigrid_nlevels(multigrid))
 
       ALLOCATE (grids_c(SIZE(grids)))
+      npts_local => grid_get_multigrid_npts_local(multigrid)
       DO ilevel = 1, SIZE(grids)
+         IF (ANY(SHAPE(grids(ilevel)%r) /= npts_local(:, ilevel))) &
+            CPABORT("Grid sizes do not match!")
          grids_c(ilevel) = grids(ilevel)%buffer%c_ptr
       END DO
 
@@ -1294,6 +1289,7 @@ CONTAINS
          INTENT(IN)                                      :: grids
 
       INTEGER                                            :: ilevel
+      INTEGER, CONTIGUOUS, DIMENSION(:, :), POINTER      :: npts_local
       TYPE(C_PTR), ALLOCATABLE, DIMENSION(:), TARGET     :: grids_c
       INTERFACE
          SUBROUTINE grid_copy_from_multigrid_c(multigrid, grids) &
@@ -1308,7 +1304,10 @@ CONTAINS
       CPASSERT(SIZE(grids) == grid_get_multigrid_nlevels(multigrid))
 
       ALLOCATE (grids_c(SIZE(grids)))
+      npts_local => grid_get_multigrid_npts_local(multigrid)
       DO ilevel = 1, SIZE(grids)
+         IF (ANY(SHAPE(grids(ilevel)%r) /= npts_local(:, ilevel))) &
+            CPABORT("Grid sizes do not match!")
          grids_c(ilevel) = grids(ilevel)%buffer%c_ptr
       END DO
 
@@ -1330,6 +1329,7 @@ CONTAINS
       TYPE(realspace_grid_type), INTENT(IN)              :: grid
       INTEGER, INTENT(IN)                                :: ilevel
 
+      INTEGER, CONTIGUOUS, DIMENSION(:, :), POINTER      :: npts_local
       INTERFACE
          SUBROUTINE grid_copy_to_multigrid_single_c(multigrid, grid, ilevel) &
             BIND(C, name="grid_copy_to_multigrid_single_f")
@@ -1342,6 +1342,9 @@ CONTAINS
 
       CPASSERT(C_ASSOCIATED(multigrid%c_ptr))
       CPASSERT(ilevel <= grid_get_multigrid_nlevels(multigrid))
+      npts_local => grid_get_multigrid_npts_local(multigrid)
+      IF (ANY(SHAPE(grid%r) /= npts_local(:, ilevel))) &
+         CPABORT("Grid sizes do not match!")
 
       CALL grid_copy_to_multigrid_single_c(multigrid%c_ptr, C_LOC(grid%buffer%host_buffer(1)), ilevel)
 
@@ -1361,6 +1364,7 @@ CONTAINS
       TYPE(realspace_grid_type), INTENT(INOUT)           :: grid
       INTEGER                                            :: ilevel
 
+      INTEGER, CONTIGUOUS, DIMENSION(:, :), POINTER      :: npts_local
       INTERFACE
          SUBROUTINE grid_copy_from_multigrid_single_c(multigrid, grid, ilevel) &
             BIND(C, name="grid_copy_from_multigrid_single_f")
@@ -1373,6 +1377,9 @@ CONTAINS
 
       CPASSERT(C_ASSOCIATED(multigrid%c_ptr))
       CPASSERT(ilevel <= grid_get_multigrid_nlevels(multigrid))
+      npts_local => grid_get_multigrid_npts_local(multigrid)
+      IF (ANY(SHAPE(grid%r) /= npts_local(:, ilevel))) &
+         CPABORT("Grid sizes do not match!")
 
       CALL grid_copy_from_multigrid_single_c(multigrid%c_ptr, C_LOC(grid%buffer%host_buffer(1)), ilevel)
 

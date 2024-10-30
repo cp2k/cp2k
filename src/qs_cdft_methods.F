@@ -26,6 +26,8 @@ MODULE qs_cdft_methods
    USE cp_realspace_grid_cube,          ONLY: cp_cube_to_pw
    USE grid_api,                        ONLY: GRID_FUNC_AB,&
                                               collocate_pgf_product,&
+                                              grid_copy_from_multigrid_single,&
+                                              grid_copy_to_multigrid_single,&
                                               grid_create_multigrid,&
                                               grid_free_multigrid,&
                                               grid_multigrid_type
@@ -732,6 +734,7 @@ CONTAINS
 
          IF (igroup == 2 .AND. .NOT. cdft_control%in_memory) THEN
             CALL rs_grid_zero(rs_rho_all)
+            CALL grid_copy_to_multigrid_single(multigrid_all, rs_rho_all, 1)
          END IF
          bo = cdft_control%group(igroup)%weight%pw_grid%bounds_local
 
@@ -747,6 +750,7 @@ CONTAINS
          CALL rs_grid_create(rs_rho_constr, auxbas_rs_desc)
          CALL rs_grid_zero(rs_rho_constr)
          CALL grid_create_multigrid([rs_rho_constr], multigrid_constr)
+         CALL grid_copy_to_multigrid_single(multigrid_constr, rs_rho_constr, 1)
 
          ! rs_single: Gaussian density over single atoms when required
          IF (hirshfeld_control%print_density .AND. igroup == 1) THEN
@@ -757,6 +761,7 @@ CONTAINS
                CALL rs_grid_create(rs_single(i), auxbas_rs_desc)
                CALL rs_grid_zero(rs_single(i))
                CALL grid_create_multigrid([rs_single(i)], multigrid_single(i))
+               CALL grid_copy_to_multigrid_single(multigrid_single(i), rs_single(i), 1)
             END DO
          END IF
 
@@ -790,6 +795,7 @@ CONTAINS
                CALL rs_grid_zero(rs_single_charge(i))
                compute_charge(cdft_control%atoms(i)) = .TRUE.
                CALL grid_create_multigrid([rs_single_charge(i)], multigrid_single_charge(i))
+               CALL grid_copy_to_multigrid_single(multigrid_single_charge(i), rs_single_charge(i), 1)
             END DO
 
             DO iatom = 1, cdft_control%natoms
@@ -843,7 +849,7 @@ CONTAINS
                   IF (igroup == 1) THEN
                      CALL collocate_pgf_product(0, alpha, 0, 0, 0.0_dp, 0, ra, &
                                                 (/0.0_dp, 0.0_dp, 0.0_dp/), 1.0_dp, pab, 0, 0, &
-                                                rs_rho_all, multigrid_all, 1, radius=radius, &
+                                                multigrid_all, 1, radius=radius, &
                                                 ga_gb_function=GRID_FUNC_AB, use_subpatch=.TRUE., &
                                                 subpatch_pattern=subpatch_pattern)
                   END IF
@@ -851,8 +857,7 @@ CONTAINS
                   IF (is_constraint(atom_a)) THEN
                      CALL collocate_pgf_product(0, alpha, 0, 0, 0.0_dp, 0, ra, &
                                                 (/0.0_dp, 0.0_dp, 0.0_dp/), coefficients(atom_a), &
-                                                pab, 0, 0, rs_rho_constr, &
-                                                multigrid_constr, 1, &
+                                                pab, 0, 0, multigrid_constr, 1, &
                                                 radius=radius, &
                                                 ga_gb_function=GRID_FUNC_AB, use_subpatch=.TRUE., &
                                                 subpatch_pattern=subpatch_pattern)
@@ -866,7 +871,7 @@ CONTAINS
                      CPASSERT(iatom <= cdft_control%natoms)
                      CALL collocate_pgf_product(0, alpha, 0, 0, 0.0_dp, 0, ra, &
                                                 (/0.0_dp, 0.0_dp, 0.0_dp/), 1.0_dp, pab, 0, 0, &
-                                                rs_single(iatom), multigrid_single(iatom), 1, radius=radius, &
+                                                multigrid_single(iatom), 1, radius=radius, &
                                                 ga_gb_function=GRID_FUNC_AB, use_subpatch=.TRUE., &
                                                 subpatch_pattern=subpatch_pattern)
                      END IF
@@ -880,7 +885,7 @@ CONTAINS
                         CPASSERT(iatom <= cdft_control%natoms)
                         CALL collocate_pgf_product(0, alpha, 0, 0, 0.0_dp, 0, ra, &
                                                    (/0.0_dp, 0.0_dp, 0.0_dp/), 1.0_dp, pab, 0, 0, &
-                                                   rs_single_charge(iatom), multigrid_single_charge(iatom), 1, radius=radius, &
+                                                   multigrid_single_charge(iatom), 1, radius=radius, &
                                                    ga_gb_function=GRID_FUNC_AB, use_subpatch=.TRUE., &
                                                    subpatch_pattern=subpatch_pattern)
                      END IF
@@ -893,9 +898,11 @@ CONTAINS
          DEALLOCATE (pab)
 
          IF (igroup == 1) THEN
+            CALL grid_copy_from_multigrid_single(multigrid_all, rs_rho_all, 1)
             CALL transfer_rs2pw(rs_rho_all, cdft_control%hw_rho_total)
          END IF
 
+         CALL grid_copy_from_multigrid_single(multigrid_constr, rs_rho_constr, 1)
          CALL transfer_rs2pw(rs_rho_constr, cdft_control%group(igroup)%hw_rho_total_constraint)
          CALL rs_grid_release(rs_rho_constr)
          CALL grid_free_multigrid(multigrid_constr)
@@ -909,6 +916,7 @@ CONTAINS
          ! Calculate charges
          IF (cdft_control%atomic_charges .AND. igroup == 1) THEN
             DO i = 1, cdft_control%natoms
+               CALL grid_copy_from_multigrid_single(multigrid_single_charge(i), rs_single_charge(i), 1)
                CALL transfer_rs2pw(rs_single_charge(i), cdft_control%group(igroup)%hw_rho_atomic_charge(i))
                CALL hfun_scale(cdft_control%charge(i)%array, &
                                cdft_control%group(igroup)%hw_rho_atomic_charge(i)%array, &
@@ -920,6 +928,7 @@ CONTAINS
          ! Print atomic densities if requested
          IF (hirshfeld_control%print_density .AND. igroup == 1) THEN
             DO i = 1, cdft_control%natoms
+               CALL grid_copy_from_multigrid_single(multigrid_single(i), rs_single(i), 1)
                CALL transfer_rs2pw(rs_single(i), cdft_control%group(igroup)%hw_rho_atomic(i))
             END DO
             CALL cdft_print_hirshfeld_density(qs_env)
@@ -1014,6 +1023,7 @@ CONTAINS
                      CALL rs_grid_create(rs_single_dr(i), auxbas_rs_desc)
                      CALL rs_grid_zero(rs_single_dr(i))
                      CALL grid_create_multigrid([rs_single_dr(i)], multigrid_single_dr(i))
+                     CALL grid_copy_to_multigrid_single(multigrid_single_dr(i), rs_single_dr(i), 1)
                   END DO
                   DO iex = 1, numexp
 
@@ -1055,7 +1065,7 @@ CONTAINS
 
                         CALL collocate_pgf_product(0, alpha, 0, 0, 0.0_dp, 0, ra, &
                                                    (/0.0_dp, 0.0_dp, 0.0_dp/), prefactor, &
-                                                   pab, 0, 0, rs_single_dr(iatom + (num_species_small(k) - 1)), &
+                                                   pab, 0, 0, &
                                                    multigrid_single_dr(iatom + (num_species_small(k) - 1)), 1, &
                                                    radius=radius, &
                                                    ga_gb_function=GRID_FUNC_AB, use_subpatch=.TRUE., &
@@ -1065,6 +1075,7 @@ CONTAINS
                   END DO
 
                   DO iatom = num_species_small(k), num_species_small(k + 1)
+                     CALL grid_copy_from_multigrid_single(multigrid_single_dr(iatom), rs_single_dr(iatom), 1)
                      CALL transfer_rs2pw(rs_single_dr(iatom), pw_single_dr(iatom))
                      CALL rs_grid_release(rs_single_dr(iatom))
                      CALL grid_free_multigrid(multigrid_single_dr(iatom))

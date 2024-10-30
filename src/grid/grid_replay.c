@@ -387,12 +387,13 @@ bool grid_replay(const char *filename, const int cycles, const bool collocate,
     if (collocate) {
       // collocate
       memset(grid_test->host_buffer, 0, npts_local_total * sizeof(double));
+      grid_copy_to_multigrid_single(multigrid, grid_test->host_buffer, 0);
       for (int i = 0; i < cycles; i++) {
         grid_collocate_pgf_product(multigrid, 1, border_mask, func, la_max,
                                    la_min, lb_max, lb_min, zeta, zetb, rscale,
-                                   ra, rab, radius, o1, o2, n1, n2, pab,
-                                   grid_test->host_buffer);
+                                   ra, rab, radius, o1, o2, n1, n2, pab);
       }
+      grid_copy_from_multigrid_single(multigrid, grid_test->host_buffer, 0);
     } else {
       // integrate
       memset(hab_test, 0, n2 * n1 * sizeof(double));

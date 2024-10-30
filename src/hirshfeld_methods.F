@@ -25,6 +25,8 @@ MODULE hirshfeld_methods
    USE cp_units,                        ONLY: cp_unit_to_cp2k
    USE grid_api,                        ONLY: GRID_FUNC_AB,&
                                               collocate_pgf_product,&
+                                              grid_copy_from_multigrid_single,&
+                                              grid_copy_to_multigrid_single,&
                                               grid_multigrid_type,&
                                               integrate_pgf_product
    USE hirshfeld_types,                 ONLY: get_hirshfeld_info,&
@@ -460,6 +462,7 @@ CONTAINS
                       auxbas_pw_pool=auxbas_pw_pool)
       ! be careful in parallel nsmax is chosen with multigrid in mind!
       CALL rs_grid_zero(rs_rho)
+      CALL grid_copy_to_multigrid_single(multigrid, rs_rho, auxbas_grid)
 
       eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
       ALLOCATE (pab(1, 1))
@@ -504,7 +507,7 @@ CONTAINS
 
                ! la_max==0 so set lmax_global to 0
                CALL collocate_pgf_product(0, alpha, 0, 0, 0.0_dp, 0, ra, &
-                                          (/0.0_dp, 0.0_dp, 0.0_dp/), 1.0_dp, pab, 0, 0, rs_rho, &
+                                          (/0.0_dp, 0.0_dp, 0.0_dp/), 1.0_dp, pab, 0, 0, &
                                           multigrid, auxbas_grid, &
                                           radius=radius, ga_gb_function=GRID_FUNC_AB, &
                                           use_subpatch=.TRUE., subpatch_pattern=subpatch_pattern)
@@ -525,6 +528,7 @@ CONTAINS
       CALL auxbas_pw_pool%create_pw(fnorm)
       CALL set_hirshfeld_info(hirshfeld_env, fnorm=fnorm)
 
+      CALL grid_copy_from_multigrid_single(multigrid, rs_rho, auxbas_grid)
       CALL transfer_rs2pw(rs_rho, fnorm)
 
       CALL timestop(handle)

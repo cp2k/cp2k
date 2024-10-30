@@ -20,7 +20,7 @@ void grid_collocate_pgf_product(
     const int lb_max, const int lb_min, const double zeta, const double zetb,
     const double rscale, const double ra[3], const double rab[3],
     const double radius, const int o1, const int o2, const int n1, const int n2,
-    const double pab[n2][n1], double *grid);
+    const double pab[n2][n1]);
 
 #endif
 
