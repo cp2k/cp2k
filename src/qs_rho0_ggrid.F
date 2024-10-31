@@ -470,6 +470,7 @@ CONTAINS
       CALL rs_grid_zero(rs_v)
       CALL grid_create_multigrid([rs_v], multigrid)
       CALL transfer_pw2rs(rs_v, coeff_rspace)
+      CALL grid_copy_to_multigrid_single(multigrid, rs_v, 1)
 
       CALL pw_pool%give_back_pw(coeff_rspace)
 
@@ -554,7 +555,7 @@ CONTAINS
 
                CALL integrate_pgf_product( &
                   l0_ikind, zet0, 0, 0, 0.0_dp, 0, &
-                  ra, (/0.0_dp, 0.0_dp, 0.0_dp/), rs_v, &
+                  ra, (/0.0_dp, 0.0_dp, 0.0_dp/), &
                   multigrid, 1, &
                   hab, pab, o1=0, o2=0, &
                   radius=rpgf0, &

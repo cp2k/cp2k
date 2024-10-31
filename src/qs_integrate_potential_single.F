@@ -45,7 +45,9 @@ MODULE qs_integrate_potential_single
                                               gth_potential_type
    USE gaussian_gridlevels,             ONLY: gaussian_gridlevel,&
                                               gridlevel_info_type
-   USE grid_api,                        ONLY: grid_multigrid_type,&
+   USE grid_api,                        ONLY: grid_copy_to_multigrid,&
+                                              grid_copy_to_multigrid_single,&
+                                              grid_multigrid_type,&
                                               integrate_pgf_product
    USE kinds,                           ONLY: dp
    USE lri_environment_types,           ONLY: lri_kind_type
@@ -134,6 +136,7 @@ CONTAINS
       CALL pw_env_get(pw_env=pw_env, auxbas_rs_grid=rs_v, multigrid=multigrid, auxbas_grid=auxbas_grid)
 
       CALL transfer_pw2rs(rs_v, rho_rspace)
+      CALL grid_copy_to_multigrid_single(multigrid, rs_v, auxbas_grid)
 
       CALL get_qs_env(qs_env=qs_env, &
                       atomic_kind_set=atomic_kind_set, &
@@ -254,7 +257,7 @@ CONTAINS
 
             CALL integrate_pgf_product(ni, alpha, 0, &
                                        0, 0.0_dp, 0, ra, (/0.0_dp, 0.0_dp, 0.0_dp/), &
-                                       rs_v, multigrid, auxbas_grid, hab, pab=pab, o1=0, o2=0, &
+                                       multigrid, auxbas_grid, hab, pab=pab, o1=0, o2=0, &
                                        radius=radius, &
                                        calculate_forces=.TRUE., force_a=force_a, &
                                        force_b=force_b, use_virial=use_virial, my_virial_a=my_virial_a, &
@@ -321,6 +324,7 @@ CONTAINS
       CALL pw_env_get(pw_env=pw_env, auxbas_rs_grid=rs_v, multigrid=multigrid, auxbas_grid=auxbas_grid)
 
       CALL transfer_pw2rs(rs_v, rho_rspace)
+      CALL grid_copy_to_multigrid_single(multigrid, rs_v, auxbas_grid)
 
       CALL get_qs_env(qs_env=qs_env, &
                       atomic_kind_set=atomic_kind_set, &
@@ -452,7 +456,7 @@ CONTAINS
 
                CALL integrate_pgf_product(ni, 1/(2*alpha**2), 0, &
                                           0, 0.0_dp, 0, ra, (/0.0_dp, 0.0_dp, 0.0_dp/), &
-                                          rs_v, multigrid, auxbas_grid, hab, pab=pab, o1=0, o2=0, &
+                                          multigrid, auxbas_grid, hab, pab=pab, o1=0, o2=0, &
                                           radius=radius, &
                                           calculate_forces=.TRUE., force_a=force_a, &
                                           force_b=force_b, use_virial=use_virial, my_virial_a=my_virial_a, &
@@ -535,6 +539,7 @@ CONTAINS
          CALL pw_env_get(pw_env=pw_env, auxbas_rs_grid=rs_v, multigrid=multigrid, auxbas_grid=auxbas_grid)
 
          CALL transfer_pw2rs(rs_v, v_rspace)
+         CALL grid_copy_to_multigrid_single(multigrid, rs_v, auxbas_grid)
 
          CALL get_qs_env(qs_env=qs_env, &
                          atomic_kind_set=atomic_kind_set, &
@@ -609,7 +614,7 @@ CONTAINS
 
                CALL integrate_pgf_product(0, alpha_core_charge, 0, &
                                           0, 0.0_dp, 0, ra, (/0.0_dp, 0.0_dp, 0.0_dp/), &
-                                          rs_v, multigrid, auxbas_grid, hab, pab=pab, o1=0, o2=0, &
+                                          multigrid, auxbas_grid, hab, pab=pab, o1=0, o2=0, &
                                           radius=radius, &
                                           calculate_forces=.TRUE., force_a=force_a, &
                                           force_b=force_b, use_virial=use_virial, my_virial_a=my_virial_a, &
@@ -688,6 +693,7 @@ CONTAINS
       CALL pw_env_get(pw_env=pw_env, auxbas_rs_grid=rs_v, multigrid=multigrid, auxbas_grid=auxbas_grid)
 
       CALL transfer_pw2rs(rs_v, v_rspace)
+      CALL grid_copy_to_multigrid_single(multigrid, rs_v, auxbas_grid)
 
       CALL get_qs_env(qs_env=qs_env, &
                       atomic_kind_set=atomic_kind_set, &
@@ -742,7 +748,7 @@ CONTAINS
 
             CALL integrate_pgf_product(0, alpha_core_charge, 0, &
                                        0, 0.0_dp, 0, ra, (/0.0_dp, 0.0_dp, 0.0_dp/), &
-                                       rs_v, multigrid, auxbas_grid, hab, pab=pab, o1=0, o2=0, &
+                                       multigrid, auxbas_grid, hab, pab=pab, o1=0, o2=0, &
                                        radius=radius, calculate_forces=.FALSE., &
                                        use_subpatch=.TRUE., subpatch_pattern=0)
             atecc(atom_a) = atecc(atom_a) + 0.5_dp*hab(1, 1)*pab(1, 1)
@@ -822,6 +828,7 @@ CONTAINS
       gridlevel_info => pw_env%gridlevel_info
 
       CALL potential_pw2rs(rs_v, v_rspace, pw_env)
+      CALL grid_copy_to_multigrid(multigrid, rs_v)
 
       CALL get_qs_env(qs_env=qs_env, &
                       atomic_kind_set=atomic_kind_set, &
@@ -922,7 +929,6 @@ CONTAINS
                                                       zeta=zeta(ipgf, iset), la_min=la_min(iset), &
                                                       lb_max=0, zetb=0.0_dp, lb_min=0, &
                                                       ra=ra, rab=(/0.0_dp, 0.0_dp, 0.0_dp/), &
-                                                      rsgrid=rs_grid, &
                                                       multigrid=multigrid, ilevel=igrid_level, &
                                                       hab=hab, o1=na1, o2=0, radius=radius, &
                                                       calculate_forces=calculate_forces)
@@ -931,7 +937,6 @@ CONTAINS
                                                       zeta=zeta(ipgf, iset), la_min=la_min(iset), &
                                                       lb_max=0, zetb=0.0_dp, lb_min=0, &
                                                       ra=ra, rab=(/0.0_dp, 0.0_dp, 0.0_dp/), &
-                                                      rsgrid=rs_grid, &
                                                       multigrid=multigrid, ilevel=igrid_level, &
                                                       hab=hab, pab=pab, o1=na1, o2=0, radius=radius, &
                                                       calculate_forces=calculate_forces, &
@@ -1024,6 +1029,7 @@ CONTAINS
       CALL get_qs_env(qs_env=qs_env, pw_env=pw_env)
       CALL pw_env_get(pw_env, rs_grids=rs_v, multigrid=multigrid)
       CALL potential_pw2rs(rs_v, v_rspace, pw_env)
+      CALL grid_copy_to_multigrid(multigrid, rs_v)
 
       gridlevel_info => pw_env%gridlevel_info
 
@@ -1132,7 +1138,6 @@ CONTAINS
                                     la_max(iset), zeta(ipgf, iset), la_min(iset), &
                                     la_max(jset), zeta(jpgf, jset), la_min(jset), &
                                     ra=ra, rab=(/0.0_dp, 0.0_dp, 0.0_dp/), &
-                                    rsgrid=rs_v(igrid_level), &
                                     multigrid=multigrid, ilevel=igrid_level, &
                                     hab=hab, pab=pab, o1=na1, o2=nb1, &
                                     radius=radius, &
@@ -1144,7 +1149,6 @@ CONTAINS
                                     la_max(iset), zeta(ipgf, iset), la_min(iset), &
                                     la_max(jset), zeta(jpgf, jset), la_min(jset), &
                                     ra=ra, rab=(/0.0_dp, 0.0_dp, 0.0_dp/), &
-                                    rsgrid=rs_v(igrid_level), &
                                     multigrid=multigrid, ilevel=igrid_level, &
                                     hab=hab, o1=na1, o2=nb1, &
                                     radius=radius, &
@@ -1242,6 +1246,7 @@ CONTAINS
 
       CALL pw_env_get(pw_env, rs_grids=rs_v, multigrid=multigrid)
       CALL potential_pw2rs(rs_v, v_rspace, pw_env)
+      CALL grid_copy_to_multigrid(multigrid, rs_v)
 
       CALL get_qs_env(qs_env=qs_env, &
                       atomic_kind_set=atomic_kind_set, &
@@ -1326,7 +1331,6 @@ CONTAINS
                                                 zeta=zeta(ipgf, iset), la_min=la_min(iset), &
                                                 lb_max=0, zetb=0.0_dp, lb_min=0, &
                                                 ra=ra, rab=(/0.0_dp, 0.0_dp, 0.0_dp/), &
-                                                rsgrid=rs_grid, &
                                                 multigrid=multigrid, ilevel=igrid_level, &
                                                 hab=hab, pab=pab, o1=na1, o2=0, radius=radius, &
                                                 calculate_forces=.TRUE., &
@@ -1338,7 +1342,6 @@ CONTAINS
                                                 zeta=zeta(ipgf, iset), la_min=la_min(iset), &
                                                 lb_max=0, zetb=0.0_dp, lb_min=0, &
                                                 ra=ra, rab=(/0.0_dp, 0.0_dp, 0.0_dp/), &
-                                                rsgrid=rs_grid, &
                                                 multigrid=multigrid, ilevel=igrid_level, &
                                                 hab=hab, o1=na1, o2=0, radius=radius, &
                                                 calculate_forces=.FALSE.)

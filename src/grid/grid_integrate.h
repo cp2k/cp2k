@@ -18,10 +18,9 @@ void grid_integrate_pgf_product(
     const int border_mask, const int la_max, const int la_min, const int lb_max,
     const int lb_min, const double zeta, const double zetb, const double ra[3],
     const double rab[3], const double radius, const int o1, const int o2,
-    const int n1, const int n2, const double *grid, double hab[n2][n1],
-    const double pab[n2][n1], double forces[2][3], double virials[2][3][3],
-    double hdab[n2][n1][3], double hadb[n2][n1][3],
-    double a_hdab[n2][n1][3][3]);
+    const int n1, const int n2, double hab[n2][n1], const double pab[n2][n1],
+    double forces[2][3], double virials[2][3][3], double hdab[n2][n1][3],
+    double hadb[n2][n1][3], double a_hdab[n2][n1][3][3]);
 
 #endif
 

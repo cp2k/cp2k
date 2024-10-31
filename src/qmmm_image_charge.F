@@ -28,7 +28,8 @@ MODULE qmmm_image_charge
                                               cp_print_key_should_output,&
                                               cp_print_key_unit_nr
    USE eri_mme_integrate,               ONLY: eri_mme_2c_integrate
-   USE grid_api,                        ONLY: grid_multigrid_type
+   USE grid_api,                        ONLY: grid_copy_to_multigrid_single,&
+                                              grid_multigrid_type
    USE input_constants,                 ONLY: calc_always,&
                                               calc_once,&
                                               calc_once_done,&
@@ -367,6 +368,7 @@ CONTAINS
       CALL pw_env_get(pw_env=pw_env, auxbas_rs_desc=auxbas_rs_desc, &
                       auxbas_rs_grid=rs_v, multigrid=multigrid, auxbas_grid=auxbas_grid)
       CALL transfer_pw2rs(rs_v, potential)
+      CALL grid_copy_to_multigrid_single(multigrid, rs_v, auxbas_grid)
 
       CALL get_qs_env(qs_env=qs_env, &
                       cell=cell, &
@@ -423,7 +425,7 @@ CONTAINS
 
          CALL integrate_pgf_product(0, qmmm_env%image_charge_pot%eta, 0, &
                                     0, 0.0_dp, 0, ra, (/0.0_dp, 0.0_dp, 0.0_dp/), &
-                                    rs_v, multigrid, auxbas_grid, hab, o1=0, o2=0, &
+                                    multigrid, auxbas_grid, hab, o1=0, o2=0, &
                                     radius=radius, calculate_forces=.FALSE., &
                                     use_subpatch=.TRUE., subpatch_pattern=0)
 
@@ -489,6 +491,7 @@ CONTAINS
       CALL pw_env_get(pw_env=pw_env, auxbas_rs_desc=auxbas_rs_desc, &
                       auxbas_rs_grid=rs_v, multigrid=multigrid, auxbas_grid=auxbas_grid)
       CALL transfer_pw2rs(rs_v, potential)
+      CALL grid_copy_to_multigrid_single(multigrid, rs_v, auxbas_grid)
 
       CALL get_qs_env(qs_env=qs_env, &
                       cell=cell, &
@@ -547,7 +550,7 @@ CONTAINS
 
          CALL integrate_pgf_product(0, qmmm_env%image_charge_pot%eta, 0, &
                                     0, 0.0_dp, 0, ra, (/0.0_dp, 0.0_dp, 0.0_dp/), &
-                                    rs_v, multigrid, auxbas_grid, hab, pab, o1=0, o2=0, &
+                                    multigrid, auxbas_grid, hab, pab, o1=0, o2=0, &
                                     radius=radius, calculate_forces=.TRUE., &
                                     force_a=force_a, force_b=force_b, use_subpatch=.TRUE., &
                                     subpatch_pattern=0)

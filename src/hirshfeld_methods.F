@@ -584,6 +584,7 @@ CONTAINS
       CALL pw_env_get(pw_env=pw_env, auxbas_rs_desc=auxbas_rs_desc, &
                       auxbas_rs_grid=rs_v, multigrid=multigrid, auxbas_grid=auxbas_grid)
       CALL transfer_pw2rs(rs_v, rfun)
+      CALL grid_copy_to_multigrid_single(multigrid, rs_v, auxbas_grid)
 
       CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set, cell=cell, &
                       dft_control=dft_control, particle_set=particle_set)
@@ -636,7 +637,7 @@ CONTAINS
 
                CALL integrate_pgf_product(0, alpha, 0, &
                                           0, 0.0_dp, 0, ra, (/0.0_dp, 0.0_dp, 0.0_dp/), &
-                                          rs_v, multigrid, auxbas_grid, hab, pab=pab, o1=0, o2=0, &
+                                          multigrid, auxbas_grid, hab, pab=pab, o1=0, o2=0, &
                                           radius=radius, calculate_forces=do_force, &
                                           force_a=force_a, force_b=force_b, use_virial=.FALSE., &
                                           use_subpatch=.TRUE., subpatch_pattern=0)
