@@ -70,8 +70,8 @@ CONTAINS
          IF (rs%desc%parallel) THEN
             ! check if the rs grid is distributed or not
             IF (ALL(rs%desc%group_dim == 1)) THEN
-               ndim = rs%desc%group_size
-               npos = rs%desc%my_pos
+               ndim = rs%desc%group%num_pe
+               npos = rs%desc%group%mepos
                ! All processors work on the same grid
                IF (MOD(ipart, ndim) == npos) THEN
                   p1 = ipart

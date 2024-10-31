@@ -282,7 +282,7 @@ CONTAINS
                ra(:) = pbc(particle_set(atom_a)%r, cell)
                IF (rs_rho%desc%parallel .AND. .NOT. rs_rho%desc%distributed) THEN
                   ! replicated realspace grid, split the atoms up between procs
-                  IF (MODULO(iatom, rs_rho%desc%group_size) == rs_rho%desc%my_pos) THEN
+                  IF (MODULO(iatom, rs_rho%desc%group%num_pe) == rs_rho%desc%group%mepos) THEN
                      npme = npme + 1
                      cores(npme) = iatom
                   END IF
@@ -458,7 +458,7 @@ CONTAINS
             ra(:) = pbc(particle_set(atom_a)%r, cell)
             IF (rs_rho%desc%parallel .AND. .NOT. rs_rho%desc%distributed) THEN
                ! replicated realspace grid, split the atoms up between procs
-               IF (MODULO(iatom, rs_rho%desc%group_size) == rs_rho%desc%my_pos) THEN
+               IF (MODULO(iatom, rs_rho%desc%group%num_pe) == rs_rho%desc%group%mepos) THEN
                   npme = npme + 1
                   cores(npme) = iatom
                END IF
@@ -886,7 +886,7 @@ CONTAINS
             DO iatom = 1, natom
                IF (rs_rho%desc%parallel .AND. .NOT. rs_rho%desc%distributed) THEN
                   ! replicated realspace grid, split the atoms up between procs
-                  IF (MODULO(iatom, rs_rho%desc%group_size) == rs_rho%desc%my_pos) THEN
+                  IF (MODULO(iatom, rs_rho%desc%group%num_pe) == rs_rho%desc%group%mepos) THEN
                      npme = npme + 1
                      cores(npme) = iatom
                   END IF
@@ -1025,7 +1025,7 @@ CONTAINS
          DO iatom = 1, natom
             IF (rs_rho%desc%parallel .AND. .NOT. rs_rho%desc%distributed) THEN
                ! replicated realspace grid, split the atoms up between procs
-               IF (MODULO(iatom, rs_rho%desc%group_size) == rs_rho%desc%my_pos) THEN
+               IF (MODULO(iatom, rs_rho%desc%group%num_pe) == rs_rho%desc%group%mepos) THEN
                   npme = npme + 1
                   cores(npme) = iatom
                END IF
@@ -1131,7 +1131,7 @@ CONTAINS
       npme = 0
 
       IF (rs_rho%desc%parallel .AND. .NOT. rs_rho%desc%distributed) THEN
-         IF (MODULO(iatom, rs_rho%desc%group_size) == rs_rho%desc%my_pos) THEN
+         IF (MODULO(iatom, rs_rho%desc%group%num_pe) == rs_rho%desc%group%mepos) THEN
             npme = npme + 1
          END IF
       ELSE
@@ -1233,7 +1233,7 @@ CONTAINS
 
       DO iatom = 1, natom
          IF (rs_rho%desc%parallel .AND. .NOT. rs_rho%desc%distributed) THEN
-            IF (MODULO(iatom, rs_rho%desc%group_size) == rs_rho%desc%my_pos) THEN
+            IF (MODULO(iatom, rs_rho%desc%group%num_pe) == rs_rho%desc%group%mepos) THEN
                npme = npme + 1
                cores(npme) = iatom
             END IF
@@ -1340,7 +1340,7 @@ CONTAINS
       npme = 0
 
       IF (rs_rho%desc%parallel .AND. .NOT. rs_rho%desc%distributed) THEN
-         IF (MODULO(iatom, rs_rho%desc%group_size) == rs_rho%desc%my_pos) THEN
+         IF (MODULO(iatom, rs_rho%desc%group%num_pe) == rs_rho%desc%group%mepos) THEN
             npme = npme + 1
          END IF
       ELSE
@@ -1443,7 +1443,7 @@ CONTAINS
 
          DO iatom = 1, natom
             IF (rs_rho%desc%parallel .AND. .NOT. rs_rho%desc%distributed) THEN
-               IF (MODULO(iatom, rs_rho%desc%group_size) == rs_rho%desc%my_pos) THEN
+               IF (MODULO(iatom, rs_rho%desc%group%num_pe) == rs_rho%desc%group%mepos) THEN
                   npme = npme + 1
                   cores(npme) = iatom
                END IF

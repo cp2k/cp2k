@@ -2543,7 +2543,7 @@ CONTAINS
                DO iatom = 1, katom
                   IF (rs_cavity%desc%parallel .AND. .NOT. rs_cavity%desc%distributed) THEN
                      ! replicated realspace grid, split the atoms up between procs
-                     IF (MODULO(iatom, rs_cavity%desc%group_size) == rs_cavity%desc%my_pos) THEN
+                     IF (MODULO(iatom, rs_cavity%desc%group%num_pe) == rs_cavity%desc%group%mepos) THEN
                         npme = npme + 1
                         cores(npme) = iatom
                      END IF

@@ -823,7 +823,7 @@ CONTAINS
                   atom_a = atom_list(iatom)
                   ra(:) = pbc(particle_set(atom_a)%r, cell)
                   IF (rs_rho_all%desc%parallel .AND. .NOT. rs_rho_all%desc%distributed) THEN
-                     IF (MODULO(iatom, rs_rho_all%desc%group_size) == rs_rho_all%desc%my_pos) THEN
+                     IF (MODULO(iatom, rs_rho_all%desc%group%num_pe) == rs_rho_all%desc%group%mepos) THEN
                         npme = npme + 1
                         cores(npme) = iatom
                      END IF
@@ -1038,7 +1038,7 @@ CONTAINS
                         ra(:) = pbc(particle_set(atom_a)%r, cell)
 
                         IF (rs_rho_all%desc%parallel .AND. .NOT. rs_rho_all%desc%distributed) THEN
-                           IF (MODULO(iatom, rs_rho_all%desc%group_size) == rs_rho_all%desc%my_pos) THEN
+                           IF (MODULO(iatom, rs_rho_all%desc%group%num_pe) == rs_rho_all%desc%group%mepos) THEN
                               npme = npme + 1
                               cores(npme) = iatom
                            END IF

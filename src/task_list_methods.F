@@ -320,7 +320,7 @@ CONTAINS
          ! only needed when there is a distributed grid
          CALL rs_calc_offsets(pairs=task_list%atom_pair_send, &
                               nsgf=nsgf, &
-                              group_size=rs_descs(1)%rs_desc%group_size, &
+                              group_size=rs_descs(1)%rs_desc%group%num_pe, &
                               pair_offsets=task_list%pair_offsets_send, &
                               rank_offsets=task_list%rank_offsets_send, &
                               rank_sizes=task_list%rank_sizes_send, &
@@ -328,7 +328,7 @@ CONTAINS
       END IF
       CALL rs_calc_offsets(pairs=task_list%atom_pair_recv, &
                            nsgf=nsgf, &
-                           group_size=rs_descs(1)%rs_desc%group_size, &
+                           group_size=rs_descs(1)%rs_desc%group%num_pe, &
                            pair_offsets=task_list%pair_offsets_recv, &
                            rank_offsets=task_list%rank_offsets_recv, &
                            rank_sizes=task_list%rank_sizes_recv, &
@@ -924,7 +924,7 @@ CONTAINS
                            ntasks=ntasks, tasks=tasks, lb_cube=lb_cube, ub_cube=ub_cube, added_tasks=added_tasks)
 
       ELSE
-         tasks(ntasks)%destination = encode_rank(rs_desc%my_pos, igrid_level, n_levels)
+         tasks(ntasks)%destination = encode_rank(rs_desc%group%mepos, igrid_level, n_levels)
          tasks(ntasks)%dist_type = 0
          tasks(ntasks)%subpatch_pattern = 0
          added_tasks = 1
@@ -939,7 +939,7 @@ CONTAINS
       cost = cost_model(lb_cube, ub_cube, tfraction, lmax, is_ortho)
 
       DO j = 1, added_tasks
-         tasks(ntasks - added_tasks + j)%source = encode_rank(rs_desc%my_pos, igrid_level, n_levels)
+         tasks(ntasks - added_tasks + j)%source = encode_rank(rs_desc%group%mepos, igrid_level, n_levels)
          tasks(ntasks - added_tasks + j)%cost = cost
          tasks(ntasks - added_tasks + j)%grid_level = igrid_level
          tasks(ntasks - added_tasks + j)%image = cindex
@@ -989,7 +989,7 @@ CONTAINS
       CALL compute_load_list(list, rs_descs, grid_level, tasks, ntasks, natoms, create_list=.TRUE.)
 
       ! optimize loads & fluxes
-      CALL optimize_load_list(list, rs_descs(1)%rs_desc%group, rs_descs(1)%rs_desc%my_pos)
+      CALL optimize_load_list(list, rs_descs(1)%rs_desc%group, rs_descs(1)%rs_desc%group%mepos)
 
       ! now, walk over the tasks, using the list to set the destinations
       CALL compute_load_list(list, rs_descs, grid_level, tasks, ntasks, natoms, create_list=.FALSE.)
@@ -1257,7 +1257,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      ALLOCATE (loads(0:rs_descs(grid_level)%rs_desc%group_size - 1))
+      ALLOCATE (loads(0:rs_descs(grid_level)%rs_desc%group%num_pe - 1))
       CALL get_current_loads(loads, rs_descs, grid_level, ntasks, tasks, use_reordered_ranks=.FALSE.)
 
       maxdest = SIZE(list, 2)
@@ -1497,7 +1497,7 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       CPASSERT(.NOT. ASSOCIATED(list))
-      ncpu = rs_descs(grid_level)%rs_desc%group_size
+      ncpu = rs_descs(grid_level)%rs_desc%group%num_pe
       ultimate_max = 7
 
       ALLOCATE (list(2, ultimate_max, 0:ncpu - 1))
@@ -1571,8 +1571,8 @@ CONTAINS
       desc => rs_descs(grid_level)%rs_desc
 
       ! allocate local arrays
-      ALLOCATE (send_buf_i(desc%group_size))
-      ALLOCATE (recv_buf_i(desc%group_size))
+      ALLOCATE (send_buf_i(desc%group%num_pe))
+      ALLOCATE (recv_buf_i(desc%group%num_pe))
 
       ! communication step 1 : compute the total local cost of the tasks
       !                        each proc needs to know the amount of work he will receive
@@ -1645,8 +1645,8 @@ CONTAINS
       desc => rs_descs(1)%rs_desc
 
       ! allocate local arrays
-      ALLOCATE (recv_buf_i(desc%group_size))
-      ALLOCATE (loads(desc%group_size))
+      ALLOCATE (recv_buf_i(desc%group%num_pe))
+      ALLOCATE (loads(desc%group%num_pe))
 
       recv_buf_i = 0
       DO i = 1, SIZE(rs_descs)
@@ -1655,7 +1655,7 @@ CONTAINS
       END DO
 
       total_cost_global = SUM(recv_buf_i)
-      average_cost = total_cost_global/desc%group_size
+      average_cost = total_cost_global/desc%group%num_pe
 
       !
       ! compute how to redistribute the replicated tasks so that the average cost is reached
@@ -1663,14 +1663,14 @@ CONTAINS
 
       ! load imbalance measures the load of a given CPU relative
       ! to the optimal load distribution (load=average)
-      ALLOCATE (load_imbalance(desc%group_size))
-      ALLOCATE (INDEX(desc%group_size))
+      ALLOCATE (load_imbalance(desc%group%num_pe))
+      ALLOCATE (INDEX(desc%group%num_pe))
 
       load_imbalance(:) = recv_buf_i - average_cost
       no_overloaded = 0
       no_underloaded = 0
 
-      DO i = 1, desc%group_size
+      DO i = 1, desc%group%num_pe
          IF (load_imbalance(i) .GT. 0) no_overloaded = no_overloaded + 1
          IF (load_imbalance(i) .LT. 0) no_underloaded = no_underloaded + 1
       END DO
@@ -1693,7 +1693,7 @@ CONTAINS
       ! they will send away not more than the total load of replicated tasks
       CALL desc%group%allgather(cost_task_rep, recv_buf_i)
 
-      DO i = 1, desc%group_size
+      DO i = 1, desc%group%num_pe
          ! At the moment we can only offload replicated tasks
          IF (load_imbalance(i) .GT. 0) &
             load_imbalance(i) = MIN(load_imbalance(i), recv_buf_i(i))
@@ -1705,14 +1705,14 @@ CONTAINS
       ! task balancing will be incomplete
 
       ! only need to do anything if I've excess tasks
-      IF (load_imbalance(desc%my_pos + 1) .GT. 0) THEN
+      IF (load_imbalance(desc%group%mepos + 1) .GT. 0) THEN
 
          count = 0 ! weighted amount of tasks offloaded
          offset = 0 ! no of underloaded processes already filled by other more overloaded procs
 
          ! calculate offset
-         DO i = desc%group_size, desc%group_size - no_overloaded + 1, -1
-            IF (INDEX(i) .EQ. desc%my_pos + 1) THEN
+         DO i = desc%group%num_pe, desc%group%num_pe - no_overloaded + 1, -1
+            IF (INDEX(i) .EQ. desc%group%mepos + 1) THEN
                EXIT
             ELSE
                offset = offset + load_imbalance(INDEX(i))
@@ -1750,7 +1750,7 @@ CONTAINS
                tasks(j)%destination = encode_rank(INDEX(proc_receiving) - 1, ilevel, SIZE(rs_descs))
                offset = offset + tasks(j)%cost
                count = count + tasks(j)%cost
-               IF (count .GE. load_imbalance(desc%my_pos + 1)) EXIT
+               IF (count .GE. load_imbalance(desc%group%mepos + 1)) EXIT
                IF (offset .GT. 0) THEN
                   proc_receiving = proc_receiving + 1
                   ! just avoid sending to non existing procs due to integer truncation
@@ -1803,12 +1803,12 @@ CONTAINS
       desc => rs_descs(1)%rs_desc
 
       ! allocate local arrays
-      ALLOCATE (send_sizes(desc%group_size))
-      ALLOCATE (recv_sizes(desc%group_size))
-      ALLOCATE (send_disps(desc%group_size))
-      ALLOCATE (recv_disps(desc%group_size))
-      ALLOCATE (send_buf(desc%group_size))
-      ALLOCATE (recv_buf(desc%group_size))
+      ALLOCATE (send_sizes(desc%group%num_pe))
+      ALLOCATE (recv_sizes(desc%group%num_pe))
+      ALLOCATE (send_disps(desc%group%num_pe))
+      ALLOCATE (recv_disps(desc%group%num_pe))
+      ALLOCATE (send_buf(desc%group%num_pe))
+      ALLOCATE (recv_buf(desc%group%num_pe))
 
       ! fill send buffer, now counting how many tasks will be send (stored in an int8 array for convenience only).
       send_buf = 0
@@ -1829,7 +1829,7 @@ CONTAINS
 
       send_sizes(1) = INT(send_buf(1)*task_size_in_int8)
       recv_sizes(1) = INT(recv_buf(1)*task_size_in_int8)
-      DO i = 2, desc%group_size
+      DO i = 2, desc%group%num_pe
          send_sizes(i) = INT(send_buf(i)*task_size_in_int8)
          recv_sizes(i) = INT(recv_buf(i)*task_size_in_int8)
          send_disps(i) = send_disps(i - 1) + send_sizes(i - 1)
@@ -1865,7 +1865,7 @@ CONTAINS
 
       ! do unpacking
       l = 0
-      DO i = 1, desc%group_size
+      DO i = 1, desc%group%num_pe
          DO j = 0, recv_sizes(i)/task_size_in_int8 - 1
             l = l + 1
             k = recv_disps(i) + j*task_size_in_int8
@@ -1938,8 +1938,8 @@ CONTAINS
 
       IF (distributed_grids) THEN
 
-         ALLOCATE (loads(0:desc%group_size - 1, SIZE(rs_descs)))
-         ALLOCATE (total_loads(0:desc%group_size - 1))
+         ALLOCATE (loads(0:desc%group%num_pe - 1, SIZE(rs_descs)))
+         ALLOCATE (total_loads(0:desc%group%num_pe - 1))
 
          total_loads = 0
 
@@ -1971,7 +1971,7 @@ CONTAINS
             END IF
          END DO
 
-         !IF (desc%my_pos==0) THEN
+         !IF (desc%group%mepos==0) THEN
          ! WRITE(*,*) "Total replicated load is ",replicated_load
          !END IF
 
@@ -1985,12 +1985,12 @@ CONTAINS
                      total_loads(:) = loads(:, igrid_level)
                      fixed_first_grid = .TRUE.
                   ELSE
-                     ALLOCATE (trial_loads(0:desc%group_size - 1))
+                     ALLOCATE (trial_loads(0:desc%group%num_pe - 1))
 
                      trial_loads(:) = total_loads + loads(:, igrid_level)
                      max_load = MAXVAL(trial_loads)
                      load_gap = 0
-                     DO irank = 0, desc%group_size - 1
+                     DO irank = 0, desc%group%num_pe - 1
                         load_gap = load_gap + max_load - trial_loads(irank)
                      END DO
 
@@ -1998,21 +1998,21 @@ CONTAINS
                      ! then we will reorder this grid level
                      IF (load_gap > replicated_load*1.05_dp) THEN
 
-                        ALLOCATE (indices(0:desc%group_size - 1))
-                        ALLOCATE (total_index(0:desc%group_size - 1))
-                        ALLOCATE (total_loads_tmp(0:desc%group_size - 1))
-                        ALLOCATE (real2virtual(0:desc%group_size - 1))
+                        ALLOCATE (indices(0:desc%group%num_pe - 1))
+                        ALLOCATE (total_index(0:desc%group%num_pe - 1))
+                        ALLOCATE (total_loads_tmp(0:desc%group%num_pe - 1))
+                        ALLOCATE (real2virtual(0:desc%group%num_pe - 1))
 
                         total_loads_tmp(:) = total_loads
-                        CALL sort(total_loads_tmp, desc%group_size, total_index)
-                        CALL sort(loads(:, igrid_level), desc%group_size, indices)
+                        CALL sort(total_loads_tmp, desc%group%num_pe, total_index)
+                        CALL sort(loads(:, igrid_level), desc%group%num_pe, indices)
 
                         ! Reorder so that the rank with smallest load on this grid level is paired with
                         ! the highest load in total
-                        DO irank = 0, desc%group_size - 1
+                        DO irank = 0, desc%group%num_pe - 1
                            total_loads(total_index(irank) - 1) = total_loads(total_index(irank) - 1) + &
-                                                                 loads(desc%group_size - irank - 1, igrid_level)
-                           real2virtual(total_index(irank) - 1) = indices(desc%group_size - irank - 1) - 1
+                                                                 loads(desc%group%num_pe - irank - 1, igrid_level)
+                           real2virtual(total_index(irank) - 1) = indices(desc%group%num_pe - irank - 1) - 1
                         END DO
 
                         CALL rs_grid_reorder_ranks(rs_descs(igrid_level)%rs_desc, real2virtual)
@@ -2042,7 +2042,7 @@ CONTAINS
          !  total_loads = total_loads + loads(:, igrid_level)
          !END DO
 
-         !IF (desc%my_pos==0) THEN
+         !IF (desc%group%mepos==0) THEN
          !  WRITE(*,*) ""
          !  WRITE(*,*) "At the end of the load balancing procedure"
          !  WRITE(*,*) "Maximum  load:",MAXVAL(total_loads)
@@ -2061,7 +2061,7 @@ CONTAINS
 
          ! natom_send=SIZE(atom_pair_send)
          ! CALL desc%group%sum(natom_send)
-         ! IF (desc%my_pos==0) THEN
+         ! IF (desc%group%mepos==0) THEN
          !     WRITE(*,*) ""
          !     WRITE(*,*) "Total number of atomic blocks to be send:",natom_send
          ! ENDIF
@@ -2223,17 +2223,17 @@ CONTAINS
       END IF
 
       desc => rs_descs(1)%rs_desc
-      me = desc%my_pos + 1
+      me = desc%group%mepos + 1
 
       ! allocate local arrays
-      ALLOCATE (send_sizes(desc%group_size))
-      ALLOCATE (recv_sizes(desc%group_size))
-      ALLOCATE (send_disps(desc%group_size))
-      ALLOCATE (recv_disps(desc%group_size))
-      ALLOCATE (send_pair_count(desc%group_size))
-      ALLOCATE (recv_pair_count(desc%group_size))
-      ALLOCATE (send_pair_disps(desc%group_size))
-      ALLOCATE (recv_pair_disps(desc%group_size))
+      ALLOCATE (send_sizes(desc%group%num_pe))
+      ALLOCATE (recv_sizes(desc%group%num_pe))
+      ALLOCATE (send_disps(desc%group%num_pe))
+      ALLOCATE (recv_disps(desc%group%num_pe))
+      ALLOCATE (send_pair_count(desc%group%num_pe))
+      ALLOCATE (recv_pair_count(desc%group%num_pe))
+      ALLOCATE (send_pair_disps(desc%group%num_pe))
+      ALLOCATE (recv_pair_disps(desc%group%num_pe))
 
       pmat => pmats(1)%matrix
       CALL dbcsr_get_info(pmat, &
@@ -2261,7 +2261,7 @@ CONTAINS
 
       send_disps = 0
       send_pair_disps = 0
-      DO i = 2, desc%group_size
+      DO i = 2, desc%group%num_pe
          send_disps(i) = send_disps(i - 1) + send_sizes(i - 1)
          send_pair_disps(i) = send_pair_disps(i - 1) + send_pair_count(i - 1)
       END DO
@@ -2284,7 +2284,7 @@ CONTAINS
 
       recv_disps = 0
       recv_pair_disps = 0
-      DO i = 2, desc%group_size
+      DO i = 2, desc%group%num_pe
          recv_disps(i) = recv_disps(i - 1) + recv_sizes(i - 1)
          recv_pair_disps(i) = recv_pair_disps(i - 1) + recv_pair_count(i - 1)
       END DO
@@ -2307,7 +2307,7 @@ CONTAINS
 
       ! do packing
 !$OMP DO schedule(guided)
-      DO l = 1, desc%group_size
+      DO l = 1, desc%group%num_pe
          IF (l .EQ. me) CYCLE
          send_sizes(l) = 0
          DO i = 1, send_pair_count(l)
@@ -2392,7 +2392,7 @@ CONTAINS
 
       !do unpacking
 !$OMP DO schedule(guided)
-      DO l = 1, desc%group_size
+      DO l = 1, desc%group%num_pe
          IF (l .EQ. me) CYCLE
          recv_sizes(l) = 0
          DO i = 1, recv_pair_count(l)
