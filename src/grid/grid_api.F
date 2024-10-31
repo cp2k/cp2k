@@ -224,7 +224,6 @@ CONTAINS
 !> \param lb_min ...
 !> \param ra ...
 !> \param rab ...
-!> \param rsgrid ...
 !> \param multigrid ...
 !> \param ilevel ...
 !> \param hab ...
@@ -247,7 +246,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE integrate_pgf_product(la_max, zeta, la_min, &
                                     lb_max, zetb, lb_min, &
-                                    ra, rab, rsgrid, &
+                                    ra, rab, &
                                     multigrid, ilevel, &
                                     hab, pab, o1, o2, &
                                     radius, &
@@ -262,7 +261,6 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: zetb
       INTEGER, INTENT(IN)                                :: lb_min
       REAL(KIND=dp), DIMENSION(3), INTENT(IN), TARGET    :: ra, rab
-      TYPE(realspace_grid_type), INTENT(IN)              :: rsgrid
       TYPE(grid_multigrid_type), INTENT(IN)              :: multigrid
       INTEGER, INTENT(IN)                                :: ilevel
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: hab
@@ -286,7 +284,6 @@ CONTAINS
       LOGICAL(KIND=C_BOOL)                               :: my_compute_tau
       REAL(KIND=dp), DIMENSION(3, 2), TARGET             :: forces
       REAL(KIND=dp), DIMENSION(3, 3, 2), TARGET          :: virials
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: grid
       TYPE(C_PTR)                                        :: a_hdab_cptr, forces_cptr, hadb_cptr, &
                                                             hdab_cptr, pab_cptr, virials_cptr
       INTERFACE
@@ -294,7 +291,7 @@ CONTAINS
                                                  border_mask, &
                                                  la_max, la_min, lb_max, lb_min, &
                                                  zeta, zetb, ra, rab, &
-                                                 radius, o1, o2, n1, n2, grid, hab, pab, &
+                                                 radius, o1, o2, n1, n2, hab, pab, &
                                                  forces, virials, hdab, hadb, a_hdab) &
             BIND(C, name="grid_integrate_pgf_product")
             IMPORT :: C_PTR, C_INT, C_DOUBLE, C_BOOL
@@ -315,7 +312,6 @@ CONTAINS
             INTEGER(KIND=C_INT), VALUE                :: o2
             INTEGER(KIND=C_INT), VALUE                :: n1
             INTEGER(KIND=C_INT), VALUE                :: n2
-            TYPE(C_PTR), VALUE                        :: grid
             TYPE(C_PTR), VALUE                        :: hab
             TYPE(C_PTR), VALUE                        :: pab
             TYPE(C_PTR), VALUE                        :: forces
@@ -386,12 +382,9 @@ CONTAINS
          a_hdab_cptr = C_NULL_PTR
       END IF
 
-      grid(1:, 1:, 1:) => rsgrid%r(:, :, :) ! pointer assignment
-
 #if __GNUC__ >= 9
       CPASSERT(IS_CONTIGUOUS(ra))
       CPASSERT(IS_CONTIGUOUS(rab))
-      CPASSERT(IS_CONTIGUOUS(grid))
       CPASSERT(IS_CONTIGUOUS(hab))
       CPASSERT(IS_CONTIGUOUS(forces))
       CPASSERT(IS_CONTIGUOUS(virials))
@@ -425,7 +418,6 @@ CONTAINS
                                         o2=o2, &
                                         n1=SIZE(hab, 1), &
                                         n2=SIZE(hab, 2), &
-                                        grid=C_LOC(grid(1, 1, 1)), &
                                         hab=C_LOC(hab(1, 1)), &
                                         pab=pab_cptr, &
                                         forces=forces_cptr, &

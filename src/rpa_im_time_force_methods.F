@@ -60,7 +60,8 @@ MODULE rpa_im_time_force_methods
    USE distribution_2d_types,           ONLY: distribution_2d_type
    USE ec_methods,                      ONLY: create_kernel
    USE gaussian_gridlevels,             ONLY: gaussian_gridlevel
-   USE grid_api,                        ONLY: grid_multigrid_type
+   USE grid_api,                        ONLY: grid_copy_to_multigrid,&
+                                              grid_multigrid_type
    USE hfx_admm_utils,                  ONLY: tddft_hfx_matrix
    USE hfx_derivatives,                 ONLY: derivatives_four_center
    USE hfx_exx,                         ONLY: add_exx_to_rhs
@@ -2871,6 +2872,7 @@ CONTAINS
             NULLIFY (rs_v)
             CALL pw_env_get(pw_env_ext, rs_grids=rs_v, multigrid=multigrid)
             CALL potential_pw2rs(rs_v, rho_r, pw_env_ext)
+            CALL grid_copy_to_multigrid(multigrid, rs_v)
 
             DO iatom = 1, natom
 
@@ -2936,7 +2938,6 @@ CONTAINS
                            la_max=la_max(iset), zeta=zeta(ipgf, iset), la_min=la_min(iset), &
                            lb_max=0, zetb=0.0_dp, lb_min=0, &
                            ra=ra, rab=(/0.0_dp, 0.0_dp, 0.0_dp/), &
-                           rsgrid=rs_v(igrid_level), &
                            multigrid=multigrid, ilevel=igrid_level, &
                            hab=h_tmp, pab=pab, &
                            o1=o1, &

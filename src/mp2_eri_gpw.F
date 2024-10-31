@@ -20,7 +20,8 @@ MODULE mp2_eri_gpw
    USE cp_dbcsr_api,                    ONLY: dbcsr_p_type,&
                                               dbcsr_set
    USE gaussian_gridlevels,             ONLY: gaussian_gridlevel
-   USE grid_api,                        ONLY: grid_multigrid_type
+   USE grid_api,                        ONLY: grid_copy_to_multigrid,&
+                                              grid_multigrid_type
    USE input_constants,                 ONLY: do_potential_coulomb,&
                                               do_potential_id,&
                                               do_potential_long,&
@@ -232,6 +233,7 @@ CONTAINS
          NULLIFY (rs_descs)
          CALL pw_env_get(pw_env_sub, rs_descs=rs_descs, rs_grids=rs_v, multigrid=multigrid)
          CALL potential_pw2rs(rs_v, rho_r, pw_env_sub)
+         CALL grid_copy_to_multigrid(multigrid, rs_v)
 
          CALL timestop(handle2)
 
@@ -310,7 +312,6 @@ CONTAINS
                         la_max=la_max(iset), zeta=zeta(ipgf, iset), la_min=la_min(iset), &
                         lb_max=0, zetb=0.0_dp, lb_min=0, &
                         ra=ra, rab=(/0.0_dp, 0.0_dp, 0.0_dp/), &
-                        rsgrid=rs_v(igrid_level), &
                         multigrid=multigrid, ilevel=igrid_level, &
                         hab=I_tmp2, &
                         o1=na1 - 1, &
@@ -592,6 +593,7 @@ CONTAINS
       NULLIFY (rs_descs)
       CALL pw_env_get(pw_env_sub, rs_descs=rs_descs, rs_grids=rs_v, multigrid=multigrid)
       CALL potential_pw2rs(rs_v, rho_r, pw_env_sub)
+      CALL grid_copy_to_multigrid(multigrid, rs_v)
 
       offset = 0
       DO iatom = 1, SIZE(kind_of)
@@ -672,7 +674,6 @@ CONTAINS
                   CALL integrate_pgf_product(la_max=la_max(iset), zeta=zeta(ipgf, iset)/2.0_dp, la_min=la_min(iset), &
                                              lb_max=0, zetb=zeta(ipgf, iset)/2.0_dp, lb_min=0, &
                                              ra=ra, rab=(/0.0_dp, 0.0_dp, 0.0_dp/), &
-                                             rsgrid=rs_v(igrid_level), &
                                              multigrid=multigrid, ilevel=igrid_level, &
                                              hab=I_tmp2, &
                                              pab=pab, &
@@ -842,6 +843,7 @@ CONTAINS
       NULLIFY (rs_descs)
       CALL pw_env_get(pw_env_sub, rs_descs=rs_descs, rs_grids=rs_v, multigrid=multigrid)
       CALL potential_pw2rs(rs_v, pot_r, pw_env_sub)
+      CALL grid_copy_to_multigrid(multigrid, rs_v)
 
       offset = 0
       DO iatom = 1, SIZE(kind_of)
@@ -908,7 +910,6 @@ CONTAINS
                   CALL integrate_pgf_product(la_max=la_max(iset), zeta=zeta(ipgf, iset)/2.0_dp, la_min=la_min(iset), &
                                              lb_max=0, zetb=zeta(ipgf, iset)/2.0_dp, lb_min=0, &
                                              ra=ra, rab=(/0.0_dp, 0.0_dp, 0.0_dp/), &
-                                             rsgrid=rs_v(igrid_level), &
                                              multigrid=multigrid, ilevel=igrid_level, &
                                              hab=I_tmp2, &
                                              pab=pab, &

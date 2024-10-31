@@ -29,7 +29,8 @@ MODULE qs_vcd_ao
                                               gth_potential_type,&
                                               sgp_potential_type
    USE gaussian_gridlevels,             ONLY: gridlevel_info_type
-   USE grid_api,                        ONLY: grid_multigrid_type
+   USE grid_api,                        ONLY: grid_copy_to_multigrid,&
+                                              grid_multigrid_type
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type
    USE kinds,                           ONLY: default_string_length,&
@@ -1177,6 +1178,7 @@ CONTAINS
 
       ! transform the potential on the rs_multigrids
       CALL potential_pw2rs(rs_v, v_rspace, pw_env)
+      CALL grid_copy_to_multigrid(multigrid, rs_v)
 
       nkind = SIZE(qs_kind_set)
 
@@ -1373,7 +1375,7 @@ CONTAINS
                CALL integrate_pgf_product( &
                   la_max(iset) + 1, zeta(ipgf, iset), la_min(iset), &
                   lb_max(jset) + 1, zetb(jpgf, jset), lb_min(jset), &
-                  ra, rab, rs_v(igrid_level), &
+                  ra, rab, &
                   multigrid, igrid_level, &
                   hab, o1=na1 - 1, o2=nb1 - 1, &
                   radius=radius, &
@@ -1383,7 +1385,7 @@ CONTAINS
                CALL integrate_pgf_product( &
                   lb_max(jset) + 1, zetb(jpgf, jset), lb_min(jset), &
                   la_max(iset) + 1, zeta(ipgf, iset), la_min(iset), &
-                  rb, rab_inv, rs_v(igrid_level), &
+                  rb, rab_inv, &
                   multigrid, igrid_level, &
                   hab, o1=nb1 - 1, o2=na1 - 1, &
                   radius=radius, &

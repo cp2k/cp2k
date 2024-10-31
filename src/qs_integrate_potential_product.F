@@ -194,6 +194,7 @@ CONTAINS
 
       ! transform the potential on the rs_multigrids
       CALL potential_pw2rs(rs_rho, v_rspace, pw_env)
+      CALL grid_copy_to_multigrid(multigrid, rs_rho)
 
       nkind = SIZE(qs_kind_set)
 
@@ -424,7 +425,7 @@ CONTAINS
                   CALL integrate_pgf_product( &
                   la_max(iset), zeta(ipgf, iset), la_min(iset), &
                   lb_max(jset), zetb(jpgf, jset), lb_min(jset), &
-                  ra, rab, rs_rho(igrid_level), &
+                  ra, rab, &
                   multigrid, ilevel, &
                   hab, o1=na1 - 1, o2=nb1 - 1, &
                   radius=radius, &
@@ -436,7 +437,7 @@ CONTAINS
                   CALL integrate_pgf_product( &
                   la_max(iset), zeta(ipgf, iset), la_min(iset), &
                   lb_max(jset), zetb(jpgf, jset), lb_min(jset), &
-                  ra, rab, rs_rho(igrid_level), &
+                  ra, rab, &
                   multigrid, ilevel, &
                   hab, o1=na1 - 1, o2=nb1 - 1, &
                   radius=radius, &
@@ -450,7 +451,7 @@ CONTAINS
                   CALL integrate_pgf_product( &
                   lb_max(jset), zetb(jpgf, jset), lb_min(jset), &
                   la_max(iset), zeta(ipgf, iset), la_min(iset), &
-                  rb, rab_inv, rs_rho(igrid_level), &
+                  rb, rab_inv, &
                   multigrid, ilevel, &
                   hab, o1=nb1 - 1, o2=na1 - 1, &
                   radius=radius, &
@@ -463,7 +464,7 @@ CONTAINS
                   CALL integrate_pgf_product( &
                   lb_max(jset), zetb(jpgf, jset), lb_min(jset), &
                   la_max(iset), zeta(ipgf, iset), la_min(iset), &
-                  rb, rab_inv, rs_rho(igrid_level), &
+                  rb, rab_inv, &
                   multigrid, ilevel, &
                   hab, o1=nb1 - 1, o2=na1 - 1, &
                   radius=radius, &
@@ -700,6 +701,7 @@ CONTAINS
 
       ! transform the potential on the rs_multigrids
       CALL potential_pw2rs(rs_v, v_rspace, pw_env)
+      CALL grid_copy_to_multigrid(multigrid, rs_v)
 
       nimages = dft_control%nimages
       IF (nimages > 1) THEN
@@ -720,8 +722,6 @@ CONTAINS
             distributed_grids = .TRUE.
          END IF
       END DO
-
-      CALL grid_copy_to_multigrid(multigrid, rs_v)
 
       ALLOCATE (forces_array(3, natoms))
 
