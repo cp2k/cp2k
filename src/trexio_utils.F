@@ -113,7 +113,7 @@ CONTAINS
       LOGICAL                                            :: explicit, do_kpoints, ecp_semi_local, &
                                                             ecp_local, sgp_potential_present, ionode, &
                                                             use_real_wfn, save_cartesian
-      REAL(KIND=dp)                                      :: e_nn, zeff, racah_normalization
+      REAL(KIND=dp)                                      :: e_nn, zeff
       TYPE(cell_type), POINTER                           :: cell => Null()
       TYPE(cp_logger_type), POINTER                      :: logger => Null()
       TYPE(dft_control_type), POINTER                    :: dft_control => Null()
@@ -361,8 +361,6 @@ CONTAINS
       ALLOCATE (exponents(prim_num))      ! ...primitive exponents
       ALLOCATE (coefficients(prim_num))   ! ...contraction coefficients
 
-      CALL section_vals_val_get(trexio_section, "CARTESIAN", l_val=save_cartesian)
-
       ishell = 0
       ipgf = 0
       DO iatom = 1, natoms
@@ -396,14 +394,7 @@ CONTAINS
                exponents(ipgf + 1:ipgf + npgf(iset)) = zetas(1:npgf(iset), iset)
 
                ! coefficients array
-               IF (save_cartesian) THEN
-                  coefficients(ipgf + 1:ipgf + npgf(iset)) = gcc(1:npgf(iset), ishell_loc, iset)
-               ELSE
-                  ! the prefactor is needed to transform from solid to spherical harmonics
-                  ! this is called Racah normalization
-                  racah_normalization = SQRT(fourpi/(2 * shell_ang_mom(ishell) + 1))
-                  coefficients(ipgf + 1:ipgf + npgf(iset)) = gcc(1:npgf(iset), ishell_loc, iset)*racah_normalization
-               END IF
+               coefficients(ipgf + 1:ipgf + npgf(iset)) = gcc(1:npgf(iset), ishell_loc, iset)
 
                ipgf = ipgf + npgf(iset)
             END DO
@@ -666,48 +657,17 @@ CONTAINS
                      diag_ncgf(i,i) = norm_cgf(icgf+i)
                   END DO
 
-                  ! IF (ionode) THEN
-                  !    WRITE(*,*) "lshell = ", lshell
-                  !    DO i = 1, nco(lshell)
-                  !       WRITE(*,'(*(F12.8))') (diag_ncgf(i,k), k=1, nco(lshell))
-                  !    END DO
-                  !    WRITE(*,*) ""
-                  ! END IF
-
+                  ! transform the normalization factors from Cartesian to solid harmonics
                   temp(:,:) = MATMUL(orbtramat(lshell)%c2s, diag_ncgf)
-
-                  ! IF (ionode) THEN
-                  !    DO i = 1, nso(lshell)
-                  !       WRITE(*,'(*(F12.8))') (temp(i,k), k=1, nco(lshell))
-                  !    END DO
-                  !    WRITE(*,*) ""
-                  ! END IF
-
                   diag_nsgf(:,:) = MATMUL(temp, TRANSPOSE(orbtramat(lshell)%s2c))
-                  ! CALL dgemm("N", "T", nso(lshell), nso(lshell), nco(lshell), &
-                  !            1.0_dp, temp(1,1), nso(lshell), &
-                  !            orbtramat(lshell)%s2c, nso(lshell), &
-                  !            0.0_dp, diag_nsgf(1,1), nso(lshell))
-
-                  ! the prefactor is needed to transform from solid to spherical harmonics
-                  ! this is called Racah normalization
-                  ! racah_normalization = SQRT(fourpi/(2 * shell_ang_mom(ishell) + 1))
                   DO i = 1, nso(lshell)
                      ao_normalization(igf + i) = diag_nsgf(i,i)
                   END DO
-
-                  ! IF (ionode) THEN
-                  !    DO i = 1, nso(lshell)
-                  !       WRITE(*,'(*(F12.8))') (diag_nsgf(i,k), k=1, nso(lshell))
-                  !    END DO
-                  !    WRITE(*,*) ""
-                  ! END IF
 
                   DEALLOCATE (diag_ncgf)
                   DEALLOCATE (diag_nsgf)
                   DEALLOCATE (temp)
                END IF
-
 
                igf = igf + ngf_shell
                icgf = icgf + nco(lshell)
@@ -1047,7 +1007,7 @@ CONTAINS
    END SUBROUTINE nuclear_repulsion_energy
 
 ! **************************************************************************************************
-!> \brief Computes a spherical to cartesian MO transformation
+!> \brief Computes a spherical to cartesian MO transformation (solid harmonics in reality)
 !> \param mos_sgf the MO coefficients in spherical AO basis
 !> \param particle_set the set of particles in the system
 !> \param qs_kind_set the set of qs_kinds in the system
