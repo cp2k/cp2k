@@ -265,18 +265,23 @@ bool grid_replay(const char *filename, const int cycles, const bool collocate,
   const double(*dh)[3] = (const double(*)[3])dh_mutable;
   const double(*dh_inv)[3] = (const double(*)[3])dh_inv_mutable;
 
-  int npts_global[3], npts_local[3], shift_local[3], border_width[3];
+  int npts_global[3], npts_local[3], shift_local[3], border_width[3],
+      pgrid_dims[3];
   parse_int3("npts_global", fp, npts_global);
   parse_int3("npts_local", fp, npts_local);
   parse_int3("shift_local", fp, shift_local);
   parse_int3("border_width", fp, border_width);
+  pgrid_dims[0] = grid_mpi_comm_size(grid_mpi_comm_world);
+  pgrid_dims[1] = 1;
+  pgrid_dims[2] = 1;
 
   grid_multigrid *multigrid = NULL;
   grid_create_multigrid(
       orthorhombic, nlevels, (const int(*)[3])npts_global,
       (const int(*)[3])npts_local, (const int(*)[3])shift_local,
       (const int(*)[3])border_width, (const double(*)[3][3])dh,
-      (const double(*)[3][3])dh_inv, grid_mpi_comm_world, &multigrid);
+      (const double(*)[3][3])dh_inv, (const int(*)[3])pgrid_dims,
+      grid_mpi_comm_world, &multigrid);
 
   const double radius = parse_double("radius", fp);
   const int o1 = parse_int("o1", fp);

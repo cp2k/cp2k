@@ -23,6 +23,10 @@ static const grid_mpi_comm grid_mpi_comm_world = -2;
 static const grid_mpi_comm grid_mpi_comm_null = -3;
 #endif
 
+int grid_mpi_comm_size(const grid_mpi_comm comm);
+
+int grid_mpi_comm_rank(const grid_mpi_comm comm);
+
 grid_mpi_comm grid_mpi_comm_f2c(const grid_mpi_fint fortran_comm);
 
 grid_mpi_fint grid_mpi_comm_c2f(const grid_mpi_comm comm);

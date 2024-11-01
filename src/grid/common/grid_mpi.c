@@ -23,6 +23,28 @@
   }
 #endif
 
+int grid_mpi_comm_size(const grid_mpi_comm comm) {
+#if defined(__parallel)
+  int comm_size;
+  CHECK(MPI_Comm_size(comm, &comm_size));
+  return comm_size;
+#else
+  (void)comm;
+  return 1;
+#endif
+}
+
+int grid_mpi_comm_rank(const grid_mpi_comm comm) {
+#if defined(__parallel)
+  int comm_rank;
+  CHECK(MPI_Comm_rank(comm, &comm_rank));
+  return comm_rank;
+#else
+  (void)comm;
+  return 0;
+#endif
+}
+
 grid_mpi_comm grid_mpi_comm_f2c(const grid_mpi_fint fortran_comm) {
 #if defined(__parallel)
   return MPI_Comm_f2c(fortran_comm);
