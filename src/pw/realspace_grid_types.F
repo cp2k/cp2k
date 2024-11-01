@@ -249,14 +249,15 @@ CONTAINS
          desc%parallel = .FALSE.
          desc%distributed = .FALSE.
          desc%group = mp_comm_self
-         desc%group_size = 1
+         desc%group_size = desc%group%num_pe
          desc%group_dim = 1
          desc%group_coor = 0
          desc%my_pos = 0
       ELSE
          ! group size of desc grid
          ! global grid dimensions are still the same
-         desc%group_size = pw_grid%para%group%num_pe
+         CALL desc%group%from_dup(pw_grid%para%group)
+         desc%group_size = desc%group%num_pe
          desc%npts = pw_grid%npts
          desc%ngpts = PRODUCT(INT(desc%npts, KIND=int_8))
          desc%lb = pw_grid%bounds(1, :)
@@ -343,7 +344,6 @@ CONTAINS
          END IF
 
          desc%group_dim(:) = n_slices(:)
-         CALL desc%group%from_dup(pw_grid%para%group)
          desc%group_size = desc%group%num_pe
          desc%my_pos = desc%group%mepos
 
