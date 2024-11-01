@@ -288,13 +288,13 @@ CONTAINS
             ratio_best = -HUGE(ratio_best)
 
             ! don't allow distributions with more processors than real grid points
-            DO k = 1, MIN(desc%npts(3), desc%group_size)
-            DO j = 1, MIN(desc%npts(2), desc%group_size)
-               i = MIN(desc%npts(1), desc%group_size/(j*k))
+            DO k = 1, MIN(desc%npts(3), desc%group%num_pe)
+            DO j = 1, MIN(desc%npts(2), desc%group%num_pe)
+               i = MIN(desc%npts(1), desc%group%num_pe/(j*k))
                n_slices_tmp = (/i, j, k/)
 
                ! we don't match the actual number of CPUs
-               IF (PRODUCT(n_slices_tmp) .NE. desc%group_size) CYCLE
+               IF (PRODUCT(n_slices_tmp) .NE. desc%group%num_pe) CYCLE
 
                ! we see if there has been a input constraint
                ! i.e. if the layout is not -1 we need to fullfil it
@@ -344,7 +344,6 @@ CONTAINS
          END IF
 
          desc%group_dim(:) = n_slices(:)
-         desc%group_size = desc%group%num_pe
          desc%my_pos = desc%group%mepos
 
          IF (ALL(n_slices == 1)) THEN
@@ -361,10 +360,10 @@ CONTAINS
             desc%group_coor(:) = 0
             desc%my_virtual_pos = 0
 
-            ALLOCATE (desc%virtual2real(0:desc%group_size - 1))
-            ALLOCATE (desc%real2virtual(0:desc%group_size - 1))
+            ALLOCATE (desc%virtual2real(0:desc%group%num_pe - 1))
+            ALLOCATE (desc%real2virtual(0:desc%group%num_pe - 1))
             ! Start with no reordering
-            DO i = 0, desc%group_size - 1
+            DO i = 0, desc%group%num_pe - 1
                desc%virtual2real(i) = i
                desc%real2virtual(i) = i
             END DO
@@ -386,15 +385,15 @@ CONTAINS
             desc%distributed = .TRUE.
 
             ! set up global info about the distribution
-            ALLOCATE (desc%rank2coord(3, 0:desc%group_size - 1))
+            ALLOCATE (desc%rank2coord(3, 0:desc%group%num_pe - 1))
             ALLOCATE (desc%coord2rank(0:desc%group_dim(1) - 1, 0:desc%group_dim(2) - 1, 0:desc%group_dim(3) - 1))
-            ALLOCATE (desc%lb_global(3, 0:desc%group_size - 1))
-            ALLOCATE (desc%ub_global(3, 0:desc%group_size - 1))
+            ALLOCATE (desc%lb_global(3, 0:desc%group%num_pe - 1))
+            ALLOCATE (desc%ub_global(3, 0:desc%group%num_pe - 1))
             ALLOCATE (desc%x2coord(desc%lb(1):desc%ub(1)))
             ALLOCATE (desc%y2coord(desc%lb(2):desc%ub(2)))
             ALLOCATE (desc%z2coord(desc%lb(3):desc%ub(3)))
 
-            DO i = 0, desc%group_size - 1
+            DO i = 0, desc%group%num_pe - 1
                ! Calculate coordinates in a row-major order (to be SMP-friendly)
                desc%rank2coord(1, i) = i/(desc%group_dim(2)*desc%group_dim(3))
                desc%rank2coord(2, i) = MODULO(i, desc%group_dim(2)*desc%group_dim(3)) &
@@ -452,10 +451,10 @@ CONTAINS
                END IF
             END DO
 
-            ALLOCATE (desc%virtual2real(0:desc%group_size - 1))
-            ALLOCATE (desc%real2virtual(0:desc%group_size - 1))
+            ALLOCATE (desc%virtual2real(0:desc%group%num_pe - 1))
+            ALLOCATE (desc%real2virtual(0:desc%group%num_pe - 1))
             ! Start with no reordering
-            DO i = 0, desc%group_size - 1
+            DO i = 0, desc%group%num_pe - 1
                desc%virtual2real(i) = i
                desc%real2virtual(i) = i
             END DO
@@ -558,7 +557,7 @@ CONTAINS
 
       desc%real2virtual(:) = real2virtual
 
-      DO i = 0, desc%group_size - 1
+      DO i = 0, desc%group%num_pe - 1
          desc%virtual2real(desc%real2virtual(i)) = i
       END DO
 
@@ -1240,7 +1239,7 @@ CONTAINS
 !$OMP PARALLEL DO DEFAULT(NONE), &
 !$OMP             PRIVATE(coords,idir,pos,lb_send,ub_send), &
 !$OMP             SHARED(rs,bounds,my_rs_rank,recv_tasks,recv_sizes)
-      DO i = 0, rs%desc%group_size - 1
+      DO i = 0, rs%desc%group%num_pe - 1
 
          coords(:) = rs%desc%rank2coord(:, rs%desc%real2virtual(i))
          !calculate the rs grid points on each processor
@@ -1309,10 +1308,10 @@ CONTAINS
 
       CPASSERT(SUM(send_sizes) == PRODUCT(ub_recv - lb_recv + 1))
 
-      ALLOCATE (send_bufs(0:rs%desc%group_size - 1))
-      ALLOCATE (recv_bufs(0:rs%desc%group_size - 1))
+      ALLOCATE (send_bufs(0:rs%desc%group%num_pe - 1))
+      ALLOCATE (recv_bufs(0:rs%desc%group%num_pe - 1))
 
-      DO i = 0, rs%desc%group_size - 1
+      DO i = 0, rs%desc%group%num_pe - 1
          IF (send_sizes(i) .NE. 0) THEN
             ALLOCATE (send_bufs(i)%array(send_sizes(i)))
          ELSE
@@ -1325,10 +1324,10 @@ CONTAINS
          END IF
       END DO
 
-      ALLOCATE (recv_reqs(0:rs%desc%group_size - 1))
+      ALLOCATE (recv_reqs(0:rs%desc%group%num_pe - 1))
       recv_reqs = mp_request_null
 
-      DO i = 0, rs%desc%group_size - 1
+      DO i = 0, rs%desc%group%num_pe - 1
          IF (recv_sizes(i) .NE. 0) THEN
             CALL rs%desc%group%irecv(recv_bufs(i)%array, i, recv_reqs(i))
          END IF
@@ -1351,10 +1350,10 @@ CONTAINS
       END DO
 !$OMP END PARALLEL DO
 
-      ALLOCATE (send_reqs(0:rs%desc%group_size - 1))
+      ALLOCATE (send_reqs(0:rs%desc%group%num_pe - 1))
       send_reqs = mp_request_null
 
-      DO i = 0, rs%desc%group_size - 1
+      DO i = 0, rs%desc%group%num_pe - 1
          IF (send_sizes(i) .NE. 0) THEN
             CALL rs%desc%group%isend(send_bufs(i)%array, i, send_reqs(i))
          END IF
@@ -1362,7 +1361,7 @@ CONTAINS
 
       ! do unpacking
       ! no OMP here so we can unpack each message as it arrives
-      DO i = 0, rs%desc%group_size - 1
+      DO i = 0, rs%desc%group%num_pe - 1
          IF (recv_sizes(i) .EQ. 0) CYCLE
 
          CALL mp_waitany(recv_reqs, completed)
@@ -1382,7 +1381,7 @@ CONTAINS
       DEALLOCATE (recv_reqs)
       DEALLOCATE (send_reqs)
 
-      DO i = 0, rs%desc%group_size - 1
+      DO i = 0, rs%desc%group%num_pe - 1
          IF (ASSOCIATED(send_bufs(i)%array)) THEN
             DEALLOCATE (send_bufs(i)%array)
          END IF
@@ -1580,10 +1579,10 @@ CONTAINS
 
       CPASSERT(SUM(recv_sizes) == PRODUCT(ub_recv - lb_recv + 1))
 
-      ALLOCATE (send_bufs(0:rs%desc%group_size - 1))
-      ALLOCATE (recv_bufs(0:rs%desc%group_size - 1))
+      ALLOCATE (send_bufs(0:rs%desc%group%num_pe - 1))
+      ALLOCATE (recv_bufs(0:rs%desc%group%num_pe - 1))
 
-      DO i = 0, rs%desc%group_size - 1
+      DO i = 0, rs%desc%group%num_pe - 1
          IF (send_sizes(i) .NE. 0) THEN
             ALLOCATE (send_bufs(i)%array(send_sizes(i)))
          ELSE
@@ -1596,10 +1595,10 @@ CONTAINS
          END IF
       END DO
 
-      ALLOCATE (recv_reqs(0:rs%desc%group_size - 1))
+      ALLOCATE (recv_reqs(0:rs%desc%group%num_pe - 1))
       recv_reqs = mp_request_null
 
-      DO i = 0, rs%desc%group_size - 1
+      DO i = 0, rs%desc%group%num_pe - 1
          IF (recv_sizes(i) .NE. 0) THEN
             CALL rs%desc%group%irecv(recv_bufs(i)%array, i, recv_reqs(i))
          END IF
@@ -1609,7 +1608,7 @@ CONTAINS
 !$OMP PARALLEL DO DEFAULT(NONE), &
 !$OMP             PRIVATE(k,z,y,x), &
 !$OMP             SHARED(pw,rs,send_tasks,send_bufs,send_disps)
-      DO i = 0, rs%desc%group_size - 1
+      DO i = 0, rs%desc%group%num_pe - 1
          k = 0
          DO z = send_tasks(i, 5), send_tasks(i, 6)
             DO y = send_tasks(i, 3), send_tasks(i, 4)
@@ -1622,10 +1621,10 @@ CONTAINS
       END DO
 !$OMP END PARALLEL DO
 
-      ALLOCATE (send_reqs(0:rs%desc%group_size - 1))
+      ALLOCATE (send_reqs(0:rs%desc%group%num_pe - 1))
       send_reqs = mp_request_null
 
-      DO i = 0, rs%desc%group_size - 1
+      DO i = 0, rs%desc%group%num_pe - 1
          IF (send_sizes(i) .NE. 0) THEN
             CALL rs%desc%group%isend(send_bufs(i)%array, i, send_reqs(i))
          END IF
@@ -1634,7 +1633,7 @@ CONTAINS
       ! do unpacking
       ! no OMP here so we can unpack each message as it arrives
 
-      DO i = 0, rs%desc%group_size - 1
+      DO i = 0, rs%desc%group%num_pe - 1
          IF (recv_sizes(i) .EQ. 0) CYCLE
 
          CALL mp_waitany(recv_reqs, completed)
@@ -1654,7 +1653,7 @@ CONTAINS
       DEALLOCATE (recv_reqs)
       DEALLOCATE (send_reqs)
 
-      DO i = 0, rs%desc%group_size - 1
+      DO i = 0, rs%desc%group%num_pe - 1
          IF (ASSOCIATED(send_bufs(i)%array)) THEN
             DEALLOCATE (send_bufs(i)%array)
          END IF
