@@ -750,11 +750,11 @@ CONTAINS
       INTEGER, INTENT(IN), OPTIONAL                      :: iounit
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'eeq_solver'
-      LOGICAL, PARAMETER                                 :: do_direct = .FALSE.
+      LOGICAL, PARAMETER                                 :: do_direct = .TRUE.
 
       INTEGER                                            :: handle, ierror, iunit, natom, nkind, ns
       LOGICAL                                            :: do_ewald, do_sparse
-      REAL(KIND=dp)                                      :: qtot
+      REAL(KIND=dp)                                      :: alpha, deth, qtot
       TYPE(cp_fm_struct_type), POINTER                   :: mat_struct
       TYPE(cp_fm_type)                                   :: eeq_mat
 
@@ -793,7 +793,7 @@ CONTAINS
                CPABORT("NYA")
             ELSE
                CALL fpbc_solver(charges, lambda, eeq_energy, eeq_mat, particle_set, &
-                                kind_of, cell, chia, gam, gab, totalcharge, &
+                                kind_of, cell, chia, gam, gab, qtot, &
                                 ewald_env, ewald_pw, iounit)
             END IF
          ELSE
@@ -802,15 +802,20 @@ CONTAINS
             ELSE
                ierror = 0
                CALL pbc_solver(charges, lambda, eeq_energy, eeq_mat, particle_set, &
-                               kind_of, cell, chia, gam, gab, totalcharge, &
+                               kind_of, cell, chia, gam, gab, qtot, &
                                ewald_env, ewald_pw, ierror, iounit)
                IF (ierror /= 0) THEN
                   ! backup to non-iterative method
                   CALL fpbc_solver(charges, lambda, eeq_energy, eeq_mat, particle_set, &
-                                   kind_of, cell, chia, gam, gab, totalcharge, &
+                                   kind_of, cell, chia, gam, gab, qtot, &
                                    ewald_env, ewald_pw, iounit)
                END IF
             END IF
+         END IF
+         IF (qtot /= 0._dp) THEN
+            CALL get_cell(cell=cell, deth=deth)
+            CALL ewald_env_get(ewald_env, alpha=alpha)
+            eeq_energy = eeq_energy - 0.5_dp*qtot**2/alpha**2/deth
          END IF
       ELSE
          CALL mi_solver(charges, lambda, eeq_energy, eeq_mat, particle_set, kind_of, &
@@ -1023,7 +1028,7 @@ CONTAINS
          CALL cp_abort(__LOCATION__, "Only SPME Ewald method available with EEQ.")
       END IF
       !
-      rmax = 1.1_dp*rcut
+      rmax = 2.0_dp*rcut
       ! max cells used
       CALL get_cell(cell, h=hmat, periodic=periodic)
       ncell(1) = CEILING(rmax/plane_distance(1, 0, 0, cell))
@@ -1034,7 +1039,7 @@ CONTAINS
       IF (periodic(3) == 0) ncell(3) = 0
       !
       CALL mi_solver(charges, lambda, eeqn, eeq_mat, particle_set, kind_of, cell, &
-                     chia, gam, gab, totalcharge)
+                     chia, gam, gab, qtot)
       CALL cp_fm_get_info(eeq_mat, matrix_struct=mat_struct, para_env=para_env)
       CALL cp_fm_create(pmat, mat_struct)
       CALL cp_fm_create(mmat, mat_struct)
@@ -1135,6 +1140,8 @@ CONTAINS
       CALL get_energy_gradient(eeqn, eeq_mat, ewald_env, ewald_pw, &
                                cell, particle_set, xv0, chia, rv0)
       CALL cp_fm_matvec(mmat, rv0, yv0, alpha=-1.0_dp, beta=0.0_dp)
+!     rqval = -SUM(yv0(1:natom))/REAL(natom, KIND=dp)
+      yv0(ns) = 0.0_dp
       resin = SQRT(SUM(yv0*yv0))
       !
       IF (iunit > 0) THEN
@@ -1179,6 +1186,7 @@ CONTAINS
          CALL get_energy_gradient(eeqn, eeq_mat, ewald_env, ewald_pw, &
                                   cell, particle_set, xv0, chia, rv0)
          CALL cp_fm_matvec(mmat, rv0, yv0, alpha=-1.0_dp, beta=0.0_dp)
+         yv0(ns) = 0.0_dp
       END DO
       charges(1:natom) = xv0(1:natom)
       lambda = xv0(ns)
@@ -1265,7 +1273,7 @@ CONTAINS
          CALL cp_abort(__LOCATION__, "Only SPME Ewald method available with EEQ.")
       END IF
       !
-      rmax = 1.1_dp*rcut
+      rmax = 2.0_dp*rcut
       ! max cells used
       CALL get_cell(cell, h=hmat, periodic=periodic)
       ncell(1) = CEILING(rmax/plane_distance(1, 0, 0, cell))

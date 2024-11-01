@@ -294,10 +294,13 @@ CONTAINS
       ! prepare charges (needed for D4)
       IF (dispersion_env%pp_type == vdw_pairpot_dftd4) THEN
          dispersion_env%ext_charges = .TRUE.
-         IF (.NOT. ASSOCIATED(dispersion_env%charges)) ALLOCATE (dispersion_env%charges(natom))
+         IF (ASSOCIATED(dispersion_env%charges)) DEALLOCATE (dispersion_env%charges)
+         ALLOCATE (dispersion_env%charges(natom))
          dispersion_env%charges = charges
          IF (calculate_forces) THEN
-            IF (.NOT. ASSOCIATED(dispersion_env%dcharges)) ALLOCATE (dispersion_env%dcharges(natom))
+            IF (ASSOCIATED(dispersion_env%dcharges)) DEALLOCATE (dispersion_env%dcharges)
+            ALLOCATE (dispersion_env%dcharges(natom))
+            dispersion_env%dcharges = 0.0_dp
          END IF
       END IF
       CALL calculate_dispersion_pairpot(qs_env, dispersion_env, &

@@ -130,8 +130,6 @@ CONTAINS
                       cell=cell, force=force, virial=virial, para_env=para_env)
       CALL get_atomic_kind_set(atomic_kind_set, atom_of_kind=atom_of_kind, kind_of=kind_of)
 
-      use_virial = virial%pv_availability .AND. (.NOT. virial%pv_numer)
-
       !get information about particles
       natom = SIZE(particle_set)
       ALLOCATE (xyz(3, natom), atomtype(natom))
@@ -188,10 +186,12 @@ CONTAINS
          CPABORT("D4: Three-body cutoff should be smaller than two-body cutoff")
       END IF
 
-      IF (calculate_forces .OR. use_virial) THEN
+      IF (calculate_forces) THEN
          grad = .TRUE.
+         use_virial = virial%pv_availability .AND. (.NOT. virial%pv_numer)
       ELSE
          grad = .FALSE.
+         use_virial = .FALSE.
       END IF
 
       IF (dispersion_env%d4_reference_code) THEN
