@@ -508,7 +508,7 @@ if((CP2K_USE_ACCEL MATCHES CUDA) OR (CP2K_USE_ACCEL MATCHES HIP))
   set(CP2K_GPU_ARCH_NUMBER_Mi100 gfx908)
   set(CP2K_GPU_ARCH_NUMBER_Mi200 gfx90a)
   set(CP2K_GPU_ARCH_NUMBER_Mi250 gfx90a)
-  set(CP2K_GPU_ARCH_NUMBER_Mi300 gfx1103)
+  set(CP2K_GPU_ARCH_NUMBER_Mi300 gfx942)
 endif()
 
 set(CP2K_USE_HIP OFF)
@@ -580,7 +580,7 @@ elseif(CP2K_USE_ACCEL MATCHES "HIP")
   set(CP2K_USE_HIP ON)
 
   # use hardware atomic operations on Mi250X.
-  if(CMAKE_HIP_ARCGITECTURES MATCHES "gfx90a|gfx1103")
+  if(CMAKE_HIP_ARCGITECTURES MATCHES "gfx90a|gfx942")
     set(HIP_RELEASE_OPTIONS "-munsafe-fp-atomics")
   endif()
 
@@ -590,8 +590,8 @@ elseif(CP2K_USE_ACCEL MATCHES "HIP")
       set(CMAKE_HIP_ARCHITECTURES "gfx90a:xnack+")
     endif()
 
-    if(CMAKE_HIP_ARCHITECTURES MATCHES "gfx1103")
-      set(CMAKE_HIP_ARCHITECTURES "gfx1103:xnack+")
+    if(CMAKE_HIP_ARCHITECTURES MATCHES "gfx942")
+      set(CMAKE_HIP_ARCHITECTURES "gfx942:xnack+")
     endif()
   endif()
 endif()
@@ -765,11 +765,6 @@ endif()
 # compiler configuration could have impacted package discovery (above)
 include(CompilerConfiguration)
 include(CheckCompilerSupport)
-
-if(CP2K_BUILD_DBCSR)
-  add_subdirectory(exts/dbcsr/src)
-  add_library(DBCSR::dbcsr ALIAS dbcsr)
-endif()
 
 include(GNUInstallDirs)
 
