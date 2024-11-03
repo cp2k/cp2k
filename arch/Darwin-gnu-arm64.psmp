@@ -3,13 +3,13 @@
 # CP2K Darwin arch file for a parallel arm64 binary
 # (https://www.cp2k.org/howto:compile_on_macos)
 #
-# Tested with: GNU 14.2.0 and OpenMPI 5.0.5 on an Apple M1 (macOS 15.0 Sequoia)
+# Tested with: GNU 14.2.0 and OpenMPI 5.0.5 on an Apple M1 (macOS 15.1 Sequoia)
 #
 # Usage: Source this arch file and then run make as instructed.
 #        Ensure the links in /opt/homebrew/bin to the gcc version
 #        and "brew unlink openmpi" (or mpich) if installed.
 #
-# Last update: 20.09.2024
+# Last update: 03.11.2024
 #
 # \
    if [[ "${0}" == "${BASH_SOURCE}" ]]; then \
@@ -54,8 +54,8 @@
    echo "If everything is OK, you can build a CP2K production binary with"; \
    echo "   make -j ARCH=${this_file%.*} VERSION=${this_file##*.} TARGET_CPU=${target_cpu}"; \
    echo; \
-   echo "Alternatively, you can add further checks, e.g. for regression testing, with"; \
-   echo "   make -j ARCH=${this_file%.*} VERSION=${this_file##*.} TARGET_CPU=${target_cpu} DO_CHECKS=yes"; \
+   echo "The Accelerate framework is used instead of OpenBLAS with"; \
+   echo "   make -j ARCH=${this_file%.*} VERSION=${this_file##*.} TARGET_CPU=${target_cpu} USE_OPENBLAS="; \
    echo; \
    echo "Run always the following command before using the CP2K binary"; \
    echo "   source ${PWD}/tools/toolchain/install/setup"; \
@@ -74,6 +74,7 @@ USE_LIBGRPP    := $(LIBGRPP_VER)
 USE_LIBINT     := $(LIBINT_VER)
 USE_LIBVORI    := $(LIBVORI_VER)
 USE_LIBXSMM    := $(LIBXSMM_VER)
+USE_OPENBLAS   := $(OPENBLAS_VER)
 USE_PLUMED     := $(PLUMED_VER)
 USE_SCALAPACK  := $(SCALAPACK_VER)
 USE_SIRIUS     := $(SIRIUS_VER)
@@ -92,9 +93,8 @@ AR             := ar -r -s
 CFLAGS         := -O2 -fopenmp -fopenmp-simd -ftree-vectorize -funroll-loops -g -mtune=$(TARGET_CPU)
 
 DFLAGS         := -D__parallel
-DFLAGS         += -D__ACCELERATE
 DFLAGS         += -D__MPI_F08
-DFLAGS         += -D__HAS_IEEE_EXCEPTIONS
+#DFLAGS         += -D__HAS_IEEE_EXCEPTIONS
 DFLAGS         += -D__MAX_CONTR=$(strip $(MAX_CONTR))
 DFLAGS         += -D__NO_STATM_ACCESS
 
@@ -171,7 +171,6 @@ ifneq ($(USE_LIBINT),)
    LIBINT_LIB     := $(INSTALL_PATH)/libint-v$(USE_LIBINT)-cp2k-lmax-$(LMAX)/lib
    CFLAGS         += -I$(LIBINT_INC)
    DFLAGS         += -D__LIBINT
-   LIBS           += $(LIBINT_LIB)/libint2.a
    LIBS           += $(LIBINT_LIB)/libint2.a
 endif
 
@@ -265,9 +264,16 @@ CFLAGS         += -I$(GSL_HOME)/include
 DFLAGS         += -D__GSL
 LIBS           += $(GSL_HOME)/lib/libgsl.a
 
-OPENBLAS_HOME  := $(shell brew --prefix openblas)
-CFLAGS         += -I$(OPENBLAS_HOME)/include
-LIBS           += $(OPENBLAS_HOME)/lib/libopenblas.a
+ifneq ($(USE_OPENBLAS),)
+   OPENBLAS_HOME  := $(shell brew --prefix openblas)
+   CFLAGS         += -I$(OPENBLAS_HOME)/include
+   LIBS           += $(OPENBLAS_HOME)/lib/libopenblas.a
+else
+   # Linking to the Accelerate framework instead of OpenBLAS is not the default
+   # because of failing tests
+   DFLAGS         += -D__ACCELERATE
+   LIBS           += -framework Accelerate
+endif
 
 CFLAGS         += $(DFLAGS)
 
@@ -279,7 +285,8 @@ FCFLAGS        += -ffree-line-length-none
 FCFLAGS        += -fno-omit-frame-pointer
 FCFLAGS        += -std=f2008
 
-LDFLAGS        += $(FCFLAGS) -ld_classic
+LDFLAGS        += $(FCFLAGS)
+LDFLAGS        += -ld_classic
 
 LIBS           += -lz -ldl -lstdc++
 
