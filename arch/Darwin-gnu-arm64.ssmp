@@ -3,12 +3,12 @@
 # CP2K Darwin arch file for a serial arm64 binary
 # (https://www.cp2k.org/howto:compile_on_macos)
 #
-# Tested with: GNU 14.2.0 on an Apple M1 (macOS 15.0 Sequoia)
+# Tested with: GNU 14.2.0 on an Apple M1 (macOS 15.1 Sequoia)
 #
 # Usage: Source this arch file and then run make as instructed.
 #        Ensure the links in /opt/homebrew/bin to the gcc version.
 #
-# Last update: 20.09.2024
+# Last update: 03.11.2024
 #
 # \
    if [[ "${0}" == "${BASH_SOURCE}" ]]; then \
@@ -26,7 +26,6 @@
       brew install fftw; \
       brew install gcc; \
       brew install libxc; \
-      brew install ninja; \
       brew install openblas; \
       brew install pkg-config; \
       brew install wget; \
@@ -38,8 +37,7 @@
    fi; \
    ./install_cp2k_toolchain.sh -j${maxtasks} --mpi-mode=no --no-arch-files --target-cpu=${target_cpu} \
       --with-cmake=$(brew --prefix cmake) --with-fftw=$(brew --prefix fftw) --with-gcc=system \
-      --with-libxc=$(brew --prefix libxc) --with-ninja=$(brew --prefix ninja) \
-      --with-openblas=$(brew --prefix openblas); \
+      --with-libxc=$(brew --prefix libxc) --with-ninja=no --with-openblas=$(brew --prefix openblas); \
    source ./install/setup; \
    cd ../..; \
    echo; \
@@ -48,8 +46,8 @@
    echo "If everything is OK, you can build a CP2K production binary with"; \
    echo "   make -j ARCH=${this_file%.*} VERSION=${this_file##*.} TARGET_CPU=${target_cpu}"; \
    echo; \
-   echo "Alternatively, you can add further checks, e.g. for regression testing, with"; \
-   echo "   make -j ARCH=${this_file%.*} VERSION=${this_file##*.} TARGET_CPU=${target_cpu} DO_CHECKS=yes"; \
+   echo "The Accelerate framework is used instead of OpenBLAS with"; \
+   echo "   make -j ARCH=${this_file%.*} VERSION=${this_file##*.} TARGET_CPU=${target_cpu} USE_OPENBLAS="; \
    echo; \
    echo "Run always the following command before using the CP2K binary"; \
    echo "   source ${PWD}/tools/toolchain/install/setup"; \
@@ -61,12 +59,11 @@ DO_CHECKS      := no
 TARGET_CPU     := native
 
 # Retrieve package versions
-GNU_VER        := $(shell gcc -dumpfullversion)
-USE_DFTD4      := $(DFTD4_VER)
 USE_LIBGRPP    := $(LIBGRPP_VER)
 USE_LIBINT     := $(LIBINT_VER)
 USE_LIBVORI    := $(LIBVORI_VER)
 USE_LIBXSMM    := $(LIBXSMM_VER)
+USE_OPENBLAS   := $(OPENBLAS_VER)
 USE_SPGLIB     := $(SPGLIB_VER)
 
 LMAX           := 5
@@ -80,7 +77,6 @@ AR             := ar -r -s
 
 CFLAGS         := -O2 -fopenmp -fopenmp-simd -ftree-vectorize -funroll-loops -g -mtune=$(TARGET_CPU)
 
-DFLAGS         += -D__ACCELERATE
 DFLAGS         += -D__MAX_CONTR=$(strip $(MAX_CONTR))
 DFLAGS         += -D__NO_STATM_ACCESS
 
@@ -125,15 +121,6 @@ CFLAGS         += -I$(LIBXC_HOME)/include
 DFLAGS         += -D__LIBXC
 LIBS           += -Wl,-rpath,$(LIBXC_HOME)/lib -L$(LIBXC_HOME)/lib -lxcf03 -lxc
 
-ifneq ($(USE_DFTD4),)
-   USE_DFTD4      := $(strip $(USE_DFTD4))
-   DFTD4_INC      := $(INSTALL_PATH)/dftd4-$(USE_DFTD4)/include
-   DFTD4_LIB      := $(INSTALL_PATH)/dftd4-$(USE_DFTD4)/lib
-   CFLAGS         += -I$(DFTD4_INC)/dftd4/GNU-$(GNU_VER)
-   DFLAGS         += -D__DFTD4
-   LIBS           += -L$(DFTD4_LIB) -ldftd4 -lmstore -lmulticharge -lmctc-lib
-endif
-
 ifneq ($(USE_LIBGRPP),)
    USE_LIBGRPP    := $(strip $(USE_LIBGRPP))
    LIBGRPP_INC    := $(INSTALL_PATH)/libgrpp-main-$(USE_LIBGRPP)/include
@@ -150,7 +137,6 @@ ifneq ($(USE_LIBINT),)
    LIBINT_LIB     := $(INSTALL_PATH)/libint-v$(USE_LIBINT)-cp2k-lmax-$(LMAX)/lib
    CFLAGS         += -I$(LIBINT_INC)
    DFLAGS         += -D__LIBINT
-   LIBS           += $(LIBINT_LIB)/libint2.a
    LIBS           += $(LIBINT_LIB)/libint2.a
 endif
 
@@ -180,9 +166,16 @@ DFLAGS         += -D__FFTW3
 LIBS           += $(FFTW_HOME)/lib/libfftw3_omp.a
 LIBS           += $(FFTW_HOME)/lib/libfftw3.a
 
-OPENBLAS_HOME  := $(shell brew --prefix openblas)
-CFLAGS         += -I$(OPENBLAS_HOME)/include
-LIBS           += $(OPENBLAS_HOME)/lib/libopenblas.a
+ifneq ($(USE_OPENBLAS),)
+   OPENBLAS_HOME  := $(shell brew --prefix openblas)
+   CFLAGS         += -I$(OPENBLAS_HOME)/include
+   LIBS           += $(OPENBLAS_HOME)/lib/libopenblas.a
+else
+   # Linking to the Accelerate framework instead of OpenBLAS is not the default
+   # because of failing tests
+   DFLAGS         += -D__ACCELERATE
+   LIBS           += -framework Accelerate
+endif
 
 CFLAGS         += $(DFLAGS)
 
@@ -194,7 +187,7 @@ FCFLAGS        += -ffree-line-length-none
 FCFLAGS        += -fno-omit-frame-pointer
 FCFLAGS        += -std=f2008
 
-LDFLAGS        += $(FCFLAGS) -ld_classic
+LDFLAGS        := $(FCFLAGS)
 
 LIBS           += -ldl -lstdc++
 
