@@ -83,7 +83,6 @@ MODULE pw_env_types
       TYPE(gridlevel_info_type), POINTER          :: gridlevel_info => NULL()
       TYPE(cube_info_type), DIMENSION(:), POINTER :: cube_info => NULL()
       TYPE(pw_poisson_type), POINTER              :: poisson_env => NULL()
-      TYPE(section_vals_type), POINTER            :: interp_section => NULL()
       ! store current cell, used to rebuild lazily.
       REAL(KIND=dp), DIMENSION(3, 3)          :: cell_hmat = -1.0_dp
    END TYPE pw_env_type
@@ -106,14 +105,13 @@ CONTAINS
 !> \param xc_pw_pool ...
 !> \param vdw_pw_pool ...
 !> \param poisson_env ...
-!> \param interp_section ...
 !> \par History
 !>      10.2002 created [fawzi]
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
    SUBROUTINE pw_env_get(pw_env, pw_pools, cube_info, gridlevel_info, &
                          auxbas_pw_pool, auxbas_grid, auxbas_rs_desc, auxbas_rs_grid, rs_descs, rs_grids, multigrid, &
-                         xc_pw_pool, vdw_pw_pool, poisson_env, interp_section)
+                         xc_pw_pool, vdw_pw_pool, poisson_env)
       TYPE(pw_env_type), INTENT(IN)                      :: pw_env
       TYPE(pw_pool_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: pw_pools
@@ -131,7 +129,6 @@ CONTAINS
       TYPE(grid_multigrid_type), INTENT(OUT), OPTIONAL   :: multigrid
       TYPE(pw_pool_type), OPTIONAL, POINTER              :: xc_pw_pool, vdw_pw_pool
       TYPE(pw_poisson_type), OPTIONAL, POINTER           :: poisson_env
-      TYPE(section_vals_type), OPTIONAL, POINTER         :: interp_section
 
       CPASSERT(pw_env%ref_count > 0)
       IF (PRESENT(pw_pools)) pw_pools => pw_env%pw_pools
@@ -153,7 +150,6 @@ CONTAINS
       IF (PRESENT(xc_pw_pool)) xc_pw_pool => pw_env%xc_pw_pool
       IF (PRESENT(vdw_pw_pool)) vdw_pw_pool => pw_env%vdw_pw_pool
       IF (PRESENT(poisson_env)) poisson_env => pw_env%poisson_env
-      IF (PRESENT(interp_section)) interp_section => pw_env%interp_section
    END SUBROUTINE pw_env_get
 
 ! **************************************************************************************************

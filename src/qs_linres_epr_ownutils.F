@@ -777,16 +777,14 @@ CONTAINS
       TYPE(pw_c1d_gs_type), ALLOCATABLE, DIMENSION(:, :) :: shift_pw_gspace
       TYPE(pw_c1d_gs_type), DIMENSION(:), POINTER        :: jrho1_g
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(pw_r3d_rs_type)                               :: shift_pw_rspace
       TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: epr_rho_r
-      TYPE(realspace_grid_desc_type), POINTER            :: auxbas_rs_desc
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (cell, dft_control, pw_env, auxbas_rs_desc, auxbas_pw_pool, &
-               pw_pools, particle_set, jrho1_g, epr_rho_r)
+      NULLIFY (cell, dft_control, pw_env, auxbas_pw_pool, &
+               particle_set, jrho1_g, epr_rho_r)
 
       CALL get_qs_env(qs_env=qs_env, cell=cell, dft_control=dft_control, &
                       particle_set=particle_set)
@@ -800,8 +798,7 @@ CONTAINS
       CALL get_current_env(current_env=current_env)
 
       CALL get_qs_env(qs_env=qs_env, pw_env=pw_env)
-      CALL pw_env_get(pw_env, auxbas_rs_desc=auxbas_rs_desc, &
-                      auxbas_pw_pool=auxbas_pw_pool, pw_pools=pw_pools)
+      CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
       !
       ! Initialize
       ! Allocate grids for the calculation of jrho and the shift

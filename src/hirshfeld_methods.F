@@ -451,14 +451,13 @@ CONTAINS
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(pw_r3d_rs_type), POINTER                      :: fnorm
-      TYPE(realspace_grid_desc_type), POINTER            :: auxbas_rs_desc
       TYPE(realspace_grid_type), POINTER                 :: rs_rho
 
       CALL timeset(routineN, handle)
 
       CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set, cell=cell, &
                       dft_control=dft_control, particle_set=particle_set, pw_env=pw_env)
-      CALL pw_env_get(pw_env, auxbas_rs_desc=auxbas_rs_desc, auxbas_rs_grid=rs_rho, multigrid=multigrid, auxbas_grid=auxbas_grid, &
+      CALL pw_env_get(pw_env, auxbas_rs_grid=rs_rho, multigrid=multigrid, auxbas_grid=auxbas_grid, &
                       auxbas_pw_pool=auxbas_pw_pool)
       ! be careful in parallel nsmax is chosen with multigrid in mind!
       CALL rs_grid_zero(rs_rho)
@@ -570,7 +569,6 @@ CONTAINS
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(realspace_grid_desc_type), POINTER            :: auxbas_rs_desc
       TYPE(realspace_grid_type), POINTER                 :: rs_v
 
       CALL timeset(routineN, handle)
@@ -579,10 +577,9 @@ CONTAINS
       fval = 0.0_dp
       dvol = rfun%pw_grid%dvol
 
-      NULLIFY (pw_env, auxbas_rs_desc)
+      NULLIFY (pw_env)
       CALL get_qs_env(qs_env=qs_env, pw_env=pw_env)
-      CALL pw_env_get(pw_env=pw_env, auxbas_rs_desc=auxbas_rs_desc, &
-                      auxbas_rs_grid=rs_v, multigrid=multigrid, auxbas_grid=auxbas_grid)
+      CALL pw_env_get(pw_env=pw_env, auxbas_rs_grid=rs_v, multigrid=multigrid, auxbas_grid=auxbas_grid)
       CALL transfer_pw2rs(rs_v, rfun)
       CALL grid_copy_to_multigrid_single(multigrid, rs_v, auxbas_grid)
 

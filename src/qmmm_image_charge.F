@@ -355,18 +355,15 @@ CONTAINS
       TYPE(grid_multigrid_type)                          :: multigrid
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(realspace_grid_desc_type), POINTER            :: auxbas_rs_desc
       TYPE(realspace_grid_type), POINTER                 :: rs_v
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (cores, hab, cell, auxbas_rs_desc, pw_env, para_env, &
-               dft_control, rs_v)
+      NULLIFY (cores, hab, cell, pw_env, para_env, dft_control, rs_v)
       ALLOCATE (hab(1, 1))
 
       CALL get_qs_env(qs_env=qs_env, pw_env=pw_env)
-      CALL pw_env_get(pw_env=pw_env, auxbas_rs_desc=auxbas_rs_desc, &
-                      auxbas_rs_grid=rs_v, multigrid=multigrid, auxbas_grid=auxbas_grid)
+      CALL pw_env_get(pw_env=pw_env, auxbas_rs_grid=rs_v, multigrid=multigrid, auxbas_grid=auxbas_grid)
       CALL transfer_pw2rs(rs_v, potential)
       CALL grid_copy_to_multigrid_single(multigrid, rs_v, auxbas_grid)
 
@@ -474,13 +471,12 @@ CONTAINS
       TYPE(grid_multigrid_type)                          :: multigrid
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(realspace_grid_desc_type), POINTER            :: auxbas_rs_desc
       TYPE(realspace_grid_type), POINTER                 :: rs_v
       TYPE(virial_type), POINTER                         :: virial
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (cores, hab, pab, cell, auxbas_rs_desc, pw_env, para_env, &
+      NULLIFY (cores, hab, pab, cell, pw_env, para_env, &
                dft_control, rs_v, virial)
       use_virial = .FALSE.
 
@@ -488,8 +484,7 @@ CONTAINS
       ALLOCATE (pab(1, 1))
 
       CALL get_qs_env(qs_env=qs_env, pw_env=pw_env)
-      CALL pw_env_get(pw_env=pw_env, auxbas_rs_desc=auxbas_rs_desc, &
-                      auxbas_rs_grid=rs_v, multigrid=multigrid, auxbas_grid=auxbas_grid)
+      CALL pw_env_get(pw_env=pw_env, auxbas_rs_grid=rs_v, multigrid=multigrid, auxbas_grid=auxbas_grid)
       CALL transfer_pw2rs(rs_v, potential)
       CALL grid_copy_to_multigrid_single(multigrid, rs_v, auxbas_grid)
 

@@ -187,7 +187,6 @@ CONTAINS
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(pw_c1d_gs_type)                               :: wf_g
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(pw_r3d_rs_type)                               :: wf_r
       TYPE(r_ldos_p_type), DIMENSION(:), POINTER         :: r_ldos_p
@@ -354,8 +353,7 @@ CONTAINS
                          cell=cell, &
                          dft_control=dft_control, &
                          pw_env=pw_env)
-         CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, &
-                         pw_pools=pw_pools)
+         CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
 
          CALL auxbas_pw_pool%create_pw(wf_r)
          CALL auxbas_pw_pool%create_pw(wf_g)

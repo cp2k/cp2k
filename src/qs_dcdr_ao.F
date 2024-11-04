@@ -338,7 +338,6 @@ CONTAINS
       TYPE(pw_c1d_gs_type)                               :: drho_g, v_hartree_gspace
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
-      TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(pw_r3d_rs_type)                               :: v_hartree_rspace
       TYPE(qs_rho_type), POINTER                         :: rho
@@ -347,14 +346,13 @@ CONTAINS
 
       logger => cp_get_default_logger()
 
-      NULLIFY (pw_env, auxbas_pw_pool, pw_pools, poisson_env, dft_control, &
+      NULLIFY (pw_env, auxbas_pw_pool, poisson_env, dft_control, &
                rho)
 
       CALL get_qs_env(qs_env=qs_env, pw_env=pw_env, rho=rho, &
                       dft_control=dft_control)
 
-      CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, poisson_env=poisson_env, &
-                      pw_pools=pw_pools)
+      CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, poisson_env=poisson_env)
 
       ! Create the Hartree potential grids in real and reciprocal space.
       CALL auxbas_pw_pool%create_pw(v_hartree_gspace)
@@ -512,7 +510,6 @@ CONTAINS
       TYPE(pw_c1d_gs_type), DIMENSION(:), POINTER        :: drho_g
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
-      TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(pw_r3d_rs_type)                               :: drho_r_total, v_hartree_rspace
       TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: drho_r, dtau_r, rho_r, v_xc, v_xc_tau
@@ -536,7 +533,7 @@ CONTAINS
       ALLOCATE (drho_g(dcdr_env%nspins))
 
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, &
-                      pw_pools=pw_pools, poisson_env=poisson_env)
+                      poisson_env=poisson_env)
       CALL auxbas_pw_pool%create_pw(v_hartree_gspace)
       CALL auxbas_pw_pool%create_pw(v_hartree_rspace)
 

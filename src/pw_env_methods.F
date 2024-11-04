@@ -141,8 +141,7 @@ CONTAINS
       ALLOCATE (pw_env)
       NULLIFY (pw_env%pw_pools, pw_env%gridlevel_info, pw_env%poisson_env, &
                pw_env%cube_info, pw_env%rs_descs, pw_env%rs_grids, &
-               pw_env%xc_pw_pool, pw_env%vdw_pw_pool, &
-               pw_env%interp_section)
+               pw_env%xc_pw_pool, pw_env%vdw_pw_pool)
       pw_env%auxbas_grid = -1
       pw_env%ref_count = 1
 
@@ -262,8 +261,6 @@ CONTAINS
          CPASSERT(ASSOCIATED(para_env))
          do_io = .FALSE. !multiple MPI subgroups mess-up the output file
       END IF
-      ! interpolation section
-      pw_env%interp_section => section_vals_get_subs_vals(input, "DFT%MGRID%INTERPOLATOR")
 
       CALL get_qs_env(qs_env, use_ref_cell=use_ref_cell)
       IF (use_ref_cell) THEN

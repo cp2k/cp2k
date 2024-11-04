@@ -1049,7 +1049,6 @@ CONTAINS
       TYPE(particle_list_type), POINTER                  :: particles
       TYPE(pw_c1d_gs_type), DIMENSION(:), POINTER        :: rho_g
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: rho_r
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
@@ -1089,7 +1088,7 @@ CONTAINS
                "Integrated alpha and beta electronic density:", tot_rho_r(1:2)
          END IF
          CALL get_qs_env(qs_env=qs_env, pw_env=pw_env)
-         CALL pw_env_get(pw_env=pw_env, auxbas_pw_pool=auxbas_pw_pool, pw_pools=pw_pools)
+         CALL pw_env_get(pw_env=pw_env, auxbas_pw_pool=auxbas_pw_pool)
          BLOCK
             TYPE(pw_r3d_rs_type) :: rho_elec_rspace
             CALL auxbas_pw_pool%create_pw(pw=rho_elec_rspace)
@@ -1196,7 +1195,6 @@ CONTAINS
       TYPE(pw_c1d_gs_type), DIMENSION(:), POINTER        :: rho_g
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_poisson_parameter_type)                    :: poisson_params
-      TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(pw_r3d_rs_type)                               :: rho_tot_rspace
       TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: rho_r
@@ -1248,7 +1246,7 @@ CONTAINS
       CALL qs_subsys_get(subsys, particles=particles)
 
       CALL get_qs_env(qs_env=qs_env, pw_env=pw_env)
-      CALL pw_env_get(pw_env=pw_env, auxbas_pw_pool=auxbas_pw_pool, pw_pools=pw_pools)
+      CALL pw_env_get(pw_env=pw_env, auxbas_pw_pool=auxbas_pw_pool)
       CALL auxbas_pw_pool%create_pw(pw=rho_core)
       CALL calculate_rho_core(rho_core, total_rho_core_rspace, qs_env)
 
@@ -1394,7 +1392,6 @@ CONTAINS
       TYPE(particle_list_type), POINTER                  :: particles
       TYPE(pw_c1d_gs_type), DIMENSION(:), POINTER        :: rho_g
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(pw_r3d_rs_type), ALLOCATABLE, DIMENSION(:)    :: elf_r
       TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: rho_r
@@ -1425,7 +1422,7 @@ CONTAINS
 
       ALLOCATE (elf_r(dft_control%nspins))
       CALL get_qs_env(qs_env=qs_env, pw_env=pw_env)
-      CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, pw_pools=pw_pools)
+      CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
       DO ispin = 1, dft_control%nspins
          CALL auxbas_pw_pool%create_pw(elf_r(ispin))
          CALL pw_zero(elf_r(ispin))
@@ -1498,7 +1495,6 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(pw_c1d_gs_type)                               :: wf_g
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(pw_r3d_rs_type)                               :: wf_r
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
@@ -1547,7 +1543,7 @@ CONTAINS
       END IF
 
       CALL get_qs_env(qs_env=qs_env, pw_env=pw_env)
-      CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, pw_pools=pw_pools)
+      CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
       CALL auxbas_pw_pool%create_pw(wf_r)
       CALL auxbas_pw_pool%create_pw(wf_g)
 

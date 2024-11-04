@@ -72,7 +72,6 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rho_struct_ao
       TYPE(pw_c1d_gs_type)                               :: tmp_g
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(pw_r3d_rs_type), DIMENSION(3)                 :: drho_r
       TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: rho_struct_r, tau_struct_r
@@ -83,7 +82,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (rho_struct, rho_r, tau_r, pw_env, auxbas_pw_pool, pw_pools, ks_env)
+      NULLIFY (rho_struct, rho_r, tau_r, pw_env, auxbas_pw_pool, ks_env)
       NULLIFY (rho_struct_ao, rho_struct_r, tau_struct_r, drho_struct_r)
 
       CALL get_qs_env(qs_env, ks_env=ks_env, pw_env=pw_env, rho=rho_struct)
@@ -96,8 +95,7 @@ CONTAINS
                       tau_r_valid=tau_r_valid, &
                       drho_r_valid=drho_r_valid)
 
-      CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, &
-                      pw_pools=pw_pools)
+      CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
       nspin = SIZE(rho_struct_r)
       bo = rho_struct_r(1)%pw_grid%bounds_local
       cfermi = (3.0_dp/10.0_dp)*(pi*pi*3.0_dp)**f23

@@ -70,12 +70,10 @@ CONTAINS
       TYPE(pw_c1d_gs_type), ALLOCATABLE, DIMENSION(:)    :: mgrid_gspace
       TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
       TYPE(pw_r3d_rs_type), ALLOCATABLE, DIMENSION(:)    :: mgrid_rspace
-      TYPE(realspace_grid_desc_p_type), DIMENSION(:), &
-         POINTER                                         :: rs_descs
 
       CALL timeset(routineN, handle)
-      NULLIFY (gridlevel_info, rs_descs, pw_pools)
-      CALL pw_env_get(pw_env, rs_descs=rs_descs, pw_pools=pw_pools)
+      NULLIFY (gridlevel_info, pw_pools)
+      CALL pw_env_get(pw_env, pw_pools=pw_pools)
 
       gridlevel_info => pw_env%gridlevel_info
 

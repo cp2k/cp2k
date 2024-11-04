@@ -1135,7 +1135,6 @@ CONTAINS
       TYPE(pw_c1d_gs_type), DIMENSION(:), POINTER        :: rho1_g
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
-      TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(pw_r3d_rs_type)                               :: v_hartree_rspace
       TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: rho1_r, rho_r, tau1_r, v_xc, v_xc_tau
@@ -1169,11 +1168,10 @@ CONTAINS
       CALL get_qs_env(qs_env, pw_env=pw_env)
       CPASSERT(ASSOCIATED(pw_env))
 
-      NULLIFY (auxbas_pw_pool, poisson_env, pw_pools)
+      NULLIFY (auxbas_pw_pool, poisson_env)
       ! gets the tmp grids
       CALL pw_env_get(pw_env=pw_env, &
                       auxbas_pw_pool=auxbas_pw_pool, &
-                      pw_pools=pw_pools, &
                       poisson_env=poisson_env)
 
       ! Calculate the NSC Hartree potential

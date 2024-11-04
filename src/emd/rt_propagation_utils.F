@@ -742,7 +742,6 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(pw_c1d_gs_type)                               :: wf_g
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(pw_r3d_rs_type)                               :: density_r, wf_r
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
@@ -751,7 +750,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (logger, auxbas_pw_pool, pw_pools, pw_env)
+      NULLIFY (logger, auxbas_pw_pool, pw_env)
 
       ! Get all the info from qs:
       CALL get_qs_env(qs_env, do_kpoints=do_kpoints, &
@@ -787,8 +786,7 @@ CONTAINS
       rt_time_step = qs_env%sim_step
 
       ! Setup the grids needed to compute a wavefunction given a vector
-      CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, &
-                      pw_pools=pw_pools)
+      CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
       CALL auxbas_pw_pool%create_pw(wf_r)
       CALL auxbas_pw_pool%create_pw(wf_g)
       CALL auxbas_pw_pool%create_pw(density_r)

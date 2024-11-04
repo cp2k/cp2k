@@ -52,7 +52,7 @@ CONTAINS
       TYPE(qmmm_env_qm_type), POINTER                    :: qmmm_env
       TYPE(pw_env_type), POINTER                         :: pw_env
 
-      INTEGER                                            :: auxbas_grid, Ilevel, pw_mode
+      INTEGER                                            :: Ilevel, pw_mode
       REAL(KIND=dp), DIMENSION(3)                        :: Maxdr, Mindr
       TYPE(pw_grid_type), POINTER                        :: el_struct
       TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
@@ -63,8 +63,7 @@ CONTAINS
       Mindr = HUGE(0.0_dp)
       IF ((qmmm_env%qmmm_coupl_type == do_qmmm_gauss) .OR. (qmmm_env%qmmm_coupl_type == do_qmmm_swave)) THEN
          CALL pw_env_get(pw_env=pw_env, &
-                         pw_pools=pw_pools, &
-                         auxbas_grid=auxbas_grid)
+                         pw_pools=pw_pools)
          !
          IF (ASSOCIATED(qmmm_env%aug_pools)) THEN
             CALL pw_pools_dealloc(qmmm_env%aug_pools)

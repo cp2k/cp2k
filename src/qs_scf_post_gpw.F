@@ -273,7 +273,6 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(pw_c1d_gs_type)                               :: wf_g
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(pw_r3d_rs_type)                               :: wf_r
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
@@ -307,7 +306,7 @@ CONTAINS
       CALL get_qs_env(qs_env, scf_env=scf_env)
 
       my_localized_wfn = .FALSE.
-      NULLIFY (admm_env, dft_control, pw_env, auxbas_pw_pool, pw_pools, mos, rho, &
+      NULLIFY (admm_env, dft_control, pw_env, auxbas_pw_pool, mos, rho, &
                mo_coeff, ks_rmpv, matrix_s, qs_loc_env_homo, qs_loc_env_lumo, scf_control, &
                unoccupied_orbs, mo_eigenvalues, unoccupied_evals, &
                unoccupied_evals_stm, molecule_set, mo_derivs, &
@@ -449,8 +448,7 @@ CONTAINS
 
       ! Setup the grids needed to compute a wavefunction given a vector..
       IF (((do_mo_cubes .OR. do_wannier_cubes) .AND. (nlumo /= 0 .OR. nhomo /= 0)) .OR. p_loc) THEN
-         CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, &
-                         pw_pools=pw_pools)
+         CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
          CALL auxbas_pw_pool%create_pw(wf_r)
          CALL auxbas_pw_pool%create_pw(wf_g)
       END IF
@@ -1459,7 +1457,6 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(particle_list_type), POINTER                  :: particles
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(pw_r3d_rs_type), ALLOCATABLE, DIMENSION(:)    :: elf_r
       TYPE(qs_subsys_type), POINTER                      :: subsys
@@ -1472,7 +1469,7 @@ CONTAINS
       IF (BTEST(cp_print_key_should_output(logger%iter_info, input, &
                                            "DFT%PRINT%ELF_CUBE"), cp_p_file)) THEN
 
-         NULLIFY (dft_control, pw_env, auxbas_pw_pool, pw_pools, particles, subsys)
+         NULLIFY (dft_control, pw_env, auxbas_pw_pool, particles, subsys)
          CALL get_qs_env(qs_env, dft_control=dft_control, pw_env=pw_env, subsys=subsys)
          CALL qs_subsys_get(subsys, particles=particles)
 
@@ -1480,8 +1477,7 @@ CONTAINS
          IF (.NOT. gapw) THEN
             ! allocate
             ALLOCATE (elf_r(dft_control%nspins))
-            CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, &
-                            pw_pools=pw_pools)
+            CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
             DO ispin = 1, dft_control%nspins
                CALL auxbas_pw_pool%create_pw(elf_r(ispin))
                CALL pw_zero(elf_r(ispin))
@@ -1705,7 +1701,6 @@ CONTAINS
       TYPE(particle_list_type), POINTER                  :: particles
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(pw_r3d_rs_type)                               :: wf_r
       TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: rho_r
@@ -1718,7 +1713,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (cell, dft_control, pw_env, auxbas_pw_pool, pw_pools, mo_coeff, &
+      NULLIFY (cell, dft_control, pw_env, auxbas_pw_pool, mo_coeff, &
                mo_coeff_deriv, mo_eigenvalues, mos, atomic_kind_set, qs_kind_set, &
                particle_set, rho, ks_rmpv, matrix_s, scf_control, dft_section, &
                molecule_set, input, particles, subsys, rho_r)
@@ -1823,8 +1818,7 @@ CONTAINS
       IF (dft_control%nspins == 2) THEN
          CALL get_qs_env(qs_env, mos=mos)
          CALL get_qs_env(qs_env=qs_env, pw_env=pw_env)
-         CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, &
-                         pw_pools=pw_pools)
+         CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
          CALL auxbas_pw_pool%create_pw(wf_r)
          CALL pw_copy(rho_r(1), wf_r)
          CALL pw_axpy(rho_r(2), wf_r, alpha=-1._dp)
@@ -1915,7 +1909,6 @@ CONTAINS
       TYPE(pw_c1d_gs_type)                               :: aux_g, rho_elec_gspace
       TYPE(pw_c1d_gs_type), POINTER                      :: rho0_s_gs, rho_core
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(pw_r3d_rs_type)                               :: aux_r, rho_elec_rspace, wf_r
       TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: rho_r
@@ -1932,7 +1925,7 @@ CONTAINS
                                                             print_key_voro, xc_section
 
       CALL timeset(routineN, handle)
-      NULLIFY (cell, dft_control, pw_env, auxbas_pw_pool, pw_pools, hfx_section, &
+      NULLIFY (cell, dft_control, pw_env, auxbas_pw_pool, hfx_section, &
                atomic_kind_set, qs_kind_set, particle_set, rho, ks_rmpv, rho_ao, rho_r, &
                dft_section, xc_section, input, particles, subsys, matrix_vxc, v_hartree_rspace, &
                vee)
@@ -1969,8 +1962,7 @@ CONTAINS
 
          CALL get_qs_env(qs_env=qs_env, pw_env=pw_env, rho_core=rho_core, &
                          rho0_s_gs=rho0_s_gs)
-         CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, &
-                         pw_pools=pw_pools)
+         CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
          CALL auxbas_pw_pool%create_pw(wf_r)
          IF (dft_control%qs_control%gapw) THEN
             IF (dft_control%qs_control%gapw_control%nopaw_as_gpw) THEN
@@ -2135,8 +2127,7 @@ CONTAINS
             CALL get_qs_env(qs_env=qs_env, &
                             pw_env=pw_env)
             CALL pw_env_get(pw_env=pw_env, &
-                            auxbas_pw_pool=auxbas_pw_pool, &
-                            pw_pools=pw_pools)
+                            auxbas_pw_pool=auxbas_pw_pool)
             CALL auxbas_pw_pool%create_pw(pw=rho_elec_rspace)
             CALL pw_zero(rho_elec_rspace)
             CALL auxbas_pw_pool%create_pw(pw=rho_elec_gspace)
@@ -2242,8 +2233,7 @@ CONTAINS
                CALL get_qs_env(qs_env=qs_env, &
                                pw_env=pw_env)
                CALL pw_env_get(pw_env=pw_env, &
-                               auxbas_pw_pool=auxbas_pw_pool, &
-                               pw_pools=pw_pools)
+                               auxbas_pw_pool=auxbas_pw_pool)
                CALL auxbas_pw_pool%create_pw(pw=rho_elec_rspace)
                CALL pw_copy(rho_r(1), rho_elec_rspace)
                CALL pw_axpy(rho_r(2), rho_elec_rspace)
@@ -2318,7 +2308,7 @@ CONTAINS
 
          ELSE IF (dft_control%qs_control%gapw .AND. print_density == "TOTAL_HARD_APPROX") THEN
             CALL get_qs_env(qs_env=qs_env, pw_env=pw_env, rho0_mpole=rho0_mpole, natom=natom)
-            CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, pw_pools=pw_pools)
+            CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
             CALL auxbas_pw_pool%create_pw(rho_elec_rspace)
 
             NULLIFY (my_Q0)
@@ -2690,8 +2680,7 @@ CONTAINS
                CALL get_qs_env(qs_env=qs_env, &
                                pw_env=pw_env)
                CALL pw_env_get(pw_env=pw_env, &
-                               auxbas_pw_pool=auxbas_pw_pool, &
-                               pw_pools=pw_pools)
+                               auxbas_pw_pool=auxbas_pw_pool)
                NULLIFY (mb_rho)
                ALLOCATE (mb_rho)
                CALL auxbas_pw_pool%create_pw(pw=mb_rho)

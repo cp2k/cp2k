@@ -222,14 +222,13 @@ CONTAINS
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_matrix_pools_type), POINTER                :: mpools
       TYPE(qs_subsys_type), POINTER                      :: subsys
-      TYPE(realspace_grid_desc_type), POINTER            :: auxbas_rs_desc
       TYPE(section_vals_type), POINTER                   :: current_section
 
       CALL timeset(routineN, handle)
       !
       NULLIFY (logger, current_section, density_matrix0, density_matrix_a, &
                density_matrix_ii, density_matrix_iii, cell, dft_control, mos, &
-               particle_set, pw_env, auxbas_rs_desc, auxbas_pw_pool, &
+               particle_set, pw_env, auxbas_pw_pool, &
                para_env, center_list, mo_coeff, jrho1_r, jrho1_g, &
                psi1_p, psi1_D, psi1_rxp, sab_all, qs_kind_set)
 
@@ -477,8 +476,7 @@ CONTAINS
             my_pos = "APPEND"
          END IF
          !
-         CALL pw_env_get(pw_env, auxbas_rs_desc=auxbas_rs_desc, &
-                         auxbas_pw_pool=auxbas_pw_pool)
+         CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
          !
          CALL auxbas_pw_pool%create_pw(wf_r)
          !

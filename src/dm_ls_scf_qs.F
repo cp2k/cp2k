@@ -629,7 +629,6 @@ CONTAINS
       TYPE(particle_list_type), POINTER                  :: particles
       TYPE(pw_c1d_gs_type)                               :: wf_g
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(pw_r3d_rs_type)                               :: wf_r
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
@@ -637,7 +636,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (ks_env, pw_env, auxbas_pw_pool, pw_pools, particles, subsys, matrix_ks)
+      NULLIFY (ks_env, pw_env, auxbas_pw_pool, particles, subsys, matrix_ks)
 
       CALL get_qs_env(qs_env, &
                       ks_env=ks_env, &
@@ -654,8 +653,7 @@ CONTAINS
 
       ! Print total electronic density
       CALL pw_env_get(pw_env=pw_env, &
-                      auxbas_pw_pool=auxbas_pw_pool, &
-                      pw_pools=pw_pools)
+                      auxbas_pw_pool=auxbas_pw_pool)
       CALL auxbas_pw_pool%create_pw(pw=wf_r)
       CALL pw_zero(wf_r)
       CALL auxbas_pw_pool%create_pw(pw=wf_g)

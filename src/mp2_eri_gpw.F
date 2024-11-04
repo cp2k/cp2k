@@ -202,8 +202,6 @@ CONTAINS
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(pw_r3d_rs_type)                               :: psi_L, rho_r
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
-      TYPE(realspace_grid_desc_p_type), DIMENSION(:), &
-         POINTER                                         :: rs_descs
       TYPE(realspace_grid_type), DIMENSION(:), POINTER   :: rs_v
       TYPE(task_list_type), POINTER                      :: task_list_sub
 
@@ -230,8 +228,7 @@ CONTAINS
          CALL calc_potential_gpw(rho_r, rho_g, poisson_env, pot_g, potential_parameter)
 
          NULLIFY (rs_v)
-         NULLIFY (rs_descs)
-         CALL pw_env_get(pw_env_sub, rs_descs=rs_descs, rs_grids=rs_v, multigrid=multigrid)
+         CALL pw_env_get(pw_env_sub, rs_grids=rs_v, multigrid=multigrid)
          CALL potential_pw2rs(rs_v, rho_r, pw_env_sub)
          CALL grid_copy_to_multigrid(multigrid, rs_v)
 
@@ -565,8 +562,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: I_tmp2, pab, rpgfa, sphi_a, zeta
       TYPE(grid_multigrid_type)                          :: multigrid
       TYPE(gto_basis_set_type), POINTER                  :: basis_set_a
-      TYPE(realspace_grid_desc_p_type), DIMENSION(:), &
-         POINTER                                         :: rs_descs
       TYPE(realspace_grid_type), DIMENSION(:), POINTER   :: rs_v
 
       CALL timeset(routineN, handle)
@@ -590,8 +585,7 @@ CONTAINS
 
       ! integrate potential with auxiliary basis function derivatives
       NULLIFY (rs_v)
-      NULLIFY (rs_descs)
-      CALL pw_env_get(pw_env_sub, rs_descs=rs_descs, rs_grids=rs_v, multigrid=multigrid)
+      CALL pw_env_get(pw_env_sub, rs_grids=rs_v, multigrid=multigrid)
       CALL potential_pw2rs(rs_v, rho_r, pw_env_sub)
       CALL grid_copy_to_multigrid(multigrid, rs_v)
 
@@ -833,15 +827,12 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: I_tmp2, pab, rpgfa, sphi_a, zeta
       TYPE(grid_multigrid_type)                          :: multigrid
       TYPE(gto_basis_set_type), POINTER                  :: basis_set_a
-      TYPE(realspace_grid_desc_p_type), DIMENSION(:), &
-         POINTER                                         :: rs_descs
       TYPE(realspace_grid_type), DIMENSION(:), POINTER   :: rs_v
 
       CALL timeset(routineN, handle)
 
       NULLIFY (rs_v)
-      NULLIFY (rs_descs)
-      CALL pw_env_get(pw_env_sub, rs_descs=rs_descs, rs_grids=rs_v, multigrid=multigrid)
+      CALL pw_env_get(pw_env_sub, rs_grids=rs_v, multigrid=multigrid)
       CALL potential_pw2rs(rs_v, pot_r, pw_env_sub)
       CALL grid_copy_to_multigrid(multigrid, rs_v)
 

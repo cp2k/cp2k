@@ -74,7 +74,6 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(pw_c1d_gs_type), POINTER                      :: rho0_s_gs, rho_core
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(pw_r3d_rs_type)                               :: vdip_r, wf_r
       TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: rho_r
@@ -84,7 +83,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
       NULLIFY (cell, dft_control, rho, pw_env, auxbas_pw_pool, &
-               pw_pools, subsys, v_hartree_rspace, rho_r)
+               subsys, v_hartree_rspace, rho_r)
 
       CALL get_qs_env(qs_env, &
                       dft_control=dft_control, &
@@ -96,8 +95,7 @@ CONTAINS
                       subsys=subsys, &
                       v_hartree_rspace=v_hartree_rspace)
 
-      CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, &
-                      pw_pools=pw_pools)
+      CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
       CALL auxbas_pw_pool%create_pw(wf_r)
       CALL auxbas_pw_pool%create_pw(vdip_r)
 

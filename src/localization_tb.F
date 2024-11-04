@@ -95,7 +95,6 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(pw_c1d_gs_type)                               :: wf_g
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(pw_r3d_rs_type)                               :: wf_r
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
@@ -175,7 +174,7 @@ CONTAINS
             do_homo = .TRUE.
 
             CALL get_qs_env(qs_env=qs_env, pw_env=pw_env)
-            CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, pw_pools=pw_pools)
+            CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
             CALL auxbas_pw_pool%create_pw(wf_r)
             CALL auxbas_pw_pool%create_pw(wf_g)
 

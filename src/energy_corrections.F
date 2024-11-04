@@ -3019,7 +3019,6 @@ CONTAINS
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(pw_r3d_rs_type)                               :: rho_elec_rspace
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
@@ -3172,8 +3171,7 @@ CONTAINS
          CALL get_qs_env(qs_env=qs_env, &
                          pw_env=pw_env)
          CALL pw_env_get(pw_env=pw_env, &
-                         auxbas_pw_pool=auxbas_pw_pool, &
-                         pw_pools=pw_pools)
+                         auxbas_pw_pool=auxbas_pw_pool)
          CALL auxbas_pw_pool%create_pw(pw=rho_elec_rspace)
 
          IF (dft_control%nspins > 1) THEN

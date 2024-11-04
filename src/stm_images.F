@@ -113,7 +113,6 @@ CONTAINS
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(pw_c1d_gs_type)                               :: wf_g
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(pw_r3d_rs_type)                               :: wf_r
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
@@ -124,7 +123,7 @@ CONTAINS
       output_unit = cp_logger_get_default_io_unit(logger)
 
       NULLIFY (ks_env, mos, rho, rho_ao, pw_env, stm_th_torb, fm_struct_tmp)
-      NULLIFY (auxbas_pw_pool, pw_pools, stm_density_ao, mo_coeff)
+      NULLIFY (auxbas_pw_pool, stm_density_ao, mo_coeff)
 
       CALL get_qs_env(qs_env, &
                       ks_env=ks_env, &
@@ -153,8 +152,7 @@ CONTAINS
       CALL dbcsr_copy(stm_density_ao, rho_ao(1)%matrix, &
                       name="stm_density_ao")
 
-      CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, &
-                      pw_pools=pw_pools)
+      CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
       CALL auxbas_pw_pool%create_pw(wf_r)
       CALL auxbas_pw_pool%create_pw(wf_g)
 

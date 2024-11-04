@@ -150,7 +150,6 @@ CONTAINS
       TYPE(particle_list_type), POINTER                  :: particles
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
-      TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(pw_r3d_rs_type)                               :: deps_elec, eps_elec
       TYPE(pw_r3d_rs_type), DIMENSION(3)                 :: dln_eps_elec, dphi_tot
@@ -174,7 +173,6 @@ CONTAINS
       NULLIFY (particles)
       NULLIFY (poisson_env)
       NULLIFY (pw_env)
-      NULLIFY (pw_pools)
       NULLIFY (rho)
       NULLIFY (sccs_control)
       NULLIFY (scf_env)
@@ -206,7 +204,6 @@ CONTAINS
       ! Get access to the PW grid pool
       CALL pw_env_get(pw_env, &
                       auxbas_pw_pool=auxbas_pw_pool, &
-                      pw_pools=pw_pools, &
                       poisson_env=poisson_env)
 
       CALL pw_zero(v_sccs)
