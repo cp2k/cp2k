@@ -750,7 +750,7 @@ CONTAINS
       INTEGER, INTENT(IN), OPTIONAL                      :: iounit
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'eeq_solver'
-      LOGICAL, PARAMETER                                 :: do_direct = .TRUE.
+      LOGICAL, PARAMETER                                 :: do_direct = .FALSE.
 
       INTEGER                                            :: handle, ierror, iunit, natom, nkind, ns
       LOGICAL                                            :: do_ewald, do_sparse
@@ -991,7 +991,7 @@ CONTAINS
       INTEGER, OPTIONAL                                  :: iounit
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'pbc_solver'
-      REAL(KIND=dp), PARAMETER                           :: eps_pcg = 1.E-08_dp
+      REAL(KIND=dp), PARAMETER                           :: eps_pcg = 1.E-10_dp
 
       INTEGER :: ewald_type, handle, i, iac, iar, ic, ikind, info, ir, iunit, iv, ix, iy, iz, &
          jkind, max_diis, mdiis, natom, ncloc, ndiis, nkind, now, nrloc, ns
@@ -1003,7 +1003,7 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: dmat, fvec, vmat, xvec
       REAL(KIND=dp), DIMENSION(3)                        :: ri, rij, rijl, rj
       REAL(KIND=dp), DIMENSION(3, 3)                     :: hmat
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: rv0, xv0, yv0
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: rhs, rv0, xv0
       TYPE(cp_fm_struct_type), POINTER                   :: mat_struct
       TYPE(cp_fm_type)                                   :: mmat, pmat
       TYPE(mp_para_env_type), POINTER                    :: para_env
@@ -1123,8 +1123,13 @@ CONTAINS
       ! preconditioner invers
       CALL cp_fm_invert(pmat, mmat)
       !
+      ! rhs
       ns = natom + 1
-      ALLOCATE (xv0(ns), rv0(ns), yv0(ns))
+      ALLOCATE (rhs(ns))
+      rhs(1:natom) = chia(1:natom)
+      rhs(ns) = -qtot
+      !
+      ALLOCATE (xv0(ns), rv0(ns))
       ! initial guess
       xv0(1:natom) = charges(1:natom)
       xv0(ns) = 0.0_dp
@@ -1137,18 +1142,15 @@ CONTAINS
       dmat = 0.0_dp; dvec = 0.0_dp
       ndiis = 1
       now = 1
-      CALL get_energy_gradient(eeqn, eeq_mat, ewald_env, ewald_pw, &
-                               cell, particle_set, xv0, chia, rv0)
-      CALL cp_fm_matvec(mmat, rv0, yv0, alpha=-1.0_dp, beta=0.0_dp)
-!     rqval = -SUM(yv0(1:natom))/REAL(natom, KIND=dp)
-      yv0(ns) = 0.0_dp
-      resin = SQRT(SUM(yv0*yv0))
+      CALL get_energy_gradient(eeqn, eeq_mat, mmat, ewald_env, ewald_pw, &
+                               cell, particle_set, xv0, rhs, rv0)
+      resin = SQRT(SUM(rv0*rv0))
       !
       IF (iunit > 0) THEN
          WRITE (iunit, '(A)', advance='NO') " EEQ| "
       END IF
       DO iv = 1, max_diis
-         res = SQRT(SUM(yv0*yv0))
+         res = SQRT(SUM(rv0*rv0))
          IF (iunit > 0) THEN
             rdl = MAX(-LOG10(res), 0.0_dp)
             WRITE (iunit, '(I1)', advance='NO') MIN(NINT(rdl), 9)
@@ -1163,13 +1165,13 @@ CONTAINS
          now = MOD(iv - 1, mdiis) + 1
          ndiis = MIN(iv, mdiis)
          xvec(1:ns, now) = xv0(1:ns)
-         fvec(1:ns, now) = yv0(1:ns)
+         fvec(1:ns, now) = rv0(1:ns)
          DO i = 1, ndiis
             vmat(now, i) = SUM(fvec(:, now)*fvec(:, i))
             vmat(i, now) = vmat(now, i)
          END DO
          IF (ndiis == 1) THEN
-            xv0(1:ns) = xv0(1:ns) + 1.00*yv0(1:ns)
+            xv0(1:ns) = xv0(1:ns) + 1.00*rv0(1:ns)
          ELSE
             dvec = 0.0_dp
             dvec(ndiis + 1) = 1.0_dp
@@ -1183,10 +1185,8 @@ CONTAINS
             xv0(1:ns) = xv0(1:ns) + MATMUL(fvec(1:ns, 1:ndiis), dvec(1:ndiis))
          END IF
          !
-         CALL get_energy_gradient(eeqn, eeq_mat, ewald_env, ewald_pw, &
-                                  cell, particle_set, xv0, chia, rv0)
-         CALL cp_fm_matvec(mmat, rv0, yv0, alpha=-1.0_dp, beta=0.0_dp)
-         yv0(ns) = 0.0_dp
+         CALL get_energy_gradient(eeqn, eeq_mat, mmat, ewald_env, ewald_pw, &
+                                  cell, particle_set, xv0, rhs, rv0)
       END DO
       charges(1:natom) = xv0(1:natom)
       lambda = xv0(ns)
@@ -1198,7 +1198,8 @@ CONTAINS
       !
       DEALLOCATE (xvec, fvec, bvec)
       DEALLOCATE (vmat, dmat, dvec)
-      DEALLOCATE (xv0, rv0, yv0)
+      DEALLOCATE (xv0, rv0)
+      DEALLOCATE (rhs)
 
       CALL timestop(handle)
 
@@ -1426,6 +1427,7 @@ CONTAINS
 !> \brief ...
 !> \param eeqn ...
 !> \param fm_mat ...
+!> \param mmat ...
 !> \param ewald_env ...
 !> \param ewald_pw ...
 !> \param cell ...
@@ -1434,10 +1436,10 @@ CONTAINS
 !> \param rhs ...
 !> \param potential ...
 ! **************************************************************************************************
-   SUBROUTINE get_energy_gradient(eeqn, fm_mat, ewald_env, ewald_pw, &
+   SUBROUTINE get_energy_gradient(eeqn, fm_mat, mmat, ewald_env, ewald_pw, &
                                   cell, particle_set, charges, rhs, potential)
       REAL(KIND=dp), INTENT(INOUT)                       :: eeqn
-      TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat, mmat
       TYPE(ewald_environment_type), POINTER              :: ewald_env
       TYPE(ewald_pw_type), POINTER                       :: ewald_pw
       TYPE(cell_type), POINTER                           :: cell
@@ -1448,6 +1450,7 @@ CONTAINS
 
       INTEGER                                            :: na, ns
       REAL(KIND=dp)                                      :: lambda
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: mvec
       TYPE(mp_para_env_type), POINTER                    :: para_env
 
       ns = SIZE(charges)
@@ -1459,9 +1462,13 @@ CONTAINS
       CALL para_env%sum(potential(1:na))
       CALL cp_fm_matvec(fm_mat, charges, potential, alpha=1.0_dp, beta=1.0_dp)
       eeqn = 0.5_dp*SUM(charges(1:na)*potential(1:na)) + SUM(charges(1:na)*rhs(1:na))
-      potential(1:na) = potential(1:na) + rhs(1:na)
-      lambda = -SUM(potential(1:na))/REAL(na, KIND=dp)
-      potential(1:na) = potential(1:na) + lambda
+!     potential(1:na) = potential(1:na) + rhs(1:na)
+      potential(1:ns) = potential(1:ns) + rhs(1:ns)
+      ALLOCATE (mvec(ns))
+      CALL cp_fm_matvec(mmat, potential, mvec, alpha=-1.0_dp, beta=0.0_dp)
+      lambda = -SUM(mvec(1:na))/REAL(na, KIND=dp)
+      potential(1:na) = mvec(1:na) + lambda
+      DEALLOCATE (mvec)
 
    END SUBROUTINE get_energy_gradient
 
