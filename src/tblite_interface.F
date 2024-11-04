@@ -21,27 +21,36 @@ MODULE tblite_interface
    USE tblite_xtb_ipea1, ONLY: new_ipea1_calculator
    USE tblite_container, ONLY: container_cache
    USE tblite_wavefunction_type, ONLY: wavefunction_type, new_wavefunction
-   USE tblite_scf_info, ONLY: scf_info, atom_resolved, shell_resolved, orbital_resolved, &
-      & not_used
+   USE tblite_scf_info, ONLY: scf_info, atom_resolved, shell_resolved, &
+                                 & orbital_resolved, not_used
    USE tblite_scf_potential, ONLY: potential_type, new_potential
    USE tblite_xtb_h0, ONLY: get_selfenergy, get_hamiltonian, get_occupation, &
-      & get_hamiltonian_gradient, tb_hamiltonian
+                                 & get_hamiltonian_gradient, tb_hamiltonian
    USE tblite_basis_type, ONLY: get_cutoff
 #endif
 
-   USE qs_environment_types, ONLY: get_qs_env, &
-                                   qs_environment_type
+   USE qs_environment_types, ONLY: get_qs_env, qs_environment_type
    USE cell_types, ONLY: cell_type, get_cell
    USE particle_types, ONLY: particle_type
    USE kinds, ONLY: dp, default_string_length
    USE atomic_kind_types, ONLY: get_atomic_kind
    USE input_constants, ONLY: gfn1xtb, gfn2xtb, ipea1xtb
-   USE basis_set_types, ONLY: gto_basis_set_type, allocate_gto_basis_set, write_gto_basis_set, process_gto_basis
+   USE basis_set_types, ONLY: gto_basis_set_type, gto_basis_set_p_type, &
+                              & allocate_gto_basis_set, write_gto_basis_set, process_gto_basis
    USE tblite_types, ONLY: tblite_type, deallocate_tblite_type, allocate_tblite_type
    USE memory_utilities, ONLY: reallocate
    USE qs_kind_types, ONLY: get_qs_kind, qs_kind_type
    USE string_utilities, ONLY: integer_to_string
-
+   USE message_passing, ONLY: mp_para_env_type
+   USE qs_ks_types, ONLY: qs_ks_env_type, set_ks_env
+   USE qs_energy_types, ONLY: qs_energy_type
+   USE cp_dbcsr_api, ONLY: dbcsr_type, dbcsr_p_type, dbcsr_create
+   USE cp_control_types, ONLY: dft_control_type
+   USE qs_neighbor_list_types, ONLY: neighbor_list_set_p_type
+   USE atprop_types, ONLY: atprop_type
+   USE atomic_kind_types, ONLY: atomic_kind_type
+   USE orbital_pointers, ONLY: ncoset
+   USE cp_dbcsr_cp2k_link, ONLY: cp_dbcsr_alloc_block_from_nbl
 #include "./base/base_uses.f90"
    IMPLICIT NONE
 
@@ -396,6 +405,84 @@ CONTAINS
 #endif
 
    END SUBROUTINE tb_get_basis
+
+   ! **************************************************************************************************
+!> \brief ...
+!> \param qs_env ...
+!> \param para_env ...
+!> \param calculate_forces ...
+! **************************************************************************************************
+   SUBROUTINE build_tblite_matrices(qs_env, para_env, calculate_forces)
+
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
+      LOGICAL, INTENT(IN)                                :: calculate_forces
+
+#if defined(__TBLITE)
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'build_tblite_matrices'
+
+      INTEGER    :: handle, maxder, nderivatives, nimg, img, nkind
+
+      TYPE(qs_ks_env_type), POINTER                         :: ks_env
+      TYPE(qs_energy_type), POINTER                         :: energy
+      TYPE(qs_kind_type), DIMENSION(:), POINTER             :: qs_kind_set
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER          :: matrix_h, matrix_s
+      TYPE(atprop_type), POINTER                            :: atprop
+      TYPE(dft_control_type), POINTER                       :: dft_control
+      TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER :: sab_orb
+      TYPE(atomic_kind_type), DIMENSION(:), POINTER         :: atomic_kind_set
+      TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER     :: basis_set_list
+
+      CALL timeset(routineN, handle)
+
+      NULLIFY (ks_env, atomic_kind_set, qs_kind_set)
+      NULLIFY (matrix_h, matrix_s)
+      NULLIFY (atprop, sab_orb)
+
+      CALL get_qs_env(qs_env=qs_env, &
+                      ks_env=ks_env, &
+                      energy=energy, &
+                      atomic_kind_set=atomic_kind_set, &
+                      qs_kind_set=qs_kind_set, &
+                      matrix_h_kp=matrix_h, &
+                      matrix_s_kp=matrix_s, &
+                      atprop=atprop, &
+                      dft_control=dft_control, &
+                      sab_orb=sab_orb)
+
+      nkind = SIZE(atomic_kind_set)
+      nderivatives = 0
+      IF (calculate_forces) nderivatives = 1
+      maxder = ncoset(nderivatives)
+      nimg = dft_control%nimages
+
+      ! set up basis set lists
+      ALLOCATE (basis_set_list(nkind))
+      CALL basis_set_list_setup(basis_set_list, "ORB", qs_kind_set)
+
+      ! allocate overlap matrix
+      CALL dbcsr_allocate_matrix_set(matrix_s, maxder, nimg)
+      CALL create_sab_matrix(ks_env, matrix_s, "OVERLAP MATRIX", basis_set_list, basis_set_list, &
+                             sab_orb, .TRUE.)
+      CALL set_ks_env(ks_env, matrix_s_kp=matrix_s)
+
+      ! initialize H matrix
+      CALL dbcsr_allocate_matrix_set(matrix_h, 1, nimg)
+      DO img = 1, nimg
+         ALLOCATE (matrix_h(1, img)%matrix)
+         CALL dbcsr_create(matrix_h(1, img)%matrix, template=matrix_s(1, 1)%matrix, &
+                           name="HAMILTONIAN MATRIX")
+         CALL cp_dbcsr_alloc_block_from_nbl(matrix_h(1, img)%matrix, sab_orb)
+      END DO
+
+      CALL timestop(handle)
+
+#else
+      CPABORT("Build without TBLITE")
+#endif
+
+   END SUBROUTINE build_tblite_matrices
 
 END MODULE tblite_interface
 
