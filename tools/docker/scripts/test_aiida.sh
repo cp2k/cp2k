@@ -19,6 +19,8 @@ apt-get install -qq --no-install-recommends \
   postgresql \
   libpq-dev \
   rabbitmq-server \
+  locales \
+  plocate \
   sudo \
   git \
   ssh
@@ -57,13 +59,20 @@ service rabbitmq-server start
 # start and configure PostgreSQL
 service postgresql start
 
+# create aiida profile
+$AS_UBUNTU_USER /opt/venv/bin/verdi presto
+
+# fake the presents of conda
+ln -s /bin/true /usr/bin/conda
+
 # setup code
-cat > /usr/bin/cp2k << EndOfMessage
+mkdir -p /opt/conda/envs/cp2k/bin/
+cat > /opt/conda/envs/cp2k/bin/cp2k.psmp << EndOfMessage
 #!/bin/bash -e
 export OMP_NUM_THREADS=2
 /opt/cp2k/build/bin/cp2k.ssmp "\$@"
 EndOfMessage
-chmod +x /usr/bin/cp2k
+chmod +x /opt/conda/envs/cp2k/bin/cp2k.psmp
 
 echo -e "\n========== Running AiiDA-CP2K Tests =========="
 set +e # disable error trapping for remainder of script
