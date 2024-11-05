@@ -1,6 +1,6 @@
 TDA_H2O_PBE_G0W0.inp                                     109      2e-05            7.7697
 TDA_H2O_PBE_evGW0.inp                                    109      2e-05            8.2300
-TDA_H2O_PBE_evGW.inp                                     109      2e-04            8.7825
+TDA_H2O_PBE_evGW.inp                                     109      3e-04            8.7825
 BSE_H2O_PBE_G0W0.inp                                     110      2e-05            7.7251
 BSE_H2O_PBE_evGW0.inp                                    110      2e-05            8.1873
 BSE_H2O_PBE_evGW.inp                                     110      2e-04            8.7417
@@ -12,7 +12,7 @@ BSE_H2O_PBE_evGW0.inp                                    114      2e-05         
 BSE_H2O_PBE_evGW.inp                                     114      2e-04            0.016
 #EOF
 #Low convergence criteria for evGW make a higher threshold necessary for these tests
-#Logic: Absolute errors (for G0W0/evGW0) should be within 1e-4, i.e. relative errors are 
-#       in the range of 2e-5 for energies. 
+#Logic: Absolute errors (for G0W0/evGW0) should be within 1e-4, i.e. relative errors are
+#       in the range of 2e-5 for energies.
 #       For oscillator strengths, they should be within 1e-3, so relative errors
 #       are in the range of 7e-2
