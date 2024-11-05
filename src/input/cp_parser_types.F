@@ -190,17 +190,17 @@ CONTAINS
          parser%para_env = mp_comm_self
       END IF
 
-      !   *** Get the logical output unit number for error messages ***
+      ! Get the logical output unit number for error messages
       IF (parser%para_env%is_source()) THEN
          IF (PRESENT(unit_nr)) THEN
             parser%input_unit = unit_nr
-            IF (PRESENT(file_name)) parser%input_file_name = file_name
+            IF (PRESENT(file_name)) parser%input_file_name = TRIM(ADJUSTL(file_name))
          ELSE
             IF (.NOT. PRESENT(file_name)) &
                CPABORT("at least one of filename and unit_nr must be present")
-            CALL open_file(file_name=TRIM(file_name), &
+            CALL open_file(file_name=TRIM(ADJUSTL(file_name)), &
                            unit_number=parser%input_unit)
-            parser%input_file_name = file_name
+            parser%input_file_name = TRIM(ADJUSTL(file_name))
          END IF
       END IF
 
