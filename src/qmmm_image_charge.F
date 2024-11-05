@@ -62,8 +62,7 @@ MODULE qmmm_image_charge
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_integrate_potential,          ONLY: integrate_pgf_product
-   USE realspace_grid_types,            ONLY: realspace_grid_desc_type,&
-                                              realspace_grid_type,&
+   USE realspace_grid_types,            ONLY: realspace_grid_type,&
                                               transfer_pw2rs
    USE util,                            ONLY: get_limit
    USE virial_types,                    ONLY: virial_type

@@ -86,4 +86,53 @@ void grid_mpi_barrier(const grid_mpi_comm comm) {
 #endif
 }
 
+bool grid_mpi_comm_is_unequal(const grid_mpi_comm comm1,
+                              const grid_mpi_comm comm2) {
+#if defined(__parallel)
+  int result = -1;
+  CHECK(MPI_Comm_compare(comm1, comm2, &result));
+  return result == MPI_UNEQUAL;
+#else
+  return ((comm1 == grid_mpi_comm_null) && (comm2 != grid_mpi_comm_null)) ||
+         ((comm1 != grid_mpi_comm_null) && (comm2 == grid_mpi_comm_null));
+#endif
+}
+
+bool grid_mpi_comm_is_similar(const grid_mpi_comm comm1,
+                              const grid_mpi_comm comm2) {
+#if defined(__parallel)
+  int result = -1;
+  CHECK(MPI_Comm_compare(comm1, comm2, &result));
+  return result == MPI_SIMILAR || result == MPI_CONGRUENT ||
+         result == MPI_IDENT;
+#else
+  return ((comm1 == grid_mpi_comm_null) && (comm2 == grid_mpi_comm_null)) ||
+         ((comm1 != grid_mpi_comm_null) && (comm2 != grid_mpi_comm_null));
+#endif
+}
+
+bool grid_mpi_comm_is_congruent(const grid_mpi_comm comm1,
+                                const grid_mpi_comm comm2) {
+#if defined(__parallel)
+  int result = -1;
+  CHECK(MPI_Comm_compare(comm1, comm2, &result));
+  return result == MPI_CONGRUENT || result == MPI_IDENT;
+#else
+  return ((comm1 == grid_mpi_comm_null) && (comm2 == grid_mpi_comm_null)) ||
+         ((comm1 != grid_mpi_comm_null) && (comm2 != grid_mpi_comm_null));
+#endif
+}
+
+bool grid_mpi_comm_is_ident(const grid_mpi_comm comm1,
+                            const grid_mpi_comm comm2) {
+#if defined(__parallel)
+  int result = -1;
+  CHECK(MPI_Comm_compare(comm1, comm2, &result));
+  return result == MPI_IDENT;
+#else
+  return ((comm1 == grid_mpi_comm_null) && (comm2 == grid_mpi_comm_null)) ||
+         ((comm1 != grid_mpi_comm_null) && (comm2 != grid_mpi_comm_null));
+#endif
+}
+
 // EOF

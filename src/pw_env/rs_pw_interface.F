@@ -13,6 +13,9 @@
 ! **************************************************************************************************
 MODULE rs_pw_interface
    USE gaussian_gridlevels,             ONLY: gridlevel_info_type
+   USE grid_api,                        ONLY: grid_copy_from_multigrid_general,&
+                                              grid_copy_to_multigrid_general,&
+                                              grid_multigrid_type
    USE kinds,                           ONLY: dp
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_type
@@ -25,8 +28,7 @@ MODULE rs_pw_interface
                                               pw_pools_give_back_pws
    USE pw_types,                        ONLY: pw_c1d_gs_type,&
                                               pw_r3d_rs_type
-   USE realspace_grid_types,            ONLY: realspace_grid_desc_p_type,&
-                                              realspace_grid_type,&
+   USE realspace_grid_types,            ONLY: realspace_grid_type,&
                                               transfer_pw2rs,&
                                               transfer_rs2pw
 #include "../base/base_uses.f90"
@@ -66,6 +68,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'density_rs2pw'
 
       INTEGER                                            :: handle, igrid_level
+      TYPE(grid_multigrid_type)                          :: multigrid
       TYPE(gridlevel_info_type), POINTER                 :: gridlevel_info
       TYPE(pw_c1d_gs_type), ALLOCATABLE, DIMENSION(:)    :: mgrid_gspace
       TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
@@ -73,7 +76,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
       NULLIFY (gridlevel_info, pw_pools)
-      CALL pw_env_get(pw_env, pw_pools=pw_pools)
+      CALL pw_env_get(pw_env, pw_pools=pw_pools, multigrid=multigrid)
 
       gridlevel_info => pw_env%gridlevel_info
 
@@ -91,6 +94,7 @@ CONTAINS
             CALL transfer_rs2pw(rs_rho(igrid_level), &
                                 mgrid_rspace(igrid_level))
          END DO
+         CALL grid_copy_from_multigrid_general(multigrid, mgrid_rspace)
 
          ! we want both rho and rho_gspace, the latter for Hartree and co-workers.
          CALL pw_zero(rho_gspace)
@@ -133,6 +137,7 @@ CONTAINS
 
       INTEGER                                            :: auxbas_grid, handle, igrid_level
       REAL(KIND=dp)                                      :: scale
+      TYPE(grid_multigrid_type)                          :: multigrid
       TYPE(gridlevel_info_type), POINTER                 :: gridlevel_info
       TYPE(pw_c1d_gs_type), ALLOCATABLE, DIMENSION(:)    :: mgrid_gspace
       TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
@@ -142,7 +147,7 @@ CONTAINS
 
       ! *** set up of the potential on the multigrids
       CALL pw_env_get(pw_env, pw_pools=pw_pools, gridlevel_info=gridlevel_info, &
-                      auxbas_grid=auxbas_grid)
+                      auxbas_grid=auxbas_grid, multigrid=multigrid)
 
       CALL pw_pools_create_pws(pw_pools, mgrid_rspace)
 
@@ -174,6 +179,8 @@ CONTAINS
          CALL transfer_pw2rs(rs_v(igrid_level), &
                              mgrid_rspace(igrid_level))
       END DO
+
+      CALL grid_copy_to_multigrid_general(multigrid, mgrid_rspace)
       ! *** give back the pw multi-grids
       CALL pw_pools_give_back_pws(pw_pools, mgrid_rspace)
 

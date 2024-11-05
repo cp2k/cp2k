@@ -73,8 +73,7 @@ MODULE qs_sccs
    USE pw_poisson_types,                ONLY: pw_poisson_analytic,&
                                               pw_poisson_mt,&
                                               pw_poisson_type
-   USE pw_pool_types,                   ONLY: pw_pool_p_type,&
-                                              pw_pool_type
+   USE pw_pool_types,                   ONLY: pw_pool_type
    USE pw_types,                        ONLY: pw_c1d_gs_type,&
                                               pw_r3d_rs_type
    USE qs_energy_types,                 ONLY: qs_energy_type

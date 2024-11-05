@@ -18,7 +18,6 @@ MODULE pw_env_types
                                               gridlevel_info_type
    USE grid_api,                        ONLY: grid_free_multigrid,&
                                               grid_multigrid_type
-   USE input_section_types,             ONLY: section_vals_type
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_para_env_type
    USE pw_poisson_types,                ONLY: pw_poisson_type

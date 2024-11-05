@@ -62,7 +62,6 @@ MODULE mp2_eri_gpw
    USE qs_ks_types,                     ONLY: qs_ks_env_type
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
    USE realspace_grid_types,            ONLY: map_gaussian_here,&
-                                              realspace_grid_desc_p_type,&
                                               realspace_grid_type
    USE rs_pw_interface,                 ONLY: potential_pw2rs
    USE task_list_methods,               ONLY: generate_qs_task_list

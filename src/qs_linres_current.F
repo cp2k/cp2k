@@ -118,7 +118,6 @@ MODULE qs_linres_current
    USE qs_subsys_types,                 ONLY: qs_subsys_get,&
                                               qs_subsys_type
    USE realspace_grid_types,            ONLY: realspace_grid_desc_p_type,&
-                                              realspace_grid_desc_type,&
                                               realspace_grid_type,&
                                               rs_grid_create,&
                                               rs_grid_mult_and_add,&

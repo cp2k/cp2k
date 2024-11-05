@@ -37,8 +37,7 @@ MODULE qs_linres_epr_ownutils
                                               pw_scale,&
                                               pw_transfer,&
                                               pw_zero
-   USE pw_pool_types,                   ONLY: pw_pool_p_type,&
-                                              pw_pool_type
+   USE pw_pool_types,                   ONLY: pw_pool_type
    USE pw_spline_utils,                 ONLY: Eval_Interp_Spl3_pbc,&
                                               find_coeffs,&
                                               pw_spline_do_precond,&
@@ -72,7 +71,6 @@ MODULE qs_linres_epr_ownutils
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_p_type,&
                                               qs_rho_type
-   USE realspace_grid_types,            ONLY: realspace_grid_desc_type
    USE util,                            ONLY: get_limit
 #include "./base/base_uses.f90"
 

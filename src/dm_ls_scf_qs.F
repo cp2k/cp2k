@@ -41,8 +41,7 @@ MODULE dm_ls_scf_qs
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_type
    USE pw_methods,                      ONLY: pw_zero
-   USE pw_pool_types,                   ONLY: pw_pool_p_type,&
-                                              pw_pool_type
+   USE pw_pool_types,                   ONLY: pw_pool_type
    USE pw_types,                        ONLY: pw_c1d_gs_type,&
                                               pw_r3d_rs_type
    USE qs_atomic_block,                 ONLY: calculate_atomic_block_dm

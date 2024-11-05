@@ -56,8 +56,7 @@ MODULE hirshfeld_methods
                                               qs_kind_type
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
-   USE realspace_grid_types,            ONLY: realspace_grid_desc_type,&
-                                              realspace_grid_type,&
+   USE realspace_grid_types,            ONLY: realspace_grid_type,&
                                               rs_grid_zero,&
                                               transfer_pw2rs,&
                                               transfer_rs2pw

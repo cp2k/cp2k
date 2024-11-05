@@ -91,8 +91,7 @@ MODULE qs_scf_post_tb
                                               pw_green_release,&
                                               pw_poisson_analytic,&
                                               pw_poisson_parameter_type
-   USE pw_pool_types,                   ONLY: pw_pool_p_type,&
-                                              pw_pool_type
+   USE pw_pool_types,                   ONLY: pw_pool_type
    USE pw_types,                        ONLY: pw_c1d_gs_type,&
                                               pw_r3d_rs_type
    USE qs_collocate_density,            ONLY: calculate_rho_core,&
