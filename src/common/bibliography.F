@@ -1884,7 +1884,7 @@ CONTAINS
                          "for Integrating Density Functional Theory and Non-Equilibrium Green Functions", &
                          source="J. Chem. Theory Comput.", volume="20", pages="6772-6780", &
                          year=2024, doi="10.1021/acs.jctc.4c00371")
-                         
+
       CALL add_reference(key=Knysh2024, &
                          authors=s2a("I. Knysh", "F. Lipparini", "A. Blondel", "I. Duchemin", "X. Blase", &
                                      "P.-F. Loos", "D. Jacquemin"), &
