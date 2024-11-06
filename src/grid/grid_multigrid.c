@@ -135,7 +135,30 @@ void grid_copy_to_multigrid_serial(double *grid_rs, const double *grid_pw,
     (void)npts_pw;
     for (int iz = 0; iz < npts_rs[2]; iz++) {
       //
-      (void)iz;
+      int iz_pw = iz - border_width[2];
+      if (iz < border_width[2])
+        iz_pw += npts_pw[2];
+      if (iz >= npts_pw[2] + border_width[2])
+        iz_pw -= npts_pw[2];
+      for (int iy = 0; iy < npts_rs[1]; iy++) {
+        //
+        int iy_pw = iy - border_width[1];
+        if (iy < border_width[1])
+          iy_pw += npts_pw[1];
+        if (iy >= npts_pw[1] + border_width[1])
+          iy_pw -= npts_pw[1];
+        for (int ix = 0; ix < npts_rs[0]; ix++) {
+          //
+          int ix_pw = iz - border_width[2];
+          if (ix < border_width[0])
+            ix_pw += npts_pw[0];
+          if (ix >= npts_pw[0] + border_width[0])
+            ix_pw -= npts_pw[0];
+          grid_rs[iz * npts_rs[0] * npts_rs[1] + iy * npts_rs[0] + ix] =
+              grid_pw[iz_pw * npts_pw[1] * npts_pw[2] + iy_pw * npts_pw[0] +
+                      ix_pw];
+        }
+      }
     }
   }
 }
