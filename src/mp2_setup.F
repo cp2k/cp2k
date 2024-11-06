@@ -200,6 +200,8 @@ CONTAINS
                                 r_val=mp2_env%bse%bse_cutoff_empty)
       CALL section_vals_val_get(bse_section, "NUM_PRINT_EXC", &
                                 i_val=mp2_env%bse%num_print_exc)
+      CALL section_vals_val_get(bse_section, "NUM_PRINT_EXC_DESCR", &
+                                i_val=mp2_env%bse%num_print_exc_descr)
       CALL section_vals_val_get(bse_section, "EPS_X", &
                                 r_val=mp2_env%bse%eps_x)
       CALL section_vals_val_get(bse_section, "BSE_ITERAT%DAVIDSON_ABORT_COND", &

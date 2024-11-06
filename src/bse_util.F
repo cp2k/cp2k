@@ -24,29 +24,26 @@ MODULE bse_util
    USE cp_dbcsr_operations,             ONLY: cp_dbcsr_sm_fm_multiply,&
                                               dbcsr_allocate_matrix_set,&
                                               dbcsr_deallocate_matrix_set
-   USE cp_files,                        ONLY: close_file,&
-                                              open_file
-   USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add,&
-                                              cp_fm_upper_to_full
+   USE cp_fm_basic_linalg,              ONLY: cp_fm_upper_to_full
    USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose,&
                                               cp_fm_cholesky_invert
-   USE cp_fm_diag,                      ONLY: cp_fm_svd
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: &
-        cp_fm_create, cp_fm_get_info, cp_fm_get_submatrix, cp_fm_release, cp_fm_set_all, &
-        cp_fm_to_fm, cp_fm_to_fm_submat, cp_fm_to_fm_submat_general, cp_fm_type
+   USE cp_fm_types,                     ONLY: cp_fm_create,&
+                                              cp_fm_get_info,&
+                                              cp_fm_release,&
+                                              cp_fm_set_all,&
+                                              cp_fm_to_fm_submat,&
+                                              cp_fm_to_fm_submat_general,&
+                                              cp_fm_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
-                                              cp_logger_get_default_unit_nr,&
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                               cp_print_key_unit_nr
    USE cp_realspace_grid_cube,          ONLY: cp_pw_to_cube
    USE input_constants,                 ONLY: use_mom_ref_coac
-   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
-                                              section_vals_type,&
-                                              section_vals_val_get
+   USE input_section_types,             ONLY: section_vals_type
    USE kinds,                           ONLY: default_path_length,&
                                               dp,&
                                               int_8
@@ -69,10 +66,7 @@ MODULE bse_util
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_kind_types,                   ONLY: qs_kind_type
-   USE qs_mo_types,                     ONLY: allocate_mo_set,&
-                                              deallocate_mo_set,&
-                                              get_mo_set,&
-                                              init_mo_set,&
+   USE qs_mo_types,                     ONLY: get_mo_set,&
                                               mo_set_type
    USE qs_moments,                      ONLY: build_local_moment_matrix
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
@@ -92,8 +86,8 @@ MODULE bse_util
    PUBLIC :: mult_B_with_W, fm_general_add_bse, truncate_fm, &
              deallocate_matrices_bse, comp_eigvec_coeff_BSE, sort_excitations, &
              estimate_BSE_resources, filter_eigvec_contrib, truncate_BSE_matrices, &
-             get_oscillator_strengths, compute_absorption_spectrum, determine_cutoff_indices, &
-             calculate_NTOs, adapt_BSE_input_params, get_dipoles_mo
+             determine_cutoff_indices, adapt_BSE_input_params, get_multipoles_mo, &
+             reshuffle_eigvec, print_bse_nto_cubes
 
 CONTAINS
 
@@ -1325,668 +1319,6 @@ CONTAINS
    END SUBROUTINE truncate_BSE_matrices
 
 ! **************************************************************************************************
-!> \brief Compute and return BSE dipoles d_r^n = sqrt(2) sum_ia < ψ_i | r | ψ_a > ( X_ia^n + Y_ia^n )
-!>    and oscillator strengths f^n = 2/3 * Ω^n sum_r∈(x,y,z) ( d_r^n )^2
-!>    Prelim Ref.: Eqs. (23), (24)
-!>    in J. Chem. Phys. 152, 044105 (2020); https://doi.org/10.1063/1.5123290
-!> \param fm_eigvec_X ...
-!> \param Exc_ens ...
-!> \param fm_dipole_ai_trunc ...
-!> \param trans_mom_bse BSE dipole vectors in real space per excitation level
-!> \param oscill_str Oscillator strength per excitation level
-!> \param polarizability_residues Residues of polarizability ("tensorial oscillator strength")
-!>          per excitation level
-!> \param mp2_env ...
-!> \param homo_red ...
-!> \param virtual_red ...
-!> \param unit_nr ...
-!> \param fm_eigvec_Y ...
-! **************************************************************************************************
-   SUBROUTINE get_oscillator_strengths(fm_eigvec_X, Exc_ens, fm_dipole_ai_trunc, &
-                                       trans_mom_bse, oscill_str, polarizability_residues, &
-                                       mp2_env, homo_red, virtual_red, unit_nr, &
-                                       fm_eigvec_Y)
-
-      TYPE(cp_fm_type), INTENT(IN)                       :: fm_eigvec_X
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
-         INTENT(IN)                                      :: Exc_ens
-      TYPE(cp_fm_type), DIMENSION(3)                     :: fm_dipole_ai_trunc
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
-         INTENT(OUT)                                     :: trans_mom_bse
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
-         INTENT(OUT)                                     :: oscill_str
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
-         INTENT(OUT)                                     :: polarizability_residues
-      TYPE(mp2_type), INTENT(IN)                         :: mp2_env
-      INTEGER, INTENT(IN)                                :: homo_red, virtual_red, unit_nr
-      TYPE(cp_fm_type), INTENT(IN), OPTIONAL             :: fm_eigvec_Y
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'get_oscillator_strengths'
-
-      INTEGER                                            :: handle, idir, jdir, n
-      TYPE(cp_fm_struct_type), POINTER :: fm_struct_dipole_MO_trunc_reordered, &
-         fm_struct_trans_mom_bse
-      TYPE(cp_fm_type)                                   :: fm_eigvec_XYsum
-      TYPE(cp_fm_type), DIMENSION(3)                     :: fm_dipole_MO_trunc_reordered, &
-                                                            fm_dipole_per_dir, fm_trans_mom_bse
-
-      CALL timeset(routineN, handle)
-
-      CALL cp_fm_struct_create(fm_struct_dipole_MO_trunc_reordered, fm_eigvec_X%matrix_struct%para_env, &
-                               fm_eigvec_X%matrix_struct%context, 1, homo_red*virtual_red)
-      CALL cp_fm_struct_create(fm_struct_trans_mom_bse, fm_eigvec_X%matrix_struct%para_env, &
-                               fm_eigvec_X%matrix_struct%context, 1, homo_red*virtual_red)
-
-      ! Include excitonic amplitudes in dipoles, i.e. obtain "BSE dipoles":
-      ! \vec{D}_n = sqrt(2) * sum_{i,a} \vec{D}_ai (X_{ai}^{(n)} + Y_{ai}^{(n)})
-
-      ! Reorder dipoles in order to execute the sum over i and a by parallel gemm
-      DO idir = 1, 3
-         CALL cp_fm_create(fm_dipole_MO_trunc_reordered(idir), matrix_struct=fm_struct_dipole_MO_trunc_reordered, &
-                           name="dipoles_mo_reordered")
-         CALL cp_fm_set_all(fm_dipole_MO_trunc_reordered(idir), 0.0_dp)
-         CALL fm_general_add_bse(fm_dipole_MO_trunc_reordered(idir), fm_dipole_ai_trunc(idir), 1.0_dp, &
-                                 1, 1, &
-                                 1, virtual_red, &
-                                 unit_nr, (/2, 4, 3, 1/), mp2_env)
-         CALL cp_fm_release(fm_dipole_per_dir(idir))
-      END DO
-
-      DO idir = 1, 3
-         CALL cp_fm_create(fm_trans_mom_bse(idir), matrix_struct=fm_struct_trans_mom_bse, &
-                           name="excitonic_dipoles")
-         CALL cp_fm_set_all(fm_trans_mom_bse(idir), 0.0_dp)
-      END DO
-
-      ! If TDA is invoked, Y is not present as it is simply 0
-      CALL cp_fm_create(fm_eigvec_XYsum, matrix_struct=fm_eigvec_X%matrix_struct, name="excit_amplitude_sum")
-      CALL cp_fm_set_all(fm_eigvec_XYsum, 0.0_dp)
-      CALL cp_fm_to_fm(fm_eigvec_X, fm_eigvec_XYsum)
-      IF (PRESENT(fm_eigvec_Y)) THEN
-         CALL cp_fm_scale_and_add(1.0_dp, fm_eigvec_XYsum, 1.0_dp, fm_eigvec_Y)
-      END IF
-      DO idir = 1, 3
-         CALL parallel_gemm('N', 'N', 1, homo_red*virtual_red, homo_red*virtual_red, SQRT(2.0_dp), &
-                            fm_dipole_MO_trunc_reordered(idir), fm_eigvec_XYsum, 0.0_dp, fm_trans_mom_bse(idir))
-      END DO
-
-      ! Get oscillator strengths themselves
-      ALLOCATE (oscill_str(homo_red*virtual_red))
-      ALLOCATE (trans_mom_bse(3, 1, homo_red*virtual_red))
-      ALLOCATE (polarizability_residues(3, 3, homo_red*virtual_red))
-      trans_mom_bse(:, :, :) = 0.0_dp
-
-      ! Sum over all directions
-      DO idir = 1, 3
-         CALL cp_fm_get_submatrix(fm_trans_mom_bse(idir), trans_mom_bse(idir, :, :))
-      END DO
-
-      DO n = 1, homo_red*virtual_red
-         DO idir = 1, 3
-            DO jdir = 1, 3
-               polarizability_residues(idir, jdir, n) = 2.0_dp*Exc_ens(n)*trans_mom_bse(idir, 1, n)*trans_mom_bse(jdir, 1, n)
-            END DO
-         END DO
-         oscill_str(n) = 2.0_dp/3.0_dp*Exc_ens(n)*SUM(ABS(trans_mom_bse(:, :, n))**2)
-      END DO
-
-      CALL cp_fm_struct_release(fm_struct_dipole_MO_trunc_reordered)
-      CALL cp_fm_struct_release(fm_struct_trans_mom_bse)
-      DO idir = 1, 3
-         CALL cp_fm_release(fm_dipole_MO_trunc_reordered(idir))
-         CALL cp_fm_release(fm_trans_mom_bse(idir))
-         CALL cp_fm_release(fm_dipole_ai_trunc(idir))
-      END DO
-      CALL cp_fm_release(fm_eigvec_XYsum)
-
-      CALL timestop(handle)
-
-   END SUBROUTINE get_oscillator_strengths
-
-! **************************************************************************************************
-!> \brief Computes and returns dipole in MO basis, i.e. < ψ_i | r | ψ_a >
-!> \param fm_dipole_ai_trunc Dipoles in x/y/z direction with truncated BSE indices i and a
-!> \param qs_env ...
-!> \param mo_coeff mo_coeff in layout nao x nao from mp2, i.e. all occ and virt indices in both axes
-!> \param homo_red ...
-!> \param virtual_red ...
-!> \param context_BSE ...
-! **************************************************************************************************
-   SUBROUTINE get_dipoles_mo(fm_dipole_ai_trunc, qs_env, mo_coeff, &
-                             homo_red, virtual_red, context_BSE)
-
-      TYPE(cp_fm_type), DIMENSION(3), INTENT(INOUT)      :: fm_dipole_ai_trunc
-      TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: mo_coeff
-      INTEGER, INTENT(IN)                                :: homo_red, virtual_red
-      TYPE(cp_blacs_env_type), POINTER                   :: context_BSE
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'get_dipoles_mo'
-
-      INTEGER                                            :: handle, idir, n_occ, n_virt, nao
-      REAL(dp), ALLOCATABLE, DIMENSION(:)                :: rpoint
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: ref_point
-      TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_dipoles_ao, &
-                                                            fm_struct_dipoles_trunc, &
-                                                            fm_struct_nao_nao
-      TYPE(cp_fm_type)                                   :: fm_dip_intermed
-      TYPE(cp_fm_type), DIMENSION(3)                     :: fm_dipole_per_dir
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_r, matrix_s
-      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
-      TYPE(mp_para_env_type), POINTER                    :: para_env_BSE
-      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
-         POINTER                                         :: sab_orb
-
-      CALL timeset(routineN, handle)
-
-      !First, we calculate the AO dipoles
-      NULLIFY (sab_orb, matrix_s)
-      CALL get_qs_env(qs_env, &
-                      mos=mos, &
-                      matrix_s=matrix_s, &
-                      sab_orb=sab_orb)
-
-      ! Use the same blacs environment as for the MO coefficients to ensure correct multiplication dbcsr x fm later on
-      fm_struct_dipoles_ao => mos(1)%mo_coeff%matrix_struct
-      ! BSE has different contexts and blacsenvs
-      para_env_BSE => context_BSE%para_env
-
-      NULLIFY (matrix_r)
-      CALL dbcsr_allocate_matrix_set(matrix_r, 3)
-      DO idir = 1, 3
-         CALL dbcsr_init_p(matrix_r(idir)%matrix)
-         CALL dbcsr_create(matrix_r(idir)%matrix, name="DIPOLE MATRIX X/Y/Z", &
-                           template=matrix_s(1)%matrix, matrix_type=dbcsr_type_symmetric)
-         CALL cp_dbcsr_alloc_block_from_nbl(matrix_r(idir)%matrix, sab_orb)
-         CALL dbcsr_set(matrix_r(idir)%matrix, 0._dp)
-      END DO
-
-      ALLOCATE (rpoint(3))
-      CALL get_reference_point(rpoint, qs_env=qs_env, reference=use_mom_ref_coac, ref_point=ref_point)
-
-      CALL build_local_moment_matrix(qs_env, matrix_r, 1, ref_point=rpoint)
-      DEALLOCATE (rpoint)
-      NULLIFY (sab_orb)
-
-      ! Now we transform them to MO
-      ! n_occ is the number of occupied MOs, nao the number of all AOs
-      ! Writing homo to n_occ instead if nmo,
-      ! takes care of ADDED_MOS, which would overwrite nmo, if invoked
-      CALL get_mo_set(mo_set=mos(1), homo=n_occ, nao=nao)
-      n_virt = nao - n_occ
-
-      ! At the end, we need four different layouts of matrices in this multiplication:
-      ! D_pq = full dipole matrix for occupied and unoccupied
-      ! Final result:D_pq= C_{mu p}        <\mu|\vec{r}|\nu>        C_{\nu q}              EQ.I
-      !                   \_______/         \___________/          \______/
-      !                    fm_coeff            matrix_r              fm_coeff
-      !                    (EQ.Ia)             (EQ.Ib)              (EQ.Ia)
-      ! Intermediate work matrices:
-      ! fm_dip_intermed =                 <\mu|\vec{r}|\nu>        C_{\nu q}              EQ.II
-
-      ! Struct for the full dipole matrix
-      CALL cp_fm_struct_create(fm_struct_nao_nao, &
-                               fm_struct_dipoles_ao%para_env, fm_struct_dipoles_ao%context, &
-                               nao, nao)
-
-      ! At the very end, we copy the dipoles corresponding to truncated BSE indices in i and a
-      CALL cp_fm_struct_create(fm_struct_dipoles_trunc, para_env_BSE, &
-                               context_BSE, virtual_red, homo_red)
-      DO idir = 1, 3
-         CALL cp_fm_create(fm_dipole_ai_trunc(idir), matrix_struct=fm_struct_dipoles_trunc, &
-                           name="dipoles_mo_trunc")
-         CALL cp_fm_set_all(fm_dipole_ai_trunc(idir), 0.0_dp)
-      END DO
-
-      ! Need another temporary matrix to store intermediate result from right multiplication
-      ! D = C_{mu a}        <\mu|\vec{r}|\nu>        C_{\nu i}
-      CALL cp_fm_create(fm_dip_intermed, matrix_struct=fm_struct_nao_nao, name="dip_intermed")
-      CALL cp_fm_set_all(fm_dip_intermed, 0.0_dp)
-
-      DO idir = 1, 3
-         ! Create the full dipole matrix per direction
-         CALL cp_fm_create(fm_dipole_per_dir(idir), matrix_struct=fm_struct_nao_nao, name="dipoles_mo")
-         CALL cp_fm_set_all(fm_dipole_per_dir(idir), 0.0_dp)
-         ! Fill final (MO) dipole matrix
-         ! Specifying beta=1.0_dp would sum up all directions
-         CALL cp_dbcsr_sm_fm_multiply(matrix_r(idir)%matrix, mo_coeff(1), &
-                                      fm_dip_intermed, ncol=nao)
-         ! Now obtain the dipoles by the final multiplication;
-         ! We do that inside the loop to obtain dipoles per axis for print
-         CALL parallel_gemm('T', 'N', nao, nao, nao, 1.0_dp, mo_coeff(1), fm_dip_intermed, 0.0_dp, fm_dipole_per_dir(idir))
-         ! Truncate full matrix to the BSE indices
-         CALL cp_fm_to_fm_submat_general(fm_dipole_per_dir(idir), &
-                                         fm_dipole_ai_trunc(idir), &
-                                         virtual_red, &
-                                         homo_red, &
-                                         n_occ + 1, &
-                                         n_occ - homo_red + 1, &
-                                         1, &
-                                         1, &
-                                         fm_dipole_per_dir(idir)%matrix_struct%context)
-      END DO
-
-      !Release matrices and structs
-      NULLIFY (fm_struct_dipoles_ao)
-      CALL cp_fm_struct_release(fm_struct_dipoles_trunc)
-      CALL cp_fm_struct_release(fm_struct_nao_nao)
-      DO idir = 1, 3
-         CALL cp_fm_release(fm_dipole_per_dir(idir))
-      END DO
-      CALL cp_fm_release(fm_dip_intermed)
-      CALL dbcsr_deallocate_matrix_set(matrix_r)
-
-      CALL timestop(handle)
-
-   END SUBROUTINE get_dipoles_mo
-
-! **************************************************************************************************
-!> \brief Computes and returns absorption spectrum for the frequency range and broadening
-!>    provided by the user.
-!>    Prelim Ref.: C. Ullrich, Time-Dependent Density-Functional Theory: Concepts and Applications
-!>    (Oxford University Press, Oxford, 2012), Eq. 7.51
-!> \param oscill_str ...
-!> \param polarizability_residues ...
-!> \param Exc_ens ...
-!> \param info_approximation ...
-!> \param unit_nr ...
-!> \param mp2_env ...
-! **************************************************************************************************
-   SUBROUTINE compute_absorption_spectrum(oscill_str, polarizability_residues, Exc_ens, &
-                                          info_approximation, unit_nr, mp2_env)
-
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
-         INTENT(IN)                                      :: oscill_str
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
-         INTENT(IN)                                      :: polarizability_residues
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
-         INTENT(IN)                                      :: Exc_ens
-      CHARACTER(LEN=10)                                  :: info_approximation
-      INTEGER, INTENT(IN)                                :: unit_nr
-      TYPE(mp2_type), INTENT(INOUT)                      :: mp2_env
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_absorption_spectrum'
-
-      CHARACTER(LEN=10)                                  :: eta_str, width_eta_format_str
-      CHARACTER(LEN=30)                                  :: file_name_spectrum
-      INTEGER                                            :: handle, i, idir, j, jdir, k, num_steps, &
-                                                            unit_nr_file, width_eta
-      REAL(KIND=dp)                                      :: eta, freq_end, freq_start, freq_step, &
-                                                            omega
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: abs_spectrum
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: eta_list
-      TYPE(cp_logger_type), POINTER                      :: logger
-
-      CALL timeset(routineN, handle)
-
-      freq_step = mp2_env%bse%bse_spectrum_freq_step_size
-      freq_start = mp2_env%bse%bse_spectrum_freq_start
-      freq_end = mp2_env%bse%bse_spectrum_freq_end
-      eta_list => mp2_env%bse%bse_eta_spectrum_list
-
-      ! Calculate number of steps to fit given frequency range
-      num_steps = NINT((freq_end - freq_start)/freq_step) + 1
-
-      DO k = 1, SIZE(eta_list)
-         eta = eta_list(k)
-
-         ! Some magic to get a nice formatting of the eta value in filenames
-         width_eta = MAX(1, INT(LOG10(eta)) + 1) + 4
-         WRITE (width_eta_format_str, "(A2,I0,A3)") '(F', width_eta, '.3)'
-         WRITE (eta_str, width_eta_format_str) eta*evolt
-         ! Filename itself
-         file_name_spectrum = 'BSE'//TRIM(ADJUSTL(info_approximation))//'eta='//TRIM(eta_str)//'.spectrum'
-
-         ! First column is frequency in eV, second column is imaginary part of the trace of the polarizability
-         ! The following 9 columns are the entries of the polarizability tensor
-         ALLOCATE (abs_spectrum(num_steps, 11))
-         abs_spectrum(:, :) = 0.0_dp
-
-         ! Calculate the imaginary part of the mean dipole polarizability α_{avg}(ω)
-         ! which is given by (cf. C. Ullrichs Book on TDDFT, Eq. 7.51)
-         ! α_{avg}(ω) = \sum_{n=1}^{N_exc} \frac{f_n}{(ω+iη)² - (Ω^n)²}
-         ! and then the imaginary part is (in the limit η -> 0)
-         ! Im[α_{avg}(ω)] = \sum_{n=1}^{N_exc} f_n * η / ((ω - Ω^n)² + η²)
-         ! where f_n are the oscillator strengths and E_exc the excitation energies
-         DO i = 1, num_steps
-            omega = freq_start + (i - 1)*freq_step
-            abs_spectrum(i, 1) = omega
-            DO j = 1, SIZE(oscill_str)
-               abs_spectrum(i, 2) = abs_spectrum(i, 2) - oscill_str(j)* &
-                                    AIMAG(1/((omega + CMPLX(0.0, eta, kind=dp))**2 - Exc_ens(j)**2))
-               DO idir = 1, 3
-                  DO jdir = 1, 3
-                     abs_spectrum(i, 2 + (idir - 1)*3 + jdir) = abs_spectrum(i, 2 + (idir - 1)*3 + jdir) &
-                                                                - polarizability_residues(idir, jdir, j)* &
-                                                                AIMAG(1/((omega + CMPLX(0.0, eta, kind=dp))**2 - Exc_ens(j)**2))
-                  END DO
-               END DO
-            END DO
-         END DO
-
-         ! Print it to file
-         logger => cp_get_default_logger()
-         IF (logger%para_env%is_source()) THEN
-            unit_nr_file = cp_logger_get_default_unit_nr()
-         ELSE
-            unit_nr_file = -1
-         END IF
-
-         IF (unit_nr_file > 0) THEN
-            CALL open_file(file_name_spectrum, unit_number=unit_nr_file, &
-                           file_status="UNKNOWN", file_action="WRITE")
-            WRITE (unit_nr_file, '(A75,A6)') "# Imaginary part of polarizability from Bethe Salpeter equation for method ", &
-               TRIM(ADJUSTL(info_approximation))
-            WRITE (unit_nr_file, '(A20,1X,10(2X,A20,1X))') "#     Frequency (eV)", "Im{α_{avg}(ω)}", "Im{α_xx(ω)}", &
-               "Im{α_xy(ω)}", "Im{α_xz(ω)}", "Im{α_yx(ω)}", "Im{α_yy(ω)}", "Im{α_yz(ω)}", "Im{α_zx(ω)}", &
-               "Im{α_zy(ω)}", "Im{α_zz(ω)}"
-            DO i = 1, num_steps
-               WRITE (unit_nr_file, '(11(F20.8,1X))') abs_spectrum(i, 1)*evolt, abs_spectrum(i, 2:11)
-            END DO
-            CALL close_file(unit_nr_file)
-         END IF
-         DEALLOCATE (abs_spectrum)
-      END DO
-
-      IF (unit_nr > 0) THEN
-         WRITE (unit_nr, '(T2,A4)') 'BSE|'
-         WRITE (unit_nr, '(T2,A4,T7,A50,A)') &
-            'BSE|', "Printed optical absorption spectrum to local file ", file_name_spectrum
-         WRITE (unit_nr, '(T2,A4,T7,A50)') &
-            'BSE|', "using the Eq. 7.51 from C. Ullrichs Book on TDDFT:"
-         WRITE (unit_nr, '(T2,A4)') 'BSE|'
-         WRITE (unit_nr, '(T2,A4,T10,A73)') &
-            'BSE|', "Im{α_{avg}(ω)} = Im{\sum_{n=1}^{N_exc} \frac{f_n}{(ω+iη)² - (Ω^n)²}}"
-         WRITE (unit_nr, '(T2,A4)') 'BSE|'
-         WRITE (unit_nr, '(T2,A4,T7,A59)') &
-            'BSE|', "with oscillator strengths f_n and excitation energies Ω^n."
-         WRITE (unit_nr, '(T2,A4)') 'BSE|'
-      END IF
-
-      CALL timestop(handle)
-
-   END SUBROUTINE
-
-! **************************************************************************************************
-!> \brief ...
-!> \param fm_X ...
-!> \param fm_Y ...
-!> \param mo_coeff ...
-!> \param homo ...
-!> \param virtual ...
-!> \param info_approximation ...
-!> \param oscill_str ...
-!> \param qs_env ...
-!> \param unit_nr ...
-!> \param mp2_env ...
-! **************************************************************************************************
-   SUBROUTINE calculate_NTOs(fm_X, fm_Y, &
-                             mo_coeff, homo, virtual, &
-                             info_approximation, &
-                             oscill_str, &
-                             qs_env, unit_nr, mp2_env)
-
-      TYPE(cp_fm_type), INTENT(IN)                       :: fm_X
-      TYPE(cp_fm_type), INTENT(IN), OPTIONAL             :: fm_Y
-      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: mo_coeff
-      INTEGER, INTENT(IN)                                :: homo, virtual
-      CHARACTER(LEN=10)                                  :: info_approximation
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: oscill_str
-      TYPE(qs_environment_type), POINTER                 :: qs_env
-      INTEGER, INTENT(IN)                                :: unit_nr
-      TYPE(mp2_type), INTENT(INOUT)                      :: mp2_env
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'calculate_NTOs'
-
-      CHARACTER(LEN=20), DIMENSION(2)                    :: nto_name
-      INTEGER                                            :: handle, homo_irred, i, i_nto, info_svd, &
-                                                            j, n_exc, n_nto, nao_full, nao_trunc
-      INTEGER, DIMENSION(:), POINTER                     :: stride
-      LOGICAL                                            :: append_cube, cube_file
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigval_svd_squ
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: eigval_svd
-      TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_m, fm_struct_mo_coeff, &
-                                                            fm_struct_nto_holes, &
-                                                            fm_struct_nto_particles, &
-                                                            fm_struct_nto_set
-      TYPE(cp_fm_type) :: fm_eigvl, fm_eigvr_t, fm_m, fm_mo_coeff, fm_nto_coeff_holes, &
-         fm_nto_coeff_particles, fm_nto_set, fm_X_ia, fm_Y_ai
-      TYPE(mo_set_type), ALLOCATABLE, DIMENSION(:)       :: nto_set
-      TYPE(section_vals_type), POINTER                   :: bse_section, input, nto_section
-
-      CALL timeset(routineN, handle)
-      CALL get_qs_env(qs_env=qs_env, &
-                      input=input)
-      bse_section => section_vals_get_subs_vals(input, "DFT%XC%WF_CORRELATION%RI_RPA%GW%BSE")
-
-      nao_full = qs_env%mos(1)%nao
-      nao_trunc = homo + virtual
-      ! This is not influenced by the BSE cutoff
-      homo_irred = qs_env%mos(1)%homo
-      ! M will have a block structure and is quadratic in homo+virtual, i.e.
-      !                          occ   virt
-      !                       |   0    X_i,a |  occ  = homo
-      !     M        =        | Y_a,i    0   |  virt = virtual
-      !
-      ! X and Y are here not the eigenvectors X_ia,n - instead we fix n and reshape the combined ia index
-      ! Notice the index structure of the lower block, i.e. X is transposed
-      CALL cp_fm_struct_create(fm_struct_m, &
-                               fm_X%matrix_struct%para_env, fm_X%matrix_struct%context, &
-                               nao_trunc, nao_trunc)
-      CALL cp_fm_struct_create(fm_struct_mo_coeff, &
-                               fm_X%matrix_struct%para_env, fm_X%matrix_struct%context, &
-                               nao_full, nao_trunc)
-      CALL cp_fm_struct_create(fm_struct_nto_holes, &
-                               fm_X%matrix_struct%para_env, fm_X%matrix_struct%context, &
-                               nao_full, nao_trunc)
-      CALL cp_fm_struct_create(fm_struct_nto_particles, &
-                               fm_X%matrix_struct%para_env, fm_X%matrix_struct%context, &
-                               nao_full, nao_trunc)
-
-      CALL cp_fm_create(fm_mo_coeff, matrix_struct=fm_struct_mo_coeff, &
-                        name="mo_coeff")
-      ! Here, we take care of possible cutoffs
-      ! Simply truncating the matrix causes problems with the print function
-      ! Therefore, we keep the dimension, but set the coefficients of truncated indices to 0
-      CALL cp_fm_to_fm_submat_general(mo_coeff(1), fm_mo_coeff, &
-                                      nao_full, nao_trunc, &
-                                      1, homo_irred - homo + 1, &
-                                      1, 1, &
-                                      mo_coeff(1)%matrix_struct%context)
-
-      ! Print some information about the NTOs
-      IF (unit_nr > 0) THEN
-         WRITE (unit_nr, '(T2,A4)') 'BSE|'
-         WRITE (unit_nr, '(T2,A4,T7,A62)') 'BSE|', "The Natural Transition Orbitals (NTOs) are calculated with the"
-         WRITE (unit_nr, '(T2,A4,T7,A19)') 'BSE|', "following settings:"
-         WRITE (unit_nr, '(T2,A4,T7,A21,T71,I10)') 'BSE|', 'Number of excitations', &
-            mp2_env%bse%num_print_exc_ntos
-         WRITE (unit_nr, '(T2,A4)') 'BSE|'
-         IF (mp2_env%bse%eps_nto_osc_str > 0.0_dp) THEN
-            WRITE (unit_nr, '(T2,A4,T7,A33,T71,F10.3)') 'BSE|', 'Threshold for oscillator strength', &
-               mp2_env%bse%eps_nto_osc_str
-         ELSE
-            WRITE (unit_nr, '(T2,A4,T7,A33,T71,A10)') 'BSE|', 'Threshold for oscillator strength', &
-               ADJUSTL("---")
-         END IF
-         WRITE (unit_nr, '(T2,A4,T7,A29,T71,F10.3)') 'BSE|', 'Threshold for NTO eigenvalues', &
-            mp2_env%bse%eps_nto_eigval
-         WRITE (unit_nr, '(T2,A4)') 'BSE|'
-      END IF
-
-      ! Write the header of NTO info table
-      IF (unit_nr > 0) THEN
-         WRITE (unit_nr, '(T2,A4)') 'BSE|'
-         WRITE (unit_nr, '(T2,A4,T8,A12,T22,A8,T35,A12,T55,A26)') 'BSE|', &
-            'Excitation n', "TDA/ABBA", "Index of NTO", 'Contribution to excitation'
-      END IF
-
-      DO j = 1, mp2_env%bse%num_print_exc_ntos
-         n_exc = mp2_env%bse%bse_nto_state_list_final(j)
-         ! Takes care of unallocated oscill_str array in case of Triplet
-         IF (mp2_env%bse%eps_nto_osc_str > 0.0_dp) THEN
-            ! Check actual values
-            IF (oscill_str(n_exc) < mp2_env%bse%eps_nto_osc_str) THEN
-               ! Print skipped levels to table
-               IF (unit_nr > 0) THEN
-                  WRITE (unit_nr, '(T2,A4)') 'BSE|'
-                  WRITE (unit_nr, '(T2,A4,T8,I12,T24,A6,T42,A39)') 'BSE|', &
-                     n_exc, info_approximation, "Skipped (Oscillator strength too small)"
-               END IF
-               CYCLE
-            END IF
-         END IF
-
-         CALL cp_fm_create(fm_m, matrix_struct=fm_struct_m, &
-                           name="single_part_trans_dm")
-         CALL cp_fm_set_all(fm_m, 0.0_dp)
-
-         CALL cp_fm_create(fm_nto_coeff_holes, matrix_struct=fm_struct_nto_holes, &
-                           name="nto_coeffs_holes")
-         CALL cp_fm_set_all(fm_nto_coeff_holes, 0.0_dp)
-
-         CALL cp_fm_create(fm_nto_coeff_particles, matrix_struct=fm_struct_nto_particles, &
-                           name="nto_coeffs_particles")
-         CALL cp_fm_set_all(fm_nto_coeff_particles, 0.0_dp)
-
-         ! Reshuffle from X_ia,n_exc to X_i,a
-         CALL reshuffle_eigvec(fm_X, fm_X_ia, homo, virtual, n_exc, &
-                               .FALSE., unit_nr, mp2_env)
-
-         ! Copy X to upper block in M, i.e. starting from column homo+1
-         CALL cp_fm_to_fm_submat(fm_X_ia, fm_m, &
-                                 homo, virtual, &
-                                 1, 1, &
-                                 1, homo + 1)
-         CALL cp_fm_release(fm_X_ia)
-         ! Copy Y if present
-         IF (PRESENT(fm_Y)) THEN
-            ! Reshuffle from Y_ia,n_exc to Y_a,i
-            CALL reshuffle_eigvec(fm_Y, fm_Y_ai, homo, virtual, n_exc, &
-                                  .TRUE., unit_nr, mp2_env)
-
-            ! Copy Y^T to lower block in M, i.e. starting from row homo+1
-            CALL cp_fm_to_fm_submat(fm_Y_ai, fm_m, &
-                                    virtual, homo, &
-                                    1, 1, &
-                                    homo + 1, 1)
-
-            CALL cp_fm_release(fm_Y_ai)
-
-         END IF
-
-         ! Now we compute the SVD of M_{occ+virt,occ+virt}, which yields
-         ! M = U * Lambda * V^T
-         info_svd = 0
-         CALL cp_fm_svd(fm_m, fm_eigvl, fm_eigvr_t, eigval_svd, info_svd)
-         IF (info_svd /= 0) THEN
-            IF (unit_nr > 0) THEN
-               CALL cp_warn(__LOCATION__, &
-                            "SVD for computation of NTOs not successful. "// &
-                            "Skipping print of NTOs.")
-               IF (info_svd > 0) THEN
-                  CALL cp_warn(__LOCATION__, &
-                               "PDGESVD detected heterogeneity. "// &
-                               "Decreasing number of MPI ranks might solve this issue.")
-               END IF
-            END IF
-            ! Release matrices to avoid memory leaks
-            CALL cp_fm_release(fm_m)
-            CALL cp_fm_release(fm_nto_coeff_holes)
-            CALL cp_fm_release(fm_nto_coeff_particles)
-         ELSE
-            ! Rescale singular values as done in Martin2003 (10.1063/1.1558471)
-            ALLOCATE (eigval_svd_squ(nao_trunc))
-            eigval_svd_squ(:) = eigval_svd(:)**2
-            ! In case of TDA, the sum should be 1
-            IF (.NOT. PRESENT(fm_Y)) THEN
-               IF (ABS(SUM(eigval_svd_squ) - 1) >= 1e-5) THEN
-                  CPWARN("Sum of NTO coefficients deviates from 1!")
-               END IF
-            END IF
-
-            ! Create NTO coefficients for later print to grid via TDDFT routine
-            ! Apply U = fm_eigvl to MO coeffs, which yields hole states
-            CALL parallel_gemm("N", "N", nao_full, nao_trunc, nao_trunc, 1.0_dp, fm_mo_coeff, fm_eigvl, 0.0_dp, &
-                               fm_nto_coeff_holes)
-
-            ! Apply V^T = fm_eigvr_t to MO coeffs, which yields particle states
-            CALL parallel_gemm("N", "T", nao_full, nao_trunc, nao_trunc, 1.0_dp, fm_mo_coeff, fm_eigvr_t, 0.0_dp, &
-                               fm_nto_coeff_particles)
-
-            !Release intermediary work matrices
-            CALL cp_fm_release(fm_m)
-            CALL cp_fm_release(fm_eigvl)
-            CALL cp_fm_release(fm_eigvr_t)
-
-            ! Transfer NTO coefficients to sets
-            nto_name(1) = 'Hole_coord'
-            nto_name(2) = 'Particle_coord'
-            ALLOCATE (nto_set(2))
-            ! Extract number of significant NTOs
-            n_nto = 0
-            DO i_nto = 1, nao_trunc
-               IF (eigval_svd_squ(i_nto) > mp2_env%bse%eps_nto_eigval) THEN
-                  n_nto = n_nto + 1
-               ELSE
-                  ! Since svd orders in descending order, we can exit the loop if smaller
-                  EXIT
-               END IF
-            END DO
-
-            IF (unit_nr > 0) THEN
-               WRITE (unit_nr, '(T2,A4)') 'BSE|'
-               DO i_nto = 1, n_nto
-                  WRITE (unit_nr, '(T2,A4,T8,I12,T24,A6,T41,I6,T71,F10.5)') 'BSE|', &
-                     n_exc, info_approximation, i_nto, eigval_svd_squ(i_nto)
-               END DO
-            END IF
-
-            CALL cp_fm_struct_create(fm_struct_nto_set, template_fmstruct=fm_struct_nto_holes, &
-                                     ncol_global=n_nto)
-            CALL cp_fm_create(fm_nto_set, fm_struct_nto_set)
-            DO i = 1, 2
-               CALL allocate_mo_set(nto_set(i), nao_trunc, n_nto, 0, 0.0_dp, 2.0_dp, 0.0_dp)
-               CALL init_mo_set(nto_set(i), fm_ref=fm_nto_set, name=nto_name(i))
-            END DO
-            CALL cp_fm_release(fm_nto_set)
-            CALL cp_fm_struct_release(fm_struct_nto_set)
-
-            ! Fill NTO sets
-            CALL cp_fm_to_fm(fm_nto_coeff_holes, nto_set(1)%mo_coeff, ncol=n_nto)
-            CALL cp_fm_to_fm(fm_nto_coeff_particles, nto_set(2)%mo_coeff, ncol=n_nto)
-
-            ! Cube files
-            nto_section => section_vals_get_subs_vals(bse_section, "NTO_ANALYSIS")
-            CALL section_vals_val_get(nto_section, "CUBE_FILES", l_val=cube_file)
-            CALL section_vals_val_get(nto_section, "STRIDE", i_vals=stride)
-            CALL section_vals_val_get(nto_section, "APPEND", l_val=append_cube)
-            IF (cube_file) THEN
-               CALL print_bse_nto_cubes(qs_env, nto_set, n_exc, info_approximation, &
-                                        stride, append_cube, nto_section)
-            END IF
-
-            CALL cp_fm_release(fm_nto_coeff_holes)
-            CALL cp_fm_release(fm_nto_coeff_particles)
-            DEALLOCATE (eigval_svd)
-            DEALLOCATE (eigval_svd_squ)
-            DO i = 1, 2
-               CALL deallocate_mo_set(nto_set(i))
-            END DO
-            DEALLOCATE (nto_set)
-         END IF
-      END DO
-
-      CALL cp_fm_release(fm_mo_coeff)
-      CALL cp_fm_struct_release(fm_struct_m)
-      CALL cp_fm_struct_release(fm_struct_nto_holes)
-      CALL cp_fm_struct_release(fm_struct_nto_particles)
-
-      CALL timestop(handle)
-
-   END SUBROUTINE calculate_NTOs
-
-! **************************************************************************************************
 !> \brief ...
 !> \param fm_eigvec ...
 !> \param fm_eigvec_reshuffled ...
@@ -2018,8 +1350,8 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       ! Define reordering:
-      ! (ia,11) to (a1,i1) for transposition of X
-      ! (ia,11) to (i1,a1) for Y
+      ! (ia,11) to (a1,i1) for transposition
+      ! (ia,11) to (i1,a1) for default
       IF (do_transpose) THEN
          reordering = (/2, 3, 1, 4/)
          my_n_row = virtual
@@ -2255,6 +1587,199 @@ CONTAINS
          mp2_env%bse%eps_nto_osc_str = -1.0_dp
       END IF
 
+      ! Take care of number for computed exciton descriptors
+      IF (mp2_env%bse%num_print_exc_descr < 0 .OR. &
+          mp2_env%bse%num_print_exc_descr > mp2_env%bse%num_print_exc) THEN
+         IF (unit_nr > 0) THEN
+            CALL cp_warn(__LOCATION__, &
+                         "Keyword NUM_PRINT_EXC_DESCR is either negative or too large. "// &
+                         "Printing exciton descriptors up to NUM_PRINT_EXC.")
+         END IF
+         mp2_env%bse%num_print_exc_descr = mp2_env%bse%num_print_exc
+      END IF
+
       CALL timestop(handle)
    END SUBROUTINE adapt_BSE_input_params
+
+! **************************************************************************************************
+
+! **************************************************************************************************
+!> \brief ...
+!> \param fm_multipole_ai_trunc ...
+!> \param fm_multipole_ij_trunc ...
+!> \param fm_multipole_ab_trunc ...
+!> \param qs_env ...
+!> \param mo_coeff ...
+!> \param rpoint ...
+!> \param n_moments ...
+!> \param homo_red ...
+!> \param virtual_red ...
+!> \param context_BSE ...
+! **************************************************************************************************
+   SUBROUTINE get_multipoles_mo(fm_multipole_ai_trunc, fm_multipole_ij_trunc, fm_multipole_ab_trunc, &
+                                qs_env, mo_coeff, rpoint, n_moments, &
+                                homo_red, virtual_red, context_BSE)
+
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:), &
+         INTENT(INOUT)                                   :: fm_multipole_ai_trunc, &
+                                                            fm_multipole_ij_trunc, &
+                                                            fm_multipole_ab_trunc
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: mo_coeff
+      REAL(dp), ALLOCATABLE, DIMENSION(:), INTENT(INOUT) :: rpoint
+      INTEGER, INTENT(IN)                                :: n_moments, homo_red, virtual_red
+      TYPE(cp_blacs_env_type), POINTER                   :: context_BSE
+
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'get_multipoles_mo'
+
+      INTEGER                                            :: handle, idir, n_multipole, n_occ, &
+                                                            n_virt, nao
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: ref_point
+      TYPE(cp_fm_struct_type), POINTER :: fm_struct_mp_ab_trunc, fm_struct_mp_ai_trunc, &
+         fm_struct_mp_ij_trunc, fm_struct_multipoles_ao, fm_struct_nao_nao
+      TYPE(cp_fm_type)                                   :: fm_work
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: fm_multipole_per_dir
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_multipole, matrix_s
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
+      TYPE(mp_para_env_type), POINTER                    :: para_env_BSE
+      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
+         POINTER                                         :: sab_orb
+
+      CALL timeset(routineN, handle)
+
+      !First, we calculate the AO dipoles
+      NULLIFY (sab_orb, matrix_s)
+      CALL get_qs_env(qs_env, &
+                      mos=mos, &
+                      matrix_s=matrix_s, &
+                      sab_orb=sab_orb)
+
+      ! Use the same blacs environment as for the MO coefficients to ensure correct multiplication dbcsr x fm later on
+      fm_struct_multipoles_ao => mos(1)%mo_coeff%matrix_struct
+      ! BSE has different contexts and blacsenvs
+      para_env_BSE => context_BSE%para_env
+      ! Get size of multipole tensor
+      n_multipole = (6 + 11*n_moments + 6*n_moments**2 + n_moments**3)/6 - 1
+      NULLIFY (matrix_multipole)
+      CALL dbcsr_allocate_matrix_set(matrix_multipole, n_multipole)
+      ALLOCATE (fm_multipole_per_dir(n_multipole))
+      DO idir = 1, n_multipole
+         CALL dbcsr_init_p(matrix_multipole(idir)%matrix)
+         CALL dbcsr_create(matrix_multipole(idir)%matrix, name="ao_multipole", &
+                           template=matrix_s(1)%matrix, matrix_type=dbcsr_type_symmetric)
+         CALL cp_dbcsr_alloc_block_from_nbl(matrix_multipole(idir)%matrix, sab_orb)
+         CALL dbcsr_set(matrix_multipole(idir)%matrix, 0._dp)
+      END DO
+
+      CALL get_reference_point(rpoint, qs_env=qs_env, reference=use_mom_ref_coac, ref_point=ref_point)
+
+      CALL build_local_moment_matrix(qs_env, matrix_multipole, n_moments, ref_point=rpoint)
+
+      NULLIFY (sab_orb)
+
+      ! Now we transform them to MO
+      ! n_occ is the number of occupied MOs, nao the number of all AOs
+      ! Writing homo to n_occ instead if nmo,
+      ! takes care of ADDED_MOS, which would overwrite nmo, if invoked
+      CALL get_mo_set(mo_set=mos(1), homo=n_occ, nao=nao)
+      n_virt = nao - n_occ
+
+      ! At the end, we need four different layouts of matrices in this multiplication, e.g. for a dipole:
+      ! D_pq = full multipole matrix for occupied and unoccupied
+      ! Final result:D_pq= C_{mu p}        <\mu|\vec{r}|\nu>        C_{\nu q}              EQ.I
+      !                   \_______/         \___________/          \______/
+      !                    fm_coeff            matrix_multipole              fm_coeff
+      !                    (EQ.Ia)             (EQ.Ib)              (EQ.Ia)
+      ! Intermediate work matrices:
+      ! fm_work =                 <\mu|\vec{r}|\nu>        C_{\nu q}              EQ.II
+
+      ! Struct for the full multipole matrix
+      CALL cp_fm_struct_create(fm_struct_nao_nao, &
+                               fm_struct_multipoles_ao%para_env, fm_struct_multipoles_ao%context, &
+                               nao, nao)
+
+      ! At the very end, we copy the multipoles corresponding to truncated BSE indices in i and a
+      CALL cp_fm_struct_create(fm_struct_mp_ai_trunc, para_env_BSE, &
+                               context_BSE, virtual_red, homo_red)
+      CALL cp_fm_struct_create(fm_struct_mp_ij_trunc, para_env_BSE, &
+                               context_BSE, homo_red, homo_red)
+      CALL cp_fm_struct_create(fm_struct_mp_ab_trunc, para_env_BSE, &
+                               context_BSE, virtual_red, virtual_red)
+      DO idir = 1, n_multipole
+         CALL cp_fm_create(fm_multipole_ai_trunc(idir), matrix_struct=fm_struct_mp_ai_trunc, &
+                           name="dipoles_mo_ai_trunc")
+         CALL cp_fm_set_all(fm_multipole_ai_trunc(idir), 0.0_dp)
+         CALL cp_fm_create(fm_multipole_ij_trunc(idir), matrix_struct=fm_struct_mp_ij_trunc, &
+                           name="dipoles_mo_ij_trunc")
+         CALL cp_fm_set_all(fm_multipole_ij_trunc(idir), 0.0_dp)
+         CALL cp_fm_create(fm_multipole_ab_trunc(idir), matrix_struct=fm_struct_mp_ab_trunc, &
+                           name="dipoles_mo_ab_trunc")
+         CALL cp_fm_set_all(fm_multipole_ab_trunc(idir), 0.0_dp)
+      END DO
+
+      ! Need another temporary matrix to store intermediate result from right multiplication
+      ! D = C_{mu a}        <\mu|\vec{r}|\nu>        C_{\nu i}
+      CALL cp_fm_create(fm_work, matrix_struct=fm_struct_nao_nao, name="multipole_work")
+      CALL cp_fm_set_all(fm_work, 0.0_dp)
+
+      DO idir = 1, n_multipole
+         ! Create the full multipole matrix per direction
+         CALL cp_fm_create(fm_multipole_per_dir(idir), matrix_struct=fm_struct_nao_nao, name="multipoles_mo")
+         CALL cp_fm_set_all(fm_multipole_per_dir(idir), 0.0_dp)
+         ! Fill final (MO) multipole matrix
+         CALL cp_dbcsr_sm_fm_multiply(matrix_multipole(idir)%matrix, mo_coeff(1), &
+                                      fm_work, ncol=nao)
+         ! Now obtain the multipoles by the final multiplication;
+         ! We do that inside the loop to obtain multipoles per axis for print
+         CALL parallel_gemm('T', 'N', nao, nao, nao, 1.0_dp, mo_coeff(1), fm_work, 0.0_dp, fm_multipole_per_dir(idir))
+         ! Truncate full matrix to the BSE indices
+         ! D_ai
+         CALL cp_fm_to_fm_submat_general(fm_multipole_per_dir(idir), &
+                                         fm_multipole_ai_trunc(idir), &
+                                         virtual_red, &
+                                         homo_red, &
+                                         n_occ + 1, &
+                                         n_occ - homo_red + 1, &
+                                         1, &
+                                         1, &
+                                         fm_multipole_per_dir(idir)%matrix_struct%context)
+         ! D_ij
+         CALL cp_fm_to_fm_submat_general(fm_multipole_per_dir(idir), &
+                                         fm_multipole_ij_trunc(idir), &
+                                         homo_red, &
+                                         homo_red, &
+                                         n_occ - homo_red + 1, &
+                                         n_occ - homo_red + 1, &
+                                         1, &
+                                         1, &
+                                         fm_multipole_per_dir(idir)%matrix_struct%context)
+         ! D_ab
+         CALL cp_fm_to_fm_submat_general(fm_multipole_per_dir(idir), &
+                                         fm_multipole_ab_trunc(idir), &
+                                         virtual_red, &
+                                         virtual_red, &
+                                         n_occ + 1, &
+                                         n_occ + 1, &
+                                         1, &
+                                         1, &
+                                         fm_multipole_per_dir(idir)%matrix_struct%context)
+      END DO
+
+      !Release matrices and structs
+      NULLIFY (fm_struct_multipoles_ao)
+      CALL cp_fm_struct_release(fm_struct_mp_ai_trunc)
+      CALL cp_fm_struct_release(fm_struct_mp_ij_trunc)
+      CALL cp_fm_struct_release(fm_struct_mp_ab_trunc)
+      CALL cp_fm_struct_release(fm_struct_nao_nao)
+      DO idir = 1, n_multipole
+         CALL cp_fm_release(fm_multipole_per_dir(idir))
+      END DO
+      DEALLOCATE (fm_multipole_per_dir)
+      CALL cp_fm_release(fm_work)
+      CALL dbcsr_deallocate_matrix_set(matrix_multipole)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE get_multipoles_mo
+
 END MODULE

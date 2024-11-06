@@ -1387,6 +1387,14 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="NUM_PRINT_EXC_DESCR", &
+                          description="Number of excitation levels for which the exciton "// &
+                          "descriptors are computed.", &
+                          usage="NUM_PRINT_EXC_DESCR 5", &
+                          default_i_val=0)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       CALL keyword_create(keyword, __LOCATION__, name="EPS_X", &
                           description="Threshold for printing contributions of singleparticle "// &
                           "transitions, i.e. elements of the eigenvectors $X_{ia}^{(n)}$ and $Y_{ia}^{(n)}$.", &

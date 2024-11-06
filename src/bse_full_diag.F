@@ -14,14 +14,17 @@
 MODULE bse_full_diag
 
    USE bse_print,                       ONLY: print_excitation_energies,&
+                                              print_exciton_descriptors,&
                                               print_optical_properties,&
                                               print_output_header,&
                                               print_transition_amplitudes
-   USE bse_util,                        ONLY: calculate_NTOs,&
-                                              comp_eigvec_coeff_BSE,&
-                                              fm_general_add_bse,&
-                                              get_dipoles_mo,&
+   USE bse_properties,                  ONLY: calculate_NTOs,&
+                                              exciton_descr_type,&
+                                              get_exciton_descriptors,&
                                               get_oscillator_strengths
+   USE bse_util,                        ONLY: comp_eigvec_coeff_BSE,&
+                                              fm_general_add_bse,&
+                                              get_multipoles_mo
    USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
                                               cp_blacs_env_release,&
                                               cp_blacs_env_type
@@ -472,6 +475,7 @@ CONTAINS
                          matrix_a=fm_sqrt_A_minus_B, matrix_b=fm_eigvec_Z, beta=0.0_dp, &
                          matrix_c=fm_mat_eigvec_transform_sum)
       CALL cp_fm_release(fm_sqrt_A_minus_B)
+      ! This normalizes the eigenvectors
       CALL comp_eigvec_coeff_BSE(fm_mat_eigvec_transform_sum, Exc_ens, -0.5_dp, gamma=2.0_dp, do_transpose=.TRUE.)
 
       ! Second, Eq. II from (A10) from Furche: (X-Y)_n = (Ω_n)^0.5 (A-B)^-0.5 T_n
@@ -482,6 +486,8 @@ CONTAINS
                          matrix_c=fm_mat_eigvec_transform_diff)
       CALL cp_fm_release(fm_inv_sqrt_A_minus_B)
       CALL cp_fm_release(fm_eigvec_Z)
+
+      ! This normalizes the eigenvectors
       CALL comp_eigvec_coeff_BSE(fm_mat_eigvec_transform_diff, Exc_ens, 0.5_dp, gamma=2.0_dp, do_transpose=.TRUE.)
 
       ! Now, we add the two equations to obtain X_n
@@ -596,11 +602,15 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'postprocess_bse'
 
       CHARACTER(LEN=10)                                  :: info_approximation, multiplet
-      INTEGER                                            :: handle, idir
+      INTEGER                                            :: handle, idir, n_moments_di, &
+                                                            n_moments_quad
       REAL(KIND=dp)                                      :: alpha
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: oscill_str
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: oscill_str, ref_point_multipole
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: polarizability_residues, trans_mom_bse
-      TYPE(cp_fm_type), DIMENSION(3)                     :: fm_dipole_ai_trunc
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:) :: fm_dipole_ab_trunc, fm_dipole_ai_trunc, &
+         fm_dipole_ij_trunc, fm_quadpole_ab_trunc, fm_quadpole_ai_trunc, fm_quadpole_ij_trunc
+      TYPE(exciton_descr_type), ALLOCATABLE, &
+         DIMENSION(:)                                    :: exc_descr
 
       CALL timeset(routineN, handle)
 
@@ -621,12 +631,32 @@ CONTAINS
          info_approximation = "-ABBA-"
       END IF
 
+      n_moments_di = 3
+      n_moments_quad = 9
       ! Compute BSE dipoles and oscillator strengths - Keep in memory for later usage
-      ! Need dipoles also for spatial expectation values, which a well-defined also for triplets
-
-      ! Obtain dipoles in MO basis with index structure n_virt x n_occ: \vec{D}_ai = <a|\vec{r}|i>
-      CALL get_dipoles_mo(fm_dipole_ai_trunc, qs_env, mo_coeff, &
-                          homo, virtual, fm_eigvec_X%matrix_struct%context)
+      ! Need dipoles also for spatial expectation values, which are well-defined also for triplets
+      ALLOCATE (fm_dipole_ij_trunc(n_moments_di))
+      ALLOCATE (fm_dipole_ab_trunc(n_moments_di))
+      ALLOCATE (fm_dipole_ai_trunc(n_moments_di))
+      ALLOCATE (ref_point_multipole(3))
+      ! Obtain dipoles in MO basis
+      CALL get_multipoles_mo(fm_dipole_ai_trunc, fm_dipole_ij_trunc, fm_dipole_ab_trunc, &
+                             qs_env, mo_coeff, ref_point_multipole, 1, &
+                             homo, virtual, fm_eigvec_X%matrix_struct%context)
+      ! Compute exciton descriptors from these multipoles for single excitation picture (TDA)
+      IF (flag_TDA .AND. mp2_env%bse%num_print_exc_descr > 0) THEN
+         ! Obtain quadrupoles in MO basis
+         ALLOCATE (fm_quadpole_ij_trunc(n_moments_quad))
+         ALLOCATE (fm_quadpole_ab_trunc(n_moments_quad))
+         ALLOCATE (fm_quadpole_ai_trunc(n_moments_quad))
+         CALL get_multipoles_mo(fm_quadpole_ai_trunc, fm_quadpole_ij_trunc, fm_quadpole_ab_trunc, &
+                                qs_env, mo_coeff, ref_point_multipole, 2, &
+                                homo, virtual, fm_eigvec_X%matrix_struct%context)
+         CALL get_exciton_descriptors(exc_descr, fm_eigvec_X, &
+                                      fm_dipole_ij_trunc, fm_dipole_ab_trunc, &
+                                      fm_quadpole_ij_trunc, fm_quadpole_ab_trunc, &
+                                      homo, virtual, unit_nr, mp2_env, qs_env)
+      END IF
 
       IF (mp2_env%bse%bse_spin_config == 0) THEN
          CALL get_oscillator_strengths(fm_eigvec_X, Exc_ens, fm_dipole_ai_trunc, &
@@ -649,8 +679,12 @@ CONTAINS
 
       ! Prints optical properties, if state is a singlet
       CALL print_optical_properties(Exc_ens, oscill_str, trans_mom_bse, polarizability_residues, &
-                                    homo, virtual, flag_TDA, &
+                                    homo, virtual, homo_irred, flag_TDA, &
                                     info_approximation, mp2_env, unit_nr)
+      ! Print exciton descriptors if TDA and keyword are invoked
+      IF (flag_TDA .AND. mp2_env%bse%num_print_exc_descr > 0) THEN
+         CALL print_exciton_descriptors(exc_descr, unit_nr, mp2_env)
+      END IF
 
       ! Compute and print excitation wavefunctions
       IF (mp2_env%bse%do_nto_analysis) THEN
@@ -667,9 +701,22 @@ CONTAINS
                              qs_env, unit_nr, mp2_env)
       END IF
 
-      DO idir = 1, 3
+      DO idir = 1, n_moments_di
          CALL cp_fm_release(fm_dipole_ai_trunc(idir))
+         CALL cp_fm_release(fm_dipole_ij_trunc(idir))
+         CALL cp_fm_release(fm_dipole_ab_trunc(idir))
       END DO
+      IF (flag_TDA .AND. mp2_env%bse%num_print_exc_descr > 0) THEN
+         DO idir = 1, n_moments_quad
+            CALL cp_fm_release(fm_quadpole_ai_trunc(idir))
+            CALL cp_fm_release(fm_quadpole_ij_trunc(idir))
+            CALL cp_fm_release(fm_quadpole_ab_trunc(idir))
+         END DO
+         DEALLOCATE (fm_quadpole_ai_trunc, fm_quadpole_ij_trunc, fm_quadpole_ab_trunc)
+         DEALLOCATE (exc_descr)
+      END IF
+      DEALLOCATE (fm_dipole_ai_trunc, fm_dipole_ij_trunc, fm_dipole_ab_trunc)
+      DEALLOCATE (ref_point_multipole)
       IF (mp2_env%bse%bse_spin_config == 0) THEN
          DEALLOCATE (oscill_str, trans_mom_bse, polarizability_residues)
       END IF

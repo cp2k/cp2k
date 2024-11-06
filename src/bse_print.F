@@ -6,20 +6,21 @@
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
-!> \brief Routines for the full diagonalization of GW + Bethe-Salpeter for computing
-!> electronic excitations
+!> \brief Routines for printing information in context of the BSE calculation
 !> \par History
-!>      10.2023 created [Maximilian Graml]
+!>      10.2024 created [Maximilian Graml]
 ! **************************************************************************************************
 MODULE bse_print
 
-   USE bse_util,                        ONLY: compute_absorption_spectrum,&
-                                              filter_eigvec_contrib
+   USE bse_properties,                  ONLY: compute_absorption_spectrum,&
+                                              exciton_descr_type
+   USE bse_util,                        ONLY: filter_eigvec_contrib
    USE cp_fm_types,                     ONLY: cp_fm_get_info,&
                                               cp_fm_type
    USE kinds,                           ONLY: dp
    USE mp2_types,                       ONLY: mp2_type
-   USE physcon,                         ONLY: evolt
+   USE physcon,                         ONLY: angstrom,&
+                                              evolt
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -29,7 +30,8 @@ MODULE bse_print
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'bse_print'
 
    PUBLIC :: print_BSE_start_flag, fm_write_thresh, print_excitation_energies, &
-             print_output_header, print_transition_amplitudes, print_optical_properties
+             print_output_header, print_transition_amplitudes, print_optical_properties, &
+             print_exciton_descriptors
 
 CONTAINS
 
@@ -297,18 +299,19 @@ CONTAINS
 !> \param polarizability_residues ...
 !> \param homo ...
 !> \param virtual ...
+!> \param homo_irred ...
 !> \param flag_TDA ...
 !> \param info_approximation ...
 !> \param mp2_env ...
 !> \param unit_nr ...
 ! **************************************************************************************************
    SUBROUTINE print_optical_properties(Exc_ens, oscill_str, trans_mom_bse, polarizability_residues, &
-                                       homo, virtual, flag_TDA, &
+                                       homo, virtual, homo_irred, flag_TDA, &
                                        info_approximation, mp2_env, unit_nr)
 
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: Exc_ens, oscill_str
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: trans_mom_bse, polarizability_residues
-      INTEGER, INTENT(IN)                                :: homo, virtual
+      INTEGER, INTENT(IN)                                :: homo, virtual, homo_irred
       LOGICAL, INTENT(IN)                                :: flag_TDA
       CHARACTER(LEN=10), INTENT(IN)                      :: info_approximation
       TYPE(mp2_type), INTENT(INOUT)                      :: mp2_env
@@ -331,15 +334,15 @@ CONTAINS
                'BSE|', "and oscillator strength f^n of excitation level n are obtained from"
             WRITE (unit_nr, '(T2,A4)') 'BSE|'
             IF (flag_TDA) THEN
-               WRITE (unit_nr, '(T2,A4,T10,A52)') &
-                  'BSE|', "d_r^n = sqrt(2) sum_ia < ψ_i | r | ψ_a >  X_ia^n"
+               WRITE (unit_nr, '(T2,A4,T10,A)') &
+                  'BSE|', "d_r^n = sum_ia < ψ_i | r | ψ_a >  X_ia^n"
             ELSE
-               WRITE (unit_nr, '(T2,A4,T10,A64)') &
-                  'BSE|', "d_r^n = sqrt(2) sum_ia < ψ_i | r | ψ_a > ( X_ia^n + Y_ia^n )"
+               WRITE (unit_nr, '(T2,A4,T10,A)') &
+                  'BSE|', "d_r^n = sum_ia < ψ_i | r | ψ_a > ( X_ia^n + Y_ia^n )"
             END IF
             WRITE (unit_nr, '(T2,A4)') 'BSE|'
             WRITE (unit_nr, '(T2,A4,T14,A44)') &
-               'BSE|', "f^n = 2/3 * Ω^n sum_r∈(x,y,z) ( d_r^n )^2"
+               'BSE|', "f^n = 2/3 * Ω^n sum_r∈(x,y,z) 2 ( d_r^n )^2"
             WRITE (unit_nr, '(T2,A4)') 'BSE|'
             WRITE (unit_nr, '(T2,A4,T7,A19)') &
                'BSE|', "where we introduced"
@@ -364,13 +367,29 @@ CONTAINS
                   'Optical properties from solving the BSE without the TDA:'
             END IF
             WRITE (unit_nr, '(T2,A4)') 'BSE|'
-            WRITE (unit_nr, '(T2,A4,T8,A12,T22,A8,T38,A5,T48,A5,T58,A5,T65,A16)') 'BSE|', &
-               'Excitation n', "TDA/ABBA", "d_x^n", "d_y^n", "d_z^n", 'Osc. strength'
+            WRITE (unit_nr, '(T2,A4,T8,A12,T22,A8,T38,A5,T48,A5,T58,A5,T62,A19)') 'BSE|', &
+               'Excitation n', "TDA/ABBA", "d_x^n", "d_y^n", "d_z^n", 'Osc. strength f^n'
             DO i_exc = 1, MIN(homo*virtual, mp2_env%bse%num_print_exc)
                WRITE (unit_nr, '(T2,A4,T8,I12,T24,A6,T35,F8.3,T45,F8.3,T55,F8.3,T65,F16.3)') &
                   'BSE|', i_exc, info_approximation, trans_mom_bse(1, 1, i_exc), trans_mom_bse(2, 1, i_exc), &
                   trans_mom_bse(3, 1, i_exc), oscill_str(i_exc)
             END DO
+            WRITE (unit_nr, '(T2,A4)') 'BSE|'
+            WRITE (unit_nr, '(T2,A4,T7,A)') 'BSE|', &
+               'Check for Thomas-Reiche-Kuhn sum rule'
+            WRITE (unit_nr, '(T2,A4)') 'BSE|'
+            WRITE (unit_nr, '(T2,A4,T35,A)') 'BSE|', &
+               'N_e = Σ_n f^n'
+            WRITE (unit_nr, '(T2,A4)') 'BSE|'
+            WRITE (unit_nr, '(T2,A4,T7,A24,T65,I16)') 'BSE|', &
+               'Number of electrons N_e:', homo_irred*2
+            WRITE (unit_nr, '(T2,A4,T7,A,T66,F16.3)') 'BSE|', &
+               'Sum over oscillator strengths Σ_n f^n :', SUM(oscill_str)
+            WRITE (unit_nr, '(T2,A4)') 'BSE|'
+            IF (mp2_env%bse%bse_cutoff_occ > 0 .OR. mp2_env%bse%bse_cutoff_empty > 0) THEN
+               CALL cp_warn(__LOCATION__, &
+                            "Accuracy of TRK sum rule might suffer from cutoffs.")
+            END IF
             WRITE (unit_nr, '(T2,A4)') 'BSE|'
          END IF
 
@@ -443,6 +462,94 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE
+
+! **************************************************************************************************
+!> \brief ...
+!> \param exc_descr ...
+!> \param unit_nr ...
+!> \param mp2_env ...
+! **************************************************************************************************
+   SUBROUTINE print_exciton_descriptors(exc_descr, unit_nr, mp2_env)
+
+      TYPE(exciton_descr_type), ALLOCATABLE, &
+         DIMENSION(:)                                    :: exc_descr
+      INTEGER, INTENT(IN)                                :: unit_nr
+      TYPE(mp2_type), INTENT(INOUT)                      :: mp2_env
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'print_exciton_descriptors'
+
+      INTEGER                                            :: handle, i_exc
+
+      CALL timeset(routineN, handle)
+      IF (unit_nr > 0) THEN
+         WRITE (unit_nr, '(T2,A4,T7,A)') 'BSE|', &
+            'Exciton descriptors for excitation level n are given by'
+         WRITE (unit_nr, '(T2,A4)') 'BSE|'
+         WRITE (unit_nr, '(T2,A4,T15,A)') 'BSE|', &
+            'd_eh   = | <r_h - r_e>_X |'
+         WRITE (unit_nr, '(T2,A4)') 'BSE|'
+         WRITE (unit_nr, '(T2,A4,T15,A)') 'BSE|', &
+            'σ_e    = sqrt( <r_e^2>_X - <r_e>_X^2 )'
+         WRITE (unit_nr, '(T2,A4)') 'BSE|'
+         WRITE (unit_nr, '(T2,A4,T15,A)') 'BSE|', &
+            'σ_h    = sqrt( <r_h^2>_X - <r_h>_X^2 )'
+         WRITE (unit_nr, '(T2,A4)') 'BSE|'
+         WRITE (unit_nr, '(T2,A4,T15,A)') 'BSE|', &
+            'COV_eh = <r_e r_h>_X - <r_e>_X <r_h>_X'
+         WRITE (unit_nr, '(T2,A4)') 'BSE|'
+         WRITE (unit_nr, '(T2,A4,T15,A)') 'BSE|', &
+            'd_exc  = sqrt( d_eh^2 + σ_e^2 + σ_h^2 - 2 * COV_eh )'
+         WRITE (unit_nr, '(T2,A4)') 'BSE|'
+         WRITE (unit_nr, '(T2,A4,T15,A)') 'BSE|', &
+            'R_eh   = COV_eh / (σ_e * σ_h)'
+         WRITE (unit_nr, '(T2,A4)') 'BSE|'
+         WRITE (unit_nr, '(T2,A4,T7,A)') 'BSE|', &
+            'where the expectation values <.>_X are taken with respect to the '
+         WRITE (unit_nr, '(T2,A4,T7,A)') 'BSE|', &
+            'exciton wavefunction  of excitation n:'
+         WRITE (unit_nr, '(T2,A4)') 'BSE|'
+         WRITE (unit_nr, '(T2,A4,T20,A)') 'BSE|', &
+            '𝚿_n(r_e,r_h) = Σ_{i,a} X_ia^n ψ_i(r_h) ψ_a(r_e)  .'
+         WRITE (unit_nr, '(T2,A4)') 'BSE|'
+         WRITE (unit_nr, '(T2,A4,T7,A)') 'BSE|', &
+            'The exciton descriptors, can then be express by, e.g.,'
+         WRITE (unit_nr, '(T2,A4)') 'BSE|'
+         WRITE (unit_nr, '(T2,A4,T7,A)') 'BSE|', &
+            ' <r_h>_X = Σ_{i,j,a} X_ia^n < ψ_i | r | ψ_j > X_ja^n'
+         WRITE (unit_nr, '(T2,A4)') 'BSE|'
+         WRITE (unit_nr, '(T2,A4,T7,A)') 'BSE|', &
+            'Here, we introduced'
+         WRITE (unit_nr, '(T2,A4)') 'BSE|'
+         WRITE (unit_nr, '(T2,A4,T7,A5,T15,A)') &
+            'BSE|', "ψ_i:", "occupied molecular orbitals,"
+         WRITE (unit_nr, '(T2,A4,T7,A5,T15,A)') &
+            'BSE|', "ψ_a:", "empty molecular orbitals and"
+         WRITE (unit_nr, '(T2,A4,T9,A2,T14,A)') &
+            'BSE|', "r:", "position operator."
+         WRITE (unit_nr, '(T2,A4)') 'BSE|'
+         WRITE (unit_nr, '(T2,A4,T7,A)') 'BSE|', &
+            'prelim Ref.: Eqs. (15)-(22)'
+         WRITE (unit_nr, '(T2,A4,T7,A,A)') 'BSE|', &
+            'JCTC 2018, 14, 710-725; ', &
+            'http://doi.org/10.1021/acs.jctc.7b01145'
+         WRITE (unit_nr, '(T2,A4)') 'BSE|'
+         WRITE (unit_nr, '(T2,A4)') 'BSE|'
+         WRITE (unit_nr, '(T2,A4,T7,A)') 'BSE|', &
+            'Exciton descriptors from solving the BSE within the TDA:'
+         WRITE (unit_nr, '(T2,A4)') 'BSE|'
+         WRITE (unit_nr, '(T2,A4,T8,A12,1X,4X,A10,5X,A10,5X,A10,3X,A11,8X,A4)') 'BSE|', &
+            'Excitation n', 'd_eh [Å]', 'σ_e [Å]', 'σ_h [Å]', 'd_exc [Å]', 'R_eh'
+         DO i_exc = 1, mp2_env%bse%num_print_exc_descr
+            WRITE (unit_nr, '(T2,A4,T8,I12,1X,5(2X,F10.4))') &
+               'BSE|', i_exc, exc_descr(i_exc)%diff_r_abs*angstrom, &
+               exc_descr(i_exc)%sigma_e*angstrom, exc_descr(i_exc)%sigma_h*angstrom, &
+               exc_descr(i_exc)%diff_r_sqr*angstrom, exc_descr(i_exc)%corr_e_h*angstrom
+         END DO
+         WRITE (unit_nr, '(T2,A4)') 'BSE|'
+      END IF
+      CALL timestop(handle)
+
+   END SUBROUTINE print_exciton_descriptors
 
 ! **************************************************************************************************
 !> \brief Debug function to write elements of a full matrix to file, if they are larger than a given threshold

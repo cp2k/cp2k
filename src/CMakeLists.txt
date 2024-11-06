@@ -73,6 +73,7 @@ list(
   bse_full_diag.F
   bse_iterative.F
   bse_print.F
+  bse_properties.F
   bse_util.F
   bsse.F
   cell_methods.F

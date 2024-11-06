@@ -307,6 +307,7 @@ MODULE mp2_types
                                                             flag_tda = 0, &
                                                             num_exc_en = 0, &
                                                             num_print_exc = 0, &
+                                                            num_print_exc_descr = 0, &
                                                             num_add_start_z_space = 0, &
                                                             fac_max_z_space = 0, &
                                                             num_new_t = 0, &
