@@ -31,6 +31,8 @@ if(CP2K_CUSOLVER_MP_FOUND AND NOT TARGET cp2k::CUSOLVER_MP::cusolver_mp)
   set_target_properties(
     cp2k::CUSOLVER_MP::cusolver_mp
     PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${CP2K_CUSOLVER_MP_INCLUDE_DIRS}")
+else()
+  message(FATAL_ERROR "CuSolverMP requested, but not found")
 endif()
 
 mark_as_advanced(CP2K_CUSOLVER_MP_LINK_LIBRARIES)
