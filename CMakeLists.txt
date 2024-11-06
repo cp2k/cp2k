@@ -829,6 +829,12 @@ if((CP2K_USE_ACCEL MATCHES "CUDA") OR (CP2K_USE_ACCEL MATCHES "HIP"))
     "    - DBM  module : ${CP2K_USE_DBM_GPU}\n\n")
 endif()
 
+if(CP2K_USE_CUSOLVER_MP)
+message( "   - CUSolverMP: \n"
+         "     - library: ${CP2K_CUSOLVER_MP_LINK_LIBRARIES} \n"
+         "     - include: ${CP2K_CUSOLVER_MP_INCLUDE_DIRS} \n")
+endif()
+
 if(CP2K_USE_LIBXC)
   message(
     "  - LIBXC (note to package managers : libxc can be build with cmake as well)"
