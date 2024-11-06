@@ -15,6 +15,10 @@ MODULE qs_external_density
    USE cp_files,                        ONLY: close_file,&
                                               open_file
    USE gaussian_gridlevels,             ONLY: gridlevel_info_type
+   USE grid_api,                        ONLY: grid_copy_to_multigrid,&
+                                              grid_create_multigrid,&
+                                              grid_free_multigrid,&
+                                              grid_multigrid_type
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type,&
                                               section_vals_val_get
@@ -69,6 +73,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), POINTER               :: tot_rho_r_ext
       TYPE(cell_type), POINTER                           :: cell
       TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(grid_multigrid_type)                          :: multigrid_ext
       TYPE(gridlevel_info_type), POINTER                 :: gridlevel_info
       TYPE(pw_c1d_gs_type), DIMENSION(:), POINTER        :: rho_ext_g
       TYPE(pw_env_type), POINTER                         :: pw_env
@@ -108,6 +113,7 @@ CONTAINS
                                 rs_descs(igrid_level)%rs_desc)
             CALL rs_grid_zero(rs_rho_ext(igrid_level))
          END DO
+         CALL grid_create_multigrid(rs_rho_ext, multigrid_ext)
 
          igrid_level = igrid_level - 1
 
@@ -177,10 +183,12 @@ CONTAINS
                IF (my_rank == 0) CALL close_file(unit_number=extunit)
             END IF
 
-            CALL density_rs2pw(pw_env, rs_rho_ext, rho=rho_ext_r(1), rho_gspace=rho_ext_g(1))
+            CALL grid_copy_to_multigrid(multigrid_ext, rs_rho_ext)
+            CALL density_rs2pw(pw_env, rs_rho_ext, rho=rho_ext_r(1), rho_gspace=rho_ext_g(1), multigrid_ext=multigrid_ext)
             DO igrid_level = 1, SIZE(rs_rho_ext)
                CALL rs_grid_release(rs_rho_ext(igrid_level))
             END DO
+            CALL grid_free_multigrid(multigrid_ext)
             tot_rho_r_ext(1) = pw_integrate_function(rho_ext_r(1), isign=1)
             IF (my_rank == 0) THEN
                WRITE (*, FMT="(T3,A,T61,F20.10)") "ZMP| Total external charge:                    ", &
