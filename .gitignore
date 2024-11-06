@@ -371,3 +371,7 @@ tags
 # End of https://www.gitignore.io/api/python,fortran,c,c++,cuda,emacs,vim,cmake
 
 !tools/fedora/cp2k.spec
+
+# CLion directories
+/.idea/
+/cmake-build-*
