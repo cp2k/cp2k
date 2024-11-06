@@ -1,0 +1,42 @@
+func @dbm_multiply(%alpha: f64, %itask: i32,
+                   %tasks: memref<i32x6x?>,
+                   %A: memref<f64x?>,
+                   %B: memref<f64x?>,
+                   %C: memref<f64x?>)
+                   work_group_size(16, 1) {
+    %gid = group_id
+    %itask_idx = cast %itask : i32 -> index
+    ; Compute task id
+    %tid = arith.add %itask_idx, %gid : index
+
+    ; Load task struct
+    %iM = load %tasks[0, %tid] : memref<i32x6x?>
+    %iN = load %tasks[1, %tid] : memref<i32x6x?>
+    %iK = load %tasks[2, %tid] : memref<i32x6x?>
+    %ioffset_a = load %tasks[3, %tid] : memref<i32x6x?>
+    %ioffset_b = load %tasks[4, %tid] : memref<i32x6x?>
+    %ioffset_c = load %tasks[5, %tid] : memref<i32x6x?>
+
+    ; Cast task struct to index type
+    %M = cast %iM : i32 -> index
+    %N = cast %iN : i32 -> index
+    %K = cast %iK : i32 -> index
+    %offset_a = cast %ioffset_a : i32 -> index
+    %offset_b = cast %ioffset_b : i32 -> index
+    %offset_c = cast %ioffset_c : i32 -> index
+
+    ; Get view on small matrices
+    %MK = arith.mul %M, %K : index
+    %KN = arith.mul %K, %N : index
+    %MN = arith.mul %M, %N : index
+    %av = subview %A[%offset_a:%MK] : memref<f64x?>
+    %bv = subview %B[%offset_b:%KN] : memref<f64x?>
+    %cv = subview %C[%offset_c:%MN] : memref<f64x?>
+    %a = expand %av[0->%M x %K] : memref<f64x?>
+    %b = expand %bv[0->%N x %K] : memref<f64x?>
+    %c = expand %cv[0->%M x %N] : memref<f64x?>
+
+    ; GEMM
+    gemm.n.t.atomic %alpha, %a, %b, 1.0, %c
+        : f64, memref<f64x?x?>, memref<f64x?x?>, f64, memref<f64x?x?>
+}
