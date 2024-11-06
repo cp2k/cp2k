@@ -23,7 +23,8 @@ apt-get install -qq --no-install-recommends \
   plocate \
   sudo \
   git \
-  ssh
+  ssh \
+  mpich
 rm -rf /var/lib/apt/lists/*
 
 # Create and activate a virtual environment for Python packages.
@@ -34,10 +35,6 @@ export PATH="/opt/venv/bin:$PATH"
 # As a workaround we set locale.getpreferredencoding() to utf8.
 export LANG="en_US.UTF-8" LANGUAGE="en_US:en" LC_ALL="en_US.UTF-8"
 locale-gen ${LANG}
-
-# link mpi executables into path
-MPI_INSTALL_DIR=$(dirname "$(command -v mpiexec)")
-for i in "${MPI_INSTALL_DIR}"/*; do ln -sf "$i" /usr/bin/; done
 
 # Pick a compiler (needed to build some Python packages)
 export CC=gcc
