@@ -24,8 +24,6 @@ void grid_integrate_pgf_product(
     double forces[2][3], double virials[2][3][3], double hdab[n2][n1][3],
     double hadb[n2][n1][3], double a_hdab[n2][n1][3][3]) {
 
-  fprintf(stderr, "DEBUG grid_integrate_pgf_product %i %i", ilevel,
-          multigrid->nlevels);
   assert(multigrid->cpu->singlegrids != NULL);
   assert(multigrid->cpu->singlegrids[ilevel - 1] != NULL);
   grid_cpu_integrate_pgf_product_multigrid(

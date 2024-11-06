@@ -486,6 +486,8 @@ CONTAINS
             ! Periodic meaning the grid in this direction is entriely present on every processor.
             CPASSERT(npts_local(i) == npts_global(i))
             CPASSERT(shift_local(i) == 0)
+            CPASSERT(rsgrid%lb_real(i) == rsgrid%lb_local(i))
+            CPASSERT(rsgrid%ub_real(i) == rsgrid%ub_local(i))
             ! No need for halo regions.
             border_width(i) = 0
          ELSE
@@ -1374,6 +1376,8 @@ CONTAINS
 
       INTEGER                                            :: ilevel
       INTEGER, ALLOCATABLE, DIMENSION(:), TARGET         :: comms
+      INTEGER, CONTIGUOUS, DIMENSION(:, :), POINTER      :: npts_global
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: norms
       TYPE(C_PTR), ALLOCATABLE, DIMENSION(:), TARGET     :: grids_c
       INTERFACE
          SUBROUTINE grid_copy_from_multigrid_general_c(multigrid, grids, comm, pgrid_dims, local2grid, grid2proc) &
@@ -1391,14 +1395,30 @@ CONTAINS
       CPASSERT(C_ASSOCIATED(multigrid%c_ptr))
       CPASSERT(SIZE(grids) == grid_get_multigrid_nlevels(multigrid))
 
+      npts_global => grid_get_multigrid_npts_global(multigrid)
+
       ALLOCATE (grids_c(SIZE(grids)))
       ALLOCATE (comms(SIZE(grids)))
+      ALLOCATE (norms(SIZE(grids)))
       DO ilevel = 1, SIZE(grids)
          grids_c(ilevel) = C_LOC(grids(ilevel)%array)
          comms(ilevel) = grids(ilevel)%pw_grid%para%group%get_handle()
+         norms(ilevel) = SUM(grids(ilevel)%array**2)
+         CPASSERT(ALL(npts_global(:, ilevel) == grids(ilevel)%pw_grid%npts))
+         IF (grids(ilevel)%pw_grid%para%group%num_pe == 1) THEN
+            CPASSERT(ALL(SHAPE(grids(ilevel)%array) == npts_global(:, ilevel)))
+         END IF
       END DO
 
-    CALL grid_copy_from_multigrid_general_c(multigrid%c_ptr, C_LOC(grids_c), C_LOC(comms), C_LOC(comms), C_LOC(comms), C_LOC(comms))
+      CALL grid_copy_from_multigrid_general_c(multigrid%c_ptr, C_LOC(grids_c), &
+                                              C_LOC(comms), C_LOC(comms), C_LOC(comms), C_LOC(comms))
+      DO ilevel = 1, SIZE(grids)
+         grids_c(ilevel) = C_LOC(grids(ilevel)%array)
+         comms(ilevel) = grids(ilevel)%pw_grid%para%group%get_handle()
+         norms(ilevel) = norms(ilevel) - SUM(grids(ilevel)%array**2)
+      END DO
+      WRITE (*, *) "DEBUG grid_copy_to_multigrid_general", SUM(ABS(norms))
+      CPASSERT(SUM(ABS(norms)) < 1.0e-10_dp)
 
    END SUBROUTINE grid_copy_from_multigrid_general
 

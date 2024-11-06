@@ -1248,7 +1248,8 @@ CONTAINS
       IF (ASSOCIATED(atom_pair_send)) DEALLOCATE (atom_pair_send)
       IF (ASSOCIATED(atom_pair_recv)) DEALLOCATE (atom_pair_recv)
 
-      CALL density_rs2pw(pw_env, rs_current, current_rs, current_gs)
+      CALL grid_copy_to_multigrid(multigrid_current, rs_current)
+      CALL density_rs2pw(pw_env, rs_current, current_rs, current_gs, multigrid_current)
       DO i = 1, SIZE(rs_current)
          CALL rs_grid_release(rs_current(i))
       END DO

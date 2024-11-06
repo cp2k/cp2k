@@ -10,6 +10,7 @@
 
 #include <assert.h>
 #include <stddef.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -121,6 +122,24 @@ void grid_copy_from_multigrid_single_f(const grid_multigrid *multigrid,
   grid_copy_from_multigrid_single(multigrid, grid, level - 1);
 }
 
+void grid_copy_to_multigrid_serial(double *grid_rs, const double *grid_pw,
+                                   const int npts_rs[3],
+                                   const int border_width[3]) {
+  if (border_width[0] == 0 && border_width[1] == 0 && border_width[2] == 0) {
+    memcpy(grid_rs, grid_pw,
+           npts_rs[0] * npts_rs[1] * npts_rs[2] * sizeof(double));
+  } else {
+    int npts_pw[3];
+    for (int dir = 0; dir < 3; dir++)
+      npts_pw[dir] = npts_rs[dir] - 2 * border_width[dir];
+    (void)npts_pw;
+    for (int iz = 0; iz < npts_rs[2]; iz++) {
+      //
+      (void)iz;
+    }
+  }
+}
+
 void grid_copy_to_multigrid_general(
     grid_multigrid *multigrid, const double *grids[multigrid->nlevels],
     const grid_mpi_comm comm[multigrid->nlevels],
@@ -133,6 +152,13 @@ void grid_copy_to_multigrid_general(
   (void)grid2proc;
   for (int level = 0; level < multigrid->nlevels; level++) {
     assert(!grid_mpi_comm_is_unequal(multigrid->comm, comm[level]));
+    if (grid_mpi_comm_size(comm[level]) == 1) {
+      grid_copy_to_multigrid_serial(multigrid->grids[level]->host_buffer,
+                                    grids[level], multigrid->npts_local[level],
+                                    multigrid->border_width[level]);
+    } else {
+      // TO BE IMPLEMENTED
+    }
   }
 }
 
@@ -150,6 +176,24 @@ void grid_copy_to_multigrid_general_f(
   free(comm);
 }
 
+void grid_copy_from_multigrid_serial(const double *grid_rs, double *grid_pw,
+                                     const int npts_rs[3],
+                                     const int border_width[3]) {
+  if (border_width[0] == 0 && border_width[1] == 0 && border_width[2] == 0) {
+    memcpy(grid_pw, grid_rs,
+           npts_rs[0] * npts_rs[1] * npts_rs[2] * sizeof(double));
+  } else {
+    int npts_pw[3];
+    for (int dir = 0; dir < 3; dir++)
+      npts_pw[dir] = npts_rs[dir] - 2 * border_width[dir];
+    (void)npts_pw;
+    for (int iz = 0; iz < npts_rs[2]; iz++) {
+      //
+      (void)iz;
+    }
+  }
+}
+
 void grid_copy_from_multigrid_general(
     const grid_multigrid *multigrid, double *grids[multigrid->nlevels],
     const grid_mpi_comm comm[multigrid->nlevels],
@@ -162,6 +206,13 @@ void grid_copy_from_multigrid_general(
   (void)grid2proc;
   for (int level = 0; level < multigrid->nlevels; level++) {
     assert(!grid_mpi_comm_is_unequal(multigrid->comm, comm[level]));
+    if (grid_mpi_comm_size(comm[level]) == 1) {
+      grid_copy_from_multigrid_serial(
+          multigrid->grids[level]->host_buffer, grids[level],
+          multigrid->npts_local[level], multigrid->border_width[level]);
+    } else {
+      //
+    }
   }
 }
 

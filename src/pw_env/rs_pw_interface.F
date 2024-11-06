@@ -53,17 +53,19 @@ CONTAINS
 !> \param rs_rho ...
 !> \param rho ...
 !> \param rho_gspace ...
+!> \param multigrid_ext ...
 !> \note
 !>      should contain all communication in the collocation of the density
 !>      in the case of replicated grids
 ! **************************************************************************************************
-   SUBROUTINE density_rs2pw(pw_env, rs_rho, rho, rho_gspace)
+   SUBROUTINE density_rs2pw(pw_env, rs_rho, rho, rho_gspace, multigrid_ext)
 
       TYPE(pw_env_type), INTENT(IN)                      :: pw_env
       TYPE(realspace_grid_type), DIMENSION(:), &
          INTENT(IN)                                      :: rs_rho
       TYPE(pw_r3d_rs_type), INTENT(INOUT)                :: rho
       TYPE(pw_c1d_gs_type), INTENT(INOUT)                :: rho_gspace
+      TYPE(grid_multigrid_type), INTENT(IN), OPTIONAL    :: multigrid_ext
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'density_rs2pw'
 
@@ -94,7 +96,11 @@ CONTAINS
             CALL transfer_rs2pw(rs_rho(igrid_level), &
                                 mgrid_rspace(igrid_level))
          END DO
-         CALL grid_copy_from_multigrid_general(multigrid, mgrid_rspace)
+         IF (PRESENT(multigrid_ext)) THEN
+            CALL grid_copy_from_multigrid_general(multigrid_ext, mgrid_rspace)
+         ELSE
+            CALL grid_copy_from_multigrid_general(multigrid, mgrid_rspace)
+         END IF
 
          ! we want both rho and rho_gspace, the latter for Hartree and co-workers.
          CALL pw_zero(rho_gspace)
