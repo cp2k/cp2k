@@ -1,7 +1,10 @@
+#ifndef CP2K_OPENPMD_H
+#define CP2K_OPENPMD_H
+
 #ifdef __cplusplus
 extern "C"
 {
-#endif
+#endif // defined(__cplusplus)
 
     typedef enum
     {
@@ -24,5 +27,7 @@ extern "C"
         openPMD_Series series);
 
 #ifdef __cplusplus
-}
-#endif
+} // extern "C"
+#endif // defined(__cplusplus)
+
+#endif // !defined(CP2K_OPENPMD_H)
