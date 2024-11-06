@@ -832,7 +832,9 @@ endif()
 if(CP2K_USE_CUSOLVER_MP)
 message( "   - CUSolverMP: \n"
          "     - library: ${CP2K_CUSOLVER_MP_LINK_LIBRARIES} \n"
-         "     - include: ${CP2K_CUSOLVER_MP_INCLUDE_DIRS} \n")
+         "     - include: ${CP2K_CUSOLVER_MP_INCLUDE_DIRS} \n"
+         "     - CAL library: ${CP2K_CAL_LINK_LIBRARIES} \n"
+         "     - CAL include: ${CP2K_CAL_INCLUDE_DIRS} \n")
 endif()
 
 if(CP2K_USE_LIBXC)

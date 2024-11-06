@@ -12,8 +12,9 @@
 include(FindPackageHandleStandardArgs)
 include(cp2k_utils)
 
-find_package(Cal Required)
 cp2k_set_default_paths(CUSOLVER_MP "CUSOLVER_MP")
+
+find_package(Cal REQUIRED)
 cp2k_find_libraries(CUSOLVER_MP "cusolverMp")
 cp2k_include_dirs(CUSOLVER_MP "cusolverMp.h")
 
