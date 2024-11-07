@@ -40,7 +40,7 @@ locale-gen ${LANG}
 export CC=gcc
 
 echo -e "\n========== Installing AiiDA-CP2K plugin =========="
-git clone --quiet https://github.com/aiidateam/aiida-cp2k.git /opt/aiida-cp2k/
+git clone --quiet https://github.com/mkrack/aiida-cp2k.git /opt/aiida-cp2k/
 cd /opt/aiida-cp2k/
 pip3 install './[dev]'
 
