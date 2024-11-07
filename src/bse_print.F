@@ -12,6 +12,7 @@
 ! **************************************************************************************************
 MODULE bse_print
 
+   USE atomic_kind_types,               ONLY: get_atomic_kind
    USE bse_properties,                  ONLY: compute_absorption_spectrum,&
                                               exciton_descr_type
    USE bse_util,                        ONLY: filter_eigvec_contrib
@@ -19,8 +20,11 @@ MODULE bse_print
                                               cp_fm_type
    USE kinds,                           ONLY: dp
    USE mp2_types,                       ONLY: mp2_type
+   USE particle_types,                  ONLY: particle_type
    USE physcon,                         ONLY: angstrom,&
                                               evolt
+   USE qs_environment_types,            ONLY: get_qs_env,&
+                                              qs_environment_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -466,21 +470,28 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief ...
 !> \param exc_descr ...
+!> \param ref_point_multipole ...
 !> \param unit_nr ...
 !> \param mp2_env ...
+!> \param qs_env ...
 ! **************************************************************************************************
-   SUBROUTINE print_exciton_descriptors(exc_descr, unit_nr, mp2_env)
+   SUBROUTINE print_exciton_descriptors(exc_descr, ref_point_multipole, unit_nr, mp2_env, qs_env)
 
       TYPE(exciton_descr_type), ALLOCATABLE, &
          DIMENSION(:)                                    :: exc_descr
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
+         INTENT(IN)                                      :: ref_point_multipole
       INTEGER, INTENT(IN)                                :: unit_nr
       TYPE(mp2_type), INTENT(INOUT)                      :: mp2_env
+      TYPE(qs_environment_type), POINTER                 :: qs_env
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'print_exciton_descriptors'
 
       INTEGER                                            :: handle, i_exc
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
 
       CALL timeset(routineN, handle)
+      CALL get_qs_env(qs_env, particle_set=particle_set)
       IF (unit_nr > 0) THEN
          WRITE (unit_nr, '(T2,A4,T7,A)') 'BSE|', &
             'Exciton descriptors for excitation level n are given by'
@@ -512,10 +523,17 @@ CONTAINS
             '𝚿_n(r_e,r_h) = Σ_{i,a} X_ia^n ψ_i(r_h) ψ_a(r_e)  .'
          WRITE (unit_nr, '(T2,A4)') 'BSE|'
          WRITE (unit_nr, '(T2,A4,T7,A)') 'BSE|', &
-            'The exciton descriptors, can then be express by, e.g.,'
+            'The exciton descriptors can then be expressed by electron coordinate'
+         WRITE (unit_nr, '(T2,A4)') 'BSE|'
+         WRITE (unit_nr, '(T2,A4,T15,A)') 'BSE|', &
+            ' <r_e>_X = Σ_{i,a,b} X_ia^n < ψ_a | r | ψ_b > X_ib^n'
          WRITE (unit_nr, '(T2,A4)') 'BSE|'
          WRITE (unit_nr, '(T2,A4,T7,A)') 'BSE|', &
+            'and hole coordinate'
+         WRITE (unit_nr, '(T2,A4)') 'BSE|'
+         WRITE (unit_nr, '(T2,A4,T15,A)') 'BSE|', &
             ' <r_h>_X = Σ_{i,j,a} X_ia^n < ψ_i | r | ψ_j > X_ja^n'
+         WRITE (unit_nr, '(T2,A4)') 'BSE|'
          WRITE (unit_nr, '(T2,A4)') 'BSE|'
          WRITE (unit_nr, '(T2,A4,T7,A)') 'BSE|', &
             'Here, we introduced'
@@ -545,6 +563,36 @@ CONTAINS
                exc_descr(i_exc)%sigma_e*angstrom, exc_descr(i_exc)%sigma_h*angstrom, &
                exc_descr(i_exc)%diff_r_sqr*angstrom, exc_descr(i_exc)%corr_e_h*angstrom
          END DO
+         WRITE (unit_nr, '(T2,A4)') 'BSE|'
+         WRITE (unit_nr, '(T2,A4,T7,A)') 'BSE|', &
+            'For the center of charge as reference point r_0,'
+         WRITE (unit_nr, '(T2,A4,T15,A7,F10.4,A2,F10.4,A2,F10.4,A1)') 'BSE|', &
+            'r_0 = (', ref_point_multipole(1)*angstrom, ', ', ref_point_multipole(2)*angstrom, ', ', &
+            ref_point_multipole(3)*angstrom, ')'
+         WRITE (unit_nr, '(T2,A4,T7,A)') 'BSE|', &
+            'we further obtain r_e and r_h from solving the BSE within the TDA'
+         WRITE (unit_nr, '(T2,A4)') 'BSE|'
+         WRITE (unit_nr, '(T2,A4,T8,A12,1X,13X,A9,13X,A9,13X,A9)') 'BSE|', &
+            'Excitation n', 'x_e [Å]', 'y_e [Å]', 'z_e [Å]'
+         DO i_exc = 1, mp2_env%bse%num_print_exc_descr
+            WRITE (unit_nr, '(T2,A4,T8,I12,1X,3(5X,F15.4))') &
+               'BSE|', i_exc, &
+               exc_descr(i_exc)%r_e_shift(:)*angstrom
+         END DO
+         WRITE (unit_nr, '(T2,A4)') 'BSE|'
+         WRITE (unit_nr, '(T2,A4,T8,A12,1X,13X,A9,13X,A9,13X,A9)') 'BSE|', &
+            'Excitation n', 'x_h [Å]', 'y_h [Å]', 'z_h [Å]'
+         DO i_exc = 1, mp2_env%bse%num_print_exc_descr
+            WRITE (unit_nr, '(T2,A4,T8,I12,1X,3(5X,F15.4))') &
+               'BSE|', i_exc, &
+               exc_descr(i_exc)%r_h_shift(:)*angstrom
+         END DO
+         WRITE (unit_nr, '(T2,A4)') 'BSE|'
+         WRITE (unit_nr, '(T2,A4,T7,A)') 'BSE|', &
+            'The reference atomic geometry for these values is given by'
+      END IF
+      CALL write_qs_particle_coordinates_bse(particle_set, unit_nr)
+      IF (unit_nr > 0) THEN
          WRITE (unit_nr, '(T2,A4)') 'BSE|'
       END IF
       CALL timestop(handle)
@@ -618,5 +666,40 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE
+
+! **************************************************************************************************
+!> \brief Write the atomic coordinates to the output unit.
+!> \param particle_set ...
+!>       \note Adapted from particle_methods.F [MG]
+!> \param unit_nr ...
+! **************************************************************************************************
+   SUBROUTINE write_qs_particle_coordinates_bse(particle_set, unit_nr)
+
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      INTEGER, INTENT(IN)                                :: unit_nr
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'write_qs_particle_coordinates_bse'
+
+      CHARACTER(LEN=2)                                   :: element_symbol
+      INTEGER                                            :: handle, iatom, natom
+
+      CALL timeset(routineN, handle)
+
+      IF (unit_nr > 0) THEN
+         WRITE (unit_nr, '(T2,A4)') 'BSE|'
+         WRITE (unit_nr, '(T2,A4,T13,A7,16X,A7,15X,A7,15X,A7)') 'BSE|', &
+            'Element', 'x [Å]', 'y [Å]', 'z [Å]'
+         natom = SIZE(particle_set)
+         DO iatom = 1, natom
+            CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind, &
+                                 element_symbol=element_symbol)
+            WRITE (unit_nr, '(T2,A4,T8,A12,1X,3(5X,F15.4))') &
+               'BSE|', element_symbol, particle_set(iatom)%r(1:3)*angstrom
+         END DO
+      END IF
+
+      CALL timestop(handle)
+
+   END SUBROUTINE write_qs_particle_coordinates_bse
 
 END MODULE bse_print

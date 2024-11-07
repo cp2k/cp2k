@@ -66,7 +66,8 @@ MODULE bse_properties
 
    TYPE exciton_descr_type
       REAL(KIND=dp), DIMENSION(3)                        :: r_e, r_h, &
-                                                            r_e_sq, r_h_sq, r_e_h
+                                                            r_e_sq, r_h_sq, r_e_h, &
+                                                            r_e_shift, r_h_shift
       REAL(KIND=dp)                                      :: sigma_e, sigma_h, &
                                                             cov_e_h, corr_e_h, &
                                                             diff_r_abs, diff_r_sqr
@@ -615,7 +616,8 @@ CONTAINS
    SUBROUTINE get_exciton_descriptors(exc_descr, fm_eigvec_X, &
                                       fm_dipole_ij_trunc, fm_dipole_ab_trunc, &
                                       fm_quadpole_ij_trunc, fm_quadpole_ab_trunc, &
-                                      homo, virtual, unit_nr, mp2_env, qs_env)
+                                      homo, virtual, unit_nr, &
+                                      mp2_env, qs_env)
 
       TYPE(exciton_descr_type), ALLOCATABLE, &
          DIMENSION(:)                                    :: exc_descr
@@ -655,6 +657,10 @@ CONTAINS
          CALL get_qs_env(qs_env, particle_set=particle_set, &
                          qs_kind_set=qs_kind_set, input=input)
          subsys_section => section_vals_get_subs_vals(input, "SUBSYS")
+         IF (unit_nr > 0) THEN
+            WRITE (unit_nr, '(T2,A10,T13,A)') 'BSE|DEBUG|', &
+            'Printing internal geometry for debug purposes'
+         END IF
          CALL write_qs_particle_coordinates(particle_set, qs_kind_set, subsys_section, label="BSE")
       END IF
 
@@ -747,6 +753,10 @@ CONTAINS
 
          ! e-h-correlation coefficient R_eh = COV(r_e, r_h) / ( σ_e σ_h )
          exc_descr(i_exc)%corr_e_h = exc_descr(i_exc)%cov_e_h/(exc_descr(i_exc)%sigma_e*exc_descr(i_exc)%sigma_h)
+
+         ! Expectation values of r_e and r_h
+         exc_descr(i_exc)%r_e_shift(:) = exc_descr(i_exc)%r_e(:)
+         exc_descr(i_exc)%r_h_shift(:) = exc_descr(i_exc)%r_h(:)
 
       END DO
       CALL cp_fm_release(fm_X_ia)

@@ -655,7 +655,8 @@ CONTAINS
          CALL get_exciton_descriptors(exc_descr, fm_eigvec_X, &
                                       fm_dipole_ij_trunc, fm_dipole_ab_trunc, &
                                       fm_quadpole_ij_trunc, fm_quadpole_ab_trunc, &
-                                      homo, virtual, unit_nr, mp2_env, qs_env)
+                                      homo, virtual, unit_nr, &
+                                      mp2_env, qs_env)
       END IF
 
       IF (mp2_env%bse%bse_spin_config == 0) THEN
@@ -683,7 +684,7 @@ CONTAINS
                                     info_approximation, mp2_env, unit_nr)
       ! Print exciton descriptors if TDA and keyword are invoked
       IF (flag_TDA .AND. mp2_env%bse%num_print_exc_descr > 0) THEN
-         CALL print_exciton_descriptors(exc_descr, unit_nr, mp2_env)
+         CALL print_exciton_descriptors(exc_descr, ref_point_multipole, unit_nr, mp2_env, qs_env)
       END IF
 
       ! Compute and print excitation wavefunctions
