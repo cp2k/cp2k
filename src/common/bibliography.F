@@ -1899,8 +1899,6 @@ CONTAINS
                          source="Phys. Rev. B", volume="110", pages="125146", &
                          year=2024, doi="10.1103/PhysRevB.110.125146")
 
-
-
       CALL add_reference(key=Pracht2019, &
                          authors=s2a("P. Pracht", "E. Caldeweyher", "S. Ehlert", "S. Grimme"), &
                          title="A Robust Non-Self-Consistent Tight-Binding Quantum Chemistry Method for large Molecules", &

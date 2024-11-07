@@ -564,8 +564,15 @@ CONTAINS
                exc_descr(i_exc)%diff_r_sqr*angstrom, exc_descr(i_exc)%corr_e_h*angstrom
          END DO
          WRITE (unit_nr, '(T2,A4)') 'BSE|'
+         ! For debug runs, print first d_exc separately to allow the regtests to read in
+         IF (mp2_env%bse%bse_debug_print) THEN
+            WRITE (unit_nr, '(T2,A10,T13,A,T65,F16.4)') 'BSE|DEBUG|', &
+               'Exciton descriptor d_exc with TDA for n=1 is', exc_descr(1)%diff_r_sqr*angstrom
+            WRITE (unit_nr, '(T2,A4)') 'BSE|'
+         END IF
+         ! Print the reference atomic geometry for the exciton descriptors
          WRITE (unit_nr, '(T2,A4,T7,A)') 'BSE|', &
-            'For the center of charge as reference point r_0,'
+            'With the center of charge as reference point r_0,'
          WRITE (unit_nr, '(T2,A4,T15,A7,F10.4,A2,F10.4,A2,F10.4,A1)') 'BSE|', &
             'r_0 = (', ref_point_multipole(1)*angstrom, ', ', ref_point_multipole(2)*angstrom, ', ', &
             ref_point_multipole(3)*angstrom, ')'

@@ -659,7 +659,7 @@ CONTAINS
          subsys_section => section_vals_get_subs_vals(input, "SUBSYS")
          IF (unit_nr > 0) THEN
             WRITE (unit_nr, '(T2,A10,T13,A)') 'BSE|DEBUG|', &
-            'Printing internal geometry for debug purposes'
+               'Printing internal geometry for debug purposes'
          END IF
          CALL write_qs_particle_coordinates(particle_set, qs_kind_set, subsys_section, label="BSE")
       END IF
