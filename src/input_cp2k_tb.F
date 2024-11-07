@@ -18,6 +18,7 @@ MODULE input_cp2k_tb
                                               Porezag1995,&
                                               Seifert1996,&
                                               Zhechkov2005
+   USE eeq_input,                       ONLY: create_eeq_control_section
    USE input_constants,                 ONLY: dispersion_d2,&
                                               dispersion_d3,&
                                               dispersion_d3bj,&
@@ -139,6 +140,10 @@ CONTAINS
       CALL section_release(subsection)
 
       CALL create_xtb_nonbonded_section(subsection)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+
+      CALL create_eeq_control_section(subsection)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 

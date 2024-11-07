@@ -48,6 +48,7 @@ MODULE qs_scf_post_tb
    USE cp_result_methods,               ONLY: cp_results_erase,&
                                               put_results
    USE cp_result_types,                 ONLY: cp_result_type
+   USE eeq_input,                       ONLY: eeq_solver_type
    USE eeq_method,                      ONLY: eeq_charges,&
                                               eeq_print
    USE input_constants,                 ONLY: ot_precond_full_all
@@ -191,6 +192,7 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_ks, matrix_p, matrix_s
       TYPE(dbcsr_type), POINTER                          :: mo_coeff_deriv
       TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(eeq_solver_type)                              :: eeq_sparam
       TYPE(kpoint_type), POINTER                         :: kpoints
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(mp_para_env_type), POINTER                    :: para_env
@@ -389,7 +391,7 @@ CONTAINS
             END IF
             ALLOCATE (echarge(natom))
             echarge = 0.0_dp
-            CALL eeq_charges(qs_env, echarge, 1, enshift_type)
+            CALL eeq_charges(qs_env, echarge, eeq_sparam, 1, enshift_type)
             CALL tb_dipole(qs_env, moments_section, unit_nr, echarge)
             DEALLOCATE (echarge)
          ELSE

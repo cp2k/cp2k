@@ -132,6 +132,7 @@ list(
   domain_submatrix_methods.F
   domain_submatrix_types.F
   eeq_data.F
+  eeq_input.F
   eeq_model.F
   ec_efield_local.F
   ec_environment.F

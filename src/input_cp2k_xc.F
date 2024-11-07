@@ -19,6 +19,7 @@ MODULE input_cp2k_xc
    USE cp_output_handling,              ONLY: add_last_numeric,&
                                               cp_print_key_section_create,&
                                               high_print_level
+   USE eeq_input,                       ONLY: create_eeq_control_section
    USE input_constants,                 ONLY: &
         do_adiabatic_hybrid_mcy3, do_adiabatic_model_pade, fxc_funct_gga, fxc_funct_lda, &
         fxc_funct_pade, fxc_none, gaussian, slater, vdw_nl_drsll, vdw_nl_lmkll, vdw_nl_rvv10, &
@@ -916,7 +917,7 @@ CONTAINS
       TYPE(section_type), POINTER                        :: section
 
       TYPE(keyword_type), POINTER                        :: keyword
-      TYPE(section_type), POINTER                        :: print_key, subsection
+      TYPE(section_type), POINTER                        :: newsection, print_key, subsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, __LOCATION__, name="vdw_potential", &
@@ -1152,6 +1153,11 @@ CONTAINS
                                        print_level=high_print_level, add_last=add_last_numeric, filename="")
       CALL section_add_subsection(subsection, print_key)
       CALL section_release(print_key)
+
+      NULLIFY (newsection)
+      CALL create_eeq_control_section(newsection)
+      CALL section_add_subsection(subsection, newsection)
+      CALL section_release(newsection)
 
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)

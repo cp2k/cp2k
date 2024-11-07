@@ -14,6 +14,7 @@ MODULE qs_dispersion_d4
                                 get_atomic_kind, &
                                 get_atomic_kind_set
    USE distribution_1d_types, ONLY: distribution_1d_type
+   USE eeq_input, ONLY: eeq_solver_type
    USE eeq_method, ONLY: eeq_charges, eeq_forces
    USE machine, ONLY: m_flush, &
                       m_walltime
@@ -111,6 +112,7 @@ CONTAINS
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
       TYPE(dcnum_type), ALLOCATABLE, DIMENSION(:)        :: dcnum
+      TYPE(eeq_solver_type)                              :: eeq_sparam
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
@@ -270,7 +272,7 @@ CONTAINS
          IF (dispersion_env%ext_charges) THEN
             q(1:natom) = dispersion_env%charges(1:natom)
          ELSE
-            CALL eeq_charges(qs_env, q, 2, enshift)
+            CALL eeq_charges(qs_env, q, eeq_sparam, 2, enshift)
          END IF
          IF (debug .AND. iw > 0) THEN
             WRITE (iw, '(A,T71,F10.6)') " DEBUG D4| Charge differences (max)", MAXVAL(ABS(q - qd))
@@ -319,7 +321,7 @@ CONTAINS
                CALL para_env%sum(dEdq)
                ga(:, :) = 0.0_dp
                sigma = 0.0_dp
-               CALL eeq_forces(qs_env, q, dEdq, ga, sigma, &
+               CALL eeq_forces(qs_env, q, dEdq, ga, sigma, eeq_sparam, &
                                2, enshift, response_only=.TRUE.)
                gradient(1:3, 1:natom) = gradient(1:3, 1:natom) + ga(1:3, 1:natom)
                stress = stress + sigma

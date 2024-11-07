@@ -834,7 +834,11 @@ CONTAINS
             CALL ewald_env_set(ewald_env, poisson_section=poisson_section)
             ewald_section => section_vals_get_subs_vals(poisson_section, "EWALD")
             print_section => section_vals_get_subs_vals(qs_env%input, "PRINT%GRID_INFORMATION")
-            CALL read_ewald_section_tb(ewald_env, ewald_section, cell_ref%hmat)
+            IF (gfn_type == 0) THEN
+               CALL read_ewald_section_tb(ewald_env, ewald_section, cell_ref%hmat, pset="EEQ")
+            ELSE
+               CALL read_ewald_section_tb(ewald_env, ewald_section, cell_ref%hmat)
+            END IF
             ALLOCATE (ewald_pw)
             CALL ewald_pw_create(ewald_pw, ewald_env, cell, cell_ref, print_section=print_section)
             CALL set_qs_env(qs_env, ewald_env=ewald_env, ewald_pw=ewald_pw)

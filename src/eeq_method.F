@@ -35,6 +35,7 @@ MODULE eeq_method
    USE distribution_1d_types,           ONLY: distribution_1d_type
    USE distribution_2d_types,           ONLY: distribution_2d_type
    USE eeq_data,                        ONLY: get_eeq_data
+   USE eeq_input,                       ONLY: eeq_solver_type
    USE ewald_environment_types,         ONLY: ewald_env_create,&
                                               ewald_env_get,&
                                               ewald_env_release,&
@@ -47,6 +48,7 @@ MODULE eeq_method
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type
    USE kinds,                           ONLY: dp
+   USE machine,                         ONLY: m_walltime
    USE mathconstants,                   ONLY: oorootpi,&
                                               twopi
    USE mathlib,                         ONLY: invmat
@@ -125,6 +127,7 @@ CONTAINS
       CHARACTER(LEN=2)                                   :: element_symbol
       INTEGER                                            :: enshift_type, iatom, ikind, natom
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: charges
+      TYPE(eeq_solver_type)                              :: eeq_sparam
       TYPE(cell_type), POINTER                           :: cell
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
 
@@ -137,7 +140,7 @@ CONTAINS
       ! method 2 from paper on PBC seems not to work
       enshift_type = 1
       !IF (ALL(cell%perd == 0)) enshift_type = 1
-      CALL eeq_charges(qs_env, charges, 2, enshift_type)
+      CALL eeq_charges(qs_env, charges, eeq_sparam, 2, enshift_type)
 
       IF (iounit > 0) THEN
 
@@ -169,13 +172,15 @@ CONTAINS
 !> \brief ...
 !> \param qs_env ...
 !> \param charges ...
+!> \param eeq_sparam ...
 !> \param eeq_model ...
 !> \param enshift_type ...
 ! **************************************************************************************************
-   SUBROUTINE eeq_charges(qs_env, charges, eeq_model, enshift_type)
+   SUBROUTINE eeq_charges(qs_env, charges, eeq_sparam, eeq_model, enshift_type)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: charges
+      TYPE(eeq_solver_type), INTENT(IN)                  :: eeq_sparam
       INTEGER, INTENT(IN)                                :: eeq_model, enshift_type
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'eeq_charges'
@@ -184,7 +189,7 @@ CONTAINS
                                                             natom, nkind, za, zb
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: kind_of
       INTEGER, DIMENSION(3)                              :: periodic
-      LOGICAL                                            :: do_ewald, do_sparse
+      LOGICAL                                            :: do_ewald
       REAL(KIND=dp)                                      :: ala, alb, eeq_energy, esg, kappa, &
                                                             lambda, scn, sgamma, totalcharge, xi
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: chia, cnumbers, efr, gam
@@ -271,7 +276,6 @@ CONTAINS
 
       CALL get_cell(cell, periodic=periodic)
       do_ewald = .NOT. ALL(periodic == 0)
-      do_sparse = .FALSE.
       IF (do_ewald) THEN
          ALLOCATE (ewald_env)
          CALL ewald_env_create(ewald_env, para_env)
@@ -280,14 +284,15 @@ CONTAINS
          ewald_section => section_vals_get_subs_vals(poisson_section, "EWALD")
          print_section => section_vals_get_subs_vals(qs_env%input, "PRINT%GRID_INFORMATION")
          CALL get_qs_env(qs_env, cell_ref=cell_ref)
-         CALL read_ewald_section_tb(ewald_env, ewald_section, cell_ref%hmat, silent=.TRUE.)
+         CALL read_ewald_section_tb(ewald_env, ewald_section, cell_ref%hmat, &
+                                    silent=.TRUE., pset="EEQ")
          ALLOCATE (ewald_pw)
          CALL ewald_pw_create(ewald_pw, ewald_env, cell, cell_ref, print_section=print_section)
          !
          CALL eeq_solver(charges, lambda, eeq_energy, &
                          particle_set, kind_of, cell, chia, gam, gab, &
-                         para_env, blacs_env, dft_control, &
-                         totalcharge=totalcharge, ewald=do_ewald, sparse=do_sparse, &
+                         para_env, blacs_env, dft_control, eeq_sparam, &
+                         totalcharge=totalcharge, ewald=do_ewald, &
                          ewald_env=ewald_env, ewald_pw=ewald_pw, iounit=iunit)
          !
          CALL ewald_env_release(ewald_env)
@@ -296,7 +301,7 @@ CONTAINS
       ELSE
          CALL eeq_solver(charges, lambda, eeq_energy, &
                          particle_set, kind_of, cell, chia, gam, gab, &
-                         para_env, blacs_env, dft_control, &
+                         para_env, blacs_env, dft_control, eeq_sparam, &
                          totalcharge=totalcharge, iounit=iunit)
       END IF
 
@@ -313,17 +318,19 @@ CONTAINS
 !> \param dcharges ...
 !> \param gradient ...
 !> \param stress ...
+!> \param eeq_sparam ...
 !> \param eeq_model ...
 !> \param enshift_type ...
 !> \param response_only ...
 ! **************************************************************************************************
    SUBROUTINE eeq_forces(qs_env, charges, dcharges, gradient, stress, &
-                         eeq_model, enshift_type, response_only)
+                         eeq_sparam, eeq_model, enshift_type, response_only)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: charges, dcharges
       REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: gradient
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(INOUT)      :: stress
+      TYPE(eeq_solver_type), INTENT(IN)                  :: eeq_sparam
       INTEGER, INTENT(IN)                                :: eeq_model, enshift_type
       LOGICAL, INTENT(IN)                                :: response_only
 
@@ -334,7 +341,7 @@ CONTAINS
                                                             zb
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: kind_of
       INTEGER, DIMENSION(3)                              :: periodic
-      LOGICAL                                            :: do_ewald, do_sparse, use_virial
+      LOGICAL                                            :: do_ewald, use_virial
       LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: default_present
       REAL(KIND=dp)                                      :: ala, alb, alpha, cn, ctot, dr, dr2, drk, &
                                                             elag, esg, gam2, gama, grc, kappa, &
@@ -413,7 +420,6 @@ CONTAINS
 
       CALL get_cell(cell, periodic=periodic)
       do_ewald = .NOT. ALL(periodic == 0)
-      do_sparse = .FALSE.
       IF (do_ewald) THEN
          ALLOCATE (ewald_env)
          CALL ewald_env_create(ewald_env, para_env)
@@ -422,19 +428,19 @@ CONTAINS
          ewald_section => section_vals_get_subs_vals(poisson_section, "EWALD")
          print_section => section_vals_get_subs_vals(qs_env%input, "PRINT%GRID_INFORMATION")
          CALL get_qs_env(qs_env, cell_ref=cell_ref)
-         CALL read_ewald_section_tb(ewald_env, ewald_section, cell_ref%hmat, silent=.TRUE.)
+         CALL read_ewald_section_tb(ewald_env, ewald_section, cell_ref%hmat, &
+                                    silent=.TRUE., pset="EEQ")
          ALLOCATE (ewald_pw)
          CALL ewald_pw_create(ewald_pw, ewald_env, cell, cell_ref, print_section=print_section)
          !
          CALL eeq_solver(qlag, qlam, elag, &
                          particle_set, kind_of, cell, -dcharges, gam, gab, &
-                         para_env, blacs_env, dft_control, &
-                         ewald=do_ewald, sparse=do_sparse, &
-                         ewald_env=ewald_env, ewald_pw=ewald_pw, iounit=iunit)
+                         para_env, blacs_env, dft_control, eeq_sparam, &
+                         ewald=do_ewald, ewald_env=ewald_env, ewald_pw=ewald_pw, iounit=iunit)
       ELSE
          CALL eeq_solver(qlag, qlam, elag, &
                          particle_set, kind_of, cell, -dcharges, gam, gab, &
-                         para_env, blacs_env, dft_control, iounit=iunit)
+                         para_env, blacs_env, dft_control, eeq_sparam, iounit=iunit)
       END IF
 
       sgamma = 8.0_dp ! see D4 for periodic systems paper
@@ -722,16 +728,16 @@ CONTAINS
 !> \param para_env ...
 !> \param blacs_env ...
 !> \param dft_control ...
+!> \param eeq_sparam ...
 !> \param totalcharge ...
 !> \param ewald ...
-!> \param sparse ...
 !> \param ewald_env ...
 !> \param ewald_pw ...
 !> \param iounit ...
 ! **************************************************************************************************
    SUBROUTINE eeq_solver(charges, lambda, eeq_energy, particle_set, kind_of, cell, &
-                         chia, gam, gab, para_env, blacs_env, dft_control, &
-                         totalcharge, ewald, sparse, ewald_env, ewald_pw, iounit)
+                         chia, gam, gab, para_env, blacs_env, dft_control, eeq_sparam, &
+                         totalcharge, ewald, ewald_env, ewald_pw, iounit)
 
       REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: charges
       REAL(KIND=dp), INTENT(INOUT)                       :: lambda, eeq_energy
@@ -743,26 +749,23 @@ CONTAINS
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(eeq_solver_type), INTENT(IN)                  :: eeq_sparam
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: totalcharge
-      LOGICAL, INTENT(IN), OPTIONAL                      :: ewald, sparse
+      LOGICAL, INTENT(IN), OPTIONAL                      :: ewald
       TYPE(ewald_environment_type), OPTIONAL, POINTER    :: ewald_env
       TYPE(ewald_pw_type), OPTIONAL, POINTER             :: ewald_pw
       INTEGER, INTENT(IN), OPTIONAL                      :: iounit
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'eeq_solver'
-      LOGICAL, PARAMETER                                 :: do_direct = .FALSE.
 
       INTEGER                                            :: handle, ierror, iunit, natom, nkind, ns
-      LOGICAL                                            :: do_ewald, do_sparse
-      REAL(KIND=dp)                                      :: alpha, deth, qtot
+      LOGICAL                                            :: do_direct, do_ewald, do_sparse
+      REAL(KIND=dp)                                      :: alpha, deth, ftime, qtot
       TYPE(cp_fm_struct_type), POINTER                   :: mat_struct
       TYPE(cp_fm_type)                                   :: eeq_mat
 
       CALL timeset(routineN, handle)
 
-      do_sparse = .FALSE.
-      IF (PRESENT(sparse)) do_sparse = sparse
-      !
       do_ewald = .FALSE.
       IF (PRESENT(ewald)) do_ewald = ewald
       !
@@ -771,6 +774,10 @@ CONTAINS
       !
       iunit = -1
       IF (PRESENT(iounit)) iunit = iounit
+
+      ! EEQ solver parameters
+      do_direct = eeq_sparam%direct
+      do_sparse = eeq_sparam%sparse
 
       ! sparse option NYA
       IF (do_sparse) THEN
@@ -803,7 +810,7 @@ CONTAINS
                ierror = 0
                CALL pbc_solver(charges, lambda, eeq_energy, eeq_mat, particle_set, &
                                kind_of, cell, chia, gam, gab, qtot, &
-                               ewald_env, ewald_pw, ierror, iounit)
+                               ewald_env, ewald_pw, eeq_sparam, ierror, iounit)
                IF (ierror /= 0) THEN
                   ! backup to non-iterative method
                   CALL fpbc_solver(charges, lambda, eeq_energy, eeq_mat, particle_set, &
@@ -819,7 +826,10 @@ CONTAINS
          END IF
       ELSE
          CALL mi_solver(charges, lambda, eeq_energy, eeq_mat, particle_set, kind_of, &
-                        cell, chia, gam, gab, totalcharge)
+                        cell, chia, gam, gab, qtot, ftime)
+         IF (iounit > 0) THEN
+            WRITE (iunit, '(A,T67,F14.3)') " EEQ| Molecular solver time[s]", ftime
+         END IF
       END IF
       CALL cp_fm_struct_release(mat_struct)
       CALL cp_fm_release(eeq_mat)
@@ -840,10 +850,11 @@ CONTAINS
 !> \param chia ...
 !> \param gam ...
 !> \param gab ...
-!> \param totalcharge ...
+!> \param qtot ...
+!> \param ftime ...
 ! **************************************************************************************************
    SUBROUTINE mi_solver(charges, lambda, eeq_energy, eeq_mat, particle_set, kind_of, cell, &
-                        chia, gam, gab, totalcharge)
+                        chia, gam, gab, qtot, ftime)
 
       REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: charges
       REAL(KIND=dp), INTENT(INOUT)                       :: lambda, eeq_energy
@@ -853,7 +864,8 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: cell
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: chia, gam
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: gab
-      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: totalcharge
+      REAL(KIND=dp), INTENT(IN)                          :: qtot
+      REAL(KIND=dp), INTENT(OUT)                         :: ftime
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'mi_solver'
 
@@ -861,17 +873,15 @@ CONTAINS
                                                             jkind, natom, ncloc, ncvloc, nkind, &
                                                             nrloc, nrvloc, ns
       INTEGER, DIMENSION(:), POINTER                     :: cind, cvind, rind, rvind
-      REAL(KIND=dp)                                      :: dr, grc, qtot, xr
+      REAL(KIND=dp)                                      :: dr, grc, te, ti, xr
       REAL(KIND=dp), DIMENSION(3)                        :: ri, rij, rj
       TYPE(cp_fm_struct_type), POINTER                   :: mat_struct, vec_struct
       TYPE(cp_fm_type)                                   :: rhs_vec
       TYPE(mp_para_env_type), POINTER                    :: para_env
 
       CALL timeset(routineN, handle)
+      ti = m_walltime()
 
-      qtot = 0.0_dp
-      IF (PRESENT(totalcharge)) qtot = totalcharge
-      !
       natom = SIZE(particle_set)
       nkind = SIZE(gam)
       !
@@ -950,6 +960,8 @@ CONTAINS
       CALL cp_fm_struct_release(vec_struct)
       CALL cp_fm_release(rhs_vec)
 
+      te = m_walltime()
+      ftime = te - ti
       CALL timestop(handle)
 
    END SUBROUTINE mi_solver
@@ -966,15 +978,16 @@ CONTAINS
 !> \param chia ...
 !> \param gam ...
 !> \param gab ...
-!> \param totalcharge ...
+!> \param qtot ...
 !> \param ewald_env ...
 !> \param ewald_pw ...
+!> \param eeq_sparam ...
 !> \param ierror ...
 !> \param iounit ...
 ! **************************************************************************************************
    SUBROUTINE pbc_solver(charges, lambda, eeq_energy, eeq_mat, particle_set, &
-                         kind_of, cell, chia, gam, gab, totalcharge, &
-                         ewald_env, ewald_pw, ierror, iounit)
+                         kind_of, cell, chia, gam, gab, qtot, &
+                         ewald_env, ewald_pw, eeq_sparam, ierror, iounit)
 
       REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: charges
       REAL(KIND=dp), INTENT(INOUT)                       :: lambda, eeq_energy
@@ -984,21 +997,22 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: cell
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: chia, gam
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: gab
-      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: totalcharge
+      REAL(KIND=dp), INTENT(IN)                          :: qtot
       TYPE(ewald_environment_type), POINTER              :: ewald_env
       TYPE(ewald_pw_type), POINTER                       :: ewald_pw
+      TYPE(eeq_solver_type), INTENT(IN)                  :: eeq_sparam
       INTEGER, INTENT(OUT)                               :: ierror
       INTEGER, OPTIONAL                                  :: iounit
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'pbc_solver'
-      REAL(KIND=dp), PARAMETER                           :: eps_pcg = 1.E-10_dp
 
       INTEGER :: ewald_type, handle, i, iac, iar, ic, ikind, info, ir, iunit, iv, ix, iy, iz, &
-         jkind, max_diis, mdiis, natom, ncloc, ndiis, nkind, now, nrloc, ns
+         jkind, max_diis, mdiis, natom, ncloc, ndiis, nkind, now, nrloc, ns, sdiis
       INTEGER, DIMENSION(3)                              :: cvec, ncell, periodic
       INTEGER, DIMENSION(:), POINTER                     :: cind, rind
-      REAL(KIND=dp)                                      :: ad, alpha, deth, dr, eeqn, grc1, grc2, &
-                                                            qtot, rcut, rdl, res, resin, rmax
+      REAL(KIND=dp)                                      :: ad, alpha, astep, deth, dr, eeqn, &
+                                                            eps_diis = 1.E-9_dp, ftime, grc1, &
+                                                            grc2, rcut, res, resin, rmax, te, ti
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: bvec, dvec
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: dmat, fvec, vmat, xvec
       REAL(KIND=dp), DIMENSION(3)                        :: ri, rij, rijl, rj
@@ -1009,11 +1023,9 @@ CONTAINS
       TYPE(mp_para_env_type), POINTER                    :: para_env
 
       CALL timeset(routineN, handle)
+      ti = m_walltime()
 
       ierror = 0
-
-      qtot = 0.0_dp
-      IF (PRESENT(totalcharge)) qtot = totalcharge
 
       iunit = -1
       IF (PRESENT(iounit)) iunit = iounit
@@ -1039,7 +1051,10 @@ CONTAINS
       IF (periodic(3) == 0) ncell(3) = 0
       !
       CALL mi_solver(charges, lambda, eeqn, eeq_mat, particle_set, kind_of, cell, &
-                     chia, gam, gab, qtot)
+                     chia, gam, gab, qtot, ftime)
+      IF (iunit > 0) THEN
+         WRITE (iunit, '(A,T67,F14.3)') " EEQ| Iterative PBC guess time[s]", ftime
+      END IF
       CALL cp_fm_get_info(eeq_mat, matrix_struct=mat_struct, para_env=para_env)
       CALL cp_fm_create(pmat, mat_struct)
       CALL cp_fm_create(mmat, mat_struct)
@@ -1134,8 +1149,11 @@ CONTAINS
       xv0(1:natom) = charges(1:natom)
       xv0(ns) = 0.0_dp
       ! DIIS optimizer
-      max_diis = 200 ! DIIS iterations
-      mdiis = 5
+      max_diis = eeq_sparam%max_diis
+      mdiis = eeq_sparam%mdiis
+      sdiis = eeq_sparam%sdiis
+      eps_diis = eeq_sparam%eps_diis
+      astep = eeq_sparam%alpha
       ALLOCATE (xvec(ns, mdiis), fvec(ns, mdiis), bvec(ns))
       xvec = 0.0_dp; fvec = 0.0_dp
       ALLOCATE (vmat(mdiis, mdiis), dmat(mdiis + 1, mdiis + 1), dvec(mdiis + 1))
@@ -1146,21 +1164,10 @@ CONTAINS
                                cell, particle_set, xv0, rhs, rv0)
       resin = SQRT(SUM(rv0*rv0))
       !
-      IF (iunit > 0) THEN
-         WRITE (iunit, '(A)', advance='NO') " EEQ| "
-      END IF
       DO iv = 1, max_diis
          res = SQRT(SUM(rv0*rv0))
-         IF (iunit > 0) THEN
-            rdl = MAX(-LOG10(res), 0.0_dp)
-            WRITE (iunit, '(I1)', advance='NO') MIN(NINT(rdl), 9)
-            IF (MOD(iv, 75) == 0) THEN
-               WRITE (iunit, *)
-               WRITE (iunit, '(A)', advance='NO') " EEQ| "
-            END IF
-         END IF
          IF (res > 10._dp*resin) EXIT
-         IF (res < eps_pcg) EXIT
+         IF (res < eps_diis) EXIT
          !
          now = MOD(iv - 1, mdiis) + 1
          ndiis = MIN(iv, mdiis)
@@ -1170,8 +1177,8 @@ CONTAINS
             vmat(now, i) = SUM(fvec(:, now)*fvec(:, i))
             vmat(i, now) = vmat(now, i)
          END DO
-         IF (ndiis == 1) THEN
-            xv0(1:ns) = xv0(1:ns) + 1.00*rv0(1:ns)
+         IF (ndiis < sdiis) THEN
+            xv0(1:ns) = xv0(1:ns) + astep*rv0(1:ns)
          ELSE
             dvec = 0.0_dp
             dvec(ndiis + 1) = 1.0_dp
@@ -1191,16 +1198,22 @@ CONTAINS
       charges(1:natom) = xv0(1:natom)
       lambda = xv0(ns)
       eeq_energy = eeqn
-      IF (res > eps_pcg) ierror = 1
-      IF (iunit > 0) THEN
-         WRITE (iunit, '(A)') "<"
-      END IF
+      IF (res > eps_diis) ierror = 1
       !
       DEALLOCATE (xvec, fvec, bvec)
       DEALLOCATE (vmat, dmat, dvec)
       DEALLOCATE (xv0, rv0)
       DEALLOCATE (rhs)
 
+      te = m_walltime()
+      IF (iunit > 0) THEN
+         IF (ierror == 1) THEN
+            WRITE (iunit, '(A)') " EEQ| PBC solver failed to converge "
+         ELSE
+            WRITE (iunit, '(A,T50,I4,T61,E20.5)') " EEQ| PBC solver: iterations/accuracy ", iv, res
+         END IF
+         WRITE (iunit, '(A,T67,F14.3)') " EEQ| Iterative PBC solver: time[s]", te - ti
+      END IF
       CALL timestop(handle)
 
    END SUBROUTINE pbc_solver
@@ -1217,13 +1230,13 @@ CONTAINS
 !> \param chia ...
 !> \param gam ...
 !> \param gab ...
-!> \param totalcharge ...
+!> \param qtot ...
 !> \param ewald_env ...
 !> \param ewald_pw ...
 !> \param iounit ...
 ! **************************************************************************************************
    SUBROUTINE fpbc_solver(charges, lambda, eeq_energy, eeq_mat, particle_set, &
-                          kind_of, cell, chia, gam, gab, totalcharge, ewald_env, ewald_pw, iounit)
+                          kind_of, cell, chia, gam, gab, qtot, ewald_env, ewald_pw, iounit)
 
       REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: charges
       REAL(KIND=dp), INTENT(INOUT)                       :: lambda, eeq_energy
@@ -1233,7 +1246,7 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: cell
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: chia, gam
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: gab
-      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: totalcharge
+      REAL(KIND=dp), INTENT(IN)                          :: qtot
       TYPE(ewald_environment_type), POINTER              :: ewald_env
       TYPE(ewald_pw_type), POINTER                       :: ewald_pw
       INTEGER, INTENT(IN), OPTIONAL                      :: iounit
@@ -1246,8 +1259,8 @@ CONTAINS
                                                             nrvloc, ns
       INTEGER, DIMENSION(3)                              :: cvec, ncell, periodic
       INTEGER, DIMENSION(:), POINTER                     :: cind, cvind, rind, rvind
-      REAL(KIND=dp)                                      :: ad, alpha, deth, dr, grc1, qtot, rcut, &
-                                                            rmax, xr
+      REAL(KIND=dp)                                      :: ad, alpha, deth, dr, grc1, rcut, rmax, &
+                                                            te, ti, xr
       REAL(KIND=dp), DIMENSION(3)                        :: ri, rij, rijl, rj
       REAL(KIND=dp), DIMENSION(3, 3)                     :: hmat
       REAL(KIND=dp), DIMENSION(:), POINTER               :: pval, xval
@@ -1256,9 +1269,7 @@ CONTAINS
       TYPE(mp_para_env_type), POINTER                    :: para_env
 
       CALL timeset(routineN, handle)
-
-      qtot = 0.0_dp
-      IF (PRESENT(totalcharge)) qtot = totalcharge
+      ti = m_walltime()
 
       iunit = -1
       IF (PRESENT(iounit)) iunit = iounit
@@ -1392,6 +1403,10 @@ CONTAINS
       CALL cp_fm_struct_release(vec_struct)
       CALL cp_fm_release(rhs_vec)
 
+      te = m_walltime()
+      IF (iunit > 0) THEN
+         WRITE (iunit, '(A,T67,F14.3)') " EEQ| Direct PBC solver: time[s]", te - ti
+      END IF
       CALL timestop(handle)
 
    END SUBROUTINE fpbc_solver

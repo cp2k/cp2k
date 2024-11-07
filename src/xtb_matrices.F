@@ -40,6 +40,7 @@ MODULE xtb_matrices
                                               cp_print_key_finished_output,&
                                               cp_print_key_should_output,&
                                               cp_print_key_unit_nr
+   USE eeq_input,                       ONLY: eeq_solver_type
    USE input_constants,                 ONLY: vdw_pairpot_dftd4
    USE input_section_types,             ONLY: section_vals_val_get
    USE kinds,                           ONLY: dp
@@ -174,6 +175,7 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_h, matrix_p, matrix_s, matrix_w
       TYPE(dcnum_type), ALLOCATABLE, DIMENSION(:)        :: dcnum
       TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(eeq_solver_type)                              :: eeq_sparam
       TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: basis_set_list
       TYPE(gto_basis_set_type), POINTER                  :: basis_set_a, basis_set_b
       TYPE(kpoint_type), POINTER                         :: kpoints
@@ -282,7 +284,7 @@ CONTAINS
 
       ALLOCATE (charges(natom))
       charges = 0.0_dp
-      CALL xtb_eeq_calculation(qs_env, charges, cnumbers, eeq_energy, ef_energy, qlambda)
+      CALL xtb_eeq_calculation(qs_env, charges, cnumbers, eeq_sparam, eeq_energy, ef_energy, qlambda)
       IF (calculate_forces) THEN
          ALLOCATE (dcharges(natom))
          dcharges = qlambda/REAL(para_env%num_pe, KIND=dp)
@@ -666,7 +668,7 @@ CONTAINS
       ! EEQ forces (response and direct)
       IF (calculate_forces) THEN
          CALL para_env%sum(dcharges)
-         CALL xtb_eeq_forces(qs_env, charges, dcharges, cnumbers, dcnum)
+         CALL xtb_eeq_forces(qs_env, charges, dcharges, cnumbers, dcnum, eeq_sparam)
       END IF
 
       kf = xtb_control%kf

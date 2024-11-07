@@ -21,6 +21,7 @@ MODULE xtb_eeq
                                               xtb_control_type
    USE cp_log_handling,                 ONLY: cp_logger_get_default_unit_nr
    USE distribution_1d_types,           ONLY: distribution_1d_type
+   USE eeq_input,                       ONLY: eeq_solver_type
    USE eeq_method,                      ONLY: eeq_efield_energy,&
                                               eeq_efield_force_loc,&
                                               eeq_efield_force_periodic,&
@@ -68,15 +69,18 @@ CONTAINS
 !> \param qs_env ...
 !> \param charges ...
 !> \param cnumbers ...
+!> \param eeq_sparam ...
 !> \param eeq_energy ...
 !> \param ef_energy ...
 !> \param lambda ...
 ! **************************************************************************************************
-   SUBROUTINE xtb_eeq_calculation(qs_env, charges, cnumbers, eeq_energy, ef_energy, lambda)
+   SUBROUTINE xtb_eeq_calculation(qs_env, charges, cnumbers, &
+                                  eeq_sparam, eeq_energy, ef_energy, lambda)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: charges
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: cnumbers
+      TYPE(eeq_solver_type), INTENT(IN)                  :: eeq_sparam
       REAL(KIND=dp), INTENT(INOUT)                       :: eeq_energy, ef_energy, lambda
 
       CHARACTER(len=*), PARAMETER :: routineN = 'xtb_eeq_calculation'
@@ -84,7 +88,7 @@ CONTAINS
       INTEGER                                            :: enshift_type, handle, iatom, ikind, &
                                                             iunit, jkind, natom, nkind
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: kind_of
-      LOGICAL                                            :: defined, do_ewald, do_sparse
+      LOGICAL                                            :: defined, do_ewald
       REAL(KIND=dp)                                      :: ala, alb, cn, esg, gama, kappa, scn, &
                                                             sgamma, totalcharge, xi
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: chia, efr, gam
@@ -181,8 +185,6 @@ CONTAINS
       END IF
 
       do_ewald = xtb_control%do_ewald
-      do_sparse = .FALSE.
-      IF (natom > 100000 .AND. do_ewald) do_sparse = .TRUE.
 
       CALL get_qs_env(qs_env, para_env=para_env, blacs_env=blacs_env)
       IF (do_ewald) THEN
@@ -190,13 +192,13 @@ CONTAINS
                          ewald_env=ewald_env, ewald_pw=ewald_pw)
          CALL eeq_solver(charges, lambda, eeq_energy, &
                          particle_set, kind_of, cell, chia, gam, gab, &
-                         para_env, blacs_env, dft_control, &
-                         totalcharge=totalcharge, ewald=do_ewald, sparse=do_sparse, &
+                         para_env, blacs_env, dft_control, eeq_sparam, &
+                         totalcharge=totalcharge, ewald=do_ewald, &
                          ewald_env=ewald_env, ewald_pw=ewald_pw, iounit=iunit)
       ELSE
          CALL eeq_solver(charges, lambda, eeq_energy, &
                          particle_set, kind_of, cell, chia, gam, gab, &
-                         para_env, blacs_env, dft_control, &
+                         para_env, blacs_env, dft_control, eeq_sparam, &
                          totalcharge=totalcharge, iounit=iunit)
       END IF
 
@@ -220,12 +222,14 @@ CONTAINS
 !> \param dcharges ...
 !> \param cnumbers ...
 !> \param dcnum ...
+!> \param eeq_sparam ...
 ! **************************************************************************************************
-   SUBROUTINE xtb_eeq_forces(qs_env, charges, dcharges, cnumbers, dcnum)
+   SUBROUTINE xtb_eeq_forces(qs_env, charges, dcharges, cnumbers, dcnum, eeq_sparam)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: charges, dcharges, cnumbers
       TYPE(dcnum_type), DIMENSION(:), INTENT(IN)         :: dcnum
+      TYPE(eeq_solver_type), INTENT(IN)                  :: eeq_sparam
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'xtb_eeq_forces'
 
@@ -234,7 +238,7 @@ CONTAINS
                                                             jatom, jkind, katom, kkind, natom, &
                                                             nkind
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, kind_of
-      LOGICAL                                            :: defined, do_ewald, do_sparse, use_virial
+      LOGICAL                                            :: defined, do_ewald, use_virial
       REAL(KIND=dp)                                      :: ala, alb, alpha, cn, ctot, dr, dr2, drk, &
                                                             elag, esg, gam2, gama, grc, kappa, &
                                                             qlam, qq, qq1, qq2, rcut, scn, sgamma, &
@@ -310,8 +314,6 @@ CONTAINS
       ALLOCATE (qlag(natom))
 
       do_ewald = xtb_control%do_ewald
-      do_sparse = .FALSE.
-      IF (natom > 100000 .AND. do_ewald) do_sparse = .TRUE.
 
       CALL get_qs_env(qs_env, para_env=para_env, blacs_env=blacs_env)
       IF (do_ewald) THEN
@@ -319,13 +321,12 @@ CONTAINS
                          ewald_env=ewald_env, ewald_pw=ewald_pw)
          CALL eeq_solver(qlag, qlam, elag, &
                          particle_set, kind_of, cell, -dcharges, gam, gab, &
-                         para_env, blacs_env, dft_control, &
-                         ewald=do_ewald, sparse=do_sparse, &
-                         ewald_env=ewald_env, ewald_pw=ewald_pw, iounit=iunit)
+                         para_env, blacs_env, dft_control, eeq_sparam, &
+                         ewald=do_ewald, ewald_env=ewald_env, ewald_pw=ewald_pw, iounit=iunit)
       ELSE
          CALL eeq_solver(qlag, qlam, elag, &
                          particle_set, kind_of, cell, -dcharges, gam, gab, &
-                         para_env, blacs_env, dft_control, iounit=iunit)
+                         para_env, blacs_env, dft_control, eeq_sparam, iounit=iunit)
       END IF
 
       enshift_type = xtb_control%enshift_type
