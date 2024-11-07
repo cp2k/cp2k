@@ -99,30 +99,30 @@ void grid_copy_from_multigrid_single_f(const grid_multigrid *multigrid,
 void grid_copy_to_multigrid_general(
     grid_multigrid *multigrid, const double *grids[multigrid->nlevels],
     const grid_mpi_comm comm[multigrid->nlevels],
-    const int **pgrid_dims[multigrid->nlevels],
-    const int **local2grid[multigrid->nlevels],
-    const int **grid2proc[multigrid->nlevels]);
+    const int pgrid_dims[multigrid->nlevels][3],
+    const int *local2grid[multigrid->nlevels],
+    const int *grid2proc[multigrid->nlevels]);
 
 void grid_copy_to_multigrid_general_f(
     grid_multigrid *multigrid, const double *grids[multigrid->nlevels],
     const grid_mpi_fint fortran_comm[multigrid->nlevels],
-    const int **pgrid_dims[multigrid->nlevels],
-    const int **local2grid[multigrid->nlevels],
-    const int **grid2proc[multigrid->nlevels]);
+    const int pgrid_dims[multigrid->nlevels][3],
+    const int *local2grid[multigrid->nlevels],
+    const int *grid2proc[multigrid->nlevels]);
 
 void grid_copy_from_multigrid_general(
     const grid_multigrid *multigrid, double *grids[multigrid->nlevels],
     const grid_mpi_comm comm[multigrid->nlevels],
-    const int **pgrid_dims[multigrid->nlevels],
-    const int **local2grid[multigrid->nlevels],
-    const int **grid2proc[multigrid->nlevels]);
+    const int pgrid_dims[multigrid->nlevels][3],
+    const int *local2grid[multigrid->nlevels],
+    const int *grid2proc[multigrid->nlevels]);
 
 void grid_copy_from_multigrid_general_f(
     const grid_multigrid *multigrid, double *grids[multigrid->nlevels],
     const grid_mpi_fint fortran_comm[multigrid->nlevels],
-    const int **pgrid_dims[multigrid->nlevels],
-    const int **local2grid[multigrid->nlevels],
-    const int **grid2proc[multigrid->nlevels]);
+    const int pgrid_dims[multigrid->nlevels][3],
+    const int *local2grid[multigrid->nlevels],
+    const int *grid2proc[multigrid->nlevels]);
 
 /*******************************************************************************
  * \brief Allocates a multigrid which is passed to task list-based and

@@ -166,9 +166,9 @@ void grid_copy_to_multigrid_serial(double *grid_rs, const double *grid_pw,
 void grid_copy_to_multigrid_general(
     grid_multigrid *multigrid, const double *grids[multigrid->nlevels],
     const grid_mpi_comm comm[multigrid->nlevels],
-    const int **pgrid_dims[multigrid->nlevels],
-    const int **local2grid[multigrid->nlevels],
-    const int **grid2proc[multigrid->nlevels]) {
+    const int pgrid_dims[multigrid->nlevels][3],
+    const int *local2grid[multigrid->nlevels],
+    const int *grid2proc[multigrid->nlevels]) {
   (void)grids;
   (void)pgrid_dims;
   (void)local2grid;
@@ -188,15 +188,14 @@ void grid_copy_to_multigrid_general(
 void grid_copy_to_multigrid_general_f(
     grid_multigrid *multigrid, const double *grids[multigrid->nlevels],
     const grid_mpi_fint fortran_comm[multigrid->nlevels],
-    const int **pgrid_dims[multigrid->nlevels],
-    const int **local2grid[multigrid->nlevels],
-    const int **grid2proc[multigrid->nlevels]) {
-  grid_mpi_comm *comm = malloc(sizeof(grid_mpi_comm) * multigrid->nlevels);
+    const int pgrid_dims[multigrid->nlevels][3],
+    const int *local2grid[multigrid->nlevels],
+    const int *grid2proc[multigrid->nlevels]) {
+  grid_mpi_comm comm[multigrid->nlevels];
   for (int level = 0; level < multigrid->nlevels; level++)
     comm[level] = grid_mpi_comm_f2c(fortran_comm[level]);
   grid_copy_to_multigrid_general(multigrid, grids, comm, pgrid_dims, local2grid,
                                  grid2proc);
-  free(comm);
 }
 
 void grid_copy_from_multigrid_serial(const double *grid_rs, double *grid_pw,
@@ -232,9 +231,9 @@ void grid_copy_from_multigrid_serial(const double *grid_rs, double *grid_pw,
 void grid_copy_from_multigrid_general(
     const grid_multigrid *multigrid, double *grids[multigrid->nlevels],
     const grid_mpi_comm comm[multigrid->nlevels],
-    const int **pgrid_dims[multigrid->nlevels],
-    const int **local2grid[multigrid->nlevels],
-    const int **grid2proc[multigrid->nlevels]) {
+    const int pgrid_dims[multigrid->nlevels][3],
+    const int *local2grid[multigrid->nlevels],
+    const int *grid2proc[multigrid->nlevels]) {
   (void)grids;
   (void)pgrid_dims;
   (void)local2grid;
@@ -254,15 +253,14 @@ void grid_copy_from_multigrid_general(
 void grid_copy_from_multigrid_general_f(
     const grid_multigrid *multigrid, double *grids[multigrid->nlevels],
     const grid_mpi_fint fortran_comm[multigrid->nlevels],
-    const int **pgrid_dims[multigrid->nlevels],
-    const int **local2grid[multigrid->nlevels],
-    const int **grid2proc[multigrid->nlevels]) {
-  grid_mpi_comm *comm = malloc(sizeof(grid_mpi_comm) * multigrid->nlevels);
+    const int pgrid_dims[multigrid->nlevels][3],
+    const int *local2grid[multigrid->nlevels],
+    const int *grid2proc[multigrid->nlevels]) {
+  grid_mpi_comm comm[multigrid->nlevels];
   for (int level = 0; level < multigrid->nlevels; level++)
     comm[level] = grid_mpi_comm_f2c(fortran_comm[level]);
   grid_copy_from_multigrid_general(multigrid, grids, comm, pgrid_dims,
                                    local2grid, grid2proc);
-  free(comm);
 }
 
 /*******************************************************************************

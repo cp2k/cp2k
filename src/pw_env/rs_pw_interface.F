@@ -92,10 +92,10 @@ CONTAINS
             CALL pw_transfer(rho_gspace, rho)
          END IF
       ELSE
-         !DO igrid_level = 1, gridlevel_info%ngrid_levels
-         !CALL transfer_rs2pw(rs_rho(igrid_level), &
-         !mgrid_rspace(igrid_level))
-         !END DO
+         DO igrid_level = 1, gridlevel_info%ngrid_levels
+            CALL transfer_rs2pw(rs_rho(igrid_level), &
+                                mgrid_rspace(igrid_level))
+         END DO
          IF (PRESENT(multigrid_ext)) THEN
             CALL grid_copy_from_multigrid_general(multigrid_ext, mgrid_rspace)
          ELSE
