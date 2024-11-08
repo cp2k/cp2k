@@ -481,7 +481,7 @@ CONTAINS
          IF (atenergy .OR. atex) THEN
             ALLOCATE (atomic_energy(natom))
             CALL calculate_dispersion_d4_pairpot(qs_env, dispersion_env, evdw, calculate_forces, &
-                                                 iw, atomic_energy)
+                                                 iw, atomic_energy=atomic_energy)
          ELSE
             CALL calculate_dispersion_d4_pairpot(qs_env, dispersion_env, evdw, calculate_forces, iw)
          END IF
