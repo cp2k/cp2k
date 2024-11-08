@@ -819,7 +819,7 @@ CONTAINS
                ! store kpoint index
                mo_kpoint(imo + 1:imo + nmo) = ikp
                ! store the MO spins
-               mo_spin(imo + 1:imo + nmo) = ispin
+               mo_spin(imo + 1:imo + nmo) = ispin-1
 
                ! transform and store the MO coefficients
                CALL cp_fm_get_submatrix(fm_mo_coeff, mos_sgf, 1, imo + 1, nsgf, nmo)
@@ -872,7 +872,7 @@ CONTAINS
             ! store the MO occupations
             mo_occupation(imo + 1:imo + nmo) = mos(ispin)%occupation_numbers
             ! store the MO spins
-            mo_spin(imo + 1:imo + nmo) = ispin
+            mo_spin(imo + 1:imo + nmo) = ispin-1
 
             ! check if we are using the dbcsr mo_coeff and copy them to fm if needed
             IF (mos(ispin)%use_mo_coeff_b) CALL copy_dbcsr_to_fm(mos(ispin)%mo_coeff_b, mos(ispin)%mo_coeff)
