@@ -9,5 +9,5 @@ pbe_dftd4_stress.inp                                   31    1.0E-07            
 ta1.inp                                                 0 
 ta2.inp                                                 0 
 ta3.inp                                                 0 
-ta4.inp                                                31    1.0E-07              2.83598722860E+00
+ta4.inp                                                31    1.0E-07              2.83597961983E+00
 #EOF

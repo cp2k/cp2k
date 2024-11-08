@@ -28,6 +28,7 @@ MODULE cp_control_utils
                                               cp_print_key_unit_nr
    USE cp_units,                        ONLY: cp_unit_from_cp2k,&
                                               cp_unit_to_cp2k
+   USE eeq_input,                       ONLY: read_eeq_param
    USE force_fields_input,              ONLY: read_gp_section
    USE input_constants,                 ONLY: &
         admm1_type, admm2_type, admmp_type, admmq_type, admms_type, constant_env, custom_env, &
@@ -734,15 +735,16 @@ CONTAINS
       REAL(dp)                                           :: tmp, tmpsqrt, value
       REAL(dp), POINTER                                  :: scal(:)
       TYPE(section_vals_type), POINTER :: cdft_control_section, ddapc_restraint_section, &
-         dftb_parameter, dftb_section, genpot_section, lri_optbas_section, mull_section, &
-         nonbonded_section, s2_restraint_section, se_section, xtb_parameter, xtb_section
+         dftb_parameter, dftb_section, eeq_section, genpot_section, lri_optbas_section, &
+         mull_section, nonbonded_section, s2_restraint_section, se_section, xtb_parameter, &
+         xtb_section
 
       CALL timeset(routineN, handle)
 
       was_present = .FALSE.
       NULLIFY (mull_section, ddapc_restraint_section, s2_restraint_section, &
                se_section, dftb_section, xtb_section, dftb_parameter, xtb_parameter, lri_optbas_section, &
-               cdft_control_section, genpot_section)
+               cdft_control_section, genpot_section, eeq_section)
 
       mull_section => section_vals_get_subs_vals(qs_section, "MULLIKEN_RESTRAINT")
       ddapc_restraint_section => section_vals_get_subs_vals(qs_section, "DDAPC_RESTRAINT")
@@ -752,6 +754,7 @@ CONTAINS
       xtb_section => section_vals_get_subs_vals(qs_section, "xTB")
       dftb_parameter => section_vals_get_subs_vals(dftb_section, "PARAMETER")
       xtb_parameter => section_vals_get_subs_vals(xtb_section, "PARAMETER")
+      eeq_section => section_vals_get_subs_vals(xtb_section, "EEQ")
       lri_optbas_section => section_vals_get_subs_vals(qs_section, "OPTIMIZE_LRI_BASIS")
       cdft_control_section => section_vals_get_subs_vals(qs_section, "CDFT")
       nonbonded_section => section_vals_get_subs_vals(xtb_section, "NONBONDED")
@@ -1501,6 +1504,9 @@ CONTAINS
          CASE DEFAULT
             CPABORT("Unknown value for EN_SHIFT_TYPE")
          END SELECT
+
+         ! EEQ solver params
+         CALL read_eeq_param(eeq_section, qs_control%xtb_control%eeq_sparam)
 
       END IF
 

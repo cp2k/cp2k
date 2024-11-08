@@ -12,6 +12,7 @@
 MODULE cp_control_types
    USE cp_fm_types,                     ONLY: cp_fm_release,&
                                               cp_fm_type
+   USE eeq_input,                       ONLY: eeq_solver_type
    USE input_constants,                 ONLY: do_full_density,&
                                               rtp_bse_ham_G0W0,&
                                               rtp_method_tddft
@@ -187,6 +188,7 @@ MODULE cp_control_types
       !
       ! EN shift in EEQ (molecular=1 or crystaline=2)
       INTEGER                              :: enshift_type = 1
+      TYPE(eeq_solver_type)                :: eeq_sparam ! parameters for EEQ solver
    END TYPE xtb_control_type
 
 ! **************************************************************************************************

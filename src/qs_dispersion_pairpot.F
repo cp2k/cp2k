@@ -35,12 +35,14 @@ MODULE qs_dispersion_pairpot
    USE cp_parser_types,                 ONLY: cp_parser_type,&
                                               parser_create,&
                                               parser_release
+   USE eeq_input,                       ONLY: read_eeq_param
    USE input_constants,                 ONLY: vdw_pairpot_dftd2,&
                                               vdw_pairpot_dftd3,&
                                               vdw_pairpot_dftd3bj,&
                                               vdw_pairpot_dftd4,&
                                               xc_vdw_fun_pairpot
-   USE input_section_types,             ONLY: section_vals_type,&
+   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+                                              section_vals_type,&
                                               section_vals_val_get
    USE kinds,                           ONLY: default_string_length,&
                                               dp
@@ -112,6 +114,7 @@ CONTAINS
       LOGICAL                                            :: at_end, explicit, found, is_available
       REAL(KIND=dp)                                      :: dum
       TYPE(qs_atom_dispersion_type), POINTER             :: disp
+      TYPE(section_vals_type), POINTER                   :: eeq_section
 
       CALL timeset(routineN, handle)
 
@@ -346,6 +349,10 @@ CONTAINS
             !
             dispersion_env%cnfun = 3
             dispersion_env%rc_cn = get_cn_radius(dispersion_env)
+            IF (PRESENT(pp_section)) THEN
+               eeq_section => section_vals_get_subs_vals(pp_section, "EEQ")
+               CALL read_eeq_param(eeq_section, dispersion_env%eeq_sparam)
+            END IF
          END SELECT
       END SELECT
 

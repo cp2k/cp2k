@@ -1358,14 +1358,16 @@ CONTAINS
 !> \param dcnum ...
 !> \param ftype ...
 !> \param derivatives ...
+!> \param disp_env ...
 ! **************************************************************************************************
-   SUBROUTINE cnumber_init(qs_env, cnumbers, dcnum, ftype, derivatives)
+   SUBROUTINE cnumber_init(qs_env, cnumbers, dcnum, ftype, derivatives, disp_env)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: cnumbers
       TYPE(dcnum_type), ALLOCATABLE, DIMENSION(:)        :: dcnum
       INTEGER, INTENT(IN)                                :: ftype
       LOGICAL, INTENT(IN)                                :: derivatives
+      TYPE(qs_dispersion_type), OPTIONAL, POINTER        :: disp_env
 
       INTEGER                                            :: iatom, ikind, natom, nkind, za
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atomnumber
@@ -1379,6 +1381,7 @@ CONTAINS
                       dispersion_env=dispersion_env, &
                       para_env=para_env, &
                       nkind=nkind, natom=natom)
+      IF (PRESENT(disp_env)) dispersion_env => disp_env
 
       CALL cnumber_release(cnumbers, dcnum, derivatives)
 

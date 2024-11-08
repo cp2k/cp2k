@@ -5,7 +5,7 @@
 #      for details see cp2k/tools/do_regtest
 ch2o_1.inp                                 1    1.0E-12              -6.46518011482464
 ch2o_2.inp                                 0
-ch2o_3.inp                                 1    1.0E-12              -6.46539787636264
+ch2o_3.inp                                 1    1.0E-12              -6.46539779335817
 ch2o_4.inp                                 0
 ch2o_5.inp                                 0
 ch2o_6.inp                                 0

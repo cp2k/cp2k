@@ -11,6 +11,7 @@
 ! **************************************************************************************************
 MODULE qs_dispersion_types
 
+   USE eeq_input,                       ONLY: eeq_solver_type
    USE input_section_types,             ONLY: section_vals_type
    USE kinds,                           ONLY: default_string_length,&
                                               dp
@@ -47,6 +48,7 @@ MODULE qs_dispersion_types
       LOGICAL                                :: ext_charges = .FALSE.
       REAL(KIND=dp), DIMENSION(:), POINTER   :: charges => NULL() !charges for D4
       REAL(KIND=dp), DIMENSION(:), POINTER   :: dcharges => NULL() !derivatives of D4 energy wrt charges
+      TYPE(eeq_solver_type)                  :: eeq_sparam ! parameters for EEQ solver
       !DFT-D3 global parameters
       INTEGER                                :: max_elem = -1 !elements parametrized
       INTEGER                                :: maxc = -1 !max coordination number references per element

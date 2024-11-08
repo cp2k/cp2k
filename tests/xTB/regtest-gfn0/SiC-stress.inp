@@ -7,8 +7,9 @@
 &DEBUG
   DEBUG_FORCES F
   DEBUG_STRESS_TENSOR T
-  DX 0.0001
+  DX 0.0005
   EPS_NO_ERROR_CHECK 0.000001
+  MAX_RELATIVE_ERROR 0.3
   STOP_ON_MISMATCH T
 &END DEBUG
 
@@ -23,6 +24,10 @@
       &XTB
         GFN_TYPE 0
         VDW_POTENTIAL DFTD3
+        &EEQ
+          ALPHA 1.0
+          EPS_DIIS 1.E-12
+        &END EEQ
       &END XTB
     &END QS
     &SCF

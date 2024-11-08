@@ -127,8 +127,8 @@ CONTAINS
       CHARACTER(LEN=2)                                   :: element_symbol
       INTEGER                                            :: enshift_type, iatom, ikind, natom
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: charges
-      TYPE(eeq_solver_type)                              :: eeq_sparam
       TYPE(cell_type), POINTER                           :: cell
+      TYPE(eeq_solver_type)                              :: eeq_sparam
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
 
       MARK_USED(print_level)
@@ -708,7 +708,7 @@ CONTAINS
       CALL atom2d_cleanup(atom2d)
 
       ! Calculate coordination numbers
-      CALL cnumber_init(qs_env, cnumbers, dcnum, 2, calculate_forces)
+      CALL cnumber_init(qs_env, cnumbers, dcnum, 2, calculate_forces, disp_env=disp)
 
       CALL qs_dispersion_release(disp)
 
@@ -1204,6 +1204,8 @@ CONTAINS
       DEALLOCATE (vmat, dmat, dvec)
       DEALLOCATE (xv0, rv0)
       DEALLOCATE (rhs)
+      CALL cp_fm_release(pmat)
+      CALL cp_fm_release(mmat)
 
       te = m_walltime()
       IF (iunit > 0) THEN

@@ -32,6 +32,9 @@
           REFERENCE_FUNCTIONAL PBE
           R_CUTOFF 20.
           TYPE DFTD4
+          &EEQ
+            EPS_DIIS 1.E-12
+          &END EEQ
         &END PAIR_POTENTIAL
       &END VDW_POTENTIAL
       &XC_FUNCTIONAL PADE
