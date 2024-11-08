@@ -84,7 +84,7 @@ MODULE machine
              m_getcwd, m_getlog, m_getpid, m_procrun, m_abort, &
              m_chdir, m_mov, m_memory, m_memory_details, m_energy, &
              m_cpuinfo, m_cpuid_static, m_cpuid, m_cpuid_name, &
-             m_get_omp_stacksize
+             m_omp_get_stacksize, m_omp_trace_issues
 
    INTERFACE
       ! **********************************************************************************************
@@ -97,6 +97,17 @@ MODULE machine
          IMPORT :: C_INT
          INTEGER(C_INT) :: m_cpuid_static
       END FUNCTION m_cpuid_static
+
+      ! **********************************************************************************************
+      !> \brief Trace OpenMP constructs if ennvironment variable CP2K_OMP_TRACE=1.
+      !> \return Number of OpenMP issues encountered (negative if OMPT disabled).
+      !> \par History
+      !>      11.2024 created [Hans Pabst]
+      ! **********************************************************************************************
+      FUNCTION m_omp_trace_issues() BIND(C, name="openmp_trace_issues")
+         IMPORT :: C_INT
+         INTEGER(C_INT) :: m_omp_trace_issues
+      END FUNCTION m_omp_trace_issues
    END INTERFACE
 
    ! Flushing is enabled by default because without it crash reports can get lost.
@@ -701,7 +712,7 @@ CONTAINS
 !> \brief Retrieve environment variable OMP_STACKSIZE
 !> \param omp_stacksize Value of OMP_STACKSIZE
 ! **************************************************************************************************
-   SUBROUTINE m_get_omp_stacksize(omp_stacksize)
+   SUBROUTINE m_omp_get_stacksize(omp_stacksize)
       CHARACTER(LEN=*), INTENT(OUT)                      :: omp_stacksize
 
       INTEGER                                            :: istat
@@ -711,6 +722,6 @@ CONTAINS
       ! Fall back, if OMP_STACKSIZE is not set
       IF (istat /= 0) omp_stacksize = "default"
 
-   END SUBROUTINE m_get_omp_stacksize
+   END SUBROUTINE m_omp_get_stacksize
 
 END MODULE machine
