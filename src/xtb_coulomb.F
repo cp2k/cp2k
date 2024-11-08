@@ -201,11 +201,7 @@ CONTAINS
       ! loop over all atom pairs (sab_xtbe)
       kg = xtb_control%kg
       NULLIFY (n_list)
-      IF (xtb_control%old_coulomb_damping) THEN
-         CALL get_qs_env(qs_env=qs_env, sab_orb=n_list)
-      ELSE
-         CALL get_qs_env(qs_env=qs_env, sab_xtbe=n_list)
-      END IF
+      CALL get_qs_env(qs_env=qs_env, sab_xtbe=n_list)
       CALL neighbor_list_iterator_create(nl_iterator, n_list)
       DO WHILE (neighbor_list_iterate(nl_iterator) == 0)
          CALL get_iterator_info(nl_iterator, ikind=ikind, jkind=jkind, &
@@ -249,10 +245,6 @@ CONTAINS
                   fi = 1.0_dp
                   IF (iatom == jatom) fi = 0.5_dp
                   CALL virial_pair_force(virial%pv_virial, fi, fij, rij)
-                  IF (atprop%stress) THEN
-                     CALL virial_pair_force(atprop%atstress(:, :, iatom), fi*0.5_dp, fij, rij)
-                     CALL virial_pair_force(atprop%atstress(:, :, jatom), fi*0.5_dp, fij, rij)
-                  END IF
                END IF
             END IF
          END IF
@@ -272,21 +264,19 @@ CONTAINS
             CALL get_cell(cell=cell, periodic=periodic, deth=deth)
             CALL ewald_env_get(ewald_env, alpha=alpha, ewald_type=ewald_type)
             CALL get_qs_env(qs_env=qs_env, sab_tbe=n_list)
-            CALL tb_ewald_overlap(gmcharge, mcharge, alpha, n_list, virial, &
-                                  use_virial, atprop=atprop)
+            CALL tb_ewald_overlap(gmcharge, mcharge, alpha, n_list, virial, use_virial)
             SELECT CASE (ewald_type)
             CASE DEFAULT
                CPABORT("Invalid Ewald type")
             CASE (do_ewald_none)
-               CPABORT("Not allowed with DFTB")
+               CPABORT("Not allowed with xTB/DFTB")
             CASE (do_ewald_ewald)
-               CPABORT("Standard Ewald not implemented in DFTB")
+               CPABORT("Standard Ewald not implemented in xTB/DFTB")
             CASE (do_ewald_pme)
-               CPABORT("PME not implemented in DFTB")
+               CPABORT("PME not implemented in xTB/DFTB")
             CASE (do_ewald_spme)
                CALL tb_spme_evaluate(ewald_env, ewald_pw, particle_set, cell, &
-                                     gmcharge, mcharge, calculate_forces, virial, &
-                                     use_virial, atprop=atprop)
+                                     gmcharge, mcharge, calculate_forces, virial, use_virial)
             END SELECT
          ELSE
             ! direct sum
@@ -525,10 +515,6 @@ CONTAINS
                               fi = 1.0_dp
                               IF (iatom == jatom) fi = 0.5_dp
                               CALL virial_pair_force(virial%pv_virial, fi, fij, rij)
-                              IF (atprop%stress) THEN
-                                 CALL virial_pair_force(atprop%atstress(:, :, iatom), fi*0.5_dp, fij, rij)
-                                 CALL virial_pair_force(atprop%atstress(:, :, jatom), fi*0.5_dp, fij, rij)
-                              END IF
                            END IF
                         END DO
                      END DO
@@ -620,10 +606,6 @@ CONTAINS
                         fi = 1.0_dp
                         IF (iatom == jatom) fi = 0.5_dp
                         CALL virial_pair_force(virial%pv_virial, fi, fij, rij)
-                        IF (atprop%stress) THEN
-                           CALL virial_pair_force(atprop%atstress(:, :, iatom), fi*0.5_dp, fij, rij)
-                           CALL virial_pair_force(atprop%atstress(:, :, jatom), fi*0.5_dp, fij, rij)
-                        END IF
                      END IF
                   END IF
                END IF

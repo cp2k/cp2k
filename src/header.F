@@ -211,24 +211,36 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief ...
 !> \param iw ...
+!> \param gfn_type ...
 ! **************************************************************************************************
-   SUBROUTINE xtb_header(iw)
-      INTEGER, INTENT(in)                                :: iw
+   SUBROUTINE xtb_header(iw, gfn_type)
+      INTEGER, INTENT(in)                                :: iw, gfn_type
 
       IF (iw < 0) RETURN
       WRITE (iw, '( / )')
-      WRITE (iw, '( 11(16x,a,/) )') &
+      WRITE (iw, '( 7(16x,a,/) )') &
          '  #####   #####        #          ####### ######   ', &
          ' #     # #     #      #              #    #     #  ', &
          ' #     # #           #    ##   ##    #    #     #  ', &
          ' #     #  #####     #      ## ##     #    ######   ', &
          ' #   # #       #   #        ###      #    #     #  ', &
          ' #    #  #     #  #        ## ##     #    #     #  ', &
-         '  #### #  #####  #        ##   ##    #    ######   ', &
-         '                                                   ', &
-         '                 Version 1.0                       ', &
-         '            J. Hutter and A. Hehn                  ', &
-         '                                                   '
+         '  #### #  #####  #        ##   ##    #    ######   '
+
+      SELECT CASE (gfn_type)
+      CASE (0)
+         WRITE (iw, '( 34x,a )') ' GFN0-xTB '
+      CASE (1)
+         WRITE (iw, '( 34x,a )') ' GFN1-xTB '
+      CASE (2)
+         WRITE (iw, '( 34x,a )') ' GFN2-xTB '
+      CASE DEFAULT
+      END SELECT
+
+      WRITE (iw, '( 2(16x,a,/) )') &
+         '                 Version 1.1                       ', &
+         '            J. Hutter and A. Hehn                  '
+
    END SUBROUTINE xtb_header
 ! **************************************************************************************************
 !> \brief ...

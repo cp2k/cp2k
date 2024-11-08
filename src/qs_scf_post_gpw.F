@@ -54,6 +54,7 @@ MODULE qs_scf_post_gpw
    USE cp_realspace_grid_cube,          ONLY: cp_pw_to_cube
    USE dct,                             ONLY: pw_shrink
    USE ed_analysis,                     ONLY: edmf_analysis
+   USE eeq_method,                      ONLY: eeq_print
    USE et_coupling_types,               ONLY: set_et_coupling_type
    USE hfx_ri,                          ONLY: print_ri_hfx
    USE hirshfeld_methods,               ONLY: comp_hirshfeld_charges,&
@@ -2660,6 +2661,15 @@ CONTAINS
             CALL hirshfeld_charges(qs_env, print_key, unit_nr)
             CALL cp_print_key_finished_output(unit_nr, logger, input, "DFT%PRINT%HIRSHFELD")
          END IF
+      END IF
+
+      ! Compute EEQ charges
+      print_key => section_vals_get_subs_vals(input, "DFT%PRINT%EEQ_CHARGES")
+      IF (BTEST(cp_print_key_should_output(logger%iter_info, print_key), cp_p_file)) THEN
+         unit_nr = cp_print_key_unit_nr(logger, input, "DFT%PRINT%EEQ_CHARGES", extension=".eeq", log_filename=.FALSE.)
+         print_level = 1
+         CALL eeq_print(qs_env, unit_nr, print_level)
+         CALL cp_print_key_finished_output(unit_nr, logger, input, "DFT%PRINT%MULLIKEN")
       END IF
 
       ! Do a Voronoi Integration or write a compressed BQB File

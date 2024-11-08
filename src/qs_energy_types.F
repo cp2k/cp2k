@@ -30,6 +30,9 @@ MODULE qs_energy_types
                        repulsive = 0.0_dp, &
                        dispersion = 0.0_dp, &
                        gcp = 0.0_dp, &
+                       srb = 0.0_dp, &
+                       eeq = 0.0_dp, &
+                       ies = 0.0_dp, &
                        ex = 0.0_dp, &
                        exc = 0.0_dp, &
                        exc_aux_fit = 0.0_dp, &

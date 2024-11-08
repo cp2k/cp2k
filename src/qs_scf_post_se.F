@@ -35,6 +35,7 @@ MODULE qs_scf_post_se
    USE cp_result_methods,               ONLY: cp_results_erase,&
                                               put_results
    USE cp_result_types,                 ONLY: cp_result_type
+   USE eeq_method,                      ONLY: eeq_print
    USE input_section_types,             ONLY: section_get_ival,&
                                               section_vals_get,&
                                               section_vals_get_subs_vals,&
@@ -558,6 +559,15 @@ CONTAINS
          CALL cp_print_key_finished_output(unit_nr, logger, input, "DFT%PRINT%MULLIKEN")
 
          DEALLOCATE (charges, mcharge)
+      END IF
+
+      ! EEQ Charges
+      print_key => section_vals_get_subs_vals(input, "DFT%PRINT%EEQ_CHARGES")
+      IF (BTEST(cp_print_key_should_output(logger%iter_info, print_key), cp_p_file)) THEN
+         unit_nr = cp_print_key_unit_nr(logger, input, "DFT%PRINT%EEQ_CHARGES", &
+                                        extension=".eeq", log_filename=.FALSE.)
+         CALL eeq_print(qs_env, unit_nr, print_level=1)
+         CALL cp_print_key_finished_output(unit_nr, logger, print_key)
       END IF
 
       ! Compute the Lowdin charges

@@ -24,7 +24,7 @@ MODULE input_cp2k_print_dft
       Lippert1999, Lu2004, Merlot2014, Perdew1981, Repasky2002, Rocha2006, Schenter2008, Schiffmann2015, &
       Shigeta2001, Stewart1982, Stewart1989, Stewart2007, Thiel1992, VanVoorhis2015, &
       VandeVondele2003, VandeVondele2005a, VandeVondele2005b, VandeVondele2006, Weber2008, &
-      Yin2017
+      Yin2017, Pracht2019, Caldeweyher2019, Caldeweyher2020
    USE cp_output_handling, ONLY: add_last_numeric, &
                                  cp_print_key_section_create, &
                                  debug_print_level, &
@@ -1201,6 +1201,15 @@ CONTAINS
                           type_of_var=real_t, n_var=-1)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
+      CALL section_add_subsection(section, print_key)
+      CALL section_release(print_key)
+
+      ! Print EEQ Charges
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "EEQ_CHARGES", &
+                                       description="Controls the printing of the EEQ charges", &
+                                       print_level=debug_print_level, filename="__STD_OUT__", &
+                                       common_iter_levels=1, &
+                                       citations=(/Pracht2019, Caldeweyher2019, Caldeweyher2020/))
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 

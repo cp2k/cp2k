@@ -66,7 +66,8 @@ MODULE cp_fm_basic_linalg
              cp_fm_rot_cols, & ! rotates two columns
              cp_fm_cholesky_restore, & ! apply Cholesky decomposition
              cp_fm_Gram_Schmidt_orthonorm, & ! Gram-Schmidt orthonormalization of columns of a full matrix, &
-             cp_fm_det ! determinant of a real matrix with correct sign
+             cp_fm_det, & ! determinant of a real matrix with correct sign
+             cp_fm_matvec ! matrix-vector multiplication (vector replicated)
 
    REAL(KIND=dp), EXTERNAL :: dlange, pdlange, pdlatra
    REAL(KIND=sp), EXTERNAL :: slange, pslange, pslatra
@@ -1853,7 +1854,7 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_solve'
 
-      INTEGER                                  :: handle, info, n
+      INTEGER                                  :: handle, info, n, nrhs
       INTEGER, ALLOCATABLE, DIMENSION(:)       :: ipivot
       REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a, a_general
 #if defined(__parallel)
@@ -1867,20 +1868,21 @@ CONTAINS
       a => matrix_a%local_data
       a_general => general_a%local_data
       n = matrix_a%matrix_struct%nrow_global
+      nrhs = general_a%matrix_struct%ncol_global
       ALLOCATE (ipivot(n + matrix_a%matrix_struct%nrow_block))
 
 #if defined(__parallel)
       desca(:) = matrix_a%matrix_struct%descriptor(:)
       descb(:) = general_a%matrix_struct%descriptor(:)
       CALL pdgetrf(n, n, a, 1, 1, desca, ipivot, info)
-      CALL pdgetrs("N", n, n, a, 1, 1, desca, ipivot, a_general, &
+      CALL pdgetrs("N", n, nrhs, a, 1, 1, desca, ipivot, a_general, &
                    1, 1, descb, info)
 
 #else
       lda = SIZE(a, 1)
       ldb = SIZE(a_general, 1)
       CALL dgetrf(n, n, a, lda, ipivot, info)
-      CALL dgetrs("N", n, n, a, lda, ipivot, a_general, ldb, info)
+      CALL dgetrs("N", n, nrhs, a, lda, ipivot, a_general, ldb, info)
 
 #endif
       ! info is allowed to be zero
@@ -2765,5 +2767,69 @@ CONTAINS
 #endif
 
    END SUBROUTINE cp_fm_cholesky_restore
+
+! **************************************************************************************************
+!> \brief Calculates
+!>        yv = alpha*amat*xv + beta*yv
+!>        where amat: fm matrix
+!>              xv  : vector replicated
+!>              yv  : vector replicated
+!>        Defaults: alpha = 1, beta = 0
+! **************************************************************************************************
+   SUBROUTINE cp_fm_matvec(amat, xv, yv, alpha, beta)
+      TYPE(cp_fm_type), INTENT(IN)                   :: amat
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)        :: xv
+      REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)     :: yv
+      REAL(KIND=dp), OPTIONAL, INTENT(IN)            :: alpha, beta
+
+      INTEGER                                        :: na, nc, nx, ny
+      REAL(KIND=dp)                                  :: aval, bval
+#if defined(__parallel)
+      INTEGER                                        :: nrl, ncl, ic, ir
+      INTEGER, DIMENSION(:), POINTER                 :: rind, cind
+      REAL(KIND=dp), DIMENSION(:), ALLOCATABLE       :: xvl, yvl, yvm
+#endif
+
+      IF (amat%use_sp) THEN
+         CPABORT("cp_fm_matvec: SP option not available")
+      END IF
+      aval = 1.0_dp
+      IF (PRESENT(alpha)) aval = alpha
+      bval = 0.0_dp
+      IF (PRESENT(beta)) bval = beta
+
+      CALL cp_fm_get_info(amat, nrow_global=na, ncol_global=nc)
+      nx = SIZE(xv)
+      ny = SIZE(yv)
+      IF ((nx /= ny) .OR. (nc /= nx)) THEN
+         CPABORT("cp_fm_matvec: incompatible dimensions")
+      END IF
+#if defined(__parallel)
+      CALL cp_fm_get_info(amat, nrow_local=nrl, ncol_local=ncl, &
+                          row_indices=rind, col_indices=cind)
+      ALLOCATE (xvl(ncl), yvl(nrl), yvm(ny))
+      DO ic = 1, ncl
+         xvl(ic) = xv(cind(ic))
+      END DO
+      yvl(1:nrl) = MATMUL(amat%local_data, xvl(1:ncl))
+      yvm = 0.0_dp
+      DO ir = 1, nrl
+         yvm(rind(ir)) = yvl(ir)
+      END DO
+      CALL amat%matrix_struct%para_env%sum(yvm)
+      IF (bval == 0.0_dp) THEN
+         yv = aval*yvm
+      ELSE
+         yv = bval*yv + aval*yvm
+      END IF
+#else
+      IF (bval == 0.0_dp) THEN
+         yv = aval*MATMUL(amat%local_data, xv)
+      ELSE
+         yv = bval*yv + aval*MATMUL(amat%local_data, xv)
+      END IF
+#endif
+
+   END SUBROUTINE cp_fm_matvec
 
 END MODULE cp_fm_basic_linalg

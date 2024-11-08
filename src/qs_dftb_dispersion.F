@@ -238,10 +238,6 @@ CONTAINS
                END IF
                IF (calculate_forces .AND. (dr > 0.001_dp) .AND. use_virial) THEN
                   CALL virial_pair_force(virial%pv_virial, -1._dp, fdij, rij)
-                  IF (atprop%stress) THEN
-                     CALL virial_pair_force(atprop%atstress(:, :, iatom), -0.5_dp, fdij, rij)
-                     CALL virial_pair_force(atprop%atstress(:, :, jatom), -0.5_dp, fdij, rij)
-                  END IF
                END IF
             END IF
          END DO

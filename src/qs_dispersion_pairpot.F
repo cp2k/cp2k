@@ -14,7 +14,8 @@ MODULE qs_dispersion_pairpot
    USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                               get_atomic_kind,&
                                               get_atomic_kind_set
-   USE atprop_types,                    ONLY: atprop_type
+   USE atprop_types,                    ONLY: atprop_array_init,&
+                                              atprop_type
    USE bibliography,                    ONLY: Caldeweyher2017,&
                                               Caldeweyher2019,&
                                               Caldeweyher2020,&
@@ -25,6 +26,7 @@ MODULE qs_dispersion_pairpot
                                               grimme2011
    USE cell_types,                      ONLY: cell_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                              cp_logger_get_default_io_unit,&
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                               cp_print_key_unit_nr
@@ -33,12 +35,14 @@ MODULE qs_dispersion_pairpot
    USE cp_parser_types,                 ONLY: cp_parser_type,&
                                               parser_create,&
                                               parser_release
+   USE eeq_input,                       ONLY: read_eeq_param
    USE input_constants,                 ONLY: vdw_pairpot_dftd2,&
                                               vdw_pairpot_dftd3,&
                                               vdw_pairpot_dftd3bj,&
                                               vdw_pairpot_dftd4,&
                                               xc_vdw_fun_pairpot
-   USE input_section_types,             ONLY: section_vals_type,&
+   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+                                              section_vals_type,&
                                               section_vals_val_get
    USE kinds,                           ONLY: default_string_length,&
                                               dp
@@ -46,8 +50,11 @@ MODULE qs_dispersion_pairpot
    USE physcon,                         ONLY: bohr,&
                                               kcalmol,&
                                               kjmol
-   USE qs_dispersion_cnum,              ONLY: setcn,&
-                                              setr0ab
+   USE qs_dispersion_cnum,              ONLY: get_cn_radius,&
+                                              setcn,&
+                                              seten,&
+                                              setr0ab,&
+                                              setrcov
    USE qs_dispersion_d2,                ONLY: calculate_dispersion_d2_pairpot,&
                                               dftd2_param
    USE qs_dispersion_d3,                ONLY: calculate_dispersion_d3_pairpot,&
@@ -107,6 +114,7 @@ CONTAINS
       LOGICAL                                            :: at_end, explicit, found, is_available
       REAL(KIND=dp)                                      :: dum
       TYPE(qs_atom_dispersion_type), POINTER             :: disp
+      TYPE(section_vals_type), POINTER                   :: eeq_section
 
       CALL timeset(routineN, handle)
 
@@ -202,6 +210,7 @@ CONTAINS
             ALLOCATE (dispersion_env%c6ab(max_elem, max_elem, maxc, maxc, 3))
             ALLOCATE (dispersion_env%r0ab(max_elem, max_elem))
             ALLOCATE (dispersion_env%rcov(max_elem))
+            ALLOCATE (dispersion_env%eneg(max_elem))
             ALLOCATE (dispersion_env%r2r4(max_elem))
             ALLOCATE (dispersion_env%cn(max_elem))
 
@@ -209,6 +218,8 @@ CONTAINS
             filename = dispersion_env%parameter_file_name
             CALL dftd3_c6_param(dispersion_env%c6ab, dispersion_env%maxci, filename, para_env)
             CALL setr0ab(dispersion_env%r0ab, dispersion_env%rcov, dispersion_env%r2r4)
+            ! Electronegativity
+            CALL seten(dispersion_env%eneg)
             ! the default coordination numbers
             CALL setcn(dispersion_env%cn)
             ! scale r4/r2 values of the atoms by sqrt(Z)
@@ -314,6 +325,34 @@ CONTAINS
                disp%defined = .TRUE.
                CALL set_qs_kind(qs_kind_set(ikind), dispersion=disp)
             END DO
+            ! maybe needed in cnumber calculations
+            max_elem = 94
+            maxc = 5
+            dispersion_env%max_elem = max_elem
+            dispersion_env%maxc = maxc
+            ALLOCATE (dispersion_env%maxci(max_elem))
+            ALLOCATE (dispersion_env%rcov(max_elem))
+            ALLOCATE (dispersion_env%eneg(max_elem))
+            ALLOCATE (dispersion_env%cn(max_elem))
+            ! the default covalent radii
+            CALL setrcov(dispersion_env%rcov)
+            ! the default coordination numbers
+            CALL setcn(dispersion_env%cn)
+            ! Electronegativity
+            CALL seten(dispersion_env%eneg)
+            ! parameters
+            dispersion_env%k1 = 16.0_dp
+            dispersion_env%k2 = 4._dp/3._dp
+            dispersion_env%k3 = -4._dp
+            dispersion_env%rcov = dispersion_env%k2*dispersion_env%rcov*bohr
+            dispersion_env%alp = 14._dp
+            !
+            dispersion_env%cnfun = 3
+            dispersion_env%rc_cn = get_cn_radius(dispersion_env)
+            IF (PRESENT(pp_section)) THEN
+               eeq_section => section_vals_get_subs_vals(pp_section, "EEQ")
+               CALL read_eeq_param(eeq_section, dispersion_env%eeq_sparam)
+            END IF
          END SELECT
       END SELECT
 
@@ -339,15 +378,14 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_dispersion_pairpot'
 
-      INTEGER                                            :: atom_a, handle, iatom, ikind, natom, &
+      INTEGER                                            :: atom_a, handle, iatom, ikind, iw, natom, &
                                                             nkind, unit_nr
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, kind_of
-      LOGICAL                                            :: atenergy, atex, atstress, debugall, &
-                                                            use_virial
+      LOGICAL                                            :: atenergy, atex, debugall, use_virial
       REAL(KIND=dp)                                      :: evdw, gnorm
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: atomic_energy
       REAL(KIND=dp), DIMENSION(3)                        :: fdij
       REAL(KIND=dp), DIMENSION(3, 3)                     :: dvirial, pv_loc, pv_virial_thread
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: atstr
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(atprop_type), POINTER                         :: atprop
       TYPE(cell_type), POINTER                           :: cell
@@ -384,8 +422,6 @@ CONTAINS
 
       ! atomic energy and stress arrays
       atenergy = atprop%energy
-      atstress = atprop%stress
-      atstr => atprop%atstress
       ! external atomic energy
       atex = .FALSE.
       IF (PRESENT(atevdw)) THEN
@@ -429,15 +465,6 @@ CONTAINS
          CALL calculate_dispersion_d3_pairpot(qs_env, dispersion_env, evdw, calculate_forces, &
                                               unit_nr, atevdw)
       ELSEIF (dispersion_env%pp_type == vdw_pairpot_dftd4) THEN
-         IF (atenergy) THEN
-            CPABORT("Atomic energy with DFTD4 not implemented")
-         END IF
-         IF (atex) THEN
-            CPABORT("Atomic energy with DFTD4 not implemented")
-         END IF
-         IF (atstress) THEN
-            CPABORT("Atomic stress with DFTD4 not implemented")
-         END IF
          IF (dispersion_env%lrc) THEN
             CPABORT("Long range correction with DFTD4 not implemented")
          END IF
@@ -448,7 +475,27 @@ CONTAINS
             CPABORT("Molecular approximation with DFTD4 not implemented")
          END IF
          !
-         CALL calculate_dispersion_d4_pairpot(qs_env, dispersion_env, evdw, calculate_forces, unit_nr)
+         iw = -1
+         IF (dispersion_env%verbose) iw = cp_logger_get_default_io_unit(logger)
+         !
+         IF (atenergy .OR. atex) THEN
+            ALLOCATE (atomic_energy(natom))
+            CALL calculate_dispersion_d4_pairpot(qs_env, dispersion_env, evdw, calculate_forces, &
+                                                 iw, atomic_energy=atomic_energy)
+         ELSE
+            CALL calculate_dispersion_d4_pairpot(qs_env, dispersion_env, evdw, calculate_forces, iw)
+         END IF
+         !
+         IF (atex) THEN
+            atevdw(1:natom) = atomic_energy(1:natom)
+         END IF
+         IF (atenergy) THEN
+            CALL atprop_array_init(atprop%atevdw, natom)
+            atprop%atevdw(1:natom) = atomic_energy(1:natom)
+         END IF
+         IF (atenergy .OR. atex) THEN
+            DEALLOCATE (atomic_energy)
+         END IF
       END IF
 
       ! set dispersion energy

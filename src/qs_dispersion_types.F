@@ -11,6 +11,7 @@
 ! **************************************************************************************************
 MODULE qs_dispersion_types
 
+   USE eeq_input,                       ONLY: eeq_solver_type
    USE input_section_types,             ONLY: section_vals_type
    USE kinds,                           ONLY: default_string_length,&
                                               dp
@@ -33,7 +34,7 @@ MODULE qs_dispersion_types
       INTEGER                                :: TYPE = -1
       INTEGER                                :: pp_type = -1
       INTEGER                                :: nl_type = -1
-      CHARACTER(LEN=default_string_length)  :: ref_functional = ""
+      CHARACTER(LEN=default_string_length)   :: ref_functional = ""
       REAL(KIND=dp)                          :: scaling = -1.0_dp
       REAL(KIND=dp)                          :: rc_disp = -1.0_dp
       REAL(KIND=dp)                          :: rc_d4 = -1.0_dp
@@ -41,12 +42,13 @@ MODULE qs_dispersion_types
       REAL(KIND=dp)                          :: exp_pre = -1.0_dp
       TYPE(section_vals_type), POINTER       :: dftd_section => NULL()
       LOGICAL                                :: verbose = .FALSE. !extended output
-      CHARACTER(LEN=default_string_length)  :: parameter_file_name = ""
-      CHARACTER(LEN=default_string_length)  :: kernel_file_name = ""
+      CHARACTER(LEN=default_string_length)   :: parameter_file_name = ""
+      CHARACTER(LEN=default_string_length)   :: kernel_file_name = ""
       !charges
       LOGICAL                                :: ext_charges = .FALSE.
-      REAL(KIND=dp), DIMENSION(:), POINTER    :: charges => NULL() !charges for D4
-      REAL(KIND=dp), DIMENSION(:), POINTER    :: dcharges => NULL() !derivatives of D4 energy wrt charges
+      REAL(KIND=dp), DIMENSION(:), POINTER   :: charges => NULL() !charges for D4
+      REAL(KIND=dp), DIMENSION(:), POINTER   :: dcharges => NULL() !derivatives of D4 energy wrt charges
+      TYPE(eeq_solver_type)                  :: eeq_sparam ! parameters for EEQ solver
       !DFT-D3 global parameters
       INTEGER                                :: max_elem = -1 !elements parametrized
       INTEGER                                :: maxc = -1 !max coordination number references per element
@@ -56,6 +58,7 @@ MODULE qs_dispersion_types
       REAL(KIND=dp)                          :: a1 = -1.0_dp, a2 = -1.0_dp !BJ scaling parameters
       REAL(KIND=dp)                          :: eps_cn = -1.0_dp
       LOGICAL                                :: d4_reference_code = .FALSE. !Use D4 calculation from ext. library
+      LOGICAL                                :: d4_debug = .FALSE. !Output debug information for D4
       LOGICAL                                :: doabc = .FALSE. !neglect C9 terms
       LOGICAL                                :: c9cnst = .FALSE. !use constant c9 terms
       LOGICAL                                :: lrc = .FALSE. !calculate a long range correction
@@ -63,24 +66,25 @@ MODULE qs_dispersion_types
       REAL(KIND=dp), DIMENSION(4)            :: srb_params = -1.0_dp ! parameters for SRB (s,g,t1,t2)
       REAL(KIND=dp)                          :: s9 = -1.0_dp !scale the many-body dispersion energy (default=1.0), dftd4
       TYPE(neighbor_list_set_p_type), &
-         DIMENSION(:), POINTER                :: sab_vdw => NULL(), sab_cn => NULL() ! neighborlists for pair interactions
+         DIMENSION(:), POINTER               :: sab_vdw => NULL(), sab_cn => NULL() ! neighborlists for pair interactions
       REAL(KIND=dp), DIMENSION(:, :, :, :, :), POINTER &
          :: c6ab => NULL()
-      INTEGER, DIMENSION(:), POINTER           :: maxci => NULL()
-      REAL(KIND=dp), DIMENSION(:, :), POINTER  :: r0ab => NULL()
-      REAL(KIND=dp), DIMENSION(:), POINTER    :: rcov => NULL() !covalent radii
-      REAL(KIND=dp), DIMENSION(:), POINTER    :: r2r4 => NULL() !atomic <r^2>/<r^4> values
-      REAL(KIND=dp), DIMENSION(:), POINTER    :: cn => NULL() !coordination numbers (defaults)
-      TYPE(cn_kind_list), DIMENSION(:), POINTER &
-         :: cnkind => NULL()
-      TYPE(cn_atom_list), DIMENSION(:), POINTER &
-         :: cnlist => NULL()
+      INTEGER, DIMENSION(:), POINTER         :: maxci => NULL()
+      REAL(KIND=dp), DIMENSION(:, :), POINTER :: r0ab => NULL()
+      REAL(KIND=dp), DIMENSION(:), POINTER   :: rcov => NULL() !covalent radii
+      REAL(KIND=dp), DIMENSION(:), POINTER   :: eneg => NULL() !electronegativity
+      REAL(KIND=dp), DIMENSION(:), POINTER   :: r2r4 => NULL() !atomic <r^2>/<r^4> values
+      INTEGER                                :: cnfun = 1 ! CN function to be used
+      REAL(KIND=dp), DIMENSION(:), POINTER   :: cn => NULL()
+      TYPE(cn_kind_list), DIMENSION(:), POINTER  :: cnkind => NULL()
+      TYPE(cn_atom_list), DIMENSION(:), POINTER  :: cnlist => NULL()
       ! KG molecular corrections
       LOGICAL                                :: domol = .FALSE.
       REAL(KIND=dp)                          :: kgc8 = -1.0_dp !s8 scaling parameter
       !vdW-DF variables
       REAL(KIND=dp)                          :: pw_cutoff = -1.0_dp
-      REAL(KIND=dp)                          :: b_value = -1.0_dp, c_value = -1.0_dp, scale_rvv10 = -1.0_dp !parameters for the rVV10 functional
+      !parameters for the rVV10 functional
+      REAL(KIND=dp)                          :: b_value = -1.0_dp, c_value = -1.0_dp, scale_rvv10 = -1.0_dp
       INTEGER                                :: nqs = -1, nr_points = -1
       !! The number of q points and radial points
       !! used in generating the kernel phi(q1*r, q2*r)
@@ -141,23 +145,36 @@ CONTAINS
       INTEGER                                            :: i
 
       IF (ASSOCIATED(dispersion_env)) THEN
+         ! DFT-D3 arrays
          IF (ASSOCIATED(dispersion_env%maxci)) THEN
-            ! DFT-D3 arrays
             DEALLOCATE (dispersion_env%maxci)
+         END IF
+         IF (ASSOCIATED(dispersion_env%c6ab)) THEN
             DEALLOCATE (dispersion_env%c6ab)
+         END IF
+         IF (ASSOCIATED(dispersion_env%r0ab)) THEN
             DEALLOCATE (dispersion_env%r0ab)
+         END IF
+         IF (ASSOCIATED(dispersion_env%rcov)) THEN
             DEALLOCATE (dispersion_env%rcov)
+         END IF
+         IF (ASSOCIATED(dispersion_env%eneg)) THEN
+            DEALLOCATE (dispersion_env%eneg)
+         END IF
+         IF (ASSOCIATED(dispersion_env%r2r4)) THEN
             DEALLOCATE (dispersion_env%r2r4)
+         END IF
+         IF (ASSOCIATED(dispersion_env%cn)) THEN
             DEALLOCATE (dispersion_env%cn)
-            IF (ASSOCIATED(dispersion_env%cnkind)) THEN
-               DEALLOCATE (dispersion_env%cnkind)
-            END IF
-            IF (ASSOCIATED(dispersion_env%cnlist)) THEN
-               DO i = 1, SIZE(dispersion_env%cnlist)
-                  DEALLOCATE (dispersion_env%cnlist(i)%atom)
-               END DO
-               DEALLOCATE (dispersion_env%cnlist)
-            END IF
+         END IF
+         IF (ASSOCIATED(dispersion_env%cnkind)) THEN
+            DEALLOCATE (dispersion_env%cnkind)
+         END IF
+         IF (ASSOCIATED(dispersion_env%cnlist)) THEN
+            DO i = 1, SIZE(dispersion_env%cnlist)
+               DEALLOCATE (dispersion_env%cnlist(i)%atom)
+            END DO
+            DEALLOCATE (dispersion_env%cnlist)
          END IF
          ! vdD-DF
          IF (ASSOCIATED(dispersion_env%q_mesh)) THEN

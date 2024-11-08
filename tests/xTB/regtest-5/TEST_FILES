@@ -3,10 +3,10 @@
 # e.g. 0 means do not compare anything, running is enough
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
-AdeThyvdW.inp                              1    1.0E-12             -58.89501835799521
+AdeThyvdW.inp                              1    1.0E-12             -58.89501835809043
 ice.inp                                    1    1.0E-10             -46.30708081122568
 ice2.inp                                   1    1.0E-10             -46.30708081091197
-Ru_geo.inp                                 1    1.0E-10              -7.01245481257972
+Ru_geo.inp                                 1    1.0E-10              -7.01272555945159
 ef_stress1.inp                             0
 ef_stress2.inp                             0
 ef_stress3.inp                             0

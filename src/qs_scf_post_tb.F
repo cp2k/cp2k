@@ -48,6 +48,9 @@ MODULE qs_scf_post_tb
    USE cp_result_methods,               ONLY: cp_results_erase,&
                                               put_results
    USE cp_result_types,                 ONLY: cp_result_type
+   USE eeq_input,                       ONLY: eeq_solver_type
+   USE eeq_method,                      ONLY: eeq_charges,&
+                                              eeq_print
    USE input_constants,                 ONLY: ot_precond_full_all
    USE input_section_types,             ONLY: section_get_ival,&
                                               section_get_ivals,&
@@ -170,18 +173,17 @@ CONTAINS
 
       CHARACTER(LEN=6)                                   :: ana
       CHARACTER(LEN=default_string_length)               :: aname
-      INTEGER                                            :: after, handle, homo, iat, iatom, ikind, &
-                                                            img, ispin, iw, nat, natom, nkind, &
-                                                            nlumo_stm, nlumos, nspins, &
-                                                            print_level, unit_nr
+      INTEGER :: after, enshift_type, handle, homo, iat, iatom, ikind, img, ispin, iw, nat, natom, &
+         nkind, nlumo_stm, nlumos, nspins, print_level, unit_nr
       LOGICAL                                            :: do_cube, do_kpoints, explicit, has_homo, &
                                                             omit_headers, print_it, rebuild
       REAL(KIND=dp)                                      :: zeff
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: mcharge
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: echarge, mcharge
       REAL(KIND=dp), DIMENSION(2, 2)                     :: homo_lumo
       REAL(KIND=dp), DIMENSION(:), POINTER               :: mo_eigenvalues
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: charges
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_1d_r_p_type), DIMENSION(:), POINTER        :: unoccupied_evals_stm
       TYPE(cp_fm_type), DIMENSION(:), POINTER            :: unoccupied_orbs_stm
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
@@ -190,6 +192,7 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_ks, matrix_p, matrix_s
       TYPE(dbcsr_type), POINTER                          :: mo_coeff_deriv
       TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(eeq_solver_type)                              :: eeq_sparam
       TYPE(kpoint_type), POINTER                         :: kpoints
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(mp_para_env_type), POINTER                    :: para_env
@@ -337,6 +340,15 @@ CONTAINS
          END SELECT
       END IF
 
+      ! EEQ Charges
+      print_key => section_vals_get_subs_vals(print_section, "EEQ_CHARGES")
+      IF (BTEST(cp_print_key_should_output(logger%iter_info, print_key), cp_p_file)) THEN
+         unit_nr = cp_print_key_unit_nr(logger, print_section, "EEQ_CHARGES", &
+                                        extension=".eeq", log_filename=.FALSE.)
+         CALL eeq_print(qs_env, unit_nr, print_level)
+         CALL cp_print_key_finished_output(unit_nr, logger, print_key)
+      END IF
+
       ! Hirshfeld
       print_key => section_vals_get_subs_vals(print_section, "HIRSHFELD")
       CALL section_vals_get(print_key, explicit=explicit)
@@ -370,7 +382,21 @@ CONTAINS
          unit_nr = cp_print_key_unit_nr(logger, print_section, "MOMENTS", &
                                         extension=".data", middle_name="tb_dipole", log_filename=.FALSE.)
          moments_section => section_vals_get_subs_vals(print_section, "MOMENTS")
-         CALL tb_dipole(qs_env, moments_section, unit_nr, mcharge)
+         IF (tb_type == "xTB" .AND. dft_control%qs_control%xtb_control%gfn_type == 0) THEN
+            enshift_type = dft_control%qs_control%xtb_control%enshift_type
+            IF (enshift_type == 0) THEN
+               CALL get_qs_env(qs_env, cell=cell)
+               enshift_type = 1
+               IF (.NOT. ALL(cell%perd == 0)) enshift_type = 2
+            END IF
+            ALLOCATE (echarge(natom))
+            echarge = 0.0_dp
+            CALL eeq_charges(qs_env, echarge, eeq_sparam, 1, enshift_type)
+            CALL tb_dipole(qs_env, moments_section, unit_nr, echarge)
+            DEALLOCATE (echarge)
+         ELSE
+            CALL tb_dipole(qs_env, moments_section, unit_nr, mcharge)
+         END IF
          CALL cp_print_key_finished_output(unit_nr, logger, print_key)
       END IF
 

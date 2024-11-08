@@ -123,7 +123,8 @@ CONTAINS
                CALL section_vals_val_get(pp_section, "REFERENCE_FUNCTIONAL", explicit=exfun)
                CPASSERT(exfun)
                IF (dispersion_env%pp_type == vdw_pairpot_dftd3) THEN
-                  CALL qs_scaling_dftd3(dispersion_env%s6, dispersion_env%sr6, dispersion_env%s8, vdw_section)
+                  CALL qs_scaling_dftd3(dispersion_env%s6, dispersion_env%sr6, &
+                                        dispersion_env%s8, vdw_section)
                ELSE IF (dispersion_env%pp_type == vdw_pairpot_dftd3bj) THEN
                   CALL qs_scaling_dftd3bj(dispersion_env%s6, dispersion_env%a1, dispersion_env%s8, &
                                           dispersion_env%a2, vdw_section)
@@ -156,14 +157,29 @@ CONTAINS
             dispersion_env%eps_cn = 0._dp
          END IF
          IF (dispersion_env%pp_type == vdw_pairpot_dftd4) THEN
-            CALL section_vals_val_get(pp_section, "REFERENCE_FUNCTIONAL", explicit=exfun)
-            IF (.NOT. exfun) THEN
-               CPABORT("D4 vdW functional needs specification of REFERENCE_FUNCTIONAL")
+            CALL section_vals_val_get(pp_section, "D4_SCALING", explicit=explicit)
+            IF (.NOT. explicit) THEN
+               CALL section_vals_val_get(pp_section, "REFERENCE_FUNCTIONAL", explicit=exfun)
+               IF (.NOT. exfun) THEN
+                  CPABORT("D4 vdW REFERENCE_FUNCTIONAL or D4_SCALING expected")
+               ELSE
+                  CALL section_vals_val_get(vdw_section, &
+                                            "PAIR_POTENTIAL%REFERENCE_FUNCTIONAL", &
+                                            c_val=dispersion_env%ref_functional)
+               END IF
+            ELSE
+               CALL section_vals_val_get(pp_section, "D4_SCALING", r_vals=scal)
+               dispersion_env%s6 = scal(1)
+               dispersion_env%a1 = scal(2)
+               dispersion_env%s8 = scal(3)
+               dispersion_env%a2 = scal(4)
+               dispersion_env%sr6 = 0.0_dp
+               dispersion_env%ref_functional = "none"
             END IF
+            CALL section_vals_val_get(pp_section, "EPS_CN", r_val=dispersion_env%eps_cn)
             CALL section_vals_val_get(pp_section, "D4_REFERENCE_CODE", &
                                       l_val=dispersion_env%d4_reference_code)
-            CALL section_vals_val_get(vdw_section, "PAIR_POTENTIAL%REFERENCE_FUNCTIONAL", &
-                                      c_val=dispersion_env%ref_functional)
+            CALL section_vals_val_get(pp_section, "D4_DEBUG", l_val=dispersion_env%d4_debug)
             CALL section_vals_val_get(pp_section, "D4_CUTOFF", r_val=dispersion_env%rc_d4)
             CALL section_vals_val_get(pp_section, "D4_CN_CUTOFF", r_val=dispersion_env%rc_cn)
             CALL section_vals_val_get(pp_section, "FACTOR_S9_TERM", r_val=dispersion_env%s9)

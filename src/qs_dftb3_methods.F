@@ -226,10 +226,6 @@ CONTAINS
                               fi = 1.0_dp
                               IF (iatom == jatom) fi = 0.5_dp
                               CALL virial_pair_force(virial%pv_virial, fi, fij, rij)
-                              IF (atprop%stress) THEN
-                                 CALL virial_pair_force(atprop%atstress(:, :, irow), fi*0.5_dp, fij, rij)
-                                 CALL virial_pair_force(atprop%atstress(:, :, icol), fi*0.5_dp, fij, rij)
-                              END IF
                            END IF
                         END DO
                      END DO
@@ -284,10 +280,6 @@ CONTAINS
                   fi = 1.0_dp
                   IF (iatom == jatom) fi = 0.5_dp
                   CALL virial_pair_force(virial%pv_virial, fi, fij, rij)
-                  IF (atprop%stress) THEN
-                     CALL virial_pair_force(atprop%atstress(:, :, iatom), fi*0.5_dp, fij, rij)
-                     CALL virial_pair_force(atprop%atstress(:, :, jatom), fi*0.5_dp, fij, rij)
-                  END IF
                END IF
 
             END DO

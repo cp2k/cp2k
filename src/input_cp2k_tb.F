@@ -18,6 +18,7 @@ MODULE input_cp2k_tb
                                               Porezag1995,&
                                               Seifert1996,&
                                               Zhechkov2005
+   USE eeq_input,                       ONLY: create_eeq_control_section
    USE input_constants,                 ONLY: dispersion_d2,&
                                               dispersion_d3,&
                                               dispersion_d3bj,&
@@ -32,11 +33,9 @@ MODULE input_cp2k_tb
                                               section_create,&
                                               section_release,&
                                               section_type
-   USE input_val_types,                 ONLY: char_t,&
-                                              lchar_t
+   USE input_val_types,                 ONLY: char_t
    USE kinds,                           ONLY: dp
-   USE string_utilities,                ONLY: newline,&
-                                              s2a
+   USE string_utilities,                ONLY: s2a
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -140,15 +139,21 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
-      CALL create_atom_parameter_section(subsection)
-      CALL section_add_subsection(section, subsection)
-      CALL section_release(subsection)
-
       CALL create_xtb_nonbonded_section(subsection)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
+      CALL create_eeq_control_section(subsection)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+
       NULLIFY (keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="GFN_TYPE", &
+                          description="Which GFN xTB method should be used.", &
+                          usage="GFN_TYPE 1", default_i_val=1)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       CALL keyword_create(keyword, __LOCATION__, name="DO_EWALD", &
                           description="Use Ewald type method instead of direct sum for Coulomb interaction", &
                           usage="DO_EWALD", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
@@ -157,13 +162,13 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="STO_NG", &
                           description="Provides the order of the Slater orbital expansion in GTOs.", &
-                          usage="STO_NG", default_i_val=6)
+                          usage="STO_NG 3", default_i_val=6)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="HYDROGEN_STO_NG", &
                           description="Number of GTOs for Hydrogen basis expansion.", &
-                          usage="HYDROGEN_STO_NG", default_i_val=4)
+                          usage="HYDROGEN_STO_NG 3", default_i_val=4)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -177,6 +182,13 @@ CONTAINS
                           description="Controls the computation of real-space "// &
                           "(short-range) nonbonded interactions as correction to xTB.", &
                           usage="DO_NONBONDED T", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="VDW_POTENTIAL", &
+                          description="vdW potential to be used: NONE, DFTD3, DFTD4. "// &
+                          "Defaults: DFTD3(gfn1), DFTD4(gfn0, gfn2).", &
+                          usage="VDW_POTENTIAL type", default_c_val="")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -204,9 +216,17 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="OLD_COULOMB_DAMPING", &
-                          description="Only use for backward compatability. Handle with extreme caution.", &
-                          usage="OLD_COULOMB_DAMPING T", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL keyword_create(keyword, __LOCATION__, name="EPS_PAIRPOTENTIAL", &
+                          description="Accuracy for the repulsive pair potential.", &
+                          usage="EPS_PAIRPOTENTIAL 1.0E-8", default_r_val=1.0e-10_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="EN_SHIFT_TYPE", &
+                          description="Shift function for electronegativity in EEQ method. "// &
+                          "[Select/Molecule/Crystal] Default Select from periodicity.", &
+                          usage="EN_SHIFT_TYPE [Select/Molecule/Crystal]", &
+                          n_var=1, type_of_var=char_t, default_c_val="Molecule")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -414,9 +434,24 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="EN_CONSTANT", &
+      CALL keyword_create(keyword, __LOCATION__, name="EN_CONSTANTS", &
                           description="Scaling parameters for electronegativity correction term.", &
-                          usage="EN_CONSTANT -0.007", n_var=1, default_r_val=-0.007_dp)
+                          usage="EN_CONSTANTS -0.007 0.000 0.000", n_var=3, &
+                          default_r_vals=(/-0.007_dp, 0.000_dp, 0.000_dp/))
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="BEN_CONSTANT", &
+                          description="Scaling parameter for electronegativity correction term.", &
+                          usage="BEN_CONSTANT 4.0", n_var=1, &
+                          default_r_val=4.0_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="ENSCALE", &
+                          description="Scaling parameter repulsive energy (dEN in exponential).", &
+                          usage="ENSCALE 0.01", n_var=1, &
+                          default_r_val=0.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -451,6 +486,14 @@ CONTAINS
                           description="Cutoff for short range part of Coulomb interaction.", &
                           usage="COULOMB_SR_EPS 1.E-3 ", repeats=.FALSE., &
                           n_var=1, default_r_val=1.0E-03_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="SRB_PARAMETER", &
+                          description="SRB parameters (ksrb, esrb, gscal, c1, c2, shift).", &
+                          usage="SRB_PARAMETER -0.0129 3.48 0.51 -1.71 2.11 0.0537", n_var=6, &
+                          default_r_vals=(/-0.0129_dp, 3.4847_dp, 0.5097_dp, &
+                                           -1.70549806_dp, 2.10878369_dp, 0.0537_dp/))
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -490,33 +533,5 @@ CONTAINS
       CALL keyword_release(keyword)
 
    END SUBROUTINE create_xtb_nonbonded_section
-! **************************************************************************************************
-!> \brief Creates the &ATOM_APRAMETER section
-!> \param section the section to create
-!> \author teo
-! **************************************************************************************************
-   SUBROUTINE create_atom_parameter_section(section)
-      TYPE(section_type), POINTER                        :: section
-
-      TYPE(keyword_type), POINTER                        :: keyword
-
-      CALL section_create(section, __LOCATION__, name="ATOM_PARAMETER", &
-                          description="Section used to specify a atom parameter set for xTB calclulations.", &
-                          n_keywords=1, n_subsections=0, repeats=.TRUE.)
-
-      NULLIFY (keyword)
-      CALL keyword_create( &
-         keyword, __LOCATION__, name="_DEFAULT_KEYWORD_", &
-         repeats=.TRUE., type_of_var=lchar_t, &
-         description="xTB atom parameters in standard format:"//newline//newline// &
-         "```"//newline// &
-         "Element symbol  eta  gamma alpha Zeff label kpoly kappa Hen zeta"//newline// &
-         "nshell repeat the following block of lines)"//newline// &
-         "label kpoly kappa Hen zeta"//newline// &
-         "```")
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-   END SUBROUTINE create_atom_parameter_section
 
 END MODULE input_cp2k_tb

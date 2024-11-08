@@ -131,6 +131,9 @@ list(
   dm_ls_scf_types.F
   domain_submatrix_methods.F
   domain_submatrix_types.F
+  eeq_data.F
+  eeq_input.F
+  eeq_method.F
   ec_efield_local.F
   ec_environment.F
   ec_env_types.F
@@ -839,10 +842,15 @@ list(
   xas_tp_scf.F
   xray_diffraction.F
   xtb_coulomb.F
+  xtb_eeq.F
   xtb_ehess.F
   xtb_ehess_force.F
+  xtb_hcore.F
+  xtb_hab_force.F
+  xtb_ks_matrix.F
   xtb_matrices.F
   xtb_parameters.F
+  xtb_potentials.F
   xtb_types.F)
 
 list(

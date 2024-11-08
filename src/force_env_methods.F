@@ -199,17 +199,15 @@ CONTAINS
 
       REAL(kind=dp), PARAMETER                           :: ateps = 1.0E-6_dp
 
-      INTEGER                                            :: i, ikind, j, nat, ndigits, nfixed_atoms, &
+      INTEGER                                            :: ikind, nat, ndigits, nfixed_atoms, &
                                                             nfixed_atoms_total, nkind, &
                                                             output_unit, print_forces, print_grrm, &
                                                             print_scine
       LOGICAL :: calculate_forces, calculate_stress_tensor, energy_consistency, eval_ef, &
          linres_run, my_skip, print_components
       REAL(KIND=dp)                                      :: checksum, e_entropy, e_gap, e_pot, &
-                                                            sum_energy, sum_pv_virial, &
-                                                            sum_stress_tensor
+                                                            sum_energy
       REAL(KIND=dp), DIMENSION(3)                        :: grand_total_force, total_force
-      REAL(KIND=dp), DIMENSION(3, 3)                     :: atomic_stress_tensor, diff_stress_tensor
       TYPE(atprop_type), POINTER                         :: atprop_env
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_logger_type), POINTER                      :: logger
@@ -474,70 +472,6 @@ CONTAINS
          CALL write_scine(print_scine, force_env, particles%els, e_pot)
       END IF
       CALL cp_print_key_finished_output(print_scine, logger, force_env%force_env_section, "PRINT%SCINE")
-
-      ! Atomic stress
-      output_unit = cp_print_key_unit_nr(logger, force_env%force_env_section, "PRINT%PROGRAM_RUN_INFO", &
-                                         extension=".Log")
-
-      IF (atprop_env%stress) THEN
-         CALL force_env%para_env%sum(atprop_env%atstress)
-         ! symmetrize (same as pv_virial)
-         DO i = 1, SIZE(atprop_env%atstress, 3)
-            atprop_env%atstress(:, :, i) = 0.5_dp*(atprop_env%atstress(:, :, i) &
-                                                   + TRANSPOSE(atprop_env%atstress(:, :, i)))
-         END DO
-         IF (output_unit > 0) THEN
-            IF (logger%iter_info%print_level > low_print_level) THEN
-               DO i = 1, SIZE(atprop_env%atstress, 3)
-                  WRITE (UNIT=output_unit, FMT="(/,T2,I0,T16,A1,2(19X,A1))") i, "X", "Y", "Z"
-                  WRITE (UNIT=output_unit, FMT="(A3,3F20.13)") "X", (atprop_env%atstress(1, j, i), j=1, 3)
-                  WRITE (UNIT=output_unit, FMT="(A3,3F20.13)") "Y", (atprop_env%atstress(2, j, i), j=1, 3)
-                  WRITE (UNIT=output_unit, FMT="(A3,3F20.13)") "Z", (atprop_env%atstress(3, j, i), j=1, 3)
-                  WRITE (UNIT=output_unit, FMT="(T2,A,F20.13)") "1/3 Trace(Atomic stress tensor):", &
-                     (atprop_env%atstress(1, 1, i) + atprop_env%atstress(2, 2, i) + atprop_env%atstress(3, 3, i))/3.0_dp
-               END DO
-            END IF
-            atomic_stress_tensor(:, :) = 0.0_dp
-            DO i = 1, 3
-               atomic_stress_tensor(i, i) = accurate_sum(atprop_env%atstress(i, i, :))
-               DO j = i + 1, 3
-                  atomic_stress_tensor(i, j) = accurate_sum(atprop_env%atstress(i, j, :))
-                  atomic_stress_tensor(j, i) = atomic_stress_tensor(i, j)
-               END DO
-            END DO
-            WRITE (UNIT=output_unit, FMT="(/,T2,A,T15,A1,2(19X,A1))") "Atomic", "X", "Y", "Z"
-            WRITE (UNIT=output_unit, FMT="(A3,3F20.13)") "X", (atomic_stress_tensor(1, i), i=1, 3)
-            WRITE (UNIT=output_unit, FMT="(A3,3F20.13)") "Y", (atomic_stress_tensor(2, i), i=1, 3)
-            WRITE (UNIT=output_unit, FMT="(A3,3F20.13)") "Z", (atomic_stress_tensor(3, i), i=1, 3)
-            WRITE (UNIT=output_unit, FMT="(T2,A,10X,F20.13)") "1/3 Trace(Atomic stress tensor):", &
-               (atomic_stress_tensor(1, 1) + atomic_stress_tensor(2, 2) + atomic_stress_tensor(3, 3))/3.0_dp
-            sum_stress_tensor = accurate_sum(atomic_stress_tensor(:, :))
-            IF (virial%pv_availability .AND. calculate_forces) THEN
-               WRITE (UNIT=output_unit, FMT="(/,T2,A,T16,A1,2(19X,A1))") "Total", "X", "Y", "Z"
-               WRITE (UNIT=output_unit, FMT="(A3,3F20.13)") "X", (virial%pv_virial(1, i), i=1, 3)
-               WRITE (UNIT=output_unit, FMT="(A3,3F20.13)") "Y", (virial%pv_virial(2, i), i=1, 3)
-               WRITE (UNIT=output_unit, FMT="(A3,3F20.13)") "Z", (virial%pv_virial(3, i), i=1, 3)
-               WRITE (UNIT=output_unit, FMT="(T2,A,10X,F20.13)") "1/3 Trace(Total stress tensor): ", &
-                  (virial%pv_virial(1, 1) + virial%pv_virial(2, 2) + virial%pv_virial(3, 3))/3.0_dp
-               sum_pv_virial = SUM(virial%pv_virial(:, :))
-               diff_stress_tensor(:, :) = ABS(virial%pv_virial(:, :) - atomic_stress_tensor(:, :))
-               WRITE (UNIT=output_unit, FMT="(/,T2,A,T16,A1,2(19X,A1))") "Diff", "X", "Y", "Z"
-               WRITE (UNIT=output_unit, FMT="(A3,3F20.13)") "X", (diff_stress_tensor(1, i), i=1, 3)
-               WRITE (UNIT=output_unit, FMT="(A3,3F20.13)") "Y", (diff_stress_tensor(2, i), i=1, 3)
-               WRITE (UNIT=output_unit, FMT="(A3,3F20.13)") "Z", (diff_stress_tensor(3, i), i=1, 3)
-               WRITE (UNIT=output_unit, FMT="(T2,A,10X,F20.13)") "1/3 Trace(Diff)               : ", &
-                  (diff_stress_tensor(1, 1) + diff_stress_tensor(2, 2) + diff_stress_tensor(3, 3))/3.0_dp
-               checksum = accurate_sum(diff_stress_tensor(:, :))
-               WRITE (UNIT=output_unit, FMT="(/,(T2,A,11X,F25.13))") &
-                  "Checksum stress (Atomic) :", sum_stress_tensor, &
-                  "Checksum stress (Total)  :", sum_pv_virial, &
-                  "Difference               :", checksum
-               CPASSERT(checksum < ateps)
-            END IF
-         END IF
-         CALL cp_print_key_finished_output(output_unit, logger, force_env%force_env_section, &
-                                           "PRINT%PROGRAM_RUN_INFO")
-      END IF
 
    END SUBROUTINE force_env_calc_energy_force
 

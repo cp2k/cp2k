@@ -14,6 +14,8 @@
       CUTOFF 280
     &END MGRID
     &PRINT
+      &EEQ_CHARGES ON
+      &END EEQ_CHARGES
       &LOWDIN OFF
       &END LOWDIN
       &MULLIKEN ON

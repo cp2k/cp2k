@@ -92,9 +92,9 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, atomnumber, kind_of
       INTEGER, DIMENSION(3)                              :: cell_b, cell_c, ncell, periodic
       INTEGER, DIMENSION(:), POINTER                     :: atom_list
-      LOGICAL :: atenergy, atex, atstress, debugall, domol, exclude_pair, floating_a, floating_b, &
+      LOGICAL :: atenergy, atex, debugall, domol, exclude_pair, floating_a, floating_b, &
          floating_c, ghost_a, ghost_b, ghost_c, is000, use_virial
-      LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: dodisp, floating, ghost
+      LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: dodisp, exclude
       REAL(KIND=dp) :: a1, a2, alp6, alp8, ang, c6, c8, c9, cc6ab, cc6bc, cc6ca, cnum, dc6a, dc6b, &
          dc8a, dc8b, dcc6aba, dcc6abb, dcc6bcb, dcc6bcc, dcc6caa, dcc6cac, de6, de8, de91, de921, &
          de922, dea, dfdab6, dfdab8, dfdabc, dr, drk, e6, e6tot, e8, e8tot, e9, e9tot, elrc6, &
@@ -108,7 +108,6 @@ CONTAINS
                                                             rc0, rca, rij, rik, sab_max
       REAL(KIND=dp), DIMENSION(3, 3)                     :: pv_virial_thread
       REAL(KIND=dp), DIMENSION(:), POINTER               :: atener
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: atstr
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(atprop_type), POINTER                         :: atprop
       TYPE(cell_type), POINTER                           :: cell
@@ -142,8 +141,6 @@ CONTAINS
          CALL atprop_array_init(atprop%atevdw, natom)
          atener => atprop%atevdw
       END IF
-      atstress = atprop%stress
-      atstr => atprop%atstress
       ! external atomic energy
       atex = .FALSE.
       IF (PRESENT(atevdw)) THEN
@@ -160,13 +157,12 @@ CONTAINS
       use_virial = virial%pv_availability .AND. (.NOT. virial%pv_numer)
       pv_virial_thread(:, :) = 0._dp
 
-      ALLOCATE (dodisp(nkind), ghost(nkind), floating(nkind), atomnumber(nkind), c6d2(nkind), radd2(nkind))
+      ALLOCATE (dodisp(nkind), exclude(nkind), atomnumber(nkind), c6d2(nkind), radd2(nkind))
       DO ikind = 1, nkind
          CALL get_atomic_kind(atomic_kind_set(ikind), z=za)
          CALL get_qs_kind(qs_kind_set(ikind), dispersion=disp_a, ghost=ghost_a, floating=floating_a)
          dodisp(ikind) = disp_a%defined
-         ghost(ikind) = ghost_a
-         floating(ikind) = floating_a
+         exclude(ikind) = ghost_a .OR. floating_a
          atomnumber(ikind) = za
          c6d2(ikind) = disp_a%c6
          radd2(ikind) = disp_a%vdw_radii
@@ -260,8 +256,8 @@ CONTAINS
          ALLOCATE (dcnum(1))
       END IF
 
-      CALL d3_cnumber(qs_env, dispersion_env, cnumbers, dcnum, ghost, floating, atomnumber, &
-                      calculate_forces, debugall)
+      CALL d3_cnumber(qs_env, dispersion_env, cnumbers, dcnum, exclude, atomnumber, &
+                      calculate_forces, 1)
 
       CALL para_env%sum(cnumbers)
       ! for parallel runs we have to update dcnum on all processors
@@ -346,7 +342,7 @@ CONTAINS
       DO WHILE (neighbor_list_iterate(nl_iterator, mepos=mepos) == 0)
          CALL get_iterator_info(nl_iterator, mepos=mepos, ikind=ikind, jkind=jkind, iatom=iatom, jatom=jatom, r=rij)
 
-         IF (ghost(ikind) .OR. ghost(jkind) .OR. floating(ikind) .OR. floating(jkind)) CYCLE
+         IF (exclude(ikind) .OR. exclude(jkind)) CYCLE
 
          IF (.NOT. (dodisp(ikind) .AND. dodisp(jkind))) CYCLE
 
@@ -438,10 +434,6 @@ CONTAINS
                   IF (use_virial) THEN
                      CALL virial_pair_force(pv_virial_thread, -1._dp, fdij, rij)
                   END IF
-                  IF (atstress) THEN
-                     CALL virial_pair_force(atstr(:, :, iatom), -0.5_dp, fdij, rij)
-                     CALL virial_pair_force(atstr(:, :, jatom), -0.5_dp, fdij, rij)
-                  END IF
                   ! forces from the r-dependence of the coordination numbers
                   IF (idmp == 1) THEN
                      ! zero
@@ -470,10 +462,6 @@ CONTAINS
                      IF (use_virial) THEN
                         CALL virial_pair_force(pv_virial_thread, -1._dp, fdik, rik)
                      END IF
-                     IF (atstress) THEN
-                        CALL virial_pair_force(atstr(:, :, iatom), -0.5_dp, fdik, rik)
-                        CALL virial_pair_force(atstr(:, :, katom), -0.5_dp, fdik, rik)
-                     END IF
                   END DO
                   DO i = 1, dcnum(jatom)%neighbors
                      katom = dcnum(jatom)%nlist(i)
@@ -486,10 +474,6 @@ CONTAINS
                      force(kkind)%dispersion(:, atom_c) = force(kkind)%dispersion(:, atom_c) + fdik(:)
                      IF (use_virial) THEN
                         CALL virial_pair_force(pv_virial_thread, -1._dp, fdik, rik)
-                     END IF
-                     IF (atstress) THEN
-                        CALL virial_pair_force(atstr(:, :, jatom), -0.5_dp, fdik, rik)
-                        CALL virial_pair_force(atstr(:, :, katom), -0.5_dp, fdik, rik)
                      END IF
                   END DO
                END IF
@@ -529,7 +513,7 @@ CONTAINS
                            rc0 = MATMUL(cell%hmat, cell_c)
                            DO katom = kstart, natom
                               kkind = kind_of(katom)
-                              IF (ghost(kkind) .OR. floating(kkind) .OR. .NOT. dodisp(kkind)) CYCLE
+                              IF (exclude(kkind) .OR. .NOT. dodisp(kkind)) CYCLE
                               rc(:) = rcpbc(:, katom) + rc0(:)
                               r2bc = SUM((rb - rc)**2)
                               IF (r2bc >= rc2) CYCLE
@@ -607,10 +591,6 @@ CONTAINS
                                     IF (use_virial) THEN
                                        CALL virial_pair_force(pv_virial_thread, -1._dp, fdij, rab)
                                     END IF
-                                    IF (atstress) THEN
-                                       CALL virial_pair_force(atstr(:, :, iatom), -0.5_dp, fdij, rab)
-                                       CALL virial_pair_force(atstr(:, :, jatom), -0.5_dp, fdij, rab)
-                                    END IF
                                     fdij(:) = de91*rbc(:)/r2bc
                                     fdij(:) = fdij(:) + dea*s1*s2*s3*rbc(:)/r2bc
                                     fdij(:) = fdij(:) - dea*(s2*s3 - s1*s3 + s1*s2)*rbc(:)
@@ -619,10 +599,6 @@ CONTAINS
                                     IF (use_virial) THEN
                                        CALL virial_pair_force(pv_virial_thread, -1._dp, fdij, rbc)
                                     END IF
-                                    IF (atstress) THEN
-                                       CALL virial_pair_force(atstr(:, :, jatom), -0.5_dp, fdij, rbc)
-                                       CALL virial_pair_force(atstr(:, :, katom), -0.5_dp, fdij, rbc)
-                                    END IF
                                     fdij(:) = de91*rca(:)/r2ca
                                     fdij(:) = fdij(:) + dea*s1*s2*s3*rca(:)/r2ca
                                     fdij(:) = fdij(:) - dea*(-s2*s3 + s1*s3 + s1*s2)*rca(:)
@@ -630,10 +606,6 @@ CONTAINS
                                     force(ikind)%dispersion(:, atom_a) = force(ikind)%dispersion(:, atom_a) + fdij(:)
                                     IF (use_virial) THEN
                                        CALL virial_pair_force(pv_virial_thread, -1._dp, fdij, rca)
-                                    END IF
-                                    IF (atstress) THEN
-                                       CALL virial_pair_force(atstr(:, :, iatom), -0.5_dp, fdij, rca)
-                                       CALL virial_pair_force(atstr(:, :, katom), -0.5_dp, fdij, rca)
                                     END IF
 
                                     IF (.NOT. dispersion_env%c9cnst) THEN
@@ -870,7 +842,7 @@ CONTAINS
          END IF
       END IF
 
-      DEALLOCATE (dodisp, ghost, floating, atomnumber, rcpbc, radd2, c6d2)
+      DEALLOCATE (dodisp, exclude, atomnumber, rcpbc, radd2, c6d2)
 
       IF (domol) THEN
          DEALLOCATE (atom2mol)

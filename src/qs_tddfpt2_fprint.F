@@ -66,8 +66,8 @@ MODULE qs_tddfpt2_fprint
                                               response_force,&
                                               response_force_xtb
    USE ri_environment_methods,          ONLY: build_ri_matrices
-   USE xtb_matrices,                    ONLY: build_xtb_ks_matrix,&
-                                              build_xtb_matrices
+   USE xtb_ks_matrix,                   ONLY: build_xtb_ks_matrix
+   USE xtb_matrices,                    ONLY: build_xtb_matrices
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -332,8 +332,7 @@ CONTAINS
       ELSEIF (dft_control%qs_control%dftb) THEN
          CPABORT("TDDFPT| DFTB not available")
       ELSEIF (dft_control%qs_control%xtb) THEN
-         CALL build_xtb_matrices(qs_env=qs_env, para_env=para_env, &
-                                 calculate_forces=.TRUE.)
+         CALL build_xtb_matrices(qs_env=qs_env, calculate_forces=.TRUE.)
          CALL build_xtb_ks_matrix(qs_env, calculate_forces=.TRUE., just_energy=.FALSE.)
       ELSE
          CALL build_core_hamiltonian_matrix(qs_env=qs_env, calculate_forces=.TRUE.)

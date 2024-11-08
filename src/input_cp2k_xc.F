@@ -19,6 +19,7 @@ MODULE input_cp2k_xc
    USE cp_output_handling,              ONLY: add_last_numeric,&
                                               cp_print_key_section_create,&
                                               high_print_level
+   USE eeq_input,                       ONLY: create_eeq_control_section
    USE input_constants,                 ONLY: &
         do_adiabatic_hybrid_mcy3, do_adiabatic_model_pade, fxc_funct_gga, fxc_funct_lda, &
         fxc_funct_pade, fxc_none, gaussian, slater, vdw_nl_drsll, vdw_nl_lmkll, vdw_nl_rvv10, &
@@ -916,7 +917,7 @@ CONTAINS
       TYPE(section_type), POINTER                        :: section
 
       TYPE(keyword_type), POINTER                        :: keyword
-      TYPE(section_type), POINTER                        :: print_key, subsection
+      TYPE(section_type), POINTER                        :: newsection, print_key, subsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, __LOCATION__, name="vdw_potential", &
@@ -944,6 +945,7 @@ CONTAINS
                           description="Information on the pair potential to calculate dispersion", &
                           n_keywords=5, n_subsections=0, repeats=.TRUE.)
       CALL keyword_create(keyword, __LOCATION__, name="R_CUTOFF", &
+                          variants=s2a("D3_CUTOFF", "D4_3B_CUTOFF"), &
                           description="Range of potential. The cutoff will be 2 times this value. "// &
                           "In the case of D4 it will be used for the 3-body term", &
                           usage="R_CUTOFF 20.0", default_r_val=20.0_dp, &
@@ -953,13 +955,13 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="D4_CUTOFF", &
                           description="Range of potential. The cutoff will be 2 times this value. "// &
                           "Only used for the 2-body term of D4", &
-                          usage="D4_CUTOFF 30.0", default_r_val=30.0_dp, &
+                          usage="D4_CUTOFF 30.0", default_r_val=20.0_dp, &
                           unit_str="angstrom")
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="D4_CN_CUTOFF", &
                           description="Coordination number cutoff for D4", &
-                          usage="D4_CN_CUTOFF 30.0", default_r_val=30.0_dp, &
+                          usage="D4_CN_CUTOFF 30.0", default_r_val=10.0_dp, &
                           unit_str="angstrom")
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
@@ -999,15 +1001,23 @@ CONTAINS
                           lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
-      CALL keyword_create(keyword, __LOCATION__, name="SCALING", &
+      CALL keyword_create(keyword, __LOCATION__, name="D4_DEBUG", &
+                          description="Debug output for D4 method using reference code.", &
+                          usage="D4_DEBUG", default_l_val=.FALSE., &
+                          lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="D2_SCALING", &
+                          variants=["SCALING"], &
                           description="XC Functional dependent scaling parameter, if set to zero CP2K attempts"// &
                           " to guess the xc functional that is in use and sets the associated scaling parameter.", &
                           usage="SCALING 0.2", default_r_val=0._dp)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
-      CALL keyword_create(keyword, __LOCATION__, name="EXP_PRE", &
+      CALL keyword_create(keyword, __LOCATION__, name="D2_EXP_PRE", &
+                          variants=["EXP_PRE"], &
                           description="Prefactor in exponential damping factor (DFT-D2 potential)", &
-                          usage="EXP_PRE 20.", default_r_val=20._dp)
+                          usage="D2_EXP_PRE 20.", default_r_val=20._dp)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="EPS_CN", &
@@ -1028,6 +1038,14 @@ CONTAINS
                           " if set to zero CP2K attempts"// &
                           " to guess the xc functional from REFERENCE_FUNCTIONAL and sets the associated scaling parameter.", &
                           usage="D3BJ_SCALING 1.0 1.0 1.0 1.0", n_var=4, &
+                          default_r_vals=(/0.0_dp, 0.0_dp, 0.0_dp, 0.0_dp/))
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="D4_SCALING", &
+                          description="XC Functional dependent scaling parameters (s6,a1,s8,a2) for the DFT-D4 method,"// &
+                          " if set to zero CP2K attempts"// &
+                          " to guess the xc functional from REFERENCE_FUNCTIONAL and sets the associated scaling parameter.", &
+                          usage="D4_SCALING 1.0 1.0 1.0 1.0", n_var=4, &
                           default_r_vals=(/0.0_dp, 0.0_dp, 0.0_dp, 0.0_dp/))
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
@@ -1082,7 +1100,8 @@ CONTAINS
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="VERBOSE_OUTPUT", &
-                          description="Extensive output for the DFT-D2 and DFT-D3 models", &
+                          description="Extensive output for the DFT-D2 and DFT-D3 models."// &
+                          " Needs PRINT_DFTD section to be specified.", &
                           usage="VERBOSE_OUTPUT", default_l_val=.FALSE., &
                           lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(subsection, keyword)
@@ -1134,6 +1153,11 @@ CONTAINS
                                        print_level=high_print_level, add_last=add_last_numeric, filename="")
       CALL section_add_subsection(subsection, print_key)
       CALL section_release(print_key)
+
+      NULLIFY (newsection)
+      CALL create_eeq_control_section(newsection)
+      CALL section_add_subsection(subsection, newsection)
+      CALL section_release(newsection)
 
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)

@@ -86,7 +86,7 @@ MODULE bibliography
                             Mattiat2022, Belleflamme2023, Knizia2013, Musaelian2023, Eriksen2020, &
                             Bussy2023, Bussy2024, Wang2018, Zeng2023, Graml2024, Solca2024, &
                             Caldeweyher2017, Caldeweyher2019, Caldeweyher2020, Freeman1977, Gruneis2009, &
-                            Stein2022, Stein2024, &
+                            Stein2022, Stein2024, Pracht2019, &
                             Blase2018, Blase2020, Bruneval2015, Golze2019, Gui2018, Jacquemin2017, Liu2020, &
                             Sander2015, Schreiber2008, vanSetten2015, Setyawan2010, Ahart2024
 
@@ -1883,6 +1883,12 @@ CONTAINS
                          "for Integrating Density Functional Theory and Non-Equilibrium Green Functions", &
                          source="J. Chem. Theory Comput.", volume="20", pages="6772-6780", &
                          year=2024, doi="10.1021/acs.jctc.4c00371")
+
+      CALL add_reference(key=Pracht2019, &
+                         authors=s2a("P. Pracht", "E. Caldeweyher", "S. Ehlert", "S. Grimme"), &
+                         title="A Robust Non-Self-Consistent Tight-Binding Quantum Chemistry Method for large Molecules", &
+                         source="ChemRxiv", volume="", pages="", &
+                         year=2019, doi="10.26434/chemrxiv.8326202.v1")
 
    END SUBROUTINE add_all_references
 

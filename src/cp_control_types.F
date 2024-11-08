@@ -12,6 +12,7 @@
 MODULE cp_control_types
    USE cp_fm_types,                     ONLY: cp_fm_release,&
                                               cp_fm_type
+   USE eeq_input,                       ONLY: eeq_solver_type
    USE input_constants,                 ONLY: do_full_density,&
                                               rtp_bse_ham_G0W0,&
                                               rtp_method_tddft
@@ -133,11 +134,14 @@ MODULE cp_control_types
 ! **************************************************************************************************
    TYPE xtb_control_type
       !
+      INTEGER                              :: gfn_type = 1
+      !
       LOGICAL                              :: do_ewald = .FALSE.
       !
       INTEGER                              :: sto_ng = 0
       INTEGER                              :: h_sto_ng = 0
       !
+      INTEGER                              :: vdw_type = -1
       CHARACTER(LEN=default_path_length)   :: parameter_file_path = ""
       CHARACTER(LEN=default_path_length)   :: parameter_file_name = ""
       !
@@ -151,7 +155,10 @@ MODULE cp_control_types
       REAL(KIND=dp)                        :: kg = 0.0_dp, kf = 0.0_dp
       REAL(KIND=dp)                        :: kcns = 0.0_dp, kcnp = 0.0_dp, kcnd = 0.0_dp
       REAL(KIND=dp)                        :: ken = 0.0_dp
+      REAL(KIND=dp)                        :: ksen = 0.0_dp, kpen = 0.0_dp, kden = 0.0_dp
+      REAL(KIND=dp)                        :: ben = 0.0_dp
       REAL(KIND=dp)                        :: kxr = 0.0_dp, kx2 = 0.0_dp
+      REAL(KIND=dp)                        :: enscale = 0.0_dp
       !
       LOGICAL                              :: xb_interaction = .FALSE.
       LOGICAL                              :: do_nonbonded = .FALSE.
@@ -159,7 +166,6 @@ MODULE cp_control_types
       LOGICAL                              :: coulomb_lr = .FALSE.
       LOGICAL                              :: tb3_interaction = .FALSE.
       LOGICAL                              :: check_atomic_charges = .FALSE.
-      LOGICAL                              :: old_coulomb_damping = .FALSE.
       !
       REAL(KIND=dp)                        :: xb_radius = 0.0_dp
       REAL(KIND=dp)                        :: coulomb_sr_cut = 0.0_dp
@@ -172,6 +178,17 @@ MODULE cp_control_types
       REAL, DIMENSION(:), POINTER          :: kab_vals => NULL()
       !
       TYPE(pair_potential_p_type), POINTER :: nonbonded => NULL()
+      REAL(KIND=dp)                        :: eps_pair = 0.0_dp
+      REAL(KIND=dp), DIMENSION(:, :), &
+         POINTER                           :: rcpair => NULL()
+      !
+      ! SRB terms
+      REAL(KIND=dp)                        :: ksrb = 0.0_dp, esrb = 0.0_dp, gscal = 0.0_dp
+      REAL(KIND=dp)                        :: c1srb = 0.0_dp, c2srb = 0.0_dp, shift = 0.0_dp
+      !
+      ! EN shift in EEQ (molecular=1 or crystaline=2)
+      INTEGER                              :: enshift_type = 1
+      TYPE(eeq_solver_type)                :: eeq_sparam ! parameters for EEQ solver
    END TYPE xtb_control_type
 
 ! **************************************************************************************************
@@ -1072,6 +1089,7 @@ CONTAINS
       NULLIFY (xtb_control%kab_vals)
       NULLIFY (xtb_control%kab_types)
       NULLIFY (xtb_control%nonbonded)
+      NULLIFY (xtb_control%rcpair)
 
    END SUBROUTINE xtb_control_create
 
@@ -1091,6 +1109,9 @@ CONTAINS
          END IF
          IF (ASSOCIATED(xtb_control%kab_types)) THEN
             DEALLOCATE (xtb_control%kab_types)
+         END IF
+         IF (ASSOCIATED(xtb_control%rcpair)) THEN
+            DEALLOCATE (xtb_control%rcpair)
          END IF
          IF (ASSOCIATED(xtb_control%nonbonded)) THEN
             CALL pair_potential_p_release(xtb_control%nonbonded)
