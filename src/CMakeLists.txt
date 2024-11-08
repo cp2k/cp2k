@@ -133,7 +133,7 @@ list(
   domain_submatrix_types.F
   eeq_data.F
   eeq_input.F
-  eeq_model.F
+  eeq_method.F
   ec_efield_local.F
   ec_environment.F
   ec_env_types.F

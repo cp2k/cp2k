@@ -7,7 +7,7 @@
 &DEBUG
   DEBUG_FORCES T
   DEBUG_STRESS_TENSOR F
-  DX 0.00001
+  DX 0.0001
   STOP_ON_MISMATCH T
 &END DEBUG
 
@@ -24,6 +24,9 @@
       &XTB
         GFN_TYPE 0
         VDW_POTENTIAL DFTD3
+        &EEQ
+           EPS_DIIS 1.E-12
+        &END EEQ
       &END XTB
     &END QS
     &SCF
