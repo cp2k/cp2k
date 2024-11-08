@@ -250,7 +250,7 @@ class Config:
         default_ompthreads = 2 if "smp" in args.version else 1
         self.ompthreads = args.ompthreads if args.ompthreads else default_ompthreads
         self.mpiranks = args.mpiranks if self.use_mpi else 1
-        self.num_workers = int(args.maxtasks / self.ompthreads / self.mpiranks)
+        self.num_workers = int(args.maxtasks / self.ompthreads / self.mpiranks) or 1
         self.workers = Semaphore(self.num_workers)
         self.cp2k_root = Path(__file__).resolve().parent.parent
         self.mpiexec = args.mpiexec
