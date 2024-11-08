@@ -570,19 +570,23 @@ CONTAINS
 !> \param evdw ...
 !> \param calculate_forces ...
 !> \param iw ...
+!> \param atomic_energy ...
 ! **************************************************************************************************
-   SUBROUTINE calculate_dispersion_d4_pairpot(qs_env, dispersion_env, evdw, calculate_forces, iw)
+   SUBROUTINE calculate_dispersion_d4_pairpot(qs_env, dispersion_env, evdw, calculate_forces, &
+                                              iw, atomic_energy)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(qs_dispersion_type), INTENT(IN), POINTER      :: dispersion_env
       REAL(KIND=dp), INTENT(INOUT)                       :: evdw
       LOGICAL, INTENT(IN)                                :: calculate_forces
       INTEGER, INTENT(IN)                                :: iw
+      REAL(KIND=dp), DIMENSION(:), OPTIONAL              :: atomic_energy
 
       MARK_USED(qs_env)
       MARK_USED(dispersion_env)
       MARK_USED(evdw)
       MARK_USED(calculate_forces)
       MARK_USED(iw)
+      MARK_USED(atomic_energy)
 
       CPABORT("CP2K build without DFTD4")
 
