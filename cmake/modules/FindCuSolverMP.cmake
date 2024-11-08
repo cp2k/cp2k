@@ -12,9 +12,11 @@
 include(FindPackageHandleStandardArgs)
 include(cp2k_utils)
 
+find_package(ucc REQUIRED)
+find_package(Cal REQUIRED)
+
 cp2k_set_default_paths(CUSOLVER_MP "CUSOLVER_MP")
 
-find_package(Cal REQUIRED)
 cp2k_find_libraries(CUSOLVER_MP "cusolverMp")
 cp2k_include_dirs(CUSOLVER_MP "cusolverMp.h")
 
@@ -27,7 +29,7 @@ if(CP2K_CUSOLVER_MP_FOUND AND NOT TARGET cp2k::CUSOLVER_MP::cusolver_mp)
   set_target_properties(
     cp2k::CUSOLVER_MP::cusolver_mp
     PROPERTIES INTERFACE_LINK_LIBRARIES
-               "${CP2K_CUSOLVER_MP_LINK_LIBRARIES};cp2k::CAL::cal")
+               "${CP2K_CUSOLVER_MP_LINK_LIBRARIES};cp2k::CAL::cal;cp2k::UCC::ucc")
   set_target_properties(
     cp2k::CUSOLVER_MP::cusolver_mp
     PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${CP2K_CUSOLVER_MP_INCLUDE_DIRS}")
