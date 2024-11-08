@@ -37,8 +37,6 @@ BuildRequires: libxc-devel
 BuildRequires: cmake(Spglib)
 # Test dependencies
 BuildRequires: python3
-# For pathfix.py
-BuildRequires: python3-devel
 
 Requires:      %{name}-common = %{version}-%{release}
 
@@ -128,9 +126,6 @@ developing applications that use %{name}.
 %autosetup -p1
 rm tools/build_utils/fypp
 rm -r exts/dbcsr
-
-# Fix test files
-%{python3} %{_rpmconfigdir}/redhat/pathfix.py -i "%{python3} -Es" -p $(find . -type f -name *.py)
 
 # $MPI_SUFFIX will be evaluated in the loops below, set by mpi modules
 %global _vpath_builddir %{_vendor}-%{_target_os}-build${MPI_SUFFIX:-_serial}
