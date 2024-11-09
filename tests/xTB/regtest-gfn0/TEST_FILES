@@ -16,7 +16,7 @@ si_kp.inp                                  0
 si_smear.inp                               0
 SiC_virial.inp                             0
 SiC-stress.inp                             0
-ch2o_eeq.inp                               1    1.0E-12              -7.84498782089221
+ch2o_eeq.inp                               1    1.0E-11              -7.84498782090161
 ch2o_eloc.inp                              0
 ch2o_eper.inp                              0
 #EOF

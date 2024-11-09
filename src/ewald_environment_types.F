@@ -392,7 +392,7 @@ CONTAINS
       LOGICAL, INTENT(IN), OPTIONAL                      :: silent
       CHARACTER(LEN=*), OPTIONAL                         :: pset
 
-      CHARACTER(LEN=5)                                   :: param = "none"
+      CHARACTER(LEN=5)                                   :: param
       INTEGER                                            :: i, iw, n(3)
       INTEGER, DIMENSION(:), POINTER                     :: gmax_read
       LOGICAL                                            :: do_print, explicit
@@ -402,6 +402,7 @@ CONTAINS
       logger => cp_get_default_logger()
       do_print = .TRUE.
       IF (PRESENT(silent)) do_print = .NOT. silent
+      param = "none"
       IF (PRESENT(pset)) param = pset
 
       ewald_env%do_multipoles = .FALSE.
