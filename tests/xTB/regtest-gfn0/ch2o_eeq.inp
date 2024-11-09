@@ -18,6 +18,8 @@
       &END XTB
     &END QS
     &SCF
+      EPS_SCF 1.E-8
+      MAX_SCF 50
       SCF_GUESS ATOMIC
     &END SCF
   &END DFT

@@ -105,20 +105,20 @@ MODULE eeq_data
       & 2.8055966_dp, 3.0968677_dp, 1.6597596_dp, 3.2191575_dp, 1.5388148_dp, &
       & 2.1222013_dp]
 
-   ! covalent radii (taken from Pyykko and Atsumi, Chem. Eur. J. 15, 2009, 188-197)
-   ! values for metals decreased by 10 %
-   REAL(KIND=dp), PARAMETER :: rcov(1:maxElem) = [&
-      & 0.32_dp, 0.46_dp, 1.20_dp, 0.94_dp, 0.77_dp, 0.75_dp, 0.71_dp, 0.63_dp, &
-      & 0.64_dp, 0.67_dp, 1.40_dp, 1.25_dp, 1.13_dp, 1.04_dp, 1.10_dp, 1.02_dp, &
-      & 0.99_dp, 0.96_dp, 1.76_dp, 1.54_dp, 1.33_dp, 1.22_dp, 1.21_dp, 1.10_dp, &
-      & 1.07_dp, 1.04_dp, 1.00_dp, 0.99_dp, 1.01_dp, 1.09_dp, 1.12_dp, 1.09_dp, &
-      & 1.15_dp, 1.10_dp, 1.14_dp, 1.17_dp, 1.89_dp, 1.67_dp, 1.47_dp, 1.39_dp, &
-      & 1.32_dp, 1.24_dp, 1.15_dp, 1.13_dp, 1.13_dp, 1.08_dp, 1.15_dp, 1.23_dp, &
-      & 1.28_dp, 1.26_dp, 1.26_dp, 1.23_dp, 1.32_dp, 1.31_dp, 2.09_dp, 1.76_dp, &
-      & 1.62_dp, 1.47_dp, 1.58_dp, 1.57_dp, 1.56_dp, 1.55_dp, 1.51_dp, 1.52_dp, &
-      & 1.51_dp, 1.50_dp, 1.49_dp, 1.49_dp, 1.48_dp, 1.53_dp, 1.46_dp, 1.37_dp, &
-      & 1.31_dp, 1.23_dp, 1.18_dp, 1.16_dp, 1.11_dp, 1.12_dp, 1.13_dp, 1.32_dp, &
-      & 1.30_dp, 1.30_dp, 1.36_dp, 1.31_dp, 1.38_dp, 1.42_dp]
+!  ! covalent radii (taken from Pyykko and Atsumi, Chem. Eur. J. 15, 2009, 188-197)
+!  ! values for metals decreased by 10 %
+!  REAL(KIND=dp), PARAMETER :: rcov(1:maxElem) = [&
+!     & 0.32_dp, 0.46_dp, 1.20_dp, 0.94_dp, 0.77_dp, 0.75_dp, 0.71_dp, 0.63_dp, &
+!     & 0.64_dp, 0.67_dp, 1.40_dp, 1.25_dp, 1.13_dp, 1.04_dp, 1.10_dp, 1.02_dp, &
+!     & 0.99_dp, 0.96_dp, 1.76_dp, 1.54_dp, 1.33_dp, 1.22_dp, 1.21_dp, 1.10_dp, &
+!     & 1.07_dp, 1.04_dp, 1.00_dp, 0.99_dp, 1.01_dp, 1.09_dp, 1.12_dp, 1.09_dp, &
+!     & 1.15_dp, 1.10_dp, 1.14_dp, 1.17_dp, 1.89_dp, 1.67_dp, 1.47_dp, 1.39_dp, &
+!     & 1.32_dp, 1.24_dp, 1.15_dp, 1.13_dp, 1.13_dp, 1.08_dp, 1.15_dp, 1.23_dp, &
+!     & 1.28_dp, 1.26_dp, 1.26_dp, 1.23_dp, 1.32_dp, 1.31_dp, 2.09_dp, 1.76_dp, &
+!     & 1.62_dp, 1.47_dp, 1.58_dp, 1.57_dp, 1.56_dp, 1.55_dp, 1.51_dp, 1.52_dp, &
+!     & 1.51_dp, 1.50_dp, 1.49_dp, 1.49_dp, 1.48_dp, 1.53_dp, 1.46_dp, 1.37_dp, &
+!     & 1.31_dp, 1.23_dp, 1.18_dp, 1.16_dp, 1.11_dp, 1.12_dp, 1.13_dp, 1.32_dp, &
+!     & 1.30_dp, 1.30_dp, 1.36_dp, 1.31_dp, 1.38_dp, 1.42_dp]
    ! ==========================================================================
    !> Electronegativity equilibration charge model published in
    !>

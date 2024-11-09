@@ -368,7 +368,7 @@ CONTAINS
       TYPE(neighbor_list_iterator_p_type), &
          DIMENSION(:), POINTER                           :: nl_iterator
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
-         POINTER                                         :: sab_ew => NULL()
+         POINTER                                         :: sab_ew
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
@@ -1011,8 +1011,8 @@ CONTAINS
       INTEGER, DIMENSION(3)                              :: cvec, ncell, periodic
       INTEGER, DIMENSION(:), POINTER                     :: cind, rind
       REAL(KIND=dp)                                      :: ad, alpha, astep, deth, dr, eeqn, &
-                                                            eps_diis = 1.E-9_dp, ftime, grc1, &
-                                                            grc2, rcut, res, resin, rmax, te, ti
+                                                            eps_diis, ftime, grc1, grc2, rcut, &
+                                                            res, resin, rmax, te, ti
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: bvec, dvec
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: dmat, fvec, vmat, xvec
       REAL(KIND=dp), DIMENSION(3)                        :: ri, rij, rijl, rj
