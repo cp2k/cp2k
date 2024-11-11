@@ -46,6 +46,7 @@ MODULE qs_integrate_potential_single
    USE gaussian_gridlevels,             ONLY: gaussian_gridlevel,&
                                               gridlevel_info_type
    USE grid_api,                        ONLY: grid_copy_to_multigrid,&
+                                              grid_copy_to_multigrid_general_single,&
                                               grid_copy_to_multigrid_single,&
                                               grid_multigrid_type,&
                                               integrate_pgf_product
@@ -137,6 +138,7 @@ CONTAINS
 
       CALL transfer_pw2rs(rs_v, rho_rspace)
       CALL grid_copy_to_multigrid_single(multigrid, rs_v, auxbas_grid)
+      CALL grid_copy_to_multigrid_general_single(multigrid, rho_rspace, auxbas_grid)
 
       CALL get_qs_env(qs_env=qs_env, &
                       atomic_kind_set=atomic_kind_set, &
@@ -325,6 +327,7 @@ CONTAINS
 
       CALL transfer_pw2rs(rs_v, rho_rspace)
       CALL grid_copy_to_multigrid_single(multigrid, rs_v, auxbas_grid)
+      CALL grid_copy_to_multigrid_general_single(multigrid, rho_rspace, auxbas_grid)
 
       CALL get_qs_env(qs_env=qs_env, &
                       atomic_kind_set=atomic_kind_set, &
@@ -540,6 +543,7 @@ CONTAINS
 
          CALL transfer_pw2rs(rs_v, v_rspace)
          CALL grid_copy_to_multigrid_single(multigrid, rs_v, auxbas_grid)
+         CALL grid_copy_to_multigrid_general_single(multigrid, v_rspace, auxbas_grid)
 
          CALL get_qs_env(qs_env=qs_env, &
                          atomic_kind_set=atomic_kind_set, &
@@ -694,6 +698,7 @@ CONTAINS
 
       CALL transfer_pw2rs(rs_v, v_rspace)
       CALL grid_copy_to_multigrid_single(multigrid, rs_v, auxbas_grid)
+      CALL grid_copy_to_multigrid_general_single(multigrid, v_rspace, auxbas_grid)
 
       CALL get_qs_env(qs_env=qs_env, &
                       atomic_kind_set=atomic_kind_set, &

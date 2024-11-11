@@ -60,6 +60,7 @@ MODULE library_tests
                                               init_fft
    USE global_types,                    ONLY: global_environment_type
    USE grid_api,                        ONLY: grid_copy_from_multigrid_general_single,&
+                                              grid_copy_to_multigrid_general_single,&
                                               grid_copy_to_multigrid_single,&
                                               grid_create_multigrid,&
                                               grid_free_multigrid,&
@@ -782,6 +783,7 @@ CONTAINS
             CALL grid_copy_from_multigrid_general_single(multigrid, ca, 1)
          ELSE
             CALL transfer_pw2rs(rs_grid, ca)
+            CALL grid_copy_to_multigrid_general_single(multigrid, ca, 1)
          END IF
          CALL para_env%sync()
          tend = m_walltime()

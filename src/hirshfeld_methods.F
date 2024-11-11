@@ -27,6 +27,7 @@ MODULE hirshfeld_methods
                                               collocate_pgf_product,&
                                               grid_copy_from_multigrid_general_single,&
                                               grid_copy_from_multigrid_single,&
+                                              grid_copy_to_multigrid_general_single,&
                                               grid_copy_to_multigrid_single,&
                                               grid_multigrid_type,&
                                               integrate_pgf_product
@@ -583,6 +584,7 @@ CONTAINS
       CALL pw_env_get(pw_env=pw_env, auxbas_rs_grid=rs_v, multigrid=multigrid, auxbas_grid=auxbas_grid)
       CALL transfer_pw2rs(rs_v, rfun)
       CALL grid_copy_to_multigrid_single(multigrid, rs_v, auxbas_grid)
+      CALL grid_copy_to_multigrid_general_single(multigrid, rfun, auxbas_grid)
 
       CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set, cell=cell, &
                       dft_control=dft_control, particle_set=particle_set)
