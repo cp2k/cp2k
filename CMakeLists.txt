@@ -514,6 +514,7 @@ endif()
 set(CP2K_USE_HIP OFF)
 set(CP2K_USE_CUDA OFF)
 
+option(CP2K_USE_PW_GPU "Enable GPU in CUDA" OFF)
 if(CP2K_USE_ACCEL MATCHES "CUDA")
   option(CP2K_WITH_CUDA_PROFILING "Enable CUDA profiling" OFF)
   # P100 is the default target.
@@ -555,6 +556,7 @@ if(CP2K_USE_ACCEL MATCHES "CUDA")
   endif()
 
   set(CP2K_USE_CUDA ON)
+  set(CP2K_USE_PW_GPU ON) 
 
   if(CP2K_USE_CUSOLVER_MP)
     find_package(CuSolverMP REQUIRED)
@@ -581,6 +583,7 @@ elseif(CP2K_USE_ACCEL MATCHES "HIP")
   set(CMAKE_HIP_ARCHITECTURES "${CP2K_GPU_ARCH_NUMBER_${CP2K_WITH_GPU}}")
   set(CP2K_ACC_ARCH_NUMBER ${CP2K_GPU_ARCH_NUMBER_${CP2K_WITH_GPU}})
   set(CP2K_USE_HIP ON)
+  set(CP2K_USE_PW_GPU ON)
 
   # use hardware atomic operations on Mi250X.
   if(CMAKE_HIP_ARCGITECTURES MATCHES "gfx90a|gfx942")
@@ -827,9 +830,8 @@ if((CP2K_USE_ACCEL MATCHES "CUDA") OR (CP2K_USE_ACCEL MATCHES "HIP"))
 
   message(
     "Note : Enabling hardware acceleration enable acceleration of the grid, pw, and dbm modules by default\n"
-    "    - GRID module : ${CP2K_USE_GRID_GPU}\n"
     "    - PW   module : ${CP2K_USE_PW_GPU}\n"
-    "    - DBM  module : ${CP2K_USE_DBM_GPU}\n\n")
+    "\n")
 endif()
 
 if(CP2K_USE_CUSOLVER_MP)
