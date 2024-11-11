@@ -19,6 +19,7 @@ MODULE qs_nonscf
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_io_unit,&
                                               cp_logger_type
+   USE dm_ls_scf,                       ONLY: ls_scf
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type
    USE kinds,                           ONLY: dp
@@ -75,18 +76,17 @@ CONTAINS
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
       TYPE(scf_control_type), POINTER                    :: scf_control
 
-      CALL get_qs_env(qs_env, scf_env=scf_env, scf_control=scf_control, &
-                      dft_control=dft_control)
+      CALL get_qs_env(qs_env, dft_control=dft_control)
 
       IF (dft_control%qs_control%do_ls_scf) THEN
          ! Density matrix based solver
 
-         CPABORT("NOT AVAILABLE")
-         !CALL ls_scf(qs_env=qs_env)
+         CALL ls_scf(qs_env)
 
       ELSE
          ! Wavefunction based solver
 
+         CALL get_qs_env(qs_env, scf_env=scf_env, scf_control=scf_control)
          IF (.NOT. ASSOCIATED(scf_env)) THEN
             CALL qs_scf_env_initialize(qs_env, scf_env)
             CALL set_qs_env(qs_env, scf_env=scf_env)
