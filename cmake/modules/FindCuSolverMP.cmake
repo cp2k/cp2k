@@ -28,8 +28,9 @@ if(CP2K_CUSOLVER_MP_FOUND AND NOT TARGET cp2k::CUSOLVER_MP::cusolver_mp)
   add_library(cp2k::CUSOLVER_MP::cusolver_mp INTERFACE IMPORTED)
   set_target_properties(
     cp2k::CUSOLVER_MP::cusolver_mp
-    PROPERTIES INTERFACE_LINK_LIBRARIES
-               "${CP2K_CUSOLVER_MP_LINK_LIBRARIES};cp2k::CAL::cal;cp2k::UCC::ucc")
+    PROPERTIES
+      INTERFACE_LINK_LIBRARIES
+      "${CP2K_CUSOLVER_MP_LINK_LIBRARIES};cp2k::CAL::cal;cp2k::UCC::ucc")
   set_target_properties(
     cp2k::CUSOLVER_MP::cusolver_mp
     PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${CP2K_CUSOLVER_MP_INCLUDE_DIRS}")
