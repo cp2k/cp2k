@@ -55,6 +55,7 @@ MODULE mixed_cdft_methods
                                               use_qs_force
    USE grid_api,                        ONLY: GRID_FUNC_AB,&
                                               collocate_pgf_product,&
+                                              grid_copy_from_multigrid_general_single,&
                                               grid_copy_from_multigrid_single,&
                                               grid_copy_to_multigrid_single,&
                                               grid_multigrid_type
@@ -2583,6 +2584,7 @@ CONTAINS
          CALL auxbas_pw_pool%create_pw(cdft_control%becke_control%cavity)
          CALL grid_copy_from_multigrid_single(multigrid, rs_cavity, auxbas_grid)
          CALL transfer_rs2pw(rs_cavity, cdft_control%becke_control%cavity)
+         CALL grid_copy_from_multigrid_general_single(multigrid, cdft_control%becke_control%cavity, auxbas_grid)
          CALL hfun_zero(cdft_control%becke_control%cavity%array, &
                         cdft_control%becke_control%eps_cavity, &
                         just_zero=.FALSE., bounds=bounds, work=my_work)

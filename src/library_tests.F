@@ -59,6 +59,11 @@ MODULE library_tests
                                               finalize_fft,&
                                               init_fft
    USE global_types,                    ONLY: global_environment_type
+   USE grid_api,                        ONLY: grid_copy_from_multigrid_general_single,&
+                                              grid_copy_to_multigrid_single,&
+                                              grid_create_multigrid,&
+                                              grid_free_multigrid,&
+                                              grid_multigrid_type
    USE input_constants,                 ONLY: do_diag_syevd,&
                                               do_diag_syevx,&
                                               do_mat_random,&
@@ -708,6 +713,7 @@ CONTAINS
       LOGICAL                                            :: do_rs2pw
       REAL(KIND=dp)                                      :: tend, tstart
       TYPE(cell_type), POINTER                           :: box
+      TYPE(grid_multigrid_type)                          :: multigrid
       TYPE(pw_grid_type), POINTER                        :: grid
       TYPE(pw_r3d_rs_type)                               :: ca
       TYPE(realspace_grid_desc_type), POINTER            :: rs_desc
@@ -750,8 +756,10 @@ CONTAINS
       NULLIFY (rs_desc)
       CALL rs_grid_create_descriptor(rs_desc, pw_grid=grid, input_settings=input_settings)
       CALL rs_grid_create(rs_grid, rs_desc)
+      CALL grid_create_multigrid([rs_grid], multigrid)
       CALL rs_grid_print(rs_grid, iw)
       CALL rs_grid_zero(rs_grid)
+      CALL grid_copy_to_multigrid_single(multigrid, rs_grid, 1)
 
       ! Put random values on the grid, so summation check will pick up errors
       CALL RANDOM_NUMBER(rs_grid%r)
@@ -771,6 +779,7 @@ CONTAINS
          tstart = m_walltime()
          IF (do_rs2pw) THEN
             CALL transfer_rs2pw(rs_grid, ca)
+            CALL grid_copy_from_multigrid_general_single(multigrid, ca, 1)
          ELSE
             CALL transfer_pw2rs(rs_grid, ca)
          END IF
@@ -783,6 +792,7 @@ CONTAINS
 
       !cleanup
       CALL rs_grid_release(rs_grid)
+      CALL grid_free_multigrid(multigrid)
       CALL rs_grid_release_descriptor(rs_desc)
       CALL ca%release()
       CALL pw_grid_release(grid)

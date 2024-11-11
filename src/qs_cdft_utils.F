@@ -32,6 +32,7 @@ MODULE qs_cdft_utils
    USE cp_units,                        ONLY: cp_unit_from_cp2k
    USE grid_api,                        ONLY: GRID_FUNC_AB,&
                                               collocate_pgf_product,&
+                                              grid_copy_from_multigrid_general_single,&
                                               grid_copy_from_multigrid_single,&
                                               grid_copy_to_multigrid_single,&
                                               grid_multigrid_type
@@ -397,6 +398,7 @@ CONTAINS
          CALL auxbas_pw_pool%create_pw(becke_control%cavity)
          CALL grid_copy_from_multigrid_single(multigrid, rs_cavity, auxbas_grid)
          CALL transfer_rs2pw(rs_cavity, becke_control%cavity)
+         CALL grid_copy_from_multigrid_general_single(multigrid, becke_control%cavity, auxbas_grid)
          ! Grid points where the Gaussian density falls below eps_cavity are ignored
          ! We can calculate the smallest/largest values along z-direction outside
          ! which the cavity is zero at every point (x, y)

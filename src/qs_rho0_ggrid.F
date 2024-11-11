@@ -16,6 +16,7 @@ MODULE qs_rho0_ggrid
    USE gaussian_gridlevels,             ONLY: gaussian_gridlevel
    USE grid_api,                        ONLY: GRID_FUNC_AB,&
                                               collocate_pgf_product,&
+                                              grid_copy_from_multigrid_general_single,&
                                               grid_copy_from_multigrid_single,&
                                               grid_copy_to_multigrid_single,&
                                               grid_create_multigrid,&
@@ -121,9 +122,6 @@ CONTAINS
       TYPE(pw_r3d_rs_type)                               :: coeff_rspace, rho0_r_tmp
       TYPE(pw_r3d_rs_type), POINTER                      :: rho0_s_rs
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
-      TYPE(realspace_grid_desc_p_type), DIMENSION(:), &
-         POINTER                                         :: descs
-      TYPE(realspace_grid_desc_type), POINTER            :: desc
       TYPE(realspace_grid_type), DIMENSION(:), POINTER   :: grids
       TYPE(realspace_grid_type), POINTER                 :: rs_grid
 
@@ -140,8 +138,8 @@ CONTAINS
                       pw_env=pw_env, cell=cell)
       eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
 
-      NULLIFY (descs, pw_pools)
-      CALL pw_env_get(pw_env=pw_env, rs_descs=descs, rs_grids=grids, pw_pools=pw_pools, &
+      NULLIFY (pw_pools)
+      CALL pw_env_get(pw_env=pw_env, rs_grids=grids, pw_pools=pw_pools, &
                       multigrid=multigrid, auxbas_grid=auxbas_grid)
       auxbas_grid = pw_env%auxbas_grid
 
@@ -152,12 +150,10 @@ CONTAINS
                           rho0_s_rs=rho0_s_rs)
 
       ! *** set up the rs grid at level igrid
-      NULLIFY (rs_grid, desc, pw_pool)
-      desc => descs(igrid)%rs_desc
+      NULLIFY (rs_grid, pw_pool)
       rs_grid => grids(igrid)
       pw_pool => pw_pools(igrid)%pool
 
-      CPASSERT(ASSOCIATED(desc))
       CPASSERT(ASSOCIATED(pw_pool))
 
       IF (igrid /= auxbas_grid) THEN
@@ -235,6 +231,7 @@ CONTAINS
 
       IF (igrid /= auxbas_grid) THEN
          CALL transfer_rs2pw(rs_grid, coeff_rspace)
+         CALL grid_copy_from_multigrid_general_single(multigrid, coeff_rspace, igrid)
          CALL pw_zero(rho0_s_gs)
          CALL pw_transfer(coeff_rspace, coeff_gspace)
          CALL pw_axpy(coeff_gspace, rho0_s_gs)
@@ -248,6 +245,7 @@ CONTAINS
          CALL pw_pool%create_pw(rho0_r_tmp)
 
          CALL transfer_rs2pw(rs_grid, rho0_r_tmp)
+         CALL grid_copy_from_multigrid_general_single(multigrid, rho0_r_tmp, igrid)
 
          tot_rs_int = pw_integrate_function(rho0_r_tmp, isign=-1)
 

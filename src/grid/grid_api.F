@@ -81,6 +81,10 @@ MODULE grid_api
    PUBLIC :: grid_copy_from_multigrid, grid_copy_to_multigrid
    PUBLIC :: grid_copy_from_multigrid_single, grid_copy_to_multigrid_single
    PUBLIC :: grid_copy_from_multigrid_general, grid_copy_to_multigrid_general
+   PUBLIC :: grid_copy_to_multigrid_general_single, grid_copy_from_multigrid_general_single
+   PUBLIC :: grid_get_multigrid_borderwidth, grid_get_multigrid_dh
+   PUBLIC :: grid_get_multigrid_dh_inv, grid_get_multigrid_nlevels
+   PUBLIC :: grid_get_multigrid_comm
 
    TYPE grid_basis_set_type
       PRIVATE
@@ -1361,6 +1365,95 @@ CONTAINS
       CALL grid_copy_to_multigrid_general_c(multigrid%c_ptr, C_LOC(grids_c), C_LOC(comms), C_LOC(comms), C_LOC(comms), C_LOC(comms))
 
    END SUBROUTINE grid_copy_to_multigrid_general
+
+! **************************************************************************************************
+!> \brief Returns the respective info on the multigrid.
+!> \param multigrid ...
+!> \param grid ...
+!> \param ilevel ...
+!> \return ...
+!> \author Frederick Stein
+! **************************************************************************************************
+   SUBROUTINE grid_copy_to_multigrid_general_single(multigrid, grid, ilevel)
+
+      TYPE(grid_multigrid_type), INTENT(IN)              :: multigrid
+      TYPE(pw_r3d_rs_type), INTENT(IN)                   :: grid
+      INTEGER, INTENT(IN)                                :: ilevel
+
+      INTEGER, CONTIGUOUS, DIMENSION(:, :), POINTER      :: npts_global
+      INTEGER, TARGET                                    :: int_dummy
+      INTERFACE
+         SUBROUTINE grid_copy_to_multigrid_general_single_c(multigrid, ilevel, grid, comm, pgrid_dims, local2grid, grid2proc) &
+            BIND(C, name="grid_copy_to_multigrid_general_single_f")
+            IMPORT :: C_PTR, C_INT
+            TYPE(C_PTR), VALUE                        :: multigrid
+            INTEGER(C_INT), VALUE                     :: ilevel
+            TYPE(C_PTR), VALUE                        :: grid
+            INTEGER(C_INT), VALUE                     :: comm
+            TYPE(C_PTR), VALUE                        :: pgrid_dims
+            TYPE(C_PTR), VALUE                        :: local2grid
+            TYPE(C_PTR), VALUE                        :: grid2proc
+         END SUBROUTINE grid_copy_to_multigrid_general_single_c
+      END INTERFACE
+
+      CPASSERT(C_ASSOCIATED(multigrid%c_ptr))
+      CPASSERT(ilevel <= grid_get_multigrid_nlevels(multigrid))
+      CPASSERT(ilevel > 0)
+      npts_global => grid_get_multigrid_npts_global(multigrid)
+      CPASSERT(ALL(grid%pw_grid%npts == npts_global(:, ilevel)))
+
+      int_dummy = -1
+
+      CALL grid_copy_to_multigrid_general_single_c(multigrid%c_ptr, ilevel, C_LOC(grid%array), &
+                                                   grid%pw_grid%para%group%get_handle(), &
+                                                   C_LOC(int_dummy), C_LOC(int_dummy), C_LOC(int_dummy))
+
+   END SUBROUTINE grid_copy_to_multigrid_general_single
+
+! **************************************************************************************************
+!> \brief Returns the respective info on the multigrid.
+!> \param multigrid ...
+!> \param grid ...
+!> \param ilevel ...
+!> \return ...
+!> \author Frederick Stein
+! **************************************************************************************************
+   SUBROUTINE grid_copy_from_multigrid_general_single(multigrid, grid, ilevel)
+
+      TYPE(grid_multigrid_type), INTENT(IN)              :: multigrid
+      TYPE(pw_r3d_rs_type), INTENT(IN)                   :: grid
+      INTEGER, INTENT(IN)                                :: ilevel
+
+      INTEGER, CONTIGUOUS, DIMENSION(:, :), POINTER      :: npts_global
+      INTEGER, TARGET                                    :: int_dummy
+      INTERFACE
+         SUBROUTINE grid_copy_from_multigrid_general_single_c(multigrid, ilevel, grid, comm, pgrid_dims, local2grid, grid2proc) &
+            BIND(C, name="grid_copy_from_multigrid_general_single_f")
+            IMPORT :: C_PTR, C_INT
+            TYPE(C_PTR), VALUE                        :: multigrid
+            INTEGER(C_INT), VALUE                     :: ilevel
+            TYPE(C_PTR), VALUE                        :: grid
+            INTEGER(C_INT), VALUE                     :: comm
+            TYPE(C_PTR), VALUE                        :: pgrid_dims
+            TYPE(C_PTR), VALUE                        :: local2grid
+            TYPE(C_PTR), VALUE                        :: grid2proc
+         END SUBROUTINE grid_copy_from_multigrid_general_single_c
+      END INTERFACE
+
+      CPASSERT(C_ASSOCIATED(multigrid%c_ptr))
+      CPASSERT(ilevel <= grid_get_multigrid_nlevels(multigrid))
+      CPASSERT(ilevel > 0)
+      npts_global => grid_get_multigrid_npts_global(multigrid)
+      CPASSERT(ALL(grid%pw_grid%npts == npts_global(:, ilevel)))
+      CPASSERT(ASSOCIATED(grid%array))
+
+      int_dummy = -1
+
+      CALL grid_copy_from_multigrid_general_single_c(multigrid%c_ptr, ilevel, C_LOC(grid%array), &
+                                                     grid%pw_grid%para%group%get_handle(), &
+                                                     C_LOC(int_dummy), C_LOC(int_dummy), C_LOC(int_dummy))
+
+   END SUBROUTINE grid_copy_from_multigrid_general_single
 
 ! **************************************************************************************************
 !> \brief Returns the respective info on the multigrid.

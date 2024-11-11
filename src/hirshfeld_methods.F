@@ -25,6 +25,7 @@ MODULE hirshfeld_methods
    USE cp_units,                        ONLY: cp_unit_to_cp2k
    USE grid_api,                        ONLY: GRID_FUNC_AB,&
                                               collocate_pgf_product,&
+                                              grid_copy_from_multigrid_general_single,&
                                               grid_copy_from_multigrid_single,&
                                               grid_copy_to_multigrid_single,&
                                               grid_multigrid_type,&
@@ -528,6 +529,7 @@ CONTAINS
 
       CALL grid_copy_from_multigrid_single(multigrid, rs_rho, auxbas_grid)
       CALL transfer_rs2pw(rs_rho, fnorm)
+      CALL grid_copy_from_multigrid_general_single(multigrid, fnorm, auxbas_grid)
 
       CALL timestop(handle)
 

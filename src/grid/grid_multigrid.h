@@ -124,6 +124,33 @@ void grid_copy_from_multigrid_general_f(
     const int *local2grid[multigrid->nlevels],
     const int *grid2proc[multigrid->nlevels]);
 
+void grid_copy_to_multigrid_general_single(
+    grid_multigrid *multigrid, const int level,
+    const double grids[multigrid->npts_local[level][0] *
+                       multigrid->npts_local[level][1] *
+                       multigrid->npts_local[level][2]],
+    const grid_mpi_comm comm, const int pgrid_dims[3], const int *local2grid,
+    const int *grid2proc);
+
+void grid_copy_to_multigrid_general_single_f(
+    grid_multigrid *multigrid, const int level, const double *grid,
+    const grid_mpi_fint fortran_comm, const int pgrid_dims[3],
+    const int *local2grid, const int *grid2proc);
+
+void grid_copy_from_multigrid_general_single(const grid_multigrid *multigrid,
+                                             const int level, double *grid,
+                                             const grid_mpi_comm comm,
+                                             const int pgrid_dims[3],
+                                             const int *local2grid,
+                                             const int *grid2proc);
+
+void grid_copy_from_multigrid_general_f_single(const grid_multigrid *multigrid,
+                                               const int level, double *grid,
+                                               const grid_mpi_fint fortran_comm,
+                                               const int pgrid_dims[3],
+                                               const int *local2grid,
+                                               const int *grid2proc);
+
 /*******************************************************************************
  * \brief Allocates a multigrid which is passed to task list-based and
  *        pgf_product-based routines.

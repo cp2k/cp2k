@@ -15,6 +15,7 @@ MODULE rs_pw_interface
    USE gaussian_gridlevels,             ONLY: gridlevel_info_type
    USE grid_api,                        ONLY: grid_copy_from_multigrid_general,&
                                               grid_copy_to_multigrid_general,&
+                                              grid_get_multigrid_nlevels,&
                                               grid_multigrid_type
    USE kinds,                           ONLY: dp
    USE pw_env_types,                    ONLY: pw_env_get,&
@@ -81,12 +82,19 @@ CONTAINS
       CALL pw_env_get(pw_env, pw_pools=pw_pools, multigrid=multigrid)
 
       gridlevel_info => pw_env%gridlevel_info
+      CPASSERT(gridlevel_info%ngrid_levels == SIZE(rs_rho))
 
       CALL pw_pools_create_pws(pw_pools, mgrid_rspace)
       CALL pw_pools_create_pws(pw_pools, mgrid_gspace)
 
       IF (gridlevel_info%ngrid_levels == 1) THEN
          CALL transfer_rs2pw(rs_rho(1), rho)
+         IF (PRESENT(multigrid_ext)) THEN
+            CALL grid_copy_from_multigrid_general(multigrid_ext, [rho])
+         ELSE
+            CPASSERT(grid_get_multigrid_nlevels(multigrid) == 1)
+            CALL grid_copy_from_multigrid_general(multigrid, [rho])
+         END IF
          CALL pw_transfer(rho, rho_gspace)
          IF (rho%pw_grid%spherical) THEN ! rho_gspace = rho
             CALL pw_transfer(rho_gspace, rho)

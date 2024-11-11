@@ -64,7 +64,8 @@ MODULE qs_collocate_density
       GRID_FUNC_DABpADB_Z, GRID_FUNC_DADB, GRID_FUNC_DX, GRID_FUNC_DXDX, GRID_FUNC_DXDY, &
       GRID_FUNC_DY, GRID_FUNC_DYDY, GRID_FUNC_DYDZ, GRID_FUNC_DZ, GRID_FUNC_DZDX, &
       GRID_FUNC_DZDZ, collocate_pgf_product, grid_collocate_task_list, grid_multigrid_type, &
-      grid_copy_to_multigrid, grid_copy_from_multigrid, grid_copy_from_multigrid_single, grid_copy_to_multigrid_single
+      grid_copy_to_multigrid, grid_copy_from_multigrid, grid_copy_from_multigrid_single, &
+      grid_copy_to_multigrid_single, grid_copy_from_multigrid_general_single, grid_copy_from_multigrid_general
    USE input_constants, ONLY: &
       orb_dx2, orb_dxy, orb_dy2, orb_dyz, orb_dz2, orb_dzx, orb_px, orb_py, orb_pz, orb_s
    USE kinds, ONLY: default_string_length, &
@@ -325,6 +326,7 @@ CONTAINS
 
       CALL grid_copy_from_multigrid_single(multigrid, rs_rho, auxbas_grid)
       CALL transfer_rs2pw(rs_rho, rho_nlcc)
+      CALL grid_copy_from_multigrid_general_single(multigrid, rho_nlcc, auxbas_grid)
 
       CALL timestop(handle)
 
@@ -503,6 +505,7 @@ CONTAINS
 
       CALL grid_copy_from_multigrid_single(multigrid, rs_rho, auxbas_grid)
       CALL transfer_rs2pw(rs_rho, vppl)
+      CALL grid_copy_from_multigrid_general_single(multigrid, vppl, auxbas_grid)
 
       CALL timestop(handle)
 
@@ -779,6 +782,7 @@ CONTAINS
          CALL transfer_rs2pw(rs=rs_rho(igrid_level), &
                              pw=mgrid_rspace(igrid_level))
       END DO
+      CALL grid_copy_from_multigrid_general(multigrid, mgrid_rspace)
 
       DO igrid_level = 1, gridlevel_info%ngrid_levels
          CALL pw_zero(mgrid_gspace(igrid_level))
@@ -930,6 +934,7 @@ CONTAINS
 
          CALL grid_copy_from_multigrid_single(multigrid, rs_rho, auxbas_grid)
          CALL transfer_rs2pw(rs_rho, rhoc_r)
+         CALL grid_copy_from_multigrid_general_single(multigrid, rhoc_r, auxbas_grid)
 
          total_rho = pw_integrate_function(rhoc_r, isign=-1)
 
@@ -1070,6 +1075,7 @@ CONTAINS
 
       CALL grid_copy_from_multigrid_single(multigrid, rs_rho, auxbas_grid)
       CALL transfer_rs2pw(rs_rho, rhoc_r)
+      CALL grid_copy_from_multigrid_general_single(multigrid, rhoc_r, auxbas_grid)
 
       CALL pw_transfer(rhoc_r, drho_core)
 
@@ -1163,6 +1169,7 @@ CONTAINS
 
       CALL grid_copy_from_multigrid_single(multigrid, rs_rho, auxbas_grid)
       CALL transfer_rs2pw(rs_rho, rhoc_r)
+      CALL grid_copy_from_multigrid_general_single(multigrid, rhoc_r, auxbas_grid)
 
       CALL pw_transfer(rhoc_r, rho_gb)
 
@@ -1272,6 +1279,7 @@ CONTAINS
 
       CALL grid_copy_from_multigrid_single(multigrid, rs_rho, auxbas_grid)
       CALL transfer_rs2pw(rs_rho, rhoc_r)
+      CALL grid_copy_from_multigrid_general_single(multigrid, rhoc_r, auxbas_grid)
 
       IF (PRESENT(total_rho_metal)) &
          !minus sign: account for the fact that rho_metal has opposite sign
@@ -1370,6 +1378,7 @@ CONTAINS
 
       CALL grid_copy_from_multigrid_single(multigrid, rs_rho, auxbas_grid)
       CALL transfer_rs2pw(rs_rho, rhoc_r)
+      CALL grid_copy_from_multigrid_general_single(multigrid, rhoc_r, auxbas_grid)
 
       CALL pw_transfer(rhoc_r, rho_gb)
 
@@ -1480,6 +1489,7 @@ CONTAINS
 
          CALL grid_copy_from_multigrid_single(multigrid, rs_rho, auxbas_grid)
          CALL transfer_rs2pw(rs_rho, rhoc_r)
+         CALL grid_copy_from_multigrid_general_single(multigrid, rhoc_r, auxbas_grid)
 
          CALL pw_transfer(rhoc_r, rho_resp)
          CALL auxbas_pw_pool%give_back_pw(rhoc_r)
@@ -1667,7 +1677,7 @@ CONTAINS
       CALL grid_copy_from_multigrid(multigrid, rs_rho)
 
       ! Merge realspace multi-grids into single planewave grid.
-      CALL density_rs2pw(pw_env, rs_rho, rho, rho_gspace)
+      CALL density_rs2pw(pw_env, rs_rho, rho, rho_gspace, multigrid)
       IF (PRESENT(total_rho)) total_rho = pw_integrate_function(rho, isign=-1)
 
       CALL timestop(handle)
@@ -2633,6 +2643,7 @@ CONTAINS
          CALL transfer_rs2pw(rs_rho(igrid_level), &
                              mgrid_rspace(igrid_level))
       END DO
+      CALL grid_copy_from_multigrid_general(multigrid, mgrid_rspace)
 
       CALL pw_zero(rho_gspace)
       DO igrid_level = 1, gridlevel_info%ngrid_levels
@@ -2873,6 +2884,7 @@ CONTAINS
          CALL transfer_rs2pw(rs_rho(igrid_level), &
                              mgrid_rspace(igrid_level))
       END DO
+      CALL grid_copy_from_multigrid_general(multigrid, mgrid_rspace)
 
       CALL pw_zero(rho_gspace)
       DO igrid_level = 1, gridlevel_info%ngrid_levels

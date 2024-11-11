@@ -198,6 +198,36 @@ void grid_copy_to_multigrid_general_f(
                                  grid2proc);
 }
 
+void grid_copy_to_multigrid_general_single(grid_multigrid *multigrid,
+                                           const int level, const double *grid,
+                                           const grid_mpi_comm comm,
+                                           const int pgrid_dims[3],
+                                           const int *local2grid,
+                                           const int *grid2proc) {
+  (void)pgrid_dims;
+  (void)local2grid;
+  (void)grid2proc;
+  assert(multigrid != NULL);
+  assert(!grid_mpi_comm_is_unequal(multigrid->comm, comm));
+  assert(grid != NULL);
+  if (grid_mpi_comm_size(comm) == 1) {
+    grid_copy_to_multigrid_serial(multigrid->grids[level]->host_buffer, grid,
+                                  multigrid->npts_local[level],
+                                  multigrid->border_width[level]);
+  } else {
+    // TO BE IMPLEMENTED
+  }
+}
+
+void grid_copy_to_multigrid_general_single_f(
+    grid_multigrid *multigrid, const int level, const double *grid,
+    const grid_mpi_fint fortran_comm, const int pgrid_dims[3],
+    const int *local2grid, const int *grid2proc) {
+  grid_copy_to_multigrid_general_single(multigrid, level - 1, grid,
+                                        grid_mpi_comm_f2c(fortran_comm),
+                                        pgrid_dims, local2grid, grid2proc);
+}
+
 void grid_copy_from_multigrid_serial(const double *grid_rs, double *grid_pw,
                                      const int npts_rs[3],
                                      const int border_width[3]) {
@@ -261,6 +291,39 @@ void grid_copy_from_multigrid_general_f(
     comm[level] = grid_mpi_comm_f2c(fortran_comm[level]);
   grid_copy_from_multigrid_general(multigrid, grids, comm, pgrid_dims,
                                    local2grid, grid2proc);
+}
+
+void grid_copy_from_multigrid_general_single(const grid_multigrid *multigrid,
+                                             const int level, double *grid,
+                                             const grid_mpi_comm comm,
+                                             const int pgrid_dims[3],
+                                             const int *local2grid,
+                                             const int *grid2proc) {
+  (void)grid;
+  (void)pgrid_dims;
+  (void)local2grid;
+  (void)grid2proc;
+  assert(multigrid != NULL);
+  assert(!grid_mpi_comm_is_unequal(multigrid->comm, comm));
+  assert(grid != NULL);
+  if (grid_mpi_comm_size(comm) == 1) {
+    grid_copy_from_multigrid_serial(multigrid->grids[level]->host_buffer, grid,
+                                    multigrid->npts_local[level],
+                                    multigrid->border_width[level]);
+  } else {
+    //
+  }
+}
+
+void grid_copy_from_multigrid_general_single_f(const grid_multigrid *multigrid,
+                                               const int level, double *grid,
+                                               const grid_mpi_fint fortran_comm,
+                                               const int pgrid_dims[3],
+                                               const int *local2grid,
+                                               const int *grid2proc) {
+  grid_copy_from_multigrid_general_single(multigrid, level - 1, grid,
+                                          grid_mpi_comm_f2c(fortran_comm),
+                                          pgrid_dims, local2grid, grid2proc);
 }
 
 /*******************************************************************************
