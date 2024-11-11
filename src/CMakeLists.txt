@@ -422,6 +422,7 @@ list(
   nnp_model.F
   local_gemm_api.F
   offload/offload_api.F
+  openPMD.F
   optbas_fenv_manipulation.F
   optbas_opt_utils.F
   optimize_basis.F
