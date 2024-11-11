@@ -556,7 +556,7 @@ if(CP2K_USE_ACCEL MATCHES "CUDA")
   endif()
 
   set(CP2K_USE_CUDA ON)
-  set(CP2K_USE_PW_GPU ON) 
+  set(CP2K_USE_PW_GPU ON)
 
   if(CP2K_USE_CUSOLVER_MP)
     find_package(CuSolverMP REQUIRED)

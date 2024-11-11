@@ -23,18 +23,19 @@ find_package_handle_standard_args(
   ucc DEFAULT_MSG CP2K_UCC_INCLUDE_DIRS CP2K_UCC_LINK_LIBRARIES
   CP2K_UCX_LINK_LIBRARIES)
 
+if(CP2K_UCX_FOUND AND NOT TARGET cp2k::UCC::ucx)
+  add_library(cp2k::UCC::ucx INTERFACE IMPORTED)
+  set_target_properties(cp2k::UCC::ucx PROPERTIES INTERFACE_LINK_LIBRARIES
+                                                  "${CP2K_UCX_LINK_LIBRARIES}")
+else()
+  message(FATAL_ERROR "ucx required by CuSolverMP")
+endif()
+
 if(CP2K_UCC_FOUND AND NOT TARGET cp2k::UCC::ucc)
   add_library(cp2k::UCC::ucc INTERFACE IMPORTED)
-  if(CP2K_UCX_FOUND)
-    set_target_properties(
-      cp2k::UCC::ucc PROPERTIES INTERFACE_LINK_LIBRARIES
-                                "${CP2K_UCC_LINK_LIBRARIES}")
-  else()
-    set_target_properties(
-      cp2k::UCC::ucc
-      PROPERTIES INTERFACE_LINK_LIBRARIES
-                 "${CP2K_UCC_LINK_LIBRARIES};${CP2K_UCX_LINK_LIBRARIES}")
-  endif()
+  set_target_properties(
+    cp2k::UCC::ucc PROPERTIES INTERFACE_LINK_LIBRARIES
+                              "${CP2K_UCC_LINK_LIBRARIES};cp2k::UCC::ucx")
   set_target_properties(cp2k::UCC::ucc PROPERTIES INTERFACE_INCLUDE_DIRECTORIES
                                                   "${CP2K_UCC_INCLUDE_DIRS}")
 else()
