@@ -1338,17 +1338,17 @@ CONTAINS
 
       INTEGER                                            :: ilevel
       INTEGER, ALLOCATABLE, DIMENSION(:), TARGET         :: comms
+      INTEGER, ALLOCATABLE, DIMENSION(:, :, :, :), &
+         TARGET                                          :: proc2local
       TYPE(C_PTR), ALLOCATABLE, DIMENSION(:), TARGET     :: grids_c
       INTERFACE
-         SUBROUTINE grid_copy_to_multigrid_general_c(multigrid, grids, comm, pgrid_dims, local2grid, grid2proc) &
+         SUBROUTINE grid_copy_to_multigrid_general_c(multigrid, grids, comm, proc2local) &
             BIND(C, name="grid_copy_to_multigrid_general_f")
             IMPORT :: C_PTR, C_INT
             TYPE(C_PTR), VALUE                        :: multigrid
             TYPE(C_PTR), VALUE                        :: grids
             TYPE(C_PTR), VALUE                            :: comm
-            TYPE(C_PTR), VALUE                        :: pgrid_dims
-            TYPE(C_PTR), VALUE                        :: local2grid
-            TYPE(C_PTR), VALUE                        :: grid2proc
+            TYPE(C_PTR), VALUE                        :: proc2local
          END SUBROUTINE grid_copy_to_multigrid_general_c
       END INTERFACE
 
@@ -1357,12 +1357,15 @@ CONTAINS
 
       ALLOCATE (grids_c(SIZE(grids)))
       ALLOCATE (comms(SIZE(grids)))
+      ALLOCATE (proc2local(2, 3, grids(1)%pw_grid%para%group%num_pe, SIZE(grids)))
       DO ilevel = 1, SIZE(grids)
          grids_c(ilevel) = C_LOC(grids(ilevel)%array)
          comms(ilevel) = grids(ilevel)%pw_grid%para%group%get_handle()
+         proc2local(:, :, :, ilevel) = grids(ilevel)%pw_grid%para%bo(:, :, :, 1) - 1
       END DO
 
-      CALL grid_copy_to_multigrid_general_c(multigrid%c_ptr, C_LOC(grids_c), C_LOC(comms), C_LOC(comms), C_LOC(comms), C_LOC(comms))
+      CALL grid_copy_to_multigrid_general_c(multigrid%c_ptr, C_LOC(grids_c), C_LOC(comms), &
+                                            C_LOC(proc2local))
 
    END SUBROUTINE grid_copy_to_multigrid_general
 
@@ -1381,18 +1384,15 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: ilevel
 
       INTEGER, CONTIGUOUS, DIMENSION(:, :), POINTER      :: npts_global
-      INTEGER, TARGET                                    :: int_dummy
       INTERFACE
-         SUBROUTINE grid_copy_to_multigrid_general_single_c(multigrid, ilevel, grid, comm, pgrid_dims, local2grid, grid2proc) &
+         SUBROUTINE grid_copy_to_multigrid_general_single_c(multigrid, ilevel, grid, comm, proc2local) &
             BIND(C, name="grid_copy_to_multigrid_general_single_f")
             IMPORT :: C_PTR, C_INT
             TYPE(C_PTR), VALUE                        :: multigrid
             INTEGER(C_INT), VALUE                     :: ilevel
             TYPE(C_PTR), VALUE                        :: grid
             INTEGER(C_INT), VALUE                     :: comm
-            TYPE(C_PTR), VALUE                        :: pgrid_dims
-            TYPE(C_PTR), VALUE                        :: local2grid
-            TYPE(C_PTR), VALUE                        :: grid2proc
+            TYPE(C_PTR), VALUE                        :: proc2local
          END SUBROUTINE grid_copy_to_multigrid_general_single_c
       END INTERFACE
 
@@ -1402,11 +1402,9 @@ CONTAINS
       npts_global => grid_get_multigrid_npts_global(multigrid)
       CPASSERT(ALL(grid%pw_grid%npts == npts_global(:, ilevel)))
 
-      int_dummy = -1
-
       CALL grid_copy_to_multigrid_general_single_c(multigrid%c_ptr, ilevel, C_LOC(grid%array), &
                                                    grid%pw_grid%para%group%get_handle(), &
-                                                   C_LOC(int_dummy), C_LOC(int_dummy), C_LOC(int_dummy))
+                                                   C_LOC(grid%pw_grid%para%bo(:, :, :, 1)))
 
    END SUBROUTINE grid_copy_to_multigrid_general_single
 
@@ -1425,18 +1423,15 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: ilevel
 
       INTEGER, CONTIGUOUS, DIMENSION(:, :), POINTER      :: npts_global
-      INTEGER, TARGET                                    :: int_dummy
       INTERFACE
-         SUBROUTINE grid_copy_from_multigrid_general_single_c(multigrid, ilevel, grid, comm, pgrid_dims, local2grid, grid2proc) &
+         SUBROUTINE grid_copy_from_multigrid_general_single_c(multigrid, ilevel, grid, comm, proc2local) &
             BIND(C, name="grid_copy_from_multigrid_general_single_f")
             IMPORT :: C_PTR, C_INT
             TYPE(C_PTR), VALUE                        :: multigrid
             INTEGER(C_INT), VALUE                     :: ilevel
             TYPE(C_PTR), VALUE                        :: grid
             INTEGER(C_INT), VALUE                     :: comm
-            TYPE(C_PTR), VALUE                        :: pgrid_dims
-            TYPE(C_PTR), VALUE                        :: local2grid
-            TYPE(C_PTR), VALUE                        :: grid2proc
+            TYPE(C_PTR), VALUE                        :: proc2local
          END SUBROUTINE grid_copy_from_multigrid_general_single_c
       END INTERFACE
 
@@ -1447,11 +1442,9 @@ CONTAINS
       CPASSERT(ALL(grid%pw_grid%npts == npts_global(:, ilevel)))
       CPASSERT(ASSOCIATED(grid%array))
 
-      int_dummy = -1
-
       CALL grid_copy_from_multigrid_general_single_c(multigrid%c_ptr, ilevel, C_LOC(grid%array), &
                                                      grid%pw_grid%para%group%get_handle(), &
-                                                     C_LOC(int_dummy), C_LOC(int_dummy), C_LOC(int_dummy))
+                                                     C_LOC(grid%pw_grid%para%bo(:, :, :, 1)))
 
    END SUBROUTINE grid_copy_from_multigrid_general_single
 
@@ -1469,19 +1462,18 @@ CONTAINS
 
       INTEGER                                            :: ilevel
       INTEGER, ALLOCATABLE, DIMENSION(:), TARGET         :: comms
+      INTEGER, ALLOCATABLE, DIMENSION(:, :, :, :), &
+         TARGET                                          :: proc2local
       INTEGER, CONTIGUOUS, DIMENSION(:, :), POINTER      :: npts_global
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: norms
       TYPE(C_PTR), ALLOCATABLE, DIMENSION(:), TARGET     :: grids_c
       INTERFACE
-         SUBROUTINE grid_copy_from_multigrid_general_c(multigrid, grids, comm, pgrid_dims, local2grid, grid2proc) &
+         SUBROUTINE grid_copy_from_multigrid_general_c(multigrid, grids, comm, proc2local) &
             BIND(C, name="grid_copy_from_multigrid_general_f")
             IMPORT :: C_PTR, C_INT
             TYPE(C_PTR), VALUE                        :: multigrid
             TYPE(C_PTR), VALUE                        :: grids
             TYPE(C_PTR), VALUE                            :: comm
-            TYPE(C_PTR), VALUE                        :: pgrid_dims
-            TYPE(C_PTR), VALUE                        :: local2grid
-            TYPE(C_PTR), VALUE                        :: grid2proc
+            TYPE(C_PTR), VALUE                        :: proc2local
          END SUBROUTINE grid_copy_from_multigrid_general_c
       END INTERFACE
 
@@ -1492,7 +1484,7 @@ CONTAINS
 
       ALLOCATE (grids_c(SIZE(grids)))
       ALLOCATE (comms(SIZE(grids)))
-      ALLOCATE (norms(SIZE(grids)))
+      ALLOCATE (proc2local(2, 3, grids(1)%pw_grid%para%group%num_pe, SIZE(grids)))
       DO ilevel = 1, SIZE(grids)
          grids_c(ilevel) = C_LOC(grids(ilevel)%array)
          comms(ilevel) = grids(ilevel)%pw_grid%para%group%get_handle()
@@ -1500,10 +1492,11 @@ CONTAINS
          IF (grids(ilevel)%pw_grid%para%group%num_pe == 1) THEN
             CPASSERT(ALL(SHAPE(grids(ilevel)%array) == npts_global(:, ilevel)))
          END IF
+         proc2local(:, :, :, ilevel) = grids(ilevel)%pw_grid%para%bo(:, :, :, 1) - 1
       END DO
 
       CALL grid_copy_from_multigrid_general_c(multigrid%c_ptr, C_LOC(grids_c), &
-                                              C_LOC(comms), C_LOC(comms), C_LOC(comms), C_LOC(comms))
+                                              C_LOC(comms), C_LOC(proc2local))
 
    END SUBROUTINE grid_copy_from_multigrid_general
 

@@ -76,7 +76,7 @@ grid_mpi_comm grid_get_multigrid_comm(const grid_multigrid *multigrid) {
   return multigrid->comm;
 }
 
-void grid_copy_to_multigrid(grid_multigrid *multigrid,
+void grid_copy_to_multigrid(const grid_multigrid *multigrid,
                             const offload_buffer **grids) {
   for (int level = 0; level < multigrid->nlevels; level++) {
     memcpy(offload_get_buffer_host_pointer(multigrid->grids[level]),
@@ -98,7 +98,7 @@ void grid_copy_from_multigrid(const grid_multigrid *multigrid,
   }
 }
 
-void grid_copy_to_multigrid_single(grid_multigrid *multigrid,
+void grid_copy_to_multigrid_single(const grid_multigrid *multigrid,
                                    const double *grid, const int level) {
   memcpy(offload_get_buffer_host_pointer(multigrid->grids[level]), grid,
          sizeof(double) * multigrid->npts_local[level][0] *
@@ -112,7 +112,7 @@ void grid_copy_from_multigrid_single(const grid_multigrid *multigrid,
              multigrid->npts_local[level][1] * multigrid->npts_local[level][2]);
 }
 
-void grid_copy_to_multigrid_single_f(grid_multigrid *multigrid,
+void grid_copy_to_multigrid_single_f(const grid_multigrid *multigrid,
                                      const double *grid, const int level) {
   grid_copy_to_multigrid_single(multigrid, grid, level - 1);
 }
@@ -164,15 +164,10 @@ void grid_copy_to_multigrid_serial(double *grid_rs, const double *grid_pw,
 }
 
 void grid_copy_to_multigrid_general(
-    grid_multigrid *multigrid, const double *grids[multigrid->nlevels],
-    const grid_mpi_comm comm[multigrid->nlevels],
-    const int pgrid_dims[multigrid->nlevels][3],
-    const int *local2grid[multigrid->nlevels],
-    const int *grid2proc[multigrid->nlevels]) {
+    const grid_multigrid *multigrid, const double *grids[multigrid->nlevels],
+    const grid_mpi_comm comm[multigrid->nlevels], const int *proc2local) {
   (void)grids;
-  (void)pgrid_dims;
-  (void)local2grid;
-  (void)grid2proc;
+  (void)proc2local;
   for (int level = 0; level < multigrid->nlevels; level++) {
     assert(!grid_mpi_comm_is_unequal(multigrid->comm, comm[level]));
     if (grid_mpi_comm_size(comm[level]) == 1) {
@@ -186,27 +181,20 @@ void grid_copy_to_multigrid_general(
 }
 
 void grid_copy_to_multigrid_general_f(
-    grid_multigrid *multigrid, const double *grids[multigrid->nlevels],
+    const grid_multigrid *multigrid, const double *grids[multigrid->nlevels],
     const grid_mpi_fint fortran_comm[multigrid->nlevels],
-    const int pgrid_dims[multigrid->nlevels][3],
-    const int *local2grid[multigrid->nlevels],
-    const int *grid2proc[multigrid->nlevels]) {
+    const int *proc2local) {
   grid_mpi_comm comm[multigrid->nlevels];
   for (int level = 0; level < multigrid->nlevels; level++)
     comm[level] = grid_mpi_comm_f2c(fortran_comm[level]);
-  grid_copy_to_multigrid_general(multigrid, grids, comm, pgrid_dims, local2grid,
-                                 grid2proc);
+  grid_copy_to_multigrid_general(multigrid, grids, comm, proc2local);
 }
 
-void grid_copy_to_multigrid_general_single(grid_multigrid *multigrid,
+void grid_copy_to_multigrid_general_single(const grid_multigrid *multigrid,
                                            const int level, const double *grid,
                                            const grid_mpi_comm comm,
-                                           const int pgrid_dims[3],
-                                           const int *local2grid,
-                                           const int *grid2proc) {
-  (void)pgrid_dims;
-  (void)local2grid;
-  (void)grid2proc;
+                                           const int *proc2local) {
+  (void)proc2local;
   assert(multigrid != NULL);
   assert(!grid_mpi_comm_is_unequal(multigrid->comm, comm));
   assert(grid != NULL);
@@ -219,13 +207,13 @@ void grid_copy_to_multigrid_general_single(grid_multigrid *multigrid,
   }
 }
 
-void grid_copy_to_multigrid_general_single_f(
-    grid_multigrid *multigrid, const int level, const double *grid,
-    const grid_mpi_fint fortran_comm, const int pgrid_dims[3],
-    const int *local2grid, const int *grid2proc) {
-  grid_copy_to_multigrid_general_single(multigrid, level - 1, grid,
-                                        grid_mpi_comm_f2c(fortran_comm),
-                                        pgrid_dims, local2grid, grid2proc);
+void grid_copy_to_multigrid_general_single_f(const grid_multigrid *multigrid,
+                                             const int level,
+                                             const double *grid,
+                                             const grid_mpi_fint fortran_comm,
+                                             const int *proc2local) {
+  grid_copy_to_multigrid_general_single(
+      multigrid, level - 1, grid, grid_mpi_comm_f2c(fortran_comm), proc2local);
 }
 
 void grid_copy_from_multigrid_serial(const double *grid_rs, double *grid_pw,
@@ -260,14 +248,9 @@ void grid_copy_from_multigrid_serial(const double *grid_rs, double *grid_pw,
 
 void grid_copy_from_multigrid_general(
     const grid_multigrid *multigrid, double *grids[multigrid->nlevels],
-    const grid_mpi_comm comm[multigrid->nlevels],
-    const int pgrid_dims[multigrid->nlevels][3],
-    const int *local2grid[multigrid->nlevels],
-    const int *grid2proc[multigrid->nlevels]) {
+    const grid_mpi_comm comm[multigrid->nlevels], const int *proc2local) {
   (void)grids;
-  (void)pgrid_dims;
-  (void)local2grid;
-  (void)grid2proc;
+  (void)proc2local;
   for (int level = 0; level < multigrid->nlevels; level++) {
     assert(!grid_mpi_comm_is_unequal(multigrid->comm, comm[level]));
     if (grid_mpi_comm_size(comm[level]) == 1) {
@@ -283,26 +266,19 @@ void grid_copy_from_multigrid_general(
 void grid_copy_from_multigrid_general_f(
     const grid_multigrid *multigrid, double *grids[multigrid->nlevels],
     const grid_mpi_fint fortran_comm[multigrid->nlevels],
-    const int pgrid_dims[multigrid->nlevels][3],
-    const int *local2grid[multigrid->nlevels],
-    const int *grid2proc[multigrid->nlevels]) {
+    const int *proc2local) {
   grid_mpi_comm comm[multigrid->nlevels];
   for (int level = 0; level < multigrid->nlevels; level++)
     comm[level] = grid_mpi_comm_f2c(fortran_comm[level]);
-  grid_copy_from_multigrid_general(multigrid, grids, comm, pgrid_dims,
-                                   local2grid, grid2proc);
+  grid_copy_from_multigrid_general(multigrid, grids, comm, proc2local);
 }
 
 void grid_copy_from_multigrid_general_single(const grid_multigrid *multigrid,
                                              const int level, double *grid,
                                              const grid_mpi_comm comm,
-                                             const int pgrid_dims[3],
-                                             const int *local2grid,
-                                             const int *grid2proc) {
+                                             const int *proc2local) {
   (void)grid;
-  (void)pgrid_dims;
-  (void)local2grid;
-  (void)grid2proc;
+  (void)proc2local;
   assert(multigrid != NULL);
   assert(!grid_mpi_comm_is_unequal(multigrid->comm, comm));
   assert(grid != NULL);
@@ -318,12 +294,9 @@ void grid_copy_from_multigrid_general_single(const grid_multigrid *multigrid,
 void grid_copy_from_multigrid_general_single_f(const grid_multigrid *multigrid,
                                                const int level, double *grid,
                                                const grid_mpi_fint fortran_comm,
-                                               const int pgrid_dims[3],
-                                               const int *local2grid,
-                                               const int *grid2proc) {
-  grid_copy_from_multigrid_general_single(multigrid, level - 1, grid,
-                                          grid_mpi_comm_f2c(fortran_comm),
-                                          pgrid_dims, local2grid, grid2proc);
+                                               const int *proc2local) {
+  grid_copy_from_multigrid_general_single(
+      multigrid, level - 1, grid, grid_mpi_comm_f2c(fortran_comm), proc2local);
 }
 
 /*******************************************************************************

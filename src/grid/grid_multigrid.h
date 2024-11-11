@@ -78,78 +78,64 @@ grid_mpi_fint grid_get_multigrid_fortran_comm(const grid_multigrid *multigrid);
 
 grid_mpi_comm grid_get_multigrid_comm(const grid_multigrid *multigrid);
 
-void grid_copy_to_multigrid(grid_multigrid *multigrid,
+void grid_copy_to_multigrid(const grid_multigrid *multigrid,
                             const offload_buffer **grids);
 
 void grid_copy_from_multigrid(const grid_multigrid *multigrid,
                               offload_buffer **grids);
 
-void grid_copy_to_multigrid_single(grid_multigrid *multigrid,
+void grid_copy_to_multigrid_single(const grid_multigrid *multigrid,
                                    const double *grid, const int level);
 
 void grid_copy_from_multigrid_single(const grid_multigrid *multigrid,
                                      double *grid, const int level);
 
-void grid_copy_to_multigrid_single_f(grid_multigrid *multigrid,
+void grid_copy_to_multigrid_single_f(const grid_multigrid *multigrid,
                                      const double *grid, const int level);
 
 void grid_copy_from_multigrid_single_f(const grid_multigrid *multigrid,
                                        double *grid, const int level);
 
 void grid_copy_to_multigrid_general(
-    grid_multigrid *multigrid, const double *grids[multigrid->nlevels],
-    const grid_mpi_comm comm[multigrid->nlevels],
-    const int pgrid_dims[multigrid->nlevels][3],
-    const int *local2grid[multigrid->nlevels],
-    const int *grid2proc[multigrid->nlevels]);
+    const grid_multigrid *multigrid, const double *grids[multigrid->nlevels],
+    const grid_mpi_comm comm[multigrid->nlevels], const int *proc2local);
 
 void grid_copy_to_multigrid_general_f(
-    grid_multigrid *multigrid, const double *grids[multigrid->nlevels],
+    const grid_multigrid *multigrid, const double *grids[multigrid->nlevels],
     const grid_mpi_fint fortran_comm[multigrid->nlevels],
-    const int pgrid_dims[multigrid->nlevels][3],
-    const int *local2grid[multigrid->nlevels],
-    const int *grid2proc[multigrid->nlevels]);
+    const int *proc2local);
 
 void grid_copy_from_multigrid_general(
     const grid_multigrid *multigrid, double *grids[multigrid->nlevels],
-    const grid_mpi_comm comm[multigrid->nlevels],
-    const int pgrid_dims[multigrid->nlevels][3],
-    const int *local2grid[multigrid->nlevels],
-    const int *grid2proc[multigrid->nlevels]);
+    const grid_mpi_comm comm[multigrid->nlevels], const int *proc2local);
 
 void grid_copy_from_multigrid_general_f(
     const grid_multigrid *multigrid, double *grids[multigrid->nlevels],
     const grid_mpi_fint fortran_comm[multigrid->nlevels],
-    const int pgrid_dims[multigrid->nlevels][3],
-    const int *local2grid[multigrid->nlevels],
-    const int *grid2proc[multigrid->nlevels]);
+    const int *proc2local);
 
 void grid_copy_to_multigrid_general_single(
-    grid_multigrid *multigrid, const int level,
+    const grid_multigrid *multigrid, const int level,
     const double grids[multigrid->npts_local[level][0] *
                        multigrid->npts_local[level][1] *
                        multigrid->npts_local[level][2]],
-    const grid_mpi_comm comm, const int pgrid_dims[3], const int *local2grid,
-    const int *grid2proc);
+    const grid_mpi_comm comm, const int *proc2local);
 
-void grid_copy_to_multigrid_general_single_f(
-    grid_multigrid *multigrid, const int level, const double *grid,
-    const grid_mpi_fint fortran_comm, const int pgrid_dims[3],
-    const int *local2grid, const int *grid2proc);
+void grid_copy_to_multigrid_general_single_f(const grid_multigrid *multigrid,
+                                             const int level,
+                                             const double *grid,
+                                             const grid_mpi_fint fortran_comm,
+                                             const int *proc2local);
 
 void grid_copy_from_multigrid_general_single(const grid_multigrid *multigrid,
                                              const int level, double *grid,
                                              const grid_mpi_comm comm,
-                                             const int pgrid_dims[3],
-                                             const int *local2grid,
-                                             const int *grid2proc);
+                                             const int *proc2local);
 
 void grid_copy_from_multigrid_general_f_single(const grid_multigrid *multigrid,
                                                const int level, double *grid,
                                                const grid_mpi_fint fortran_comm,
-                                               const int pgrid_dims[3],
-                                               const int *local2grid,
-                                               const int *grid2proc);
+                                               const int *proc2local);
 
 /*******************************************************************************
  * \brief Allocates a multigrid which is passed to task list-based and
