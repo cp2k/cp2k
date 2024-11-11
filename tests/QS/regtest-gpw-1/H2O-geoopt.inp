@@ -60,6 +60,12 @@
       &END XC_FUNCTIONAL
     &END XC
   &END DFT
+  &PRINT
+    &FORCES
+      NDIGITS 6
+      UNIT "eV/Angstrom"
+    &END FORCES
+  &END PRINT
   &SUBSYS
     &CELL
       ABC 5.0 10.0/2.0 5.0

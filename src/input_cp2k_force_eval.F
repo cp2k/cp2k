@@ -318,6 +318,15 @@ CONTAINS
                           repeats=.FALSE.)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, &
+                          name="UNIT", &
+                          description="Specifies the physical unit used for the printing of the forces. "// &
+                          "Note that the meaningfulness of the unit is not checked.", &
+                          usage="UNIT eV/angstrom", &
+                          default_c_val="hartree/bohr", &
+                          repeats=.FALSE.)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
