@@ -18,6 +18,7 @@ MODULE force_env_utils
    USE constraint_util,                 ONLY: getold
    USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                               cp_subsys_type
+   USE cp_units,                        ONLY: cp_unit_from_cp2k
    USE distribution_1d_types,           ONLY: distribution_1d_type
    USE force_env_types,                 ONLY: force_env_get,&
                                               force_env_type
@@ -25,7 +26,8 @@ MODULE force_env_utils
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&
                                               section_vals_val_get
-   USE kinds,                           ONLY: dp
+   USE kinds,                           ONLY: default_string_length,&
+                                              dp
    USE molecule_kind_list_types,        ONLY: molecule_kind_list_type
    USE molecule_list_types,             ONLY: molecule_list_type
    USE molecule_types,                  ONLY: global_constraint_type
@@ -405,18 +407,20 @@ CONTAINS
 !> \param iw ...
 !> \param label ...
 !> \param ndigits ...
+!> \param unit_string ...
 !> \param total_force ...
 !> \param grand_total_force ...
 !> \param zero_force_core_shell_atom ...
 !> \author MK (06.09.2010)
 ! **************************************************************************************************
-   SUBROUTINE write_forces(particles, iw, label, ndigits, total_force, &
+   SUBROUTINE write_forces(particles, iw, label, ndigits, unit_string, total_force, &
                            grand_total_force, zero_force_core_shell_atom)
 
       TYPE(particle_list_type), POINTER                  :: particles
       INTEGER, INTENT(IN)                                :: iw
       CHARACTER(LEN=*), INTENT(IN)                       :: label
       INTEGER, INTENT(IN)                                :: ndigits
+      CHARACTER(LEN=default_string_length)               :: unit_string
       REAL(KIND=dp), DIMENSION(3), INTENT(OUT)           :: total_force
       REAL(KIND=dp), DIMENSION(3), INTENT(INOUT), &
          OPTIONAL                                        :: grand_total_force
@@ -427,14 +431,15 @@ CONTAINS
       CHARACTER(LEN=46)                                  :: fmtstr1
       INTEGER                                            :: i, ikind, iparticle, n
       LOGICAL                                            :: zero_force
+      REAL(KIND=dp)                                      :: conv
       REAL(KIND=dp), DIMENSION(3)                        :: f
 
       IF (iw > 0) THEN
          CPASSERT(ASSOCIATED(particles))
          n = MIN(MAX(1, ndigits), 20)
-         fmtstr1 = "(/,T2,A,/,/,T2,A,T11,A,T18,A,T35,A1,2(  X,A1))"
-         WRITE (UNIT=fmtstr1(39:40), FMT="(I2)") n + 6
-         fmtstr2 = "(T2,I6,1X,I6,T21,A,T28,3(1X,F  .  ))"
+         fmtstr1 = "(/,T2,A,/,/,T2,A,T11,A,T18,A,T35,A3,3(  X,A3))"
+         WRITE (UNIT=fmtstr1(39:40), FMT="(I2)") n + 4
+         fmtstr2 = "(T2,I6,1X,I6,T21,A,T28,4(1X,F  .  ))"
          WRITE (UNIT=fmtstr2(33:34), FMT="(I2)") n
          WRITE (UNIT=fmtstr2(30:31), FMT="(I2)") n + 6
          fmtstr3 = "(T2,A,T28,4(1X,F  .  ))"
@@ -445,8 +450,10 @@ CONTAINS
          ELSE
             zero_force = .FALSE.
          END IF
+         conv = cp_unit_from_cp2k(1.0_dp, TRIM(unit_string))
          WRITE (UNIT=iw, FMT=fmtstr1) &
-            label//" FORCES in [a.u.]", "# Atom", "Kind", "Element", "X", "Y", "Z"
+            label//" FORCES in ["//TRIM(ADJUSTL(unit_string))//"]", &
+            "# Atom", "Kind", "Element", " X ", " Y ", " Z ", "|F|"
          total_force(1:3) = 0.0_dp
          DO iparticle = 1, particles%n_els
             ikind = particles%els(iparticle)%atomic_kind%kind_number
@@ -458,21 +465,22 @@ CONTAINS
             IF (zero_force .AND. (particles%els(iparticle)%shell_index /= 0)) THEN
                f(1:3) = 0.0_dp
             ELSE
-               f(1:3) = particles%els(iparticle)%f(1:3)
+               f(1:3) = particles%els(iparticle)%f(1:3)*conv
             END IF
             WRITE (UNIT=iw, FMT=fmtstr2) &
-               i, ikind, particles%els(iparticle)%atomic_kind%element_symbol, f(1:3)
+               i, ikind, particles%els(iparticle)%atomic_kind%element_symbol, f(1:3), &
+               SQRT(SUM(f(1:3)**2))
             total_force(1:3) = total_force(1:3) + f(1:3)
          END DO
          WRITE (UNIT=iw, FMT=fmtstr3) &
-            "SUM OF "//label//" FORCES", total_force(1:3), SQRT(SUM(total_force(:)**2))
+            "SUM OF "//label//" FORCES", total_force(1:3), SQRT(SUM(total_force(1:3)**2))
       END IF
 
       IF (PRESENT(grand_total_force)) THEN
          grand_total_force(1:3) = grand_total_force(1:3) + total_force(1:3)
          WRITE (UNIT=iw, FMT="(A)") ""
          WRITE (UNIT=iw, FMT=fmtstr3) &
-            "GRAND TOTAL FORCE", grand_total_force(1:3), SQRT(SUM(grand_total_force(:)**2))
+            "GRAND TOTAL FORCE", grand_total_force(1:3), SQRT(SUM(grand_total_force(1:3)**2))
       END IF
 
    END SUBROUTINE write_forces
