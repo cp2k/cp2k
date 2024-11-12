@@ -10,6 +10,7 @@
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #if defined(__parallel)
 /*******************************************************************************
@@ -201,6 +202,17 @@ void grid_mpi_wait(grid_mpi_request *request) {
   CHECK(MPI_Wait(request, &status));
 #else
   *request = grid_mpi_request_null;
+#endif
+}
+
+void grid_mpi_allgather_int(const int *sendbuffer, int sendcount,
+                            int *recvbuffer, grid_mpi_comm comm) {
+#if defined(__parallel)
+  CHECK(MPI_Allgather(sendbuffer, sendcount, MPI_INT, recvbuffer, sendcount,
+                      MPI_INT, comm));
+#else
+  (void)comm;
+  memcpy(recvbuffer, sendbuffer, sendcount * sizeof(int));
 #endif
 }
 

@@ -283,6 +283,27 @@ void grid_copy_to_multigrid_replicated(
   }
 }
 
+void grid_copy_to_multigrid_distributed(
+    double *grid_rs, const double *grid_pw, const int npts_rs[3],
+    const int border_width[3], const grid_mpi_comm comm,
+    const int proc2local[grid_mpi_comm_size(comm)][3][2]) {
+  const int number_of_processes = grid_mpi_comm_size(comm);
+  const int my_process = grid_mpi_comm_rank(comm);
+
+  (void)grid_rs;
+  (void)grid_pw;
+  (void)npts_rs;
+  (void)border_width;
+  (void)comm;
+  (void)proc2local;
+  (void)number_of_processes;
+  (void)my_process;
+
+  // Send Data to rs grids without Halo
+
+  // Exchange Halo
+}
+
 void grid_copy_to_multigrid_general(
     const grid_multigrid *multigrid, const double *grids[multigrid->nlevels],
     const grid_mpi_comm comm[multigrid->nlevels], const int *proc2local) {
@@ -481,6 +502,26 @@ void grid_copy_from_multigrid_replicated(
   memcpy(grid_pw, send_buffer, my_number_of_elements * sizeof(double));
 }
 
+void grid_copy_from_multigrid_distributed(
+    const double *grid_rs, double *grid_pw, const int npts_rs[3],
+    const int border_width[3], const grid_mpi_comm comm,
+    const int proc2local[grid_mpi_comm_size(comm)][3][2]) {
+  const int number_of_processes = grid_mpi_comm_size(comm);
+  const int my_process = grid_mpi_comm_rank(comm);
+
+  (void)grid_rs;
+  (void)grid_pw;
+  (void)npts_rs;
+  (void)border_width;
+  (void)proc2local;
+  (void)number_of_processes;
+  (void)my_process;
+
+  // Sum data from halos
+
+  // Distribute data to PW grid
+}
+
 void grid_copy_from_multigrid_general(
     const grid_multigrid *multigrid, double *grids[multigrid->nlevels],
     const grid_mpi_comm comm[multigrid->nlevels], const int *proc2local) {
@@ -541,7 +582,10 @@ void grid_copy_from_multigrid_general_single(const grid_multigrid *multigrid,
                                           multigrid->border_width[level], comm,
                                           (const int(*)[3][2])proc2local);
     } else {
-      // TODO
+      grid_copy_from_multigrid_distributed(multigrid->grids[level]->host_buffer,
+                                           grid, multigrid->npts_local[level],
+                                           multigrid->border_width[level], comm,
+                                           (const int(*)[3][2])proc2local);
     }
   }
 }
@@ -652,6 +696,9 @@ void grid_create_multigrid(
     }
     // Always free the old communicator
     grid_mpi_comm_free(&multigrid->comm);
+    multigrid->bounds =
+        realloc(multigrid->bounds,
+                nlevels * grid_mpi_comm_size(comm) * 6 * sizeof(int));
   } else {
     multigrid = calloc(1, sizeof(grid_multigrid));
     multigrid->npts_global = calloc(num_int, sizeof(int));
@@ -662,6 +709,8 @@ void grid_create_multigrid(
     multigrid->dh_inv = calloc(num_double, sizeof(double));
     multigrid->grids = calloc(nlevels, sizeof(offload_buffer *));
     multigrid->pgrid_dims = calloc(num_int, sizeof(int));
+    multigrid->bounds =
+        calloc(nlevels * grid_mpi_comm_size(comm) * 6, sizeof(int));
 
     // Resolve AUTO to a concrete backend.
     if (config.backend == GRID_BACKEND_AUTO) {
@@ -693,6 +742,18 @@ void grid_create_multigrid(
   memcpy(multigrid->dh_inv, dh_inv, num_double * sizeof(double));
   memcpy(multigrid->pgrid_dims, npts_global, num_int * sizeof(int));
   grid_mpi_comm_dup(comm, &multigrid->comm);
+
+  for (int level = 0; level < nlevels; level++) {
+    int local_bounds[3][2];
+    for (int dir = 0; dir < 3; dir++) {
+      local_bounds[dir][0] = shift_local[level][dir];
+      local_bounds[dir][1] =
+          shift_local[level][dir] + npts_local[level][dir] - 1;
+    }
+    grid_mpi_allgather_int(
+        &local_bounds[0][0], 6,
+        &multigrid->bounds[level * 6 * grid_mpi_comm_size(comm)], comm);
+  }
 
   grid_ref_create_multigrid(orthorhombic, nlevels, npts_global, npts_local,
                             shift_local, border_width, dh, dh_inv, comm,
@@ -747,6 +808,8 @@ void grid_free_multigrid(grid_multigrid *multigrid) {
     }
     if (multigrid->pgrid_dims != NULL)
       free(multigrid->pgrid_dims);
+    if (multigrid->bounds != NULL)
+      free(multigrid->bounds);
     grid_mpi_comm_free(&multigrid->comm);
     grid_ref_free_multigrid(multigrid->ref);
     grid_cpu_free_multigrid(multigrid->cpu);
