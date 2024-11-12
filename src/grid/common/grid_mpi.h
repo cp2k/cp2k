@@ -13,16 +13,20 @@
 #include <mpi.h>
 
 typedef MPI_Comm grid_mpi_comm;
+typedef MPI_Request grid_mpi_request;
 typedef MPI_Fint grid_mpi_fint;
 
 static const grid_mpi_comm grid_mpi_comm_world = MPI_COMM_WORLD;
 static const grid_mpi_comm grid_mpi_comm_null = MPI_COMM_NULL;
+static const grid_mpi_request grid_mpi_request_null = MPI_REQUEST_NULL;
 #else
 typedef int grid_mpi_comm;
+typedef int grid_mpi_request;
 typedef int grid_mpi_fint;
 
 static const grid_mpi_comm grid_mpi_comm_world = -2;
 static const grid_mpi_comm grid_mpi_comm_null = -3;
+static const grid_mpi_request grid_mpi_request_null = -5;
 #endif
 
 int grid_mpi_comm_size(const grid_mpi_comm comm);
@@ -53,9 +57,19 @@ bool grid_mpi_comm_is_ident(const grid_mpi_comm comm1,
 
 void grid_mpi_sendrecv_double(const double *sendbuffer, const int sendcount,
                               const int dest, const int sendtag,
-                              double *recvbuf, const int recvcount,
+                              double *recvbuffer, const int recvcount,
                               const int source, const int recvtag,
                               const grid_mpi_comm comm);
+
+void grid_mpi_isend_double(const double *sendbuffer, const int sendcount,
+                           const int dest, const int sendtag,
+                           const grid_mpi_comm comm, grid_mpi_request *request);
+
+void grid_mpi_irecv_double(double *recvbuffer, const int recvcount,
+                           const int source, const int recvtag,
+                           const grid_mpi_comm comm, grid_mpi_request *request);
+
+void grid_mpi_wait(grid_mpi_request *request);
 
 #endif
 

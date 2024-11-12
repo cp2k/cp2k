@@ -137,24 +137,70 @@ bool grid_mpi_comm_is_ident(const grid_mpi_comm comm1,
 
 void grid_mpi_sendrecv_double(const double *sendbuffer, const int sendcount,
                               const int dest, const int sendtag,
-                              double *recvbuf, const int recvcount,
+                              double *recvbuffer, const int recvcount,
                               const int source, const int recvtag,
                               const grid_mpi_comm comm) {
 #if defined(__parallel)
   MPI_Status status;
-  CHECK(MPI_Sendrecv(sendbuffer, sendcount, MPI_DOUBLE, dest, sendtag, recvbuf,
-                     recvcount, MPI_DOUBLE, source, recvtag, comm, &status));
+  CHECK(MPI_Sendrecv(sendbuffer, sendcount, MPI_DOUBLE, dest, sendtag,
+                     recvbuffer, recvcount, MPI_DOUBLE, source, recvtag, comm,
+                     &status));
 #else
   (void)sendbuffer;
   (void)sendcount;
   (void)dest;
   (void)sendtag;
-  (void)recvbuf;
+  (void)recvbuffer;
   (void)recvcount;
   (void)source;
   (void)recvtag;
   (void)comm;
   assert(false && "Communication not allowed in serial mode");
+#endif
+}
+
+void grid_mpi_isend_double(const double *sendbuffer, const int sendcount,
+                           const int dest, const int sendtag,
+                           const grid_mpi_comm comm,
+                           grid_mpi_request *request) {
+#if defined(__parallel)
+  CHECK(MPI_Isend(sendbuffer, sendcount, MPI_DOUBLE, dest, sendtag, comm,
+                  request));
+#else
+  (void)sendbuffer;
+  (void)sendcount;
+  (void)dest;
+  (void)sendtag;
+  (void)comm;
+  *request = 2;
+  assert(false && "Communication not allowed in serial mode");
+#endif
+}
+
+void grid_mpi_irecv_double(double *recvbuffer, const int recvcount,
+                           const int source, const int recvtag,
+                           const grid_mpi_comm comm,
+                           grid_mpi_request *request) {
+#if defined(__parallel)
+  CHECK(MPI_Irecv(recvbuffer, recvcount, MPI_DOUBLE, source, recvtag, comm,
+                  request));
+#else
+  (void)recvbuffer;
+  (void)recvcount;
+  (void)source;
+  (void)recvtag;
+  (void)comm;
+  *request = 3;
+  assert(false && "Communication not allowed in serial mode");
+#endif
+}
+
+void grid_mpi_wait(grid_mpi_request *request) {
+#if defined(__parallel)
+  MPI_Status status;
+  CHECK(MPI_Wait(request, &status));
+#else
+  *request = grid_mpi_request_null;
 #endif
 }
 
