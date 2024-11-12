@@ -15,42 +15,56 @@ MODULE tblite_interface
    USE mctc_env, ONLY: error_type
    USE mctc_io, ONLY: structure_type, new
    USE mctc_io_symbols, ONLY: symbol_to_number
-   USE tblite_xtb_calculator, ONLY: xtb_calculator, new_xtb_calculator
-   USE tblite_xtb_gfn1, ONLY: new_gfn1_calculator
-   USE tblite_xtb_gfn2, ONLY: new_gfn2_calculator
-   USE tblite_xtb_ipea1, ONLY: new_ipea1_calculator
+   USE tblite_basis_type, ONLY: get_cutoff
    USE tblite_container, ONLY: container_cache
-   USE tblite_wavefunction_type, ONLY: wavefunction_type, new_wavefunction
    USE tblite_scf_info, ONLY: scf_info, atom_resolved, shell_resolved, &
                                  & orbital_resolved, not_used
    USE tblite_scf_potential, ONLY: potential_type, new_potential
+   USE tblite_types, ONLY: tblite_type, deallocate_tblite_type, allocate_tblite_type
+   USE tblite_wavefunction_type, ONLY: wavefunction_type, new_wavefunction
+   USE tblite_xtb_calculator, ONLY: xtb_calculator, new_xtb_calculator
+   USE tblite_xtb_gfn1, ONLY: new_gfn1_calculator
+   USE tblite_xtb_gfn2, ONLY: new_gfn2_calculator
    USE tblite_xtb_h0, ONLY: get_selfenergy, get_hamiltonian, get_occupation, &
                                  & get_hamiltonian_gradient, tb_hamiltonian
-   USE tblite_basis_type, ONLY: get_cutoff
+   USE tblite_xtb_ipea1, ONLY: new_ipea1_calculator
 #endif
-
-   USE qs_environment_types, ONLY: get_qs_env, qs_environment_type
-   USE cell_types, ONLY: cell_type, get_cell
-   USE particle_types, ONLY: particle_type
-   USE kinds, ONLY: dp, default_string_length
-   USE atomic_kind_types, ONLY: get_atomic_kind
-   USE input_constants, ONLY: gfn1xtb, gfn2xtb, ipea1xtb
+   USE ai_contraction, ONLY: block_add, &
+                             contraction
+   USE ai_overlap, ONLY: overlap_ab
+   USE atomic_kind_types, ONLY: atomic_kind_type, get_atomic_kind, get_atomic_kind_set
+   USE atprop_types, ONLY: atprop_type
    USE basis_set_types, ONLY: gto_basis_set_type, gto_basis_set_p_type, &
                               & allocate_gto_basis_set, write_gto_basis_set, process_gto_basis
-   USE tblite_types, ONLY: tblite_type, deallocate_tblite_type, allocate_tblite_type
-   USE memory_utilities, ONLY: reallocate
-   USE qs_kind_types, ONLY: get_qs_kind, qs_kind_type
-   USE string_utilities, ONLY: integer_to_string
-   USE message_passing, ONLY: mp_para_env_type
-   USE qs_ks_types, ONLY: qs_ks_env_type, set_ks_env
-   USE qs_energy_types, ONLY: qs_energy_type
-   USE cp_dbcsr_api, ONLY: dbcsr_type, dbcsr_p_type, dbcsr_create
+   USE cell_types, ONLY: cell_type, get_cell
+   USE cp_blacs_env, ONLY: cp_blacs_env_type
    USE cp_control_types, ONLY: dft_control_type
-   USE qs_neighbor_list_types, ONLY: neighbor_list_set_p_type
-   USE atprop_types, ONLY: atprop_type
-   USE atomic_kind_types, ONLY: atomic_kind_type
-   USE orbital_pointers, ONLY: ncoset
+   USE cp_dbcsr_api, ONLY: dbcsr_type, dbcsr_p_type, dbcsr_create, dbcsr_get_block_p, &
+                           & dbcsr_print, dbcsr_finalize
    USE cp_dbcsr_cp2k_link, ONLY: cp_dbcsr_alloc_block_from_nbl
+   USE cp_dbcsr_operations, ONLY: dbcsr_allocate_matrix_set
+   USE cp_log_handling, ONLY: cp_get_default_logger, &
+                              cp_logger_type
+   USE cp_output_handling, ONLY: cp_print_key_should_output, &
+                                 cp_print_key_unit_nr
+   USE input_constants, ONLY: gfn1xtb, gfn2xtb, ipea1xtb
+   USE input_section_types, ONLY: section_vals_val_get
+   USE kinds, ONLY: dp, default_string_length
+   USE memory_utilities, ONLY: reallocate
+   USE message_passing, ONLY: mp_para_env_type
+   USE orbital_pointers, ONLY: ncoset
+   USE particle_types, ONLY: particle_type
+   USE qs_condnum, ONLY: overlap_condnum
+   USE qs_energy_types, ONLY: qs_energy_type
+   USE qs_environment_types, ONLY: get_qs_env, qs_environment_type
+   USE qs_integral_utils, ONLY: basis_set_list_setup, get_memory_usage
+   USE qs_kind_types, ONLY: get_qs_kind, qs_kind_type
+   USE qs_ks_types, ONLY: qs_ks_env_type, set_ks_env
+   USE qs_neighbor_list_types, ONLY: neighbor_list_iterator_create, neighbor_list_iterate, &
+                                    & get_iterator_info, neighbor_list_set_p_type, &
+                                    & neighbor_list_iterator_p_type
+   USE qs_overlap, ONLY: create_sab_matrix
+   USE string_utilities, ONLY: integer_to_string
 #include "./base/base_uses.f90"
    IMPLICIT NONE
 
@@ -59,7 +73,7 @@ MODULE tblite_interface
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'tblite_interface'
 
    PUBLIC :: tb_init_geometry, tb_init_ham, tb_init_wf
-   PUBLIC :: tb_set_calculator, tb_get_basis
+   PUBLIC :: tb_set_calculator, tb_get_basis, build_tblite_matrices
 
 CONTAINS
 
@@ -422,17 +436,38 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'build_tblite_matrices'
 
-      INTEGER    :: handle, maxder, nderivatives, nimg, img, nkind
+      INTEGER                                            :: handle, maxder, nderivatives, nimg, img, nkind, i, ic, iw
+      INTEGER                                            :: iatom, jatom, ikind, jkind, iset, jset, n1, n2, icol, irow
+      INTEGER                                            :: sgfa, sgfb, atom_a, atom_b, ldsab, nseta, nsetb, natorb_a, natorb_b
+      LOGICAL                                            :: found, norml1, norml2, use_arnoldi
+      REAL(KIND=dp)                                      :: dr
+      INTEGER, DIMENSION(3)                              :: cell
+      REAL(KIND=dp), DIMENSION(2)                        :: condnum
+      REAL(KIND=dp), DIMENSION(3)                        :: rij
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: set_radius_a, set_radius_b
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: owork
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: oint, sint
+      INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, lb_max, lb_min, npgfa, &
+                                                            npgfb, nsgfa, nsgfb
+      INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa, first_sgfb
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: rpgfa, rpgfb, zeta, zetb, scon_a, scon_b
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: sblocK
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind
 
+      TYPE(atomic_kind_type), DIMENSION(:), POINTER         :: atomic_kind_set
+      TYPE(atprop_type), POINTER                            :: atprop
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER          :: matrix_h, matrix_s
+      TYPE(dft_control_type), POINTER                       :: dft_control
+      TYPE(gto_basis_set_type), POINTER                     :: basis_set_a, basis_set_b
+      TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER     :: basis_set_list
+      TYPE(cp_blacs_env_type), POINTER                      :: blacs_env
+      TYPE(cp_logger_type), POINTER                         :: logger
+      TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER :: sab_orb
+      TYPE(neighbor_list_iterator_p_type), &
+         DIMENSION(:), POINTER                              :: nl_iterator
       TYPE(qs_ks_env_type), POINTER                         :: ks_env
       TYPE(qs_energy_type), POINTER                         :: energy
       TYPE(qs_kind_type), DIMENSION(:), POINTER             :: qs_kind_set
-      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER          :: matrix_h, matrix_s
-      TYPE(atprop_type), POINTER                            :: atprop
-      TYPE(dft_control_type), POINTER                       :: dft_control
-      TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER :: sab_orb
-      TYPE(atomic_kind_type), DIMENSION(:), POINTER         :: atomic_kind_set
-      TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER     :: basis_set_list
 
       CALL timeset(routineN, handle)
 
@@ -457,6 +492,8 @@ CONTAINS
       maxder = ncoset(nderivatives)
       nimg = dft_control%nimages
 
+      CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, atom_of_kind=atom_of_kind)
+
       ! set up basis set lists
       ALLOCATE (basis_set_list(nkind))
       CALL basis_set_list_setup(basis_set_list, "ORB", qs_kind_set)
@@ -475,6 +512,137 @@ CONTAINS
                            name="HAMILTONIAN MATRIX")
          CALL cp_dbcsr_alloc_block_from_nbl(matrix_h(1, img)%matrix, sab_orb)
       END DO
+
+      ! loop over all atom pairs with a non-zero overlap (sab_orb)
+      CALL neighbor_list_iterator_create(nl_iterator, sab_orb)
+      DO WHILE (neighbor_list_iterate(nl_iterator) == 0)
+         CALL get_iterator_info(nl_iterator, ikind=ikind, jkind=jkind, &
+                                iatom=iatom, jatom=jatom, r=rij, cell=cell)
+
+         dr = SQRT(SUM(rij(:)**2))
+
+         ic = 1
+         icol = MAX(iatom, jatom)
+         irow = MIN(iatom, jatom)
+         NULLIFY (sblock)
+         CALL dbcsr_get_block_p(matrix=matrix_s(1, ic)%matrix, &
+                                row=irow, col=icol, BLOCK=sblock, found=found)
+         CPASSERT(found)
+
+         ! --------- Overlap
+         !get basis information
+         basis_set_a => basis_set_list(ikind)%gto_basis_set
+         IF (.NOT. ASSOCIATED(basis_set_a)) CYCLE
+         basis_set_b => basis_set_list(jkind)%gto_basis_set
+         IF (.NOT. ASSOCIATED(basis_set_b)) CYCLE
+         atom_a = atom_of_kind(iatom)
+         atom_b = atom_of_kind(jatom)
+         ! basis ikind
+         first_sgfa => basis_set_a%first_sgf
+         la_max => basis_set_a%lmax
+         la_min => basis_set_a%lmin
+         npgfa => basis_set_a%npgf
+         nseta = basis_set_a%nset
+         nsgfa => basis_set_a%nsgf_set
+         rpgfa => basis_set_a%pgf_radius
+         set_radius_a => basis_set_a%set_radius
+         scon_a => basis_set_a%scon
+         zeta => basis_set_a%zet
+         ! basis jkind
+         first_sgfb => basis_set_b%first_sgf
+         lb_max => basis_set_b%lmax
+         lb_min => basis_set_b%lmin
+         npgfb => basis_set_b%npgf
+         nsetb = basis_set_b%nset
+         nsgfb => basis_set_b%nsgf_set
+         rpgfb => basis_set_b%pgf_radius
+         set_radius_b => basis_set_b%set_radius
+         scon_b => basis_set_b%scon
+         zetb => basis_set_b%zet
+
+         ldsab = get_memory_usage(qs_kind_set, "ORB", "ORB")
+         ALLOCATE (oint(ldsab, ldsab, maxder), owork(ldsab, ldsab))
+         natorb_a = 0
+         DO iset = 1, nseta
+            natorb_a = natorb_a + (2*basis_set_a%l(1, iset) + 1)
+         END DO
+         natorb_b = 0
+         DO iset = 1, nsetb
+            natorb_b = natorb_b + (2*basis_set_b%l(1, iset) + 1)
+         END DO
+         WRITE (*, *) "+++++++ na, nb", natorb_a, natorb_b
+         ALLOCATE (sint(natorb_a, natorb_b, maxder))
+         sint = 0.0_dp
+
+         DO iset = 1, nseta
+            n1 = npgfa(iset)*(ncoset(la_max(iset)) - ncoset(la_min(iset) - 1))
+            sgfa = first_sgfa(1, iset)
+            DO jset = 1, nsetb
+               IF (set_radius_a(iset) + set_radius_b(jset) < dr) CYCLE
+               n2 = npgfb(jset)*(ncoset(lb_max(jset)) - ncoset(lb_min(jset) - 1))
+               sgfb = first_sgfb(1, jset)
+               IF (calculate_forces) THEN
+                  CALL overlap_ab(la_max(iset), la_min(iset), npgfa(iset), rpgfa(:, iset), zeta(:, iset), &
+                                  lb_max(jset), lb_min(jset), npgfb(jset), rpgfb(:, jset), zetb(:, jset), &
+                                  rij, sab=oint(:, :, 1), dab=oint(:, :, 2:4))
+               ELSE
+                  CALL overlap_ab(la_max(iset), la_min(iset), npgfa(iset), rpgfa(:, iset), zeta(:, iset), &
+                                  lb_max(jset), lb_min(jset), npgfb(jset), rpgfb(:, jset), zetb(:, jset), &
+                                  rij, sab=oint(:, :, 1))
+               END IF
+               ! Contraction
+               CALL contraction(oint(:, :, 1), owork, ca=scon_a(:, sgfa:), na=n1, ma=nsgfa(iset), &
+                                cb=scon_b(:, sgfb:), nb=n2, mb=nsgfb(jset), fscale=1.0_dp, trans=.FALSE.)
+               CALL block_add("IN", owork, nsgfa(iset), nsgfb(jset), sint(:, :, 1), sgfa, sgfb, trans=.FALSE.)
+               IF (calculate_forces) THEN
+                  DO i = 2, 4
+                     CALL contraction(oint(:, :, i), owork, ca=scon_a(:, sgfa:), na=n1, ma=nsgfa(iset), &
+                                      cb=scon_b(:, sgfb:), nb=n2, mb=nsgfb(jset), fscale=1.0_dp, trans=.FALSE.)
+                     CALL block_add("IN", owork, nsgfa(iset), nsgfb(jset), sint(:, :, i), sgfa, sgfb, trans=.FALSE.)
+                  END DO
+               END IF
+            END DO
+         END DO
+
+         ! update S matrix
+         IF (iatom <= jatom) THEN
+            sblock(:, :) = sblock(:, :) + sint(:, :, 1)
+         ELSE
+            sblock(:, :) = sblock(:, :) + TRANSPOSE(sint(:, :, 1))
+         END IF
+
+         DEALLOCATE (oint, owork, sint)
+
+         ! --------- Hamiltonian
+
+      END DO
+
+      DO i = 1, SIZE(matrix_s, 1)
+         DO img = 1, nimg
+            CALL dbcsr_finalize(matrix_s(i, img)%matrix)
+            !CALL dbcsr_finalize(matrix_h(i, img)%matrix)
+         END DO
+      END DO
+
+      CALL dbcsr_print(matrix_s(1, ic)%matrix)
+
+      ! ******* output
+      NULLIFY (logger)
+      logger => cp_get_default_logger()
+
+      ! *** Overlap condition number
+      IF (.NOT. calculate_forces) THEN
+         IF (cp_print_key_should_output(logger%iter_info, qs_env%input, &
+                                        "DFT%PRINT%OVERLAP_CONDITION") .NE. 0) THEN
+            iw = cp_print_key_unit_nr(logger, qs_env%input, "DFT%PRINT%OVERLAP_CONDITION", &
+                                      extension=".Log")
+            CALL section_vals_val_get(qs_env%input, "DFT%PRINT%OVERLAP_CONDITION%1-NORM", l_val=norml1)
+            CALL section_vals_val_get(qs_env%input, "DFT%PRINT%OVERLAP_CONDITION%DIAGONALIZATION", l_val=norml2)
+            CALL section_vals_val_get(qs_env%input, "DFT%PRINT%OVERLAP_CONDITION%ARNOLDI", l_val=use_arnoldi)
+            CALL get_qs_env(qs_env=qs_env, blacs_env=blacs_env)
+            CALL overlap_condnum(matrix_s, condnum, iw, norml1, norml2, use_arnoldi, blacs_env)
+         END IF
+      END IF
 
       CALL timestop(handle)
 
