@@ -135,4 +135,27 @@ bool grid_mpi_comm_is_ident(const grid_mpi_comm comm1,
 #endif
 }
 
+void grid_mpi_sendrecv_double(const double *sendbuffer, const int sendcount,
+                              const int dest, const int sendtag,
+                              double *recvbuf, const int recvcount,
+                              const int source, const int recvtag,
+                              const grid_mpi_comm comm) {
+#if defined(__parallel)
+  MPI_Status status;
+  CHECK(MPI_Sendrecv(sendbuffer, sendcount, MPI_DOUBLE, dest, sendtag, recvbuf,
+                     recvcount, MPI_DOUBLE, source, recvtag, comm, &status));
+#else
+  (void)sendbuffer;
+  (void)sendcount;
+  (void)dest;
+  (void)sendtag;
+  (void)recvbuf;
+  (void)recvcount;
+  (void)source;
+  (void)recvtag;
+  (void)comm;
+  assert(false && "Communication not allowed in serial mode");
+#endif
+}
+
 // EOF

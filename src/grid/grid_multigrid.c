@@ -6,6 +6,7 @@
 /*----------------------------------------------------------------------------*/
 
 #include "grid_multigrid.h"
+#include "common/grid_common.h"
 #include "common/grid_library.h"
 
 #include <assert.h>
@@ -175,7 +176,17 @@ void grid_copy_to_multigrid_general(
                                     grids[level], multigrid->npts_local[level],
                                     multigrid->border_width[level]);
     } else {
-      // TO BE IMPLEMENTED
+      // The parallel case, we need to distinguish replicated grids from
+      // distributed grids
+      if (multigrid->pgrid_dims[level][0] * multigrid->pgrid_dims[level][1] *
+              multigrid->pgrid_dims[level][2] ==
+          1) {
+        // grid_copy_to_multigrid_replicated(multigrid->grids[level]->host_buffer,
+        // grids[level], multigrid->npts_local[level], multigrid->border_width,
+        // comm[level], &proc2local[level*grid_comm_size(comm[level])*6]);
+      } else {
+        // TODO
+      }
     }
   }
 }
@@ -203,7 +214,17 @@ void grid_copy_to_multigrid_general_single(const grid_multigrid *multigrid,
                                   multigrid->npts_local[level],
                                   multigrid->border_width[level]);
   } else {
-    // TO BE IMPLEMENTED
+    // The parallel case, we need to distinguish replicated grids from
+    // distributed grids
+    if (multigrid->pgrid_dims[level][0] * multigrid->pgrid_dims[level][1] *
+            multigrid->pgrid_dims[level][2] ==
+        1) {
+      // grid_copy_to_multigrid_replicated(multigrid->grids[level]->host_buffer,
+      // grids[level], multigrid->npts_local[level], multigrid->border_width,
+      // comm[level], &proc2local[level*grid_comm_size(comm[level])*6]);
+    } else {
+      // TODO
+    }
   }
 }
 
@@ -246,11 +267,90 @@ void grid_copy_from_multigrid_serial(const double *grid_rs, double *grid_pw,
   }
 }
 
+void grid_copy_from_multigrid_replicated(
+    const double *grid_rs, double *grid_pw, const int npts_rs[3],
+    const int border_width[3], const grid_mpi_comm comm,
+    const int proc2local[grid_mpi_comm_size(comm)][3][2]) {
+  const int number_of_processes = grid_mpi_comm_size(comm);
+  const int my_process = grid_mpi_comm_rank(comm);
+
+  // Determine the maximum number of grid points on a single rank
+  int maximum_number_of_elements = 0;
+  for (int process = 0; process < number_of_processes; process++) {
+    const int current_number_of_elements =
+        (proc2local[process][0][1] - proc2local[process][0][0] + 1) *
+        (proc2local[process][1][1] - proc2local[process][1][0] + 1) *
+        (proc2local[process][2][1] - proc2local[process][2][0] + 1);
+    maximum_number_of_elements =
+        (current_number_of_elements > maximum_number_of_elements
+             ? current_number_of_elements
+             : maximum_number_of_elements);
+  }
+  const int my_number_of_elements =
+      (proc2local[my_process][0][1] - proc2local[my_process][0][0] + 1) *
+      (proc2local[my_process][1][1] - proc2local[my_process][1][0] + 1) *
+      (proc2local[my_process][2][1] - proc2local[my_process][2][0] + 1);
+
+  // Allocate communication buffers
+  double *send_buffer = calloc(maximum_number_of_elements, sizeof(double));
+  double *recv_buffer = calloc(maximum_number_of_elements, sizeof(double));
+
+  // Send the data of the ip-th neighbor
+  for (int process_shift = 1; process_shift < number_of_processes;
+       process_shift++) {
+    const int send_process =
+        modulo(my_process + process_shift, number_of_processes);
+    const int send_size_x =
+        proc2local[send_process][0][1] - proc2local[send_process][0][0] + 1;
+    const int send_size_y =
+        proc2local[send_process][1][1] - proc2local[send_process][1][0] + 1;
+    const int send_size_z =
+        proc2local[send_process][2][1] - proc2local[send_process][2][0] + 1;
+
+    // Pack send_buffer
+    for (int iz = proc2local[send_process][2][0];
+         iz <= proc2local[send_process][2][1]; iz++) {
+      for (int iy = proc2local[send_process][1][0];
+           iz <= proc2local[send_process][1][1]; iz++) {
+        for (int ix = proc2local[send_process][0][0];
+             iz <= proc2local[send_process][0][1]; iz++) {
+          send_buffer[iz * send_size_x * send_size_y + iy * send_size_x + ix] +=
+              grid_rs[(iz + border_width[2]) * npts_rs[0] * npts_rs[1] +
+                      (iy + border_width[1]) * npts_rs[0] +
+                      (ix + border_width[0])];
+        }
+      }
+    }
+
+    if (process_shift + 1 == number_of_processes)
+      break;
+
+    const int recv_process =
+        modulo(my_process - process_shift, number_of_processes);
+    const int recv_size_x =
+        proc2local[recv_process][0][1] - proc2local[recv_process][0][0] + 1;
+    const int recv_size_y =
+        proc2local[recv_process][1][1] - proc2local[recv_process][1][0] + 1;
+    const int recv_size_z =
+        proc2local[recv_process][2][1] - proc2local[recv_process][2][0] + 1;
+
+    // Communicate buffers
+    grid_mpi_sendrecv_double(
+        send_buffer, send_size_x * send_size_y * send_size_z, send_process, 2,
+        recv_buffer, recv_size_x * recv_size_y * recv_size_z, recv_process, 2,
+        comm);
+    double *temp_pointer = send_buffer;
+    send_buffer = recv_buffer;
+    recv_buffer = temp_pointer;
+  }
+
+  // Copy the final received data for yourself to the result
+  memcpy(grid_pw, send_buffer, my_number_of_elements * sizeof(double));
+}
+
 void grid_copy_from_multigrid_general(
     const grid_multigrid *multigrid, double *grids[multigrid->nlevels],
     const grid_mpi_comm comm[multigrid->nlevels], const int *proc2local) {
-  (void)grids;
-  (void)proc2local;
   for (int level = 0; level < multigrid->nlevels; level++) {
     assert(!grid_mpi_comm_is_unequal(multigrid->comm, comm[level]));
     if (grid_mpi_comm_size(comm[level]) == 1) {
@@ -258,7 +358,20 @@ void grid_copy_from_multigrid_general(
           multigrid->grids[level]->host_buffer, grids[level],
           multigrid->npts_local[level], multigrid->border_width[level]);
     } else {
-      //
+      // The parallel case, we need to distinguish replicated grids from
+      // distributed grids
+      if (multigrid->pgrid_dims[level][0] * multigrid->pgrid_dims[level][1] *
+              multigrid->pgrid_dims[level][2] ==
+          1) {
+        grid_copy_from_multigrid_replicated(
+            multigrid->grids[level]->host_buffer, grids[level],
+            multigrid->npts_local[level], multigrid->border_width[level],
+            comm[level],
+            (const int(*)[3][2]) &
+                proc2local[level * grid_mpi_comm_size(comm[level]) * 6]);
+      } else {
+        // TODO
+      }
     }
   }
 }
@@ -287,7 +400,18 @@ void grid_copy_from_multigrid_general_single(const grid_multigrid *multigrid,
                                     multigrid->npts_local[level],
                                     multigrid->border_width[level]);
   } else {
-    //
+    // The parallel case, we need to distinguish replicated grids from
+    // distributed grids
+    if (multigrid->pgrid_dims[level][0] * multigrid->pgrid_dims[level][1] *
+            multigrid->pgrid_dims[level][2] ==
+        1) {
+      grid_copy_from_multigrid_replicated(multigrid->grids[level]->host_buffer,
+                                          grid, multigrid->npts_local[level],
+                                          multigrid->border_width[level], comm,
+                                          (const int(*)[3][2])proc2local);
+    } else {
+      // TODO
+    }
   }
 }
 

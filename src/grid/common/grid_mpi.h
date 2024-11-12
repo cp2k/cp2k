@@ -51,6 +51,12 @@ bool grid_mpi_comm_is_congruent(const grid_mpi_comm comm1,
 bool grid_mpi_comm_is_ident(const grid_mpi_comm comm1,
                             const grid_mpi_comm comm2);
 
+void grid_mpi_sendrecv_double(const double *sendbuffer, const int sendcount,
+                              const int dest, const int sendtag,
+                              double *recvbuf, const int recvcount,
+                              const int source, const int recvtag,
+                              const grid_mpi_comm comm);
+
 #endif
 
 // EOF
