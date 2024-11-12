@@ -225,6 +225,9 @@ QS/regtest-ecp                                              libgrpp
 QS/regtest-as-3                                             libint mpiranks%2==0
 QS/regtest-gpw-7
 QS/regtest-bse                                              libint
+QS/regtest-rtbse                                            libint
+QS/regtest-smeagol-1
+QS/regtest-smeagol-2                                        libsmeagol
 QS/regtest-mp2-admm-stress                                  libint
 QS/regtest-gpw-9                                            libxc
 QS/regtest-dcdr
@@ -369,6 +372,3 @@ Fist/regtest-deepmd                                         deepmd
 QS/regtest-elpa                                             elpa mpiranks==1||mpiranks%2==0
 Fist/regtest-plumed2                                        plumed2
 Fist/regtest-quip                                           quip
-QS/regtest-rtbse                                            libint
-QS/regtest-smeagol-1
-QS/regtest-smeagol-2                                        libsmeagol
