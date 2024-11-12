@@ -1971,10 +1971,6 @@ CONTAINS
             END IF
          END DO
 
-         !IF (desc%group%mepos==0) THEN
-         ! WRITE(*,*) "Total replicated load is ",replicated_load
-         !END IF
-
          ! Now we adjust the rank ordering based on the current loads
          ! we leave the first distributed level and all the replicated levels in the default order
          IF (reorder_rs_grid_ranks) THEN
@@ -1989,10 +1985,7 @@ CONTAINS
 
                      trial_loads(:) = total_loads + loads(:, igrid_level)
                      max_load = MAXVAL(trial_loads)
-                     load_gap = 0
-                     DO irank = 0, desc%group%num_pe - 1
-                        load_gap = load_gap + max_load - trial_loads(irank)
-                     END DO
+                     load_gap = SUM(max_load - trial_loads)
 
                      ! If there is not enough replicated load to load balance well enough
                      ! then we will reorder this grid level
@@ -2035,21 +2028,6 @@ CONTAINS
          ! Now we use the replicated tasks to balance out the rest of the load
          CALL load_balance_replicated(rs_descs, ntasks, tasks)
 
-         !total_loads = 0
-         !DO igrid_level=1,SIZE(rs_descs)
-         !  CALL get_current_loads(loads(:,igrid_level), rs_descs, igrid_level, ntasks, &
-         !                         tasks, use_reordered_ranks=.TRUE.)
-         !  total_loads = total_loads + loads(:, igrid_level)
-         !END DO
-
-         !IF (desc%group%mepos==0) THEN
-         !  WRITE(*,*) ""
-         !  WRITE(*,*) "At the end of the load balancing procedure"
-         !  WRITE(*,*) "Maximum  load:",MAXVAL(total_loads)
-         !  WRITE(*,*) "Average  load:",SUM(total_loads)/SIZE(total_loads)
-         !  WRITE(*,*) "Minimum  load:",MINVAL(total_loads)
-         !ENDIF
-
          ! given a list of tasks, this will do the needed reshuffle so that all tasks will be local
          CALL create_local_tasks(rs_descs, ntasks, tasks, ntasks_recv, tasks_recv)
 
@@ -2058,14 +2036,6 @@ CONTAINS
          ! we will be sending. These lists are needed for redistribute_matrix.
          !
          CALL get_atom_pair(atom_pair_send, tasks, ntasks=ntasks, send=.TRUE., symmetric=symmetric, rs_descs=rs_descs)
-
-         ! natom_send=SIZE(atom_pair_send)
-         ! CALL desc%group%sum(natom_send)
-         ! IF (desc%group%mepos==0) THEN
-         !     WRITE(*,*) ""
-         !     WRITE(*,*) "Total number of atomic blocks to be send:",natom_send
-         ! ENDIF
-
          CALL get_atom_pair(atom_pair_recv, tasks_recv, ntasks=ntasks_recv, send=.FALSE., symmetric=symmetric, rs_descs=rs_descs)
 
          ! cleanup, at this point we  don't need the original tasks anymore
