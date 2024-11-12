@@ -420,7 +420,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: iw
       CHARACTER(LEN=*), INTENT(IN)                       :: label
       INTEGER, INTENT(IN)                                :: ndigits
-      CHARACTER(LEN=default_string_length)               :: unit_string
+      CHARACTER(LEN=default_string_length), INTENT(IN)   :: unit_string
       REAL(KIND=dp), DIMENSION(3), INTENT(OUT)           :: total_force
       REAL(KIND=dp), DIMENSION(3), INTENT(INOUT), &
          OPTIONAL                                        :: grand_total_force

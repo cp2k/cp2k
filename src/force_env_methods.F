@@ -55,6 +55,7 @@ MODULE force_env_methods
                                               cp_subsys_p_type,&
                                               cp_subsys_set,&
                                               cp_subsys_type
+   USE cp_units,                        ONLY: cp_unit_from_cp2k
    USE eip_environment_types,           ONLY: eip_environment_type
    USE eip_silicon,                     ONLY: eip_bazant,&
                                               eip_lenosky
@@ -207,7 +208,7 @@ CONTAINS
       LOGICAL :: calculate_forces, calculate_stress_tensor, energy_consistency, eval_ef, &
          linres_run, my_skip, print_components
       REAL(KIND=dp)                                      :: checksum, e_entropy, e_gap, e_pot, &
-                                                            sum_energy
+                                                            fconv, sum_energy
       REAL(KIND=dp), DIMENSION(3)                        :: grand_total_force, total_force
       TYPE(atprop_type), POINTER                         :: atprop_env
       TYPE(cell_type), POINTER                           :: cell
@@ -334,19 +335,25 @@ CONTAINS
 
       CALL force_env_get(force_env, potential_energy=e_pot)
 
-      ! Print always Energy in the same format for all methods
+      ! Print energy always in the same format for all methods
       output_unit = cp_print_key_unit_nr(logger, force_env%force_env_section, "PRINT%PROGRAM_RUN_INFO", &
                                          extension=".Log")
       IF (output_unit > 0) THEN
-         WRITE (output_unit, '(/,T2,"ENERGY| Total FORCE_EVAL ( ",A," ) energy [a.u.]: ",T55,F26.15)') &
-            ADJUSTR(TRIM(use_prog_name(force_env%in_use))), e_pot
-         IF (e_gap .GT. -.1_dp) THEN
-            WRITE (output_unit, '(/,T2,"ENERGY| Total FORCE_EVAL ( ",A," ) gap [a.u.]: ",T55,F26.15)') &
-               ADJUSTR(TRIM(use_prog_name(force_env%in_use))), e_gap
+         CALL section_vals_val_get(force_env%force_env_section, "PRINT%PROGRAM_RUN_INFO%ENERGY_UNIT", &
+                                   c_val=unit_string)
+         fconv = cp_unit_from_cp2k(1.0_dp, TRIM(ADJUSTL(unit_string)))
+         WRITE (UNIT=output_unit, FMT="(/,T2,A,T55,F26.15)") &
+            "ENERGY| Total FORCE_EVAL ( "//TRIM(ADJUSTL(use_prog_name(force_env%in_use)))// &
+            " ) energy ["//TRIM(ADJUSTL(unit_string))//"]", e_pot*fconv
+         IF (e_gap > -0.1_dp) THEN
+            WRITE (UNIT=output_unit, FMT="(/,T2,A,T55,F26.15)") &
+               "ENERGY| Total FORCE_EVAL ( "//TRIM(ADJUSTL(use_prog_name(force_env%in_use)))// &
+               " ) gap ["//TRIM(ADJUSTL(unit_string))//"]", e_gap*fconv
          END IF
-         IF (e_entropy .GT. -0.1_dp) THEN
-            WRITE (output_unit, '(/,T2,"ENERGY| Total FORCE_EVAL ( ",A," ) free energy [a.u.]: ",T55,F26.15)') &
-               ADJUSTR(TRIM(use_prog_name(force_env%in_use))), e_pot - e_entropy
+         IF (e_entropy > -0.1_dp) THEN
+            WRITE (UNIT=output_unit, FMT="(/,T2,A,T55,F26.15)") &
+               "ENERGY| Total FORCE_EVAL ( "//TRIM(ADJUSTL(use_prog_name(force_env%in_use)))// &
+               " ) free energy ["//TRIM(ADJUSTL(unit_string))//"]", (e_pot - e_entropy)*fconv
          END IF
       END IF
       CALL cp_print_key_finished_output(output_unit, logger, force_env%force_env_section, &
@@ -368,7 +375,7 @@ CONTAINS
          ! Variable precision output of the forces
          CALL section_vals_val_get(force_env%force_env_section, "PRINT%FORCES%NDIGITS", &
                                    i_val=ndigits)
-         CALL section_vals_val_get(force_env%force_env_section, "PRINT%FORCES%UNIT", &
+         CALL section_vals_val_get(force_env%force_env_section, "PRINT%FORCES%FORCE_UNIT", &
                                    c_val=unit_string)
          IF (ASSOCIATED(core_particles) .OR. ASSOCIATED(shell_particles)) THEN
             CALL write_forces(particles, print_forces, "ATOMIC", ndigits, unit_string, total_force, &
@@ -400,12 +407,14 @@ CONTAINS
             IF (output_unit > 0) THEN
                CALL section_vals_val_get(force_env%force_env_section, "PRINT%STRESS_TENSOR%COMPONENTS", &
                                          l_val=print_components)
+               CALL section_vals_val_get(force_env%force_env_section, "PRINT%STRESS_TENSOR%STRESS_UNIT", &
+                                         c_val=unit_string)
                IF (print_components) THEN
                   IF ((.NOT. virial%pv_numer) .AND. (force_env%in_use == use_qs_force)) THEN
-                     CALL write_stress_tensor_components(virial, output_unit, cell)
+                     CALL write_stress_tensor_components(virial, output_unit, cell, unit_string)
                   END IF
                END IF
-               CALL write_stress_tensor(virial%pv_virial, output_unit, cell, virial%pv_numer)
+               CALL write_stress_tensor(virial%pv_virial, output_unit, cell, unit_string, virial%pv_numer)
             END IF
             CALL cp_print_key_finished_output(output_unit, logger, force_env%force_env_section, &
                                               "PRINT%STRESS_TENSOR")
@@ -496,6 +505,7 @@ CONTAINS
 
       REAL(kind=dp), PARAMETER                           :: default_dx = 0.001_dp
 
+      CHARACTER(LEN=default_string_length)               :: unit_string
       INTEGER                                            :: i, ip, iq, j, k, natom, ncore, nshell, &
                                                             output_unit, symmetry_id
       REAL(KIND=dp)                                      :: dx_w
@@ -536,8 +546,8 @@ CONTAINS
       output_unit = cp_print_key_unit_nr(logger, force_env%force_env_section, "PRINT%STRESS_TENSOR", &
                                          extension=".stress_tensor")
       IF (output_unit > 0) THEN
-         WRITE (output_unit, '(/A,A/)') ' **************************** ', &
-            'NUMERICAL STRESS ********************************'
+         WRITE (output_unit, "(/A,A/)") " **************************** ", &
+            "NUMERICAL STRESS ********************************"
       END IF
 
       ! Save all original particle positions
@@ -649,10 +659,12 @@ CONTAINS
 
       IF (output_unit > 0) THEN
          IF (globenv%run_type_id == debug_run) THEN
-            CALL write_stress_tensor(virial%pv_virial, output_unit, cell, virial%pv_numer)
+            CALL section_vals_val_get(force_env%force_env_section, "PRINT%FORCES%FORCE_UNIT", &
+                                      c_val=unit_string)
+            CALL write_stress_tensor(virial%pv_virial, output_unit, cell, unit_string, virial%pv_numer)
          END IF
-         WRITE (output_unit, '(/,A,/)') ' **************************** '// &
-            'NUMERICAL STRESS END *****************************'
+         WRITE (output_unit, "(/,A,/)") " **************************** "// &
+            "NUMERICAL STRESS END *****************************"
       END IF
 
       CALL cp_print_key_finished_output(output_unit, logger, force_env%force_env_section, &
