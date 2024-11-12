@@ -65,6 +65,7 @@ MODULE energy_corrections
    USE cp_result_methods,               ONLY: cp_results_erase,&
                                               put_results
    USE cp_result_types,                 ONLY: cp_result_type
+   USE cp_units,                        ONLY: cp_unit_from_cp2k
    USE distribution_1d_types,           ONLY: distribution_1d_type
    USE distribution_2d_types,           ONLY: distribution_2d_type
    USE dm_ls_scf,                       ONLY: calculate_w_matrix_ls,&
@@ -625,6 +626,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'ec_dc_build_ks_matrix_force'
 
+      CHARACTER(LEN=default_string_length)               :: unit_string
       INTEGER                                            :: handle, i, iounit, ispin, natom, nspins
       LOGICAL                                            :: debug_forces, debug_stress, do_ec_hfx, &
                                                             use_virial
@@ -1111,8 +1113,9 @@ CONTAINS
             IF (iounit > 0) WRITE (UNIT=iounit, FMT="(T2,A,T41,2(1X,ES19.11))") &
                'STRESS| Explicit total stress   ', one_third_sum_diag(stdeb), det_3x3(stdeb)
 
-            CALL write_stress_tensor_components(virdeb, iounit, cell)
-            CALL write_stress_tensor(virdeb%pv_virial, iounit, cell, .FALSE.)
+            unit_string = "GPa" ! old default
+            CALL write_stress_tensor_components(virdeb, iounit, cell, unit_string)
+            CALL write_stress_tensor(virdeb%pv_virial, iounit, cell, unit_string, .FALSE.)
 
          END BLOCK
       END IF
@@ -1706,6 +1709,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'ec_build_ks_matrix_force'
 
+      CHARACTER(LEN=default_string_length)               :: unit_string
       INTEGER                                            :: handle, i, iounit, ispin, natom, nspins
       LOGICAL                                            :: debug_forces, debug_stress, do_ec_hfx, &
                                                             use_virial
@@ -1770,7 +1774,10 @@ CONTAINS
       nspins = dft_control%nspins
       use_virial = virial%pv_availability .AND. (.NOT. virial%pv_numer)
 
-      fconv = 1.0E-9_dp*pascal/cell%deth
+      ! Conversion factor a.u. -> GPa
+      unit_string = "GPa"
+      fconv = cp_unit_from_cp2k(1.0_dp/cell%deth, TRIM(unit_string))
+
       IF (debug_stress .AND. use_virial) THEN
          sttot = virial%pv_virial
       END IF
@@ -2352,8 +2359,8 @@ CONTAINS
             IF (iounit > 0) WRITE (UNIT=iounit, FMT="(T2,A,T41,2(1X,ES19.11))") &
                'STRESS| Explicit total stress   ', one_third_sum_diag(stdeb), det_3x3(stdeb)
 
-            CALL write_stress_tensor_components(virdeb, iounit, cell)
-            CALL write_stress_tensor(virdeb%pv_virial, iounit, cell, .FALSE.)
+            CALL write_stress_tensor_components(virdeb, iounit, cell, unit_string)
+            CALL write_stress_tensor(virdeb%pv_virial, iounit, cell, unit_string, .FALSE.)
 
          END BLOCK
       END IF
