@@ -24,7 +24,8 @@ MODULE bse_util
    USE cp_dbcsr_operations,             ONLY: cp_dbcsr_sm_fm_multiply,&
                                               dbcsr_allocate_matrix_set,&
                                               dbcsr_deallocate_matrix_set
-   USE cp_fm_basic_linalg,              ONLY: cp_fm_upper_to_full
+   USE cp_fm_basic_linalg,              ONLY: cp_fm_trace,&
+                                              cp_fm_upper_to_full
    USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose,&
                                               cp_fm_cholesky_invert
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
@@ -87,7 +88,7 @@ MODULE bse_util
              deallocate_matrices_bse, comp_eigvec_coeff_BSE, sort_excitations, &
              estimate_BSE_resources, filter_eigvec_contrib, truncate_BSE_matrices, &
              determine_cutoff_indices, adapt_BSE_input_params, get_multipoles_mo, &
-             reshuffle_eigvec, print_bse_nto_cubes
+             reshuffle_eigvec, print_bse_nto_cubes, trace_exciton_descr
 
 CONTAINS
 
@@ -1781,5 +1782,46 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE get_multipoles_mo
+
+! **************************************************************************************************
+!> \brief Computes trace of form Tr{A^T B C} for exciton descriptors
+!> \param fm_A Full Matrix, typically X or Y, in format homo x virtual
+!> \param fm_B ...
+!> \param fm_C ...
+!> \param alpha ...
+! **************************************************************************************************
+   SUBROUTINE trace_exciton_descr(fm_A, fm_B, fm_C, alpha)
+
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_A, fm_B, fm_C
+      REAL(KIND=dp), INTENT(OUT)                         :: alpha
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'trace_exciton_descr'
+
+      INTEGER                                            :: handle, ncol_A, ncol_B, ncol_C, nrow_A, &
+                                                            nrow_B, nrow_C
+      TYPE(cp_fm_type)                                   :: fm_work_ia
+
+      CALL timeset(routineN, handle)
+
+      CALL cp_fm_create(fm_work_ia, fm_A%matrix_struct)
+      CALL cp_fm_get_info(fm_A, nrow_global=nrow_A, ncol_global=ncol_A)
+      CALL cp_fm_get_info(fm_B, nrow_global=nrow_B, ncol_global=ncol_B)
+      CALL cp_fm_get_info(fm_C, nrow_global=nrow_C, ncol_global=ncol_C)
+
+      ! Check matrix sizes
+      CPASSERT(nrow_A == nrow_B .AND. ncol_A == ncol_C .AND. ncol_B == nrow_C)
+
+      CALL cp_fm_set_all(fm_work_ia, 0.0_dp)
+
+      CALL parallel_gemm("N", "N", nrow_A, ncol_A, nrow_C, 1.0_dp, &
+                         fm_B, fm_C, 0.0_dp, fm_work_ia)
+
+      CALL cp_fm_trace(fm_A, fm_work_ia, alpha)
+
+      CALL cp_fm_release(fm_work_ia)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE trace_exciton_descr
 
 END MODULE

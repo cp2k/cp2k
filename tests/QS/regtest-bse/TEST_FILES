@@ -13,6 +13,7 @@ BSE_H2O_PBE_evGW.inp                                     114      2e-04         
 TDA_H2O_PBE_G0W0_NTOs.inp                                121      2e-03            0.01983
 BSE_H2O_PBE_G0W0_NTOs.inp                                122      2e-03            0.01164
 TDA_H2O_PBE_G0W0_EXC_DESCR.inp                           123      5e-04            1.8290
+BSE_H2O_PBE_G0W0_EXC_DESCR.inp                           124      5e-04            1.8258
 #EOF
 #Low convergence criteria for evGW make a higher threshold necessary for these tests
 #Logic: Absolute errors (for G0W0/evGW0) should be within 1e-4, i.e. relative errors are

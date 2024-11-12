@@ -643,8 +643,8 @@ CONTAINS
       CALL get_multipoles_mo(fm_dipole_ai_trunc, fm_dipole_ij_trunc, fm_dipole_ab_trunc, &
                              qs_env, mo_coeff, ref_point_multipole, 1, &
                              homo, virtual, fm_eigvec_X%matrix_struct%context)
-      ! Compute exciton descriptors from these multipoles for single excitation picture (TDA)
-      IF (flag_TDA .AND. mp2_env%bse%num_print_exc_descr > 0) THEN
+      ! Compute exciton descriptors from these multipoles
+      IF (mp2_env%bse%num_print_exc_descr > 0) THEN
          ! Obtain quadrupoles in MO basis
          ALLOCATE (fm_quadpole_ij_trunc(n_moments_quad))
          ALLOCATE (fm_quadpole_ab_trunc(n_moments_quad))
@@ -653,10 +653,11 @@ CONTAINS
                                 qs_env, mo_coeff, ref_point_multipole, 2, &
                                 homo, virtual, fm_eigvec_X%matrix_struct%context)
          CALL get_exciton_descriptors(exc_descr, fm_eigvec_X, &
-                                      fm_dipole_ij_trunc, fm_dipole_ab_trunc, &
+                                      fm_dipole_ij_trunc, fm_dipole_ab_trunc, fm_dipole_ai_trunc, &
                                       fm_quadpole_ij_trunc, fm_quadpole_ab_trunc, &
                                       homo, virtual, unit_nr, &
-                                      mp2_env, qs_env)
+                                      mp2_env, qs_env, &
+                                      fm_eigvec_Y)
       END IF
 
       IF (mp2_env%bse%bse_spin_config == 0) THEN
@@ -682,8 +683,8 @@ CONTAINS
       CALL print_optical_properties(Exc_ens, oscill_str, trans_mom_bse, polarizability_residues, &
                                     homo, virtual, homo_irred, flag_TDA, &
                                     info_approximation, mp2_env, unit_nr)
-      ! Print exciton descriptors if TDA and keyword are invoked
-      IF (flag_TDA .AND. mp2_env%bse%num_print_exc_descr > 0) THEN
+      ! Print exciton descriptors if keyword is invoked
+      IF (mp2_env%bse%num_print_exc_descr > 0) THEN
          CALL print_exciton_descriptors(exc_descr, ref_point_multipole, unit_nr, mp2_env, qs_env)
       END IF
 
