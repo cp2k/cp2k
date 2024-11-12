@@ -1631,6 +1631,10 @@ else()
   add_library(cp2k "${CP2K_SRCS};${CP2K_SRCS_C};${CP2K_SRCS_GPU}")
 endif()
 
+if(CP2K_USE_OPENPMD)
+  target_link_libraries(cp2k PRIVATE CP2K_OPENPMD_BINDINGS)
+endif()
+
 target_compile_features(cp2k PUBLIC cuda_std_11)
 target_include_directories(cp2k PUBLIC $<INSTALL_INTERFACE:include/cp2k>)
 
