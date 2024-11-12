@@ -13,4 +13,3 @@ build_folder="$(pwd)"
 #     --restrictdir QS/regtest-ot-1 \
 #     --workbasedir TEST \
 #     build/bin psmp
-

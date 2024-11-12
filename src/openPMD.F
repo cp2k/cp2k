@@ -5,27 +5,23 @@
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
 MODULE openPMD_api
-   USE ISO_C_BINDING, ONLY: C_ASSOCIATED, &
-                            C_BOOL, &
-                            C_CHAR, &
-                            C_FLOAT, &
-                            C_DOUBLE, &
-                            C_F_POINTER, &
-                            C_INT, &
-                            C_NULL_CHAR, &
-                            C_NULL_PTR, &
-                            C_PTR, &
-                            C_INT64_T
-
-   USE kinds, ONLY: sp, int_8, dp, default_string_length
-
+   USE ISO_C_BINDING,                   ONLY: C_NULL_PTR,&
+                                              C_PTR
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
 
    PRIVATE
 
-CONTAINS
+   ENUM, BIND(C)
+      ENUMERATOR :: openpmd_access_create, openpmd_access_read_only
+   END ENUM
 
+   TYPE openpmd_series_type
+      PRIVATE
+      TYPE(C_PTR) :: c_ptr = C_NULL_PTR
+   END TYPE openpmd_series_type
+
+CONTAINS
 
 END MODULE openPMD_api
