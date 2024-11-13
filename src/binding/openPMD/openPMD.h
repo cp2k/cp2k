@@ -7,8 +7,7 @@ extern "C" {
 
 typedef enum { openPMD_Access_create, openPMD_Access_read_only } openPMD_Access;
 
-struct openPMD_Series_s; // opaque
-typedef struct openPMD_Series_s *openPMD_Series;
+typedef struct openPMD_Series_opaque *openPMD_Series;
 
 int openPMD_Series_create(
     // in

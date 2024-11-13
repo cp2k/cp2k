@@ -17,10 +17,10 @@ MODULE realspace_grid_cube
         file_amode_rdonly, file_offset, mp_comm_type, mp_file_descriptor_type, mp_file_type, &
         mp_file_type_free, mp_file_type_hindexed_make_chv, mp_file_type_set_view_chv, &
         mpi_character_size
-   USE openPMD_api,                     ONLY: openpmd_series_close,&
+   USE openPMD_api,                     ONLY: openpmd_access_create,&
+                                              openpmd_series_close,&
                                               openpmd_series_create,&
-                                              openpmd_series_type,&
-                                              openpmd_access_create
+                                              openpmd_series_type
    USE pw_grid_types,                   ONLY: PW_MODE_LOCAL
    USE pw_types,                        ONLY: pw_r3d_rs_type
 #include "../base/base_uses.f90"

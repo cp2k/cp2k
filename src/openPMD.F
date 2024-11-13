@@ -26,8 +26,8 @@ MODULE openPMD_api
       TYPE(C_PTR) :: c_ptr = C_NULL_PTR
    END TYPE openpmd_series_type
 
-   PUBLIC :: openpmd_series_create, openpmd_series_close
    PUBLIC :: openpmd_series_type
+   PUBLIC :: openpmd_series_create, openpmd_series_close
    PUBLIC :: openpmd_access_create, openpmd_access_read_only
 
 CONTAINS
@@ -48,7 +48,7 @@ CONTAINS
             IMPORT :: C_PTR, C_CHAR, C_INT
             TYPE(C_PTR) :: series
             CHARACTER(kind=C_CHAR), DIMENSION(*) :: path
-            INTEGER(kind=C_INT) :: access
+            INTEGER(kind=C_INT), VALUE :: access
          END SUBROUTINE
       END INTERFACE
 
@@ -62,7 +62,7 @@ CONTAINS
 !> \param series ...
 ! **************************************************************************************************
    SUBROUTINE openpmd_series_close(series)
-      TYPE(openpmd_series_type), INTENT(IN)              :: series
+      TYPE(openpmd_series_type), INTENT(INOUT)           :: series
 
       INTERFACE
 ! **************************************************************************************************
@@ -71,11 +71,13 @@ CONTAINS
 ! **************************************************************************************************
          SUBROUTINE openpmd_c_series_close(series) BIND(C, name="openPMD_Series_close")
             IMPORT :: C_PTR
-            TYPE(C_PTR) :: series
+            TYPE(C_PTR), VALUE :: series
          END SUBROUTINE
       END INTERFACE
 
+      CPASSERT(C_ASSOCIATED(series%c_ptr))
       CALL openpmd_c_series_close(series=series%c_ptr)
+      series%c_ptr = C_NULL_PTR
    END SUBROUTINE
 
 END MODULE openPMD_api
