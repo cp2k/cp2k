@@ -20,6 +20,7 @@ int openmp_trace_issues(void);
 #include <omp-tools.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #if !defined(_WIN32) && !defined(__CYGWIN__) && !defined(OPENMP_TRACE_SYMBOL)
 #define OPENMP_TRACE_SYMBOL
@@ -46,18 +47,38 @@ static const void *openmp_trace_master_codeptr;
 int openmp_trace_issues(void) { return (int)openmp_trace_issues_count; }
 
 /* attempt to translate symbol/address to character string */
-static void openmp_trace_symbol(const void *symbol, char *buffer, size_t size) {
+static void openmp_trace_symbol(const void *symbol, char *buffer, size_t size,
+                                int cleanup) {
 #if !defined(OPENMP_TRACE_SYMBOL)
   OPENMP_TRACE_UNUSED(symbol);
-  OPENMP_TRACE_UNUSED(buffer);
-  OPENMP_TRACE_UNUSED(size);
+  if (0 < size) {
+    buffer[0] = '\0';
+  }
 #else
   int pipefd[2];
   if (NULL != symbol && NULL != buffer && 0 < size && 0 == pipe(pipefd)) {
     void *const backtrace[] = {(void *)symbol};
     backtrace_symbols_fd(backtrace, 1, pipefd[1]);
     close(pipefd[1]);
-    read(pipefd[0], buffer, size);
+    if (0 < read(pipefd[0], buffer, size)) {
+      if (0 != cleanup) {
+        char *const str = (char *)memchr(buffer, '(', size);
+        if (NULL != str) {
+          char *const end = (char *)memchr(str + 1, '+', size - (str - buffer));
+          if (NULL != end) {
+            *end = '\0';
+            memmove(buffer, str + 1, end - str);
+          }
+        }
+      } else {
+        char *const str = (char *)memchr(buffer, '\n', size);
+        if (NULL != str) {
+          *str = '\0';
+        }
+      }
+    } else {
+      buffer[0] = '\0';
+    }
     close(pipefd[0]);
   }
 #endif
@@ -73,25 +94,23 @@ static void openmp_trace_parallel_begin(
   OPENMP_TRACE_UNUSED(parallel_data);
   OPENMP_TRACE_UNUSED(requested_parallelism);
   OPENMP_TRACE_UNUSED(flags);
-  OPENMP_TRACE_UNUSED(codeptr_ra);
   ++openmp_trace_parallel_count;
   if (openmp_trace_parallel_count_max < openmp_trace_parallel_count) {
     openmp_trace_parallel_count_max = openmp_trace_parallel_count;
-    openmp_trace_parallel_nested_codeptr = NULL;
+    openmp_trace_parallel_nested_codeptr = codeptr_ra;
   }
   if (NULL != openmp_trace_master_codeptr) {
     ++openmp_trace_issues_count;
     if (2 <= openmp_trace_level || 0 > openmp_trace_level) {
-      char sym_master[1024] = "", sym_parallel[1024] = "";
+      char sym_master[1024], sym_parallel[1024];
       openmp_trace_symbol(openmp_trace_master_codeptr, sym_master,
-                          sizeof(sym_master));
-      openmp_trace_symbol(codeptr_ra, sym_parallel, sizeof(sym_parallel));
+                          sizeof(sym_master), 1 /*cleanup*/);
+      openmp_trace_symbol(codeptr_ra, sym_parallel, sizeof(sym_parallel),
+                          1 /*cleanup*/);
       if ('\0' != *sym_master && '\0' != *sym_parallel) {
         fprintf(stderr,
-                "OMP TRACE ERROR: parallel region\n"
-                "%s\n"
-                "opened in master section\n"
-                "%s\n",
+                "OMP TRACE ERROR: parallel region \"%s\""
+                " opened in master section \"%s\"\n",
                 sym_parallel, sym_master);
       } else {
         fprintf(stderr,
@@ -111,7 +130,9 @@ static void openmp_trace_parallel_end(ompt_data_t *parallel_data,
   OPENMP_TRACE_UNUSED(encountering_task_data);
   OPENMP_TRACE_UNUSED(flags);
   OPENMP_TRACE_UNUSED(codeptr_ra);
-  --openmp_trace_parallel_count;
+  if (0 < openmp_trace_parallel_count) {
+    --openmp_trace_parallel_count;
+  }
 }
 
 /* https://www.openmp.org/spec-html/5.0/openmpsu187.html */
@@ -151,17 +172,17 @@ static void openmp_trace_finalize(ompt_data_t *tool_data) {
   OPENMP_TRACE_UNUSED(tool_data);
   if (3 <= openmp_trace_level || 0 > openmp_trace_level) {
     if (1 < openmp_trace_parallel_count_max) { /* nested */
-      char sym_parallel[1024] = "";
+      char sym_parallel[1024];
       openmp_trace_symbol(openmp_trace_parallel_nested_codeptr, sym_parallel,
-                          sizeof(sym_parallel));
+                          sizeof(sym_parallel), 1 /*cleanup*/);
       if ('\0' != *sym_parallel) {
         fprintf(stderr,
-                "OMP TRACE INFO: nested parallelism\n"
-                "%s\n"
-                "maximum depth %u\n",
+                "OMP TRACE INFO: maximal nested parallelism "
+                "in \"%s\" has depth %u\n",
                 sym_parallel, openmp_trace_parallel_count_max);
       } else {
-        fprintf(stderr, "OMP TRACE INFO: nested parallelism maximum depth %u\n",
+        fprintf(stderr,
+                "OMP TRACE INFO: maximal nested parallelism has depth %u\n",
                 openmp_trace_parallel_count_max);
       }
     }
