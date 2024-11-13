@@ -1512,7 +1512,8 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       ! Handle negative NUM_PRINT_EXC
-      IF (mp2_env%bse%num_print_exc < 0) THEN
+      IF (mp2_env%bse%num_print_exc < 0 .OR. &
+          mp2_env%bse%num_print_exc > homo*virtual) THEN
          mp2_env%bse%num_print_exc = homo*virtual
          IF (unit_nr > 0) THEN
             CALL cp_warn(__LOCATION__, &
