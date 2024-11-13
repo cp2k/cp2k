@@ -1389,7 +1389,8 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="NUM_PRINT_EXC_DESCR", &
                           description="Number of excitation levels for which the exciton "// &
-                          "descriptors are computed.", &
+                          "descriptors are computed. Negative or too large "// &
+                          "NUM_PRINT_EXC_DESCR defaults to NUM_PRINT_EXC.", &
                           usage="NUM_PRINT_EXC_DESCR 5", &
                           default_i_val=0)
       CALL section_add_keyword(section, keyword)
@@ -1456,8 +1457,8 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="NUM_PRINT_EXC_NTOS", &
                           description="Number of excitation level for which NTOs are printed. "// &
-                          "By default, this is set to NUM_PRINT_EXC. Must be smaller or equal to "// &
-                          "NUM_PRINT_EXC.", &
+                          "By default, this is set to NUM_PRINT_EXC. Negative or too large "// &
+                          "NUM_PRINT_EXC_NTOS defaults to NUM_PRINT_EXC.", &
                           usage="NUM_PRINT_EXC_NTOS 5", &
                           n_var=1, &
                           type_of_var=integer_t, &

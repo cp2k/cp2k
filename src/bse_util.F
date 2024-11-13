@@ -1546,23 +1546,23 @@ CONTAINS
                END IF
             END DO
             IF (num_state_list_exceptions > 0) THEN
-               n = SIZE(mp2_env%bse%bse_nto_state_list) - num_state_list_exceptions
                IF (unit_nr > 0) THEN
                   CALL cp_warn(__LOCATION__, &
                                "STATE_LIST contains indices outside the range of included excitation levels. "// &
                                "Ignoring these states.")
                END IF
-               ALLOCATE (mp2_env%bse%bse_nto_state_list_final(n))
-               mp2_env%bse%bse_nto_state_list_final(:) = 0
-               i = 1
-               DO j = 1, SIZE(mp2_env%bse%bse_nto_state_list)
-                  IF (mp2_env%bse%bse_nto_state_list(j) >= 1 .AND. &
-                      mp2_env%bse%bse_nto_state_list(j) <= mp2_env%bse%num_print_exc) THEN
-                     mp2_env%bse%bse_nto_state_list_final(i) = mp2_env%bse%bse_nto_state_list(j)
-                     i = i + 1
-                  END IF
-               END DO
             END IF
+            n = SIZE(mp2_env%bse%bse_nto_state_list) - num_state_list_exceptions
+            ALLOCATE (mp2_env%bse%bse_nto_state_list_final(n))
+            mp2_env%bse%bse_nto_state_list_final(:) = 0
+            i = 1
+            DO j = 1, SIZE(mp2_env%bse%bse_nto_state_list)
+               IF (mp2_env%bse%bse_nto_state_list(j) >= 1 .AND. &
+                   mp2_env%bse%bse_nto_state_list(j) <= mp2_env%bse%num_print_exc) THEN
+                  mp2_env%bse%bse_nto_state_list_final(i) = mp2_env%bse%bse_nto_state_list(j)
+                  i = i + 1
+               END IF
+            END DO
 
             mp2_env%bse%num_print_exc_ntos = SIZE(mp2_env%bse%bse_nto_state_list_final)
          ELSE
