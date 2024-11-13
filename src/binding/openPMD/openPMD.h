@@ -1,6 +1,8 @@
 #ifndef CP2K_OPENPMD_H
 #define CP2K_OPENPMD_H
 
+#include <mpi.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif // defined(__cplusplus)
@@ -12,6 +14,12 @@ typedef struct openPMD_Series_opaque *openPMD_Series;
 int openPMD_Series_create(
     // in
     char const *filename, openPMD_Access access,
+    // out
+    openPMD_Series *series);
+
+int openPMD_Series_create_mpi(
+    // in
+    char const *filename, openPMD_Access access, MPI_Comm comm,
     // out
     openPMD_Series *series);
 
