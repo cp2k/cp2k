@@ -90,5 +90,6 @@ QS/regtest-rtp-5/H2O-wfn-mix-dens-pulse-1.inp
 QS/regtest-tddfpt-force-2/h2o_f14.inp
 QS/regtest-tddfpt-force/h2o_tddfpt_newtonx.inp
 QS/regtest-tddfpt-force-gapw/h2o_t08.inp
+QS/regtest-smeagol-1/au-2x2x3-bulk.inp
 
 #EOF
