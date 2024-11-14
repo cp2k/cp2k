@@ -45,17 +45,17 @@ H2_H2O_LSKGaH_AO_grad.inp                             72      1E-06             
 H2_H2O_LSKGaH_MO_grad.inp                             72      1E-06                     0.24256217
 #
 # STRESS: KS + KG embed  + Harris (TRS4) + AO solver
-H2_H2O_KSKGeH_AO_an.inp                               31      1e-05              1.95042985060E+02
+H2_H2O_KSKGeH_AO_an.inp                               31      1e-05              1.95042985060E+06
 # STRESS: KS + KG embed  + Harris (TRS4) + MO solver
-H2_H2O_KSKGeH_MO_an.inp                               31      1e-05             -9.06100773653E-01
+H2_H2O_KSKGeH_MO_an.inp                               31      1e-05             -9.06100773653E+03
 # STRESS: LS + KG atomic + Harris (TRS4) + AO solver
-H2_H2O_LSKGaH_AO_an.inp                               31      1e-05              1.49007996537E+02
+H2_H2O_LSKGaH_AO_an.inp                               31      1e-05              1.49007996537E+06
 # STRESS: LS + KG atomic + Harris (TRS4) + MO solver
-H2_H2O_LSKGaH_MO_an.inp                               31      1e-05              1.49107834133E+02
+H2_H2O_LSKGaH_MO_an.inp                               31      1e-05              1.49107834133E+06
 # STRESS: KS + Harris (Diag) + MO solver
-H2O_KSH_MO_an.inp                                     31      1e-05              4.50118137345E+01
+H2O_KSH_MO_an.inp                                     31      1e-05              4.50118137345E+05
 # STRESS: KS + Harris (Diag) + MO solver - Diagonal numerical
-H2O_KSH_AO_numdiag.inp                                31      1e-05             -2.41849782017E+00
+H2O_KSH_AO_numdiag.inp                                31      1e-05             -2.41849782017E+04
 #
 N2_ec-hfx.inp                                         11      1e-10                 -19.8158435718
 N2_ec-hfx-admm.inp                                    11      1e-10                 -19.8434174923

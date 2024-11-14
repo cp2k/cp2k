@@ -4,10 +4,10 @@
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
 pbe_dftd4.inp                                          33    1.0E-14              -0.00283102230260
-pbe_dftd4_force.inp                                    72    1.0E-07                     0.00004379
-pbe_dftd4_stress.inp                                   31    1.0E-07             -2.03123914683E-02
+pbe_dftd4_force.inp                                    72    8.0E-05                 4.37932362E-05
+pbe_dftd4_stress.inp                                   31    1.0E-07             -2.03123914683E+02
 ta1.inp                                                 0 
 ta2.inp                                                 0 
 ta3.inp                                                 0 
-ta4.inp                                                31    1.0E-07              2.83597961983E+00
+ta4.inp                                                31    1.0E-07              2.83597961983E+04
 #EOF

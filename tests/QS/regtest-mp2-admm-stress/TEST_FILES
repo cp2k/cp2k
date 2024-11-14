@@ -1,5 +1,5 @@
-H2O_stress_admm_none.inp                                31      1e-05           -8.79381855793E+00
-CH_stress_admm_none.inp                                 31      1e-05           -3.60943676817E+00
-H2O_stress_admm.inp                                     31      1e-05           -9.35745152260E+00
-CH_stress_admm.inp                                      31      2e-05           -3.52452919427E+00
+H2O_stress_admm_none.inp                                31      1e-05           -8.79381855793E+04
+CH_stress_admm_none.inp                                 31      1e-05           -3.60943676817E+04
+H2O_stress_admm.inp                                     31      1e-05           -9.35745152260E+04
+CH_stress_admm.inp                                      31      2e-05           -3.52452919427E+04
 #EOF

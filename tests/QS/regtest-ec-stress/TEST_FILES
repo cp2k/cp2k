@@ -3,33 +3,33 @@
 # see regtest/TEST_FILES
 # Harris functional energy correction stress tensor tests
 # PADE - PADE MO solver
-N2_t01.inp                                            31      1e-05                  3.26443566797E+01
+N2_t01.inp                                            31      1e-05                  3.26443566797E+05
 # PADE - PBE
-N2_t02.inp                                            31      5e-05                  3.26450578945E+01
+N2_t02.inp                                            31      5e-05                  3.26450578945E+05
 # PBE - PADE
-N2_t03.inp                                            31      5e-05                  3.25833150889E+01
+N2_t03.inp                                            31      5e-05                  3.25833150889E+05
 # PBE - PBE
-N2_t04.inp                                            31      1e-05                  3.27026970587E+01
+N2_t04.inp                                            31      1e-05                  3.27026970587E+05
 # HFX - PBE 
-N2_t05.inp                                            31      5e-05                 -4.99918264201E+02
+N2_t05.inp                                            31      5e-05                 -4.99918264201E+06
 # PBE0 - PADE 
-N2_t06.inp                                            31      5e-05                 -5.02611808577E+02
+N2_t06.inp                                            31      5e-05                 -5.02611808577E+06
 # PADE - PADE w/ Harris basis
-N2_t07.inp                                            31      1e-05                 -5.09706561950E+02
+N2_t07.inp                                            31      1e-05                 -5.09706561950E+06
 # PBE - PBE  w/ Harris basis
-N2_t08.inp                                            31      5e-05                 -4.40020265431E+02
+N2_t08.inp                                            31      5e-05                 -4.40020265431E+06
 # PBE0 - PBE w/ Harris basis AO solver
-N2_t08b.inp                                           31      5e-05                 -5.04243430029E+02
+N2_t08b.inp                                           31      5e-05                 -5.04243430029E+06
 # PBE0 - PBE w/ Harris basis
-N2_t09.inp                                            31      5e-05                 -5.06200216422E+02
+N2_t09.inp                                            31      5e-05                 -5.06200216422E+06
 # HFX - PBE w/ Harris basis
-N2_t10.inp                                            31      1e-05                 -4.39582090179E+02
+N2_t10.inp                                            31      1e-05                 -4.39582090179E+06
 # HFX-ADMM-NONE - PBE
-N2_t11.inp                                            31      1e-05                 -4.99281767965E+02
+N2_t11.inp                                            31      1e-05                 -4.99281767965E+06
 # PBE0-ADMM-NONE - PBE w/ Harris basis
-N2_t12.inp                                            31      1e-05                 -5.69368274518E+02
+N2_t12.inp                                            31      1e-05                 -5.69368274518E+06
 # PBE0-ADMM-DEFAULT - PBE 
-N2_t13.inp                                            31      1e-05                 -5.68693895220E+02
+N2_t13.inp                                            31      1e-05                 -5.68693895220E+06
 # PBE0-ADMM-DEFAULT - PBE w/ Harris basis
-N2_t14.inp                                            31      1e-05                 -5.69208832157E+02 
+N2_t14.inp                                            31      1e-05                 -5.69208832157E+06 
 #EOF

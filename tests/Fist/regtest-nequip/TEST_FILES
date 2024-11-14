@@ -1,4 +1,4 @@
 # Test of NequIP using libtorch https://pytorch.org/cppdocs/installing.html
 water-sp.inp                                               11    1.0E-6         -17.195440909240052
-water-bulk-dp.inp                                          31    1.0E-9          3.78036960937E+00
+water-bulk-dp.inp                                          31    1.0E-9           3.78036960937E+04
 #EOF

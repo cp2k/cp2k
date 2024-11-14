@@ -395,7 +395,7 @@ CONTAINS
                           description="Specifies the physical unit used for the printing of the stress tensor. "// &
                           "Note that the meaningfulness of the unit is not checked.", &
                           usage="STRESS_UNIT kbar", &
-                          default_c_val="GPa", &
+                          default_c_val="bar", &
                           repeats=.FALSE.)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)

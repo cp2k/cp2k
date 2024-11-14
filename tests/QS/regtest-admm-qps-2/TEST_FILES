@@ -3,8 +3,8 @@
 # see regtest/TEST_FILES
 H2O-ADMMP-GAPW_force.inp                                0      
 H2O-ADMMQ-OPTX_geopt.inp                               11      1.0e-10            -16.883674379799505
-H2O-ADMMS-HYB_stress.inp                               31      1.0e-8               2.12343399949E+00
+H2O-ADMMS-HYB_stress.inp                               31      1.0e-8               2.12343399949E+04
 O2-ADMMP-HYB_geopt.inp                                 11      1.0e-10            -31.768410590536480
-O2-ADMMQ-GAPW_stress.inp                               31      1.0e-8               2.68914575665E+00
+O2-ADMMQ-GAPW_stress.inp                               31      1.0e-8               2.68914575665E+04
 O2-ADMMS-OPTX_force.inp                                 0  
 #EOF
