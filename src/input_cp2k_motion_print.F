@@ -30,8 +30,7 @@ MODULE input_cp2k_motion_print
                                               section_create,&
                                               section_release,&
                                               section_type
-   USE string_utilities,                ONLY: newline,&
-                                              s2a
+   USE string_utilities,                ONLY: s2a
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -108,12 +107,13 @@ CONTAINS
       CALL section_release(print_key)
 
       CALL cp_print_key_section_create(print_key, __LOCATION__, "VELOCITIES", &
-                                       description="Controls the output of the velocities."//newline// &
-                                       "The default unit for velocities is bohr/au_time. The au_time is derived from the "// &
-                                       "hbar value (1.054e-34 J*sec) and the value of the hartree unit of energy "// &
-                                       "(27.21 eV or 4.359e-18 J) as hbar/Ehartree = 2.42e-17 sec = 0.0242 fs. "// &
-                                       "Having an atom with a mass m in AMU the kinetic energy 1/2mv^2 will be obtained "// &
-                                       "in Hartree (i.e. au) multiplying by 911.447 .", &
+                                       description="Controls the output of the atomic velocities. "// &
+                                       "The default unit for the atomic velocities $v$ is bohr/au_time. "// &
+                                       "The kinetic energy $K_i$ in [hartree] of an atom $i$ with mass $m_i$ in "// &
+                                       "atomic mass units [amu] (or just [u]) and velocity $v_i$ can be obtained by "// &
+                                       "$K_i = \frac{1}{2}f_u\,m_i\,v_i^2$ with $f_u = 1822.888$ as conversion factor "// &
+                                       "from [u] to [a.u.]. $f_u$ is printed in full precision in the top of the CP2K "// &
+                                       "output for print level MEDIUM or higher.", &
                                        print_level=high_print_level, common_iter_levels=1, &
                                        filename="", unit_str="bohr*au_t^-1")
       CALL add_format_keyword(keyword, print_key, pos=.FALSE., &
