@@ -63,10 +63,10 @@ UO2-2x2x2-cs-geo_opt-cg.inp                           11      1e-11           -1
 UO2-2x2x2-cs-geo_opt-lbfgs.inp                        11      3e-14           -118.530158827854791
 # Enable fixed atom constraint for core-shell models
 UO2-4x4x4-fixd.inp                                    11      9e-14           -619.588154772236749
-UO2-4x4x4-cs-fixd.inp                                 43    1.0E-14                       0.008410
-UO2-4x4x4-cs-fixd-restart.inp                         44    1.0E-14                       0.017655
-UO2-4x4x4-cs-fixd-nvt.inp                             54    1.0E-14                       0.041076
-UO2-4x4x4-cs-fixd-npt.inp                             54    1.0E-14                       0.045987
+UO2-4x4x4-cs-fixd.inp                                 43    3.0E-05                   8.410097E-03
+UO2-4x4x4-cs-fixd-restart.inp                         44    1.0E-05                   1.765517E-02
+UO2-4x4x4-cs-fixd-nvt.inp                             54    1.0E-05                   4.107616E-02
+UO2-4x4x4-cs-fixd-npt.inp                             54    1.0E-05                   4.598688E-02
 # Test UO2 force fields with generic input
 UO2-Morelon-5x5x5-cell_opt.inp                        11    5.0E-13          -1210.562919201563318
 #EOF

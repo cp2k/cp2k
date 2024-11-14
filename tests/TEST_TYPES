@@ -41,8 +41,8 @@ X=!2
 HELIUM| Total energy = !5
 Total charge and spin!9
 DEBUG| Sum of differences!5
-SUM OF CORE FORCES !8
-SUM OF SHELL FORCES !8
+FORCES| Total core particle force !6
+FORCES| Total shell particle force !6
 PRM01!2
 Final value !6
 SUMMARY:: Number of molecule kinds found:!7
@@ -52,7 +52,7 @@ Direct MP2 Canonical Energy =!6
 RESP       1!4
 Band gap: !4
 Exchange-correlation energy: !3
-GRAND TOTAL FORCE !7
+FORCES| Grand total force !6
 BASOPT| Total residuum value: !5
 Final value of function !6
 Emp2-RI = !3
@@ -70,7 +70,7 @@ TDDFPT|[[:space:]]*1 !3
 Log(1-CN):!10
 MD| Temperature \[K\]   !4
 Current value of constraint !6
-SUM OF ATOMIC FORCES !8
+FORCES| Total atomic force !5
 Diabatic electronic coupling (rotation!6
 Diabatic electronic coupling (wfn !7
 Charge transfer energy!6

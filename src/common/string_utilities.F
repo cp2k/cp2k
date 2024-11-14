@@ -32,6 +32,7 @@ MODULE string_utilities
              compress, &
              integer_to_string, &
              is_whitespace, &
+             lowercase, &
              remove_word, &
              s2a, a2s, &
              str_comp, &

@@ -34,6 +34,7 @@ MODULE force_env_utils
    USE particle_list_types,             ONLY: particle_list_type
    USE particle_types,                  ONLY: update_particle_set
    USE physcon,                         ONLY: angstrom
+   USE string_utilities,                ONLY: lowercase
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -426,37 +427,49 @@ CONTAINS
          OPTIONAL                                        :: grand_total_force
       LOGICAL, INTENT(IN), OPTIONAL                      :: zero_force_core_shell_atom
 
-      CHARACTER(LEN=23)                                  :: fmtstr3
-      CHARACTER(LEN=36)                                  :: fmtstr2
-      CHARACTER(LEN=46)                                  :: fmtstr1
-      INTEGER                                            :: i, ikind, iparticle, n
+      CHARACTER(LEN=18)                                  :: fmtstr4
+      CHARACTER(LEN=29)                                  :: fmtstr3
+      CHARACTER(LEN=38)                                  :: fmtstr2
+      CHARACTER(LEN=49)                                  :: fmtstr1
+      CHARACTER(LEN=7)                                   :: tag
+      CHARACTER(LEN=LEN_TRIM(label))                     :: lc_label
+      INTEGER                                            :: i, iparticle, n
       LOGICAL                                            :: zero_force
-      REAL(KIND=dp)                                      :: conv
+      REAL(KIND=dp)                                      :: fconv
       REAL(KIND=dp), DIMENSION(3)                        :: f
 
       IF (iw > 0) THEN
          CPASSERT(ASSOCIATED(particles))
+         tag = "FORCES|"
+         lc_label = TRIM(label)
+         CALL lowercase(lc_label)
          n = MIN(MAX(1, ndigits), 20)
-         fmtstr1 = "(/,T2,A,/,/,T2,A,T11,A,T18,A,T35,A3,3(  X,A3))"
-         WRITE (UNIT=fmtstr1(39:40), FMT="(I2)") n + 4
-         fmtstr2 = "(T2,I6,1X,I6,T21,A,T28,4(1X,F  .  ))"
-         WRITE (UNIT=fmtstr2(33:34), FMT="(I2)") n
-         WRITE (UNIT=fmtstr2(30:31), FMT="(I2)") n + 6
-         fmtstr3 = "(T2,A,T28,4(1X,F  .  ))"
-         WRITE (UNIT=fmtstr3(20:21), FMT="(I2)") n
-         WRITE (UNIT=fmtstr3(17:18), FMT="(I2)") n + 6
+         fmtstr1 = "(/,T2,A,1X,A,/,T2,A,3X,A,T20,A3,2(  X,A3),  X,A3)"
+         WRITE (UNIT=fmtstr1(35:36), FMT="(I2)") n + 5
+         WRITE (UNIT=fmtstr1(43:44), FMT="(I2)") n + 6
+         fmtstr2 = "(T2,A,I7,T16,3(1X,ES  .  ),2X,ES  .  )"
+         WRITE (UNIT=fmtstr2(21:22), FMT="(I2)") n + 7
+         WRITE (UNIT=fmtstr2(24:25), FMT="(I2)") n
+         WRITE (UNIT=fmtstr2(33:34), FMT="(I2)") n + 7
+         WRITE (UNIT=fmtstr2(36:37), FMT="(I2)") n
+         fmtstr3 = "(T2,A,T16,3(1X,ES  .  ))"
+         WRITE (UNIT=fmtstr3(18:19), FMT="(I2)") n + 7
+         WRITE (UNIT=fmtstr3(21:22), FMT="(I2)") n
+         fmtstr4 = "(T2,A,T  ,ES  .  )"
+         WRITE (UNIT=fmtstr4(8:9), FMT="(I2)") 3*(n + 8) + 18
+         WRITE (UNIT=fmtstr4(13:14), FMT="(I2)") n + 7
+         WRITE (UNIT=fmtstr4(16:17), FMT="(I2)") n
          IF (PRESENT(zero_force_core_shell_atom)) THEN
             zero_force = zero_force_core_shell_atom
          ELSE
             zero_force = .FALSE.
          END IF
-         conv = cp_unit_from_cp2k(1.0_dp, TRIM(unit_string))
+         fconv = cp_unit_from_cp2k(1.0_dp, TRIM(unit_string))
          WRITE (UNIT=iw, FMT=fmtstr1) &
-            label//" FORCES in ["//TRIM(ADJUSTL(unit_string))//"]", &
-            "# Atom", "Kind", "Element", " X ", " Y ", " Z ", "|F|"
+            tag, label//" forces ["//TRIM(ADJUSTL(unit_string))//"]", &
+            tag, "Atom", " x ", " y ", " z ", "|f|"
          total_force(1:3) = 0.0_dp
          DO iparticle = 1, particles%n_els
-            ikind = particles%els(iparticle)%atomic_kind%kind_number
             IF (particles%els(iparticle)%atom_index /= 0) THEN
                i = particles%els(iparticle)%atom_index
             ELSE
@@ -465,22 +478,25 @@ CONTAINS
             IF (zero_force .AND. (particles%els(iparticle)%shell_index /= 0)) THEN
                f(1:3) = 0.0_dp
             ELSE
-               f(1:3) = particles%els(iparticle)%f(1:3)*conv
+               f(1:3) = particles%els(iparticle)%f(1:3)*fconv
             END IF
             WRITE (UNIT=iw, FMT=fmtstr2) &
-               i, ikind, particles%els(iparticle)%atomic_kind%element_symbol, f(1:3), &
-               SQRT(SUM(f(1:3)**2))
+               tag, i, f(1:3), SQRT(SUM(f(1:3)**2))
             total_force(1:3) = total_force(1:3) + f(1:3)
          END DO
          WRITE (UNIT=iw, FMT=fmtstr3) &
-            "SUM OF "//label//" FORCES", total_force(1:3), SQRT(SUM(total_force(1:3)**2))
+            tag//" Sum", total_force(1:3)
+         WRITE (UNIT=iw, FMT=fmtstr4) &
+            tag//" Total "//TRIM(ADJUSTL(lc_label))//" force", &
+            SQRT(SUM(total_force(1:3)**2))
       END IF
 
       IF (PRESENT(grand_total_force)) THEN
          grand_total_force(1:3) = grand_total_force(1:3) + total_force(1:3)
          WRITE (UNIT=iw, FMT="(A)") ""
-         WRITE (UNIT=iw, FMT=fmtstr3) &
-            "GRAND TOTAL FORCE", grand_total_force(1:3), SQRT(SUM(grand_total_force(1:3)**2))
+         WRITE (UNIT=iw, FMT=fmtstr4) &
+            tag//" Grand total force ["//TRIM(ADJUSTL(unit_string))//"]", &
+            SQRT(SUM(grand_total_force(1:3)**2))
       END IF
 
    END SUBROUTINE write_forces

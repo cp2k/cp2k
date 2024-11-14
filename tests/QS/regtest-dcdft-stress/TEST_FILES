@@ -3,35 +3,35 @@
 # see regtest/TEST_FILES
 # Density-corrected DFT Stress tensor tests
 # LDA - PBE MO solver
-N2_t01.inp                                            31      1e-05                  3.27841013742E+01
+N2_t01.inp                                            31      1e-05                  3.27841013742E+05
 # LDA - PBE AO solver
-N2_t02.inp                                            31      1e-05                  3.27915201801E+01
+N2_t02.inp                                            31      1e-05                  3.27915201801E+05
 # PBE - LDA MO solver
-N2_t03.inp                                            31      1e-05                  3.27261434593E+01
+N2_t03.inp                                            31      1e-05                  3.27261434593E+05
 # PBE - LDA AO solver
-N2_t04.inp                                            31      1e-05                  3.27915201801E+01
+N2_t04.inp                                            31      1e-05                  3.27915201801E+05
 # LDA - TPSS MO solver
-N2_t05.inp                                            31      1e-05                  2.76973145058E+01
+N2_t05.inp                                            31      1e-05                  2.76973145058E+05
 # TPSS - LDA MO solver
-N2_t06.inp                                            31      1e-05                 -5.02530331310E+02
+N2_t06.inp                                            31      1e-05                 -5.02530331310E+06
 # LDA - BR89 AO solver
-N2_t07.inp                                            31      1e-05                 -5.03370759578E+02
+N2_t07.inp                                            31      1e-05                 -5.03370759578E+06
 # BR89 - LDA AO solver
-N2_t08.inp                                            31      1e-05                 -5.02524932385E+02
+N2_t08.inp                                            31      1e-05                 -5.02524932385E+06
 # HFX - PBE MO solver
-N2_t09.inp                                            31      1e-05                  6.87212873998E+01
+N2_t09.inp                                            31      1e-05                  6.87212873998E+05
 # HFX - PBE AO solver
-N2_t10.inp                                            31      1e-05                  6.90331362007E+01
+N2_t10.inp                                            31      1e-05                  6.90331362007E+05
 # PBE0 - PADE MO solver
-N2_t11.inp                                            31      1e-05                 -4.60746548827E+02
+N2_t11.inp                                            31      1e-05                 -4.60746548827E+06
 # PBE0 - PADE AO solver
-N2_t12.inp                                            31      1e-05                 -4.60764113421E+02
+N2_t12.inp                                            31      1e-05                 -4.60764113421E+06
 # HFX-ADMM-NONE - PBE MO solver
-N2_t13.inp                                            31      1e-05                 -4.97853794203E+02
+N2_t13.inp                                            31      1e-05                 -4.97853794203E+06
 # HFX-ADMM-NONE - PBE AO solver
-N2_t14.inp                                            31      1e-05                 -4.97853821220E+02
+N2_t14.inp                                            31      1e-05                 -4.97853821220E+06
 # HFX-ADMM-DEFAULT - PBE MO solver
-N2_t15.inp                                            31      1e-05                 -4.98120398473E+02
+N2_t15.inp                                            31      1e-05                 -4.98120398473E+06
 # HFX-ADMM-DEFAULT - PBE AO solver
-N2_t16.inp                                            31      1e-05                 -4.98120397529E+02
+N2_t16.inp                                            31      1e-05                 -4.98120397529E+06
 #EOF

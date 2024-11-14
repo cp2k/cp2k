@@ -192,7 +192,7 @@ MODULE energy_corrections
 
    PRIVATE
 
-! *** Global parameters ***
+   ! Global parameters
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'energy_corrections'
 

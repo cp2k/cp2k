@@ -378,21 +378,21 @@ CONTAINS
          CALL section_vals_val_get(force_env%force_env_section, "PRINT%FORCES%FORCE_UNIT", &
                                    c_val=unit_string)
          IF (ASSOCIATED(core_particles) .OR. ASSOCIATED(shell_particles)) THEN
-            CALL write_forces(particles, print_forces, "ATOMIC", ndigits, unit_string, total_force, &
-                              zero_force_core_shell_atom=.TRUE.)
+            CALL write_forces(particles, print_forces, "Atomic", ndigits, unit_string, &
+                              total_force, zero_force_core_shell_atom=.TRUE.)
             grand_total_force(1:3) = total_force(1:3)
             IF (ASSOCIATED(core_particles)) THEN
-               CALL write_forces(core_particles, print_forces, "CORE", ndigits, unit_string, total_force, &
-                                 zero_force_core_shell_atom=.FALSE.)
+               CALL write_forces(core_particles, print_forces, "Core particle", ndigits, &
+                                 unit_string, total_force, zero_force_core_shell_atom=.FALSE.)
                grand_total_force(:) = grand_total_force(:) + total_force(:)
             END IF
             IF (ASSOCIATED(shell_particles)) THEN
-               CALL write_forces(shell_particles, print_forces, "SHELL", ndigits, unit_string, total_force, &
-                                 zero_force_core_shell_atom=.FALSE., &
+               CALL write_forces(shell_particles, print_forces, "Shell particle", ndigits, &
+                                 unit_string, total_force, zero_force_core_shell_atom=.FALSE., &
                                  grand_total_force=grand_total_force)
             END IF
          ELSE
-            CALL write_forces(particles, print_forces, "ATOMIC", ndigits, unit_string, total_force)
+            CALL write_forces(particles, print_forces, "Atomic", ndigits, unit_string, total_force)
          END IF
       END IF
       CALL cp_print_key_finished_output(print_forces, logger, force_env%force_env_section, "PRINT%FORCES")
