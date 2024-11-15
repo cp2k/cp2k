@@ -848,14 +848,14 @@ CONTAINS
 !> \param fout   Name of the actual file where the output will be written. Needed mainly for MPI IO
 !>               because inquiring the filename from the MPI filehandle does not work across
 !>               all MPI libraries.
-!> \param use_openpmd ...
+!> \param series ...
 !> \param mpi_comm ...
 !> \return ...
 ! **************************************************************************************************
    FUNCTION cp_print_key_unit_nr(logger, basis_section, print_key_path, extension, &
                                  middle_name, local, log_filename, ignore_should_output, file_form, file_position, &
                                  file_action, file_status, do_backup, on_file, is_new_file, mpi_io, &
-                                 fout, use_openpmd, mpi_comm) RESULT(res)
+                                 fout, series, mpi_comm) RESULT(res)
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(section_vals_type), INTENT(IN)                :: basis_section
       CHARACTER(len=*), INTENT(IN), OPTIONAL             :: print_key_path
@@ -869,7 +869,7 @@ CONTAINS
       LOGICAL, INTENT(INOUT), OPTIONAL                   :: mpi_io
       CHARACTER(len=default_path_length), INTENT(OUT), &
          OPTIONAL                                        :: fout
-      LOGICAL, INTENT(IN), OPTIONAL                      :: use_openpmd
+      TYPE(openpmd_series_type), INTENT(INOUT), OPTIONAL :: series
       TYPE(mp_comm_type), INTENT(IN), OPTIONAL           :: mpi_comm
       INTEGER                                            :: res
 
@@ -883,11 +883,9 @@ CONTAINS
                                                             s_backup_level, unit_nr
       LOGICAL                                            :: do_log, found, my_do_backup, my_local, &
                                                             my_mpi_io, my_on_file, &
-                                                            my_should_output, my_use_openpmd, &
-                                                            replace
+                                                            my_should_output, replace
       TYPE(cp_iteration_info_type), POINTER              :: iteration_info
       TYPE(mp_file_type)                                 :: mp_unit
-      TYPE(openpmd_series_type)                          :: series
       TYPE(section_vals_type), POINTER                   :: print_key
 
       my_local = .FALSE.
@@ -895,7 +893,6 @@ CONTAINS
       my_mpi_io = .FALSE.
       replace = .FALSE.
       found = .FALSE.
-      my_use_openpmd = .FALSE.
       res = -1
       my_file_form = "FORMATTED"
       my_file_position = "APPEND"
@@ -911,7 +908,6 @@ CONTAINS
       IF (PRESENT(on_file)) my_on_file = on_file
       IF (PRESENT(local)) my_local = local
       IF (PRESENT(is_new_file)) is_new_file = .FALSE.
-      IF (PRESENT(use_openpmd)) my_use_openpmd = use_openpmd
       IF (PRESENT(mpi_io)) THEN
 #if defined(__parallel)
          IF (cp_mpi_io_get() .AND. logger%para_env%num_pe > 1 .AND. mpi_io) THEN
@@ -1023,13 +1019,15 @@ CONTAINS
                END IF
             END IF
 
-            IF (my_use_openpmd) THEN
+            IF (PRESENT(series)) THEN
                IF (my_mpi_io) THEN
                   CPASSERT(PRESENT(mpi_comm))
                   series = openpmd_series_create("rabimmel.json", openpmd_access_create, mpi_comm)
                ELSE
                   series = openpmd_series_create("rabimmel.json", openpmd_access_create)
                END IF
+               res = -1
+               RETURN
             END IF
             IF (.NOT. my_mpi_io) THEN
                CALL open_file(file_name=filename, file_status=my_file_status, &

@@ -25,6 +25,8 @@ MODULE openPMD_api
    TYPE openpmd_series_type
       PRIVATE
       TYPE(C_PTR) :: c_ptr = C_NULL_PTR
+   CONTAINS
+      PROCEDURE, PUBLIC :: as_pointer
    END TYPE openpmd_series_type
 
    PUBLIC :: openpmd_series_type
@@ -32,6 +34,18 @@ MODULE openPMD_api
    PUBLIC :: openpmd_access_create, openpmd_access_read_only
 
 CONTAINS
+
+! **************************************************************************************************
+!> \brief ...
+!> \param this ...
+!> \return ...
+! **************************************************************************************************
+   FUNCTION as_pointer(this) RESULT(res)
+      CLASS(openpmd_series_type), INTENT(IN) :: this
+      TYPE(C_PTR) :: res
+
+      res = this%c_ptr
+   END FUNCTION as_pointer
 
 ! **************************************************************************************************
 !> \brief ...
