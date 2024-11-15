@@ -19,7 +19,7 @@ MODULE realspace_grid_cube
         mpi_character_size
    USE openPMD_api,                     ONLY: openpmd_access_create,&
                                               openpmd_series_close,&
-                                              openpmd_series_create_mpi,&
+                                              openpmd_series_create,&
                                               openpmd_series_type
    USE pw_grid_types,                   ONLY: PW_MODE_LOCAL
    USE pw_types,                        ONLY: pw_r3d_rs_type
@@ -151,7 +151,7 @@ CONTAINS
          num_pe = pw%pw_grid%para%group%num_pe
          tag = 1
 
-         CALL openpmd_series_create_mpi("test.json", openpmd_access_create, gid, series)
+         series = openpmd_series_create("test.json", openpmd_access_create, gid)
          CALL openpmd_series_close(series)
 
          rank (1) = unit_nr

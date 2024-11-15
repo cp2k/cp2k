@@ -28,7 +28,7 @@ MODULE openPMD_api
    END TYPE openpmd_series_type
 
    PUBLIC :: openpmd_series_type
-   PUBLIC :: openpmd_series_create, openpmd_series_create_mpi, openpmd_series_close
+   PUBLIC :: openpmd_series_create, openpmd_series_close
    PUBLIC :: openpmd_access_create, openpmd_access_read_only
 
 CONTAINS
@@ -37,39 +37,14 @@ CONTAINS
 !> \brief ...
 !> \param path ...
 !> \param access ...
-!> \param series ...
-! **************************************************************************************************
-   SUBROUTINE openpmd_series_create(path, access, series)
-      CHARACTER(len=*), INTENT(IN)                       :: path
-      INTEGER(kind=C_INT), INTENT(IN)                    :: access
-      TYPE(openpmd_series_type), INTENT(INOUT)           :: series
-
-      INTERFACE
-         SUBROUTINE openpmd_c_series_create(path, access, series) BIND(C, name="openPMD_Series_create")
-            IMPORT :: C_PTR, C_CHAR, C_INT
-            TYPE(C_PTR) :: series
-            CHARACTER(kind=C_CHAR), DIMENSION(*) :: path
-            INTEGER(kind=C_INT), VALUE :: access
-         END SUBROUTINE
-      END INTERFACE
-
-      CPASSERT(.NOT. C_ASSOCIATED(series%c_ptr))
-      CALL openpmd_c_series_create(path=TRIM(path)//C_NULL_CHAR, access=access, series=series%c_ptr)
-      CPASSERT(C_ASSOCIATED(series%c_ptr))
-   END SUBROUTINE openpmd_series_create
-
-! **************************************************************************************************
-!> \brief ...
-!> \param path ...
-!> \param access ...
 !> \param mpi_comm ...
-!> \param series ...
+!> \return ...
 ! **************************************************************************************************
-   SUBROUTINE openpmd_series_create_mpi(path, access, mpi_comm, series)
+   FUNCTION openpmd_series_create(path, access, mpi_comm) RESULT(series)
       CHARACTER(len=*), INTENT(IN)                       :: path
       INTEGER(kind=C_INT), INTENT(IN)                    :: access
-      TYPE(mp_comm_type), INTENT(in)                     :: mpi_comm
-      TYPE(openpmd_series_type), INTENT(INOUT)           :: series
+      TYPE(mp_comm_type), INTENT(in), OPTIONAL           :: mpi_comm
+      TYPE(openpmd_series_type)                          :: series
 
       TYPE(c_ptr)                                        :: comm_c = C_NULL_PTR
       INTERFACE
@@ -95,13 +70,24 @@ CONTAINS
             TYPE(C_PTR) :: series
          END SUBROUTINE
       END INTERFACE
-
-      CALL cp2k_c_mpi_comm_f2c(mpi_comm%get_handle(), comm_c)
+      INTERFACE
+         SUBROUTINE openpmd_c_series_create(path, access, series) BIND(C, name="openPMD_Series_create")
+            IMPORT :: C_PTR, C_CHAR, C_INT
+            TYPE(C_PTR) :: series
+            CHARACTER(kind=C_CHAR), DIMENSION(*) :: path
+            INTEGER(kind=C_INT), VALUE :: access
+         END SUBROUTINE
+      END INTERFACE
 
       CPASSERT(.NOT. C_ASSOCIATED(series%c_ptr))
-      CALL openpmd_c_series_create_mpi(path=TRIM(path)//C_NULL_CHAR, access=access, mpi_comm=comm_c, series=series%c_ptr)
+      IF (PRESENT(mpi_comm)) THEN
+         CALL cp2k_c_mpi_comm_f2c(mpi_comm%get_handle(), comm_c)
+         CALL openpmd_c_series_create_mpi(path=TRIM(path)//C_NULL_CHAR, access=access, mpi_comm=comm_c, series=series%c_ptr)
+      ELSE
+         CALL openpmd_c_series_create(path=TRIM(path)//C_NULL_CHAR, access=access, series=series%c_ptr)
+      END IF
       CPASSERT(C_ASSOCIATED(series%c_ptr))
-   END SUBROUTINE openpmd_series_create_mpi
+   END FUNCTION openpmd_series_create
 
 ! **************************************************************************************************
 !> \brief ...
