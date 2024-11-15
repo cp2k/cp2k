@@ -282,6 +282,7 @@ CONTAINS
                END IF
                DEALLOCATE (density, coef)
             END DO
+            harris_env%rhoin%frozen = .TRUE.
          END IF
       CASE DEFAULT
          CPABORT("Illeagal value of harris_env%density_source")

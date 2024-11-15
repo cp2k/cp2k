@@ -3,4 +3,5 @@
 # see regtest/TEST_FILES
 2H2O_t01.inp                                          11      1e-010              -34.570515851298339
 ft1.inp                                                0
+fl1.inp                                                0
 #EOF

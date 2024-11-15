@@ -37,13 +37,9 @@ MODULE dm_ls_scf
                                               density_matrix_tc2,&
                                               density_matrix_trs4,&
                                               ls_scf_init_matrix_S
-   USE dm_ls_scf_qs,                    ONLY: ls_scf_dm_to_ks,&
-                                              ls_scf_init_qs,&
-                                              ls_scf_qs_atomic_guess,&
-                                              matrix_ls_create,&
-                                              matrix_ls_to_qs,&
-                                              matrix_qs_to_ls,&
-                                              rho_mixing_ls_init
+   USE dm_ls_scf_qs,                    ONLY: &
+        ls_nonscf_energy, ls_nonscf_ks, ls_scf_dm_to_ks, ls_scf_init_qs, ls_scf_qs_atomic_guess, &
+        matrix_ls_create, matrix_ls_to_qs, matrix_qs_to_ls, rho_mixing_ls_init
    USE dm_ls_scf_types,                 ONLY: ls_scf_env_type
    USE ec_env_types,                    ONLY: energy_correction_type
    USE input_constants,                 ONLY: ls_cluster_atomic,&
@@ -78,6 +74,7 @@ MODULE dm_ls_scf
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_ks_types,                     ONLY: qs_ks_env_type
+   USE qs_nonscf_utils,                 ONLY: qs_nonscf_print_summary
    USE qs_scf_post_gpw,                 ONLY: qs_scf_post_moments,&
                                               write_mo_free_results
    USE qs_scf_post_tb,                  ONLY: scf_post_calculation_tb
@@ -100,33 +97,43 @@ CONTAINS
 !> \brief perform an linear scaling scf procedure: entry point
 !>
 !> \param qs_env ...
+!> \param nonscf ...
 !> \par History
 !>       2010.10 created [Joost VandeVondele]
 !> \author Joost VandeVondele
 ! **************************************************************************************************
-   SUBROUTINE ls_scf(qs_env)
+   SUBROUTINE ls_scf(qs_env, nonscf)
       TYPE(qs_environment_type), POINTER                 :: qs_env
+      LOGICAL, INTENT(IN), OPTIONAL                      :: nonscf
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'ls_scf'
 
       INTEGER                                            :: handle
-      LOGICAL                                            :: pao_is_done
+      LOGICAL                                            :: do_scf, pao_is_done
       TYPE(ls_scf_env_type), POINTER                     :: ls_scf_env
 
       CALL timeset(routineN, handle)
+      do_scf = .TRUE.
+      IF (PRESENT(nonscf)) do_scf = .NOT. nonscf
+
       CALL get_qs_env(qs_env, ls_scf_env=ls_scf_env)
-      CALL pao_optimization_start(qs_env, ls_scf_env)
 
-      pao_is_done = .FALSE.
-      DO WHILE (.NOT. pao_is_done)
-         CALL ls_scf_init_scf(qs_env, ls_scf_env)
-         CALL pao_update(qs_env, ls_scf_env, pao_is_done)
-         CALL ls_scf_main(qs_env, ls_scf_env)
-         CALL pao_post_scf(qs_env, ls_scf_env, pao_is_done)
+      IF (do_scf) THEN
+         CALL pao_optimization_start(qs_env, ls_scf_env)
+         pao_is_done = .FALSE.
+         DO WHILE (.NOT. pao_is_done)
+            CALL ls_scf_init_scf(qs_env, ls_scf_env, .FALSE.)
+            CALL pao_update(qs_env, ls_scf_env, pao_is_done)
+            CALL ls_scf_main(qs_env, ls_scf_env, .FALSE.)
+            CALL pao_post_scf(qs_env, ls_scf_env, pao_is_done)
+            CALL ls_scf_post(qs_env, ls_scf_env)
+         END DO
+         CALL pao_optimization_end(ls_scf_env)
+      ELSE
+         CALL ls_scf_init_scf(qs_env, ls_scf_env, .TRUE.)
+         CALL ls_scf_main(qs_env, ls_scf_env, .TRUE.)
          CALL ls_scf_post(qs_env, ls_scf_env)
-      END DO
-
-      CALL pao_optimization_end(ls_scf_env)
+      END IF
 
       CALL timestop(handle)
 
@@ -136,13 +143,15 @@ CONTAINS
 !> \brief initialization needed for scf
 !> \param qs_env ...
 !> \param ls_scf_env ...
+!> \param nonscf ...
 !> \par History
 !>       2010.10 created [Joost VandeVondele]
 !> \author Joost VandeVondele
 ! **************************************************************************************************
-   SUBROUTINE ls_scf_init_scf(qs_env, ls_scf_env)
+   SUBROUTINE ls_scf_init_scf(qs_env, ls_scf_env, nonscf)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(ls_scf_env_type)                              :: ls_scf_env
+      LOGICAL, INTENT(IN)                                :: nonscf
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'ls_scf_init_scf'
 
@@ -210,7 +219,7 @@ CONTAINS
       CALL ls_scf_init_matrix_s(matrix_s(1)%matrix, ls_scf_env)
 
       ! get the initial guess for the SCF
-      CALL ls_scf_initial_guess(qs_env, ls_scf_env)
+      CALL ls_scf_initial_guess(qs_env, ls_scf_env, nonscf)
 
       IF (ls_scf_env%do_rho_mixing) THEN
          CALL rho_mixing_ls_init(qs_env, ls_scf_env)
@@ -232,13 +241,15 @@ CONTAINS
 !> \brief deal with the scf initial guess
 !> \param qs_env ...
 !> \param ls_scf_env ...
+!> \param nonscf ...
 !> \par History
 !>       2012.11 created [Joost VandeVondele]
 !> \author Joost VandeVondele
 ! **************************************************************************************************
-   SUBROUTINE ls_scf_initial_guess(qs_env, ls_scf_env)
+   SUBROUTINE ls_scf_initial_guess(qs_env, ls_scf_env, nonscf)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(ls_scf_env_type)                              :: ls_scf_env
+      LOGICAL, INTENT(IN)                                :: nonscf
 
       CHARACTER(len=*), PARAMETER :: routineN = 'ls_scf_initial_guess'
       INTEGER, PARAMETER                                 :: aspc_guess = 2, atomic_guess = 1, &
@@ -279,7 +290,8 @@ CONTAINS
       ! how to get the initial guess
       SELECT CASE (initial_guess_type)
       CASE (atomic_guess)
-         CALL ls_scf_qs_atomic_guess(qs_env, ls_scf_env%energy_init)
+         CALL ls_scf_qs_atomic_guess(qs_env, ls_scf_env, ls_scf_env%energy_init, nonscf)
+         IF (unit_nr > 0) WRITE (unit_nr, '()')
       CASE (restart_guess)
          project_name = logger%iter_info%project_name
          DO ispin = 1, SIZE(ls_scf_env%matrix_p)
@@ -293,7 +305,11 @@ CONTAINS
          END DO
 
          ! directly go to computing the corresponding energy and ks matrix
-         CALL ls_scf_dm_to_ks(qs_env, ls_scf_env, ls_scf_env%energy_init, iscf=0)
+         IF (nonscf) THEN
+            CALL ls_nonscf_ks(qs_env, ls_scf_env, ls_scf_env%energy_init)
+         ELSE
+            CALL ls_scf_dm_to_ks(qs_env, ls_scf_env, ls_scf_env%energy_init, iscf=0)
+         END IF
       CASE (aspc_guess)
          CALL cite_reference(Kolafa2004)
          CALL cite_reference(Kuhne2007)
@@ -346,7 +362,11 @@ CONTAINS
          END IF
 
          ! compute corresponding energy and ks matrix
-         CALL ls_scf_dm_to_ks(qs_env, ls_scf_env, ls_scf_env%energy_init, iscf=0)
+         IF (nonscf) THEN
+            CALL ls_nonscf_ks(qs_env, ls_scf_env, ls_scf_env%energy_init)
+         ELSE
+            CALL ls_scf_dm_to_ks(qs_env, ls_scf_env, ls_scf_env%energy_init, iscf=0)
+         END IF
       END SELECT
 
       IF (unit_nr > 0) THEN
@@ -440,13 +460,15 @@ CONTAINS
 !> \brief Main SCF routine. Can we keep it clean ?
 !> \param qs_env ...
 !> \param ls_scf_env ...
+!> \param nonscf ...
 !> \par History
 !>       2010.10 created [Joost VandeVondele]
 !> \author Joost VandeVondele
 ! **************************************************************************************************
-   SUBROUTINE ls_scf_main(qs_env, ls_scf_env)
+   SUBROUTINE ls_scf_main(qs_env, ls_scf_env, nonscf)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(ls_scf_env_type)                              :: ls_scf_env
+      LOGICAL, INTENT(IN), OPTIONAL                      :: nonscf
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'ls_scf_main'
 
@@ -456,7 +478,7 @@ CONTAINS
       LOGICAL :: check_convergence, diis_step, do_transport, extra_scf, maxscf_reached, &
          scf_converged, should_stop, transm_maxscf_reached, transm_scf_converged
       REAL(KIND=dp)                                      :: energy_diff, energy_new, energy_old, &
-                                                            eps_diis, t1, t2
+                                                            eps_diis, t1, t2, tdiag
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_s
       TYPE(dbcsr_type), ALLOCATABLE, DIMENSION(:)        :: matrix_ks_deviation, matrix_mixing_old
@@ -560,7 +582,9 @@ CONTAINS
          ELSE
             ! turn the KS matrix in a density matrix
             DO ispin = 1, nspin
-               IF (ls_scf_env%do_rho_mixing) THEN
+               IF (nonscf) THEN
+                  CALL dbcsr_copy(matrix_mixing_old(ispin), ls_scf_env%matrix_ks(ispin))
+               ELSEIF (ls_scf_env%do_rho_mixing) THEN
                   CALL dbcsr_copy(matrix_mixing_old(ispin), ls_scf_env%matrix_ks(ispin))
                ELSE
                   IF (iscf == 1) THEN
@@ -652,14 +676,16 @@ CONTAINS
                      CALL density_matrix_tc2(ls_scf_env%matrix_p(ispin), matrix_mixing_old(ispin), ls_scf_env%matrix_s_sqrt_inv, &
                                              nelectron_spin_real, ls_scf_env%eps_filter, ls_scf_env%homo_spin(ispin), &
                                              ls_scf_env%lumo_spin(ispin), non_monotonic=ls_scf_env%non_monotonic, &
-                                             eps_lanczos=ls_scf_env%eps_lanczos, max_iter_lanczos=ls_scf_env%max_iter_lanczos)
+                                             eps_lanczos=ls_scf_env%eps_lanczos, max_iter_lanczos=ls_scf_env%max_iter_lanczos, &
+                                             iounit=-1)
                   CASE (ls_scf_trs4)
                      CALL density_matrix_trs4(ls_scf_env%matrix_p(ispin), matrix_mixing_old(ispin), ls_scf_env%matrix_s_sqrt_inv, &
                                               nelectron_spin_real, ls_scf_env%eps_filter, ls_scf_env%homo_spin(ispin), &
                                               ls_scf_env%lumo_spin(ispin), ls_scf_env%mu_spin(ispin), &
                                               dynamic_threshold=ls_scf_env%dynamic_threshold, &
                                               matrix_ks_deviation=matrix_ks_deviation(ispin), &
-                                              eps_lanczos=ls_scf_env%eps_lanczos, max_iter_lanczos=ls_scf_env%max_iter_lanczos)
+                                              eps_lanczos=ls_scf_env%eps_lanczos, max_iter_lanczos=ls_scf_env%max_iter_lanczos, &
+                                              iounit=-1)
                   CASE (ls_scf_pexsi)
                      IF (ls_scf_env%has_s_preconditioner) &
                         CPABORT("S preconditioning not implemented in combination with the PEXSI library. ")
@@ -684,22 +710,31 @@ CONTAINS
          END IF
 
          ! compute the corresponding new energy KS matrix and new energy
-         CALL ls_scf_dm_to_ks(qs_env, ls_scf_env, energy_new, iscf)
+         IF (nonscf) THEN
+            CALL ls_nonscf_energy(qs_env, ls_scf_env)
+         ELSE
+            CALL ls_scf_dm_to_ks(qs_env, ls_scf_env, energy_new, iscf)
+         END IF
 
          IF (ls_scf_env%do_pexsi) THEN
             CALL pexsi_to_qs(ls_scf_env, qs_env, kTS=ls_scf_env%pexsi%kTS)
          END IF
 
-         ! report current SCF loop
-         energy_diff = energy_new - energy_old
-         energy_old = energy_new
-
          t2 = m_walltime()
-         IF (unit_nr > 0) THEN
-            WRITE (unit_nr, *)
-            WRITE (unit_nr, '(T2,A,I6,F20.9,F20.9,F12.6)') "SCF", iscf, energy_new, energy_diff, t2 - t1
-            WRITE (unit_nr, *)
-            CALL m_flush(unit_nr)
+         IF (nonscf) THEN
+            tdiag = t2 - t1
+            CALL qs_nonscf_print_summary(qs_env, tdiag, ls_scf_env%nelectron_total, unit_nr)
+            EXIT
+         ELSE
+            ! report current SCF loop
+            energy_diff = energy_new - energy_old
+            energy_old = energy_new
+            IF (unit_nr > 0) THEN
+               WRITE (unit_nr, *)
+               WRITE (unit_nr, '(T2,A,I6,F20.9,F20.9,F12.6)') "SCF", iscf, energy_new, energy_diff, t2 - t1
+               WRITE (unit_nr, *)
+               CALL m_flush(unit_nr)
+            END IF
          END IF
 
          IF (do_transport) THEN
