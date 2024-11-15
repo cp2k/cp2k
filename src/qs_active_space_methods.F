@@ -100,9 +100,6 @@ MODULE qs_active_space_methods
                                greens_fn_type, &
                                pw_poisson_analytic, &
                                pw_poisson_periodic, &
-                               pw_poisson_mt, &
-                               pw_poisson_implicit, &
-                               pw_poisson_multipole, &
                                pw_poisson_type
    USE pw_pool_types, ONLY: &
       pw_pool_type
@@ -269,7 +266,7 @@ CONTAINS
       ! k-points?
       CALL get_qs_env(qs_env, do_kpoints=do_kpoints)
       IF (do_kpoints) THEN
-         CALL cp_abort(__LOCATION__, "K-points not allowd for Active Space Interface")
+         CALL cp_abort(__LOCATION__, "k-points not supported in active space interface")
       END IF
 
       NULLIFY (active_space_env)
@@ -292,24 +289,7 @@ CONTAINS
          active_space_env%qcschema_filename = qcschema_filename
       END IF
 
-      ! model
-      CALL section_vals_val_get(as_input, "MODEL", i_val=active_space_env%model)
-      IF (iw > 0) THEN
-         SELECT CASE (active_space_env%model)
-         CASE (hf_model)
-            WRITE (iw, '(T3,A)') "Hartree-Fock model for interaction Hamiltonian"
-         CASE (rsdft_model)
-            WRITE (iw, '(T3,A)') "Range-separated DFT model for interaction Hamiltonian"
-         CASE (dmft_model)
-            WRITE (iw, '(T3,A)') "DMFT model for interaction Hamiltonian"
-         CASE DEFAULT
-            CPABORT("Unknown Model")
-         END SELECT
-      END IF
-
       CALL section_vals_val_get(as_input, "ACTIVE_ELECTRONS", i_val=nelec_active)
-      ! actually nelec_spin tells me the number of electrons per spin channel from qs_env
-      ! CALL get_qs_env(qs_env, nelectron_total=nelec_total, nelectron_spin=nelec_spin)
       CALL get_qs_env(qs_env, nelectron_total=nelec_total)
 
       IF (nelec_active <= 0) CPABORT("Specify a positive number of active electrons.")
@@ -320,13 +300,14 @@ CONTAINS
          CPABORT("The remaining number of inactive electrons has to be even.")
       END IF
 
-      CALL get_qs_env(qs_env, dft_control=dft_control)
-      nspins = dft_control%nspins
       IF (iw > 0) THEN
          WRITE (iw, '(T3,A,T70,I10)') "Total number of electrons", nelec_total
          WRITE (iw, '(T3,A,T70,I10)') "Number of inactive electrons", nelec_inactive
          WRITE (iw, '(T3,A,T70,I10)') "Number of active electrons", nelec_active
       END IF
+
+      CALL get_qs_env(qs_env, dft_control=dft_control)
+      nspins = dft_control%nspins
 
       active_space_env%nelec_active = nelec_active
       active_space_env%nelec_inactive = nelec_inactive
