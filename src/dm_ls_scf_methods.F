@@ -137,7 +137,8 @@ CONTAINS
             CALL matrix_sqrt_Newton_Schulz(ls_scf_env%matrix_s_sqrt, ls_scf_env%matrix_s_sqrt_inv, &
                                            ls_scf_env%matrix_s, ls_scf_env%eps_filter, &
                                            ls_scf_env%s_sqrt_order, &
-                                           ls_scf_env%eps_lanczos, ls_scf_env%max_iter_lanczos)
+                                           ls_scf_env%eps_lanczos, ls_scf_env%max_iter_lanczos, &
+                                           iounit=-1)
          CASE DEFAULT
             CPABORT("Unknown sqrt method.")
          END SELECT
@@ -211,7 +212,8 @@ CONTAINS
 !> \author Joost VandeVondele
 ! **************************************************************************************************
    SUBROUTINE compute_matrix_preconditioner(matrix_s, preconditioner_type, ls_mstruct, &
-                                            matrix_bs_sqrt, matrix_bs_sqrt_inv, threshold, order, eps_lanczos, max_iter_lanczos)
+                                            matrix_bs_sqrt, matrix_bs_sqrt_inv, threshold, order, &
+                                            eps_lanczos, max_iter_lanczos)
 
       TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix_s
       INTEGER                                            :: preconditioner_type
@@ -291,7 +293,8 @@ CONTAINS
          ! XXXXXXXXXXX
          CALL matrix_sqrt_Newton_Schulz(matrix_bs_sqrt, matrix_bs_sqrt_inv, matrix_bs, &
                                         threshold=MIN(threshold, 1.0E-10_dp), order=order, &
-                                        eps_lanczos=eps_lanczos, max_iter_lanczos=max_iter_lanczos)
+                                        eps_lanczos=eps_lanczos, max_iter_lanczos=max_iter_lanczos, &
+                                        iounit=-1)
       END SELECT
 
       CALL dbcsr_release(matrix_bs)
@@ -526,7 +529,7 @@ CONTAINS
 
          SELECT CASE (sign_method)
          CASE (ls_scf_sign_ns)
-            CALL matrix_sign_Newton_Schulz(matrix_sign, matrix_ssqrtinv_ks_ssqrtinv, threshold, sign_order)
+            CALL matrix_sign_Newton_Schulz(matrix_sign, matrix_ssqrtinv_ks_ssqrtinv, threshold, sign_order, iounit=-1)
          CASE (ls_scf_sign_proot)
             CALL matrix_sign_proot(matrix_sign, matrix_ssqrtinv_ks_ssqrtinv, threshold, sign_order)
          CASE (ls_scf_sign_submatrix)
@@ -547,7 +550,7 @@ CONTAINS
          ! compute sign(inv(S)*H-I*mu)
          SELECT CASE (sign_method)
          CASE (ls_scf_sign_ns)
-            CALL matrix_sign_Newton_Schulz(matrix_sign, matrix_sinv_ks, threshold, sign_order)
+            CALL matrix_sign_Newton_Schulz(matrix_sign, matrix_sinv_ks, threshold, sign_order, iounit=-1)
          CASE (ls_scf_sign_proot)
             CALL matrix_sign_proot(matrix_sign, matrix_sinv_ks, threshold, sign_order)
          CASE (ls_scf_sign_submatrix)
@@ -574,7 +577,8 @@ CONTAINS
                           0.0_dp, matrix_tmp, filter_eps=threshold)
       CALL dbcsr_add(matrix_tmp, matrix_p_ud, 1.0_dp, -1.0_dp)
       frob_matrix = dbcsr_frobenius_norm(matrix_tmp)
-      IF (unit_nr > 0) WRITE (unit_nr, '(T2,A,F20.12)') "Deviation from idempotency: ", frob_matrix
+      IF (unit_nr > 0 .AND. frob_matrix > 0.001_dp) &
+         WRITE (unit_nr, '(T2,A,F20.12)') "Deviation from idempotency: ", frob_matrix
 
       IF (sign_symmetric) THEN
          CALL dbcsr_multiply("N", "N", 1.0_dp, matrix_s_sqrt_inv, matrix_p_ud, &
@@ -684,7 +688,8 @@ CONTAINS
                           0.0_dp, matrix_tmp, filter_eps=threshold)
       CALL dbcsr_add(matrix_tmp, matrix_p_ud, 1.0_dp, -1.0_dp)
       frob_matrix = dbcsr_frobenius_norm(matrix_tmp)
-      IF (unit_nr > 0) WRITE (unit_nr, '(T2,A,F20.12)') "Deviation from idempotency: ", frob_matrix
+      IF (unit_nr > 0 .AND. frob_matrix > 0.001_dp) &
+         WRITE (unit_nr, '(T2,A,F20.12)') "Deviation from idempotency: ", frob_matrix
 
       CALL dbcsr_multiply("N", "N", 1.0_dp, matrix_s_sqrt_inv, matrix_p_ud, &
                           0.0_dp, matrix_tmp, filter_eps=threshold)
@@ -712,6 +717,7 @@ CONTAINS
 !> \param max_iter_lanczos ...
 !> \param eps_lanczos ...
 !> \param converged ...
+!> \param iounit ...
 !> \par History
 !>       2012.06 created [Florian Thoele]
 !> \author Florian Thoele
@@ -719,7 +725,7 @@ CONTAINS
    SUBROUTINE density_matrix_trs4(matrix_p, matrix_ks, matrix_s_sqrt_inv, &
                                   nelectron, threshold, e_homo, e_lumo, e_mu, &
                                   dynamic_threshold, matrix_ks_deviation, &
-                                  max_iter_lanczos, eps_lanczos, converged)
+                                  max_iter_lanczos, eps_lanczos, converged, iounit)
 
       TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix_p
       TYPE(dbcsr_type), INTENT(IN)                       :: matrix_ks, matrix_s_sqrt_inv
@@ -731,6 +737,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: max_iter_lanczos
       REAL(KIND=dp), INTENT(IN)                          :: eps_lanczos
       LOGICAL, INTENT(OUT), OPTIONAL                     :: converged
+      INTEGER, INTENT(IN), OPTIONAL                      :: iounit
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'density_matrix_trs4'
       INTEGER, PARAMETER                                 :: max_iter = 100
@@ -756,11 +763,15 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      logger => cp_get_default_logger()
-      IF (logger%para_env%is_source()) THEN
-         unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
+      IF (PRESENT(iounit)) THEN
+         unit_nr = iounit
       ELSE
-         unit_nr = -1
+         logger => cp_get_default_logger()
+         IF (logger%para_env%is_source()) THEN
+            unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
+         ELSE
+            unit_nr = -1
+         END IF
       END IF
 
       do_dyn_threshold = .FALSE.
@@ -1010,11 +1021,12 @@ CONTAINS
 !> \param non_monotonic ...
 !> \param eps_lanczos ...
 !> \param max_iter_lanczos ...
+!> \param iounit ...
 !> \author Jonathan Mullin
 ! **************************************************************************************************
    SUBROUTINE density_matrix_tc2(matrix_p, matrix_ks, matrix_s_sqrt_inv, &
                                  nelectron, threshold, e_homo, e_lumo, &
-                                 non_monotonic, eps_lanczos, max_iter_lanczos)
+                                 non_monotonic, eps_lanczos, max_iter_lanczos, iounit)
 
       TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix_p
       TYPE(dbcsr_type), INTENT(IN)                       :: matrix_ks, matrix_s_sqrt_inv
@@ -1024,6 +1036,7 @@ CONTAINS
       LOGICAL, INTENT(IN), OPTIONAL                      :: non_monotonic
       REAL(KIND=dp), INTENT(IN)                          :: eps_lanczos
       INTEGER, INTENT(IN)                                :: max_iter_lanczos
+      INTEGER, INTENT(IN), OPTIONAL                      :: iounit
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'density_matrix_tc2'
       INTEGER, PARAMETER                                 :: max_iter = 100
@@ -1040,11 +1053,15 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      logger => cp_get_default_logger()
-      IF (logger%para_env%is_source()) THEN
-         unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
+      IF (PRESENT(iounit)) THEN
+         unit_nr = iounit
       ELSE
-         unit_nr = -1
+         logger => cp_get_default_logger()
+         IF (logger%para_env%is_source()) THEN
+            unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
+         ELSE
+            unit_nr = -1
+         END IF
       END IF
 
       do_non_monotonic = .FALSE.

@@ -672,16 +672,17 @@ CONTAINS
 !> \param matrix ...
 !> \param threshold ...
 !> \param sign_order ...
+!> \param iounit ...
 !> \par History
 !>       2010.10 created [Joost VandeVondele]
 !>       2019.05 extended to order byxond 2 [Robert Schade]
 !> \author Joost VandeVondele, Robert Schade
 ! **************************************************************************************************
-   SUBROUTINE matrix_sign_Newton_Schulz(matrix_sign, matrix, threshold, sign_order)
+   SUBROUTINE matrix_sign_Newton_Schulz(matrix_sign, matrix, threshold, sign_order, iounit)
 
       TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix_sign, matrix
       REAL(KIND=dp), INTENT(IN)                          :: threshold
-      INTEGER, INTENT(IN), OPTIONAL                      :: sign_order
+      INTEGER, INTENT(IN), OPTIONAL                      :: sign_order, iounit
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'matrix_sign_Newton_Schulz'
 
@@ -696,11 +697,15 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      logger => cp_get_default_logger()
-      IF (logger%para_env%is_source()) THEN
-         unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
+      IF (PRESENT(iounit)) THEN
+         unit_nr = iounit
       ELSE
-         unit_nr = -1
+         logger => cp_get_default_logger()
+         IF (logger%para_env%is_source()) THEN
+            unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
+         ELSE
+            unit_nr = -1
+         END IF
       END IF
 
       IF (PRESENT(sign_order)) THEN
@@ -1059,8 +1064,6 @@ CONTAINS
       symmetrize = .FALSE.
       CALL matrix_sqrt_proot(matrix_sqrt, matrix_sqrt_inv, matrix2, threshold, order, &
                              0.01_dp, 100, symmetrize, converged)
-!      call matrix_sqrt_Newton_Schulz(matrix_sqrt, matrix_sqrt_inv, matrix2, threshold, order, &
-!                                        0.01_dp,100, symmetrize,converged)
 
       CALL dbcsr_multiply("N", "N", 1.0_dp, matrix, matrix_sqrt_inv, 0.0_dp, matrix_sign, &
                           filter_eps=threshold, flop=flop1)
@@ -1615,18 +1618,20 @@ CONTAINS
 !> \param max_iter_lanczos ...
 !> \param symmetrize ...
 !> \param converged ...
+!> \param iounit ...
 !> \par History
 !>       2010.10 created [Joost VandeVondele]
 !> \author Joost VandeVondele
 ! **************************************************************************************************
    SUBROUTINE matrix_sqrt_Newton_Schulz(matrix_sqrt, matrix_sqrt_inv, matrix, threshold, order, &
-                                        eps_lanczos, max_iter_lanczos, symmetrize, converged)
+                                        eps_lanczos, max_iter_lanczos, symmetrize, converged, iounit)
       TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix_sqrt, matrix_sqrt_inv, matrix
       REAL(KIND=dp), INTENT(IN)                          :: threshold
       INTEGER, INTENT(IN)                                :: order
       REAL(KIND=dp), INTENT(IN)                          :: eps_lanczos
       INTEGER, INTENT(IN)                                :: max_iter_lanczos
       LOGICAL, OPTIONAL                                  :: symmetrize, converged
+      INTEGER, INTENT(IN), OPTIONAL                      :: iounit
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'matrix_sqrt_Newton_Schulz'
 
@@ -1642,11 +1647,15 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      logger => cp_get_default_logger()
-      IF (logger%para_env%is_source()) THEN
-         unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
+      IF (PRESENT(iounit)) THEN
+         unit_nr = iounit
       ELSE
-         unit_nr = -1
+         logger => cp_get_default_logger()
+         IF (logger%para_env%is_source()) THEN
+            unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
+         ELSE
+            unit_nr = -1
+         END IF
       END IF
 
       IF (PRESENT(converged)) converged = .FALSE.
