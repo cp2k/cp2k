@@ -1301,8 +1301,8 @@ CONTAINS
                           "$\left( \begin{array}{cc}\mathbf{X}^{(n)}\\\mathbf{Y}^{(n)}\end{array} \right) = "// &
                           "\Omega^{(n)}\left(\begin{array}{cc}1&0\\0&-1\end{array}\right)$ "// &
                           "$\left(\begin{array}{cc}\mathbf{X}^{(n)}\\\mathbf{Y}^{(n)}\end{array}\right)$ "// &
-                          "enables the computation of electronic excitation energies $\Omega^{(n)}$ as well "// &
-                          "as optical properties. The BSE can be solved by diagonalizing "// &
+                          "enables, for example, the computation of electronic excitation energies $\Omega^{(n)}$ "// &
+                          "as well as optical properties. The BSE can be solved by diagonalizing "// &
                           "the full ABBA-matrix or by setting B=0, i.e. within the Tamm-Dancoff approximation (TDA). "// &
                          "Preliminary reference: Eq. (35) in PRB 92, 045209 (2015); http://dx.doi.org/10.1103/PhysRevB.92.045209", &
                           n_keywords=8, n_subsections=3, repeats=.FALSE.)
@@ -1429,14 +1429,21 @@ CONTAINS
       CPASSERT(.NOT. ASSOCIATED(print_key))
 
       CALL cp_print_key_section_create(print_key, __LOCATION__, name="NTO_ANALYSIS", &
-                                       description="Perform a natural transition orbital analysis.", &
-                                       print_level=debug_print_level + 1, &  ! Corresponds to "off" as default behavior
-                                       filename="BSE-NTO_ANALYSIS")        ! All other print levels will trigger the analysis
+         description="Perform a natural transition orbital analysis, i.e. the transition density matrix " // &
+            "$T^{(n)}=\left( \begin{array}{cc}0& {X}^{(n)}\\ \left({Y}^{(n)} \right)^T & 0\end{array} \right)$ " // &
+            "is decomposed into its singular values " // &
+            "$T^{(n)} = {U}^{(n)} {\Lambda^{(n)}} \left({V}^{(n)}\right)^T$" // &
+            "in order to compute the NTO pairs " // &
+    "$\phi_I^{(n)}(\mathbf{r}_e) = \sum_{p=1}^{N_b} \varphi_p(\mathbf{r}_e) V_{p,I}^{(n)}$ for the electron and " // &
+    "$\chi_I^{(n)}(\mathbf{r}_h) = \sum_{q=1}^{N_b} \varphi_q(\mathbf{r}_h) U_{q,I}^{(n)}$ for the hole.", &
+         print_level=debug_print_level + 1, &  ! Corresponds to "off" as default behavior
+         filename="BSE-NTO_ANALYSIS")        ! All other print levels will trigger the analysis
       ! cf. input/cp_output_handling.F:cp_print_key_section_create
 
       NULLIFY (keyword)
       CALL keyword_create(keyword, __LOCATION__, name="EPS_NTO_EIGVAL", &
-                          description="Threshold for considered NTO eigenvalues.", &
+                          description="Threshold for NTO eigenvalues, i.e. only " // &
+                          "${\left(\lambda_I^{(n)}\right)}^2$ > EPS_NTO_EIGVAL are considered.", &
                           usage="EPS_NTO_EIGVAL 0.01", &
                           n_var=1, &
                           type_of_var=real_t, &
@@ -1445,9 +1452,9 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="EPS_OSC_STR", &
-                          description="Threshold of oscillator strengths for an excitation level. "// &
-                          "In case, the excitation level has a smaller oscillator strength, the corresponding "// &
-                          "NTOs are not printed.", &
+                          description="Threshold of oscillator strengths $f^{(n)}$ for an excitation level. "// &
+                          "In case, the excitation level n has a smaller oscillator strength, the "// &
+                          "NTOs for this excitation level are not printed.", &
                           usage="EPS_OSC_STR 0.01", &
                           n_var=1, &
                           type_of_var=real_t, &
@@ -1456,7 +1463,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="NUM_PRINT_EXC_NTOS", &
-                          description="Number of excitation level for which NTOs are printed. "// &
+                          description="Number of excitation level $n$ up to which NTOs are printed. "// &
                           "By default, this is set to NUM_PRINT_EXC. Negative or too large "// &
                           "NUM_PRINT_EXC_NTOS defaults to NUM_PRINT_EXC.", &
                           usage="NUM_PRINT_EXC_NTOS 5", &
@@ -1467,7 +1474,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="STATE_LIST", &
-                          description="Specifies a list of excitation levels for which NTOs are printed. "// &
+                          description="Specifies a list of excitation levels $n$ for which NTOs are printed. "// &
                           "Overrides NUM_PRINT_EXC_NTOS.", &
                           usage="STATE_LIST {integer} {integer} .. {integer}", &
                           n_var=-1, type_of_var=integer_t)

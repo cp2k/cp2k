@@ -339,14 +339,14 @@ CONTAINS
             WRITE (unit_nr, '(T2,A4)') 'BSE|'
             IF (flag_TDA) THEN
                WRITE (unit_nr, '(T2,A4,T10,A)') &
-                  'BSE|', "d_r^n = sum_ia < ψ_i | r | ψ_a >  X_ia^n"
+                  'BSE|', "d_r^n = sqrt(2) sum_ia < ψ_i | r | ψ_a >  X_ia^n"
             ELSE
                WRITE (unit_nr, '(T2,A4,T10,A)') &
-                  'BSE|', "d_r^n = sum_ia < ψ_i | r | ψ_a > ( X_ia^n + Y_ia^n )"
+                  'BSE|', "d_r^n = sum_ia sqrt(2) < ψ_i | r | ψ_a > ( X_ia^n + Y_ia^n )"
             END IF
             WRITE (unit_nr, '(T2,A4)') 'BSE|'
-            WRITE (unit_nr, '(T2,A4,T14,A44)') &
-               'BSE|', "f^n = 2/3 * Ω^n sum_r∈(x,y,z) 2 ( d_r^n )^2"
+            WRITE (unit_nr, '(T2,A4,T14,A)') &
+               'BSE|', "f^n = 2/3 * Ω^n sum_r∈(x,y,z) ( d_r^n )^2"
             WRITE (unit_nr, '(T2,A4)') 'BSE|'
             WRITE (unit_nr, '(T2,A4,T7,A19)') &
                'BSE|', "where we introduced"
@@ -394,7 +394,6 @@ CONTAINS
                CALL cp_warn(__LOCATION__, &
                             "Accuracy of TRK sum rule might suffer from cutoffs.")
             END IF
-            WRITE (unit_nr, '(T2,A4)') 'BSE|'
          END IF
 
          ! Compute and print the absorption spectrum to external file
@@ -526,14 +525,16 @@ CONTAINS
          ELSE
             WRITE (unit_nr, '(T2,A4,T20,A)') 'BSE|', &
                '𝚿_n(r_e,r_h) = Σ_{i,a} X_ia^n ψ_i(r_h) ψ_a(r_e)'
-            WRITE (unit_nr, '(T2,A4,T45,A)') 'BSE|', &
+            WRITE (unit_nr, '(T2,A4,T40,A)') 'BSE|', &
                '+ Y_ia^n ψ_a(r_h) ψ_i(r_e) ,'
          END IF
+         WRITE (unit_nr, '(T2,A4)') 'BSE|'
          WRITE (unit_nr, '(T2,A4,T7,A)') 'BSE|', &
             'i.e.'
          WRITE (unit_nr, '(T2,A4)') 'BSE|'
          WRITE (unit_nr, '(T2,A4,T20,A)') 'BSE|', &
             '< O >_X = < 𝚿_n | O | 𝚿_n > / < 𝚿_n | 𝚿_n >  ,'
+         WRITE (unit_nr, '(T2,A4)') 'BSE|'
          IF (exc_descr(1)%flag_TDA) THEN
             WRITE (unit_nr, '(T2,A4,T7,A)') 'BSE|', &
                'where c_n = < 𝚿_n | 𝚿_n > = 1 within TDA.'
@@ -546,22 +547,27 @@ CONTAINS
          WRITE (unit_nr, '(T2,A4,T7,A)') 'BSE|', &
             'The exciton descriptors can then be expressed by electron coordinate'
          WRITE (unit_nr, '(T2,A4)') 'BSE|'
-         WRITE (unit_nr, '(T2,A4,T15,A)') 'BSE|', &
-            '<r_e>_X = <𝚿_n|𝚿_n> [ Σ_{i,a,b} X_ia^n < ψ_a | r | ψ_b > X_ib^n'
          IF (.NOT. exc_descr(1)%flag_TDA) THEN
+            WRITE (unit_nr, '(T2,A4,T15,A)') 'BSE|', &
+               '<r_e>_X = <𝚿_n|𝚿_n> [ Σ_{i,a,b} X_ia^n < ψ_a | r | ψ_b > X_ib^n'
             WRITE (unit_nr, '(T2,A4,T35,A)') 'BSE|', &
                '+ Σ_{i,j,a} Y_ia^n < ψ_i | r | ψ_j > Y_ja^n ]'
+         ELSE
+            WRITE (unit_nr, '(T2,A4,T15,A)') 'BSE|', &
+               '<r_e>_X = <𝚿_n|𝚿_n> [ Σ_{i,a,b} X_ia^n < ψ_a | r | ψ_b > X_ib^n ]'
          END IF
          WRITE (unit_nr, '(T2,A4)') 'BSE|'
          WRITE (unit_nr, '(T2,A4,T7,A)') 'BSE|', &
             'and hole coordinate'
          WRITE (unit_nr, '(T2,A4)') 'BSE|'
-         WRITE (unit_nr, '(T2,A4,T15,A)') 'BSE|', &
-            '<r_h>_X = <𝚿_n|𝚿_n> [ Σ_{i,j,a} X_ia^n < ψ_i | r | ψ_j > X_ja^n'
          IF (.NOT. exc_descr(1)%flag_TDA) THEN
+            WRITE (unit_nr, '(T2,A4,T15,A)') 'BSE|', &
+               '<r_h>_X = <𝚿_n|𝚿_n> [ Σ_{i,j,a} X_ia^n < ψ_i | r | ψ_j > X_ja^n'
             WRITE (unit_nr, '(T2,A4,T35,A)') 'BSE|', &
                '+ Σ_{i,a,b} Y_ia^n < ψ_a | r | ψ_b > Y_ib^n ]'
          ELSE
+            WRITE (unit_nr, '(T2,A4,T15,A)') 'BSE|', &
+               '<r_h>_X = <𝚿_n|𝚿_n> [ Σ_{i,j,a} X_ia^n < ψ_i | r | ψ_j > X_ja^n ]' 
          END IF
          WRITE (unit_nr, '(T2,A4)') 'BSE|'
          WRITE (unit_nr, '(T2,A4)') 'BSE|'

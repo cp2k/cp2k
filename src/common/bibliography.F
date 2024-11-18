@@ -89,7 +89,7 @@ MODULE bibliography
                             Stein2022, Stein2024, Pracht2019, &
                             Blase2018, Blase2020, Bruneval2015, Golze2019, Gui2018, Jacquemin2017, Liu2020, &
                             Sander2015, Schreiber2008, vanSetten2015, Setyawan2010, Ahart2024, Knysh2024, &
-                            Schambeck2024
+                            Schambeck2024, Mewes2018
 
 CONTAINS
 
@@ -1904,6 +1904,12 @@ CONTAINS
                          title="A Robust Non-Self-Consistent Tight-Binding Quantum Chemistry Method for large Molecules", &
                          source="ChemRxiv", volume="", pages="", &
                          year=2019, doi="10.26434/chemrxiv.8326202.v1")
+
+      CALL add_reference(key=Mewes2018, &
+                         authors=s2a("S. Mewes","F. Plasser", "A. Krylov", "A. Dreuw"), &
+                         title="Benchmarking Excited-State Calculations Using Exciton Properties", &
+                         source="J. Chem. Theory Comput.", volume="14", pages="710-725", &
+                         year=2018, doi="10.1021/acs.jctc.7b01145 ")
 
    END SUBROUTINE add_all_references
 

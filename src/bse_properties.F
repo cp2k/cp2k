@@ -265,6 +265,8 @@ CONTAINS
          ! and then the imaginary part is (in the limit η -> 0)
          ! Im[α_{avg}(ω)] = \sum_{n=1}^{N_exc} f_n * η / ((ω - Ω^n)² + η²)
          ! where f_n are the oscillator strengths and E_exc the excitation energies
+         ! For the full polarizability tensor, we have
+         ! α_{µ µ'}(ω) =  \sum_n [2 Ω^n d^n_µ d^n_µ'] / [(ω+iη)^2- (Ω^n)^2]
          DO i = 1, num_steps
             omega = freq_start + (i - 1)*freq_step
             abs_spectrum(i, 1) = omega
@@ -292,7 +294,8 @@ CONTAINS
          IF (unit_nr_file > 0) THEN
             CALL open_file(file_name_spectrum, unit_number=unit_nr_file, &
                            file_status="UNKNOWN", file_action="WRITE")
-            WRITE (unit_nr_file, '(A75,A6)') "# Imaginary part of polarizability from Bethe Salpeter equation for method ", &
+            WRITE (unit_nr_file, '(A,A6)') "# Imaginary part of polarizability α_{µ µ'}(ω) =  \sum_n " // &
+               "[2 Ω^n d_µ^n d_µ'^n] / [(ω+iη)²- (Ω^n)²] from Bethe Salpeter equation for method ", &
                TRIM(ADJUSTL(info_approximation))
             WRITE (unit_nr_file, '(A20,1X,10(2X,A20,1X))') "#     Frequency (eV)", "Im{α_{avg}(ω)}", "Im{α_xx(ω)}", &
                "Im{α_xy(ω)}", "Im{α_xz(ω)}", "Im{α_yx(ω)}", "Im{α_yy(ω)}", "Im{α_yz(ω)}", "Im{α_zx(ω)}", &
@@ -315,8 +318,15 @@ CONTAINS
          WRITE (unit_nr, '(T2,A4,T10,A73)') &
             'BSE|', "Im{α_{avg}(ω)} = Im{\sum_{n=1}^{N_exc} \frac{f_n}{(ω+iη)² - (Ω^n)²}}"
          WRITE (unit_nr, '(T2,A4)') 'BSE|'
-         WRITE (unit_nr, '(T2,A4,T7,A59)') &
-            'BSE|', "with oscillator strengths f_n and excitation energies Ω^n."
+         WRITE (unit_nr, '(T2,A4,T7,A)') &
+            'BSE|', "or for the full polarizability tensor:"
+         WRITE (unit_nr, '(T2,A4,T10,A)') &
+            'BSE|', "α_{µ µ'}(ω) =  \sum_n [2 Ω^n d_µ^n d_µ'^n] / [(ω+iη)²- (Ω^n)²]"
+         WRITE (unit_nr, '(T2,A4)') 'BSE|'
+         WRITE (unit_nr, '(T2,A4,T7,A)') &
+            'BSE|', "with transition moments d_µ^n, oscillator strengths f_n,"
+         WRITE (unit_nr, '(T2,A4,T7,A)') &
+            'BSE|', "and excitation energies Ω^n."
          WRITE (unit_nr, '(T2,A4)') 'BSE|'
       END IF
 
@@ -413,28 +423,69 @@ CONTAINS
 
       ! Print some information about the NTOs
       IF (unit_nr > 0) THEN
-         WRITE (unit_nr, '(T2,A4,T7,A62)') 'BSE|', "The Natural Transition Orbitals (NTOs) are calculated with the"
-         WRITE (unit_nr, '(T2,A4,T7,A19)') 'BSE|', "following settings:"
-         WRITE (unit_nr, '(T2,A4,T7,A21,T71,I10)') 'BSE|', 'Number of excitations', &
-            mp2_env%bse%num_print_exc_ntos
+         WRITE (unit_nr, '(T2,A4,T7,A)') 'BSE|', &
+            'The Natural Transition Orbital (NTO) pairs φ_I(r_e) and χ_I(r_h) for a fixed'
+         WRITE (unit_nr, '(T2,A4,T7,A)') 'BSE|', &
+            'excitation index n are obtained by singular value decomposition of T'
          WRITE (unit_nr, '(T2,A4)') 'BSE|'
+         WRITE (unit_nr, '(T2,A4,T15,A)') 'BSE|', &
+            '        = (0   X)'
+         IF (PRESENT(fm_Y)) THEN
+            WRITE (unit_nr, '(T2,A4,T15,A)') 'BSE|', &
+               'T       = (Y^T 0)'
+         ELSE
+            WRITE (unit_nr, '(T2,A4,T15,A)') 'BSE|', &
+               'T       = (0   0)'
+         END IF
+         WRITE (unit_nr, '(T2,A4)') 'BSE|'
+         WRITE (unit_nr, '(T2,A4,T15,A)') 'BSE|', &
+            'T        = U Λ V^T'
+         WRITE (unit_nr, '(T2,A4,T15,A)') 'BSE|', &
+            'φ_I(r_e) = \sum_p V_pI ψ_p(r_e)'
+         WRITE (unit_nr, '(T2,A4,T15,A)') 'BSE|', &
+            'χ_I(r_h) = \sum_p U_pI ψ_p(r_e)'
+         WRITE (unit_nr, '(T2,A4)') 'BSE|'
+         WRITE (unit_nr, '(T2,A4,T7,A)') 'BSE|', &
+            'where we have introduced'
+         WRITE (unit_nr, '(T2,A4)') 'BSE|'
+         WRITE (unit_nr, '(T2,A4,T7,A,T20,A)') &
+            'BSE|', "ψ_p:", "occupied and virtual molecular orbitals,"
+         WRITE (unit_nr, '(T2,A4,T7,A,T20,A)') &
+            'BSE|', "φ_I(r_e):", "NTO state for the electron,"
+         WRITE (unit_nr, '(T2,A4,T7,A,T20,A)') &
+            'BSE|', "χ_I(r_h):", "NTO state for the hole,"
+         WRITE (unit_nr, '(T2,A4,T7,A,T20,A)') &
+            'BSE|', "Λ:", "diagonal matrix of NTO weights λ_I,"
+         WRITE (unit_nr, '(T2,A4)') 'BSE|'
+         WRITE (unit_nr, '(T2,A4,T7,A)') 'BSE|', &
+            "The NTOs are calculated with the following settings:"
+         WRITE (unit_nr, '(T2,A4)') 'BSE|'
+         WRITE (unit_nr, '(T2,A4,T7,A,T71,I10)') 'BSE|', 'Number of excitations, for which NTOs are computed', &
+            mp2_env%bse%num_print_exc_ntos
          IF (mp2_env%bse%eps_nto_osc_str > 0.0_dp) THEN
-            WRITE (unit_nr, '(T2,A4,T7,A33,T71,F10.3)') 'BSE|', 'Threshold for oscillator strength', &
+            WRITE (unit_nr, '(T2,A4,T7,A,T71,F10.3)') 'BSE|', 'Threshold for oscillator strength f^n', &
                mp2_env%bse%eps_nto_osc_str
          ELSE
-            WRITE (unit_nr, '(T2,A4,T7,A33,T71,A10)') 'BSE|', 'Threshold for oscillator strength', &
+            WRITE (unit_nr, '(T2,A4,T7,A,T71,A10)') 'BSE|', 'Threshold for oscillator strength f^n', &
                ADJUSTL("---")
          END IF
-         WRITE (unit_nr, '(T2,A4,T7,A29,T71,F10.3)') 'BSE|', 'Threshold for NTO eigenvalues', &
+         WRITE (unit_nr, '(T2,A4,T7,A,T72,F10.3)') 'BSE|', 'Threshold for NTO weights (λ_I)^2', &
             mp2_env%bse%eps_nto_eigval
-         WRITE (unit_nr, '(T2,A4)') 'BSE|'
       END IF
 
       ! Write the header of NTO info table
       IF (unit_nr > 0) THEN
          WRITE (unit_nr, '(T2,A4)') 'BSE|'
-         WRITE (unit_nr, '(T2,A4,T8,A12,T22,A8,T35,A12,T55,A26)') 'BSE|', &
-            'Excitation n', "TDA/ABBA", "Index of NTO", 'Contribution to excitation'
+            IF (.NOT. PRESENT(fm_Y)) THEN
+               WRITE (unit_nr, '(T2,A4,T7,A)') 'BSE|', &
+                  'NTOs from solving the BSE within the TDA:'
+            ELSE
+               WRITE (unit_nr, '(T2,A4,T7,A)') 'BSE|', &
+                  'NTOs from solving the BSE without the TDA:'
+            END IF
+         WRITE (unit_nr, '(T2,A4)') 'BSE|'
+         WRITE (unit_nr, '(T2,A4,T8,A12,T22,A8,T33,A14,T62,A)') 'BSE|', &
+            'Excitation n', "TDA/ABBA", "Index of NTO I", 'NTO weights (λ_I)^2'
       END IF
 
       DO j = 1, mp2_env%bse%num_print_exc_ntos
@@ -514,7 +565,7 @@ CONTAINS
             ! Rescale singular values as done in Martin2003 (10.1063/1.1558471)
             ALLOCATE (eigval_svd_squ(nao_trunc))
             eigval_svd_squ(:) = eigval_svd(:)**2
-            ! In case of TDA, the sum should be 1
+            ! Sanity check for TDA: In case of TDA, the sum should be \sum_ia |X_ia|^2 = 1
             IF (.NOT. PRESENT(fm_Y)) THEN
                IF (ABS(SUM(eigval_svd_squ) - 1) >= 1e-5) THEN
                   CPWARN("Sum of NTO coefficients deviates from 1!")
