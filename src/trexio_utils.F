@@ -78,7 +78,9 @@ MODULE trexio_utils
                      trexio_write_mo_num, trexio_write_mo_energy, &
                      trexio_write_mo_occupation, trexio_write_mo_spin, &
                      trexio_write_mo_class, trexio_write_mo_coefficient, &
-                     trexio_write_mo_coefficient_im, trexio_write_mo_k_point
+                     trexio_write_mo_coefficient_im, trexio_write_mo_k_point, &
+                     trexio_write_rdm_1e, trexio_write_rdm_1e_up, &
+                     trexio_write_rdm_1e_dn
 #endif
 #include "./base/base_uses.f90"
 
@@ -139,7 +141,7 @@ CONTAINS
                                                             sl_lmax, ecp_num, nloc, nsemiloc, sl_l, iecp, &
                                                             igf, icgf, ncgf, ngf_shell, lshell, ao_num, nmo, &
                                                             mo_num, ispin, ikp, imo, ikp_loc, nsgf, &
-                                                            i, k, l, m
+                                                            i, k, l, m, nmo_min
       INTEGER, DIMENSION(2)                              :: nel_spin, kp_range, nmo_spin
       INTEGER, DIMENSION(3)                              :: nkp_grid
       INTEGER, DIMENSION(0:10)                           :: npot
@@ -155,6 +157,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE        :: coord, mo_coefficient, mo_coefficient_im, &
                                                             mos_sgf, diag_nsgf, diag_ncgf, temp
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: zetas => Null()
+      REAL(KIND=dp), DIMENSION(:, :, :), ALLOCATABLE     :: D_mo
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: gcc => Null()
 #endif
 
@@ -939,6 +942,46 @@ CONTAINS
          CALL cp_fm_release(fm_mo_coeff)
          CALL cp_fm_release(fm_mo_coeff_im)
       END IF
+
+      !========================================================================================!
+      ! RDM group
+      !========================================================================================!
+      CALL get_qs_env(qs_env, mos=mos)
+
+      ! find smallest number of MOs from both channels
+      CALL get_mo_set(mos(1), nmo=nmo_min)
+      DO ispin = 1, nspins
+         CALL get_mo_set(mos(ispin), nmo=nmo)
+         nmo_min = MIN(nmo_min, nmo)
+      END DO
+
+      ALLOCATE (D_mo(nmo_min, nmo_min, 2))
+      D_mo(:, :, :) = 0.0_dp
+      ! D_mo is simply the occupation of the MOs on the diagonal
+      IF (nspins == 1) THEN
+         DO i = 1, nmo_min
+           D_mo(i, i, 1) = mos(1)%occupation_numbers(i)/2
+           D_mo(i, i, 2) = mos(1)%occupation_numbers(i)/2
+         END DO
+      ELSE
+         DO i = 1, nmo_min
+           D_mo(i, i, 1) = mos(1)%occupation_numbers(i)
+           D_mo(i, i, 2) = mos(2)%occupation_numbers(i)
+         END DO
+      END IF
+
+      IF (ionode) THEN
+        rc = trexio_write_rdm_1e_up(f, D_mo(:, :, 1))
+        CALL trexio_error(rc)
+
+        rc = trexio_write_rdm_1e_dn(f, D_mo(:, :, 2))
+        CALL trexio_error(rc)
+
+        rc = trexio_write_rdm_1e(f, D_mo(:, :, 1) + D_mo(:, :, 2))
+        CALL trexio_error(rc)
+      END IF
+
+      DEALLOCATE (D_mo)
 
       !========================================================================================!
       ! Close the TREXIO file
