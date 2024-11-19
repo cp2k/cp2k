@@ -708,7 +708,7 @@ CONTAINS
          CALL cp_fm_release(fm_dipole_ij_trunc(idir))
          CALL cp_fm_release(fm_dipole_ab_trunc(idir))
       END DO
-      IF (flag_TDA .AND. mp2_env%bse%num_print_exc_descr > 0) THEN
+      IF (mp2_env%bse%num_print_exc_descr > 0) THEN
          DO idir = 1, n_moments_quad
             CALL cp_fm_release(fm_quadpole_ai_trunc(idir))
             CALL cp_fm_release(fm_quadpole_ij_trunc(idir))

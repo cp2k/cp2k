@@ -649,6 +649,7 @@ CONTAINS
       CALL cp_fm_struct_release(fm_struct_m)
       CALL cp_fm_struct_release(fm_struct_nto_holes)
       CALL cp_fm_struct_release(fm_struct_nto_particles)
+      CALL cp_fm_struct_release(fm_struct_mo_coeff)
 
       CALL timestop(handle)
 
