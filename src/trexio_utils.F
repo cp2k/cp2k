@@ -35,7 +35,7 @@ MODULE trexio_utils
    USE kinds, ONLY: default_path_length, dp
    USE kpoint_types, ONLY: kpoint_type, kpoint_env_p_type, &
                            get_kpoint_info, get_kpoint_env
-   USE mathconstants, ONLY: fourpi
+   USE mathconstants, ONLY: fourpi, pi
    USE message_passing, ONLY: mp_para_env_type
    USE orbital_pointers, ONLY: nco, nso
    USE orbital_transformation_matrices, ONLY: orbtramat
@@ -80,7 +80,7 @@ MODULE trexio_utils
                      trexio_write_mo_class, trexio_write_mo_coefficient, &
                      trexio_write_mo_coefficient_im, trexio_write_mo_k_point, &
                      trexio_write_rdm_1e, trexio_write_rdm_1e_up, &
-                     trexio_write_rdm_1e_dn
+                     trexio_write_rdm_1e_dn, trexio_write_mo_type
 #endif
 #include "./base/base_uses.f90"
 
@@ -115,7 +115,7 @@ CONTAINS
       LOGICAL                                            :: explicit, do_kpoints, ecp_semi_local, &
                                                             ecp_local, sgp_potential_present, ionode, &
                                                             use_real_wfn, save_cartesian
-      REAL(KIND=dp)                                      :: e_nn, zeff
+      REAL(KIND=dp)                                      :: e_nn, zeff, expzet, prefac, zeta, gcca
       TYPE(cell_type), POINTER                           :: cell => Null()
       TYPE(cp_logger_type), POINTER                      :: logger => Null()
       TYPE(dft_control_type), POINTER                    :: dft_control => Null()
@@ -363,6 +363,7 @@ CONTAINS
       ALLOCATE (shell_index(prim_num))    ! ...indices of primitive functions
       ALLOCATE (exponents(prim_num))      ! ...primitive exponents
       ALLOCATE (coefficients(prim_num))   ! ...contraction coefficients
+      ALLOCATE (prim_factor(prim_num))    ! ...primitive normalization factors
 
       ishell = 0
       ipgf = 0
@@ -388,7 +389,8 @@ CONTAINS
                nucleus_index(ishell) = iatom
 
                ! shell_ang_mom array
-               shell_ang_mom(ishell) = l_shell_set(ishell_loc, iset)
+               l = l_shell_set(ishell_loc, iset)
+               shell_ang_mom(ishell) = l
 
                ! shell_index array
                shell_index(ipgf + 1:ipgf + npgf(iset)) = ishell
@@ -397,7 +399,18 @@ CONTAINS
                exponents(ipgf + 1:ipgf + npgf(iset)) = zetas(1:npgf(iset), iset)
 
                ! coefficients array
-               coefficients(ipgf + 1:ipgf + npgf(iset)) = gcc(1:npgf(iset), ishell_loc, iset)
+               ! coefficients(ipgf + 1:ipgf + npgf(iset)) = gcc(1:npgf(iset), ishell_loc, iset)
+
+               expzet = 0.25_dp*REAL(2*l + 3, dp)
+               prefac = 2.0_dp**l*(2.0_dp/pi)**0.75_dp
+               DO i= 1, npgf(iset)
+                  gcca = gcc(i, ishell_loc, iset)
+                  zeta = zetas(i, iset)
+
+                  prim_factor(i + ipgf) = prefac*zeta**expzet
+                  coefficients(i + ipgf) = gcca/prim_factor(i + ipgf)
+
+               END DO
 
                ipgf = ipgf + npgf(iset)
             END DO
@@ -438,17 +451,18 @@ CONTAINS
          CALL trexio_error(rc)
 
          ! Normalization factors are shoved in the AO group
-         ALLOCATE (prim_factor(prim_num))
-         prim_factor(:) = 1.0_dp
+         ! ALLOCATE (prim_factor(prim_num))
+         ! prim_factor(:) = 1.0_dp
          rc = trexio_write_basis_prim_factor(f, prim_factor)
          CALL trexio_error(rc)
-         DEALLOCATE (prim_factor)
+         ! DEALLOCATE (prim_factor)
       END IF
 
       DEALLOCATE (nucleus_index)
       DEALLOCATE (shell_index)
       DEALLOCATE (exponents)
       DEALLOCATE (coefficients)
+      DEALLOCATE (prim_factor)
       ! shell_ang_mom is needed in the MO group, so will be deallocated there
 
       IF (ionode) THEN
@@ -907,6 +921,9 @@ CONTAINS
       END DO
 
       IF (ionode) THEN
+         rc = trexio_write_mo_type(f, 'Canonical', LEN_TRIM('Canonical') + 1)
+         CALL trexio_error(rc)
+
          rc = trexio_write_mo_num(f, mo_num)
          CALL trexio_error(rc)
 
@@ -946,42 +963,45 @@ CONTAINS
       !========================================================================================!
       ! RDM group
       !========================================================================================!
-      CALL get_qs_env(qs_env, mos=mos)
+      ! TODO: implement this also for k-points
+      IF (.NOT. do_kpoints) THEN
+         CALL get_qs_env(qs_env, mos=mos)
 
-      ! find smallest number of MOs from both channels
-      CALL get_mo_set(mos(1), nmo=nmo_min)
-      DO ispin = 1, nspins
-         CALL get_mo_set(mos(ispin), nmo=nmo)
-         nmo_min = MIN(nmo_min, nmo)
-      END DO
-
-      ALLOCATE (D_mo(nmo_min, nmo_min, 2))
-      D_mo(:, :, :) = 0.0_dp
-      ! D_mo is simply the occupation of the MOs on the diagonal
-      IF (nspins == 1) THEN
-         DO i = 1, nmo_min
-           D_mo(i, i, 1) = mos(1)%occupation_numbers(i)/2
-           D_mo(i, i, 2) = mos(1)%occupation_numbers(i)/2
+         ! find smallest number of MOs from both channels
+         CALL get_mo_set(mos(1), nmo=nmo_min)
+         DO ispin = 1, nspins
+            CALL get_mo_set(mos(ispin), nmo=nmo)
+            nmo_min = MIN(nmo_min, nmo)
          END DO
-      ELSE
-         DO i = 1, nmo_min
-           D_mo(i, i, 1) = mos(1)%occupation_numbers(i)
-           D_mo(i, i, 2) = mos(2)%occupation_numbers(i)
-         END DO
+
+         ALLOCATE (D_mo(nmo_min, nmo_min, 2))
+         D_mo(:, :, :) = 0.0_dp
+         ! D_mo is simply the occupation of the MOs on the diagonal
+         IF (nspins == 1) THEN
+            DO i = 1, nmo_min
+              D_mo(i, i, 1) = mos(1)%occupation_numbers(i)/2
+              D_mo(i, i, 2) = mos(1)%occupation_numbers(i)/2
+            END DO
+         ELSE
+            DO i = 1, nmo_min
+              D_mo(i, i, 1) = mos(1)%occupation_numbers(i)
+              D_mo(i, i, 2) = mos(2)%occupation_numbers(i)
+            END DO
+         END IF
+
+         IF (ionode) THEN
+           rc = trexio_write_rdm_1e_up(f, D_mo(:, :, 1))
+           CALL trexio_error(rc)
+
+           rc = trexio_write_rdm_1e_dn(f, D_mo(:, :, 2))
+           CALL trexio_error(rc)
+
+           rc = trexio_write_rdm_1e(f, D_mo(:, :, 1) + D_mo(:, :, 2))
+           CALL trexio_error(rc)
+         END IF
+
+         DEALLOCATE (D_mo)
       END IF
-
-      IF (ionode) THEN
-        rc = trexio_write_rdm_1e_up(f, D_mo(:, :, 1))
-        CALL trexio_error(rc)
-
-        rc = trexio_write_rdm_1e_dn(f, D_mo(:, :, 2))
-        CALL trexio_error(rc)
-
-        rc = trexio_write_rdm_1e(f, D_mo(:, :, 1) + D_mo(:, :, 2))
-        CALL trexio_error(rc)
-      END IF
-
-      DEALLOCATE (D_mo)
 
       !========================================================================================!
       ! Close the TREXIO file
