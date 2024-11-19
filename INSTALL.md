@@ -477,6 +477,17 @@ DeePMD-kit - Deep Potential Molecular Dynamics. Support for DeePMD-kit can be en
   <https://docs.deepmodeling.com/projects/deepmd/en/master/install/install-from-c-library.html>
 - For more information see <https://github.com/deepmodeling/deepmd-kit.git>.
 
+### 2y. ACE (optional, atomic cluster expansion ML potentials)
+
+Atomic cluster expansion for accurate and transferable interatomic potentials support can be enabled
+via the flag `-D__ACE`.
+
+- the library files can be downloaded from <https://github.com/ICAMS/lammps-user-pace>
+- use cmake/make to compile. There is no install, just ensure that the cp2k build process links in
+  all three libraries (libpace, libyaml-cpp-pace and libcnpy). Access to ML-PACE/ace
+  ML-PACE/ace-evaluator and yaml-cpp/include from the library is also needed (see toolchain for
+  example).
+
 ### 2z. DFTD4 (optional, dispersion correction)
 
 - dftd4 - Generally Applicable Atomic-Charge Dependent London Dispersion Correction.

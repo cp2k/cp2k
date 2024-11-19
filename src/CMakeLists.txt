@@ -28,6 +28,8 @@ configure_file(base/base_uses.f90 base/base_uses.f90 @ONLY)
 list(
   APPEND
   CP2K_SRCS_F
+  ace_nlist.F
+  ace_wrapper.F
   admm_dm_methods.F
   admm_dm_types.F
   admm_methods.F
@@ -346,6 +348,7 @@ list(
   manybody_quip.F
   manybody_siepmann.F
   manybody_tersoff.F
+  manybody_ace.F
   mao_basis.F
   mao_methods.F
   mao_optimizer.F
@@ -1443,7 +1446,7 @@ set(CP2K_GRPP_SRCS_F grpp/libgrpp.F)
 set(CP2K_FPGA_SRC_C pw/fpga/fft_fpga.c pw/fpga/opencl_utils.c)
 set(CP2K_PW_SRCS_C pw/gpu/pw_gpu_internal.c)
 set(CP2K_OFFLOAD_SRCS_C offload/offload_buffer.c offload/offload_library.c)
-set(CP2K_SRCS_CPP torch_c_api.cpp)
+set(CP2K_SRCS_CPP torch_c_api.cpp ace_c_api.cpp)
 
 list(APPEND CP2K_SRCS_C "${CP2K_OFFLOAD_SRCS_C}")
 

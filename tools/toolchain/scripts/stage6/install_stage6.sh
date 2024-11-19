@@ -7,5 +7,6 @@
 ./scripts/stage6/install_plumed.sh
 ./scripts/stage6/install_libtorch.sh
 ./scripts/stage6/install_deepmd.sh
+./scripts/stage6/install_ace.sh
 
 #EOF

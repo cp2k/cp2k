@@ -9,4 +9,5 @@ nequip
 nnp
 pao-ml
 deepmd
+ace
 ```

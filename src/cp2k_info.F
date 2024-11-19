@@ -140,6 +140,10 @@ CONTAINS
       flags = TRIM(flags)//" patched_cufft_70"
 #endif
 
+#if defined(__ACE)
+      flags = TRIM(flags)//" ace"
+#endif
+
 #if defined(__DEEPMD)
       flags = TRIM(flags)//" deepmd"
 #endif
