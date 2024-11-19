@@ -96,6 +96,7 @@ proprietary software packages, like e.g. MKL, these have to be installed separat
 
 | Package   | License                                                                            | GPL Compatible                                                                   |
 | --------- | ---------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| ace       | [GPL](https://github.com/ICAMS/lammps-user-pace/blob/main/LICENSE)                 | Yes                                                                              |
 | cmake     | [BSD 3-Clause](https://gitlab.kitware.com/cmake/cmake/raw/master/Copyright.txt)    | Yes                                                                              |
 | cosma     | [BSD 3-Clause](https://github.com/eth-cscs/COSMA/blob/master/LICENCE)              | Yes                                                                              |
 | deepmd    | [LGPL](https://github.com/deepmodeling/deepmd-kit/blob/master/LICENSE)             | Yes                                                                              |

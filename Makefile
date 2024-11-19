@@ -98,6 +98,8 @@ endif
 
 # Begrudgingly tolerated because PyTorch has no C API.
 OBJ_SRC_FILES += $(SRCDIR)/torch_c_api.cpp
+#same as PyTorch
+OBJ_SRC_FILES += $(SRCDIR)/ace_c_api.cpp
 
 # Included files used by Fypp preprocessor
 INCLUDED_SRC_FILES = $(notdir $(shell find $(SRCDIR) -name "*.fypp"))
@@ -532,6 +534,9 @@ FYPPFLAGS ?= -n
 
 # Begrudgingly tolerated because PyTorch has no C API.
 torch_c_api.o: torch_c_api.cpp
+	$(CXX) -c $(CXXFLAGS) $<
+# same as PyTorch
+ace_c_api.o: ace_c_api.cpp
 	$(CXX) -c $(CXXFLAGS) $<
 
 ifneq ($(LIBDIR),)

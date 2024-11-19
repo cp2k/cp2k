@@ -208,6 +208,9 @@ def process_file(fn: str, allow_modifications: bool) -> None:
         if fn.endswith("/torch_c_api.cpp"):
             # Begrudgingly tolerated because PyTorch has no C API.
             run_remote_tool("clangformat", fn)
+        elif fn.endswith("/ace_c_api.cpp"):
+            # same as PyTorch
+            run_remote_tool("clangformat", fn)
         else:
             raise Exception(f"C++ is not supported.")
 
