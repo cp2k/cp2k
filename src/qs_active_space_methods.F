@@ -54,9 +54,9 @@ MODULE qs_active_space_methods
       dbcsr_iterator_type, dbcsr_type_symmetric, dbcsr_get_occupation, dbcsr_get_info
    USE group_dist_types, ONLY: get_group_dist, release_group_dist, group_dist_d1_type
    USE input_constants, ONLY: &
-      casci_canonical, dmft_model, eri_method_full_gpw, eri_method_gpw_ht, eri_operator_coulomb, &
+      casci_canonical, eri_method_full_gpw, eri_method_gpw_ht, eri_operator_coulomb, &
       eri_operator_erf, eri_operator_erfc, eri_operator_gaussian, eri_operator_yukawa, eri_operator_trunc, &
-      hf_model, manual_selection, mao_projection, no_solver, qiskit_solver, rsdft_model, wannier_projection, &
+      manual_selection, mao_projection, no_solver, qiskit_solver, wannier_projection, &
       eri_poisson_analytic, eri_poisson_periodic, eri_poisson_mt
    USE input_section_types, ONLY: section_vals_get, section_vals_get_subs_vals, &
                                   section_vals_set_subs_vals, section_vals_type, &

@@ -44,7 +44,7 @@ MODULE input_cp2k_print_dft
       cdft_alpha_constraint, cdft_beta_constraint, cdft_charge_constraint, &
       cdft_magnetization_constraint, cholesky_dbcsr, cholesky_inverse, cholesky_off, &
       cholesky_reduce, cholesky_restore, core_guess, diag_block_davidson, diag_block_krylov, &
-      diag_filter_matrix, diag_ot, diag_standard, dmft_model, do_admm_aux_exch_func_bee, &
+      diag_filter_matrix, diag_ot, diag_standard, do_admm_aux_exch_func_bee, &
       do_admm_aux_exch_func_bee_libxc, do_admm_aux_exch_func_default, &
       do_admm_aux_exch_func_default_libxc, do_admm_aux_exch_func_none, &
       do_admm_aux_exch_func_opt, do_admm_aux_exch_func_opt_libxc, do_admm_aux_exch_func_pbex, &
@@ -71,7 +71,7 @@ MODULE input_cp2k_print_dft
       eri_method_gpw_ht, eri_operator_trunc, eri_operator_coulomb, eri_operator_erf, eri_operator_erfc, &
       eri_operator_gaussian, eri_operator_yukawa, gapw_1c_large, gapw_1c_medium, gapw_1c_orb, &
       gapw_1c_small, gapw_1c_very_large, gaussian, general_roks, gto_cartesian, gto_spherical, &
-      hf_model, high_spin_roks, history_guess, jacobian_fd1, jacobian_fd1_backward, &
+      high_spin_roks, history_guess, jacobian_fd1, jacobian_fd1_backward, &
       jacobian_fd1_central, jacobian_fd2, jacobian_fd2_backward, kg_color_dsatur, &
       kg_color_greedy, kg_tnadd_atomic, kg_tnadd_embed, kg_tnadd_embed_ri, kg_tnadd_none, &
       ls_2pnt, ls_3pnt, ls_gold, ls_none, manual_selection, mao_basis_ext, mao_basis_orb, &
@@ -91,7 +91,7 @@ MODULE input_cp2k_print_dft
       qiskit_solver, radius_covalent, radius_default, radius_single, radius_user, radius_vdw, &
       random_guess, real_time_propagation, ref_charge_atomic, ref_charge_mulliken, rel_dkh, &
       rel_none, rel_pot_erfc, rel_pot_full, rel_sczora_mp, rel_trans_atom, rel_trans_full, &
-      rel_trans_molecule, rel_zora, rel_zora_full, rel_zora_mp, restart_guess, rsdft_model, &
+      rel_trans_molecule, rel_zora, rel_zora_full, rel_zora_mp, restart_guess, &
       sccs_andreussi, sccs_derivative_cd3, sccs_derivative_cd5, sccs_derivative_cd7, &
       sccs_derivative_fft, sccs_fattebert_gygi, shape_function_density, shape_function_gaussian, &
       sic_ad, sic_eo, sic_list_all, sic_list_unpaired, sic_mauri_spz, sic_mauri_us, sic_none, &

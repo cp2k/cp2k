@@ -20,10 +20,10 @@ MODULE input_cp2k_as
                                               medium_print_level,&
                                               silent_print_level
    USE input_constants,                 ONLY: &
-        casci_canonical, dmft_model, eri_method_full_gpw, eri_method_gpw_ht, eri_operator_coulomb, &
+        casci_canonical, eri_method_full_gpw, eri_method_gpw_ht, eri_operator_coulomb, &
         eri_operator_erf, eri_operator_erfc, eri_operator_gaussian, eri_operator_trunc, &
-        eri_operator_yukawa, gaussian, hf_model, manual_selection, mao_projection, no_solver, &
-        qiskit_solver, rsdft_model, wannier_projection
+        eri_operator_yukawa, gaussian, manual_selection, mao_projection, no_solver, &
+        qiskit_solver, wannier_projection
    USE input_cp2k_loc,                  ONLY: create_localize_section
    USE input_keyword_types,             ONLY: keyword_create,&
                                               keyword_release,&
@@ -79,18 +79,6 @@ CONTAINS
                           usage="&ACTIVE_SPACE ON", &
                           default_l_val=.FALSE., &
                           lone_keyword_l_val=.TRUE.)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="MODEL", &
-                          description="Model used to calculate active space interaction Hamiltonian.", &
-                          usage="MODEL HARTREE-FOCK", &
-                          default_i_val=hf_model, &
-                          enum_c_vals=s2a("HARTREE-FOCK", "RSDFT", "DMFT"), &
-                          enum_i_vals=(/hf_model, rsdft_model, dmft_model/), &
-                          enum_desc=s2a("Hartree-Fock model for interaction Hamiltonian", &
-                                        "Range-separated DFT model for interaction Hamiltonian", &
-                                        "DMFT model Hamiltonian"))
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
