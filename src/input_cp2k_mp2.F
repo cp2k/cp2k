@@ -1396,6 +1396,13 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="PRINT_DIRECTIONAL_EXC_DESCR", &
+                          description="Activates printing of exciton descriptors per direction.", &
+                          usage="&PRINT_DIRECTIONAL_EXC_DESCR .TRUE.", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       CALL keyword_create(keyword, __LOCATION__, name="EPS_X", &
                           description="Threshold for printing contributions of singleparticle "// &
                           "transitions, i.e. elements of the eigenvectors $X_{ia}^{(n)}$ and $Y_{ia}^{(n)}$.", &
@@ -1429,20 +1436,20 @@ CONTAINS
       CPASSERT(.NOT. ASSOCIATED(print_key))
 
       CALL cp_print_key_section_create(print_key, __LOCATION__, name="NTO_ANALYSIS", &
-         description="Perform a natural transition orbital analysis, i.e. the transition density matrix " // &
-            "$T^{(n)}=\left( \begin{array}{cc}0& {X}^{(n)}\\ \left({Y}^{(n)} \right)^T & 0\end{array} \right)$ " // &
-            "is decomposed into its singular values " // &
-            "$T^{(n)} = {U}^{(n)} {\Lambda^{(n)}} \left({V}^{(n)}\right)^T$" // &
-            "in order to compute the NTO pairs " // &
-    "$\phi_I^{(n)}(\mathbf{r}_e) = \sum_{p=1}^{N_b} \varphi_p(\mathbf{r}_e) V_{p,I}^{(n)}$ for the electron and " // &
-    "$\chi_I^{(n)}(\mathbf{r}_h) = \sum_{q=1}^{N_b} \varphi_q(\mathbf{r}_h) U_{q,I}^{(n)}$ for the hole.", &
-         print_level=debug_print_level + 1, &  ! Corresponds to "off" as default behavior
-         filename="BSE-NTO_ANALYSIS")        ! All other print levels will trigger the analysis
+                                description="Perform a natural transition orbital analysis, i.e. the transition density matrix "// &
+                            "$T^{(n)}=\left( \begin{array}{cc}0& {X}^{(n)}\\ \left({Y}^{(n)} \right)^T & 0\end{array} \right)$ "// &
+                                       "is decomposed into its singular values "// &
+                                       "$T^{(n)} = {U}^{(n)} {\Lambda^{(n)}} \left({V}^{(n)}\right)^T$ "// &
+                                       "in order to compute the NTO pairs "// &
+                   "$\phi_I^{(n)}(\mathbf{r}_e) = \sum_{p=1}^{N_b} \varphi_p(\mathbf{r}_e) V_{p,I}^{(n)}$ for the electron and "// &
+                            "$\chi_I^{(n)}(\mathbf{r}_h) = \sum_{q=1}^{N_b} \varphi_q(\mathbf{r}_h) U_{q,I}^{(n)}$ for the hole.", &
+                                       print_level=debug_print_level + 1, &  ! Corresponds to "off" as default behavior
+                                       filename="BSE-NTO_ANALYSIS")        ! All other print levels will trigger the analysis
       ! cf. input/cp_output_handling.F:cp_print_key_section_create
 
       NULLIFY (keyword)
       CALL keyword_create(keyword, __LOCATION__, name="EPS_NTO_EIGVAL", &
-                          description="Threshold for NTO eigenvalues, i.e. only " // &
+                          description="Threshold for NTO eigenvalues, i.e. only "// &
                           "${\left(\lambda_I^{(n)}\right)}^2$ > EPS_NTO_EIGVAL are considered.", &
                           usage="EPS_NTO_EIGVAL 0.01", &
                           n_var=1, &

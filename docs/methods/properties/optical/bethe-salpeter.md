@@ -12,7 +12,8 @@ input file of a BSE calculation and the corresponding output. For reviews on BSE
 
 ### 1.1 Electronic excitation energies and the excitation wave function
 
-A central goal of a BSE calculation is to compute excited state properties such as the electronic excitation energies $\Omega^{(n)} (n=1,2,\ldots)$.
+A central goal of a BSE calculation is to compute excited state properties such as the electronic
+excitation energies $\Omega^{(n)} (n=1,2,\ldots)$.
 
 The following ingredients are necessary for such a computation:
 
@@ -21,12 +22,12 @@ The following ingredients are necessary for such a computation:
   $a=N_\mathrm{occ}+1,\ldots,N_\mathrm{occ}+N_\mathrm{empty}$,
 - *GW* eigenvalues $\varepsilon_i^{GW}$ and $\varepsilon_a^{GW}$ of corresponding KS orbitals.
 
-It is possible to use *G*<sub>0</sub>*W*<sub>0 </sub>, ev*GW*<sub>0</sub> or ev*GW*
-eigenvalues, see details in [GW] and in Ref. \[[](#Golze2019)\], i.e. we perform BSE@*G* <sub>0
-</sub>*W*<sub>0</sub>/ev*GW*<sub>0</sub>/ev*GW*@DFT. Thus, also input parameters for a DFT and
-*GW* calculation influence the BSE calculation (see full input in Sec. [3.1](#header-input-file)).
-We obtain the properties of the excited states from the BSE by solving the following generalized eigenvalue problem
-that involves the block matrix $ABBA$:
+It is possible to use *G*<sub>0</sub>*W*<sub>0 </sub>, ev*GW*<sub>0</sub> or ev*GW* eigenvalues, see
+details in [GW] and in Ref. \[[](#Golze2019)\], i.e. we perform BSE@*G* <sub>0
+</sub>*W*<sub>0</sub>/ev*GW*<sub>0</sub>/ev*GW*@DFT. Thus, also input parameters for a DFT and *GW*
+calculation influence the BSE calculation (see full input in Sec. [3.1](#header-input-file)). We
+obtain the properties of the excited states from the BSE by solving the following generalized
+eigenvalue problem that involves the block matrix $ABBA$:
 
 $$
 \left( \begin{array}{cc}A &  B\\B &  A\end{array} \right)\left( \begin{array}{cc}\mathbf{X}^{(n)}\\\mathbf{Y}^{(n)}\end{array} \right) = \Omega^{(n)}\left(\begin{array}{cc}1&0\\0&-1\end{array}\right)\left(\begin{array}{cc}\mathbf{X}^{(n)}\\\mathbf{Y}^{(n)}\end{array}\right) \quad .
@@ -50,7 +51,8 @@ interaction and $W_{pq,rs}(\omega=0)$ the statically ($\omega=0$) screened Coulo
 where $p,q,r,s \in [ 1, N_\mathrm{occ}+N_\mathrm{empty}]$ are KS orbital indices. Note here, that
 the screened Coulomb interaction is always computed from DFT quantitites, i.e. $W_{0}(\omega=0)$
 enters the BSE. $(\mathbf{X}^{(n)},\mathbf{Y}^{(n)})$ with elements $X_{ia}^{(n)}$ and
-$Y_{ia}^{(n)}$ are the eigenvectors of the excitation $n$, which relate to the wave function of the electronic excitation \[[](#Blase2020)\], 
+$Y_{ia}^{(n)}$ are the eigenvectors of the excitation $n$, which relate to the wave function of the
+electronic excitation \[[](#Blase2020)\],
 
 $$
 \begin{align}
@@ -61,9 +63,9 @@ $$
 i.e. $X_{ia}^{(n)}$ and $Y_{ia}^{(n)}$ describe the transition amplitude between occupied orbital
 $\varphi_i$ and empty orbital $\varphi_a$ of the $n$-th excitation.
 
-
-The Tamm-Dancoff approximation (TDA) is also implemented, which constrains $B=0$ and $\mathbf{Y}^{(n)}=0$. In TDA, $\Omega^{(n)}_\mathrm{TDA}$ and $\mathbf{X}^{(n)}_\mathrm{TDA}$
-can be computed from the Hermitian eigenvalue problem
+The Tamm-Dancoff approximation (TDA) is also implemented, which constrains $B=0$ and
+$\mathbf{Y}^{(n)}=0$. In TDA, $\Omega^{(n)}_\mathrm{TDA}$ and $\mathbf{X}^{(n)}_\mathrm{TDA}$ can be
+computed from the Hermitian eigenvalue problem
 
 $$
 A \mathbf{X}^{(n)}_\mathrm{TDA} = \Omega^{(n)}_\mathrm{TDA} \mathbf{X}^{(n)}_\mathrm{TDA} \quad .
@@ -75,9 +77,9 @@ scaling of $O(N^6)$ in the system size $N$.
 
 ### 1.2 Optical properties
 
-The BSE further allows the investigation of optical properties.
-For example, the optical absorption spectrum can be computed as the imaginary part of the dynamical dipole
-polarizability tensor $\alpha_{\mu,\mu'}(\omega) $ with $(\mu,\mu'\in\{x,y,z\})$:
+The BSE further allows the investigation of optical properties. For example, the optical absorption
+spectrum can be computed as the imaginary part of the dynamical dipole polarizability tensor
+$\alpha_{\mu,\mu'}(\omega) $ with $(\mu,\mu'\in\{x,y,z\})$:
 
 $$
 \begin{align}
@@ -128,20 +130,10 @@ f^{(n)} = \frac{2}{3} \Omega^{(n)} \sum_{\mu\in\{x,y,z\}} | d^{(n)}_{\mu} |^2
 \end{align}
 $$
 
-NEW: The oscillator strengths fulfill, in the infinite basis set limit, the Thomas-Reiche-Kuhn sum rule
-
-$$
-N_e = \sum_n f^{(n)} \quad ,
-$$
-
-where we have used electronic mass $m_e=1$ and reduced Planck constant $\hbar=1$. 
-
-
 ### 1.3 Visualizing excited states using Natural Transition Orbitals (NTOs)
 
-In order to represent the exciton wave function independent of a specific choice of the 
-molecular orbitals $\varphi_p(\mathbf{r})$, we can rewrite it in terms of natural 
-transitions orbitals (NTOs):
+In order to represent the exciton wave function independent of a specific choice of the molecular
+orbitals $\varphi_p(\mathbf{r})$, we can rewrite it as
 
 $$
 \begin{align}
@@ -151,20 +143,24 @@ $$
 \end{align}
 $$
 
-Here, we introduce the idea of electron and holes: 
-In the excitation process, an electron leaves a hole behind in the (formerly) occupied orbitals $\chi_I^{(n)}(\mathbf{r}_h)$ and is afterwards located in the empty orbitals $\phi_I^{(n)}(\mathbf{r}_e) $.
-We call $\phi_I^{(n)}(\mathbf{r}_e) $ and $\chi_I^{(n)}(\mathbf{r}_h)$ a NTO pair of electron and hole with a weight $\lambda_I^{(n)}$., where $I=1,\cdots,N_b$ with $N_b=N_\mathrm{occ}+N_\mathrm{empty}$.
+in terms of the natural transitions orbitals (NTOs) $\phi_I^{(n)}(\mathbf{r}_e) $ and
+$\chi_I^{(n)}(\mathbf{r}_h)$. Here, we introduce the idea of electron and holes: In the excitation
+process, an electron leaves a hole behind in the (formerly) occupied orbitals
+$\chi_I^{(n)}(\mathbf{r}_h)$ and is afterwards located in the empty orbitals
+$\phi_I^{(n)}(\mathbf{r}_e) $. We call $\phi_I^{(n)}(\mathbf{r}_e) $ and
+$\chi_I^{(n)}(\mathbf{r}_h)$ a NTO pair of electron and hole with a weight $\lambda_I^{(n)}$, where
+$I=1,\cdots,N_b$ with $N_b=N_\mathrm{occ}+N_\mathrm{empty}$.
 
-The weights $\lambda_I^{(n)}$ are sorted in decreasing order, i.e.: 
+The weights $\lambda_I^{(n)}$ are sorted in decreasing order, i.e.:
 
 $$\lambda_1^{(n)} \ge \lambda_2^{(n)} \ge \cdots \ge 0$$
 
-For many cases, we observe $\lambda_1^{(n)} \gg \lambda_2^{(n)}$, which indicates a 
-dominant single-particle excitation character for this $n$ and allows a visual analysis 
-of a small number of NTO pairs.
+For many cases, we observe $\lambda_1^{(n)} \gg \lambda_2^{(n)}$, which indicates a dominant
+single-particle excitation character for this $n$ and allows a visual analysis of a small number of
+NTO pairs.
 
-Assuming $\lambda_1^{(n)} = 1$ and $\lambda_{I\neq 1}=0$, the excitation wave function 
-simply is given as a product
+Assuming $\lambda_1^{(n)} = 1$ and $\lambda_{I\neq 1}=0$, the excitation wave function simply is
+given as a product
 
 $$
 \begin{align}
@@ -174,12 +170,13 @@ $$
 \end{align}
 $$
 
-In this case, the electron is excited from the occupied NTO $\chi_1^{(n)}(\mathbf{r}_h)$ 
-to the empty state $\phi_1^{(n)}(\mathbf{r}_e)$.
-This process leaves a hole at $\mathbf{r}_h$ and creates an excited electron at $\mathbf{r}_e$.
+In this case, the electron is excited from the occupied NTO $\chi_1^{(n)}(\mathbf{r}_h)$ to the
+empty state $\phi_1^{(n)}(\mathbf{r}_e)$. This process leaves a hole at $\mathbf{r}_h$ and creates
+an excited electron at $\mathbf{r}_e$.
 
-
-The transformation can be obtained by a singular value decomposition of the transition density matrix 
+Computationally, the NTO pairs $\phi_I^{(n)}(\mathbf{r}_e) $ and $\chi_I^{(n)}(\mathbf{r}_h)$ as
+well as $\lambda_I^{(n)}$ are obtained by a singular value decomposition of the transition density
+matrix
 
 $$
 T = \begin{pmatrix}
@@ -203,12 +200,11 @@ $$
 \end{align}
 $$
 
-
-
 ### 1.4 Measures for the size of an excited state
 
-NEW: In this subsection, we introduce several measures, which allow us to analyse the wave function of an excited state $\Psi_\text{excitation}^{(n)}(\mathbf{r}_e,\mathbf{r}_h)$ and its spatial properties, following Ref. \[[](#Mewes2018)\].
-
+In this subsection, we introduce several measures, which allow us to analyse the wave function of an
+excited state $\Psi_\text{excitation}^{(n)}(\mathbf{r}_e,\mathbf{r}_h)$ and its spatial properties,
+following Ref. \[[](#Mewes2018)\].
 
 To that end, we define the exciton expectation value with respect to a generic operator $\hat{O}$ as
 
@@ -225,10 +221,13 @@ $$
 \end{align}
 $$
 
-where we drop the excitation index $n$ from now on for better readability. 
+where we drop the excitation index $n$ from now on for better readability.
 
-
-For each excitation level $n$, we have then several quantities, which allow us to quantify the spatial extend of the electron, the hole and their combined two-particle character as combined electron-hole pair, i.e. as an exciton.
+For each excitation level $n$, we have then several quantities, which allow us to quantify the
+spatial extend of the electron, the hole and their combined two-particle character as combined
+electron-hole pair, i.e. as an exciton. By that, we can often determine the type of the excited
+state, i.e. distinguish between, e.g., valence, Rydberg or charge-transfer states
+\[[](#Mewes2018)\].
 
 First, we define the distance between electron and hole as
 
@@ -238,18 +237,25 @@ d_{h \rightarrow e} = | \langle \mathbf{r}_h - \mathbf{r}_e \rangle_\mathrm{exc}
 \end{align}
 $$
 
-as well as the size of the electron and hole, respectively,
+which can be used to distinguish different classes of excitations: For example in a charge-transfer
+state, electron and hole sit on different parts of the molecule and therefore have a non-vanishing
+electron-hole distance $d_{h \rightarrow e}$.
+
+Further, we can measure the size of electron and hole, respectively, as
 
 $$
 \begin{align}
 \sigma_{e/h} = \sqrt{ 
   \langle \mathbf{r}_{e/h}^2 \rangle_\mathrm{exc} 
   - \langle \mathbf{r}_{e/h} \rangle_\mathrm{exc} ^2
-  } \quad .
+  } \quad ,
 \end{align}
 $$
 
-The spatial extend of the combined electron-hole pair is quantified by the exciton size
+which allow us to distinguish between Rydberg states, where $\sigma_h \ll \sigma_e$, and valence
+states, where $\sigma_h \approx \sigma_e$.
+
+Closely related to these quantities, we can also define the exciton size
 
 $$
 \begin{align}
@@ -257,7 +263,12 @@ d_\mathrm{exc} = \sqrt{ \langle |\mathbf{r}_h - \mathbf{r}_e|^2 \rangle_\mathrm{
 \end{align}
 $$
 
-Finally, we quantify the correlation of electron and hole by the electron-hole correlation coefficient
+which quantifies the spatial extent of the combined electron-hole pair. As one would expect, the
+exciton size $d_\mathrm{exc}$ increases when $d_{h \rightarrow e}$, $\sigma_{e}$ or $\sigma_{h}$
+increase.
+
+Finally, we quantify the correlation of electron and hole by the electron-hole correlation
+coefficient
 
 $$
 \begin{align}
@@ -267,8 +278,8 @@ R_{eh} = \frac{1}{\sigma_e \sigma_h} \left( \langle \mathbf{r}_h \cdot \mathbf{r
 \end{align}
 $$
 
-where we can distinguish between correlated ($R_{eh}>0$) motion, i.e. bound excitons, and anticorrelated ($R_{eh}<0$) motion when electron and hole try to avoid each other.
-
+which allows us to distinguish between correlated ($R_{eh}>0$) motion, i.e. bound excitons, and
+anticorrelated ($R_{eh}<0$) motion, where electron and hole try to avoid each other.
 
 (header-input)=
 
@@ -291,7 +302,7 @@ For starting a BSE calculation one needs to set the [RUN_TYPE](#CP2K_INPUT.GLOBA
       ETA_LIST 0.01 0.02              ! Multiple broadenings can be specified within one run
     &END BSE_SPECTRUM
     &NTO_ANALYSIS
-      STATE_LIST 1 2 8                ! List of states for which NTOs are computed
+      STATE_LIST 1 2                  ! List of states for which NTOs are computed
       CUBE_FILES T                    ! Write cube files for NTOs
       STRIDE 6 6 6                    ! Coarse grid for smaller example cube files
     &END NTO_ANALYSIS
@@ -302,12 +313,11 @@ For starting a BSE calculation one needs to set the [RUN_TYPE](#CP2K_INPUT.GLOBA
 In the upper GW/BSE section, the following keywords have been used:
 
 - [SELF_CONSISTENCY](#CP2K_INPUT.FORCE_EVAL.DFT.XC.WF_CORRELATION.RI_RPA.GW.SELF_CONSISTENCY):
-  Determines which *GW* self-consistency (*G*<sub>0</sub>*W*<sub>0</sub>, ev*GW*<sub>0</sub>
-  or ev*GW*) is used to calculate the single-particle *GW* energies $\varepsilon_p^{GW}$ needed in
-  the BSE calculation. 
-  We recommend to always use ev*GW*<sub>0</sub> for BSE runs.
-  The screened coulomb interaction is always computed from the DFT level, i.e.
-  $W_0(\omega=0)$ is used for the $ABBA$-matrix, including BSE@ev*GW*@DFT.
+  Determines which *GW* self-consistency (*G*<sub>0</sub>*W*<sub>0</sub>, ev*GW*<sub>0</sub> or
+  ev*GW*) is used to calculate the single-particle *GW* energies $\varepsilon_p^{GW}$ needed in the
+  BSE calculation. We recommend to always use ev*GW*<sub>0</sub> for BSE runs. The screened coulomb
+  interaction is always computed from the DFT level, i.e. $W_0(\omega=0)$ is used for the
+  $ABBA$-matrix, including BSE@ev*GW*@DFT.
 
 - [TDA](#CP2K_INPUT.FORCE_EVAL.DFT.XC.WF_CORRELATION.RI_RPA.GW.BSE.TDA): Three options available:
 
@@ -338,8 +348,8 @@ In the upper GW/BSE section, the following keywords have been used:
   empty states in the interval
   $\varepsilon_a\in[\varepsilon_{a=\text{LUMO}}^{GW},\varepsilon_{a=\text{LUMO}}^{GW}+E_\text{cut}^\text{empty}]$.
 
-- [NUM_PRINT_EXC_DESCR](#CP2K_INPUT.FORCE_EVAL.DFT.XC.WF_CORRELATION.RI_RPA.GW.BSE.NUM_PRINT_EXC_DESCR): NEW Number
-  of excitations, for which the exciton descriptors are printed.
+- [NUM_PRINT_EXC_DESCR](#CP2K_INPUT.FORCE_EVAL.DFT.XC.WF_CORRELATION.RI_RPA.GW.BSE.NUM_PRINT_EXC_DESCR):
+  Number of excitations, for which the exciton descriptors are printed.
 
 - [BSE_SPECTRUM](#CP2K_INPUT.FORCE_EVAL.DFT.XC.WF_CORRELATION.RI_RPA.GW.BSE.BSE_SPECTRUM): Activates
   computation and printing of the optical absorption spectrum. For each chosen option in
@@ -355,19 +365,25 @@ In the upper GW/BSE section, the following keywords have been used:
   [TDA](#CP2K_INPUT.FORCE_EVAL.DFT.XC.WF_CORRELATION.RI_RPA.GW.BSE.TDA) (see Sec.
   [3.2](#header-output)).
 
-- [NTO_ANALYSIS](#CP2K_INPUT.FORCE_EVAL.DFT.XC.WF_CORRELATION.RI_RPA.GW.BSE.NTO_ANALYSIS): NEW Activates
-  computation and printing of the natural transition orbitals. Within this section, the user can confine the printed NTO pairs, e.g. the excitation indices of the desired levels $n$, their minimum oscillator strength $f^{(n)}$ as well as the minimum weight of the NTO coefficient $\lambda_I$.
-  For each NTO pair $\phi_I^{(n)}(\mathbf{r}_e) $ and $\chi_I^{(n)}(\mathbf{r}_h)$ of a certain excitation, which fulfills these requirements, and the chosen options in
-  [TDA](#CP2K_INPUT.FORCE_EVAL.DFT.XC.WF_CORRELATION.RI_RPA.GW.BSE.TDA), the NTO coefficients $\lambda_I$ are computed and the corresponding NTOs are printed to separate files if [CUBE_FILES](#CP2K_INPUT.FORCE_EVAL.DFT.XC.WF_CORRELATION.RI_RPA.GW.BSE.NTO_ANALYSIS.CUBE_FILES) is activated.
-   
+- [NTO_ANALYSIS](#CP2K_INPUT.FORCE_EVAL.DFT.XC.WF_CORRELATION.RI_RPA.GW.BSE.NTO_ANALYSIS): Activates
+  computation and printing of the natural transition orbitals. Within this section, the user can
+  specify the NTO pairs, which should be printed, e.g. by the excitation indices of the desired
+  levels $n$, their minimum oscillator strength $f^{(n)}$ or by the minimum weight of their NTO
+  coefficient $\lambda_I$. For each NTO pair $\phi_I^{(n)}(\mathbf{r}_e) $ and
+  $\chi_I^{(n)}(\mathbf{r}_h)$ of a certain excitation $n$, which fulfills these requirements, and
+  the chosen options in [TDA](#CP2K_INPUT.FORCE_EVAL.DFT.XC.WF_CORRELATION.RI_RPA.GW.BSE.TDA), the
+  NTO coefficients $\lambda_I$ are computed and the corresponding NTOs are printed to separate files
+  if
+  [CUBE_FILES](#CP2K_INPUT.FORCE_EVAL.DFT.XC.WF_CORRELATION.RI_RPA.GW.BSE.NTO_ANALYSIS.CUBE_FILES)
+  is activated.
 
 The following settings from DFT will also have an influence on the BSE excitation energies and
 optical properties:
 
 - [XC_FUNCTIONAL](#CP2K_INPUT.FORCE_EVAL.DFT.XC.XC_FUNCTIONAL): Choose between one of the available
   xc-functionals. The starting point can have a profound influence on the excitation energies
-  \[[](#Knysh2024)\]. Motivated by the discussion in \[[](#Schambeck2024)\], we strongly recommend to use
-  BSE@ev*GW*<sub>0</sub>@PBE, i.e. the PBE functional as DFT starting point (see also
+  \[[](#Knysh2024)\]. Motivated by the discussion in \[[](#Schambeck2024)\], we strongly recommend
+  to use BSE@ev*GW*<sub>0</sub>@PBE, i.e. the PBE functional as DFT starting point (see also
   [SELF_CONSISTENCY](#CP2K_INPUT.FORCE_EVAL.DFT.XC.WF_CORRELATION.RI_RPA.GW.SELF_CONSISTENCY)).
 - [BASIS_SET](#CP2K_INPUT.FORCE_EVAL.SUBSYS.KIND.BASIS_SET): Specify the basis set, which affects
   $N_\mathrm{empty}$ and thus the size of the matrices $A_{ia,jb}$ and $B_{ia,jb}$. The
@@ -382,8 +398,11 @@ $100 \cdot N_\mathrm{occ}^2 N_\mathrm{empty}^2$ Bytes. You can see $N_\mathrm{oc
 $N_\mathrm{empty}$ and the estimated memory consumption from the BSE output. The BSE implementation
 is well parallelized, i.e. you can use several nodes that can provide the memory.
 
-We have benchmarked the numerical precision of our BSE implementation and compared its results to the BSE implementation in FHI aims \[[](#Liu2020)\].
-For our recommended settings, i.e. TDA@ev*GW*<sub>0</sub>@PBE with the aug-cc-pVDZ basis set family, we have found excellent agreement within only 3.5 meV mean absolute deviation over the first 10 excitation levels and the 28 molecules in *Thiel's set*.
+We have benchmarked the numerical precision of our BSE implementation and compared its results to
+the BSE implementation in FHI aims \[[](#Liu2020)\]. For our recommended settings, i.e.
+BSE@ev*GW*<sub>0</sub>@PBE with the aug-cc-pVDZ basis set, we have found excellent agreement with
+less than 5 meV mean absolute deviation over the first 10 excitation levels and the 28 molecules in
+*Thiel's set*.
 
 The current BSE implementation in CP2K works for molecules. The inclusion of periodic boundary
 conditions in a Γ-only approach and with full *k*-point sampling is work in progress.
@@ -462,8 +481,8 @@ the HOMO (i=1) to the LUMO (a=2), what is apparent from
 $X_{i=\text{HOMO},a=\text{LUMO}}^{(n=1)}= 0.6687$, and also contains a considerable contribution
 from the 1=>4 (HOMO=>LUMO+2) transition ($X_{i=\text{HOMO},a=\text{LUMO+2}}^{(n=1)}=0.2431$ ).
 
-In the next section, the optical properties, i.e. the transition moments $d^{(n)}_{r}$ and the oscillator
-strengths $f^{(n)}$, are printed:
+In the next section, the optical properties, i.e. the transition moments $d^{(n)}_{r}$ and the
+oscillator strengths $f^{(n)}$, are printed:
 
 ```none
 BSE| Optical properties from solving the BSE without the TDA:
@@ -477,16 +496,6 @@ BSE|             4    -ABBA-       -0.713    -0.836    -0.000             0.469
 
 We can see that $n=1,3,4$ are optically active since they have a nonzero oscillator strength
 $f^{(n)}$.
-
-NEW: After that, we check how well the Thomas-Reiche-Kuhn sum rule is fulfilled by the chosen numerical parameters:
-```none
-BSE| Check for Thomas-Reiche-Kuhn sum rule
-BSE|
-BSE|                             N_e = Σ_n f^n
-BSE|
-BSE| Number of electrons N_e:                                                 2
-BSE| Sum over oscillator strengths Σ_n f^n :                              1.816
-```
 
 In case [BSE_SPECTRUM](#CP2K_INPUT.FORCE_EVAL.DFT.XC.WF_CORRELATION.RI_RPA.GW.BSE.BSE_SPECTRUM) is
 invoked, the frequency-resolved optical absorption spectrum is printed in addition. For each
@@ -513,14 +522,20 @@ BSE|    3    1.005       0.0000      1.5859      0.8568      1.8134     -0.0077
 BSE|    4    1.005       0.0000      1.5859      0.8568      1.8134     -0.0077
 ```
 
-where we obtain the normalization factor $c_n = \langle \Psi^{(n)} | \Psi^{(n)}\rangle $, the vectorial distance between electron and hole $d_{e\rightarrow h}$, sizes of electron $\sigma_e$ and hole  $\sigma_h$, the exciton size $d_\mathrm{exc}$ and the electron-hole correlation coefficient $R_{eh}$.
+where we obtain the normalization factor
+$c_n = \langle \Psi_\text{excitation}^{(n)} | \Psi_\text{excitation}^{(n)}\rangle $, the vectorial
+distance between electron and hole $d_{e\rightarrow h}$, sizes of electron $\sigma_e$ and hole
+$\sigma_h$, the exciton size $d_\mathrm{exc}$ and the electron-hole correlation coefficient
+$R_{eh}$.
 
-Further, the expectation values $\langle \mathbf{r}_e \rangle_\mathrm{exc}$ and $\langle \mathbf{r}_h \rangle_\mathrm{exc}$ as well as the reference point of origin and the atomic geometry are printed.
+Further, the expectation values $\langle \mathbf{r}_e \rangle_\mathrm{exc}$ and
+$\langle \mathbf{r}_h \rangle_\mathrm{exc}$ as well as the reference point of origin and the atomic
+geometry are printed.
 
 The last section summarizes the characteristics of the NTO analysis:
 
 ```none
-BSE| Number of excitations, for which NTOs are computed                       3
+BSE| Number of excitations, for which NTOs are computed                       2
 BSE| Threshold for oscillator strength f^n                                  ---
 BSE| Threshold for NTO weights (λ_I)^2                                    0.010
 BSE|
@@ -532,12 +547,15 @@ BSE|             1    -ABBA-                1                           1.01320
 BSE|             1    -ABBA-                2                           0.01320
 BSE|
 BSE|             2    -ABBA-                1                           1.00210
-BSE|
-BSE|             8    -ABBA-                1                           1.00008
 ```
 
-In the input file, we have specified a list of three excitation levels, no constraint on the oscillator strengths $f^{(n)}$ and used the default threshold on the weights, given by $\lambda_I^2 \leq 0.010$, which is repeated at the beginning of the section.
-Therefore, we obtain two NTO pairs for $n=1$ with significant weight and one NTO pair for $n=2$ and $n=8$, respectively. For $n=1$, we can verify that the NTO weights satisfy $1.01320 + 0.01320 \approx \sum_I {\left( \lambda_I^{(n)}\right)}^2 = c_n \approx 1.026$ when comparing to the output of the exciton descriptor section.
+In the input file, we have specified a list of three excitation levels, no constraint on the
+oscillator strengths $f^{(n)}$ and used the default threshold on the weights, given by
+$\lambda_I^2 \leq 0.010$, which is repeated at the beginning of the section. Therefore, we obtain
+two NTO pairs for $n=1$ with significant weight and one NTO pair for $n=2$ and $n=8$, respectively.
+For $n=1$, we can verify that the NTO weights satisfy
+$1.01320 + 0.01320 \approx \sum_I {\left( \lambda_I^{(n)}\right)}^2 = c_n \approx 1.026$ when
+comparing to the output of the exciton descriptor section.
 
 ### 3.3 Large scale calculations
 

@@ -1906,7 +1906,7 @@ CONTAINS
                          year=2019, doi="10.26434/chemrxiv.8326202.v1")
 
       CALL add_reference(key=Mewes2018, &
-                         authors=s2a("S. Mewes","F. Plasser", "A. Krylov", "A. Dreuw"), &
+                         authors=s2a("S. Mewes", "F. Plasser", "A. Krylov", "A. Dreuw"), &
                          title="Benchmarking Excited-State Calculations Using Exciton Properties", &
                          source="J. Chem. Theory Comput.", volume="14", pages="710-725", &
                          year=2018, doi="10.1021/acs.jctc.7b01145 ")

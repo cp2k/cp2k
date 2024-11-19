@@ -68,9 +68,10 @@ MODULE bse_properties
    TYPE exciton_descr_type
       REAL(KIND=dp), DIMENSION(3)                        :: r_e, r_h, &
                                                             r_e_sq, r_h_sq, r_e_h, &
-                                                            r_e_shift, r_h_shift
+                                                            r_e_shift, r_h_shift, &
+                                                            cov_e_h
       REAL(KIND=dp)                                      :: sigma_e, sigma_h, &
-                                                            cov_e_h, corr_e_h, &
+                                                            cov_e_h_sum, corr_e_h, &
                                                             diff_r_abs, diff_r_sqr, &
                                                             norm_XpY
       LOGICAL                                           :: flag_TDA
@@ -294,7 +295,7 @@ CONTAINS
          IF (unit_nr_file > 0) THEN
             CALL open_file(file_name_spectrum, unit_number=unit_nr_file, &
                            file_status="UNKNOWN", file_action="WRITE")
-            WRITE (unit_nr_file, '(A,A6)') "# Imaginary part of polarizability α_{µ µ'}(ω) =  \sum_n " // &
+            WRITE (unit_nr_file, '(A,A6)') "# Imaginary part of polarizability α_{µ µ'}(ω) =  \sum_n "// &
                "[2 Ω^n d_µ^n d_µ'^n] / [(ω+iη)²- (Ω^n)²] from Bethe Salpeter equation for method ", &
                TRIM(ADJUSTL(info_approximation))
             WRITE (unit_nr_file, '(A20,1X,10(2X,A20,1X))') "#     Frequency (eV)", "Im{α_{avg}(ω)}", "Im{α_xx(ω)}", &
@@ -476,13 +477,13 @@ CONTAINS
       ! Write the header of NTO info table
       IF (unit_nr > 0) THEN
          WRITE (unit_nr, '(T2,A4)') 'BSE|'
-            IF (.NOT. PRESENT(fm_Y)) THEN
-               WRITE (unit_nr, '(T2,A4,T7,A)') 'BSE|', &
-                  'NTOs from solving the BSE within the TDA:'
-            ELSE
-               WRITE (unit_nr, '(T2,A4,T7,A)') 'BSE|', &
-                  'NTOs from solving the BSE without the TDA:'
-            END IF
+         IF (.NOT. PRESENT(fm_Y)) THEN
+            WRITE (unit_nr, '(T2,A4,T7,A)') 'BSE|', &
+               'NTOs from solving the BSE within the TDA:'
+         ELSE
+            WRITE (unit_nr, '(T2,A4,T7,A)') 'BSE|', &
+               'NTOs from solving the BSE without the TDA:'
+         END IF
          WRITE (unit_nr, '(T2,A4)') 'BSE|'
          WRITE (unit_nr, '(T2,A4,T8,A12,T22,A8,T33,A14,T62,A)') 'BSE|', &
             'Excitation n', "TDA/ABBA", "Index of NTO I", 'NTO weights (λ_I)^2'
@@ -699,7 +700,7 @@ CONTAINS
                                                             r_e_sq_X, r_e_sq_Y, r_e_X, r_e_Y, &
                                                             r_h_sq_X, r_h_sq_Y, r_h_X, r_h_Y
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_ab, fm_struct_ia
-      TYPE(cp_fm_type)                                   :: fm_work_ab, fm_work_ia, fm_work_ia_2, &
+      TYPE(cp_fm_type)                                   :: fm_work_ba, fm_work_ia, fm_work_ia_2, &
                                                             fm_X_ia, fm_Y_ia
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
@@ -844,7 +845,7 @@ CONTAINS
          !   = X_bj µ_ji X_ia µ_ab + Y_bj µ_ji Y_ia µ_ab + X_ia µ_aj Y_jb µ_bi + Y_ia µ_aj X_jb µ_bi
          CALL cp_fm_create(fm_work_ia, fm_struct_ia)
          CALL cp_fm_create(fm_work_ia_2, fm_struct_ia)
-         CALL cp_fm_create(fm_work_ab, fm_struct_ab)
+         CALL cp_fm_create(fm_work_ba, fm_struct_ab)
          DO i_dir = 1, 3
             ! First term - X^T µ_ij X µ_ab
             CALL cp_fm_set_all(fm_work_ia, 0.0_dp)
@@ -880,15 +881,15 @@ CONTAINS
                !     fm_work_ai = µ_aj Y_jb µ_bi
                !     fm_work_ia = µ_ib Y_bj µ_ja
                !                        \_____/
-               !                       fm_work_ab
-               CALL cp_fm_set_all(fm_work_ab, 0.0_dp)
+               !                       fm_work_ba
+               CALL cp_fm_set_all(fm_work_ba, 0.0_dp)
                CALL cp_fm_set_all(fm_work_ia, 0.0_dp)
                ! fm_work_ba = Y_bj µ_ja
                CALL parallel_gemm("T", "T", virtual, virtual, homo, 1.0_dp, &
-                                  fm_Y_ia, fm_dipole_ai_trunc(i_dir), 0.0_dp, fm_work_ab)
+                                  fm_Y_ia, fm_dipole_ai_trunc(i_dir), 0.0_dp, fm_work_ba)
                ! fm_work_ia = µ_ib fm_work_ba
                CALL parallel_gemm("T", "N", homo, virtual, virtual, 1.0_dp, &
-                                  fm_dipole_ai_trunc(i_dir), fm_work_ab, 0.0_dp, fm_work_ia)
+                                  fm_dipole_ai_trunc(i_dir), fm_work_ba, 0.0_dp, fm_work_ia)
                ! <r_h r_e>_X = ... + X_ia µ_aj Y_jb µ_bi
                CALL cp_fm_trace(fm_work_ia, fm_X_ia, r_e_h_XY(i_dir))
                r_e_h_XY(i_dir) = r_e_h_XY(i_dir)/norm_XpY
@@ -901,15 +902,15 @@ CONTAINS
                !     fm_work_ai = µ_aj X_jb µ_bi
                !     fm_work_ia = µ_ib X_bj µ_ja
                !                        \_____/
-               !                       fm_work_ab
-               CALL cp_fm_set_all(fm_work_ab, 0.0_dp)
+               !                       fm_work_ba
+               CALL cp_fm_set_all(fm_work_ba, 0.0_dp)
                CALL cp_fm_set_all(fm_work_ia, 0.0_dp)
                ! fm_work_ba = Y_bj µ_ja
                CALL parallel_gemm("T", "T", virtual, virtual, homo, 1.0_dp, &
-                                  fm_X_ia, fm_dipole_ai_trunc(i_dir), 0.0_dp, fm_work_ab)
+                                  fm_X_ia, fm_dipole_ai_trunc(i_dir), 0.0_dp, fm_work_ba)
                ! fm_work_ia = µ_ib fm_work_ba
                CALL parallel_gemm("T", "N", homo, virtual, virtual, 1.0_dp, &
-                                  fm_dipole_ai_trunc(i_dir), fm_work_ab, 0.0_dp, fm_work_ia)
+                                  fm_dipole_ai_trunc(i_dir), fm_work_ba, 0.0_dp, fm_work_ia)
                ! <r_h r_e>_X = ... + X_ia µ_aj Y_jb µ_bi
                CALL cp_fm_trace(fm_work_ia, fm_Y_ia, r_e_h_YX(i_dir))
                r_e_h_YX(i_dir) = r_e_h_YX(i_dir)/norm_XpY
@@ -919,7 +920,7 @@ CONTAINS
 
          CALL cp_fm_release(fm_work_ia)
          CALL cp_fm_release(fm_work_ia_2)
-         CALL cp_fm_release(fm_work_ab)
+         CALL cp_fm_release(fm_work_ba)
 
          ! diff_r_abs = |<r_h>_X - <r_e>_X|
          exc_descr(i_exc)%diff_r_abs = SQRT(SUM((exc_descr(i_exc)%r_h(:) - exc_descr(i_exc)%r_e(:))**2))
@@ -931,18 +932,22 @@ CONTAINS
          exc_descr(i_exc)%sigma_h = SQRT(SUM(exc_descr(i_exc)%r_h_sq(:)) - SUM(exc_descr(i_exc)%r_h(:)**2))
 
          ! COV(r_e, r_h) = < r_e r_h >_X - < r_e >_X < r_h >_X
-         exc_descr(i_exc)%cov_e_h = 0.0_dp
+         exc_descr(i_exc)%cov_e_h_sum = 0.0_dp
+         exc_descr(i_exc)%cov_e_h(:) = 0.0_dp
          DO i_dir = 1, 3
-            exc_descr(i_exc)%cov_e_h = exc_descr(i_exc)%cov_e_h + &
-                                       exc_descr(i_exc)%r_e_h(i_dir) - exc_descr(i_exc)%r_e(i_dir)*exc_descr(i_exc)%r_h(i_dir)
+            exc_descr(i_exc)%cov_e_h(i_dir) = exc_descr(i_exc)%r_e_h(i_dir) &
+                                              - exc_descr(i_exc)%r_e(i_dir)*exc_descr(i_exc)%r_h(i_dir)
+            exc_descr(i_exc)%cov_e_h_sum = exc_descr(i_exc)%cov_e_h_sum + &
+                                           exc_descr(i_exc)%r_e_h(i_dir) - exc_descr(i_exc)%r_e(i_dir)*exc_descr(i_exc)%r_h(i_dir)
          END DO
 
          ! root-mean-square e-h separation
          exc_descr(i_exc)%diff_r_sqr = SQRT(exc_descr(i_exc)%diff_r_abs**2 + &
-                                            exc_descr(i_exc)%sigma_e**2 + exc_descr(i_exc)%sigma_h**2 - 2*exc_descr(i_exc)%cov_e_h)
+                                            exc_descr(i_exc)%sigma_e**2 + exc_descr(i_exc)%sigma_h**2 &
+                                            - 2*exc_descr(i_exc)%cov_e_h_sum)
 
          ! e-h-correlation coefficient R_eh = COV(r_e, r_h) / ( σ_e σ_h )
-         exc_descr(i_exc)%corr_e_h = exc_descr(i_exc)%cov_e_h/(exc_descr(i_exc)%sigma_e*exc_descr(i_exc)%sigma_h)
+         exc_descr(i_exc)%corr_e_h = exc_descr(i_exc)%cov_e_h_sum/(exc_descr(i_exc)%sigma_e*exc_descr(i_exc)%sigma_h)
 
          ! Expectation values of r_e and r_h
          exc_descr(i_exc)%r_e_shift(:) = exc_descr(i_exc)%r_e(:)

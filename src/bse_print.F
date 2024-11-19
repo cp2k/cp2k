@@ -486,7 +486,10 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'print_exciton_descriptors'
 
-      INTEGER                                            :: handle, i_exc
+      CHARACTER(LEN=1), DIMENSION(3)                     :: array_direction_str
+      INTEGER                                            :: handle, i_dir, i_exc
+      REAL(KIND=dp)                                      :: d_eh_dir, d_exc_dir, sigma_e_dir, &
+                                                            sigma_h_dir
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
 
       CALL timeset(routineN, handle)
@@ -496,25 +499,27 @@ CONTAINS
             'Exciton descriptors for excitation level n are given by'
          WRITE (unit_nr, '(T2,A4)') 'BSE|'
          WRITE (unit_nr, '(T2,A4,T15,A)') 'BSE|', &
-            'd_eh   = | <r_h - r_e>_X |'
+            'd_eh   = | <r_h - r_e>_exc |'
          WRITE (unit_nr, '(T2,A4)') 'BSE|'
          WRITE (unit_nr, '(T2,A4,T15,A)') 'BSE|', &
-            'σ_e    = sqrt( <r_e^2>_X - <r_e>_X^2 )'
+            'σ_e    = sqrt( <r_e^2>_exc - <r_e>_exc^2 )'
          WRITE (unit_nr, '(T2,A4)') 'BSE|'
          WRITE (unit_nr, '(T2,A4,T15,A)') 'BSE|', &
-            'σ_h    = sqrt( <r_h^2>_X - <r_h>_X^2 )'
+            'σ_h    = sqrt( <r_h^2>_exc - <r_h>_exc^2 )'
          WRITE (unit_nr, '(T2,A4)') 'BSE|'
          WRITE (unit_nr, '(T2,A4,T15,A)') 'BSE|', &
-            'COV_eh = <r_e r_h>_X - <r_e>_X <r_h>_X'
+            'COV_eh = <r_e r_h>_exc - <r_e>_exc <r_h>_exc'
          WRITE (unit_nr, '(T2,A4)') 'BSE|'
          WRITE (unit_nr, '(T2,A4,T15,A)') 'BSE|', &
-            'd_exc  = sqrt( d_eh^2 + σ_e^2 + σ_h^2 - 2 * COV_eh )'
+            'd_exc  = sqrt( | < |r_h - r_e|^2 >_exc )'
+         WRITE (unit_nr, '(T2,A4,T15,A)') 'BSE|', &
+            '       = sqrt( d_eh^2 + σ_e^2 + σ_h^2 - 2 * COV_eh )'
          WRITE (unit_nr, '(T2,A4)') 'BSE|'
          WRITE (unit_nr, '(T2,A4,T15,A)') 'BSE|', &
             'R_eh   = COV_eh / (σ_e * σ_h)'
          WRITE (unit_nr, '(T2,A4)') 'BSE|'
          WRITE (unit_nr, '(T2,A4,T7,A)') 'BSE|', &
-            'where the expectation values <.>_X are taken with respect to the '
+            'where the expectation values <.>_exc are taken with respect to the '
          WRITE (unit_nr, '(T2,A4,T7,A)') 'BSE|', &
             'exciton wavefunction  of excitation n:'
          WRITE (unit_nr, '(T2,A4)') 'BSE|'
@@ -533,7 +538,7 @@ CONTAINS
             'i.e.'
          WRITE (unit_nr, '(T2,A4)') 'BSE|'
          WRITE (unit_nr, '(T2,A4,T20,A)') 'BSE|', &
-            '< O >_X = < 𝚿_n | O | 𝚿_n > / < 𝚿_n | 𝚿_n >  ,'
+            '< O >_exc = < 𝚿_n | O | 𝚿_n > / < 𝚿_n | 𝚿_n >  ,'
          WRITE (unit_nr, '(T2,A4)') 'BSE|'
          IF (exc_descr(1)%flag_TDA) THEN
             WRITE (unit_nr, '(T2,A4,T7,A)') 'BSE|', &
@@ -543,32 +548,32 @@ CONTAINS
                'where c_n = < 𝚿_n | 𝚿_n > deviates from 1 without TDA.'
          END IF
 
-         WRITE (unit_nr, '(T2,A4)') 'BSE|'
-         WRITE (unit_nr, '(T2,A4,T7,A)') 'BSE|', &
-            'The exciton descriptors can then be expressed by electron coordinate'
-         WRITE (unit_nr, '(T2,A4)') 'BSE|'
-         IF (.NOT. exc_descr(1)%flag_TDA) THEN
-            WRITE (unit_nr, '(T2,A4,T15,A)') 'BSE|', &
-               '<r_e>_X = <𝚿_n|𝚿_n> [ Σ_{i,a,b} X_ia^n < ψ_a | r | ψ_b > X_ib^n'
-            WRITE (unit_nr, '(T2,A4,T35,A)') 'BSE|', &
-               '+ Σ_{i,j,a} Y_ia^n < ψ_i | r | ψ_j > Y_ja^n ]'
-         ELSE
-            WRITE (unit_nr, '(T2,A4,T15,A)') 'BSE|', &
-               '<r_e>_X = <𝚿_n|𝚿_n> [ Σ_{i,a,b} X_ia^n < ψ_a | r | ψ_b > X_ib^n ]'
-         END IF
-         WRITE (unit_nr, '(T2,A4)') 'BSE|'
-         WRITE (unit_nr, '(T2,A4,T7,A)') 'BSE|', &
-            'and hole coordinate'
-         WRITE (unit_nr, '(T2,A4)') 'BSE|'
-         IF (.NOT. exc_descr(1)%flag_TDA) THEN
-            WRITE (unit_nr, '(T2,A4,T15,A)') 'BSE|', &
-               '<r_h>_X = <𝚿_n|𝚿_n> [ Σ_{i,j,a} X_ia^n < ψ_i | r | ψ_j > X_ja^n'
-            WRITE (unit_nr, '(T2,A4,T35,A)') 'BSE|', &
-               '+ Σ_{i,a,b} Y_ia^n < ψ_a | r | ψ_b > Y_ib^n ]'
-         ELSE
-            WRITE (unit_nr, '(T2,A4,T15,A)') 'BSE|', &
-               '<r_h>_X = <𝚿_n|𝚿_n> [ Σ_{i,j,a} X_ia^n < ψ_i | r | ψ_j > X_ja^n ]' 
-         END IF
+         ! WRITE (unit_nr, '(T2,A4)') 'BSE|'
+         ! WRITE (unit_nr, '(T2,A4,T7,A)') 'BSE|', &
+         !    'The exciton descriptors can then be expressed by electron coordinate'
+         ! WRITE (unit_nr, '(T2,A4)') 'BSE|'
+         ! IF (.NOT. exc_descr(1)%flag_TDA) THEN
+         !    WRITE (unit_nr, '(T2,A4,T15,A)') 'BSE|', &
+         !       '<r_e>_exc = <𝚿_n|𝚿_n> [ Σ_{i,a,b} X_ia^n < ψ_a | r | ψ_b > X_ib^n'
+         !    WRITE (unit_nr, '(T2,A4,T35,A)') 'BSE|', &
+         !       '+ Σ_{i,j,a} Y_ia^n < ψ_i | r | ψ_j > Y_ja^n ]'
+         ! ELSE
+         !    WRITE (unit_nr, '(T2,A4,T15,A)') 'BSE|', &
+         !       '<r_e>_exc = <𝚿_n|𝚿_n> [ Σ_{i,a,b} X_ia^n < ψ_a | r | ψ_b > X_ib^n ]'
+         ! END IF
+         ! WRITE (unit_nr, '(T2,A4)') 'BSE|'
+         ! WRITE (unit_nr, '(T2,A4,T7,A)') 'BSE|', &
+         !    'and hole coordinate'
+         ! WRITE (unit_nr, '(T2,A4)') 'BSE|'
+         ! IF (.NOT. exc_descr(1)%flag_TDA) THEN
+         !    WRITE (unit_nr, '(T2,A4,T15,A)') 'BSE|', &
+         !       '<r_h>_exc = <𝚿_n|𝚿_n> [ Σ_{i,j,a} X_ia^n < ψ_i | r | ψ_j > X_ja^n'
+         !    WRITE (unit_nr, '(T2,A4,T35,A)') 'BSE|', &
+         !       '+ Σ_{i,a,b} Y_ia^n < ψ_a | r | ψ_b > Y_ib^n ]'
+         ! ELSE
+         !    WRITE (unit_nr, '(T2,A4,T15,A)') 'BSE|', &
+         !       '<r_h>_exc = <𝚿_n|𝚿_n> [ Σ_{i,j,a} X_ia^n < ψ_i | r | ψ_j > X_ja^n ]'
+         ! END IF
          WRITE (unit_nr, '(T2,A4)') 'BSE|'
          WRITE (unit_nr, '(T2,A4)') 'BSE|'
          WRITE (unit_nr, '(T2,A4,T7,A)') 'BSE|', &
@@ -615,6 +620,62 @@ CONTAINS
                WRITE (unit_nr, '(T2,A10,T13,A,T65,F16.4)') 'BSE|DEBUG|', &
                   'Exciton descriptor d_exc without TDA for n=1 is', exc_descr(1)%diff_r_sqr*angstrom
             END IF
+            WRITE (unit_nr, '(T2,A4)') 'BSE|'
+         END IF
+         WRITE (unit_nr, '(T2,A4)') 'BSE|'
+         ! Print exciton descriptor resolved per direction
+         IF (mp2_env%bse%print_directional_exc_descr) THEN
+            WRITE (unit_nr, '(T2,A4,T7,A)') 'BSE|', &
+               'We can restrict the exciton descriptors to a specific direction,'
+            WRITE (unit_nr, '(T2,A4,T7,A)') 'BSE|', &
+               'e.g. the x-components are:'
+            WRITE (unit_nr, '(T2,A4)') 'BSE|'
+            WRITE (unit_nr, '(T2,A4,T15,A)') 'BSE|', &
+               'd_eh^x   = | <x_h - x_e>_exc |'
+            WRITE (unit_nr, '(T2,A4)') 'BSE|'
+            WRITE (unit_nr, '(T2,A4,T15,A)') 'BSE|', &
+               'σ_e^x    = sqrt( <x_e^2>_exc - <x_e>_exc^2 )'
+            WRITE (unit_nr, '(T2,A4)') 'BSE|'
+            WRITE (unit_nr, '(T2,A4,T15,A)') 'BSE|', &
+               'σ_h^x    = sqrt( <x_h^2>_exc - <x_h>_exc^2 )'
+            WRITE (unit_nr, '(T2,A4)') 'BSE|'
+            WRITE (unit_nr, '(T2,A4,T15,A)') 'BSE|', &
+               'COV_eh^x = <x_e x_h>_exc - <x_e>_exc <x_h>_exc'
+            WRITE (unit_nr, '(T2,A4)') 'BSE|'
+            WRITE (unit_nr, '(T2,A4,T15,A)') 'BSE|', &
+               'd_exc^x  = sqrt( | < |x_h - x_e|^2 >_exc )'
+            WRITE (unit_nr, '(T2,A4,T15,A)') 'BSE|', &
+               '         = sqrt( (d_eh^x)^2 + (σ_e^x)^2'
+            WRITE (unit_nr, '(T2,A4,T15,A)') 'BSE|', &
+               '                 + (σ_h^x)^2 - 2 * (COV_eh^x) )'
+            WRITE (unit_nr, '(T2,A4)') 'BSE|'
+            WRITE (unit_nr, '(T2,A4)') 'BSE|'
+            IF (exc_descr(1)%flag_TDA) THEN
+               WRITE (unit_nr, '(T2,A4,T7,A)') 'BSE|', &
+                  'Exciton descriptors per direction from solving the BSE within the TDA:'
+            ELSE
+               WRITE (unit_nr, '(T2,A4,T7,A)') 'BSE|', &
+                  'Exciton descriptors per direction from solving the BSE without the TDA:'
+            END IF
+            WRITE (unit_nr, '(T2,A4)') 'BSE|'
+            WRITE (unit_nr, '(T2,A4,T12,A1,2X,A9,5X,A12,5X,A12,5X,A12,3X,A13)') 'BSE|', &
+               'n', 'r = x/y/z', 'd_eh^r [Å]', 'σ_e^r [Å]', 'σ_h^r [Å]', 'd_exc^r [Å]'
+            DO i_exc = 1, mp2_env%bse%num_print_exc_descr
+               DO i_dir = 1, 3
+                  array_direction_str = (/"x", "y", "z"/)
+                  d_eh_dir = ABS(exc_descr(i_exc)%r_h(i_dir) - exc_descr(i_exc)%r_e(i_dir))
+                  sigma_e_dir = SQRT(exc_descr(i_exc)%r_e_sq(i_dir) - exc_descr(i_exc)%r_e(i_dir)**2)
+                  sigma_h_dir = SQRT(exc_descr(i_exc)%r_h_sq(i_dir) - exc_descr(i_exc)%r_h(i_dir)**2)
+                  d_exc_dir = SQRT(d_eh_dir**2 + sigma_e_dir**2 + sigma_h_dir**2 &
+                                   - 2*exc_descr(i_exc)%cov_e_h(i_dir))
+                  WRITE (unit_nr, '(T2,A4,T9,I4,10X,A1,1X,4(4X,F10.4))') &
+                     'BSE|', i_exc, array_direction_str(i_dir), &
+                     d_eh_dir*angstrom, &
+                     sigma_e_dir*angstrom, sigma_h_dir*angstrom, &
+                     d_exc_dir*angstrom
+               END DO
+               WRITE (unit_nr, '(T2,A4)') 'BSE|'
+            END DO
             WRITE (unit_nr, '(T2,A4)') 'BSE|'
          END IF
          ! Print the reference atomic geometry for the exciton descriptors
