@@ -997,7 +997,7 @@ CONTAINS
                   m, matrix_eigvr_t%local_data, m, work, lwork, myinfo)
 
       IF (myinfo /= 0) THEN
-         WRITE (message, "(A,I0,A)") "ERROR in DSYEVD: Work space query failed (INFO = ", myinfo, ")"
+         WRITE (message, "(A,I0,A)") "ERROR in DGESVD: Work space query failed (INFO = ", myinfo, ")"
          IF (PRESENT(info)) THEN
             CPWARN(TRIM(message))
          ELSE
@@ -1015,7 +1015,7 @@ CONTAINS
                   m, matrix_eigvr_t%local_data, m, work, lwork, myinfo)
 
       IF (myinfo /= 0) THEN
-         WRITE (message, "(A,I0,A)") "ERROR in DSYEVD: Matrix diagonalization failed (INFO = ", myinfo, ")"
+         WRITE (message, "(A,I0,A)") "ERROR in DGESVD: Matrix diagonalization failed (INFO = ", myinfo, ")"
          IF (PRESENT(info)) THEN
             CPWARN(TRIM(message))
          ELSE
