@@ -13,6 +13,7 @@
 ! **************************************************************************************************
 MODULE pair_potential_types
 
+   USE ace_wrapper,                     ONLY: ace_model_type
    USE kinds,                           ONLY: default_path_length,&
                                               default_string_length,&
                                               dp
@@ -53,9 +54,10 @@ MODULE pair_potential_types
                                  allegro_type = 17, &
                                  gal21_type = 18, &
                                  tab_type = 19, &
-                                 deepmd_type = 20
+                                 deepmd_type = 20, &
+                                 ace_type = 21
 
-   INTEGER, PUBLIC, PARAMETER, DIMENSION(21) :: list_pot = (/nn_type, &
+   INTEGER, PUBLIC, PARAMETER, DIMENSION(22) :: list_pot = (/nn_type, &
                                                              lj_type, &
                                                              lj_charmm_type, &
                                                              ft_type, &
@@ -75,7 +77,8 @@ MODULE pair_potential_types
                                                              allegro_type, &
                                                              gal21_type, &
                                                              tab_type, &
-                                                             deepmd_type/)
+                                                             deepmd_type, &
+                                                             ace_type/)
 
    ! Shell model
    INTEGER, PUBLIC, PARAMETER :: nosh_nosh = 0, &
@@ -111,6 +114,7 @@ MODULE pair_potential_types
              nequip_pot_type, &
              allegro_pot_type, &
              deepmd_pot_type, &
+             ace_pot_type, &
              tersoff_pot_type, &
              siepmann_pot_type, &
              gal_pot_type, &
@@ -176,6 +180,13 @@ MODULE pair_potential_types
    END TYPE eam_pot_type
 
 ! **************************************************************************************************
+   TYPE ace_pot_type
+      CHARACTER(LEN=default_path_length)     :: ace_file_name = 'NULL'
+      INTEGER                                :: atom_ace_type = 0
+      TYPE(ace_model_type)                   :: model = ace_model_type()
+   END TYPE ace_pot_type
+
+!     **************************************************************************************************
    TYPE deepmd_pot_type
       CHARACTER(LEN=default_path_length)     :: deepmd_file_name = 'NULL'
       INTEGER                                :: atom_deepmd_type = 0
@@ -368,6 +379,7 @@ MODULE pair_potential_types
       TYPE(quip_pot_type), POINTER :: quip => NULL()
       TYPE(nequip_pot_type), POINTER :: nequip => NULL()
       TYPE(allegro_pot_type), POINTER :: allegro => NULL()
+      TYPE(ace_pot_type), POINTER :: ace => NULL()
       TYPE(deepmd_pot_type), POINTER :: deepmd => NULL()
       TYPE(buck4ran_pot_type), POINTER :: buck4r => NULL()
       TYPE(buckmorse_pot_type), POINTER :: buckmo => NULL()
@@ -476,6 +488,9 @@ CONTAINS
                    (SUM(ABS(pot1%set(i)%eam%phip - pot2%set(i)%eam%phip)) == 0.0_dp) .AND. &
                    (SUM(ABS(pot1%set(i)%eam%frhop - pot2%set(i)%eam%frhop)) == 0.0_dp)) mycompare = .TRUE.
             END IF
+         CASE (ace_type)
+            IF ((pot1%set(i)%ace%ace_file_name == pot2%set(i)%ace%ace_file_name) .AND. &
+                (pot1%set(i)%ace%atom_ace_type == pot2%set(i)%ace%atom_ace_type)) mycompare = .TRUE.
          CASE (deepmd_type)
             IF ((pot1%set(i)%deepmd%deepmd_file_name == pot2%set(i)%deepmd%deepmd_file_name) .AND. &
                 (pot1%set(i)%deepmd%atom_deepmd_type == pot2%set(i)%deepmd%atom_deepmd_type)) mycompare = .TRUE.
@@ -633,6 +648,7 @@ CONTAINS
                   potparm%set(i)%quip, &
                   potparm%set(i)%nequip, &
                   potparm%set(i)%allegro, &
+                  potparm%set(i)%ace, &
                   potparm%set(i)%deepmd, &
                   potparm%set(i)%buck4r, &
                   potparm%set(i)%buckmo, &
@@ -679,6 +695,7 @@ CONTAINS
          CALL pair_potential_quip_clean(potparm%set(i)%quip)
          CALL pair_potential_nequip_clean(potparm%set(i)%nequip)
          CALL pair_potential_allegro_clean(potparm%set(i)%allegro)
+         CALL pair_potential_ace_clean(potparm%set(i)%ace)
          CALL pair_potential_deepmd_clean(potparm%set(i)%deepmd)
          CALL pair_potential_buck4r_clean(potparm%set(i)%buck4r)
          CALL pair_potential_buckmo_clean(potparm%set(i)%buckmo)
@@ -737,6 +754,7 @@ CONTAINS
          CALL pair_potential_quip_copy(potparm_source%set(i)%quip, potparm_dest%set(i)%quip)
          CALL pair_potential_nequip_copy(potparm_source%set(i)%nequip, potparm_dest%set(i)%nequip)
          CALL pair_potential_allegro_copy(potparm_source%set(i)%allegro, potparm_dest%set(i)%allegro)
+         CALL pair_potential_ace_copy(potparm_source%set(i)%ace, potparm_dest%set(i)%ace)
          CALL pair_potential_deepmd_copy(potparm_source%set(i)%deepmd, potparm_dest%set(i)%deepmd)
          CALL pair_potential_bmhft_copy(potparm_source%set(i)%ft, potparm_dest%set(i)%ft)
          CALL pair_potential_bmhftd_copy(potparm_source%set(i)%ftd, potparm_dest%set(i)%ftd)
@@ -788,6 +806,7 @@ CONTAINS
                     (ASSOCIATED(potparm_dest%set(1)%quip)) .OR. &
                     (ASSOCIATED(potparm_dest%set(1)%nequip)) .OR. &
                     (ASSOCIATED(potparm_dest%set(1)%allegro)) .OR. &
+                    (ASSOCIATED(potparm_dest%set(1)%ace)) .OR. &
                     (ASSOCIATED(potparm_dest%set(1)%deepmd)) .OR. &
                     (ASSOCIATED(potparm_dest%set(1)%ft)) .OR. &
                     (ASSOCIATED(potparm_dest%set(1)%ftd)) .OR. &
@@ -841,6 +860,7 @@ CONTAINS
             CALL pair_potential_quip_copy(potparm_tmp%set(i)%quip, potparm_dest%set(i)%quip)
             CALL pair_potential_nequip_copy(potparm_tmp%set(i)%nequip, potparm_dest%set(i)%nequip)
             CALL pair_potential_allegro_copy(potparm_tmp%set(i)%allegro, potparm_dest%set(i)%allegro)
+            CALL pair_potential_ace_copy(potparm_tmp%set(i)%ace, potparm_dest%set(i)%ace)
             CALL pair_potential_deepmd_copy(potparm_tmp%set(i)%deepmd, potparm_dest%set(i)%deepmd)
             CALL pair_potential_bmhft_copy(potparm_tmp%set(i)%ft, potparm_dest%set(i)%ft)
             CALL pair_potential_bmhftd_copy(potparm_tmp%set(i)%ftd, potparm_dest%set(i)%ftd)
@@ -878,6 +898,7 @@ CONTAINS
          CALL pair_potential_quip_copy(potparm_source%set(j)%quip, potparm_dest%set(i)%quip)
          CALL pair_potential_nequip_copy(potparm_source%set(j)%nequip, potparm_dest%set(i)%nequip)
          CALL pair_potential_allegro_copy(potparm_source%set(j)%allegro, potparm_dest%set(i)%allegro)
+         CALL pair_potential_ace_copy(potparm_source%set(j)%ace, potparm_dest%set(i)%ace)
          CALL pair_potential_deepmd_copy(potparm_source%set(j)%deepmd, potparm_dest%set(i)%deepmd)
          CALL pair_potential_bmhft_copy(potparm_source%set(j)%ft, potparm_dest%set(i)%ft)
          CALL pair_potential_bmhftd_copy(potparm_source%set(j)%ftd, potparm_dest%set(i)%ftd)
@@ -917,6 +938,7 @@ CONTAINS
          CALL pair_potential_quip_release(potparm%set(i)%quip)
          CALL pair_potential_nequip_release(potparm%set(i)%nequip)
          CALL pair_potential_allegro_release(potparm%set(i)%allegro)
+         CALL pair_potential_ace_release(potparm%set(i)%ace)
          CALL pair_potential_deepmd_release(potparm%set(i)%deepmd)
          CALL pair_potential_buck4r_release(potparm%set(i)%buck4r)
          CALL pair_potential_buckmo_release(potparm%set(i)%buckmo)
@@ -1105,20 +1127,21 @@ CONTAINS
 !> \param gal21 ...
 !> \param tab ...
 !> \param deepmd ...
+!> \param ace ...
 !> \author Teodoro Laino [Teo] 11.2005
 ! **************************************************************************************************
    SUBROUTINE pair_potential_reallocate(p, lb1_new, ub1_new, lj, lj_charmm, williams, goodwin, eam, &
                                         quip, nequip, allegro, bmhft, bmhftd, ipbv, buck4r, buckmo, &
-                                        gp, tersoff, siepmann, gal, gal21, tab, deepmd)
+                                        gp, tersoff, siepmann, gal, gal21, tab, deepmd, ace)
       TYPE(pair_potential_p_type), POINTER               :: p
       INTEGER, INTENT(IN)                                :: lb1_new, ub1_new
       LOGICAL, INTENT(IN), OPTIONAL :: lj, lj_charmm, williams, goodwin, eam, quip, nequip, &
          allegro, bmhft, bmhftd, ipbv, buck4r, buckmo, gp, tersoff, siepmann, gal, gal21, tab, &
-         deepmd
+         deepmd, ace
 
       INTEGER                                            :: i, ipot, lb1_old, std_dim, ub1_old
-      LOGICAL :: check, lallegro, lbmhft, lbmhftd, lbuck4r, lbuckmo, ldeepmd, leam, lgal, lgal21, &
-         lgoodwin, lgp, lipbv, llj, llj_charmm, lnequip, lquip, lsiepmann, ltab, ltersoff, &
+      LOGICAL :: check, lace, lallegro, lbmhft, lbmhftd, lbuck4r, lbuckmo, ldeepmd, leam, lgal, &
+         lgal21, lgoodwin, lgp, lipbv, llj, llj_charmm, lnequip, lquip, lsiepmann, ltab, ltersoff, &
          lwilliams
       TYPE(pair_potential_p_type), POINTER               :: work
 
@@ -1132,6 +1155,7 @@ CONTAINS
       lquip = .FALSE.; IF (PRESENT(quip)) lquip = quip
       lnequip = .FALSE.; IF (PRESENT(nequip)) lnequip = nequip
       lallegro = .FALSE.; IF (PRESENT(allegro)) lallegro = allegro
+      lace = .FALSE.; IF (PRESENT(ace)) lace = ace
       ldeepmd = .FALSE.; IF (PRESENT(deepmd)) ldeepmd = deepmd
       lbmhft = .FALSE.; IF (PRESENT(bmhft)) lbmhft = bmhft
       lbmhftd = .FALSE.; IF (PRESENT(bmhftd)) lbmhftd = bmhftd
@@ -1149,140 +1173,147 @@ CONTAINS
          ipot = lj_type
          check = .NOT. (llj_charmm .OR. lwilliams .OR. lgoodwin .OR. leam .OR. lquip .OR. lnequip .OR. lallegro &
                         .OR. lbmhft .OR. lbmhftd .OR. lipbv .OR. lbuck4r .OR. lbuckmo .OR. lgp .OR. ltersoff &
-                        .OR. lsiepmann .OR. lgal .OR. lgal21 .OR. ltab .OR. ldeepmd)
+                        .OR. lsiepmann .OR. lgal .OR. lgal21 .OR. ltab .OR. ldeepmd .OR. lace)
          CPASSERT(check)
       END IF
       IF (llj_charmm) THEN
          ipot = lj_charmm_type
          check = .NOT. (llj .OR. lwilliams .OR. lgoodwin .OR. leam .OR. lquip .OR. lnequip .OR. lallegro &
                         .OR. lbmhft .OR. lbmhftd .OR. lipbv .OR. lbuck4r .OR. lbuckmo .OR. lgp .OR. ltersoff &
-                        .OR. lsiepmann .OR. lgal .OR. lgal21 .OR. ltab .OR. ldeepmd)
+                        .OR. lsiepmann .OR. lgal .OR. lgal21 .OR. ltab .OR. ldeepmd .OR. lace)
          CPASSERT(check)
       END IF
       IF (lwilliams) THEN
          ipot = wl_type
          check = .NOT. (llj .OR. llj_charmm .OR. lgoodwin .OR. leam .OR. lquip .OR. lnequip .OR. lallegro &
                         .OR. lbmhft .OR. lbmhftd .OR. lipbv .OR. lbuck4r .OR. lbuckmo .OR. lgp .OR. ltersoff &
-                        .OR. lsiepmann .OR. lgal .OR. lgal21 .OR. ltab .OR. ldeepmd)
+                        .OR. lsiepmann .OR. lgal .OR. lgal21 .OR. ltab .OR. ldeepmd .OR. lace)
          CPASSERT(check)
       END IF
       IF (lgoodwin) THEN
          ipot = gw_type
          check = .NOT. (llj .OR. llj_charmm .OR. lwilliams .OR. leam .OR. lquip .OR. lnequip .OR. lallegro &
                         .OR. lbmhft .OR. lbmhftd .OR. lipbv .OR. lbuck4r .OR. lbuckmo .OR. lgp .OR. ltersoff &
-                        .OR. lsiepmann .OR. lgal .OR. lgal21 .OR. ltab .OR. ldeepmd)
+                        .OR. lsiepmann .OR. lgal .OR. lgal21 .OR. ltab .OR. ldeepmd .OR. lace)
          CPASSERT(check)
       END IF
       IF (leam) THEN
          ipot = ea_type
          check = .NOT. (llj .OR. llj_charmm .OR. lgoodwin .OR. lwilliams .OR. lquip .OR. lnequip .OR. lallegro &
                         .OR. lbmhft .OR. lbmhftd .OR. lipbv .OR. lbuck4r .OR. lbuckmo .OR. lgp .OR. ltersoff &
-                        .OR. lsiepmann .OR. lgal .OR. lgal21 .OR. ltab .OR. ldeepmd)
+                        .OR. lsiepmann .OR. lgal .OR. lgal21 .OR. ltab .OR. ldeepmd .OR. lace)
          CPASSERT(check)
       END IF
       IF (lquip) THEN
          ipot = quip_type
          check = .NOT. (llj .OR. llj_charmm .OR. lgoodwin .OR. lwilliams .OR. leam .OR. lnequip .OR. lallegro &
                         .OR. lbmhft .OR. lbmhftd .OR. lipbv .OR. lbuck4r .OR. lbuckmo .OR. lgp .OR. ltersoff &
-                        .OR. lsiepmann .OR. lgal .OR. lgal21 .OR. ltab .OR. ldeepmd)
+                        .OR. lsiepmann .OR. lgal .OR. lgal21 .OR. ltab .OR. ldeepmd .OR. lace)
          CPASSERT(check)
       END IF
       IF (lnequip) THEN
          ipot = nequip_type
          check = .NOT. (llj .OR. llj_charmm .OR. lgoodwin .OR. lwilliams .OR. leam .OR. lquip .OR. lallegro &
                         .OR. lbmhft .OR. lbmhftd .OR. lipbv .OR. lbuck4r .OR. lbuckmo .OR. lgp .OR. ltersoff &
-                        .OR. lsiepmann .OR. lgal .OR. lgal21 .OR. ltab .OR. ldeepmd)
+                        .OR. lsiepmann .OR. lgal .OR. lgal21 .OR. ltab .OR. ldeepmd .OR. lace)
          CPASSERT(check)
       END IF
       IF (lallegro) THEN
          ipot = allegro_type
          check = .NOT. (llj .OR. llj_charmm .OR. lgoodwin .OR. lwilliams .OR. leam .OR. lquip .OR. lnequip &
                         .OR. lbmhft .OR. lbmhftd .OR. lipbv .OR. lbuck4r .OR. lbuckmo .OR. lgp .OR. ltersoff &
-                        .OR. lsiepmann .OR. lgal .OR. lgal21 .OR. ltab .OR. ldeepmd)
+                        .OR. lsiepmann .OR. lgal .OR. lgal21 .OR. ltab .OR. ldeepmd .OR. lace)
+         CPASSERT(check)
+      END IF
+      IF (lace) THEN
+         ipot = ace_type
+         check = .NOT. (llj .OR. llj_charmm .OR. lgoodwin .OR. lwilliams .OR. leam .OR. lquip .OR. lnequip &
+                        .OR. lallegro .OR. lbmhft .OR. lbmhftd .OR. lipbv .OR. lbuck4r .OR. lbuckmo .OR. lgp &
+                        .OR. ltersoff .OR. lsiepmann .OR. lgal .OR. lgal21 .OR. ltab .OR. ldeepmd)
          CPASSERT(check)
       END IF
       IF (ldeepmd) THEN
          ipot = deepmd_type
          check = .NOT. (llj .OR. llj_charmm .OR. lgoodwin .OR. lwilliams .OR. leam .OR. lquip .OR. lnequip &
                         .OR. lallegro .OR. lbmhft .OR. lbmhftd .OR. lipbv .OR. lbuck4r .OR. lbuckmo .OR. lgp &
-                        .OR. ltersoff .OR. lsiepmann .OR. lgal .OR. lgal21 .OR. ltab)
+                        .OR. ltersoff .OR. lsiepmann .OR. lgal .OR. lgal21 .OR. ltab .OR. lace)
          CPASSERT(check)
       END IF
       IF (lbmhft) THEN
          ipot = ft_type
          check = .NOT. (llj .OR. llj_charmm .OR. lgoodwin .OR. lwilliams .OR. leam .OR. lquip .OR. lnequip &
                         .OR. lallegro .OR. lbmhftd .OR. lipbv .OR. lbuck4r .OR. lbuckmo .OR. lgp .OR. ltersoff &
-                        .OR. lsiepmann .OR. lgal .OR. lgal21 .OR. ltab .OR. ldeepmd)
+                        .OR. lsiepmann .OR. lgal .OR. lgal21 .OR. ltab .OR. ldeepmd .OR. lace)
          CPASSERT(check)
       END IF
       IF (lbmhftd) THEN
          ipot = ftd_type
          check = .NOT. (llj .OR. llj_charmm .OR. lgoodwin .OR. lwilliams .OR. leam .OR. lquip .OR. lnequip &
                         .OR. lallegro .OR. lbmhft .OR. lipbv .OR. lbuck4r .OR. lbuckmo .OR. lgp .OR. ltersoff &
-                        .OR. lsiepmann .OR. lgal .OR. lgal21 .OR. ltab .OR. ldeepmd)
+                        .OR. lsiepmann .OR. lgal .OR. lgal21 .OR. ltab .OR. ldeepmd .OR. lace)
          CPASSERT(check)
       END IF
       IF (lipbv) THEN
          ipot = ip_type
          check = .NOT. (llj .OR. llj_charmm .OR. lgoodwin .OR. lwilliams .OR. leam .OR. lquip .OR. lnequip &
                         .OR. lallegro .OR. lbmhft .OR. lbmhftd .OR. lbuck4r .OR. lbuckmo .OR. lgp .OR. ltersoff &
-                        .OR. lsiepmann .OR. lgal .OR. lgal21 .OR. ltab .OR. ldeepmd)
+                        .OR. lsiepmann .OR. lgal .OR. lgal21 .OR. ltab .OR. ldeepmd .OR. lace)
          CPASSERT(check)
       END IF
       IF (lbuck4r) THEN
          ipot = b4_type
          check = .NOT. (llj .OR. llj_charmm .OR. lgoodwin .OR. lwilliams .OR. leam .OR. lquip .OR. lnequip &
                         .OR. lallegro .OR. lbmhft .OR. lbmhftd .OR. lipbv .OR. lbuckmo .OR. lgp .OR. ltersoff &
-                        .OR. lsiepmann .OR. lgal .OR. lgal21 .OR. ltab .OR. ldeepmd)
+                        .OR. lsiepmann .OR. lgal .OR. lgal21 .OR. ltab .OR. ldeepmd .OR. lace)
          CPASSERT(check)
       END IF
       IF (lbuckmo) THEN
          ipot = bm_type
          check = .NOT. (llj .OR. llj_charmm .OR. lgoodwin .OR. lwilliams .OR. leam .OR. lquip .OR. lnequip &
                         .OR. lbmhft .OR. lbmhftd .OR. lipbv .OR. lbuck4r .OR. lgp .OR. ltersoff &
-                        .OR. lsiepmann .OR. lgal .OR. lgal21 .OR. ltab .OR. ldeepmd)
+                        .OR. lsiepmann .OR. lgal .OR. lgal21 .OR. ltab .OR. ldeepmd .OR. lace)
          CPASSERT(check)
       END IF
       IF (ltersoff) THEN
          ipot = tersoff_type
          check = .NOT. (llj .OR. llj_charmm .OR. lgoodwin .OR. lwilliams .OR. leam .OR. lquip .OR. lnequip &
                         .OR. lallegro .OR. lbmhft .OR. lbmhftd .OR. lipbv .OR. lbuck4r .OR. lgp .OR. lbuckmo &
-                        .OR. lsiepmann .OR. lgal .OR. lgal21 .OR. ltab .OR. ldeepmd)
+                        .OR. lsiepmann .OR. lgal .OR. lgal21 .OR. ltab .OR. ldeepmd .OR. lace)
          CPASSERT(check)
       END IF
       IF (lsiepmann) THEN
          ipot = siepmann_type
          check = .NOT. (llj .OR. llj_charmm .OR. lgoodwin .OR. lwilliams .OR. leam .OR. lquip .OR. lnequip &
                         .OR. lallegro .OR. lbmhft .OR. lbmhftd .OR. lipbv .OR. lbuck4r .OR. lgp .OR. lbuckmo &
-                        .OR. ltersoff .OR. lgal .OR. lgal21 .OR. ltab .OR. ldeepmd)
+                        .OR. ltersoff .OR. lgal .OR. lgal21 .OR. ltab .OR. ldeepmd .OR. lace)
          CPASSERT(check)
       END IF
       IF (lgal) THEN
          ipot = gal_type
          check = .NOT. (llj .OR. llj_charmm .OR. lgoodwin .OR. lwilliams .OR. leam .OR. lquip .OR. lnequip &
                         .OR. lallegro .OR. lbmhft .OR. lbmhftd .OR. lipbv .OR. lbuck4r .OR. lgp .OR. lbuckmo &
-                        .OR. ltersoff .OR. lsiepmann .OR. lgal21 .OR. ltab .OR. ldeepmd)
+                        .OR. ltersoff .OR. lsiepmann .OR. lgal21 .OR. ltab .OR. ldeepmd .OR. lace)
          CPASSERT(check)
       END IF
       IF (lgal21) THEN
          ipot = gal21_type
          check = .NOT. (llj .OR. llj_charmm .OR. lgoodwin .OR. lwilliams .OR. leam .OR. lquip .OR. lnequip &
                         .OR. lallegro .OR. lbmhft .OR. lbmhftd .OR. lipbv .OR. lbuck4r .OR. lgp .OR. lbuckmo &
-                        .OR. ltersoff .OR. lsiepmann .OR. lgal .OR. ltab .OR. ldeepmd)
+                        .OR. ltersoff .OR. lsiepmann .OR. lgal .OR. ltab .OR. ldeepmd .OR. lace)
          CPASSERT(check)
       END IF
       IF (lgp) THEN
          ipot = gp_type
          check = .NOT. (llj .OR. llj_charmm .OR. lgoodwin .OR. lwilliams .OR. leam .OR. lquip .OR. lnequip &
                         .OR. lallegro .OR. lbmhft .OR. lbmhftd .OR. lipbv .OR. lbuck4r .OR. lgal21 .OR. lbuckmo &
-                        .OR. ltersoff .OR. lsiepmann .OR. lgal .OR. ltab .OR. ldeepmd)
+                        .OR. ltersoff .OR. lsiepmann .OR. lgal .OR. ltab .OR. ldeepmd .OR. lace)
          CPASSERT(check)
       END IF
       IF (ltab) THEN
          ipot = tab_type
          check = .NOT. (llj .OR. llj_charmm .OR. lgoodwin .OR. lwilliams .OR. leam .OR. lquip .OR. lnequip &
                         .OR. lallegro .OR. lbmhft .OR. lbmhftd .OR. lipbv .OR. lbuck4r .OR. lgp .OR. lgal21 &
-                        .OR. lbuckmo .OR. ltersoff .OR. lsiepmann .OR. lgal)
+                        .OR. lbuckmo .OR. ltersoff .OR. lsiepmann .OR. lgal .OR. lace)
          CPASSERT(check)
       END IF
 
@@ -1328,6 +1359,8 @@ CONTAINS
             CALL pair_potential_nequip_create(p%pot(i)%pot%set(std_dim)%nequip)
          CASE (allegro_type)
             CALL pair_potential_allegro_create(p%pot(i)%pot%set(std_dim)%allegro)
+         CASE (ace_type)
+            CALL pair_potential_ace_create(p%pot(i)%pot%set(std_dim)%ace)
          CASE (deepmd_type)
             CALL pair_potential_deepmd_create(p%pot(i)%pot%set(std_dim)%deepmd)
          CASE (ft_type)
@@ -1733,6 +1766,59 @@ CONTAINS
          DEALLOCATE (eam)
       END IF
    END SUBROUTINE pair_potential_eam_release
+
+! **************************************************************************************************
+!> \brief Creates the ACE potential type
+!> \param ace ...
+!> \author
+! **************************************************************************************************
+   SUBROUTINE pair_potential_ace_create(ace)
+      TYPE(ace_pot_type), POINTER                        :: ace
+
+      CPASSERT(.NOT. ASSOCIATED(ace))
+      ALLOCATE (ace)
+   END SUBROUTINE pair_potential_ace_create
+
+! **************************************************************************************************
+!> \brief Copy two ACE potential type
+!> \param ace_source ...
+!> \param ace_dest ...
+!> \author
+! **************************************************************************************************
+   SUBROUTINE pair_potential_ace_copy(ace_source, ace_dest)
+      TYPE(ace_pot_type), POINTER                        :: ace_source, ace_dest
+
+      IF (.NOT. ASSOCIATED(ace_source)) RETURN
+      NULLIFY (ace_dest)
+      IF (ASSOCIATED(ace_dest)) CALL pair_potential_ace_release(ace_dest)
+      CALL pair_potential_ace_create(ace_dest)
+      ace_dest = ace_source
+   END SUBROUTINE pair_potential_ace_copy
+
+! **************************************************************************************************
+!> \brief CLEAN the ACE potential type
+!> \param ace ...
+!> \author
+! **************************************************************************************************
+   SUBROUTINE pair_potential_ace_clean(ace)
+      TYPE(ace_pot_type), POINTER                        :: ace
+
+      IF (.NOT. ASSOCIATED(ace)) RETURN
+      ace = ace_pot_type()
+   END SUBROUTINE pair_potential_ace_clean
+
+! **************************************************************************************************
+!> \brief Destroys the ACE potential type
+!> \param ace ...
+!> \author
+! **************************************************************************************************
+   SUBROUTINE pair_potential_ace_release(ace)
+      TYPE(ace_pot_type), POINTER                        :: ace
+
+      IF (ASSOCIATED(ace)) THEN
+         DEALLOCATE (ace)
+      END IF
+   END SUBROUTINE pair_potential_ace_release
 
 ! **************************************************************************************************
 !> \brief Creates the DEEPMD potential type

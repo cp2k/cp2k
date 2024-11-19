@@ -18,6 +18,8 @@
 !> \author CJM
 ! **************************************************************************************************
 MODULE force_fields_input
+   USE ace_wrapper,                     ONLY: ace_model_initialize,&
+                                              ace_model_type
    USE bibliography,                    ONLY: Clabaut2020,&
                                               Clabaut2021,&
                                               Siepmann1995,&
@@ -65,7 +67,7 @@ MODULE force_fields_input
    USE memory_utilities,                ONLY: reallocate
    USE message_passing,                 ONLY: mp_para_env_type
    USE pair_potential_types,            ONLY: &
-        allegro_pot_type, allegro_type, b4_type, bm_type, deepmd_type, &
+        ace_type, allegro_pot_type, allegro_type, b4_type, bm_type, deepmd_type, &
         do_potential_single_allocation, ea_type, eam_pot_type, ft_pot_type, ft_type, ftd_type, &
         gal21_type, gal_type, gp_type, gw_type, ip_type, ipbv_pot_type, lj_charmm_type, &
         nequip_pot_type, nequip_type, no_potential_single_allocation, pair_potential_p_type, &
@@ -107,9 +109,9 @@ CONTAINS
 
       CHARACTER(LEN=default_string_length), &
          DIMENSION(:), POINTER                           :: atm_names
-      INTEGER :: nallegro, nb4, nbends, nbm, nbmhft, nbmhftd, nbonds, nchg, ndeepmd, neam, ngal, &
-         ngal21, ngd, ngp, nimpr, nipbv, nlj, nnequip, nopbend, nquip, nshell, nsiepmann, ntab, &
-         ntersoff, ntors, ntot, nubs, nwl
+      INTEGER :: nace, nallegro, nb4, nbends, nbm, nbmhft, nbmhftd, nbonds, nchg, ndeepmd, neam, &
+         ngal, ngal21, ngd, ngp, nimpr, nipbv, nlj, nnequip, nopbend, nquip, nshell, nsiepmann, &
+         ntab, ntersoff, ntors, ntot, nubs, nwl
       LOGICAL                                            :: explicit, unique_spline
       REAL(KIND=dp)                                      :: min_eps_spline_allowed
       TYPE(input_info_type), POINTER                     :: inp_info
@@ -330,6 +332,18 @@ CONTAINS
             ndeepmd = ndeepmd - 1 + SIZE(atm_names) + (SIZE(atm_names)*SIZE(atm_names) - SIZE(atm_names))/2
             CALL pair_potential_reallocate(inp_info%nonbonded, 1, ntot + ndeepmd, deepmd=.TRUE.)
             CALL read_deepmd_section(inp_info%nonbonded, tmp_section2, ntot)
+         END IF
+
+         tmp_section2 => section_vals_get_subs_vals(tmp_section, "ACE")
+         CALL section_vals_get(tmp_section2, explicit=explicit, n_repetition=nace)
+         ntot = nlj + nwl + neam + ngd + nipbv + nbmhft + nbmhftd + nb4 + nbm + ngp + ntersoff + ngal + ngal21 + nsiepmann + &
+                nquip + nnequip + nallegro + ntab + ndeepmd
+         IF (explicit) THEN
+            ! avoid repeating the ace section for each pair
+            CALL section_vals_val_get(tmp_section2, "ATOMS", c_vals=atm_names)
+            nace = nace - 1 + SIZE(atm_names) + (SIZE(atm_names)*SIZE(atm_names) - SIZE(atm_names))/2
+            CALL pair_potential_reallocate(inp_info%nonbonded, 1, ntot + nace, ace=.TRUE.)
+            CALL read_ace_section(inp_info%nonbonded, tmp_section2, ntot)
          END IF
 
       END IF
@@ -667,7 +681,71 @@ CONTAINS
       END DO
    END SUBROUTINE read_eam_section
 
+! **************************************************************************************
+!> \brief Reads the ACE section
+!> \param nonbonded ...
+!> \param section ...
+!> \param start ...
 ! **************************************************************************************************
+   SUBROUTINE read_ace_section(nonbonded, section, start)
+      TYPE(pair_potential_p_type), POINTER               :: nonbonded
+      TYPE(section_vals_type), POINTER                   :: section
+      INTEGER, INTENT(IN)                                :: start
+
+      CHARACTER(LEN=2), ALLOCATABLE, DIMENSION(:)        :: ace_atype_symbol
+      CHARACTER(LEN=default_path_length)                 :: ace_filename
+      CHARACTER(LEN=default_string_length)               :: ace_file_name
+      CHARACTER(LEN=default_string_length), &
+         DIMENSION(:), POINTER                           :: atm_names
+      INTEGER                                            :: ace_ntype, isec, jsec, n_items
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: rcutall
+      TYPE(ace_model_type)                               :: model
+
+      n_items = 1
+      isec = 1
+      n_items = isec*n_items
+      CALL section_vals_val_get(section, "ATOMS", c_vals=atm_names)
+
+      ace_ntype = SIZE(atm_names)
+      ALLOCATE (ace_atype_symbol(ace_ntype), rcutall(ace_ntype, ace_ntype))
+      DO isec = 1, ace_ntype
+         ace_atype_symbol(isec) = atm_names(isec) (1:2)
+         CALL uppercase(ace_atype_symbol(isec))
+      END DO
+      CALL section_vals_val_get(section, "POT_FILE_NAME", c_val=ace_file_name)
+
+      ace_filename = discover_file(ace_file_name)
+
+#if defined(__ACE)
+      ! need ace_model_initialize()  here somewhere to get rcut
+      CALL ace_model_initialize(ntypec=ace_ntype, symbolc=ace_atype_symbol, &
+                                fname=TRIM(ace_filename), rcutc=rcutall, model=model)
+#else
+      CPABORT("CP2K was compiled without ACE library.")
+#endif
+
+      DO isec = 1, SIZE(atm_names)
+         DO jsec = isec, SIZE(atm_names)
+            nonbonded%pot(start + n_items)%pot%type = ace_type
+            nonbonded%pot(start + n_items)%pot%at1 = atm_names(isec)
+            nonbonded%pot(start + n_items)%pot%at2 = atm_names(jsec)
+            CALL uppercase(nonbonded%pot(start + n_items)%pot%at1)
+            CALL uppercase(nonbonded%pot(start + n_items)%pot%at2)
+
+            nonbonded%pot(start + n_items)%pot%set(1)%ace%ace_file_name = ace_filename
+            nonbonded%pot(start + n_items)%pot%set(1)%ace%atom_ace_type = isec
+            nonbonded%pot(start + n_items)%pot%set(1)%ace%model = model
+
+            !using rcutall(isec,jsec) instead of maxval(rcutall) TODO check that
+            !it shouldn't be jsec,isec?
+            nonbonded%pot(start + n_items)%pot%rcutsq = cp_unit_to_cp2k(rcutall(isec, jsec), "angstrom")**2
+
+            n_items = n_items + 1
+         END DO
+      END DO
+   END SUBROUTINE read_ace_section
+
+! **************************************************************************************
 !> \brief Reads the DEEPMD section
 !> \param nonbonded ...
 !> \param section ...

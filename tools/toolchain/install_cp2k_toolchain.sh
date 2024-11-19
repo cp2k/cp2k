@@ -242,6 +242,8 @@ The --with-PKG options follow the rules:
                           Default = no
   --with-gmp              Enable GMP library, optional dependency of GreenX
                           Default = no
+  --with-ace              Enable interface to ML-pace
+                          Default = no
 
 FURTHER INSTRUCTIONS
 
@@ -279,7 +281,7 @@ mpi_list="mpich openmpi intelmpi"
 math_list="mkl acml openblas"
 lib_list="fftw libint libxc libgrpp libxsmm cosma scalapack elpa dbcsr
           cusolvermp plumed spfft spla gsl spglib hdf5 libvdwxc sirius
-          libvori libtorch deepmd dftd4 pugixml libsmeagol trexio greenx gmp"
+          libvori libtorch deepmd ace dftd4 pugixml libsmeagol trexio greenx gmp"
 package_list="${tool_list} ${mpi_list} ${math_list} ${lib_list}"
 # ------------------------------------------------------------------------
 
@@ -637,6 +639,9 @@ while [ $# -ge 1 ]; do
       ;;
     --with-deepmd*)
       with_deepmd=$(read_with $1)
+      ;;
+    --with-ace*)
+      with_ace=$(read_with $1)
       ;;
     --with-plumed*)
       with_plumed=$(read_with "${1}")

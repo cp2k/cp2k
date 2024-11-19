@@ -89,7 +89,7 @@ MODULE bibliography
                             Stein2022, Stein2024, Pracht2019, &
                             Blase2018, Blase2020, Bruneval2015, Golze2019, Gui2018, Jacquemin2017, Liu2020, &
                             Sander2015, Schreiber2008, vanSetten2015, Setyawan2010, Ahart2024, Knysh2024, &
-                            Schambeck2024, Mewes2018, Sertcan2024
+                            Schambeck2024, Mewes2018, Sertcan2024, Drautz2019, Lysogorskiy2021, Bochkarev2024
 
 CONTAINS
 
@@ -1917,6 +1917,26 @@ CONTAINS
                          "for the Tamm–Dancoff Approximation of Time-Dependent Density Functional Theory", &
                          source="J. Chem. Theory Comput.", volume="20", pages="8494-8504", &
                          year=2024, doi="10.1021/acs.jctc.4c00614")
+
+      CALL add_reference(key=Drautz2019, &
+                         authors=s2a("R. Drautz"), &
+                         title="Atomic cluster expansion for accurate and transferable interatomic potentials", &
+                         source="Phys. Rev. B", volume="99", pages="014104", &
+                         year=2019, doi="10.1103/PhysRevB.99.014104")
+
+      CALL add_reference(key=Lysogorskiy2021, &
+                         authors=s2a("Y. Lysogorskiy", "C. van der Ooord", "A. Bochkarev", "S. Menon", &
+                                     "M. Rinaldi", "T. Hammerschmidt", "M. Mrovec", "A. Thompson", "G. Csanyi", &
+                                     "C. Ortner", "R. Drautz"), &
+                   title="Performant implementation of the atomic cluster expansion (PACE) and application to copper and silicon", &
+                         source="npj Comput. Mater.", volume="7", pages="97", &
+                         year=2021, doi="10.1038/s41524-021-00559-9")
+
+      CALL add_reference(key=Bochkarev2024, &
+                         authors=s2a("A. Bochkarev", "Y. Lysogorskiy", "R. Drautz"), &
+                         title="Graph Atomic Cluster Expansion for semilocal interactions beyond equivariant message passing", &
+                         source="Phys. Rev. X", volume="14", pages="021036", &
+                         year=2024, doi="10.1103/PhysRevX.14.021036")
 
    END SUBROUTINE add_all_references
 
