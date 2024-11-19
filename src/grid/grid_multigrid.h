@@ -31,7 +31,10 @@ typedef struct {
   offload_buffer **grids;
   grid_mpi_comm comm;
   int (*pgrid_dims)[3];
-  int *bounds;
+  int (*proc2pcoord)[3];
+  int (*proc2local)[3];
+  int (*shifts)[3];
+  int (*nshifts)[3];
   grid_ref_multigrid *ref;
   grid_cpu_multigrid *cpu;
   // more backends to be added here
@@ -51,6 +54,8 @@ void grid_create_multigrid_f(
     const int shift_local[nlevels][3], const int border_width[nlevels][3],
     const double dh[nlevels][3][3], const double dh_inv[nlevels][3][3],
     const int pgrid_dims[nlevels][3], const grid_mpi_fint fortran_comm,
+    const int proc2pcoord[nlevels * grid_mpi_comm_size(
+                                        grid_mpi_comm_f2c(fortran_comm))][3],
     grid_multigrid **multigrid_out);
 
 bool grid_get_multigrid_orthorhombic(const grid_multigrid *multigrid);
@@ -146,13 +151,13 @@ void grid_copy_from_multigrid_general_f_single(const grid_multigrid *multigrid,
  * \param nlevels          Number of grid levels.
  * \param npts_global      Number of global grid points in each direction.
  * \param npts_local       Number of local grid points in each direction.
- * \param shift_local      Number of points local grid is shifted wrt global
- *                         grid
- * \param border_width     Width of halo region in grid points in each
- *                         direction.
+ * \param shift_local      Shift of the local grid wrt to the global grid.
+ * \param border_width     Width of halo region in each direction.
  * \param dh               Incremental grid matrix.
  * \param dh_inv           Inverse incremental grid matrix.
- * \param comm             The C-communicator
+ * \param pgrid_dims       Dimensions of the required process grid.
+ * \param comm             C communicator in use.
+ * \param proc2pcoord      Map of the processes to a process coordinate.
  *
  * \param multigrid        Handle to the created multigrid.
  *
@@ -164,6 +169,7 @@ void grid_create_multigrid(
     const int shift_local[nlevels][3], const int border_width[nlevels][3],
     const double dh[nlevels][3][3], const double dh_inv[nlevels][3][3],
     const int pgrid_dims[nlevels][3], const grid_mpi_comm comm,
+    const int proc2pcoord[nlevels * grid_mpi_comm_size(comm)][3],
     grid_multigrid **multigrid_out);
 
 /*******************************************************************************

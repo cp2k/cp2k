@@ -205,6 +205,34 @@ void grid_mpi_wait(grid_mpi_request *request) {
 #endif
 }
 
+void grid_mpi_waitany(const int number_of_requests,
+                      grid_mpi_request request[number_of_requests], int *idx) {
+#if defined(__parallel)
+  MPI_Status status;
+  CHECK(MPI_Waitany(number_of_requests, request, idx, &status));
+#else
+  *idx = -1;
+  for (int request_idx = 0; request_idx < number_of_requests; request_idx++) {
+    if (request[request_idx] != grid_mpi_request_null) {
+      *idx = request_idx;
+      request[request_idx] = grid_mpi_request_null;
+    }
+  }
+#endif
+}
+
+void grid_mpi_waitall(const int number_of_requests,
+                      grid_mpi_request request[number_of_requests]) {
+#if defined(__parallel)
+  MPI_Status status[number_of_requests];
+  CHECK(MPI_Waitall(number_of_requests, request, &status[0]));
+#else
+  for (int idx = 0; idx < number_of_requests; idx++) {
+    request[idx] = grid_mpi_request_null;
+  }
+#endif
+}
+
 void grid_mpi_allgather_int(const int *sendbuffer, int sendcount,
                             int *recvbuffer, grid_mpi_comm comm) {
 #if defined(__parallel)
@@ -213,6 +241,17 @@ void grid_mpi_allgather_int(const int *sendbuffer, int sendcount,
 #else
   (void)comm;
   memcpy(recvbuffer, sendbuffer, sendcount * sizeof(int));
+#endif
+}
+
+void grid_mpi_sum_double(double *buffer, const int count,
+                         const grid_mpi_comm comm) {
+#if defined(__parallel)
+  CHECK(MPI_Allreduce(MPI_IN_PLACE, buffer, count, MPI_DOUBLE, MPI_SUM, comm));
+#else
+  (void)comm;
+  (void)buffer;
+  (void)count;
 #endif
 }
 

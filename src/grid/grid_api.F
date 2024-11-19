@@ -451,12 +451,14 @@ CONTAINS
 !> \param shift_local ...
 !> \param border_width ...
 !> \param pgrid_dim ...
+!> \param proc2pcoord ...
 !> \author Ole Schuett
 ! **************************************************************************************************
-   SUBROUTINE get_rsgrid_properties(rsgrid, npts_global, npts_local, shift_local, border_width, pgrid_dim)
+   SUBROUTINE get_rsgrid_properties(rsgrid, npts_global, npts_local, shift_local, border_width, pgrid_dim, proc2pcoord)
       TYPE(realspace_grid_type), INTENT(IN)              :: rsgrid
       INTEGER, DIMENSION(:)                              :: npts_global, npts_local, shift_local, &
                                                             border_width, pgrid_dim
+      INTEGER, DIMENSION(:, :)                           :: proc2pcoord
 
       INTEGER                                            :: i
 
@@ -483,6 +485,9 @@ CONTAINS
 
       ! Process grid dimensions
       pgrid_dim = rsgrid%desc%group_dim
+
+      ! Process coordinate for each process
+      proc2pcoord(:, :) = rsgrid%desc%rank2coord(:, rsgrid%desc%real2virtual(:))
 
       ! Convert rsgrid%desc%border and rsgrid%desc%perd into the more convenient border_width array.
       DO i = 1, 3
@@ -887,6 +892,7 @@ CONTAINS
       INTEGER                                            :: handle, ilevel, nlevels
       INTEGER, ALLOCATABLE, DIMENSION(:, :), TARGET      :: border_width, npts_global, npts_local, &
                                                             pgrid_dims, shift_local
+      INTEGER, ALLOCATABLE, DIMENSION(:, :, :), TARGET   :: proc2pcoord
       LOGICAL(KIND=C_BOOL)                               :: orthorhombic
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
          TARGET                                          :: dh, dh_inv
@@ -894,7 +900,7 @@ CONTAINS
          SUBROUTINE grid_create_multigrid_c(orthorhombic, nlevels, &
                                             npts_global, npts_local, shift_local, &
                                             border_width, dh, dh_inv, &
-                                            pgrid_dims, comm, multigrid) &
+                                            pgrid_dims, comm, proc2pcoord, multigrid) &
             BIND(C, name="grid_create_multigrid_f")
             IMPORT :: C_PTR, C_INT, C_BOOL
             LOGICAL(KIND=C_BOOL), VALUE               :: orthorhombic
@@ -907,6 +913,7 @@ CONTAINS
             TYPE(C_PTR), VALUE                        :: dh_inv
             TYPE(C_PTR), VALUE                        :: pgrid_dims
             INTEGER(C_INT), VALUE                     :: comm
+            TYPE(C_PTR), VALUE                        :: proc2pcoord
             TYPE(C_PTR)                               :: multigrid
          END SUBROUTINE grid_create_multigrid_c
       END INTERFACE
@@ -921,6 +928,7 @@ CONTAINS
       ALLOCATE (shift_local(3, nlevels), border_width(3, nlevels))
       ALLOCATE (dh(3, 3, nlevels), dh_inv(3, 3, nlevels))
       ALLOCATE (pgrid_dims(3, nlevels))
+      ALLOCATE (proc2pcoord(3, rs_grids(1)%desc%group%num_pe, nlevels))
       DO ilevel = 1, nlevels
          ASSOCIATE (rsgrid => rs_grids(ilevel))
             CALL get_rsgrid_properties(rsgrid=rsgrid, &
@@ -928,7 +936,8 @@ CONTAINS
                                        npts_local=npts_local(:, ilevel), &
                                        shift_local=shift_local(:, ilevel), &
                                        border_width=border_width(:, ilevel), &
-                                       pgrid_dim=pgrid_dims(:, ilevel))
+                                       pgrid_dim=pgrid_dims(:, ilevel), &
+                                       proc2pcoord=proc2pcoord(:, :, ilevel))
             CPASSERT(rsgrid%desc%orthorhombic .EQV. orthorhombic)  ! should be the same for all levels
             dh(:, :, ilevel) = rsgrid%desc%dh(:, :)
             dh_inv(:, :, ilevel) = rsgrid%desc%dh_inv(:, :)
@@ -943,6 +952,7 @@ CONTAINS
       CPASSERT(IS_CONTIGUOUS(dh))
       CPASSERT(IS_CONTIGUOUS(dh_inv))
       CPASSERT(IS_CONTIGUOUS(pgrid_dims))
+      CPASSERT(IS_CONTIGUOUS(proc2pcoord))
 #endif
 
       !If task_list%c_ptr is already allocated, then its memory will be reused or freed.
@@ -956,6 +966,7 @@ CONTAINS
                                    dh_inv=C_LOC(dh_inv(1, 1, 1)), &
                                    pgrid_dims=C_LOC(pgrid_dims(1, 1)), &
                                    comm=rs_grids(1)%desc%group%get_handle(), &
+                                   proc2pcoord=C_LOC(proc2pcoord(1, 1, 1)), &
                                    multigrid=multigrid%c_ptr)
 
       CPASSERT(C_ASSOCIATED(multigrid%c_ptr))

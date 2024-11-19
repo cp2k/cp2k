@@ -266,7 +266,7 @@ bool grid_replay(const char *filename, const int cycles, const bool collocate,
   const double(*dh_inv)[3] = (const double(*)[3])dh_inv_mutable;
 
   int npts_global[3], npts_local[3], shift_local[3], border_width[3],
-      pgrid_dims[3];
+      pgrid_dims[3], proc2pcoord[grid_mpi_comm_size(grid_mpi_comm_world)][3];
   parse_int3("npts_global", fp, npts_global);
   parse_int3("npts_local", fp, npts_local);
   parse_int3("shift_local", fp, shift_local);
@@ -274,6 +274,12 @@ bool grid_replay(const char *filename, const int cycles, const bool collocate,
   pgrid_dims[0] = grid_mpi_comm_size(grid_mpi_comm_world);
   pgrid_dims[1] = 1;
   pgrid_dims[2] = 1;
+  for (int process = 0; process < grid_mpi_comm_size(grid_mpi_comm_world);
+       process++) {
+    proc2pcoord[process][0] = process;
+    proc2pcoord[process][1] = 0;
+    proc2pcoord[process][2] = 0;
+  }
 
   grid_multigrid *multigrid = NULL;
   grid_create_multigrid(
@@ -281,7 +287,7 @@ bool grid_replay(const char *filename, const int cycles, const bool collocate,
       (const int(*)[3])npts_local, (const int(*)[3])shift_local,
       (const int(*)[3])border_width, (const double(*)[3][3])dh,
       (const double(*)[3][3])dh_inv, (const int(*)[3])pgrid_dims,
-      grid_mpi_comm_world, &multigrid);
+      grid_mpi_comm_world, (const int(*)[3])proc2pcoord, &multigrid);
 
   const double radius = parse_double("radius", fp);
   const int o1 = parse_int("o1", fp);

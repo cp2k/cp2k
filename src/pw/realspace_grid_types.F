@@ -121,6 +121,7 @@ MODULE realspace_grid_types
       INTEGER, DIMENSION(:, :), ALLOCATABLE :: rank2coord
       INTEGER, DIMENSION(:, :, :), ALLOCATABLE :: coord2rank
       ! a mapping from index to rank (which allows to figure out easily on which rank a given point of the grid is)
+      ! Used for task lists
       INTEGER, DIMENSION(:), ALLOCATABLE :: x2coord
       INTEGER, DIMENSION(:), ALLOCATABLE :: y2coord
       INTEGER, DIMENSION(:), ALLOCATABLE :: z2coord
@@ -143,7 +144,7 @@ MODULE realspace_grid_types
       INTEGER, DIMENSION(3) :: lb_real = -1 ! lower bounds of the real local data
       INTEGER, DIMENSION(3) :: ub_real = -1 ! upper bounds of the real local data
 
-      INTEGER, DIMENSION(:), ALLOCATABLE         :: px, py, pz ! index translators
+      INTEGER, DIMENSION(:), ALLOCATABLE         :: px, py, pz ! index translators for dgs
       TYPE(offload_buffer_type)                  :: buffer = offload_buffer_type() ! owner of the grid's memory
       REAL(KIND=dp), DIMENSION(:, :, :), CONTIGUOUS, POINTER :: r => NULL() ! the grid (pointer to buffer%host_buffer)
 
