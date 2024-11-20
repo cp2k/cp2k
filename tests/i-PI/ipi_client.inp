@@ -17,12 +17,6 @@
   &DFT
     &QS
       METHOD XTB
-      &XTB
-        &PARAMETER
-          PARAM_FILE_NAME xTB_parameters
-          PARAM_FILE_PATH /opt/cp2k/data/
-        &END PARAMETER
-      &END XTB
     &END QS
     &SCF
       EPS_SCF 1.0E-3
