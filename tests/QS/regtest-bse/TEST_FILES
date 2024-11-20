@@ -3,7 +3,7 @@ TDA_H2O_PBE_evGW0.inp                                    109      2e-05         
 TDA_H2O_PBE_evGW.inp                                     109      3e-04            8.7825
 BSE_H2O_PBE_G0W0.inp                                     110      2e-05            7.7251
 BSE_H2O_PBE_evGW0.inp                                    110      2e-05            8.1873
-BSE_H2O_PBE_evGW.inp                                     110      2e-04            8.7417
+BSE_H2O_PBE_evGW.inp                                     110      3e-04            8.7417
 TDA_H2O_PBE_G0W0.inp                                     113      7e-02            0.014
 TDA_H2O_PBE_evGW0.inp                                    113      7e-02            0.015
 TDA_H2O_PBE_evGW.inp                                     113      7e-02            0.016
