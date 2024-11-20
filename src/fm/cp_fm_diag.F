@@ -41,7 +41,23 @@ MODULE cp_fm_diag
    USE cp_fm_types, ONLY: cp_fm_get_info, &
                           cp_fm_set_element, &
                           cp_fm_to_fm, &
+                          cp_fm_type, &
+                          cp_fm_create, &
+                          cp_fm_get_info, &
+                          cp_fm_release, &
+                          cp_fm_set_all, &
+                          cp_fm_to_fm, &
+                          cp_fm_to_fm_submat, &
                           cp_fm_type
+   USE cp_fm_struct, ONLY: cp_fm_struct_equivalent, &
+                           cp_fm_struct_create, &
+                           cp_fm_struct_release, &
+                           cp_fm_struct_type
+   USE cp_log_handling, ONLY: cp_logger_get_default_unit_nr, &
+                              cp_get_default_logger, &
+                              cp_logger_get_default_io_unit, &
+                              cp_logger_type, &
+                              cp_to_string
    USE cp_log_handling, ONLY: cp_get_default_logger, &
                               cp_logger_get_default_unit_nr, &
                               cp_logger_get_unit_nr, &
@@ -104,6 +120,7 @@ MODULE cp_fm_diag
              cp_fm_power, &
              cp_fm_syevd, &
              cp_fm_syevx, &
+             cp_fm_svd, &
              cp_fm_geeig, &
              cp_fm_geeig_canon, &
              diag_init, &
@@ -881,6 +898,127 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE cp_fm_syevx
+
+! **************************************************************************************************
+!> \brief decomposes a quadratic matrix into its singular value decomposition
+!> \param matrix_a ...
+!> \param matrix_eigvl ...
+!> \param matrix_eigvr_t ...
+!> \param eigval ...
+!> \param info ...
+!> \author Maximilian Graml
+! **************************************************************************************************
+   SUBROUTINE cp_fm_svd(matrix_a, matrix_eigvl, matrix_eigvr_t, eigval, info)
+
+      TYPE(cp_fm_type), INTENT(IN)             :: matrix_a
+      TYPE(cp_fm_type), INTENT(INOUT)          :: matrix_eigvl, matrix_eigvr_t
+      REAL(KIND=dp), DIMENSION(:), POINTER, &
+         INTENT(INOUT)                         :: eigval
+      INTEGER, INTENT(OUT), OPTIONAL           :: info
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_fm_svd'
+
+      CHARACTER(LEN=2*default_string_length)   :: message
+      INTEGER                                  :: handle, n, m, myinfo, lwork
+      REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a
+      TYPE(cp_fm_type)                :: matrix_lu
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: work
+
+#if defined(__parallel)
+      INTEGER, DIMENSION(9)                    :: desca, descu, descvt
+#endif
+      CALL timeset(routineN, handle)
+
+      CALL cp_fm_create(matrix=matrix_lu, &
+                        matrix_struct=matrix_a%matrix_struct, &
+                        name="A_lu"//TRIM(ADJUSTL(cp_to_string(1)))//"MATRIX")
+      CALL cp_fm_to_fm(matrix_a, matrix_lu)
+      a => matrix_lu%local_data
+      m = matrix_lu%matrix_struct%nrow_global
+      n = matrix_lu%matrix_struct%ncol_global
+      ! Assert that incoming matrix is quadratic
+      CPASSERT(m == n)
+
+      ! Prepare for workspace queries
+      myinfo = 0
+      lwork = -1
+      ALLOCATE (work(1))
+      work(:) = 0.0_dp
+#if defined(__parallel)
+      ! To do: That might need a redistribution check as in cp_fm_syevd
+      desca(:) = matrix_lu%matrix_struct%descriptor(:)
+      descu(:) = matrix_eigvl%matrix_struct%descriptor(:)
+      descvt(:) = matrix_eigvr_t%matrix_struct%descriptor(:)
+
+      ! Workspace query
+      CALL pdgesvd('V', 'V', m, m, matrix_lu%local_data, 1, 1, desca, eigval, matrix_eigvl%local_data, &
+                   1, 1, descu, matrix_eigvr_t%local_data, 1, 1, descvt, work, lwork, myinfo)
+
+      IF (matrix_lu%matrix_struct%para_env%is_source() .AND. (myinfo /= 0)) THEN
+         WRITE (message, "(A,I0,A)") "ERROR in PDGESVD: Work space query failed (INFO = ", myinfo, ")"
+         IF (PRESENT(info)) THEN
+            CPWARN(TRIM(message))
+         ELSE
+            CPABORT(TRIM(message))
+         END IF
+      END IF
+
+      lwork = INT(work(1))
+      DEALLOCATE (work)
+      ALLOCATE (work(lwork))
+      ! SVD
+      CALL pdgesvd('V', 'V', m, m, matrix_lu%local_data, 1, 1, desca, eigval, matrix_eigvl%local_data, &
+                   1, 1, descu, matrix_eigvr_t%local_data, 1, 1, descvt, work, lwork, myinfo)
+
+      IF (matrix_lu%matrix_struct%para_env%is_source() .AND. (myinfo /= 0)) THEN
+         WRITE (message, "(A,I0,A)") "ERROR in PDGESVD: Matrix diagonalization failed (INFO = ", myinfo, ")"
+         IF (PRESENT(info)) THEN
+            CPWARN(TRIM(message))
+         ELSE
+            CPABORT(TRIM(message))
+         END IF
+      END IF
+#else
+      ! Workspace query
+      CALL dgesvd('S', 'S', m, m, matrix_lu%local_data, m, eigval, matrix_eigvl%local_data, &
+                  m, matrix_eigvr_t%local_data, m, work, lwork, myinfo)
+
+      IF (myinfo /= 0) THEN
+         WRITE (message, "(A,I0,A)") "ERROR in DGESVD: Work space query failed (INFO = ", myinfo, ")"
+         IF (PRESENT(info)) THEN
+            CPWARN(TRIM(message))
+         ELSE
+            CPABORT(TRIM(message))
+         END IF
+      END IF
+
+      ! SVD
+      lwork = INT(work(1))
+      DEALLOCATE (work)
+      ALLOCATE (work(lwork))
+      work(:) = 0.0_dp
+
+      CALL dgesvd('S', 'S', m, m, matrix_lu%local_data, m, eigval, matrix_eigvl%local_data, &
+                  m, matrix_eigvr_t%local_data, m, work, lwork, myinfo)
+
+      IF (myinfo /= 0) THEN
+         WRITE (message, "(A,I0,A)") "ERROR in DGESVD: Matrix diagonalization failed (INFO = ", myinfo, ")"
+         IF (PRESENT(info)) THEN
+            CPWARN(TRIM(message))
+         ELSE
+            CPABORT(TRIM(message))
+         END IF
+      END IF
+
+#endif
+      ! Release intermediary matrices
+      DEALLOCATE (work)
+      CALL cp_fm_release(matrix_lu)
+
+      IF (PRESENT(info)) info = myinfo
+
+      CALL timestop(handle)
+   END SUBROUTINE cp_fm_svd
 
 ! **************************************************************************************************
 !> \brief ...

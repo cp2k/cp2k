@@ -1298,6 +1298,7 @@ CONTAINS
          E_CBM_SCF, E_CBM_SCF_beta, E_VBM_GW, E_VBM_GW_beta, E_VBM_SCF, E_VBM_SCF_beta, stop_crit
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: vec_gw_dos
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: m_value, vec_gw_energ, z_value
+      TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(kpoint_type), POINTER                         :: kpoints_Sigma
 
       CALL timeset(routineN, handle)
@@ -1560,7 +1561,12 @@ CONTAINS
                                          homo, unit_nr, do_soc_gw=.TRUE., do_soc_scf=.FALSE.)
          END IF
 
-         iunit = cp_logger_get_default_unit_nr()
+         logger => cp_get_default_logger()
+         IF (logger%para_env%is_source()) THEN
+            iunit = cp_logger_get_default_unit_nr()
+         ELSE
+            iunit = -1
+         END IF
 
          IF (dos_precision /= 0.0_dp) THEN
             IF (iunit > 0) THEN
@@ -4341,6 +4347,7 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: vec_omega_fit_gw_sign, &
                                                             vec_omega_fit_gw_sign_reorder, &
                                                             vec_sigma_imag, vec_sigma_real
+      TYPE(cp_logger_type), POINTER                      :: logger
 
       CALL timeset(routineN, handle)
 
@@ -4437,7 +4444,12 @@ CONTAINS
       IF (ndos /= 0) THEN
          ! Hedin shift not implemented
          CPASSERT(.NOT. do_hedin_shift)
-         iunit = cp_logger_get_default_unit_nr()
+         logger => cp_get_default_logger()
+         IF (logger%para_env%is_source()) THEN
+            iunit = cp_logger_get_default_unit_nr()
+         ELSE
+            iunit = -1
+         END IF
          DO idos = 1, ndos
             omega_dos = dos_lower_bound + REAL(idos - 1, KIND=dp)*dos_precision
             omega_dos_pade_eval = omega_dos - e_fermi
@@ -4469,7 +4481,12 @@ CONTAINS
       END IF
 
       IF (PRESENT(min_level_self_energy) .AND. PRESENT(max_level_self_energy)) THEN
-         iunit = cp_logger_get_default_unit_nr()
+         logger => cp_get_default_logger()
+         IF (logger%para_env%is_source()) THEN
+            iunit = cp_logger_get_default_unit_nr()
+         ELSE
+            iunit = -1
+         END IF
          IF (n_level_gw_ref >= min_level_self_energy .AND. &
              n_level_gw_ref <= max_level_self_energy .AND. iunit > 0) THEN
 
@@ -4561,7 +4578,12 @@ CONTAINS
 
          END IF
 
-         iunit = cp_logger_get_default_unit_nr()
+         logger => cp_get_default_logger()
+         IF (logger%para_env%is_source()) THEN
+            iunit = cp_logger_get_default_unit_nr()
+         ELSE
+            iunit = -1
+         END IF
          CALL open_file(TRIM(filename), unit_number=iunit, file_status="UNKNOWN", file_action="WRITE")
 
          num_omega = 10000

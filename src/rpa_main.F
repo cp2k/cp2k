@@ -979,7 +979,11 @@ CONTAINS
       END IF
 
       ! release blacs_env
-      IF (.NOT. my_blacs_S_ext) CALL cp_blacs_env_release(blacs_env)
+      IF (.NOT. my_blacs_S_ext) THEN
+         CALL cp_blacs_env_release(blacs_env)
+      ELSE
+         NULLIFY (blacs_env)
+      END IF
 
       CALL timestop(handle)
 

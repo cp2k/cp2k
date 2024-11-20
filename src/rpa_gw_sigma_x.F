@@ -555,12 +555,12 @@ CONTAINS
             gw_corr_lev_virt = mp2_env%ri_g0w0%corr_mos_virt
 
             ! If BSE is invoked, manipulate corrected MO number
-            IF (mp2_env%ri_g0w0%do_bse) THEN
+            IF (mp2_env%bse%do_bse) THEN
                ! Logic: If cutoff is negative, all MOs are included in BSE, i.e. we need to correct them all
                !        If cutoff is positive, we can reduce the number of MOs to be corrected and force gw_corr_lev_...
                !        to a sufficiently large number by setting it to -2 and read indices afterwards
                ! Handling for occupied levels
-               IF (mp2_env%ri_g0w0%bse_cutoff_occ < 0) THEN
+               IF (mp2_env%bse%bse_cutoff_occ < 0) THEN
                   gw_corr_lev_occ = -1
                ELSE
                   IF (gw_corr_lev_occ > 0) THEN
@@ -568,7 +568,7 @@ CONTAINS
                   END IF
                END IF
                ! Handling for virtual levels
-               IF (mp2_env%ri_g0w0%bse_cutoff_empty < 0) THEN
+               IF (mp2_env%bse%bse_cutoff_empty < 0) THEN
                   gw_corr_lev_virt = -1
                ELSE
                   IF (gw_corr_lev_virt > 0) THEN

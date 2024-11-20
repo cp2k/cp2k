@@ -20,10 +20,11 @@ MODULE bse_main
                                               diagonalize_C
    USE bse_iterative,                   ONLY: do_subspace_iterations,&
                                               fill_local_3c_arrays
-   USE bse_util,                        ONLY: deallocate_matrices_bse,&
+   USE bse_print,                       ONLY: print_BSE_start_flag
+   USE bse_util,                        ONLY: adapt_BSE_input_params,&
+                                              deallocate_matrices_bse,&
                                               estimate_BSE_resources,&
                                               mult_B_with_W,&
-                                              print_BSE_start_flag,&
                                               truncate_BSE_matrices
    USE cp_fm_types,                     ONLY: cp_fm_release,&
                                               cp_fm_type
@@ -116,7 +117,7 @@ CONTAINS
       my_do_tda = .FALSE.
       my_do_abba = .FALSE.
       !Method: Iterative or full diagonalization
-      SELECT CASE (mp2_env%ri_g0w0%bse_diag_method)
+      SELECT CASE (mp2_env%bse%bse_diag_method)
       CASE (bse_iterdiag)
          my_do_iterat_diag = .TRUE.
          !MG: Basics of the Davidson solver are implemented, but not rigorously checked.
@@ -125,7 +126,7 @@ CONTAINS
          my_do_fulldiag = .TRUE.
       END SELECT
       !Approximation: TDA and/or full ABBA matrix
-      SELECT CASE (mp2_env%ri_g0w0%flag_tda)
+      SELECT CASE (mp2_env%bse%flag_tda)
       CASE (bse_tda)
          my_do_tda = .TRUE.
       CASE (bse_abba)
@@ -140,7 +141,7 @@ CONTAINS
       ! Link BSE debug flag against debug print level
       logger => cp_get_default_logger()
       IF (logger%iter_info%print_level == debug_print_level) THEN
-         mp2_env%ri_g0w0%bse_debug_print = .TRUE.
+         mp2_env%bse%bse_debug_print = .TRUE.
       END IF
 
       CALL fm_mat_S_ia_bse%matrix_struct%para_env%sync()
@@ -167,6 +168,8 @@ CONTAINS
                                    B_iaQ_bse_local, dimen_RI_red, homo_red, virtual_red, &
                                    gd_array, color_sub, para_env)
       END IF
+
+      CALL adapt_BSE_input_params(homo_red, virtual_red, unit_nr, mp2_env)
 
       IF (my_do_fulldiag) THEN
          ! Quick estimate of memory consumption and runtime of diagonalizations
@@ -220,12 +223,12 @@ CONTAINS
 
       CALL deallocate_matrices_bse(fm_mat_S_bar_ia_bse, fm_mat_S_bar_ij_bse, &
                                    fm_mat_S_ia_trunc, fm_mat_S_ij_trunc, fm_mat_S_ab_trunc, &
-                                   fm_mat_Q_static_bse_gemm)
+                                   fm_mat_Q_static_bse_gemm, mp2_env)
       DEALLOCATE (Eigenval_reduced)
       IF (my_do_iterat_diag) THEN
          ! Contains untested Block-Davidson algorithm
          CALL do_subspace_iterations(B_bar_ijQ_bse_local, B_abQ_bse_local, B_bar_iaQ_bse_local, &
-                                     B_iaQ_bse_local, homo(1), virtual(1), mp2_env%ri_g0w0%bse_spin_config, unit_nr, &
+                                     B_iaQ_bse_local, homo(1), virtual(1), mp2_env%bse%bse_spin_config, unit_nr, &
                                      Eigenval(:, 1, 1), para_env, mp2_env)
          ! Deallocate local 3c-B-matrices
          DEALLOCATE (B_bar_ijQ_bse_local, B_abQ_bse_local, B_bar_iaQ_bse_local, B_iaQ_bse_local)

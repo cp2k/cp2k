@@ -88,7 +88,8 @@ MODULE bibliography
                             Caldeweyher2017, Caldeweyher2019, Caldeweyher2020, Freeman1977, Gruneis2009, &
                             Stein2022, Stein2024, Pracht2019, &
                             Blase2018, Blase2020, Bruneval2015, Golze2019, Gui2018, Jacquemin2017, Liu2020, &
-                            Sander2015, Schreiber2008, vanSetten2015, Setyawan2010, Ahart2024
+                            Sander2015, Schreiber2008, vanSetten2015, Setyawan2010, Ahart2024, Knysh2024, &
+                            Schambeck2024, Mewes2018
 
 CONTAINS
 
@@ -1884,11 +1885,31 @@ CONTAINS
                          source="J. Chem. Theory Comput.", volume="20", pages="6772-6780", &
                          year=2024, doi="10.1021/acs.jctc.4c00371")
 
+      CALL add_reference(key=Knysh2024, &
+                         authors=s2a("I. Knysh", "F. Lipparini", "A. Blondel", "I. Duchemin", "X. Blase", &
+                                     "P.-F. Loos", "D. Jacquemin"), &
+                         title="Reference CC3 Excitation Energies for Organic Chromophores: "// &
+                         "Benchmarking TD-DFT, BSE/GW, and Wave Function Methods", &
+                         source="J. Chem. Theory Comput.", volume="20", pages="8152-8174", &
+                         year=2024, doi="10.1021/acs.jctc.4c00906")
+
+      CALL add_reference(key=Schambeck2024, &
+                         authors=s2a("M. Schambeck", "D. Golze", "J. Wilhelm"), &
+                         title="Solving multipole challenges in the GW 100 benchmark enables precise low-scaling GW calculations", &
+                         source="Phys. Rev. B", volume="110", pages="125146", &
+                         year=2024, doi="10.1103/PhysRevB.110.125146")
+
       CALL add_reference(key=Pracht2019, &
                          authors=s2a("P. Pracht", "E. Caldeweyher", "S. Ehlert", "S. Grimme"), &
                          title="A Robust Non-Self-Consistent Tight-Binding Quantum Chemistry Method for large Molecules", &
                          source="ChemRxiv", volume="", pages="", &
                          year=2019, doi="10.26434/chemrxiv.8326202.v1")
+
+      CALL add_reference(key=Mewes2018, &
+                         authors=s2a("S. Mewes", "F. Plasser", "A. Krylov", "A. Dreuw"), &
+                         title="Benchmarking Excited-State Calculations Using Exciton Properties", &
+                         source="J. Chem. Theory Comput.", volume="14", pages="710-725", &
+                         year=2018, doi="10.1021/acs.jctc.7b01145 ")
 
    END SUBROUTINE add_all_references
 
