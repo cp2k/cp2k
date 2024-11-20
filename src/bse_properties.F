@@ -545,6 +545,18 @@ CONTAINS
 
          ! Now we compute the SVD of M_{occ+virt,occ+virt}, which yields
          ! M = U * Lambda * V^T
+         ! Initialize matrices and arrays to store left/right eigenvectors and singular values
+         CALL cp_fm_create(matrix=fm_eigvl, &
+                           matrix_struct=fm_m%matrix_struct, &
+                           name="LEFT_SINGULAR_MATRIX")
+         CALL cp_fm_set_all(fm_eigvl, alpha=0.0_dp)
+         CALL cp_fm_create(matrix=fm_eigvr_t, &
+                           matrix_struct=fm_m%matrix_struct, &
+                           name="RIGHT_SINGULAR_MATRIX")
+         CALL cp_fm_set_all(fm_eigvr_t, alpha=0.0_dp)
+
+         ALLOCATE (eigval_svd(nao_trunc))
+         eigval_svd(:) = 0.0_dp
          info_svd = 0
          CALL cp_fm_svd(fm_m, fm_eigvl, fm_eigvr_t, eigval_svd, info_svd)
          IF (info_svd /= 0) THEN
@@ -954,9 +966,13 @@ CONTAINS
          exc_descr(i_exc)%r_e_shift(:) = exc_descr(i_exc)%r_e(:)
          exc_descr(i_exc)%r_h_shift(:) = exc_descr(i_exc)%r_h(:)
 
+         CALL cp_fm_release(fm_X_ia)
+         IF (.NOT. flag_TDA) THEN
+            CALL cp_fm_release(fm_Y_ia)
+         END IF
       END DO
-      CALL cp_fm_release(fm_X_ia)
       CALL cp_fm_struct_release(fm_struct_ia)
+      CALL cp_fm_struct_release(fm_struct_ab)
 
       CALL timestop(handle)
 

@@ -910,10 +910,10 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cp_fm_svd(matrix_a, matrix_eigvl, matrix_eigvr_t, eigval, info)
 
-      TYPE(cp_fm_type), INTENT(IN)              :: matrix_a
-      TYPE(cp_fm_type), INTENT(OUT)             :: matrix_eigvl, matrix_eigvr_t
+      TYPE(cp_fm_type), INTENT(IN)             :: matrix_a
+      TYPE(cp_fm_type), INTENT(INOUT)          :: matrix_eigvl, matrix_eigvr_t
       REAL(KIND=dp), DIMENSION(:), POINTER, &
-         INTENT(OUT)                         :: eigval
+         INTENT(INOUT)                         :: eigval
       INTEGER, INTENT(OUT), OPTIONAL           :: info
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_fm_svd'
@@ -938,19 +938,6 @@ CONTAINS
       n = matrix_lu%matrix_struct%ncol_global
       ! Assert that incoming matrix is quadratic
       CPASSERT(m == n)
-
-      ! Initialize matrices and arrays to store left/right eigenvectors and singular values
-      CALL cp_fm_create(matrix=matrix_eigvl, &
-                        matrix_struct=matrix_a%matrix_struct, &
-                        name="LEFT_SINGULAR_MATRIX")
-      CALL cp_fm_set_all(matrix_eigvl, alpha=0.0_dp)
-      CALL cp_fm_create(matrix=matrix_eigvr_t, &
-                        matrix_struct=matrix_a%matrix_struct, &
-                        name="RIGHT_SINGULAR_MATRIX")
-      CALL cp_fm_set_all(matrix_eigvr_t, alpha=0.0_dp)
-
-      ALLOCATE (eigval(m))
-      eigval(:) = 0.0_dp
 
       ! Prepare for workspace queries
       myinfo = 0

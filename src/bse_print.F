@@ -547,33 +547,6 @@ CONTAINS
             WRITE (unit_nr, '(T2,A4,T7,A)') 'BSE|', &
                'where c_n = < 𝚿_n | 𝚿_n > deviates from 1 without TDA.'
          END IF
-
-         ! WRITE (unit_nr, '(T2,A4)') 'BSE|'
-         ! WRITE (unit_nr, '(T2,A4,T7,A)') 'BSE|', &
-         !    'The exciton descriptors can then be expressed by electron coordinate'
-         ! WRITE (unit_nr, '(T2,A4)') 'BSE|'
-         ! IF (.NOT. exc_descr(1)%flag_TDA) THEN
-         !    WRITE (unit_nr, '(T2,A4,T15,A)') 'BSE|', &
-         !       '<r_e>_exc = <𝚿_n|𝚿_n> [ Σ_{i,a,b} X_ia^n < ψ_a | r | ψ_b > X_ib^n'
-         !    WRITE (unit_nr, '(T2,A4,T35,A)') 'BSE|', &
-         !       '+ Σ_{i,j,a} Y_ia^n < ψ_i | r | ψ_j > Y_ja^n ]'
-         ! ELSE
-         !    WRITE (unit_nr, '(T2,A4,T15,A)') 'BSE|', &
-         !       '<r_e>_exc = <𝚿_n|𝚿_n> [ Σ_{i,a,b} X_ia^n < ψ_a | r | ψ_b > X_ib^n ]'
-         ! END IF
-         ! WRITE (unit_nr, '(T2,A4)') 'BSE|'
-         ! WRITE (unit_nr, '(T2,A4,T7,A)') 'BSE|', &
-         !    'and hole coordinate'
-         ! WRITE (unit_nr, '(T2,A4)') 'BSE|'
-         ! IF (.NOT. exc_descr(1)%flag_TDA) THEN
-         !    WRITE (unit_nr, '(T2,A4,T15,A)') 'BSE|', &
-         !       '<r_h>_exc = <𝚿_n|𝚿_n> [ Σ_{i,j,a} X_ia^n < ψ_i | r | ψ_j > X_ja^n'
-         !    WRITE (unit_nr, '(T2,A4,T35,A)') 'BSE|', &
-         !       '+ Σ_{i,a,b} Y_ia^n < ψ_a | r | ψ_b > Y_ib^n ]'
-         ! ELSE
-         !    WRITE (unit_nr, '(T2,A4,T15,A)') 'BSE|', &
-         !       '<r_h>_exc = <𝚿_n|𝚿_n> [ Σ_{i,j,a} X_ia^n < ψ_i | r | ψ_j > X_ja^n ]'
-         ! END IF
          WRITE (unit_nr, '(T2,A4)') 'BSE|'
          WRITE (unit_nr, '(T2,A4)') 'BSE|'
          WRITE (unit_nr, '(T2,A4,T7,A)') 'BSE|', &
