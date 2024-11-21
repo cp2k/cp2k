@@ -32,7 +32,6 @@ typedef struct {
   grid_mpi_comm comm;
   int (*pgrid_dims)[3];
   int (*proc2pcoord)[3];
-  int *bounds;
   grid_ref_multigrid *ref;
   grid_cpu_multigrid *cpu;
   // more backends to be added here

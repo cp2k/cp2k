@@ -699,9 +699,6 @@ void grid_create_multigrid(
     }
     // Always free the old communicator
     grid_mpi_comm_free(&multigrid->comm);
-    multigrid->bounds =
-        realloc(multigrid->bounds,
-                nlevels * grid_mpi_comm_size(comm) * 6 * sizeof(int));
     multigrid->proc2pcoord = realloc(
         multigrid->proc2pcoord, num_int * number_of_processes * sizeof(int));
   } else {
@@ -714,8 +711,6 @@ void grid_create_multigrid(
     multigrid->dh_inv = calloc(num_double, sizeof(double));
     multigrid->grids = calloc(nlevels, sizeof(offload_buffer *));
     multigrid->pgrid_dims = calloc(num_int, sizeof(int));
-    multigrid->bounds =
-        calloc(nlevels * grid_mpi_comm_size(comm) * 6, sizeof(int));
     multigrid->proc2pcoord = calloc(num_int * number_of_processes, sizeof(int));
 
     // Resolve AUTO to a concrete backend.
@@ -750,18 +745,6 @@ void grid_create_multigrid(
   memcpy(multigrid->proc2pcoord, proc2pcoord,
          num_int * number_of_processes * sizeof(int));
   grid_mpi_comm_dup(comm, &multigrid->comm);
-
-  for (int level = 0; level < nlevels; level++) {
-    int local_bounds[3][2];
-    for (int dir = 0; dir < 3; dir++) {
-      local_bounds[dir][0] = shift_local[level][dir];
-      local_bounds[dir][1] =
-          shift_local[level][dir] + npts_local[level][dir] - 1;
-    }
-    grid_mpi_allgather_int(
-        &local_bounds[0][0], 6,
-        &multigrid->bounds[level * 6 * grid_mpi_comm_size(comm)], comm);
-  }
 
   grid_ref_create_multigrid(orthorhombic, nlevels, npts_global, npts_local,
                             shift_local, border_width, dh, dh_inv, comm,
@@ -816,8 +799,6 @@ void grid_free_multigrid(grid_multigrid *multigrid) {
     }
     if (multigrid->pgrid_dims != NULL)
       free(multigrid->pgrid_dims);
-    if (multigrid->bounds != NULL)
-      free(multigrid->bounds);
     if (multigrid->proc2pcoord != NULL)
       free(multigrid->proc2pcoord);
     grid_mpi_comm_free(&multigrid->comm);
