@@ -792,7 +792,7 @@ CONTAINS
       CALL section_vals_val_get(as_input, "ERI%OPERATOR_PARAMETER", r_val=eri_op_param)
       active_space_env%eri%operator_parameter = eri_op_param
       CALL section_vals_val_get(as_input, "ERI%CUTOFF_RADIUS", r_val=eri_rcut)
-      active_space_env%eri%cutoff_radius = eri_rcut
+      active_space_env%eri%cutoff_radius = eri_rcut*bohr  ! convert to bohr before storing
       CALL section_vals_val_get(as_input, "ERI%PERIODICITY", i_vals=invals, explicit=ex_perd)
       CALL section_vals_val_get(as_input, "ERI%EPS_INTEGRAL", r_val=eri_eps_int)
       active_space_env%eri%eps_integral = eri_eps_int
@@ -1278,7 +1278,7 @@ CONTAINS
          ! do nothing
       END SELECT
 
-      ! Check the inpuz group
+      ! Check the input group
       CALL get_qs_env(qs_env, para_env=para_env, blacs_env=blacs_env)
       IF (eri_env%eri_gpw%group_size <= 1) eri_env%eri_gpw%group_size = para_env%num_pe
       IF (MOD(para_env%num_pe, eri_env%eri_gpw%group_size) /= 0) &
@@ -1332,12 +1332,13 @@ CONTAINS
          CALL dbcsr_set(mat_munu%matrix, 0.0_dp)
       END IF
 
-      ! Generate the appropriate  pw_env
+      ! Generate the appropriate pw_env
       NULLIFY (pw_env_sub)
       CALL pw_env_create(pw_env_sub)
       CALL pw_env_rebuild(pw_env_sub, qs_env, external_para_env=para_env_sub)
-      CALL pw_env_get(pw_env_sub, auxbas_pw_pool=auxbas_pw_pool, &
-                      poisson_env=poisson_env)
+      CALL pw_env_get(pw_env_sub, auxbas_pw_pool=auxbas_pw_pool, poisson_env=poisson_env)
+
+      ! TODO: maybe we can let `pw_env_rebuild` do what we manually overwrite here?
       IF (eri_env%eri_gpw%redo_poisson) THEN
          ! We need to rebuild the Poisson solver on the fly
          IF (SUM(eri_env%periodicity) /= 0) THEN
@@ -1346,10 +1347,17 @@ CONTAINS
             poisson_env%parameters%solver = pw_poisson_analytic
          END IF
          poisson_env%parameters%periodic = eri_env%periodicity
+
+         ! Rebuilds the poisson green (influience) function according
+         ! to the poisson solver and parameters set so far.
+         ! Also sets the variable poisson_env%rebuild to .FALSE.
          CALL pw_poisson_rebuild(poisson_env)
+
+         ! A bit of an abuse: we change on the fly the cutoff radius
+         ! to that spcified in the input file and then overwrite the
+         ! green function with the new one in `pw_eri_green_create`
          IF (eri_env%cutoff_radius > 0.0_dp) THEN
-            ! TODO: check that green_fft%radius is stored in bohr
-            poisson_env%green_fft%radius = eri_env%cutoff_radius*bohr
+            poisson_env%green_fft%radius = eri_env%cutoff_radius
          ELSE
             CALL get_qs_env(qs_env, cell=cell)
             rc = cell%hmat(1, 1)
@@ -1358,7 +1366,7 @@ CONTAINS
             END DO
             poisson_env%green_fft%radius = rc
          END IF
-
+         ! Overwrite the Greens function with the one we want
          CALL pw_eri_green_create(poisson_env%green_fft, eri_env)
 
          IF (iw > 0) THEN
@@ -1540,19 +1548,6 @@ CONTAINS
                CALL pw_multiply(rho_r, wfn1, wfn2)
                CALL pw_transfer(rho_r, rho_g)
                CALL pw_poisson_solve(poisson_env, rho_g, pair_int, pot_g)
-
-               ! use the mp2 eri gpw trick for potentials different than Coulomb:
-               ! this breaks regtest-as-dft on master
-               ! TODO: this is used for mp2, and I believe is needed here too!
-               ! TODO: we may need the mix_cl_truncated case as well for PBC!
-               IF (eri_env%operator == eri_operator_erf) THEN
-                  CALL pw_gauss_damp(pot_g, eri_env%operator_parameter)
-               ELSE IF (eri_env%operator == eri_operator_erfc) THEN
-                  CALL pw_compl_gauss_damp(pot_g, eri_env%operator_parameter)
-               ELSE IF ((eri_env%operator == eri_operator_yukawa) .OR. &
-                        (eri_env%operator == eri_operator_gaussian)) THEN
-                  CPABORT("Not implemented")
-               END IF
 
                ! screening using pair_int
                IF (pair_int < eri_env%eps_integral) CYCLE
@@ -1743,12 +1738,13 @@ CONTAINS
    END SUBROUTINE calculate_eri_gpw
 
 ! **************************************************************************************************
-!> \brief Sets the Green's function
+!> \brief Sets the Green's function for the ERI calculation. Here we deal with the G=0 case!
 !> \param green ...
 !> \param eri_env ...
 !> \par History
 !>      04.2016 created [JGH]
 ! **************************************************************************************************
+   ! TODO: fix the G=0 terms!
    SUBROUTINE pw_eri_green_create(green, eri_env)
 
       TYPE(greens_fn_type), INTENT(INOUT)                :: green
@@ -2864,7 +2860,8 @@ CONTAINS
       IF (max_iter < 0) CPABORT("Specify a non-negative number of max iterations.")
       CALL section_vals_val_get(as_input, "EPS_ITER", r_val=eps_iter)
       IF (eps_iter < 0.0) CPABORT("Specify a non-negative convergence threshold.")
-      CALL section_vals_val_get(as_input, "ALPHA", r_val=alpha)
+      !CALL section_vals_val_get(as_input, "ALPHA", r_val=alpha)
+      alpha = 0.0
       IF (alpha < 0.0 .OR. alpha > 1.0) CPABORT("Specify a damping factor between 0 and 1.")
       active_space_env%alpha = alpha
 
