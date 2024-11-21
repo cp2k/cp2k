@@ -620,11 +620,12 @@ void grid_create_multigrid_f(
     const int npts_global[nlevels][3], const int npts_local[nlevels][3],
     const int shift_local[nlevels][3], const int border_width[nlevels][3],
     const double dh[nlevels][3][3], const double dh_inv[nlevels][3][3],
-    const int grid_dims[nlevels][3], const grid_mpi_fint fortran_comm,
-    grid_multigrid **multigrid_out) {
+    const int pgrid_dims[nlevels][3], const int (*proc2pcoord)[3],
+    const grid_mpi_fint fortran_comm, grid_multigrid **multigrid_out) {
   grid_create_multigrid(orthorhombic, nlevels, npts_global, npts_local,
-                        shift_local, border_width, dh, dh_inv, grid_dims,
-                        grid_mpi_comm_f2c(fortran_comm), multigrid_out);
+                        shift_local, border_width, dh, dh_inv, pgrid_dims,
+                        proc2pcoord, grid_mpi_comm_f2c(fortran_comm),
+                        multigrid_out);
 }
 
 /*******************************************************************************
@@ -649,12 +650,14 @@ void grid_create_multigrid(
     const int npts_global[nlevels][3], const int npts_local[nlevels][3],
     const int shift_local[nlevels][3], const int border_width[nlevels][3],
     const double dh[nlevels][3][3], const double dh_inv[nlevels][3][3],
-    const int pgrid_dims[nlevels][3], const grid_mpi_comm comm,
-    grid_multigrid **multigrid_out) {
+    const int pgrid_dims[nlevels][3], const int (*proc2pcoord)[3],
+    const grid_mpi_comm comm, grid_multigrid **multigrid_out) {
 
   const grid_library_config config = grid_library_get_config();
 
   grid_multigrid *multigrid = NULL;
+
+  const int number_of_processes = grid_mpi_comm_size(comm);
 
   assert(multigrid_out != NULL);
   for (int level = 0; level < nlevels; level++) {
@@ -699,6 +702,8 @@ void grid_create_multigrid(
     multigrid->bounds =
         realloc(multigrid->bounds,
                 nlevels * grid_mpi_comm_size(comm) * 6 * sizeof(int));
+    multigrid->proc2pcoord = realloc(
+        multigrid->proc2pcoord, num_int * number_of_processes * sizeof(int));
   } else {
     multigrid = calloc(1, sizeof(grid_multigrid));
     multigrid->npts_global = calloc(num_int, sizeof(int));
@@ -711,6 +716,7 @@ void grid_create_multigrid(
     multigrid->pgrid_dims = calloc(num_int, sizeof(int));
     multigrid->bounds =
         calloc(nlevels * grid_mpi_comm_size(comm) * 6, sizeof(int));
+    multigrid->proc2pcoord = calloc(num_int * number_of_processes, sizeof(int));
 
     // Resolve AUTO to a concrete backend.
     if (config.backend == GRID_BACKEND_AUTO) {
@@ -741,6 +747,8 @@ void grid_create_multigrid(
   memcpy(multigrid->dh, dh, num_double * sizeof(double));
   memcpy(multigrid->dh_inv, dh_inv, num_double * sizeof(double));
   memcpy(multigrid->pgrid_dims, npts_global, num_int * sizeof(int));
+  memcpy(multigrid->proc2pcoord, proc2pcoord,
+         num_int * number_of_processes * sizeof(int));
   grid_mpi_comm_dup(comm, &multigrid->comm);
 
   for (int level = 0; level < nlevels; level++) {
@@ -810,6 +818,8 @@ void grid_free_multigrid(grid_multigrid *multigrid) {
       free(multigrid->pgrid_dims);
     if (multigrid->bounds != NULL)
       free(multigrid->bounds);
+    if (multigrid->proc2pcoord != NULL)
+      free(multigrid->proc2pcoord);
     grid_mpi_comm_free(&multigrid->comm);
     grid_ref_free_multigrid(multigrid->ref);
     grid_cpu_free_multigrid(multigrid->cpu);

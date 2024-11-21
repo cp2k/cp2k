@@ -31,6 +31,7 @@ typedef struct {
   offload_buffer **grids;
   grid_mpi_comm comm;
   int (*pgrid_dims)[3];
+  int (*proc2pcoord)[3];
   int *bounds;
   grid_ref_multigrid *ref;
   grid_cpu_multigrid *cpu;
@@ -50,8 +51,8 @@ void grid_create_multigrid_f(
     const int npts_global[nlevels][3], const int npts_local[nlevels][3],
     const int shift_local[nlevels][3], const int border_width[nlevels][3],
     const double dh[nlevels][3][3], const double dh_inv[nlevels][3][3],
-    const int pgrid_dims[nlevels][3], const grid_mpi_fint fortran_comm,
-    grid_multigrid **multigrid_out);
+    const int pgrid_dims[nlevels][3], const int (*proc2pcoord)[3],
+    const grid_mpi_fint fortran_comm, grid_multigrid **multigrid_out);
 
 bool grid_get_multigrid_orthorhombic(const grid_multigrid *multigrid);
 
@@ -163,8 +164,8 @@ void grid_create_multigrid(
     const int npts_global[nlevels][3], const int npts_local[nlevels][3],
     const int shift_local[nlevels][3], const int border_width[nlevels][3],
     const double dh[nlevels][3][3], const double dh_inv[nlevels][3][3],
-    const int pgrid_dims[nlevels][3], const grid_mpi_comm comm,
-    grid_multigrid **multigrid_out);
+    const int pgrid_dims[nlevels][3], const int (*proc2pcoord)[3],
+    const grid_mpi_comm comm, grid_multigrid **multigrid_out);
 
 /*******************************************************************************
  * \brief Deallocates given multigrid.
