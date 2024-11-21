@@ -54,9 +54,7 @@ void grid_create_multigrid_f(
     const int shift_local[nlevels][3], const int border_width[nlevels][3],
     const double dh[nlevels][3][3], const double dh_inv[nlevels][3][3],
     const int pgrid_dims[nlevels][3], const grid_mpi_fint fortran_comm,
-    const int proc2pcoord[nlevels * grid_mpi_comm_size(
-                                        grid_mpi_comm_f2c(fortran_comm))][3],
-    grid_multigrid **multigrid_out);
+    const int (*proc2pcoord)[3], grid_multigrid **multigrid_out);
 
 bool grid_get_multigrid_orthorhombic(const grid_multigrid *multigrid);
 
@@ -169,14 +167,15 @@ void grid_create_multigrid(
     const int shift_local[nlevels][3], const int border_width[nlevels][3],
     const double dh[nlevels][3][3], const double dh_inv[nlevels][3][3],
     const int pgrid_dims[nlevels][3], const grid_mpi_comm comm,
-    const int proc2pcoord[nlevels * grid_mpi_comm_size(comm)][3],
-    grid_multigrid **multigrid_out);
+    const int (*proc2pcoord)[3], grid_multigrid **multigrid_out);
 
 /*******************************************************************************
  * \brief Deallocates given multigrid.
  * \author Frederick Stein
  ******************************************************************************/
 void grid_free_multigrid(grid_multigrid *multigrid);
+
+void grid_print_information(const grid_multigrid *multigrid);
 
 #endif
 

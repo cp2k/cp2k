@@ -458,7 +458,7 @@ CONTAINS
       TYPE(realspace_grid_type), INTENT(IN)              :: rsgrid
       INTEGER, DIMENSION(:)                              :: npts_global, npts_local, shift_local, &
                                                             border_width, pgrid_dim
-      INTEGER, DIMENSION(:, :)                           :: proc2pcoord
+      INTEGER, DIMENSION(:, 0:)                          :: proc2pcoord
 
       INTEGER                                            :: i
 
@@ -487,7 +487,14 @@ CONTAINS
       pgrid_dim = rsgrid%desc%group_dim
 
       ! Process coordinate for each process
-      proc2pcoord(:, :) = rsgrid%desc%rank2coord(:, rsgrid%desc%real2virtual(:))
+      IF (rsgrid%desc%group%num_pe > 1) THEN
+      DO i = 0, rsgrid%desc%group%num_pe - 1
+         proc2pcoord(:, i) = rsgrid%desc%rank2coord(:, rsgrid%desc%real2virtual(i))
+      END DO
+      ELSE
+      ! If there is only one process (local and replicated grids), all processes have the same coordinates
+      proc2pcoord = 0
+      END IF
 
       ! Convert rsgrid%desc%border and rsgrid%desc%perd into the more convenient border_width array.
       DO i = 1, 3
