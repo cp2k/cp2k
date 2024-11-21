@@ -66,15 +66,22 @@ MODULE bse_properties
 ! TYPE definitions for exciton wavefunction descriptors
 
    TYPE exciton_descr_type
-      REAL(KIND=dp), DIMENSION(3)                        :: r_e, r_h, &
-                                                            r_e_sq, r_h_sq, r_e_h, &
-                                                            r_e_shift, r_h_shift, &
-                                                            cov_e_h
-      REAL(KIND=dp)                                      :: sigma_e, sigma_h, &
-                                                            cov_e_h_sum, corr_e_h, &
-                                                            diff_r_abs, diff_r_sqr, &
-                                                            norm_XpY
-      LOGICAL                                           :: flag_TDA
+      REAL(KIND=dp), DIMENSION(3)                        :: r_e = 0.0_dp, &
+                                                            r_h = 0.0_dp, &
+                                                            r_e_sq = 0.0_dp, &
+                                                            r_h_sq = 0.0_dp, &
+                                                            r_e_h = 0.0_dp, &
+                                                            r_e_shift = 0.0_dp, &
+                                                            r_h_shift = 0.0_dp, &
+                                                            cov_e_h = 0.0_dp
+      REAL(KIND=dp)                                      :: sigma_e = 0.0_dp, &
+                                                            sigma_h = 0.0_dp, &
+                                                            cov_e_h_sum = 0.0_dp, &
+                                                            corr_e_h = 0.0_dp, &
+                                                            diff_r_abs = 0.0_dp, &
+                                                            diff_r_sqr = 0.0_dp, &
+                                                            norm_XpY = 0.0_dp
+      LOGICAL                                           :: flag_TDA = .FALSE.
    END TYPE exciton_descr_type
 
 CONTAINS
