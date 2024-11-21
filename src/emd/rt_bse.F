@@ -258,10 +258,17 @@ CONTAINS
          CALL ham_to_exp(rtbse_env)
          ! Propagate the density to mid-point
          CALL propagate_density(rtbse_env, rtbse_env%ham_workspace, rtbse_env%rho, rtbse_env%rho_M)
-         ! In initial iteration, copy rho_M to rho_new_last - that is our initial guess
-         DO j = 1, rtbse_env%n_spin
-            CALL cp_cfm_to_cfm(rtbse_env%rho_M(j), rtbse_env%rho_new_last(j))
-         END DO
+         ! DEBUG : Trying different start point for the density (assuming changes in V^H/Sigma are small)
+         ! ! In initial iteration, copy rho_M to rho_new_last - that is our initial guess
+         ! DO j = 1, rtbse_env%n_spin
+         !    CALL cp_cfm_to_cfm(rtbse_env%rho_M(j), rtbse_env%rho_new_last(j))
+         ! END DO
+         ! In the initial iteration, propagate to rho_new_last using the H(rho) (test for H(rho_M) as well)
+         CALL propagate_density(rtbse_env, rtbse_env%ham_workspace, rtbse_env%rho_M, rtbse_env%rho_new_last)
+         ! ! Try H(rho_M)
+         ! CALL update_effective_ham(rtbse_env, rtbse_env%rho_M)
+         ! CALL ham_to_exp(rtbse_env)
+         ! CALL propagate_density(rtbse_env, rtbse_env%ham_workspace, rtbse_env%rho_M, rtbse_env%rho_new_last)
          ! *********** Start the self-consistent loop ************************
          ! The guess Hamiltonian uses the guess density and field from the next timestep
          rtbse_env%sim_time = REAL(i + 1, dp)*rtbse_env%sim_dt
