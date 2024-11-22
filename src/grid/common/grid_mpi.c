@@ -216,4 +216,15 @@ void grid_mpi_allgather_int(const int *sendbuffer, int sendcount,
 #endif
 }
 
+void grid_mpi_sum_double(double *buffer, const int count,
+                         const grid_mpi_comm comm) {
+#if defined(__parallel)
+  CHECK(MPI_Allreduce(MPI_IN_PLACE, buffer, count, MPI_DOUBLE, MPI_SUM, comm));
+#else
+  (void)comm;
+  (void)buffer;
+  (void)count;
+#endif
+}
+
 // EOF

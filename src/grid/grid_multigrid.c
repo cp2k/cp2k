@@ -659,13 +659,35 @@ void grid_create_multigrid(
 
   const int number_of_processes = grid_mpi_comm_size(comm);
 
+  // Some consistency checks
   assert(multigrid_out != NULL);
   for (int level = 0; level < nlevels; level++) {
+    // Check that pgrid_dims describes a process grid for all processes
+    // either as a 3D process grid or as a serial or replicated grid
     assert(pgrid_dims[level][0] * pgrid_dims[level][1] * pgrid_dims[level][2] ==
                grid_mpi_comm_size(comm) ||
            (pgrid_dims[level][0] == 1 && pgrid_dims[level][1] == 1 &&
             pgrid_dims[level][2] == 1));
+    for (int dir = 0; dir < 3; dir++) {
+      // The code assumes that border_width is positive
+      assert(border_width[level][dir] >= 0);
+      // The number of local grid points in each direct should at least cover
+      // the points on the border
+      assert(npts_local[level][dir] >= 2 * border_width[level][dir]);
+      // Check that no process stores more data than necessary
+      assert(npts_local[level][dir] - 2 * border_width[level][dir] <=
+             npts_global[level][dir]);
+      for (int process = 0; process < number_of_processes; process++) {
+        assert(proc2pcoord[level * number_of_processes + process][dir] >= 0);
+        assert(proc2pcoord[level * number_of_processes + process][dir] <
+               pgrid_dims[level][dir]);
+      }
+    }
   }
+  // TODO:
+  // Check that global parameters are the same on each process
+  // These are: npts_global, border_width, orthorhombic, nlevels, pgrid_dims,
+  // dh, dh_inv, proc2pcoord
 
   const int num_int = 3 * nlevels;
   const int num_double = 9 * nlevels;
@@ -686,6 +708,7 @@ void grid_create_multigrid(
           realloc(multigrid->dh_inv, num_double * sizeof(double));
       multigrid->pgrid_dims =
           realloc(multigrid->pgrid_dims, num_int * sizeof(int));
+      multigrid->nshifts = realloc(multigrid->nshifts, num_int * sizeof(int));
 
       for (int level = 0; level < multigrid->nlevels; level++) {
         offload_free_buffer(multigrid->grids[level]);
@@ -701,6 +724,10 @@ void grid_create_multigrid(
     grid_mpi_comm_free(&multigrid->comm);
     multigrid->proc2pcoord = realloc(
         multigrid->proc2pcoord, num_int * number_of_processes * sizeof(int));
+    multigrid->proc2local = realloc(
+        multigrid->proc2local, num_int * number_of_processes * sizeof(int));
+    multigrid->shifts =
+        realloc(multigrid->shifts, num_int * number_of_processes * sizeof(int));
   } else {
     multigrid = calloc(1, sizeof(grid_multigrid));
     multigrid->npts_global = calloc(num_int, sizeof(int));
@@ -712,6 +739,9 @@ void grid_create_multigrid(
     multigrid->grids = calloc(nlevels, sizeof(offload_buffer *));
     multigrid->pgrid_dims = calloc(num_int, sizeof(int));
     multigrid->proc2pcoord = calloc(num_int * number_of_processes, sizeof(int));
+    multigrid->proc2local = calloc(num_int * number_of_processes, sizeof(int));
+    multigrid->shifts = calloc(num_int * number_of_processes, sizeof(int));
+    multigrid->nshifts = calloc(num_int, sizeof(int));
 
     // Resolve AUTO to a concrete backend.
     if (config.backend == GRID_BACKEND_AUTO) {
@@ -745,6 +775,36 @@ void grid_create_multigrid(
   memcpy(multigrid->proc2pcoord, proc2pcoord,
          num_int * number_of_processes * sizeof(int));
   grid_mpi_comm_dup(comm, &multigrid->comm);
+
+  for (int level = 0; level < nlevels; level++) {
+    grid_mpi_allgather_int(&shift_local[level][0], 3,
+                           &multigrid->shifts[level * number_of_processes][0],
+                           comm);
+    grid_mpi_allgather_int(
+        &npts_local[level][0], 3,
+        &(multigrid->proc2local[level * number_of_processes][0]), comm);
+
+    for (int dir = 0; dir < 3; dir++) {
+      int minimum_number_of_points = npts_global[level][dir];
+      for (int process = 0; process < number_of_processes; process++) {
+        minimum_number_of_points = imin(
+            minimum_number_of_points,
+            multigrid->proc2local[level * number_of_processes + process][dir] -
+                2 * border_width[level][dir]);
+      }
+      if (minimum_number_of_points == 0) {
+        // One of the processors does not carry any data
+        // So, we have to shift n times
+        multigrid->nshifts[level][dir] = pgrid_dims[level][dir];
+      } else {
+        // We determine in how many chunks the border is split at most using the
+        // minimum number of points In practice, it will be less
+        multigrid->nshifts[level][dir] =
+            (border_width[level][dir] + minimum_number_of_points - 1) /
+            (minimum_number_of_points);
+      }
+    }
+  }
 
   grid_ref_create_multigrid(orthorhombic, nlevels, npts_global, npts_local,
                             shift_local, border_width, dh, dh_inv, comm,
@@ -801,6 +861,12 @@ void grid_free_multigrid(grid_multigrid *multigrid) {
       free(multigrid->pgrid_dims);
     if (multigrid->proc2pcoord != NULL)
       free(multigrid->proc2pcoord);
+    if (multigrid->shifts != NULL)
+      free(multigrid->shifts);
+    if (multigrid->nshifts != NULL)
+      free(multigrid->nshifts);
+    if (multigrid->proc2local != NULL)
+      free(multigrid->proc2local);
     grid_mpi_comm_free(&multigrid->comm);
     grid_ref_free_multigrid(multigrid->ref);
     grid_cpu_free_multigrid(multigrid->cpu);
