@@ -28,6 +28,7 @@ MODULE dm_ls_scf
                                               cp_logger_get_default_unit_nr,&
                                               cp_logger_type
    USE dm_ls_chebyshev,                 ONLY: compute_chebyshev
+   USE dm_ls_scf_create,                ONLY: ls_scf_create
    USE dm_ls_scf_curvy,                 ONLY: deallocate_curvy_data,&
                                               dm_ls_curvy_optimization
    USE dm_ls_scf_methods,               ONLY: apply_matrix_preconditioner,&
@@ -116,6 +117,8 @@ CONTAINS
       do_scf = .TRUE.
       IF (PRESENT(nonscf)) do_scf = .NOT. nonscf
 
+      ! Moved here from qs_environment to remove dependencies
+      CALL ls_scf_create(qs_env)
       CALL get_qs_env(qs_env, ls_scf_env=ls_scf_env)
 
       IF (do_scf) THEN
