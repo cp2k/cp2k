@@ -26,13 +26,14 @@ MODULE cp_cfm_diag
 #if defined (__HAS_IEEE_EXCEPTIONS)
    USE ieee_exceptions, ONLY: ieee_get_halting_mode, &
                               ieee_set_halting_mode, &
-                              ieee_all
+                              IEEE_ALL
 #endif
 
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE
+
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_cfm_diag'
 
    PUBLIC :: cp_cfm_heevd, cp_cfm_geeig, cp_cfm_geeig_canon
@@ -190,7 +191,7 @@ CONTAINS
    SUBROUTINE cp_cfm_geeig_canon(amatrix, bmatrix, eigenvectors, eigenvalues, work, epseig)
 
       TYPE(cp_cfm_type), INTENT(IN)                      :: amatrix, bmatrix, eigenvectors
-      REAL(KIND=dp), DIMENSION(:)                        :: eigenvalues
+      REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: eigenvalues
       TYPE(cp_cfm_type), INTENT(IN)                      :: work
       REAL(KIND=dp), INTENT(IN)                          :: epseig
 
@@ -238,7 +239,7 @@ CONTAINS
          ! Set small eigenvalues to a dummy save value
          evals(nc + 1:nao) = 1.0_dp
       END IF
-      ! calculate U*s**(-1/2)
+      ! Calculate U*s**(-1/2)
       cevals(:) = CMPLX(1.0_dp/SQRT(evals(:)), 0.0_dp, KIND=dp)
       CALL cp_cfm_column_scale(work, cevals)
       ! Reduce to get U^(-C) * H * U^(-1)

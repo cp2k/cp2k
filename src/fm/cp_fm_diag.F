@@ -155,6 +155,8 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: dlaf_neigvec_min_input
       REAL(KIND=dp), INTENT(IN)                          :: eps_check_diag_input
 
+      LOGICAL, SAVE                                      :: initialized = .FALSE.
+
       fallback_applied = .FALSE.
 
       IF (diag_lib == "ScaLAPACK") THEN
@@ -180,12 +182,13 @@ CONTAINS
          CPABORT("ERROR in diag_init: Initialization of unknown diagonalization library requested")
       END IF
 
-      ! Initialization of requested diagonalization library:
-      IF (diag_type == FM_DIAG_TYPE_ELPA) THEN
+      ! Initialization of requested diagonalization library
+      IF (.NOT. initialized .AND. diag_type == FM_DIAG_TYPE_ELPA) THEN
          CALL initialize_elpa_library()
          CALL set_elpa_kernel(elpa_kernel)
          CALL set_elpa_qr(elpa_qr, elpa_qr_unsafe)
          CALL set_elpa_print(elpa_print)
+         initialized = .TRUE.
       END IF
 
       elpa_neigvec_min = elpa_neigvec_min_input
@@ -1449,22 +1452,22 @@ CONTAINS
 
       INTEGER                                            :: handle, i, icol, irow, nao, nc, ncol, &
                                                             nmo, nx
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: seigval
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: evals
 
       CALL timeset(routineN, handle)
 
       ! Test sizees
       CALL cp_fm_get_info(amatrix, nrow_global=nao)
       nmo = SIZE(eigenvalues)
-      ALLOCATE (seigval(nao))
+      ALLOCATE (evals(nao))
 
       ! Diagonalize -S matrix, this way the NULL space is at the end of the spectrum
       CALL cp_fm_scale(-1.0_dp, bmatrix)
-      CALL choose_eigv_solver(matrix=bmatrix, eigenvectors=work, eigenvalues=seigval)
-      seigval(:) = -seigval(:)
+      CALL choose_eigv_solver(matrix=bmatrix, eigenvectors=work, eigenvalues=evals)
+      evals(:) = -evals(:)
       nc = nao
       DO i = 1, nao
-         IF (seigval(i) < epseig) THEN
+         IF (evals(i) < epseig) THEN
             nc = i - 1
             EXIT
          END IF
@@ -1484,11 +1487,11 @@ CONTAINS
             END DO
          END DO
          ! Set small eigenvalues to a dummy save value
-         seigval(nc + 1:nao) = 1.0_dp
+         evals(nc + 1:nao) = 1.0_dp
       END IF
       ! Calculate U*s**(-1/2)
-      seigval(:) = 1.0_dp/SQRT(seigval(:))
-      CALL cp_fm_column_scale(work, seigval)
+      evals(:) = 1.0_dp/SQRT(evals(:))
+      CALL cp_fm_column_scale(work, evals)
       ! Reduce to get U^(-T) * H * U^(-1)
       CALL cp_fm_gemm("T", "N", nao, nao, nao, 1.0_dp, work, amatrix, 0.0_dp, bmatrix)
       CALL cp_fm_gemm("N", "N", nao, nao, nao, 1.0_dp, bmatrix, work, 0.0_dp, amatrix)
@@ -1504,7 +1507,7 @@ CONTAINS
       ! Restore vectors C = U^(-1) * C*
       CALL cp_fm_gemm("N", "N", nao, nx, nc, 1.0_dp, work, bmatrix, 0.0_dp, eigenvectors)
 
-      DEALLOCATE (seigval)
+      DEALLOCATE (evals)
 
       CALL timestop(handle)
 
