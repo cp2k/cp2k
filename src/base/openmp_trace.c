@@ -132,7 +132,7 @@ static void openmp_trace_symbol(const void *symbol, char *str, size_t size,
 #else
     int pipefd[2];
     if (NULL != symbol && 0 == pipe(pipefd)) {
-      void *const backtrace[] = {(void *)symbol};
+      void *const backtrace[] = {(void *)(uintptr_t)symbol};
       backtrace_symbols_fd(backtrace, 1, pipefd[1]);
       close(pipefd[1]);
       if (0 < read(pipefd[0], str, size)) {
@@ -259,7 +259,7 @@ static void openmp_trace_master(ompt_scope_endpoint_t endpoint,
       }
       if (0 == sync_n) {
         assert(OPENMP_TRACE_PTR(codeptr_ra, 0) == codeptr_ra);
-        parallel_data->ptr = (void *)codeptr_ra;
+        parallel_data->ptr = (void *)(uintptr_t)codeptr_ra;
         openmp_trace_sync = parallel_data;
       }
     } break;
@@ -295,7 +295,8 @@ void openmp_trace_sync_region(ompt_sync_region_t kind,
       }
       if (0 == sync_n) {
         assert(OPENMP_TRACE_PTR(codeptr_ra, 0) == codeptr_ra);
-        parallel_data->ptr = (void *)OPENMP_TRACE_PTR(codeptr_ra, kind);
+        parallel_data->ptr =
+            (void *)(uintptr_t)OPENMP_TRACE_PTR(codeptr_ra, kind);
         openmp_trace_sync = parallel_data;
       } else if (openmp_trace_level_warn <= openmp_trace_level ||
                  0 > openmp_trace_level) {
@@ -366,7 +367,8 @@ static void openmp_trace_work(ompt_work_t wstype,
         const int kind = wstype - ompt_work_sections +
                          ompt_sync_region_barrier_implementation;
         assert(OPENMP_TRACE_PTR(codeptr_ra, 0) == codeptr_ra);
-        parallel_data->ptr = (void *)OPENMP_TRACE_PTR(codeptr_ra, kind);
+        parallel_data->ptr =
+            (void *)(uintptr_t)OPENMP_TRACE_PTR(codeptr_ra, kind);
         openmp_trace_sync = parallel_data;
       }
     } break;
@@ -437,6 +439,11 @@ ompt_start_tool_result_t *ompt_start_tool(unsigned int omp_version,
     openmp_start_tool.finalize = (ompt_finalize_t)openmp_trace_finalize;
     openmp_start_tool.tool_data.ptr = NULL;
     result = &openmp_start_tool;
+#if defined(NDEBUG)
+    if (1 == openmp_trace_level) {
+      openmp_trace_level = 2; /* adjust trace level */
+    }
+#endif
   }
   return result;
 }
