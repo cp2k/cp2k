@@ -10,10 +10,13 @@
 #include "common/grid_library.h"
 
 #include <assert.h>
+#include <math.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+bool const debug = true;
 
 bool grid_get_multigrid_orthorhombic(const grid_multigrid *multigrid) {
   assert(multigrid != NULL);
@@ -503,23 +506,795 @@ void grid_copy_from_multigrid_replicated(
 }
 
 void grid_copy_from_multigrid_distributed(
-    const double *grid_rs, double *grid_pw, const int npts_rs[3],
-    const int border_width[3], const grid_mpi_comm comm,
-    const int proc2local[grid_mpi_comm_size(comm)][3][2]) {
-  const int number_of_processes = grid_mpi_comm_size(comm);
-  const int my_process = grid_mpi_comm_rank(comm);
+    const double *grid_rs, double *grid_pw, const grid_mpi_comm comm_rs,
+    const int border_width[3],
+    const int proc2local_rs[grid_mpi_comm_size(comm_rs)][3],
+    const int shifts[grid_mpi_comm_size(comm_rs)][3],
+    const int proc2pcoord[grid_mpi_comm_size(comm_rs)][3], const int nshifts[3],
+    const int pgrid_dims[3],
+    const int proc2local_pw[grid_mpi_comm_size(comm_rs)][3][2],
+    const grid_mpi_comm comm_pw) {
+  const int number_of_processes = grid_mpi_comm_size(comm_rs);
+  const int my_process_rs = grid_mpi_comm_rank(comm_rs);
+  assert(number_of_processes == grid_mpi_comm_size(comm_pw));
+  const int my_process_pw = grid_mpi_comm_rank(comm_pw);
+  int my_process_coordinate[3];
+  // The bounds of the local grid part (0: lower bound, 1: upper bound, 2: size)
+  int local_rs_bounds[3][3];
 
-  (void)grid_rs;
-  (void)grid_pw;
-  (void)npts_rs;
-  (void)border_width;
-  (void)proc2local;
-  (void)number_of_processes;
-  (void)my_process;
+  if (debug) {
+    if (my_process_rs == 0) {
+      fprintf(stderr, "%i border_width: %i %i %i\n", my_process_rs,
+              border_width[0], border_width[1], border_width[2]);
+      fprintf(stderr, "%i nshifts: %i %i %i\n", my_process_rs, nshifts[0],
+              nshifts[1], nshifts[2]);
+      fprintf(stderr, "%i pgrid_dims: %i %i %i\n", my_process_rs, pgrid_dims[0],
+              pgrid_dims[1], pgrid_dims[2]);
+      for (int process = 0; process < number_of_processes; process++) {
+        fprintf(stderr, "%i proc2local_rs %i:  %i %i %i\n", my_process_rs,
+                process, proc2local_rs[process][0], proc2local_rs[process][1],
+                proc2local_rs[process][2]);
+      }
+      for (int process = 0; process < number_of_processes; process++) {
+        fprintf(stderr, "%i shifts %i:  %i %i %i\n", my_process_rs, process,
+                shifts[process][0], shifts[process][1], shifts[process][2]);
+      }
+      for (int process = 0; process < number_of_processes; process++) {
+        fprintf(stderr, "%i proc2pcoord %i:  %i %i %i\n", my_process_rs,
+                process, proc2pcoord[process][0], proc2pcoord[process][1],
+                proc2pcoord[process][2]);
+      }
+      for (int process = 0; process < number_of_processes; process++) {
+        fprintf(stderr, "%i proc2local_pw %i:  %i %i %i %i %i %i\n",
+                my_process_rs, process, proc2local_pw[process][0][0],
+                proc2local_pw[process][0][1], proc2local_pw[process][1][0],
+                proc2local_pw[process][1][1], proc2local_pw[process][2][0],
+                proc2local_pw[process][2][1]);
+      }
+    }
+    grid_mpi_barrier(comm_rs);
+  }
 
-  // Sum data from halos
+  // The bounds of the local grid part without the border (0: lower bound, 1:
+  // upper bound, 2: size)
+  int local_rs_bounds_inner[3][3];
+  for (int dir = 0; dir < 3; dir++) {
+    my_process_coordinate[dir] = proc2pcoord[my_process_rs][dir];
+    local_rs_bounds[dir][0] = shifts[my_process_rs][dir];
+    local_rs_bounds[dir][1] = shifts[my_process_rs][dir] +
+                              proc2local_rs[dir][my_process_coordinate[dir]] -
+                              1;
+    local_rs_bounds[dir][2] = proc2local_rs[dir][my_process_coordinate[dir]];
+    local_rs_bounds_inner[dir][0] =
+        shifts[my_process_rs][dir] + border_width[dir];
+    local_rs_bounds_inner[dir][1] =
+        shifts[my_process_rs][dir] +
+        proc2local_rs[dir][my_process_coordinate[dir]] - border_width[dir] - 1;
+    local_rs_bounds_inner[dir][2] =
+        proc2local_rs[dir][my_process_coordinate[dir]] - 2 * border_width[dir];
+  }
 
-  // Distribute data to PW grid
+  // TODOs
+  // Periodicity: Currently, a process with borders outside of the original box
+  // exchanges data with data at the other site of the box. This is correct for
+  // periodicity in the respective regions but not without
+
+  double check_sum = 0.0;
+  if (debug) {
+    for (int iz = 0; iz < local_rs_bounds[2][2]; iz++) {
+      for (int iy = 0; iy < local_rs_bounds[1][2]; iy++) {
+        for (int ix = 0; ix < local_rs_bounds[0][2]; ix++) {
+          check_sum +=
+              grid_rs[iz * local_rs_bounds[1][2] * local_rs_bounds[0][2] +
+                      iy * local_rs_bounds[0][2] + ix];
+        }
+      }
+    }
+    grid_mpi_sum_double(&check_sum, 1, comm_rs);
+  }
+
+  // Start to collect own local data
+
+  // Setup buffer to collect the local data (without the border in the first
+  // direction)
+  double local_data[local_rs_bounds[2][2]][local_rs_bounds[1][2]]
+                   [local_rs_bounds[0][2]];
+  // We will be working on a copy to the original data to prevent changes to the
+  // original data
+  memcpy(&local_data[0][0][0], grid_rs,
+         sizeof(double) * local_rs_bounds[0][2] * local_rs_bounds[1][2] *
+             local_rs_bounds[2][2]);
+
+  {
+    // Just needed to setup buffers only once
+    int max_number_of_shifts = imax(imax(nshifts[0], nshifts[1]), nshifts[2]);
+    int processes_down[max_number_of_shifts];
+    int processes_up[max_number_of_shifts];
+    // Last index 0/1: lower/upper bound
+    int ranges_to_recv_down[max_number_of_shifts][3][3];
+    int ranges_to_recv_up[max_number_of_shifts][3][3];
+    int ranges_to_send_down[max_number_of_shifts][3][3];
+    int ranges_to_send_up[max_number_of_shifts][3][3];
+    // Receive buffers
+    int max_buffer_size =
+        2 * border_width[0] * local_rs_bounds[1][2] * local_rs_bounds[2][2];
+    max_buffer_size = imax(max_buffer_size, 2 * border_width[1] *
+                                                local_rs_bounds_inner[0][2] *
+                                                local_rs_bounds[2][2]);
+    max_buffer_size = imax(max_buffer_size, 2 * border_width[2] *
+                                                local_rs_bounds_inner[0][2] *
+                                                local_rs_bounds_inner[1][2]);
+    double recv_buffer[max_buffer_size];
+    double send_buffer[max_buffer_size];
+    double *recv_buffers[max_number_of_shifts][2];
+    double *send_buffers[max_number_of_shifts][2];
+    grid_mpi_request recv_requests[max_number_of_shifts][2];
+    grid_mpi_request send_requests[max_number_of_shifts][2];
+
+    // Setup receive buffers
+    recv_buffers[0][0] = recv_buffer;
+    recv_buffers[0][1] = recv_buffer + max_buffer_size / 2;
+    send_buffers[0][0] = send_buffer;
+    send_buffers[0][1] = send_buffer + max_buffer_size / 2;
+
+    // Loop over the direction to which we communicate
+    for (int dir = 0; dir < 3; dir++) {
+      // Initialize process coordinates and ranges
+      int process_coord_down[3];
+      int process_coord_up[3];
+      for (int dir = 0; dir < 3; dir++) {
+        process_coord_down[dir] = my_process_coordinate[dir];
+        process_coord_up[dir] = my_process_coordinate[dir];
+      }
+
+      // We set the ranges to the relevant part of our array
+      for (int shift = 0; shift < imin(nshifts[dir], pgrid_dims[dir]);
+           shift++) {
+        for (int dir2 = 0; dir2 < 3; dir2++) {
+          // We receive into the inner box for already covered and currently
+          // covered directions and the whole range with border for the
+          // directions
+          if (dir2 <= dir) {
+            ranges_to_recv_down[shift][dir2][0] =
+                local_rs_bounds_inner[dir2][0] - local_rs_bounds[dir2][0];
+            ranges_to_recv_up[shift][dir2][0] =
+                local_rs_bounds_inner[dir2][0] - local_rs_bounds[dir2][0];
+            ranges_to_recv_down[shift][dir2][1] =
+                local_rs_bounds_inner[dir2][1] - local_rs_bounds[dir2][0];
+            ranges_to_recv_up[shift][dir2][1] =
+                local_rs_bounds_inner[dir2][1] - local_rs_bounds[dir2][0];
+          } else {
+            ranges_to_recv_down[shift][dir2][0] =
+                0; // local_rs_bounds[dir2][0]-local_rs_bounds[dir2][0]
+            ranges_to_recv_up[shift][dir2][0] =
+                0; // local_rs_bounds[dir2][0]-local_rs_bounds[dir2][0]
+            ranges_to_recv_down[shift][dir2][1] = local_rs_bounds[dir2][1];
+            ranges_to_recv_up[shift][dir2][1] = local_rs_bounds[dir2][1];
+          }
+          ranges_to_recv_down[shift][dir2][2] =
+              ranges_to_recv_down[shift][dir2][1] -
+              ranges_to_recv_down[shift][dir2][0] + 1;
+          ranges_to_recv_up[shift][dir2][2] =
+              ranges_to_recv_up[shift][dir2][1] -
+              ranges_to_recv_up[shift][dir2][0] + 1;
+
+          fprintf(stderr, "%i DEBUG ranges_to_recv_down RS %i %i %i %i %i\n",
+                  my_process_rs, shift, dir2,
+                  ranges_to_recv_down[shift][dir2][0],
+                  ranges_to_recv_down[shift][dir2][1],
+                  ranges_to_recv_down[shift][dir2][2]);
+          fprintf(stderr, "%i DEBUG ranges_to_recv_up RS %i %i %i %i %i\n",
+                  my_process_rs, shift, dir2, ranges_to_recv_up[shift][dir2][0],
+                  ranges_to_recv_up[shift][dir2][1],
+                  ranges_to_recv_up[shift][dir2][2]);
+
+          // Sends work similar as receives but for the current dimension (dir),
+          // we send the lower border downwards and the upper border upwards
+          if (dir2 < dir) {
+            ranges_to_send_down[shift][dir2][0] =
+                local_rs_bounds_inner[dir2][0] - local_rs_bounds[dir2][0];
+            ranges_to_send_up[shift][dir2][0] =
+                local_rs_bounds_inner[dir2][0] - local_rs_bounds[dir2][0];
+            ranges_to_send_down[shift][dir2][1] =
+                local_rs_bounds_inner[dir2][1] - local_rs_bounds[dir2][0];
+            ranges_to_send_up[shift][dir2][1] =
+                local_rs_bounds_inner[dir2][1] - local_rs_bounds[dir2][0];
+          } else if (dir2 == dir) {
+            ranges_to_send_down[shift][dir2][0] =
+                0; // local_rs_bounds[dir2][0]-local_rs_bounds[dir2][0]
+            ranges_to_send_up[shift][dir2][0] =
+                local_rs_bounds_inner[dir2][1] + 1 - local_rs_bounds[dir2][0];
+            ranges_to_send_down[shift][dir2][1] =
+                local_rs_bounds_inner[dir2][0] - 1 - local_rs_bounds[dir2][0];
+            ranges_to_send_up[shift][dir2][1] =
+                local_rs_bounds_inner[dir2][1] - local_rs_bounds[dir2][0];
+          } else {
+            ranges_to_send_down[shift][dir2][0] =
+                0; // local_rs_bounds[dir2][0]-local_rs_bounds[dir2][0]
+            ranges_to_send_up[shift][dir2][0] =
+                0; // local_rs_bounds[dir2][0]-local_rs_bounds[dir2][0]
+            ranges_to_send_down[shift][dir2][1] =
+                local_rs_bounds_inner[dir2][1] - local_rs_bounds[dir2][0];
+            ranges_to_send_up[shift][dir2][1] =
+                local_rs_bounds_inner[dir2][1] - local_rs_bounds[dir2][0];
+          }
+          ranges_to_send_down[shift][dir2][2] =
+              ranges_to_send_down[shift][dir2][1] -
+              ranges_to_send_down[shift][dir2][0] + 1;
+          ranges_to_send_up[shift][dir2][2] =
+              ranges_to_send_up[shift][dir2][1] -
+              ranges_to_send_up[shift][dir2][0] + 1;
+          fprintf(stderr, "%i DEBUG ranges_to_send_down RS %i %i %i %i %i\n",
+                  my_process_rs, shift, dir2,
+                  ranges_to_send_down[shift][dir2][0],
+                  ranges_to_send_down[shift][dir2][1],
+                  ranges_to_send_down[shift][dir2][2]);
+          fprintf(stderr, "%i DEBUG ranges_to_send_up RS %i %i %i %i %i\n",
+                  my_process_rs, shift, dir2, ranges_to_send_up[shift][dir2][0],
+                  ranges_to_send_up[shift][dir2][1],
+                  ranges_to_send_up[shift][dir2][2]);
+        }
+      }
+
+      // Setup communication in this direction
+      for (int shift = 0; shift < nshifts[dir]; shift++) {
+        // Determine the processes to send to and receive from
+        process_coord_down[dir] =
+            modulo(my_process_coordinate[dir] - (shift + 1), pgrid_dims[dir]);
+        process_coord_up[dir] =
+            modulo(my_process_coordinate[dir] + (shift + 1), pgrid_dims[dir]);
+        for (int process = 0; process < number_of_processes; process++) {
+          if (process_coord_down[0] == proc2pcoord[process][0] &&
+              process_coord_down[1] == proc2pcoord[process][1] &&
+              process_coord_down[2] == proc2pcoord[process][2]) {
+            processes_down[shift] = process;
+          }
+          if (process_coord_up[0] == proc2pcoord[process][0] &&
+              process_coord_up[1] == proc2pcoord[process][1] &&
+              process_coord_up[2] == proc2pcoord[process][2]) {
+            processes_up[shift] = process;
+          }
+        }
+
+        // Determine the data to be received
+        // We receive from the border of the other process to the inner part of
+        // ourselves Therefore, we determine the local ranges of the other
+        // process in our local coordinate system With the min/max we ensure the
+        // range to our borders as set before
+        ranges_to_recv_down[shift][dir][0] =
+            imax(ranges_to_recv_down[shift][dir][0],
+                 shifts[processes_down[shift]][dir] +
+                     proc2local_rs[dir][processes_down[shift]] -
+                     local_rs_bounds_inner[dir][0]);
+        ranges_to_recv_up[shift][dir][0] =
+            imax(ranges_to_recv_up[shift][dir][0],
+                 shifts[processes_up[shift]][dir] - local_rs_bounds[dir][0]);
+        ranges_to_recv_down[shift][dir][1] =
+            imin(ranges_to_recv_down[shift][dir][1],
+                 shifts[processes_down[shift]][dir] +
+                     proc2local_rs[dir][processes_down[shift]] - 1 -
+                     local_rs_bounds[dir][0]);
+        ranges_to_recv_up[shift][dir][1] =
+            imin(ranges_to_recv_up[shift][dir][1],
+                 shifts[processes_up[shift]][dir] + border_width[dir] - 1 -
+                     local_rs_bounds[dir][0]);
+        ranges_to_recv_down[shift][dir][2] =
+            ranges_to_recv_down[shift][dir][1] -
+            ranges_to_recv_down[shift][dir][0] + 1;
+        ranges_to_recv_up[shift][dir][2] = ranges_to_recv_up[shift][dir][1] -
+                                           ranges_to_recv_up[shift][dir][0] + 1;
+
+        if (ranges_to_recv_down[shift][dir][1] >=
+            ranges_to_recv_down[shift][dir][0]) {
+          // Setup receive buffers by offsetting with the former bounds
+          if (shift > 0 && shift <= nshifts[dir]) {
+            recv_buffers[shift][0] = recv_buffers[shift - 1][0] +
+                                     ranges_to_recv_down[shift - 1][0][2] *
+                                         ranges_to_recv_down[shift - 1][1][2] *
+                                         ranges_to_recv_down[shift - 1][2][2];
+          }
+
+          // Initiate receive requests
+          grid_mpi_irecv_double(recv_buffers[shift][0],
+                                ranges_to_recv_down[shift][0][2] *
+                                    ranges_to_recv_down[shift][1][2] *
+                                    ranges_to_recv_down[shift][2][2],
+                                processes_down[shift], 1, comm_rs,
+                                &recv_requests[shift][0]);
+        } else {
+          // The lower bound is above the upper bound, i.e. there is no data to
+          // be sent With these bounds, we ensure a zero length message
+          ranges_to_recv_down[shift][dir][1] =
+              ranges_to_recv_down[shift][dir][0] - 1;
+          ranges_to_recv_down[shift][dir][2] = 0;
+          // Set the receive request to zero
+          recv_requests[shift][0] = grid_mpi_request_null;
+        }
+
+        // The same for the upper bound
+        if (ranges_to_recv_up[shift][dir][1] >=
+            ranges_to_recv_up[shift][dir][0]) {
+          // Setup receive buffers
+          if (shift > 0 && shift <= nshifts[dir]) {
+            recv_buffers[shift][1] = recv_buffers[shift - 1][1] +
+                                     ranges_to_recv_up[shift - 1][0][2] *
+                                         ranges_to_recv_up[shift - 1][1][2] *
+                                         ranges_to_recv_up[shift - 1][2][2];
+          }
+
+          grid_mpi_irecv_double(
+              recv_buffers[shift][1],
+              ranges_to_recv_up[shift][0][2] * ranges_to_recv_up[shift][1][2] *
+                  ranges_to_recv_up[shift][2][2],
+              processes_up[shift], 2, comm_rs, &recv_requests[shift][1]);
+        } else {
+          ranges_to_recv_up[shift][dir][1] =
+              ranges_to_recv_up[shift][dir][0] - 1;
+          ranges_to_recv_up[shift][dir][2] = 0;
+          recv_requests[shift][1] = grid_mpi_request_null;
+        }
+
+        // Determine the data to be sent
+        // We send from our border to the inner part of the other process
+        ranges_to_send_down[shift][dir][0] =
+            imax(ranges_to_send_down[shift][dir][0],
+                 shifts[processes_down[shift]][dir] + border_width[dir] -
+                     local_rs_bounds[dir][0]);
+        ranges_to_send_down[shift][dir][1] =
+            imin(ranges_to_send_down[shift][dir][1],
+                 shifts[processes_down[shift]][dir] +
+                     proc2local_rs[dir][processes_down[shift]] - 1 -
+                     local_rs_bounds_inner[dir][0]);
+
+        if (ranges_to_send_down[shift][dir][1] >=
+            ranges_to_send_down[shift][dir][0]) {
+          // Setup send buffers
+          if (shift > 0 && shift <= nshifts[dir]) {
+            send_buffers[shift][0] = send_buffers[shift - 1][0] +
+                                     ranges_to_send_down[shift - 1][0][2] *
+                                         ranges_to_send_down[shift - 1][1][2] *
+                                         ranges_to_send_down[shift - 1][2][2];
+            send_buffers[shift][1] = send_buffers[shift - 1][1] +
+                                     ranges_to_send_up[shift - 1][0][2] *
+                                         ranges_to_send_up[shift - 1][1][2] *
+                                         ranges_to_send_up[shift - 1][2][2];
+          }
+
+          // Pack buffer
+          for (int iz = 0; iz < ranges_to_send_down[shift][2][2]; iz++) {
+            for (int iy = 0; iy < ranges_to_send_down[shift][1][2]; iy++) {
+              for (int ix = 0; ix < ranges_to_send_down[shift][0][2]; ix++) {
+                send_buffers[shift][0][iz * ranges_to_send_down[shift][1][2] *
+                                           ranges_to_send_down[shift][0][2] +
+                                       iy * ranges_to_send_down[shift][0][2] +
+                                       ix] =
+                    local_data[iz + ranges_to_send_down[shift][2][0]]
+                              [iy + ranges_to_send_down[shift][1][0]]
+                              [ix + ranges_to_send_down[shift][0][0]];
+              }
+            }
+          }
+
+          grid_mpi_isend_double(send_buffers[shift][0],
+                                ranges_to_send_down[shift][0][2] *
+                                    ranges_to_send_down[shift][1][2] *
+                                    ranges_to_send_down[shift][2][2],
+                                processes_down[shift], 2, comm_rs,
+                                &send_requests[shift][0]);
+        } else {
+          ranges_to_send_down[shift][dir][1] =
+              ranges_to_send_down[shift][dir][0] - 1;
+          ranges_to_send_down[shift][dir][2] = 0;
+          send_requests[shift][0] = grid_mpi_request_null;
+        }
+
+        ranges_to_send_up[shift][dir][0] =
+            imax(ranges_to_send_up[shift][dir][0],
+                 shifts[processes_up[shift]][dir] + border_width[dir] -
+                     local_rs_bounds[dir][0]);
+        ranges_to_send_up[shift][dir][1] =
+            imin(ranges_to_send_up[shift][dir][1],
+                 shifts[processes_up[shift]][dir] +
+                     proc2local_rs[dir][processes_up[shift]] - 1 -
+                     local_rs_bounds_inner[dir][0]);
+        if (ranges_to_send_up[shift][dir][1] >=
+            ranges_to_send_up[shift][dir][0]) {
+          if (shift > 0 && shift <= nshifts[dir]) {
+            send_buffers[shift][1] = send_buffers[shift - 1][1] +
+                                     ranges_to_send_up[shift - 1][0][2] *
+                                         ranges_to_send_up[shift - 1][1][2] *
+                                         ranges_to_send_up[shift - 1][2][2];
+          }
+
+          for (int iz = 0; iz < ranges_to_send_up[shift][2][0] -
+                                    ranges_to_send_up[shift][2][1] + 1;
+               iz++) {
+            for (int iy = 0; iy < ranges_to_send_up[shift][1][0] -
+                                      ranges_to_send_up[shift][1][1] + 1;
+                 iy++) {
+              for (int ix = 0; ix < ranges_to_send_up[shift][0][0] -
+                                        ranges_to_send_up[shift][0][1] + 1;
+                   ix++) {
+                send_buffers[shift][1]
+                            [iz * ranges_to_send_up[shift][1][2] *
+                                 ranges_to_send_up[shift][0][2] +
+                             iy * ranges_to_send_up[shift][0][2] + ix] =
+                                local_data[iz + ranges_to_send_up[shift][2][0]]
+                                          [iy + ranges_to_send_up[shift][1][0]]
+                                          [ix + ranges_to_send_up[shift][0][0]];
+              }
+            }
+          }
+          grid_mpi_isend_double(
+              send_buffers[shift][1],
+              ranges_to_send_up[shift][0][2] * ranges_to_send_up[shift][1][2] *
+                  ranges_to_send_up[shift][2][2],
+              processes_up[shift], 1, comm_rs, &send_requests[shift][1]);
+        } else {
+          ranges_to_send_up[shift][dir][1] =
+              ranges_to_send_up[shift][dir][0] - 1;
+          ranges_to_send_up[shift][dir][2] = 0;
+          send_requests[shift][1] = grid_mpi_request_null;
+        }
+      }
+
+      // Check that we have taken care of all data
+      int data_to_be_exchanged = 0;
+      if (dir == 0) {
+        data_to_be_exchanged =
+            border_width[0] * local_rs_bounds[1][2] * local_rs_bounds[2][2];
+      } else if (dir == 1) {
+        data_to_be_exchanged = border_width[1] * local_rs_bounds_inner[0][2] *
+                               local_rs_bounds[2][2];
+      } else if (dir == 2) {
+        data_to_be_exchanged = border_width[2] * local_rs_bounds_inner[0][2] *
+                               local_rs_bounds_inner[1][2];
+      }
+      int data_to_be_received_down = 0;
+      int data_to_be_received_up = 0;
+      int data_to_be_sent_down = 0;
+      int data_to_be_sent_up = 0;
+      for (int shift = 0; shift < nshifts[dir]; shift++) {
+        data_to_be_received_down += ranges_to_recv_down[shift][0][2] *
+                                    ranges_to_recv_down[shift][1][2] *
+                                    ranges_to_recv_down[shift][2][2];
+        data_to_be_received_up += ranges_to_recv_up[shift][0][2] *
+                                  ranges_to_recv_up[shift][1][2] *
+                                  ranges_to_recv_up[shift][2][2];
+        data_to_be_sent_down += ranges_to_send_down[shift][0][2] *
+                                ranges_to_send_down[shift][1][2] *
+                                ranges_to_send_down[shift][2][2];
+        data_to_be_sent_up += ranges_to_send_up[shift][0][2] *
+                              ranges_to_send_up[shift][1][2] *
+                              ranges_to_send_up[shift][2][2];
+      }
+      assert(data_to_be_exchanged == data_to_be_received_down);
+      assert(data_to_be_exchanged == data_to_be_received_up);
+      assert(data_to_be_exchanged == data_to_be_sent_down);
+      assert(data_to_be_exchanged == data_to_be_sent_up);
+
+      // Wait for the receive processes to finish and update the own data
+      for (int receive_process = 0; receive_process < 2 * nshifts[dir];
+           receive_process++) {
+        int finished_idx = -1;
+        grid_mpi_waitany(2 * nshifts[dir], (grid_mpi_request *)recv_requests,
+                         &finished_idx);
+        if (finished_idx >= 0) {
+          const int shift = finished_idx % nshifts[dir];
+          if (finished_idx >= nshifts[dir]) {
+            // Receive from upwards
+            for (int iz = 0; iz < ranges_to_recv_up[shift][2][2]; iz++) {
+              for (int iy = 0; iy < ranges_to_recv_up[shift][1][2]; iy++) {
+                for (int ix = 0; ix < ranges_to_recv_up[shift][0][2]; ix++) {
+                  local_data[iz + ranges_to_recv_up[shift][2][0]]
+                            [iy + ranges_to_recv_up[shift][1][0]]
+                            [ix + ranges_to_recv_up[shift][0][0]] +=
+                      recv_buffers[shift][1]
+                                  [iz * ranges_to_recv_up[shift][1][2] *
+                                       ranges_to_recv_up[shift][0][2] +
+                                   iy * ranges_to_recv_up[shift][0][2] + ix];
+                }
+              }
+            }
+          } else {
+            // Receive from downwards
+            for (int iz = 0; iz < ranges_to_recv_down[shift][2][2]; iz++) {
+              for (int iy = 0; iy < ranges_to_recv_down[shift][1][2]; iy++) {
+                for (int ix = 0; ix < ranges_to_recv_down[shift][0][2]; ix++) {
+                  local_data[iz + ranges_to_recv_down[shift][2][0]]
+                            [iy + ranges_to_recv_down[shift][1][0]]
+                            [ix + ranges_to_recv_down[shift][0][0]] +=
+                      recv_buffers[shift][1]
+                                  [iz * ranges_to_recv_down[shift][1][2] *
+                                       ranges_to_recv_down[shift][0][2] +
+                                   iy * ranges_to_recv_down[shift][0][2] + ix];
+                }
+              }
+            }
+          }
+        }
+      }
+
+      // Wait for send processes to finish
+      grid_mpi_waitall(2 * nshifts[dir], &send_requests[0][0]);
+    }
+
+    double check_sum2 = 0.0;
+    if (debug) {
+      for (int iz = local_rs_bounds_inner[2][0];
+           iz <= local_rs_bounds_inner[2][1]; iz++) {
+        for (int iy = local_rs_bounds_inner[1][0];
+             iy <= local_rs_bounds_inner[1][1]; iy++) {
+          for (int ix = local_rs_bounds_inner[0][0];
+               ix <= local_rs_bounds_inner[0][1]; ix++) {
+            check_sum2 += local_data[iz][iy][ix];
+          }
+        }
+      }
+      grid_mpi_sum_double(&check_sum2, 1, comm_rs);
+      fprintf(stderr, "%i DEBUG error %f\n", my_process_rs,
+              fabs(check_sum - check_sum2));
+      assert((fabs(check_sum - check_sum2) <
+              1e-8 * fmax(fabs(check_sum), fabs(check_sum2))) &&
+             "Incorrect redistribution of rs grids");
+    }
+  }
+
+  // Copy to PW grid
+
+  // Store the local bounds
+  int local_pw_bounds[3][3];
+  for (int dir = 0; dir < 3; dir++) {
+    local_pw_bounds[dir][0] = proc2local_pw[my_process_pw][dir][0];
+    local_pw_bounds[dir][1] = proc2local_pw[my_process_pw][dir][1];
+    local_pw_bounds[dir][2] =
+        local_pw_bounds[dir][1] - local_pw_bounds[dir][0] + 1;
+  }
+  // Map ranks from the PW communicator to the ranks of the RS communicator
+  int proc_pw2rs[number_of_processes];
+  grid_mpi_allgather_int(&my_process_pw, 1, &proc_pw2rs[0], comm_rs);
+
+  // Prepare the receive process
+  int number_of_processes_to_recv_from = 0;
+  // Count the number of processes from which to receive data
+  for (int process = 0; process < number_of_processes; process++) {
+    if (process != my_process_pw)
+      continue;
+    bool process_needs_data = true;
+    for (int dir = 0; dir < 3; dir++) {
+      if (shifts[process][dir] + border_width[dir] > local_pw_bounds[dir][1])
+        process_needs_data = false;
+      if (shifts[process][dir] + proc2local_rs[dir][proc2pcoord[process][dir]] -
+              border_width[dir] - 1 <
+          local_pw_bounds[dir][0])
+        process_needs_data = false;
+    }
+    if (process_needs_data)
+      number_of_processes_to_recv_from++;
+  }
+  int processes_to_recv_from[number_of_processes_to_recv_from];
+  int ranges_to_recv_from[number_of_processes_to_recv_from][3][3];
+  number_of_processes_to_recv_from = 0;
+  int number_of_elements_to_recv = 0;
+  for (int process = 0; process < number_of_processes; process++) {
+    if (process != my_process_pw)
+      continue;
+    bool process_needs_data = true;
+    for (int dir = 0; dir < 3; dir++) {
+      if (shifts[process][dir] + border_width[dir] > local_pw_bounds[dir][1])
+        process_needs_data = false;
+      if (shifts[process][dir] + proc2local_rs[dir][proc2pcoord[process][dir]] -
+              border_width[dir] - 1 <
+          local_pw_bounds[dir][0])
+        process_needs_data = false;
+    }
+    if (process_needs_data) {
+      processes_to_recv_from[number_of_processes_to_recv_from] = process;
+      for (int dir = 0; dir < 3; dir++) {
+        ranges_to_recv_from[number_of_processes_to_recv_from][dir][0] = imax(
+            0, proc2local_pw[process][dir][0] - shifts[my_process_rs][dir]);
+        ranges_to_recv_from[number_of_processes_to_recv_from][dir][1] =
+            imin(local_pw_bounds[dir][2] - 1,
+                 proc2local_pw[process][dir][1] - shifts[my_process_pw][dir]);
+        ranges_to_recv_from[number_of_processes_to_recv_from][dir][2] =
+            ranges_to_recv_from[number_of_processes_to_recv_from][dir][1] -
+            ranges_to_recv_from[number_of_processes_to_recv_from][dir][0] + 1;
+      }
+      number_of_processes_to_recv_from++;
+    }
+  }
+  double recv_buffer[local_rs_bounds_inner[0][2] * local_rs_bounds_inner[1][2] *
+                     local_rs_bounds_inner[2][2]];
+  double *recv_buffers[number_of_processes_to_recv_from];
+  recv_buffers[0] = recv_buffer;
+  grid_mpi_request recv_requests[number_of_processes_to_recv_from];
+  for (int recv_counter = 0; recv_counter < number_of_processes_to_recv_from;
+       recv_counter++) {
+    int recv_size[3];
+    if (debug)
+      number_of_elements_to_recv += ranges_to_recv_from[recv_counter][0][2] *
+                                    ranges_to_recv_from[recv_counter][1][2] *
+                                    ranges_to_recv_from[recv_counter][2][2];
+    for (int dir = 0; dir < 3; dir++) {
+      fprintf(stderr, "%i DEBUG ranges_to_recv_from PW %i %i %i %i %i\n",
+              my_process_rs, recv_counter, dir,
+              ranges_to_recv_from[recv_counter][dir][0],
+              ranges_to_recv_from[recv_counter][dir][1],
+              ranges_to_recv_from[recv_counter][dir][2]);
+    }
+    for (int dir = 0; dir < 3; dir++)
+      recv_size[dir] = ranges_to_recv_from[recv_counter][dir][2];
+    if (recv_counter > 0)
+      recv_buffers[recv_counter] = recv_buffers[recv_counter - 1] +
+                                   recv_size[0] * recv_size[1] * recv_size[2];
+    grid_mpi_irecv_double(recv_buffers[recv_counter],
+                          recv_size[0] * recv_size[1] * recv_size[2],
+                          processes_to_recv_from[recv_counter], 23, comm_rs,
+                          recv_requests + recv_counter);
+  }
+
+  // Now, the same for the send process
+  int number_of_processes_to_send_to = 0;
+  for (int process = 0; process < number_of_processes; process++) {
+    if (process != my_process_pw)
+      continue;
+    bool process_needs_data = true;
+    for (int dir = 0; dir < 3; dir++) {
+      if (local_rs_bounds_inner[dir][0] < proc2local_pw[process][dir][1])
+        process_needs_data = false;
+      if (local_rs_bounds_inner[dir][1] > proc2local_pw[process][dir][0])
+        process_needs_data = false;
+    }
+    if (process_needs_data)
+      number_of_processes_to_send_to++;
+  }
+  int processes_to_send_to[number_of_processes_to_send_to];
+  int ranges_to_send_to[number_of_processes_to_send_to][3][3];
+  number_of_processes_to_send_to = 0;
+  int number_of_elements_to_send = 0;
+  for (int process = 0; process < number_of_processes; process++) {
+    if (process != my_process_pw)
+      continue;
+    bool process_needs_data = true;
+    for (int dir = 0; dir < 3; dir++) {
+      if (local_rs_bounds_inner[dir][0] < proc2local_pw[process][dir][1])
+        process_needs_data = false;
+      if (local_rs_bounds_inner[dir][1] > proc2local_pw[process][dir][0])
+        process_needs_data = false;
+    }
+    if (process_needs_data) {
+      processes_to_send_to[number_of_processes_to_send_to] = process;
+      for (int dir = 0; dir < 3; dir++) {
+        ranges_to_send_to[number_of_processes_to_send_to][dir][0] =
+            imax(local_rs_bounds_inner[dir][0],
+                 proc2local_pw[process][dir][0] - local_rs_bounds[dir][0]);
+        ranges_to_send_to[number_of_processes_to_send_to][dir][1] =
+            imin(local_rs_bounds_inner[dir][1],
+                 proc2local_pw[process][dir][1] - local_rs_bounds[dir][0]);
+        ranges_to_send_to[number_of_processes_to_send_to][dir][2] =
+            ranges_to_send_to[number_of_processes_to_send_to][dir][1] -
+            ranges_to_send_to[number_of_processes_to_send_to][dir][0] + 1;
+        assert(ranges_to_send_to[number_of_processes_to_send_to][dir][2] > 0);
+      }
+      number_of_processes_to_send_to++;
+    }
+  }
+  double send_buffer[local_rs_bounds_inner[0][2] * local_rs_bounds_inner[1][2] *
+                     local_rs_bounds_inner[2][2]]; // Needs to PW size
+  double *send_buffers[number_of_processes_to_send_to];
+  send_buffers[0] = send_buffer;
+  grid_mpi_request send_requests[number_of_processes_to_send_to];
+  for (int send_counter = 1; send_counter < number_of_processes_to_send_to;
+       send_counter++) {
+    if (debug)
+      number_of_elements_to_send += ranges_to_send_to[send_counter][0][2] *
+                                    ranges_to_send_to[send_counter][1][2] *
+                                    ranges_to_send_to[send_counter][2][2];
+    for (int dir2 = 0; dir2 < 3; dir2++) {
+      fprintf(stderr, "%i DEBUG ranges_to_send_to PW %i %i %i %i %i\n",
+              my_process_rs, send_counter, dir2,
+              ranges_to_send_to[send_counter][dir2][0],
+              ranges_to_send_to[send_counter][dir2][1],
+              ranges_to_send_to[send_counter][dir2][2]);
+    }
+    int send_size[3];
+    for (int dir = 0; dir < 3; dir++)
+      send_size[dir] = ranges_to_send_to[send_counter][dir][2];
+    if (send_counter > 0)
+      send_buffers[send_counter] = send_buffers[send_counter - 1] +
+                                   send_size[0] * send_size[1] * send_size[2];
+    double *current_send_buffer = send_buffers[send_counter];
+    for (int iz = 0; iz < send_size[2]; iz++) {
+      for (int iy = 0; iy < send_size[1]; iy++) {
+        for (int ix = 0; ix < send_size[0]; ix++) {
+          current_send_buffer[iz * send_size[0] * send_size[1] +
+                              iy * send_size[0] + ix] =
+              local_data[iz + border_width[2]][iy + border_width[1]]
+                        [ix + border_width[0]];
+        }
+      }
+    }
+    grid_mpi_isend_double(send_buffers[send_counter],
+                          send_size[0] * send_size[1] * send_size[2],
+                          processes_to_send_to[send_counter], 23, comm_pw,
+                          send_requests + send_counter);
+  }
+
+  // Copy the own data
+  int bounds[3][3];
+  for (int dir = 0; dir < 3; dir++) {
+    bounds[dir][0] = imax(local_rs_bounds_inner[dir][0],
+                          local_pw_bounds[dir][0] - local_rs_bounds[dir][0]);
+    bounds[dir][1] = imin(local_rs_bounds_inner[dir][1],
+                          local_pw_bounds[dir][1] - local_rs_bounds[dir][0]);
+    bounds[dir][2] = imax(0, bounds[dir][1] - bounds[dir][0] + 1);
+  }
+  if (debug) {
+    number_of_elements_to_send += bounds[0][2] * bounds[1][2] * bounds[2][2];
+    number_of_elements_to_recv += bounds[0][2] * bounds[1][2] * bounds[2][2];
+    // Check that the correct amount of data is recv/sent.
+    assert(number_of_elements_to_recv == local_pw_bounds[0][2] *
+                                             local_pw_bounds[1][2] *
+                                             local_pw_bounds[2][2]);
+    assert(number_of_elements_to_send == local_rs_bounds_inner[0][2] *
+                                             local_rs_bounds_inner[1][2] *
+                                             local_rs_bounds_inner[2][2]);
+  }
+  for (int iz = 0; iz < bounds[2][1] - bounds[2][0] + 1; iz++) {
+    for (int iy = 0; iy < bounds[1][1] - bounds[1][0] + 1; iy++) {
+      for (int ix = 0; ix < bounds[0][1] - bounds[0][0] + 1; ix++) {
+        grid_pw[(iz + bounds[2][2]) * local_pw_bounds[1][2] *
+                    local_pw_bounds[0][2] +
+                (iy + bounds[1][2]) * local_pw_bounds[0][2] +
+                (ix + bounds[0][2])] =
+            local_data[iz + bounds[2][0]][iy + bounds[1][0]][ix + bounds[0][0]];
+      }
+    }
+  }
+
+  for (int recv_counter = 0; recv_counter < number_of_processes_to_recv_from;
+       recv_counter++) {
+    int recv_idx;
+    grid_mpi_waitany(number_of_processes_to_recv_from, recv_requests,
+                     &recv_idx);
+    int recv_size[3];
+    for (int dir = 0; dir < 3; dir++)
+      recv_size[dir] = ranges_to_recv_from[recv_idx][dir][1] -
+                       ranges_to_recv_from[recv_idx][dir][0] + 1;
+    for (int iz = 0; iz < recv_size[2]; iz++) {
+      for (int iy = 0; iy < recv_size[1]; iy++) {
+        for (int ix = 0; ix < recv_size[0]; ix++) {
+          grid_pw[(iz + ranges_to_recv_from[recv_idx][2][0]) *
+                      local_pw_bounds[1][2] * local_pw_bounds[0][2] +
+                  (iy + ranges_to_recv_from[recv_idx][1][0]) *
+                      local_pw_bounds[0][2] +
+                  ix + ranges_to_recv_from[recv_idx][0][0]] =
+              recv_buffers[recv_counter][iz * recv_size[0] * recv_size[1] +
+                                         iy * recv_size[0] + ix];
+        }
+      }
+    }
+    grid_mpi_irecv_double(recv_buffers[recv_counter],
+                          recv_size[0] * recv_size[1] * recv_size[2],
+                          processes_to_recv_from[recv_counter], 23, comm_pw,
+                          recv_requests + recv_counter);
+  }
+  double check_sum3 = 0.0;
+  if (debug) {
+    for (int iz = 0; iz <= local_pw_bounds[2][2]; iz++) {
+      for (int iy = 0; iy <= local_pw_bounds[1][2]; iy++) {
+        for (int ix = 0; ix <= local_pw_bounds[0][2]; ix++) {
+          check_sum3 +=
+              grid_pw[iz * local_pw_bounds[0][2] * local_pw_bounds[1][2] +
+                      iy * local_pw_bounds[0][2] + ix];
+        }
+      }
+    }
+    grid_mpi_sum_double(&check_sum3, 1, comm_pw);
+    assert((fabs(check_sum - check_sum3) <
+            1e-8 * fmax(fabs(check_sum), fabs(check_sum3))) &&
+           "Incorrect redistribution of pw grids");
+  }
 }
 
 void grid_copy_from_multigrid_general(
@@ -544,7 +1319,16 @@ void grid_copy_from_multigrid_general(
             (const int(*)[3][2]) &
                 proc2local[level * grid_mpi_comm_size(comm[level]) * 6]);
       } else {
-        // TODO
+        grid_copy_from_multigrid_distributed(
+            multigrid->grids[level]->host_buffer, grids[level], multigrid->comm,
+            multigrid->border_width[level],
+            (const int(*)[3])multigrid->proc2local[level],
+            (const int(*)[3])multigrid->shifts[level],
+            (const int(*)[3])multigrid->proc2pcoord[level],
+            multigrid->nshifts[level], multigrid->pgrid_dims[level],
+            (const int(*)[3][2]) &
+                proc2local[6 * grid_mpi_comm_size(comm[level]) * level],
+            comm[level]);
       }
     }
   }
@@ -563,7 +1347,7 @@ void grid_copy_from_multigrid_general_f(
 void grid_copy_from_multigrid_general_single(const grid_multigrid *multigrid,
                                              const int level, double *grid,
                                              const grid_mpi_comm comm,
-                                             const int *proc2local) {
+                                             const int (*proc2local)[3][2]) {
   assert(multigrid != NULL);
   assert(!grid_mpi_comm_is_unequal(multigrid->comm, comm));
   assert(grid != NULL);
@@ -582,10 +1366,14 @@ void grid_copy_from_multigrid_general_single(const grid_multigrid *multigrid,
                                           multigrid->border_width[level], comm,
                                           (const int(*)[3][2])proc2local);
     } else {
-      grid_copy_from_multigrid_distributed(multigrid->grids[level]->host_buffer,
-                                           grid, multigrid->npts_local[level],
-                                           multigrid->border_width[level], comm,
-                                           (const int(*)[3][2])proc2local);
+      grid_copy_from_multigrid_distributed(
+          multigrid->grids[level]->host_buffer, grid, multigrid->comm,
+          multigrid->border_width[level],
+          (const int(*)[3])multigrid->proc2local[level],
+          (const int(*)[3])multigrid->shifts[level],
+          (const int(*)[3])multigrid->proc2pcoord[level],
+          multigrid->nshifts[level], multigrid->pgrid_dims[level], proc2local,
+          comm);
     }
   }
 }
@@ -594,8 +1382,9 @@ void grid_copy_from_multigrid_general_single_f(const grid_multigrid *multigrid,
                                                const int level, double *grid,
                                                const grid_mpi_fint fortran_comm,
                                                const int *proc2local) {
-  grid_copy_from_multigrid_general_single(
-      multigrid, level - 1, grid, grid_mpi_comm_f2c(fortran_comm), proc2local);
+  grid_copy_from_multigrid_general_single(multigrid, level - 1, grid,
+                                          grid_mpi_comm_f2c(fortran_comm),
+                                          (const int(*)[3][2])proc2local);
 }
 
 /*******************************************************************************
@@ -771,7 +1560,7 @@ void grid_create_multigrid(
   memcpy(multigrid->border_width, border_width, num_int * sizeof(int));
   memcpy(multigrid->dh, dh, num_double * sizeof(double));
   memcpy(multigrid->dh_inv, dh_inv, num_double * sizeof(double));
-  memcpy(multigrid->pgrid_dims, npts_global, num_int * sizeof(int));
+  memcpy(multigrid->pgrid_dims, pgrid_dims, num_int * sizeof(int));
   memcpy(multigrid->proc2pcoord, proc2pcoord,
          num_int * number_of_processes * sizeof(int));
   grid_mpi_comm_dup(comm, &multigrid->comm);
@@ -785,6 +1574,7 @@ void grid_create_multigrid(
         &(multigrid->proc2local[level * number_of_processes][0]), comm);
 
     for (int dir = 0; dir < 3; dir++) {
+      if (border_width[level][dir]>0) {
       int minimum_number_of_points = npts_global[level][dir];
       for (int process = 0; process < number_of_processes; process++) {
         minimum_number_of_points = imin(
@@ -798,10 +1588,13 @@ void grid_create_multigrid(
         multigrid->nshifts[level][dir] = pgrid_dims[level][dir];
       } else {
         // We determine in how many chunks the border is split at most using the
-        // minimum number of points In practice, it will be less
+        // minimum number of points. In practice, it will be less
         multigrid->nshifts[level][dir] =
             (border_width[level][dir] + minimum_number_of_points - 1) /
-            (minimum_number_of_points);
+            minimum_number_of_points;
+      }
+      } else {
+        multigrid->nshifts[level][dir] = 0;
       }
     }
   }
@@ -829,6 +1622,9 @@ void grid_create_multigrid(
   }
 
   *multigrid_out = multigrid;
+
+  if (debug)
+    print_multigrid_info(multigrid);
 
   grid_mpi_barrier(multigrid->comm);
 }
@@ -871,6 +1667,75 @@ void grid_free_multigrid(grid_multigrid *multigrid) {
     grid_ref_free_multigrid(multigrid->ref);
     grid_cpu_free_multigrid(multigrid->cpu);
     free(multigrid);
+  }
+}
+
+void print_multigrid_info(const grid_multigrid *multigrid) {
+  if (multigrid != NULL) {
+    const int number_of_processes = grid_mpi_comm_rank(multigrid->comm);
+    if (number_of_processes == 0) {
+      printf("Number of grid levels: %i\n", multigrid->nlevels);
+      switch (multigrid->backend) {
+      case GRID_BACKEND_REF:
+        printf("Backend: REF\n");
+        break;
+      case GRID_BACKEND_CPU:
+        printf("Backend: CPU\n");
+        break;
+      case GRID_BACKEND_DGEMM:
+        printf("Backend: DGEMM\n");
+        break;
+      case GRID_BACKEND_GPU:
+        printf("Backend: GPU\n");
+        break;
+      case GRID_BACKEND_HIP:
+        printf("Backend: HIP\n");
+        break;
+      };
+      printf("Orthorhombic: %i\n", multigrid->orthorhombic);
+      printf("Communicator size: %i\n", number_of_processes);
+      for (int level = 0; level < multigrid->nlevels; level++) {
+        printf("Grid level: %i\n", level + 1);
+        printf("Number of global points: %i %i %i\n",
+               multigrid->npts_global[level][0],
+               multigrid->npts_global[level][1],
+               multigrid->npts_global[level][2]);
+        printf("Number of border points: %i %i %i\n",
+               multigrid->border_width[level][0],
+               multigrid->border_width[level][1],
+               multigrid->border_width[level][2]);
+        printf("Process grid: %i %i %i\n", multigrid->pgrid_dims[level][0],
+               multigrid->pgrid_dims[level][1],
+               multigrid->pgrid_dims[level][2]);
+        printf("dh\n");
+        for (int dir = 0; dir < 3; dir++) {
+          printf("%f %f %f\n", multigrid->dh[level][dir][0],
+                 multigrid->dh[level][dir][1], multigrid->dh[level][dir][2]);
+        }
+        printf("dh_inv\n");
+        for (int dir = 0; dir < 3; dir++) {
+          printf("%f %f %f\n", multigrid->dh_inv[level][dir][0],
+                 multigrid->dh_inv[level][dir][1],
+                 multigrid->dh_inv[level][dir][2]);
+        }
+        for (int process = 0; process < number_of_processes; process++) {
+          printf(
+              "Number of local points of process %i: %i %i %i\n", process,
+              multigrid->proc2local[level * number_of_processes + process][0],
+              multigrid->proc2local[level * number_of_processes + process][1],
+              multigrid->proc2local[level * number_of_processes + process][2]);
+          printf(
+              "Process coordinates of process %i: %i %i %i\n", process,
+              multigrid->proc2pcoord[level * number_of_processes + process][0],
+              multigrid->proc2pcoord[level * number_of_processes + process][1],
+              multigrid->proc2pcoord[level * number_of_processes + process][2]);
+          printf("Shifts of process %i: %i %i %i\n", process,
+                 multigrid->shifts[level * number_of_processes + process][0],
+                 multigrid->shifts[level * number_of_processes + process][1],
+                 multigrid->shifts[level * number_of_processes + process][2]);
+        }
+      }
+    }
   }
 }
 

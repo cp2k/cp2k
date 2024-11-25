@@ -459,6 +459,8 @@ CONTAINS
          END IF
       END IF
 
+      WRITE (*, *) "group_dim", desc%group_dim
+
       CALL timestop(handle)
 
    END SUBROUTINE rs_grid_create_descriptor

@@ -134,7 +134,7 @@ void grid_copy_to_multigrid_general_single_f(const grid_multigrid *multigrid,
 void grid_copy_from_multigrid_general_single(const grid_multigrid *multigrid,
                                              const int level, double *grid,
                                              const grid_mpi_comm comm,
-                                             const int *proc2local);
+                                             const int (*proc2local)[3][2]);
 
 void grid_copy_from_multigrid_general_f_single(const grid_multigrid *multigrid,
                                                const int level, double *grid,
@@ -174,6 +174,8 @@ void grid_create_multigrid(
  * \author Frederick Stein
  ******************************************************************************/
 void grid_free_multigrid(grid_multigrid *multigrid);
+
+void print_multigrid_info(const grid_multigrid *multigrid);
 
 #endif
 

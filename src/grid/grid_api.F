@@ -485,6 +485,7 @@ CONTAINS
 
       ! Process grid dimensions
       pgrid_dim = rsgrid%desc%group_dim
+      WRITE (*, *) "pgrid_dim", pgrid_dim
 
       ! Process coordinate for each process
       IF (PRODUCT(pgrid_dim) > 1) THEN
@@ -950,6 +951,8 @@ CONTAINS
             dh_inv(:, :, ilevel) = rsgrid%desc%dh_inv(:, :)
          END ASSOCIATE
       END DO
+
+      WRITE (*, *) "pgrid_dims before create", pgrid_dims
 
 #if __GNUC__ >= 9
       CPASSERT(IS_CONTIGUOUS(npts_global))

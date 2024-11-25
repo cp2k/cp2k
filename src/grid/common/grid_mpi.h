@@ -71,6 +71,12 @@ void grid_mpi_irecv_double(double *recvbuffer, const int recvcount,
 
 void grid_mpi_wait(grid_mpi_request *request);
 
+void grid_mpi_waitany(const int number_of_requests,
+                      grid_mpi_request request[number_of_requests], int *idx);
+
+void grid_mpi_waitall(const int number_of_requests,
+                      grid_mpi_request request[number_of_requests]);
+
 void grid_mpi_allgather_int(const int *sendbuffer, int sendcount,
                             int *recvbuffer, grid_mpi_comm comm);
 
