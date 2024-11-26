@@ -552,8 +552,8 @@ BSE|             2    -ABBA-                1                           1.00210
 In the input file, we have specified a list of three excitation levels, no constraint on the
 oscillator strengths $f^{(n)}$ and used the default threshold on the weights, given by
 $\lambda_I^2 \leq 0.010$, which is repeated at the beginning of the section. Therefore, we obtain
-two NTO pairs for $n=1$ with significant weight and one NTO pair for $n=2$ and $n=8$, respectively.
-For $n=1$, we can verify that the NTO weights satisfy
+two NTO pairs for $n=1$ with significant weight and one NTO pair for $n=2$. For $n=1$, we can verify
+that the NTO weights satisfy
 $1.01320 + 0.01320 \approx \sum_I {\left( \lambda_I^{(n)}\right)}^2 = c_n \approx 1.026$ when
 comparing to the output of the exciton descriptor section.
 

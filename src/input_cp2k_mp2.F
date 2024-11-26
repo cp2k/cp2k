@@ -26,6 +26,7 @@ MODULE input_cp2k_mp2
    USE cp_units, ONLY: cp_unit_to_cp2k
    USE input_constants, ONLY: &
       bse_fulldiag, bse_iterdiag, bse_tda, bse_abba, bse_both, &
+      bse_screening_dft, bse_screening_zero, bse_screening_inf, &
       bse_iter_both_cond, bse_iter_en_cond, bse_iter_res_cond, bse_singlet, &
       bse_triplet, do_eri_gpw, do_eri_mme, do_eri_os, do_potential_coulomb, do_potential_id, &
       do_potential_long, do_potential_mix_cl, do_potential_short, do_potential_truncated, &
@@ -1330,7 +1331,7 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="BSE_DIAG_METHOD", &
                           description="Method for BSE calculations. "// &
                           "Choose between full or iterative diagonalization.", &
-                          usage="&BSE_DIAG_METHOD FULLDIAG", &
+                          usage="BSE_DIAG_METHOD FULLDIAG", &
                           enum_c_vals=s2a("FULLDIAG", "ITERDIAG"), &
                           enum_i_vals=(/bse_fulldiag, bse_iterdiag/), &
                           enum_desc=s2a("Fully diagonalizes the BSE matrices within the chosen level of approximation.", &
@@ -1342,7 +1343,7 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="TDA", &
                           description="Level of approximation applied to BSE calculations. "// &
                           "Choose between Tamm Dancoff approximation (TDA) and/or diagonalization of the full ABBA-matrix.", &
-                          usage="&TDA ON", &
+                          usage="TDA ON", &
                           enum_c_vals=s2a("ON", "OFF", "TDA+ABBA"), &
                           enum_i_vals=(/bse_tda, bse_abba, bse_both/), &
                           enum_desc=s2a("The TDA is applied, i.e. B=0.", &
@@ -1374,7 +1375,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="BSE_DEBUG_PRINT", &
                           description="Activates debug print statements in the BSE calculation.", &
-                          usage="&BSE_DEBUG_PRINT .TRUE.", &
+                          usage="BSE_DEBUG_PRINT .TRUE.", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -1398,7 +1399,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="PRINT_DIRECTIONAL_EXC_DESCR", &
                           description="Activates printing of exciton descriptors per direction.", &
-                          usage="&PRINT_DIRECTIONAL_EXC_DESCR .TRUE.", &
+                          usage="PRINT_DIRECTIONAL_EXC_DESCR .TRUE.", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -1408,6 +1409,22 @@ CONTAINS
                           "transitions, i.e. elements of the eigenvectors $X_{ia}^{(n)}$ and $Y_{ia}^{(n)}$.", &
                           usage="EPS_X 0.1", &
                           type_of_var=real_t, default_r_val=0.1_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="SCREENING_METHOD", &
+                          description="Screening applied to $W_{pq,rs}(\omega=0)$ in the BSE calculation. "// &
+                          "Choose between screening with DFT energies, no screening or infinite screening.", &
+                          usage="SCREENING DFT", &
+                          enum_c_vals=s2a("DFT", "ZERO", "INF"), &
+                          enum_i_vals=(/bse_screening_dft, bse_screening_zero, bse_screening_inf/), &
+                          enum_desc=s2a("The Coulomb interaction is screened by applying DFT energies "// &
+                                        "$\varepsilon_p^{DFT}$, which is typically used for GW-BSE and "// &
+                                        "often labeled as $W_0$.", &
+                                        "The Coulomb interaction is not screened, i.e. $W_{pq,rs}(\omega=0) "// &
+                                        "\rightarrow v_{pq,rs}$ enters.", &
+                                        "Infinite screening is applied, i.e. $W_{pq,rs}(\omega=0) \rightarrow 0$."), &
+                          default_i_val=bse_screening_dft)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

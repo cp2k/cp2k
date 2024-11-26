@@ -36,6 +36,7 @@ MODULE bse_main
                                               bse_both,&
                                               bse_fulldiag,&
                                               bse_iterdiag,&
+                                              bse_screening_zero,&
                                               bse_tda
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_para_env_type
@@ -181,18 +182,34 @@ CONTAINS
          ! α is a spin-dependent factor
          ! v_ia,jb = \sum_P B^P_ia B^P_jb (unscreened Coulomb interaction)
          ! W_ij,ab = \sum_P \bar{B}^P_ij B^P_ab (screened Coulomb interaction)
-         CALL create_A(fm_mat_S_ia_trunc, fm_mat_S_bar_ij_bse, fm_mat_S_ab_trunc, &
-                       fm_A_BSE, Eigenval_reduced, unit_nr, &
-                       homo_red, virtual_red, dimen_RI, mp2_env, &
-                       para_env)
+
+         ! For unscreened W matrix, we need fm_mat_S_ij_trunc
+         IF (mp2_env%bse%screening_method == bse_screening_zero) THEN
+            CALL create_A(fm_mat_S_ia_trunc, fm_mat_S_ij_trunc, fm_mat_S_ab_trunc, &
+                          fm_A_BSE, Eigenval_reduced, unit_nr, &
+                          homo_red, virtual_red, dimen_RI, mp2_env, &
+                          para_env)
+         ELSE
+            CALL create_A(fm_mat_S_ia_trunc, fm_mat_S_bar_ij_bse, fm_mat_S_ab_trunc, &
+                          fm_A_BSE, Eigenval_reduced, unit_nr, &
+                          homo_red, virtual_red, dimen_RI, mp2_env, &
+                          para_env)
+         END IF
          IF (my_do_abba) THEN
             ! Matrix B constructed from 3c-B-matrices (cf. subroutine mult_B_with_W)
             ! B_ia,jb = α * v_ia,jb - W_ib,aj
             ! α is a spin-dependent factor
             ! v_ia,jb = \sum_P B^P_ia B^P_jb (unscreened Coulomb interaction)
             ! W_ib,aj = \sum_P \bar{B}^P_ib B^P_aj (screened Coulomb interaction)
-            CALL create_B(fm_mat_S_ia_trunc, fm_mat_S_bar_ia_bse, fm_B_BSE, &
-                          homo_red, virtual_red, dimen_RI, unit_nr, mp2_env)
+
+            ! For unscreened W matrix, we need fm_mat_S_ia_trunc
+            IF (mp2_env%bse%screening_method == bse_screening_zero) THEN
+               CALL create_B(fm_mat_S_ia_trunc, fm_mat_S_ia_trunc, fm_B_BSE, &
+                             homo_red, virtual_red, dimen_RI, unit_nr, mp2_env)
+            ELSE
+               CALL create_B(fm_mat_S_ia_trunc, fm_mat_S_bar_ia_bse, fm_B_BSE, &
+                             homo_red, virtual_red, dimen_RI, unit_nr, mp2_env)
+            END IF
             ! Construct Matrix C=(A-B)^0.5 (A+B) (A-B)^0.5 to solve full BSE matrix as a hermitian problem
             ! (cf. Eq. (A7) in F. Furche J. Chem. Phys., Vol. 114, No. 14, (2001)).
             ! We keep fm_sqrt_A_minus_B and fm_inv_sqrt_A_minus_B for print of singleparticle transitions
