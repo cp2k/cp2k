@@ -401,8 +401,8 @@ is well parallelized, i.e. you can use several nodes that can provide the memory
 We have benchmarked the numerical precision of our BSE implementation and compared its results to
 the BSE implementation in FHI aims \[[](#Liu2020)\]. For our recommended settings, i.e.
 BSE@ev*GW*<sub>0</sub>@PBE with the aug-cc-pVDZ basis set, we have found excellent agreement with
-less than 5 meV mean absolute deviation averaged over the first 10 excitation levels and the 28 molecules in
-*Thiel's set*.
+less than 5 meV mean absolute deviation averaged over the first 10 excitation levels and the 28
+molecules in *Thiel's set*.
 
 The current BSE implementation in CP2K works for molecules. The inclusion of periodic boundary
 conditions in a Γ-only approach and with full *k*-point sampling is work in progress.

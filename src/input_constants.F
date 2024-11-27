@@ -1322,9 +1322,10 @@ MODULE input_constants
                                                bse_both = 2
 
    ! BSE level of approximation to the screening
-   INTEGER, PARAMETER, PUBLIC               :: bse_screening_dft = 0, &
-                                               bse_screening_zero = 1, &
-                                               bse_screening_inf = 2
+   INTEGER, PARAMETER, PUBLIC               :: bse_screening_w0 = 0, &
+                                               bse_screening_tdhf = 1, &
+                                               bse_screening_rpa = 2, &
+                                               bse_screening_alpha = 3
 
    ! BSE iterative abortion condition
    INTEGER, PARAMETER, PUBLIC               :: bse_iter_en_cond = 0, &

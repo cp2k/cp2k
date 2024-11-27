@@ -26,7 +26,7 @@ MODULE input_cp2k_mp2
    USE cp_units, ONLY: cp_unit_to_cp2k
    USE input_constants, ONLY: &
       bse_fulldiag, bse_iterdiag, bse_tda, bse_abba, bse_both, &
-      bse_screening_dft, bse_screening_zero, bse_screening_inf, &
+      bse_screening_w0, bse_screening_tdhf, bse_screening_rpa, bse_screening_alpha, &
       bse_iter_both_cond, bse_iter_en_cond, bse_iter_res_cond, bse_singlet, &
       bse_triplet, do_eri_gpw, do_eri_mme, do_eri_os, do_potential_coulomb, do_potential_id, &
       do_potential_long, do_potential_mix_cl, do_potential_short, do_potential_truncated, &
@@ -1412,21 +1412,29 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="SCREENING_METHOD", &
-                          description="Screening applied to $W_{pq,rs}(\omega=0)$ in the BSE calculation. "// &
-                          "Choose between screening with DFT energies, no screening or infinite screening.", &
-                          usage="SCREENING DFT", &
-                          enum_c_vals=s2a("DFT", "ZERO", "INF"), &
-                          enum_i_vals=(/bse_screening_dft, bse_screening_zero, bse_screening_inf/), &
-                          enum_desc=s2a("The Coulomb interaction is screened by applying DFT energies "// &
-                                        "$\varepsilon_p^{DFT}$, which is typically used for GW-BSE and "// &
-                                        "often labeled as $W_0$.", &
-                                        "The Coulomb interaction is not screened, i.e. $W_{pq,rs}(\omega=0) "// &
-                                        "\rightarrow v_{pq,rs}$ enters.", &
-                                        "Infinite screening is applied, i.e. $W_{pq,rs}(\omega=0) \rightarrow 0$."), &
-                          default_i_val=bse_screening_dft)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
+      ! CALL keyword_create(keyword, __LOCATION__, name="SCREENING_IN_W", &
+      !                     description="Screening $\epsilon$ applied to $W(\omega=0)=\epsilon^{-1}(\omega=0) v $ "// &
+      !                     "in the BSE calculation. Besides default BSE, i.e. $W_0$ (screening with DFT energies), "// &
+      !                     "a fixed $\alpha = \epsilon^{-1}(\omega)$ can be applied, which is similar to the mixing "// &
+      !                     "parameter for hybrid functionals in LR-TDDFT. In addition, the keywords TDHF "// &
+      !                     "(no screening - $\alpha = 1$) and RPA (infinite screening - $\alpha = 0$) can be applied.", &
+      !                     usage="SCREENING W_0", &
+      !                     enum_c_vals=s2a("W_0", "TDHF", "RPA", ""), &
+      !                     enum_i_vals=(/bse_screening_w0, bse_screening_tdhf, bse_screening_rpa/), &
+      !                     enum_desc=s2a("The Coulomb interaction is screened by applying DFT energies "// &
+      !                                   "$\varepsilon_p^{DFT}$, which is typically used for GW-BSE and "// &
+      !                                   "often labeled as $W_0$.", &
+      !                                   "The Coulomb interaction is not screened, i.e. $W_{pq,rs}(\omega=0) "// &
+      !                                   "\rightarrow v_{pq,rs}$ enters.", &
+      !                                   "Infinite screening is applied, i.e. $W_{pq,rs}(\omega=0) \rightarrow 0$."), &
+      !                     default_i_val=bse_screening_w0)
+      ! CALL section_add_keyword(section, keyword)
+      ! CALL keyword_release(keyword)
+
+      NULLIFY (subsection)
+      CALL create_bse_screening_section(subsection)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
 
       NULLIFY (subsection)
       CALL create_bse_iterat_section(subsection)
@@ -1444,6 +1452,52 @@ CONTAINS
       CALL section_release(subsection)
 
    END SUBROUTINE
+
+   SUBROUTINE create_bse_screening_section(section)
+      TYPE(section_type), POINTER                        :: section
+
+      TYPE(keyword_type), POINTER                        :: keyword
+
+      CPASSERT(.NOT. ASSOCIATED(section))
+
+      CALL section_create(section, __LOCATION__, name="SCREENING_IN_W", &
+                          description="Screening $\epsilon$ applied to $W(\omega=0)=\epsilon^{-1}(\omega=0) v $ "// &
+                          "in the BSE calculation. Besides default BSE, i.e. $W_0$ (screening with DFT energies), "// &
+                          "a fixed $\alpha = \epsilon^{-1}(\omega)$ can be applied, which is similar to the mixing "// &
+                          "parameter for hybrid functionals in LR-TDDFT. In addition, the keywords TDHF "// &
+                          "(no screening - $\alpha = 1$) and RPA (infinite screening - $\alpha = 0$) can be applied.", &
+                          n_keywords=2, n_subsections=0, repeats=.FALSE.)
+
+      NULLIFY (keyword)
+
+      CALL keyword_create( &
+         keyword, __LOCATION__, name="_SECTION_PARAMETERS_", &
+         description="Shortcut for the most common functional combinations.", &
+         usage="&xc_functional BLYP", &
+         enum_c_vals=s2a("W_0", "TDHF", "RPA", "ALPHA"), &
+         enum_i_vals=(/bse_screening_w0, bse_screening_tdhf, bse_screening_rpa, bse_screening_alpha/), &
+         enum_desc=s2a("The Coulomb interaction is screened by applying DFT energies "// &
+                       "$\varepsilon_p^{DFT}$, which is typically used for GW-BSE and "// &
+                       "often labeled as $W_0$.", &
+                       "The Coulomb interaction is not screened, i.e. $W_{pq,rs}(\omega=0) "// &
+                       "\rightarrow v_{pq,rs}$ enters.", &
+                       "Infinite screening is applied, i.e. $W_{pq,rs}(\omega=0) \rightarrow 0$.", &
+                       "Arbitrary screening parameter. Specify within section."), &
+         default_i_val=bse_screening_w0, &
+         lone_keyword_i_val=bse_screening_w0)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="ALPHA", &
+                          description="Screening parameter similar to the mixing in hybrid functionals used in TDDFT. "// &
+                          "$\alpha$ mimicks the screening $\epsilon^{-1}(\omega)$ and enforces $W = \alpha v$ "// &
+                          "in the BSE calculation.", &
+                          usage="ALPHA 0.25", &
+                          type_of_var=real_t, default_r_val=-1.00_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+   END SUBROUTINE create_bse_screening_section
 
    SUBROUTINE create_bse_nto_section(print_key)
       TYPE(section_type), POINTER                        :: print_key

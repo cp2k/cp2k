@@ -228,8 +228,10 @@ CONTAINS
                                 i_val=mp2_env%bse%bse_diag_method)
       CALL section_vals_val_get(bse_section, "TDA", &
                                 i_val=mp2_env%bse%flag_tda)
-      CALL section_vals_val_get(bse_section, "SCREENING_METHOD", &
+      CALL section_vals_val_get(bse_section, "SCREENING_IN_W%_SECTION_PARAMETERS_", &
                                 i_val=mp2_env%bse%screening_method)
+      CALL section_vals_val_get(bse_section, "SCREENING_IN_W%ALPHA", &
+                                r_val=mp2_env%bse%screening_factor)
       CALL section_vals_val_get(bse_section, "BSE_DEBUG_PRINT", &
                                 l_val=mp2_env%bse%bse_debug_print)
       CALL section_vals_val_get(bse_section, "BSE_SPECTRUM%_SECTION_PARAMETERS_", &
