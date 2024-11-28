@@ -1412,24 +1412,13 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      ! CALL keyword_create(keyword, __LOCATION__, name="SCREENING_IN_W", &
-      !                     description="Screening $\epsilon$ applied to $W(\omega=0)=\epsilon^{-1}(\omega=0) v $ "// &
-      !                     "in the BSE calculation. Besides default BSE, i.e. $W_0$ (screening with DFT energies), "// &
-      !                     "a fixed $\alpha = \epsilon^{-1}(\omega)$ can be applied, which is similar to the mixing "// &
-      !                     "parameter for hybrid functionals in LR-TDDFT. In addition, the keywords TDHF "// &
-      !                     "(no screening - $\alpha = 1$) and RPA (infinite screening - $\alpha = 0$) can be applied.", &
-      !                     usage="SCREENING W_0", &
-      !                     enum_c_vals=s2a("W_0", "TDHF", "RPA", ""), &
-      !                     enum_i_vals=(/bse_screening_w0, bse_screening_tdhf, bse_screening_rpa/), &
-      !                     enum_desc=s2a("The Coulomb interaction is screened by applying DFT energies "// &
-      !                                   "$\varepsilon_p^{DFT}$, which is typically used for GW-BSE and "// &
-      !                                   "often labeled as $W_0$.", &
-      !                                   "The Coulomb interaction is not screened, i.e. $W_{pq,rs}(\omega=0) "// &
-      !                                   "\rightarrow v_{pq,rs}$ enters.", &
-      !                                   "Infinite screening is applied, i.e. $W_{pq,rs}(\omega=0) \rightarrow 0$."), &
-      !                     default_i_val=bse_screening_w0)
-      ! CALL section_add_keyword(section, keyword)
-      ! CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="USE_KS_ENERGIES", &
+                          description="Uses KS energies instead of GW quasiparticle energies.", &
+                          usage="USE_KS_ENERGIES .TRUE.", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+      
 
       NULLIFY (subsection)
       CALL create_bse_screening_section(subsection)

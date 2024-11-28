@@ -1285,7 +1285,12 @@ CONTAINS
       IF (mp2_env%bse%bse_cutoff_occ > 0 .OR. mp2_env%bse%bse_cutoff_empty > 0) THEN
          !Truncate eigenvals
          ALLOCATE (Eigenval_reduced(homo_red + virt_red))
-         Eigenval_reduced(:) = Eigenval(homo_incl:homo + virt_incl)
+         ! Include USE_KS_ENERGIES input
+         IF (mp2_env%bse%use_ks_energies) THEN
+            Eigenval_reduced(:) = Eigenval_scf(homo_incl:homo + virt_incl)
+         ELSE
+            Eigenval_reduced(:) = Eigenval(homo_incl:homo + virt_incl)
+         END IF
 
          CALL truncate_fm(fm_mat_S_trunc, fm_mat_S_ia_bse, virtual, &
                           homo_red, virt_red, unit_nr, mp2_env, &
@@ -1302,7 +1307,12 @@ CONTAINS
             WRITE (unit_nr, '(T2,A4)') 'BSE|'
          END IF
          ALLOCATE (Eigenval_reduced(homo_red + virt_red))
-         Eigenval_reduced(:) = Eigenval(:)
+         ! Include USE_KS_ENERGIES input
+         IF (mp2_env%bse%use_ks_energies) THEN
+            Eigenval_reduced(:) = Eigenval_scf(:)
+         ELSE
+            Eigenval_reduced(:) = Eigenval(:)
+         END IF
          CALL cp_fm_to_fm_submat_general(fm_mat_S_ia_bse, fm_mat_S_trunc, dimen_RI, homo_red*virt_red, &
                                          1, 1, 1, 1, context)
          CALL cp_fm_to_fm_submat_general(fm_mat_S_ij_bse, fm_mat_S_ij_trunc, dimen_RI, homo_red*homo_red, &

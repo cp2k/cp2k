@@ -228,6 +228,8 @@ CONTAINS
                                 i_val=mp2_env%bse%bse_diag_method)
       CALL section_vals_val_get(bse_section, "TDA", &
                                 i_val=mp2_env%bse%flag_tda)
+      CALL section_vals_val_get(bse_section, "USE_KS_ENERGIES", &
+                                l_val=mp2_env%bse%use_ks_energies)
       CALL section_vals_val_get(bse_section, "SCREENING_IN_W%_SECTION_PARAMETERS_", &
                                 i_val=mp2_env%bse%screening_method)
       CALL section_vals_val_get(bse_section, "SCREENING_IN_W%ALPHA", &
