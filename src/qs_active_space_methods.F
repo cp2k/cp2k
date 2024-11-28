@@ -829,9 +829,6 @@ CONTAINS
          CASE (eri_operator_erfc)
             WRITE (iw, '(T3,A,T45,A)') "ERI operator", "Compl. error function <ERFC(a*R)/R>"
             WRITE (iw, '(T3,A,T66,F14.3)') "ERI operator parameter", eri_op_param
-         CASE (eri_operator_gaussian)
-            WRITE (iw, '(T3,A,T41,A)') "ERI operator", "Gaussian attenuated <EXP(-a*R^2)/R>"
-            WRITE (iw, '(T3,A,T66,F14.3)') "ERI operator parameter", eri_op_param
          CASE (eri_operator_trunc)
             WRITE (iw, '(T3,A,T53,A)') "ERI operator", "Truncated Coulomb <H(a-R)/R>"
             WRITE (iw, '(T3,A,T66,F14.3)') "ERI operator parameter", eri_op_param
@@ -1744,14 +1741,13 @@ CONTAINS
 !> \par History
 !>      04.2016 created [JGH]
 ! **************************************************************************************************
-   ! TODO: fix the G=0 terms!
    SUBROUTINE pw_eri_green_create(green, eri_env)
 
       TYPE(greens_fn_type), INTENT(INOUT)                :: green
       TYPE(eri_type)                                     :: eri_env
 
       INTEGER                                            :: ig
-      REAL(KIND=dp)                                      :: a, ea, g2, g3d, ga, gg, rg, rlength
+      REAL(KIND=dp)                                      :: omega, omega2, Rc, ea, g2, g3d, ga, g
 
       ! initialize influence function
       ASSOCIATE (gf => green%influence_fn, grid => green%influence_fn%pw_grid)
@@ -1766,110 +1762,106 @@ CONTAINS
                END DO
                IF (grid%have_g0) gf%array(1) = 0.0_dp
             CASE (eri_operator_yukawa)
-               a = eri_env%operator_parameter**2
+               omega2 = eri_env%operator_parameter**2
                DO ig = grid%first_gne0, grid%ngpts_cut_local
                   g2 = grid%gsq(ig)
-                  gf%array(ig) = fourpi/(a + g2)
+                  gf%array(ig) = fourpi/(omega2 + g2)
                END DO
-               IF (grid%have_g0) gf%array(1) = fourpi/a
+               IF (grid%have_g0) gf%array(1) = fourpi/omega2
             CASE (eri_operator_erf)
-               a = eri_env%operator_parameter**2
+               omega2 = eri_env%operator_parameter**2
                DO ig = grid%first_gne0, grid%ngpts_cut_local
                   g2 = grid%gsq(ig)
-                  ga = -0.25_dp*g2/a
-                  gf%array(ig) = fourpi/g2*EXP(ga)
+                  ! ga = -0.25_dp*g2/omega2
+                  gf%array(ig) = fourpi/g2*EXP(-g2/(4.0*omega2))
                END DO
                IF (grid%have_g0) gf%array(1) = 0.0_dp
             CASE (eri_operator_erfc)
-               a = eri_env%operator_parameter**2
+               omega2 = eri_env%operator_parameter**2
                DO ig = grid%first_gne0, grid%ngpts_cut_local
                   g2 = grid%gsq(ig)
-                  ga = -0.25_dp*g2/a
-                  gf%array(ig) = fourpi/g2*(1._dp - EXP(ga))
+                  ! ga = -0.25_dp*g2/a
+                  gf%array(ig) = fourpi/g2*(1.0_dp - EXP(-g2/(4.0*omega2)))
                END DO
-               IF (grid%have_g0) gf%array(1) = 0.25_dp*fourpi/a
+               IF (grid%have_g0) gf%array(1) = 0.25_dp*fourpi/omega2
             CASE (eri_operator_trunc)
-               a = eri_env%operator_parameter
+               Rc = eri_env%operator_parameter
                DO ig = grid%first_gne0, grid%ngpts_cut_local
                   g2 = grid%gsq(ig)
-                  ga = SQRT(g2)*a
-                  IF (ga >= 0.005_dp) THEN
-                     gf%array(ig) = fourpi/g2*(1.0_dp - COS(ga))
+                  g  = SQRT(g2)
+                  ! Taylor expansion around zero
+                  IF (g*Rc >= 0.005_dp) THEN
+                     gf%array(ig) = fourpi/g2*(1.0_dp - COS(g*Rc))
                   ELSE
-                     gf%array(ig) = fourpi/g2*ga**2/2.0_dp*(1.0_dp - ga**2/12.0_dp)
+                     gf%array(ig) = fourpi/g2*(g*Rc)**2/2.0_dp*(1.0_dp - (g*Rc)**2/12.0_dp)
                   END IF
                END DO
-               IF (grid%have_g0) gf%array(1) = 0.0_dp
-            CASE (eri_operator_gaussian)
-               CPABORT("")
+               IF (grid%have_g0) gf%array(1) = 0.5_dp*fourpi*Rc**2
             CASE DEFAULT
-               CPABORT("")
+               CPABORT("Unsupported operator")
             END SELECT
 
+         ! The analytic Poisson solver simply limits the domain of integration
+         ! of the Fourier transform to a sphere of radius Rc, rather than integrating
+         ! over all space (-∞,∞)
          CASE (ANALYTIC0D)
 
             SELECT CASE (eri_env%operator)
+            ! This is identical to the truncated Coulomb operator integrated
+            ! over all space, when the truncation radius is equal to the radius of
+            ! the Poisson solver
             CASE (eri_operator_coulomb)
-               rlength = green%radius
+               Rc = green%radius
                DO ig = grid%first_gne0, grid%ngpts_cut_local
                   g2 = grid%gsq(ig)
-                  gg = SQRT(g2)
-                  g3d = fourpi/g2
-                  gf%array(ig) = g3d*(1.0_dp - COS(rlength*gg))
+                  g = SQRT(g2)
+                  gf%array(ig) = fourpi/g2*(1.0_dp - COS(g*Rc))
                END DO
-               IF (grid%have_g0) gf%array(1) = 0.5_dp*fourpi*rlength*rlength
+               IF (grid%have_g0) gf%array(1) = 0.5_dp*fourpi*Rc**2
+            ! Not tested
             CASE (eri_operator_yukawa)
-               rlength = green%radius
-               a = eri_env%operator_parameter
-               ea = EXP(-a*rlength)
+               Rc = green%radius
+               omega = eri_env%operator_parameter
+               ea = EXP(-omega*Rc)
                DO ig = grid%first_gne0, grid%ngpts_cut_local
                   g2 = grid%gsq(ig)
-                  gg = SQRT(g2)
-                  g3d = fourpi/(a*a + g2)
-                  rg = rlength*gg
-                  gf%array(ig) = g3d*(1.0_dp - ea*(COS(rg) + a/gg*SIN(rg)))
+                  g = SQRT(g2)
+                  g3d = fourpi/(omega**2 + g2)
+                  gf%array(ig) = g3d*(1.0_dp - ea*(COS(g*Rc) + omega/g*SIN(g*Rc)))
                END DO
-               IF (grid%have_g0) gf%array(1) = fourpi/(a*a)*(1.0_dp - ea*(1._dp + a*rlength))
+               IF (grid%have_g0) gf%array(1) = fourpi/(omega**2)*(1.0_dp - ea*(1.0_dp + omega*Rc))
+            ! Long-range Coulomb
             CASE (eri_operator_erf)
-               rlength = green%radius
-               a = eri_env%operator_parameter**2
+               Rc = green%radius
+               omega2 = eri_env%operator_parameter**2
                DO ig = grid%first_gne0, grid%ngpts_cut_local
                   g2 = grid%gsq(ig)
-                  gg = SQRT(g2)
-                  ga = -0.25_dp*g2/a
-                  gf%array(ig) = fourpi/g2*EXP(ga)*(1.0_dp - COS(rlength*gg))
+                  g = SQRT(g2)
+                  ga = -0.25_dp*g2/omega2
+                  gf%array(ig) = fourpi/g2*EXP(ga)*(1.0_dp - COS(g*Rc))
                END DO
-               IF (grid%have_g0) gf%array(1) = 0.5_dp*fourpi*rlength*rlength
+               ! TODO: is this correct?
+               IF (grid%have_g0) gf%array(1) = 0.5_dp*fourpi*Rc**2
+            ! Short-range Coulomb
             CASE (eri_operator_erfc)
-               rlength = green%radius
-               a = eri_env%operator_parameter**2
+               Rc = green%radius
+               omega2 = eri_env%operator_parameter**2
                DO ig = grid%first_gne0, grid%ngpts_cut_local
                   g2 = grid%gsq(ig)
-                  gg = SQRT(g2)
-                  ga = -0.25_dp*g2/a
-                  gf%array(ig) = fourpi/g2*(1._dp - EXP(ga))*(1.0_dp - COS(rlength*gg))
+                  g  = SQRT(g2)
+                  ga = -0.25_dp*g2/omega2
+                    gf%array(ig) = fourpi/g2*(1.0_dp - EXP(ga))*(1.0_dp - COS(g*Rc))
                END DO
-               IF (grid%have_g0) gf%array(1) = 0._dp
-            CASE (eri_operator_trunc)
-               a = eri_env%operator_parameter
-               DO ig = grid%first_gne0, grid%ngpts_cut_local
-                  g2 = grid%gsq(ig)
-                  ga = SQRT(g2)*a
-                  IF (ga >= 0.005_dp) THEN
-                     gf%array(ig) = fourpi/g2*(1.0_dp - COS(ga))
-                  ELSE
-                     gf%array(ig) = fourpi/g2*ga**2/2.0_dp*(1.0_dp - ga**2/12.0_dp)
-                  END IF
-               END DO
+               ! TODO: is this correct?
                IF (grid%have_g0) gf%array(1) = 0.0_dp
-            CASE (eri_operator_gaussian)
-               CPABORT("")
+            CASE (eri_operator_trunc)
+               CPABORT("Truncated Coulomb and ANALYTIC0D is equivalent to normal Coulomb")
             CASE DEFAULT
-               CPABORT("")
+               CPABORT("Unsupported operator")
             END SELECT
 
          CASE DEFAULT
-            CPABORT("")
+            CPABORT("Unsupported Poisson solver")
          END SELECT
       END ASSOCIATE
 
