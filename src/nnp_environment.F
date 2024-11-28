@@ -347,6 +347,16 @@ CONTAINS
       IF (nnp_env%scale_sigma_acsf .AND. nnp_env%center_acsf) THEN
          nnp_env%scale_sigma_acsf = .FALSE.
       END IF
+      ! Print warning if centering and scaling is requested:
+      IF (nnp_env%center_acsf .AND. nnp_env%scale_acsf) THEN
+         IF ((ABS(nnp_env%scmin) > EPSILON(0.0_dp)*1.0E+4_dp) .OR. (ABS(nnp_env%scmax - 1.0_dp) > EPSILON(0.0_dp)*1.0E+4_dp)) THEN
+            CALL cp_warn(__LOCATION__, &
+                         "Centering and scaling of symmetry functions requested while scale_min_short_atomic != 0 and/or "// &
+                         "scale_max_short_atomic != 1. Make sure that scaling and centering of symmetry functions in CP2K "// &
+                         "is consistent with your training code. "// &
+                         "In CP2K: G* = (G - ave(G)) / (max(G) - min(G)) * (Smax - Smin) + Smin")
+         END IF
+      END IF
 
       CALL parser_search_string(parser, "normalize_nodes", .TRUE., found, &
                                 search_from_begin_of_file=.TRUE.)
