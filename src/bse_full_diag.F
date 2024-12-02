@@ -479,9 +479,11 @@ CONTAINS
       ! for positive definiteness (would make another O(N^6) Diagon. necessary)
       ! Instead, we include a check here
       IF (Exc_ens(1) < 0) THEN
-         CALL cp_abort(__LOCATION__, &
-                       "Matrix C=(A-B)^0.5 (A+B) (A-B)^0.5 has negative eigenvalues, i.e. "// &
-                       "(A+B) is not positive definite.")
+         IF (unit_nr > 0) THEN
+            CALL cp_abort(__LOCATION__, &
+                        "Matrix C=(A-B)^0.5 (A+B) (A-B)^0.5 has negative eigenvalues, i.e. "// &
+                        "(A+B) is not positive definite.")
+         END IF
       END IF
       Exc_ens = SQRT(Exc_ens)
 
