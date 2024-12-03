@@ -1,0 +1,85 @@
+&global
+  project      Ne
+  print_level  low
+  run_type     energy
+&end
+
+&force_eval
+  method quickstep
+  
+  &subsys
+    &cell
+      abc       10 10 10
+      periodic  none
+    &end
+
+    &coord
+      Ne    0.00000    0.00000    0.00000
+    &end
+
+    &topology
+      &center_coordinates
+      &end
+    &end
+
+    &kind Ne
+      element    Ne
+      basis_set  Stuttgart_RLC
+      potential  ecp Stuttgart_RLC_ECP
+    &end
+  &end
+  
+  &dft
+    multiplicity  1
+    uks           false
+    charge        0
+
+    basis_set_file_name  ./stuttgart_rlc.cp2k
+    potential_file_name  ./stuttgart_rlc.cp2k
+
+    &qs
+      method       gpw
+      eps_default  1.0e-12
+    &end
+
+    &xc
+      &xc_functional  pade
+      &end
+    &end
+
+    &poisson
+      psolver   analytic
+      periodic  none
+    &end
+
+    &mgrid
+      cutoff      120
+      rel_cutoff  30
+    &end
+
+    &scf
+      eps_scf    1.0e-5
+      max_scf    6
+      scf_guess  atomic
+      added_mos  -1
+      ignore_convergence_failure
+      
+      &mixing
+        alpha   0.50
+        method  direct_p_mixing
+      &end mixing
+      
+      &print
+        &restart off
+        &end
+      &end
+    &end
+
+    &print
+      &trexio
+        filename  Ne_atom
+      &end
+    &end print
+  &end dft
+&end
+

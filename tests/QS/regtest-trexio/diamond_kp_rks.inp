@@ -1,0 +1,74 @@
+&global
+  project      diamond
+  print_level  low
+&end global
+
+&force_eval
+  &dft
+    basis_set_file_name GTH_BASIS_SETS
+    potential_file_name POTENTIAL
+    &kpoints
+      eps_geo 1.e-8
+      full_grid on
+      parallel_group_size 0
+      scheme monkhorst-pack 2 2 2
+      symmetry off
+      verbose f
+    &end kpoints
+    &mgrid
+      cutoff 120
+      rel_cutoff 30
+    &end mgrid
+    &qs
+      eps_default 1.0e-12
+      extrapolation use_guess
+      method gpw
+    &end qs
+    &scf
+      eps_scf 1.0e-6
+      ignore_convergence_failure
+      max_scf 5
+      scf_guess atomic
+      &mixing
+        alpha 0.70
+        method direct_p_mixing
+      &end mixing
+      &print
+        &restart off
+        &end restart
+      &end print
+    &end scf
+    &xc
+      &xc_functional pade
+      &end xc_functional
+    &end xc
+    &print
+      &trexio
+      &end trexio
+    &end print
+  &end dft
+  &subsys
+    &cell
+      abc 3.56683 3.56683 3.56683
+      multiple_unit_cell 1 1 1
+    &end cell
+    &coord
+      scaled
+      C     0.000000    0.000000    0.000000
+      C     0.500000    0.500000    0.000000
+      C     0.500000    0.000000    0.500000
+      C     0.000000    0.500000    0.500000
+      C     0.250000    0.250000    0.250000
+      C     0.250000    0.750000    0.750000
+      C     0.750000    0.250000    0.750000
+      C     0.750000    0.750000    0.250000
+    &end coord
+    &kind C
+      basis_set dzvp-gth
+      potential gth-pade-q4
+    &end kind
+    &topology
+      multiple_unit_cell 1 1 1
+    &end topology
+  &end subsys
+&end force_eval

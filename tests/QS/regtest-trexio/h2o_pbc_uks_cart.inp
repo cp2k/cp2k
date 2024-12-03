@@ -1,0 +1,79 @@
+&global
+  project      h2o
+  print_level  low
+  run_type     energy
+&end
+
+&force_eval
+  method quickstep
+  
+  &subsys
+    &cell
+      abc       10 10 10
+      periodic  xyz
+    &end
+
+    &coord
+      O    0.00000     0.00000    -0.06005
+      H    0.00000     0.75411     0.51442
+      H    0.00000    -0.75411     0.51442
+    &end
+
+    &kind O
+      basis_set  sto-3g
+      potential  all
+    &end
+
+    &kind H
+      basis_set  sto-3g
+      potential  all
+    &end
+  &end
+  
+  &dft
+    multiplicity  3
+    uks           true
+    charge        0
+
+    basis_set_file_name  ./sto-3g.cp2k
+    potential_file_name  ALL_POTENTIALS
+
+    &qs
+      method gapw
+    &end
+
+    &xc
+      &xc_functional pade
+      &end
+    &end
+
+    &poisson
+      psolver   periodic
+      periodic  xyz
+    &end
+
+    &mgrid
+      cutoff      150
+      rel_cutoff  30
+    &end
+
+    &scf
+      eps_scf    1.0e-5
+      max_scf    6
+      scf_guess  atomic
+      ignore_convergence_failure
+
+      &print
+        &restart off
+        &end
+      &end
+    &end
+
+    &print
+      &trexio
+        cartesian
+      &end
+    &end print
+  &end dft
+&end
+
