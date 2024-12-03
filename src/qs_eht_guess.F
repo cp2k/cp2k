@@ -228,6 +228,7 @@ CONTAINS
       CALL cp_fm_struct_release(mstruct_oo)
       !
       CALL qs_env_release(eht_env)
+      DEALLOCATE (eht_env)
       CALL section_vals_release(eht_force_env_section)
 
       CALL timestop(handle)
