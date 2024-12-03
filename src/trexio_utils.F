@@ -391,7 +391,7 @@ CONTAINS
                ! and recover the original contraction coefficients to store them separately
                expzet = 0.25_dp*REAL(2*l + 3, dp)
                prefac = 2.0_dp**l*(2.0_dp/pi)**0.75_dp
-               DO i= 1, npgf(iset)
+               DO i = 1, npgf(iset)
                   gcca = gcc(i, ishell_loc, iset)
                   zeta = zetas(i, iset)
 
@@ -650,22 +650,22 @@ CONTAINS
                   ao_normalization(igf + 1:igf + ngf_shell) = norm_cgf(icgf + 1:icgf + ngf_shell)
                ELSE
                   ! allocate some temporary arrays
-                  ALLOCATE (diag_ncgf(nco(lshell),nco(lshell)))
-                  ALLOCATE (diag_nsgf(nso(lshell),nso(lshell)))
-                  ALLOCATE (temp(nso(lshell),nco(lshell)))
+                  ALLOCATE (diag_ncgf(nco(lshell), nco(lshell)))
+                  ALLOCATE (diag_nsgf(nso(lshell), nso(lshell)))
+                  ALLOCATE (temp(nso(lshell), nco(lshell)))
                   diag_ncgf = 0.0_dp
                   diag_nsgf = 0.0_dp
                   temp = 0.0_dp
 
                   DO i = 1, nco(lshell)
-                     diag_ncgf(i,i) = norm_cgf(icgf+i)
+                     diag_ncgf(i, i) = norm_cgf(icgf + i)
                   END DO
 
                   ! transform the normalization factors from Cartesian to solid harmonics
-                  temp(:,:) = MATMUL(orbtramat(lshell)%c2s, diag_ncgf)
-                  diag_nsgf(:,:) = MATMUL(temp, TRANSPOSE(orbtramat(lshell)%s2c))
+                  temp(:, :) = MATMUL(orbtramat(lshell)%c2s, diag_ncgf)
+                  diag_nsgf(:, :) = MATMUL(temp, TRANSPOSE(orbtramat(lshell)%s2c))
                   DO i = 1, nso(lshell)
-                     ao_normalization(igf + i) = diag_nsgf(i,i)
+                     ao_normalization(igf + i) = diag_nsgf(i, i)
                   END DO
 
                   DEALLOCATE (diag_ncgf)
@@ -823,7 +823,7 @@ CONTAINS
                ! store kpoint index
                mo_kpoint(imo + 1:imo + nmo) = ikp
                ! store the MO spins
-               mo_spin(imo + 1:imo + nmo) = ispin-1
+               mo_spin(imo + 1:imo + nmo) = ispin - 1
 
                ! transform and store the MO coefficients
                CALL cp_fm_get_submatrix(fm_mo_coeff, mos_sgf, 1, imo + 1, nsgf, nmo)
@@ -836,9 +836,9 @@ CONTAINS
                   i = 0
                   DO ishell = 1, shell_num
                      l = shell_ang_mom(ishell)
-                     DO k = 1, 2*l+1
+                     DO k = 1, 2*l + 1
                         ! map from running index k: 1...2l+1 to magnetic quantum number m in TREXIO convention
-                        m = (-1)**k * FLOOR(REAL(k, KIND=dp)/2.0_dp)
+                        m = (-1)**k*FLOOR(REAL(k, KIND=dp)/2.0_dp)
                         mo_coefficient(i + k, imo + 1:imo + nmo) = mos_sgf(i + l + m + 1, :)
                      END DO
                      i = i + 2*l + 1
@@ -858,9 +858,9 @@ CONTAINS
                      i = 0
                      DO ishell = 1, shell_num
                         l = shell_ang_mom(ishell)
-                        DO k = 1, 2*l+1
+                        DO k = 1, 2*l + 1
                            ! map from running index k: 1...2l+1 to magnetic quantum number m in TREXIO convention
-                           m = (-1)**k * FLOOR(REAL(k, KIND=dp)/2.0_dp)
+                           m = (-1)**k*FLOOR(REAL(k, KIND=dp)/2.0_dp)
                            mo_coefficient_im(i + k, imo + 1:imo + nmo) = mos_sgf(i + l + m + 1, :)
                         END DO
                         i = i + 2*l + 1
@@ -877,7 +877,7 @@ CONTAINS
             ! store the MO occupations
             mo_occupation(imo + 1:imo + nmo) = mos(ispin)%occupation_numbers
             ! store the MO spins
-            mo_spin(imo + 1:imo + nmo) = ispin-1
+            mo_spin(imo + 1:imo + nmo) = ispin - 1
 
             ! check if we are using the dbcsr mo_coeff and copy them to fm if needed
             IF (mos(ispin)%use_mo_coeff_b) CALL copy_dbcsr_to_fm(mos(ispin)%mo_coeff_b, mos(ispin)%mo_coeff)
@@ -894,9 +894,9 @@ CONTAINS
                i = 0
                DO ishell = 1, shell_num
                   l = shell_ang_mom(ishell)
-                  DO k = 1, 2*l+1
+                  DO k = 1, 2*l + 1
                      ! map from running index k: 1...2l+1 to magnetic quantum number m in TREXIO convention
-                     m = (-1)**k * FLOOR(REAL(k, KIND=dp)/2.0_dp)
+                     m = (-1)**k*FLOOR(REAL(k, KIND=dp)/2.0_dp)
                      mo_coefficient(i + k, imo + 1:imo + nmo) = mos_sgf(i + l + m + 1, :)
                   END DO
                   i = i + 2*l + 1
