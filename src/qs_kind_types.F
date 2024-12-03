@@ -1493,12 +1493,14 @@ CONTAINS
 !> \param force_env_section ...
 !> \param no_fail ...
 !> \param method_id ...
+!> \param silent ...
 !> \par History
 !>      - Creation (09.02.2002,MK)
 !>      - 20.09.2002,gt: adapted for POL/KG use (elp_potential)
 !>      - 05.03.2010: split elp_potential into fist_potential and kg_potential
 ! **************************************************************************************************
-   SUBROUTINE read_qs_kind(qs_kind, kind_section, para_env, force_env_section, no_fail, method_id)
+   SUBROUTINE read_qs_kind(qs_kind, kind_section, para_env, force_env_section, &
+                           no_fail, method_id, silent)
 
       TYPE(qs_kind_type), INTENT(INOUT)                  :: qs_kind
       TYPE(section_vals_type), POINTER                   :: kind_section
@@ -1506,6 +1508,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: force_env_section
       LOGICAL, INTENT(IN)                                :: no_fail
       INTEGER, INTENT(IN)                                :: method_id
+      LOGICAL, INTENT(IN)                                :: silent
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'read_qs_kind'
       INTEGER, PARAMETER                                 :: maxbas = 20
@@ -2117,13 +2120,13 @@ CONTAINS
                              zeff=qs_kind%se_parameter%zeff, zeff_correction=zeff_correction)
          qs_kind%se_parameter%zeff = qs_kind%se_parameter%zeff - zeff_correction
 
-         check = ((potential_name /= '') .OR. explicit_potential)
+         check = ((potential_name /= '') .OR. explicit_potential) .AND. .NOT. silent
          IF (check) &
             CALL cp_warn(__LOCATION__, &
                          "Information provided in the input file regarding POTENTIAL for KIND <"// &
                          TRIM(qs_kind%name)//"> will be ignored!")
 
-         check = ((k_rep > 0) .OR. explicit_basis)
+         check = ((k_rep > 0) .OR. explicit_basis) .AND. .NOT. silent
          IF (check) &
             CALL cp_warn(__LOCATION__, &
                          "Information provided in the input file regarding BASIS for KIND <"// &
@@ -2150,13 +2153,13 @@ CONTAINS
                                zeff_correction=0.0_dp)
          END IF
 
-         check = ((potential_name /= '') .OR. explicit_potential)
+         check = ((potential_name /= '') .OR. explicit_potential) .AND. .NOT. silent
          IF (check) &
             CALL cp_warn(__LOCATION__, &
                          "Information provided in the input file regarding POTENTIAL for KIND <"// &
                          TRIM(qs_kind%name)//"> will be ignored!")
 
-         check = ((k_rep > 0) .OR. explicit_basis)
+         check = ((k_rep > 0) .OR. explicit_basis) .AND. .NOT. silent
          IF (check) &
             CALL cp_warn(__LOCATION__, &
                          "Information provided in the input file regarding BASIS for KIND <"// &
@@ -2183,13 +2186,13 @@ CONTAINS
                                zeff_correction=0.0_dp)
          END IF
 
-         check = ((potential_name /= '') .OR. explicit_potential)
+         check = ((potential_name /= '') .OR. explicit_potential) .AND. .NOT. silent
          IF (check) &
             CALL cp_warn(__LOCATION__, &
                          "Information provided in the input file regarding POTENTIAL for KIND <"// &
                          TRIM(qs_kind%name)//"> will be ignored!")
 
-         check = ((k_rep > 0) .OR. explicit_basis)
+         check = ((k_rep > 0) .OR. explicit_basis) .AND. .NOT. silent
          IF (check) &
             CALL cp_warn(__LOCATION__, &
                          "Information provided in the input file regarding BASIS for KIND <"// &
@@ -2387,7 +2390,7 @@ CONTAINS
                      CPABORT("ECPs are only well tested in their semi-local form")
                      CALL get_qs_kind(qs_kind, basis_set=orb_basis_set)
                      CALL sgp_construction(sgp_pot=sgppot, ecp_pot=ecppot, orb_basis=orb_basis_set, error=error)
-                     IF (iounit > 0) THEN
+                     IF (iounit > 0 .AND. .NOT. silent) THEN
                         WRITE (iounit, "(/,T2,'PP Transformation for ',A)") TRIM(ecppot%pname)
                         IF (sgppot%has_local) THEN
                            WRITE (iounit, "(T8,'Accuracy for local part:',T41,F10.3,'%',T61,F20.12)") error(4), error(1)
@@ -2447,7 +2450,7 @@ CONTAINS
                                      zeff=upfpot%zion, z=z, has_nlcc=upfpot%core_correction)
                   ! convert pp
                   CALL sgp_construction(sgp_pot=sgppot, upf_pot=upfpot, error=error)
-                  IF (iounit > 0) THEN
+                  IF (iounit > 0 .AND. .NOT. silent) THEN
                      WRITE (iounit, "(/,T2,'PP Transformation for ',A)") TRIM(upfpot%pname)
                      IF (sgppot%has_local) THEN
                         WRITE (iounit, "(T8,'Accuracy for local part:',T61,F20.12)") error(1)
@@ -2617,14 +2620,17 @@ CONTAINS
 !> \param kind_section ...
 !> \param para_env ...
 !> \param force_env_section ...
+!> \param silent ...
 ! **************************************************************************************************
-   SUBROUTINE create_qs_kind_set(qs_kind_set, atomic_kind_set, kind_section, para_env, force_env_section)
+   SUBROUTINE create_qs_kind_set(qs_kind_set, atomic_kind_set, kind_section, para_env, &
+                                 force_env_section, silent)
 
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(section_vals_type), POINTER                   :: kind_section
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(section_vals_type), POINTER                   :: force_env_section
+      LOGICAL, INTENT(IN)                                :: silent
 
       CHARACTER(len=*), PARAMETER :: routineN = 'create_qs_kind_set'
 
@@ -2664,7 +2670,8 @@ CONTAINS
          qs_kind_set(ikind)%name = atomic_kind_set(ikind)%name
          qs_kind_set(ikind)%element_symbol = atomic_kind_set(ikind)%element_symbol
          qs_kind_set(ikind)%natom = atomic_kind_set(ikind)%natom
-         CALL read_qs_kind(qs_kind_set(ikind), kind_section, para_env, force_env_section, no_fail, qs_method)
+         CALL read_qs_kind(qs_kind_set(ikind), kind_section, para_env, force_env_section, &
+                           no_fail, qs_method, silent)
       END DO
 
       CALL timestop(handle)

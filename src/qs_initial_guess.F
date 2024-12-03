@@ -46,14 +46,9 @@ MODULE qs_initial_guess
                                               gth_potential_type,&
                                               sgp_potential_type
    USE hfx_types,                       ONLY: hfx_type
-   USE input_constants,                 ONLY: atomic_guess,&
-                                              core_guess,&
-                                              history_guess,&
-                                              mopac_guess,&
-                                              no_guess,&
-                                              random_guess,&
-                                              restart_guess,&
-                                              sparse_guess
+   USE input_constants,                 ONLY: &
+        atomic_guess, core_guess, eht_guess, history_guess, mopac_guess, no_guess, random_guess, &
+        restart_guess, sparse_guess
    USE input_cp2k_hfx,                  ONLY: ri_mo
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type,&
@@ -68,6 +63,7 @@ MODULE qs_initial_guess
    USE qs_atomic_block,                 ONLY: calculate_atomic_block_dm
    USE qs_density_matrices,             ONLY: calculate_density_matrix
    USE qs_dftb_utils,                   ONLY: get_dftb_atom_param
+   USE qs_eht_guess,                    ONLY: calculate_eht_guess
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_kind_types,                   ONLY: get_qs_kind,&
@@ -275,6 +271,7 @@ CONTAINS
                   (density_guess == atomic_guess) .OR. &
                   (density_guess == core_guess) .OR. &
                   (density_guess == mopac_guess) .OR. &
+                  (density_guess == eht_guess) .OR. &
                   (density_guess == sparse_guess) .OR. &
                   (((density_guess == restart_guess) .OR. &
                     (density_guess == history_guess)) .AND. &
@@ -1032,7 +1029,8 @@ CONTAINS
       IF (density_guess == mopac_guess) THEN
 
          CALL calculate_mopac_dm(p_rmpv, s_sparse(1)%matrix, has_unit_metric, dft_control, &
-                                 particle_set, atomic_kind_set, qs_kind_set, nspin, nelectron_spin, para_env)
+                                 particle_set, atomic_kind_set, qs_kind_set, &
+                                 nspin, nelectron_spin, para_env)
 
          DO ispin = 1, nspin
             ! The orbital transformation method (OT) requires not only an
@@ -1075,7 +1073,16 @@ CONTAINS
 
          did_guess = .TRUE.
       END IF
-! switch_surf_dip [SGh]
+      !
+      ! EHT guess (gfn0-xTB)
+      IF (density_guess == eht_guess) THEN
+         CALL calculate_eht_guess(qs_env, mo_array)
+         DO ispin = 1, nspin
+            CALL calculate_density_matrix(mo_array(ispin), p_rmpv(ispin)%matrix)
+         END DO
+         did_guess = .TRUE.
+      END IF
+      ! switch_surf_dip [SGh]
       IF (dft_control%switch_surf_dip) THEN
          DO ispin = 1, nspin
             CALL reassign_allocated_mos(mos_last_converged(ispin), &

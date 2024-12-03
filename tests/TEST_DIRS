@@ -372,3 +372,4 @@ Fist/regtest-deepmd                                         deepmd
 QS/regtest-elpa                                             elpa mpiranks==1||mpiranks%2==0
 Fist/regtest-plumed2                                        plumed2
 Fist/regtest-quip                                           quip
+QS/regtest-eht-guess                                        libdftd4

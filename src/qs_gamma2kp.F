@@ -107,7 +107,7 @@ CONTAINS
       CALL qs_env_create(qs_env_kp)
       CALL qs_init(qs_env_kp, para_env, cp_subsys=cp_subsys, kpoint_env=kpoint, &
                    force_env_section=force_env_section, subsys_section=subsys_section, &
-                   use_motion_section=.FALSE.)
+                   use_motion_section=.FALSE., silent=.TRUE.)
 
       CALL get_qs_env(qs_env_kp, scf_control=scf_control)
       scf_control%density_guess = atomic_guess

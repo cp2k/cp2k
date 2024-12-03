@@ -58,7 +58,6 @@ MODULE qs_environment
    USE distribution_1d_types,           ONLY: distribution_1d_release,&
                                               distribution_1d_type
    USE distribution_methods,            ONLY: distribute_molecules_1d
-   USE dm_ls_scf_create,                ONLY: ls_scf_create
    USE ec_env_types,                    ONLY: energy_correction_type
    USE ec_environment,                  ONLY: ec_env_create,&
                                               ec_write_input
@@ -237,10 +236,12 @@ CONTAINS
 !> \param force_env_section ...
 !> \param subsys_section ...
 !> \param use_motion_section ...
+!> \param silent ...
 !> \author Creation (22.05.2000,MK)
 ! **************************************************************************************************
    SUBROUTINE qs_init(qs_env, para_env, root_section, globenv, cp_subsys, kpoint_env, cell, cell_ref, &
-                      qmmm, qmmm_env_qm, force_env_section, subsys_section, use_motion_section)
+                      qmmm, qmmm_env_qm, force_env_section, subsys_section, &
+                      use_motion_section, silent)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(mp_para_env_type), POINTER                    :: para_env
@@ -253,12 +254,13 @@ CONTAINS
       TYPE(qmmm_env_qm_type), OPTIONAL, POINTER          :: qmmm_env_qm
       TYPE(section_vals_type), POINTER                   :: force_env_section, subsys_section
       LOGICAL, INTENT(IN)                                :: use_motion_section
+      LOGICAL, INTENT(IN), OPTIONAL                      :: silent
 
       CHARACTER(LEN=default_string_length)               :: basis_type
       INTEGER                                            :: ikind, method_id, nelectron_total, &
                                                             nkind, nkp_grid(3)
       LOGICAL :: do_admm_rpa, do_ec_hfx, do_et, do_exx, do_hfx, do_kpoints, is_identical, is_semi, &
-         mp2_present, my_qmmm, qmmm_decoupl, same_except_frac, silent, use_ref_cell
+         mp2_present, my_qmmm, qmmm_decoupl, same_except_frac, use_ref_cell
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: rtmat
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: my_cell, my_cell_ref
@@ -324,7 +326,7 @@ CONTAINS
                             use_motion_section=use_motion_section, &
                             root_section=root_section, &
                             cp_subsys=cp_subsys, cell=cell, cell_ref=cell_ref, &
-                            elkind=is_semi)
+                            elkind=is_semi, silent=silent)
 
       ALLOCATE (ks_env)
       CALL qs_ks_env_create(ks_env)
@@ -355,12 +357,10 @@ CONTAINS
 
       ! kpoints
       IF (PRESENT(kpoint_env)) THEN
-         silent = .TRUE.
          kpoints => kpoint_env
          CALL set_qs_env(qs_env=qs_env, kpoints=kpoints)
          CALL kpoint_initialize(kpoints, particle_set, my_cell)
       ELSE
-         silent = .FALSE.
          NULLIFY (kpoints)
          CALL kpoint_create(kpoints)
          CALL set_qs_env(qs_env=qs_env, kpoints=kpoints)
@@ -481,10 +481,6 @@ CONTAINS
       CALL section_vals_get(transport_section, explicit=qs_env%do_transport)
       IF (qs_env%do_transport) THEN
          CALL transport_env_create(qs_env)
-      END IF
-
-      IF (dft_control%qs_control%do_ls_scf) THEN
-         CALL ls_scf_create(qs_env)
       END IF
 
       CALL get_qs_env(qs_env, harris_env=harris_env)
@@ -835,9 +831,11 @@ CONTAINS
             ewald_section => section_vals_get_subs_vals(poisson_section, "EWALD")
             print_section => section_vals_get_subs_vals(qs_env%input, "PRINT%GRID_INFORMATION")
             IF (gfn_type == 0) THEN
-               CALL read_ewald_section_tb(ewald_env, ewald_section, cell_ref%hmat, pset="EEQ")
+               CALL read_ewald_section_tb(ewald_env, ewald_section, cell_ref%hmat, &
+                                          silent=silent, pset="EEQ")
             ELSE
-               CALL read_ewald_section_tb(ewald_env, ewald_section, cell_ref%hmat)
+               CALL read_ewald_section_tb(ewald_env, ewald_section, cell_ref%hmat, &
+                                          silent=silent)
             END IF
             ALLOCATE (ewald_pw)
             CALL ewald_pw_create(ewald_pw, ewald_env, cell, cell_ref, print_section=print_section)
