@@ -451,11 +451,8 @@ CONTAINS
          CALL trexio_error(rc)
 
          ! Normalization factors are shoved in the AO group
-         ! ALLOCATE (prim_factor(prim_num))
-         ! prim_factor(:) = 1.0_dp
          rc = trexio_write_basis_prim_factor(f, prim_factor)
          CALL trexio_error(rc)
-         ! DEALLOCATE (prim_factor)
       END IF
 
       DEALLOCATE (nucleus_index)
@@ -859,6 +856,7 @@ CONTAINS
                   CPASSERT(i == nsgf)
                END IF
 
+               ! we have to do it for the imaginary part as well
                IF (.NOT. use_real_wfn) THEN
                   CALL cp_fm_get_submatrix(fm_mo_coeff_im, mos_sgf, 1, imo + 1, nsgf, nmo)
                   IF (save_cartesian) THEN
@@ -881,7 +879,7 @@ CONTAINS
                   END IF
                END IF
             END DO
-         ELSE
+         ELSE ! no k-points
             ! global index to store the MOs
             imo = (ispin - 1)*nmo_spin(1)
             ! store the MO energies
@@ -963,7 +961,6 @@ CONTAINS
       !========================================================================================!
       ! RDM group
       !========================================================================================!
-      ! TODO: implement this also for k-points
       IF (.NOT. do_kpoints) THEN
          CALL get_qs_env(qs_env, mos=mos)
 

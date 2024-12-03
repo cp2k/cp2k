@@ -1,6 +1,5 @@
 #!/bin/bash -e
 
-# TODO: hdf5 is not installed automatically.
 # TODO: Review and if possible fix shellcheck errors.
 # shellcheck disable=all
 
@@ -42,12 +41,8 @@ case "$with_trexio" in
         echo "trexio_${trexio_ver}.tar.gz is found"
       else
         #download_pkg_from_cp2k_org "${trexio_sha256}" "trexio-${trexio_ver}.tar.gz"
-
-        echo "Currently trexio is not available from cp2k.org"
-        echo "You can clone the repo and build it yourself:"
-        echo "git clone https://github.com/TREX-CoE/trexio.git trexio-${trexio_ver}"
-        echo "and compile it according to the instructions available on github"
-        exit 1
+        # the release of trexio should be uploaded to the cp2k repository
+        wget -q https://github.com/TREX-CoE/trexio/releases/download/v${trexio_ver}/trexio-${trexio_ver}.tar.gz
       fi
 
       tar -xzf trexio-${trexio_ver}.tar.gz
