@@ -40,9 +40,7 @@ case "$with_trexio" in
       if [ -f trexio-${trexio_ver}.tar.gz ]; then
         echo "trexio_${trexio_ver}.tar.gz is found"
       else
-        #download_pkg_from_cp2k_org "${trexio_sha256}" "trexio-${trexio_ver}.tar.gz"
-        # the release of trexio should be uploaded to the cp2k repository
-        wget -q https://github.com/TREX-CoE/trexio/releases/download/v${trexio_ver}/trexio-${trexio_ver}.tar.gz
+        download_pkg_from_cp2k_org "${trexio_sha256}" "trexio-${trexio_ver}.tar.gz"
       fi
 
       tar -xzf trexio-${trexio_ver}.tar.gz
