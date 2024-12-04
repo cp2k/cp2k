@@ -84,8 +84,8 @@ MODULE environment
                                               print_kind_info
    USE local_gemm_api,                  ONLY: local_gemm_set_library
    USE machine,                         ONLY: &
-        flush_should_flush, m_cpuid, m_cpuid_name, m_cpuid_static, m_cpuinfo, m_energy, &
-        m_memory_details, m_omp_get_stacksize, m_omp_trace_issues, m_procrun
+        flush_should_flush, m_cpuid, m_cpuid_name, m_cpuid_static, m_cpuid_vlen, m_cpuinfo, &
+        m_energy, m_memory_details, m_omp_get_stacksize, m_omp_trace_issues, m_procrun
    USE message_passing,                 ONLY: mp_collect_timings,&
                                               mp_para_env_type
    USE mp_perf_env,                     ONLY: add_mp_perf_env,&
@@ -922,7 +922,8 @@ CONTAINS
             END IF
          END IF
 
-         IF (cpuid_static < cpuid) THEN
+         ! filter cpuids by vlen to show more relevant information
+         IF (m_cpuid_vlen(cpuid_static) < m_cpuid_vlen(cpuid)) THEN
             ! base/machine_cpuid.c relies on the (same) target flags as the Fortran code
             CALL cp_hint(__LOCATION__, "The compiler target flags ("// &
                          TRIM(m_cpuid_name(cpuid_static))//") used to build this binary cannot exploit "// &
