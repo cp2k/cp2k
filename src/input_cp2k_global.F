@@ -29,6 +29,8 @@ MODULE input_cp2k_global
    USE cp_fm_elpa,                      ONLY: elpa_kernel_descriptions,&
                                               elpa_kernel_ids,&
                                               elpa_kernel_names
+   USE cp_fm_struct,                    ONLY: cp_fm_struct_get_ncol_block,&
+                                              cp_fm_struct_get_nrow_block
    USE cp_output_handling,              ONLY: add_last_numeric,&
                                               cp_print_key_section_create,&
                                               debug_print_level,&
@@ -283,7 +285,7 @@ CONTAINS
                           "larger allowed grids, or grids that more precisely match a given cutoff. "// &
                           "IMPORTANT NOTE: in this case, the actual grids used in CP2K depends on the FFT library. "// &
                           "A change of FFT library must therefore be considered equivalent to a change of basis, "// &
-                          "which implies a change of total energy. ", &
+                          "which implies a change of total energy.", &
                           usage="EXTENDED_FFT_LENGTHS", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
@@ -419,7 +421,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="TRACE", &
-                          description="If a debug trace of the execution of the program should be written ", &
+                          description="If a debug trace of the execution of the program should be written", &
                           usage="TRACE", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
@@ -490,7 +492,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="SAVE_MEM", &
                           description="Some sections of the input structure are deallocated when not needed,"// &
-                          " and reallocated only when used. This reduces the required maximum memory  ", &
+                          " and reallocated only when used. This reduces the required maximum memory.", &
                           usage="SAVE_MEM", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
@@ -639,21 +641,23 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="NROW_BLOCKS", &
                           description="Defines the number of rows per scalapack block in "// &
-                          "the creation of block cyclic dense matrices ", &
-                          default_i_val=64)
+                          "the creation of block cyclic dense matrices. "// &
+                          "Use an internal default if zero or negative.", &
+                          default_i_val=cp_fm_struct_get_nrow_block())
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="NCOL_BLOCKS", &
                           description="Defines the number of columns per scalapack block in "// &
-                          "the creation of vlock cyclic dense matrices ", &
-                          default_i_val=64)
+                          "the creation of vlock cyclic dense matrices. "// &
+                          "Use an internal default if zero or negative.", &
+                          default_i_val=cp_fm_struct_get_ncol_block())
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="FORCE_BLOCK_SIZE", &
                           description="Ensure for small matrices that the layout is compatible "// &
-                          "with bigger ones, i.e. no subdivision is performed (can break LAPACK!!!).", &
+                          "with bigger ones, i.e. no subdivision is performed (can break LAPACK).", &
                           usage="FORCE_BLOCK_SIZE", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
@@ -737,7 +741,7 @@ CONTAINS
                           description="Controls how to perform redistribution when ELPA is used for diagonalization. "// &
                           "By default, redistribution is always performed using the defined rules. "// &
                           "By turning off this keyword, matrices are redistributed only to prevent crashes in the ELPA "// &
-                          "library which happens when the original matrix is distributed over too many processors. ", &
+                          "library which happens when the original matrix is distributed over too many processors.", &
                           usage="ELPA_FORCE_REDISTRIBUTE", type_of_var=logical_t, &
                           default_l_val=.TRUE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
