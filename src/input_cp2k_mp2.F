@@ -1418,7 +1418,6 @@ CONTAINS
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
-      
 
       NULLIFY (subsection)
       CALL create_bse_screening_section(subsection)

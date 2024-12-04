@@ -481,8 +481,8 @@ CONTAINS
       IF (Exc_ens(1) < 0) THEN
          IF (unit_nr > 0) THEN
             CALL cp_abort(__LOCATION__, &
-                        "Matrix C=(A-B)^0.5 (A+B) (A-B)^0.5 has negative eigenvalues, i.e. "// &
-                        "(A+B) is not positive definite.")
+                          "Matrix C=(A-B)^0.5 (A+B) (A-B)^0.5 has negative eigenvalues, i.e. "// &
+                          "(A+B) is not positive definite.")
          END IF
       END IF
       Exc_ens = SQRT(Exc_ens)

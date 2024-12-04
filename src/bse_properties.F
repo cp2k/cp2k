@@ -275,6 +275,7 @@ CONTAINS
          ! where f_n are the oscillator strengths and E_exc the excitation energies
          ! For the full polarizability tensor, we have
          ! α_{µ µ'}(ω) =  \sum_n [2 Ω^n d^n_µ d^n_µ'] / [(ω+iη)^2- (Ω^n)^2]
+         !             =  \sum_n "polarizability_residues" / [(ω+iη)^2- (Ω^n)^2]
          DO i = 1, num_steps
             omega = freq_start + (i - 1)*freq_step
             abs_spectrum(i, 1) = omega
@@ -283,6 +284,8 @@ CONTAINS
                                     AIMAG(1/((omega + CMPLX(0.0, eta, kind=dp))**2 - Exc_ens(j)**2))
                DO idir = 1, 3
                   DO jdir = 1, 3
+                     ! Factor 2 from formula for tensor is already in the polarizability_residues
+                     !  to follow the same convention as the oscillator strengths
                      abs_spectrum(i, 2 + (idir - 1)*3 + jdir) = abs_spectrum(i, 2 + (idir - 1)*3 + jdir) &
                                                                 - polarizability_residues(idir, jdir, j)* &
                                                                 AIMAG(1/((omega + CMPLX(0.0, eta, kind=dp))**2 - Exc_ens(j)**2))
