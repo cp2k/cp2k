@@ -84,7 +84,7 @@ MODULE machine
              m_getcwd, m_getlog, m_getpid, m_procrun, m_abort, &
              m_chdir, m_mov, m_memory, m_memory_details, m_energy, &
              m_cpuinfo, m_cpuid_static, m_cpuid, m_cpuid_name, &
-             m_omp_get_stacksize, m_omp_trace_issues
+             m_cpuid_vlen, m_omp_get_stacksize, m_omp_trace_issues
 
    INTERFACE
       ! **********************************************************************************************
@@ -158,12 +158,12 @@ CONTAINS
 !> \param model_name as obtained from the 'model name' field, UNKNOWN otherwise
 ! **************************************************************************************************
    SUBROUTINE m_cpuinfo(model_name)
-      CHARACTER(LEN=default_string_length)               :: model_name
+      CHARACTER(LEN=default_string_length), INTENT(OUT)  :: model_name
 
       INTEGER, PARAMETER                                 :: bufferlen = 2048
 
       CHARACTER(LEN=bufferlen)                           :: buffer
-      INTEGER                                            :: i, icol, iline, imod, stat
+      INTEGER                                            :: i, icol, iline, stat
 
       model_name = "UNKNOWN"
       buffer = ""
@@ -173,9 +173,9 @@ CONTAINS
             READ (121245, END=999) buffer(I:I)
          END DO
 999      CLOSE (121245)
-         imod = INDEX(buffer, "model name")
-         IF (imod > 0) THEN
-            icol = imod - 1 + INDEX(buffer(imod:), ":")
+         i = INDEX(buffer, "model name")
+         IF (i > 0) THEN
+            icol = i - 1 + INDEX(buffer(i:), ":")
             iline = icol - 1 + INDEX(buffer(icol:), NEW_LINE('A'))
             IF (iline == icol - 1) iline = bufferlen + 1
             model_name = buffer(icol + 1:iline - 1)
@@ -190,82 +190,125 @@ CONTAINS
 !>      04.2019 created [Hans Pabst]
 !>      09.2024 update+arm [Hans Pabst]
 ! **************************************************************************************************
-   PURE FUNCTION m_cpuid() RESULT(cpuid)
-      INTEGER :: cpuid
+   PURE FUNCTION m_cpuid()
+      INTEGER :: m_cpuid
 #if defined(__LIBXSMM)
-      cpuid = libxsmm_get_target_archid()
-      IF (LIBXSMM_X86_SSE4 <= cpuid .AND. cpuid < LIBXSMM_X86_AVX) THEN
-         cpuid = MACHINE_X86_SSE4
-      ELSE IF (LIBXSMM_X86_AVX <= cpuid .AND. cpuid < LIBXSMM_X86_AVX2) THEN
-         cpuid = MACHINE_X86_AVX
-      ELSE IF (LIBXSMM_X86_AVX2 <= cpuid .AND. cpuid < LIBXSMM_X86_AVX512_SKX) THEN
-         cpuid = MACHINE_X86_AVX2
-      ELSE IF (LIBXSMM_X86_AVX512_SKX <= cpuid .AND. cpuid <= 1999) THEN
-         cpuid = MACHINE_X86_AVX512
+      m_cpuid = libxsmm_get_target_archid()
+      IF (LIBXSMM_X86_SSE4 <= m_cpuid .AND. m_cpuid < LIBXSMM_X86_AVX) THEN
+         m_cpuid = MACHINE_X86_SSE4
+      ELSE IF (LIBXSMM_X86_AVX <= m_cpuid .AND. m_cpuid < LIBXSMM_X86_AVX2) THEN
+         m_cpuid = MACHINE_X86_AVX
+      ELSE IF (LIBXSMM_X86_AVX2 <= m_cpuid .AND. m_cpuid < LIBXSMM_X86_AVX512_SKX) THEN
+         m_cpuid = MACHINE_X86_AVX2
+      ELSE IF (LIBXSMM_X86_AVX512_SKX <= m_cpuid .AND. m_cpuid <= 1999) THEN
+         m_cpuid = MACHINE_X86_AVX512
 #if defined(__LIBXSMM2)
-      ELSE IF (LIBXSMM_AARCH64_V81 <= cpuid .AND. cpuid < LIBXSMM_AARCH64_SVE128) THEN
-         cpuid = MACHINE_ARM_ARCH64
-      ELSE IF (LIBXSMM_AARCH64_SVE128 <= cpuid .AND. cpuid < 2401) THEN ! LIBXSMM_AARCH64_SVE512
-         cpuid = MACHINE_ARM_SVE256
-      ELSE IF (2401 <= cpuid .AND. cpuid <= 2999) THEN
-         cpuid = MACHINE_ARM_SVE512
+      ELSE IF (LIBXSMM_AARCH64_V81 <= m_cpuid .AND. m_cpuid < LIBXSMM_AARCH64_SVE128) THEN
+         m_cpuid = MACHINE_ARM_ARCH64
+      ELSE IF (LIBXSMM_AARCH64_SVE128 <= m_cpuid .AND. m_cpuid < 2401) THEN ! LIBXSMM_AARCH64_SVE512
+         m_cpuid = MACHINE_ARM_SVE256
+      ELSE IF (2401 <= m_cpuid .AND. m_cpuid <= 2999) THEN
+         m_cpuid = MACHINE_ARM_SVE512
 #endif
-      ELSE IF (LIBXSMM_TARGET_ARCH_GENERIC <= cpuid .AND. cpuid <= 2999) THEN
-         cpuid = MACHINE_CPU_GENERIC
+      ELSE IF (LIBXSMM_TARGET_ARCH_GENERIC <= m_cpuid .AND. m_cpuid <= 2999) THEN
+         m_cpuid = MACHINE_CPU_GENERIC
       ELSE
-         cpuid = MACHINE_CPU_UNKNOWN
+         m_cpuid = MACHINE_CPU_UNKNOWN
       END IF
 #else
-      cpuid = m_cpuid_static()
+      m_cpuid = m_cpuid_static()
 #endif
    END FUNCTION m_cpuid
 
 ! **************************************************************************************************
 !> \brief Determine name of target architecture for a given CPUID.
 !> \param cpuid integer value (MACHINE_*)
-!> \return name or short name.
+!> \return short name of ISA extension.
 !> \par History
 !>      06.2019 created [Hans Pabst]
 !>      09.2024 update+arm [Hans Pabst]
 ! **************************************************************************************************
-   FUNCTION m_cpuid_name(cpuid)
-      INTEGER                                            :: cpuid
-      CHARACTER(len=default_string_length), POINTER      :: m_cpuid_name
+   PURE FUNCTION m_cpuid_name(cpuid)
+      INTEGER, OPTIONAL, INTENT(IN)         :: cpuid
+      CHARACTER(len=default_string_length)  :: m_cpuid_name
 
-      CHARACTER(len=default_string_length), SAVE, TARGET :: name_arm_arch64 = "arm_arch64", &
-                                                            name_arm_sve128 = "arm_sve128", &
-                                                            name_arm_sve256 = "arm_sve256", &
-                                                            name_arm_sve512 = "arm_sve512", &
-                                                            name_generic = "generic", &
-                                                            name_unknown = "unknown", &
-                                                            name_x86_avx = "x86_avx", &
-                                                            name_x86_avx2 = "x86_avx2", &
-                                                            name_x86_avx512 = "x86_avx512", &
-                                                            name_x86_sse4 = "x86_sse4"
+      INTEGER                               :: isa
 
-      SELECT CASE (cpuid)
+      IF (PRESENT(cpuid)) THEN
+         isa = cpuid
+      ELSE
+         isa = m_cpuid()
+      END IF
+
+      SELECT CASE (isa)
       CASE (MACHINE_CPU_GENERIC)
-         m_cpuid_name => name_generic
+         m_cpuid_name = "generic"
       CASE (MACHINE_X86_SSE4)
-         m_cpuid_name => name_x86_sse4
+         m_cpuid_name = "x86_sse4"
       CASE (MACHINE_X86_AVX)
-         m_cpuid_name => name_x86_avx
+         m_cpuid_name = "x86_avx"
       CASE (MACHINE_X86_AVX2)
-         m_cpuid_name => name_x86_avx2
+         m_cpuid_name = "x86_avx2"
       CASE (MACHINE_X86_AVX512)
-         m_cpuid_name => name_x86_avx512
+         m_cpuid_name = "x86_avx512"
       CASE (MACHINE_ARM_ARCH64)
-         m_cpuid_name => name_arm_arch64
+         m_cpuid_name = "arm_arch64"
       CASE (MACHINE_ARM_SVE128)
-         m_cpuid_name => name_arm_sve128
+         m_cpuid_name = "arm_sve128"
       CASE (MACHINE_ARM_SVE256)
-         m_cpuid_name => name_arm_sve256
+         m_cpuid_name = "arm_sve256"
       CASE (MACHINE_ARM_SVE512)
-         m_cpuid_name => name_arm_sve512
+         m_cpuid_name = "arm_sve512"
       CASE DEFAULT
-         m_cpuid_name => name_unknown
+         m_cpuid_name = "unknown"
       END SELECT
    END FUNCTION m_cpuid_name
+
+! **************************************************************************************************
+!> \brief Determine vector-length for a given CPUID.
+!> \param cpuid integer value (MACHINE_*)
+!> \param typesize number of bytes of scalar type
+!> \return vector-length in number of elements.
+!> \par History
+!>      12.2024 created [Hans Pabst]
+! **************************************************************************************************
+   PURE FUNCTION m_cpuid_vlen(cpuid, typesize)
+      INTEGER, OPTIONAL, INTENT(IN) :: cpuid, typesize
+
+      INTEGER                       :: isa, m_cpuid_vlen, nbytes
+
+      IF (PRESENT(typesize)) THEN
+         nbytes = typesize
+      ELSE
+         nbytes = 8 ! double-precision
+      END IF
+
+      IF (0 < nbytes .AND. nbytes <= 16) THEN ! sanity check
+         IF (PRESENT(cpuid)) THEN
+            isa = cpuid
+         ELSE
+            isa = m_cpuid()
+         END IF
+
+         SELECT CASE (isa)
+         CASE (MACHINE_X86_SSE4)
+         CASE (MACHINE_ARM_ARCH64) ! NEON
+         CASE (MACHINE_ARM_SVE128)
+            m_cpuid_vlen = 16/nbytes
+         CASE (MACHINE_X86_AVX)
+         CASE (MACHINE_X86_AVX2)
+         CASE (MACHINE_ARM_SVE256)
+            m_cpuid_vlen = 32/nbytes
+         CASE (MACHINE_X86_AVX512)
+         CASE (MACHINE_ARM_SVE512)
+            m_cpuid_vlen = 64/nbytes
+         CASE DEFAULT ! unknown or generic
+            m_cpuid_vlen = 1 ! scalar
+         END SELECT
+      ELSE ! fallback
+         m_cpuid_vlen = 1 ! scalar
+      END IF
+   END FUNCTION m_cpuid_vlen
 
 ! **************************************************************************************************
 !> \brief returns the energy used since some time in the past.
@@ -393,7 +436,6 @@ CONTAINS
       INTEGER(KIND=int_8), OPTIONAL, INTENT(OUT)         :: mem
       INTEGER(KIND=int_8)                      :: mem_local
 
-      !
       ! __NO_STATM_ACCESS can be used to disable the stuff, if getpagesize
       ! lead to linking errors or /proc/self/statm can not be opened
       !
@@ -412,7 +454,6 @@ CONTAINS
          END FUNCTION
       END INTERFACE
 
-      !
       ! reading from statm
       !
       mem_local = -1
