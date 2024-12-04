@@ -6,8 +6,8 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")/.." && pwd -P)"
 
-hdf5_ver="1.14.3"
-hdf5_sha256="9425f224ed75d1280bb46d6f26923dd938f9040e7eaebf57e66ec7357c08f917"
+hdf5_ver="1.14.5"
+hdf5_sha256="ec2e13c52e60f9a01491bb3158cb3778c985697131fc6a342262d32a26e58e44"
 
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
@@ -28,14 +28,14 @@ case "$with_hdf5" in
     if verify_checksums "${install_lock_file}"; then
       echo "hdf5-${hdf5_ver} is already installed, skipping it."
     else
-      if [ -f hdf5-${hdf5_ver}.tar.bz2 ]; then
-        echo "hdf5-${hdf5_ver}.tar.bz2 is found"
+      if [ -f hdf5-${hdf5_ver}.tar.gz ]; then
+        echo "hdf5-${hdf5_ver}.tar.gz is found"
       else
-        download_pkg_from_cp2k_org "${hdf5_sha256}" "hdf5-${hdf5_ver}.tar.bz2"
+        download_pkg_from_cp2k_org "${hdf5_sha256}" "hdf5-${hdf5_ver}.tar.gz"
       fi
       echo "Installing from scratch into ${pkg_install_dir}"
       [ -d hdf5-${hdf5_ver} ] && rm -rf hdf5-${hdf5_ver}
-      tar xf hdf5-${hdf5_ver}.tar.bz2
+      tar xf hdf5-${hdf5_ver}.tar.gz
       cd hdf5-${hdf5_ver}
       mkdir build
       cd build
