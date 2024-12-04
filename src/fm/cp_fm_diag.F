@@ -677,8 +677,8 @@ CONTAINS
 
       ! Diagonalise the symmetric n by n matrix using the LAPACK library.
 
-      TYPE(cp_fm_type), INTENT(IN)              :: matrix
-      TYPE(cp_fm_type), OPTIONAL, INTENT(IN)    :: eigenvectors
+      TYPE(cp_fm_type), INTENT(IN)                 :: matrix
+      TYPE(cp_fm_type), OPTIONAL, INTENT(IN)       :: eigenvectors
       REAL(KIND=dp), OPTIONAL, INTENT(IN)          :: work_syevx
       INTEGER, INTENT(IN), OPTIONAL                :: neig
       REAL(KIND=dp), DIMENSION(:), INTENT(OUT)     :: eigenvalues
@@ -924,7 +924,7 @@ CONTAINS
       CHARACTER(LEN=2*default_string_length)   :: message
       INTEGER                                  :: handle, n, m, myinfo, lwork
       REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a
-      TYPE(cp_fm_type)                :: matrix_lu
+      TYPE(cp_fm_type)                         :: matrix_lu
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: work
 
 #if defined(__parallel)
@@ -1042,7 +1042,7 @@ CONTAINS
       ! - Creation (29.03.1999, Matthias Krack)
       ! - Parallelised using BLACS and ScaLAPACK (06.06.2001,MK)
 
-      TYPE(cp_fm_type), INTENT(IN)            :: matrix, work
+      TYPE(cp_fm_type), INTENT(IN)               :: matrix, work
       REAL(KIND=dp), INTENT(IN)                  :: exponent, threshold
       INTEGER, INTENT(OUT)                       :: n_dependent
       LOGICAL, INTENT(IN), OPTIONAL              :: verbose
@@ -1211,7 +1211,7 @@ CONTAINS
       ! - Creation (07.10.2002, Martin Fengler)
       ! - Cosmetics (05.04.06, MK)
 
-      TYPE(cp_fm_type), INTENT(IN)           :: eigenvectors, matrix
+      TYPE(cp_fm_type), INTENT(IN)              :: eigenvectors, matrix
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)   :: eigval
       INTEGER, INTENT(IN)                       :: start_sec_block
       REAL(KIND=dp), INTENT(IN)                 :: thresh
@@ -1219,11 +1219,11 @@ CONTAINS
       CHARACTER(len=*), PARAMETER               :: routineN = 'cp_fm_block_jacobi'
 
       INTEGER :: handle
-      REAL(KIND=dp), DIMENSION(:, :), POINTER    :: a, ev
+      REAL(KIND=dp), DIMENSION(:, :), POINTER   :: a, ev
 
       REAL(KIND=dp) :: tan_theta, tau, c, s
       INTEGER  :: q, p, N
-      REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: c_ip
+      REAL(KIND=dp), DIMENSION(:), ALLOCATABLE  :: c_ip
 
 #if defined(__parallel)
       TYPE(cp_blacs_env_type), POINTER :: context
@@ -1231,7 +1231,7 @@ CONTAINS
       INTEGER :: myprow, mypcol, nprow, npcol, block_dim_row, block_dim_col, &
                  info, ev_row_block_size, iam, mynumrows, mype, npe, &
                  q_loc
-      REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE :: a_loc, ev_loc
+      REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE  :: a_loc, ev_loc
       INTEGER, DIMENSION(9)                        :: desca, descz, desc_a_block, &
                                                       desc_ev_loc
       TYPE(mp_comm_type):: allgrp
