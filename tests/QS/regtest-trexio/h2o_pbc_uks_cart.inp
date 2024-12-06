@@ -1,0 +1,65 @@
+&GLOBAL
+  PRINT_LEVEL low
+  PROJECT h2o
+  RUN_TYPE energy
+&END GLOBAL
+
+&FORCE_EVAL
+  METHOD quickstep
+  &DFT
+    BASIS_SET_FILE_NAME ./sto-3g.cp2k
+    CHARGE 0
+    MULTIPLICITY 3
+    POTENTIAL_FILE_NAME ALL_POTENTIALS
+    UKS true
+    &MGRID
+      CUTOFF 150
+      REL_CUTOFF 30
+    &END MGRID
+    &POISSON
+      PERIODIC xyz
+      PSOLVER periodic
+    &END POISSON
+    &PRINT
+      &TREXIO
+        CARTESIAN
+      &END TREXIO
+    &END PRINT
+    &QS
+      METHOD gapw
+    &END QS
+    &SCF
+      EPS_SCF 1.0e-5
+      IGNORE_CONVERGENCE_FAILURE
+      MAX_SCF 6
+      SCF_GUESS atomic
+      &PRINT
+        &RESTART off
+        &END RESTART
+      &END PRINT
+    &END SCF
+    &XC
+      &XC_FUNCTIONAL pade
+      &END XC_FUNCTIONAL
+    &END XC
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 10 10 10
+      PERIODIC xyz
+    &END CELL
+    &COORD
+      O    0.00000     0.00000    -0.06005
+      H    0.00000     0.75411     0.51442
+      H    0.00000    -0.75411     0.51442
+    &END COORD
+    &KIND O
+      BASIS_SET sto-3g
+      POTENTIAL all
+    &END KIND
+    &KIND H
+      BASIS_SET sto-3g
+      POTENTIAL all
+    &END KIND
+  &END SUBSYS
+&END FORCE_EVAL

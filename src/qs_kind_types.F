@@ -867,6 +867,7 @@ CONTAINS
 !> \param basis_rcut ...
 !> \param basis_type ...
 !> \param total_zeff_corr ... [SGh]
+!> \param npgf_seg total number of primitive GTOs in "segmented contraction format"
 ! **************************************************************************************************
    SUBROUTINE get_qs_kind_set(qs_kind_set, &
                               all_potential_present, tnadd_potential_present, gth_potential_present, &
@@ -875,7 +876,7 @@ CONTAINS
                               ncgf, npgf, nset, nsgf, nshell, maxpol, maxlppl, maxlppnl, maxppnl, &
                               nelectron, maxder, max_ngrid_rad, max_sph_harm, maxg_iso_not0, lmax_rho0, &
                               basis_rcut, &
-                              basis_type, total_zeff_corr)
+                              basis_type, total_zeff_corr, npgf_seg)
 
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       LOGICAL, INTENT(OUT), OPTIONAL :: all_potential_present, tnadd_potential_present, &
@@ -889,6 +890,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: basis_rcut
       CHARACTER(len=*), OPTIONAL                         :: basis_type
       REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: total_zeff_corr
+      INTEGER, INTENT(OUT), OPTIONAL                     :: npgf_seg
 
       CHARACTER(len=default_string_length)               :: my_basis_type
       INTEGER                                            :: ikind, imax, lmax_rho0_kind, &
@@ -944,6 +946,7 @@ CONTAINS
          IF (PRESENT(lmax_rho0)) lmax_rho0 = 0
          IF (PRESENT(basis_rcut)) basis_rcut = 0.0_dp
          IF (PRESENT(total_zeff_corr)) total_zeff_corr = 0.0_dp
+         IF (PRESENT(npgf_seg)) npgf_seg = 0
 
          nkind = SIZE(qs_kind_set)
          DO ikind = 1, nkind
@@ -1221,6 +1224,13 @@ CONTAINS
 
             IF (PRESENT(lmax_rho0)) THEN
                lmax_rho0 = MAX(lmax_rho0, lmax_rho0_kind)
+            END IF
+
+            IF (PRESENT(npgf_seg)) THEN
+               IF (ASSOCIATED(tmp_basis_set)) THEN
+                  CALL get_gto_basis_set(gto_basis_set=tmp_basis_set, npgf_seg_sum=n)
+                  npgf_seg = npgf_seg + n*qs_kind_set(ikind)%natom
+               END IF
             END IF
 
          END DO

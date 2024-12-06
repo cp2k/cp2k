@@ -6,8 +6,8 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")/.." && pwd -P)"
 
-hdf5_ver="1.14.2"
-hdf5_sha256="ea3c5e257ef322af5e77fc1e52ead3ad6bf3bb4ac06480dd17ee3900d7a24cfb"
+hdf5_ver="1.14.5"
+hdf5_sha256="ec2e13c52e60f9a01491bb3158cb3778c985697131fc6a342262d32a26e58e44"
 
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
@@ -28,14 +28,14 @@ case "$with_hdf5" in
     if verify_checksums "${install_lock_file}"; then
       echo "hdf5-${hdf5_ver} is already installed, skipping it."
     else
-      if [ -f hdf5-${hdf5_ver}.tar.bz2 ]; then
-        echo "hdf5-${hdf5_ver}.tar.bz2 is found"
+      if [ -f hdf5-${hdf5_ver}.tar.gz ]; then
+        echo "hdf5-${hdf5_ver}.tar.gz is found"
       else
-        download_pkg_from_cp2k_org "${hdf5_sha256}" "hdf5-${hdf5_ver}.tar.bz2"
+        download_pkg_from_cp2k_org "${hdf5_sha256}" "hdf5-${hdf5_ver}.tar.gz"
       fi
       echo "Installing from scratch into ${pkg_install_dir}"
       [ -d hdf5-${hdf5_ver} ] && rm -rf hdf5-${hdf5_ver}
-      tar xf hdf5-${hdf5_ver}.tar.bz2
+      tar xf hdf5-${hdf5_ver}.tar.gz
       cd hdf5-${hdf5_ver}
       mkdir build
       cd build
@@ -56,9 +56,19 @@ case "$with_hdf5" in
   __SYSTEM__)
     echo "==================== Finding hdf5 from system paths ===================="
     check_command pkg-config --modversion hdf5
-    pkg_install_dir=$(h5cc -show | tr " " "\n" | grep "\-L" | cut -c3-)
-    HDF5_CFLAGS="-I${pkg_install_dir}/include"
-    HDF5_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath,'${pkg_install_dir}/lib'"
+    pkg_install_dir=$(h5cc -show | tr " " "\n" | grep "\-L" | cut -c3- | sed 's/\/lib$//')
+    if [ -d ${pkg_install_dir}/include ]; then
+      HDF5_INCLUDE_DIR=${pkg_install_dir}/include
+    else
+      HDF5_INCLUDE_DIR=${pkg_install_dir}
+    fi
+    HDF5_CFLAGS="-I${HDF5_INCLUDE_DIR}"
+    if [ -d ${pkg_install_dir}/lib ]; then
+      HDF5_LIB_DIR=${pkg_install_dir}/lib
+    else
+      HDF5_LIB_DIR=${pkg_install_dir}
+    fi
+    HDF5_LDFLAGS="-L'${HDF5_LIB_DIR}' -Wl,-rpath,'${HDF5_LIB_DIR}'"
     ;;
   __DONTUSE__)
     # Nothing to do

@@ -491,6 +491,14 @@ DeePMD-kit - Deep Potential Molecular Dynamics. Support for DeePMD-kit can be en
 - Add `-D__SMEAGOL` to DFLAGS, `-I$(LIBSMEAGOL_DIR)/obj` to FCFLAGS and
   `-L$(LIBSMEAGOL_DIR)/lib -lsmeagol` to LIBS
 
+### 2z. TREXIO (optional, unified computational chemistry format)
+
+TREXIO - Open-source file format and library. Support for TREXIO can be enabled via the flag
+`-D__TREXIO`.
+
+- TREXIO library can be downloaded from <https://github.com/trex-coe/trexio>
+- For more information see <https://trex-coe.github.io/trexio/index.html>.
+
 ## 3. Compile
 
 ### 3a. ARCH files
@@ -580,8 +588,9 @@ libraries (see 2.)
 - `-D__CRAY_PM_ACCEL_ENERGY` or `-D__CRAY_PM_ENERGY` switch on energy profiling on Cray systems
 - `-D__NO_ABORT` to avoid calling abort, but STOP instead (useful for coverage testing, and to avoid
   core dumps on some systems)
-- `-D__HDF5` enables hdf5 support. This is a hard dependency for SIRIUS, but can also be used by
-  itself to allow read/write functionalities of QCSchema files in the active space module.
+- `-D__HDF5` enables hdf5 support. This is a hard dependency for SIRIUS and TREXIO, but can also be
+  used by itself to allow read/write functionalities of QCSchema files in the active space module
+- `-D__TREXIO` enables TREXIO I/O support
 
 Features useful to deal with legacy systems
 
