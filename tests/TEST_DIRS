@@ -8,6 +8,7 @@ QS/regtest-rpa-sigma                                        libint
 TMC/regtest_ana_on_the_fly                                  parallel mpiranks>2
 QS/regtest-cusolver                                         cusolvermp
 QS/regtest-dlaf                                             dlaf
+QS/regtest-dlaf-2                                           dlaf libint
 QS/regtest-pao-2
 QS/regtest-tddfpt-force-gapw                                libint
 QS/regtest-tddfpt-4                                         libint

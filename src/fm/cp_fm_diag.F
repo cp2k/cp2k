@@ -37,7 +37,7 @@ MODULE cp_fm_diag
    USE cp_fm_cusolver_api, ONLY: cp_fm_diag_cusolver, &
                                  cp_fm_general_cusolver
 #if defined(__DLAF)
-   USE cp_fm_dlaf_api, ONLY: cp_fm_diag_dlaf
+   USE cp_fm_dlaf_api, ONLY: cp_fm_diag_dlaf, cp_fm_diag_gen_dlaf
 #endif
    USE cp_fm_types, ONLY: cp_fm_get_info, &
                           cp_fm_set_element, &
@@ -257,7 +257,6 @@ CONTAINS
             CALL cp_fm_diag_cusolver(matrix, eigenvectors, eigenvalues)
          END IF
 
-#if defined(__DLAF)
       ELSE IF (diag_type == FM_DIAG_TYPE_DLAF) THEN
          IF (matrix%matrix_struct%nrow_global < dlaf_neigvec_min) THEN
             ! Use ScaLAPACK for small matrices
@@ -265,7 +264,6 @@ CONTAINS
          ELSE
             CALL cp_fm_diag_dlaf(matrix, eigenvectors, eigenvalues)
          END IF
-#endif
 
       ELSE
          CPABORT("ERROR in "//routineN//": Invalid diagonalization type requested")
@@ -1418,25 +1416,28 @@ CONTAINS
       IF (diag_type == FM_DIAG_TYPE_CUSOLVER .AND. nao >= 64) THEN
          ! Use cuSolverMP generalized eigenvalue solver for large matrices
          CALL cp_fm_general_cusolver(amatrix, bmatrix, eigenvectors, eigenvalues)
+      ELSE IF (diag_type == FM_DIAG_TYPE_DLAF .AND. amatrix%matrix_struct%nrow_global >= dlaf_neigvec_min) THEN
+            ! Use DLA-Future generalized eigenvalue solver for large matrices
+            CALL cp_fm_diag_gen_dlaf(amatrix, bmatrix, eigenvectors, eigenvalues)
       ELSE
-         ! Cholesky decompose S=U(T)U
-         CALL cp_fm_cholesky_decompose(bmatrix)
-         ! Invert to get U^(-1)
-         CALL cp_fm_triangular_invert(bmatrix)
-         ! Reduce to get U^(-T) * H * U^(-1)
-         CALL cp_fm_triangular_multiply(bmatrix, amatrix, side="R")
-         CALL cp_fm_triangular_multiply(bmatrix, amatrix, transpose_tr=.TRUE.)
-         ! Diagonalize
-         CALL choose_eigv_solver(matrix=amatrix, eigenvectors=work, &
-                                 eigenvalues=eigenvalues)
-         ! Restore vectors C = U^(-1) * C*
-         CALL cp_fm_triangular_multiply(bmatrix, work)
-         CALL cp_fm_to_fm(work, eigenvectors, nmo)
-      END IF
+            ! Cholesky decompose S=U(T)U
+            CALL cp_fm_cholesky_decompose(bmatrix)
+            ! Invert to get U^(-1)
+            CALL cp_fm_triangular_invert(bmatrix)
+            ! Reduce to get U^(-T) * H * U^(-1)
+            CALL cp_fm_triangular_multiply(bmatrix, amatrix, side="R")
+            CALL cp_fm_triangular_multiply(bmatrix, amatrix, transpose_tr=.TRUE.)
+            ! Diagonalize
+            CALL choose_eigv_solver(matrix=amatrix, eigenvectors=work, &
+                                    eigenvalues=eigenvalues)
+            ! Restore vectors C = U^(-1) * C*
+            CALL cp_fm_triangular_multiply(bmatrix, work)
+            CALL cp_fm_to_fm(work, eigenvectors, nmo)
+         END IF
 
-      CALL timestop(handle)
+         CALL timestop(handle)
 
-   END SUBROUTINE cp_fm_geeig
+         END SUBROUTINE cp_fm_geeig
 
 ! **************************************************************************************************
 !> \brief General Eigenvalue Problem  AX = BXE
@@ -1448,7 +1449,7 @@ CONTAINS
 !> \param work ...
 !> \param epseig ...
 ! **************************************************************************************************
-   SUBROUTINE cp_fm_geeig_canon(amatrix, bmatrix, eigenvectors, eigenvalues, work, epseig)
+         SUBROUTINE cp_fm_geeig_canon(amatrix, bmatrix, eigenvectors, eigenvalues, work, epseig)
 
       TYPE(cp_fm_type), INTENT(IN)                       :: amatrix, bmatrix, eigenvectors
       REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: eigenvalues
@@ -1461,63 +1462,63 @@ CONTAINS
                                                             nmo, nx
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: evals
 
-      CALL timeset(routineN, handle)
+            CALL timeset(routineN, handle)
 
-      ! Test sizees
-      CALL cp_fm_get_info(amatrix, nrow_global=nao)
-      nmo = SIZE(eigenvalues)
-      ALLOCATE (evals(nao))
+            ! Test sizees
+            CALL cp_fm_get_info(amatrix, nrow_global=nao)
+            nmo = SIZE(eigenvalues)
+            ALLOCATE (evals(nao))
 
-      ! Diagonalize -S matrix, this way the NULL space is at the end of the spectrum
-      CALL cp_fm_scale(-1.0_dp, bmatrix)
-      CALL choose_eigv_solver(matrix=bmatrix, eigenvectors=work, eigenvalues=evals)
-      evals(:) = -evals(:)
-      nc = nao
-      DO i = 1, nao
-         IF (evals(i) < epseig) THEN
-            nc = i - 1
-            EXIT
-         END IF
-      END DO
-      CPASSERT(nc /= 0)
-
-      IF (nc /= nao) THEN
-         IF (nc < nmo) THEN
-            ! Copy NULL space definition to last vectors of eigenvectors (if needed)
-            ncol = nmo - nc
-            CALL cp_fm_to_fm(work, eigenvectors, ncol, nc + 1, nc + 1)
-         END IF
-         ! Set NULL space in eigenvector matrix of S to zero
-         DO icol = nc + 1, nao
-            DO irow = 1, nao
-               CALL cp_fm_set_element(work, irow, icol, 0.0_dp)
+            ! Diagonalize -S matrix, this way the NULL space is at the end of the spectrum
+            CALL cp_fm_scale(-1.0_dp, bmatrix)
+            CALL choose_eigv_solver(matrix=bmatrix, eigenvectors=work, eigenvalues=evals)
+            evals(:) = -evals(:)
+            nc = nao
+            DO i = 1, nao
+               IF (evals(i) < epseig) THEN
+                  nc = i - 1
+                  EXIT
+               END IF
             END DO
-         END DO
-         ! Set small eigenvalues to a dummy save value
-         evals(nc + 1:nao) = 1.0_dp
-      END IF
-      ! Calculate U*s**(-1/2)
-      evals(:) = 1.0_dp/SQRT(evals(:))
-      CALL cp_fm_column_scale(work, evals)
-      ! Reduce to get U^(-T) * H * U^(-1)
-      CALL cp_fm_gemm("T", "N", nao, nao, nao, 1.0_dp, work, amatrix, 0.0_dp, bmatrix)
-      CALL cp_fm_gemm("N", "N", nao, nao, nao, 1.0_dp, bmatrix, work, 0.0_dp, amatrix)
-      IF (nc /= nao) THEN
-         ! set diagonal values to save large value
-         DO icol = nc + 1, nao
-            CALL cp_fm_set_element(amatrix, icol, icol, 10000.0_dp)
-         END DO
-      END IF
-      ! Diagonalize
-      CALL choose_eigv_solver(matrix=amatrix, eigenvectors=bmatrix, eigenvalues=eigenvalues)
-      nx = MIN(nc, nmo)
-      ! Restore vectors C = U^(-1) * C*
-      CALL cp_fm_gemm("N", "N", nao, nx, nc, 1.0_dp, work, bmatrix, 0.0_dp, eigenvectors)
+            CPASSERT(nc /= 0)
 
-      DEALLOCATE (evals)
+            IF (nc /= nao) THEN
+               IF (nc < nmo) THEN
+                  ! Copy NULL space definition to last vectors of eigenvectors (if needed)
+                  ncol = nmo - nc
+                  CALL cp_fm_to_fm(work, eigenvectors, ncol, nc + 1, nc + 1)
+               END IF
+               ! Set NULL space in eigenvector matrix of S to zero
+               DO icol = nc + 1, nao
+                  DO irow = 1, nao
+                     CALL cp_fm_set_element(work, irow, icol, 0.0_dp)
+                  END DO
+               END DO
+               ! Set small eigenvalues to a dummy save value
+               evals(nc + 1:nao) = 1.0_dp
+            END IF
+            ! Calculate U*s**(-1/2)
+            evals(:) = 1.0_dp/SQRT(evals(:))
+            CALL cp_fm_column_scale(work, evals)
+            ! Reduce to get U^(-T) * H * U^(-1)
+            CALL cp_fm_gemm("T", "N", nao, nao, nao, 1.0_dp, work, amatrix, 0.0_dp, bmatrix)
+            CALL cp_fm_gemm("N", "N", nao, nao, nao, 1.0_dp, bmatrix, work, 0.0_dp, amatrix)
+            IF (nc /= nao) THEN
+               ! set diagonal values to save large value
+               DO icol = nc + 1, nao
+                  CALL cp_fm_set_element(amatrix, icol, icol, 10000.0_dp)
+               END DO
+            END IF
+            ! Diagonalize
+            CALL choose_eigv_solver(matrix=amatrix, eigenvectors=bmatrix, eigenvalues=eigenvalues)
+            nx = MIN(nc, nmo)
+            ! Restore vectors C = U^(-1) * C*
+            CALL cp_fm_gemm("N", "N", nao, nx, nc, 1.0_dp, work, bmatrix, 0.0_dp, eigenvectors)
 
-      CALL timestop(handle)
+            DEALLOCATE (evals)
 
-   END SUBROUTINE cp_fm_geeig_canon
+            CALL timestop(handle)
 
-END MODULE cp_fm_diag
+         END SUBROUTINE cp_fm_geeig_canon
+
+         END MODULE cp_fm_diag
