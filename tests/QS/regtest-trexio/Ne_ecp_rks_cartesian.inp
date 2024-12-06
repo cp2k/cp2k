@@ -1,85 +1,70 @@
-&global
-  project      Ne
-  print_level  low
-  run_type     energy
-&end
+&GLOBAL
+  PRINT_LEVEL low
+  PROJECT Ne
+  RUN_TYPE energy
+&END GLOBAL
 
-&force_eval
-  method quickstep
-  
-  &subsys
-    &cell
-      abc       10 10 10
-      periodic  none
-    &end
-
-    &coord
+&FORCE_EVAL
+  METHOD quickstep
+  &DFT
+    BASIS_SET_FILE_NAME ./stuttgart_rlc.cp2k
+    CHARGE 0
+    MULTIPLICITY 1
+    POTENTIAL_FILE_NAME ./stuttgart_rlc.cp2k
+    UKS false
+    &MGRID
+      CUTOFF 120
+      REL_CUTOFF 30
+    &END MGRID
+    &POISSON
+      PERIODIC none
+      PSOLVER analytic
+    &END POISSON
+    &PRINT
+      &TREXIO
+        CARTESIAN true
+      &END TREXIO
+    &END PRINT
+    &QS
+      EPS_DEFAULT 1.0e-12
+      METHOD gpw
+    &END QS
+    &SCF
+      ADDED_MOS -1
+      EPS_SCF 1.0e-5
+      IGNORE_CONVERGENCE_FAILURE
+      MAX_SCF 6
+      SCF_GUESS atomic
+      &MIXING
+        ALPHA 0.50
+        METHOD direct_p_mixing
+      &END MIXING
+      &PRINT
+        &RESTART off
+        &END RESTART
+      &END PRINT
+    &END SCF
+    &XC
+      &XC_FUNCTIONAL pade
+      &END XC_FUNCTIONAL
+    &END XC
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 10 10 10
+      PERIODIC none
+    &END CELL
+    &COORD
       Ne    0.00000    0.00000    0.00000
-    &end
-
-    &topology
-      &center_coordinates
-      &end
-    &end
-
-    &kind Ne
-      element    Ne
-      basis_set  Stuttgart_RLC
-      potential  ecp Stuttgart_RLC_ECP
-    &end
-  &end
-  
-  &dft
-    multiplicity  1
-    uks           false
-    charge        0
-
-    basis_set_file_name  ./stuttgart_rlc.cp2k
-    potential_file_name  ./stuttgart_rlc.cp2k
-
-    &qs
-      method       gpw
-      eps_default  1.0e-12
-    &end
-
-    &xc
-      &xc_functional  pade
-      &end
-    &end
-
-    &poisson
-      psolver   analytic
-      periodic  none
-    &end
-
-    &mgrid
-      cutoff      120
-      rel_cutoff  30
-    &end
-
-    &scf
-      eps_scf    1.0e-5
-      max_scf    6
-      scf_guess  atomic
-      added_mos  -1
-      ignore_convergence_failure
-      
-      &mixing
-        alpha   0.50
-        method  direct_p_mixing
-      &end mixing
-      
-      &print
-        &restart off
-        &end
-      &end
-    &end
-
-    &print
-      &trexio
-        cartesian true
-      &end
-    &end print
-  &end dft
-&end
-
+    &END COORD
+    &KIND Ne
+      BASIS_SET Stuttgart_RLC
+      ELEMENT Ne
+      POTENTIAL ecp Stuttgart_RLC_ECP
+    &END KIND
+    &TOPOLOGY
+      &CENTER_COORDINATES
+      &END CENTER_COORDINATES
+    &END TOPOLOGY
+  &END SUBSYS
+&END FORCE_EVAL
