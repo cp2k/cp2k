@@ -4,8 +4,8 @@ CP2K can be compiled with the [CMake] build system. [CMake] is used to detect CP
 configure the compilation process.
 
 CP2K dependencies should be installed independently, either manually or using a package manager. See
-\[CP2K's Spack Documentation\] for documentation on how to use the \[Spack\] package manager to
-build CP2K's dependencies.
+[CP2K's Spack Documentation] for documentation on how to use the [Spack] package manager to build
+CP2K's dependencies.
 
 ## Using CMake
 
@@ -25,7 +25,7 @@ to be compiled.
 ### Generators
 
 By default, [CMake] generates GNU Makefiles (on Linux). With [CMake], it is possible to generate
-files for other build systems such as \[Ninja\]:
+files for other build systems such as Ninja:
 
 ```bash
 cmake -S . -B build -GNinja 
@@ -42,8 +42,8 @@ The minimum requirements to use the [CMake] build system are the following:
 
 - [CMake]
 - C, C++, and Fortran compilers
-- \[DBCSR\]
-- OpenMP\]
+- [DBCSR]
+- OpenMP
 - BLAS and LAPACK
 
 For an MPI build, the following dependencies are also required:
@@ -101,11 +101,11 @@ option.
 
 ### GPUs
 
-CP2K is GPU-accelerated. In order to enable GPU acceleration with \[CUDA\] or \[HIP\],
+CP2K is GPU-accelerated. In order to enable GPU acceleration with [CUDA] or [HIP],
 `-DCP2K_USE_ACCEL` can be used:
 
-- `-DCP2K_USE_ACCEL=CUDA`: enables \[CUDA\]
-- `-DCP2K_USE_ACCEL=HIP`: enables \[HIP\]
+- `-DCP2K_USE_ACCEL=CUDA`: enables [CUDA]
+- `-DCP2K_USE_ACCEL=HIP`: enables [HIP]
 
 The target architecture can be selected with `-DCP2K_WITH_GPU`.
 
@@ -139,8 +139,9 @@ cmake -S . -B build \
 cmake --build build -j 32
 ```
 
-\[CP2K's Spack Documentation\]: \[Spack\]: https://spack.readthedocs.io/en/latest/ \[DBCSR\]:
-https://cp2k.github.io/dbcsr/develop/ \[CUDA\]: https://developer.nvidia.com/cuda-toolkit \[HIP\]:
-https://rocm.docs.amd.com/projects/HIP/en/latest/
-
 [cmake]: https://cmake.org
+[cp2k's spack documentation]: https://packages.spack.io/package.html?name=cp2k
+[cuda]: https://developer.nvidia.com/cuda-toolkit
+[dbcsr]: https://cp2k.github.io/dbcsr/develop/
+[hip]: https://rocm.docs.amd.com/projects/HIP/en/latest/
+[spack]: https://spack.readthedocs.io/en/latest/
