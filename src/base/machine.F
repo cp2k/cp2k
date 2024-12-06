@@ -292,14 +292,19 @@ CONTAINS
 
          SELECT CASE (isa)
          CASE (MACHINE_X86_SSE4)
+            m_cpuid_vlen = 16/nbytes
          CASE (MACHINE_ARM_ARCH64) ! NEON
+            m_cpuid_vlen = 16/nbytes
          CASE (MACHINE_ARM_SVE128)
             m_cpuid_vlen = 16/nbytes
          CASE (MACHINE_X86_AVX)
+            m_cpuid_vlen = 32/nbytes
          CASE (MACHINE_X86_AVX2)
+            m_cpuid_vlen = 32/nbytes
          CASE (MACHINE_ARM_SVE256)
             m_cpuid_vlen = 32/nbytes
          CASE (MACHINE_X86_AVX512)
+            m_cpuid_vlen = 64/nbytes
          CASE (MACHINE_ARM_SVE512)
             m_cpuid_vlen = 64/nbytes
          CASE DEFAULT ! unknown or generic
