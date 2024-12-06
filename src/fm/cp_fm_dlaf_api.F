@@ -223,7 +223,7 @@ CONTAINS
 !> \param eigenvectors ...
 !> \param eigenvalues ...
 ! **************************************************************************************************
-SUBROUTINE cp_fm_diag_gen_dlaf(a_matrix, b_matrix, eigenvectors, eigenvalues)
+   SUBROUTINE cp_fm_diag_gen_dlaf(a_matrix, b_matrix, eigenvectors, eigenvalues)
 
       TYPE(cp_fm_type), INTENT(IN)                       :: a_matrix, b_matrix, eigenvectors
       REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: eigenvalues
@@ -233,25 +233,25 @@ SUBROUTINE cp_fm_diag_gen_dlaf(a_matrix, b_matrix, eigenvectors, eigenvalues)
       INTEGER                                            :: handle, n, nmo
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), TARGET   :: eig
 
-   CALL timeset(routineN, handle)
+      CALL timeset(routineN, handle)
 
-   n = a_matrix%matrix_struct%nrow_global
-   ALLOCATE (eig(n))
+      n = a_matrix%matrix_struct%nrow_global
+      ALLOCATE (eig(n))
 
-   CALL cp_fm_diag_gen_dlaf_base(a_matrix, b_matrix, eigenvectors, eig)
+      CALL cp_fm_diag_gen_dlaf_base(a_matrix, b_matrix, eigenvectors, eig)
 
-   nmo = SIZE(eigenvalues, 1)
-   IF (nmo > n) THEN
-      eigenvalues(1:n) = eig(1:n)
-   ELSE
-      eigenvalues(1:nmo) = eig(1:nmo)
-   END IF
+      nmo = SIZE(eigenvalues, 1)
+      IF (nmo > n) THEN
+         eigenvalues(1:n) = eig(1:n)
+      ELSE
+         eigenvalues(1:nmo) = eig(1:nmo)
+      END IF
 
-   DEALLOCATE (eig)
+      DEALLOCATE (eig)
 
-   CALL timestop(handle)
+      CALL timestop(handle)
 
-END SUBROUTINE cp_fm_diag_gen_dlaf
+   END SUBROUTINE cp_fm_diag_gen_dlaf
 
 !***************************************************************************************************
 !> \brief DLA-Future generalized eigensolver
@@ -261,9 +261,8 @@ END SUBROUTINE cp_fm_diag_gen_dlaf
 !> \param eigenvalues ...
 !> \author Rocco Meli
 ! **************************************************************************************************
-SUBROUTINE cp_fm_diag_gen_dlaf_base(a_matrix, b_matrix, eigenvectors, eigenvalues)
-      TYPE(cp_fm_type), INTENT(IN)                       :: a_matrix, b_matrix
-      TYPE(cp_fm_type), INTENT(IN)                       :: eigenvectors
+   SUBROUTINE cp_fm_diag_gen_dlaf_base(a_matrix, b_matrix, eigenvectors, eigenvalues)
+      TYPE(cp_fm_type), INTENT(IN)                       :: a_matrix, b_matrix, eigenvectors
       REAL(kind=dp), DIMENSION(:), INTENT(OUT), TARGET   :: eigenvalues
 
       CHARACTER(len=*), PARAMETER :: dlaf_name = 'pdsyevd_dlaf', &
@@ -276,57 +275,57 @@ SUBROUTINE cp_fm_diag_gen_dlaf_base(a_matrix, b_matrix, eigenvectors, eigenvalue
       INTEGER, TARGET                                    :: info
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: a, b, z
 
-   CALL timeset(routineN, handle)
+      CALL timeset(routineN, handle)
 
 #if defined(__DLAF)
-   ! DLAF needs the lower triangular part
-   ! Use eigenvectors matrix as workspace
-   CALL cp_fm_upper_to_full(a_matrix, eigenvectors)
-   CALL cp_fm_upper_to_full(b_matrix, eigenvectors)
+      ! DLAF needs the lower triangular part
+      ! Use eigenvectors matrix as workspace
+      CALL cp_fm_upper_to_full(a_matrix, eigenvectors)
+      CALL cp_fm_upper_to_full(b_matrix, eigenvectors)
 
-   n = a_matrix%matrix_struct%nrow_global
+      n = a_matrix%matrix_struct%nrow_global
 
-   a => a_matrix%local_data
-   b => b_matrix%local_data
-   z => eigenvectors%local_data
+      a => a_matrix%local_data
+      b => b_matrix%local_data
+      z => eigenvectors%local_data
 
-   desca(:) = a_matrix%matrix_struct%descriptor(:)
-   descb(:) = b_matrix%matrix_struct%descriptor(:)
-   descz(:) = eigenvectors%matrix_struct%descriptor(:)
+      desca(:) = a_matrix%matrix_struct%descriptor(:)
+      descb(:) = b_matrix%matrix_struct%descriptor(:)
+      descz(:) = eigenvectors%matrix_struct%descriptor(:)
 
-   info = -1
-   CALL timeset(dlaf_name, dlaf_handle)
+      info = -1
+      CALL timeset(dlaf_name, dlaf_handle)
 
-   CALL dlaf_pdsygvd(uplo, n, a, 1, 1, desca, b, 1, 1, descb, eigenvalues, z, 1, 1, descz, info)
+      CALL dlaf_pdsygvd(uplo, n, a, 1, 1, desca, b, 1, 1, descb, eigenvalues, z, 1, 1, descz, info)
 
-   CALL timestop(dlaf_handle)
+      CALL timestop(dlaf_handle)
 
-   IF (info /= 0) THEN
-      WRITE (message, "(A,I0,A)") "ERROR in DLAF_PDSYGVD: Generalized Eigensolver failed (INFO = ", info, ")"
-      CPABORT(TRIM(message))
-   END IF
+      IF (info /= 0) THEN
+         WRITE (message, "(A,I0,A)") "ERROR in DLAF_PDSYGVD: Generalized Eigensolver failed (INFO = ", info, ")"
+         CPABORT(TRIM(message))
+      END IF
 #else
-   MARK_USED(a)
-   MARK_USED(b)
-   MARK_USED(z)
-   MARK_USED(desca)
-   MARK_USED(descb)
-   MARK_USED(descz)
-   MARK_USED(a_matrix)
-   MARK_USED(b_matrix)
-   MARK_USED(eigenvectors)
-   MARK_USED(eigenvalues)
-   MARK_USED(uplo)
-   MARK_USED(n)
-   MARK_USED(info)
-   MARK_USED(dlaf_handle)
-   MARK_USED(dlaf_name)
-   MARK_USED(message)
-   CPABORT("CP2K compiled without DLA-Future-Fortran library.")
+      MARK_USED(a)
+      MARK_USED(b)
+      MARK_USED(z)
+      MARK_USED(desca)
+      MARK_USED(descb)
+      MARK_USED(descz)
+      MARK_USED(a_matrix)
+      MARK_USED(b_matrix)
+      MARK_USED(eigenvectors)
+      MARK_USED(eigenvalues)
+      MARK_USED(uplo)
+      MARK_USED(n)
+      MARK_USED(info)
+      MARK_USED(dlaf_handle)
+      MARK_USED(dlaf_name)
+      MARK_USED(message)
+      CPABORT("CP2K compiled without DLA-Future-Fortran library.")
 #endif
 
-   CALL timestop(handle)
+      CALL timestop(handle)
 
-END SUBROUTINE cp_fm_diag_gen_dlaf_base
+   END SUBROUTINE cp_fm_diag_gen_dlaf_base
 
 END MODULE cp_fm_dlaf_api
