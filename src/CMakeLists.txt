@@ -826,6 +826,8 @@ list(
   torch_api.F
   transport_env_types.F
   transport.F
+  trexio.F
+  trexio_utils.F
   uff_vdw_radii_table.F
   virial_methods.F
   voronoi_interface.F
