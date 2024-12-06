@@ -37,7 +37,7 @@ MODULE cp_fm_diag
    USE cp_fm_cusolver_api, ONLY: cp_fm_diag_cusolver, &
                                  cp_fm_general_cusolver
 #if defined(__DLAF)
-   USE cp_fm_dlaf_api, ONLY: cp_fm_diag_dlaf
+   USE cp_fm_dlaf_api, ONLY: cp_fm_diag_dlaf, cp_fm_diag_gen_dlaf
 #endif
    USE cp_fm_types, ONLY: cp_fm_get_info, &
                           cp_fm_set_element, &
@@ -1418,6 +1418,11 @@ CONTAINS
       IF (diag_type == FM_DIAG_TYPE_CUSOLVER .AND. nao >= 64) THEN
          ! Use cuSolverMP generalized eigenvalue solver for large matrices
          CALL cp_fm_general_cusolver(amatrix, bmatrix, eigenvectors, eigenvalues)
+#if defined(__DLAF)
+      ELSE IF (diag_type == FM_DIAG_TYPE_DLAF .AND. amatrix%matrix_struct%nrow_global >= dlaf_neigvec_min) THEN
+         ! Use DLA-Future generalized eigenvalue solver for large matrices
+         CALL cp_fm_diag_gen_dlaf(amatrix, bmatrix, eigenvectors, eigenvalues)
+#endif
       ELSE
          ! Cholesky decompose S=U(T)U
          CALL cp_fm_cholesky_decompose(bmatrix)

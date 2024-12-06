@@ -1,0 +1,90 @@
+&GLOBAL
+  DLAF_NEIGVEC_MIN 3
+  PREFERRED_DIAG_LIBRARY DLAF
+  PRINT_LEVEL LOW
+  PROJECT Ne-pbc-shortrange
+  RUN_TYPE ENERGY
+  &TIMINGS
+    THRESHOLD 0.0
+  &END TIMINGS
+&END GLOBAL
+
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT
+    AUTO_BASIS RI_XAS MEDIUM
+    BASIS_SET_FILE_NAME EMSL_BASIS_SETS
+    POTENTIAL_FILE_NAME POTENTIAL
+    &QS
+      METHOD GAPW
+    &END QS
+    &XAS_TDP
+      GRID Ne 150 150
+      N_EXCITED 10
+      TAMM_DANCOFF
+      &DONOR_STATES
+        AT_LIST 1
+        DEFINE_EXCITED BY_INDEX
+        LOCALIZE
+        N_SEARCH 8
+        STATE_TYPES 1s
+      &END DONOR_STATES
+      &KERNEL
+        &EXACT_EXCHANGE
+          EPS_SCREENING 1.0E-8
+          FRACTION 0.25
+          OMEGA 0.6
+          OPERATOR SHORTRANGE
+        &END EXACT_EXCHANGE
+        &XC_FUNCTIONAL
+          &LDA_C_VWN
+          &END LDA_C_VWN
+          &LDA_X_ERF
+            SCALE 0.75
+            _OMEGA 0.6
+          &END LDA_X_ERF
+        &END XC_FUNCTIONAL
+      &END KERNEL
+    &END XAS_TDP
+    &XC
+      &HF
+        FRACTION 0.25
+        &INTERACTION_POTENTIAL
+          OMEGA 0.6
+          POTENTIAL_TYPE SHORTRANGE
+        &END INTERACTION_POTENTIAL
+      &END HF
+      &XC_FUNCTIONAL
+        &LDA_C_VWN
+        &END LDA_C_VWN
+        !Range separated, need 100% of long-range and 75% of short range LDA exchange
+        !Long-range obtained by subtracting short-range from normal => end up with -0.25 scale
+        &LDA_X
+        &END LDA_X
+        &LDA_X_ERF
+          SCALE -0.25
+          _OMEGA 0.6
+        &END LDA_X_ERF
+      &END XC_FUNCTIONAL
+    &END XC
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 6.0 6.0 6.0
+    &END CELL
+    &COORD
+      Ne 0.0 0.0 0.0
+      Ne 3.0 0.0 0.0
+      Ne 0.0 3.0 0.0
+      Ne 0.0 0.0 3.0
+      Ne 3.0 3.0 0.0
+      Ne 3.0 0.0 3.0
+      Ne 0.0 3.0 3.0
+      Ne 3.0 3.0 3.0
+    &END COORD
+    &KIND Ne
+      BASIS_SET 3-21G*
+      POTENTIAL ALL
+    &END KIND
+  &END SUBSYS
+&END FORCE_EVAL
