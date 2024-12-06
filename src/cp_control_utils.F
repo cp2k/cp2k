@@ -109,15 +109,16 @@ CONTAINS
          DIMENSION(:), POINTER                           :: tmpstringlist
       INTEGER                                            :: admmtype, excitations, irep, isize, &
                                                             method_id, nrep, xc_deriv_method_id
-      LOGICAL                                            :: do_ot, do_rtp, exopt1, exopt2, exopt3, &
-                                                            explicit, is_present, l_param, not_SE, &
+      LOGICAL                                            :: do_hfx, do_ot, do_rpa_admm, do_rtp, &
+                                                            exopt1, exopt2, exopt3, explicit, &
+                                                            is_present, l_param, not_SE, &
                                                             was_present
       REAL(KIND=dp)                                      :: density_cut, gradient_cut, tau_cut
       REAL(KIND=dp), DIMENSION(:), POINTER               :: pol
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(section_vals_type), POINTER                   :: maxwell_section, sccs_section, &
-                                                            scf_section, tmp_section, &
-                                                            xc_fun_section, xc_section
+      TYPE(section_vals_type), POINTER                   :: hfx_section, maxwell_section, &
+                                                            sccs_section, scf_section, &
+                                                            tmp_section, xc_fun_section, xc_section
 
       was_present = .FALSE.
 
@@ -238,6 +239,12 @@ CONTAINS
       !! check if we do wavefunction fitting
       tmp_section => section_vals_get_subs_vals(dft_section, "AUXILIARY_DENSITY_MATRIX_METHOD")
       CALL section_vals_get(tmp_section, explicit=is_present)
+      !
+      hfx_section => section_vals_get_subs_vals(xc_section, "HF")
+      CALL section_vals_get(hfx_section, explicit=do_hfx)
+      CALL section_vals_val_get(xc_section, "WF_CORRELATION%RI_RPA%ADMM", l_val=do_rpa_admm)
+      is_present = is_present .AND. (do_hfx .OR. do_rpa_admm)
+      !
       dft_control%do_admm = is_present
       dft_control%do_admm_mo = .FALSE.
       dft_control%do_admm_dm = .FALSE.
