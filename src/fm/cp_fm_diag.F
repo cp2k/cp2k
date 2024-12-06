@@ -257,6 +257,7 @@ CONTAINS
             CALL cp_fm_diag_cusolver(matrix, eigenvectors, eigenvalues)
          END IF
 
+#if defined(__DLAF)
       ELSE IF (diag_type == FM_DIAG_TYPE_DLAF) THEN
          IF (matrix%matrix_struct%nrow_global < dlaf_neigvec_min) THEN
             ! Use ScaLAPACK for small matrices
@@ -264,6 +265,7 @@ CONTAINS
          ELSE
             CALL cp_fm_diag_dlaf(matrix, eigenvectors, eigenvalues)
          END IF
+#endif
 
       ELSE
          CPABORT("ERROR in "//routineN//": Invalid diagonalization type requested")
@@ -1416,9 +1418,11 @@ CONTAINS
       IF (diag_type == FM_DIAG_TYPE_CUSOLVER .AND. nao >= 64) THEN
          ! Use cuSolverMP generalized eigenvalue solver for large matrices
          CALL cp_fm_general_cusolver(amatrix, bmatrix, eigenvectors, eigenvalues)
+#if defined(__DLAF)
       ELSE IF (diag_type == FM_DIAG_TYPE_DLAF .AND. amatrix%matrix_struct%nrow_global >= dlaf_neigvec_min) THEN
          ! Use DLA-Future generalized eigenvalue solver for large matrices
          CALL cp_fm_diag_gen_dlaf(amatrix, bmatrix, eigenvectors, eigenvalues)
+#endif
       ELSE
          ! Cholesky decompose S=U(T)U
          CALL cp_fm_cholesky_decompose(bmatrix)
