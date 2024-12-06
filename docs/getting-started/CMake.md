@@ -139,8 +139,9 @@ cmake -S . -B build \
 cmake --build build -j 32
 ```
 
-\[CP2K's Spack Documentation\]: \[Spack\]: https://spack.readthedocs.io/en/latest/ \[DBCSR\]:
-https://cp2k.github.io/dbcsr/develop/ \[CUDA\]: https://developer.nvidia.com/cuda-toolkit \[HIP\]:
-https://rocm.docs.amd.com/projects/HIP/en/latest/
-
+[CP2K's Spack Documentation]: https://packages.spack.io/package.html?name=cp2k
+[Spack]: https://spack.readthedocs.io/en/latest/
+[DBCSR]: https://cp2k.github.io/dbcsr/develop/
+[CUDA]: https://developer.nvidia.com/cuda-toolkit
+[HIP]: https://rocm.docs.amd.com/projects/HIP/en/latest/
 [cmake]: https://cmake.org
