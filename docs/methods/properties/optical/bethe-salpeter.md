@@ -75,7 +75,7 @@ Diagonalizing $A$ in TDA, or the full block-matrix $ABBA$, takes in the order of
 $(N_\mathrm{occ} N_\mathrm{empty})^3$ floating point operations. This translates to a computational
 scaling of $O(N^6)$ in the system size $N$.
 
-### 1.2 Optical properties
+### 1.2 Optical absorption spectrum
 
 The BSE further allows the investigation of optical properties. For example, the optical absorption
 spectrum can be computed as the imaginary part of the dynamical dipole polarizability tensor
@@ -132,7 +132,7 @@ $$
 
 ### 1.3 Visualizing excited states using Natural Transition Orbitals (NTOs)
 
-In order to represent the exciton wave function independent of a specific choice of the molecular
+In order to analyse the excitation wave function independent of a specific choice of the molecular
 orbitals $\varphi_p(\mathbf{r})$, we can rewrite it as
 
 $$
@@ -224,7 +224,7 @@ $$
 where we drop the excitation index $n$ from now on for better readability.
 
 For each excitation level $n$, we have then several quantities, which allow us to quantify the
-spatial extend of the electron, the hole and their combined two-particle character as combined
+spatial extent of the electron, the hole and their combined two-particle character as combined
 electron-hole pair, i.e. as an exciton. By that, we can often determine the type of the excited
 state, i.e. distinguish between, e.g., valence, Rydberg or charge-transfer states
 \[[](#Mewes2018)\].
@@ -401,8 +401,8 @@ is well parallelized, i.e. you can use several nodes that can provide the memory
 We have benchmarked the numerical precision of our BSE implementation and compared its results to
 the BSE implementation in FHI aims \[[](#Liu2020)\]. For our recommended settings, i.e.
 BSE@ev*GW*<sub>0</sub>@PBE with the aug-cc-pVDZ basis set, we have found excellent agreement with
-less than 5 meV mean absolute deviation over the first 10 excitation levels and the 28 molecules in
-*Thiel's set*.
+less than 5 meV mean absolute deviation averaged over the first 10 excitation levels and the 28
+molecules in *Thiel's set* for Singlet excitations.
 
 The current BSE implementation in CP2K works for molecules. The inclusion of periodic boundary
 conditions in a Γ-only approach and with full *k*-point sampling is work in progress.
@@ -552,8 +552,8 @@ BSE|             2    -ABBA-                1                           1.00210
 In the input file, we have specified a list of three excitation levels, no constraint on the
 oscillator strengths $f^{(n)}$ and used the default threshold on the weights, given by
 $\lambda_I^2 \leq 0.010$, which is repeated at the beginning of the section. Therefore, we obtain
-two NTO pairs for $n=1$ with significant weight and one NTO pair for $n=2$ and $n=8$, respectively.
-For $n=1$, we can verify that the NTO weights satisfy
+two NTO pairs for $n=1$ with significant weight and one NTO pair for $n=2$. For $n=1$, we can verify
+that the NTO weights satisfy
 $1.01320 + 0.01320 \approx \sum_I {\left( \lambda_I^{(n)}\right)}^2 = c_n \approx 1.026$ when
 comparing to the output of the exciton descriptor section.
 

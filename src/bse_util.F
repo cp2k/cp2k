@@ -43,7 +43,10 @@ MODULE bse_util
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                               cp_print_key_unit_nr
    USE cp_realspace_grid_cube,          ONLY: cp_pw_to_cube
-   USE input_constants,                 ONLY: use_mom_ref_coac
+   USE input_constants,                 ONLY: bse_screening_alpha,&
+                                              bse_screening_rpa,&
+                                              bse_screening_tdhf,&
+                                              use_mom_ref_coac
    USE input_section_types,             ONLY: section_vals_type
    USE kinds,                           ONLY: default_path_length,&
                                               dp,&
@@ -1282,7 +1285,12 @@ CONTAINS
       IF (mp2_env%bse%bse_cutoff_occ > 0 .OR. mp2_env%bse%bse_cutoff_empty > 0) THEN
          !Truncate eigenvals
          ALLOCATE (Eigenval_reduced(homo_red + virt_red))
-         Eigenval_reduced(:) = Eigenval(homo_incl:homo + virt_incl)
+         ! Include USE_KS_ENERGIES input
+         IF (mp2_env%bse%use_ks_energies) THEN
+            Eigenval_reduced(:) = Eigenval_scf(homo_incl:homo + virt_incl)
+         ELSE
+            Eigenval_reduced(:) = Eigenval(homo_incl:homo + virt_incl)
+         END IF
 
          CALL truncate_fm(fm_mat_S_trunc, fm_mat_S_ia_bse, virtual, &
                           homo_red, virt_red, unit_nr, mp2_env, &
@@ -1299,7 +1307,12 @@ CONTAINS
             WRITE (unit_nr, '(T2,A4)') 'BSE|'
          END IF
          ALLOCATE (Eigenval_reduced(homo_red + virt_red))
-         Eigenval_reduced(:) = Eigenval(:)
+         ! Include USE_KS_ENERGIES input
+         IF (mp2_env%bse%use_ks_energies) THEN
+            Eigenval_reduced(:) = Eigenval_scf(:)
+         ELSE
+            Eigenval_reduced(:) = Eigenval(:)
+         END IF
          CALL cp_fm_to_fm_submat_general(fm_mat_S_ia_bse, fm_mat_S_trunc, dimen_RI, homo_red*virt_red, &
                                          1, 1, 1, 1, context)
          CALL cp_fm_to_fm_submat_general(fm_mat_S_ij_bse, fm_mat_S_ij_trunc, dimen_RI, homo_red*homo_red, &
@@ -1598,6 +1611,42 @@ CONTAINS
                          "Printing exciton descriptors up to NUM_PRINT_EXC.")
          END IF
          mp2_env%bse%num_print_exc_descr = mp2_env%bse%num_print_exc
+      END IF
+
+      ! Handle screening factor options
+      IF (mp2_env%BSE%screening_factor > 0.0_dp) THEN
+         IF (mp2_env%BSE%screening_method /= bse_screening_alpha) THEN
+            IF (unit_nr > 0) THEN
+               CALL cp_warn(__LOCATION__, &
+                            "Screening factor is only supported for &SCREENING_IN_W ALPHA. "// &
+                            "Resetting SCREENING_IN_W to ALPHA.")
+            END IF
+            mp2_env%BSE%screening_method = bse_screening_alpha
+         END IF
+         IF (mp2_env%BSE%screening_factor > 1.0_dp) THEN
+            IF (unit_nr > 0) THEN
+               CALL cp_warn(__LOCATION__, &
+                            "Screening factor is larger than 1.0. ")
+            END IF
+         END IF
+      END IF
+
+      IF (mp2_env%BSE%screening_factor < 0.0_dp .AND. &
+          mp2_env%BSE%screening_method == bse_screening_alpha) THEN
+         IF (unit_nr > 0) THEN
+            CALL cp_warn(__LOCATION__, &
+                         "Screening factor is negative. Defaulting to 0.25")
+         END IF
+         mp2_env%BSE%screening_factor = 0.25_dp
+      END IF
+
+      IF (mp2_env%BSE%screening_factor == 0.0_dp) THEN
+         ! Use RPA internally in this case
+         mp2_env%BSE%screening_method = bse_screening_rpa
+      END IF
+      IF (mp2_env%BSE%screening_factor == 1.0_dp) THEN
+         ! Use TDHF internally in this case
+         mp2_env%BSE%screening_method = bse_screening_tdhf
       END IF
 
       CALL timestop(handle)

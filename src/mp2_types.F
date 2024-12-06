@@ -308,6 +308,7 @@ MODULE mp2_types
                                                             num_exc_en = 0, &
                                                             num_print_exc = 0, &
                                                             num_print_exc_descr = 0, &
+                                                            screening_method = 0, &
                                                             num_add_start_z_space = 0, &
                                                             fac_max_z_space = 0, &
                                                             num_new_t = 0, &
@@ -316,12 +317,14 @@ MODULE mp2_types
       REAL(KIND=dp)                                      :: eps_res = 0.0_dp, &
                                                             eps_exc_en = 0.0_dp, &
                                                             eps_x = 0.0_dp, &
+                                                            screening_factor = 0.0_dp, &
                                                             bse_cutoff_occ = 0.0_dp, &
                                                             bse_cutoff_empty = 0.0_dp, &
                                                             z_space_energy_cutoff = 0.0_dp
       LOGICAL                                            :: do_bse = .FALSE., &
                                                             bse_debug_print = .FALSE., &
-                                                            print_directional_exc_descr = .FALSE.
+                                                            print_directional_exc_descr = .FALSE., &
+                                                            use_ks_energies = .FALSE.
       !BSE optical spectrum
       REAL(KIND=dp)                                      :: bse_spectrum_freq_step_size = 0.0_dp, &
                                                             bse_spectrum_freq_start = 0.0_dp, &

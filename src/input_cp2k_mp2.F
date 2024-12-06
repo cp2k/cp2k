@@ -26,6 +26,7 @@ MODULE input_cp2k_mp2
    USE cp_units, ONLY: cp_unit_to_cp2k
    USE input_constants, ONLY: &
       bse_fulldiag, bse_iterdiag, bse_tda, bse_abba, bse_both, &
+      bse_screening_w0, bse_screening_tdhf, bse_screening_rpa, bse_screening_alpha, &
       bse_iter_both_cond, bse_iter_en_cond, bse_iter_res_cond, bse_singlet, &
       bse_triplet, do_eri_gpw, do_eri_mme, do_eri_os, do_potential_coulomb, do_potential_id, &
       do_potential_long, do_potential_mix_cl, do_potential_short, do_potential_truncated, &
@@ -1330,7 +1331,7 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="BSE_DIAG_METHOD", &
                           description="Method for BSE calculations. "// &
                           "Choose between full or iterative diagonalization.", &
-                          usage="&BSE_DIAG_METHOD FULLDIAG", &
+                          usage="BSE_DIAG_METHOD FULLDIAG", &
                           enum_c_vals=s2a("FULLDIAG", "ITERDIAG"), &
                           enum_i_vals=(/bse_fulldiag, bse_iterdiag/), &
                           enum_desc=s2a("Fully diagonalizes the BSE matrices within the chosen level of approximation.", &
@@ -1342,7 +1343,7 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="TDA", &
                           description="Level of approximation applied to BSE calculations. "// &
                           "Choose between Tamm Dancoff approximation (TDA) and/or diagonalization of the full ABBA-matrix.", &
-                          usage="&TDA ON", &
+                          usage="TDA ON", &
                           enum_c_vals=s2a("ON", "OFF", "TDA+ABBA"), &
                           enum_i_vals=(/bse_tda, bse_abba, bse_both/), &
                           enum_desc=s2a("The TDA is applied, i.e. B=0.", &
@@ -1374,7 +1375,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="BSE_DEBUG_PRINT", &
                           description="Activates debug print statements in the BSE calculation.", &
-                          usage="&BSE_DEBUG_PRINT .TRUE.", &
+                          usage="BSE_DEBUG_PRINT .TRUE.", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -1398,7 +1399,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="PRINT_DIRECTIONAL_EXC_DESCR", &
                           description="Activates printing of exciton descriptors per direction.", &
-                          usage="&PRINT_DIRECTIONAL_EXC_DESCR .TRUE.", &
+                          usage="PRINT_DIRECTIONAL_EXC_DESCR .TRUE.", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -1410,6 +1411,18 @@ CONTAINS
                           type_of_var=real_t, default_r_val=0.1_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="USE_KS_ENERGIES", &
+                          description="Uses KS energies instead of GW quasiparticle energies.", &
+                          usage="USE_KS_ENERGIES .TRUE.", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      NULLIFY (subsection)
+      CALL create_bse_screening_section(subsection)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
 
       NULLIFY (subsection)
       CALL create_bse_iterat_section(subsection)
@@ -1427,6 +1440,52 @@ CONTAINS
       CALL section_release(subsection)
 
    END SUBROUTINE
+
+   SUBROUTINE create_bse_screening_section(section)
+      TYPE(section_type), POINTER                        :: section
+
+      TYPE(keyword_type), POINTER                        :: keyword
+
+      CPASSERT(.NOT. ASSOCIATED(section))
+
+      CALL section_create(section, __LOCATION__, name="SCREENING_IN_W", &
+                          description="Screening $\epsilon$ applied to $W(\omega=0)=\epsilon^{-1}(\omega=0) v $ "// &
+                          "in the BSE calculation. Besides default BSE, i.e. $W_0$ (screening with DFT energies), "// &
+                          "a fixed $\alpha = \epsilon^{-1}(\omega)$ can be applied, which is similar to the mixing "// &
+                          "parameter for hybrid functionals in LR-TDDFT. In addition, the keywords TDHF "// &
+                          "(no screening - $\alpha = 1$) and RPA (infinite screening - $\alpha = 0$) can be applied.", &
+                          n_keywords=2, n_subsections=0, repeats=.FALSE.)
+
+      NULLIFY (keyword)
+
+      CALL keyword_create( &
+         keyword, __LOCATION__, name="_SECTION_PARAMETERS_", &
+         description="Shortcut for the most common functional combinations.", &
+         usage="&xc_functional BLYP", &
+         enum_c_vals=s2a("W_0", "TDHF", "RPA", "ALPHA"), &
+         enum_i_vals=(/bse_screening_w0, bse_screening_tdhf, bse_screening_rpa, bse_screening_alpha/), &
+         enum_desc=s2a("The Coulomb interaction is screened by applying DFT energies "// &
+                       "$\varepsilon_p^{DFT}$, which is typically used for GW-BSE and "// &
+                       "often labeled as $W_0$.", &
+                       "The Coulomb interaction is not screened, i.e. $W_{pq,rs}(\omega=0) "// &
+                       "\rightarrow v_{pq,rs}$ enters.", &
+                       "Infinite screening is applied, i.e. $W_{pq,rs}(\omega=0) \rightarrow 0$.", &
+                       "Arbitrary screening parameter. Specify within section."), &
+         default_i_val=bse_screening_w0, &
+         lone_keyword_i_val=bse_screening_w0)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="ALPHA", &
+                          description="Screening parameter similar to the mixing in hybrid functionals used in TDDFT. "// &
+                          "$\alpha$ mimicks the screening $\epsilon^{-1}(\omega)$ and enforces $W = \alpha v$ "// &
+                          "in the BSE calculation.", &
+                          usage="ALPHA 0.25", &
+                          type_of_var=real_t, default_r_val=-1.00_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+   END SUBROUTINE create_bse_screening_section
 
    SUBROUTINE create_bse_nto_section(print_key)
       TYPE(section_type), POINTER                        :: print_key

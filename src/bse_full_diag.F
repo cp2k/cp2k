@@ -40,7 +40,9 @@ MODULE bse_full_diag
                                               cp_fm_set_all,&
                                               cp_fm_to_fm,&
                                               cp_fm_type
-   USE input_constants,                 ONLY: bse_singlet,&
+   USE input_constants,                 ONLY: bse_screening_alpha,&
+                                              bse_screening_rpa,&
+                                              bse_singlet,&
                                               bse_triplet
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_para_env_type
@@ -99,7 +101,7 @@ CONTAINS
                                                             ncol_local_A, nrow_local_A
       INTEGER, DIMENSION(4)                              :: reordering
       INTEGER, DIMENSION(:), POINTER                     :: col_indices_A, row_indices_A
-      REAL(KIND=dp)                                      :: alpha, eigen_diff
+      REAL(KIND=dp)                                      :: alpha, alpha_screening, eigen_diff
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_A, fm_struct_W
       TYPE(cp_fm_type)                                   :: fm_W
@@ -117,6 +119,12 @@ CONTAINS
       CASE (bse_triplet)
          alpha = 0.0_dp
       END SELECT
+
+      IF (mp2_env%bse%screening_method == bse_screening_alpha) THEN
+         alpha_screening = mp2_env%bse%screening_factor
+      ELSE
+         alpha_screening = 1.0_dp
+      END IF
 
       ! create the blacs env for ij matrices (NOT fm_mat_S_ia_bse%matrix_struct related parallel_gemms!)
       NULLIFY (blacs_env)
@@ -148,10 +156,13 @@ CONTAINS
          WRITE (unit_nr, '(T2,A10,T13,A16)') 'BSE|DEBUG|', 'Allocated A_iajb'
       END IF
 
-      !W_ij,ab = \sum_P \bar{B}^P_ij B^P_ab
-      CALL parallel_gemm(transa="T", transb="N", m=homo**2, n=virtual**2, k=dimen_RI, alpha=1.0_dp, &
-                         matrix_a=fm_mat_S_bar_ij_bse, matrix_b=fm_mat_S_ab_bse, beta=0.0_dp, &
-                         matrix_c=fm_W)
+      ! If infinite screening is applied, fm_W is simply 0 - Otherwise it needs to be computed from 3c integrals
+      IF (mp2_env%bse%screening_method /= bse_screening_rpa) THEN
+         !W_ij,ab = \sum_P \bar{B}^P_ij B^P_ab
+         CALL parallel_gemm(transa="T", transb="N", m=homo**2, n=virtual**2, k=dimen_RI, alpha=alpha_screening, &
+                            matrix_a=fm_mat_S_bar_ij_bse, matrix_b=fm_mat_S_ab_bse, beta=0.0_dp, &
+                            matrix_c=fm_W)
+      END IF
 
       IF (unit_nr > 0 .AND. mp2_env%bse%bse_debug_print) THEN
          WRITE (unit_nr, '(T2,A10,T13,A16)') 'BSE|DEBUG|', 'Allocated W_ijab'
@@ -166,9 +177,13 @@ CONTAINS
       ! Writing -1.0_dp * W_ij,ab to A_ia,jb, i.e. beta = -1.0_dp,
       ! W_ij,ab: nrow_secidx_in  = homo,    ncol_secidx_in  = virtual
       ! A_ia,jb: nrow_secidx_out = virtual, ncol_secidx_out = virtual
-      reordering = (/1, 3, 2, 4/)
-      CALL fm_general_add_bse(fm_A, fm_W, -1.0_dp, homo, virtual, &
-                              virtual, virtual, unit_nr, reordering, mp2_env)
+
+      ! If infinite screening is applied, fm_W is simply 0 - Otherwise it needs to be computed from 3c integrals
+      IF (mp2_env%bse%screening_method /= bse_screening_rpa) THEN
+         reordering = (/1, 3, 2, 4/)
+         CALL fm_general_add_bse(fm_A, fm_W, -1.0_dp, homo, virtual, &
+                                 virtual, virtual, unit_nr, reordering, mp2_env)
+      END IF
       !full matrix W is not needed anymore, release it to save memory
       CALL cp_fm_release(fm_W)
 
@@ -227,7 +242,7 @@ CONTAINS
 
       INTEGER                                            :: handle
       INTEGER, DIMENSION(4)                              :: reordering
-      REAL(KIND=dp)                                      :: alpha
+      REAL(KIND=dp)                                      :: alpha, alpha_screening
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_v
       TYPE(cp_fm_type)                                   :: fm_W
 
@@ -245,6 +260,12 @@ CONTAINS
          alpha = 0.0_dp
       END SELECT
 
+      IF (mp2_env%bse%screening_method == bse_screening_alpha) THEN
+         alpha_screening = mp2_env%bse%screening_factor
+      ELSE
+         alpha_screening = 1.0_dp
+      END IF
+
       CALL cp_fm_struct_create(fm_struct_v, context=fm_mat_S_ia_bse%matrix_struct%context, nrow_global=homo*virtual, &
                                ncol_global=homo*virtual, para_env=fm_mat_S_ia_bse%matrix_struct%para_env)
       CALL cp_fm_create(fm_B, fm_struct_v, name="fm_B_iajb")
@@ -261,17 +282,21 @@ CONTAINS
                          matrix_a=fm_mat_S_ia_bse, matrix_b=fm_mat_S_ia_bse, beta=0.0_dp, &
                          matrix_c=fm_B)
 
-      ! W_ib,aj = \sum_P \bar{B}^P_ib B^P_aj
-      CALL parallel_gemm(transa="T", transb="N", m=homo*virtual, n=homo*virtual, k=dimen_RI, alpha=1.0_dp, &
-                         matrix_a=fm_mat_S_bar_ia_bse, matrix_b=fm_mat_S_ia_bse, beta=0.0_dp, &
-                         matrix_c=fm_W)
-      ! from W_ib,ja to A_ia,jb (formally: W_ib,aj, but our internal indexorder is different)
-      ! Writing -1.0_dp * W_ib,ja to A_ia,jb, i.e. beta = -1.0_dp,
-      ! W_ib,ja: nrow_secidx_in  = virtual,    ncol_secidx_in  = virtual
-      ! A_ia,jb: nrow_secidx_out = virtual, ncol_secidx_out = virtual
-      reordering = (/1, 4, 3, 2/)
-      CALL fm_general_add_bse(fm_B, fm_W, -1.0_dp, virtual, virtual, &
-                              virtual, virtual, unit_nr, reordering, mp2_env)
+      ! If infinite screening is applied, fm_W is simply 0 - Otherwise it needs to be computed from 3c integrals
+      IF (mp2_env%bse%screening_method /= bse_screening_rpa) THEN
+         ! W_ib,aj = \sum_P \bar{B}^P_ib B^P_aj
+         CALL parallel_gemm(transa="T", transb="N", m=homo*virtual, n=homo*virtual, k=dimen_RI, alpha=alpha_screening, &
+                            matrix_a=fm_mat_S_bar_ia_bse, matrix_b=fm_mat_S_ia_bse, beta=0.0_dp, &
+                            matrix_c=fm_W)
+
+         ! from W_ib,ja to A_ia,jb (formally: W_ib,aj, but our internal indexorder is different)
+         ! Writing -1.0_dp * W_ib,ja to A_ia,jb, i.e. beta = -1.0_dp,
+         ! W_ib,ja: nrow_secidx_in  = virtual,    ncol_secidx_in  = virtual
+         ! A_ia,jb: nrow_secidx_out = virtual, ncol_secidx_out = virtual
+         reordering = (/1, 4, 3, 2/)
+         CALL fm_general_add_bse(fm_B, fm_W, -1.0_dp, virtual, virtual, &
+                                 virtual, virtual, unit_nr, reordering, mp2_env)
+      END IF
 
       CALL cp_fm_release(fm_W)
       CALL cp_fm_struct_release(fm_struct_v)
@@ -454,9 +479,11 @@ CONTAINS
       ! for positive definiteness (would make another O(N^6) Diagon. necessary)
       ! Instead, we include a check here
       IF (Exc_ens(1) < 0) THEN
-         CALL cp_abort(__LOCATION__, &
-                       "Matrix C=(A-B)^0.5 (A+B) (A-B)^0.5 has negative eigenvalues, i.e. "// &
-                       "(A+B) is not positive definite.")
+         IF (unit_nr > 0) THEN
+            CALL cp_abort(__LOCATION__, &
+                          "Matrix C=(A-B)^0.5 (A+B) (A-B)^0.5 has negative eigenvalues, i.e. "// &
+                          "(A+B) is not positive definite.")
+         END IF
       END IF
       Exc_ens = SQRT(Exc_ens)
 
@@ -669,7 +696,7 @@ CONTAINS
 
       ! Prints basic definitions used in BSE calculation
       CALL print_output_header(homo, virtual, homo_irred, flag_TDA, &
-                               multiplet, alpha, unit_nr)
+                               multiplet, alpha, mp2_env, unit_nr)
 
       ! Prints excitation energies up to user-specified number
       CALL print_excitation_energies(Exc_ens, homo, virtual, flag_TDA, multiplet, &

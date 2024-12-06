@@ -18,6 +18,10 @@ MODULE bse_print
    USE bse_util,                        ONLY: filter_eigvec_contrib
    USE cp_fm_types,                     ONLY: cp_fm_get_info,&
                                               cp_fm_type
+   USE input_constants,                 ONLY: bse_screening_alpha,&
+                                              bse_screening_rpa,&
+                                              bse_screening_tdhf,&
+                                              bse_screening_w0
    USE kinds,                           ONLY: dp
    USE mp2_types,                       ONLY: mp2_type
    USE particle_types,                  ONLY: particle_type
@@ -86,15 +90,17 @@ CONTAINS
 !> \param flag_TDA ...
 !> \param multiplet ...
 !> \param alpha ...
+!> \param mp2_env ...
 !> \param unit_nr ...
 ! **************************************************************************************************
    SUBROUTINE print_output_header(homo, virtual, homo_irred, flag_TDA, &
-                                  multiplet, alpha, unit_nr)
+                                  multiplet, alpha, mp2_env, unit_nr)
 
       INTEGER, INTENT(IN)                                :: homo, virtual, homo_irred
       LOGICAL, INTENT(IN)                                :: flag_TDA
       CHARACTER(LEN=10), INTENT(IN)                      :: multiplet
       REAL(KIND=dp), INTENT(IN)                          :: alpha
+      TYPE(mp2_type), INTENT(INOUT)                      :: mp2_env
       INTEGER, INTENT(IN)                                :: unit_nr
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'print_output_header'
@@ -146,9 +152,17 @@ CONTAINS
             'unoccupied molecular orbitals, i.e. state in', '[', homo_irred + 1, ',', homo_irred + virtual, ']'
          WRITE (unit_nr, '(T2,A4,T7,A2,T18,A16)') 'BSE|', 'n:', 'Excitation index'
          WRITE (unit_nr, '(T2,A4)') 'BSE|'
-         WRITE (unit_nr, '(T2,A4,T7,A58)') 'BSE|', 'A_ia,jb = (ε_a-ε_i) δ_ij δ_ab + α * v_ia,jb - W_ij,ab'
+         IF (mp2_env%bse%screening_method == bse_screening_w0) THEN
+            WRITE (unit_nr, '(T2,A4,T7,A)') 'BSE|', 'A_ia,jb = (ε_a-ε_i) δ_ij δ_ab + α * v_ia,jb - W_ij,ab'
+         ELSE IF (mp2_env%bse%screening_method == bse_screening_rpa) THEN
+            WRITE (unit_nr, '(T2,A4,T7,A)') 'BSE|', 'A_ia,jb = (ε_a-ε_i) δ_ij δ_ab + α * v_ia,jb'
+         END IF
          IF (.NOT. flag_TDA) THEN
-            WRITE (unit_nr, '(T2,A4,T7,A32)') 'BSE|', 'B_ia,jb = α * v_ia,jb - W_ib,aj'
+            IF (mp2_env%bse%screening_method == bse_screening_w0) THEN
+               WRITE (unit_nr, '(T2,A4,T7,A)') 'BSE|', 'B_ia,jb = α * v_ia,jb - W_ib,aj'
+            ELSE IF (mp2_env%bse%screening_method == bse_screening_rpa) THEN
+               WRITE (unit_nr, '(T2,A4,T7,A)') 'BSE|', 'B_ia,jb = α * v_ia,jb'
+            END IF
             WRITE (unit_nr, '(T2,A4)') 'BSE|'
             WRITE (unit_nr, '(T2,A4,T7,A35)') 'BSE|', 'prelim Ref.: Eqs. (24-27),(30),(35)'
             WRITE (unit_nr, '(T2,A4,T7,A71)') 'BSE|', 'in PRB 92,045209 (2015); http://dx.doi.org/10.1103/PhysRevB.92.045209 .'
@@ -159,11 +173,21 @@ CONTAINS
             WRITE (unit_nr, '(T2,A4,T7,A71)') 'BSE|', 'in PRB 92,045209 (2015); http://dx.doi.org/10.1103/PhysRevB.92.045209 .'
          END IF
          WRITE (unit_nr, '(T2,A4)') 'BSE|'
-         WRITE (unit_nr, '(T2,A4,T7,A7,T19,A23)') 'BSE|', 'ε_...:', 'GW quasiparticle energy'
-         WRITE (unit_nr, '(T2,A4,T7,A7,T19,A15)') 'BSE|', 'δ_...:', 'Kronecker delta'
-         WRITE (unit_nr, '(T2,A4,T7,A3,T19,A21)') 'BSE|', 'α:', 'spin-dependent factor (Singlet/Triplet)'
-         WRITE (unit_nr, '(T2,A4,T7,A6,T18,A34)') 'BSE|', 'v_...:', 'Electron-hole exchange interaction'
-         WRITE (unit_nr, '(T2,A4,T7,A6,T18,A27)') 'BSE|', 'W_...:', 'Screened direct interaction'
+         WRITE (unit_nr, '(T2,A4,T7,A7,T31,A23)') 'BSE|', 'ε_...:', 'GW quasiparticle energy'
+         WRITE (unit_nr, '(T2,A4,T7,A7,T31,A15)') 'BSE|', 'δ_...:', 'Kronecker delta'
+         WRITE (unit_nr, '(T2,A4,T7,A3,T31,A21)') 'BSE|', 'α:', 'spin-dependent factor (Singlet/Triplet)'
+         WRITE (unit_nr, '(T2,A4,T7,A6,T30,A34)') 'BSE|', 'v_...:', 'Electron-hole exchange interaction'
+         IF (mp2_env%bse%screening_method == bse_screening_w0) THEN
+            WRITE (unit_nr, '(T2,A4,T7,A,T31,A)') 'BSE|', 'W_... = 1/ϵ v_...:', &
+               'Direct interaction screened by '
+            WRITE (unit_nr, '(T2,A4,T30,A)') 'BSE|', &
+               'dielectric function ϵ(ω=0)'
+         ELSE IF (mp2_env%bse%screening_method == bse_screening_tdhf) THEN
+            WRITE (unit_nr, '(T2,A4,T7,A,T30,A)') 'BSE|', 'W_... = v_...:', 'Direct interaction without screening'
+         ELSE IF (mp2_env%bse%screening_method == bse_screening_alpha) THEN
+            WRITE (unit_nr, '(T2,A4,T7,A,T31,A,F5.2)') 'BSE|', 'W_... = γ v_...:', &
+               'Direct interaction with artificial screening γ=', mp2_env%bse%screening_factor
+         END IF
          WRITE (unit_nr, '(T2,A4)') 'BSE|'
          WRITE (unit_nr, '(T2,A4)') 'BSE|'
          WRITE (unit_nr, '(T2,A4,T7,A47,A7,A9,F3.1)') 'BSE|', &
