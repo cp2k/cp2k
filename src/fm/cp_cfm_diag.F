@@ -58,7 +58,7 @@ CONTAINS
 
       COMPLEX(KIND=dp), DIMENSION(:), POINTER  :: work
       COMPLEX(KIND=dp), DIMENSION(:, :), &
-         POINTER                                :: m
+         POINTER                               :: m
       INTEGER                                  :: handle, info, liwork, &
                                                   lrwork, lwork, n
       INTEGER, DIMENSION(:), POINTER           :: iwork
@@ -66,7 +66,7 @@ CONTAINS
 #if defined(__parallel)
       INTEGER, DIMENSION(9)                    :: descm, descv
       COMPLEX(KIND=dp), DIMENSION(:, :), &
-         POINTER                                :: v
+         POINTER                               :: v
 #if defined (__HAS_IEEE_EXCEPTIONS)
       LOGICAL, DIMENSION(5)                    :: halt
 #endif
