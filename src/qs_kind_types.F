@@ -2707,6 +2707,7 @@ CONTAINS
       LOGICAL                                            :: defined
       TYPE(qs_dftb_atom_type), POINTER                   :: dftb_parameter
       TYPE(semi_empirical_type), POINTER                 :: se_parameter
+      TYPE(tblite_type), POINTER                         :: tb_tblite
       TYPE(xtb_atom_type), POINTER                       :: xtb_parameter
 
       IF (dft_control%qs_control%semi_empirical) THEN

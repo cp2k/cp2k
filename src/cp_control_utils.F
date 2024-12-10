@@ -808,9 +808,9 @@ CONTAINS
       REAL(dp)                                           :: tmp, tmpsqrt, value
       REAL(dp), POINTER                                  :: scal(:)
       TYPE(section_vals_type), POINTER :: cdft_control_section, ddapc_restraint_section, &
-         dftb_parameter, dftb_section, eeq_section, genpot_section, lri_optbas_section, mull_section, &
-         nonbonded_section, s2_restraint_section, se_section, xtb_parameter, xtb_section, &
-         xtb_tblite
+         dftb_parameter, dftb_section, eeq_section, genpot_section, lri_optbas_section, &
+         mull_section, nonbonded_section, s2_restraint_section, se_section, xtb_parameter, &
+         xtb_section, xtb_tblite
 
       CALL timeset(routineN, handle)
 

@@ -214,8 +214,7 @@ MODULE qs_environment
                                               xtb_parameters_init,&
                                               xtb_parameters_set
    USE xtb_potentials,                  ONLY: xtb_pp_radius
-   USE xtb_types,                       ONLY: allocate_xtb_atom_param,&
-                                              set_xtb_atom_param
+   USE xtb_types,                       ONLY: allocate_xtb_atom_param, set_xtb_atom_param
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -778,9 +777,10 @@ CONTAINS
             CALL set_qs_env(qs_env, ewald_env=ewald_env, ewald_pw=ewald_pw)
          END IF
       ELSEIF (dft_control%qs_control%method_id == do_method_xtb) THEN
-         xtb_control => dft_control%qs_control%xtb_control
-         CALL get_qs_env(qs_env, nkind=nkind)
-         IF (xtb_control%do_tblite) THEN
+        !   *** Read xTB parameter file ***
+        xtb_control => dft_control%qs_control%xtb_control
+        CALL get_qs_env(qs_env, nkind=nkind)
+        IF (xtb_control%do_tblite) THEN
             ! put geometry to tblite
             CALL tb_init_geometry(qs_env, qs_env%tb_tblite)
             ! select tblite method
@@ -808,45 +808,43 @@ CONTAINS
                CALL init_potential(qs_kind%all_potential, itype="BARE", &
                                    zeff=REAL(SUM(occ), dp), zeff_correction=zeff_correction)
             END DO
-         ELSE
-            !   *** Read xTB parameter file ***
-            NULLIFY (ewald_env, ewald_pw)
-            CALL get_qs_env(qs_env, nkind=nkind)
-            DO ikind = 1, nkind
-              qs_kind => qs_kind_set(ikind)
-              ! Setup proper xTB parameters
-              CPASSERT(.NOT. ASSOCIATED(qs_kind%xtb_parameter))
-              CALL allocate_xtb_atom_param(qs_kind%xtb_parameter)
-              ! Set default parameters
-              gfn_type = dft_control%qs_control%xtb_control%gfn_type
-              CALL get_qs_kind(qs_kind, element_symbol=element_symbol)
-              CALL xtb_parameters_init(qs_kind%xtb_parameter, gfn_type, element_symbol, &
+        ELSE
+         NULLIFY (ewald_env, ewald_pw)
+         DO ikind = 1, nkind
+            qs_kind => qs_kind_set(ikind)
+            ! Setup proper xTB parameters
+            CPASSERT(.NOT. ASSOCIATED(qs_kind%xtb_parameter))
+            CALL allocate_xtb_atom_param(qs_kind%xtb_parameter)
+            ! Set default parameters
+            gfn_type = dft_control%qs_control%xtb_control%gfn_type
+            CALL get_qs_kind(qs_kind, element_symbol=element_symbol)
+            CALL xtb_parameters_init(qs_kind%xtb_parameter, gfn_type, element_symbol, &
                                      xtb_control%parameter_file_path, xtb_control%parameter_file_name, &
                                      para_env)
-              ! set dependent parameters
-              CALL xtb_parameters_set(qs_kind%xtb_parameter)
-              ! Generate basis set
-              NULLIFY (tmp_basis_set)
-              IF (qs_kind%xtb_parameter%z == 1) THEN
-                ! special case hydrogen
-                ngauss = xtb_control%h_sto_ng
-              ELSE
-                ngauss = xtb_control%sto_ng
-              END IF
-              IF (qs_kind%xtb_parameter%defined) THEN
-                CALL init_xtb_basis(qs_kind%xtb_parameter, tmp_basis_set, ngauss)
-                CALL add_basis_set_to_container(qs_kind%basis_sets, tmp_basis_set, "ORB")
-              ELSE
-                CALL set_qs_kind(qs_kind, ghost=.TRUE.)
-                IF (ASSOCIATED(qs_kind%all_potential)) THEN
+            ! set dependent parameters
+            CALL xtb_parameters_set(qs_kind%xtb_parameter)
+            ! Generate basis set
+            NULLIFY (tmp_basis_set)
+            IF (qs_kind%xtb_parameter%z == 1) THEN
+               ! special case hydrogen
+               ngauss = xtb_control%h_sto_ng
+            ELSE
+               ngauss = xtb_control%sto_ng
+            END IF
+            IF (qs_kind%xtb_parameter%defined) THEN
+               CALL init_xtb_basis(qs_kind%xtb_parameter, tmp_basis_set, ngauss)
+               CALL add_basis_set_to_container(qs_kind%basis_sets, tmp_basis_set, "ORB")
+            ELSE
+               CALL set_qs_kind(qs_kind, ghost=.TRUE.)
+               IF (ASSOCIATED(qs_kind%all_potential)) THEN
                   DEALLOCATE (qs_kind%all_potential%elec_conf)
                   DEALLOCATE (qs_kind%all_potential)
-                END IF
-              END IF
-              ! potential
-              IF (qs_kind%xtb_parameter%defined) THEN
-                zeff_correction = 0.0_dp
-                CALL init_potential(qs_kind%all_potential, itype="BARE", &
+               END IF
+            END IF
+            ! potential
+            IF (qs_kind%xtb_parameter%defined) THEN
+               zeff_correction = 0.0_dp
+               CALL init_potential(qs_kind%all_potential, itype="BARE", &
                                    zeff=qs_kind%xtb_parameter%zeff, zeff_correction=zeff_correction)
                CALL get_potential(qs_kind%all_potential, alpha_core_charge=alpha)
                ccore = qs_kind%xtb_parameter%zeff*SQRT((alpha/pi)**3)
@@ -878,6 +876,7 @@ CONTAINS
             CALL ewald_pw_create(ewald_pw, ewald_env, cell, cell_ref, print_section=print_section)
             CALL set_qs_env(qs_env, ewald_env=ewald_env, ewald_pw=ewald_pw)
          END IF
+        END IF
       END IF
       ! lri or ri env initialization
       lri_section => section_vals_get_subs_vals(qs_section, "LRIGPW")
@@ -1119,27 +1118,20 @@ CONTAINS
       CALL init_interaction_radii(dft_control%qs_control, qs_kind_set)
       !
       IF (dft_control%qs_control%method_id == do_method_xtb) THEN
-         IF (.NOT. dft_control%qs_control%xtb_control%do_tblite) THEN
-            ! cutoff radius
-            DO ikind = 1, nkind
-               qs_kind => qs_kind_set(ikind)
-               IF (qs_kind%xtb_parameter%defined) THEN
-                  CALL get_qs_kind(qs_kind, basis_set=tmp_basis_set)
-                  IF (xtb_control%old_coulomb_damping) THEN
-                     CALL get_gto_basis_set(tmp_basis_set, kind_radius=rcut)
-                     qs_kind%xtb_parameter%rcut = rcut
-                  ELSE
-                     rcut = xtb_control%coulomb_sr_cut
-                     fxx = 2.0_dp*xtb_control%coulomb_sr_eps*qs_kind%xtb_parameter%eta**2
-                     fxx = 0.80_dp*(1.0_dp/fxx)**0.3333_dp
-                     rcut = MIN(rcut, xtb_control%coulomb_sr_cut)
-                     qs_kind%xtb_parameter%rcut = MIN(rcut, fxx)
-                  END IF
-               ELSE
-                  qs_kind%xtb_parameter%rcut = 0.0_dp
-               END IF
-            END DO
-         END IF
+         ! cutoff radius
+         DO ikind = 1, nkind
+            qs_kind => qs_kind_set(ikind)
+            IF (qs_kind%xtb_parameter%defined) THEN
+               CALL get_qs_kind(qs_kind, basis_set=tmp_basis_set)
+               rcut = xtb_control%coulomb_sr_cut
+               fxx = 2.0_dp*xtb_control%coulomb_sr_eps*qs_kind%xtb_parameter%eta**2
+               fxx = 0.80_dp*(1.0_dp/fxx)**0.3333_dp
+               rcut = MIN(rcut, xtb_control%coulomb_sr_cut)
+               qs_kind%xtb_parameter%rcut = MIN(rcut, fxx)
+            ELSE
+               qs_kind%xtb_parameter%rcut = 0.0_dp
+            END IF
+         END DO
       END IF
 
       IF (.NOT. be_silent) THEN
