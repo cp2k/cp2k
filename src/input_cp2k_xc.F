@@ -975,7 +975,7 @@ CONTAINS
                           enum_desc=s2a("Grimme D2 method", &
                                         "Grimme D3 method (zero damping)", &
                                         "Grimme D3 method (Becke-Johnson damping)", &
-                                        "Grimme D4 method (WARNING: Experimental feature under development)"), &
+                                        "Grimme D4 method"), &
                           default_i_val=vdw_pairpot_dftd3)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
