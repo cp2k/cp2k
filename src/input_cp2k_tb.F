@@ -149,7 +149,7 @@ CONTAINS
       CALL create_eeq_control_section(subsection)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
-      
+
       CALL create_xtb_tblite_section(subsection)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
@@ -546,34 +546,6 @@ CONTAINS
       CALL keyword_release(keyword)
 
    END SUBROUTINE create_xtb_nonbonded_section
-! **************************************************************************************************
-!> \brief Creates the &ATOM_APRAMETER section
-!> \param section the section to create
-!> \author teo
-! **************************************************************************************************
-   SUBROUTINE create_atom_parameter_section(section)
-      TYPE(section_type), POINTER                        :: section
-
-      TYPE(keyword_type), POINTER                        :: keyword
-
-      CALL section_create(section, __LOCATION__, name="ATOM_PARAMETER", &
-                          description="Section used to specify a atom parameter set for xTB calclulations.", &
-                          n_keywords=1, n_subsections=0, repeats=.TRUE.)
-
-      NULLIFY (keyword)
-      CALL keyword_create( &
-         keyword, __LOCATION__, name="_DEFAULT_KEYWORD_", &
-         repeats=.TRUE., type_of_var=lchar_t, &
-         description="xTB atom parameters in standard format:"//newline//newline// &
-         "```"//newline// &
-         "Element symbol  eta  gamma alpha Zeff label kpoly kappa Hen zeta"//newline// &
-         "nshell repeat the following block of lines)"//newline// &
-         "label kpoly kappa Hen zeta"//newline// &
-         "```")
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-   END SUBROUTINE create_atom_parameter_section
 ! **************************************************************************************************
 !> \brief Creates the &TBLITE section
 !> \param section the section to create
