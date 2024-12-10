@@ -206,12 +206,18 @@ CONTAINS
          vlen = m_cpuid_vlen()
          nmax_block = (fmstruct%nrow_global + fmstruct%context%num_pe(1) - 1)/ &
                       (fmstruct%context%num_pe(1))*fmstruct%context%num_pe(1)
-         IF (1 < vlen) nmax_block = nmax_block/vlen*vlen ! floor
+         IF (1 < vlen) THEN ! flooring not ceiling (OOB)
+            fmstruct%nrow_block = fmstruct%nrow_block/vlen*vlen
+            nmax_block = nmax_block/vlen*vlen
+         END IF
          fmstruct%nrow_block = MAX(MIN(fmstruct%nrow_block, nmax_block), 1)
 
          nmax_block = (fmstruct%ncol_global + fmstruct%context%num_pe(2) - 1)/ &
                       (fmstruct%context%num_pe(1))*fmstruct%context%num_pe(2)
-         IF (1 < vlen) nmax_block = nmax_block/vlen*vlen ! floor
+         IF (1 < vlen) THEN ! flooring not ceiling (OOB)
+            fmstruct%ncol_block = fmstruct%ncol_block/vlen*vlen
+            nmax_block = nmax_block/vlen*vlen
+         END IF
          fmstruct%ncol_block = MAX(MIN(fmstruct%ncol_block, nmax_block), 1)
       END IF
 
