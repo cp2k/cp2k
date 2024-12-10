@@ -30,7 +30,8 @@ MODULE xtb_matrices
                                               dbcsr_create,&
                                               dbcsr_finalize,&
                                               dbcsr_get_block_p,&
-                                              dbcsr_p_type
+                                              dbcsr_p_type,&
+                                              dbcsr_print
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
    USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set
    USE cp_dbcsr_output,                 ONLY: cp_dbcsr_write_sparse_matrix
@@ -663,6 +664,7 @@ CONTAINS
          DO img = 1, nimg
             CALL dbcsr_finalize(matrix_h(i, img)%matrix)
             CALL dbcsr_finalize(matrix_s(i, img)%matrix)
+            CALL dbcsr_print(matrix_h(i, img)%matrix)
          END DO
       END DO
 

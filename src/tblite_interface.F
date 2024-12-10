@@ -451,7 +451,7 @@ CONTAINS
                                                             npgfb, nsgfa, nsgfb
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa, first_sgfb
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: rpgfa, rpgfb, zeta, zetb, scon_a, scon_b
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: sblocK
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: sblock, fblock
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind
 
       TYPE(atomic_kind_type), DIMENSION(:), POINTER         :: atomic_kind_set
@@ -527,6 +527,10 @@ CONTAINS
          NULLIFY (sblock)
          CALL dbcsr_get_block_p(matrix=matrix_s(1, ic)%matrix, &
                                 row=irow, col=icol, BLOCK=sblock, found=found)
+         CPASSERT(found)
+         NULLIFY (fblock)
+         CALL dbcsr_get_block_p(matrix=matrix_h(1, ic)%matrix, &
+                                row=irow, col=icol, BLOCK=fblock, found=found)
          CPASSERT(found)
 
          ! --------- Overlap
@@ -620,11 +624,10 @@ CONTAINS
       DO i = 1, SIZE(matrix_s, 1)
          DO img = 1, nimg
             CALL dbcsr_finalize(matrix_s(i, img)%matrix)
-            !CALL dbcsr_finalize(matrix_h(i, img)%matrix)
+            CALL dbcsr_finalize(matrix_h(i, img)%matrix)
+            CALL dbcsr_print(matrix_h(i, img)%matrix)
          END DO
       END DO
-
-      CALL dbcsr_print(matrix_s(1, ic)%matrix)
 
       ! ******* output
       NULLIFY (logger)
