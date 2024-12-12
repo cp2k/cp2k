@@ -236,65 +236,33 @@ CONTAINS
          ! Update the simulation time
          rtbse_env%sim_time = REAL(i, dp)*rtbse_env%sim_dt
          rtbse_env%sim_step = i
-         ! Start the enforced time reversal method
-         ! This method determines the density matrix at time (t+dt) by guessing the effective Hamiltonian at (t + dt)
-         ! and using the Hamiltonian at time (t), it propagates density from time (t) while ensuring that the density
-         ! at (t + dt/2) is the same for both forward and backwards propagation. Then, density at (t + dt) is
-         ! used to calculate the new Hamiltonian at (t+dt), which is then used to get the new propagator, and so on
-         ! until the density matrix does not change within certain limit
-         ! Pseudocode of the algorithm
-         !      rho_M = exp(-i S^(-1) H[rho(t)] dt/2) rho(t) exp(i H[rho(t)] S^(-1) dt/2)
-         !      rho(t+dt, 0) = rho_M
-         !      for j in 1,max_self_iter
-         !              rho(t+dt,j) = exp(- i S^(-1) H[rho(t+dt,j-1)] dt/2) rho_M exp(i H [rho(t+dt,j-1)] S^(-1) dt/2)
-         !              if ||rho(t+dt,j) - rho(t+dt,j-1)|| < epsilon
-         !                      break
-         ! *************** Determine rho_M ***************
-         ! Update the effective Hamiltonian
-         !  - sets the correct external field, updates Hartree and COHSEX terms to current density
-         CALL update_effective_ham(rtbse_env, rtbse_env%rho)
-         ! Convert the effective hamiltonian into the exponential
-         ! TODO : Store the result more explicitly - explicit dependence on input/output matrices
-         CALL ham_to_exp(rtbse_env)
-         ! Propagate the density to mid-point
-         CALL propagate_density(rtbse_env, rtbse_env%ham_workspace, rtbse_env%rho, rtbse_env%rho_M)
-         ! DEBUG : Trying different start point for the density (assuming changes in V^H/Sigma are small)
-         ! ! In initial iteration, copy rho_M to rho_new_last - that is our initial guess
-         ! DO j = 1, rtbse_env%n_spin
-         !    CALL cp_cfm_to_cfm(rtbse_env%rho_M(j), rtbse_env%rho_new_last(j))
-         ! END DO
-         ! In the initial iteration, propagate to rho_new_last using the H(rho) (test for H(rho_M) as well)
-         CALL propagate_density(rtbse_env, rtbse_env%ham_workspace, rtbse_env%rho_M, rtbse_env%rho_new_last)
-         ! ! Try H(rho_M)
-         ! CALL update_effective_ham(rtbse_env, rtbse_env%rho_M)
-         ! CALL ham_to_exp(rtbse_env)
-         ! CALL propagate_density(rtbse_env, rtbse_env%ham_workspace, rtbse_env%rho_M, rtbse_env%rho_new_last)
-         ! *********** Start the self-consistent loop ************************
-         ! The guess Hamiltonian uses the guess density and field from the next timestep
-         rtbse_env%sim_time = REAL(i + 1, dp)*rtbse_env%sim_dt
-         rtbse_env%sim_step = i + 1
-         converged = .FALSE.
-         ! Prints the grid for etrs info dumping - only for log level > medium
-         CALL print_etrs_info_header(rtbse_env)
-         DO k = 1, rtbse_env%etrs_max_iter
-            CALL update_effective_ham(rtbse_env, rtbse_env%rho_new_last)
-            CALL ham_to_exp(rtbse_env)
-            CALL propagate_density(rtbse_env, rtbse_env%ham_workspace, rtbse_env%rho_M, rtbse_env%rho_new)
-            ! *** Self-consistency check ***
-            metric = rho_metric(rtbse_env%rho_new, rtbse_env%rho_new_last, rtbse_env%n_spin)
-            ! ETRS info - only for log level > medium
-            CALL print_etrs_info(rtbse_env, k, metric)
-            IF (metric < rtbse_env%etrs_threshold) THEN
-               converged = .TRUE.
-               EXIT
-            ELSE
-               ! Copy rho_new to rho_new_last
-               DO j = 1, rtbse_env%n_spin
-                  ! Leaving for free convergence
-                  CALL cp_cfm_to_cfm(rtbse_env%rho_new(j), rtbse_env%rho_new_last(j))
+         ! Carry out the ETRS self-consistent propagation - propagates rho to rho_new (through rho_M)
+         CALL etrs_scf_loop(rtbse_env, rtbse_env%rho, rtbse_env%rho_M, rtbse_env%rho_new, converged, k, metric)
+         ! Adaptive timestep
+         IF (.NOT. converged) THEN
+            IF (rtbse_env%unit_nr > 0) WRITE (rtbse_env%unit_nr, *) "RTBSE| !!! ETRS did not converge - trying halving the timestep"
+            ! Reset to initial time
+            rtbse_env%sim_time = REAL(i, dp) * rtbse_env%sim_dt
+            rtbse_env%sim_step = i
+            ! Halve the timestep
+            rtbse_env%sim_dt = rtbse_env%sim_dt / 2
+            ! Carry out the first propagation
+            CALL etrs_scf_loop(rtbse_env, rtbse_env%rho, rtbse_env%rho_M, rtbse_env%rho_new, converged, k, metric)
+            ! If the half-timestep did not converge, just let the outer routine handle this
+            IF (converged) THEN
+               DO j=1,rtbse_env%n_spin
+                  CALL cp_cfm_to_cfm(rtbse_env%rho_new(j), rtbse_env%rho(j))
                END DO
+               CALL etrs_scf_loop(rtbse_env, rtbse_env%rho, rtbse_env%rho_M, rtbse_env%rho_new, converged, k, metric)
+               ! If the half-timestep did not converge, just let the outer routine handle this
+               IF (converged) THEN
+                  ! Reset the timestep and sim-step
+                  rtbse_env%sim_dt = 2 * rtbse_env%sim_dt
+                  rtbse_env%sim_time = REAL(i+1, dp) * rtbse_env%sim_dt
+                  rtbse_env%sim_step = i+1
+               END IF
             END IF
-         END DO
+         END IF
          CALL get_electron_number(rtbse_env, rtbse_env%rho_new, enum_re, enum_im)
          IF (.FALSE.) THEN
             ! Not all of these are used, but they are all good metrics to check the convergence in problematic cases
@@ -309,7 +277,7 @@ CONTAINS
             END DO
          END IF
          CALL print_timestep_info(rtbse_env, i, metric, enum_re, k)
-         CPASSERT(converged)
+         IF (.NOT. converged) CPABORT("ETRS did not converge")
          DO j = 1, rtbse_env%n_spin
             CALL cp_cfm_to_cfm(rtbse_env%rho_new(j), rtbse_env%rho(j))
          END DO
@@ -661,8 +629,10 @@ CONTAINS
 !>                  uses complex_workspace, complex_ham, complex_s, real_eigvals and exp_eigvals.
 !>                  Results are stored in ham_workspace.
 ! **************************************************************************************************
-   SUBROUTINE ham_to_exp(rtbse_env)
-      TYPE(rtbse_env_type)                               :: rtbse_env
+   SUBROUTINE ham_to_exp(rtbse_env, ham, ham_exp)
+      TYPE(rtbse_env_type), POINTER                      :: rtbse_env
+      TYPE(cp_cfm_type), DIMENSION(:), POINTER           :: ham, &
+                                                            ham_exp
       CHARACTER(len=*), PARAMETER                        :: routineN = "ham_to_exp"
       INTEGER                                            :: j, handle
       CALL timeset(routineN, handle)
@@ -671,16 +641,16 @@ CONTAINS
             ! In Taylor and BCH, we first evaluate the entire exponent and then evaluate exponential in series
             ! In order to produce correct result, need to remultiply by inverse overlap matrix
             CALL multiply_fm_cfm("N", "N", rtbse_env%n_ao, rtbse_env%n_ao, rtbse_env%n_ao, &
-                                 1.0_dp, rtbse_env%S_inv_fm, rtbse_env%ham_effective(j), &
+                                 1.0_dp, rtbse_env%S_inv_fm, ham(j), &
                                  0.0_dp, rtbse_env%rho_workspace(1))
 
             ! The evolution of density matrix is derived from the right multiplying term
             ! Imaginary part of the exponent = -real part of the matrix
             CALL cp_cfm_scale(CMPLX(0.0, -rtbse_env%sim_dt/2, kind=dp), rtbse_env%rho_workspace(1))
             ! In BCH, exponential is not calculated explicitly, but the propagation is solved in series
-            CALL cp_cfm_to_cfm(rtbse_env%rho_workspace(1), rtbse_env%ham_workspace(j))
+            CALL cp_cfm_to_cfm(rtbse_env%rho_workspace(1), ham_exp(j))
          ELSE IF (rtbse_env%mat_exp_method == do_exact) THEN
-            CALL cp_cfm_gexp(rtbse_env%ham_effective(j), rtbse_env%S_cfm, rtbse_env%ham_workspace(j), &
+            CALL cp_cfm_gexp(ham(j), rtbse_env%S_cfm, ham_exp(j), &
                              CMPLX(0.0, -rtbse_env%sim_dt/2, kind=dp), rtbse_env%rho_workspace)
          ELSE
             CPABORT("Only BCH and Taylor matrix exponentiation implemented")
@@ -751,6 +721,83 @@ CONTAINS
       END DO
       CALL timestop(handle)
    END SUBROUTINE update_effective_ham
+! **************************************************************************************************
+!> \brief Self-consistently (ETRS) propagates the density to the next timestep
+!> \note Uses rtbse_env%rho_new_last, assumes correct timestep information is given in rtbse_env
+!> \param rho_start Initial density matrix
+!> \param rho_mid Midpoint density (propagated to by the initial Hamiltonian)
+!> \param rho_end Endpoint density (propagated to by endpoint Hamiltonian)
+!> \param converged Whether the resulting rho_end is self-consistent
+!> \param k How many SC iterations were done
+!> \param metric The difference metric from the last self-consistent iteration (for printing/evaluation)
+! **************************************************************************************************
+   SUBROUTINE etrs_scf_loop(rtbse_env, rho_start, rho_mid, rho_end, converged, k, metric)
+      TYPE(rtbse_env_type), POINTER                     :: rtbse_env
+      TYPE(cp_cfm_type), DIMENSION(:), POINTER          :: rho_start, &
+                                                           rho_mid, &
+                                                           rho_end
+      LOGICAL                                           :: converged
+      INTEGER                                           :: k
+      REAL(kind=dp)                                     :: metric
+      CHARACTER(len=*), PARAMETER                       :: routineN="etrs_scf_loop"
+      INTEGER                                           :: j, handle
+
+      CALL timeset(routineN, handle)
+
+      ! This method determines the density matrix at time (t+dt) by guessing the effective Hamiltonian at (t + dt)
+      ! and using the Hamiltonian at time (t), it propagates density from time (t) while ensuring that the density
+      ! at (t + dt/2) is the same for both forward and backwards propagation. Then, density at (t + dt) is
+      ! used to calculate the new Hamiltonian at (t+dt), which is then used to get the new propagator, and so on
+      ! until the density matrix does not change within certain limit
+      ! Pseudocode of the algorithm
+      !      rho_M = exp(-i S^(-1) H[rho(t)] dt/2) rho(t) exp(i H[rho(t)] S^(-1) dt/2)
+      !      rho(t+dt, 0) = rho_M
+      !      for j in 1,max_self_iter
+      !              rho(t+dt,j) = exp(- i S^(-1) H[rho(t+dt,j-1)] dt/2) rho_M exp(i H [rho(t+dt,j-1)] S^(-1) dt/2)
+      !              if ||rho(t+dt,j) - rho(t+dt,j-1)|| < epsilon
+      !                      break
+
+      ! Initial setup - calculate the Hamiltonian
+      CALL update_effective_ham(rtbse_env, rho_start)
+      ! Create the exponential
+      CALL ham_to_exp(rtbse_env, rtbse_env%ham_effective, rtbse_env%ham_workspace)
+      ! Propagate to rho_mid
+      CALL propagate_density(rtbse_env, rtbse_env%ham_workspace, rho_start, rho_mid)
+      ! Propagate to initial guess
+      CALL propagate_density(rtbse_env, rtbse_env%ham_workspace, rho_mid, rtbse_env%rho_new_last)
+      ! Update bookkeeping to the next timestep - Hamiltonians are now evaluated at the next timestep
+      ! TODO : Warn about inconsistencies/inacuraccies with ramp and constant envelopes
+      !  - while Gauss and custom envelope make use of time, constant and ramp envelopes
+      !    use sim_step directly. But, for sim_step, we cannot choose value n+1/2, so
+      !    inaccurate results are given when adaptive timestepping is used
+      rtbse_env%sim_step = rtbse_env%sim_step + 1
+      rtbse_env%sim_time = rtbse_env%sim_time + rtbse_env%sim_dt
+      converged = .FALSE.
+      CALL print_etrs_info_header(rtbse_env)
+      DO k=1,rtbse_env%etrs_max_iter
+         ! Get the Hamiltonian following from the last timestep
+         CALL update_effective_ham(rtbse_env, rtbse_env%rho_new_last)
+         CALL ham_to_exp(rtbse_env, rtbse_env%ham_effective, rtbse_env%ham_workspace)
+         ! Propagate to new guess
+         CALL propagate_density(rtbse_env, rtbse_env%ham_workspace, rho_mid, rho_end)
+         ! Check for self-consistency
+         metric = rho_metric(rho_end, rtbse_env%rho_new_last, rtbse_env%n_spin)
+         ! ETRS info - only for log level > medium
+         CALL print_etrs_info(rtbse_env, k, metric)
+         IF (metric < rtbse_env%etrs_threshold) THEN
+            converged = .TRUE.
+            EXIT
+         ELSE
+            ! Copy rho_new to rho_new_last
+            DO j = 1, rtbse_env%n_spin
+               ! Leaving for free convergence
+               CALL cp_cfm_to_cfm(rho_end(j), rtbse_env%rho_new_last(j))
+            END DO
+         END IF
+      END DO
+      ! Error handling in the case where the propagation did not converge is left to the main routine
+      CALL timestop(handle)
+   END SUBROUTINE etrs_scf_loop
 
 ! **************************************************************************************************
 !> \brief Does the BCH iterative determination of the exponential
