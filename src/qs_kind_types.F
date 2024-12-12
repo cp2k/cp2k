@@ -374,7 +374,6 @@ CONTAINS
 !> \param se_parameter ...
 !> \param dftb_parameter ...
 !> \param xtb_parameter ...
-!> \param tb_tblite ...
 !> \param dftb3_param ...
 !> \param zatom ...
 !> \param zeff ...
@@ -439,7 +438,7 @@ CONTAINS
    SUBROUTINE get_qs_kind(qs_kind, &
                           basis_set, basis_type, ncgf, nsgf, &
                           all_potential, tnadd_potential, gth_potential, sgp_potential, upf_potential, &
-                          se_parameter, dftb_parameter, xtb_parameter, tb_tblite, &
+                          se_parameter, dftb_parameter, xtb_parameter, &
                           dftb3_param, zatom, zeff, elec_conf, mao, lmax_dftb, &
                           alpha_core_charge, ccore_charge, core_charge, core_charge_radius, &
                           paw_proj_set, paw_atom, hard_radius, hard0_radius, max_rad_local, &
@@ -466,7 +465,6 @@ CONTAINS
       TYPE(semi_empirical_type), OPTIONAL, POINTER       :: se_parameter
       TYPE(qs_dftb_atom_type), OPTIONAL, POINTER         :: dftb_parameter
       TYPE(xtb_atom_type), OPTIONAL, POINTER             :: xtb_parameter
-      TYPE(tblite_type), OPTIONAL, POINTER               :: tb_tblite
       REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: dftb3_param
       INTEGER, INTENT(OUT), OPTIONAL                     :: zatom
       REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: zeff
@@ -2707,7 +2705,6 @@ CONTAINS
       LOGICAL                                            :: defined
       TYPE(qs_dftb_atom_type), POINTER                   :: dftb_parameter
       TYPE(semi_empirical_type), POINTER                 :: se_parameter
-      TYPE(tblite_type), POINTER                         :: tb_tblite
       TYPE(xtb_atom_type), POINTER                       :: xtb_parameter
 
       IF (dft_control%qs_control%semi_empirical) THEN
@@ -2723,10 +2720,7 @@ CONTAINS
          CPASSERT(defined)
          CALL write_dftb_atom_param(dftb_parameter, subsys_section)
       ELSE IF (dft_control%qs_control%xtb) THEN
-         IF (dft_control%qs_control%xtb_control%do_tblite) THEN
-            CALL get_qs_kind(qs_kind, tb_tblite=tb_tblite)
-            CPASSERT(ASSOCIATED(tb_tblite))
-         ELSE
+         IF (.not.(dft_control%qs_control%xtb_control%do_tblite)) THEN
             CALL get_qs_kind(qs_kind, xtb_parameter=xtb_parameter)
             CPASSERT(ASSOCIATED(xtb_parameter))
             gfn_type = dft_control%qs_control%xtb_control%gfn_type
