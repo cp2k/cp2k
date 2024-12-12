@@ -506,7 +506,7 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       ! Report application
-      IF (rtbse_env%unit_nr > 0) WRITE (rtbse_env%unit_nr, '(A27)') ' RTBSE| Applying delta pulse'
+      IF (rtbse_env%unit_nr > 0) WRITE (rtbse_env%unit_nr, '(A28)') ' RTBSE| Applying delta pulse'
       ! Extra minus for the propagation of density
       intensity = -rtbse_env%dft_control%rtp_control%delta_pulse_scale
       metric = 0.0_dp
@@ -531,17 +531,17 @@ CONTAINS
                             0.0_dp, rtbse_env%real_workspace(2))
          DO i = 1, rtbse_env%n_spin
             ! Sets real part to zero
-            CALL cp_fm_to_cfm(msourcei=rtbse_env%real_workspace(2), mtarget=rtbse_env%ham_effective(i))
+            CALL cp_fm_to_cfm(msourcei=rtbse_env%real_workspace(2), mtarget=rtbse_env%ham_workspace(i))
          END DO
       ELSE IF (rtbse_env%mat_exp_method == do_exact) THEN
          DO i = 1, rtbse_env%n_spin
-            CALL cp_fm_to_cfm(msourcer=rtbse_env%real_workspace(1), mtarget=rtbse_env%ham_workspace(i))
-            CALL cp_cfm_gexp(rtbse_env%ham_workspace(i), rtbse_env%S_cfm, rtbse_env%ham_effective(i), &
+            CALL cp_fm_to_cfm(msourcer=rtbse_env%real_workspace(1), mtarget=rtbse_env%ham_effective(i))
+            CALL cp_cfm_gexp(rtbse_env%ham_effective(i), rtbse_env%S_cfm, rtbse_env%ham_workspace(i), &
                              CMPLX(0.0, intensity, kind=dp), rtbse_env%rho_workspace)
          END DO
       END IF
       ! Propagate the density by the effect of the delta pulse
-      CALL propagate_density(rtbse_env, rtbse_env%ham_effective, rtbse_env%rho, rtbse_env%rho_new)
+      CALL propagate_density(rtbse_env, rtbse_env%ham_workspace, rtbse_env%rho, rtbse_env%rho_new)
       metric = rho_metric(rtbse_env%rho_new, rtbse_env%rho, rtbse_env%n_spin)
       IF (rtbse_env%unit_nr > 0) WRITE (rtbse_env%unit_nr, ('(A42,E38.8E3)')) " RTBSE| Metric difference after delta kick", metric
       ! Copy the new density to the old density
