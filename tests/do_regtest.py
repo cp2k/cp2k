@@ -269,7 +269,7 @@ class Config:
         self.skip_unittests = args.skip_unittests
         self.skip_regtests = args.skip_regtests
         datestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-        leaf_dir = f"TEST-{args.version}-{datestamp}"
+        leaf_dir = f"TEST-{datestamp}"
         self.work_base_dir = (args.workbasedir or args.binary_dir).resolve() / leaf_dir
         self.error_summary = self.work_base_dir / "error_summary"
 
