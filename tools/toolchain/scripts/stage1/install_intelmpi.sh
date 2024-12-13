@@ -29,7 +29,7 @@ case "${with_intelmpi}" in
     ;;
   __SYSTEM__)
     echo "==================== Finding Intel MPI from system paths ===================="
-    check_command mpiexec "intelmpi" && MPIRUN="$(realpath $(command -v mpiexec))"
+    check_command mpiexec "intelmpi" && MPIEXEC="$(realpath $(command -v mpiexec))"
     if [ "${with_intel}" != "__DONTUSE__" ]; then
       if [ "${with_ifx}" = "yes" ]; then
         check_command mpiicx "intelmpi" && MPICC="$(realpath $(command -v mpiicx))" || exit 1
@@ -61,7 +61,7 @@ case "${with_intelmpi}" in
     check_dir "${pkg_install_dir}/bin"
     check_dir "${pkg_install_dir}/lib"
     check_dir "${pkg_install_dir}/include"
-    check_command ${pkg_install_dir}/bin/mpiexec "intel" && MPIRUN="${pkg_install_dir}/bin/mpiexec" || exit 1
+    check_command ${pkg_install_dir}/bin/mpiexec "intel" && MPIEXEC="${pkg_install_dir}/bin/mpiexec" || exit 1
     if [ "${with_intel}" != "__DONTUSE__" ]; then
       check_command ${pkg_install_dir}/bin/mpiicc "intel" && MPICC="${pkg_install_dir}/bin/mpiicc" || exit 1
       check_command ${pkg_install_dir}/bin/mpiicpc "intel" && MPICXX="${pkg_install_dir}/bin/mpiicpc" || exit 1
@@ -97,7 +97,7 @@ export I_MPI_CXX="${I_MPI_CXX}"
 export I_MPI_CC="${I_MPI_CC}"
 export I_MPI_FC="${I_MPI_FC}"
 export MPI_MODE="${MPI_MODE}"
-export MPIRUN="${MPIRUN}"
+export MPIEXEC="${MPIEXEC}"
 export MPICC="${MPICC}"
 export MPICXX="${MPICXX}"
 export MPIFC="${MPIFC}"
