@@ -1169,6 +1169,8 @@ CONTAINS
                       matrix_h_kp=matrixkp_h)
 
       CALL qs_rho_get(rho, rho_ao_kp=rho_ao_kp)
+      
+      flush(6)
 
       CALL calculate_ptrace(matrixkp_h, rho_ao_kp, energy%core, dft_control%nspins)
 

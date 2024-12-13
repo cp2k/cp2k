@@ -308,13 +308,12 @@ CONTAINS
          CALL qs_env_update_s_mstruct(qs_env)
       ELSEIF (dft_control%qs_control%xtb) THEN
          IF (dft_control%qs_control%xtb_control%do_tblite) THEN
-            WRITE (*, *) '+++++ building tblite HAM. '
             CALL build_tblite_matrices(qs_env=qs_env, para_env=para_env, &
                                        calculate_forces=.FALSE.)
          ELSE
             CALL build_xtb_matrices(qs_env=qs_env, calculate_forces=.FALSE.)
-            CALL qs_env_update_s_mstruct(qs_env)
          END IF
+         CALL qs_env_update_s_mstruct(qs_env)
       ELSE
          CALL build_core_hamiltonian_matrix(qs_env=qs_env, calculate_forces=.FALSE.)
          CALL qs_env_update_s_mstruct(qs_env)
