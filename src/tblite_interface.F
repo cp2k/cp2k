@@ -40,7 +40,7 @@ MODULE tblite_interface
    USE cp_blacs_env, ONLY: cp_blacs_env_type
    USE cp_control_types, ONLY: dft_control_type
    USE cp_dbcsr_api, ONLY: dbcsr_type, dbcsr_p_type, dbcsr_create, dbcsr_get_block_p, &
-                           & dbcsr_print, dbcsr_finalize
+                           & dbcsr_print, dbcsr_finalize,  dbcsr_add
    USE cp_dbcsr_cp2k_link, ONLY: cp_dbcsr_alloc_block_from_nbl
    USE cp_dbcsr_operations, ONLY: dbcsr_allocate_matrix_set
    USE cp_log_handling, ONLY: cp_get_default_logger, &
@@ -57,6 +57,7 @@ MODULE tblite_interface
    USE qs_condnum, ONLY: overlap_condnum
    USE qs_energy_types, ONLY: qs_energy_type
    USE qs_environment_types, ONLY: get_qs_env, qs_environment_type
+   USE qs_force_types,                  ONLY: qs_force_type
    USE qs_integral_utils, ONLY: basis_set_list_setup, get_memory_usage
    USE qs_kind_types, ONLY: get_qs_kind, qs_kind_type
    USE qs_ks_types, ONLY: qs_ks_env_type, set_ks_env
@@ -64,7 +65,9 @@ MODULE tblite_interface
                                     & get_iterator_info, neighbor_list_set_p_type, &
                                     & neighbor_list_iterator_p_type
    USE qs_overlap, ONLY: create_sab_matrix
+   USE qs_rho_types,                    ONLY: qs_rho_get, qs_rho_type
    USE string_utilities, ONLY: integer_to_string
+   USE virial_types,                    ONLY: virial_type
 #include "./base/base_uses.f90"
    IMPLICIT NONE
 
@@ -439,7 +442,7 @@ CONTAINS
       INTEGER                                            :: handle, maxder, nderivatives, nimg, img, nkind, i, ic, iw
       INTEGER                                            :: iatom, jatom, ikind, jkind, iset, jset, n1, n2, icol, irow
       INTEGER                                            :: sgfa, sgfb, atom_a, atom_b, ldsab, nseta, nsetb, natorb_a, natorb_b
-      LOGICAL                                            :: found, norml1, norml2, use_arnoldi
+      LOGICAL                                            :: found, norml1, norml2, use_arnoldi, use_virial
       REAL(KIND=dp)                                      :: dr
       INTEGER, DIMENSION(3)                              :: cell
       REAL(KIND=dp), DIMENSION(2)                        :: condnum
@@ -456,18 +459,21 @@ CONTAINS
 
       TYPE(atomic_kind_type), DIMENSION(:), POINTER         :: atomic_kind_set
       TYPE(atprop_type), POINTER                            :: atprop
-      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER          :: matrix_h, matrix_s
-      TYPE(dft_control_type), POINTER                       :: dft_control
-      TYPE(gto_basis_set_type), POINTER                     :: basis_set_a, basis_set_b
-      TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER     :: basis_set_list
       TYPE(cp_blacs_env_type), POINTER                      :: blacs_env
       TYPE(cp_logger_type), POINTER                         :: logger
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER          :: matrix_h, matrix_s, matrix_p, matrix_w
+      TYPE(dft_control_type), POINTER                       :: dft_control
+      TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
+      TYPE(gto_basis_set_type), POINTER                     :: basis_set_a, basis_set_b
+      TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER     :: basis_set_list
       TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER :: sab_orb
       TYPE(neighbor_list_iterator_p_type), &
          DIMENSION(:), POINTER                              :: nl_iterator
-      TYPE(qs_ks_env_type), POINTER                         :: ks_env
       TYPE(qs_energy_type), POINTER                         :: energy
+      TYPE(qs_ks_env_type), POINTER                         :: ks_env
       TYPE(qs_kind_type), DIMENSION(:), POINTER             :: qs_kind_set
+      TYPE(qs_rho_type), POINTER                            :: rho
+      TYPE(virial_type), POINTER                            :: virial
 
       CALL timeset(routineN, handle)
 
@@ -491,6 +497,25 @@ CONTAINS
       IF (calculate_forces) nderivatives = 1
       maxder = ncoset(nderivatives)
       nimg = dft_control%nimages
+      
+      ! set up matrices for force calculations
+      IF (calculate_forces) THEN
+         NULLIFY (rho, force, matrix_w)
+         CALL get_qs_env(qs_env=qs_env, &
+                         rho=rho, matrix_w_kp=matrix_w, &
+                         virial=virial, force=force)
+         CALL qs_rho_get(rho, rho_ao_kp=matrix_p)
+
+         IF (SIZE(matrix_p, 1) == 2) THEN
+            DO img = 1, nimg
+               CALL dbcsr_add(matrix_p(1, img)%matrix, matrix_p(2, img)%matrix, &
+                              alpha_scalar=1.0_dp, beta_scalar=1.0_dp)
+               CALL dbcsr_add(matrix_w(1, img)%matrix, matrix_w(2, img)%matrix, &
+                              alpha_scalar=1.0_dp, beta_scalar=1.0_dp)
+            END DO
+         END IF
+         use_virial = virial%pv_availability .AND. (.NOT. virial%pv_numer)
+      END IF
 
       CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, atom_of_kind=atom_of_kind)
 
