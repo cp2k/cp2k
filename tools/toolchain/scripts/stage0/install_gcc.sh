@@ -122,6 +122,7 @@ case "${with_gcc}" in
     check_command gcc "gcc" && CC="$(command -v gcc)" || exit 1
     check_command g++ "gcc" && CXX="$(command -v g++)" || exit 1
     check_command gfortran "gcc" && FC="$(command -v gfortran)" || exit 1
+    echo "GCC compiler version $(gcc -dumpfullversion) found"
     F90="${FC}"
     F77="${FC}"
     add_include_from_paths -p GCC_CFLAGS "c++" ${INCLUDE_PATHS}
