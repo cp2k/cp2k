@@ -359,7 +359,6 @@ CONTAINS
 
       !identifying element in the bas data
       CALL symbol_to_number(i_type, element_symbol)
-      WRITE (*, *) "element: ", i_type, element_symbol
       DO id_atom = 1, tb%mol%nat
          IF (i_type == tb%el_num(id_atom)) EXIT
       END DO
@@ -439,8 +438,8 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'build_tblite_matrices'
 
-      INTEGER                                            :: handle, maxder, nderivatives, nimg, img, nkind, i, ic, iw
-      INTEGER                                            :: iatom, jatom, ikind, jkind, iset, jset, n1, n2, icol, irow
+      INTEGER                                            :: handle, maxder, nderivatives, nimg, img, nkind, i, ic, iw, ia
+      INTEGER                                            :: iatom, jatom, ikind, jkind, iset, jset, n1, n2, icol, irow, ishell
       INTEGER                                            :: sgfa, sgfb, atom_a, atom_b, ldsab, nseta, nsetb, natorb_a, natorb_b
       LOGICAL                                            :: found, norml1, norml2, use_arnoldi, use_virial
       REAL(KIND=dp)                                      :: dr
@@ -449,7 +448,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3)                        :: rij
       REAL(KIND=dp), DIMENSION(:), POINTER               :: set_radius_a, set_radius_b
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: owork
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: oint, sint
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: oint, sint, hint
       INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, lb_max, lb_min, npgfa, &
                                                             npgfb, nsgfa, nsgfb
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa, first_sgfb
@@ -463,7 +462,7 @@ CONTAINS
       TYPE(cp_logger_type), POINTER                         :: logger
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER          :: matrix_h, matrix_s, matrix_p, matrix_w
       TYPE(dft_control_type), POINTER                       :: dft_control
-      TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
+      TYPE(qs_force_type), DIMENSION(:), POINTER            :: force
       TYPE(gto_basis_set_type), POINTER                     :: basis_set_a, basis_set_b
       TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER     :: basis_set_list
       TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER :: sab_orb
@@ -473,6 +472,7 @@ CONTAINS
       TYPE(qs_ks_env_type), POINTER                         :: ks_env
       TYPE(qs_kind_type), DIMENSION(:), POINTER             :: qs_kind_set
       TYPE(qs_rho_type), POINTER                            :: rho
+      TYPE(tblite_type), POINTER                            :: tb
       TYPE(virial_type), POINTER                            :: virial
 
       CALL timeset(routineN, handle)
@@ -490,7 +490,8 @@ CONTAINS
                       matrix_s_kp=matrix_s, &
                       atprop=atprop, &
                       dft_control=dft_control, &
-                      sab_orb=sab_orb)
+                      sab_orb=sab_orb, &
+                      tb_tblite=tb)
 
       nkind = SIZE(atomic_kind_set)
       nderivatives = 0
@@ -599,10 +600,12 @@ CONTAINS
          DO iset = 1, nsetb
             natorb_b = natorb_b + (2*basis_set_b%l(1, iset) + 1)
          END DO
-         WRITE (*, *) "+++++++ na, nb", natorb_a, natorb_b
          ALLOCATE (sint(natorb_a, natorb_b, maxder))
          sint = 0.0_dp
-
+         ALLOCATE (hint(natorb_a, natorb_b, maxder))
+         hint = 0.0_dp
+         
+         !----------------- overlap integrals
          DO iset = 1, nseta
             n1 = npgfa(iset)*(ncoset(la_max(iset)) - ncoset(la_min(iset) - 1))
             sgfa = first_sgfa(1, iset)
@@ -640,9 +643,31 @@ CONTAINS
             sblock(:, :) = sblock(:, :) + TRANSPOSE(sint(:, :, 1))
          END IF
 
-         DEALLOCATE (oint, owork, sint)
-
          ! --------- Hamiltonian
+         
+         !get diagonal part from selfenergy
+         IF (iatom==jatom) THEN
+           n1=0
+           DO ishell=1,iatom-1
+             n1=n1+tb%calc%bas%nsh_at(ishell)
+           END DO
+           DO iset = 1, nseta
+             sgfa = first_sgfa(1, iset)
+             owork = 0.0_dp
+             DO ia = sgfa, sgfa+nsgfa(iset)-1
+              hint(ia,ia,1)=tb%selfenergy(n1+iset)
+             END DO
+           END DO
+         END IF
+         
+         ! update F matrix
+         IF (iatom <= jatom) THEN
+            fblock(:, :) = fblock(:, :) + hint(:, :, 1)
+         ELSE
+            fblock(:, :) = fblock(:, :) + TRANSPOSE(hint(:, :, 1))
+         END IF
+         
+         DEALLOCATE (oint, owork, sint, hint)
 
       END DO
 
