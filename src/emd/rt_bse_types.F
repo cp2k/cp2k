@@ -331,7 +331,7 @@ CONTAINS
       rtbse_env%etrs_threshold = rtbse_env%dft_control%rtp_control%eps_ener
       rtbse_env%exp_accuracy = rtbse_env%dft_control%rtp_control%eps_exp
       ! Recover custom options
-      CALL section_vals_val_get(input, "DFT%REAL_TIME_PROPAGATION%RTBSE_HAMILTONIAN", &
+      CALL section_vals_val_get(input, "DFT%REAL_TIME_PROPAGATION%RTBSE%RTBSE_HAMILTONIAN", &
                                 i_val=rtbse_env%ham_reference_type)
       CALL section_vals_val_get(input, "DFT%REAL_TIME_PROPAGATION%MAX_ITER", &
                                 i_val=rtbse_env%etrs_max_iter)
@@ -359,6 +359,7 @@ CONTAINS
          IF (rtbse_env%pol_element(k) > 3 .OR. rtbse_env%pol_element(k) < 1) &
             CPABORT("Polarisation tensor element not 1,2 or 3 in at least one index")
       END DO
+
       ! Get the restart section
       rtbse_env%restart_section => section_vals_get_subs_vals(input, "DFT%REAL_TIME_PROPAGATION%PRINT%RESTART")
       rtbse_env%restart_extracted = .FALSE.

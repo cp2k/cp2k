@@ -238,31 +238,6 @@ CONTAINS
          rtbse_env%sim_step = i
          ! Carry out the ETRS self-consistent propagation - propagates rho to rho_new (through rho_M)
          CALL etrs_scf_loop(rtbse_env, rtbse_env%rho, rtbse_env%rho_M, rtbse_env%rho_new, converged, k, metric)
-         ! Adaptive timestep
-         IF (.NOT. converged) THEN
-            IF (rtbse_env%unit_nr > 0) WRITE (rtbse_env%unit_nr, *) "RTBSE| !!! ETRS did not converge - trying halving the timestep"
-            ! Reset to initial time
-            rtbse_env%sim_time = REAL(i, dp) * rtbse_env%sim_dt
-            rtbse_env%sim_step = i
-            ! Halve the timestep
-            rtbse_env%sim_dt = rtbse_env%sim_dt / 2
-            ! Carry out the first propagation
-            CALL etrs_scf_loop(rtbse_env, rtbse_env%rho, rtbse_env%rho_M, rtbse_env%rho_new, converged, k, metric)
-            ! If the half-timestep did not converge, just let the outer routine handle this
-            IF (converged) THEN
-               DO j=1,rtbse_env%n_spin
-                  CALL cp_cfm_to_cfm(rtbse_env%rho_new(j), rtbse_env%rho(j))
-               END DO
-               CALL etrs_scf_loop(rtbse_env, rtbse_env%rho, rtbse_env%rho_M, rtbse_env%rho_new, converged, k, metric)
-               ! If the half-timestep did not converge, just let the outer routine handle this
-               IF (converged) THEN
-                  ! Reset the timestep and sim-step
-                  rtbse_env%sim_dt = 2 * rtbse_env%sim_dt
-                  rtbse_env%sim_time = REAL(i+1, dp) * rtbse_env%sim_dt
-                  rtbse_env%sim_step = i+1
-               END IF
-            END IF
-         END IF
          CALL get_electron_number(rtbse_env, rtbse_env%rho_new, enum_re, enum_im)
          IF (.FALSE.) THEN
             ! Not all of these are used, but they are all good metrics to check the convergence in problematic cases
@@ -766,10 +741,6 @@ CONTAINS
       ! Propagate to initial guess
       CALL propagate_density(rtbse_env, rtbse_env%ham_workspace, rho_mid, rtbse_env%rho_new_last)
       ! Update bookkeeping to the next timestep - Hamiltonians are now evaluated at the next timestep
-      ! TODO : Warn about inconsistencies/inacuraccies with ramp and constant envelopes
-      !  - while Gauss and custom envelope make use of time, constant and ramp envelopes
-      !    use sim_step directly. But, for sim_step, we cannot choose value n+1/2, so
-      !    inaccurate results are given when adaptive timestepping is used
       rtbse_env%sim_step = rtbse_env%sim_step + 1
       rtbse_env%sim_time = rtbse_env%sim_time + rtbse_env%sim_dt
       converged = .FALSE.

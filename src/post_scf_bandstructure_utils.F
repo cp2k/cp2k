@@ -886,7 +886,7 @@ CONTAINS
 
       ! Marek : Get and save the rtp method
       CALL get_qs_env(qs_env=qs_env, input=input)
-      CALL section_vals_val_get(input, "DFT%REAL_TIME_PROPAGATION%RTP_METHOD", i_val=bs_env%rtp_method)
+      CALL section_vals_val_get(input, "DFT%REAL_TIME_PROPAGATION%RTBSE%_SECTION_PARAMETERS_", i_val=bs_env%rtp_method)
 
       IF (u > 0) THEN
          WRITE (u, FMT="(T2,2A,T73,I8)") "Number of occupied molecular orbitals (MOs) ", &
