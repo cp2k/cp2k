@@ -68,7 +68,7 @@ case "${with_mpich}" in
     check_dir "${pkg_install_dir}/bin"
     check_dir "${pkg_install_dir}/lib"
     check_dir "${pkg_install_dir}/include"
-    check_install ${pkg_install_dir}/bin/mpiexec "mpich" && MPIRUN="${pkg_install_dir}/bin/mpiexec" || exit 1
+    check_install ${pkg_install_dir}/bin/mpiexec "mpich" && MPIEXEC="${pkg_install_dir}/bin/mpiexec" || exit 1
     check_install ${pkg_install_dir}/bin/mpicc "mpich" && MPICC="${pkg_install_dir}/bin/mpicc" || exit 1
     check_install ${pkg_install_dir}/bin/mpicxx "mpich" && MPICXX="${pkg_install_dir}/bin/mpicxx" || exit 1
     check_install ${pkg_install_dir}/bin/mpifort "mpich" && MPIFC="${pkg_install_dir}/bin/mpifort" || exit 1
@@ -79,7 +79,7 @@ case "${with_mpich}" in
     ;;
   __SYSTEM__)
     echo "==================== Finding MPICH from system paths ===================="
-    check_command mpiexec "mpich" && MPIRUN="$(command -v mpiexec)"
+    check_command mpiexec "mpich" && MPIEXEC="$(command -v mpiexec)"
     check_command mpicc "mpich" && MPICC="$(command -v mpicc)" || exit 1
     if [ $(command -v mpic++ > /dev/null 2>&1) ]; then
       check_command mpic++ "mpich" && MPICXX="$(command -v mpic++)" || exit 1
@@ -104,7 +104,7 @@ case "${with_mpich}" in
     check_dir "${pkg_install_dir}/bin"
     check_dir "${pkg_install_dir}/lib"
     check_dir "${pkg_install_dir}/include"
-    check_command ${pkg_install_dir}/bin/mpiexec "mpich" && MPIRUN="${pkg_install_dir}/bin/mpiexec" || exit 1
+    check_command ${pkg_install_dir}/bin/mpiexec "mpich" && MPIEXEC="${pkg_install_dir}/bin/mpiexec" || exit 1
     check_command ${pkg_install_dir}/bin/mpicc "mpich" && MPICC="${pkg_install_dir}/bin/mpicc" || exit 1
     check_command ${pkg_install_dir}/bin/mpicxx "mpich" && MPICXX="${pkg_install_dir}/bin/mpicxx" || exit 1
     check_command ${pkg_install_dir}/bin/mpifort "mpich" && MPIFC="${pkg_install_dir}/bin/mpifort" || exit 1
@@ -123,7 +123,7 @@ if [ "${with_mpich}" != "__DONTUSE__" ]; then
   MPICH_LIBS="-lmpifort -lmpicxx -lmpi"
   cat << EOF > "${BUILDDIR}/setup_mpich"
 export MPI_MODE="${MPI_MODE}"
-export MPIRUN="${MPIRUN}"
+export MPIEXEC="${MPIEXEC}"
 export MPICC="${MPICC}"
 export MPICXX="${MPICXX}"
 export MPIFC="${MPIFC}"
