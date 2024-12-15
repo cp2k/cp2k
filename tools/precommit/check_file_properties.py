@@ -134,8 +134,9 @@ def get_flags_src() -> str:
 @lru_cache(maxsize=None)
 def get_bibliography_dois() -> List[str]:
     bib = CP2K_DIR.joinpath("src/common/bibliography.F").read_text(encoding="utf8")
-    matches = re.findall(r'DOI="([^"]+)"', bib, flags=re.IGNORECASE)
-    return [doi for doi in matches if "/" in doi]  # filter invalid DOIs.
+    matches = re.findall(r'doi="([^"]+)"', bib, flags=re.IGNORECASE)
+    assert len(matches) > 260 and "10.1016/j.cpc.2004.12.014" in matches
+    return matches
 
 
 def check_file(path: pathlib.Path) -> List[str]:
