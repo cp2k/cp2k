@@ -269,8 +269,9 @@ CONTAINS
                                                             periodic
       LOGICAL                                            :: do_gpw, do_kpoints_from_Gamma, do_svd, &
                                                             memory_info
-      REAL(KIND=dp) :: compression_factor, cutoff_old, eps_pgf_orb, eps_pgf_orb_old, mem_for_abK, &
-         mem_for_iaK, mem_for_ijK, memory_3c, occ, omega_pot, rc_ang, relative_cutoff_old
+      REAL(KIND=dp) :: compression_factor, cutoff_old, eps_pgf_orb, eps_pgf_orb_old, eps_svd, &
+         mem_for_abK, mem_for_iaK, mem_for_ijK, memory_3c, occ, omega_pot, rc_ang, &
+         relative_cutoff_old
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: e_cutoff_old
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: my_Lrows, my_Vrows
       TYPE(cp_eri_mme_param), POINTER                    :: eri_param
@@ -308,6 +309,7 @@ CONTAINS
       eri_method = qs_env%mp2_env%eri_method
       eri_param => qs_env%mp2_env%eri_mme_param
       do_svd = qs_env%mp2_env%do_svd
+      eps_svd = qs_env%mp2_env%eps_svd
       potential_type = qs_env%mp2_env%potential_parameter%potential_type
       ri_metric_type = ri_metric%potential_type
       omega_pot = qs_env%mp2_env%potential_parameter%omega
@@ -364,7 +366,7 @@ CONTAINS
       CALL get_2c_integrals(qs_env, eri_method, eri_param, para_env, para_env_sub, mp2_memory, &
                             my_Lrows, my_Vrows, fm_matrix_PQ, ngroup, color_sub, dimen_RI, dimen_RI_red, &
                             kpoints, my_group_L_size, my_group_L_start, my_group_L_end, &
-                            gd_array, calc_PQ_cond_num .AND. .NOT. do_svd, do_svd, &
+                            gd_array, calc_PQ_cond_num .AND. .NOT. do_svd, do_svd, eps_svd, &
                             qs_env%mp2_env%potential_parameter, ri_metric, &
                             fm_matrix_L_kpoints, fm_matrix_Minv_L_kpoints, fm_matrix_Minv, fm_matrix_Minv_Vtrunc_Minv, &
                             do_im_time, do_kpoints_from_Gamma .OR. do_kpoints_cubic_RPA, qs_env%mp2_env%mp2_gpw%eps_pgf_orb_S, &

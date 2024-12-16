@@ -228,7 +228,7 @@ CONTAINS
                                  scf_control, scf_section, &
                                  diis_step)
          END IF
-         ! OT diagonlization
+         ! OT diagonalization
       CASE (ot_diag_method_nr)
          CALL do_ot_diag(scf_env, mos, matrix_ks, matrix_s, &
                          scf_control, scf_section, diis_step)

@@ -139,9 +139,9 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'mp2_gpw_main'
 
-      INTEGER :: blacs_grid_layout, bse_lev_virt, color_sub, dimen, dimen_RI, dimen_RI_red, &
-         eri_method, handle, ispin, local_unit_nr, my_group_L_end, my_group_L_size, &
-         my_group_L_start, nmo, nspins, potential_type, ri_metric_type
+      INTEGER :: blacs_grid_layout, bse_lev_virt, color_sub, dimen_RI, dimen_RI_red, eri_method, &
+         handle, ispin, local_unit_nr, my_group_L_end, my_group_L_size, my_group_L_start, nmo, &
+         nspins, potential_type, ri_metric_type
       INTEGER, ALLOCATABLE, DIMENSION(:) :: ends_array_mc, ends_array_mc_block, gw_corr_lev_occ, &
          gw_corr_lev_virt, homo, starts_array_mc, starts_array_mc_block
       INTEGER, DIMENSION(3)                              :: periodic
@@ -229,14 +229,14 @@ CONTAINS
       ELSE
          CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, mos=mos)
       END IF
-      CALL get_mo_set(mo_set=mos_mp2(1), nao=dimen)
-      ALLOCATE (homo(nspins), Eigenval(dimen, nspins), mo_coeff(nspins))
+      CALL get_mo_set(mo_set=mos_mp2(1), nmo=nmo)
+      ALLOCATE (homo(nspins), Eigenval(nmo, nspins), mo_coeff(nspins))
       DO ispin = 1, nspins
          CALL get_mo_set(mo_set=mos_mp2(ispin), &
-                         eigenvalues=mo_eigenvalues, nmo=nmo, homo=homo(ispin), &
+                         eigenvalues=mo_eigenvalues, homo=homo(ispin), &
                          mo_coeff=mo_coeff_ptr)
          mo_coeff(ispin) = mo_coeff_ptr
-         Eigenval(:, ispin) = mo_eigenvalues(:)
+         Eigenval(:, ispin) = mo_eigenvalues(1:nmo)
       END DO
 
       ! a para_env
@@ -373,7 +373,7 @@ CONTAINS
          ! output the two part of the C matrix (virtual, occupied)
          DO ispin = 1, nspins
 
-            CALL replicate_mat_to_subgroup(para_env, para_env_sub, mo_coeff(ispin), dimen, homo(ispin), mat_munu%matrix, &
+            CALL replicate_mat_to_subgroup(para_env, para_env_sub, mo_coeff(ispin), nmo, homo(ispin), mat_munu%matrix, &
                                            mo_coeff_o(ispin)%matrix, mo_coeff_v(ispin)%matrix, &
                                            mo_coeff_all(ispin)%matrix, mo_coeff_gw(ispin)%matrix, &
                                            my_do_gw, gw_corr_lev_occ(ispin), gw_corr_lev_virt(ispin), do_bse, &

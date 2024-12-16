@@ -397,6 +397,7 @@ MODULE mp2_types
       TYPE(cp_eri_mme_param), POINTER                    :: eri_mme_param => NULL()
       INTEGER, DIMENSION(:), POINTER                     :: eri_blksize => NULL()
       LOGICAL                                            :: do_svd = .FALSE.
+      REAL(KIND=dp)                                      :: eps_svd = -1.0_dp
       REAL(KIND=dp)                                      :: eps_range = 0.0_dp
       TYPE(libint_potential_type)                        :: ri_metric = libint_potential_type()
       TYPE(local_gemm_ctxt_type)                         :: local_gemm_ctx = local_gemm_ctxt_type()

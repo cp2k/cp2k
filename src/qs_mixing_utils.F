@@ -7,7 +7,6 @@
 
 ! **************************************************************************************************
 MODULE qs_mixing_utils
-
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_api,                    ONLY: dbcsr_create,&
                                               dbcsr_p_type,&

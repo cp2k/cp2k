@@ -32,8 +32,8 @@ H2O-mom-dens-pulse-1.inp                             1      1e-9           -16.7
 # Periodic system: try with molecule in PBC and smearing
 H2O-periodic-dens-pulse-1.inp                        1      1e-9           -17.17071488628162
 H2O-periodic-dens-pulse-2.inp                        1      1e-9           -17.16724674275025
-si8-smearing-rtp-dens.inp                            1      1e-9           -32.38438017820661
-si8-smearing-rtp-dens-pulse-1.inp                    1      1e-9           -30.86382482362951
+si8-smearing-rtp-dens.inp                            1      1e-9           -31.02203456127943
+si8-smearing-rtp-dens-pulse-1.inp                    1      1e-9           -30.97735046167112
 # Restart using densitry propagation method from GS calculation.
 # Note: A delta kick is required in the input but should not impact the calculation (delta kick + restart from wfn not implemented yet).
 H2O-dens-restart.inp                                 1      1e-9           -17.17842704651846
@@ -41,5 +41,5 @@ H2O-uks-dens-restart.inp                             1      1e-9           -17.1
 H2O-charged-dens-restart.inp                         1      1e-9           -16.81087707009416
 H2O-periodic-dens-restart.inp                        1      1e-9           -17.17819965973394
 # Note: the total energy of si8-smearing-rtp-dens-restart.inp is different from si8-smearing-rtp-dens.inp because of the electronic entropy energy. Using restart, currently, the electronic entropy term is missing. 
-si8-smearing-rtp-dens-restart.inp                    1      1e-9           -32.37909123001641
+si8-smearing-rtp-dens-restart.inp                    1      1e-9           -31.00986183346823
 #EOF
