@@ -38,11 +38,13 @@ MODULE bse_properties
                                               section_vals_type,&
                                               section_vals_val_get
    USE kinds,                           ONLY: dp
+   USE mathconstants,                   ONLY: pi
    USE mp2_types,                       ONLY: mp2_type
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE particle_methods,                ONLY: write_qs_particle_coordinates
    USE particle_types,                  ONLY: particle_type
-   USE physcon,                         ONLY: evolt
+   USE physcon,                         ONLY: c_light_au,&
+                                              evolt
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_kind_types,                   ONLY: qs_kind_type
@@ -233,12 +235,13 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_absorption_spectrum'
 
       CHARACTER(LEN=10)                                  :: eta_str, width_eta_format_str
-      CHARACTER(LEN=30)                                  :: file_name_spectrum
+      CHARACTER(LEN=40)                                  :: file_name_crosssection, &
+                                                            file_name_spectrum
       INTEGER                                            :: handle, i, idir, j, jdir, k, num_steps, &
                                                             unit_nr_file, width_eta
       REAL(KIND=dp)                                      :: eta, freq_end, freq_start, freq_step, &
                                                             omega
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: abs_spectrum
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: abs_cross_section, abs_spectrum
       REAL(KIND=dp), DIMENSION(:), POINTER               :: eta_list
       TYPE(cp_logger_type), POINTER                      :: logger
 
@@ -261,21 +264,29 @@ CONTAINS
          WRITE (eta_str, width_eta_format_str) eta*evolt
          ! Filename itself
          file_name_spectrum = 'BSE'//TRIM(ADJUSTL(info_approximation))//'eta='//TRIM(eta_str)//'.spectrum'
+         file_name_crosssection = 'BSE'//TRIM(ADJUSTL(info_approximation))//'eta='//TRIM(eta_str)//'.crosssection'
 
          ! First column is frequency in eV, second column is imaginary part of the trace of the polarizability
          ! The following 9 columns are the entries of the polarizability tensor
          ALLOCATE (abs_spectrum(num_steps, 11))
          abs_spectrum(:, :) = 0.0_dp
+         ! Also calculate and print the photoabsorption cross section tensor
+         ! σ_{µ µ'}(ω) = 4πω Im{α_{µ µ'}(ω)} / c
+         ALLOCATE (abs_cross_section(num_steps, 11))
+         abs_cross_section(:, :) = 0.0_dp
 
          ! Calculate the imaginary part of the mean dipole polarizability α_{avg}(ω)
          ! which is given by (cf. C. Ullrichs Book on TDDFT, Eq. 7.51)
-         ! α_{avg}(ω) = \sum_{n=1}^{N_exc} \frac{f_n}{(ω+iη)² - (Ω^n)²}
+         ! We introduce an additional - due to his convention for charge vs particle density, see also:
+         ! Computer Physics Communications, 208:149–161, November 2016
+         ! https://doi.org/10.1016/j.cpc.2016.06.019
+         ! α_{avg}(ω) = - \sum_{n=1}^{N_exc} \frac{f_n}{(ω+iη)² - (Ω^n)²}
          ! and then the imaginary part is (in the limit η -> 0)
-         ! Im[α_{avg}(ω)] = \sum_{n=1}^{N_exc} f_n * η / ((ω - Ω^n)² + η²)
+         ! Im[α_{avg}(ω)] = - \sum_{n=1}^{N_exc} f_n * η / ((ω - Ω^n)² + η²)
          ! where f_n are the oscillator strengths and E_exc the excitation energies
          ! For the full polarizability tensor, we have
-         ! α_{µ µ'}(ω) =  \sum_n [2 Ω^n d^n_µ d^n_µ'] / [(ω+iη)^2- (Ω^n)^2]
-         !             =  \sum_n "polarizability_residues" / [(ω+iη)^2- (Ω^n)^2]
+         ! α_{µ µ'}(ω) = - \sum_n [2 Ω^n d^n_µ d^n_µ'] / [(ω+iη)^2- (Ω^n)^2]
+         !             = - \sum_n "polarizability_residues" / [(ω+iη)^2- (Ω^n)^2]
          DO i = 1, num_steps
             omega = freq_start + (i - 1)*freq_step
             abs_spectrum(i, 1) = omega
@@ -294,6 +305,25 @@ CONTAINS
             END DO
          END DO
 
+         ! Extract cross section σ from polarizability tensor
+         DO i = 1, num_steps
+            omega = abs_spectrum(i, 1)
+            abs_cross_section(i, 1) = omega
+            abs_cross_section(i, 2:) = 4.0_dp*pi*abs_spectrum(i, 2:)*omega/c_light_au
+         END DO
+
+         !For debug runs: Export an entry of the two tensors to allow regtests on spectra
+         IF (mp2_env%bse%bse_debug_print) THEN
+            IF (unit_nr > 0) THEN
+               WRITE (unit_nr, '(T2,A10,T13,A,T65,F16.4)') 'BSE|DEBUG|', &
+                  'Averaged dynamical dipole polarizability at 8.2 eV:', &
+                  abs_spectrum(83, 2)
+               WRITE (unit_nr, '(T2,A10,T13,A,T65,F16.4)') 'BSE|DEBUG|', &
+                  'Averaged photoabsorption cross section at 8.2 eV:', &
+                  abs_cross_section(83, 2)
+            END IF
+         END IF
+
          ! Print it to file
          logger => cp_get_default_logger()
          IF (logger%para_env%is_source()) THEN
@@ -303,9 +333,25 @@ CONTAINS
          END IF
 
          IF (unit_nr_file > 0) THEN
+            CALL open_file(file_name_crosssection, unit_number=unit_nr_file, &
+                           file_status="UNKNOWN", file_action="WRITE")
+            WRITE (unit_nr_file, '(A,A6)') "# Photoabsorption cross section  σ_{µ µ'}(ω) =  -4πω/c * Im[ \sum_n "// &
+               "[2 Ω^n d_µ^n d_µ'^n] / [(ω+iη)²- (Ω^n)²] ] from Bethe Salpeter equation for method ", &
+               TRIM(ADJUSTL(info_approximation))
+            WRITE (unit_nr_file, '(A20,1X,10(2X,A20,1X))') "#     Frequency (eV)", "σ_{avg}(ω)", "σ_xx(ω)", &
+               "σ_xy(ω)", "σ_xz(ω)", "σ_yx(ω)", "σ_yy(ω)", "σ_yz(ω)", "σ_zx(ω)", &
+               "σ_zy(ω)", "σ_zz(ω)"
+            DO i = 1, num_steps
+               WRITE (unit_nr_file, '(11(F20.8,1X))') abs_cross_section(i, 1)*evolt, abs_cross_section(i, 2:11)
+            END DO
+            CALL close_file(unit_nr_file)
+         END IF
+         DEALLOCATE (abs_cross_section)
+
+         IF (unit_nr_file > 0) THEN
             CALL open_file(file_name_spectrum, unit_number=unit_nr_file, &
                            file_status="UNKNOWN", file_action="WRITE")
-            WRITE (unit_nr_file, '(A,A6)') "# Imaginary part of polarizability α_{µ µ'}(ω) =  \sum_n "// &
+            WRITE (unit_nr_file, '(A,A6)') "# Imaginary part of polarizability α_{µ µ'}(ω) = -\sum_n "// &
                "[2 Ω^n d_µ^n d_µ'^n] / [(ω+iη)²- (Ω^n)²] from Bethe Salpeter equation for method ", &
                TRIM(ADJUSTL(info_approximation))
             WRITE (unit_nr_file, '(A20,1X,10(2X,A20,1X))') "#     Frequency (eV)", "Im{α_{avg}(ω)}", "Im{α_xx(ω)}", &
@@ -323,21 +369,35 @@ CONTAINS
          WRITE (unit_nr, '(T2,A4)') 'BSE|'
          WRITE (unit_nr, '(T2,A4,T7,A50,A)') &
             'BSE|', "Printed optical absorption spectrum to local file ", file_name_spectrum
-         WRITE (unit_nr, '(T2,A4,T7,A50)') &
-            'BSE|', "using the Eq. 7.51 from C. Ullrichs Book on TDDFT:"
+         WRITE (unit_nr, '(T2,A4,T7,A44,A)') &
+            'BSE|', "as well as photoabsorption cross section to ", file_name_crosssection
+         WRITE (unit_nr, '(T2,A4,T7,A52)') &
+            'BSE|', "using the Eq. (7.51) from C. Ullrichs Book on TDDFT:"
          WRITE (unit_nr, '(T2,A4)') 'BSE|'
          WRITE (unit_nr, '(T2,A4,T10,A73)') &
-            'BSE|', "Im{α_{avg}(ω)} = Im{\sum_{n=1}^{N_exc} \frac{f_n}{(ω+iη)² - (Ω^n)²}}"
+            'BSE|', "Im{α_{avg}(ω)} = -Im{\sum_{n=1}^{N_exc} \frac{f_n}{(ω+iη)² - (Ω^n)²}}"
          WRITE (unit_nr, '(T2,A4)') 'BSE|'
          WRITE (unit_nr, '(T2,A4,T7,A)') &
             'BSE|', "or for the full polarizability tensor:"
          WRITE (unit_nr, '(T2,A4,T10,A)') &
-            'BSE|', "α_{µ µ'}(ω) =  \sum_n [2 Ω^n d_µ^n d_µ'^n] / [(ω+iη)²- (Ω^n)²]"
+            'BSE|', "α_{µ µ'}(ω) =  -\sum_n [2 Ω^n d_µ^n d_µ'^n] / [(ω+iη)²- (Ω^n)²]"
+         WRITE (unit_nr, '(T2,A4)') 'BSE|'
+         WRITE (unit_nr, '(T2,A4,T7,A)') &
+            'BSE|', "as well as Eq. (7.48):"
+         WRITE (unit_nr, '(T2,A4,T10,A)') &
+            'BSE|', "σ_{µ µ'}(ω) = 4πω Im{α_{µ µ'}(ω)} / c"
          WRITE (unit_nr, '(T2,A4)') 'BSE|'
          WRITE (unit_nr, '(T2,A4,T7,A)') &
             'BSE|', "with transition moments d_µ^n, oscillator strengths f_n,"
          WRITE (unit_nr, '(T2,A4,T7,A)') &
-            'BSE|', "and excitation energies Ω^n."
+            'BSE|', "excitation energies Ω^n and the speed of light c."
+         WRITE (unit_nr, '(T2,A4)') 'BSE|'
+         WRITE (unit_nr, '(T2,A4,T7,A)') &
+            'BSE|', "Please note that we adopt an additional minus sign for both quantities,"
+         WRITE (unit_nr, '(T2,A4,T7,A)') &
+            'BSE|', "due to the convention for charge vs particle density as done in MolGW:"
+         WRITE (unit_nr, '(T2,A4,T7,A)') &
+            'BSE|', "https://doi.org/10.1016/j.cpc.2016.06.019."
          WRITE (unit_nr, '(T2,A4)') 'BSE|'
       END IF
 

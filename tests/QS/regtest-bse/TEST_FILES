@@ -17,6 +17,8 @@ BSE_H2O_PBE_G0W0_EXC_DESCR.inp                           124      5e-04         
 BSE_H2O_PBE_evGW0_RPA_screening.inp                      110      2e-05            17.5569
 BSE_H2O_PBE_evGW0_TDHF_screening.inp                     110      2e-05            6.4895
 BSE_H2O_PBE_evGW0_custom_screening.inp                   110      2e-05            14.9538
+BSE_H2O_PBE_evGW0_spectra.inp                            125      2e-02            25.3518
+BSE_H2O_PBE_evGW0_spectra.inp                            126      2e-03            0.7006
 #EOF
 #Low convergence criteria for evGW make a higher threshold necessary for these tests
 #Logic: Absolute errors (for G0W0/evGW0) should be within 1e-4, i.e. relative errors are
@@ -25,4 +27,5 @@ BSE_H2O_PBE_evGW0_custom_screening.inp                   110      2e-05         
 #       are in the range of 7e-2
 # First 6 check excitation energies, then 6 checking oscillator strengths, two check NTOs,
 # two checks for exciton descriptors in TDA and ABBA and custom screening for 
-# RPA, TDHF and ALPHA=0.25 is checked in the last three tests
+# RPA, TDHF and ALPHA=0.25 is checked 
+# The two checks of spectra need coarse thresholds
