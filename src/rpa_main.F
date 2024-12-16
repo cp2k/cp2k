@@ -1749,8 +1749,7 @@ CONTAINS
          IF (mp2_env%ri_g0w0%iter_evGW > 1) THEN
             IF (unit_nr > 0) THEN
                CALL cp_warn(__LOCATION__, &
-                            "BSE@evGW applies W0, i.e. screening with DFT energies! "// &
-                            "Use BSE@evGW0 to avoid this warning!")
+                            "BSE@evGW applies W0, i.e. screening with DFT energies to the BSE!")
             END IF
          END IF
          ! Create a copy of fm_mat_S for usage in BSE

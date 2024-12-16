@@ -62,6 +62,7 @@ MODULE bse_util
    USE physcon,                         ONLY: evolt
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_type
+   USE pw_poisson_types,                ONLY: pw_poisson_type
    USE pw_pool_types,                   ONLY: pw_pool_p_type,&
                                               pw_pool_type
    USE pw_types,                        ONLY: pw_c1d_gs_type,&
@@ -1506,23 +1507,35 @@ CONTAINS
    END SUBROUTINE print_bse_nto_cubes
 
 ! **************************************************************************************************
-!> \brief Borrowed from the tddfpt module with slight adaptions
+!> \brief Checks BSE input section and adapts them if necessary
 !> \param homo ...
 !> \param virtual ...
 !> \param unit_nr ...
 !> \param mp2_env ...
+!> \param qs_env ...
 ! **************************************************************************************************
-   SUBROUTINE adapt_BSE_input_params(homo, virtual, unit_nr, mp2_env)
+   SUBROUTINE adapt_BSE_input_params(homo, virtual, unit_nr, mp2_env, qs_env)
 
       INTEGER, INTENT(IN)                                :: homo, virtual, unit_nr
       TYPE(mp2_type)                                     :: mp2_env
+      TYPE(qs_environment_type), POINTER                 :: qs_env
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'adapt_BSE_input_params'
 
-      INTEGER                                            :: handle, i, j, n, &
+      INTEGER                                            :: handle, i, j, n, ndim_periodic_cell, &
+                                                            ndim_periodic_poisson, &
                                                             num_state_list_exceptions
+      TYPE(cell_type), POINTER                           :: cell_ref
+      TYPE(pw_env_type), POINTER                         :: pw_env
+      TYPE(pw_poisson_type), POINTER                     :: poisson_env
 
       CALL timeset(routineN, handle)
+      ! Get environment infos for later usage
+      NULLIFY (pw_env, cell_ref, poisson_env)
+      CALL get_qs_env(qs_env, pw_env=pw_env, cell_ref=cell_ref)
+      CALL pw_env_get(pw_env, poisson_env=poisson_env)
+      ndim_periodic_poisson = COUNT(poisson_env%parameters%periodic == 1)
+      ndim_periodic_cell = SUM(cell_ref%perd(1:3)) ! Borrowed from cell_methods.F/write_cell_low
 
       ! Handle negative NUM_PRINT_EXC
       IF (mp2_env%bse%num_print_exc < 0 .OR. &
@@ -1647,6 +1660,33 @@ CONTAINS
       IF (mp2_env%BSE%screening_factor == 1.0_dp) THEN
          ! Use TDHF internally in this case
          mp2_env%BSE%screening_method = bse_screening_tdhf
+      END IF
+
+      ! Add warning for usage of KS energies
+      IF (mp2_env%bse%use_ks_energies) THEN
+         IF (unit_nr > 0) THEN
+            CALL cp_warn(__LOCATION__, &
+                         "Using KS energies for BSE calculations. Therefore, no quantities "// &
+                         "of the preceeding GW calculation enter the BSE.")
+         END IF
+      END IF
+
+      ! Add warning if periodic calculation is invoked
+      IF (ndim_periodic_poisson /= 0) THEN
+         IF (unit_nr > 0) THEN
+            CALL cp_warn(__LOCATION__, &
+                         "Poisson solver should be invoked by PERIODIC NONE. "// &
+                         "The applied length gauge might give misleading results for "// &
+                         "oscillator strengths.")
+         END IF
+      END IF
+      IF (ndim_periodic_cell /= 0) THEN
+         IF (unit_nr > 0) THEN
+            CALL cp_warn(__LOCATION__, &
+                         "CELL in SUBSYS should be invoked with PERIODIC NONE. "// &
+                         "The applied length gauge might give misleading results for "// &
+                         "oscillator strengths.")
+         END IF
       END IF
 
       CALL timestop(handle)
