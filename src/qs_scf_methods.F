@@ -17,7 +17,6 @@
 !>        new subroutine shift_unocc_mos (03.2016, Sergey Chulkov)
 ! **************************************************************************************************
 MODULE qs_scf_methods
-
    USE cp_dbcsr_api,                    ONLY: &
         dbcsr_add, dbcsr_desymmetrize, dbcsr_get_block_p, dbcsr_iterator_blocks_left, &
         dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, &
@@ -41,10 +40,12 @@ MODULE qs_scf_methods
                                               cp_fm_release,&
                                               cp_fm_to_fm,&
                                               cp_fm_type
+   USE ieee_arithmetic
    USE input_constants,                 ONLY: cholesky_inverse,&
                                               cholesky_off,&
                                               cholesky_reduce,&
                                               cholesky_restore
+   USE iso_fortran_env
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_para_env_type
    USE parallel_gemm_api,               ONLY: parallel_gemm
@@ -322,9 +323,13 @@ CONTAINS
 !> \param matrix_u_fm    matrix U : S (overlap matrix) = U^T * U
 !> \param use_jacobi ...
 !> \param jacobi_threshold ...
+!> \param ortho_red ...
+!> \param work_red ...
+!> \param matrix_ks_fm_red ...
 ! **************************************************************************************************
    SUBROUTINE eigensolver_symm(matrix_ks_fm, mo_set, ortho, work, do_level_shift, &
-                               level_shift, matrix_u_fm, use_jacobi, jacobi_threshold)
+                               level_shift, matrix_u_fm, use_jacobi, jacobi_threshold, &
+                               ortho_red, work_red, matrix_ks_fm_red)
       TYPE(cp_fm_type), INTENT(IN)                       :: matrix_ks_fm
       TYPE(mo_set_type), INTENT(IN)                      :: mo_set
       TYPE(cp_fm_type), INTENT(IN)                       :: ortho, work
@@ -333,11 +338,14 @@ CONTAINS
       TYPE(cp_fm_type), INTENT(IN), OPTIONAL             :: matrix_u_fm
       LOGICAL, INTENT(IN)                                :: use_jacobi
       REAL(KIND=dp), INTENT(IN)                          :: jacobi_threshold
+      TYPE(cp_fm_type), INTENT(INOUT), OPTIONAL          :: ortho_red, work_red, matrix_ks_fm_red
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'eigensolver_symm'
 
-      INTEGER                                            :: handle, homo, nao, nelectron, nmo
+      INTEGER                                            :: handle, homo, nao, nao_red, nelectron, &
+                                                            nmo
       REAL(KIND=dp), DIMENSION(:), POINTER               :: mo_eigenvalues
+      TYPE(cp_fm_type)                                   :: work_red2
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
 
       CALL timeset(routineN, handle)
@@ -366,18 +374,39 @@ CONTAINS
                                  jacobi_threshold, homo + 1)
 
       ELSE ! full S^(-1/2) has been computed
-
+         IF (PRESENT(work_red) .AND. PRESENT(ortho_red) .AND. PRESENT(matrix_ks_fm_red)) THEN
+            CALL cp_fm_get_info(ortho_red, ncol_global=nao_red)
+            CALL cp_fm_symm("L", "U", nao, nao_red, 1.0_dp, matrix_ks_fm, ortho_red, 0.0_dp, work_red)
+            CALL parallel_gemm("T", "N", nao_red, nao_red, nao, 1.0_dp, ortho_red, work_red, 0.0_dp, matrix_ks_fm_red)
+            BLOCK
+               REAL(KIND=dp) :: debug
+               debug = SUM(matrix_ks_fm_red%local_data**2)
+               CALL matrix_ks_fm_red%matrix_struct%para_env%sum(debug)
+            END BLOCK
+         END IF
          CALL cp_fm_symm("L", "U", nao, nao, 1.0_dp, matrix_ks_fm, ortho, 0.0_dp, work)
          CALL parallel_gemm("T", "N", nao, nao, nao, 1.0_dp, ortho, work, 0.0_dp, matrix_ks_fm)
+         BLOCK
+            REAL(KIND=dp) :: debug
+            debug = SUM(matrix_ks_fm%local_data**2)
+            CALL matrix_ks_fm%matrix_struct%para_env%sum(debug)
+         END BLOCK
 
          IF (do_level_shift) &
             CALL shift_unocc_mos(matrix_ks_fm=matrix_ks_fm, mo_coeff=mo_coeff, homo=homo, nmo=nmo, nao=nao, &
                                  level_shift=level_shift, is_triangular=.FALSE., matrix_u_fm=matrix_u_fm)
 
-         CALL choose_eigv_solver(matrix_ks_fm, work, mo_eigenvalues)
-
-         CALL parallel_gemm("N", "N", nao, nmo, nao, 1.0_dp, ortho, work, 0.0_dp, &
-                            mo_coeff)
+         IF (PRESENT(work_red) .AND. PRESENT(ortho_red) .AND. PRESENT(matrix_ks_fm_red)) THEN
+            CALL cp_fm_create(work_red2, matrix_ks_fm_red%matrix_struct)
+            CALL choose_eigv_solver(matrix_ks_fm_red, work_red2, mo_eigenvalues)
+            CALL parallel_gemm("N", "N", nao, nmo, nmo, 1.0_dp, ortho_red, work_red2, 0.0_dp, &
+                               mo_coeff)
+            CALL cp_fm_release(work_red2)
+         ELSE
+            CALL choose_eigv_solver(matrix_ks_fm, work, mo_eigenvalues)
+            CALL parallel_gemm("N", "N", nao, nmo, nao, 1.0_dp, ortho, work, 0.0_dp, &
+                               mo_coeff)
+         END IF
 
          IF (do_level_shift) &
             CALL correct_mo_eigenvalues(mo_eigenvalues, homo, nmo, level_shift)
@@ -498,10 +527,13 @@ CONTAINS
          CALL dbcsr_get_block_p(matrix=m2, row=iblock_row, col=iblock_col, &
                                 BLOCK=p_old_block, found=found)
          CPASSERT(ASSOCIATED(p_old_block))
+         CPASSERT(ALL(ieee_is_finite(p_old_block)))
+         CPASSERT(ALL(ieee_is_finite(p_new_block)))
          IF (PRESENT(m3)) THEN
             CALL dbcsr_get_block_p(matrix=m3, row=iblock_row, col=iblock_col, &
                                    BLOCK=p_delta_block, found=found)
             CPASSERT(ASSOCIATED(p_delta_block))
+            CPASSERT(ALL(ieee_is_finite(p_delta_block)))
 
             DO j = 1, SIZE(p_new_block, 2)
                DO i = 1, SIZE(p_new_block, 1)

@@ -546,7 +546,8 @@ CONTAINS
          SELECT CASE (smear%method)
          CASE (smear_fermi_dirac)
             IF (.NOT. PRESENT(eval_deriv)) THEN
-               CALL FermiFixed(mo_set%occupation_numbers, mo_set%mu, mo_set%kTS, mo_set%eigenvalues, Nelec, &
+               CALL FermiFixed(mo_set%occupation_numbers(1:mo_set%nmo), mo_set%mu, mo_set%kTS, &
+                               mo_set%eigenvalues(1:mo_set%nmo), Nelec, &
                                smear%electronic_temperature, mo_set%maxocc, xas_estate, occ_estate)
             ELSE
                ! could be a relatively large matrix, but one could get rid of it by never storing it
@@ -555,7 +556,8 @@ CONTAINS
                ! lengthscale could become a parameter, but this is pretty good
                lengthscale = 10*smear%electronic_temperature
 
-               CALL FermiFixedDeriv(dfde, mo_set%occupation_numbers, mo_set%mu, mo_set%kTS, mo_set%eigenvalues, Nelec, &
+               CALL FermiFixedDeriv(dfde, mo_set%occupation_numbers(1:mo_set%nmo), mo_set%mu, &
+                                    mo_set%kTS, mo_set%eigenvalues(1:mo_set%nmo), Nelec, &
                                     smear%electronic_temperature, mo_set%maxocc, lengthscale, xas_estate, occ_estate)
 
                ! deriv of E_{KS}-kT*S wrt to f_i

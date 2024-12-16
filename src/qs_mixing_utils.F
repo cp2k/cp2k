@@ -7,7 +7,6 @@
 
 ! **************************************************************************************************
 MODULE qs_mixing_utils
-
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_api,                    ONLY: dbcsr_create,&
                                               dbcsr_p_type,&
@@ -17,6 +16,7 @@ MODULE qs_mixing_utils
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
    USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set
    USE distribution_1d_types,           ONLY: distribution_1d_type
+   USE ieee_arithmetic
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_para_env_type
    USE pw_types,                        ONLY: pw_c1d_gs_type
@@ -85,6 +85,7 @@ CONTAINS
                            p_mix=1.0_dp, delta=tmp, para_env=para_env, &
                            m3=matrix_q(ispin, ic)%matrix)
             delta = MAX(tmp, delta)
+            CPASSERT(ieee_is_finite(delta))
          END DO
       END DO
       CALL timestop(handle)

@@ -15,6 +15,7 @@ MODULE qs_scf_loop_utils
                                               dbcsr_type
    USE cp_external_control,             ONLY: external_control
    USE cp_log_handling,                 ONLY: cp_to_string
+   USE ieee_arithmetic
    USE input_section_types,             ONLY: section_vals_type
    USE kinds,                           ONLY: default_string_length,&
                                               dp
@@ -228,7 +229,7 @@ CONTAINS
                                  scf_control, scf_section, &
                                  diis_step)
          END IF
-         ! OT diagonlization
+         ! OT diagonalization
       CASE (ot_diag_method_nr)
          CALL do_ot_diag(scf_env, mos, matrix_ks, matrix_s, &
                          scf_control, scf_section, diis_step)
@@ -477,11 +478,13 @@ CONTAINS
          CALL scf_env_density_mixing(scf_env%p_mix_new, &
                                      scf_env%mixing_store, rho_ao_kp, para_env, scf_env%iter_delta, scf_env%iter_count, &
                                      diis=diis_step)
+         CPASSERT(ieee_is_finite(scf_env%iter_delta))
       CASE (gspace_mixing_nr, pulay_mixing_nr, broyden_mixing_nr, &
             multisecant_mixing_nr)
          ! Compute the difference p_out-p_in
          CALL self_consistency_check(rho_ao_kp, scf_env%p_delta, para_env, scf_env%p_mix_new, &
                                      delta=scf_env%iter_delta)
+         CPASSERT(ieee_is_finite(scf_env%iter_delta))
       CASE (no_mixing_nr)
       CASE DEFAULT
          CALL cp_abort(__LOCATION__, &
@@ -600,6 +603,7 @@ CONTAINS
                                         rho_ao_kp, para_env, scf_env%iter_delta, &
                                         scf_env%iter_count, diis=diis_step, &
                                         invert=.TRUE.)
+            CPASSERT(ieee_is_finite(scf_env%iter_delta))
             DO ic = 1, nc
                DO ispin = 1, dft_control%nspins
                   CALL dbcsr_get_info(rho_ao_kp(ispin, ic)%matrix, name=name) ! keep the name

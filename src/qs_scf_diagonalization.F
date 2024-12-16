@@ -55,6 +55,7 @@ MODULE qs_scf_diagonalization
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                               cp_print_key_unit_nr
+   USE ieee_arithmetic
    USE input_constants,                 ONLY: &
         cholesky_dbcsr, cholesky_inverse, cholesky_off, cholesky_reduce, cholesky_restore, &
         core_guess, general_roks, high_spin_roks, restart_guess
@@ -178,6 +179,7 @@ CONTAINS
                              eps_diis, scf_control%nmixing, &
                              s_matrix=matrix_s, &
                              scf_section=scf_section)
+         CPASSERT(ieee_is_finite(scf_env%iter_delta))
       ELSE
          diis_step = .FALSE.
       END IF
@@ -289,6 +291,20 @@ CONTAINS
          END DO
          ELSE
          DO ispin = 1, nspin
+         IF (ASSOCIATED(scf_env%scf_work1_red) .AND. ASSOCIATED(scf_env%scf_work2_red) &
+             .AND. ASSOCIATED(scf_env%ortho_red)) THEN
+            CALL eigensolver_symm(matrix_ks_fm=scf_env%scf_work1(ispin), &
+                                  mo_set=mos(ispin), &
+                                  ortho=ortho, &
+                                  work=scf_env%scf_work2, &
+                                  do_level_shift=do_level_shift, &
+                                  level_shift=scf_control%level_shift, &
+                                  use_jacobi=use_jacobi, &
+                                  jacobi_threshold=scf_control%diagonalization%jacobi_threshold, &
+                                  matrix_ks_fm_red=scf_env%scf_work1_red(ispin), &
+                                  ortho_red=scf_env%ortho_red, &
+                                  work_red=scf_env%scf_work2_red)
+         ELSE
             CALL eigensolver_symm(matrix_ks_fm=scf_env%scf_work1(ispin), &
                                   mo_set=mos(ispin), &
                                   ortho=ortho, &
@@ -297,6 +313,7 @@ CONTAINS
                                   level_shift=scf_control%level_shift, &
                                   use_jacobi=use_jacobi, &
                                   jacobi_threshold=scf_control%diagonalization%jacobi_threshold)
+         END IF
          END DO
          END IF
 
@@ -569,6 +586,7 @@ CONTAINS
          CALL qs_diis_b_step_kp(kpoints%scf_diis_buffer, coeffs, ib, nb, scf_env%iter_delta, diis_error, &
                                 diis_step, scf_control%eps_diis, nspin, nkp, kplocal, scf_control%nmixing, &
                                 scf_section, para_env_global)
+         CPASSERT(ieee_is_finite(scf_env%iter_delta))
 
          !build the ks matrices and idagonalize
          DO ikp = 1, kplocal
@@ -1024,6 +1042,7 @@ CONTAINS
                              scf_env%scf_work2, scf_env%iter_delta, diis_error, diis_step, &
                              scf_control%eps_diis, scf_control%nmixing, &
                              scf_section=scf_section)
+         CPASSERT(ieee_is_finite(scf_env%iter_delta))
       ELSE
          diis_step = .FALSE.
       END IF
@@ -1126,6 +1145,7 @@ CONTAINS
                              scf_control%eps_diis, scf_control%nmixing, &
                              s_matrix=matrix_s, &
                              scf_section=scf_section)
+         CPASSERT(ieee_is_finite(scf_env%iter_delta))
       ELSE
          diis_step = .FALSE.
       END IF
@@ -1168,7 +1188,6 @@ CONTAINS
          CALL calculate_subspace_eigenvalues(mo_coeff, matrix_ks(ispin)%matrix, &
                                              evals_arg=eigenvalues, &
                                              do_rotation=.TRUE.)
-         !MK WRITE(*,*) routinen//' copy_dbcsr_to_fm'
          CALL copy_fm_to_dbcsr(mos(ispin)%mo_coeff, &
                                mos(ispin)%mo_coeff_b)
          !fm->dbcsr
@@ -1340,6 +1359,7 @@ CONTAINS
                                 eps_diis=scf_control%eps_diis, &
                                 scf_section=scf_section, &
                                 roks=.TRUE.)
+            CPASSERT(scf_env%iter_delta == scf_env%iter_delta)
          ELSE
             CALL qs_diis_b_step(diis_buffer=scf_env%scf_diis_buffer, &
                                 mo_array=mos, &
@@ -1352,6 +1372,7 @@ CONTAINS
                                 scf_section=scf_section, &
                                 s_matrix=matrix_s, &
                                 roks=.TRUE.)
+            CPASSERT(ieee_is_finite(scf_env%iter_delta))
          END IF
       END IF
 

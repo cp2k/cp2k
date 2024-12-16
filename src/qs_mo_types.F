@@ -238,7 +238,7 @@ CONTAINS
 !> \param fm_struct ...
 !> \param name ...
 !> \par History
-!>      11.2002 rewamped [fawzi]
+!>      11.2002 revamped [fawzi]
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
    SUBROUTINE init_mo_set(mo_set, fm_pool, fm_ref, fm_struct, name)

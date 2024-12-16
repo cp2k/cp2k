@@ -103,9 +103,10 @@ MODULE qs_scf_types
       COMPLEX(KIND=dp), DIMENSION(:, :, :), POINTER :: cc_buffer => NULL()
       LOGICAL :: print_iter_line = .FALSE., skip_mixing = .FALSE., skip_diis = .FALSE., needs_ortho = .FALSE.
       TYPE(mixing_storage_type), POINTER :: mixing_store => NULL()
-      TYPE(cp_fm_type), DIMENSION(:), POINTER :: scf_work1 => NULL()
+      TYPE(cp_fm_type), DIMENSION(:), POINTER :: scf_work1 => NULL(), scf_work1_red => NULL()
       TYPE(cp_fm_type), POINTER  :: scf_work2 => NULL(), ortho => NULL(), ortho_m1 => NULL(), &
-                                    s_half => NULL(), s_minus_one => NULL()
+                                    s_half => NULL(), s_minus_one => NULL(), &
+                                    scf_work2_red => NULL(), ortho_red => NULL()
       TYPE(krylov_space_type), POINTER :: krylov_space => NULL()
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER :: p_delta => NULL(), p_mix_new => NULL()
       TYPE(dbcsr_type), POINTER :: ortho_dbcsr => NULL(), buf1_dbcsr => NULL(), buf2_dbcsr => NULL()
@@ -163,7 +164,10 @@ CONTAINS
       scf_env%outer_scf%deallocate_jacobian = .TRUE.
       NULLIFY (scf_env%scf_work1)
       NULLIFY (scf_env%scf_work2)
+      NULLIFY (scf_env%scf_work1_red)
+      NULLIFY (scf_env%scf_work2_red)
       NULLIFY (scf_env%ortho)
+      NULLIFY (scf_env%ortho_red)
       NULLIFY (scf_env%ortho_dbcsr)
       NULLIFY (scf_env%ortho_m1)
       NULLIFY (scf_env%p_mix_new)
@@ -236,13 +240,24 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       CALL cp_fm_release(scf_env%scf_work1)
+      IF (ASSOCIATED(scf_env%scf_work1_red)) THEN
+         CALL cp_fm_release(scf_env%scf_work1_red)
+      END IF
       IF (ASSOCIATED(scf_env%scf_work2)) THEN
          CALL cp_fm_release(scf_env%scf_work2)
          DEALLOCATE (scf_env%scf_work2)
       END IF
+      IF (ASSOCIATED(scf_env%scf_work2_red)) THEN
+         CALL cp_fm_release(scf_env%scf_work2_red)
+         DEALLOCATE (scf_env%scf_work2_red)
+      END IF
       IF (ASSOCIATED(scf_env%ortho)) THEN
          CALL cp_fm_release(scf_env%ortho)
          DEALLOCATE (scf_env%ortho)
+      END IF
+      IF (ASSOCIATED(scf_env%ortho_red)) THEN
+         CALL cp_fm_release(scf_env%ortho_red)
+         DEALLOCATE (scf_env%ortho_red)
       END IF
       IF (ASSOCIATED(scf_env%ortho_m1)) THEN
          CALL cp_fm_release(scf_env%ortho_m1)
