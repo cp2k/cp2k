@@ -112,12 +112,6 @@ The target architecture can be selected with `-DCP2K_WITH_GPU`.
 CUDA can either be build using the NVIDIA HPC package (`-DCP2K_USE_NVHPC=ON`) or the CUDA toolkit
 package(`-DCP2K_USE_NVHPC=OFF`).
 
-### cuSOLVERMp
-
-cuSOLVERMp is activated with `-DCP2K_USE_CUSOLVER_MP=ON` has two dependicies:
-
-- `CAL`: requires libcal.\* in the Path
-- `UCC`: requires libucc.\* libucs.\* in the Path
 
 ## Example
 
