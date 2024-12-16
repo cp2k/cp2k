@@ -87,14 +87,14 @@ MODULE cp_fm_diag
 
    ! The following saved variables are diagonalization global
    ! Stores the default library for diagonalization
-   INTEGER, SAVE       :: diag_type = 0
+   INTEGER, SAVE, PUBLIC   :: diag_type = 0
    ! Minimum number of eigenvectors for the use of the ELPA eigensolver.
    ! The ScaLAPACK eigensolver is used as fallback for all smaller cases.
    INTEGER, SAVE       :: elpa_neigvec_min = 0
 #if defined(__DLAF)
    ! Minimum number of eigenvectors for the use of the DLAF eigensolver.
    ! The ScaLAPACK eigensolver is used as fallback for all smaller cases.
-   INTEGER, SAVE       :: dlaf_neigvec_min = 0
+   INTEGER, SAVE, PUBLIC    :: dlaf_neigvec_min = 0
 #endif
    ! Threshold value for the orthonormality check of the eigenvectors obtained
    ! after a diagonalization. A negative value disables the check.

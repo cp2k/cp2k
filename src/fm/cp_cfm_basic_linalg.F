@@ -36,8 +36,7 @@ MODULE cp_cfm_basic_linalg
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_cfm_basic_linalg'
 
-   PUBLIC :: cp_cfm_cholesky_decompose, &
-             cp_cfm_column_scale, &
+   PUBLIC :: cp_cfm_column_scale, &
              cp_cfm_gemm, &
              cp_cfm_lu_decompose, &
              cp_cfm_lu_invert, &
@@ -53,8 +52,8 @@ MODULE cp_cfm_basic_linalg
              cp_cfm_triangular_multiply, &
              cp_cfm_rot_rows, &
              cp_cfm_rot_cols, &
-             cp_cfm_cholesky_invert, &
-             cp_cfm_det ! determinant of a complex matrix with correct sign
+             cp_cfm_det, & ! determinant of a complex matrix with correct sign
+             cp_cfm_upper_to_full
 
    REAL(kind=dp), EXTERNAL :: zlange, pzlange
 
@@ -907,118 +906,6 @@ CONTAINS
    END SUBROUTINE cp_cfm_lu_invert
 
 ! **************************************************************************************************
-!> \brief Used to replace a symmetric positive definite matrix M with its Cholesky
-!>      decomposition U: M = U^T * U, with U upper triangular.
-!> \param matrix   the matrix to replace with its Cholesky decomposition
-!> \param n        the number of row (and columns) of the matrix &
-!>                 (defaults to the min(size(matrix)))
-!> \param info_out if present, outputs info from (p)zpotrf
-!> \par History
-!>      05.2002 created [JVdV]
-!>      12.2002 updated, added n optional parm [fawzi]
-!>      09.2021 removed CPASSERT(info == 0) since there is already check of info [Jan Wilhelm]
-!> \author Joost
-! **************************************************************************************************
-   SUBROUTINE cp_cfm_cholesky_decompose(matrix, n, info_out)
-      TYPE(cp_cfm_type), INTENT(IN)                   :: matrix
-      INTEGER, INTENT(in), OPTIONAL                      :: n
-      INTEGER, INTENT(out), OPTIONAL                     :: info_out
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_cholesky_decompose'
-
-      COMPLEX(kind=dp), DIMENSION(:, :), POINTER         :: a
-      INTEGER                                            :: handle, info, my_n
-#if defined(__parallel)
-      INTEGER, DIMENSION(9)                              :: desca
-#else
-      INTEGER                                            :: lda
-#endif
-
-      CALL timeset(routineN, handle)
-
-      my_n = MIN(matrix%matrix_struct%nrow_global, &
-                 matrix%matrix_struct%ncol_global)
-      IF (PRESENT(n)) THEN
-         CPASSERT(n <= my_n)
-         my_n = n
-      END IF
-
-      a => matrix%local_data
-
-#if defined(__parallel)
-      desca(:) = matrix%matrix_struct%descriptor(:)
-      CALL pzpotrf('U', my_n, a(1, 1), 1, 1, desca, info)
-#else
-      lda = SIZE(a, 1)
-      CALL zpotrf('U', my_n, a(1, 1), lda, info)
-#endif
-
-      IF (PRESENT(info_out)) THEN
-         info_out = info
-      ELSE
-         IF (info /= 0) &
-            CALL cp_abort(__LOCATION__, &
-                          "Cholesky decompose failed: matrix is not positive definite  or ill-conditioned")
-      END IF
-
-      CALL timestop(handle)
-
-   END SUBROUTINE cp_cfm_cholesky_decompose
-
-! **************************************************************************************************
-!> \brief Used to replace Cholesky decomposition by the inverse.
-!> \param matrix : the matrix to invert (must be an upper triangular matrix),
-!>                 and is the output of Cholesky decomposition
-!> \param n : size of the matrix to invert (defaults to the min(size(matrix)))
-!> \param info_out : if present, outputs info of (p)zpotri
-!> \par History
-!>      05.2002 created Lianheng Tong, based on cp_fm_cholesky_invert
-!> \author Lianheng Tong
-! **************************************************************************************************
-   SUBROUTINE cp_cfm_cholesky_invert(matrix, n, info_out)
-      TYPE(cp_cfm_type), INTENT(IN)           :: matrix
-      INTEGER, INTENT(in), OPTIONAL              :: n
-      INTEGER, INTENT(out), OPTIONAL             :: info_out
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_cholesky_invert'
-      COMPLEX(kind=dp), DIMENSION(:, :), POINTER  :: aa
-      INTEGER                                    :: info, handle
-      INTEGER                                    :: my_n
-#if defined(__parallel)
-      INTEGER, DIMENSION(9)                      :: desca
-#endif
-
-      CALL timeset(routineN, handle)
-
-      my_n = MIN(matrix%matrix_struct%nrow_global, &
-                 matrix%matrix_struct%ncol_global)
-      IF (PRESENT(n)) THEN
-         CPASSERT(n <= my_n)
-         my_n = n
-      END IF
-
-      aa => matrix%local_data
-
-#if defined(__parallel)
-      desca = matrix%matrix_struct%descriptor
-      CALL pzpotri('U', my_n, aa(1, 1), 1, 1, desca, info)
-#else
-      CALL zpotri('U', my_n, aa(1, 1), SIZE(aa, 1), info)
-#endif
-
-      IF (PRESENT(info_out)) THEN
-         info_out = info
-      ELSE
-         IF (info /= 0) &
-            CALL cp_abort(__LOCATION__, &
-                          "Cholesky invert failed: the matrix is not positive definite or ill-conditioned.")
-      END IF
-
-      CALL timestop(handle)
-
-   END SUBROUTINE cp_cfm_cholesky_invert
-
-! **************************************************************************************************
 !> \brief Returns the trace of matrix_a^T matrix_b, i.e
 !>      sum_{i,j}(matrix_a(i,j)*matrix_b(i,j)) .
 !> \param matrix_a a complex matrix
@@ -1456,5 +1343,65 @@ CONTAINS
 
       CALL timestop(handle)
    END SUBROUTINE cp_cfm_rot_cols
+
+! **************************************************************************************************
+!> \brief ...
+!> \param matrix ...
+!> \param workspace ...
+!> \par History
+!>      12.2024 Added optional workspace as input [Rocco Meli]
+!> \author Jan Wilhelm
+! **************************************************************************************************
+   SUBROUTINE cp_cfm_upper_to_full(matrix, workspace)
+
+      TYPE(cp_cfm_type), INTENT(IN)                      :: matrix
+      TYPE(cp_cfm_type), OPTIONAL                        :: workspace
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_cfm_upper_to_full'
+
+      INTEGER                                            :: handle, i_global, iiB, j_global, jjB, &
+                                                            ncol_local, nrow_local
+      INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
+      TYPE(cp_cfm_type)                                  :: work
+
+      CALL timeset(routineN, handle)
+
+      IF (.NOT. PRESENT(workspace)) THEN
+         CALL cp_cfm_create(work, matrix%matrix_struct)
+      ELSE
+         work = workspace
+      END IF
+
+      ! get info of fm_mat_Q
+      CALL cp_cfm_get_info(matrix=matrix, &
+                           nrow_local=nrow_local, &
+                           ncol_local=ncol_local, &
+                           row_indices=row_indices, &
+                           col_indices=col_indices)
+
+      DO jjB = 1, ncol_local
+         j_global = col_indices(jjB)
+         DO iiB = 1, nrow_local
+            i_global = row_indices(iiB)
+            IF (j_global < i_global) THEN
+               matrix%local_data(iiB, jjB) = z_zero
+            END IF
+            IF (j_global == i_global) THEN
+               matrix%local_data(iiB, jjB) = matrix%local_data(iiB, jjB)/(2.0_dp, 0.0_dp)
+            END IF
+         END DO
+      END DO
+
+      CALL cp_cfm_transpose(matrix, 'C', work)
+
+      CALL cp_cfm_scale_and_add(z_one, matrix, z_one, work)
+
+      IF (.NOT. PRESENT(workspace)) THEN
+         CALL cp_cfm_release(work)
+      END IF
+
+      CALL timestop(handle)
+
+   END SUBROUTINE cp_cfm_upper_to_full
 
 END MODULE cp_cfm_basic_linalg

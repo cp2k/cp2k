@@ -19,12 +19,12 @@ MODULE admm_methods
    USE atomic_kind_types,               ONLY: atomic_kind_type
    USE bibliography,                    ONLY: Merlot2014,&
                                               cite_reference
-   USE cp_cfm_basic_linalg,             ONLY: cp_cfm_cholesky_decompose,&
-                                              cp_cfm_cholesky_invert,&
-                                              cp_cfm_scale,&
+   USE cp_cfm_basic_linalg,             ONLY: cp_cfm_scale,&
                                               cp_cfm_scale_and_add,&
                                               cp_cfm_scale_and_add_fm,&
                                               cp_cfm_transpose
+   USE cp_cfm_cholesky,                 ONLY: cp_cfm_cholesky_decompose,&
+                                              cp_cfm_cholesky_invert
    USE cp_cfm_types,                    ONLY: cp_cfm_create,&
                                               cp_cfm_get_info,&
                                               cp_cfm_release,&
