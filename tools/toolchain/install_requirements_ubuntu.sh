@@ -18,9 +18,10 @@ apt-get install -qq --no-install-recommends \
   autotools-dev \
   bzip2 \
   ca-certificates \
-  g++ \
-  gcc \
-  gfortran \
+  universe \
+  g++-14 \
+  gcc-14 \
+  gfortran-14 \
   git \
   less \
   libtool \
