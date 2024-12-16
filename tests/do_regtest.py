@@ -306,7 +306,9 @@ class Config:
             env["CUDA_VISIBLE_DEVICES"] = ",".join(visible_gpu_devices)
             env["HIP_VISIBLE_DEVICES"] = ",".join(visible_gpu_devices)
         env["OMP_NUM_THREADS"] = str(self.ompthreads)
-        env["PIKA_COMMANDLINE_OPTIONS"] = f"--pika:bind=none --pika:threads={self.ompthreads}"
+        env["PIKA_COMMANDLINE_OPTIONS"] = (
+            f"--pika:bind=none --pika:threads={self.ompthreads}"
+        )
         exe_name = f"{exe_stem}.{self.version}"
         cmd = [str(self.binary_dir / exe_name)]
         if self.valgrind:
