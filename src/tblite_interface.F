@@ -438,12 +438,13 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'build_tblite_matrices'
 
-      INTEGER                                            :: handle, maxder, nderivatives, nimg, img, nkind, i, ic, iw, ia
-      INTEGER                                            :: iatom, jatom, ikind, jkind, iset, jset, n1, n2, icol, irow, ishell
+      INTEGER                                            :: handle, maxder, nderivatives, nimg, img, nkind, i, ic, iw, ia, ib
+      INTEGER                                            :: iatom, jatom, ikind, jkind, iset, jset, n1, n2, icol, irow, ishell, jshell
       INTEGER                                            :: sgfa, sgfb, atom_a, atom_b, ldsab, nseta, nsetb, natorb_a, natorb_b
       LOGICAL                                            :: found, norml1, norml2, use_arnoldi, use_virial
-      REAL(KIND=dp)                                      :: dr
+      REAL(KIND=dp)                                      :: dr, rr
       INTEGER, DIMENSION(3)                              :: cell
+      REAL(KIND=dp)                                      :: hij, shpoly
       REAL(KIND=dp), DIMENSION(2)                        :: condnum
       REAL(KIND=dp), DIMENSION(3)                        :: rij
       REAL(KIND=dp), DIMENSION(:), POINTER               :: set_radius_a, set_radius_b
@@ -473,6 +474,7 @@ CONTAINS
       TYPE(qs_kind_type), DIMENSION(:), POINTER             :: qs_kind_set
       TYPE(qs_rho_type), POINTER                            :: rho
       TYPE(tblite_type), POINTER                            :: tb
+      type(tb_hamiltonian), POINTER                         :: h0
       TYPE(virial_type), POINTER                            :: virial
 
       CALL timeset(routineN, handle)
@@ -492,6 +494,7 @@ CONTAINS
                       dft_control=dft_control, &
                       sab_orb=sab_orb, &
                       tb_tblite=tb)
+      h0 => tb%calc%h0
 
       nkind = SIZE(atomic_kind_set)
       nderivatives = 0
@@ -645,17 +648,43 @@ CONTAINS
 
          ! --------- Hamiltonian
          
-         !get diagonal part from selfenergy
+         
          IF (iatom==jatom) THEN
+           !get diagonal F matrix from selfenergy
            n1=0
            DO ishell=1,iatom-1
              n1=n1+tb%calc%bas%nsh_at(ishell)
            END DO
            DO iset = 1, nseta
              sgfa = first_sgfa(1, iset)
-             owork = 0.0_dp
              DO ia = sgfa, sgfa+nsgfa(iset)-1
               hint(ia,ia,1)=tb%selfenergy(n1+iset)
+             END DO
+           END DO
+         ELSE
+           !get off-diagonal F matrix
+           rr = SQRT(dr / (h0%rad(jatom) + h0%rad(iatom)))
+           n1=0
+           DO ishell=1,iatom-1
+             n1=n1+tb%calc%bas%nsh_at(ishell)
+           END DO
+           DO iset = 1, nseta
+             sgfa = first_sgfa(1, iset)
+             n2=0
+             DO jshell=1,jatom-1
+               n2=n2+tb%calc%bas%nsh_at(jshell)
+             END DO
+             DO jset = 1, nsetb
+               sgfb = first_sgfb(1, jset)
+               DO ia = sgfa, sgfa+nsgfa(iset)-1
+                 DO ib = sgfb, sgfb+nsgfb(jset)-1
+                   shpoly = (1.0_dp + h0%shpoly(iset, iatom)*rr) &
+                           * (1.0_dp + h0%shpoly(jset, jatom)*rr)
+                   hij = 0.5_dp * (tb%selfenergy(n1+iset) + tb%selfenergy(n2+jset)) &
+                        * h0%hscale(jset, iset, jatom, iatom) * shpoly
+                   hint(ia,ib,1)=hij*sint(ia,ib,1)
+                 END DO
+               END DO
              END DO
            END DO
          END IF
