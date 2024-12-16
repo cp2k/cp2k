@@ -337,9 +337,9 @@ CONTAINS
          ! GPW integrals have to be implemented later
          IF (eri_method == do_eri_gpw) THEN
             CALL cp_abort(__LOCATION__, &
-                           "BSE calculations are not implemented for GPW integrals." // &
-                           "This is probably caused by invoking a periodic calculation." // &
-                           "Use PERIODIC NONE for BSE calculations.")
+                          "BSE calculations are not implemented for GPW integrals. "// &
+                          "This is probably caused by invoking a periodic calculation. "// &
+                          "Use PERIODIC NONE for BSE calculations.")
          END IF
       END IF
 
