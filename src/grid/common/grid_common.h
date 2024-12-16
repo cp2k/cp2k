@@ -7,6 +7,8 @@
 #ifndef GRID_COMMON_H
 #define GRID_COMMON_H
 
+#include <math.h>
+
 #define GRID_STRINGIFY(SYMBOL) #SYMBOL
 
 // GCC added the simd pragma with version 6.
@@ -155,6 +157,30 @@ GRID_HOST_DEVICE static inline orbital down(const int i, const orbital a) {
  ******************************************************************************/
 GRID_HOST_DEVICE static inline int idx(const orbital a) {
   return coset(a.l[0], a.l[1], a.l[2]);
+}
+
+static inline double accurate_sum(const double *data, const int n) {
+  double sum = 0.0;
+  double compensation = 0.0;
+  for (int i = 0; i < n; i++) {
+    const double current_element = data[i];
+    const double next_sum = sum + current_element;
+    if (fabs(sum) >= fabs(current_element)) {
+      compensation += (sum - next_sum) + current_element;
+    } else {
+      compensation += (current_element - next_sum) + sum;
+    }
+    sum = next_sum;
+  }
+  return sum + compensation;
+}
+
+static inline double abs_sum(const double *data, const int n) {
+  double sum = 0.0;
+  for (int i = 0; i < n; i++) {
+    sum += fabs(data[i]);
+  }
+  return sum;
 }
 
 #endif // GRID_COMMON_H

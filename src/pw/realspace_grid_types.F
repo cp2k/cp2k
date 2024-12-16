@@ -459,8 +459,6 @@ CONTAINS
          END IF
       END IF
 
-      WRITE (*, *) "group_dim", desc%group_dim
-
       CALL timestop(handle)
 
    END SUBROUTINE rs_grid_create_descriptor
@@ -989,7 +987,7 @@ CONTAINS
             ushifts = 0
             dshifts = 0
 
-            ! check that we don't try to send data to ourself
+            ! check that we don't try to send data to ourselves
             DO n_shifts = 1, MIN(rs%desc%neighbours(idir), rs%desc%group_dim(idir) - 1)
 
                ! need to take into account the possible varying widths of neighbouring cells

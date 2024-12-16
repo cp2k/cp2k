@@ -485,7 +485,6 @@ CONTAINS
 
       ! Process grid dimensions
       pgrid_dim = rsgrid%desc%group_dim
-      WRITE (*, *) "pgrid_dim", pgrid_dim
 
       ! Process coordinate for each process
       IF (PRODUCT(pgrid_dim) > 1) THEN
@@ -951,8 +950,6 @@ CONTAINS
             dh_inv(:, :, ilevel) = rsgrid%desc%dh_inv(:, :)
          END ASSOCIATE
       END DO
-
-      WRITE (*, *) "pgrid_dims before create", pgrid_dims
 
 #if __GNUC__ >= 9
       CPASSERT(IS_CONTIGUOUS(npts_global))
@@ -1443,6 +1440,7 @@ CONTAINS
       TYPE(pw_r3d_rs_type), INTENT(IN)                   :: grid
       INTEGER, INTENT(IN)                                :: ilevel
 
+      INTEGER, ALLOCATABLE, DIMENSION(:, :, :), TARGET   :: proc2local
       INTEGER, CONTIGUOUS, DIMENSION(:, :), POINTER      :: npts_global
       INTERFACE
          SUBROUTINE grid_copy_from_multigrid_general_single_c(multigrid, ilevel, grid, comm, proc2local) &
@@ -1462,10 +1460,12 @@ CONTAINS
       npts_global => grid_get_multigrid_npts_global(multigrid)
       CPASSERT(ALL(grid%pw_grid%npts == npts_global(:, ilevel)))
       CPASSERT(ASSOCIATED(grid%array))
+      ALLOCATE (proc2local(2, 3, grid%pw_grid%para%group%num_pe))
+      proc2local(:, :, :) = grid%pw_grid%para%bo(:, :, :, 1) - 1
 
       CALL grid_copy_from_multigrid_general_single_c(multigrid%c_ptr, ilevel, C_LOC(grid%array), &
                                                      grid%pw_grid%para%group%get_handle(), &
-                                                     C_LOC(grid%pw_grid%para%bo(:, :, :, 1)))
+                                                     C_LOC(proc2local(1, 1, 1)))
 
    END SUBROUTINE grid_copy_from_multigrid_general_single
 
@@ -1513,11 +1513,13 @@ CONTAINS
          IF (grids(ilevel)%pw_grid%para%group%num_pe == 1) THEN
             CPASSERT(ALL(SHAPE(grids(ilevel)%array) == npts_global(:, ilevel)))
          END IF
+         ! The "1" at bo indicates the distribution before FFTs (the others for the respective partial FFTs)
+         ! Remove 1 to obtain zero-based
          proc2local(:, :, :, ilevel) = grids(ilevel)%pw_grid%para%bo(:, :, :, 1) - 1
       END DO
 
-      CALL grid_copy_from_multigrid_general_c(multigrid%c_ptr, C_LOC(grids_c), &
-                                              C_LOC(comms), C_LOC(proc2local))
+      CALL grid_copy_from_multigrid_general_c(multigrid%c_ptr, C_LOC(grids_c(1)), &
+                                              C_LOC(comms(1)), C_LOC(proc2local(1, 1, 1, 1)))
 
    END SUBROUTINE grid_copy_from_multigrid_general
 

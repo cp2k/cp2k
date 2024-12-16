@@ -524,32 +524,32 @@ void grid_copy_from_multigrid_distributed(
 
   if (debug) {
     if (my_process_rs == 0) {
-      fprintf(stderr, "%i border_width: %i %i %i\n", my_process_rs,
-              border_width[0], border_width[1], border_width[2]);
-      fprintf(stderr, "%i nshifts: %i %i %i\n", my_process_rs, nshifts[0],
-              nshifts[1], nshifts[2]);
-      fprintf(stderr, "%i pgrid_dims: %i %i %i\n", my_process_rs, pgrid_dims[0],
-              pgrid_dims[1], pgrid_dims[2]);
+      printf("%i border_width: %i %i %i\n", my_process_rs, border_width[0],
+             border_width[1], border_width[2]);
+      printf("%i nshifts: %i %i %i\n", my_process_rs, nshifts[0], nshifts[1],
+             nshifts[2]);
+      printf("%i pgrid_dims: %i %i %i\n", my_process_rs, pgrid_dims[0],
+             pgrid_dims[1], pgrid_dims[2]);
       for (int process = 0; process < number_of_processes; process++) {
-        fprintf(stderr, "%i proc2local_rs %i:  %i %i %i\n", my_process_rs,
-                process, proc2local_rs[process][0], proc2local_rs[process][1],
-                proc2local_rs[process][2]);
+        printf("%i proc2local_rs %i:  %i %i %i\n", my_process_rs, process,
+               proc2local_rs[process][0], proc2local_rs[process][1],
+               proc2local_rs[process][2]);
       }
       for (int process = 0; process < number_of_processes; process++) {
-        fprintf(stderr, "%i shifts %i:  %i %i %i\n", my_process_rs, process,
-                shifts[process][0], shifts[process][1], shifts[process][2]);
+        printf("%i shifts %i:  %i %i %i\n", my_process_rs, process,
+               shifts[process][0], shifts[process][1], shifts[process][2]);
       }
       for (int process = 0; process < number_of_processes; process++) {
-        fprintf(stderr, "%i proc2pcoord %i:  %i %i %i\n", my_process_rs,
-                process, proc2pcoord[process][0], proc2pcoord[process][1],
-                proc2pcoord[process][2]);
+        printf("%i proc2pcoord %i:  %i %i %i\n", my_process_rs, process,
+               proc2pcoord[process][0], proc2pcoord[process][1],
+               proc2pcoord[process][2]);
       }
       for (int process = 0; process < number_of_processes; process++) {
-        fprintf(stderr, "%i proc2local_pw %i:  %i %i %i %i %i %i\n",
-                my_process_rs, process, proc2local_pw[process][0][0],
-                proc2local_pw[process][0][1], proc2local_pw[process][1][0],
-                proc2local_pw[process][1][1], proc2local_pw[process][2][0],
-                proc2local_pw[process][2][1]);
+        printf("%i proc2local_pw %i:  %i %i %i %i %i %i\n", my_process_rs,
+               process, proc2local_pw[process][0][0],
+               proc2local_pw[process][0][1], proc2local_pw[process][1][0],
+               proc2local_pw[process][1][1], proc2local_pw[process][2][0],
+               proc2local_pw[process][2][1]);
       }
     }
     grid_mpi_barrier(comm_rs);
@@ -561,17 +561,29 @@ void grid_copy_from_multigrid_distributed(
   for (int dir = 0; dir < 3; dir++) {
     my_process_coordinate[dir] = proc2pcoord[my_process_rs][dir];
     local_rs_bounds[dir][0] = shifts[my_process_rs][dir];
-    local_rs_bounds[dir][1] = shifts[my_process_rs][dir] +
-                              proc2local_rs[dir][my_process_coordinate[dir]] -
-                              1;
-    local_rs_bounds[dir][2] = proc2local_rs[dir][my_process_coordinate[dir]];
+    local_rs_bounds[dir][1] =
+        shifts[my_process_rs][dir] + proc2local_rs[my_process_rs][dir] - 1;
+    local_rs_bounds[dir][2] = proc2local_rs[my_process_rs][dir];
     local_rs_bounds_inner[dir][0] =
         shifts[my_process_rs][dir] + border_width[dir];
-    local_rs_bounds_inner[dir][1] =
-        shifts[my_process_rs][dir] +
-        proc2local_rs[dir][my_process_coordinate[dir]] - border_width[dir] - 1;
+    local_rs_bounds_inner[dir][1] = shifts[my_process_rs][dir] +
+                                    proc2local_rs[my_process_rs][dir] -
+                                    border_width[dir] - 1;
     local_rs_bounds_inner[dir][2] =
-        proc2local_rs[dir][my_process_coordinate[dir]] - 2 * border_width[dir];
+        proc2local_rs[my_process_rs][dir] - 2 * border_width[dir];
+  }
+
+  if (debug) {
+    for (int dir = 0; dir < 3; dir++) {
+      printf("Local_rs_bounds of process %i in direction %i: %i %i %i\n",
+             my_process_rs, dir, local_rs_bounds[dir][0],
+             local_rs_bounds[dir][1], local_rs_bounds[dir][2]);
+    }
+    for (int dir = 0; dir < 3; dir++) {
+      printf("Local_rs_bounds_inner of process %i in direction %i: %i %i %i\n",
+             my_process_rs, dir, local_rs_bounds_inner[dir][0],
+             local_rs_bounds_inner[dir][1], local_rs_bounds_inner[dir][2]);
+    }
   }
 
   // TODOs
@@ -580,17 +592,20 @@ void grid_copy_from_multigrid_distributed(
   // periodicity in the respective regions but not without
 
   double check_sum = 0.0;
+  double check_abssum = 0.0;
   if (debug) {
-    for (int iz = 0; iz < local_rs_bounds[2][2]; iz++) {
-      for (int iy = 0; iy < local_rs_bounds[1][2]; iy++) {
-        for (int ix = 0; ix < local_rs_bounds[0][2]; ix++) {
-          check_sum +=
-              grid_rs[iz * local_rs_bounds[1][2] * local_rs_bounds[0][2] +
-                      iy * local_rs_bounds[0][2] + ix];
-        }
-      }
-    }
+    check_sum =
+        accurate_sum(grid_rs, local_rs_bounds[0][2] * local_rs_bounds[1][2] *
+                                  local_rs_bounds[2][2]);
+    check_abssum =
+        abs_sum(grid_rs, local_rs_bounds[0][2] * local_rs_bounds[1][2] *
+                             local_rs_bounds[2][2]);
     grid_mpi_sum_double(&check_sum, 1, comm_rs);
+    grid_mpi_sum_double(&check_abssum, 1, comm_rs);
+    printf("DEBUG check_sum rs %i %f / %f\n",
+           local_rs_bounds[0][2] * local_rs_bounds[1][2] *
+               local_rs_bounds[2][2],
+           check_sum, check_abssum);
   }
 
   // Start to collect own local data
@@ -637,6 +652,11 @@ void grid_copy_from_multigrid_distributed(
     send_buffers[0][0] = send_buffer;
     send_buffers[0][1] = send_buffer + max_buffer_size / 2;
 
+    // Check that we sent all local data
+    int amount_of_data_sent = local_rs_bounds_inner[0][2] *
+                              local_rs_bounds_inner[1][2] *
+                              local_rs_bounds_inner[2][2];
+
     // Loop over the direction to which we communicate
     for (int dir = 0; dir < 3; dir++) {
       // Initialize process coordinates and ranges
@@ -650,25 +670,31 @@ void grid_copy_from_multigrid_distributed(
       // We set the ranges to the relevant part of our array
       for (int shift = 0; shift < imin(nshifts[dir], pgrid_dims[dir]);
            shift++) {
+        if (debug)
+          printf("Shift %i of direction %i", shift, dir);
         for (int dir2 = 0; dir2 < 3; dir2++) {
           // We receive into the inner box for already covered and currently
           // covered directions and the whole range with border for the
           // directions
+          // We will modify the ranges in the send/recv direction later
           if (dir2 <= dir) {
+            // If have already covered a direction or are currently receiving in
+            // this direction, we need only the inner part We receive into the
+            // inner part of the local data
             ranges_to_recv_down[shift][dir2][0] =
-                local_rs_bounds_inner[dir2][0] - local_rs_bounds[dir2][0];
-            ranges_to_recv_up[shift][dir2][0] =
                 local_rs_bounds_inner[dir2][0] - local_rs_bounds[dir2][0];
             ranges_to_recv_down[shift][dir2][1] =
                 local_rs_bounds_inner[dir2][1] - local_rs_bounds[dir2][0];
+            ranges_to_recv_up[shift][dir2][0] =
+                local_rs_bounds_inner[dir2][0] - local_rs_bounds[dir2][0];
             ranges_to_recv_up[shift][dir2][1] =
                 local_rs_bounds_inner[dir2][1] - local_rs_bounds[dir2][0];
           } else {
             ranges_to_recv_down[shift][dir2][0] =
                 0; // local_rs_bounds[dir2][0]-local_rs_bounds[dir2][0]
+            ranges_to_recv_down[shift][dir2][1] = local_rs_bounds[dir2][1];
             ranges_to_recv_up[shift][dir2][0] =
                 0; // local_rs_bounds[dir2][0]-local_rs_bounds[dir2][0]
-            ranges_to_recv_down[shift][dir2][1] = local_rs_bounds[dir2][1];
             ranges_to_recv_up[shift][dir2][1] = local_rs_bounds[dir2][1];
           }
           ranges_to_recv_down[shift][dir2][2] =
@@ -678,15 +704,15 @@ void grid_copy_from_multigrid_distributed(
               ranges_to_recv_up[shift][dir2][1] -
               ranges_to_recv_up[shift][dir2][0] + 1;
 
-          fprintf(stderr, "%i DEBUG ranges_to_recv_down RS %i %i %i %i %i\n",
-                  my_process_rs, shift, dir2,
-                  ranges_to_recv_down[shift][dir2][0],
-                  ranges_to_recv_down[shift][dir2][1],
-                  ranges_to_recv_down[shift][dir2][2]);
-          fprintf(stderr, "%i DEBUG ranges_to_recv_up RS %i %i %i %i %i\n",
-                  my_process_rs, shift, dir2, ranges_to_recv_up[shift][dir2][0],
-                  ranges_to_recv_up[shift][dir2][1],
-                  ranges_to_recv_up[shift][dir2][2]);
+          printf("%i DEBUG ranges_to_recv_down RS %i %i %i %i %i\n",
+                 my_process_rs, shift, dir2,
+                 ranges_to_recv_down[shift][dir2][0],
+                 ranges_to_recv_down[shift][dir2][1],
+                 ranges_to_recv_down[shift][dir2][2]);
+          printf("%i DEBUG ranges_to_recv_up RS %i %i %i %i %i\n",
+                 my_process_rs, shift, dir2, ranges_to_recv_up[shift][dir2][0],
+                 ranges_to_recv_up[shift][dir2][1],
+                 ranges_to_recv_up[shift][dir2][2]);
 
           // Sends work similar as receives but for the current dimension (dir),
           // we send the lower border downwards and the upper border upwards
@@ -724,15 +750,15 @@ void grid_copy_from_multigrid_distributed(
           ranges_to_send_up[shift][dir2][2] =
               ranges_to_send_up[shift][dir2][1] -
               ranges_to_send_up[shift][dir2][0] + 1;
-          fprintf(stderr, "%i DEBUG ranges_to_send_down RS %i %i %i %i %i\n",
-                  my_process_rs, shift, dir2,
-                  ranges_to_send_down[shift][dir2][0],
-                  ranges_to_send_down[shift][dir2][1],
-                  ranges_to_send_down[shift][dir2][2]);
-          fprintf(stderr, "%i DEBUG ranges_to_send_up RS %i %i %i %i %i\n",
-                  my_process_rs, shift, dir2, ranges_to_send_up[shift][dir2][0],
-                  ranges_to_send_up[shift][dir2][1],
-                  ranges_to_send_up[shift][dir2][2]);
+          printf("%i DEBUG ranges_to_send_down RS %i %i %i %i %i\n",
+                 my_process_rs, shift, dir2,
+                 ranges_to_send_down[shift][dir2][0],
+                 ranges_to_send_down[shift][dir2][1],
+                 ranges_to_send_down[shift][dir2][2]);
+          printf("%i DEBUG ranges_to_send_up RS %i %i %i %i %i\n",
+                 my_process_rs, shift, dir2, ranges_to_send_up[shift][dir2][0],
+                 ranges_to_send_up[shift][dir2][1],
+                 ranges_to_send_up[shift][dir2][2]);
         }
       }
 
@@ -875,6 +901,10 @@ void grid_copy_from_multigrid_distributed(
             }
           }
 
+          amount_of_data_sent += ranges_to_send_down[shift][0][2] *
+                                 ranges_to_send_down[shift][1][2] *
+                                 ranges_to_send_down[shift][2][2];
+
           grid_mpi_isend_double(send_buffers[shift][0],
                                 ranges_to_send_down[shift][0][2] *
                                     ranges_to_send_down[shift][1][2] *
@@ -925,6 +955,11 @@ void grid_copy_from_multigrid_distributed(
               }
             }
           }
+
+          amount_of_data_sent += ranges_to_send_up[shift][0][2] *
+                                 ranges_to_send_up[shift][1][2] *
+                                 ranges_to_send_up[shift][2][2];
+
           grid_mpi_isend_double(
               send_buffers[shift][1],
               ranges_to_send_up[shift][0][2] * ranges_to_send_up[shift][1][2] *
@@ -938,40 +973,42 @@ void grid_copy_from_multigrid_distributed(
         }
       }
 
-      // Check that we have taken care of all data
-      int data_to_be_exchanged = 0;
-      if (dir == 0) {
-        data_to_be_exchanged =
-            border_width[0] * local_rs_bounds[1][2] * local_rs_bounds[2][2];
-      } else if (dir == 1) {
-        data_to_be_exchanged = border_width[1] * local_rs_bounds_inner[0][2] *
-                               local_rs_bounds[2][2];
-      } else if (dir == 2) {
-        data_to_be_exchanged = border_width[2] * local_rs_bounds_inner[0][2] *
-                               local_rs_bounds_inner[1][2];
+      if (debug) {
+        // Check that we have taken care of all data
+        int data_to_be_exchanged = 0;
+        if (dir == 0) {
+          data_to_be_exchanged =
+              border_width[0] * local_rs_bounds[1][2] * local_rs_bounds[2][2];
+        } else if (dir == 1) {
+          data_to_be_exchanged = border_width[1] * local_rs_bounds_inner[0][2] *
+                                 local_rs_bounds[2][2];
+        } else if (dir == 2) {
+          data_to_be_exchanged = border_width[2] * local_rs_bounds_inner[0][2] *
+                                 local_rs_bounds_inner[1][2];
+        }
+        int data_to_be_received_down = 0;
+        int data_to_be_received_up = 0;
+        int data_to_be_sent_down = 0;
+        int data_to_be_sent_up = 0;
+        for (int shift = 0; shift < nshifts[dir]; shift++) {
+          data_to_be_received_down += ranges_to_recv_down[shift][0][2] *
+                                      ranges_to_recv_down[shift][1][2] *
+                                      ranges_to_recv_down[shift][2][2];
+          data_to_be_received_up += ranges_to_recv_up[shift][0][2] *
+                                    ranges_to_recv_up[shift][1][2] *
+                                    ranges_to_recv_up[shift][2][2];
+          data_to_be_sent_down += ranges_to_send_down[shift][0][2] *
+                                  ranges_to_send_down[shift][1][2] *
+                                  ranges_to_send_down[shift][2][2];
+          data_to_be_sent_up += ranges_to_send_up[shift][0][2] *
+                                ranges_to_send_up[shift][1][2] *
+                                ranges_to_send_up[shift][2][2];
+        }
+        assert(data_to_be_exchanged == data_to_be_received_down);
+        assert(data_to_be_exchanged == data_to_be_received_up);
+        assert(data_to_be_exchanged == data_to_be_sent_down);
+        assert(data_to_be_exchanged == data_to_be_sent_up);
       }
-      int data_to_be_received_down = 0;
-      int data_to_be_received_up = 0;
-      int data_to_be_sent_down = 0;
-      int data_to_be_sent_up = 0;
-      for (int shift = 0; shift < nshifts[dir]; shift++) {
-        data_to_be_received_down += ranges_to_recv_down[shift][0][2] *
-                                    ranges_to_recv_down[shift][1][2] *
-                                    ranges_to_recv_down[shift][2][2];
-        data_to_be_received_up += ranges_to_recv_up[shift][0][2] *
-                                  ranges_to_recv_up[shift][1][2] *
-                                  ranges_to_recv_up[shift][2][2];
-        data_to_be_sent_down += ranges_to_send_down[shift][0][2] *
-                                ranges_to_send_down[shift][1][2] *
-                                ranges_to_send_down[shift][2][2];
-        data_to_be_sent_up += ranges_to_send_up[shift][0][2] *
-                              ranges_to_send_up[shift][1][2] *
-                              ranges_to_send_up[shift][2][2];
-      }
-      assert(data_to_be_exchanged == data_to_be_received_down);
-      assert(data_to_be_exchanged == data_to_be_received_up);
-      assert(data_to_be_exchanged == data_to_be_sent_down);
-      assert(data_to_be_exchanged == data_to_be_sent_up);
 
       // Wait for the receive processes to finish and update the own data
       for (int receive_process = 0; receive_process < 2 * nshifts[dir];
@@ -1014,30 +1051,117 @@ void grid_copy_from_multigrid_distributed(
           }
         }
       }
+      if (number_of_processes == 1) {
+        double sum_of_errors = 0.0;
+        double abs_sum_of_errors = 0.0;
+        double compensation = 0.0;
+        for (int iz = local_rs_bounds_inner[2][0];
+             iz <= local_rs_bounds_inner[2][1]; iz++) {
+          for (int iy = local_rs_bounds_inner[1][0];
+               iy <= local_rs_bounds_inner[1][1]; iy++) {
+            for (int ix = local_rs_bounds_inner[0][0];
+                 ix <= local_rs_bounds_inner[0][1]; ix++) {
+              const double current_element =
+                  grid_rs[iz * local_rs_bounds_inner[1][2] *
+                              local_rs_bounds_inner[0][2] +
+                          iy * local_rs_bounds_inner[0][2] + ix] -
+                  local_data[iz][iy][ix];
+              abs_sum_of_errors += fabs(current_element);
+              const double next_sum = sum_of_errors + current_element;
+              if (fabs(sum_of_errors) >= fabs(current_element)) {
+                compensation += (sum_of_errors - next_sum) + current_element;
+              } else {
+                compensation += (current_element - next_sum) + sum_of_errors;
+              }
+              sum_of_errors = next_sum;
+            }
+          }
+        }
+        sum_of_errors += compensation;
+        grid_mpi_sum_double(&sum_of_errors, 1, comm_rs);
+        grid_mpi_sum_double(&abs_sum_of_errors, 1, comm_rs);
+        printf("DEBUG error local_data %f / %f\n", sum_of_errors,
+               abs_sum_of_errors);
+      }
 
       // Wait for send processes to finish
       grid_mpi_waitall(2 * nshifts[dir], &send_requests[0][0]);
     }
 
     double check_sum2 = 0.0;
+    double check_abssum2 = 0.0;
     if (debug) {
+      assert(amount_of_data_sent == local_rs_bounds[0][2] *
+                                        local_rs_bounds[1][2] *
+                                        local_rs_bounds[2][2]);
+
+      // Check that the sum of all data is preserved (use Kahan-Babuska-Neumaier
+      // summation)
+      double compensation = 0.0;
       for (int iz = local_rs_bounds_inner[2][0];
            iz <= local_rs_bounds_inner[2][1]; iz++) {
         for (int iy = local_rs_bounds_inner[1][0];
              iy <= local_rs_bounds_inner[1][1]; iy++) {
           for (int ix = local_rs_bounds_inner[0][0];
                ix <= local_rs_bounds_inner[0][1]; ix++) {
-            check_sum2 += local_data[iz][iy][ix];
+            const double current_element = local_data[iz][iy][ix];
+            check_abssum2 += fabs(current_element);
+            const double next_sum = check_sum2 + current_element;
+            if (fabs(check_sum2) >= fabs(current_element)) {
+              compensation += (check_sum2 - next_sum) + current_element;
+            } else {
+              compensation += (current_element - next_sum) + check_sum2;
+            }
+            check_sum2 = next_sum;
           }
         }
       }
+      check_sum2 += compensation;
       grid_mpi_sum_double(&check_sum2, 1, comm_rs);
-      fprintf(stderr, "%i DEBUG error %f\n", my_process_rs,
-              fabs(check_sum - check_sum2));
-      assert((fabs(check_sum - check_sum2) <
-              1e-8 * fmax(fabs(check_sum), fabs(check_sum2))) &&
+      grid_mpi_sum_double(&check_abssum2, 1, comm_rs);
+      printf("%i DEBUG error %f %f / %f %f\n", my_process_rs, check_sum2,
+             fabs(check_sum - check_sum2), check_abssum, check_abssum2);
+      // The term on the rhs is the upper bound on the error (2*EPS*sum of
+      // absolute values)
+      assert(fabs(check_sum - check_sum2) <
+                 2.5e-7 * (check_abssum + check_abssum2) &&
              "Incorrect redistribution of rs grids");
     }
+    printf("Done exchanging border of rs grids\n");
+  }
+
+  double check_sum2 = 0.0;
+  double check_abssum2 = 0.0;
+  if (debug) {
+    // Check that the sum of all data is preserved (use Kahan-Babuska-Neumaier
+    // summation)
+    double compensation = 0.0;
+    for (int iz = local_rs_bounds_inner[2][0];
+         iz <= local_rs_bounds_inner[2][1]; iz++) {
+      for (int iy = local_rs_bounds_inner[1][0];
+           iy <= local_rs_bounds_inner[1][1]; iy++) {
+        for (int ix = local_rs_bounds_inner[0][0];
+             ix <= local_rs_bounds_inner[0][1]; ix++) {
+          const double current_element = local_data[iz][iy][ix];
+          check_abssum2 += fabs(current_element);
+          const double next_sum = check_sum2 + current_element;
+          if (fabs(check_sum2) >= fabs(current_element)) {
+            compensation += (check_sum2 - next_sum) + current_element;
+          } else {
+            compensation += (current_element - next_sum) + check_sum2;
+          }
+          check_sum2 = next_sum;
+        }
+      }
+    }
+    check_sum2 += compensation;
+    grid_mpi_sum_double(&check_sum2, 1, comm_rs);
+    grid_mpi_sum_double(&check_abssum2, 1, comm_rs);
+    printf("%i DEBUG error2 %f %f / %f %f\n", my_process_rs, check_sum2,
+           fabs(check_sum - check_sum2), check_abssum, check_abssum2);
+    assert(fabs(check_sum - check_sum2) <
+               3e-7 * (check_abssum + check_abssum2) &&
+           "Incorrect redistribution of rs grids");
   }
 
   // Copy to PW grid
@@ -1050,15 +1174,12 @@ void grid_copy_from_multigrid_distributed(
     local_pw_bounds[dir][2] =
         local_pw_bounds[dir][1] - local_pw_bounds[dir][0] + 1;
   }
-  // Map ranks from the PW communicator to the ranks of the RS communicator
-  int proc_pw2rs[number_of_processes];
-  grid_mpi_allgather_int(&my_process_pw, 1, &proc_pw2rs[0], comm_rs);
 
   // Prepare the receive process
   int number_of_processes_to_recv_from = 0;
   // Count the number of processes from which to receive data
   for (int process = 0; process < number_of_processes; process++) {
-    if (process != my_process_pw)
+    if (process == my_process_rs)
       continue;
     bool process_needs_data = true;
     for (int dir = 0; dir < 3; dir++) {
@@ -1069,15 +1190,23 @@ void grid_copy_from_multigrid_distributed(
           local_pw_bounds[dir][0])
         process_needs_data = false;
     }
-    if (process_needs_data)
+    if (process_needs_data) {
       number_of_processes_to_recv_from++;
+      if (debug)
+        printf("%i DEBUG check_process_pw %i %i\n",
+               number_of_processes_to_recv_from, my_process_pw, process);
+    }
   }
   int processes_to_recv_from[number_of_processes_to_recv_from];
+  memset(processes_to_recv_from, 0,
+         sizeof(int) * number_of_processes_to_recv_from);
   int ranges_to_recv_from[number_of_processes_to_recv_from][3][3];
+  memset(ranges_to_recv_from, 0,
+         sizeof(int) * number_of_processes_to_recv_from * 9);
   number_of_processes_to_recv_from = 0;
   int number_of_elements_to_recv = 0;
   for (int process = 0; process < number_of_processes; process++) {
-    if (process != my_process_pw)
+    if (process == my_process_rs)
       continue;
     bool process_needs_data = true;
     for (int dir = 0; dir < 3; dir++) {
@@ -1100,6 +1229,9 @@ void grid_copy_from_multigrid_distributed(
             ranges_to_recv_from[number_of_processes_to_recv_from][dir][1] -
             ranges_to_recv_from[number_of_processes_to_recv_from][dir][0] + 1;
       }
+      if (debug)
+        printf("%i DEBUG check_process_pw_exact %i %i\n",
+               number_of_processes_to_recv_from, my_process_pw, process);
       number_of_processes_to_recv_from++;
     }
   }
@@ -1110,23 +1242,26 @@ void grid_copy_from_multigrid_distributed(
   grid_mpi_request recv_requests[number_of_processes_to_recv_from];
   for (int recv_counter = 0; recv_counter < number_of_processes_to_recv_from;
        recv_counter++) {
-    int recv_size[3];
+    int recv_size[3] = {0, 0, 0};
     if (debug)
       number_of_elements_to_recv += ranges_to_recv_from[recv_counter][0][2] *
                                     ranges_to_recv_from[recv_counter][1][2] *
                                     ranges_to_recv_from[recv_counter][2][2];
     for (int dir = 0; dir < 3; dir++) {
-      fprintf(stderr, "%i DEBUG ranges_to_recv_from PW %i %i %i %i %i\n",
-              my_process_rs, recv_counter, dir,
-              ranges_to_recv_from[recv_counter][dir][0],
-              ranges_to_recv_from[recv_counter][dir][1],
-              ranges_to_recv_from[recv_counter][dir][2]);
+      printf("%i DEBUG ranges_to_recv_from PW %i %i: %i %i %i\n", my_process_rs,
+             recv_counter, dir, ranges_to_recv_from[recv_counter][dir][0],
+             ranges_to_recv_from[recv_counter][dir][1],
+             ranges_to_recv_from[recv_counter][dir][2]);
     }
     for (int dir = 0; dir < 3; dir++)
       recv_size[dir] = ranges_to_recv_from[recv_counter][dir][2];
     if (recv_counter > 0)
       recv_buffers[recv_counter] = recv_buffers[recv_counter - 1] +
                                    recv_size[0] * recv_size[1] * recv_size[2];
+    if (debug)
+      printf("%i DEBUG irecv %i %i\n", my_process_rs,
+             processes_to_recv_from[recv_counter],
+             recv_size[0] * recv_size[1] * recv_size[2]);
     grid_mpi_irecv_double(recv_buffers[recv_counter],
                           recv_size[0] * recv_size[1] * recv_size[2],
                           processes_to_recv_from[recv_counter], 23, comm_rs,
@@ -1136,7 +1271,7 @@ void grid_copy_from_multigrid_distributed(
   // Now, the same for the send process
   int number_of_processes_to_send_to = 0;
   for (int process = 0; process < number_of_processes; process++) {
-    if (process != my_process_pw)
+    if (process == my_process_pw)
       continue;
     bool process_needs_data = true;
     for (int dir = 0; dir < 3; dir++) {
@@ -1153,7 +1288,7 @@ void grid_copy_from_multigrid_distributed(
   number_of_processes_to_send_to = 0;
   int number_of_elements_to_send = 0;
   for (int process = 0; process < number_of_processes; process++) {
-    if (process != my_process_pw)
+    if (process == my_process_pw)
       continue;
     bool process_needs_data = true;
     for (int dir = 0; dir < 3; dir++) {
@@ -1184,18 +1319,17 @@ void grid_copy_from_multigrid_distributed(
   double *send_buffers[number_of_processes_to_send_to];
   send_buffers[0] = send_buffer;
   grid_mpi_request send_requests[number_of_processes_to_send_to];
-  for (int send_counter = 1; send_counter < number_of_processes_to_send_to;
+  for (int send_counter = 0; send_counter < number_of_processes_to_send_to;
        send_counter++) {
     if (debug)
       number_of_elements_to_send += ranges_to_send_to[send_counter][0][2] *
                                     ranges_to_send_to[send_counter][1][2] *
                                     ranges_to_send_to[send_counter][2][2];
     for (int dir2 = 0; dir2 < 3; dir2++) {
-      fprintf(stderr, "%i DEBUG ranges_to_send_to PW %i %i %i %i %i\n",
-              my_process_rs, send_counter, dir2,
-              ranges_to_send_to[send_counter][dir2][0],
-              ranges_to_send_to[send_counter][dir2][1],
-              ranges_to_send_to[send_counter][dir2][2]);
+      printf("%i DEBUG ranges_to_send_to PW %i %i %i %i %i\n", my_process_rs,
+             send_counter, dir2, ranges_to_send_to[send_counter][dir2][0],
+             ranges_to_send_to[send_counter][dir2][1],
+             ranges_to_send_to[send_counter][dir2][2]);
     }
     int send_size[3];
     for (int dir = 0; dir < 3; dir++)
@@ -1223,15 +1357,21 @@ void grid_copy_from_multigrid_distributed(
   // Copy the own data
   int bounds[3][3];
   for (int dir = 0; dir < 3; dir++) {
-    bounds[dir][0] = imax(local_rs_bounds_inner[dir][0],
-                          local_pw_bounds[dir][0] - local_rs_bounds[dir][0]);
-    bounds[dir][1] = imin(local_rs_bounds_inner[dir][1],
-                          local_pw_bounds[dir][1] - local_rs_bounds[dir][0]);
+    bounds[dir][0] =
+        imax(local_rs_bounds_inner[dir][0] - local_rs_bounds[dir][0],
+             local_pw_bounds[dir][0] - local_rs_bounds[dir][0]);
+    bounds[dir][1] =
+        imin(local_rs_bounds_inner[dir][1] - local_rs_bounds[dir][0],
+             local_pw_bounds[dir][1] - local_rs_bounds[dir][0]);
     bounds[dir][2] = imax(0, bounds[dir][1] - bounds[dir][0] + 1);
   }
   if (debug) {
     number_of_elements_to_send += bounds[0][2] * bounds[1][2] * bounds[2][2];
     number_of_elements_to_recv += bounds[0][2] * bounds[1][2] * bounds[2][2];
+    printf(
+        "%i DEBUG elements_to_recv %i %i %i\n", my_process_rs,
+        bounds[0][2] * bounds[1][2] * bounds[2][2], number_of_elements_to_recv,
+        local_pw_bounds[0][2] * local_pw_bounds[1][2] * local_pw_bounds[2][2]);
     // Check that the correct amount of data is recv/sent.
     assert(number_of_elements_to_recv == local_pw_bounds[0][2] *
                                              local_pw_bounds[1][2] *
@@ -1240,16 +1380,48 @@ void grid_copy_from_multigrid_distributed(
                                              local_rs_bounds_inner[1][2] *
                                              local_rs_bounds_inner[2][2]);
   }
-  for (int iz = 0; iz < bounds[2][1] - bounds[2][0] + 1; iz++) {
-    for (int iy = 0; iy < bounds[1][1] - bounds[1][0] + 1; iy++) {
-      for (int ix = 0; ix < bounds[0][1] - bounds[0][0] + 1; ix++) {
-        grid_pw[(iz + bounds[2][2]) * local_pw_bounds[1][2] *
-                    local_pw_bounds[0][2] +
-                (iy + bounds[1][2]) * local_pw_bounds[0][2] +
-                (ix + bounds[0][2])] =
+  memset(grid_pw, 0,
+         sizeof(double) * local_pw_bounds[0][2] * local_pw_bounds[1][2] *
+             local_pw_bounds[2][2]);
+  for (int dir = 0; dir < 3; dir++) {
+    assert(bounds[dir][2] <= local_pw_bounds[dir][2]);
+  }
+  printf("%i DEBUG Bounds: %i %i %i %i %i %i\n", my_process_rs, bounds[0][0],
+         bounds[0][1], bounds[1][0], bounds[1][1], bounds[2][0], bounds[2][1]);
+  if (debug) {
+    double check_sum3 =
+        accurate_sum(grid_pw, local_pw_bounds[2][2] * local_pw_bounds[1][2] *
+                                  local_pw_bounds[0][2]);
+    printf("%i DEBUG before local_data: %f %f %f\n", my_process_rs, check_sum,
+           check_sum2, check_sum3);
+  }
+  check_sum2 = 0.0;
+  check_abssum2 = 0.0;
+  for (int iz = 0; iz < bounds[2][2]; iz++) {
+    for (int iy = 0; iy < bounds[1][2]; iy++) {
+      for (int ix = 0; ix < bounds[0][2]; ix++) {
+        const double current_element =
             local_data[iz + bounds[2][0]][iy + bounds[1][0]][ix + bounds[0][0]];
+        grid_pw[(iz + bounds[2][0]) * local_pw_bounds[1][2] *
+                    local_pw_bounds[0][2] +
+                (iy + bounds[1][0]) * local_pw_bounds[0][2] +
+                (ix + bounds[0][0])] = current_element;
+        check_sum2 += current_element;
+        check_abssum2 += fabs(current_element);
       }
     }
+  }
+  double check_sum3 = 0.0;
+  double check_abssum3 = 0.0;
+  if (debug) {
+    for (int idx = 0; idx < local_pw_bounds[2][2] * local_pw_bounds[1][2] *
+                                local_pw_bounds[0][2];
+         idx++) {
+      check_sum3 += grid_pw[idx];
+      check_abssum3 += fabs(grid_pw[idx]);
+    }
+    printf("%i DEBUG after local_data: %f %f %f\n", my_process_rs, check_sum,
+           check_sum2, check_sum3);
   }
 
   for (int recv_counter = 0; recv_counter < number_of_processes_to_recv_from;
@@ -1264,13 +1436,18 @@ void grid_copy_from_multigrid_distributed(
     for (int iz = 0; iz < recv_size[2]; iz++) {
       for (int iy = 0; iy < recv_size[1]; iy++) {
         for (int ix = 0; ix < recv_size[0]; ix++) {
+          const double current_element =
+              recv_buffers[recv_counter][iz * recv_size[0] * recv_size[1] +
+                                         iy * recv_size[0] + ix];
           grid_pw[(iz + ranges_to_recv_from[recv_idx][2][0]) *
                       local_pw_bounds[1][2] * local_pw_bounds[0][2] +
                   (iy + ranges_to_recv_from[recv_idx][1][0]) *
                       local_pw_bounds[0][2] +
-                  ix + ranges_to_recv_from[recv_idx][0][0]] =
-              recv_buffers[recv_counter][iz * recv_size[0] * recv_size[1] +
-                                         iy * recv_size[0] + ix];
+                  ix + ranges_to_recv_from[recv_idx][0][0]] = current_element;
+          if (debug && current_element != current_element) {
+            printf("Element recv_buffers %i %i %i %i is NaN\n", recv_counter,
+                   ix, iy, iz);
+          }
         }
       }
     }
@@ -1279,20 +1456,21 @@ void grid_copy_from_multigrid_distributed(
                           processes_to_recv_from[recv_counter], 23, comm_pw,
                           recv_requests + recv_counter);
   }
-  double check_sum3 = 0.0;
   if (debug) {
-    for (int iz = 0; iz <= local_pw_bounds[2][2]; iz++) {
-      for (int iy = 0; iy <= local_pw_bounds[1][2]; iy++) {
-        for (int ix = 0; ix <= local_pw_bounds[0][2]; ix++) {
-          check_sum3 +=
-              grid_pw[iz * local_pw_bounds[0][2] * local_pw_bounds[1][2] +
-                      iy * local_pw_bounds[0][2] + ix];
-        }
-      }
+    double check_sum3 = 0.0;
+    double check_abssum3 = 0.0;
+    for (int idx = 0; idx < local_pw_bounds[2][2] * local_pw_bounds[1][2] *
+                                local_pw_bounds[0][2];
+         idx++) {
+      check_sum3 += grid_pw[idx];
+      check_abssum3 += fabs(grid_pw[idx]);
     }
     grid_mpi_sum_double(&check_sum3, 1, comm_pw);
+    grid_mpi_sum_double(&check_abssum3, 1, comm_pw);
+    printf("%i DEBUG check_sum3: %f %f\n", my_process_rs, check_sum,
+           check_sum3);
     assert((fabs(check_sum - check_sum3) <
-            1e-8 * fmax(fabs(check_sum), fabs(check_sum3))) &&
+            3e-7 * (check_abssum + check_abssum3)) &&
            "Incorrect redistribution of pw grids");
   }
 }
@@ -1303,9 +1481,21 @@ void grid_copy_from_multigrid_general(
   for (int level = 0; level < multigrid->nlevels; level++) {
     assert(!grid_mpi_comm_is_unequal(multigrid->comm, comm[level]));
     if (grid_mpi_comm_size(comm[level]) == 1) {
+      grid_copy_from_multigrid_distributed(
+          multigrid->grids[level]->host_buffer, grids[level], multigrid->comm,
+          multigrid->border_width[level],
+          (const int(*)[3])multigrid->proc2local[level],
+          (const int(*)[3])multigrid->shifts[level],
+          (const int(*)[3])multigrid->proc2pcoord[level],
+          multigrid->nshifts[level], multigrid->pgrid_dims[level],
+          (const int(*)[3][2]) &
+              proc2local[6 * grid_mpi_comm_size(comm[level]) * level],
+          comm[level]);
+#if 0
       grid_copy_from_multigrid_serial(
           multigrid->grids[level]->host_buffer, grids[level],
           multigrid->npts_local[level], multigrid->border_width[level]);
+#endif
     } else {
       // The parallel case, we need to distinguish replicated grids from
       // distributed grids
@@ -1319,6 +1509,8 @@ void grid_copy_from_multigrid_general(
             (const int(*)[3][2]) &
                 proc2local[level * grid_mpi_comm_size(comm[level]) * 6]);
       } else {
+//
+#if 0
         grid_copy_from_multigrid_distributed(
             multigrid->grids[level]->host_buffer, grids[level], multigrid->comm,
             multigrid->border_width[level],
@@ -1329,6 +1521,7 @@ void grid_copy_from_multigrid_general(
             (const int(*)[3][2]) &
                 proc2local[6 * grid_mpi_comm_size(comm[level]) * level],
             comm[level]);
+#endif
       }
     }
   }
@@ -1339,8 +1532,25 @@ void grid_copy_from_multigrid_general_f(
     const grid_mpi_fint fortran_comm[multigrid->nlevels],
     const int *proc2local) {
   grid_mpi_comm comm[multigrid->nlevels];
-  for (int level = 0; level < multigrid->nlevels; level++)
+  for (int level = 0; level < multigrid->nlevels; level++) {
     comm[level] = grid_mpi_comm_f2c(fortran_comm[level]);
+    for (int process = 0; process < grid_mpi_comm_size(comm[level]);
+         process++) {
+      printf(
+          "%i %i: %i %i %i %i %i %i\n", level, process,
+          proc2local[6 * grid_mpi_comm_size(comm[level]) * level + process * 6],
+          proc2local[6 * grid_mpi_comm_size(comm[level]) * level + process * 6 +
+                     1],
+          proc2local[6 * grid_mpi_comm_size(comm[level]) * level + process * 6 +
+                     2],
+          proc2local[6 * grid_mpi_comm_size(comm[level]) * level + process * 6 +
+                     3],
+          proc2local[6 * grid_mpi_comm_size(comm[level]) * level + process * 6 +
+                     4],
+          proc2local[6 * grid_mpi_comm_size(comm[level]) * level + process * 6 +
+                     5]);
+    }
+  }
   grid_copy_from_multigrid_general(multigrid, grids, comm, proc2local);
 }
 
@@ -1352,9 +1562,19 @@ void grid_copy_from_multigrid_general_single(const grid_multigrid *multigrid,
   assert(!grid_mpi_comm_is_unequal(multigrid->comm, comm));
   assert(grid != NULL);
   if (grid_mpi_comm_size(comm) == 1) {
+    grid_copy_from_multigrid_distributed(
+        multigrid->grids[level]->host_buffer, grid, multigrid->comm,
+        multigrid->border_width[level],
+        (const int(*)[3])multigrid->proc2local[level],
+        (const int(*)[3])multigrid->shifts[level],
+        (const int(*)[3])multigrid->proc2pcoord[level],
+        multigrid->nshifts[level], multigrid->pgrid_dims[level], proc2local,
+        comm);
+#if 0
     grid_copy_from_multigrid_serial(multigrid->grids[level]->host_buffer, grid,
                                     multigrid->npts_local[level],
                                     multigrid->border_width[level]);
+#endif
   } else {
     // The parallel case, we need to distinguish replicated grids from
     // distributed grids
@@ -1366,6 +1586,8 @@ void grid_copy_from_multigrid_general_single(const grid_multigrid *multigrid,
                                           multigrid->border_width[level], comm,
                                           (const int(*)[3][2])proc2local);
     } else {
+      //
+#if 0
       grid_copy_from_multigrid_distributed(
           multigrid->grids[level]->host_buffer, grid, multigrid->comm,
           multigrid->border_width[level],
@@ -1374,6 +1596,7 @@ void grid_copy_from_multigrid_general_single(const grid_multigrid *multigrid,
           (const int(*)[3])multigrid->proc2pcoord[level],
           multigrid->nshifts[level], multigrid->pgrid_dims[level], proc2local,
           comm);
+#endif
     }
   }
 }
@@ -1574,25 +1797,26 @@ void grid_create_multigrid(
         &(multigrid->proc2local[level * number_of_processes][0]), comm);
 
     for (int dir = 0; dir < 3; dir++) {
-      if (border_width[level][dir]>0) {
-      int minimum_number_of_points = npts_global[level][dir];
-      for (int process = 0; process < number_of_processes; process++) {
-        minimum_number_of_points = imin(
-            minimum_number_of_points,
-            multigrid->proc2local[level * number_of_processes + process][dir] -
-                2 * border_width[level][dir]);
-      }
-      if (minimum_number_of_points == 0) {
-        // One of the processors does not carry any data
-        // So, we have to shift n times
-        multigrid->nshifts[level][dir] = pgrid_dims[level][dir];
-      } else {
-        // We determine in how many chunks the border is split at most using the
-        // minimum number of points. In practice, it will be less
-        multigrid->nshifts[level][dir] =
-            (border_width[level][dir] + minimum_number_of_points - 1) /
-            minimum_number_of_points;
-      }
+      if (border_width[level][dir] > 0 && pgrid_dims[level][dir > 1]) {
+        int minimum_number_of_points = npts_global[level][dir];
+        for (int process = 0; process < number_of_processes; process++) {
+          minimum_number_of_points = imin(
+              minimum_number_of_points,
+              multigrid
+                      ->proc2local[level * number_of_processes + process][dir] -
+                  2 * border_width[level][dir]);
+        }
+        if (minimum_number_of_points == 0) {
+          // One of the processors does not carry any data
+          // So, we have to shift n times
+          multigrid->nshifts[level][dir] = pgrid_dims[level][dir];
+        } else {
+          // We determine in how many chunks the border is split at most using
+          // the minimum number of points. In practice, it will be less
+          multigrid->nshifts[level][dir] =
+              (border_width[level][dir] + minimum_number_of_points - 1) /
+              minimum_number_of_points;
+        }
       } else {
         multigrid->nshifts[level][dir] = 0;
       }
@@ -1718,6 +1942,9 @@ void print_multigrid_info(const grid_multigrid *multigrid) {
                  multigrid->dh_inv[level][dir][1],
                  multigrid->dh_inv[level][dir][2]);
         }
+        printf("Maximum number of processes to exchange border: %i %i %i\n",
+               multigrid->nshifts[level][0], multigrid->nshifts[level][1],
+               multigrid->nshifts[level][2]);
         for (int process = 0; process < number_of_processes; process++) {
           printf(
               "Number of local points of process %i: %i %i %i\n", process,
