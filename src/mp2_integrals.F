@@ -335,7 +335,12 @@ CONTAINS
          CPASSERT(my_do_gw)
          CPASSERT(.NOT. do_im_time)
          ! GPW integrals have to be implemented later
-         CPASSERT(.NOT. (eri_method == do_eri_gpw))
+         IF (eri_method == do_eri_gpw) THEN
+            CALL cp_abort(__LOCATION__, &
+                           "BSE calculations are not implemented for GPW integrals." // &
+                           "This is probably caused by invoking a periodic calculation." // &
+                           "Use PERIODIC NONE for BSE calculations.")
+         END IF
       END IF
 
       ngroup = para_env%num_pe/para_env_sub%num_pe
