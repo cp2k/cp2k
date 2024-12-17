@@ -12,8 +12,8 @@
 !> \author Joost VandeVondele (2003-09)
 ! **************************************************************************************************
 MODULE cp_cfm_diag
-   USE cp_cfm_basic_linalg, ONLY: cp_cfm_cholesky_decompose, &
-                                  cp_cfm_gemm, &
+   USE cp_cfm_cholesky, ONLY: cp_cfm_cholesky_decompose
+   USE cp_cfm_basic_linalg, ONLY: cp_cfm_gemm, &
                                   cp_cfm_column_scale, &
                                   cp_cfm_scale, &
                                   cp_cfm_triangular_invert, &
@@ -22,6 +22,11 @@ MODULE cp_cfm_diag
                            cp_cfm_set_element, &
                            cp_cfm_to_cfm, &
                            cp_cfm_type
+#if defined(__DLAF)
+   USE cp_cfm_dlaf_api, ONLY: cp_cfm_diag_gen_dlaf, &
+                              cp_cfm_diag_dlaf
+   USE cp_fm_diag, ONLY: diag_type, dlaf_neigvec_min, FM_DIAG_TYPE_DLAF
+#endif
    USE kinds, ONLY: dp
 #if defined (__HAS_IEEE_EXCEPTIONS)
    USE ieee_exceptions, ONLY: ieee_get_halting_mode, &
@@ -46,15 +51,49 @@ CONTAINS
 !> \param eigenvectors ...
 !> \param eigenvalues ...
 !> \par History
-!>      - (De)Allocation checks updated (15.02.2011,MK)
+!>      12.2024 Added DLA-Future support [Rocco Meli]
 !> \author Joost VandeVondele
 ! **************************************************************************************************
    SUBROUTINE cp_cfm_heevd(matrix, eigenvectors, eigenvalues)
 
+      TYPE(cp_cfm_type), INTENT(IN)                      :: matrix, eigenvectors
+      REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: eigenvalues
+
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'cp_cfm_heevd'
+
+      INTEGER                                            :: handle
+
+      CALL timeset(routineN, handle)
+
+#if defined(__DLAF)
+      IF (diag_type == FM_DIAG_TYPE_DLAF .AND. matrix%matrix_struct%nrow_global >= dlaf_neigvec_min) THEN
+         CALL cp_cfm_diag_dlaf(matrix, eigenvectors, eigenvalues)
+      ELSE
+#endif
+         CALL cp_cfm_heevd_base(matrix, eigenvectors, eigenvalues)
+#if defined(__DLAF)
+      END IF
+#endif
+
+      CALL timestop(handle)
+
+   END SUBROUTINE cp_cfm_heevd
+
+! **************************************************************************************************
+!> \brief Perform a diagonalisation of a complex matrix
+!> \param matrix ...
+!> \param eigenvectors ...
+!> \param eigenvalues ...
+!> \par History
+!>      - (De)Allocation checks updated (15.02.2011,MK)
+!> \author Joost VandeVondele
+! **************************************************************************************************
+   SUBROUTINE cp_cfm_heevd_base(matrix, eigenvectors, eigenvalues)
+
       TYPE(cp_cfm_type), INTENT(IN)            :: matrix, eigenvectors
       REAL(KIND=dp), DIMENSION(:), INTENT(OUT) :: eigenvalues
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_heevd'
+      CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_heevd_base'
 
       COMPLEX(KIND=dp), DIMENSION(:), POINTER  :: work
       COMPLEX(KIND=dp), DIMENSION(:, :), &
@@ -131,7 +170,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE cp_cfm_heevd
+   END SUBROUTINE cp_cfm_heevd_base
 
 ! **************************************************************************************************
 !> \brief General Eigenvalue Problem  AX = BXE
@@ -141,6 +180,8 @@ CONTAINS
 !> \param eigenvectors ...
 !> \param eigenvalues ...
 !> \param work ...
+!> \par History
+!>      12.2024 Added DLA-Future support [Rocco Meli]
 ! **************************************************************************************************
    SUBROUTINE cp_cfm_geeig(amatrix, bmatrix, eigenvectors, eigenvalues, work)
 
@@ -157,18 +198,29 @@ CONTAINS
 
       CALL cp_cfm_get_info(amatrix, nrow_global=nao)
       ALLOCATE (evals(nao))
-      ! Cholesky decompose S=U(T)U
-      CALL cp_cfm_cholesky_decompose(bmatrix)
-      ! Invert to get U^(-1)
-      CALL cp_cfm_triangular_invert(bmatrix)
-      ! Reduce to get U^(-T) * H * U^(-1)
-      CALL cp_cfm_triangular_multiply(bmatrix, amatrix, side="R")
-      CALL cp_cfm_triangular_multiply(bmatrix, amatrix, transa_tr="C")
-      ! Diagonalize
-      CALL cp_cfm_heevd(matrix=amatrix, eigenvectors=work, eigenvalues=evals)
-      ! Restore vectors C = U^(-1) * C*
-      CALL cp_cfm_triangular_multiply(bmatrix, work)
       nmo = SIZE(eigenvalues)
+
+#if defined(__DLAF)
+      IF (diag_type == FM_DIAG_TYPE_DLAF .AND. amatrix%matrix_struct%nrow_global >= dlaf_neigvec_min) THEN
+         ! Use DLA-Future generalized eigenvalue solver for large matrices
+         CALL cp_cfm_diag_gen_dlaf(amatrix, bmatrix, work, evals)
+      ELSE
+#endif
+         ! Cholesky decompose S=U(T)U
+         CALL cp_cfm_cholesky_decompose(bmatrix)
+         ! Invert to get U^(-1)
+         CALL cp_cfm_triangular_invert(bmatrix)
+         ! Reduce to get U^(-T) * H * U^(-1)
+         CALL cp_cfm_triangular_multiply(bmatrix, amatrix, side="R")
+         CALL cp_cfm_triangular_multiply(bmatrix, amatrix, transa_tr="C")
+         ! Diagonalize
+         CALL cp_cfm_heevd(matrix=amatrix, eigenvectors=work, eigenvalues=evals)
+         ! Restore vectors C = U^(-1) * C*
+         CALL cp_cfm_triangular_multiply(bmatrix, work)
+#if defined(__DLAF)
+      END IF
+#endif
+
       CALL cp_cfm_to_cfm(work, eigenvectors, nmo)
       eigenvalues(1:nmo) = evals(1:nmo)
 

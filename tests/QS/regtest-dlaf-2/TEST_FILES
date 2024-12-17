@@ -1,2 +1,4 @@
+# Tests from regtest-xastdp
 Ne-pbc-shortrange.inp                                  88     1e-08             890.608044
+Ar-HF-2p-SOC-os.inp                                    88      1e-08           261.347679
 #EOF

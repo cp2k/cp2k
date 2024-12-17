@@ -1,5 +1,4 @@
 # This is a Spack Environment file for developing CP2K.
-
 spack:
   specs:
     - mpich@4.1.2 device=ch3 netmod=tcp
@@ -11,12 +10,12 @@ spack:
     - "libxc @6.2.2"
     - "spglib @2.3.0"
     - "dla-future-fortran@0.2.0"
+    - "libint@2.9.0 +fortran tune=cp2k-lmax-5"
    # Unfortunately, ScaLAPACK 2.2.1 has not yet been packaged by Spack.
    # https://github.com/Reference-ScaLAPACK/scalapack/tree/v2.2.1
    # which contains https://github.com/Reference-ScaLAPACK/scalapack/pull/26
 
    # TODO:
-   # - "libint @2.6.0 +fortran tune=cp2k-lmax-5" # build takes 16 min
    # - "sirius @7.4.3 +fortran +shared +openmp" # build fails
    # - "plumed @2.9.0 +shared +mpi optional_modules=all" # requires cython
    # - "libvori @220621" # is not recompile with -fPIC
@@ -31,7 +30,6 @@ spack:
    # libvdwxc-0.4.0.tar.gz: OK
    # libtorch-cxx11-abi-shared-with-deps-1.12.1+cpu.zip: OK
    # SpLA-1.5.5.tar.gz: OK
-
   view:
     default:
       root: ./spack-env/view
@@ -40,5 +38,4 @@ spack:
         - gcc-runtime
   concretizer:
     unify: true
-
 #EOF

@@ -16,7 +16,8 @@ MODULE gw_large_cell_gamma
                                               get_cell,&
                                               pbc
    USE constants_operator,              ONLY: operator_coulomb
-   USE cp_cfm_basic_linalg,             ONLY: cp_cfm_cholesky_decompose,&
+   USE cp_cfm_basic_linalg,             ONLY: cp_cfm_upper_to_full
+   USE cp_cfm_cholesky,                 ONLY: cp_cfm_cholesky_decompose,&
                                               cp_cfm_cholesky_invert
    USE cp_cfm_diag,                     ONLY: cp_cfm_geeig
    USE cp_cfm_types,                    ONLY: cp_cfm_create,&
@@ -80,8 +81,7 @@ MODULE gw_large_cell_gamma
                                               qs_environment_type
    USE qs_kind_types,                   ONLY: qs_kind_type
    USE qs_tensors,                      ONLY: build_3c_integrals
-   USE rpa_gw_kpoints_util,             ONLY: cp_cfm_power,&
-                                              cp_cfm_upper_to_full
+   USE rpa_gw_kpoints_util,             ONLY: cp_cfm_power
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
