@@ -84,7 +84,7 @@ $\alpha_{\mu,\mu'}(\omega) $ with $(\mu,\mu'\in\{x,y,z\})$:
 $$
 \begin{align}
 \alpha_{\mu,\mu'}(\omega) 
-= \sum_n \frac{2 \Omega^{(n)} d^{(n)}_{\mu} d^{(n)}_{\mu'}}{(\omega+i\eta)^2-\left(\Omega^{(n)}\right)^2}
+= - \sum_n \frac{2 \Omega^{(n)} d^{(n)}_{\mu} d^{(n)}_{\mu'}}{(\omega+i\eta)^2-\left(\Omega^{(n)}\right)^2}
 \quad ,
 \end{align}
 $$
@@ -114,7 +114,7 @@ We can rewrite the last equation as
 $$
 \begin{align}
 \mathrm{Im}\left[\bar{\alpha}(\omega)\right] 
-= \mathrm{Im}\left[
+= - \mathrm{Im}\left[
   \sum_n \frac{f^{(n)}}{(\omega+i\eta)^2-\left(\Omega^{(n)}\right)^2}
   \right]
 \quad .
@@ -129,6 +129,17 @@ f^{(n)} = \frac{2}{3} \Omega^{(n)} \sum_{\mu\in\{x,y,z\}} | d^{(n)}_{\mu} |^2
 \quad .
 \end{align}
 $$
+
+Additionally, the photoabsorption cross section tensor
+
+$$
+\begin{align}
+\sigma_{\mu,\mu'}(\omega)  = \frac{4 \pi \omega}{c} \mathrm{Im}\left[\alpha_{\mu,\mu'}(\omega) \right]
+\quad .
+\end{align}
+$$
+
+is printed, where $c$ denotes the speed of light.
 
 ### 1.3 Visualizing excited states using Natural Transition Orbitals (NTOs)
 
@@ -353,11 +364,12 @@ In the upper GW/BSE section, the following keywords have been used:
 
 - [BSE_SPECTRUM](#CP2K_INPUT.FORCE_EVAL.DFT.XC.WF_CORRELATION.RI_RPA.GW.BSE.BSE_SPECTRUM): Activates
   computation and printing of the optical absorption spectrum. For each chosen option in
-  [TDA](#CP2K_INPUT.FORCE_EVAL.DFT.XC.WF_CORRELATION.RI_RPA.GW.BSE.TDA), a file is printed with
+  [TDA](#CP2K_INPUT.FORCE_EVAL.DFT.XC.WF_CORRELATION.RI_RPA.GW.BSE.TDA), one file is printed with
   columns frequency $\omega$, $\mathrm{Im}\left[\bar{\alpha}(\omega)\right]$ and the imaginary part
   of the elements of the dynamical dipole polarizability tensor
-  $\mathrm{Im}\left[{\alpha_{\mu,\mu'}}(\omega)\right]$. The frequency range, step size and the
-  broadening $\eta$ can be specified by the user (cf. keywords in
+  $\mathrm{Im}\left[{\alpha_{\mu,\mu'}}(\omega)\right]$ as well as another file with the respective
+  entries for the photoabsorption cross section tensor ${\sigma_{\mu,\mu'}}(\omega)$. The frequency
+  range, step size and the broadening $\eta$ can be specified by the user (cf. keywords in
   [BSE_SPECTRUM](#CP2K_INPUT.FORCE_EVAL.DFT.XC.WF_CORRELATION.RI_RPA.GW.BSE.BSE_SPECTRUM)). Further,
   multiple broadenings $\eta$ can be given for one cp2k run
   ([ETA_LIST](#CP2K_INPUT.FORCE_EVAL.DFT.XC.WF_CORRELATION.RI_RPA.GW.BSE.BSE_SPECTRUM.ETA_LIST)),

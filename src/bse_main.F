@@ -171,7 +171,7 @@ CONTAINS
                                    gd_array, color_sub, para_env)
       END IF
 
-      CALL adapt_BSE_input_params(homo_red, virtual_red, unit_nr, mp2_env)
+      CALL adapt_BSE_input_params(homo_red, virtual_red, unit_nr, mp2_env, qs_env)
 
       IF (my_do_fulldiag) THEN
          ! Quick estimate of memory consumption and runtime of diagonalizations
