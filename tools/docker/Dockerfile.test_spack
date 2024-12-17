@@ -1,6 +1,6 @@
 #
 # This file was created by generate_dockerfiles.py.
-# Usage: docker build -f ./Dockerfile.test_cmake ../../
+# Usage: docker build -f ./Dockerfile.test_spack ../../
 #
 
 FROM ubuntu:24.04
