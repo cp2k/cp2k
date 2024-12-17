@@ -40,7 +40,7 @@ MODULE tblite_interface
    USE cp_blacs_env, ONLY: cp_blacs_env_type
    USE cp_control_types, ONLY: dft_control_type
    USE cp_dbcsr_api, ONLY: dbcsr_type, dbcsr_p_type, dbcsr_create, dbcsr_get_block_p, &
-                           & dbcsr_print, dbcsr_finalize,  dbcsr_add
+                           & dbcsr_print, dbcsr_finalize, dbcsr_add
    USE cp_dbcsr_cp2k_link, ONLY: cp_dbcsr_alloc_block_from_nbl
    USE cp_dbcsr_operations, ONLY: dbcsr_allocate_matrix_set
    USE cp_log_handling, ONLY: cp_get_default_logger, &
@@ -57,7 +57,7 @@ MODULE tblite_interface
    USE qs_condnum, ONLY: overlap_condnum
    USE qs_energy_types, ONLY: qs_energy_type
    USE qs_environment_types, ONLY: get_qs_env, qs_environment_type
-   USE qs_force_types,                  ONLY: qs_force_type
+   USE qs_force_types, ONLY: qs_force_type
    USE qs_integral_utils, ONLY: basis_set_list_setup, get_memory_usage
    USE qs_kind_types, ONLY: get_qs_kind, qs_kind_type
    USE qs_ks_types, ONLY: qs_ks_env_type, set_ks_env
@@ -65,9 +65,9 @@ MODULE tblite_interface
                                     & get_iterator_info, neighbor_list_set_p_type, &
                                     & neighbor_list_iterator_p_type
    USE qs_overlap, ONLY: create_sab_matrix
-   USE qs_rho_types,                    ONLY: qs_rho_get, qs_rho_type
+   USE qs_rho_types, ONLY: qs_rho_get, qs_rho_type
    USE string_utilities, ONLY: integer_to_string
-   USE virial_types,                    ONLY: virial_type
+   USE virial_types, ONLY: virial_type
 #include "./base/base_uses.f90"
    IMPLICIT NONE
 
@@ -439,7 +439,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'build_tblite_matrices'
 
       INTEGER                                            :: handle, maxder, nderivatives, nimg, img, nkind, i, ic, iw, ia, ib
-      INTEGER                                            :: iatom, jatom, ikind, jkind, iset, jset, n1, n2, icol, irow, ishell, jshell
+    INTEGER                                            :: iatom, jatom, ikind, jkind, iset, jset, n1, n2, icol, irow, ishell, jshell
       INTEGER                                            :: sgfa, sgfb, atom_a, atom_b, ldsab, nseta, nsetb, natorb_a, natorb_b
       LOGICAL                                            :: found, norml1, norml2, use_arnoldi, use_virial
       REAL(KIND=dp)                                      :: dr, rr
@@ -474,7 +474,7 @@ CONTAINS
       TYPE(qs_kind_type), DIMENSION(:), POINTER             :: qs_kind_set
       TYPE(qs_rho_type), POINTER                            :: rho
       TYPE(tblite_type), POINTER                            :: tb
-      type(tb_hamiltonian), POINTER                         :: h0
+      TYPE(tb_hamiltonian), POINTER                         :: h0
       TYPE(virial_type), POINTER                            :: virial
 
       CALL timeset(routineN, handle)
@@ -501,7 +501,7 @@ CONTAINS
       IF (calculate_forces) nderivatives = 1
       maxder = ncoset(nderivatives)
       nimg = dft_control%nimages
-      
+
       ! set up matrices for force calculations
       IF (calculate_forces) THEN
          NULLIFY (rho, force, matrix_w)
@@ -541,6 +541,7 @@ CONTAINS
                            name="HAMILTONIAN MATRIX")
          CALL cp_dbcsr_alloc_block_from_nbl(matrix_h(1, img)%matrix, sab_orb)
       END DO
+      CALL set_ks_env(ks_env, matrix_h_kp=matrix_h)
 
       ! loop over all atom pairs with a non-zero overlap (sab_orb)
       CALL neighbor_list_iterator_create(nl_iterator, sab_orb)
@@ -607,7 +608,7 @@ CONTAINS
          sint = 0.0_dp
          ALLOCATE (hint(natorb_a, natorb_b, maxder))
          hint = 0.0_dp
-         
+
          !----------------- overlap integrals
          DO iset = 1, nseta
             n1 = npgfa(iset)*(ncoset(la_max(iset)) - ncoset(la_min(iset) - 1))
@@ -647,55 +648,54 @@ CONTAINS
          END IF
 
          ! --------- Hamiltonian
-         
-         
-         IF (iatom==jatom) THEN
-           !get diagonal F matrix from selfenergy
-           n1=0
-           DO ishell=1,iatom-1
-             n1=n1+tb%calc%bas%nsh_at(ishell)
-           END DO
-           DO iset = 1, nseta
-             sgfa = first_sgfa(1, iset)
-             DO ia = sgfa, sgfa+nsgfa(iset)-1
-              hint(ia,ia,1)=tb%selfenergy(n1+iset)
-             END DO
-           END DO
-         ELSE
-           !get off-diagonal F matrix
-           rr = SQRT(dr / (h0%rad(jatom) + h0%rad(iatom)))
-           n1=0
-           DO ishell=1,iatom-1
-             n1=n1+tb%calc%bas%nsh_at(ishell)
-           END DO
-           DO iset = 1, nseta
-             sgfa = first_sgfa(1, iset)
-             n2=0
-             DO jshell=1,jatom-1
-               n2=n2+tb%calc%bas%nsh_at(jshell)
-             END DO
-             DO jset = 1, nsetb
-               sgfb = first_sgfb(1, jset)
-               DO ia = sgfa, sgfa+nsgfa(iset)-1
-                 DO ib = sgfb, sgfb+nsgfb(jset)-1
-                   shpoly = (1.0_dp + h0%shpoly(iset, iatom)*rr) &
-                           * (1.0_dp + h0%shpoly(jset, jatom)*rr)
-                   hij = 0.5_dp * (tb%selfenergy(n1+iset) + tb%selfenergy(n2+jset)) &
-                        * h0%hscale(jset, iset, jatom, iatom) * shpoly
-                   hint(ia,ib,1)=hij*sint(ia,ib,1)
-                 END DO
+
+         IF (iatom == jatom) THEN
+            !get diagonal F matrix from selfenergy
+            n1 = 0
+            DO ishell = 1, iatom - 1
+               n1 = n1 + tb%calc%bas%nsh_at(ishell)
+            END DO
+            DO iset = 1, nseta
+               sgfa = first_sgfa(1, iset)
+               DO ia = sgfa, sgfa + nsgfa(iset) - 1
+                  hint(ia, ia, 1) = tb%selfenergy(n1 + iset)
                END DO
-             END DO
-           END DO
+            END DO
+         ELSE
+            !get off-diagonal F matrix
+            rr = SQRT(dr/(h0%rad(jatom) + h0%rad(iatom)))
+            n1 = 0
+            DO ishell = 1, iatom - 1
+               n1 = n1 + tb%calc%bas%nsh_at(ishell)
+            END DO
+            DO iset = 1, nseta
+               sgfa = first_sgfa(1, iset)
+               n2 = 0
+               DO jshell = 1, jatom - 1
+                  n2 = n2 + tb%calc%bas%nsh_at(jshell)
+               END DO
+               DO jset = 1, nsetb
+                  sgfb = first_sgfb(1, jset)
+                  DO ia = sgfa, sgfa + nsgfa(iset) - 1
+                     DO ib = sgfb, sgfb + nsgfb(jset) - 1
+                        shpoly = (1.0_dp + h0%shpoly(iset, iatom)*rr) &
+                                 *(1.0_dp + h0%shpoly(jset, jatom)*rr)
+                        hij = 0.5_dp*(tb%selfenergy(n1 + iset) + tb%selfenergy(n2 + jset)) &
+                              *h0%hscale(jset, iset, jatom, iatom)*shpoly
+                        hint(ia, ib, 1) = hij*sint(ia, ib, 1)
+                     END DO
+                  END DO
+               END DO
+            END DO
          END IF
-         
+
          ! update F matrix
          IF (iatom <= jatom) THEN
             fblock(:, :) = fblock(:, :) + hint(:, :, 1)
          ELSE
             fblock(:, :) = fblock(:, :) + TRANSPOSE(hint(:, :, 1))
          END IF
-         
+
          DEALLOCATE (oint, owork, sint, hint)
 
       END DO
