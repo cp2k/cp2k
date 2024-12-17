@@ -773,7 +773,7 @@ CONTAINS
          END IF
       END IF
 
-      IF (xtb .and. (.not.dft_control%qs_control%xtb_control%do_tblite)) THEN
+      IF (xtb .AND. (.NOT. dft_control%qs_control%xtb_control%do_tblite)) THEN
          ! Build the neighbor lists for the xTB Ewald method
          IF (dft_control%qs_control%xtb_control%do_ewald) THEN
             CALL get_qs_env(qs_env=qs_env, ewald_env=ewald_env)

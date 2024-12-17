@@ -104,7 +104,6 @@ MODULE qs_kind_types
                                               se_param_set_default
    USE soft_basis_set,                  ONLY: create_soft_basis
    USE string_utilities,                ONLY: uppercase
-   USE tblite_types,                    ONLY: tblite_type
    USE xtb_parameters,                  ONLY: xtb_set_kab
    USE xtb_types,                       ONLY: deallocate_xtb_atom_param,&
                                               get_xtb_atom_param,&
@@ -2720,7 +2719,7 @@ CONTAINS
          CPASSERT(defined)
          CALL write_dftb_atom_param(dftb_parameter, subsys_section)
       ELSE IF (dft_control%qs_control%xtb) THEN
-         IF (.not.(dft_control%qs_control%xtb_control%do_tblite)) THEN
+         IF (.NOT. (dft_control%qs_control%xtb_control%do_tblite)) THEN
             CALL get_qs_kind(qs_kind, xtb_parameter=xtb_parameter)
             CPASSERT(ASSOCIATED(xtb_parameter))
             gfn_type = dft_control%qs_control%xtb_control%gfn_type

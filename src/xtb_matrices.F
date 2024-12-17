@@ -1294,7 +1294,7 @@ CONTAINS
 
       ! AO matrix outputs
       CALL ao_matrix_output(qs_env, matrix_h, matrix_s, calculate_forces)
-      
+
       ! print matrices
       DO i = 1, SIZE(matrix_h, 1)
          DO img = 1, nimg

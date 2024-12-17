@@ -84,8 +84,6 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      write(*,*) "+++++ qs_condnum, size:",SIZE(matrixkp_s, 2) 
-
       condnum(1:2) = 0.0_dp
       NULLIFY (smat)
       IF (SIZE(matrixkp_s, 2) == 1) THEN

@@ -132,6 +132,7 @@ MODULE qs_ks_methods
    USE se_fock_matrix,                  ONLY: build_se_fock_matrix
    USE smeagol_interface,               ONLY: smeagol_shift_v_hartree
    USE surface_dipole,                  ONLY: calc_dipsurf_potential
+   USE tblite_ks_matrix,                ONLY: build_tblite_ks_matrix
    USE virial_types,                    ONLY: virial_type
    USE xtb_ks_matrix,                   ONLY: build_xtb_ks_matrix
 #include "./base/base_uses.f90"
@@ -1169,8 +1170,6 @@ CONTAINS
                       matrix_h_kp=matrixkp_h)
 
       CALL qs_rho_get(rho, rho_ao_kp=rho_ao_kp)
-      
-      flush(6)
 
       CALL calculate_ptrace(matrixkp_h, rho_ao_kp, energy%core, dft_control%nspins)
 
@@ -1225,10 +1224,15 @@ CONTAINS
                                    just_energy=just_energy)
 
       ELSEIF (dft_control%qs_control%xtb) THEN
-         CALL build_xtb_ks_matrix(qs_env, &
-                                  calculate_forces=calculate_forces, &
-                                  just_energy=just_energy)
-
+         IF (dft_control%qs_control%xtb_control%do_tblite) THEN
+            CALL build_tblite_ks_matrix(qs_env, &
+                                        calculate_forces=calculate_forces, &
+                                        just_energy=just_energy)
+         ELSE
+            CALL build_xtb_ks_matrix(qs_env, &
+                                     calculate_forces=calculate_forces, &
+                                     just_energy=just_energy)
+         END IF
       ELSE
          CALL qs_ks_build_kohn_sham_matrix(qs_env, &
                                            calculate_forces=calculate_forces, &
