@@ -27,7 +27,7 @@ DLA-Future provides a ScaLAPACK-like Fortran interface in [DLA-Future-Fortran](h
 &END GLOBAL
 ```
 
-The `DLAF_NEIGVEC_MIN` indicates the minimum matrix size for which DLA-Future is used instead of ScaLAPACK. DLA-Future is efficient for large matrices, but it might be slower than ScaLAPACK for small matrices.
+The `DLAF_NEIGVEC_MIN` indicates the minimum matrix size for which DLA-Future is used instead of ScaLAPACK. DLA-Future is optimized for large matrices on GPUs, and might be slower than ScaLAPACK for small matrices or CPU matrices.
 
 ### Block Size
 
