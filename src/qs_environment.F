@@ -88,6 +88,7 @@ MODULE qs_environment
    USE header,                          ONLY: dftb_header,&
                                               qs_header,&
                                               se_header,&
+                                              tblite_header,&
                                               xtb_header
    USE hfx_types,                       ONLY: compare_hfx_sections,&
                                               hfx_create
@@ -713,8 +714,12 @@ CONTAINS
          CASE (do_method_dftb)
             CALL dftb_header(iw)
          CASE (do_method_xtb)
-            gfn_type = dft_control%qs_control%xtb_control%gfn_type
-            CALL xtb_header(iw, gfn_type)
+            IF (dft_control%qs_control%xtb_control%do_tblite) THEN
+               CALL tblite_header(iw, dft_control%qs_control%xtb_control%tblite_method)
+            ELSE
+               gfn_type = dft_control%qs_control%xtb_control%gfn_type
+               CALL xtb_header(iw, gfn_type)
+            END IF
          END SELECT
          CALL cp_print_key_finished_output(iw, logger, dft_section, &
                                            "PRINT%PROGRAM_BANNER")
@@ -1119,20 +1124,22 @@ CONTAINS
       CALL init_interaction_radii(dft_control%qs_control, qs_kind_set)
       !
       IF (dft_control%qs_control%method_id == do_method_xtb) THEN
-         ! cutoff radius
-         DO ikind = 1, nkind
-            qs_kind => qs_kind_set(ikind)
-            IF (qs_kind%xtb_parameter%defined) THEN
-               CALL get_qs_kind(qs_kind, basis_set=tmp_basis_set)
-               rcut = xtb_control%coulomb_sr_cut
-               fxx = 2.0_dp*xtb_control%coulomb_sr_eps*qs_kind%xtb_parameter%eta**2
-               fxx = 0.80_dp*(1.0_dp/fxx)**0.3333_dp
-               rcut = MIN(rcut, xtb_control%coulomb_sr_cut)
-               qs_kind%xtb_parameter%rcut = MIN(rcut, fxx)
-            ELSE
-               qs_kind%xtb_parameter%rcut = 0.0_dp
-            END IF
-         END DO
+         IF (.NOT. dft_control%qs_control%xtb_control%do_tblite) THEN
+            ! cutoff radius
+            DO ikind = 1, nkind
+               qs_kind => qs_kind_set(ikind)
+               IF (qs_kind%xtb_parameter%defined) THEN
+                  CALL get_qs_kind(qs_kind, basis_set=tmp_basis_set)
+                  rcut = xtb_control%coulomb_sr_cut
+                  fxx = 2.0_dp*xtb_control%coulomb_sr_eps*qs_kind%xtb_parameter%eta**2
+                  fxx = 0.80_dp*(1.0_dp/fxx)**0.3333_dp
+                  rcut = MIN(rcut, xtb_control%coulomb_sr_cut)
+                  qs_kind%xtb_parameter%rcut = MIN(rcut, fxx)
+               ELSE
+                  qs_kind%xtb_parameter%rcut = 0.0_dp
+               END IF
+            END DO
+         END IF
       END IF
 
       IF (.NOT. be_silent) THEN
@@ -1161,7 +1168,11 @@ CONTAINS
          scf_control%non_selfconsistent = .NOT. dft_control%qs_control%dftb_control%self_consistent
       END IF
       IF (dft_control%qs_control%xtb) THEN
-         scf_control%non_selfconsistent = (dft_control%qs_control%xtb_control%gfn_type == 0)
+         IF (dft_control%qs_control%xtb_control%do_tblite) THEN
+            scf_control%non_selfconsistent = .FALSE.
+         ELSE
+            scf_control%non_selfconsistent = (dft_control%qs_control%xtb_control%gfn_type == 0)
+         END IF
       END IF
       IF (qs_env%harris_method) THEN
          scf_control%non_selfconsistent = .TRUE.
@@ -1414,51 +1425,53 @@ CONTAINS
          END IF
          CALL set_qs_env(qs_env, dispersion_env=dispersion_env)
       ELSE IF (dft_control%qs_control%method_id == do_method_xtb) THEN
-         ALLOCATE (dispersion_env)
-         ! set general defaults
-         dispersion_env%doabc = .FALSE.
-         dispersion_env%c9cnst = .FALSE.
-         dispersion_env%lrc = .FALSE.
-         dispersion_env%srb = .FALSE.
-         dispersion_env%verbose = .FALSE.
-         NULLIFY (dispersion_env%c6ab, dispersion_env%maxci, &
-                  dispersion_env%r0ab, dispersion_env%rcov, &
-                  dispersion_env%r2r4, dispersion_env%cn, &
-                  dispersion_env%cnkind, dispersion_env%cnlist, &
-                  dispersion_env%d3_exclude_pair)
-         NULLIFY (dispersion_env%q_mesh, dispersion_env%kernel, dispersion_env%d2phi_dk2, &
-                  dispersion_env%d2y_dx2, dispersion_env%dftd_section)
-         NULLIFY (dispersion_env%sab_vdw, dispersion_env%sab_cn)
-         dispersion_env%type = xc_vdw_fun_pairpot
-         dispersion_env%eps_cn = xtb_control%epscn
-         dispersion_env%s6 = xtb_control%s6
-         dispersion_env%s8 = xtb_control%s8
-         dispersion_env%a1 = xtb_control%a1
-         dispersion_env%a2 = xtb_control%a2
-         dispersion_env%domol = .FALSE.
-         dispersion_env%kgc8 = 0._dp
-         dispersion_env%rc_disp = xtb_control%rcdisp
-         dispersion_env%rc_d4 = xtb_control%rcdisp
-         dispersion_env%exp_pre = 0._dp
-         dispersion_env%scaling = 0._dp
-         dispersion_env%nd3_exclude_pair = 0
-         dispersion_env%parameter_file_name = xtb_control%dispersion_parameter_file
-         !
-         SELECT CASE (xtb_control%vdw_type)
-         CASE (xtb_vdw_type_none, xtb_vdw_type_d3)
-            dispersion_env%pp_type = vdw_pairpot_dftd3bj
-            CALL qs_dispersion_pairpot_init(atomic_kind_set, qs_kind_set, dispersion_env, para_env=para_env)
-            IF (xtb_control%vdw_type == xtb_vdw_type_none) dispersion_env%type = xc_vdw_fun_none
-         CASE (xtb_vdw_type_d4)
-            dispersion_env%pp_type = vdw_pairpot_dftd4
-            dispersion_env%ref_functional = "none"
-            CALL qs_dispersion_pairpot_init(atomic_kind_set, qs_kind_set, &
-                                            dispersion_env, para_env=para_env)
-            dispersion_env%cnfun = 2
-         CASE DEFAULT
-            CPABORT("vdw type")
-         END SELECT
-         CALL set_qs_env(qs_env, dispersion_env=dispersion_env)
+         IF (.NOT. (dft_control%qs_control%xtb_control%do_tblite)) THEN
+            ALLOCATE (dispersion_env)
+            ! set general defaults
+            dispersion_env%doabc = .FALSE.
+            dispersion_env%c9cnst = .FALSE.
+            dispersion_env%lrc = .FALSE.
+            dispersion_env%srb = .FALSE.
+            dispersion_env%verbose = .FALSE.
+            NULLIFY (dispersion_env%c6ab, dispersion_env%maxci, &
+                     dispersion_env%r0ab, dispersion_env%rcov, &
+                     dispersion_env%r2r4, dispersion_env%cn, &
+                     dispersion_env%cnkind, dispersion_env%cnlist, &
+                     dispersion_env%d3_exclude_pair)
+            NULLIFY (dispersion_env%q_mesh, dispersion_env%kernel, dispersion_env%d2phi_dk2, &
+                     dispersion_env%d2y_dx2, dispersion_env%dftd_section)
+            NULLIFY (dispersion_env%sab_vdw, dispersion_env%sab_cn)
+            dispersion_env%type = xc_vdw_fun_pairpot
+            dispersion_env%eps_cn = xtb_control%epscn
+            dispersion_env%s6 = xtb_control%s6
+            dispersion_env%s8 = xtb_control%s8
+            dispersion_env%a1 = xtb_control%a1
+            dispersion_env%a2 = xtb_control%a2
+            dispersion_env%domol = .FALSE.
+            dispersion_env%kgc8 = 0._dp
+            dispersion_env%rc_disp = xtb_control%rcdisp
+            dispersion_env%rc_d4 = xtb_control%rcdisp
+            dispersion_env%exp_pre = 0._dp
+            dispersion_env%scaling = 0._dp
+            dispersion_env%nd3_exclude_pair = 0
+            dispersion_env%parameter_file_name = xtb_control%dispersion_parameter_file
+            !
+            SELECT CASE (xtb_control%vdw_type)
+            CASE (xtb_vdw_type_none, xtb_vdw_type_d3)
+               dispersion_env%pp_type = vdw_pairpot_dftd3bj
+               CALL qs_dispersion_pairpot_init(atomic_kind_set, qs_kind_set, dispersion_env, para_env=para_env)
+               IF (xtb_control%vdw_type == xtb_vdw_type_none) dispersion_env%type = xc_vdw_fun_none
+            CASE (xtb_vdw_type_d4)
+               dispersion_env%pp_type = vdw_pairpot_dftd4
+               dispersion_env%ref_functional = "none"
+               CALL qs_dispersion_pairpot_init(atomic_kind_set, qs_kind_set, &
+                                               dispersion_env, para_env=para_env)
+               dispersion_env%cnfun = 2
+            CASE DEFAULT
+               CPABORT("vdw type")
+            END SELECT
+            CALL set_qs_env(qs_env, dispersion_env=dispersion_env)
+         END IF
       ELSE IF (dft_control%qs_control%semi_empirical) THEN
          ALLOCATE (dispersion_env)
          ! set general defaults
@@ -1773,7 +1786,8 @@ CONTAINS
              dft_control%qs_control%method_id == do_method_lrigpw .OR. &
              dft_control%qs_control%method_id == do_method_rigpw .OR. &
              dft_control%qs_control%method_id == do_method_dftb .OR. &
-             dft_control%qs_control%method_id == do_method_xtb .OR. &
+             (dft_control%qs_control%method_id == do_method_xtb .AND. &
+              (.NOT. dft_control%qs_control%xtb_control%do_tblite)) .OR. &
              dft_control%qs_control%method_id == do_method_ofgpw) THEN
             CALL get_qs_env(qs_env, dispersion_env=dispersion_env)
             CALL qs_write_dispersion(qs_env, dispersion_env)

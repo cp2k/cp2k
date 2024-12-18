@@ -24,7 +24,7 @@ MODULE header
    PRIVATE
    PUBLIC :: cp2k_header, cp2k_footer, vib_header
    PUBLIC :: fist_header, se_header, dftb_header, qs_header, tddfpt_header
-   PUBLIC :: qmmm_header, atom_header, atom_footer, band_header, xtb_header
+   PUBLIC :: qmmm_header, atom_header, atom_footer, band_header, xtb_header, tblite_header
    PUBLIC :: tmc_header, tmc_ana_header
    PUBLIC :: sirius_header
    PUBLIC :: tddfpt_soc_header
@@ -242,6 +242,42 @@ CONTAINS
          '            J. Hutter and A. Hehn                  '
 
    END SUBROUTINE xtb_header
+
+! **************************************************************************************************
+!> \brief ...
+!> \param iw ...
+!> \param tb_type ...
+! **************************************************************************************************
+   SUBROUTINE tblite_header(iw, tb_type)
+      INTEGER, INTENT(in)                                :: iw, tb_type
+
+      IF (iw < 0) RETURN
+      WRITE (iw, '( / )')
+      WRITE (iw, '( 7(16x,a,/) )') &
+         '  #####   #####        #     #   #     #       #          ', &
+         ' #     # #     #      #    ##### #     #   # #####  ####  ', &
+         ' #     # #           #       #   ###   #       #   #    # ', &
+         ' #     #  #####     #        #   #  #  #   #   #   ###### ', &
+         ' #   # #       #   #         #   #   # #   #   #   #      ', &
+         ' #    #  #     #  #          #   #  #  # # #   #    #   # ', &
+         '  #### #  #####  #           #   ###   ##  #   #     ###  '
+
+      SELECT CASE (tb_type)
+      CASE (1)
+         WRITE (iw, '( 34x,a )') ' GFN1-xTB  '
+      CASE (2)
+         WRITE (iw, '( 34x,a )') ' GFN2-xTB  '
+      CASE (3)
+         WRITE (iw, '( 34x,a )') ' IPEA1-xTB '
+      CASE DEFAULT
+      END SELECT
+
+      WRITE (iw, '( 2(16x,a,/) )') &
+         '                 Version 0.0                       ', &
+         '            Johann V. Pototschnig                  '
+
+   END SUBROUTINE tblite_header
+
 ! **************************************************************************************************
 !> \brief ...
 !> \param iw ...
