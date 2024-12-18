@@ -1823,7 +1823,9 @@ CONTAINS
 
       NULLIFY (keyword, subsection, subsubsection)
       CALL keyword_create(keyword, __LOCATION__, name="SUBSET_TYPE", &
-                          description="Define the subsytem used to compute the RMSD", &
+                          description="Define the subsytem used to compute the RMSD. With ALL the displacements"// &
+                          " are mass-weighted, with LIST all weights are set to 1,"// &
+                          " with WEIGHT_LIST a list of weights is expected from input.", &
                           usage="SUBSET_TYPE ALL", &
                           enum_c_vals=s2a("ALL", "LIST", "WEIGHT_LIST"), &
                           enum_i_vals=(/rmsd_all, rmsd_list, rmsd_weightlist/), &
@@ -1846,7 +1848,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="WEIGHTS", &
-                          description="Specify weights of atoms building the subset. ", &
+                          description="Specify weights of atoms building the subset. It is used only with WEIGHT_LIST ", &
                           usage="weightS {real} {real} ..", repeats=.TRUE., &
                           n_var=-1, type_of_var=real_t)
       CALL section_add_keyword(section, keyword)
