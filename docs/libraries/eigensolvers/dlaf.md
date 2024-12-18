@@ -1,6 +1,6 @@
 # DLA-Future
 
-[DLA-Future] is a distributed linear algebra library implemented using C++ `std::execution` [P2300](https://cplusplus.github.io/sender-receiver/execution.html) as implemented in [pika]().
+[DLA-Future] is a distributed linear algebra library implemented using C++ `std::execution` [P2300](https://cplusplus.github.io/sender-receiver/execution.html) as implemented in [pika].
 
 DLA-Future provides a ScaLAPACK-like Fortran interface in [DLA-Future-Fortran](https://github.com/eth-cscs/DLA-Future-Fortran), which can be used as a drop-in replacement for ScaLAPACK (with a subset of ScaLAPACK arguments, e.g. workspace arguments are not present).
 
@@ -44,4 +44,11 @@ The default block size of CP2K might be sub-optimal for DLA-Future. While DLA-Fu
 &END GLOBAL
 ```
 
+## Environment Variables
+
+## pika
+
+[DLA-Future] is build on top of [pika], a C++ library based on the `std::execution`, providing a CPU runtime with user-level threads, as well as integration with CUDA/HIP, and MPI. [pika]'s behavior can be controlled by command line option, or environment variables. Please refer to [pika]'s documentation for more information about [controlling the number of threads and thread bindings](https://pikacpp.org/usage.html#controlling-the-number-of-threads-and-thread-bindings).
+
 [DLA-Future]: https://github.com/eth-cscs/DLA-Future
+[pika]: https://pikacpp.org/
