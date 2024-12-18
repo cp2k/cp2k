@@ -1,6 +1,6 @@
 # DLA-Future
 
-[DLA-Future] is a distributed linear algebra library implemented using C++ `std::execution` [P2300](https://cplusplus.github.io/sender-receiver/execution.html) as implemented in [pika].
+[DLA-Future] is a distributed linear algebra library implemented using the C++ `std::execution` proposal [P2300] as provided by [pika].
 
 DLA-Future provides a ScaLAPACK-like Fortran interface in [DLA-Future-Fortran](https://github.com/eth-cscs/DLA-Future-Fortran), which can be used as a drop-in replacement for ScaLAPACK (with a subset of ScaLAPACK arguments, e.g. workspace arguments are not present).
 
@@ -10,7 +10,7 @@ DLA-Future provides a ScaLAPACK-like Fortran interface in [DLA-Future-Fortran](h
 
 ## CMake
 
-[DLA-Future] is enabled with the following CMake option:
+[DLA-Future] is enabled in CP2K with the following CMake option:
 
 ```bash
 -DCP2K_USE_DLAF=ON
@@ -18,7 +18,7 @@ DLA-Future provides a ScaLAPACK-like Fortran interface in [DLA-Future-Fortran](h
 
 ## CP2K Input File
 
-[DLA-Future] is selected in the CP2K input file with the following keyword:
+[DLA-Future] can be selected in the CP2K input file with the `PREFERRED_DIAG_LIBRARY` keyword:
 ```
 &GLOBAL
   PREFERRED_DIAG_LIBRARY DLAF
@@ -48,7 +48,10 @@ The default block size of CP2K might be sub-optimal for DLA-Future. While DLA-Fu
 
 ## pika
 
-[DLA-Future] is build on top of [pika], a C++ library based on the `std::execution`, providing a CPU runtime with user-level threads, as well as integration with CUDA/HIP, and MPI. [pika]'s behavior can be controlled by command line option, or environment variables. Please refer to [pika]'s documentation for more information about [controlling the number of threads and thread bindings](https://pikacpp.org/usage.html#controlling-the-number-of-threads-and-thread-bindings).
+[DLA-Future] is built on top of [pika], a C++ library based on the `std::execution` proposal [P2300], providing a CPU runtime with user-level threads, as well as integration with CUDA/HIP, and MPI. [pika]'s behavior can be controlled by command line options, or environment variables. Please refer to [pika]'s documentation for more information about [controlling the number of threads and thread bindings](https://pikacpp.org/usage.html#controlling-the-number-of-threads-and-thread-bindings).
 
 [DLA-Future]: https://github.com/eth-cscs/DLA-Future
 [pika]: https://pikacpp.org/
+[Spack]: https://spack.readthedocs.io/en/latest/
+[DLA-Future Spack package]: https://packages.spack.io/package.html?name=dla-future
+[P2300]: https://cplusplus.github.io/sender-receiver/execution.html
