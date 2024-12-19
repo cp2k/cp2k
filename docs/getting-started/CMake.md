@@ -53,7 +53,7 @@ For an MPI build, the following dependencies are also required:
 
 ### DBCSR
 
-\[DBCSR\] is a required dependency of CP2K, and [CMake] expects \[DBCSR\] as an external dependency.
+[DBCSR] is a required dependency of CP2K, and [CMake] expects [DBCSR] as an external dependency.
 
 ### BLAS, LAPACK, and ScaLAPACK
 
