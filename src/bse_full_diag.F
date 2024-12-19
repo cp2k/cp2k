@@ -24,7 +24,8 @@ MODULE bse_full_diag
                                               get_oscillator_strengths
    USE bse_util,                        ONLY: comp_eigvec_coeff_BSE,&
                                               fm_general_add_bse,&
-                                              get_multipoles_mo
+                                              get_multipoles_mo,&
+                                              reshuffle_eigvec
    USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
                                               cp_blacs_env_release,&
                                               cp_blacs_env_type
@@ -629,11 +630,12 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'postprocess_bse'
 
       CHARACTER(LEN=10)                                  :: info_approximation, multiplet
-      INTEGER                                            :: handle, idir, n_moments_di, &
+      INTEGER                                            :: handle, i_exc, idir, n_moments_di, &
                                                             n_moments_quad
       REAL(KIND=dp)                                      :: alpha
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: oscill_str, ref_point_multipole
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: polarizability_residues, trans_mom_bse
+      TYPE(cp_fm_type)                                   :: fm_X_ia, fm_Y_ia
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:) :: fm_dipole_ab_trunc, fm_dipole_ai_trunc, &
          fm_dipole_ij_trunc, fm_quadpole_ab_trunc, fm_quadpole_ai_trunc, fm_quadpole_ij_trunc
       TYPE(exciton_descr_type), ALLOCATABLE, &
@@ -679,12 +681,31 @@ CONTAINS
          CALL get_multipoles_mo(fm_quadpole_ai_trunc, fm_quadpole_ij_trunc, fm_quadpole_ab_trunc, &
                                 qs_env, mo_coeff, ref_point_multipole, 2, &
                                 homo, virtual, fm_eigvec_X%matrix_struct%context)
-         CALL get_exciton_descriptors(exc_descr, fm_eigvec_X, &
-                                      fm_dipole_ij_trunc, fm_dipole_ab_trunc, fm_dipole_ai_trunc, &
-                                      fm_quadpole_ij_trunc, fm_quadpole_ab_trunc, &
-                                      homo, virtual, unit_nr, &
-                                      mp2_env, qs_env, &
-                                      fm_eigvec_Y)
+         ! Iterate over excitation index outside of routine to make it compatible with tddft module
+         ALLOCATE (exc_descr(mp2_env%bse%num_print_exc_descr))
+         DO i_exc = 1, mp2_env%bse%num_print_exc_descr
+            CALL reshuffle_eigvec(fm_eigvec_X, fm_X_ia, homo, virtual, i_exc, &
+                                  .FALSE., unit_nr, mp2_env)
+            IF (.NOT. flag_TDA) THEN
+               CALL reshuffle_eigvec(fm_eigvec_Y, fm_Y_ia, homo, virtual, i_exc, &
+                                     .FALSE., unit_nr, mp2_env)
+
+               CALL get_exciton_descriptors(exc_descr, fm_X_ia, &
+                                            fm_quadpole_ij_trunc, fm_quadpole_ab_trunc, &
+                                            fm_quadpole_ai_trunc, &
+                                            i_exc, homo, virtual, &
+                                            fm_Y_ia)
+            ELSE
+               CALL get_exciton_descriptors(exc_descr, fm_X_ia, &
+                                            fm_quadpole_ij_trunc, fm_quadpole_ab_trunc, &
+                                            fm_quadpole_ai_trunc, &
+                                            i_exc, homo, virtual)
+            END IF
+            CALL cp_fm_release(fm_X_ia)
+            IF (.NOT. flag_TDA) THEN
+               CALL cp_fm_release(fm_Y_ia)
+            END IF
+         END DO
       END IF
 
       IF (mp2_env%bse%bse_spin_config == 0) THEN
