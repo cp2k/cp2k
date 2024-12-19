@@ -9,6 +9,9 @@ MODULE qs_tddfpt2_properties
    USE atomic_kind_types,               ONLY: atomic_kind_type
    USE bibliography,                    ONLY: Martin2003,&
                                               cite_reference
+   USE bse_properties,                  ONLY: exciton_descr_type,&
+                                              get_exciton_descriptors
+   USE bse_util,                        ONLY: get_multipoles_mo
    USE cell_types,                      ONLY: cell_type
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_cfm_basic_linalg,             ONLY: cp_cfm_solve
@@ -42,6 +45,7 @@ MODULE qs_tddfpt2_properties
                                               cp_fm_release,&
                                               cp_fm_set_all,&
                                               cp_fm_to_fm,&
+                                              cp_fm_to_fm_submat_general,&
                                               cp_fm_type,&
                                               cp_fm_vectorsnorm
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
@@ -73,7 +77,8 @@ MODULE qs_tddfpt2_properties
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE particle_list_types,             ONLY: particle_list_type
    USE particle_types,                  ONLY: particle_type
-   USE physcon,                         ONLY: evolt
+   USE physcon,                         ONLY: angstrom,&
+                                              evolt
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_type
    USE pw_poisson_types,                ONLY: pw_poisson_type
@@ -114,7 +119,7 @@ MODULE qs_tddfpt2_properties
    INTEGER, PARAMETER, PRIVATE          :: maxspins = 2
 
    PUBLIC :: tddfpt_dipole_operator, tddfpt_print_summary, tddfpt_print_excitation_analysis, &
-             tddfpt_print_nto_analysis
+             tddfpt_print_nto_analysis, tddfpt_print_exciton_descriptors
 
 ! **************************************************************************************************
 
@@ -1143,6 +1148,159 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE tddfpt_print_nto_analysis
+
+! **************************************************************************************************
+!> \brief Print exciton descriptors, cf. Mewes et al., JCTC 14, 710-725 (2018)
+!> \param log_unit           output unit
+!> \param evects             TDDFPT trial vectors (SIZE(evects,1) -- number of spins;
+!>                           SIZE(evects,2) -- number of excited states to print)
+!> \param gs_mos             molecular orbitals optimised for the ground state
+!> \param matrix_s           overlap matrix
+!> \param qs_env ...
+!> \par History
+!>    * 12.2024 created as 'tddfpt_print_exciton_descriptors' [Maximilian Graml]
+! **************************************************************************************************
+   SUBROUTINE tddfpt_print_exciton_descriptors(log_unit, evects, gs_mos, matrix_s, qs_env)
+      INTEGER, INTENT(in)                                :: log_unit
+      TYPE(cp_fm_type), DIMENSION(:, :), INTENT(in)      :: evects
+      TYPE(tddfpt_ground_state_mos), DIMENSION(:), &
+         INTENT(in)                                      :: gs_mos
+      TYPE(dbcsr_type), POINTER                          :: matrix_s
+      TYPE(qs_environment_type), INTENT(IN), POINTER     :: qs_env
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_print_exciton_descriptors'
+
+      INTEGER                                            :: handle, ispin, istate, n_moments_quad, &
+                                                            nao, nspins, nstates
+      INTEGER, DIMENSION(maxspins)                       :: nmo_occ, nmo_virt
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: ref_point_multipole
+      TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
+      TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_mo_coeff, &
+                                                            fm_struct_S_mos_virt, fm_struct_X_ia_n
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: eigvec_X_ia_n, fm_multipole_ab, &
+                                                            fm_multipole_ai, fm_multipole_ij, &
+                                                            S_mos_virt
+      TYPE(cp_fm_type), DIMENSION(:), POINTER            :: mo_coeff
+      TYPE(exciton_descr_type), ALLOCATABLE, &
+         DIMENSION(:)                                    :: exc_descr
+
+      CALL timeset(routineN, handle)
+
+      !TODO: routine in methos for computation of X
+
+      nspins = SIZE(evects, 1)
+      nstates = SIZE(evects, 2)
+
+      CPASSERT(nspins == 1) ! Other spins have to be checked
+
+      CALL cp_fm_get_info(gs_mos(1)%mos_occ, context=blacs_env)
+      CALL dbcsr_get_info(matrix_s, nfullrows_total=nao)
+
+      DO ispin = 1, nspins
+         nmo_occ(ispin) = SIZE(gs_mos(ispin)%evals_occ)
+         nmo_virt(ispin) = SIZE(gs_mos(ispin)%evals_virt)
+      END DO
+
+      ! Prepare fm with all MO coefficents, i.e. nao x nao
+      ALLOCATE (mo_coeff(nspins))
+      CALL cp_fm_struct_create(fm_struct_mo_coeff, nrow_global=nao, ncol_global=nao, &
+                               context=blacs_env)
+      DO ispin = 1, nspins
+         CALL cp_fm_create(mo_coeff(ispin), fm_struct_mo_coeff)
+         CALL cp_fm_to_fm_submat_general(gs_mos(ispin)%mos_occ, &
+                                         mo_coeff(ispin), &
+                                         nao, &
+                                         nmo_occ(ispin), &
+                                         1, &
+                                         1, &
+                                         1, &
+                                         1, &
+                                         blacs_env)
+         CALL cp_fm_to_fm_submat_general(gs_mos(ispin)%mos_virt, &
+                                         mo_coeff(ispin), &
+                                         nao, &
+                                         nmo_virt(ispin), &
+                                         1, &
+                                         1, &
+                                         1, &
+                                         nmo_occ(ispin) + 1, &
+                                         blacs_env)
+      END DO
+      CALL cp_fm_struct_release(fm_struct_mo_coeff)
+
+      ! Compute multipole moments
+      ! fm_multipole_XY have structure inherited by libint, i.e. x, y, z, xx, xy, xz, yy, yz, zz
+      n_moments_quad = 9
+      ALLOCATE (ref_point_multipole(3))
+      ALLOCATE (fm_multipole_ij(n_moments_quad))
+      ALLOCATE (fm_multipole_ab(n_moments_quad))
+      ALLOCATE (fm_multipole_ai(n_moments_quad))
+
+      CALL get_multipoles_mo(fm_multipole_ai, fm_multipole_ij, fm_multipole_ab, &
+                             qs_env, mo_coeff, ref_point_multipole, 2, &
+                             nmo_occ(1), nmo_virt(1), blacs_env)
+
+      CALL cp_fm_release(mo_coeff)
+      DEALLOCATE (ref_point_multipole)
+
+      ! Compute eigenvector X of the Casida equation from trial vectors
+      ALLOCATE (S_mos_virt(nspins), eigvec_X_ia_n(nspins))
+      DO ispin = 1, nspins
+         CALL cp_fm_get_info(gs_mos(ispin)%mos_virt, matrix_struct=fm_struct_S_mos_virt)
+         CALL cp_fm_create(S_mos_virt(ispin), fm_struct_S_mos_virt)
+         NULLIFY (fm_struct_S_mos_virt)
+         CALL cp_dbcsr_sm_fm_multiply(matrix_s, &
+                                      gs_mos(ispin)%mos_virt, &
+                                      S_mos_virt(ispin), &
+                                      ncol=nmo_virt(ispin), alpha=1.0_dp, beta=0.0_dp)
+
+         CALL cp_fm_struct_create(fm_struct_X_ia_n, nrow_global=nmo_occ(ispin), ncol_global=nmo_virt(ispin), &
+                                  context=blacs_env)
+         CALL cp_fm_create(eigvec_X_ia_n(ispin), fm_struct_X_ia_n)
+         CALL cp_fm_struct_release(fm_struct_X_ia_n)
+      END DO
+      ALLOCATE (exc_descr(nstates))
+      DO istate = 1, nstates
+         DO ispin = 1, nspins
+            CALL cp_fm_set_all(eigvec_X_ia_n(ispin), 0.0_dp)
+            ! compute eigenvectors X of the TDA equation
+            ! Reshuffle multiplication from
+            ! X_ai = S_µa ^T * C_µi
+            ! to
+            ! X_ia = C_µi ^T * S_µa
+            ! for compatibility with the structure needed for get_exciton_descriptors of bse_properties.F
+            CALL parallel_gemm('T', 'N', nmo_occ(ispin), nmo_virt(ispin), nao, 1.0_dp, &
+                               evects(ispin, istate), S_mos_virt(ispin), 0.0_dp, eigvec_X_ia_n(ispin))
+
+            CALL get_exciton_descriptors(exc_descr, eigvec_X_ia_n(ispin), &
+                                         fm_multipole_ij, fm_multipole_ab, &
+                                         fm_multipole_ai, &
+                                         istate, nmo_occ(ispin), nmo_virt(ispin))
+
+         END DO
+      END DO
+      ! Quick print for debug purposes
+      WRITE (log_unit, '(T2,A4,T10,A1,6X,A3,1X,4X,A10,5X,A10,5X,A10,3X,A11,8X,A4)') '|', &
+         'n', 'c_n', 'd_eh [Å]', 'σ_e [Å]', 'σ_h [Å]', 'd_exc [Å]', 'R_eh'
+      DO istate = 1, nstates
+         WRITE (log_unit, '(T2,A4,T7,I4,4X,F5.3,1X,5(2X,F10.4))') &
+            '|', istate, exc_descr(istate)%norm_XpY, &
+            exc_descr(istate)%diff_r_abs*angstrom, &
+            exc_descr(istate)%sigma_e*angstrom, exc_descr(istate)%sigma_h*angstrom, &
+            exc_descr(istate)%diff_r_sqr*angstrom, exc_descr(istate)%corr_e_h*angstrom
+      END DO
+
+      CALL cp_fm_release(eigvec_X_ia_n)
+      CALL cp_fm_release(S_mos_virt)
+      CALL cp_fm_release(fm_multipole_ai)
+      CALL cp_fm_release(fm_multipole_ij)
+      CALL cp_fm_release(fm_multipole_ab)
+
+      DEALLOCATE (exc_descr)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE tddfpt_print_exciton_descriptors
 
 ! **************************************************************************************************
 !> \brief ...

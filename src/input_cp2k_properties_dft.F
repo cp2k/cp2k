@@ -1600,6 +1600,13 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="EXCITON_DESCRIPTORS", &
+                          description="Compute exciton descriptors.", &
+                          n_var=1, type_of_var=logical_t, &
+                          default_l_val=.FALSE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       ! Strings
       CALL keyword_create(keyword, __LOCATION__, name="WFN_RESTART_FILE_NAME", &
                           variants=(/"RESTART_FILE_NAME"/), &

@@ -81,6 +81,7 @@ MODULE qs_tddfpt2_methods
    USE qs_tddfpt2_lri_utils,            ONLY: tddfpt2_lri_init
    USE qs_tddfpt2_properties,           ONLY: tddfpt_dipole_operator,&
                                               tddfpt_print_excitation_analysis,&
+                                              tddfpt_print_exciton_descriptors,&
                                               tddfpt_print_nto_analysis,&
                                               tddfpt_print_summary
    USE qs_tddfpt2_restart,              ONLY: tddfpt_read_restart,&
@@ -1163,6 +1164,14 @@ CONTAINS
                                      gs_mos, &
                                      matrix_s(1)%matrix, &
                                      tddfpt_print_section)
+      IF (tddfpt_control%do_exciton_descriptors) THEN
+         CALL tddfpt_print_exciton_descriptors( &
+            log_unit, &
+            evects, &
+            gs_mos, &
+            matrix_s(1)%matrix, &
+            qs_env)
+      END IF
 
       IF (tddfpt_control%do_lrigpw) THEN
          CALL lri_print_stat(qs_env, &

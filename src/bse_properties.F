@@ -738,17 +738,17 @@ CONTAINS
 !> \brief ...
 !> \param exc_descr Allocated and initialized on exit
 !> \param fm_X_ia ...
-!> \param fm_quadpole_ij_trunc ...
-!> \param fm_quadpole_ab_trunc ...
-!> \param fm_quadpole_ai_trunc ...
+!> \param fm_multipole_ij_trunc ...
+!> \param fm_multipole_ab_trunc ...
+!> \param fm_multipole_ai_trunc ...
 !> \param i_exc ...
 !> \param homo ...
 !> \param virtual ...
 !> \param fm_Y_ia ...
 ! **************************************************************************************************
    SUBROUTINE get_exciton_descriptors(exc_descr, fm_X_ia, &
-                                      fm_quadpole_ij_trunc, fm_quadpole_ab_trunc, &
-                                      fm_quadpole_ai_trunc, &
+                                      fm_multipole_ij_trunc, fm_multipole_ab_trunc, &
+                                      fm_multipole_ai_trunc, &
                                       i_exc, homo, virtual, &
                                       fm_Y_ia)
 
@@ -756,9 +756,9 @@ CONTAINS
          DIMENSION(:)                                    :: exc_descr
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_X_ia
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:), &
-         INTENT(IN)                                      :: fm_quadpole_ij_trunc, &
-                                                            fm_quadpole_ab_trunc, &
-                                                            fm_quadpole_ai_trunc
+         INTENT(IN)                                      :: fm_multipole_ij_trunc, &
+                                                            fm_multipole_ab_trunc, &
+                                                            fm_multipole_ai_trunc
       INTEGER, INTENT(IN)                                :: i_exc, homo, virtual
       TYPE(cp_fm_type), INTENT(IN), OPTIONAL             :: fm_Y_ia
 
@@ -831,11 +831,11 @@ CONTAINS
       ! <r_h>_X = Tr[ X^T µ_ij X + Y µ_ab Y^T ] = X_ai µ_ij X_ja + Y_ia  µ_ab Y_bi
       DO i_dir = 1, 3
          ! <r_h>_X = X_ai µ_ij X_ja + ...
-         CALL trace_exciton_descr(fm_X_ia, fm_quadpole_ij_trunc(i_dir), fm_X_ia, r_h_X(i_dir))
+         CALL trace_exciton_descr(fm_X_ia, fm_multipole_ij_trunc(i_dir), fm_X_ia, r_h_X(i_dir))
          r_h_X(i_dir) = r_h_X(i_dir)/norm_XpY
          IF (.NOT. flag_TDA) THEN
             ! <r_h>_X = ... + Y_ia  µ_ab Y_bi
-            CALL trace_exciton_descr(fm_Y_ia, fm_Y_ia, fm_quadpole_ab_trunc(i_dir), r_h_Y(i_dir))
+            CALL trace_exciton_descr(fm_Y_ia, fm_Y_ia, fm_multipole_ab_trunc(i_dir), r_h_Y(i_dir))
             r_h_Y(i_dir) = r_h_Y(i_dir)/norm_XpY
          END IF
       END DO
@@ -844,11 +844,11 @@ CONTAINS
       ! <r_e>_X = Tr[ X µ_ab X^T + Y^T µ_ij Y ] = X_ia µ_ab X_bi + Y_ai µ_ij Y_ja
       DO i_dir = 1, 3
          ! <r_e>_X = work_ib X_bi + ... = X_ib^T work_ib + ...
-         CALL trace_exciton_descr(fm_X_ia, fm_X_ia, fm_quadpole_ab_trunc(i_dir), r_e_X(i_dir))
+         CALL trace_exciton_descr(fm_X_ia, fm_X_ia, fm_multipole_ab_trunc(i_dir), r_e_X(i_dir))
          r_e_X(i_dir) = r_e_X(i_dir)/norm_XpY
          IF (.NOT. flag_TDA) THEN
             ! <r_e>_X = ... + Y_ai µ_ij Y_ja
-            CALL trace_exciton_descr(fm_Y_ia, fm_quadpole_ij_trunc(i_dir), fm_Y_ia, r_e_Y(i_dir))
+            CALL trace_exciton_descr(fm_Y_ia, fm_multipole_ij_trunc(i_dir), fm_Y_ia, r_e_Y(i_dir))
             r_e_Y(i_dir) = r_e_Y(i_dir)/norm_XpY
          END IF
       END DO
@@ -857,13 +857,13 @@ CONTAINS
       ! <r_h^2>_X = Tr[ X^T M_ij X + Y M_ab Y^T ] = X_ai M_ij X_ja + Y_ia  M_ab Y_bi
       DO i_dir = 1, 3
          ! <r_h^2>_X = X_ai M_ij X_ja + ...
-         CALL trace_exciton_descr(fm_X_ia, fm_quadpole_ij_trunc(mask_quadrupole(i_dir)), &
+         CALL trace_exciton_descr(fm_X_ia, fm_multipole_ij_trunc(mask_quadrupole(i_dir)), &
                                   fm_X_ia, r_h_sq_X(i_dir))
          r_h_sq_X(i_dir) = r_h_sq_X(i_dir)/norm_XpY
          IF (.NOT. flag_TDA) THEN
             ! <r_h^2>_X = ... + Y_ia  M_ab Y_bi
             CALL trace_exciton_descr(fm_Y_ia, fm_Y_ia, &
-                                     fm_quadpole_ab_trunc(mask_quadrupole(i_dir)), r_h_sq_Y(i_dir))
+                                     fm_multipole_ab_trunc(mask_quadrupole(i_dir)), r_h_sq_Y(i_dir))
             r_h_sq_Y(i_dir) = r_h_sq_Y(i_dir)/norm_XpY
          END IF
       END DO
@@ -873,11 +873,11 @@ CONTAINS
       DO i_dir = 1, 3
          ! <r_e^2>_X = work_ib X_bi + ... = X_ib^T work_ib + ...
          CALL trace_exciton_descr(fm_X_ia, fm_X_ia, &
-                                  fm_quadpole_ab_trunc(mask_quadrupole(i_dir)), r_e_sq_X(i_dir))
+                                  fm_multipole_ab_trunc(mask_quadrupole(i_dir)), r_e_sq_X(i_dir))
          r_e_sq_X(i_dir) = r_e_sq_X(i_dir)/norm_XpY
          IF (.NOT. flag_TDA) THEN
             ! <r_e^2>_X = ... + Y_ai M_ij Y_ja
-            CALL trace_exciton_descr(fm_Y_ia, fm_quadpole_ij_trunc(mask_quadrupole(i_dir)), &
+            CALL trace_exciton_descr(fm_Y_ia, fm_multipole_ij_trunc(mask_quadrupole(i_dir)), &
                                      fm_Y_ia, r_e_sq_Y(i_dir))
             r_e_sq_Y(i_dir) = r_e_sq_Y(i_dir)/norm_XpY
          END IF
@@ -896,10 +896,10 @@ CONTAINS
          CALL cp_fm_set_all(fm_work_ia_2, 0.0_dp)
          ! work_ib = X_ia µ_ab
          CALL parallel_gemm("N", "N", homo, virtual, virtual, 1.0_dp, &
-                            fm_X_ia, fm_quadpole_ab_trunc(i_dir), 0.0_dp, fm_work_ia)
+                            fm_X_ia, fm_multipole_ab_trunc(i_dir), 0.0_dp, fm_work_ia)
          ! work_ja_2 = µ_ji work_ia
          CALL parallel_gemm("N", "N", homo, virtual, homo, 1.0_dp, &
-                            fm_quadpole_ij_trunc(i_dir), fm_work_ia, 0.0_dp, fm_work_ia_2)
+                            fm_multipole_ij_trunc(i_dir), fm_work_ia, 0.0_dp, fm_work_ia_2)
          ! <r_h r_e>_X = work_ia_2 X_bj + ... = X^T work_ia_2 + ...
          CALL cp_fm_trace(fm_X_ia, fm_work_ia_2, r_e_h_XX(i_dir))
          r_e_h_XX(i_dir) = r_e_h_XX(i_dir)/norm_XpY
@@ -909,10 +909,10 @@ CONTAINS
             CALL cp_fm_set_all(fm_work_ia_2, 0.0_dp)
             ! work_ib = Y_ia µ_ab
             CALL parallel_gemm("N", "N", homo, virtual, virtual, 1.0_dp, &
-                               fm_Y_ia, fm_quadpole_ab_trunc(i_dir), 0.0_dp, fm_work_ia)
+                               fm_Y_ia, fm_multipole_ab_trunc(i_dir), 0.0_dp, fm_work_ia)
             ! work_ja_2 = µ_ji work_ia
             CALL parallel_gemm("N", "N", homo, virtual, homo, 1.0_dp, &
-                               fm_quadpole_ij_trunc(i_dir), fm_work_ia, 0.0_dp, fm_work_ia_2)
+                               fm_multipole_ij_trunc(i_dir), fm_work_ia, 0.0_dp, fm_work_ia_2)
             ! <r_h r_e>_X = work_ia_2 Y_bj + ... = Y^T work_ia_2 + ...
             CALL cp_fm_trace(fm_Y_ia, fm_work_ia_2, r_e_h_YY(i_dir))
             r_e_h_YY(i_dir) = r_e_h_YY(i_dir)/norm_XpY
@@ -930,10 +930,10 @@ CONTAINS
             CALL cp_fm_set_all(fm_work_ia, 0.0_dp)
             ! fm_work_ba = Y_bj µ_ja
             CALL parallel_gemm("T", "T", virtual, virtual, homo, 1.0_dp, &
-                               fm_Y_ia, fm_quadpole_ai_trunc(i_dir), 0.0_dp, fm_work_ba)
+                               fm_Y_ia, fm_multipole_ai_trunc(i_dir), 0.0_dp, fm_work_ba)
             ! fm_work_ia = µ_ib fm_work_ba
             CALL parallel_gemm("T", "N", homo, virtual, virtual, 1.0_dp, &
-                               fm_quadpole_ai_trunc(i_dir), fm_work_ba, 0.0_dp, fm_work_ia)
+                               fm_multipole_ai_trunc(i_dir), fm_work_ba, 0.0_dp, fm_work_ia)
             ! <r_h r_e>_X = ... + X_ia µ_aj Y_jb µ_bi
             CALL cp_fm_trace(fm_work_ia, fm_X_ia, r_e_h_XY(i_dir))
             r_e_h_XY(i_dir) = r_e_h_XY(i_dir)/norm_XpY
@@ -951,10 +951,10 @@ CONTAINS
             CALL cp_fm_set_all(fm_work_ia, 0.0_dp)
             ! fm_work_ba = Y_bj µ_ja
             CALL parallel_gemm("T", "T", virtual, virtual, homo, 1.0_dp, &
-                               fm_X_ia, fm_quadpole_ai_trunc(i_dir), 0.0_dp, fm_work_ba)
+                               fm_X_ia, fm_multipole_ai_trunc(i_dir), 0.0_dp, fm_work_ba)
             ! fm_work_ia = µ_ib fm_work_ba
             CALL parallel_gemm("T", "N", homo, virtual, virtual, 1.0_dp, &
-                               fm_quadpole_ai_trunc(i_dir), fm_work_ba, 0.0_dp, fm_work_ia)
+                               fm_multipole_ai_trunc(i_dir), fm_work_ba, 0.0_dp, fm_work_ia)
             ! <r_h r_e>_X = ... + X_ia µ_aj Y_jb µ_bi
             CALL cp_fm_trace(fm_work_ia, fm_Y_ia, r_e_h_YX(i_dir))
             r_e_h_YX(i_dir) = r_e_h_YX(i_dir)/norm_XpY
