@@ -805,7 +805,7 @@ CONTAINS
                CALL get_qs_kind(qs_kind, element_symbol=element_symbol)
 
                NULLIFY (tmp_basis_set)
-               CALL tb_get_basis(qs_env%tb_tblite, tmp_basis_set, element_symbol, qs_kind%xtb_parameter%rcut, occ)
+               CALL tb_get_basis(qs_env%tb_tblite, tmp_basis_set, element_symbol, qs_kind%xtb_parameter, occ)
                CALL add_basis_set_to_container(qs_kind%basis_sets, tmp_basis_set, "ORB")
                CALL set_xtb_atom_param(qs_kind%xtb_parameter, occupation=occ)
 

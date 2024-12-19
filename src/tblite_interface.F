@@ -68,6 +68,7 @@ MODULE tblite_interface
    USE qs_rho_types, ONLY: qs_rho_get, qs_rho_type
    USE string_utilities, ONLY: integer_to_string
    USE virial_types, ONLY: virial_type
+   USE xtb_types, ONLY: xtb_atom_type
 #include "./base/base_uses.f90"
    IMPLICIT NONE
 
@@ -337,15 +338,15 @@ CONTAINS
 !> \param tb ...
 !> \param gto_basis_set ...
 !> \param element_symbol ...
-!> \param r_cutoff ...
+!> \param param ...
 !> \param occ ...
 ! **************************************************************************************************
-   SUBROUTINE tb_get_basis(tb, gto_basis_set, element_symbol, r_cutoff, occ)
+   SUBROUTINE tb_get_basis(tb, gto_basis_set, element_symbol, param, occ)
 
       TYPE(tblite_type), POINTER                         :: tb
       TYPE(gto_basis_set_type), POINTER                  :: gto_basis_set
       CHARACTER(len=2), INTENT(IN)                       :: element_symbol
-      REAL(dp), INTENT(out)                              :: r_cutoff
+      TYPE(xtb_atom_type), POINTER                       :: param
       INTEGER, DIMENSION(5), INTENT(out)                 :: occ
 
       CHARACTER(LEN=default_string_length)               :: sng
@@ -362,6 +363,7 @@ CONTAINS
       DO id_atom = 1, tb%mol%nat
          IF (i_type == tb%el_num(id_atom)) EXIT
       END DO
+      param%z = i_type
 
       !getting size information
       nset = tb%calc%bas%nsh_at(id_atom)
@@ -370,6 +372,7 @@ CONTAINS
       DO ishell = 1, nset
          mprim = MAX(mprim, tb%calc%bas%cgto(ishell, id_atom)%nprim)
       END DO
+      param%nshell = nset
 
       !write basis set information
       CALL integer_to_string(mprim, sng)
@@ -387,6 +390,7 @@ CONTAINS
       maxl = 0
       DO ishell = 1, nset
          ang = tb%calc%bas%cgto(ishell, id_atom)%ang
+         param%lval(ishell) = ang
          maxl = MAX(ang, maxl)
          gto_basis_set%lmax(ishell) = ang
          gto_basis_set%lmin(ishell) = ang
@@ -404,13 +408,14 @@ CONTAINS
       CALL process_gto_basis(gto_basis_set, do_ortho, nset, maxl)
 
       !getting cutoff
-      r_cutoff = get_cutoff(tb%calc%bas)
+      param%rcut = get_cutoff(tb%calc%bas)
 
       !getting occupation
       occ = 0
       iId = tb%mol%id(id_atom)
       DO iSh = 1, MIN(tb%calc%bas%nsh_at(id_atom), 5)
          occ(iSh) = NINT(tb%calc%h0%refocc(iSh, iId))
+         param%occupation(iSh) = occ(iSh)
       END DO
 
       !set normalization process

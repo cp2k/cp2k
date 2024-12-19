@@ -1276,6 +1276,10 @@ CONTAINS
             ELSEIF (dft_control%qs_control%xtb) THEN
                CALL get_qs_kind(qs_kind_set(ikind), xtb_parameter=xtb_kind)
                CALL get_xtb_atom_param(xtb_kind, z=z, natorb=nsgf, nao=naox, lao=laox, occupation=occupation)
+               WRITE (*, *) "+++++++++++ ikind, z, nsgf: ", ikind, z, nsgf
+               WRITE (*, *) "+++++++++++ nao: ", naox
+               WRITE (*, *) "+++++++++++ lao: ", laox
+               WRITE (*, *) "+++++++++++ occupation: ", occupation
             ELSEIF (has_pot) THEN
                CALL get_atomic_kind(atomic_kind_set(ikind), z=z)
                CALL get_qs_kind(qs_kind_set(ikind), nsgf=nsgf, elec_conf=elec_conf, zeff=zeff)
