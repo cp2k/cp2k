@@ -858,11 +858,11 @@ CONTAINS
       END IF
 
       ! Build the neighbor lists for the vdW pair potential
-      IF (dispersion_env%type == xc_vdw_fun_pairpot .OR.   &
-        (xtb .AND. (.NOT. dft_control%qs_control%xtb_control%do_tblite))) THEN
+      IF (dispersion_env%type == xc_vdw_fun_pairpot .OR. &
+          (xtb .AND. (.NOT. dft_control%qs_control%xtb_control%do_tblite))) THEN
          CALL get_qs_env(qs_env=qs_env, dispersion_env=dispersion_env)
          sab_vdw => dispersion_env%sab_vdw
-         sab_cn => dispersion_env%sab_cn        
+         sab_cn => dispersion_env%sab_cn
          IF (dispersion_env%pp_type == vdw_pairpot_dftd4) THEN
             c_radius(:) = dispersion_env%rc_d4
          ELSE
