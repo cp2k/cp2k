@@ -37,6 +37,15 @@ methods/optimization/index
 methods/properties/index
 ```
 
+```{toctree}
+---
+caption: Libraries
+titlesonly:
+maxdepth: 1
+---
+libraries/eigensolvers/index
+```
+
 % TODO: `{toctree} % :caption: How-to guides % % dummy % `
 
 ```{toctree}

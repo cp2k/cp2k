@@ -184,6 +184,8 @@ flycheck_*.el
 __pycache__/
 *.py[cod]
 *$py.class
+# venv
+docs_venv/
 
 # C extensions
 
