@@ -112,7 +112,6 @@ The target architecture can be selected with `-DCP2K_WITH_GPU`.
 CUDA can either be build using the NVIDIA HPC package (`-DCP2K_USE_NVHPC=ON`) or the CUDA toolkit
 package(`-DCP2K_USE_NVHPC=OFF`).
 
-
 ## Example
 
 Build CP2K with CUDA acceleration for Nvidia A100 GPUs, with multiple optional dependencies:

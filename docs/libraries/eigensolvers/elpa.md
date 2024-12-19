@@ -1,6 +1,7 @@
 # ELPA
 
-The [ELPA] library provides highly efficient and highly scalable direct eigensolvers for symmetric (hermitian) matrices.
+The [ELPA] library provides highly efficient and highly scalable direct eigensolvers for symmetric
+(hermitian) matrices.
 
 ## CMake
 
@@ -10,4 +11,4 @@ The [ELPA] library provides highly efficient and highly scalable direct eigensol
 -DCP2K_USE_ELPA=ON
 ```
 
-[ELPA]: https://elpa.mpcdf.mpg.de/
+[elpa]: https://elpa.mpcdf.mpg.de/

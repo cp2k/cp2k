@@ -1,6 +1,7 @@
 # cuSOLVERMp
 
-NVIDIA [cuSOLVERMp] is a high-performance, distributed-memory, GPU-accelerated library that provides tools for the solution of dense linear systems and eigenvalue problems.
+NVIDIA [cuSOLVERMp] is a high-performance, distributed-memory, GPU-accelerated library that provides
+tools for the solution of dense linear systems and eigenvalue problems.
 
 ## Dependencies
 
@@ -15,6 +16,6 @@ NVIDIA [cuSOLVERMp] is a high-performance, distributed-memory, GPU-accelerated l
 -DCP2K_USE_CUSOLVER_MP=ON
 ```
 
-[cuSOLVERMp]: https://docs.nvidia.com/cuda/cusolvermp/
-[CAL]: https://developer.download.nvidia.com/compute/cublasmp/redist/libcal/
-[UCC]: https://github.com/openucx/ucc
+[cal]: https://developer.download.nvidia.com/compute/cublasmp/redist/libcal/
+[cusolvermp]: https://docs.nvidia.com/cuda/cusolvermp/
+[ucc]: https://github.com/openucx/ucc
