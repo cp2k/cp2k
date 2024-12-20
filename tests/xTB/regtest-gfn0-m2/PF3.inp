@@ -11,18 +11,18 @@
     &QS
       METHOD xTB
       &XTB
+        DO_EWALD F
         GFN_TYPE 0
         VDW_POTENTIAL DFTD4
-        DO_EWALD F
       &END XTB
     &END QS
     &SCF
-      SCF_GUESS NONE
       ADDED_MOS -1 -1
+      SCF_GUESS NONE
       &SMEAR ON
-        METHOD Fermi_Dirac
         ELECTRONIC_TEMPERATURE 300
-      &END
+        METHOD Fermi_Dirac
+      &END SMEAR
     &END SCF
   &END DFT
   &SUBSYS
@@ -31,14 +31,14 @@
       PERIODIC NONE
     &END CELL
     &COORD
-P       7.64970282       8.00000673       7.59863750      
-F       9.05493061       8.00000668       8.40136250     
-F       6.94507415       9.21694566       8.39874280    
-F       6.94506939       6.78305434       8.39874266   
+      P       7.64970282       8.00000673       7.59863750
+      F       9.05493061       8.00000668       8.40136250
+      F       6.94507415       9.21694566       8.39874280
+      F       6.94506939       6.78305434       8.39874266
     &END COORD
     &TOPOLOGY
       &CENTER_COORDINATES T
-      &END
-    &END    
+      &END CENTER_COORDINATES
+    &END TOPOLOGY
   &END SUBSYS
 &END FORCE_EVAL

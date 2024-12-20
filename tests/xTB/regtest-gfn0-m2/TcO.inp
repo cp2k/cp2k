@@ -7,24 +7,24 @@
 &FORCE_EVAL
   &DFT
     CHARGE 0
-    MULTIPLICITY 2
     LSD
+    MULTIPLICITY 2
     &QS
       METHOD xTB
       &XTB
+        DO_EWALD F
         GFN_TYPE 0
         VDW_POTENTIAL DFTD4
-        DO_EWALD F
       &END XTB
     &END QS
     &SCF
-      SCF_GUESS NONE
       ADDED_MOS -1 -1
+      SCF_GUESS NONE
       &SMEAR ON
-        METHOD Fermi_Dirac
-        FIXED_MAGNETIC_MOMENT 1
         ELECTRONIC_TEMPERATURE 300
-      &END
+        FIXED_MAGNETIC_MOMENT 1
+        METHOD Fermi_Dirac
+      &END SMEAR
     &END SCF
   &END DFT
   &SUBSYS
@@ -33,12 +33,12 @@
       PERIODIC NONE
     &END CELL
     &COORD
-Tc       7.50000000       7.50000000       6.62616205      
-O       7.50000000       7.50000000       8.37383795      
+      Tc       7.50000000       7.50000000       6.62616205
+      O       7.50000000       7.50000000       8.37383795
     &END COORD
     &TOPOLOGY
       &CENTER_COORDINATES T
-      &END
-    &END    
+      &END CENTER_COORDINATES
+    &END TOPOLOGY
   &END SUBSYS
 &END FORCE_EVAL
