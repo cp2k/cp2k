@@ -386,9 +386,10 @@ def render_keyword(
 def find_all_mentions() -> Dict[str, Set[Path]]:
     root_dir = Path(__file__).resolve().parent
     mentions = defaultdict(set)
-    for fn in (root_dir / "methods").glob("**/*.md"):
-        for xref in re.findall(r"\(#(CP2K_INPUT\..*)\)", fn.read_text()):
-            mentions[xref].add(fn.relative_to(root_dir))
+    for subdir in "getting-started", "methods", "technologies":
+        for fn in (root_dir / subdir).glob("**/*.md"):
+            for xref in re.findall(r"\(#(CP2K_INPUT\..*)\)", fn.read_text()):
+                mentions[xref].add(fn.relative_to(root_dir))
     return mentions
 
 
