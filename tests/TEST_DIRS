@@ -8,6 +8,7 @@ QS/regtest-rpa-sigma                                        libint
 TMC/regtest_ana_on_the_fly                                  parallel mpiranks>2
 QS/regtest-cusolver                                         cusolvermp
 QS/regtest-dlaf                                             dlaf
+QS/regtest-dlaf-2                                           dlaf libint
 QS/regtest-pao-2
 QS/regtest-tddfpt-force-gapw                                libint
 QS/regtest-tddfpt-4                                         libint
@@ -216,8 +217,6 @@ QS/regtest-dm-ls-scf-4
 QS/regtest-hybrid-3                                         libint
 xTB/regtest-4
 xTB/regtest-gfn0                                            libdftd4
-xTB/regtest-gfn0-m1                                          libdftd4
-xTB/regtest-gfn0-m2                                          libdftd4
 QS/regtest-bs
 QS/regtest-gpw-6-2
 QS/regtest-dft-vdw-corr-4                                   libdftd4
@@ -374,3 +373,5 @@ Fist/regtest-deepmd                                         deepmd
 QS/regtest-elpa                                             elpa mpiranks==1||mpiranks%2==0
 Fist/regtest-plumed2                                        plumed2
 Fist/regtest-quip                                           quip
+QS/regtest-eht-guess                                        libdftd4
+QS/regtest-trexio                                           trexio
