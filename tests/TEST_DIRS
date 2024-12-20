@@ -19,6 +19,8 @@ ATOM/regtest-1
 xTB/regtest-gfn0                                            libdftd4
 xTB/regtest-gfn0-m1                                         libdftd4
 xTB/regtest-gfn0-m2                                         libdftd4
+xTB/regtest-gfn0-m3                                         libdftd4
+xTB/regtest-gfn0-m4                                         libdftd4
 Fist/regtest-7-1
 QS/regtest-debug-7                                          libint
 QS/regtest-hfx                                              libint
