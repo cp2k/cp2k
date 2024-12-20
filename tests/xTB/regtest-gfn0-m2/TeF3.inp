@@ -1,0 +1,46 @@
+&GLOBAL
+  PRINT_LEVEL LOW
+  PROJECT TeF3
+  RUN_TYPE ENERGY
+&END GLOBAL
+
+&FORCE_EVAL
+  &DFT
+    CHARGE 0
+    MULTIPLICITY 2
+    LSD
+    &QS
+      METHOD xTB
+      &XTB
+        GFN_TYPE 0
+        VDW_POTENTIAL DFTD4
+        DO_EWALD F
+      &END XTB
+    &END QS
+    &SCF
+      SCF_GUESS NONE
+      ADDED_MOS -1 -1
+      &SMEAR ON
+        METHOD Fermi_Dirac
+        FIXED_MAGNETIC_MOMENT 1
+        ELECTRONIC_TEMPERATURE 300
+      &END
+    &END SCF
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 15 15 15
+      PERIODIC NONE
+    &END CELL
+    &COORD
+Te       8.00330021       8.50000000       8.62515276       
+F       7.00990064      10.22061853       8.37484724       
+F       7.00990064       6.77938147       8.37484724      
+F       9.99009936       8.50000000       8.37484724     
+    &END COORD
+    &TOPOLOGY
+      &CENTER_COORDINATES T
+      &END
+    &END    
+  &END SUBSYS
+&END FORCE_EVAL

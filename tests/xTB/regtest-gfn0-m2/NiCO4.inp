@@ -1,0 +1,49 @@
+&GLOBAL
+  PRINT_LEVEL LOW
+  PROJECT NiCO4
+  RUN_TYPE ENERGY
+&END GLOBAL
+
+&FORCE_EVAL
+  &DFT
+    CHARGE 0
+    MULTIPLICITY 1
+    &QS
+      METHOD xTB
+      &XTB
+        DO_EWALD F
+        GFN_TYPE 0
+        VDW_POTENTIAL DFTD4
+      &END XTB
+    &END QS
+    &SCF
+      ADDED_MOS -1 -1
+      SCF_GUESS NONE
+      &SMEAR ON
+        ELECTRONIC_TEMPERATURE 300
+        METHOD Fermi_Dirac
+      &END SMEAR
+    &END SCF
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 15 15 15
+      PERIODIC NONE
+    &END CELL
+    &COORD
+      Ni       8.50000000       8.50000000       8.50000000
+      C       9.54949800       7.45050200       9.54949800
+      C       7.45050200       9.54949800       9.54949800
+      C       7.45050200       7.45050200       7.45050200
+      C       9.54949800       9.54949800       7.45050200
+      O      10.21598228       6.78401772      10.21598228
+      O       6.78401772      10.21598228      10.21598228
+      O       6.78401772       6.78401772       6.78401772
+      O      10.21598228      10.21598228       6.78401772
+    &END COORD
+    &TOPOLOGY
+      &CENTER_COORDINATES T
+      &END CENTER_COORDINATES
+    &END TOPOLOGY
+  &END SUBSYS
+&END FORCE_EVAL

@@ -1,0 +1,45 @@
+&GLOBAL
+  PRINT_LEVEL LOW
+  PROJECT CoF2
+  RUN_TYPE ENERGY
+&END GLOBAL
+
+&FORCE_EVAL
+  &DFT
+    CHARGE 0
+    MULTIPLICITY 2
+    LSD
+    &QS
+      METHOD xTB
+      &XTB
+        GFN_TYPE 0
+        VDW_POTENTIAL DFTD4
+        DO_EWALD F
+      &END XTB
+    &END QS
+    &SCF
+      SCF_GUESS NONE
+      ADDED_MOS -1 -1
+      &SMEAR ON
+        METHOD Fermi_Dirac
+        FIXED_MAGNETIC_MOMENT 1
+        ELECTRONIC_TEMPERATURE 300
+      &END
+    &END SCF
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 15 15 15
+      PERIODIC NONE
+    &END CELL
+    &COORD
+Co       8.50000000       8.50000000       8.49368409      
+F      10.22700046       8.50000000       8.50631591      
+F       6.77299954       8.50000000       8.50631591     
+    &END COORD
+    &TOPOLOGY
+      &CENTER_COORDINATES T
+      &END
+    &END    
+  &END SUBSYS
+&END FORCE_EVAL
