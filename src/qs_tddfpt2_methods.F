@@ -830,7 +830,7 @@ CONTAINS
    END SUBROUTINE kernel_info
 
 ! **************************************************************************************************
-!> \brief The energy cylculation has been moved to its own subroutine
+!> \brief The energy calculation has been moved to its own subroutine
 !> \param qs_env ...
 !> \param nstates ...
 !> \param work_matrices ...
@@ -887,8 +887,7 @@ CONTAINS
       INTEGER                                            :: energy_unit, handle, iter, log_unit, &
                                                             niters, nocc, nstate_max, &
                                                             nstates_read, nvirt
-      LOGICAL                                            :: do_admm, do_exck, do_soc, explicit, &
-                                                            is_restarted
+      LOGICAL                                            :: do_admm, do_exck, do_soc, explicit
       REAL(kind=dp)                                      :: conv
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
@@ -971,9 +970,9 @@ CONTAINS
                                tddfpt_print_section)
       END IF
 
-      !! Too many states cal lead to Problems
-      !! You should be warned if there are mor states
-      !! then occ-virt Combinations!!
+      !! Too many states can lead to problems
+      !! You should be warned if there are more states
+      !! then occ-virt combinations!!
       CALL cp_fm_get_info(gs_mos(1)%mos_occ, ncol_global=nocc)
       CALL cp_fm_get_info(gs_mos(1)%mos_virt, ncol_global=nvirt)
       nstate_max = nocc*nvirt
@@ -1002,8 +1001,6 @@ CONTAINS
       ELSE
          nstates_read = 0
       END IF
-
-      is_restarted = nstates_read >= nstates
 
       ! build the list of missed singly excited states and sort them in ascending order
       ! according to their excitation energies
@@ -1062,15 +1059,14 @@ CONTAINS
             ! at this point at least one of the following conditions are met:
             ! a) convergence criteria has been achieved;
             ! b) maximum number of iterations has been reached;
-            ! c) Davidson iterations must be restarted due to lack of Krylov vectors or numerical instability
+            ! c) Davidson iterations must be restarted due to lack of Krylov vectors
 
             CALL cp_iterate(logger%iter_info, increment=0, iter_nr_out=iter)
             ! terminate the loop if either (a) or (b) is true ...
-            IF ((conv <= tddfpt_control%conv &
-                 .AND. is_restarted) .OR. iter >= niters) EXIT
+            IF ((conv <= tddfpt_control%conv) .OR. iter >= niters) EXIT
 
             ! ... otherwise restart Davidson iterations
-            is_restarted = .TRUE.
+            evals = 0.0_dp
             IF (log_unit > 0) THEN
                WRITE (log_unit, '(1X,25("-"),1X,A,1X,25("-"))') "Restart Davidson iterations"
                CALL m_flush(log_unit)
