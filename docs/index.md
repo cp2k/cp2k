@@ -37,6 +37,15 @@ methods/optimization/index
 methods/properties/index
 ```
 
+```{toctree}
+---
+caption: Technologies
+titlesonly:
+maxdepth: 1
+---
+technologies/eigensolvers/index
+```
+
 % TODO: `{toctree} % :caption: How-to guides % % dummy % `
 
 ```{toctree}
