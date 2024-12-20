@@ -24,7 +24,7 @@ and optional dependencies.
 
 ## CP2K Input File
 
-[DLA-Future] can be selected in the CP2K input file with the `PREFERRED_DIAG_LIBRARY` keyword:
+[DLA-Future] can be selected in the CP2K input file with the [`PREFERRED_DIAG_LIBRARY`](#CP2K_INPUT.GLOBAL.PREFERRED_DIAG_LIBRARY) keyword:
 
 ```
 &GLOBAL
@@ -34,7 +34,7 @@ and optional dependencies.
 &END GLOBAL
 ```
 
-The `DLAF_NEIGVEC_MIN` indicates the minimum matrix size for which DLA-Future is used instead of
+The [`DLAF_NEIGVEC_MIN`](#CP2K_INPUT.GLOBAL.DLAF_NEIGVEC_MIN) indicates the minimum matrix size for which DLA-Future is used instead of
 ScaLAPACK. DLA-Future is optimized for large matrices on GPUs, and might be slower than ScaLAPACK
 for small matrices or CPU matrices.
 
