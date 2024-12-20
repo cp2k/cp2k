@@ -39,11 +39,11 @@ methods/properties/index
 
 ```{toctree}
 ---
-caption: Libraries
+caption: Technologies
 titlesonly:
 maxdepth: 1
 ---
-libraries/eigensolvers/index
+technologies/eigensolvers/index
 ```
 
 % TODO: `{toctree} % :caption: How-to guides % % dummy % `
