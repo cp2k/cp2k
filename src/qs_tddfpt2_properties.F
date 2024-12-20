@@ -9,6 +9,7 @@ MODULE qs_tddfpt2_properties
    USE atomic_kind_types,               ONLY: atomic_kind_type
    USE bibliography,                    ONLY: Martin2003,&
                                               cite_reference
+   USE bse_print,                       ONLY: print_exciton_descriptors
    USE bse_properties,                  ONLY: exciton_descr_type,&
                                               get_exciton_descriptors
    USE bse_util,                        ONLY: get_multipoles_mo
@@ -77,8 +78,7 @@ MODULE qs_tddfpt2_properties
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE particle_list_types,             ONLY: particle_list_type
    USE particle_types,                  ONLY: particle_type
-   USE physcon,                         ONLY: angstrom,&
-                                              evolt
+   USE physcon,                         ONLY: evolt
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_type
    USE pw_poisson_types,                ONLY: pw_poisson_type
@@ -1156,23 +1156,28 @@ CONTAINS
 !>                           SIZE(evects,2) -- number of excited states to print)
 !> \param gs_mos             molecular orbitals optimised for the ground state
 !> \param matrix_s           overlap matrix
+!> \param do_directional_exciton_descriptors ...
 !> \param qs_env ...
 !> \par History
 !>    * 12.2024 created as 'tddfpt_print_exciton_descriptors' [Maximilian Graml]
 ! **************************************************************************************************
-   SUBROUTINE tddfpt_print_exciton_descriptors(log_unit, evects, gs_mos, matrix_s, qs_env)
+   SUBROUTINE tddfpt_print_exciton_descriptors(log_unit, evects, gs_mos, matrix_s, &
+                                               do_directional_exciton_descriptors, qs_env)
       INTEGER, INTENT(in)                                :: log_unit
       TYPE(cp_fm_type), DIMENSION(:, :), INTENT(in)      :: evects
       TYPE(tddfpt_ground_state_mos), DIMENSION(:), &
          INTENT(in)                                      :: gs_mos
       TYPE(dbcsr_type), POINTER                          :: matrix_s
+      LOGICAL, INTENT(IN) :: do_directional_exciton_descriptors
       TYPE(qs_environment_type), INTENT(IN), POINTER     :: qs_env
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_print_exciton_descriptors'
 
+      CHARACTER(LEN=4)                                   :: prefix_output
       INTEGER                                            :: handle, ispin, istate, n_moments_quad, &
                                                             nao, nspins, nstates
       INTEGER, DIMENSION(maxspins)                       :: nmo_occ, nmo_virt
+      LOGICAL                                            :: debug_print
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: ref_point_multipole
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_mo_coeff, &
@@ -1186,12 +1191,10 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      !TODO: routine in methos for computation of X
-
       nspins = SIZE(evects, 1)
       nstates = SIZE(evects, 2)
 
-      CPASSERT(nspins == 1) ! Other spins have to be checked
+      CPASSERT(nspins == 1) ! Other spins are not yet implemented for exciton descriptors
 
       CALL cp_fm_get_info(gs_mos(1)%mos_occ, context=blacs_env)
       CALL dbcsr_get_info(matrix_s, nfullrows_total=nao)
@@ -1241,7 +1244,6 @@ CONTAINS
                              nmo_occ(1), nmo_virt(1), blacs_env)
 
       CALL cp_fm_release(mo_coeff)
-      DEALLOCATE (ref_point_multipole)
 
       ! Compute eigenvector X of the Casida equation from trial vectors
       ALLOCATE (S_mos_virt(nspins), eigvec_X_ia_n(nspins))
@@ -1279,23 +1281,20 @@ CONTAINS
 
          END DO
       END DO
-      ! Quick print for debug purposes
-      WRITE (log_unit, '(T2,A4,T10,A1,6X,A3,1X,4X,A10,5X,A10,5X,A10,3X,A11,8X,A4)') '|', &
-         'n', 'c_n', 'd_eh [Å]', 'σ_e [Å]', 'σ_h [Å]', 'd_exc [Å]', 'R_eh'
-      DO istate = 1, nstates
-         WRITE (log_unit, '(T2,A4,T7,I4,4X,F5.3,1X,5(2X,F10.4))') &
-            '|', istate, exc_descr(istate)%norm_XpY, &
-            exc_descr(istate)%diff_r_abs*angstrom, &
-            exc_descr(istate)%sigma_e*angstrom, exc_descr(istate)%sigma_h*angstrom, &
-            exc_descr(istate)%diff_r_sqr*angstrom, exc_descr(istate)%corr_e_h*angstrom
-      END DO
-
       CALL cp_fm_release(eigvec_X_ia_n)
       CALL cp_fm_release(S_mos_virt)
       CALL cp_fm_release(fm_multipole_ai)
       CALL cp_fm_release(fm_multipole_ij)
       CALL cp_fm_release(fm_multipole_ab)
 
+      ! Actual printing
+      debug_print = .FALSE.
+      prefix_output = 'TDD|'
+      CALL print_exciton_descriptors(exc_descr, ref_point_multipole, log_unit, &
+                                     nstates, debug_print, do_directional_exciton_descriptors, &
+                                     prefix_output, qs_env)
+
+      DEALLOCATE (ref_point_multipole)
       DEALLOCATE (exc_descr)
 
       CALL timestop(handle)

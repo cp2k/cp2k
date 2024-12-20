@@ -1170,6 +1170,7 @@ CONTAINS
             evects, &
             gs_mos, &
             matrix_s(1)%matrix, &
+            tddfpt_control%do_directional_exciton_descriptors, &
             qs_env)
       END IF
 

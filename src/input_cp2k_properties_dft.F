@@ -1601,7 +1601,15 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="EXCITON_DESCRIPTORS", &
-                          description="Compute exciton descriptors.", &
+                          description="Compute exciton descriptors. "// &
+                          "Details given in Manual section about Bethe Salpeter equation.", &
+                          n_var=1, type_of_var=logical_t, &
+                          default_l_val=.FALSE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="DIRECTIONAL_EXCITON_DESCRIPTORS", &
+                          description="Print cartesian components of exciton descriptors.", &
                           n_var=1, type_of_var=logical_t, &
                           default_l_val=.FALSE.)
       CALL section_add_keyword(section, keyword)

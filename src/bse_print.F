@@ -495,169 +495,182 @@ CONTAINS
 !> \param exc_descr ...
 !> \param ref_point_multipole ...
 !> \param unit_nr ...
-!> \param mp2_env ...
+!> \param num_print_exc_descr ...
+!> \param debug_print ...
+!> \param print_directional_exc_descr ...
+!> \param prefix_output ...
 !> \param qs_env ...
 ! **************************************************************************************************
-   SUBROUTINE print_exciton_descriptors(exc_descr, ref_point_multipole, unit_nr, mp2_env, qs_env)
+   SUBROUTINE print_exciton_descriptors(exc_descr, ref_point_multipole, unit_nr, &
+                                        num_print_exc_descr, debug_print, print_directional_exc_descr, &
+                                        prefix_output, qs_env)
 
       TYPE(exciton_descr_type), ALLOCATABLE, &
          DIMENSION(:)                                    :: exc_descr
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
          INTENT(IN)                                      :: ref_point_multipole
-      INTEGER, INTENT(IN)                                :: unit_nr
-      TYPE(mp2_type), INTENT(INOUT)                      :: mp2_env
+      INTEGER, INTENT(IN)                                :: unit_nr, num_print_exc_descr
+      LOGICAL, INTENT(IN)                                :: debug_print, print_directional_exc_descr
+      CHARACTER(LEN=4), INTENT(IN)                       :: prefix_output
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'print_exciton_descriptors'
 
       CHARACTER(LEN=1), DIMENSION(3)                     :: array_direction_str
+      CHARACTER(LEN=5)                                   :: method_name
       INTEGER                                            :: handle, i_dir, i_exc
       REAL(KIND=dp)                                      :: d_eh_dir, d_exc_dir, sigma_e_dir, &
                                                             sigma_h_dir
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
 
+      IF (prefix_output == 'BSE|') THEN
+         method_name = 'BSE'
+      ELSE
+         method_name = 'TDDFT'
+      END IF
+
       CALL timeset(routineN, handle)
       CALL get_qs_env(qs_env, particle_set=particle_set)
       IF (unit_nr > 0) THEN
-         WRITE (unit_nr, '(T2,A4,T7,A)') 'BSE|', &
+         WRITE (unit_nr, '(T2,A4,T7,A)') prefix_output, &
             'Exciton descriptors for excitation level n are given by'
-         WRITE (unit_nr, '(T2,A4)') 'BSE|'
-         WRITE (unit_nr, '(T2,A4,T15,A)') 'BSE|', &
+         WRITE (unit_nr, '(T2,A4)') prefix_output
+         WRITE (unit_nr, '(T2,A4,T15,A)') prefix_output, &
             'd_eh   = | <r_h - r_e>_exc |'
-         WRITE (unit_nr, '(T2,A4)') 'BSE|'
-         WRITE (unit_nr, '(T2,A4,T15,A)') 'BSE|', &
+         WRITE (unit_nr, '(T2,A4)') prefix_output
+         WRITE (unit_nr, '(T2,A4,T15,A)') prefix_output, &
             'σ_e    = sqrt( <r_e^2>_exc - <r_e>_exc^2 )'
-         WRITE (unit_nr, '(T2,A4)') 'BSE|'
-         WRITE (unit_nr, '(T2,A4,T15,A)') 'BSE|', &
+         WRITE (unit_nr, '(T2,A4)') prefix_output
+         WRITE (unit_nr, '(T2,A4,T15,A)') prefix_output, &
             'σ_h    = sqrt( <r_h^2>_exc - <r_h>_exc^2 )'
-         WRITE (unit_nr, '(T2,A4)') 'BSE|'
-         WRITE (unit_nr, '(T2,A4,T15,A)') 'BSE|', &
+         WRITE (unit_nr, '(T2,A4)') prefix_output
+         WRITE (unit_nr, '(T2,A4,T15,A)') prefix_output, &
             'COV_eh = <r_e r_h>_exc - <r_e>_exc <r_h>_exc'
-         WRITE (unit_nr, '(T2,A4)') 'BSE|'
-         WRITE (unit_nr, '(T2,A4,T15,A)') 'BSE|', &
+         WRITE (unit_nr, '(T2,A4)') prefix_output
+         WRITE (unit_nr, '(T2,A4,T15,A)') prefix_output, &
             'd_exc  = sqrt( | < |r_h - r_e|^2 >_exc )'
-         WRITE (unit_nr, '(T2,A4,T15,A)') 'BSE|', &
+         WRITE (unit_nr, '(T2,A4,T15,A)') prefix_output, &
             '       = sqrt( d_eh^2 + σ_e^2 + σ_h^2 - 2 * COV_eh )'
-         WRITE (unit_nr, '(T2,A4)') 'BSE|'
-         WRITE (unit_nr, '(T2,A4,T15,A)') 'BSE|', &
+         WRITE (unit_nr, '(T2,A4)') prefix_output
+         WRITE (unit_nr, '(T2,A4,T15,A)') prefix_output, &
             'R_eh   = COV_eh / (σ_e * σ_h)'
-         WRITE (unit_nr, '(T2,A4)') 'BSE|'
-         WRITE (unit_nr, '(T2,A4,T7,A)') 'BSE|', &
+         WRITE (unit_nr, '(T2,A4)') prefix_output
+         WRITE (unit_nr, '(T2,A4,T7,A)') prefix_output, &
             'where the expectation values <.>_exc are taken with respect to the '
-         WRITE (unit_nr, '(T2,A4,T7,A)') 'BSE|', &
+         WRITE (unit_nr, '(T2,A4,T7,A)') prefix_output, &
             'exciton wavefunction  of excitation n:'
-         WRITE (unit_nr, '(T2,A4)') 'BSE|'
+         WRITE (unit_nr, '(T2,A4)') prefix_output
 
          IF (exc_descr(1)%flag_TDA) THEN
-            WRITE (unit_nr, '(T2,A4,T20,A)') 'BSE|', &
+            WRITE (unit_nr, '(T2,A4,T20,A)') prefix_output, &
                '𝚿_n(r_e,r_h) = Σ_{i,a} X_ia^n ψ_i(r_h) ψ_a(r_e)  ,'
          ELSE
-            WRITE (unit_nr, '(T2,A4,T20,A)') 'BSE|', &
+            WRITE (unit_nr, '(T2,A4,T20,A)') prefix_output, &
                '𝚿_n(r_e,r_h) = Σ_{i,a} X_ia^n ψ_i(r_h) ψ_a(r_e)'
-            WRITE (unit_nr, '(T2,A4,T40,A)') 'BSE|', &
+            WRITE (unit_nr, '(T2,A4,T40,A)') prefix_output, &
                '+ Y_ia^n ψ_a(r_h) ψ_i(r_e) ,'
          END IF
-         WRITE (unit_nr, '(T2,A4)') 'BSE|'
-         WRITE (unit_nr, '(T2,A4,T7,A)') 'BSE|', &
+         WRITE (unit_nr, '(T2,A4)') prefix_output
+         WRITE (unit_nr, '(T2,A4,T7,A)') prefix_output, &
             'i.e.'
-         WRITE (unit_nr, '(T2,A4)') 'BSE|'
-         WRITE (unit_nr, '(T2,A4,T20,A)') 'BSE|', &
+         WRITE (unit_nr, '(T2,A4)') prefix_output
+         WRITE (unit_nr, '(T2,A4,T20,A)') prefix_output, &
             '< O >_exc = < 𝚿_n | O | 𝚿_n > / < 𝚿_n | 𝚿_n >  ,'
-         WRITE (unit_nr, '(T2,A4)') 'BSE|'
+         WRITE (unit_nr, '(T2,A4)') prefix_output
          IF (exc_descr(1)%flag_TDA) THEN
-            WRITE (unit_nr, '(T2,A4,T7,A)') 'BSE|', &
+            WRITE (unit_nr, '(T2,A4,T7,A)') prefix_output, &
                'where c_n = < 𝚿_n | 𝚿_n > = 1 within TDA.'
          ELSE
-            WRITE (unit_nr, '(T2,A4,T7,A)') 'BSE|', &
+            WRITE (unit_nr, '(T2,A4,T7,A)') prefix_output, &
                'where c_n = < 𝚿_n | 𝚿_n > deviates from 1 without TDA.'
          END IF
-         WRITE (unit_nr, '(T2,A4)') 'BSE|'
-         WRITE (unit_nr, '(T2,A4)') 'BSE|'
-         WRITE (unit_nr, '(T2,A4,T7,A)') 'BSE|', &
+         WRITE (unit_nr, '(T2,A4)') prefix_output
+         WRITE (unit_nr, '(T2,A4)') prefix_output
+         WRITE (unit_nr, '(T2,A4,T7,A)') prefix_output, &
             'Here, we introduced'
-         WRITE (unit_nr, '(T2,A4)') 'BSE|'
+         WRITE (unit_nr, '(T2,A4)') prefix_output
          WRITE (unit_nr, '(T2,A4,T7,A5,T15,A)') &
-            'BSE|', "ψ_i:", "occupied molecular orbitals,"
+            prefix_output, "ψ_i:", "occupied molecular orbitals,"
          WRITE (unit_nr, '(T2,A4,T7,A5,T15,A)') &
-            'BSE|', "ψ_a:", "empty molecular orbitals and"
+            prefix_output, "ψ_a:", "empty molecular orbitals and"
          WRITE (unit_nr, '(T2,A4,T9,A2,T14,A)') &
-            'BSE|', "r:", "position operator."
-         WRITE (unit_nr, '(T2,A4)') 'BSE|'
-         WRITE (unit_nr, '(T2,A4,T7,A)') 'BSE|', &
+            prefix_output, "r:", "position operator."
+         WRITE (unit_nr, '(T2,A4)') prefix_output
+         WRITE (unit_nr, '(T2,A4,T7,A)') prefix_output, &
             'prelim Ref.: Eqs. (15)-(22)'
-         WRITE (unit_nr, '(T2,A4,T7,A,A)') 'BSE|', &
+         WRITE (unit_nr, '(T2,A4,T7,A,A)') prefix_output, &
             'JCTC 2018, 14, 710-725; ', &
             'http://doi.org/10.1021/acs.jctc.7b01145'
-         WRITE (unit_nr, '(T2,A4)') 'BSE|'
-         WRITE (unit_nr, '(T2,A4)') 'BSE|'
+         WRITE (unit_nr, '(T2,A4)') prefix_output
+         WRITE (unit_nr, '(T2,A4)') prefix_output
          IF (exc_descr(1)%flag_TDA) THEN
-            WRITE (unit_nr, '(T2,A4,T7,A)') 'BSE|', &
-               'Exciton descriptors from solving the BSE within the TDA:'
+            WRITE (unit_nr, '(T2,A4,T7,A,A,A)') prefix_output, &
+               'Exciton descriptors from solving the ', method_name, ' within the TDA:'
          ELSE
-            WRITE (unit_nr, '(T2,A4,T7,A)') 'BSE|', &
-               'Exciton descriptors from solving the BSE without the TDA:'
+            WRITE (unit_nr, '(T2,A4,T7,A,A,A)') prefix_output, &
+               'Exciton descriptors from solving the ', method_name, ' without the TDA:'
          END IF
-         WRITE (unit_nr, '(T2,A4)') 'BSE|'
-         WRITE (unit_nr, '(T2,A4,T10,A1,6X,A3,1X,4X,A10,5X,A10,5X,A10,3X,A11,8X,A4)') 'BSE|', &
+         WRITE (unit_nr, '(T2,A4)') prefix_output
+         WRITE (unit_nr, '(T2,A4,T10,A1,6X,A3,1X,4X,A10,5X,A10,5X,A10,3X,A11,8X,A4)') prefix_output, &
             'n', 'c_n', 'd_eh [Å]', 'σ_e [Å]', 'σ_h [Å]', 'd_exc [Å]', 'R_eh'
-         DO i_exc = 1, mp2_env%bse%num_print_exc_descr
+         DO i_exc = 1, num_print_exc_descr
             WRITE (unit_nr, '(T2,A4,T7,I4,4X,F5.3,1X,5(2X,F10.4))') &
-               'BSE|', i_exc, exc_descr(i_exc)%norm_XpY, &
+               prefix_output, i_exc, exc_descr(i_exc)%norm_XpY, &
                exc_descr(i_exc)%diff_r_abs*angstrom, &
                exc_descr(i_exc)%sigma_e*angstrom, exc_descr(i_exc)%sigma_h*angstrom, &
                exc_descr(i_exc)%diff_r_sqr*angstrom, exc_descr(i_exc)%corr_e_h*angstrom
          END DO
-         WRITE (unit_nr, '(T2,A4)') 'BSE|'
+         WRITE (unit_nr, '(T2,A4)') prefix_output
          ! For debug runs, print first d_exc separately to allow the regtests to read in
-         IF (mp2_env%bse%bse_debug_print) THEN
+         IF (debug_print) THEN
             IF (exc_descr(1)%flag_TDA) THEN
-               WRITE (unit_nr, '(T2,A10,T13,A,T65,F16.4)') 'BSE|DEBUG|', &
+               WRITE (unit_nr, '(T2,A10,T13,A,T65,F16.4)') prefix_output//'DEBUG|', &
                   'Exciton descriptor d_exc with TDA for n=1 is', exc_descr(1)%diff_r_sqr*angstrom
             ELSE
-               WRITE (unit_nr, '(T2,A10,T13,A,T65,F16.4)') 'BSE|DEBUG|', &
+               WRITE (unit_nr, '(T2,A10,T13,A,T65,F16.4)') prefix_output//'DEBUG|', &
                   'Exciton descriptor d_exc without TDA for n=1 is', exc_descr(1)%diff_r_sqr*angstrom
             END IF
-            WRITE (unit_nr, '(T2,A4)') 'BSE|'
+            WRITE (unit_nr, '(T2,A4)') prefix_output
          END IF
-         WRITE (unit_nr, '(T2,A4)') 'BSE|'
+         WRITE (unit_nr, '(T2,A4)') prefix_output
          ! Print exciton descriptor resolved per direction
-         IF (mp2_env%bse%print_directional_exc_descr) THEN
-            WRITE (unit_nr, '(T2,A4,T7,A)') 'BSE|', &
+         IF (print_directional_exc_descr) THEN
+            WRITE (unit_nr, '(T2,A4,T7,A)') prefix_output, &
                'We can restrict the exciton descriptors to a specific direction,'
-            WRITE (unit_nr, '(T2,A4,T7,A)') 'BSE|', &
+            WRITE (unit_nr, '(T2,A4,T7,A)') prefix_output, &
                'e.g. the x-components are:'
-            WRITE (unit_nr, '(T2,A4)') 'BSE|'
-            WRITE (unit_nr, '(T2,A4,T15,A)') 'BSE|', &
+            WRITE (unit_nr, '(T2,A4)') prefix_output
+            WRITE (unit_nr, '(T2,A4,T15,A)') prefix_output, &
                'd_eh^x   = | <x_h - x_e>_exc |'
-            WRITE (unit_nr, '(T2,A4)') 'BSE|'
-            WRITE (unit_nr, '(T2,A4,T15,A)') 'BSE|', &
+            WRITE (unit_nr, '(T2,A4)') prefix_output
+            WRITE (unit_nr, '(T2,A4,T15,A)') prefix_output, &
                'σ_e^x    = sqrt( <x_e^2>_exc - <x_e>_exc^2 )'
-            WRITE (unit_nr, '(T2,A4)') 'BSE|'
-            WRITE (unit_nr, '(T2,A4,T15,A)') 'BSE|', &
+            WRITE (unit_nr, '(T2,A4)') prefix_output
+            WRITE (unit_nr, '(T2,A4,T15,A)') prefix_output, &
                'σ_h^x    = sqrt( <x_h^2>_exc - <x_h>_exc^2 )'
-            WRITE (unit_nr, '(T2,A4)') 'BSE|'
-            WRITE (unit_nr, '(T2,A4,T15,A)') 'BSE|', &
+            WRITE (unit_nr, '(T2,A4)') prefix_output
+            WRITE (unit_nr, '(T2,A4,T15,A)') prefix_output, &
                'COV_eh^x = <x_e x_h>_exc - <x_e>_exc <x_h>_exc'
-            WRITE (unit_nr, '(T2,A4)') 'BSE|'
-            WRITE (unit_nr, '(T2,A4,T15,A)') 'BSE|', &
+            WRITE (unit_nr, '(T2,A4)') prefix_output
+            WRITE (unit_nr, '(T2,A4,T15,A)') prefix_output, &
                'd_exc^x  = sqrt( | < |x_h - x_e|^2 >_exc )'
-            WRITE (unit_nr, '(T2,A4,T15,A)') 'BSE|', &
+            WRITE (unit_nr, '(T2,A4,T15,A)') prefix_output, &
                '         = sqrt( (d_eh^x)^2 + (σ_e^x)^2'
-            WRITE (unit_nr, '(T2,A4,T15,A)') 'BSE|', &
+            WRITE (unit_nr, '(T2,A4,T15,A)') prefix_output, &
                '                 + (σ_h^x)^2 - 2 * (COV_eh^x) )'
-            WRITE (unit_nr, '(T2,A4)') 'BSE|'
-            WRITE (unit_nr, '(T2,A4)') 'BSE|'
+            WRITE (unit_nr, '(T2,A4)') prefix_output
+            WRITE (unit_nr, '(T2,A4)') prefix_output
             IF (exc_descr(1)%flag_TDA) THEN
-               WRITE (unit_nr, '(T2,A4,T7,A)') 'BSE|', &
-                  'Exciton descriptors per direction from solving the BSE within the TDA:'
+               WRITE (unit_nr, '(T2,A4,T7,A,A,A)') prefix_output, &
+                  'Exciton descriptors per direction from solving the ', method_name, ' within the TDA:'
             ELSE
-               WRITE (unit_nr, '(T2,A4,T7,A)') 'BSE|', &
-                  'Exciton descriptors per direction from solving the BSE without the TDA:'
+               WRITE (unit_nr, '(T2,A4,T7,A,A,A)') prefix_output, &
+                  'Exciton descriptors per direction from solving the ', method_name, ' without the TDA:'
             END IF
-            WRITE (unit_nr, '(T2,A4)') 'BSE|'
-            WRITE (unit_nr, '(T2,A4,T12,A1,2X,A9,5X,A12,5X,A12,5X,A12,3X,A13)') 'BSE|', &
+            WRITE (unit_nr, '(T2,A4)') prefix_output
+            WRITE (unit_nr, '(T2,A4,T12,A1,2X,A9,5X,A12,5X,A12,5X,A12,3X,A13)') prefix_output, &
                'n', 'r = x/y/z', 'd_eh^r [Å]', 'σ_e^r [Å]', 'σ_h^r [Å]', 'd_exc^r [Å]'
-            DO i_exc = 1, mp2_env%bse%num_print_exc_descr
+            DO i_exc = 1, num_print_exc_descr
                DO i_dir = 1, 3
                   array_direction_str = (/"x", "y", "z"/)
                   d_eh_dir = ABS(exc_descr(i_exc)%r_h(i_dir) - exc_descr(i_exc)%r_e(i_dir))
@@ -666,46 +679,46 @@ CONTAINS
                   d_exc_dir = SQRT(d_eh_dir**2 + sigma_e_dir**2 + sigma_h_dir**2 &
                                    - 2*exc_descr(i_exc)%cov_e_h(i_dir))
                   WRITE (unit_nr, '(T2,A4,T9,I4,10X,A1,1X,4(4X,F10.4))') &
-                     'BSE|', i_exc, array_direction_str(i_dir), &
+                     prefix_output, i_exc, array_direction_str(i_dir), &
                      d_eh_dir*angstrom, &
                      sigma_e_dir*angstrom, sigma_h_dir*angstrom, &
                      d_exc_dir*angstrom
                END DO
-               WRITE (unit_nr, '(T2,A4)') 'BSE|'
+               WRITE (unit_nr, '(T2,A4)') prefix_output
             END DO
-            WRITE (unit_nr, '(T2,A4)') 'BSE|'
+            WRITE (unit_nr, '(T2,A4)') prefix_output
          END IF
          ! Print the reference atomic geometry for the exciton descriptors
-         WRITE (unit_nr, '(T2,A4,T7,A)') 'BSE|', &
+         WRITE (unit_nr, '(T2,A4,T7,A)') prefix_output, &
             'With the center of charge as reference point r_0,'
-         WRITE (unit_nr, '(T2,A4,T15,A7,F10.4,A2,F10.4,A2,F10.4,A1)') 'BSE|', &
+         WRITE (unit_nr, '(T2,A4,T15,A7,F10.4,A2,F10.4,A2,F10.4,A1)') prefix_output, &
             'r_0 = (', ref_point_multipole(1)*angstrom, ', ', ref_point_multipole(2)*angstrom, ', ', &
             ref_point_multipole(3)*angstrom, ')'
-         WRITE (unit_nr, '(T2,A4,T7,A)') 'BSE|', &
-            'we further obtain r_e and r_h from solving the BSE within the TDA'
-         WRITE (unit_nr, '(T2,A4)') 'BSE|'
-         WRITE (unit_nr, '(T2,A4,T8,A12,1X,13X,A9,13X,A9,13X,A9)') 'BSE|', &
+         WRITE (unit_nr, '(T2,A4,T7,A,A,A)') prefix_output, &
+            'we further obtain r_e and r_h from solving the ', method_name, ' within the TDA'
+         WRITE (unit_nr, '(T2,A4)') prefix_output
+         WRITE (unit_nr, '(T2,A4,T8,A12,1X,13X,A9,13X,A9,13X,A9)') prefix_output, &
             'Excitation n', 'x_e [Å]', 'y_e [Å]', 'z_e [Å]'
-         DO i_exc = 1, mp2_env%bse%num_print_exc_descr
+         DO i_exc = 1, num_print_exc_descr
             WRITE (unit_nr, '(T2,A4,T8,I12,1X,3(5X,F15.4))') &
-               'BSE|', i_exc, &
+               prefix_output, i_exc, &
                exc_descr(i_exc)%r_e_shift(:)*angstrom
          END DO
-         WRITE (unit_nr, '(T2,A4)') 'BSE|'
-         WRITE (unit_nr, '(T2,A4,T8,A12,1X,13X,A9,13X,A9,13X,A9)') 'BSE|', &
+         WRITE (unit_nr, '(T2,A4)') prefix_output
+         WRITE (unit_nr, '(T2,A4,T8,A12,1X,13X,A9,13X,A9,13X,A9)') prefix_output, &
             'Excitation n', 'x_h [Å]', 'y_h [Å]', 'z_h [Å]'
-         DO i_exc = 1, mp2_env%bse%num_print_exc_descr
+         DO i_exc = 1, num_print_exc_descr
             WRITE (unit_nr, '(T2,A4,T8,I12,1X,3(5X,F15.4))') &
-               'BSE|', i_exc, &
+               prefix_output, i_exc, &
                exc_descr(i_exc)%r_h_shift(:)*angstrom
          END DO
-         WRITE (unit_nr, '(T2,A4)') 'BSE|'
-         WRITE (unit_nr, '(T2,A4,T7,A)') 'BSE|', &
+         WRITE (unit_nr, '(T2,A4)') prefix_output
+         WRITE (unit_nr, '(T2,A4,T7,A)') prefix_output, &
             'The reference atomic geometry for these values is given by'
       END IF
-      CALL write_qs_particle_coordinates_bse(particle_set, unit_nr)
+      CALL write_qs_particle_coordinates_bse(particle_set, unit_nr, prefix_output)
       IF (unit_nr > 0) THEN
-         WRITE (unit_nr, '(T2,A4)') 'BSE|'
+         WRITE (unit_nr, '(T2,A4)') prefix_output
       END IF
       CALL timestop(handle)
 
@@ -784,11 +797,13 @@ CONTAINS
 !> \param particle_set ...
 !>       \note Adapted from particle_methods.F [MG]
 !> \param unit_nr ...
+!> \param prefix_output ...
 ! **************************************************************************************************
-   SUBROUTINE write_qs_particle_coordinates_bse(particle_set, unit_nr)
+   SUBROUTINE write_qs_particle_coordinates_bse(particle_set, unit_nr, prefix_output)
 
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       INTEGER, INTENT(IN)                                :: unit_nr
+      CHARACTER(LEN=4), INTENT(IN)                       :: prefix_output
 
       CHARACTER(len=*), PARAMETER :: routineN = 'write_qs_particle_coordinates_bse'
 
@@ -798,15 +813,15 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       IF (unit_nr > 0) THEN
-         WRITE (unit_nr, '(T2,A4)') 'BSE|'
-         WRITE (unit_nr, '(T2,A4,T13,A7,16X,A7,15X,A7,15X,A7)') 'BSE|', &
+         WRITE (unit_nr, '(T2,A4)') prefix_output
+         WRITE (unit_nr, '(T2,A4,T13,A7,16X,A7,15X,A7,15X,A7)') prefix_output, &
             'Element', 'x [Å]', 'y [Å]', 'z [Å]'
          natom = SIZE(particle_set)
          DO iatom = 1, natom
             CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind, &
                                  element_symbol=element_symbol)
             WRITE (unit_nr, '(T2,A4,T8,A12,1X,3(5X,F15.4))') &
-               'BSE|', element_symbol, particle_set(iatom)%r(1:3)*angstrom
+               prefix_output, element_symbol, particle_set(iatom)%r(1:3)*angstrom
          END DO
       END IF
 
