@@ -19,6 +19,7 @@ extensions = [
     "sphinx.ext.mathjax",
     "sphinx.ext.intersphinx",
     "sphinxcontrib.youtube",
+    "sphinxcontrib.mermaid",
 ]
 
 myst_enable_extensions = [
@@ -27,6 +28,8 @@ myst_enable_extensions = [
     "smartquotes",
     "strikethrough",
 ]
+
+myst_fence_as_directive = ["mermaid"]
 
 templates_path = ["_templates"]
 exclude_patterns = ["_build", "Thumbs.db", ".DS_Store", "README.md"]
