@@ -1,4 +1,4 @@
-# Spack
+# Build with Spack
 
 CP2K can be built and installed with [Spack]. [Spack] is a package manager designed to support
 multiple versions and configurations on a wide variety of platforms and environments, with focus on

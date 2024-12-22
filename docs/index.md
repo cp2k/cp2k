@@ -16,8 +16,10 @@ caption: Getting Started
 titlesonly:
 maxdepth: 1
 ---
-getting-started/CMake.md
-getting-started/spack.md
+getting-started/build-from-source
+getting-started/build-with-spack
+getting-started/distributions
+getting-started/first-calculation
 ```
 
 ```{toctree}

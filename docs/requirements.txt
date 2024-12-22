@@ -3,3 +3,4 @@ myst-parser==3.0.1
 sphinx-rtd-theme==2.0.0
 sphinxcontrib-youtube==1.4.1
 sphinxcontrib-mermaid==1.0.0
+sphinx-reredirects==0.1.5

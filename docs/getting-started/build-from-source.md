@@ -1,4 +1,4 @@
-# CMake
+# Build from Source
 
 CP2K can be compiled with the [CMake] build system. [CMake] is used to detect CP2K dependencies and
 configure the compilation process.
