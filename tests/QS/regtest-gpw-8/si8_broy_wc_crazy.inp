@@ -33,8 +33,7 @@
     &SCF
       ADDED_MOS 20 20
       EPS_SCF 1.0e-7
-      IGNORE_CONVERGENCE_FAILURE
-      MAX_SCF 20
+      MAX_SCF 50
       SCF_GUESS ATOMIC
       &MIXING
         ALPHA 0.2
