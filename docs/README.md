@@ -80,6 +80,7 @@ For a all typography options see the
 
 ## Links
 
+- Acronym: `` {term}`ADMM` ``
 - Publication: `[](#Wilhelm2018)`
 - Web: `[Gromacs](https://www.gromacs.org)`
 - Other page: `[](../properties/optical/tddft)`

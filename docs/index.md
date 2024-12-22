@@ -56,6 +56,7 @@ maxdepth: 1
 ---
 CP2K_INPUT
 bibliography
+acronyms
 units
 ```
 
