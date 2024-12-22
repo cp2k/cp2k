@@ -82,11 +82,12 @@ For a all typography options see the
 
 - Acronym: `` {term}`ADMM` ``
 - Publication: `[](#Wilhelm2018)`
-- Web: `[Gromacs](https://www.gromacs.org)`
 - Other page: `[](../properties/optical/tddft)`
 - Input section: `[FORCE_EVAL](#CP2K_INPUT.FORCE_EVAL)`
 - Input keyword: `[STRESS_TENSOR](#CP2K_INPUT.FORCE_EVAL.STRESS_TENSOR)`
-- Download: `[click here](https://github.com/cp2k/cp2k-examples/blob/master/qm_mm/Protein.pdb)`
+- External URL: `<https://www.gromacs.org>`
+- External URL with label:
+  `[click here](https://github.com/cp2k/cp2k-examples/blob/master/qm_mm/Protein.pdb)`
 
 ## Lists
 
