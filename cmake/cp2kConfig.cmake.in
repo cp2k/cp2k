@@ -60,7 +60,7 @@ if(NOT TARGET cp2k::cp2k)
   endif()
 
   if(@CP2K_USE_LIBXC@)
-    find_dependency(LibXC 6 REQUIRED EXACT)
+    find_dependency(LibXC 7 REQUIRED)
   endif()
 
   if(@CP2K_USE_COSMA@)

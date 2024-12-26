@@ -613,7 +613,7 @@ if(CP2K_USE_ELPA)
 endif()
 
 if(CP2K_USE_LIBXC)
-  find_package(LibXC 6 REQUIRED EXACT)
+  find_package(LibXC 7 REQUIRED)
 endif()
 
 # uncomment this when libgrpp cmake support is complete
