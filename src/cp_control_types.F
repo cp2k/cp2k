@@ -482,6 +482,15 @@ MODULE cp_control_types
       REAL(KIND=dp)                          :: coulomb_sr_cut = 0.0_dp
       REAL(KIND=dp)                          :: coulomb_sr_eps = 0.0_dp
    END TYPE stda_control_type
+! **************************************************************************************************
+! \brief Control parameters for smeared occupation
+! \par  ATTRIBUTES
+! \par  NOTES
+! **************************************************************************************************
+   TYPE smeared_type
+      REAL(KIND=dp), DIMENSION(:), POINTER :: fermia
+      REAL(KIND=dp), DIMENSION(:, :), POINTER :: fermib
+   END TYPE smeared_type
 
 ! **************************************************************************************************
 ! \brief Control parameters for a Time-Dependent DFT calculation.
@@ -530,6 +539,8 @@ MODULE cp_control_types
       LOGICAL                              :: rks_triplets = .FALSE.
       !> local resolution of identity for Coulomb contribution
       LOGICAL                              :: do_lrigpw = .FALSE.
+      !> smeared occupation
+      LOGICAL                              :: do_smearing = .FALSE.
       ! automatic generation of auxiliary basis for LRI-TDDFT
       INTEGER                              :: auto_basis_p_lri_aux = 1
       !> use symmetric definition of ADMM Kernel correction
@@ -573,6 +584,8 @@ MODULE cp_control_types
       !> manually provided the list of cutoff values for each grid level
       !> (when it is null(), the cutoff values will be assigned automatically)
       REAL(kind=dp), DIMENSION(:), POINTER :: mgrid_e_cutoff => NULL()
+      !> Parameter for smeared occupation TDA
+      TYPE(smeared_type), DIMENSION(:), POINTER :: smeared_occup => NULL()
    END TYPE tddfpt2_control_type
 
 ! **************************************************************************************************
@@ -669,7 +682,8 @@ MODULE cp_control_types
              expot_control_type, &
              rtp_control_type, &
              sccs_control_type, &
-             stda_control_type
+             stda_control_type, &
+             smeared_type
 
    ! Public subroutines
 

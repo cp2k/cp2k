@@ -90,6 +90,7 @@ QS/regtest-nmr-uks-1
 QS/regtest-libxc                                            libxc libint
 QS/regtest-debug-1
 QS/regtest-tddfpt-stda                                      libint
+QS/regtest-tddfpt-static                                    libint
 QS/regtest-scalable-gw                                       libint
 QS/regtest-hfx-periodic                                     libint
 QS/regtest-gapw                                             libvori
