@@ -37,6 +37,7 @@ MODULE qs_energy
    USE qs_matrix_w,                     ONLY: compute_matrix_w
    USE qs_nonscf,                       ONLY: nonscf
    USE qs_scf,                          ONLY: scf
+   USE qs_tddfpt2_smearing_methods,     ONLY: deallocate_fermi_params
    USE scf_control_types,               ONLY: scf_control_type
 #include "./base/base_uses.f90"
 
@@ -163,6 +164,11 @@ CONTAINS
             CALL excited_state_energy(qs_env, calculate_forces=.FALSE.)
          END IF
 
+         IF (dft_control%tddfpt2_control%do_smearing) THEN
+            IF (.NOT. ASSOCIATED(dft_control%tddfpt2_control%smeared_occup)) &
+               CPABORT("Smearing occupation not associated.")
+            CALL deallocate_fermi_params(dft_control%tddfpt2_control%smeared_occup)
+         END IF
          IF (dft_control%qs_control%lrigpw) THEN
             CALL lri_print_stat(qs_env)
          END IF

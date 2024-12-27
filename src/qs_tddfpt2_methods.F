@@ -86,6 +86,7 @@ MODULE qs_tddfpt2_methods
    USE qs_tddfpt2_restart,              ONLY: tddfpt_read_restart,&
                                               tddfpt_write_newtonx_output,&
                                               tddfpt_write_restart
+   USE qs_tddfpt2_smearing_methods,     ONLY: tddfpt_smeared_occupation
    USE qs_tddfpt2_soc,                  ONLY: tddfpt_soc
    USE qs_tddfpt2_stda_types,           ONLY: allocate_stda_env,&
                                               deallocate_stda_env,&
@@ -242,6 +243,11 @@ CONTAINS
       NULLIFY (gs_mos)
 
       CALL tddfpt_init_mos(qs_env, gs_mos, log_unit)
+
+      ! obtain smeared occupation numbers
+      IF (tddfpt_control%do_smearing) THEN
+         CALL tddfpt_smeared_occupation(qs_env, gs_mos, log_unit)
+      END IF
 
       ! obtain corrected KS-matrix
       CALL tddfpt_oecorr(qs_env, gs_mos, matrix_ks_oep)
@@ -1011,7 +1017,8 @@ CONTAINS
       CALL cp_print_key_finished_output(log_unit, logger, &
                                         tddfpt_print_section, "GUESS_VECTORS")
 
-      CALL tddfpt_orthogonalize_psi1_psi0(evects, work_matrices%S_C0_C0T)
+      CALL tddfpt_orthogonalize_psi1_psi0(evects, work_matrices%S_C0_C0T, qs_env, &
+                                          gs_mos, evals, tddfpt_control, work_matrices%S_C0)
       CALL tddfpt_orthonormalize_psi1_psi1(evects, &
                                            nstates, &
                                            S_evects, &

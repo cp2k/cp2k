@@ -51,6 +51,9 @@ MODULE qs_tddfpt2_eigensolver
                                               tddfpt_apply_hfxlr_kernel,&
                                               tddfpt_apply_hfxsr_kernel
    USE qs_tddfpt2_restart,              ONLY: tddfpt_write_restart
+   USE qs_tddfpt2_smearing_methods,     ONLY: add_smearing_aterm,&
+                                              compute_fermib,&
+                                              orthogonalize_smeared_occupation
    USE qs_tddfpt2_subgroups,            ONLY: tddfpt_subgroup_env_type
    USE qs_tddfpt2_types,                ONLY: tddfpt_ground_state_mos,&
                                               tddfpt_work_matrices
@@ -81,6 +84,11 @@ CONTAINS
 !> \param S_C0_C0T          matrix product S * C_0 * C_0^T, where C_0 is the ground state
 !>                          wave function for each spin expressed in atomic basis set,
 !>                          and S is the corresponding overlap matrix
+!> \param qs_env ...
+!> \param gs_mos ...
+!> \param evals ...
+!> \param tddfpt_control ...
+!> \param S_C0 ...
 !> \par History
 !>    * 05.2016 created [Sergey Chulkov]
 !>    * 05.2019 use a temporary work matrix [JHU]
@@ -91,9 +99,16 @@ CONTAINS
 !>        new Krylov's vectors seem to be random and should be orthogonalised even with respect to
 !>        the occupied MOs.
 ! **************************************************************************************************
-   SUBROUTINE tddfpt_orthogonalize_psi1_psi0(evects, S_C0_C0T)
+   SUBROUTINE tddfpt_orthogonalize_psi1_psi0(evects, S_C0_C0T, qs_env, gs_mos, evals, &
+                                             tddfpt_control, S_C0)
       TYPE(cp_fm_type), DIMENSION(:, :), INTENT(in)      :: evects
       TYPE(cp_fm_type), DIMENSION(:), INTENT(in)         :: S_C0_C0T
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(tddfpt_ground_state_mos), DIMENSION(:), &
+         INTENT(in)                                      :: gs_mos
+      REAL(kind=dp), DIMENSION(:), INTENT(in)            :: evals
+      TYPE(tddfpt2_control_type), INTENT(in), POINTER    :: tddfpt_control
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(in)         :: S_C0
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_orthogonalize_psi1_psi0'
 
@@ -101,6 +116,8 @@ CONTAINS
                                                             nspins, nvects
       TYPE(cp_fm_struct_type), POINTER                   :: matrix_struct
       TYPE(cp_fm_type)                                   :: evortho
+      TYPE(cp_fm_type), DIMENSION(:), POINTER            :: mos
+      TYPE(mp_para_env_type), POINTER                    :: para_env
 
       CALL timeset(routineN, handle)
 
@@ -108,18 +125,39 @@ CONTAINS
       nvects = SIZE(evects, 2)
 
       IF (nvects > 0) THEN
-         DO ispin = 1, nspins
-            CALL cp_fm_get_info(matrix=evects(ispin, 1), matrix_struct=matrix_struct, &
-                                nrow_global=nao, ncol_global=nactive)
-            CALL cp_fm_create(evortho, matrix_struct)
-            DO ivect = 1, nvects
-               ! evortho: C0 * C0^T * S * C1 == (S * C0 * C0^T)^T * C1
-               CALL parallel_gemm('T', 'N', nao, nactive, nao, 1.0_dp, S_C0_C0T(ispin), &
-                                  evects(ispin, ivect), 0.0_dp, evortho)
-               CALL cp_fm_scale_and_add(1.0_dp, evects(ispin, ivect), -1.0_dp, evortho)
+         IF (.NOT. tddfpt_control%do_smearing) THEN
+            DO ispin = 1, nspins
+               CALL cp_fm_get_info(matrix=evects(ispin, 1), matrix_struct=matrix_struct, &
+                                   nrow_global=nao, ncol_global=nactive)
+               CALL cp_fm_create(evortho, matrix_struct)
+               DO ivect = 1, nvects
+                  ! evortho: C0 * C0^T * S * C1 == (S * C0 * C0^T)^T * C1
+                  CALL parallel_gemm('T', 'N', nao, nactive, nao, 1.0_dp, S_C0_C0T(ispin), &
+                                     evects(ispin, ivect), 0.0_dp, evortho)
+                  CALL cp_fm_scale_and_add(1.0_dp, evects(ispin, ivect), -1.0_dp, evortho)
+               END DO
+               CALL cp_fm_release(evortho)
             END DO
-            CALL cp_fm_release(evortho)
-         END DO
+         ELSE
+            NULLIFY (para_env)
+            CALL get_qs_env(qs_env, para_env=para_env)
+            NULLIFY (mos)
+            ALLOCATE (mos(nspins))
+            DO ispin = 1, nspins
+               CALL cp_fm_get_info(matrix=evects(ispin, 1), matrix_struct=matrix_struct, &
+                                   nrow_global=nao, ncol_global=nactive)
+               CALL cp_fm_create(mos(ispin), matrix_struct)
+               CALL cp_fm_copy_general(gs_mos(ispin)%mos_occ, mos(ispin), para_env)
+            END DO
+            DO ivect = 1, nvects
+               CALL compute_fermib(qs_env, gs_mos, evals(ivect))
+               CALL orthogonalize_smeared_occupation(evects(:, ivect), qs_env, mos, S_C0)
+            END DO
+            DO ispin = 1, nspins
+               CALL cp_fm_release(mos(ispin))
+            END DO
+            DEALLOCATE (mos)
+         END IF
       END IF
 
       CALL timestop(handle)
@@ -296,13 +334,14 @@ CONTAINS
 !> \param kernel_env            kernel environment
 !> \param sub_env               parallel (sub)group environment
 !> \param work_matrices         collection of work matrices (modified on exit)
+!> \param matrix_s ...
 !> \par History
 !>    * 06.2016 created [Sergey Chulkov]
 !>    * 03.2017 refactored [Sergey Chulkov]
 ! **************************************************************************************************
    SUBROUTINE tddfpt_compute_Aop_evects(Aop_evects, evects, S_evects, gs_mos, tddfpt_control, &
                                         matrix_ks, qs_env, kernel_env, &
-                                        sub_env, work_matrices)
+                                        sub_env, work_matrices, matrix_s)
       TYPE(cp_fm_type), DIMENSION(:, :), INTENT(in)      :: Aop_evects, evects, S_evects
       TYPE(tddfpt_ground_state_mos), DIMENSION(:), &
          INTENT(in)                                      :: gs_mos
@@ -312,6 +351,7 @@ CONTAINS
       TYPE(kernel_env_type), INTENT(in)                  :: kernel_env
       TYPE(tddfpt_subgroup_env_type), INTENT(in)         :: sub_env
       TYPE(tddfpt_work_matrices), INTENT(inout)          :: work_matrices
+      TYPE(dbcsr_type), POINTER                          :: matrix_s
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_compute_Aop_evects'
 
@@ -418,6 +458,17 @@ CONTAINS
          ! orbital energy difference term
          CALL tddfpt_apply_energy_diff(Aop_evects=Aop_evects, evects=evects, S_evects=S_evects, &
                                        gs_mos=gs_mos, matrix_ks=matrix_ks)
+
+         ! if smeared occupation, then add aCCSX here
+         IF (tddfpt_control%do_smearing) THEN
+            DO ivect = 1, nvects
+               DO ispin = 1, nspins
+                  CALL add_smearing_aterm(qs_env, Aop_evects(ispin, ivect), evects(ispin, ivect), &
+                                          S_evects(ispin, ivect), gs_mos(ispin)%mos_occ, &
+                                          tddfpt_control%smeared_occup(ispin)%fermia, matrix_s)
+               END DO
+            END DO
+         END IF
 
          IF (do_hfx) THEN
             IF (tddfpt_control%kernel == tddfpt_kernel_full) THEN
@@ -811,7 +862,8 @@ CONTAINS
                                         matrix_ks=matrix_ks, &
                                         qs_env=qs_env, kernel_env=kernel_env, &
                                         sub_env=sub_env, &
-                                        work_matrices=work_matrices)
+                                        work_matrices=work_matrices, &
+                                        matrix_s=matrix_s(1)%matrix)
 
          CALL tddfpt_compute_ritz_vects(ritz_vects=evects, Aop_ritz=Aop_ritz, &
                                         evals=evals_last(1:nvects_exist + nvects_new), &
@@ -848,7 +900,8 @@ CONTAINS
                                                gs_mos=gs_mos, matrix_s=matrix_s(1)%matrix)
 
             CALL tddfpt_orthogonalize_psi1_psi0(krylov_vects(:, nvects_exist + 1:nvects_exist + nvects_new), &
-                                                work_matrices%S_C0_C0T)
+                                                work_matrices%S_C0_C0T, qs_env, &
+                                                gs_mos, evals(1:nstates), tddfpt_control, work_matrices%S_C0)
 
             CALL tddfpt_orthonormalize_psi1_psi1(krylov_vects(:, 1:nvects_exist + nvects_new), nvects_new, &
                                                  S_krylov(:, 1:nvects_exist + nvects_new), matrix_s(1)%matrix)
@@ -889,7 +942,9 @@ CONTAINS
          ! nvects_new == 0 if iter >= tddfpt_control%niters
          IF (nvects_new == 0 .OR. is_nonortho) THEN
             ! restart Davidson iterations
-            CALL tddfpt_orthogonalize_psi1_psi0(evects, work_matrices%S_C0_C0T)
+            CALL tddfpt_orthogonalize_psi1_psi0(evects, work_matrices%S_C0_C0T, qs_env, &
+                                                gs_mos, &
+                                                evals(1:nstates), tddfpt_control, work_matrices%S_C0)
             CALL tddfpt_orthonormalize_psi1_psi1(evects, nstates, S_evects, matrix_s(1)%matrix)
 
             EXIT
