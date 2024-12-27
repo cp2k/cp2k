@@ -19,11 +19,11 @@ c["el. Density\n(Plane Waves)"]
 
 space space space space space
 
-f["el. Potenial\n(Plane Waves)"]
+f["el. Potenial\n(Gaussian Basis)"]
 space
 e["el. Potenial\n(Regular Grid)"]
 space
-d["el. Potenial\n(Gaussian Basis)"]
+d["el. Potenial\n(Plane Waves)"]
 
 a -- "Collocate"        --> b
 b -- "FFT"              --> c
