@@ -142,7 +142,7 @@ case "$with_sirius" in
         EXTRA_CMAKE_FLAGS="-DSIRIUS_USE_VDWXC=OFF ${EXTRA_CMAKE_FLAGS}"
       fi
       if [ -n "${MKL_LIBS}" ]; then
-        EXTRA_CMAKE_FLAGS="-DSIRIUS_USE_MKL=ON -DMKL_DEF_LIBRARY=${MKLROOT}/lib/intel64 -DSIRIUS_USE_SCALAPACK=ON ${EXTRA_CMAKE_FLAGS}"
+        EXTRA_CMAKE_FLAGS="-DSIRIUS_USE_MKL=ON ${EXTRA_CMAKE_FLAGS}"
       fi
       SpFFT_DIR="${SpFFT_ROOT}/lib/cmake/SpFFT"
       SpLA_DIR="${SpLA_ROOT}/lib/cmake/SPLA"
