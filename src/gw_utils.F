@@ -283,6 +283,7 @@ CONTAINS
       CALL section_vals_val_get(gw_sec, "MEMORY_PER_PROC", r_val=bs_env%input_memory_per_proc_GB)
       CALL section_vals_val_get(gw_sec, "APPROX_KP_EXTRAPOL", l_val=bs_env%approx_kp_extrapol)
       CALL section_vals_val_get(gw_sec, "SIZE_LATTICE_SUM", i_val=bs_env%size_lattice_sum_V)
+      CALL section_vals_val_get(gw_sec, "KPOINTS_W", i_vals=bs_env%nkp_grid_chi_eps_W_input)
       CALL section_vals_val_get(gw_sec, "HEDIN_SHIFT", l_val=bs_env%do_hedin_shift)
 
       CALL timestop(handle)
@@ -449,38 +450,58 @@ CONTAINS
 
       periodic(1:3) = bs_env%periodic(1:3)
 
-      DO i_dim = 1, 3
+      CPASSERT(SIZE(bs_env%nkp_grid_chi_eps_W_input) == 3)
 
-         CPASSERT(periodic(i_dim) == 0 .OR. periodic(i_dim) == 1)
+      IF (bs_env%nkp_grid_chi_eps_W_input(1) > 0 .AND. &
+          bs_env%nkp_grid_chi_eps_W_input(2) > 0 .AND. &
+          bs_env%nkp_grid_chi_eps_W_input(3) > 0) THEN
+         ! 1. k-point mesh for χ, ε, W from input
+         DO i_dim = 1, 3
+            SELECT CASE (periodic(i_dim))
+            CASE (0)
+               nkp_grid(i_dim) = 1
+               nkp_grid_extra(i_dim) = 1
+            CASE (1)
+               nkp_grid(i_dim) = bs_env%nkp_grid_chi_eps_W_input(i_dim)
+               nkp_grid_extra(i_dim) = nkp_grid(i_dim)*2
+            CASE DEFAULT
+               CPABORT("Error in periodicity.")
+            END SELECT
+         END DO
 
-         SELECT CASE (periodic(i_dim))
-         CASE (0)
+      ELSE IF (bs_env%nkp_grid_chi_eps_W_input(1) == -1 .AND. &
+               bs_env%nkp_grid_chi_eps_W_input(2) == -1 .AND. &
+               bs_env%nkp_grid_chi_eps_W_input(3) == -1) THEN
+         ! 2. automatic k-point mesh for χ, ε, W
 
-            nkp_grid(i_dim) = 1
-            nkp_grid_extra(i_dim) = 1
+         DO i_dim = 1, 3
 
-         CASE (1)
+            CPASSERT(periodic(i_dim) == 0 .OR. periodic(i_dim) == 1)
 
-            SELECT CASE (bs_env%small_cell_full_kp_or_large_cell_Gamma)
-            CASE (large_cell_Gamma)
-
-               nkp_grid(i_dim) = 4
-               nkp_grid_extra(i_dim) = 6
-
-            CASE (small_cell_full_kp)
-
-               nkp_grid(i_dim) = bs_env%kpoints_scf_desymm%nkp_grid(i_dim)*4
-               nkp_grid_extra(i_dim) = bs_env%kpoints_scf_desymm%nkp_grid(i_dim)*8
-
+            SELECT CASE (periodic(i_dim))
+            CASE (0)
+               nkp_grid(i_dim) = 1
+               nkp_grid_extra(i_dim) = 1
+            CASE (1)
+               SELECT CASE (bs_env%small_cell_full_kp_or_large_cell_Gamma)
+               CASE (large_cell_Gamma)
+                  nkp_grid(i_dim) = 4
+                  nkp_grid_extra(i_dim) = 6
+               CASE (small_cell_full_kp)
+                  nkp_grid(i_dim) = bs_env%kpoints_scf_desymm%nkp_grid(i_dim)*4
+                  nkp_grid_extra(i_dim) = bs_env%kpoints_scf_desymm%nkp_grid(i_dim)*8
+               END SELECT
+            CASE DEFAULT
+               CPABORT("Error in periodicity.")
             END SELECT
 
-         CASE DEFAULT
+         END DO
 
-            CPABORT("Error in periodicity.")
+      ELSE
 
-         END SELECT
+         CPABORT("An error occured when setting up the k-mesh for W.")
 
-      END DO
+      END IF
 
       nkp_orig = MAX(nkp_grid(1)*nkp_grid(2)*nkp_grid(3)/2, 1)
 
