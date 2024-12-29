@@ -44,6 +44,7 @@ MODULE cp_control_types
       INTEGER, DIMENSION(2)                :: distribution_layout = 0
       INTEGER                              :: blocked = 0
    END TYPE pw_grid_option
+
 ! **************************************************************************************************
 ! \brief parameters for EMD/RTP calculations involving MO projections
 ! **************************************************************************************************
@@ -65,6 +66,7 @@ MODULE cp_control_types
    TYPE proj_mo_p_type
       TYPE(proj_mo_type), POINTER                :: proj_mo => NULL()
    END TYPE proj_mo_p_type
+
 ! **************************************************************************************************
 ! \brief Control parameters for REAL_TIME_PROPAGATION calculations
 ! **************************************************************************************************
@@ -102,6 +104,7 @@ MODULE cp_control_types
       TYPE(proj_mo_p_type), DIMENSION(:), &
          POINTER                :: proj_mo_list => NULL()
    END TYPE rtp_control_type
+
 ! **************************************************************************************************
 ! \brief Control parameters for DFTB calculations
 ! **************************************************************************************************
@@ -238,6 +241,7 @@ MODULE cp_control_types
       REAL(KIND=dp)                        :: alpha0_hard = 0.0_dp
       REAL(KIND=dp)                        :: max_rad_local = 0.0_dp
    END TYPE gapw_control_type
+
 ! **************************************************************************************************
 ! \brief parameters for calculations involving a time dependent electric field
 ! **************************************************************************************************
@@ -256,6 +260,7 @@ MODULE cp_control_types
    TYPE efield_p_type
       TYPE(efield_type), POINTER           :: efield => NULL()
    END TYPE efield_p_type
+
 ! **************************************************************************************************
 ! \brief parameters for calculations involving a time dependent electric field
 ! **************************************************************************************************
@@ -482,14 +487,15 @@ MODULE cp_control_types
       REAL(KIND=dp)                          :: coulomb_sr_cut = 0.0_dp
       REAL(KIND=dp)                          :: coulomb_sr_eps = 0.0_dp
    END TYPE stda_control_type
+
 ! **************************************************************************************************
 ! \brief Control parameters for smeared occupation
 ! \par  ATTRIBUTES
 ! \par  NOTES
 ! **************************************************************************************************
    TYPE smeared_type
-      REAL(KIND=dp), DIMENSION(:), POINTER :: fermia
-      REAL(KIND=dp), DIMENSION(:, :), POINTER :: fermib
+      REAL(KIND=dp), DIMENSION(:), POINTER :: fermia => NULL()
+      REAL(KIND=dp), DIMENSION(:, :), POINTER :: fermib => NULL()
    END TYPE smeared_type
 
 ! **************************************************************************************************
