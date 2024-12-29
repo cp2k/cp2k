@@ -6,8 +6,8 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")/.." && pwd -P)"
 
-libxc_ver="6.2.2"
-libxc_sha256="a0f6f1bba7ba5c0c85b2bfe65aca1591025f509a7f11471b4cd651a79491b045"
+libxc_ver="7.0.0"
+libxc_sha256="e9ae69f8966d8de6b7585abd9fab588794ada1fab8f689337959a35abbf9527d"
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
 source "${SCRIPT_DIR}"/signal_trap.sh
@@ -30,23 +30,30 @@ case "$with_libxc" in
     if verify_checksums "${install_lock_file}"; then
       echo "libxc-${libxc_ver} is already installed, skipping it."
     else
-      if [ -f libxc-${libxc_ver}.tar.gz ]; then
-        echo "libxc-${libxc_ver}.tar.gz is found"
+      if [ -f libxc-${libxc_ver}.tar.bz2 ]; then
+        echo "libxc-${libxc_ver}.tar.bz2 is found"
       else
-        download_pkg_from_cp2k_org "${libxc_sha256}" "libxc-${libxc_ver}.tar.gz"
+        download_pkg_from_cp2k_org "${libxc_sha256}" "libxc-${libxc_ver}.tar.bz2"
       fi
       echo "Installing from scratch into ${pkg_install_dir}"
       [ -d libxc-${libxc_ver} ] && rm -rf libxc-${libxc_ver}
-      tar -xzf libxc-${libxc_ver}.tar.gz
+      tar -xjf libxc-${libxc_ver}.tar.bz2
       cd libxc-${libxc_ver}
-
-      # CP2K does not make use of fourth derivatives, so skip their compilation with --disable-lxc
-      ./configure --prefix="${pkg_install_dir}" --libdir="${pkg_install_dir}/lib" --disable-lxc \
-        > configure.log 2>&1 || tail -n ${LOG_LINES} configure.log
+      mkdir build
+      cd build
+      # CP2K does not make use of fourth derivatives, so skip their compilation with -DDISABLE_KXC=OFF
+      cmake \
+        -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}" \
+        -DCMAKE_INSTALL_LIBDIR=lib \
+        -DCMAKE_VERBOSE_MAKEFILE=ON \
+        -DBUILD_TESTING=OFF \
+        -DENABLE_FORTRAN=ON \
+        -DDISABLE_KXC=OFF \
+        .. > configure.log 2>&1 || tail -n ${LOG_LINES} configure.log
       make -j $(get_nprocs) > make.log 2>&1 || tail -n ${LOG_LINES} make.log
       make install > install.log 2>&1 || tail -n ${LOG_LINES} install.log
-      cd ..
       write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage3/$(basename ${SCRIPT_NAME})"
+      cd ..
     fi
     LIBXC_CFLAGS="-I'${pkg_install_dir}/include'"
     LIBXC_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath,'${pkg_install_dir}/lib'"
