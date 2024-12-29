@@ -282,6 +282,7 @@ CONTAINS
       CALL section_vals_val_get(gw_sec, "CUTOFF_RADIUS_RI", r_val=bs_env%ri_metric%cutoff_radius)
       CALL section_vals_val_get(gw_sec, "MEMORY_PER_PROC", r_val=bs_env%input_memory_per_proc_GB)
       CALL section_vals_val_get(gw_sec, "APPROX_KP_EXTRAPOL", l_val=bs_env%approx_kp_extrapol)
+      CALL section_vals_val_get(gw_sec, "SIZE_LATTICE_SUM", i_val=bs_env%size_lattice_sum_V)
       CALL section_vals_val_get(gw_sec, "HEDIN_SHIFT", l_val=bs_env%do_hedin_shift)
 
       CALL timestop(handle)
@@ -1470,11 +1471,6 @@ CONTAINS
       LOGICAL                                            :: do_BvK_cell
 
       CALL timeset(routineN, handle)
-
-      ! Determines number of cells used for summing the cells R in the Coulomb matrix,
-      ! V_PQ(k) = \sum_R <P,cell=0 | 1/r | Q,cell=R>. SIZE_LATTICE_SUM_V 3 gives
-      ! good convergence
-      bs_env%size_lattice_sum_V = 3
 
       ! for generating numerically stable minimax Fourier integration weights
       bs_env%num_points_per_magnitude = 200

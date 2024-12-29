@@ -2137,6 +2137,18 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="SIZE_LATTICE_SUM", &
+                          description="Parameter determines how many neighbor cells $\mathbf{R}$ "// &
+                          "are used for computing "// &
+                          "$V_{PQ}(\mathbf{k}) = "//&
+                          "\sum_{\mathbf{R}} e^{i\mathbf{k}\cdot\mathbf{R}}\,\langle P, "// &
+                          "\text{cell}{=}\mathbf{0}|1/r|Q,\text{cell}{=}\mathbf{R}\rangle$."// &
+                          "Normally, parameter does not need to be touched.", &
+                          usage="SIZE_LATTICE_SUM 4", &
+                          default_i_val=3)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       CALL keyword_create(keyword, __LOCATION__, name="HEDIN_SHIFT", &
                           description="If true, use Hedin's shift in G0W0, evGW and evGW0. "// &
                           "Details see in Li et al. JCTC 18, 7570 "// &
