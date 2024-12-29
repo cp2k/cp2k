@@ -13,7 +13,6 @@ MODULE qs_tddfpt2_smearing_methods
    USE cp_dbcsr_api,                    ONLY: dbcsr_type
    USE cp_dbcsr_operations,             ONLY: cp_dbcsr_sm_fm_multiply
    USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
-                                              cp_fm_gemm,&
                                               cp_fm_scale_and_add
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
@@ -515,8 +514,8 @@ CONTAINS
             CALL cp_fm_set_submatrix(subevectsfm, subevects, &
                                      start_row=1, start_col=1, n_rows=nao, n_cols=1)
 
-            CALL cp_fm_gemm('N', 'N', nao, 1, nao, 1.0_dp, betaSCC, &
-                            subevectsfm, 0.0_dp, subevectsresultfm)
+            CALL parallel_gemm('N', 'N', nao, 1, nao, 1.0_dp, betaSCC, &
+                               subevectsfm, 0.0_dp, subevectsresultfm)
 
             CALL cp_fm_get_submatrix(fm=subevectsresultfm, target_m=subevectsresult, &
                                      start_row=1, start_col=1, n_rows=nao, n_cols=1)
