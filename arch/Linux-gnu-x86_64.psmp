@@ -2,14 +2,14 @@
 #
 # CP2K (GNU x86_64) arch file for Linux clusters
 #
-# Tested with: GNU 14.2.0, MPICH 4.0.3 and OpenMPI 5.0.5 on the Merlin cluster (PSI)
+# Tested with: GNU 14.2.0, MPICH 4.0.3 and OpenMPI 5.0.6 on the Merlin cluster (PSI)
 #
 # Usage: Source this arch file and then run make as instructed.
 #        A full toolchain installation is performed as default.
 #        Optionally, GNU compiler and MPI implementation can be specified as arguments.
 #        Replace or adapt the "module add" commands below if needed.
 #
-# Last update: 12.09.2024
+# Last update: 31.12.2024
 #
 # \
    if [[ "${0}" == "${BASH_SOURCE}" ]]; then \
