@@ -13,11 +13,7 @@ cp2k_set_default_paths(LIBXC "LibXC")
 
 if(PKG_CONFIG_FOUND)
   # For LibXC >= 7, the Fortran interface is only libxcf03
-  pkg_check_modules(CP2K_LIBXC
-    IMPORTED_TARGET GLOBAL
-    libxcf03
-    libxc>=7
-  )
+  pkg_check_modules(CP2K_LIBXC IMPORTED_TARGET GLOBAL libxcf03 libxc>=7)
 endif()
 
 if(NOT CP2K_LIBXC_FOUND)
@@ -32,8 +28,7 @@ endif()
 if(CP2K_LIBXC_FOUND)
   # Require both libxc + libxcf03 for LibXC 7
   set(CP2K_LIBXC_LINK_LIBRARIES
-    "${CP2K_LIBXCF03_LIBRARIES};${CP2K_LIBXC_LIBRARIES}"
-  )
+      "${CP2K_LIBXCF03_LIBRARIES};${CP2K_LIBXC_LIBRARIES}")
 endif()
 
 if(NOT CP2K_LIBXC_INCLUDE_DIRS)
