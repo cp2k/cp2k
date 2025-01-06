@@ -2,7 +2,7 @@
 #
 # CP2K (GNU aarch64) arch file for a serial static ARM64 binary
 #
-# Tested with: GNU 14.2.0 and MPICH 4.0.3
+# Tested with: GNU 14.2.0
 #
 # Usage: Source this arch file and then run make as instructed.
 #
