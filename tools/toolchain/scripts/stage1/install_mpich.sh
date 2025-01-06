@@ -159,6 +159,8 @@ cat << EOF >> ${INSTALLDIR}/lsan.supp
 # MPICH 3.3.2 with GCC 10.3.0
 leak:MPIR_Find_local_and_external
 leak:MPIU_Find_local_and_external
+# MPICH 4.2.3
+leak:MPL_malloc
 EOF
 
 load "${BUILDDIR}/setup_mpich"
