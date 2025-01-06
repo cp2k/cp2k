@@ -1,14 +1,16 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright 2000-2024 CP2K developers group <https://cp2k.org>                                   !
+!   Copyright 2000-2025 CP2K developers group <https://cp2k.org>                                   !
 !                                                                                                  !
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
-!> \brief interface to tblite [Johann Pototschnig]
-!> \History creation 09.2024
+!> \brief types for tblite
+!> \author JVP
+!> \history creation 09.2024
 ! **************************************************************************************************
+
 MODULE tblite_types
 
 #if defined(__TBLITE)

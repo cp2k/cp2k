@@ -1,14 +1,16 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright 2000-2024 CP2K developers group <https://cp2k.org>                                   !
+!   Copyright 2000-2025 CP2K developers group <https://cp2k.org>                                   !
 !                                                                                                  !
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
-!> \brief interface to tblite [Johann Pototschnig]
-!> \History creation 09.2024
+!> \brief tblite matrix build
+!> \author JVP
+!> \history creation 09.2024
 ! **************************************************************************************************
+
 MODULE tblite_ks_matrix
 
    USE cp_control_types,                ONLY: dft_control_type
@@ -35,6 +37,7 @@ MODULE tblite_ks_matrix
                                               mo_set_type
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
+   USE tblite_interface,                ONLY: tb_get_energy
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -142,6 +145,8 @@ CONTAINS
          pc_ener = qs_env%ks_qmmm_env%pc_ener
          energy%qmmm_el = energy%qmmm_el + pc_ener
       END IF
+
+      CALL tb_get_energy(qs_env%tb_tblite, energy)
 
       energy%total = energy%core + energy%hartree + energy%efield + energy%qmmm_el + &
                      energy%repulsive + energy%dispersion + energy%dftb3 + energy%kTS
