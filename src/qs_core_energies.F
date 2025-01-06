@@ -142,9 +142,6 @@ CONTAINS
          END DO
       END DO
 
-      flush (6)
-      ERROR STOP
-
       CALL timestop(handle)
 
    END SUBROUTINE calculate_ptrace_kp
