@@ -1,14 +1,16 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright 2000-2024 CP2K developers group <https://cp2k.org>                                   !
+!   Copyright 2000-2025 CP2K developers group <https://cp2k.org>                                   !
 !                                                                                                  !
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
-!> \brief interface to tblite [Johann Pototschnig]
-!> \History creation 09.2024
+!> \brief interface to tblite
+!> \author JVP
+!> \history creation 09.2024
 ! **************************************************************************************************
+
 MODULE tblite_interface
 
 #if defined(__TBLITE)
@@ -20,7 +22,6 @@ MODULE tblite_interface
    USE tblite_scf_info, ONLY: scf_info, atom_resolved, shell_resolved, &
                                  & orbital_resolved, not_used
    USE tblite_scf_potential, ONLY: potential_type, new_potential
-   USE tblite_types, ONLY: tblite_type, deallocate_tblite_type, allocate_tblite_type
    USE tblite_wavefunction_type, ONLY: wavefunction_type, new_wavefunction
    USE tblite_xtb_calculator, ONLY: xtb_calculator, new_xtb_calculator
    USE tblite_xtb_gfn1, ONLY: new_gfn1_calculator
@@ -67,6 +68,7 @@ MODULE tblite_interface
    USE qs_overlap, ONLY: create_sab_matrix
    USE qs_rho_types, ONLY: qs_rho_get, qs_rho_type
    USE string_utilities, ONLY: integer_to_string
+   USE tblite_types, ONLY: tblite_type, deallocate_tblite_type, allocate_tblite_type
    USE virial_types, ONLY: virial_type
    USE xtb_types, ONLY: xtb_atom_type
 #include "./base/base_uses.f90"
@@ -78,6 +80,7 @@ MODULE tblite_interface
 
    PUBLIC :: tb_init_geometry, tb_init_ham, tb_init_wf
    PUBLIC :: tb_set_calculator, tb_get_basis, build_tblite_matrices
+   PUBLIC :: tb_get_energy
 
 CONTAINS
 
@@ -297,22 +300,25 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief ...
 !> \param tb ...
-!> \param energies ...
+!> \param energy ...
 ! **************************************************************************************************
-   SUBROUTINE get_energy(tb, energies)
+   SUBROUTINE tb_get_energy(tb, energy)
 
       TYPE(tblite_type), POINTER                         :: tb
-      REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: energies
+      TYPE(qs_energy_type), POINTER                      :: energy
 
 #if defined(__TBLITE)
 
-      energies(:) = tb%e_hal + tb%e_rep + tb%e_disp + tb%e_scd + tb%e_es
+      energy%repulsive = SUM(tb%e_rep)
+      energy%dispersion = SUM(tb%e_disp)
+      energy%xtb_xb_inter = SUM(tb%e_hal)
+      energy%hartree = SUM(tb%e_scd)
 
 #else
       CPABORT("Build without TBLITE")
 #endif
 
-   END SUBROUTINE get_energy
+   END SUBROUTINE tb_get_energy
 
 ! **************************************************************************************************
 !> \brief ...
@@ -350,9 +356,9 @@ CONTAINS
       INTEGER, DIMENSION(5), INTENT(out)                 :: occ
 
       CHARACTER(LEN=default_string_length)               :: sng
-      INTEGER                                            :: ang, i_type, id_atom, iId, ipgf, iSH
-      INTEGER                                            :: ishell, maxl, mprim, nset, nshell
-      INTEGER                                            :: natorb, ind_ao
+      INTEGER                                            :: ang, i_type, id_atom, iId, ind_ao, ipgf, &
+                                                            iSH, ishell, maxl, mprim, natorb, &
+                                                            nset, nshell
       LOGICAL                                            :: do_ortho
 
       CALL allocate_gto_basis_set(gto_basis_set)
@@ -374,7 +380,7 @@ CONTAINS
          mprim = MAX(mprim, tb%calc%bas%cgto(ishell, id_atom)%nprim)
       END DO
       param%nshell = nset
-      natorb=0
+      natorb = 0
 
       !write basis set information
       CALL integer_to_string(mprim, sng)
@@ -407,7 +413,7 @@ CONTAINS
             gto_basis_set%zet(ipgf, ishell) = tb%calc%bas%cgto(ishell, id_atom)%alpha(ipgf)
          END DO
          DO ipgf = 1, (2*ang + 1)
-            ind_ao=ind_ao+1
+            ind_ao = ind_ao + 1
             param%lao(ind_ao) = ang
             param%nao(ind_ao) = ishell
          END DO
@@ -419,7 +425,7 @@ CONTAINS
       !setting additional values in parameter
       param%rcut = get_cutoff(tb%calc%bas)
       param%natorb = natorb
-      
+
       !getting occupation
       occ = 0
       iId = tb%mol%id(id_atom)
