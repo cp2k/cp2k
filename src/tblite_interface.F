@@ -350,8 +350,9 @@ CONTAINS
       INTEGER, DIMENSION(5), INTENT(out)                 :: occ
 
       CHARACTER(LEN=default_string_length)               :: sng
-      INTEGER                                            :: ang, i_type, id_atom, iId, ipgf, iSH, &
-                                                            ishell, maxl, mprim, nset, nshell
+      INTEGER                                            :: ang, i_type, id_atom, iId, ipgf, iSH
+      INTEGER                                            :: ishell, maxl, mprim, nset, nshell
+      INTEGER                                            :: natorb, ind_ao
       LOGICAL                                            :: do_ortho
 
       CALL allocate_gto_basis_set(gto_basis_set)
@@ -373,6 +374,7 @@ CONTAINS
          mprim = MAX(mprim, tb%calc%bas%cgto(ishell, id_atom)%nprim)
       END DO
       param%nshell = nset
+      natorb=0
 
       !write basis set information
       CALL integer_to_string(mprim, sng)
@@ -387,9 +389,11 @@ CONTAINS
       CALL reallocate(gto_basis_set%zet, 1, mprim, 1, nset)
       CALL reallocate(gto_basis_set%gcc, 1, mprim, 1, 1, 1, nset)
 
+      ind_ao = 0
       maxl = 0
       DO ishell = 1, nset
          ang = tb%calc%bas%cgto(ishell, id_atom)%ang
+         natorb = natorb + (2*ang + 1)
          param%lval(ishell) = ang
          maxl = MAX(ang, maxl)
          gto_basis_set%lmax(ishell) = ang
@@ -402,14 +406,20 @@ CONTAINS
             gto_basis_set%gcc(ipgf, 1, ishell) = tb%calc%bas%cgto(ishell, id_atom)%coeff(ipgf)
             gto_basis_set%zet(ipgf, ishell) = tb%calc%bas%cgto(ishell, id_atom)%alpha(ipgf)
          END DO
+         DO ipgf = 1, (2*ang + 1)
+            ind_ao=ind_ao+1
+            param%lao(ind_ao) = ang
+            param%nao(ind_ao) = ishell
+         END DO
       END DO
 
       do_ortho = .FALSE.
       CALL process_gto_basis(gto_basis_set, do_ortho, nset, maxl)
 
-      !getting cutoff
+      !setting additional values in parameter
       param%rcut = get_cutoff(tb%calc%bas)
-
+      param%natorb = natorb
+      
       !getting occupation
       occ = 0
       iId = tb%mol%id(id_atom)
