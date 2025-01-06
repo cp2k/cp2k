@@ -23,7 +23,6 @@ MODULE qs_ot_types
                                               dbcsr_release_p,&
                                               dbcsr_set,&
                                               dbcsr_type,&
-                                              dbcsr_type_complex_default,&
                                               dbcsr_type_no_symmetry,&
                                               dbcsr_type_real_8
    USE cp_dbcsr_operations,             ONLY: cp_dbcsr_m_by_n_from_row_template,&
@@ -59,8 +58,8 @@ MODULE qs_ot_types
    PUBLIC  :: qs_ot_settings_init
    PUBLIC  :: ot_readwrite_input
 
-   ! notice, this variable needs to be copyable !
-   ! needed for spins as e.g. in qs_ot_scf      !
+! **************************************************************************************************
+!> \brief notice, this variable needs to be copyable, needed for spins as e.g. in qs_ot_scf
 ! **************************************************************************************************
    TYPE qs_ot_settings_type
       LOGICAL           :: do_rotation = .FALSE., do_ener = .FALSE.
@@ -190,7 +189,8 @@ MODULE qs_ot_types
       TYPE(dbcsr_type), POINTER :: rot_mat_dx => NULL()
 
       REAL(KIND=dp), DIMENSION(:), POINTER :: rot_mat_evals => NULL()
-      TYPE(dbcsr_type), POINTER :: rot_mat_evec => NULL()
+      TYPE(dbcsr_type), POINTER :: rot_mat_evec_re => NULL()
+      TYPE(dbcsr_type), POINTER :: rot_mat_evec_im => NULL()
 
       ! third part of the variables, if we need to optimize orbital energies
       REAL(KIND=dp), POINTER, DIMENSION(:) :: ener_x => NULL()
@@ -245,9 +245,8 @@ CONTAINS
       settings%nondiag_energy_strength = 0.0_dp
    END SUBROUTINE qs_ot_settings_init
 
-   ! init matrices, needs c0 and sc0 so that c0*sc0=1
 ! **************************************************************************************************
-!> \brief ...
+!> \brief init matrices, needs c0 and sc0 so that c0*sc0=1
 !> \param qs_ot_env ...
 ! **************************************************************************************************
    SUBROUTINE qs_ot_init(qs_ot_env)
@@ -289,11 +288,10 @@ CONTAINS
 
    END SUBROUTINE qs_ot_init
 
-   ! allocates the data in qs_ot_env, for a calculation with fm_struct_ref
-   ! ortho_k allows for specifying an additional orthogonal subspace (i.e. c will
-   ! be kept orthogonal provided c0 was, used in qs_ot_eigensolver)
 ! **************************************************************************************************
-!> \brief ...
+!> \brief allocates the data in qs_ot_env, for a calculation with fm_struct_ref
+!>        ortho_k allows for specifying an additional orthogonal subspace (i.e. c will
+!>        be kept orthogonal provided c0 was, used in qs_ot_eigensolver)
 !> \param qs_ot_env ...
 !> \param matrix_s ...
 !> \param fm_struct_ref ...
@@ -497,7 +495,7 @@ CONTAINS
          CALL cp_dbcsr_m_by_n_from_template(qs_ot_env%buf4_k_k_nosym, template=matrix_s, m=k, n=k, &
                                             sym=dbcsr_type_no_symmetry)
 
-! It claims to be symmetric but to avoid dbcsr conusion nonsymmetric is kept
+         ! It claims to be symmetric but to avoid dbcsr confusion nonsymmetric is kept
          CALL dbcsr_init_p(qs_ot_env%buf1_k_k_sym)
          CALL cp_dbcsr_m_by_n_from_template(qs_ot_env%buf1_k_k_sym, template=matrix_s, m=k, n=k, &
                                             sym=dbcsr_type_no_symmetry)
@@ -547,7 +545,8 @@ CONTAINS
 
       NULLIFY (qs_ot_env%rot_mat_u, qs_ot_env%rot_mat_x, qs_ot_env%rot_mat_h_e, qs_ot_env%rot_mat_h_x, &
                qs_ot_env%rot_mat_gx, qs_ot_env%rot_mat_gx_old, qs_ot_env%rot_mat_dx, &
-               qs_ot_env%rot_mat_evals, qs_ot_env%rot_mat_evec, qs_ot_env%rot_mat_dedu, qs_ot_env%rot_mat_chc)
+               qs_ot_env%rot_mat_evals, qs_ot_env%rot_mat_dedu, qs_ot_env%rot_mat_chc, &
+               qs_ot_env%rot_mat_evec_re, qs_ot_env%rot_mat_evec_im)
 
       IF (qs_ot_env%settings%do_rotation) THEN
          CALL dbcsr_init_p(qs_ot_env%rot_mat_u)
@@ -581,10 +580,12 @@ CONTAINS
          END IF
 
          ALLOCATE (qs_ot_env%rot_mat_evals(k))
-
-         CALL dbcsr_init_p(qs_ot_env%rot_mat_evec)
-         CALL cp_dbcsr_m_by_n_from_template(qs_ot_env%rot_mat_evec, template=matrix_s, m=k, n=k, &
-                                            sym=dbcsr_type_no_symmetry, data_type=dbcsr_type_complex_default)
+         CALL dbcsr_init_p(qs_ot_env%rot_mat_evec_re)
+         CALL cp_dbcsr_m_by_n_from_template(qs_ot_env%rot_mat_evec_re, template=matrix_s, m=k, n=k, &
+                                            sym=dbcsr_type_no_symmetry)
+         CALL dbcsr_init_p(qs_ot_env%rot_mat_evec_im)
+         CALL cp_dbcsr_m_by_n_from_template(qs_ot_env%rot_mat_evec_im, template=matrix_s, m=k, n=k, &
+                                            sym=dbcsr_type_no_symmetry)
 
          CALL dbcsr_init_p(qs_ot_env%rot_mat_gx)
          CALL cp_dbcsr_m_by_n_from_template(qs_ot_env%rot_mat_gx, template=matrix_s, m=k, n=k, &
@@ -627,9 +628,8 @@ CONTAINS
 
    END SUBROUTINE qs_ot_allocate
 
-   ! deallocates data
 ! **************************************************************************************************
-!> \brief ...
+!> \brief deallocates data
 !> \param qs_ot_env ...
 ! **************************************************************************************************
    SUBROUTINE qs_ot_destroy(qs_ot_env)
@@ -699,8 +699,8 @@ CONTAINS
          END IF
 
          DEALLOCATE (qs_ot_env%rot_mat_evals)
-
-         IF (ASSOCIATED(qs_ot_env%rot_mat_evec)) CALL dbcsr_release_p(qs_ot_env%rot_mat_evec)
+         IF (ASSOCIATED(qs_ot_env%rot_mat_evec_re)) CALL dbcsr_release_p(qs_ot_env%rot_mat_evec_re)
+         IF (ASSOCIATED(qs_ot_env%rot_mat_evec_im)) CALL dbcsr_release_p(qs_ot_env%rot_mat_evec_im)
          IF (ASSOCIATED(qs_ot_env%rot_mat_gx)) CALL dbcsr_release_p(qs_ot_env%rot_mat_gx)
          IF (ASSOCIATED(qs_ot_env%rot_mat_gx_old)) CALL dbcsr_release_p(qs_ot_env%rot_mat_gx_old)
          IF (ASSOCIATED(qs_ot_env%rot_mat_dx)) CALL dbcsr_release_p(qs_ot_env%rot_mat_dx)
@@ -992,6 +992,5 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE ot_readwrite_input
-! **************************************************************************************************
 
 END MODULE qs_ot_types
