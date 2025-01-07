@@ -522,6 +522,7 @@ FROM intel/hpckit:2024.2.1-0-devel-ubuntu22.04
         install_all="",
         with_intelmpi="",
         with_mkl="",
+        with_libsmeagol="",
         with_libtorch="no",
     )
 
