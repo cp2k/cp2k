@@ -24,6 +24,7 @@ RUN ./install_cp2k_toolchain.sh \
     --install-all \
     --with-intelmpi \
     --with-mkl \
+    --with-libsmeagol \
     --with-libtorch=no \
     --dry-run
 
