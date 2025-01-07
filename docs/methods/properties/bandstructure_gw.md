@@ -141,7 +141,7 @@ implementation in CP2K, we recommend starting by reproducing the HOMO and LUMO
 GW100 test set. The reference values are $\varepsilon_\text{HOMO}^{G_0W_0\text{@PBE}}$ = -11.97 eV
 and $\varepsilon_\text{LUMO}^{G_0W_0\text{@PBE}}$ = 2.37 eV; CP2K input and output files for the
 *G*<sub>0</sub>*W*<sub>0</sub>@PBE calculation of the H<sub>2</sub>O molecule are available
-[here](https://github.com/cp2k/cp2k-examples/tree/master/bandstructure_gw/1_H2O_GW100).
+<a href="https://github.com/cp2k/cp2k-examples/tree/master/gw/1_H2O_GW100" target="_blank">here</a>.
 
 The following settings from DFT will also have an influence on *GW* quasiparticle energies:
 
@@ -168,18 +168,17 @@ The memory requirement increases with *N*<sup>3</sup>. For running large-scale c
 recommend starting with a small molecule. After successfully completing the *GW* calculation for the
 small molecule, you can gradually increase the molecule size. The computational resources needed for
 larger molecules can then be estimated using the *N*<sup>4</sup> scaling for computation time and
-*N*<sup>3</sup> scaling for memory. The output provides a useful lower limit of the required memory
-is given: (TODO: will be replaced by large-scale calculation)
+*N*<sup>3</sup> scaling for memory. The output provides a useful lower limit of the required memory:
 
 ```
-  RI_INFO| Total memory for (ia|K) integrals:                           1.55 MiB
-  RI_INFO| Total memory for G0W0-(nm|K) integrals:                      8.08 MiB
+  RI_INFO| Total memory for (ia|K) integrals:                       90555.51 MiB
+  RI_INFO| Total memory for G0W0-(nm|K) integrals:                   4625.99 MiB
 ```
 
 When facing out-of-memory, please increase the number of nodes of your calculation.
 
 Input and output of a large-scale *GW* calculation on a nanographene with 200 atoms is available
-<a href="https://github.com/cp2k/cp2k-examples/tree/master/bandstructure_gw/2_200_atom_molecule_nanographene" target="_blank">here</a>.
+<a href="https://github.com/cp2k/cp2k-examples/tree/master/gw/2_Nanographene_206_atoms_N^4_scaling" target="_blank">here</a>.
 
 ## 4. *GW* for small unit cells with *k*-point sampling
 
@@ -258,10 +257,10 @@ The *GW* band structure is written to the files `bandstructure_SCF_and_G0W0` and
 output file. When facing an out-of-memory crash, please increase `MEMORY_PER_PROC`. An input and
 output for a *G*<sub>0</sub>*W*<sub>0</sub>@PBE band structure calculation of the 2d material
 WSe<sub>2</sub> can be found
-\[<a href="https://github.com/cp2k/cp2k-examples/tree/master/bandstructure_gw/3_3-atom_unit_cell_2d_WSe2_loose_parameters" target="_blank">here</a>\]
+\[<a href="https://github.com/cp2k/cp2k-examples/tree/master/gw/3_3-atom_unit_cell_2d_WSe2_loose_parameters" target="_blank">here</a>\]
 using loose parameters (*G*<sub>0</sub>*W*<sub>0</sub>@PBE band gap: 2.30 eV, computation time: 3
 hours on 3 large-memory nodes) and
-\[<a href="https://github.com/cp2k/cp2k-examples/tree/master/bandstructure_gw/4_3-atom_unit_cell_2d_WSe2_tight_parameters" target="_blank">here</a>\]
+\[<a href="https://github.com/cp2k/cp2k-examples/tree/master/gw/4_3-atom_unit_cell_2d_WSe2_tight_parameters" target="_blank">here</a>\]
 using tight parameters (*G*<sub>0</sub>*W*<sub>0</sub>@PBE band gap: 2.30 eV, computation time: 12
 hours on 20 large-memory nodes).
 
@@ -276,7 +275,7 @@ of thumb, for a 2d material, a 9x9 unit cell is large enough for the Γ-only alg
 The input file for a Γ-only *GW* calculation is identical as for *GW* for small cells with *k*-point
 sampling except that the `&KPOINTS` section in DFT needs to be removed. An exemplary input and
 output is available
-\[<a href="https://github.com/cp2k/cp2k-examples/tree/master/bandstructure_gw/5_9x9_supercell_2d_MoS2" target="_blank">here</a>\].
+\[<a href="https://github.com/cp2k/cp2k-examples/tree/master/gw/5_9x9_supercell_2d_MoS2" target="_blank">here</a>\].
 Running the input file requires access to a large computer (the calculation took 2.5 hours on 32
 nodes on Noctua2 cluster in Paderborn). The computational parameters from this input file reach
 numerical convergence of the band gap within ~ 50 meV (TZVP basis set, 10 time and frequency
