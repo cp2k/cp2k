@@ -34,7 +34,7 @@ case "${with_pugixml}" in
 
       fi
       echo "Installing from scratch into ${pkg_install_dir}"
-      [ -d pugixml-${pugixml_ver} ] && rm -rf pugixml-${spla_ver}
+      [ -d pugixml-${pugixml_ver} ] && rm -rf pugixml-${pugixml_ver}
       tar -xzf pugixml-${pugixml_ver}.tar.gz
       cd pugixml-${pugixml_ver}
       mkdir -p build
