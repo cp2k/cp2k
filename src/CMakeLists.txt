@@ -905,7 +905,8 @@ list(
   arnoldi/arnoldi_data_methods.F
   arnoldi/arnoldi_geev.F
   arnoldi/arnoldi_methods.F
-  arnoldi/arnoldi_types.F)
+  arnoldi/arnoldi_types.F
+  arnoldi/arnoldi_vector.F)
 
 list(APPEND CP2K_SRCS_F base/base_hooks.F base/kinds.F base/machine.F)
 
@@ -965,8 +966,6 @@ list(
   common/t_sh_p_s_c.F
   common/util.F
   common/whittaker.F)
-
-list(APPEND CP2K_SRCS_F dbcsrx/dbcsr_vector.F)
 
 list(APPEND CP2K_SRCS_F dbm/dbm_api.F dbm/dbm_tests.F)
 

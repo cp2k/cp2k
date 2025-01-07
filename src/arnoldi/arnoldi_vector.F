@@ -13,7 +13,7 @@
 !>       2024.12 Removed support for complex input matrices [Ole Schuett]
 !> \author Florian Schiffmann
 ! **************************************************************************************************
-MODULE dbcsr_vector
+MODULE arnoldi_vector
    USE cp_dbcsr_api,                    ONLY: &
         dbcsr_copy, dbcsr_create, dbcsr_distribution_get, dbcsr_distribution_new, &
         dbcsr_distribution_release, dbcsr_distribution_type, dbcsr_get_data_p, dbcsr_get_info, &
@@ -32,7 +32,7 @@ MODULE dbcsr_vector
 
    PRIVATE
 
-   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_vector'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'arnoldi_vector'
 
 ! **************************************************************************************************
 !> \brief Types needed for the hashtable.
@@ -1055,4 +1055,4 @@ CONTAINS
 
    END SUBROUTINE dbcsr_sym_matrix_vector_mult
 
-END MODULE dbcsr_vector
+END MODULE arnoldi_vector

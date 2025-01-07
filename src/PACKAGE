@@ -17,7 +17,6 @@
         "minimax",
         "eri_mme",
         "shg_int",
-        "dbcsrx",
         "arnoldi",
         "grid",
         "dbm",

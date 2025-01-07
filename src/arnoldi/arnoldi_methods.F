@@ -23,11 +23,11 @@ MODULE arnoldi_methods
                                               get_control,&
                                               get_data,&
                                               m_x_v_vectors_type
+   USE arnoldi_vector,                  ONLY: dbcsr_matrix_colvec_multiply
    USE cp_dbcsr_api,                    ONLY: &
         dbcsr_add, dbcsr_copy, dbcsr_get_data_p, dbcsr_get_info, dbcsr_iterator_blocks_left, &
         dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, &
         dbcsr_p_type, dbcsr_scale, dbcsr_type
-   USE dbcsr_vector,                    ONLY: dbcsr_matrix_colvec_multiply
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_comm_type
 #include "../base/base_uses.f90"
