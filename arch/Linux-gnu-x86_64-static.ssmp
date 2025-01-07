@@ -6,7 +6,7 @@
 #
 # Usage: Source this arch file and then run make as instructed.
 #
-# Last update: 06.09.2024
+# Last update: 07.01.2025
 #
 # \
    if [[ "${0}" == "${BASH_SOURCE}" ]]; then \
@@ -19,7 +19,7 @@
    rm -rf build; \
    [[ -z "${target_cpu}" ]] && target_cpu="native"; \
    echo "Found GCC $(gcc -dumpfullversion) compiler"; \
-   ./install_cp2k_toolchain.sh -j${maxtasks} --mpi-mode=no --no-arch-files --target-cpu=${target_cpu} --with-gcc --with-dftd4; \
+   ./install_cp2k_toolchain.sh -j${maxtasks} --mpi-mode=no --no-arch-files --target-cpu=${target_cpu} --with-gcc --with-dftd4 --with-hdf5 --with-trexio; \
    source ./install/setup; \
    cd ../..; \
    echo; \
@@ -39,6 +39,7 @@ TARGET_CPU     := native
 GNU_VER        := $(shell gcc -dumpfullversion)
 USE_DFTD4      := $(DFTD4_VER)
 USE_FFTW       := $(FFTW_VER)
+USE_HDF5       := $(HDF5_VER)
 USE_LIBGRPP    := $(LIBGRPP_VER)
 USE_LIBINT     := $(LIBINT_VER)
 USE_LIBVORI    := $(LIBVORI_VER)
@@ -46,6 +47,7 @@ USE_LIBXC      := $(LIBXC_VER)
 USE_LIBXSMM    := $(LIBXSMM_VER)
 USE_OPENBLAS   := $(OPENBLAS_VER)
 USE_SPGLIB     := $(SPGLIB_VER)
+USE_TREXIO     := $(TREXIO_VER)
 
 LMAX           := 5
 MAX_CONTR      := 4
@@ -183,6 +185,27 @@ ifneq ($(USE_OPENBLAS),)
    OPENBLAS_LIB   := $(INSTALL_PATH)/openblas-$(USE_OPENBLAS)/lib
    CFLAGS         += -I$(OPENBLAS_INC)
    LIBS           += $(OPENBLAS_LIB)/libopenblas.a
+endif
+
+ifneq ($(USE_TREXIO),)
+   USE_TREXIO     := $(strip $(USE_TREXIO))
+   TREXIO_INC     := $(INSTALL_PATH)/trexio-$(USE_TREXIO)/include
+   TREXIO_LIB     := $(INSTALL_PATH)/trexio-$(USE_TREXIO)/lib
+   CFLAGS         += -I$(TREXIO_INC)
+   DFLAGS         += -D__TREXIO
+   LIBS           += $(TREXIO_LIB)/libtrexio.a
+endif
+
+ifneq ($(USE_HDF5),)
+   USE_HDF5       := $(strip $(USE_HDF5))
+   HDF5_INC       := $(INSTALL_PATH)/hdf5-$(USE_HDF5)/include
+   HDF5_LIB       := $(INSTALL_PATH)/hdf5-$(USE_HDF5)/lib
+   CFLAGS         += -I$(HDF5_INC)
+   DFLAGS         += -D__HDF5
+   LIBS           += $(HDF5_LIB)/libhdf5_fortran.a
+   LIBS           += $(HDF5_LIB)/libhdf5_f90cstub.a
+   LIBS           += $(HDF5_LIB)/libhdf5.a
+   LIBS           += -lz
 endif
 
 CFLAGS         += $(DFLAGS) $(CFLAGS_DEBUG)

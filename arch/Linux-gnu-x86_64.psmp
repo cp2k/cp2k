@@ -9,7 +9,7 @@
 #        Optionally, GNU compiler and MPI implementation can be specified as arguments.
 #        Replace or adapt the "module add" commands below if needed.
 #
-# Last update: 06.01.2025
+# Last update: 07.01.2025
 #
 # \
    if [[ "${0}" == "${BASH_SOURCE}" ]]; then \
@@ -84,6 +84,7 @@ USE_SIRIUS     := $(SIRIUS_VER)
 USE_SPFFT      := $(SPFFT_VER)
 USE_SPGLIB     := $(SPGLIB_VER)
 USE_SPLA       := $(SPLA_VER)
+USE_TREXIO     := $(TREXIO_VER)
 
 LMAX           := 5
 MAX_CONTR      := 4
@@ -100,6 +101,7 @@ else
 endif
 
 DFLAGS         := -D__parallel
+DFLAGS         += -D__MPI_F08
 DFLAGS         += -D__HAS_IEEE_EXCEPTIONS
 DFLAGS         += -D__MAX_CONTR=$(strip $(MAX_CONTR))
 
@@ -340,6 +342,19 @@ ifneq ($(USE_SPLA),)
       LIBS           += -Wl,-rpath=$(SPLA_LIB) -L$(SPLA_LIB) -lspla
    else
       LIBS           += $(SPLA_LIB)/libspla.a
+   endif
+endif
+
+ifneq ($(USE_TREXIO),)
+   USE_TREXIO     := $(strip $(USE_TREXIO))
+   TREXIO_INC     := $(INSTALL_PATH)/trexio-$(USE_TREXIO)/include
+   TREXIO_LIB     := $(INSTALL_PATH)/trexio-$(USE_TREXIO)/lib
+   CFLAGS         += -I$(TREXIO_INC)
+   DFLAGS         += -D__TREXIO
+   ifeq ($(SHARED), yes)
+      LIBS           += -Wl,-rpath=$(TREXIO_LIB) -L$(TREXIO_LIB) -ltrexio
+   else
+      LIBS           += $(TREXIO_LIB)/libtrexio.a
    endif
 endif
 

@@ -46,7 +46,7 @@ case "$with_trexio" in
       tar -xzf trexio-${trexio_ver}.tar.gz
       cd trexio-${trexio_ver}
 
-      ./configure prefix="${pkg_install_dir}" > configure.log 2>&1 || tail -n ${LOG_LINES} configure.log
+      ./configure --prefix="${pkg_install_dir}" --libdir="${pkg_install_dir}/lib" > configure.log 2>&1 || tail -n ${LOG_LINES} configure.log
 
       make -j $(get_nprocs) >> make.log 2>&1 || tail -n ${LOG_LINES} make.log
       make install > install.log 2>&1 || tail -n ${LOG_LINES} install.log
@@ -75,9 +75,12 @@ case "$with_trexio" in
     ;;
 esac
 if [ "$with_trexio" != "__DONTUSE__" ]; then
-  TREXIO_LIBS="-ltrexio"
+  TREXIO_LIBS="-l:libtrexio.a"
+  cat << EOF > "${BUILDDIR}/setup_trexio"
+export TREXIO_VER="${trexio_ver}"
+EOF
   if [ "$with_trexio" != "__SYSTEM__" ]; then
-    cat << EOF > "${BUILDDIR}/setup_trexio"
+    cat << EOF >> "${BUILDDIR}/setup_trexio"
 prepend_path LD_LIBRARY_PATH "${pkg_install_dir}/lib"
 prepend_path LD_RUN_PATH "${pkg_install_dir}/lib"
 prepend_path LIBRARY_PATH "${pkg_install_dir}/lib"
