@@ -31,6 +31,9 @@ pip3 install --quiet \
   matplotlib \
   requests \
   types-requests \
+  torch \
+  e3nn \
+  scipy \
   mypy==1.5.1
 
 # download inputs for minimax_to_fortran_source.py
