@@ -10,13 +10,12 @@
 !>        Based on the code in matrix_exp.F from Florian Schiffmann
 !> \author Samuel Andermatt (02.14)
 ! **************************************************************************************************
-
 MODULE ls_matrix_exp
 
    USE cp_dbcsr_api,                    ONLY: &
         dbcsr_add, dbcsr_add_on_diag, dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, &
-        dbcsr_filter, dbcsr_frobenius_norm, dbcsr_multiply, dbcsr_p_type, dbcsr_scale, dbcsr_set, &
-        dbcsr_transposed, dbcsr_type, dbcsr_type_complex_8
+        dbcsr_filter, dbcsr_frobenius_norm, dbcsr_multiply, dbcsr_p_type, dbcsr_release, &
+        dbcsr_scale, dbcsr_set, dbcsr_transposed, dbcsr_type
    USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
    USE kinds,                           ONLY: dp
 #include "./base/base_uses.f90"
@@ -59,7 +58,6 @@ CONTAINS
 !>      true complex algebra is still superior (one third less bandwidth needed)
 !>      limited cases matrix multiplications
 ! **************************************************************************************************
-
    SUBROUTINE cp_complex_dbcsr_gemm_3(transa, transb, alpha, A_re, A_im, &
                                       B_re, B_im, beta, C_re, C_im, filter_eps)
       CHARACTER(LEN=1), INTENT(IN)                       :: transa, transb
@@ -147,7 +145,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE cp_complex_dbcsr_gemm_3
 
 ! **************************************************************************************************
 !> \brief specialized subroutine for purely imaginary matrix exponentials
@@ -158,7 +156,6 @@ CONTAINS
 !> \param filter_eps ...
 !> \author Samuel Andermatt (02.2014)
 ! **************************************************************************************************
-
    SUBROUTINE taylor_only_imaginary_dbcsr(exp_H, im_matrix, nsquare, ntaylor, filter_eps)
 
       TYPE(dbcsr_p_type), DIMENSION(2)                   :: exp_H
@@ -261,73 +258,77 @@ CONTAINS
       REAL(KIND=dp), INTENT(in)                          :: filter_eps
 
       CHARACTER(len=*), PARAMETER :: routineN = 'taylor_full_complex_dbcsr'
-      COMPLEX(KIND=dp), PARAMETER                        :: one = (1.0_dp, 0.0_dp), &
-                                                            zero = (0.0_dp, 0.0_dp)
 
-      COMPLEX(KIND=dp)                                   :: square_fac
       INTEGER                                            :: handle, i
-      TYPE(dbcsr_type), POINTER                          :: T1, T2, T3, Tres
+      REAL(KIND=dp)                                      :: square_fac
+      TYPE(dbcsr_type)                                   :: T1_im, T1_re, T2_im, T2_re
+      TYPE(dbcsr_type), POINTER                          :: Tres_im, Tres_re
 
       CALL timeset(routineN, handle)
 
-      !The divider that comes from the scaling and squaring procedure
-      square_fac = CMPLX(1.0_dp/(2.0_dp**REAL(nsquare, dp)), 0.0_dp, KIND=dp)
+      ! convenient aliases for result matrices
+      Tres_re => exp_H(1)%matrix
+      Tres_im => exp_H(2)%matrix
 
-      !Allocate work matrices
-      NULLIFY (T1)
-      ALLOCATE (T1)
-      CALL dbcsr_create(T1, template=re_part, matrix_type="N", &
-                        data_type=dbcsr_type_complex_8)
-      NULLIFY (T2)
-      ALLOCATE (T2)
-      CALL dbcsr_create(T2, template=re_part, matrix_type="N", &
-                        data_type=dbcsr_type_complex_8)
-      NULLIFY (T3)
-      ALLOCATE (T3)
-      CALL dbcsr_create(T3, template=re_part, matrix_type="N", &
-                        data_type=dbcsr_type_complex_8)
-      NULLIFY (Tres)
-      ALLOCATE (Tres)
-      CALL dbcsr_create(Tres, template=re_part, matrix_type="N", &
-                        data_type=dbcsr_type_complex_8)
+      ! The divider that comes from the scaling and squaring procedure
+      square_fac = 1.0_dp/REAL(2**nsquare, dp)
 
-      !Fuse the input matrices to a single complex matrix
-      CALL dbcsr_copy(T3, re_part)
-      CALL dbcsr_copy(Tres, im_part) !will later on be set back to zero
-      CALL dbcsr_scale(Tres, CMPLX(0.0_dp, 1.0_dp, KIND=dp))
-      CALL dbcsr_add(T3, Tres, one, one)
+      ! Allocate work matrices
+      CALL dbcsr_create(T1_re, template=re_part, matrix_type="N")
+      CALL dbcsr_create(T1_im, template=re_part, matrix_type="N")
+      CALL dbcsr_create(T2_re, template=re_part, matrix_type="N")
+      CALL dbcsr_create(T2_im, template=re_part, matrix_type="N")
 
-      !Create the unit matrices
-      CALL dbcsr_set(T1, zero)
-      CALL dbcsr_add_on_diag(T1, one)
-      CALL dbcsr_set(Tres, zero)
-      CALL dbcsr_add_on_diag(Tres, one)
+      ! T1 = identity
+      CALL dbcsr_set(T1_re, 0.0_dp)
+      CALL dbcsr_set(T1_im, 0.0_dp)
+      CALL dbcsr_add_on_diag(T1_re, 1.0_dp)
+
+      ! Tres = identity
+      CALL dbcsr_set(Tres_re, 0.0_dp)
+      CALL dbcsr_set(Tres_im, 0.0_dp)
+      CALL dbcsr_add_on_diag(Tres_re, 1.0_dp)
 
       DO i = 1, ntaylor
-         CALL dbcsr_scale(T1, one/CMPLX(i*1.0_dp, 0.0_dp, KIND=dp))
-         CALL dbcsr_filter(T1, filter_eps)
-         CALL dbcsr_multiply("N", "N", square_fac, T1, T3, &
-                             zero, T2, filter_eps=filter_eps)
-         CALL dbcsr_add(Tres, T2, one, one)
-         CALL dbcsr_copy(T1, T2)
+         ! T1 = T1 / i
+         CALL dbcsr_scale(T1_re, 1.0_dp/REAL(i, dp))
+         CALL dbcsr_scale(T1_im, 1.0_dp/REAL(i, dp))
+         CALL dbcsr_filter(T1_re, filter_eps)
+         CALL dbcsr_filter(T1_im, filter_eps)
+
+         ! T2 = square_fac * T1 * input
+         CALL cp_complex_dbcsr_gemm_3("N", "N", alpha=square_fac, beta=0.0_dp, &
+                                      A_re=T1_re, A_im=T1_im, &
+                                      B_re=re_part, B_im=im_part, &
+                                      C_re=T2_re, C_im=T2_im, filter_eps=filter_eps)
+
+         ! Tres = Tres + T2
+         CALL dbcsr_add(Tres_re, T2_re, 1.0_dp, 1.0_dp)
+         CALL dbcsr_add(Tres_im, T2_im, 1.0_dp, 1.0_dp)
+
+         ! T1 = T2
+         CALL dbcsr_copy(T1_re, T2_re)
+         CALL dbcsr_copy(T1_im, T2_im)
       END DO
 
       IF (nsquare .GT. 0) THEN
          DO i = 1, nsquare
-            CALL dbcsr_multiply("N", "N", one, Tres, Tres, zero, &
-                                T2, filter_eps=filter_eps)
-            CALL dbcsr_copy(Tres, T2)
+            ! T2 = Tres * Tres
+            CALL cp_complex_dbcsr_gemm_3("N", "N", alpha=1.0_dp, beta=0.0_dp, &
+                                         A_re=Tres_re, A_im=Tres_im, &
+                                         B_re=Tres_re, B_im=Tres_im, &
+                                         C_re=T2_re, C_im=T2_im, filter_eps=filter_eps)
+
+            ! Tres = T2
+            CALL dbcsr_copy(Tres_re, T2_re)
+            CALL dbcsr_copy(Tres_im, T2_im)
          END DO
       END IF
 
-      CALL dbcsr_copy(exp_H(1)%matrix, Tres, keep_imaginary=.FALSE.)
-      CALL dbcsr_scale(Tres, CMPLX(0.0_dp, -1.0_dp, KIND=dp))
-      CALL dbcsr_copy(exp_H(2)%matrix, Tres, keep_imaginary=.FALSE.)
-
-      CALL dbcsr_deallocate_matrix(T1)
-      CALL dbcsr_deallocate_matrix(T2)
-      CALL dbcsr_deallocate_matrix(T3)
-      CALL dbcsr_deallocate_matrix(Tres)
+      CALL dbcsr_release(T1_re)
+      CALL dbcsr_release(T1_im)
+      CALL dbcsr_release(T2_re)
+      CALL dbcsr_release(T2_im)
 
       CALL timestop(handle)
 
@@ -344,7 +345,6 @@ CONTAINS
 !> \param eps_exp The accuracy of the exponential
 !> \author Samuel Andermatt (02.2014)
 ! **************************************************************************************************
-
    SUBROUTINE bch_expansion_imaginary_propagator(propagator, density_re, density_im, filter_eps, filter_eps_small, eps_exp)
       TYPE(dbcsr_type), POINTER                          :: propagator, density_re, density_im
       REAL(KIND=dp), INTENT(in)                          :: filter_eps, filter_eps_small, eps_exp
@@ -418,7 +418,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE bch_expansion_imaginary_propagator
 
 ! **************************************************************************************************
 !> \brief  The Baker-Campbell-Hausdorff expansion for a complex exponent (e.g. rtp)
@@ -432,9 +432,8 @@ CONTAINS
 !> \param eps_exp The accuracy of the exponential
 !> \author Samuel Andermatt (02.2014)
 ! **************************************************************************************************
-
-   SUBROUTINE bch_expansion_complex_propagator(propagator_re, propagator_im, density_re, density_im, filter_eps, &
-                                               filter_eps_small, eps_exp)
+   SUBROUTINE bch_expansion_complex_propagator(propagator_re, propagator_im, density_re, density_im, &
+                                               filter_eps, filter_eps_small, eps_exp)
       TYPE(dbcsr_type), POINTER                          :: propagator_re, propagator_im, &
                                                             density_re, density_im
       REAL(KIND=dp), INTENT(in)                          :: filter_eps, filter_eps_small, eps_exp
@@ -507,6 +506,6 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE bch_expansion_complex_propagator
 
 END MODULE ls_matrix_exp

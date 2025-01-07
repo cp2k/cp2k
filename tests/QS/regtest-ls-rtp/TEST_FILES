@@ -4,18 +4,18 @@
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
 # test mulliken constraints
-H2O-ls-emd.inp                                         1      1e-11                 -17.0890686606
+H2O-ls-emd.inp                                         1      1e-11             -17.08906866085189
 H2O-ls-emd-ewindow.inp                                67      2e-11               0.05293807927656
-H2O-ls-emd-ngs.inp                                     1      2e-14             -17.02550719537816
+H2O-ls-emd-ngs.inp                                     1      2e-14             -17.02550719518036
 H2O-ls-rtp-bch.inp                                     1      3e-14             -17.08907706662020
 H2O-ls-rtp.inp                                         1      6e-14             -17.08907732641316
-H2O-ls-rtp-scf-restart.inp                             1      6e-14             -17.08907732641316
-H2O-ls-emd-scf-restart.inp                             1      1e-11                 -17.0890686606
-H2O-ls-emd-mcweeny.inp                                 1      1e-11                 -17.0890686606
-H2O-ls-emd-mcweeny-rt-restart.inp                      1      1e-11                 -17.0890598734
-emd-KG.inp                                             1      1e-14             -18.11820168769549
+H2O-ls-rtp-scf-restart.inp                             1      6e-14             -17.08907732641317
+H2O-ls-emd-scf-restart.inp                             1      1e-11             -17.08906866085163
+H2O-ls-emd-mcweeny.inp                                 1      1e-11             -17.08906866085162
+H2O-ls-emd-mcweeny-rt-restart.inp                      1      1e-11             -17.08905987362605
+emd-KG.inp                                             1      1e-14             -18.11820186591314
 H2plus-ls-rtp.inp                                      1      2e-12              -0.52809706445746
 H2plus-ls-rtp2.inp                                     1      3e-13              -0.53624161700164
-H2O-ls-emd-mixing.inp                                  1      2e-11                 -17.0889404255
+H2O-ls-emd-mixing.inp                                  1      2e-11             -17.08894042116007
 Ar_mixed_aa_planar-rtp-osc-field.inp                   1      8e-13             -21.07372556817139
 #EOF

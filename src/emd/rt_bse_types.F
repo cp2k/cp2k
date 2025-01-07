@@ -41,8 +41,7 @@ MODULE rt_bse_types
                            dbcsr_get_info, &
                            dbcsr_copy, &
                            dbcsr_set, &
-                           dbcsr_scale, &
-                           dbcsr_type_complex_8
+                           dbcsr_scale
    USE parallel_gemm_api, ONLY: parallel_gemm
    USE dbt_api, ONLY: dbt_type, &
                       dbt_pgrid_type, &
