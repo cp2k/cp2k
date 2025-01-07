@@ -18,11 +18,11 @@ MODULE arnoldi_data_methods
    USE arnoldi_types,                   ONLY: &
         arnoldi_control_type, arnoldi_data_type, arnoldi_env_type, get_control, get_data, &
         get_evals, get_sel_ind, set_control, set_data
+   USE arnoldi_vector,                  ONLY: create_col_vec_from_matrix
    USE cp_dbcsr_api,                    ONLY: &
         dbcsr_distribution_get, dbcsr_distribution_type, dbcsr_get_data_p, dbcsr_get_info, &
         dbcsr_get_matrix_type, dbcsr_mp_grid_setup, dbcsr_p_type, dbcsr_release, dbcsr_type, &
         dbcsr_type_real_8, dbcsr_type_symmetric
-   USE dbcsr_vector,                    ONLY: create_col_vec_from_matrix
    USE kinds,                           ONLY: dp
    USE util,                            ONLY: sort
 #include "../base/base_uses.f90"
