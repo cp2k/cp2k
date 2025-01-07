@@ -71,6 +71,7 @@ USE_FFTW       := $(FFTW_VER)
 USE_HDF5       := $(HDF5_VER)
 USE_LIBGRPP    := $(LIBGRPP_VER)
 USE_LIBINT     := $(LIBINT_VER)
+USE_LIBSMEAGOL := $(LIBSMEAGOL_VER)
 USE_LIBTORCH   := $(LIBTORCH_VER)
 USE_LIBVORI    := $(LIBVORI_VER)
 USE_LIBXC      := $(LIBXC_VER)
@@ -343,6 +344,15 @@ ifneq ($(USE_SPLA),)
    else
       LIBS           += $(SPLA_LIB)/libspla.a
    endif
+endif
+
+ifneq ($(USE_LIBSMEAGOL),)
+   USE_LIBSMEAGOL := $(strip $(USE_LIBSMEAGOL))
+   LIBSMEAGOL_LIB := $(INSTALL_PATH)/libsmeagol-$(USE_LIBSMEAGOL)/lib
+   LIBSMEAGOL_INC := $(INSTALL_PATH)/libsmeagol-$(USE_LIBSMEAGOL)/include
+   CFLAGS         += -I$(LIBSMEAGOL_INC)
+   DFLAGS         += -D__SMEAGOL
+   LIBS           += $(LIBSMEAGOL_LIB)/libsmeagol.a
 endif
 
 ifneq ($(USE_TREXIO),)
