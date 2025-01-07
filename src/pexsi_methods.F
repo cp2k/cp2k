@@ -15,13 +15,13 @@
 ! **************************************************************************************************
 
 MODULE pexsi_methods
-   USE arnoldi_api,                     ONLY: arnoldi_data_type,&
+   USE arnoldi_api,                     ONLY: arnoldi_env_type,&
                                               arnoldi_ev,&
-                                              deallocate_arnoldi_data,&
+                                              deallocate_arnoldi_env,&
                                               get_selected_ritz_val,&
                                               get_selected_ritz_vector,&
                                               set_arnoldi_initial_vector,&
-                                              setup_arnoldi_data
+                                              setup_arnoldi_env
    USE cp_dbcsr_api,                    ONLY: &
         dbcsr_convert_csr_to_dbcsr, dbcsr_convert_dbcsr_to_csr, dbcsr_copy, dbcsr_create, &
         dbcsr_csr_create, dbcsr_csr_create_from_dbcsr, dbcsr_csr_destroy, &
@@ -317,7 +317,7 @@ CONTAINS
       LOGICAL                                            :: first_call, pexsi_convergence
       REAL(KIND=dp) :: delta_E, energy_H, energy_S, free_energy, mu_max_in, mu_max_out, mu_min_in, &
          mu_min_out, nel_tol, nelectron_diff, nelectron_exact_pexsi, nelectron_out
-      TYPE(arnoldi_data_type)                            :: my_arnoldi
+      TYPE(arnoldi_env_type)                             :: arnoldi_env
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dbcsr_distribution_type)                      :: dist
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: arnoldi_matrices
@@ -373,17 +373,17 @@ CONTAINS
       CALL dbcsr_allocate_matrix_set(arnoldi_matrices, 2)
       arnoldi_matrices(1)%matrix => matrix_ks
       arnoldi_matrices(2)%matrix => matrix_s
-      CALL setup_arnoldi_data(my_arnoldi, arnoldi_matrices, max_iter=20, &
-                              threshold=1.0E-2_dp, selection_crit=2, nval_request=1, nrestarts=21, &
-                              generalized_ev=.TRUE., iram=.FALSE.)
-      IF (iscf .GT. 1) CALL set_arnoldi_initial_vector(my_arnoldi, pexsi_env%max_ev_vector(ispin))
-      CALL arnoldi_ev(arnoldi_matrices, my_arnoldi)
-      delta_E = REAL(get_selected_ritz_val(my_arnoldi, 1), dp)
+      CALL setup_arnoldi_env(arnoldi_env, arnoldi_matrices, max_iter=20, &
+                             threshold=1.0E-2_dp, selection_crit=2, nval_request=1, nrestarts=21, &
+                             generalized_ev=.TRUE., iram=.FALSE.)
+      IF (iscf .GT. 1) CALL set_arnoldi_initial_vector(arnoldi_env, pexsi_env%max_ev_vector(ispin))
+      CALL arnoldi_ev(arnoldi_matrices, arnoldi_env)
+      delta_E = REAL(get_selected_ritz_val(arnoldi_env, 1), dp)
       ! increase delta_E a bit to make sure that it really is an upper bound
       delta_E = delta_E + 1.0E-2_dp*ABS(delta_E)
-      CALL get_selected_ritz_vector(my_arnoldi, 1, arnoldi_matrices(1)%matrix, &
+      CALL get_selected_ritz_vector(arnoldi_env, 1, arnoldi_matrices(1)%matrix, &
                                     pexsi_env%max_ev_vector(ispin))
-      CALL deallocate_arnoldi_data(my_arnoldi)
+      CALL deallocate_arnoldi_env(arnoldi_env)
       DEALLOCATE (arnoldi_matrices)
 
       nelectron_exact_pexsi = nelectron_exact

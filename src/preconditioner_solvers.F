@@ -13,11 +13,11 @@
 !> \author Joost VandeVondele (09.2002)
 ! **************************************************************************************************
 MODULE preconditioner_solvers
-   USE arnoldi_api,                     ONLY: arnoldi_data_type,&
+   USE arnoldi_api,                     ONLY: arnoldi_env_type,&
                                               arnoldi_ev,&
-                                              deallocate_arnoldi_data,&
+                                              deallocate_arnoldi_env,&
                                               get_selected_ritz_val,&
-                                              setup_arnoldi_data
+                                              setup_arnoldi_env
    USE bibliography,                    ONLY: Schiffmann2015,&
                                               cite_reference
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
@@ -267,7 +267,7 @@ CONTAINS
 
       INTEGER                                            :: handle
       REAL(KIND=dp)                                      :: max_ev, min_ev
-      TYPE(arnoldi_data_type)                            :: my_arnoldi
+      TYPE(arnoldi_env_type)                             :: arnoldi_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrices
 
       CALL timeset(routineN, handle)
@@ -276,17 +276,17 @@ CONTAINS
       ALLOCATE (matrices(1))
       matrices(1)%matrix => matrix
       ! compute the minimum ev
-      CALL setup_arnoldi_data(my_arnoldi, matrices, max_iter=20, threshold=5.0E-4_dp, selection_crit=2, &
-                              nval_request=1, nrestarts=15, generalized_ev=.FALSE., iram=.FALSE.)
-      CALL arnoldi_ev(matrices, my_arnoldi)
-      max_ev = REAL(get_selected_ritz_val(my_arnoldi, 1), dp)
-      CALL deallocate_arnoldi_data(my_arnoldi)
+      CALL setup_arnoldi_env(arnoldi_env, matrices, max_iter=20, threshold=5.0E-4_dp, selection_crit=2, &
+                             nval_request=1, nrestarts=15, generalized_ev=.FALSE., iram=.FALSE.)
+      CALL arnoldi_ev(matrices, arnoldi_env)
+      max_ev = REAL(get_selected_ritz_val(arnoldi_env, 1), dp)
+      CALL deallocate_arnoldi_env(arnoldi_env)
 
-      CALL setup_arnoldi_data(my_arnoldi, matrices, max_iter=20, threshold=5.0E-4_dp, selection_crit=3, &
-                              nval_request=1, nrestarts=15, generalized_ev=.FALSE., iram=.FALSE.)
-      CALL arnoldi_ev(matrices, my_arnoldi)
-      min_ev = REAL(get_selected_ritz_val(my_arnoldi, 1), dp)
-      CALL deallocate_arnoldi_data(my_arnoldi)
+      CALL setup_arnoldi_env(arnoldi_env, matrices, max_iter=20, threshold=5.0E-4_dp, selection_crit=3, &
+                             nval_request=1, nrestarts=15, generalized_ev=.FALSE., iram=.FALSE.)
+      CALL arnoldi_ev(matrices, arnoldi_env)
+      min_ev = REAL(get_selected_ritz_val(arnoldi_env, 1), dp)
+      CALL deallocate_arnoldi_env(arnoldi_env)
 
       cond_num = max_ev/min_ev
       DEALLOCATE (matrices)
