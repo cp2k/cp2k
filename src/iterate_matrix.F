@@ -11,7 +11,7 @@
 !> \author Joost VandeVondele
 ! **************************************************************************************************
 MODULE iterate_matrix
-   USE arnoldi_api,                     ONLY: arnoldi_data_type,&
+   USE arnoldi_api,                     ONLY: arnoldi_env_type,&
                                               arnoldi_extremal
    USE bibliography,                    ONLY: Richters2018,&
                                               cite_reference
@@ -490,7 +490,7 @@ CONTAINS
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dbcsr_type), TARGET                           :: tmp1, tmp2
 
-      !TYPE(arnoldi_data_type)                            :: my_arnoldi
+      !TYPE(arnoldi_env_type)                            :: arnoldi_env
       !TYPE(dbcsr_p_type), DIMENSION(1)                   :: mymat
 
       CALL timeset(routineN, handle)
@@ -567,12 +567,12 @@ CONTAINS
          CALL arnoldi_extremal(tmp1, max_eV, min_eV, threshold=my_eps_lanczos, &
                                max_iter=my_max_iter_lanczos, converged=arnoldi_converged)
          !mymat(1)%matrix => tmp1
-         !CALL setup_arnoldi_data(my_arnoldi, mymat, max_iter=30, threshold=1.0E-3_dp, selection_crit=1, &
+         !CALL setup_arnoldi_env(arnoldi_env, mymat, max_iter=30, threshold=1.0E-3_dp, selection_crit=1, &
          !                        nval_request=2, nrestarts=2, generalized_ev=.FALSE., iram=.TRUE.)
-         !CALL arnoldi_ev(mymat, my_arnoldi)
-         !max_eV = REAL(get_selected_ritz_val(my_arnoldi, 2), dp)
-         !min_eV = REAL(get_selected_ritz_val(my_arnoldi, 1), dp)
-         !CALL deallocate_arnoldi_data(my_arnoldi)
+         !CALL arnoldi_ev(mymat, arnoldi_env)
+         !max_eV = REAL(get_selected_ritz_val(arnoldi_env, 2), dp)
+         !min_eV = REAL(get_selected_ritz_val(arnoldi_env, 1), dp)
+         !CALL deallocate_arnoldi_env(arnoldi_env)
 
          IF (unit_nr > 0) THEN
             WRITE (unit_nr, *)

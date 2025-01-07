@@ -13,13 +13,13 @@
 !> \author Joost VandeVondele (09.2002)
 ! **************************************************************************************************
 MODULE preconditioner_makes
-   USE arnoldi_api,                     ONLY: arnoldi_data_type,&
+   USE arnoldi_api,                     ONLY: arnoldi_env_type,&
                                               arnoldi_ev,&
-                                              deallocate_arnoldi_data,&
+                                              deallocate_arnoldi_env,&
                                               get_selected_ritz_val,&
                                               get_selected_ritz_vector,&
                                               set_arnoldi_initial_vector,&
-                                              setup_arnoldi_data
+                                              setup_arnoldi_env
    USE cp_dbcsr_api,                    ONLY: &
         dbcsr_add, dbcsr_add_on_diag, dbcsr_copy, dbcsr_create, dbcsr_get_info, dbcsr_multiply, &
         dbcsr_p_type, dbcsr_release, dbcsr_type, dbcsr_type_symmetric
@@ -703,7 +703,7 @@ CONTAINS
 
       INTEGER                                            :: handle, k, n
       REAL(KIND=dp)                                      :: max_ev, min_ev, pre_shift
-      TYPE(arnoldi_data_type)                            :: my_arnoldi
+      TYPE(arnoldi_env_type)                             :: arnoldi_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrices
       TYPE(dbcsr_type), TARGET                           :: dbcsr_cThc, dbcsr_hc, dbcsr_sc, mo_dbcsr
 
@@ -742,17 +742,17 @@ CONTAINS
       ! Compute the Energy of the HOMO. We will use this as a reference energy
       ALLOCATE (matrices(1))
       matrices(1)%matrix => dbcsr_cThc
-      CALL setup_arnoldi_data(my_arnoldi, matrices, max_iter=20, threshold=1.0E-3_dp, selection_crit=2, &
-                              nval_request=1, nrestarts=8, generalized_ev=.FALSE., iram=.FALSE.)
+      CALL setup_arnoldi_env(arnoldi_env, matrices, max_iter=20, threshold=1.0E-3_dp, selection_crit=2, &
+                             nval_request=1, nrestarts=8, generalized_ev=.FALSE., iram=.FALSE.)
       IF (ASSOCIATED(preconditioner_env%max_ev_vector)) &
-         CALL set_arnoldi_initial_vector(my_arnoldi, preconditioner_env%max_ev_vector)
-      CALL arnoldi_ev(matrices, my_arnoldi)
-      max_ev = REAL(get_selected_ritz_val(my_arnoldi, 1), dp)
+         CALL set_arnoldi_initial_vector(arnoldi_env, preconditioner_env%max_ev_vector)
+      CALL arnoldi_ev(matrices, arnoldi_env)
+      max_ev = REAL(get_selected_ritz_val(arnoldi_env, 1), dp)
 
       ! save the ev as guess for the next time
       IF (.NOT. ASSOCIATED(preconditioner_env%max_ev_vector)) ALLOCATE (preconditioner_env%max_ev_vector)
-      CALL get_selected_ritz_vector(my_arnoldi, 1, matrices(1)%matrix, preconditioner_env%max_ev_vector)
-      CALL deallocate_arnoldi_data(my_arnoldi)
+      CALL get_selected_ritz_vector(arnoldi_env, 1, matrices(1)%matrix, preconditioner_env%max_ev_vector)
+      CALL deallocate_arnoldi_env(arnoldi_env)
       DEALLOCATE (matrices)
 
       ! Lets shift the occupied states a bit further up, -1.0 because we gonna subtract it from H
@@ -767,25 +767,25 @@ CONTAINS
          ALLOCATE (matrices(2))
          matrices(1)%matrix => preconditioner_env%sparse_matrix
          matrices(2)%matrix => matrix_s
-         CALL setup_arnoldi_data(my_arnoldi, matrices, max_iter=20, threshold=2.0E-2_dp, selection_crit=3, &
-                                 nval_request=1, nrestarts=21, generalized_ev=.TRUE., iram=.FALSE.)
+         CALL setup_arnoldi_env(arnoldi_env, matrices, max_iter=20, threshold=2.0E-2_dp, selection_crit=3, &
+                                nval_request=1, nrestarts=21, generalized_ev=.TRUE., iram=.FALSE.)
       ELSE
          ALLOCATE (matrices(1))
          matrices(1)%matrix => preconditioner_env%sparse_matrix
-         CALL setup_arnoldi_data(my_arnoldi, matrices, max_iter=20, threshold=2.0E-2_dp, selection_crit=3, &
-                                 nval_request=1, nrestarts=8, generalized_ev=.FALSE., iram=.FALSE.)
+         CALL setup_arnoldi_env(arnoldi_env, matrices, max_iter=20, threshold=2.0E-2_dp, selection_crit=3, &
+                                nval_request=1, nrestarts=8, generalized_ev=.FALSE., iram=.FALSE.)
       END IF
       IF (ASSOCIATED(preconditioner_env%min_ev_vector)) &
-         CALL set_arnoldi_initial_vector(my_arnoldi, preconditioner_env%min_ev_vector)
+         CALL set_arnoldi_initial_vector(arnoldi_env, preconditioner_env%min_ev_vector)
 
       ! compute the LUMO energy
-      CALL arnoldi_ev(matrices, my_arnoldi)
-      min_eV = REAL(get_selected_ritz_val(my_arnoldi, 1), dp)
+      CALL arnoldi_ev(matrices, arnoldi_env)
+      min_eV = REAL(get_selected_ritz_val(arnoldi_env, 1), dp)
 
       ! save the lumo vector for restarting in the next step
       IF (.NOT. ASSOCIATED(preconditioner_env%min_ev_vector)) ALLOCATE (preconditioner_env%min_ev_vector)
-      CALL get_selected_ritz_vector(my_arnoldi, 1, matrices(1)%matrix, preconditioner_env%min_ev_vector)
-      CALL deallocate_arnoldi_data(my_arnoldi)
+      CALL get_selected_ritz_vector(arnoldi_env, 1, matrices(1)%matrix, preconditioner_env%min_ev_vector)
+      CALL deallocate_arnoldi_env(arnoldi_env)
       DEALLOCATE (matrices)
 
 !-------------------------------------compute eigenvalues of H ----------------------------------------------
