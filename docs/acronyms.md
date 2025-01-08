@@ -25,6 +25,9 @@ BFGS
 BOMD
     Born-Oppenheimer Molecular Dynamics [→ more](methods/sampling/molecular_dynamics)
 
+BSE
+    Bethe-Salpeter Equation [→ more](methods/properties/optical/bethe-salpeter)
+
 BSSE
     Basis Set Superposition Error [→ more](methods/dft/basis_sets)
 
@@ -85,6 +88,9 @@ EAM
 EC
     Energy Correction
 
+EHT
+    Extended Hückel Theory
+
 EIP
     Empirical Interatomic Potential [→ more](methods/semiempiricals/index)
 
@@ -136,6 +142,9 @@ GTH
 GTO
     Gaussian Type Orbitals
 
+GW
+    GW approximation [→ more](methods/properties/optical/index)
+
 HF
     Hartree Fock [→ more](methods/dft/hartree-fock/index)
 
@@ -150,6 +159,9 @@ IEEE
 
 IMOMM
     Integrated Molecular Orbital Molecular Mechanics method
+
+K-point
+    a vector in reciprocal space [→ more](methods/dft/k-points)
 
 KS
     Kohn-Sham [→ more](methods/dft/index)
@@ -352,7 +364,9 @@ XC
 xTB
     eXtended Tight Binding [→ more](methods/semiempiricals/xtb)
 
+Z-matrix
+    formalism to represent atomic coordinates [→ more](https://en.wikipedia.org/wiki/Z-matrix_(chemistry))
+
 ZMP
     Zhao-Morrison-Parr potential
-
 ```
