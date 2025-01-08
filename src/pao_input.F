@@ -292,7 +292,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="MAX_CYCLES", &
                           description="Maximum number of PAO line search cycles for a given hamiltonian.", &
-                          default_i_val=1000)
+                          default_i_val=75)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
