@@ -1151,13 +1151,13 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Print exciton descriptors, cf. Mewes et al., JCTC 14, 710-725 (2018)
-!> \param log_unit           output unit
-!> \param evects             TDDFPT trial vectors (SIZE(evects,1) -- number of spins;
-!>                           SIZE(evects,2) -- number of excited states to print)
-!> \param gs_mos             molecular orbitals optimised for the ground state
-!> \param matrix_s           overlap matrix
-!> \param do_directional_exciton_descriptors ...
-!> \param qs_env ...
+!> \param log_unit                              output unit
+!> \param evects                                TDDFPT trial vectors (SIZE(evects,1) -- number of spins;
+!>                                              SIZE(evects,2) -- number of excited states to print)
+!> \param gs_mos                                molecular orbitals optimised for the ground state
+!> \param matrix_s                              overlap matrix
+!> \param do_directional_exciton_descriptors    flag for computing descriptors for each (cartesian) direction
+!> \param qs_env                                Information on particles/geometry
 !> \par History
 !>    * 12.2024 created as 'tddfpt_print_exciton_descriptors' [Maximilian Graml]
 ! **************************************************************************************************
