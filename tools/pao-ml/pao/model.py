@@ -51,12 +51,15 @@ class PaoModel(torch.nn.Module):
         self.cutoff = cutoff
 
         # Irreps of primary basis
-        assert prim_basis_name == "DZVP-MOLOPT-GTH"  # TODO support more basis sets
+        # TODO: Export the specs directly from cp2k as part of the .pao files.
         prim_basis_specs = {
-            "O": "2x0e + 2x1o + 1x2e",  # two s-shells, two p-shells, one d-shell
-            "H": "2x0e + 1x1o",  # two s-shells, one p-shell
+            "DZVP-MOLOPT-GTH/H": "2x0e + 1x1o",  # two s-shells, one p-shell
+            "DZVP-MOLOPT-GTH/O": "2x0e + 2x1o + 1x2e",  # two s, two p, one d-shell
+            "TZV2P-MOLOPT-GGA-GTH-q1/H": "3x0e + 2x1o + 1x2e",
+            "TZV2P-MOLOPT-GGA-GTH-q6/O": "3x0e + 3x1o + 2x2e + 1x3o",
         }
-        prim_basis_irreps = e3nn.o3.Irreps(prim_basis_specs[kind_name])
+        basis_specs_key = f"{prim_basis_name}/{kind_name}"
+        prim_basis_irreps = e3nn.o3.Irreps(prim_basis_specs[basis_specs_key])
         assert self.prim_basis_size == prim_basis_irreps.dim
 
         # auxiliary Hamiltonian
