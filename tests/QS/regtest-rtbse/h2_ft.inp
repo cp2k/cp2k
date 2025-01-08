@@ -46,7 +46,8 @@
       INITIAL_WFN SCF_WFN
       MAT_EXP BCH
       PERIODIC .FALSE.
-      RTP_METHOD RTBSE
+      &RTBSE
+      &END RTBSE
       &PRINT
         &POLARIZABILITY
           FILENAME __STD_OUT__
