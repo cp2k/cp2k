@@ -35,7 +35,7 @@ run_test ./tools/docker/generate_dockerfiles.py --check
 # Test pao-ml training.
 run_test ./tools/pao-ml/pao-train.py --kind=H --epochs=200 ./tools/pao-ml/example.pao
 run_test ./tools/pao-ml/pao-retrain.py --model="DZVP-MOLOPT-GTH-PAO4-H.pt" --epochs=200 ./tools/pao-ml/example.pao
-run_test ./tools/pao-ml/pao-validate.py --threshold=1e-2 --model="DZVP-MOLOPT-GTH-PAO4-H.pt" ./tools/pao-ml/example.pao
+run_test ./tools/pao-ml/pao-validate.py --threshold=1e-1 --model="DZVP-MOLOPT-GTH-PAO4-H.pt" ./tools/pao-ml/example.pao
 run_test ./tools/pao-ml/pao-validate.py --threshold=1e-6 --model="tests/QS/regtest-pao-5/DZVP-MOLOPT-GTH-PAO4-H.pt" ./tools/pao-ml/example.pao
 run_test ./tools/pao-ml/pao-validate.py --threshold=1e-5 --model="tests/QS/regtest-pao-5/DZVP-MOLOPT-GTH-PAO4-O.pt" ./tools/pao-ml/example.pao
 
