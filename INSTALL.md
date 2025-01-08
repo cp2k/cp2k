@@ -511,9 +511,9 @@ TREXIO - Open-source file format and library. Support for TREXIO can be enabled 
 
 The location of compiler and libraries needs to be specified. Examples for several common
 architectures can be found in [arch folder](./arch/). The names of these files match
-`architecture.version` e.g., [Linux-gnu-x86_64.psmp](./arch/Linux-gnu-x86_64.psmp).
-Alternatively, <https://dashboard.cp2k.org> provides sample arch files as part of the testing
-reports (click on the status field, search for 'ARCH-file').
+`architecture.version` e.g., [Linux-gnu-x86_64.psmp](./arch/Linux-gnu-x86_64.psmp). Alternatively,
+<https://dashboard.cp2k.org> provides sample arch files as part of the testing reports (click on the
+status field, search for 'ARCH-file').
 
 Conventionally, there are six versions:
 
@@ -528,11 +528,16 @@ Conventionally, there are six versions:
 
 You'll need to modify one of these files to match your system's settings.
 
-Some architecture files like the file [Linux-gnu-x86_64.psmp](./arch/Linux-gnu-x86_64.psmp) are sourceable (see above), i.e.
+Some architecture files like the file [Linux-gnu-x86_64.psmp](./arch/Linux-gnu-x86_64.psmp) are
+sourceable (see above), i.e.
+
 ```shell
 source arch/Linux-gnu-x86_64.psmp     
 ```
-will launch a build of the CP2K toolchain which will build all dependencies needed for compiling CP2K. Building a `psmp` version will also create a `popt` CP2K binary and vice versa. The same is true for the `ssmp` and `sopt` versions of CP2K.
+
+will launch a build of the CP2K toolchain which will build all dependencies needed for compiling
+CP2K. Building a `psmp` version will also create a `popt` CP2K binary and vice versa. The same is
+true for the `ssmp` and `sopt` versions of CP2K.
 
 You can now build CP2K using these settings (where -j N allows for a parallel build using N
 processes):
