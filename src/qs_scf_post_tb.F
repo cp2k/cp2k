@@ -174,9 +174,9 @@ CONTAINS
       CHARACTER(LEN=6)                                   :: ana
       CHARACTER(LEN=default_string_length)               :: aname
       INTEGER :: after, enshift_type, handle, homo, iat, iatom, ikind, img, ispin, iw, nat, natom, &
-         nkind, nlumo_stm, nlumos, nspins, print_level, unit_nr
+         nkind, nlumo_stm, nlumos, nspins, print_level, unit_nr, gfn_type
       LOGICAL                                            :: do_cube, do_kpoints, explicit, has_homo, &
-                                                            omit_headers, print_it, rebuild
+                                                            omit_headers, print_it, rebuild, gfn0
       REAL(KIND=dp)                                      :: zeff
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: echarge, mcharge
       REAL(KIND=dp), DIMENSION(2, 2)                     :: homo_lumo
@@ -213,10 +213,21 @@ CONTAINS
 
       logger => cp_get_default_logger()
 
+      gfn0 = .FALSE.
+      CALL get_qs_env(qs_env, dft_control=dft_control)
+      SELECT CASE (TRIM(tb_type))
+      CASE ("DFTB")
+      CASE ("xTB")
+         gfn_type = dft_control%qs_control%xtb_control%gfn_type
+         gfn0 = (gfn_type == 0)
+      CASE DEFAULT
+         CPABORT("unknown TB type")
+      END SELECT
+
       CPASSERT(ASSOCIATED(qs_env))
       NULLIFY (dft_control, rho, para_env, matrix_s, matrix_p)
       CALL get_qs_env(qs_env, scf_env=scf_env, atomic_kind_set=atomic_kind_set, qs_kind_set=qs_kind_set, &
-                      dft_control=dft_control, rho=rho, natom=natom, para_env=para_env, &
+                      rho=rho, natom=natom, para_env=para_env, &
                       particle_set=particle_set, do_kpoints=do_kpoints, matrix_s_kp=matrix_s)
       nspins = dft_control%nspins
       CALL qs_rho_get(rho, rho_ao_kp=matrix_p)
@@ -382,7 +393,7 @@ CONTAINS
          unit_nr = cp_print_key_unit_nr(logger, print_section, "MOMENTS", &
                                         extension=".data", middle_name="tb_dipole", log_filename=.FALSE.)
          moments_section => section_vals_get_subs_vals(print_section, "MOMENTS")
-         IF (tb_type == "xTB" .AND. dft_control%qs_control%xtb_control%gfn_type == 0) THEN
+         IF (gfn0) THEN
             enshift_type = dft_control%qs_control%xtb_control%enshift_type
             IF (enshift_type == 0) THEN
                CALL get_qs_env(qs_env, cell=cell)
