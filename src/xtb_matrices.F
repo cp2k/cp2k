@@ -30,8 +30,7 @@ MODULE xtb_matrices
                                               dbcsr_create,&
                                               dbcsr_finalize,&
                                               dbcsr_get_block_p,&
-                                              dbcsr_p_type,&
-                                              dbcsr_print
+                                              dbcsr_p_type
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
    USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set
    USE cp_dbcsr_output,                 ONLY: cp_dbcsr_write_sparse_matrix
@@ -664,7 +663,6 @@ CONTAINS
          DO img = 1, nimg
             CALL dbcsr_finalize(matrix_h(i, img)%matrix)
             CALL dbcsr_finalize(matrix_s(i, img)%matrix)
-            CALL dbcsr_print(matrix_h(i, img)%matrix)
          END DO
       END DO
 
@@ -1294,13 +1292,6 @@ CONTAINS
 
       ! AO matrix outputs
       CALL ao_matrix_output(qs_env, matrix_h, matrix_s, calculate_forces)
-
-      ! print matrices
-      DO i = 1, SIZE(matrix_h, 1)
-         DO img = 1, nimg
-            CALL dbcsr_print(matrix_h(i, img)%matrix)
-         END DO
-      END DO
 
       DEALLOCATE (basis_set_list)
       IF (calculate_forces) THEN
