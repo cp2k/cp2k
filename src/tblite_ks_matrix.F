@@ -37,7 +37,8 @@ MODULE tblite_ks_matrix
                                               mo_set_type
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
-   USE tblite_interface,                ONLY: tb_get_energy
+   USE tblite_interface,                ONLY: tb_get_energy,&
+                                              tb_update_charges
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -105,7 +106,6 @@ CONTAINS
          ks_matrix(1:ns, 1:1) => ext_ks_matrix(1:ns)
       END IF
 
-      energy%hartree = 0.0_dp
       energy%qmmm_el = 0.0_dp
 
       scf_section => section_vals_get_subs_vals(qs_env%input, "DFT%SCF")
@@ -145,6 +145,8 @@ CONTAINS
          pc_ener = qs_env%ks_qmmm_env%pc_ener
          energy%qmmm_el = energy%qmmm_el + pc_ener
       END IF
+
+      CALL tb_update_charges(qs_env, para_env, dft_control, qs_env%tb_tblite, calculate_forces)
 
       CALL tb_get_energy(qs_env%tb_tblite, energy)
 

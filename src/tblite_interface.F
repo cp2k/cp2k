@@ -53,23 +53,27 @@ MODULE tblite_interface
    USE kinds, ONLY: dp, default_string_length
    USE memory_utilities, ONLY: reallocate
    USE message_passing, ONLY: mp_para_env_type
+   USE mulliken, ONLY: ao_charges
    USE orbital_pointers, ONLY: ncoset
    USE particle_types, ONLY: particle_type
+   USE qs_charge_mixing, ONLY: charge_mixing
    USE qs_condnum, ONLY: overlap_condnum
    USE qs_energy_types, ONLY: qs_energy_type
    USE qs_environment_types, ONLY: get_qs_env, qs_environment_type
    USE qs_force_types, ONLY: qs_force_type
    USE qs_integral_utils, ONLY: basis_set_list_setup, get_memory_usage
-   USE qs_kind_types, ONLY: get_qs_kind, qs_kind_type
+   USE qs_kind_types, ONLY: get_qs_kind, qs_kind_type, get_qs_kind_set
    USE qs_ks_types, ONLY: qs_ks_env_type, set_ks_env
    USE qs_neighbor_list_types, ONLY: neighbor_list_iterator_create, neighbor_list_iterate, &
                                     & get_iterator_info, neighbor_list_set_p_type, &
                                     & neighbor_list_iterator_p_type
    USE qs_overlap, ONLY: create_sab_matrix
    USE qs_rho_types, ONLY: qs_rho_get, qs_rho_type
+   USE qs_scf_types, ONLY: qs_scf_env_type
    USE string_utilities, ONLY: integer_to_string
    USE tblite_types, ONLY: tblite_type, deallocate_tblite_type, allocate_tblite_type
    USE virial_types, ONLY: virial_type
+   USE xtb_types, ONLY: get_xtb_atom_param, xtb_atom_type
    USE xtb_types, ONLY: xtb_atom_type
 #include "./base/base_uses.f90"
    IMPLICIT NONE
@@ -80,7 +84,7 @@ MODULE tblite_interface
 
    PUBLIC :: tb_init_geometry, tb_init_ham, tb_init_wf
    PUBLIC :: tb_set_calculator, tb_get_basis, build_tblite_matrices
-   PUBLIC :: tb_get_energy
+   PUBLIC :: tb_get_energy, tb_update_charges
 
 CONTAINS
 
@@ -312,32 +316,14 @@ CONTAINS
       energy%repulsive = SUM(tb%e_rep)
       energy%dispersion = SUM(tb%e_disp)
       energy%xtb_xb_inter = SUM(tb%e_hal)
-      energy%hartree = SUM(tb%e_scd)
+      energy%hartree = SUM(tb%e_es)
+      energy%dftb3 = SUM(tb%e_scd)
 
 #else
       CPABORT("Build without TBLITE")
 #endif
 
    END SUBROUTINE tb_get_energy
-
-! **************************************************************************************************
-!> \brief ...
-!> \param tb ...
-!> \param ham ...
-! **************************************************************************************************
-   SUBROUTINE tb_get_hamiltonian(tb, ham)
-
-      TYPE(tblite_type), POINTER                         :: tb
-      REAL(KIND=dp), INTENT(OUT)                         :: ham(:)
-
-#if defined(__TBLITE)
-      ham = 0.0_dp
-
-#else
-      CPABORT("Build without TBLITE")
-#endif
-
-   END SUBROUTINE tb_get_hamiltonian
 
 ! **************************************************************************************************
 !> \brief ...
@@ -468,15 +454,15 @@ CONTAINS
       REAL(KIND=dp)                                      :: hij, shpoly
       REAL(KIND=dp), DIMENSION(2)                        :: condnum
       REAL(KIND=dp), DIMENSION(3)                        :: rij
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: set_radius_a, set_radius_b
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: owork
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: oint, sint, hint
-      INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, lb_max, lb_min, npgfa, &
-                                                            npgfb, nsgfa, nsgfb
+      INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, lb_max, lb_min
+      INTEGER, DIMENSION(:), POINTER                     :: npgfa, npgfb, nsgfa, nsgfb
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa, first_sgfb
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: set_radius_a, set_radius_b
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: rpgfa, rpgfb, zeta, zetb, scon_a, scon_b
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: sblock, fblock
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind
 
       TYPE(atomic_kind_type), DIMENSION(:), POINTER         :: atomic_kind_set
       TYPE(atprop_type), POINTER                            :: atprop
@@ -500,9 +486,9 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (ks_env, atomic_kind_set, qs_kind_set)
-      NULLIFY (matrix_h, matrix_s)
-      NULLIFY (atprop, sab_orb)
+      NULLIFY (ks_env, energy, atomic_kind_set, qs_kind_set)
+      NULLIFY (matrix_h, matrix_s, atprop, dft_control)
+      NULLIFY (sab_orb, rho, tb)
 
       CALL get_qs_env(qs_env=qs_env, &
                       ks_env=ks_env, &
@@ -514,7 +500,7 @@ CONTAINS
                       atprop=atprop, &
                       dft_control=dft_control, &
                       sab_orb=sab_orb, &
-                      tb_tblite=tb)
+                      rho=rho, tb_tblite=tb)
       h0 => tb%calc%h0
 
       nkind = SIZE(atomic_kind_set)
@@ -523,13 +509,15 @@ CONTAINS
       maxder = ncoset(nderivatives)
       nimg = dft_control%nimages
 
+      ! get density matrtix
+      CALL qs_rho_get(rho, rho_ao_kp=matrix_p)
+
       ! set up matrices for force calculations
       IF (calculate_forces) THEN
-         NULLIFY (rho, force, matrix_w)
+         NULLIFY (force, matrix_w)
          CALL get_qs_env(qs_env=qs_env, &
-                         rho=rho, matrix_w_kp=matrix_w, &
+                         matrix_w_kp=matrix_w, &
                          virial=virial, force=force)
-         CALL qs_rho_get(rho, rho_ao_kp=matrix_p)
 
          IF (SIZE(matrix_p, 1) == 2) THEN
             DO img = 1, nimg
@@ -725,15 +713,12 @@ CONTAINS
          DO img = 1, nimg
             CALL dbcsr_finalize(matrix_s(i, img)%matrix)
             CALL dbcsr_finalize(matrix_h(i, img)%matrix)
-            CALL dbcsr_print(matrix_h(i, img)%matrix)
          END DO
       END DO
 
-      ! ******* output
+      ! output overlap information
       NULLIFY (logger)
       logger => cp_get_default_logger()
-
-      ! *** Overlap condition number
       IF (.NOT. calculate_forces) THEN
          IF (cp_print_key_should_output(logger%iter_info, qs_env%input, &
                                         "DFT%PRINT%OVERLAP_CONDITION") .NE. 0) THEN
@@ -754,6 +739,120 @@ CONTAINS
 #endif
 
    END SUBROUTINE build_tblite_matrices
+
+   ! **************************************************************************************************
+!> \brief ...
+!> \param qs_env ...
+!> \param para_env ...
+!> \param dft_control ...
+!> \param tb ...
+!> \param calculate_forces ...
+! **************************************************************************************************
+   SUBROUTINE tb_update_charges(qs_env, para_env, dft_control, tb, calculate_forces)
+
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(tblite_type), POINTER                         :: tb
+      LOGICAL, INTENT(IN)                                :: calculate_forces
+
+      INTEGER                                            :: iatom, ikind, is, atom_a, ii, ns
+      INTEGER                                            :: nimg, nkind, natom, nsgf, natorb, na
+      INTEGER, DIMENSION(5)                              :: occ
+      INTEGER, DIMENSION(25)                             :: lao
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: mcharge
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: aocg, charges
+
+      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_s, matrix_p
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: p_matrix
+      TYPE(dbcsr_type), POINTER                          :: s_matrix
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+      TYPE(qs_rho_type), POINTER                         :: rho
+      TYPE(qs_scf_env_type), POINTER                     :: scf_env
+      TYPE(xtb_atom_type), POINTER                       :: xtb_kind
+
+#if defined(__TBLITE)
+
+      ! compute mulliken charges required for charge update
+      NULLIFY (particle_set, qs_kind_set, atomic_kind_set)
+      CALL get_qs_env(qs_env=qs_env, particle_set=particle_set, qs_kind_set=qs_kind_set, &
+                      atomic_kind_set=atomic_kind_set, matrix_s_kp=matrix_s, rho=rho)
+      CALL qs_rho_get(rho, rho_ao_kp=matrix_p)
+      natom = SIZE(particle_set)
+      nkind = SIZE(atomic_kind_set)
+      nimg = dft_control%nimages
+      ALLOCATE (mcharge(natom, 1), charges(natom, 5))
+      charges = 0.0_dp
+      CALL get_qs_kind_set(qs_kind_set, maxsgf=nsgf)
+      ALLOCATE (aocg(nsgf, natom))
+      aocg = 0.0_dp
+      flush (6)
+      IF (nimg > 1) THEN
+         CALL ao_charges(matrix_p, matrix_s, aocg, para_env)
+      ELSE
+         NULLIFY (p_matrix, s_matrix)
+         p_matrix => matrix_p(:, 1)
+         s_matrix => matrix_s(1, 1)%matrix
+         CALL ao_charges(p_matrix, s_matrix, aocg, para_env)
+      END IF
+      NULLIFY (xtb_kind)
+      DO ikind = 1, nkind
+         CALL get_atomic_kind(atomic_kind_set(ikind), natom=na)
+         CALL get_qs_kind(qs_kind_set(ikind), xtb_parameter=xtb_kind)
+         CALL get_xtb_atom_param(xtb_kind, natorb=natorb, lao=lao, occupation=occ)
+         DO iatom = 1, na
+            atom_a = atomic_kind_set(ikind)%atom_list(iatom)
+            charges(atom_a, :) = REAL(occ(:), KIND=dp)
+            DO is = 1, natorb
+               ns = lao(is) + 1
+               charges(atom_a, ns) = charges(atom_a, ns) - aocg(is, atom_a)
+            END DO
+         END DO
+      END DO
+      DEALLOCATE (aocg)
+      ! charge mixing
+      IF (dft_control%qs_control%do_ls_scf) THEN
+         !
+      ELSE
+         CALL get_qs_env(qs_env=qs_env, scf_env=scf_env)
+         CALL charge_mixing(scf_env%mixing_method, scf_env%mixing_store, &
+                            charges, para_env, scf_env%iter_count)
+      END IF
+
+      !setting new wave function
+      DO iatom = 1, natom
+         mcharge(iatom, 1) = SUM(charges(iatom, :))
+         ii = tb%calc%bas%ish_at(iatom)
+         DO is = 1, tb%calc%bas%nsh_at(iatom)
+            tb%wfn%qsh(ii + is, 1) = -charges(iatom, is)
+         END DO
+         WRITE (*, *) '++++++++++++ ', mcharge(iatom, 1), 'charges: ', charges(iatom, :)
+      END DO
+      tb%wfn%qat(:, 1) = -mcharge(:, 1)
+
+      IF (ALLOCATED(tb%calc%coulomb)) THEN
+         CALL tb%calc%coulomb%get_potential(tb%mol, tb%cache, tb%wfn, tb%pot)
+      END IF
+      IF (ALLOCATED(tb%calc%dispersion)) THEN
+         CALL tb%calc%dispersion%get_potential(tb%mol, tb%dcache, tb%wfn, tb%pot)
+      END IF
+
+      IF (ALLOCATED(tb%calc%coulomb)) THEN
+         CALL tb%calc%coulomb%get_energy(tb%mol, tb%cache, tb%wfn, tb%e_es)
+      END IF
+      IF (ALLOCATED(tb%calc%dispersion)) THEN
+         CALL tb%calc%dispersion%get_energy(tb%mol, tb%dcache, tb%wfn, tb%e_scd)
+      END IF
+
+      DEALLOCATE (mcharge, charges)
+
+#else
+      CPABORT("Build without TBLITE")
+#endif
+
+   END SUBROUTINE tb_update_charges
 
 END MODULE tblite_interface
 
