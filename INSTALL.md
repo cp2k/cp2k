@@ -160,7 +160,7 @@ required.
 - Recommended way to build LIBINT: Download a CP2K-configured LIBINT library from
   [libint-cp2k](https://github.com/cp2k/libint-cp2k). Build and install LIBINT by following the
   instructions provided there. Note that using a library configured for higher maximum angular
-  momentum will increase build time and binary size of CP2K executable (assuming static linking).
+  momentum will increase build time and binary size of CP2K binary (assuming static linking).
 - CP2K is not hardwired to these provided libraries and any other LIBINT library (version >= 2.5.0)
   should be compatible as long as it was compiled with `--enable-eri=1` and default ordering.
 - Avoid debugging information (`-g` flag) for compiling LIBINT since this will increase library size
@@ -511,13 +511,13 @@ TREXIO - Open-source file format and library. Support for TREXIO can be enabled 
 
 The location of compiler and libraries needs to be specified. Examples for several common
 architectures can be found in [arch folder](./arch/). The names of these files match
-`architecture.version` e.g., [Linux-x86-64-gfortran.sopt](./arch/Linux-x86-64-gfortran.sopt).
+`architecture.version` e.g., [Linux-gnu-x86_64.psmp](./arch/Linux-gnu-x86_64.psmp).
 Alternatively, <https://dashboard.cp2k.org> provides sample arch files as part of the testing
 reports (click on the status field, search for 'ARCH-file').
 
 Conventionally, there are six versions:
 
-| Acronym | Meaning                          |
+| VERSION | Meaning                          |
 | ------- | -------------------------------- |
 | sdbg    | OpenMP + debug settings          |
 | sopt    | OpenMP + OMP_NUM_THREADS=1       |
@@ -527,6 +527,12 @@ Conventionally, there are six versions:
 | psmp    | MPI + OpenMP                     |
 
 You'll need to modify one of these files to match your system's settings.
+
+Some architecture files like the file [Linux-gnu-x86_64.psmp](./arch/Linux-gnu-x86_64.psmp) are sourceable (see above), i.e.
+```shell
+source arch/Linux-gnu-x86_64.psmp     
+```
+will launch a build of the CP2K toolchain which will build all dependencies needed for compiling CP2K. Building a `psmp` version will also create a `popt` CP2K binary and vice versa. The same is true for the `ssmp` and `sopt` versions of CP2K.
 
 You can now build CP2K using these settings (where -j N allows for a parallel build using N
 processes):
@@ -538,34 +544,27 @@ make -j N ARCH=architecture VERSION=version
 e.g.
 
 ```shell
-make -j N ARCH=Linux-x86-64-gfortran VERSION=sopt
+make -j N ARCH=Linux-gnu-x86_64 VERSION=psmp
 ```
 
-as a short-cut, you can build several version of the code at once
+A CP2K binary should appear in the `./exe/ARCH/` folder.
 
-```shell
-make -j N ARCH=Linux-x86-64-gfortran VERSION="sopt popt ssmp psmp"
-```
-
-An executable should appear in the `./exe/` folder.
-
-All compiled files, libraries, executables, etc. of all architectures and versions can be removed
-with
+All compiled files, libraries, binaries, etc. of all architectures and versions can be removed with
 
 ```shell
 make distclean
 ```
 
-To remove only objects and mod files (i.e., keep exe) for a given ARCH/VERSION use, e.g.,
+To remove only `*.o` and `*.mod` files (i.e. keep CP2K binaries in exe) for a given ARCH/VERSION use
 
 ```shell
-make ARCH=Linux-x86-64-gfortran VERSION=sopt clean
+make ARCH=Linux-gnu-x86_64 VERSION=psmp clean
 ```
 
-to remove everything for a given ARCH/VERSION use, e.g.,
+To remove everything for a given ARCH/VERSION use
 
 ```shell
-make ARCH=Linux-x86-64-gfortran VERSION=sopt realclean
+make ARCH=Linux-gnu-x86_64 VERSION=psmp realclean
 ```
 
 ### 3b. Compilation Flags
@@ -619,7 +618,7 @@ You can build CP2K for use as a library by adding `libcp2k` as an option to your
 e.g.
 
 ```shell
-make -j N ARCH=Linux-x86-64-gfortran VERSION=sopt libcp2k
+make -j N ARCH=Linux-gnu-x86_64 VERSION=psmp libcp2k
 ```
 
 This will create `libcp2k.a` in the relevant subdirectory of `./lib/`. You will need to add this
@@ -636,7 +635,7 @@ encountered in the source. These are compiler specific and are to be found in th
 `./obj/` that corresponds to your build, e.g.,
 
 ```shell
-./obj/Linux-x86-64-gfortran/sopt/
+./obj/Linux-gnu-x86_64/psmp/
 ```
 
 In order for your compiler to find these, you will need to indicate their location to the compiler
@@ -669,7 +668,7 @@ In any case please tell us your comments, praise, criticism, thanks, etc. see
 ## 7. Manual
 
 A reference manual of CP2K can be found on the web: <https://manual.cp2k.org> or can be generated
-using the cp2k executable, see <https://manual.cp2k.org/trunk/generate_manual_howto.html>
+using the cp2k binary, see <https://manual.cp2k.org/trunk/generate_manual_howto.html>
 
 ## 8. Happy computing
 
