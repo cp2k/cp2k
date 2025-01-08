@@ -758,8 +758,10 @@ CONTAINS
 
       INTEGER                                            :: iatom, ikind, is, atom_a, ii, ns
       INTEGER                                            :: nimg, nkind, natom, nsgf, natorb, na
+      REAL(KIND=dp)                                      :: norm
       INTEGER, DIMENSION(5)                              :: occ
       INTEGER, DIMENSION(25)                             :: lao
+      INTEGER, DIMENSION(25)                             :: nao
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: mcharge
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: aocg, charges
 
@@ -801,13 +803,13 @@ CONTAINS
       DO ikind = 1, nkind
          CALL get_atomic_kind(atomic_kind_set(ikind), natom=na)
          CALL get_qs_kind(qs_kind_set(ikind), xtb_parameter=xtb_kind)
-         CALL get_xtb_atom_param(xtb_kind, natorb=natorb, lao=lao, occupation=occ)
+         CALL get_xtb_atom_param(xtb_kind, natorb=natorb, lao=lao, nao=nao, occupation=occ)
          DO iatom = 1, na
             atom_a = atomic_kind_set(ikind)%atom_list(iatom)
-            charges(atom_a, :) = REAL(occ(:), KIND=dp)
             DO is = 1, natorb
-               ns = lao(is) + 1
-               charges(atom_a, ns) = charges(atom_a, ns) - aocg(is, atom_a)
+               ns = nao(is)
+               norm = 2*lao(is) + 1
+               charges(atom_a, is) = occ(ns)/norm - aocg(is, atom_a)
             END DO
          END DO
       END DO
@@ -828,7 +830,6 @@ CONTAINS
          DO is = 1, tb%calc%bas%nsh_at(iatom)
             tb%wfn%qsh(ii + is, 1) = -charges(iatom, is)
          END DO
-         WRITE (*, *) '++++++++++++ ', mcharge(iatom, 1), 'charges: ', charges(iatom, :)
       END DO
       tb%wfn%qat(:, 1) = -mcharge(:, 1)
 
