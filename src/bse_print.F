@@ -491,18 +491,18 @@ CONTAINS
    END SUBROUTINE
 
 ! **************************************************************************************************
-!> \brief ...
-!> \param exc_descr ...
-!> \param ref_point_multipole ...
+!> \brief                              Prints exciton descriptors, cf. Mewes et al., JCTC 14, 710-725 (2018)
+!> \param exc_descr                    Exciton descriptors with size of num_print_exc_descr
+!> \param ref_point_multipole          Reference point for computation of multipole moments, e.g. center of mass
 !> \param unit_nr ...
-!> \param num_print_exc_descr ...
-!> \param debug_print ...
-!> \param print_directional_exc_descr ...
-!> \param prefix_output ...
+!> \param num_print_exc_descr          Number of excitation levels for which descriptors are printed
+!> \param print_checkvalue             Flag, which determines if values for regtests should be printed
+!> \param print_directional_exc_descr  Flag, which activates printing of directional descriptors
+!> \param prefix_output                String, which is put in front of prints, i.e. "BSE|" or "" for TDDFPT
 !> \param qs_env ...
 ! **************************************************************************************************
    SUBROUTINE print_exciton_descriptors(exc_descr, ref_point_multipole, unit_nr, &
-                                        num_print_exc_descr, debug_print, print_directional_exc_descr, &
+                                        num_print_exc_descr, print_checkvalue, print_directional_exc_descr, &
                                         prefix_output, qs_env)
 
       TYPE(exciton_descr_type), ALLOCATABLE, &
@@ -510,7 +510,8 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
          INTENT(IN)                                      :: ref_point_multipole
       INTEGER, INTENT(IN)                                :: unit_nr, num_print_exc_descr
-      LOGICAL, INTENT(IN)                                :: debug_print, print_directional_exc_descr
+      LOGICAL, INTENT(IN)                                :: print_checkvalue, &
+                                                            print_directional_exc_descr
       CHARACTER(LEN=4), INTENT(IN)                       :: prefix_output
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
@@ -622,15 +623,11 @@ CONTAINS
          END DO
          WRITE (unit_nr, '(T2,A4)') prefix_output
          ! For debug runs, print first d_exc separately to allow the regtests to read in
-         IF (debug_print) THEN
-            IF (exc_descr(1)%flag_TDA) THEN
-               WRITE (unit_nr, '(T2,A10,T13,A,T65,F16.4)') prefix_output//'DEBUG|', &
-                  'Exciton descriptor d_exc with TDA for n=1 is', exc_descr(1)%diff_r_sqr*angstrom
-            ELSE
-               WRITE (unit_nr, '(T2,A10,T13,A,T65,F16.4)') prefix_output//'DEBUG|', &
-                  'Exciton descriptor d_exc without TDA for n=1 is', exc_descr(1)%diff_r_sqr*angstrom
-            END IF
-            WRITE (unit_nr, '(T2,A4)') prefix_output
+         IF (print_checkvalue) THEN
+            WRITE (unit_nr, '(T2)')
+            WRITE (unit_nr, '(T2,A28,T65,F16.4)') 'Checksum exciton descriptors', &
+               exc_descr(1)%diff_r_sqr*angstrom
+            WRITE (unit_nr, '(T2)')
          END IF
          WRITE (unit_nr, '(T2,A4)') prefix_output
          ! Print exciton descriptor resolved per direction

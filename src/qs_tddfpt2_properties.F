@@ -1177,7 +1177,7 @@ CONTAINS
       INTEGER                                            :: handle, ispin, istate, n_moments_quad, &
                                                             nao, nspins, nstates
       INTEGER, DIMENSION(maxspins)                       :: nmo_occ, nmo_virt
-      LOGICAL                                            :: debug_print
+      LOGICAL                                            :: print_checkvalue
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: ref_point_multipole
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_mo_coeff, &
@@ -1288,10 +1288,10 @@ CONTAINS
       CALL cp_fm_release(fm_multipole_ab)
 
       ! Actual printing
-      debug_print = .FALSE.
-      prefix_output = 'TDD|'
+      print_checkvalue = .TRUE.
+      prefix_output = ' '
       CALL print_exciton_descriptors(exc_descr, ref_point_multipole, log_unit, &
-                                     nstates, debug_print, do_directional_exciton_descriptors, &
+                                     nstates, print_checkvalue, do_directional_exciton_descriptors, &
                                      prefix_output, qs_env)
 
       DEALLOCATE (ref_point_multipole)
