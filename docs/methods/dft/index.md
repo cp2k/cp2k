@@ -11,6 +11,7 @@ hartree-fock/index
 local_ri
 constrained
 linear_scaling
+k-points
 basis_sets
 pseudopotentials
 cutoff
