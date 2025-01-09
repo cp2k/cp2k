@@ -360,7 +360,9 @@ CONTAINS
 
          DO iatom = 1, natom
             mcharge(iatom) = SUM(charges(iatom, :))
+            write(*,*) "++++++++++++  dQatom: ",charges(iatom, :)
          END DO
+         write(*,*) "++++++++++++++++++++++  dQ Atom: ",mcharge
       END IF
 
       IF (dft_control%qs_control%xtb_control%coulomb_interaction) THEN

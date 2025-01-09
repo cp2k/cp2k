@@ -318,6 +318,12 @@ CONTAINS
       energy%xtb_xb_inter = SUM(tb%e_hal)
       energy%hartree = SUM(tb%e_es)
       energy%dftb3 = SUM(tb%e_scd)
+      
+      write(*,*) "+++++++  ehal: ",tb%e_hal
+      write(*,*) "+++++++  erep: ",tb%e_rep
+      write(*,*) "+++++++ edisp: ",tb%e_disp 
+      write(*,*) "+++++++  escd: ",tb%e_scd
+      write(*,*) "+++++++   ees: ",tb%e_es
 
 #else
       CPABORT("Build without TBLITE")
@@ -835,7 +841,9 @@ CONTAINS
          END DO
          mcharge(iatom, 1) = SUM(charges(iatom, :))
          tb%wfn%qat(iatom, 1) = -mcharge(iatom, 1)
+         write(*,*) "++++++++++++  dQatom: ",charges(iatom, :)
       END DO
+      write(*,*) "++++++++++++++++++++++  dQ Atom: ",mcharge(:, 1)
 
       IF (ALLOCATED(tb%calc%coulomb)) THEN
          CALL tb%calc%coulomb%get_potential(tb%mol, tb%cache, tb%wfn, tb%pot)
