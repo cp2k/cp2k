@@ -39,10 +39,15 @@ case "${with_libsmeagol}" in
       [ -d libsmeagol-${libsmeagol_ver} ] && rm -rf libsmeagol-${libsmeagol_ver}
       tar -xzf libsmeagol-${libsmeagol_ver}.tar.gz
       cd libsmeagol-${libsmeagol_ver}
-      make -j $(get_nprocs) FC=${MPIFC} FCFLAGS="-DMPI ${FCFLAGS}" FCFLAGS_FIXEDFORM="" FCFLAGS_FREEFORM="" > make.log 2>&1 || tail -n ${LOG_LINES} make.log
+      make -j $(get_nprocs) \
+        FC=${MPIFC} \
+        FCFLAGS="-DMPI -fallow-argument-mismatch ${FCFLAGS}" \
+        FCFLAGS_FIXEDFORM="" \
+        FCFLAGS_FREEFORM="" \
+        > make.log 2>&1 || tail -n ${LOG_LINES} make.log
       # The libsmeagol makefile does not provide an install target
       [ -d ${pkg_install_dir} ] && rm -rf ${pkg_install_dir}
-      mkdir ${pkg_install_dir} && cp -ar lib ${pkg_install_dir}
+      mkdir ${pkg_install_dir} && cp -a lib ${pkg_install_dir}
       mkdir ${pkg_install_dir}/include && cp obj/*.mod ${pkg_install_dir}/include
       write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage7/$(basename ${SCRIPT_NAME})"
     fi
