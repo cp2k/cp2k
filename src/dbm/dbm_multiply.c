@@ -199,9 +199,8 @@ static void multiply_packs(const bool transa, const bool transb,
 
 #pragma omp parallel reduction(+ : flop_sum)
   {
-
     // Blocks are ordered first by shard. Creating lookup tables of boundaries.
-#pragma omp for
+#pragma omp for nowait
     for (int iblock = 1; iblock < pack_a->nblocks; iblock++) {
       const int shard_row = pack_a->blocks[iblock].free_index % nshard_rows;
       const int prev_shard_row =
@@ -220,7 +219,7 @@ static void multiply_packs(const bool transa, const bool transb,
       }
     }
 
-#pragma omp for collapse(2) schedule(dynamic)
+#pragma omp for collapse(2) schedule(dynamic, 1)
     for (int shard_row = 0; shard_row < nshard_rows; shard_row++) {
       for (int shard_col = 0; shard_col < nshard_cols; shard_col++) {
         const int ishard = shard_row * nshard_cols + shard_col;
@@ -279,12 +278,12 @@ static void multiply_packs(const bool transa, const bool transb,
             }
 
             // Count flops.
-            dbm_library_counter_increment(m, n, k);
             const int64_t task_flops = 2LL * m * n * k;
-            flop_sum += task_flops;
             if (task_flops == 0) {
               continue;
             }
+            flop_sum += task_flops;
+            dbm_library_counter_increment(m, n, k);
 
             // Add block multiplication to batch.
             batch[ntasks].m = m;
