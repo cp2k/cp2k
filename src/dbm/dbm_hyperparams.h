@@ -10,13 +10,13 @@
 
 // TODO: Tune parameters, check if dynamic OpenMP scheduling is really faster?
 
-static const float HASHTABLE_FACTOR = 3.0;
-static const float ALLOCATION_FACTOR = 1.5;
-static const float SHARDS_PER_THREAD = 1.0;
-static const int MAX_BATCH_SIZE = 10000;
-static const int BATCH_NUM_BUCKETS = 1000;
-static const int INITIAL_NBLOCKS_ALLOCATED = 100;
-static const int INITIAL_DATA_ALLOCATED = 1024;
+#define HASHTABLE_FACTOR 3.0
+#define ALLOCATION_FACTOR 1.5
+#define SHARDS_PER_THREAD 1.0
+#define MAX_BATCH_SIZE 10000
+#define BATCH_NUM_BUCKETS 1000
+#define INITIAL_NBLOCKS_ALLOCATED 100
+#define INITIAL_DATA_ALLOCATED 1024
 
 #endif
 

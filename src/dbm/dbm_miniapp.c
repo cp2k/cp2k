@@ -274,11 +274,12 @@ int main(int argc, char *argv[]) {
         continue;
       }
       if (0 < mnk[0]) { /* valid MxNxK? */
-        const int extra = (NULL == arg ? 0 : atoi(arg));
-        int nm, nn, nk;
-        if (0 < extra) {
-          nn = nk = 1;
-          nm = extra;
+        int nm = (NULL == arg ? 0 : atoi(arg)), nn, nk;
+        if (0 < nm) {
+          arg = strtok(NULL, delims);
+          nn = (NULL == arg ? 1 : atoi(arg));
+          arg = strtok(NULL, delims);
+          nk = (NULL == arg ? 1 : atoi(arg));
         } else { /* default */
           nm = nn = nk = 128;
         }
@@ -288,7 +289,7 @@ int main(int argc, char *argv[]) {
       } else {
         fprintf(stderr, "ERROR: invalid argument(s)\n");
         result = EXIT_FAILURE;
-        i = argc;
+        i = argc; /* break */
       }
     }
     if (NULL != file) {
