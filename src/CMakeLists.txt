@@ -934,7 +934,6 @@ list(
   common/fparser.F
   common/gamma.F
   common/kahan_sum.F
-  common/lapack.F
   common/lebedev.F
   common/linear_systems.F
   common/list_callstackentry.F

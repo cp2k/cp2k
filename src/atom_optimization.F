@@ -11,7 +11,6 @@
 MODULE atom_optimization
    USE atom_types,                      ONLY: atom_optimization_type
    USE kinds,                           ONLY: dp
-   USE lapack,                          ONLY: lapack_sgelss
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -205,8 +204,8 @@ CONTAINS
                   history%dmat(j, i) = t
                END DO
             END DO
-            CALL lapack_sgelss(nlen + 1, nlen + 1, 1, history%dmat, nmax + 1, vec, nmax + 1, s, &
-                               rcond, rank, work, lwork, info)
+            CALL dgelss(nlen + 1, nlen + 1, 1, history%dmat, nmax + 1, vec, nmax + 1, s, &
+                        rcond, rank, work, lwork, info)
             CPASSERT(info == 0)
             fmat = 0._dp
             DO i = 1, nlen

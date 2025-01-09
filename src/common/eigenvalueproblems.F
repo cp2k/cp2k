@@ -7,9 +7,6 @@
 
 ! **************************************************************************************************
 !> \brief Provides interfaces to LAPACK eigenvalue/SVD routines
-!> \note
-!>      We are using LAPACK interfaces, so please make sure in IBM/AIX you have
-!>      the lapack library before essl: "xlf90 ... -llapack -lessl" !!!
 !> \par History
 !>      JGH (26-5-2001): delay D/S C/Z problem to the lapack library call
 !> \author APSI
@@ -17,10 +14,6 @@
 MODULE eigenvalueproblems
 
    USE kinds,                           ONLY: dp
-   USE lapack,                          ONLY: lapack_cgesvd,&
-                                              lapack_chpev,&
-                                              lapack_sgesvd,&
-                                              lapack_ssyev
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -82,8 +75,8 @@ CONTAINS
 
       eigenvectors = matrix
 
-      CALL lapack_ssyev(jobz, uplo, mysize, eigenvectors, lda, eigenvalues, &
-                        work, lwork, info)
+      CALL dsyev(jobz, uplo, mysize, eigenvectors, lda, eigenvalues, &
+                 work, lwork, info)
       IF (info /= 0) THEN
          CPABORT("Error in diagonalisation")
       END IF
@@ -126,8 +119,8 @@ CONTAINS
          CPABORT("Unknown form of storage")
       END IF
 
-      CALL lapack_chpev(jobz, uplo, mysize, matrix, eigenvalues, &
-                        eigenvectors, mysize, work, rwork, info)
+      CALL zhpev(jobz, uplo, mysize, matrix, eigenvalues, &
+                 eigenvectors, mysize, work, rwork, info)
       IF (info /= 0) THEN
          CPABORT("Error in diagonalisation")
       END IF
@@ -160,8 +153,8 @@ CONTAINS
       ldu = SIZE(uvec, 1)
       ldvt = SIZE(vtvec, 1)
 
-      CALL lapack_sgesvd(jobu, jobvt, mrow, ncol, matrix, lda, svalues, &
-                         uvec, ldu, vtvec, ldvt, work, lwork, info)
+      CALL dgesvd(jobu, jobvt, mrow, ncol, matrix, lda, svalues, &
+                  uvec, ldu, vtvec, ldvt, work, lwork, info)
       IF (info /= 0) THEN
          CPABORT("Error in singular value decomposition.")
       END IF
@@ -195,8 +188,8 @@ CONTAINS
       ldu = SIZE(uvec, 1)
       ldvt = SIZE(vtvec, 1)
 
-      CALL lapack_cgesvd(jobu, jobvt, mrow, ncol, matrix, lda, svalues, &
-                         uvec, ldu, vtvec, ldvt, work, lwork, rwork, info)
+      CALL zgesvd(jobu, jobvt, mrow, ncol, matrix, lda, svalues, &
+                  uvec, ldu, vtvec, ldvt, work, lwork, rwork, info)
       IF (info /= 0) THEN
          CPABORT("Error in singular value decomposition.")
       END IF

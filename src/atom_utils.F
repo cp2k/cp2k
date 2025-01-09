@@ -34,7 +34,6 @@ MODULE atom_utils
    USE kahan_sum,                       ONLY: accurate_dot_product
    USE kinds,                           ONLY: default_string_length,&
                                               dp
-   USE lapack,                          ONLY: lapack_ssyev
    USE mathconstants,                   ONLY: dfac,&
                                               fac,&
                                               fourpi,&
@@ -961,7 +960,7 @@ CONTAINS
             lwork = 10*m
             ALLOCATE (a(n, n), w(n), work(lwork))
             a(1:m, 1:m) = MATMUL(TRANSPOSE(umat(1:n, 1:m, l)), MATMUL(hmat(1:n, 1:n, l), umat(1:n, 1:m, l)))
-            CALL lapack_ssyev("V", "U", m, a(1:m, 1:m), m, w(1:m), work, lwork, info)
+            CALL dsyev("V", "U", m, a(1:m, 1:m), m, w(1:m), work, lwork, info)
             a(1:n, 1:m) = MATMUL(umat(1:n, 1:m, l), a(1:m, 1:m))
 
             m = MIN(m, SIZE(orb, 2))
@@ -2590,7 +2589,7 @@ CONTAINS
       lwork = MAX(nbas*nbas, nbas + 100)
       ALLOCATE (weig(nbas), work(lwork))
 
-      CALL lapack_ssyev("N", "U", nbas, smat, nbas, weig, work, lwork, info)
+      CALL dsyev("N", "U", nbas, smat, nbas, weig, work, lwork, info)
       CPASSERT(info == 0)
       IF (weig(1) < 0.0_dp) THEN
          cnum = 100._dp
