@@ -118,33 +118,43 @@ CONTAINS
 !> \param qs_env ...
 !> \param iounit ...
 !> \param print_level ...
+!> \param ext ...
 ! **************************************************************************************************
-   SUBROUTINE eeq_print(qs_env, iounit, print_level)
+   SUBROUTINE eeq_print(qs_env, iounit, print_level, ext)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       INTEGER, INTENT(IN)                                :: iounit, print_level
+      LOGICAL, INTENT(IN)                                :: ext
 
       CHARACTER(LEN=2)                                   :: element_symbol
       INTEGER                                            :: enshift_type, iatom, ikind, natom
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: charges
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: charges
       TYPE(cell_type), POINTER                           :: cell
       TYPE(eeq_solver_type)                              :: eeq_sparam
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
 
       MARK_USED(print_level)
 
-      CALL get_qs_env(qs_env, natom=natom, particle_set=particle_set)
-      ALLOCATE (charges(natom))
-      CALL get_qs_env(qs_env, cell=cell)
-      ! enforce en shift method 1 (original/molecular)
-      ! method 2 from paper on PBC seems not to work
-      enshift_type = 1
-      !IF (ALL(cell%perd == 0)) enshift_type = 1
-      CALL eeq_charges(qs_env, charges, eeq_sparam, 2, enshift_type)
+      CALL get_qs_env(qs_env, natom=natom, particle_set=particle_set, cell=cell)
+      IF (ext) THEN
+         NULLIFY (charges)
+         CALL get_qs_env(qs_env, eeq=charges)
+         CPASSERT(ASSOCIATED(charges))
+         enshift_type = 0
+      ELSE
+         ALLOCATE (charges(natom))
+         ! enforce en shift method 1 (original/molecular)
+         ! method 2 from paper on PBC seems not to work
+         enshift_type = 1
+         !IF (ALL(cell%perd == 0)) enshift_type = 1
+         CALL eeq_charges(qs_env, charges, eeq_sparam, 2, enshift_type)
+      END IF
 
       IF (iounit > 0) THEN
 
-         IF (enshift_type == 1) THEN
+         IF (enshift_type == 0) THEN
+            WRITE (UNIT=iounit, FMT="(/,T2,A)") "EEQ Charges (External)"
+         ELSE IF (enshift_type == 1) THEN
             WRITE (UNIT=iounit, FMT="(/,T2,A)") "EEQ Charges (Parametrization 2019 (Molecules))"
          ELSE IF (enshift_type == 2) THEN
             WRITE (UNIT=iounit, FMT="(/,T2,A)") "EEQ Charges (Parametrization 2019 (Crystals))"
@@ -164,7 +174,7 @@ CONTAINS
 
       END IF
 
-      DEALLOCATE (charges)
+      IF (.NOT. ext) DEALLOCATE (charges)
 
    END SUBROUTINE eeq_print
 

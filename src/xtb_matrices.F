@@ -57,7 +57,8 @@ MODULE xtb_matrices
    USE qs_dispersion_types,             ONLY: qs_dispersion_type
    USE qs_energy_types,                 ONLY: qs_energy_type
    USE qs_environment_types,            ONLY: get_qs_env,&
-                                              qs_environment_type
+                                              qs_environment_type,&
+                                              set_qs_env
    USE qs_force_types,                  ONLY: qs_force_type
    USE qs_integral_utils,               ONLY: basis_set_list_setup,&
                                               get_memory_usage
@@ -165,7 +166,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3)                        :: fdik, fdika, fdikb, force_ab, rij, rik
       REAL(KIND=dp), DIMENSION(5)                        :: dpia, dpib, hena, henb, kpolya, kpolyb, &
                                                             pia, pib
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: set_radius_a, set_radius_b
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: eeq_q, set_radius_a, set_radius_b
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: fblock, pblock, rpgfa, rpgfb, sblock, &
                                                             scon_a, scon_b, wblock, zeta, zetb
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
@@ -698,6 +699,17 @@ CONTAINS
       energy%srb = esrb
       CALL para_env%sum(erep)
       energy%repulsive = erep
+
+      ! save EEQ charges
+      NULLIFY (eeq_q)
+      CALL get_qs_env(qs_env, eeq=eeq_q)
+      IF (ASSOCIATED(eeq_q)) THEN
+         CPASSERT(SIZE(eeq_q) == natom)
+      ELSE
+         ALLOCATE (eeq_q(natom))
+         eeq_q(1:natom) = charges(1:natom)
+      END IF
+      CALL set_qs_env(qs_env, eeq=eeq_q)
 
       ! deallocate coordination numbers
       CALL cnumber_release(cnumbers, dcnum, calculate_forces)

@@ -48,9 +48,7 @@ MODULE qs_scf_post_tb
    USE cp_result_methods,               ONLY: cp_results_erase,&
                                               put_results
    USE cp_result_types,                 ONLY: cp_result_type
-   USE eeq_input,                       ONLY: eeq_solver_type
-   USE eeq_method,                      ONLY: eeq_charges,&
-                                              eeq_print
+   USE eeq_method,                      ONLY: eeq_print
    USE input_constants,                 ONLY: ot_precond_full_all
    USE input_section_types,             ONLY: section_get_ival,&
                                               section_get_ivals,&
@@ -173,14 +171,15 @@ CONTAINS
 
       CHARACTER(LEN=6)                                   :: ana
       CHARACTER(LEN=default_string_length)               :: aname
-      INTEGER :: after, enshift_type, handle, homo, iat, iatom, ikind, img, ispin, iw, nat, natom, &
-         nkind, nlumo_stm, nlumos, nspins, print_level, unit_nr, gfn_type
-      LOGICAL                                            :: do_cube, do_kpoints, explicit, has_homo, &
-                                                            omit_headers, print_it, rebuild, gfn0
+      INTEGER :: after, enshift_type, gfn_type, handle, homo, iat, iatom, ikind, img, ispin, iw, &
+         nat, natom, nkind, nlumo_stm, nlumos, nspins, print_level, unit_nr
+      LOGICAL                                            :: do_cube, do_kpoints, explicit, gfn0, &
+                                                            has_homo, omit_headers, print_it, &
+                                                            rebuild
       REAL(KIND=dp)                                      :: zeff
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: echarge, mcharge
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: mcharge
       REAL(KIND=dp), DIMENSION(2, 2)                     :: homo_lumo
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: mo_eigenvalues
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: echarge, mo_eigenvalues
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: charges
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
@@ -192,7 +191,6 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_ks, matrix_p, matrix_s
       TYPE(dbcsr_type), POINTER                          :: mo_coeff_deriv
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(eeq_solver_type)                              :: eeq_sparam
       TYPE(kpoint_type), POINTER                         :: kpoints
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(mp_para_env_type), POINTER                    :: para_env
@@ -356,7 +354,7 @@ CONTAINS
       IF (BTEST(cp_print_key_should_output(logger%iter_info, print_key), cp_p_file)) THEN
          unit_nr = cp_print_key_unit_nr(logger, print_section, "EEQ_CHARGES", &
                                         extension=".eeq", log_filename=.FALSE.)
-         CALL eeq_print(qs_env, unit_nr, print_level)
+         CALL eeq_print(qs_env, unit_nr, print_level, ext=gfn0)
          CALL cp_print_key_finished_output(unit_nr, logger, print_key)
       END IF
 
@@ -400,11 +398,10 @@ CONTAINS
                enshift_type = 1
                IF (.NOT. ALL(cell%perd == 0)) enshift_type = 2
             END IF
-            ALLOCATE (echarge(natom))
-            echarge = 0.0_dp
-            CALL eeq_charges(qs_env, echarge, eeq_sparam, 1, enshift_type)
+            NULLIFY (echarge)
+            CALL get_qs_env(qs_env, eeq=echarge)
+            CPASSERT(ASSOCIATED(echarge))
             CALL tb_dipole(qs_env, moments_section, unit_nr, echarge)
-            DEALLOCATE (echarge)
          ELSE
             CALL tb_dipole(qs_env, moments_section, unit_nr, mcharge)
          END IF
