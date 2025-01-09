@@ -357,7 +357,9 @@ CONTAINS
          IF (i_type == tb%el_num(id_atom)) EXIT
       END DO
       param%z = i_type
-
+      param%symbol= element_symbol
+      param%defined = .TRUE.
+      
       !getting size information
       nset = tb%calc%bas%nsh_at(id_atom)
       nshell = 1
@@ -411,6 +413,7 @@ CONTAINS
       !setting additional values in parameter
       param%rcut = get_cutoff(tb%calc%bas)
       param%natorb = natorb
+      param%lmax = maxl !max angular momentum
 
       !getting occupation
       occ = 0
@@ -419,6 +422,7 @@ CONTAINS
          occ(iSh) = NINT(tb%calc%h0%refocc(iSh, iId))
          param%occupation(iSh) = occ(iSh)
       END DO
+      param%zeff = SUM(occ) !effective core charge
 
       !set normalization process
       gto_basis_set%norm_type = 3
@@ -758,7 +762,7 @@ CONTAINS
 
       INTEGER                                            :: iatom, ikind, is, atom_a, ii, ns
       INTEGER                                            :: nimg, nkind, natom, nsgf, natorb, na
-      REAL(KIND=dp)                                      :: norm
+      REAL(KIND=dp)                                      :: ref_occ
       INTEGER, DIMENSION(5)                              :: occ
       INTEGER, DIMENSION(25)                             :: lao
       INTEGER, DIMENSION(25)                             :: nao
@@ -807,9 +811,9 @@ CONTAINS
          DO iatom = 1, na
             atom_a = atomic_kind_set(ikind)%atom_list(iatom)
             DO is = 1, natorb
-               ns = nao(is)
-               norm = 2*lao(is) + 1
-               charges(atom_a, is) = occ(ns)/norm - aocg(is, atom_a)
+               ns = lao(is) + 1
+               ref_occ=tb%calc%h0%refocc(nao(is), atom_a)/(2*lao(is) + 1)
+               charges(atom_a, ns) = aocg(is, atom_a) - ref_occ + charges(atom_a, ns)
             END DO
          END DO
       END DO
@@ -820,18 +824,18 @@ CONTAINS
       ELSE
          CALL get_qs_env(qs_env=qs_env, scf_env=scf_env)
          CALL charge_mixing(scf_env%mixing_method, scf_env%mixing_store, &
-                            charges, para_env, scf_env%iter_count)
+                        charges, para_env, scf_env%iter_count)
       END IF
 
       !setting new wave function
       DO iatom = 1, natom
-         mcharge(iatom, 1) = SUM(charges(iatom, :))
          ii = tb%calc%bas%ish_at(iatom)
          DO is = 1, tb%calc%bas%nsh_at(iatom)
             tb%wfn%qsh(ii + is, 1) = -charges(iatom, is)
          END DO
+         mcharge(iatom, 1) = SUM(charges(iatom, :))
+         tb%wfn%qat(iatom, 1) = -mcharge(iatom, 1)
       END DO
-      tb%wfn%qat(:, 1) = -mcharge(:, 1)
 
       IF (ALLOCATED(tb%calc%coulomb)) THEN
          CALL tb%calc%coulomb%get_potential(tb%mol, tb%cache, tb%wfn, tb%pot)
