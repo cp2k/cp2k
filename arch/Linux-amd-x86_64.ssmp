@@ -91,7 +91,7 @@ endif
 ifneq ($(USE_DFTD4),)
    USE_DFTD4      := $(strip $(USE_DFTD4))
    DFTD4_INC      := $(INSTALL_PATH)/dftd4-$(USE_DFTD4)/include
-   DFTD4_LIB      := $(INSTALL_PATH)/dftd4-$(USE_DFTD4)/lib64
+   DFTD4_LIB      := $(INSTALL_PATH)/dftd4-$(USE_DFTD4)/lib
    CFLAGS         += -I$(DFTD4_INC)/dftd4/AMD-$(AMD_VER)
    DFLAGS         += -D__DFTD4
    LIBS           += $(DFTD4_LIB)/libdftd4.a
