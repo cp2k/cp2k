@@ -78,7 +78,10 @@ CONTAINS
 
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, __LOCATION__, name="xc_functional", &
-                          description="The eXchange-Correlation functional to use.", &
+                          description="The eXchange-Correlation functional to use. In case of hybrid functionals, all scaling "// &
+                          "parameters and potential types have to be specified in the HF section except from a few "// &
+                          "predefined combinations (see _SECTION_PARAMETERS_ below). CP2K does NOT set it up "// &
+                          "automatically not even for LibXC functionals.", &
                           n_keywords=0, n_subsections=4, repeats=.FALSE., &
                           citations=(/Ortiz1994, Becke1988, Perdew1996, Zhang1998, Lee1988, &
                                       Heyd2004, Vosko1980, Goedecker1996, Perdew1981, &
@@ -87,7 +90,10 @@ CONTAINS
       NULLIFY (subsection, keyword)
       CALL keyword_create( &
          keyword, __LOCATION__, name="_SECTION_PARAMETERS_", &
-         description="Shortcut for the most common functional combinations.", &
+         description="Shortcut for the most common functional combinations. These make use of the implementations provided by "// &
+         "native CP2K (without LibXC). In case of hybrid functionals (B3LYP, PBE0), set the "// &
+         "accuracy-related and system-dependent parameters in the HF section (especially MAX_MEMORY, EPS_SCHWARZ, "// &
+         "CUTOFF_RADIUS, POTENTIAL_TYPE) as these are not set automatically.", &
          usage="&xc_functional BLYP", &
          enum_c_vals=s2a("B3LYP", "PBE0", "BLYP", "BP", "PADE", "LDA", "PBE", &
                          "TPSS", "HCTH120", "OLYP", "BEEFVDW", "NO_SHORTCUT", "NONE"), &
@@ -523,7 +529,7 @@ CONTAINS
                           "parametrizations of the functional. "// &
                           "Note: Beta parameters used have only 5 significant digits, "// &
                           "as published. For higher precision and program comparison "// &
-                          "use section XC/XC_FUNCTIONAL/LIBXC.", &
+                          "use the LIBXC library.", &
                           enum_i_vals=(/xc_pbe_orig, xc_pbe_rev, xc_pbe_sol/), &
                           enum_c_vals=(/"ORIG  ", "revPBE", "PBEsol"/), &
                           enum_desc=(/"original PBE                        ", &
