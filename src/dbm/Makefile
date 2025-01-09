@@ -1,7 +1,9 @@
 PROJHOME := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
 CP2KHOME := $(abspath $(PROJHOME)/../..)
+OMP_TRACE := $(wildcard $(PROJHOME)/../base/openmp_trace.c)
 ALL_HEADERS := $(shell find . -name "*.h") $(shell find ../offload/ -name "*.h")
-ALL_OBJECTS := ../offload/offload_library.o \
+ALL_OBJECTS :=  $(OMP_TRACE:.c=.o) \
+        ../offload/offload_library.o \
         dbm_distribution.o \
         dbm_library.o \
         dbm_matrix.o \
@@ -22,7 +24,22 @@ endif
 # Optimization flag derived from OPT flag
 OPTFLAG ?= -O$(patsubst O%,%,$(OPT))
 
-CFLAGS := -fopenmp -g $(OPTFLAG) -march=native -Wall -Wextra -Wcast-qual
+CFLAGS := -g $(OPTFLAG) -march=native -Wall -Wextra -Wcast-qual
+
+# Intel Compiler
+ICX := $(shell which icx 2>/dev/null)
+INTEL ?= $(if $(ICX),1,0)
+
+ifeq ($(INTEL),0)
+MKL_FCRTL := gf
+LIBS += $(if $(OMPRT),-l$(OMPRT),-fopenmp)
+CFLAGS += -fopenmp
+else
+MKL_FCRTL := intel
+LIBS += $(if $(OMPRT),-l$(OMPRT),-qopenmp)
+CFLAGS += -qopenmp
+CC := icx
+endif
 
 # Some additional flags when relying on default-CC
 ifeq ($(CC),)
@@ -48,18 +65,20 @@ endif
 ifneq ($(OPENCL),0)
 OPENCL_OFFLOAD := $(firstword $(wildcard $(CP2KHOME)/lib/*/*/exts/dbcsr/libdbcsr.a))
 OPENCL_GENKRNL := $(PROJHOME)/dbm_multiply_opencl.cl.h
+ifneq ($(ICX),)
+LIBS += -lifcoremt -limf
+endif
 endif
 
 # Make foundational runtimes available
-LIBS += -fopenmp -ldl -lstdc++ -lc -lm
+LIBS += -ldl -lstdc++ -lc -lm
 
 
 # Make BLAS/LAPACK available
 ifneq ($(MKLROOT),)
-LIBS += \
-        -L$(MKLROOT)/lib/intel64 \
+LIBS += -L$(MKLROOT)/lib/intel64 \
         -Wl,--start-group \
-        -lmkl_gf_lp64 \
+        -lmkl_$(MKL_FCRTL)_lp64 \
         -lmkl_core \
         -lmkl_sequential \
         -Wl,--end-group
@@ -92,7 +111,7 @@ LIBS += $(OPENCL_OFFLOAD) -lgfortran
 ifneq (Darwin,$(shell uname))
 OPENCL_LIB := $(shell ldconfig -p 2>/dev/null | grep -m1 OpenCL | rev | cut -d' ' -f1 | rev)
 ifeq (,$(OPENCL_LIB))
-OPENCL_LIB := $(wildcard /usr/lib/x86_64-linux-gnu/libOpenCL.so.1)
+OPENCL_LIB := /usr/lib/x86_64-linux-gnu/libOpenCL.so.1
 endif
 ifneq (,$(CUDA_PATH))
 ifeq (,$(wildcard $(OPENCL_INC)))
@@ -106,12 +125,16 @@ else ifneq (,$(wildcard $(OPENCL_ROOT)/include/CL/cl.h))
 ifeq (,$(wildcard $(OPENCL_INC)))
 CFLAGS += -I$(OPENCL_ROOT)/include
 endif
-LIBS += -L$(OPENCL_ROOT)/lib64
-else ifneq (,$(wildcard $(OCL_ROOT)/include/CL/cl.h))
+LIBS += -L$(OPENCL_ROOT)/$(if $(wildcard $(OPENCL_ROOT)/lib64),lib64,lib)
+else ifneq (,$(ICX))
+OPENCL_ROOT := $(abspath $(dir $(ICX))/..)
+ifneq (,$(wildcard $(OPENCL_ROOT)/include/sycl/CL/cl.h))
+LIBS += -L$(OPENCL_ROOT)/$(if $(wildcard $(OPENCL_ROOT)/lib64),lib64,lib)
+LIBS += -L$(OPENCL_ROOT)/compiler/lib/intel64 -lintlc
 ifeq (,$(wildcard $(OPENCL_INC)))
-CFLAGS += -I$(OCL_ROOT)/include
+CFLAGS += -I$(OPENCL_ROOT)/include/sycl
 endif
-LIBS += -L$(OCL_ROOT)/lib64
+endif
 endif
 # OPENCL_INC: directory containing CL/cl.h.
 ifneq (,$(wildcard $(OPENCL_INC)))
@@ -166,7 +189,7 @@ endif
 
 # Build with MPI when mpicc compiler is present.
 ifneq ($(MPICC),)
-%.o: %.c $(ALL_HEADERS)
+%.o: %.c $(OMP_TRACE) $(ALL_HEADERS)
 	cd $(dir $<); $(MPICC) -c -std=c11 $(CFLAGS) -D__parallel $(notdir $<)
 
 dbm_miniapp.x: dbm_miniapp.o $(ALL_OBJECTS)
@@ -175,7 +198,7 @@ dbm_miniapp.x: dbm_miniapp.o $(ALL_OBJECTS)
 
 # Build without MPI otherwise.
 else
-%.o: %.c $(ALL_HEADERS)
+%.o: %.c $(OMP_TRACE) $(ALL_HEADERS)
 	cd $(dir $<); $(CC) -c -std=c11 $(CFLAGS) $(notdir $<)
 
 dbm_miniapp.x: dbm_miniapp.o $(ALL_OBJECTS)
