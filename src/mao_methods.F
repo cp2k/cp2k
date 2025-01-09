@@ -46,8 +46,6 @@ MODULE mao_methods
    USE kpoint_methods,                  ONLY: rskp_transform
    USE kpoint_types,                    ONLY: get_kpoint_info,&
                                               kpoint_type
-   USE lapack,                          ONLY: lapack_ssyev,&
-                                              lapack_ssygv
    USE message_passing,                 ONLY: mp_comm_type,&
                                               mp_para_env_type
    USE particle_types,                  ONLY: particle_type
@@ -127,7 +125,7 @@ CONTAINS
          amat(1:n, 1:n) = pblock(1:n, 1:n)
          bmat(1:n, 1:n) = sblock(1:n, 1:n)
          info = 0
-         CALL lapack_ssygv(1, "V", "U", n, amat, n, bmat, n, w, work, lwork, info)
+         CALL dsygv(1, "V", "U", n, amat, n, bmat, n, w, work, lwork, info)
          CPASSERT(info == 0)
          ALLOCATE (mbl(iatom)%mat(n, n), mbl(iatom)%eig(n))
          mbl(iatom)%n = n
@@ -343,7 +341,7 @@ CONTAINS
          amat(1:n, 1:m) = MATMUL(sblock(1:n, 1:n), cblock(1:n, 1:m))
          bmat(1:m, 1:m) = MATMUL(TRANSPOSE(cblock(1:n, 1:m)), amat(1:n, 1:m))
          info = 0
-         CALL lapack_ssyev("V", "U", m, bmat, m, w, work, lwork, info)
+         CALL dsyev("V", "U", m, bmat, m, w, work, lwork, info)
          CPASSERT(info == 0)
          CPASSERT(ALL(w > 0.0_dp))
          w = 1.0_dp/SQRT(w)

@@ -84,7 +84,6 @@ MODULE qs_scf_post_gpw
                                               default_string_length,&
                                               dp
    USE kpoint_types,                    ONLY: kpoint_type
-   USE lapack,                          ONLY: lapack_sgesv
    USE mao_wfn_analysis,                ONLY: mao_analysis
    USE mathconstants,                   ONLY: pi
    USE memory_utilities,                ONLY: reallocate
@@ -2942,7 +2941,7 @@ CONTAINS
       CALL sg_overlap(smat, l, a, a)
       CALL sg_overlap(tmat, l, a, b)
       v(:, 1) = MATMUL(tmat, cb)
-      CALL lapack_sgesv(n, 1, smat, n, ipiv, v, n, info)
+      CALL dgesv(n, 1, smat, n, ipiv, v, n, info)
       CPASSERT(info == 0)
       ca(:) = v(:, 1)
 
@@ -2979,7 +2978,7 @@ CONTAINS
          afun(:) = grid_atom%rad(:)**l*EXP(-a(i)*grid_atom%rad2(:))
          v(i, 1) = SUM(afun(:)*bfun(:)*grid_atom%wr(:))
       END DO
-      CALL lapack_sgesv(n, 1, smat, n, ipiv, v, n, info)
+      CALL dgesv(n, 1, smat, n, ipiv, v, n, info)
       CPASSERT(info == 0)
       ca(:) = v(:, 1)
 
