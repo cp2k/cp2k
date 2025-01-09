@@ -225,7 +225,7 @@ CONTAINS
       END SELECT
 
       CPASSERT(ASSOCIATED(qs_env))
-      NULLIFY (dft_control, rho, para_env, matrix_s, matrix_p)
+      NULLIFY (rho, para_env, matrix_s, matrix_p)
       CALL get_qs_env(qs_env, scf_env=scf_env, atomic_kind_set=atomic_kind_set, qs_kind_set=qs_kind_set, &
                       rho=rho, natom=natom, para_env=para_env, &
                       particle_set=particle_set, do_kpoints=do_kpoints, matrix_s_kp=matrix_s)
