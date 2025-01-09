@@ -564,54 +564,48 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief returns inverse of real symmetric, positive definite matrix
 !> \param a matrix
-!> \param cholesky_triangle if cholesky decomposition of a was already done
-!>        using dpotrf, indicating if the upper or lower triangle of a is
-!>        stored. If not given, cholesky decomposition of a will be done
-!>        before inversion.
+!> \param potrf if cholesky decomposition of a was already done using dpotrf.
+!>        If not given, cholesky decomposition of a will be done before inversion.
+!> \param uplo indicating if the upper or lower triangle of a is stored.
 !> \author Dorothea Golze [02.2015]
 ! **************************************************************************************************
-   SUBROUTINE invmat_symm(a, cholesky_triangle)
+   SUBROUTINE invmat_symm(a, potrf, uplo)
       REAL(KIND=dp), INTENT(INOUT)                       :: a(:, :)
-      CHARACTER(LEN=1), INTENT(IN), OPTIONAL             :: cholesky_triangle
+      LOGICAL, INTENT(IN), OPTIONAL                      :: potrf
+      CHARACTER(LEN=1), INTENT(IN), OPTIONAL             :: uplo
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'invmat_symm'
 
-      CHARACTER(LEN=1)                                   :: my_triangle
-      INTEGER                                            :: handle, i, info, n
+      CHARACTER(LEN=1)                                   :: myuplo
+      INTEGER                                            :: handle, info, n
+      LOGICAL                                            :: do_potrf
 
       CALL timeset(routineN, handle)
+
+      do_potrf = .TRUE.
+      IF (PRESENT(potrf)) do_potrf = potrf
+
+      myuplo = 'U'
+      IF (PRESENT(uplo)) myuplo = uplo
 
       n = SIZE(a, 1)
       info = 0
 
-      IF (PRESENT(cholesky_triangle)) THEN
-         my_triangle = cholesky_triangle
-      ELSE
-         my_triangle = "U"
-      END IF
-
       ! do cholesky decomposition
-      IF (.NOT. PRESENT(cholesky_triangle)) THEN
-         CALL dpotrf(my_triangle, n, a, n, info)
-         IF (info /= 0) THEN
-            CPABORT("DPOTRF failed")
-         END IF
+      IF (do_potrf) THEN
+         CALL dpotrf(myuplo, n, a, n, info)
+         IF (info /= 0) CPABORT("DPOTRF failed")
       END IF
 
       ! do inversion using the cholesky decomposition
-      CALL dpotri(my_triangle, n, a, n, info)
-      IF (info /= 0) THEN
-         CPABORT("Matrix inversion failed")
-      END IF
+      CALL dpotri(myuplo, n, a, n, info)
+      IF (info /= 0) CPABORT("Matrix inversion failed")
 
-      IF (my_triangle == "U") THEN
-         DO i = 1, n - 1
-            a(i + 1:n, i) = a(i, i + 1:n)
-         END DO
+      ! complete the matrix
+      IF ((myuplo == "U") .OR. (myuplo == "u")) THEN
+         CALL symmetrize_matrix(a, "upper_to_lower")
       ELSE
-         DO i = 1, n - 1
-            a(i, i + 1:n) = a(i + 1:n, i)
-         END DO
+         CALL symmetrize_matrix(a, "lower_to_upper")
       END IF
 
       CALL timestop(handle)
@@ -1761,7 +1755,7 @@ CONTAINS
       lrwork = -1
       liwork = -1
 
-      CALL ZHEEVD('V', 'U', n, eigenvectors, n, eigenvalues, work, lwork, rwork, lrwork, iwork, liwork, info)
+      CALL zheevd('V', 'U', n, eigenvectors, n, eigenvalues, work, lwork, rwork, lrwork, iwork, liwork, info)
 
       lwork = CEILING(REAL(work(1), KIND=dp))
       lrwork = CEILING(REAL(rwork(1), KIND=dp))
@@ -1771,7 +1765,7 @@ CONTAINS
       ALLOCATE (iwork(liwork), rwork(lrwork), work(lwork))
 
       ! diagonalization proper
-      CALL ZHEEVD('V', 'U', n, eigenvectors, n, eigenvalues, work, lwork, rwork, lrwork, iwork, liwork, info)
+      CALL zheevd('V', 'U', n, eigenvectors, n, eigenvalues, work, lwork, rwork, lrwork, iwork, liwork, info)
 
       DEALLOCATE (iwork, rwork, work)
       IF (info /= 0) &

@@ -18,7 +18,7 @@ MODULE cp_fm_elpa
                       MACHINE_X86_AVX, &
                       MACHINE_X86_AVX2
    USE cp_blacs_env, ONLY: cp_blacs_env_type
-   USE cp_fm_basic_linalg, ONLY: cp_fm_upper_to_full
+   USE cp_fm_basic_linalg, ONLY: cp_fm_uplo_to_full
    USE cp_fm_diag_utils, ONLY: cp_fm_redistribute_start, &
                                cp_fm_redistribute_end, &
                                cp_fm_redistribute_info
@@ -363,7 +363,7 @@ CONTAINS
       mypcol = context%mepos(2)
 
       ! elpa needs the full matrix
-      CALL cp_fm_upper_to_full(matrix, eigenvectors)
+      CALL cp_fm_uplo_to_full(matrix, eigenvectors)
 
       CALL cp_fm_struct_get(matrix%matrix_struct, &
                             local_leading_dimension=n_rows, &
@@ -403,7 +403,7 @@ CONTAINS
          CALL cp_fm_create(matrix=matrix_noqr, matrix_struct=matrix%matrix_struct)
          CALL cp_fm_to_fm(matrix, matrix_noqr)
          CALL cp_fm_create(matrix=eigenvectors_noqr, matrix_struct=eigenvectors%matrix_struct)
-         CALL cp_fm_upper_to_full(matrix_noqr, eigenvectors_noqr)
+         CALL cp_fm_uplo_to_full(matrix_noqr, eigenvectors_noqr)
       END IF
 
       IF (io_unit > 0 .AND. elpa_should_print) THEN

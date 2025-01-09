@@ -1699,16 +1699,17 @@ CONTAINS
 
       CALL cp_fm_triangular_invert(matrix_a=fm_matrix_L, uplo_tr='U')
 
-      ! clean the lower part of the L^{-1} matrix (just to not have surprises afterwards)
+      ! clear the lower part of the L^{-1} matrix (just to have no surprises afterwards)
       CALL cp_fm_get_info(matrix=fm_matrix_L, &
                           nrow_local=nrow_local, &
                           ncol_local=ncol_local, &
                           row_indices=row_indices, &
                           col_indices=col_indices)
-      DO iiB = 1, nrow_local
-         i_global = row_indices(iiB)
-         DO jjB = 1, ncol_local
-            j_global = col_indices(jjB)
+      ! assume upper triangular format
+      DO jjB = 1, ncol_local
+         j_global = col_indices(jjB)
+         DO iiB = 1, nrow_local
+            i_global = row_indices(iiB)
             IF (j_global < i_global) fm_matrix_L%local_data(iiB, jjB) = 0.0_dp
          END DO
       END DO

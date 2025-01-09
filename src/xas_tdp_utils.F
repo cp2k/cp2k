@@ -37,7 +37,7 @@ MODULE xas_tdp_utils
    USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
                                               cp_fm_scale,&
                                               cp_fm_transpose,&
-                                              cp_fm_upper_to_full
+                                              cp_fm_uplo_to_full
    USE cp_fm_diag,                      ONLY: choose_eigv_solver,&
                                               cp_fm_geeig
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
@@ -1379,7 +1379,7 @@ CONTAINS
          CALL get_qs_env(qs_env, para_env=para_env, blacs_env=blacs_env)
          CALL dbcsr_copy(matrix_sinv, matrix_s(1)%matrix)
          CALL cp_dbcsr_cholesky_decompose(matrix_sinv, para_env=para_env, blacs_env=blacs_env)
-         CALL cp_dbcsr_cholesky_invert(matrix_sinv, para_env=para_env, blacs_env=blacs_env, upper_to_full=.TRUE.)
+         CALL cp_dbcsr_cholesky_invert(matrix_sinv, para_env=para_env, blacs_env=blacs_env, uplo_to_full=.TRUE.)
 
 !     Fill the matrices G^-1 by looping over the block of S^-1 and putting them on the diagonal
          CALL dbcsr_iterator_start(iter, matrix_sinv)
@@ -2547,7 +2547,7 @@ CONTAINS
                                  s_firstrow=1, s_firstcol=1, t_firstrow=1 + nsc + 1, t_firstcol=1 + nsc + 1)
 
          !Symmetry => only upper diag explicitly built
-         CALL cp_fm_upper_to_full(amew_op(i), work_fm)
+         CALL cp_fm_uplo_to_full(amew_op(i), work_fm)
 
       END DO !i
 
@@ -2750,7 +2750,7 @@ CONTAINS
                                  t_firstcol=1 + nsg + 2*ntp + 1)
 
          ! Symmetrize the matrix (only upper triangle built)
-         CALL cp_fm_upper_to_full(amew_op(i), work_fm)
+         CALL cp_fm_uplo_to_full(amew_op(i), work_fm)
 
       END DO !i
 

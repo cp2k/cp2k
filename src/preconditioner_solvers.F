@@ -26,7 +26,7 @@ MODULE preconditioner_solvers
         dbcsr_p_type, dbcsr_release, dbcsr_type, dbcsr_type_no_symmetry, dbcsr_type_real_8
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               copy_fm_to_dbcsr
-   USE cp_fm_basic_linalg,              ONLY: cp_fm_upper_to_full
+   USE cp_fm_basic_linalg,              ONLY: cp_fm_uplo_to_full
    USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose,&
                                               cp_fm_cholesky_invert
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
@@ -157,7 +157,7 @@ CONTAINS
       END IF
       CALL cp_fm_cholesky_invert(fm)
 
-      CALL cp_fm_upper_to_full(fm, fm_work)
+      CALL cp_fm_uplo_to_full(fm, fm_work)
       CALL cp_fm_release(fm_work)
 
       CALL timestop(handle)

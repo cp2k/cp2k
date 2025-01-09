@@ -16,7 +16,7 @@ MODULE rpa_grad
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_fm_basic_linalg,              ONLY: cp_fm_geadd,&
                                               cp_fm_scale_and_add,&
-                                              cp_fm_upper_to_full
+                                              cp_fm_uplo_to_full
    USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_invert
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_get,&
@@ -771,7 +771,7 @@ CONTAINS
          ! calculate [1+Q(iw')]^-1
          CALL cp_fm_cholesky_invert(fm_mat_Q(1))
          ! symmetrize the result, fm_work_PQ is only a work matrix
-         CALL cp_fm_upper_to_full(fm_mat_Q(1), fm_work_PQ)
+         CALL cp_fm_uplo_to_full(fm_mat_Q(1), fm_work_PQ)
 
          CALL cp_fm_release(fm_work_PQ)
 

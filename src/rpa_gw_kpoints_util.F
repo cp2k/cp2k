@@ -17,7 +17,7 @@ MODULE rpa_gw_kpoints_util
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_cfm_basic_linalg,             ONLY: cp_cfm_column_scale,&
                                               cp_cfm_scale_and_add_fm,&
-                                              cp_cfm_upper_to_full
+                                              cp_cfm_uplo_to_full
    USE cp_cfm_cholesky,                 ONLY: cp_cfm_cholesky_decompose,&
                                               cp_cfm_cholesky_invert
    USE cp_cfm_diag,                     ONLY: cp_cfm_geeig,&
@@ -1063,7 +1063,7 @@ CONTAINS
       CALL cp_cfm_cholesky_invert(cfm_mat_Q)
 
       ! symmetrize the result
-      CALL cp_cfm_upper_to_full(cfm_mat_Q)
+      CALL cp_cfm_uplo_to_full(cfm_mat_Q)
 
       ! subtract exchange part by subtracing identity matrix from epsilon
       CALL cp_cfm_get_info(matrix=cfm_mat_Q, &

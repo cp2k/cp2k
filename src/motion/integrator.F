@@ -2346,7 +2346,7 @@ CONTAINS
          !
 
          CALL diagonalise(matrix=npt(:, :)%v, mysize=3, &
-                          storageform="UPPER", eigenvalues=tmp%e_val, eigenvectors=tmp%u)
+                          uplo="U", eigenvalues=tmp%e_val, eigenvectors=tmp%u)
 
          tmp%arg_r(:) = 0.5_dp*tmp%e_val(:)*dt* &
                         0.5_dp*tmp%e_val(:)*dt

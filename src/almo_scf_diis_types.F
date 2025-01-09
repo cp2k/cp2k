@@ -388,18 +388,16 @@ CONTAINS
             ! Query the optimal workspace for dsyev
             LWORK = -1
             ALLOCATE (WORK(MAX(1, LWORK)))
-            CALL DSYEV('V', 'L', diis_env%buffer_length + 1, m_b_copy, &
+            CALL dsyev('V', 'L', diis_env%buffer_length + 1, m_b_copy, &
                        diis_env%buffer_length + 1, eigenvalues, WORK, LWORK, INFO)
             LWORK = INT(WORK(1))
             DEALLOCATE (WORK)
 
             ! Allocate the workspace and solve the eigenproblem
             ALLOCATE (WORK(MAX(1, LWORK)))
-            CALL DSYEV('V', 'L', diis_env%buffer_length + 1, m_b_copy, &
+            CALL dsyev('V', 'L', diis_env%buffer_length + 1, m_b_copy, &
                        diis_env%buffer_length + 1, eigenvalues, WORK, LWORK, INFO)
-            IF (INFO .NE. 0) THEN
-               CPABORT("DSYEV failed")
-            END IF
+            IF (INFO .NE. 0) CPABORT("DSYEV failed")
             DEALLOCATE (WORK)
 
             ! use the eigensystem to invert (implicitly) B matrix

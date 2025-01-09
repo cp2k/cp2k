@@ -301,7 +301,7 @@ CONTAINS
             CALL cp_dbcsr_cholesky_invert(u_pp, &
                                           para_env=cts_env%para_env, &
                                           blacs_env=cts_env%blacs_env, &
-                                          upper_to_full=.TRUE.)
+                                          uplo_to_full=.TRUE.)
             !CALL dbcsr_scale(u_pp,-1.0_dp)
 
             CALL dbcsr_create(u_qq, template=matrix_qq, &
@@ -315,7 +315,7 @@ CONTAINS
             CALL cp_dbcsr_cholesky_invert(u_qq, &
                                           para_env=cts_env%para_env, &
                                           blacs_env=cts_env%blacs_env, &
-                                          upper_to_full=.TRUE.)
+                                          uplo_to_full=.TRUE.)
 
             ! transform all riccati matrices (left-right preconditioner)
             CALL dbcsr_create(tmp1, template=matrix_qq, &
@@ -1532,16 +1532,14 @@ CONTAINS
             ! Query the optimal workspace for dsyev
             LWORK = -1
             ALLOCATE (WORK(MAX(1, LWORK)))
-            CALL DSYEV('V', 'L', iblock_size, data_copy, iblock_size, eigenvalues, WORK, LWORK, INFO)
+            CALL dsyev('V', 'L', iblock_size, data_copy, iblock_size, eigenvalues, WORK, LWORK, INFO)
             LWORK = INT(WORK(1))
             DEALLOCATE (WORK)
 
             ! Allocate the workspace and solve the eigenproblem
             ALLOCATE (WORK(MAX(1, LWORK)))
-            CALL DSYEV('V', 'L', iblock_size, data_copy, iblock_size, eigenvalues, WORK, LWORK, INFO)
-            IF (INFO .NE. 0) THEN
-               CPABORT("DSYEV failed")
-            END IF
+            CALL dsyev('V', 'L', iblock_size, data_copy, iblock_size, eigenvalues, WORK, LWORK, INFO)
+            IF (INFO .NE. 0) CPABORT("DSYEV failed")
 
             ! copy eigenvectors into a cp_dbcsr matrix
             NULLIFY (p_new_block)

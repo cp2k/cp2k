@@ -491,7 +491,7 @@ CONTAINS
 
       CALL dbcsr_copy(dbcsr_work, t_2c_int_tmp(1))
       CALL cp_dbcsr_cholesky_decompose(dbcsr_work, para_env=para_env, blacs_env=blacs_env)
-      CALL cp_dbcsr_cholesky_invert(dbcsr_work, para_env=para_env, blacs_env=blacs_env, upper_to_full=.TRUE.)
+      CALL cp_dbcsr_cholesky_invert(dbcsr_work, para_env=para_env, blacs_env=blacs_env, uplo_to_full=.TRUE.)
 
       CALL dbt_create(dbcsr_work, t_2c_tmp)
       CALL dbt_copy_matrix_to_tensor(dbcsr_work, t_2c_tmp)
@@ -558,7 +558,7 @@ CONTAINS
       CALL dbcsr_create(force_data%inv_ovlp, template=matrix_s(1)%matrix)
       CALL dbcsr_copy(force_data%inv_ovlp, matrix_s(1)%matrix)
       CALL cp_dbcsr_cholesky_decompose(force_data%inv_ovlp, para_env=para_env, blacs_env=blacs_env)
-      CALL cp_dbcsr_cholesky_invert(force_data%inv_ovlp, para_env=para_env, blacs_env=blacs_env, upper_to_full=.TRUE.)
+      CALL cp_dbcsr_cholesky_invert(force_data%inv_ovlp, para_env=para_env, blacs_env=blacs_env, uplo_to_full=.TRUE.)
 
       DO i_xyz = 1, 3
          CALL dbt_create(t_2c_der_tmp(1, i_xyz), t_2c_tmp)
@@ -1423,7 +1423,7 @@ CONTAINS
          CALL dbcsr_add_on_diag(dbcsr_work_symm, 1.0_dp)
 
          CALL cp_dbcsr_cholesky_decompose(dbcsr_work_symm, para_env=para_env, blacs_env=blacs_env)
-         CALL cp_dbcsr_cholesky_invert(dbcsr_work_symm, para_env=para_env, blacs_env=blacs_env, upper_to_full=.TRUE.)
+         CALL cp_dbcsr_cholesky_invert(dbcsr_work_symm, para_env=para_env, blacs_env=blacs_env, uplo_to_full=.TRUE.)
 
          CALL dbcsr_add_on_diag(dbcsr_work_symm, -1.0_dp)
 

@@ -24,7 +24,7 @@ MODULE cp_fm_diag
                                  cp_fm_syrk, &
                                  cp_fm_triangular_invert, &
                                  cp_fm_triangular_multiply, &
-                                 cp_fm_upper_to_full
+                                 cp_fm_uplo_to_full
    USE cp_fm_cholesky, ONLY: cp_fm_cholesky_decompose
    USE cp_fm_diag_utils, ONLY: cp_fm_redistribute_end, &
                                cp_fm_redistribute_start
@@ -432,7 +432,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cp_fm_syevd(matrix, eigenvectors, eigenvalues, info)
 
-      TYPE(cp_fm_type), INTENT(IN)  :: matrix, eigenvectors
+      TYPE(cp_fm_type), INTENT(IN)             :: matrix, eigenvectors
       REAL(KIND=dp), DIMENSION(:), INTENT(OUT) :: eigenvalues
       INTEGER, INTENT(OUT), OPTIONAL           :: info
 
@@ -1167,7 +1167,7 @@ CONTAINS
 
 #endif
       CALL cp_fm_syrk("U", "N", ncol_global, 1.0_dp, work, 1, 1, 0.0_dp, matrix)
-      CALL cp_fm_upper_to_full(matrix, work)
+      CALL cp_fm_uplo_to_full(matrix, work)
 
       ! Print some warnings/notes
       IF (matrix%matrix_struct%para_env%is_source() .AND. my_verbose) THEN

@@ -1297,18 +1297,10 @@ CONTAINS
       CALL timeset("fb_atomic_filter_dsygv", handle_dsygv)
 
       info = 0
-      CALL dsygv(1, &
-                 'V', &
-                 'U', &
-                 mat_dim, &
-                 eigenvectors, &
-                 mat_dim, &
-                 atomic_S_copy, &
-                 mat_dim, &
-                 eigenvalues, &
-                 work, &
-                 -1, &
-                 info)
+      CALL dsygv(1, 'V', 'U', &
+                 mat_dim, eigenvectors, mat_dim, &
+                 atomic_S_copy, mat_dim, eigenvalues, &
+                 work, -1, info)
       work_array_size = NINT(work(1))
       ! now allocate work array
       DEALLOCATE (work)
@@ -1318,18 +1310,10 @@ CONTAINS
       atomic_S_copy(:, :) = atomic_S(:, :)
       eigenvectors(:, :) = atomic_H(:, :)
       info = 0
-      CALL dsygv(1, &
-                 'V', &
-                 'U', &
-                 mat_dim, &
-                 eigenvectors, &
-                 mat_dim, &
-                 atomic_S_copy, &
-                 mat_dim, &
-                 eigenvalues, &
-                 work, &
-                 work_array_size, &
-                 info)
+      CALL dsygv(1, 'V', 'U', &
+                 mat_dim, eigenvectors, mat_dim, &
+                 atomic_S_copy, mat_dim, eigenvalues, &
+                 work, work_array_size, info)
       ! check if diagonalisation is successful
       IF (info .NE. 0) THEN
          WRITE (*, *) "DSYGV ERROR MESSAGE: ", info

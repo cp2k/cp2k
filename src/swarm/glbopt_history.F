@@ -135,10 +135,9 @@ CONTAINS
             matrix(j, i) = t
          END DO
       END DO
-      !TODO: call dsyv through cp2k wrappers
-      !TODO: do we need to store lower triangle of matrix?
       ALLOCATE (res(N))
-      CALL DSYEV('N', 'U', N, matrix, N, res, work, N**2, info)
+      ! matrix values are garbage on exit because of jobz='N'
+      CALL dsyev('N', 'U', N, matrix, N, res, work, N**2, info)
       IF (info /= 0) CPABORT("goedecker_fingerprint: DSYEV failed")
    END SUBROUTINE goedecker_fingerprint
 

@@ -1040,7 +1040,7 @@ CONTAINS
             IF (LOG(1._dp/rcond) > lri_env%cond_max) THEN
                CALL get_pseudo_inverse_svd(s, sinv, rskip)
             ELSE
-               CALL invmat_symm(sinv, "U")
+               CALL invmat_symm(sinv, potrf=.FALSE.)
             END IF
          ELSE
             CALL get_pseudo_inverse_svd(s, sinv, rskip)

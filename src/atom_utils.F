@@ -1442,11 +1442,11 @@ CONTAINS
 
       ! First Bessel transform
       work_inp(:nc) = density(:nc)*wr(:nc)
-      CALL DSYMV('U', nc, 1.0_dp, kernel, nc, work_inp, 1, 0.0_dp, work_out, 1)
+      CALL dsymv('U', nc, 1.0_dp, kernel, nc, work_inp, 1, 0.0_dp, work_out, 1)
 
       ! Second Bessel transform
       work_inp(:nc) = work_out(:nc)*EXP(-r(:nc)**2)/r(:nc)**2*wr(:nc)
-      CALL DSYMV('U', nc, 1.0_dp, kernel, nc, work_inp, 1, 0.0_dp, work_out, 1)
+      CALL dsymv('U', nc, 1.0_dp, kernel, nc, work_inp, 1, 0.0_dp, work_out, 1)
 
       cpot(:nc) = work_out(:nc)*(2.0_dp*REAL(nu, dp) + 1.0_dp)*4.0_dp/pi*omega
 

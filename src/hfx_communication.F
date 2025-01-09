@@ -103,7 +103,7 @@ CONTAINS
       CALL dbcsr_iterator_start(iter, rho, shared=.FALSE.)
       DO WHILE (dbcsr_iterator_blocks_left(iter))
          CALL dbcsr_iterator_next_block(iter, iatom, jatom, sparse_block, blk)
-         ! the resulting vector will eb only the upper triangle.
+         ! the resulting vector will be only the upper triangle.
          ! in case of antisymmetry take care to change signs if a lower block gets copied
          symmfac = 1.0_dp
          IF (antisymmetric .AND. iatom > jatom) symmfac = -1.0_dp

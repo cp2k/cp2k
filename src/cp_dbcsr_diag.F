@@ -67,7 +67,7 @@ CONTAINS
 
       ! Computes all eigenvalues and vectors of a real symmetric matrix
       ! should be quite a bit faster than syevx for that case
-      ! especially in parallel with thightly clustered evals
+      ! especially in parallel with tightly clustered evals
       ! needs more workspace in the worst case, but much better distributed
 
       TYPE(dbcsr_type)                                   :: matrix, eigenvectors

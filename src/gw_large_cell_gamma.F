@@ -16,7 +16,7 @@ MODULE gw_large_cell_gamma
                                               get_cell,&
                                               pbc
    USE constants_operator,              ONLY: operator_coulomb
-   USE cp_cfm_basic_linalg,             ONLY: cp_cfm_upper_to_full
+   USE cp_cfm_basic_linalg,             ONLY: cp_cfm_uplo_to_full
    USE cp_cfm_cholesky,                 ONLY: cp_cfm_cholesky_decompose,&
                                               cp_cfm_cholesky_invert
    USE cp_cfm_diag,                     ONLY: cp_cfm_geeig
@@ -894,7 +894,7 @@ CONTAINS
          ! successful Cholesky decomposition
          CALL cp_cfm_cholesky_invert(cfm_M_inv_ikp)
          ! symmetrize the result
-         CALL cp_cfm_upper_to_full(cfm_M_inv_ikp)
+         CALL cp_cfm_uplo_to_full(cfm_M_inv_ikp)
       ELSE
          ! Cholesky decomposition not successful: use expensive diagonalization
          CALL cp_cfm_power(cfm_work, threshold=bs_env%eps_eigval_mat_RI, exponent=-1.0_dp)
@@ -1434,7 +1434,7 @@ CONTAINS
 
       ! 2. b) Inversion of ε(iω_j,k) using its Cholesky decomposition
       CALL cp_cfm_cholesky_invert(cfm_eps_ikp_freq_j)
-      CALL cp_cfm_upper_to_full(cfm_eps_ikp_freq_j)
+      CALL cp_cfm_uplo_to_full(cfm_eps_ikp_freq_j)
 
       ! 2. c) ε^-1(iω_j,k)-Id
       CALL cfm_add_on_diag(cfm_eps_ikp_freq_j, -z_one)

@@ -882,12 +882,12 @@ CONTAINS
          work = 0.0_dp
          lwork = -1
          ! get lwork
-         CALL DSYTRD('U', nn, smat, nn, diag, off_diag, tau, work, lwork, info)
+         CALL dsytrd('U', nn, smat, nn, diag, off_diag, tau, work, lwork, info)
          lwork = INT(work(1))
          CALL reallocate(work, 1, lwork)
          ! get the eigenvalues
-         CALL DSYTRD('U', nn, smat, nn, diag, off_diag, tau, work, lwork, info)
-         CALL DSTERF(nn, diag, off_diag, info)
+         CALL dsytrd('U', nn, smat, nn, diag, off_diag, tau, work, lwork, info)
+         CALL dsterf(nn, diag, off_diag, info)
 
          lrii%cond_num = MAXVAL(ABS(diag))/MINVAL(ABS(diag))
 

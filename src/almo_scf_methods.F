@@ -53,7 +53,8 @@ MODULE almo_scf_methods
                                               invert_Taylor,&
                                               matrix_sqrt_Newton_Schulz
    USE kinds,                           ONLY: dp
-   USE mathlib,                         ONLY: binomial
+   USE mathlib,                         ONLY: binomial,&
+                                              invmat_symm
    USE message_passing,                 ONLY: mp_comm_type,&
                                               mp_para_env_type
    USE util,                            ONLY: sort
@@ -837,16 +838,14 @@ CONTAINS
                ! Query the optimal workspace for dsyev
                LWORK = -1
                ALLOCATE (WORK(MAX(1, LWORK)))
-               CALL DSYEV('V', 'L', iblock_size, data_copy, iblock_size, eigenvalues, WORK, LWORK, INFO)
+               CALL dsyev('V', 'L', iblock_size, data_copy, iblock_size, eigenvalues, WORK, LWORK, INFO)
                LWORK = INT(WORK(1))
                DEALLOCATE (WORK)
 
                ! Allocate the workspace and solve the eigenproblem
                ALLOCATE (WORK(MAX(1, LWORK)))
-               CALL DSYEV('V', 'L', iblock_size, data_copy, iblock_size, eigenvalues, WORK, LWORK, INFO)
-               IF (INFO .NE. 0) THEN
-                  CPABORT("DSYEV failed")
-               END IF
+               CALL dsyev('V', 'L', iblock_size, data_copy, iblock_size, eigenvalues, WORK, LWORK, INFO)
+               IF (INFO .NE. 0) CPABORT("DSYEV failed")
 
                ! Copy occupied eigenvectors
                IF (almo_scf_env%domain_t(idomain, ispin)%ncols .NE. &
@@ -988,16 +987,14 @@ CONTAINS
                ! Query the optimal workspace for dsyev
                LWORK = -1
                ALLOCATE (WORK(MAX(1, LWORK)))
-               CALL DSYEV('V', 'L', iblock_size, data_copy, iblock_size, eigenvalues, WORK, LWORK, INFO)
+               CALL dsyev('V', 'L', iblock_size, data_copy, iblock_size, eigenvalues, WORK, LWORK, INFO)
                LWORK = INT(WORK(1))
                DEALLOCATE (WORK)
 
                ! Allocate the workspace and solve the eigenproblem
                ALLOCATE (WORK(MAX(1, LWORK)))
-               CALL DSYEV('V', 'L', iblock_size, data_copy, iblock_size, eigenvalues, WORK, LWORK, INFO)
-               IF (INFO .NE. 0) THEN
-                  CPABORT("DSYEV failed")
-               END IF
+               CALL dsyev('V', 'L', iblock_size, data_copy, iblock_size, eigenvalues, WORK, LWORK, INFO)
+               IF (INFO .NE. 0) CPABORT("DSYEV failed")
 
                !!! RZK-warning                                               !!!
                !!! IT IS EXTREMELY IMPORTANT THAT THE DIAGONAL BLOCKS OF THE !!!
@@ -1232,14 +1229,14 @@ CONTAINS
                ! Query the optimal workspace for dsyev
                LWORK = -1
                ALLOCATE (WORK(MAX(1, LWORK)))
-               CALL DSYEV('V', 'L', iblock_size, data_copy, iblock_size, eigenvalues, &
+               CALL dsyev('V', 'L', iblock_size, data_copy, iblock_size, eigenvalues, &
                           WORK, LWORK, INFO)
                LWORK = INT(WORK(1))
                DEALLOCATE (WORK)
 
                ! Allocate the workspace and solve the eigenproblem
                ALLOCATE (WORK(MAX(1, LWORK)))
-               CALL DSYEV('V', 'L', iblock_size, data_copy, iblock_size, eigenvalues, WORK, LWORK, INFO)
+               CALL dsyev('V', 'L', iblock_size, data_copy, iblock_size, eigenvalues, WORK, LWORK, INFO)
                IF (INFO .NE. 0) THEN
                   IF (unit_nr > 0) THEN
                      WRITE (unit_nr, *) 'BLOCK  = ', iblock_row
@@ -1755,7 +1752,7 @@ CONTAINS
             CALL cp_dbcsr_cholesky_invert(sigma_inv, &
                                           para_env=para_env, &
                                           blacs_env=blacs_env, &
-                                          upper_to_full=.TRUE.)
+                                          uplo_to_full=.TRUE.)
             CALL dbcsr_filter(sigma_inv, eps_filter)
          CASE DEFAULT
             CPABORT("Illegal MO overalp inversion algorithm")
@@ -2701,12 +2698,12 @@ CONTAINS
          unit_nr = -1
       END IF
 
-      !CALL DPOTRF('L', N, Ainv, N, INFO )
+      !CALL dpotrf('L', N, Ainv, N, INFO )
       !IF( INFO.NE.0 ) THEN
       !   CPErrorMessage(cp_failure_level,routineP,"DPOTRF failed")
       !   CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
       !END IF
-      !CALL DPOTRI('L', N, Ainv, N, INFO )
+      !CALL dpotri('L', N, Ainv, N, INFO )
       !IF( INFO.NE.0 ) THEN
       !   CPErrorMessage(cp_failure_level,routineP,"DPOTRI failed")
       !   CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
@@ -2724,12 +2721,12 @@ CONTAINS
       ! Query the optimal workspace for dsyev
       LWORK = -1
       ALLOCATE (WORK(MAX(1, LWORK)))
-      CALL DSYEV('V', 'L', N, Asqrtinv, N, eigenvalues, WORK, LWORK, INFO)
+      CALL dsyev('V', 'L', N, Asqrtinv, N, eigenvalues, WORK, LWORK, INFO)
       LWORK = INT(WORK(1))
       DEALLOCATE (WORK)
       ! Allocate the workspace and solve the eigenproblem
       ALLOCATE (WORK(MAX(1, LWORK)))
-      CALL DSYEV('V', 'L', N, Asqrtinv, N, eigenvalues, WORK, LWORK, INFO)
+      CALL dsyev('V', 'L', N, Asqrtinv, N, eigenvalues, WORK, LWORK, INFO)
       IF (INFO .NE. 0) THEN
          IF (unit_nr > 0) WRITE (unit_nr, *) 'DSYEV ERROR MESSAGE: ', INFO
          CPABORT("DSYEV failed")
@@ -2808,7 +2805,7 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'pseudo_invert_matrix'
 
-      INTEGER                                            :: handle, ii, INFO, jj, LWORK, range1_eiv, &
+      INTEGER                                            :: handle, INFO, jj, LWORK, range1_eiv, &
                                                             range2_eiv, range3_eiv, unit_nr
       LOGICAL                                            :: use_both, use_ranges_only, use_thr_only
       REAL(KIND=dp)                                      :: my_shift
@@ -2868,23 +2865,7 @@ CONTAINS
 
       SELECT CASE (method)
       CASE (0) ! Inversion via cholesky factorization
-
-         CALL DPOTRF('L', N, Ainv, N, INFO)
-         IF (INFO .NE. 0) THEN
-            CPABORT("DPOTRF failed")
-         END IF
-         CALL DPOTRI('L', N, Ainv, N, INFO)
-         IF (INFO .NE. 0) THEN
-            CPABORT("DPOTRI failed")
-         END IF
-         ! complete the matrix
-         DO ii = 1, N
-            DO jj = ii + 1, N
-               Ainv(ii, jj) = Ainv(jj, ii)
-            END DO
-            !WRITE(*,'(100F13.9)') Ainv(ii,:)
-         END DO
-
+         CALL invmat_symm(Ainv)
       CASE (1)
 
          ! diagonalize first
@@ -2892,19 +2873,19 @@ CONTAINS
          ALLOCATE (temp1(N, N))
          ALLOCATE (temp4(N, N))
          IF (PRESENT(s_inv_half)) THEN
-            CALL DSYMM('L', 'U', N, N, 1.0_dp, s_inv_half, N, A, N, 0.0_dp, temp1, N)
-            CALL DSYMM('R', 'U', N, N, 1.0_dp, s_inv_half, N, temp1, N, 0.0_dp, Ainv, N)
+            CALL dsymm('L', 'U', N, N, 1.0_dp, s_inv_half, N, A, N, 0.0_dp, temp1, N)
+            CALL dsymm('R', 'U', N, N, 1.0_dp, s_inv_half, N, temp1, N, 0.0_dp, Ainv, N)
          END IF
          ! Query the optimal workspace for dsyev
          LWORK = -1
          ALLOCATE (WORK(MAX(1, LWORK)))
-         CALL DSYEV('V', 'L', N, Ainv, N, eigenvalues, WORK, LWORK, INFO)
+         CALL dsyev('V', 'L', N, Ainv, N, eigenvalues, WORK, LWORK, INFO)
 
          LWORK = INT(WORK(1))
          DEALLOCATE (WORK)
          ! Allocate the workspace and solve the eigenproblem
          ALLOCATE (WORK(MAX(1, LWORK)))
-         CALL DSYEV('V', 'L', N, Ainv, N, eigenvalues, WORK, LWORK, INFO)
+         CALL dsyev('V', 'L', N, Ainv, N, eigenvalues, WORK, LWORK, INFO)
 
          IF (INFO .NE. 0) THEN
             IF (unit_nr > 0) WRITE (unit_nr, *) 'EIGENSYSTEM ERROR MESSAGE: ', INFO
@@ -2973,20 +2954,20 @@ CONTAINS
          !WRITE(*,*) ' EIV RANGES: ', range1_eiv, range2_eiv, range3_eiv
          IF (PRESENT(bad_modes_projector_down)) THEN
             IF (PRESENT(s_half)) THEN
-               CALL DSYMM('L', 'U', N, N, 1.0_dp, s_half, N, temp2, N, 0.0_dp, Ainv, N)
-               CALL DSYMM('R', 'U', N, N, 1.0_dp, s_half, N, temp3, N, 0.0_dp, temp4, N)
-               CALL DGEMM('N', 'N', N, N, N, 1.0_dp, Ainv, N, temp4, N, 0.0_dp, bad_modes_projector_down, N)
+               CALL dsymm('L', 'U', N, N, 1.0_dp, s_half, N, temp2, N, 0.0_dp, Ainv, N)
+               CALL dsymm('R', 'U', N, N, 1.0_dp, s_half, N, temp3, N, 0.0_dp, temp4, N)
+               CALL dgemm('N', 'N', N, N, N, 1.0_dp, Ainv, N, temp4, N, 0.0_dp, bad_modes_projector_down, N)
             ELSE
-               CALL DGEMM('N', 'N', N, N, N, 1.0_dp, temp2, N, temp3, N, 0.0_dp, bad_modes_projector_down, N)
+               CALL dgemm('N', 'N', N, N, N, 1.0_dp, temp2, N, temp3, N, 0.0_dp, bad_modes_projector_down, N)
             END IF
          END IF
 
          IF (PRESENT(s_inv_half)) THEN
-            CALL DSYMM('L', 'U', N, N, 1.0_dp, s_inv_half, N, temp2, N, 0.0_dp, temp4, N)
-            CALL DSYMM('R', 'U', N, N, 1.0_dp, s_inv_half, N, temp1, N, 0.0_dp, temp2, N)
-            CALL DGEMM('N', 'N', N, N, N, 1.0_dp, temp4, N, temp2, N, 0.0_dp, Ainv, N)
+            CALL dsymm('L', 'U', N, N, 1.0_dp, s_inv_half, N, temp2, N, 0.0_dp, temp4, N)
+            CALL dsymm('R', 'U', N, N, 1.0_dp, s_inv_half, N, temp1, N, 0.0_dp, temp2, N)
+            CALL dgemm('N', 'N', N, N, N, 1.0_dp, temp4, N, temp2, N, 0.0_dp, Ainv, N)
          ELSE
-            CALL DGEMM('N', 'N', N, N, N, 1.0_dp, temp2, N, temp1, N, 0.0_dp, Ainv, N)
+            CALL dgemm('N', 'N', N, N, N, 1.0_dp, temp2, N, temp1, N, 0.0_dp, Ainv, N)
          END IF
          DEALLOCATE (temp1, temp2, temp4)
          IF (PRESENT(bad_modes_projector_down)) DEALLOCATE (temp3)
@@ -3030,7 +3011,6 @@ CONTAINS
 !>       2012.04 created [Rustam Z. Khaliullin]
 !> \author Rustam Z. Khaliullin
 ! **************************************************************************************************
-
    SUBROUTINE pseudo_matrix_power(A, Apow, power, N, range1, range1_thr, shift)
 
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: A
@@ -3091,14 +3071,13 @@ CONTAINS
       ! Query the optimal workspace for dsyev
       LWORK = -1
       ALLOCATE (WORK(MAX(1, LWORK)))
-      CALL DSYEV('V', 'L', N, Apow, N, eigenvalues, WORK, LWORK, INFO)
+      CALL dsyev('V', 'L', N, Apow, N, eigenvalues, WORK, LWORK, INFO)
 
       LWORK = INT(WORK(1))
       DEALLOCATE (WORK)
       ! Allocate the workspace and solve the eigenproblem
       ALLOCATE (WORK(MAX(1, LWORK)))
-
-      CALL DSYEV('V', 'L', N, Apow, N, eigenvalues, WORK, LWORK, INFO)
+      CALL dsyev('V', 'L', N, Apow, N, eigenvalues, WORK, LWORK, INFO)
 
       IF (INFO .NE. 0) THEN
          IF (unit_nr > 0) WRITE (unit_nr, *) 'EIGENSYSTEM ERROR MESSAGE: ', INFO

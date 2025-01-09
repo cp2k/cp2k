@@ -31,7 +31,7 @@ MODULE qs_scf_block_davidson
                                               cp_fm_symm,&
                                               cp_fm_transpose,&
                                               cp_fm_triangular_invert,&
-                                              cp_fm_upper_to_full
+                                              cp_fm_uplo_to_full
    USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose,&
                                               cp_fm_cholesky_restore
    USE cp_fm_diag,                      ONLY: choose_eigv_solver,&
@@ -242,7 +242,7 @@ CONTAINS
             CALL cp_fm_create(s_fm, fm_struct_tmp, name="matrix_tmp")
             !copy matrix_h in h_fm
             CALL copy_dbcsr_to_fm(matrix_h, h_fm)
-            CALL cp_fm_upper_to_full(h_fm, s_fm)
+            CALL cp_fm_uplo_to_full(h_fm, s_fm)
 
             !copy matrix_s in s_fm
 !        CALL cp_fm_set_all(s_fm,0.0_dp)

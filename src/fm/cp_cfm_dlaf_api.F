@@ -7,7 +7,7 @@
 
 MODULE cp_cfm_dlaf_api
 
-   USE cp_cfm_basic_linalg, ONLY: cp_cfm_upper_to_full
+   USE cp_cfm_basic_linalg, ONLY: cp_cfm_uplo_to_full
    USE cp_cfm_types, ONLY: cp_cfm_type
 #if defined(__DLAF)
    USE dlaf_fortran, ONLY: dlaf_pzheevd, &
@@ -167,7 +167,7 @@ CONTAINS
 #if defined(__DLAF)
       ! DLAF needs the lower triangular part
       ! Use eigenvectors matrix as workspace
-      CALL cp_cfm_upper_to_full(matrix, eigenvectors)
+      CALL cp_cfm_uplo_to_full(matrix, eigenvectors)
 
       n = matrix%matrix_struct%nrow_global
 
@@ -236,8 +236,8 @@ CONTAINS
 #if defined(__DLAF)
       ! DLAF needs the lower triangular part
       ! Use eigenvectors matrix as workspace
-      CALL cp_cfm_upper_to_full(amatrix, eigenvectors)
-      CALL cp_cfm_upper_to_full(bmatrix, eigenvectors)
+      CALL cp_cfm_uplo_to_full(amatrix, eigenvectors)
+      CALL cp_cfm_uplo_to_full(bmatrix, eigenvectors)
 
       n = amatrix%matrix_struct%nrow_global
 

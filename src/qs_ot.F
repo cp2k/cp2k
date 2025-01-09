@@ -1127,7 +1127,7 @@ CONTAINS
                                           para_env=qs_ot_env%para_env, blacs_env=qs_ot_env%blacs_env)
          CALL cp_dbcsr_cholesky_invert(qs_ot_env%matrix_os, &
                                        para_env=qs_ot_env%para_env, blacs_env=qs_ot_env%blacs_env, &
-                                       upper_to_full=.TRUE.)
+                                       uplo_to_full=.TRUE.)
          qs_ot_env%os_valid = .TRUE.
       END IF
       CALL dbcsr_multiply('T', 'N', rone, matrix_target, matrix_gx, &
