@@ -9,7 +9,7 @@
 #        Ensure the links in /opt/homebrew/bin to the gcc version
 #        and "brew unlink openmpi" (or mpich) if installed.
 #
-# Last update: 31.12.2024
+# Last update: 09.01.2025
 #
 # \
    if [[ "${0}" == "${BASH_SOURCE}" ]]; then \
@@ -31,11 +31,13 @@
       brew install gsed; \
       brew install gsl; \
       brew install hdf5; \
+      brew install libaec; \
       brew install libxc; \
       brew install ninja; \
       brew install openblas; \
       brew install pkg-config; \
       brew install wget; \
+      brew install zlib; \
    else \
       echo "ERROR: Homebrew installation not found"; \
       echo '  Run: /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"'; \
@@ -46,7 +48,7 @@
       --with-cmake=$(brew --prefix cmake) --with-elpa=no --with-fftw=$(brew --prefix fftw) --with-gcc=system \
       --with-gsl=$(brew --prefix gsl) --with-hdf5=$(brew --prefix hdf5) --with-libxc=$(brew --prefix libxc) \
       --with-ninja=$(brew --prefix ninja) --with-openblas=$(brew --prefix openblas) --with-${mpi_implementation} \
-      --with-pexsi=no --with-quip=no; \
+      --with-libsmeagol --with-pexsi=no --with-quip=no; \
    source ./install/setup; \
    cd ../..; \
    echo; \
@@ -73,6 +75,7 @@ USE_COSMA      := $(COSMA_VER)
 USE_DFTD4      := $(DFTD4_VER)
 USE_LIBGRPP    := $(LIBGRPP_VER)
 USE_LIBINT     := $(LIBINT_VER)
+USE_LIBSMEAGOL := $(LIBSMEAGOL_VER)
 USE_LIBVORI    := $(LIBVORI_VER)
 USE_LIBXSMM    := $(LIBXSMM_VER)
 USE_OPENBLAS   := $(OPENBLAS_VER)
@@ -82,6 +85,7 @@ USE_SIRIUS     := $(SIRIUS_VER)
 USE_SPFFT      := $(SPFFT_VER)
 USE_SPGLIB     := $(SPGLIB_VER)
 USE_SPLA       := $(SPLA_VER)
+USE_TREXIO     := $(TREXIO_VER)
 
 LMAX           := 5
 MAX_CONTR      := 4
@@ -95,7 +99,6 @@ CFLAGS         := -O2 -fopenmp -fopenmp-simd -ftree-vectorize -funroll-loops -g 
 
 DFLAGS         := -D__parallel
 DFLAGS         += -D__MPI_F08
-#DFLAGS         += -D__HAS_IEEE_EXCEPTIONS
 DFLAGS         += -D__MAX_CONTR=$(strip $(MAX_CONTR))
 DFLAGS         += -D__NO_STATM_ACCESS
 
@@ -231,12 +234,22 @@ ifneq ($(USE_SPLA),)
    LIBS           += $(SPLA_LIB)/libspla.a
 endif
 
+ifneq ($(USE_LIBSMEAGOL),)
+   USE_LIBSMEAGOL := $(strip $(USE_LIBSMEAGOL))
+   LIBSMEAGOL_LIB := $(INSTALL_PATH)/libsmeagol-$(USE_LIBSMEAGOL)/lib
+   LIBSMEAGOL_INC := $(INSTALL_PATH)/libsmeagol-$(USE_LIBSMEAGOL)/include
+   CFLAGS         += -I$(LIBSMEAGOL_INC)
+   DFLAGS         += -D__SMEAGOL
+   LIBS           += $(LIBSMEAGOL_LIB)/libsmeagol.a
+endif
+
 HDF5_HOME      := $(shell brew --prefix hdf5)
 CFLAGS         += -I$(HDF5_HOME)/include
 DFLAGS         += -D__HDF5
 LIBS           += $(HDF5_HOME)/lib/libhdf5_fortran.a
 LIBS           += $(HDF5_HOME)/lib/libhdf5_f90cstub.a
 LIBS           += $(HDF5_HOME)/lib/libhdf5.a
+LIBS           += $(shell brew --prefix zlib)/lib/libz.a
 LIBS           += $(shell brew --prefix libaec)/lib/libsz.a
 
 ifneq ($(USE_COSMA),)
@@ -276,6 +289,15 @@ else
    LIBS           += -framework Accelerate
 endif
 
+ifneq ($(USE_TREXIO),)
+   USE_TREXIO     := $(strip $(USE_TREXIO))
+   TREXIO_INC     := $(INSTALL_PATH)/trexio-$(USE_TREXIO)/include
+   TREXIO_LIB     := $(INSTALL_PATH)/trexio-$(USE_TREXIO)/lib
+   CFLAGS         += -I$(TREXIO_INC)
+   DFLAGS         += -D__TREXIO
+   LIBS           += $(TREXIO_LIB)/libtrexio.a
+endif
+
 CFLAGS         += $(DFLAGS)
 
 FCFLAGS        := $(CFLAGS) $(FCFLAGS_DEBUG) $(WFLAGS)
@@ -289,6 +311,6 @@ FCFLAGS        += -std=f2008
 LDFLAGS        += $(FCFLAGS)
 LDFLAGS        += -ld_classic
 
-LIBS           += -lz -ldl -lstdc++
+LIBS           += -ldl -lstdc++
 
 # End

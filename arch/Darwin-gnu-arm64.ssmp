@@ -8,7 +8,7 @@
 # Usage: Source this arch file and then run make as instructed.
 #        Ensure the links in /opt/homebrew/bin to the gcc version.
 #
-# Last update: 31.12.2024
+# Last update: 09.01.2025
 #
 # \
    if [[ "${0}" == "${BASH_SOURCE}" ]]; then \
@@ -26,10 +26,14 @@
       brew install fftw; \
       brew install gawk; \
       brew install gcc; \
+      brew install hdf5; \
+      brew install libaec; \
       brew install libxc; \
+      brew install ninja; \
       brew install openblas; \
       brew install pkg-config; \
       brew install wget; \
+      brew install zlib; \
    else \
       echo "ERROR: Homebrew installation not found"; \
       echo '  Run: /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"'; \
@@ -37,8 +41,9 @@
       return 1; \
    fi; \
    ./install_cp2k_toolchain.sh -j${maxtasks} --mpi-mode=no --no-arch-files --target-cpu=${target_cpu} \
-      --with-cmake=$(brew --prefix cmake) --with-fftw=$(brew --prefix fftw) --with-gcc=system \
-      --with-libxc=$(brew --prefix libxc) --with-ninja=no --with-openblas=$(brew --prefix openblas); \
+      --with-cmake=$(brew --prefix cmake) --with-dftd4 --with-fftw=$(brew --prefix fftw) --with-gcc=system \
+      --with-hdf5=$(brew --prefix hdf5) --with-libxc=$(brew --prefix libxc) --with-ninja=$(brew --prefix ninja) \
+      --with-openblas=$(brew --prefix openblas) --with-trexio
    source ./install/setup; \
    cd ../..; \
    echo; \
@@ -60,12 +65,15 @@ DO_CHECKS      := no
 TARGET_CPU     := native
 
 # Retrieve package versions
+GNU_VER        := $(shell gcc -dumpfullversion)
+USE_DFTD4      := $(DFTD4_VER)
 USE_LIBGRPP    := $(LIBGRPP_VER)
 USE_LIBINT     := $(LIBINT_VER)
 USE_LIBVORI    := $(LIBVORI_VER)
 USE_LIBXSMM    := $(LIBXSMM_VER)
 USE_OPENBLAS   := $(OPENBLAS_VER)
 USE_SPGLIB     := $(SPGLIB_VER)
+USE_TREXIO     := $(TREXIO_VER)
 
 LMAX           := 5
 MAX_CONTR      := 4
@@ -122,6 +130,18 @@ CFLAGS         += -I$(LIBXC_HOME)/include
 DFLAGS         += -D__LIBXC
 LIBS           += -Wl,-rpath,$(LIBXC_HOME)/lib -L$(LIBXC_HOME)/lib -lxcf03 -lxc
 
+ifneq ($(USE_DFTD4),)
+   USE_DFTD4      := $(strip $(USE_DFTD4))
+   DFTD4_INC      := $(INSTALL_PATH)/dftd4-$(USE_DFTD4)/include
+   DFTD4_LIB      := $(INSTALL_PATH)/dftd4-$(USE_DFTD4)/lib
+   CFLAGS         += -I$(DFTD4_INC)/dftd4/GNU-$(GNU_VER)
+   DFLAGS         += -D__DFTD4
+   LIBS           += $(DFTD4_LIB)/libdftd4.a
+   LIBS           += $(DFTD4_LIB)/libmstore.a
+   LIBS           += $(DFTD4_LIB)/libmulticharge.a
+   LIBS           += $(DFTD4_LIB)/libmctc-lib.a
+endif
+
 ifneq ($(USE_LIBGRPP),)
    USE_LIBGRPP    := $(strip $(USE_LIBGRPP))
    LIBGRPP_INC    := $(INSTALL_PATH)/libgrpp-main-$(USE_LIBGRPP)/include
@@ -161,11 +181,33 @@ ifneq ($(USE_LIBXSMM),)
    LIBS           += $(LIBXSMM_LIB)/libxsmm.a
 endif
 
+ifneq ($(USE_TREXIO),)
+   USE_TREXIO     := $(strip $(USE_TREXIO))
+   TREXIO_INC     := $(INSTALL_PATH)/trexio-$(USE_TREXIO)/include
+   TREXIO_LIB     := $(INSTALL_PATH)/trexio-$(USE_TREXIO)/lib
+   CFLAGS         += -I$(TREXIO_INC)
+   DFLAGS         += -D__TREXIO
+   ifeq ($(SHARED), yes)
+      LIBS           += -Wl,-rpath=$(TREXIO_LIB) -L$(TREXIO_LIB) -ltrexio
+   else
+      LIBS           += $(TREXIO_LIB)/libtrexio.a
+   endif
+endif
+
 FFTW_HOME      := $(shell brew --prefix fftw)
 CFLAGS         += -I$(FFTW_HOME)/include
 DFLAGS         += -D__FFTW3
 LIBS           += $(FFTW_HOME)/lib/libfftw3_omp.a
 LIBS           += $(FFTW_HOME)/lib/libfftw3.a
+
+HDF5_HOME      := $(shell brew --prefix hdf5)
+CFLAGS         += -I$(HDF5_HOME)/include
+DFLAGS         += -D__HDF5
+LIBS           += $(HDF5_HOME)/lib/libhdf5_fortran.a
+LIBS           += $(HDF5_HOME)/lib/libhdf5_f90cstub.a
+LIBS           += $(HDF5_HOME)/lib/libhdf5.a
+LIBS           += $(shell brew --prefix zlib)/lib/libz.a
+LIBS           += $(shell brew --prefix libaec)/lib/libsz.a
 
 ifneq ($(USE_OPENBLAS),)
    OPENBLAS_HOME  := $(shell brew --prefix openblas)
@@ -176,6 +218,15 @@ else
    # because of failing tests
    DFLAGS         += -D__ACCELERATE
    LIBS           += -framework Accelerate
+endif
+
+ifneq ($(USE_TREXIO),)
+   USE_TREXIO     := $(strip $(USE_TREXIO))
+   TREXIO_INC     := $(INSTALL_PATH)/trexio-$(USE_TREXIO)/include
+   TREXIO_LIB     := $(INSTALL_PATH)/trexio-$(USE_TREXIO)/lib
+   CFLAGS         += -I$(TREXIO_INC)
+   DFLAGS         += -D__TREXIO
+   LIBS           += $(TREXIO_LIB)/libtrexio.a
 endif
 
 CFLAGS         += $(DFLAGS)
